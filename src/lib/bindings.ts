@@ -1435,6 +1435,13 @@ export const commands = {
 	skillsSave: (projectId: number, scope: SkillScope, dirName: string, content: string, create: boolean) => typedError<SkillEntry, string>(__TAURI_INVOKE("skills_save", { projectId, scope, dirName, content, create })),
 	/**  스킬 폴더를 통째로 삭제한다 (보조 파일 포함, 복구 불가). */
 	skillsDelete: (projectId: number, scope: SkillScope, dirName: string) => typedError<null, string>(__TAURI_INVOKE("skills_delete", { projectId, scope, dirName })),
+	/**
+	 *  context-budget-truth D — 「0회」의 이유를 가르는 신호.
+	 * 
+	 *  판정하지 않는다. 선행조건 파일 부재 · 억제 문장 · 파일 나이만 모아 주고,
+	 *  네 상태로 가르는 것은 프런트의 순수 함수다 (화면 없이 테스트되게).
+	 */
+	skillsDormancySignals: (projectId: number) => typedError<SkillDormancySignal[], string>(__TAURI_INVOKE("skills_dormancy_signals", { projectId })),
 	/**  스킬 활성/비활성 토글 — `<skills>/` ↔ `<skills>/.disabled/` 이동. */
 	skillsSetEnabled: (projectId: number, scope: SkillScope, dirName: string, enabled: boolean) => typedError<SkillEntry, string>(__TAURI_INVOKE("skills_set_enabled", { projectId, scope, dirName, enabled })),
 	/**
@@ -1442,6 +1449,13 @@ export const commands = {
 	 *  복사본은 항상 활성 위치에 놓인다.
 	 */
 	skillsCopy: (projectId: number, fromScope: SkillScope, toScope: SkillScope, dirName: string) => typedError<SkillEntry, string>(__TAURI_INVOKE("skills_copy", { projectId, fromScope, toScope, dirName })),
+	/**
+	 *  에이전트·커맨드 표면 — 매 세션 시스템 프롬프트에 실리는 name+description.
+	 * 
+	 *  예산 화면이 이걸 빼고 세는 바람에 2026-09-03 실측에서 약 30KB 가 누락돼
+	 *  있었다 (`oculpm::agent_surface` 모듈 주석). 파일 걷기가 있어 blocking 이다.
+	 */
+	agentSurfaceList: (projectId: number) => typedError<AgentSurfaceOverview, string>(__TAURI_INVOKE("agent_surface_list", { projectId })),
 	/**  CLAUDE.md 슬롯 + 프로젝트/전역 규칙을 한 번에 나열한다. */
 	rulesList: (projectId: number) => typedError<RulesOverview, string>(__TAURI_INVOKE("rules_list", { projectId })),
 	/**  단일 규칙/CLAUDE.md 파일 원문을 읽는다. */
@@ -1472,7 +1486,7 @@ export const commands = {
 	 *  맞춰 보고 매칭 0개인 것을 지목한다. **결정적**(LLM 0)이고 아무것도 쓰지
 	 *  않는다 — 처방은 `rules_save_with_backup` 승인 경로 전담.
 	 */
-	rulesScopeAudit: (projectId: number) => typedError<RuleScopeFinding[], string>(__TAURI_INVOKE("rules_scope_audit", { projectId })),
+	rulesScopeAudit: (projectId: number) => typedError<RuleScopeAudit, string>(__TAURI_INVOKE("rules_scope_audit", { projectId })),
 	/**
 	 *  AD-6 — 원본을 `<파일>.bak` 으로 남긴 뒤 저장한다 (기존 파일 전용).
 	 * 
@@ -1481,6 +1495,14 @@ export const commands = {
 	 *  `setRulePaths` 로 **행 단위 치환**한 내용을 넘기는 것으로 지킨다.
 	 */
 	rulesSaveWithBackup: (projectId: number, scope: RuleScope, relPath: string, content: string) => typedError<RuleBackupOutcome, string>(__TAURI_INVOKE("rules_save_with_backup", { projectId, scope, relPath, content })),
+	/**
+	 *  context-budget-truth C — 실려 놓고 부정되는 규칙.
+	 * 
+	 *  항상 로드되는 규칙의 파일명이 CLAUDE.md 계열에서 언급되고 같은 섹션에
+	 *  부정 표지가 있으면 후보로 올린다. 휴리스틱이므로 근거 발췌를 함께 낸다 —
+	 *  판정은 사람이 하고, 이 커맨드는 아무것도 쓰지 않는다.
+	 */
+	rulesNegationAudit: (projectId: number) => typedError<NegationFinding[], string>(__TAURI_INVOKE("rules_negation_audit", { projectId })),
 	/**
 	 *  기간 내 반복 실패 클러스터(규칙 후보)를 결정적으로 뽑는다 — LLM 없음.
 	 *  이미 규칙이 덮는 영역·승격된 후보(promoted-from 마커)는 제외된다.
@@ -2187,6 +2209,17 @@ export type AgentRef = {
 	id: string,
 	/**  The model the agent ran on, e.g. `"Opus 4.8"` / `"Gemini 3 Pro"`. */
 	version: string | null,
+};
+
+/**  `agent_surface_list` 응답. */
+export type AgentSurfaceOverview = {
+	agents: SurfaceEntry[],
+	commands: SurfaceEntry[],
+	/**  빈 상태 안내용 절대 경로. */
+	project_agents_dir: string,
+	global_agents_dir: string,
+	/**  플러그인 제공 표면은 세지 않았다 — 화면 각주의 근거. */
+	excludes_plugins: boolean,
 };
 
 export type AgentSyncReport = {
@@ -4332,6 +4365,19 @@ export type MobileDevice = {
 	last_seen_at: string | null,
 };
 
+/**  부정 후보 하나. */
+export type NegationFinding = {
+	/**  부정당하는 규칙 (스코프 루트 상대). */
+	scope: RuleScope,
+	rel_path: string,
+	/**  그 규칙 본문 바이트 — 걷어내면 되찾는 양. */
+	bytes: number,
+	/**  부정이 적힌 파일 (`CLAUDE.md`, `~/.claude/CLAUDE.md` …). */
+	cited_in: string,
+	/**  근거 발췌 — 사람이 판정할 수 있게 그대로 보여 준다. */
+	excerpt: string,
+};
+
 /**
  *  ⌘T 가 눌렸다 — **무엇을 새로 열지 프런트가 고른다** (2026-09-01).
  * 
@@ -4951,6 +4997,19 @@ export type RuleScope =
 /**  홈 디렉터리 기준 (`~/.claude/CLAUDE.md`, `~/.claude/rules/…`). */
 "global";
 
+/**
+ *  감사 한 번의 결과.
+ * 
+ *  `total_files` 는 판정이 아니라 **분모**다. glob 이 문 파일 수만으로는
+ *  "많다" 를 말할 수 없다 — 1,800개가 큰지 작은지는 저장소 크기에 달렸다.
+ *  이게 있어야 화면이 "조건부라면서 사실상 전부" 를 근거 있게 말한다.
+ */
+export type RuleScopeAudit = {
+	findings: RuleScopeFinding[],
+	/**  걷기 상한(`MAX_WALK_FILES`)까지 센 프로젝트 파일 수. */
+	total_files: number,
+};
+
 /**  규칙 하나의 감사 결과. */
 export type RuleScopeFinding = {
 	scope: RuleScope,
@@ -5102,6 +5161,29 @@ export type SkillDetail = {
 	skill_md_path: string,
 };
 
+/**  스킬 하나의 「왜 0회인가」 신호. */
+export type SkillDormancySignal = {
+	scope: SkillScope,
+	dir_name: string,
+	/**
+	 *  description 이 가리키는데 이 프로젝트에 **없는** 파일들.
+	 *  비어 있지 않으면 발동할 대상 자체가 없다는 뜻이다.
+	 */
+	missing_files: string[],
+	/**  이 스킬을 억제하는 문서 (`CLAUDE.md`, `~/.claude/CLAUDE.md`). */
+	suppressed_in: string | null,
+	/**  억제 근거 발췌 — 휴리스틱이라 사람이 판정할 수 있어야 한다. */
+	suppressed_excerpt: string | null,
+	/**
+	 *  SKILL.md 를 마지막으로 고친 뒤 지난 **날수**. 못 읽으면 `None`.
+	 * 
+	 *  절대 시각이 아니라 나이인 이유: 분류기가 묻는 것은 "계측 창보다 새로
+	 *  만든 파일인가" 하나뿐이다. 나이면 그 질문에 바로 답하고, 시각을
+	 *  주고받으면 양쪽이 각자 시계를 읽어야 한다.
+	 */
+	age_days: number | null,
+};
+
 /**
  *  LLM 이 만든 스킬 초안. `content` 가 저장용 SKILL.md 전문 — 프런트는
  *  슬러그만 바꿔서 `skills_save(scope=project, <slug>, content, create=true)`
@@ -5169,6 +5251,24 @@ export type SkillsOverview = {
 };
 
 export type SummaryStyle = "standup" | "pr_description" | "weekly_status";
+
+/**  에이전트 또는 커맨드 파일 하나. */
+export type SurfaceEntry = {
+	scope: RuleScope,
+	kind: SurfaceKind,
+	/**  스코프 루트 상대 경로 (`.claude/agents/code-reviewer.md`). */
+	rel_path: string,
+	/**  frontmatter `name`, 없으면 파일 스템. */
+	name: string,
+	/**  frontmatter `description` (없으면 빈 문자열). */
+	description: string,
+	/**  **매 세션 비용** — name + description 의 UTF-8 바이트. */
+	bytes: number,
+	/**  디스크 전체 바이트 — 발동해야 읽히는 몫. 예산에 넣지 않고 참고로만 낸다. */
+	body_bytes: number,
+};
+
+export type SurfaceKind = "agent" | "command";
 
 export type SymbolCall = {
 	/**  Caller symbol in this file (None = file top-level). */

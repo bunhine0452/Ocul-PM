@@ -22,7 +22,11 @@ import { FileCode, Puzzle, RefreshCw } from "@/components/Icons";
 import type {
   RuleEntry,
   RuleScope,
+  AgentSurfaceOverview,
+  NegationFinding,
+  SkillDormancySignal,
   RuleScopeFinding,
+
   RulesOverview,
   SkillScope,
   SkillsOverview,
@@ -50,6 +54,9 @@ import {
   cleanupProposals,
   computeBudget,
   indexFindings,
+  dormantSkills,
+  indexDormancySignals,
+  indexNegations,
   irrelevantBytesPerSession,
   kb,
   scopeProposals,
@@ -86,6 +93,9 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
 
   const [skills, setSkills] = useState<SkillsOverview | null>(null);
   const [rules, setRules] = useState<RulesOverview | null>(null);
+  // context-budget-truth A — 에이전트·커맨드 표면. 보조 신호라 실패해도 화면은
+  // 그대로 돈다 (원장·감사와 같은 규율): 그 조각이 0으로 그려질 뿐이다.
+  const [surface, setSurface] = useState<AgentSurfaceOverview | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -96,6 +106,12 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
   // AD-5/AD-6 — 자기정리 루프의 재료. 둘 다 **보조 신호**라, 실패해도 화면은
   // 그대로 동작한다 (원장과 같은 규율): 제안이 안 뜰 뿐이다.
   const [findings, setFindings] = useState<RuleScopeFinding[]>([]);
+  /** 감사가 센 프로젝트 파일 수 — glob 배지의 분모. */
+  const [totalFiles, setTotalFiles] = useState(0);
+  /** context-budget-truth C — 실려 놓고 부정되는 규칙. */
+  const [negations, setNegations] = useState<NegationFinding[]>([]);
+  /** context-budget-truth D — 「0회」의 이유 신호. */
+  const [dormancy, setDormancy] = useState<SkillDormancySignal[]>([]);
   const [auditing, setAuditing] = useState(false);
   const [stackTags, setStackTags] = useState<string[]>([]);
 
@@ -110,16 +126,24 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
 
   const loadRules = useCallback(async () => setRules(await rulesApi.list(projectId)), [projectId]);
 
+  const loadSurface = useCallback(async () => {
+    try {
+      setSurface(await rulesApi.agentSurface(projectId));
+    } catch {
+      setSurface(null);
+    }
+  }, [projectId]);
+
   const loadAll = useCallback(async () => {
     setLoadError(null);
     try {
-      await Promise.all([loadSkills(), loadRules()]);
+      await Promise.all([loadSkills(), loadRules(), loadSurface()]);
       setStatus("ready");
     } catch (err) {
       setLoadError(tError(toAppError(err)));
       setStatus("error");
     }
-  }, [loadSkills, loadRules]);
+  }, [loadSkills, loadRules, loadSurface]);
 
   useEffect(() => {
     setStatus("loading");
@@ -131,20 +155,45 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
     setAuditing(true);
     try {
       const next = await rulesApi.scopeAudit(projectId);
-      // 배열이 아닌 응답(커맨드 부재·형태 변화)은 "감사 결과 없음" 으로 접는다 —
+      // 형태가 어긋난 응답(커맨드 부재·구버전)은 "감사 결과 없음" 으로 접는다 —
       // 보조 신호가 화면 전체를 죽이면 안 된다.
-      setFindings(Array.isArray(next) ? next : []);
+      setFindings(Array.isArray(next?.findings) ? next.findings : []);
+      setTotalFiles(typeof next?.total_files === "number" ? next.total_files : 0);
     } catch {
       setFindings([]);
+      setTotalFiles(0);
     } finally {
       setAuditing(false);
+    }
+  }, [projectId]);
+
+  const runNegationAudit = useCallback(async () => {
+    try {
+      const next = await rulesApi.negationAudit(projectId);
+      setNegations(Array.isArray(next) ? next : []);
+    } catch {
+      setNegations([]);
+    }
+  }, [projectId]);
+
+  const runDormancyScan = useCallback(async () => {
+    try {
+      const next = await skillsApi.dormancySignals(projectId);
+      setDormancy(Array.isArray(next) ? next : []);
+    } catch {
+      setDormancy([]);
     }
   }, [projectId]);
 
   useEffect(() => {
     let alive = true;
     setFindings([]);
+    setTotalFiles(0);
+    setNegations([]);
+    setDormancy([]);
     setStackTags([]);
+    void runNegationAudit();
+    void runDormancyScan();
     void stackApi
       .detect(projectId)
       .catch(() => [] as string[])
@@ -155,7 +204,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
     return () => {
       alive = false;
     };
-  }, [projectId, runAudit]);
+  }, [projectId, runAudit, runNegationAudit, runDormancyScan]);
 
   // 규칙 파일이 디스크에서 바뀌면(에이전트가 `.claude/rules/*.md` 를 고침) 다시 읽는다.
   useOculpmDataEvents("rules", projectId, true, () => void loadRules().catch(() => {}));
@@ -191,18 +240,28 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
   // ── 파생 ────────────────────────────────────────────────────────────────
 
   const items = useMemo(
-    () => buildContextItems(skills, rules, firing.index),
-    [skills, rules, firing.index],
+    () => buildContextItems(skills, rules, firing.index, surface),
+    [skills, rules, firing.index, surface],
   );
   const scope = useMemo(
     () => scopeProposals(items, stackTags, firing.overview?.sessions ?? 0, firing.measured),
     [items, stackTags, firing.overview, firing.measured],
   );
   const cleanup = useMemo(
-    () => cleanupProposals(items, indexFindings(findings), firing.measured),
-    [items, findings, firing.measured],
+    () =>
+      cleanupProposals(items, indexFindings(findings), firing.measured, indexNegations(negations)),
+    [items, findings, firing.measured, negations],
   );
-  const trigger = useMemo(() => triggerProposals(items, firing.measured), [items, firing.measured]);
+  const dormancyIndex = useMemo(() => indexDormancySignals(dormancy), [dormancy]);
+  /** 0회 스킬 전체 — 이유별로 갈린다. 제안은 `genuine` 만 받는다. */
+  const dormant = useMemo(
+    () => dormantSkills(items, dormancyIndex, firing.measured, firing.days),
+    [items, dormancyIndex, firing.measured, firing.days],
+  );
+  const trigger = useMemo(
+    () => triggerProposals(items, firing.measured, dormancyIndex, firing.days),
+    [items, firing.measured, dormancyIndex, firing.days],
+  );
   const budget = useMemo(
     () =>
       computeBudget(
@@ -368,6 +427,8 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
               items={items}
               measured={firing.measured}
               days={firing.days}
+              findings={findings}
+              totalFiles={totalFiles}
               missingMemory={missingMemory}
               onCreateMemory={(e) => void createMemory(e)}
               onOpen={setDetail}
@@ -385,6 +446,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
                 scope={scope}
                 cleanup={cleanup}
                 trigger={trigger}
+                dormant={dormant}
                 days={firing.days}
                 onChanged={() => {
                   void loadAll();

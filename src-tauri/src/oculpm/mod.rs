@@ -8,6 +8,7 @@
 //! all specified in `00-spec.md` and must not be changed without bumping the
 //! `schema_version`.
 
+pub mod agent_surface;
 pub mod agents;
 pub mod atomic_io;
 pub mod automation;
@@ -36,12 +37,14 @@ pub mod readme;
 pub mod reconcile;
 pub mod redact;
 pub mod retro_file;
+pub mod rule_negation;
 pub mod rule_promotion;
 pub mod rule_scope;
 pub mod rules;
 pub mod session;
 pub mod session_id;
 pub mod shell_integration;
+pub mod skill_dormancy;
 pub mod skill_promotion;
 pub mod skill_trigger;
 pub mod spec;

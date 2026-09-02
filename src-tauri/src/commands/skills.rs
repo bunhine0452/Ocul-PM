@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use crate::db::Db;
+use crate::oculpm::skill_dormancy::{self, SkillDormancySignal};
 use crate::oculpm::skill_trigger::{self, SkillTriggerDraft};
 
 /// 프로젝트/홈 루트 기준 스킬 폴더 위치. Claude Code 규약 고정.
@@ -581,6 +582,43 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
         }
     }
     Ok(())
+}
+
+/// context-budget-truth D — 「0회」의 이유를 가르는 신호.
+///
+/// 판정하지 않는다. 선행조건 파일 부재 · 억제 문장 · 파일 나이만 모아 주고,
+/// 네 상태로 가르는 것은 프런트의 순수 함수다 (화면 없이 테스트되게).
+#[tauri::command]
+#[specta::specta]
+pub async fn skills_dormancy_signals(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Vec<SkillDormancySignal>, String> {
+    let root = project_root(&db, project_id).await?;
+    let (project_dir, global_dir) = scope_dirs(&db, project_id).await?;
+    let home = home_dir()?;
+
+    let skill_md = |base: &Path, e: &SkillEntry| -> String {
+        let dir = if e.enabled {
+            base.join(&e.dir_name)
+        } else {
+            base.join(DISABLED_DIRNAME).join(&e.dir_name)
+        };
+        dir.join(SKILL_FILENAME).display().to_string()
+    };
+    let mut seeds: Vec<(SkillScope, String, String, String)> = Vec::new();
+    for e in list_scope(SkillScope::Project, &project_dir) {
+        let path = skill_md(&project_dir, &e);
+        seeds.push((e.scope, e.dir_name, e.description, path));
+    }
+    for e in list_scope(SkillScope::Global, &global_dir) {
+        let path = skill_md(&global_dir, &e);
+        seeds.push((e.scope, e.dir_name, e.description, path));
+    }
+
+    tauri::async_runtime::spawn_blocking(move || skill_dormancy::collect(&root, &home, &seeds))
+        .await
+        .map_err(|e| format!("The dormancy scan did not finish: {e}"))
 }
 
 #[cfg(test)]

@@ -158,6 +158,8 @@ use crate::commands::{
     acp_stop,
     acp_usage,
     activate_tab,
+    // context-budget-truth A — 에이전트·커맨드 표면 (예산 누락분)
+    agent_surface_list,
     app_info,
     apply_menu_language,
     attach_pty_session,
@@ -433,9 +435,10 @@ use crate::commands::{
     rules_delete,
     // PR-CI3 — 규칙 허브 (CLAUDE.md·.claude/rules CRUD + Cursor 미러 번역)
     rules_list,
+    // AD-6 — 규칙 다이어트 (결정적 범위 감사 + 승인형 백업 저장)
+    rules_negation_audit,
     rules_read,
     rules_save,
-    // AD-6 — 규칙 다이어트 (결정적 범위 감사 + 승인형 백업 저장)
     rules_save_with_backup,
     rules_scope_audit,
     rules_sync_translations,
@@ -466,6 +469,7 @@ use crate::commands::{
     skill_draft_generate,
     skills_copy,
     skills_delete,
+    skills_dormancy_signals,
     // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills) CRUD·토글·복사
     skills_list,
     skills_read,
@@ -800,8 +804,12 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             skills_read,
             skills_save,
             skills_delete,
+            // context-budget-truth D — 「0회」의 이유 신호
+            skills_dormancy_signals,
             skills_set_enabled,
             skills_copy,
+            // context-budget-truth A — 에이전트·커맨드 표면
+            agent_surface_list,
             // PR-CI3 — 규칙 허브
             rules_list,
             rules_read,
@@ -811,6 +819,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // AD-6 — 규칙 다이어트
             rules_scope_audit,
             rules_save_with_backup,
+            // context-budget-truth C — 실려 놓고 부정되는 규칙
+            rules_negation_audit,
             // PR-CI4 — 실패→규칙 승격
             rule_candidates,
             rule_draft_generate,

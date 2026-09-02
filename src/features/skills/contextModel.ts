@@ -10,18 +10,41 @@
 // 순수 함수라 테스트가 화면 없이 계약을 고정한다 (firingModel 과 같은 규율).
 
 import type {
+  AgentSurfaceOverview,
   FiringStat,
+  NegationFinding,
   RuleEntry,
   RuleScopeFinding,
   RulesOverview,
   SkillEntry,
+  SkillDormancySignal,
   SkillsOverview,
+  SurfaceEntry,
 } from "@/lib/bindings";
 import { ruleAbsPath, skillFiring, type FiringIndex } from "./firingModel";
 
-/** 목록의 종류 — 필터 값이자 배지 라벨의 판별자. */
-export type ContextKind = "skill" | "rule" | "memory";
+/**
+ * 목록의 종류 — 필터 값이자 배지 라벨의 판별자.
+ *
+ * `agent`/`command` 는 2026-09-03 에 뒤늦게 들어왔다. 하네스가 이 둘의
+ * **이름+설명을 매 세션 시스템 프롬프트에 목록으로 실어 보내는데**, 여기 종류가
+ * 없어 예산이 약 30KB 를 통째로 놓치고 있었다 (실측 119KB 보고 → 실제 149KB).
+ */
+export type ContextKind = "skill" | "rule" | "memory" | "agent" | "command";
 export type ContextScope = "project" | "global";
+
+/**
+ * 종류 → i18n 키. **여기 하나뿐이다** — 종전에는 목록과 편집기가 각자 표를
+ * 들고 있어서 `agent`/`command` 를 추가할 때 한쪽을 빠뜨렸다. `satisfies` 가
+ * 종류를 다 덮지 않으면 컴파일이 깨지므로 같은 실수가 반복되지 않는다.
+ */
+export const KIND_LABEL_KEY = {
+  skill: "ctx.kind.skill",
+  rule: "ctx.kind.rule",
+  memory: "ctx.kind.memory",
+  agent: "ctx.kind.agent",
+  command: "ctx.kind.command",
+} as const satisfies Record<ContextKind, string>;
 
 /** 통합 목록의 한 줄. 원본(`skill`/`rule`)은 편집기로 그대로 넘긴다. */
 export interface ContextItem {
@@ -67,6 +90,7 @@ export function utf8Bytes(text: string): number {
 }
 
 const skillId = (e: SkillEntry) => `skill:${e.scope}:${e.dir_name}`;
+const surfaceId = (e: SurfaceEntry) => `${e.kind}:${e.scope}:${e.rel_path}`;
 const ruleId = (e: RuleEntry) => `${e.kind === "claude_md" ? "memory" : "rule"}:${e.scope}:${e.rel_path}`;
 
 /** 규칙 항목의 표시 경로 — 전역은 스코프를 드러낸다. */
@@ -90,6 +114,32 @@ function skillItem(e: SkillEntry, index: FiringIndex): ContextItem {
     bytes: e.enabled ? utf8Bytes(e.name) + utf8Bytes(e.description) : 0,
     measurable: true,
     firing: skillFiring(index, e),
+  };
+}
+
+/**
+ * 에이전트·커맨드 한 줄.
+ *
+ * 세는 것은 스킬과 같은 규율 — **본문이 아니라 광고 비용**(name+description).
+ * 본문은 그 에이전트를 띄우거나 커맨드를 불러야 읽힌다.
+ *
+ * `measurable: false` 인 이유: 발동 원장은 transcript 의 규칙 주입을 세는
+ * 물건이라 에이전트·커맨드 호출을 보지 못한다. 물을 수 없는 것에 "0회" 를
+ * 붙이면 거짓이 되므로 배지를 달지 않는다 (항상-로드 규칙과 같은 처리).
+ */
+function surfaceItem(e: SurfaceEntry): ContextItem {
+  return {
+    id: surfaceId(e),
+    kind: e.kind,
+    scope: e.scope,
+    name: e.name,
+    sub: e.description,
+    path: e.scope === "global" ? `~/${e.rel_path}` : e.rel_path,
+    alwaysOn: false,
+    disabled: false,
+    pathCount: 0,
+    bytes: e.bytes,
+    measurable: false,
   };
 }
 
@@ -120,10 +170,14 @@ export function buildContextItems(
   skills: SkillsOverview | null,
   rules: RulesOverview | null,
   index: FiringIndex,
+  surface: AgentSurfaceOverview | null = null,
 ): ContextItem[] {
   const items: ContextItem[] = [];
   if (skills) {
     for (const e of [...skills.project, ...skills.global]) items.push(skillItem(e, index));
+  }
+  if (surface) {
+    for (const e of [...surface.agents, ...surface.commands]) items.push(surfaceItem(e));
   }
   if (rules) {
     for (const e of [
@@ -205,7 +259,7 @@ export function filterItems(
 
 /** 예산 바의 한 조각. */
 export interface BudgetSegment {
-  id: "always" | "conditional" | "irrelevant" | "skills";
+  id: "always" | "conditional" | "irrelevant" | "skills" | "surface";
   bytes: number;
 }
 
@@ -228,6 +282,9 @@ export interface ContextBudget {
  *   수 있는 양이 숫자로 보여야 줄일 마음이 든다.
  * - **스킬 안내** — 활성 스킬의 이름+description. 스킬 본문은 발동해야 읽히므로
  *   세지 않는다.
+ * - **에이전트·커맨드** — 같은 규율의 광고 비용. 항상 로드와 조각을 나누는 이유는
+ *   **되찾는 방법이 다르기** 때문이다: 규칙은 `paths` 를 좁혀 줄이고, 표면은
+ *   파일을 지워야 준다. 한 조각에 섞으면 처방이 흐려진다.
  */
 export function computeBudget(
   items: ContextItem[],
@@ -241,6 +298,9 @@ export function computeBudget(
   const skills = items
     .filter((i) => i.kind === "skill" && !i.disabled)
     .reduce((sum, i) => sum + i.bytes, 0);
+  const surface = items
+    .filter((i) => (i.kind === "agent" || i.kind === "command") && !i.disabled)
+    .reduce((sum, i) => sum + i.bytes, 0);
   const conditional = Math.max(0, bytesPerSession);
   // 무관 조각은 조건부 **안에서** 떼어낸다 — 합이 두 번 세어지면 예산이 거짓이 된다.
   const irrelevant = Math.min(conditional, Math.max(0, irrelevantBytes));
@@ -249,17 +309,25 @@ export function computeBudget(
     { id: "conditional", bytes: conditional - irrelevant },
     { id: "irrelevant", bytes: irrelevant },
     { id: "skills", bytes: skills },
+    { id: "surface", bytes: surface },
   ];
   return {
     segments,
-    totalBytes: always + conditional + skills,
+    totalBytes: always + conditional + skills + surface,
     measured,
   };
 }
 
 /** 예산 바의 눈금 — 재설계 목표치(마스터플랜 §5). */
 export const BUDGET_TARGET_BYTES = 30 * 1024;
-/** 2026-08-29 이 저장소 실측 기준선 — 목표 대비 "지금 어디" 를 말해 준다. */
+/**
+ * 2026-08-29 이 저장소 실측 기준선 — 목표 대비 "지금 어디" 를 말해 준다.
+ *
+ * 이 90KB 는 **표면(에이전트·커맨드)을 빼고** 잰 값이다. 2026-09-03 에 그
+ * 조각이 들어오면서 같은 설치본의 실측은 약 149KB 였다. 그래도 기준선을
+ * 올리지 않는다 — 올리면 아무것도 안 줄였는데 진척이 는 것처럼 보인다.
+ * 막대가 넘치는 건 `scale` 의 `Math.max` 가 받아 준다.
+ */
 export const BUDGET_BASELINE_BYTES = 90 * 1024;
 
 /** KB 반올림 (0 은 0 으로 — "0KB" 가 "측정 안 됨" 처럼 읽히지 않게 호출부가 가른다). */
@@ -335,12 +403,72 @@ export interface ScopeProposal {
   suggestedGlobs: string[];
 }
 
-/** 정리 제안 — 절대 안 걸리거나(glob 매칭 0) 30일 발동 0회인 규칙. */
+/**
+ * 정리 제안 — 절대 안 걸리거나(glob 매칭 0), 30일 발동 0회이거나,
+ * **실려 놓고 부정되는** 규칙.
+ */
 export interface CleanupProposal {
   item: ContextItem;
-  reason: "never-matches" | "dormant";
+  reason: "never-matches" | "dormant" | "negated";
   /** `never-matches` 의 근거 — 매칭 0개인 glob. */
   deadGlobs: string[];
+  /** `negated` 의 근거 — 어느 문서의 어떤 문장이 이 규칙을 부정하는가. */
+  negation?: { citedIn: string; excerpt: string };
+}
+
+/** 부정 감사 결과를 규칙 항목 id 로 잇는 색인. */
+export function indexNegations(findings: NegationFinding[]): Map<string, NegationFinding> {
+  const map = new Map<string, NegationFinding>();
+  for (const f of findings) map.set(`rule:${f.scope}:${f.rel_path}`, f);
+  return map;
+}
+
+/**
+ * 조건부 규칙이 이 비율 이상의 파일을 물면 **사실상 상시 로드**다.
+ *
+ * 2026-08-29 이 저장소 사례: react-native 규칙 8개가 모든 .ts·.tsx 를 무는 glob 으로
+ * 걸려 있었다. TypeScript 규칙과 글자 그대로 같은 glob 이라, 프런트 파일 한 줄만
+ * 고쳐도 Expo 규율 32KB 가 통째로 딸려왔다. "paths 2" 라는 배지는 그걸 전혀
+ * 드러내지 못했다 — 문 파일 수를 보여 줘야 보인다.
+ */
+export const DE_FACTO_ALWAYS_RATIO = 0.3;
+
+/** 규칙 하나의 glob 실측 — 목록 배지가 읽는 요약. */
+export interface GlobReach {
+  /**
+   * 이 규칙이 무는 파일 수 — glob 별 매칭의 **최댓값**.
+   *
+   * 합집합을 정확히 세려면 파일 목록을 다시 합쳐야 하는데, 겹치는 glob
+   * (모든 .ts 와 src 아래 .ts 처럼)을 더하면 실제보다 부풀어 거짓 경보가 난다.
+   * 최댓값은 합집합의 **하한**이라 절대 과장하지 않는다 — 이 배지가 "많다" 고
+   * 말할 때는 최소한 그만큼은 확실하다.
+   */
+  files: number;
+  /** 해석 못 한 glob 이 있다 — 판정 불가를 드러낸다. */
+  unparsed: boolean;
+  /** 모든 glob 이 0개를 문다. */
+  dead: boolean;
+  /** 프로젝트 파일의 `DE_FACTO_ALWAYS_RATIO` 이상을 문다. */
+  deFactoAlways: boolean;
+}
+
+/**
+ * 감사 결과 하나를 배지가 쓰는 요약으로 접는다. `totalFiles` 가 0이면(감사 전·
+ * 빈 저장소) 비율 판정을 하지 않는다 — 0으로 나눈 결론은 근거가 아니다.
+ */
+export function globReach(
+  finding: RuleScopeFinding | undefined,
+  totalFiles: number,
+): GlobReach | null {
+  if (!finding || finding.globs.length === 0) return null;
+  const files = finding.globs.reduce((max, g) => Math.max(max, g.files), 0);
+  const unparsed = finding.globs.some((g) => g.unparsed);
+  return {
+    files,
+    unparsed,
+    dead: finding.live_globs.length === 0 && !unparsed,
+    deFactoAlways: totalFiles > 0 && files / totalFiles >= DE_FACTO_ALWAYS_RATIO,
+  };
 }
 
 /** 감사 결과를 규칙 항목 id 로 잇는 색인. */
@@ -402,10 +530,23 @@ export function cleanupProposals(
   items: ContextItem[],
   findings: Map<string, RuleScopeFinding>,
   measured: boolean,
+  negations: Map<string, NegationFinding> = new Map(),
 ): CleanupProposal[] {
   const out: CleanupProposal[] = [];
   for (const item of items) {
-    if (item.kind !== "rule" || item.pathCount === 0) continue;
+    if (item.kind !== "rule") continue;
+    // 부정은 **항상 로드**(paths 없음) 규칙의 진단이라 pathCount 가드보다 먼저 본다.
+    const negated = negations.get(item.id);
+    if (negated) {
+      out.push({
+        item,
+        reason: "negated",
+        deadGlobs: [],
+        negation: { citedIn: negated.cited_in, excerpt: negated.excerpt },
+      });
+      continue;
+    }
+    if (item.pathCount === 0) continue;
     const finding = findings.get(item.id);
     const dead = finding?.dead_globs ?? [];
     if (finding && dead.length > 0 && finding.live_globs.length === 0) {
@@ -420,10 +561,97 @@ export function cleanupProposals(
 }
 
 /**
- * 트리거 교정 후보 — 활성 스킬인데 30일 발동 0회. 계측 전에는 아무것도
- * 제안하지 않는다 (0회를 주장할 근거가 없다).
+ * 「0회」의 네 가지 이유.
+ *
+ * 종전에는 0회 스킬을 전부 "설명이 발동 기준입니다" 라며 트리거 교정 후보로
+ * 밀었다. 2026-09-03 이 저장소의 0회 스킬 5개를 실제로 뜯어 보니 **설명
+ * 문제는 하나뿐**이었고, 나머지에 설명을 고쳐 쓰면 안 맞는 상황에 끼어드는
+ * 스킬이 된다 — 제안이 상황을 나쁘게 만든다.
+ *
+ * - `precondition-missing` — 설명이 가리키는 파일이 없다 (run-evals ← EVALS.md).
+ *   처방은 설명 고치기가 아니라 **그 파일을 만드는 것**이다.
+ * - `suppressed` — CLAUDE.md 가 "요청할 때만" 이라고 억제해 뒀다. 의도된 침묵이다.
+ * - `too-new` — 계측 창보다 새 파일이라 0회를 주장할 근거가 없다.
+ * - `genuine` — 위 셋 다 아니다. **여기에만** 트리거 교정을 낸다.
  */
-export function triggerProposals(items: ContextItem[], measured: boolean): ContextItem[] {
+export type DormantReason = "precondition-missing" | "suppressed" | "too-new" | "genuine";
+
+export interface DormantSkill {
+  item: ContextItem;
+  reason: DormantReason;
+  /** `precondition-missing` 의 근거 — 설명이 가리키는데 없는 파일들. */
+  missingFiles: string[];
+  /** `suppressed` 의 근거 — 어느 문서의 어떤 문장이 억제하는가. */
+  suppression?: { citedIn: string; excerpt: string };
+}
+
+/** 신호를 스킬 항목 id 로 잇는 색인. */
+export function indexDormancySignals(
+  signals: SkillDormancySignal[],
+): Map<string, SkillDormancySignal> {
+  const map = new Map<string, SkillDormancySignal>();
+  for (const s of signals) map.set(`skill:${s.scope}:${s.dir_name}`, s);
+  return map;
+}
+
+/**
+ * 0회 스킬 하나를 분류한다. 순서가 곧 우선순위다 — 선행조건이 없으면 억제
+ * 여부를 따질 필요가 없고, 억제돼 있으면 나이를 따질 필요가 없다.
+ *
+ * `windowDays` 는 계측 창(원장이 보는 일수). 파일이 그보다 새로우면 0회는
+ * "안 걸린다" 가 아니라 "아직 모른다" 다.
+ */
+export function classifyDormantSkill(
+  item: ContextItem,
+  signal: SkillDormancySignal | undefined,
+  windowDays: number,
+): DormantSkill {
+  const missingFiles = signal?.missing_files ?? [];
+  if (missingFiles.length > 0) {
+    return { item, reason: "precondition-missing", missingFiles };
+  }
+  if (signal?.suppressed_in) {
+    return {
+      item,
+      reason: "suppressed",
+      missingFiles: [],
+      suppression: { citedIn: signal.suppressed_in, excerpt: signal.suppressed_excerpt ?? "" },
+    };
+  }
+  // age_days 가 null 이면 파일을 못 읽은 것 — "새 파일" 로 봐 주지 않는다.
+  if (signal?.age_days != null && signal.age_days < windowDays) {
+    return { item, reason: "too-new", missingFiles: [] };
+  }
+  return { item, reason: "genuine", missingFiles: [] };
+}
+
+/**
+ * 휴면 스킬 전체를 이유별로 분류한다. 계측 전에는 빈 배열 — 0회를 주장할
+ * 근거가 없다는 종전 규율 그대로다.
+ */
+export function dormantSkills(
+  items: ContextItem[],
+  signals: Map<string, SkillDormancySignal>,
+  measured: boolean,
+  windowDays: number,
+): DormantSkill[] {
   if (!measured) return [];
-  return items.filter((i) => i.kind === "skill" && !i.disabled && injectionsOf(i) === 0);
+  return items
+    .filter((i) => i.kind === "skill" && !i.disabled && injectionsOf(i) === 0)
+    .map((i) => classifyDormantSkill(i, signals.get(i.id), windowDays));
+}
+
+/**
+ * 트리거 교정 후보 — 이제 `genuine` 만이다. 나머지 셋은 목록에 배지로 남되
+ * "설명 고쳐 쓰기" 를 권하지 않는다.
+ */
+export function triggerProposals(
+  items: ContextItem[],
+  measured: boolean,
+  signals: Map<string, SkillDormancySignal> = new Map(),
+  windowDays = 0,
+): ContextItem[] {
+  return dormantSkills(items, signals, measured, windowDays)
+    .filter((d) => d.reason === "genuine")
+    .map((d) => d.item);
 }

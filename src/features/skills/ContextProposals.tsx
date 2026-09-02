@@ -23,14 +23,30 @@ import { t, useT } from "@/i18n";
 import { resolveLlmTarget } from "@/lib/llmTarget";
 import { useConfirm } from "@/hooks/useConfirm";
 import { setRulePaths } from "./rulesModel";
-import { kb, type CleanupProposal, type ContextItem, type ScopeProposal } from "./contextModel";
+import {
+  kb,
+  type CleanupProposal,
+  type ContextItem,
+  type DormantSkill,
+  type ScopeProposal,
+} from "./contextModel";
 import type { SkillScope, SkillTriggerDraft } from "@/lib/bindings";
+
+/** 0회 이유 → i18n 키. `genuine` 은 이 절에 오지 않는다 (위 카드가 맡는다). */
+const DORMANT_KEY = {
+  "precondition-missing": "ctx.prop.preconditionBadge",
+  suppressed: "ctx.prop.suppressedBadge",
+  "too-new": "ctx.prop.tooNewBadge",
+  genuine: "ctx.prop.triggerTitle",
+} as const;
 
 interface ContextProposalsProps {
   projectId: number;
   scope: ScopeProposal[];
   cleanup: CleanupProposal[];
   trigger: ContextItem[];
+  /** 0회 스킬 전체(이유별). `genuine` 이 아닌 것은 카드 대신 사실만 적는다. */
+  dormant: DormantSkill[];
   days: number;
   /** 파일이 바뀌었다 — 목록·감사를 다시 읽는다. */
   onChanged: () => void;
@@ -41,6 +57,7 @@ export function ContextProposals({
   scope,
   cleanup,
   trigger,
+  dormant,
   days,
   onChanged,
 }: ContextProposalsProps) {
@@ -59,6 +76,11 @@ export function ContextProposals({
   const cleanupShown = useMemo(
     () => visible(cleanup, (p) => `cleanup:${p.item.id}`),
     [cleanup, dismissed],
+  );
+  // 설명 고쳐쓰기가 답이 아닌 0회들 — 이유를 밝히기만 한다.
+  const explained = useMemo(
+    () => dormant.filter((d) => d.reason !== "genuine"),
+    [dormant],
   );
   const triggerShown = useMemo(
     () => visible(trigger, (i) => `trigger:${i.id}`),
@@ -259,13 +281,22 @@ export function ContextProposals({
                   <span className="ctx-prop-why">
                     {p.reason === "never-matches"
                       ? t("ctx.prop.neverMatches")
-                      : t("ctx.prop.dormantWhy", { d: days })}
+                      : p.reason === "negated"
+                        ? t("ctx.prop.negatedWhy", { kb: kb(p.item.bytes) })
+                        : t("ctx.prop.dormantWhy", { d: days })}
                   </span>
                   {p.deadGlobs.length > 0 ? (
                     <span className="ctx-prop-globs">
                       {p.deadGlobs.map((g) => (
                         <code key={g}>{g}</code>
                       ))}
+                    </span>
+                  ) : null}
+                  {/* 부정은 휴리스틱이다 — 근거 문장을 그대로 보여 주고 사람이
+                      판정하게 한다. 발췌 없이 "부정됨" 만 말하면 믿을 수 없다. */}
+                  {p.negation ? (
+                    <span className="ctx-prop-quote" title={p.negation.citedIn}>
+                      <code>{p.negation.citedIn}</code> “{p.negation.excerpt}”
                     </span>
                   ) : null}
                 </div>
@@ -326,6 +357,44 @@ export function ContextProposals({
                     {t("sk.disable")}
                   </button>
                   <DismissButton name={item.name} onClick={() => hide(`trigger:${item.id}`)} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {/* 「0회」 는 결함이 아니다 — 네 가지 상태다. 설명을 고쳐 쓰면 오히려
+          나빠지는 셋(선행조건 부재·억제됨·너무 새것)은 카드가 아니라 사실로
+          적는다. 제안은 위 카드의 `genuine` 만 받는다. */}
+      {explained.length > 0 ? (
+        <div className="ctx-card" id="ctx-dormant-explained">
+          <div className="ctx-card-head">
+            <PenLine size={14} />
+            <h4>{t("ctx.prop.explainedTitle")}</h4>
+            <span className="ctx-zone-sub">{t("ctx.prop.explainedSub")}</span>
+          </div>
+          <ul className="ctx-prop-list">
+            {explained.map((d) => (
+              <li key={d.item.id}>
+                <div className="ctx-prop-meta">
+                  <span className="ctx-prop-name">{d.item.name}</span>
+                  {d.item.scope === "global" ? (
+                    <span className="sk-chip">{t("rules.scope.global")}</span>
+                  ) : null}
+                  <span className="sk-chip dormant">{t(DORMANT_KEY[d.reason])}</span>
+                  <span className="ctx-prop-why">
+                    {d.reason === "precondition-missing"
+                      ? t("ctx.prop.preconditionWhy", { files: d.missingFiles.join(", ") })
+                      : d.reason === "suppressed"
+                        ? t("ctx.prop.suppressedWhy")
+                        : t("ctx.prop.tooNewWhy", { d: days })}
+                  </span>
+                  {d.suppression ? (
+                    <span className="ctx-prop-quote" title={d.suppression.citedIn}>
+                      <code>{d.suppression.citedIn}</code> “{d.suppression.excerpt}”
+                    </span>
+                  ) : null}
                 </div>
               </li>
             ))}

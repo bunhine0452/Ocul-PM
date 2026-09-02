@@ -32,6 +32,13 @@
   background: transparent;
   border-style: dashed;
 }
+/* "사실상 상시" — 조건부라 부르지만 사실상 전부를 무는 규칙. 무관(빨강)만큼
+   확정은 아니고, 그냥 조건부보다는 눈에 띄어야 하는 중간 판정이다. */
+.sk-chip.warn {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border-color: transparent;
+}
 
 /* ── 우측 상세 ─────────────────────────────────────────────── */
 .sk-head {
@@ -546,7 +553,9 @@
 .ctx-seg {
   height: 100%;
 }
-/* 색이 곧 판정이다 — 확정 비용(파랑) · 조건부(노랑) · **무관**(빨강) · 스킬(강조). */
+/* 색이 곧 판정이다 — 확정 비용(파랑) · 조건부(노랑) · **무관**(빨강) · 스킬(강조)
+   · 에이전트·커맨드(중립). 표면을 중립 회색으로 두는 건 판정이 아니라 사실이기
+   때문이다: 줄이려면 파일을 지워야 하고, 규칙처럼 좁혀서 되찾을 수 없다. */
 .ctx-seg.always {
   background: var(--info);
 }
@@ -564,6 +573,9 @@
 }
 .ctx-seg.skills {
   background: var(--accent);
+}
+.ctx-seg.surface {
+  background: var(--text-3);
 }
 /* 목표 눈금 — 막대 위에 얹는 1px 선. 넘치면 바깥으로 나가지 않게 clip 된다. */
 .ctx-budget-tick {
@@ -606,6 +618,9 @@
 }
 .ctx-dot.skills {
   background: var(--accent);
+}
+.ctx-dot.surface {
+  background: var(--text-3);
 }
 .ctx-legend-val {
   font-weight: 600;
@@ -753,6 +768,34 @@
 .ctx-kind.memory {
   color: var(--warn-text);
   background: var(--warn-soft);
+}
+/* 에이전트·커맨드는 여기서 편집하지 않는다 — 중립 배지로 "읽고만 있다" 를 말한다. */
+.ctx-kind.agent,
+.ctx-kind.command {
+  color: var(--text-2);
+  background: var(--bg-inset);
+}
+
+/* 열 수 없는 행 — 규칙 허브의 편집 범위 밖 파일이라 커서도 호버도 주지 않는다. */
+/* 부정 근거 발췌 — 판정이 아니라 인용이므로 조용히 그린다. */
+.ctx-prop-quote {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--fs-3);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ctx-prop-quote code {
+  color: var(--text-2);
+}
+
+.ctx-row-static {
+  cursor: default;
+}
+.ctx-row-static:hover {
+  background: none;
 }
 
 .ctx-empty {

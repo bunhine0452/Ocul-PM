@@ -22,7 +22,7 @@ import { FiringBadge } from "./FiringBadge";
 import type { FiringLedger } from "./useFiringLedger";
 import { splitFrontmatter } from "./skillsModel";
 import { parseRulePaths, setRulePaths } from "./rulesModel";
-import type { ContextItem } from "./contextModel";
+import { KIND_LABEL_KEY, type ContextItem } from "./contextModel";
 
 interface ContextEditorProps {
   projectId: number;
@@ -209,7 +209,7 @@ export function ContextEditor({
           <div className="sk-head-name">
             {item.name}
             <span className="sk-chip">{scopeLabel(item.scope)}</span>
-            <span className="sk-chip">{t(KIND_KEY[item.kind])}</span>
+            <span className="sk-chip">{t(KIND_LABEL_KEY[item.kind])}</span>
             {skillEntry && !skillEntry.enabled ? <span className="sk-chip off">{t("sk.inactive")}</span> : null}
             {item.alwaysOn ? (
               <span className="sk-chip" title={t("firing.alwaysTitle")}>
@@ -372,12 +372,6 @@ export function ContextEditor({
     </section>
   );
 }
-
-const KIND_KEY = {
-  skill: "ctx.kind.skill",
-  rule: "ctx.kind.rule",
-  memory: "ctx.kind.memory",
-} as const;
 
 /** 원문 편집기 — 규칙이면 paths 칩 편집기를 얹는다 (draft 가 SSOT). */
 function Editor({

@@ -11,9 +11,11 @@
 import { commands } from "@/lib/bindings";
 import { call, type Envelope } from "@/api/invoke";
 import type {
+  AgentSurfaceOverview,
   MirrorWriteResult,
+  NegationFinding,
   RuleBackupOutcome,
-  RuleScopeFinding,
+  RuleScopeAudit,
   SkillTriggerDraft,
   RuleCandidate,
   RuleDetail,
@@ -23,6 +25,7 @@ import type {
   RulesOverview,
   SkillCandidate,
   SkillDetail,
+  SkillDormancySignal,
   SkillEntry,
   SkillScope,
   SkillsOverview,
@@ -60,6 +63,16 @@ export const skillsApi = {
       "skills_trigger_rewrite",
       commands.skillsTriggerRewrite(projectId, scope, dirName, provider, model),
     ),
+
+  /**
+   * context-budget-truth D — 「0회」의 이유 신호. 판정하지 않고 신호만 준다
+   * (선행조건 파일 부재 · 억제 문장 · 파일 나이).
+   */
+  dormancySignals: (projectId: number) =>
+    unwrap<SkillDormancySignal[]>(
+      "skills_dormancy_signals",
+      commands.skillsDormancySignals(projectId),
+    ),
 };
 
 export const rulesApi = {
@@ -79,7 +92,22 @@ export const rulesApi = {
 
   /** AD-6 범위 감사 — 결정적, 아무것도 쓰지 않는다. */
   scopeAudit: (projectId: number) =>
-    unwrap<RuleScopeFinding[]>("rules_scope_audit", commands.rulesScopeAudit(projectId)),
+    unwrap<RuleScopeAudit>("rules_scope_audit", commands.rulesScopeAudit(projectId)),
+
+  /**
+   * context-budget-truth A — 에이전트·커맨드 표면. 매 세션 시스템 프롬프트에
+   * 실리는 name+description 을 센다 (플러그인 제공분은 제외 — 파일 단위로 손댈
+   * 수 없다).
+   */
+  agentSurface: (projectId: number) =>
+    unwrap<AgentSurfaceOverview>("agent_surface_list", commands.agentSurfaceList(projectId)),
+
+  /**
+   * context-budget-truth C — 실려 놓고 부정되는 규칙. 휴리스틱이라 근거
+   * 발췌가 함께 오고, 아무것도 쓰지 않는다.
+   */
+  negationAudit: (projectId: number) =>
+    unwrap<NegationFinding[]>("rules_negation_audit", commands.rulesNegationAudit(projectId)),
 
   /** AD-6 승인형 저장 — 원본을 `.bak` 으로 남기고 덮어쓴다 (기존 파일 전용). */
   saveWithBackup: (projectId: number, scope: RuleScope, relPath: string, content: string) =>

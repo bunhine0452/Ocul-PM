@@ -263,7 +263,7 @@ pub fn parse_rule_meta(content: &str) -> (Vec<String>, String) {
 /// 여닫는 구분자는 **정확히 `---` 한 줄**이어야 한다 — 종전의 접두/부분 문자열
 /// 매칭은 `----` 수평선이나 `--- 제목` 을 frontmatter 로 오인해 미러 본문을
 /// 유실시켰다 (#a0-review-fixes ④). 닫는 줄을 못 찾으면 전체를 본문으로 취급.
-fn split_frontmatter(content: &str) -> (Option<&str>, &str) {
+pub(crate) fn split_frontmatter(content: &str) -> (Option<&str>, &str) {
     let first_line_end = content.find('\n').map(|i| i + 1).unwrap_or(content.len());
     let first_line = content[..first_line_end].trim_end_matches(['\n', '\r']);
     if first_line != "---" {

@@ -20,7 +20,12 @@ import { SkillCandidatesPanel } from "@/features/retro/SkillCandidates";
 import { CATALOG_SKILLS } from "./skillsCatalog";
 import { GALLERY_SKILLS } from "./skillsGallery";
 import { ContextProposals } from "./ContextProposals";
-import type { CleanupProposal, ContextItem, ScopeProposal } from "./contextModel";
+import type {
+  CleanupProposal,
+  ContextItem,
+  DormantSkill,
+  ScopeProposal,
+} from "./contextModel";
 
 /** 스택 매칭 카탈로그에서 먼저 보여 주는 개수 — 쇼핑이 아니라 제안이 되게. */
 const CATALOG_LIMIT = 3;
@@ -47,6 +52,8 @@ interface ContextInboxProps {
   scope: ScopeProposal[];
   cleanup: CleanupProposal[];
   trigger: ContextItem[];
+  /** 0회 스킬 전체(이유별) — 패널이 상태 배지를 그린다. */
+  dormant: DormantSkill[];
   days: number;
   /** 설치·저장으로 목록이 바뀌었다. */
   onChanged: () => void;
@@ -66,6 +73,7 @@ export function ContextInbox({
   scope,
   cleanup,
   trigger,
+  dormant,
   days,
   onChanged,
   onCreateSkill,
@@ -126,6 +134,7 @@ export function ContextInbox({
         scope={scope}
         cleanup={cleanup}
         trigger={trigger}
+        dormant={dormant}
         days={days}
         onChanged={onChanged}
       />

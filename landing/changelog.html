@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.35.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 85개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.36.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 86개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.35.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 85개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.36.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 86개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.35.0</span>
+    <span class="nav-ver" data-version>v2.36.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>85개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>86개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-36-0">v2.36.0</a>
       <a href="#v2-35-0">v2.35.0</a>
       <a href="#v2-34-1">v2.34.1</a>
       <a href="#v2-34-0">v2.34.0</a>
@@ -61,10 +62,18 @@
       <a href="#v2-28-0">v2.28.0</a>
       <a href="#v2-27-0">v2.27.0</a>
       <a href="#v2-26-0">v2.26.0</a>
-      <a href="#v2-25-0">v2.25.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-36-0"><a href="#v2-36-0">v2.36.0</a></h2>
+      <div class="cl-body">
+<p><b>세션당 컨텍스트가 그동안 실제보다 작게 나왔습니다.</b> 「걸려 있는 것」 화면은 스킬·규칙·메모리만 세고 있었는데, Claude Code 는 여러분이 만들어 둔 <b>에이전트와 커맨드의 이름·설명도 매 세션 통째로 실어 보냅니다.</b> 이 저장소의 어느 설치본에서는 그게 30KB 였습니다 — 화면이 119KB 라고 말하던 세션의 진짜 값은 149KB 였던 겁니다. 이제 예산 바에 <b>에이전트·커맨드</b> 조각이 서고, 목록에서도 종류로 걸러 볼 수 있습니다. 항상 로드와 따로 그리는 이유는 <b>줄이는 방법이 다르기</b> 때문입니다: 규칙은 범위를 좁혀서 줄이지만, 에이전트·커맨드는 파일을 지워야 줄어듭니다. (플러그인이 딸려 보내는 것은 파일 단위로 손댈 수 없어 세지 않고, 화면이 그렇게 적어 둡니다.)</p>
+<p><b>「paths 2」가 무엇을 숨기고 있었는지 보입니다.</b> 조건부 규칙의 배지는 글로브가 <i>몇 개</i>인지만 말했습니다. 그 2개가 「모든 .ts」와 「모든 .tsx」라면 프런트 파일 한 줄만 고쳐도 그 규칙이 통째로 딸려온다는 뜻인데, 화면에는 그게 전혀 없었습니다 — 실제로 이 저장소에서 React Native 규칙 8벌이 그렇게 걸려 있었고, 이 앱에는 React Native 가 한 줄도 없습니다. 이제 배지가 <b><code>paths 2 · 1,847개 파일</code></b> 이라고 말하고, 프로젝트 파일의 30% 이상을 무는 규칙에는 <b>「사실상 상시」</b> 가 붙습니다. 하나도 물지 않으면 「매칭 0」입니다.</p>
+<p><b>실어 놓고 「따르지 않는다」고 적어 둔 규칙을 짚어 줍니다.</b> 규칙 팩을 깔고 나서 CLAUDE.md 에 「이건 안 따른다」고 써 두는 건 흔한 일입니다. 그런데 그 규칙은 여전히 매 세션 들어갑니다 — 싣는 데 한 번, 그걸 무효로 만드는 문장에 또 한 번, 양쪽으로 값을 치릅니다. 이제 정리 제안이 그런 규칙을 찾아 <b>어느 문서의 어떤 문장이 그것을 부정하는지 그대로 인용</b>합니다. 판정은 여러분이 합니다 — 앱은 아무것도 고치지 않습니다.</p>
+<p><b>「한 번도 안 걸렸다」가 더 이상 잘못이라는 뜻이 아닙니다.</b> 여태 제안 패널은 30일 발동 0회인 스킬을 전부 「설명이 발동 기준입니다」라며 설명을 고쳐 쓰라고 권했습니다. 그런데 0회에는 이유가 여럿이고, <b>설명 문제는 그중 하나뿐</b>입니다. 새 프로젝트를 시작할 때 쓰는 스킬은 시작할 프로젝트가 없어서, 평가 기준을 돌리는 스킬은 <code>EVALS.md</code> 가 없어서, TDD 스킬은 여러분이 「요청할 때만 쓴다」고 적어 둬서 조용한 겁니다. 여기에 설명을 고쳐 쓰면 <b>안 맞는 자리에 끼어드는 스킬</b>이 됩니다. 이제 제안은 진짜 설명 문제에만 나가고, 나머지는 「설명 문제가 아닌 0회」로 이유와 근거를 달아 따로 섭니다 — 방금 만들어 아직 판단할 수 없는 것까지 포함해서.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-35-0"><a href="#v2-35-0">v2.35.0</a></h2>
       <div class="cl-body">

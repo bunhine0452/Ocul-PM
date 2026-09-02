@@ -12,8 +12,10 @@ use std::path::PathBuf;
 use tauri::State;
 
 use crate::db::Db;
+use crate::oculpm::agent_surface::{self, AgentSurfaceOverview};
 use crate::oculpm::manager::OculpmManager;
-use crate::oculpm::rule_scope::{self, RuleScopeFinding};
+use crate::oculpm::rule_negation::{self, NegationFinding};
+use crate::oculpm::rule_scope::{self, RuleScopeAudit};
 use crate::oculpm::rules::{
     self, MirrorWriteResult, RuleDetail, RuleKind, RuleSaveOutcome, RuleScope, RulesOverview,
 };
@@ -55,6 +57,23 @@ pub async fn rules_list(
     let home = rules::home_dir().map_err(|e| e.to_string())?;
     let translate = cursor_translate_on(&manager, project_id).await;
     Ok(rules::overview(&root, &home, translate))
+}
+
+/// 에이전트·커맨드 표면 — 매 세션 시스템 프롬프트에 실리는 name+description.
+///
+/// 예산 화면이 이걸 빼고 세는 바람에 2026-09-03 실측에서 약 30KB 가 누락돼
+/// 있었다 (`oculpm::agent_surface` 모듈 주석). 파일 걷기가 있어 blocking 이다.
+#[tauri::command]
+#[specta::specta]
+pub async fn agent_surface_list(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<AgentSurfaceOverview, String> {
+    let root = project_root(&db, project_id).await?;
+    let home = rules::home_dir().map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || agent_surface::overview(&root, &home))
+        .await
+        .map_err(|e| format!("The agent surface scan did not finish: {e}"))
 }
 
 /// 단일 규칙/CLAUDE.md 파일 원문을 읽는다.
@@ -122,13 +141,31 @@ pub async fn rules_delete(
 pub async fn rules_scope_audit(
     db: State<'_, Db>,
     project_id: u32,
-) -> Result<Vec<RuleScopeFinding>, String> {
+) -> Result<RuleScopeAudit, String> {
     let root = project_root(&db, project_id).await?;
     let home = rules::home_dir().map_err(|e| e.to_string())?;
     // 파일 걷기가 있어 blocking 이다 — UI 스레드를 막지 않게 풀로 보낸다.
     tauri::async_runtime::spawn_blocking(move || rule_scope::audit(&root, &home))
         .await
         .map_err(|e| format!("The scope audit did not finish: {e}"))
+}
+
+/// context-budget-truth C — 실려 놓고 부정되는 규칙.
+///
+/// 항상 로드되는 규칙의 파일명이 CLAUDE.md 계열에서 언급되고 같은 섹션에
+/// 부정 표지가 있으면 후보로 올린다. 휴리스틱이므로 근거 발췌를 함께 낸다 —
+/// 판정은 사람이 하고, 이 커맨드는 아무것도 쓰지 않는다.
+#[tauri::command]
+#[specta::specta]
+pub async fn rules_negation_audit(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<Vec<NegationFinding>, String> {
+    let root = project_root(&db, project_id).await?;
+    let home = rules::home_dir().map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || rule_negation::audit(&root, &home))
+        .await
+        .map_err(|e| format!("The negation audit did not finish: {e}"))
 }
 
 /// AD-6 — 원본을 `<파일>.bak` 으로 남긴 뒤 저장한다 (기존 파일 전용).

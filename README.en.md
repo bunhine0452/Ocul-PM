@@ -58,7 +58,14 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.35.0 — an update no longer kills your terminal (for real this time) · Claude Code session ids
+## 🚀 v2.36.0 — an honest context budget
+
+- **The 30KB it was missing** — "What's loaded" counted skills, rules and memory, but Claude Code also ships **the names and descriptions of every agent and command you've written** in each session. That's why a session reported as 119KB was really 149KB. The budget bar now has a segment for it and the list can filter by kind (it sits apart from always-loaded because **you shrink them differently** — rules narrow their scope, this surface only shrinks when you delete files).
+- **What "paths 2" was hiding** — if those two globs are "every .ts" and "every .tsx", touching one frontend file drags the whole rule in. The badge now reads **`paths 2 · 1,847 files`**, rules matching over 30% of the project get an **"always in practice"** chip, and rules matching nothing get "0 matches".
+- **Rules you load and then override** — writing "I don't follow this" in CLAUDE.md doesn't stop the rule from loading. You pay twice: once for the rule, once for the sentence cancelling it. Cleanup proposals now find those and **quote the exact sentence that overrides them**, from the exact file. The app changes nothing on its own.
+- **"Never fired" is not a defect** — a zero count has several causes and only one of them is the description. A kickoff skill is quiet because there's no new project, an evals skill because there's no `EVALS.md`, a TDD skill because you wrote "only when asked". Rewriting those descriptions would make them **fire in the wrong places**. Proposals now go only to genuine description problems; the rest are listed separately with their reason and evidence.
+
+## v2.35.0 — an update no longer kills your terminal (for real this time) · Claude Code session ids
 
 - **The meeting place stops moving** — the process that owns your terminals outlives the app for exactly one reason: to carry your shells across an update restart. Then v2.34.0 **renamed the socket where the app meets it**, so the updated app stopped looking at the old address and your running session was cut loose. The address is now fixed, and the app also checks the old address and **adopts whatever process is still alive there** (where a version difference changes a meaning, the app adapts to the old meaning — it does not replace the process).
 - **Nothing reaps a session-holding process within minutes** — every place where the app told that process to shut down is gone. A process holding shells with nobody attached gets one grace period, three hours, and it restarts from zero the moment the app comes back.

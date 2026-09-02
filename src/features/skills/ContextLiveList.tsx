@@ -10,9 +10,18 @@ import { useMemo, useState } from "react";
 
 import { ChevronDown, ChevronRight, Plus, SearchIcon } from "@/components/Icons";
 import { t, useT } from "@/i18n";
-import type { RuleEntry } from "@/lib/bindings";
+import type { RuleEntry, RuleScopeFinding } from "@/lib/bindings";
 import { FiringBadge } from "./FiringBadge";
-import { filterItems, partitionItems, type ContextItem, type ContextKind } from "./contextModel";
+import {
+  filterItems,
+  globReach,
+  indexFindings,
+  KIND_LABEL_KEY,
+  partitionItems,
+  type ContextItem,
+  type ContextKind,
+  type GlobReach,
+} from "./contextModel";
 
 type Filter = ContextKind | "all";
 
@@ -21,10 +30,16 @@ const FILTERS: { id: Filter; labelKey: Parameters<typeof t>[0] }[] = [
   { id: "skill", labelKey: "ctx.kind.skill" },
   { id: "rule", labelKey: "ctx.kind.rule" },
   { id: "memory", labelKey: "ctx.kind.memory" },
+  { id: "agent", labelKey: "ctx.kind.agent" },
+  { id: "command", labelKey: "ctx.kind.command" },
 ];
 
 interface ContextLiveListProps {
   items: ContextItem[];
+  /** AD-6 범위 감사 결과 — glob 이 실제로 무는 파일 수의 출처. */
+  findings: RuleScopeFinding[];
+  /** 감사가 센 프로젝트 파일 수 (0 = 감사 전). */
+  totalFiles: number;
   /** 원장이 한 번이라도 스캔됐는가 — false 면 휴면 강등을 하지 않는다. */
   measured: boolean;
   days: number;
@@ -43,6 +58,8 @@ interface ContextLiveListProps {
 
 export function ContextLiveList({
   items,
+  findings,
+  totalFiles,
   measured,
   days,
   missingMemory,
@@ -53,6 +70,8 @@ export function ContextLiveList({
   translateBusy,
 }: ContextLiveListProps) {
   useT();
+  const findingIndex = useMemo(() => indexFindings(findings), [findings]);
+  const reachOf = (item: ContextItem) => globReach(findingIndex.get(item.id), totalFiles);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [dormantOpen, setDormantOpen] = useState(false);
@@ -101,7 +120,14 @@ export function ContextLiveList({
       ) : (
         <ul className="ctx-rows">
           {live.map((item) => (
-            <Row key={item.id} item={item} measured={measured} days={days} onOpen={onOpen} />
+            <Row
+              key={item.id}
+              item={item}
+              reach={reachOf(item)}
+              measured={measured}
+              days={days}
+              onOpen={onOpen}
+            />
           ))}
         </ul>
       )}
@@ -139,7 +165,14 @@ export function ContextLiveList({
           {dormantOpen ? (
             <ul className="ctx-rows">
               {dormant.map((item) => (
-                <Row key={item.id} item={item} measured={measured} days={days} onOpen={onOpen} />
+                <Row
+              key={item.id}
+              item={item}
+              reach={reachOf(item)}
+              measured={measured}
+              days={days}
+              onOpen={onOpen}
+            />
               ))}
             </ul>
           ) : null}
@@ -169,28 +202,63 @@ export function ContextLiveList({
   );
 }
 
-const KIND_KEY = {
-  skill: "ctx.kind.skill",
-  rule: "ctx.kind.rule",
-  memory: "ctx.kind.memory",
-} as const;
+/**
+ * `paths` 배지 — glob **개수**가 아니라 그게 실제로 무는 **파일 수**를 말한다.
+ *
+ * 종전에는 `paths 2` 였다. 그 2개가 모든 .ts·.tsx 를 무는 glob 이라 프런트 파일
+ * 한 줄만 고쳐도 통째로 딸려온다는 사실이 배지에 전혀 없었다 — 감사는 이미
+ * 답을 갖고 있었는데 화면이 안 물었다.
+ */
+function PathsChip({ pathCount, reach }: { pathCount: number; reach: GlobReach | null }) {
+  // 감사 전 — 아는 척하지 않는다.
+  if (!reach) return <span className="sk-chip">{t("ctx.paths.count", { n: pathCount })}</span>;
+  if (reach.dead) {
+    return (
+      <span className="sk-chip off" title={t("ctx.paths.deadTitle")}>
+        {t("ctx.paths.dead")}
+      </span>
+    );
+  }
+  return (
+    <>
+      <span
+        className="sk-chip"
+        title={reach.unparsed ? t("ctx.paths.unparsedTitle") : t("ctx.paths.filesTitle")}
+      >
+        {t("ctx.paths.files", { n: pathCount, files: reach.files })}
+        {reach.unparsed ? " ?" : ""}
+      </span>
+      {reach.deFactoAlways ? (
+        <span className="sk-chip warn" title={t("ctx.paths.deFactoTitle")}>
+          {t("ctx.paths.deFacto")}
+        </span>
+      ) : null}
+    </>
+  );
+}
 
 function Row({
   item,
+  reach,
   measured,
   days,
   onOpen,
 }: {
   item: ContextItem;
+  /** glob 실측 (감사 전이거나 조건부가 아니면 null). */
+  reach: GlobReach | null;
   measured: boolean;
   days: number;
   onOpen: (item: ContextItem) => void;
 }) {
-  return (
-    <li>
-      <button type="button" className="ctx-row" onClick={() => onOpen(item)}>
+  // 에이전트·커맨드는 규칙 허브가 여는 파일이 아니다 (`rules_read` 의 범위는
+  // CLAUDE.md 계열과 `.claude/rules/**` 뿐). 열 수 없는 것을 누르게 두면 빈
+  // 편집기가 뜨므로, 비용만 밝히는 **정보 행**으로 그린다.
+  const openable = item.kind !== "agent" && item.kind !== "command";
+  const inner = (
+    <>
         <span className="ctx-row-top">
-          <span className={`ctx-kind ${item.kind}`}>{t(KIND_KEY[item.kind])}</span>
+          <span className={`ctx-kind ${item.kind}`}>{t(KIND_LABEL_KEY[item.kind])}</span>
           <span className="ctx-row-name">{item.name}</span>
           {item.scope === "global" ? <span className="sk-chip">{t("rules.scope.global")}</span> : null}
           {item.disabled ? <span className="sk-chip off">{t("sk.inactive")}</span> : null}
@@ -198,11 +266,11 @@ function Row({
             <span className="sk-chip" title={t("firing.alwaysTitle")}>
               {t("firing.always")}
             </span>
-          ) : (
+          ) : item.measurable ? (
             <FiringBadge stat={item.firing} measured={measured} days={days} />
-          )}
+          ) : null}
           {item.kind === "rule" && item.pathCount > 0 ? (
-            <span className="sk-chip">paths {item.pathCount}</span>
+            <PathsChip pathCount={item.pathCount} reach={reach} />
           ) : null}
           {item.rule?.mirror === "mirrored" ? <span className="sk-chip">Cursor</span> : null}
           {item.rule?.mirror === "conflict" ? (
@@ -210,7 +278,19 @@ function Row({
           ) : null}
         </span>
         {item.sub ? <span className="ctx-row-desc">{item.sub}</span> : null}
-      </button>
+    </>
+  );
+  return (
+    <li>
+      {openable ? (
+        <button type="button" className="ctx-row" onClick={() => onOpen(item)}>
+          {inner}
+        </button>
+      ) : (
+        <div className="ctx-row ctx-row-static" title={item.path}>
+          {inner}
+        </div>
+      )}
     </li>
   );
 }

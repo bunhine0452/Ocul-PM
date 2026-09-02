@@ -5,8 +5,12 @@
 // 규칙이었다 — 그런데 그걸 보여 주는 화면이 없었다. 안 보이는 비용은 아무도
 // 줄이지 않는다.
 //
-// 세 조각의 출처가 서로 다르다는 것을 숨기지 않는다: 항상-로드는 디스크에서
-// 확정, 조건부는 transcript **실측**, 스킬은 광고(이름+description) 비용이다.
+// 조각들의 출처가 서로 다르다는 것을 숨기지 않는다: 항상-로드는 디스크에서
+// 확정, 조건부는 transcript **실측**, 스킬과 에이전트·커맨드는 광고
+// (이름+description) 비용이다.
+//
+// 2026-09-03 에 표면 조각이 뒤늦게 붙었다 — 그 전까지 예산은 에이전트 67개·
+// 커맨드 94개의 설명 약 30KB 를 세지 않아 실제보다 작게 보고하고 있었다.
 import { PieChart } from "@/components/Icons";
 import { t, useT } from "@/i18n";
 import {
@@ -21,6 +25,7 @@ const SEG_KEY = {
   conditional: "ctx.budget.conditional",
   irrelevant: "ctx.budget.irrelevant",
   skills: "ctx.budget.skills",
+  surface: "ctx.budget.surface",
 } as const;
 
 const SEG_TITLE = {
@@ -28,6 +33,7 @@ const SEG_TITLE = {
   conditional: "ctx.budget.conditionalTitle",
   irrelevant: "ctx.budget.irrelevantTitle",
   skills: "ctx.budget.skillsTitle",
+  surface: "ctx.budget.surfaceTitle",
 } as const;
 
 interface ContextBudgetBarProps {

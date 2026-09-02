@@ -74,6 +74,18 @@ impl RuleScopeFinding {
     }
 }
 
+/// 감사 한 번의 결과.
+///
+/// `total_files` 는 판정이 아니라 **분모**다. glob 이 문 파일 수만으로는
+/// "많다" 를 말할 수 없다 — 1,800개가 큰지 작은지는 저장소 크기에 달렸다.
+/// 이게 있어야 화면이 "조건부라면서 사실상 전부" 를 근거 있게 말한다.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct RuleScopeAudit {
+    pub findings: Vec<RuleScopeFinding>,
+    /// 걷기 상한(`MAX_WALK_FILES`)까지 센 프로젝트 파일 수.
+    pub total_files: u32,
+}
+
 /// 프로젝트의 파일 목록 (루트 상대 경로). gitignore 를 존중하고 벤더를 건너뛴다.
 pub fn walk_project_files(root: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
@@ -179,9 +191,10 @@ fn finding_for(
 
 /// 조건부 규칙(=`paths` 가 있는 규칙) 전부를 감사한다. 항상-로드 규칙과
 /// CLAUDE.md 는 대상이 아니다 — 범위가 없으니 좁힐 것도 없다.
-pub fn audit(project_root: &Path, home: &Path) -> Vec<RuleScopeFinding> {
+pub fn audit(project_root: &Path, home: &Path) -> RuleScopeAudit {
     let overview = rules::overview(project_root, home, false);
     let files = walk_project_files(project_root);
+    let total_files = files.len().min(u32::MAX as usize) as u32;
     let mut out = Vec::new();
     for entry in &overview.project_rules {
         if !entry.paths.is_empty() {
@@ -193,7 +206,10 @@ pub fn audit(project_root: &Path, home: &Path) -> Vec<RuleScopeFinding> {
             out.push(finding_for(entry, home, project_root, &files));
         }
     }
-    out
+    RuleScopeAudit {
+        findings: out,
+        total_files,
+    }
 }
 
 #[cfg(test)]
@@ -267,7 +283,7 @@ mod tests {
             "---\npaths:\n  - \"src/**/*.ts\"\n---\n\n# API\n",
         );
 
-        let findings = audit(proj.path(), home.path());
+        let findings = audit(proj.path(), home.path()).findings;
         let arkts = findings.iter().find(|f| f.name.contains("arkts")).unwrap();
         assert!(arkts.fully_dead());
         assert_eq!(arkts.dead_globs, vec!["**/*.ets".to_string()]);
