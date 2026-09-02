@@ -400,6 +400,56 @@ async fn list_entries_search_matches_korean_substring() {
     assert_eq!(rows[0].slug, "bug-korean");
 }
 
+/// 검색어는 문자 그대로 찾는다 — LIKE 의 `_`/`%` 가 살아 있으면 `a_b` 가
+/// `axb` 를, `50%` 가 `50` 으로 시작하는 모든 일지를 잡는다.
+#[tokio::test]
+async fn list_entries_search_treats_like_wildcards_literally() {
+    let (db, dir) = fresh_db().await;
+    let cache = JournalCache::new(&db);
+    let journal_root = dir.path().join("journal");
+    write_entry(
+        &journal_root,
+        "20260524/Bugs/0925_bug_a.md",
+        &standard_frontmatter("bug-literal"),
+        "[x] a_b 를 고쳤다\n",
+    );
+    write_entry(
+        &journal_root,
+        "20260524/Bugs/1030_bug_b.md",
+        &standard_frontmatter("bug-decoy"),
+        "[ ] axb 는 무관하다\n",
+    );
+    cache.reindex_full(1, &journal_root).await.unwrap();
+
+    let rows = cache
+        .list_entries(
+            1,
+            None,
+            &EntryFilters {
+                search: Some("a_b".into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(rows.len(), 1, "`_` 는 임의의 한 글자가 아니라 밑줄이다");
+    assert_eq!(rows[0].slug, "bug-literal");
+
+    // `%` 도 마찬가지 — 접두 매칭으로 번지면 안 된다.
+    let none = cache
+        .list_entries(
+            1,
+            None,
+            &EntryFilters {
+                search: Some("a%b".into()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert!(none.is_empty(), "`%` 는 와일드카드가 아니라 퍼센트 기호다");
+}
+
 #[tokio::test]
 async fn list_entries_verified_only_excludes_unverified() {
     let (db, dir) = fresh_db().await;

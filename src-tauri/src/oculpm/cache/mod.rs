@@ -510,6 +510,21 @@ fn file_touched_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<FileTouched>
     })
 }
 
+/// 사용자 검색어에서 LIKE 의 와일드카드를 죽인다. 검색어는 **문자 그대로**
+/// 찾는 것이지 패턴이 아니다 — 이스케이프가 없으면 `a_b` 가 `axb` 를 잡고
+/// `50%` 가 `50` 으로 시작하는 모든 일지를 잡는다. 짝이 되는 `ESCAPE '\'` 는
+/// [`build_list_sql`] 의 네 LIKE 절 전부에 붙는다.
+fn like_escape(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    for ch in raw.chars() {
+        if matches!(ch, '\\' | '%' | '_') {
+            out.push('\\');
+        }
+        out.push(ch);
+    }
+    out
+}
+
 fn build_list_sql(
     project_id: i64,
     workdays: &[String],
@@ -588,16 +603,16 @@ fn build_list_sql(
         sql.push_str(&format!(" AND difficulty IN ({})", placeholders.join(",")));
     }
     if let Some(q) = filters.search.as_ref().filter(|q| !q.trim().is_empty()) {
-        let needle = format!("%{}%", q.trim());
+        let needle = format!("%{}%", like_escape(q.trim()));
         bound.push(Box::new(needle));
         let idx = bound.len();
         sql.push_str(&format!(
-            " AND (LOWER(title) LIKE LOWER(?{idx})
-                  OR LOWER(slug) LIKE LOWER(?{idx})
-                  OR body_markdown LIKE ?{idx}
+            " AND (LOWER(title) LIKE LOWER(?{idx}) ESCAPE '\\'
+                  OR LOWER(slug) LIKE LOWER(?{idx}) ESCAPE '\\'
+                  OR body_markdown LIKE ?{idx} ESCAPE '\\'
                   OR relative_path IN (
                        SELECT relative_path FROM oculpm_journal_tags
-                       WHERE project_id = ?1 AND tag LIKE ?{idx}
+                       WHERE project_id = ?1 AND tag LIKE ?{idx} ESCAPE '\\'
                   ))"
         ));
     }

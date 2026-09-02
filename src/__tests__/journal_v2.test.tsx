@@ -48,15 +48,24 @@ const DEFAULT_DIFFS = [
 
 const fixtures: {
   byWorkday: Record<string, ReturnType<typeof summary>[]>;
+  /** 전체 기간 질의(`workday === undefined`)의 결과 — 백엔드가 본문까지 훑는다. */
+  allPeriod: ReturnType<typeof summary>[];
   /** EntryDetailView 의 변경 파일 목록 (frontmatter.files_touched). */
   filesTouched: typeof DEFAULT_FILES;
   /** 기록된 per-file 패치 — 이 목록에 있는 경로만 열 수 있다. */
   entryDiffs: typeof DEFAULT_DIFFS;
 } = {
   byWorkday: {},
+  allPeriod: [],
   filesTouched: DEFAULT_FILES,
   entryDiffs: DEFAULT_DIFFS,
 };
+
+/** 워처 이벤트를 테스트가 직접 쏘기 위한 최소 버스 (채널명 → 리스너). */
+const eventBus: Record<string, Array<(e: { payload: unknown }) => void>> = {};
+function emitOculpm(channel: string, payload: unknown) {
+  for (const cb of eventBus[channel] ?? []) cb({ payload });
+}
 
 // PR-R1 (A4) — records the manual-entry create call so the test can assert it.
 const manualMock: { calls: number; lastDraft: Record<string, unknown> | null } = {
@@ -67,8 +76,8 @@ const manualMock: { calls: number; lastDraft: Record<string, unknown> | null } =
 vi.mock("@/api/oculpm", () => ({
   OculpmApiError: class extends Error {},
   oculpmApi: {
-    listJournalEntries: (_pid: number, workday: string) =>
-      Promise.resolve(fixtures.byWorkday[workday] ?? []),
+    listJournalEntries: (_pid: number, workday?: string) =>
+      Promise.resolve(workday ? (fixtures.byWorkday[workday] ?? []) : fixtures.allPeriod),
     // EntryDetailView's narrative pane loads body_markdown + files_touched.
     getJournalEntry: (_pid: number, relativePath: string) =>
       Promise.resolve({
@@ -119,7 +128,19 @@ vi.mock("@/lib/bindings", async (importOriginal) => {
           },
         }),
     },
-    events: new Proxy({}, { get: () => ({ listen: () => Promise.resolve(() => {}) }) }),
+    events: new Proxy(
+      {},
+      {
+        get: (_target, name: string) => ({
+          listen: (cb: (e: { payload: unknown }) => void) => {
+            (eventBus[name] ??= []).push(cb);
+            return Promise.resolve(() => {
+              eventBus[name] = (eventBus[name] ?? []).filter((f) => f !== cb);
+            });
+          },
+        }),
+      },
+    ),
   };
 });
 
@@ -155,6 +176,8 @@ beforeEach(() => {
   // scripts/check-no-localstorage.mjs — test-only, same as a11y_screens.)
   localStorage.clear();
   fixtures.byWorkday = {};
+  fixtures.allPeriod = [];
+  for (const k of Object.keys(eventBus)) delete eventBus[k];
   fixtures.filesTouched = DEFAULT_FILES;
   fixtures.entryDiffs = DEFAULT_DIFFS;
   manualMock.calls = 0;
@@ -375,5 +398,92 @@ describe("PR-UI 3 — Journal a11y", () => {
     await findByText("기능 작업");
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
     expect(getByText("작업 일지")).toBeInTheDocument();
+  });
+});
+
+// ─── 일지 목록 감사 (2026-09-02) ──────────────────────────────────────────
+//
+// 도그푸딩 감사에서 확인된 결함 넷. 전부 "백엔드는 제대로 주는데 화면이
+// 버리거나, 손잡이가 사라진다" 는 한 부류다.
+describe("작업 일지 — 목록 감사 회귀", () => {
+  it("본문에만 있는 단어로 찾은 항목을 화면이 다시 버리지 않는다", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "롤오버 구현" })];
+    // 백엔드가 body_markdown 매칭으로 찾아 준 항목 — 제목·슬러그·태그엔 없다.
+    fixtures.allPeriod = [
+      summary({
+        relative_path: "b",
+        workday: "20260401",
+        title: "무관한 제목",
+        slug: "zzz",
+      }),
+    ];
+    const { findByText, getByLabelText } = renderJournal();
+    await findByText("롤오버 구현");
+    fireEvent.change(getByLabelText("일지 검색"), { target: { value: "본문에만있는말" } });
+    expect(await findByText("무관한 제목")).toBeInTheDocument();
+  });
+
+  it("최근 창이 비어도 '이전 기록 더 보기' 로 전체 기간에 닿는다", async () => {
+    fixtures.byWorkday["20260531"] = [];
+    fixtures.allPeriod = [
+      summary({ relative_path: "old", workday: "20260101", title: "예전 일지" }),
+    ];
+    const { findByText, getByText } = renderJournal();
+    await findByText(/아직 일지가 없어요/);
+    fireEvent.click(getByText(/이전 기록 더 보기/));
+    expect(await findByText("예전 일지")).toBeInTheDocument();
+  });
+
+  it("필터가 걸린 동안에도 날짜 머리글로 접을 수 있다", async () => {
+    const e = summary({ relative_path: "a", title: "오늘 것", type: "feature" });
+    fixtures.byWorkday["20260531"] = [e];
+    fixtures.allPeriod = [e];
+    const { findByText, getByText, getByRole, queryByText } = renderJournal();
+    await findByText("오늘 것");
+    fireEvent.click(getByText("기능")); // scope chip → 전체 기간 질의
+    await waitFor(() => expect(getByText("오늘 것")).toBeInTheDocument());
+    fireEvent.click(getByRole("button", { expanded: true }));
+    await waitFor(() => expect(queryByText("오늘 것")).toBeNull());
+  });
+
+  it("고른 출처가 표본에서 사라져도 레일은 남아 되돌릴 수 있다", async () => {
+    const mcp = summary({
+      relative_path: "a",
+      title: "MCP 기록",
+      session_id: "mcp-20260531-101010",
+    });
+    const human = summary({
+      relative_path: "b",
+      title: "손으로 쓴 것",
+      session_id: "manual-20260531-101010",
+      agent_id: "manual",
+    });
+    fixtures.byWorkday["20260531"] = [mcp, human];
+    fixtures.allPeriod = [mcp, human];
+    const { findByText, getByRole, getByLabelText, queryByText, container } = renderJournal();
+    await findByText("MCP 기록");
+    fireEvent.click(getByRole("radio", { name: /MCP/ }));
+    await waitFor(() => expect(queryByText("손으로 쓴 것")).toBeNull());
+    // 검색이 표본을 1종으로 좁혀도 레일은 살아 있어야 한다.
+    fireEvent.change(getByLabelText("일지 검색"), { target: { value: "MCP 기록" } });
+    await waitFor(() =>
+      expect(container.querySelector('[role="radiogroup"]')).not.toBeNull(),
+    );
+    fireEvent.click(getByRole("radio", { name: /전체/ }));
+    expect(await findByText("손으로 쓴 것")).toBeInTheDocument();
+  });
+
+  it("열어 둔 일지가 디스크에서 바뀌면 상세 화면도 따라 바뀐다", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
+    const { findByText, container } = renderJournal();
+    fireEvent.click(await findByText("검토 대상"));
+    await waitFor(() => expect(container.textContent).toContain("무언가를 변경했다"));
+    fixtures.entryDiffs = [
+      { path: "src/lib/workday.ts", patch: "@@ -1 +1 @@\n-const old = 1;\n+const fresh = 3;\n" },
+    ];
+    emitOculpm("oculpmJournalUpdated", { project_id: 1, relative_path: "a" });
+    await waitFor(() => expect(container.textContent).toContain("const fresh = 3;"), {
+      timeout: 3000,
+    });
   });
 });

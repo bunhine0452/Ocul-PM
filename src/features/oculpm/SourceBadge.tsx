@@ -58,7 +58,8 @@ export function SourceBadge({
 
 /**
  * 출처 필터 레일 — 목록에 실제로 있는 출처만, 그리고 **2종 이상일 때만** 그린다.
- * 하나뿐인 목록에서 레일은 아무것도 좁히지 못하는 장식이다.
+ * 하나뿐인 목록에서 레일은 아무것도 좁히지 못하는 장식이다. 예외는 하나:
+ * 이미 고른 출처가 있으면 표본이 몇 종이든 그린다 (되돌릴 길을 남긴다).
  *
  * `radiogroup` 인 이유: 한 번에 하나만 고르는 배타 선택이라 탭 목록도 체크박스
  * 무리도 아니다. 화살표 키 이동은 브라우저가 radio 에 이미 준다.
@@ -78,14 +79,19 @@ export function SourceFilterRail({
   counts?: Readonly<Partial<Record<EntrySource, number>>>;
 }) {
   const { t: tr } = useT();
-  const present = sourcesPresent(sources);
-  if (present.length < 2) return null;
+  /**
+   * 고른 출처는 표본에서 사라져도 옵션으로 남긴다. 표본만 보고 그리면,
+   * 하나를 고른 뒤 검색으로 표본이 1종이 되는 순간 레일이 자취를 감추면서
+   * **필터는 걸린 채 되돌릴 손잡이만** 없어진다 (빈 목록에 갇힌다).
+   */
+  const present = sourcesPresent(value ? [...sources, value] : sources);
+  if (present.length < 2 && value == null) return null;
 
   const option = (source: EntrySource | null) => {
     const key = source ?? "all";
     const selected = value === source;
     const label = source ? tr(SOURCE_META[source].labelKey) : tr("source.rail.all");
-    const n = source ? counts?.[source] : sources.length;
+    const n = source ? (counts?.[source] ?? 0) : sources.length;
     return (
       <button
         key={key}

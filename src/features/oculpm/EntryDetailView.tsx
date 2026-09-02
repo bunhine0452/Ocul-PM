@@ -20,6 +20,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { PatchView } from "@/features/diff/PatchView";
 import { langFromPath } from "@/features/diff/diffParse";
 import { Markdown } from "@/components/Markdown";
+import { useJournalEvents } from "./useOculpmLive";
 import { TriggerBadge } from "./triggerMeta";
 import { SourceBadge } from "./SourceBadge";
 import { sourceOf } from "./entrySource";
@@ -160,9 +161,28 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
   }, [verifying, verified, projectId, entry.relative_path, t]);
   const related = detail?.frontmatter.related ?? [];
 
+  /**
+   * 디스크가 SSOT다 — 이 화면을 열어 둔 채 에이전트가 같은 일지를 고치거나
+   * (본문 보강·상태 변경) 인덱서가 diff 사이드카를 뒤늦게 기록하면 여기도
+   * 따라와야 한다. 예전엔 `relative_path` 가 바뀔 때만 다시 읽어서, 열어 둔
+   * 일지는 **연 순간에 멈춰** 있었다.
+   */
+  const [reloadTick, setReloadTick] = useState(0);
+  const reload = useCallback(() => setReloadTick((n) => n + 1), []);
+  useJournalEvents(projectId, true, reload);
+
+  // 화면 지역 상태(선택·필터)는 **다른 일지로 옮길 때만** 비운다. 라이브
+  // 갱신에서까지 비우면 읽던 파일 선택이 풀려 갱신이 방해가 된다.
+  useEffect(() => {
+    setDetail(null);
+    setDiffs(null);
+    setError(null);
+    setSelected(null);
+    setFilter("");
+  }, [entry.relative_path]);
+
   useEffect(() => {
     let cancelled = false;
-    setDetail(null);
     oculpmApi
       .getJournalEntry(projectId, entry.relative_path)
       .then((d) => {
@@ -174,18 +194,16 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     return () => {
       cancelled = true;
     };
-  }, [projectId, entry.relative_path]);
+  }, [projectId, entry.relative_path, reloadTick]);
 
   useEffect(() => {
     let cancelled = false;
-    setDiffs(null);
-    setError(null);
-    setSelected(null);
-    setFilter("");
     oculpmApi
       .getEntryDiffs(projectId, entry.relative_path)
       .then((d) => {
-        if (!cancelled) setDiffs(d);
+        if (cancelled) return;
+        setDiffs(d);
+        setError(null);
       })
       .catch((e) => {
         if (cancelled) return;
@@ -194,7 +212,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     return () => {
       cancelled = true;
     };
-  }, [projectId, entry.relative_path]);
+  }, [projectId, entry.relative_path, reloadTick]);
 
   const files = detail?.frontmatter.files_touched ?? [];
   const recorded = useMemo(() => new Set((diffs ?? []).map((d) => d.path)), [diffs]);
