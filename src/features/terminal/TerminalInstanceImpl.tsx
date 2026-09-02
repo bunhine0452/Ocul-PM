@@ -75,6 +75,13 @@ const SCROLLBACK_LINES = 20000;
 const RESIZE_SETTLE_MS = 60;
 
 /**
+ * PTY 가 서기 전에 받아 두는 입력의 상한 (청크 수). 셸이 끝내 안 뜨면 이 큐는
+ * 영영 안 비워지므로 무한정 자라면 안 된다 — 사람 손으로 이만큼 치는 동안
+ * 셸이 안 뜬다면 그건 이미 다른 문제다.
+ */
+const PENDING_INPUT_MAX = 256;
+
+/**
  * 명령 블록 조작 — 마커·장식은 이 컴포넌트가 소유하고, 화면은 이 손잡이로만
  * 만진다 (블록 목록을 React 상태로 올리면 스크롤마다 페인 트리가 재렌더된다).
  */
@@ -139,6 +146,12 @@ interface TerminalInstanceProps {
   /** 거터의 명령 캡슐을 눌렀다 — 화면이 블록 액션 팝오버를 띄운다. */
   onBlockActivate?: (activation: BlockActivation) => void;
   /**
+   * 셸이 스스로 끝났다 (`exit`·마지막 자식 종료). PTY 는 사라졌고 이 페인은
+   * 이제 **어떤 입력도 보낼 곳이 없다** — 화면이 그 사실을 말하고 다시 시작할
+   * 손잡이를 줄 수 있게 알린다. 넘기지 않으면 종전처럼 문구만 찍힌다.
+   */
+  onExit?: () => void;
+  /**
    * 출력 안의 `파일:줄` 을 ⌘클릭했을 때. 넘기지 않으면 링크를 만들지 않는다
    * (프로젝트가 없는 세션에서 열 곳이 없으므로).
    */
@@ -159,6 +172,7 @@ export default function TerminalInstanceImpl({
   onShellState,
   onSignal,
   onBlockActivate,
+  onExit,
   onOpenFileRef,
 }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -181,6 +195,7 @@ export default function TerminalInstanceImpl({
   const onShellStateRef = useRef(onShellState);
   const onSignalRef = useRef(onSignal);
   const onBlockActivateRef = useRef(onBlockActivate);
+  const onExitRef = useRef(onExit);
   // 블록 손잡이 — onReady 로 화면에 넘긴다. 목록을 React 상태로 올리면
   // 스크롤·명령마다 페인 트리가 재렌더된다.
   const blockApiRef = useRef<BlockApi | null>(null);
@@ -207,6 +222,7 @@ export default function TerminalInstanceImpl({
     onShellStateRef.current = onShellState;
     onSignalRef.current = onSignal;
     onBlockActivateRef.current = onBlockActivate;
+    onExitRef.current = onExit;
     onOpenFileRefRef.current = onOpenFileRef;
   }, [
     cwd,
@@ -218,8 +234,65 @@ export default function TerminalInstanceImpl({
     onShellState,
     onSignal,
     onBlockActivate,
+    onExit,
     onOpenFileRef,
   ]);
+
+  /**
+   * xterm 을 컨테이너에 붙인다 — **보이고 크기가 생긴 뒤에만**. 이미 열려
+   * 있으면(또는 방금 열었으면) `true`.
+   *
+   * 왜 함수로 빼서 여러 곳에서 부르는가 (2026-09-02): 예전에는 `visible` 이
+   * 켜지는 순간 `setTimeout(0)` **한 번**이 유일한 기회였고, 그때 컨테이너가
+   * 0×0 이면 그냥 물러났다. 복구 경로여야 할 `ResizeObserver`·
+   * `IntersectionObserver` 는 둘 다 `openedRef.current` 를 먼저 보므로 **아직
+   * 안 열린 터미널은 못 연다** — 0 크기로 마운트된 페인은 `visible` 이 다시
+   * 토글될 때까지 영영 빈 화면이었다. 이제 크기가 생기는 그 순간에 연다.
+   */
+  const openTerminal = (): boolean => {
+    if (openedRef.current) return true;
+    if (!visible) return false;
+    const container = containerRef.current;
+    const term = termRef.current;
+    if (!container || !term) return false;
+    if (container.clientWidth === 0 || container.clientHeight === 0) return false;
+    try {
+      term.open(container);
+    } catch (err) {
+      // 렌더러가 테마 색을 파싱하는 지점이라 잘못된 토큰 하나가 여기서 터진다.
+      // 비동기(타이머·옵저버) 안이라 여기서 rethrow 하면 에러 경계가 원리적으로
+      // 못 잡는다 (A0d: 앱 전체 빈 화면의 유력 경로) — state 로 승격해 렌더
+      // 단계에서 다시 던져 TerminalErrorBoundary 가 포착하게 한다.
+      // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
+      oculpmLog.error("terminal", `term.open 실패: ${String(err)}`);
+      setFatal(err instanceof Error ? err : new Error(String(err)));
+      return false;
+    }
+    openedRef.current = true;
+    // open() 이후 부가 기능(GPU 렌더러·IME 브리지·화면 핸들 등록)은 하나가
+    // 실패해도 터미널 자체는 살아 있어야 한다. 예외가 그대로 올라가면
+    // React 가 TerminalInstanceImpl 을 통째로 언마운트해 입력이 죽는다.
+    void loadWebglRenderer(term, webglRef);
+    try {
+      imeRef.current = attachImeBridge(term, container);
+    } catch (err) {
+      // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
+      oculpmLog.error("terminal", `IME 브리지 연결 실패: ${String(err)}`);
+    }
+    try {
+      const search = searchRef.current;
+      const blocks = blockApiRef.current;
+      if (search && blocks) onReadyRef.current?.({ term, search, blocks });
+    } catch (err) {
+      // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
+      oculpmLog.error("terminal", `onReady 핸들 등록 실패: ${String(err)}`);
+    }
+    return true;
+  };
+  // 옵저버 콜백은 마운트 이펙트의 클로저에 갇혀 있다 — 최신 판정(특히
+  // `visible`)을 보게 ref 로 건넨다.
+  const openRef = useRef(openTerminal);
+  openRef.current = openTerminal;
 
   // Create the Terminal + wire the PTY on mount. We do NOT open() here — output
   // buffers in xterm until the first open() once the tab is visible.
@@ -254,9 +327,14 @@ export default function TerminalInstanceImpl({
     const fit = new FitAddon();
     fitRef.current = fit;
     term.loadAddon(fit);
-    const resizeQueue = createPtyResizeQueue((rows, cols) =>
-      commands.resizePty(sessionId, rows, cols),
-    );
+    // 큐는 **거부된 프라미스**를 실패로 읽는다 (그래야 "보낸 크기" 기억을 지우고
+    // 같은 크기를 다시 시도한다). 생성된 커맨드는 실패해도 봉투로 resolve 하므로
+    // 여기서 풀어 던져 주지 않으면 모든 실패가 성공으로 기록된다 — PTY 가 옛
+    // 폭에 굳고 화면이 깨진 채로 남는 길이다.
+    const resizeQueue = createPtyResizeQueue(async (rows, cols) => {
+      const res = await commands.resizePty(sessionId, rows, cols);
+      if (res.status === "error") throw new Error(res.error);
+    });
     resizeQueueRef.current = resizeQueue;
     // 한글/이모지 셀 폭 정확도 — Unicode 11 폭 테이블 활성화.
     term.loadAddon(new Unicode11Addon());
@@ -270,6 +348,29 @@ export default function TerminalInstanceImpl({
     const search = new SearchAddon();
     searchRef.current = search;
     term.loadAddon(search);
+
+    // ── 입력 배관 ──────────────────────────────────────────────────────────
+    //
+    // 등록은 **PTY 가 서기 전에** 해 둔다 (2026-09-02). 예전에는 attach/start
+    // 왕복이 끝난 뒤에 붙여서, 그 사이(수십~수백 ms)에 친 키가 아무 데도 가지
+    // 못하고 사라졌다 — 진짜 터미널이라면 tty 버퍼가 받아 주는 구간이다.
+    // 여기서는 이 큐가 그 역할을 한다.
+    let ptyReady = false;
+    const pendingInput: string[] = [];
+    const flushInput = () => {
+      ptyReady = true;
+      for (const data of pendingInput) void commands.writeToPty(sessionId, data);
+      pendingInput.length = 0;
+    };
+    term.onData((data) => {
+      if (ptyReady) {
+        void commands.writeToPty(sessionId, data);
+        return;
+      }
+      // 셸이 끝내 안 뜨는 경우(시작 실패·종료된 세션)에 무한정 쌓이면 안 된다.
+      if (pendingInput.length < PENDING_INPUT_MAX) pendingInput.push(data);
+    });
+
     term.onTitleChange((title) => {
       const trimmed = title.trim();
       if (trimmed) onTitleChangeRef.current?.(trimmed);
@@ -625,7 +726,10 @@ export default function TerminalInstanceImpl({
     // the tab goes display:none → block. No-op until opened + sized.
     const container = containerRef.current;
     const applyFit = () => {
-      if (!openedRef.current || !container) return;
+      // 아직 안 열렸으면 **여기서 연다** — 크기가 0 이던 페인이 자리를 얻는
+      // 순간이 바로 이 콜백이다 (display:none → 보임 전환 포함).
+      if (!openedRef.current && !openRef.current()) return;
+      if (!container) return;
       if (container.clientWidth === 0 || container.clientHeight === 0) return;
       try {
         fit.fit();
@@ -665,7 +769,10 @@ export default function TerminalInstanceImpl({
         if (!last) return;
         const { visible, revealed } = nextRevealState(wasVisible, last);
         wasVisible = visible;
-        if (!revealed || !openedRef.current || !container) return;
+        if (!revealed) return;
+        // 다시 보이게 된 김에, 아직 안 열렸으면 연다 (위 `applyFit` 과 같은 이유).
+        if (!openedRef.current && !openRef.current()) return;
+        if (!container) return;
         if (container.clientWidth === 0 || container.clientHeight === 0) return;
         try {
           // 자리를 비운 사이 창이 커졌을 수도 있으니 먼저 맞춰 보고,
@@ -709,7 +816,10 @@ export default function TerminalInstanceImpl({
           term.write(chunk.text);
           markOutput();
         };
-        unlistenData = await listen<{ seq: number; text: string }>(
+        // 등록과 정리 사이에 언마운트가 끼면(빠른 탭 전환·StrictMode) 정리
+        // 함수는 이미 `null` 을 보고 지나간 뒤다 — 여기서 직접 걷지 않으면
+        // 리스너가 영영 남는다.
+        const dataOff = await listen<{ seq: number; text: string }>(
           `pty-data-${sessionId}`,
           (e) => {
             if (!isMounted) return;
@@ -717,11 +827,19 @@ export default function TerminalInstanceImpl({
             else writeChunk(e.payload);
           },
         );
-        if (!isMounted) return;
-        unlistenExit = await listen<void>(`pty-exit-${sessionId}`, () => {
-          if (isMounted) term.write(`\r\n\x1b[1;31m[${t("term.processEnded")}]\x1b[0m\r\n`);
+        if (!isMounted) return dataOff();
+        unlistenData = dataOff;
+        const exitOff = await listen<void>(`pty-exit-${sessionId}`, () => {
+          if (!isMounted) return;
+          term.write(`\r\n\x1b[1;31m[${t("term.processEnded")}]\x1b[0m\r\n`);
+          // 셸이 사라졌다 — 이제 이 페인의 입력은 갈 곳이 없다. 계속 보내면
+          // 백엔드의 "unknown pty session" 이 조용히 버려지고 사용자 눈에는
+          // 그냥 먹통이다. 큐에 받아 두고, 화면에 사실을 알린다.
+          ptyReady = false;
+          onExitRef.current?.();
         });
-        if (!isMounted) return;
+        if (!isMounted) return exitOff();
+        unlistenExit = exitOff;
 
         const at = await commands.attachPtySession(sessionId);
         if (!isMounted) return;
@@ -750,9 +868,8 @@ export default function TerminalInstanceImpl({
         for (const chunk of queued) writeChunk(chunk);
         queued.length = 0;
 
-        term.onData((data) => {
-          void commands.writeToPty(sessionId, data);
-        });
+        // 이제 보낼 곳이 생겼다 — 기다리던 키 입력부터 흘려보낸다.
+        flushInput();
         // PTY 가 방금 바뀌었다 — 큐가 기억하는 "이미 보낸 크기" 는 남의 것이다.
         resizeQueue.reset();
         resizeQueue.push(term.rows, term.cols);
@@ -843,46 +960,14 @@ export default function TerminalInstanceImpl({
 
   // Open (once) + fit + focus when visible — guarantees real dimensions so
   // xterm measures the font and renders (the blank-terminal fix).
+  //
+  // 실패해도 끝이 아니다: 크기가 아직 0 이면 `openTerminal` 이 false 를 주고,
+  // 자리를 얻는 순간 옵저버가 같은 함수를 다시 부른다.
   useEffect(() => {
     if (!visible) return;
     const id = window.setTimeout(() => {
-      const container = containerRef.current;
       const term = termRef.current;
-      if (!container || !term) return;
-      if (container.clientWidth === 0 || container.clientHeight === 0) return;
-      if (!openedRef.current) {
-        try {
-          term.open(container);
-        } catch (err) {
-          // 렌더러가 테마 색을 파싱하는 지점이라 잘못된 토큰 하나가 여기서 터진다.
-          // setTimeout 안이라 여기서 rethrow 하면 에러 경계가 원리적으로 못
-          // 잡는다 (A0d: 앱 전체 빈 화면의 유력 경로) — state 로 승격해 렌더
-          // 단계에서 다시 던져 TerminalErrorBoundary 가 포착하게 한다.
-          // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
-          oculpmLog.error("terminal", `term.open 실패: ${String(err)}`);
-          setFatal(err instanceof Error ? err : new Error(String(err)));
-          return;
-        }
-        openedRef.current = true;
-        // open() 이후 부가 기능(GPU 렌더러·IME 브리지·화면 핸들 등록)은 하나가
-        // 실패해도 터미널 자체는 살아 있어야 한다. 예외가 그대로 올라가면
-        // React 가 TerminalInstanceImpl 을 통째로 언마운트해 입력이 죽는다.
-        void loadWebglRenderer(term, webglRef);
-        try {
-          imeRef.current = attachImeBridge(term, container);
-        } catch (err) {
-          // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
-          oculpmLog.error("terminal", `IME 브리지 연결 실패: ${String(err)}`);
-        }
-        try {
-          const search = searchRef.current;
-          const blocks = blockApiRef.current;
-          if (search && blocks) onReadyRef.current?.({ term, search, blocks });
-        } catch (err) {
-          // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
-          oculpmLog.error("terminal", `onReady 핸들 등록 실패: ${String(err)}`);
-        }
-      }
+      if (!term || !openRef.current()) return;
       try {
         fitRef.current?.fit();
         resizeQueueRef.current?.push(term.rows, term.cols);

@@ -2907,6 +2907,11 @@ export const en: Record<keyof typeof ko, string> = {
   "term.processEnded": "Process ended",
   "term.ptyStartFailed": "Could not start PTY: {error}",
 
+  // A pane whose shell exited — a pill laid over the output.
+  "term.ended.title": "The shell exited",
+  "term.ended.restart": "Restart",
+  "term.ended.restartHint": "Starts a fresh shell in the same spot (clears the output)",
+
   // Renderer crash boundary
   "term.crashTitle": "Terminal renderer error",
   "term.crashBody":

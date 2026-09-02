@@ -29,6 +29,24 @@ export function newPtySessionId(projectId: number | null): string {
 }
 
 /**
+ * Today «빠른 터미널» 의 세션 id (2026-09-02).
+ *
+ * 예전엔 `"today-quick"` 이라는 **고정 문자열**이었다. 그 파일이 창·탭보다
+ * 먼저 태어났고 접두사 규격이 생길 때 같이 고쳐지지 않은 탓인데, 그래서:
+ *
+ *  ① 프로젝트 탭은 한 번 활성화되면 계속 마운트돼 있으므로(크롬식 탭), A 탭과
+ *     B 탭에서 각각 펼치면 **같은 sid** 로 attach 해 한 PTY 에 xterm 둘이 붙었다
+ *     — B 에 친 명령이 A 의 디렉터리에서 돌았다.
+ *  ② 이 위젯은 접으면 세션을 죽이는데(비영속), 그 kill 이 남의 셸을 데려갔다.
+ *  ③ 접두사가 없어 프로젝트 탭을 닫아도 정리되지 않았다.
+ *
+ * 프로젝트마다 하나이므로 난수 대신 고정 꼬리를 쓴다 — 접었다 펴면 같은 자리다.
+ */
+export function todayQuickSessionId(projectId: number): string {
+  return `p${projectId}-today`;
+}
+
+/**
  * 새 셸이 뜨자마자 한 번 칠 명령.
  *
  * 탭 정보가 아니라 **일회용 등록소**에 둔다. 탭에 얹어 영속화하면 그 탭을 다시

@@ -298,6 +298,21 @@ export function TerminalSurface({
   const [paneSignals, setPaneSignals] = useState<Record<string, PaneSignal>>({});
   // 거터 캡슐을 눌러 연 블록 액션 팝오버. 한 번에 하나만 뜬다.
   const [blockMenu, setBlockMenu] = useState<BlockActivation | null>(null);
+  /**
+   * 셸이 스스로 끝난 페인 (2026-09-02).
+   *
+   * 예전에는 `[프로세스 종료됨]` 한 줄을 찍고 끝이었다. 탭은 그대로 남고 PTY 만
+   * 사라지므로, 거기 타이핑하면 백엔드의 "unknown pty session" 이 조용히
+   * 버려졌다 — 사용자 눈에는 **먹통이 된 터미널**이고, 탭을 닫았다 여는 것
+   * 말고는 되살릴 길이 없었다. 이제 사실을 말하고 손잡이를 준다.
+   */
+  const [ended, setEnded] = useState<Record<string, true>>({});
+  /**
+   * 다시 시작 횟수 — `TerminalInstance` 의 `key` 에 실어 **제자리 재마운트**를
+   * 만든다. 세션 id 는 그대로라 마운트 경로(attach → 없음 → start)가 같은
+   * 자리에 새 셸을 세운다.
+   */
+  const [restartNonce, setRestartNonce] = useState<Record<string, number>>({});
 
   // IN2 — 디스패치 프리필: 대기 중인 건을 활성 페인 PTY 에 써 둔다 (개행 없음
   // — 실행은 사용자가 Enter 로). sid 는 ref 로 최신을 읽는다 — deps 재실행(탭
@@ -395,7 +410,27 @@ export function TerminalSurface({
     };
     setShellStates(reap);
     setPaneSignals(reap);
+    setEnded(reap);
+    setRestartNonce(reap);
   }, [terminalTabs]);
+
+  /**
+   * 끝난 셸을 그 자리에서 다시 세운다. 세션 id 는 그대로 두고 xterm 만 새로
+   * 만든다 — 탭·분할 배치도, 사용자가 지은 이름도 그대로다.
+   */
+  const restartPane = (sid: string) => {
+    const drop = <T,>(prev: Record<string, T>): Record<string, T> => {
+      if (!(sid in prev)) return prev;
+      const next = { ...prev };
+      delete next[sid];
+      return next;
+    };
+    setEnded(drop);
+    // 죽은 셸의 마지막 상태·신호는 새 셸의 것이 아니다 — 함께 걷는다.
+    setShellStates(drop);
+    setPaneSignals(drop);
+    setRestartNonce((prev) => ({ ...prev, [sid]: (prev[sid] ?? 0) + 1 }));
+  };
 
   const patchTab = (id: string, fn: (tab: TerminalTab) => TerminalTab) =>
     setSessions((prev) => ({
@@ -1135,6 +1170,8 @@ export function TerminalSurface({
           data-tone={tone}
         >
           <TerminalInstance
+            // 다시 시작 = 제자리 재마운트. sid 는 그대로다 (→ restartPane).
+            key={`${node.sid}:${restartNonce[node.sid] ?? 0}`}
             sessionId={node.sid}
             cwd={tab.cwd || projectRoot || ""}
             visible={isActiveTab}
@@ -1163,11 +1200,29 @@ export function TerminalSurface({
               )
             }
             onBlockActivate={setBlockMenu}
+            onExit={() =>
+              setEnded((prev) => (prev[node.sid] ? prev : { ...prev, [node.sid]: true }))
+            }
             onOpenFileRef={projectRoot ? openFileRef : undefined}
           />
           {/* 에이전트 표시 — 판정과 1초 시계를 이 컴포넌트 안에 가둔다.
               여기서 하면 매초 페인 트리 전체가 다시 그려진다. */}
           <TerminalAgentPill shell={shell} signal={paneSignals[node.sid]} />
+          {/* 끝난 셸 — 출력은 그대로 둔다 (읽고 복사할 수 있어야 한다). 아래에
+              사실과 손잡이만 얹는다. */}
+          {ended[node.sid] ? (
+            <div className="term-ended" role="status">
+              <span>{t("term.ended.title")}</span>
+              <button
+                type="button"
+                className="ts-btn"
+                onClick={() => restartPane(node.sid)}
+                title={t("term.ended.restartHint")}
+              >
+                {t("term.ended.restart")}
+              </button>
+            </div>
+          ) : null}
           {count > 1 ? (
             <>
               {/* 페인을 집는 손잡이. 마우스 전용 어포던스라 보조기술에는 감춘다

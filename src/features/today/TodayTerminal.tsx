@@ -1,5 +1,6 @@
 import { SquareTerminal, ArrowRight, ChevronDown, ChevronRight } from "@/components/Icons";
 import { TerminalInstance } from "@/features/terminal/TerminalInstance";
+import { todayQuickSessionId } from "@/features/terminal/terminalLaunch";
 import { useT } from "@/i18n";
 
 // Today 빠른 터미널 — run an agent without leaving Today. Opt-in: the PTY only
@@ -7,8 +8,14 @@ import { useT } from "@/i18n";
 // navigating away (fresh session next open — same volatile-PTY model as the
 // full 터미널 화면). A dedicated session id keeps it independent of the tabbed
 // 터미널 screen; "전체 터미널" hands off there for tabs/history.
+//
+// 그 세션 id 는 **프로젝트마다 하나**다 (`todayQuickSessionId`) — 고정 문자열을
+// 쓰던 시절에는 프로젝트 탭 둘이 같은 셸을 나눠 갖고, 한쪽에서 접으면 다른 쪽
+// 셸이 죽었다. 근거는 그 함수 주석에 적어 뒀다.
 
 interface TodayTerminalProps {
+  /** 세션 id 에 새길 주인. 프로젝트마다 자기 셸을 가진다 (교차 오염 방지). */
+  projectId: number;
   projectRoot: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -16,7 +23,13 @@ interface TodayTerminalProps {
   onFull: () => void;
 }
 
-export function TodayTerminal({ projectRoot, open, onOpenChange, onFull }: TodayTerminalProps) {
+export function TodayTerminal({
+  projectId,
+  projectRoot,
+  open,
+  onOpenChange,
+  onFull,
+}: TodayTerminalProps) {
   const { t } = useT();
   return (
     <div className="card today-term">
@@ -45,7 +58,7 @@ export function TodayTerminal({ projectRoot, open, onOpenChange, onFull }: Today
       {open ? (
         <div className="today-term-body">
           <TerminalInstance
-            sessionId="today-quick"
+            sessionId={todayQuickSessionId(projectId)}
             cwd={projectRoot ?? ""}
             visible
             fontSize={12.5}

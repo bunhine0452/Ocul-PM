@@ -151,6 +151,12 @@ pub struct HostState {
     events: broadcast::Sender<Event>,
     clients: AtomicUsize,
     log_dir: Option<PathBuf>,
+    /// 지금 점유하고 있는 소켓 경로 (`serve` 가 bind 직후 채운다).
+    ///
+    /// `Shutdown` 이 **자리를 비켜 주려면** 이 경로를 알아야 한다: 파일이
+    /// 남아 있으면 뒤이어 뜨는 교체 호스트가 bind 에 실패하고, 아직 살아 있는
+    /// 우리에게 접속이 되므로 "이미 호스트가 있다"고 보고 조용히 물러난다.
+    socket: Mutex<Option<PathBuf>>,
 }
 
 /// 이 세션이 살려 둘 접두사에 속하는가 (`KillExcept` 의 판정).
@@ -170,6 +176,21 @@ fn take_sessions(
     keys.into_iter()
         .filter_map(|k| sessions.remove(&k).map(|s| (k, s)))
         .collect()
+}
+
+/// 살아있는 세션을 **전부 실제로** 끝낸다 (SIGHUP → 유예 → SIGKILL → `wait`).
+/// 반환값은 끝낸 개수.
+///
+/// `Shutdown` 이 예전엔 `sessions.clear()` 만 했다 — 맵에서 빠진 세션은 아무도
+/// 신호를 주지 않으므로, HUP 을 무시하는 포그라운드(vim·ssh·도구 호출 중인
+/// claude)가 그대로 고아가 됐다. `Kill` 계열이 지키는 계약을 여기서도 지킨다.
+fn shutdown_sessions(state: &Arc<HostState>) -> u32 {
+    let doomed = take_sessions(state, |_| true);
+    let n = doomed.len() as u32;
+    for (sid, session) in doomed {
+        terminate_session(state.clone(), sid, session);
+    }
+    n
 }
 
 /// `pending` 에서 디코딩 가능한 최장 prefix 를 뽑아 반환하고, 청크 경계에
@@ -230,6 +251,7 @@ impl HostState {
             events,
             clients: AtomicUsize::new(0),
             log_dir,
+            socket: Mutex::new(None),
         })
     }
 
@@ -496,10 +518,26 @@ fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
         }
         Request::Shutdown => {
             log_line(state, "shutdown requested");
-            state.lock_sessions().clear();
-            // 응답을 쓸 시간을 주고 내린다.
+            // ① 자리부터 비운다. 이 요청을 보내는 쪽(프로토콜 불일치를 본 앱)은
+            //    응답을 받자마자 **교체 호스트를 띄운다** — 소켓 파일이 남아
+            //    있으면 그쪽은 bind 에 실패하고, 아직 살아 있는 우리에게 접속이
+            //    되어 "이미 호스트가 있다"고 보고 조용히 물러난다. 그러면 잠시
+            //    뒤 우리가 내려간 자리에 아무도 없다.
+            let socket = state
+                .socket
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .take();
+            if let Some(path) = socket {
+                let _ = std::fs::remove_file(&path);
+            }
+            // ② 세션을 실제로 끝낸다 (맵만 비우면 고아가 남는다).
+            let n = shutdown_sessions(state);
+            log_line(state, &format!("shutdown: {n} sessions terminated"));
+            // ③ 응답을 쓰고, 종료 유예가 끝날 때까지 기다렸다 내린다 — 우리가
+            //    먼저 죽으면 SIGKILL 을 보낼 스레드도 함께 사라진다.
             tokio::spawn(async {
-                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                tokio::time::sleep(KILL_GRACE + std::time::Duration::from_millis(700)).await;
                 std::process::exit(0);
             });
             Response::Ok
@@ -642,6 +680,8 @@ pub async fn serve(state: Arc<HostState>, socket: &Path) -> Result<(), String> {
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(socket, std::fs::Permissions::from_mode(0o600));
     }
+    // 우리가 점유한 자리 — `Shutdown` 이 비켜 줄 때 이 경로를 지운다.
+    *state.socket.lock().unwrap_or_else(|p| p.into_inner()) = Some(socket.to_path_buf());
     log_line(&state, &format!("listening on {}", socket.display()));
 
     // 유휴 감시 — 두 번 연속 비어 있으면 내린다.
@@ -701,16 +741,14 @@ mod tests {
         unsafe { libc::kill(pid, 0) == 0 }
     }
 
-    /// Kill 은 셸뿐 아니라 ^D 를 무시하는 포그라운드까지 죽이고 자식을 회수한다.
-    /// 예전엔 맵에서 지우기만 해 `sleep` 이 살아남고 셸은 좀비로 남았다.
+    /// HUP 을 무시하는 작업을 포그라운드에 앉힌 세션 하나 — 종료 계약을
+    /// 검증하는 두 테스트(Kill · Shutdown)가 같은 재료를 쓴다.
+    /// 반환값은 (셸 pid, 포그라운드 pgid).
     #[cfg(unix)]
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn kill_terminates_shell_and_foreground_and_reaps() {
-        let state = HostState::new(None);
-        let sid = "test-kill".to_string();
+    async fn sh_with_stubborn_foreground(state: &Arc<HostState>, sid: &str) -> (i32, i32) {
         let resp = start_session(
-            &state,
-            sid.clone(),
+            state,
+            sid.to_string(),
             std::env::temp_dir().to_string_lossy().into_owned(),
             24,
             80,
@@ -724,36 +762,56 @@ mod tests {
 
         // 포그라운드에 오래 도는 작업을 앉힌다. HUP 을 무시하는 셸 + sleep.
         handle_request(
-            &state,
+            state,
             Request::Write {
-                sid: sid.clone(),
+                sid: sid.to_string(),
                 data: "trap '' HUP; sleep 300\n".to_string(),
             },
         );
-        let (shell_pid, fg) = {
-            let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
-            loop {
-                let (shell, fg) = {
-                    let sessions = state.lock_sessions();
-                    let s = sessions.get(&sid).expect("session present");
-                    (
-                        s.child.process_id().map(|p| p as i32),
-                        process_group_leader_of(s),
-                    )
-                };
-                // 포그라운드 그룹이 셸에서 sleep 으로 넘어간 순간을 기다린다.
-                if let (Some(shell), Some(fg)) = (shell, fg) {
-                    if fg != shell {
-                        break (shell, fg);
-                    }
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            let (shell, fg) = {
+                let sessions = state.lock_sessions();
+                let s = sessions.get(sid).expect("session present");
+                (
+                    s.child.process_id().map(|p| p as i32),
+                    process_group_leader_of(s),
+                )
+            };
+            // 포그라운드 그룹이 셸에서 sleep 으로 넘어간 순간을 기다린다.
+            if let (Some(shell), Some(fg)) = (shell, fg) {
+                if fg != shell {
+                    return (shell, fg);
                 }
-                assert!(
-                    std::time::Instant::now() < deadline,
-                    "sleep 이 포그라운드가 안 된다"
-                );
-                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
             }
-        };
+            assert!(
+                std::time::Instant::now() < deadline,
+                "sleep 이 포그라운드가 안 된다"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+    }
+
+    /// 종료가 실제로 일어났는지 — 유예 안에 둘 다 사라져야 한다.
+    #[cfg(unix)]
+    async fn assert_gone(shell_pid: i32, fg: i32) {
+        let deadline = std::time::Instant::now() + KILL_GRACE + std::time::Duration::from_secs(3);
+        while std::time::Instant::now() < deadline && (pid_alive(fg) || pid_alive(shell_pid)) {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        assert!(!pid_alive(fg), "포그라운드가 살아남았다");
+        // 회수됐으면 kill(pid, 0) 은 ESRCH — 좀비는 살아 있는 것으로 보고된다.
+        assert!(!pid_alive(shell_pid), "셸이 좀비로 남았다");
+    }
+
+    /// Kill 은 셸뿐 아니라 ^D 를 무시하는 포그라운드까지 죽이고 자식을 회수한다.
+    /// 예전엔 맵에서 지우기만 해 `sleep` 이 살아남고 셸은 좀비로 남았다.
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn kill_terminates_shell_and_foreground_and_reaps() {
+        let state = HostState::new(None);
+        let sid = "test-kill".to_string();
+        let (shell_pid, fg) = sh_with_stubborn_foreground(&state, &sid).await;
         assert!(pid_alive(shell_pid) && pid_alive(fg));
 
         assert!(matches!(
@@ -764,14 +822,65 @@ mod tests {
             state.lock_sessions().get(&sid).is_none(),
             "맵에서 즉시 사라진다"
         );
+        assert_gone(shell_pid, fg).await;
+    }
 
-        let deadline = std::time::Instant::now() + KILL_GRACE + std::time::Duration::from_secs(3);
-        while std::time::Instant::now() < deadline && (pid_alive(fg) || pid_alive(shell_pid)) {
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    /// Shutdown 도 **실제로 끝낸다**. 예전엔 `sessions.clear()` 뿐이라, 프로토콜
+    /// 불일치로 구버전 호스트를 내리는 길에서 HUP 을 무시하는 포그라운드가
+    /// 그대로 고아가 됐다 (앱은 이미 손을 뗐고, 아무도 그걸 모른다).
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn shutdown_terminates_sessions_instead_of_orphaning_them() {
+        let state = HostState::new(None);
+        let (shell_pid, fg) = sh_with_stubborn_foreground(&state, "test-shutdown").await;
+        assert!(pid_alive(shell_pid) && pid_alive(fg));
+
+        assert_eq!(shutdown_sessions(&state), 1, "한 세션을 끝냈다고 답한다");
+        assert!(state.lock_sessions().is_empty());
+        assert_gone(shell_pid, fg).await;
+    }
+
+    /// 그 자리를 **비켜 주는 것**까지가 Shutdown 의 계약이다 — 소켓 파일이 남아
+    /// 있으면 교체 호스트가 bind 에 실패하고, 아직 살아 있는 우리에게 접속이 돼
+    /// "이미 호스트가 있다"고 물러난다. 그러면 아무도 남지 않는다.
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread")]
+    async fn serve_records_the_socket_so_shutdown_can_release_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("host.sock");
+        let state = HostState::new(None);
+        let serving = state.clone();
+        let path = socket.clone();
+        tokio::spawn(async move {
+            let _ = serve(serving, &path).await;
+        });
+        for _ in 0..200 {
+            if socket.exists() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
-        assert!(!pid_alive(fg), "포그라운드 sleep 이 살아남았다");
-        // 회수됐으면 kill(pid, 0) 은 ESRCH — 좀비는 살아 있는 것으로 보고된다.
-        assert!(!pid_alive(shell_pid), "셸이 좀비로 남았다");
+        assert!(socket.exists(), "bind 후 소켓 파일이 있다");
+        assert_eq!(
+            state
+                .socket
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .as_deref(),
+            Some(socket.as_path()),
+            "점유한 자리를 기억한다"
+        );
+
+        // Shutdown 의 앞부분(자리 비우기)만 떼어 확인한다 — 뒷부분은
+        // `std::process::exit` 이라 테스트 프로세스를 함께 데려간다.
+        let taken = state
+            .socket
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .take()
+            .expect("기억한 경로");
+        std::fs::remove_file(&taken).unwrap();
+        assert!(!socket.exists(), "교체 호스트가 bind 할 자리가 비었다");
     }
 
     /// 청크 경계에 걸린 한글(3바이트)이 이월 후 온전히 복원된다.

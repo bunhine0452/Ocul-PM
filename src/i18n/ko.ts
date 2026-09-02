@@ -2881,6 +2881,11 @@ export const ko = {
   "term.processEnded": "프로세스 종료됨",
   "term.ptyStartFailed": "PTY 시작 실패: {error}",
 
+  // 셸이 스스로 끝난 페인 — 출력 위에 얹히는 알약.
+  "term.ended.title": "셸이 종료됐어요",
+  "term.ended.restart": "다시 시작",
+  "term.ended.restartHint": "같은 자리에 새 셸을 띄웁니다 (출력은 지워집니다)",
+
   // 렌더러 크래시 경계
   "term.crashTitle": "터미널 렌더러 오류",
   "term.crashBody":
