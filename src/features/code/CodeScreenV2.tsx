@@ -26,7 +26,8 @@ import {
   PanelRight,
   TextSearch,
 } from "@/components/Icons";
-import { commands, type CodeTree as CodeTreeData, type LspSymbol } from "@/lib/bindings";
+import { commands, events, type CodeTree as CodeTreeData, type LspSymbol } from "@/lib/bindings";
+import { safeUnlisten } from "@/lib/unlisten";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { registerCloseHandler } from "@/lib/closeIntent";
@@ -47,6 +48,8 @@ import { CodeDebugPanel } from "./CodeDebugPanel";
 import { useDebug } from "./useDebug";
 import { adapterLanguageFor, defaultProgramFor, toLaunchRequest } from "./debugConfig";
 import { CodeReferences, type ReferencesQuery } from "./CodeReferences";
+import { CodeProblems } from "./CodeProblems";
+import { problemsStore, useProblems } from "./problemsStore";
 import { CodeSearchPanel } from "./CodeSearchPanel";
 import {
   ancestorDirs,
@@ -208,6 +211,10 @@ export function CodeScreenV2({
   const cursorLineRef = useRef(cursorLine);
   cursorLineRef.current = cursorLine;
   const [references, setReferences] = useState<ReferencesQuery | null>(null);
+  // 문제 패널 — 참조와 **같은 자리**를 쓴다. 열면 서로를 닫는다 (숨은 패널이
+  // 남으면 "아까 그건 어디 갔지" 가 된다).
+  const [problemsOpen, setProblemsOpen] = useState(false);
+  const problems = useProblems(projectId);
   // 디버그 — 참조 패널과 같은 자리를 쓴다 (둘이 동시에 뜨면 편집 영역이 없어진다).
   const [debugOpen, setDebugOpen] = useState(false);
   const [launchOpen, setLaunchOpen] = useState(false);
@@ -283,6 +290,46 @@ export function CodeScreenV2({
       cancelled = true;
     };
   }, [symbolsWanted, selected, projectId, symbolEpoch]);
+
+  /**
+   * 워크스페이스 진단 모으기 (#p5-problems).
+   *
+   * 구독은 **창 최상위가 아니라 이 화면**이 한다 — 코드 화면을 한 번도 안 연
+   * 창이 진단을 메모리에 쌓을 이유가 없다. 순서가 중요하다: 리스너를 먼저 걸고
+   * 스냅샷을 부른다. 반대로 하면 그 사이에 온 갱신이 통째로 빈다.
+   */
+  useEffect(() => {
+    const offs: Array<() => void> = [];
+    let active = true;
+    const keep = (off: () => void) => (active ? offs.push(off) : safeUnlisten(off));
+    try {
+      void events.lspDiagnosticsPublished
+        .listen((e) => {
+          if (e.payload.project_id !== projectId) return;
+          problemsStore.applyPublished(e.payload);
+        })
+        .then(keep)
+        .catch(() => {});
+    } catch {
+      /* jsdom / 비-Tauri — 라이브 갱신만 없다 */
+    }
+    void commands.lspDiagnosticsSnapshot(projectId).then((res) => {
+      if (!active || res.status !== "ok") return;
+      problemsStore.seed(projectId, res.data);
+    });
+    return () => {
+      active = false;
+      for (const off of offs) safeUnlisten(off);
+      // 프로젝트를 바꾸면 비운다 — 안 하면 남의 프로젝트 진단이 섞인다.
+      problemsStore.clearProject(projectId);
+    };
+  }, [projectId]);
+
+  /** 패널 자리는 하나다 — 여는 쪽이 상대를 닫는다. */
+  const openProblems = useCallback(() => {
+    setReferences(null);
+    setProblemsOpen(true);
+  }, []);
 
   // ── 트리 ────────────────────────────────────────────────────────────────
   /** 디렉터리 한 단계를 읽어 캐시에 넣는다. 이미 읽었거나 읽는 중이면 무시. */
@@ -1233,11 +1280,15 @@ export function CodeScreenV2({
                 }
                 onBuffersChanged={handleBuffersChanged}
                 onOpenPath={(path, line) => openPath(path, line, index)}
-                onReferences={setReferences}
+                onReferences={(query) => {
+                  setProblemsOpen(false);
+                  setReferences(query);
+                }}
                 onCursorLine={setCursorLine}
                 // 스티키는 아웃라인과 **같은 값**을 쓴다. 설정이 꺼져 있으면
                 // 굳이 내려보내지 않는다 (확장 자체가 안 붙어 있다).
                 stickySymbols={settings.codeStickyScroll ? symbols : null}
+                onOpenProblems={openProblems}
                 breakpointsFor={debug.breakpointsFor}
                 unverifiedFor={debug.unverifiedFor}
                 onToggleBreakpoint={debug.toggleBreakpoint}
@@ -1248,7 +1299,7 @@ export function CodeScreenV2({
             </div>
             {/* 참조와 디버그는 같은 자리를 쓴다 — 둘 다 띄우면 편집 영역이
                 남지 않는다. 디버그가 이긴다 (멈춰 있는 동안이 더 급하다). */}
-            {debugOpen || references ? (
+            {debugOpen || problemsOpen || references ? (
               <div
                 className="code-panel-resizer"
                 role="separator"
@@ -1281,6 +1332,17 @@ export function CodeScreenV2({
                   onClearOutput={debug.clearOutput}
                   onOpenFrame={(path, line) => openPath(path, line)}
                   loadVariables={debug.variables}
+                />
+              </div>
+            ) : problemsOpen ? (
+              <div className="code-panel-slot" style={{ height: panelHeight }}>
+                <CodeProblems
+                  problems={problems}
+                  onClose={() => setProblemsOpen(false)}
+                  // 코드 이동이므로 **고정 탭**으로 연다 (미리보기 표와 같은 판정).
+                  onOpen={(path, line, character) =>
+                    openPath(path, line, undefined, { ch: character })
+                  }
                 />
               </div>
             ) : references ? (

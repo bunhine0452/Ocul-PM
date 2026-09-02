@@ -20,7 +20,9 @@ use tokio::sync::Mutex;
 
 use super::client::{LspClient, ServerNotice};
 use super::registry::{find_root, spec_for_path, uri_to_path, ServerSpec};
-use super::spec::{diagnostics_from_json, LspDiagnostic, LspServerInfo, LspServerState};
+use super::spec::{
+    diagnostics_from_json, LspDiagnostic, LspFileDiagnostics, LspServerInfo, LspServerState,
+};
 
 /// 진단이 갱신됐다. 창을 가리지 않고 전역으로 나가고, 코드 화면이
 /// `project_id` + `path` 로 거른다 (OculpmFileChanged 와 같은 방식).
@@ -238,6 +240,37 @@ impl LspState {
             .cloned()
             .collect();
         Value::Array(hit)
+    }
+
+    /// 이 프로젝트 루트 아래 파일들의 진단 전부 — 문제 패널의 **초기 스냅샷**.
+    ///
+    /// 이벤트만 들으면 코드 화면을 늦게 연 경우가 빈다. 여기서 주는 것은
+    /// "지금 언어 서버가 아는 문제" 이지 "프로젝트의 모든 문제" 가 아니다 —
+    /// 서버가 아직 안 본 파일은 없다. 그 한계는 빈 상태 문구가 말한다.
+    ///
+    /// 진단이 빈 파일은 빼고 준다 (서버는 고쳐진 파일에 빈 배열을 밀어 캐시에
+    /// 껍데기가 남는다 — 그걸 그대로 주면 목록에 빈 파일이 늘어선다).
+    pub async fn diagnostics_snapshot(&self, project_root: &Path) -> Vec<LspFileDiagnostics> {
+        let map = self.raw_diagnostics.lock().await;
+        let mut out = Vec::new();
+        for (path, raw) in map.iter() {
+            let Ok(rel) = path.strip_prefix(project_root) else {
+                continue;
+            };
+            let diagnostics = diagnostics_from_json(raw);
+            if diagnostics.is_empty() {
+                continue;
+            }
+            out.push(LspFileDiagnostics {
+                path: rel.to_string_lossy().to_string(),
+                diagnostics,
+            });
+        }
+        // 정렬은 프런트(problemsModel)가 한다 — 여기서는 순서를 **정하기만**
+        // 한다. HashMap 순회는 실행마다 달라서, 그대로 두면 스냅샷이 매번
+        // 다른 순서로 오고 그게 곧 목록이 튀는 것으로 보인다.
+        out.sort_by(|a, b| a.path.cmp(&b.path));
+        out
     }
 
     pub async fn set_code_actions(&self, file: &Path, actions: Vec<Value>) {
@@ -535,6 +568,53 @@ mod tests {
         // 프로젝트 밖(의존성 소스)은 None — 열 수 없는 파일이다.
         assert!(relative_path_of("file:///Users/x/.cargo/registry/foo.rs", root).is_none());
         assert!(relative_path_of("https://example.com/a.rs", root).is_none());
+    }
+
+    #[tokio::test]
+    async fn snapshot_filters_by_project_root_and_drops_empty_files() {
+        let state = LspState::default();
+        let diag = serde_json::json!([{
+            "range": { "start": { "line": 3, "character": 1 },
+                       "end": { "line": 3, "character": 9 } },
+            "severity": 1,
+            "message": "mismatched types",
+        }]);
+        {
+            let mut map = state.raw_diagnostics.lock().await;
+            map.insert(PathBuf::from("/w/proj/src/a.rs"), diag.clone());
+            // 남의 프로젝트 — 같은 캐시에 절대경로로 섞여 있다.
+            map.insert(PathBuf::from("/w/other/src/b.rs"), diag.clone());
+            // 고쳐진 파일 — 서버가 빈 배열을 밀어 껍데기만 남았다.
+            map.insert(PathBuf::from("/w/proj/src/fixed.rs"), serde_json::json!([]));
+        }
+
+        let got = state.diagnostics_snapshot(Path::new("/w/proj")).await;
+        assert_eq!(got.len(), 1, "루트 밖과 빈 파일은 빠진다");
+        assert_eq!(got[0].path, "src/a.rs");
+        assert_eq!(got[0].diagnostics.len(), 1);
+        assert_eq!(got[0].diagnostics[0].start_line, 3);
+    }
+
+    #[tokio::test]
+    async fn snapshot_is_ordered_so_the_list_does_not_jump() {
+        let state = LspState::default();
+        let diag = serde_json::json!([{
+            "range": { "start": { "line": 0, "character": 0 },
+                       "end": { "line": 0, "character": 1 } },
+            "message": "m",
+        }]);
+        {
+            let mut map = state.raw_diagnostics.lock().await;
+            for name in ["z.rs", "a.rs", "m.rs"] {
+                map.insert(PathBuf::from(format!("/w/proj/{name}")), diag.clone());
+            }
+        }
+        let got = state.diagnostics_snapshot(Path::new("/w/proj")).await;
+        // HashMap 순회는 실행마다 다르다 — 정렬하지 않으면 목록이 매번 튄다.
+        assert_eq!(
+            got.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(),
+            ["a.rs", "m.rs", "z.rs"]
+        );
     }
 
     #[tokio::test]

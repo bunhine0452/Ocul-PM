@@ -645,6 +645,14 @@ export const commands = {
 	/**  파일 안의 구조 (`textDocument/documentSymbol`) — 아웃라인. */
 	lspDocumentSymbols: (projectId: number, path: string) => typedError<LspSymbol[], string>(__TAURI_INVOKE("lsp_document_symbols", { projectId, path })),
 	/**
+	 *  지금 언어 서버가 아는 이 프로젝트의 진단 전부 — 문제 패널의 초기 스냅샷.
+	 * 
+	 *  서버를 **띄우지 않는다**: 이미 떠 있는 서버가 밀어 준 것을 읽기만 한다.
+	 *  화면을 열었다는 이유로 프로젝트의 모든 언어 서버가 기동하면, 안 보고 있는
+	 *  언어까지 색인을 시작한다. 서버가 없으면 빈 배열이고 그게 정직한 답이다.
+	 */
+	lspDiagnosticsSnapshot: (projectId: number) => typedError<LspFileDiagnostics[], string>(__TAURI_INVOKE("lsp_diagnostics_snapshot", { projectId })),
+	/**
 	 *  프로젝트 전체 심볼 검색 (`workspace/symbol`) — ⌘K 팔레트가 쓴다.
 	 * 
 	 *  **어느 서버에 물을지**가 이 커맨드의 문제다. 워크스페이스 심볼은 파일에
@@ -3991,6 +3999,13 @@ export type LspDiagnostic = {
 export type LspDiagnosticsPublished = {
 	project_id: number,
 	/**  프로젝트 상대 경로. */
+	path: string,
+	diagnostics: LspDiagnostic[],
+};
+
+/**  한 파일에 걸린 진단 전부 — 문제 패널의 초기 스냅샷 한 줄. */
+export type LspFileDiagnostics = {
+	/**  프로젝트 상대 경로 (`LspDiagnosticsPublished.path` 와 같은 표기). */
 	path: string,
 	diagnostics: LspDiagnostic[],
 };

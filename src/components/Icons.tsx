@@ -563,6 +563,8 @@ export {
   ShieldCheck,
   ShieldAlert,
   Info,
+  // 문제 패널 — 심각도. 색만으로는 색각 차이에서 오류와 경고가 붙는다.
+  CircleX,
   // PR-R5/release — update notifier banner.
   Download,
   // 스킬 관리 화면 — 사이드바 슬롯 + 빈 상태.

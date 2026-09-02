@@ -10,8 +10,8 @@ use tauri::{AppHandle, State};
 
 use crate::db::Db;
 use crate::lsp::spec::{
-    LspCodeAction, LspCompletionItem, LspHover, LspLocation, LspReferenceFile, LspRenameResult,
-    LspServerInfo, LspSignatureHelp, LspSymbol, LspWorkspaceSymbol,
+    LspCodeAction, LspCompletionItem, LspFileDiagnostics, LspHover, LspLocation, LspReferenceFile,
+    LspRenameResult, LspServerInfo, LspSignatureHelp, LspSymbol, LspWorkspaceSymbol,
 };
 use crate::lsp::state::{position_params, LspState};
 
@@ -318,6 +318,22 @@ pub async fn lsp_document_symbols(
         .request("textDocument/documentSymbol", params)
         .await?;
     Ok(crate::lsp::spec::document_symbols_from_json(&result))
+}
+
+/// 지금 언어 서버가 아는 이 프로젝트의 진단 전부 — 문제 패널의 초기 스냅샷.
+///
+/// 서버를 **띄우지 않는다**: 이미 떠 있는 서버가 밀어 준 것을 읽기만 한다.
+/// 화면을 열었다는 이유로 프로젝트의 모든 언어 서버가 기동하면, 안 보고 있는
+/// 언어까지 색인을 시작한다. 서버가 없으면 빈 배열이고 그게 정직한 답이다.
+#[tauri::command]
+#[specta::specta]
+pub async fn lsp_diagnostics_snapshot(
+    db: State<'_, Db>,
+    lsp: State<'_, LspState>,
+    project_id: u32,
+) -> Result<Vec<LspFileDiagnostics>, String> {
+    let root = project_root(&db, project_id).await?;
+    Ok(lsp.diagnostics_snapshot(&root).await)
 }
 
 /// 프로젝트 전체 심볼 검색 (`workspace/symbol`) — ⌘K 팔레트가 쓴다.

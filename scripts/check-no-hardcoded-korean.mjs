@@ -216,6 +216,8 @@ const TESTS = new Set([
   "__tests__/code_goto.test.tsx",
   // vscode-borrows Phase 4 — 스티키 스크롤. 같은 이유.
   "__tests__/code_sticky.test.ts",
+  // vscode-borrows Phase 5 — 문제 패널. 같은 이유 (빈 상태 문구는 사전에서 읽는다).
+  "__tests__/code_problems.test.tsx",
   "__tests__/code_tree_lazy.test.tsx",
   "__tests__/code_tree_watch.test.tsx",
   "__tests__/lsp_bridge.test.ts",

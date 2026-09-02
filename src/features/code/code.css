@@ -560,6 +560,59 @@
   min-width: 0;
 }
 
+/* 문제 뱃지 — 패널이 있다는 것을 알리는 유일한 신호. 0 일 때는 다른 상태
+   항목과 같은 무게로 가라앉고, 오류가 생기면 그때만 색이 올라온다. */
+.code-status-problems {
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--text-3);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.code-status-problems:hover {
+  background: var(--bg-hover);
+  color: var(--text-2);
+}
+.code-status-problems.has-warn {
+  color: var(--warn-text);
+}
+.code-status-problems.has-error {
+  color: var(--danger-text);
+}
+
+/* ── 문제 패널 (#p5-problems) ─────────────────────────────────────────────
+   참조 패널의 뼈대(.code-refs)를 그대로 쓰고 차이만 얹는다 — 같은 자리에
+   번갈아 서는 물건이라 모양이 갈라지면 자리를 옮긴 것처럼 보인다. */
+.code-problems-filter {
+  flex: none;
+  margin-left: 8px;
+}
+.code-problems-hit {
+  gap: 7px;
+}
+.code-problems-sev {
+  flex: none;
+  color: var(--text-3);
+}
+.code-problems-sev.s-error {
+  color: var(--destructive);
+}
+.code-problems-sev.s-warning {
+  color: var(--warn-text);
+}
+/* 어느 도구가 한 말인지 — 메시지와 겨루지 않게 끝으로 밀고 흐리게. */
+.code-problems-source {
+  flex: none;
+  margin-left: auto;
+  padding-left: 10px;
+  font-size: var(--fs-3);
+  color: var(--text-3);
+}
+.code-problems-more {
+  color: var(--accent-text);
+}
+
 /* 언어 서버 상태 칩. 색은 상태 자체가 아니라 **주의를 요구하는지** 로 정한다 —
    분석 중/완료는 배경 정보라 흐리게, 없음/오류만 눈에 띈다. */
 .code-status-lsp {

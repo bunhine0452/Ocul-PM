@@ -36,17 +36,21 @@ import { AppDialog } from "@/components/ui/AppDialog";
 import {
   AlertTriangle,
   ChevronRight,
+  CircleX,
   ExternalLink,
   FileCode,
   GitCompareArrows,
   ImageFileIcon,
   NotebookText,
+  TriangleAlert,
   X,
 } from "@/components/Icons";
 import { FileIcon } from "./FileIcon";
 
 import { CodeEditor } from "./CodeEditor";
 import { clampStickyMax } from "./stickyModel";
+import { useProblems } from "./problemsStore";
+import { groupByFile, totalCounts } from "./problemsModel";
 import { CodePreview } from "./CodePreview";
 import { SvgPreview } from "./SvgPreview";
 import type { ReferencesQuery } from "./CodeReferences";
@@ -154,6 +158,8 @@ export interface CodePaneProps {
    * 들여쓰기 폴백으로 그린다 — 언어 서버가 없는 파일도 맥락은 보여야 한다.
    */
   stickySymbols: LspSymbol[] | null;
+  /** 상태줄의 문제 뱃지를 눌렀다 — 화면이 패널을 연다. */
+  onOpenProblems: () => void;
   /** 이 파일의 중단점 줄들 (1-based). */
   breakpointsFor: (path: string) => number[];
   /** 어댑터가 못 건다고 답한 줄들. */
@@ -193,6 +199,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     onReferences,
     onCursorLine,
     stickySymbols,
+    onOpenProblems,
     breakpointsFor,
     unverifiedFor,
     onToggleBreakpoint,
@@ -205,6 +212,11 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
 
   // 스티키 스크롤 — 꺼져 있으면 0 이고, 0 이면 CodeEditor 가 확장을 안 단다.
   const stickyMax = settings.codeStickyScroll ? clampStickyMax(settings.codeStickyMaxLines) : 0;
+
+  // 문제 총계 — 스토어를 직접 구독한다 (화면에서 내려보내면 진단이 올 때마다
+  // 코드 화면 전체가 다시 그려진다. `indexProgressStore` 와 같은 잣대).
+  const problems = useProblems(projectId);
+  const problemTotals = useMemo(() => totalCounts(groupByFile(problems)), [problems]);
 
   const [fileView, setFileView] = useState<FileView>({ kind: "idle" });
   // 버퍼는 ref — 키 입력마다 화면 state 를 바꾸면 트리까지 리렌더된다.
@@ -1277,6 +1289,30 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               Ln {cursor.line}, Col {cursor.col}
             </span>
             <span className="code-status-right">
+              {/* 문제 패널이 있다는 것을 알리는 **유일한 신호**다. 0 일 때도
+                  남긴다 — 감추면 빈 상태(= "아직 아는 문제 없음")를 읽을 길이
+                  없어진다. */}
+              <button
+                type="button"
+                className={
+                  "code-status-item code-status-problems" +
+                  (problemTotals.error > 0 ? " has-error" : problemTotals.warning > 0 ? " has-warn" : "")
+                }
+                onClick={onOpenProblems}
+                title={t("code.problems.badge", {
+                  errors: problemTotals.error,
+                  warnings: problemTotals.warning,
+                })}
+                aria-label={t("code.problems.badge", {
+                  errors: problemTotals.error,
+                  warnings: problemTotals.warning,
+                })}
+              >
+                <CircleX size={11} aria-hidden />
+                <span>{problemTotals.error}</span>
+                <TriangleAlert size={11} aria-hidden />
+                <span>{problemTotals.warning}</span>
+              </button>
               {lspLabel ? (
                 <span
                   className={"code-status-item code-status-lsp " + (lsp.status.state ?? "")}

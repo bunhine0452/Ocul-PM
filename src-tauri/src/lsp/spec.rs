@@ -36,6 +36,14 @@ pub struct LspDiagnostic {
     pub source: Option<String>,
 }
 
+/// 한 파일에 걸린 진단 전부 — 문제 패널의 초기 스냅샷 한 줄.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct LspFileDiagnostics {
+    /// 프로젝트 상대 경로 (`LspDiagnosticsPublished.path` 와 같은 표기).
+    pub path: String,
+    pub diagnostics: Vec<LspDiagnostic>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct LspCompletionItem {
     pub label: String,
