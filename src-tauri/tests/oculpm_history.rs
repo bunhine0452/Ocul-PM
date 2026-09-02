@@ -117,6 +117,46 @@ fn the_same_hand_in_quick_succession_merges_but_a_different_hand_does_not() {
     assert_eq!(snaps(root, "a.ts").len(), 2);
 }
 
+/// **같은 밀리초에 들어온 판도 서로 다른 신원을 갖는다** (2026-09-02).
+///
+/// `ts_ms` 가 판의 신원이라 겹치면 읽기가 남의 판을 돌려주고, 예산 정리가
+/// 하나를 지우라는 지시로 둘을 함께 지운다. 사람 손으로는 잘 안 나지만
+/// 에이전트의 연속 쓰기와 빠른 기계에서는 난다 — CI 러너에서 실제로 났다.
+/// 시계에 기대지 않고 **연속 캡처의 신원이 유일한지**만 잰다.
+#[test]
+fn versions_in_the_same_millisecond_keep_distinct_identities() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+
+    // source 를 번갈아 병합 창을 피한다 — 세 판이 그대로 남아야 한다.
+    for (i, source) in [
+        HistorySource::User,
+        HistorySource::Agent,
+        HistorySource::User,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        write(root, "a.ts", &format!("v{i}\n"));
+        capture(root, "a.ts", source, DEFAULT_MAX_ENTRIES);
+    }
+
+    let list = history::list(root, "a.ts");
+    assert_eq!(list.len(), 3);
+    let mut tss: Vec<i64> = list.iter().map(|e| e.ts_ms).collect();
+    tss.sort_unstable();
+    tss.dedup();
+    assert_eq!(tss.len(), 3, "판 셋의 ts_ms 는 서로 달라야 한다");
+
+    // 신원이 유일해야 읽기가 그 판을 집는다.
+    for (want, entry) in ["v2\n", "v1\n", "v0\n"].iter().zip(&list) {
+        assert_eq!(
+            String::from_utf8(history::read_snapshot(root, "a.ts", entry.ts_ms).unwrap()).unwrap(),
+            *want
+        );
+    }
+}
+
 #[test]
 fn the_cap_drops_the_oldest_version_and_its_snapshot() {
     let dir = tempfile::tempdir().unwrap();

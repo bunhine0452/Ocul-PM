@@ -402,8 +402,19 @@ pub fn capture(
     } else {
         HistoryOp::Update
     };
+    // 판의 신원은 `ts_ms` 다 — 읽기·되돌리기·예산 정리가 전부 이 값으로 판을
+    // 집는다. 같은 밀리초에 두 판이 들어오면 그 신원이 겹쳐, 읽기가 **남의 판**을
+    // 돌려주고 예산 정리는 하나를 지우라는 지시로 **둘을 함께** 지운다 (파일의
+    // 히스토리가 통째로 비었다). 빠른 기계에서 실제로 났다 — CI 러너에서 세 번의
+    // 저장이 한 밀리초에 들어왔다. 파일 안에서만 1ms 씩 밀어 유일하게 만든다:
+    // 순서는 그대로고 어긋남은 밀리초다.
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let ts_ms = match meta.entries.last() {
+        Some(last) if now_ms <= last.ts_ms => last.ts_ms + 1,
+        _ => now_ms,
+    };
     let next = HistoryEntry {
-        ts_ms: chrono::Utc::now().timestamp_millis(),
+        ts_ms,
         hash: blake3::hash(&bytes).to_hex().to_string(),
         bytes: u32::try_from(bytes.len()).unwrap_or(u32::MAX),
         source,
