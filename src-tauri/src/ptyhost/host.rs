@@ -44,14 +44,13 @@ const IDLE_TICK_SECS: u64 = 60;
 /// 아무도 붙지 않는 호스트는 건널 앱이 없는 것이고, 그냥 두면 아무도 보지
 /// 않는 셸이 로그인 세션이 끝날 때까지 남는다.
 ///
-/// 이 값이 넉넉한 이유: 프로토콜이 갈려 **확실히** 고아가 된 경우는
-/// [`SUPERSEDED_TICKS`] 가 따로, 훨씬 빨리 데려간다. 여기 걸리는 건 "앱이
-/// 영영 돌아오지 않았다" 뿐이므로 성급할 이유가 없다.
+/// 이 값이 넉넉한 이유: 여기 걸리는 건 "앱이 영영 돌아오지 않았다" 하나뿐이고,
+/// 그 판단을 서두를 이유가 없다. 한때는 "프로토콜이 갈려 확실히 고아가 됐다"
+/// 는 빠른 길이 따로 있었지만(2분), 갈라 놓은 것이 바로 업데이트였다 — 새 앱은
+/// 이제 옛 자리까지 두드려 그 호스트를 이어받는다
+/// (`client::socket_candidates`). 성급한 수거는 **사용자가 돌리던 세션**을
+/// 죽이는 쪽으로만 틀렸다.
 const ORPHAN_TICKS: u32 = 180;
-
-/// 더 높은 프로토콜의 호스트 자리가 이미 생겼다면, 나를 쓸 앱은 없다 — 그때는
-/// 이만큼만 기다린다 (스폰 직후의 찰나를 오판하지 않을 만큼).
-const SUPERSEDED_TICKS: u32 = 2;
 
 /// 유휴 감시의 판정 — 시계·파일시스템과 떼어 놓아 그대로 테스트한다.
 #[derive(Default)]
@@ -72,9 +71,7 @@ enum Reap {
 }
 
 impl Watchdog {
-    /// `superseded` = 같은 빌드 종류의 **더 높은 프로토콜** 소켓이 이미 있다
-    /// ([`superseded_by_a_newer_socket`]).
-    fn tick(&mut self, clients: usize, has_sessions: bool, superseded: bool) -> Option<Reap> {
+    fn tick(&mut self, clients: usize, has_sessions: bool) -> Option<Reap> {
         if clients > 0 {
             self.empty = 0;
             self.lonely = 0;
@@ -85,57 +82,11 @@ impl Watchdog {
         if self.empty >= 2 {
             return Some(Reap::Idle);
         }
-        let grace = if superseded {
-            SUPERSEDED_TICKS
-        } else {
-            ORPHAN_TICKS
-        };
-        if self.lonely >= grace {
+        if self.lonely >= ORPHAN_TICKS {
             return Some(Reap::Orphan);
         }
         None
     }
-}
-
-/// `ptyhost-v3-dev.sock` → `Some((3, true))`. 규격 밖 이름은 `None`.
-fn parse_socket_name(name: &str) -> Option<(u32, bool)> {
-    let rest = name.strip_prefix("ptyhost-v")?.strip_suffix(".sock")?;
-    let (digits, dev) = match rest.strip_suffix("-dev") {
-        Some(d) => (d, true),
-        None => (rest, false),
-    };
-    Some((digits.parse().ok()?, dev))
-}
-
-/// 나보다 **높은 프로토콜**의 소켓이 같은 디렉터리에 있는가.
-///
-/// 있다면 그 버전의 앱이 이 기계에서 이미 떴다는 뜻이고, 내 이름을 부를 앱은
-/// 다시 없다 (소켓 이름이 곧 프로토콜이므로 — `client::socket_name`). 파일만
-/// 보고 판단한다: 남의 호스트에 접속해 보는 순간 그쪽의 "붙는 이" 수를
-/// 흔들어, 정작 그쪽이 고아일 때 못 알아보게 만든다.
-///
-/// dev 와 설치본은 서로를 세지 않는다 — 원래 남남이고, 나란히 도는 것이
-/// 정상이다. 이름 규격 밖(테스트의 `host.sock` 등)이면 판단하지 않는다.
-fn superseded_by_a_newer_socket(my_socket: &Path) -> bool {
-    let Some((mine, dev)) = my_socket
-        .file_name()
-        .and_then(|n| n.to_str())
-        .and_then(parse_socket_name)
-    else {
-        return false;
-    };
-    let Some(dir) = my_socket.parent() else {
-        return false;
-    };
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return false;
-    };
-    entries.flatten().any(|e| {
-        e.file_name()
-            .to_str()
-            .and_then(parse_socket_name)
-            .is_some_and(|(v, d)| d == dev && v > mine)
-    })
 }
 
 /// 이벤트 broadcast 버퍼. 소비가 느린 클라이언트는 lag 로 이벤트를 잃지만,
@@ -809,10 +760,9 @@ pub async fn serve(state: Arc<HostState>, socket: &Path) -> Result<(), String> {
     *state.socket.lock().unwrap_or_else(|p| p.into_inner()) = Some(socket.to_path_buf());
     log_line(&state, &format!("listening on {}", socket.display()));
 
-    // 유휴·고아 감시 — 빈 호스트는 두 틱, 버려진 호스트는 [`ORPHAN_TICKS`],
-    // 프로토콜이 갈려 확실히 고아가 된 호스트는 [`SUPERSEDED_TICKS`].
+    // 유휴·고아 감시 — 빈 호스트는 두 틱, 세션을 쥔 채 버려진 호스트는
+    // [`ORPHAN_TICKS`]. 세션을 쥔 호스트를 서둘러 내리는 길은 없다.
     let idle_state = state.clone();
-    let my_socket = socket.to_path_buf();
     tokio::spawn(async move {
         let mut watchdog = Watchdog::default();
         let mut tick = tokio::time::interval(std::time::Duration::from_secs(IDLE_TICK_SECS));
@@ -821,8 +771,7 @@ pub async fn serve(state: Arc<HostState>, socket: &Path) -> Result<(), String> {
             tick.tick().await;
             let clients = idle_state.clients.load(Ordering::SeqCst);
             let has_sessions = !idle_state.lock_sessions().is_empty();
-            let superseded = has_sessions && superseded_by_a_newer_socket(&my_socket);
-            match watchdog.tick(clients, has_sessions, superseded) {
+            match watchdog.tick(clients, has_sessions) {
                 None => continue,
                 Some(Reap::Idle) => {
                     log_line(&idle_state, "idle — exiting");
@@ -831,15 +780,10 @@ pub async fn serve(state: Arc<HostState>, socket: &Path) -> Result<(), String> {
                 Some(Reap::Orphan) => {
                     // 끝낼 세션이 있다 — 자리를 비우고, SIGKILL 스레드가 일을
                     // 마칠 유예를 준 뒤에 내려간다.
-                    let why = if superseded {
-                        "superseded by a newer protocol"
-                    } else {
-                        "no client for a long time"
-                    };
                     let n = vacate(&idle_state);
                     log_line(
                         &idle_state,
-                        &format!("orphaned ({why}) — exiting ({n} sessions)"),
+                        &format!("orphaned (no client for a long time) — exiting ({n} sessions)"),
                     );
                     tokio::time::sleep(KILL_GRACE + std::time::Duration::from_millis(700)).await;
                     std::process::exit(0);
@@ -886,8 +830,8 @@ mod tests {
     fn a_host_with_a_client_is_never_reaped() {
         let mut w = Watchdog::default();
         for _ in 0..(ORPHAN_TICKS * 10) {
-            assert_eq!(w.tick(1, true, false), None);
-            assert_eq!(w.tick(1, false, false), None);
+            assert_eq!(w.tick(1, true), None);
+            assert_eq!(w.tick(1, false), None);
         }
     }
 
@@ -895,8 +839,8 @@ mod tests {
     #[test]
     fn an_empty_host_exits_after_two_ticks() {
         let mut w = Watchdog::default();
-        assert_eq!(w.tick(0, false, false), None);
-        assert_eq!(w.tick(0, false, false), Some(Reap::Idle));
+        assert_eq!(w.tick(0, false), None);
+        assert_eq!(w.tick(0, false), Some(Reap::Idle));
     }
 
     /// 세션을 쥔 고아는 [`ORPHAN_TICKS`] 에 내려간다 — 그 전에는 버틴다.
@@ -904,54 +848,23 @@ mod tests {
     fn an_orphan_holding_sessions_exits_after_the_grace() {
         let mut w = Watchdog::default();
         for _ in 0..(ORPHAN_TICKS - 1) {
-            assert_eq!(w.tick(0, true, false), None);
+            assert_eq!(w.tick(0, true), None);
         }
-        assert_eq!(w.tick(0, true, false), Some(Reap::Orphan));
+        assert_eq!(w.tick(0, true), Some(Reap::Orphan));
     }
 
-    /// 프로토콜이 갈려 확실히 고아가 됐으면 3시간을 기다리지 않는다.
+    /// **세션을 쥔 호스트를 몇 분 만에 내리는 길은 없다** (2026-09-03).
+    ///
+    /// 한때 있었다: 더 높은 프로토콜의 소켓이 보이면 2틱 만에 내려갔다. 그런데
+    /// 그 소켓을 만드는 것이 곧 업데이트였고, 그래서 업데이트 2분 뒤에 사용자가
+    /// 돌리던 셸이 죽었다. 유예는 붙는 이가 없는 동안에만 흐르고, 그 길이는
+    /// [`ORPHAN_TICKS`] 하나뿐이다.
     #[test]
-    fn a_superseded_host_gives_up_quickly() {
+    fn nothing_reaps_a_session_holding_host_within_minutes() {
         let mut w = Watchdog::default();
-        assert_eq!(w.tick(0, true, true), None);
-        assert_eq!(w.tick(0, true, true), Some(Reap::Orphan));
-    }
-
-    #[test]
-    fn socket_names_carry_version_and_build() {
-        assert_eq!(parse_socket_name("ptyhost-v2.sock"), Some((2, false)));
-        assert_eq!(parse_socket_name("ptyhost-v13-dev.sock"), Some((13, true)));
-        // 규격 밖 — 판단 대상이 아니다.
-        assert_eq!(parse_socket_name("ptyhost.sock"), None);
-        assert_eq!(parse_socket_name("host.sock"), None);
-        assert_eq!(parse_socket_name("ptyhost-vx.sock"), None);
-    }
-
-    /// 같은 빌드 종류의 더 높은 프로토콜만 나를 밀어낸다 — dev 와 설치본은
-    /// 나란히 도는 것이 정상이라 서로를 세지 않는다.
-    #[test]
-    fn only_a_higher_protocol_of_the_same_build_supersedes() {
-        let dir = tempfile::tempdir().unwrap();
-        let touch = |name: &str| std::fs::write(dir.path().join(name), b"").unwrap();
-        touch("ptyhost-v2.sock");
-        touch("ptyhost-v3-dev.sock");
-        touch("ptyhost.sock");
-
-        // v3-dev 는 릴리스 v2 를 밀어내지 않는다.
-        assert!(!superseded_by_a_newer_socket(
-            &dir.path().join("ptyhost-v2.sock")
-        ));
-        // 같은 dev 계열에서는 더 높은 쪽이 밀어낸다.
-        assert!(superseded_by_a_newer_socket(
-            &dir.path().join("ptyhost-v2-dev.sock")
-        ));
-        // 이름 규격 밖이면 판단하지 않는다.
-        assert!(!superseded_by_a_newer_socket(&dir.path().join("host.sock")));
-
-        touch("ptyhost-v3.sock");
-        assert!(superseded_by_a_newer_socket(
-            &dir.path().join("ptyhost-v2.sock")
-        ));
+        for _ in 0..30 {
+            assert_eq!(w.tick(0, true), None, "30분 안에는 아무도 못 내린다");
+        }
     }
 
     /// 앱 재시작을 건너는 것이 호스트의 존재 이유다 — 붙는 이가 돌아오면
@@ -960,13 +873,13 @@ mod tests {
     fn a_returning_client_resets_the_grace() {
         let mut w = Watchdog::default();
         for _ in 0..(ORPHAN_TICKS - 1) {
-            assert_eq!(w.tick(0, true, false), None);
+            assert_eq!(w.tick(0, true), None);
         }
-        assert_eq!(w.tick(1, true, false), None); // 앱이 다시 붙었다
+        assert_eq!(w.tick(1, true), None); // 앱이 다시 붙었다
         for _ in 0..(ORPHAN_TICKS - 1) {
-            assert_eq!(w.tick(0, true, false), None);
+            assert_eq!(w.tick(0, true), None);
         }
-        assert_eq!(w.tick(0, true, false), Some(Reap::Orphan));
+        assert_eq!(w.tick(0, true), Some(Reap::Orphan));
     }
 
     #[cfg(unix)]

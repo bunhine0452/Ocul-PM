@@ -4,6 +4,7 @@
 
 import { memo, useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, Search, Square, Trash2, X } from "@/components/Icons";
+import { SessionIdChip, shortSessionId } from "../SessionIdChip";
 import type { AcpRowState } from "../acpBusyBus";
 import { type AcpSessionSummary } from "@/lib/bindings";
 import { useT } from "@/i18n";
@@ -171,24 +172,30 @@ export const SessionPanel = memo(function SessionPanel({
                   <span className="acp-session-title">
                     {label || t("acp.untitledSession")}
                   </span>
-                  {/* 상대 시각 자리를 상태가 **대신** 쓴다. 둘을 나란히 두면
-                      좁은 패널에서 제목이 먼저 잘린다 — 그리고 도는 중인 대화의
-                      "3분 전"은 지금 알고 싶은 값이 아니다. */}
-                  {rowState ? (
-                    <span
-                      className={
-                        "acp-session-state" + (rowState === "attention" ? " attention" : "")
-                      }
-                    >
-                      {rowState === "attention"
-                        ? t("acp.session.needsInput")
-                        : t("acp.session.running")}
-                    </span>
-                  ) : (
-                    <span className="acp-session-time">
-                      {relativeTime(item.updated_at, now)}
-                    </span>
-                  )}
+                  {/* 둘째 줄 — **세션 id** 와 시각.
+                      한 줄이던 것을 여기서 나눴다: id 를 제목 옆에 끼우면 좁은
+                      패널에서 제목이 먼저 잘리는데, 이 목록에서 제목은 대화를
+                      고르는 유일한 단서다. 나누고 나니 제목이 줄 전체를 쓴다.
+                      상대 시각 자리는 도는 중일 때 상태가 **대신** 쓴다 —
+                      돌고 있는 대화의 "3분 전"은 지금 알고 싶은 값이 아니다. */}
+                  <span className="acp-session-meta">
+                    <span className="acp-session-id">{shortSessionId(item.id)}</span>
+                    {rowState ? (
+                      <span
+                        className={
+                          "acp-session-state" + (rowState === "attention" ? " attention" : "")
+                        }
+                      >
+                        {rowState === "attention"
+                          ? t("acp.session.needsInput")
+                          : t("acp.session.running")}
+                      </span>
+                    ) : (
+                      <span className="acp-session-time">
+                        {relativeTime(item.updated_at, now)}
+                      </span>
+                    )}
+                  </span>
                 </button>
                 <span className="acp-session-actions">
                   {/* 열지 않고 중단 — 돌고 있을 때만 나타난다. 승인 대기는
@@ -217,6 +224,9 @@ export const SessionPanel = memo(function SessionPanel({
                     </button>
                   ) : (
                     <>
+                      {/* id 복사는 **버튼**이어야 한다 — 줄 전체가 이미
+                          "이 대화 열기" 버튼이라, 그 안의 글자는 누를 수 없다. */}
+                      <SessionIdChip sessionId={item.id} className="acp-session-act" />
                       <button
                         type="button"
                         className="acp-session-act"

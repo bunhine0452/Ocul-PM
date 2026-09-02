@@ -130,6 +130,8 @@ const TESTS = new Set([
   "__tests__/acp_conversation_seams.test.tsx",
   "__tests__/acp_parallel_sessions.test.tsx",
   "__tests__/acp_session_tabs.test.tsx",
+  // 세션 id 표면 — 한국어 aria-label("세션 id 복사 …")이 곧 단언 재료다.
+  "__tests__/acp_session_id.test.tsx",
   "__tests__/acp_title.test.ts",
   "__tests__/acp_usage_detail.test.ts",
   // Osaurus 라운드 Phase 7 — 대화 임포트·도달성. 한국어 제목·테스트 이름이

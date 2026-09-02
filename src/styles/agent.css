@@ -1195,9 +1195,10 @@
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 6px 9px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 5px 9px;
   border: none;
   border-radius: 8px;
   background: none;
@@ -1233,6 +1234,24 @@
   font-family: var(--mono);
   font-size: var(--fs-1);
   color: var(--text-2);
+}
+/* 둘째 줄 — 세션 id 와 시각. 제목보다 한 단계 흐리다: 이 줄은 **찾을 때만**
+   읽는 줄이고, 목록을 훑을 때는 눈에 걸리지 않아야 한다. */
+.acp-session-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.acp-session-id {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: var(--fs-1);
+  color: var(--text-3);
 }
 /* 활성 줄의 상태 — 상대 시각과 **같은 자리**를 쓴다 (Phase 3 #active-rows).
    나란히 두면 좁은 패널에서 제목이 먼저 잘린다. 승인 대기는 강조색으로 —
@@ -2708,4 +2727,41 @@
 .msg-error-act:hover {
   color: var(--text);
   border-color: var(--sep-strong);
+}
+
+/* ─── 세션 id 칩 ─────────────────────────────────────────────────────────
+   `claude --resume <id>` 로 이 대화를 터미널에서 이어 열기 위한 손잡이.
+   툴바에서는 글자와 아이콘이 함께 서고, 좁은 목록 줄에서는 아이콘만 남는다
+   (`.acp-session-act` 를 함께 걸치면 다른 행위 버튼들과 같은 22px 이 된다). */
+.session-id-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--fs-2);
+  color: var(--text-3);
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.session-id-chip:hover {
+  background: var(--bg-inset);
+  color: var(--text-2);
+}
+.session-id-chip.done {
+  color: var(--accent-text);
+}
+/* 목록 줄에서는 자리가 없다 — 아이콘만. id 자체는 둘째 줄이 이미 적고 있다. */
+.session-id-chip.acp-session-act .session-id-text {
+  display: none;
+}
+.session-id-chip.acp-session-act {
+  gap: 0;
+  padding: 0;
 }

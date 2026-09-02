@@ -58,7 +58,13 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.34.1 — the app clears out the old terminal process an update left behind
+## 🚀 v2.35.0 — an update no longer kills your terminal (for real this time) · Claude Code session ids
+
+- **The meeting place stops moving** — the process that owns your terminals outlives the app for exactly one reason: to carry your shells across an update restart. Then v2.34.0 **renamed the socket where the app meets it**, so the updated app stopped looking at the old address and your running session was cut loose. The address is now fixed, and the app also checks the old address and **adopts whatever process is still alive there** (where a version difference changes a meaning, the app adapts to the old meaning — it does not replace the process).
+- **Nothing reaps a session-holding process within minutes** — every place where the app told that process to shut down is gone. A process holding shells with nobody attached gets one grace period, three hours, and it restarts from zero the moment the app comes back.
+- **Claude Code session ids** — conversations in the app belong to Claude Code itself, so with the id you can reopen the very same conversation in a terminal via `claude --resume <id>`. The current conversation's id now sits in the toolbar, and every row in the history list carries its own — click to copy **the full id** (the screen shows the first 8 characters), hover to see the exact command.
+
+## v2.34.1 — the app clears out the old terminal process an update left behind
 
 - **Nothing to click, nothing to type** — the process that owns your terminals deliberately outlives an app update, so a restart never kills your shells. v2.34.0 put a version on that process's socket, which means **a process from an older version can no longer be reached by anyone** — and that older build doesn't know how to shut itself down, so it sat there holding shells nobody could see. The app now clears that spot once at startup. Any future case is handled by the process itself.
 - **Local history versions could shadow one another** — a version's identity was its millisecond timestamp, so two versions landing in the same millisecond shared an identity: opening one returned the other's content, and a budget cleanup told to drop one dropped both. Rare by hand, routine when an agent writes in quick succession.

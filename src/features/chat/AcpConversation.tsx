@@ -15,6 +15,7 @@ import { Toolbar } from "@/components/Toolbar";
 import { PanelLeft } from "@/components/Icons";
 import { ClaudeMark, CLAUDE_ORANGE } from "@/components/ClaudeMark";
 import { AcpUsageMeter } from "./AcpUsageMeter";
+import { SessionIdChip } from "./SessionIdChip";
 import { commands, events,
   type AcpEvent,
   type AcpImage,
@@ -1637,6 +1638,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         />
       }
     >
+      {/* 지금 보고 있는 대화의 세션 id — 누르면 복사된다.
+          패널을 열어야만 보이면 "터미널에서 이어서" 가 두 동작이 된다. */}
+      {activeId === SLATE ? null : <SessionIdChip sessionId={activeId} />}
       <AcpUsageMeter projectId={projectId} />
       {/* 터미널로 나가는 문.
           어댑터는 CLI 가 가진 것 중 **자기가 노출하기로 한 것만** 준다 —

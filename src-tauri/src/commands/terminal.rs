@@ -17,7 +17,7 @@ use tauri::{Emitter, Manager, State};
 use uuid::Uuid;
 
 use crate::oculpm::shell_integration;
-use crate::ptyhost::client::{connect_or_spawn, socket_path, PtyHostClient};
+use crate::ptyhost::client::{connect_or_spawn, socket_candidates, PtyHostClient};
 use crate::ptyhost::protocol::{Event, Request, Response};
 
 /// `start_pty_session` 반환값 — 프런트가 OSC 신호를 검증하는 데 필요한 정보.
@@ -68,7 +68,7 @@ impl PtyState {
             }
             *slot = None;
         }
-        let socket = socket_path_for(app)?;
+        let sockets = socket_candidates_for(app)?;
         let emitter = app.clone();
         // 호스트 이벤트 → tauri 이벤트 재방출. app.emit 은 전역 브로드캐스트라
         // 예전 in-process 경로와 프런트가 보는 모양이 완전히 같다.
@@ -80,7 +80,7 @@ impl PtyState {
                 let _ = emitter.emit(&format!("pty-exit-{sid}"), ());
             }
         };
-        match connect_or_spawn(&socket, spawn, on_event).await? {
+        match connect_or_spawn(&sockets, spawn, on_event).await? {
             Some(c) => {
                 let c = Arc::new(c);
                 *slot = Some(c.clone());
@@ -185,13 +185,14 @@ fn inside_async_runtime() -> bool {
     tokio::runtime::Handle::try_current().is_ok()
 }
 
-fn socket_path_for(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+/// 붙어 볼 호스트 자리들 — 정식 자리와, 옛 판이 쓰던 자리.
+fn socket_candidates_for(app: &tauri::AppHandle) -> Result<Vec<std::path::PathBuf>, String> {
     let dir = app
         .path()
         .app_data_dir()
         .map_err(|e| format!("failed to resolve the app data dir: {e}"))?;
     std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create the app data dir: {e}"))?;
-    Ok(socket_path(&dir))
+    Ok(socket_candidates(&dir))
 }
 
 #[tauri::command]
@@ -353,9 +354,38 @@ pub async fn pty_foreground_command(
         .request(Request::Foreground { sid: session_id })
         .await?
     {
-        Response::Foreground { command } => Ok(command),
+        // proto 1 호스트 — 업데이트를 건너온 옛 호스트 — 는 **놀고 있는 셸도**
+        // 자기 명령줄로 답한다. 그 답을 "돌고 있는 일" 로 읽는 쪽
+        // (`useTabRunningWork` → 탭 닫기 확인)에는 터미널을 켜 두기만 해도
+        // 확인창이 떴다. 호스트를 갈아치우는 대신 **앱이 옛 뜻을 안다** —
+        // 갈아치우는 값이 사용자의 세션이었다 (`ptyhost::client::socket_name`).
+        Response::Foreground { command } => Ok(command.filter(|c| {
+            client.host_proto() >= 2 || !is_the_login_shell(c, &shell_integration::current_shell())
+        })),
         Response::Error { message } => Err(message),
         other => Err(format!("unexpected pty-host response: {other:?}")),
+    }
+}
+
+/// 이 명령줄이 **로그인 셸 자신**인가 — proto 1 호스트의 답을 거르는 자다.
+///
+/// 로그인 셸의 argv[0] 은 `-zsh` 처럼 하이픈이 붙고 경로가 실려 오기도 하므로,
+/// 첫 토큰의 파일명만 셸의 파일명과 견준다. 사용자가 일부러 띄운 하위 셸까지
+/// "없음" 으로 접는 대가가 있지만, 그건 옛 호스트에 붙어 있는 동안뿐이고
+/// 반대쪽 대가는 세션을 통째로 잃는 것이었다.
+fn is_the_login_shell(command: &str, shell: &str) -> bool {
+    let name_of = |s: &str| {
+        std::path::Path::new(s.trim_start_matches('-'))
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(str::to_string)
+    };
+    let Some(first) = command.split_whitespace().next() else {
+        return false;
+    };
+    match (name_of(first), name_of(shell)) {
+        (Some(a), Some(b)) => a == b,
+        _ => false,
     }
 }
 
@@ -406,6 +436,25 @@ pub async fn kill_pty_session(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 옛 호스트가 돌려주는 `-zsh` 를 "돌고 있는 일" 로 읽지 않는다.
+    #[test]
+    fn a_login_shell_is_not_foreground_work() {
+        assert!(is_the_login_shell("-zsh", "/bin/zsh"));
+        assert!(is_the_login_shell("/bin/zsh", "/bin/zsh"));
+        assert!(is_the_login_shell("zsh", "/bin/zsh"));
+        assert!(is_the_login_shell("-bash", "/bin/bash"));
+    }
+
+    /// 진짜 돌고 있는 일은 그대로 통과한다 — 이게 막히면 탭 닫기 확인이
+    /// 영영 안 뜬다.
+    #[test]
+    fn real_foreground_work_still_counts() {
+        assert!(!is_the_login_shell("claude", "/bin/zsh"));
+        assert!(!is_the_login_shell("vim src/main.rs", "/bin/zsh"));
+        assert!(!is_the_login_shell("ssh host", "/bin/zsh"));
+        assert!(!is_the_login_shell("", "/bin/zsh"));
+    }
 
     /// **이 파일이 kill 을 두 갈래로 나눠 둔 이유** (2026-08-29).
     ///

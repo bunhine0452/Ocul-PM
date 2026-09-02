@@ -8,7 +8,7 @@
 
 use std::time::Duration;
 
-use ocul_pm_lib::ptyhost::client::{shutdown_host_at, sweep_legacy_host, PtyHostClient};
+use ocul_pm_lib::ptyhost::client::{connect_or_spawn, socket_candidates, PtyHostClient};
 use ocul_pm_lib::ptyhost::host::{serve, HostState};
 use ocul_pm_lib::ptyhost::protocol::{Event, Request, Response};
 use tokio::sync::mpsc;
@@ -193,30 +193,94 @@ async fn kill_prefix_only_touches_that_window() {
     let _ = client.request(Request::KillExcept { keep: vec![] }).await;
 }
 
-/// 업데이트가 남긴 **옛 이름의 호스트**를 앱이 대신 걷는다 (2026-09-02).
+/// **업데이트가 세션을 끊지 않는다** (2026-09-03) — 이 파일에서 가장 비싼 계약.
 ///
-/// 붙는 이가 없는 시체 소켓은 파일만 걷어내고 "살아 있는 호스트가 아니었다"고
-/// 답해야 한다 — 그래야 호출자가 로그를 남길지 말지 가른다.
+/// v2.34.0 이 소켓 이름에 프로토콜을 달면서 업데이트한 앱이 옛 자리를 쳐다보지
+/// 않게 됐고, 그 안에서 돌던 사용자의 세션이 통째로 끊겼다. 이제 앱은 정식
+/// 자리가 비어 있으면 옛 자리까지 두드려 **그 호스트를 그대로 이어받는다.**
+/// 내리지 않는다.
 #[tokio::test(flavor = "multi_thread")]
-async fn the_sweep_collects_a_dead_socket_file() {
+async fn the_app_adopts_a_host_left_at_an_old_address() {
     let dir = tempfile::tempdir().unwrap();
-    let socket = dir.path().join("ptyhost.sock");
-    std::fs::write(&socket, b"").unwrap();
+    let candidates = socket_candidates(dir.path());
+    assert!(candidates.len() > 1, "옛 자리가 후보에 있어야 한다");
+    let (canonical, legacy) = (candidates[0].clone(), candidates[1].clone());
 
-    assert!(!shutdown_host_at(&socket).await, "붙는 이가 없었다");
-    assert!(!socket.exists(), "시체 파일은 걷어낸다");
+    // 업데이트 **전** 판이 띄운 호스트 — 옛 자리에 살아 세션을 쥐고 있다.
+    let state = HostState::new(None);
+    let serve_socket = legacy.clone();
+    tokio::spawn(async move {
+        let _ = serve(state, &serve_socket).await;
+    });
+    for _ in 0..100 {
+        if legacy.exists() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    let (old_client, _events) = connect(&legacy).await;
+    old_client
+        .request(start_req("p1-live", "n1"))
+        .await
+        .unwrap();
+    drop(old_client); // 앱이 업데이트로 내려간다
+
+    // 업데이트 **후** 판이 뜬다. 정식 자리는 비어 있다 — 그래도 세션을 찾는다.
+    assert!(!canonical.exists(), "정식 자리는 아직 비어 있다");
+    let adopted = connect_or_spawn(&candidates, false, |_| {})
+        .await
+        .expect("붙는 데 실패하면 안 된다")
+        .expect("옛 자리의 호스트를 찾아야 한다");
+
+    let resp = adopted
+        .request(Request::Attach {
+            sid: "p1-live".into(),
+        })
+        .await
+        .unwrap();
+    assert!(
+        matches!(resp, Response::Attach { attach: Some(_) }),
+        "업데이트를 건너 세션이 살아 있어야 한다, got {resp:?}"
+    );
+
+    let _ = adopted.request(Request::KillExcept { keep: vec![] }).await;
 }
 
-/// **dev 빌드는 그 자리를 건드리지 않는다** — 이 한 줄이 자기참수 사고의 조건을
-/// 되살리지 않게 막는 안전장치다. 설치본의 내장 터미널에서 dev 를 띄웠을 때
-/// dev 가 설치본의 호스트를 내리면, 그 호스트가 쥔 셸이 곧 자기를 띄운 터미널이다.
-/// 테스트는 늘 디버그 빌드라 여기서 바로 잰다.
+/// 아무 자리에도 호스트가 없으면 — 그리고 띄우지 말라고 했으면 — `None` 이다.
+/// (세션이 없다는 뜻이고, `attach` 는 이 답을 보고 새 셸로 간다.)
 #[tokio::test(flavor = "multi_thread")]
-async fn a_debug_build_never_sweeps() {
+async fn no_host_anywhere_is_not_an_error() {
     let dir = tempfile::tempdir().unwrap();
-    let socket = dir.path().join("ptyhost.sock");
-    std::fs::write(&socket, b"").unwrap();
+    let found = connect_or_spawn(&socket_candidates(dir.path()), false, |_| {})
+        .await
+        .expect("호스트가 없는 것은 오류가 아니다");
+    assert!(found.is_none());
+}
 
-    sweep_legacy_host(dir.path()).await;
-    assert!(socket.exists(), "dev 빌드는 옛 소켓을 손대지 않는다");
+/// 시체 소켓 파일이 정식 자리를 막고 있어도 옛 자리를 계속 두드린다 —
+/// 업데이트 직후가 정확히 이 모양이다 (v2.33 이 남긴 `ptyhost.sock` 시체 +
+/// v2.34 가 쥐고 있는 `ptyhost-v2.sock`).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_stale_socket_file_does_not_hide_the_live_host() {
+    let dir = tempfile::tempdir().unwrap();
+    let candidates = socket_candidates(dir.path());
+    std::fs::write(&candidates[0], b"").unwrap(); // 시체
+
+    let legacy = candidates[1].clone();
+    let state = HostState::new(None);
+    let serve_socket = legacy.clone();
+    tokio::spawn(async move {
+        let _ = serve(state, &serve_socket).await;
+    });
+    for _ in 0..100 {
+        if legacy.exists() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+
+    let found = connect_or_spawn(&candidates, false, |_| {})
+        .await
+        .expect("시체 파일에 걸려 넘어지면 안 된다");
+    assert!(found.is_some(), "살아 있는 옛 호스트를 찾아야 한다");
 }

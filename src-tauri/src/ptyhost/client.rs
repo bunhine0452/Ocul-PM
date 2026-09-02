@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -30,6 +30,8 @@ pub struct PtyHostClient {
     pending: Arc<Mutex<HashMap<u64, oneshot::Sender<Response>>>>,
     next_id: AtomicU64,
     alive: Arc<AtomicBool>,
+    /// 붙어 있는 호스트가 말하는 프로토콜 번호 — 우리 것과 다를 수 있다.
+    host_proto: AtomicU32,
     /// 읽기 루프. 버릴 때 **여기서 소켓을 놓아야** 호스트가 EOF 를 본다.
     reader: tokio::task::JoinHandle<()>,
 }
@@ -50,6 +52,13 @@ impl Drop for PtyHostClient {
 impl PtyHostClient {
     pub fn is_alive(&self) -> bool {
         self.alive.load(Ordering::SeqCst)
+    }
+
+    /// 이 호스트가 말하는 프로토콜 번호. 우리 것보다 **낮을 수 있다** —
+    /// 업데이트를 건너온 호스트가 그렇다. 뜻이 달라진 자리는 부르는 쪽이
+    /// 이 번호를 보고 맞춘다 (`commands::terminal::pty_foreground_command`).
+    pub fn host_proto(&self) -> u32 {
+        self.host_proto.load(Ordering::SeqCst)
     }
 
     /// 접속만 한다 — 호스트가 없으면 Err. 이벤트는 `on_event` 로 올라온다.
@@ -127,18 +136,33 @@ impl PtyHostClient {
             pending,
             next_id: AtomicU64::new(1),
             alive,
+            host_proto: AtomicU32::new(PROTO_VERSION),
             reader,
         };
 
-        // 프로토콜 확인 — [`socket_name`] 이 버전마다 자리를 갈라 놓으므로
-        // 여기서 불일치를 보는 일은 없어야 한다. 그래도 보게 된다면 이 자리에
-        // 있는 것은 **우리 짝이 아니다** — 접속만 놓고 물러난다. 내리지
-        // 않는다: 남의 호스트를 내리는 것은 남의 셸을 죽이는 것이다.
+        // 프로토콜 확인 — 여기서 **물러나지 않는다** (2026-09-03).
+        //
+        // 업데이트 직후에는 옛 호스트가 세션을 쥔 채 살아 있고, 새 앱이 거기
+        // 그대로 붙는 것이 이 기능의 전부다. 번호가 다르다고 등을 돌리면 그
+        // 세션은 끊긴다 — 실제로 v2.34.0 이 그렇게 끊었다. 그래서 번호는
+        // **기억만** 하고, 뜻이 달라진 자리는 부르는 쪽이 맞춘다.
+        //
+        // 거절하는 경우는 하나다: 답이 `Proto` 가 아니면 이 자리에 있는 것은
+        // 우리 호스트가 아니다. 그때도 내리지는 않는다 — 남의 호스트를
+        // 내리는 것은 남의 셸을 죽이는 것이다.
         match client.request(Request::Hello).await? {
-            Response::Proto { proto } if proto == PROTO_VERSION => Ok(client),
-            Response::Proto { proto } => Err(format!(
-                "pty-host protocol mismatch: host={proto} app={PROTO_VERSION}"
-            )),
+            Response::Proto { proto } => {
+                client.host_proto.store(proto, Ordering::SeqCst);
+                if proto != PROTO_VERSION {
+                    tracing::info!(
+                        target: "terminal",
+                        host = proto,
+                        app = PROTO_VERSION,
+                        "옛 PTY 호스트를 이어받는다 — 번호 차이는 앱이 맞춘다"
+                    );
+                }
+                Ok(client)
+            }
             other => Err(format!("unexpected hello response: {other:?}")),
         }
     }
@@ -191,86 +215,53 @@ const BUILD_SUFFIX: &str = "-dev";
 #[cfg(not(debug_assertions))]
 const BUILD_SUFFIX: &str = "";
 
-/// 소켓 이름 — `ptyhost-v{PROTO_VERSION}[-dev].sock`.
+/// 호스트의 **정식 자리** — `ptyhost[-dev].sock`.
 ///
-/// **이름이 격리다** (2026-09-02). 프로토콜이 다르거나 빌드 종류가 다른 두
-/// 짝은 애초에 같은 자리에서 만나지 않는다. 앞서 dev 빌드를 설치본의 내장
-/// 터미널에서 띄웠을 때, 두 짝이 같은 `ptyhost.sock` 에서 만나 불일치를 보고
-/// 서로의 호스트를 내렸고 — 그 호스트가 쥐고 있던 셸이 곧 자기를 띄운 그
-/// 터미널이었다. 버전을 올리는 것만으로 자리가 갈리므로 그 경로는 이제
-/// 발화하지 않는다.
+/// **이름에 프로토콜을 담지 않는다** (2026-09-03). 담아 봤다가 이 기능의 존재
+/// 이유를 잃었다: v2.34.0 이 프로토콜을 1→2 로 올리며 자리를
+/// `ptyhost-v2.sock` 으로 옮기자, 업데이트한 앱이 **옛 자리를 쳐다보지 않게**
+/// 되어 그 안에서 돌던 세션이 통째로 끊겼다. 호스트가 앱보다 오래 사는 이유는
+/// 하나뿐인데(업데이트를 건너기 위해서), 업데이트마다 만나는 자리를 바꾸면 그
+/// 하나를 스스로 취소하는 셈이다.
 ///
-/// 갈라진 뒤 구버전 호스트는 아무도 붙지 않는 채 남는데, 그건 호스트가
-/// 스스로 정리한다 — 더 높은 프로토콜의 소켓이 생긴 것을 보면 몇 분 안에
-/// 세션을 끝내고 내려간다 (`host::superseded_by_a_newer_socket`). 남의
-/// 호스트를 내리는 대신 **자기 수명을 아는 호스트**로 푼 것이다.
+/// 그래서 자리는 고정이고, 번호 차이는 [`PtyHostClient::host_proto`] 로
+/// **협상**한다 — 옛 호스트를 만나면 앱이 옛 뜻에 맞춰 준다.
+///
+/// `-dev` 접미사는 남는다. 그건 프로토콜이 아니라 **빌드 종류**의 격리고, 설치본의
+/// 내장 터미널에서 dev 를 띄웠을 때 두 짝이 같은 자리에서 만나 서로의 호스트를
+/// 내리고 자기 셸을 죽인 사고(2026-09-02)를 막는 자리다.
 pub fn socket_name() -> String {
-    format!("ptyhost-v{PROTO_VERSION}{BUILD_SUFFIX}.sock")
+    format!("ptyhost{BUILD_SUFFIX}.sock")
 }
 
-/// 소켓 위치 — 앱 데이터 디렉터리 아래 고정 (`logs/`·`shell-integration/` 과
-/// 같은 곳). 호스트의 로그 디렉터리도 여기서 파생된다.
+/// 정식 자리 — 새로 띄울 때는 언제나 여기다.
 pub fn socket_path(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join(socket_name())
 }
 
-/// 소켓에 버전이 붙기 전(v2.33 까지)의 고정 이름.
-const LEGACY_SOCKET: &str = "ptyhost.sock";
+/// 옛 판이 쓰던 자리들 (최신 순).
+///
+/// v2.34.x 만 프로토콜을 이름에 달았다. 그 판에서 올라오는 사용자의 호스트는
+/// 아직 거기 살아 세션을 쥐고 있으므로, 정식 자리가 비어 있으면 여기를 차례로
+/// 두드려 **그 호스트를 그대로 이어받는다.** 내리지 않는다 — 세션을 쥔 호스트를
+/// 내리는 것이 애초에 사용자가 잃은 것이었다.
+///
+// oculpm-defer: v2.34.x 에서 직접 올라오는 경로 전용이다; 그 판에서 올라오는
+// 사용자가 사실상 없어지면 지운다.
+const LEGACY_SOCKET_NAMES: &[&str] = &["ptyhost-v2"];
 
-/// 업데이트가 남긴 **옛 이름의 호스트**를 걷어낸다 (2026-09-02).
+/// 붙어 볼 자리들 — 정식 자리가 먼저, 그다음이 옛 자리.
 ///
-/// 이름이 갈리기 전에 뜬 호스트에는 이 버전부터 아무도 붙지 않는다
-/// ([`socket_name`]). 그런데 그 호스트는 **자기 수명을 아는 코드가 없는**
-/// 옛 빌드라, 세션을 쥔 채 로그인 세션이 끝날 때까지 남는다 — 아무도 보지
-/// 않는 셸이 영영 도는 것이다. 사용자에게 `pkill` 을 시킬 수는 없으므로 앱이
-/// 시작할 때 한 번 대신 걷는다.
-///
-/// **릴리스 빌드만** 한다. dev 빌드가 이 자리를 건드리게 두면, 설치본의 내장
-/// 터미널에서 dev 를 띄우는 순간 자기를 띄운 셸을 죽인다 — 이름 격리로 없앤
-/// 바로 그 사고를 한 줄로 되살리는 셈이다. 그리고 **옛 이름 하나만** 본다:
-/// 버전이 붙은 자리는 임자가 있는 자리다.
-///
-// oculpm-defer: v2.33 이하에서 올라오는 경로 전용 이행 코드다; 옛 버전에서
-// 직접 올라오는 사용자가 사실상 없어지면(대략 v2.40 이후) 지운다.
-pub async fn sweep_legacy_host(app_data_dir: &Path) {
-    if cfg!(debug_assertions) {
-        return;
-    }
-    let socket = app_data_dir.join(LEGACY_SOCKET);
-    if !socket.exists() {
-        return;
-    }
-    if shutdown_host_at(&socket).await {
-        tracing::info!(target: "terminal", socket = %socket.display(), "swept a pre-versioned pty-host");
-    }
-}
-
-/// 이 소켓의 호스트에게 내려가 달라고 하고, 응답(또는 2초)을 기다린다.
-/// 붙는 이가 없으면 소켓 파일만 걷는다. 반환값은 "살아 있는 호스트였나".
-///
-/// [`PtyHostClient::connect`] 를 쓰지 않는 이유: 그쪽은 프로토콜이 다르면
-/// 물러난다. 여기서 상대는 정의상 **옛 프로토콜**이고, 우리는 대화가 아니라
-/// 한 마디만 보내면 된다.
-pub async fn shutdown_host_at(socket: &Path) -> bool {
-    let Ok(mut stream) = UnixStream::connect(socket).await else {
-        // 시체 파일 — 붙는 이가 없다.
-        let _ = std::fs::remove_file(socket);
-        return false;
-    };
-    let Ok(json) = serde_json::to_string(&ClientFrame {
-        id: 1,
-        req: Request::Shutdown,
-    }) else {
-        return false;
-    };
-    if stream.write_all(&encode_frame(&json)).await.is_err() {
-        return false;
-    }
-    // 응답을 읽는 것은 확인용이다 — 옛 호스트는 자리를 비우고(소켓 파일 삭제)
-    // 종료 유예 뒤 스스로 내려간다. 먹통이면 2초에 놓아 준다.
-    let mut buf = [0u8; 256];
-    let _ = tokio::time::timeout(std::time::Duration::from_secs(2), stream.read(&mut buf)).await;
-    true
+/// 빌드 격리는 옛 자리에도 그대로 붙인다 — dev 가 설치본의 옛 호스트를
+/// 이어받아 버리면 이름 격리가 무의미해진다.
+pub fn socket_candidates(app_data_dir: &Path) -> Vec<PathBuf> {
+    let mut paths = vec![socket_path(app_data_dir)];
+    paths.extend(
+        LEGACY_SOCKET_NAMES
+            .iter()
+            .map(|stem| app_data_dir.join(format!("{stem}{BUILD_SUFFIX}.sock"))),
+    );
+    paths
 }
 
 /// 호스트를 detach 로 띄운다 — 앱이 죽어도(업데이트 재시작) 함께 죽지 않게
@@ -299,26 +290,43 @@ pub fn spawn_host_process(socket: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// 접속하되, 없으면 (요청 시) 띄우고 재시도한다.
+/// 살아 있는 호스트에 붙는다 — **정식 자리부터 옛 자리까지** 차례로. 아무도
+/// 없으면 (요청 시) 정식 자리에 띄우고 재시도한다.
+///
+/// 옛 자리까지 두드리는 이유가 이 함수의 전부다: 업데이트를 건너온 호스트는
+/// 옛 이름 아래 세션을 쥔 채 살아 있고, 그걸 못 찾으면 새 셸이 뜬다 — 사용자
+/// 눈에는 "업데이트가 터미널을 죽였다" 다.
 pub async fn connect_or_spawn(
-    socket: &Path,
+    candidates: &[PathBuf],
     spawn_if_missing: bool,
     on_event: impl Fn(Event) + Send + Sync + Clone + 'static,
 ) -> Result<Option<PtyHostClient>, String> {
-    if let Ok(c) = PtyHostClient::connect(socket, on_event.clone()).await {
-        return Ok(Some(c));
+    for (i, socket) in candidates.iter().enumerate() {
+        if let Ok(c) = PtyHostClient::connect(socket, on_event.clone()).await {
+            if i > 0 {
+                tracing::info!(
+                    target: "terminal",
+                    socket = %socket.display(),
+                    "옛 자리의 PTY 호스트를 이어받았다"
+                );
+            }
+            return Ok(Some(c));
+        }
     }
     if !spawn_if_missing {
         return Ok(None);
     }
+    let socket = candidates
+        .first()
+        .ok_or_else(|| "no pty-host socket candidates".to_string())?;
     spawn_host_process(socket)?;
     let mut last = String::new();
     for _ in 0..CONNECT_RETRIES {
         tokio::time::sleep(std::time::Duration::from_millis(CONNECT_RETRY_MS)).await;
         match PtyHostClient::connect(socket, on_event.clone()).await {
             Ok(c) => return Ok(Some(c)),
-            // 마지막 이유를 들고 나간다 — 프로토콜 불일치처럼 재시도로 풀리지
-            // 않는 사정을 "시간 안에 안 떴다" 로 덮으면 진단이 사라진다.
+            // 마지막 이유를 들고 나간다 — 재시도로 풀리지 않는 사정을
+            // "시간 안에 안 떴다" 로 덮으면 진단이 사라진다.
             Err(e) => last = e,
         }
     }
@@ -329,22 +337,44 @@ pub async fn connect_or_spawn(
 mod tests {
     use super::*;
 
-    /// 이름이 격리다 — 프로토콜을 올리면 자리가 갈려야 구·신 짝이 만나지 않는다.
+    /// **자리는 고정이다.** 프로토콜을 올린다고 이름을 옮기면 그 순간
+    /// 업데이트가 세션을 끊는다 (v2.34.0 이 그렇게 끊었다).
     #[test]
-    fn socket_name_carries_the_protocol_version() {
+    fn the_socket_name_does_not_carry_the_protocol() {
         let name = socket_name();
-        assert!(
-            name.starts_with(&format!("ptyhost-v{PROTO_VERSION}")),
-            "{name}"
-        );
+        assert!(name.starts_with("ptyhost"), "{name}");
         assert!(name.ends_with(".sock"), "{name}");
+        assert!(
+            !name.contains(&format!("v{PROTO_VERSION}")),
+            "프로토콜이 이름에 새면 다음 업데이트가 또 세션을 끊는다: {name}"
+        );
     }
 
     /// 테스트는 늘 디버그 빌드다 — 여기서 접미사가 빠지면 dev 로 띄운 앱이
     /// 설치본의 호스트 자리에 그대로 앉는다 (자기 셸을 죽인 사고의 조건).
+    /// 옛 자리에도 같은 격리가 붙어야 한다.
     #[test]
     fn debug_builds_get_their_own_socket() {
-        let name = socket_name();
-        assert!(name.ends_with("-dev.sock"), "{name}");
+        assert!(socket_name().ends_with("-dev.sock"), "{}", socket_name());
+        for path in socket_candidates(Path::new("/tmp/oculpm-test")) {
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            assert!(name.ends_with("-dev.sock"), "{name}");
+        }
+    }
+
+    /// 정식 자리가 먼저, 옛 자리가 뒤 — 새로 띄우는 것은 언제나 정식 자리다.
+    #[test]
+    fn candidates_lead_with_the_canonical_socket_then_the_old_ones() {
+        let dir = Path::new("/tmp/oculpm-test");
+        let paths = socket_candidates(dir);
+        assert_eq!(paths[0], socket_path(dir));
+        assert!(
+            paths.len() > 1,
+            "v2.34.x 의 자리를 두드리지 않으면 그 판에서 올라온 세션이 끊긴다"
+        );
+        assert!(
+            paths[1].to_string_lossy().contains("ptyhost-v2"),
+            "{paths:?}"
+        );
     }
 }

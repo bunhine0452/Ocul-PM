@@ -2738,6 +2738,7 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.continueNone": "There is no earlier conversation to continue.",
   "acp.usageDetail": "What contributed",
   "acp.session.rename": "Rename",
+  "acp.session.copyId": "Copy session id (claude --resume)",
   "acp.session.delete": "Delete conversation",
   "acp.tabs.aria": "Open conversations",
   "acp.tabs.close": "Close tab",

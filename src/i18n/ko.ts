@@ -2712,6 +2712,7 @@ export const ko = {
   "acp.continueNone": "이어서 열 지난 대화가 없어요.",
   "acp.usageDetail": "무엇이 기여했나",
   "acp.session.rename": "이름 바꾸기",
+  "acp.session.copyId": "세션 id 복사 (claude --resume)",
   "acp.session.delete": "대화 삭제",
   "acp.tabs.aria": "열어 둔 대화",
   "acp.tabs.close": "탭 닫기",
