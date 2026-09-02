@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: acp-adapter-073
 title: "ACP 어댑터 0.73.0 상향 + 계획모드 선택지 표시"
-status: active
+status: done
 created: 2026-09-02
 updated: 2026-09-02
 owner: claude-code
@@ -28,9 +28,9 @@ owner: claude-code
 - [x] pnpm typecheck / test / lint / build 4게이트 exit 0 직접 확인 {#verify-gates}
 
 ## 릴리스 {#release}
-- [ ] 릴리스 여부 사용자 확인 (버전 번호 결정 포함) {#release-ask}
-- [ ] 5면 기재 — 버전 3파일, CHANGELOG, README ko/en, landing 6곳 {#release-surfaces}
-- [ ] 커밋·태그 푸시 후 release.yml CI conclusion 확인, landing 은 landing/ 에서 vercel --prod {#release-tag}
+- [x] 릴리스 여부 사용자 확인 (버전 번호 결정 포함) {#release-ask}
+- [x] 5면 기재 — 버전 3파일, CHANGELOG, README ko/en, landing 6곳 {#release-surfaces}
+- [x] 커밋·태그 푸시 후 release.yml CI conclusion 확인, landing 은 landing/ 에서 vercel --prod {#release-tag}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -44,4 +44,7 @@ owner: claude-code
 | 2026-09-02T10:33:03+09:00 | #verify-spike | claude-code | ☐→x | 20260902/Features_to_add/1032_feature_acp-adapter-073-and-clear-context-option.md | 0.73.0 실측 — 새 session/update 종류 없음, protocolVersion 1 유지 |
 | 2026-09-02T10:33:05+09:00 | #verify-cargo | claude-code | ☐→x | 20260902/Features_to_add/1032_feature_acp-adapter-073-and-clear-context-option.md | exit 0 · bindings.ts diff 없음 · fmt/clippy 동반 확인 |
 | 2026-09-02T10:33:10+09:00 | #verify-gates | claude-code | ☐→x | 20260902/Features_to_add/1032_feature_acp-adapter-073-and-clear-context-option.md | typecheck·test(148/1850)·lint·build 전부 exit 0 |
+| 2026-09-02T10:39:20+09:00 | #release-ask | claude-code | ☐→x | 20260902/Features_to_add/1032_feature_acp-adapter-073-and-clear-context-option.md | v2.32.0 로 릴리스 승인받음 |
+| 2026-09-02T10:39:22+09:00 | #release-surfaces | claude-code | ☐→x | 20260902/Features_to_add/1032_feature_acp-adapter-073-and-clear-context-option.md | 버전 5파일·CHANGELOG·README ko/en·landing 6곳+FAQ·featureList·wiki 재빌드 |
+| 2026-09-02T11:17:33+09:00 | #release-tag | claude-code | ☐→x | 20260902/Features_to_add/1032_feature_acp-adapter-073-and-clear-context-option.md | v2.32.0 release.yml success · 에셋 4개 · 노트 1074자 · oculpm.com 갱신 |
 <!-- oculpm:plan-log end -->
