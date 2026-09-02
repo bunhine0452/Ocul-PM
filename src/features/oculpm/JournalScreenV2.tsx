@@ -229,15 +229,24 @@ export function JournalScreenV2({
     }
   }, [focusPath, days, onFocusConsumed]);
 
-  const total = useMemo(
-    () => (days ?? []).reduce((s, d) => s + d.entries.length, 0),
-    [days],
-  );
+  /**
+   * 백엔드가 **이 검색어로** 전체 기간을 이미 훑어 준 상태인가.
+   *
+   * 훑어 줬다면 화면이 그 결과를 다시 좁히면 안 된다. 백엔드는
+   * `body_markdown` 까지 보는데(`cache/mod.rs` `build_list_sql`) 목록이 받는
+   * 요약 행에는 본문이 없어서, 본문에만 있는 단어로 찾아 준 항목을 화면이
+   * 스스로 버렸다 — 검색이 조용히 결과를 삼키는 정체였다.
+   *
+   * 타이핑 중(디바운스 대기·재조회 중)에만 제목·슬러그·태그로 즉시 좁히는
+   * 임시 필터를 쓴다. 그 구간은 300ms 짜리라 결과를 굳히지 않는다.
+   */
+  const searchSettled =
+    allPeriod && !loading && debouncedSearch.trim() === search.trim();
 
   // Apply scope-chip + in-page search (title + tags + slug substring).
   const matchedDays = useMemo(() => {
     if (!days) return null;
-    const q = search.trim().toLowerCase();
+    const q = searchSettled ? "" : search.trim().toLowerCase();
     const typeWanted = filter === "all" ? null : FILTER_TO_TYPE[filter];
     return days
       .map((d) => ({
@@ -252,7 +261,7 @@ export function JournalScreenV2({
         }),
       }))
       .filter((d) => d.entries.length > 0);
-  }, [days, filter, search]);
+  }, [days, filter, search, searchSettled]);
 
   /**
    * 레일이 보는 표본은 **출처 필터를 걸기 전**이다. 걸린 뒤의 목록으로 세면
@@ -283,8 +292,18 @@ export function JournalScreenV2({
       .filter((d) => d.entries.length > 0);
   }, [matchedDays, sourceFilter]);
 
-  // While a filter/search is active, force every day open so matches in older
-  // (default-collapsed) days are visible.
+  /**
+   * 툴바의 건수는 **지금 보이는 것**을 센다. 로드된 전부를 세면 "12건" 이라
+   * 적어 놓고 카드는 3장만 그리는 어긋남이 생기고, 사용자는 검색이 뭔가를
+   * 삼켰다고 읽는다.
+   */
+  const total = useMemo(
+    () => (filteredDays ?? []).reduce((s, d) => s + d.entries.length, 0),
+    [filteredDays],
+  );
+
+  // While a filter/search is active, days default to open so matches in older
+  // (default-collapsed) days are visible — but an explicit toggle still wins.
   const searchActive =
     search.trim() !== "" || filter !== "all" || unfinishedOnly || verifiedOnly || sourceFilter != null;
 
@@ -322,7 +341,7 @@ export function JournalScreenV2({
       }
       return false;
     },
-    [projectId],
+    [projectId, t],
   );
 
   useEffect(() => {
@@ -487,7 +506,10 @@ export function JournalScreenV2({
             ) : filteredDays && filteredDays.length > 0 ? (
               <>
                 {filteredDays.map((day, idx) => {
-                const open = searchActive ? true : (dayOpen[day.workday] ?? idx < 2);
+                // 기본값만 필터 여부로 갈린다. 예전엔 `searchActive` 가 값을
+                // 통째로 덮어써서, 필터가 걸린 동안 머리글 버튼이 상태만
+                // 바꾸고 화면은 그대로인 **죽은 버튼**이었다.
+                const open = dayOpen[day.workday] ?? (searchActive ? true : idx < 2);
                 return (
                   <div
                     key={day.workday}
@@ -534,16 +556,6 @@ export function JournalScreenV2({
                   </div>
                 );
                 })}
-                {!allPeriod ? (
-                  <button
-                    type="button"
-                    className="btn sm"
-                    style={{ margin: "16px auto 0", display: "block" }}
-                    onClick={() => setShowAll(true)}
-                  >
-                    {t("journal.loadMore")}
-                  </button>
-                ) : null}
               </>
             ) : searchActive ? (
               <div className="empty-hint">{t("journal.noMatch")}</div>
@@ -562,6 +574,21 @@ export function JournalScreenV2({
                 </div>
               </div>
             )}
+
+            {/* 전체 기간으로 넓히는 손잡이. 목록 **밖**에 두는 이유: 최근 14일이
+                빈 프로젝트(두 주 넘게 쉬었다 돌아온 경우)에는 예전 기록으로 갈
+                유일한 길인데, 예전엔 목록이 비어 있는 가지에는 그려지지 않아
+                "아직 일지가 없어요" 벽에 갇혔다. */}
+            {oculpmReady && !allPeriod && !(loading && days == null) ? (
+              <button
+                type="button"
+                className="btn sm"
+                style={{ margin: "16px auto 0", display: "block" }}
+                onClick={() => setShowAll(true)}
+              >
+                {t("journal.loadMore")}
+              </button>
+            ) : null}
           </div>
 
           {filteredDays && filteredDays.length > 1 ? (
