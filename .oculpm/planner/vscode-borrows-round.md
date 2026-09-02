@@ -11,19 +11,19 @@ owner: claude-code
 코드 화면에 "하루 종일 켜 두는 편집기의 위생" 7가지를 가져온다. 설계 SSOT 는 docs/20260902_vscode-borrows/ (00-master-plan.md + 기능별 6문서). 구현 순서는 비용 오름차순이고, Phase 마다 4게이트(typecheck/test/lint/build) → 일지 → plan_update 로 닫는다. 릴리스는 라운드 끝에 한 번.
 
 ## Phase 1 — 저장 위생 (B1 저장 시 정리 · B2 자동 저장) {#p1-save-hygiene}
-- [ ] saveHygiene.ts — applyHygiene 순수 모듈 (docs 01 §B1 설계) {#hygiene-model}
-  - [ ] 후행 공백 제거 · protectedLines(자동 저장 시 커서 줄) 보호 {#hygiene-trim}
-  - [ ] 끝 빈 줄 정리 → 끝줄 삽입 순서 · cannotTouchLineNumber 규칙 {#hygiene-final}
-  - [ ] .md/.markdown 은 후행 공백 정리 제외 (줄 끝 두 칸 = 강제 개행) {#hygiene-md}
-  - [ ] 순수 테스트 — 경계 8종 + '이미 정돈된 본문은 같은 문자열' 계약 {#hygiene-test}
-- [ ] 설정 5개 추가 (codeTrimTrailingWhitespace · codeInsertFinalNewline · codeTrimFinalNewlines · codeAutoSave · codeAutoSaveDelay) + CodeSettings.tsx + ko/en {#hygiene-settings}
-- [ ] save(opts) 로 시그니처 확장 (호출 4곳) + 포맷 뒤·codeWrite 앞에서 정리 → replaceBufferText {#hygiene-wire}
-- [ ] 자동 저장 — afterDelay(디바운스, 하한 250ms) · onFocusChange(경로 전환·창 포커스 상실·CM blur) {#autosave-hook}
-  - [ ] 게이트: clean · saving · conflict != null · diffMode · fileView!=editor 이면 건너뛴다 {#autosave-gates}
-  - [ ] auto:true 면 포맷 건너뛰기 (VS Code saveParticipants.ts:230 과 같은 결정) {#autosave-noformat}
-  - [ ] 자동 저장 실패는 조용히 — 충돌은 배너만, 쓰기 실패는 경로당 1회 토스트 {#autosave-quiet}
-- [ ] 상태줄 — 자동 저장이 켜져 있으면 '○ 자동 저장' · 저장 중 표시 {#autosave-status}
-- [ ] 통합 테스트(fake timers 5종) · 4게이트 · 일지 · plan_update {#p1-close}
+- [x] saveHygiene.ts — applyHygiene 순수 모듈 (docs 01 §B1 설계) {#hygiene-model}
+  - [x] 후행 공백 제거 · protectedLines(자동 저장 시 커서 줄) 보호 {#hygiene-trim}
+  - [x] 끝 빈 줄 정리 → 끝줄 삽입 순서 · cannotTouchLineNumber 규칙 {#hygiene-final}
+  - [x] .md/.markdown 은 후행 공백 정리 제외 (줄 끝 두 칸 = 강제 개행) {#hygiene-md}
+  - [x] 순수 테스트 — 경계 8종 + '이미 정돈된 본문은 같은 문자열' 계약 {#hygiene-test}
+- [x] 설정 5개 추가 (codeTrimTrailingWhitespace · codeInsertFinalNewline · codeTrimFinalNewlines · codeAutoSave · codeAutoSaveDelay) + CodeSettings.tsx + ko/en {#hygiene-settings}
+- [x] save(opts) 로 시그니처 확장 (호출 4곳) + 포맷 뒤·codeWrite 앞에서 정리 → replaceBufferText {#hygiene-wire}
+- [x] 자동 저장 — afterDelay(디바운스, 하한 250ms) · onFocusChange(경로 전환·창 포커스 상실·CM blur) {#autosave-hook}
+  - [x] 게이트: clean · saving · conflict != null · diffMode · fileView!=editor 이면 건너뛴다 {#autosave-gates}
+  - [x] auto:true 면 포맷 건너뛰기 (VS Code saveParticipants.ts:230 과 같은 결정) {#autosave-noformat}
+  - [x] 자동 저장 실패는 조용히 — 충돌은 배너만, 쓰기 실패는 경로당 1회 토스트 {#autosave-quiet}
+- [x] 상태줄 — 자동 저장이 켜져 있으면 '○ 자동 저장' · 저장 중 표시 {#autosave-status}
+- [x] 통합 테스트(fake timers 5종) · 4게이트 · 일지 · plan_update {#p1-close}
 
 ## Phase 2 — B3 미리보기 탭 {#p2-preview-tabs}
 - [ ] codeTabs.ts — CodePaneTabs.preview 필드 · openFile(opts.preview) · pinTab · sanitizeTabs 방어 {#preview-model}
@@ -73,4 +73,15 @@ owner: claude-code
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
+| 2026-09-02T15:37:42+09:00 | #hygiene-trim | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | protectedLines 는 줄 전체 보호 (열 단위 아님) |
+| 2026-09-02T15:37:47+09:00 | #hygiene-final | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | 전부 빈 줄인 파일은 손대지 않음 — VS Code 와 의도적 분기 |
+| 2026-09-02T15:37:52+09:00 | #hygiene-md | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | hygieneForPath 로 분리 — .mdx 는 대상 |
+| 2026-09-02T15:37:57+09:00 | #hygiene-test | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | 18건 — 경계 + 무변경 계약 |
+| 2026-09-02T15:38:02+09:00 | #hygiene-settings | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | 설정 5개 + 자동 저장 전용 Section · ko/en |
+| 2026-09-02T15:38:06+09:00 | #hygiene-wire | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | save(opts) — 호출 4곳 중 overwriteDisk 만 인자 변경 |
+| 2026-09-02T15:38:13+09:00 | #autosave-gates | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | canAutoSave 하나로 모음 |
+| 2026-09-02T15:38:18+09:00 | #autosave-noformat | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | save() 안 auto 분기. jsdom 에서 관측 불가라 통합 테스트 없음 |
+| 2026-09-02T15:38:23+09:00 | #autosave-quiet | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | autoFailedRef 로 경로당 1회 |
+| 2026-09-02T15:38:28+09:00 | #autosave-status | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | ○ 자동 저장 · 저장 중… |
+| 2026-09-02T15:38:32+09:00 | #p1-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | fake timers 는 훅 테스트로 · 통합은 onFocusChange · 4게이트 exit 0 |
 <!-- oculpm:plan-log end -->
