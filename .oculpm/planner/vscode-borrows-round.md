@@ -26,14 +26,14 @@ owner: claude-code
 - [x] 통합 테스트(fake timers 5종) · 4게이트 · 일지 · plan_update {#p1-close}
 
 ## Phase 2 — B3 미리보기 탭 {#p2-preview-tabs}
-- [ ] codeTabs.ts — CodePaneTabs.preview 필드 · openFile(opts.preview) · pinTab · sanitizeTabs 방어 {#preview-model}
-  - [ ] dirty 인 미리보기 탭은 교체하지 않고 새 탭으로 (미저장 편집이 화면에서 사라지는 경로 0) {#preview-dirty}
-  - [ ] 분할·합치기에서 preview 가 창을 넘어가지 않게 {#preview-split}
-  - [ ] code_tabs.test.ts — 교체·승격·닫기·sanitize 8종 {#preview-model-test}
-- [ ] 입구 배선 — 트리 단일 클릭만 미리보기, 팔레트·검색·코드 이동·일지는 고정 (VS Code 기본과 동일) {#preview-open}
-- [ ] 고정 승격 5경로 — 탭 더블클릭 · 트리 더블클릭 · 첫 편집 · 창 이동 · 컨텍스트 메뉴 {#preview-pin}
-- [ ] 기울임 렌더(.code-tab.preview) · 컨텍스트 메뉴 항목 · codePreviewTabs 설정(기본 켜짐) · ko/en {#preview-ui}
-- [ ] 4게이트 · 일지 · plan_update {#p2-close}
+- [x] codeTabs.ts — CodePaneTabs.preview 필드 · openFile(opts.preview) · pinTab · sanitizeTabs 방어 {#preview-model}
+  - [x] dirty 인 미리보기 탭은 교체하지 않고 새 탭으로 (미저장 편집이 화면에서 사라지는 경로 0) {#preview-dirty}
+  - [x] 분할·합치기에서 preview 가 창을 넘어가지 않게 {#preview-split}
+  - [x] code_tabs.test.ts — 교체·승격·닫기·sanitize 8종 {#preview-model-test}
+- [x] 입구 배선 — 트리 단일 클릭만 미리보기, 팔레트·검색·코드 이동·일지는 고정 (VS Code 기본과 동일) {#preview-open}
+- [x] 고정 승격 5경로 — 탭 더블클릭 · 트리 더블클릭 · 첫 편집 · 창 이동 · 컨텍스트 메뉴 {#preview-pin}
+- [x] 기울임 렌더(.code-tab.preview) · 컨텍스트 메뉴 항목 · codePreviewTabs 설정(기본 켜짐) · ko/en {#preview-ui}
+- [x] 4게이트 · 일지 · plan_update {#p2-close}
 
 ## Phase 3 — B4 심볼(⇧⌘O)·줄(⌃G) 이동 {#p3-goto}
 - [ ] gotoModel.ts — parseGoto(':12:3' · '@foo' · 'foo') · rankSymbols(homeMatch 점수 재사용) · clampLine + 테스트 {#goto-model}
@@ -84,4 +84,11 @@ owner: claude-code
 | 2026-09-02T15:38:23+09:00 | #autosave-quiet | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | autoFailedRef 로 경로당 1회 |
 | 2026-09-02T15:38:28+09:00 | #autosave-status | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | ○ 자동 저장 · 저장 중… |
 | 2026-09-02T15:38:32+09:00 | #p1-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1537_feature_save-hygiene-and-auto-save.md | fake timers 는 훅 테스트로 · 통합은 onFocusChange · 4게이트 exit 0 |
+| 2026-09-02T16:12:56+09:00 | #preview-dirty | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1612_feature_preview-tabs-in-code.md | dirtyPaths 를 openFile 옵션으로 받아 방어 |
+| 2026-09-02T16:13:01+09:00 | #preview-split | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1612_feature_preview-tabs-in-code.md | 새 창 씨앗은 고정 · 합칠 땐 첫 창 것만 |
+| 2026-09-02T16:13:06+09:00 | #preview-model-test | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1612_feature_preview-tabs-in-code.md | 12건 (설계 8종 + 이름바꾸기·삭제·pinTab 동일성) |
+| 2026-09-02T16:13:12+09:00 | #preview-open | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1612_feature_preview-tabs-in-code.md | openPath 4번째 인자에 preview 합류 (기존 ch/len 과 같은 객체) |
+| 2026-09-02T16:13:17+09:00 | #preview-pin | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1612_feature_preview-tabs-in-code.md | 창 이동은 메뉴·드롭 양쪽 다 고정 |
+| 2026-09-02T16:13:22+09:00 | #preview-ui | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1612_feature_preview-tabs-in-code.md | 설정 끄면 기울임·메뉴가 즉시 사라지게 렌더에서 게이트 |
+| 2026-09-02T16:13:27+09:00 | #p2-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1612_feature_preview-tabs-in-code.md | 기존 탭 테스트를 더블클릭 고정으로 갱신 · 4게이트 exit 0 |
 <!-- oculpm:plan-log end -->
