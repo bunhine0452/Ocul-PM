@@ -368,8 +368,8 @@
 }
 .th-ghost { height: 14px; width: 34px; border-radius: 7px; border: 1px solid var(--th-sep); }
 
-/* 메타 */
-.th-meta { padding: 15px 17px 0; }
+/* 메타 — 카드에 남는 높이를 여기서 흡수한다. 아래 액션 줄은 제 여백을 그대로 지킨다. */
+.th-meta { padding: 15px 17px 0; flex: 1 1 auto; }
 .th-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .th-head h3 { margin: 0; font-size: 16px; font-weight: 750; letter-spacing: -0.01em; }
 .th-fam {
@@ -419,7 +419,6 @@
   color: var(--ink-faint);
 }
 .th-note b { color: var(--ink-dim); }
-.th-card > .pg-actions, .th-card > .th-note { margin-top: auto; }
 
 /* ── 기여 안내 ────────────────────────────────────────── */
 .pg-quiet {
