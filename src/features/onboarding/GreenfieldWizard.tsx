@@ -13,7 +13,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { commands, type CliCheckResult, type ProjectBlueprint } from "@/lib/bindings";
 import { setPendingDispatch } from "@/features/terminal/dispatchBus";
 import {
-  Sparkles,
   ArrowRight,
   ArrowLeft,
   X,
@@ -21,7 +20,7 @@ import {
   Loader2,
   Folder,
   AlertTriangle,
-  Rocket,
+  FolderPlus,
 } from "../../components/Icons";
 import { BrandMark } from "../../components/BrandMark";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -55,7 +54,8 @@ const STACK_PRESETS: Array<{
   name?: string;
   nameKey?: I18nKey;
   descKey: I18nKey;
-  icon: string;
+  /** 카드에 보이는 스캐폴드 명령 — 이모지 아이콘 대신 실제로 돌아갈 것을 보인다. */
+  cmd: string | null;
   cli: string | null;
   scaffoldCmd: string | null;
   scaffoldArgs: string[];
@@ -64,7 +64,7 @@ const STACK_PRESETS: Array<{
     id: "vite-react",
     name: "Vite + React",
     descKey: "gf.stackNextDesc",
-    icon: "⚡",
+    cmd: "pnpm create vite",
     cli: "pnpm",
     scaffoldCmd: "pnpm",
     scaffoldArgs: ["create", "vite", "./", "--template", "react-ts"],
@@ -73,7 +73,7 @@ const STACK_PRESETS: Array<{
     id: "nextjs",
     name: "Next.js",
     descKey: "gf.stackFullstackDesc",
-    icon: "▲",
+    cmd: "npx create-next-app",
     cli: "npx",
     scaffoldCmd: "npx",
     scaffoldArgs: ["create-next-app@latest", "./", "--ts", "--app", "--use-pnpm", "--no-git"],
@@ -82,7 +82,7 @@ const STACK_PRESETS: Array<{
     id: "rust",
     name: "Rust",
     descKey: "gf.stackRustDesc",
-    icon: "🦀",
+    cmd: "cargo init",
     cli: "cargo",
     scaffoldCmd: "cargo",
     scaffoldArgs: ["init", "--name"],
@@ -91,7 +91,7 @@ const STACK_PRESETS: Array<{
     id: "python",
     name: "Python",
     descKey: "gf.stackPythonDesc",
-    icon: "🐍",
+    cmd: "python3",
     cli: "python3",
     scaffoldCmd: null,
     scaffoldArgs: [],
@@ -100,7 +100,7 @@ const STACK_PRESETS: Array<{
     id: "go",
     name: "Go",
     descKey: "gf.stackGoDesc",
-    icon: "🔵",
+    cmd: "go mod init",
     cli: "go",
     scaffoldCmd: "go",
     scaffoldArgs: ["mod", "init"],
@@ -109,7 +109,7 @@ const STACK_PRESETS: Array<{
     id: "empty",
     nameKey: "gf.stackEmptyName",
     descKey: "gf.stackEmptyDesc",
-    icon: "📁",
+    cmd: null,
     cli: null,
     scaffoldCmd: null,
     scaffoldArgs: [],
@@ -423,16 +423,16 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
   return (
     <div
       data-home-overlay
-      className="fixed inset-0 z-[90] bg-background/70 backdrop-blur-sm flex items-center justify-center p-6"
+      className="scrim z-[90] flex items-center justify-center p-6"
       onClick={(e) => {
         if (e.target === e.currentTarget) handleClose();
       }}
     >
-      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
+      <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
         {/* Header */}
         <header className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <Sparkles className="w-5 h-5 text-primary" />
+            <FolderPlus className="w-5 h-5 text-primary" />
             <h2 className="text-base font-bold">{stepTitles[step]}</h2>
             <span className="text-xs text-muted-foreground font-medium">
               {step + 1} / 5
@@ -447,17 +447,8 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
           </button>
         </header>
 
-        {/* Step indicator */}
-        <div className="px-6 pt-3 pb-1 flex gap-1.5">
-          {[0, 1, 2, 3, 4].map((s) => (
-            <div
-              key={s}
-              className={`h-1 flex-1 rounded-full transition-all duration-200 ${
-                s <= step ? "bg-primary" : "bg-border"
-              }`}
-            />
-          ))}
-        </div>
+        {/* 단계 표시는 머리의 "n / 5" 글자 하나로 충분하다 — 세그먼트 진행바는
+            설치 마법사·AI 빌더 템플릿의 관용구라 뺐다 (2026-09-02). */}
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
@@ -559,17 +550,18 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xl">{preset.icon}</span>
+                        <span className="font-mono text-[11px] text-muted-foreground">{preset.cmd ?? ""}</span>
                         {preset.cli && (
                           <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                              cliCheck === undefined
-                                ? "text-muted-foreground bg-muted"
-                                : cliAvailable
-                                  ? "text-primary bg-primary/10"
-                                  : "text-[var(--accent-uncommitted)] bg-muted"
-                            }`}
+                            className={
+                              cliCheck === undefined ? "chip sm" : cliAvailable ? "chip sm ok" : "chip sm warn"
+                            }
                           >
+                            {cliCheck === undefined ? null : cliAvailable ? (
+                              <Check size={11} />
+                            ) : (
+                              <AlertTriangle size={11} />
+                            )}
                             {cliCheck === undefined
                               ? t("gf.checking")
                               : cliAvailable
@@ -773,7 +765,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
               ) : (
                 <>
                   {t("gf.start")}
-                  <Rocket className="w-3.5 h-3.5" />
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}
             </button>

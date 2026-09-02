@@ -24,13 +24,13 @@
 }
 .btn:hover { background: var(--bg-hover); border-color: var(--sep-strong); }
 .btn:active { transform: translateY(0.5px) scale(0.98); }
-/* primary — 위쪽 광택 한 겹 + 안쪽 하이라이트로 '눌리는 물체' 질감.
-   글자색은 프리셋(고대비 등)을 따라 --text-on-accent. */
+.btn:disabled { opacity: 0.5; cursor: default; }
+/* primary — 액센트 단색. 위쪽 광택·안쪽 하이라이트는 2026-09-02 에 뺐다
+   (nav-item.active 와 같은 이유). 글자색은 프리셋(고대비 등)을 따라 --text-on-accent. */
 .btn.primary {
   background-color: var(--accent);
-  background-image: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0) 60%);
   border-color: transparent; color: var(--text-on-accent);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 2px var(--accent-ring);
+  box-shadow: 0 1px 2px var(--accent-ring);
 }
 .btn.primary:hover { background-color: var(--accent-strong); }
 .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
@@ -85,11 +85,12 @@
 /* 칩 — 한 벌 + 수정자 (Phase 5). 라벨이지 본문이 아니라 절대 꺾이지 않는다.
    화면마다의 열한 벌(.attach-chip .usage-chip .sk-chip .sk-path-chip
    .code-debug-chip .entry-date-chip .scope-chip .file-pill .queue-chip
-   .hg-lead-chip .ai-suggest-chip)은 아래 공통 바탕을 나눠 갖고, 각 파일엔
-   높이·둥글기·색의 차이만 남는다. */
+   .hg-lead-chip)은 아래 공통 바탕을 나눠 갖고, 각 파일엔
+   높이·둥글기·색의 차이만 남는다. (.ai-suggest-chip 은 2026-09-02 에 목록형
+   `.ai-start-item` 으로 바뀌어 칩 가족에서 나갔다.) */
 .chip,
 .attach-chip, .usage-chip, .sk-chip, .sk-path-chip, .code-debug-chip, .entry-date-chip,
-.scope-chip, .file-pill, .queue-chip, .hg-lead-chip, .ai-suggest-chip {
+.scope-chip, .file-pill, .queue-chip, .hg-lead-chip {
   display: inline-flex; align-items: center; gap: 5px;
   white-space: nowrap; flex: none; max-width: 100%;
   font-family: var(--font);
@@ -179,3 +180,85 @@
 }
 .imd-link { color: var(--accent-text); text-decoration: none; }
 .imd-link:hover { text-decoration: underline; }
+
+/* ── 스크림 — 모달 뒤를 어둡게 하는 한 벌 (2026-09-02) ─────────────────────
+   blur 는 쓰지 않는다. 유리 스크림은 뒤를 매 프레임 다시 그리고, 앱 어디에도
+   유리가 없는데 모달만 유리면 다른 제품이 얹힌 것처럼 보인다. 다섯 벌이던
+   `fixed inset-0 bg-background/60 backdrop-blur-sm` 이 전부 여기로 접혔다
+   (GreenfieldWizard · CommandPalette · AppDialog · SettingsOverlay · windows/Dialog). */
+.scrim {
+  position: fixed; inset: 0;
+  background: color-mix(in srgb, var(--bg-sidebar) 74%, transparent);
+}
+
+/* ── 세그먼트 — '둘 중 하나' 를 고르는 한 물체 ─────────────────────────────
+   agent.css 에서 옮겨 전역이 됐다 (설정 하위 탭이 런처 모달에서도 그려진다).
+   role="tab" + aria-selected 로 상태를 말하므로 클래스 토글이 없다. */
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 9px;
+  background: var(--bg-inset);
+}
+.seg-item {
+  height: 24px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: var(--fs-4);
+  font-weight: 600;
+  color: var(--text-2);
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.seg-item:hover {
+  color: var(--text);
+}
+.seg-item[aria-selected="true"] {
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: var(--shadow-card);
+}
+
+/* ── 하위 내비 (설정 탭) — 강조색 채움이 없는 텍스트 탭 ─────────────────────
+   활성은 들어간 면(--bg-inset)과 본문색, 비활성은 2차 텍스트. 강조색 10% 틴트
+   (`bg-primary/10 text-primary`)는 shadcn 기본값이라 사이드바 nav-item 과
+   다른 문법이었다. aria-current / aria-selected 가 상태다. */
+.subnav { display: flex; gap: 2px; min-width: 0; }
+.subnav.vertical { flex-direction: column; }
+.subnav-item {
+  display: inline-flex; align-items: center; gap: 9px;
+  height: 30px; padding: 0 11px;
+  border: none; border-radius: var(--radius-s);
+  background: transparent; color: var(--text-2);
+  font-family: var(--font); font-size: var(--fs-6); font-weight: 550;
+  cursor: pointer; white-space: nowrap; flex: none;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.subnav.vertical .subnav-item { width: 100%; justify-content: flex-start; }
+.subnav-item:hover { background: var(--bg-hover); color: var(--text); }
+.subnav-item[aria-current="page"],
+.subnav-item[aria-selected="true"] { background: var(--bg-inset); color: var(--text); font-weight: 600; }
+
+/* ── 스켈레톤 — 한 벌 ──────────────────────────────────────────────────────
+   screens.css `.skel` · home.css `.home-skel` · docs.css `.docs-img-skeleton`
+   세 벌을 접었다. 좌→우로 흐르는 광택 대신 면이 숨 쉬듯 옅어진다 — 움직이는
+   빛줄기는 '기다리는 중' 보다 '로딩 연출' 로 읽히고, 불투명도만 바뀌니 어느
+   프리셋에서도 같은 재료다. */
+.skel {
+  display: block;
+  background: var(--bg-inset);
+  border-radius: var(--radius-s);
+  animation: skelBreathe 1.6s var(--ease-in-out) infinite;
+}
+@keyframes skelBreathe { 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; }
+}

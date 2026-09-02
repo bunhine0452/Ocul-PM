@@ -9,7 +9,7 @@
 // 감지 매칭**만 먼저 보이고 전체 카탈로그는 한 번 더 눌러야 나온다.
 import { useMemo, useState } from "react";
 
-import { Inbox, Plus, Puzzle, FileCode, Sparkles } from "@/components/Icons";
+import { Inbox, Plus, Puzzle, FileCode, Store } from "@/components/Icons";
 import { skillsApi } from "@/api/claudeSurface";
 import { toAppError } from "@/api/invoke";
 import { toast } from "@/lib/toast";
@@ -167,7 +167,7 @@ export function ContextInbox({
             <FileCode size={13} /> {t("rules.new")}
           </button>
           <button type="button" className="btn ghost sm" onClick={onOpenShop}>
-            <Sparkles size={13} /> {t("ctx.add.shop", { n: CATALOG_SKILLS.length })}
+            <Store size={13} /> {t("ctx.add.shop", { n: CATALOG_SKILLS.length })}
           </button>
           <button type="button" className="btn ghost sm" onClick={onOpenHooks}>
             {t("sk.tab.hooks")}

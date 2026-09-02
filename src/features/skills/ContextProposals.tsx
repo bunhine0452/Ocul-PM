@@ -14,7 +14,7 @@ import { useMemo, useState } from "react";
 
 import { AppDialog } from "@/components/ui/AppDialog";
 import { OculSpinner } from "@/components/OculSpinner";
-import { Scissors, SparklesIcon, Trash2, X } from "@/components/Icons";
+import { Scissors, PenLine, Trash2, X } from "@/components/Icons";
 import { rulesApi, skillsApi } from "@/api/claudeSurface";
 import { toAppError } from "@/api/invoke";
 import { toast } from "@/lib/toast";
@@ -289,7 +289,7 @@ export function ContextProposals({
       {triggerShown.length > 0 ? (
         <div className="ctx-card" id="ctx-trigger">
           <div className="ctx-card-head">
-            <SparklesIcon size={14} />
+            <PenLine size={14} />
             <h4>{t("ctx.prop.triggerTitle")}</h4>
             <span className="ctx-zone-sub">{t("ctx.prop.triggerSub", { d: days })}</span>
           </div>
@@ -313,7 +313,7 @@ export function ContextProposals({
                     title={t("ctx.prop.rewriteTitle")}
                     onClick={() => void rewrite(item)}
                   >
-                    {busy === item.id ? <OculSpinner size={13} /> : <SparklesIcon size={13} />}{" "}
+                    {busy === item.id ? <OculSpinner size={13} /> : <PenLine size={13} />}{" "}
                     {t("ctx.prop.rewrite")}
                   </button>
                   <button
@@ -343,7 +343,7 @@ export function ContextProposals({
         {draft ? (
           <>
             <div className="sk-modal-head">
-              <SparklesIcon size={15} /> {draft.item.name}
+              <PenLine size={15} /> {draft.item.name}
               <span className="ctx-zone-sub">{t("promo.aiDraftNote")}</span>
             </div>
             <div className="ctx-draft">

@@ -70,7 +70,7 @@ export function PluginDocsTab({
             <div className="mb-2 flex items-center gap-2">
               <h3 className="text-sm font-semibold">{t("plugin.name")}</h3>
               {status?.installed ? (
-                <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="rounded bg-(--ok-soft) px-1.5 py-0.5 text-[11px] font-medium text-(--ok-text)">
                   {t("plugin.installed")}
                 </span>
               ) : status ? (

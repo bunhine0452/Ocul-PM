@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Target, ArrowRight } from "@/components/Icons";
+import { ListChecks, ArrowRight } from "@/components/Icons";
 import { commands, type PlanActivityDto } from "@/lib/bindings";
 import { agentColor, agentLabel } from "./agentColor";
 import { type UiV2View } from "@/contexts/WorkspaceContext";
@@ -53,7 +53,7 @@ export function PlanUpdates({ projectId, onNavigate }: PlanUpdatesProps) {
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <div className="panel-head">
-        <Target size={16} color="var(--accent-text)" />
+        <ListChecks size={16} color="var(--accent-text)" />
         <h3>{t("today.plan.title")}</h3>
         <span className="count">{items?.length ?? 0}</span>
         <button

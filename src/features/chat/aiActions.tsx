@@ -232,13 +232,13 @@ export function ActionProposalCard({
   const typeKey = typeLabels[action.type];
 
   return (
-    <div className="mt-3 p-4 rounded-xl border border-border/80 bg-background/50 backdrop-blur-sm shadow-sm space-y-3 max-w-full">
+    <div className="card mt-3 p-4 space-y-3 max-w-full">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary">
+        <span className="chip sm accent">
           {typeKey ? t(typeKey) : t("ai.actionFallback")}
         </span>
         {status === "applied" && (
-          <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+          <span className="text-xs text-(--ok-text) font-semibold flex items-center gap-1">
             {t("ai.actionApplied")}
           </span>
         )}

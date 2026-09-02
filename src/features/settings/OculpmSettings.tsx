@@ -50,7 +50,7 @@ import {
   ExternalLink,
   Loader2,
   RefreshCw,
-  Sparkles,
+  ScanSearch,
   Trash2,
   Plus,
 } from "@/components/Icons";
@@ -124,11 +124,7 @@ export function SubTabs({
 }) {
   const { t } = useT();
   return (
-    <div
-      className="flex flex-wrap gap-1 rounded-lg border border-border bg-muted/30 p-1"
-      role="tablist"
-      aria-label={t("op.tabsAria")}
-    >
+    <div className="seg flex-wrap" role="tablist" aria-label={t("op.tabsAria")}>
       {SUB_TABS.map((sub) => {
         const on = value === sub.id;
         return (
@@ -138,11 +134,7 @@ export function SubTabs({
             role="tab"
             aria-selected={on}
             onClick={() => onChange(sub.id)}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              on
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
-            }`}
+            className="seg-item"
           >
             {t(sub.labelKey)}
           </button>
@@ -269,7 +261,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
   }
   if (loadError || !config) {
     return (
-      <div className="rounded border border-red-700 bg-red-900/20 p-3 text-sm text-red-200">
+      <div className="rounded border border-(--danger)/40 bg-(--danger-soft) p-3 text-sm text-(--danger-text)">
         {t("op.loadFailed", { error: loadError ?? "unknown" })}
       </div>
     );
@@ -278,13 +270,13 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
   return (
     <div className="space-y-6">
       {saveError && (
-        <div className="rounded border border-red-700 bg-red-900/20 p-2 text-xs text-red-300 flex items-start gap-2">
+        <div className="rounded border border-(--danger)/40 bg-(--danger-soft) p-2 text-xs text-(--danger-text) flex items-start gap-2">
           <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>{t("op.saveFailed", { error: saveError })}</span>
         </div>
       )}
       {savedAt && !saveError && (
-        <div className="text-[11px] text-emerald-500">
+        <div className="text-[11px] text-(--ok-text)">
           {t("op.saved", { time: new Date(savedAt).toLocaleTimeString() })}
         </div>
       )}
@@ -318,7 +310,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             placeholder="00:00"
           />
           {!/^([01]\d|2[0-3]):[0-5]\d$/.test(config.workday.day_starts_at) && (
-            <p className="text-[10px] text-amber-400 mt-1">
+            <p className="text-[10px] text-(--warn-text) mt-1">
               {t("op.hhmm")}
             </p>
           )}
@@ -494,7 +486,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={handleDetect}>
-            <Sparkles className="mr-1 h-3.5 w-3.5" />
+            <ScanSearch className="mr-1 h-3.5 w-3.5" />
             {t("op.agents.detect")}
           </Button>
           <Button size="sm" variant="outline" onClick={handleSync} disabled={syncStatus?.kind === "pending"}>
@@ -506,12 +498,12 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             {t("op.agents.syncNow")}
           </Button>
           {syncStatus?.kind === "ok" && (
-            <span className="text-[11px] text-emerald-400">
+            <span className="text-[11px] text-(--ok-text)">
               {t("op.agents.syncDone", { n: syncStatus.updated })}
             </span>
           )}
           {syncStatus?.kind === "error" && (
-            <span className="text-[11px] text-red-400">{syncStatus.message}</span>
+            <span className="text-[11px] text-(--danger-text)">{syncStatus.message}</span>
           )}
         </div>
         {/* 「프로젝트 열 때 자동 감지」·「config 저장 시 자동 동기화」 토글은 뺐다 —
@@ -640,13 +632,13 @@ export function ClaudeHooksBlock({
   };
 
   const badge = hooksError
-    ? { label: t("op.st.configError"), cls: "border-red-500/40 bg-red-500/10 text-red-400" }
+    ? { label: t("op.st.configError"), cls: "border-(--danger)/40 bg-(--danger-soft) text-(--danger-text)" }
     : !hooks
       ? { label: t("op.st.checking"), cls: "border-border bg-muted/30 text-muted-foreground" }
       : hooks.installed
-        ? { label: t("op.st.linked"), cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" }
+        ? { label: t("op.st.linked"), cls: "border-(--ok)/40 bg-(--ok-soft) text-(--ok-text)" }
         : hooks.partial
-          ? { label: t("op.st.drift"), cls: "border-amber-500/40 bg-amber-500/10 text-amber-400" }
+          ? { label: t("op.st.drift"), cls: "border-(--warn)/40 bg-(--warn-soft) text-(--warn-text)" }
           : { label: t("op.st.off"), cls: "border-border bg-muted/30 text-muted-foreground" };
 
   return (
@@ -689,7 +681,7 @@ export function ClaudeHooksBlock({
         // 같은 사실이지만 사용자가 지금 해야 할 일이 다르므로 색을 나눈다.
         <p
           className={`text-[11px] leading-relaxed ${
-            hooks?.installed || hooks?.partial ? "text-amber-400" : "text-muted-foreground"
+            hooks?.installed || hooks?.partial ? "text-(--warn-text)" : "text-muted-foreground"
           }`}
         >
           {hooks?.installed || hooks?.partial
@@ -702,7 +694,7 @@ export function ClaudeHooksBlock({
           {t("op.hooks.custom")}
         </p>
       )}
-      {hooksError && <p className="text-[11px] text-red-400">{hooksError}</p>}
+      {hooksError && <p className="text-[11px] text-(--danger-text)">{hooksError}</p>}
     </div>
   );
 }
@@ -759,15 +751,15 @@ export function ShellIntegrationBlock() {
 
   const unsupported = status?.shell === "unsupported";
   const badge = error
-    ? { label: t("op.st.error"), cls: "border-red-500/40 bg-red-500/10 text-red-400" }
+    ? { label: t("op.st.error"), cls: "border-(--danger)/40 bg-(--danger-soft) text-(--danger-text)" }
     : !status
       ? { label: t("op.st.checking"), cls: "border-border bg-muted/30 text-muted-foreground" }
       : unsupported
         ? { label: t("op.st.unsupportedShell"), cls: "border-border bg-muted/30 text-muted-foreground" }
         : status.block_broken
-          ? { label: t("op.st.rcBroken"), cls: "border-amber-500/40 bg-amber-500/10 text-amber-400" }
+          ? { label: t("op.st.rcBroken"), cls: "border-(--warn)/40 bg-(--warn-soft) text-(--warn-text)" }
           : status.installed
-            ? { label: t("op.st.on"), cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" }
+            ? { label: t("op.st.on"), cls: "border-(--ok)/40 bg-(--ok-soft) text-(--ok-text)" }
             : { label: t("op.st.off"), cls: "border-border bg-muted/30 text-muted-foreground" };
 
   return (
@@ -811,12 +803,12 @@ export function ShellIntegrationBlock() {
         </p>
       )}
       {status?.block_broken && (
-        <p className="text-[11px] text-amber-400">
+        <p className="text-[11px] text-(--warn-text)">
           <code className="text-[10px]">oculpm:begin</code> /{" "}
           <code className="text-[10px]">oculpm:end</code> {t("op.shell.rcBrokenDesc")}
         </p>
       )}
-      {error && <p className="text-[11px] text-red-400">{error}</p>}
+      {error && <p className="text-[11px] text-(--danger-text)">{error}</p>}
     </div>
   );
 }
@@ -855,7 +847,7 @@ export function ClaudePluginBlock({ plugin }: { plugin: ClaudePluginStatus | nul
         <span
           className={`rounded-full border px-2 py-0.5 text-[10px] ${
             plugin?.installed
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+              ? "border-(--ok)/40 bg-(--ok-soft) text-(--ok-text)"
               : "border-border bg-muted/30 text-muted-foreground"
           }`}
         >
@@ -873,7 +865,7 @@ export function ClaudePluginBlock({ plugin }: { plugin: ClaudePluginStatus | nul
         {t("op.plugin.desc3")}
       </p>
       {plugin?.installed ? (
-        <p className="text-[11px] text-amber-400">{t("op.plugin.warn")}</p>
+        <p className="text-[11px] text-(--warn-text)">{t("op.plugin.warn")}</p>
       ) : null}
     </div>
   );
@@ -992,23 +984,23 @@ export function McpServerBlock({
   };
 
   const badge = mcpError
-    ? { label: t("op.st.configError"), cls: "border-red-500/40 bg-red-500/10 text-red-400" }
+    ? { label: t("op.st.configError"), cls: "border-(--danger)/40 bg-(--danger-soft) text-(--danger-text)" }
     : !mcp
       ? { label: t("op.st.checking"), cls: "border-border bg-muted/30 text-muted-foreground" }
       : mcp.registered
-        ? { label: t("op.st.registered"), cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" }
+        ? { label: t("op.st.registered"), cls: "border-(--ok)/40 bg-(--ok-soft) text-(--ok-text)" }
         : !mcp.binary_found
-          ? { label: t("op.st.noBinary"), cls: "border-amber-500/40 bg-amber-500/10 text-amber-400" }
+          ? { label: t("op.st.noBinary"), cls: "border-(--warn)/40 bg-(--warn-soft) text-(--warn-text)" }
           : { label: t("op.st.unregistered"), cls: "border-border bg-muted/30 text-muted-foreground" };
 
   const deskBadge = deskError
-    ? { label: t("op.st.configError"), cls: "border-red-500/40 bg-red-500/10 text-red-400" }
+    ? { label: t("op.st.configError"), cls: "border-(--danger)/40 bg-(--danger-soft) text-(--danger-text)" }
     : !desk
       ? { label: t("op.st.checking"), cls: "border-border bg-muted/30 text-muted-foreground" }
       : desk.registered
-        ? { label: t("op.st.registered"), cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" }
+        ? { label: t("op.st.registered"), cls: "border-(--ok)/40 bg-(--ok-soft) text-(--ok-text)" }
         : !desk.installed
-          ? { label: t("op.st.noDesktop"), cls: "border-amber-500/40 bg-amber-500/10 text-amber-400" }
+          ? { label: t("op.st.noDesktop"), cls: "border-(--warn)/40 bg-(--warn-soft) text-(--warn-text)" }
           : { label: t("op.st.unregistered"), cls: "border-border bg-muted/30 text-muted-foreground" };
 
   return (
@@ -1043,7 +1035,7 @@ export function McpServerBlock({
         {t("op.mcp.desc1")} <code className="text-[10px]">.mcp.json</code>{t("op.mcp.desc2")}
       </p>
       {mcp && !mcp.binary_found && (
-        <p className="text-[11px] text-amber-400">
+        <p className="text-[11px] text-(--warn-text)">
           {t("op.mcp.noBinary1")}{" "}
               <code className="text-[10px]">cargo build --bin oculpm-mcp</code> {t("op.mcp.noBinary2")}
         </p>
@@ -1051,7 +1043,7 @@ export function McpServerBlock({
       {pluginInstalled && (
         <p
           className={`text-[11px] leading-relaxed ${
-            mcp?.registered ? "text-amber-400" : "text-muted-foreground"
+            mcp?.registered ? "text-(--warn-text)" : "text-muted-foreground"
           }`}
         >
           {mcp?.registered ? t("op.mcp.pluginConflict") : t("op.mcp.pluginCovers")}
@@ -1063,7 +1055,7 @@ export function McpServerBlock({
               {t("op.mcp.commitWarn2")}
         </p>
       )}
-      {mcpError && <p className="text-[11px] text-red-400">{mcpError}</p>}
+      {mcpError && <p className="text-[11px] text-(--danger-text)">{mcpError}</p>}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
         <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -1106,11 +1098,11 @@ export function McpServerBlock({
         <p className="text-[11px] text-muted-foreground">{t("op.desk.pluginNote")}</p>
       )}
       {desk && !desk.installed && (
-        <p className="text-[11px] text-amber-400">
+        <p className="text-[11px] text-(--warn-text)">
           {t("op.desk.notFound")}
         </p>
       )}
-      {deskError && <p className="text-[11px] text-red-400">{deskError}</p>}
+      {deskError && <p className="text-[11px] text-(--danger-text)">{deskError}</p>}
     </div>
   );
 }
@@ -1246,12 +1238,12 @@ export function AcpRuntimeBlock() {
   };
 
   const badge = error
-    ? { label: t("op.st.configError"), cls: "border-red-500/40 bg-red-500/10 text-red-400" }
+    ? { label: t("op.st.configError"), cls: "border-(--danger)/40 bg-(--danger-soft) text-(--danger-text)" }
     : !diag
       ? { label: t("op.st.checking"), cls: "border-border bg-muted/30 text-muted-foreground" }
       : diag.ready
-        ? { label: t("op.acp.ready"), cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400" }
-        : { label: t("op.acp.setupNeeded"), cls: "border-amber-500/40 bg-amber-500/10 text-amber-400" };
+        ? { label: t("op.acp.ready"), cls: "border-(--ok)/40 bg-(--ok-soft) text-(--ok-text)" }
+        : { label: t("op.acp.setupNeeded"), cls: "border-(--warn)/40 bg-(--warn-soft) text-(--warn-text)" };
 
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
@@ -1317,7 +1309,7 @@ export function AcpRuntimeBlock() {
         </div>
       )}
 
-      {error && <p className="text-[11px] text-red-400">{error}</p>}
+      {error && <p className="text-[11px] text-(--danger-text)">{error}</p>}
     </div>
   );
 }
@@ -1335,7 +1327,7 @@ function AcpRow({
 }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-2 text-[11px]">
-      <span className={ok ? "text-emerald-400" : "text-amber-400"}>{ok ? "●" : "○"}</span>
+      <span className={ok ? "text-(--ok-text)" : "text-(--warn-text)"}>{ok ? "●" : "○"}</span>
       <span className="text-muted-foreground">{label}</span>
       <code className="truncate text-[10px] text-foreground/80">{value}</code>
       {hint && <span className="text-[10px] text-muted-foreground">— {hint}</span>}
@@ -1464,7 +1456,7 @@ function PatternList({
               <Trash2 className="h-3.5 w-3.5" />
             </button>
             {errors[i] && (
-              <span className="text-[10px] text-red-400">{errors[i]}</span>
+              <span className="text-[10px] text-(--danger-text)">{errors[i]}</span>
             )}
           </li>
         ))}

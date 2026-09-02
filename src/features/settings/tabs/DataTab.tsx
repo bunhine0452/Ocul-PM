@@ -141,7 +141,7 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
         <div className="flex items-center gap-2">
           <Label className="text-xs text-muted-foreground">{t("settings.notion.status")}</Label>
           {status?.has_token ? (
-            <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400">
+            <span className="rounded-full border border-(--ok)/40 bg-(--ok-soft) px-2 py-0.5 text-[10px] text-(--ok-text)">
               {t("settings.notion.connected")}{botName ? ` · ${botName}` : ""}
             </span>
           ) : (

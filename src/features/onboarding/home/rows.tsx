@@ -13,7 +13,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 
-import { FolderOpen, Sparkles, Settings, Trash2, Clock } from "@/components/Icons";
+import { FolderOpen, FolderPlus, Settings, Trash2, Clock } from "@/components/Icons";
 import type { ProjectBlueprint } from "@/lib/bindings";
 
 import { Mark } from "./atoms";
@@ -149,7 +149,7 @@ export function DraftRow({
 
 const CMD_ICON: Record<string, typeof FolderOpen> = {
   "cmd:add": FolderOpen,
-  "cmd:new": Sparkles,
+  "cmd:new": FolderPlus,
   "cmd:settings": Settings,
 };
 

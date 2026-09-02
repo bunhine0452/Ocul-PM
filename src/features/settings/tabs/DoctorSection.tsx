@@ -85,8 +85,8 @@ async function probe(projectId: number): Promise<Probe> {
 
 const DOT: Record<RowState, string> = {
   ok: "bg-[var(--ok)]",
-  warn: "bg-amber-500",
-  danger: "bg-red-500",
+  warn: "bg-(--warn)",
+  danger: "bg-(--danger)",
   off: "bg-muted-foreground/40",
 };
 
@@ -401,7 +401,7 @@ export function DoctorSection() {
                     <span className="text-muted-foreground tabular-nums flex-none">
                       {relativeTime(new Date(w.at).toISOString(), Date.now()) ?? ""}
                     </span>
-                    <span className="flex-none text-amber-600">[{w.kind}]</span>
+                    <span className="flex-none text-(--warn-text)">[{w.kind}]</span>
                     <span className="truncate" title={`${w.path}\n${w.message}`}>
                       {w.path} — {w.message}
                     </span>

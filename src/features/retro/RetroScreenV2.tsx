@@ -5,14 +5,16 @@ import { Toolbar } from "@/components/Toolbar";
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { OculSpinner } from "@/components/OculSpinner";
+import { ClaudeMark } from "@/components/ClaudeMark";
 import {
   History,
   TrendingUp,
   Bug,
   Wrench,
-  Bot,
+  PieChart,
   TriangleAlert,
-  SparklesIcon,
+  FileText,
+  NotebookPen,
   RotateCcw,
   Download,
 } from "@/components/Icons";
@@ -384,7 +386,7 @@ export function RetroScreenV2({
               aria-expanded={summaryMenuOpen}
               title={hasWork ? t("retro.summaryTitle") : t("retro.noWork")}
             >
-              <SparklesIcon size={14} /> {summaryBusy ? t("retro.summaryBusy", { label: summaryLabel(summaryBusy) }) : t("retro.summary")}
+              <FileText size={14} /> {summaryBusy ? t("retro.summaryBusy", { label: summaryLabel(summaryBusy) }) : t("retro.summary")}
             </button>
             {summaryMenuOpen ? (
               <div
@@ -416,7 +418,7 @@ export function RetroScreenV2({
                 : t("retro.noWork")
             }
           >
-            <Bot size={14} /> {t("retro.viaClaude")}
+            <ClaudeMark size={14} /> {t("retro.viaClaude")}
           </button>
           <button
             className="btn primary"
@@ -440,7 +442,7 @@ export function RetroScreenV2({
               </>
             ) : (
               <>
-                <SparklesIcon size={14} /> {t("retro.generate")}
+                <NotebookPen size={14} /> {t("retro.generate")}
               </>
             )}
           </button>
@@ -503,7 +505,7 @@ export function RetroScreenV2({
         {summaryResult ? (
           <>
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-              <SparklesIcon size={15} />
+              <FileText size={15} />
               <span className="text-sm font-semibold">{summaryLabel(summaryResult.style)}</span>
               <span className="text-xs text-muted-foreground">
                 {t("retro.artifactMeta", { n: summaryResult.entry_count, mode: summaryResult.used_llm ? t("retro.byAi") : t("retro.byTemplate") })}
@@ -548,10 +550,10 @@ function SignalsPanel({ signals }: { signals: RetroSignals }) {
   return (
     <section className="flex flex-col gap-4">
       {/* stat row */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-3">
         <Stat label={t("retro.stat.total")} value={s.total_entries} />
-        <Stat label={t("retro.stat.shipped")} value={s.shipped.length} accent="text-emerald-500" />
-        <Stat label={t("retro.stat.resistance")} value={s.resistance.length} accent="text-amber-500" />
+        <Stat label={t("retro.stat.shipped")} value={s.shipped.length} />
+        <Stat label={t("retro.stat.resistance")} value={s.resistance.length} />
         <Stat label={t("retro.stat.agents")} value={s.agent_breakdown.length} />
       </div>
 
@@ -560,7 +562,7 @@ function SignalsPanel({ signals }: { signals: RetroSignals }) {
           <ul className="flex flex-col gap-1.5">
             {s.shipped.map((it, i) => (
               <li key={i} className="flex items-baseline gap-2 text-sm">
-                <span className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <span className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium bg-(--ok-soft) text-(--ok-text)">
                   {KIND_LABEL[it.kind] ?? it.kind}
                 </span>
                 <span className="flex-1 text-foreground">{it.title}</span>
@@ -579,7 +581,7 @@ function SignalsPanel({ signals }: { signals: RetroSignals }) {
             <ul className="flex flex-col gap-1.5">
               {s.resistance.map((it, i) => (
                 <li key={i} className="flex items-baseline gap-2 text-sm">
-                  <span className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <span className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium bg-(--warn-soft) text-(--warn-text)">
                     {KIND_LABEL[it.kind] ?? it.kind}
                   </span>
                   <span className="flex-1 text-foreground">{it.title}</span>
@@ -602,7 +604,7 @@ function SignalsPanel({ signals }: { signals: RetroSignals }) {
                     className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs font-mono"
                   >
                     {rf.path}
-                    <span className="text-amber-500">×{rf.count}</span>
+                    <span className="text-(--warn-text)">×{rf.count}</span>
                   </span>
                 ))}
               </div>
@@ -633,7 +635,7 @@ function SignalsPanel({ signals }: { signals: RetroSignals }) {
         </Card>
       )}
 
-      <Card icon={<Bot size={15} />} title={t("retro.card.agents")}>
+      <Card icon={<PieChart size={15} />} title={t("retro.card.agents")}>
         <div className="flex flex-col gap-2">
           {s.agent_breakdown.map((a) => (
             <div key={a.agent_id} className="flex items-center gap-2">
@@ -689,21 +691,13 @@ function DifficultyRow({
   );
 }
 
-function Stat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number;
-  accent?: string;
-}) {
+function Stat({ label, value }: { label: string; value: number }) {
+  // 오늘 화면의 `.stat` 과 같은 물체다. 숫자에 색을 칠하지 않는다 — 출시=초록·
+  // 저항=호박은 라벨이 이미 말하는 것을 색으로 한 번 더 말하는 장식이었다.
   return (
-    <div className="rounded-lg border border-border/60 bg-card px-3 py-2.5">
-      <div className={`text-2xl font-semibold tabular-nums ${accent ?? "text-foreground"}`}>
-        {value}
-      </div>
-      <div className="text-xs text-muted-foreground">{label}</div>
+    <div className="stat">
+      <div className="stat-top">{label}</div>
+      <div className="stat-val">{value}</div>
     </div>
   );
 }
@@ -718,7 +712,7 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-card p-4">
+    <div className="card card-pad">
       <div className="mb-2.5 flex items-center gap-1.5 text-sm font-semibold text-foreground">
         <span className="text-muted-foreground">{icon}</span>
         {title}
@@ -770,7 +764,7 @@ function NarrativePanel({
               </>
             ) : (
               <>
-                <SparklesIcon size={14} /> {t("retro.generate")}
+                <NotebookPen size={14} /> {t("retro.generate")}
               </>
             )}
           </button>
@@ -779,7 +773,7 @@ function NarrativePanel({
             onClick={onDispatch}
             title={t("retro.claudeTitle")}
           >
-            <Bot size={14} /> {t("retro.viaClaude")}
+            <ClaudeMark size={14} /> {t("retro.viaClaude")}
           </button>
         </div>
       </div>
@@ -795,7 +789,7 @@ function NarrativePanel({
         </span>
         {stale && (
           <span
-            className="inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-600 dark:text-amber-400"
+            className="inline-flex items-center gap-1 rounded bg-(--warn-soft) px-1.5 py-0.5 font-medium text-(--warn-text)"
             title={t("retro.staleTitle")}
           >
             <TriangleAlert size={12} /> {t("retro.stale")}

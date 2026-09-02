@@ -59,7 +59,7 @@ export function DocsImage({
     return <span className="docs-img-missing">{t("docs.imgFailed", { name: alt || relPath })}</span>;
   }
   if (!src) {
-    return <span className="docs-img-skeleton" aria-busy="true" aria-label={t("docs.imgLoading")} />;
+    return <span className="skel docs-img-skeleton" aria-busy="true" aria-label={t("docs.imgLoading")} />;
   }
   return <img className="docs-img" src={src} alt={alt ?? ""} loading="lazy" />;
 }

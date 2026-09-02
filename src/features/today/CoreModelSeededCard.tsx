@@ -1,4 +1,4 @@
-import { Bot, X } from "@/components/Icons";
+import { Cpu, X } from "@/components/Icons";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
 import { useT } from "@/i18n";
 import { openSettings } from "@/lib/settingsNav";
@@ -25,7 +25,7 @@ export function CoreModelSeededCard() {
   return (
     <div className="card card-pad" role="status" style={{ marginBottom: 16 }}>
       <div className="stat-top">
-        <Bot size={15} color="var(--accent-text)" />
+        <Cpu size={15} color="var(--accent-text)" />
         <strong>{t("today.coreModelSeeded.title")}</strong>
         <button className="btn ghost sm right" onClick={dismiss} aria-label={t("common.dismiss")}>
           <X size={13} />

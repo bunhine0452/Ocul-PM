@@ -9,7 +9,7 @@ import {
   Network,
   BookText,
   SquareTerminal,
-  SparklesIcon,
+  MessageSquareText,
   Puzzle,
   FileCode,
 } from "@/components/Icons";
@@ -67,7 +67,7 @@ export const NAV_ENTRIES: NavEntry[] = [
   // ── AI 면 — 구동면(Claude Code) · 대화(프로바이더 채팅) · 그 규칙(스킬).
   // PR-ACP6 — Claude Code 구동면 (프로바이더 채팅과 분리).
   { id: "claudecode", labelKey: "nav.claudecode", aliasKey: "nav.claudecode.alias", icon: ClaudeMark, group: "ai" },
-  { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: SparklesIcon, group: "ai" },
+  { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: MessageSquareText, group: "ai" },
   // PR-CI3 — 스킬 화면을 스킬·규칙·훅 허브로 확장 (id 는 유지 — 저장된 uiV2View 호환).
   { id: "skills", labelKey: "nav.skills", aliasKey: "nav.skills.alias", icon: Puzzle, group: "ai" },
 ];

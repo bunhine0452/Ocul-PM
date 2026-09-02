@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
   SearchIcon,
-  SparklesIcon,
+  Compass,
   Variable,
   CaseSensitive,
   Database,
@@ -52,7 +52,7 @@ const SCOPES: {
   icon: React.ComponentType<{ size?: number }>;
   placeholderKey: I18nKey;
 }[] = [
-  { id: "semantic", labelKey: "search.scope.semantic", icon: SparklesIcon, placeholderKey: "search.ph.semantic" },
+  { id: "semantic", labelKey: "search.scope.semantic", icon: Compass, placeholderKey: "search.ph.semantic" },
   { id: "symbol", labelKey: "search.scope.symbol", icon: Variable, placeholderKey: "search.ph.symbol" },
   { id: "text", labelKey: "search.scope.text", icon: CaseSensitive, placeholderKey: "search.ph.text" },
 ];

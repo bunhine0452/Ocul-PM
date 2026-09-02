@@ -1,4 +1,4 @@
-import { Bot } from "@/components/Icons";
+import { PieChart } from "@/components/Icons";
 import { agentColor, agentLabel } from "./agentColor";
 import type { AgentContribution } from "./useTodayBrief";
 import { useT } from "@/i18n";
@@ -13,7 +13,7 @@ export function AgentBreakdown({ agents }: { agents: AgentContribution[] }) {
   return (
     <div className="card">
       <div className="panel-head">
-        <Bot size={16} color="var(--text-2)" />
+        <PieChart size={16} color="var(--text-2)" />
         <h3>{t("today.agents.title")}</h3>
       </div>
       <div className="panel-body" style={{ padding: 10 }}>

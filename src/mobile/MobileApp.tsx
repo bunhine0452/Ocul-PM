@@ -10,7 +10,7 @@ import "@/App.css";
 import "./mobile.css";
 
 import { commands, type JournalEntrySummary, type Project } from "@/lib/bindings";
-import { ChevronDown, MessagesSquare, NotebookText, SparklesIcon, Sunrise, TargetIcon } from "@/components/Icons";
+import { ChevronDown, MessagesSquare, MessageSquareText, NotebookText, Sunrise, TargetIcon } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { getToken } from "@/lib/transport/http";
 import { applyDesktopTheme } from "./theme";
@@ -36,7 +36,7 @@ const TABS: Array<{
   { id: "journal", labelKey: "mobile.tab.journal", icon: NotebookText },
   { id: "planner", labelKey: "mobile.tab.planner", icon: TargetIcon },
   { id: "discussion", labelKey: "mobile.tab.discussion", icon: MessagesSquare },
-  { id: "ai", labelKey: "mobile.tab.ai", icon: SparklesIcon },
+  { id: "ai", labelKey: "mobile.tab.ai", icon: MessageSquareText },
 ];
 
 export default function MobileApp() {

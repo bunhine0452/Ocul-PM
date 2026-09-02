@@ -4,7 +4,7 @@ import {
   Flame,
   Settings as SettingsIcon,
   RefreshCw,
-  Sparkles,
+  MessageSquareText,
   Plus,
   FolderGit2,
   NotebookText,
@@ -246,7 +246,7 @@ export function CommandPalette({
                 window.dispatchEvent(new CustomEvent(NAV_BUS.openProjectSwitcher));
               } },
             { id: "open-ai-panel", label: t("palette.openAiPanel"), alias: aliasOf("palette.openAiPanel"),
-              group: "actions" as const, icon: Sparkles, shortcut: "⌘\\",
+              group: "actions" as const, icon: MessageSquareText, shortcut: "⌘\\",
               onSelect: () => { ws.setUiV2View("ai"); onOpenChange(false); } },
           ]
         : []),
@@ -274,7 +274,7 @@ export function CommandPalette({
         : []),
       ...(onRegenerateOverview && currentProjectId !== null
         ? [{ id: "regen-overview", label: t("palette.regenOverview"), alias: aliasOf("palette.regenOverview"),
-            group: "actions" as const, icon: Sparkles, onSelect: () => { onRegenerateOverview(); onOpenChange(false); } }]
+            group: "actions" as const, icon: RefreshCw, onSelect: () => { onRegenerateOverview(); onOpenChange(false); } }]
         : []),
 
       // ── ocul-pm — W4-PR8
@@ -393,7 +393,7 @@ export function CommandPalette({
   return (
     <div
       data-home-overlay
-      className="fixed inset-0 z-[100] bg-background/60 backdrop-blur-sm flex items-start justify-center pt-[18vh] p-4 animate-in fade-in duration-150"
+      className="scrim z-[100] flex items-start justify-center pt-[18vh] p-4 animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onOpenChange(false);
       }}
@@ -401,7 +401,7 @@ export function CommandPalette({
       <Command
         ref={panelRef}
         label={t("palette.aria")}
-        className="w-full max-w-xl bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-150"
+        className="w-full max-w-xl bg-card border border-border rounded-xl shadow-xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-150"
         // cmdk uses a custom fuzzy match. Provide alias as searchable text so
         // Korean queries hit English labels and vice versa.
         filter={(value, search, keywords) => {
