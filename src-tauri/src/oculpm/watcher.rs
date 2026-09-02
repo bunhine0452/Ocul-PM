@@ -1845,13 +1845,20 @@ mod tests {
     /// one ndjson event (path appears once).
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn rapid_writes_to_same_file_debounced_to_one() {
-        let s = setup().await;
+        // 창을 넉넉히 잡는다 (2026-09-02). 쓰기 다섯이 100ms 에 걸쳐 있는데
+        // 기본 창이 150ms 면 여유가 50ms 뿐이라, 러너가 한 번 멈칫하는 것만으로
+        // 배치가 갈려 이벤트가 둘이 된다 — CI 에서 실제로 났다. 여기서 재는 것은
+        // **연속 쓰기가 한 판으로 접히는가**지 스케줄러의 정확도가 아니다.
+        let mut cfg = fast_config();
+        cfg.watcher.debounce_ms = 400;
+        let s = setup_with_config(cfg).await;
         let target = s.dir.path().join("hot.rs");
         for i in 0..5 {
             std::fs::write(&target, format!("v{i}")).unwrap();
             sleep(Duration::from_millis(20)).await;
         }
-        settle().await;
+        // 창(400ms)보다 확실히 길게 — `settle()` 은 기본 창 기준이다.
+        sleep(Duration::from_millis(1_000)).await;
         s.watcher.stop().await.unwrap();
         s.actor.shutdown().await.unwrap();
 
