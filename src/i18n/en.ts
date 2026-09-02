@@ -2588,6 +2588,8 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.tool.status.failed": "Failed",
   "acp.perm.title": "Approval needed",
   "acp.perm.reject": "Reject",
+  "acp.perm.clearContext":
+    "Picking “clear context” drops this conversation so far and continues with the plan alone — it cannot be undone.",
   "acp.attach.add": "Attach file",
   "acp.attach.remove": "Remove attachment",
   "acp.newConversation": "New session",

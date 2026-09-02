@@ -5,6 +5,7 @@
 import { Code2, TriangleAlert } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { AcpDiffView } from "../AcpDiffView";
+import { clearsContext } from "./permissionOptions";
 import { TOOL_ICON, type PermissionState } from "./shared";
 
 /**
@@ -23,6 +24,9 @@ export function PermissionCard({
   // **첫 항목**으로 왔다. 강조는 순서가 아니라 kind 로 고르고, 우리 폴백 거절
   // 버튼은 어댑터가 거절 선택지를 안 줬을 때만 낸다(중복 방지).
   const hasReject = request.options.some((option) => option.option_kind.startsWith("reject"));
+  // 계획을 수락하면서 **대화를 비우는** 선택지가 섞여 있으면, 무엇이 사라지는지
+  // 버튼 위에 미리 적는다 — 누른 뒤에 알게 되면 늦다.
+  const hasClearContext = request.options.some((option) => clearsContext(option.id));
   const Icon = TOOL_ICON[request.tool_kind] ?? Code2;
   // 명령 실행·삭제는 편집보다 대가가 크다 — 카드의 낯빛이 달라야 손이 느려진다.
   const risky = request.tool_kind === "execute" || request.tool_kind === "delete";
@@ -67,19 +71,24 @@ export function PermissionCard({
           <AcpDiffView diffs={request.diffs} />
         </div>
       ) : null}
+      {hasClearContext ? <p className="perm-note">{t("acp.perm.clearContext")}</p> : null}
       <div className="perm-actions">
         {request.options.map((option) => (
           <button
             key={option.id}
             // "이번만 허용"만 초록이다. "항상 허용"은 영구 권한 부여라 1회
-            // 허용과 같은 무게로 빛나면 안 된다.
+            // 허용과 같은 무게로 빛나면 안 된다. 컨텍스트를 비우는 선택지는
+            // 허용이 아니라 **버리기**라, 허용 계열 어느 쪽과도 같은 낯빛을
+            // 쓰지 않는다.
             className={
               "btn sm " +
-              (option.option_kind === "allow_once"
-                ? "primary"
-                : option.option_kind.startsWith("allow")
-                  ? "perm-always"
-                  : "ghost")
+              (clearsContext(option.id)
+                ? "perm-destructive"
+                : option.option_kind === "allow_once"
+                  ? "primary"
+                  : option.option_kind.startsWith("allow")
+                    ? "perm-always"
+                    : "ghost")
             }
             onClick={() => onDecide(request.request_id, option.id)}
           >

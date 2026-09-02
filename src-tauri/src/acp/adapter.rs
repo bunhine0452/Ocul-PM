@@ -17,13 +17,22 @@ pub const PKG_NAME: &str = "claude-agent-acp";
 /// 고정 버전. 올릴 때는 스파이크(docs/acp-panel/spike/acp_spike.py)를 다시 돌려
 /// `session/update` 종류가 늘거나 바뀌지 않았는지 확인한다.
 ///
-/// 0.68.0 → 0.70.0 (2026-08-19): `session/update` 종류는 그대로고, 신규는
-/// **파일 변경 감사**(`agentFileChangeReport`) 하나다 — 턴이 끝나기 직전
-/// 어댑터의 Stop 훅이 숨은 continuation 으로 "이번 턴에 바꾼 파일을 전부
-/// 신고하라"를 시키고, 그 결과가 `session_info_update` 의 `_meta` 로 온다
-/// (`super::session::file_change_report_of`). 번들되는 Claude Code 는
-/// 그대로다 — 세 버전 모두 `claude-agent-sdk@0.3.232`.
-pub const PINNED_VERSION: &str = "0.70.0";
+/// 0.70.0 → 0.73.0 (2026-09-02): `session/update` 종류는 그대로다. 세 버전이
+/// 더한 5종(`subagent_spawned`·`subagent_state_update`·`async_task_*`)은 전부
+/// **우리가 광고하지 않은 capability 뒤**에 있어 오지 않는다 (그 이유는
+/// `super::process` 의 `air` 광고 주석에).
+///
+/// 대신 **번들되는 Claude Code 가 올라간다** — `claude-agent-sdk@0.3.232` →
+/// `0.3.257`. 화면에 드러나는 것은 셋이다:
+///
+/// 1. 대화 제목을 어댑터가 CLI 에 따로 생성 요청해 **세션당 한 번만** 붙인다.
+///    전에는 AI 제목이 붙기 전까지 마지막 지시문이 제목으로 새어 나왔다 —
+///    `acpTitle.ts` 의 메아리 걸러내기가 그 흔적이다(폴백으로 남겨 둔다).
+/// 2. effort 가 모델별로 기억돼, 모델을 바꿔도 우리가 고른 값이 덮이지 않는다.
+/// 3. ExitPlanMode 승인에 "컨텍스트를 비우고 계획만 들고 이어가기" 선택지가
+///    붙는다(`exit-plan-clear-*`). 되돌릴 수 없어 카드가 따로 표시한다 —
+///    `src/features/chat/conversation/permissionOptions.ts`.
+pub const PINNED_VERSION: &str = "0.73.0";
 
 /// 앱 데이터 디렉터리 하위 설치 경로.
 const INSTALL_SUBDIR: &str = "acp";

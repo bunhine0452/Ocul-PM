@@ -438,6 +438,24 @@
 .btn.perm-always:hover {
   background: var(--accent-soft);
 }
+/* "컨텍스트를 비우고 …" 는 허용이 아니라 **버리기**다 (어댑터 0.71.0 의
+   `exit-plan-clear-*`). 바로 옆 "그냥 허용"과 같은 낯빛이면 손이 같은 속도로
+   움직인다 — 승인 선택지 중 유일하게 경고색을 쓰는 이유다. */
+.btn.perm-destructive {
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  background: transparent;
+  color: var(--warn-text);
+}
+.btn.perm-destructive:hover {
+  background: var(--warn-soft);
+}
+/* 무엇이 사라지는지는 누르기 **전에** 읽혀야 한다 — 그래서 버튼 위다. */
+.perm-note {
+  margin: 0 0 8px;
+  font-size: var(--fs-3);
+  line-height: 1.5;
+  color: var(--warn-text);
+}
 @keyframes perm-in {
   from {
     opacity: 0;

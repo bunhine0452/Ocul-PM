@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.31.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 80개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.32.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 81개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.31.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 80개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.32.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 81개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.31.0</span>
+    <span class="nav-ver" data-version>v2.32.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>80개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>81개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-32-0">v2.32.0</a>
       <a href="#v2-31-0">v2.31.0</a>
       <a href="#v2-30-0">v2.30.0</a>
       <a href="#v2-29-0">v2.29.0</a>
@@ -61,10 +62,18 @@
       <a href="#v2-23-1">v2.23.1</a>
       <a href="#v2-23-0">v2.23.0</a>
       <a href="#v2-22-0">v2.22.0</a>
-      <a href="#v2-21-1">v2.21.1</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-32-0"><a href="#v2-32-0">v2.32.0</a></h2>
+      <div class="cl-body">
+<p><b>앱 안의 Claude Code 가 최신으로 올라갑니다.</b> 이 앱은 Claude Code 를 따로 깔라고 하지 않습니다 — AI 패널이 쓰는 어댑터가 실행 파일을 함께 들고 오기 때문입니다. 그 어댑터를 올리면서 <b>안에 든 Claude Code 도undefined패치만큼 새것</b>이 됐습니다. 앱을 새로 켜면 알아서 받아 두므로 누를 버튼은 없습니다.</p>
+<p><b>대화 제목이 방금 친 말을 따라다니지 않습니다.</b> 지금까지는 AI 가 제목을 붙이기 전까지 <b>마지막으로 보낸 지시문이 곧 제목</b>이었습니다 — 대화를 이어 갈수록 위쪽 탭 이름이 커서를 따라 계속 바뀌었습니다. 이제 대화 내용을 보고 제목을 한 번 지어 붙이고, 그 뒤로는 바뀌지 않습니다.</p>
+<p><b>노력 수준이 모델마다 기억됩니다.</b> 모델을 바꾸면 골라 둔 노력 수준이 초기값으로 되돌아가던 것이, 이제 모델별로 기억됩니다.</p>
+<p><b>계획을 수락할 때 「대화를 비우는」 선택지가 눈에 띕니다.</b> 계획 모드를 마칠 때 나오는 승인 카드에 선택지가 하나 늘었습니다 — 계획만 들고 <b>새 대화로 이어 가는</b> 길입니다. 컨텍스트가 넉넉해져 긴 작업에 유리하지만, 지금까지 오간 이야기는 사라지고 되돌릴 수 없습니다. 바로 옆의 「그냥 허용」과 글자만 다른 같은 버튼으로 두지 않았습니다 — 그 하나만 경고색이고, 무엇이 사라지는지 버튼 <b>위에</b> 미리 적힙니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-31-0"><a href="#v2-31-0">v2.31.0</a></h2>
       <div class="cl-body">

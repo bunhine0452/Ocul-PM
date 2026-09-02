@@ -47,11 +47,13 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/en",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "2.31.0",
+  "softwareVersion": "2.32.0",
   "inLanguage": "en",
   "description": "A local-first AI project manager for developers who work with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends). It records what the agents changed, lets you verify it against a local diff, and turns the pile of records back into standups, PR bodies and retrospectives. Two-line install as a Claude Code plugin.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
+    "The bundled Claude Code moves with the app — you never install Claude Code separately (the adapter carries the executable); when the app moves the adapter up, the Claude Code inside it moves too. A conversation is titled once per session, and effort is remembered per model",
+    "The destructive plan-accept choice is set apart — carrying only the plan into a fresh conversation (clearing the context) is not the same button as the plain allow beside it: it alone is warning-coloured, and what disappears is spelled out above the buttons",
     "Theme gallery, install from a link — preview light and dark on oculpm.com/themes and import over an oculpm:// link (nothing is fetched until you approve the confirmation sheet; your current theme is untouched; https + host allowlist), and contribute a theme as a single JSON file by PR",
     "Conversation import — browse another tool's conversation export as a candidate list (offline, no billing) and turn only what you pick into spec-shaped journal entries, on their original dates, with stable-id duplicate skipping and an unverified mark",
     "Declarative config · plugin bundles — export rules, skills and automations as one YAML document and see the change list before applying; import Claude plugin bundles whole (hand-edited files come back as conflicts); oculpm:// deep links never act without confirmation",
@@ -242,7 +244,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.31.0</span>
+    <span class="nav-ver" data-version>v2.32.0</span>
     <div class="nav-links">
       <a href="#acts">Features</a>
       <a href="/keynote">Keynote</a>
@@ -261,7 +263,7 @@
 <!-- ══════════ hero ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.31.0 — Themes from a link · a changelog and a privacy ledger</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.32.0 — Themes from a link · a changelog and a privacy ledger</a>
   <h1 class="reveal on">Agents write the code.<br /><span class="g">You keep the memory.</span></h1>
   <p class="hero-sub reveal on">
     While Claude Code · Codex · Cursor write your code, <b>Ocul-PM</b> records every unit of work —
@@ -270,7 +272,7 @@
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">Get v2.31.0</span><span class="sub">Free · macOS (Apple Silicon)</span>
+      <span class="lg">Get v2.32.0</span><span class="sub">Free · macOS (Apple Silicon)</span>
     </a>
     <a class="dl-btn ghost" href="/keynote">Watch the keynote →</a>
   </div>
@@ -448,6 +450,7 @@
     <p class="reveal">This app is built with itself — every line below came out of Ocul-PM's own work journal.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v2.32.0 — the Claude Code inside the app moves up · "clear the conversation" when accepting a plan</b> · This app never asks you to install Claude Code separately — the adapter the AI panel speaks to <b>carries the executable with it</b>. Moving that adapter up made the <b>Claude Code inside it 25 patches newer</b> (the app fetches it on the next launch; there is no button to press). A conversation's <b>title stops chasing your cursor</b>: until an AI title landed, the last prompt you sent was the title, so the tab name kept changing as the conversation went on — now a title is written once from the conversation itself and left alone. <b>Effort is remembered per model</b>, so switching models no longer resets it. Leaving plan mode now offers carrying only the plan into <b>a fresh conversation</b>; it buys context, but everything said so far is gone and cannot be brought back, so it is <b>not the same button</b> as the plain "allow" beside it — it alone is warning-coloured, and what disappears is spelled out <b>above</b> the buttons.</li>
     <li class="reveal"><b>v2.31.0 — Themes from a link · a changelog and a privacy ledger on the web</b> · A <a href="/themes" style="color:inherit;text-decoration:underline"><b>theme gallery</b></a> — preview light and dark without opening the app, and "Import in app" raises a <b>confirmation sheet</b>. <b>Only your approval fetches it</b>, and importing leaves your current theme alone (the gallery just gains one). A theme is a single JSON file, so you can contribute one by PR; repository tests check the schema, the colour values and <b>body contrast</b>. The web also gained the <a href="/changelog" style="color:inherit;text-decoration:underline"><b>full changelog</b></a> and a <a href="/privacy" style="color:inherit;text-decoration:underline"><b>privacy ledger</b></a> — "local-first" written as a <b>list</b> instead of a claim: exactly <b>five</b> outbound connections (LLM requests · update checks · GitHub fetches · a one-time embedding-model download · Notion, opt-in), and <b>no usage statistics and no crash reporting</b>. The wiki gained a <b>two-minute automation guide</b> in both languages, and the plugin page became a catalog showing the <b>pinned commit</b> behind each of the 25 third-party skills.</li>
     <li class="reveal"><b>v2.30.0 — Import past conversations · settings as one document · keep going when the network drops</b> · Open a <b>conversation export</b> from Claude and friends, pick the ones that belong to this project, and they become journal entries. Browsing the list is <b>entirely offline and free</b> — only what you pick reaches the background model. Entries land <b>on their original dates</b>, and re-opening the same file marks already-imported conversations "imported" rather than billing you twice (they are <b>not hidden</b> from the list). Imported entries start <b>unverified</b> — a model rewrote a conversation that happened elsewhere. Rules, skills, automations and app settings also export as <b>one YAML document</b> you can commit; open a teammate's and it <b>shows what would change before applying</b> (API keys never included; if anything is left after applying it says "partially applied"). <b>Claude plugin bundles</b> import whole — files you edited by hand are <b>never overwritten</b>, they come back as conflicts, and anything the bundle declares that we don't honour is stated rather than hidden. First launch asks once about <b>language, appearance and your first project</b>, and <b>windows come back after an update</b>. Nothing goes quietly wrong offline: a fallback answer <b>carries a badge</b> (just that once — your settings don't change), unreachable providers are <b>dimmed rather than hidden</b>, and automations <b>defer</b> instead of failing, catching up when you're back. We also fixed the <b>nine window-global things</b> that bled across tabs once one window could hold several projects (uncommitted changes in the wrong tab, index progress overwriting itself, planner ▶Run landing in another project's terminal) and the <b>terminal resize</b> that garbled text.</li>
     <li class="reveal"><b>v2.29.0 — It stops re-reading the same thing · the past, only when asked</b> · Until now the AI panel resent <b>the whole plan, the recent journal and the working rules</b> with every single question — even "what should I call this function". Now a conversation loads <b>a list of what exists</b> exactly once and pulls bodies on demand, and that list <b>does not change by a character</b> until the conversation ends (a stable prefix is what keeps the model-side cache alive). Past records attach only to questions carrying a <b>recall signal</b> — "what did I do last week", "what did I say", "how far did the plan get". The decision runs off a Korean/English signal-word dictionary, so it <b>calls no AI</b>, and past the ~800-token ceiling it drops <b>whole</b> records starting with the least relevant (never half of one). And <b>rules are no longer truncated</b> — the old 2,500-character cut once swallowed the "never write secrets" clause outright. Now <b>three lines</b> that must never be forgotten stay resident and everything else arrives <b>in full</b>, on demand (<code>/rules</code>, <code>/plan</code>, <code>/journal</code>, <code>/skill</code> push things in deliberately). Records used often gain relevance; unused ones fade on a <b>30-day half-life</b>. Settings gained a <b>Context</b> tab showing the standing instructions (global and per-project), the exact list this conversation received, the last recall budget and the candidates in relevance order with a per-item "forget".</li>
@@ -544,12 +547,12 @@
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v2.31.0 — download now · macOS (Apple Silicon)</span>
+  <span class="eyebrow reveal">v2.32.0 — download now · macOS (Apple Silicon)</span>
   <h2 class="reveal">Nothing is required<br />to start.</h2>
   <p class="sub reveal">No sign-up, no setup, no fee. You download it, and that is the whole thing.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">Get v2.31.0</span><span class="sub">Free · auto-updating</span>
+      <span class="lg">Get v2.32.0</span><span class="sub">Free · auto-updating</span>
     </a>
     <a class="dl-btn ghost" href="/plugin">Start with the plugin →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Enterprise · partnerships</a>

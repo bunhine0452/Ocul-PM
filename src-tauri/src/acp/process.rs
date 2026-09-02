@@ -693,6 +693,17 @@ pub async fn start(
                 //
                 // 네임스페이스가 `jetbrains.air` 인 것은 이 확장을 그쪽이 먼저
                 // 정의했기 때문이다(어댑터 문서 그대로). 우리가 고를 수 없다.
+                //
+                // **이 목록은 함부로 늘리지 않는다.** 어댑터 0.71.0 이 더한
+                // `nativeSubagentSessions` · `asyncTasks` 는 광고하는 순간
+                // `subagent_spawned` · `async_task_*` 5종이 흘러 들어오는데,
+                // 이건 아직 ACP 초안(agent-client-protocol#1992)이라 어댑터가
+                // 타입을 자체 정의해 두고 있다. Rust 쪽 `SessionUpdate` 는
+                // 최신 스키마(1.7.0)에도 이 종류가 없고 `#[serde(other)]`
+                // 폴백이 없어 **모르는 태그는 역직렬화가 실패한다** — 모르는
+                // 종류를 흘려보내는 우리 방어선(session.rs)은 파싱을 통과한
+                // 뒤에나 작동한다. 스키마가 따라잡기 전까지는 켜지 않는 것이
+                // 유일하게 안전한 선택이다.
                 let mut caps_meta = serde_json::Map::new();
                 caps_meta.insert(
                     "jetbrains".to_string(),

@@ -2561,6 +2561,8 @@ export const ko = {
   "acp.tool.status.failed": "실패",
   "acp.perm.title": "승인이 필요해요",
   "acp.perm.reject": "거절",
+  "acp.perm.clearContext":
+    "‘컨텍스트를 비우고’ 를 고르면 지금까지 오간 대화가 사라지고 계획만 들고 이어갑니다 — 되돌릴 수 없어요.",
   "acp.attach.add": "파일 첨부",
   "acp.attach.remove": "첨부 제거",
   "acp.newConversation": "새로운 세션",

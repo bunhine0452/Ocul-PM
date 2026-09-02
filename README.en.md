@@ -58,7 +58,14 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.31.0 — themes from a link · a changelog and a privacy ledger on the web
+## 🚀 v2.32.0 — the Claude Code inside the app moves up · "clear the conversation" when accepting a plan
+
+- **The bundled Claude Code is 25 patches newer** — this app never asks you to install Claude Code separately: the adapter the AI panel speaks to carries the executable with it. Moving that adapter up moved the Claude Code inside it too. The app fetches it on the next launch, so **there is no button to press.**
+- **A conversation's title stops chasing your cursor** — until an AI title landed, **the last prompt you sent was the title**, so the tab name kept changing as the conversation went on. Now a title is written once from the conversation itself and left alone.
+- **Effort is remembered per model** — switching models no longer resets the level you picked.
+- **The "clear the conversation" choice stands out when accepting a plan** — leaving plan mode now offers carrying only the plan into **a fresh conversation**. It buys context, but everything said so far is gone and cannot be brought back — so it is not the same button as the plain "allow" beside it: it alone is warning-coloured, and what disappears is spelled out **above** the buttons.
+
+## v2.31.0 — themes from a link · a changelog and a privacy ledger on the web
 
 - **Theme gallery, install from a link** — preview light and dark on [oculpm.com/themes](https://oculpm.com/themes); "Import in app" opens the app and raises a **confirmation sheet**, and only your approval fetches it. Importing **leaves your current theme alone** — the gallery just gains one. A theme is a single JSON file, so you can contribute one by PR into `landing/themes/`; repository tests check the schema, the colour values and body contrast.
 - **Changelog on the web** — [oculpm.com/changelog](https://oculpm.com/changelog). The same content as the app's **Settings → Updates** tab; one file in the repo feeds the web, GitHub and the app.
