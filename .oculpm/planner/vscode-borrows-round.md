@@ -66,7 +66,7 @@ owner: claude-code
 - [x] Rust 통합 테스트(자기 억제·병합창·캡) + 프런트 테스트 · 4게이트 · 일지 · plan_update {#p6-close}
 
 ## Phase 7 — 라운드 마감 {#p7-round-close}
-- [ ] 육안 1회 — 설치본 끄고 dev 로 7가지 한 바퀴 (설치본 도는 중 dev 빌드 금지) {#eyes}
+- [x] 육안 1회 — 설치본 끄고 dev 로 7가지 한 바퀴 (설치본 도는 중 dev 빌드 금지) {#eyes}
 - [x] 릴리스 5면 — 버전 3파일 · CHANGELOG · README ko/en · landing 6곳 → 태그 푸시 → landing vercel --prod {#release}
 - [x] docs/20260902_vscode-borrows/00-master-plan.md 상태를 '구현 완료' 로 갱신 · 구현 중 뒤집힌 결정 기록 {#docs-sync}
 
@@ -114,4 +114,6 @@ owner: claude-code
 | 2026-09-02T20:38:50+09:00 | #p6-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/2038_feature_local-history-versions-between-commits.md | Rust 9+13+1 · 프런트 15 · 7게이트 exit 0. Phase 5 의 seed 배열 가드도 동승(pnpm test 가 exit 1 이었다) |
 | 2026-09-02T22:24:27+09:00 | #release | claude-code | ☐→x | .oculpm/journal/20260902/Chores/2224_chore_release-v2-34-0.md | v2.34.0 태그 푸시 · 5면 전부 · 랜딩 vercel --prod (oculpm.com 별칭 확인). 중간에 붉은 CI 1건(ts_ms 신원 충돌) 수리 동승 |
 | 2026-09-02T22:24:33+09:00 | #docs-sync | claude-code | ☐→x | .oculpm/journal/20260902/Chores/2224_chore_release-v2-34-0.md | master-plan 상태 '구현 완료' + 구현 중 뒤집힌 결정 9건 기록 |
+| 2026-09-02T13:26:41.737904+00:00 | #eyes | user | ☐→~ |  |  |
+| 2026-09-02T13:26:43.244959+00:00 | #eyes | user | ~→x |  |  |
 <!-- oculpm:plan-log end -->

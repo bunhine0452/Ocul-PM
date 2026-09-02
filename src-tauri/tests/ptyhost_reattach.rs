@@ -8,7 +8,7 @@
 
 use std::time::Duration;
 
-use ocul_pm_lib::ptyhost::client::PtyHostClient;
+use ocul_pm_lib::ptyhost::client::{shutdown_host_at, sweep_legacy_host, PtyHostClient};
 use ocul_pm_lib::ptyhost::host::{serve, HostState};
 use ocul_pm_lib::ptyhost::protocol::{Event, Request, Response};
 use tokio::sync::mpsc;
@@ -191,4 +191,32 @@ async fn kill_prefix_only_touches_that_window() {
     assert!(matches!(resp, Response::Attach { attach: Some(_) }));
 
     let _ = client.request(Request::KillExcept { keep: vec![] }).await;
+}
+
+/// 업데이트가 남긴 **옛 이름의 호스트**를 앱이 대신 걷는다 (2026-09-02).
+///
+/// 붙는 이가 없는 시체 소켓은 파일만 걷어내고 "살아 있는 호스트가 아니었다"고
+/// 답해야 한다 — 그래야 호출자가 로그를 남길지 말지 가른다.
+#[tokio::test(flavor = "multi_thread")]
+async fn the_sweep_collects_a_dead_socket_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let socket = dir.path().join("ptyhost.sock");
+    std::fs::write(&socket, b"").unwrap();
+
+    assert!(!shutdown_host_at(&socket).await, "붙는 이가 없었다");
+    assert!(!socket.exists(), "시체 파일은 걷어낸다");
+}
+
+/// **dev 빌드는 그 자리를 건드리지 않는다** — 이 한 줄이 자기참수 사고의 조건을
+/// 되살리지 않게 막는 안전장치다. 설치본의 내장 터미널에서 dev 를 띄웠을 때
+/// dev 가 설치본의 호스트를 내리면, 그 호스트가 쥔 셸이 곧 자기를 띄운 터미널이다.
+/// 테스트는 늘 디버그 빌드라 여기서 바로 잰다.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_debug_build_never_sweeps() {
+    let dir = tempfile::tempdir().unwrap();
+    let socket = dir.path().join("ptyhost.sock");
+    std::fs::write(&socket, b"").unwrap();
+
+    sweep_legacy_host(dir.path()).await;
+    assert!(socket.exists(), "dev 빌드는 옛 소켓을 손대지 않는다");
 }

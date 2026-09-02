@@ -214,6 +214,65 @@ pub fn socket_path(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join(socket_name())
 }
 
+/// 소켓에 버전이 붙기 전(v2.33 까지)의 고정 이름.
+const LEGACY_SOCKET: &str = "ptyhost.sock";
+
+/// 업데이트가 남긴 **옛 이름의 호스트**를 걷어낸다 (2026-09-02).
+///
+/// 이름이 갈리기 전에 뜬 호스트에는 이 버전부터 아무도 붙지 않는다
+/// ([`socket_name`]). 그런데 그 호스트는 **자기 수명을 아는 코드가 없는**
+/// 옛 빌드라, 세션을 쥔 채 로그인 세션이 끝날 때까지 남는다 — 아무도 보지
+/// 않는 셸이 영영 도는 것이다. 사용자에게 `pkill` 을 시킬 수는 없으므로 앱이
+/// 시작할 때 한 번 대신 걷는다.
+///
+/// **릴리스 빌드만** 한다. dev 빌드가 이 자리를 건드리게 두면, 설치본의 내장
+/// 터미널에서 dev 를 띄우는 순간 자기를 띄운 셸을 죽인다 — 이름 격리로 없앤
+/// 바로 그 사고를 한 줄로 되살리는 셈이다. 그리고 **옛 이름 하나만** 본다:
+/// 버전이 붙은 자리는 임자가 있는 자리다.
+///
+// oculpm-defer: v2.33 이하에서 올라오는 경로 전용 이행 코드다; 옛 버전에서
+// 직접 올라오는 사용자가 사실상 없어지면(대략 v2.40 이후) 지운다.
+pub async fn sweep_legacy_host(app_data_dir: &Path) {
+    if cfg!(debug_assertions) {
+        return;
+    }
+    let socket = app_data_dir.join(LEGACY_SOCKET);
+    if !socket.exists() {
+        return;
+    }
+    if shutdown_host_at(&socket).await {
+        tracing::info!(target: "terminal", socket = %socket.display(), "swept a pre-versioned pty-host");
+    }
+}
+
+/// 이 소켓의 호스트에게 내려가 달라고 하고, 응답(또는 2초)을 기다린다.
+/// 붙는 이가 없으면 소켓 파일만 걷는다. 반환값은 "살아 있는 호스트였나".
+///
+/// [`PtyHostClient::connect`] 를 쓰지 않는 이유: 그쪽은 프로토콜이 다르면
+/// 물러난다. 여기서 상대는 정의상 **옛 프로토콜**이고, 우리는 대화가 아니라
+/// 한 마디만 보내면 된다.
+pub async fn shutdown_host_at(socket: &Path) -> bool {
+    let Ok(mut stream) = UnixStream::connect(socket).await else {
+        // 시체 파일 — 붙는 이가 없다.
+        let _ = std::fs::remove_file(socket);
+        return false;
+    };
+    let Ok(json) = serde_json::to_string(&ClientFrame {
+        id: 1,
+        req: Request::Shutdown,
+    }) else {
+        return false;
+    };
+    if stream.write_all(&encode_frame(&json)).await.is_err() {
+        return false;
+    }
+    // 응답을 읽는 것은 확인용이다 — 옛 호스트는 자리를 비우고(소켓 파일 삭제)
+    // 종료 유예 뒤 스스로 내려간다. 먹통이면 2초에 놓아 준다.
+    let mut buf = [0u8; 256];
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(2), stream.read(&mut buf)).await;
+    true
+}
+
 /// 호스트를 detach 로 띄운다 — 앱이 죽어도(업데이트 재시작) 함께 죽지 않게
 /// 프로세스 그룹을 분리하고 stdio 를 끊는다. 시체 수거(wait)는 전용 스레드로.
 pub fn spawn_host_process(socket: &Path) -> Result<(), String> {

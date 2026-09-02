@@ -1016,6 +1016,13 @@ pub fn run() {
             let embed_cache = app_data.join("fastembed_cache");
             app.manage(Embedder::new(app.handle().clone(), embed_cache));
             app.manage(crate::commands::terminal::PtyState::default());
+            // 업데이트가 남긴 옛 이름(`ptyhost.sock`)의 PTY 호스트를 한 번 걷는다.
+            // 이름이 갈린 뒤로 아무도 안 붙지만 그 옛 빌드는 스스로 내려갈 줄
+            // 모른다 — 사용자에게 `pkill` 을 시킬 수는 없다. 릴리스 빌드 전용.
+            let legacy_dir = app_data.clone();
+            tauri::async_runtime::spawn(async move {
+                crate::ptyhost::client::sweep_legacy_host(&legacy_dir).await;
+            });
             // PR-ACP1 — ACP 어댑터 레지스트리 (프로젝트당 1 연결).
             app.manage(crate::acp::AcpState::default());
             // PR-LSP0 — 언어 서버 레지스트리 ((프로젝트, 언어, 워크스페이스 루트)당 1).

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.34.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 83개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.34.1)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 84개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.34.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 83개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.34.1)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 84개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.34.0</span>
+    <span class="nav-ver" data-version>v2.34.1</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>83개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>84개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-34-1">v2.34.1</a>
       <a href="#v2-34-0">v2.34.0</a>
       <a href="#v2-33-0">v2.33.0</a>
       <a href="#v2-32-0">v2.32.0</a>
@@ -61,10 +62,17 @@
       <a href="#v2-26-0">v2.26.0</a>
       <a href="#v2-25-0">v2.25.0</a>
       <a href="#v2-24-0">v2.24.0</a>
-      <a href="#v2-23-1">v2.23.1</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-34-1"><a href="#v2-34-1">v2.34.1</a></h2>
+      <div class="cl-body">
+<p><b>업데이트가 남긴 옛 터미널 프로세스를 앱이 스스로 걷습니다.</b> 터미널을 소유한 프로세스는 앱 업데이트를 넘어 살아남습니다 — 셸이 재시작에 죽지 않게 하려고 그렇게 만들었습니다. v2.34.0 에서 그 프로세스의 자리(소켓)에 버전을 붙이면서, <b>옛 버전에서 올라온 프로세스에는 이제 아무도 붙지 않게</b> 됐습니다. 문제는 그 옛 프로세스가 스스로 내려갈 줄 모른다는 것입니다: 아무도 보지 않는 셸을 쥔 채 로그인 세션이 끝날 때까지 남습니다. 이제 앱이 시작할 때 그 자리를 한 번 확인하고, 남아 있으면 세션을 제대로 끝내고 내려가게 합니다. <b>누를 것도, 터미널에 칠 것도 없습니다.</b></p>
+<p>앞으로 생기는 같은 상황은 프로세스 자신이 정리합니다(v2.34.0 에서 들어간 규칙 — 붙는 이가 없으면 스스로 내려갑니다). 이번 판은 그 규칙이 없던 옛 버전에서 올라오는 경로 하나만을 위한 것입니다.</p>
+<p><b>로컬 히스토리의 판 하나가 다른 판을 가리던 것.</b> 판의 신원이 밀리초 시각이라 <b>같은 밀리초에 두 판이 들어오면 신원이 겹쳤습니다</b> — 그러면 한 판을 열었는데 다른 판의 내용이 나오고, 용량 정리가 한 판을 지우라는 지시로 둘을 함께 지웠습니다. 사람 손으로는 잘 나지 않지만 에이전트가 연달아 쓰면 납니다. 판마다 다른 신원을 갖게 했습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-34-0"><a href="#v2-34-0">v2.34.0</a></h2>
       <div class="cl-body">

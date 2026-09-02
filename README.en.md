@@ -58,7 +58,12 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.34.0 — the code screen became an editor you leave open all day (seven borrows from VS Code)
+## 🚀 v2.34.1 — the app clears out the old terminal process an update left behind
+
+- **Nothing to click, nothing to type** — the process that owns your terminals deliberately outlives an app update, so a restart never kills your shells. v2.34.0 put a version on that process's socket, which means **a process from an older version can no longer be reached by anyone** — and that older build doesn't know how to shut itself down, so it sat there holding shells nobody could see. The app now clears that spot once at startup. Any future case is handled by the process itself.
+- **Local history versions could shadow one another** — a version's identity was its millisecond timestamp, so two versions landing in the same millisecond shared an identity: opening one returned the other's content, and a budget cleanup told to drop one dropped both. Rare by hand, routine when an agent writes in quick succession.
+
+## v2.34.0 — the code screen became an editor you leave open all day (seven borrows from VS Code)
 
 - **Save hygiene · auto-save** — saving trims trailing whitespace and fixes the final newline, and forgetting to save no longer matters (after a delay, or when focus leaves). Diffs *are* the product here, so noise a save introduces is expensive — both are **off by default** and live in Settings → Code (auto-save never touches the line your cursor is on, and never runs the formatter with it).
 - **Skim, jump, and never lose your place** — a single click in the tree reuses **one italic preview tab**; a double-click or your first edit pins it (a preview tab holding unsaved edits is never replaced). **⇧⌘O for symbols, ⌃G for lines** jumps as you move through the list and returns you to your original line on Esc. **Sticky scroll** keeps the enclosing function pinned at the top as you scroll.

@@ -47,7 +47,7 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "2.34.0",
+  "softwareVersion": "2.34.1",
   "description": "AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저. 에이전트가 만든 변경을 자동으로 기록하고, 로컬 diff 로 즉시 검증하고, 쌓인 기록을 스탠드업·PR 본문·회고로 되돌려줍니다. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -244,7 +244,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.34.0</span>
+    <span class="nav-ver" data-version>v2.34.1</span>
     <div class="nav-links">
       <a href="#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -263,7 +263,7 @@
 <!-- ══════════ 히어로 ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.34.0 — 하루 종일 켜 두는 편집기 · 커밋 사이의 시간이 남습니다</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.34.1 — 업데이트가 남긴 옛 터미널 프로세스를 앱이 스스로 걷습니다</a>
   <h1 class="reveal on">에이전트는 코드를 쓰고,<br /><span class="g">당신은 기억을 갖습니다.</span></h1>
   <p class="hero-sub reveal on">
     Claude Code · Codex · Cursor 가 코드를 쓰는 동안, <b>Ocul-PM</b> 이 모든 작업을
@@ -272,7 +272,7 @@
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v2.34.0 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
+      <span class="lg">v2.34.1 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
     </a>
     <a class="dl-btn ghost" href="/keynote">키노트로 보기 →</a>
   </div>
@@ -453,6 +453,7 @@
     <p class="reveal">이 앱은 자기 자신으로 개발됩니다 — 아래 이력 전부가 Ocul-PM 의 작업 일지에서 나왔습니다.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v2.34.1 — 업데이트가 남긴 옛 터미널 프로세스를 앱이 스스로 걷습니다</b> · 터미널을 소유한 프로세스는 앱 업데이트를 <b>넘어 살아남습니다</b> — 셸이 재시작에 죽지 않게 하려고 그렇게 만들었습니다. v2.34.0 이 그 자리(소켓)에 버전을 붙이면서 <b>옛 버전에서 올라온 프로세스에는 아무도 붙지 않게</b> 됐는데, 그 옛 빌드는 스스로 내려갈 줄 몰라 아무도 보지 않는 셸을 쥔 채 남았습니다. 이제 앱이 시작할 때 그 자리를 한 번 확인하고 세션을 제대로 끝내고 내려가게 합니다 — <b>누를 것도, 터미널에 칠 것도 없습니다.</b> 앞으로 생기는 같은 상황은 프로세스 자신이 정리합니다. 함께: 로컬 히스토리의 판 하나가 다른 판을 가리던 것(신원이 밀리초 시각이라 같은 밀리초에 들어온 두 판이 겹쳤습니다 — 한 판을 열면 다른 판이 나오고 용량 정리가 둘을 함께 지웠습니다).</li>
     <li class="reveal"><b>v2.34.0 — 코드 화면이 하루 종일 켜 두는 편집기가 됐습니다 (VS Code 에서 가져온 일곱)</b> · 저장하면 <b>후행 공백과 마지막 줄이 정리</b>되고, 저장을 잊어도 지연·포커스 상실 시 <b>알아서 저장</b>됩니다 — diff 가 이 앱의 제품이라 저장이 만드는 노이즈는 비싸서 둘 다 <b>기본 꺼짐</b>이고, 자동 저장은 커서가 있는 줄을 건드리지 않습니다. 트리에서 한 번 누른 파일은 기울임 <b>미리보기 탭 한 자리</b>를 돌려 쓰고 더블클릭·첫 편집에 고정됩니다. <b>⇧⌘O 심볼 · ⌃G 줄</b> 이동은 목록을 오르내리는 동안 미리 뛰고 Esc 면 원래 줄로, <b>스티키 스크롤</b>은 지금 어느 함수 안인지 위에 남깁니다. <b>문제 패널</b>은 프로젝트 전체 진단을 파일별로 모아 에이전트가 무엇을 깨뜨렸는지 파일을 하나씩 열지 않게 합니다(빈 상태는 「문제 없음」이 아니라 <b>「아직 아는 문제 없음」</b>). 그리고 <b>커밋 사이의 시간이 남습니다</b> — 저장할 때마다, 에이전트가 파일을 고칠 때마다 판이 쌓이고 경로 줄의 시계에서 골라 겹쳐 보거나 되돌립니다(<code>.oculpm/</code> 안 · <code>.env*</code> 제외 · 파일당 50판). 함께 — svg 를 코드 옆에서 <b>저장 전 버퍼 기준</b>으로 그림으로 보고, 터미널은 프롬프트에 멈춘 셸을 「실행 중」으로 읽던 것과 업데이트를 넘어 살아남은 옛 프로세스가 <b>옛 답을 계속 돌려주던 것</b>, 그 프로세스가 아무도 붙지 않은 채 셸을 쥐고 남던 것을 고쳤습니다.</li>
     <li class="reveal"><b>v2.33.0 — 화면에서 「AI 가 만든 티」를 걷어냈습니다 · 터미널·일지·Claude Code 의 조용한 결함들</b> · 반짝이(✨) 아이콘 29곳은 <b>그 자리의 동작</b>을 말하는 아이콘으로, 오늘 현황의 색 상자 지표는 선화 하나와 <b>의미 있을 때만</b> 색으로, AI 패널의 가운데 히어로는 <b>프로젝트 이름 + 시작할 질문 목록</b>으로 바뀌었습니다. 유리 스크림·툴바는 불투명하게, 광택·색 안개·게이지 그라데이션은 단색으로. 설정·회고가 쓰던 기본 둥글기·그림자·상태색 125곳을 앱 토큰에 묶어 <b>테마 프리셋이 어느 화면에서도 온전히</b> 먹습니다. 함께 — 빠른 터미널이 <b>프로젝트를 가로질러 같은 셸을 나눠 쓰던 것</b>과 끝난 셸이 먹통으로 남던 것, 일지 검색이 <b>본문에서 찾아 준 항목을 화면이 버리던 것</b>, Claude Code 화면이 가만히 있을 때 <b>어댑터를 초당 수천 번</b> 두들기던 것과 탭을 옮기면 남의 모델·권한 모드가 보이던 것을 고쳤습니다.</li>
     <li class="reveal"><b>v2.32.0 — 앱 안의 Claude Code 최신화 · 계획 수락의 「대화 비우기」</b> · 이 앱은 Claude Code 를 따로 깔라고 하지 않습니다 — AI 패널이 쓰는 어댑터가 <b>실행 파일을 함께 들고 오기</b> 때문입니다. 그 어댑터를 올리면서 <b>안에 든 Claude Code 도 25 패치만큼 새것</b>이 됐습니다(앱을 새로 켜면 알아서 받아 둡니다 — 누를 버튼은 없습니다). 대화 <b>제목이 커서를 따라다니지 않습니다</b> — 예전에는 AI 가 제목을 붙이기 전까지 마지막 지시문이 곧 제목이라 대화를 이어 갈수록 탭 이름이 계속 바뀌었는데, 이제 대화 내용을 보고 한 번 지어 붙이고 그대로 둡니다. <b>노력 수준은 모델마다 기억</b>되어 모델을 바꿔도 초기화되지 않습니다. 계획 모드를 마칠 때 계획만 들고 <b>새 대화로 이어 가는</b> 선택지가 생겼는데, 컨텍스트는 넉넉해지지만 지금까지 오간 이야기가 사라지고 되돌릴 수 없어서 옆의 「그냥 허용」과 <b>같은 버튼으로 두지 않았습니다</b> — 그 하나만 경고색이고, 무엇이 사라지는지 버튼 <b>위에</b> 적힙니다.</li>
@@ -566,12 +567,12 @@
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v2.34.0 — 지금 다운로드 · macOS (Apple Silicon)</span>
+  <span class="eyebrow reveal">v2.34.1 — 지금 다운로드 · macOS (Apple Silicon)</span>
   <h2 class="reveal">시작하는 데 필요한 것은,<br />없습니다.</h2>
   <p class="sub reveal">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v2.34.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
+      <span class="lg">v2.34.1 받기</span><span class="sub">무료 · 자동 업데이트</span>
     </a>
     <a class="dl-btn ghost" href="/plugin">플러그인으로 시작 →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>
