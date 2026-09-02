@@ -35,17 +35,17 @@ owner: claude-code
 - [x] 기울임 렌더(.code-tab.preview) · 컨텍스트 메뉴 항목 · codePreviewTabs 설정(기본 켜짐) · ko/en {#preview-ui}
 - [x] 4게이트 · 일지 · plan_update {#p2-close}
 
-## Phase 3 — B4 심볼(⇧⌘O)·줄(⌃G) 이동 ✅ {#p3-goto}
+## Phase 3 — B4 심볼(⇧⌘O)·줄(⌃G) 이동 {#p3-goto}
 - [x] gotoModel.ts — parseGoto(':12:3' · '@foo' · 'foo') · rankSymbols(homeMatch 점수 재사용) · clampLine + 테스트 {#goto-model}
 - [x] CodeGoto.tsx — useModalBehavior 재사용 오버레이 · 목록 · 커서 이동마다 미리 점프 · Esc 면 원래 줄 복귀 {#goto-ui}
 - [x] 키 배선 ⇧⌘O / ⌃G (CM 키맵 충돌 확인) · 심볼 없는 파일은 줄 모드로 · shortcutRegistry 2줄 {#goto-keys}
 - [x] 컴포넌트 테스트(a11y 포함) · 4게이트 · 일지 · plan_update {#p3-close}
 
 ## Phase 4 — B7 스티키 스크롤 {#p4-sticky}
-- [ ] stickyModel.ts — stickyFromSymbols(바깥→안쪽, max 절단은 안쪽부터) · stickyFromIndent 폴백 + 테스트 {#sticky-model}
-- [ ] stickyScroll.ts — CM6 ViewPlugin + setStickySource effect · 클릭 점프 · 가로 스크롤 동기화 · 하이라이팅 없음 {#sticky-ext}
-- [ ] 심볼을 CodeScreenV2 → CodePane → CodeEditor 로 전달 · 설정 2개(codeStickyScroll 기본 꺼짐 · codeStickyMaxLines 5) · 패인 320px 미만이면 그리지 않기 {#sticky-wire}
-- [ ] 4게이트 · 일지 · plan_update {#p4-close}
+- [x] stickyModel.ts — stickyFromSymbols(바깥→안쪽, max 절단은 안쪽부터) · stickyFromIndent 폴백 + 테스트 {#sticky-model}
+- [x] stickyScroll.ts — CM6 ViewPlugin + setStickySource effect · 클릭 점프 · 가로 스크롤 동기화 · 하이라이팅 없음 {#sticky-ext}
+- [x] 심볼을 CodeScreenV2 → CodePane → CodeEditor 로 전달 · 설정 2개(codeStickyScroll 기본 꺼짐 · codeStickyMaxLines 5) · 패인 320px 미만이면 그리지 않기 {#sticky-wire}
+- [x] 4게이트 · 일지 · plan_update {#p4-close}
 
 ## Phase 5 — B6 문제 패널 {#p5-problems}
 - [ ] lsp_diagnostics_snapshot 커맨드 — 프로젝트 루트 접두로 raw_diagnostics 필터 + 좁은 타입 변환 · lib.rs 양쪽 등록 · cargo test 로 bindings 재생성 {#problems-cmd}
@@ -95,4 +95,8 @@ owner: claude-code
 | 2026-09-02T17:22:26+09:00 | #goto-ui | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1722_feature_goto-symbol-and-line-in-file.md | 미리 점프는 사용자가 움직인 뒤부터 — 여는 것만으로 화면이 흔들리지 않는다 |
 | 2026-09-02T17:22:32+09:00 | #goto-keys | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1722_feature_goto-symbol-and-line-in-file.md | CM6 에 Ctrl-g 없음 확인 (Mod-g=⌘G 검색 · Ctrl-o=splitLine 은 다른 조합). 점프에 focus 플래그 추가 |
 | 2026-09-02T17:22:42+09:00 | #p3-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1722_feature_goto-symbol-and-line-in-file.md | 신규 44건(순수 26 + 위젯·배선 18, a11y 포함) · 4게이트 exit 0 |
+| 2026-09-02T17:54:34+09:00 | #sticky-model | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1754_feature_sticky-scroll-in-code-editor.md | 주석 판정은 //·/*·*·&lt;!-- 만 — # 와 -- 는 CSS·SQL 에서 주석이 아니다 |
+| 2026-09-02T17:54:40+09:00 | #sticky-ext | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1754_feature_sticky-scroll-in-code-editor.md | 심볼 시작 줄을 문서 오프셋으로 들고 mapPos 로 따라간다 (편집 뒤 거짓말 방지). tr.state 대신 tr.newDoc |
+| 2026-09-02T17:54:46+09:00 | #sticky-wire | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1754_feature_sticky-scroll-in-code-editor.md | 설정 토글은 CodeEditor key 재마운트로 즉시 반영 (확장은 마운트 시점 결정 규약) |
+| 2026-09-02T17:54:52+09:00 | #p4-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1754_feature_sticky-scroll-in-code-editor.md | 순수 21건 · 4게이트 exit 0 (병렬 세션 WIP 때문에 임시 워크트리에서 typecheck/build 확인) |
 <!-- oculpm:plan-log end -->
