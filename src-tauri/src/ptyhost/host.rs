@@ -510,7 +510,7 @@ fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
                         message: format!("unknown pty session: {sid}"),
                     };
                 };
-                process_group_leader_of(session)
+                foreground_of(session)
             };
             Response::Foreground {
                 command: leader.and_then(command_line_of),
@@ -548,6 +548,24 @@ fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
 #[cfg(unix)]
 fn process_group_leader_of(session: &HostSession) -> Option<i32> {
     session.master.process_group_leader()
+}
+
+/// **프롬프트에 멈춰 있는 셸은 포그라운드 명령이 아니다** (2026-09-02).
+///
+/// `tcgetpgrp` 은 셸이 놀고 있을 때 **셸 자신의 프로세스 그룹**을 돌려준다.
+/// 그걸 그대로 명령줄로 바꿔 주면 `-zsh` 같은 이름이 나오고, 이 답을 "돌고
+/// 있는 일" 로 읽는 쪽(`useTabRunningWork` → 탭 닫기 확인)은 터미널을 켜 두기만
+/// 해도 매번 경고를 띄웠다. 늘 뜨는 확인은 읽지 않고 누르는 확인이 된다.
+///
+/// 그래서 포그라운드 그룹이 셸 자신이면 `None` — 프리필 쪽(`dispatchTarget`)도
+/// "모르면 셸" 로 접어 같은 결론에 닿는다.
+fn foreground_of(session: &HostSession) -> Option<i32> {
+    let leader = process_group_leader_of(session)?;
+    let shell = session.child.process_id().map(|p| p as i32);
+    if shell == Some(leader) {
+        return None;
+    }
+    Some(leader)
 }
 
 #[cfg(not(unix))]
@@ -822,6 +840,57 @@ mod tests {
             state.lock_sessions().get(&sid).is_none(),
             "맵에서 즉시 사라진다"
         );
+        assert_gone(shell_pid, fg).await;
+    }
+
+    /// 프롬프트에 멈춰 있는 셸은 **포그라운드 명령이 아니다**. 예전엔
+    /// `tcgetpgrp` 이 돌려준 셸 자신을 그대로 명령줄로 바꿔 줘서, 터미널을 켜 둔
+    /// 것만으로 탭 닫기 확인이 떴다 (2026-09-02).
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn idle_shell_has_no_foreground_command_but_a_running_one_does() {
+        let state = HostState::new(None);
+        let sid = "test-fg-idle".to_string();
+        let (shell_pid, fg) = sh_with_stubborn_foreground(&state, &sid).await;
+
+        // 돌고 있는 동안은 이름이 나온다 (`sleep`).
+        let Response::Foreground { command } =
+            handle_request(&state, Request::Foreground { sid: sid.clone() })
+        else {
+            panic!("Foreground 응답이 아니다");
+        };
+        let command = command.expect("포그라운드 명령이 있다");
+        assert!(command.contains("sleep"), "명령줄은 {command:?}");
+
+        // 그 작업이 끝나 셸이 다시 프롬프트를 잡으면 `None` 이다.
+        handle_request(
+            &state,
+            Request::Write {
+                sid: sid.clone(),
+                data: "\u{3}".to_string(), // ^C
+            },
+        );
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            let seen = {
+                let sessions = state.lock_sessions();
+                foreground_of(sessions.get(&sid).expect("session present"))
+            };
+            if seen.is_none() {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "^C 뒤에도 포그라운드가 셸로 안 돌아온다"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        assert!(matches!(
+            handle_request(&state, Request::Foreground { sid: sid.clone() }),
+            Response::Foreground { command: None }
+        ));
+
+        handle_request(&state, Request::Kill { sid });
         assert_gone(shell_pid, fg).await;
     }
 
