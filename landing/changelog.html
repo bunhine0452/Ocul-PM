@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.33.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 82개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.34.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 83개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.33.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 82개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.34.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 83개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.33.0</span>
+    <span class="nav-ver" data-version>v2.34.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>82개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>83개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-34-0">v2.34.0</a>
       <a href="#v2-33-0">v2.33.0</a>
       <a href="#v2-32-0">v2.32.0</a>
       <a href="#v2-31-0">v2.31.0</a>
@@ -61,10 +62,19 @@
       <a href="#v2-25-0">v2.25.0</a>
       <a href="#v2-24-0">v2.24.0</a>
       <a href="#v2-23-1">v2.23.1</a>
-      <a href="#v2-23-0">v2.23.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-34-0"><a href="#v2-34-0">v2.34.0</a></h2>
+      <div class="cl-body">
+<p><b>코드 화면이 「하루 종일 켜 두는 편집기」가 됐습니다.</b> VS Code 를 오래 쓰면서 아무도 의식하지 않는 일곱 가지를 가져왔습니다. <b>저장하면 후행 공백과 마지막 줄이 정리되고</b>, <b>저장을 잊어도 파일이 최신입니다</b>(지연 저장 · 포커스가 떠날 때). diff 가 이 앱의 제품이라 「저장이 만드는 노이즈」는 다른 앱보다 비싸서, 둘 다 <b>기본은 꺼짐</b>이고 설정 → 코드에서 켭니다 — 자동 저장은 지금 커서가 있는 줄을 건드리지 않고, 포맷을 함께 돌리지도 않습니다. <b>파일을 훑어도 탭이 쌓이지 않습니다</b>: 트리에서 한 번 누른 파일은 기울임으로 뜨는 미리보기 탭 <b>한 자리</b>를 돌려 쓰고, 더블클릭하거나 한 글자라도 고치면 고정됩니다(미저장 편집이 든 탭은 절대 교체되지 않습니다). <b>⇧⌘O 로 심볼, ⌃G 로 줄</b> — 목록을 오르내리면 그 자리로 미리 뛰고, Esc 면 원래 줄로 돌아옵니다. <b>스크롤해도 지금 어느 함수 안인지</b> 맨 위에 남습니다(스티키 스크롤). 그리고 <b>문제가 한곳에 모입니다</b> — 에이전트가 무엇을 깨뜨렸는지 파일을 하나씩 열어 보지 않아도 프로젝트 전체의 진단이 파일별로 섭니다. 빈 상태에는 「문제 없음」이 아니라 <b>「아직 아는 문제 없음」</b>이라고 적습니다: 열어 본 적 없는 파일까지 안다고 말하지 않기 위해서입니다.</p>
+<p><b>커밋 사이의 시간이 남습니다.</b> 저장할 때마다, 그리고 <b>에이전트가 파일을 고칠 때마다</b> 그 순간의 판이 하나씩 쌓입니다. 경로 줄의 시계를 누르면 최신순으로 서고(시각 · 출처 · 크기), 아무 판이나 골라 지금과 겹쳐 보거나 되돌립니다 — 되돌리기도 평소의 저장 경로를 그대로 지나가므로 에이전트의 편집과 겨루지 않습니다. git 이 아니라 프로젝트의 <code>.oculpm/</code> 안에 있고, <code>.env*</code> 는 담기지 않으며, 파일당 50판 · 프로젝트 512MB 를 넘지 않습니다(설정에서 쓴 용량을 보고 전부 지울 수 있습니다).</p>
+<p><b>svg 를 코드 옆에서 그림으로 봅니다.</b> 편집 중인 <b>버퍼 기준</b>이라, 저장하지 않아도 방금 고친 모양이 그대로 보입니다.</p>
+<p><b>터미널이 남의 셸을 죽이지도, 버려진 셸을 남기지도 않습니다.</b> 프롬프트에 멈춰 있는 셸을 「실행 중」으로 읽어 탭을 닫을 때마다 확인창을 띄우던 것을 고쳤습니다 — 늘 뜨는 확인은 읽지 않고 누르는 확인이 됩니다. 터미널을 소유한 프로세스는 앱 업데이트를 <b>넘어 살아남는데</b>, 그 탓에 새 버전을 깔아도 옛 답이 계속 오던 것(고쳤는데 안 고쳐진 것처럼 보이던 것)과, 그 프로세스가 아무도 붙지 않은 채 셸을 쥐고 영영 남던 것을 함께 정리했습니다. 이제 붙는 이가 없으면 스스로 내려갑니다.</p>
+<p><b>작은 것들</b> — 오늘 현황의 「오늘의 흐름」에서 행을 누르면 그 일지가 열립니다(네 줄이던 카드는 두 줄로). 메인 화면 바닥 띠가 프로젝트 이름 길이에 따라 튀던 것, 확인 창과 단축키 치트시트가 뼈대만 나오던 것도 고쳤습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-33-0"><a href="#v2-33-0">v2.33.0</a></h2>
       <div class="cl-body">
