@@ -49,6 +49,97 @@ pub struct AcpAgentInfo {
     pub auth_required: bool,
 }
 
+/// 한 어댑터 안의 **대화별 장부**.
+///
+/// 갈라 둔 이유는 이 세 칸이 한 몸이기 때문이다: "보고 있는 대화"가 바뀌면
+/// 설정도 제목도 그 대화의 것이 되어야 한다. 프로젝트에 한 칸씩만 두었을 때
+/// 두 가지가 동시에 틀렸다.
+///
+///  1. **탭 전환** — `acp_select_session` 은 어댑터에 아무 것도 묻지 않는다
+///     (그게 요점이다: 물으면 그 대화에 흐르던 스트림의 자리를 빼앗는다).
+///     그래서 옮겨 간 대화의 셀렉터가 **방금 떠나온 대화의 모델·권한 모드**를
+///     그대로 가리켰다.
+///  2. **알림** — 뒤에서 도는 대화가 모델을 바꾸거나 제목을 받으면, 그 값이
+///     보고 있는 대화의 칸을 덮었다.
+///
+/// 둘 다 "Auto 라 적혀 있는데 실은 Manual" 부류의 거짓말이다. 사용자가 자동
+/// 승인될 거라 믿는 순간이라 안전 문제이기도 하다.
+#[derive(Default)]
+struct SessionBook {
+    /// **화면이 지금 보고 있는** 대화.
+    ///
+    /// "활성 세션"이 아니다. 프롬프트·취소는 대화 id 를 인자로 받으므로 여러
+    /// 대화가 동시에 돌 수 있고, 이 칸은 그중 어느 것을 화면이 띄우고 있는지의
+    /// 장부일 뿐이다.
+    current: Option<SessionId>,
+    /// 대화별 설정 항목 (모델·Effort·모드 …).
+    options: HashMap<String, Vec<AcpConfigOption>>,
+    /// 대화별 제목 (에이전트가 나중에 붙인다).
+    titles: HashMap<String, String>,
+}
+
+impl SessionBook {
+    fn current_id(&self) -> Option<String> {
+        self.current.as_ref().map(|s| s.0.to_string())
+    }
+
+    /// 대화를 새로 열었거나 다시 읽었다 — 설정을 갈아 끼우고 이름은 비운다
+    /// (에이전트가 새로 붙여 준다. 남겨 두면 옛 제목이 되살아난다).
+    fn open(&mut self, session: SessionId, options: Vec<AcpConfigOption>) {
+        let id = session.0.to_string();
+        self.current = Some(session);
+        self.options.insert(id.clone(), options);
+        self.titles.remove(&id);
+    }
+
+    /// 보고 있는 대화만 바꾼다. `title` 의 `None` 은 "모른다"이지 "지워라"가
+    /// 아니다 — 갈무리해 둔 제목을 덮지 않는다.
+    fn select(&mut self, session: SessionId, title: Option<String>) {
+        let id = session.0.to_string();
+        self.current = Some(session);
+        if let Some(title) = title {
+            self.titles.insert(id, title);
+        }
+    }
+
+    /// 보고 있는 대화를 놓는다 (새 대화를 여는 길). 대화들의 설정·제목은
+    /// 그대로 둔다 — 하던 대화는 탭에 남아 계속 돌고, 돌아가면 제 값이어야 한다.
+    fn deselect(&mut self) {
+        self.current = None;
+    }
+
+    fn set_options(&mut self, session_id: &str, options: Vec<AcpConfigOption>) {
+        if options.is_empty() {
+            return;
+        }
+        self.options.insert(session_id.to_string(), options);
+    }
+
+    fn options_of(&self, session_id: &str) -> Vec<AcpConfigOption> {
+        self.options.get(session_id).cloned().unwrap_or_default()
+    }
+
+    fn patch_option(&mut self, session_id: &str, config_id: &str, value: &str) {
+        let Some(options) = self.options.get_mut(session_id) else {
+            return;
+        };
+        for option in options.iter_mut().filter(|o| o.id == config_id) {
+            option.current = Some(value.to_string());
+        }
+    }
+
+    fn set_title(&mut self, session_id: &str, title: Option<String>) {
+        match title {
+            Some(title) => self.titles.insert(session_id.to_string(), title),
+            None => self.titles.remove(session_id),
+        };
+    }
+
+    fn title_of(&self, session_id: &str) -> Option<String> {
+        self.titles.get(session_id).cloned()
+    }
+}
+
 struct Running {
     /// 이 연결의 세대. 죽는 연결이 **더 새 연결의 등록을 지우는 것**을 막는다.
     epoch: u64,
@@ -56,21 +147,16 @@ struct Running {
     /// drop 만으로도 클로저의 `stop_rx.await` 가 풀린다 — 명시 send 는 선택.
     _stop: oneshot::Sender<()>,
     info: AcpAgentInfo,
-    /// **화면이 지금 보고 있는** 대화.
-    ///
-    /// "활성 세션"이 아니다. 프롬프트·취소는 대화 id 를 인자로 받으므로 여러
-    /// 대화가 동시에 돌 수 있고, 이 칸은 그중 어느 것을 화면이 띄우고 있는지의
-    /// 장부일 뿐이다 — 설정 항목처럼 "보고 있는 대화"에 걸리는 것들이 쓴다.
-    session: Option<SessionId>,
-    /// 그 세션이 제공하는 설정 항목 (모델·Effort·모드 …).
-    options: Vec<AcpConfigOption>,
+    /// 대화별 장부 — 보고 있는 대화 + 대화마다의 설정·제목.
+    book: SessionBook,
     /// 슬래시 커맨드 목록. **프롬프트 밖에서** 도착하므로(세션 시작 직후)
     /// 싱크에 흘려보내는 것만으로는 잡을 수 없어 여기에 갈무리한다.
     commands: Vec<AcpCommand>,
     /// 마지막으로 본 사용량. 툴바가 프롬프트 밖에서도 보여 줘야 하므로 갈무리.
+    ///
+    /// 이건 **대화별이 아니다** — 여기 담기는 한도(5시간·주간·Fable)는 계정
+    /// 것이라 어느 대화에서 들었든 같은 사실이다.
     usage: Option<AcpUsage>,
-    /// 현재 세션 제목 (에이전트가 나중에 붙인다).
-    title: Option<String>,
     /// `/usage` 를 물어보는 **전용 대화** — 어댑터가 살아 있는 동안 하나만 쓴다.
     ///
     /// 물어볼 때마다 파고 지우려 했더니, 지우기와 어댑터의 전사 기록이 경합해
@@ -149,16 +235,13 @@ impl AcpState {
             .lock()
             .ok()?
             .get(&project_id)
-            .and_then(|r| r.session.clone())
+            .and_then(|r| r.book.current.clone())
     }
 
     pub fn set_session(&self, project_id: u32, session: SessionId, options: Vec<AcpConfigOption>) {
         if let Ok(mut map) = self.running.lock() {
             if let Some(running) = map.get_mut(&project_id) {
-                running.session = Some(session);
-                running.options = options;
-                // 제목은 세션의 것이다 — 안 지우면 새 대화에 옛 제목이 남는다.
-                running.title = None;
+                running.book.open(session, options);
             }
         }
     }
@@ -176,27 +259,32 @@ impl AcpState {
         }
     }
 
-    /// 보고 있는 대화만 바꾼다 — **설정은 그대로 둔다.**
+    /// 보고 있는 대화만 바꾼다 — **어댑터에는 아무 것도 묻지 않는다.**
     ///
     /// `session/prompt` 는 대화 id 를 인자로 받으므로 "활성 대화"는 우리 쪽
     /// 장부일 뿐이다. 화면이 이미 그 대화의 기록을 들고 있어 다시 읽을 필요가
     /// 없을 때, `session/load` 를 부르지 않고 이것만 바꾼다 (재생 트래픽도,
     /// 그 대화에 물려 있는 스트림을 건드릴 일도 없다).
+    ///
+    /// 설정은 **그 대화의 칸에서 저절로 따라온다** — 묻지 않는 전환이 옳으려면
+    /// 우리가 대화별로 들고 있어야 한다는 뜻이기도 하다.
     pub fn select_session(&self, project_id: u32, session: SessionId, title: Option<String>) {
         if let Ok(mut map) = self.running.lock() {
             if let Some(running) = map.get_mut(&project_id) {
-                running.session = Some(session);
-                running.title = title;
+                running.book.select(session, title);
             }
         }
     }
 
-    /// 세션을 버린다 (설정 항목도 함께). 다음 `ensure_session` 이 새로 만든다.
+    /// 보고 있는 대화를 놓는다. 다음 `ensure_session` 이 새로 만든다.
+    ///
+    /// 대화들의 설정·제목은 **그대로 둔다** — 여기 오는 길은 "새 대화를 연다"
+    /// 이고, 그것은 하던 대화를 버리는 것이 아니다(탭에 그대로 남아 계속 돈다).
+    /// 지우면 돌아왔을 때 그 대화의 모델·권한 모드가 빈칸이 된다.
     pub fn clear_session(&self, project_id: u32) {
         if let Ok(mut map) = self.running.lock() {
             if let Some(running) = map.get_mut(&project_id) {
-                running.session = None;
-                running.options = Vec::new();
+                running.book.deselect();
             }
         }
     }
@@ -248,48 +336,57 @@ impl AcpState {
         }
     }
 
-    /// 설정 한 벌을 통째로 갈아 끼운다 (에이전트가 보내 준 것).
-    pub fn set_options(&self, project_id: u32, options: Vec<AcpConfigOption>) {
-        if options.is_empty() {
-            return;
-        }
+    /// **그 대화의** 설정 한 벌을 통째로 갈아 끼운다 (에이전트가 보내 준 것).
+    pub fn set_options(&self, project_id: u32, session_id: &str, options: Vec<AcpConfigOption>) {
         if let Ok(mut map) = self.running.lock() {
             if let Some(running) = map.get_mut(&project_id) {
-                running.options = options;
+                running.book.set_options(session_id, options);
             }
         }
     }
 
+    /// 보고 있는 대화의 제목.
     pub fn title(&self, project_id: u32) -> Option<String> {
-        self.running.lock().ok()?.get(&project_id)?.title.clone()
+        let map = self.running.lock().ok()?;
+        let running = map.get(&project_id)?;
+        running.book.title_of(&running.book.current_id()?)
     }
 
-    pub fn set_title(&self, project_id: u32, title: Option<String>) {
+    /// **그 대화의** 제목. `None` 은 "이름을 뗀다".
+    pub fn set_title(&self, project_id: u32, session_id: &str, title: Option<String>) {
         if let Ok(mut map) = self.running.lock() {
             if let Some(running) = map.get_mut(&project_id) {
-                running.title = title;
+                running.book.set_title(session_id, title);
             }
         }
     }
 
+    /// 보고 있는 대화의 설정 항목.
     pub fn options(&self, project_id: u32) -> Vec<AcpConfigOption> {
+        self.session(project_id)
+            .map(|session| self.options_of(project_id, session.0.as_ref()))
+            .unwrap_or_default()
+    }
+
+    /// 대화를 짚어 설정 항목을 읽는다.
+    pub fn options_of(&self, project_id: u32, session_id: &str) -> Vec<AcpConfigOption> {
         self.running
             .lock()
             .ok()
-            .and_then(|m| m.get(&project_id).map(|r| r.options.clone()))
+            .map(|m| {
+                m.get(&project_id)
+                    .map(|running| running.book.options_of(session_id))
+                    .unwrap_or_default()
+            })
             .unwrap_or_default()
     }
 
     /// 설정 변경이 성공한 뒤 로컬 사본을 맞춘다 — 재조회 왕복을 아끼고, UI 가
     /// 낙관적으로 그린 값과 우리 상태가 어긋나지 않게 한다.
-    pub fn patch_option(&self, project_id: u32, config_id: &str, value: &str) {
+    pub fn patch_option(&self, project_id: u32, session_id: &str, config_id: &str, value: &str) {
         if let Ok(mut map) = self.running.lock() {
             if let Some(running) = map.get_mut(&project_id) {
-                for option in &mut running.options {
-                    if option.id == config_id {
-                        option.current = Some(value.to_string());
-                    }
-                }
+                running.book.patch_option(session_id, config_id, value);
             }
         }
     }
@@ -607,7 +704,7 @@ pub async fn start(
                     // 에이전트 쪽에서 바뀐 설정을 따라간다 — 모델 교체가 권한
                     // 모드를 내리는 경우가 있어 이걸 놓치면 UI 가 거짓말을 한다.
                     if let Some(options) = config_of(&notification.update) {
-                        state.set_options(project_id, options);
+                        state.set_options(project_id, &from, options);
                         emit_session_changed(
                             &notify_app,
                             project_id,
@@ -616,7 +713,7 @@ pub async fn start(
                         );
                     }
                     if let Some(mode) = mode_of(&notification.update) {
-                        state.patch_option(project_id, "mode", &mode);
+                        state.patch_option(project_id, &from, "mode", &mode);
                         emit_session_changed(
                             &notify_app,
                             project_id,
@@ -625,7 +722,7 @@ pub async fn start(
                         );
                     }
                     if let Some(title) = title_of(&notification.update) {
-                        state.set_title(project_id, Some(title));
+                        state.set_title(project_id, &from, Some(title));
                         emit_session_changed(
                             &notify_app,
                             project_id,
@@ -748,11 +845,9 @@ pub async fn start(
                         connection: cx.clone(),
                         _stop: stop_tx,
                         info: info.clone(),
-                        session: None,
-                        options: Vec::new(),
+                        book: SessionBook::default(),
                         commands: Vec::new(),
                         usage: None,
-                        title: None,
                         scratch: None,
                     },
                 );
@@ -809,6 +904,113 @@ pub fn stop(app: &tauri::AppHandle, project_id: u32) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn option(id: &str, current: &str) -> AcpConfigOption {
+        AcpConfigOption {
+            id: id.to_string(),
+            name: id.to_string(),
+            category: None,
+            current: Some(current.to_string()),
+            choices: Vec::new(),
+            is_boolean: false,
+        }
+    }
+
+    fn current_option(book: &SessionBook, id: &str) -> Option<String> {
+        let session = book.current_id()?;
+        book.options_of(&session)
+            .into_iter()
+            .find(|o| o.id == id)?
+            .current
+    }
+
+    /// 탭을 옮겼다 돌아오면 **그 대화의** 모델·권한 모드가 보여야 한다.
+    ///
+    /// 프로젝트에 설정 한 칸만 두었을 때는 전환이 값을 안 바꿔서, 옮겨 간
+    /// 대화의 셀렉터가 방금 떠나온 대화의 값을 가리켰다. 어댑터에 다시 묻지
+    /// 않는 것이 이 전환의 요점이므로, 우리가 대화별로 들고 있어야 한다.
+    #[test]
+    fn switching_conversations_restores_that_conversations_settings() {
+        let mut book = SessionBook::default();
+        book.open(SessionId::new("a"), vec![option("model", "opus")]);
+        book.open(SessionId::new("b"), vec![option("model", "haiku")]);
+
+        book.select(SessionId::new("a"), None);
+        assert_eq!(current_option(&book, "model").as_deref(), Some("opus"));
+
+        book.select(SessionId::new("b"), None);
+        assert_eq!(current_option(&book, "model").as_deref(), Some("haiku"));
+    }
+
+    /// 뒤에서 도는 대화가 모드를 내려도 **보고 있는 대화의 셀렉터는 그대로다.**
+    ///
+    /// 한 칸이었을 때는 옆 대화의 값이 화면을 덮었다 — "Auto 라 적혀 있는데
+    /// 실은 Manual" 은 사용자가 자동 승인될 거라 믿는 순간이라 안전 문제다.
+    #[test]
+    fn a_background_conversation_does_not_repaint_the_visible_selectors() {
+        let mut book = SessionBook::default();
+        book.open(SessionId::new("a"), vec![option("mode", "auto")]);
+        book.open(SessionId::new("b"), vec![option("mode", "auto")]);
+        book.select(SessionId::new("a"), None);
+
+        // 옆 대화(b)가 기본 모드로 내려앉았다.
+        book.patch_option("b", "mode", "default");
+        assert_eq!(current_option(&book, "mode").as_deref(), Some("auto"));
+
+        book.select(SessionId::new("b"), None);
+        assert_eq!(current_option(&book, "mode").as_deref(), Some("default"));
+    }
+
+    /// 제목도 같다 — 옆 대화가 이름을 받았다고 보고 있는 탭이 개명되면 안 된다.
+    #[test]
+    fn a_background_title_does_not_rename_the_visible_tab() {
+        let mut book = SessionBook::default();
+        book.open(SessionId::new("a"), Vec::new());
+        book.select(SessionId::new("a"), None);
+        book.set_title("a", Some("내 대화".to_string()));
+
+        book.set_title("b", Some("남의 대화".to_string()));
+
+        let visible = book.current_id().unwrap();
+        assert_eq!(book.title_of(&visible).as_deref(), Some("내 대화"));
+        assert_eq!(book.title_of("b").as_deref(), Some("남의 대화"));
+    }
+
+    /// 새 대화를 여는 것은 하던 대화를 **버리는 것이 아니다** — 탭에 그대로
+    /// 남아 계속 돌고, 돌아가면 그 설정이 있어야 한다.
+    #[test]
+    fn opening_a_blank_slate_keeps_the_other_conversations_settings() {
+        let mut book = SessionBook::default();
+        book.open(SessionId::new("a"), vec![option("model", "opus")]);
+
+        book.deselect();
+        assert!(book.current_id().is_none());
+
+        book.select(SessionId::new("a"), None);
+        assert_eq!(current_option(&book, "model").as_deref(), Some("opus"));
+    }
+
+    /// 전환이 넘기는 `None` 은 "이름을 모른다"이지 "지워라"가 아니다.
+    #[test]
+    fn selecting_without_a_title_keeps_the_stored_one() {
+        let mut book = SessionBook::default();
+        book.open(SessionId::new("a"), Vec::new());
+        book.set_title("a", Some("에이전트가 붙인 이름".to_string()));
+
+        book.select(SessionId::new("a"), None);
+        assert_eq!(book.title_of("a").as_deref(), Some("에이전트가 붙인 이름"));
+    }
+
+    /// 다시 읽은 대화의 제목은 비운다 — 안 그러면 옛 이름이 되살아난다.
+    #[test]
+    fn reopening_a_conversation_drops_its_stale_title() {
+        let mut book = SessionBook::default();
+        book.open(SessionId::new("a"), Vec::new());
+        book.set_title("a", Some("옛 이름".to_string()));
+
+        book.open(SessionId::new("a"), Vec::new());
+        assert_eq!(book.title_of("a"), None);
+    }
 
     /// 권한 요청은 **반드시** 응답으로 닫혀야 한다 — 안 닫으면 에이전트가 영영
     /// 우리를 기다린다. 여기서 보는 건 그 계약의 골자다.
