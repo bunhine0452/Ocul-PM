@@ -13,6 +13,8 @@ Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-%ED%9B%84%EC%9B%90%ED%95%98%EA%B8%B0-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/beachcombers)
 
+<a href="https://www.producthunt.com/products/ocul-pm?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-ocul-pm" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1237239&theme=light&t=1788310113394" alt="Ocul-PM - The agent writes the code, and you keep the memory | Product Hunt" width="250" height="54" /></a>
+
 [oculpm.com](https://oculpm.com) · [키노트](https://oculpm.com/keynote) · [위키](https://oculpm.com/wiki) · [다운로드](https://github.com/bunhine0452/Ocul-PM/releases/latest) · [변경 이력](CHANGELOG.md) · [이슈](https://github.com/bunhine0452/Ocul-PM/issues)
 
 한국어 · [English](README.en.md)

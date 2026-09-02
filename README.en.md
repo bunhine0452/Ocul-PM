@@ -13,6 +13,8 @@ A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI</
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/beachcombers)
 
+<a href="https://www.producthunt.com/products/ocul-pm?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-ocul-pm" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1237239&theme=light&t=1788310113394" alt="Ocul-PM - The agent writes the code, and you keep the memory | Product Hunt" width="250" height="54" /></a>
+
 [oculpm.com](https://oculpm.com/en) · [Keynote](https://oculpm.com/keynote) · [Wiki](https://oculpm.com/wiki/en) · [Download](https://github.com/bunhine0452/Ocul-PM/releases/latest) · [Changelog](CHANGELOG.md) · [Issues](https://github.com/bunhine0452/Ocul-PM/issues)
 
 [한국어](README.md) · English
