@@ -110,7 +110,7 @@ export interface CodePaneProps {
   lspEnabled: boolean;
   /** 부모가 지시한 줄 점프 (검색·코드맵·정의로 이동). nonce 로 재발화.
    *  `ch`/`len` (UTF-16) 이 있으면 그 범위를 선택한다 — 전역 검색의 매치 표시. */
-  jump: { line: number; ch?: number; len?: number; nonce: number } | null;
+  jump: { line: number; ch?: number; len?: number; focus?: boolean; nonce: number } | null;
   /** 이 프로젝트에서 미저장인 경로들 — 탭 배지 + LSP 쓰기 동작의 게이트. */
   dirtyPaths: Set<string>;
   /** 이 창의 미리보기 탭 (훑어보려고 연 한 자리). 없으면 null. */
@@ -238,6 +238,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     line: number;
     ch?: number;
     len?: number;
+    /** false 면 에디터가 포커스를 가져가지 않는다 (파일 안 이동의 미리 점프). */
+    focus?: boolean;
   } | null>(null);
 
   const pathRef = useRef(activePath);
@@ -458,7 +460,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
 
   // 부모가 지시한 줄 점프. 같은 파일·같은 줄의 연속 점프도 다시 돌도록 nonce 로 건다.
   useEffect(() => {
-    if (jump) setPendingJump({ line: jump.line, ch: jump.ch, len: jump.len });
+    if (jump) setPendingJump({ line: jump.line, ch: jump.ch, len: jump.len, focus: jump.focus });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jump?.nonce]);
 

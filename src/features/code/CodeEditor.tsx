@@ -226,7 +226,9 @@ interface CodeEditorProps {
    * `ch`/`len` (UTF-16, 0-based) 이 있으면 그 범위를 선택한다 — 전역 검색이
    * 매치 자리를 하이라이트하는 창구. 매번 새 객체라 같은 줄 재점프도 발화한다.
    */
-  jump?: { line: number; ch?: number; len?: number } | null;
+  /** `focus: false` 면 스크롤·선택만 하고 **포커스는 두고 온다** — 파일 안
+   *  이동(⇧⌘O)의 미리 점프가 자기 입력창을 빼앗기지 않으려고 쓴다. */
+  jump?: { line: number; ch?: number; len?: number; focus?: boolean } | null;
   onJumpConsumed?: () => void;
   /** 언어 서버가 준 진단. 바뀔 때마다 트랜잭션으로 반영한다 (재구성 없음). */
   diagnostics?: readonly LspDiagnostic[];
@@ -537,7 +539,7 @@ export function CodeEditor({
       selection: { anchor, head },
       effects: EditorView.scrollIntoView(anchor, { y: "center" }),
     });
-    view.focus();
+    if (jump.focus !== false) view.focus();
     onJumpConsumedRef.current?.();
   }, [jump]);
 

@@ -41,6 +41,8 @@ import type { TreeHit } from "./importTarget";
 import { CodePane, CodeEmptyState, type CodePaneHandle } from "./CodePane";
 import { CodeContextMenu, type CodeMenuItem } from "./CodeContextMenu";
 import { CodeOutline } from "./CodeOutline";
+import { CodeGoto } from "./CodeGoto";
+import { countLines } from "./gotoModel";
 import { CodeDebugPanel } from "./CodeDebugPanel";
 import { useDebug } from "./useDebug";
 import { adapterLanguageFor, defaultProgramFor, toLaunchRequest } from "./debugConfig";
@@ -82,7 +84,13 @@ import {
   renameTarget,
   validateName,
 } from "./fileOps";
-import { dropBuffersUnder, listDirtyPaths, renameBufferPath } from "./codeBuffers";
+import {
+  bufferKey,
+  dropBuffersUnder,
+  getBuffer,
+  listDirtyPaths,
+  renameBufferPath,
+} from "./codeBuffers";
 import "./code.css";
 
 /** 다른 화면(검색·코드맵)에서 넘어온 열기 목표 — one-shot 핸드오프. */
@@ -166,6 +174,8 @@ export function CodeScreenV2({
     line: number;
     ch?: number;
     len?: number;
+    /** false 면 에디터가 포커스를 가져가지 않는다 (⇧⌘O 의 미리 점프). */
+    focus?: boolean;
     nonce: number;
   } | null>(null);
   const jumpSeq = useRef(0);
@@ -193,6 +203,10 @@ export function CodeScreenV2({
   const [symbols, setSymbols] = useState<LspSymbol[] | null>(null);
   const [symbolsLoading, setSymbolsLoading] = useState(false);
   const [cursorLine, setCursorLine] = useState(1);
+  // 이동 위젯(⇧⌘O · ⌃G)이 열릴 때 읽어야 하는 값 — keydown 클로저는 렌더보다
+  // 오래 산다.
+  const cursorLineRef = useRef(cursorLine);
+  cursorLineRef.current = cursorLine;
   const [references, setReferences] = useState<ReferencesQuery | null>(null);
   // 디버그 — 참조 패널과 같은 자리를 쓴다 (둘이 동시에 뜨면 편집 영역이 없어진다).
   const [debugOpen, setDebugOpen] = useState(false);
@@ -209,6 +223,16 @@ export function CodeScreenV2({
   const [starting, setStarting] = useState(false);
   /** 저장·포맷 뒤 아웃라인을 다시 묻게 하는 신호. */
   const [symbolEpoch, setSymbolEpoch] = useState(0);
+  /**
+   * 파일 안에서 이동 (#p3-goto). 열려 있는 동안만 값이 있고, 그 안에 **열던
+   * 순간**의 커서 줄과 줄 수를 담는다 — Esc 되돌리기와 줄 번호 상한은 그때의
+   * 문서를 기준으로 해야 한다.
+   */
+  const [gotoState, setGotoState] = useState<{
+    lineMode: boolean;
+    originLine: number;
+    lineCount: number;
+  } | null>(null);
 
   // 탭 상태는 영속된다 (#tabs-persist). `codeTabs` 는 여기서만 쓰기 때문에
   // 되읽기 루프가 없다 — 초기값으로 한 번 읽고, 이후로는 이쪽이 진실이다.
@@ -239,9 +263,11 @@ export function CodeScreenV2({
   }, [refreshDirtyPaths]);
 
   // 아웃라인은 **접혀 있으면 묻지 않는다** — rust-analyzer 에 파일을 열 때마다
-  // documentSymbol 을 던지는 것은 안 보는 패널을 위한 비용이다.
+  // documentSymbol 을 던지는 것은 안 보는 패널을 위한 비용이다. 이동 위젯도
+  // 같은 목록을 쓰므로(새 커맨드 없음) 그때는 접혀 있어도 한 번 묻는다.
+  const symbolsWanted = outlineOpen || gotoState != null;
   useEffect(() => {
-    if (!outlineOpen || !selected) {
+    if (!symbolsWanted || !selected) {
       setSymbols(null);
       return;
     }
@@ -255,7 +281,7 @@ export function CodeScreenV2({
     return () => {
       cancelled = true;
     };
-  }, [outlineOpen, selected, projectId, symbolEpoch]);
+  }, [symbolsWanted, selected, projectId, symbolEpoch]);
 
   // ── 트리 ────────────────────────────────────────────────────────────────
   /** 디렉터리 한 단계를 읽어 캐시에 넣는다. 이미 읽었거나 읽는 중이면 무시. */
@@ -396,6 +422,43 @@ export function CodeScreenV2({
       }
     },
     [],
+  );
+
+  /**
+   * 지금 보고 있는 파일 안에서만 뛴다 (파일 안 이동의 미리 점프·확정).
+   *
+   * `openPath` 를 쓰지 않는 이유: 같은 파일이라도 `openFile` 은 매번 새 탭
+   * 상태를 만들고, 그 값이 그대로 워크스페이스에 저장된다 — 화살표를 누를
+   * 때마다 탭 목록을 다시 쓰게 된다.
+   */
+  const jumpInFocusedPane = useCallback((line: number, ch?: number, focus = true) => {
+    jumpSeq.current += 1;
+    setJump({ pane: tabsRef.current.focused, line, ch, focus, nonce: jumpSeq.current });
+  }, []);
+
+  /**
+   * 파일 안 이동을 연다. `lineMode` 면 `:` 를 채워 (⌃G) 연다.
+   *
+   * 이미 열려 있으면 아무것도 하지 않는다 — 위젯 안에서 `:` 한 글자로 모드를
+   * 바꿀 수 있어서, 다시 여는 것은 방금 친 질의만 지운다.
+   */
+  const openGoto = useCallback(
+    (lineMode: boolean) => {
+      const path = focusedPath(tabsRef.current);
+      if (!path) return;
+      const text = getBuffer(bufferKey(projectId, path))?.text;
+      setGotoState((prev) =>
+        prev
+          ? prev
+          : {
+              lineMode,
+              originLine: cursorLineRef.current,
+              // 버퍼가 아직 없으면(로드 중) 0 — 상한을 모른다는 뜻이다.
+              lineCount: text == null ? 0 : countLines(text),
+            },
+      );
+    },
+    [projectId],
   );
 
   /** 미리보기 탭을 보통 탭으로 — 더블클릭·첫 편집·컨텍스트 메뉴가 부른다. */
@@ -562,6 +625,7 @@ export function CodeScreenV2({
   //   ⇧⌘T : 닫은 탭 다시 열기
   //   ⇧⌘F : 전역 검색 (사이드바를 검색 패널로 전환 + 입력 포커스)
   //   ⌘N : 새 파일 (보고 있던 파일의 폴더에)
+  //   ⇧⌘O / ⌃G : 파일 안에서 심볼·줄로 이동
   // ⌘W 는 여기 없다 — macOS 는 메뉴 액셀러레이터가 keydown 보다 먼저 먹으므로
   // 위의 closeIntent 사슬이 받는다. keydown 에도 달면 두 번 닫힌다.
   useEffect(() => {
@@ -570,6 +634,13 @@ export function CodeScreenV2({
       if (e.ctrlKey && !e.metaKey && !e.altKey && e.key === "Tab") {
         e.preventDefault();
         setTabs((prev) => cycleTab(prev, e.shiftKey ? -1 : 1));
+        return;
+      }
+      // ⌃G — CM6 기본 키맵에 없는 조합이라 여기서 처음 잡힌다 (emacs 키맵을
+      // 쓰지 않는다). ⌘ 조합보다 먼저 봐야 아래 metaKey 게이트에 안 걸린다.
+      if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        openGoto(true);
         return;
       }
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
@@ -590,6 +661,11 @@ export function CodeScreenV2({
         openSearch();
         return;
       }
+      if (e.shiftKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        openGoto(false);
+        return;
+      }
       if (!e.shiftKey && e.key.toLowerCase() === "v") {
         // 에디터·입력칸의 ⌘V 는 글자 붙여넣기다 — 가로채면 타이핑이 망가진다.
         const el = e.target as HTMLElement | null;
@@ -605,7 +681,7 @@ export function CodeScreenV2({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isVisible, reopenClosedTab, startCreate, openSearch, pasteFiles]);
+  }, [isVisible, reopenClosedTab, startCreate, openSearch, pasteFiles, openGoto]);
 
   /** 이름 바꾸기·이동의 공통 뒤처리 — 탭·버퍼·펼침 상태가 새 경로를 따라간다. */
   const applyRenamed = useCallback(
@@ -1122,7 +1198,13 @@ export function CodeScreenV2({
                 lspEnabled={index === 0 || pane.active !== tabs.panes[0].active}
                 jump={
                   jump && jump.pane === index
-                    ? { line: jump.line, ch: jump.ch, len: jump.len, nonce: jump.nonce }
+                    ? {
+                        line: jump.line,
+                        ch: jump.ch,
+                        len: jump.len,
+                        focus: jump.focus,
+                        nonce: jump.nonce,
+                      }
                     : null
                 }
                 dirtyPaths={dirtyPaths}
@@ -1209,6 +1291,21 @@ export function CodeScreenV2({
           </div>
 
           {sidebarOnRight ? sidebarEl : null}
+
+          {/* 파일 안 이동 — `.code-body` 안에 둔다. 오버레이는 position:fixed 라
+              자리를 차지하지 않고, 여기 있어야 화면 스코프의 --code-* 토큰
+              (심볼 종류 점)이 산다. */}
+          {gotoState ? (
+            <CodeGoto
+              symbols={symbols}
+              symbolsLoading={symbolsLoading}
+              lineCount={gotoState.lineCount}
+              originLine={gotoState.originLine}
+              lineMode={gotoState.lineMode}
+              onJump={jumpInFocusedPane}
+              onClose={() => setGotoState(null)}
+            />
+          ) : null}
         </div>
       )}
 

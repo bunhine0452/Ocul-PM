@@ -210,6 +210,9 @@ const TESTS = new Set([
   // 이 코드베이스의 서술 언어다 (단언 값은 코드·경로뿐).
   "__tests__/code_save_hygiene.test.ts",
   "__tests__/code_auto_save.test.tsx",
+  // vscode-borrows Phase 3 — 파일 안 이동 (심볼·줄). 같은 이유.
+  "__tests__/code_goto_model.test.ts",
+  "__tests__/code_goto.test.tsx",
   "__tests__/code_tree_lazy.test.tsx",
   "__tests__/code_tree_watch.test.tsx",
   "__tests__/lsp_bridge.test.ts",

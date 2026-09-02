@@ -1045,6 +1045,116 @@
   background: var(--code-prop);
 }
 
+/* ── 파일 안에서 이동 (#p3-goto) ───────────────────────────────────────────
+   팔레트와 같은 자리(화면 중앙 상단)에 서지만 이 화면 안에서만 산다. 스크림은
+   전역 `.scrim` 한 벌을 쓴다 — 유리는 없다. */
+.code-goto-scrim {
+  z-index: var(--z-top);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 14vh 16px 16px;
+}
+.code-goto {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  max-width: 520px;
+  background: var(--bg-card);
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+.code-goto-input {
+  flex: none;
+  height: 40px;
+  padding: 0 13px;
+  font-family: var(--mono);
+  font-size: var(--fs-6);
+  color: var(--text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--sep);
+  outline: none;
+}
+.code-goto-input::placeholder {
+  color: var(--text-3);
+}
+.code-goto-list {
+  flex: 1;
+  min-height: 0;
+  max-height: 46vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px;
+}
+.code-goto-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px;
+  font-size: var(--fs-6);
+  color: var(--text-2);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+.code-goto-row:hover {
+  background: var(--bg-hover);
+}
+.code-goto-row.on {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.code-goto-name {
+  flex: none;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+/* 상위 사슬 — 이름과 겨루지 않게 흐리게. 자리가 모자라면 여기부터 줄어든다. */
+.code-goto-container {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-3);
+  color: var(--text-3);
+}
+.code-goto-line {
+  flex: none;
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: var(--fs-3);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+/* 바닥줄 — 왼쪽은 지금 목록이 왜 이런지, 오른쪽은 누를 키. */
+.code-goto-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  font-size: var(--fs-3);
+  color: var(--text-3);
+  border-top: 1px solid var(--sep);
+}
+.code-goto-empty {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-goto-keys {
+  flex: none;
+}
+
 /* ── 참조 패널 (#lsp-references) ──────────────────────────────
    편집 영역 **아래**에 전체 폭으로. 사이드바에 넣으면 미리보기가 전부 잘려
    목록을 훑는 의미가 사라진다. */
@@ -1586,6 +1696,7 @@
 .code-sidebar .code-tree::-webkit-scrollbar,
 .code-sidebar .code-tree-empty::-webkit-scrollbar,
 .code-outline-body::-webkit-scrollbar,
+.code-goto-list::-webkit-scrollbar,
 .code-refs-body::-webkit-scrollbar,
 .code-debug-scroll::-webkit-scrollbar {
   width: 10px;
@@ -1594,6 +1705,7 @@
 .code-sidebar .code-tree::-webkit-scrollbar-thumb,
 .code-sidebar .code-tree-empty::-webkit-scrollbar-thumb,
 .code-outline-body::-webkit-scrollbar-thumb,
+.code-goto-list::-webkit-scrollbar-thumb,
 .code-refs-body::-webkit-scrollbar-thumb,
 .code-debug-scroll::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--text-3) 30%, transparent);

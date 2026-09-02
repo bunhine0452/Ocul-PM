@@ -71,6 +71,8 @@ const CODE: ShortcutGroup = {
     { keys: "⇧⌘F", labelKey: "keys.codeSearch" },
     { keys: "⌘N", labelKey: "keys.codeNew" },
     { keys: "⌘S", labelKey: "keys.codeSave" },
+    { keys: "⇧⌘O", labelKey: "keys.codeGotoSymbol" },
+    { keys: "⌃G", labelKey: "keys.codeGotoLine" },
     { keys: "F12", labelKey: "keys.codeDef" },
     { keys: "⇧F12", labelKey: "keys.codeRefs" },
     { keys: "F2", labelKey: "keys.codeRename" },
