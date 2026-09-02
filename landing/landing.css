@@ -233,6 +233,17 @@ b, strong { font-weight: 700; color: var(--ink); }
 .hero-fine { font-size: 12px; color: var(--ink-faint); }
 .hero-fine a { color: var(--ink-dim); }
 
+/* Product Hunt 배지 — 무대 위에 얹으므로 dark 변형을 쓰고, 평소엔 한 톤 죽여 둔다. */
+.hero-ph { margin: 18px 0 0; line-height: 0; }
+.hero-ph a { display: inline-block; }
+.hero-ph img {
+  width: 250px;
+  height: 54px;
+  opacity: 0.82;
+  transition: opacity 0.2s ease;
+}
+.hero-ph a:hover img { opacity: 1; }
+
 .hero-shot {
   position: relative;
   max-width: 1040px;
