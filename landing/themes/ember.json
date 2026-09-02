@@ -25,11 +25,23 @@
     "--bg-sidebar": "#131010",
     "--bg-window": "#1a1614",
     "--border-card": "rgba(255,240,230,0.075)",
+    "--danger": "#ec6a5e",
+    "--danger-soft": "rgba(236,106,94,0.16)",
+    "--danger-text": "#f08b81",
+    "--info": "#6ea8dc",
+    "--info-soft": "rgba(110,168,220,0.16)",
+    "--info-text": "#8ebbe4",
+    "--ok": "#62c08a",
+    "--ok-soft": "rgba(98,192,138,0.16)",
+    "--ok-text": "#85cea4",
     "--sep": "rgba(255,240,230,0.08)",
     "--sep-strong": "rgba(255,240,230,0.16)",
     "--text": "#f5efe9",
     "--text-2": "#b3a79e",
     "--text-3": "#7a7069",
-    "--text-on-accent": "#2a1206"
+    "--text-on-accent": "#2a1206",
+    "--warn": "#e6a93c",
+    "--warn-soft": "rgba(230,169,60,0.16)",
+    "--warn-text": "#ecbc67"
   }
 }

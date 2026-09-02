@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>테마 갤러리 — Ocul-PM</title>
-<meta name="description" content="Ocul-PM 의 색을 고르고 만듭니다. 내장 5종과 배포 테마 2종을 미리 보고, 링크 한 번으로 앱에 가져옵니다. 테마는 JSON 한 장이라 PR 로 기여할 수 있습니다." />
+<meta name="description" content="Ocul-PM 의 색을 고르고 만듭니다. 배포 테마 14종과 내장 5종을 실제 화면 축소판으로 미리 보고, 링크 한 번으로 앱에 가져옵니다. 테마는 JSON 한 장이라 PR 로 기여할 수 있습니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/themes" />
@@ -13,7 +13,7 @@
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/themes" />
 <meta property="og:title" content="테마 갤러리 — Ocul-PM" />
-<meta property="og:description" content="Ocul-PM 의 색을 고르고 만듭니다. 내장 5종과 배포 테마 2종을 미리 보고, 링크 한 번으로 앱에 가져옵니다. 테마는 JSON 한 장이라 PR 로 기여할 수 있습니다." />
+<meta property="og:description" content="Ocul-PM 의 색을 고르고 만듭니다. 배포 테마 14종과 내장 5종을 실제 화면 축소판으로 미리 보고, 링크 한 번으로 앱에 가져옵니다. 테마는 JSON 한 장이라 PR 로 기여할 수 있습니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -50,48 +50,545 @@
 <main class="pg-main">
   <div class="wrap">
     <section class="pg-sec">
-      <h2 id="community">배포 테마</h2>
+      <h2 id="community">배포 테마 <span class="th-count">14</span></h2>
       <p>앱에 들어 있지 않은 테마입니다. <b>가져오기</b>를 누르면 앱이 열리고 <b>확인 창</b>이 뜹니다 — 승인하기 전에는 아무것도 바뀌지 않고, 가져와도 <b>지금 쓰는 테마는 그대로</b>입니다 (갤러리에 한 장 늘어날 뿐입니다). 앱이 없다면 <code>.json</code> 을 내려받아 두었다가 <b>설정 → 모양 → 가져오기</b> 로 열어도 같습니다.</p>
+    <div class="th-filter">
+      <button type="button" class="th-f on" data-filter="all" aria-pressed="true">전체<span>14</span></button>
+      <button type="button" class="th-f" data-filter="dark" aria-pressed="false">다크<span>8</span></button>
+      <button type="button" class="th-f" data-filter="light" aria-pressed="false">라이트<span>6</span></button>
+    </div>
     <div class="th-grid">
-      <article class="th-card">
-        <div class="th-prev" style="background:#1a1614">
-          <div class="th-prev-side" style="background:#131010"></div>
-          <div class="th-prev-body" style="background:#262120;border:1px solid rgba(255,240,230,0.075)">
-            <div class="th-prev-line" style="background:#f5efe9;width:72%"></div>
-            <div class="th-prev-line" style="background:#b3a79e;width:88%"></div>
-            <div class="th-prev-line" style="background:#7a7069;width:54%"></div>
-            <div class="th-prev-chip" style="background:#f0873f"></div>
+      <article class="th-card" data-family="light">
+        <div class="th-prev" style="--th-win:#eff1f5;--th-side:#e6e9ef;--th-content:#eff1f5;--th-card:#ffffff;--th-inset:#dce0e8;--th-t:#4c4f69;--th-t2:#5c5f77;--th-t3:#8c8fa1;--th-a:#1e66d5;--th-a-soft:rgba(30,102,213,0.13);--th-oa:#ffffff;--th-bd:rgba(76,79,105,0.09);--th-sep:rgba(76,79,105,0.18);--th-ok:#40a02b;--th-warn:#df8e1d;--th-danger:#d20f39">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="th-meta">
-          <h3>Ember <span class="pill">다크</span></h3>
-          <p class="by">Ocul-PM · 19개 토큰 지정</p>
-          <div class="th-sw"><span style="background:#1a1614"></span><span style="background:#262120"></span><span style="background:#f0873f"></span><span style="background:#f5efe9"></span><span style="background:#b3a79e"></span><span style="background:rgba(255,240,230,0.16)"></span></div>
+          <div class="th-head">
+            <h3>Catppuccin Latte</h3>
+            <span class="th-fam" data-fam="light">라이트</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 7.1:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #eff1f5" style="background:#eff1f5"></span><span title="--bg-card · #ffffff" style="background:#ffffff"></span><span title="--text · #4c4f69" style="background:#4c4f69"></span><span title="--text-2 · #5c5f77" style="background:#5c5f77"></span><span title="--accent · #1e66d5" style="background:#1e66d5"></span><span title="--ok · #40a02b" style="background:#40a02b"></span><span title="--warn · #df8e1d" style="background:#df8e1d"></span><span title="--danger · #d20f39" style="background:#d20f39"></span></div>
         </div>
-<div class="pg-actions">
-        <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Fember.json">앱에서 가져오기</a>
-        <a class="pg-btn ghost" href="/themes/ember.json" download>.json 내려받기</a>
-      </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Fcatppuccin-latte.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/catppuccin-latte.json" download>.json 내려받기</a>
+        </div>
       </article>
-      <article class="th-card">
-        <div class="th-prev" style="background:#fbfaf7">
-          <div class="th-prev-side" style="background:#efece5"></div>
-          <div class="th-prev-body" style="background:#ffffff;border:1px solid rgba(27,31,51,0.09)">
-            <div class="th-prev-line" style="background:#1b1f33;width:72%"></div>
-            <div class="th-prev-line" style="background:#5a6076;width:88%"></div>
-            <div class="th-prev-line" style="background:#8e93a5;width:54%"></div>
-            <div class="th-prev-chip" style="background:#3b4cca"></div>
+      <article class="th-card" data-family="dark">
+        <div class="th-prev" style="--th-win:#1e1e2e;--th-side:#181825;--th-content:#1e1e2e;--th-card:#313244;--th-inset:#45475a;--th-t:#cdd6f4;--th-t2:#a6adc8;--th-t3:#7f849c;--th-a:#89b4fa;--th-a-soft:rgba(137,180,250,0.16);--th-oa:#181825;--th-bd:rgba(205,214,244,0.08);--th-sep:rgba(205,214,244,0.16);--th-ok:#a6e3a1;--th-warn:#f9e2af;--th-danger:#f38ba8">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="th-meta">
-          <h3>Ink <span class="pill">라이트</span></h3>
-          <p class="by">Ocul-PM · 19개 토큰 지정</p>
-          <div class="th-sw"><span style="background:#fbfaf7"></span><span style="background:#ffffff"></span><span style="background:#3b4cca"></span><span style="background:#1b1f33"></span><span style="background:#5a6076"></span><span style="background:rgba(27,31,51,0.18)"></span></div>
+          <div class="th-head">
+            <h3>Catppuccin Mocha</h3>
+            <span class="th-fam" data-fam="dark">다크</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 11.3:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #1e1e2e" style="background:#1e1e2e"></span><span title="--bg-card · #313244" style="background:#313244"></span><span title="--text · #cdd6f4" style="background:#cdd6f4"></span><span title="--text-2 · #a6adc8" style="background:#a6adc8"></span><span title="--accent · #89b4fa" style="background:#89b4fa"></span><span title="--ok · #a6e3a1" style="background:#a6e3a1"></span><span title="--warn · #f9e2af" style="background:#f9e2af"></span><span title="--danger · #f38ba8" style="background:#f38ba8"></span></div>
         </div>
-<div class="pg-actions">
-        <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Fink.json">앱에서 가져오기</a>
-        <a class="pg-btn ghost" href="/themes/ink.json" download>.json 내려받기</a>
-      </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Fcatppuccin-mocha.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/catppuccin-mocha.json" download>.json 내려받기</a>
+        </div>
+      </article>
+      <article class="th-card" data-family="dark">
+        <div class="th-prev" style="--th-win:#1a1614;--th-side:#131010;--th-content:#1d1917;--th-card:#262120;--th-inset:#2c2624;--th-t:#f5efe9;--th-t2:#b3a79e;--th-t3:#7a7069;--th-a:#f0873f;--th-a-soft:rgba(240,135,63,0.15);--th-oa:#2a1206;--th-bd:rgba(255,240,230,0.075);--th-sep:rgba(255,240,230,0.16);--th-ok:#62c08a;--th-warn:#e6a93c;--th-danger:#ec6a5e">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="th-meta">
+          <div class="th-head">
+            <h3>Ember</h3>
+            <span class="th-fam" data-fam="dark">다크</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 15.3:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #1a1614" style="background:#1a1614"></span><span title="--bg-card · #262120" style="background:#262120"></span><span title="--text · #f5efe9" style="background:#f5efe9"></span><span title="--text-2 · #b3a79e" style="background:#b3a79e"></span><span title="--accent · #f0873f" style="background:#f0873f"></span><span title="--ok · #62c08a" style="background:#62c08a"></span><span title="--warn · #e6a93c" style="background:#e6a93c"></span><span title="--danger · #ec6a5e" style="background:#ec6a5e"></span></div>
+        </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Fember.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/ember.json" download>.json 내려받기</a>
+        </div>
+      </article>
+      <article class="th-card" data-family="dark">
+        <div class="th-prev" style="--th-win:#2d353b;--th-side:#272e33;--th-content:#2d353b;--th-card:#343f44;--th-inset:#3d484d;--th-t:#d3c6aa;--th-t2:#a3ac9c;--th-t3:#859289;--th-a:#a7c080;--th-a-soft:rgba(167,192,128,0.16);--th-oa:#272e33;--th-bd:rgba(211,198,170,0.08);--th-sep:rgba(211,198,170,0.16);--th-ok:#a7c080;--th-warn:#dbbc7f;--th-danger:#e67e80">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="th-meta">
+          <div class="th-head">
+            <h3>Everforest Dark</h3>
+            <span class="th-fam" data-fam="dark">다크</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 7.4:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #2d353b" style="background:#2d353b"></span><span title="--bg-card · #343f44" style="background:#343f44"></span><span title="--text · #d3c6aa" style="background:#d3c6aa"></span><span title="--text-2 · #a3ac9c" style="background:#a3ac9c"></span><span title="--accent · #a7c080" style="background:#a7c080"></span><span title="--ok · #a7c080" style="background:#a7c080"></span><span title="--warn · #dbbc7f" style="background:#dbbc7f"></span><span title="--danger · #e67e80" style="background:#e67e80"></span></div>
+        </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Feverforest-dark.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/everforest-dark.json" download>.json 내려받기</a>
+        </div>
+      </article>
+      <article class="th-card" data-family="light">
+        <div class="th-prev" style="--th-win:#fdf6e3;--th-side:#f4f0d9;--th-content:#fdf6e3;--th-card:#fffbef;--th-inset:#efebd4;--th-t:#5c6a72;--th-t2:#6b7880;--th-t3:#829181;--th-a:#4c7a2f;--th-a-soft:rgba(76,122,47,0.13);--th-oa:#fdf6e3;--th-bd:rgba(92,106,114,0.09);--th-sep:rgba(92,106,114,0.18);--th-ok:#8da101;--th-warn:#dfa000;--th-danger:#f85552">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="th-meta">
+          <div class="th-head">
+            <h3>Everforest Light</h3>
+            <span class="th-fam" data-fam="light">라이트</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 5.2:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #fdf6e3" style="background:#fdf6e3"></span><span title="--bg-card · #fffbef" style="background:#fffbef"></span><span title="--text · #5c6a72" style="background:#5c6a72"></span><span title="--text-2 · #6b7880" style="background:#6b7880"></span><span title="--accent · #4c7a2f" style="background:#4c7a2f"></span><span title="--ok · #8da101" style="background:#8da101"></span><span title="--warn · #dfa000" style="background:#dfa000"></span><span title="--danger · #f85552" style="background:#f85552"></span></div>
+        </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Feverforest-light.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/everforest-light.json" download>.json 내려받기</a>
+        </div>
+      </article>
+      <article class="th-card" data-family="dark">
+        <div class="th-prev" style="--th-win:#161616;--th-side:#0d0d0d;--th-content:#161616;--th-card:#242424;--th-inset:#2e2e2e;--th-t:#f4f4f4;--th-t2:#b5b5b5;--th-t3:#8d8d8d;--th-a:#78a9ff;--th-a-soft:rgba(120,169,255,0.16);--th-oa:#0d0d0d;--th-bd:rgba(244,244,244,0.08);--th-sep:rgba(244,244,244,0.16);--th-ok:#42be65;--th-warn:#f1c21b;--th-danger:#fa4d56">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="th-meta">
+          <div class="th-head">
+            <h3>Graphite</h3>
+            <span class="th-fam" data-fam="dark">다크</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 16.5:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #161616" style="background:#161616"></span><span title="--bg-card · #242424" style="background:#242424"></span><span title="--text · #f4f4f4" style="background:#f4f4f4"></span><span title="--text-2 · #b5b5b5" style="background:#b5b5b5"></span><span title="--accent · #78a9ff" style="background:#78a9ff"></span><span title="--ok · #42be65" style="background:#42be65"></span><span title="--warn · #f1c21b" style="background:#f1c21b"></span><span title="--danger · #fa4d56" style="background:#fa4d56"></span></div>
+        </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Fgraphite.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/graphite.json" download>.json 내려받기</a>
+        </div>
+      </article>
+      <article class="th-card" data-family="dark">
+        <div class="th-prev" style="--th-win:#282828;--th-side:#1d2021;--th-content:#282828;--th-card:#32302f;--th-inset:#3c3836;--th-t:#ebdbb2;--th-t2:#bdae93;--th-t3:#928374;--th-a:#fabd2f;--th-a-soft:rgba(250,189,47,0.16);--th-oa:#1d2021;--th-bd:rgba(235,219,178,0.08);--th-sep:rgba(235,219,178,0.16);--th-ok:#b8bb26;--th-warn:#fe8019;--th-danger:#fb4934">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="th-meta">
+          <div class="th-head">
+            <h3>Gruvbox Dark</h3>
+            <span class="th-fam" data-fam="dark">다크</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 10.7:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #282828" style="background:#282828"></span><span title="--bg-card · #32302f" style="background:#32302f"></span><span title="--text · #ebdbb2" style="background:#ebdbb2"></span><span title="--text-2 · #bdae93" style="background:#bdae93"></span><span title="--accent · #fabd2f" style="background:#fabd2f"></span><span title="--ok · #b8bb26" style="background:#b8bb26"></span><span title="--warn · #fe8019" style="background:#fe8019"></span><span title="--danger · #fb4934" style="background:#fb4934"></span></div>
+        </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Fgruvbox-dark.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/gruvbox-dark.json" download>.json 내려받기</a>
+        </div>
+      </article>
+      <article class="th-card" data-family="light">
+        <div class="th-prev" style="--th-win:#fbf1c7;--th-side:#f2e5bc;--th-content:#fbf1c7;--th-card:#fffbef;--th-inset:#ebdbb2;--th-t:#3c3836;--th-t2:#5f5750;--th-t3:#7c6f64;--th-a:#af3a03;--th-a-soft:rgba(175,58,3,0.13);--th-oa:#fbf1c7;--th-bd:rgba(60,56,54,0.09);--th-sep:rgba(60,56,54,0.18);--th-ok:#79740e;--th-warn:#b57614;--th-danger:#9d0006">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="th-meta">
+          <div class="th-head">
+            <h3>Gruvbox Light</h3>
+            <span class="th-fam" data-fam="light">라이트</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 10.2:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #fbf1c7" style="background:#fbf1c7"></span><span title="--bg-card · #fffbef" style="background:#fffbef"></span><span title="--text · #3c3836" style="background:#3c3836"></span><span title="--text-2 · #5f5750" style="background:#5f5750"></span><span title="--accent · #af3a03" style="background:#af3a03"></span><span title="--ok · #79740e" style="background:#79740e"></span><span title="--warn · #b57614" style="background:#b57614"></span><span title="--danger · #9d0006" style="background:#9d0006"></span></div>
+        </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Fgruvbox-light.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/gruvbox-light.json" download>.json 내려받기</a>
+        </div>
+      </article>
+      <article class="th-card" data-family="light">
+        <div class="th-prev" style="--th-win:#fbfaf7;--th-side:#efece5;--th-content:#ffffff;--th-card:#ffffff;--th-inset:#f2efe8;--th-t:#1b1f33;--th-t2:#5a6076;--th-t3:#8e93a5;--th-a:#3b4cca;--th-a-soft:rgba(59,76,202,0.13);--th-oa:#ffffff;--th-bd:rgba(27,31,51,0.09);--th-sep:rgba(27,31,51,0.18);--th-ok:#2f8f5b;--th-warn:#a8760d;--th-danger:#c0392f">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="th-meta">
+          <div class="th-head">
+            <h3>Ink</h3>
+            <span class="th-fam" data-fam="light">라이트</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 16.3:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #fbfaf7" style="background:#fbfaf7"></span><span title="--bg-card · #ffffff" style="background:#ffffff"></span><span title="--text · #1b1f33" style="background:#1b1f33"></span><span title="--text-2 · #5a6076" style="background:#5a6076"></span><span title="--accent · #3b4cca" style="background:#3b4cca"></span><span title="--ok · #2f8f5b" style="background:#2f8f5b"></span><span title="--warn · #a8760d" style="background:#a8760d"></span><span title="--danger · #c0392f" style="background:#c0392f"></span></div>
+        </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Fink.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/ink.json" download>.json 내려받기</a>
+        </div>
+      </article>
+      <article class="th-card" data-family="dark">
+        <div class="th-prev" style="--th-win:#1f1f28;--th-side:#16161d;--th-content:#1f1f28;--th-card:#2a2a37;--th-inset:#363646;--th-t:#dcd7ba;--th-t2:#a8a591;--th-t3:#727169;--th-a:#7e9cd8;--th-a-soft:rgba(126,156,216,0.16);--th-oa:#16161d;--th-bd:rgba(220,215,186,0.08);--th-sep:rgba(220,215,186,0.16);--th-ok:#98bb6c;--th-warn:#dca561;--th-danger:#e46876">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="th-meta">
+          <div class="th-head">
+            <h3>Kanagawa</h3>
+            <span class="th-fam" data-fam="dark">다크</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 11.3:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #1f1f28" style="background:#1f1f28"></span><span title="--bg-card · #2a2a37" style="background:#2a2a37"></span><span title="--text · #dcd7ba" style="background:#dcd7ba"></span><span title="--text-2 · #a8a591" style="background:#a8a591"></span><span title="--accent · #7e9cd8" style="background:#7e9cd8"></span><span title="--ok · #98bb6c" style="background:#98bb6c"></span><span title="--warn · #dca561" style="background:#dca561"></span><span title="--danger · #e46876" style="background:#e46876"></span></div>
+        </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Fkanagawa.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/kanagawa.json" download>.json 내려받기</a>
+        </div>
+      </article>
+      <article class="th-card" data-family="light">
+        <div class="th-prev" style="--th-win:#f2ecbc;--th-side:#e7dba0;--th-content:#f2ecbc;--th-card:#faf6e0;--th-inset:#e5ddb0;--th-t:#43436c;--th-t2:#545464;--th-t3:#716e61;--th-a:#4d699b;--th-a-soft:rgba(77,105,155,0.13);--th-oa:#f2ecbc;--th-bd:rgba(67,67,108,0.09);--th-sep:rgba(67,67,108,0.18);--th-ok:#6f894e;--th-warn:#cc6d00;--th-danger:#c84053">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="th-meta">
+          <div class="th-head">
+            <h3>Kanagawa Lotus</h3>
+            <span class="th-fam" data-fam="light">라이트</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 7.7:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #f2ecbc" style="background:#f2ecbc"></span><span title="--bg-card · #faf6e0" style="background:#faf6e0"></span><span title="--text · #43436c" style="background:#43436c"></span><span title="--text-2 · #545464" style="background:#545464"></span><span title="--accent · #4d699b" style="background:#4d699b"></span><span title="--ok · #6f894e" style="background:#6f894e"></span><span title="--warn · #cc6d00" style="background:#cc6d00"></span><span title="--danger · #c84053" style="background:#c84053"></span></div>
+        </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Fkanagawa-lotus.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/kanagawa-lotus.json" download>.json 내려받기</a>
+        </div>
+      </article>
+      <article class="th-card" data-family="dark">
+        <div class="th-prev" style="--th-win:#191724;--th-side:#14121f;--th-content:#1f1d2e;--th-card:#26233a;--th-inset:#2a2740;--th-t:#e0def4;--th-t2:#b3afc9;--th-t3:#6e6a86;--th-a:#ebbcba;--th-a-soft:rgba(235,188,186,0.16);--th-oa:#191724;--th-bd:rgba(224,222,244,0.08);--th-sep:rgba(224,222,244,0.16);--th-ok:#9ccfd8;--th-warn:#f6c177;--th-danger:#eb6f92">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="th-meta">
+          <div class="th-head">
+            <h3>Rosé Pine</h3>
+            <span class="th-fam" data-fam="dark">다크</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 12.5:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #191724" style="background:#191724"></span><span title="--bg-card · #26233a" style="background:#26233a"></span><span title="--text · #e0def4" style="background:#e0def4"></span><span title="--text-2 · #b3afc9" style="background:#b3afc9"></span><span title="--accent · #ebbcba" style="background:#ebbcba"></span><span title="--ok · #9ccfd8" style="background:#9ccfd8"></span><span title="--warn · #f6c177" style="background:#f6c177"></span><span title="--danger · #eb6f92" style="background:#eb6f92"></span></div>
+        </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Frose-pine.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/rose-pine.json" download>.json 내려받기</a>
+        </div>
+      </article>
+      <article class="th-card" data-family="light">
+        <div class="th-prev" style="--th-win:#faf4ed;--th-side:#f2e9e1;--th-content:#fffaf3;--th-card:#ffffff;--th-inset:#f4ede8;--th-t:#575279;--th-t2:#6e6a8f;--th-t3:#9893a5;--th-a:#286983;--th-a-soft:rgba(40,105,131,0.13);--th-oa:#fffaf3;--th-bd:rgba(87,82,121,0.09);--th-sep:rgba(87,82,121,0.18);--th-ok:#56949f;--th-warn:#ea9d34;--th-danger:#b4637a">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="th-meta">
+          <div class="th-head">
+            <h3>Rosé Pine Dawn</h3>
+            <span class="th-fam" data-fam="light">라이트</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 7.0:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #faf4ed" style="background:#faf4ed"></span><span title="--bg-card · #ffffff" style="background:#ffffff"></span><span title="--text · #575279" style="background:#575279"></span><span title="--text-2 · #6e6a8f" style="background:#6e6a8f"></span><span title="--accent · #286983" style="background:#286983"></span><span title="--ok · #56949f" style="background:#56949f"></span><span title="--warn · #ea9d34" style="background:#ea9d34"></span><span title="--danger · #b4637a" style="background:#b4637a"></span></div>
+        </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Frose-pine-dawn.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/rose-pine-dawn.json" download>.json 내려받기</a>
+        </div>
+      </article>
+      <article class="th-card" data-family="dark">
+        <div class="th-prev" style="--th-win:#1a1b26;--th-side:#16161e;--th-content:#1a1b26;--th-card:#24283b;--th-inset:#2a2f45;--th-t:#c0caf5;--th-t2:#9aa5ce;--th-t3:#565f89;--th-a:#7aa2f7;--th-a-soft:rgba(122,162,247,0.16);--th-oa:#16161e;--th-bd:rgba(192,202,245,0.08);--th-sep:rgba(192,202,245,0.16);--th-ok:#9ece6a;--th-warn:#e0af68;--th-danger:#f7768e">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="th-meta">
+          <div class="th-head">
+            <h3>Tokyo Night</h3>
+            <span class="th-fam" data-fam="dark">다크</span>
+            
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>31색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 10.6:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #1a1b26" style="background:#1a1b26"></span><span title="--bg-card · #24283b" style="background:#24283b"></span><span title="--text · #c0caf5" style="background:#c0caf5"></span><span title="--text-2 · #9aa5ce" style="background:#9aa5ce"></span><span title="--accent · #7aa2f7" style="background:#7aa2f7"></span><span title="--ok · #9ece6a" style="background:#9ece6a"></span><span title="--warn · #e0af68" style="background:#e0af68"></span><span title="--danger · #f7768e" style="background:#f7768e"></span></div>
+        </div>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=https%3A%2F%2Foculpm.com%2Fthemes%2Ftokyo-night.json">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="/themes/tokyo-night.json" download>.json 내려받기</a>
+        </div>
       </article>
     </div>
       <div class="pg-quiet">
@@ -104,93 +601,183 @@
     </section>
 
     <section class="pg-sec">
-      <h2 id="builtin">앱 내장 5종</h2>
+      <h2 id="builtin">앱 내장 <span class="th-count">5</span></h2>
       <p>설치하면 바로 있는 테마입니다. 가져올 것이 없습니다 — <b>설정 → 모양</b>에서 고르거나, <b>복제해서 편집</b>으로 자기 테마의 출발점으로 씁니다.</p>
     <div class="th-grid">
-      <article class="th-card">
-        <div class="th-prev" style="background:#282a36">
-          <div class="th-prev-side" style="background:#21222c"></div>
-          <div class="th-prev-body" style="background:#343746;border:1px solid rgba(248,248,242,0.10)">
-            <div class="th-prev-line" style="background:#f8f8f2;width:72%"></div>
-            <div class="th-prev-line" style="background:#bdc0d6;width:88%"></div>
-            <div class="th-prev-line" style="background:#6272a4;width:54%"></div>
-            <div class="th-prev-chip" style="background:#bd93f9"></div>
+      <article class="th-card" data-family="dark">
+        <div class="th-prev" style="--th-win:#282a36;--th-side:#21222c;--th-content:#282a36;--th-card:#343746;--th-inset:#44475a;--th-t:#f8f8f2;--th-t2:#bdc0d6;--th-t3:#6272a4;--th-a:#bd93f9;--th-a-soft:rgba(189,147,249,0.16);--th-oa:#282a36;--th-bd:rgba(248,248,242,0.10);--th-sep:rgba(248,248,242,0.16);--th-ok:#34d095;--th-warn:#eaa23f;--th-danger:#f1685f">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="th-meta">
-          <h3>Dracula <span class="pill on">앱 내장</span></h3>
-          <p class="by">Ocul-PM · 19개 토큰 지정</p>
-          <div class="th-sw"><span style="background:#282a36"></span><span style="background:#343746"></span><span style="background:#bd93f9"></span><span style="background:#f8f8f2"></span><span style="background:#bdc0d6"></span><span style="background:rgba(248,248,242,0.16)"></span></div>
+          <div class="th-head">
+            <h3>Dracula</h3>
+            <span class="th-fam" data-fam="dark">다크</span>
+            <span class="th-tagline">앱 내장</span>
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>19색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 13.4:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #282a36" style="background:#282a36"></span><span title="--bg-card · #343746" style="background:#343746"></span><span title="--text · #f8f8f2" style="background:#f8f8f2"></span><span title="--text-2 · #bdc0d6" style="background:#bdc0d6"></span><span title="--accent · #bd93f9" style="background:#bd93f9"></span><span title="--ok · #34d095" style="background:#34d095"></span><span title="--warn · #eaa23f" style="background:#eaa23f"></span><span title="--danger · #f1685f" style="background:#f1685f"></span></div>
         </div>
-
+        <p class="th-note">설치하면 이미 있습니다 — <b>설정 → 모양</b>에서 고르세요.</p>
       </article>
-      <article class="th-card">
-        <div class="th-prev" style="background:#000000">
-          <div class="th-prev-side" style="background:#000000"></div>
-          <div class="th-prev-body" style="background:#0a0a0a;border:1px solid rgba(255,255,255,0.60)">
-            <div class="th-prev-line" style="background:#ffffff;width:72%"></div>
-            <div class="th-prev-line" style="background:#f0f0f0;width:88%"></div>
-            <div class="th-prev-line" style="background:#c8c8c8;width:54%"></div>
-            <div class="th-prev-chip" style="background:#ffd400"></div>
+      <article class="th-card" data-family="dark">
+        <div class="th-prev" style="--th-win:#000000;--th-side:#000000;--th-content:#000000;--th-card:#0a0a0a;--th-inset:#141414;--th-t:#ffffff;--th-t2:#f0f0f0;--th-t3:#c8c8c8;--th-a:#ffd400;--th-a-soft:rgba(255,212,0,0.20);--th-oa:#000000;--th-bd:rgba(255,255,255,0.60);--th-sep:rgba(255,255,255,0.80);--th-ok:#34d095;--th-warn:#eaa23f;--th-danger:#f1685f">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="th-meta">
-          <h3>High Contrast <span class="pill on">앱 내장</span></h3>
-          <p class="by">Ocul-PM · 19개 토큰 지정</p>
-          <div class="th-sw"><span style="background:#000000"></span><span style="background:#0a0a0a"></span><span style="background:#ffd400"></span><span style="background:#ffffff"></span><span style="background:#f0f0f0"></span><span style="background:rgba(255,255,255,0.80)"></span></div>
+          <div class="th-head">
+            <h3>High Contrast</h3>
+            <span class="th-fam" data-fam="dark">다크</span>
+            <span class="th-tagline">앱 내장</span>
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>19색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 21.0:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #000000" style="background:#000000"></span><span title="--bg-card · #0a0a0a" style="background:#0a0a0a"></span><span title="--text · #ffffff" style="background:#ffffff"></span><span title="--text-2 · #f0f0f0" style="background:#f0f0f0"></span><span title="--accent · #ffd400" style="background:#ffd400"></span><span title="--ok · #34d095" style="background:#34d095"></span><span title="--warn · #eaa23f" style="background:#eaa23f"></span><span title="--danger · #f1685f" style="background:#f1685f"></span></div>
         </div>
-
+        <p class="th-note">설치하면 이미 있습니다 — <b>설정 → 모양</b>에서 고르세요.</p>
       </article>
-      <article class="th-card">
-        <div class="th-prev" style="background:#2e3440">
-          <div class="th-prev-side" style="background:#2b303b"></div>
-          <div class="th-prev-body" style="background:#3b4252;border:1px solid rgba(216,222,233,0.10)">
-            <div class="th-prev-line" style="background:#eceff4;width:72%"></div>
-            <div class="th-prev-line" style="background:#d8dee9;width:88%"></div>
-            <div class="th-prev-line" style="background:#8d99b3;width:54%"></div>
-            <div class="th-prev-chip" style="background:#88c0d0"></div>
+      <article class="th-card" data-family="dark">
+        <div class="th-prev" style="--th-win:#2e3440;--th-side:#2b303b;--th-content:#2e3440;--th-card:#3b4252;--th-inset:#434c5e;--th-t:#eceff4;--th-t2:#d8dee9;--th-t3:#8d99b3;--th-a:#88c0d0;--th-a-soft:rgba(136,192,208,0.16);--th-oa:#2e3440;--th-bd:rgba(216,222,233,0.10);--th-sep:rgba(216,222,233,0.16);--th-ok:#34d095;--th-warn:#eaa23f;--th-danger:#f1685f">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="th-meta">
-          <h3>Nord <span class="pill on">앱 내장</span></h3>
-          <p class="by">Ocul-PM · 19개 토큰 지정</p>
-          <div class="th-sw"><span style="background:#2e3440"></span><span style="background:#3b4252"></span><span style="background:#88c0d0"></span><span style="background:#eceff4"></span><span style="background:#d8dee9"></span><span style="background:rgba(216,222,233,0.16)"></span></div>
+          <div class="th-head">
+            <h3>Nord</h3>
+            <span class="th-fam" data-fam="dark">다크</span>
+            <span class="th-tagline">앱 내장</span>
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>19색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 10.8:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #2e3440" style="background:#2e3440"></span><span title="--bg-card · #3b4252" style="background:#3b4252"></span><span title="--text · #eceff4" style="background:#eceff4"></span><span title="--text-2 · #d8dee9" style="background:#d8dee9"></span><span title="--accent · #88c0d0" style="background:#88c0d0"></span><span title="--ok · #34d095" style="background:#34d095"></span><span title="--warn · #eaa23f" style="background:#eaa23f"></span><span title="--danger · #f1685f" style="background:#f1685f"></span></div>
         </div>
-
+        <p class="th-note">설치하면 이미 있습니다 — <b>설정 → 모양</b>에서 고르세요.</p>
       </article>
-      <article class="th-card">
-        <div class="th-prev" style="background:#f4ecd8">
-          <div class="th-prev-side" style="background:#ece1c8"></div>
-          <div class="th-prev-body" style="background:#faf3e0;border:1px solid rgba(91,70,54,0.18)">
-            <div class="th-prev-line" style="background:#4a3a2a;width:72%"></div>
-            <div class="th-prev-line" style="background:#6b5847;width:88%"></div>
-            <div class="th-prev-line" style="background:#927b63;width:54%"></div>
-            <div class="th-prev-chip" style="background:#b06a2c"></div>
+      <article class="th-card" data-family="light">
+        <div class="th-prev" style="--th-win:#f4ecd8;--th-side:#ece1c8;--th-content:#f1e7d0;--th-card:#faf3e0;--th-inset:#e9ddc2;--th-t:#4a3a2a;--th-t2:#6b5847;--th-t3:#927b63;--th-a:#b06a2c;--th-a-soft:rgba(176,106,44,0.14);--th-oa:#fbf6ea;--th-bd:rgba(91,70,54,0.18);--th-sep:rgba(91,70,54,0.26);--th-ok:#12a06b;--th-warn:#c2810a;--th-danger:#e0524b">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="th-meta">
-          <h3>Sepia <span class="pill on">앱 내장</span></h3>
-          <p class="by">Ocul-PM · 19개 토큰 지정</p>
-          <div class="th-sw"><span style="background:#f4ecd8"></span><span style="background:#faf3e0"></span><span style="background:#b06a2c"></span><span style="background:#4a3a2a"></span><span style="background:#6b5847"></span><span style="background:rgba(91,70,54,0.26)"></span></div>
+          <div class="th-head">
+            <h3>Sepia</h3>
+            <span class="th-fam" data-fam="light">라이트</span>
+            <span class="th-tagline">앱 내장</span>
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>19색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 8.9:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #f4ecd8" style="background:#f4ecd8"></span><span title="--bg-card · #faf3e0" style="background:#faf3e0"></span><span title="--text · #4a3a2a" style="background:#4a3a2a"></span><span title="--text-2 · #6b5847" style="background:#6b5847"></span><span title="--accent · #b06a2c" style="background:#b06a2c"></span><span title="--ok · #12a06b" style="background:#12a06b"></span><span title="--warn · #c2810a" style="background:#c2810a"></span><span title="--danger · #e0524b" style="background:#e0524b"></span></div>
         </div>
-
+        <p class="th-note">설치하면 이미 있습니다 — <b>설정 → 모양</b>에서 고르세요.</p>
       </article>
-      <article class="th-card">
-        <div class="th-prev" style="background:#fdf6e3">
-          <div class="th-prev-side" style="background:#eee8d5"></div>
-          <div class="th-prev-body" style="background:#fdf6e3;border:1px solid rgba(88,110,117,0.18)">
-            <div class="th-prev-line" style="background:#586e75;width:72%"></div>
-            <div class="th-prev-line" style="background:#657b83;width:88%"></div>
-            <div class="th-prev-line" style="background:#93a1a1;width:54%"></div>
-            <div class="th-prev-chip" style="background:#268bd2"></div>
+      <article class="th-card" data-family="light">
+        <div class="th-prev" style="--th-win:#fdf6e3;--th-side:#eee8d5;--th-content:#f5eed9;--th-card:#fdf6e3;--th-inset:#eee8d5;--th-t:#586e75;--th-t2:#657b83;--th-t3:#93a1a1;--th-a:#268bd2;--th-a-soft:rgba(38,139,210,0.14);--th-oa:#fdf6e3;--th-bd:rgba(88,110,117,0.18);--th-sep:rgba(88,110,117,0.28);--th-ok:#12a06b;--th-warn:#c2810a;--th-danger:#e0524b">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="th-meta">
-          <h3>Solarized <span class="pill on">앱 내장</span></h3>
-          <p class="by">Ocul-PM · 19개 토큰 지정</p>
-          <div class="th-sw"><span style="background:#fdf6e3"></span><span style="background:#fdf6e3"></span><span style="background:#268bd2"></span><span style="background:#586e75"></span><span style="background:#657b83"></span><span style="background:rgba(88,110,117,0.28)"></span></div>
+          <div class="th-head">
+            <h3>Solarized</h3>
+            <span class="th-fam" data-fam="light">라이트</span>
+            <span class="th-tagline">앱 내장</span>
+          </div>
+          <p class="th-facts">Ocul-PM<span class="dot">·</span>19색 지정<span class="dot">·</span><span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 4.6:1</span></p>
+          <div class="th-sw"><span title="--bg-window · #fdf6e3" style="background:#fdf6e3"></span><span title="--bg-card · #fdf6e3" style="background:#fdf6e3"></span><span title="--text · #586e75" style="background:#586e75"></span><span title="--text-2 · #657b83" style="background:#657b83"></span><span title="--accent · #268bd2" style="background:#268bd2"></span><span title="--ok · #12a06b" style="background:#12a06b"></span><span title="--warn · #c2810a" style="background:#c2810a"></span><span title="--danger · #e0524b" style="background:#e0524b"></span></div>
         </div>
-
+        <p class="th-note">설치하면 이미 있습니다 — <b>설정 → 모양</b>에서 고르세요.</p>
       </article>
     </div>
     </section>
@@ -199,6 +786,7 @@
       <h2 id="format">형식</h2>
       <p>테마가 칠할 수 있는 것은 <b>정해진 색 토큰 목록</b>뿐입니다. 파일에 다른 무엇이 적혀 있어도 화면에 새지 않고, 값은 <code>#hex</code> · <code>rgb()</code> · <code>rgba()</code> · <code>hsl()</code> 만 받습니다. <b>적지 않은 색은 건드리지 않습니다</b> — 배경만 다섯 줄 적은 테마도 온전한 테마이고 나머지는 밝게/어둡게 기본값을 물려받습니다.</p>
       <p>강조 계열(<code>--accent*</code>)을 <b>하나도</b> 적지 않으면 사용자가 고른 강조색이 그대로 남습니다. 색 하나 바꾸려다 강조색을 잃지 않도록 한 규칙입니다.</p>
+      <p>카드에 적힌 <b>본문 대비</b>는 <code>--text</code> 와 <code>--bg-content</code> 의 WCAG 대비율입니다. 저장소 테스트가 <b>4.5:1 미만인 테마를 막으므로</b>, 여기 실린 테마는 전부 본문을 읽을 수 있습니다.</p>
     </section>
   </div>
 </main>
@@ -242,6 +830,26 @@
         btn.classList.add('copied');
         setTimeout(function () { btn.classList.remove('copied'); }, 1600);
       }).catch(function () {});
+    });
+  });
+</script>
+<script>
+  // 라이트/다크 필터 — 갤러리마다 독립이라 버튼이 속한 섹션만 건드린다.
+  document.querySelectorAll('.th-filter').forEach(function (bar) {
+    var grid = bar.parentElement.querySelector('.th-grid');
+    if (!grid) return;
+    bar.addEventListener('click', function (e) {
+      var btn = e.target.closest('.th-f');
+      if (!btn) return;
+      var want = btn.getAttribute('data-filter');
+      bar.querySelectorAll('.th-f').forEach(function (b) {
+        var on = b === btn;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', String(on));
+      });
+      grid.querySelectorAll('.th-card').forEach(function (card) {
+        card.hidden = want !== 'all' && card.getAttribute('data-family') !== want;
+      });
     });
   });
 </script>

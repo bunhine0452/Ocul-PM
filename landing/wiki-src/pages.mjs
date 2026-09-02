@@ -54,7 +54,7 @@ const FOOTER_LINKS = [
  * 손으로 쓰는 페이지도 이 마크업을 그대로 복사한다 — 정적 사이트라 셸을
  * 런타임에 공유할 방법이 없고, 네 장뿐이라 생성기를 더 만들 이유도 없다.
  */
-export function shell({ slug, title, desc, hero, body, active, version }) {
+export function shell({ slug, title, desc, hero, body, active, version, script }) {
   const nav = NAV_LINKS.map(
     ([href, label]) =>
       `<a href="${href}"${href === active ? ' style="color: var(--ink);"' : ""}>${label}</a>`,
@@ -141,7 +141,10 @@ ${body}
     });
   });
 </script>
-<script defer src="/_vercel/insights/script.js"></script>
+${script ? `<script>
+${script}
+</script>
+` : ""}<script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
 `;
@@ -262,41 +265,161 @@ export function familyDefaults(css) {
 
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 
-/** 갤러리 카드 하나. `install` 이 있으면 딥링크 버튼이 붙는다. */
+/** WCAG 상대 휘도. 불투명 hex 만 — 반투명은 배경에 얹혀야 정해진다. */
+function luminance(color) {
+  const hex = String(color).trim().match(/^#([0-9a-fA-F]{6})$/);
+  if (!hex) return null;
+  const n = parseInt(hex[1], 16);
+  const lin = (c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+}
+
+/** 카드에 찍는 본문 대비. 테스트가 4.5:1 을 막지만, **숫자를 보여 주면** 고르는
+ *  쪽이 스스로 판단한다 — 눈이 아픈 테마를 받아 놓고 이유를 모르는 일이 없게. */
+function contrastRatio(fg, bg) {
+  const a = luminance(fg);
+  const b = luminance(bg);
+  if (a === null || b === null) return null;
+  const [hi, lo] = a > b ? [a, b] : [b, a];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const swatch = (token, value) =>
+  `<span title="${esc(token)} · ${esc(value)}" style="background:${value}"></span>`;
+
+/** 미리보기가 쓰는 CSS 변수 — 인라인 스타일 한 줄로 카드 전체를 칠한다. */
+const PREVIEW_VARS = [
+  ["win", "--bg-window"],
+  ["side", "--bg-sidebar"],
+  ["content", "--bg-content"],
+  ["card", "--bg-card"],
+  ["inset", "--bg-inset"],
+  ["t", "--text"],
+  ["t2", "--text-2"],
+  ["t3", "--text-3"],
+  ["a", "--accent"],
+  ["a-soft", "--accent-soft"],
+  ["oa", "--text-on-accent"],
+  ["bd", "--border-card"],
+  ["sep", "--sep-strong"],
+  ["ok", "--ok"],
+  ["warn", "--warn"],
+  ["danger", "--danger"],
+];
+
+/** 스와치 줄 — 배경·글자·강조·상태색을 한 줄에. */
+const SWATCH_TOKENS = [
+  "--bg-window",
+  "--bg-card",
+  "--text",
+  "--text-2",
+  "--accent",
+  "--ok",
+  "--warn",
+  "--danger",
+];
+
+/**
+ * 갤러리 카드 하나. `install` 이 있으면 딥링크 버튼이 붙는다.
+ *
+ * 미리보기는 **색 견본이 아니라 앱의 축소판**이다 — 창틀·사이드바·일지 카드·
+ * diff 줄·강조 버튼까지, 실제 화면이 그 색을 쓰는 자리에 그대로 얹는다. 색을
+ * 고를 때 궁금한 것은 "이 초록이 예쁜가" 가 아니라 "내 화면이 이래도 되는가"다.
+ */
 function themeCard(theme, defaults, install) {
   const fam = theme.family === "light" ? defaults.light : defaults.dark;
   const tok = (name) => theme.tokens?.[name] ?? fam[name] ?? "#000";
-  const swatches = ["--bg-window", "--bg-card", "--accent", "--text", "--text-2", "--sep-strong"]
-    .map((n) => `<span style="background:${tok(n)}"></span>`)
-    .join("");
+  const vars = PREVIEW_VARS.map(([k, t]) => `--th-${k}:${tok(t)}`).join(";");
+  const swatches = SWATCH_TOKENS.map((n) => swatch(n, tok(n))).join("");
   const author = theme.metadata.author || "익명";
-  const pill = install
-    ? `<span class="pill">${esc(theme.family === "light" ? "라이트" : "다크")}</span>`
-    : `<span class="pill on">앱 내장</span>`;
-  const actions = install
-    ? `<div class="pg-actions">
-        <a class="pg-btn primary" href="oculpm://theme/install?url=${encodeURIComponent(install.url)}">앱에서 가져오기</a>
-        <a class="pg-btn ghost" href="${install.href}" download>.json 내려받기</a>
-      </div>`
-    : "";
-  return `      <article class="th-card">
-        <div class="th-prev" style="background:${tok("--bg-window")}">
-          <div class="th-prev-side" style="background:${tok("--bg-sidebar")}"></div>
-          <div class="th-prev-body" style="background:${tok("--bg-card")};border:1px solid ${tok("--border-card")}">
-            <div class="th-prev-line" style="background:${tok("--text")};width:72%"></div>
-            <div class="th-prev-line" style="background:${tok("--text-2")};width:88%"></div>
-            <div class="th-prev-line" style="background:${tok("--text-3")};width:54%"></div>
-            <div class="th-prev-chip" style="background:${tok("--accent")}"></div>
+  const count = Object.keys(theme.tokens ?? {}).length;
+  const ratio = contrastRatio(tok("--text"), tok("--bg-content"));
+  const famLabel = theme.family === "light" ? "라이트" : "다크";
+  const badge = install ? "" : `<span class="th-tagline">앱 내장</span>`;
+  const facts = [
+    esc(author),
+    `${count}색 지정`,
+    ratio ? `<span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 ${ratio.toFixed(1)}:1</span>` : null,
+  ]
+    .filter(Boolean)
+    .join('<span class="dot">·</span>');
+  const foot = install
+    ? `        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://theme/install?url=${encodeURIComponent(install.url)}">앱에서 가져오기</a>
+          <a class="pg-btn ghost" href="${install.href}" download>.json 내려받기</a>
+        </div>`
+    : `        <p class="th-note">설치하면 이미 있습니다 — <b>설정 → 모양</b>에서 고르세요.</p>`;
+  return `      <article class="th-card" data-family="${theme.family}">
+        <div class="th-prev" style="${vars}">
+          <div class="th-win">
+            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
+            <div class="th-body">
+              <div class="th-side">
+                <span class="th-nav on"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav"></span>
+                <span class="th-nav sm"></span>
+              </div>
+              <div class="th-main">
+                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
+                <div class="th-entry">
+                  <span class="th-tag"></span>
+                  <span class="th-l l1"></span>
+                  <span class="th-l l2"></span>
+                </div>
+                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
+                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="th-meta">
-          <h3>${esc(theme.metadata.name)} ${pill}</h3>
-          <p class="by">${esc(author)} · ${Object.keys(theme.tokens ?? {}).length}개 토큰 지정</p>
+          <div class="th-head">
+            <h3>${esc(theme.metadata.name)}</h3>
+            <span class="th-fam" data-fam="${theme.family}">${famLabel}</span>
+            ${badge}
+          </div>
+          <p class="th-facts">${facts}</p>
           <div class="th-sw">${swatches}</div>
         </div>
-${actions}
+${foot}
       </article>`;
 }
+
+/** 라이트/다크 필터. 테마가 늘면 갤러리는 목록이 아니라 **고르는 자리**가 된다. */
+function filterBar(list) {
+  const dark = list.filter((t) => t.family === "dark").length;
+  const light = list.length - dark;
+  const btn = (key, label, n, on) =>
+    `<button type="button" class="th-f${on ? " on" : ""}" data-filter="${key}" aria-pressed="${on}">${label}<span>${n}</span></button>`;
+  return `    <div class="th-filter">
+      ${btn("all", "전체", list.length, true)}
+      ${btn("dark", "다크", dark, false)}
+      ${btn("light", "라이트", light, false)}
+    </div>`;
+}
+
+const THEME_FILTER_JS = `  // 라이트/다크 필터 — 갤러리마다 독립이라 버튼이 속한 섹션만 건드린다.
+  document.querySelectorAll('.th-filter').forEach(function (bar) {
+    var grid = bar.parentElement.querySelector('.th-grid');
+    if (!grid) return;
+    bar.addEventListener('click', function (e) {
+      var btn = e.target.closest('.th-f');
+      if (!btn) return;
+      var want = btn.getAttribute('data-filter');
+      bar.querySelectorAll('.th-f').forEach(function (b) {
+        var on = b === btn;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', String(on));
+      });
+      grid.querySelectorAll('.th-card').forEach(function (card) {
+        card.hidden = want !== 'all' && card.getAttribute('data-family') !== want;
+      });
+    });
+  });`;
 
 export function buildThemes(root) {
   const version = appVersion(root);
@@ -324,15 +447,17 @@ ${list.join("\n")}
     slug: "/themes",
     active: "/themes",
     title: "테마 갤러리 — Ocul-PM",
-    desc: `Ocul-PM 의 색을 고르고 만듭니다. 내장 ${builtins.length}종과 배포 테마 ${community.length}종을 미리 보고, 링크 한 번으로 앱에 가져옵니다. 테마는 JSON 한 장이라 PR 로 기여할 수 있습니다.`,
+    desc: `Ocul-PM 의 색을 고르고 만듭니다. 배포 테마 ${community.length}종과 내장 ${builtins.length}종을 실제 화면 축소판으로 미리 보고, 링크 한 번으로 앱에 가져옵니다. 테마는 JSON 한 장이라 PR 로 기여할 수 있습니다.`,
     hero: hero(
       "Themes",
       "색은 파일입니다.",
       `테마는 CSS 변수 이름을 그대로 쓰는 <b>JSON 한 장</b>입니다 — 내장 ${builtins.length}종도 같은 형식이라 <b>내장이 곧 예제</b>입니다. 만들고, 내보내고, 주고받고, PR 로 여기에 실을 수 있습니다.`,
     ),
+    script: THEME_FILTER_JS,
     body: `    <section class="pg-sec">
-      <h2 id="community">배포 테마</h2>
+      <h2 id="community">배포 테마 <span class="th-count">${community.length}</span></h2>
       <p>앱에 들어 있지 않은 테마입니다. <b>가져오기</b>를 누르면 앱이 열리고 <b>확인 창</b>이 뜹니다 — 승인하기 전에는 아무것도 바뀌지 않고, 가져와도 <b>지금 쓰는 테마는 그대로</b>입니다 (갤러리에 한 장 늘어날 뿐입니다). 앱이 없다면 <code>.json</code> 을 내려받아 두었다가 <b>설정 → 모양 → 가져오기</b> 로 열어도 같습니다.</p>
+${filterBar(community.map(({ theme }) => theme))}
 ${cards(community.map(({ file, theme }) => themeCard(theme, defaults, { url: `https://oculpm.com/themes/${file}`, href: `/themes/${file}` })))}
       <div class="pg-quiet">
         <b>기여하기</b> — 테마 파일 한 장을 <code>landing/themes/</code> 에 올리는 PR 을 보내 주세요.
@@ -344,7 +469,7 @@ ${cards(community.map(({ file, theme }) => themeCard(theme, defaults, { url: `ht
     </section>
 
     <section class="pg-sec">
-      <h2 id="builtin">앱 내장 ${builtins.length}종</h2>
+      <h2 id="builtin">앱 내장 <span class="th-count">${builtins.length}</span></h2>
       <p>설치하면 바로 있는 테마입니다. 가져올 것이 없습니다 — <b>설정 → 모양</b>에서 고르거나, <b>복제해서 편집</b>으로 자기 테마의 출발점으로 씁니다.</p>
 ${cards(builtins.map((t) => themeCard(t, defaults, null)))}
     </section>
@@ -353,6 +478,7 @@ ${cards(builtins.map((t) => themeCard(t, defaults, null)))}
       <h2 id="format">형식</h2>
       <p>테마가 칠할 수 있는 것은 <b>정해진 색 토큰 목록</b>뿐입니다. 파일에 다른 무엇이 적혀 있어도 화면에 새지 않고, 값은 <code>#hex</code> · <code>rgb()</code> · <code>rgba()</code> · <code>hsl()</code> 만 받습니다. <b>적지 않은 색은 건드리지 않습니다</b> — 배경만 다섯 줄 적은 테마도 온전한 테마이고 나머지는 밝게/어둡게 기본값을 물려받습니다.</p>
       <p>강조 계열(<code>--accent*</code>)을 <b>하나도</b> 적지 않으면 사용자가 고른 강조색이 그대로 남습니다. 색 하나 바꾸려다 강조색을 잃지 않도록 한 규칙입니다.</p>
+      <p>카드에 적힌 <b>본문 대비</b>는 <code>--text</code> 와 <code>--bg-content</code> 의 WCAG 대비율입니다. 저장소 테스트가 <b>4.5:1 미만인 테마를 막으므로</b>, 여기 실린 테마는 전부 본문을 읽을 수 있습니다.</p>
     </section>`,
   });
 
