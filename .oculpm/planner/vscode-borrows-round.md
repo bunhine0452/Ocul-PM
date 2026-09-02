@@ -35,11 +35,11 @@ owner: claude-code
 - [x] 기울임 렌더(.code-tab.preview) · 컨텍스트 메뉴 항목 · codePreviewTabs 설정(기본 켜짐) · ko/en {#preview-ui}
 - [x] 4게이트 · 일지 · plan_update {#p2-close}
 
-## Phase 3 — B4 심볼(⇧⌘O)·줄(⌃G) 이동 {#p3-goto}
-- [ ] gotoModel.ts — parseGoto(':12:3' · '@foo' · 'foo') · rankSymbols(homeMatch 점수 재사용) · clampLine + 테스트 {#goto-model}
-- [ ] CodeGoto.tsx — useModalBehavior 재사용 오버레이 · 목록 · 커서 이동마다 미리 점프 · Esc 면 원래 줄 복귀 {#goto-ui}
-- [ ] 키 배선 ⇧⌘O / ⌃G (CM 키맵 충돌 확인) · 심볼 없는 파일은 줄 모드로 · shortcutRegistry 2줄 {#goto-keys}
-- [ ] 컴포넌트 테스트(a11y 포함) · 4게이트 · 일지 · plan_update {#p3-close}
+## Phase 3 — B4 심볼(⇧⌘O)·줄(⌃G) 이동 ✅ {#p3-goto}
+- [x] gotoModel.ts — parseGoto(':12:3' · '@foo' · 'foo') · rankSymbols(homeMatch 점수 재사용) · clampLine + 테스트 {#goto-model}
+- [x] CodeGoto.tsx — useModalBehavior 재사용 오버레이 · 목록 · 커서 이동마다 미리 점프 · Esc 면 원래 줄 복귀 {#goto-ui}
+- [x] 키 배선 ⇧⌘O / ⌃G (CM 키맵 충돌 확인) · 심볼 없는 파일은 줄 모드로 · shortcutRegistry 2줄 {#goto-keys}
+- [x] 컴포넌트 테스트(a11y 포함) · 4게이트 · 일지 · plan_update {#p3-close}
 
 ## Phase 4 — B7 스티키 스크롤 {#p4-sticky}
 - [ ] stickyModel.ts — stickyFromSymbols(바깥→안쪽, max 절단은 안쪽부터) · stickyFromIndent 폴백 + 테스트 {#sticky-model}
@@ -91,4 +91,8 @@ owner: claude-code
 | 2026-09-02T16:13:17+09:00 | #preview-pin | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1612_feature_preview-tabs-in-code.md | 창 이동은 메뉴·드롭 양쪽 다 고정 |
 | 2026-09-02T16:13:22+09:00 | #preview-ui | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1612_feature_preview-tabs-in-code.md | 설정 끄면 기울임·메뉴가 즉시 사라지게 렌더에서 게이트 |
 | 2026-09-02T16:13:27+09:00 | #p2-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1612_feature_preview-tabs-in-code.md | 기존 탭 테스트를 더블클릭 고정으로 갱신 · 4게이트 exit 0 |
+| 2026-09-02T17:22:21+09:00 | #goto-model | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1722_feature_goto-symbol-and-line-in-file.md | line 을 number\|null 로 넓힘 (`:` 만 친 상태). 약어 규칙 90점을 scoreName 위에 얹음 |
+| 2026-09-02T17:22:26+09:00 | #goto-ui | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1722_feature_goto-symbol-and-line-in-file.md | 미리 점프는 사용자가 움직인 뒤부터 — 여는 것만으로 화면이 흔들리지 않는다 |
+| 2026-09-02T17:22:32+09:00 | #goto-keys | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1722_feature_goto-symbol-and-line-in-file.md | CM6 에 Ctrl-g 없음 확인 (Mod-g=⌘G 검색 · Ctrl-o=splitLine 은 다른 조합). 점프에 focus 플래그 추가 |
+| 2026-09-02T17:22:42+09:00 | #p3-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1722_feature_goto-symbol-and-line-in-file.md | 신규 44건(순수 26 + 위젯·배선 18, a11y 포함) · 4게이트 exit 0 |
 <!-- oculpm:plan-log end -->
