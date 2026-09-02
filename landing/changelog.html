@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.32.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 81개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.33.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 82개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.32.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 81개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.33.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 82개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.32.0</span>
+    <span class="nav-ver" data-version>v2.33.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>81개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>82개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-33-0">v2.33.0</a>
       <a href="#v2-32-0">v2.32.0</a>
       <a href="#v2-31-0">v2.31.0</a>
       <a href="#v2-30-0">v2.30.0</a>
@@ -61,10 +62,19 @@
       <a href="#v2-24-0">v2.24.0</a>
       <a href="#v2-23-1">v2.23.1</a>
       <a href="#v2-23-0">v2.23.0</a>
-      <a href="#v2-22-0">v2.22.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-33-0"><a href="#v2-33-0">v2.33.0</a></h2>
+      <div class="cl-body">
+<p><b>화면에서 「AI 가 만든 티」를 걷어냈습니다.</b> 반짝이(✨) 아이콘이 29곳에 있었습니다 — 회고의 요약 버튼, 플래너의 AI 갱신, 설정의 LLM 탭, 새 프로젝트, 심지어 코드 화면의 <b>포맷</b> 버튼까지. 이제 아이콘은 그 자리의 동작을 말합니다(포맷은 줄맞춤, 초안은 펜, 갱신은 회전 화살표, 새 프로젝트는 폴더, 모델은 칩). 오늘 현황의 지표 타일 8장은 색 네모 안 아이콘 대신 <b>선화 하나</b>를 두고, 색은 의미가 있을 때만 씁니다 — 에러 사이클이<code>pnpm create vite</code>이 아닐 때만 붉고, 주 지표 하나만 강조색입니다. AI 패널과 Claude Code 의 빈 화면은 가운데 띄운 아이콘과 「무엇이든 물어보세요」 대신 <b>프로젝트 이름과 시작할 질문 목록</b>으로 시작합니다. 새 프로젝트 마법사의 이모지 스택 아이콘은 실제로 돌아갈 명령(<code>pnpm create vite</code> 등)으로, 진행바와 로켓 버튼은 글자와 화살표로 바뀌었습니다.</p>
+<p><b>어느 화면에서도 테마가 온전히 먹습니다.</b> 설정·회고·그래프 인스펙터·팔레트·다이얼로그는 앱의 나머지와 다른 기본 둥글기·그림자로 그려졌고, 상태색 125곳이 테마를 무시한 초록·호박·빨강으로 굳어 있었습니다 — 솔라라이즈나 노드를 골라도 그 화면들만 다른 제품처럼 보였던 이유입니다. 전부 앱 토큰에 묶었습니다. 유리(블러) 스크림 다섯 벌과 유리 툴바·그래프 범례는 불투명하게, 버튼과 활성 항목의 광택, 캔버스 모서리의 색 안개, 게이지의 그라데이션은 단색으로 돌아갔습니다. 되살아나지 않도록 검사기가 붙었습니다.</p>
+<p><b>빠른 터미널이 프로젝트를 가로지르지 않습니다.</b> 오늘 현황의 빠른 터미널은 프로젝트 탭 두 개에서 펼치면 <b>같은 셸을 나눠 썼습니다</b> — B 에서 친 명령이 A 의 디렉터리에서 돌고, 한쪽을 접으면 남의 셸이 함께 죽었습니다. 이제 프로젝트마다 자기 셸입니다. 끝난 셸은 먹통으로 남지 않고 페인 위에 <b>«다시 시작»</b> 이 뜹니다. 함께: 업데이트로 터미널 호스트를 교체할 때 vim·ssh·claude 같은 포그라운드가 고아로 남던 것, 크기 변경 실패가 성공으로 둔갑해 화면이 옛 폭에 굳던 것, 죽은 호스트 접속이 닫히지 않아 유휴 종료가 영영 안 걸리던 것도 고쳤습니다.</p>
+<p><b>작업 일지 검색이 본문까지 찾습니다.</b> 백엔드는 본문에서도 찾아 줬는데, 화면이 그 결과를 제목·태그로 <b>다시 좁혀</b> 버렸습니다 — 툴바에는 「12건」이라 적고 카드는 3장만 그리던 어긋남이 그것입니다. 두 주 넘게 쉬었다 돌아온 프로젝트가 「이전 기록 더 보기」 없이 빈 화면에 갇히던 것, 필터 중 날짜 접기 버튼이 죽어 있던 것, 출처 필터가 걸린 채 되돌릴 손잡이가 사라지던 것, 검색어의 <code>_</code>·<code>%</code> 가 와일드카드로 살아 있던 것, 열어 둔 일지가 연 순간에 멈춰 있던 것 — 여섯을 고쳤습니다.</p>
+<p><b>Claude Code 화면이 가만히 있을 때 조용합니다.</b> 설정을 되읽는 효과가 스스로를 다시 불러, 화면에 아무 변화가 없는데도 0.8초에 <b>수천 번</b> 어댑터를 두들기고 있었습니다. 고리를 끊었습니다. 함께, 탭을 옮기면 셀렉터가 <b>방금 떠나온 대화의 모델·권한 모드</b>를 가리키던 것(「Auto 라 적혀 있는데 실은 Manual」)과 뒤에서 도는 대화가 받은 제목이 보고 있는 탭을 개명하던 것을 대화별 장부로 갈랐습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-32-0"><a href="#v2-32-0">v2.32.0</a></h2>
       <div class="cl-body">
