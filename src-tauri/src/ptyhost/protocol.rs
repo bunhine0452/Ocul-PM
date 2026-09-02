@@ -10,7 +10,11 @@
 
 use serde::{Deserialize, Serialize};
 
-pub const PROTO_VERSION: u32 = 1;
+/// - `1` — 최초.
+/// - `2` — `Foreground` 의 뜻이 바뀌었다: 놀고 있는 셸은 `None` (2026-09-02).
+///   호스트는 앱 업데이트를 **넘어 살아남으므로**, 올리지 않으면 구버전 호스트가
+///   계속 `-zsh` 를 돌려줘 새 앱에서도 고친 것이 안 고쳐진 것처럼 보인다.
+pub const PROTO_VERSION: u32 = 2;
 
 /// 클라이언트 → 호스트. `id` 로 응답을 짝짓는다.
 #[derive(Debug, Clone, Serialize, Deserialize)]
