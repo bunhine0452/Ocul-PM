@@ -67,8 +67,8 @@ owner: claude-code
 
 ## Phase 7 — 라운드 마감 {#p7-round-close}
 - [ ] 육안 1회 — 설치본 끄고 dev 로 7가지 한 바퀴 (설치본 도는 중 dev 빌드 금지) {#eyes}
-- [ ] 릴리스 5면 — 버전 3파일 · CHANGELOG · README ko/en · landing 6곳 → 태그 푸시 → landing vercel --prod {#release}
-- [ ] docs/20260902_vscode-borrows/00-master-plan.md 상태를 '구현 완료' 로 갱신 · 구현 중 뒤집힌 결정 기록 {#docs-sync}
+- [x] 릴리스 5면 — 버전 3파일 · CHANGELOG · README ko/en · landing 6곳 → 태그 푸시 → landing vercel --prod {#release}
+- [x] docs/20260902_vscode-borrows/00-master-plan.md 상태를 '구현 완료' 로 갱신 · 구현 중 뒤집힌 결정 기록 {#docs-sync}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -112,4 +112,6 @@ owner: claude-code
 | 2026-09-02T20:38:37+09:00 | #history-settings | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/2038_feature_local-history-versions-between-commits.md | 기본 켜짐 — 소급 불가라 이 라운드의 유일한 예외. 용량 표시 + 전부 지우기 |
 | 2026-09-02T20:38:43+09:00 | #history-guards | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/2038_feature_local-history-versions-between-commits.md | 리네임은 code_rename 이 다리 (워처는 Delete+Create 라 못 잇는다). 색인 정리는 history/ 를 안 지운다 — 확인함 |
 | 2026-09-02T20:38:50+09:00 | #p6-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/2038_feature_local-history-versions-between-commits.md | Rust 9+13+1 · 프런트 15 · 7게이트 exit 0. Phase 5 의 seed 배열 가드도 동승(pnpm test 가 exit 1 이었다) |
+| 2026-09-02T22:24:27+09:00 | #release | claude-code | ☐→x | .oculpm/journal/20260902/Chores/2224_chore_release-v2-34-0.md | v2.34.0 태그 푸시 · 5면 전부 · 랜딩 vercel --prod (oculpm.com 별칭 확인). 중간에 붉은 CI 1건(ts_ms 신원 충돌) 수리 동승 |
+| 2026-09-02T22:24:33+09:00 | #docs-sync | claude-code | ☐→x | .oculpm/journal/20260902/Chores/2224_chore_release-v2-34-0.md | master-plan 상태 '구현 완료' + 구현 중 뒤집힌 결정 9건 기록 |
 <!-- oculpm:plan-log end -->
