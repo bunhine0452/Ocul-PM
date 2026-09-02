@@ -48,11 +48,11 @@ owner: claude-code
 - [x] 4게이트 · 일지 · plan_update {#p4-close}
 
 ## Phase 5 — B6 문제 패널 {#p5-problems}
-- [ ] lsp_diagnostics_snapshot 커맨드 — 프로젝트 루트 접두로 raw_diagnostics 필터 + 좁은 타입 변환 · lib.rs 양쪽 등록 · cargo test 로 bindings 재생성 {#problems-cmd}
-- [ ] problemsStore.ts(모듈 스코프 + useSyncExternalStore) · problemsModel.ts(groupByFile 정렬 · filterBySeverity · totalCounts) + 테스트 {#problems-store}
-- [ ] CodeProblems.tsx — 참조 패널과 같은 자리·규약 · 파일당 50 + 더 보기 · 항목 클릭은 고정 탭으로 이동 {#problems-ui}
-- [ ] 빈 상태는 '문제 없음' 이 아니라 '아직 아는 문제 없음' · 상태줄 총계 뱃지(패널 존재를 알리는 유일한 신호) {#problems-honesty}
-- [ ] 프로젝트 전환 시 clearProject 확인 · 4게이트 · 일지 · plan_update {#p5-close}
+- [x] lsp_diagnostics_snapshot 커맨드 — 프로젝트 루트 접두로 raw_diagnostics 필터 + 좁은 타입 변환 · lib.rs 양쪽 등록 · cargo test 로 bindings 재생성 {#problems-cmd}
+- [x] problemsStore.ts(모듈 스코프 + useSyncExternalStore) · problemsModel.ts(groupByFile 정렬 · filterBySeverity · totalCounts) + 테스트 {#problems-store}
+- [x] CodeProblems.tsx — 참조 패널과 같은 자리·규약 · 파일당 50 + 더 보기 · 항목 클릭은 고정 탭으로 이동 {#problems-ui}
+- [x] 빈 상태는 '문제 없음' 이 아니라 '아직 아는 문제 없음' · 상태줄 총계 뱃지(패널 존재를 알리는 유일한 신호) {#problems-honesty}
+- [x] 프로젝트 전환 시 clearProject 확인 · 4게이트 · 일지 · plan_update {#p5-close}
 
 ## Phase 6 — B5 로컬 히스토리 {#p6-local-history}
 - [ ] oculpm/history.rs — .oculpm/index/history/<h2>/<h16>/ 레이아웃 · meta.json 원자 교체 · 스냅샷 쓰기 {#history-core}
@@ -99,4 +99,9 @@ owner: claude-code
 | 2026-09-02T17:54:40+09:00 | #sticky-ext | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1754_feature_sticky-scroll-in-code-editor.md | 심볼 시작 줄을 문서 오프셋으로 들고 mapPos 로 따라간다 (편집 뒤 거짓말 방지). tr.state 대신 tr.newDoc |
 | 2026-09-02T17:54:46+09:00 | #sticky-wire | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1754_feature_sticky-scroll-in-code-editor.md | 설정 토글은 CodeEditor key 재마운트로 즉시 반영 (확장은 마운트 시점 결정 규약) |
 | 2026-09-02T17:54:52+09:00 | #p4-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1754_feature_sticky-scroll-in-code-editor.md | 순수 21건 · 4게이트 exit 0 (병렬 세션 WIP 때문에 임시 워크트리에서 typecheck/build 확인) |
+| 2026-09-02T18:14:12+09:00 | #problems-cmd | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1814_feature_problems-panel-workspace-diagnostics.md | 서버를 띄우지 않는다(읽기만) · 빈 파일 제거 + 경로 정렬 · Rust 테스트 2건 |
+| 2026-09-02T18:14:17+09:00 | #problems-store | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1814_feature_problems-panel-workspace-diagnostics.md | touched 집합 추가 — 지운 경로를 스냅샷이 되살리는 구멍을 테스트에서 잡았다 |
+| 2026-09-02T18:14:23+09:00 | #problems-ui | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1814_feature_problems-panel-workspace-diagnostics.md | 참조 패널 뼈대(.code-refs) 재사용 · 자리는 하나라 여는 쪽이 상대를 닫는다 |
+| 2026-09-02T18:14:29+09:00 | #problems-honesty | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1814_feature_problems-panel-workspace-diagnostics.md | 뱃지는 0 일 때도 남긴다 — 감추면 빈 상태 문구를 읽을 길이 없어진다 |
+| 2026-09-02T18:14:34+09:00 | #p5-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1814_feature_problems-panel-workspace-diagnostics.md | clearProject 는 projectId effect 정리에서 · 프런트 25 + Rust 2 · 6게이트 exit 0(cargo test·clippy 포함) |
 <!-- oculpm:plan-log end -->
