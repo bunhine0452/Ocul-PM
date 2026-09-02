@@ -55,15 +55,15 @@ owner: claude-code
 - [x] 프로젝트 전환 시 clearProject 확인 · 4게이트 · 일지 · plan_update {#p5-close}
 
 ## Phase 6 — B5 로컬 히스토리 {#p6-local-history}
-- [ ] oculpm/history.rs — .oculpm/index/history/<h2>/<h16>/ 레이아웃 · meta.json 원자 교체 · 스냅샷 쓰기 {#history-core}
-  - [ ] 보존 — 256KB 상한 · 파일당 50판 · 10초 병합창(같은 source 만) · 프로젝트 총 512MB {#history-retention}
-  - [ ] 레이아웃·보존 판단을 순수 함수로 떼어 단위 테스트 가능하게 {#history-pure}
-- [ ] 워처 7.5 단계에 캡처 훅 (hash_after 로 중복 제거, fire-and-forget) + HistoryState.note_self_write 로 user/agent 출처 판정 {#history-capture}
-- [ ] 커맨드 4개 — list · read · restore(write_with_lock 통과) · forget + lib.rs 등록 + bindings 재생성 {#history-commands}
-- [ ] 브레드크럼 시계 액션 + 팝오버(최신순·시각·출처·크기) · 행 클릭은 diffMode.kind='history' 로 기존 인라인 비교 재사용 · 되돌리기는 useConfirm {#history-ui}
-- [ ] 설정 2개(codeLocalHistory 기본 켜짐 · codeLocalHistoryMaxEntries 50) + 사용 용량 표시 + 전부 지우기 {#history-settings}
-- [ ] 안전장치 — .env* 제외 · 리네임 추적 · 삭제해도 판 보존 · 색인 정리가 history/ 를 지우지 않는지 확인 {#history-guards}
-- [ ] Rust 통합 테스트(자기 억제·병합창·캡) + 프런트 테스트 · 4게이트 · 일지 · plan_update {#p6-close}
+- [x] oculpm/history.rs — .oculpm/index/history/<h2>/<h16>/ 레이아웃 · meta.json 원자 교체 · 스냅샷 쓰기 {#history-core}
+  - [x] 보존 — 256KB 상한 · 파일당 50판 · 10초 병합창(같은 source 만) · 프로젝트 총 512MB {#history-retention}
+  - [x] 레이아웃·보존 판단을 순수 함수로 떼어 단위 테스트 가능하게 {#history-pure}
+- [x] 워처 7.5 단계에 캡처 훅 (hash_after 로 중복 제거, fire-and-forget) + HistoryState.note_self_write 로 user/agent 출처 판정 {#history-capture}
+- [x] 커맨드 4개 — list · read · restore(write_with_lock 통과) · forget + lib.rs 등록 + bindings 재생성 {#history-commands}
+- [x] 브레드크럼 시계 액션 + 팝오버(최신순·시각·출처·크기) · 행 클릭은 diffMode.kind='history' 로 기존 인라인 비교 재사용 · 되돌리기는 useConfirm {#history-ui}
+- [x] 설정 2개(codeLocalHistory 기본 켜짐 · codeLocalHistoryMaxEntries 50) + 사용 용량 표시 + 전부 지우기 {#history-settings}
+- [x] 안전장치 — .env* 제외 · 리네임 추적 · 삭제해도 판 보존 · 색인 정리가 history/ 를 지우지 않는지 확인 {#history-guards}
+- [x] Rust 통합 테스트(자기 억제·병합창·캡) + 프런트 테스트 · 4게이트 · 일지 · plan_update {#p6-close}
 
 ## Phase 7 — 라운드 마감 {#p7-round-close}
 - [ ] 육안 1회 — 설치본 끄고 dev 로 7가지 한 바퀴 (설치본 도는 중 dev 빌드 금지) {#eyes}
@@ -104,4 +104,12 @@ owner: claude-code
 | 2026-09-02T18:14:23+09:00 | #problems-ui | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1814_feature_problems-panel-workspace-diagnostics.md | 참조 패널 뼈대(.code-refs) 재사용 · 자리는 하나라 여는 쪽이 상대를 닫는다 |
 | 2026-09-02T18:14:29+09:00 | #problems-honesty | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1814_feature_problems-panel-workspace-diagnostics.md | 뱃지는 0 일 때도 남긴다 — 감추면 빈 상태 문구를 읽을 길이 없어진다 |
 | 2026-09-02T18:14:34+09:00 | #p5-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/1814_feature_problems-panel-workspace-diagnostics.md | clearProject 는 projectId effect 정리에서 · 프런트 25 + Rust 2 · 6게이트 exit 0(cargo test·clippy 포함) |
+| 2026-09-02T20:38:11+09:00 | #history-retention | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/2038_feature_local-history-versions-between-commits.md | 병합의 '같은 source' 조건이 심장. 예산 정리는 파일마다 최신 한 판을 남긴다 |
+| 2026-09-02T20:38:16+09:00 | #history-pure | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/2038_feature_local-history-versions-between-commits.md | decide_capture · plan_budget_eviction · should_capture · looks_binary — 순수 13건 |
+| 2026-09-02T20:38:21+09:00 | #history-capture | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/2038_feature_local-history-versions-between-commits.md | 7.55 단계. 판이 이미 있으면 Create→Update 로 내린다 (macOS 원자 저장이 rename 이라) |
+| 2026-09-02T20:38:27+09:00 | #history-commands | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/2038_feature_local-history-versions-between-commits.md | 6개 (설정용 usage·clear 합류). ts 는 경계에서만 십진 문자열 — specta 가 i64 를 막는다 |
+| 2026-09-02T20:38:32+09:00 | #history-ui | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/2038_feature_local-history-versions-between-commits.md | 되돌리기는 목록이 아니라 비교 배너에 — 무엇으로 바뀌는지 보고 누르게 |
+| 2026-09-02T20:38:37+09:00 | #history-settings | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/2038_feature_local-history-versions-between-commits.md | 기본 켜짐 — 소급 불가라 이 라운드의 유일한 예외. 용량 표시 + 전부 지우기 |
+| 2026-09-02T20:38:43+09:00 | #history-guards | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/2038_feature_local-history-versions-between-commits.md | 리네임은 code_rename 이 다리 (워처는 Delete+Create 라 못 잇는다). 색인 정리는 history/ 를 안 지운다 — 확인함 |
+| 2026-09-02T20:38:50+09:00 | #p6-close | claude-code | ☐→x | .oculpm/journal/20260902/Features_to_add/2038_feature_local-history-versions-between-commits.md | Rust 9+13+1 · 프런트 15 · 7게이트 exit 0. Phase 5 의 seed 배열 가드도 동승(pnpm test 가 exit 1 이었다) |
 <!-- oculpm:plan-log end -->
