@@ -32,10 +32,27 @@ const REQUIRED = [
   ".home-wrap",
   ".hg-grid",
   ".hg-card",
+  // 창 최상위 모달 — 탭 닫기 확인창(useConfirm) · ⌘/ 치트시트. 스킬 화면을
+  // 한 번도 안 연 창에서도 뜨므로 lazy 청크에 있으면 뼈대만 남아 나온다
+  // (2026-09-02: 실제로 skills.css/screens.css 에 갇혀 있었다).
+  ".sk-modal-head",
+  ".sk-modal-warn",
+  ".sk-modal-foot",
+  ".keys-grid",
 ];
 
-/** 이 청크가 창 엔트리의 CSS 다. Vite 가 엔트리 이름을 파일명에 넣는다. */
-const ENTRY_CSS = /^TabbedWindow-.*\.css$/;
+/**
+ * 창이 **열자마자** 들고 있는 CSS 청크들.
+ *
+ *  · `TabbedWindow-*.css` — 창 엔트리가 직접 임포트한 것 (tabs.css 등).
+ *  · `App-*.css` — `import "@/App.css"` 가 여러 엔트리에 공유돼 빠진 공용 청크.
+ *    토큰(tokens.css)·프리미티브(primitives.css)가 여기 산다. 엔트리 JS 가
+ *    **정적으로** 물고 있으므로 창과 함께 무조건 로드된다.
+ *
+ * lazy 청크(ShellV2-*.css · SkillsScreenV2-*.css …)는 여기 없다 — 그게 이
+ * 검사의 존재 이유다.
+ */
+const ENTRY_CSS = [/^TabbedWindow-.*\.css$/, /^App-.*\.css$/];
 
 let files;
 try {
@@ -45,12 +62,14 @@ try {
   process.exit(1);
 }
 
-const entryCss = files.filter((f) => ENTRY_CSS.test(f));
-if (entryCss.length === 0) {
-  console.error("✗ 창 엔트리 CSS 청크(TabbedWindow-*.css)를 찾지 못했습니다.");
-  console.error("  엔트리 이름이 바뀌었다면 이 스크립트의 ENTRY_CSS 도 함께 고치세요.");
+// 패턴마다 **하나씩은** 나와야 한다. 하나만 비어도 조용히 반쪽만 검사하게 된다.
+const missingChunk = ENTRY_CSS.find((re) => !files.some((f) => re.test(f)));
+if (missingChunk) {
+  console.error(`✗ 창이 로드하는 CSS 청크(${missingChunk})를 찾지 못했습니다.`);
+  console.error("  청크 이름이 바뀌었다면 이 스크립트의 ENTRY_CSS 도 함께 고치세요.");
   process.exit(1);
 }
+const entryCss = files.filter((f) => ENTRY_CSS.some((re) => re.test(f)));
 
 const css = (
   await Promise.all(entryCss.map((f) => readFile(join(assetsDir, f), "utf8")))

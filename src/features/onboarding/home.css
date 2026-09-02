@@ -480,23 +480,25 @@
 /* ── 추가 슬롯 ──────────────────────────────────────────────────────── */
 
 
-/* ── 액션 바 (밴드 4) ───────────────────────────────────────────────── */
+/* ── 액션 바 (바닥 띠의 마지막 줄) ─────────────────────────────────── */
 
+/* 커서 항목의 단축키 지도. 바닥 띠 안에서 **항상 자기 줄**을 쓴다 (2026-09-02).
+
+   예전엔 초안·명령과 같은 줄에 끼워 오른쪽으로 밀어붙였는데(margin-left:auto),
+   이 바의 폭은 커서 항목의 **이름 길이**에 따라 변한다. 이름이 길어지면 줄에
+   못 들어가 다음 줄로 wrap 되고, 그때마다 띠가 통째로 한 줄(당시 44+20px)
+   높아졌다 — .home-wrap 은 고정 높이 격자라 그 높이는 프로젝트 격자에서
+   빼앗아 오므로, 사용자 눈에는 **바닥 띠가 위로 튀어 오르는** 것으로 보인다.
+   자기 줄을 주면 이름이 얼마나 길든 띠 높이가 변하지 않는다.
+
+   sticky·면(배경/테두리/44px)은 이 바가 밴드 4 였던 시절의 유물이라 함께
+   걷어냈다 — 바닥 띠에 들어온 뒤로는 .home-foot 규칙이 전부 되돌리고 있었다. */
 .home-actionbar {
-  position: sticky;
-  bottom: 0;
-  /* 상단 레일과 같은 이유로 낮은 z-index + 불투명 배경 (backdrop-filter 금지).
-     예전엔 이 바도 설정 창 위로 뚫고 올라와 하단에 줄이 하나 떠 보였다. */
-  z-index: 4;
+  flex: 1 0 100%;
   display: flex;
   align-items: center;
   gap: 16px;
-  height: 44px;
-  margin-top: 20px;
-  padding: 0 16px;
-  border-top: 1px solid var(--sep);
-  border-radius: var(--radius-m) var(--radius-m) 0 0;
-  background: var(--bg-card);
+  min-width: 0;
   font-size: var(--fs-3);
   color: var(--text-2);
 }
@@ -887,13 +889,10 @@
    띠에서는 내용만큼만 차지하게 푼다. */
 .home-foot .home-row > :last-child { min-width: 0; }
 .home-foot .home-mark { width: 20px; height: 20px; border-radius: 5px; font-size: 9px; }
-.home-foot .home-actionbar {
-  margin-left: auto;
-  position: static;
-  border: 0;
-  background: none;
-  padding: 0;
-}
+/* 초안 이름은 폭 상한을 갖는다 — 이름이 길면 항목이 그만큼 넓어져 뒤의 명령을
+   다음 줄로 밀어내고, 그게 곧 띠 높이(= 프로젝트 격자 높이)의 변동이 된다.
+   상한에 걸리면 이름은 말줄임된다 (.home-open 의 truncate). */
+.home-foot .home-drafttext { max-width: 200px; }
 
 /* ── 겉모습 선택기 (프로젝트 편집 다이얼로그) ────────────────────────── */
 

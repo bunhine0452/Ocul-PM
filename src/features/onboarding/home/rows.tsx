@@ -86,7 +86,7 @@ export function DraftRow({
       style={{ gridTemplateColumns: "26px minmax(0,1fr) auto" }}
     >
       <Mark text="✎" />
-      <span className="min-w-0 flex flex-col gap-0.5 py-2">
+      <span className="home-drafttext min-w-0 flex flex-col gap-0.5 py-2">
         <button
           type="button"
           ref={w.ref as (el: HTMLButtonElement | null) => void}

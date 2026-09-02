@@ -2159,11 +2159,5 @@ mark.s-hit {
 .whats-new-body { margin-top: 8px; font-size: var(--fs-6); color: var(--text-2); max-height: 220px; overflow: auto; }
 .whats-new-body ul { padding-left: 18px; }
 
-/* ⌘/ 단축키 치트시트 */
-.keys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 22px; padding: 4px 0 8px; }
-.keys-group h4 { font-size: var(--fs-3); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin: 0 0 6px; }
-.keys-group dl { margin: 0; display: flex; flex-direction: column; gap: 4px; }
-.keys-row { display: flex; align-items: center; gap: 8px; font-size: var(--fs-5); }
-.keys-row dt { flex: 1; min-width: 0; color: var(--text-2); }
-.keys-row dd { margin: 0; display: flex; gap: 4px; flex: none; }
-.sk-modal-sub { margin-left: auto; font-size: var(--fs-3); color: var(--text-3); }
+/* ⌘/ 단축키 치트시트 규칙(.keys-*)도 2026-09-02 에 primitives.css 로 옮겼다 —
+   같은 이유다 (창 어디서나 뜨는 모달인데 규칙이 셸 청크에 갇혀 있었다). */

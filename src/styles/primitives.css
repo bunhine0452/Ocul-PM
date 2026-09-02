@@ -262,3 +262,52 @@
 @media (prefers-reduced-motion: reduce) {
   .skel { animation: none; }
 }
+
+/* ── 모달 크롬 — 한 벌 ─────────────────────────────────────────────────────
+   AppDialog 안의 머리/본문/발. `sk-` 접두는 이 규칙이 스킬 화면에서 태어난
+   흔적일 뿐이고, 실제로는 **공유 모달 크롬**이다.
+
+   2026-09-02 에 features/skills/skills.css(스킬 화면 lazy 청크) 에서 여기로
+   옮겼다. `useConfirm` 의 확인 창과 ⌘/ 치트시트는 창 최상위(TabbedWindow)에
+   살아서 스킬 화면을 한 번도 안 연 창에서도 뜨는데, 그때 규칙이 하나도 없어
+   제목·본문이 패널 가장자리에 붙고 버튼이 왼쪽으로 쏠려 나왔다 — 탭 닫기
+   경고창이 그렇게 깨진 채 보였다. 항상 필요한 CSS 는 전역에 둔다
+   (scripts/check-critical-css.mjs 가 창 엔트리 청크에서 이 선택자들을 지킨다). */
+.sk-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.sk-modal-sub { margin-left: auto; font-size: var(--fs-3); color: var(--text-3); }
+.sk-modal-warn {
+  padding: 0 20px;
+  font-size: var(--fs-7);
+  line-height: 1.6;
+  color: var(--text-2);
+}
+.sk-modal-warn code {
+  font-size: var(--fs-5);
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg-inset);
+  color: var(--text-2);
+}
+.sk-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 4px 20px 16px;
+}
+
+/* ⌘/ 단축키 치트시트 — 같은 이유로 전역. 좌우 여백은 모달 크롬(20px)에 맞춘다
+   (screens.css 시절엔 0 이라 표가 패널 가장자리에 붙어 있었다). */
+.keys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 22px; padding: 4px 20px 16px; }
+.keys-group h4 { font-size: var(--fs-3); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin: 0 0 6px; }
+.keys-group dl { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.keys-row { display: flex; align-items: center; gap: 8px; font-size: var(--fs-5); }
+.keys-row dt { flex: 1; min-width: 0; color: var(--text-2); }
+.keys-row dd { margin: 0; display: flex; gap: 4px; flex: none; }

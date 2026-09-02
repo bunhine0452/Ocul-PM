@@ -245,34 +245,9 @@
   color: var(--accent-text);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
-.sk-modal-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 20px 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-}
-.sk-modal-foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 4px 20px 16px;
-}
-.sk-modal-warn {
-  padding: 0 20px;
-  font-size: var(--fs-7);
-  line-height: 1.6;
-  color: var(--text-2);
-}
-.sk-modal-warn code {
-  font-size: var(--fs-5);
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--bg-inset);
-  color: var(--text-2);
-}
+/* 모달 머리·본문·발(.sk-modal-*)은 2026-09-02 에 styles/primitives.css 로
+   옮겼다 — 이 파일은 스킬 화면(lazy 청크)만 로드하는데, 그 규칙을 쓰는
+   `useConfirm`·`ShortcutCheatsheet` 는 창 어디서나 뜬다. */
 
 /* ── 규칙 탭 ───────────────────────────────────────────────── */
 
