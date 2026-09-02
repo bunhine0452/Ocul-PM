@@ -130,16 +130,15 @@ impl PtyHostClient {
             reader,
         };
 
-        // 프로토콜 확인 — 불일치면 (업데이트로 형식이 바뀐 뒤의 구버전 호스트)
-        // 그 호스트를 내리고 실패를 알린다. 세션은 잃지만 무언의 오동작보다 낫다.
+        // 프로토콜 확인 — [`socket_name`] 이 버전마다 자리를 갈라 놓으므로
+        // 여기서 불일치를 보는 일은 없어야 한다. 그래도 보게 된다면 이 자리에
+        // 있는 것은 **우리 짝이 아니다** — 접속만 놓고 물러난다. 내리지
+        // 않는다: 남의 호스트를 내리는 것은 남의 셸을 죽이는 것이다.
         match client.request(Request::Hello).await? {
             Response::Proto { proto } if proto == PROTO_VERSION => Ok(client),
-            Response::Proto { proto } => {
-                let _ = client.request(Request::Shutdown).await;
-                Err(format!(
-                    "pty-host protocol mismatch: host={proto} app={PROTO_VERSION}"
-                ))
-            }
+            Response::Proto { proto } => Err(format!(
+                "pty-host protocol mismatch: host={proto} app={PROTO_VERSION}"
+            )),
             other => Err(format!("unexpected hello response: {other:?}")),
         }
     }
@@ -186,10 +185,33 @@ impl PtyHostClient {
     }
 }
 
+/// 디버그 빌드의 접미사 — dev 로 띄운 앱과 설치본은 **다른 소켓**을 쓴다.
+#[cfg(debug_assertions)]
+const BUILD_SUFFIX: &str = "-dev";
+#[cfg(not(debug_assertions))]
+const BUILD_SUFFIX: &str = "";
+
+/// 소켓 이름 — `ptyhost-v{PROTO_VERSION}[-dev].sock`.
+///
+/// **이름이 격리다** (2026-09-02). 프로토콜이 다르거나 빌드 종류가 다른 두
+/// 짝은 애초에 같은 자리에서 만나지 않는다. 앞서 dev 빌드를 설치본의 내장
+/// 터미널에서 띄웠을 때, 두 짝이 같은 `ptyhost.sock` 에서 만나 불일치를 보고
+/// 서로의 호스트를 내렸고 — 그 호스트가 쥐고 있던 셸이 곧 자기를 띄운 그
+/// 터미널이었다. 버전을 올리는 것만으로 자리가 갈리므로 그 경로는 이제
+/// 발화하지 않는다.
+///
+/// 갈라진 뒤 구버전 호스트는 아무도 붙지 않는 채 남는데, 그건 호스트가
+/// 스스로 정리한다 — 더 높은 프로토콜의 소켓이 생긴 것을 보면 몇 분 안에
+/// 세션을 끝내고 내려간다 (`host::superseded_by_a_newer_socket`). 남의
+/// 호스트를 내리는 대신 **자기 수명을 아는 호스트**로 푼 것이다.
+pub fn socket_name() -> String {
+    format!("ptyhost-v{PROTO_VERSION}{BUILD_SUFFIX}.sock")
+}
+
 /// 소켓 위치 — 앱 데이터 디렉터리 아래 고정 (`logs/`·`shell-integration/` 과
 /// 같은 곳). 호스트의 로그 디렉터리도 여기서 파생된다.
 pub fn socket_path(app_data_dir: &Path) -> PathBuf {
-    app_data_dir.join("ptyhost.sock")
+    app_data_dir.join(socket_name())
 }
 
 /// 호스트를 detach 로 띄운다 — 앱이 죽어도(업데이트 재시작) 함께 죽지 않게
@@ -231,12 +253,39 @@ pub async fn connect_or_spawn(
         return Ok(None);
     }
     spawn_host_process(socket)?;
+    let mut last = String::new();
     for _ in 0..CONNECT_RETRIES {
         tokio::time::sleep(std::time::Duration::from_millis(CONNECT_RETRY_MS)).await;
         match PtyHostClient::connect(socket, on_event.clone()).await {
             Ok(c) => return Ok(Some(c)),
-            Err(_) => continue,
+            // 마지막 이유를 들고 나간다 — 프로토콜 불일치처럼 재시도로 풀리지
+            // 않는 사정을 "시간 안에 안 떴다" 로 덮으면 진단이 사라진다.
+            Err(e) => last = e,
         }
     }
-    Err("pty-host did not come up in time".to_string())
+    Err(format!("pty-host did not come up in time: {last}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 이름이 격리다 — 프로토콜을 올리면 자리가 갈려야 구·신 짝이 만나지 않는다.
+    #[test]
+    fn socket_name_carries_the_protocol_version() {
+        let name = socket_name();
+        assert!(
+            name.starts_with(&format!("ptyhost-v{PROTO_VERSION}")),
+            "{name}"
+        );
+        assert!(name.ends_with(".sock"), "{name}");
+    }
+
+    /// 테스트는 늘 디버그 빌드다 — 여기서 접미사가 빠지면 dev 로 띄운 앱이
+    /// 설치본의 호스트 자리에 그대로 앉는다 (자기 셸을 죽인 사고의 조건).
+    #[test]
+    fn debug_builds_get_their_own_socket() {
+        let name = socket_name();
+        assert!(name.ends_with("-dev.sock"), "{name}");
+    }
 }

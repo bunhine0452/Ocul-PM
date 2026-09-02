@@ -36,6 +36,108 @@ const SCROLLBACK_CAP_BYTES: usize = 200_000;
 /// 스폰 직후 클라이언트가 붙기 전의 찰나를 오판하지 않기 위한 2회.
 const IDLE_TICK_SECS: u64 = 60;
 
+/// **버려진 호스트의 수명 상한** (틱 = 분) — 이만큼 붙는 이가 없으면 세션을
+/// 쥐고 있어도 내려간다 (2026-09-02).
+///
+/// 호스트가 앱보다 오래 사는 이유는 하나, **앱 재시작을 건너기 위해서**다
+/// (업데이트·크래시·종료 후 재실행). 그 건널목은 초에서 분 단위다. 3시간째
+/// 아무도 붙지 않는 호스트는 건널 앱이 없는 것이고, 그냥 두면 아무도 보지
+/// 않는 셸이 로그인 세션이 끝날 때까지 남는다.
+///
+/// 이 값이 넉넉한 이유: 프로토콜이 갈려 **확실히** 고아가 된 경우는
+/// [`SUPERSEDED_TICKS`] 가 따로, 훨씬 빨리 데려간다. 여기 걸리는 건 "앱이
+/// 영영 돌아오지 않았다" 뿐이므로 성급할 이유가 없다.
+const ORPHAN_TICKS: u32 = 180;
+
+/// 더 높은 프로토콜의 호스트 자리가 이미 생겼다면, 나를 쓸 앱은 없다 — 그때는
+/// 이만큼만 기다린다 (스폰 직후의 찰나를 오판하지 않을 만큼).
+const SUPERSEDED_TICKS: u32 = 2;
+
+/// 유휴 감시의 판정 — 시계·파일시스템과 떼어 놓아 그대로 테스트한다.
+#[derive(Default)]
+struct Watchdog {
+    /// 연속 (클라이언트 0 · 세션 0) 틱.
+    empty: u32,
+    /// 연속 (클라이언트 0) 틱 — 세션 유무는 보지 않는다.
+    lonely: u32,
+}
+
+/// 감시가 내리는 결론.
+#[derive(Debug, PartialEq, Eq)]
+enum Reap {
+    /// 빈 호스트 — 끝낼 세션이 없다.
+    Idle,
+    /// 고아 호스트 — 세션을 쥔 채 버려졌다.
+    Orphan,
+}
+
+impl Watchdog {
+    /// `superseded` = 같은 빌드 종류의 **더 높은 프로토콜** 소켓이 이미 있다
+    /// ([`superseded_by_a_newer_socket`]).
+    fn tick(&mut self, clients: usize, has_sessions: bool, superseded: bool) -> Option<Reap> {
+        if clients > 0 {
+            self.empty = 0;
+            self.lonely = 0;
+            return None;
+        }
+        self.lonely += 1;
+        self.empty = if has_sessions { 0 } else { self.empty + 1 };
+        if self.empty >= 2 {
+            return Some(Reap::Idle);
+        }
+        let grace = if superseded {
+            SUPERSEDED_TICKS
+        } else {
+            ORPHAN_TICKS
+        };
+        if self.lonely >= grace {
+            return Some(Reap::Orphan);
+        }
+        None
+    }
+}
+
+/// `ptyhost-v3-dev.sock` → `Some((3, true))`. 규격 밖 이름은 `None`.
+fn parse_socket_name(name: &str) -> Option<(u32, bool)> {
+    let rest = name.strip_prefix("ptyhost-v")?.strip_suffix(".sock")?;
+    let (digits, dev) = match rest.strip_suffix("-dev") {
+        Some(d) => (d, true),
+        None => (rest, false),
+    };
+    Some((digits.parse().ok()?, dev))
+}
+
+/// 나보다 **높은 프로토콜**의 소켓이 같은 디렉터리에 있는가.
+///
+/// 있다면 그 버전의 앱이 이 기계에서 이미 떴다는 뜻이고, 내 이름을 부를 앱은
+/// 다시 없다 (소켓 이름이 곧 프로토콜이므로 — `client::socket_name`). 파일만
+/// 보고 판단한다: 남의 호스트에 접속해 보는 순간 그쪽의 "붙는 이" 수를
+/// 흔들어, 정작 그쪽이 고아일 때 못 알아보게 만든다.
+///
+/// dev 와 설치본은 서로를 세지 않는다 — 원래 남남이고, 나란히 도는 것이
+/// 정상이다. 이름 규격 밖(테스트의 `host.sock` 등)이면 판단하지 않는다.
+fn superseded_by_a_newer_socket(my_socket: &Path) -> bool {
+    let Some((mine, dev)) = my_socket
+        .file_name()
+        .and_then(|n| n.to_str())
+        .and_then(parse_socket_name)
+    else {
+        return false;
+    };
+    let Some(dir) = my_socket.parent() else {
+        return false;
+    };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    entries.flatten().any(|e| {
+        e.file_name()
+            .to_str()
+            .and_then(parse_socket_name)
+            .is_some_and(|(v, d)| d == dev && v > mine)
+    })
+}
+
 /// 이벤트 broadcast 버퍼. 소비가 느린 클라이언트는 lag 로 이벤트를 잃지만,
 /// 프런트는 attach 리플레이 + seq 중복 제거가 있어 스스로 복구한다.
 const EVENT_CHANNEL_CAP: usize = 4096;
@@ -191,6 +293,25 @@ fn shutdown_sessions(state: &Arc<HostState>) -> u32 {
         terminate_session(state.clone(), sid, session);
     }
     n
+}
+
+/// 자리를 비우고 세션을 끝낸다 — `Shutdown` 요청과 고아 자동 종료의 공통 절차.
+///
+/// ① 소켓 파일부터 지운다. 우리가 내려가는 걸 모르는 채 뒤이어 뜨는 호스트가
+///    있다면, 파일이 남아 있는 한 그쪽은 bind 에 실패하고 아직 살아 있는
+///    우리에게 접속이 되어 "이미 호스트가 있다"고 보고 조용히 물러난다 —
+///    그러면 잠시 뒤 아무도 없는 자리가 된다.
+/// ② 그 다음에 세션을 **실제로** 끝낸다 (맵만 비우면 고아가 남는다).
+fn vacate(state: &Arc<HostState>) -> u32 {
+    let socket = state
+        .socket
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .take();
+    if let Some(path) = socket {
+        let _ = std::fs::remove_file(&path);
+    }
+    shutdown_sessions(state)
 }
 
 /// `pending` 에서 디코딩 가능한 최장 prefix 를 뽑아 반환하고, 청크 경계에
@@ -518,24 +639,10 @@ fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
         }
         Request::Shutdown => {
             log_line(state, "shutdown requested");
-            // ① 자리부터 비운다. 이 요청을 보내는 쪽(프로토콜 불일치를 본 앱)은
-            //    응답을 받자마자 **교체 호스트를 띄운다** — 소켓 파일이 남아
-            //    있으면 그쪽은 bind 에 실패하고, 아직 살아 있는 우리에게 접속이
-            //    되어 "이미 호스트가 있다"고 보고 조용히 물러난다. 그러면 잠시
-            //    뒤 우리가 내려간 자리에 아무도 없다.
-            let socket = state
-                .socket
-                .lock()
-                .unwrap_or_else(|p| p.into_inner())
-                .take();
-            if let Some(path) = socket {
-                let _ = std::fs::remove_file(&path);
-            }
-            // ② 세션을 실제로 끝낸다 (맵만 비우면 고아가 남는다).
-            let n = shutdown_sessions(state);
+            let n = vacate(state);
             log_line(state, &format!("shutdown: {n} sessions terminated"));
-            // ③ 응답을 쓰고, 종료 유예가 끝날 때까지 기다렸다 내린다 — 우리가
-            //    먼저 죽으면 SIGKILL 을 보낼 스레드도 함께 사라진다.
+            // 응답을 쓰고, 종료 유예가 끝날 때까지 기다렸다 내린다 — 우리가
+            // 먼저 죽으면 SIGKILL 을 보낼 스레드도 함께 사라진다.
             tokio::spawn(async {
                 tokio::time::sleep(KILL_GRACE + std::time::Duration::from_millis(700)).await;
                 std::process::exit(0);
@@ -702,20 +809,41 @@ pub async fn serve(state: Arc<HostState>, socket: &Path) -> Result<(), String> {
     *state.socket.lock().unwrap_or_else(|p| p.into_inner()) = Some(socket.to_path_buf());
     log_line(&state, &format!("listening on {}", socket.display()));
 
-    // 유휴 감시 — 두 번 연속 비어 있으면 내린다.
+    // 유휴·고아 감시 — 빈 호스트는 두 틱, 버려진 호스트는 [`ORPHAN_TICKS`],
+    // 프로토콜이 갈려 확실히 고아가 된 호스트는 [`SUPERSEDED_TICKS`].
     let idle_state = state.clone();
+    let my_socket = socket.to_path_buf();
     tokio::spawn(async move {
-        let mut empty_ticks = 0u32;
+        let mut watchdog = Watchdog::default();
         let mut tick = tokio::time::interval(std::time::Duration::from_secs(IDLE_TICK_SECS));
         tick.tick().await; // 첫 tick 은 즉시 — 건너뛴다.
         loop {
             tick.tick().await;
-            let idle = idle_state.clients.load(Ordering::SeqCst) == 0
-                && idle_state.lock_sessions().is_empty();
-            empty_ticks = if idle { empty_ticks + 1 } else { 0 };
-            if empty_ticks >= 2 {
-                log_line(&idle_state, "idle — exiting");
-                std::process::exit(0);
+            let clients = idle_state.clients.load(Ordering::SeqCst);
+            let has_sessions = !idle_state.lock_sessions().is_empty();
+            let superseded = has_sessions && superseded_by_a_newer_socket(&my_socket);
+            match watchdog.tick(clients, has_sessions, superseded) {
+                None => continue,
+                Some(Reap::Idle) => {
+                    log_line(&idle_state, "idle — exiting");
+                    std::process::exit(0);
+                }
+                Some(Reap::Orphan) => {
+                    // 끝낼 세션이 있다 — 자리를 비우고, SIGKILL 스레드가 일을
+                    // 마칠 유예를 준 뒤에 내려간다.
+                    let why = if superseded {
+                        "superseded by a newer protocol"
+                    } else {
+                        "no client for a long time"
+                    };
+                    let n = vacate(&idle_state);
+                    log_line(
+                        &idle_state,
+                        &format!("orphaned ({why}) — exiting ({n} sessions)"),
+                    );
+                    tokio::time::sleep(KILL_GRACE + std::time::Duration::from_millis(700)).await;
+                    std::process::exit(0);
+                }
             }
         }
     });
@@ -752,6 +880,94 @@ pub fn run_host(socket: PathBuf) -> ! {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 붙어 있는 동안에는 무슨 일이 있어도 내려가지 않는다.
+    #[test]
+    fn a_host_with_a_client_is_never_reaped() {
+        let mut w = Watchdog::default();
+        for _ in 0..(ORPHAN_TICKS * 10) {
+            assert_eq!(w.tick(1, true, false), None);
+            assert_eq!(w.tick(1, false, false), None);
+        }
+    }
+
+    /// 빈 호스트(세션 0 · 클라이언트 0)는 두 틱이면 끝 — 종전 계약 그대로.
+    #[test]
+    fn an_empty_host_exits_after_two_ticks() {
+        let mut w = Watchdog::default();
+        assert_eq!(w.tick(0, false, false), None);
+        assert_eq!(w.tick(0, false, false), Some(Reap::Idle));
+    }
+
+    /// 세션을 쥔 고아는 [`ORPHAN_TICKS`] 에 내려간다 — 그 전에는 버틴다.
+    #[test]
+    fn an_orphan_holding_sessions_exits_after_the_grace() {
+        let mut w = Watchdog::default();
+        for _ in 0..(ORPHAN_TICKS - 1) {
+            assert_eq!(w.tick(0, true, false), None);
+        }
+        assert_eq!(w.tick(0, true, false), Some(Reap::Orphan));
+    }
+
+    /// 프로토콜이 갈려 확실히 고아가 됐으면 3시간을 기다리지 않는다.
+    #[test]
+    fn a_superseded_host_gives_up_quickly() {
+        let mut w = Watchdog::default();
+        assert_eq!(w.tick(0, true, true), None);
+        assert_eq!(w.tick(0, true, true), Some(Reap::Orphan));
+    }
+
+    #[test]
+    fn socket_names_carry_version_and_build() {
+        assert_eq!(parse_socket_name("ptyhost-v2.sock"), Some((2, false)));
+        assert_eq!(parse_socket_name("ptyhost-v13-dev.sock"), Some((13, true)));
+        // 규격 밖 — 판단 대상이 아니다.
+        assert_eq!(parse_socket_name("ptyhost.sock"), None);
+        assert_eq!(parse_socket_name("host.sock"), None);
+        assert_eq!(parse_socket_name("ptyhost-vx.sock"), None);
+    }
+
+    /// 같은 빌드 종류의 더 높은 프로토콜만 나를 밀어낸다 — dev 와 설치본은
+    /// 나란히 도는 것이 정상이라 서로를 세지 않는다.
+    #[test]
+    fn only_a_higher_protocol_of_the_same_build_supersedes() {
+        let dir = tempfile::tempdir().unwrap();
+        let touch = |name: &str| std::fs::write(dir.path().join(name), b"").unwrap();
+        touch("ptyhost-v2.sock");
+        touch("ptyhost-v3-dev.sock");
+        touch("ptyhost.sock");
+
+        // v3-dev 는 릴리스 v2 를 밀어내지 않는다.
+        assert!(!superseded_by_a_newer_socket(
+            &dir.path().join("ptyhost-v2.sock")
+        ));
+        // 같은 dev 계열에서는 더 높은 쪽이 밀어낸다.
+        assert!(superseded_by_a_newer_socket(
+            &dir.path().join("ptyhost-v2-dev.sock")
+        ));
+        // 이름 규격 밖이면 판단하지 않는다.
+        assert!(!superseded_by_a_newer_socket(&dir.path().join("host.sock")));
+
+        touch("ptyhost-v3.sock");
+        assert!(superseded_by_a_newer_socket(
+            &dir.path().join("ptyhost-v2.sock")
+        ));
+    }
+
+    /// 앱 재시작을 건너는 것이 호스트의 존재 이유다 — 붙는 이가 돌아오면
+    /// 유예는 처음부터 다시 센다.
+    #[test]
+    fn a_returning_client_resets_the_grace() {
+        let mut w = Watchdog::default();
+        for _ in 0..(ORPHAN_TICKS - 1) {
+            assert_eq!(w.tick(0, true, false), None);
+        }
+        assert_eq!(w.tick(1, true, false), None); // 앱이 다시 붙었다
+        for _ in 0..(ORPHAN_TICKS - 1) {
+            assert_eq!(w.tick(0, true, false), None);
+        }
+        assert_eq!(w.tick(0, true, false), Some(Reap::Orphan));
+    }
 
     #[cfg(unix)]
     fn pid_alive(pid: i32) -> bool {

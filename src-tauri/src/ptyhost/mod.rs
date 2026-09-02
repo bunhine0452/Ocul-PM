@@ -5,7 +5,8 @@
 //! **소유하는 별도 프로세스**만이 답이다.
 //!
 //! 모양: 같은 실행파일이 `--pty-host <socket>` 플래그로 GUI 없이 뜬다
-//! (`main.rs` 가 분기). 앱은 Unix 도메인 소켓(`<app_data>/ptyhost.sock`)으로
+//! (`main.rs` 가 분기). 앱은 Unix 도메인 소켓(`<app_data>/ptyhost-v{PROTO}.sock`
+//! — 디버그 빌드는 `-dev` 접미사, [`client::socket_name`])으로
 //! 붙어 세션을 부리고, 출력 이벤트를 받아 tauri 이벤트로 재방출한다. 앱이
 //! 재시작하면 소켓에 다시 붙어 attach — 프런트엔드는 원래부터 attach→(miss 면)
 //! start 흐름이라 **아무 변경 없이** 세션을 이어받는다.
