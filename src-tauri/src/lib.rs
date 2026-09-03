@@ -1041,6 +1041,14 @@ pub fn run() {
             }
 
             let app_data = app.path().app_data_dir()?;
+            // 남은 세션 심을 걷는다 (플랜 `session-shim-cli`). 앱이 막 떴으니
+            // 도는 세션은 하나도 없다 — 디스크에 남은 토큰은 전부 지난 실행이
+            // 정리 경로를 못 지나가고 죽은 흔적이고, 그대로 두면 다음 세션이
+            // 남의 신원을 주울 수 있다.
+            let swept = crate::oculpm::shim::sweep(&app_data, &[]);
+            if swept > 0 {
+                tracing::info!("남은 세션 심 {swept}개를 정리했습니다");
+            }
             let db_path = app_data.join("ocul-pm.db");
             let db =
                 tauri::async_runtime::block_on(Db::open(db_path)).expect("failed to open database");

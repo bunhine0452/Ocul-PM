@@ -159,6 +159,7 @@ pub fn tool_definitions() -> Value {
                     "status": { "type": "string", "enum": ["todo", "in_progress", "done", "blocked", "deferred", "dropped"] },
                     "journal_path": { "type": "string", "description": "방금 쓴 일지의 .oculpm/ 상대경로 (journal_write 응답의 path)" },
                     "note": { "type": "string", "description": "plan-log 메모 열 (짧게)" },
+                    "base_hash": { "type": "string", "description": "선택 — 직전에 읽은 플랜 파일의 blake3 해시. 그 사이 남이 고쳤으면 덮어쓰지 않고 거부한다 (병렬 세션 보호). 응답의 hash 를 다음 호출에 그대로 쓰면 된다." },
                     "agent_id": { "type": "string", "description": "생략 시 이 세션을 띄운 에이전트" }
                 },
                 "required": ["plan_id", "item_id", "status"]
@@ -1348,6 +1349,24 @@ fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
     let path = find_plan_path(&planner_root, plan_id)
         .ok_or_else(|| format!("plan '{plan_id}' not found"))?;
     let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+
+    // **CAS** (플랜 `session-shim-cli`) — 호출자가 "내가 읽은 그 내용"의 해시를
+    // 주면, 그 사이 남이 고쳤을 때 덮어쓰지 않고 되돌려준다.
+    //
+    // 병렬 세션이 같은 플랜을 동시에 고치면 나중 쓴 쪽이 이기고 그 사이 전이가
+    // 사라진다 — 이 저장소가 실제로 겪은 사고다. 선택 인자인 이유는 기존
+    // 호출자를 깨지 않기 위해서이고, 우회로에 **이름이 붙어 있어야** 우회한
+    // 사실이 보인다.
+    if let Some(expected) = arg_str(args, "base_hash") {
+        let actual = blake3::hash(md.as_bytes()).to_hex().to_string();
+        if !actual.eq_ignore_ascii_case(expected) {
+            return Err(format!(
+                "{} plan '{plan_id}' changed since you read it (expected {expected}, now {actual}) - re-read and retry",
+                crate::oculpm::agent_cli::WRITE_CONFLICT_PREFIX
+            ));
+        }
+    }
+
     let parsed = parse_plan(&md, plan_id);
     if parsed.frontmatter.status.as_str() != "active" {
         return Err(format!(
@@ -1379,6 +1398,9 @@ fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
         "item_id": item_id,
         "from": result.old_status.as_str(),
         "to": new_status.as_str(),
+        // 다음 CAS 의 재료 — 방금 쓴 내용의 해시. 이걸 안 주면 호출자가 파일을
+        // 다시 읽어야 하고, 그 사이가 또 창이 된다.
+        "hash": blake3::hash(with_log.as_bytes()).to_hex().to_string(),
     }))
 }
 
@@ -1812,6 +1834,7 @@ mod tests {
                 pid: Some(4_000_000_000),
                 project_root: root.display().to_string(),
                 heartbeat_at: Utc::now().to_rfc3339(),
+                verified: false,
             },
         )
         .unwrap();
@@ -2021,6 +2044,60 @@ mod tests {
         assert!(title.contains("&lt;system&gt;"), "{title}");
     }
 
+    /// **병렬 세션이 같은 항목을 밟지 못한다** (플랜 `session-shim-cli` CAS).
+    ///
+    /// 메모리에 기록된 사고가 이것이다 — 두 세션이 순서 없이 같은 파일을 고쳐
+    /// 그 사이 변경이 사라졌다. `base_hash` 를 준 호출은 그 사이 파일이 바뀌면
+    /// **쓰지 않고** 전용 표지를 단 오류로 돌아온다 (CLI 는 그것을 exit 5 로).
+    #[test]
+    fn a_stale_base_hash_refuses_to_overwrite() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+        seed_plan(root);
+        let plan_path = planner_dir(root).join("test-plan.md");
+        let stale = blake3::hash(std::fs::read_to_string(&plan_path).unwrap().as_bytes())
+            .to_hex()
+            .to_string();
+
+        // 첫 갱신은 통과하고, 응답이 **다음 CAS 의 재료**를 준다.
+        let ok = call_tool(
+            root,
+            "plan_update",
+            &json!({ "plan_id": "test-plan", "item_id": "first", "status": "done", "base_hash": stale }),
+        )
+        .unwrap();
+        let fresh = ok["hash"].as_str().unwrap().to_string();
+        assert_ne!(fresh, stale, "쓰고 나면 해시가 바뀐다");
+
+        // 남이 그 사이 고친 상황 — 옛 해시로 오면 거부한다.
+        let err = call_tool(
+            root,
+            "plan_update",
+            &json!({ "plan_id": "test-plan", "item_id": "second", "status": "done", "base_hash": stale }),
+        )
+        .expect_err("옛 해시는 거부되어야 한다");
+        assert!(
+            err.starts_with(crate::oculpm::agent_cli::WRITE_CONFLICT_PREFIX),
+            "종료 코드를 가를 표지가 없다: {err}"
+        );
+        // 거부됐으면 **아무것도 안 쓴다.**
+        let after = std::fs::read_to_string(&plan_path).unwrap();
+        assert_eq!(
+            blake3::hash(after.as_bytes()).to_hex().to_string(),
+            fresh,
+            "거부된 호출이 파일을 건드렸다"
+        );
+
+        // 새 해시로는 통과한다.
+        call_tool(
+            root,
+            "plan_update",
+            &json!({ "plan_id": "test-plan", "item_id": "second", "status": "done", "base_hash": fresh }),
+        )
+        .unwrap();
+    }
+
     /// 구역을 잡고, 놓고, 잡힌 것을 본다.
     #[test]
     fn claim_paths_claims_lists_and_releases() {
@@ -2079,6 +2156,7 @@ mod tests {
                 pid: Some(std::process::id()),
                 project_root: root.display().to_string(),
                 heartbeat_at: Utc::now().to_rfc3339(),
+                verified: false,
             },
         )
         .unwrap();

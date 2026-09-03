@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: evidence-based-rules
 title: "규율을 근거로 강제한다 — 크기 래칫 + 일지에서 캔 규칙"
-status: active
+status: done
 created: 2026-09-03
 updated: 2026-09-03
 owner: claude-code

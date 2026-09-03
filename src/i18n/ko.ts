@@ -59,6 +59,8 @@ export const ko = {
   "a2a.trespassBy": "{actor} 가 고쳤지만 {holder} 가 쥐고 있는 자리",
   "a2a.unknownLiveness": "판정 불가",
   "a2a.unknownLivenessHint": "살아 있는지 확인할 수 없어요 — 없다는 뜻이 아닙니다",
+  "a2a.selfClaimed": "자칭",
+  "a2a.selfClaimedHint": "앱이 띄운 세션이 아니라 이름을 스스로 밝힌 참여자입니다 — 막지는 않고 보이게만 합니다",
   "a2a.integrity": "원장 무결성",
   "a2a.integrityBrokenAt": "{line}번째 줄",
   "a2a.integrityContentChanged": "내용이 고쳐졌어요",

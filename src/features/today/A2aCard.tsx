@@ -172,6 +172,7 @@ export function A2aCard({ projectId }: { projectId: number }) {
                     <>
                       <span className="a2a-sub">{t(`a2a.surface.${seat.card.surface}`)}</span>
                       <UnknownBadge liveness={seat.liveness} />
+                      <SelfClaimedBadge verified={seat.card.verified ?? false} />
                     </>
                   ) : null}
                   {group.members.length > 2 ? (
@@ -214,6 +215,7 @@ export function A2aCard({ projectId }: { projectId: number }) {
                   <span className="a2a-sub">{t(`a2a.surface.${card.surface}`)}</span>
                   <span className="a2a-sub a2a-dim">{card.name}</span>
                   <UnknownBadge liveness={liveness} />
+                  <SelfClaimedBadge verified={card.verified ?? false} />
                 </label>
               </li>
             ))}
@@ -338,6 +340,26 @@ function UnknownBadge({ liveness }: { liveness: Liveness }) {
   return (
     <span className="a2a-sub a2a-dim" title={t("a2a.unknownLivenessHint")}>
       {t("a2a.unknownLiveness")}
+    </span>
+  );
+}
+
+/**
+ * **이 이름을 우리가 준 것인가** (플랜 `session-shim-cli`).
+ *
+ * 앱이 띄운 세션은 심 토큰으로 자기를 증명한다. 앱 밖에서 등록한 세션은 이름이
+ * 자칭이다 — 참여를 막지 않는다(앱 밖 세션도 같은 원장에 있어야 한다). 대신
+ * **보이게** 한다. 침범 경고와 같은 철학이다: 막지 않고 보이게.
+ *
+ * 조용한 표기인 이유는 이것이 대부분의 터미널 세션의 정상 상태이기 때문이다 —
+ * 경고가 아니라 사실 한 줄이다.
+ */
+function SelfClaimedBadge({ verified }: { verified: boolean }) {
+  const { t } = useT();
+  if (verified) return null;
+  return (
+    <span className="a2a-sub a2a-dim" title={t("a2a.selfClaimedHint")}>
+      {t("a2a.selfClaimed")}
     </span>
   );
 }

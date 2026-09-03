@@ -63,6 +63,8 @@ export const en: Record<keyof typeof ko, string> = {
   "a2a.trespassBy": "{actor} edited it, but {holder} holds it",
   "a2a.unknownLiveness": "Can't tell",
   "a2a.unknownLivenessHint": "We can't confirm this session is alive — that isn't the same as gone",
+  "a2a.selfClaimed": "self-claimed",
+  "a2a.selfClaimedHint": "This session named itself; the app did not start it — shown, not blocked",
   "a2a.integrity": "Ledger integrity",
   "a2a.integrityBrokenAt": "line {line}",
   "a2a.integrityContentChanged": "the line was edited",

@@ -394,6 +394,7 @@ mod tests {
                 project_root: root.display().to_string(),
                 // 파싱되지 않는 시각 — 남은 근거가 없다.
                 heartbeat_at: "언제인지 모를 시각".to_string(),
+                verified: false,
             },
         )
         .unwrap();
@@ -513,6 +514,7 @@ mod tests {
             pid: Some(4_000_000_000),
             project_root: root.display().to_string(),
             heartbeat_at: now.to_rfc3339(),
+            verified: false,
         };
         registry::register(root, &ghost).unwrap();
         claim(

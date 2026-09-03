@@ -305,6 +305,7 @@ mod tests {
                 pid: Some(std::process::id()),
                 project_root: root.display().to_string(),
                 heartbeat_at: Utc::now().to_rfc3339(),
+                verified: false,
             },
         )
         .unwrap();

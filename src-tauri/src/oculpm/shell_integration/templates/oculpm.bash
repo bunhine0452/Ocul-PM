@@ -1,4 +1,4 @@
-# shell_version: 1
+# shell_version: 2
 # ocul-pm 셸 통합 (bash) — zsh 판(oculpm.zsh)의 bash 대응.
 #
 # bash 에는 preexec 훅이 없어 `trap ... DEBUG` 로 대신한다. 기존 DEBUG trap 이나
@@ -14,6 +14,16 @@ case "$TERM" in
   screen*|tmux*|dumb|linux) return 0 ;;
 esac
 [ -n "$TMUX" ] && return 0
+
+# 세션 심 (플랜 `session-shim-cli`) — 우리가 만든 PATH 를 강요하지 않고, **사용자
+# rc 가 끝난 뒤** 심 디렉터리만 앞에 붙인다. 앱 프로세스의 빈약한 PATH 를
+# 통째로 물려주면 brew·nvm 이 사라진다.
+if [ -n "$OCULPM_SHIM_DIR" ] && [ -d "$OCULPM_SHIM_DIR" ]; then
+  case ":$PATH:" in
+    *":$OCULPM_SHIM_DIR:"*) ;;
+    *) PATH="$OCULPM_SHIM_DIR:$PATH"; export PATH ;;
+  esac
+fi
 
 __oculpm_nonce="${OCULPM_NONCE:-}"
 

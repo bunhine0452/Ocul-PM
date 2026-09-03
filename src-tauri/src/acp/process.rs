@@ -29,6 +29,7 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 use tauri::Manager;
 
+use super::identity;
 use super::session::{
     commands_of, config_of, emit_session_changed, failure_of, file_change_report_of, map_update,
     mode_of, permission_event, title_of, usage_of, AcpCommand, AcpConfigOption, AcpEvent,
@@ -683,11 +684,26 @@ pub async fn start(
     let gone_root = project_root.to_path_buf();
     let notify_root = project_root.to_path_buf();
 
-    let config = AcpAgentConfig::new(node)
+    // 세션 심 (플랜 `session-shim-cli`) — 어댑터 너머의 CLI 가 `oculpm` 을 손에
+    // 쥔다. 터미널과 달리 여기서는 **PATH 를 우리가 만든다** (이미 로그인 셸에서
+    // 받아 온 것이라 사용자 PATH 를 잃지 않는다) 그리고 provider 를 알기 때문에
+    // 토큰에 `agent_id` 까지 적는다 — 이 세션의 기록은 자칭이 아니다.
+    let shim = identity::install_session_shim(&app, target_id, provider, project_root);
+    let path_env = match &shim {
+        Some(shim) => shim.prepend_path(path_env),
+        None => path_env.to_string(),
+    };
+
+    let mut config = AcpAgentConfig::new(node)
         .arg(entry.to_string_lossy().to_string())
         // 어댑터는 내부에서 `claude` 바이너리를 다시 찾는다 — 우리가 해석한
         // PATH 를 물려주지 않으면 패키징된 앱에서만 조용히 실패한다.
-        .env("PATH", path_env);
+        .env("PATH", &path_env);
+    if let Some(shim) = &shim {
+        for (key, value) in shim.env_pairs() {
+            config = config.env(key, value);
+        }
+    }
     // 어댑터의 stderr 를 앱 로그로 옮긴다.
     //
     // 지금까지 이걸 안 보고 있었다. 어댑터 너머의 CLI 가 화면에 찍는 것 중
@@ -898,7 +914,7 @@ pub async fn start(
                     supports_image: init.agent_capabilities.prompt_capabilities.image,
                 };
 
-                publish_card(&card_root, provider, &info);
+                identity::publish_card(&card_root, provider, &info);
                 register_app.state::<AcpState>().insert(
                     target_id,
                     Running {
@@ -931,7 +947,7 @@ pub async fn start(
         let state = task_app.state::<AcpState>();
         if state.remove_if(target_id, epoch) {
             tracing::info!(target_id, epoch, "ACP 어댑터 연결 종료");
-            withdraw_card(&gone_root, provider);
+            identity::withdraw_card(&gone_root, provider);
             emit_session_changed(
                 &task_app,
                 project_id,
@@ -1004,40 +1020,6 @@ fn warn_on_trespass(
     }
 }
 
-/// 이 어댑터를 프로젝트의 **참여자 목록**에 올린다 (A2A Phase 1 · `oculpm::a2a`).
-///
-/// pid 로 **앱의 것**을 적는다. 어댑터는 우리 자식이라 앱이 죽으면 함께 죽고,
-/// 그러면 아래 teardown 이 못 돌더라도 pid 판정이 이 카드를 저절로 죽은 것으로
-/// 만든다 — 유령 참여자에게 작업을 넘기는 사고(마스터플랜 R2)가 구조적으로 막힌다.
-///
-/// 실패는 삼킨다. 참여자 목록은 곁들이는 기능이고, 그것 때문에 에이전트가 안 뜨면
-/// 주객이 뒤바뀐다.
-fn publish_card(project_root: &Path, provider: AcpProvider, info: &AcpAgentInfo) {
-    use crate::oculpm::a2a::registry::{self, AgentCard, AgentSurface};
-
-    let card = AgentCard {
-        agent_id: format!("{}-app", provider.agent_id()),
-        name: info.name.clone(),
-        description: info.title.clone(),
-        version: info.version.clone(),
-        skills: Vec::new(),
-        provider: provider.agent_id().to_string(),
-        surface: AgentSurface::App,
-        session_id: None,
-        pid: Some(std::process::id()),
-        project_root: project_root.display().to_string(),
-        heartbeat_at: chrono::Utc::now().to_rfc3339(),
-    };
-    if let Err(e) = registry::register(project_root, &card) {
-        tracing::debug!(error = %e, "A2A 참여자 등록 실패 (무시)");
-    }
-}
-
-/// 연결이 끝났으니 목록에서 내린다. 실패해도 pid 판정이 뒤를 봐준다.
-fn withdraw_card(project_root: &Path, provider: AcpProvider) {
-    crate::oculpm::a2a::registry::unregister(project_root, &format!("{}-app", provider.agent_id()));
-}
-
 /// 어댑터를 내린다. 떠 있지 않았으면 `false`.
 pub fn stop(app: &tauri::AppHandle, target_id: u64) -> bool {
     // Running 을 드롭하면 stop sender 가 함께 떨어져 클로저가 풀리고,
@@ -1045,6 +1027,11 @@ pub fn stop(app: &tauri::AppHandle, target_id: u64) -> bool {
     let state = app.state::<AcpState>();
     state.clear_sinks(target_id);
     state.cancel_pending_permissions(target_id, None);
+    // 세션 심도 함께 (플랜 `session-shim-cli`) — 남은 토큰은 다음 세션이 주울
+    // 수 있는 신원이다.
+    if let Ok(dir) = app.path().app_data_dir() {
+        crate::oculpm::shim::remove(&dir, &format!("acp-{target_id}"));
+    }
     state.remove(target_id)
 }
 

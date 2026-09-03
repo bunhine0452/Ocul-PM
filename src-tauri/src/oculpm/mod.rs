@@ -9,6 +9,7 @@
 //! `schema_version`.
 
 pub mod a2a;
+pub mod agent_cli;
 pub mod agent_surface;
 pub mod agents;
 pub mod atomic_io;
@@ -48,6 +49,7 @@ pub mod rules;
 pub mod session;
 pub mod session_id;
 pub mod shell_integration;
+pub mod shim;
 pub mod skill_dormancy;
 pub mod skill_promotion;
 pub mod skill_trigger;

@@ -10,6 +10,7 @@
 //! 셸·환경·nonce 계산은 여전히 **앱이** 한다 — 통합 스크립트 실체화가 앱
 //! 데이터 경로(tauri 핸들)를 필요로 하기 때문이고, 호스트는 받은 대로 띄운다.
 
+use std::path::Path;
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -17,6 +18,7 @@ use tauri::{Emitter, Manager, State};
 use uuid::Uuid;
 
 use crate::oculpm::shell_integration;
+use crate::oculpm::shim;
 use crate::ptyhost::client::{connect_or_spawn, socket_candidates, PtyHostClient};
 use crate::ptyhost::protocol::{Event, Request, Response};
 
@@ -236,6 +238,17 @@ pub async fn start_pty_session(
         env.push(("OCULPM_SHELL_INTEGRATION".into(), path.to_string()));
     }
 
+    // 세션 심 (플랜 `session-shim-cli`) — 이 셸 안에서 도는 에이전트가
+    // `oculpm journal write` 를 칠 수 있게 한다. **PATH 는 여기서 안 건드린다**:
+    // 앱의 빈약한 PATH 를 강요하면 brew·nvm 이 사라지므로, 셸 통합 스크립트가
+    // 사용자 rc 가 끝난 뒤 `OCULPM_SHIM_DIR` 만 앞에 붙인다.
+    //
+    // 토큰에 `agent_id` 는 **안 적는다** — 셸을 띄우는 시점에는 그 안에서
+    // 무엇이 돌지 모른다 (shim 모듈 문서).
+    if let Some(shim) = install_session_shim(&app, &session_id, &cwd) {
+        env.extend(shim.env_pairs());
+    }
+
     let client = state
         .client(&app, true)
         .await?
@@ -270,6 +283,25 @@ pub async fn start_pty_session(
 /// 지원하지 않는 셸(fish·nu·pwsh)·앱 데이터 접근 실패·쓰기 실패는 전부 `None`
 /// 으로 삼킨다. 셸 통합은 부가 기능이고, 여기서 에러를 올리면 터미널 자체가
 /// 안 뜬다.
+/// 이 터미널 세션의 심을 깐다. 실패는 전부 삼킨다 — 심이 없어서 기록 한 줄이
+/// 불편해지는 것보다 터미널이 안 뜨는 쪽이 훨씬 나쁘다 (셸 통합과 같은 규율).
+fn install_session_shim(
+    app: &tauri::AppHandle,
+    session_id: &str,
+    cwd: &str,
+) -> Option<shim::SessionShim> {
+    let dir = app.path().app_data_dir().ok()?;
+    let root = shim::tracked_root(Path::new(cwd))?;
+    let token = shim::SessionToken {
+        project_root: root.display().to_string(),
+        agent_id: None,
+        session_id: None,
+    };
+    shim::install(&dir, session_id, &token)
+        .inspect_err(|e| tracing::warn!("세션 심 설치 실패 — {e}"))
+        .ok()
+}
+
 fn materialize_integration_script(app: &tauri::AppHandle, shell: &str) -> Option<String> {
     let kind = shell_integration::detect_shell_kind(shell);
     let dir = app
@@ -426,6 +458,11 @@ pub async fn kill_pty_session(
     state: State<'_, PtyState>,
     session_id: String,
 ) -> Result<(), String> {
+    // 심을 먼저 걷는다 — 토큰 파일이 남으면 다음 세션이 남의 신원을 주울 수
+    // 있다. 호스트가 이미 죽어 있어도(아래 조기 반환) 이 줄은 지나간다.
+    if let Ok(dir) = app.path().app_data_dir() {
+        shim::remove(&dir, &session_id);
+    }
     let Some(client) = state.client(&app, false).await? else {
         return Ok(());
     };

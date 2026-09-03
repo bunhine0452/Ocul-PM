@@ -19,6 +19,15 @@ fn main() {
         if a == "config" {
             ocul_pm_lib::config::cli::run(args.collect());
         }
+        // 에이전트 CLI (플랜 `session-shim-cli`) — 심 디렉터리가 이 실행 파일로
+        // 건 `oculpm` 심링크가 여기로 들어온다. **도구 이름과 정확히 일치**할
+        // 때만 갈라진다 (macOS 가 붙이는 `-psn_…` 으로 앱이 헤드리스로 뜨면
+        // 사용자는 아이콘을 눌렀는데 아무것도 안 뜨는 것을 본다).
+        if ocul_pm_lib::oculpm::agent_cli::is_cli_verb(&a) {
+            let mut argv = vec![a];
+            argv.extend(args);
+            ocul_pm_lib::oculpm::agent_cli::run(argv);
+        }
     }
     ocul_pm_lib::run()
 }

@@ -120,7 +120,15 @@ pub(super) fn definitions() -> Value {
 pub(super) fn agent_register(root: &Path, args: &Value) -> Result<Value, String> {
     use crate::oculpm::a2a::registry::{self, AgentCard, AgentSurface};
 
-    let provider = arg_str(args, "provider").unwrap_or("claude-code");
+    // 토큰이 있으면 **토큰이 이긴다** (플랜 `session-shim-cli`). 인자로 온
+    // provider 는 에이전트가 프롬프트에서 자칭하는 값이고, 토큰은 우리가 그
+    // 세션을 띄우며 적어 준 값이다.
+    let token = crate::oculpm::shim::resolve_token(std::env::args().next().as_deref());
+    let claimed = arg_str(args, "provider").unwrap_or("claude-code");
+    let provider = token
+        .as_ref()
+        .and_then(|t| t.agent_id.as_deref())
+        .unwrap_or(claimed);
     if !registry::is_valid_agent_id(provider) {
         return Err(format!(
             "provider '{provider}' contains disallowed characters (a-z, 0-9, -, _ 만)"
@@ -149,6 +157,9 @@ pub(super) fn agent_register(root: &Path, args: &Value) -> Result<Value, String>
         pid: Some(pid),
         project_root: root.display().to_string(),
         heartbeat_at: Utc::now().to_rfc3339(),
+        // 토큰이 이름까지 알려 준 경우에만 검증된 것이다. 세션만 아는 토큰
+        // (터미널)은 이름이 여전히 자칭이므로 올리지 않는다.
+        verified: token.as_ref().is_some_and(|t| t.agent_id.is_some()),
     };
     registry::register(root, &card).map_err(|e| e.to_string())?;
     remember_me(root, &card.agent_id);
@@ -443,6 +454,7 @@ fn live_briefs(root: &Path) -> Vec<Value> {
                 "version": card.version,
                 "session_id": card.session_id,
                 "heartbeat_at": card.heartbeat_at,
+                "verified": card.verified,
             })
         })
         .collect()

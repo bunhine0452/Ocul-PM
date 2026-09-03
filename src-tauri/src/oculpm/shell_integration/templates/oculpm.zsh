@@ -1,4 +1,4 @@
-# shell_version: 1
+# shell_version: 2
 # ocul-pm 셸 통합 (zsh) — 명령 경계·종료코드·작업 디렉터리를 앱에 알린다.
 #
 # 이 파일은 ocul-pm 이 생성·관리한다. 직접 고치면 다음 업그레이드에서 덮인다.
@@ -49,7 +49,17 @@ __oculpm_esc() {
 # 위조 방지 nonce. PTY 를 띄울 때 앱이 심고, 앱은 이 값이 맞는 신호만 믿는다.
 # 터미널로 흘러드는 임의 바이트(예: `cat evil.txt`)가 가짜 명령 경계나 가짜
 # cwd 를 주입하는 것을 막는다 — VS Code 가 OSC 633;E 에 nonce 를 넣는 이유와 같다.
-typeset -g __oculpm_nonce="${OCULPM_NONCE:-}"
+typeset -g # 세션 심 (플랜 `session-shim-cli`) — 우리가 만든 PATH 를 강요하지 않고, **사용자
+# rc 가 끝난 뒤** 심 디렉터리만 앞에 붙인다. 앱 프로세스의 빈약한 PATH 를
+# 통째로 물려주면 brew·nvm 이 사라진다.
+if [ -n "$OCULPM_SHIM_DIR" ] && [ -d "$OCULPM_SHIM_DIR" ]; then
+  case ":$PATH:" in
+    *":$OCULPM_SHIM_DIR:"*) ;;
+    *) PATH="$OCULPM_SHIM_DIR:$PATH"; export PATH ;;
+  esac
+fi
+
+__oculpm_nonce="${OCULPM_NONCE:-}"
 
 # 프롬프트 직전: 직전 명령의 종료코드를 보고하고 새 프롬프트를 연다.
 __oculpm_precmd() {

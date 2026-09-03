@@ -44,12 +44,18 @@ function card(id: string, name: string) {
     pid: 1,
     project_root: "/p",
     heartbeat_at: new Date().toISOString(),
+    verified: true,
   };
 }
 
 /** 참여자 한 자리 — 카드와 판정을 함께 준다 (플랜 `ledger-and-liveness-honesty`). */
-function seat(id: string, name: string, liveness: "live" | "unknown" = "live") {
-  return { card: card(id, name), liveness };
+function seat(
+  id: string,
+  name: string,
+  liveness: "live" | "unknown" = "live",
+  verified = true,
+) {
+  return { card: { ...card(id, name), verified }, liveness };
 }
 
 function task(id: string, state: string) {
@@ -249,6 +255,23 @@ describe("A2A 협업 카드", () => {
     expect(screen.getByText("판정 불가")).toBeTruthy();
     // 확실히 살아 있는 쪽에는 배지가 붙지 않는다.
     expect(screen.getAllByText("판정 불가")).toHaveLength(1);
+  });
+
+  it("앱이 띄우지 않은 세션은 이름이 **자칭**이라고 말한다", async () => {
+    overview.mockResolvedValue({
+      participants: [
+        seat("claude-code-app", "Claude Code"),
+        seat("codex-term-42", "Codex", "live", false),
+      ],
+      integrity: [],
+      groups: [],
+      leases: [],
+      open_tasks: [],
+    });
+    render(<A2aCard projectId={1} />);
+    expect(await screen.findByText("Codex")).toBeTruthy();
+    // 막지 않는다 — 목록에 그대로 있고, 사실 한 줄이 붙을 뿐이다.
+    expect(screen.getAllByText("자칭")).toHaveLength(1);
   });
 
   it("손을 탄 원장은 줄 번호와 이유를 말하고, 옛 원장은 세기만 한다", async () => {

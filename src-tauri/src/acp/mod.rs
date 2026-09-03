@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod adapter;
 pub mod env;
+pub mod identity;
 pub mod process;
 pub mod session;
 

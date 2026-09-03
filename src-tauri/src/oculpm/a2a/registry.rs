@@ -89,6 +89,14 @@ pub struct AgentCard {
     pub project_root: String,
     /// 마지막으로 살아 있다고 말한 시각 (RFC3339).
     pub heartbeat_at: String,
+    /// **이 신원을 우리가 준 것인가** (플랜 `session-shim-cli`).
+    ///
+    /// 앱이 띄운 세션은 심 디렉터리의 토큰으로 자기를 증명한다. 토큰 없이
+    /// 등록한 세션은 이름이 **자칭**이다 — 막지는 않고(앱 밖 세션도 참여해야
+    /// 한다) 화면이 그 차이를 말한다. 옛 카드에는 이 필드가 없으므로 기본은
+    /// `false`: 모르는 것을 검증됨으로 올리지 않는다.
+    #[serde(default)]
+    pub verified: bool,
 }
 
 impl AgentCard {
@@ -298,6 +306,7 @@ mod tests {
             pid,
             project_root: "/tmp/p".to_string(),
             heartbeat_at: beat.to_rfc3339(),
+            verified: false,
         }
     }
 
