@@ -23,15 +23,11 @@ import type {
   RuleEntry,
   RuleScope,
   AgentSurfaceOverview,
-  NegationFinding,
-  SkillDormancySignal,
-  RuleScopeFinding,
-
   RulesOverview,
   SkillScope,
   SkillsOverview,
 } from "@/lib/bindings";
-import { rulesApi, skillsApi, stackApi } from "@/api/claudeSurface";
+import { rulesApi, skillsApi } from "@/api/claudeSurface";
 import { toAppError } from "@/api/invoke";
 import { toast } from "@/lib/toast";
 import { oculpmApi } from "@/api/oculpm";
@@ -49,6 +45,7 @@ import { ClaudeHooksBlock } from "@/features/settings/OculpmSettings";
 import { isValidSkillName, parseKeywords, skillTemplate } from "./skillsModel";
 import { claudeMdTemplate, isValidRuleName, ruleTemplate } from "./rulesModel";
 import { useFiringLedger } from "./useFiringLedger";
+import { useContextAudits } from "./useContextAudits";
 import {
   buildContextItems,
   cleanupProposals,
@@ -56,6 +53,7 @@ import {
   indexFindings,
   dormantSkills,
   indexDormancySignals,
+  indexEvidence,
   indexNegations,
   irrelevantBytesPerSession,
   kb,
@@ -103,17 +101,10 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
   const [extra, setExtra] = useState<Extra>(null);
   const [busy, setBusy] = useState(false);
 
-  // AD-5/AD-6 — 자기정리 루프의 재료. 둘 다 **보조 신호**라, 실패해도 화면은
-  // 그대로 동작한다 (원장과 같은 규율): 제안이 안 뜰 뿐이다.
-  const [findings, setFindings] = useState<RuleScopeFinding[]>([]);
-  /** 감사가 센 프로젝트 파일 수 — glob 배지의 분모. */
-  const [totalFiles, setTotalFiles] = useState(0);
-  /** context-budget-truth C — 실려 놓고 부정되는 규칙. */
-  const [negations, setNegations] = useState<NegationFinding[]>([]);
-  /** context-budget-truth D — 「0회」의 이유 신호. */
-  const [dormancy, setDormancy] = useState<SkillDormancySignal[]>([]);
-  const [auditing, setAuditing] = useState(false);
-  const [stackTags, setStackTags] = useState<string[]>([]);
+  // AD-5/AD-6 · context-budget-truth · evidence-based-rules — 보조 신호 한 벌.
+  // 넷 다 실패해도 화면은 그대로 돈다 (제안·배지가 안 뜰 뿐).
+  const { findings, totalFiles, negations, evidence, dormancy, stackTags, auditing, rerunScopeAudit } =
+    useContextAudits(projectId);
 
   const [skillDialog, setSkillDialog] = useState<SkillSeed | null>(null);
   const [ruleDialog, setRuleDialog] = useState<RuleSeed | null>(null);
@@ -150,61 +141,6 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
     setDetail(null);
     void loadAll();
   }, [loadAll]);
-
-  const runAudit = useCallback(async () => {
-    setAuditing(true);
-    try {
-      const next = await rulesApi.scopeAudit(projectId);
-      // 형태가 어긋난 응답(커맨드 부재·구버전)은 "감사 결과 없음" 으로 접는다 —
-      // 보조 신호가 화면 전체를 죽이면 안 된다.
-      setFindings(Array.isArray(next?.findings) ? next.findings : []);
-      setTotalFiles(typeof next?.total_files === "number" ? next.total_files : 0);
-    } catch {
-      setFindings([]);
-      setTotalFiles(0);
-    } finally {
-      setAuditing(false);
-    }
-  }, [projectId]);
-
-  const runNegationAudit = useCallback(async () => {
-    try {
-      const next = await rulesApi.negationAudit(projectId);
-      setNegations(Array.isArray(next) ? next : []);
-    } catch {
-      setNegations([]);
-    }
-  }, [projectId]);
-
-  const runDormancyScan = useCallback(async () => {
-    try {
-      const next = await skillsApi.dormancySignals(projectId);
-      setDormancy(Array.isArray(next) ? next : []);
-    } catch {
-      setDormancy([]);
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    let alive = true;
-    setFindings([]);
-    setTotalFiles(0);
-    setNegations([]);
-    setDormancy([]);
-    setStackTags([]);
-    void runNegationAudit();
-    void runDormancyScan();
-    void stackApi
-      .detect(projectId)
-      .catch(() => [] as string[])
-      .then((tags) => {
-        if (alive) setStackTags(Array.isArray(tags) ? tags : []);
-      });
-    void runAudit();
-    return () => {
-      alive = false;
-    };
-  }, [projectId, runAudit, runNegationAudit, runDormancyScan]);
 
   // 규칙 파일이 디스크에서 바뀌면(에이전트가 `.claude/rules/*.md` 를 고침) 다시 읽는다.
   useOculpmDataEvents("rules", projectId, true, () => void loadRules().catch(() => {}));
@@ -247,6 +183,8 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
     () => scopeProposals(items, stackTags, firing.overview?.sessions ?? 0, firing.measured),
     [items, stackTags, firing.overview, firing.measured],
   );
+  /** 규칙 id → 그 규칙이 막고 있다고 볼 수 있는 반복 결함 (근거가 붙은 것만). */
+  const evidenceIndex = useMemo(() => indexEvidence(evidence), [evidence]);
   const cleanup = useMemo(
     () =>
       cleanupProposals(items, indexFindings(findings), firing.measured, indexNegations(negations)),
@@ -416,6 +354,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
           <div className="page ctx-page">
             <ContextBudgetBar
               budget={budget}
+              evidence={evidenceIndex}
               scanning={firing.scanning}
               partial={firing.partial}
               auditing={auditing}
@@ -425,6 +364,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
             />
             <ContextLiveList
               items={items}
+              evidence={evidenceIndex}
               measured={firing.measured}
               days={firing.days}
               findings={findings}
@@ -450,7 +390,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
                 days={firing.days}
                 onChanged={() => {
                   void loadAll();
-                  void runAudit();
+                  rerunScopeAudit();
                 }}
                 onCreateSkill={() => setSkillDialog({})}
                 onCreateRule={() => setRuleDialog({})}

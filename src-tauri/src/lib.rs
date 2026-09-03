@@ -443,9 +443,10 @@ use crate::commands::{
     rule_candidates,
     rule_draft_generate,
     rules_delete,
+    // AD-6 — 규칙 다이어트 (결정적 범위 감사 + 승인형 백업 저장)
+    rules_evidence,
     // PR-CI3 — 규칙 허브 (CLAUDE.md·.claude/rules CRUD + Cursor 미러 번역)
     rules_list,
-    // AD-6 — 규칙 다이어트 (결정적 범위 감사 + 승인형 백업 저장)
     rules_negation_audit,
     rules_read,
     rules_save,
@@ -831,6 +832,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             rules_save_with_backup,
             // context-budget-truth C — 실려 놓고 부정되는 규칙
             rules_negation_audit,
+            // evidence-based-rules — 규칙이 막고 있는 반복 결함 (일지 채굴)
+            rules_evidence,
             // PR-CI4 — 실패→규칙 승격
             rule_candidates,
             rule_draft_generate,

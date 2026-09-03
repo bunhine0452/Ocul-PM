@@ -21,6 +21,7 @@ import {
   type ContextItem,
   type ContextKind,
   type GlobReach,
+  type RuleEvidenceSummary,
 } from "./contextModel";
 
 type Filter = ContextKind | "all";
@@ -38,6 +39,13 @@ interface ContextLiveListProps {
   items: ContextItem[];
   /** AD-6 범위 감사 결과 — glob 이 실제로 무는 파일 수의 출처. */
   findings: RuleScopeFinding[];
+  /**
+   * evidence-based-rules — 규칙 id → 그 규칙이 막고 있다고 볼 수 있는 반복 결함.
+   *
+   * 근거가 **붙은** 규칙만 들어 있다. 안 붙은 규칙에는 배지를 달지 않는다 —
+   * 연결이 휴리스틱이라 침묵이 "쓸모없다"의 근거가 되지 못한다.
+   */
+  evidence: Map<string, RuleEvidenceSummary>;
   /** 감사가 센 프로젝트 파일 수 (0 = 감사 전). */
   totalFiles: number;
   /** 원장이 한 번이라도 스캔됐는가 — false 면 휴면 강등을 하지 않는다. */
@@ -59,6 +67,7 @@ interface ContextLiveListProps {
 export function ContextLiveList({
   items,
   findings,
+  evidence,
   totalFiles,
   measured,
   days,
@@ -124,6 +133,7 @@ export function ContextLiveList({
               key={item.id}
               item={item}
               reach={reachOf(item)}
+              evidence={evidence.get(item.id) ?? null}
               measured={measured}
               days={days}
               onOpen={onOpen}
@@ -169,6 +179,7 @@ export function ContextLiveList({
               key={item.id}
               item={item}
               reach={reachOf(item)}
+              evidence={evidence.get(item.id) ?? null}
               measured={measured}
               days={days}
               onOpen={onOpen}
@@ -209,6 +220,26 @@ export function ContextLiveList({
  * 한 줄만 고쳐도 통째로 딸려온다는 사실이 배지에 전혀 없었다 — 감사는 이미
  * 답을 갖고 있었는데 화면이 안 물었다.
  */
+/**
+ * 이 규칙이 **무엇을 막고 있나** (플랜 `evidence-based-rules`).
+ *
+ * 근거가 없으면 **아무것도 그리지 않는다.** 「근거 0」은 쓸모없다는 뜻이 아니라
+ * 우리 표지로 못 이었다는 뜻이고, 그 둘을 같은 배지로 그리면 화면이 거짓말을
+ * 한다. 붙은 것만 말하고 나머지는 침묵한다.
+ */
+function EvidenceChip({ evidence }: { evidence: RuleEvidenceSummary | null }) {
+  const { t } = useT();
+  if (!evidence) return null;
+  return (
+    <span
+      className="sk-chip"
+      title={`${evidence.labels.join(" · ")}\n${t("ctx.evidence.gap", { d: evidence.typicalGapDays })}`}
+    >
+      {t("ctx.evidence.badge", { n: evidence.hits })}
+    </span>
+  );
+}
+
 function PathsChip({ pathCount, reach }: { pathCount: number; reach: GlobReach | null }) {
   // 감사 전 — 아는 척하지 않는다.
   if (!reach) return <span className="sk-chip">{t("ctx.paths.count", { n: pathCount })}</span>;
@@ -240,6 +271,7 @@ function PathsChip({ pathCount, reach }: { pathCount: number; reach: GlobReach |
 function Row({
   item,
   reach,
+  evidence,
   measured,
   days,
   onOpen,
@@ -247,6 +279,7 @@ function Row({
   item: ContextItem;
   /** glob 실측 (감사 전이거나 조건부가 아니면 null). */
   reach: GlobReach | null;
+  evidence: RuleEvidenceSummary | null;
   measured: boolean;
   days: number;
   onOpen: (item: ContextItem) => void;
@@ -272,6 +305,7 @@ function Row({
           {item.kind === "rule" && item.pathCount > 0 ? (
             <PathsChip pathCount={item.pathCount} reach={reach} />
           ) : null}
+          <EvidenceChip evidence={evidence} />
           {item.rule?.mirror === "mirrored" ? <span className="sk-chip">Cursor</span> : null}
           {item.rule?.mirror === "conflict" ? (
             <span className="sk-chip off">{t("rules.conflict")}</span>

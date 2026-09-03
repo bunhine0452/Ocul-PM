@@ -1504,6 +1504,17 @@ export const commands = {
 	 */
 	rulesNegationAudit: (projectId: number) => typedError<NegationFinding[], string>(__TAURI_INVOKE("rules_negation_audit", { projectId })),
 	/**
+	 *  evidence-based-rules — **규칙이 무엇을 막고 있는가.**
+	 * 
+	 *  컨텍스트 예산 화면은 규칙의 **비용**(바이트)만 안다. 값어치를 물으면 답이
+	 *  없었다. 여기서 일지의 반복 결함 클러스터를 캐고, 규칙 본문이 그 클러스터의
+	 *  언어를 쓰면 후보로 잇는다.
+	 * 
+	 *  휴리스틱이라 근거 일지를 함께 낸다 — 판정은 사람이 하고, 이 커맨드는
+	 *  아무것도 쓰지 않는다. 표본이 모자란 클러스터는 애초에 나오지 않는다.
+	 */
+	rulesEvidence: (projectId: number) => typedError<RuleEvidence, string>(__TAURI_INVOKE("rules_evidence", { projectId })),
+	/**
 	 *  기간 내 반복 실패 클러스터(규칙 후보)를 결정적으로 뽑는다 — LLM 없음.
 	 *  이미 규칙이 덮는 영역·승격된 후보(promoted-from 마커)는 제외된다.
 	 */
@@ -2857,6 +2868,20 @@ export type CloseIntent = {
 	tab: number | null,
 };
 
+/**  한 클러스터에 걸린 일지 하나. */
+export type ClusterHit = {
+	/**  `.oculpm/journal/` 기준 상대경로. */
+	rel_path: string,
+	/**  `YYYYMMDD`. */
+	workday: string,
+	/**  그 일지의 제목 (`[x] …` 첫 줄). */
+	title: string,
+	/**  무엇이 걸렸는지 — 사람이 판정할 근거. */
+	excerpt: string,
+	/**  걸린 표지. */
+	marker: string,
+};
+
 /**
  *  `code_asset` 응답 — 이미지/PDF 바이트를 base64 + MIME 으로. 웹뷰는 임의 파일
  *  경로를 `<img src>` 로 직접 못 읽으므로, 프런트가 이걸 Blob 으로 되돌려 문다
@@ -3306,6 +3331,24 @@ export type DeepLink =
 
 /**  프런트가 받는 이벤트. 앱이 이미 떠 있으면 기존 창으로 라우팅된다. */
 export type DeepLinkReceived = DeepLink;
+
+/**  반복 결함 클러스터 하나. */
+export type DefectCluster = {
+	id: string,
+	label: string,
+	/**  최신순. */
+	hits: ClusterHit[],
+	/**
+	 *  **재발 간격** — 이어진 두 건 사이 날짜 차의 중앙값 (일).
+	 * 
+	 *  buzz 의 「수정률」이 아니다. 우리 표본에는 "지적 → 수정" 짝이 없다.
+	 */
+	typical_gap_days: number,
+	/**  가장 최근 두 건 사이 간격 (일). 최근이 빨라졌는지 보는 값. */
+	last_gap_days: number,
+	/**  마지막으로 나온 날 (`YYYYMMDD`). */
+	last_seen: string,
+};
 
 /**  수확된 마커 한 건. */
 export type DeferMarker = {
@@ -5208,6 +5251,13 @@ export type RuleCandidate = {
 	last_workday: string,
 };
 
+/**  규칙 하나가 어떤 클러스터를 막는다고 볼 수 있는가 (후보). */
+export type RuleClusterLink = {
+	rel_path: string,
+	scope: RuleScope,
+	cluster_ids: string[],
+};
+
 /**  `rules_read` 응답. */
 export type RuleDetail = {
 	entry: RuleEntry,
@@ -5249,6 +5299,13 @@ export type RuleEntry = {
 	paths: string[],
 	bytes: number,
 	mirror: MirrorState,
+};
+
+export type RuleEvidence = {
+	/**  표본이 충분한 클러스터만 (최근 재발순). */
+	clusters: DefectCluster[],
+	/**  근거가 붙은 규칙만 — 붙지 않은 규칙은 **목록에 없다** ("근거 0" 을 쓰지 않는다). */
+	links: RuleClusterLink[],
 };
 
 export type RuleKind = 

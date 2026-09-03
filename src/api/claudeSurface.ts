@@ -29,6 +29,7 @@ import type {
   SkillEntry,
   SkillScope,
   SkillsOverview,
+  RuleEvidence,
 } from "@/lib/bindings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -108,6 +109,15 @@ export const rulesApi = {
    */
   negationAudit: (projectId: number) =>
     unwrap<NegationFinding[]>("rules_negation_audit", commands.rulesNegationAudit(projectId)),
+
+  /**
+   * evidence-based-rules — 규칙이 **무엇을 막고 있나.**
+   *
+   * 일지에서 캔 반복 결함 클러스터 + 규칙이 그 언어를 쓰는지의 후보 연결.
+   * 근거가 붙은 규칙만 `links` 에 온다 ("근거 0" 을 만들지 않는다).
+   */
+  evidence: (projectId: number) =>
+    unwrap<RuleEvidence>("rules_evidence", commands.rulesEvidence(projectId)),
 
   /** AD-6 승인형 저장 — 원본을 `.bak` 으로 남기고 덮어쓴다 (기존 파일 전용). */
   saveWithBackup: (projectId: number, scope: RuleScope, relPath: string, content: string) =>

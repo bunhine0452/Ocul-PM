@@ -9,10 +9,13 @@
 
 use std::path::PathBuf;
 
+use serde::Serialize;
+
 use tauri::State;
 
 use crate::db::Db;
 use crate::oculpm::agent_surface::{self, AgentSurfaceOverview};
+use crate::oculpm::defect_clusters::{self, DefectCluster};
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::rule_negation::{self, NegationFinding};
 use crate::oculpm::rule_scope::{self, RuleScopeAudit};
@@ -166,6 +169,70 @@ pub async fn rules_negation_audit(
     tauri::async_runtime::spawn_blocking(move || rule_negation::audit(&root, &home))
         .await
         .map_err(|e| format!("The negation audit did not finish: {e}"))
+}
+
+/// evidence-based-rules — **규칙이 무엇을 막고 있는가.**
+///
+/// 컨텍스트 예산 화면은 규칙의 **비용**(바이트)만 안다. 값어치를 물으면 답이
+/// 없었다. 여기서 일지의 반복 결함 클러스터를 캐고, 규칙 본문이 그 클러스터의
+/// 언어를 쓰면 후보로 잇는다.
+///
+/// 휴리스틱이라 근거 일지를 함께 낸다 — 판정은 사람이 하고, 이 커맨드는
+/// 아무것도 쓰지 않는다. 표본이 모자란 클러스터는 애초에 나오지 않는다.
+#[tauri::command]
+#[specta::specta]
+pub async fn rules_evidence(db: State<'_, Db>, project_id: u32) -> Result<RuleEvidence, String> {
+    let root = project_root(&db, project_id).await?;
+    let home = rules::home_dir().map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let clusters = defect_clusters::mine(&root);
+        let overview = rules::overview(&root, &home, false);
+        let mut links = Vec::new();
+        for entry in overview
+            .claude_md
+            .iter()
+            .chain(&overview.project_rules)
+            .chain(&overview.global_rules)
+        {
+            if !entry.exists {
+                continue;
+            }
+            let sroot = match entry.scope {
+                RuleScope::Global => home.clone(),
+                _ => root.clone(),
+            };
+            let Ok(detail) = rules::read(entry.scope, &sroot, &root, &entry.rel_path) else {
+                continue;
+            };
+            let cluster_ids = defect_clusters::clusters_for_rule(&detail.content, &clusters);
+            if !cluster_ids.is_empty() {
+                links.push(RuleClusterLink {
+                    rel_path: entry.rel_path.clone(),
+                    scope: entry.scope,
+                    cluster_ids,
+                });
+            }
+        }
+        RuleEvidence { clusters, links }
+    })
+    .await
+    .map_err(|e| format!("The evidence scan did not finish: {e}"))
+}
+
+/// 규칙 하나가 어떤 클러스터를 막는다고 볼 수 있는가 (후보).
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct RuleClusterLink {
+    pub rel_path: String,
+    pub scope: RuleScope,
+    pub cluster_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct RuleEvidence {
+    /// 표본이 충분한 클러스터만 (최근 재발순).
+    pub clusters: Vec<DefectCluster>,
+    /// 근거가 붙은 규칙만 — 붙지 않은 규칙은 **목록에 없다** ("근거 0" 을 쓰지 않는다).
+    pub links: Vec<RuleClusterLink>,
 }
 
 /// AD-6 — 원본을 `<파일>.bak` 으로 남긴 뒤 저장한다 (기존 파일 전용).

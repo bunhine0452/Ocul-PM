@@ -16,7 +16,8 @@
     "lint:i18n": "node scripts/check-no-hardcoded-korean.mjs",
     "lint:bindings": "node scripts/check-bindings-imports.mjs",
     "lint:design": "node scripts/check-design-discipline.mjs",
-    "lint": "pnpm lint:storage && pnpm lint:i18n && pnpm lint:bindings && pnpm lint:design"
+    "lint:filesize": "node scripts/check-file-sizes.mjs",
+    "lint": "pnpm lint:storage && pnpm lint:i18n && pnpm lint:bindings && pnpm lint:design && pnpm lint:filesize"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

@@ -18,6 +18,7 @@ import {
   BUDGET_TARGET_BYTES,
   kb,
   type ContextBudget,
+  type RuleEvidenceSummary,
 } from "./contextModel";
 
 const SEG_KEY = {
@@ -46,6 +47,14 @@ interface ContextBudgetBarProps {
   auditing: boolean;
   /** 무관 조각 클릭 → 존 3 의 범위 교정 카드로 (D2: 예산 바에서 처방으로). */
   onJumpToIrrelevant: () => void;
+  /**
+   * evidence-based-rules — **값어치** 쪽 숫자.
+   *
+   * 이 바는 여태 비용(바이트)만 말했다. "이 상시 비용을 치를 만한가"에 답하려면
+   * 반대편 숫자가 있어야 한다: 규칙 몇 개가 실제로 다시 난 결함에 이어져 있는가.
+   * 근거가 하나도 없으면 이 줄은 **그리지 않는다** — 0은 말할 것이 없는 상태다.
+   */
+  evidence: Map<string, RuleEvidenceSummary>;
 }
 
 export function ContextBudgetBar({
@@ -54,6 +63,7 @@ export function ContextBudgetBar({
   partial,
   auditing,
   onJumpToIrrelevant,
+  evidence,
 }: ContextBudgetBarProps) {
   useT();
   // 눈금은 기준선(90KB)에 맞춘다 — 줄어드는 게 보여야 줄일 마음이 든다.
@@ -117,6 +127,15 @@ export function ContextBudgetBar({
           </li>
         ))}
       </ul>
+
+      {evidence.size > 0 ? (
+        <p className="ctx-budget-note">
+          {t("ctx.evidence.summary", {
+            n: evidence.size,
+            m: [...evidence.values()].reduce((sum, e) => sum + e.hits, 0),
+          })}
+        </p>
+      ) : null}
     </section>
   );
 }

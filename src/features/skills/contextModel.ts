@@ -20,6 +20,8 @@ import type {
   SkillDormancySignal,
   SkillsOverview,
   SurfaceEntry,
+  DefectCluster,
+  RuleEvidence,
 } from "@/lib/bindings";
 import { ruleAbsPath, skillFiring, type FiringIndex } from "./firingModel";
 
@@ -414,6 +416,54 @@ export interface CleanupProposal {
   deadGlobs: string[];
   /** `negated` 의 근거 — 어느 문서의 어떤 문장이 이 규칙을 부정하는가. */
   negation?: { citedIn: string; excerpt: string };
+}
+
+/**
+ * 규칙 하나에 붙은 **근거** — 이 규칙이 막고 있다고 볼 수 있는 반복 결함.
+ *
+ * 예산 화면은 지금껏 규칙의 **비용**(바이트)만 알았다. 값어치를 물으면 답이
+ * 없었고, 그래서 "이 상시 비용을 치를 만한가"라는 질문에 감으로 답해야 했다.
+ */
+export interface RuleEvidenceSummary {
+  /** 이어진 클러스터의 이름 (최근 재발순). */
+  labels: string[];
+  /** 근거 일지 수 — 이어진 클러스터의 일지를 경로로 **중복 제거**해 센다. */
+  hits: number;
+  /** 그 결함이 마지막으로 다시 난 날 (`YYYYMMDD`). */
+  lastSeen: string;
+  /** 재발 간격 중앙값 (일). buzz 의 「수정률」이 아니다 — 다른 지표다. */
+  typicalGapDays: number;
+}
+
+/**
+ * 근거를 규칙 항목 id 로 잇는 색인 (`indexNegations` 와 같은 키 모양).
+ *
+ * 근거가 **붙은** 규칙만 들어간다. 안 붙은 규칙에 「근거 0」을 달지 않는 이유는
+ * 우리 연결이 휴리스틱이기 때문이다 — 안 걸린 것은 "쓸모없다"가 아니라
+ * "우리 표지로는 못 이었다" 이다.
+ */
+export function indexEvidence(evidence: RuleEvidence | null): Map<string, RuleEvidenceSummary> {
+  const out = new Map<string, RuleEvidenceSummary>();
+  if (!evidence) return out;
+  const byId = new Map(evidence.clusters.map((c) => [c.id, c]));
+
+  for (const link of evidence.links) {
+    const clusters = link.cluster_ids
+      .map((id) => byId.get(id))
+      .filter((c): c is DefectCluster => Boolean(c))
+      .sort((a, b) => b.last_seen.localeCompare(a.last_seen));
+    if (!clusters.length) continue;
+
+    const paths = new Set<string>();
+    for (const c of clusters) for (const h of c.hits) paths.add(h.rel_path);
+    out.set(`rule:${link.scope}:${link.rel_path}`, {
+      labels: clusters.map((c) => c.label),
+      hits: paths.size,
+      lastSeen: clusters[0].last_seen,
+      typicalGapDays: clusters[0].typical_gap_days,
+    });
+  }
+  return out;
 }
 
 /** 부정 감사 결과를 규칙 항목 id 로 잇는 색인. */

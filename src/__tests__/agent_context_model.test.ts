@@ -12,6 +12,7 @@ import {
   computeBudget,
   filterItems,
   globReach,
+  indexEvidence,
   indexFindings,
   classifyDormantSkill,
   dormantSkills,
@@ -626,5 +627,73 @@ describe("triggerProposals — genuine 에만 설명 고쳐쓰기를 낸다", ()
     expect(dormantSkills(items, new Map(), true, 30).map((d) => d.item.id)).not.toContain(
       disabled.id,
     );
+  });
+});
+
+// ─── evidence-based-rules — 규칙에 근거를 잇는다 ──────────────────────────
+//
+// 이 색인의 값어치는 **침묵**에 있다: 근거가 안 붙은 규칙에 「근거 0」을 달면
+// 화면이 "쓸모없다"고 말하는 셈인데, 우리 연결은 표지 기반 휴리스틱이라 그
+// 결론을 지지하지 않는다.
+
+const cluster = (id: string, label: string, days: string[], gap = 3) => ({
+  id,
+  label,
+  typical_gap_days: gap,
+  last_gap_days: gap,
+  last_seen: days[0],
+  hits: days.map((workday, i) => ({
+    rel_path: `${workday}/Bugs/100${i}_bug_x.md`,
+    workday,
+    title: "제목",
+    excerpt: "발췌",
+    marker: "고아",
+  })),
+});
+
+describe("indexEvidence", () => {
+  it("근거가 붙은 규칙만 색인에 들어간다", () => {
+    const index = indexEvidence({
+      clusters: [cluster("orphan-process", "고아 프로세스", ["20260903", "20260901"])],
+      links: [
+        { rel_path: ".claude/rules/pty.md", scope: "project", cluster_ids: ["orphan-process"] },
+      ],
+    });
+    expect(index.size).toBe(1);
+    expect(index.get("rule:project:.claude/rules/pty.md")).toEqual({
+      labels: ["고아 프로세스"],
+      hits: 2,
+      lastSeen: "20260903",
+      typicalGapDays: 3,
+    });
+    // 안 이어진 규칙은 **없는 것**이지 0이 아니다.
+    expect(index.get("rule:project:.claude/rules/other.md")).toBeUndefined();
+  });
+
+  it("여러 클러스터에 걸린 규칙은 일지를 경로로 중복 제거해 센다", () => {
+    const index = indexEvidence({
+      clusters: [
+        cluster("orphan-process", "고아", ["20260903", "20260901"]),
+        // 같은 날 같은 일지가 두 클러스터에 걸린다 — 두 번 세면 근거가 부풀려진다.
+        { ...cluster("silent-failure", "조용한 실패", ["20260903"]), last_seen: "20260902" },
+      ],
+      links: [
+        {
+          rel_path: ".claude/rules/pty.md",
+          scope: "project",
+          cluster_ids: ["orphan-process", "silent-failure"],
+        },
+      ],
+    });
+    const summary = index.get("rule:project:.claude/rules/pty.md");
+    expect(summary?.hits).toBe(2);
+    // 라벨은 최근 재발순 — 최신 클러스터가 먼저.
+    expect(summary?.labels).toEqual(["고아", "조용한 실패"]);
+    expect(summary?.lastSeen).toBe("20260903");
+  });
+
+  it("근거가 없으면 빈 색인 — null 응답도 조용히 접는다", () => {
+    expect(indexEvidence(null).size).toBe(0);
+    expect(indexEvidence({ clusters: [], links: [] }).size).toBe(0);
   });
 });

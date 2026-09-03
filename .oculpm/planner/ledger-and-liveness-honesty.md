@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: ledger-and-liveness-honesty
 title: "원장과 생존 판정이 거짓말하지 않는다 — 해시 체인 + 3상태"
-status: active
+status: done
 created: 2026-09-03
 updated: 2026-09-03
 owner: claude-code

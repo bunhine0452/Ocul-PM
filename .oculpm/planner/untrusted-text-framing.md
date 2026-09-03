@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: untrusted-text-framing
 title: "남이 쓴 텍스트는 데이터다 — 경계를 문장이 아니라 기구로"
-status: active
+status: done
 created: 2026-09-03
 updated: 2026-09-03
 owner: claude-code
