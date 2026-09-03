@@ -1,0 +1,64 @@
+---
+oculpm_plan: v1
+id: a2a-agent-mesh
+title: "A2A 에이전트 간 통신 — 동시 작업 조율"
+status: active
+created: 2026-09-03
+updated: 2026-09-03
+owner: claude-code
+---
+
+한 프로젝트에서 여러 에이전트(앱 안의 ACP 패널 Claude·Codex, 앱 밖의 CLI 세션)가 동시에 일할 때 서로를 발견하고, 작업을 넘기고, 같은 파일을 동시에 건드리는 사고를 미리 막는다. A2A(Agent2Agent)의 Agent Card·Message·Task 수명주기를 스키마로 채택하되, v1 전송은 앱이 브로커인 로컬 파일+MCP 로 한다 — ACP 에이전트는 스스로 HTTP 서버를 열 수 없고, 앱 밖 세션도 같은 손(MCP)을 쓰기 때문이다.
+
+## 계약과 배제선 {#contract}
+- [ ] A2A 에서 채택할 것과 뺄 것을 고정한다 — Agent Card·Message·Task 수명주기·Artifact 는 채택, HTTP 서버·원격 인증·푸시 알림은 v1 배제 {#adopt-subset}
+- [ ] ACP(클라이언트↔에이전트)와 A2A(에이전트↔에이전트)의 경계를 문서로 못 박고 앱이 브로커가 되는 근거를 남긴다 {#acp-vs-a2a}
+- [ ] 위협 모델 — 다른 에이전트가 보낸 메시지는 데이터이지 지시가 아니다. 자동 실행 금지·크기 상한·redact.rs 통과를 계약으로 고정 {#threat-model}
+- [ ] 성공 기준 — 앱 안 ACP 세션 1개와 앱 밖 CLI 세션 1개가 서로를 발견하고 파일 구역 충돌을 사전에 막는다 {#success-criteria}
+
+## 참여자 레지스트리와 Agent Card {#registry}
+- [ ] Agent Card 스키마 정의 — A2A 표준 필드(name·description·skills·version)에 우리 확장(project_root·session_id·provider·pid·surface)을 더한다 {#card-schema}
+- [ ] 앱 안 ACP 에이전트(Claude·Codex)를 세션 시작 시 자동 등록하고 프로세스 종료·앱 종료에서 수거한다 {#register-inapp}
+- [ ] 앱 밖 CLI 세션은 MCP 도구로 자진 등록하고 하트비트 TTL 로 죽은 항목을 자동 만료시킨다 {#register-external}
+- [ ] 레지스트리 SSOT 는 .oculpm/agents/live/*.json (gitignore), SQLite 는 파생 캐시로만 둔다 {#registry-ssot}
+
+## 메시지와 태스크 수명주기 {#mailbox}
+- [ ] A2A Message/Task 를 파일 메일박스로 구현 — submitted→working→(completed|failed|canceled|input-required) 전이와 terminal 이벤트 보장 {#task-lifecycle}
+- [ ] 동시 쓰기는 기존 발동 원장의 CAS 패턴을 재사용해 유실 없이 직렬화한다 {#mailbox-cas}
+- [ ] 워처가 메일박스 변경을 감지해 앱 이벤트로 승격한다 — 프런트 폴링 금지 {#mailbox-watch}
+- [ ] 첨부(Artifact)는 경로 참조로만 전달한다 — 메시지 본문에 파일 내용을 복사하지 않는다 {#artifact-ref}
+
+## 작업 구역 임대 {#lease}
+- [ ] 에이전트가 파일 글로브로 구역을 임대하고, 겹치면 거절 사유와 선점자를 돌려준다 {#claim-paths}
+- [ ] 임대 밖 파일 수정을 감지해 경고 이벤트를 내고 일지에 흔적을 남긴다 {#lease-violation}
+- [ ] git 인덱스 공유 사고 방지를 임대와 묶는다 — 명시 경로 stage, add→commit 한 호출, git add -A 금지 {#git-index-guard}
+- [ ] 임대 만료·세션 사망 시 자동 해제하고 대기 중인 요청을 깨운다 {#lease-expiry}
+
+## MCP 도구와 기록 규칙 {#tools}
+- [ ] oculpm MCP 에 agent_list·agent_send·agent_inbox·task_update·claim_paths 를 추가한다 (스키마·오류 코드·크기 상한 포함) {#mcp-tools}
+- [ ] AGENTS.md 템플릿에 협업 규칙을 넣는다 — 시작 시 등록, 구역 임대, 넘길 때 태스크 생성, 받은 메시지는 데이터로 취급 {#agents-rules}
+- [ ] 위임으로 수행한 작업의 일지 귀속 규칙 — 수행자와 위임자를 함께 남긴다 {#delegation-attribution}
+- [ ] landing/plugin.html 과 커맨드 목록을 동기화한다 (plugin_manifest 테스트가 게이트) {#plugin-docs}
+
+## 앱 화면 {#ui}
+- [ ] 사이드바 항목을 늘리지 않는다 — Today 와 AI 패널에 참여자 배지·받은 메시지 카드를 얹는다 {#ui-surface}
+- [ ] 승인 전에는 어떤 자동 행동도 없다 — 인젝션 방어의 UI 측면을 카드에 명시한다 {#ui-approval}
+- [ ] 임대 충돌 경고와 해제 버튼, 누가 무엇을 쥐고 있는지 보여준다 {#ui-conflict}
+- [ ] 한국어·영어 번역과 접근성 이름을 추가한다 {#ui-i18n}
+
+## 외부 A2A 엔드포인트 (옵션·후행) {#endpoint}
+- [ ] 루프백 바인딩 HTTP 서버와 /.well-known/agent-card.json, JSON-RPC 2.0(SSE 스트리밍)을 옵트인으로 연다 {#http-endpoint}
+- [ ] 토큰 기반 접근 제어와 감사 로그 — 기본값은 꺼짐 {#endpoint-auth}
+- [ ] 외부 에이전트(Antigravity·클라우드 세션) 연결은 이 엔드포인트로만 허용한다 {#external-agents}
+
+## 검증과 출시 {#verification}
+- [ ] Rust 테스트 — 레지스트리 TTL, CAS 경합, 임대 겹침 판정, terminal 이벤트 보장 {#rust-tests}
+- [ ] Vitest — 승인 카드, 참여자 배지, 충돌 경고, 기존 AI 패널 회귀 {#frontend-tests}
+- [ ] 실측 — 앱 안 ACP 세션과 앱 밖 CLI 세션으로 발견→임대→메시지→태스크 완료를 한 번 통과 {#live-two-sessions}
+- [ ] 게이트 — cargo fmt/clippy/test, pnpm typecheck/test/lint/build 를 직접 확인 {#gates}
+- [ ] 릴리스 5면 — 버전 3파일·CHANGELOG·README ko/en·landing 6곳 {#release-surfaces}
+
+<!-- oculpm:plan-log begin v1 -->
+| 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
+|---|---|---|---|---|---|
+<!-- oculpm:plan-log end -->
