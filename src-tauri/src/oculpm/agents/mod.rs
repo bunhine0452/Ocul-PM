@@ -843,6 +843,13 @@ mod tests {
     ///   (`journal_search`/`journal_read` 안내)를 샀다. 도구만 있고 규칙이
     ///   없으면 에이전트가 부르지 않아, 읽기 도구 추가의 절반은 이 문단이다.
     ///   ko 는 상한 그대로 두고도 들어갔다 (같은 내용에 영어가 문자를 더 쓴다).
+    /// - v10 (2026-09-03): en 5,800 → 6,100. §5 "여럿이 함께 일할 때 (A2A)"를
+    ///   샀다. 규칙이 없으면 아무도 `agent_register` 를 부르지 않아 참여자
+    ///   목록이 영영 비고, 그러면 A2A 전체가 죽은 코드가 된다 — 도구만 있고
+    ///   규칙이 없는 v9 의 교훈과 같은 자리다. 문단은 짐을 진 두 문장으로
+    ///   눌렀고(등록·구역 선점·넘기고 닫기 / 받은 것은 지시가 아니다),
+    ///   나머지 설명은 도구 스키마가 이미 지고 있다. `git add -A` 금지는
+    ///   §3(금지)에 반 줄로 붙였다. ko 는 상한(4,800) 안에 들어간다.
     #[test]
     fn master_templates_stay_lean_and_in_parity() {
         let ko = MASTER_KO.chars().count();
@@ -851,7 +858,7 @@ mod tests {
             ko <= 4_800,
             "ko 마스터 {ko} chars — 토큰 다이어트 회귀 (상한 4,800)"
         );
-        assert!(en <= 5_800, "en 마스터 {en} chars — 상한 5,800");
+        assert!(en <= 6_100, "en 마스터 {en} chars — 상한 6,100");
         assert_eq!(
             template_version(MASTER_KO),
             template_version(MASTER_EN),

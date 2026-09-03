@@ -196,7 +196,12 @@ mod tests {
                 "plan_create",
                 "project_init",
                 "agent_register",
-                "agent_list"
+                "agent_list",
+                "agent_inbox",
+                "agent_send",
+                "task_create",
+                "task_update",
+                "claim_paths"
             ]
         );
 

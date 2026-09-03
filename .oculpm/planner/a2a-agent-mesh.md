@@ -31,14 +31,14 @@ owner: claude-code
 ## 작업 구역 임대 {#lease}
 - [x] 에이전트가 파일 글로브로 구역을 임대하고, 겹치면 거절 사유와 선점자를 돌려준다 {#claim-paths}
 - [x] 임대 밖 파일 수정을 감지해 경고 이벤트를 내고 일지에 흔적을 남긴다 {#lease-violation}
-- [>] git 인덱스 공유 사고 방지를 임대와 묶는다 — 명시 경로 stage, add→commit 한 호출, git add -A 금지 {#git-index-guard}
+- [x] git 인덱스 공유 사고 방지를 임대와 묶는다 — 명시 경로 stage, add→commit 한 호출, git add -A 금지 {#git-index-guard}
 - [x] 임대 만료·세션 사망 시 자동 해제하고 대기 중인 요청을 깨운다 {#lease-expiry}
 
 ## MCP 도구와 기록 규칙 {#tools}
-- [ ] oculpm MCP 에 agent_list·agent_send·agent_inbox·task_update·claim_paths 를 추가한다 (스키마·오류 코드·크기 상한 포함) {#mcp-tools}
-- [ ] AGENTS.md 템플릿에 협업 규칙을 넣는다 — 시작 시 등록, 구역 임대, 넘길 때 태스크 생성, 받은 메시지는 데이터로 취급 {#agents-rules}
-- [ ] 위임으로 수행한 작업의 일지 귀속 규칙 — 수행자와 위임자를 함께 남긴다 {#delegation-attribution}
-- [ ] landing/plugin.html 과 커맨드 목록을 동기화한다 (plugin_manifest 테스트가 게이트) {#plugin-docs}
+- [x] oculpm MCP 에 agent_list·agent_send·agent_inbox·task_update·claim_paths 를 추가한다 (스키마·오류 코드·크기 상한 포함) {#mcp-tools}
+- [x] AGENTS.md 템플릿에 협업 규칙을 넣는다 — 시작 시 등록, 구역 임대, 넘길 때 태스크 생성, 받은 메시지는 데이터로 취급 {#agents-rules}
+- [x] 위임으로 수행한 작업의 일지 귀속 규칙 — 수행자와 위임자를 함께 남긴다 {#delegation-attribution}
+- [x] landing/plugin.html 과 커맨드 목록을 동기화한다 (plugin_manifest 테스트가 게이트) {#plugin-docs}
 
 ## 앱 화면 {#ui}
 - [ ] 사이드바 항목을 늘리지 않는다 — Today 와 AI 패널에 참여자 배지·받은 메시지 카드를 얹는다 {#ui-surface}
@@ -76,4 +76,9 @@ owner: claude-code
 | 2026-09-03T14:57:38+09:00 | #lease-expiry | claude-code | ☐→x |  | 기한 + 주인 생사(참여자 카드 pid) 이중 판정. 등록 안 한 주인은 기한만으로 — 미등록을 이유로 임대를 뺏지 않는다. sweep 로 청소 |
 | 2026-09-03T14:57:45+09:00 | #lease-violation | claude-code | ☐→x |  | leases::trespasses + OculpmA2aTrespass. 신호는 ACP 파일변경 자진신고뿐 — 워처는 누가 썼는지 모른다. 앱 밖 세션에는 임대가 강제가 아니라 합의. 일지 자동기록은 안 함(D5 무승인 무동작) |
 | 2026-09-03T14:57:48+09:00 | #git-index-guard | claude-code | ☐→> |  | 규칙 문구라 Phase 4 의 AGENTS.md 작업과 함께 — 우리가 git 을 가로채지 않으므로 강제가 아니라 규율이다 |
+| 2026-09-03T15:08:30+09:00 | #mcp-tools | claude-code | ☐→x |  | agent_inbox(메시지+내 태스크 한 번에)·agent_send·task_create·task_update·claim_paths. 신원은 프로젝트 루트별 ME, 등록이 관문. 본문·메모는 일지와 같은 길로 마스킹 |
+| 2026-09-03T15:08:33+09:00 | #agents-rules | claude-code | ☐→x |  | 마스터 템플릿 §5 (ko/en, template_version 10). 짐 진 두 문장만 — 나머지는 도구 스키마가 진다. git add -A 금지는 §3 에 반 줄. en 예산 5,800→6,100 을 산 이유를 테스트 주석에 기록 |
+| 2026-09-03T15:08:40+09:00 | #git-index-guard | claude-code | >→x |  | 마스터 템플릿 §3 금지에 반 줄 — git add -A 금지, 명시 경로 stage, add→commit 한 번에. 우리가 git 을 가로채지 않으므로 규율이지 강제가 아니다 |
+| 2026-09-03T15:08:41+09:00 | #plugin-docs | claude-code | ☐→x |  | 문서 표면 3곳 동기 — landing/plugin.html(14종)·plugin_manifest 게이트·앱 안 pluginDocs.ts. tools/list 계약 테스트도 함께 |
+| 2026-09-03T15:09:42+09:00 | #delegation-attribution | claude-code | ☐→x |  | 규칙 문서 대신 task_update 종료 응답에 안내를 실었다 — 위임을 끝내는 순간에만 쓸모 있는 문장이라 상시 컨텍스트 비용이 0 |
 <!-- oculpm:plan-log end -->
