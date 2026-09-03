@@ -235,15 +235,30 @@ pub fn group_of(root: &Path, agent_id: &str, now: DateTime<Utc>) -> Option<Group
         .find(|g| g.members.iter().any(|m| m == agent_id))
 }
 
-/// **말을 걸어도 되는가.** 같은 그룹에 있어야 한다.
+/// **말을 걸어도 되는가.** 같은 그룹이거나, 둘 사이에 **열린 일**이 있어야 한다.
 ///
 /// 묶이지 않은 세션은 여기서 막힌다 — 목록에는 보이지만 아무에게도 못 보낸다.
+///
+/// 열린 태스크를 예외로 두는 이유: 태스크는 **사람이 눌러 수락한 관계**다(D5).
+/// 그 일이 도는 동안 서로 말을 못 하면 위임이 반쪽이 되고, v2.37.0(프로젝트가
+/// 곧 팀이던 시절)에서 넘어온 진행 중인 일이 대화 없이 매달린다. 새 태스크는
+/// 그룹이 있어야 만들어지므로 이 예외는 **닫힌 집합이고 시간이 지나면 사라진다.**
 pub fn may_talk(root: &Path, from: &str, to: &str, now: DateTime<Utc>) -> bool {
     if from == to {
         // 자기 자신에게 보내는 것은 그룹과 무관하다 (메모·시험용).
         return true;
     }
-    group_of(root, from, now).is_some_and(|g| g.members.iter().any(|m| m == to))
+    if group_of(root, from, now).is_some_and(|g| g.members.iter().any(|m| m == to)) {
+        return true;
+    }
+    share_open_work(root, from, to)
+}
+
+/// 둘 사이에 아직 안 끝난 태스크가 있는가 (방향은 가리지 않는다).
+pub fn share_open_work(root: &Path, a: &str, b: &str) -> bool {
+    super::tasks::list(root).into_iter().any(|t| {
+        !t.state.is_terminal() && ((t.from == a && t.to == b) || (t.from == b && t.to == a))
+    })
 }
 
 /// 말을 걸 수 없을 때 **사람이 읽을 이유**를 만든다.
@@ -253,7 +268,7 @@ pub fn refusal(root: &Path, from: &str, to: &str, now: DateTime<Utc>) -> String 
             "'{to}' 는 이 그룹(「{}」)의 멤버가 아닙니다 — 화면에서 함께 묶은 세션에게만 보낼 수 있습니다",
             g.title
         ),
-        None => "이 세션은 아직 어느 그룹에도 묶이지 않았습니다 — Today 의 「함께 일하는 중」에서 함께 일할 세션과 묶어 주세요".to_string(),
+        None => "이 세션은 아직 어느 그룹에도 묶이지 않았습니다 — Today 의 「함께 일하는 중」에서 함께 일할 세션과 묶어 주세요 (진행 중인 태스크를 함께 하고 있다면 그 상대와는 묶지 않아도 말할 수 있습니다)".to_string(),
     }
 }
 
@@ -352,6 +367,51 @@ mod tests {
         assert_eq!(groups[0].title, "둘째 팀");
         assert!(!may_talk(root, "a", "b", now));
         assert!(may_talk(root, "b", "c", now));
+    }
+
+    /// **진행 중인 일이 곧 관계다** — v2.37.0 에서 넘어온 태스크가 대화 없이
+    /// 매달리지 않도록, 묶이지 않았어도 열린 태스크의 두 당사자는 말할 수 있다.
+    ///
+    /// 새 태스크는 그룹이 있어야 만들어지므로 이 예외는 닫힌 집합이다.
+    #[test]
+    fn an_open_task_is_a_relationship_even_without_a_group() {
+        use crate::oculpm::a2a::tasks;
+
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let now = Utc::now();
+        live_card(root, "a");
+        live_card(root, "b");
+        live_card(root, "c");
+        assert!(!may_talk(root, "a", "b", now));
+
+        let task = tasks::create(
+            root,
+            &tasks::NewTask {
+                from: "a".to_string(),
+                to: "b".to_string(),
+                title: "넘어온 일".to_string(),
+                note: None,
+                artifacts: Vec::new(),
+                deadline_hours: None,
+            },
+            now,
+        )
+        .unwrap();
+        assert!(
+            may_talk(root, "a", "b", now),
+            "열린 일의 당사자끼리는 말할 수 있다"
+        );
+        assert!(may_talk(root, "b", "a", now), "방향은 가리지 않는다");
+        assert!(
+            !may_talk(root, "a", "c", now),
+            "무관한 세션은 여전히 막힌다"
+        );
+
+        // 일이 끝나면 관계도 끝난다.
+        tasks::advance(root, &task.id, "b", tasks::TaskState::Working, None, now).unwrap();
+        tasks::advance(root, &task.id, "b", tasks::TaskState::Completed, None, now).unwrap();
+        assert!(!may_talk(root, "a", "b", now));
     }
 
     /// 하나짜리는 그룹이 아니다.
