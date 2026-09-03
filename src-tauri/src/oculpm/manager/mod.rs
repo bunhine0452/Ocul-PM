@@ -56,6 +56,7 @@ const GITIGNORE_BLOCK_BODY: &str = "\
 .oculpm/index/
 .oculpm/hooks/
 .oculpm/agents/live/
+.oculpm/agents/audit/
 .oculpm/.lock
 .oculpm/.schema-version
 .oculpm/oculpm.log

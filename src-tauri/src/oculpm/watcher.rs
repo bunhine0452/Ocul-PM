@@ -369,6 +369,10 @@ impl WatcherInner {
             self.emit_a2a_changed(kind);
             return;
         }
+        if is_agents_noise(&rel_str) {
+            self.bump_ignored();
+            return;
+        }
 
         // 2. .oculpm/agents/** — emit + cascading re-sync of every active
         //    adapter. The cascade is what makes `_template.md` (master) the
@@ -1703,6 +1707,14 @@ fn a2a_change_kind(rel_str: &str) -> Option<crate::oculpm::a2a::A2aChangeKind> {
         return Some(A2aChangeKind::Task);
     }
     None
+}
+
+/// 화면이 볼 것이 없지만 **캐스케이드도 타면 안 되는** 경로.
+///
+/// 지금은 A2A 감사 로그 하나뿐이다 — 외부 문이 열려 있는 동안 호출마다
+/// 덧붙는데, 그 한 줄마다 모든 어댑터의 AGENTS.md 를 다시 쓸 이유가 없다.
+fn is_agents_noise(rel_str: &str) -> bool {
+    rel_str.starts_with(".oculpm/agents/audit/")
 }
 
 #[cfg(test)]

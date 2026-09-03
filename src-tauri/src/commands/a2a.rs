@@ -90,3 +90,41 @@ pub async fn a2a_release_lease(
     let root = project_root(&db, project_id).await?;
     Ok(leases::release(&root, &lease_id, tasks::SYSTEM_ACTOR))
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 6 — 외부 문 (기본 꺼짐 · 루프백 전용)
+// ─────────────────────────────────────────────────────────────────────────────
+
+use crate::oculpm::a2a::http::{A2aServerState, A2aServerStatus};
+
+/// 지금 문이 열려 있는가 (읽기 전용).
+#[tauri::command]
+#[specta::specta]
+pub fn a2a_endpoint_status(state: State<'_, A2aServerState>) -> Result<A2aServerStatus, AppError> {
+    Ok(state.status())
+}
+
+/// 문을 연다. **사용자가 눌러야 열린다** — 자동 기동은 없다.
+///
+/// 응답에 이번 기동의 토큰이 실려 온다. 디스크에 남기지 않으므로 화면이
+/// 보여 주는 그 순간이 유일한 전달 경로다.
+#[tauri::command]
+#[specta::specta]
+pub async fn a2a_endpoint_start(
+    db: State<'_, Db>,
+    state: State<'_, A2aServerState>,
+    project_id: u32,
+) -> Result<A2aServerStatus, AppError> {
+    let root = project_root(&db, project_id).await?;
+    state
+        .start(project_id, root)
+        .await
+        .map_err(|e| AppError::new("a2a_endpoint_start_failed", e))
+}
+
+/// 닫는다 (멱등).
+#[tauri::command]
+#[specta::specta]
+pub fn a2a_endpoint_stop(state: State<'_, A2aServerState>) -> Result<A2aServerStatus, AppError> {
+    Ok(state.stop())
+}

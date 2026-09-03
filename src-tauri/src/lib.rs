@@ -137,6 +137,9 @@ fn setup_logging() {
 use crate::commands::{
     // A2A — 협업 상태 조회 + 사용자 승인이 필요한 두 쓰기 (docs/a2a)
     a2a_decide_task,
+    a2a_endpoint_start,
+    a2a_endpoint_status,
+    a2a_endpoint_stop,
     a2a_overview,
     a2a_release_lease,
     acp_cancel,
@@ -839,6 +842,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             a2a_overview,
             a2a_decide_task,
             a2a_release_lease,
+            a2a_endpoint_status,
+            a2a_endpoint_start,
+            a2a_endpoint_stop,
             firing_rebuild,
             // Osaurus 라운드 Phase 1 — 스케줄 자동화
             automation_list,
@@ -1042,6 +1048,8 @@ pub fn run() {
             // (`ptyhost::client::socket_candidates`).
             // PR-ACP1 — ACP 어댑터 레지스트리 (프로젝트당 1 연결).
             app.manage(crate::acp::AcpState::default());
+            // A2A 외부 문 — 상태만 둔다. 서버는 사용자가 켜야 뜬다(기본 꺼짐).
+            app.manage(crate::oculpm::a2a::http::A2aServerState::default());
             // PR-LSP0 — 언어 서버 레지스트리 ((프로젝트, 언어, 워크스페이스 루트)당 1).
             app.manage(crate::lsp::state::LspState::default());
             // 로컬 히스토리의 출처 판정 — `code_write` 가 쪽지를 남기고 워처가

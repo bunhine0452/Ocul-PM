@@ -18,6 +18,7 @@ import { commands, events } from "@/lib/bindings";
 import { ApiError, call, toAppError, type Envelope } from "@/api/invoke";
 import type {
   A2aOverview,
+  A2aServerStatus,
   OculpmA2aChanged,
   OculpmA2aTrespass,
   Task,
@@ -318,6 +319,17 @@ export const oculpmApi = {
    * (jsdom·헤드리스)에서 **조용히 아무것도 안 하는 것**이다. 구독 실패로
    * 화면이 죽어서는 안 된다 — 라이브 갱신만 없는 상태로 두면 된다.
    */
+  /** 외부 A2A 문의 상태 (기본 꺼짐). */
+  a2aEndpointStatus: () =>
+    unwrap<A2aServerStatus>("a2a_endpoint_status", commands.a2aEndpointStatus()),
+
+  /** 문을 연다 — 응답의 토큰은 **이번 기동 동안만** 유효하고 디스크에 안 남는다. */
+  a2aEndpointStart: (projectId: number) =>
+    unwrap<A2aServerStatus>("a2a_endpoint_start", commands.a2aEndpointStart(projectId)),
+
+  a2aEndpointStop: () =>
+    unwrap<A2aServerStatus>("a2a_endpoint_stop", commands.a2aEndpointStop()),
+
   /** A2A 원장(참여자·우편함·태스크)이 바뀌었다. 구독 해제 함수를 돌려준다. */
   onA2aChanged: (cb: (payload: OculpmA2aChanged) => void): Promise<() => void> => {
     try {

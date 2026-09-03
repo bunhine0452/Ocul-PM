@@ -47,9 +47,9 @@ owner: claude-code
 - [x] 한국어·영어 번역과 접근성 이름을 추가한다 {#ui-i18n}
 
 ## 외부 A2A 엔드포인트 (옵션·후행) {#endpoint}
-- [ ] 루프백 바인딩 HTTP 서버와 /.well-known/agent-card.json, JSON-RPC 2.0(SSE 스트리밍)을 옵트인으로 연다 {#http-endpoint}
-- [ ] 토큰 기반 접근 제어와 감사 로그 — 기본값은 꺼짐 {#endpoint-auth}
-- [ ] 외부 에이전트(Antigravity·클라우드 세션) 연결은 이 엔드포인트로만 허용한다 {#external-agents}
+- [x] 루프백 바인딩 HTTP 서버와 /.well-known/agent-card.json, JSON-RPC 2.0(SSE 스트리밍)을 옵트인으로 연다 {#http-endpoint}
+- [x] 토큰 기반 접근 제어와 감사 로그 — 기본값은 꺼짐 {#endpoint-auth}
+- [x] 외부 에이전트(Antigravity·클라우드 세션) 연결은 이 엔드포인트로만 허용한다 {#external-agents}
 
 ## 검증과 출시 {#verification}
 - [ ] Rust 테스트 — 레지스트리 TTL, CAS 경합, 임대 겹침 판정, terminal 이벤트 보장 {#rust-tests}
@@ -85,4 +85,7 @@ owner: claude-code
 | 2026-09-03T15:29:12+09:00 | #ui-approval | claude-code | ☐→x |  | 넘어온 작업은 수락/거절 버튼으로만 움직인다 — a2a_decide_task 가 유일한 쓰기 경로. 테스트가 "누르기 전에는 아무 것도 안 나갔다"를 단언 |
 | 2026-09-03T15:29:18+09:00 | #ui-conflict | claude-code | ☐→x |  | 잡힌 구역 목록(주인·패턴·놓기 버튼) + 침범 경고를 OculpmA2aTrespass 이벤트로 받아 표시. 폴링 없음 |
 | 2026-09-03T15:29:20+09:00 | #ui-i18n | claude-code | ☐→x |  | ko/en 13키 + role=region·aria-label. 카드는 목록 3개를 줄 단위로 그린다(표 아님) |
+| 2026-09-03T16:03:58+09:00 | #http-endpoint | claude-code | ☐→x |  | axum(이미 있는 의존성) · /.well-known/agent-card.json + JSON-RPC /a2a. LoopbackAddr 뉴타입이라 0.0.0.0 바인딩이 컴파일 불가 + 바인딩 후 되읽기 확인. SSE 스트리밍은 v1 미지원(-32004 로 명시 거부) |
+| 2026-09-03T16:04:01+09:00 | #endpoint-auth | claude-code | ☐→x |  | Bearer 토큰을 매 기동 새로 만들고 디스크에 안 남긴다(저장 안 한 비밀은 안 샌다). 출발지 루프백 재확인 + 감사 로그(.oculpm/agents/audit/, 본문 제외). 기본 꺼짐 |
+| 2026-09-03T16:04:08+09:00 | #external-agents | claude-code | ☐→x |  | message/send 는 metadata.to 로 받는 이를 반드시 짚어야 한다 — 우리 카드는 에이전트 하나가 아니라 여럿이 붙은 원장이라서. agents/list 가 그 목록. 문 하나는 프로젝트 하나만 섬긴다(바꾸면 닫고 다시 연다) |
 <!-- oculpm:plan-log end -->

@@ -1554,6 +1554,17 @@ export const commands = {
 	a2aDecideTask: (projectId: number, taskId: string, accept: boolean) => typedError<Task, AppError>(__TAURI_INVOKE("a2a_decide_task", { projectId, taskId, accept })),
 	/**  붙잡힌 구역을 사용자가 놓아 준다 (주인이 사라졌는데 기한이 남았을 때). */
 	a2aReleaseLease: (projectId: number, leaseId: string) => typedError<boolean, AppError>(__TAURI_INVOKE("a2a_release_lease", { projectId, leaseId })),
+	/**  지금 문이 열려 있는가 (읽기 전용). */
+	a2aEndpointStatus: () => typedError<A2aServerStatus, AppError>(__TAURI_INVOKE("a2a_endpoint_status")),
+	/**
+	 *  문을 연다. **사용자가 눌러야 열린다** — 자동 기동은 없다.
+	 * 
+	 *  응답에 이번 기동의 토큰이 실려 온다. 디스크에 남기지 않으므로 화면이
+	 *  보여 주는 그 순간이 유일한 전달 경로다.
+	 */
+	a2aEndpointStart: (projectId: number) => typedError<A2aServerStatus, AppError>(__TAURI_INVOKE("a2a_endpoint_start", { projectId })),
+	/**  닫는다 (멱등). */
+	a2aEndpointStop: () => typedError<A2aServerStatus, AppError>(__TAURI_INVOKE("a2a_endpoint_stop")),
 	/**
 	 *  원장을 비우고 처음부터 다시 센다 — 이중 집계·낡은 재개점을 되돌리는 유일한
 	 *  길. 예산 라운드를 여기서 이어 붙여 한 번의 호출로 끝낸다 (상한 20 라운드 —
@@ -1900,6 +1911,17 @@ export type A2aOverview = {
 	leases: Lease[],
 	/**  아직 안 끝난 태스크 전부 (누가 누구에게 넘겼든). */
 	open_tasks: Task[],
+};
+
+/**  화면에 주는 상태. */
+export type A2aServerStatus = {
+	running: boolean,
+	/**  `http://127.0.0.1:8737` — 도는 동안만. */
+	url: string | null,
+	/**  이 문이 열려 있는 프로젝트. */
+	project_id: number | null,
+	/**  **한 번 켜는 동안만 유효한 토큰.** 디스크에 남지 않는다. */
+	token: string | null,
 };
 
 /**  핸드셰이크로 확인한 상대편 정보. 프런트가 "무엇에 붙었는지" 보여준다. */
