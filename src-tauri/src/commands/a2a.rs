@@ -30,9 +30,34 @@ async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, AppError> {
 ///
 /// 셋을 따로 부르면 서로 다른 순간의 사실이 한 화면에 섞인다("A 가 쥐고 있다"
 /// 옆에 "A 는 없다"). 같은 시각으로 한 번에 읽는다.
+/// 참여자 한 명 — **카드와 판정을 함께** 준다.
+///
+/// 카드만 주면 화면이 "여기 있다"밖에 못 말한다. 판정할 수 없는 세션(윈도우·
+/// 하트비트 시각이 깨진 카드)을 목록에서 빼 버리면 오프라인과 구별되지 않고,
+/// 그것이 이 라운드가 고치는 바로 그 거짓말이다 (플랜
+/// `ledger-and-liveness-honesty`).
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct Participant {
+    pub card: registry::AgentCard,
+    pub liveness: registry::Liveness,
+}
+
+/// 원장 하나의 무결성 — **깨진 것만** 싣는다.
+///
+/// 멀쩡한 원장까지 실으면 화면이 "정상 47건"을 그리게 되는데, 그건 아무도 안
+/// 읽는 초록불이다. 할 말이 있을 때만 자리를 차지한다.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct LedgerIntegrity {
+    pub task_id: String,
+    pub status: crate::oculpm::chain::ChainStatus,
+}
+
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct A2aOverview {
-    pub participants: Vec<registry::AgentCard>,
+    /// 살아 있는 것 + **판정 불가**. 죽은 것만 빠진다.
+    pub participants: Vec<Participant>,
+    /// 손을 탄 흔적이 있는 태스크 원장 (없으면 빈 목록).
+    pub integrity: Vec<LedgerIntegrity>,
     /// 사용자가 묶은 팀들. **묶이지 않은 세션은 참여자 목록에만 있다** —
     /// 보이는 것과 말을 걸 수 있는 것은 다르다.
     pub groups: Vec<groups::Group>,
@@ -59,7 +84,22 @@ pub async fn a2a_overview(db: State<'_, Db>, project_id: u32) -> Result<A2aOverv
     tasks::expire_overdue(&root, now);
 
     Ok(A2aOverview {
-        participants: registry::list_live(&root, now),
+        // 죽은 것만 뺀다 — 모름은 남겨 두고 화면이 "판정 불가"라고 말하게 한다.
+        participants: registry::read_all(&root)
+            .into_iter()
+            .map(|card| {
+                let liveness = registry::liveness(&card, now);
+                Participant { card, liveness }
+            })
+            .filter(|p| p.liveness != registry::Liveness::Dead)
+            .collect(),
+        integrity: tasks::verify_all(&root)
+            .into_iter()
+            .filter(|(_, status)| {
+                !matches!(status, crate::oculpm::chain::ChainStatus::Intact { .. })
+            })
+            .map(|(task_id, status)| LedgerIntegrity { task_id, status })
+            .collect(),
         groups: groups::live(&root, now),
         leases: leases::active(&root, now),
         open_tasks: tasks::list(&root)

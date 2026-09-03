@@ -28,6 +28,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::oculpm::atomic_io::{append_ndjson, NDJSON_LINE_CAP};
+use crate::oculpm::chain::{self, ChainStatus};
 use crate::oculpm::error::OculpmError;
 
 use super::mailbox::{is_safe_artifact, MAX_ARTIFACTS};
@@ -153,11 +154,45 @@ pub fn is_valid_task_id(id: &str) -> bool {
         && !id.contains("..")
 }
 
+/// 한 줄을 덧붙인다 — 앞 줄에 사슬로 묶어서.
+///
+/// `hash`·`prev` 는 구조체가 아니라 **직렬화된 값에** 얹는다. [`TaskEvent`] 가
+/// 두 필드를 모르는 편이 낫다: 읽는 쪽(`read`)은 serde 가 모르는 필드를 그냥
+/// 흘려보내므로 접는 코드가 사슬을 알 필요가 없고, 사슬을 아는 자리는 여기
+/// 하나로 남는다.
+///
+/// 앞 줄을 읽고 → 덧붙이는 사이에 **다른 프로세스가 끼어들 수 있다.** 그때도
+/// 줄은 유실되지 않고(O_APPEND) 사슬만 갈라지며, 검증기가 그것을 변조가 아니라
+/// [갈래](crate::oculpm::chain::BreakReason::Forked)로 부른다. 락을 도입하지 않는
+/// 이유는 이 모듈 첫머리의 append-only 결정 그대로다.
 fn append_event(root: &Path, task_id: &str, event: &TaskEvent) -> Result<(), OculpmError> {
-    let line = serde_json::to_string(event).map_err(|e| OculpmError::Io {
-        path: task_path(root, task_id),
+    let path = task_path(root, task_id);
+    let io_err = |e: serde_json::Error| OculpmError::Io {
+        path: path.clone(),
         source: std::io::Error::other(e),
-    })?;
+    };
+
+    // 앞 줄의 digest 와 이 줄의 자리. 파일이 없으면 이것이 첫 줄이다.
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    let prior: Vec<&str> = existing.lines().filter(|l| !l.trim().is_empty()).collect();
+    let seq = prior.len() as u32;
+    let prev = prior
+        .last()
+        .and_then(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+        .and_then(|v| {
+            v.get(chain::HASH_FIELD)
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string)
+        });
+
+    let mut value = serde_json::to_value(event).map_err(io_err)?;
+    if let Some(prev) = prev {
+        value[chain::PREV_FIELD] = serde_json::Value::String(prev);
+    }
+    let hash = chain::line_digest(task_id, seq, &value).map_err(io_err)?;
+    value[chain::HASH_FIELD] = serde_json::Value::String(hash);
+
+    let line = serde_json::to_string(&value).map_err(io_err)?;
     if line.len() > NDJSON_LINE_CAP {
         // 한 줄이 원자적 쓰기 한도를 넘으면 동시 쓰기 보장이 깨진다 — 자르지
         // 않고 거부한다 (제목·메모·첨부 상한이 이걸 막는 앞단이다).
@@ -345,6 +380,36 @@ pub fn list(root: &Path) -> Vec<Task> {
         .collect();
     ids.sort();
     ids.iter().filter_map(|id| read(root, id)).collect()
+}
+
+/// **이 원장이 손을 탔는가** (플랜 `ledger-and-liveness-honesty`).
+///
+/// 묶는 값은 task id 다 — 타임스탬프 + UUIDv4 라 사실상 유일하고, 절대경로와
+/// 달리 프로젝트 폴더를 옮겨도 변하지 않는다. 파일이 없으면 `None` (검증할
+/// 것이 없는 것이지 깨진 것이 아니다).
+pub fn verify_chain(root: &Path, task_id: &str) -> Option<ChainStatus> {
+    if !is_valid_task_id(task_id) {
+        return None;
+    }
+    let raw = std::fs::read_to_string(task_path(root, task_id)).ok()?;
+    Some(chain::verify_lines(task_id, &raw))
+}
+
+/// 모든 태스크 원장을 검증한다 — id 순서로.
+pub fn verify_all(root: &Path) -> Vec<(String, ChainStatus)> {
+    let Ok(entries) = std::fs::read_dir(tasks_dir(root)) else {
+        return Vec::new();
+    };
+    let mut ids: Vec<String> = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|ext| ext == "ndjson"))
+        .filter_map(|p| p.file_stem().map(|s| s.to_string_lossy().to_string()))
+        .collect();
+    ids.sort();
+    ids.into_iter()
+        .filter_map(|id| verify_chain(root, &id).map(|status| (id, status)))
+        .collect()
 }
 
 /// 이 에이전트가 **받은** 태스크.
@@ -582,6 +647,77 @@ mod tests {
         let raw = std::fs::read_to_string(task_path(root, &task.id)).unwrap();
         assert_eq!(raw.lines().filter(|l| !l.trim().is_empty()).count(), 3);
         assert!(raw.contains("submitted"), "첫 줄이 남아 있어야 한다");
+    }
+
+    /// **실제로 쓴 원장이 사슬로 이어진다** (플랜 `ledger-and-liveness-honesty`).
+    ///
+    /// `chain.rs` 의 순수 함수 테스트는 검증기가 옳다는 것만 말한다. 이 테스트는
+    /// `append_event` 가 그 사슬을 **실제로 건다**는 것을 문다 — 체인을 빼면
+    /// 여기가 깨진다.
+    #[test]
+    fn a_ledger_written_through_the_real_path_verifies() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let now = Utc::now();
+        let task = create(root, &new_task(), now).unwrap();
+        advance(root, &task.id, "codex-app", TaskState::Working, None, now).unwrap();
+        advance(
+            root,
+            &task.id,
+            "codex-app",
+            TaskState::Completed,
+            Some("끝"),
+            now,
+        )
+        .unwrap();
+
+        assert_eq!(
+            verify_chain(root, &task.id),
+            Some(ChainStatus::Intact { lines: 3 })
+        );
+        assert_eq!(verify_all(root).len(), 1);
+    }
+
+    /// 손으로 고친 원장은 **그 줄에서** 잡힌다. 막지는 못하지만 숨지도 못한다.
+    #[test]
+    fn a_hand_edited_ledger_is_caught_at_the_edited_line() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let now = Utc::now();
+        let task = create(root, &new_task(), now).unwrap();
+        advance(root, &task.id, "codex-app", TaskState::Working, None, now).unwrap();
+
+        // 둘째 줄의 주인을 바꿔 치기 — 누가 한 일인지를 고치는 흔한 손질.
+        let path = task_path(root, &task.id);
+        let raw = std::fs::read_to_string(&path).unwrap();
+        std::fs::write(&path, raw.replace("codex-app", "claude-app")).unwrap();
+
+        match verify_chain(root, &task.id) {
+            Some(ChainStatus::Broken(b)) => assert_eq!(b.line, 1),
+            other => panic!("손질을 못 잡았다: {other:?}"),
+        }
+    }
+
+    /// 사슬이 없던 시절의 원장을 "깨졌다"고 부르지 않는다 — 없는 것은 없는 것이다.
+    #[test]
+    fn a_ledger_from_before_the_chain_is_unverifiable_not_broken() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(tasks_dir(root)).unwrap();
+        let id = "20260901T100000.000-0123456789abcdef0123456789abcdef";
+        std::fs::write(
+            tasks_dir(root).join(format!("{id}.ndjson")),
+            r#"{"at":"2026-09-01T10:00:00+09:00","by":"codex-app","state":"submitted","head":{"from":"claude-app","to":"codex-app","title":"옛 것","artifacts":[],"deadline_at":"2026-09-01T16:00:00+09:00"}}
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            verify_chain(root, id),
+            Some(ChainStatus::Unverifiable { line: 1 })
+        );
+        // 접는 쪽은 여전히 읽는다 — 옛 원장이 화면에서 사라지면 안 된다.
+        assert!(read(root, id).is_some());
     }
 
     /// 깨진 줄 하나가 태스크를 통째로 잃게 하지 않는다.

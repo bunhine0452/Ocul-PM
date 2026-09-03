@@ -14,6 +14,7 @@ pub mod agents;
 pub mod atomic_io;
 pub mod automation;
 pub mod cache;
+pub mod chain;
 pub mod claude_hooks;
 pub mod config;
 pub mod content_lang;

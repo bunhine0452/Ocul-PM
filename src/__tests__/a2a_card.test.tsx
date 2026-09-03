@@ -45,6 +45,11 @@ function card(id: string, name: string) {
   };
 }
 
+/** 참여자 한 자리 — 카드와 판정을 함께 준다 (플랜 `ledger-and-liveness-honesty`). */
+function seat(id: string, name: string, liveness: "live" | "unknown" = "live") {
+  return { card: card(id, name), liveness };
+}
+
 function task(id: string, state: string) {
   return {
     id,
@@ -78,7 +83,8 @@ describe("A2A 협업 카드", () => {
 
   it("혼자 일할 때는 카드가 아예 없다", async () => {
     overview.mockResolvedValue({
-      participants: [card("claude-code-app", "Claude Code")],
+      participants: [seat("claude-code-app", "Claude Code")],
+      integrity: [],
       groups: [],
       leases: [],
       open_tasks: [],
@@ -90,7 +96,8 @@ describe("A2A 협업 카드", () => {
 
   it("둘이 붙어 있으면 참여자를 보여준다", async () => {
     overview.mockResolvedValue({
-      participants: [card("claude-code-app", "Claude Code"), card("codex-app", "Codex")],
+      participants: [seat("claude-code-app", "Claude Code"), seat("codex-app", "Codex")],
+      integrity: [],
       groups: [],
       leases: [],
       open_tasks: [],
@@ -102,7 +109,8 @@ describe("A2A 협업 카드", () => {
 
   it("넘어온 작업은 **사람이 눌러야** 시작된다", async () => {
     overview.mockResolvedValue({
-      participants: [card("claude-code-app", "Claude Code"), card("codex-app", "Codex")],
+      participants: [seat("claude-code-app", "Claude Code"), seat("codex-app", "Codex")],
+      integrity: [],
       groups: [],
       leases: [],
       open_tasks: [task("t1", "submitted")],
@@ -118,7 +126,8 @@ describe("A2A 협업 카드", () => {
 
   it("묶이지 않은 세션은 **보이기만** 하고, 둘 이상 골라야 묶인다", async () => {
     overview.mockResolvedValue({
-      participants: [card("claude-code-app", "Claude Code"), card("codex-app", "Codex")],
+      participants: [seat("claude-code-app", "Claude Code"), seat("codex-app", "Codex")],
+      integrity: [],
       groups: [],
       leases: [],
       open_tasks: [],
@@ -141,7 +150,8 @@ describe("A2A 협업 카드", () => {
 
   it("묶인 팀은 테두리 안에 서고 풀 수 있다", async () => {
     overview.mockResolvedValue({
-      participants: [card("claude-code-app", "Claude Code"), card("codex-app", "Codex")],
+      participants: [seat("claude-code-app", "Claude Code"), seat("codex-app", "Codex")],
+      integrity: [],
       groups: [
         {
           id: "g1",
@@ -164,10 +174,55 @@ describe("A2A 협업 카드", () => {
     await waitFor(() => expect(dissolve).toHaveBeenCalledWith(1, "g1"));
   });
 
+  it("판정할 수 없는 세션은 **오프라인이 아니라** 판정 불가로 선다", async () => {
+    overview.mockResolvedValue({
+      participants: [
+        seat("claude-code-app", "Claude Code"),
+        seat("codex-app", "Codex", "unknown"),
+      ],
+      integrity: [],
+      groups: [],
+      leases: [],
+      open_tasks: [],
+    });
+    render(<A2aCard projectId={1} />);
+    // 목록에서 사라지지 않는다 — 사라지면 사용자가 "없다"고 읽는다.
+    expect(await screen.findByText("Codex")).toBeTruthy();
+    expect(screen.getByText("판정 불가")).toBeTruthy();
+    // 확실히 살아 있는 쪽에는 배지가 붙지 않는다.
+    expect(screen.getAllByText("판정 불가")).toHaveLength(1);
+  });
+
+  it("손을 탄 원장은 줄 번호와 이유를 말하고, 옛 원장은 세기만 한다", async () => {
+    overview.mockResolvedValue({
+      participants: [seat("claude-code-app", "Claude Code"), seat("codex-app", "Codex")],
+      integrity: [
+        {
+          task_id: "20260903T170000.000-abc",
+          status: { kind: "broken", line: 3, reason: "content_changed", forked_from_line: null, expected: "a", found: "b" },
+        },
+        { task_id: "20260901T100000.000-old", status: { kind: "unverifiable", line: 1 } },
+      ],
+      groups: [],
+      leases: [],
+      open_tasks: [],
+    });
+    render(<A2aCard projectId={1} />);
+    expect(await screen.findByText("20260903T170000.000-abc")).toBeTruthy();
+    expect(screen.getByText("3번째 줄")).toBeTruthy();
+    expect(screen.getByText("내용이 고쳐졌어요")).toBeTruthy();
+    // 사슬 이전 원장은 줄마다 붉히지 않고 한 줄로 센다.
+    expect(screen.queryByText("20260901T100000.000-old")).toBeNull();
+    expect(screen.getByText("사슬이 없던 시절의 원장 1건 — 판정하지 않습니다")).toBeTruthy();
+    // 고치라고 하지 않는다 — 한계를 말한다.
+    expect(screen.getByText(/감사이지 서명이 아닙니다/)).toBeTruthy();
+  });
+
   it("잡힌 구역은 주인과 패턴을 보이고 놓을 수 있다", async () => {
     release.mockResolvedValue(true);
     overview.mockResolvedValue({
-      participants: [card("claude-code-app", "Claude Code"), card("codex-app", "Codex")],
+      participants: [seat("claude-code-app", "Claude Code"), seat("codex-app", "Codex")],
+      integrity: [],
       groups: [],
       leases: [
         {

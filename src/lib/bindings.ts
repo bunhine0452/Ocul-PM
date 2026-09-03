@@ -1906,14 +1906,11 @@ export type A2aChangeKind =
 /**  태스크 원장 (`agents/tasks/`). */
 "task";
 
-/**
- *  화면 한 벌 — 한 번의 왕복으로 그린다.
- * 
- *  셋을 따로 부르면 서로 다른 순간의 사실이 한 화면에 섞인다("A 가 쥐고 있다"
- *  옆에 "A 는 없다"). 같은 시각으로 한 번에 읽는다.
- */
 export type A2aOverview = {
-	participants: AgentCard[],
+	/**  살아 있는 것 + **판정 불가**. 죽은 것만 빠진다. */
+	participants: Participant[],
+	/**  손을 탄 흔적이 있는 태스크 원장 (없으면 빈 목록). */
+	integrity: LedgerIntegrity[],
 	/**
 	 *  사용자가 묶은 팀들. **묶이지 않은 세션은 참여자 목록에만 있다** —
 	 *  보이는 것과 말을 걸 수 있는 것은 다르다.
@@ -2659,6 +2656,14 @@ export type BinarySide = {
 	size: number,
 };
 
+export type BreakReason = 
+/**  줄 내용이 자기 digest 와 안 맞는다 — 내용이 고쳐졌다. */
+"content_changed" | 
+/**  앞 줄과의 연결이 끊겼다 — 사이의 줄이 지워졌거나 순서가 바뀌었다. */
+"link_broken" | 
+/**  앞선 줄에서 갈라졌다 — 동시 쓰기의 흔적이지 변조가 아니다. */
+"forked";
+
 export type BundleImportResult = {
 	manifest: BundleManifest,
 	report: InstallReport,
@@ -2695,6 +2700,47 @@ export type BundleSourceKind =
 "github" | 
 /**  로컬 `.zip` 파일 경로. */
 "file";
+
+/**
+ *  끊긴 지점. `bool` 이 아니라 이것을 돌려주는 이유는 **어디서** 끊겼는지가
+ *  사람이 판단할 유일한 재료이기 때문이다.
+ */
+export type ChainBreak = {
+	/**  1부터 세는 줄 번호 (편집기가 보여주는 번호와 같게). */
+	line: number,
+	reason: BreakReason,
+	/**
+	 *  [`BreakReason::Forked`] 일 때 갈라져 나온 줄 번호.
+	 * 
+	 *  사유 안에 담지 않고 밖으로 낸 이유는 JSON 이 평평해야 하기 때문이다 —
+	 *  `ChainStatus` 가 이미 `kind` 로 태그를 쓰고 있어서, 사유가 또 태그된
+	 *  객체이면 한 오브젝트에 같은 키가 두 번 나거나 한 겹 더 중첩된다.
+	 * 
+	 *  `skip_serializing_if` 를 **일부러 안 붙인다.** 붙이면 직렬화와
+	 *  역직렬화의 모양이 갈려 specta 가 타입을 둘로 쪼개고, 프런트가 받는
+	 *  타입이 외부 태그 형태로 바뀐다. 없을 땐 `null` 을 그대로 낸다.
+	 */
+	forked_from_line: number | null,
+	/**  우리가 계산한 값. */
+	expected: string,
+	/**  파일에 적혀 있던 값. */
+	found: string,
+};
+
+/**  원장 한 파일의 검증 결과. */
+export type ChainStatus = 
+/**  줄 `lines` 개가 이어져 있다. */
+({ kind: "intact"; lines: number }) & { line?: never } | 
+/**
+ *  해시가 없는 줄이 있다 — 이 기능 이전에 쓰인 원장이다. **판정하지 않는다.**
+ * 
+ *  없는 것을 깨진 것으로 부르지 않는다. 모르는 것은 모른다고 한다.
+ */
+({ kind: "unverifiable"; line: number }) & { lines?: never } | 
+/**  사슬이 끊겼다. */
+{
+	kind: "broken",
+} & ChainBreak;
 
 /**
  *  A group of changed files attributed to one journal entry (Dogfooding #3).
@@ -4190,6 +4236,26 @@ export type Lease = {
 	expires_at: string,
 };
 
+/**
+ *  원장 하나의 무결성 — **깨진 것만** 싣는다.
+ * 
+ *  멀쩡한 원장까지 실으면 화면이 "정상 47건"을 그리게 되는데, 그건 아무도 안
+ *  읽는 초록불이다. 할 말이 있을 때만 자리를 차지한다.
+ */
+export type LedgerIntegrity = {
+	task_id: string,
+	status: ChainStatus,
+};
+
+/**  참여자가 살아 있는가 — **모름이 셋째 상태다** (모듈 문서 참조). */
+export type Liveness = 
+/**  근거를 갖고 살아 있다. */
+"live" | 
+/**  근거를 갖고 죽었다. **이것만 걷는다.** */
+"dead" | 
+/**  판정할 수 없다. 오프라인이 아니다. */
+"unknown";
+
 export type LocalDiffReindexReport = {
 	indexed: string[],
 	skipped: ReindexSkip[],
@@ -4768,6 +4834,23 @@ export type PairingInfo = {
 	code: string,
 	url: string,
 	expires_in_secs: number,
+};
+
+/**
+ *  화면 한 벌 — 한 번의 왕복으로 그린다.
+ * 
+ *  셋을 따로 부르면 서로 다른 순간의 사실이 한 화면에 섞인다("A 가 쥐고 있다"
+ *  옆에 "A 는 없다"). 같은 시각으로 한 번에 읽는다.
+ *  참여자 한 명 — **카드와 판정을 함께** 준다.
+ * 
+ *  카드만 주면 화면이 "여기 있다"밖에 못 말한다. 판정할 수 없는 세션(윈도우·
+ *  하트비트 시각이 깨진 카드)을 목록에서 빼 버리면 오프라인과 구별되지 않고,
+ *  그것이 이 라운드가 고치는 바로 그 거짓말이다 (플랜
+ *  `ledger-and-liveness-honesty`).
+ */
+export type Participant = {
+	card: AgentCard,
+	liveness: Liveness,
 };
 
 /**

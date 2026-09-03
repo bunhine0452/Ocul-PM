@@ -13,6 +13,22 @@
 //! 프로세스가 없으면 하트비트가 아무리 새것이어도 죽은 것이다. pid 가 살아
 //! 있으면 하트비트는 "얼마나 오래 조용했나"의 참고값일 뿐이고, pid 재사용을
 //! 감안해 아주 오래된 것만 죽은 것으로 본다.
+//!
+//! ## 모름은 죽음이 아니다 (플랜 `ledger-and-liveness-honesty`)
+//!
+//! 판정은 **셋** 이다 — [`Liveness::Live`] · [`Liveness::Dead`] · 그리고
+//! [`Liveness::Unknown`]. 예전에는 `bool` 이라 "판정할 수 없다"를 적을 자리가
+//! 없었고, 모름이 전부 죽음으로 흘러갔다. 그 값을 [`sweep`] 과
+//! [`leases::expired`](super::leases) 가 읽으므로, **살아 있는 세션의 작업 구역을
+//! 뺏는** 길이 열려 있었다. 이제 걷는 것은 `Dead` 뿐이다.
+//!
+//! 모름이 나오는 자리는 셋이다: 윈도우(값싼 pid 확인 수단이 없다), 하트비트
+//! 시각을 파싱하지 못한 카드, `kill(2)` 가 `ESRCH`·`EPERM` 도 아닌 오류를 낸
+//! 경우. 셋 다 "아직 모른다"이지 "없다"가 아니다.
+//!
+//! 그리고 이 판정은 **화면과 청소를 위한 가드이지 분산 락이 아니다.** 카드가
+//! 살아 있다고 해서 그 프로세스가 지금 무엇을 하는지 알 수 없고, 죽었다고 해서
+//! 그 순간 죽었다는 보장도 없다. 임대의 진짜 안전장치는 기한이다.
 
 use std::path::{Path, PathBuf};
 
@@ -171,34 +187,65 @@ pub fn list_live(root: &Path, now: DateTime<Utc>) -> Vec<AgentCard> {
 }
 
 /// 죽은 카드를 지운다. 지운 개수를 돌려준다.
+///
+/// **`Dead` 만 걷는다.** `!is_live` 로 쓰면 모름까지 지워져, 판정할 수 없는
+/// 세션(윈도우·시각이 깨진 카드)이 목록에서 사라지고 그 임대가 풀린다.
 pub fn sweep(root: &Path, now: DateTime<Utc>) -> usize {
     read_all(root)
         .into_iter()
-        .filter(|card| !is_live(card, now))
+        .filter(|card| liveness(card, now) == Liveness::Dead)
         .filter(|card| unregister(root, &card.agent_id))
         .count()
 }
 
-/// 이 카드가 살아 있는가 (판정 규칙은 모듈 문서에).
-pub fn is_live(card: &AgentCard, now: DateTime<Utc>) -> bool {
+/// 참여자가 살아 있는가 — **모름이 셋째 상태다** (모듈 문서 참조).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum Liveness {
+    /// 근거를 갖고 살아 있다.
+    Live,
+    /// 근거를 갖고 죽었다. **이것만 걷는다.**
+    Dead,
+    /// 판정할 수 없다. 오프라인이 아니다.
+    Unknown,
+}
+
+/// 이 카드의 생사 (판정 규칙은 모듈 문서에).
+pub fn liveness(card: &AgentCard, now: DateTime<Utc>) -> Liveness {
+    let beat = card.beat();
     match card.pid {
         // 로컬 프로세스 — pid 가 1차 신호.
-        Some(pid) => {
-            if !pid_alive(pid) {
-                return false;
-            }
+        Some(pid) => match pid_state(pid) {
+            Liveness::Dead => Liveness::Dead,
             // pid 재사용 방어: 살아 있는 pid 인데 아주 오래 조용하면 남의 pid 다.
-            match card.beat() {
-                Some(beat) => now - beat < Duration::hours(STALE_AFTER_HOURS),
-                None => true,
-            }
-        }
+            Liveness::Live => match beat {
+                Some(beat) if now - beat >= Duration::hours(STALE_AFTER_HOURS) => Liveness::Dead,
+                // 시각을 못 읽어도 pid 는 살아 있다 — 그것만으로 충분한 근거다.
+                _ => Liveness::Live,
+            },
+            // pid 를 못 물어본다(윈도우 등) — 하트비트가 새것이면 살아 있다고
+            // 보고, 아니면 **모른다.** 죽었다고 단정할 근거가 없다.
+            Liveness::Unknown => match beat {
+                Some(beat) if now - beat < Duration::minutes(REMOTE_TTL_MINUTES) => Liveness::Live,
+                _ => Liveness::Unknown,
+            },
+        },
         // pid 를 모르는 참여자(원격)는 하트비트 TTL 로만 판정한다.
-        None => match card.beat() {
-            Some(beat) => now - beat < Duration::minutes(REMOTE_TTL_MINUTES),
-            None => false,
+        None => match beat {
+            Some(beat) if now - beat < Duration::minutes(REMOTE_TTL_MINUTES) => Liveness::Live,
+            Some(_) => Liveness::Dead,
+            // 시각을 파싱하지 못한 카드 — 읽지 못한 것은 죽은 것이 아니다.
+            None => Liveness::Unknown,
         },
     }
+}
+
+/// 이 카드가 **확실히** 살아 있는가.
+///
+/// "누구에게 일을 넘길 수 있나" 처럼 근거를 요구하는 자리용이다. 청소하는 쪽은
+/// 이것의 부정을 쓰면 안 된다 — 모름까지 죽음으로 삼킨다. [`liveness`] 를 쓸 것.
+pub fn is_live(card: &AgentCard, now: DateTime<Utc>) -> bool {
+    liveness(card, now) == Liveness::Live
 }
 
 /// 이 pid 로 도는 프로세스가 있는가.
@@ -209,20 +256,29 @@ pub fn is_live(card: &AgentCard, now: DateTime<Utc>) -> bool {
 /// 맡긴다 — 죽은 것을 산 것으로 잠깐 보는 편이, 산 것을 죽었다고 지워
 /// 위임을 허공으로 보내는 것보다 낫다.
 #[cfg(unix)]
-fn pid_alive(pid: u32) -> bool {
+fn pid_state(pid: u32) -> Liveness {
     if pid == 0 {
-        return false;
+        return Liveness::Dead;
     }
     let rc = unsafe { libc::kill(pid as libc::pid_t, 0) };
     if rc == 0 {
-        return true;
+        return Liveness::Live;
     }
-    std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+    match std::io::Error::last_os_error().raw_os_error() {
+        // 남의 소유 프로세스 — 시그널은 못 보내지만 **있다.**
+        Some(libc::EPERM) => Liveness::Live,
+        Some(libc::ESRCH) => Liveness::Dead,
+        // EINVAL 같은 그 밖의 오류는 pid 의 생사를 말해 주지 않는다.
+        _ => Liveness::Unknown,
+    }
 }
 
 #[cfg(not(unix))]
-fn pid_alive(_pid: u32) -> bool {
-    true
+fn pid_state(_pid: u32) -> Liveness {
+    // 윈도우에는 값싼 대응물이 없다. 예전에는 여기서 `true`(살아 있음)를
+    // 돌려줬는데, 그건 모르는 것을 아는 척한 것이다. 모른다고 말하고 하트비트로
+    // 넘긴다 — 그래도 청소는 `Dead` 만 걷으므로 산 것을 지우지 않는다.
+    Liveness::Unknown
 }
 
 #[cfg(test)]
@@ -306,6 +362,40 @@ mod tests {
         assert!(list_live(dir.path(), now).is_empty());
         assert_eq!(sweep(dir.path(), now), 1);
         assert!(read_all(dir.path()).is_empty());
+    }
+
+    /// **판정할 수 없는 카드를 죽었다고 부르지 않는다** (플랜
+    /// `ledger-and-liveness-honesty`).
+    ///
+    /// pid 가 없고 하트비트 시각도 못 읽으면 남은 근거가 없다. 예전에는 그것이
+    /// `false`(죽음)로 흘러 `sweep` 이 카드를 지웠고, 그 세션이 쥔 작업 구역이
+    /// 함께 풀렸다.
+    #[test]
+    fn a_card_we_cannot_judge_is_unknown_not_dead() {
+        let dir = tempfile::tempdir().unwrap();
+        let now = Utc::now();
+        let mut blind = card("remote-blind", None, now);
+        blind.heartbeat_at = "언제인지 모를 시각".to_string();
+        register(dir.path(), &blind).unwrap();
+
+        assert_eq!(liveness(&blind, now), Liveness::Unknown);
+        // 확실한 근거를 요구하는 자리에는 나서지 않는다.
+        assert!(!is_live(&blind, now));
+        // 그러나 **지워지지도 않는다.**
+        assert_eq!(sweep(dir.path(), now), 0);
+        assert_eq!(read_all(dir.path()).len(), 1);
+    }
+
+    /// 하트비트가 오래된 원격 참여자는 근거를 갖고 죽은 것이다 — 모름이 아니다.
+    #[test]
+    fn a_stale_remote_heartbeat_is_dead_with_evidence() {
+        let now = Utc::now();
+        let stale = card(
+            "remote-stale",
+            None,
+            now - Duration::minutes(REMOTE_TTL_MINUTES + 1),
+        );
+        assert_eq!(liveness(&stale, now), Liveness::Dead);
     }
 
     /// 살아 있는 pid 인데 아주 오래 조용하면 pid 재사용으로 본다.

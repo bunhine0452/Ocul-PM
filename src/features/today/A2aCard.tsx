@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Bot, TriangleAlert } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
-import type { A2aOverview } from "@/lib/bindings";
+import type { A2aOverview, Liveness } from "@/lib/bindings";
 import { oculpmApi } from "@/api/oculpm";
 import { toAppError } from "@/api/invoke";
 import { agentLabel } from "./agentColor";
@@ -70,14 +70,19 @@ export function A2aCard({ projectId }: { projectId: number }) {
   if (!data) return null;
 
   const waiting = data.open_tasks.filter((task) => task.state === "submitted");
-  const byId = new Map(data.participants.map((card) => [card.agent_id, card]));
+  const byId = new Map(data.participants.map((p) => [p.card.agent_id, p]));
   const grouped = new Set(data.groups.flatMap((g) => g.members));
-  const unbound = data.participants.filter((card) => !grouped.has(card.agent_id));
+  const unbound = data.participants.filter((p) => !grouped.has(p.card.agent_id));
+  // 사슬이 없던 시절의 원장은 **깨진 것이 아니다** — 한 줄로 세어서만 말한다.
+  // 끊긴 것만 줄마다 이유를 붙인다.
+  const legacy = data.integrity.filter((it) => it.status.kind === "unverifiable");
+  const broken = data.integrity.filter((it) => it.status.kind === "broken");
   const quiet =
     data.participants.length <= 1 &&
     data.leases.length === 0 &&
     data.open_tasks.length === 0 &&
-    trespasses.length === 0;
+    trespasses.length === 0 &&
+    broken.length === 0;
   if (quiet) return null;
 
   const bind = async () => {
@@ -140,12 +145,15 @@ export function A2aCard({ projectId }: { projectId: number }) {
           </div>
           <ul className="a2a-list" aria-label={group.title}>
             {group.members.map((id) => {
-              const card = byId.get(id);
+              const seat = byId.get(id);
               return (
                 <li key={id}>
-                  <strong>{card ? agentLabel(card.provider) : id}</strong>
-                  {card ? (
-                    <span className="a2a-sub">{t(`a2a.surface.${card.surface}`)}</span>
+                  <strong>{seat ? agentLabel(seat.card.provider) : id}</strong>
+                  {seat ? (
+                    <>
+                      <span className="a2a-sub">{t(`a2a.surface.${seat.card.surface}`)}</span>
+                      <UnknownBadge liveness={seat.liveness} />
+                    </>
                   ) : null}
                 </li>
               );
@@ -159,7 +167,7 @@ export function A2aCard({ projectId }: { projectId: number }) {
         <>
           <div className="a2a-head">{t("a2a.unbound")}</div>
           <ul className="a2a-list" aria-label={t("a2a.unbound")}>
-            {unbound.map((card) => (
+            {unbound.map(({ card, liveness }) => (
               <li key={card.agent_id}>
                 <label className="a2a-pick">
                   <input
@@ -178,6 +186,7 @@ export function A2aCard({ projectId }: { projectId: number }) {
                   <strong>{agentLabel(card.provider)}</strong>
                   <span className="a2a-sub">{t(`a2a.surface.${card.surface}`)}</span>
                   <span className="a2a-sub a2a-dim">{card.name}</span>
+                  <UnknownBadge liveness={liveness} />
                 </label>
               </li>
             ))}
@@ -230,6 +239,36 @@ export function A2aCard({ projectId }: { projectId: number }) {
         </>
       ) : null}
 
+      {broken.length || legacy.length ? (
+        <>
+          <div className="a2a-head">{t("a2a.integrity")}</div>
+          <ul className="a2a-list" aria-label={t("a2a.integrity")}>
+            {broken.map((it) =>
+              it.status.kind === "broken" ? (
+                <li key={it.task_id}>
+                  <strong>{it.task_id}</strong>
+                  <span className="a2a-sub">
+                    {t("a2a.integrityBrokenAt", { line: it.status.line })}
+                  </span>
+                  <span className="a2a-sub">
+                    {it.status.reason === "content_changed"
+                      ? t("a2a.integrityContentChanged")
+                      : it.status.reason === "link_broken"
+                        ? t("a2a.integrityLinkBroken")
+                        : t("a2a.integrityForked", { from: it.status.forked_from_line ?? 0 })}
+                  </span>
+                </li>
+              ) : null,
+            )}
+          </ul>
+          {legacy.length ? (
+            <div className="a2a-sub">{t("a2a.integrityLegacy", { n: legacy.length })}</div>
+          ) : null}
+          {/* 고치라고 하지 않는다 — 사람이 손으로 고친 것일 수 있다. */}
+          <div className="a2a-sub a2a-dim">{t("a2a.integrityLimit")}</div>
+        </>
+      ) : null}
+
       {trespasses.length ? (
         <>
           <div className="a2a-head">
@@ -248,5 +287,22 @@ export function A2aCard({ projectId }: { projectId: number }) {
         </>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * 판정 불가 배지 — **오프라인과 같은 색으로 그리지 않는다.**
+ *
+ * 살아 있다고 확인되지 않은 것과 없어진 것은 다른 사실이고, 화면이 그 둘을 같은
+ * 점으로 그리면 사용자가 "없다"고 읽는다 (플랜 `ledger-and-liveness-honesty`).
+ * 죽은 참여자는 애초에 목록에 오지 않으므로, 여기서 말할 것은 모름뿐이다.
+ */
+function UnknownBadge({ liveness }: { liveness: Liveness }) {
+  const { t } = useT();
+  if (liveness !== "unknown") return null;
+  return (
+    <span className="a2a-sub a2a-dim" title={t("a2a.unknownLivenessHint")}>
+      {t("a2a.unknownLiveness")}
+    </span>
   );
 }

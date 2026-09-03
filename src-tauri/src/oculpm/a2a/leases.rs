@@ -165,8 +165,11 @@ fn expired(lease: &Lease, cards: &[registry::AgentCard], now: DateTime<Utc>) -> 
     // 주인이 카드를 두었는데 그 카드가 죽었으면 구역도 놓는다. 카드가 아예
     // 없으면(등록 안 한 세션) 기한만 본다 — 등록을 안 했다는 이유로 남의
     // 임대를 뺏을 수는 없다.
+    // **죽었다고 판정된 경우에만** 놓는다. `!is_live` 로 쓰면 판정 불가(모름)가
+    // 죽음으로 흘러 살아 있는 세션의 작업 구역을 뺏는다 (플랜
+    // `ledger-and-liveness-honesty`).
     match cards.iter().find(|c| c.agent_id == lease.holder) {
-        Some(card) => !registry::is_live(card, now),
+        Some(card) => registry::liveness(card, now) == registry::Liveness::Dead,
         None => false,
     }
 }
@@ -360,6 +363,46 @@ mod tests {
 
     fn pats(list: &[&str]) -> Vec<String> {
         list.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// **판정할 수 없는 주인의 구역은 뺏지 않는다** (플랜
+    /// `ledger-and-liveness-honesty` — 이 Phase 의 이유).
+    ///
+    /// 예전에는 `!is_live` 로 물어서 모름이 죽음으로 흘렀다. 윈도우 세션이나
+    /// 하트비트 시각이 깨진 카드가 그 길로 구역을 잃었다.
+    #[test]
+    fn a_lease_survives_a_holder_we_cannot_judge() {
+        use crate::oculpm::a2a::registry::{self, AgentCard, AgentSurface, Liveness};
+
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let now = Utc::now();
+
+        let holder = "remote-blind";
+        registry::register(
+            root,
+            &AgentCard {
+                agent_id: holder.to_string(),
+                name: "판정 불가".to_string(),
+                description: None,
+                version: "1".to_string(),
+                skills: Vec::new(),
+                provider: "codex".to_string(),
+                surface: AgentSurface::Remote,
+                session_id: None,
+                pid: None,
+                project_root: root.display().to_string(),
+                // 파싱되지 않는 시각 — 남은 근거가 없다.
+                heartbeat_at: "언제인지 모를 시각".to_string(),
+            },
+        )
+        .unwrap();
+        let card = &registry::read_all(root)[0];
+        assert_eq!(registry::liveness(card, now), Liveness::Unknown);
+
+        claim(root, holder, &pats(&["src/**"]), None, None, now).unwrap();
+        assert_eq!(sweep(root, now), 0, "모름의 구역을 걷으면 안 된다");
+        assert_eq!(active(root, now).len(), 1);
     }
 
     #[test]
