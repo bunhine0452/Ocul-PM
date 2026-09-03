@@ -2707,6 +2707,7 @@ export const ko = {
   "tray.noActiveSession": "지금 활성 세션 없음",
   "tray.sessionsActive": "세션 {n} 활성",
   "tray.agentFallback": "에이전트",
+  "tray.conversations": "대화 {n}",
   "tray.todayEntries": "오늘 일지",
   "tray.filesChanged": "변경 파일",
   "tray.noEntriesToday": "오늘 아직 기록 없음",

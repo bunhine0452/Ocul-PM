@@ -683,6 +683,8 @@ impl AutomationRunner {
             agent: Some(AgentRef {
                 id: format!("auto:{}", response.provider),
                 version: Some(response.model.clone()),
+                // 배경 모델이 쓴 것이라 붙일 대화가 없다.
+                session: None,
             }),
             verified_by_user: Some(false),
             created_at: None,

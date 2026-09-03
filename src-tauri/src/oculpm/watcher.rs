@@ -652,9 +652,12 @@ impl WatcherInner {
             );
             match claude_hooks::apply_event(&mut open, ev) {
                 HookSignal::AgentActive => {
+                    // 라벨은 상수지만 **대화 id 는 이벤트마다 다르다** — 그
+                    // 값을 함께 넘겨야 분할 터미널의 N개 대화가 세션 레코드에
+                    // 남는다. 예전에는 여기서 버려졌다.
                     if let Err(e) = self
                         .session
-                        .hook_agent_active(claude_hooks::HOOK_AGENT_LABEL)
+                        .hook_agent_active(claude_hooks::HOOK_AGENT_LABEL, &ev.session_id)
                     {
                         tracing::warn!(target: "oculpm::watcher", error = ?e, "hook_agent_active send failed");
                     }
@@ -669,7 +672,7 @@ impl WatcherInner {
                                 Some((sess, ev.transcript_path.clone(), ev.session_id.clone()));
                         }
                     }
-                    if let Err(e) = self.session.hook_agent_ended() {
+                    if let Err(e) = self.session.hook_agent_ended(&ev.session_id) {
                         tracing::warn!(target: "oculpm::watcher", error = ?e, "hook_agent_ended send failed");
                     }
                 }

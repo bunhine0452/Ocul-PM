@@ -340,6 +340,7 @@ impl<'a> JournalCache<'a> {
                         // PR-CI1 에서 발견한 잠복 버그 fix — 021 부터 캐시 행에
                         // agent_version 이 있는데 하이드레이션이 버리고 있었다.
                         version: r.agent_version,
+                        session: None,
                     },
                     language: r.language,
                     verified_by_user: r.verified_by_user,

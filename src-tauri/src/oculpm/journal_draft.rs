@@ -611,6 +611,7 @@ pub async fn draft_for_session(
         agent: Some(AgentRef {
             id: "claude-code".to_string(),
             version: digest.model.clone(),
+            session: None,
         }),
         verified_by_user: Some(false),
         created_at: None,
@@ -777,6 +778,7 @@ mod tests {
             git_head_at_start: None,
             git_head_at_end: None,
             agent_label_guess: None,
+            agent_sessions: Vec::new(),
             linked_journal_entries: vec![],
         };
         let body =
@@ -829,6 +831,7 @@ mod tests {
             git_head_at_start: None,
             git_head_at_end: None,
             agent_label_guess: None,
+            agent_sessions: Vec::new(),
             linked_journal_entries: vec![],
         };
         let body = compose_degraded_body(&session, &[], "llm failed", "note", ContentLang::English);

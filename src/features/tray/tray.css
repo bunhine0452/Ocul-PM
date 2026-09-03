@@ -161,6 +161,14 @@ html, body {
   min-width: 0;
 }
 .tp-agent { font-weight: 600; }
+/* 동시에 붙어 있는 대화 수 — 둘 이상일 때만 나온다. */
+.tp-convs {
+  font-size: var(--fs-3);
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+}
 .tp-proj {
   margin-left: auto;
   color: var(--muted-foreground);

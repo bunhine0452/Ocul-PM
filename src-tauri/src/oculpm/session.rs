@@ -17,7 +17,7 @@
 
 #![allow(dead_code)] // Consumed by W2-PR3 (Watcher) + W2-PR6 (commands) + W2-PR7 (manager bootstrap).
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -57,10 +57,19 @@ pub enum SessionCmd {
     /// it, and refreshes the inactivity window — no file event required.
     HookAgentActive {
         agent_label: String,
+        /// 훅이 준 **에이전트 대화 id**. 라벨(`claude-code`)은 상수라 몇 개가
+        /// 붙어 있는지 말하지 못한다 — 이 값이 그걸 말한다. 모를 수 있어
+        /// (구버전 훅·필드 누락) 빈 문자열이 오면 조용히 버린다.
+        agent_session: String,
     },
     /// PR-CI0 — the last open hooked agent session reported SessionEnd →
     /// finalize now with the precise `AgentExit` reason.
-    HookAgentEnded,
+    HookAgentEnded {
+        /// 방금 끝난 대화의 id. 끝나는 길이라도 **참여 기록은 남긴다** —
+        /// 앱이 중간에 재시작해 SessionStart 를 못 본 대화가 여기서 처음
+        /// 이름을 얻는 경우가 있다.
+        agent_session: String,
+    },
     Shutdown(oneshot::Sender<()>),
     /// Query: returns the current session if Active, else None.
     GetCurrentSession(oneshot::Sender<Option<Session>>),
@@ -131,18 +140,25 @@ impl SessionActor {
     }
 
     /// PR-CI0 — hook bridge: agent alive signal (SessionStart / Stop).
-    pub fn hook_agent_active(&self, agent_label: &str) -> Result<(), OculpmError> {
+    pub fn hook_agent_active(
+        &self,
+        agent_label: &str,
+        agent_session: &str,
+    ) -> Result<(), OculpmError> {
         self.cmd_tx
             .send(SessionCmd::HookAgentActive {
                 agent_label: agent_label.to_string(),
+                agent_session: agent_session.to_string(),
             })
             .map_err(|_| OculpmError::ActorClosed)
     }
 
     /// PR-CI0 — hook bridge: last agent session ended → finalize now.
-    pub fn hook_agent_ended(&self) -> Result<(), OculpmError> {
+    pub fn hook_agent_ended(&self, agent_session: &str) -> Result<(), OculpmError> {
         self.cmd_tx
-            .send(SessionCmd::HookAgentEnded)
+            .send(SessionCmd::HookAgentEnded {
+                agent_session: agent_session.to_string(),
+            })
             .map_err(|_| OculpmError::ActorClosed)
     }
 
@@ -175,6 +191,9 @@ struct ActiveSession {
     last_activity: DateTime<Utc>,
     last_upsert: DateTime<Utc>,
     files_unique: HashSet<String>,
+    /// 이 작업 세션에 붙어 있던 에이전트 대화 id 들. `BTreeSet` 이라 삽입만
+    /// 하면 정렬·중복 제거가 공짜다 — 훅은 대화마다 매 턴 신호를 보낸다.
+    agent_sessions: BTreeSet<String>,
     inactivity_handle: JoinHandle<()>,
     boundary_handle: JoinHandle<()>,
     dirty: bool,
@@ -249,10 +268,13 @@ impl ActorInner {
             SessionCmd::ManualEnd(id) => self.on_manual_end(id).await,
             SessionCmd::InactivityFired => self.on_inactivity_fired().await,
             SessionCmd::BoundaryFired => self.on_boundary_fired().await,
-            SessionCmd::HookAgentActive { agent_label } => {
-                self.on_hook_agent_active(agent_label).await
+            SessionCmd::HookAgentActive {
+                agent_label,
+                agent_session,
+            } => self.on_hook_agent_active(agent_label, agent_session).await,
+            SessionCmd::HookAgentEnded { agent_session } => {
+                self.on_hook_agent_ended(agent_session).await
             }
-            SessionCmd::HookAgentEnded => self.on_hook_agent_ended().await,
             SessionCmd::Shutdown(_) => unreachable!("Shutdown handled in run loop"),
             SessionCmd::GetCurrentSession(tx) => {
                 let session = match &self.state {
@@ -366,7 +388,7 @@ impl ActorInner {
     /// precise agent label (measured, not frontmatter self-report), and
     /// resets the inactivity window so a thinking-but-not-writing agent
     /// doesn't get heuristically closed mid-run.
-    async fn on_hook_agent_active(&mut self, agent_label: String) {
+    async fn on_hook_agent_active(&mut self, agent_label: String, agent_session: String) {
         match &mut self.state {
             SessionState::Idle => {
                 if let Err(e) = self.start_session(None).await {
@@ -375,6 +397,7 @@ impl ActorInner {
                 }
                 if let SessionState::Active(active) = &mut self.state {
                     active.session.agent_label_guess = Some(agent_label);
+                    record_agent_session(active, &agent_session);
                     // Persist the label right away — start_session upserted
                     // without it and the debounce window would leave a
                     // label-less row if the agent session is short.
@@ -390,6 +413,7 @@ impl ActorInner {
                 if active.session.agent_label_guess.is_none() {
                     active.session.agent_label_guess = Some(agent_label);
                 }
+                record_agent_session(active, &agent_session);
                 active.last_activity = Utc::now();
                 active.dirty = true;
                 let timeout = inactivity_timeout(&self.config);
@@ -404,7 +428,12 @@ impl ActorInner {
     /// PR-CI0 — precise close from the agent's own SessionEnd. Idle is a
     /// no-op (the heuristic may have closed first — that's fine, the hook
     /// just makes it exact when it can).
-    async fn on_hook_agent_ended(&mut self) {
+    async fn on_hook_agent_ended(&mut self, agent_session: String) {
+        // 끝나는 길이라도 참여는 참여다 — finalize 가 이 세션을 디스크로
+        // 내보내기 **전에** 적어야 기록에 남는다.
+        if let SessionState::Active(active) = &mut self.state {
+            record_agent_session(active, &agent_session);
+        }
         if matches!(self.state, SessionState::Active(_)) {
             self.finalize_active(EndedReason::AgentExit, EndedAt::Now)
                 .await;
@@ -568,6 +597,8 @@ impl ActorInner {
         files_unique.insert(stamped.path.clone());
 
         let mut session = resumed;
+        let agent_sessions_seed: BTreeSet<String> =
+            session.agent_sessions.iter().cloned().collect();
         session.file_event_count = session.file_event_count.saturating_add(1);
         session.files_unique = files_unique.len() as u32;
         // git_head_at_start kept; end stays None until next finalize.
@@ -592,6 +623,9 @@ impl ActorInner {
             last_activity: now,
             last_upsert: now,
             files_unique,
+            // 이어 붙이는 세션이므로 참여자 목록도 이어받는다 — 비우면 재개
+            // 직후의 훅 신호만 남아 앞쪽 대화들이 기록에서 사라진다.
+            agent_sessions: agent_sessions_seed,
             inactivity_handle: inactivity,
             boundary_handle: boundary,
             dirty: false,
@@ -638,6 +672,7 @@ impl ActorInner {
             git_head_at_start: self.index_writer.current_git_head(),
             git_head_at_end: None,
             agent_label_guess: None,
+            agent_sessions: Vec::new(),
             linked_journal_entries: Vec::new(),
         };
 
@@ -666,6 +701,7 @@ impl ActorInner {
             last_activity: now,
             last_upsert: now,
             files_unique,
+            agent_sessions: BTreeSet::new(),
             inactivity_handle: inactivity,
             boundary_handle: boundary,
             dirty: false,
@@ -814,6 +850,23 @@ enum EndedAt {
 enum ResumeOutcome {
     Resumed,
     NoCandidate,
+}
+
+/// 이 작업 세션에 에이전트 대화 하나를 등록한다.
+///
+/// 훅은 대화마다 **매 턴** 신호를 보내므로 대부분의 호출은 아무것도 바꾸지
+/// 않는다. 그래서 집합이 실제로 커졌을 때만 `dirty` 를 세우고 세션 레코드의
+/// 벡터를 다시 만든다 — 매 턴 upsert 를 유발하면 디바운스가 무의미해진다.
+///
+/// 빈 id 는 버린다. 훅 payload 에 `session_id` 가 없을 수 있고(구버전·필드
+/// 누락), 빈 문자열을 참여자로 세면 "대화 1개"라는 거짓말이 된다.
+fn record_agent_session(active: &mut ActiveSession, agent_session: &str) {
+    let id = agent_session.trim();
+    if id.is_empty() || !active.agent_sessions.insert(id.to_string()) {
+        return;
+    }
+    active.session.agent_sessions = active.agent_sessions.iter().cloned().collect();
+    active.dirty = true;
 }
 
 fn inactivity_timeout(cfg: &SessionConfig) -> Duration {
@@ -997,20 +1050,77 @@ mod tests {
         let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
         let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
 
-        actor.hook_agent_active("claude-code").unwrap();
+        actor.hook_agent_active("claude-code", "conv-a").unwrap();
         // A turn Stop while Active must NOT split into a second session.
-        actor.hook_agent_active("claude-code").unwrap();
-        actor.hook_agent_ended().unwrap();
+        actor.hook_agent_active("claude-code", "conv-a").unwrap();
+        actor.hook_agent_ended("conv-a").unwrap();
         actor.shutdown().await.unwrap();
 
         let workday = today_workday();
         let session = read_only_session(&writer, &workday).await;
         assert_eq!(session.agent_label_guess.as_deref(), Some("claude-code"));
+        // 같은 대화가 매 턴 신호를 보내도 참여자는 하나다.
+        assert_eq!(session.agent_sessions, vec!["conv-a".to_string()]);
         assert_eq!(
             session.ended_reason.unwrap() as u8,
             EndedReason::AgentExit as u8
         );
         assert!(session.ended_at.is_some());
+    }
+
+    /// 터미널 분할 회귀 — 동시에 도는 대화 N개가 **전부** 기록에 남는다.
+    ///
+    /// 예전에는 훅이 대화마다 다른 `session_id` 를 들고 왔는데도 액터에는 상수
+    /// 라벨만 넘어가, 4분할한 CLI 가 세션 하나·에이전트 하나로 보였다. 여기서
+    /// 지키는 것은 둘이다: 작업 세션은 여전히 **하나**이고(파일 활동의 그릇은
+    /// 쪼개지 않는다), 참여한 대화는 **넷 다** 남는다.
+    #[tokio::test]
+    async fn parallel_agent_conversations_are_all_recorded() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        // 4분할 터미널: 대화 넷이 서로 겹쳐 돈다.
+        for conv in ["conv-1", "conv-2", "conv-3", "conv-4"] {
+            actor.hook_agent_active("claude-code", conv).unwrap();
+        }
+        // 셋이 먼저 끝나도 마지막 하나가 살아 있으면 세션은 닫히지 않는다
+        // (열린-집합 판정은 watcher 쪽이고, 여기서는 참여 기록만 본다).
+        actor.hook_agent_active("claude-code", "conv-2").unwrap();
+        actor.shutdown().await.unwrap();
+
+        let workday = today_workday();
+        let sessions = writer.list_sessions(&workday).await.unwrap();
+        assert_eq!(sessions.len(), 1, "작업 세션은 하나로 남아야 한다");
+        assert_eq!(
+            sessions[0].agent_sessions,
+            vec![
+                "conv-1".to_string(),
+                "conv-2".to_string(),
+                "conv-3".to_string(),
+                "conv-4".to_string()
+            ],
+            "동시에 돈 대화가 전부 남아야 한다"
+        );
+    }
+
+    /// 빈 대화 id 는 참여자가 아니다 — 셸 통합(OSC 133)처럼 어느 대화인지
+    /// 모르는 신호가 "대화 1개"라는 거짓말이 되면 안 된다.
+    #[tokio::test]
+    async fn blank_conversation_id_is_not_a_participant() {
+        let dir = tempdir().unwrap();
+        let writer = build_writer(dir.path());
+        let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+        let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
+
+        actor.hook_agent_active("cursor", "").unwrap();
+        actor.hook_agent_active("cursor", "   ").unwrap();
+        actor.shutdown().await.unwrap();
+
+        let session = read_only_session(&writer, &today_workday()).await;
+        assert_eq!(session.agent_label_guess.as_deref(), Some("cursor"));
+        assert!(session.agent_sessions.is_empty());
     }
 
     /// PR-CI0 — hook activity on an already file-active session labels it in
@@ -1023,7 +1133,7 @@ mod tests {
         let actor = SessionActor::spawn(1, resolver, writer.clone(), fast_config(), None);
 
         actor.note_activity(make_event("src/a.rs")).unwrap();
-        actor.hook_agent_active("claude-code").unwrap();
+        actor.hook_agent_active("claude-code", "conv-x").unwrap();
         actor
             .cmd_tx
             .send(SessionCmd::InactivityFired)
@@ -1031,12 +1141,13 @@ mod tests {
             .unwrap();
         // Late hook end after the heuristic already closed — must not panic
         // or resurrect a session.
-        actor.hook_agent_ended().unwrap();
+        actor.hook_agent_ended("conv-x").unwrap();
         actor.shutdown().await.unwrap();
 
         let workday = today_workday();
         let session = read_only_session(&writer, &workday).await;
         assert_eq!(session.agent_label_guess.as_deref(), Some("claude-code"));
+        assert_eq!(session.agent_sessions, vec!["conv-x".to_string()]);
         assert_eq!(
             session.ended_reason.unwrap() as u8,
             EndedReason::InactivityTimeout as u8
@@ -1405,6 +1516,7 @@ mod tests {
             git_head_at_start: None,
             git_head_at_end: None,
             agent_label_guess: None,
+            agent_sessions: Vec::new(),
             linked_journal_entries: Vec::new(),
         }
     }

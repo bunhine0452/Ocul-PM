@@ -859,6 +859,17 @@ export function TrayPopover() {
                 <span className="tp-agent">
                   {session.agent_label_guess ?? t("tray.agentFallback")}
                 </span>
+                {/* 터미널을 분할해 CLI 를 여럿 띄우면 우리 작업 세션은 하나인데
+                    대화는 N개다. 라벨만 보면 그 N이 안 보인다 — 둘 이상일
+                    때만 숫자를 붙여 평소의 한 줄을 어지럽히지 않는다. */}
+                {(session.agent_sessions?.length ?? 0) > 1 && (
+                  <span
+                    className="tp-convs"
+                    title={session.agent_sessions?.join("\n")}
+                  >
+                    {t("tray.conversations", { n: session.agent_sessions?.length ?? 0 })}
+                  </span>
+                )}
                 <span className="tp-dim">{elapsedLabel(session.started_at)}</span>
                 <span className="tp-proj">{project.name}</span>
               </div>

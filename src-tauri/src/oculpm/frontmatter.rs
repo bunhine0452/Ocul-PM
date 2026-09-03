@@ -394,11 +394,22 @@ fn coerce_frontmatter(value: &YamlValue, warnings: &mut Vec<String>) -> Option<J
             let version = m
                 .get(YamlValue::String("version".into()))
                 .and_then(stringify_scalar);
-            AgentRef { id, version }
+            // 에이전트 자신의 대화 id. 없는 것이 정상이다 — 이 필드가 생기기
+            // 전의 일지와 손으로 쓴 항목에는 아예 없다.
+            let session = m
+                .get(YamlValue::String("session".into()))
+                .and_then(stringify_scalar)
+                .filter(|v| !v.trim().is_empty());
+            AgentRef {
+                id,
+                version,
+                session,
+            }
         }
         Some(YamlValue::String(s)) => AgentRef {
             id: s.clone(),
             version: None,
+            session: None,
         },
         Some(_) => {
             warnings.push("agent has unexpected shape; expected mapping with 'id'".into());
@@ -617,6 +628,9 @@ fn render_frontmatter_yaml(fm: &JournalFrontmatter) -> String {
     push_indented_quoted(&mut out, "  id", &fm.agent.id);
     if let Some(v) = &fm.agent.version {
         push_indented_quoted(&mut out, "  version", v);
+    }
+    if let Some(sid) = &fm.agent.session {
+        push_indented_quoted(&mut out, "  session", sid);
     }
     push_quoted(&mut out, "language", &fm.language);
     push_scalar(
@@ -903,6 +917,7 @@ session_id: "20260522-001"
 agent:
   id: claude-code
   version: "opus-4.7"
+  session: "cb342a36-cd70-496a-a17b-ae516eb30c04"
 language: ko
 verified_by_user: false
 files_touched:
@@ -943,6 +958,10 @@ tags: ["changelog", "sqlite"]
         assert_eq!(fm.session_id, "20260522-001");
         assert_eq!(fm.agent.id, "claude-code");
         assert_eq!(fm.agent.version.as_deref(), Some("opus-4.7"));
+        assert_eq!(
+            fm.agent.session.as_deref(),
+            Some("cb342a36-cd70-496a-a17b-ae516eb30c04")
+        );
         assert_eq!(fm.language, "ko");
         assert!(!fm.verified_by_user);
         assert_eq!(fm.files_touched.len(), 1);
@@ -1030,6 +1049,22 @@ tags: ["changelog", "sqlite"]
         assert_eq!(body, "body\n");
     }
 
+    /// 대화 id 는 **모르면 안 적는다.** 이 필드가 생기기 전의 일지가 다시
+    /// 쓰일 때 `session: ""` 같은 줄이 끼면 디스크가 통째로 흔들린다.
+    #[test]
+    fn agent_session_is_absent_when_unknown() {
+        let input = "---\nschema_version: 1\ntype: chore\nslug: x\nstatus: done\ncreated_at: \"2026-05-22T00:00:00+09:00\"\nsession_id: \"20260522-001\"\nagent: { id: manual }\nlanguage: ko\n---\n본문\n";
+        let (pf, body) = parse_frontmatter_and_body(input);
+        let fm = pf.parsed.expect("parse");
+        assert!(fm.agent.session.is_none());
+        let rendered = write_frontmatter_and_body(&fm, &body);
+        assert!(
+            !rendered.contains("session:"),
+            "몰랐던 대화 id 가 되살아났다:\n{rendered}"
+        );
+        assert!(rendered.contains("session_id:"), "{rendered}");
+    }
+
     #[test]
     fn round_trip_write_then_parse_preserves_fields() {
         let (pf, body) = parse_frontmatter_and_body(&sample_yaml());
@@ -1070,6 +1105,7 @@ tags: ["changelog", "sqlite"]
             agent: AgentRef {
                 id: "manual".into(),
                 version: None,
+                session: None,
             },
             language: "ko".into(),
             verified_by_user: false,
@@ -1135,6 +1171,7 @@ tags: ["changelog", "sqlite"]
             agent: AgentRef {
                 id: "claude-code".into(),
                 version: Some("opus-4.7".into()),
+                session: Some("cb342a36-cd70-496a-a17b-ae516eb30c04".into()),
             },
             language: "ko".into(),
             verified_by_user: true,

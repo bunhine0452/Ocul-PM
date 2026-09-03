@@ -204,6 +204,22 @@ describe("TrayPopover (v2.3.0 메뉴바)", () => {
     await waitFor(() => expect(r.getByText("다음: 실기기 확인")).toBeTruthy());
   });
 
+  it("한 세션에 대화가 여럿이면 그 수를 드러낸다 (터미널 분할)", async () => {
+    fx.sessions[0].agent_sessions = ["conv-1", "conv-2", "conv-3", "conv-4"];
+    const r = render(<TrayPopover />);
+    // 작업 세션은 여전히 하나 — 파일 활동의 그릇은 쪼개지 않는다.
+    await waitFor(() => expect(r.getByText(/세션 1 활성/)).toBeTruthy());
+    // 그 안에 붙어 있던 대화는 넷이라고 말한다.
+    expect(r.getByText("대화 4")).toBeTruthy();
+  });
+
+  it("대화가 하나뿐이면 숫자를 붙이지 않는다", async () => {
+    fx.sessions[0].agent_sessions = ["conv-1"];
+    const r = render(<TrayPopover />);
+    await waitFor(() => expect(r.getByText("claude-code")).toBeTruthy());
+    expect(r.queryByText(/^대화 /)).toBeNull();
+  });
+
   it("플랜 행 클릭 → 팝오버 안 상세(항목 글리프 목록) → '앱에서 열기' 딥링크", async () => {
     const r = render(<TrayPopover />);
     await waitFor(() => expect(r.getByText("메뉴바 상주 라운드")).toBeTruthy());

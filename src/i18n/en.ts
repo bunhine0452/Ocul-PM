@@ -2732,6 +2732,7 @@ export const en: Record<keyof typeof ko, string> = {
   "tray.noActiveSession": "No active session right now",
   "tray.sessionsActive": "{n} sessions active",
   "tray.agentFallback": "Agent",
+  "tray.conversations": "{n} conversations",
   "tray.todayEntries": "Entries today",
   "tray.filesChanged": "Files changed",
   "tray.noEntriesToday": "Nothing recorded today yet",

@@ -19,6 +19,26 @@ use chrono::{SecondsFormat, Timelike, Utc};
 /// provider 가 둘이 된 순간부터 그건 그냥 틀린 기록이다.
 pub const AGENT_ID_ENV: &str = "OCULPM_AGENT_ID";
 
+/// Claude Code 가 자기 자식 프로세스에 실어 주는 **대화 id**. 우리는 그 자식
+/// (stdio MCP 서버)이라 그냥 읽으면 된다.
+///
+/// 이게 있으면 터미널을 분할해 띄운 대화들이 각자 쓴 일지를 구분할 수 있다 —
+/// 우리 `session_id`(`YYYYMMDD-NNN`)는 프로젝트의 작업 시간대라 동시에 도는
+/// N개 대화가 전부 같은 값을 받기 때문이다.
+pub const CLAUDE_SESSION_ENV: &str = "CLAUDE_CODE_SESSION_ID";
+
+/// 이 서버를 띄운 대화의 id. 다른 CLI(Codex·Gemini)나 손으로 띄운 자리에서는
+/// 없는 것이 정상 — 그때는 `None` 이고 일지에 필드가 아예 안 실린다.
+fn claude_session_id() -> Option<String> {
+    claude_session_or_none(std::env::var(CLAUDE_SESSION_ENV).ok())
+}
+
+/// 환경변수를 읽는 부분만 떼어낸다 (`agent_id_or_default` 와 같은 이유 —
+/// 테스트가 프로세스 환경을 건드리면 병렬로 도는 다른 테스트까지 흔든다).
+fn claude_session_or_none(raw: Option<String>) -> Option<String> {
+    raw.map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
+}
+
 /// 인자로 안 준 `agent_id` 의 기본값. 터미널에서 직접 띄운 CLI 처럼 환경변수가
 /// 없는 자리에서는 예전 그대로 `claude-code`.
 fn default_agent_id() -> String {
@@ -704,6 +724,12 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
                 .map(str::to_string)
                 .unwrap_or_else(default_agent_id),
             version: arg_str(args, "agent_version").map(str::to_string),
+            // 인자로 준 값이 이기고, 없으면 우리를 띄운 대화를 적는다.
+            // 에이전트에게 물어보지 않는 이유는 자기 대화 id 를 모르기
+            // 때문이다 — 환경변수는 안다.
+            session: arg_str(args, "agent_session")
+                .map(str::to_string)
+                .or_else(claude_session_id),
         },
         // 프로젝트의 AI 작성 언어 — 영문 프로젝트도 "ko" 로 색인되던 것을 바로잡는다.
         language: cfg.agents.template_language.clone(),
@@ -2240,6 +2266,21 @@ mod tests {
         assert_eq!(agent_id_or_default(Some("  ".to_string())), "claude-code");
         assert_eq!(agent_id_or_default(Some("codex".to_string())), "codex");
         assert_eq!(agent_id_or_default(Some(" codex ".to_string())), "codex");
+    }
+
+    /// 터미널 분할 회귀 — 일지가 **어느 대화**의 것인지 적을 수 있어야 한다.
+    /// 우리 `session_id` 는 프로젝트의 작업 시간대라 동시에 도는 대화 넷이
+    /// 전부 같은 값을 받는다. 대화를 가르는 것은 이 값뿐이다.
+    #[test]
+    fn journal_entries_carry_the_conversation_that_wrote_them() {
+        assert_eq!(claude_session_or_none(None), None);
+        assert_eq!(claude_session_or_none(Some(String::new())), None);
+        assert_eq!(claude_session_or_none(Some("   ".to_string())), None);
+        assert_eq!(
+            claude_session_or_none(Some(" cb342a36-cd70-496a-a17b-ae516eb30c04 ".to_string()))
+                .as_deref(),
+            Some("cb342a36-cd70-496a-a17b-ae516eb30c04")
+        );
     }
 
     /// Dogfooding follow-up (2026-08-20) — when the app *is* running, the

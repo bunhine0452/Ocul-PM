@@ -432,6 +432,7 @@ impl OculpmManager {
             agent: draft.agent.clone().unwrap_or(AgentRef {
                 id: "manual".to_string(),
                 version: None,
+                session: None,
             }),
             language,
             verified_by_user: draft.verified_by_user.unwrap_or(true),

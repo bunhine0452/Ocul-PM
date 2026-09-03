@@ -308,6 +308,7 @@ impl OculpmManager {
                 agent: AgentRef {
                     id: infer_agent_id(&c.body),
                     version: None,
+                    session: None,
                 },
                 language: language.clone(),
                 verified_by_user: false,

@@ -610,6 +610,7 @@ mod tests {
             git_head_at_start: None,
             git_head_at_end: None,
             agent_label_guess: None,
+            agent_sessions: Vec::new(),
             linked_journal_entries: Vec::new(),
         }
     }

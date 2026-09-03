@@ -108,10 +108,13 @@ impl OculpmManager {
         let Some(actor) = &entry.session else {
             return Ok(false);
         };
+        // 대화 id 는 빈 문자열로 둔다. 이 신호는 셸 통합(OSC 133)이 만든
+        // 것이라 어느 대화인지 알 길이 없다 — 추측해 채우면 없는 참여자를
+        // 지어내는 셈이고, 액터가 빈 값을 버려 준다.
         if started {
-            actor.hook_agent_active(agent_label)?;
+            actor.hook_agent_active(agent_label, "")?;
         } else {
-            actor.hook_agent_ended()?;
+            actor.hook_agent_ended("")?;
         }
         Ok(true)
     }

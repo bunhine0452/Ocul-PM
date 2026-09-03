@@ -550,6 +550,7 @@ fn make_zombie_session(id: &str, started_at: &str) -> Session {
         git_head_at_start: None,
         git_head_at_end: None,
         agent_label_guess: None,
+        agent_sessions: Vec::new(),
         linked_journal_entries: Vec::new(),
     }
 }
@@ -970,6 +971,7 @@ mod journal_w3_pr3 {
         draft.agent = Some(crate::oculpm::spec::AgentRef {
             id: "claude-code".to_string(),
             version: Some("claude-haiku-4-5-20251001".to_string()),
+            session: None,
         });
         draft.verified_by_user = Some(false);
         let entry = manager
@@ -1769,6 +1771,7 @@ mod compare_layers_w4_pr5 {
                 git_head_at_start: None,
                 git_head_at_end: None,
                 agent_label_guess: None,
+                agent_sessions: Vec::new(),
                 linked_journal_entries: Vec::new(),
             })
             .await
