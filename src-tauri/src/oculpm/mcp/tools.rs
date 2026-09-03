@@ -470,6 +470,12 @@ fn agent_inbox(root: &Path, args: &Value) -> Result<Value, String> {
     use crate::oculpm::a2a::{mailbox, tasks};
 
     let me = me(root)?;
+    // 앱이 꺼져 있어도 누군가는 치워야 한다 — 기한이 지난 태스크를 닫고 죽은
+    // 참여자·임대를 걷는다. 실측에서 이 호출자가 없어 기한 보장이 죽어 있었다.
+    let now = Utc::now();
+    crate::oculpm::a2a::registry::sweep(root, now);
+    crate::oculpm::a2a::leases::sweep(root, now);
+    tasks::expire_overdue(root, now);
     if let Some(ids) = args.get("mark_read").and_then(Value::as_array) {
         for id in ids.iter().filter_map(Value::as_str) {
             mailbox::mark_read(root, &me, id);
@@ -2161,6 +2167,72 @@ mod tests {
         // No sessions.json (app not running) → synthetic fallback stands.
         assert!(fm.session_id.starts_with("mcp-"));
         assert!(body.trim_start().starts_with("[x] 캐시 무효화 수정"));
+    }
+
+    /// 인박스를 읽는 것이 **청소의 계기**다.
+    ///
+    /// 실측(2026-09-03)에서 드러났다: 죽은 참여자 카드가 디스크에 쌓이고,
+    /// 기한이 지난 태스크를 닫아 주는 호출자가 아무 데도 없었다 — 기한 보장이
+    /// 프로덕션에서는 죽은 코드였다.
+    #[test]
+    fn reading_the_inbox_sweeps_the_dead_and_closes_the_overdue() {
+        use crate::oculpm::a2a::{registry, tasks};
+
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+        let me = call_tool(root, "agent_register", &json!({ "provider": "codex" })).unwrap()
+            ["agent_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        // 죽은 참여자 하나 — 없는 pid.
+        registry::register(
+            root,
+            &registry::AgentCard {
+                agent_id: "codex-term-4000000000".to_string(),
+                name: "유령".to_string(),
+                description: None,
+                version: String::new(),
+                skills: Vec::new(),
+                provider: "codex".to_string(),
+                surface: registry::AgentSurface::Terminal,
+                session_id: None,
+                pid: Some(4_000_000_000),
+                project_root: root.display().to_string(),
+                heartbeat_at: Utc::now().to_rfc3339(),
+            },
+        )
+        .unwrap();
+
+        // 기한이 이미 지난 태스크 하나.
+        let overdue = tasks::create(
+            root,
+            &tasks::NewTask {
+                from: "claude-code-app".to_string(),
+                to: me.clone(),
+                title: "묵은 일".to_string(),
+                note: None,
+                artifacts: Vec::new(),
+                deadline_hours: Some(1),
+            },
+            Utc::now() - chrono::Duration::hours(3),
+        )
+        .unwrap();
+
+        call_tool(root, "agent_inbox", &json!({})).unwrap();
+
+        assert_eq!(
+            registry::read_all(root).len(),
+            1,
+            "죽은 카드가 걷히지 않았다"
+        );
+        assert_eq!(
+            tasks::read(root, &overdue.id).unwrap().state,
+            tasks::TaskState::Failed,
+            "기한이 지난 태스크가 닫히지 않았다"
+        );
     }
 
     /// 앱 밖 세션이 스스로 등록하고 목록에서 서로를 본다 (A2A Phase 1).

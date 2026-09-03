@@ -12,9 +12,9 @@ import {
   MessageSquareText,
   Puzzle,
   FileCode,
-  Code2,
 } from "@/components/Icons";
 import { ClaudeMark } from "@/components/ClaudeMark";
+import { CodexMark } from "@/components/CodexMark";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import type { I18nKey } from "@/i18n";
 
@@ -68,7 +68,7 @@ export const NAV_ENTRIES: NavEntry[] = [
   // ── AI 면 — 구동면(Claude Code) · 대화(프로바이더 채팅) · 그 규칙(스킬).
   // PR-ACP6 — Claude Code 구동면 (프로바이더 채팅과 분리).
   { id: "claudecode", labelKey: "nav.claudecode", aliasKey: "nav.claudecode.alias", icon: ClaudeMark, group: "ai" },
-  { id: "codex", labelKey: "nav.codex", aliasKey: "nav.codex.alias", icon: Code2, group: "ai" },
+  { id: "codex", labelKey: "nav.codex", aliasKey: "nav.codex.alias", icon: CodexMark, group: "ai" },
   { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: MessageSquareText, group: "ai" },
   // PR-CI3 — 스킬 화면을 스킬·규칙·훅 허브로 확장 (id 는 유지 — 저장된 uiV2View 호환).
   { id: "skills", labelKey: "nav.skills", aliasKey: "nav.skills.alias", icon: Puzzle, group: "ai" },

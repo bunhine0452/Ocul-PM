@@ -97,6 +97,7 @@ impl From<OculpmError> for AppError {
             OculpmError::ConfigParse(_) => "config_parse",
             OculpmError::ConfigSerialize(_) => "config_serialize",
             OculpmError::InvalidConfig(_) => "invalid_config",
+            OculpmError::A2aRejected(_) => "a2a_rejected",
             OculpmError::InvalidPath(_) => "invalid_path",
             OculpmError::ManagedBlockMismatch { .. } => "managed_block_mismatch",
             OculpmError::NdjsonLineTooLarge(..) => "ndjson_line_too_large",

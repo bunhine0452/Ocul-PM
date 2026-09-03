@@ -35,6 +35,12 @@ pub enum OculpmError {
     #[error("invalid config: {0}")]
     InvalidConfig(String),
 
+    /// A2A 도구가 거부한 입력. **에이전트가 그대로 읽는 문장**이라 경로
+    /// 접두사(`io error at …`)를 붙이지 않는다 — 실측에서 그 포장이 그대로
+    /// 노출돼 무엇이 잘못됐는지 가렸다 (2026-09-03).
+    #[error("{0}")]
+    A2aRejected(String),
+
     /// 일지 상대경로가 `.oculpm/journal/` 밖을 가리킨다 (절대경로·`..`·빈 경로).
     #[error("invalid journal path: {0}")]
     InvalidPath(String),

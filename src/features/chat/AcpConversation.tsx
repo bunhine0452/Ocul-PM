@@ -10,11 +10,11 @@ import {
   Terminal,
   TriangleAlert,
   X,
-  Code2,
 } from "@/components/Icons";
 import { Toolbar } from "@/components/Toolbar";
 import { PanelLeft } from "@/components/Icons";
 import { ClaudeMark, CLAUDE_ORANGE } from "@/components/ClaudeMark";
+import { CodexMark } from "@/components/CodexMark";
 import { AcpUsageMeter } from "./AcpUsageMeter";
 import { SessionIdChip } from "./SessionIdChip";
 import { commands, events,
@@ -1755,7 +1755,7 @@ export function AcpConversation({
             <div className="ai-start">
               <div className="ai-start-title">
                 {codex ? (
-                  <Code2 size={17} aria-hidden="true" />
+                  <CodexMark size={17} aria-hidden="true" />
                 ) : (
                   <ClaudeMark size={17} style={{ color: CLAUDE_ORANGE }} aria-hidden="true" />
                 )}
@@ -1809,7 +1809,7 @@ export function AcpConversation({
             <div className="ai-start">
               <div className="ai-start-title">
                 {codex ? (
-                  <Code2 size={17} aria-hidden="true" />
+                  <CodexMark size={17} aria-hidden="true" />
                 ) : (
                   <ClaudeMark size={17} style={{ color: CLAUDE_ORANGE }} aria-hidden="true" />
                 )}

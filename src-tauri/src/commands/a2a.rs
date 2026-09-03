@@ -44,6 +44,16 @@ pub struct A2aOverview {
 pub async fn a2a_overview(db: State<'_, Db>, project_id: u32) -> Result<A2aOverview, AppError> {
     let root = project_root(&db, project_id).await?;
     let now = Utc::now();
+
+    // **읽는 김에 치운다.** 실측(2026-09-03)에서 드러난 것: 죽은 참여자 카드와
+    // 임대가 디스크에 그대로 쌓였고, 기한이 지난 태스크를 닫아 주는 호출자가
+    // 아무 데도 없었다 — 기한 보장이 프로덕션에서는 죽은 코드였던 셈이다.
+    // "지금 나를 기다리는 것"을 묻는 이 자리가 그 정리의 자연스러운 지점이다
+    // (읽기 전에 치워야 답이 정직하다).
+    registry::sweep(&root, now);
+    leases::sweep(&root, now);
+    tasks::expire_overdue(&root, now);
+
     Ok(A2aOverview {
         participants: registry::list_live(&root, now),
         leases: leases::active(&root, now),

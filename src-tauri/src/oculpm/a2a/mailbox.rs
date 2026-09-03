@@ -72,11 +72,10 @@ pub fn inbox_dir(root: &Path, agent_id: &str) -> PathBuf {
     root.join(INBOX_SUBDIR).join(agent_id)
 }
 
+/// 거부 사유는 **에이전트가 그대로 읽는다** — 경로 접두사를 붙이지 않는다.
 fn bad_input(root: &Path, message: String) -> OculpmError {
-    OculpmError::Io {
-        path: root.to_path_buf(),
-        source: std::io::Error::new(std::io::ErrorKind::InvalidInput, message),
-    }
+    let _ = root;
+    OculpmError::A2aRejected(message)
 }
 
 /// 첨부는 **프로젝트 안의 상대 경로**여야 한다.
