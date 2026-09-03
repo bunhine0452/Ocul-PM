@@ -12,6 +12,7 @@ const decide = vi.fn();
 const release = vi.fn();
 const bind = vi.fn();
 const dissolve = vi.fn();
+const setMembers = vi.fn();
 
 vi.mock("@/api/oculpm", () => ({
   oculpmApi: {
@@ -20,6 +21,7 @@ vi.mock("@/api/oculpm", () => ({
     a2aReleaseLease: (...args: unknown[]) => release(...args),
     a2aBindGroup: (...args: unknown[]) => bind(...args),
     a2aDissolveGroup: (...args: unknown[]) => dissolve(...args),
+    a2aSetGroupMembers: (...args: unknown[]) => setMembers(...args),
     // 이벤트 구독은 비-Tauri 에서 조용히 아무것도 안 한다 (래퍼 규약).
     onA2aChanged: () => Promise.resolve(() => {}),
     onA2aTrespass: () => Promise.resolve(() => {}),
@@ -76,6 +78,7 @@ describe("A2A 협업 카드", () => {
     release.mockReset();
     bind.mockReset();
     dissolve.mockReset();
+    setMembers.mockReset();
     bind.mockResolvedValue({ id: "g1", title: "팀", members: [], created_at: "", updated_at: "" });
     dissolve.mockResolvedValue(true);
     decide.mockResolvedValue(task("t1", "working"));
@@ -144,7 +147,60 @@ describe("A2A 협업 카드", () => {
     fireEvent.click(boxes[1]);
     fireEvent.click(screen.getByText("선택한 2개 묶기"));
     await waitFor(() =>
-      expect(bind).toHaveBeenCalledWith(1, "함께 일하는 팀", ["claude-code-app", "codex-app"]),
+      expect(bind).toHaveBeenCalledWith(1, "팀 1", ["claude-code-app", "codex-app"]),
+    );
+  });
+
+  it("이름을 적으면 그 이름으로 묶인다 — 비워 두면 순번이 붙는다", async () => {
+    overview.mockResolvedValue({
+      participants: [seat("claude-code-app", "Claude Code"), seat("codex-app", "Codex")],
+      integrity: [],
+      groups: [],
+      leases: [],
+      open_tasks: [],
+    });
+    render(<A2aCard projectId={1} />);
+    const boxes = await screen.findAllByRole("checkbox");
+    fireEvent.click(boxes[0]);
+    fireEvent.click(boxes[1]);
+    fireEvent.change(screen.getByLabelText("팀 이름 (선택)"), {
+      target: { value: "auth 리팩토링" },
+    });
+    fireEvent.click(screen.getByText("선택한 2개 묶기"));
+    await waitFor(() =>
+      expect(bind).toHaveBeenCalledWith(1, "auth 리팩토링", ["claude-code-app", "codex-app"]),
+    );
+  });
+
+  /// 셋 이상일 때만 하나씩 뺀다 — 둘에서 하나를 빼는 것은 해체이고 그 자리에는
+  /// 이미 「풀기」가 있다.
+  it("셋 이상인 팀에서만 멤버를 하나씩 뺀다", async () => {
+    setMembers.mockResolvedValue({ id: "g1", title: "팀", members: [], created_at: "", updated_at: "" });
+    overview.mockResolvedValue({
+      participants: [
+        seat("claude-code-app", "Claude Code"),
+        seat("codex-app", "Codex"),
+        seat("gemini-cli-app", "Gemini"),
+      ],
+      integrity: [],
+      groups: [
+        {
+          id: "g1",
+          title: "셋이 함께",
+          members: ["claude-code-app", "codex-app", "gemini-cli-app"],
+          created_at: "",
+          updated_at: "",
+        },
+      ],
+      leases: [],
+      open_tasks: [],
+    });
+    render(<A2aCard projectId={1} />);
+    const removes = await screen.findAllByText("빼기");
+    expect(removes).toHaveLength(3);
+    fireEvent.click(removes[2]);
+    await waitFor(() =>
+      expect(setMembers).toHaveBeenCalledWith(1, "g1", ["claude-code-app", "codex-app"]),
     );
   });
 
@@ -169,6 +225,8 @@ describe("A2A 협업 카드", () => {
     // 전부 묶였으면 "묶이지 않음" 구역은 없다.
     expect(screen.queryByText("묶이지 않음 — 보이기만 합니다")).toBeNull();
     expect(container.querySelector(".a2a-group")).toBeTruthy();
+    // 둘뿐이면 빼기는 곧 해체라 「풀기」만 둔다.
+    expect(screen.queryByText("빼기")).toBeNull();
 
     fireEvent.click(screen.getByText("풀기"));
     await waitFor(() => expect(dissolve).toHaveBeenCalledWith(1, "g1"));

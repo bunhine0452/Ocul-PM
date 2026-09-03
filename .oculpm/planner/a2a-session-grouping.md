@@ -17,22 +17,22 @@ owner: claude-code
 
 ## 그룹 원장 {#ledger}
 - [x] `.oculpm/agents/groups/<id>.json` — 이름·멤버·만든 시각. 고치는 연산 없이 **다시 쓰기**로만(우편함과 같은 규율) {#group-file}
-- [ ] 멤버 판정은 살아 있는 참여자만 — 죽은 세션은 그룹에서도 메시지를 받지 않는다 {#member-liveness}
-- [ ] 빈 그룹·죽은 멤버만 남은 그룹은 읽는 김에 걷는다(sweep) {#group-sweep}
-- [ ] 한 세션은 그룹 하나에만 — 여러 그룹에 걸치면 "누구에게 보내는가"가 모호해진다 {#single-membership}
+- [x] 멤버 판정은 살아 있는 참여자만 — 죽은 세션은 그룹에서도 메시지를 받지 않는다 {#member-liveness}
+- [x] 빈 그룹·죽은 멤버만 남은 그룹은 읽는 김에 걷는다(sweep) {#group-sweep}
+- [x] 한 세션은 그룹 하나에만 — 여러 그룹에 걸치면 "누구에게 보내는가"가 모호해진다 {#single-membership}
 
 ## 사용자가 묶는다 {#ui}
-- [ ] Today 카드에서 세션을 골라 **묶기** — 그룹 이름은 선택(기본값은 날짜·순번) {#bind-ui}
-- [ ] 묶인 것과 안 묶인 것을 한 눈에 — 안 묶인 줄은 흐리게, 그룹은 테두리로 묶어서 {#grouped-view}
-- [ ] 푸는 것도 한 번에 — 멤버 빼기·그룹 해체 {#unbind-ui}
-- [ ] 한국어·영어와 접근성 이름 {#group-i18n}
+- [x] Today 카드에서 세션을 골라 **묶기** — 그룹 이름은 선택(기본값은 날짜·순번) {#bind-ui}
+- [x] 묶인 것과 안 묶인 것을 한 눈에 — 안 묶인 줄은 흐리게, 그룹은 테두리로 묶어서 {#grouped-view}
+- [x] 푸는 것도 한 번에 — 멤버 빼기·그룹 해체 {#unbind-ui}
+- [x] 한국어·영어와 접근성 이름 {#group-i18n}
 
 ## 강제와 검증 {#enforce}
-- [ ] 앱 쪽 쓰기 경로(수락·거절·메시지)가 멤버십을 검사한다 {#enforce-app}
-- [ ] MCP 도구 5종에 멤버십 검사 — **`mcp/tools.rs` 를 다른 세션이 놓은 뒤에** {#enforce-mcp}
-- [ ] Rust 테스트 — 묶이지 않으면 거절·그룹 밖으로는 못 보냄·임대는 그룹과 무관하게 겹침 {#rust-tests}
-- [ ] Vitest — 묶기·풀기 흐름과 안 묶인 줄의 비활성 {#front-tests}
-- [ ] 게이트와 일지·문서 갱신(마스터플랜 §그룹) {#gates-docs}
+- [-] 앱 쪽 쓰기 경로(수락·거절·메시지)가 멤버십을 검사한다 {#enforce-app}
+- [x] MCP 도구 5종에 멤버십 검사 — **`mcp/tools.rs` 를 다른 세션이 놓은 뒤에** {#enforce-mcp}
+- [x] Rust 테스트 — 묶이지 않으면 거절·그룹 밖으로는 못 보냄·임대는 그룹과 무관하게 겹침 {#rust-tests}
+- [x] Vitest — 묶기·풀기 흐름과 안 묶인 줄의 비활성 {#front-tests}
+- [x] 게이트와 일지·문서 갱신(마스터플랜 §그룹) {#gates-docs}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -41,4 +41,18 @@ owner: claude-code
 | 2026-09-03T17:11:24+09:00 | #group-file | claude-code | ☐→x |  | .oculpm/agents/groups/&lt;id&gt;.json — write_atomic 로 통째 쓰기. 앱이 유일한 쓰기 주체라 우편함 같은 다중 생산자 규율은 불필요 |
 | 2026-09-03T17:20:19+09:00 | #migration | claude-code | ☐→x |  | D7 — 마이그레이션 코드 없음. 배달된 것은 그대로 읽히고, 그룹은 새 연결(agent_send·task_create)에만. 진행 중 태스크의 전이는 당사자 규칙이 지키고, 열린 태스크의 두 당사자는 묶이지 않아도 말할 수 있다(닫힌 집합) |
 | 2026-09-03T17:20:20+09:00 | #default-isolated | claude-code | ☐→x |  | may_talk 이 기본 거부 — 묶이지 않으면 발견만. 마스터플랜 §9.5 «기본값은 고립»에 근거를 남김 |
+| 2026-09-03T17:55:30+09:00 | #member-liveness | claude-code | ☐→x |  | groups::live 가 registry 의 살아 있는 참여자로 거른다 — 살아 있는 멤버가 둘 미만이면 그룹도 죽은 것. 테스트: 세션이 죽으면 may_talk 도 끊긴다 |
+| 2026-09-03T17:55:32+09:00 | #group-sweep | claude-code | ☐→x |  | groups::sweep 를 a2a_overview 가 읽기 전에 부른다 — 읽기 전에 치워야 답이 정직하다(레지스트리·임대 청소와 같은 자리) |
+| 2026-09-03T17:55:39+09:00 | #single-membership | claude-code | ☐→x |  | detach_all_except — 새로 묶으면 옛 자리에서 빠지고, 남은 하나짜리 그룹은 스스로 풀린다. 테스트가 그 연쇄를 문다 |
+| 2026-09-03T17:55:41+09:00 | #grouped-view | claude-code | ☐→x |  | 묶인 팀은 .a2a-group 테두리 안, 안 묶인 것은 「묶이지 않음 — 보이기만 합니다」 구역에 별도로. 흐리게 대신 구역 분리로 갈랐다 |
+| 2026-09-03T17:55:49+09:00 | #bind-ui | claude-code | ☐→~ |  | 체크박스로 골라 「선택한 N개 묶기」까지 됨. **이름 고르기는 아직** — 기본값 「함께 일하는 팀」 고정이고 이름 짓기·바꾸기 UI 가 없다 |
+| 2026-09-03T17:55:51+09:00 | #unbind-ui | claude-code | ☐→~ |  | 그룹 해체(「풀기」)는 됨. **멤버 하나만 빼는 UI 는 없다** — 커맨드(a2a_set_group_members)는 있고 화면이 안 부른다 |
+| 2026-09-03T17:55:58+09:00 | #group-i18n | claude-code | ☐→x |  | ko/en 6키(묶인 팀·묶이지 않음·묶기·안내·풀기·기본 이름) + 목록의 aria-label 은 그룹 이름 |
+| 2026-09-03T17:56:01+09:00 | #enforce-app | claude-code | ☐→- |  | 검사할 자리가 없다 — 앱 쪽 쓰기는 수락·거절뿐이고 그건 받은 쪽 당사자의 결정이라 그룹을 묻지 않는다(D7). 앱에는 메시지 보내기 경로 자체가 없다. 울타리는 MCP 두 도구가 전부 |
+| 2026-09-03T17:56:09+09:00 | #enforce-mcp | claude-code | ☐→x | .oculpm/journal/20260903/Features_to_add/1739_feature_a2a-group-enforcement.md | agent_send·task_create 만 검사(9ee4461). tools.rs 를 쥔 세션이 eb7f830 으로 착지한 뒤 넣어 cargo check 가 한 번에 깨끗했다 |
+| 2026-09-03T17:56:11+09:00 | #rust-tests | claude-code | ☐→x |  | 8건 — 묶기 전 거절·그룹 간 차단·한 그룹만·하나짜리 거부·죽은 그룹·멤버 교체·열린 태스크 예외·보내기는 막히고 읽기/임대는 통과 |
+| 2026-09-03T17:56:19+09:00 | #front-tests | claude-code | ☐→x |  | a2a_card.test.tsx 2건 — 안 묶인 줄은 둘 이상 골라야 묶기 활성 / 묶인 팀은 테두리 안에 서고 풀린다. today_v2 목도 함께 넓힘 |
+| 2026-09-03T17:56:21+09:00 | #gates-docs | claude-code | ☐→x |  | 게이트 전부 통과(cargo test 1312 · vitest 2086) · 마스터플랜 §9.5 + D6·D7 · 문서 표면 3곳 동기. 실측도 통과(묶기 전 거절, 임대·읽기 통과) |
+| 2026-09-03T18:00:48+09:00 | #bind-ui | claude-code | ~→x |  | 이름 입력칸 추가 — 비워 두면 순번 기본값(「팀 N」)이 가고, placeholder 가 곧 그 값이라 따로 안내가 없다 |
+| 2026-09-03T18:00:51+09:00 | #unbind-ui | claude-code | ~→x |  | 멤버별 「빼기」는 셋 이상일 때만 — 둘에서 하나 빼는 것은 해체이고 그 자리에 「풀기」가 이미 있다(백엔드도 둘 미만은 거부) |
 <!-- oculpm:plan-log end -->

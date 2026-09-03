@@ -2178,6 +2178,8 @@ mark.s-hit {
 .a2a-group .a2a-head { margin-top: 0; }
 /* 묶을 세션 고르기 — 체크박스와 라벨이 한 줄, 줄 전체가 누를 자리다. */
 .a2a-pick { display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 0; }
+/* 묶을 때 붙일 이름. 비워 두면 placeholder 가 곧 기본값이라 따로 안내가 없다. */
+.a2a-name { flex: 0 1 200px; min-width: 0; padding: 4px 8px; font-size: var(--fs-6); background: var(--bg-inset); border: 1px solid var(--sep); border-radius: var(--radius-s); color: var(--text-1); }
 /* 문단용 — 행 안의 라벨과 달리 접혀야 한다. */
 .a2a-desc { color: var(--text-3); font-size: var(--fs-5); line-height: 1.5; }
 .a2a-list li .right { margin-left: auto; display: flex; gap: 4px; flex: none; }

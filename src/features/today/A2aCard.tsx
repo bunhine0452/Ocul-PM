@@ -24,6 +24,8 @@ export function A2aCard({ projectId }: { projectId: number }) {
   const [error, setError] = useState<string | null>(null);
   /** 묶으려고 고른 세션들. 묶는 것은 **사용자의 행동**이지 앱의 추측이 아니다. */
   const [picked, setPicked] = useState<string[]>([]);
+  /** 묶을 때 붙일 이름. 비워 두면 순번이 붙은 기본 이름이 간다. */
+  const [name, setName] = useState("");
   /** 이번 세션에 본 침범 경고 (이벤트로만 온다 — 원장에는 남지 않는다). */
   const [trespasses, setTrespasses] = useState<
     { actor: string; path: string; holder: string }[]
@@ -88,8 +90,25 @@ export function A2aCard({ projectId }: { projectId: number }) {
   const bind = async () => {
     if (picked.length < 2) return;
     try {
-      await oculpmApi.a2aBindGroup(projectId, t("a2a.groupDefault"), picked);
+      const title = name.trim() || t("a2a.groupDefault", { n: data.groups.length + 1 });
+      await oculpmApi.a2aBindGroup(projectId, title, picked);
       setPicked([]);
+      setName("");
+      load();
+    } catch (e) {
+      setError(tError(toAppError(e)));
+    }
+  };
+
+  /** 멤버 하나만 뺀다. **셋 이상일 때만** — 둘에서 하나를 빼면 그건 해체이고,
+      그 자리에는 이미 「풀기」가 있다(백엔드도 둘 미만은 거부한다). */
+  const drop = async (groupId: string, members: string[], id: string) => {
+    try {
+      await oculpmApi.a2aSetGroupMembers(
+        projectId,
+        groupId,
+        members.filter((m) => m !== id),
+      );
       load();
     } catch (e) {
       setError(tError(toAppError(e)));
@@ -155,6 +174,14 @@ export function A2aCard({ projectId }: { projectId: number }) {
                       <UnknownBadge liveness={seat.liveness} />
                     </>
                   ) : null}
+                  {group.members.length > 2 ? (
+                    <button
+                      className="btn ghost sm right"
+                      onClick={() => void drop(group.id, group.members, id)}
+                    >
+                      {t("a2a.removeMember")}
+                    </button>
+                  ) : null}
                 </li>
               );
             })}
@@ -192,6 +219,14 @@ export function A2aCard({ projectId }: { projectId: number }) {
             ))}
           </ul>
           <div className="first-run-actions">
+            <input
+              className="a2a-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t("a2a.groupDefault", { n: data.groups.length + 1 })}
+              aria-label={t("a2a.namePlaceholder")}
+              maxLength={60}
+            />
             <button className="btn sm primary" disabled={picked.length < 2} onClick={() => void bind()}>
               {t("a2a.bind", { n: picked.length })}
             </button>
