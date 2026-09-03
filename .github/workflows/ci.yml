@@ -27,7 +27,11 @@ jobs:
     # 매달린 잡이 러너를 붙잡지 않게 — 정상 실행은 2분 안팎이다.
     timeout-minutes: 20
     steps:
+      # `lint:filesize` 래칫이 직전 커밋(`HEAD^1`)의 파일을 꺼내 봅니다 —
+      # 기본 depth 1 로는 그 커밋이 없어 게이트가 스택트레이스로 죽습니다.
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
 
       # pnpm 을 setup-node 보다 **먼저** 깔아야 `cache: pnpm` 이 스토어를 찾습니다.
       - name: Install pnpm

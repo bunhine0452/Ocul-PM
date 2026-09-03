@@ -116,7 +116,19 @@ export function parseChangedFiles(output) {
  */
 export function resolveBaseRef(env = process.env, git = runGit) {
   if (env.OCULPM_FILESIZE_BASE) return env.OCULPM_FILESIZE_BASE;
-  if (env.GITHUB_ACTIONS === "true") return "HEAD^1";
+  if (env.GITHUB_ACTIONS === "true") {
+    // 얕은 체크아웃(depth 1)에는 직전 커밋이 없다. 워크플로가 `fetch-depth: 2`
+    // 를 주는 것이 정답이고, 안 줬을 때 스택트레이스 대신 **왜 못 잡았는지**를
+    // 말한다 — 통과시키지는 않는다.
+    try {
+      git(["rev-parse", "--verify", "HEAD^1"], { quiet: true });
+    } catch {
+      throw new Error(
+        "얕은 체크아웃이라 HEAD^1 이 없습니다 — 워크플로 checkout 에 fetch-depth: 2 를 주세요.",
+      );
+    }
+    return "HEAD^1";
+  }
   const mergeBase = git(["merge-base", "origin/main", "HEAD"]).trim();
   const head = git(["rev-parse", "HEAD"]).trim();
   return mergeBase === head ? "HEAD" : mergeBase;
