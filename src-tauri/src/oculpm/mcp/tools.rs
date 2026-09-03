@@ -58,7 +58,7 @@ use crate::oculpm::spec::{
 /// AGENTS.md §2~§4 의 규칙을 여기 옮겨 담아 "규칙 문서를 안 읽은 에이전트"도
 /// 규격 기록을 남기게 한다.
 pub fn tool_definitions() -> Value {
-    json!([
+    let mut tools = json!([
         {
             "name": "journal_write",
             "description": "ocul-pm 작업 일지 1건을 기록한다. 하나의 논리적 작업 단위(버그 수정/기능/리팩토링/에러 사이클/잡일)를 끝냈을 때 호출. 경로·파일명·frontmatter 규격은 서버가 보장하므로 파일을 직접 만들지 말 것.",
@@ -224,6 +224,38 @@ pub fn tool_definitions() -> Value {
                 "required": ["confirm"]
             }
         }
+    ]);
+    // **배열을 나눠 두는 이유**는 `json!` 이 중첩 깊이로 매크로 재귀 한도를
+    // 먹기 때문이다. 도구가 하나 늘 때마다 크레이트 전역 `recursion_limit` 을
+    // 올리는 것보다, 갈래별로 나눠 이어 붙이는 편이 싸다.
+    if let (Some(list), Some(extra)) = (tools.as_array_mut(), a2a_tool_definitions().as_array()) {
+        list.extend(extra.iter().cloned());
+    }
+    tools
+}
+
+/// A2A 참여자 도구 (`docs/a2a/00-master-plan.md` §4).
+fn a2a_tool_definitions() -> Value {
+    json!([
+        {
+            "name": "agent_register",
+            "description": "이 세션을 프로젝트의 참여자 목록에 올린다 (A2A). 같은 프로젝트에서 다른 에이전트와 동시에 일할 때 서로를 발견하고 작업을 넘기기 위한 첫 걸음이다. 세션 시작 때 한 번 부르면 되고, 다시 불러도 안전하다(같은 세션이면 갈아 끼운다). 응답에 지금 살아 있는 참여자 목록이 함께 온다.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "provider": { "type": "string", "description": "기록에 남는 에이전트 id — claude-code · codex · gemini-cli · antigravity 등. 생략 시 claude-code" },
+                    "name": { "type": "string", "description": "사람이 읽는 이름 (생략 시 provider 를 그대로)" },
+                    "version": { "type": "string", "description": "모델·CLI 버전 (선택)" },
+                    "session_id": { "type": "string", "description": "ocul-pm 세션 id 가 있으면 (선택) — 일지 귀속과 이어 붙는다" },
+                    "skills": { "type": "array", "items": { "type": "string" }, "description": "할 수 있다고 광고할 것 (선택)" }
+                }
+            }
+        },
+        {
+            "name": "agent_list",
+            "description": "지금 이 프로젝트에 붙어 있는 에이전트 목록 (A2A). 죽은 세션은 빠진다 — 프로세스가 사라졌으면 카드가 남아 있어도 죽은 것으로 본다. 작업을 넘기기 전에 상대가 실재하는지 확인하는 용도.",
+            "inputSchema": { "type": "object", "properties": {} }
+        }
     ])
 }
 
@@ -273,8 +305,88 @@ pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String>
         "plan_status" => plan_status(root, args),
         "plan_update" => plan_update(root, args),
         "plan_create" => plan_create(root, args),
+        "agent_register" => agent_register(root, args),
+        "agent_list" => agent_list(root),
         other => Err(format!("unknown tool: {other}")),
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A2A — 참여자 (docs/a2a/00-master-plan.md §4)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 이 세션을 프로젝트의 참여자 목록에 올린다.
+///
+/// **pid 는 우리 것을 적는다.** 이 서버는 에이전트가 세션 동안 붙잡고 있는 자식
+/// 프로세스라 세션이 끝나면 함께 죽는다 — 우리 pid 의 생사가 곧 그 세션의
+/// 생사다. 에이전트가 준 pid 를 받아 적으면 남이 준 숫자를 믿는 것이고, 그게
+/// 틀리면 죽은 세션이 살아 있는 참여자로 남아 작업이 허공으로 간다.
+///
+/// 하트비트를 따로 걸지 않는 것도 같은 이유다. 도구 호출마다 카드를 다시 쓰면
+/// 워처를 그만큼 두들기는데, pid 가 이미 더 정확한 신호를 준다.
+fn agent_register(root: &Path, args: &Value) -> Result<Value, String> {
+    use crate::oculpm::a2a::registry::{self, AgentCard, AgentSurface};
+
+    let provider = arg_str(args, "provider").unwrap_or("claude-code");
+    if !registry::is_valid_agent_id(provider) {
+        return Err(format!(
+            "provider '{provider}' contains disallowed characters (a-z, 0-9, -, _ 만)"
+        ));
+    }
+    let pid = std::process::id();
+    let card = AgentCard {
+        agent_id: format!("{provider}-term-{pid}"),
+        name: arg_str(args, "name").unwrap_or(provider).to_string(),
+        description: None,
+        version: arg_str(args, "version").unwrap_or_default().to_string(),
+        skills: args
+            .get("skills")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default(),
+        provider: provider.to_string(),
+        surface: AgentSurface::Terminal,
+        session_id: arg_str(args, "session_id").map(str::to_string),
+        pid: Some(pid),
+        project_root: root.display().to_string(),
+        heartbeat_at: Utc::now().to_rfc3339(),
+    };
+    registry::register(root, &card).map_err(|e| e.to_string())?;
+
+    Ok(json!({
+        "agent_id": card.agent_id,
+        "surface": "terminal",
+        "live": live_briefs(root),
+    }))
+}
+
+/// 지금 살아 있는 참여자.
+fn agent_list(root: &Path) -> Result<Value, String> {
+    Ok(json!({ "live": live_briefs(root) }))
+}
+
+/// 목록에 실어 보내는 몫만 — `project_root` 같은 것은 부르는 쪽이 이미 안다.
+fn live_briefs(root: &Path) -> Vec<Value> {
+    crate::oculpm::a2a::registry::list_live(root, Utc::now())
+        .into_iter()
+        .map(|card| {
+            json!({
+                "agent_id": card.agent_id,
+                "name": card.name,
+                "provider": card.provider,
+                "surface": card.surface,
+                "version": card.version,
+                "session_id": card.session_id,
+                "heartbeat_at": card.heartbeat_at,
+            })
+        })
+        .collect()
 }
 
 /// 플러그인-온리 그린필드의 시작점 — `.oculpm/` 스캐폴드를 만든다.
@@ -1760,6 +1872,51 @@ mod tests {
         // No sessions.json (app not running) → synthetic fallback stands.
         assert!(fm.session_id.starts_with("mcp-"));
         assert!(body.trim_start().starts_with("[x] 캐시 무효화 수정"));
+    }
+
+    /// 앱 밖 세션이 스스로 등록하고 목록에서 서로를 본다 (A2A Phase 1).
+    ///
+    /// pid 로 **이 서버의 것**을 적는다 — 세션이 끝나면 서버도 죽으므로 그
+    /// 생사가 곧 세션의 생사다. 그래서 등록 직후의 목록에는 반드시 자기가 있다.
+    #[test]
+    fn agent_register_puts_this_session_on_the_list() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+
+        let out = call_tool(
+            root,
+            "agent_register",
+            &json!({ "provider": "codex", "name": "Codex", "version": "1.8.0" }),
+        )
+        .unwrap();
+        let id = out["agent_id"].as_str().unwrap();
+        assert!(id.starts_with("codex-term-"), "{id}");
+        assert_eq!(out["live"].as_array().unwrap().len(), 1);
+
+        // 다시 불러도 하나다 — 같은 세션이면 갈아 끼운다.
+        call_tool(root, "agent_register", &json!({ "provider": "codex" })).unwrap();
+        let listed = call_tool(root, "agent_list", &json!({})).unwrap();
+        let live = listed["live"].as_array().unwrap();
+        assert_eq!(live.len(), 1);
+        assert_eq!(live[0]["provider"], "codex");
+        assert_eq!(live[0]["surface"], "terminal");
+    }
+
+    /// provider 는 파일명이 된다 — 경로를 담아 보내면 거부한다.
+    #[test]
+    fn agent_register_rejects_a_provider_that_would_escape_the_folder() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+
+        let err = call_tool(root, "agent_register", &json!({ "provider": "../../etc" }))
+            .expect_err("경로가 섞인 provider 는 거부되어야 한다");
+        assert!(err.contains("provider"), "{err}");
+        assert!(
+            crate::oculpm::a2a::registry::list_live(root, Utc::now()).is_empty(),
+            "거부된 등록이 파일을 남기면 안 된다"
+        );
     }
 
     /// 인자로 `agent_id` 를 안 줬을 때 **누구의 일지가 되는가.**

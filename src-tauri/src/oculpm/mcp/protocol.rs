@@ -194,7 +194,9 @@ mod tests {
                 "plan_status",
                 "plan_update",
                 "plan_create",
-                "project_init"
+                "project_init",
+                "agent_register",
+                "agent_list"
             ]
         );
 
