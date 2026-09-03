@@ -269,7 +269,7 @@ fn a2a_tool_definitions() -> Value {
         },
         {
             "name": "agent_send",
-            "description": "다른 에이전트에게 한 마디 보낸다 (A2A). 첨부는 프로젝트 상대 경로 참조만 — 파일 내용을 본문에 복사하지 말 것. 시크릿은 서버가 마스킹한다.",
+            "description": "다른 에이전트에게 한 마디 보낸다 (A2A). **사용자가 화면에서 함께 묶은 세션에게만** 보낼 수 있다(진행 중인 태스크를 함께 하는 상대는 예외). 첨부는 프로젝트 상대 경로 참조만 — 파일 내용을 본문에 복사하지 말 것. 시크릿은 서버가 마스킹한다.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -283,7 +283,7 @@ fn a2a_tool_definitions() -> Value {
         },
         {
             "name": "task_create",
-            "description": "다른 에이전트에게 작업을 넘긴다 (A2A Task). 받은 쪽이 수락해야 시작되고, 끝나면 반드시 종료 상태를 남겨야 한다 — 기한이 지나면 서버가 failed 로 닫는다.",
+            "description": "다른 에이전트에게 작업을 넘긴다 (A2A Task). **사용자가 화면에서 함께 묶은 세션에게만** 넘길 수 있다. 받은 쪽이 수락해야 시작되고, 끝나면 반드시 종료 상태를 남겨야 한다 — 기한이 지나면 서버가 failed 로 닫는다.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -545,12 +545,29 @@ fn string_list(args: &Value, key: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// **묶인 세션에게만 보낼 수 있다** (마스터플랜 D6·D7).
+///
+/// 여기가 울타리의 유일한 자리다. 읽기(`agent_inbox`)와 진행 중인 태스크의
+/// 전이(`task_update`), 구역 임대는 그룹을 묻지 않는다 — 물으면 v2.37.0 에서
+/// 넘어온 일이 영영 못 닫히고, 임대는 애초에 물리적 자원이라 사회적 관계로
+/// 나눌 수 없다.
+fn require_same_group(root: &Path, from: &str, to: &str) -> Result<(), String> {
+    use crate::oculpm::a2a::groups;
+
+    let now = Utc::now();
+    if groups::may_talk(root, from, to, now) {
+        return Ok(());
+    }
+    Err(groups::refusal(root, from, to, now))
+}
+
 /// 다른 에이전트에게 한 마디. 시크릿은 일지와 같은 길로 마스킹한다.
 fn agent_send(root: &Path, args: &Value) -> Result<Value, String> {
     use crate::oculpm::a2a::mailbox;
 
     let from = me(root)?;
     let to = arg_str(args, "to").ok_or("'to' is required")?;
+    require_same_group(root, &from, to)?;
     let text = arg_str(args, "text").ok_or("'text' is required")?;
     let cfg = load_config(root);
     let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
@@ -577,6 +594,7 @@ fn task_create(root: &Path, args: &Value) -> Result<Value, String> {
 
     let from = me(root)?;
     let to = arg_str(args, "to").ok_or("'to' is required")?;
+    require_same_group(root, &from, to)?;
     let title = arg_str(args, "title").ok_or("'title' is required")?;
     let cfg = load_config(root);
     let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
@@ -2459,6 +2477,60 @@ mod tests {
         let released = call_tool(root, "claim_paths", &json!({ "release": lease_id })).unwrap();
         assert_eq!(released["released"], true);
         assert!(released["held"].as_array().unwrap().is_empty());
+    }
+
+    /// **묶이지 않으면 못 보낸다** — 울타리는 새 연결에만 선다(D6·D7).
+    ///
+    /// 읽기와 진행 중인 태스크의 전이, 구역 임대는 그룹을 묻지 않는다.
+    #[test]
+    fn sending_and_delegating_need_a_group_but_reading_does_not() {
+        use crate::oculpm::a2a::{groups, registry};
+
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+        let me = call_tool(root, "agent_register", &json!({ "provider": "codex" })).unwrap()
+            ["agent_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        // 상대는 살아 있지만 묶이지 않았다.
+        let peer = "claude-code-app";
+        registry::register(
+            root,
+            &registry::AgentCard {
+                agent_id: peer.to_string(),
+                name: "Claude Code".to_string(),
+                description: None,
+                version: String::new(),
+                skills: Vec::new(),
+                provider: "claude-code".to_string(),
+                surface: registry::AgentSurface::App,
+                session_id: None,
+                pid: Some(std::process::id()),
+                project_root: root.display().to_string(),
+                heartbeat_at: Utc::now().to_rfc3339(),
+            },
+        )
+        .unwrap();
+
+        let err = call_tool(root, "agent_send", &json!({ "to": peer, "text": "안녕" }))
+            .expect_err("묶이지 않았으면 거절");
+        assert!(err.contains("묶이지"), "{err}");
+        assert!(
+            call_tool(root, "task_create", &json!({ "to": peer, "title": "일" })).is_err(),
+            "위임도 막힌다"
+        );
+        // 읽기는 막히지 않는다.
+        assert!(call_tool(root, "agent_inbox", &json!({})).is_ok());
+        // 구역 임대도 그룹을 묻지 않는다 (물리적 자원이다).
+        assert!(call_tool(root, "claim_paths", &json!({ "patterns": ["src/**"] })).is_ok());
+
+        // 묶은 뒤에는 통과한다.
+        groups::create(root, "함께", &[me.clone(), peer.to_string()], Utc::now()).unwrap();
+        assert!(call_tool(root, "agent_send", &json!({ "to": peer, "text": "안녕" })).is_ok());
+        assert!(call_tool(root, "task_create", &json!({ "to": peer, "title": "일" })).is_ok());
     }
 
     /// 메시지 본문의 시크릿은 일지와 같은 길로 마스킹된다.
