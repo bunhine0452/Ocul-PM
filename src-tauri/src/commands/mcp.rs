@@ -6,12 +6,17 @@
 use tauri::State;
 
 use crate::db::Db;
-use crate::oculpm::mcp::register::{
-    self, resolve_binary_path, DesktopRegistrationStatus, McpRegistrationStatus,
+use crate::oculpm::mcp::{
+    codex::{self, CodexPluginStatus, CodexRegistrationStatus},
+    register::{self, resolve_binary_path, DesktopRegistrationStatus, McpRegistrationStatus},
 };
 
 fn desktop_config_path() -> Result<std::path::PathBuf, String> {
     register::desktop_config_path().ok_or_else(|| "Could not find the home directory".to_string())
+}
+
+fn codex_config_path() -> Result<std::path::PathBuf, String> {
+    codex::config_path().ok_or_else(|| "Could not find the home directory".to_string())
 }
 
 async fn project_root(db: &Db, project_id: u32) -> Result<std::path::PathBuf, String> {
@@ -55,6 +60,56 @@ pub async fn mcp_unregister(
     let root = project_root(&db, project_id).await?;
     let binary = resolve_binary_path();
     register::unregister_with_binary(&root, binary.as_deref()).map_err(|e| e.to_string())
+}
+
+/// Codex는 Claude의 프로젝트 `.mcp.json`을 읽지 않는다. 이 명령들은
+/// `~/.codex/config.toml`의 프로젝트별 oculpm stdio 항목만 관리한다.
+#[tauri::command]
+#[specta::specta]
+pub async fn codex_mcp_status(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<CodexRegistrationStatus, String> {
+    let root = project_root(&db, project_id).await?;
+    let binary = resolve_binary_path();
+    codex::status_at(&codex_config_path()?, &root, binary.as_deref()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn codex_mcp_register(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<CodexRegistrationStatus, String> {
+    let root = project_root(&db, project_id).await?;
+    let binary = resolve_binary_path().ok_or_else(|| {
+        "Could not find the oculpm-mcp binary - in dev, run `cargo build --bin oculpm-mcp` and retry".to_string()
+    })?;
+    codex::register_at(&codex_config_path()?, &root, &binary).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn codex_mcp_unregister(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<CodexRegistrationStatus, String> {
+    let root = project_root(&db, project_id).await?;
+    let binary = resolve_binary_path();
+    codex::unregister_at(&codex_config_path()?, &root, binary.as_deref()).map_err(|e| e.to_string())
+}
+
+/// Codex 플러그인 설치 상태 (머신 스코프, **읽기 전용**). 설치·해제는
+/// `codex plugin` CLI 가 해야 마켓플레이스가 캐시까지 펼쳐진다 — 설정만
+/// 흉내 내면 캐시 없는 반쪽 상태가 되므로 화면은 명령만 안내한다.
+#[tauri::command]
+#[specta::specta]
+pub fn codex_plugin_status() -> Result<CodexPluginStatus, String> {
+    let config = codex_config_path()?;
+    let home = config
+        .parent()
+        .ok_or_else(|| "Could not find the Codex home directory".to_string())?;
+    Ok(codex::plugin_status_at(&config, home))
 }
 
 #[tauri::command]

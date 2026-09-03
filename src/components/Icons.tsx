@@ -646,4 +646,6 @@ export {
   MessageSquareDashed, // 에이전트의 생각(think) 블록
   Compass, // 의미 검색 스코프
   FolderCheck, // 첫 활성화 카드
+  // 계획 정리 라운드 (2026-09-03) — 끝난 계획 묶음을 보관으로 옮긴다.
+  Archive,
 } from "lucide-react";

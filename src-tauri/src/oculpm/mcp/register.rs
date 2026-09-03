@@ -22,7 +22,7 @@ pub const MCP_JSON_REL: &str = ".mcp.json";
 /// `.mcp.json` `mcpServers` 아래 우리 키.
 pub const SERVER_KEY: &str = "oculpm";
 /// command 경로에 이 조각이 있으면 우리 엔트리로 간주 (키 충돌 시 식별).
-const BINARY_SIGNATURE: &str = "oculpm-mcp";
+pub(crate) const BINARY_SIGNATURE: &str = "oculpm-mcp";
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct McpRegistrationStatus {
@@ -337,6 +337,10 @@ pub fn unregister_with_binary(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::oculpm::mcp::codex::{
+        plugin_status_at as codex_plugin_status_at, register_at as codex_register_at,
+        status_at as codex_status_at, unregister_at as codex_unregister_at,
+    };
     use tempfile::TempDir;
 
     fn fake_binary(dir: &Path) -> PathBuf {
@@ -536,5 +540,147 @@ mod tests {
         assert!(desktop_register_at(&config, root, &binary).is_err());
         assert!(desktop_unregister_at(&config, root).is_err());
         assert_eq!(std::fs::read_to_string(&config).unwrap(), "{ broken !!");
+    }
+
+    #[test]
+    fn codex_register_roundtrip_preserves_comments_and_foreign_servers() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path().join("project");
+        std::fs::create_dir(&root).unwrap();
+        let binary = fake_binary(dir.path());
+        let config = dir.path().join(".codex").join("config.toml");
+        std::fs::create_dir(config.parent().unwrap()).unwrap();
+        std::fs::write(
+            &config,
+            "# Keep this user preference.\nmodel = \"gpt-5\"\n\n[mcp_servers.notion]\nurl = \"https://mcp.notion.com/mcp\"\n",
+        )
+        .unwrap();
+
+        let st = codex_register_at(&config, &root, &binary).unwrap();
+        assert!(st.installed && st.registered && st.binary_found);
+        assert_eq!(st.server_key, "oculpm-project");
+        assert_eq!(st.foreign_servers, 1);
+        let written = std::fs::read_to_string(&config).unwrap();
+        assert!(written.contains("# Keep this user preference."));
+        assert!(written.contains("model = \"gpt-5\""));
+        assert!(written.contains("[mcp_servers.notion]"));
+        assert!(written.contains("[mcp_servers.oculpm-project]"));
+        let parsed: toml::Value = toml::from_str(&written).unwrap();
+        assert_eq!(
+            parsed["mcp_servers"]["oculpm-project"]["args"][1].as_str(),
+            Some(root.to_string_lossy().as_ref())
+        );
+
+        let st = codex_unregister_at(&config, &root, Some(&binary)).unwrap();
+        assert!(!st.registered);
+        let after = std::fs::read_to_string(&config).unwrap();
+        assert!(after.contains("[mcp_servers.notion]"));
+        assert!(!after.contains("oculpm-project"));
+    }
+
+    #[test]
+    fn codex_same_folder_name_projects_get_distinct_keys() {
+        let dir = TempDir::new().unwrap();
+        let root_a = dir.path().join("work").join("app");
+        let root_b = dir.path().join("experiment").join("app");
+        std::fs::create_dir_all(&root_a).unwrap();
+        std::fs::create_dir_all(&root_b).unwrap();
+        let binary = fake_binary(dir.path());
+        let config = dir.path().join(".codex").join("config.toml");
+        std::fs::create_dir(config.parent().unwrap()).unwrap();
+
+        let a = codex_register_at(&config, &root_a, &binary).unwrap();
+        let b = codex_register_at(&config, &root_b, &binary).unwrap();
+        assert_eq!(a.server_key, "oculpm-app");
+        assert!(b.server_key.starts_with("oculpm-app-"));
+        assert!(
+            codex_status_at(&config, &root_a, Some(&binary))
+                .unwrap()
+                .registered
+        );
+
+        codex_unregister_at(&config, &root_b, Some(&binary)).unwrap();
+        assert!(
+            codex_status_at(&config, &root_a, Some(&binary))
+                .unwrap()
+                .registered
+        );
+        assert!(
+            !codex_status_at(&config, &root_b, Some(&binary))
+                .unwrap()
+                .registered
+        );
+    }
+
+    #[test]
+    fn codex_register_refuses_missing_config_directory_and_broken_toml() {
+        let dir = TempDir::new().unwrap();
+        let root = dir.path();
+        let binary = fake_binary(root);
+        let missing = dir.path().join("missing").join("config.toml");
+        assert!(
+            !codex_status_at(&missing, root, Some(&binary))
+                .unwrap()
+                .installed
+        );
+        assert!(codex_register_at(&missing, root, &binary).is_err());
+        assert!(!missing.exists(), "Codex 설정 폴더를 창조하지 않는다");
+
+        let config = dir.path().join(".codex").join("config.toml");
+        std::fs::create_dir(config.parent().unwrap()).unwrap();
+        std::fs::write(&config, "[mcp_servers\ninvalid = true").unwrap();
+        assert!(codex_status_at(&config, root, Some(&binary)).is_err());
+        assert!(codex_register_at(&config, root, &binary).is_err());
+        assert!(codex_unregister_at(&config, root, Some(&binary)).is_err());
+        assert_eq!(
+            std::fs::read_to_string(&config).unwrap(),
+            "[mcp_servers\ninvalid = true"
+        );
+    }
+
+    // ─── Codex 플러그인 상태 (읽기 전용) ────────────────────────────────
+
+    fn codex_home_with(config: &str) -> TempDir {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("config.toml"), config).unwrap();
+        dir
+    }
+
+    #[test]
+    fn codex_plugin_is_not_claimed_without_a_config() {
+        let home = TempDir::new().unwrap();
+        let st = codex_plugin_status_at(&home.path().join("config.toml"), home.path());
+        assert!(st.codex_installed, "폴더는 있다");
+        assert!(!st.enabled);
+        assert_eq!(st.marketplace, None);
+        assert!(!st.marketplace_configured);
+    }
+
+    #[test]
+    fn codex_plugin_reports_marketplace_and_cached_version() {
+        let home = codex_home_with(
+            "[plugins.\"oculpm-codex@oculpm\"]\nenabled = true\n\n\
+             [marketplaces.oculpm]\nsource_type = \"local\"\nsource = \"/x/repo\"\n",
+        );
+        std::fs::create_dir_all(home.path().join("plugins/cache/oculpm/oculpm-codex/2.38.0"))
+            .unwrap();
+        let st = codex_plugin_status_at(&home.path().join("config.toml"), home.path());
+        assert!(st.enabled);
+        assert_eq!(st.marketplace.as_deref(), Some("oculpm"));
+        assert!(st.marketplace_configured);
+        assert_eq!(st.cached_version.as_deref(), Some("2.38.0"));
+    }
+
+    /// 항목만 있고 마켓플레이스가 없는 **고아** — Codex 첫 실행 임포트가
+    /// Claude 의 활성 플러그인만 옮겨 오면 이 꼴이 된다 (2026-09-03 실측).
+    /// 화면이 이 상태를 구분해 말할 수 있어야 한다.
+    #[test]
+    fn codex_plugin_flags_an_orphaned_entry() {
+        let home = codex_home_with("[plugins.\"oculpm-codex@oculpm\"]\nenabled = true\n");
+        let st = codex_plugin_status_at(&home.path().join("config.toml"), home.path());
+        assert!(st.enabled);
+        assert_eq!(st.marketplace.as_deref(), Some("oculpm"));
+        assert!(!st.marketplace_configured, "마켓플레이스가 없다 = 고아");
+        assert_eq!(st.cached_version, None);
     }
 }

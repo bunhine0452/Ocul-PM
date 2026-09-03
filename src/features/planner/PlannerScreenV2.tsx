@@ -1,5 +1,5 @@
 import { ErrorCard } from "@/components/ErrorCard";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
   Plus,
@@ -7,13 +7,11 @@ import {
   ChevronDown,
   ChevronUpIcon as ChevronUp,
   ChevronRight,
-  Clock,
   RefreshCw,
   Lock,
-  NotebookText,
   PanelLeft,
+  PanelRight,
   Pencil,
-  Play,
   Trash2,
 } from "@/components/Icons";
 import {
@@ -33,98 +31,28 @@ import { SkeletonList } from "@/components/ui/Skeleton";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { InlineMarkdown } from "@/components/InlineMarkdown";
 import { useTerminalSessions, useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
-import { PlanRail } from "./PlanRail";
+import { PlanRailDock, clampRailWidth } from "./PlanRailDock";
 import {
   facetsOf,
   latestActivityByPlan,
   type PlanGroup,
   type PlanSort,
 } from "./planList";
-import { getLang, t, useT, type I18nKey } from "@/i18n";
-import { relativeTime as formatRelativeTime } from "@/lib/format";
+import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
+import {
+  NO_PHASE,
+  phaseProgress,
+  relativeTime,
+  STATUS_META,
+  type JournalRefMeta,
+} from "./planMeta";
+import { PlanItemRow } from "./PlanItemRow";
 
 // Planner Upgrade (PR-PLN 3) — document-style living checklist over the file
 // `.oculpm/planner/*.md` SSOT. Reads via plan_list/plan_get; edits via
 // plan_apply_edit (status cycle / add item) and plan_create. Per-item
 // attribution chips reuse Today's agentColor. Legacy PlannerPanel untouched.
-
-const STATUS_META: Record<string, { glyph: string; labelKey: I18nKey; color: string }> = {
-  todo: { glyph: "☐", labelKey: "plan.status.todo", color: "var(--text-3)" },
-  in_progress: { glyph: "▣", labelKey: "plan.status.in_progress", color: "var(--accent)" },
-  done: { glyph: "☑", labelKey: "plan.status.done", color: "var(--accent)" },
-  // U+FE0E (text presentation selector): ⚠ 는 기본이 컬러 이모지라 나머지
-  // 글리프(☐ ▣ ☑ → ✗)와 달리 OS 이모지 폰트로 그려지고 color 를 무시한다.
-  blocked: { glyph: "⚠︎", labelKey: "plan.status.blocked", color: "var(--t-bug)" },
-  deferred: { glyph: "→", labelKey: "plan.status.deferred", color: "var(--text-3)" },
-  dropped: { glyph: "✗", labelKey: "plan.status.dropped", color: "var(--text-3)" },
-};
-
-// A linked journal resolved to display metadata for the multi-journal picker.
-interface JournalRefMeta {
-  /** The raw ref as stored on the plan item (passed back to onOpenJournalRef). */
-  ref: string;
-  /** Ref with `.oculpm/`/`journal/` prefixes stripped — relative to journal root. */
-  path: string;
-  /** Leading path segment, e.g. "20260615". */
-  workday: string;
-  /** First line of the entry (real title), falling back to the file name. */
-  title: string;
-}
-
-const weekdays = () => {
-  const f = new Intl.DateTimeFormat(getLang(), { weekday: "short" });
-  return Array.from({ length: 7 }, (_, i) => f.format(new Date(Date.UTC(1970, 0, 4 + i))));
-};
-
-// Synthetic bucket for items written before any `## ` heading — it has no real
-// heading on disk, so phase rename/delete/reorder are not offered for it.
-/** 단계 없는 항목의 **그룹 키**. 표시 라벨은 `t("plan.noPhase")` 로 따로 그린다
- *  — 키를 번역하면 언어를 바꿀 때 그룹이 갈라진다. */
-const NO_PHASE = "__no_phase__";
-
-/** "20260615" → "2026.06.15 (월)". Returns the input unchanged if not 8 digits. */
-function fmtWorkday(wd: string): string {
-  const m = /^(\d{4})(\d{2})(\d{2})$/.exec(wd);
-  if (!m) return wd;
-  const [, y, mo, d] = m;
-  const dt = new Date(Number(y), Number(mo) - 1, Number(d));
-  return `${y}.${mo}.${d} (${weekdays()[dt.getDay()] ?? ""})`;
-}
-
-// Forward-progress click cycle; the off-path states fold back to todo.
-const NEXT_STATUS: Record<string, string> = {
-  todo: "in_progress",
-  in_progress: "done",
-  done: "todo",
-  blocked: "todo",
-  deferred: "todo",
-  dropped: "todo",
-};
-
-function weightOf(status: string): number | null {
-  if (status === "done") return 1;
-  if (status === "in_progress") return 0.5;
-  if (status === "todo") return 0;
-  return null; // blocked / deferred / dropped — excluded from rollup
-}
-
-function phaseProgress(items: PlanItemDto[]): number {
-  let sum = 0;
-  let n = 0;
-  for (const it of items) {
-    const w = weightOf(it.status);
-    if (w !== null) {
-      sum += w;
-      n += 1;
-    }
-  }
-  return n === 0 ? 0 : Math.round((sum / n) * 100);
-}
-
-function relativeTime(iso: string | null): string {
-  return formatRelativeTime(iso, Date.now(), { beyondDays: 30 });
-}
 
 interface PlannerScreenV2Props {
   projectId: number;
@@ -602,6 +530,51 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   const toggleSection = (key: string, nextOpen: boolean) =>
     setState((p) => ({ ...p, plannerRailOpen: { ...p.plannerRailOpen, [key]: nextOpen } }));
 
+  // 알 수 없는 영속값은 왼쪽으로 — 렌더는 "right" 하나만 특별 취급한다.
+  const railSide = state.plannerRailSide === "right" ? "right" : "left";
+
+  /**
+   * 끝난 계획 묶음을 통째로 보관으로 옮긴다 (레일 완료 섹션의 정리 동작).
+   * 한 번의 백엔드 호출로 처리한다 — `plan_set_status` 를 N번 부르면 계획
+   * 파일 전체를 N번 다시 파싱한다 (바로 이 경우가 가장 아픈 자리다).
+   */
+  const archivePlans = async (planIds: string[]) => {
+    if (planIds.length === 0 || busy) return;
+    setBusy(true);
+    const res = await commands.planSetStatusBulk(projectId, planIds, "archived");
+    setBusy(false);
+    if (res.status === "ok") {
+      void refreshPlans();
+      if (selectedId != null && planIds.includes(selectedId)) void refreshDetail();
+      toast.info(t("plan.rail.archived", { n: res.data }));
+    } else {
+      toast.destructive(tError(res.error));
+    }
+  };
+
+  const railDock =
+    railVisible && plans ? (
+      <PlanRailDock
+        width={clampRailWidth(state.plannerRailWidth)}
+        onWidthChange={(w) => setState((p) => ({ ...p, plannerRailWidth: w }))}
+        side={railSide}
+        onArchiveSection={(ids) => void archivePlans(ids)}
+        plans={plans}
+        facets={facets}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        sort={state.plannerSort}
+        onSortChange={setSort}
+        group={state.plannerGroup}
+        onGroupChange={setGroup}
+        query={query}
+        onQueryChange={setQuery}
+        openOverride={state.plannerRailOpen}
+        onToggleSection={toggleSection}
+        now={now}
+      />
+    ) : null;
+
   return (
     <>
       <Toolbar
@@ -613,17 +586,36 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         }
         leading={
           railEligible ? (
-            <button
-              className="pln-iconbtn"
-              aria-label={railVisible ? t("plan.railCollapse") : t("plan.railExpand")}
-              aria-expanded={railVisible}
-              title={railVisible ? t("plan.railCollapse") : t("plan.railExpand")}
-              onClick={() =>
-                setState((p) => ({ ...p, plannerRailCollapsed: !p.plannerRailCollapsed }))
-              }
-            >
-              <PanelLeft size={15} />
-            </button>
+            <>
+              <button
+                className="pln-iconbtn"
+                aria-label={railVisible ? t("plan.railCollapse") : t("plan.railExpand")}
+                aria-expanded={railVisible}
+                title={railVisible ? t("plan.railCollapse") : t("plan.railExpand")}
+                onClick={() =>
+                  setState((p) => ({ ...p, plannerRailCollapsed: !p.plannerRailCollapsed }))
+                }
+              >
+                {/* 접기 글리프는 레일이 붙어 있는 쪽을 가리킨다 — 그래야 옆의
+                    '옮기기' 버튼(반대쪽 글리프)과 한눈에 구별된다. */}
+                {railSide === "right" ? <PanelRight size={15} /> : <PanelLeft size={15} />}
+              </button>
+              {railVisible ? (
+                <button
+                  className="pln-iconbtn"
+                  aria-label={t(railSide === "right" ? "plan.railToLeft" : "plan.railToRight")}
+                  title={t(railSide === "right" ? "plan.railToLeft" : "plan.railToRight")}
+                  onClick={() =>
+                    setState((p) => ({
+                      ...p,
+                      plannerRailSide: p.plannerRailSide === "right" ? "left" : "right",
+                    }))
+                  }
+                >
+                  {railSide === "right" ? <PanelLeft size={15} /> : <PanelRight size={15} />}
+                </button>
+              ) : null}
+            </>
           ) : undefined
         }
       >
@@ -651,23 +643,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       </Toolbar>
 
       <div className="pln-body">
-        {railVisible && plans ? (
-          <PlanRail
-            plans={plans}
-            facets={facets}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            sort={state.plannerSort}
-            onSortChange={setSort}
-            group={state.plannerGroup}
-            onGroupChange={setGroup}
-            query={query}
-            onQueryChange={setQuery}
-            openOverride={state.plannerRailOpen}
-            onToggleSection={toggleSection}
-            now={now}
-          />
-        ) : null}
+        {railSide === "left" ? railDock : null}
 
         <div className="pln-main">
         <div className="pln-doc fade-in">
@@ -725,6 +701,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               busy={busy}
               locked={locked}
               onToggleLock={setPlanLock}
+              onArchive={() => void archivePlans(selectedId ? [selectedId] : [])}
               onRename={renamePlan}
               onDelete={deletePlan}
               onRemoveItem={removeItem}
@@ -770,6 +747,8 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           ) : null}
         </div>
         </div>
+
+        {railSide === "right" ? railDock : null}
       </div>
 
       {/* PR-CI6 (EDD-lite) — 완료 소프트 게이트: 검증 일지 미연결 경고 (무시 가능). */}
@@ -826,6 +805,8 @@ interface PlanBodyProps {
   busy: boolean;
   locked: boolean;
   onToggleLock: (lock: boolean) => void;
+  /** 끝난 계획을 보관으로 — 완료 상태에서만 의미가 있다. */
+  onArchive: () => void;
   onRename: (title: string) => void;
   onDelete: () => void;
   onRemoveItem: (item: PlanItemDto) => void;
@@ -842,9 +823,10 @@ interface PlanBodyProps {
 }
 
 function PlanBody(props: PlanBodyProps) {
-  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, onDispatch, busy, locked, onToggleLock, onRename, onDelete, onRemoveItem, onRenameItem, onRenamePhase, onRemovePhase, onMovePhase, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs } = props;
+  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, onDispatch, busy, locked, onToggleLock, onArchive, onRename, onDelete, onRemoveItem, onRenameItem, onRenamePhase, onRemovePhase, onMovePhase, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs } = props;
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const archived = detail.plan.status !== "active" && detail.plan.status !== "done";
   const pct = Math.round((detail.plan.progress ?? 0) * 100);
   const phaseMeta = new Map((detail.phases ?? []).map((p) => [p.name, p] as const));
 
@@ -891,7 +873,8 @@ function PlanBody(props: PlanBodyProps) {
               <span className={"goal-status " + (locked ? "planned" : "active")}>
                 {locked ? (
                   <>
-                    <Lock size={11} /> {t("plan.locked")}
+                    <Lock size={11} />{" "}
+                    {archived ? t("plan.group.archived") : t("plan.locked")}
                   </>
                 ) : (
                   t("plan.inProgress")
@@ -912,6 +895,18 @@ function PlanBody(props: PlanBodyProps) {
             >
               {locked ? t("plan.unlock") : t("plan.locked")}
             </button>
+            {/* 보관은 '끝났고 이제 목록에서 치운다' 는 뜻이라 완료된 계획에만
+                붙인다. 되돌리기는 왼쪽의 '잠금 해제' 하나로 충분하다. */}
+            {detail.plan.status === "done" ? (
+              <button
+                className="btn sm"
+                onClick={onArchive}
+                disabled={busy}
+                title={t("plan.archiveTitle")}
+              >
+                {t("plan.group.archived")}
+              </button>
+            ) : null}
             {confirmDelete ? (
               <>
                 <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDelete(false); onDelete(); }} disabled={busy} title={t("plan.deleteConfirmTitle")}>
@@ -1156,253 +1151,6 @@ function PhaseCard(props: PhaseCardProps) {
             />
           ))
         : null}
-    </div>
-  );
-}
-
-// ── Item row ─────────────────────────────────────────────────────────────────
-
-interface PlanItemRowProps {
-  item: PlanItemDto;
-  busy: boolean;
-  locked: boolean;
-  /** 3-depth — 하위를 가진 부모: 상태는 롤업 파생이라 직접 조작 불가. */
-  isParent: boolean;
-  onSetStatus: (item: PlanItemDto, status: string) => void;
-  /** IN2 — 이 항목을 터미널에서 Claude Code 로 실행 (프롬프트 프리필). */
-  onDispatch: (item: PlanItemDto) => void;
-  onRemove: (item: PlanItemDto) => void;
-  onRename: (item: PlanItemDto, title: string) => void;
-  historyOpen: boolean;
-  history: PlanItemUpdateDto[] | null;
-  onToggleHistory: (itemId: string) => void;
-  onOpenJournalRef: (ref: string) => void;
-  resolveJournalRefs: (refs: string[]) => Promise<JournalRefMeta[]>;
-}
-
-function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, onRemove, onRename, historyOpen, history, onToggleHistory, onOpenJournalRef, resolveJournalRefs }: PlanItemRowProps) {
-  const meta = STATUS_META[item.status] ?? STATUS_META.todo;
-  const indent = item.parent_item ? 22 : 0;
-  const linked = item.journal_refs ?? [];
-  const multiLinked = linked.length > 1;
-
-  const [editing, setEditing] = useState(false);
-  const [confirmDel, setConfirmDel] = useState(false);
-
-  // Multi-journal picker: one linked entry opens directly; several show a
-  // date+title chooser. Metas resolve lazily on first open.
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [refMetas, setRefMetas] = useState<JournalRefMeta[] | null>(null);
-  const jrefWrap = useRef<HTMLSpanElement>(null);
-
-  const handleJournalBtn = () => {
-    if (!multiLinked) {
-      onOpenJournalRef(linked[0]);
-      return;
-    }
-    setPickerOpen((o) => !o);
-    if (refMetas == null) void resolveJournalRefs(linked).then(setRefMetas);
-  };
-
-  // Close the picker on an outside click (only while open).
-  useEffect(() => {
-    if (!pickerOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      if (jrefWrap.current && !jrefWrap.current.contains(e.target as Node)) setPickerOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [pickerOpen]);
-
-  // Suggestion (never auto-applied): journal work is logged against this item
-  // but it isn't closed out yet → offer a one-click "완료?". Suppressed on a
-  // locked plan (no edits allowed).
-  const suggestDone =
-    !locked && !isParent && linked.length > 0 && !["done", "dropped", "deferred"].includes(item.status);
-  return (
-    <div className="subtask pln-item" style={{ "--pln-indent": `${indent}px` } as CSSProperties}>
-      <button
-        type="button"
-        className="pln-item-glyph"
-        onClick={() => onSetStatus(item, NEXT_STATUS[item.status] ?? "in_progress")}
-        disabled={busy || locked || isParent}
-        title={
-          isParent
-            ? t("plan.statusParent", { label: t(meta.labelKey) })
-            : locked
-              ? t("plan.statusLocked", { label: t(meta.labelKey) })
-              : t("plan.statusClick", { label: t(meta.labelKey) })
-        }
-        style={{ color: meta.color, cursor: busy || locked || isParent ? "default" : "pointer" }}
-      >
-        {meta.glyph}
-      </button>
-
-      <div className="pln-item-main">
-        {/* 제목 묶음과 메타 묶음은 **한 줄에서 시작해 좁아지면 접힌다** —
-            `.pln-item-line` 이 wrap 이고 제목 쪽에 flex-basis 가 있어서, 남는
-            폭이 그 아래로 내려가면 실행/에이전트/액션이 통째로 다음 줄로
-            빠진다. 예전처럼 제목만 0px 로 눌려 세로로 서는 일이 없다. */}
-        <div className="pln-item-line">
-          <div className="pln-item-text">
-            {editing ? (
-              <input
-                autoFocus
-                className="sub-title-input"
-                defaultValue={item.title}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    onRename(item, (e.target as HTMLInputElement).value);
-                    setEditing(false);
-                  }
-                  if (e.key === "Escape") setEditing(false);
-                }}
-                onBlur={(e) => {
-                  const v = e.target.value.trim();
-                  if (v && v !== item.title) onRename(item, v);
-                  setEditing(false);
-                }}
-              />
-            ) : (
-              // 제목은 `.oculpm/planner/*.md` 에서 온 마크다운이다 — `**강조**`
-              // 와 `` `코드` `` 를 기호째 노출하지 않고 렌더한다.
-              <InlineMarkdown className={"sub-title" + (item.status === "done" ? " done" : "")} text={item.title} />
-            )}
-            {item.note ? (
-              <InlineMarkdown className="pln-item-note" text={`— ${item.note}`} />
-            ) : null}
-            {linked.length > 0 ? (
-              <span className="jref-wrap" ref={jrefWrap}>
-                <button
-                  type="button"
-                  className="jref-btn"
-                  onClick={handleJournalBtn}
-                  title={multiLinked ? t("plan.linkedMulti", { n: linked.length }) : t("plan.linkedOne")}
-                  aria-haspopup={multiLinked ? "menu" : undefined}
-                  aria-expanded={multiLinked ? pickerOpen : undefined}
-                >
-                  <NotebookText size={13} strokeWidth={2} />
-                  <span>{t("plan.entryLabel")}{multiLinked ? ` ${linked.length}` : ""}</span>
-                  {multiLinked ? <ChevronDown size={12} /> : null}
-                </button>
-                {multiLinked && pickerOpen ? (
-                  <div className="jref-pop" role="menu">
-                    {refMetas == null ? (
-                      <div className="jref-pop-loading">{t("common.loading")}</div>
-                    ) : (
-                      refMetas.map((m) => (
-                        <button
-                          key={m.ref}
-                          type="button"
-                          role="menuitem"
-                          className="jref-pop-item"
-                          onClick={() => {
-                            setPickerOpen(false);
-                            onOpenJournalRef(m.ref);
-                          }}
-                        >
-                          <span className="jref-pop-date">{fmtWorkday(m.workday)}</span>
-                          <span className="jref-pop-title">{m.title}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                ) : null}
-              </span>
-            ) : null}
-            {suggestDone ? (
-              <button
-                type="button"
-                className="pln-done-hint"
-                onClick={() => onSetStatus(item, "done")}
-                title={t("plan.markDoneTitle")}
-              >
-                {t("plan.markDone")}
-              </button>
-            ) : null}
-          </div>
-
-          <div className="pln-item-meta">
-            {!locked && !["done", "dropped"].includes(item.status) ? (
-              <button
-                type="button"
-                className="jref-btn"
-                onClick={() => onDispatch(item)}
-                title={t("plan.dispatchTitle")}
-              >
-                <Play size={12} strokeWidth={2} />
-                <span>{t("plan.dispatch")}</span>
-              </button>
-            ) : null}
-            {item.last_agent ? (
-              <button
-                type="button"
-                className="pln-item-agent"
-                onClick={() => onToggleHistory(item.item_id)}
-                title={t("plan.history")}
-              >
-                <span className="pln-agent-dot" style={{ background: agentColor(item.last_agent) }} />
-                <span className="pln-agent-name">{agentLabel(item.last_agent)}</span>
-                <span className="pln-agent-time">· {relativeTime(item.last_update)}</span>
-                <Clock size={11} />
-              </button>
-            ) : null}
-
-            {!locked && !editing ? (
-              <div className={"item-actions" + (confirmDel ? " is-active" : "")}>
-                {confirmDel ? (
-                  <>
-                    <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDel(false); onRemove(item); }} disabled={busy} title={t("plan.itemDeleteConfirm")}>
-                      {t("plan.itemDeleteConfirm")}
-                    </button>
-                    <button type="button" className="pln-textbtn" onClick={() => setConfirmDel(false)}>{t("common.cancel")}</button>
-                  </>
-                ) : (
-                  <>
-                    <button type="button" className="pln-iconbtn" onClick={() => setEditing(true)} disabled={busy} title={t("plan.itemRename")}>
-                      <Pencil size={12} />
-                    </button>
-                    <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDel(true)} disabled={busy} title={t("plan.itemDelete")}>
-                      <Trash2 size={12} />
-                    </button>
-                  </>
-                )}
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        {historyOpen ? (
-          <div className="pln-item-history">
-            {history == null ? (
-              <span style={{ color: "var(--text-3)" }}>{t("plan.historyLoading")}</span>
-            ) : history.length === 0 ? (
-              <span style={{ color: "var(--text-3)" }}>{t("plan.noHistory")}</span>
-            ) : (
-              history.map((u, i) => (
-                <div key={i} className="pln-hist-row">
-                  <span className="pln-agent-dot" style={{ background: agentColor(u.agent_id) }} />
-                  <span>{agentLabel(u.agent_id)}</span>
-                  <span style={{ color: "var(--text-3)" }}>
-                    {u.from_status ?? "?"}→{u.to_status ?? "?"} · {relativeTime(u.ts)}
-                  </span>
-                  {u.journal_ref ? (
-                    <button
-                      type="button"
-                      className="jref-btn"
-                      onClick={() => onOpenJournalRef(u.journal_ref!)}
-                      title={t("plan.gotoEntry", { ref: u.journal_ref })}
-                    >
-                      <NotebookText size={13} strokeWidth={2} />
-                      <span>{t("plan.entryLabel")}</span>
-                    </button>
-                  ) : null}
-                </div>
-              ))
-            )}
-          </div>
-        ) : null}
-      </div>
     </div>
   );
 }

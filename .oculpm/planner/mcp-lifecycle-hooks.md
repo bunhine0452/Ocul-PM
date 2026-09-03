@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: mcp-lifecycle-hooks
 title: "부탁을 기구로 — 턴이 끝나기 전에 기록을 묻는다"
-status: active
+status: done
 created: 2026-09-03
 updated: 2026-09-03
 owner: claude-code

@@ -57,8 +57,10 @@ import {
 import { useT, type I18nKey } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { A2aEndpointBlock } from "./A2aEndpointBlock";
+import { ClaudePluginBlock } from "./ClaudePluginBlock";
+import { CodexMcpServerBlock } from "./CodexMcpServerBlock";
+import { CodexPluginBlock } from "./CodexPluginBlock";
 import { PluginBundlesBlock } from "./plugins/PluginBundlesBlock";
-
 const DEBOUNCE_MS = 500;
 
 // W4 dogfooding finding (2026-05-25) — `agents-md` is the universal AGENTS.md
@@ -483,7 +485,22 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
                 </button>
               );
             })}
+            {/* Codex 는 루트 AGENTS.md 를 그대로 읽는다 — 어댑터 파일이 없으므로
+                토글이 아니라 「덮인다」는 사실만 보여준다. 없는 스위치를 그리면
+                켰는데 아무 파일도 안 생기는 거짓말이 된다. */}
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1 text-xs text-muted-foreground"
+              title={t("op.agents.nativeNote")}
+            >
+              Codex
+              <span className="text-[9px] uppercase tracking-wider opacity-70">
+                {t("op.agents.native")}
+              </span>
+            </span>
           </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            {t("op.agents.nativeNote")}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={handleDetect}>
@@ -552,6 +569,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
         >
           <ClaudeHooksBlock projectId={projectId} pluginInstalled={plugin?.installed ?? false} />
           <McpServerBlock projectId={projectId} pluginInstalled={plugin?.installed ?? false} />
+          <CodexMcpServerBlock projectId={projectId} />
         </Section>
         {/* 플러그인 번들 임포트 (Phase 6) — 프로젝트 스코프다. 놓이는 자리가
             전부 `<project>/.claude/` 와 `.mcp.json` 이기 때문이다. */}
@@ -563,6 +581,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
           description={t("op.scope.machineDesc")}
         >
           <ClaudePluginBlock plugin={plugin} />
+          <CodexPluginBlock />
           <AcpRuntimeBlock />
           <ShellIntegrationBlock />
         </Section>
@@ -817,64 +836,6 @@ export function ShellIntegrationBlock() {
 }
 
 /**
- * A3 — Claude Code 플러그인 (훅 + MCP + 스킬) 설치 감지.
- *
- * **머신 전역** 블록이다 — 플러그인은 `~/.claude/plugins` 에 설치되어 모든
- * 프로젝트에 한 번에 적용되므로 `projectId` 를 받지 않는다 (실제 동작은
- * 훅 커맨드의 `.oculpm` 존재 가드와 MCP 의 `--root ${CLAUDE_PROJECT_DIR}` 가
- * 프로젝트별로 갈라준다). 프로젝트별인 훅 토글·MCP 등록과 한 카드에 섞여
- * 있으면 "설치됨" 배지가 어느 범위를 말하는지 알 수 없어, 스코프 섹션이
- * 생기면서 별도 블록으로 떼어냈다.
- */
-export function ClaudePluginBlock({ plugin }: { plugin: ClaudePluginStatus | null }) {
-  const { t } = useT();
-  const [copied, setCopied] = useState(false);
-
-  const copyInstall = async () => {
-    try {
-      await navigator.clipboard.writeText("/plugin marketplace add bunhine0452/Ocul-PM");
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.warning(t("op.copyFailed"));
-    }
-  };
-
-  return (
-    <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
-          {t("op.plugin.title")}
-        </Label>
-        <ScopeChip label={t("op.scope.machine")} />
-        <span
-          className={`rounded-full border px-2 py-0.5 text-[10px] ${
-            plugin?.installed
-              ? "border-(--ok)/40 bg-(--ok-soft) text-(--ok-text)"
-              : "border-border bg-muted/30 text-muted-foreground"
-          }`}
-        >
-          {plugin == null ? t("op.st.checking") : plugin.installed ? t("op.plugin.installed") : t("op.plugin.notInstalled")}
-        </span>
-        <div className="ml-auto">
-          <Button size="sm" variant="outline" onClick={() => void copyInstall()}>
-            {copied ? t("common.copied") : t("op.plugin.copy")}
-          </Button>
-        </div>
-      </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
-        {t("op.plugin.desc1")} <code className="text-[10px]">/plugin marketplace add bunhine0452/Ocul-PM</code>{" "}
-        {t("op.plugin.desc2")} <code className="text-[10px]">/plugin install oculpm@oculpm</code>{" "}
-        {t("op.plugin.desc3")}
-      </p>
-      {plugin?.installed ? (
-        <p className="text-[11px] text-(--warn-text)">{t("op.plugin.warn")}</p>
-      ) : null}
-    </div>
-  );
-}
-
-/**
  * PR-CI2 (docs/claude-integration/00-master-plan.md D3) — oculpm-mcp 서버 등록
  * 블록. 프로젝트 `.mcp.json` 에 stdio 서버(journal_write/plan_status/
  * plan_update)를 등록해 Claude Code 가 파일 규격을 흉내 내는 대신 구조화
@@ -1118,7 +1079,6 @@ function LogsSection() {
   const { t } = useT();
   const [logDir, setLogDir] = useState<string | null>(null);
   const [revealing, setRevealing] = useState(false);
-
   useEffect(() => {
     let cancelled = false;
     void commands.oculpmGetLogDir().then((res) => {

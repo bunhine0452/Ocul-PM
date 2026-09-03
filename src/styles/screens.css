@@ -736,8 +736,12 @@
    시트와 같은 표면 위에 얇은 구분선만 두면, 앱 사이드바 옆에 같은 색 기둥이
    하나 더 서는 '사이드바 속 사이드바' 가 사라지고 시트 하나에 목차가 붙은
    모양이 된다. 오른쪽 여백을 넉넉히 둬 본문과 숨 쉴 틈을 만든다. */
+/* 폭은 사용자가 끄는 값이다 (`PlanRailDock` 이 인라인으로 준다) — 그래서
+   자리(slot)가 폭을 갖고, 레일은 그 자리를 채운다. 인라인 width 는 CSS 를
+   이기지만 `max-width` 에는 진다: 좁은 칸에서의 상한은 여전히 CSS 가 쥔다. */
+.pln-rail-slot { flex: none; min-width: 0; display: flex; max-width: 46cqi; }
 .pln-rail {
-  flex: none; width: 236px; min-width: 236px;
+  flex: 1; min-width: 0;
   overflow-y: auto; overflow-x: hidden;
   /* 양쪽이 같은 표면이라 이 선이 분리를 전부 떠맡는다 — --sep 는 두 색이
      다를 때 쓰는 세기라 여기선 안 보인다(하네스에서 확인). */
@@ -745,15 +749,41 @@
   padding: 14px 14px 40px 10px;
   display: flex; flex-direction: column; gap: 1px;
 }
+/* 오른쪽에 붙으면 경계선도 여백도 반대로 — 선이 양쪽에 서면 두 줄로 보인다
+   (코드 화면 `.code-sidebar.on-right` 와 같은 규칙). */
+.pln-rail.on-right {
+  border-right: none; border-left: 1px solid var(--sep-strong);
+  padding-left: 14px; padding-right: 10px;
+}
 /* 좁아지면 본문이 먼저다 — 레일을 줄여 문서 폭을 지키고, 더 좁아지면 문서
-   여백까지 걷어낸다. 글자를 자르는 대신 껍데기를 먼저 내준다. */
+   여백까지 걷어낸다. 글자를 자르는 대신 껍데기를 먼저 내준다.
+   사용자가 넓혀 둔 폭도 여기서는 접힌다 (상한이지 지정이 아니다). */
 @container plnbody (max-width: 900px) {
-  .pln-rail { width: 194px; min-width: 194px; padding-right: 10px; }
+  .pln-rail-slot { max-width: 194px; }
 }
 @container plnbody (max-width: 700px) {
-  .pln-rail { width: 168px; min-width: 168px; }
+  .pln-rail-slot { max-width: 168px; }
 }
 .pln-rail.is-collapsed { display: none; }
+
+/* 잡는 선 — 평소엔 경계선과 구별되지 않고, 올리면 도톰해진다
+   (코드 화면 하단 패널의 `.code-panel-resizer` 와 같은 규격, 축만 다르다). */
+.pln-rail-resizer {
+  /* 폭 6px 에 양쪽 -3px — 레이아웃에는 0px 을 차지하고 경계선 위에만 겹친다. */
+  flex: none; width: 6px; margin: 0 -3px;
+  position: relative; z-index: var(--z-sticky);
+  cursor: col-resize; touch-action: none;
+}
+.pln-rail-resizer::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 2px;
+  width: 1px; background: transparent;
+  transition: background 0.1s var(--ease-out), width 0.1s var(--ease-out), left 0.1s var(--ease-out);
+}
+.pln-rail-resizer:hover::after,
+.pln-rail-resizer:focus-visible::after {
+  left: 1px; width: 3px; background: var(--accent);
+}
+.pln-rail-resizer:focus-visible { outline: none; }
 
 .pln-main { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; }
 .pln-doc { padding: 24px 28px 60px; max-width: 880px; margin: 0 auto; width: 100%; }
@@ -793,15 +823,45 @@
 .pln-sec + .pln-sec {
   margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--sep-strong);
 }
+/* 헤더는 **줄**이고 그 안에 접기 버튼과 (완료 묶음에만) 보관 버튼이 산다 —
+   버튼 안에 버튼을 넣으면 중첩 인터랙티브가 되어 접근성 검사가 실패한다. */
 .pln-sec-head {
   position: sticky; top: 0; z-index: 1;
-  display: flex; align-items: center; gap: 5px; width: 100%;
-  padding: 4px 10px 6px; background: var(--bg-content); border: none; cursor: pointer;
-  font-family: var(--font); font-size: var(--fs-3); font-weight: 700;
-  letter-spacing: 0.05em; color: var(--text-2);
+  display: flex; align-items: center; gap: 2px;
+  padding: 4px 6px 6px 0; background: var(--bg-content);
 }
-.pln-sec-head:hover { color: var(--text); }
-.pln-sec-head svg { opacity: 0.75; }
+.pln-sec-toggle {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 5px;
+  padding: 0 4px 0 10px; background: none; border: none; cursor: pointer;
+  font-family: var(--font); font-size: var(--fs-3); font-weight: 700;
+  letter-spacing: 0.05em; color: var(--text-2); text-align: left;
+}
+.pln-sec-toggle:hover { color: var(--text); }
+.pln-sec-toggle svg { flex: none; opacity: 0.75; }
+.pln-sec-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 보관 버튼은 평소 흐릿하다 — 정리는 가끔 하는 일이라 목록의 리듬을 끊으면
+   안 되고, 그렇다고 hover 로만 나타나면 트랙패드에서 찾을 수가 없다. */
+.pln-sec-act {
+  flex: none; display: grid; place-items: center; width: 22px; height: 22px;
+  padding: 0; border: none; background: none; border-radius: var(--radius-s);
+  color: var(--text-3); opacity: 0.6; cursor: pointer;
+}
+.pln-sec-act:hover { opacity: 1; color: var(--text); background: var(--bg-hover); }
+.pln-sec-confirm {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px;
+  margin: 0 4px 4px; padding: 6px 8px;
+  border: 1px solid var(--sep-strong); border-radius: var(--radius-s);
+  font-size: var(--fs-3); color: var(--text-2);
+}
+/* 상한 뒤에 남은 행 — 행처럼 생겼지만 계획이 아니다 (들여쓰기·색으로 구분). */
+.pln-sec-more {
+  width: 100%; padding: 7px 10px; margin-top: 1px;
+  border: none; background: none; border-radius: var(--radius-s);
+  text-align: left; cursor: pointer;
+  font-family: var(--font); font-size: var(--fs-3); color: var(--text-3);
+}
+.pln-sec-more:hover { background: var(--bg-hover); color: var(--text-2); }
 /* 개수는 칩으로 — 오른쪽 끝에 무게를 줘 섹션의 시작을 한 번 더 표시한다. */
 .pln-sec-count {
   margin-left: auto; padding: 1px 6px; border-radius: 999px;

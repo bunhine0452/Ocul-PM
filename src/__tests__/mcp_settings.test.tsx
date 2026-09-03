@@ -30,14 +30,43 @@ function desktopStatus(over: Record<string, unknown> = {}) {
   };
 }
 
+function codexStatus(over: Record<string, unknown> = {}) {
+  return {
+    installed: true,
+    registered: false,
+    binary_found: true,
+    binary_path: "/app/oculpm-mcp",
+    config_path: "/home/u/.codex/config.toml",
+    server_key: "oculpm-proj",
+    foreign_servers: 0,
+    ...over,
+  };
+}
+
+function codexPluginStatus(over: Record<string, unknown> = {}) {
+  return {
+    codex_installed: true,
+    enabled: true,
+    marketplace: "oculpm",
+    marketplace_configured: true,
+    cached_version: "2.38.0",
+    config_path: "/home/u/.codex/config.toml",
+    ...over,
+  };
+}
+
 const fx = {
   status: status() as Record<string, unknown>,
   desktop: desktopStatus() as Record<string, unknown>,
+  codex: codexStatus() as Record<string, unknown>,
+  codexPlugin: codexPluginStatus() as Record<string, unknown>,
   calls: {
     register: [] as unknown[][],
     unregister: [] as unknown[][],
     deskRegister: [] as unknown[][],
     deskUnregister: [] as unknown[][],
+    codexRegister: [] as unknown[][],
+    codexUnregister: [] as unknown[][],
   },
 };
 
@@ -75,6 +104,20 @@ vi.mock("@/lib/bindings", () => {
                 fx.calls.deskUnregister.push(a);
                 return ok(desktopStatus());
               };
+            case "codexMcpStatus":
+              return () => ok(fx.codex);
+            case "codexPluginStatus":
+              return () => ok(fx.codexPlugin);
+            case "codexMcpRegister":
+              return (...a: unknown[]) => {
+                fx.calls.codexRegister.push(a);
+                return ok(codexStatus({ registered: true }));
+              };
+            case "codexMcpUnregister":
+              return (...a: unknown[]) => {
+                fx.calls.codexUnregister.push(a);
+                return ok(codexStatus());
+              };
             default:
               return () => ok(null);
           }
@@ -85,15 +128,22 @@ vi.mock("@/lib/bindings", () => {
   };
 });
 
-import { ClaudePluginBlock, McpServerBlock } from "@/features/settings/OculpmSettings";
+import { CodexMcpServerBlock } from "@/features/settings/CodexMcpServerBlock";
+import { CodexPluginBlock } from "@/features/settings/CodexPluginBlock";
+import { ClaudePluginBlock } from "@/features/settings/ClaudePluginBlock";
+import { McpServerBlock } from "@/features/settings/OculpmSettings";
 
 beforeEach(() => {
   fx.status = status();
   fx.desktop = desktopStatus();
+  fx.codex = codexStatus();
+  fx.codexPlugin = codexPluginStatus();
   fx.calls.register = [];
   fx.calls.unregister = [];
   fx.calls.deskRegister = [];
   fx.calls.deskUnregister = [];
+  fx.calls.codexRegister = [];
+  fx.calls.codexUnregister = [];
 });
 
 afterEach(() => {
@@ -238,6 +288,36 @@ describe("ClaudePluginBlock (머신 전역)", () => {
   });
 });
 
+describe("CodexMcpServerBlock", () => {
+  it("Codex 전용 등록은 codexMcpRegister만 호출하고 새 세션 안내를 보인다", async () => {
+    const r = render(<CodexMcpServerBlock projectId={21} />);
+    await waitFor(() => expect(r.getByText("Codex MCP 서버")).toBeTruthy());
+    fireEvent.click(r.getByRole("button", { name: "등록" }));
+    await waitFor(() => expect(fx.calls.codexRegister).toHaveLength(1));
+    expect(fx.calls.codexRegister[0][0]).toBe(21);
+    expect(fx.calls.register).toHaveLength(0);
+    await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
+    expect(r.getByText(/새 Codex 세션/)).toBeTruthy();
+  });
+
+  it("Codex 미설치와 바이너리 없음은 등록을 막는다", async () => {
+    fx.codex = codexStatus({ installed: false, binary_found: false, binary_path: null });
+    const r = render(<CodexMcpServerBlock projectId={22} />);
+    await waitFor(() => expect(r.getByText("Codex 미설치")).toBeTruthy());
+    expect((r.getByRole("button", { name: "등록" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(r.getByText(/Codex 설정 폴더를 찾지 못했습니다/)).toBeTruthy();
+  });
+
+  it("Codex 해제는 Codex 설정만 대상으로 한다", async () => {
+    fx.codex = codexStatus({ registered: true });
+    const r = render(<CodexMcpServerBlock projectId={23} />);
+    await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
+    fireEvent.click(r.getByRole("button", { name: "해제" }));
+    await waitFor(() => expect(fx.calls.codexUnregister).toHaveLength(1));
+    expect(fx.calls.unregister).toHaveLength(0);
+  });
+});
+
 // ─── 플러그인 겹침 고지 (프로젝트 섹션 쪽) ────────────────────────────────
 //
 // 경고가 플러그인 블록에만 붙어 있으면 프로젝트 섹션까지 스크롤한 사용자는
@@ -271,5 +351,41 @@ describe("플러그인 겹침 고지", () => {
     const r = render(<McpServerBlock projectId={13} />);
     await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
     expect(r.queryByText(/플러그인/)).toBeNull();
+  });
+});
+
+describe("CodexPluginBlock (머신 스코프 · 읽기 전용)", () => {
+  it("설치됨: 캐시 버전과 마켓플레이스를 보여준다", async () => {
+    const r = render(<CodexPluginBlock />);
+    await waitFor(() => expect(r.getByText("설치됨")).toBeTruthy());
+    expect(r.getByText("2.38.0")).toBeTruthy();
+    expect(r.queryByText(/로드하지 못합니다/)).toBeNull();
+  });
+
+  /// 항목만 있고 마켓플레이스가 없으면 Codex 는 **조용히** 로드하지 않는다 —
+  /// 그 침묵을 화면이 대신 말해야 한다 (2026-09-03 실측한 고아 상태).
+  it("고아 항목: 마켓플레이스가 없다고 경고한다", async () => {
+    fx.codexPlugin = codexPluginStatus({ marketplace_configured: false, cached_version: null });
+    const r = render(<CodexPluginBlock />);
+    await waitFor(() => expect(r.getByText("마켓플레이스 없음")).toBeTruthy());
+    expect(r.getByText(/로드하지 못합니다/)).toBeTruthy();
+  });
+
+  it("Codex 미설치: 배지와 안내가 바뀌고 명령은 그대로 복사된다", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    fx.codexPlugin = codexPluginStatus({
+      codex_installed: false,
+      enabled: false,
+      marketplace: null,
+      marketplace_configured: false,
+      cached_version: null,
+    });
+    const r = render(<CodexPluginBlock />);
+    await waitFor(() => expect(r.getByText("Codex 미설치")).toBeTruthy());
+    fireEvent.click(r.getByRole("button", { name: "설치 명령 복사" }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining("codex plugin add oculpm-codex@oculpm")),
+    );
   });
 });

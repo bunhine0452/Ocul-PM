@@ -188,11 +188,82 @@ const SECTION_ORDER = [
 ];
 
 /**
+ * 완료·보관 묶음이 이 수를 넘으면 **월별로 다시 쪼갠다** (정리 라운드
+ * 2026-09-03).
+ *
+ * 에이전트는 한 단위 작업이 끝날 때마다 계획을 새로 만든다 (AGENTS.md 가
+ * 그렇게 시키고 있다 — 끝난 계획은 얼리고 일은 새 계획으로 옮긴다). 그래서
+ * '완료' 는 하루 한 개꼴로 자란다: 한 프로젝트에서 39개를 넘겼고, 펼치면
+ * 39줄짜리 벽이 되어 무엇이 언제 끝났는지 읽을 수 없었다.
+ *
+ * 월은 '언제 했나' 를 사람이 실제로 기억하는 단위다. 이 임계값 아래에서는
+ * 쪼개지 않는다 — 여덟 개짜리 목록을 세 조각으로 나누면 헤더가 내용보다 많다.
+ */
+export const MONTH_SPLIT_MIN = 12;
+
+/** epoch ms → "2026-08". 시각을 모르면 null. 로컬 시간대 기준이다 (사용자가
+ *  "8월에 한 일" 이라고 말할 때의 8월은 자기 시계의 8월이다). */
+export function monthKeyOf(touchedAt: number | null): string | null {
+  if (touchedAt == null) return null;
+  const d = new Date(touchedAt);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** "2026-08" → "2026.08". 표시용 (라벨은 `완료 · 2026.08` 처럼 조합한다). */
+function monthLabel(key: string): string {
+  return key.replace("-", ".");
+}
+
+/**
+ * 한 상태 묶음(완료/보관)을 섹션 하나 또는 월별 섹션 여럿으로 편다.
+ * 월 섹션 키는 `done:2026-08` 꼴이라 접힘 상태가 월별로 따로 기억된다.
+ */
+function splitByMonth(
+  bucket: "done" | "archived",
+  label: string,
+  plans: PlanSummary[],
+  facets: ReadonlyMap<string, PlanFacet>,
+): PlanSection[] {
+  if (plans.length <= MONTH_SPLIT_MIN) {
+    return [{ key: bucket, label, plans, defaultOpen: false }];
+  }
+  const byMonth = new Map<string, PlanSummary[]>();
+  for (const p of plans) {
+    const key = monthKeyOf(facets.get(p.plan_id)?.touchedAt ?? null) ?? "unknown";
+    const slot = byMonth.get(key);
+    if (slot) slot.push(p);
+    else byMonth.set(key, [p]);
+  }
+  // 최신 달이 위. 시각을 모르는 계획은 언제나 맨 아래 ('unknown' 은 어떤
+  // 연-월 문자열보다도 크게 정렬되므로 내림차순에서 자연히 맨 위로 오려 한다
+  // — 그래서 따로 떼어 마지막에 붙인다).
+  const months = [...byMonth.keys()].filter((k) => k !== "unknown").sort((a, b) => b.localeCompare(a));
+  const sections = months.map((m) => ({
+    key: `${bucket}:${m}`,
+    label: `${label} · ${monthLabel(m)}`,
+    plans: byMonth.get(m)!,
+    defaultOpen: false,
+  }));
+  const unknown = byMonth.get("unknown");
+  if (unknown) {
+    sections.push({
+      key: `${bucket}:unknown`,
+      label: `${label} · ${t("plan.group.unknown")}`,
+      plans: unknown,
+      defaultOpen: false,
+    });
+  }
+  return sections;
+}
+
+/**
  * 묶기. 빈 섹션은 만들지 않는다.
  *
  * `recency` 축에는 '멈춤' 버킷을 두지 않는다 — 멈춤은 활동 기록이 있는
  * 계획에만 내릴 수 있는 판정이라 묶기 축으로 쓰면 판정할 수 없는 계획이
  * 조용히 섞인다. 대신 시각을 모르는 계획을 '기록 없음' 으로 분리한다.
+ *
+ * `status` 축의 완료·보관은 커지면 월별로 다시 쪼갠다 (`splitByMonth`).
  */
 export function groupPlans(
   plans: readonly PlanSummary[],
@@ -203,6 +274,7 @@ export function groupPlans(
   if (group === "none") {
     return plans.length ? [{ key: "all", label: t("plan.group.all"), plans: [...plans], defaultOpen: true }] : [];
   }
+  if (group === "status") return groupByStatus(plans, facets);
 
   const order: string[] = [];
   const byKey = new Map<string, { label: string; plans: PlanSummary[]; defaultOpen: boolean }>();
@@ -218,12 +290,7 @@ export function groupPlans(
 
   for (const p of plans) {
     const f = facets.get(p.plan_id);
-    if (group === "status") {
-      const b = f?.bucket ?? bucketOf(p);
-      if (b === "active") push("active", t("plan.group.active"), true, p);
-      else if (b === "done") push("done", t("plan.group.done"), false, p);
-      else push("archived", t("plan.group.archived"), false, p);
-    } else if (group === "agent") {
+    if (group === "agent") {
       const owner = p.owner_agent || "unknown";
       push(`agent:${owner}`, owner, true, p);
     } else {
@@ -240,7 +307,7 @@ export function groupPlans(
     }
   }
 
-  // 상태별·최근활동별은 의미 순서가 정해져 있고, 작성자별은 등장 순서를 따른다.
+  // 최근활동별은 의미 순서가 정해져 있고, 작성자별은 등장 순서를 따른다.
   const rank = (key: string) => {
     const i = SECTION_ORDER.indexOf(key);
     return i === -1 ? SECTION_ORDER.length + order.indexOf(key) : i;
@@ -252,6 +319,33 @@ export function groupPlans(
       const slot = byKey.get(key)!;
       return { key, label: slot.label, plans: slot.plans, defaultOpen: slot.defaultOpen };
     });
+}
+
+/**
+ * 상태별 묶기 — 진행 중은 언제나 한 덩어리로 펼쳐 두고, 끝난 것들(완료·보관)만
+ * 수가 많아지면 월별로 접는다. 진행 중은 쪼개지 않는다: 지금 하는 일은 몇
+ * 개든 한눈에 다 보여야 한다.
+ */
+function groupByStatus(
+  plans: readonly PlanSummary[],
+  facets: ReadonlyMap<string, PlanFacet>,
+): PlanSection[] {
+  const active: PlanSummary[] = [];
+  const done: PlanSummary[] = [];
+  const archived: PlanSummary[] = [];
+  for (const p of plans) {
+    const b = facets.get(p.plan_id)?.bucket ?? bucketOf(p);
+    (b === "active" ? active : b === "done" ? done : archived).push(p);
+  }
+  const out: PlanSection[] = [];
+  if (active.length) {
+    out.push({ key: "active", label: t("plan.group.active"), plans: active, defaultOpen: true });
+  }
+  if (done.length) out.push(...splitByMonth("done", t("plan.group.done"), done, facets));
+  if (archived.length) {
+    out.push(...splitByMonth("archived", t("plan.group.archived"), archived, facets));
+  }
+  return out;
 }
 
 /** "오늘 / 어제 / N일 전" — 시각을 모르면 빈 문자열 (아무 주장도 하지 않는다). */

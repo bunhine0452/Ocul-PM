@@ -556,3 +556,84 @@ fn marketplace_points_at_plugin_and_stays_version_synced() {
         "marketplace 버전은 plugin.json 과 동기 (build-sidecar 가 스탬프)"
     );
 }
+
+// ─── Codex 판 플러그인 (`plugin/oculpm-codex`) ──────────────────────────────
+//
+// 규격 출처는 codex-cli 0.153.0 이 내장한 저작 가이드
+// (`plugin-creator/references/plugin-json-spec.md` · marketplace 절)와
+// 번들 마켓플레이스의 실제 매니페스트다. 실측 기준 CLI: codex-cli 0.153.0
+// (`codex plugin list -c 'marketplaces.x={source_type="local", source="<repo>"}'`
+// 가 `oculpm-codex@oculpm` 을 이 경로로 해석 — 2026-09-04).
+
+fn repo_json(rel: &str) -> serde_json::Value {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join(rel);
+    let text = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("{} 읽기 실패: {e}", path.display()));
+    serde_json::from_str(&text).unwrap_or_else(|e| panic!("{rel} 파싱 실패: {e}"))
+}
+
+/// `defaultPrompt` 는 **배열**이다 (≤3개, 각 ≤128자). 문자열로 적으면 Codex
+/// 스키마 위반 — 첫 판이 정확히 그랬다. 버전은 앱 버전과 동기(build-sidecar).
+#[test]
+fn codex_plugin_manifest_follows_the_codex_schema() {
+    let manifest = repo_json("plugin/oculpm-codex/.codex-plugin/plugin.json");
+    assert_eq!(
+        manifest["name"], "oculpm-codex",
+        "마켓플레이스 항목명과 같아야 한다"
+    );
+    for key in ["version", "description", "skills"] {
+        assert!(manifest[key].is_string(), "{key} 는 필수 문자열");
+    }
+    assert!(
+        manifest["author"]["name"].is_string(),
+        "author.name 은 필수 (검증기가 거른다)"
+    );
+
+    let tauri_conf = repo_json("src-tauri/tauri.conf.json");
+    assert_eq!(
+        manifest["version"], tauri_conf["version"],
+        "codex plugin.json 버전은 앱 버전과 동기 — scripts/build-sidecar.mjs 실행"
+    );
+
+    let prompts = manifest["interface"]["defaultPrompt"]
+        .as_array()
+        .expect("interface.defaultPrompt 는 문자열이 아니라 배열이다");
+    assert!(
+        (1..=3).contains(&prompts.len()),
+        "starter prompt 는 1~3개 — 4번째부터는 Codex 가 버린다"
+    );
+    for p in prompts {
+        let s = p.as_str().expect("starter prompt 는 문자열");
+        assert!(s.chars().count() <= 128, "128자를 넘으면 잘린다: {s}");
+    }
+}
+
+/// Codex 는 레포 마켓플레이스를 `<repo-root>/.agents/plugins/marketplace.json`
+/// **에서만** 찾는다. 이 파일이 없으면 플러그인은 디스크에 있어도 아무도
+/// 설치할 수 없다 (첫 판이 그 상태였다).
+#[test]
+fn codex_marketplace_makes_the_plugin_installable() {
+    let mkt = repo_json(".agents/plugins/marketplace.json");
+    assert_eq!(mkt["name"], "oculpm");
+    let plugins = mkt["plugins"].as_array().expect("plugins 배열");
+    assert_eq!(plugins.len(), 1, "플러그인은 1개 — 표면 극소화 원칙");
+    let entry = &plugins[0];
+    assert_eq!(entry["name"], "oculpm-codex");
+    assert_eq!(entry["source"]["source"], "local");
+    // path 는 마켓플레이스 루트(레포 루트) 기준 상대경로이고, 진짜 있어야 한다.
+    let rel = entry["source"]["path"].as_str().expect("source.path");
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join(rel.trim_start_matches("./"));
+    assert!(
+        dir.join(".codex-plugin/plugin.json").is_file(),
+        "{} 에 매니페스트가 없다",
+        dir.display()
+    );
+    // policy·category 는 "항상 넣는다" — 가이드가 명시한 필수 항목.
+    assert_eq!(entry["policy"]["installation"], "AVAILABLE");
+    assert!(entry["policy"]["authentication"].is_string());
+    assert!(entry["category"].is_string());
+}

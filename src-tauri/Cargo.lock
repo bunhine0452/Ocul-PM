@@ -3914,7 +3914,7 @@ dependencies = [
 
 [[package]]
 name = "ocul-pm"
-version = "2.38.0"
+version = "2.39.0"
 dependencies = [
  "agent-client-protocol",
  "async-trait",
@@ -3964,6 +3964,7 @@ dependencies = [
  "tokio-rusqlite",
  "tokio-stream",
  "toml 0.8.2",
+ "toml_edit 0.20.2",
  "tower",
  "tower-http",
  "tracing",

@@ -5,6 +5,7 @@
 //! 테스트된다.
 
 pub mod a2a_tools;
+pub mod codex;
 pub mod protocol;
 pub mod register;
 pub mod tools;

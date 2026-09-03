@@ -226,6 +226,10 @@ use crate::commands::{
     // 코드 화면 — 파일 트리 + 읽기/쓰기 (docs/code-editor/00-master-plan.md)
     code_tree,
     code_write,
+    codex_mcp_register,
+    codex_mcp_status,
+    codex_mcp_unregister,
+    codex_plugin_status,
     compute_diff,
     conversation_create,
     conversation_delete,
@@ -417,6 +421,7 @@ use crate::commands::{
     plan_recent_updates,
     plan_rename,
     plan_set_status,
+    plan_set_status_bulk,
     // Osaurus 라운드 Phase 4 — 테마 파일화 · 프로젝트 바인딩
     project_instructions_get,
     project_instructions_set,
@@ -602,6 +607,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             plan_migrate_goals,
             plan_recent_updates,
             plan_set_status,
+            plan_set_status_bulk,
             plan_rename,
             plan_delete,
             // M2-3 — Chat history
@@ -898,6 +904,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             mcp_status,
             mcp_register,
             mcp_unregister,
+            codex_mcp_status,
+            codex_mcp_register,
+            codex_mcp_unregister,
+            codex_plugin_status,
             mcp_desktop_status,
             claude_plugin_status,
             mcp_desktop_register,

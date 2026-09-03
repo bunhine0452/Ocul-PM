@@ -5,6 +5,8 @@ import {
   facetsOf,
   groupPlans,
   latestActivityByPlan,
+  monthKeyOf,
+  MONTH_SPLIT_MIN,
   parseTouched,
   relDay,
   searchPlans,
@@ -219,6 +221,59 @@ describe("groupPlans", () => {
     expect(groupPlans(plans, "none", f, NOW)).toHaveLength(1);
     expect(groupPlans([], "none", new Map<string, PlanFacet>(), NOW)).toEqual([]);
     expect(groupPlans([], "status", new Map<string, PlanFacet>(), NOW)).toEqual([]);
+  });
+});
+
+describe("groupPlans — 완료가 쌓이면 월별로 쪼갠다", () => {
+  /** 완료 계획 n개를 `updated_at` 만 달리해 만든다. */
+  const doneAt = (id: string, iso: string) =>
+    plan({ plan_id: id, status: "done", updated_at: iso });
+
+  it("임계값 이하면 쪼개지 않는다", () => {
+    const set = Array.from({ length: MONTH_SPLIT_MIN }, (_, i) =>
+      doneAt(`d${i}`, `2026-0${(i % 3) + 5}-10T00:00:00+09:00`),
+    );
+    const secs = groupPlans(set, "status", facetsOf(set, NOW), NOW);
+    expect(secs.map((s) => s.key)).toEqual(["done"]);
+    expect(secs[0].plans).toHaveLength(MONTH_SPLIT_MIN);
+  });
+
+  it("넘으면 월 섹션으로 갈리고 최신 달이 위에 온다", () => {
+    const set = [
+      ...Array.from({ length: 7 }, (_, i) => doneAt(`a${i}`, "2026-08-10T00:00:00+09:00")),
+      ...Array.from({ length: 7 }, (_, i) => doneAt(`b${i}`, "2026-07-10T00:00:00+09:00")),
+    ];
+    const secs = groupPlans(set, "status", facetsOf(set, NOW), NOW);
+    expect(secs.map((s) => s.key)).toEqual(["done:2026-08", "done:2026-07"]);
+    expect(secs[0].label).toBe("완료 · 2026.08");
+    // 끝난 묶음은 언제나 접힌 채로 시작한다.
+    expect(secs.every((s) => s.defaultOpen === false)).toBe(true);
+    expect(secs.flatMap((s) => s.plans)).toHaveLength(14);
+  });
+
+  it("시각을 모르는 계획은 '기록 없음' 으로 맨 아래에 남는다", () => {
+    const set = [
+      ...Array.from({ length: 13 }, (_, i) => doneAt(`a${i}`, "2026-08-10T00:00:00+09:00")),
+      doneAt("x", ""),
+    ];
+    const secs = groupPlans(set, "status", facetsOf(set, NOW), NOW);
+    expect(secs.map((s) => s.key)).toEqual(["done:2026-08", "done:unknown"]);
+    expect(secs[1].plans.map((p) => p.plan_id)).toEqual(["x"]);
+  });
+
+  it("진행 중은 아무리 많아도 한 덩어리다", () => {
+    const set = Array.from({ length: 30 }, (_, i) => plan({ plan_id: `p${i}` }));
+    const secs = groupPlans(set, "status", facetsOf(set, NOW), NOW);
+    expect(secs.map((s) => s.key)).toEqual(["active"]);
+    expect(secs[0].defaultOpen).toBe(true);
+  });
+});
+
+describe("monthKeyOf", () => {
+  it("로컬 시간대 기준의 연-월, 모르면 null", () => {
+    expect(monthKeyOf(Date.parse("2026-08-10T12:00:00+09:00"))).toBe("2026-08");
+    expect(monthKeyOf(Date.parse("2026-01-05T12:00:00+09:00"))).toBe("2026-01");
+    expect(monthKeyOf(null)).toBeNull();
   });
 });
 

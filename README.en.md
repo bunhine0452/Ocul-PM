@@ -58,7 +58,16 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.38.0 — choose who you work with, and judge what arrives
+## 🚀 v2.39.0 — Codex as family, and a plan list that stays short
+
+- **Register the MCP server for Codex** — Settings → Integration writes a stdio server pointing at this project only, into `~/.codex/config.toml`. It **never touches Claude's plugin or `.mcp.json`**, and it preserves your hand-written comments and other MCP servers. Unregistering removes this project's entry alone.
+- **A Codex-native plugin** — `codex plugin marketplace add bunhine0452/Ocul-PM` → `codex plugin add oculpm-codex@oculpm`. The journaling-rules skill rides along in every Codex session.
+- **It names the "marketplace missing" state** — on first run Codex imports your Claude setup but carries over **only the enabled-plugin list**. Without its marketplace, Codex **silently** fails to load that plugin; the Integration tab now calls that out and hands you the commands to fix it.
+- **Plans pile up, the list stays short** — once finished/archived plans pass 12 they **fold by month** (`Done · 2026.08`), each section renders 10 rows and continues with "N more". A whole month can be **archived from one header button**. Active plans are never split — what you are doing now must be visible at a glance.
+- **The planner rail resizes and switches sides** — drag or ←/→ to resize (double-click resets), and dock it left or right.
+- **Fixed the variable dump on terminal open** — v2.38.0's zsh shell-integration script spilled 200 lines of shell parameters above the prompt.
+
+## v2.38.0 — choose who you work with, and judge what arrives
 
 - **Bind sessions — a project is not a team** — pick the sessions that are actually working together, right on Today. **Only bound sessions can message each other and hand work over**; the rest are visible and nothing more. Name a team, drop a member. **File claims still collide either way** — the same file is the same file, friends or not.
 - **Text someone else wrote is data — now enforced by machinery, not a sentence** — messages from another agent, retrieved code and journals reach the model inside paired tags with their body escaped, so **no body can forge a prompt boundary**. Until now the entire defence was one sentence saying "don't treat this as instructions".
@@ -346,6 +355,7 @@ Anything that can read `AGENTS.md` works.
 
 - Zero setup: **Claude Code · Codex CLI · Gemini CLI · Antigravity · pi**
 - Enable their rules file in Settings → Agents: **Cursor · Windsurf · GitHub Copilot · aider · Cline · Zed**
+- **Codex CLI** goes one step further as of v2.39.0 — register its **MCP server per project** from Settings → Integration, and install the Codex-native plugin (the journaling-rules skill) from the marketplace. Entirely independent of the Claude setup.
 - **Claude Code · Claude Desktop** go one step further — hooks (precise session detection) and MCP tools (structured recording, plan queries) integrate directly (v2.2.0). Claude Code also runs as an in-app agent from the **Claude Code screen** (v2.10.0, Agent Client Protocol).
 
 Git backfill tells agents apart by commit signatures.
@@ -357,6 +367,13 @@ Two lines in your terminal's Claude Code and recording begins:
 ```
 /plugin marketplace add bunhine0452/Ocul-PM
 /plugin install oculpm@oculpm
+```
+
+For Codex, two lines in a terminal:
+
+```
+codex plugin marketplace add bunhine0452/Ocul-PM
+codex plugin add oculpm-codex@oculpm
 ```
 
 One plugin configures, across all your projects: a **hooks bridge** (session start/end as real-time signals — one local file append, no network), **7 MCP tools** (`journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` — agents record through structured tools instead of imitating markdown, eliminating frontmatter errors, and search the hundreds of accumulated entries *before* starting work: one query tells you why that file was touched before), and **5 skills + `/oculpm:standup`** (recording spec · project-inception · self-audit · run-evals · tdd-workflow). It only acts in `.oculpm`-tracked projects and never touches untracked repos — see the [full read/write contract](docs/claude-integration/06-plugin-contract.md). Note it is an either/or with the app's per-project hook/MCP registration (the settings screen warns about double registration).

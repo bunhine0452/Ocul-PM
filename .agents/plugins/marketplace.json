@@ -1,0 +1,20 @@
+{
+  "name": "oculpm",
+  "interface": {
+    "displayName": "ocul-pm"
+  },
+  "plugins": [
+    {
+      "name": "oculpm-codex",
+      "source": {
+        "source": "local",
+        "path": "./plugin/oculpm-codex"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
-import { memo, useCallback, useMemo, useRef } from "react";
-import { ChevronDown, ChevronRight, Lock, Search, TriangleAlert, X } from "@/components/Icons";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { Archive, ChevronDown, ChevronRight, Lock, Search, TriangleAlert, X } from "@/components/Icons";
 import type { PlanSummary } from "@/lib/bindings";
 import {
   groupPlans,
@@ -8,6 +8,7 @@ import {
   sortPlans,
   type PlanFacet,
   type PlanGroup,
+  type PlanSection,
   type PlanSort,
 } from "./planList";
 import { useT } from "@/i18n";
@@ -30,6 +31,13 @@ import { stripInlineMarkdown } from "@/lib/inlineMarkdown";
 const CONTROLS_MIN_PLANS = 6;
 /** 이 수 미만이면 섹션 헤더 없이 평평한 목록으로 그린다. */
 const SECTIONS_MIN_PLANS = 4;
+/**
+ * 한 섹션이 한 번에 그리는 최대 행 수. 넘는 만큼은 "N개 더" 뒤에 둔다.
+ *
+ * 월별로 쪼개도(`splitByMonth`) 한 달에 스무 개를 끝낸 달은 여전히 벽이다.
+ * 상한은 그 벽을 접는 마지막 장치이고, 펼침은 섹션별로 따로 기억한다.
+ */
+const ROW_CAP = 10;
 
 interface PlanRailProps {
   plans: readonly PlanSummary[];
@@ -50,6 +58,13 @@ interface PlanRailProps {
   openOverride: Readonly<Record<string, boolean>>;
   onToggleSection: (key: string, nextOpen: boolean) => void;
   now: number;
+  /** 레일이 붙는 쪽. 오른쪽이면 구분선·여백이 반대로 간다. */
+  side: "left" | "right";
+  /**
+   * 한 묶음을 통째로 보관으로 옮긴다 (완료 섹션에만 붙는다). 없으면 버튼도
+   * 그리지 않는다 — 레일은 무엇을 할 수 있는지 스스로 정하지 않는다.
+   */
+  onArchiveSection?: (planIds: string[]) => void;
 }
 
 export function PlanRail({
@@ -66,9 +81,15 @@ export function PlanRail({
   openOverride,
   onToggleSection,
   now,
+  side,
+  onArchiveSection,
 }: PlanRailProps) {
   const { t } = useT();
   const listRef = useRef<HTMLDivElement | null>(null);
+  /** 상한을 풀어 둔 섹션 (세션 한정 — 영속할 만한 결정이 아니다). */
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  /** 보관 확인을 기다리는 섹션. 한 번에 하나만. */
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
 
   const showControls = plans.length >= CONTROLS_MIN_PLANS;
   const showSections = plans.length >= SECTIONS_MIN_PLANS;
@@ -88,10 +109,23 @@ export function PlanRail({
     [searching, openOverride],
   );
 
-  /** 현재 화면에 실제로 보이는 순서 — ↑/↓ 이동의 기준. */
+  /**
+   * 섹션이 실제로 그리는 행. 상한(ROW_CAP)을 넘으면 앞쪽만 남긴다 — 검색
+   * 중에는 걸지 않는다 (찾은 것을 숨기면 검색이 아니다).
+   */
+  const rowsOf = useCallback(
+    (sec: PlanSection) =>
+      !searching && !expanded[sec.key] && sec.plans.length > ROW_CAP
+        ? sec.plans.slice(0, ROW_CAP)
+        : sec.plans,
+    [searching, expanded],
+  );
+
+  /** 현재 화면에 실제로 보이는 순서 — ↑/↓ 이동의 기준. 접힌 섹션도, 상한
+   *  뒤에 숨은 행도 여기 없다 (없는 행으로 커서를 옮기면 포커스가 사라진다). */
   const visible = useMemo(
-    () => sections.flatMap((s) => (isOpen(s.key, s.defaultOpen) ? s.plans : [])),
-    [sections, isOpen],
+    () => sections.flatMap((s) => (isOpen(s.key, s.defaultOpen) ? rowsOf(s) : [])),
+    [sections, isOpen, rowsOf],
   );
 
   // ↑/↓ 는 목록 위에서만 동작한다. 컨트롤 바의 네이티브 <select> 는 ↑/↓ 로
@@ -112,7 +146,7 @@ export function PlanRail({
   };
 
   return (
-    <div className="pln-rail">
+    <div className={"pln-rail" + (side === "right" ? " on-right" : "")}>
       {showControls ? (
         <div className="pln-rail-controls">
           <div className="search-box pln-rail-search">
@@ -171,22 +205,60 @@ export function PlanRail({
         {sections.map((sec) => {
           const open = isOpen(sec.key, sec.defaultOpen);
           const flat = !showSections && sec.key === "all";
+          const rows = rowsOf(sec);
+          const hidden = sec.plans.length - rows.length;
+          // 보관은 '끝난 것을 치우는' 동작이라 완료 묶음에만 붙인다. 이미
+          // 보관된 묶음이나 진행 중에는 의미가 없다.
+          const archivable =
+            onArchiveSection != null && (sec.key === "done" || sec.key.startsWith("done:"));
+          const confirming = confirmKey === sec.key;
           return (
             <div key={sec.key} className="pln-sec">
               {flat ? null : (
-                <button
-                  type="button"
-                  className="pln-sec-head"
-                  aria-expanded={open}
-                  onClick={() => onToggleSection(sec.key, !open)}
-                >
-                  {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                  <span>{sec.label}</span>
-                  <span className="pln-sec-count">{sec.plans.length}</span>
-                </button>
+                <div className="pln-sec-head">
+                  <button
+                    type="button"
+                    className="pln-sec-toggle"
+                    aria-expanded={open}
+                    onClick={() => onToggleSection(sec.key, !open)}
+                  >
+                    {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                    <span className="pln-sec-label">{sec.label}</span>
+                    <span className="pln-sec-count">{sec.plans.length}</span>
+                  </button>
+                  {archivable ? (
+                    <button
+                      type="button"
+                      className="pln-sec-act"
+                      aria-label={t("plan.rail.archiveAria", { n: sec.plans.length })}
+                      title={t("plan.rail.archiveAria", { n: sec.plans.length })}
+                      onClick={() => setConfirmKey(confirming ? null : sec.key)}
+                    >
+                      <Archive size={12} />
+                    </button>
+                  ) : null}
+                </div>
               )}
+              {confirming ? (
+                <div className="pln-sec-confirm">
+                  <span>{t("plan.rail.archiveQuestion", { n: sec.plans.length })}</span>
+                  <button
+                    type="button"
+                    className="pln-textbtn"
+                    onClick={() => {
+                      setConfirmKey(null);
+                      onArchiveSection?.(sec.plans.map((p) => p.plan_id));
+                    }}
+                  >
+                    {t("plan.rail.archiveConfirm")}
+                  </button>
+                  <button type="button" className="pln-textbtn" onClick={() => setConfirmKey(null)}>
+                    {t("common.cancel")}
+                  </button>
+                </div>
+              ) : null}
               {open
-                ? sec.plans.map((p) => (
+                ? rows.map((p) => (
                     <PlanRailRow
                       key={p.plan_id}
                       plan={p}
@@ -197,6 +269,15 @@ export function PlanRail({
                     />
                   ))
                 : null}
+              {open && hidden > 0 ? (
+                <button
+                  type="button"
+                  className="pln-sec-more"
+                  onClick={() => setExpanded((e) => ({ ...e, [sec.key]: true }))}
+                >
+                  {t("plan.rail.more", { n: hidden })}
+                </button>
+              ) : null}
             </div>
           );
         })}

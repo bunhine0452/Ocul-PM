@@ -353,4 +353,31 @@ mod tests {
             assert!(script.contains("TMUX"));
         }
     }
+
+    /// 이름 없는 선언 빌트인(`typeset -g`, `declare`, …)은 문법상 멀쩡하지만
+    /// **셸의 전 파라미터를 프롬프트 위에 토해낸다**. 실제로 한 번 새어 나갔다
+    /// (편집이 `typeset -g __oculpm_nonce=...` 의 이름을 주석으로 덮었다).
+    /// `zsh -n` 은 이걸 잡지 못하므로 여기서 잡는다.
+    #[test]
+    fn scripts_never_declare_without_a_name() {
+        for (name, script) in [("zsh", ZSH_SCRIPT), ("bash", BASH_SCRIPT)] {
+            for (i, line) in script.lines().enumerate() {
+                let code = line.trim();
+                // 주석은 이름이 아니다 — `typeset -g # 설명` 이 바로 그 사고였다.
+                let mut words = code.split_whitespace().take_while(|w| !w.starts_with('#'));
+                let Some(head) = words.next() else { continue };
+                if !matches!(
+                    head,
+                    "typeset" | "declare" | "local" | "export" | "readonly"
+                ) {
+                    continue;
+                }
+                assert!(
+                    words.any(|w| !w.starts_with('-')),
+                    "{name}:{} 이름 없는 선언 — 파라미터 표를 통째로 출력한다: {code}",
+                    i + 1
+                );
+            }
+        }
+    }
 }

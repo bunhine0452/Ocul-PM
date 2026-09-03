@@ -39,6 +39,8 @@ import type {
   OculpmConfig,
   OculpmInitReport,
   OculpmStatus,
+  CodexPluginStatus,
+  CodexRegistrationStatus,
   ReindexReport,
   Session,
   FileChangeEvent,
@@ -71,6 +73,21 @@ async function unwrap<T>(command: string, p: Promise<Envelope<T>>): Promise<T> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const oculpmApi = {
+  // ─── Codex MCP — Claude `.mcp.json`과 독립된 `~/.codex/config.toml` ───
+
+  codexMcpStatus: (projectId: number) =>
+    unwrap<CodexRegistrationStatus>("codex_mcp_status", commands.codexMcpStatus(projectId)),
+
+  codexMcpRegister: (projectId: number) =>
+    unwrap<CodexRegistrationStatus>("codex_mcp_register", commands.codexMcpRegister(projectId)),
+
+  codexMcpUnregister: (projectId: number) =>
+    unwrap<CodexRegistrationStatus>("codex_mcp_unregister", commands.codexMcpUnregister(projectId)),
+
+  /** Codex 플러그인 설치 상태 (머신 스코프, 읽기 전용 — 설치는 `codex plugin` CLI). */
+  codexPluginStatus: () =>
+    unwrap<CodexPluginStatus>("codex_plugin_status", commands.codexPluginStatus()),
+
   // ─── A2A — 협업 상태 (docs/a2a/00-master-plan.md §9) ──────────────────
   /** 참여자·잡힌 구역·미완 태스크를 **한 시각으로** 한 번에. */
   a2aOverview: (projectId: number) =>

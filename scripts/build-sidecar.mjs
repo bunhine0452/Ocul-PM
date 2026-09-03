@@ -27,6 +27,22 @@ if (pluginJson.version !== appVersion) {
   writeFileSync(pluginJsonPath, `${JSON.stringify(pluginJson, null, 2)}\n`);
   console.log(`build-sidecar: plugin.json version → ${appVersion}`);
 }
+// Codex 판 플러그인(`plugin/oculpm-codex`)도 같은 규칙 — 손으로 적은 버전은
+// 반드시 뒤처진다. 마켓플레이스 항목(.agents/plugins/marketplace.json)은
+// Codex 스키마상 version 을 갖지 않으므로 스탬프 대상이 아니다.
+const codexPluginJsonPath = join(
+  repoRoot,
+  "plugin",
+  "oculpm-codex",
+  ".codex-plugin",
+  "plugin.json",
+);
+const codexPluginJson = JSON.parse(readFileSync(codexPluginJsonPath, "utf8"));
+if (codexPluginJson.version !== appVersion) {
+  codexPluginJson.version = appVersion;
+  writeFileSync(codexPluginJsonPath, `${JSON.stringify(codexPluginJson, null, 2)}\n`);
+  console.log(`build-sidecar: codex plugin.json version → ${appVersion}`);
+}
 const marketplacePath = join(repoRoot, ".claude-plugin", "marketplace.json");
 const marketplace = JSON.parse(readFileSync(marketplacePath, "utf8"));
 if (marketplace.plugins?.[0] && marketplace.plugins[0].version !== appVersion) {

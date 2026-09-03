@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.38.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 88개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.39.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 89개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.38.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 88개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.39.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 89개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.38.0</span>
+    <span class="nav-ver" data-version>v2.39.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>88개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>89개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-39-0">v2.39.0</a>
       <a href="#v2-38-0">v2.38.0</a>
       <a href="#v2-37-0">v2.37.0</a>
       <a href="#v2-36-0">v2.36.0</a>
@@ -61,10 +62,19 @@
       <a href="#v2-31-0">v2.31.0</a>
       <a href="#v2-30-0">v2.30.0</a>
       <a href="#v2-29-0">v2.29.0</a>
-      <a href="#v2-28-0">v2.28.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-39-0"><a href="#v2-39-0">v2.39.0</a></h2>
+      <div class="cl-body">
+<p><b>Codex 를 손님이 아니라 식구로 모십니다.</b> 여태 Codex 와의 연결은 <code>AGENTS.md</code> 한 장뿐이었고, 기록 도구(MCP)를 붙이려면 Claude 용 플러그인을 억지로 물려야 했습니다 — 그 안에는 Claude 만 아는 경로 변수가 들어 있어 Codex 에서는 <b>시작 자체가 실패</b>했습니다.</p>
+<ul><li><b>설정 → 연동에 「Codex MCP 서버」.</b> 이 프로젝트만 가리키는 stdio 서버를 <code>~/.codex/config.toml</code> 에 넣습니다. <b>Claude 의 플러그인과 <code>.mcp.json</code> 은 건드리지 않고</b>, 손으로 적어 둔 주석과 다른 MCP 서버도 그대로 둡니다. 폴더 이름이 같은 프로젝트가 여럿이어도 키가 겹치지 않고, 해제는 <b>이 프로젝트 것만</b> 지웁니다 (반영은 새 Codex 세션부터).</li><li><b>Codex 전용 플러그인.</b> <code>codex plugin marketplace add bunhine0452/Ocul-PM</code> → <code>codex plugin add oculpm-codex@oculpm</code> 두 줄이면 기록 규칙 스킬이 Codex 세션에 함께 갑니다. Claude 변수가 섞이지 않은 별도 패키지입니다.</li><li><b>「마켓플레이스 없음」을 화면이 짚습니다.</b> Codex 는 처음 켤 때 Claude 쪽 설정을 임포트하는데, <b>활성 플러그인 목록만 옮겨 오고 마켓플레이스는 가져오지 않습니다.</b> 그러면 Codex 는 그 플러그인을 <b>조용히</b> 로드하지 못합니다. 이제 연동 탭이 그 상태를 따로 구분해 말하고, 되살릴 명령을 함께 줍니다.</li><li><b>Agents 목록에 Codex 자리.</b> 토글이 아니라 <b>「네이티브」</b> 표기입니다 — Codex 는 루트 <code>AGENTS.md</code> 를 그대로 읽으므로 켜도 만들 파일이 없습니다. 없는 스위치를 그리지 않습니다.</li></ul>
+<p><b>계획이 40개가 되면 목록이 벽이 됩니다.</b> 에이전트는 작업 단위마다 계획을 새로 만들고, 그래서 완료는 하루 한 개꼴로 자랍니다.</p>
+<ul><li><b>월별로 접힙니다</b> — 완료·보관이 12개를 넘으면 <code>완료 · 2026.08</code> 처럼 달로 쪼개지고 기본은 접혀 있습니다. <b>진행 중은 몇 개든 쪼개지 않습니다</b> — 지금 하는 일은 한눈에 다 보여야 하니까요.</li><li><b>한 섹션 10행 + 「N개 더 보기」</b> — 검색 중에는 상한을 걸지 않습니다. 찾은 것을 숨기면 검색이 아닙니다.</li><li><b>완료 묶음을 통째로 보관</b> — 헤더 버튼 하나로 그 달 전체가 보관으로 넘어갑니다(단건 보관 버튼도 생겼습니다). 여태 <code>보관</code> 상태는 백엔드에만 있고 화면에는 길이 없어서, 한 번 끝난 계획은 영원히 완료 칸에 남아 있었습니다.</li><li><b>레일 폭과 자리</b> — 드래그·←/→ 로 폭을 바꾸고(더블클릭이면 원래대로), 왼쪽/오른쪽 중 붙일 자리를 고릅니다.</li></ul>
+<p><b>터미널을 열 때마다 셸이 200줄을 토했습니다.</b> v2.38.0 의 zsh 셸 통합 스크립트에 <b>이름을 잃은 선언 한 줄</b>이 섞여, 프롬프트 위로 셸 변수 표가 통째로 쏟아졌습니다. 명령 경계 감지는 멀쩡했고 문법도 유효해서 어떤 게이트에도 걸리지 않았습니다 — 고쳤고, 같은 종류를 잡는 게이트를 새로 달았습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-38-0"><a href="#v2-38-0">v2.38.0</a></h2>
       <div class="cl-body">

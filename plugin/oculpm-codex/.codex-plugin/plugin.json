@@ -1,0 +1,32 @@
+{
+  "name": "oculpm-codex",
+  "version": "2.39.0",
+  "description": "Codex-native ocul-pm journal and planner guidance",
+  "author": {
+    "name": "ocul-pm",
+    "url": "https://oculpm.com"
+  },
+  "homepage": "https://oculpm.com",
+  "repository": "https://github.com/bunhine0452/Ocul-PM",
+  "license": "MIT",
+  "keywords": [
+    "journal",
+    "planner",
+    "work-log",
+    "mcp",
+    "korean"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "ocul-pm for Codex",
+    "shortDescription": "Journal and planner guidance for Codex projects.",
+    "longDescription": "Uses Codex-native settings for local ocul-pm MCP registration and keeps Claude integrations independent.",
+    "developerName": "ocul-pm",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": [
+      "방금 끝낸 작업을 일지로 남기고 플랜을 갱신해줘",
+      "오늘 이 프로젝트에서 무엇이 진행됐는지 정리해줘"
+    ]
+  }
+}

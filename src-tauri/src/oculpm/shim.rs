@@ -208,8 +208,17 @@ pub fn sweep(app_data: &Path, live: &[String]) -> usize {
 ///
 /// 둘 다 없으면 `None` — 그때 CLI 는 자칭을 허용하되 `unverified` 로 남긴다.
 pub fn resolve_token(argv0: Option<&str>) -> Option<SessionToken> {
-    if let Ok(path) = std::env::var(ENV_TOKEN) {
-        if let Some(token) = read_token(Path::new(&path)) {
+    let from_env = std::env::var_os(ENV_TOKEN).map(PathBuf::from);
+    resolve_token_from(from_env.as_deref(), argv0)
+}
+
+/// 환경변수를 **인자로** 받는 판정. `resolve_token` 은 프로세스 환경을 읽어
+/// 이걸 부른다 — 테스트가 진짜 세션 토큰(ocul-pm 터미널 안에서 `cargo test` 를
+/// 돌리면 `OCULPM_SESSION_TOKEN` 이 실제로 서 있다)을 주워 오지 않게 하려고
+/// 환경을 읽는 자리를 하나로 모았다.
+fn resolve_token_from(env_token: Option<&Path>, argv0: Option<&str>) -> Option<SessionToken> {
+    if let Some(path) = env_token {
+        if let Some(token) = read_token(path) {
             return Some(token);
         }
     }
@@ -282,8 +291,26 @@ mod tests {
         let app = TempDir::new().unwrap();
         let shim = install(app.path(), "sess-2", &token()).unwrap();
         let argv0 = shim.dir.join(SHIM_BIN).display().to_string();
-        assert_eq!(resolve_token(Some(&argv0)), Some(token()));
-        assert_eq!(resolve_token(Some("/usr/bin/oculpm")), None);
+        assert_eq!(resolve_token_from(None, Some(&argv0)), Some(token()));
+        assert_eq!(resolve_token_from(None, Some("/usr/bin/oculpm")), None);
+    }
+
+    /// 환경변수가 있으면 그쪽이 먼저다 — 심 옆 토큰은 그 다음 차례.
+    #[test]
+    fn the_env_token_outranks_the_one_beside_the_symlink() {
+        let app = TempDir::new().unwrap();
+        let beside = install(app.path(), "sess-4", &token()).unwrap();
+        let other = SessionToken {
+            project_root: "/tmp/other".into(),
+            agent_id: Some("claude-code".into()),
+            session_id: None,
+        };
+        let env_shim = install(app.path(), "sess-5", &other).unwrap();
+        let argv0 = beside.dir.join(SHIM_BIN).display().to_string();
+        assert_eq!(
+            resolve_token_from(Some(&env_shim.token_path), Some(&argv0)),
+            Some(other)
+        );
     }
 
     #[test]

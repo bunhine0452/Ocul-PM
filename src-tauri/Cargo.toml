@@ -1,6 +1,6 @@
 [package]
 name = "ocul-pm"
-version = "2.38.0"
+version = "2.39.0"
 description = "Ocul-PM — local-first AI project manager for external coding agents"
 authors = ["you"]
 edition = "2021"
@@ -84,6 +84,7 @@ pulldown-cmark = { version = "0.10", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.8"
 toml = "0.8"
+toml_edit = "0.20"
 uuid = { version = "1", features = ["v4"] }
 
 # PR-ACP0 — ACP(Agent Client Protocol) 클라이언트. 어댑터 서브프로세스 spawn 과
@@ -150,7 +151,6 @@ debug = "line-tables-only"
 # 최초 1회 의존성 재컴파일 비용이 든다.
 [profile.dev.package."*"]
 opt-level = 2
-
 
 
 

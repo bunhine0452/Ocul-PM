@@ -304,6 +304,49 @@ pub async fn plan_set_status(
     PlanCache::new(&db).get(project_id, &root, &plan_id).await
 }
 
+/// Set the same lifecycle status on many plans at once — the rail's "묶어서
+/// 보관" (Planner 정리 라운드). One lock, N file writes, **one** reprojection:
+/// looping `plan_set_status` instead reparses every plan file N times, which is
+/// exactly the case that hurts (a project with 40+ finished plans).
+///
+/// Unknown ids are skipped, not fatal — the rail's list can lag a deletion on
+/// disk, and refusing the whole batch over one stale id is worse than archiving
+/// the rest. Returns how many files were actually rewritten.
+#[tauri::command]
+#[specta::specta]
+pub async fn plan_set_status_bulk(
+    db: State<'_, Db>,
+    manager: State<'_, OculpmManager>,
+    project_id: u32,
+    plan_ids: Vec<String>,
+    status: String,
+) -> Result<u32, String> {
+    if !matches!(status.as_str(), "active" | "done" | "archived") {
+        return Err(format!("unknown plan status '{status}'"));
+    }
+    let plan_lock = manager.plan_write_lock(project_id).await;
+    let _guard = plan_lock.lock().await;
+    let root = planner_root_of(&db, project_id).await?;
+    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+    let mut changed = 0u32;
+    for plan_id in &plan_ids {
+        let Some(path) = find_plan_path(&root, plan_id) else {
+            continue;
+        };
+        let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let new_md = set_plan_status(&md, &status, &date);
+        if new_md == md {
+            continue;
+        }
+        write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
+        changed += 1;
+    }
+    if changed > 0 {
+        PlanCache::new(&db).list(project_id, &root).await?;
+    }
+    Ok(changed)
+}
+
 /// Rename a plan (frontmatter `title:`). The plan `id` / filename stay the same
 /// so item attribution + references keep working. Returns refreshed detail.
 #[tauri::command]

@@ -35,6 +35,8 @@ import { tError } from "@/i18n/errors";
 // 타입/헬퍼를 재수출한다.
 export { pushRecentChange, RECENT_CHANGES_CAP, recentChangesStore, useRecentChanges } from "@/lib/recentChangesStore";
 export type { RecentChange, ChangeOp } from "@/lib/recentChangesStore";
+import { DEFAULT_STATE, WORKSPACE_SCHEMA_VERSION } from "./workspaceDefaults";
+export { WORKSPACE_SCHEMA_VERSION };
 
 // ---------- State Shape ----------
 
@@ -222,6 +224,15 @@ export interface WorkspaceState {
   plannerRailOpen: Record<string, boolean>;
   /** 레일 자체를 접어 문서 폭을 되찾은 상태 (계획이 적을 때 유용). */
   plannerRailCollapsed: boolean;
+  /**
+   * 계획 레일의 폭 (px) · 붙는 쪽 (2026-09-03 정리 라운드).
+   *
+   * 제목이 긴 계획이 많아지면 236px 은 전부 말줄임표가 된다 — 폭은 계획 이름
+   * 길이에 달린 값이라 상수로 정할 수 없다. 쪽은 코드 화면 트리와 같은
+   * 취향 문제다 (`codeSidebarSide`). 알 수 없는 값은 소비처가 왼쪽으로 본다.
+   */
+  plannerRailWidth: number;
+  plannerRailSide: "left" | "right";
   /** 코드 검색 scope. */
   searchScope: SearchScope;
   /** 최근 검색어 (최대 10개). */
@@ -377,69 +388,6 @@ export interface OculpmInitCardInfo {
   at: number;
 }
 
-export const WORKSPACE_SCHEMA_VERSION = 4;
-
-const DEFAULT_STATE: WorkspaceState = {
-  currentProjectId: null,
-  currentProjectName: null,
-  currentProjectRoot: null,
-  // W3-PR4: Today is the default landing tab.
-  activeView: "today",
-  openFiles: [],
-  activeFile: null,
-  fileExplorerExpanded: {},
-  sidePanelWidth: 260,
-  sidePanelMode: "files",
-  schemaVersion: WORKSPACE_SCHEMA_VERSION,
-  defaultTabUserOverride: false,
-  oculpmInitCard: null,
-  indexingProjectId: null,
-  oculpmEnabled: false,
-  oculpmStatus: null,
-  currentSession: null,
-  workdayKey: null,
-
-  // Final UI Update (ui_v2) read-compat defaults (PR-UI 0).
-  uiV2View: "today",
-  journalFilter: "all",
-  diffActivePath: null,
-  diffReadPaths: [],
-  diffMode: "unified",
-  plannerOpen: {},
-  plannerPlanId: null,
-  plannerSort: "recent",
-  plannerGroup: "status",
-  plannerRailOpen: {},
-  plannerRailCollapsed: false,
-  searchScope: "semantic",
-  searchRecent: [],
-  terminalTabs: [],
-  terminalActiveId: null,
-  terminalDockOpen: false,
-  terminalDockPos: "bottom",
-  terminalDockHeight: 300,
-  terminalDockWidth: 460,
-  terminalDetached: false,
-  aiActiveModel: null,
-  acpPanelOpen: true,
-  acpTabs: [],
-  acpNames: {},
-  acpLastSession: null,
-  codexAcpTabs: [],
-  codexAcpNames: {},
-  codexAcpLastSession: null,
-  acpUltracode: false,
-  aiThreadId: null,
-  docsActivePath: null,
-  codeActivePath: null,
-  codeTabs: null,
-  codePanelHeight: 240,
-  codeSidebarSide: "left",
-  codeSearchOpts: { caseSensitive: false, wholeWord: false, regex: false },
-  discussionActiveId: null,
-  discussionEditorMode: "split",
-  sidebarCollapsed: false,
-};
 
 /**
  * 창 하나 = 프로젝트 하나이므로 영속 키도 프로젝트별이다 (멀티 창 T3/R3).

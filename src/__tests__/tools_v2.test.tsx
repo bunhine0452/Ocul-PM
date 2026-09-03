@@ -26,6 +26,8 @@ const fx = {
   conversations: [] as unknown[],
   /** v2 U9 — planApplyEdit 응답을 케이스별로 바꿔치기 (지연/에러 시뮬레이션). */
   applyEditImpl: null as null | (() => Promise<unknown>),
+  /** 정리 라운드 — 묶어서 보관이 실제로 한 번만 불리는지 본다. */
+  bulkCalls: [] as { ids: string[]; status: string }[],
 };
 
 vi.mock("@/lib/bindings", () => {
@@ -44,6 +46,11 @@ vi.mock("@/lib/bindings", () => {
               return () => (fx.applyEditImpl ? fx.applyEditImpl() : ok(fx.planDetail));
             case "planItemHistory":
               return () => ok([]);
+            case "planSetStatusBulk":
+              return (_pid: number, ids: string[], status: string) => {
+                fx.bulkCalls.push({ ids, status });
+                return ok(ids.length);
+              };
             case "planCreate":
               return () => ok(fx.plans[0] ?? planSummary());
             case "searchChunks":
@@ -163,6 +170,7 @@ beforeEach(() => {
   fx.symbols = [];
   fx.conversations = [];
   fx.applyEditImpl = null;
+  fx.bulkCalls = [];
 });
 afterEach(() => cleanup());
 
@@ -279,6 +287,87 @@ describe("PR-PLN 3 — Planner", () => {
       );
       await findByText("타임존 계산");
       expect(container.querySelector(".pln-row-stale")).toBeNull();
+    });
+
+    /** 완료 계획 n개 — 월이 갈리도록 `updated_at` 을 나눠 준다. */
+    const manyDone = (n: number) =>
+      Array.from({ length: n }, (_, i) =>
+        planSummary({
+          plan_id: `done-${i}`,
+          title: `끝난 일 ${i}`,
+          status: "done",
+          progress: 1,
+          updated_at: i < 8 ? "2026-08-10" : "2026-07-10",
+        }),
+      );
+
+    it("완료가 쌓이면 월별로 갈리고, 한 섹션은 상한까지만 그린다", async () => {
+      fx.plans = [planSummary(), ...manyDone(14)];
+      fx.planDetail = planDetail();
+      const { container, findByText } = render(
+        wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+      );
+      // 월 섹션 두 개 — 최신 달이 위.
+      const aug = await findByText("완료 · 2026.08");
+      expect(aug).toBeInTheDocument();
+      expect(await findByText("완료 · 2026.07")).toBeInTheDocument();
+      // 기본은 접힘이라 활성 1개만 보인다.
+      expect(container.querySelectorAll(".pln-row")).toHaveLength(1);
+    });
+
+    it("한 섹션이 상한을 넘으면 '더 보기' 뒤에 접는다", async () => {
+      fx.plans = [planSummary(), ...manyDone(20).map((p) => ({ ...p, updated_at: "2026-08-10" }))];
+      fx.planDetail = planDetail();
+      const { container, findByText } = render(
+        wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+      );
+      fireEvent.click(await findByText("완료 · 2026.08"));
+      // 활성 1 + 완료 10 (상한).
+      await waitFor(() => expect(container.querySelectorAll(".pln-row")).toHaveLength(11));
+      fireEvent.click(await findByText("10개 더 보기"));
+      await waitFor(() => expect(container.querySelectorAll(".pln-row")).toHaveLength(21));
+    });
+
+    it("완료 묶음을 보관으로 — 확인을 거쳐 한 번만 호출한다", async () => {
+      fx.plans = [planSummary(), ...manyDone(14)];
+      fx.planDetail = planDetail();
+      const { findByText, findByLabelText } = render(
+        wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+      );
+      fireEvent.click(await findByLabelText("이 묶음 8개를 보관으로 옮기기"));
+      // 한 번 눌러서는 아무 일도 일어나지 않는다 — 확인이 먼저다.
+      expect(fx.bulkCalls).toHaveLength(0);
+      fireEvent.click(await findByText("보관"));
+      await waitFor(() => expect(fx.bulkCalls).toHaveLength(1));
+      expect(fx.bulkCalls[0].status).toBe("archived");
+      expect(fx.bulkCalls[0].ids).toHaveLength(8);
+    });
+
+    it("레일을 오른쪽으로 옮기면 본문 뒤로 간다", async () => {
+      fx.plans = manyPlans();
+      fx.planDetail = planDetail();
+      const { container, findByText, findByLabelText } = render(
+        wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+      );
+      await findByText("타임존 계산");
+      const kids = () => [...(container.querySelector(".pln-body")?.children ?? [])];
+      expect(kids()[0]?.className).toContain("pln-rail-slot");
+      fireEvent.click(await findByLabelText("계획 목록 오른쪽으로"));
+      await waitFor(() => expect(kids()[0]?.className).toContain("pln-main"));
+      expect(container.querySelector(".pln-rail")?.className).toContain("on-right");
+    });
+
+    it("리사이저를 키보드로 밀면 폭이 바뀐다", async () => {
+      fx.plans = manyPlans();
+      fx.planDetail = planDetail();
+      const { container, findByText, findByLabelText } = render(
+        wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
+      );
+      await findByText("타임존 계산");
+      const slot = () => container.querySelector<HTMLElement>(".pln-rail-slot");
+      expect(slot()?.style.width).toBe("236px");
+      fireEvent.keyDown(await findByLabelText("계획 목록 폭 조절"), { key: "ArrowRight" });
+      await waitFor(() => expect(slot()?.style.width).toBe("252px"));
     });
 
     it("레일이 있어도 axe 위반이 없다", async () => {

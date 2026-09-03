@@ -252,6 +252,17 @@ export const commands = {
 	warnings: string[],
 } | null, string>(__TAURI_INVOKE("plan_set_status", { projectId, planId, status })),
 	/**
+	 *  Set the same lifecycle status on many plans at once — the rail's "묶어서
+	 *  보관" (Planner 정리 라운드). One lock, N file writes, **one** reprojection:
+	 *  looping `plan_set_status` instead reparses every plan file N times, which is
+	 *  exactly the case that hurts (a project with 40+ finished plans).
+	 * 
+	 *  Unknown ids are skipped, not fatal — the rail's list can lag a deletion on
+	 *  disk, and refusing the whole batch over one stale id is worse than archiving
+	 *  the rest. Returns how many files were actually rewritten.
+	 */
+	planSetStatusBulk: (projectId: number, planIds: string[], status: string) => typedError<number, string>(__TAURI_INVOKE("plan_set_status_bulk", { projectId, planIds, status })),
+	/**
 	 *  Rename a plan (frontmatter `title:`). The plan `id` / filename stay the same
 	 *  so item attribution + references keep working. Returns refreshed detail.
 	 */
@@ -1818,6 +1829,19 @@ export const commands = {
 	mcpStatus: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_status", { projectId })),
 	mcpRegister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_register", { projectId })),
 	mcpUnregister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_unregister", { projectId })),
+	/**
+	 *  Codex는 Claude의 프로젝트 `.mcp.json`을 읽지 않는다. 이 명령들은
+	 *  `~/.codex/config.toml`의 프로젝트별 oculpm stdio 항목만 관리한다.
+	 */
+	codexMcpStatus: (projectId: number) => typedError<CodexRegistrationStatus, string>(__TAURI_INVOKE("codex_mcp_status", { projectId })),
+	codexMcpRegister: (projectId: number) => typedError<CodexRegistrationStatus, string>(__TAURI_INVOKE("codex_mcp_register", { projectId })),
+	codexMcpUnregister: (projectId: number) => typedError<CodexRegistrationStatus, string>(__TAURI_INVOKE("codex_mcp_unregister", { projectId })),
+	/**
+	 *  Codex 플러그인 설치 상태 (머신 스코프, **읽기 전용**). 설치·해제는
+	 *  `codex plugin` CLI 가 해야 마켓플레이스가 캐시까지 펼쳐진다 — 설정만
+	 *  흉내 내면 캐시 없는 반쪽 상태가 되므로 화면은 명령만 안내한다.
+	 */
+	codexPluginStatus: () => typedError<CodexPluginStatus, string>(__TAURI_INVOKE("codex_plugin_status")),
 	mcpDesktopStatus: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_status", { projectId })),
 	/**
 	 *  `~/.claude/plugins/**` 를 얕게 훑어 oculpm 플러그인 설치 여부를 본다.
@@ -3053,6 +3077,40 @@ export type CodeTreeNode = {
  *  (프런트가 배너로 병합 선택지를 그려야 한다).
  */
 export type CodeWriteOutcome = { kind: "saved"; hash: string } | { kind: "conflict"; disk_hash: string };
+
+export type CodexPluginStatus = {
+	/**  Codex 설정 폴더가 있다 (설치/첫 실행 추정 근거). */
+	codex_installed: boolean,
+	/**  `[plugins."oculpm-codex@<마켓플레이스>"]` 가 있고 켜져 있다. */
+	enabled: boolean,
+	/**  그 항목이 붙어 있는 마켓플레이스 이름. */
+	marketplace: string | null,
+	/**
+	 *  그 마켓플레이스가 `[marketplaces.*]` 에 실제로 설정돼 있다.
+	 * 
+	 *  **false 인데 항목이 있으면 고아다** — Codex 의 첫 실행 임포트가 Claude
+	 *  의 활성 플러그인 목록을 옮겨 오면서 마켓플레이스는 가져오지 않으면 이
+	 *  상태가 된다 (2026-09-03 에 실제로 겪었다: `oculpm@oculpm` 이 그랬다).
+	 */
+	marketplace_configured: boolean,
+	/**  캐시에 펼쳐진 버전 — 여기까지 있어야 실제로 로드된다. */
+	cached_version: string | null,
+	config_path: string,
+};
+
+export type CodexRegistrationStatus = {
+	/**  Codex 설정 폴더가 존재한다. 없으면 설치/첫 실행 전으로 취급한다. */
+	installed: boolean,
+	/**  이 프로젝트 루트를 가리키는 oculpm stdio 서버가 등록돼 있다. */
+	registered: boolean,
+	binary_found: boolean,
+	binary_path: string | null,
+	config_path: string,
+	/**  이 프로젝트에 배정된 `mcp_servers` 키. */
+	server_key: string,
+	/**  oculpm이 소유하지 않는 Codex MCP 서버 수 (정보 표시용). */
+	foreign_servers: number,
+};
 
 export type ConfigApplyFailure = {
 	surface: ConfigSurface,
