@@ -919,6 +919,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::acp::session::AcpSessionChanged,
             // A2A — 참여자·우편함·태스크 원장이 디스크에서 바뀌었다 (앱 밖 프로세스가 쓴다)
             crate::oculpm::a2a::OculpmA2aChanged,
+            crate::oculpm::a2a::OculpmA2aTrespass,
             // 계획 · 논의 파일이 디스크에서 바뀌면 해당 화면이 즉시 다시 읽는다
             crate::oculpm::spec::OculpmDataChanged,
             // v2.3.0 메뉴바 — 팝오버 → 프로젝트 창 딥링크

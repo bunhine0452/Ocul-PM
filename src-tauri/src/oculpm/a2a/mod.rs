@@ -12,9 +12,11 @@
 //! - [`registry`] — Phase 1. 참여자 발견 (Agent Card).
 //! - [`mailbox`] — Phase 2. 메시지 배달 (한 번 쓰고 끝).
 //! - [`tasks`] — Phase 2. 태스크 수명주기 (덧붙이기만 하는 원장).
+//! - [`leases`] — Phase 3. 작업 구역 임대 (부딪히기 전에 막는다).
 
 use serde::{Deserialize, Serialize};
 
+pub mod leases;
 pub mod mailbox;
 pub mod registry;
 pub mod tasks;
@@ -38,4 +40,22 @@ pub enum A2aChangeKind {
     Message,
     /// 태스크 원장 (`agents/tasks/`).
     Task,
+}
+
+/// **남의 구역을 밟았다.** 에이전트가 스스로 신고한 파일 변경이 다른
+/// 에이전트의 임대에 걸렸을 때 (마스터플랜 §7).
+///
+/// 막지는 않는다 — 변경은 이미 일어난 뒤에 신고가 오고, 되돌리는 것은 사용자의
+/// 판단이다. 우리가 하는 일은 **보이게** 하는 것이다.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct OculpmA2aTrespass {
+    pub project_id: u32,
+    /// 밟은 쪽.
+    pub actor: String,
+    /// 프로젝트 상대 경로.
+    pub path: String,
+    /// 그 구역의 주인.
+    pub holder: String,
+    /// 주인의 임대가 언제까지인가.
+    pub until: String,
 }

@@ -29,10 +29,10 @@ owner: claude-code
 - [x] 첨부(Artifact)는 경로 참조로만 전달한다 — 메시지 본문에 파일 내용을 복사하지 않는다 {#artifact-ref}
 
 ## 작업 구역 임대 {#lease}
-- [ ] 에이전트가 파일 글로브로 구역을 임대하고, 겹치면 거절 사유와 선점자를 돌려준다 {#claim-paths}
-- [ ] 임대 밖 파일 수정을 감지해 경고 이벤트를 내고 일지에 흔적을 남긴다 {#lease-violation}
-- [ ] git 인덱스 공유 사고 방지를 임대와 묶는다 — 명시 경로 stage, add→commit 한 호출, git add -A 금지 {#git-index-guard}
-- [ ] 임대 만료·세션 사망 시 자동 해제하고 대기 중인 요청을 깨운다 {#lease-expiry}
+- [x] 에이전트가 파일 글로브로 구역을 임대하고, 겹치면 거절 사유와 선점자를 돌려준다 {#claim-paths}
+- [x] 임대 밖 파일 수정을 감지해 경고 이벤트를 내고 일지에 흔적을 남긴다 {#lease-violation}
+- [>] git 인덱스 공유 사고 방지를 임대와 묶는다 — 명시 경로 stage, add→commit 한 호출, git add -A 금지 {#git-index-guard}
+- [x] 임대 만료·세션 사망 시 자동 해제하고 대기 중인 요청을 깨운다 {#lease-expiry}
 
 ## MCP 도구와 기록 규칙 {#tools}
 - [ ] oculpm MCP 에 agent_list·agent_send·agent_inbox·task_update·claim_paths 를 추가한다 (스키마·오류 코드·크기 상한 포함) {#mcp-tools}
@@ -72,4 +72,8 @@ owner: claude-code
 | 2026-09-03T14:47:08+09:00 | #mailbox-cas | claude-code | ☐→x |  | 설계 수정 — 발동원장 CAS 는 SQLite 쪽이라 다중 프로세스 파일에 못 쓴다. 변경 없는 설계로 대체: 메시지=create_new 1회, 읽음=표식파일, 태스크=append_ndjson 원장 |
 | 2026-09-03T14:47:13+09:00 | #mailbox-watch | claude-code | ☐→x |  | OculpmA2aChanged(participants\|message\|task) — 워처가 agents/ 캐스케이드보다 먼저 분류해 이벤트만 낸다. 프런트 폴링 없음 |
 | 2026-09-03T14:47:16+09:00 | #artifact-ref | claude-code | ☐→x |  | is_safe_artifact — 프로젝트 상대 경로만. 절대·~·..·드라이브문자 거부(메시지 한 통이 ~/.ssh 를 가리키는 유출 경로 차단) |
+| 2026-09-03T14:57:36+09:00 | #claim-paths | claude-code | ☐→x |  | leases::claim — 접두사 기반 보수적 겹침 판정, 거절 시 선점자·기한 반환. 확인↔쓰기 사이는 짧은 문지기 파일로 지킨다(오래되면 걷어냄). MCP 노출은 Phase 4 에서 도구 5종 일괄 |
+| 2026-09-03T14:57:38+09:00 | #lease-expiry | claude-code | ☐→x |  | 기한 + 주인 생사(참여자 카드 pid) 이중 판정. 등록 안 한 주인은 기한만으로 — 미등록을 이유로 임대를 뺏지 않는다. sweep 로 청소 |
+| 2026-09-03T14:57:45+09:00 | #lease-violation | claude-code | ☐→x |  | leases::trespasses + OculpmA2aTrespass. 신호는 ACP 파일변경 자진신고뿐 — 워처는 누가 썼는지 모른다. 앱 밖 세션에는 임대가 강제가 아니라 합의. 일지 자동기록은 안 함(D5 무승인 무동작) |
+| 2026-09-03T14:57:48+09:00 | #git-index-guard | claude-code | ☐→> |  | 규칙 문구라 Phase 4 의 AGENTS.md 작업과 함께 — 우리가 git 을 가로채지 않으므로 강제가 아니라 규율이다 |
 <!-- oculpm:plan-log end -->

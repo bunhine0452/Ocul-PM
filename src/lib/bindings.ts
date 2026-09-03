@@ -1845,6 +1845,7 @@ export const events = {
 	lspServerStateChanged: makeEvent<LspServerStateChanged>("lsp-server-state-changed"),
 	newTabIntent: makeEvent<NewTabIntent>("new-tab-intent"),
 	oculpmA2aChanged: makeEvent<OculpmA2aChanged>("oculpm-a2a-changed"),
+	oculpmA2aTrespass: makeEvent<OculpmA2aTrespass>("oculpm-a2a-trespass"),
 	oculpmAgentDrift: makeEvent<OculpmAgentDrift>("oculpm-agent-drift"),
 	oculpmDataChanged: makeEvent<OculpmDataChanged>("oculpm-data-changed"),
 	oculpmFileChanged: makeEvent<OculpmFileChanged>("oculpm-file-changed"),
@@ -4453,6 +4454,25 @@ export type NotionStatus = {
 export type OculpmA2aChanged = {
 	project_id: number,
 	kind: A2aChangeKind,
+};
+
+/**
+ *  **남의 구역을 밟았다.** 에이전트가 스스로 신고한 파일 변경이 다른
+ *  에이전트의 임대에 걸렸을 때 (마스터플랜 §7).
+ * 
+ *  막지는 않는다 — 변경은 이미 일어난 뒤에 신고가 오고, 되돌리는 것은 사용자의
+ *  판단이다. 우리가 하는 일은 **보이게** 하는 것이다.
+ */
+export type OculpmA2aTrespass = {
+	project_id: number,
+	/**  밟은 쪽. */
+	actor: string,
+	/**  프로젝트 상대 경로. */
+	path: string,
+	/**  그 구역의 주인. */
+	holder: string,
+	/**  주인의 임대가 언제까지인가. */
+	until: string,
 };
 
 export type OculpmAgentDrift = {
