@@ -4,18 +4,22 @@
 //  1. **혼자 일할 때는 아무 것도 안 그린다.** 대부분의 프로젝트는 끝까지 그
 //     상태이고, 빈 카드는 Today 를 쓰지도 않는 기능의 안내판으로 만든다.
 //  2. **승인 전에는 아무 일도 없다.** 넘어온 작업은 사람이 눌러야 시작된다(D5).
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const overview = vi.fn();
 const decide = vi.fn();
 const release = vi.fn();
+const bind = vi.fn();
+const dissolve = vi.fn();
 
 vi.mock("@/api/oculpm", () => ({
   oculpmApi: {
     a2aOverview: (...args: unknown[]) => overview(...args),
     a2aDecideTask: (...args: unknown[]) => decide(...args),
     a2aReleaseLease: (...args: unknown[]) => release(...args),
+    a2aBindGroup: (...args: unknown[]) => bind(...args),
+    a2aDissolveGroup: (...args: unknown[]) => dissolve(...args),
     // 이벤트 구독은 비-Tauri 에서 조용히 아무것도 안 한다 (래퍼 규약).
     onA2aChanged: () => Promise.resolve(() => {}),
     onA2aTrespass: () => Promise.resolve(() => {}),
@@ -57,16 +61,25 @@ function task(id: string, state: string) {
 }
 
 describe("A2A 협업 카드", () => {
+  // 이 저장소의 vitest 는 globals 를 안 켜 두어 Testing Library 의 자동 정리가
+  // 등록되지 않는다 — 안 치우면 앞 테스트의 DOM 이 남아 같은 문구가 둘이 된다.
+  afterEach(cleanup);
+
   beforeEach(() => {
     overview.mockReset();
     decide.mockReset();
     release.mockReset();
+    bind.mockReset();
+    dissolve.mockReset();
+    bind.mockResolvedValue({ id: "g1", title: "팀", members: [], created_at: "", updated_at: "" });
+    dissolve.mockResolvedValue(true);
     decide.mockResolvedValue(task("t1", "working"));
   });
 
   it("혼자 일할 때는 카드가 아예 없다", async () => {
     overview.mockResolvedValue({
       participants: [card("claude-code-app", "Claude Code")],
+      groups: [],
       leases: [],
       open_tasks: [],
     });
@@ -78,6 +91,7 @@ describe("A2A 협업 카드", () => {
   it("둘이 붙어 있으면 참여자를 보여준다", async () => {
     overview.mockResolvedValue({
       participants: [card("claude-code-app", "Claude Code"), card("codex-app", "Codex")],
+      groups: [],
       leases: [],
       open_tasks: [],
     });
@@ -89,6 +103,7 @@ describe("A2A 협업 카드", () => {
   it("넘어온 작업은 **사람이 눌러야** 시작된다", async () => {
     overview.mockResolvedValue({
       participants: [card("claude-code-app", "Claude Code"), card("codex-app", "Codex")],
+      groups: [],
       leases: [],
       open_tasks: [task("t1", "submitted")],
     });
@@ -100,10 +115,60 @@ describe("A2A 협업 카드", () => {
     await waitFor(() => expect(decide).toHaveBeenCalledWith(1, "t1", true));
   });
 
+
+  it("묶이지 않은 세션은 **보이기만** 하고, 둘 이상 골라야 묶인다", async () => {
+    overview.mockResolvedValue({
+      participants: [card("claude-code-app", "Claude Code"), card("codex-app", "Codex")],
+      groups: [],
+      leases: [],
+      open_tasks: [],
+    });
+    render(<A2aCard projectId={1} />);
+    expect(await screen.findByText("묶이지 않음 — 보이기만 합니다")).toBeTruthy();
+
+    const bindBtn = screen.getByText("선택한 0개 묶기") as HTMLButtonElement;
+    expect(bindBtn.disabled).toBe(true);
+
+    const boxes = screen.getAllByRole("checkbox");
+    fireEvent.click(boxes[0]);
+    expect((screen.getByText("선택한 1개 묶기") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(boxes[1]);
+    fireEvent.click(screen.getByText("선택한 2개 묶기"));
+    await waitFor(() =>
+      expect(bind).toHaveBeenCalledWith(1, "함께 일하는 팀", ["claude-code-app", "codex-app"]),
+    );
+  });
+
+  it("묶인 팀은 테두리 안에 서고 풀 수 있다", async () => {
+    overview.mockResolvedValue({
+      participants: [card("claude-code-app", "Claude Code"), card("codex-app", "Codex")],
+      groups: [
+        {
+          id: "g1",
+          title: "auth 리팩토링",
+          members: ["claude-code-app", "codex-app"],
+          created_at: "",
+          updated_at: "",
+        },
+      ],
+      leases: [],
+      open_tasks: [],
+    });
+    const { container } = render(<A2aCard projectId={1} />);
+    expect(await screen.findByText("auth 리팩토링")).toBeTruthy();
+    // 전부 묶였으면 "묶이지 않음" 구역은 없다.
+    expect(screen.queryByText("묶이지 않음 — 보이기만 합니다")).toBeNull();
+    expect(container.querySelector(".a2a-group")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("풀기"));
+    await waitFor(() => expect(dissolve).toHaveBeenCalledWith(1, "g1"));
+  });
+
   it("잡힌 구역은 주인과 패턴을 보이고 놓을 수 있다", async () => {
     release.mockResolvedValue(true);
     overview.mockResolvedValue({
       participants: [card("claude-code-app", "Claude Code"), card("codex-app", "Codex")],
+      groups: [],
       leases: [
         {
           id: "l1",

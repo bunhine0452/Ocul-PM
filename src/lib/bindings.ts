@@ -1565,6 +1565,12 @@ export const commands = {
 	a2aEndpointStart: (projectId: number) => typedError<A2aServerStatus, AppError>(__TAURI_INVOKE("a2a_endpoint_start", { projectId })),
 	/**  닫는다 (멱등). */
 	a2aEndpointStop: () => typedError<A2aServerStatus, AppError>(__TAURI_INVOKE("a2a_endpoint_stop")),
+	/**  고른 세션들을 한 팀으로 묶는다. **사용자가 화면에서 하는 일**이다. */
+	a2aBindGroup: (projectId: number, title: string, members: string[]) => typedError<Group, AppError>(__TAURI_INVOKE("a2a_bind_group", { projectId, title, members })),
+	/**  멤버를 갈아 끼운다 (둘 미만으로 줄이는 것은 해체이지 갱신이 아니다). */
+	a2aSetGroupMembers: (projectId: number, groupId: string, members: string[]) => typedError<Group, AppError>(__TAURI_INVOKE("a2a_set_group_members", { projectId, groupId, members })),
+	/**  팀을 푼다. */
+	a2aDissolveGroup: (projectId: number, groupId: string) => typedError<boolean, AppError>(__TAURI_INVOKE("a2a_dissolve_group", { projectId, groupId })),
 	/**
 	 *  원장을 비우고 처음부터 다시 센다 — 이중 집계·낡은 재개점을 되돌리는 유일한
 	 *  길. 예산 라운드를 여기서 이어 붙여 한 번의 호출로 끝낸다 (상한 20 라운드 —
@@ -1908,6 +1914,11 @@ export type A2aChangeKind =
  */
 export type A2aOverview = {
 	participants: AgentCard[],
+	/**
+	 *  사용자가 묶은 팀들. **묶이지 않은 세션은 참여자 목록에만 있다** —
+	 *  보이는 것과 말을 걸 수 있는 것은 다르다.
+	 */
+	groups: Group[],
 	leases: Lease[],
 	/**  아직 안 끝난 태스크 전부 (누가 누구에게 넘겼든). */
 	open_tasks: Task[],
@@ -3793,6 +3804,16 @@ export type GreenfieldResult = {
 	project_id: number,
 	scaffold_output: string | null,
 	seed_goals: Goal[],
+};
+
+/**  사용자가 묶은 한 팀. */
+export type Group = {
+	id: string,
+	title: string,
+	/**  멤버의 `agent_id`. 순서는 사용자가 묶은 순서다. */
+	members: string[],
+	created_at: string,
+	updated_at: string,
 };
 
 /**

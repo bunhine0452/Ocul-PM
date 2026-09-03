@@ -22,6 +22,8 @@ export function A2aCard({ projectId }: { projectId: number }) {
   const { t } = useT();
   const [data, setData] = useState<A2aOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** 묶으려고 고른 세션들. 묶는 것은 **사용자의 행동**이지 앱의 추측이 아니다. */
+  const [picked, setPicked] = useState<string[]>([]);
   /** 이번 세션에 본 침범 경고 (이벤트로만 온다 — 원장에는 남지 않는다). */
   const [trespasses, setTrespasses] = useState<
     { actor: string; path: string; holder: string }[]
@@ -68,12 +70,35 @@ export function A2aCard({ projectId }: { projectId: number }) {
   if (!data) return null;
 
   const waiting = data.open_tasks.filter((task) => task.state === "submitted");
+  const byId = new Map(data.participants.map((card) => [card.agent_id, card]));
+  const grouped = new Set(data.groups.flatMap((g) => g.members));
+  const unbound = data.participants.filter((card) => !grouped.has(card.agent_id));
   const quiet =
     data.participants.length <= 1 &&
     data.leases.length === 0 &&
     data.open_tasks.length === 0 &&
     trespasses.length === 0;
   if (quiet) return null;
+
+  const bind = async () => {
+    if (picked.length < 2) return;
+    try {
+      await oculpmApi.a2aBindGroup(projectId, t("a2a.groupDefault"), picked);
+      setPicked([]);
+      load();
+    } catch (e) {
+      setError(tError(toAppError(e)));
+    }
+  };
+
+  const unbind = async (groupId: string) => {
+    try {
+      await oculpmApi.a2aDissolveGroup(projectId, groupId);
+      load();
+    } catch (e) {
+      setError(tError(toAppError(e)));
+    }
+  };
 
   const decide = async (taskId: string, accept: boolean) => {
     try {
@@ -103,18 +128,68 @@ export function A2aCard({ projectId }: { projectId: number }) {
         </span>
       </div>
 
-      <ul className="a2a-list" aria-label={t("a2a.participants", { n: data.participants.length })}>
-        {data.participants.map((card) => (
-          <li key={card.agent_id}>
-            {/* 어댑터가 준 `name` 은 npm 패키지 이름(@agentclientprotocol/…)이라
-                사람이 읽을 것이 못 된다 — 기록에 쓰는 라벨을 앞에 세우고 그
-                패키지 이름은 뒤에 붙인다. */}
-            <strong>{agentLabel(card.provider)}</strong>
-            <span className="a2a-sub">{t(`a2a.surface.${card.surface}`)}</span>
-            <span className="a2a-sub a2a-dim">{card.name}</span>
-          </li>
-        ))}
-      </ul>
+      {/* 묶인 팀 — 이 안에서만 말하고 일을 넘긴다. 파일 임대는 그룹과 무관하게
+          프로젝트 전체다(같은 파일은 친하든 아니든 부딪힌다). */}
+      {data.groups.map((group) => (
+        <div className="a2a-group" key={group.id}>
+          <div className="a2a-head">
+            {group.title}
+            <button className="btn ghost sm right" onClick={() => void unbind(group.id)}>
+              {t("a2a.unbind")}
+            </button>
+          </div>
+          <ul className="a2a-list" aria-label={group.title}>
+            {group.members.map((id) => {
+              const card = byId.get(id);
+              return (
+                <li key={id}>
+                  <strong>{card ? agentLabel(card.provider) : id}</strong>
+                  {card ? (
+                    <span className="a2a-sub">{t(`a2a.surface.${card.surface}`)}</span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+
+      {/* 묶이지 않은 세션 — **보이기만 한다.** 고른 뒤 묶어야 서로 말할 수 있다. */}
+      {unbound.length ? (
+        <>
+          <div className="a2a-head">{t("a2a.unbound")}</div>
+          <ul className="a2a-list" aria-label={t("a2a.unbound")}>
+            {unbound.map((card) => (
+              <li key={card.agent_id}>
+                <label className="a2a-pick">
+                  <input
+                    type="checkbox"
+                    checked={picked.includes(card.agent_id)}
+                    onChange={(e) =>
+                      setPicked((prev) =>
+                        e.target.checked
+                          ? [...prev, card.agent_id]
+                          : prev.filter((id) => id !== card.agent_id),
+                      )
+                    }
+                  />
+                  {/* 어댑터가 준 `name` 은 npm 패키지 이름이라 사람이 읽을 것이
+                      못 된다 — 기록에 쓰는 라벨을 앞에 세운다. */}
+                  <strong>{agentLabel(card.provider)}</strong>
+                  <span className="a2a-sub">{t(`a2a.surface.${card.surface}`)}</span>
+                  <span className="a2a-sub a2a-dim">{card.name}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <div className="first-run-actions">
+            <button className="btn sm primary" disabled={picked.length < 2} onClick={() => void bind()}>
+              {t("a2a.bind", { n: picked.length })}
+            </button>
+            <span className="a2a-sub">{t("a2a.bindHint")}</span>
+          </div>
+        </>
+      ) : null}
 
       {waiting.length ? (
         <>

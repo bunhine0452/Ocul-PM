@@ -13,10 +13,12 @@
 //! - [`mailbox`] — Phase 2. 메시지 배달 (한 번 쓰고 끝).
 //! - [`tasks`] — Phase 2. 태스크 수명주기 (덧붙이기만 하는 원장).
 //! - [`leases`] — Phase 3. 작업 구역 임대 (부딪히기 전에 막는다).
+//! - [`groups`] — 세션 묶기 (사용자가 묶은 것만 한 팀 · 임대는 그룹과 무관).
 //! - [`http`] — Phase 6. 외부 문 (루프백·옵트인·기본 꺼짐).
 
 use serde::{Deserialize, Serialize};
 
+pub mod groups;
 pub mod http;
 pub mod leases;
 pub mod mailbox;

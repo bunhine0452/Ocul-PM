@@ -16,7 +16,7 @@ use tauri::State;
 
 use crate::app_error::AppError;
 use crate::db::Db;
-use crate::oculpm::a2a::{leases, registry, tasks};
+use crate::oculpm::a2a::{groups, leases, registry, tasks};
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, AppError> {
     let project = db
@@ -33,6 +33,9 @@ async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, AppError> {
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct A2aOverview {
     pub participants: Vec<registry::AgentCard>,
+    /// 사용자가 묶은 팀들. **묶이지 않은 세션은 참여자 목록에만 있다** —
+    /// 보이는 것과 말을 걸 수 있는 것은 다르다.
+    pub groups: Vec<groups::Group>,
     pub leases: Vec<leases::Lease>,
     /// 아직 안 끝난 태스크 전부 (누가 누구에게 넘겼든).
     pub open_tasks: Vec<tasks::Task>,
@@ -52,10 +55,12 @@ pub async fn a2a_overview(db: State<'_, Db>, project_id: u32) -> Result<A2aOverv
     // (읽기 전에 치워야 답이 정직하다).
     registry::sweep(&root, now);
     leases::sweep(&root, now);
+    groups::sweep(&root, now);
     tasks::expire_overdue(&root, now);
 
     Ok(A2aOverview {
         participants: registry::list_live(&root, now),
+        groups: groups::live(&root, now),
         leases: leases::active(&root, now),
         open_tasks: tasks::list(&root)
             .into_iter()
@@ -137,4 +142,46 @@ pub async fn a2a_endpoint_start(
 #[specta::specta]
 pub fn a2a_endpoint_stop(state: State<'_, A2aServerState>) -> Result<A2aServerStatus, AppError> {
     Ok(state.stop())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 세션 묶기 — 사용자가 직접 (docs/a2a §그룹)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 고른 세션들을 한 팀으로 묶는다. **사용자가 화면에서 하는 일**이다.
+#[tauri::command]
+#[specta::specta]
+pub async fn a2a_bind_group(
+    db: State<'_, Db>,
+    project_id: u32,
+    title: String,
+    members: Vec<String>,
+) -> Result<groups::Group, AppError> {
+    let root = project_root(&db, project_id).await?;
+    Ok(groups::create(&root, &title, &members, Utc::now())?)
+}
+
+/// 멤버를 갈아 끼운다 (둘 미만으로 줄이는 것은 해체이지 갱신이 아니다).
+#[tauri::command]
+#[specta::specta]
+pub async fn a2a_set_group_members(
+    db: State<'_, Db>,
+    project_id: u32,
+    group_id: String,
+    members: Vec<String>,
+) -> Result<groups::Group, AppError> {
+    let root = project_root(&db, project_id).await?;
+    Ok(groups::set_members(&root, &group_id, &members, Utc::now())?)
+}
+
+/// 팀을 푼다.
+#[tauri::command]
+#[specta::specta]
+pub async fn a2a_dissolve_group(
+    db: State<'_, Db>,
+    project_id: u32,
+    group_id: String,
+) -> Result<bool, AppError> {
+    let root = project_root(&db, project_id).await?;
+    Ok(groups::dissolve(&root, &group_id))
 }

@@ -2173,6 +2173,11 @@ mark.s-hit {
    더해져 카드가 화면을 뒤덮는다 (2026-09-03 실기기에서 그렇게 떴다). */
 .a2a-sub { color: var(--text-3); font-size: var(--fs-5); margin: 0; padding: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .a2a-dim { color: var(--text-3); opacity: 0.7; font-size: var(--fs-4); }
+/* 묶인 팀 — 테두리 하나로 "이 안이 한 팀" 을 말한다. */
+.a2a-group { border: 1px solid var(--sep); border-radius: var(--radius-m); padding: 8px 10px; margin-top: 8px; }
+.a2a-group .a2a-head { margin-top: 0; }
+/* 묶을 세션 고르기 — 체크박스와 라벨이 한 줄, 줄 전체가 누를 자리다. */
+.a2a-pick { display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 0; }
 /* 문단용 — 행 안의 라벨과 달리 접혀야 한다. */
 .a2a-desc { color: var(--text-3); font-size: var(--fs-5); line-height: 1.5; }
 .a2a-list li .right { margin-left: auto; display: flex; gap: 4px; flex: none; }

@@ -136,12 +136,15 @@ fn setup_logging() {
 
 use crate::commands::{
     // A2A — 협업 상태 조회 + 사용자 승인이 필요한 두 쓰기 (docs/a2a)
+    a2a_bind_group,
     a2a_decide_task,
+    a2a_dissolve_group,
     a2a_endpoint_start,
     a2a_endpoint_status,
     a2a_endpoint_stop,
     a2a_overview,
     a2a_release_lease,
+    a2a_set_group_members,
     acp_cancel,
     acp_commands,
     acp_delete_session,
@@ -845,6 +848,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             a2a_endpoint_status,
             a2a_endpoint_start,
             a2a_endpoint_stop,
+            a2a_bind_group,
+            a2a_set_group_members,
+            a2a_dissolve_group,
             firing_rebuild,
             // Osaurus 라운드 Phase 1 — 스케줄 자동화
             automation_list,

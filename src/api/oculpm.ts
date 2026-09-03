@@ -18,6 +18,7 @@ import { commands, events } from "@/lib/bindings";
 import { ApiError, call, toAppError, type Envelope } from "@/api/invoke";
 import type {
   A2aOverview,
+  Group,
   A2aServerStatus,
   OculpmA2aChanged,
   OculpmA2aTrespass,
@@ -74,6 +75,18 @@ export const oculpmApi = {
   /** 참여자·잡힌 구역·미완 태스크를 **한 시각으로** 한 번에. */
   a2aOverview: (projectId: number) =>
     unwrap<A2aOverview>("a2a_overview", commands.a2aOverview(projectId)),
+
+  /** 고른 세션들을 한 팀으로 묶는다 — 묶여야 서로 말할 수 있다. */
+  a2aBindGroup: (projectId: number, title: string, members: string[]) =>
+    unwrap<Group>("a2a_bind_group", commands.a2aBindGroup(projectId, title, members)),
+
+  /** 팀의 멤버를 갈아 끼운다 (둘 미만은 해체이지 갱신이 아니다). */
+  a2aSetGroupMembers: (projectId: number, groupId: string, members: string[]) =>
+    unwrap<Group>("a2a_set_group_members", commands.a2aSetGroupMembers(projectId, groupId, members)),
+
+  /** 팀을 푼다. */
+  a2aDissolveGroup: (projectId: number, groupId: string) =>
+    unwrap<boolean>("a2a_dissolve_group", commands.a2aDissolveGroup(projectId, groupId)),
 
   /** 넘어온 작업을 사람이 수락/거절한다 — 자동 수락은 없다(D5). */
   a2aDecideTask: (projectId: number, taskId: string, accept: boolean) =>

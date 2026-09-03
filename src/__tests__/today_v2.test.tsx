@@ -53,7 +53,8 @@ vi.mock("@/api/oculpm", () => ({
   OculpmApiError: class extends Error {},
   oculpmApi: {
     // A2A 카드 — 혼자 일하는 프로젝트라 카드는 안 그려지지만, 조회는 나간다.
-    a2aOverview: () => Promise.resolve({ participants: [], leases: [], open_tasks: [] }),
+    a2aOverview: () =>
+      Promise.resolve({ participants: [], groups: [], leases: [], open_tasks: [] }),
     onA2aChanged: () => Promise.resolve(() => {}),
     onA2aTrespass: () => Promise.resolve(() => {}),
     listJournalEntries: (_pid: number, workday: string) =>
