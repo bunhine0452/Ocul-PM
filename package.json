@@ -17,6 +17,7 @@
     "lint:bindings": "node scripts/check-bindings-imports.mjs",
     "lint:design": "node scripts/check-design-discipline.mjs",
     "lint:filesize": "node scripts/check-file-sizes.mjs",
+    "clean:target": "node scripts/clean-target.mjs",
     "lint": "pnpm lint:storage && pnpm lint:i18n && pnpm lint:bindings && pnpm lint:design && pnpm lint:filesize"
   },
   "dependencies": {
