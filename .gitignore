@@ -86,6 +86,7 @@ Desktop.ini
 # oculpm:begin v1
 .oculpm/index/
 .oculpm/hooks/
+.oculpm/agents/live/
 .oculpm/.lock
 .oculpm/.schema-version
 .oculpm/oculpm.log

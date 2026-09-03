@@ -55,6 +55,7 @@ use crate::oculpm::watcher::ProjectWatcher;
 const GITIGNORE_BLOCK_BODY: &str = "\
 .oculpm/index/
 .oculpm/hooks/
+.oculpm/agents/live/
 .oculpm/.lock
 .oculpm/.schema-version
 .oculpm/oculpm.log

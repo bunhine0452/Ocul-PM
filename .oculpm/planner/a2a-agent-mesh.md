@@ -11,16 +11,16 @@ owner: claude-code
 한 프로젝트에서 여러 에이전트(앱 안의 ACP 패널 Claude·Codex, 앱 밖의 CLI 세션)가 동시에 일할 때 서로를 발견하고, 작업을 넘기고, 같은 파일을 동시에 건드리는 사고를 미리 막는다. A2A(Agent2Agent)의 Agent Card·Message·Task 수명주기를 스키마로 채택하되, v1 전송은 앱이 브로커인 로컬 파일+MCP 로 한다 — ACP 에이전트는 스스로 HTTP 서버를 열 수 없고, 앱 밖 세션도 같은 손(MCP)을 쓰기 때문이다.
 
 ## 계약과 배제선 {#contract}
-- [ ] A2A 에서 채택할 것과 뺄 것을 고정한다 — Agent Card·Message·Task 수명주기·Artifact 는 채택, HTTP 서버·원격 인증·푸시 알림은 v1 배제 {#adopt-subset}
-- [ ] ACP(클라이언트↔에이전트)와 A2A(에이전트↔에이전트)의 경계를 문서로 못 박고 앱이 브로커가 되는 근거를 남긴다 {#acp-vs-a2a}
+- [x] A2A 에서 채택할 것과 뺄 것을 고정한다 — Agent Card·Message·Task 수명주기·Artifact 는 채택, HTTP 서버·원격 인증·푸시 알림은 v1 배제 {#adopt-subset}
+- [x] ACP(클라이언트↔에이전트)와 A2A(에이전트↔에이전트)의 경계를 문서로 못 박고 앱이 브로커가 되는 근거를 남긴다 {#acp-vs-a2a}
 - [ ] 위협 모델 — 다른 에이전트가 보낸 메시지는 데이터이지 지시가 아니다. 자동 실행 금지·크기 상한·redact.rs 통과를 계약으로 고정 {#threat-model}
-- [ ] 성공 기준 — 앱 안 ACP 세션 1개와 앱 밖 CLI 세션 1개가 서로를 발견하고 파일 구역 충돌을 사전에 막는다 {#success-criteria}
+- [x] 성공 기준 — 앱 안 ACP 세션 1개와 앱 밖 CLI 세션 1개가 서로를 발견하고 파일 구역 충돌을 사전에 막는다 {#success-criteria}
 
 ## 참여자 레지스트리와 Agent Card {#registry}
-- [ ] Agent Card 스키마 정의 — A2A 표준 필드(name·description·skills·version)에 우리 확장(project_root·session_id·provider·pid·surface)을 더한다 {#card-schema}
-- [ ] 앱 안 ACP 에이전트(Claude·Codex)를 세션 시작 시 자동 등록하고 프로세스 종료·앱 종료에서 수거한다 {#register-inapp}
+- [x] Agent Card 스키마 정의 — A2A 표준 필드(name·description·skills·version)에 우리 확장(project_root·session_id·provider·pid·surface)을 더한다 {#card-schema}
+- [x] 앱 안 ACP 에이전트(Claude·Codex)를 세션 시작 시 자동 등록하고 프로세스 종료·앱 종료에서 수거한다 {#register-inapp}
 - [ ] 앱 밖 CLI 세션은 MCP 도구로 자진 등록하고 하트비트 TTL 로 죽은 항목을 자동 만료시킨다 {#register-external}
-- [ ] 레지스트리 SSOT 는 .oculpm/agents/live/*.json (gitignore), SQLite 는 파생 캐시로만 둔다 {#registry-ssot}
+- [x] 레지스트리 SSOT 는 .oculpm/agents/live/*.json (gitignore), SQLite 는 파생 캐시로만 둔다 {#registry-ssot}
 
 ## 메시지와 태스크 수명주기 {#mailbox}
 - [ ] A2A Message/Task 를 파일 메일박스로 구현 — submitted→working→(completed|failed|canceled|input-required) 전이와 terminal 이벤트 보장 {#task-lifecycle}
@@ -61,4 +61,10 @@ owner: claude-code
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
+| 2026-09-03T14:18:42+09:00 | #adopt-subset | claude-code | ☐→x |  | docs/a2a/00-master-plan.md §1·§3 D1 — 스키마·수명주기 채택, HTTP/인증/푸시는 Phase 6 |
+| 2026-09-03T14:18:45+09:00 | #acp-vs-a2a | claude-code | ☐→x |  | §1 표 — ACP=수직, A2A=수평. 앱이 브로커인 근거(참여자별 창구)까지 |
+| 2026-09-03T14:18:46+09:00 | #success-criteria | claude-code | ☐→x |  | §13 — 2세션 발견→임대 거절→위임 완료, 각자 이름으로 일지, 무승인 실행 0 |
+| 2026-09-03T14:25:12+09:00 | #card-schema | claude-code | ☐→x |  | AgentCard — A2A 표준 필드 + 확장(project_root·session_id·provider·pid·surface). Phase 6 의 agent-card.json 본문이 그대로 된다 |
+| 2026-09-03T14:25:14+09:00 | #register-inapp | claude-code | ☐→x |  | 핸드셰이크 성공 시 publish_card, 연결 종료 시 withdraw_card. pid=앱 것이라 앱이 죽으면 자동으로 죽은 카드가 된다 |
+| 2026-09-03T14:25:16+09:00 | #registry-ssot | claude-code | ☐→x |  | .oculpm/agents/live/*.json + gitignore 관리블록. 워처는 agents/ 캐스케이드보다 먼저 걸러 증폭 루프를 막는다 |
 <!-- oculpm:plan-log end -->

@@ -360,6 +360,16 @@ impl WatcherInner {
             return;
         }
 
+        // 1.6 A2A 참여자 카드 (`docs/a2a/00-master-plan.md` §4). **아래 2번보다
+        //     먼저 걸러야 한다** — `.oculpm/agents/` 로 시작하므로 순서가 뒤집히면
+        //     카드 한 장 쓸 때마다 모든 어댑터의 AGENTS.md 재동기화가 돈다.
+        //     하트비트까지 그 길을 타면 증폭 루프가 된다 (osaurus R1 과 같은 부류).
+        //     지금은 앱이 할 일이 없다 — Phase 2 에서 참여자 목록 이벤트를 낸다.
+        if rel_str.starts_with(".oculpm/agents/live/") {
+            self.bump_ignored();
+            return;
+        }
+
         // 2. .oculpm/agents/** — emit + cascading re-sync of every active
         //    adapter. The cascade is what makes `_template.md` (master) the
         //    single source of truth: users edit one file and Cursor / Claude
