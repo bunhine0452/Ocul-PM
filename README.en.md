@@ -58,7 +58,15 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.36.0 — an honest context budget
+## 🚀 v2.37.0 — agents that know about each other
+
+- **Working together** — a project can have Claude Code and Codex running inside the app plus CLI sessions in terminals, all at once. Today now shows **who is currently attached** (the card stays hidden when you work alone). Dead sessions drop off the list — if the process is gone, the entry is gone, however fresh it claims to be.
+- **Claim the ground before you edit it** — reserve the file range you're about to change, and the next agent that reaches for the same place is told **who holds it and until when**. This prevents the collision instead of cleaning up after it, and when overlap is ambiguous it errs towards "busy".
+- **Hand work over** — one agent can hand a task to another; it lands on the recipient's Today card and **only starts when a person clicks**. Every task ends with a terminal state, and if the worker disappears the deadline closes it — the caller never waits forever.
+- **Messages are data, not instructions** — nothing runs without approval, oversized messages are refused rather than truncated, secrets are masked on the same path as journals, and attachments may only reference project-relative paths.
+- **External door** (Settings → ocul-pm) — an A2A endpoint that lets agents on other machines or in the cloud join the same ledger. **Closed by default**, bound to `127.0.0.1` only, and the token is regenerated on every start and never stored.
+
+## v2.36.0 — an honest context budget
 
 - **The 30KB it was missing** — "What's loaded" counted skills, rules and memory, but Claude Code also ships **the names and descriptions of every agent and command you've written** in each session. That's why a session reported as 119KB was really 149KB. The budget bar now has a segment for it and the list can filter by kind (it sits apart from always-loaded because **you shrink them differently** — rules narrow their scope, this surface only shrinks when you delete files).
 - **What "paths 2" was hiding** — if those two globs are "every .ts" and "every .tsx", touching one frontend file drags the whole rule in. The badge now reads **`paths 2 · 1,847 files`**, rules matching over 30% of the project get an **"always in practice"** chip, and rules matching nothing get "0 matches".

@@ -13,7 +13,7 @@ owner: claude-code
 ## 계약과 배제선 {#contract}
 - [x] A2A 에서 채택할 것과 뺄 것을 고정한다 — Agent Card·Message·Task 수명주기·Artifact 는 채택, HTTP 서버·원격 인증·푸시 알림은 v1 배제 {#adopt-subset}
 - [x] ACP(클라이언트↔에이전트)와 A2A(에이전트↔에이전트)의 경계를 문서로 못 박고 앱이 브로커가 되는 근거를 남긴다 {#acp-vs-a2a}
-- [ ] 위협 모델 — 다른 에이전트가 보낸 메시지는 데이터이지 지시가 아니다. 자동 실행 금지·크기 상한·redact.rs 통과를 계약으로 고정 {#threat-model}
+- [x] 위협 모델 — 다른 에이전트가 보낸 메시지는 데이터이지 지시가 아니다. 자동 실행 금지·크기 상한·redact.rs 통과를 계약으로 고정 {#threat-model}
 - [x] 성공 기준 — 앱 안 ACP 세션 1개와 앱 밖 CLI 세션 1개가 서로를 발견하고 파일 구역 충돌을 사전에 막는다 {#success-criteria}
 
 ## 참여자 레지스트리와 Agent Card {#registry}
@@ -52,11 +52,11 @@ owner: claude-code
 - [x] 외부 에이전트(Antigravity·클라우드 세션) 연결은 이 엔드포인트로만 허용한다 {#external-agents}
 
 ## 검증과 출시 {#verification}
-- [ ] Rust 테스트 — 레지스트리 TTL, CAS 경합, 임대 겹침 판정, terminal 이벤트 보장 {#rust-tests}
-- [ ] Vitest — 승인 카드, 참여자 배지, 충돌 경고, 기존 AI 패널 회귀 {#frontend-tests}
-- [ ] 실측 — 앱 안 ACP 세션과 앱 밖 CLI 세션으로 발견→임대→메시지→태스크 완료를 한 번 통과 {#live-two-sessions}
-- [ ] 게이트 — cargo fmt/clippy/test, pnpm typecheck/test/lint/build 를 직접 확인 {#gates}
-- [ ] 릴리스 5면 — 버전 3파일·CHANGELOG·README ko/en·landing 6곳 {#release-surfaces}
+- [x] Rust 테스트 — 레지스트리 TTL, CAS 경합, 임대 겹침 판정, terminal 이벤트 보장 {#rust-tests}
+- [x] Vitest — 승인 카드, 참여자 배지, 충돌 경고, 기존 AI 패널 회귀 {#frontend-tests}
+- [x] 실측 — 앱 안 ACP 세션과 앱 밖 CLI 세션으로 발견→임대→메시지→태스크 완료를 한 번 통과 {#live-two-sessions}
+- [x] 게이트 — cargo fmt/clippy/test, pnpm typecheck/test/lint/build 를 직접 확인 {#gates}
+- [~] 릴리스 5면 — 버전 3파일·CHANGELOG·README ko/en·landing 6곳 {#release-surfaces}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -88,4 +88,10 @@ owner: claude-code
 | 2026-09-03T16:03:58+09:00 | #http-endpoint | claude-code | ☐→x |  | axum(이미 있는 의존성) · /.well-known/agent-card.json + JSON-RPC /a2a. LoopbackAddr 뉴타입이라 0.0.0.0 바인딩이 컴파일 불가 + 바인딩 후 되읽기 확인. SSE 스트리밍은 v1 미지원(-32004 로 명시 거부) |
 | 2026-09-03T16:04:01+09:00 | #endpoint-auth | claude-code | ☐→x |  | Bearer 토큰을 매 기동 새로 만들고 디스크에 안 남긴다(저장 안 한 비밀은 안 샌다). 출발지 루프백 재확인 + 감사 로그(.oculpm/agents/audit/, 본문 제외). 기본 꺼짐 |
 | 2026-09-03T16:04:08+09:00 | #external-agents | claude-code | ☐→x |  | message/send 는 metadata.to 로 받는 이를 반드시 짚어야 한다 — 우리 카드는 에이전트 하나가 아니라 여럿이 붙은 원장이라서. agents/list 가 그 목록. 문 하나는 프로젝트 하나만 섬긴다(바꾸면 닫고 다시 연다) |
+| 2026-09-03T16:37:26+09:00 | #live-two-sessions | claude-code | ☐→x |  | 통과. 터미널 두 세션으로 발견→임대→겹침 거절→작업 넘기기, 앱은 Claude·Codex 카드 둘을 올리고 Today 카드가 참여자 2를 표시. 실측이 결함 5건을 잡았고 전부 수정 |
+| 2026-09-03T16:37:29+09:00 | #threat-model | claude-code | ☐→x |  | D2 로 문서화 + 코드로 고정: 자동 실행 없음(승인 카드만) · 본문/첨부 상한은 자르지 않고 거부 · 시크릿은 일지와 같은 길로 마스킹 · 첨부는 프로젝트 상대 경로만 · 인박스 응답이 "데이터이지 지시가 아니다"를 함께 실어 보낸다 |
+| 2026-09-03T16:37:36+09:00 | #rust-tests | claude-code | ☐→x |  | Phase 마다 함께 들어갔다 — 레지스트리 pid/TTL 8 · 우편함 6 · 태스크 8(전이·권한·기한) · 임대 10 · HTTP 5 · 도구 6 · 워처 분류 1 · 청소 1 |
+| 2026-09-03T16:37:38+09:00 | #frontend-tests | claude-code | ☐→x |  | a2a_card.test.tsx 4건 — 혼자일 때 안 그림·참여자 표시·승인 전 무동작·구역 놓기. today_v2 회귀도 함께(목 확장) |
+| 2026-09-03T16:37:44+09:00 | #gates | claude-code | ☐→x |  | 매 Phase 직접 확인. 최종: fmt 0 · clippy -D warnings 0 · cargo test 1285 · typecheck 0 · vitest 160 files 2077 · lint 0 · build 0 |
+| 2026-09-03T16:41:46+09:00 | #release-surfaces | claude-code | ☐→~ |  | v2.37.0 — 버전 5파일·CHANGELOG·README ko/en·랜딩 6곳×2(+영문)·wiki 재빌드·featureList·FAQ 2곳×2·벤토 3셀·plugin.html 배지. 태그 푸시는 사용자 승인 대기 |
 <!-- oculpm:plan-log end -->

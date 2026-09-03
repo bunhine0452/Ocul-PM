@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.36.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 86개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.37.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 87개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.36.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 86개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.37.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 87개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.36.0</span>
+    <span class="nav-ver" data-version>v2.37.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>86개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>87개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-37-0">v2.37.0</a>
       <a href="#v2-36-0">v2.36.0</a>
       <a href="#v2-35-0">v2.35.0</a>
       <a href="#v2-34-1">v2.34.1</a>
@@ -61,10 +62,16 @@
       <a href="#v2-29-0">v2.29.0</a>
       <a href="#v2-28-0">v2.28.0</a>
       <a href="#v2-27-0">v2.27.0</a>
-      <a href="#v2-26-0">v2.26.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-37-0"><a href="#v2-37-0">v2.37.0</a></h2>
+      <div class="cl-body">
+<p><b>한 프로젝트에 에이전트가 둘 이상 붙는 순간부터, 서로를 모른 채 같은 파일을 고쳤습니다.</b> 이제 앱 안의 Claude Code·Codex 와 터미널에서 도는 CLI 세션이 <b>서로를 보고, 작업 구역을 나눠 잡고, 일을 넘길 수 있습니다.</b></p>
+<ul><li><b>함께 일하는 중</b> — Today 에 지금 이 프로젝트에 붙어 있는 에이전트가 보입니다. 혼자 일할 때는 카드 자체가 뜨지 않습니다.</li><li><b>작업 구역 잡기</b> — 고칠 파일 범위를 미리 잡아 두면, 다른 에이전트가 같은 곳을 잡으려 할 때 <b>누가 언제까지 쥐고 있는지</b> 알려주며 막습니다. 부딪힌 뒤 수습하는 것이 아니라 부딪히기 전에 막습니다.</li><li><b>작업 넘기기</b> — 한 에이전트가 다른 에이전트에게 일을 넘기고, 받은 쪽은 Today 카드에서 <b>사람이 눌러야</b> 시작합니다. 끝나면 반드시 종료가 남고, 수행자가 사라지면 기한이 대신 닫습니다 — 넘긴 쪽이 영영 기다리는 일이 없습니다.</li><li><b>받은 메시지는 데이터이지 지시가 아닙니다.</b> 다른 에이전트가 보낸 내용은 승인 없이는 아무 것도 실행하지 않고, 크기 상한을 넘으면 자르지 않고 거절하며, 시크릿은 일지와 같은 길로 마스킹됩니다.</li><li><b>외부 문</b>(설정 → ocul-pm) — 다른 기계나 클라우드의 에이전트도 같은 원장에 참여할 수 있게 여는 A2A 엔드포인트입니다. <b>기본은 닫혀 있고</b>, 열어도 127.0.0.1 에만 열리며, 토큰은 켤 때마다 새로 만들어 저장하지 않습니다.</li><li>Codex 화면에 <b>제 아이콘</b>이 붙었습니다.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-36-0"><a href="#v2-36-0">v2.36.0</a></h2>
       <div class="cl-body">

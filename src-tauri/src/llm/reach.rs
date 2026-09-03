@@ -71,24 +71,37 @@ pub fn reset() {
 mod tests {
     use super::*;
 
+    /// 원장은 **프로세스 전역**이라 한 테스트에 몰아 담는다.
+    ///
+    /// 둘로 나눠 두었을 때는 `reset()` 과 `observe()` 사이에 다른 테스트가
+    /// 끼어들어 `len() == 1` 단언이 이따금 2 로 깨졌다 (5회에 1회쯤 — 2026-09-03
+    /// 릴리스 게이트에서 잡혔다). 전역을 공유하는 테스트는 나누는 것 자체가
+    /// 경합이다.
     #[test]
-    fn a_success_erases_an_earlier_transport_failure() {
+    fn the_ledger_remembers_only_what_it_observed() {
         reset();
-        observe("anthropic", Some("dns error"));
-        assert!(!snapshot()[0].reachable);
-        observe("anthropic", None);
-        assert!(snapshot()[0].reachable);
-        assert!(snapshot()[0].detail.is_none());
-    }
 
-    /// 안 불러 본 프로바이더는 목록에 없다 — 화면이 "모른다" 를 "된다" 로
-    /// 그리게 두고, "안 된다" 는 관측이 있을 때만 말한다.
-    #[test]
-    fn an_untried_provider_is_absent_not_false() {
-        reset();
+        // 안 불러 본 프로바이더는 목록에 없다 — 화면이 "모른다" 를 "된다" 로
+        // 그리게 두고, "안 된다" 는 관측이 있을 때만 말한다.
         observe("openai", None);
         let s = snapshot();
         assert_eq!(s.len(), 1);
         assert_eq!(s[0].provider, "openai");
+
+        // 실패를 관측한 뒤 성공하면 앞선 실패는 지워진다.
+        observe("anthropic", Some("dns error"));
+        let failed = snapshot()
+            .into_iter()
+            .find(|r| r.provider == "anthropic")
+            .expect("관측한 프로바이더는 목록에 있다");
+        assert!(!failed.reachable);
+
+        observe("anthropic", None);
+        let healed = snapshot()
+            .into_iter()
+            .find(|r| r.provider == "anthropic")
+            .expect("관측한 프로바이더는 목록에 있다");
+        assert!(healed.reachable);
+        assert!(healed.detail.is_none());
     }
 }
