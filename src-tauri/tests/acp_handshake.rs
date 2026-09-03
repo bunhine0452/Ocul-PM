@@ -130,6 +130,79 @@ async fn adapter_installs_and_starts_from_pinned_entry() {
     assert_eq!(info.version, adapter::PINNED_VERSION);
 }
 
+/// Codex도 앱의 고정 설치 경로에서 실제 ACP initialize 응답을 돌려준다.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "외부 의존(Node·네트워크·Codex 로그인) — 수동 실행 전용"]
+async fn codex_adapter_installs_and_starts_from_pinned_entry() {
+    use agent_client_protocol::schema::v1::{
+        ContentBlock, NewSessionRequest, PromptRequest, TextContent,
+    };
+    use ocul_pm_lib::acp::{adapter, env};
+
+    let (node, _) = env::resolve_binary("node")
+        .await
+        .expect("node 를 찾지 못했다");
+    let (npm, _) = env::resolve_binary("npm")
+        .await
+        .expect("npm 을 찾지 못했다");
+    let app_data = tempfile::tempdir().expect("임시 폴더");
+    let workspace = tempfile::tempdir().expect("임시 작업 폴더");
+    let cwd = workspace.path().to_path_buf();
+    let path_env = env::effective_path().await;
+
+    let installed = adapter::install_codex(app_data.path(), &npm, &path_env)
+        .await
+        .expect("Codex 어댑터 설치 실패");
+    assert_eq!(installed, adapter::CODEX_PINNED_VERSION);
+
+    let config = agent_client_protocol::AcpAgentConfig::new(&node)
+        .arg(
+            adapter::codex_entry_path(app_data.path())
+                .to_string_lossy()
+                .to_string(),
+        )
+        .env("PATH", &path_env);
+    let handshake = Client.builder().name("ocul-pm").connect_with(
+        AcpAgent::new(config),
+        |cx: ConnectionTo<Agent>| async move {
+            let init = cx
+                .send_request(InitializeRequest::new(ProtocolVersion::V1))
+                .block_task()
+                .await?;
+            let session = cx
+                .send_request(NewSessionRequest::new(cwd))
+                .block_task()
+                .await?
+                .session_id;
+            let response = cx
+                .send_request(PromptRequest::new(
+                    session,
+                    vec![ContentBlock::Text(TextContent::new(
+                        "Reply with exactly OK. Do not use tools.".to_string(),
+                    ))],
+                ))
+                .block_task()
+                .await?;
+            Ok((init, response.stop_reason))
+        },
+    );
+
+    let (init, stop_reason) = tokio::time::timeout(TURN_TIMEOUT, handshake)
+        .await
+        .expect("Codex 핸드셰이크 타임아웃")
+        .expect("Codex 핸드셰이크 실패");
+    let info = init.agent_info.expect("Codex agentInfo 가 없다");
+    assert!(!info.name.is_empty());
+    assert!(
+        init.auth_methods
+            .iter()
+            .any(|method| method.id().0.as_ref() == "chat-gpt"),
+        "ChatGPT 인증 방법을 광고하지 않았다: {:?}",
+        init.auth_methods
+    );
+    assert_eq!(format!("{stop_reason:?}").to_lowercase(), "endturn");
+}
+
 /// PR-ACP2 — 프롬프트 한 턴이 **우리 이벤트 타입으로** 흘러나오는지.
 ///
 /// 합성 값이 아니라 진짜 어댑터가 보내는 `session/update` 를 `map_update` 에

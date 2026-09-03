@@ -1,9 +1,8 @@
 //! ACP(Agent Client Protocol) 클라이언트 서브시스템.
 //!
 //! 설계 SSOT: [`docs/acp-panel/00-master-plan.md`]. 요약하면 — ocul-pm 이 ACP
-//! **클라이언트**가 되어 `@agentclientprotocol/claude-agent-acp` 어댑터를 띄우고,
-//! 그 너머의 Claude Code 를 앱 안에서 에이전트로 구동한다. 우리는 에이전트를
-//! 구현하지 않는다.
+//! **클라이언트**가 되어 Claude Code 또는 Codex ACP 어댑터를 띄우고, 그 너머의
+//! 에이전트를 앱 안에서 구동한다. 우리는 에이전트를 구현하지 않는다.
 //!
 //! - [`env`] — node·npm·claude 탐색 (패키징 `.app` 의 빈약한 PATH 대응)
 //! - [`adapter`] — 어댑터 npm 패키지 버전 고정 설치
@@ -21,6 +20,61 @@ pub mod session;
 
 pub use process::{AcpAgentInfo, AcpState};
 pub use session::AcpEvent;
+
+/// ACP backend selected by the client. Serialized spelling is part of the IPC
+/// contract, so keep it stable even if adapter package names change.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum AcpProvider {
+    #[default]
+    Claude,
+    Codex,
+}
+
+impl AcpProvider {
+    pub fn state_key(self, project_id: u32) -> u64 {
+        (u64::from(project_id) << 1) | u64::from(matches!(self, Self::Codex))
+    }
+
+    /// 기록에 남는 이름 (`.oculpm` 일지·플랜의 `agent.id`). 사전에 이미 있는
+    /// 어댑터 id 를 그대로 쓴다 — 색·라벨이 그 표에 매여 있다
+    /// (`src/features/today/agentColor.ts`).
+    pub fn agent_id(self) -> &'static str {
+        match self {
+            Self::Claude => "claude-code",
+            Self::Codex => "codex",
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{codex_auth_detected_at, AcpProvider};
+
+    #[test]
+    fn provider_state_keys_are_stable_and_isolated() {
+        assert_eq!(AcpProvider::Claude.state_key(0), 0);
+        assert_eq!(AcpProvider::Codex.state_key(0), 1);
+        assert_eq!(AcpProvider::Claude.state_key(42), 84);
+        assert_eq!(AcpProvider::Codex.state_key(42), 85);
+        assert_ne!(
+            AcpProvider::Codex.state_key(41),
+            AcpProvider::Claude.state_key(42)
+        );
+    }
+
+    #[test]
+    fn codex_auth_diagnostic_checks_presence_without_reading_credentials() {
+        let home = tempfile::tempdir().unwrap();
+        assert!(!codex_auth_detected_at(Some(home.path()), false));
+        assert!(codex_auth_detected_at(None, true));
+
+        std::fs::write(home.path().join("auth.json"), "not parsed by diagnostics").unwrap();
+        assert!(codex_auth_detected_at(Some(home.path()), false));
+    }
+}
 
 /// 에이전트 화면이 뜨기 전에 무엇이 없는지 알려주기 위한 진단.
 ///
@@ -47,8 +101,14 @@ pub struct AcpDiagnostics {
     pub adapter_expected: String,
     /// 설치돼 있고 고정 버전과 일치하는가.
     pub adapter_ok: bool,
+    pub codex_adapter_version: Option<String>,
+    pub codex_adapter_expected: String,
+    pub codex_adapter_ok: bool,
+    /// Credential material exists; values are never read or returned.
+    pub codex_auth_detected: bool,
     /// 전부 충족 — 에이전트를 띄울 수 있다.
     pub ready: bool,
+    pub codex_ready: bool,
 }
 
 /// 현재 머신 상태를 있는 그대로 읽는다. 쓰기 없음.
@@ -67,6 +127,16 @@ pub async fn diagnose(app_data: &Path) -> AcpDiagnostics {
 
     let adapter_version = adapter::installed_version(app_data);
     let adapter_ok = adapter_version.as_deref() == Some(adapter::PINNED_VERSION);
+    let codex_adapter_version = adapter::codex_installed_version(app_data);
+    let codex_adapter_ok = codex_adapter_version.as_deref() == Some(adapter::CODEX_PINNED_VERSION);
+    let codex_home = std::env::var_os("CODEX_HOME")
+        .map(std::path::PathBuf::from)
+        .or_else(|| directories::BaseDirs::new().map(|base| base.home_dir().join(".codex")));
+    // 어댑터가 받는 키는 둘이다 — `CODEX_API_KEY` 를 빼면 그것만 넣어 둔
+    // 사용자가 "인증 없음"으로 표시된다 (실제로는 잘 돈다).
+    let api_key_present =
+        std::env::var_os("CODEX_API_KEY").is_some() || std::env::var_os("OPENAI_API_KEY").is_some();
+    let codex_auth_detected = codex_auth_detected_at(codex_home.as_deref(), api_key_present);
 
     // **어댑터가 들고 온 것을 먼저 본다.** 어댑터가 실제로 그걸 쓰기 때문이다
     // (`CLAUDE_CODE_EXECUTABLE` 이 없으면 SDK 옆의 네이티브 바이너리를 집는다).
@@ -92,6 +162,15 @@ pub async fn diagnose(app_data: &Path) -> AcpDiagnostics {
         adapter_version,
         adapter_expected: adapter::PINNED_VERSION.to_string(),
         adapter_ok,
+        codex_adapter_version,
+        codex_adapter_expected: adapter::CODEX_PINNED_VERSION.to_string(),
+        codex_adapter_ok,
+        codex_auth_detected,
         ready: node_ok && adapter_ok && claude.is_some(),
+        codex_ready: node_ok && codex_adapter_ok && codex_auth_detected,
     }
+}
+
+fn codex_auth_detected_at(codex_home: Option<&Path>, api_key_present: bool) -> bool {
+    api_key_present || codex_home.is_some_and(|path| path.join("auth.json").is_file())
 }

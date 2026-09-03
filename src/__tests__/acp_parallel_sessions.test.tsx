@@ -18,13 +18,13 @@ const SESSION_A = "sess-a";
 const SESSION_B = "sess-b";
 
 /** `acp_prompt` 로 나간 것들 — 어느 대화에 무엇을 보냈나. */
-const sent: { sessionId: string | null; text: string }[] = [];
+const sent: { provider: "claude" | "codex" | null; sessionId: string | null; text: string }[] = [];
 /** 아직 안 끝난 턴들 — 테스트가 원할 때만 닫는다. */
 let settle: (() => void)[] = [];
 
 function session(id: string | null): AcpSession {
   return {
-    agent: { name: "claude-code", title: "Claude Code", version: "0.73.0", auth_required: false },
+    agent: { name: "claude-code", title: "Claude Code", version: "0.73.0", auth_required: false, supports_image: true },
     commands: [],
     session_id: id,
     title: null,
@@ -59,8 +59,13 @@ vi.mock("@/lib/bindings", () => {
             case "settingsGetAll":
               return () => ok([]);
             case "acpPrompt":
-              return (_projectId: number, sessionId: string | null, text: string) => {
-                sent.push({ sessionId, text });
+              return (
+                _projectId: number,
+                provider: "claude" | "codex" | null,
+                sessionId: string | null,
+                text: string,
+              ) => {
+                sent.push({ provider, sessionId, text });
                 // 턴을 **열어 둔 채** 둔다 — "A 가 도는 동안" 이 이 테스트의 전제다.
                 return new Promise((resolve) => {
                   settle.push(() => resolve({ status: "ok" as const, data: "end_turn" }));
@@ -123,7 +128,7 @@ describe("한 프로젝트의 대화 여러 개", () => {
 
     await ask("첫 질문");
     await waitFor(() => expect(sent).toHaveLength(1));
-    expect(sent[0]).toEqual({ sessionId: SESSION_A, text: "첫 질문" });
+    expect(sent[0]).toEqual({ provider: "claude", sessionId: SESSION_A, text: "첫 질문" });
 
     // A 의 턴은 아직 안 끝났다 — 그 상태로 새 대화를 연다.
     fireEvent.click(container.querySelector(".acp-panel-new") as HTMLElement);
@@ -136,7 +141,7 @@ describe("한 프로젝트의 대화 여러 개", () => {
 
     await ask("둘째 질문");
     await waitFor(() => expect(sent).toHaveLength(2));
-    expect(sent[1]).toEqual({ sessionId: SESSION_B, text: "둘째 질문" });
+    expect(sent[1]).toEqual({ provider: "claude", sessionId: SESSION_B, text: "둘째 질문" });
   });
 
   it("같은 대화에 연달아 치면 예전처럼 줄을 선다", async () => {
@@ -152,6 +157,13 @@ describe("한 프로젝트의 대화 여러 개", () => {
     // 턴이 끝나면 그제서야 나간다.
     settle[0]();
     await waitFor(() => expect(sent).toHaveLength(2));
-    expect(sent[1]).toEqual({ sessionId: SESSION_A, text: "둘째 질문" });
+    expect(sent[1]).toEqual({ provider: "claude", sessionId: SESSION_A, text: "둘째 질문" });
+  });
+
+  it("Codex 화면은 같은 ACP 흐름을 codex provider로 보낸다", async () => {
+    render(wrap(<AcpConversation projectId={1} provider="codex" />));
+    await ask("Codex 질문");
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toEqual({ provider: "codex", sessionId: SESSION_A, text: "Codex 질문" });
   });
 });

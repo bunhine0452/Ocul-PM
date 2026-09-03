@@ -35,6 +35,9 @@ const AiPanelScreenV2 = lazy(() =>
 const ClaudeCodeScreenV2 = lazy(() =>
   import("@/features/chat/ClaudeCodeScreenV2").then((m) => ({ default: m.ClaudeCodeScreenV2 })),
 );
+const CodexScreenV2 = lazy(() =>
+  import("@/features/chat/CodexScreenV2").then((m) => ({ default: m.CodexScreenV2 })),
+);
 const DocsScreenV2 = lazy(() =>
   import("@/features/docs/DocsScreenV2").then((m) => ({ default: m.DocsScreenV2 })),
 );
@@ -82,7 +85,7 @@ import "@/styles/index.css";
 /** 트레이 딥링크·URL 이 실어 오는 화면 이름의 허용 목록. */
 const KNOWN_VIEWS: UiV2View[] = [
   "today", "journal", "diff", "planner", "discussion", "retro", "search",
-  "terminal", "ai", "graph", "docs", "skills", "claudecode", "code", "settings",
+  "terminal", "ai", "graph", "docs", "skills", "claudecode", "codex", "code", "settings",
 ];
 
 interface ShellV2Props {
@@ -127,8 +130,10 @@ export default function ShellV2({
    * keep-alive 블록에 그 이유를 자세히 적어 두었다.
    */
   const [claudeMounted, setClaudeMounted] = useState(view === "claudecode");
+  const [codexMounted, setCodexMounted] = useState(view === "codex");
   useEffect(() => {
     if (view === "claudecode") setClaudeMounted(true);
+    if (view === "codex") setCodexMounted(true);
   }, [view]);
 
   // 터미널 「일지로 남기기」·팔레트 「수동 일지」 는 일지 화면이 마운트돼 있을 때만
@@ -619,6 +624,14 @@ export default function ShellV2({
             style={{ display: view === "claudecode" ? "contents" : "none" }}
           >
             <ClaudeCodeScreenV2 projectId={projectId} />
+          </div>
+        ) : null}
+        {codexMounted && projectId != null ? (
+          <div
+            className="screen-keepalive"
+            style={{ display: view === "codex" ? "contents" : "none" }}
+          >
+            <CodexScreenV2 projectId={projectId} />
           </div>
         ) : null}
         </Suspense>

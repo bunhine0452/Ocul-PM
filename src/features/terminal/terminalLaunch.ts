@@ -91,3 +91,14 @@ export function claudeCommand(prefill?: string | null): string {
   const text = prefill?.trim();
   return text ? `claude --prefill ${shellQuote(text)}` : "claude";
 }
+
+/**
+ * Codex CLI 진입 명령 (provider 별 「터미널에서」 탈출구).
+ *
+ * Claude 쪽과 마찬가지로 **쓰던 말을 들고 나간다** — 맥락을 버리면 사용자가
+ * 터미널에서 같은 말을 다시 쳐야 한다. Codex 는 위치 인자로 첫 프롬프트를 받는다.
+ */
+export function codexCommand(prefill?: string | null): string {
+  const text = prefill?.trim();
+  return text ? `codex ${shellQuote(text)}` : "codex";
+}

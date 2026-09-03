@@ -74,7 +74,13 @@ function toneOf(utilization: number | null): string {
  * 다시 그려지는데, 계기가 같이 딸려 그려질 이유가 없다 — 프로젝트 id 말고는
  * 밖에서 오는 것이 없고, 숫자는 자기 타이머가 갱신한다.
  */
-export const AcpUsageMeter = memo(function AcpUsageMeter({ projectId }: { projectId: number }) {
+export const AcpUsageMeter = memo(function AcpUsageMeter({
+  projectId,
+  provider = "claude",
+}: {
+  projectId: number;
+  provider?: "claude" | "codex";
+}) {
   const { t } = useT();
   const [usage, setUsage] = useState<AcpUsage | null>(null);
   const [open, setOpen] = useState(false);
@@ -112,9 +118,9 @@ export const AcpUsageMeter = memo(function AcpUsageMeter({ projectId }: { projec
 
   /** 상태에 갈무리된 값 읽기 — 왕복이 없다. */
   const read = useCallback(async () => {
-    const res = await commands.acpUsage(projectId);
+    const res = await commands.acpUsage(projectId, provider);
     if (res.status === "ok") setUsage(res.data);
-  }, [projectId]);
+  }, [projectId, provider]);
 
   /**
    * 진짜 새로고침 — `/usage` 를 보낸다.
@@ -134,13 +140,13 @@ export const AcpUsageMeter = memo(function AcpUsageMeter({ projectId }: { projec
     inFlight.current = true;
     setRefreshing(true);
     try {
-      const res = await commands.acpRefreshUsage(projectId);
+      const res = await commands.acpRefreshUsage(projectId, provider);
       if (res.status === "ok") setUsage(res.data);
     } finally {
       inFlight.current = false;
       setRefreshing(false);
     }
-  }, [projectId]);
+  }, [projectId, provider]);
 
   // `/usage` 나 컴포저 배지에서 열어 달라는 신호. 열면서 값도 새로 읽는다 —
   // 사용자가 지금 알고 싶은 건 **지금** 숫자다.

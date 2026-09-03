@@ -153,9 +153,11 @@ export function Sidebar({
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
   /** 지금 돌고 있는 Claude Code 세션 수 (acpBusyBus — 메모리 버스). */
-  const acpWorking = useAcpWorkingCount(currentProjectId ?? null);
+  const acpWorking = useAcpWorkingCount(currentProjectId ?? null, "claude");
   /** 승인을 기다리며 멈춰 있는 세션 수 — 작업 배지보다 우선해 보인다. */
-  const acpAttention = useAcpAttentionCount(currentProjectId ?? null);
+  const acpAttention = useAcpAttentionCount(currentProjectId ?? null, "claude");
+  const codexWorking = useAcpWorkingCount(currentProjectId ?? null, "codex");
+  const codexAttention = useAcpAttentionCount(currentProjectId ?? null, "codex");
 
   // ⌘P (useGlobalShortcuts) / 팔레트 "프로젝트 전환" → 팝오버 열기 (v2 U1).
   useEffect(() => {
@@ -295,8 +297,8 @@ export function Sidebar({
           active={view === slot.id}
           index={MAIN_NAV.length + TOOL_NAV.length + i}
           onNavigate={onNavigate}
-          working={slot.id === "claudecode" ? acpWorking : 0}
-          attention={slot.id === "claudecode" ? acpAttention : 0}
+          working={slot.id === "claudecode" ? acpWorking : slot.id === "codex" ? codexWorking : 0}
+          attention={slot.id === "claudecode" ? acpAttention : slot.id === "codex" ? codexAttention : 0}
         />
       ))}
 

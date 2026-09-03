@@ -174,7 +174,7 @@ export function DoctorSection() {
 
     const a = report.acp;
     const install = async () => {
-      const r = await commands.acpInstallAdapter();
+      const r = await commands.acpInstallAdapter("claude");
       if (r.status === "ok") toast.info(t("settings.doctor.a.installDone"));
       else toast.destructive(t("settings.doctor.a.failed", { error: tError(r.error) }));
       await check();

@@ -15,11 +15,11 @@ describe("navRegistry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("main 6 + tools 5 + ai 3 = 14개 화면을 커버한다", () => {
+  it("main 6 + tools 5 + ai 4 = 15개 화면을 커버한다", () => {
     expect(NAV_ENTRIES.filter((e) => e.group === "main")).toHaveLength(6);
     // 2026-08-24 — AI 면(Claude Code · AI 대화 · 스킬·규칙)을 tools 에서 분리.
     expect(NAV_ENTRIES.filter((e) => e.group === "tools")).toHaveLength(5);
-    expect(NAV_ENTRIES.filter((e) => e.group === "ai")).toHaveLength(3);
+    expect(NAV_ENTRIES.filter((e) => e.group === "ai")).toHaveLength(4);
   });
 
   it("⌘번호는 배열(=사이드바 표시) 순서를 그대로 따른다", () => {
@@ -41,6 +41,29 @@ describe("navRegistry", () => {
     expect(navShortcutLabel("code")).toBeUndefined();
     expect(navShortcutLabel("docs")).toBe("⌘9");
     expect(navShortcutLabel("terminal")).toBe("⌘0");
+  });
+
+  /**
+   * 번호가 걸린 **앞 10칸을 못 박는다.**
+   *
+   * 새 화면을 목록 중간에 끼우면 ⌘번호가 통째로 밀리는데, 개수만 세는 위
+   * 테스트는 그걸 통과시킨다 (2026-09-03 Codex 화면 추가 때 실제로 그랬다 —
+   * 다행히 12번째라 밀린 번호는 없었다). 여기 배열이 바뀌면 사용자의 손가락이
+   * 기억하는 번호가 바뀐 것이므로, 일부러 고칠 때만 고친다.
+   */
+  it("⌘번호가 걸린 앞 10칸은 고정이다", () => {
+    expect(NAV_ENTRIES.slice(0, NAV_SHORTCUT_KEYS.length).map((e) => e.id)).toEqual([
+      "today",
+      "journal",
+      "discussion",
+      "planner",
+      "diff",
+      "retro",
+      "search",
+      "graph",
+      "docs",
+      "terminal",
+    ]);
   });
 
   it("번호 없는 키 입력은 undefined (⌘\\ 등 다른 핸들러로 폴스루)", () => {

@@ -7,6 +7,7 @@
 //! 이 라운드가 그리는 것은 텍스트뿐이다. 툴콜·플랜은 PR-ACP3/4 가 `Other` 를
 //! 대체하며 채운다.
 
+use super::AcpProvider;
 use agent_client_protocol::schema::v1::{ContentBlock, SessionUpdate};
 use serde::{Deserialize, Serialize};
 
@@ -1451,6 +1452,7 @@ pub enum AcpSessionChangeKind {
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
 pub struct AcpSessionChanged {
     pub project_id: u32,
+    pub provider: AcpProvider,
     pub session_id: Option<String>,
     pub kind: AcpSessionChangeKind,
 }
@@ -1459,12 +1461,14 @@ pub struct AcpSessionChanged {
 pub fn emit_session_changed(
     app: &tauri::AppHandle,
     project_id: u32,
+    provider: AcpProvider,
     session_id: Option<String>,
     kind: AcpSessionChangeKind,
 ) {
     use tauri_specta::Event;
     let _ = AcpSessionChanged {
         project_id,
+        provider,
         session_id,
         kind,
     }

@@ -78,6 +78,7 @@ export type UiV2View =
   // PR-ACP6 — Claude Code 구동면. "ai"(프로바이더 채팅)와 성격이 달라 화면을
   // 나눴다: 저쪽은 물어보는 곳, 이쪽은 시키는 곳이다.
   | "claudecode"
+  | "codex"
   // 코드 화면 (docs/code-editor/00-master-plan.md) — 인앱 코드 뷰어·에디터.
   | "code"
   | "settings";
@@ -271,6 +272,8 @@ export interface WorkspaceState {
    * 만들지 않고도 성립한다.
    */
   acpTabs: { id: string; title: string | null }[];
+  /** Codex ACP tabs are isolated from Claude sessions in the same project. */
+  codexAcpTabs: { id: string; title: string | null }[];
   /**
    * 사용자가 대화에 붙인 이름표 (세션 id → 이름).
    *
@@ -279,6 +282,7 @@ export interface WorkspaceState {
    * 대화를 열면 에이전트가 붙인 원래 제목이 보인다.
    */
   acpNames: Record<string, string>;
+  codexAcpNames: Record<string, string>;
   /**
    * 마지막으로 보고 있던 대화의 id.
    *
@@ -287,6 +291,7 @@ export interface WorkspaceState {
    * "하던 곳"으로 돌아간다. 없거나 이미 지워졌으면 빈 화면으로 시작한다.
    */
   acpLastSession: string | null;
+  codexAcpLastSession: string | null;
   /**
    * Effort 트랙의 **마지막 칸**(울트라코드) 선택 여부.
    *
@@ -420,6 +425,9 @@ const DEFAULT_STATE: WorkspaceState = {
   acpTabs: [],
   acpNames: {},
   acpLastSession: null,
+  codexAcpTabs: [],
+  codexAcpNames: {},
+  codexAcpLastSession: null,
   acpUltracode: false,
   aiThreadId: null,
   docsActivePath: null,

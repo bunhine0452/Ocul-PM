@@ -23,7 +23,7 @@ let settle: (() => void)[] = [];
 
 function session(id: string | null): AcpSession {
   return {
-    agent: { name: "claude-code", title: "Claude Code", version: "0.73.0", auth_required: false },
+    agent: { name: "claude-code", title: "Claude Code", version: "0.73.0", auth_required: false, supports_image: true },
     commands: [],
     session_id: id,
     title: null,
@@ -55,14 +55,15 @@ vi.mock("@/lib/bindings", () => {
             // 이미 본 대화로 돌아갈 때 화면이 타는 지름길 — 장부만 바꾸고
             // 기록은 그대로 둔다. null 을 주면 세션이 비어 빈 화면이 된다.
             case "acpSelectSession":
-              return (_p: number, sessionId: string) => ok(session(sessionId));
+              return (_p: number, _provider: "claude" | "codex" | null, sessionId: string) => ok(session(sessionId));
             case "acpLoadSession":
-              return (_p: number, sessionId: string) => ok(session(sessionId));
+              return (_p: number, _provider: "claude" | "codex" | null, sessionId: string) => ok(session(sessionId));
             case "settingsGetAll":
               return () => ok([]);
             case "acpPrompt":
               return (
                 _projectId: number,
+                _provider: "claude" | "codex" | null,
                 sessionId: string | null,
                 _text: string,
                 _sending: unknown,

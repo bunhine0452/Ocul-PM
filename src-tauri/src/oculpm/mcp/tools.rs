@@ -11,6 +11,27 @@
 use std::path::Path;
 
 use chrono::{SecondsFormat, Timelike, Utc};
+
+/// 이 서버를 띄운 쪽이 알려 주는 호출자 id (앱의 ACP 커맨드가 세션마다 넘긴다).
+///
+/// 도구 인자의 `agent_id` 가 없을 때 쓰는 기본값을 정한다. 이게 없던 동안에는
+/// 앱 안에서 도는 **모든** 에이전트의 일지가 `claude-code` 로 기록됐다 —
+/// provider 가 둘이 된 순간부터 그건 그냥 틀린 기록이다.
+pub const AGENT_ID_ENV: &str = "OCULPM_AGENT_ID";
+
+/// 인자로 안 준 `agent_id` 의 기본값. 터미널에서 직접 띄운 CLI 처럼 환경변수가
+/// 없는 자리에서는 예전 그대로 `claude-code`.
+fn default_agent_id() -> String {
+    agent_id_or_default(std::env::var(AGENT_ID_ENV).ok())
+}
+
+/// 환경변수를 읽는 부분만 떼어낸다 — 테스트가 프로세스 환경을 건드리면
+/// 병렬로 도는 다른 테스트까지 흔든다.
+fn agent_id_or_default(raw: Option<String>) -> String {
+    raw.map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "claude-code".to_string())
+}
 use serde_json::{json, Value};
 
 use crate::oculpm::atomic_io::write_atomic;
@@ -75,7 +96,7 @@ pub fn tool_definitions() -> Value {
                         }
                     },
                     "session_id": { "type": "string", "description": "훅이 준 세션 id 가 있으면 그대로. 없으면 서버가 실행 중인 세션에 귀속시킨다" },
-                    "agent_id": { "type": "string", "description": "호출한 에이전트 id (기본 claude-code)" },
+                    "agent_id": { "type": "string", "description": "호출한 에이전트 id (생략 시 이 세션을 띄운 에이전트)" },
                     "agent_version": { "type": "string", "description": "모델명 (예: Opus 4.8)" }
                 },
                 "required": ["type", "slug", "title", "body_markdown"]
@@ -138,7 +159,7 @@ pub fn tool_definitions() -> Value {
                     "status": { "type": "string", "enum": ["todo", "in_progress", "done", "blocked", "deferred", "dropped"] },
                     "journal_path": { "type": "string", "description": "방금 쓴 일지의 .oculpm/ 상대경로 (journal_write 응답의 path)" },
                     "note": { "type": "string", "description": "plan-log 메모 열 (짧게)" },
-                    "agent_id": { "type": "string", "description": "기본 claude-code" }
+                    "agent_id": { "type": "string", "description": "생략 시 이 세션을 띄운 에이전트" }
                 },
                 "required": ["plan_id", "item_id", "status"]
             }
@@ -187,7 +208,7 @@ pub fn tool_definitions() -> Value {
                             "required": ["title"]
                         }
                     },
-                    "agent_id": { "type": "string", "description": "기본 claude-code — frontmatter owner" }
+                    "agent_id": { "type": "string", "description": "생략 시 이 세션을 띄운 에이전트 — frontmatter owner" }
                 },
                 "required": ["plan_id", "title", "phases"]
             }
@@ -662,8 +683,8 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
             }),
         agent: AgentRef {
             id: arg_str(args, "agent_id")
-                .unwrap_or("claude-code")
-                .to_string(),
+                .map(str::to_string)
+                .unwrap_or_else(default_agent_id),
             version: arg_str(args, "agent_version").map(str::to_string),
         },
         // 프로젝트의 AI 작성 언어 — 영문 프로젝트도 "ko" 로 색인되던 것을 바로잡는다.
@@ -1303,8 +1324,8 @@ fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
         .trim_start_matches('#');
     let new_status = parse_item_status(arg_str(args, "status").ok_or("'status' is required")?)?;
     let agent_id = arg_str(args, "agent_id")
-        .unwrap_or("claude-code")
-        .to_string();
+        .map(str::to_string)
+        .unwrap_or_else(default_agent_id);
 
     let planner_root = planner_dir(root);
     let path = find_plan_path(&planner_root, plan_id)
@@ -1386,7 +1407,8 @@ fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
             "plan_id '{plan_id}' must be kebab-case, 40 chars or fewer"
         ));
     }
-    let agent_id = arg_str(args, "agent_id").unwrap_or("claude-code");
+    let fallback_agent_id = default_agent_id();
+    let agent_id = arg_str(args, "agent_id").unwrap_or(&fallback_agent_id);
     if !agent_id
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | ':' | '.'))
@@ -1738,6 +1760,20 @@ mod tests {
         // No sessions.json (app not running) → synthetic fallback stands.
         assert!(fm.session_id.starts_with("mcp-"));
         assert!(body.trim_start().starts_with("[x] 캐시 무효화 수정"));
+    }
+
+    /// 인자로 `agent_id` 를 안 줬을 때 **누구의 일지가 되는가.**
+    ///
+    /// 앱이 어댑터를 띄우며 `OCULPM_AGENT_ID` 를 넘긴다 (Codex 세션이면 `codex`).
+    /// 이게 없던 동안 Codex 가 쓴 일지가 전부 `claude-code` 로 기록됐다 —
+    /// 자기 자신을 추적하는 앱에서 귀속이 틀리면 기록이 거짓이 된다.
+    #[test]
+    fn default_agent_id_follows_the_session_that_launched_us() {
+        assert_eq!(agent_id_or_default(None), "claude-code");
+        assert_eq!(agent_id_or_default(Some(String::new())), "claude-code");
+        assert_eq!(agent_id_or_default(Some("  ".to_string())), "claude-code");
+        assert_eq!(agent_id_or_default(Some("codex".to_string())), "codex");
+        assert_eq!(agent_id_or_default(Some(" codex ".to_string())), "codex");
     }
 
     /// Dogfooding follow-up (2026-08-20) — when the app *is* running, the

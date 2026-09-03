@@ -10,6 +10,7 @@ import {
   Terminal,
   TriangleAlert,
   X,
+  Code2,
 } from "@/components/Icons";
 import { Toolbar } from "@/components/Toolbar";
 import { PanelLeft } from "@/components/Icons";
@@ -22,6 +23,7 @@ import { commands, events,
   type AcpCommand,
   type AcpSession,
   type AcpSessionSummary,
+  type AppError,
 } from "@/lib/bindings";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -81,6 +83,7 @@ import { registerCloseHandler } from "@/lib/closeIntent";
 import { registerBusy } from "@/lib/busyGuard";
 import {
   claudeCommand,
+  codexCommand,
   newPtySessionId,
   stageBootCommand,
 } from "@/features/terminal/terminalLaunch";
@@ -123,8 +126,17 @@ const STICK_SLACK_PX = 64;
 // 헤어라인에 묶여 눌린다 (agent.css `.trace`).
 
 
-export function AcpConversation({ projectId }: { projectId: number }) {
+export type AcpProvider = "claude" | "codex";
+
+export function AcpConversation({
+  projectId,
+  provider = "claude",
+}: {
+  projectId: number;
+  provider?: AcpProvider;
+}) {
   const { t } = useT();
+  const codex = provider === "codex";
   // Phase 4 #workspace-split — 취향(acp*)·런타임(프로젝트)·터미널(「터미널에서」) 조각.
   const { prefs, setPrefs } = useUiPrefs();
   const runtime = useProjectRuntime();
@@ -135,13 +147,23 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 요청이 없어서(있는 것은 지우기뿐) 에이전트의 제목은 그대로 두고 화면에서만
    * 우리 이름이 이긴다. 그래서 이 이름은 이 컴퓨터를 벗어나지 않는다.
    */
-  const names = prefs.acpNames;
+  const names = codex ? prefs.codexAcpNames : prefs.acpNames;
   const nameOf = useCallback(
     (id: string | null, fallback: string | null) => (id ? (names[id] ?? fallback) : fallback),
     [names],
   );
-  const ultracode = prefs.acpUltracode;
-  const tabs = prefs.acpTabs;
+  const ultracode = codex ? false : prefs.acpUltracode;
+  const tabs = codex ? prefs.codexAcpTabs : prefs.acpTabs;
+  const withTabs = useCallback(
+    (prev: typeof prefs, next: typeof tabs) =>
+      codex ? { ...prev, codexAcpTabs: next } : { ...prev, acpTabs: next },
+    [codex],
+  );
+  const withNames = useCallback(
+    (prev: typeof prefs, next: typeof names) =>
+      codex ? { ...prev, codexAcpNames: next } : { ...prev, acpNames: next },
+    [codex],
+  );
 
   /** 탭 목록을 갱신한다 (없으면 추가, 있으면 제목만 최신으로). */
   /**
@@ -158,12 +180,12 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     (id: string | null, title: string | null) => {
       if (!id) return;
       setPrefs((prev) =>
-        prev.acpTabs.some((tab) => tab.id === id)
+        (codex ? prev.codexAcpTabs : prev.acpTabs).some((tab) => tab.id === id)
           ? prev
-          : { ...prev, acpTabs: [...prev.acpTabs, { id, title }] },
+          : withTabs(prev, [...(codex ? prev.codexAcpTabs : prev.acpTabs), { id, title }]),
       );
     },
-    [setPrefs],
+    [codex, setPrefs, withTabs],
   );
 
   /** 제목만 갱신 — **없는 탭을 만들지 않는다**(그게 되살아남의 통로였다). */
@@ -171,14 +193,15 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     (id: string | null, title: string | null) => {
       if (!id || title === null) return;
       setPrefs((prev) => {
-        const at = prev.acpTabs.findIndex((tab) => tab.id === id);
-        if (at === -1 || prev.acpTabs[at].title === title) return prev;
-        const next = [...prev.acpTabs];
+        const current = codex ? prev.codexAcpTabs : prev.acpTabs;
+        const at = current.findIndex((tab) => tab.id === id);
+        if (at === -1 || current[at].title === title) return prev;
+        const next = [...current];
         next[at] = { id, title };
-        return { ...prev, acpTabs: next };
+        return withTabs(prev, next);
       });
     },
-    [setPrefs],
+    [codex, setPrefs, withTabs],
   );
   const [session, setSession] = useState<AcpSession | null>(null);
   /**
@@ -303,6 +326,21 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     (value: PermissionState | null) => putPermission(activeIdRef.current, value),
     [putPermission],
   );
+
+  /**
+   * 어댑터가 아직 안 깔려 시작하지 못했다 — 화면이 설치 버튼을 띄운다.
+   *
+   * 오류 문구만으로는 사용자가 할 수 있는 일이 "다시 시도" 뿐이었다(눌러도
+   * 같은 곳에서 같은 이유로 막힌다). 코드로 갈라 안내를 바꾼다.
+   */
+  const [needsInstall, setNeedsInstall] = useState(false);
+  const failStart = useCallback(
+    (err: AppError) => {
+      setNeedsInstall(err.code === "acp_codex_adapter_missing");
+      setError(tError(err));
+    },
+    [setError],
+  );
   /** 이번 프롬프트에 함께 보낼 파일 (상대·절대 섞여도 백엔드가 맞춘다). */
   const [attachments, setAttachments] = useState<string[]>([]);
   /**
@@ -384,13 +422,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     let cancelled = false;
     setSession(null);
     setError(null);
+    setNeedsInstall(false);
     setStarting(true);
     void commands
-      .acpStart(projectId)
+      .acpStart(projectId, provider)
       .then((res) => {
         if (cancelled) return;
         if (res.status === "ok") setSession(res.data);
-        else setError(tError(res.error));
+        else failStart(res.error);
       })
       .finally(() => {
         if (!cancelled) setStarting(false);
@@ -398,7 +437,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, provider, failStart]);
 
   // `@` 를 치는 동안만 후보를 부른다 — 멘션이 아닐 땐 즉시 닫아 디스크를
   // 매 입력마다 걷지 않는다. 짧은 디바운스: 이 조회는 키 하나마다 디스크를
@@ -432,20 +471,20 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       return;
     }
     let cancelled = false;
-    void commands.acpCommands(projectId).then((res) => {
+    void commands.acpCommands(projectId, provider).then((res) => {
       if (cancelled) return;
       // 어댑터 목록 + 앱이 직접 처리하는 명령(`/clear`·`/continue`·`/rc` …).
       // 어댑터가 못 주는 것까지 합쳐야 `/` 를 눌렀을 때 실제로 되는 것이 다 보인다.
       const all = withLocalCommands(res.status === "ok" ? res.data : [], (key) =>
         t(key as Parameters<typeof t>[0]),
-      );
+      ).filter((command) => !codex || command.name !== "remote-control");
       setSlash(filterCommands(all, typed.query));
       setSlashIndex(0);
     });
     return () => {
       cancelled = true;
     };
-  }, [draft, projectId]);
+  }, [codex, draft, projectId, provider, t]);
 
   /**
    * 입력창이 내용을 따라 자란다 (최대 180px — 프로바이더 채팅과 같은 상한).
@@ -463,8 +502,12 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   // 지금 보고 있는 대화를 기억해 둔다 — 다시 띄웠을 때 여기로 돌아온다.
   useEffect(() => {
     const id = session?.session_id ?? null;
-    setPrefs((prev) => (prev.acpLastSession === id ? prev : { ...prev, acpLastSession: id }));
-  }, [session?.session_id, setPrefs]);
+    setPrefs((prev) => {
+      const current = codex ? prev.codexAcpLastSession : prev.acpLastSession;
+      if (current === id) return prev;
+      return codex ? { ...prev, codexAcpLastSession: id } : { ...prev, acpLastSession: id };
+    });
+  }, [codex, session?.session_id, setPrefs]);
 
   /**
    * 쓰다 만 글은 **대화를 따라간다.**
@@ -495,11 +538,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    */
   useEffect(() => {
     const keys = Object.keys(permissions).map((id) =>
-      acpWorkingKey(projectId, id === SLATE ? null : id),
+      acpWorkingKey(projectId, id === SLATE ? null : id, provider),
     );
     keys.forEach((key) => setAcpAttention(key, true));
     return () => keys.forEach((key) => setAcpAttention(key, false));
-  }, [permissions, projectId]);
+  }, [permissions, projectId, provider]);
 
   /**
    * 파일 드래그&드롭 → 첨부.
@@ -601,10 +644,10 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 탭을 접을 때)에도 반드시 지운다: 안 지우면 끝나지 않는 유령이 남는다.
    */
   useEffect(() => {
-    const keys = [...busySessions].map((id) => acpWorkingKey(projectId, id === SLATE ? null : id));
+    const keys = [...busySessions].map((id) => acpWorkingKey(projectId, id === SLATE ? null : id, provider));
     keys.forEach((key) => setAcpWorking(key, true));
     return () => keys.forEach((key) => setAcpWorking(key, false));
-  }, [busySessions, projectId]);
+  }, [busySessions, projectId, provider]);
 
   /**
    * 스트리밍 중에는 맨 아래를 따라간다 — **사용자가 바닥에 있을 때만.**
@@ -662,25 +705,51 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   const retry = useCallback(async () => {
     setStarting(true);
     setError(null);
+    setNeedsInstall(false);
     try {
-      const res = await commands.acpStart(projectId);
+      const res = await commands.acpStart(projectId, provider);
       if (res.status === "ok") setSession(res.data);
-      else setError(tError(res.error));
+      else failStart(res.error);
     } finally {
       setStarting(false);
     }
-  }, [projectId]);
+  }, [projectId, provider, failStart]);
+
+  /**
+   * 어댑터를 **누르면** 깐다.
+   *
+   * Claude 는 없으면 말없이 깔아 준다 — 그것 말고 선택지가 없기 때문이다.
+   * Codex 는 다르다: 어댑터에 딸려 오는 `@openai/codex` 의 플랫폼 바이너리까지
+   * 받으므로, 사이드바를 잘못 눌러 들어온 사람에게 수백 MB 를 말없이 내려받게
+   * 할 수는 없다. 백엔드가 `acp_codex_adapter_missing` 으로 돌려보내고 여기서
+   * 묻는다.
+   */
+  const installAdapter = useCallback(async () => {
+    setStarting(true);
+    setError(null);
+    try {
+      const res = await commands.acpInstallAdapter(provider);
+      if (res.status !== "ok") {
+        setError(tError(res.error));
+        return;
+      }
+      setNeedsInstall(false);
+    } finally {
+      setStarting(false);
+    }
+    await retry();
+  }, [provider, retry]);
 
   const setOption = useCallback(
     async (configId: string, value: string) => {
-      const res = await commands.acpSetConfigOption(projectId, configId, value);
+      const res = await commands.acpSetConfigOption(projectId, provider, configId, value);
       if (res.status === "ok") {
         setSession((prev) => (prev ? { ...prev, options: res.data } : prev));
       } else {
         setError(tError(res.error));
       }
     },
-    [projectId],
+    [projectId, provider],
   );
 
   const attach = useCallback(async () => {
@@ -697,6 +766,14 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     );
     if (!files.length) return;
     e.preventDefault();
+
+    // 프로토콜은 `promptCapabilities` 에 맞춰 UI 를 바꾸라고 못 박는다. 안 받는
+    // 에이전트에게 붙임 하나를 얹으면 **턴 전체가** 실패하므로, 붙기 전에
+    // 막고 이유를 말한다 (붙여넣기가 조용히 사라지는 것이 더 나쁘다).
+    if (sessionRef.current && !sessionRef.current.agent.supports_image) {
+      setError(t("acp.imagesUnsupported"));
+      return;
+    }
 
     for (const file of files) {
       const reader = new FileReader();
@@ -721,7 +798,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       };
       reader.readAsDataURL(file);
     }
-  }, []);
+  }, [t]);
 
   const pickMention = useCallback(
     (relPath: string) => {
@@ -742,7 +819,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    * 패널이 자기 빈 상태를 보여 준다.
    */
   const refreshHistory = useCallback(async () => {
-    const res = await commands.acpListSessions(projectId);
+    const res = await commands.acpListSessions(projectId, provider);
     if (res.status === "ok") {
       // 목록의 제목도 어댑터가 준 그대로다 — 탭과 같은 잣대로 거른다. 안 그러면
       // 같은 대화가 탭에서는 제 이름으로, 옆 패널에서는 방금 친 말로 보인다.
@@ -754,7 +831,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 여부는 그 사이에도 바뀐다. 렌더 시점에 접는다.
 
     }
-  }, [projectId, promptsOf]);
+  }, [projectId, provider, promptsOf]);
 
   /**
    * 설정·제목·어댑터 생사를 **백엔드가 알려 줄 때** 되읽는다.
@@ -773,7 +850,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       if (!isVisible()) return;
       // 어댑터 생사부터 본다. 다른 조회는 백엔드 상태의 **로컬 읽기**라
       // 프로세스가 죽어도 마지막 값을 돌려준다 — 죽음이 화면에 안 보였다.
-      void commands.acpStatus(projectId).then((res) => {
+      void commands.acpStatus(projectId, provider).then((res) => {
         if (res.status !== "ok") return;
         if (res.data) {
           aliveRef.current = true;
@@ -783,7 +860,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           setAgentGone(true);
         }
       });
-      void commands.acpOptions(projectId).then((res) => {
+      void commands.acpOptions(projectId, provider).then((res) => {
         if (res.status !== "ok" || !res.data.length) return;
         // **달라졌을 때만** 갈아 끼운다 (사연은 acpOptions.ts 에). 같은 값을
         // 새 객체로 넣으면 이 효과가 스스로를 다시 불러 끝없이 돈다.
@@ -798,7 +875,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 최신값은 ref 로 읽는다 — `session` 을 의존성에 넣으면 위와 같은 고리가
       // 다시 생기고, 제목이 하나 바뀔 때마다 구독을 새로 걸기까지 한다.
       if (sessionRef.current?.session_id == null) return;
-      void commands.acpSessionTitle(projectId).then((res) => {
+      void commands.acpSessionTitle(projectId, provider).then((res) => {
         if (res.status === "ok") {
           setSession((prev) =>
             prev && prev.title !== res.data ? { ...prev, title: res.data } : prev,
@@ -812,7 +889,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     let off: (() => void) | undefined;
     void events.acpSessionChanged
       .listen((evt) => {
-        if (evt.payload.project_id !== projectId) return;
+        if (evt.payload.project_id !== projectId || evt.payload.provider !== provider) return;
         sync();
         // 목록의 **내용**이 바뀌는 종류만 다시 읽는다. 뒤에서 도는 대화의
         // 제목은 이 길로만 탭에 닿는다 — 제목은 이제 그 대화의 칸에 들어가서
@@ -833,7 +910,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       window.removeEventListener("focus", onWake);
       document.removeEventListener("visibilitychange", onWake);
     };
-  }, [projectId, hasSession, isVisible, refreshHistory]);
+  }, [projectId, provider, hasSession, isVisible, refreshHistory]);
 
   // 패널을 안 열어도 목록을 읽는다. **탭 제목이 여기서 온다** — 세션 제목은
   // 에이전트가 대화를 보고 붙이고 그 알림은 만든 직후 한 번뿐이라, 지난 대화를
@@ -851,15 +928,16 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     if (!history?.length) return;
     setPrefs((prev) => {
       let changed = false;
-      const next = prev.acpTabs.map((tab) => {
+      const current = codex ? prev.codexAcpTabs : prev.acpTabs;
+      const next = current.map((tab) => {
         const found = history.find((item) => item.id === tab.id);
         if (!found?.title || found.title === tab.title) return tab;
         changed = true;
         return { ...tab, title: found.title };
       });
-      return changed ? { ...prev, acpTabs: next } : prev;
+      return changed ? withTabs(prev, next) : prev;
     });
-  }, [history, setPrefs]);
+  }, [codex, history, setPrefs, withTabs]);
 
   const openSession = useCallback(
     async (sessionId: string) => {
@@ -883,7 +961,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 스트림의 자리를 잠깐 빼앗아 아예 멎게 만든다. 장부만 바꾼다.
       if (transcriptsRef.current[sessionId]?.length) {
         const title = tabs.find((tab) => tab.id === sessionId)?.title ?? null;
-        const picked = await commands.acpSelectSession(projectId, sessionId, title);
+        const picked = await commands.acpSelectSession(projectId, provider, sessionId, title);
         if (loadSeqRef.current !== seq) return;
         if (picked.status === "ok") setSession(picked.data);
         else putError(sessionId, tError(picked.error));
@@ -906,7 +984,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         editTurns(sessionId, (prev) => applyAcpEvent(prev, event, true));
       };
 
-      const res = await commands.acpLoadSession(projectId, sessionId, channel);
+      const res = await commands.acpLoadSession(projectId, provider, sessionId, channel);
       if (loadSeqRef.current !== seq) return;
       if (res.status === "ok") {
         setSession(res.data);
@@ -918,7 +996,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         putError(sessionId, tError(res.error));
       }
     },
-    [projectId, addTab, editTurns, tabs, putUsage, putPermission, putError],
+    [projectId, provider, addTab, editTurns, tabs, putUsage, putPermission, putError],
   );
 
 
@@ -934,7 +1012,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     setStarting(true);
     setError(null);
     try {
-      const res = await commands.acpStart(projectId);
+      const res = await commands.acpStart(projectId, provider);
       if (res.status !== "ok") {
         setError(tError(res.error));
         return;
@@ -952,7 +1030,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     } finally {
       setStarting(false);
     }
-  }, [projectId, session?.session_id, refreshHistory, openSession]);
+  }, [projectId, provider, session?.session_id, refreshHistory, openSession]);
 
   /**
    * 다시 띄운 뒤 **하던 대화로 돌아간다** (업데이트 재시작이 이 길을 탄다).
@@ -968,11 +1046,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
   useEffect(() => {
     if (restoredRef.current || !session || !history) return;
     restoredRef.current = true;
-    const last = prefs.acpLastSession;
+    const last = codex ? prefs.codexAcpLastSession : prefs.acpLastSession;
     if (!last || last === session.session_id) return;
     if (!history.some((item) => item.id === last)) return;
     void openSession(last);
-  }, [session, history, prefs.acpLastSession, openSession]);
+  }, [codex, session, history, prefs.acpLastSession, prefs.codexAcpLastSession, openSession]);
 
   const pickCommand = useCallback((command: AcpCommand) => {
     setDraft(applyCommand(command));
@@ -1018,12 +1096,12 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    */
   const openInTerminal = useCallback((prefill?: string) => {
     const id = newPtySessionId(runtime.currentProjectId);
-    stageBootCommand(id, claudeCommand(prefill));
+    stageBootCommand(id, codex ? codexCommand(prefill) : claudeCommand(prefill));
     openTab(
-      { id, label: "Claude Code", shell: "", cwd: runtime.currentProjectRoot ?? "" },
+      { id, label: codex ? "Codex" : "Claude Code", shell: "", cwd: runtime.currentProjectRoot ?? "" },
       { view: "terminal" },
     );
-  }, [runtime.currentProjectId, runtime.currentProjectRoot, openTab]);
+  }, [codex, runtime.currentProjectId, runtime.currentProjectRoot, openTab]);
 
   /**
    * 탭을 닫는다. **보고 있던 탭이면 다른 탭으로 옮겨 간다** — 안 그러면 탭은
@@ -1038,16 +1116,15 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         if (tabs.length) void openSession(tabs[tabs.length - 1].id);
         return;
       }
-      setPrefs((prev) => ({
-        ...prev,
-        acpTabs: prev.acpTabs.filter((tab) => tab.id !== id),
-      }));
+      setPrefs((prev) =>
+        withTabs(prev, (codex ? prev.codexAcpTabs : prev.acpTabs).filter((tab) => tab.id !== id)),
+      );
       if (session?.session_id !== id) return;
       const rest = tabs.filter((tab) => tab.id !== id);
       if (rest.length) void openSession(rest[rest.length - 1].id);
       else newConversation();
     },
-    [session?.session_id, tabs, openSession, newConversation, setPrefs],
+    [codex, session?.session_id, tabs, openSession, newConversation, setPrefs, withTabs],
   );
 
   /**
@@ -1090,13 +1167,13 @@ export function AcpConversation({ projectId }: { projectId: number }) {
     (sessionId: string, next: string) => {
       const label = next.trim();
       setPrefs((prev) => {
-        const names = { ...prev.acpNames };
+        const names = { ...(codex ? prev.codexAcpNames : prev.acpNames) };
         if (label) names[sessionId] = label;
         else delete names[sessionId];
-        return { ...prev, acpNames: names };
+        return withNames(prev, names);
       });
     },
-    [setPrefs],
+    [codex, setPrefs, withNames],
   );
 
   /**
@@ -1108,7 +1185,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    */
   const remove = useCallback(
     async (sessionId: string) => {
-      const res = await commands.acpDeleteSession(projectId, sessionId);
+      const res = await commands.acpDeleteSession(projectId, provider, sessionId);
       if (res.status !== "ok") {
         setError(tError(res.error));
         return;
@@ -1116,18 +1193,17 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 어댑터 목록은 잠깐 더 이 대화를 들고 있다 — 우리 쪽에서 못 박아 둔다.
       removedRef.current.add(sessionId);
       setPrefs((prev) => {
-        const names = { ...prev.acpNames };
+        const names = { ...(codex ? prev.codexAcpNames : prev.acpNames) };
         delete names[sessionId];
-        return {
-          ...prev,
-          acpNames: names,
-          acpTabs: prev.acpTabs.filter((tab) => tab.id !== sessionId),
-        };
+        return withNames(
+          withTabs(prev, (codex ? prev.codexAcpTabs : prev.acpTabs).filter((tab) => tab.id !== sessionId)),
+          names,
+        );
       });
       await refreshHistory();
       if (session?.session_id === sessionId) newConversation();
     },
-    [projectId, refreshHistory, session?.session_id, newConversation, setPrefs],
+    [codex, projectId, provider, refreshHistory, session?.session_id, newConversation, setPrefs, withNames, withTabs],
   );
 
   const send = useCallback(
@@ -1173,7 +1249,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         setDraft("");
         setSlash(null);
         void (async () => {
-          const res = await commands.acpListSessions(projectId);
+          const res = await commands.acpListSessions(projectId, provider);
           if (res.status !== "ok") {
             setError(tError(res.error));
             return;
@@ -1203,7 +1279,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       // 프로토콜로 옮겨질 데이터가 애초에 없다.
       //
       // 터미널에서는 그 화면이 곧 우리 화면이라 그냥 된다.
-      if (text === "/remote-control" || text === "/rc") {
+      if (!codex && (text === "/remote-control" || text === "/rc")) {
         setDraft("");
         setSlash(null);
         openInTerminal("/remote-control");
@@ -1233,7 +1309,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         // 세션을 만드는 동안에도 이 자리는 이미 "보내는 중"이다 — 표시가 없으면
         // 사용자가 한 번 더 누른다.
         markBusy(SLATE, true);
-        const opened = await commands.acpNewSession(projectId);
+        const opened = await commands.acpNewSession(projectId, provider);
         markBusy(SLATE, false);
         if (opened.status !== "ok") {
           putError(SLATE, tError(opened.error));
@@ -1385,6 +1461,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       try {
         const res = await commands.acpPrompt(
           projectId,
+          provider,
           into,
           outgoing,
           sending,
@@ -1402,7 +1479,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
         markBusy(into, false);
       }
     },
-    [draft, busySessions, projectId, attachments, images, ultracode, activeId, session?.session_id, openSession, newConversation, addTab, editTurns, openInTerminal, markBusy, putError, putUsage, putPermission, t],
+    [draft, busySessions, codex, projectId, provider, attachments, images, ultracode, activeId, session?.session_id, openSession, newConversation, addTab, editTurns, openInTerminal, markBusy, putError, putUsage, putPermission, t],
   );
 
   // 턴이 끝나면 그 대화의 큐에서 맨 앞을 꺼내 보낸다. **대화마다 하나씩** —
@@ -1434,9 +1511,9 @@ export function AcpConversation({ projectId }: { projectId: number }) {
 
   /** 보고 있는 대화만 멈춘다 — 옆에서 돌던 것은 계속 간다. */
   const cancel = useCallback(() => {
-    void commands.acpCancel(projectId, activeId === SLATE ? null : activeId);
+    void commands.acpCancel(projectId, provider, activeId === SLATE ? null : activeId);
     putPermission(activeId, null);
-  }, [projectId, activeId, putPermission]);
+  }, [projectId, provider, activeId, putPermission]);
 
   /**
    * 목록에서 **열지 않고** 중단 (Phase 3 `#inline-stop`).
@@ -1447,17 +1524,17 @@ export function AcpConversation({ projectId }: { projectId: number }) {
    */
   const stopSession = useCallback(
     (sessionId: string) => {
-      void commands.acpCancel(projectId, sessionId);
+      void commands.acpCancel(projectId, provider, sessionId);
       putPermission(sessionId, null);
     },
-    [projectId, putPermission],
+    [projectId, provider, putPermission],
   );
 
   // 세션 줄의 상태 — 이 화면이 이미 버스에 쓰고 있으므로 읽기도 여기서 한다.
   const rowStates = useAcpRowStates();
   const rowStateOf = useCallback(
-    (sessionId: string) => acpRowStateOf(rowStates, projectId, sessionId),
-    [rowStates, projectId],
+    (sessionId: string) => acpRowStateOf(rowStates, projectId, sessionId, provider),
+    [rowStates, projectId, provider],
   );
   /**
    * 활성 대화를 맨 위로. 원장(`stabilizeHistory`)이 정한 순서는 버킷 **안에서**
@@ -1641,7 +1718,7 @@ export function AcpConversation({ projectId }: { projectId: number }) {
       {/* 지금 보고 있는 대화의 세션 id — 누르면 복사된다.
           패널을 열어야만 보이면 "터미널에서 이어서" 가 두 동작이 된다. */}
       {activeId === SLATE ? null : <SessionIdChip sessionId={activeId} />}
-      <AcpUsageMeter projectId={projectId} />
+      <AcpUsageMeter projectId={projectId} provider={provider} />
       {/* 터미널로 나가는 문.
           어댑터는 CLI 가 가진 것 중 **자기가 노출하기로 한 것만** 준다 —
           `/remote-control`·`/login` 처럼 CLI 의 대화형 UI 에 사는 기능은 이
@@ -1677,13 +1754,29 @@ export function AcpConversation({ projectId }: { projectId: number }) {
           <div className="ai-thread-inner">
             <div className="ai-start">
               <div className="ai-start-title">
-                <ClaudeMark size={17} style={{ color: CLAUDE_ORANGE }} aria-hidden="true" />
-                {starting ? t("acp.preparing") : t("acp.offTitle")}
+                {codex ? (
+                  <Code2 size={17} aria-hidden="true" />
+                ) : (
+                  <ClaudeMark size={17} style={{ color: CLAUDE_ORANGE }} aria-hidden="true" />
+                )}
+                {starting ? t(codex ? "acp.codex.preparing" : "acp.preparing") : t("acp.offTitle")}
               </div>
-              <div className="ai-start-sub">{t("acp.offSub")}</div>
+              <div className="ai-start-sub">
+                {needsInstall
+                  ? t("acp.installAdapterSub")
+                  : t(codex ? "acp.codex.offSub" : "acp.offSub")}
+              </div>
               {starting ? null : (
                 <div className="ai-start-actions">
-                  <button className="btn sm primary" onClick={() => void retry()}>
+                  {needsInstall ? (
+                    <button className="btn sm primary" onClick={() => void installAdapter()}>
+                      {t("acp.installAdapter")}
+                    </button>
+                  ) : null}
+                  <button
+                    className={needsInstall ? "btn sm" : "btn sm primary"}
+                    onClick={() => void retry()}
+                  >
                     {t("acp.retry")}
                   </button>
                   {/* 문구가 가리키던 "설정 → 통합" 은 없는 경로였다 — 버튼으로. */}
@@ -1715,7 +1808,11 @@ export function AcpConversation({ projectId }: { projectId: number }) {
                줄에 제 색으로 — 색 상자에 넣어 가운데 띄우는 히어로는 뺐다. */
             <div className="ai-start">
               <div className="ai-start-title">
-                <ClaudeMark size={17} style={{ color: CLAUDE_ORANGE }} aria-hidden="true" />
+                {codex ? (
+                  <Code2 size={17} aria-hidden="true" />
+                ) : (
+                  <ClaudeMark size={17} style={{ color: CLAUDE_ORANGE }} aria-hidden="true" />
+                )}
                 {t("acp.readyTitle")}
               </div>
               <div className="ai-start-sub">{t("acp.readySub")}</div>

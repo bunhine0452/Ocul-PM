@@ -1582,7 +1582,7 @@ export const commands = {
 	/**  node·npm·claude·어댑터 설치 상태를 읽는다 (쓰기 없음). */
 	acpDiagnose: () => typedError<AcpDiagnostics, AppError>(__TAURI_INVOKE("acp_diagnose")),
 	/**  고정 버전 어댑터를 설치하고 갱신된 진단을 돌려준다 (멱등). */
-	acpInstallAdapter: () => typedError<AcpDiagnostics, AppError>(__TAURI_INVOKE("acp_install_adapter")),
+	acpInstallAdapter: (provider: "claude" | "codex" | null) => typedError<AcpDiagnostics, AppError>(__TAURI_INVOKE("acp_install_adapter", { provider })),
 	/**
 	 *  어댑터를 띄우고 `initialize` + `session/new` 까지 마친다 (이미 떠 있으면 그대로).
 	 * 
@@ -1590,20 +1590,30 @@ export const commands = {
 	 *  `session/new` 응답에만 실려 오는데, 첫 프롬프트까지 미루면 그때까지 셀렉터를
 	 *  그릴 수 없기 때문이다. cwd 는 프로젝트 루트로 이미 확정돼 있다.
 	 */
-	acpStart: (projectId: number) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_start", { projectId })),
+	acpStart: (projectId: number, provider: "claude" | "codex" | null) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_start", { projectId, provider })),
 	/**  어댑터를 내린다. 떠 있지 않았으면 `false`. */
-	acpStop: (projectId: number) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_stop", { projectId })),
+	acpStop: (projectId: number, provider: "claude" | "codex" | null) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_stop", { projectId, provider })),
 	/**  현재 떠 있는 어댑터 정보 (없으면 `None`). */
-	acpStatus: (projectId: number) => typedError<{
+	acpStatus: (projectId: number, provider: "claude" | "codex" | null) => typedError<{
 	name: string,
 	title: string | null,
 	version: string,
 	/**
 	 *  `authMethods` 가 비어 있지 않으면 별도 인증 흐름이 필요하다는 뜻 —
 	 *  2026-08-14 실측은 빈 배열(구독 로그인 재사용)이었다.
+	 *  (codex-acp 는 **로그인돼 있어도** 방법을 광고한다 — 이 값만으로
+	 *  "로그인 안 됨"을 단정하면 안 된다.)
 	 */
 	auth_required: boolean,
-} | null, AppError>(__TAURI_INVOKE("acp_status", { projectId })),
+	/**
+	 *  프롬프트에 이미지를 실을 수 있는가 (`promptCapabilities.image`).
+	 * 
+	 *  프로토콜은 "클라이언트가 이 값에 맞춰 UI 를 바꾸라"고 못 박는데 우리는
+	 *  읽지도 않고 항상 보냈다. Claude 어댑터가 받아 줘서 안 드러났을 뿐,
+	 *  안 받는 에이전트에게는 붙임 하나로 턴 전체가 실패한다.
+	 */
+	supports_image: boolean,
+} | null, AppError>(__TAURI_INVOKE("acp_status", { projectId, provider })),
 	/**
 	 *  프롬프트를 보내고 턴이 끝날 때까지 이벤트를 `on_event` 로 흘린다.
 	 * 
@@ -1617,7 +1627,7 @@ export const commands = {
 	 *  **링크(`ResourceLink`)만** 준다 — 에이전트가 자기 파일 도구로 필요한 만큼만
 	 *  읽는 편이 토큰 면에서 낫고, 큰 파일을 통째로 프롬프트에 밀어 넣는 사고도 막는다.
 	 */
-	acpPrompt: (projectId: number, sessionId: string | null, text: string, attachments: string[], images: AcpImage[], onEvent: Channel<AcpEvent>) => typedError<string, AppError>(__TAURI_INVOKE("acp_prompt", { projectId, sessionId, text, attachments, images, onEvent })),
+	acpPrompt: (projectId: number, provider: "claude" | "codex" | null, sessionId: string | null, text: string, attachments: string[], images: AcpImage[], onEvent: Channel<AcpEvent>) => typedError<string, AppError>(__TAURI_INVOKE("acp_prompt", { projectId, provider, sessionId, text, attachments, images, onEvent })),
 	/**
 	 *  진행 중인 턴을 취소한다. 세션이 없으면 `false`.
 	 * 
@@ -1627,7 +1637,7 @@ export const commands = {
 	 *  `session_id` 는 **멈출 대화**다. 프롬프트와 같은 이유로 인자로 받는다 —
 	 *  옆에서 돌던 대화까지 함께 멈추면 ESC 한 번에 남의 턴이 죽는다.
 	 */
-	acpCancel: (projectId: number, sessionId: string | null) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_cancel", { projectId, sessionId })),
+	acpCancel: (projectId: number, provider: "claude" | "codex" | null, sessionId: string | null) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_cancel", { projectId, provider, sessionId })),
 	/**  권한 카드의 선택을 전달한다. `option_id` 가 `None` 이면 거절(취소)로 닫는다. */
 	acpPermissionRespond: (requestId: string, optionId: string | null) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_permission_respond", { requestId, optionId })),
 	/**
@@ -1636,7 +1646,7 @@ export const commands = {
 	 *  값 목록을 우리가 검증하지 않는 게 의도다 — 어댑터가 준 선택지를 그대로
 	 *  돌려보내므로, Claude Code 가 모델을 추가해도 우리 코드는 그대로다.
 	 */
-	acpSetConfigOption: (projectId: number, configId: string, value: string) => typedError<AcpConfigOption[], AppError>(__TAURI_INVOKE("acp_set_config_option", { projectId, configId, value })),
+	acpSetConfigOption: (projectId: number, provider: "claude" | "codex" | null, configId: string, value: string) => typedError<AcpConfigOption[], AppError>(__TAURI_INVOKE("acp_set_config_option", { projectId, provider, configId, value })),
 	/**  파일 선택 대화상자 (다중 선택, 프로젝트 루트에서 시작). 취소하면 빈 배열. */
 	acpPickFiles: (projectId: number) => typedError<string[], AppError>(__TAURI_INVOKE("acp_pick_files", { projectId })),
 	/**
@@ -1653,7 +1663,7 @@ export const commands = {
 	 *  ACP 에 "메시지 N 으로 되감기"는 없다(`session/fork` 는 되감을 지점을 받지
 	 *  않는다). 그래서 확장의 Rewind 대신 **새로 시작**만 제공한다.
 	 */
-	acpNewSession: (projectId: number) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_new_session", { projectId })),
+	acpNewSession: (projectId: number, provider: "claude" | "codex" | null) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_new_session", { projectId, provider })),
 	/**
 	 *  이 프로젝트의 과거 대화 목록.
 	 * 
@@ -1661,7 +1671,7 @@ export const commands = {
 	 *  있고, ACP `session/list` 가 그걸 그대로 열어 준다. 여기에 사본을 두면
 	 *  터미널에서 연 세션과 앱에서 연 세션이 갈라진다.
 	 */
-	acpListSessions: (projectId: number) => typedError<AcpSessionSummary[], AppError>(__TAURI_INVOKE("acp_list_sessions", { projectId })),
+	acpListSessions: (projectId: number, provider: "claude" | "codex" | null) => typedError<AcpSessionSummary[], AppError>(__TAURI_INVOKE("acp_list_sessions", { projectId, provider })),
 	/**
 	 *  과거 대화를 연다 — **지난 메시지까지 화면에 되살린다**.
 	 * 
@@ -1673,7 +1683,7 @@ export const commands = {
 	 *  재생분이 `on_event` 로 흐르도록 요청 **전에** 싱크를 꽂는다 — 알림 핸들러는
 	 *  싱크가 없으면 조용히 버리므로, 순서가 뒤집히면 지난 대화가 통째로 사라진다.
 	 */
-	acpLoadSession: (projectId: number, sessionId: string, onEvent: Channel<AcpEvent>) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_load_session", { projectId, sessionId, onEvent })),
+	acpLoadSession: (projectId: number, provider: "claude" | "codex" | null, sessionId: string, onEvent: Channel<AcpEvent>) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_load_session", { projectId, provider, sessionId, onEvent })),
 	/**
 	 *  슬래시 커맨드 목록.
 	 * 
@@ -1681,9 +1691,9 @@ export const commands = {
 	 *  온다. `acp_start` 가 돌려주는 스냅샷에는 아직 비어 있을 수 있으므로, 사용자가
 	 *  `/` 를 칠 때 물어보는 편이 항상 최신이다.
 	 */
-	acpCommands: (projectId: number) => typedError<AcpCommand[], AppError>(__TAURI_INVOKE("acp_commands", { projectId })),
+	acpCommands: (projectId: number, provider: "claude" | "codex" | null) => typedError<AcpCommand[], AppError>(__TAURI_INVOKE("acp_commands", { projectId, provider })),
 	/**  마지막으로 본 사용량 (한도 포함). 아직 한 번도 못 봤으면 `None`. 읽기 전용. */
-	acpUsage: (projectId: number) => typedError<{
+	acpUsage: (projectId: number, provider: "claude" | "codex" | null) => typedError<{
 	used: number,
 	size: number,
 	cost_usd: number | null,
@@ -1696,7 +1706,7 @@ export const commands = {
 	 *  조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
 	 */
 	detail: string | null,
-} | null, AppError>(__TAURI_INVOKE("acp_usage", { projectId })),
+} | null, AppError>(__TAURI_INVOKE("acp_usage", { projectId, provider })),
 	/**
 	 *  `/usage` 로 한도를 **실제로 새로 읽는다**.
 	 * 
@@ -1708,7 +1718,7 @@ export const commands = {
 	 *  사용자가 시작한 턴이 아니라 답을 프런트 채널로 받을 수 없으므로, 상태에
 	 *  갈무리 버퍼를 켜 두고 답변 텍스트를 모아 파싱한다.
 	 */
-	acpRefreshUsage: (projectId: number) => typedError<{
+	acpRefreshUsage: (projectId: number, provider: "claude" | "codex" | null) => typedError<{
 	used: number,
 	size: number,
 	cost_usd: number | null,
@@ -1721,7 +1731,7 @@ export const commands = {
 	 *  조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
 	 */
 	detail: string | null,
-} | null, AppError>(__TAURI_INVOKE("acp_refresh_usage", { projectId })),
+} | null, AppError>(__TAURI_INVOKE("acp_refresh_usage", { projectId, provider })),
 	/**
 	 *  현재 세션 설정 (에이전트 쪽 변경까지 반영된 값). 읽기 전용·값싸다.
 	 * 
@@ -1729,9 +1739,9 @@ export const commands = {
 	 *  그 사실은 우리가 보낸 요청의 **응답이 아니라 알림**으로 온다. UI 가 주기적
 	 *  으로 되읽어야 "Auto 라 적혀 있는데 실은 Manual" 을 피할 수 있다.
 	 */
-	acpOptions: (projectId: number) => typedError<AcpConfigOption[], AppError>(__TAURI_INVOKE("acp_options", { projectId })),
+	acpOptions: (projectId: number, provider: "claude" | "codex" | null) => typedError<AcpConfigOption[], AppError>(__TAURI_INVOKE("acp_options", { projectId, provider })),
 	/**  현재 세션 제목. 상단바가 따라가려고 짧은 주기로 읽는다 (로컬 조회). */
-	acpSessionTitle: (projectId: number) => typedError<string | null, AppError>(__TAURI_INVOKE("acp_session_title", { projectId })),
+	acpSessionTitle: (projectId: number, provider: "claude" | "codex" | null) => typedError<string | null, AppError>(__TAURI_INVOKE("acp_session_title", { projectId, provider })),
 	/**
 	 *  대화를 **영구 삭제**한다 (`session/delete`).
 	 * 
@@ -1743,7 +1753,7 @@ export const commands = {
 	 *  지금 열려 있는 대화를 지우는 것도 막지 않는다 — 지운 뒤 무엇을 열지는
 	 *  화면의 판단이다(새 대화가 자연스럽다).
 	 */
-	acpDeleteSession: (projectId: number, sessionId: string) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_delete_session", { projectId, sessionId })),
+	acpDeleteSession: (projectId: number, provider: "claude" | "codex" | null, sessionId: string) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_delete_session", { projectId, provider, sessionId })),
 	/**
 	 *  보고 있는 대화를 바꾼다 — **어댑터에는 아무 것도 묻지 않는다.**
 	 * 
@@ -1753,7 +1763,7 @@ export const commands = {
 	 * 
 	 *  제목은 화면이 안다(탭·목록에서 왔다) — 여기서 다시 물어보지 않는다.
 	 */
-	acpSelectSession: (projectId: number, sessionId: string, title: string | null) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_select_session", { projectId, sessionId, title })),
+	acpSelectSession: (projectId: number, provider: "claude" | "codex" | null, sessionId: string, title: string | null) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_select_session", { projectId, provider, sessionId, title })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -1866,8 +1876,18 @@ export type AcpAgentInfo = {
 	/**
 	 *  `authMethods` 가 비어 있지 않으면 별도 인증 흐름이 필요하다는 뜻 —
 	 *  2026-08-14 실측은 빈 배열(구독 로그인 재사용)이었다.
+	 *  (codex-acp 는 **로그인돼 있어도** 방법을 광고한다 — 이 값만으로
+	 *  "로그인 안 됨"을 단정하면 안 된다.)
 	 */
 	auth_required: boolean,
+	/**
+	 *  프롬프트에 이미지를 실을 수 있는가 (`promptCapabilities.image`).
+	 * 
+	 *  프로토콜은 "클라이언트가 이 값에 맞춰 UI 를 바꾸라"고 못 박는데 우리는
+	 *  읽지도 않고 항상 보냈다. Claude 어댑터가 받아 줘서 안 드러났을 뿐,
+	 *  안 받는 에이전트에게는 붙임 하나로 턴 전체가 실패한다.
+	 */
+	supports_image: boolean,
 };
 
 /**  슬래시 커맨드 하나 (`/plugin` 등). 어댑터가 세션 시작 때 통째로 준다. */
@@ -1937,8 +1957,14 @@ export type AcpDiagnostics = {
 	adapter_expected: string,
 	/**  설치돼 있고 고정 버전과 일치하는가. */
 	adapter_ok: boolean,
+	codex_adapter_version: string | null,
+	codex_adapter_expected: string,
+	codex_adapter_ok: boolean,
+	/**  Credential material exists; values are never read or returned. */
+	codex_auth_detected: boolean,
 	/**  전부 충족 — 에이전트를 띄울 수 있다. */
 	ready: boolean,
+	codex_ready: boolean,
 };
 
 /**  에이전트 화면이 받는 스트리밍 이벤트. */
@@ -2099,6 +2125,12 @@ export type AcpPlanEntry = {
 	priority: string,
 };
 
+/**
+ *  ACP backend selected by the client. Serialized spelling is part of the IPC
+ *  contract, so keep it stable even if adapter package names change.
+ */
+export type AcpProvider = "claude" | "codex";
+
 /**  한도 하나 (5시간 세션 · 주간 · 주간 Fable …). */
 export type AcpRateLimit = {
 	/**  어댑터가 준 종류 문자열 (`seven_day` 등) — 우리가 이름을 지어내지 않는다. */
@@ -2143,6 +2175,7 @@ export type AcpSessionChangeKind = "agent_ready" | "agent_gone" | "title" | "opt
 
 export type AcpSessionChanged = {
 	project_id: number,
+	provider: AcpProvider,
 	session_id: string | null,
 	kind: AcpSessionChangeKind,
 };

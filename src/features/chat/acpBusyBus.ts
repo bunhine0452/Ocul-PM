@@ -45,8 +45,12 @@ function rebuildRowStates(): void {
   rowStates = { working: new Set(working), attention: new Set(attention) };
 }
 
-export function acpWorkingKey(projectId: number, sessionId: string | null): string {
-  return `${projectId}:${sessionId ?? "new"}`;
+export function acpWorkingKey(
+  projectId: number,
+  sessionId: string | null,
+  provider: "claude" | "codex" = "claude",
+): string {
+  return `${projectId}:${provider}:${sessionId ?? "new"}`;
 }
 
 /** 턴 시작/종료를 알린다. 같은 상태면 아무 일도 하지 않는다(무한 렌더 방지). */
@@ -67,21 +71,25 @@ export function setAcpAttention(key: string, on: boolean): void {
   for (const listener of [...listeners]) listener();
 }
 
-function countIn(set: ReadonlySet<string>, projectId: number): number {
-  const prefix = `${projectId}:`;
+function countIn(
+  set: ReadonlySet<string>,
+  projectId: number,
+  provider?: "claude" | "codex",
+): number {
+  const prefix = provider ? `${projectId}:${provider}:` : `${projectId}:`;
   let n = 0;
   for (const key of set) if (key.startsWith(prefix)) n += 1;
   return n;
 }
 
 /** 이 프로젝트에서 돌고 있는 세션 수 — 훅이 아니라 즉시 읽기 (탭 닫기 문지기). */
-export function countAcpWorkingFor(projectId: number): number {
-  return countIn(working, projectId);
+export function countAcpWorkingFor(projectId: number, provider?: "claude" | "codex"): number {
+  return countIn(working, projectId, provider);
 }
 
 /** 이 프로젝트에서 승인을 기다리는 세션 수. */
-export function countAcpAttentionFor(projectId: number): number {
-  return countIn(attention, projectId);
+export function countAcpAttentionFor(projectId: number, provider?: "claude" | "codex"): number {
+  return countIn(attention, projectId, provider);
 }
 
 function subscribe(listener: Listener): () => void {
@@ -100,19 +108,25 @@ function subscribe(listener: Listener): () => void {
  * 매번 세도 `Object.is` 비교가 안전하다 (`AcpRowStates` 처럼 새 객체가 나오는
  * 경우가 아니다).
  */
-export function useAcpWorkingCount(projectId: number | null): number {
+export function useAcpWorkingCount(
+  projectId: number | null,
+  provider?: "claude" | "codex",
+): number {
   const snapshot = useCallback(
-    () => (projectId == null ? 0 : countAcpWorkingFor(projectId)),
-    [projectId],
+    () => (projectId == null ? 0 : countAcpWorkingFor(projectId, provider)),
+    [projectId, provider],
   );
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
 
 /** 이 프로젝트에서 승인을 기다리며 멈춰 있는 세션 수. 0 이 아니면 사용자가 눌러야 풀린다. */
-export function useAcpAttentionCount(projectId: number | null): number {
+export function useAcpAttentionCount(
+  projectId: number | null,
+  provider?: "claude" | "codex",
+): number {
   const snapshot = useCallback(
-    () => (projectId == null ? 0 : countAcpAttentionFor(projectId)),
-    [projectId],
+    () => (projectId == null ? 0 : countAcpAttentionFor(projectId, provider)),
+    [projectId, provider],
   );
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
@@ -144,8 +158,9 @@ export function acpRowStateOf(
   states: AcpRowStates,
   projectId: number,
   sessionId: string,
+  provider: "claude" | "codex" = "claude",
 ): AcpRowState | null {
-  const key = acpWorkingKey(projectId, sessionId);
+  const key = acpWorkingKey(projectId, sessionId, provider);
   // 승인 대기가 이긴다 — 둘 다 참일 때 사용자가 해야 할 일은 기다리는 것이
   // 아니라 누르는 것이다.
   if (states.attention.has(key)) return "attention";

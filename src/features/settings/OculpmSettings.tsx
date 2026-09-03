@@ -1189,9 +1189,8 @@ function LogsSection() {
 /**
  * PR-ACP1 (docs/acp-panel/00-master-plan.md D2) — ACP 에이전트 런타임 블록.
  *
- * 에이전트 화면이 Claude Code 를 구동하려면 세 가지가 갖춰져야 한다: Node 18+,
- * `claude` CLI, 그리고 버전 고정된 ACP 어댑터. 셋을 "안 됨" 하나로 뭉치지 않고
- * 따로 보여주는 이유는 사용자가 할 수 있는 조치가 각각 다르기 때문이다.
+ * Claude Code와 Codex 화면을 구동하려면 Node 18+와 provider별 고정 ACP
+ * 어댑터가 필요하다. 상태를 따로 보여주는 이유는 설치·복구 대상이 다르기 때문이다.
  *
  * `path_source` 를 노출하는 것도 같은 이유다 — 패키징된 `.app` 은 PATH 가
  * 빈약해서 "터미널에선 되는데 앱에선 안 되는" 상황이 생기는데, 로그인 셸에서
@@ -1199,11 +1198,23 @@ function LogsSection() {
  *
  * 프로젝트가 아니라 머신 단위 설정이라 `projectId` 를 받지 않는다.
  */
+/**
+ * 배지 하나로 "준비됨"을 말할 수 있는가.
+ *
+ * Codex 는 **옵트인**이다 — 안 깐 사람에게 그 사실만으로 "설정 필요" 를 띄우면
+ * Claude 가 멀쩡히 도는 동안에도 영원히 경고가 켜져 있다. 그래서 깔린 뒤부터만
+ * Codex 의 건강을 배지에 반영한다 (깔았으면 그건 쓰겠다는 뜻이다).
+ */
+function acpBadgeReady(diag: AcpDiagnostics): boolean {
+  const codexInstalled = diag.codex_adapter_version !== null;
+  return diag.ready && (!codexInstalled || diag.codex_ready);
+}
+
 export function AcpRuntimeBlock() {
   const { t } = useT();
   const [diag, setDiag] = useState<AcpDiagnostics | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"claude" | "codex" | null>(null);
 
   const refresh = useCallback(() => {
     void commands.acpDiagnose().then((res) => {
@@ -1220,10 +1231,10 @@ export function AcpRuntimeBlock() {
     refresh();
   }, [refresh]);
 
-  const install = async () => {
-    setBusy(true);
+  const install = async (provider: "claude" | "codex") => {
+    setBusy(provider);
     try {
-      const res = await commands.acpInstallAdapter();
+      const res = await commands.acpInstallAdapter(provider);
       if (res.status === "ok") {
         setDiag(res.data);
         setError(null);
@@ -1233,7 +1244,7 @@ export function AcpRuntimeBlock() {
         toast.destructive(t("op.acp.installFailed", { error: tError(res.error) }));
       }
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -1241,7 +1252,7 @@ export function AcpRuntimeBlock() {
     ? { label: t("op.st.configError"), cls: "border-(--danger)/40 bg-(--danger-soft) text-(--danger-text)" }
     : !diag
       ? { label: t("op.st.checking"), cls: "border-border bg-muted/30 text-muted-foreground" }
-      : diag.ready
+      : acpBadgeReady(diag)
         ? { label: t("op.acp.ready"), cls: "border-(--ok)/40 bg-(--ok-soft) text-(--ok-text)" }
         : { label: t("op.acp.setupNeeded"), cls: "border-(--warn)/40 bg-(--warn-soft) text-(--warn-text)" };
 
@@ -1255,15 +1266,24 @@ export function AcpRuntimeBlock() {
         <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.cls}`}>
           {badge.label}
         </span>
-        <div className="ml-auto">
+        <div className="ml-auto flex gap-1">
           <Button
             size="sm"
             variant={diag?.adapter_ok ? "outline" : "default"}
-            disabled={busy || !diag}
-            onClick={() => void install()}
+            disabled={busy !== null || !diag}
+            onClick={() => void install("claude")}
           >
-            {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
-            {diag?.adapter_ok ? t("op.acp.reinstall") : t("op.acp.install")}
+            {busy === "claude" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+            Claude {diag?.adapter_ok ? t("op.acp.reinstall") : t("op.acp.install")}
+          </Button>
+          <Button
+            size="sm"
+            variant={diag?.codex_adapter_ok ? "outline" : "default"}
+            disabled={busy !== null || !diag}
+            onClick={() => void install("codex")}
+          >
+            {busy === "codex" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
+            Codex {diag?.codex_adapter_ok ? t("op.acp.reinstall") : t("op.acp.install")}
           </Button>
         </div>
       </div>
@@ -1305,6 +1325,22 @@ export function AcpRuntimeBlock() {
                 ? undefined
                 : t("op.acp.adapterExpected", { version: diag.adapter_expected })
             }
+          />
+          <AcpRow
+            label={t("op.acp.codexAdapter")}
+            ok={diag.codex_adapter_ok}
+            value={diag.codex_adapter_version ?? t("op.acp.missing")}
+            hint={
+              diag.codex_adapter_ok
+                ? t("op.acp.codexAuthHint")
+                : t("op.acp.adapterExpected", { version: diag.codex_adapter_expected })
+            }
+          />
+          <AcpRow
+            label={t("op.acp.codexAuth")}
+            ok={diag.codex_auth_detected}
+            value={diag.codex_auth_detected ? t("op.acp.ready") : t("op.acp.missing")}
+            hint={diag.codex_auth_detected ? t("op.acp.codexAuthHint") : t("op.acp.codexAuthMissing")}
           />
         </div>
       )}

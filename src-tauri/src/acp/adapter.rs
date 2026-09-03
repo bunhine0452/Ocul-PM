@@ -13,6 +13,7 @@ use std::time::Duration;
 /// 그대로 join 하면 Windows 에서 깨진다).
 pub const PKG_SCOPE: &str = "@agentclientprotocol";
 pub const PKG_NAME: &str = "claude-agent-acp";
+pub const CODEX_PKG_NAME: &str = "codex-acp";
 
 /// 고정 버전. 올릴 때는 스파이크(docs/acp-panel/spike/acp_spike.py)를 다시 돌려
 /// `session/update` 종류가 늘거나 바뀌지 않았는지 확인한다.
@@ -33,6 +34,7 @@ pub const PKG_NAME: &str = "claude-agent-acp";
 ///    붙는다(`exit-plan-clear-*`). 되돌릴 수 없어 카드가 따로 표시한다 —
 ///    `src/features/chat/conversation/permissionOptions.ts`.
 pub const PINNED_VERSION: &str = "0.73.0";
+pub const CODEX_PINNED_VERSION: &str = "1.8.0";
 
 /// 앱 데이터 디렉터리 하위 설치 경로.
 const INSTALL_SUBDIR: &str = "acp";
@@ -45,15 +47,25 @@ pub fn install_dir(app_data: &Path) -> PathBuf {
 }
 
 fn package_dir(app_data: &Path) -> PathBuf {
+    package_dir_for(app_data, PKG_NAME)
+}
+
+fn package_dir_for(app_data: &Path, package_name: &str) -> PathBuf {
     install_dir(app_data)
         .join("node_modules")
         .join(PKG_SCOPE)
-        .join(PKG_NAME)
+        .join(package_name)
 }
 
 /// 어댑터 진입점(node 로 실행할 JS). 존재 여부는 확인하지 않는다.
 pub fn entry_path(app_data: &Path) -> PathBuf {
     package_dir(app_data).join("dist").join("index.js")
+}
+
+pub fn codex_entry_path(app_data: &Path) -> PathBuf {
+    package_dir_for(app_data, CODEX_PKG_NAME)
+        .join("dist")
+        .join("index.js")
 }
 
 /// 어댑터가 **함께 들고 오는** Claude Code CLI.
@@ -86,10 +98,18 @@ pub fn bundled_claude(app_data: &Path) -> Option<PathBuf> {
 
 /// 설치된 버전. 미설치·손상은 `None`.
 pub fn installed_version(app_data: &Path) -> Option<String> {
-    if !entry_path(app_data).is_file() {
+    installed_version_for(app_data, PKG_NAME, &entry_path(app_data))
+}
+
+pub fn codex_installed_version(app_data: &Path) -> Option<String> {
+    installed_version_for(app_data, CODEX_PKG_NAME, &codex_entry_path(app_data))
+}
+
+fn installed_version_for(app_data: &Path, package_name: &str, entry: &Path) -> Option<String> {
+    if !entry.is_file() {
         return None;
     }
-    let manifest = package_dir(app_data).join("package.json");
+    let manifest = package_dir_for(app_data, package_name).join("package.json");
     let raw = std::fs::read_to_string(manifest).ok()?;
     let parsed: serde_json::Value = serde_json::from_str(&raw).ok()?;
     parsed
@@ -100,10 +120,31 @@ pub fn installed_version(app_data: &Path) -> Option<String> {
 
 /// 고정 버전을 설치한다(멱등 — 이미 맞으면 npm 이 알아서 no-op).
 pub async fn install(app_data: &Path, npm: &Path, path_env: &str) -> Result<String, String> {
+    install_package(app_data, npm, path_env, PKG_NAME, PINNED_VERSION).await
+}
+
+pub async fn install_codex(app_data: &Path, npm: &Path, path_env: &str) -> Result<String, String> {
+    install_package(
+        app_data,
+        npm,
+        path_env,
+        CODEX_PKG_NAME,
+        CODEX_PINNED_VERSION,
+    )
+    .await
+}
+
+async fn install_package(
+    app_data: &Path,
+    npm: &Path,
+    path_env: &str,
+    package_name: &str,
+    version: &str,
+) -> Result<String, String> {
     let dir = install_dir(app_data);
     std::fs::create_dir_all(&dir).map_err(|e| format!("설치 폴더를 만들 수 없습니다: {e}"))?;
 
-    let spec = format!("{PKG_SCOPE}/{PKG_NAME}@{PINNED_VERSION}");
+    let spec = format!("{PKG_SCOPE}/{package_name}@{version}");
     let spawned = tokio::process::Command::new(npm)
         .args(["install", "--no-audit", "--no-fund", "--prefix"])
         .arg(&dir)
@@ -124,7 +165,12 @@ pub async fn install(app_data: &Path, npm: &Path, path_env: &str) -> Result<Stri
         return Err(format!("npm 설치 실패: {}", tail(&stderr)));
     }
 
-    installed_version(app_data)
+    let entry = if package_name == CODEX_PKG_NAME {
+        codex_entry_path(app_data)
+    } else {
+        entry_path(app_data)
+    };
+    installed_version_for(app_data, package_name, &entry)
         .ok_or_else(|| "설치는 끝났지만 어댑터 진입점을 찾을 수 없습니다".to_string())
 }
 
@@ -180,6 +226,12 @@ mod tests {
         std::fs::create_dir_all(pkg.join("dist")).unwrap();
         std::fs::write(pkg.join("dist/index.js"), "").unwrap();
         assert_eq!(installed_version(dir.path()), Some("0.67.0".to_string()));
+    }
+
+    #[test]
+    fn codex_entry_uses_its_own_package() {
+        assert!(codex_entry_path(Path::new("/data"))
+            .ends_with("acp/node_modules/@agentclientprotocol/codex-acp/dist/index.js"));
     }
 
     #[test]
