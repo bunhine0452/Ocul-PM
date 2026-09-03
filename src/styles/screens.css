@@ -2161,3 +2161,12 @@ mark.s-hit {
 
 /* ⌘/ 단축키 치트시트 규칙(.keys-*)도 2026-09-02 에 primitives.css 로 옮겼다 —
    같은 이유다 (창 어디서나 뜨는 모달인데 규칙이 셸 청크에 갇혀 있었다). */
+
+/* A2A 협업 카드 (docs/a2a/00-master-plan.md §9).
+   목록은 한 줄에 [이름] [부연] [행동] — 카드 안의 표가 아니라 줄이다. */
+.a2a-head { margin: 10px 0 4px; display: flex; align-items: center; gap: 5px; color: var(--text-2); font-size: var(--fs-6); font-weight: 550; }
+.a2a-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.a2a-list li { display: flex; align-items: center; gap: 8px; min-height: 24px; font-size: var(--fs-6); }
+.a2a-list li strong { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.a2a-list li .empty-hint { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.a2a-list li .right { margin-left: auto; display: flex; gap: 4px; flex: none; }

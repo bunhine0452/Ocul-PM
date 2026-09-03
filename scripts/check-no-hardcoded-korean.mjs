@@ -124,6 +124,8 @@ const PENDING = new Set([
 const TESTS = new Set([
   // 양 언어 a11y — ko 마커("설정")와 한국어 테스트 이름이 검사 재료다.
   "__tests__/a11y_screens.test.tsx",
+  // A2A 카드 — 한국어 버튼 라벨("수락"·"놓기")이 곧 단언 재료다.
+  "__tests__/a2a_card.test.tsx",
   "__tests__/agent_context_model.test.ts",
   "__tests__/agent_context_proposals.test.tsx",
   "__tests__/agent_detect.test.ts",

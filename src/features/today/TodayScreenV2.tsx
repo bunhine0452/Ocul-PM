@@ -20,6 +20,7 @@ import { agentLabel } from "./agentColor";
 import { requestOculpmActivate } from "@/lib/projectActions";
 import { FirstRunCard } from "./FirstRunCard";
 import { CoreModelSeededCard } from "./CoreModelSeededCard";
+import { A2aCard } from "./A2aCard";
 import { WhatsNewCard } from "./WhatsNewCard";
 import { commands, type JournalEntrySummary } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
@@ -244,6 +245,7 @@ export function TodayScreenV2({
 
           <WhatsNewCard />
           <CoreModelSeededCard />
+          <A2aCard projectId={projectId} />
           {initCard ? (
             <FirstRunCard info={initCard} onDismiss={dismissInitCard} onNavigate={onNavigate} />
           ) : null}

@@ -17,6 +17,10 @@
 import { commands, events } from "@/lib/bindings";
 import { ApiError, call, toAppError, type Envelope } from "@/api/invoke";
 import type {
+  A2aOverview,
+  OculpmA2aChanged,
+  OculpmA2aTrespass,
+  Task,
   AgentDetection,
   AgentSyncReport,
   BackfillReport,
@@ -65,6 +69,19 @@ async function unwrap<T>(command: string, p: Promise<Envelope<T>>): Promise<T> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const oculpmApi = {
+  // ─── A2A — 협업 상태 (docs/a2a/00-master-plan.md §9) ──────────────────
+  /** 참여자·잡힌 구역·미완 태스크를 **한 시각으로** 한 번에. */
+  a2aOverview: (projectId: number) =>
+    unwrap<A2aOverview>("a2a_overview", commands.a2aOverview(projectId)),
+
+  /** 넘어온 작업을 사람이 수락/거절한다 — 자동 수락은 없다(D5). */
+  a2aDecideTask: (projectId: number, taskId: string, accept: boolean) =>
+    unwrap<Task>("a2a_decide_task", commands.a2aDecideTask(projectId, taskId, accept)),
+
+  /** 주인이 사라졌는데 기한이 남은 구역을 사용자가 놓아 준다. */
+  a2aReleaseLease: (projectId: number, leaseId: string) =>
+    unwrap<boolean>("a2a_release_lease", commands.a2aReleaseLease(projectId, leaseId)),
+
   init: (projectId: number) =>
     unwrap<OculpmInitReport>("oculpm_init", commands.oculpmInit(projectId)),
 
@@ -301,6 +318,24 @@ export const oculpmApi = {
    * (jsdom·헤드리스)에서 **조용히 아무것도 안 하는 것**이다. 구독 실패로
    * 화면이 죽어서는 안 된다 — 라이브 갱신만 없는 상태로 두면 된다.
    */
+  /** A2A 원장(참여자·우편함·태스크)이 바뀌었다. 구독 해제 함수를 돌려준다. */
+  onA2aChanged: (cb: (payload: OculpmA2aChanged) => void): Promise<() => void> => {
+    try {
+      return events.oculpmA2aChanged.listen(({ payload }) => cb(payload)).catch(() => () => {});
+    } catch {
+      return Promise.resolve(() => {});
+    }
+  },
+
+  /** 남의 구역을 밟았다는 경고. */
+  onA2aTrespass: (cb: (payload: OculpmA2aTrespass) => void): Promise<() => void> => {
+    try {
+      return events.oculpmA2aTrespass.listen(({ payload }) => cb(payload)).catch(() => () => {});
+    } catch {
+      return Promise.resolve(() => {});
+    }
+  },
+
   onFileChanged: (cb: (payload: OculpmFileChanged) => void): Promise<() => void> => {
     try {
       return events.oculpmFileChanged

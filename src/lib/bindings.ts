@@ -1543,6 +1543,17 @@ export const commands = {
 	firingRescan: (projectId: number) => typedError<FiringScanReport, string>(__TAURI_INVOKE("firing_rescan", { projectId })),
 	/**  최근 `days` 일 창의 발동 통계. 스캔은 하지 않는다 — 순수 조회다. */
 	firingStats: (projectId: number, days: number) => typedError<FiringOverview, string>(__TAURI_INVOKE("firing_stats", { projectId, days })),
+	/**  지금 이 프로젝트의 협업 상태 (읽기 전용). */
+	a2aOverview: (projectId: number) => typedError<A2aOverview, AppError>(__TAURI_INVOKE("a2a_overview", { projectId })),
+	/**
+	 *  넘어온 작업을 **사용자가** 수락하거나 거절한다.
+	 * 
+	 *  자동 수락은 없다 (D5). 사람 없는 루프에서 두 에이전트가 같은 저장소를
+	 *  고치는 것을 막는 유일한 지점이 여기다.
+	 */
+	a2aDecideTask: (projectId: number, taskId: string, accept: boolean) => typedError<Task, AppError>(__TAURI_INVOKE("a2a_decide_task", { projectId, taskId, accept })),
+	/**  붙잡힌 구역을 사용자가 놓아 준다 (주인이 사라졌는데 기한이 남았을 때). */
+	a2aReleaseLease: (projectId: number, leaseId: string) => typedError<boolean, AppError>(__TAURI_INVOKE("a2a_release_lease", { projectId, leaseId })),
 	/**
 	 *  원장을 비우고 처음부터 다시 센다 — 이중 집계·낡은 재개점을 되돌리는 유일한
 	 *  길. 예산 라운드를 여기서 이어 붙여 한 번의 호출로 끝낸다 (상한 20 라운드 —
@@ -1877,6 +1888,19 @@ export type A2aChangeKind =
 "message" | 
 /**  태스크 원장 (`agents/tasks/`). */
 "task";
+
+/**
+ *  화면 한 벌 — 한 번의 왕복으로 그린다.
+ * 
+ *  셋을 따로 부르면 서로 다른 순간의 사실이 한 화면에 섞인다("A 가 쥐고 있다"
+ *  옆에 "A 는 없다"). 같은 시각으로 한 번에 읽는다.
+ */
+export type A2aOverview = {
+	participants: AgentCard[],
+	leases: Lease[],
+	/**  아직 안 끝난 태스크 전부 (누가 누구에게 넘겼든). */
+	open_tasks: Task[],
+};
 
 /**  핸드셰이크로 확인한 상대편 정보. 프런트가 "무엇에 붙었는지" 보여준다. */
 export type AcpAgentInfo = {
@@ -2229,6 +2253,34 @@ export type AcpUsage = {
 	detail: string | null,
 };
 
+/**
+ *  A2A Agent Card + 우리 확장.
+ * 
+ *  표준 필드(`name`·`description`·`version`·`skills`)를 그대로 두는 이유는
+ *  Phase 6 에서 이 구조체가 `/.well-known/agent-card.json` 의 본문이 되기
+ *  때문이다 — 그때 이름을 바꾸지 않으려고 지금부터 표준을 따른다.
+ */
+export type AgentCard = {
+	/**  주소이자 파일명. `claude-app` · `codex-app` · `claude-term-a1b2c3d4`. */
+	agent_id: string,
+	/**  사람이 읽는 이름 (ACP 핸드셰이크가 준 것 그대로). */
+	name: string,
+	description: string | null,
+	version: string,
+	/**  이 에이전트가 할 수 있다고 광고하는 것. v1 은 비워 둔다. */
+	skills?: string[],
+	/**  기록에 남는 이름 (`.oculpm` 일지의 `agent.id`) — `claude-code` · `codex`. */
+	provider: string,
+	surface: AgentSurface,
+	/**  ocul-pm 세션 id (있으면). 일지 귀속과 이어 붙일 때 쓴다. */
+	session_id: string | null,
+	/**  로컬 프로세스면 그 pid. 살아 있음 판정의 1차 신호다. */
+	pid: number | null,
+	project_root: string,
+	/**  마지막으로 살아 있다고 말한 시각 (RFC3339). */
+	heartbeat_at: string,
+};
+
 export type AgentCount = {
 	agent_id: string,
 	entry_count: number,
@@ -2253,6 +2305,15 @@ export type AgentRef = {
 	/**  The model the agent ran on, e.g. `"Opus 4.8"` / `"Gemini 3 Pro"`. */
 	version: string | null,
 };
+
+/**  카드가 어디서 도는가. */
+export type AgentSurface = 
+/**  앱 안의 ACP 패널. 앱이 대신 등록하고 앱이 지운다. */
+"app" | 
+/**  앱 안팎의 터미널에서 도는 CLI 세션. 스스로 등록한다. */
+"terminal" | 
+/**  로컬 프로세스가 아니다 (Phase 6 의 HTTP 문으로 들어온다). */
+"remote";
 
 /**  `agent_surface_list` 응답. */
 export type AgentSurfaceOverview = {
@@ -4074,6 +4135,18 @@ export type LayerComparison = {
 	unrecorded_severity: Severity,
 };
 
+/**  잡아 둔 구역 하나. */
+export type Lease = {
+	id: string,
+	/**  주인의 `agent_id`. */
+	holder: string,
+	/**  잡은 glob 들 (프로젝트 상대). */
+	patterns: string[],
+	note: string | null,
+	created_at: string,
+	expires_at: string,
+};
+
 export type LocalDiffReindexReport = {
 	indexed: string[],
 	skipped: ReindexSkip[],
@@ -5434,6 +5507,27 @@ export type TabPreview = {
 	/**  시작 탭인가 — 이름이 비어 있고 아이콘이 고정이라 갈래가 필요하다. */
 	is_start: boolean,
 };
+
+/**  원장을 접어 만든 지금 상태. */
+export type Task = {
+	id: string,
+	/**  넘긴 쪽. */
+	from: string,
+	/**  받은 쪽. */
+	to: string,
+	title: string,
+	state: TaskState,
+	/**  마지막 전이에 달린 메모. */
+	note: string | null,
+	/**  경로 참조만 (본문 복사 금지). */
+	artifacts: string[],
+	created_at: string,
+	updated_at: string,
+	deadline_at: string,
+};
+
+/**  A2A Task 상태. */
+export type TaskState = "submitted" | "working" | "input_required" | "completed" | "failed" | "canceled";
 
 /**
  *  손에 들려 있던 창을 **놓았다** — 이제 평범한 창이다.

@@ -41,10 +41,10 @@ owner: claude-code
 - [x] landing/plugin.html 과 커맨드 목록을 동기화한다 (plugin_manifest 테스트가 게이트) {#plugin-docs}
 
 ## 앱 화면 {#ui}
-- [ ] 사이드바 항목을 늘리지 않는다 — Today 와 AI 패널에 참여자 배지·받은 메시지 카드를 얹는다 {#ui-surface}
-- [ ] 승인 전에는 어떤 자동 행동도 없다 — 인젝션 방어의 UI 측면을 카드에 명시한다 {#ui-approval}
-- [ ] 임대 충돌 경고와 해제 버튼, 누가 무엇을 쥐고 있는지 보여준다 {#ui-conflict}
-- [ ] 한국어·영어 번역과 접근성 이름을 추가한다 {#ui-i18n}
+- [x] 사이드바 항목을 늘리지 않는다 — Today 와 AI 패널에 참여자 배지·받은 메시지 카드를 얹는다 {#ui-surface}
+- [x] 승인 전에는 어떤 자동 행동도 없다 — 인젝션 방어의 UI 측면을 카드에 명시한다 {#ui-approval}
+- [x] 임대 충돌 경고와 해제 버튼, 누가 무엇을 쥐고 있는지 보여준다 {#ui-conflict}
+- [x] 한국어·영어 번역과 접근성 이름을 추가한다 {#ui-i18n}
 
 ## 외부 A2A 엔드포인트 (옵션·후행) {#endpoint}
 - [ ] 루프백 바인딩 HTTP 서버와 /.well-known/agent-card.json, JSON-RPC 2.0(SSE 스트리밍)을 옵트인으로 연다 {#http-endpoint}
@@ -81,4 +81,8 @@ owner: claude-code
 | 2026-09-03T15:08:40+09:00 | #git-index-guard | claude-code | >→x |  | 마스터 템플릿 §3 금지에 반 줄 — git add -A 금지, 명시 경로 stage, add→commit 한 번에. 우리가 git 을 가로채지 않으므로 규율이지 강제가 아니다 |
 | 2026-09-03T15:08:41+09:00 | #plugin-docs | claude-code | ☐→x |  | 문서 표면 3곳 동기 — landing/plugin.html(14종)·plugin_manifest 게이트·앱 안 pluginDocs.ts. tools/list 계약 테스트도 함께 |
 | 2026-09-03T15:09:42+09:00 | #delegation-attribution | claude-code | ☐→x |  | 규칙 문서 대신 task_update 종료 응답에 안내를 실었다 — 위임을 끝내는 순간에만 쓸모 있는 문장이라 상시 컨텍스트 비용이 0 |
+| 2026-09-03T15:29:10+09:00 | #ui-surface | claude-code | ☐→x |  | Today 의 A2aCard — 참여자·넘어온 작업·잡힌 구역. 사이드바 항목 안 늘림(D4). 혼자 일할 때는 카드 자체가 안 뜬다 |
+| 2026-09-03T15:29:12+09:00 | #ui-approval | claude-code | ☐→x |  | 넘어온 작업은 수락/거절 버튼으로만 움직인다 — a2a_decide_task 가 유일한 쓰기 경로. 테스트가 "누르기 전에는 아무 것도 안 나갔다"를 단언 |
+| 2026-09-03T15:29:18+09:00 | #ui-conflict | claude-code | ☐→x |  | 잡힌 구역 목록(주인·패턴·놓기 버튼) + 침범 경고를 OculpmA2aTrespass 이벤트로 받아 표시. 폴링 없음 |
+| 2026-09-03T15:29:20+09:00 | #ui-i18n | claude-code | ☐→x |  | ko/en 13키 + role=region·aria-label. 카드는 목록 3개를 줄 단위로 그린다(표 아님) |
 <!-- oculpm:plan-log end -->

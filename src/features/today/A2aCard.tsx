@@ -1,0 +1,172 @@
+import { useCallback, useEffect, useState } from "react";
+import { Bot, TriangleAlert } from "@/components/Icons";
+import { useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
+import type { A2aOverview } from "@/lib/bindings";
+import { oculpmApi } from "@/api/oculpm";
+import { toAppError } from "@/api/invoke";
+
+// A2A 협업 카드 (docs/a2a/00-master-plan.md §9).
+//
+// **혼자 일할 때는 보이지 않는다.** 참여자가 하나뿐이고 잡힌 구역도 넘어온
+// 작업도 없으면 아무 것도 그리지 않는다 — 대부분의 프로젝트는 끝까지 그
+// 상태이고, 거기에 빈 카드를 놓으면 Today 가 쓰지도 않는 기능의 안내판이 된다.
+//
+// 새 사이드바 항목을 만들지 않은 것도 같은 이유다(D4). 협업 상태는 "오늘 무슨
+// 일이 있나"의 일부이지 별도의 목적지가 아니다.
+//
+// 승인 없이는 아무 것도 시작되지 않는다(D5) — 넘어온 작업은 여기서 사람이
+// 수락해야 `working` 으로 간다. 자동 수락은 v1 에 없다.
+export function A2aCard({ projectId }: { projectId: number }) {
+  const { t } = useT();
+  const [data, setData] = useState<A2aOverview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  /** 이번 세션에 본 침범 경고 (이벤트로만 온다 — 원장에는 남지 않는다). */
+  const [trespasses, setTrespasses] = useState<
+    { actor: string; path: string; holder: string }[]
+  >([]);
+
+  const load = useCallback(() => {
+    void oculpmApi
+      .a2aOverview(projectId)
+      .then(setData)
+      .catch((e: unknown) => setError(tError(toAppError(e))));
+  }, [projectId]);
+
+  useEffect(() => {
+    load();
+    // 폴링하지 않는다 — 원장은 앱 밖 프로세스가 쓰고, 워처가 그것을 알린다.
+    let offChanged: (() => void) | undefined;
+    let offTrespass: (() => void) | undefined;
+    void oculpmApi
+      .onA2aChanged((payload) => {
+        if (payload.project_id === projectId) load();
+      })
+      .then((off) => {
+        offChanged = off;
+      });
+    void oculpmApi
+      .onA2aTrespass(({ project_id, actor, path, holder }) => {
+        if (project_id !== projectId) return;
+        setTrespasses((prev) =>
+          prev.some((p) => p.path === path && p.actor === actor)
+            ? prev
+            : [...prev, { actor, path, holder }],
+        );
+      })
+      .then((off) => {
+        offTrespass = off;
+      });
+    return () => {
+      offChanged?.();
+      offTrespass?.();
+    };
+  }, [projectId, load]);
+
+  if (error) return null;
+  if (!data) return null;
+
+  const waiting = data.open_tasks.filter((task) => task.state === "submitted");
+  const quiet =
+    data.participants.length <= 1 &&
+    data.leases.length === 0 &&
+    data.open_tasks.length === 0 &&
+    trespasses.length === 0;
+  if (quiet) return null;
+
+  const decide = async (taskId: string, accept: boolean) => {
+    try {
+      await oculpmApi.a2aDecideTask(projectId, taskId, accept);
+      load();
+    } catch (e) {
+      setError(tError(toAppError(e)));
+    }
+  };
+
+  const release = async (leaseId: string) => {
+    try {
+      await oculpmApi.a2aReleaseLease(projectId, leaseId);
+      load();
+    } catch {
+      load();
+    }
+  };
+
+  return (
+    <div className="card card-pad" role="region" aria-label={t("a2a.title")} style={{ marginBottom: 16 }}>
+      <div className="stat-top">
+        <Bot size={15} color="var(--accent-text)" />
+        <strong>{t("a2a.title")}</strong>
+        <span className="empty-hint right">
+          {t("a2a.participants", { n: data.participants.length })}
+        </span>
+      </div>
+
+      <ul className="a2a-list" aria-label={t("a2a.participants", { n: data.participants.length })}>
+        {data.participants.map((card) => (
+          <li key={card.agent_id}>
+            <strong>{card.name}</strong>
+            <span className="empty-hint">{t(`a2a.surface.${card.surface}`)}</span>
+          </li>
+        ))}
+      </ul>
+
+      {waiting.length ? (
+        <>
+          <div className="a2a-head">{t("a2a.waiting")}</div>
+          <ul className="a2a-list">
+            {waiting.map((task) => (
+              <li key={task.id}>
+                <strong>{task.title}</strong>
+                <span className="empty-hint">{t("a2a.from", { who: task.from })}</span>
+                <span className="right">
+                  <button className="btn sm primary" onClick={() => void decide(task.id, true)}>
+                    {t("a2a.accept")}
+                  </button>
+                  <button className="btn sm" onClick={() => void decide(task.id, false)}>
+                    {t("a2a.decline")}
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+
+      {data.leases.length ? (
+        <>
+          <div className="a2a-head">{t("a2a.leases")}</div>
+          <ul className="a2a-list">
+            {data.leases.map((lease) => (
+              <li key={lease.id}>
+                <strong>{lease.holder}</strong>
+                <span className="empty-hint">{lease.patterns.join(" · ")}</span>
+                <button className="btn ghost sm right" onClick={() => void release(lease.id)}>
+                  {t("a2a.release")}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+
+      {trespasses.length ? (
+        <>
+          <div className="a2a-head">
+            <TriangleAlert size={13} /> {t("a2a.trespass")}
+          </div>
+          <ul className="a2a-list">
+            {trespasses.map((hit) => (
+              <li key={`${hit.actor}:${hit.path}`}>
+                <strong>{hit.path}</strong>
+                <span className="empty-hint">
+                  {t("a2a.trespassBy", { actor: hit.actor, holder: hit.holder })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </div>
+  );
+}

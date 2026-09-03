@@ -1,3 +1,4 @@
+pub mod a2a;
 pub mod acp;
 pub mod automation;
 pub mod claude_hooks;
@@ -41,6 +42,7 @@ pub mod terminal;
 pub mod themes;
 pub mod window;
 
+pub use a2a::*;
 pub use acp::*;
 pub use automation::*;
 pub use claude_hooks::*;
