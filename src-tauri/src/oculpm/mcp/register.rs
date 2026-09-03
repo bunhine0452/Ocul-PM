@@ -542,11 +542,11 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&config).unwrap(), "{ broken !!");
     }
 
+    /// 등록은 **키 하나에 인자 없이** 쓴다 — `~/.codex/config.toml` 은 머신
+    /// 전역이라 `--root` 를 박으면 다른 프로젝트의 기록까지 그리로 간다.
     #[test]
-    fn codex_register_roundtrip_preserves_comments_and_foreign_servers() {
+    fn codex_register_writes_one_rootless_server_and_preserves_the_rest() {
         let dir = TempDir::new().unwrap();
-        let root = dir.path().join("project");
-        std::fs::create_dir(&root).unwrap();
         let binary = fake_binary(dir.path());
         let config = dir.path().join(".codex").join("config.toml");
         std::fs::create_dir(config.parent().unwrap()).unwrap();
@@ -556,82 +556,80 @@ mod tests {
         )
         .unwrap();
 
-        let st = codex_register_at(&config, &root, &binary).unwrap();
+        let st = codex_register_at(&config, &binary).unwrap();
         assert!(st.installed && st.registered && st.binary_found);
-        assert_eq!(st.server_key, "oculpm-project");
+        assert_eq!(st.server_key, "oculpm");
+        assert_eq!(st.pinned_root, None, "루트를 박지 않는다");
         assert_eq!(st.foreign_servers, 1);
+
         let written = std::fs::read_to_string(&config).unwrap();
         assert!(written.contains("# Keep this user preference."));
-        assert!(written.contains("model = \"gpt-5\""));
         assert!(written.contains("[mcp_servers.notion]"));
-        assert!(written.contains("[mcp_servers.oculpm-project]"));
         let parsed: toml::Value = toml::from_str(&written).unwrap();
+        let ours = &parsed["mcp_servers"]["oculpm"];
+        assert!(
+            ours.get("args").is_none(),
+            "args 가 있으면 루트가 박힌 것이다"
+        );
         assert_eq!(
-            parsed["mcp_servers"]["oculpm-project"]["args"][1].as_str(),
-            Some(root.to_string_lossy().as_ref())
+            ours["command"].as_str(),
+            Some(binary.to_string_lossy().as_ref())
         );
 
-        let st = codex_unregister_at(&config, &root, Some(&binary)).unwrap();
+        let st = codex_unregister_at(&config, Some(&binary)).unwrap();
         assert!(!st.registered);
         let after = std::fs::read_to_string(&config).unwrap();
         assert!(after.contains("[mcp_servers.notion]"));
-        assert!(!after.contains("oculpm-project"));
+        assert!(!after.contains("oculpm"));
     }
 
+    /// v2.39.0 이 쓴 **프로젝트별·루트 박힌** 항목은 걷어내고 하나로 수렴한다.
+    /// 그대로 두면 유튜브 프로젝트의 Codex 가 이 저장소에 일지를 쓴다 (실제 사고).
     #[test]
-    fn codex_same_folder_name_projects_get_distinct_keys() {
+    fn codex_register_collapses_legacy_pinned_entries() {
         let dir = TempDir::new().unwrap();
-        let root_a = dir.path().join("work").join("app");
-        let root_b = dir.path().join("experiment").join("app");
-        std::fs::create_dir_all(&root_a).unwrap();
-        std::fs::create_dir_all(&root_b).unwrap();
         let binary = fake_binary(dir.path());
         let config = dir.path().join(".codex").join("config.toml");
         std::fs::create_dir(config.parent().unwrap()).unwrap();
+        std::fs::write(
+            &config,
+            format!(
+                "[mcp_servers.oculpm-ai-pm]\ncommand = \"{bin}\"\nargs = [\"--root\", \"/x/ai-pm\"]\n\n\
+                 [mcp_servers.oculpm-other]\ncommand = \"{bin}\"\nargs = [\"--root\", \"/x/other\"]\n",
+                bin = binary.to_string_lossy()
+            ),
+        )
+        .unwrap();
 
-        let a = codex_register_at(&config, &root_a, &binary).unwrap();
-        let b = codex_register_at(&config, &root_b, &binary).unwrap();
-        assert_eq!(a.server_key, "oculpm-app");
-        assert!(b.server_key.starts_with("oculpm-app-"));
-        assert!(
-            codex_status_at(&config, &root_a, Some(&binary))
-                .unwrap()
-                .registered
-        );
+        // 상태는 「박혀 있다」고 먼저 말해야 한다 — 화면이 다시 등록하라고 할 근거.
+        let before = codex_status_at(&config, Some(&binary)).unwrap();
+        assert!(before.registered);
+        assert!(before.pinned_root.is_some(), "레거시 고정 루트를 짚는다");
 
-        codex_unregister_at(&config, &root_b, Some(&binary)).unwrap();
-        assert!(
-            codex_status_at(&config, &root_a, Some(&binary))
-                .unwrap()
-                .registered
-        );
-        assert!(
-            !codex_status_at(&config, &root_b, Some(&binary))
-                .unwrap()
-                .registered
-        );
+        let st = codex_register_at(&config, &binary).unwrap();
+        assert_eq!(st.pinned_root, None);
+        let parsed: toml::Value =
+            toml::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
+        let servers = parsed["mcp_servers"].as_table().unwrap();
+        assert_eq!(servers.len(), 1, "우리 항목은 하나로 수렴한다");
+        assert!(servers.contains_key("oculpm"));
     }
 
     #[test]
     fn codex_register_refuses_missing_config_directory_and_broken_toml() {
         let dir = TempDir::new().unwrap();
-        let root = dir.path();
-        let binary = fake_binary(root);
+        let binary = fake_binary(dir.path());
         let missing = dir.path().join("missing").join("config.toml");
-        assert!(
-            !codex_status_at(&missing, root, Some(&binary))
-                .unwrap()
-                .installed
-        );
-        assert!(codex_register_at(&missing, root, &binary).is_err());
+        assert!(!codex_status_at(&missing, Some(&binary)).unwrap().installed);
+        assert!(codex_register_at(&missing, &binary).is_err());
         assert!(!missing.exists(), "Codex 설정 폴더를 창조하지 않는다");
 
         let config = dir.path().join(".codex").join("config.toml");
         std::fs::create_dir(config.parent().unwrap()).unwrap();
         std::fs::write(&config, "[mcp_servers\ninvalid = true").unwrap();
-        assert!(codex_status_at(&config, root, Some(&binary)).is_err());
-        assert!(codex_register_at(&config, root, &binary).is_err());
-        assert!(codex_unregister_at(&config, root, Some(&binary)).is_err());
+        assert!(codex_status_at(&config, Some(&binary)).is_err());
+        assert!(codex_register_at(&config, &binary).is_err());
+        assert!(codex_unregister_at(&config, Some(&binary)).is_err());
         assert_eq!(
             std::fs::read_to_string(&config).unwrap(),
             "[mcp_servers\ninvalid = true"

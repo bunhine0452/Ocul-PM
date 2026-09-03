@@ -32,6 +32,7 @@ fn main() {
             }
         }
     }
+    let explicit = root.is_some() || std::env::var_os("OCULPM_ROOT").is_some();
     let root = root
         .or_else(|| std::env::var("OCULPM_ROOT").ok().map(Into::into))
         .unwrap_or_else(|| std::env::current_dir().expect("cwd"));
@@ -39,6 +40,24 @@ fn main() {
     if !root.is_dir() {
         eprintln!("oculpm-mcp: root is not a directory: {}", root.display());
         std::process::exit(2);
+    }
+    // 남의 프로젝트에 쓰지 않는다. 머신 전역 설정(`~/.codex/config.toml`)에
+    // `--root` 가 박혀 있으면 **모든** 세션이 그 항목을 싣고, 다른 프로젝트에서
+    // 부른 기록이 박힌 경로로 간다 — 2026-09-04 에 실제로 그랬다. 조용히
+    // 고쳐 주는 대신 서지 않는다: 설정이 틀렸다는 사실이 보여야 고쳐진다.
+    if explicit {
+        if let Ok(cwd) = std::env::current_dir() {
+            if let Some(here) = ocul_pm_lib::oculpm::shim::conflicting_tracked_root(&root, &cwd) {
+                eprintln!(
+                    "oculpm-mcp: refusing to start — --root points at {} but this session runs in {}.\n\
+                     A machine-wide config (~/.codex/config.toml) must not pin --root; re-register from \
+                     ocul-pm Settings → Integration so the root follows the session.",
+                    root.display(),
+                    here.display()
+                );
+                std::process::exit(2);
+            }
+        }
     }
     eprintln!(
         "oculpm-mcp {} — root: {} (stdio 대기)",

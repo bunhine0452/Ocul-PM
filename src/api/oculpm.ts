@@ -75,14 +75,13 @@ async function unwrap<T>(command: string, p: Promise<Envelope<T>>): Promise<T> {
 export const oculpmApi = {
   // ─── Codex MCP — Claude `.mcp.json`과 독립된 `~/.codex/config.toml` ───
 
-  codexMcpStatus: (projectId: number) =>
-    unwrap<CodexRegistrationStatus>("codex_mcp_status", commands.codexMcpStatus(projectId)),
+  codexMcpStatus: () => unwrap<CodexRegistrationStatus>("codex_mcp_status", commands.codexMcpStatus()),
 
-  codexMcpRegister: (projectId: number) =>
-    unwrap<CodexRegistrationStatus>("codex_mcp_register", commands.codexMcpRegister(projectId)),
+  codexMcpRegister: () =>
+    unwrap<CodexRegistrationStatus>("codex_mcp_register", commands.codexMcpRegister()),
 
-  codexMcpUnregister: (projectId: number) =>
-    unwrap<CodexRegistrationStatus>("codex_mcp_unregister", commands.codexMcpUnregister(projectId)),
+  codexMcpUnregister: () =>
+    unwrap<CodexRegistrationStatus>("codex_mcp_unregister", commands.codexMcpUnregister()),
 
   /** Codex 플러그인 설치 상태 (머신 스코프, 읽기 전용 — 설치는 `codex plugin` CLI). */
   codexPluginStatus: () =>

@@ -1830,12 +1830,16 @@ export const commands = {
 	mcpRegister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_register", { projectId })),
 	mcpUnregister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_unregister", { projectId })),
 	/**
-	 *  Codex는 Claude의 프로젝트 `.mcp.json`을 읽지 않는다. 이 명령들은
-	 *  `~/.codex/config.toml`의 프로젝트별 oculpm stdio 항목만 관리한다.
+	 *  Codex 는 Claude 의 프로젝트 `.mcp.json` 을 읽지 않는다. 이 명령들은
+	 *  `~/.codex/config.toml` 의 oculpm stdio 항목 **하나**를 관리한다.
+	 * 
+	 *  **머신 스코프다.** 그 파일은 모든 Codex 세션에 실리므로 프로젝트별 항목을
+	 *  만들면 안 된다 — 루트를 박은 항목이 다른 프로젝트의 기록까지 그리로 보낸다.
+	 *  대신 인자 없는 서버 하나를 두고, 루트는 세션의 작업 폴더(cwd)가 정한다.
 	 */
-	codexMcpStatus: (projectId: number) => typedError<CodexRegistrationStatus, string>(__TAURI_INVOKE("codex_mcp_status", { projectId })),
-	codexMcpRegister: (projectId: number) => typedError<CodexRegistrationStatus, string>(__TAURI_INVOKE("codex_mcp_register", { projectId })),
-	codexMcpUnregister: (projectId: number) => typedError<CodexRegistrationStatus, string>(__TAURI_INVOKE("codex_mcp_unregister", { projectId })),
+	codexMcpStatus: () => typedError<CodexRegistrationStatus, string>(__TAURI_INVOKE("codex_mcp_status")),
+	codexMcpRegister: () => typedError<CodexRegistrationStatus, string>(__TAURI_INVOKE("codex_mcp_register")),
+	codexMcpUnregister: () => typedError<CodexRegistrationStatus, string>(__TAURI_INVOKE("codex_mcp_unregister")),
 	/**
 	 *  Codex 플러그인 설치 상태 (머신 스코프, **읽기 전용**). 설치·해제는
 	 *  `codex plugin` CLI 가 해야 마켓플레이스가 캐시까지 펼쳐진다 — 설정만
@@ -3106,8 +3110,13 @@ export type CodexRegistrationStatus = {
 	binary_found: boolean,
 	binary_path: string | null,
 	config_path: string,
-	/**  이 프로젝트에 배정된 `mcp_servers` 키. */
+	/**  우리가 쓰는 `mcp_servers` 키 — 항상 하나다 (`oculpm`). */
 	server_key: string,
+	/**
+	 *  이 항목이 프로젝트를 **박아 두고 있다** (`--root <경로>`). v2.39.0 이 쓴
+	 *  항목이 여기 걸린다 — 그대로 두면 다른 프로젝트의 기록이 이 경로로 간다.
+	 */
+	pinned_root: string | null,
 	/**  oculpm이 소유하지 않는 Codex MCP 서버 수 (정보 표시용). */
 	foreign_servers: number,
 };

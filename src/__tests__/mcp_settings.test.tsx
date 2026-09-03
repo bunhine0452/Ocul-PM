@@ -37,7 +37,8 @@ function codexStatus(over: Record<string, unknown> = {}) {
     binary_found: true,
     binary_path: "/app/oculpm-mcp",
     config_path: "/home/u/.codex/config.toml",
-    server_key: "oculpm-proj",
+    server_key: "oculpm",
+    pinned_root: null,
     foreign_servers: 0,
     ...over,
   };
@@ -288,13 +289,12 @@ describe("ClaudePluginBlock (머신 전역)", () => {
   });
 });
 
-describe("CodexMcpServerBlock", () => {
+describe("CodexMcpServerBlock (머신 스코프)", () => {
   it("Codex 전용 등록은 codexMcpRegister만 호출하고 새 세션 안내를 보인다", async () => {
-    const r = render(<CodexMcpServerBlock projectId={21} />);
+    const r = render(<CodexMcpServerBlock />);
     await waitFor(() => expect(r.getByText("Codex MCP 서버")).toBeTruthy());
     fireEvent.click(r.getByRole("button", { name: "등록" }));
     await waitFor(() => expect(fx.calls.codexRegister).toHaveLength(1));
-    expect(fx.calls.codexRegister[0][0]).toBe(21);
     expect(fx.calls.register).toHaveLength(0);
     await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
     expect(r.getByText(/새 Codex 세션/)).toBeTruthy();
@@ -302,7 +302,7 @@ describe("CodexMcpServerBlock", () => {
 
   it("Codex 미설치와 바이너리 없음은 등록을 막는다", async () => {
     fx.codex = codexStatus({ installed: false, binary_found: false, binary_path: null });
-    const r = render(<CodexMcpServerBlock projectId={22} />);
+    const r = render(<CodexMcpServerBlock />);
     await waitFor(() => expect(r.getByText("Codex 미설치")).toBeTruthy());
     expect((r.getByRole("button", { name: "등록" }) as HTMLButtonElement).disabled).toBe(true);
     expect(r.getByText(/Codex 설정 폴더를 찾지 못했습니다/)).toBeTruthy();
@@ -310,11 +310,23 @@ describe("CodexMcpServerBlock", () => {
 
   it("Codex 해제는 Codex 설정만 대상으로 한다", async () => {
     fx.codex = codexStatus({ registered: true });
-    const r = render(<CodexMcpServerBlock projectId={23} />);
+    const r = render(<CodexMcpServerBlock />);
     await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
     fireEvent.click(r.getByRole("button", { name: "해제" }));
     await waitFor(() => expect(fx.calls.codexUnregister).toHaveLength(1));
     expect(fx.calls.unregister).toHaveLength(0);
+  });
+
+  /// 루트가 박힌 항목은 **다른 프로젝트의 기록을 여기로 끌어온다**. 화면은
+  /// 그 경로를 이름으로 말하고, 답을 「해제」가 아니라 「다시 등록」으로 준다.
+  it("프로젝트가 고정된 항목은 경로를 짚고 다시 등록을 권한다", async () => {
+    fx.codex = codexStatus({ registered: true, pinned_root: "/Users/u/Desktop/git/ai-pm" });
+    const r = render(<CodexMcpServerBlock />);
+    await waitFor(() => expect(r.getByText("프로젝트 고정됨")).toBeTruthy());
+    expect(r.getByText(/\/Users\/u\/Desktop\/git\/ai-pm/)).toBeTruthy();
+    expect(r.queryByRole("button", { name: "해제" })).toBeNull();
+    fireEvent.click(r.getByRole("button", { name: "다시 등록" }));
+    await waitFor(() => expect(fx.calls.codexRegister).toHaveLength(1));
   });
 });
 

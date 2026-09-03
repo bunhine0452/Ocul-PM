@@ -58,9 +58,15 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.39.0 — Codex as family, and a plan list that stays short
+## 🚀 v2.39.1 — one Codex entry per machine; the session picks the project
 
-- **Register the MCP server for Codex** — Settings → Integration writes a stdio server pointing at this project only, into `~/.codex/config.toml`. It **never touches Claude's plugin or `.mcp.json`**, and it preserves your hand-written comments and other MCP servers. Unregistering removes this project's entry alone.
+- **Fixed: a Codex session working in another project wrote its journal into this one.** `~/.codex/config.toml` is machine-wide, so a server listed there loads in every session — and v2.39.0 registered it with a project pinned. There is now a single entry with **no pinned root**: the project is decided by the folder the Codex session opened in.
+- **Old entries are named on screen** with a "pinned to a project" badge and fixed by one **Re-register**.
+- **The recording server refuses to write into someone else's project** — if `--root` points at a tracked project different from where it runs, it does not start at all.
+
+## v2.39.0 — Codex as family, and a plan list that stays short
+
+- **Register the MCP server for Codex** — Settings → Integration writes a stdio server into `~/.codex/config.toml` (since v2.39.1: one entry, and the session picks the project). It **never touches Claude's plugin or `.mcp.json`**, and it preserves your hand-written comments and other MCP servers. Unregistering removes this project's entry alone.
 - **A Codex-native plugin** — `codex plugin marketplace add bunhine0452/Ocul-PM` → `codex plugin add oculpm-codex@oculpm`. The journaling-rules skill rides along in every Codex session.
 - **It names the "marketplace missing" state** — on first run Codex imports your Claude setup but carries over **only the enabled-plugin list**. Without its marketplace, Codex **silently** fails to load that plugin; the Integration tab now calls that out and hands you the commands to fix it.
 - **Plans pile up, the list stays short** — once finished/archived plans pass 12 they **fold by month** (`Done · 2026.08`), each section renders 10 rows and continues with "N more". A whole month can be **archived from one header button**. Active plans are never split — what you are doing now must be visible at a glance.
@@ -355,7 +361,7 @@ Anything that can read `AGENTS.md` works.
 
 - Zero setup: **Claude Code · Codex CLI · Gemini CLI · Antigravity · pi**
 - Enable their rules file in Settings → Agents: **Cursor · Windsurf · GitHub Copilot · aider · Cline · Zed**
-- **Codex CLI** goes one step further as of v2.39.0 — register its **MCP server per project** from Settings → Integration, and install the Codex-native plugin (the journaling-rules skill) from the marketplace. Entirely independent of the Claude setup.
+- **Codex CLI** goes one step further as of v2.39.0 — register its **MCP server** from Settings → Integration (one machine-wide entry; the session picks the project), and install the Codex-native plugin (the journaling-rules skill) from the marketplace. Entirely independent of the Claude setup.
 - **Claude Code · Claude Desktop** go one step further — hooks (precise session detection) and MCP tools (structured recording, plan queries) integrate directly (v2.2.0). Claude Code also runs as an in-app agent from the **Claude Code screen** (v2.10.0, Agent Client Protocol).
 
 Git backfill tells agents apart by commit signatures.

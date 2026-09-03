@@ -238,6 +238,23 @@ pub fn tracked_root(start: &Path) -> Option<PathBuf> {
         .map(Path::to_path_buf)
 }
 
+/// **여기서 도는데 저기에 쓰려는가** — 명시된 root 와 지금 서 있는 자리가 서로
+/// 다른 추적 프로젝트면 그 다른 프로젝트를 돌려준다.
+///
+/// `~/.codex/config.toml` 처럼 **머신 전역**인 설정에 `--root` 를 박아 두면 모든
+/// 세션이 그 항목을 싣는다. 2026-09-04 에 실제로 유튜브 프로젝트의 Codex 세션이
+/// 이 저장소에 일지를 썼다 — 서버는 cwd 가 유튜브인 채로 `--root ai-pm` 으로 떠
+/// 있었다. cwd 가 추적 프로젝트가 아니면(패키징된 앱은 `/` 에서 뜬다) 판단하지
+/// 않는다 — 모르는 것으로 남을 막지 않는다.
+pub fn conflicting_tracked_root(explicit_root: &Path, cwd: &Path) -> Option<PathBuf> {
+    let here = tracked_root(cwd)?;
+    let here = here.canonicalize().unwrap_or(here);
+    let there = explicit_root
+        .canonicalize()
+        .unwrap_or_else(|_| explicit_root.to_path_buf());
+    (here != there).then_some(here)
+}
+
 fn read_token(path: &Path) -> Option<SessionToken> {
     serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()
 }
@@ -320,5 +337,33 @@ mod tests {
         let merged = shim.prepend_path("/usr/local/bin:/usr/bin");
         assert!(merged.starts_with(&shim.dir.display().to_string()));
         assert!(merged.ends_with("/usr/local/bin:/usr/bin"));
+    }
+
+    /// 전역 설정에 박힌 root 는 남의 프로젝트에 쓴다 — 그 자리를 이름으로 짚는다.
+    #[test]
+    fn a_pinned_root_conflicts_with_a_different_tracked_cwd() {
+        let dir = TempDir::new().unwrap();
+        let a = dir.path().join("a");
+        let b = dir.path().join("b");
+        for p in [&a, &b] {
+            std::fs::create_dir_all(p.join(".oculpm")).unwrap();
+        }
+        assert_eq!(
+            conflicting_tracked_root(&a, &b).map(|p| p
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .to_string()),
+            Some("b".to_string())
+        );
+        // 같은 프로젝트(하위 폴더 포함)는 충돌이 아니다.
+        let sub = a.join("src");
+        std::fs::create_dir_all(&sub).unwrap();
+        assert_eq!(conflicting_tracked_root(&a, &a), None);
+        assert_eq!(conflicting_tracked_root(&a, &sub), None);
+        // 추적 프로젝트가 아닌 자리에서는 판단하지 않는다.
+        let loose = dir.path().join("loose");
+        std::fs::create_dir_all(&loose).unwrap();
+        assert_eq!(conflicting_tracked_root(&a, &loose), None);
     }
 }
