@@ -3,6 +3,7 @@ import { AgentMark } from "@/components/AgentMark";
 import { useT, type I18nKey } from "@/i18n";
 import type { TerminalTab } from "@/contexts/WorkspaceContext";
 import { collectSids } from "@/lib/termPanes";
+import { sessionColorStyle } from "@/lib/sessionColors";
 import { focusOfTab, panesOfTab } from "./activePane";
 import { buildRailItem, formatElapsed, waitingItems, type RailTone } from "./railModel";
 import { deriveAgentState, emptyPaneSignal, type PaneSignal } from "./agentMode";
@@ -53,6 +54,11 @@ export interface TerminalRailProps {
   onRenameCommit: () => void;
   onRenameCancel: () => void;
   /**
+   * 카드 오른쪽 클릭 — 색 고르기 메뉴를 여는 자리. 레일은 **어느 카드를 어디서**
+   * 눌렀는지만 넘긴다 (메뉴의 위치·바깥 클릭은 화면이 소유한다).
+   */
+  onCardMenu?: (id: string, e: React.MouseEvent<HTMLElement>) => void;
+  /**
    * 세션 옮기기 드래그 배선 (2026-08-28). 없으면 드래그가 그냥 꺼진다 —
    * 레일은 카드를 그리고 포인터를 넘길 뿐, 어디에 놓이는지는 모른다
    * (그 판정은 페인 기하까지 아는 `TerminalSurface` 몫이다).
@@ -90,6 +96,7 @@ export function TerminalRail({
   onRenameChange,
   onRenameCommit,
   onRenameCancel,
+  onCardMenu,
   drag,
 }: TerminalRailProps) {
   const { t } = useT();
@@ -100,18 +107,29 @@ export function TerminalRail({
   // 예전엔 카드 재료를 memo 로 묶었는데, 기다림 판정이 **시간이 흐르는
   // 것만으로** 바뀌게 되면서(출력이 멎은 지 얼마나 됐나) 고정된 now 로는
   // 계산할 수 없다. 탭 수는 한 자리라 매초 다시 만드는 비용은 무시할 만하다.
-  const live = tabs.some((tab) => shellStates[focusOfTab(tab)]?.running != null);
+  //
+  // 시계는 **모든 페인**을 본다 (2026-09-04). 포커스된 페인만 보면, 옆 페인에서
+  // 도는 에이전트의 경과·기다림 판정이 초를 못 받아 멎은 것처럼 보인다.
+  const sidsByTab = tabs.map((tab) => collectSids(panesOfTab(tab)));
+  const live = sidsByTab.some((sids) => sids.some((sid) => shellStates[sid]?.running != null));
   const now = useSecondTick(live);
-  const base = tabs.map((tab) => {
+  const base = tabs.map((tab, index) => {
     const sid = focusOfTab(tab);
     const shell = shellStates[sid];
+    const paneState = (paneSid: string) => {
+      const paneShell = shellStates[paneSid];
+      return {
+        shell: paneShell,
+        agentState: deriveAgentState(paneShell, paneSignals[paneSid] ?? emptyPaneSignal, now),
+      };
+    };
     return buildRailItem(
       {
         id: tab.id,
         label: tab.label,
         shell,
         agentState: deriveAgentState(shell, paneSignals[sid] ?? emptyPaneSignal, now),
-        paneCount: collectSids(panesOfTab(tab)).length,
+        panes: sidsByTab[index].map(paneState),
       },
       now,
     );
@@ -163,6 +181,16 @@ export function TerminalRail({
           const active = item.id === activeId;
           const done = finished?.[item.id];
           const toneText = t(TONE_LABEL[item.tone]);
+          // 접힌 레일에서 카드는 아이콘 하나가 전부라, 4분할해 넷을 돌리고
+          // 있어도 화면에 숫자가 어디에도 없었다. 도는 것이 여럿이면 그
+          // 수를, 아니면(통합이 꺼져 도는 걸 알 수 없을 때 포함) 페인 수를
+          // 아이콘 모서리에 얹는다. 하나뿐이면 점 하나로 이미 충분하다.
+          const countBadge =
+            item.runningCount > 1 ? item.runningCount : item.paneCount > 1 ? item.paneCount : null;
+          const paneSummary =
+            item.paneCount > 1
+              ? t("term.paneSummary", { n: item.paneCount, r: item.runningCount })
+              : null;
           return (
             <div
               key={item.id}
@@ -174,6 +202,15 @@ export function TerminalRail({
                 (drag?.movingId === item.id ? " dragging" : "")
               }
               data-tone={item.tone}
+              // 정체 색은 **왼쪽 띠**만 쓴다 — 점·아이콘·타이머는 이미 상태를
+              // 말하고 있어서, 같은 색으로 정체까지 얹으면 두 신호가 싸운다.
+              data-colored={tab.color ?? undefined}
+              style={sessionColorStyle(tab.color)}
+              onContextMenu={(e) => {
+                if (!onCardMenu) return;
+                e.preventDefault();
+                onCardMenu(item.id, e);
+              }}
               role="tab"
               aria-selected={active}
               tabIndex={0}
@@ -185,6 +222,8 @@ export function TerminalRail({
               // 툴팁 둘째 줄에 넣으면 평소엔 조용하고 필요할 때 읽힌다.
               title={
                 `${item.label} — ${toneText}` +
+                // 배지는 `aria-hidden` 이라 읽히지 않는다. 개수는 툴팁이 나른다.
+                (paneSummary ? `\n${paneSummary}` : "") +
                 (drag ? `\n${t("term.dragSessionHint")}` : "")
               }
               // 포인터 캡처로 끌면 커서가 페인(xterm 캔버스) 위로 지나가도
@@ -206,6 +245,13 @@ export function TerminalRail({
               <span className="ts-dot" aria-hidden="true" />
               <span className="ts-icon" aria-hidden="true">
                 {item.agent ? <AgentMark agentId={item.agent.id} size={14} /> : <SquareTerminal size={14} />}
+                {/* 접힘 전용 — 펼친 카드에서는 아래 상태 줄이 같은 것을 글로
+                    말하므로 CSS 가 이쪽을 숨긴다 (숫자를 두 번 그리지 않는다). */}
+                {countBadge === null ? null : (
+                  <span className="ts-count" data-live={item.runningCount > 1 || undefined}>
+                    {countBadge}
+                  </span>
+                )}
               </span>
               <span className="ts-main">
                 <span className="ts-line">
@@ -239,7 +285,13 @@ export function TerminalRail({
                 {item.detail || item.paneCount > 1 ? (
                   <span className="ts-detail">
                     {item.paneCount > 1 ? (
-                      <span className="ts-panes">{t("term.paneCount", { n: item.paneCount })}</span>
+                      // 페인 수만으로는 "넷이 열려 있다"까지다. 정작 궁금한 건
+                      // **몇 개가 지금 일하고 있나**이므로, 알 수 있으면 그걸 쓴다.
+                      <span className="ts-panes" data-live={item.runningCount > 0 || undefined}>
+                        {item.runningCount > 0
+                          ? t("term.paneRunning", { r: item.runningCount, n: item.paneCount })
+                          : t("term.paneCount", { n: item.paneCount })}
+                      </span>
                     ) : null}
                     {item.detail}
                   </span>

@@ -1,5 +1,6 @@
 import type { SVGProps } from "react";
 import { ClaudeMark } from "./ClaudeMark";
+import { CodexMark } from "./CodexMark";
 import { Cpu } from "./Icons";
 
 // 에이전트 글리프 (2026-09-02).
@@ -19,5 +20,9 @@ export function AgentMark({
 }: { agentId?: string | null; size?: number | string } & Omit<SVGProps<SVGSVGElement>, "size">) {
   const id = (agentId ?? "").toLowerCase();
   if (id.startsWith("claude")) return <ClaudeMark size={size} {...rest} />;
+  // Codex 도 마크가 있는데 여기서만 빠져 있었다 — 터미널 레일·상태 필에서
+  // 혼자 중립 글리프(Cpu)로 떨어져, 같은 자리에서 Claude 는 자기 로고이고
+  // Codex 는 "모르는 무엇"이 됐다.
+  if (id.startsWith("codex")) return <CodexMark size={size} {...rest} />;
   return <Cpu size={size} {...rest} />;
 }

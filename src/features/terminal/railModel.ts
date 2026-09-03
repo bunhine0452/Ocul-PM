@@ -36,10 +36,26 @@ export interface RailItem {
   elapsedMs: number | null;
   /** 이 탭의 분할 페인 수. 1 이면 표시하지 않는다. */
   paneCount: number;
-  /** 에이전트가 내 입력을 기다리는가. */
+  /**
+   * 지금 명령이 돌고 있는 페인 수.
+   *
+   * 카드의 머리글(상태·경과·마지막 명령)은 **포커스된 페인** 것이다. 그것만
+   * 그리면 4분할해 에이전트를 넷 띄운 탭이 "하나 돌고 있음"으로 보인다 —
+   * 나머지 셋은 카드 어디에도 없었다. 이 수는 탭 전체를 센다.
+   */
+  runningCount: number;
+  /** 내 입력을 기다리는 페인 수. 같은 이유로 탭 전체를 센다. */
+  waitingCount: number;
+  /** 에이전트가 내 입력을 기다리는가 (**어느 페인이든**). */
   waiting: boolean;
   /** 그 판단이 추정인가 (출력이 멎었다 = 추정, 벨 = 확실). */
   waitingGuess: boolean;
+}
+
+/** 페인 하나의 상태 — 개수를 세는 데 필요한 것만. */
+export interface RailPane {
+  shell: ShellState | undefined;
+  agentState: AgentState | null;
 }
 
 export interface RailInput {
@@ -53,7 +69,11 @@ export interface RailInput {
    * 값 없이도 명령줄만으로 된다.
    */
   agentState?: AgentState | null;
-  paneCount: number;
+  /**
+   * 이 탭의 **모든** 페인 (포커스된 것 포함). 개수와 "몇 개가 돌고 있나"가
+   * 여기서 나온다. 비우면 페인 하나짜리 탭으로 본다.
+   */
+  panes: readonly RailPane[];
 }
 
 /**
@@ -88,12 +108,20 @@ function basename(path: string): string {
  * 규칙과 같은 판정이다 — 두 곳이 갈라지면 이름이 오락가락한다).
  */
 export function buildRailItem(input: RailInput, now: number): RailItem {
-  const { id, label, shell, paneCount, agentState = null } = input;
+  const { id, label, shell, panes, agentState = null } = input;
   const summary = shell ? summarizeShell(shell) : null;
   const agent = shell?.running ? detectAgent(shell.running.command) : null;
 
+  // 개수는 **탭 전체**를 센다 — 카드의 머리글이 포커스된 페인 하나만 말하는
+  // 것과 일부러 다르다. 넷을 띄워 놓고 하나만 보이던 것이 이 카드의 구멍이었다.
+  const paneCount = Math.max(1, panes.length);
+  const runningCount = panes.filter((pane) => pane.shell?.running != null).length;
+  const waitingPanes = panes.filter((pane) => pane.agentState?.waiting === true);
+  const waitingCount = waitingPanes.length;
+
   if (!summary) {
     // 셸 통합이 없는 세션 — cwd 조차 모른다. 이름만 그린다.
+    // 개수는 그래도 안다(레이아웃이 알려준다) — 통합과 무관한 사실이다.
     return {
       id,
       label,
@@ -102,12 +130,26 @@ export function buildRailItem(input: RailInput, now: number): RailItem {
       detail: "",
       elapsedMs: null,
       paneCount,
+      runningCount,
+      waitingCount,
       waiting: false,
       waitingGuess: false,
     };
   }
 
-  const waiting = agentState?.waiting === true;
+  // 기다림도 탭 전체다. 포커스된 페인만 보면, 옆 페인의 에이전트가 나를
+  // 부르는데 다른 탭을 보고 있는 동안에는 아무도 알려주지 않는다.
+  //
+  // 포커스된 페인을 따로 한 번 더 보는 이유: `panes` 는 호출부가 채우는
+  // 목록이라 비어 있을 수 있고(테스트·페인 하나짜리 옛 호출), 그때 이미 알고
+  // 있는 기다림을 잃으면 안 된다. 아는 것을 버리지 않는 쪽으로 합친다.
+  const focusedWaiting = agentState?.waiting === true;
+  const waiting = focusedWaiting || waitingCount > 0;
+  // 문구의 근거는 **포커스된 페인**이 우선이다. 그쪽이 기다리는 게 아니면
+  // 옆 페인들이 근거이고, 하나라도 확실한 신호(벨)면 추정이 아니다.
+  const waitingGuess = focusedWaiting
+    ? agentState?.guess === true
+    : waiting && waitingPanes.every((pane) => pane.agentState?.guess === true);
   return {
     id,
     label: agent && canAutoRename(label) ? agent.label : label,
@@ -116,14 +158,20 @@ export function buildRailItem(input: RailInput, now: number): RailItem {
     tone: waiting ? "waiting" : summary.tone,
     agent,
     detail: waiting
-      ? agentState?.guess
-        ? t("term.wait.guess")
-        : t("term.wait.bell")
+      ? // 문구는 포커스된 페인이 기다릴 때만 그 페인의 근거를 쓴다. 다른
+        // 페인이 부르는 것이면 어느 쪽인지부터 말해야 한다.
+        focusedWaiting
+        ? agentState?.guess
+          ? t("term.wait.guess")
+          : t("term.wait.bell")
+        : t("term.wait.otherPane", { n: waitingCount })
       : summary.text,
     elapsedMs: shell?.running ? Math.max(0, now - shell.running.startedAt) : null,
     paneCount,
+    runningCount,
+    waitingCount,
     waiting,
-    waitingGuess: waiting && agentState?.guess === true,
+    waitingGuess,
   };
 }
 

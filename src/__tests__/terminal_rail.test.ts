@@ -42,7 +42,7 @@ describe("formatElapsed", () => {
 
 describe("buildRailItem", () => {
   test("셸 통합이 없으면 아무것도 지어내지 않는다", () => {
-    const item = buildRailItem({ id: "a", label: "zsh", shell: undefined, paneCount: 1 }, 1_000);
+    const item = buildRailItem({ id: "a", label: "zsh", shell: undefined, panes: [{ shell: undefined, agentState: null }] }, 1_000);
     expect(item.tone).toBe("off");
     expect(item.detail).toBe("");
     expect(item.elapsedMs).toBeNull();
@@ -51,7 +51,7 @@ describe("buildRailItem", () => {
 
   test("에이전트가 돌면 아이콘용 정보와 경과 시간을 싣는다", () => {
     const shell = active({ running: { command: "claude --resume", startedAt: 1_000 } });
-    const item = buildRailItem({ id: "a", label: "zsh", shell, paneCount: 1 }, 253_000);
+    const item = buildRailItem({ id: "a", label: "zsh", shell, panes: [{ shell, agentState: null }] }, 253_000);
     expect(item.agent?.id).toBe("claude-code");
     expect(item.tone).toBe("running");
     expect(item.elapsedMs).toBe(252_000);
@@ -59,24 +59,100 @@ describe("buildRailItem", () => {
 
   test("자동 이름이면 에이전트 이름으로 바꿔 보여준다", () => {
     const shell = active({ running: { command: "claude", startedAt: 0 } });
-    expect(buildRailItem({ id: "a", label: "zsh 2", shell, paneCount: 1 }, 0).label).toBe(
+    expect(buildRailItem({ id: "a", label: "zsh 2", shell, panes: [{ shell, agentState: null }] }, 0).label).toBe(
       "Claude Code",
     );
   });
 
   test("사용자가 손으로 지은 이름은 에이전트가 덮지 않는다", () => {
     const shell = active({ running: { command: "claude", startedAt: 0 } });
-    expect(buildRailItem({ id: "a", label: "리팩터링", shell, paneCount: 1 }, 0).label).toBe(
+    expect(buildRailItem({ id: "a", label: "리팩터링", shell, panes: [{ shell, agentState: null }] }, 0).label).toBe(
       "리팩터링",
     );
   });
 
   test("실패한 마지막 명령은 fail 톤 — 실행 중이 아니므로 타이머는 없다", () => {
     const shell = active({ last: { command: "pnpm test", exitCode: 1, durationMs: 4_000 } });
-    const item = buildRailItem({ id: "a", label: "zsh", shell, paneCount: 2 }, 9_999);
+    const item = buildRailItem({ id: "a", label: "zsh", shell, panes: [{ shell, agentState: null }, { shell: undefined, agentState: null }] }, 9_999);
     expect(item.tone).toBe("fail");
     expect(item.elapsedMs).toBeNull();
     expect(item.paneCount).toBe(2);
+  });
+});
+
+// 터미널을 4분할해 에이전트를 넷 띄우면, 카드는 **포커스된 페인 하나**만
+// 말하고 나머지 셋은 화면 어디에도 없었다 (2026-09-04). 개수는 탭 전체를 센다.
+describe("buildRailItem — 탭 전체의 일감", () => {
+  const running = (cmd: string) => active({ running: { command: cmd, startedAt: 0 } });
+  const waits = () => ({
+    agent: { id: "claude-code", label: "Claude Code" },
+    waiting: true as const,
+    reason: "bell" as const,
+    guess: false,
+    startedAt: 0,
+    altScreen: true,
+  });
+
+  test("도는 페인을 전부 센다 — 포커스된 하나만 세지 않는다", () => {
+    const focused = running("claude");
+    const item = buildRailItem(
+      {
+        id: "a",
+        label: "zsh",
+        shell: focused,
+        panes: [
+          { shell: focused, agentState: null },
+          { shell: running("codex"), agentState: null },
+          { shell: running("pnpm test"), agentState: null },
+          { shell: active(), agentState: null },
+        ],
+      },
+      0,
+    );
+    expect(item.paneCount).toBe(4);
+    expect(item.runningCount).toBe(3);
+  });
+
+  test("셸 통합이 꺼져 있어도 페인 수는 안다 — 레이아웃이 아는 사실이다", () => {
+    const item = buildRailItem(
+      {
+        id: "a",
+        label: "zsh",
+        shell: undefined,
+        panes: [
+          { shell: undefined, agentState: null },
+          { shell: undefined, agentState: null },
+          { shell: undefined, agentState: null },
+          { shell: undefined, agentState: null },
+        ],
+      },
+      0,
+    );
+    expect(item.tone).toBe("off");
+    expect(item.paneCount).toBe(4);
+    expect(item.runningCount).toBe(0);
+  });
+
+  test("옆 페인이 나를 부르면 카드가 대신 말한다", () => {
+    const focused = running("pnpm build");
+    const item = buildRailItem(
+      {
+        id: "a",
+        label: "zsh",
+        shell: focused,
+        agentState: null,
+        panes: [
+          { shell: focused, agentState: null },
+          { shell: running("claude"), agentState: waits() },
+        ],
+      },
+      0,
+    );
+    expect(item.waiting).toBe(true);
+    expect(item.waitingCount).toBe(1);
+    expect(item.tone).toBe("waiting");
+    // 포커스된 페인이 기다리는 게 아니므로 문구가 어느 쪽인지부터 말한다.
+    expect(item.detail).toContain("1");
   });
 });
 

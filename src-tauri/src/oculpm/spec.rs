@@ -147,19 +147,10 @@ pub struct AgentRef {
     pub id: String,
     /// The model the agent ran on, e.g. `"Opus 4.8"` / `"Gemini 3 Pro"`.
     pub version: Option<String>,
-    /// **에이전트 자신의 세션 id** — Claude Code 의 `CLAUDE_CODE_SESSION_ID`
-    /// 같은 것. `session_id`(우리 `YYYYMMDD-NNN`)와 다르다: 그쪽은 프로젝트의
-    /// 작업 시간대이고 이쪽은 그 시간대에 붙어 있던 **한 대화**다.
-    ///
-    /// 터미널을 분할해 CLI 를 여럿 띄우면 우리 작업 세션은 하나인데 대화는
-    /// N개다. 이 값이 없던 동안에는 그 N개가 쓴 일지가 전부 같은
-    /// `session_id` 하나로만 남아 누가 무엇을 했는지 되짚을 수가 없었다.
-    ///
-    /// 모르면 `None` — 우리가 띄우지 않은 에이전트, 손으로 쓴 일지, 그리고
-    /// 이 필드가 생기기 전의 모든 항목이 그렇다.
-    /// (프론트매터 YAML 은 손으로 쓰므로 `None` 이면 줄 자체가 안 나간다 —
-    /// `skip_serializing_if` 를 달면 specta 가 타입을 둘로 쪼개 바인딩 전체에
-    /// 파문이 인다. 그 값을 주고 살 이유가 없다.)
+    /// **에이전트 자신의 대화 id** (Claude Code 의 `CLAUDE_CODE_SESSION_ID`).
+    /// `session_id`(우리 `YYYYMMDD-NNN`)가 프로젝트의 작업 시간대라면 이쪽은
+    /// 그 시간대에 붙어 있던 **한 대화**다 — 분할 터미널의 N개를 가른다.
+    /// 모르면 `None` 이고, 그때 프론트매터에는 줄 자체가 안 나간다.
     #[serde(default)]
     pub session: Option<String>,
 }
@@ -268,16 +259,10 @@ pub struct Session {
     pub git_head_at_start: Option<String>,
     pub git_head_at_end: Option<String>,
     pub agent_label_guess: Option<String>,
-    /// 이 작업 세션 동안 살아 있던 **에이전트 대화 id 전부** (Claude Code 훅이
-    /// 주는 `session_id`). 정렬·중복 제거된다.
-    ///
-    /// `agent_label_guess` 는 상수 `"claude-code"` 하나라 몇 개가 붙어 있었는지
-    /// 말하지 못했다. 훅은 대화마다 다른 id 를 들고 도착하는데 그 값이
-    /// 문 앞에서 버려지고 있었다 — 터미널 4분할이 세션 하나로 보이던 이유다.
-    ///
-    /// 파일 이벤트는 여기 쪼개 담지 않는다. 워처는 파일시스템을 볼 뿐 **누가**
-    /// 썼는지 모르므로, 작업 세션은 그대로 파일 활동의 그릇으로 두고 이 목록이
-    /// "그 시간대에 누가 붙어 있었나"만 정직하게 기록한다.
+    /// 이 작업 세션에 붙어 있던 **에이전트 대화 id 전부** (훅의 `session_id`).
+    /// 정렬·중복 제거된다. `agent_label_guess` 는 상수 하나라 몇 개가 붙어
+    /// 있었는지 말하지 못했다 — 4분할 터미널이 세션 하나로 보이던 이유다.
+    /// 파일 이벤트는 여기 쪼개 담지 않는다 (워처는 누가 썼는지 모른다).
     #[serde(default)]
     pub agent_sessions: Vec<String>,
     /// Paths relative to `.oculpm/journal/<workday>/`.

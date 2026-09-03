@@ -1759,21 +1759,10 @@ mod compare_layers_w4_pr5 {
     /// attribution has something to resolve against.
     async fn seed_session(manager: &OculpmManager, id: &str, started_at: &str) {
         let writer = writer(manager).await;
+        // 위쪽 `make_zombie_session` 과 필드가 한 글자도 다르지 않았다 —
+        // Session 에 필드가 늘 때마다 같은 리터럴을 두 곳에서 고쳐야 했다.
         writer
-            .upsert_session(&crate::oculpm::spec::Session {
-                id: id.to_string(),
-                started_at: started_at.to_string(),
-                ended_at: None,
-                ended_reason: None,
-                active_window_ms: 0,
-                file_event_count: 0,
-                files_unique: 0,
-                git_head_at_start: None,
-                git_head_at_end: None,
-                agent_label_guess: None,
-                agent_sessions: Vec::new(),
-                linked_journal_entries: Vec::new(),
-            })
+            .upsert_session(&make_zombie_session(id, started_at))
             .await
             .expect("seed session");
     }

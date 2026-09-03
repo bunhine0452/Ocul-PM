@@ -128,7 +128,6 @@ pub async fn journalize_one(
         agent: Some(AgentRef {
             id: format!("auto:{}", response.provider),
             version: Some(response.model.clone()),
-            // 배경 모델이 쓴 것이라 붙일 대화가 없다.
             session: None,
         }),
         // 다른 곳에서 한 대화를 모델이 요약한 것이다 — 사용자가 읽기 전까지 초안이다.

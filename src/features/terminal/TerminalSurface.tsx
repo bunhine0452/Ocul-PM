@@ -26,6 +26,8 @@ import {
   type PaneNode,
   type PaneDir,
 } from "@/lib/termPanes";
+import { sessionColorStyle } from "@/lib/sessionColors";
+import { useSessionColorMenu } from "./useSessionColorMenu";
 import { TerminalInstance, type TerminalHandles, type ShellState } from "./TerminalInstance";
 import { readSearchDecorations } from "./termTheme";
 import { canAutoRename, shellTitleToTabLabel } from "./tabTitle";
@@ -45,8 +47,10 @@ import {
   contains,
   pickDropTarget,
   previewBox,
+  toBox,
   type Box,
-  type DropEdge,
+  type DragGeometry,
+  type Moving,
   type PaneBox,
 } from "./paneDrop";
 import {
@@ -131,56 +135,6 @@ export function formatMatchCount(
   if (matches.count === 0) return t("term.matchNone");
   if (matches.index < 0) return t("term.matchCount", { n: matches.count });
   return `${matches.index + 1}/${matches.count}`;
-}
-
-/** 세션 옮기기 드래그의 진행 상태. `sid` 는 페인을 집었을 때만 있다. */
-interface Moving {
-  kind: "tab" | "pane";
-  /** 집은 것이 속한 탭. */
-  tabId: string;
-  sid?: string;
-  startX: number;
-  startY: number;
-  /** DRAG_START_PX 를 넘기 전에는 클릭으로 본다. */
-  moved: boolean;
-  /** 레일 위 — 카드 사이 삽입 자리와 캐럿을 그릴 y (레일 기준). */
-  rail: { index: number; top: number } | null;
-  /** 페인 위 — 겨눈 페인과 가장자리. */
-  pane: { sid: string; edge: DropEdge } | null;
-}
-
-const toBox = (r: DOMRect): Box => ({
-  left: r.left,
-  top: r.top,
-  width: r.width,
-  height: r.height,
-});
-
-/**
- * 드래그 한 번 동안 **굳혀 두는** 기하 (2026-08-29).
- *
- * 예전엔 프레임마다 `hitPane` 이 살아 있는 페인 전부의, `hitRail` 이 레일 카드
- * 전부의 `getBoundingClientRect` 를 다시 읽었다. 그런데 같은 프레임 안에서
- * `setMoving` 이 렌더를 돌리므로 레이아웃이 무효화된 직후에 다시 재는 꼴이라,
- * 손이 빠를수록 강제 재계산 비용이 그대로 지연으로 쌓였다 — 커서는 이미 저
- * 페인인데 미리보기가 한 박자 늦게 따라오는 그 느낌이다.
- *
- * 드래그가 도는 동안에는 레이아웃이 움직이지 않는다 (탭 전환도, 분할 비율
- * 변경도 드래그 중에는 일어나지 않는다). 그래서 집을 때 한 번 재고, **정말로**
- * 움직였을 때만(창 크기 변경·레일 스크롤) 다시 잰다.
- */
-interface DragGeometry {
-  /** 흡착 후보 — 숨은 탭의 페인(rect 0)은 애초에 담기지 않는다. */
-  panes: PaneBox[];
-  /** 미리보기 상자 계산용 조회 — `panes` 와 같은 값이다. */
-  boxBySid: Map<string, Box>;
-  rail: Box | null;
-  /** 레일 카드의 중심 y — 삽입 자리 계산용(`tabDropIndex`). */
-  centers: number[];
-  /** 캐럿이 앉을 화면 y — i 번째는 카드 i 의 위 모서리, 마지막은 아래 모서리. */
-  edges: number[];
-  /** `.term-body` — 미리보기 상자를 이 안 좌표로 옮길 때 쓴다. */
-  body: Box | null;
 }
 
 export interface TerminalSurfaceProps {
@@ -437,6 +391,9 @@ export function TerminalSurface({
       ...prev,
       terminalTabs: prev.terminalTabs.map((tab) => (tab.id === id ? fn(tab) : tab)),
     }));
+
+  // 세션 색 메뉴 — 상태·배선은 전용 훅이 소유한다 (이 파일은 이미 한계 초과).
+  const colorMenu = useSessionColorMenu(terminalTabs, patchTab);
 
   const addTab = () => {
     const id = newId(runtime.currentProjectId);
@@ -1168,6 +1125,7 @@ export function TerminalSurface({
             (dropping ? " dropping" : "")
           }
           data-tone={tone}
+          style={sessionColorStyle(tab.color)}
         >
           <TerminalInstance
             // 다시 시작 = 제자리 재마운트. sid 는 그대로다 (→ restartPane).
@@ -1370,7 +1328,9 @@ export function TerminalSurface({
           onRenameChange={(draft) => setRenaming((prev) => (prev ? { ...prev, draft } : prev))}
           onRenameCommit={commitRename}
           onRenameCancel={() => setRenaming(null)}
+          onCardMenu={colorMenu.open}
         />
+        {colorMenu.node}
 
         <div className="term-body" ref={bodyElRef}>
           {terminalTabs.map((tab) => (

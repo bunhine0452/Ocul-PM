@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { X } from "@/components/Icons";
-import { ClaudeMark } from "@/components/ClaudeMark";
+import { AgentMark } from "@/components/AgentMark";
 import { useT } from "@/i18n";
 
 // PR-ACP14 — 상단바를 대신하는 세션 탭 줄.
@@ -42,17 +42,28 @@ export interface AcpTab {
  * 콜백을 안정적으로 넘겨 준다).
  */
 export const AcpSessionTabs = memo(function AcpSessionTabs({
+  provider = "claude",
   tabs,
   activeId,
   onPick,
   onClose,
 }: {
+  /**
+   * 이 탭 줄이 어느 어댑터의 것인가 — 마크를 고르는 데만 쓴다.
+   *
+   * 타입을 `AcpConversation` 에서 가져오지 않는 이유는 그쪽이 이 파일을
+   * 가져오기 때문이다 (순환). 값이 둘뿐이라 여기 적는 편이 싸다.
+   */
+  provider?: "claude" | "codex";
   tabs: readonly AcpTab[];
   activeId: string | null;
   onPick: (id: string) => void;
   onClose: (id: string) => void;
 }) {
   const { t } = useT();
+  // `AgentMark` 의 라우팅 표를 그대로 쓴다 — 마크를 고르는 자리가 둘이 되면
+  // 한쪽만 새 어댑터를 알게 된다.
+  const agentId = provider === "codex" ? "codex" : "claude-code";
 
   /**
    * ←/→ 로 탭을 오간다 (ARIA tabs 관례). 활성 탭만 Tab 키 순서에 남긴다 —
@@ -88,7 +99,10 @@ export const AcpSessionTabs = memo(function AcpSessionTabs({
               onClick={() => onPick(tab.id)}
               title={label}
             >
-              <ClaudeMark size={13} className="acp-tab-mark" />
+              {/* 탭마다 **그 어댑터의** 마크. 예전엔 Claude 마크가 박혀 있어
+                  Codex 대화에도 Claude 로고가 붙었다 — 두 어댑터를 나란히 쓰면
+                  탭 줄이 거짓말을 하는 셈이다. */}
+              <AgentMark agentId={agentId} size={13} className="acp-tab-mark" />
               <span className="acp-tab-title">{label}</span>
             </button>
             {/* 마지막 하나는 닫지 못한다 — 닫으면 제목도 전환할 곳도 없는 빈

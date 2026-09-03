@@ -50,6 +50,10 @@ export const EXCLUDED = [
   // 줄이 반드시 는다. 여기에 래칫을 걸면 "커맨드를 더 못 붙인다"가 되고, 그건
   // 지켜지지 않고 우회될 규칙이다.
   "src-tauri/src/lib.rs",
+  // 같은 이유의 스키마 파일. `.oculpm` 프론트매터/인덱스의 **모양 자체**라,
+  // 필드가 하나 늘면 줄도 반드시 는다 (주석을 0줄로 줄여도 통과가 불가능하다).
+  // 2026-09-04 에 `agent.session`·`Session.agent_sessions` 를 넣다가 확인됐다.
+  "src-tauri/src/oculpm/spec.rs",
 ];
 
 /** 이 경로가 래칫 대상인가. */

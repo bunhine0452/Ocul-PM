@@ -1708,7 +1708,7 @@ export function AcpConversation({
     <Toolbar
       title={
         <AcpSessionTabs
-          tabs={tabItems}
+          provider={provider} tabs={tabItems}
           activeId={activeId}
           onPick={pickSession}
           onClose={closeTab}

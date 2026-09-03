@@ -242,6 +242,9 @@ const TESTS = new Set([
   "__tests__/recent_changes_store.test.tsx",
   "__tests__/rule_promotion_v2.test.tsx",
   "__tests__/rules_hub_v2.test.tsx",
+  // 세션 정체 색 — 순수 모듈 테스트. 한국어는 테스트 이름뿐이고 표시 문구는
+  // 사전(`term.color.*`)에서 읽는다.
+  "__tests__/session_colors.test.ts",
   "__tests__/sidebar_a11y.test.tsx",
   "__tests__/skill_promotion_v2.test.tsx",
   "__tests__/skill_shop.test.tsx",

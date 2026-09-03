@@ -12,7 +12,9 @@ const commandsDir = join(process.cwd(), "plugin", "oculpm", "commands");
 // 도구 정의는 **두 파일**에 산다 — 2026-09-03 파일 크기 래칫을 들이면서 a2a
 // 도구가 `a2a_tools.rs` 로 갈라졌다. 한쪽만 읽으면 이 게이트가 조용히 반쪽이 된다.
 const toolSources = [
-  join(process.cwd(), "src-tauri", "src", "oculpm", "mcp", "tools.rs"),
+  // 2026-09-04 에 `tools.rs` 가 `tools/mod.rs` + `tools/tests.rs` 로 갈라졌다
+  // (파일 크기 래칫). 도구 정의는 본문에 있으므로 `mod.rs` 를 읽는다.
+  join(process.cwd(), "src-tauri", "src", "oculpm", "mcp", "tools", "mod.rs"),
   join(process.cwd(), "src-tauri", "src", "oculpm", "mcp", "a2a_tools.rs"),
 ];
 const landingPlugin = join(process.cwd(), "landing", "plugin.html");

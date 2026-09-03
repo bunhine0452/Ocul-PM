@@ -1241,6 +1241,22 @@ mark.s-hit {
 /* 셸 통합이 없어 아무것도 모르는 세션 — 속 빈 점. 모르는 걸 색으로 칠하지 않는다. */
 .term-sess[data-tone="off"] .ts-dot { background: transparent; box-shadow: inset 0 0 0 1px var(--sep-strong); }
 .term-sess[data-tone="running"] .ts-dot { animation: term-pulse 1.6s var(--ease-in-out) infinite; }
+/* 세션 정체 색 (2026-09-04) — 넷을 띄우면 카드 넷이 전부 같은 회색이고 이름도
+   다 `claude` 라, 어느 것이 무엇인지 가르는 값이 화면에 하나도 없었다.
+   왼쪽 띠 하나만 쓴다: 점·아이콘·타이머는 이미 상태(실행 중·기다림·실패)를
+   말하고 있어 거기까지 물들이면 두 신호가 같은 색으로 싸운다.
+   기다림 띠가 이 규칙 **뒤에** 와서 이긴다 — 급한 쪽이 정체보다 앞선다. */
+.term-sess[data-colored] { box-shadow: inset 2px 0 0 var(--sess); }
+.term-sess[data-colored].active {
+  box-shadow:
+    inset 2px 0 0 var(--sess),
+    inset 0 0 0 1px color-mix(in srgb, var(--sess) 38%, var(--sep-strong));
+}
+/* 접힘에서는 띠를 그릴 폭이 없다(32px). 아이콘 자신이 색을 입는다 — 이때는
+   상태 점이 오른쪽 위에 따로 있어 신호가 겹치지 않는다. */
+.term-rail[data-collapsed] .term-sess[data-colored] { box-shadow: none; }
+.term-rail[data-collapsed] .term-sess[data-colored] .ts-icon { color: var(--sess); }
+
 /* 기다리는 카드는 점만이 아니라 **카드 전체**가 신호다 — 곁눈질로 잡히려면
    6px 점 하나로는 부족하다. 다만 배경까지 물들이면 목록이 시끄러워지므로
    왼쪽 테두리와 옅은 바탕까지만. */
@@ -1276,6 +1292,32 @@ mark.s-hit {
 .term-sess .ts-panes {
   display: inline-block; margin-right: 5px; padding: 0 4px; border-radius: 4px;
   background: var(--bg-inset); font-size: 9.5px; font-weight: 600;
+}
+/* 도는 것이 있으면 같은 배지가 **살아 있는 수**를 말한다. 색을 입히는 것은
+   그때뿐이다 — 평상시에 늘 켜져 있는 색은 신호가 아니다(레일 전체의 규칙). */
+.term-sess .ts-panes[data-live] {
+  background: color-mix(in srgb, var(--tone, var(--accent)) 18%, transparent);
+  color: var(--tone, var(--accent));
+}
+
+/* 접힌 레일의 개수 배지 — 아이콘 왼쪽 아래 모서리.
+   상태 점(오른쪽 위)과 대각으로 갈라 둔다. 같은 모서리에 둘을 붙이면 32px
+   폭에서 서로의 링을 갉아 하나의 얼룩으로 읽힌다. 펼친 카드에서는 상태 줄의
+   `.ts-panes` 가 같은 것을 글로 말하므로 여기서는 숨는다. */
+.term-sess .ts-count { display: none; }
+.term-rail[data-collapsed] .ts-count {
+  display: block; position: absolute; left: 3px; bottom: 3px;
+  min-width: 13px; padding: 0 2px; border-radius: 7px;
+  background: var(--bg-inset); color: var(--text-2);
+  box-shadow: 0 0 0 2px var(--term-chrome);
+  font-family: var(--font); font-size: 9px; font-weight: 700; line-height: 13px;
+  text-align: center; font-variant-numeric: tabular-nums;
+}
+.term-rail[data-collapsed] .term-sess.active .ts-count { box-shadow: 0 0 0 2px var(--term-bg); }
+/* 여럿이 **돌고 있을 때만** 색이 붙는다. 그냥 열려 있는 페인 수는 회색이다 —
+   둘의 무게가 같으면 급한 쪽이 안 보인다. */
+.term-rail[data-collapsed] .ts-count[data-live] {
+  background: var(--accent); color: var(--text-on-accent);
 }
 .term-sess .ts-rename {
   width: 100%; min-width: 0; border: none; outline: none; background: var(--bg-inset);
@@ -1420,10 +1462,12 @@ mark.s-hit {
 }
 /* 포커스 — 색을 두르는 대신 **가장자리의 무게**를 옮긴다. 후광은 8px 캔버스
    여백 안에 앉으므로 옆 페인을 밀거나 잘리지 않는다. */
+/* `--sess` 는 세션 색을 고른 탭에만 붙는다. 안 고른 탭은 `var(--accent)` 로
+   떨어져 예전 모습 그대로다 — 기본값을 두 곳에 적지 않는다. */
 .term-pane.focused {
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--accent) 42%, var(--sep-strong)),
-    0 0 0 4px color-mix(in srgb, var(--accent) 10%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--sess, var(--accent)) 42%, var(--sep-strong)),
+    0 0 0 4px color-mix(in srgb, var(--sess, var(--accent)) 10%, transparent),
     var(--shadow-card);
 }
 /* 앰비언트 상태 띠 — 페인 위 가장자리. 페인이 스스로 무슨 상태인지 말한다.
@@ -2243,3 +2287,40 @@ mark.s-hit {
 /* 문단용 — 행 안의 라벨과 달리 접혀야 한다. */
 .a2a-desc { color: var(--text-3); font-size: var(--fs-5); line-height: 1.5; }
 .a2a-list li .right { margin-left: auto; display: flex; gap: 4px; flex: none; }
+
+/* ── 세션 색 메뉴 (2026-09-04) ────────────────────────────────────────────
+   카드 오른쪽 클릭. 한 줄짜리 스와치 다섯 개가 전부라 `TerminalBlockMenu`
+   같은 목록 구조를 두지 않는다 — 고를 것이 색뿐이면 메뉴는 팔레트다. */
+.term-sess-menu {
+  position: fixed; z-index: var(--z-dock); width: 156px;
+  padding: 8px 9px 9px; border-radius: 10px;
+  background: var(--bg-card); border: 1px solid var(--border-card); color: var(--text);
+  box-shadow: var(--shadow-pop); font-family: var(--font);
+}
+.term-sess-menu .tsm-title {
+  font-size: var(--fs-2); font-weight: 700; color: var(--text-3); margin-bottom: 6px;
+}
+.term-sess-menu .tsm-row { display: flex; align-items: center; gap: 6px; }
+.term-sess-menu .tsm-swatch {
+  width: 20px; height: 20px; border-radius: 6px; flex: none; cursor: pointer;
+  border: none; padding: 0; background: var(--sw);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent);
+}
+/* "색 없음" 은 빈 칸이 아니라 **비어 있음을 그린 칸**이다 — 대각선 하나로
+   지운다는 뜻을 준다 (빈 회색 사각형은 여섯 번째 색으로 읽힌다). */
+.term-sess-menu .tsm-swatch.none {
+  background:
+    linear-gradient(
+      to top right,
+      transparent calc(50% - 1px),
+      var(--text-3) calc(50% - 1px),
+      var(--text-3) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    );
+}
+.term-sess-menu .tsm-swatch:hover { box-shadow: inset 0 0 0 1px var(--text-3); }
+.term-sess-menu .tsm-swatch.picked,
+.term-sess-menu .tsm-swatch:focus-visible {
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--accent-ring);
+  outline: none;
+}

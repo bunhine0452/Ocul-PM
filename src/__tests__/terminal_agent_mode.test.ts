@@ -117,7 +117,7 @@ describe("railModel — 기다림이 카드에 실린다", () => {
         label: "zsh",
         shell: shellRunning("claude"),
         agentState: waitingState(false),
-        paneCount: 1,
+        panes: [{ shell: shellRunning("claude"), agentState: waitingState(false) }],
       },
       2_000,
     );
@@ -129,7 +129,12 @@ describe("railModel — 기다림이 카드에 실린다", () => {
   });
 
   test("추정과 확실을 다른 문구로 적는다", () => {
-    const base = { id: "t1", label: "zsh", shell: shellRunning("claude"), paneCount: 1 };
+    const base = {
+      id: "t1",
+      label: "zsh",
+      shell: shellRunning("claude"),
+      panes: [{ shell: shellRunning("claude"), agentState: null }],
+    };
     const sure = buildRailItem({ ...base, agentState: waitingState(false) }, 2_000);
     const maybe = buildRailItem({ ...base, agentState: waitingState(true) }, 2_000);
     expect(sure.detail).not.toBe(maybe.detail);
@@ -138,7 +143,12 @@ describe("railModel — 기다림이 카드에 실린다", () => {
 
   test("agentState 를 안 넘기면 기다림을 판정하지 않는다", () => {
     const item = buildRailItem(
-      { id: "t1", label: "zsh", shell: shellRunning("claude"), paneCount: 1 },
+      {
+        id: "t1",
+        label: "zsh",
+        shell: shellRunning("claude"),
+        panes: [{ shell: shellRunning("claude"), agentState: null }],
+      },
       2_000,
     );
     expect(item.waiting).toBe(false);

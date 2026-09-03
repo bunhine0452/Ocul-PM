@@ -20,8 +20,8 @@ import {
   type PlanSummary,
   type Session,
 } from "@/lib/bindings";
-// 모듈 t() 는 순수 헬퍼 `elapsedLabel` 용, useT() 는 각 컴포넌트용.
-import { t, useT, type I18nKey } from "@/i18n";
+import { useT, type I18nKey } from "@/i18n";
+import { TraySessions } from "./TraySessions";
 import "./tray.css";
 
 interface ActivePlan {
@@ -57,15 +57,6 @@ function fmtTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-function elapsedLabel(startedAt: string): string {
-  const ms = Date.now() - new Date(startedAt).getTime();
-  if (!Number.isFinite(ms) || ms < 0) return "";
-  const min = Math.floor(ms / 60_000);
-  if (min < 1) return t("tray.justStarted");
-  if (min < 60) return t("tray.elapsedMinutes", { n: min });
-  return t("tray.elapsedHours", { h: Math.floor(min / 60), m: min % 60 });
 }
 
 /** 로컬 달력 기준 오늘 YYYYMMDD — 자정 넘김 감지용. */
@@ -712,6 +703,15 @@ export function TrayPopover() {
       ),
     [visible],
   );
+  const sessionRows = useMemo(
+    () =>
+      activeSessions.map(({ project, session }) => ({
+        key: `${project.id}:${session.id}`,
+        projectName: project.name,
+        session,
+      })),
+    [activeSessions],
+  );
 
   // workday=null 조회는 프로젝트 **전체** 일지를 돌려준다 — "오늘" 수치는
   // 프로젝트별 current_workday 로 잘라야 한다 (첫 실기기에서 전체 누적이
@@ -845,38 +845,7 @@ export function TrayPopover() {
         </button>
       </header>
 
-      <section className="tp-sessions">
-        {activeSessions.length === 0 ? (
-          <div className="tp-idle-line">{t("tray.noActiveSession")}</div>
-        ) : (
-          <>
-            <div className="tp-sec-label">
-              <span className="tp-live-dot" />{" "}
-              {t("tray.sessionsActive", { n: activeSessions.length })}
-            </div>
-            {activeSessions.slice(0, 4).map(({ project, session }) => (
-              <div className="tp-session-row" key={`${project.id}:${session.id}`}>
-                <span className="tp-agent">
-                  {session.agent_label_guess ?? t("tray.agentFallback")}
-                </span>
-                {/* 터미널을 분할해 CLI 를 여럿 띄우면 우리 작업 세션은 하나인데
-                    대화는 N개다. 라벨만 보면 그 N이 안 보인다 — 둘 이상일
-                    때만 숫자를 붙여 평소의 한 줄을 어지럽히지 않는다. */}
-                {(session.agent_sessions?.length ?? 0) > 1 && (
-                  <span
-                    className="tp-convs"
-                    title={session.agent_sessions?.join("\n")}
-                  >
-                    {t("tray.conversations", { n: session.agent_sessions?.length ?? 0 })}
-                  </span>
-                )}
-                <span className="tp-dim">{elapsedLabel(session.started_at)}</span>
-                <span className="tp-proj">{project.name}</span>
-              </div>
-            ))}
-          </>
-        )}
-      </section>
+      <TraySessions rows={sessionRows} />
 
       <section className="tp-today">
         <span>

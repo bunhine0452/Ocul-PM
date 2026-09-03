@@ -104,7 +104,16 @@ export interface TerminalTab {
   panes?: TerminalPaneNode;
   /** 포커스된 페인 sid (분할 시). 없거나 무효면 첫 leaf. */
   focusSid?: string;
+  /**
+   * 사용자가 고른 **정체 색** (2026-09-04). 없으면 색을 안 입힌다.
+   *
+   * 색 이름만 저장한다 — 실제 색은 `--term-*` 토큰이 정하므로 테마를 바꿔도
+   * 고른 의미가 유지된다 (→ `@/lib/sessionColors`).
+   */
+  color?: SessionColor;
 }
+/** 세션 정체 색 — 실제 정의는 `@/lib/sessionColors` (여기선 영속 타입만 재수출). */
+export type SessionColor = import("@/lib/sessionColors").SessionColor;
 /** 터미널 분할 트리 — 실제 정의는 `@/lib/termPanes` (여기선 영속 타입만 재수출). */
 export type TerminalPaneNode = import("@/lib/termPanes").PaneNode;
 /** 터미널 도크를 붙이는 자리 (2026-08-15, 오른쪽 추가 2026-08-16). */
