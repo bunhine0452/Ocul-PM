@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: session-shim-cli
 title: "세션이 자기를 증명한다 — 심 디렉토리 + oculpm CLI"
-status: active
+status: done
 created: 2026-09-03
 updated: 2026-09-03
 owner: claude-code
