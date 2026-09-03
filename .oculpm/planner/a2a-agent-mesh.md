@@ -23,10 +23,10 @@ owner: claude-code
 - [x] 레지스트리 SSOT 는 .oculpm/agents/live/*.json (gitignore), SQLite 는 파생 캐시로만 둔다 {#registry-ssot}
 
 ## 메시지와 태스크 수명주기 {#mailbox}
-- [ ] A2A Message/Task 를 파일 메일박스로 구현 — submitted→working→(completed|failed|canceled|input-required) 전이와 terminal 이벤트 보장 {#task-lifecycle}
-- [ ] 동시 쓰기는 기존 발동 원장의 CAS 패턴을 재사용해 유실 없이 직렬화한다 {#mailbox-cas}
-- [ ] 워처가 메일박스 변경을 감지해 앱 이벤트로 승격한다 — 프런트 폴링 금지 {#mailbox-watch}
-- [ ] 첨부(Artifact)는 경로 참조로만 전달한다 — 메시지 본문에 파일 내용을 복사하지 않는다 {#artifact-ref}
+- [x] A2A Message/Task 를 파일 메일박스로 구현 — submitted→working→(completed|failed|canceled|input-required) 전이와 terminal 이벤트 보장 {#task-lifecycle}
+- [x] 동시 쓰기는 기존 발동 원장의 CAS 패턴을 재사용해 유실 없이 직렬화한다 {#mailbox-cas}
+- [x] 워처가 메일박스 변경을 감지해 앱 이벤트로 승격한다 — 프런트 폴링 금지 {#mailbox-watch}
+- [x] 첨부(Artifact)는 경로 참조로만 전달한다 — 메시지 본문에 파일 내용을 복사하지 않는다 {#artifact-ref}
 
 ## 작업 구역 임대 {#lease}
 - [ ] 에이전트가 파일 글로브로 구역을 임대하고, 겹치면 거절 사유와 선점자를 돌려준다 {#claim-paths}
@@ -68,4 +68,8 @@ owner: claude-code
 | 2026-09-03T14:25:14+09:00 | #register-inapp | claude-code | ☐→x |  | 핸드셰이크 성공 시 publish_card, 연결 종료 시 withdraw_card. pid=앱 것이라 앱이 죽으면 자동으로 죽은 카드가 된다 |
 | 2026-09-03T14:25:16+09:00 | #registry-ssot | claude-code | ☐→x |  | .oculpm/agents/live/*.json + gitignore 관리블록. 워처는 agents/ 캐스케이드보다 먼저 걸러 증폭 루프를 막는다 |
 | 2026-09-03T14:33:01+09:00 | #register-external | claude-code | ☐→x |  | agent_register·agent_list MCP 도구. pid=MCP 서버 자신 것(세션과 생사를 같이한다), 하트비트 없음. AGENTS.md 규칙은 받을 것이 생기는 Phase 4 로 미룸 |
+| 2026-09-03T14:47:05+09:00 | #task-lifecycle | claude-code | ☐→x |  | submitted→working→(completed\|failed\|canceled\|input_required) 전이 검증 + 기한 만료가 대신 닫는 expire_overdue. 끝난 태스크는 재개 불가 |
+| 2026-09-03T14:47:08+09:00 | #mailbox-cas | claude-code | ☐→x |  | 설계 수정 — 발동원장 CAS 는 SQLite 쪽이라 다중 프로세스 파일에 못 쓴다. 변경 없는 설계로 대체: 메시지=create_new 1회, 읽음=표식파일, 태스크=append_ndjson 원장 |
+| 2026-09-03T14:47:13+09:00 | #mailbox-watch | claude-code | ☐→x |  | OculpmA2aChanged(participants\|message\|task) — 워처가 agents/ 캐스케이드보다 먼저 분류해 이벤트만 낸다. 프런트 폴링 없음 |
+| 2026-09-03T14:47:16+09:00 | #artifact-ref | claude-code | ☐→x |  | is_safe_artifact — 프로젝트 상대 경로만. 절대·~·..·드라이브문자 거부(메시지 한 통이 ~/.ssh 를 가리키는 유출 경로 차단) |
 <!-- oculpm:plan-log end -->

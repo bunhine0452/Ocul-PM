@@ -90,6 +90,14 @@ export const PLUGIN_TOOLS: readonly PluginToolDoc[] = [
   { name: "plan_update", desc: "플랜 항목 상태 갱신 + plan-log (부모는 하위 롤업 자동)" },
   { name: "plan_create", desc: "새 계획을 3단계로 생성 — frontmatter·id 규격 서버 보장" },
   { name: "project_init", desc: "미추적 저장소의 추적 시작 — 사용자 명시 확인 시에만" },
+  {
+    name: "agent_register",
+    desc: "이 세션을 프로젝트 참여자 목록에 올림 (A2A) — 응답에 지금 살아 있는 참여자가 함께 온다",
+  },
+  {
+    name: "agent_list",
+    desc: "지금 이 프로젝트에 붙어 있는 에이전트 — 죽은 세션은 빠진다(프로세스가 없으면 죽은 것)",
+  },
 ];
 
 export type PluginHookDoc = { name: string; desc: string };

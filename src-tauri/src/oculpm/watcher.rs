@@ -360,13 +360,13 @@ impl WatcherInner {
             return;
         }
 
-        // 1.6 A2A 참여자 카드 (`docs/a2a/00-master-plan.md` §4). **아래 2번보다
+        // 1.6 A2A 원장 (`docs/a2a/00-master-plan.md` §4~§6). **아래 2번보다
         //     먼저 걸러야 한다** — `.oculpm/agents/` 로 시작하므로 순서가 뒤집히면
         //     카드 한 장 쓸 때마다 모든 어댑터의 AGENTS.md 재동기화가 돈다.
         //     하트비트까지 그 길을 타면 증폭 루프가 된다 (osaurus R1 과 같은 부류).
-        //     지금은 앱이 할 일이 없다 — Phase 2 에서 참여자 목록 이벤트를 낸다.
-        if rel_str.starts_with(".oculpm/agents/live/") {
-            self.bump_ignored();
+        //     우편함·태스크 원장도 같은 이유로 여기서 끊고 이벤트만 낸다.
+        if let Some(kind) = a2a_change_kind(&rel_str) {
+            self.emit_a2a_changed(kind);
             return;
         }
 
@@ -1013,6 +1013,18 @@ impl WatcherInner {
                 area,
                 relative_path: relative_path.to_string(),
                 op,
+            }
+            .emit(handle);
+        }
+    }
+
+    /// A2A 원장 변경을 화면에 알린다. 앱 밖 프로세스가 쓴 것이라 워처만이 안다.
+    fn emit_a2a_changed(&self, kind: crate::oculpm::a2a::A2aChangeKind) {
+        if let Some(handle) = &self.app_handle {
+            use tauri_specta::Event;
+            let _ = crate::oculpm::a2a::OculpmA2aChanged {
+                project_id: self.project_id,
+                kind,
             }
             .emit(handle);
         }
@@ -1674,8 +1686,52 @@ fn short_hash_of(input: &str) -> String {
 // Tests — see `docs/major_update/oculpm/W2/PR3-watcher-notify.md` §7.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// `.oculpm/agents/` 아래 어느 원장이 바뀌었나 (아니면 `None`).
+///
+/// 순서가 중요하다 — 이 셋은 전부 `.oculpm/agents/` 로 시작하므로, 어댑터
+/// 재동기화 캐스케이드보다 **먼저** 걸러야 한다. 카드 한 장·메시지 한 통마다
+/// 모든 AGENTS.md 를 다시 쓰는 증폭 루프가 그 반대 순서의 대가다.
+fn a2a_change_kind(rel_str: &str) -> Option<crate::oculpm::a2a::A2aChangeKind> {
+    use crate::oculpm::a2a::A2aChangeKind;
+    if rel_str.starts_with(".oculpm/agents/live/") {
+        return Some(A2aChangeKind::Participants);
+    }
+    if rel_str.starts_with(".oculpm/agents/inbox/") {
+        return Some(A2aChangeKind::Message);
+    }
+    if rel_str.starts_with(".oculpm/agents/tasks/") {
+        return Some(A2aChangeKind::Task);
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::oculpm::a2a::A2aChangeKind;
+
+    /// A2A 원장 세 갈래를 가려내고, **그 밖의 `agents/` 는 건드리지 않는다.**
+    ///
+    /// 이 분류가 캐스케이드보다 먼저 도는 것이 요점이다 — 순서가 뒤집히면
+    /// 메시지 한 통마다 모든 어댑터의 AGENTS.md 가 다시 쓰인다.
+    #[test]
+    fn a2a_ledger_paths_are_classified_before_the_agents_cascade() {
+        assert_eq!(
+            super::a2a_change_kind(".oculpm/agents/live/codex-app.json"),
+            Some(A2aChangeKind::Participants)
+        );
+        assert_eq!(
+            super::a2a_change_kind(".oculpm/agents/inbox/codex-app/2026.json"),
+            Some(A2aChangeKind::Message)
+        );
+        assert_eq!(
+            super::a2a_change_kind(".oculpm/agents/tasks/2026-abc.ndjson"),
+            Some(A2aChangeKind::Task)
+        );
+        // 마스터 템플릿·어댑터는 예전 길(캐스케이드)로 계속 가야 한다.
+        assert_eq!(super::a2a_change_kind(".oculpm/agents/_template.md"), None);
+        assert_eq!(super::a2a_change_kind(".oculpm/journal/x.md"), None);
+    }
+
     use super::*;
     use crate::oculpm::paths::WorkdayResolver;
     use crate::oculpm::spec::OculpmConfig;

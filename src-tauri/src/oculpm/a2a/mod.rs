@@ -10,5 +10,32 @@
 //! 창구는 이미 모든 세션에 물려 있는 `oculpm-mcp` 뿐이다 (마스터플랜 §1).
 //!
 //! - [`registry`] — Phase 1. 참여자 발견 (Agent Card).
+//! - [`mailbox`] — Phase 2. 메시지 배달 (한 번 쓰고 끝).
+//! - [`tasks`] — Phase 2. 태스크 수명주기 (덧붙이기만 하는 원장).
 
+use serde::{Deserialize, Serialize};
+
+pub mod mailbox;
 pub mod registry;
+pub mod tasks;
+
+/// A2A 원장이 디스크에서 바뀌었다 — 화면이 다시 읽으라는 신호.
+///
+/// 폴링을 두지 않기 위한 것이다: 참여자·우편함·태스크는 **앱 밖 프로세스가**
+/// 쓰는 자리라 앱이 스스로는 알 수 없고, 워처만이 그것을 본다.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct OculpmA2aChanged {
+    pub project_id: u32,
+    pub kind: A2aChangeKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum A2aChangeKind {
+    /// 참여자 카드 (`agents/live/`).
+    Participants,
+    /// 우편함 (`agents/inbox/`).
+    Message,
+    /// 태스크 원장 (`agents/tasks/`).
+    Task,
+}

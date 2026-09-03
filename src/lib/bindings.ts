@@ -1844,6 +1844,7 @@ export const events = {
 	lspDiagnosticsPublished: makeEvent<LspDiagnosticsPublished>("lsp-diagnostics-published"),
 	lspServerStateChanged: makeEvent<LspServerStateChanged>("lsp-server-state-changed"),
 	newTabIntent: makeEvent<NewTabIntent>("new-tab-intent"),
+	oculpmA2aChanged: makeEvent<OculpmA2aChanged>("oculpm-a2a-changed"),
 	oculpmAgentDrift: makeEvent<OculpmAgentDrift>("oculpm-agent-drift"),
 	oculpmDataChanged: makeEvent<OculpmDataChanged>("oculpm-data-changed"),
 	oculpmFileChanged: makeEvent<OculpmFileChanged>("oculpm-file-changed"),
@@ -1868,6 +1869,14 @@ export const events = {
 };
 
 /* Types */
+export type A2aChangeKind = 
+/**  참여자 카드 (`agents/live/`). */
+"participants" | 
+/**  우편함 (`agents/inbox/`). */
+"message" | 
+/**  태스크 원장 (`agents/tasks/`). */
+"task";
+
 /**  핸드셰이크로 확인한 상대편 정보. 프런트가 "무엇에 붙었는지" 보여준다. */
 export type AcpAgentInfo = {
 	name: string,
@@ -4433,6 +4442,17 @@ export type NotionStatus = {
 	has_token: boolean,
 	/**  정규화된 부모 페이지 id (설정 안 됐으면 None). */
 	parent_page_id: string | null,
+};
+
+/**
+ *  A2A 원장이 디스크에서 바뀌었다 — 화면이 다시 읽으라는 신호.
+ * 
+ *  폴링을 두지 않기 위한 것이다: 참여자·우편함·태스크는 **앱 밖 프로세스가**
+ *  쓰는 자리라 앱이 스스로는 알 수 없고, 워처만이 그것을 본다.
+ */
+export type OculpmA2aChanged = {
+	project_id: number,
+	kind: A2aChangeKind,
 };
 
 export type OculpmAgentDrift = {
