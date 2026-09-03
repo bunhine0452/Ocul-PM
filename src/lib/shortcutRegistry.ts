@@ -80,6 +80,12 @@ const CODE: ShortcutGroup = {
     { keys: "⌘.", labelKey: "keys.codeAction" },
     { keys: "⇧⌘T", labelKey: "keys.codeReopen" },
     { keys: "⇧⌘] / ⇧⌘[", labelKey: "keys.codeCycle" },
+    // 트리 — 드래그를 못 쓰는 손에게는 이 줄들이 곧 '옮기기 기능'이다.
+    { keys: "↑ / ↓", labelKey: "keys.treeMove" },
+    { keys: "← / →", labelKey: "keys.treeFold" },
+    { keys: "Space", labelKey: "keys.treePick" },
+    { keys: "⌘X / ⌘V", labelKey: "keys.treeCutPaste" },
+    { keys: "⌫", labelKey: "keys.treeDelete" },
   ],
 };
 

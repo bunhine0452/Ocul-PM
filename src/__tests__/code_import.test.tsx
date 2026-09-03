@@ -43,7 +43,8 @@ vi.mock("@tauri-apps/api/webview", () => ({
   }),
 }));
 
-import { useCodeImport, TREE_DIR_ATTR, TREE_PATH_ATTR } from "@/features/code/useCodeImport";
+import { useCodeImport } from "@/features/code/useCodeImport";
+import { TREE_DIR_ATTR, TREE_PATH_ATTR } from "@/features/code/treeDom";
 
 describe("importDestDir", () => {
   it("lands in the folder itself, and folds a file to its parent", () => {

@@ -916,6 +916,59 @@
   color: var(--t-bug); font-weight: 600;
 }
 
+/* 레일 행 위에 뜨는 카드 (`PlanHoverCard`). body 로 포털되므로 `.pln-` 계열
+   중 유일하게 레일 밖에 사는 규칙이다 — 좌표는 JS 가 인라인으로 준다. */
+.pln-hover {
+  position: fixed; z-index: var(--z-menu);
+  width: 268px; max-width: calc(100vw - 16px);
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 10px 12px 11px;
+  background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
+  font-size: var(--fs-4); color: var(--text-2);
+  pointer-events: none;
+}
+.pln-hover-head { display: flex; align-items: center; gap: 6px; }
+.pln-hover-badge {
+  padding: 1px 7px; border-radius: 999px;
+  background: var(--bg-inset); color: var(--text-2);
+  font-size: var(--fs-2); font-weight: 700; letter-spacing: 0.04em;
+}
+/* 진행 중만 액센트 — 완료·보관까지 물들이면 배지가 상태를 못 가른다. */
+.pln-hover-badge[data-bucket="active"] { background: var(--accent-soft); color: var(--accent-text); }
+.pln-hover-lock {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: var(--fs-2); color: var(--text-3);
+}
+/* 카드의 존재 이유 — 잘린 제목을 통째로 되돌려 준다. 그래서 여기만 줄바꿈한다. */
+.pln-hover-title {
+  font-size: var(--fs-6); font-weight: 600; color: var(--text);
+  line-height: 1.35; overflow-wrap: anywhere;
+}
+.pln-hover-stale {
+  display: flex; align-items: center; gap: 4px;
+  color: var(--t-bug); font-weight: 600; font-size: var(--fs-3);
+}
+.pln-hover-grid {
+  display: flex; flex-direction: column; gap: 3px; margin: 0;
+  padding-top: 6px; border-top: 1px solid var(--sep);
+}
+.pln-hover-grid > div { display: flex; align-items: baseline; gap: 8px; }
+.pln-hover-grid dt { flex: none; width: 62px; color: var(--text-3); font-size: var(--fs-3); }
+.pln-hover-grid dd {
+  flex: 1; min-width: 0; margin: 0; color: var(--text-2);
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.pln-hover-grid code { font-family: var(--mono); font-size: var(--fs-3); color: var(--text-3); }
+.pln-hover-prog { display: flex; align-items: center; gap: 7px; }
+.pln-hover-bar {
+  flex: none; width: 54px; height: 3px; border-radius: 3px;
+  background: var(--sep-strong); overflow: hidden;
+}
+.pln-hover-bar > i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+/* 활동 기록이 아니라 frontmatter 시각이라는 단서 — 주장하지 않고 붙여만 둔다. */
+.pln-hover-note { margin-left: 5px; color: var(--text-3); font-size: var(--fs-2); }
+
 /* Journal-ref ("일지" notebook) link button — a real tappable hit target
    (Dogfooding 2026-06-14 #4; enlarged + SVG icon 2026-06-15). Used in plan item
    rows and the per-item history list. Bigger padding + min-height makes it
@@ -2287,6 +2340,52 @@ mark.s-hit {
 /* 문단용 — 행 안의 라벨과 달리 접혀야 한다. */
 .a2a-desc { color: var(--text-3); font-size: var(--fs-5); line-height: 1.5; }
 .a2a-list li .right { margin-left: auto; display: flex; gap: 4px; flex: none; }
+
+/* 세션 화면 (docs/a2a/00-master-plan.md D8) — 2026-09-04.
+   두 단 보드: 왼쪽이 묶이지 않은 세션, 오른쪽이 사용자가 묶은 팀.
+   좁은 창에서는 한 단으로 접힌다 — 카드가 두 단에서 각각 180px 이 되면
+   사용자가 세션을 구별하라고 세운 사실들이 전부 말줄임표가 된다. */
+.sess-board { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+@media (max-width: 900px) { .sess-board { grid-template-columns: 1fr; } }
+
+.sess-col { border: 1px solid var(--sep); border-radius: var(--radius-m); padding: 10px; background: var(--bg-card); min-height: 120px; transition: border-color var(--dur-2) var(--ease-out); }
+.sess-col.over { border-color: var(--accent); }
+.sess-col-head { display: flex; align-items: baseline; gap: 6px; font-size: var(--fs-6); font-weight: 550; }
+.sess-col-hint { margin: 2px 0 8px; }
+.sess-empty { color: var(--text-3); font-size: var(--fs-5); padding: 12px 2px; margin: 0; }
+
+.sess-card { border: 1px solid var(--sep); border-radius: var(--radius-s); padding: 8px 10px; margin-bottom: 8px; background: var(--bg-inset); cursor: grab; }
+.sess-card:last-child { margin-bottom: 0; }
+.sess-card.picked { border-color: var(--accent); background: var(--accent-soft); }
+.sess-card-top { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.sess-swatch { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.sess-name { font-size: var(--fs-6); font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sess-card-top .right { margin-left: auto; flex: none; }
+
+/* 세션을 구별하게 하는 사실들 — 한 줄에 이어 붙이되 줄바꿈은 허용한다. */
+.sess-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 3px; color: var(--text-3); font-size: var(--fs-4); }
+.sess-flag { color: var(--text-3); opacity: 0.8; }
+.sess-doing { display: flex; gap: 6px; margin-top: 4px; font-size: var(--fs-4); min-width: 0; }
+.sess-doing-key { color: var(--text-3); flex: none; }
+.sess-doing-val { font-family: var(--mono); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sess-alias-btn { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; padding: 2px 6px; border: 1px dashed var(--sep-strong); border-radius: var(--radius-s); background: none; color: var(--text-3); font-family: var(--font); font-size: var(--fs-4); cursor: pointer; }
+.sess-alias-btn:hover { color: var(--text-2); border-color: var(--accent); }
+.sess-alias-edit { display: flex; gap: 6px; margin-top: 6px; }
+
+.sess-lane { border: 1px solid var(--sep); border-radius: var(--radius-m); padding: 8px 10px; margin-top: 8px; transition: border-color var(--dur-2) var(--ease-out); }
+.sess-lane.over { border-color: var(--accent); }
+.sess-lane.new { border-style: dashed; color: var(--text-3); }
+.sess-lane-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: var(--fs-6); font-weight: 550; }
+.sess-lane-head .right { margin-left: auto; }
+.sess-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.sess-chip { padding: 2px 7px; border: 1px solid var(--accent); border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-family: var(--font); font-size: var(--fs-4); cursor: pointer; }
+
+.sess-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--sep); }
+.sess-count { font-size: var(--fs-5); color: var(--text-2); }
+.sess-block { margin-top: 12px; }
+.sess-cmd { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 8px; border: 1px solid var(--sep); border-radius: var(--radius-s); background: var(--bg-inset); }
+.sess-cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: var(--mono); font-size: var(--fs-4); color: var(--text-2); }
 
 /* ── 세션 색 메뉴 (2026-09-04) ────────────────────────────────────────────
    카드 오른쪽 클릭. 한 줄짜리 스와치 다섯 개가 전부라 `TerminalBlockMenu`

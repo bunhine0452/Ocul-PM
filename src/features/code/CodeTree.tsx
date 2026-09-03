@@ -11,10 +11,7 @@ import type { CodeEntry } from "./treeUtils";
 import { ChevronRight } from "@/components/Icons";
 import { FileIcon } from "./FileIcon";
 import { t, useT } from "@/i18n";
-import { TREE_DIR_ATTR, TREE_PATH_ATTR } from "./useCodeImport";
-
-/** 트리 안에서 드래그되는 경로의 mime — 탭 드래그와 섞이지 않게 따로 둔다. */
-export const PATH_DND_MIME = "application/x-oculpm-code-path";
+import { TREE_DIR_ATTR, TREE_PATH_ATTR } from "./treeDom";
 
 /**
  * 인라인 입력이 떠 있는 자리.
@@ -38,13 +35,29 @@ interface CodeTreeProps {
   /** 어느 창에든 탭으로 열려 있는 파일 — 굵게. */
   openPaths: Set<string>;
   draft: TreeDraft | null;
-  onToggle: (path: string) => void;
-  onSelect: (path: string) => void;
+  /**
+   * 행을 눌렀다. 열기·펼치기·다중 선택의 판단은 전부 화면이 한다 — 행은
+   * 자기가 눌렸다는 사실과 그때 어떤 보조키가 눌려 있었는지만 올린다.
+   */
+  onClickRow: (path: string, isDir: boolean, e: React.MouseEvent) => void;
+  /** 뽑아 둔 것들 (경로 → 폴더 여부). 여러 개일 수 있다. */
+  marks: ReadonlyMap<string, boolean>;
+  /**
+   * 키보드 포커스가 놓인 행 — **로빙 tabindex** 의 주인이다.
+   *
+   * 트리 안에서 Tab 으로 들어오는 자리는 언제나 하나여야 한다 (WAI-ARIA). 행마다
+   * 기본 tabindex 를 두면 파일 300개짜리 저장소에서 Tab 이 300번 걸린다.
+   */
+  focusPath: string | null;
+  /** ⌘X 로 잘라 둔 경로들 — 흐리게 + 점선. ⌘V 까지는 아직 아무 일도 없다. */
+  cutPaths: ReadonlySet<string>;
+  /** 트리 위의 키 입력 (화살표·⏎·F2·⌫). 판단은 화면이 한다. */
+  onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   /**
    * 더블클릭 — 미리보기로 연 탭을 고정한다.
    *
-   * 첫 클릭이 이미 `onSelect` 로 열었으므로 여기서는 승격만 한다 (VS Code 와
-   * 같은 동작: 한 번은 훑기, 두 번은 "여기서 일한다").
+   * 첫 클릭이 이미 열었으므로 여기서는 승격만 한다 (VS Code 와 같은 동작:
+   * 한 번은 훑기, 두 번은 "여기서 일한다").
    */
   onPin: (path: string) => void;
   onDraftSubmit: (name: string) => void;
@@ -54,10 +67,17 @@ interface CodeTreeProps {
     e: React.MouseEvent,
     entry: { path: string; isDir: boolean } | null,
   ) => void;
-  /** 드래그로 옮기기. `toDir` 은 목적지 폴더 (`""` = 프로젝트 루트). */
-  onMove: (from: string, toDir: string) => void;
   /**
-   * Finder 에서 끌고 온 파일이 지금 놓이면 들어갈 폴더 (`null` = 그런 드래그 중이 아님).
+   * 이 행을 끌 수 있게 하는 핸들러 묶음 (`useTreeDrag` 가 만든다). 행은 자기가
+   * 끌린다는 사실만 알고, 어디로 가는지·무엇이 유효한지는 모른다.
+   */
+  rowDrag: (path: string, isDir: boolean) => object;
+  /** 지금 들려 있는 경로들 — 그 행들을 흐리게 그린다. */
+  draggingPaths: ReadonlySet<string>;
+  /**
+   * 지금 무언가를 놓으면 들어갈 폴더 (`null` = 그런 드래그 중이 아님).
+   * Finder 드롭과 트리 안 이동이 이 한 자리를 같이 쓴다 — 사용자에게는 둘 다
+   * "여기에 들어간다" 는 같은 사실이다.
    *
    * OS 드롭은 웹뷰의 dragover 를 타지 않아(Tauri 가 가로챈다) 행 스스로는 알 수
    * 없다 — 화면이 좌표로 풀어 준 답을 받아 그 자리만 밝힌다.
@@ -87,29 +107,19 @@ function Guides({ depth }: { depth: number }) {
 
 export const CodeTree = memo(function CodeTree(props: CodeTreeProps) {
   useT();
-  const [rootDrop, setRootDrop] = useState(false);
   return (
     <div
-      className={"code-tree" + (rootDrop || props.dropDir === "" ? " droproot" : "")}
+      className={"code-tree" + (props.dropDir === "" ? " droproot" : "")}
       role="tree"
+      // 뽑은 것이 여럿일 수 있다 — `aria-selected` 는 **뽑힘**을 말한다.
+      // "지금 열려 있는 파일" 은 탭 줄과 툴바가 이미 말하고 있고, 트리에서는
+      // `.on` 클래스로만 남긴다 (보조기술에는 선택이 곧 조작 대상이다).
+      aria-multiselectable="true"
       aria-label={t("code.treeAria")}
+      onKeyDown={props.onKeyDown}
       onContextMenu={(e) => {
         // 행에서 이미 처리했으면 여기까지 오지 않는다 (행이 stopPropagation).
         props.onContextMenu(e, null);
-      }}
-      onDragOver={(e) => {
-        if (!e.dataTransfer.types.includes(PATH_DND_MIME)) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        setRootDrop(true);
-      }}
-      onDragLeave={() => setRootDrop(false)}
-      onDrop={(e) => {
-        setRootDrop(false);
-        const from = e.dataTransfer.getData(PATH_DND_MIME);
-        if (!from) return;
-        e.preventDefault();
-        props.onMove(from, "");
       }}
     >
       <TreeLevel {...props} dirPath="" depth={0} />
@@ -126,13 +136,16 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
     dirtyPaths,
     openPaths,
     draft,
-    onToggle,
-    onSelect,
+    onClickRow,
+    marks,
+    focusPath,
+    cutPaths,
     onPin,
     onDraftSubmit,
     onDraftCancel,
     onContextMenu,
-    onMove,
+    rowDrag,
+    draggingPaths,
   } = props;
   const nodes = childrenOf(dirPath);
   const creatingHere = draft?.kind === "create" && draft.parent === dirPath;
@@ -172,18 +185,20 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
         }
         // 저장소가 무시하도록 정한 것은 **숨기지 않고 흐리게** — 디스크에 있는
         // 것은 보이되, 왜 검색·인덱싱에 안 걸리는지가 눈으로 설명된다.
-        const dim = node.ignored ? " ignored" : "";
-        // 좌표→행 되찾기용 표식. OS 드롭은 `elementFromPoint` 말고는 어느 행
-        // 위인지 알 방법이 없다 (dragover 가 웹뷰까지 오지 않는다).
+        const dim =
+          (node.ignored ? " ignored" : "") +
+          (draggingPaths.has(node.relative_path) ? " dragging" : "") +
+          // 잘라 둔 것 — 아직 아무 일도 안 일어났다는 뜻이라 사라지지 않고 흐려진다.
+          (cutPaths.has(node.relative_path) ? " cut" : "") +
+          // 뽑아 둔 것은 **열려 있는 파일과 다르게** 보여야 한다 — 둘이 같은
+          // 강조를 쓰면 "지금 보고 있는 것"과 "지금 손대려는 것"이 겹친다.
+          (marks.has(node.relative_path) ? " marked" : "");
+        // 좌표→행 되찾기용 표식. OS 드롭도 트리 안 드래그도 `elementFromPoint`
+        // 말고는 어느 행 위인지 알 방법이 없다.
         const dragProps = {
           [TREE_PATH_ATTR]: node.relative_path,
           [TREE_DIR_ATTR]: node.is_dir ? "1" : "0",
-          draggable: true,
-          onDragStart: (e: React.DragEvent) => {
-            e.stopPropagation();
-            e.dataTransfer.setData(PATH_DND_MIME, node.relative_path);
-            e.dataTransfer.effectAllowed = "move";
-          },
+          ...rowDrag(node.relative_path, node.is_dir),
         };
         const menuProps = {
           onContextMenu: (e: React.MouseEvent) => {
@@ -196,16 +211,21 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
         if (node.is_dir) {
           const open = expanded.has(node.relative_path);
           return (
-            <div key={node.relative_path} role="treeitem" aria-expanded={open}>
+            <div
+              key={node.relative_path}
+              role="treeitem"
+              aria-expanded={open}
+              aria-selected={marks.has(node.relative_path)}
+            >
               <DirRow
                 node={node}
                 open={open}
                 dim={dim}
                 depth={depth}
                 loading={loadingDirs.has(node.relative_path)}
-                onToggle={onToggle}
-                onMove={onMove}
-                extDrop={props.dropDir === node.relative_path}
+                onClickRow={onClickRow}
+                focused={focusPath === node.relative_path}
+                dropTarget={props.dropDir === node.relative_path}
                 dragProps={dragProps}
                 menuProps={menuProps}
               />
@@ -219,14 +239,15 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
             key={node.relative_path}
             type="button"
             role="treeitem"
-            aria-selected={isSel}
+            aria-selected={marks.has(node.relative_path)}
+            tabIndex={focusPath === node.relative_path ? 0 : -1}
             className={
               "code-tree-row code-tree-file" +
               dim +
               (isSel ? " on" : "") +
               (openPaths.has(node.relative_path) ? " open" : "")
             }
-            onClick={() => onSelect(node.relative_path)}
+            onClick={(e) => onClickRow(node.relative_path, false, e)}
             onDoubleClick={() => onPin(node.relative_path)}
             title={node.ignored ? t("code.tree.ignoredHint") : undefined}
             {...dragProps}
@@ -248,16 +269,16 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
   );
 }
 
-/** 폴더 행 — 드롭 대상이라 자기 하이라이트 상태를 갖는다. */
+/** 폴더 행. 드롭 대상 강조는 화면이 좌표로 풀어 준 답(`dropTarget`)만 따른다. */
 function DirRow({
   node,
   open,
   dim,
   depth,
   loading,
-  onToggle,
-  onMove,
-  extDrop,
+  onClickRow,
+  focused,
+  dropTarget,
   dragProps,
   menuProps,
 }: {
@@ -266,36 +287,21 @@ function DirRow({
   dim: string;
   depth: number;
   loading: boolean;
-  onToggle: (path: string) => void;
-  onMove: (from: string, toDir: string) => void;
-  /** Finder 드래그가 지금 이 폴더 위에 있다. */
-  extDrop: boolean;
+  onClickRow: (path: string, isDir: boolean, e: React.MouseEvent) => void;
+  /** 로빙 tabindex 의 주인인가. */
+  focused: boolean;
+  /** 지금 무언가가 이 폴더 위에 있고, 놓으면 여기로 들어간다. */
+  dropTarget: boolean;
   dragProps: object;
   menuProps: object;
 }) {
-  const [over, setOver] = useState(false);
   return (
     <button
       type="button"
-      className={"code-tree-row code-tree-dir" + dim + (over || extDrop ? " dropover" : "")}
-      onClick={() => onToggle(node.relative_path)}
+      className={"code-tree-row code-tree-dir" + dim + (dropTarget ? " dropover" : "")}
+      tabIndex={focused ? 0 : -1}
+      onClick={(e) => onClickRow(node.relative_path, true, e)}
       title={node.ignored ? t("code.tree.ignoredHint") : undefined}
-      onDragOver={(e) => {
-        if (!e.dataTransfer.types.includes(PATH_DND_MIME)) return;
-        e.preventDefault();
-        e.stopPropagation();
-        e.dataTransfer.dropEffect = "move";
-        setOver(true);
-      }}
-      onDragLeave={() => setOver(false)}
-      onDrop={(e) => {
-        setOver(false);
-        const from = e.dataTransfer.getData(PATH_DND_MIME);
-        if (!from) return;
-        e.preventDefault();
-        e.stopPropagation();
-        onMove(from, node.relative_path);
-      }}
       {...dragProps}
       {...menuProps}
     >

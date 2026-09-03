@@ -139,6 +139,11 @@
   border: none;
   cursor: pointer;
   line-height: 1;
+  /* 네이티브 드래그를 **끈다** — 이동은 포인터 몸짓(`useTreeDrag`)이 몬다.
+     WebKit 이 자기 드래그 세션을 열면 우리 pointermove 사슬이 pointercancel
+     로 끊겨, 행이 손을 안 따라오고 반투명한 글자만 따라다닌다. 창 탭 줄
+     (`.tabstrip-tab`)이 같은 이유로 같은 짝을 쓴다. */
+  -webkit-user-drag: none;
 }
 .code-tree-row:hover {
   background: var(--bg-hover);
@@ -852,6 +857,87 @@
   flex: 1;
   min-width: 0;
   margin: 0;
+}
+
+/* 뽑아 둔 행 (다중 선택) — **열려 있는 파일과 다른 신호**여야 한다.
+   `.on`(지금 보고 있는 파일)은 액센트로 칠해져 있으므로 여기는 중성 면으로
+   구별한다: "지금 보는 것" 은 하나뿐이고 "손대려고 뽑은 것" 은 여럿이다. */
+.code-tree-row.marked {
+  background: var(--bg-inset);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.code-tree-row.marked:hover {
+  background: var(--bg-hover);
+}
+/* 둘이 겹치면(보고 있는 파일을 뽑아 둠) 액센트 면이 이긴다 — 왼쪽 막대만 남는다. */
+.code-tree-file.on.marked {
+  background: var(--accent-soft);
+}
+
+/* ⌘X 로 잘라 둔 행 — **아직 아무 일도 일어나지 않았다**. 그래서 사라지지
+   않고, 점선으로 "들려 있다" 만 말한다 (무시된 항목의 흐림과 헷갈리지 않게
+   테두리로 구별한다). ⌘V 를 안 눌러도 안전하다는 것이 보여야 한다. */
+.code-tree-row.cut .code-tree-label,
+.code-tree-row.cut .code-tree-ico {
+  opacity: 0.5;
+}
+.code-tree-row.cut {
+  outline: 1px dashed var(--sep-strong);
+  outline-offset: -2px;
+  border-radius: var(--radius-s);
+}
+
+/* 끌려가는 중인 행 — 원래 자리는 남되 "여기 있던 것이 지금 손에 있다" 가
+   보이게 흐려진다. 이게 없으면 유령이 무엇의 복제인지 알 수 없다. */
+.code-tree-row.dragging {
+  opacity: 0.4;
+}
+
+/* 손에 들린 것 — body 에 포털로 그린다 (트리는 overflow 컨테이너라 잘린다).
+   커서를 따라가는 좌표는 JS 가 transform 으로 직접 쓴다. */
+.code-drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-menu);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  padding: 4px 9px 4px 7px;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-s);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--fs-7);
+  color: var(--text);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.code-drag-ghost > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 여럿을 들었을 때의 "+n" — 이름 하나만 뜨면 나머지가 따라오는 줄 모른다. */
+.code-drag-count {
+  flex: none;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: var(--fs-3);
+  font-style: normal;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* 놓을 수 없는 자리 위 — 밝힐 폴더가 아무 데도 없으니 손에 든 것이 대신 말한다. */
+.code-drag-ghost.no {
+  opacity: 0.5;
+}
+/* 드래그가 사는 동안 창 전체 — 글자가 잡히면 WebKit 이 자기 드래그를 연다. */
+body.code-dragging {
+  cursor: grabbing;
+  user-select: none;
 }
 
 /* 드롭 대상 강조 — 폴더 행과 트리 배경(=루트). */

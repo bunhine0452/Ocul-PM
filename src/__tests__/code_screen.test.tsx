@@ -24,6 +24,8 @@ const fx: {
   read: Record<string, CodeFileContent>;
   writeResult: CodeWriteOutcome;
   writeCalls: { relPath: string; content: string; baseHash: string }[];
+  /** `code_rename` 호출 기록 — 옮기기(⌘X→⌘V·드래그)가 실제로 닿았는지. */
+  renames: { from: string; to: string }[];
   /** `settings_get_all` 이 돌려줄 항목 — 저장 위생·자동 저장을 켜는 손잡이. */
   settings: [string, string][];
 } = {
@@ -31,6 +33,7 @@ const fx: {
   read: {},
   writeResult: { kind: "saved", hash: "h2" },
   writeCalls: [],
+  renames: [],
   settings: [],
 };
 
@@ -78,6 +81,11 @@ vi.mock("@/lib/bindings", () => {
               return (_pid: number, relPath: string, content: string, baseHash: string) => {
                 fx.writeCalls.push({ relPath, content, baseHash });
                 return ok(fx.writeResult);
+              };
+            case "codeRename":
+              return (_pid: number, from: string, to: string) => {
+                fx.renames.push({ from, to });
+                return ok({ relative_path: to, is_dir: !to.includes(".") });
               };
             case "settingsGetAll":
               return () => ok(fx.settings);
@@ -163,6 +171,7 @@ beforeEach(() => {
   };
   fx.writeResult = { kind: "saved", hash: "h2" };
   fx.writeCalls = [];
+  fx.renames = [];
   fx.settings = [];
   // jsdom 에는 blob: URL 이 없다 — svg 미리보기가 이 둘을 쓴다.
   URL.createObjectURL = vi.fn(() => "blob:mock/1");
@@ -176,6 +185,78 @@ describe("CodeScreenV2", () => {
     await findByRole("tree");
     await findByText("README.md");
     await findByText(t("code.empty.title"));
+  });
+
+  it("multi-selects with ⌘-click and marks both rows without opening them", async () => {
+    // ⌘·⇧ 는 **고르기만** 한다 — 열면 방금 뽑아 둔 것이 곧바로 흩어진다.
+    const { findByText, queryByTestId } = render(wrap(screenEl()));
+    const readme = (await findByText("README.md")).closest("button")!;
+    const src = (await findByText("src")).closest("button")!;
+
+    fireEvent.click(readme, { metaKey: true });
+    fireEvent.click(src, { metaKey: true });
+    expect(readme.className).toContain("marked");
+    expect(src.className).toContain("marked");
+    // 열리지 않았다 — 편집기는 여전히 비어 있다.
+    expect(queryByTestId("editor-text")).toBeNull();
+
+    // 보조키 없는 클릭은 예전 그대로다: 하나만 남고, 파일이면 열린다.
+    fireEvent.click(readme);
+    expect(src.className).not.toContain("marked");
+    expect(readme.className).toContain("marked");
+  });
+
+  it("walks the tree with arrow keys and opens the rename box on F2", async () => {
+    // 드래그를 못 쓰는 손에게는 이 표가 곧 '옮기기 기능'이다.
+    const { findByRole, findByText, container } = render(wrap(screenEl()));
+    const tree = await findByRole("tree");
+    await findByText("README.md");
+
+    fireEvent.keyDown(tree, { key: "ArrowDown" });
+    expect(document.activeElement?.getAttribute("data-tree-path")).toBe("src");
+    fireEvent.keyDown(tree, { key: "ArrowDown" });
+    expect(document.activeElement?.getAttribute("data-tree-path")).toBe("README.md");
+    // 끝에서는 멈춘다 — 없는 행으로 포커스를 보내면 포커스가 사라진다.
+    fireEvent.keyDown(tree, { key: "ArrowDown" });
+    expect(document.activeElement?.getAttribute("data-tree-path")).toBe("README.md");
+
+    fireEvent.keyDown(tree, { key: "F2" });
+    const input = container.querySelector<HTMLInputElement>(".code-tree-draft-input");
+    expect(input?.value).toBe("README.md");
+  });
+
+  it("→ expands a folder, ← collapses it back", async () => {
+    const { findByRole, findByText, queryByText } = render(wrap(screenEl()));
+    const tree = await findByRole("tree");
+    await findByText("src");
+
+    fireEvent.keyDown(tree, { key: "ArrowDown" }); // src
+    fireEvent.keyDown(tree, { key: "ArrowRight" });
+    await findByText("main.rs");
+    fireEvent.keyDown(tree, { key: "ArrowLeft" });
+    expect(queryByText("main.rs")).toBeNull();
+  });
+
+  it("⌘X then ⌘V moves the cut file into the folder the tree is standing on", async () => {
+    // 화면 단축키는 "이 화면이 보일 때만" 산다 — jsdom 에는 레이아웃이 없어
+    // `getClientRects()` 가 비어 있으므로 그 한 자리만 채워 준다.
+    const rects = Element.prototype.getClientRects;
+    Element.prototype.getClientRects = (() => [{}]) as never;
+    try {
+      const { findByText } = render(wrap(screenEl()));
+      fireEvent.click(await findByText("README.md"));
+      fireEvent.keyDown(window, { key: "x", metaKey: true });
+      // 잘라만 뒀다 — 디스크는 아직 그대로다.
+      expect(fx.renames).toEqual([]);
+
+      fireEvent.click(await findByText("src"));
+      fireEvent.keyDown(window, { key: "v", metaKey: true });
+      await vi.waitFor(() =>
+        expect(fx.renames).toEqual([{ from: "README.md", to: "src/README.md" }]),
+      );
+    } finally {
+      Element.prototype.getClientRects = rects;
+    }
   });
 
   it("opens a file from the tree into the editor", async () => {

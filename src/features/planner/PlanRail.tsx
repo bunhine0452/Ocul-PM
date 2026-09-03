@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Archive, ChevronDown, ChevronRight, Lock, Search, TriangleAlert, X } from "@/components/Icons";
 import type { PlanSummary } from "@/lib/bindings";
 import {
@@ -13,6 +13,7 @@ import {
 } from "./planList";
 import { useT } from "@/i18n";
 import { stripInlineMarkdown } from "@/lib/inlineMarkdown";
+import { HOVER_DELAY_MS, PlanHoverCard, type PlanHoverTarget } from "./PlanHoverCard";
 
 /**
  * Planner 좌측 계획 레일 — 계획 목록을 '선택기' 에서 '포트폴리오 뷰' 로 올린다.
@@ -90,6 +91,7 @@ export function PlanRail({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   /** 보관 확인을 기다리는 섹션. 한 번에 하나만. */
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
+  const hover = usePlanHover();
 
   const showControls = plans.length >= CONTROLS_MIN_PLANS;
   const showSections = plans.length >= SECTIONS_MIN_PLANS;
@@ -220,6 +222,8 @@ export function PlanRail({
                     type="button"
                     className="pln-sec-toggle"
                     aria-expanded={open}
+                    // 월 섹션 라벨("완료 · 2026.07")도 좁은 레일에서 잘린다.
+                    title={sec.label}
                     onClick={() => onToggleSection(sec.key, !open)}
                   >
                     {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
@@ -265,6 +269,7 @@ export function PlanRail({
                       facet={facets.get(p.plan_id)}
                       selected={p.plan_id === selectedId}
                       onSelect={onSelect}
+                      onHover={hover.onHover}
                       now={now}
                     />
                   ))
@@ -282,8 +287,77 @@ export function PlanRail({
           );
         })}
       </div>
+      {hover.target ? <PlanHoverCard target={hover.target} side={side} now={now} /> : null}
     </div>
   );
+}
+
+/**
+ * 카드를 띄울 대상과 그 타이밍.
+ *
+ * 지연을 두는 이유는 하나다 — 목록을 훑고 지나가는 손에 카드가 줄줄이 뜨면
+ * 그건 방해다. 스크롤·클릭·Escape 로는 **즉시** 닫는다: 앵커였던 행이 움직인
+ * 뒤에도 카드가 남으면 엉뚱한 계획의 정보로 읽힌다.
+ */
+function usePlanHover() {
+  const [target, setTarget] = useState<PlanHoverTarget | null>(null);
+  const timer = useRef<number | null>(null);
+  /** 눌러서 닫은 뒤에는 손이 그 행을 **떠날 때까지** 다시 뜨지 않는다. 버튼을
+   *  누르면 포커스가 따라오고, 그 포커스가 카드를 즉시 다시 불러 깜빡인다. */
+  const shut = useRef(false);
+
+  const clear = useCallback(() => {
+    if (timer.current != null) window.clearTimeout(timer.current);
+    timer.current = null;
+  }, []);
+
+  const close = useCallback(() => {
+    clear();
+    setTarget(null);
+  }, [clear]);
+
+  const dismiss = useCallback(() => {
+    shut.current = true;
+    close();
+  }, [close]);
+
+  const onHover = useCallback(
+    (next: PlanHoverTarget | null) => {
+      clear();
+      if (!next) {
+        shut.current = false;
+        setTarget(null);
+        return;
+      }
+      if (shut.current) return;
+      timer.current = window.setTimeout(() => setTarget(next), HOVER_DELAY_MS);
+    },
+    [clear],
+  );
+
+  useEffect(() => {
+    if (!target) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") dismiss();
+    };
+    // 스크롤·리사이즈는 앵커였던 행을 옮긴다 — 남아 있으면 엉뚱한 계획의
+    // 정보로 읽힌다. 누르기는 '지금은 됐다' 이므로 손이 떠날 때까지 잠근다.
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("pointerdown", dismiss, true);
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("pointerdown", dismiss, true);
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [target, close, dismiss]);
+
+  // 언마운트·재렌더로 행이 사라져도 타이머가 뒤늦게 카드를 띄우지 않게.
+  useEffect(() => clear, [clear]);
+
+  return { target, onHover, close };
 }
 
 interface PlanRailRowProps {
@@ -291,6 +365,8 @@ interface PlanRailRowProps {
   facet: PlanFacet | undefined;
   selected: boolean;
   onSelect: (planId: string) => void;
+  /** 마우스가 얹혔다/떠났다 — 카드는 레일이 하나만 들고 그린다. */
+  onHover: (target: PlanHoverTarget | null) => void;
   now: number;
 }
 
@@ -305,6 +381,7 @@ const PlanRailRow = memo(function PlanRailRow({
   facet,
   selected,
   onSelect,
+  onHover,
   now,
 }: PlanRailRowProps) {
   const { t } = useT();
@@ -319,8 +396,19 @@ const PlanRailRow = memo(function PlanRailRow({
       data-plan-id={plan.plan_id}
       className={"pln-row" + (selected ? " on" : "")}
       aria-current={selected ? "true" : undefined}
-      title={`${locked ? t("plan.rail.lockedPrefix") : ""}${plan.done_count}/${plan.item_count} · ${pct}%`}
+      // 네이티브 `title` 은 두지 않는다 — 카드와 겹쳐 두 개가 뜬다.
       onClick={() => onSelect(plan.plan_id)}
+      onPointerEnter={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        onHover({ plan, facet, rect: { top: r.top, left: r.left, right: r.right } });
+      }}
+      onPointerLeave={() => onHover(null)}
+      // 키보드로 옮겨 다닐 때도 같은 정보가 나온다 (↑/↓ 가 행에 포커스를 준다).
+      onFocus={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        onHover({ plan, facet, rect: { top: r.top, left: r.left, right: r.right } });
+      }}
+      onBlur={() => onHover(null)}
     >
       <span className="pln-row-top">
         {/* 행 전체가 버튼이라 앵커/강조 요소를 넣지 않는다 — 마크다운 기호만

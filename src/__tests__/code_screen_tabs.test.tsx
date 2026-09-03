@@ -229,10 +229,11 @@ function treeRow(container: HTMLElement, name: string): HTMLElement {
   return hit as HTMLElement;
 }
 
-/** 지금 떠 있는 우클릭 메뉴에서 이 라벨의 항목. */
+/** 지금 떠 있는 우클릭 메뉴에서 이 라벨의 항목.
+ *  라벨은 첫 `<span>` 이다 — 항목에 단축키 힌트(`<kbd>`)가 붙어 있을 수 있다. */
 function menuItem(label: string): HTMLElement {
   const hit = [...document.querySelectorAll(".code-ctxmenu-item")].find(
-    (el) => el.textContent === label,
+    (el) => el.querySelector("span")?.textContent === label,
   );
   if (!hit) throw new Error(`메뉴에 "${label}" 항목이 없습니다`);
   return hit as HTMLElement;

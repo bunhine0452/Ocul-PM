@@ -11,6 +11,7 @@ import {
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
 import { useAcpAttentionCount, useAcpWorkingCount } from "@/features/chat/acpBusyBus";
+import { useSessionAttention } from "@/features/sessions/sessionAttention";
 import { useT } from "@/i18n";
 
 // Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
@@ -158,6 +159,8 @@ export function Sidebar({
   const acpAttention = useAcpAttentionCount(currentProjectId ?? null, "claude");
   const codexWorking = useAcpWorkingCount(currentProjectId ?? null, "codex");
   const codexAttention = useAcpAttentionCount(currentProjectId ?? null, "codex");
+  /** 세션 화면에서 **사람이 눌러야** 풀리는 것 — 넘어온 작업의 승인 대기. */
+  const sessionAttention = useSessionAttention(currentProjectId ?? null);
 
   // ⌘P (useGlobalShortcuts) / 팔레트 "프로젝트 전환" → 팝오버 열기 (v2 U1).
   useEffect(() => {
@@ -298,7 +301,15 @@ export function Sidebar({
           index={MAIN_NAV.length + TOOL_NAV.length + i}
           onNavigate={onNavigate}
           working={slot.id === "claudecode" ? acpWorking : slot.id === "codex" ? codexWorking : 0}
-          attention={slot.id === "claudecode" ? acpAttention : slot.id === "codex" ? codexAttention : 0}
+          attention={
+            slot.id === "claudecode"
+              ? acpAttention
+              : slot.id === "codex"
+                ? codexAttention
+                : slot.id === "sessions"
+                  ? sessionAttention
+                  : 0
+          }
         />
       ))}
 

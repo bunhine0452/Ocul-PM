@@ -13,25 +13,7 @@ import { toast } from "@/lib/toast";
 import { t } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { destLabel, importDestDir, type TreeHit } from "./importTarget";
-
-/** 트리 행에 심는 표식 — 좌표로 행을 되찾는 유일한 통로다. */
-export const TREE_PATH_ATTR = "data-tree-path";
-export const TREE_DIR_ATTR = "data-tree-dir";
-
-/** 좌표 아래의 트리 행. 트리 밖이면 null, 트리 배경이면 루트(`""`). */
-function hitAt(x: number, y: number): TreeHit | null {
-  const el = document.elementFromPoint(x, y);
-  if (!el) return null;
-  const row = el.closest(`[${TREE_PATH_ATTR}]`);
-  if (row) {
-    return {
-      path: row.getAttribute(TREE_PATH_ATTR) ?? "",
-      isDir: row.getAttribute(TREE_DIR_ATTR) === "1",
-    };
-  }
-  // 행 사이 여백·빈 트리 — 트리 안이기만 하면 루트로 받는다.
-  return el.closest(".code-tree") ? { path: "", isDir: true } : null;
-}
+import { hitAt } from "./treeDom";
 
 export interface UseCodeImportArgs {
   projectId: number;

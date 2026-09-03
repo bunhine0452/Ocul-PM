@@ -124,14 +124,14 @@ const PENDING = new Set([
 const TESTS = new Set([
   // 양 언어 a11y — ko 마커("설정")와 한국어 테스트 이름이 검사 재료다.
   "__tests__/a11y_screens.test.tsx",
-  // A2A 카드 — 한국어 버튼 라벨("수락"·"놓기")이 곧 단언 재료다.
-  "__tests__/a2a_card.test.tsx",
   "__tests__/agent_context_model.test.ts",
   "__tests__/agent_context_proposals.test.tsx",
   "__tests__/agent_detect.test.ts",
   "__tests__/acp_conversation_seams.test.tsx",
   "__tests__/acp_parallel_sessions.test.tsx",
   "__tests__/acp_session_tabs.test.tsx",
+  // 세션 화면 — 한국어 버튼 라벨("수락"·"놓기"·"별명 붙이기")이 곧 단언 재료다.
+  "__tests__/sessions_screen.test.tsx",
   // 세션 id 표면 — 한국어 aria-label("세션 id 복사 …")이 곧 단언 재료다.
   "__tests__/acp_session_id.test.tsx",
   "__tests__/acp_title.test.ts",
@@ -228,12 +228,17 @@ const TESTS = new Set([
   "__tests__/code_problems.test.tsx",
   // vscode-borrows Phase 6 — 로컬 히스토리. 같은 이유 (표시 문구는 사전에서 읽는다).
   "__tests__/code_history.test.tsx",
+  "__tests__/code_file_ops_undo.test.tsx",
+  "__tests__/code_tree_drag.test.tsx",
+  "__tests__/code_tree_selection.test.ts",
+  "__tests__/code_tree_keys.test.ts",
   "__tests__/code_tree_lazy.test.tsx",
   "__tests__/code_tree_watch.test.tsx",
   "__tests__/lsp_bridge.test.ts",
   "__tests__/oculpm_live.test.tsx",
   "__tests__/oculpm_settings_subtabs.test.tsx",
   "__tests__/osc_shell.test.ts",
+  "__tests__/plan_hover_card.test.tsx",
   "__tests__/plan_list.test.ts",
   "__tests__/plugin_docs_sync.test.ts",
   "__tests__/plugin_skills_sync.test.ts",

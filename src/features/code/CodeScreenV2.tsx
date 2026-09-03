@@ -36,8 +36,21 @@ import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { AppDialog } from "@/components/ui/AppDialog";
 
-import { CodeTree, type TreeDraft } from "./CodeTree";
+import { CodeTree } from "./CodeTree";
 import { useCodeImport } from "./useCodeImport";
+import { treeMenuItems } from "./treeMenu";
+import { useTreeDrag } from "./useTreeDrag";
+import { useFileOps } from "./useFileOps";
+import { useTreeKeys } from "./useTreeKeys";
+import {
+  actionTargets,
+  clickIntent,
+  marksOf,
+  rangeBetween,
+  toggleMark,
+  visibleEntries,
+  type Marks,
+} from "./treeSelection";
 import type { TreeHit } from "./importTarget";
 import { CodePane, CodeEmptyState, type CodePaneHandle } from "./CodePane";
 import { CodeContextMenu, type CodeMenuItem } from "./CodeContextMenu";
@@ -71,9 +84,7 @@ import {
   focusedPath,
   moveTabToOtherPane,
   openFile,
-  openPathsUnder,
   pinTab,
-  renameOpenPath,
   sanitizeTabs,
   splitEditor,
   unsplitEditor,
@@ -81,18 +92,12 @@ import {
 } from "./codeTabs";
 import {
   baseName,
-  joinPath,
-  moveTarget,
   parentDir,
-  renameTarget,
-  validateName,
 } from "./fileOps";
 import {
   bufferKey,
-  dropBuffersUnder,
   getBuffer,
   listDirtyPaths,
-  renameBufferPath,
 } from "./codeBuffers";
 import "./code.css";
 
@@ -127,13 +132,6 @@ const HINT: React.CSSProperties = {
 
 /** ⇧⌘T 로 되살릴 수 있는 "닫은 탭" 기억의 상한 — 무한히 쌓을 이유가 없다. */
 const CLOSED_STACK_MAX = 20;
-
-/** 삭제 확인에 걸린 대상. 열려 있던 탭·미저장 목록을 같이 들고 있다. */
-interface PendingDelete {
-  path: string;
-  isDir: boolean;
-  openTabs: string[];
-}
 
 export function CodeScreenV2({
   projectId,
@@ -596,9 +594,6 @@ export function CodeScreenV2({
   );
 
   // ── 파일 조작 ───────────────────────────────────────────────────────────
-  const [draft, setDraft] = useState<TreeDraft | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [menu, setMenu] = useState<{ x: number; y: number; items: CodeMenuItem[] } | null>(null);
 
   /** 조작 후 갈아끼울 트리 자리들. 지연 캐시는 해당 폴더만, 전량 트리는 조용히. */
@@ -625,30 +620,44 @@ export function CodeScreenV2({
     onStale: (dirs) => reloadAfterOp(...dirs),
   });
 
-  const startCreate = useCallback(
-    (parent: string, isDir: boolean) => {
-      // 만들 자리가 안 보이면 이름을 넣을 곳도 없다 — 먼저 펼치고 읽는다.
-      if (parent) {
-        setExpanded((prev) => (prev.has(parent) ? prev : new Set(prev).add(parent)));
-        loadDir(parent);
-      }
-      setDraft({ kind: "create", parent, isDir });
-    },
-    [loadDir],
-  );
+  /**
+   * 트리 다중 선택 — 열려 있는 파일(`selected`)과는 **다른 것**이다.
+   *
+   * `selected` 는 "지금 보고 있는 파일" 이고 탭에서 온다. 이쪽은 "지금 손대려고
+   * 뽑아 둔 것들" 이라 여러 개일 수 있고 폴더도 들어간다. 둘을 한 상태로 합치면
+   * 파일 열 개를 뽑아 둔 채로는 어느 것을 편집 중인지 말할 수 없게 된다.
+   */
+  const [marks, setMarks] = useState<Marks>(() => new Map());
+  /** ⇧ 범위의 시작점. 마지막으로 **직접** 누른 행이다. */
+  const [markAnchor, setMarkAnchor] = useState<string | null>(null);
+  const clearMarks = useCallback(() => {
+    setMarks(new Map());
+    setMarkAnchor(null);
+  }, []);
+
+  const ops = useFileOps({
+    projectId,
+    rootName: projectRoot ? baseName(projectRoot) : "",
+    tabsRef,
+    setTabs,
+    setExpanded,
+    refreshDirtyPaths,
+    reloadAfterOp,
+    loadDir,
+    openPath,
+    clearMarks,
+  });
+  const { draft, startCreate, startRename, askDelete, pendingDelete, deleting } = ops;
 
   /**
-   * 트리에서 마지막으로 손댄 자리 — 커서가 없는 ⌘V 의 기준이다.
+   * 트리가 지금 서 있는 자리 — 키보드 포커스이자, 커서가 없는 ⌘X/⌘V 의 기준이다.
    *
    * 폴더는 눌러도 "선택"이 되지 않고 펼쳐지기만 한다(탭이 열리는 것은 파일뿐).
    * 그래서 `assets/` 를 누르고 ⌘V 를 치면 열려 있던 파일의 폴더로 들어가 버린다 —
-   * 눌러 둔 곳이 아니라. 그 어긋남만 여기서 메운다.
+   * 눌러 둔 곳이 아니라. 그 어긋남을 여기서 메우고, 화살표 이동도 같은 값을
+   * 옮긴다 (손과 키보드가 서로 다른 '지금 자리'를 갖지 않게).
    */
-  const [treeAnchor, setTreeAnchor] = useState<TreeHit | null>(null);
-
-  const startRename = useCallback((path: string, isDir: boolean) => {
-    setDraft({ kind: "rename", path, isDir, initial: baseName(path) });
-  }, []);
+  const [treeFocus, setTreeFocus] = useState<TreeHit | null>(null);
 
   // Finder → 트리 파일 들여오기 (드래그 드롭 · ⌘V). 가져온 자리를 펼쳐 두는
   // 것까지가 한 동작이다 — 어디에 들어갔는지 눈으로 확인되지 않으면 반쪽이다.
@@ -663,237 +672,23 @@ export function CodeScreenV2({
     projectId,
     isVisible,
     // 트리에서 누른 자리가 우선, 없으면 보고 있는 파일의 폴더.
-    selected: treeAnchor ?? (selected ? { path: selected, isDir: false } : null),
+    selected: treeFocus ?? (selected ? { path: selected, isDir: false } : null),
     rootName: projectRoot ? baseName(projectRoot) : "",
     onImported: handleImported,
   });
 
-  // 화면 단축키 — 이 화면이 보일 때만.
-  //   ⌃Tab / ⌃⇧Tab · ⇧⌘] / ⇧⌘[ : 탭 순환 (브라우저·VS Code 관례 양쪽)
-  //   ⇧⌘T : 닫은 탭 다시 열기
-  //   ⇧⌘F : 전역 검색 (사이드바를 검색 패널로 전환 + 입력 포커스)
-  //   ⌘N : 새 파일 (보고 있던 파일의 폴더에)
-  //   ⇧⌘O / ⌃G : 파일 안에서 심볼·줄로 이동
-  // ⌘W 는 여기 없다 — macOS 는 메뉴 액셀러레이터가 keydown 보다 먼저 먹으므로
-  // 위의 closeIntent 사슬이 받는다. keydown 에도 달면 두 번 닫힌다.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || !isVisible()) return;
-      if (e.ctrlKey && !e.metaKey && !e.altKey && e.key === "Tab") {
-        e.preventDefault();
-        setTabs((prev) => cycleTab(prev, e.shiftKey ? -1 : 1));
-        return;
-      }
-      // ⌃G — CM6 기본 키맵에 없는 조합이라 여기서 처음 잡힌다 (emacs 키맵을
-      // 쓰지 않는다). ⌘ 조합보다 먼저 봐야 아래 metaKey 게이트에 안 걸린다.
-      if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "g") {
-        e.preventDefault();
-        openGoto(true);
-        return;
-      }
-      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
-      // 괄호 키는 `key` 가 아니라 `code` 로 본다 — ⇧ 조합·비영어 자판에서
-      // `key` 값이 갈라진다.
-      if (e.shiftKey && (e.code === "BracketRight" || e.code === "BracketLeft")) {
-        e.preventDefault();
-        setTabs((prev) => cycleTab(prev, e.code === "BracketRight" ? 1 : -1));
-        return;
-      }
-      if (e.shiftKey && e.key.toLowerCase() === "t") {
-        e.preventDefault();
-        reopenClosedTab();
-        return;
-      }
-      if (e.shiftKey && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        openSearch();
-        return;
-      }
-      if (e.shiftKey && e.key.toLowerCase() === "o") {
-        e.preventDefault();
-        openGoto(false);
-        return;
-      }
-      if (!e.shiftKey && e.key.toLowerCase() === "v") {
-        // 에디터·입력칸의 ⌘V 는 글자 붙여넣기다 — 가로채면 타이핑이 망가진다.
-        const el = e.target as HTMLElement | null;
-        if (el?.closest?.(".cm-editor, input, textarea, [contenteditable='true']")) return;
-        pasteFiles();
-        return;
-      }
-      if (!e.shiftKey && e.key.toLowerCase() === "n") {
-        e.preventDefault();
-        const current = focusedPath(tabsRef.current);
-        startCreate(current != null ? parentDir(current) : "", false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isVisible, reopenClosedTab, startCreate, openSearch, pasteFiles, openGoto]);
-
-  /** 이름 바꾸기·이동의 공통 뒤처리 — 탭·버퍼·펼침 상태가 새 경로를 따라간다. */
-  const applyRenamed = useCallback(
-    (from: string, to: string, isDir: boolean) => {
-      renameBufferPath(projectId, from, to, isDir);
-      setTabs((prev) => renameOpenPath(prev, from, to, isDir));
-      if (isDir) {
-        setExpanded((prev) => {
-          const next = new Set<string>();
-          for (const dir of prev) {
-            if (dir === from) next.add(to);
-            else if (dir.startsWith(from + "/")) next.add(to + dir.slice(from.length));
-            else next.add(dir);
-          }
-          return next;
-        });
-      }
-      refreshDirtyPaths();
-      reloadAfterOp(parentDir(from), parentDir(to));
-    },
-    [projectId, refreshDirtyPaths, reloadAfterOp],
+  /** 이 행에 건 조작이 실제로 데려가는 것들 — 뽑아 둔 것 안에서 잡았으면 전부. */
+  const targetsFor = useCallback(
+    (path: string, isDir: boolean) => actionTargets(marks, path, isDir),
+    [marks],
+  );
+  /** 같은 것을 경로만으로 (드래그는 폴더 여부를 백엔드에게 묻는다). */
+  const dragPayload = useCallback(
+    (path: string) => targetsFor(path, marks.get(path) ?? false).map((m) => m.path),
+    [targetsFor, marks],
   );
 
-  /** 이름 바꾸기·이동을 실행한다. 옮긴 것이 폴더였는지는 **백엔드가 알려 준다** —
-   *  트리 캐시가 낡았을 수 있어 프런트의 판단을 믿지 않는다. */
-  const runRename = useCallback(
-    (from: string, to: string) => {
-      if (to === from) return;
-      void commands.codeRename(projectId, from, to).then((res) => {
-        if (res.status === "error") {
-          toast.destructive(t("code.ops.renameFailed", { error: tError(res.error) }));
-          return;
-        }
-        applyRenamed(from, res.data.relative_path, res.data.is_dir);
-      });
-    },
-    [projectId, applyRenamed],
-  );
 
-  const submitDraft = useCallback(
-    (name: string) => {
-      const current = draft;
-      setDraft(null);
-      if (!current) return;
-      const problem = validateName(name);
-      if (problem) {
-        toast.destructive(t(`code.ops.name.${problem}`));
-        return;
-      }
-      if (current.kind === "rename") {
-        runRename(current.path, renameTarget(current.path, name));
-        return;
-      }
-      const target = joinPath(current.parent, name.trim());
-      const call = current.isDir
-        ? commands.codeMkdir(projectId, target)
-        : commands.codeCreate(projectId, target);
-      void call.then((res) => {
-        if (res.status === "error") {
-          toast.destructive(t("code.ops.createFailed", { error: tError(res.error) }));
-          return;
-        }
-        const created = res.data.relative_path;
-        // `a/b/c.ts` 처럼 중간 폴더가 같이 생겼을 수 있다 — 만든 자리와 그
-        // 직속 부모를 둘 다 다시 읽는다.
-        reloadAfterOp(current.parent, parentDir(created));
-        if (res.data.is_dir) {
-          setExpanded((prev) => new Set(prev).add(created));
-          loadDir(created, true);
-        } else {
-          openPath(created, null);
-        }
-      });
-    },
-    [draft, projectId, runRename, reloadAfterOp, loadDir, openPath],
-  );
-
-  const askDelete = useCallback((path: string, isDir: boolean) => {
-    setPendingDelete({
-      path,
-      isDir,
-      openTabs: openPathsUnder(tabsRef.current, path, isDir),
-    });
-  }, []);
-
-  const confirmDelete = useCallback(() => {
-    const target = pendingDelete;
-    if (!target || deleting) return;
-    setDeleting(true);
-    void commands.codeDelete(projectId, target.path).then((res) => {
-      setDeleting(false);
-      setPendingDelete(null);
-      if (res.status === "error") {
-        toast.destructive(t("code.ops.deleteFailed", { error: tError(res.error) }));
-        return;
-      }
-      // 탭·버퍼를 같이 정리한다. 미저장 편집이 있었다면 **무엇이 사라졌는지**
-      // 말한다 — 확인 창에서 이미 경고했더라도 결과는 다시 알린다.
-      const lost = dropBuffersUnder(projectId, target.path, target.isDir);
-      setTabs((prev) => closeOpenPath(prev, target.path, target.isDir));
-      refreshDirtyPaths();
-      if (target.isDir) {
-        setExpanded((prev) => {
-          const next = new Set<string>();
-          for (const dir of prev) {
-            if (dir !== target.path && !dir.startsWith(target.path + "/")) next.add(dir);
-          }
-          return next;
-        });
-      }
-      reloadAfterOp(parentDir(target.path));
-      toast.info(
-        lost.length > 0
-          ? t("code.ops.deletedWithUnsaved", { name: baseName(target.path), count: lost.length })
-          : t("code.ops.deleted", { name: baseName(target.path) }),
-      );
-    });
-  }, [pendingDelete, deleting, projectId, refreshDirtyPaths, reloadAfterOp]);
-
-  const handleMove = useCallback(
-    (from: string, toDir: string) => {
-      const result = moveTarget(from, toDir);
-      if (!result.ok) {
-        // 같은 폴더로의 드롭은 아무 말 없이 넘긴다 (실수가 아니라 취소에 가깝다).
-        if (result.reason === "intoSelf") toast.warning(t("code.ops.moveIntoSelf"));
-        return;
-      }
-      runRename(from, result.to);
-    },
-    [runRename],
-  );
-
-  const openTreeMenu = useCallback(
-    (e: React.MouseEvent, entry: { path: string; isDir: boolean } | null) => {
-      const parent = entry ? (entry.isDir ? entry.path : parentDir(entry.path)) : "";
-      const items: CodeMenuItem[] = [
-        { label: t("code.ops.newFile"), onSelect: () => startCreate(parent, false) },
-        { label: t("code.ops.newFolder"), onSelect: () => startCreate(parent, true) },
-      ];
-      if (entry) {
-        items.push(
-          {
-            label: t("code.ops.rename"),
-            onSelect: () => startRename(entry.path, entry.isDir),
-            separatorBefore: true,
-          },
-          {
-            label: t("code.ops.delete"),
-            onSelect: () => askDelete(entry.path, entry.isDir),
-            danger: true,
-          },
-        );
-        if (!entry.isDir) {
-          items.push({
-            label: t("code.tabs.openBeside"),
-            onSelect: () => openPath(entry.path, null, tabsRef.current.panes.length > 1 ? 1 : 0),
-            separatorBefore: true,
-          });
-        }
-      }
-      setMenu({ x: e.clientX, y: e.clientY, items });
-    },
-    [startCreate, startRename, askDelete, openPath],
-  );
 
   // ── 트리 파생값 ────────────────────────────────────────────────────────
   const filtering = filter.trim().length > 0;
@@ -943,7 +738,7 @@ export function CodeScreenV2({
 
   const toggleDir = useCallback(
     (path: string) => {
-      setTreeAnchor({ path, isDir: true });
+      setTreeFocus({ path, isDir: true });
       setExpanded((prev) => {
         const next = new Set(prev);
         if (next.has(path)) next.delete(path);
@@ -956,6 +751,168 @@ export function CodeScreenV2({
     },
     [loadDir],
   );
+
+  /** 지금 트리에 보이는 순서 — ⇧ 범위 선택과 화살표 이동의 기준. */
+  const treeOrder = useMemo(
+    () => visibleEntries(childrenOf, expandedForRender),
+    [childrenOf, expandedForRender],
+  );
+
+  /**
+   * 트리 행을 눌렀다. 평범한 클릭은 예전 그대로다 — 하나만 뽑고, 파일이면 열고
+   * 폴더면 펼친다. ⌘·⇧ 는 **고르기만** 한다 (열면 뽑아 둔 것이 곧바로 흩어진다).
+   */
+  const clickRow = useCallback(
+    (path: string, isDir: boolean, e: React.MouseEvent) => {
+      const intent = clickIntent(e);
+      if (intent === "toggle") {
+        setMarks((prev) => toggleMark(prev, { path, isDir }));
+        setMarkAnchor(path);
+        return;
+      }
+      if (intent === "range") {
+        setMarks(marksOf(rangeBetween(treeOrder, markAnchor, path)));
+        return;
+      }
+      setMarks(marksOf([{ path, isDir }]));
+      setMarkAnchor(path);
+      setTreeFocus({ path, isDir });
+      if (isDir) toggleDir(path);
+      else openPath(path, null, undefined, { preview: true });
+    },
+    [markAnchor, treeOrder, toggleDir, openPath],
+  );
+
+  /**
+   * 트리가 Tab 으로 들어오는 자리. 서 있던 행이 사라졌으면(옮김·삭제·필터)
+   * 첫 행으로 돌아간다 — 없는 경로가 주인이면 트리에 **아예 들어갈 수 없다**.
+   */
+  const treeFocusPath =
+    treeFocus && treeOrder.some((x) => x.path === treeFocus.path)
+      ? treeFocus.path
+      : (treeOrder[0]?.path ?? null);
+
+  /** 트리의 키보드 표면 — 화살표 이동과 ⌘X/⌘V. 둘 다 `treeFocus` 를 공유한다. */
+  const { cut, cutFrom, pasteInto, pasteHere, onKeyDown: onTreeKeyDown } = useTreeKeys({
+    order: treeOrder,
+    focus: treeFocus,
+    setFocus: setTreeFocus,
+    isExpanded: (dir) => expandedForRender.has(dir),
+    setMarks,
+    markAnchor,
+    setMarkAnchor,
+    clearMarks,
+    targetsFor,
+    toggleDir,
+    openPath,
+    startRename,
+    askDelete,
+    moveInto: ops.moveInto,
+    pasteFiles,
+    selectedPath: selected,
+  });
+
+  const openTreeMenu = useCallback(
+    (e: React.MouseEvent, entry: { path: string; isDir: boolean } | null) => {
+      const items = treeMenuItems(entry, {
+        startCreate,
+        startRename,
+        // 뽑아 둔 것 안에서 우클릭했으면 그 전부가 대상이다 — 메뉴가 하나만
+        // 지우면 방금 열 개를 고른 손이 무엇을 눌러야 할지 알 수 없다.
+        askDelete: (path, isDir) => askDelete(targetsFor(path, isDir)),
+        cut: (path, isDir) => cutFrom({ path, isDir }),
+        // 잘라 둔 것이 없으면 항목을 아예 그리지 않는다 — 회색으로 놔두면
+        // 왜 못 누르는지 알 수 없다.
+        paste: cut.size > 0 ? () => pasteInto(entry) : undefined,
+        openBeside: (path) =>
+          openPath(path, null, tabsRef.current.panes.length > 1 ? 1 : 0),
+      });
+      setMenu({ x: e.clientX, y: e.clientY, items });
+    },
+    [startCreate, startRename, askDelete, targetsFor, cut.size, cutFrom, pasteInto, openPath],
+  );
+
+  // 화면 단축키 — 이 화면이 보일 때만.
+  //   ⌃Tab / ⌃⇧Tab · ⇧⌘] / ⇧⌘[ : 탭 순환 (브라우저·VS Code 관례 양쪽)
+  //   ⇧⌘T : 닫은 탭 다시 열기
+  //   ⇧⌘F : 전역 검색 (사이드바를 검색 패널로 전환 + 입력 포커스)
+  //   ⌘N : 새 파일 (보고 있던 파일의 폴더에)
+  //   ⇧⌘O / ⌃G : 파일 안에서 심볼·줄로 이동
+  // ⌘W 는 여기 없다 — macOS 는 메뉴 액셀러레이터가 keydown 보다 먼저 먹으므로
+  // 위의 closeIntent 사슬이 받는다. keydown 에도 달면 두 번 닫힌다.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || !isVisible()) return;
+      if (e.ctrlKey && !e.metaKey && !e.altKey && e.key === "Tab") {
+        e.preventDefault();
+        setTabs((prev) => cycleTab(prev, e.shiftKey ? -1 : 1));
+        return;
+      }
+      // ⌃G — CM6 기본 키맵에 없는 조합이라 여기서 처음 잡힌다 (emacs 키맵을
+      // 쓰지 않는다). ⌘ 조합보다 먼저 봐야 아래 metaKey 게이트에 안 걸린다.
+      if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        openGoto(true);
+        return;
+      }
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      // 괄호 키는 `key` 가 아니라 `code` 로 본다 — ⇧ 조합·비영어 자판에서
+      // `key` 값이 갈라진다.
+      if (e.shiftKey && (e.code === "BracketRight" || e.code === "BracketLeft")) {
+        e.preventDefault();
+        setTabs((prev) => cycleTab(prev, e.code === "BracketRight" ? 1 : -1));
+        return;
+      }
+      if (e.shiftKey && e.key.toLowerCase() === "t") {
+        e.preventDefault();
+        reopenClosedTab();
+        return;
+      }
+      if (e.shiftKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        openSearch();
+        return;
+      }
+      if (e.shiftKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        openGoto(false);
+        return;
+      }
+      // 에디터·입력칸의 ⌘X/⌘V 는 글자 잘라내기·붙여넣기다 — 가로채면 타이핑이 망가진다.
+      const editing = (e.target as HTMLElement | null)?.closest?.(
+        ".cm-editor, input, textarea, [contenteditable='true']",
+      );
+      if (!e.shiftKey && e.key.toLowerCase() === "v") {
+        if (editing) return;
+        pasteHere();
+        return;
+      }
+      if (!e.shiftKey && e.key.toLowerCase() === "x") {
+        if (editing) return;
+        e.preventDefault();
+        cutFrom(null);
+        return;
+      }
+      if (!e.shiftKey && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        const current = focusedPath(tabsRef.current);
+        startCreate(current != null ? parentDir(current) : "", false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isVisible, reopenClosedTab, startCreate, openSearch, pasteHere, cutFrom, openGoto]);
+
+  /** 트리 안 드래그 이동 — 놓는 순간 이름 바꾸기(=이동)로 합류한다. */
+  const treeDrag = useTreeDrag({
+    onMove: (from, toDir) => ops.moveInto(dragPayload(from), toDir),
+    payloadOf: dragPayload,
+    onSpringOpen: (dir) => {
+      setExpanded((prev) => (prev.has(dir) ? prev : new Set(prev).add(dir)));
+      loadDir(dir);
+    },
+    isExpanded: (dir) => expandedForRender.has(dir),
+  });
 
   const isSplit = tabs.panes.length > 1;
   const focusedDirty = selected != null && dirtyPaths.has(selected);
@@ -1105,20 +1062,25 @@ export function CodeScreenV2({
           dirtyPaths={dirtyPaths}
           openPaths={openPaths}
           draft={draft}
-          onToggle={toggleDir}
-          onSelect={(path) => {
-            setTreeAnchor({ path, isDir: false });
-            openPath(path, null, undefined, { preview: true });
-          }}
+          marks={marks}
+          // 트리 안에서 tabindex 를 가진 자리는 언제나 하나여야 한다.
+          focusPath={treeFocusPath}
+          cutPaths={cut}
+          onKeyDown={onTreeKeyDown}
+          onClickRow={clickRow}
           // 더블클릭은 고정 — 첫 클릭이 이미 열었으므로 승격만 하면 된다.
           onPin={(path) => pinPath(tabsRef.current.focused, path)}
-          onDraftSubmit={submitDraft}
-          onDraftCancel={() => setDraft(null)}
+          onDraftSubmit={ops.submitDraft}
+          onDraftCancel={ops.cancelDraft}
           onContextMenu={openTreeMenu}
-          onMove={handleMove}
-          dropDir={dropDir}
+          rowDrag={treeDrag.rowDrag}
+          draggingPaths={treeDrag.draggingPaths}
+          // Finder 드롭과 트리 안 이동이 같은 자리를 밝힌다 — 둘이 동시에
+          // 일어날 수는 없다.
+          dropDir={dropDir ?? treeDrag.dropDir}
         />
       )}
+      {treeDrag.ghost}
       <CodeOutline
         symbols={symbols}
         loading={symbolsLoading}
@@ -1469,7 +1431,7 @@ export function CodeScreenV2({
 
       <AppDialog
         open={pendingDelete != null}
-        onClose={() => setPendingDelete(null)}
+        onClose={() => ops.setPendingDelete(null)}
         label={t("code.ops.deleteTitle")}
         width={440}
       >
@@ -1478,9 +1440,16 @@ export function CodeScreenV2({
             {t("code.ops.deleteTitle")}
           </h2>
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7 }}>
-            {t(pendingDelete?.isDir ? "code.ops.deleteFolderAsk" : "code.ops.deleteFileAsk", {
-              name: pendingDelete ? baseName(pendingDelete.path) : "",
-            })}
+            {/* 하나면 그 이름을 부른다 — 여럿이면 이름 열 개를 늘어놓는 대신
+                개수로 말하고, 무엇이 걸렸는지는 아래 탭 목록이 보여 준다. */}
+            {pendingDelete && pendingDelete.targets.length > 1
+              ? t("code.ops.deleteManyAsk", { count: pendingDelete.targets.length })
+              : t(
+                  pendingDelete?.targets[0]?.isDir
+                    ? "code.ops.deleteFolderAsk"
+                    : "code.ops.deleteFileAsk",
+                  { name: pendingDelete ? baseName(pendingDelete.targets[0]?.path ?? "") : "" },
+                )}
           </p>
           <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--text-3)", lineHeight: 1.6 }}>
             {t("code.ops.deleteTrashNote")}
@@ -1503,7 +1472,7 @@ export function CodeScreenV2({
             <button
               type="button"
               className="btn sm"
-              onClick={() => setPendingDelete(null)}
+              onClick={() => ops.setPendingDelete(null)}
               disabled={deleting}
             >
               {t("common.cancel")}
@@ -1511,7 +1480,7 @@ export function CodeScreenV2({
             <button
               type="button"
               className="btn sm code-conflict-overwrite"
-              onClick={confirmDelete}
+              onClick={ops.confirmDelete}
               disabled={deleting}
             >
               {deleting ? t("code.ops.deleting") : t("code.ops.delete")}

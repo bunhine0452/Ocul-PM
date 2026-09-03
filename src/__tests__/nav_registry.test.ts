@@ -15,11 +15,12 @@ describe("navRegistry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("main 6 + tools 5 + ai 4 = 15개 화면을 커버한다", () => {
+  it("main 6 + tools 5 + ai 5 = 16개 화면을 커버한다", () => {
     expect(NAV_ENTRIES.filter((e) => e.group === "main")).toHaveLength(6);
     // 2026-08-24 — AI 면(Claude Code · AI 대화 · 스킬·규칙)을 tools 에서 분리.
     expect(NAV_ENTRIES.filter((e) => e.group === "tools")).toHaveLength(5);
-    expect(NAV_ENTRIES.filter((e) => e.group === "ai")).toHaveLength(4);
+    // 2026-09-04 — 세션(묶기)이 Today 카드에서 나와 화면이 됐다 (D8).
+    expect(NAV_ENTRIES.filter((e) => e.group === "ai")).toHaveLength(5);
   });
 
   it("⌘번호는 배열(=사이드바 표시) 순서를 그대로 따른다", () => {
@@ -39,6 +40,7 @@ describe("navRegistry", () => {
     // (2026-08-24 — 코드를 도구 곁으로, AI 면을 뒤로). 앞 10개의 번호는 불변.
     expect(navShortcutLabel("claudecode")).toBeUndefined();
     expect(navShortcutLabel("code")).toBeUndefined();
+    expect(navShortcutLabel("sessions")).toBeUndefined();
     expect(navShortcutLabel("docs")).toBe("⌘9");
     expect(navShortcutLabel("terminal")).toBe("⌘0");
   });

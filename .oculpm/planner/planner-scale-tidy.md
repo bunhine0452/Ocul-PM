@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: planner-scale-tidy
 title: "계획이 쌓여도 목록은 짧게 — 플래너 정리·레일 조절"
-status: active
+status: done
 created: 2026-09-03
 updated: 2026-09-03
 owner: claude-code
@@ -29,7 +29,7 @@ owner: claude-code
 - [x] WorkspaceContext 에서 DEFAULT_STATE 분리 (TDZ 회피로 스키마 상수 동반 이동) {#split-context}
 
 ## 남은 것 {#next}
-- [ ] 실기기 육안 확인 — 드래그 감각·오른쪽 배치·월 섹션 라벨 {#eyeball}
+- [x] 실기기 육안 확인 — 드래그 감각·오른쪽 배치·월 섹션 라벨 {#eyeball}
 - [ ] 뿌리 원인: plan_create 시 유사한 활성 계획이 있으면 재사용을 권하기 (MCP 서버 쪽) {#dedupe-on-create}
 
 <!-- oculpm:plan-log begin v1 -->
@@ -45,4 +45,6 @@ owner: claude-code
 | 2026-09-03T20:30:46+09:00 | #persist | claude-code | ☐→x | .oculpm/journal/20260903/Features_to_add/2029_feature_planner-rail-tidy-and-resize.md | WorkspaceContext 경유 (localStorage 규율) |
 | 2026-09-03T20:30:51+09:00 | #split-screen | claude-code | ☐→x | .oculpm/journal/20260903/Features_to_add/2029_feature_planner-rail-tidy-and-resize.md | 래칫이 한 줄도 못 늘리게 막아 먼저 쪼갬 |
 | 2026-09-03T20:30:56+09:00 | #split-context | claude-code | ☐→x | .oculpm/journal/20260903/Features_to_add/2029_feature_planner-rail-tidy-and-resize.md | WORKSPACE_SCHEMA_VERSION 을 defaults 로 옮겨 TDZ 회피 |
+| 2026-09-03T22:23:49.255575+00:00 | #eyeball | user | ☐→~ |  |  |
+| 2026-09-03T22:23:50.688900+00:00 | #eyeball | user | ~→x |  |  |
 <!-- oculpm:plan-log end -->

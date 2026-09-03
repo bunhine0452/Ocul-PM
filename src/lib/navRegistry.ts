@@ -12,6 +12,7 @@ import {
   MessageSquareText,
   Puzzle,
   FileCode,
+  Waypoints,
 } from "@/components/Icons";
 import { ClaudeMark } from "@/components/ClaudeMark";
 import { CodexMark } from "@/components/CodexMark";
@@ -72,6 +73,14 @@ export const NAV_ENTRIES: NavEntry[] = [
   { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: MessageSquareText, group: "ai" },
   // PR-CI3 — 스킬 화면을 스킬·규칙·훅 허브로 확장 (id 는 유지 — 저장된 uiV2View 호환).
   { id: "skills", labelKey: "nav.skills", aliasKey: "nav.skills.alias", icon: Puzzle, group: "ai" },
+  // 세션 (2026-09-04) — 누가 붙어 있고 누구와 묶여 있는가.
+  //
+  // 마스터플랜 D4 는 "사이드바 항목을 늘리지 않는다" 였고 묶기가 Today 카드
+  // 안에 있었다. 실사용에서 뒤집혔다: 한 프로젝트에 세션 넷이 붙어 서로 다른
+  // 일을 하면, 그중 둘을 고르는 것은 "오늘 무슨 일이 있나"가 아니라 **작정하고
+  // 하는 일**이다. 목적을 갖고 가는 곳은 목적지여야 한다
+  // (`docs/a2a/00-master-plan.md` D8).
+  { id: "sessions", labelKey: "nav.sessions", aliasKey: "nav.sessions.alias", icon: Waypoints, group: "ai" },
 ];
 
 /** ⌘번호 키 → 배열 앞 10개 (⌘0 = 10번째). */

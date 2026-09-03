@@ -62,7 +62,7 @@ describe("parseChangedFiles — 이름이 바뀐 파일", () => {
 describe("isGoverned — 손으로 쓰는 소스만", () => {
   it("Rust 와 TS 소스를 문다", () => {
     expect(isGoverned("src-tauri/src/oculpm/chain.rs")).toBe(true);
-    expect(isGoverned("src/features/today/A2aCard.tsx")).toBe(true);
+    expect(isGoverned("src/features/sessions/SessionsScreenV2.tsx")).toBe(true);
   });
 
   it("생성물·사전·죽은 코드는 뺀다", () => {

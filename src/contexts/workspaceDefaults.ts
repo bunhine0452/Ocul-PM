@@ -64,6 +64,7 @@ export const DEFAULT_STATE: WorkspaceState = {
   acpLastSession: null,
   codexAcpTabs: [],
   codexAcpNames: {},
+  sessionAliases: {},
   codexAcpLastSession: null,
   acpUltracode: false,
   aiThreadId: null,

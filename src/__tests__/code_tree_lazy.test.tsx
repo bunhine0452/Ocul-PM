@@ -29,9 +29,13 @@ function setup(map: Map<string, CodeDirEntry[]>, expanded: string[] = [], loadin
       onDraftCancel={vi.fn()}
       onContextMenu={vi.fn()}
       dropDir={null}
-      onMove={vi.fn()}
-      onToggle={onToggle}
-      onSelect={onSelect}
+      rowDrag={() => ({})}
+      draggingPaths={new Set()}
+      marks={new Map()}
+      focusPath={null}
+      cutPaths={new Set()}
+      onKeyDown={vi.fn()}
+      onClickRow={(path, isDir) => (isDir ? onToggle(path) : onSelect(path))}
       onPin={vi.fn()}
     />,
   );
@@ -66,10 +70,14 @@ describe("CodeTree — 지연 로딩", () => {
         onDraftSubmit={vi.fn()}
         onDraftCancel={vi.fn()}
         onContextMenu={vi.fn()}
-      dropDir={null}
-        onMove={vi.fn()}
-        onToggle={vi.fn()}
-        onSelect={vi.fn()}
+        dropDir={null}
+        rowDrag={() => ({})}
+        draggingPaths={new Set()}
+        marks={new Map()}
+        focusPath={null}
+        cutPaths={new Set()}
+        onKeyDown={vi.fn()}
+        onClickRow={vi.fn()}
         onPin={vi.fn()}
       />,
     );

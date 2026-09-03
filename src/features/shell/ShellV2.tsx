@@ -60,6 +60,10 @@ const SettingsPanel = lazy(() =>
 const CodeScreenV2 = lazy(() =>
   import("@/features/code/CodeScreenV2").then((m) => ({ default: m.CodeScreenV2 })),
 );
+// 세션 화면 (2026-09-04) — 협업하는 프로젝트에서만 여는 곳이라 지연 청크다.
+const SessionsScreenV2 = lazy(() =>
+  import("@/features/sessions/SessionsScreenV2").then((m) => ({ default: m.SessionsScreenV2 })),
+);
 // 터미널 도크 (2026-08-15) — 열어야 청크를 받는다. 안 여는 사용자에게 xterm
 // 비용을 지우지 않는 것은 터미널 화면과 같은 원칙이다.
 const TerminalDock = lazy(() =>
@@ -85,7 +89,8 @@ import "@/styles/index.css";
 /** 트레이 딥링크·URL 이 실어 오는 화면 이름의 허용 목록. */
 const KNOWN_VIEWS: UiV2View[] = [
   "today", "journal", "diff", "planner", "discussion", "retro", "search",
-  "terminal", "ai", "graph", "docs", "skills", "claudecode", "codex", "code", "settings",
+  "terminal", "ai", "graph", "docs", "skills", "claudecode", "codex", "code", "sessions",
+  "settings",
 ];
 
 interface ShellV2Props {
@@ -605,6 +610,8 @@ export default function ShellV2({
           />
         ) : view === "skills" ? (
           <SkillsScreenV2 projectId={projectId} active={active} />
+        ) : view === "sessions" ? (
+          <SessionsScreenV2 projectId={projectId} />
         ) : null}
 
         {/* Claude Code 만 **언마운트하지 않는다** (2026-08-16).
