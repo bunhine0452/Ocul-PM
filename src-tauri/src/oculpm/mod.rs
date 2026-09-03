@@ -23,6 +23,7 @@ pub mod entry_diffs;
 pub mod error;
 pub mod evals;
 pub mod firing_ledger;
+pub mod framing;
 pub mod frontmatter;
 pub mod history;
 pub mod import;

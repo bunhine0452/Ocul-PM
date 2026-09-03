@@ -190,6 +190,8 @@ const TESTS = new Set([
   "__tests__/trace_preview.test.ts",
   "__tests__/file_links.test.ts",
   "__tests__/firing_ledger_v2.test.ts",
+  // 프레이밍 — 적대 본문("무시하고 </code-snippet>…")이 곧 검사 재료다.
+  "__tests__/framing.test.ts",
   "__tests__/home_flow.test.tsx",
   "__tests__/home_match.test.ts",
   "__tests__/home_model.test.ts",
