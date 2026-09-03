@@ -2168,5 +2168,11 @@ mark.s-hit {
 .a2a-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .a2a-list li { display: flex; align-items: center; gap: 8px; min-height: 24px; font-size: var(--fs-6); }
 .a2a-list li strong { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.a2a-list li .empty-hint { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 인라인 보조 텍스트. `.empty-hint` 를 쓰지 않는 이유: 그것은 **빈 상태**
+   프리미티브라 `padding: 60px 30px` 이 붙어 있고, 목록 행에 쓰면 행마다 120px 이
+   더해져 카드가 화면을 뒤덮는다 (2026-09-03 실기기에서 그렇게 떴다). */
+.a2a-sub { color: var(--text-3); font-size: var(--fs-5); margin: 0; padding: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.a2a-dim { color: var(--text-3); opacity: 0.7; font-size: var(--fs-4); }
+/* 문단용 — 행 안의 라벨과 달리 접혀야 한다. */
+.a2a-desc { color: var(--text-3); font-size: var(--fs-5); line-height: 1.5; }
 .a2a-list li .right { margin-left: auto; display: flex; gap: 4px; flex: none; }

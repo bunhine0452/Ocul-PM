@@ -51,11 +51,11 @@ export function A2aEndpointBlock({ projectId }: { projectId: number | null }) {
       <div className="stat-top">
         <Network size={15} color="var(--accent-text)" />
         <strong>{t("a2a.endpoint.title")}</strong>
-        <span className="empty-hint right">
+        <span className="a2a-sub right">
           {running ? t("a2a.endpoint.running") : t("a2a.endpoint.off")}
         </span>
       </div>
-      <p className="empty-hint" style={{ margin: "6px 0 0" }}>
+      <p className="a2a-desc" style={{ margin: "6px 0 0" }}>
         {t("a2a.endpoint.desc")}
       </p>
 
@@ -66,7 +66,7 @@ export function A2aEndpointBlock({ projectId }: { projectId: number | null }) {
           </div>
           {status.token ? (
             <div>
-              <span className="empty-hint">{t("a2a.endpoint.token")}</span>
+              <span className="a2a-sub">{t("a2a.endpoint.token")}</span>
               <button
                 className="btn ghost sm right"
                 onClick={() => void navigator.clipboard?.writeText(status.token ?? "")}

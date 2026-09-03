@@ -5,6 +5,7 @@ import { tError } from "@/i18n/errors";
 import type { A2aOverview } from "@/lib/bindings";
 import { oculpmApi } from "@/api/oculpm";
 import { toAppError } from "@/api/invoke";
+import { agentLabel } from "./agentColor";
 
 // A2A 협업 카드 (docs/a2a/00-master-plan.md §9).
 //
@@ -97,7 +98,7 @@ export function A2aCard({ projectId }: { projectId: number }) {
       <div className="stat-top">
         <Bot size={15} color="var(--accent-text)" />
         <strong>{t("a2a.title")}</strong>
-        <span className="empty-hint right">
+        <span className="a2a-sub right">
           {t("a2a.participants", { n: data.participants.length })}
         </span>
       </div>
@@ -105,8 +106,12 @@ export function A2aCard({ projectId }: { projectId: number }) {
       <ul className="a2a-list" aria-label={t("a2a.participants", { n: data.participants.length })}>
         {data.participants.map((card) => (
           <li key={card.agent_id}>
-            <strong>{card.name}</strong>
-            <span className="empty-hint">{t(`a2a.surface.${card.surface}`)}</span>
+            {/* 어댑터가 준 `name` 은 npm 패키지 이름(@agentclientprotocol/…)이라
+                사람이 읽을 것이 못 된다 — 기록에 쓰는 라벨을 앞에 세우고 그
+                패키지 이름은 뒤에 붙인다. */}
+            <strong>{agentLabel(card.provider)}</strong>
+            <span className="a2a-sub">{t(`a2a.surface.${card.surface}`)}</span>
+            <span className="a2a-sub a2a-dim">{card.name}</span>
           </li>
         ))}
       </ul>
@@ -118,7 +123,7 @@ export function A2aCard({ projectId }: { projectId: number }) {
             {waiting.map((task) => (
               <li key={task.id}>
                 <strong>{task.title}</strong>
-                <span className="empty-hint">{t("a2a.from", { who: task.from })}</span>
+                <span className="a2a-sub">{t("a2a.from", { who: task.from })}</span>
                 <span className="right">
                   <button className="btn sm primary" onClick={() => void decide(task.id, true)}>
                     {t("a2a.accept")}
@@ -140,7 +145,7 @@ export function A2aCard({ projectId }: { projectId: number }) {
             {data.leases.map((lease) => (
               <li key={lease.id}>
                 <strong>{lease.holder}</strong>
-                <span className="empty-hint">{lease.patterns.join(" · ")}</span>
+                <span className="a2a-sub">{lease.patterns.join(" · ")}</span>
                 <button className="btn ghost sm right" onClick={() => void release(lease.id)}>
                   {t("a2a.release")}
                 </button>
@@ -159,7 +164,7 @@ export function A2aCard({ projectId }: { projectId: number }) {
             {trespasses.map((hit) => (
               <li key={`${hit.actor}:${hit.path}`}>
                 <strong>{hit.path}</strong>
-                <span className="empty-hint">
+                <span className="a2a-sub">
                   {t("a2a.trespassBy", { actor: hit.actor, holder: hit.holder })}
                 </span>
               </li>
