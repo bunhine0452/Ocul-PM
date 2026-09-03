@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: a2a-agent-mesh
 title: "A2A 에이전트 간 통신 — 동시 작업 조율"
-status: active
+status: done
 created: 2026-09-03
 updated: 2026-09-03
 owner: claude-code
@@ -56,7 +56,7 @@ owner: claude-code
 - [x] Vitest — 승인 카드, 참여자 배지, 충돌 경고, 기존 AI 패널 회귀 {#frontend-tests}
 - [x] 실측 — 앱 안 ACP 세션과 앱 밖 CLI 세션으로 발견→임대→메시지→태스크 완료를 한 번 통과 {#live-two-sessions}
 - [x] 게이트 — cargo fmt/clippy/test, pnpm typecheck/test/lint/build 를 직접 확인 {#gates}
-- [~] 릴리스 5면 — 버전 3파일·CHANGELOG·README ko/en·landing 6곳 {#release-surfaces}
+- [x] 릴리스 5면 — 버전 3파일·CHANGELOG·README ko/en·landing 6곳 {#release-surfaces}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -94,4 +94,5 @@ owner: claude-code
 | 2026-09-03T16:37:38+09:00 | #frontend-tests | claude-code | ☐→x |  | a2a_card.test.tsx 4건 — 혼자일 때 안 그림·참여자 표시·승인 전 무동작·구역 놓기. today_v2 회귀도 함께(목 확장) |
 | 2026-09-03T16:37:44+09:00 | #gates | claude-code | ☐→x |  | 매 Phase 직접 확인. 최종: fmt 0 · clippy -D warnings 0 · cargo test 1285 · typecheck 0 · vitest 160 files 2077 · lint 0 · build 0 |
 | 2026-09-03T16:41:46+09:00 | #release-surfaces | claude-code | ☐→~ |  | v2.37.0 — 버전 5파일·CHANGELOG·README ko/en·랜딩 6곳×2(+영문)·wiki 재빌드·featureList·FAQ 2곳×2·벤토 3셀·plugin.html 배지. 태그 푸시는 사용자 승인 대기 |
+| 2026-09-03T07:52:20.530989+00:00 | #release-surfaces | user | ~→x |  |  |
 <!-- oculpm:plan-log end -->

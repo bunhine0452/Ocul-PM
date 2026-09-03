@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: a2a-session-grouping
 title: "세션 묶기 — 프로젝트가 곧 팀은 아니다"
-status: active
+status: done
 created: 2026-09-03
 updated: 2026-09-03
 owner: claude-code

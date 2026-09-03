@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: codex-acp
 title: "Codex ACP 에이전트 통합"
-status: active
+status: done
 created: 2026-09-03
 updated: 2026-09-03
 owner: codex

@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: vscode-borrows-round
 title: "VS Code 에서 가져오는 7가지 — 코드 화면 라운드"
-status: active
+status: done
 created: 2026-09-02
 updated: 2026-09-02
 owner: claude-code

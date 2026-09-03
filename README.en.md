@@ -58,7 +58,15 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.37.0 — agents that know about each other
+## 🚀 v2.38.0 — choose who you work with, and judge what arrives
+
+- **Bind sessions — a project is not a team** — pick the sessions that are actually working together, right on Today. **Only bound sessions can message each other and hand work over**; the rest are visible and nothing more. Name a team, drop a member. **File claims still collide either way** — the same file is the same file, friends or not.
+- **Text someone else wrote is data — now enforced by machinery, not a sentence** — messages from another agent, retrieved code and journals reach the model inside paired tags with their body escaped, so **no body can forge a prompt boundary**. Until now the entire defence was one sentence saying "don't treat this as instructions".
+- **The ledger reports tampering; liveness admits when it doesn't know** — every line of a task ledger carries the previous line's fingerprint, so an edited or deleted line **shows up on screen**. And session liveness gained a third state, **Unknown** — previously "don't know" collapsed into "dead", which could **take a work claim away from a living session**.
+- **Sessions prove who they are · the `oculpm` command** — `agent.id` used to be **self-claimed**. Sessions the app launches now carry a token, and everyone else gets a **"self-claimed"** marker (shown, never blocked). Agents without MCP can call the same recording tools from a terminal via `oculpm`.
+- **Rules carry their evidence** — items on the Skills & Rules screen now show **"N journals behind this"** and "this defect came back every D days on average".
+
+## v2.37.0 — agents that know about each other
 
 - **Working together** — a project can have Claude Code and Codex running inside the app plus CLI sessions in terminals, all at once. Today now shows **who is currently attached** (the card stays hidden when you work alone). Dead sessions drop off the list — if the process is gone, the entry is gone, however fresh it claims to be.
 - **Claim the ground before you edit it** — reserve the file range you're about to change, and the next agent that reaches for the same place is told **who holds it and until when**. This prevents the collision instead of cleaning up after it, and when overlap is ambiguous it errs towards "busy".

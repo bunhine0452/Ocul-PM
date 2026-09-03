@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: first-run-and-english-landing
 title: "첫 실행 마법사 · 영문 랜딩 — 처음 온 사람의 두 입구"
-status: active
+status: done
 created: 2026-09-01
-updated: 2026-09-01
+updated: 2026-09-02
 owner: claude-code
 ---
 

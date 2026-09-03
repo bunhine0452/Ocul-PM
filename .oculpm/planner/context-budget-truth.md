@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: context-budget-truth
 title: "컨텍스트 예산을 정직하게 — 누락된 표면·글롭 실측·부정 감지·0회 4상태"
-status: active
+status: done
 created: 2026-09-03
 updated: 2026-09-03
 owner: claude-code
