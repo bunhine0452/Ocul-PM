@@ -102,6 +102,22 @@ export function useLsp(
   const attachedRef = useRef(false);
   const timerRef = useRef<number | null>(null);
 
+  /**
+   * 이 훅이 실패를 말하는 유일한 방식 (v2.42.0 `{#floating-promises}`).
+   *
+   * 여기 오는 경로 중 하나(`lspChange`)는 **버퍼 편집마다** 돈다 — 토스트를
+   * 띄우면 타자 한 번이 알림 더미가 된다. 그래서 화면에는 이미 있는 상태줄
+   * (`status`)로 한 번만 말하고, 원문은 `oculpm.log` 로 내린다. 이미 실패로
+   * 서 있으면 상태를 그대로 둔다 (같은 오류가 렌더를 반복하지 않게).
+   *
+   * 조용히 흘리면 무엇이 사라지나: 서버의 문서가 버퍼보다 뒤처진 채 남아
+   * 진단이 엉뚱한 줄에 붙고, 포맷이 다른 자리를 고친다.
+   */
+  const noteFailure = useCallback((what: string, error: string) => {
+    oculpmLog.error("lsp", `${what} failed: ${error}`, { path: pathRef.current });
+    setStatus((prev) => (prev.state === "failed" ? prev : { state: "failed", detail: error }));
+  }, []);
+
   // ── 파일 열기/닫기 ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!path) {
@@ -134,8 +150,11 @@ export function useLsp(
         window.clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      // 닫기는 실패해도 무해하다 (백엔드가 이미 지워진 파일을 허용한다).
-      void commands.lspClose(projectId, path);
+      // 닫기는 실패해도 사용자를 막지 않는다 (백엔드가 이미 지워진 파일을
+      // 허용한다) — 그래도 조용히 흘리면 서버에 문서가 남은 것을 알 길이 없다.
+      void commands.lspClose(projectId, path).then((r) => {
+        if (r.status === "error") oculpmLog.error("lsp", `lspClose failed: ${r.error}`, { path });
+      });
     };
     // initialText 는 열 때의 값만 필요하다 — 이후 편집은 pushText 가 나른다.
     // 의존성에 넣으면 타자마다 파일을 다시 연다.
@@ -150,10 +169,12 @@ export function useLsp(
       if (timerRef.current != null) window.clearTimeout(timerRef.current);
       timerRef.current = window.setTimeout(() => {
         timerRef.current = null;
-        void commands.lspChange(projectId, p, text);
+        void commands.lspChange(projectId, p, text).then((r) => {
+          if (r.status === "error") noteFailure("lspChange", r.error);
+        });
       }, PUSH_DEBOUNCE_MS);
     },
-    [projectId],
+    [projectId, noteFailure],
   );
 
   const flushText = useCallback(
@@ -164,9 +185,11 @@ export function useLsp(
         window.clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      await commands.lspChange(projectId, p, text);
+      const r = await commands.lspChange(projectId, p, text);
+      // 포맷팅이 이걸 기다린다 — 실패를 흘리면 뒤처진 문서에 편집을 건다.
+      if (r.status === "error") noteFailure("lspChange", r.error);
     },
-    [projectId],
+    [projectId, noteFailure],
   );
 
   // ── 이벤트 구독 (마운트 1회) ──────────────────────────────────────────────

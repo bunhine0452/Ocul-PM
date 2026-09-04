@@ -11,11 +11,23 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
+import { useSaveSetting } from "../saveSetting";
+import { useDeferredCommit } from "../useDeferredCommit";
 import { Section, Field, Toggle, NumberSlider } from "./ui";
 
 export function IndexingTab() {
   const { t } = useT();
-  const { settings, set } = useSettings();
+  const { settings } = useSettings();
+  const save = useSaveSetting();
+  // 슬라이더 넷 — 드래그 중에는 라벨까지 초안이 끌고 가고, SQLite 쓰기와 창
+  // 브로드캐스트는 손을 뗀 뒤 한 번이다 (v2.42.0 `{#settings-slider}`).
+  const chunkSize = useDeferredCommit(settings.chunkSize, (v) => save("chunkSize", v));
+  const chunkOverlap = useDeferredCommit(settings.chunkOverlap, (v) => save("chunkOverlap", v));
+  const topK = useDeferredCommit(settings.ragTopK, (v) => save("ragTopK", v));
+  const ctxEntries = useDeferredCommit(settings.oculpmContextEntries, (v) =>
+    save("oculpmContextEntries", v),
+  );
+  const maxKb = useDeferredCommit(settings.maxFileSizeKb, (v) => save("maxFileSizeKb", v));
   // 런처 창에는 워크스페이스가 없다 (멀티 창 I2) — 재색인 버튼은 프로젝트
   // 창에서만 활성화된다.
   const projectId = useOptionalWorkspace()?.state.currentProjectId ?? null;
@@ -49,7 +61,7 @@ export function IndexingTab() {
       >
         <Toggle
           checked={settings.autoIndex}
-          onChange={(v) => set("autoIndex", v)}
+          onChange={(v) => save("autoIndex", v)}
           label={t("settings.index.auto")}
         />
         <div className="flex items-center gap-3 pt-1">
@@ -72,34 +84,37 @@ export function IndexingTab() {
         title={t("settings.chunk.title")}
         description={t("settings.chunk.desc")}
       >
-        <Field label={t("settings.chunk.size", { n: settings.chunkSize })}>
+        <Field label={t("settings.chunk.size", { n: chunkSize.value })}>
           <NumberSlider
-            ariaLabel={t("settings.chunk.size", { n: settings.chunkSize })}
-            value={settings.chunkSize}
+            ariaLabel={t("settings.chunk.size", { n: chunkSize.value })}
+            value={chunkSize.value}
             min={5}
             max={120}
-            onChange={(v) => set("chunkSize", v)}
+            onChange={chunkSize.change}
+            onCommit={chunkSize.flush}
           />
         </Field>
-        <Field label={t("settings.chunk.overlap", { n: settings.chunkOverlap })} hint={t("settings.chunk.overlapHint")}>
+        <Field label={t("settings.chunk.overlap", { n: chunkOverlap.value })} hint={t("settings.chunk.overlapHint")}>
           <NumberSlider
-            ariaLabel={t("settings.chunk.overlap", { n: settings.chunkOverlap })}
-            value={settings.chunkOverlap}
+            ariaLabel={t("settings.chunk.overlap", { n: chunkOverlap.value })}
+            value={chunkOverlap.value}
             min={0}
-            max={Math.max(0, settings.chunkSize - 1)}
-            onChange={(v) => set("chunkOverlap", v)}
+            max={Math.max(0, chunkSize.value - 1)}
+            onChange={chunkOverlap.change}
+            onCommit={chunkOverlap.flush}
           />
         </Field>
       </Section>
 
       <Section title={t("settings.retrieval.title")} description={t("settings.retrieval.desc")}>
-        <Field label={t("settings.retrieval.topK", { n: settings.ragTopK })}>
+        <Field label={t("settings.retrieval.topK", { n: topK.value })}>
           <NumberSlider
-            ariaLabel={t("settings.retrieval.topK", { n: settings.ragTopK })}
-            value={settings.ragTopK}
+            ariaLabel={t("settings.retrieval.topK", { n: topK.value })}
+            value={topK.value}
             min={0}
             max={20}
-            onChange={(v) => set("ragTopK", v)}
+            onChange={topK.change}
+            onCommit={topK.flush}
           />
         </Field>
       </Section>
@@ -110,34 +125,36 @@ export function IndexingTab() {
       >
         <Toggle
           checked={settings.includeOculpmContext}
-          onChange={(v) => set("includeOculpmContext", v)}
+          onChange={(v) => save("includeOculpmContext", v)}
           label={t("settings.aiContext.inject")}
         />
         {settings.includeOculpmContext && (
           <Field
-            label={t("settings.aiContext.entries", { n: settings.oculpmContextEntries })}
+            label={t("settings.aiContext.entries", { n: ctxEntries.value })}
             hint={t("settings.aiContext.entriesHint")}
           >
             <NumberSlider
-              ariaLabel={t("settings.aiContext.entries", { n: settings.oculpmContextEntries })}
-              value={settings.oculpmContextEntries}
+              ariaLabel={t("settings.aiContext.entries", { n: ctxEntries.value })}
+              value={ctxEntries.value}
               min={0}
               max={15}
-              onChange={(v) => set("oculpmContextEntries", v)}
+              onChange={ctxEntries.change}
+              onCommit={ctxEntries.flush}
             />
           </Field>
         )}
       </Section>
 
       <Section title={t("settings.scan.title")} description={t("settings.scan.desc")}>
-        <Field label={t("settings.scan.maxSize", { n: settings.maxFileSizeKb })} hint={t("settings.scan.maxSizeHint")}>
+        <Field label={t("settings.scan.maxSize", { n: maxKb.value })} hint={t("settings.scan.maxSizeHint")}>
           <NumberSlider
-            ariaLabel={t("settings.scan.maxSize", { n: settings.maxFileSizeKb })}
-            value={settings.maxFileSizeKb}
+            ariaLabel={t("settings.scan.maxSize", { n: maxKb.value })}
+            value={maxKb.value}
             min={50}
             max={4096}
             step={50}
-            onChange={(v) => set("maxFileSizeKb", v)}
+            onChange={maxKb.change}
+            onCommit={maxKb.flush}
           />
         </Field>
         <Field
@@ -146,7 +163,7 @@ export function IndexingTab() {
         >
           <textarea
             value={settings.excludePatterns}
-            onChange={(e) => set("excludePatterns", e.currentTarget.value)}
+            onChange={(e) => save("excludePatterns", e.currentTarget.value)}
             placeholder={"dist/**\n*.test.ts\nfixtures/**"}
             rows={5}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono"

@@ -13,7 +13,7 @@ import { commands, type Project, type IndexProgress } from "@/lib/bindings";
 import { CommandPalette } from "@/components/CommandPalette";
 import { SettingsOverlay } from "@/windows/SettingsOverlay";
 
-import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { useProjectRuntime, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -56,13 +56,12 @@ export default function ProjectTab({
   onDeepLinkConsumed,
 }: ProjectTabProps) {
   const { t } = useT();
-  const { state, setState, setProjectMeta, setUiV2View, setIndexing, setOculpmStatus } =
-    useWorkspace();
-  const {
-    currentProjectName: projectName,
-    currentProjectRoot: projectRoot,
-    indexingProjectId: indexingId,
-  } = state;
+  // 조각만 구독한다 (v2.42.0 `{#workspace-full-consumers}`) — 합친 겉면을 쓰던
+  // 때는 터미널 탭·검색어·도크 크기 같은 **이 컴포넌트가 읽지도 않는** 필드가
+  // 바뀔 때마다 탭 본문(팔레트·딥링크 시트 포함)이 통째로 다시 그려졌다.
+  const { currentProjectName: projectName, currentProjectRoot: projectRoot, indexingProjectId: indexingId,
+    setProjectMeta, setIndexing, setOculpmStatus } = useProjectRuntime();
+  const { setPrefs, setUiV2View } = useUiPrefs();
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -97,7 +96,7 @@ export default function ProjectTab({
     // ⌘J — 어느 화면에서나 터미널 도크. 셸이 아니라 여기서 다는 이유는 이
     // 훅이 이미 "활성 탭만" 게이트를 들고 있어서다 (탭 수만큼 발화 방지).
     onToggleTerminalDock: () =>
-      setState((prev) => ({ ...prev, terminalDockOpen: !prev.terminalDockOpen })),
+      setPrefs((prev) => ({ terminalDockOpen: !prev.terminalDockOpen })),
   });
 
   // 딥링크는 활성 탭이 마운트되며 한 번 소비한다.
@@ -140,8 +139,7 @@ export default function ProjectTab({
       // 썼는지 Today 첫 활성화 카드가 그대로 보여 준다 (재오픈의 빈 보고는 무시).
       const rep = initRes.data;
       if (rep.wrote_config) {
-        setState((prev) => ({
-          ...prev,
+        setPrefs(() => ({
           oculpmInitCard: {
             createdDirs: rep.created_dirs,
             wroteConfig: rep.wrote_config,

@@ -28,6 +28,8 @@ import { commands, events,
 import { createUnlistenBag, safeUnlisten } from "@/lib/unlisten";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
+import { reportFailure } from "@/lib/reportFailure";
+import { useEscCancel } from "./useEscCancel";
 import { useUiPrefs, useProjectRuntime, useTerminalSessions } from "@/contexts/WorkspaceContext";
 import { useSessionMaps } from "./conversation/useSessionMaps";
 import { type PermissionState } from "./conversation/shared";
@@ -1511,7 +1513,7 @@ export function AcpConversation({
 
   /** 보고 있는 대화만 멈춘다 — 옆에서 돌던 것은 계속 간다. */
   const cancel = useCallback(() => {
-    void commands.acpCancel(projectId, provider, activeId === SLATE ? null : activeId);
+    reportFailure("acp_cancel", commands.acpCancel(projectId, provider, activeId === SLATE ? null : activeId), "acp.cancelFailed");
     putPermission(activeId, null);
   }, [projectId, provider, activeId, putPermission]);
 
@@ -1524,7 +1526,7 @@ export function AcpConversation({
    */
   const stopSession = useCallback(
     (sessionId: string) => {
-      void commands.acpCancel(projectId, provider, sessionId);
+      reportFailure("acp_cancel", commands.acpCancel(projectId, provider, sessionId), "acp.cancelFailed");
       putPermission(sessionId, null);
     },
     [projectId, provider, putPermission],
@@ -1545,26 +1547,14 @@ export function AcpConversation({
     [history, rowStateOf],
   );
 
-  // ESC 로 중단. 화면 어디에 포커스가 있든 먹어야 해서 document 에 건다 —
-  // 진행 중일 때만 등록하므로 다른 화면의 ESC(팝오버 닫기 등)를 뺏지 않는다.
-  useEffect(() => {
-    if (!busy) return;
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      // **보이는 화면만 받는다.** 이 화면은 다른 화면으로 옮겨도 살아 있으므로
-      // (keep-alive), 안 가리면 오늘 현황에서 팝오버를 닫으려고 누른 ESC 가
-      // 뒤에서 돌던 턴을 중단시킨다.
-      if (!isVisible()) return;
-      e.preventDefault();
-      cancel();
-    };
-    document.addEventListener("keydown", onEsc);
-    return () => document.removeEventListener("keydown", onEsc);
-  }, [busy, cancel, isVisible]);
+  // ESC 로 중단 (구독의 전문은 `useEscCancel`).
+  useEscCancel(busy, cancel, isVisible);
 
   const decide = useCallback((requestId: string, optionId: string | null) => {
     setPermission(null);
-    void commands.acpPermissionRespond(requestId, optionId);
+    // 「허용/거부」가 조용히 실패하면 에이전트는 영영 기다리고 화면은 카드를
+    // 지운 뒤다 — 사용자에게는 앱이 멈춘 것처럼 보인다.
+    reportFailure("acp_permission_respond", commands.acpPermissionRespond(requestId, optionId), "acp.respondFailed");
   }, []);
 
   /** ⇧Tab — 안전한 모드들을 순환한다. */

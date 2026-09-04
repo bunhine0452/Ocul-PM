@@ -405,6 +405,9 @@ export const ko = {
   "err.code.theme_bad_family": "기반 가족은 밝게 또는 어둡게여야 합니다: {detail}",
   "err.code.theme_too_large": "테마 파일이 너무 큽니다 (256KB까지).",
   "err.code.theme_bad_id": "테마 식별자가 올바르지 않습니다: {detail}",
+  // 설정 쓰기가 거절됐다 (v2.42.0 `{#settings-set-unhandled}`). 예전에는 화면이
+  // 새 값을 그린 채 아무 말도 하지 않아 "저장됐다" 는 착각만 남았다.
+  "settings.saveFailed": "설정을 저장하지 못했어요: {error}",
   "settings.scale.title": "글자 크기",
   "settings.scale.desc": "앱 전체 글자와 화면 배율을 조절합니다 — 브라우저 확대/축소처럼 동작합니다.",
   "settings.scale.field": "배율 — {pct}%",
@@ -2897,6 +2900,10 @@ export const ko = {
   "acp.plan.count": "{done}/{total}",
   "acp.send": "보내기",
   "acp.cancel": "중지",
+  // 중단·권한 응답이 조용히 실패하던 자리 (v2.42.0 `{#floating-promises}`).
+  // 「중지」를 눌렀는데 아무 일도 안 일어나면 사용자는 계속 누르는 것 말고 할 게 없다.
+  "acp.cancelFailed": "중단하지 못했어요: {error}",
+  "acp.respondFailed": "권한 응답을 보내지 못했어요: {error}",
   "acp.agentGone": "Claude Code 프로세스가 종료됐어요",
   "acp.agentGoneSub": "대화는 디스크에 남아 있어요 — 다시 연결하면 이어서 할 수 있어요.",
   "acp.reconnect": "다시 연결",
@@ -3189,6 +3196,10 @@ export const ko = {
   "term.dock.detach": "창으로 분리",
   "term.dock.detachHint": "터미널을 별도 창으로 떼어냅니다 — 셸은 그대로 이어집니다",
   "term.dock.detachFailed": "터미널 창을 열지 못했습니다: {error}",
+  // 세션을 끝내는 두 갈래가 조용히 실패하던 자리 (v2.42.0 `{#floating-promises}`).
+  // 화면에서는 탭이 사라졌는데 뒤에서 프로세스가 계속 도는 것이 가장 나쁜 결말이다.
+  "term.killFailed": "터미널 세션을 끝내지 못했어요: {error}",
+  "term.closeFailed": "터미널을 닫지 못했어요: {error}",
   "term.dock.close": "도크 닫기",
   "term.dock.closeHint": "도크를 닫습니다 (⌘J) — 셸은 계속 살아 있습니다",
   "term.dock.awayTitle": "터미널이 별도 창에 있습니다",

@@ -87,6 +87,7 @@ export function NumberSlider({
   max,
   step,
   onChange,
+  onCommit,
   ariaLabel,
 }: {
   value: number;
@@ -94,6 +95,15 @@ export function NumberSlider({
   max: number;
   step?: number;
   onChange: (v: number) => void;
+  /**
+   * 사람이 "정했다" 고 말하는 순간 (포인터·키를 놓음, 포커스 이탈).
+   *
+   * 슬라이더는 드래그하는 동안 프레임마다 `onChange` 를 쏜다. 그 한 프레임이
+   * 곧장 SQLite 쓰기가 되면 짧은 드래그 한 번이 쓰기 20 + 창마다 전체조회가
+   * 된다 (v2.42.0 `{#settings-slider}`). 부르는 쪽이 `useDeferredCommit` 으로
+   * 미리보기와 커밋을 가르고, 이 콜백이 그 커밋 시점을 준다.
+   */
+  onCommit?: () => void;
   /** 접근 가능한 이름. `Field` 의 <Label> 은 htmlFor 가 없어 연결되지 않는다 —
    *  axe "Form elements must have labels" 가 여기서 걸린다. */
   ariaLabel: string;
@@ -108,6 +118,9 @@ export function NumberSlider({
         max={max}
         step={step ?? 1}
         onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={onCommit}
+        onKeyUp={onCommit}
+        onBlur={onCommit}
         className="flex-1 accent-[color:var(--primary)]"
       />
       <span className="text-xs text-foreground font-mono tabular-nums w-12 text-right">
