@@ -13,10 +13,10 @@
 //!      writes the ndjson line),
 //!   7. `oculpm:file_changed` emit.
 //!
-//! Threading model: `notify-debouncer-full` runs its own OS-watch thread;
-//! we bridge its callback to a tokio `mpsc` channel and drain the channel in
-//! a single tokio task. `stop` drops the debouncer (kills the OS thread) and
-//! awaits the task (drains pending events).
+//! Threading model: `notify-debouncer-full` runs its own OS-watch thread; we
+//! bridge its callback to the **유계 링**(`watcher_queue`, drop-oldest + 재동기화
+//! 신호) and drain it in a single tokio task. `stop` drops the debouncer (kills
+//! the OS thread) and awaits the task (drains pending events).
 //!
 //! See `docs/major_update/oculpm/W2/PR3-watcher-notify.md`.
 
@@ -29,23 +29,19 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
-use futures::future::FutureExt;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::{
     new_debouncer, DebounceEventResult, DebouncedEvent, Debouncer, FileIdMap,
 };
 use regex::Regex;
-use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::db::Db;
-use crate::embedding::Embedder;
 use crate::oculpm::agents;
 use crate::oculpm::cache::{JournalCache, PathChangeKind, UpsertOutcome};
 use crate::oculpm::claude_hooks::{self, HookSignal};
 use crate::oculpm::error::OculpmError;
-use crate::oculpm::history;
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::paths;
@@ -56,6 +52,8 @@ use crate::oculpm::spec::{
     OculpmDataChanged, OculpmFileChanged, OculpmIntegrityWarning, OculpmJournalAdded,
     OculpmJournalPathChanged, OculpmJournalUpdated, Session, WatcherStateView, WatcherStatus,
 };
+use crate::oculpm::watcher_queue::{self, WatcherSink};
+use crate::oculpm::watcher_tasks::{self, WatcherTasks};
 
 /// Files ≤ this byte cap get a blake3 hash; larger files leave `hash_after`
 /// as `None` (consumers infer "large-file-hash-skipped" from the absence).
@@ -74,6 +72,8 @@ pub struct ProjectWatcher {
     join_handle: JoinHandle<()>,
     stats: Arc<RwLock<WatcherStatsInner>>,
     debounce_ms: u32,
+    /// 곁일 종료 손잡이 — 드롭만으로도 색인·히스토리 태스크가 끊긴다.
+    tasks_shutdown: watcher_tasks::WatcherTasksShutdown,
 }
 
 #[derive(Debug, Default)]
@@ -119,12 +119,15 @@ impl ProjectWatcher {
         let tz: Tz = config.workday.timezone.parse().unwrap_or(chrono_tz::UTC);
 
         let stats = Arc::new(RwLock::new(WatcherStatsInner::default()));
+        // 곁일(증분 색인·히스토리)의 동시 상한 + 수명. 워처가 내려가면 함께 끊긴다.
+        let (tasks, tasks_shutdown) = watcher_tasks::gate();
         let inner = WatcherInner {
             project_id,
             root: root.clone(),
             session,
             index_writer,
             app_handle,
+            tasks,
             user_ignore,
             project_gitignore,
             forbidden,
@@ -143,8 +146,10 @@ impl ProjectWatcher {
         // 남는다.
         inner.consume_hooks_inbox().await;
 
-        // Bridge std/sync notify worker → tokio task.
-        let (event_tx, mut event_rx) = mpsc::unbounded_channel::<DebounceEventResult>();
+        // Bridge std/sync notify worker → tokio task. 유계 링이라 콜백은 절대
+        // 블록하지 않고, 넘치면 가장 오래된 것을 버린 뒤 재동기화 신호를 켠다
+        // (`watcher_queue` 의 용량 근거 주석 참고).
+        let (event_tx, event_rx) = watcher_queue::channel(watcher_queue::DEFAULT_CAPACITY);
         // Phase 2 — 티어가 있으면 티어가, 없으면 기존 숫자가 창을 정한다. 어느
         // 쪽이든 `balanced`(1s)로 잘린다: 긴 디바운스는 OS 워처가 이벤트를 들고
         // 있게 만들어 메모리·유실 위험이다. 긴 기다림은 러너 쪽 정착 타이머의 몫.
@@ -153,9 +158,22 @@ impl ProjectWatcher {
             Duration::from_millis(u64::from(debounce_ms)),
             None,
             move |result: DebounceEventResult| {
-                // UnboundedSender::send is sync and can be called outside a
-                // tokio runtime — perfect for the debouncer's worker thread.
-                let _ = event_tx.send(result);
+                // 동기·논블로킹이라 tokio 밖(디바운서 워커 스레드)에서 안전하다.
+                match result {
+                    Ok(events) => {
+                        let n = events.len();
+                        let dropped = event_tx.push_batch(events);
+                        if dropped > 0 {
+                            tracing::warn!(
+                                target: "oculpm::watcher", project_id, batch = n, dropped,
+                                "[FLOW] 워처 큐가 가득 차 가장 오래된 이벤트를 버렸다 — 정착 후 재동기화한다"
+                            );
+                        }
+                    }
+                    Err(errs) => tracing::warn!(
+                        target: "oculpm::watcher", ?errs, "[FLOW] debouncer reported errors"
+                    ),
+                }
             },
         )
         .map_err(|e| OculpmError::Io {
@@ -171,45 +189,9 @@ impl ProjectWatcher {
                 source: std::io::Error::other(format!("notify watch: {e}")),
             })?;
 
-        let join_handle = tokio::spawn(async move {
-            while let Some(result) = event_rx.recv().await {
-                match result {
-                    Ok(events) => {
-                        for ev in events {
-                            // 이벤트 **하나**의 패닉이 루프를 죽이면 그 프로젝트의
-                            // 실시간 갱신이 앱을 다시 켤 때까지 조용히 사라진다 —
-                            // `debouncer` 는 그대로 `Some` 이라 상태는 "Running",
-                            // `watcher_start` 는 "이미 돌고 있음" 으로 no-op 이다.
-                            // 도그푸딩 2026-08-23 에서 실제로 겪은 실패라, 여기서
-                            // 삼키고 **크게 남긴 뒤** 다음 이벤트로 넘어간다.
-                            let path = ev.event.paths.first().cloned();
-                            let caught = std::panic::AssertUnwindSafe(inner.handle_event(ev))
-                                .catch_unwind()
-                                .await;
-                            if caught.is_err() {
-                                tracing::error!(
-                                    target: "oculpm::watcher",
-                                    project_id,
-                                    path = ?path,
-                                    "[FLOW] handle_event panicked — 이 이벤트만 버리고 계속한다"
-                                );
-                            }
-                        }
-                    }
-                    Err(errs) => {
-                        tracing::warn!(target: "oculpm::watcher", ?errs, "[FLOW] debouncer reported errors");
-                    }
-                }
-            }
-            // 여기 도달 = 송신측(debouncer)이 사라졌다. 정상 종료(`stop()`)일
-            // 수도, 워커 스레드가 죽은 것일 수도 있다 — 예전 문구는 전자라고
-            // 단정해 후자를 은폐했다. 감독관(`supervisor`)이 재무장한다.
-            tracing::info!(
-                target: "oculpm::watcher",
-                project_id,
-                "[FLOW] watcher receive loop ended (debouncer dropped — stop() 이거나 워커 사망)"
-            );
-        });
+        // 소비 루프 본체는 `watcher_queue::drain_loop` 에 있다 — 패닉 격리,
+        // 정착 감지, 재동기화 호출까지 한자리에 모아 두었다.
+        let join_handle = tokio::spawn(watcher_queue::drain_loop(project_id, event_rx, inner));
 
         tracing::info!(
             target: "oculpm::watcher",
@@ -226,6 +208,7 @@ impl ProjectWatcher {
             join_handle,
             stats,
             debounce_ms,
+            tasks_shutdown,
         })
     }
 
@@ -235,6 +218,8 @@ impl ProjectWatcher {
         // Drop the debouncer first → its internal worker thread exits → the
         // event_tx captured in the callback drops → recv returns None → the
         // tokio task finishes after draining any buffered events.
+        // 곁일도 함께 끊는다 — 예전엔 detached 라 닫힌 프로젝트를 계속 두드렸다.
+        self.tasks_shutdown.shutdown();
         self.debouncer.take();
         self.join_handle
             .await
@@ -268,6 +253,7 @@ impl ProjectWatcher {
     /// 멈춰 있으면 영원히 돌아오지 않는다 — 되살리려는 감독관이 거기서 함께
     /// 멈추면 안 된다.
     pub fn abort(mut self) {
+        self.tasks_shutdown.shutdown();
         self.debouncer.take();
         self.join_handle.abort();
     }
@@ -298,6 +284,8 @@ struct WatcherInner {
     session: SessionActor,
     index_writer: Arc<IndexWriter>,
     app_handle: Option<tauri::AppHandle>,
+    /// 곁일 게이트 — 증분 색인·히스토리 캡처의 동시 상한과 수명 (watcher_tasks).
+    tasks: WatcherTasks,
     user_ignore: Gitignore,
     project_gitignore: Option<Gitignore>,
     forbidden: Gitignore,
@@ -325,7 +313,89 @@ struct WatcherInner {
     stats: Arc<RwLock<WatcherStatsInner>>,
 }
 
+/// 큐가 넘쳐 이벤트를 버렸을 때, 소비자가 정착한 뒤 만회하는 쪽.
+impl WatcherSink for WatcherInner {
+    async fn handle_event(&self, ev: DebouncedEvent) {
+        WatcherInner::handle_event(self, ev).await
+    }
+
+    async fn resync_after_drops(&self, dropped: u64) {
+        WatcherInner::resync_after_drops(self, dropped).await
+    }
+}
+
 impl WatcherInner {
+    /// 버린 이벤트는 되살릴 수 없으므로 **디스크를 다시 읽는 쪽**으로 갚는다.
+    ///
+    /// 새 경로를 만들지 않고 이미 있는 것을 부른다:
+    /// `reindex_journal_cache_incremental` 는 mtime 키라 안 바뀐 행은 파싱조차
+    /// 하지 않고, 디스크에서 사라진 행은 지운다 — 정확히 "놓친 창을 만회한다"
+    /// 의 의미다. 그다음 화면들이 다시 조회하도록 기존 신호를 낸다.
+    ///
+    /// **코드 검색 색인은 여기서 다시 돌리지 않는다.** 전체 재색인은 워커를
+    /// 6.4 초 통째로 점유하므로(perf-baseline §1 M2) 버림을 갚는 값보다 비싸고,
+    /// 백프레셔를 걸어 놓고 그보다 큰 폭풍을 부르는 꼴이 된다. 대신 무결성
+    /// 경고로 남겨 사용자가 「인덱스 재구축」을 고를 수 있게 한다.
+    async fn resync_after_drops(&self, dropped: u64) {
+        tracing::warn!(
+            target: "oculpm::watcher",
+            project_id = self.project_id,
+            dropped,
+            "[FLOW] 큐 오버플로 만회 — 디스크에서 다시 읽는다"
+        );
+        let Some(handle) = &self.app_handle else {
+            return;
+        };
+        use tauri::Manager;
+        // `state` 는 미등록이면 패닉한다 — 만회 경로가 앱을 죽이면 안 되므로
+        // `try_state` 로 묻는다 (목 앱으로 도는 테스트가 실재한다).
+        let (Some(manager), Some(db)) = (
+            handle.try_state::<OculpmManager>(),
+            handle.try_state::<Db>(),
+        ) else {
+            return;
+        };
+        match manager
+            .reindex_journal_cache_incremental(&db, self.project_id)
+            .await
+        {
+            Ok(r) => tracing::info!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                inserted = r.inserted,
+                updated = r.updated,
+                deleted = r.deleted,
+                skipped = r.skipped,
+                "[FLOW] 큐 오버플로 만회 — 일지 캐시 증분 재색인 완료"
+            ),
+            Err(e) => tracing::warn!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                error = %e,
+                "[FLOW] 큐 오버플로 만회 — 일지 캐시 재색인 실패"
+            ),
+        }
+        // 어느 영역의 이벤트가 사라졌는지 알 수 없으므로 전부 두드린다. 각
+        // 화면의 재조회는 250ms 로 병합되므로 이 한 묶음이 폭풍이 되지 않는다.
+        self.emit_journal_path_changed(".oculpm/journal/", FileOp::Update);
+        for area in [
+            OculpmDataArea::Planner,
+            OculpmDataArea::Discussion,
+            OculpmDataArea::Rules,
+            OculpmDataArea::Retro,
+            OculpmDataArea::Automation,
+        ] {
+            self.emit_data_changed(area, "", FileOp::Update);
+        }
+        self.emit_integrity_warning(
+            "watcher_overflow",
+            ".",
+            &format!(
+                "파일 변경 알림 {dropped}건이 큐 용량을 넘겨 버려졌습니다. 일지·계획은 디스크에서 다시 읽었지만, 코드 검색 색인은 「인덱스 재구축」이 필요할 수 있습니다."
+            ),
+        );
+    }
+
     async fn handle_event(&self, ev: DebouncedEvent) {
         // notify emits one event per path-change; for renames the debouncer
         // batches Modify(Name(From)) + Modify(Name(To)) but we process them
@@ -779,21 +849,15 @@ impl WatcherInner {
         let rel = abs_path.strip_prefix(&self.root).ok()?;
         let rel_str = rel.to_string_lossy().to_string();
 
-        let mut bytes_u: u32 = 0;
-        let mut hash_after: Option<String> = None;
-        if exists && !matches!(op, FileOp::Delete) {
-            if let Ok(meta) = std::fs::metadata(abs_path) {
-                let len = meta.len();
-                bytes_u = u32::try_from(len).unwrap_or(u32::MAX);
-                if len <= HASH_BYTE_CAP {
-                    if let Ok(bytes) = std::fs::read(abs_path) {
-                        hash_after = Some(format!("blake3:{}", blake3::hash(&bytes).to_hex()));
-                    }
-                }
-                // Larger than cap → hash_after stays None. Consumers infer
-                // "large-file-hash-skipped" from `bytes > HASH_BYTE_CAP && hash_after.is_none()`.
-            }
-        }
+        // metadata + read + blake3 는 **런타임 워커 밖**에서 돈다
+        // (`watcher_tasks::stat_and_hash`). 상한을 넘으면 hash 는 None —
+        // 소비자는 `bytes > HASH_BYTE_CAP && hash_after.is_none()` 으로
+        // "큰 파일이라 해시를 건너뜀" 을 읽는다.
+        let (bytes_u, hash_after) = if exists && !matches!(op, FileOp::Delete) {
+            watcher_tasks::stat_and_hash(abs_path.to_path_buf(), HASH_BYTE_CAP).await
+        } else {
+            (0, None)
+        };
 
         Some(FileChangeEvent {
             ts: String::new(),         // stamped by SessionActor on append
@@ -837,176 +901,34 @@ impl WatcherInner {
         }
     }
 
-    /// B5 — 로컬 히스토리 캡처 (fire-and-forget).
-    ///
-    /// 삭제는 판을 만들지 않는다 — **지운 파일의 내용을 되찾는 것이 이 기능의
-    /// 가장 좋은 순간**이라, 삭제 시점에 판을 더하는 대신 기존 판을 그대로
-    /// 둔다. 해시가 없는 이벤트(파일이 해시 상한보다 크다)도 건너뛴다: 어차피
-    /// 스냅샷 상한(256KB)을 훨씬 넘는 크기다.
+    /// B5 — 로컬 히스토리 캡처 (fire-and-forget). 본체는 `watcher_tasks` —
+    /// 여기서는 게이트(동시 상한 + 워처 수명)를 얹어 넘길 뿐이다.
     fn schedule_history_capture(&self, change: &FileChangeEvent) {
-        if matches!(change.op, FileOp::Delete) {
-            return;
+        if let Some(handle) = &self.app_handle {
+            watcher_tasks::schedule_history_capture(
+                &self.tasks,
+                handle,
+                self.project_id,
+                &self.root,
+                change,
+            );
         }
-        let Some(handle) = self.app_handle.clone() else {
-            return;
-        };
-        let Some(hash) = change.hash_after.clone() else {
-            return;
-        };
-        if !history::should_capture(&change.path) {
-            return;
-        }
-        let project_id = self.project_id;
-        let root = self.root.clone();
-        let rel_path = change.path.clone();
-        let op = if matches!(change.op, FileOp::Create) {
-            history::HistoryOp::Create
-        } else {
-            history::HistoryOp::Update
-        };
-        tauri::async_runtime::spawn(async move {
-            use tauri::Manager;
-            let db = handle.state::<Db>();
-            // 이 라운드에서 유일하게 기본 **켜짐**인 설정이다 — 소급이
-            // 불가능하기 때문이다(안 찍어 둔 판은 영원히 없다).
-            let on = db
-                .settings_get("code_local_history".to_string())
-                .await
-                .ok()
-                .flatten();
-            if matches!(on.as_deref(), Some("false") | Some("0")) {
-                return;
-            }
-            let max = db
-                .settings_get("code_local_history_max_entries".to_string())
-                .await
-                .ok()
-                .flatten()
-                .and_then(|v| v.parse::<usize>().ok())
-                .unwrap_or(history::DEFAULT_MAX_ENTRIES);
-
-            // 쪽지 소비는 동기다 — `spawn_blocking` 너머로 State 를 들고 가지 않는다.
-            let source = handle
-                .state::<history::HistoryState>()
-                .take_source(project_id, &rel_path, &hash);
-
-            let path_for_log = rel_path.clone();
-            let done = tauri::async_runtime::spawn_blocking(move || {
-                history::capture(&root, &rel_path, op, source, Some(&hash), max)
-            })
-            .await;
-            match done {
-                Ok(Ok(history::CaptureOutcome::Captured)) => tracing::debug!(
-                    target: "oculpm::watcher", project_id, path = %path_for_log, ?source,
-                    "local history: captured a version"
-                ),
-                Ok(Err(e)) => tracing::warn!(
-                    target: "oculpm::watcher", project_id, path = %path_for_log, error = %e,
-                    "local history: capture failed"
-                ),
-                _ => {}
-            }
-        });
     }
 
-    /// PR-5 — fire-and-forget incremental reindex of one changed code file so
-    /// semantic / symbol / text search stays fresh without a manual rebuild.
-    ///
-    /// Guard rails:
-    ///   - gated behind the `auto_index` setting (default on when unset),
-    ///   - only runs for projects that *already* have an index — we keep an
-    ///     existing index current, we never trigger a first-time model
-    ///     download + full embed storm (that stays the explicit "인덱스 재구축"),
-    ///   - skips non-indexable paths (lock files, binaries, oversized) via the
-    ///     same per-file filter the full sweep uses,
-    ///   - runs on a background task so the embedding model never stalls the
-    ///     watcher's debounce loop.
+    /// PR-5 — 바뀐 코드 파일 하나의 증분 재색인 (fire-and-forget). 본체는
+    /// `watcher_tasks`; 가드레일과 근거 주석도 그쪽에 있다.
     fn schedule_incremental_index(&self, rel_path: String, op: FileOp, hash_after: Option<String>) {
-        let Some(handle) = self.app_handle.clone() else {
-            return;
-        };
-        let project_id = self.project_id;
-        let root = self.root.clone();
-        tauri::async_runtime::spawn(async move {
-            use tauri::Manager;
-            let db = handle.state::<Db>();
-
-            // Respect the user toggle (treat unset / anything-but-off as on).
-            let auto = db
-                .settings_get("auto_index".to_string())
-                .await
-                .ok()
-                .flatten();
-            if matches!(auto.as_deref(), Some("false") | Some("0")) {
-                return;
-            }
-            // Only keep an existing index fresh — bootstrapping stays manual.
-            if !matches!(db.count_files(project_id).await, Ok(n) if n > 0) {
-                return;
-            }
-
-            // Skip when the content hasn't actually changed. The watcher already
-            // hashed the file (`hash_after`), so comparing against the indexed
-            // hash lets us avoid a redundant re-read + re-embed — which on macOS
-            // is what re-triggers the "access files from another app" permission
-            // prompt on every editor save (dogfooding 2026-06-15). Only Create/
-            // Update carry a hash; Delete always proceeds.
-            if !matches!(op, FileOp::Delete) {
-                if let Some(h) = hash_after.as_deref() {
-                    let new_hash = h.strip_prefix("blake3:").unwrap_or(h);
-                    if let Ok(Some((_, stored))) =
-                        db.get_file_hash(project_id, rel_path.clone()).await
-                    {
-                        if stored == new_hash {
-                            return;
-                        }
-                    }
-                }
-            }
-
-            match op {
-                FileOp::Delete => {
-                    match db.delete_file_by_path(project_id, rel_path.clone()).await {
-                        Ok(()) => tracing::debug!(
-                            target: "oculpm::watcher", project_id, path = %rel_path,
-                            "auto-index: removed deleted file"
-                        ),
-                        Err(e) => tracing::warn!(
-                            target: "oculpm::watcher", project_id, path = %rel_path, error = %e,
-                            "auto-index: delete failed"
-                        ),
-                    }
-                }
-                _ => {
-                    let settings_map: std::collections::HashMap<String, String> =
-                        match db.settings_get_all().await {
-                            Ok(v) => v.into_iter().collect(),
-                            Err(_) => return,
-                        };
-                    let cfg =
-                        crate::indexer::config_from_settings(|k| settings_map.get(k).cloned());
-                    let abs = root.join(&rel_path);
-                    if !crate::indexer::is_indexable_path(&abs, &cfg) {
-                        return;
-                    }
-                    let embedder = handle.state::<Embedder>();
-                    match crate::indexer::reindex_single_file(
-                        &db, &embedder, project_id, &root, &cfg, &rel_path,
-                    )
-                    .await
-                    {
-                        Ok((emb, _ast)) => tracing::debug!(
-                            target: "oculpm::watcher", project_id, path = %rel_path,
-                            embeddings = emb, "auto-index: reindexed"
-                        ),
-                        Err(reason) => tracing::warn!(
-                            target: "oculpm::watcher", project_id, path = %rel_path,
-                            ?reason, "auto-index: reindex skipped"
-                        ),
-                    }
-                }
-            }
-        });
+        if let Some(handle) = &self.app_handle {
+            watcher_tasks::schedule_incremental_index(
+                &self.tasks,
+                handle,
+                self.project_id,
+                &self.root,
+                rel_path,
+                op,
+                hash_after,
+            );
+        }
     }
 
     fn emit_data_changed(&self, area: OculpmDataArea, relative_path: &str, op: FileOp) {
@@ -1720,6 +1642,7 @@ fn is_agents_noise(rel_str: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use crate::oculpm::a2a::A2aChangeKind;
+    use crate::oculpm::history;
 
     /// A2A 원장 세 갈래를 가려내고, **그 밖의 `agents/` 는 건드리지 않는다.**
     ///

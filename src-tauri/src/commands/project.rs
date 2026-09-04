@@ -182,6 +182,49 @@ pub async fn clear_project_index(db: State<'_, Db>, project_id: u32) -> Result<(
 
 // ---------- Indexing ----------
 
+/// `index_project` 의 파일당 **CPU·블로킹 구간** 결과 (read + blake3 + metadata).
+///
+/// 이 심 전체가 오랫동안 `spawn_blocking` **밖**, 즉 tokio 런타임 워커 위에서
+/// 돌았다. 기준선 측정(`docs/20260904_v242-load-bearing/perf-baseline.md` §1 M2)
+/// 은 이 저장소(1,327 파일, 릴리스 프로필)에서 walk 204 ms + read·blake3·
+/// tree-sitter **6,207 ms** = 워커 하나를 **6,411 ms** 통째로 점유한다고 쟀다.
+/// 그 구간을 여기(그리고 `chunk_file` 호출)로 모아 blocking 풀로 넘긴다.
+struct PreparedFile {
+    content: String,
+    hash: String,
+    size: i64,
+    mtime: i64,
+    language: Option<String>,
+}
+
+/// `Ok(None)` = 이 파일은 건너뛴다 (읽기 실패 · minified/생성 파일).
+/// `Err` = 색인 전체를 중단할 만한 실패 (기존 `metadata` 의 `?` 와 같은 뜻).
+fn prepare_file(path: &std::path::Path) -> Result<Option<PreparedFile>, String> {
+    let Ok(content) = fs::read_to_string(path) else {
+        return Ok(None);
+    };
+    // minified/생성 파일은 행을 남기지 않고 건너뛴다 — 다음 색인 때 다시
+    // 판정되므로 규칙이 바뀌면 스스로 따라온다.
+    if !indexer::is_indexable_content(&content) {
+        return Ok(None);
+    }
+    let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
+    let metadata = fs::metadata(path).map_err(|e| e.to_string())?;
+    let mtime = metadata
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    Ok(Some(PreparedFile {
+        size: metadata.len() as i64,
+        mtime,
+        language: indexer::language_for(path).map(String::from),
+        content,
+        hash,
+    }))
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn index_project(
@@ -211,9 +254,18 @@ pub async fn index_project(
         .map_err(|e| e.to_string())?
         .into_iter()
         .collect();
-    let index_config = indexer::config_from_settings(|k| settings_map.get(k).cloned());
+    let index_config = std::sync::Arc::new(indexer::config_from_settings(|k| {
+        settings_map.get(k).cloned()
+    }));
 
-    let files = indexer::walk_text_files(&root, &index_config);
+    // walk 도 블로킹이다 (204 ms · perf-baseline M2). 파일당 루프와 같은 이유로
+    // 런타임 워커 위에서 돌리지 않는다.
+    let files = {
+        let (root, cfg) = (root.clone(), index_config.clone());
+        tokio::task::spawn_blocking(move || indexer::walk_text_files(&root, &cfg))
+            .await
+            .map_err(|e| e.to_string())?
+    };
     let total = files.len() as u32;
     info!(project = %project.name, files = total, "indexing start");
 
@@ -241,34 +293,24 @@ pub async fn index_project(
             last_progress = Some(Instant::now());
         }
 
-        let Ok(content) = fs::read_to_string(file_path) else {
+        let prepared = {
+            let fp = file_path.clone();
+            tokio::task::spawn_blocking(move || prepare_file(&fp))
+                .await
+                .map_err(|e| e.to_string())??
+        };
+        let Some(prepared) = prepared else {
             continue;
         };
-        // minified/생성 파일은 행을 남기지 않고 건너뛴다 — 다음 색인 때 다시
-        // 판정되므로 규칙이 바뀌면 스스로 따라온다.
-        if !indexer::is_indexable_content(&content) {
-            continue;
-        }
-
-        let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
-        let metadata = fs::metadata(file_path).map_err(|e| e.to_string())?;
-        let size = metadata.len() as i64;
-        let mtime = metadata
-            .modified()
-            .ok()
-            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
-        let language = indexer::language_for(file_path).map(String::from);
 
         let (file_id, changed) = db
             .upsert_file(
                 project_id,
                 rel_str.clone(),
-                hash.clone(),
-                size,
-                mtime,
-                language,
+                prepared.hash.clone(),
+                prepared.size,
+                prepared.mtime,
+                prepared.language,
             )
             .await
             .map_err(|e| e.to_string())?;
@@ -279,19 +321,29 @@ pub async fn index_project(
         }
         files_changed += 1;
 
+        // tree-sitter 파싱이 이 심에서 가장 비싼 구간이다 — 여기도 blocking
+        // 풀로. `content` 는 넘겼다가 돌려받아 복사본을 만들지 않는다.
+        let (content, chunks, analysis) = {
+            let (fp, cfg, content) = (file_path.clone(), index_config.clone(), prepared.content);
+            tokio::task::spawn_blocking(move || {
+                let (chunks, analysis) = indexer::chunk_file(&fp, &content, &cfg);
+                (content, chunks, analysis)
+            })
+            .await
+            .map_err(|e| e.to_string())?
+        };
+
         // PR6.6 — capture the just-indexed content as the diff baseline so
         // LocalDiffView can fall back to a snapshot diff when git can't
         // serve `HEAD` (fresh repo) or the project isn't a git repo.
         db.upsert_file_snapshot(
             project_id,
             rel_str.clone(),
-            content.as_bytes().to_vec(),
-            hash.clone(),
+            content.into_bytes(),
+            prepared.hash.clone(),
         )
         .await
         .map_err(|e| e.to_string())?;
-
-        let (chunks, analysis) = indexer::chunk_file(file_path, &content, &index_config);
         if let Some(ref ana) = analysis {
             db.insert_symbol_definitions(file_id, ana.symbols.clone())
                 .await
@@ -571,3 +623,32 @@ pub async fn read_file_range(
 
 // (G3 clarify/edit-prompt 커맨드는 감사 2026-07-16 에서 은퇴 — 유일 소비자였던
 //  ⌘\ AI 오버레이 Quick-Edit 이 제거되면서 함께 삭제. AI 패널이 정본이다.)
+
+#[cfg(test)]
+mod tests {
+    use super::prepare_file;
+
+    /// `index_project` 의 파일당 심을 `spawn_blocking` 으로 옮기면서 이 판정이
+    /// 함수 하나로 빠져나왔다 — 판정 자체는 예전과 **한 글자도 달라지면 안 된다**.
+    #[test]
+    fn prepare_file_keeps_the_old_skip_rules() {
+        let dir = tempfile::tempdir().unwrap();
+
+        // 정상 파일 — 해시·크기·언어가 채워진다.
+        let ok = dir.path().join("a.rs");
+        std::fs::write(&ok, "fn main() {}\n").unwrap();
+        let p = prepare_file(&ok).unwrap().expect("정상 파일은 Some");
+        assert_eq!(p.content, "fn main() {}\n");
+        assert_eq!(p.size, 13);
+        assert_eq!(p.language.as_deref(), Some("rust"));
+        assert_eq!(p.hash, blake3::hash(b"fn main() {}\n").to_hex().to_string());
+
+        // 없는 파일 — 읽기 실패는 **건너뜀**이지 색인 중단이 아니다.
+        assert!(prepare_file(&dir.path().join("nope.rs")).unwrap().is_none());
+
+        // minified/생성 파일 — 한 줄이 너무 길면 행을 남기지 않고 건너뛴다.
+        let min = dir.path().join("big.js");
+        std::fs::write(&min, "x".repeat(50_000)).unwrap();
+        assert!(prepare_file(&min).unwrap().is_none());
+    }
+}

@@ -58,6 +58,8 @@ pub mod stack_detect;
 pub mod supervisor;
 pub mod transcript;
 pub mod watcher;
+pub mod watcher_queue;
+pub mod watcher_tasks;
 
 #[allow(unused_imports)] // Re-exported for sibling modules landing in W1-PR3..PR8.
 pub use error::{OculpmError, OculpmResult};
