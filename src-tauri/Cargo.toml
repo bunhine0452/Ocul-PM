@@ -4,6 +4,11 @@ version = "2.40.0"
 description = "Ocul-PM — local-first AI project manager for external coding agents"
 authors = ["you"]
 edition = "2021"
+# 저장소 루트의 LICENSE(MIT)를 매니페스트에도 적는다. cargo-deny 는 설정을
+# 매니페스트 옆에서 찾으므로 루트 LICENSE 를 못 읽어 이 크레이트를
+# "unlicensed" 로 본다 — 그 한 건 때문에 라이선스 게이트 전체가 비차단이었다
+# (플랜 `v241-errors-first` #cargo-deny).
+license = "MIT"
 # PR-CI2 가 두 번째 바이너리(oculpm-mcp)를 추가해 `cargo run`(tauri dev 가
 # 실행)이 모호해졌다 — 앱 바이너리를 기본 실행 대상으로 고정.
 default-run = "ocul-pm"
