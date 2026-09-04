@@ -180,7 +180,7 @@ Phase 0 의 목적은 **고칠 것을 정하는 게 아니라 고칠 값어치�
 | `{#classify-blocking}` | **확정(작음)** | 33 ms/체크아웃, 최악 단일 파일 36 ms. 위생 수정이지 성능 수정이 아니다 |
 | `{#index-semaphore}` | **확정(정확성)** | `tauri::async_runtime::spawn` 이 detached — 프로젝트를 닫아도 DB 를 계속 두드린다. 성능이 아니라 수명 문제 |
 | `{#index-project-blocking}` | **확정(최대)** | 워커 1개를 **6,411 ms** 점유 |
-| `{#pty-broadcast-scope}` | **확정(미측정)** | `app.emit` 은 전 웹뷰 브로드캐스트. `emit_to` 는 이미 `tray.rs`·`window.rs` 가 쓰는 관용구다. 청크 수·창 수는 재지 않았다 |
+| ~~`{#pty-broadcast-scope}`~~ | **죽음 — 전제가 사실이 아니다** | 아래 §4-1 |
 | `{#pty-write-lock}` | **확정(구조)** | `host.rs:518` 이 전역 세션 뮤텍스를 잡은 채 `write_all`+`flush`. 같은 파일 `:578-586` 이 옳은 모양 |
 | `{#manager-write-lock}` | **확정(구조)** | `lifecycle.rs:326` 전역 write 락을 `ps` fork·워처 등록 너머로 |
 | `{#lsp-status-lock}` | **확정(구조)** | `state.rs:296` 이 맵 락을 쥔 채 `resolve_binary().await` — 그 안에 `login_shell_path()` 가 있다. 같은 파일 `:342-357` 이 옳은 모양 |
@@ -191,17 +191,44 @@ Phase 0 의 목적은 **고칠 것을 정하는 게 아니라 고칠 값어치�
 | ~~`screens.css` 파싱~~ | **죽음** | 프로젝트 창 초기 CSS 284 KB 전부 합쳐 **7.6 ms** (§2) |
 | ~~DB 큐 지연~~ | **죽음** | **0.05 ms/op** (§1 M3) |
 
-**두 추정이 죽었지만 수정 항목이 죽지는 않았다** — 죽은 둘(`screens.css` 파싱 · DB 큐)은
-`{#measure-once}` 가 재라고 한 대상이었지 플랜의 수정 항목이 아니었다. 대신 플랜이 크기를
-잘못 잡은 곳이 둘 드러났다: `{#classify-blocking}` 은 생각보다 **작고**(33 ms),
+**추정 셋이 죽었고, 그중 하나는 수정 항목이었다.** `screens.css` 파싱과 DB 큐는
+`{#measure-once}` 가 재라고 한 대상이었지 수정 항목이 아니었지만, `{#pty-broadcast-scope}`
+는 **플랜의 수정 항목이면서 전제가 틀렸다** — 아래 §4-1. 그리고 플랜이 크기를 잘못 잡은
+곳이 둘 드러났다: `{#classify-blocking}` 은 생각보다 **작고**(33 ms),
 `{#index-project-blocking}` 은 생각보다 **크다**(6.4 s).
+
+### 4-1. `{#pty-broadcast-scope}` — 왜 폐기인가
+
+플랜의 서술은 "열린 모든 웹뷰가 모든 세션의 모든 청크를 역직렬화한다" 였다. **tauri
+2.11.2(`Cargo.lock` 이 핀한 그 버전) 소스를 직접 읽어 확인한 결과 그런 일은 일어나지
+않는다.**
+
+1. `emit_js_filter` 는 웹뷰마다 `js_listeners.get(webview.label()).and_then(|s| s.get(event))`
+   가 비면 **그 웹뷰를 통째로 건너뛴다** (`src/event/listener.rs:283`). 이벤트 이름이
+   `pty-data-{sid}` 로 **세션별**이므로, 그 세션을 그리지 않는 창에는 스크립트조차 가지
+   않는다. `app.emit` 의 실제 초과 비용은 웹뷰 수만큼의 해시 조회뿐이다.
+2. `emit_to` 로 바꿔도 **전달이 줄지 않는다.** 프런트 `listen()` 은 target 을 안 주면
+   `{kind:'Any'}` 로 등록하고(`@tauri-apps/api` 2.11.0 `event.js:75`),
+   `match_any_or_filter` 는 `Any` 를 **필터와 무관하게 통과**시킨다
+   (`listener.rs:310`). 조회를 하나 더 하고 아무것도 줄이지 못한다.
+3. 게다가 **한 세션을 두 웹뷰가 동시에 그릴 수 있다** — 프로젝트 창의 도크와 분리된
+   터미널 창. 라벨 하나로 좁히면 나머지 한쪽이 **조용히 청크를 잃는다.**
+
+즉 현행(브로드캐스트)이 정답이다. 근거를 `commands/terminal.rs` 의 `on_event` 자리에
+주석으로 못박아 다음 감사가 같은 항목을 다시 올리지 않게 했다.
+
+**이 판정은 측정이 아니라 소스 판정이다.** 청크 실측률과 동시에 열린 웹뷰 수는 여전히
+재지 않았다. 남는 실제 비용은 청크마다의 `serde_json::to_string` + eval 스크립트 생성이고,
+그걸 줄이는 길은 `project.rs` 식 **코얼레싱/스로틀**이다 — 터미널 에코 지연과 `seq` 의미에
+직결되고 한 번도 측정된 적이 없어 이 라운드에서 손대지 않았다.
 
 ## 5. 측정하지 못한 것 — "확인 못 함"
 
 - **WKWebView 의 실제 초기 페인트.** §2 는 Chromium 이다. `src/lib/perfProbe.ts` 가
   dev 빌드에서 자동으로 재서 `oculpm.log` 에 `[perf]` 로 남기지만, **이 라운드에서는
   앱을 띄우지 않았으므로 값이 없다.** 다음에 dev 로 앱을 띄우면 값이 생긴다.
-- **PTY 청크 실측률과 동시에 열린 웹뷰 수** — `{#pty-broadcast-scope}` 의 곱셈 인자 둘.
+- **PTY 청크 실측률과 동시에 열린 웹뷰 수.** `{#pty-broadcast-scope}` 는 소스 판정으로
+  폐기했지만(§4-1), 남은 비용(청크당 직렬화 + eval)의 크기는 여전히 모른다.
 - **`target/` 실제 churn** — `cargo build` 한 번이 55,663 중 몇 개를 건드리는지는 세지
   않았다. 채널이 필터 **이전**이라는 구조만 확인했다.
 

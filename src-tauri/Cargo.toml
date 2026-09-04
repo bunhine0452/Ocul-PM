@@ -1,6 +1,6 @@
 [package]
 name = "ocul-pm"
-version = "2.41.0"
+version = "2.42.0"
 description = "Ocul-PM — local-first AI project manager for external coding agents"
 authors = ["you"]
 edition = "2021"

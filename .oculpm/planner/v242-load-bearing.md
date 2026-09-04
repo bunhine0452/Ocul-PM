@@ -11,21 +11,21 @@ owner: claude-code
 3.0 이 색인·그래프·히스토리를 확장하면 전부 단일 DB 큐를 지난다. 먼저 안 하면 새 기능마다 같은 증상을 다시 진단한다. v3-round 감사의 성능 주장은 전부 구조적 추정(앱 미실행)이므로 측정이 Phase 0 이다.
 
 ## 추정을 측정으로 바꿈다 {#measure}
-- [ ] 1회 측정 — 일지 537건 전 기간 렌더·브랜치 전환 시 워처 이벤트 수와 DB 큐 지연·번들과 초기 페인트·screens.css 파싱. 앱이 꺼진 뒤 몰아서 (설치본과 락 경합 회피) {#measure-once}
-- [ ] 측정치를 회귀 기준으로 기록 — 다음 라운드가 비교할 수 있게 {#perf-baseline}
+- [x] 1회 측정 — 일지 537건 전 기간 렌더·브랜치 전환 시 워처 이벤트 수와 DB 큐 지연·번들과 초기 페인트·screens.css 파싱. 앱이 꺼진 뒤 몰아서 (설치본과 락 경합 회피) {#measure-once}
+- [x] 측정치를 회귀 기준으로 기록 — 다음 라운드가 비교할 수 있게 {#perf-baseline}
 
 ## 워처·인덱서 백프레셔 {#backpressure}
-- [ ] watcher.rs:147 unbounded 채널 → bounded + drop-oldest + 재동기화 신호 {#watcher-bounded}
-- [ ] classify 의 std::fs::read(최대 8MB) + blake3 를 spawn_blocking 으로 (watcher.rs:785-790) — 지금 런타임 워커에서 바로 돌고 있다 {#classify-blocking}
-- [ ] schedule_incremental_index / schedule_history_capture 앞에 Semaphore + 수명을 워처에 묶기 — 지금 detached 라 프로젝트를 닫은 뒤에도 DB 를 두드린다 {#index-semaphore}
-- [ ] commands/project.rs:187 index_project 전체 심이 spawn_blocking 밖에서 도는 것 정정 (walk·read·hash·tree-sitter) {#index-project-blocking}
-- [ ] commands/terminal.rs:79 pty-data 전역 broadcast — 열린 모든 웹뷰가 모든 세션의 모든 청크를 역직렬화한다. 같은 팀이 project.rs 에서는 100ms 스로틀했다 {#pty-broadcast-scope}
+- [x] watcher.rs:147 unbounded 채널 → bounded + drop-oldest + 재동기화 신호 {#watcher-bounded}
+- [x] classify 의 std::fs::read(최대 8MB) + blake3 를 spawn_blocking 으로 (watcher.rs:785-790) — 지금 런타임 워커에서 바로 돌고 있다 {#classify-blocking}
+- [x] schedule_incremental_index / schedule_history_capture 앞에 Semaphore + 수명을 워처에 묶기 — 지금 detached 라 프로젝트를 닫은 뒤에도 DB 를 두드린다 {#index-semaphore}
+- [x] commands/project.rs:187 index_project 전체 심이 spawn_blocking 밖에서 도는 것 정정 (walk·read·hash·tree-sitter) {#index-project-blocking}
+- [-] commands/terminal.rs:79 pty-data 전역 broadcast — 열린 모든 웹뷰가 모든 세션의 모든 청크를 역직렬화한다. 같은 팀이 project.rs 에서는 100ms 스로틀했다 {#pty-broadcast-scope}
 
 ## 락을 IO 너머로 잡지 않는다 {#lock-scopes}
-- [ ] ptyhost/host.rs:518 전역 세션 뮤텍스를 잡은 채 write_all+flush — 핸들 복사 후 락 밖에서. 같은 파일 :578-586 이 이미 그 패턴을 쓴다. 지금은 붙여넣기 한 번이 모든 터미널 연결을 끊는다 {#pty-write-lock}
-- [ ] manager/lifecycle.rs:326 전역 write 락을 ps fork 와 워처 등록 너머로 잡는 것 — 이미 있는 ProjectSnapshot 활용 {#manager-write-lock}
-- [ ] lsp/state.rs:296 맵 락을 바이너리 해석·슬롯 락 너머로 잡는 것 — 같은 파일 running_clients 가 올바른 모양(슬롯 Arc 복사 후 맵 락 해제) {#lsp-status-lock}
-- [ ] embedding.rs:177 전역 std 뮤텍스를 spawn_blocking 안에서 잡는 것 — N 동시 호출자가 N개 OS 스레드를 파킹하고 그 풀을 git·히스토리·코드검색과 공유한다 {#embedder-mutex}
+- [x] ptyhost/host.rs:518 전역 세션 뮤텍스를 잡은 채 write_all+flush — 핸들 복사 후 락 밖에서. 같은 파일 :578-586 이 이미 그 패턴을 쓴다. 지금은 붙여넣기 한 번이 모든 터미널 연결을 끊는다 {#pty-write-lock}
+- [x] manager/lifecycle.rs:326 전역 write 락을 ps fork 와 워처 등록 너머로 잡는 것 — 이미 있는 ProjectSnapshot 활용 {#manager-write-lock}
+- [x] lsp/state.rs:296 맵 락을 바이너리 해석·슬롯 락 너머로 잡는 것 — 같은 파일 running_clients 가 올바른 모양(슬롯 Arc 복사 후 맵 락 해제) {#lsp-status-lock}
+- [x] embedding.rs:177 전역 std 뮤텍스를 spawn_blocking 안에서 잡는 것 — N 동시 호출자가 N개 OS 스레드를 파킹하고 그 풀을 git·히스토리·코드검색과 공유한다 {#embedder-mutex}
 
 ## 재렌더 비용 {#render-cost}
 - [ ] 설정 슬라이더 한 프레임 = 전체 재렌더 + SQLite 쓰기 + setZoom + 구독 재무장. 디바운스 + 커밋 시점 분리 (AppearanceTab.tsx:253) {#settings-slider}
@@ -40,4 +40,15 @@ owner: claude-code
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
+| 2026-09-04T15:17:52+09:00 | #measure-once | claude-code | ☐→x | 20260904/Chores/1517_chore_v242-measure-once-baseline.md | 앱 없이 실측. 추정 2개 사망(screens.css 7.6ms · DB큐 0.05ms/op), index_project 6,411ms 로 최대 발견. WKWebView 초기 페인트만 확인 못 함 |
+| 2026-09-04T15:18:00+09:00 | #perf-baseline | claude-code | ☐→x | 20260904/Chores/1517_chore_v242-measure-once-baseline.md | docs/20260904_v242-load-bearing/perf-baseline.md — 수치 + 재현 명령 + 판정표. 하니스가 남아 다음 라운드가 같은 방법으로 잰다 |
+| 2026-09-04T15:41:56+09:00 | #watcher-bounded | claude-code | ☐→x | 20260904/Refactors/1541_refactor_v242-watcher-backpressure-index-blocking.md | 유계 링 4,096(측정 버스트 1,058의 3.9배·~1MB) + drop-oldest. tokio mpsc 는 앞을 못 버려 직접. 만회는 기존 reindex 경로+IntegrityWarning, 새 커맨드 0 |
+| 2026-09-04T15:42:01+09:00 | #classify-blocking | claude-code | ☐→x | 20260904/Refactors/1541_refactor_v242-watcher-backpressure-index-blocking.md | spawn_blocking 으로 이동. 성능 개선 아님 — 측정치 체크아웃당 33ms·최악 단일 파일 36ms. 위생 수정 |
+| 2026-09-04T15:42:08+09:00 | #index-semaphore | claude-code | ☐→x | 20260904/Refactors/1541_refactor_v242-watcher-backpressure-index-blocking.md | 갈래별 Semaphore(색인 2·히스토리 4) + watch 취소로 워처 수명에 묶음. 테스트가 shutdown 순서 버그를 잡았다(취소 먼저면 퍼밋이 대기자에게 넘어가 내려가는 중에 실행) |
+| 2026-09-04T15:42:14+09:00 | #index-project-blocking | claude-code | ☐→x | 20260904/Refactors/1541_refactor_v242-watcher-backpressure-index-blocking.md | 이 라운드 최대 발견 — 측정 6,411ms 워커 점유. CPU 구간 셋을 spawn_blocking 으로. IndexConfig Arc 화로 파일당 clone 제거, 진행률 스로틀 유지 |
+| 2026-09-04T15:42:21+09:00 | #manager-write-lock | claude-code | ☐→x | 20260904/Refactors/1541_refactor_v242-lock-scopes-manager-lsp-embed.md | 스냅샷→락 밖 느린 일→CAS 커밋 3단계. 경합은 두 겹(프로젝트 단위 lifecycle_lock + watcher_epoch CAS). 음성 대조로 close/stop 경합 테스트는 가드일 뿐임을 확인·주석화 |
+| 2026-09-04T15:42:27+09:00 | #lsp-status-lock | claude-code | ☐→x | 20260904/Refactors/1541_refactor_v242-lock-scopes-manager-lsp-embed.md | 같은 파일 running_clients 관용구로 — 맵에서 슬롯 Arc 만 복사하고 락 놓은 뒤 resolve_binary().await(로그인 셸 fork) |
+| 2026-09-04T15:42:33+09:00 | #embedder-mutex | claude-code | ☐→x | 20260904/Refactors/1541_refactor_v242-lock-scopes-manager-lsp-embed.md | Semaphore(1) 로 줄서기를 blocking 풀 밖으로. 직렬성은 유지 — 바뀐 것은 어디서 기다리는가 |
+| 2026-09-04T15:47:44+09:00 | #pty-write-lock | claude-code | ☐→x | 20260904/Bugs/1547_bug_v242-pty-write-queue-broadcast-verdict.md | 락만 좁혀선 안 됐다 — handle_request 가 접속 읽기루프 안에서 동기라 10초 타임아웃이 접속을 버렸다. 세션별 FIFO 쓰기 큐로. raw+미소비 tty 에서 무기한 블록을 직접 재현 |
+| 2026-09-04T15:47:52+09:00 | #pty-broadcast-scope | claude-code | ☐→- | 20260904/Bugs/1547_bug_v242-pty-write-queue-broadcast-verdict.md | 전제 사망(코드 무변경). tauri 2.11.2 listener.rs:283 이 리스너 없는 웹뷰를 통째로 건너뛴다 — 이벤트명이 세션별이라 남의 창엔 안 간다. emit_to 로 바꿔도 listen()이 Any 라 안 준다. 게다가 한 세션을 두 웹뷰가 그릴 수 있어 좁히면 청크를 잃는다 |
 <!-- oculpm:plan-log end -->
