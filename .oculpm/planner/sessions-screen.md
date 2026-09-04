@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: sessions-screen
 title: "세션 화면 — 묶기가 Today 카드에서 나온다"
-status: active
+status: done
 created: 2026-09-04
 updated: 2026-09-04
 owner: claude-code
