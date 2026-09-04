@@ -58,7 +58,18 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.41.0 — Errors first
+## 🚀 v2.42.0 — structure that carries the load
+
+- **One large paste cut every open terminal.** Pasting a few hundred KB into a terminal that **isn't reading input right now** (an agent mid tool-call) stalled the entire terminal host, and ten seconds later the connection was dropped outright — an ordinary shell swallows 64MB in 1.7s, but in that state it blocked **indefinitely**. Every terminal now has its own input queue, and once it starts reading again the paste arrives **in order and intact**.
+- **The UI scale slider saved the setting on every frame while you dragged.** One short drag meant 20 writes, 20 zoom calls and 20 full app re-renders — multiplied, if you had several windows open, by **each window re-reading the whole settings table**. Now dragging only previews and the value is written **once, on release**. Eight other sliders behave the same way.
+- **Picking a terminal tab redrew all 16 screens.** The workspace state was already split four ways; the three always-mounted consumers were just subscribing to all of it.
+- **Indexing a project held the app for 6.4 seconds.** Reading, hashing and parsing files all ran on the app's own worker thread. That work now runs off it.
+- **The flood of file changes on a branch switch now has a ceiling.** Measured, one checkout pours in **1,058 events** at once, and nothing capped the receiving end. If anything is dropped it is **recovered rather than silently lost**, and you're told.
+- **Closing a project now actually stops its indexing and file history**, and **opening one project no longer stalls the others**. The language-server list and semantic search had the same bottleneck.
+- **Settings that failed to save used to look saved.** Now they say so — as do the places where stopping an agent or closing a terminal quietly did nothing.
+- **We measured before fixing.** Every performance claim in this round came from reading code without running the app, so we measured first and **dropped three of them**: stylesheet parsing (7.6ms for all 284KB), the database queue (0.05ms per write), and terminal event broadcast (which never reached other windows to begin with). The measuring harness stays in the repo so the next release compares the same way.
+
+## v2.41.0 — Errors first
 
 - **⌘W killed a running agent without asking.** The odd part: **the same ⌘W did ask one layer up** (closing a tab) — the check already existed and simply wasn't called at the pane layer. Closing a pane now names what is running and asks.
 - **"Check failed" and "all clear" looked identical.** The honesty audit and the "session ended without a journal" card vanished silently when a query failed. The **Diff screen** disguised four failed git lookups as "no changes" — it now separates *don't know yet · couldn't ask · genuinely none*.

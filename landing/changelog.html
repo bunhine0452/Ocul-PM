@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.41.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 92개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.42.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 93개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.41.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 92개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.42.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 93개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.41.0</span>
+    <span class="nav-ver" data-version>v2.42.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>92개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>93개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-42-0">v2.42.0</a>
       <a href="#v2-41-0">v2.41.0</a>
       <a href="#v2-40-0">v2.40.0</a>
       <a href="#v2-39-1">v2.39.1</a>
@@ -61,10 +62,19 @@
       <a href="#v2-34-1">v2.34.1</a>
       <a href="#v2-34-0">v2.34.0</a>
       <a href="#v2-33-0">v2.33.0</a>
-      <a href="#v2-32-0">v2.32.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-42-0"><a href="#v2-42-0">v2.42.0</a></h2>
+      <div class="cl-body">
+<p><b>큰 붙여넣기 한 번이 열려 있는 모든 터미널을 끊었습니다.</b> 도구를 호출 중인 에이전트 창처럼 <b>입력을 당장 읽지 않는 터미널</b>에 수백 KB 를 붙여넣으면, 그 쓰기가 끝날 때까지 터미널 호스트 전체가 멈춰 있다가 10초 뒤 연결이 통째로 버려졌습니다. 재현해 보니 평범한 셸은 64MB 도 1.7초에 삼키는데, 그 상태의 터미널에서는 <b>무기한</b> 막혔습니다.</p>
+<ul><li><b>이제 터미널마다 제 입력 줄을 갖습니다.</b> 한 터미널이 입력을 안 읽고 있어도 나머지는 그대로 반응하고, 그 터미널이 다시 읽기 시작하면 붙여넣은 내용이 <b>순서대로 온전히</b> 들어갑니다.</li><li><b>글자 크기 슬라이더를 끄는 동안 설정이 매 프레임 저장됐습니다.</b> 짧은 드래그 한 번이 저장 20번 · 화면 확대 20번 · 앱 전체 재렌더 20번이었고, 창을 여럿 띄웠다면 <b>창마다 설정 전체를 다시 읽는 일</b>이 거기에 곱해졌습니다. 이제 끄는 동안은 미리보기만 하고 <b>놓을 때 한 번</b> 저장합니다 — 설정의 다른 슬라이더 여덟 개도 같습니다.</li><li><b>터미널 탭을 하나 고를 때마다 16개 화면이 전부 다시 그려졌습니다.</b> 화면 상태가 이미 네 조각으로 나뉘어 있었는데 정작 늘 떠 있는 세 곳이 그 전체를 구독하고 있었습니다.</li></ul>
+<p><b>프로젝트를 색인하는 6.4초 동안 앱이 다른 일을 못 했습니다.</b> 파일을 읽고 해시하고 구문을 분석하는 일이 전부 앱의 작업 스레드 위에서 돌았습니다. 이제 별도 스레드로 내려가고, 색인 중에도 앱이 반응합니다.</p>
+<ul><li><b>브랜치를 바꿀 때 밀려드는 파일 변경에 상한이 생겼습니다.</b> 재 보니 체크아웃 한 번이 <b>1,058건</b>을 한꺼번에 쏟아 넣는데 받는 쪽에 바닥이 없었습니다. 이제 한계가 있고, 넘쳐서 놓친 것이 있으면 <b>조용히 잃지 않고</b> 뒤에 스스로 만회한 뒤 알려 줍니다.</li><li><b>프로젝트를 닫아도 그 프로젝트의 색인과 파일 히스토리가 계속 돌았습니다.</b> 이제 프로젝트와 함께 멈춥니다.</li><li><b>프로젝트 하나를 여는 동안 다른 프로젝트가 멈추던 것을 풀었습니다.</b> 코드 언어 서버 목록을 볼 때, 그리고 의미 검색을 여럿이 동시에 부를 때도 같은 병목이 있었습니다.</li></ul>
+<p><b>설정이 저장에 실패해도 저장된 것처럼 보였습니다.</b> 실패가 아무 데도 안 나타나서, 껐다 켜면 값이 돌아와 있는 것으로만 알 수 있었습니다. 이제 실패하면 사유와 함께 말해 줍니다 — 에이전트 중단·터미널 종료처럼 눌렀는데 아무 일도 안 일어나던 자리들도 같습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-41-0"><a href="#v2-41-0">v2.41.0</a></h2>
       <div class="cl-body">
