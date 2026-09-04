@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: v241-errors-first
 title: "오류부터 — 눈먼 게이트를 뜨게 하고, 거짓을 지우고, 확정 결함을 닫는다 (v2.41.0)"
-status: active
+status: done
 created: 2026-09-04
 updated: 2026-09-04
 owner: claude-code
