@@ -22,13 +22,16 @@ const fixtures: {
   sessions: SessionRow[];
   /** Workdays the component actually asked for. */
   asked: string[];
-} = { sessions: [], asked: [] };
+  /** 감사 자체가 실패한다 (락 경합·파일 없음·전송 계층 실패). */
+  fails: boolean;
+} = { sessions: [], asked: [], fails: false };
 
 vi.mock("@/api/oculpm", () => ({
   OculpmApiError: class extends Error {},
   oculpmApi: {
     compareWorkday: (_pid: number, workday: string) => {
       fixtures.asked.push(workday);
+      if (fixtures.fails) return Promise.reject(new Error("could not read file_changes.ndjson"));
       return Promise.resolve({
         workday,
         sessions: fixtures.sessions,
@@ -59,6 +62,7 @@ function row(over: Partial<SessionRow> = {}): SessionRow {
 beforeEach(() => {
   fixtures.sessions = [];
   fixtures.asked = [];
+  fixtures.fails = false;
 });
 afterEach(cleanup);
 
@@ -75,6 +79,28 @@ describe("HonestyAudit", () => {
     await waitFor(() => expect(fixtures.asked).toEqual(["20260820"]));
     expect(container).toBeEmptyDOMElement();
     expect(screen.queryByText(TITLE)).toBeNull();
+  });
+
+  /**
+   * {#honesty-catch} — "검사 실패" 와 "깨끗함" 은 다른 것이다.
+   *
+   * 예전에는 `catch { setRows([]) }` 였다. 감사가 못 돌았는데도 화면은 깨끗한
+   * 날과 **글자 하나 다르지 않았다** — 이 제품의 반복 원칙("모르면 모른다고
+   * 말한다")과 정면으로 충돌한다.
+   */
+  it("a failed audit does not hide — it shows the reason and a retry", async () => {
+    fixtures.fails = true;
+    render(<HonestyAudit projectId={1} workday="20260820" enabled />);
+
+    await screen.findByText(t("today.honesty.failed"));
+    expect(screen.getByText(/file_changes.ndjson/)).toBeTruthy();
+
+    // 「다시 시도」 가 실제로 다시 묻는다 — 이번엔 성공한다.
+    fixtures.fails = false;
+    fixtures.sessions = [row({ unrecorded: ["a.jpg"], unrecorded_severity: "warning" })];
+    screen.getByRole("button", { name: t("common.retry") }).click();
+    await screen.findByText(TITLE);
+    expect(fixtures.asked.length).toBe(2);
   });
 
   it("reports only the files no journal entry records", async () => {

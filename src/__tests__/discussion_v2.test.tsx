@@ -53,11 +53,14 @@ const fx: {
   detail: DiscussionDetail | null;
   raw: string;
   written: string[];
+  /** `discussionList` 가 봉투가 아니라 **진짜 Error** 로 튄다 (전송 계층 실패). */
+  listThrows: boolean;
 } = {
   list: [],
   detail: null,
   raw: "",
   written: [],
+  listThrows: false,
 };
 
 vi.mock("@/lib/bindings", () => {
@@ -69,7 +72,8 @@ vi.mock("@/lib/bindings", () => {
         get: (_t, prop) => {
           switch (prop) {
             case "discussionList":
-              return () => ok(fx.list);
+              return () =>
+                fx.listThrows ? Promise.reject(new Error("전송 계층 실패")) : ok(fx.list);
             case "discussionGet":
               return () => ok(fx.detail);
             case "discussionReadRaw":
@@ -108,6 +112,7 @@ beforeEach(() => {
   fx.detail = null;
   fx.raw = "";
   fx.written = [];
+  fx.listThrows = false;
 });
 afterEach(cleanup);
 
@@ -120,6 +125,29 @@ describe("DiscussionScreenV2", () => {
     await findByRole("heading", { name: "캐시 전략 결정" });
     await findByText("방안 A — 절대경로");
     await findByText("절대경로 적용");
+  });
+
+  /**
+   * {#infinite-loading-six} — IPC 는 봉투(`{status}`)로만 실패하지 않는다.
+   * 전송 계층 실패·창 teardown 은 진짜 `Error` 로 튀는데(`typedError` 재throw),
+   * 그걸 안 받으면 `list` 가 `null` 로 남아 스피너가 **영원히** 돌았다. 오류
+   * 카드와 재시도 버튼은 그 분기 **뒤에** 있어 화면을 옮기는 것 말고는 길이 없다.
+   */
+  it("조회가 throw 해도 스피너에 갇히지 않고 오류 카드 + 재시도가 뜬다", async () => {
+    fx.listThrows = true;
+    const { findByText, findByRole, queryByText } = render(
+      wrap(<DiscussionScreenV2 projectId={1} onNavigate={vi.fn()} />),
+    );
+    await findByText(/불러오지 못했어요|Could not/);
+    await findByRole("button", { name: "다시 시도" });
+    expect(queryByText("불러오는 중…")).toBeNull();
+
+    // 「다시 시도」 가 실제로 다시 읽는다 — 이번엔 성공한다.
+    fx.listThrows = false;
+    fx.list = [summary()];
+    fx.detail = detail();
+    fireEvent.click(await findByRole("button", { name: "다시 시도" }));
+    await findByRole("heading", { name: "캐시 전략 결정" });
   });
 
   it("shows an empty state when there are no discussions", async () => {

@@ -6,7 +6,7 @@
  *  - R3    — 탭 두 개가 같은 localStorage 레코드를 덮어쓰지 않는다 (키 분리)
  *  - 탭 순서 — 드래그 재배열 산술 (경계에서 조용히 틀리기 쉬운 자리)
  */
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, act, cleanup } from "@testing-library/react";
 
 import { parseWindowRoute, FIRST_WINDOW } from "@/lib/windowRoute";
@@ -352,5 +352,52 @@ describe("사이드바 접힘 (탭·창 공유)", () => {
     const r = render(<WorkspaceProvider projectId={4}><SidebarProbe id={4} /></WorkspaceProvider>);
     expect(r.getByTestId("sb-4").textContent).toBe("collapsed");
     expect(localStorage.getItem(SIDEBAR_KEY)).toBe("1");
+  });
+});
+
+// ─── {#localstorage-guard} 저장소가 던져도 앱은 뜬다 (2026-09-04) ──────────
+//
+// 웹뷰의 `localStorage` 는 **읽기만 해도 던진다** (쿼터 초과·프라이빗 모드·
+// 사이트 데이터 차단). 이 앱은 저장을 `WorkspaceContext` 한 곳에 모아 놨으므로
+// (lint 가 강제한다) 그 한 번의 throw 는 한 곳이 아니라 **전부**를 무너뜨렸다 —
+// 프로바이더 초기화가 던지면 그 위엔 화면 경계가 없어 창이 통째로 흰 화면이다.
+
+function ViewProbe() {
+  const { state, setUiV2View } = useWorkspace();
+  return (
+    <button type="button" data-testid="view" onClick={() => setUiV2View("planner")}>
+      {state.uiV2View}
+    </button>
+  );
+}
+
+describe("저장소 고장", () => {
+  it("읽기가 던져도 기본값으로 뜨고, 쓰기가 던져도 계속 쓸 수 있다", () => {
+    const get = vi.spyOn(localStorage, "getItem").mockImplementation(() => {
+      throw new DOMException("The operation is insecure.", "SecurityError");
+    });
+    const set = vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+      throw new DOMException("QuotaExceededError");
+    });
+    try {
+      let r!: ReturnType<typeof render>;
+      expect(() => {
+        r = render(
+          <WorkspaceProvider projectId={9}>
+            <ViewProbe />
+          </WorkspaceProvider>,
+        );
+      }).not.toThrow();
+
+      // 기본 화면으로 떴고 — 상태 변경도 그대로 동작한다 (저장만 안 될 뿐).
+      expect(r.getByTestId("view").textContent).toBe("today");
+      act(() => r.getByTestId("view").click());
+      expect(r.getByTestId("view").textContent).toBe("planner");
+      // 언마운트의 flush 저장도 던지지만 삼켜야 한다.
+      expect(() => r.unmount()).not.toThrow();
+    } finally {
+      get.mockRestore();
+      set.mockRestore();
+    }
   });
 });

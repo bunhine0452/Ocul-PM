@@ -41,6 +41,8 @@ import {
 } from "./dispatchBus";
 import { writeDispatchTo } from "./dispatchTarget";
 import { registerCloseHandler } from "@/lib/closeIntent";
+import { foregroundCommands } from "@/windows/useTabRunningWork";
+import { useConfirm } from "@/hooks/useConfirm";
 import { registerNewTabHandler } from "@/lib/newTabIntent";
 import { focusOfTab, panesOfTab } from "./activePane";
 import {
@@ -186,6 +188,7 @@ export function TerminalSurface({
   ownsNewTab = false,
 }: TerminalSurfaceProps) {
   const { t } = useT();
+  const { confirm, confirmDialog } = useConfirm();
   // Phase 4 #workspace-split — 세션 조각과 런타임 조각만 구독한다. 검색어·
   // 플래너 접힘 같은 취향이 바뀌어도 터미널은 다시 그려지지 않는다.
   const { terminalTabs, terminalActiveId, setSessions } = useTerminalSessions();
@@ -324,7 +327,6 @@ export function TerminalSurface({
       disposed = true;
       off();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 명령 경계에서 코딩 에이전트 실행을 추적 → 세션 신호 + 일지 제안.
@@ -405,9 +407,34 @@ export function TerminalSurface({
     }));
   };
 
-  const closeTab = (id: string) => {
+  /**
+   * PTY 를 죽이기 전에 **돌고 있는 일**을 확인한다 (2026-09-04).
+   *
+   * 같은 ⌘W 가 **탭** 층에 닿으면 `runTabCloseGuard` 가 페인마다 실행 중 명령을
+   * 물어 확인창을 띄우는데(TabbedWindow), **페인** 층에서는 아무것도 묻지 않고
+   * 곧장 `kill_pty_session` 을 쐈다 — 돌던 에이전트의 턴이 확인 없이 사라지고
+   * 되돌릴 길이 없었다. 판정은 그 문지기와 **같은 함수**(`foregroundCommands`)를
+   * 쓴다: 프롬프트에 멈춘 셸은 세지 않으므로 평소의 ⌘W 는 그대로 즉시 닫힌다.
+   * 반환값은 "닫아도 되는가" — false 면 부르는 쪽이 상태를 건드리지 않는다.
+   */
+  const killPanes = async (sids: string[]): Promise<boolean> => {
+    const running = await foregroundCommands(sids);
+    if (running.length > 0) {
+      const ok = await confirm({
+        title: t("close.guard.title"),
+        message: t("close.guard.terminals", { names: running.slice(0, 4).join(", ") }),
+        confirmLabel: t("close.guard.confirm"),
+        danger: true,
+      });
+      if (!ok) return false;
+    }
+    for (const sid of sids) void commands.killPtySession(sid);
+    return true;
+  };
+
+  const closeTab = async (id: string) => {
     const tab = terminalTabs.find((candidate) => candidate.id === id);
-    if (tab) for (const sid of collectSids(panesOfTab(tab))) void commands.killPtySession(sid);
+    if (tab && !(await killPanes(collectSids(panesOfTab(tab))))) return;
     setSessions((prev) => {
       const remaining = prev.terminalTabs.filter((tab) => tab.id !== id);
       const nextActive =
@@ -438,36 +465,26 @@ export function TerminalSurface({
     }));
   };
 
-  // ⌘W — 분할 중이면 포커스 페인만, 마지막 페인이면 탭을 닫는다.
-  const closeFocusedPane = () => {
+  const closePane = async (sid: string) => {
     if (!activeTab) return;
     const panes = panesOfTab(activeTab);
-    const sid = focusOfTab(activeTab);
     if (panes.type === "leaf") {
-      closeTab(activeTab.id);
+      void closeTab(activeTab.id);
       return;
     }
     const nextFocus = siblingSid(panes, sid);
-    void commands.killPtySession(sid);
+    if (!(await killPanes([sid]))) return;
     patchTab(activeTab.id, (tab) => {
       const next = removePane(panesOfTab(tab), sid);
       return { ...tab, panes: next ?? leaf(tab.id), focusSid: nextFocus ?? undefined };
     });
   };
 
-  const closePane = (sid: string) => {
+  // ⌘W — 분할 중이면 포커스 페인만, 마지막 페인이면 탭을 닫는다. 예전에는 이
+  // 갈래가 `closePane` 을 통째로 베껴 두 곳이 따로 낡을 수 있었다.
+  const closeFocusedPane = () => {
     if (!activeTab) return;
-    const panes = panesOfTab(activeTab);
-    if (panes.type === "leaf") {
-      closeTab(activeTab.id);
-      return;
-    }
-    const nextFocus = siblingSid(panes, sid);
-    void commands.killPtySession(sid);
-    patchTab(activeTab.id, (tab) => {
-      const next = removePane(panesOfTab(tab), sid);
-      return { ...tab, panes: next ?? leaf(tab.id), focusSid: nextFocus ?? undefined };
-    });
+    void closePane(focusOfTab(activeTab));
   };
 
   const focusPane = (tabId: string, sid: string) => {
@@ -846,34 +863,14 @@ export function TerminalSurface({
   };
 
   // 화면-로컬 단축키 — 핸들러는 ref 로 항상 최신을 읽고 리스너는 1회 등록.
-  const actionsRef = useRef({
-    addTab,
-    closeFocusedPane,
-    splitFocused,
-    openSearch,
-    closeSearch,
-    clearScreen,
-    gotoBlock,
-    fontDelta,
-    fontReset,
-    searchOpen,
-    keyboardScope,
-    ownsNewTab,
-  });
-  actionsRef.current = {
-    addTab,
-    closeFocusedPane,
-    splitFocused,
-    openSearch,
-    closeSearch,
-    clearScreen,
-    gotoBlock,
-    fontDelta,
-    fontReset,
-    searchOpen,
-    keyboardScope,
-    ownsNewTab,
+  // 같은 목록이 두 벌이었다: 한쪽에만 항목을 더하면 초기값과 갱신값이 조용히
+  // 갈라진다. 한 벌로 만들고 초기값·갱신값이 그것을 함께 본다.
+  const actions = {
+    addTab, closeFocusedPane, splitFocused, openSearch, closeSearch, clearScreen,
+    gotoBlock, fontDelta, fontReset, searchOpen, keyboardScope, ownsNewTab,
   };
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
   /**
    * ⌘W — **포커스가 터미널 안에 있으면 페인을 닫는다** (2026-08-29).
    *
@@ -1541,6 +1538,8 @@ export function TerminalSurface({
           <span className="tg-name">{ghostLabel}</span>
         </div>
       )}
+      {/* 「돌고 있는데 정말 닫나요」 — ⌘W·페인 ×·레일 × 가 같은 창을 쓴다. */}
+      {confirmDialog}
     </div>
   );
 }

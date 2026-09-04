@@ -17,7 +17,7 @@ import { TerminalSurface } from "@/features/terminal/TerminalSurface";
 import { setThemeOverride } from "@/features/theme/store";
 import { installConsoleBridge } from "@/lib/oculpmLog";
 import { runNewTabIntent } from "@/lib/newTabIntent";
-import { safeUnlisten } from "@/lib/unlisten";
+import { createUnlistenBag } from "@/lib/unlisten";
 import { terminalWindowLabel } from "@/lib/windowRoute";
 import { useT } from "@/i18n";
 
@@ -81,18 +81,14 @@ function TerminalWindowBody({ projectId }: TerminalWindowProps) {
   // 분리 창에서 ⌘T 가 통째로 씹힌다.
   useEffect(() => {
     const label = terminalWindowLabel(projectId);
-    let off: (() => void) | undefined;
-    void events.newTabIntent
-      .listen(({ payload }) => {
+    const bag = createUnlistenBag();
+    bag.add(
+      events.newTabIntent.listen(({ payload }) => {
         if (payload.window !== label) return;
         runNewTabIntent();
-      })
-      .then((fn) => {
-        off = fn;
-      });
-    return () => {
-      if (off) safeUnlisten(off);
-    };
+      }),
+    );
+    return () => bag.dispose();
   }, [projectId]);
 
   // macOS 는 titleBarStyle "Overlay" 라 신호등이 왼쪽 위에 떠 있다. 이 창엔

@@ -89,6 +89,29 @@ describe("ErrorBoundary", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  /**
+   * ShellV2 의 화면 경계는 `key={view}` 를 단다 (2026-09-04). 경계는 스스로
+   * 리셋되지 않으므로, 키가 없으면 한 화면이 깨진 뒤 다른 화면에 갔다 돌아와도
+   * **계속 깨진 채로** 보인다 — 사용자에게는 "앱이 망가졌다" 와 구별되지 않는다.
+   */
+  it("key 가 바뀌면 경계가 리셋된다 (화면 전환 = 새 경계)", () => {
+    const { rerender } = render(
+      <ErrorBoundary key="today" label="screen:today">
+        <Boom throwNow />
+      </ErrorBoundary>,
+    );
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+
+    // 다른 화면으로 — 같은 컴포넌트지만 키가 달라 새로 마운트된다.
+    rerender(
+      <ErrorBoundary key="journal" label="screen:journal">
+        <Boom throwNow={false} />
+      </ErrorBoundary>,
+    );
+    expect(screen.getByText("정상 내용")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("진단 로그에 경계 이름과 함께 남긴다 (oculpm.log 에서 조각을 구분하는 단서)", () => {
     render(
       <ErrorBoundary label="settings">

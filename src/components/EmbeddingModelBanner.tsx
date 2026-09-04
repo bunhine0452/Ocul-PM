@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { createUnlistenBag } from "@/lib/unlisten";
 import { Download, X } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { requestReindex } from "@/lib/projectActions";
@@ -23,18 +24,24 @@ export function EmbeddingModelBanner() {
   const [p, setP] = useState<Progress | null>(null);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    void listen<Progress>("embedding-model-download", (e) => {
-      const d = e.payload;
-      setP(d);
-      if (d.status === "done") {
-        // brief "준비 완료" flash, then dismiss.
-        setTimeout(() => setP((cur) => (cur?.status === "done" ? null : cur)), 1800);
-      }
-    }).then((u) => {
-      unlisten = u;
-    });
-    return () => unlisten?.();
+    // 자루가 alive 검사를 소유한다 — 구독이 붙기 전에 배너가 사라지면(색인이
+    // 금방 끝나는 경우) 예전에는 리스너가 영구히 남았다. 「준비 완료」 후 자동
+    // 소멸 타이머도 함께 거둔다: 언마운트 뒤 발화하면 죽은 트리에 setState 한다.
+    const bag = createUnlistenBag();
+    let flash: ReturnType<typeof setTimeout> | null = null;
+    bag.add(
+      listen<Progress>("embedding-model-download", (e) => {
+        const d = e.payload;
+        setP(d);
+        if (d.status !== "done") return;
+        if (flash) clearTimeout(flash);
+        flash = setTimeout(() => setP((cur) => (cur?.status === "done" ? null : cur)), 1800);
+      }),
+    );
+    return () => {
+      if (flash) clearTimeout(flash);
+      bag.dispose();
+    };
   }, []);
 
   if (!p) return null;

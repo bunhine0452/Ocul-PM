@@ -27,7 +27,7 @@ import { setThemeOverride } from "@/features/theme/store";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
-import { safeUnlisten } from "@/lib/unlisten";
+import { createUnlistenBag } from "@/lib/unlisten";
 import { hasRunningWork, runCloseIntent, runTabCloseGuard } from "@/lib/closeIntent";
 import { runNewTabIntent } from "@/lib/newTabIntent";
 import { toast } from "@/lib/toast";
@@ -86,18 +86,14 @@ export default function TabbedWindow({
   const [held, setHeld] = useState(tearingOff);
   useEffect(() => {
     if (!held) return;
-    let off: (() => void) | undefined;
-    void events.tearOffSettled
-      .listen(({ payload }) => {
+    const bag = createUnlistenBag();
+    bag.add(
+      events.tearOffSettled.listen(({ payload }) => {
         if (payload.window !== windowLabel) return;
         setHeld(false);
-      })
-      .then((fn) => {
-        off = fn;
-      });
-    return () => {
-      if (off) safeUnlisten(off);
-    };
+      }),
+    );
+    return () => bag.dispose();
   }, [held, windowLabel]);
 
   useEffect(() => {
@@ -116,24 +112,28 @@ export default function TabbedWindow({
 
   useEffect(() => {
     void refreshTabs();
-    let off: (() => void) | undefined;
-    void events.windowTabsChanged
-      .listen(({ payload }) => {
-        // 이벤트는 창을 지정해 오지만, 라벨이 어긋난 페이로드가 남의 탭 구성을
-        // 이 창에 밀어넣지 못하게 한 번 더 확인한다.
-        if (payload.window !== windowLabel) return;
-        setTabs(payload.tabs);
-        setActiveId(payload.active);
-      })
-      .then((fn) => {
-        off = fn;
+    let alive = true;
+    const bag = createUnlistenBag();
+    bag.add(
+      events.windowTabsChanged
+        .listen(({ payload }) => {
+          // 이벤트는 창을 지정해 오지만, 라벨이 어긋난 페이로드가 남의 탭 구성을
+          // 이 창에 밀어넣지 못하게 한 번 더 확인한다.
+          if (payload.window !== windowLabel) return;
+          setTabs(payload.tabs);
+          setActiveId(payload.active);
+        })
         // 리스너를 단 **뒤에** 한 번 더 읽는다. 위의 첫 조회와 리스너 부착
         // 사이에 백엔드가 탭을 바꾸면(업데이트 재시작 뒤의 세션 복원이 그렇다)
         // 그 이벤트는 아무도 못 듣고, 창은 시작 탭 하나를 문 채로 남는다.
-        void refreshTabs();
-      });
+        .then((fn) => {
+          if (alive) void refreshTabs();
+          return fn;
+        }),
+    );
     return () => {
-      if (off) safeUnlisten(off);
+      alive = false;
+      bag.dispose();
     };
   }, [windowLabel, refreshTabs]);
 
@@ -201,19 +201,15 @@ export default function TabbedWindow({
    * 마지막 탭이면 `close_tab` 이 빈 창을 스스로 닫는다 (Chrome 과 같다).
    */
   useEffect(() => {
-    let off: (() => void) | undefined;
-    void events.closeIntent
-      .listen(({ payload }) => {
+    const bag = createUnlistenBag();
+    bag.add(
+      events.closeIntent.listen(({ payload }) => {
         if (payload.window !== windowLabel) return;
         if (runCloseIntent()) return;
         if (payload.tab != null) void closeTabGuarded(payload.tab);
-      })
-      .then((fn) => {
-        off = fn;
-      });
-    return () => {
-      if (off) safeUnlisten(off);
-    };
+      }),
+    );
+    return () => bag.dispose();
   }, [windowLabel, closeTabGuarded]);
 
   // 어디든 열려 있는 프로젝트 — 시작 탭의 "열림" 배지 + `+` 팝오버 필터.
@@ -221,21 +217,15 @@ export default function TabbedWindow({
     void commands.listOpenProjectIds().then((res) => {
       if (res.status === "ok") setOpenProjects(res.data);
     });
-    let off: (() => void) | undefined;
-    void events.projectWindowsChanged
-      .listen(({ payload }) => setOpenProjects(payload.open))
-      .then((fn) => {
-        off = fn;
-      });
-    return () => {
-      if (off) safeUnlisten(off);
-    };
+    const bag = createUnlistenBag();
+    bag.add(events.projectWindowsChanged.listen(({ payload }) => setOpenProjects(payload.open)));
+    return () => bag.dispose();
   }, []);
 
   // 세션 활동 점 — 백그라운드 탭에서 에이전트가 돌고 있다는 유일한 신호다
   // (탭이 숨어 있으면 화면으로는 알 수 없다).
   useEffect(() => {
-    const offs: Array<() => void> = [];
+    const bag = createUnlistenBag();
     const mark = (projectId: number, on: boolean) =>
       setBusyProjects((prev) => {
         if (prev.has(projectId) === on) return prev;
@@ -244,13 +234,9 @@ export default function TabbedWindow({
         else next.delete(projectId);
         return next;
       });
-    void events.oculpmSessionStarted
-      .listen(({ payload }) => mark(payload.project_id, true))
-      .then((fn) => offs.push(fn));
-    void events.oculpmSessionEnded
-      .listen(({ payload }) => mark(payload.project_id, false))
-      .then((fn) => offs.push(fn));
-    return () => offs.forEach(safeUnlisten);
+    bag.add(events.oculpmSessionStarted.listen(({ payload }) => mark(payload.project_id, true)));
+    bag.add(events.oculpmSessionEnded.listen(({ payload }) => mark(payload.project_id, false)));
+    return () => bag.dispose();
   }, []);
 
   // 창 제목 = 활성 탭 이름 (macOS 창 전환기·Mission Control 구분용).
@@ -314,19 +300,15 @@ export default function TabbedWindow({
    * 열어서, 셸에 타이핑하다 ⌘T 를 눌러도 프로젝트 탭이 튀어나왔다.
    */
   useEffect(() => {
-    let off: (() => void) | undefined;
-    void events.newTabIntent
-      .listen(({ payload }) => {
+    const bag = createUnlistenBag();
+    bag.add(
+      events.newTabIntent.listen(({ payload }) => {
         if (payload.window !== windowLabel) return;
         if (runNewTabIntent()) return;
         newTab();
-      })
-      .then((fn) => {
-        off = fn;
-      });
-    return () => {
-      if (off) safeUnlisten(off);
-    };
+      }),
+    );
+    return () => bag.dispose();
   }, [windowLabel, newTab]);
 
   // 탭 순환 — ⌘번호는 화면 전환이 이미 쓰고 있으므로(⌘1~⌘0) 탭은 브라우저의
@@ -383,28 +365,34 @@ export default function TabbedWindow({
    */
   const zoom = Math.min(1.6, Math.max(0.7, settings.uiScale || 1));
 
+  // 줌은 ref 로 읽는다 — 값은 매 렌더 최신이고, 리스너·콜백을 다시 걸지 않는다.
+  // 아래 두 구독의 deps 에 `zoom` 이 있던 동안엔 **UI 배율을 바꿀 때마다** 구독이
+  // 다시 걸렸는데, 그때가 정확히 "떼기와 붙기가 겹치는" 순간이라 alive 검사가
+  // 없으면 배율을 조절한 횟수만큼 리스너가 쌓였다.
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
   useEffect(() => {
-    const offs: Array<() => void> = [];
-    void events.tabDragOver
-      .listen(({ payload }) => {
+    const bag = createUnlistenBag();
+    bag.add(
+      events.tabDragOver.listen(({ payload }) => {
         if (payload.window !== windowLabel) return;
         // `f64` 는 바인딩에서 nullable 로 나온다 (NaN 표현 때문) — 방어한다.
-        setIncomingX(payload.x == null ? null : payload.x / zoom);
+        setIncomingX(payload.x == null ? null : payload.x / zoomRef.current);
         if (payload.preview) {
           const p = payload.preview;
           setIncoming({ name: p.name, icon: p.icon, color: p.color, isStart: p.is_start });
         }
-      })
-      .then((fn) => offs.push(fn));
-    void events.tabDragLeave
-      .listen(({ payload }) => {
+      }),
+    );
+    bag.add(
+      events.tabDragLeave.listen(({ payload }) => {
         if (payload.window !== windowLabel) return;
         setIncomingX(null);
         setIncoming(null);
-      })
-      .then((fn) => offs.push(fn));
-    return () => offs.forEach(safeUnlisten);
-  }, [windowLabel, zoom]);
+      }),
+    );
+    return () => bag.dispose();
+  }, [windowLabel]);
 
   /**
    * 드래그 틱 — 백엔드가 이 한 번으로 세 가지를 한다: 들고 있는 창을 커서 밑으로
@@ -416,9 +404,6 @@ export default function TabbedWindow({
    * 항상 최신 위치 한 건만 흐른다.
    */
   const hoverBusy = useRef(false);
-  // 콜백은 리스너 재등록을 피하려고 줌을 ref 로 읽는다 (값은 매 렌더 최신).
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
   const askDropTarget = useCallback((tabId: number, stripHeight: number) => {
     if (hoverBusy.current) return;
     hoverBusy.current = true;

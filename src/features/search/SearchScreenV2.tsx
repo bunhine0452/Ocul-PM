@@ -140,37 +140,48 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
       setLoading(true);
       setError(null);
       setLimit(limitArg);
-      if (scopeArg === "symbol") {
-        const res = await commands.searchSymbols(projectId, trimmed, limitArg);
-        if (seq !== seqRef.current) return;
-        if (res.status === "ok") {
-          setResults({ kind: "symbol", items: res.data, query: trimmed });
-          setKindFilter(null);
-          if (res.data.length > 0) pushRecent(trimmed);
+      // 전송 계층 실패·창 teardown 은 봉투가 아니라 **진짜 Error** 로 튄다
+      // (bindings 의 `typedError` 가 그때 재throw 한다). 안 받으면 `setLoading(false)`
+      // 를 못 지나 검색 화면이 스피너로 굳고, 다시 검색할 길도 없다.
+      try {
+        if (scopeArg === "symbol") {
+          const res = await commands.searchSymbols(projectId, trimmed, limitArg);
+          if (seq !== seqRef.current) return;
+          if (res.status === "ok") {
+            setResults({ kind: "symbol", items: res.data, query: trimmed });
+            setKindFilter(null);
+            if (res.data.length > 0) pushRecent(trimmed);
+          } else {
+            setResults(null);
+            setError(tError(res.error));
+          }
         } else {
-          setResults(null);
-          setError(tError(res.error));
+          const res =
+            scopeArg === "text"
+              ? await commands.searchText(projectId, trimmed, limitArg)
+              : await commands.searchChunks(projectId, trimmed, limitArg, includeDocsArg);
+          if (seq !== seqRef.current) return;
+          if (res.status === "ok") {
+            setResults({
+              kind: "chunk",
+              mode: scopeArg === "text" ? "text" : "semantic",
+              items: res.data,
+              query: trimmed,
+            });
+            if (res.data.length > 0) pushRecent(trimmed);
+          } else {
+            setResults(null);
+            setError(tError(res.error));
+          }
         }
-      } else {
-        const res =
-          scopeArg === "text"
-            ? await commands.searchText(projectId, trimmed, limitArg)
-            : await commands.searchChunks(projectId, trimmed, limitArg, includeDocsArg);
-        if (seq !== seqRef.current) return;
-        if (res.status === "ok") {
-          setResults({
-            kind: "chunk",
-            mode: scopeArg === "text" ? "text" : "semantic",
-            items: res.data,
-            query: trimmed,
-          });
-          if (res.data.length > 0) pushRecent(trimmed);
-        } else {
+      } catch (e) {
+        if (seq === seqRef.current) {
           setResults(null);
-          setError(tError(res.error));
+          setError(String(e));
         }
+      } finally {
+        if (seq === seqRef.current) setLoading(false);
       }
-      if (seq === seqRef.current) setLoading(false);
     },
     [projectId, pushRecent],
   );
