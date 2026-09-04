@@ -131,8 +131,8 @@ fn m2_branch_switch_watcher_volume() {
     println!("  고유 경로 수                 : {}", paths.len());
     println!("  체크아웃~정적화              : {drain_ms} ms");
     println!(
-        "  → 한 배치 최대 이벤트        : {}",
-        if batches == 0 { 0 } else { events / batches }
+        "  → 배치당 평균 이벤트         : {}",
+        events.checked_div(batches).unwrap_or(0)
     );
 
     // M2b — classify 의 read+blake3 를 같은 경로 집합에 그대로 재현한다

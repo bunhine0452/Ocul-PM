@@ -72,8 +72,27 @@ impl PtyState {
         }
         let sockets = socket_candidates_for(app)?;
         let emitter = app.clone();
-        // 호스트 이벤트 → tauri 이벤트 재방출. app.emit 은 전역 브로드캐스트라
-        // 예전 in-process 경로와 프런트가 보는 모양이 완전히 같다.
+        // 호스트 이벤트 → tauri 이벤트 재방출. 예전 in-process 경로와 프런트가
+        // 보는 모양이 완전히 같다.
+        //
+        // **여기를 `emit_to` 로 좁히지 마라** (2026-09-04, `{#pty-broadcast-scope}`
+        // 조사 결과). "app.emit 이라 열린 모든 웹뷰가 모든 세션의 청크를 받아
+        // 역직렬화한 뒤 버린다"는 것이 그 항목의 전제였는데, tauri 2.11.2 의
+        // 소스를 읽어 보면 사실이 아니다:
+        //
+        //  - JS 리스너 표는 `HashMap<웹뷰 라벨, HashMap<이벤트 이름, …>>` 이고
+        //    (`event/listener.rs:63`), `emit_js_filter` 는 웹뷰마다
+        //    `js_listeners.get(라벨).and_then(|s| s.get(이름))` 이 비면 **그
+        //    웹뷰를 통째로 건너뛴다** (같은 파일 :283). 이벤트 이름이
+        //    `pty-data-{sid}` 라 세션별이므로, 그 세션을 안 그리는 창에는
+        //    스크립트조차 안 간다. 브로드캐스트되는 것은 이름뿐이고 청크가 아니다.
+        //  - 게다가 `emit_to` 로 바꿔도 **전달이 줄지 않는다**: 프런트의
+        //    `listen()` 은 target 을 안 주면 `{kind:'Any'}` 로 등록하고,
+        //    `match_any_or_filter` 는 target 이 `Any` 인 핸들러를 필터와 무관하게
+        //    항상 통과시킨다 (`event/listener.rs:306`).
+        //  - 그리고 한 세션을 **두 웹뷰가 동시에** 그릴 수 있다 (프로젝트 창의
+        //    도크·Today 터미널과 분리된 `term-{project}` 창). 라벨 하나로 좁히면
+        //    나머지 한쪽이 조용히 청크를 잃는다 — 성능보다 훨씬 나쁜 대가다.
         let on_event = move |ev: Event| match ev {
             Event::Data { sid, seq, text } => {
                 let _ = emitter.emit(&format!("pty-data-{sid}"), PtyChunk { seq, text });
