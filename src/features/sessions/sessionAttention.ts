@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { oculpmApi } from "@/api/oculpm";
+import { safeUnlisten, type MaybeAsyncUnlisten } from "@/lib/unlisten";
 
 /**
  * 사이드바 「세션」 항목의 **승인 대기** 배지 (docs/a2a/00-master-plan.md D8).
@@ -37,18 +38,20 @@ export function useSessionAttention(projectId: number | null): number {
         });
     };
     recount();
-    let off: (() => void) | undefined;
+    let off: MaybeAsyncUnlisten | null = null;
     void oculpmApi
       .onA2aChanged((payload) => {
         if (payload.project_id === projectId) recount();
       })
       .then((stop) => {
         if (alive) off = stop;
-        else stop();
+        // 붙기 전에 떠났으면 그 자리에서 뗀다.
+        else safeUnlisten(stop);
       });
     return () => {
       alive = false;
-      off?.();
+      // 해제는 실제로 async 라 리로드 시점에 reject 할 수 있다 (`lib/unlisten.ts`).
+      safeUnlisten(off);
     };
   }, [projectId]);
 

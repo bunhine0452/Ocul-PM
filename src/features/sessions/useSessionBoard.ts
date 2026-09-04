@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { oculpmApi } from "@/api/oculpm";
+import { safeUnlisten, type MaybeAsyncUnlisten } from "@/lib/unlisten";
 import { toAppError } from "@/api/invoke";
 import { tError } from "@/i18n/errors";
 import { useMinuteTick } from "@/hooks/useSecondTick";
@@ -8,12 +9,31 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import type { A2aOverview } from "@/lib/bindings";
 import { buildBoard, withMembers, type BoardModel } from "./sessionModel";
 
-/** 침범 경고 한 건 — 이벤트로만 오고 원장에는 남지 않는다. */
+/**
+ * 침범 경고 한 건 — 이벤트로만 오고 원장에는 남지 않는다.
+ *
+ * 그래서 **언제 왔는지를 우리가 적는다.** 원장에 없다는 것은 해소됐다는 신호도
+ * 원장이 주지 않는다는 뜻이라, 시각이 없으면 이 줄은 화면이 살아 있는 내내
+ * 남는다 (→ `TRESPASS_TTL_MS`).
+ */
 export interface Trespass {
   actor: string;
   path: string;
   holder: string;
+  /** 이벤트가 도착한 시각 (`Date.now()`). */
+  at: number;
 }
+
+/**
+ * 침범 경고가 「급한 것」 자리에 머무는 시간.
+ *
+ * 이 화면은 이번에 **목적지**가 되면서 마운트가 몇 시간씩 유지된다. 그동안
+ * 임대가 만료되거나 주인이 놓아 충돌이 끝나도, 지우는 길이 없으면 사용자는
+ * 이미 끝난 싸움을 계속 본다. 침범은 상태가 아니라 **사건**이므로 "최근 것"
+ * 으로만 보여주는 것이 정직하다 — 해소를 알려 주는 신호가 없기 때문에
+ * 해소를 추측하는 대신 시간을 재는 쪽을 택했다.
+ */
+const TRESPASS_TTL_MS = 10 * 60_000;
 
 export interface SessionBoard {
   data: A2aOverview | null;
@@ -59,14 +79,22 @@ export function useSessionBoard(projectId: number): SessionBoard {
 
   useEffect(() => {
     reload();
-    let offChanged: (() => void) | undefined;
-    let offTrespass: (() => void) | undefined;
+    // 구독이 **붙기 전에** 언마운트될 수 있다 (화면을 스쳐 지나가거나, dev
+    // StrictMode 의 mount→cleanup→mount). 그때 `alive` 가 없으면 cleanup 이
+    // 빈 손으로 돌고, 뒤늦게 resolve 한 리스너가 영영 남아 원장이 바뀔 때마다
+    // 죽은 훅의 `reload()` 를 돌린다 — 드나든 횟수만큼 IPC 가 겹친다.
+    // 같은 경쟁을 `sessionAttention.ts` 와 `JournalMissingCard.tsx` 가 이미
+    // 이렇게 막고 있다.
+    let alive = true;
+    let offChanged: MaybeAsyncUnlisten | null = null;
+    let offTrespass: MaybeAsyncUnlisten | null = null;
     void oculpmApi
       .onA2aChanged((payload) => {
         if (payload.project_id === projectId) reload();
       })
       .then((off) => {
-        offChanged = off;
+        if (alive) offChanged = off;
+        else safeUnlisten(off);
       });
     void oculpmApi
       .onA2aTrespass(({ project_id, actor, path, holder }) => {
@@ -74,15 +102,19 @@ export function useSessionBoard(projectId: number): SessionBoard {
         setTrespasses((prev) =>
           prev.some((p) => p.path === path && p.actor === actor)
             ? prev
-            : [...prev, { actor, path, holder }],
+            : [...prev, { actor, path, holder, at: Date.now() }],
         );
       })
       .then((off) => {
-        offTrespass = off;
+        if (alive) offTrespass = off;
+        else safeUnlisten(off);
       });
     return () => {
-      offChanged?.();
-      offTrespass?.();
+      alive = false;
+      // 해제 함수는 실제로 async 라 리로드 시점에 reject 할 수 있다 — 그걸
+      // 삼키는 것이 `safeUnlisten` 의 일이다 (`lib/unlisten.ts` 주석).
+      safeUnlisten(offChanged);
+      safeUnlisten(offTrespass);
     };
   }, [projectId, reload]);
 
@@ -186,11 +218,18 @@ export function useSessionBoard(projectId: number): SessionBoard {
     [setState],
   );
 
+  // 분 시계가 이미 돌고 있으므로(상대 시각 표시용) 낡은 경고는 그 리듬에
+  // 얹어 저절로 빠진다 — 지우는 타이머를 따로 두지 않는다.
+  const freshTrespasses = useMemo(
+    () => trespasses.filter((hit) => now - hit.at < TRESPASS_TTL_MS),
+    [trespasses, now],
+  );
+
   return {
     data,
     board,
     error,
-    trespasses,
+    trespasses: freshTrespasses,
     now,
     reload,
     bind,

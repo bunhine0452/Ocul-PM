@@ -162,6 +162,19 @@ function baseContent(base, relPath) {
   }
 }
 
+/**
+ * `git ls-files --others -z` 출력을 `parseChangedFiles` 와 같은 모양으로 만든다.
+ *
+ * 아직 추적되지 않는 파일은 기준선에 없으므로 전부 **신규**(`A`)다 — 그래서
+ * 800줄 상한을 그대로 맞는다.
+ */
+export function parseUntracked(output) {
+  return output
+    .split("\0")
+    .filter(Boolean)
+    .map((path) => ({ status: "A", path }));
+}
+
 function main() {
   let base;
   try {
@@ -174,7 +187,16 @@ function main() {
     process.exit(2);
   }
 
-  const changed = parseChangedFiles(runGit(["diff", "--name-status", "-z", base]));
+  // `git diff` 는 **추적 파일만** 본다. 아직 `git add` 하지 않은 새 파일은
+  // 여기 안 잡히는데, 800줄을 처음부터 넘겨 태어나는 파일이 바로 그런 파일이다
+  // (2026-09-04: 3,344줄짜리 `mcp/tools.rs` 를 가르며 나온 1,697줄 테스트 파일이
+  // 로컬에서 "clean" 이었다가 커밋 직후 CI 를 붉혔다). 커밋하기 **전에** 말해
+  // 주지 못하면 이 게이트는 늦게 오는 잔소리가 된다.
+  const untracked = parseUntracked(runGit(["ls-files", "--others", "--exclude-standard", "-z"]));
+  const changed = [
+    ...parseChangedFiles(runGit(["diff", "--name-status", "-z", base])),
+    ...untracked,
+  ];
   const violations = [];
 
   for (const change of changed) {

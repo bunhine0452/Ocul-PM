@@ -70,8 +70,14 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# ---------- Claude Code workspace ----------
+# ---------- 에이전트 도구 작업공간 ----------
 .claude/
+# Antigravity 규칙 파일 — ocul-pm 이 `.oculpm/agents/_template.md` 에서 **자동
+# 생성**한다(파일 첫 줄에 "직접 편집하지 마세요"가 박혀 있다). 규칙의 SSOT 는
+# 추적되는 `AGENTS.md` 이고 이건 그 거울이라, 커밋하면 템플릿 한 번 고칠 때마다
+# 같은 문장이 두 곳에서 흔들린다. `.claude/` 와 같은 이유로 무시한다 —
+# 프로젝트를 열면 앱이 다시 만든다.
+.agent/
 # PR-CI2: 앱이 써 주는 MCP 등록 파일. 서버 바이너리 경로가 이 머신 전용이라
 # (dev 는 src-tauri/target/, 배포는 .app 내부) 공유하면 팀원에게 깨진 설정이
 # 된다 — 각자 설정 → Agents → MCP 서버 "등록" 으로 생성. PR-CI8(플러그인

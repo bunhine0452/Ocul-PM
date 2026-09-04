@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 // @ts-expect-error — 빌드 대상이 아닌 zero-dep 검사 스크립트 (.mjs, 타입 없음).
-import { allowedLineCount, countLines, evaluateFileSize, isGoverned, parseChangedFiles, resolveBaseRef, MAX_LINES } from "../../scripts/check-file-sizes.mjs";
+import { allowedLineCount, countLines, evaluateFileSize, isGoverned, parseChangedFiles, parseUntracked, resolveBaseRef, MAX_LINES } from "../../scripts/check-file-sizes.mjs";
 
 // 파일 크기 래칫의 계약 (플랜 `evidence-based-rules` #ratchet).
 //
@@ -38,6 +38,30 @@ describe("evaluateFileSize — 통과와 실패", () => {
   it("한계가 기본값으로 걸린다", () => {
     expect(MAX_LINES).toBe(800);
     expect(evaluateFileSize({ baseLines: null, candidateLines: MAX_LINES }).violates).toBe(false);
+  });
+});
+
+// 미추적 파일이 게이트에 안 보이던 자리 (2026-09-04). `git diff` 는 추적 파일만
+// 보므로, 800줄을 처음부터 넘겨 태어나는 새 파일이 커밋 전까지 조용했다 —
+// 1,697줄짜리 테스트 파일이 로컬에서 clean 이었다가 커밋 직후 CI 를 붉혔다.
+describe("parseUntracked — 아직 추적되지 않는 파일", () => {
+  it("전부 신규(A)로 싣는다 — 기준선이 없으니 800줄 상한을 그대로 맞는다", () => {
+    expect(parseUntracked("src/a.ts\0src/b.tsx\0")).toEqual([
+      { status: "A", path: "src/a.ts" },
+      { status: "A", path: "src/b.tsx" },
+    ]);
+  });
+
+  it("빈 출력은 빈 목록 — 마지막 NUL 뒤의 빈 조각을 세지 않는다", () => {
+    expect(parseUntracked("")).toEqual([]);
+    expect(parseUntracked("\0")).toEqual([]);
+  });
+
+  it("신규 판정이라 한계를 넘으면 막힌다", () => {
+    const [only] = parseUntracked("src/huge.ts\0");
+    expect(only.status).toBe("A");
+    // 신규 = baseLines 없음 → 상한은 MAX_LINES.
+    expect(evaluateFileSize({ baseLines: null, candidateLines: 901 }).violates).toBe(true);
   });
 });
 
