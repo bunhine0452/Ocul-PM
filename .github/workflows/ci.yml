@@ -155,6 +155,13 @@ jobs:
       # 설정은 저장소 루트의 `deny.toml` 이지만 매니페스트는 `src-tauri/` 에 있다.
       # cargo-deny 는 설정을 **매니페스트 옆**에서 찾으므로 명시적으로 넘긴다.
       #
+      # ⚠ 경로는 **상대**여야 한다. 이 액션은 도커 컨테이너에서 돌고 워크스페이스를
+      # `/github/workspace` 에 마운트하는데, `${{ github.workspace }}` 는 러너 쪽
+      # 경로(`/home/runner/work/...`)라 컨테이너 안에 없다. 절대경로를 넘기면
+      # 설정이 조용히 안 실리고 **기본값으로 돈다** — 첫 시도에서 그래서
+      # `error[rejected]` 790건(라이선스 전부 거절)·`error[unmaintained]` 18건이
+      # 났다. 워크디렉터리가 `/github/workspace` 라 상대경로가 맞게 풀린다.
+      #
       # 넷 다 차단이다. 라이선스가 한동안 비차단이었던 이유는 허용 목록이 아니라
       # 루트 크레이트였다 — `src-tauri/Cargo.toml` 에 `license` 가 없어 cargo-deny
       # 가 `ocul-pm` 자신을 "unlicensed" 로 봤다(루트 LICENSE 는 다른 디렉터리라
@@ -169,4 +176,4 @@ jobs:
         with:
           manifest-path: src-tauri/Cargo.toml
           command: check advisories bans sources licenses
-          arguments: --config ${{ github.workspace }}/deny.toml
+          arguments: --config deny.toml
