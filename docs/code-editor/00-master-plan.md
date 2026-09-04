@@ -53,7 +53,8 @@ treeUtils.ts       트리 필터·조상 경로 (순수, 테스트)
 code.css           스타일 (ui_v2 토큰만)
 ```
 
-- **13번째 화면.** `navRegistry` 맨 끝(⌘번호 불변), `UiV2View` union +
+- **11번째 화면.** (설계 당시 "13번째" 라고 적었으나 `navRegistry.ts` 순서로는
+  11번째다 — ⌘번호가 붙는 앞 10개 바로 다음.) `navRegistry` 맨 끝(⌘번호 불변), `UiV2View` union +
   `KNOWN_VIEWS` + ShellV2 라우터 lazy 청크. 영속 상태는 `codeActivePath` 하나
   (additive 필드 — 스키마 bump 불필요).
 - **편집 버퍼는 모듈 스코프 캐시** (`codeBuffers.ts`, 프로젝트+경로 키, 상한
@@ -85,6 +86,19 @@ code.css           스타일 (ui_v2 토큰만)
 - LSP(자동완성·정의 이동) — 필요 순간 = 외부 에디터 점프 순간. YAGNI.
 - 신규 파일 생성·삭제·이름변경, 멀티탭, diff 인라인 편집(`@codemirror/merge` 후속).
 - `.gitignore`/hidden 파일 노출 — v1 은 인덱서와 같은 시야.
+
+> **뒤집힘 (2026-09-04 확인)** — 이 절의 항목이 **전부 출시됐다**. v1 스코프의
+> 기록으로만 읽을 것.
+> - **LSP** — `src-tauri/src/lsp/` · v2.15.0 (자동완성·진단·호버·정의·이름 바꾸기·
+>   코드 액션). 설계는 [`../lsp/00-master-plan.md`](../lsp/00-master-plan.md).
+>   그 문서가 다시 "하지 않는 것" 으로 잡았던 **디버거(DAP)** 도 뒤집혀
+>   [`../dap/00-master-plan.md`](../dap/00-master-plan.md) 로 출시됐다.
+> - **파일 생성·삭제·이름변경** — `code_create` / `code_mkdir` / `code_rename` /
+>   `code_delete` (`commands/code.rs`) · v2.16.0. 드래그 이동은 v2.34.0.
+> - **멀티탭·좌우 분할** — v2.16.0 (`code_screen_tabs.test.tsx`), 미리보기 탭은 v2.34.0.
+> - **diff 인라인 비교** — v2.16.0.
+>
+> `.gitignore`/hidden 파일도 지금은 트리에 보인다 (`.oculpm/` · `.github/` · `.gitignore`).
 
 ## 5. PR 단위
 

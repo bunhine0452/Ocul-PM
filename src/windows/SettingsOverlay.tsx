@@ -3,7 +3,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { OculSpinner } from "@/components/OculSpinner";
 import { useT } from "@/i18n";
 
-// 설정 패널은 탭 10개짜리 큰 청크다 — ⌘, 를 누르기 전엔 필요 없다. 정적 import
+// 설정 패널은 탭 12개짜리 큰 청크다 — ⌘, 를 누르기 전엔 필요 없다. 정적 import
 // 는 이 오버레이를 드는 모든 창(런처·프로젝트)의 진입 청크에 패널을 얹고
 // 있었다 (완성도 감사 2026-08-30 #lazy-restore). ShellV2 와 같은 lazy 로.
 const SettingsPanel = lazy(() =>
@@ -53,7 +53,7 @@ export function SettingsOverlay({ onClose }: { onClose: () => void }) {
             붙어 있었다. 헤더의 px-6 과 같은 좌우 여백을 준다. */}
         {/* 설정 탭 하나가 던져도 창 전체가 죽지 않게 — 시작 탭에서 ocul-pm
             탭이 예외를 올려 창이 통째로 빈 화면이 된 적이 있다 (2026-08-16).
-            원인은 고쳤지만, 이 패널은 탭이 8개라 같은 실패의 표면이 넓다. */}
+            원인은 고쳤지만, 이 패널은 탭이 12개라 같은 실패의 표면이 넓다. */}
         <div className="overflow-y-auto scrollbar-thin px-6 pt-5">
           <ErrorBoundary label="settings">
             <Suspense fallback={<OculSpinner size={22} label={t("common.loading")} />}>
