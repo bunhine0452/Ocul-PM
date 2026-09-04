@@ -58,7 +58,18 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.40.0 — Four agents finally look like four
+## 🚀 v2.41.0 — Errors first
+
+- **⌘W killed a running agent without asking.** The odd part: **the same ⌘W did ask one layer up** (closing a tab) — the check already existed and simply wasn't called at the pane layer. Closing a pane now names what is running and asks.
+- **"Check failed" and "all clear" looked identical.** The honesty audit and the "session ended without a journal" card vanished silently when a query failed. The **Diff screen** disguised four failed git lookups as "no changes" — it now separates *don't know yet · couldn't ask · genuinely none*.
+- **One screen falling over no longer takes the app with it.** Boundaries existed only around Settings and the whole tab, so the sidebar disappeared too. A blocked web storage no longer whites out **every** screen.
+- **Korean text no longer breaks mid-word.** The typographic rule was never applied anywhere in the app, which is why four different local workarounds for the same bug had accumulated.
+- **Fixed markers that were invisible in dark and high-contrast themes** — planner checkmarks, `A`/`M`/`D` file badges, settings toggle knobs (contrast 1.98:1, and 1.43:1 in high contrast). The one line of guidance on an empty screen was dissolving into the background too.
+- **Asking the same conversation twice left the first answer with nowhere to go.** One conversation now takes one turn at a time, and a turn **reports that it ended however it ends** — closing a window or interrupting used to leave the screen thinking forever.
+- **Search no longer stalls on one keystroke across 537 journal entries.** A single character released both the 14-day window and day folding at once. It now loads in pages and says "M of N".
+- **Three new gates** — a code linter (there was none, yet 33 comments disabled it), a pinned Rust compiler version, and security/license checks across 817 dependencies. **Four real vulnerabilities surfaced on the first run**; the three we could fix are closed.
+
+## v2.40.0 — Four agents finally look like four
 
 - **Splitting the terminal four ways still showed the app a single session.** Each hook event carries its own conversation id, and we were dropping it at the door. A work session now **records every conversation that took part** (the tray says "4 conversations"), and **each journal entry names the conversation that wrote it**.
 - **Give every terminal its own color** — right-click the card. The left stripe and the **terminal border** both take it, and the choice survives a theme change.
