@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: dev-report-followup
 title: "개발 보고서 후속 — 정리·부채·기능"
-status: done
+status: archived
 created: 2026-06-22
-updated: 2026-06-24
+updated: 2026-09-04
 owner: claude-code
 ---
 

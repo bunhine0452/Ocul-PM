@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: polish-round
 title: "완성도 라운드 — 결함 · UX 프리미티브 · 여정 · 성능 · 설계 · 토큰"
-status: done
+status: archived
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-09-04
 owner: claude-code
 ---
 

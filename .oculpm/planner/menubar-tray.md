@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: menubar-tray
 title: "메뉴바 상주 라운드 — RunCat×Docker 트레이 (v2.3.0)"
-status: done
+status: archived
 created: 2026-07-20
-updated: 2026-07-30
+updated: 2026-09-04
 owner: claude-code
 ---
 

@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: ide-completion
 title: "온전한 IDE — VS Code 를 끊기까지"
-status: done
+status: archived
 created: 2026-08-23
-updated: 2026-08-24
+updated: 2026-09-04
 owner: claude-code
 ---
 

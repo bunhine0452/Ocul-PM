@@ -27,7 +27,7 @@ owner: claude-code
 - [x] WorkspaceState 를 전용 모듈로 분리 — 파일 크기 래칫이 옳았다 {#workspacestate}
 - [x] 마스터플랜에 D8 — D4 를 뒤집는 결정 {#d8-d4}
 - [x] typecheck · test · lint · build 게이트 {#typecheck-test-lint-build}
-- [ ] 릴리스 표면(README ko/en · landing)의 「Today 의 함께 일하는 중」 문구 — 다음 릴리스 노트에서 옮긴다 (과거 버전 절은 역사라 고치지 않는다) {#readme-koen-landing-today}
+- [x] 릴리스 표면(README ko/en · landing)의 「Today 의 함께 일하는 중」 문구 — 다음 릴리스 노트에서 옮긴다 (과거 버전 절은 역사라 고치지 않는다) {#readme-koen-landing-today}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -46,4 +46,5 @@ owner: claude-code
 | 2026-09-04T08:09:24+09:00 | #workspacestate | claude-code | ☐→x |  |  |
 | 2026-09-04T08:09:29+09:00 | #d8-d4 | claude-code | ☐→x |  |  |
 | 2026-09-04T08:09:35+09:00 | #typecheck-test-lint-build | claude-code | ☐→x |  |  |
+| 2026-09-04T12:58:17+09:00 | #readme-koen-landing-today | claude-code | ☐→x |  | 랜딩 ko/en 6곳(JSON-LD FAQ·벤토·details)을 「세션」 화면으로. README:96 은 v2.37.0 절이라 역사로 둠 |
 <!-- oculpm:plan-log end -->

@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: skills-star-round
 title: "스킬 관리 + GitHub star 정비 라운드"
-status: done
+status: archived
 created: 2026-07-16
-updated: 2026-07-30
+updated: 2026-09-04
 owner: claude-code
 ---
 

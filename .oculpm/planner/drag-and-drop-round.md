@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: drag-and-drop-round
 title: "끌어서 옮기기 라운드 — 탭을 창 사이로 · 세션을 페인으로"
-status: done
+status: archived
 created: 2026-08-28
-updated: 2026-08-30
+updated: 2026-09-04
 owner: claude-code
 ---
 

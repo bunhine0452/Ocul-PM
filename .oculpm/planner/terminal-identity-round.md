@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: terminal-identity-round
 title: "터미널 정체성 라운드 — Warp/cmux 를 참조한 3단 개편 (시각 → 관제탑 → 블록)"
-status: done
+status: archived
 created: 2026-08-28
-updated: 2026-08-29
+updated: 2026-09-04
 owner: claude-code
 ---
 

@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: tab-reattach-regression
 title: "떼어낸 창이 되돌아온다 — 마지막 탭을 창째로 든다"
-status: done
+status: archived
 created: 2026-08-31
-updated: 2026-08-31
+updated: 2026-09-04
 owner: claude-code
 ---
 

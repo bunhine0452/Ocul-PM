@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: skill-catalog-round
 title: "스킬 카탈로그 라운드 — 3종 강화(ECC·ponytail 이식) + 스택 감지 추천(쇼핑)"
-status: done
+status: archived
 created: 2026-07-31
-updated: 2026-08-01
+updated: 2026-09-04
 owner: claude-code
 ---
 
