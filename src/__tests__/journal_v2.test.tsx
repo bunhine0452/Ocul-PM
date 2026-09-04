@@ -50,6 +50,8 @@ const fixtures: {
   byWorkday: Record<string, ReturnType<typeof summary>[]>;
   /** 전체 기간 질의(`workday === undefined`)의 결과 — 백엔드가 본문까지 훑는다. */
   allPeriod: ReturnType<typeof summary>[];
+  /** 상한을 걸기 전 전체 건수. `null` 이면 넘겨준 목록 길이 그대로 (상한 없음). */
+  allPeriodTotal: number | null;
   /** EntryDetailView 의 변경 파일 목록 (frontmatter.files_touched). */
   filesTouched: typeof DEFAULT_FILES;
   /** 기록된 per-file 패치 — 이 목록에 있는 경로만 열 수 있다. */
@@ -57,6 +59,7 @@ const fixtures: {
 } = {
   byWorkday: {},
   allPeriod: [],
+  allPeriodTotal: null,
   filesTouched: DEFAULT_FILES,
   entryDiffs: DEFAULT_DIFFS,
 };
@@ -78,6 +81,18 @@ vi.mock("@/api/oculpm", () => ({
   oculpmApi: {
     listJournalEntries: (_pid: number, workday?: string) =>
       Promise.resolve(workday ? (fixtures.byWorkday[workday] ?? []) : fixtures.allPeriod),
+    // `{#journal-timeline-limit}` — 타임라인의 전체 기간 경로는 상한이 붙은
+    // 이쪽으로 간다. limit 을 실제로 잘라 줘야 「더 보기」가 자라는지 볼 수 있다.
+    listJournalEntriesPage: (
+      _pid: number,
+      _workday: string | undefined,
+      _filters: unknown,
+      limit: number,
+    ) =>
+      Promise.resolve({
+        entries: fixtures.allPeriod.slice(0, limit),
+        total: fixtures.allPeriodTotal ?? fixtures.allPeriod.length,
+      }),
     // EntryDetailView's narrative pane loads body_markdown + files_touched.
     getJournalEntry: (_pid: number, relativePath: string) =>
       Promise.resolve({
@@ -177,6 +192,7 @@ beforeEach(() => {
   localStorage.clear();
   fixtures.byWorkday = {};
   fixtures.allPeriod = [];
+  fixtures.allPeriodTotal = null;
   for (const k of Object.keys(eventBus)) delete eventBus[k];
   fixtures.filesTouched = DEFAULT_FILES;
   fixtures.entryDiffs = DEFAULT_DIFFS;
@@ -471,6 +487,49 @@ describe("작업 일지 — 목록 감사 회귀", () => {
     );
     fireEvent.click(getByRole("radio", { name: /전체/ }));
     expect(await findByText("손으로 쓴 것")).toBeInTheDocument();
+  });
+
+  // ── {#journal-timeline-limit} ─────────────────────────────────────────
+  //
+  // 검색창 한 글자 또는 범위 칩 한 번이면 14일 창과 날짜 접기가 **동시에**
+  // 풀리고, 그 뒤로 전 이력의 카드가 통째로 마운트됐다. 프로젝트에 가상화
+  // 라이브러리가 없으므로 상한을 두 겹으로 건다 — 백엔드가 넘기는 양, 화면이
+  // 그리는 개수. 그리고 상한은 **보여야** 상한이다.
+  it("전체 기간 목록은 상한에 걸리고, 몇 건 중 몇 건인지 말하고, 더 보기로 자란다", async () => {
+    fixtures.byWorkday["20260531"] = [];
+    fixtures.allPeriod = Array.from({ length: 250 }, (_, i) =>
+      summary({
+        relative_path: `old-${i}`,
+        workday: "20260401",
+        title: `예전 일지 ${i}`,
+        created_at: `2026-04-01T${String(23 - Math.floor(i / 60)).padStart(2, "0")}:00:00+09:00`,
+      }),
+    );
+    fixtures.allPeriodTotal = 250;
+
+    const { findByText, getAllByText, getByText, queryByText } = renderJournal();
+    await findByText(/아직 일지가 없어요/);
+    fireEvent.click(getByText(/이전 기록 더 보기/)); // → 전체 기간 질의
+
+    expect(await findByText("전체 250건 중 200건 표시")).toBeInTheDocument();
+    // 손잡이는 목록 위·아래 둘 다 — 끝까지 읽고 내려온 사람이 되돌아가지 않도록.
+    expect(getAllByText("50건 더 불러오기")).toHaveLength(2);
+    fireEvent.click(getAllByText("50건 더 불러오기")[0]);
+    await waitFor(() => expect(queryByText(/전체 250건 중/)).toBeNull());
+  });
+
+  it("하루에 쌓인 일지는 25건씩 그리고 나머지는 「더 보기」 뒤에 둔다", async () => {
+    fixtures.byWorkday["20260531"] = Array.from({ length: 40 }, (_, i) =>
+      summary({ relative_path: `e-${i}`, title: `항목 ${i}` }),
+    );
+    const { findByText, getByText, queryByText } = renderJournal();
+    await findByText("항목 0");
+    expect(getByText("항목 24")).toBeInTheDocument();
+    expect(queryByText("항목 25")).toBeNull();
+
+    fireEvent.click(getByText("이 날짜 15건 더 보기"));
+    expect(await findByText("항목 25")).toBeInTheDocument();
+    expect(queryByText(/이 날짜 .*더 보기/)).toBeNull();
   });
 
   it("열어 둔 일지가 디스크에서 바뀌면 상세 화면도 따라 바뀐다", async () => {

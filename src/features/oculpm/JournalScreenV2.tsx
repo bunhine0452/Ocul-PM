@@ -5,7 +5,7 @@ import { SearchIcon, X, Plus, ChevronDown, ChevronRight } from "@/components/Ico
 import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
 import type { EntryFilters, EntryType, JournalEntrySummary } from "@/lib/bindings";
 import { oculpmApi } from "@/api/oculpm";
-import { useJournalDays } from "./useJournalDays";
+import { JOURNAL_PAGE_SIZE, useJournalDays } from "./useJournalDays";
 import { JournalCardV2 } from "./JournalCardV2";
 import { EntryDetailView } from "./EntryDetailView";
 import { ManualEntryModalV2 } from "./ManualEntryModalV2";
@@ -35,6 +35,15 @@ const FILTER_TO_TYPE: Record<Exclude<JournalFilter, "all">, EntryType> = {
   error: "error",
   chore: "chore",
 };
+
+/**
+ * 한 날짜에 한 번에 그리는 카드 수 (`{#journal-timeline-limit}`).
+ *
+ * 프로젝트에 가상화 라이브러리가 없다 (`react-window`·`@tanstack/react-virtual`·
+ * `react-virtuoso` 전부 부재 — 이것 하나 때문에 들이지 않는다). 백엔드 상한이
+ * 넘어오는 **양**을 막고, 이 상한이 그린 **개수**를 막는다.
+ */
+const DAY_PAGE_SIZE = 25;
 
 const CHIPS: { id: JournalFilter; labelKey: I18nKey }[] = [
   { id: "all", labelKey: "journal.filter.all" },
@@ -142,10 +151,23 @@ export function JournalScreenV2({
     };
   }, [allPeriod, filter, verifiedOnly, unfinishedOnly, debouncedSearch]);
 
-  const { days, loading, error, refresh } = useJournalDays(projectId, todayKey, oculpmReady, {
+  const {
+    days,
+    loading,
+    error,
+    refresh,
+    total: matchTotal,
+    loaded: pageLoaded,
+    canLoadMore,
+    loadMore,
+  } = useJournalDays(projectId, todayKey, oculpmReady, {
     filters: backendFilters,
     allPeriod,
   });
+  // 상한에 걸려 **못 받은 것이 남아 있는가.** 아래 툴바의 `total` 은 다른
+  // 숫자다 (지금 화면에 보이는 건수) — 헷갈리지 않게 이름을 갈라 둔다.
+  const truncated = matchTotal != null && pageLoaded != null && pageLoaded < matchTotal;
+  const remaining = Math.min(JOURNAL_PAGE_SIZE, (matchTotal ?? 0) - (pageLoaded ?? 0));
 
   // F5 — cold-start backfill: synthesise journal entries from git history so a
   // repo with commits but no journal isn't a blank wall on day 1.
@@ -179,6 +201,12 @@ export function JournalScreenV2({
   // one-line summary; a side date-rail jumps/scrubs. dayOpen holds explicit user
   // toggles; the default keeps the 2 most-recent days open.
   const [dayOpen, setDayOpen] = useState<Record<string, boolean>>({});
+  /**
+   * 날짜마다 **그린 카드 수**. 접기가 유일한 방어였는데 검색 중에는 모든 날이
+   * 펼쳐지므로(아래 `searchActive`), 하루에 수십 건이 쌓인 날은 그대로 다
+   * 마운트됐다. 프로젝트에 가상화 라이브러리가 없으니 상한을 여기서 건다.
+   */
+  const [dayShown, setDayShown] = useState<Record<string, number>>({});
   const [activeWorkday, setActiveWorkday] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dayRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -499,6 +527,35 @@ export function JournalScreenV2({
               </div>
             ) : null}
 
+            {/* 상한을 넘겼다는 사실은 **목록 위**에 적는다. 바닥에만 두면
+                끝까지 스크롤한 사람만 알게 되는데, 이 상한은 "전부 보고
+                있다"는 착각을 만드는 종류라 먼저 말해야 한다. */}
+            {truncated ? (
+              <div
+                className="empty-hint"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  justifyContent: "space-between",
+                  padding: "8px 12px",
+                  marginBottom: 10,
+                }}
+              >
+                <span>
+                  {t("journal.limited", {
+                    loaded: pageLoaded ?? 0,
+                    total: matchTotal ?? 0,
+                  })}
+                </span>
+                {canLoadMore ? (
+                  <button type="button" className="btn sm" onClick={loadMore}>
+                    {t("journal.loadMorePage", { n: remaining })}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
             {loading && days == null ? (
               <SkeletonList rows={4} height={76} />
             ) : !oculpmReady ? (
@@ -510,6 +567,9 @@ export function JournalScreenV2({
                 // 통째로 덮어써서, 필터가 걸린 동안 머리글 버튼이 상태만
                 // 바꾸고 화면은 그대로인 **죽은 버튼**이었다.
                 const open = dayOpen[day.workday] ?? (searchActive ? true : idx < 2);
+                const shown = dayShown[day.workday] ?? DAY_PAGE_SIZE;
+                const visible = day.entries.slice(0, shown);
+                const hidden = day.entries.length - visible.length;
                 return (
                   <div
                     key={day.workday}
@@ -536,7 +596,7 @@ export function JournalScreenV2({
                     </button>
                     {open ? (
                       <div className="tl">
-                        {day.entries.map((e) => (
+                        {visible.map((e) => (
                           <div className="tl-node" key={e.relative_path}>
                             <span className="tl-dot">
                               <TriggerMeticon type={e.type} />
@@ -551,6 +611,21 @@ export function JournalScreenV2({
                             />
                           </div>
                         ))}
+                        {hidden > 0 ? (
+                          <button
+                            type="button"
+                            className="btn sm"
+                            style={{ margin: "8px 0 0 28px" }}
+                            onClick={() =>
+                              setDayShown((p) => ({
+                                ...p,
+                                [day.workday]: shown + DAY_PAGE_SIZE,
+                              }))
+                            }
+                          >
+                            {t("journal.dayMore", { n: hidden })}
+                          </button>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
@@ -587,6 +662,19 @@ export function JournalScreenV2({
                 onClick={() => setShowAll(true)}
               >
                 {t("journal.loadMore")}
+              </button>
+            ) : null}
+
+            {/* 전체 기간 모드의 다음 쪽. 목록 위 고지와 같은 손잡이를 바닥에도
+                둔다 — 끝까지 읽고 내려온 사람이 위로 되돌아가지 않도록. */}
+            {canLoadMore ? (
+              <button
+                type="button"
+                className="btn sm"
+                style={{ margin: "16px auto 0", display: "block" }}
+                onClick={loadMore}
+              >
+                {t("journal.loadMorePage", { n: remaining })}
               </button>
             ) : null}
           </div>

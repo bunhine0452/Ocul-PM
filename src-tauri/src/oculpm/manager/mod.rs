@@ -27,7 +27,9 @@ use crate::oculpm::agents::{self, AgentDetection};
 use crate::oculpm::atomic_io::{
     read_managed_block, write_atomic, write_managed_block, ManagedBlockResult,
 };
-use crate::oculpm::cache::{CacheReindexReport, EntryFilters, JournalCache, PathChangeKind};
+use crate::oculpm::cache::{
+    CacheReindexReport, EntryFilters, EntryPage, JournalCache, PathChangeKind,
+};
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::frontmatter::{
     backfill_tz_offset, parse_frontmatter_and_body, write_frontmatter_and_body,

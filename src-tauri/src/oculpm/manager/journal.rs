@@ -69,6 +69,23 @@ impl OculpmManager {
             .await
     }
 
+    /// `list_journal_entries` 의 상한 있는 판 (`{#journal-timeline-limit}`).
+    ///
+    /// 함께 오는 `total` 은 상한을 걸기 전 전체 건수 — 화면이 "몇 건 중 몇
+    /// 건"을 말할 수 있어야 상한이 **보이는** 상한이 된다.
+    pub async fn list_journal_entries_page(
+        &self,
+        db: &Db,
+        project_id: u32,
+        workday: Option<String>,
+        filters: EntryFilters,
+        page: EntryPage,
+    ) -> Result<(Vec<JournalEntrySummary>, u32), OculpmError> {
+        JournalCache::new(db)
+            .list_entries_page(project_id, workday.as_deref(), &filters, page)
+            .await
+    }
+
     /// Get a single cached entry. Falls back to an on-demand disk read +
     /// upsert if the row is missing but the file exists.
     pub async fn get_journal_entry(

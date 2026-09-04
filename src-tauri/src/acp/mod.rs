@@ -8,6 +8,7 @@
 //! - [`adapter`] — 어댑터 npm 패키지 버전 고정 설치
 //! - [`process`] — 어댑터 프로세스 수명 + 연결 유지 + 이벤트 라우팅
 //! - [`session`] — `session/update` → 프런트 이벤트 매핑
+//! - [`turn`] — 대화당 도는 턴 하나 + 어떻게 끝나든 종료 이벤트 (RAII)
 
 use std::path::Path;
 
@@ -18,9 +19,11 @@ pub mod env;
 pub mod identity;
 pub mod process;
 pub mod session;
+pub mod turn;
 
 pub use process::{AcpAgentInfo, AcpState};
 pub use session::AcpEvent;
+pub use turn::TurnGuard;
 
 /// ACP backend selected by the client. Serialized spelling is part of the IPC
 /// contract, so keep it stable even if adapter package names change.

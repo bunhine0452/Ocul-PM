@@ -1179,6 +1179,35 @@ export const commands = {
 	difficulties?: Difficulty[],
 } | null) => typedError<JournalEntrySummary[], AppError>(__TAURI_INVOKE("oculpm_list_journal_entries", { projectId, workday, filters })),
 	/**
+	 *  `oculpm_list_journal_entries` 의 상한 있는 판.
+	 * 
+	 *  기존 커맨드는 그대로 둔다 (호출자가 여럿이고, 상한이 필요 없는 자리도
+	 *  있다). 프런트의 **타임라인 목록 경로는 반드시 이쪽**이다: 검색창에 한
+	 *  글자만 쳐도 14일 창이 사라지면서 전 이력이 한 번에 넘어왔고, 가상화가 없는
+	 *  타임라인이 그만큼의 카드를 통째로 마운트했다.
+	 */
+	oculpmListJournalEntriesPage: (projectId: number, workday: string | null, filters: {
+	types: EntryType[],
+	verified_only: boolean,
+	/**
+	 *  Reserved for W4 (LayerComparison). PR2 wires the column path but
+	 *  `mismatch_only=true` returns no rows because no entry has been
+	 *  flagged yet.
+	 */
+	mismatch_only: boolean,
+	/**  `checkbox == Some(false)` OR `status != "done"`. */
+	unfinished_only: boolean,
+	search: string | null,
+	/**  W5-PR6 — agent_id filter. Empty = no constraint (all agents). */
+	agents?: string[],
+	/**
+	 *  W5-PR6 — difficulty filter. Empty = no constraint. Note the cache
+	 *  column is nullable ("미지정"); difficulty filter therefore *cannot*
+	 *  match the null bucket — that's a separate W6 toggle.
+	 */
+	difficulties?: Difficulty[],
+} | null, limit: number | null, offset: number | null) => typedError<JournalEntryPage, AppError>(__TAURI_INVOKE("oculpm_list_journal_entries_page", { projectId, workday, filters, limit, offset })),
+	/**
 	 *  Get a single journal entry by relative path. Falls back to on-demand
 	 *  disk read + cache upsert if the row is missing. Returns `None` only
 	 *  when the file does not exist on disk either.
@@ -4242,6 +4271,16 @@ export type JournalEntry = {
 	parse_ok: boolean,
 	/**  Non-fatal parse warnings (missing tz offset, agent-as-string, bad op, …). */
 	parse_warnings: string[],
+};
+
+/**  상한이 걸린 일지 목록 한 쪽. */
+export type JournalEntryPage = {
+	entries: JournalEntrySummary[],
+	/**
+	 *  **상한을 걸기 전** 조건에 맞는 전체 건수. 화면이 "몇 건 중 몇 건"을
+	 *  말하는 근거다 — 이 숫자가 없으면 상한은 있는데 안 보이는 상한이 된다.
+	 */
+	total: number,
 };
 
 export type JournalEntrySummary = {

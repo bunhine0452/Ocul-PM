@@ -35,6 +35,7 @@ use super::session::{
     mode_of, permission_event, title_of, usage_of, AcpCommand, AcpConfigOption, AcpEvent,
     AcpRateLimit, AcpSessionChangeKind, AcpUsage,
 };
+use super::turn::TurnRegistry;
 use super::AcpProvider;
 
 /// 어댑터 콜드 스타트(node 기동 + Claude Code 로그인 확인)를 감안한 상한.
@@ -186,7 +187,11 @@ pub struct AcpState {
     /// 답변이 흐르는 중에 다른 대화로 넘어가면 **진행 중이던 스트림이 그
     /// 자리에서 끊겼다**(돌아와도 그 답은 영영 안 온다). 대화마다 자리를 주면
     /// 서로 밀어내지 않는다.
-    sinks: Mutex<HashMap<(u64, String), Channel<AcpEvent>>>,
+    pub(super) sinks: Mutex<HashMap<(u64, String), Channel<AcpEvent>>>,
+    /// 대화마다 **도는 턴 하나**를 지키는 장부 (`acp::turn`). 싱크 옆에 두는
+    /// 이유: 자리를 덮어쓰는 두 번째 프롬프트를 막는 문지기이고, 어댑터가
+    /// 죽을 때 싱크와 **같이** 치워져야 하기 때문이다.
+    pub(super) turns: TurnRegistry,
     /// 사용자 응답을 기다리는 권한 요청 (우리가 만든 request_id → 결정 채널).
     pending: Mutex<HashMap<String, PendingPermission>>,
     /// 켜져 있으면 에이전트 답변 텍스트를 여기에 모은다.
@@ -428,25 +433,6 @@ impl AcpState {
             if let Some(running) = map.get_mut(&target_id) {
                 running.book.patch_option(session_id, config_id, value);
             }
-        }
-    }
-
-    pub fn set_sink(&self, target_id: u64, session_id: String, sink: Channel<AcpEvent>) {
-        if let Ok(mut map) = self.sinks.lock() {
-            map.insert((target_id, session_id), sink);
-        }
-    }
-
-    pub fn clear_sink(&self, target_id: u64, session_id: &str) {
-        if let Ok(mut map) = self.sinks.lock() {
-            map.remove(&(target_id, session_id.to_string()));
-        }
-    }
-
-    /// 이 프로젝트의 모든 자리를 치운다 (어댑터가 죽거나 멈출 때).
-    pub fn clear_sinks(&self, target_id: u64) {
-        if let Ok(mut map) = self.sinks.lock() {
-            map.retain(|(pid, _), _| *pid != target_id);
         }
     }
 
