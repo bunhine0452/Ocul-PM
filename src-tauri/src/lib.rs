@@ -6,7 +6,7 @@
 // PR-ACP1 — 통합 테스트(tests/acp_handshake.rs)가 env/adapter 를 직접 쓴다.
 pub mod acp;
 pub mod app_error;
-mod ast;
+pub mod ast;
 mod commands;
 // 선언적 설정 — plan/apply 두 모듈을 UI·CLI·MCP 가 공유한다 (Phase 6).
 pub mod config;
@@ -25,7 +25,7 @@ pub mod framing;
 pub mod git;
 // 메인 화면 집계 — `home_brief` 통합 테스트가 `crate::home::collect` 를 직접 부른다.
 pub mod home;
-mod indexer;
+pub mod indexer;
 mod llm;
 pub mod lsp;
 mod notion;
