@@ -16,7 +16,7 @@ cd src-tauri && cargo test      # bindings.ts 재생성 포함
 **태그를 밀기 전에 main 의 CI 가 그린인지 확인하세요** — release.yml 은 테스트를 돌리지
 않고 번들만 굽기 때문에, 붉은 main 에 태그를 밀면 깨진 빌드가 그대로 릴리스로 나갑니다.
 
-## 1. 버전 — 5파일 (같은 값)
+## 1. 버전 — 6파일 (같은 값)
 
 | 파일 | 위치 |
 | --- | --- |
@@ -24,9 +24,12 @@ cd src-tauri && cargo test      # bindings.ts 재생성 포함
 | `src-tauri/tauri.conf.json` | `"version"` |
 | `src-tauri/Cargo.toml` | `version` |
 | `plugin/oculpm/.claude-plugin/plugin.json` | `"version"` |
+| `plugin/oculpm-codex/.codex-plugin/plugin.json` | `"version"` |
 | `.claude-plugin/marketplace.json` | `plugins[0].version` |
 
-아래 두 개는 `cargo test --test plugin_manifest` 가 앱 버전과의 동기를 강제합니다 (v2.10.3 에서 이 문서가 3파일만 적어 두어 §0 게이트가 두 번 붉게 났습니다). 세 번째 파일을 고친 뒤 게이트를 다시 돌리면 잡히니, 순서는 **버전 5곳 → 게이트** 가 편합니다.
+아래 세 개는 `cargo test --test plugin_manifest` 가 앱 버전과의 동기를 강제합니다 (v2.10.3 에서 이 문서가 3파일만 적어 두어 §0 게이트가 두 번 붉게 났고, v2.40.0 에서는 v2.39.0 에 생긴 **Codex 플러그인**이 빠져 있었습니다 — 표는 파일이 늘 때 함께 늘려야 합니다). 순서는 **버전 6곳 → 게이트** 가 편합니다.
+
+`Cargo.toml` 을 고치면 `Cargo.lock` 도 함께 바뀝니다 — `cargo test` 가 갱신해 주므로 §0 게이트를 돌린 뒤 **둘 다** 커밋합니다.
 
 ## 2. CHANGELOG.md — 맨 위에 `## vX.Y.Z` 섹션
 
@@ -44,13 +47,18 @@ body="$(awk -v t="## ${ver}" '$0==t{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md)
 - 새 화면·설정·에이전트가 생겼다면 **화면 구성 / Screens**, **지원 에이전트**, 단축키 문단까지 함께 고칩니다.
 - 한국어만 고치고 영어를 두고 오는 실수가 가장 잦습니다. 두 파일은 항상 같은 사실을 말해야 합니다.
 
-## 4. landing/ — 버전 문자열 6곳 + 생성물 재빌드 + 새 기능 표면
+## 4. landing/ — **ko·en 각각** 버전 문자열 6곳 + 생성물 재빌드 + 새 기능 표면
 
 버전 문자열: `softwareVersion`(JSON-LD) · `nav-ver` 배지 · `ap-new` NEW 배지 · **다운로드 버튼 2곳**(히어로와 CTA — 둘 다 `vX.Y.Z 받기`) · CTA `eyebrow`. 변경사항 `<li>` 는 새로 **추가**하는 것이라 이 수에 들지 않습니다 (v2.15.0 에서 이 문서가 5곳이라고 적어 둔 탓에 버튼 하나를 놓칠 뻔했습니다 — 아래 grep 이 실제 심판입니다).
 
+**영문 랜딩(`landing/en/index.html`)도 같은 6곳을 갖습니다.** 이 문서가 오래 `landing/index.html` 만 적어 두어, 영문 페이지가 옛 버전에 멈출 뻔했습니다 (v2.40.0 에서 확인). `build.mjs` 는 위키·changelog·themes·privacy 만 굽고 **en/index.html 은 손으로 고치는 면**입니다.
+
 ```bash
-grep -n "2\.8\.5" landing/index.html    # 이전 버전 문자열이 남지 않았는지 전수 확인
+# 이전 버전 문자열이 남지 않았는지 전수 확인 — 변경 이력 <li> 만 남는 것이 정상
+grep -n "2\.8\.5" landing/index.html landing/en/index.html landing/plugin.html
 ```
+
+`landing/plugin.html` 의 `nav-ver` 배지도 매 릴리스 함께 올립니다.
 
 ### 4-1. 생성물 재빌드 (한 줄)
 
