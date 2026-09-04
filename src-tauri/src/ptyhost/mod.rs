@@ -18,3 +18,5 @@
 pub mod client;
 pub mod host;
 pub mod protocol;
+pub mod scrollback;
+pub mod writer;

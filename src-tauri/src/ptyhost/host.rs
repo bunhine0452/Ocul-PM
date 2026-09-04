@@ -13,7 +13,7 @@
 //! - 유휴(클라이언트 0 · 세션 0)가 이어지면 스스로 내린다 — 데몬을 영구
 //!   상주시키지 않는다 (필요할 때 앱이 다시 띄운다).
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -27,10 +27,9 @@ use tokio::sync::{broadcast, mpsc};
 use super::protocol::{
     AttachPayload, ClientFrame, Event, HostFrame, Request, Response, PROTO_VERSION,
 };
+use super::scrollback::SessionBuf;
+use super::writer::SessionWriter;
 use crate::framing::{encode_frame, parse_frame, Frame};
-
-/// 재접속 리플레이용 스크롤백 상한 (bytes, 청크 단위로 앞에서 버림).
-const SCROLLBACK_CAP_BYTES: usize = 200_000;
 
 /// 유휴 판정 주기. 두 번 연속 (클라이언트 0 · 세션 0) 이면 내린다 —
 /// 스폰 직후 클라이언트가 붙기 전의 찰나를 오판하지 않기 위한 2회.
@@ -93,34 +92,9 @@ impl Watchdog {
 /// 프런트는 attach 리플레이 + seq 중복 제거가 있어 스스로 복구한다.
 const EVENT_CHANNEL_CAP: usize = 4096;
 
-#[derive(Default)]
-pub struct SessionBuf {
-    chunks: VecDeque<String>,
-    bytes: usize,
-    seq: u32,
-}
-
-impl SessionBuf {
-    fn push(&mut self, text: &str) -> u32 {
-        self.seq += 1;
-        self.bytes += text.len();
-        self.chunks.push_back(text.to_string());
-        while self.bytes > SCROLLBACK_CAP_BYTES {
-            match self.chunks.pop_front() {
-                Some(front) => self.bytes -= front.len(),
-                None => break,
-            }
-        }
-        self.seq
-    }
-
-    fn snapshot(&self) -> (String, u32) {
-        (self.chunks.iter().map(String::as_str).collect(), self.seq)
-    }
-}
-
 struct HostSession {
-    writer: Box<dyn std::io::Write + Send>,
+    /// 세션마다 자기 스레드에서 쓴다 — 전역 락 밖으로 (`writer` 모듈).
+    writer: Arc<SessionWriter>,
     master: Box<dyn MasterPty + Send>,
     /// 셸 프로세스 핸들. 예전엔 spawn 직후 버렸는데(`_child`), 그러면 아무도
     /// `wait()` 하지 않아 셸이 끝날 때마다 호스트 안에 좀비가 쌓이고, Kill 이
@@ -154,7 +128,10 @@ fn terminate_session(state: Arc<HostState>, sid: String, session: HostSession) {
         ..
     } = session;
     let shell_pid = child.process_id().map(|p| p as i32);
-    // master/writer 를 먼저 닫아야 슬레이브 쪽 read 가 EIO 로 깨어난다.
+    // master/writer 를 먼저 놓아야 슬레이브 쪽 read 가 EIO 로 깨어난다. writer 의
+    // fd 는 이제 쓰기 스레드가 쥐고 있으므로 여기서 놓는 것은 **입구**뿐이고,
+    // 실제 닫힘은 그 스레드가 큐 끊김을 볼 때다 — 마침 쓰기에 막혀 있었다면 아래
+    // SIGHUP/SIGKILL 이 자식을 걷어내는 순간 EIO 로 깨어나 닫는다.
     drop(writer);
     drop(master);
     std::thread::spawn(move || {
@@ -388,7 +365,7 @@ fn start_session(
     let buf = Arc::new(Mutex::new(SessionBuf::default()));
     let gone = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let session = HostSession {
-        writer,
+        writer: Arc::new(SessionWriter::spawn(writer)),
         master: pair.master,
         child,
         gone: gone.clone(),
@@ -501,38 +478,39 @@ fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
             }
         }
         Request::Attach { sid } => {
-            let sessions = state.lock_sessions();
+            // 스냅샷은 최대 200KB 를 이어 붙인다 — 전역 락 밖에서. 맵에서 꺼내는
+            // 것은 링버퍼 핸들과 작은 값 둘뿐이다 (`Foreground` 와 같은 모양).
+            let found = state
+                .lock_sessions()
+                .get(&sid)
+                .map(|s| (s.buf.clone(), s.nonce.clone(), s.shell_integration));
             Response::Attach {
-                attach: sessions.get(&sid).map(|s| {
-                    let (text, seq) = s.buf.lock().unwrap_or_else(|p| p.into_inner()).snapshot();
+                attach: found.map(|(buf, nonce, shell_integration)| {
+                    let (text, seq) = buf.lock().unwrap_or_else(|p| p.into_inner()).snapshot();
                     AttachPayload {
                         text,
                         seq,
-                        nonce: s.nonce.clone(),
-                        shell_integration: s.shell_integration,
+                        nonce,
+                        shell_integration,
                     }
                 }),
             }
         }
         Request::Write { sid, data } => {
-            let mut sessions = state.lock_sessions();
-            let Some(session) = sessions.get_mut(&sid) else {
+            // 락은 큐 핸들을 복제할 때까지만 — 실제 쓰기는 세션별 스레드가 한다
+            // (`writer` 모듈). 여기서 `write_all` 을 부르면 raw 모드 TUI 가 입력을
+            // 안 읽는 동안 전역 락과 이 접속의 읽기 루프가 함께 멈춘다.
+            let found = state.lock_sessions().get(&sid).map(|s| s.writer.clone());
+            let Some(writer) = found else {
                 // "조용한 성공" 금지 — 호출측(디스패치 프리필)이 재시도를 판단한다.
                 return Response::Error {
                     message: format!("unknown pty session: {sid}"),
                 };
             };
-            if let Err(e) = session.writer.write_all(data.as_bytes()) {
-                return Response::Error {
-                    message: format!("Failed to write to PTY: {e}"),
-                };
+            match writer.enqueue(&data) {
+                Ok(()) => Response::Ok,
+                Err(message) => Response::Error { message },
             }
-            if let Err(e) = session.writer.flush() {
-                return Response::Error {
-                    message: format!("Failed to flush PTY: {e}"),
-                };
-            }
-            Response::Ok
         }
         Request::Resize { sid, rows, cols } => {
             let mut sessions = state.lock_sessions();
@@ -1135,21 +1113,6 @@ mod tests {
         let mut pending = b"hello $ ".to_vec();
         assert_eq!(drain_utf8(&mut pending), "hello $ ");
         assert!(pending.is_empty());
-    }
-
-    /// 링버퍼 — 상한 초과 시 앞 청크부터 버리고 seq 는 단조 증가.
-    #[test]
-    fn session_buf_caps_and_sequences() {
-        let mut buf = SessionBuf::default();
-        let big = "x".repeat(SCROLLBACK_CAP_BYTES / 2 + 1);
-        assert_eq!(buf.push(&big), 1);
-        assert_eq!(buf.push(&big), 2);
-        assert_eq!(buf.push("tail"), 3); // 첫 big 이 밀려난다
-        let (text, seq) = buf.snapshot();
-        assert_eq!(seq, 3);
-        assert!(text.ends_with("tail"));
-        assert!(text.len() <= SCROLLBACK_CAP_BYTES + 4);
-        assert_eq!(text.matches('x').count(), big.len());
     }
 
     /// KillExcept 의 보호 판정 — `-` 까지 포함한 접두사 규격이 지켜지는지.
