@@ -292,15 +292,32 @@ impl LspState {
     }
 
     /// 이 프로젝트의 서버 상태 일람 (설치 여부 포함).
+    ///
+    /// 맵 락은 **슬롯을 꺼낼 동안만** 잡는다 — `running_clients` 와 같은 모양이다.
+    /// 예전엔 맵 락을 쥔 채로 `resolve_binary().await` 를 등록된 서버 수만큼 불렀는데,
+    /// 그 함수는 PATH 에 없으면 `login_shell_path()` 로 **로그인 셸을 띄운다**
+    /// (macOS 에서 무거운 `.zshrc` 면 수백 ms). 그동안 이 프로젝트뿐 아니라
+    /// 다른 창·다른 프로젝트의 모든 LSP 접근이 같은 맵 락에서 멎었다.
     pub async fn status(&self, project_id: u32, project_root: &Path) -> Vec<LspServerInfo> {
-        let map = self.servers.lock().await;
-        let mut out = Vec::new();
-        for spec in super::registry::SERVERS {
-            // 이미 뜬 인스턴스가 있으면 그 상태를 그대로.
-            let running: Vec<_> = map
+        // 스펙 순서를 그대로 유지한 채, 스펙별로 (루트, 슬롯 Arc) 만 복사한다.
+        let per_spec: Vec<Vec<(PathBuf, Arc<Mutex<Slot>>)>> = {
+            let map = self.servers.lock().await;
+            super::registry::SERVERS
                 .iter()
-                .filter(|(k, _)| k.project_id == project_id && k.language_id == spec.language_id)
-                .collect();
+                .map(|spec| {
+                    map.iter()
+                        .filter(|(k, _)| {
+                            k.project_id == project_id && k.language_id == spec.language_id
+                        })
+                        .map(|(k, slot)| (k.root.clone(), slot.clone()))
+                        .collect()
+                })
+                .collect()
+        };
+
+        let mut out = Vec::new();
+        for (spec, running) in super::registry::SERVERS.iter().zip(per_spec) {
+            // 이미 뜬 인스턴스가 있으면 그 상태를 그대로.
             if running.is_empty() {
                 let installed = crate::acp::env::resolve_binary(spec.command)
                     .await
@@ -318,14 +335,13 @@ impl LspState {
                 });
                 continue;
             }
-            for (key, slot) in running {
+            for (root, slot) in running {
                 let s = slot.lock().await;
                 out.push(LspServerInfo {
                     language_id: spec.language_id.to_string(),
                     command: spec.command.to_string(),
                     state: s.state,
-                    root: key
-                        .root
+                    root: root
                         .strip_prefix(project_root)
                         .ok()
                         .map(|p| p.to_string_lossy().to_string()),

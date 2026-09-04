@@ -105,6 +105,17 @@ pub struct OculpmManager {
     /// so concurrent writers can't clobber each other (last-writer-wins lost
     /// updates). Lazily created per project.
     plan_write_locks: RwLock<HashMap<u32, Arc<tokio::sync::Mutex<()>>>>,
+    /// 프로젝트 **생명주기**(엔트리 생성·제거·설정 교체·감시 기동)의 직렬화기.
+    /// `plan_write_locks` 와 같은 모양이고 이유도 같다: 전역 맵 락을 오래 잡지
+    /// 않으면서도 한 프로젝트 안에서는 순서를 보장해야 한다.
+    ///
+    /// 특히 `watcher_start_with` 는 전역 맵 락을 **놓고** 느린 일(락 파일 획득 →
+    /// `ps` fork, OS 워치 등록)을 한 뒤 다시 잡아 설치한다. 그 사이에
+    /// `init_project` 가 같은 프로젝트의 락을 새로 잡으면 **한 프로세스 안에
+    /// 같은 경로의 `LockGuard` 가 둘** 생기고, 뒤늦게 떨어지는 쪽의
+    /// `Drop` 이 (pid 가 같으니) 남의 락 파일을 지운다. 그래서 생성·제거·기동을
+    /// 여기서 서로 배제한다.
+    lifecycle_locks: RwLock<HashMap<u32, Arc<tokio::sync::Mutex<()>>>>,
     /// 이 프로세스가 쥔 락 하나가 **다른 인스턴스에게 인계당한** 순간 깨어난다.
     /// 감독관이 여기서 깨어나 그 프로젝트의 감시를 즉시 접는다 — 다음 정기
     /// 틱까지 기다리면 두 인스턴스가 같은 프로젝트를 함께 감시한다.
@@ -117,6 +128,19 @@ struct ProjectSnapshot {
     root: PathBuf,
     resolver: WorkdayResolver,
     config: OculpmConfig,
+    /// `watcher_start_with` 가 맵 락 **밖에서** 세션·워처를 세우는 데 쓴다.
+    /// `Arc` 라 복사가 싸고, 인덱스 라이터는 엔트리 수명 내내 같은 것이다.
+    index_writer: Arc<IndexWriter>,
+}
+
+/// 워처 **세대** 발급기. 엔트리를 만들 때 하나, "그만" 이라고 말할 때마다 하나씩
+/// 새로 받는다 — 전역 단조 증가라 서로 다른 프로젝트·서로 다른 엔트리 세대가
+/// 절대 같은 값을 갖지 않는다. `watcher_start_with` 가 맵 락을 놓았다 다시 잡는
+/// 사이에 상태가 바뀌었는지를 이 값 **하나로** 판정한다 (CAS).
+static WATCHER_EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+pub(crate) fn next_watcher_epoch() -> u64 {
+    WATCHER_EPOCH.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Per-project in-memory state. The `LockGuard` is the live ownership token —
@@ -131,6 +155,12 @@ struct ProjectEntry {
     index_writer: Arc<IndexWriter>,
     session: Option<SessionActor>,
     watcher: Option<ProjectWatcher>,
+    /// 이 엔트리의 현재 워처 세대 (`next_watcher_epoch`). 감시를 **접는** 쪽
+    /// (`watcher_stop` · `yield_evicted_locks` · `watcher_drop_unresponsive`)
+    /// 이 전부 이 값을 새로 받고, 뒤늦게 도착한 `watcher_start_with` 는 자기가
+    /// 떠날 때 본 값과 같을 때만 설치한다. 엔트리를 지웠다 다시 만들어도 값이
+    /// 달라지므로, "그만" 과 "다른 엔트리가 됐다" 를 이 하나가 함께 잡는다.
+    watcher_epoch: u64,
 }
 
 mod agents_sync;
@@ -138,6 +168,7 @@ mod indexing;
 mod journal;
 mod lifecycle;
 mod session_ops;
+mod watcher_commit;
 
 impl OculpmManager {
     /// Empty manager. Project entries are added by `init_project` on first open.
@@ -157,6 +188,25 @@ impl OculpmManager {
             }
         }
         let mut map = self.plan_write_locks.write().await;
+        map.entry(project_id)
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+            .clone()
+    }
+
+    /// 프로젝트 생명주기 직렬화기 (필드 주석 참고). `plan_write_lock` 과 같은
+    /// 게으른 생성 방식이다.
+    ///
+    /// **획득 순서는 언제나 `lifecycle_lock` → `projects`** 다. 반대로 잡는
+    /// 자리가 하나라도 생기면 교착한다 — 이 뮤텍스는 항상 함수 진입부에서,
+    /// `projects` 를 건드리기 **전에** 잡는다.
+    async fn lifecycle_lock(&self, project_id: u32) -> Arc<tokio::sync::Mutex<()>> {
+        {
+            let map = self.lifecycle_locks.read().await;
+            if let Some(l) = map.get(&project_id) {
+                return l.clone();
+            }
+        }
+        let mut map = self.lifecycle_locks.write().await;
         map.entry(project_id)
             .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
             .clone()
@@ -201,6 +251,7 @@ impl OculpmManager {
             root: entry.root.clone(),
             resolver: entry.resolver.clone(),
             config: entry.config.clone(),
+            index_writer: entry.index_writer.clone(),
         })
     }
 }

@@ -18,6 +18,12 @@ impl OculpmManager {
         root: &Path,
         template_lang: &str,
     ) -> Result<OculpmInitReport, OculpmError> {
+        // 엔트리 생성은 `watcher_start_with` 의 느린 구간(맵 락 밖에서 도는 락
+        // 파일 획득)과 배타여야 한다 — 안 그러면 한 프로세스에 같은 경로의
+        // `LockGuard` 가 둘 생긴다 (`lifecycle_locks` 필드 주석).
+        let lifecycle = self.lifecycle_lock(project_id).await;
+        let _lifecycle = lifecycle.lock().await;
+
         // Fast path: already initialised in this session.
         {
             let projects = self.projects.read().await;
@@ -171,6 +177,7 @@ impl OculpmManager {
             index_writer,
             session: None,
             watcher: None,
+            watcher_epoch: next_watcher_epoch(),
         };
         self.projects.write().await.insert(project_id, entry);
 
@@ -232,6 +239,11 @@ impl OculpmManager {
             &new_config.workday.day_starts_at,
         )?;
 
+        // 설정 교체도 생명주기다 — `watcher_start_with` 가 스냅샷으로 뜬 config
+        // 로 워처를 세우는 중에 끼어들면 방금 뜬 워처가 태어나면서부터 낡는다.
+        let lifecycle = self.lifecycle_lock(project_id).await;
+        let _lifecycle = lifecycle.lock().await;
+
         let mut projects = self.projects.write().await;
         let entry = projects
             .get_mut(&project_id)
@@ -248,6 +260,12 @@ impl OculpmManager {
     /// a no-op if the project was never initialised. The actual cleanup happens
     /// in `LockGuard::drop` when the removed `ProjectEntry` falls out of scope.
     pub async fn on_project_closed(&self, project_id: u32) -> Result<(), OculpmError> {
+        // 엔트리 제거도 `watcher_start_with` 의 느린 구간과 배타여야 한다 —
+        // 여기서 가드를 떨어뜨리는 사이 저쪽이 같은 파일의 새 가드를 잡으면
+        // 두 가드가 같은 pid 로 같은 파일을 두고 다툰다.
+        let lifecycle = self.lifecycle_lock(project_id).await;
+        let _lifecycle = lifecycle.lock().await;
+
         let mut projects = self.projects.write().await;
         if projects.remove(&project_id).is_some() {
             tracing::info!(
@@ -317,23 +335,86 @@ impl OculpmManager {
     /// `TakeOver` 는 **앱이 새로 뜰 때만** 쓴다 — "가장 최근에 연 인스턴스가
     /// 주인" 규칙이라야 사용자가 결과를 예측할 수 있다. 재시도 경로가 이걸
     /// 쓰면 두 인스턴스가 60초마다 서로를 쫓아내며 무한히 주고받는다.
+    ///
+    /// **락 스코프** — 예전에는 전역 프로젝트 맵의 write 락을 쥔 채로 락 파일
+    /// 획득(`ps` fork)과 OS 워치 등록까지 갔다. 그동안 *다른 모든 프로젝트의*
+    /// manager 접근이 read 조차 막혔다. 지금은 셋으로 나뉜다:
+    ///
+    /// 1. 맵 write 락 — 스냅샷만 뜬다 (IO 없음).
+    /// 2. 맵 락 밖 — 느린 일 전부 (락 파일 · 세션 · 워처).
+    /// 3. 맵 write 락 재획득 — **세대가 그대로일 때만** 설치 (CAS).
+    ///
+    /// 1↔3 사이에 상태가 변할 수 있으므로 두 겹으로 막는다: 프로젝트 단위
+    /// `lifecycle_lock` 이 엔트리 생성·제거·설정 교체를 배제하고, `watcher_epoch`
+    /// 가 그사이 도착한 "그만"(`watcher_stop` 등)을 잡는다.
     pub async fn watcher_start_with(
         &self,
         project_id: u32,
         app_handle: Option<tauri::AppHandle>,
         policy: AcquirePolicy,
     ) -> Result<(), OculpmError> {
-        let mut projects = self.projects.write().await;
-        let entry = projects
-            .get_mut(&project_id)
-            .ok_or(OculpmError::NotInitialized(project_id))?;
+        let lifecycle = self.lifecycle_lock(project_id).await;
+        let _lifecycle = lifecycle.lock().await;
 
-        // 인계당한 가드는 더 이상 권한이 없다 — 들고 있어 봐야 남의 락이다.
-        // 여기서 놓아야 아래 재시도가 정직하게 "지금 누가 주인인가" 를 묻는다.
-        if entry.lock.as_ref().is_some_and(|l| l.is_evicted()) {
-            entry.lock = None;
-        }
+        // ── 1. 맵 락은 여기까지. 이 블록 안에서는 IO 를 하지 않는다. ────────
+        let (snapshot, epoch, needs_lock, existing_session, lock_only) = {
+            let mut projects = self.projects.write().await;
+            let entry = projects
+                .get_mut(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
 
+            // 인계당한 가드는 더 이상 권한이 없다 — 들고 있어 봐야 남의 락이다.
+            // 여기서 놓아야 아래 재시도가 정직하게 "지금 누가 주인인가" 를 묻는다.
+            if entry.lock.as_ref().is_some_and(|l| l.is_evicted()) {
+                entry.lock = None;
+            }
+
+            // Idempotent: already running — **살아 있을 때만**. 처리 태스크가 죽은
+            // 워처를 "돌고 있음" 으로 읽으면 되살릴 길이 없어진다 (재기동이 유일한
+            // 치료였다). 죽었으면 기다리지 않고 끊고 새로 무장한다.
+            let mut lock_only = false;
+            if let Some(w) = entry.watcher.take() {
+                if w.is_alive() {
+                    entry.watcher = Some(w);
+                    if entry.lock.is_some() {
+                        tracing::debug!(
+                            target: "oculpm::manager",
+                            project_id,
+                            "watcher_start: already running, no-op"
+                        );
+                        return Ok(());
+                    }
+                    // 살아 있는데 주인 자리가 비었다 — 방금 위에서 인계당한 가드를
+                    // 놓은 직후다. 감시를 이어 가려면 **락부터** 되찾아야 한다
+                    // (주인이 아닌 채로 계속 감시하면 세션 활동이 이중 기록된다).
+                    // 워처는 살아 있으니 새로 세우지 않고 락만 꽂는다.
+                    lock_only = true;
+                } else {
+                    tracing::warn!(
+                        target: "oculpm::manager",
+                        project_id,
+                        "[FLOW] 죽은 워처 발견 — 끊고 다시 무장한다 (실시간 갱신 복구)"
+                    );
+                    w.abort();
+                }
+            }
+
+            (
+                ProjectSnapshot {
+                    root: entry.root.clone(),
+                    resolver: entry.resolver.clone(),
+                    config: entry.config.clone(),
+                    index_writer: entry.index_writer.clone(),
+                },
+                entry.watcher_epoch,
+                entry.lock.is_none(),
+                entry.session.clone(),
+                lock_only,
+            )
+        };
+
+        // ── 2. 맵 락 밖 — 느린 일. ─────────────────────────────────────────
+        //
         // 읽기 전용으로 떨어져 있었다면 **락을 다시 노려본다**.
         //
         // 락은 `init_project` 에서 한 번만 잡았고, 그 시점에 다른 인스턴스가
@@ -342,8 +423,8 @@ impl OculpmManager {
         // 나중에 뜬 쪽이 **모든 프로젝트의 실시간 갱신을 잃는** 원인이었다
         // (도그푸딩 2026-08-23). 재시도는 여기가 옳다: 워처를 켜려는 순간이
         // 곧 "쓰기 주인이 필요해진" 순간이다.
-        if entry.lock.is_none() {
-            let lock_path = entry.resolver.lock_path(&entry.root);
+        let acquired_lock = if needs_lock {
+            let lock_path = snapshot.resolver.lock_path(&snapshot.root);
             match LockGuard::acquire_with(&lock_path, policy, self.lock_evicted.clone()).await? {
                 LockAcquisition::Acquired(g) | LockAcquisition::Recovered { guard: g, .. } => {
                     tracing::info!(
@@ -351,7 +432,7 @@ impl OculpmManager {
                         project_id,
                         "[FLOW] read-only 였던 프로젝트가 락을 회수했다 — 감시를 시작한다"
                     );
-                    entry.lock = Some(g);
+                    Some(g)
                 }
                 LockAcquisition::TakenOver {
                     guard,
@@ -365,7 +446,7 @@ impl OculpmManager {
                         previous_exe = previous_exe.as_deref().unwrap_or("?"),
                         "[FLOW] 살아 있는 인스턴스에게서 락을 가져왔다 — 이 앱이 감시한다"
                     );
-                    entry.lock = Some(guard);
+                    Some(guard)
                 }
                 LockAcquisition::Held {
                     by_pid, holder_exe, ..
@@ -376,63 +457,77 @@ impl OculpmManager {
                     )));
                 }
             }
-        }
+        } else {
+            None
+        };
 
-        // Idempotent: already running — **살아 있을 때만**. 처리 태스크가 죽은
-        // 워처를 "돌고 있음" 으로 읽으면 되살릴 길이 없어진다 (재기동이 유일한
-        // 치료였다). 죽었으면 기다리지 않고 끊고 새로 무장한다.
-        if let Some(w) = entry.watcher.take() {
-            if w.is_alive() {
-                entry.watcher = Some(w);
-                tracing::debug!(
-                    target: "oculpm::manager",
-                    project_id,
-                    "watcher_start: already running, no-op"
-                );
-                return Ok(());
-            }
-            tracing::warn!(
+        // 살아 있는 워처는 그대로 두고 되찾은 락만 꽂고 끝낸다 (1단계 참고).
+        if lock_only {
+            let _ = self
+                .commit_watcher_start(project_id, epoch, acquired_lock, None)
+                .await;
+            tracing::info!(
                 target: "oculpm::manager",
                 project_id,
-                "[FLOW] 죽은 워처 발견 — 끊고 다시 무장한다 (실시간 갱신 복구)"
+                "[FLOW] 살아 있는 워처의 주인 자리를 되찾았다"
             );
-            w.abort();
+            return Ok(());
         }
 
         // Reuse the existing session actor if one survived a prior
         // watcher_stop. This is the bug fix for "navigate-out-and-back
         // multiplies sessions": before, every cycle spawned a fresh
         // SessionActor and lost the resume baseline.
-        let reused_session = entry.session.is_some();
-        let session = if let Some(s) = entry.session.as_ref() {
-            s.clone()
-        } else {
-            SessionActor::spawn(
+        let reused_session = existing_session.is_some();
+        let session = match existing_session {
+            Some(s) => s,
+            None => SessionActor::spawn(
                 project_id,
-                entry.resolver.clone(),
-                entry.index_writer.clone(),
-                entry.config.session.clone(),
+                snapshot.resolver.clone(),
+                snapshot.index_writer.clone(),
+                snapshot.config.session.clone(),
                 app_handle.clone(),
-            )
+            ),
         };
-        let watcher = ProjectWatcher::start(
+        let started = ProjectWatcher::start(
             project_id,
-            entry.root.clone(),
+            snapshot.root.clone(),
             session.clone(),
-            entry.index_writer.clone(),
-            entry.config.clone(),
+            snapshot.index_writer.clone(),
+            snapshot.config.clone(),
             app_handle,
         )
-        .await?;
+        .await;
 
-        entry.session = Some(session);
-        entry.watcher = Some(watcher);
-        tracing::info!(
-            target: "oculpm::manager",
-            project_id,
-            reused_session,
-            "[FLOW] watcher_start: watcher + session attached (reused_session={reused_session})"
-        );
+        // ── 3. 맵 락 재획득 + CAS. ─────────────────────────────────────────
+        let watcher = match started {
+            Ok(w) => w,
+            Err(e) => {
+                // 워처가 못 떴다고 방금 잡은 락까지 버리지는 않는다 — 예전 코드도
+                // 여기 도달했을 땐 락이 이미 엔트리에 꽂힌 뒤였다. 버리면 다음
+                // 재시도가 근거 없이 read-only 로 떨어진다.
+                let _ = self
+                    .commit_watcher_start(project_id, epoch, acquired_lock, None)
+                    .await;
+                return Err(e);
+            }
+        };
+        let installed = self
+            .commit_watcher_start(
+                project_id,
+                epoch,
+                acquired_lock,
+                Some((session, watcher, reused_session)),
+            )
+            .await?;
+        if installed {
+            tracing::info!(
+                target: "oculpm::manager",
+                project_id,
+                reused_session,
+                "[FLOW] watcher_start: watcher + session attached (reused_session={reused_session})"
+            );
+        }
         Ok(())
     }
 
@@ -469,6 +564,9 @@ impl OculpmManager {
             .get_mut(&project_id)
             .ok_or(OculpmError::NotInitialized(project_id))?;
 
+        // 세대를 올린다 — 지금 기동 중인 `watcher_start_with` 가 있으면 그쪽이
+        // 설치를 포기한다 (나중 의도인 "그만" 이 이긴다).
+        entry.watcher_epoch = next_watcher_epoch();
         let had_watcher = entry.watcher.is_some();
         if let Some(watcher) = entry.watcher.take() {
             watcher.stop().await?;
@@ -504,6 +602,7 @@ impl OculpmManager {
             // 여기서 멈추면 이중 감시가 그만큼 길어진다).
             let mut projects = self.projects.write().await;
             if let Some(entry) = projects.get_mut(&project_id) {
+                entry.watcher_epoch = next_watcher_epoch();
                 if let Some(watcher) = entry.watcher.take() {
                     watcher.abort();
                 }
@@ -585,6 +684,9 @@ impl OculpmManager {
         let Some(entry) = projects.get_mut(&project_id) else {
             return;
         };
+        // 기동 중인 `watcher_start_with` 가 있으면 그쪽 설치도 무효로 만든다 —
+        // "응답 없음" 판정 이전에 뜬 워처는 이 판정의 대상이 아니다.
+        entry.watcher_epoch = next_watcher_epoch();
         if let Some(watcher) = entry.watcher.take() {
             tracing::warn!(
                 target: "oculpm::manager",

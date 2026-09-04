@@ -16,7 +16,7 @@ use std::sync::Arc;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
-use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::{Mutex as AsyncMutex, Semaphore};
 use tracing::info;
 
 /// Active embedding model. Stays fixed for the lifetime of the DB schema —
@@ -51,6 +51,17 @@ pub struct Embedder {
     /// writable independent of the process CWD (see module docs).
     cache_dir: PathBuf,
     inner: Arc<AsyncMutex<Option<SharedModel>>>,
+    /// 모델은 한 번에 한 호출만 쓸 수 있다 (`embed` 가 `&mut self`). 그 **줄서기를
+    /// 어디서 하느냐**가 이 필드의 전부다.
+    ///
+    /// 예전엔 모든 호출자가 곧장 `spawn_blocking` 에 들어가 그 안의 std 뮤텍스에서
+    /// 파킹했다 — N 개의 동시 호출자가 N 개의 blocking OS 스레드를 점유한 채 줄을
+    /// 선다는 뜻이다. 그 풀은 git·히스토리·코드 검색과 공유하므로, 임베딩이 밀리면
+    /// 무관한 기능이 스레드를 못 얻어 굶는다.
+    ///
+    /// 이제는 여기서 **비동기로** 기다린 뒤에야 blocking 풀에 들어간다. 직렬성은
+    /// 그대로(퍼밋 1개)이고, 바뀐 것은 대기 장소뿐이다.
+    turnstile: Arc<Semaphore>,
 }
 
 impl Embedder {
@@ -59,6 +70,7 @@ impl Embedder {
             app,
             cache_dir,
             inner: Arc::new(AsyncMutex::new(None)),
+            turnstile: Arc::new(Semaphore::new(1)),
         }
     }
 
@@ -174,7 +186,19 @@ impl Embedder {
             return Ok(Vec::new());
         }
         let model = self.ensure_loaded().await?;
+        // 줄서기는 blocking 풀 **밖**에서 (필드 주석 참고). 기다리는 호출자는
+        // tokio 태스크로 잠들 뿐 OS 스레드를 쥐지 않는다.
+        let permit = self
+            .turnstile
+            .clone()
+            .acquire_owned()
+            .await
+            .map_err(|e| e.to_string())?;
         tokio::task::spawn_blocking(move || {
+            // 퍼밋을 클로저 안까지 들고 들어간다 — 호출자가 취소돼도 반납은
+            // **실제 추론이 끝난 뒤**에 일어나야 다음 사람이 std 뮤텍스에서
+            // 파킹하지 않는다.
+            let _permit = permit;
             let mut guard = model.lock().map_err(|e| e.to_string())?;
             guard.embed(texts, None).map_err(|e| e.to_string())
         })
