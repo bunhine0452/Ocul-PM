@@ -387,6 +387,7 @@ use crate::commands::{
     // .oculpm/ subsystem (W1-PR6 + W2-PR6 + W3-PR3)
     oculpm_init,
     oculpm_list_journal_entries,
+    oculpm_list_journal_entries_page,
     oculpm_list_sessions,
     oculpm_log,
     oculpm_open_entry_in_editor,
@@ -779,6 +780,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_watcher_stop,
             oculpm_watcher_take_over,
             oculpm_list_journal_entries,
+            oculpm_list_journal_entries_page,
             oculpm_get_journal_entry,
             oculpm_get_entry_diffs,
             oculpm_group_changes,

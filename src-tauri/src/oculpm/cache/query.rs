@@ -15,7 +15,53 @@ impl<'a> JournalCache<'a> {
         filters: &EntryFilters,
     ) -> Result<Vec<JournalEntrySummary>, OculpmError> {
         let workdays: Vec<String> = workday.map(str::to_string).into_iter().collect();
-        self.list_entries_in(project_id, workdays, filters).await
+        self.list_entries_in(project_id, workdays, filters, None)
+            .await
+    }
+
+    /// 한 쪽만 (`{#journal-timeline-limit}`). 함께 돌려주는 `total` 은 **상한을
+    /// 걸기 전** 조건에 맞는 전체 건수다 — 화면이 "537건 중 200건"이라고
+    /// 말하려면 그 숫자가 있어야 하고, 없으면 "더 있는지"조차 추측이 된다.
+    ///
+    /// 개수 쿼리를 한 번 더 도는 대신 `limit+1` 로 넘겨짚지 않는 이유가 그것이다.
+    pub async fn list_entries_page(
+        &self,
+        project_id: u32,
+        workday: Option<&str>,
+        filters: &EntryFilters,
+        page: EntryPage,
+    ) -> Result<(Vec<JournalEntrySummary>, u32), OculpmError> {
+        let workdays: Vec<String> = workday.map(str::to_string).into_iter().collect();
+        let total = self
+            .count_entries_matching(project_id, &workdays, filters)
+            .await?;
+        let rows = self
+            .list_entries_in(project_id, workdays, filters, Some(page))
+            .await?;
+        Ok((rows, total))
+    }
+
+    /// 이 조건에 맞는 전체 건수 (상한 없음). 요약 하이드레이션을 타지 않는
+    /// 한 줄짜리 쿼리다.
+    async fn count_entries_matching(
+        &self,
+        project_id: u32,
+        workdays: &[String],
+        filters: &EntryFilters,
+    ) -> Result<u32, OculpmError> {
+        let pid = project_id as i64;
+        let workdays = workdays.to_vec();
+        let filters = filters.clone();
+        let count = self
+            .db
+            .conn()
+            .call(move |c| {
+                let (sql, bound) = build_count_sql(pid, &workdays, &filters);
+                c.query_row(&sql, params_from_iter(bound.iter()), |r| r.get::<_, i64>(0))
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+        Ok(count.max(0) as u32)
     }
 
     /// 여러 워크데이의 요약을 **왕복 한 번**에 (완성도 라운드 Phase 3).
@@ -33,8 +79,13 @@ impl<'a> JournalCache<'a> {
         if workdays.is_empty() {
             return Ok(Vec::new());
         }
-        self.list_entries_in(project_id, workdays.to_vec(), &EntryFilters::default())
-            .await
+        self.list_entries_in(
+            project_id,
+            workdays.to_vec(),
+            &EntryFilters::default(),
+            None,
+        )
+        .await
     }
 
     async fn list_entries_in(
@@ -42,6 +93,7 @@ impl<'a> JournalCache<'a> {
         project_id: u32,
         workdays: Vec<String>,
         filters: &EntryFilters,
+        page: Option<EntryPage>,
     ) -> Result<Vec<JournalEntrySummary>, OculpmError> {
         let pid = project_id as i64;
         let filters = filters.clone();
@@ -49,7 +101,7 @@ impl<'a> JournalCache<'a> {
             .db
             .conn()
             .call(move |c| {
-                let (sql, bound) = build_list_sql(pid, &workdays, &filters);
+                let (sql, bound) = build_list_sql(pid, &workdays, &filters, page);
                 let mut stmt = c.prepare(&sql)?;
                 let collected: rusqlite::Result<Vec<JournalEntrySummary>> = stmt
                     .query_map(params_from_iter(bound.iter()), summary_from_row)?

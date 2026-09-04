@@ -344,8 +344,8 @@ pub async fn acp_prompt(
 ) -> Result<String, AppError> {
     let provider = selected_provider(provider);
     let target = target_id(project_id, provider);
-    let connection = app
-        .state::<AcpState>()
+    let state = app.state::<AcpState>();
+    let connection = state
         .connection(target)
         .ok_or_else(|| AppError::code("acp_not_running"))?;
 
@@ -356,10 +356,11 @@ pub async fn acp_prompt(
         None => ensure_session(&app, &db, project_id, provider).await?,
     };
 
-    // 알림 핸들러는 연결 생성 시점에 한 번 등록돼 있다 — 여기서는 "지금 누가
-    // 듣는지"만 바꿔 끼운다.
-    app.state::<AcpState>()
-        .set_sink(target, session.0.to_string(), on_event.clone());
+    // 턴 자리 (`acp::turn` 이 왜 둘 다 여기서 막는지 적어 두었다). 이미 도는
+    // 턴이 있으면 **거절**하고, 어떤 경로로 끝나든 — 아래의 `?`, 태스크 드롭,
+    // 패닉 — 종료 이벤트가 나간다.
+    let guard = acp::TurnGuard::begin(state.inner(), target, session.0.to_string(), on_event)
+        .ok_or_else(|| AppError::new("acp_session_busy", "a prompt is already running here"))?;
 
     let mut blocks = vec![ContentBlock::Text(TextContent::new(text))];
 
@@ -423,19 +424,17 @@ pub async fn acp_prompt(
         .block_task()
         .await;
 
-    app.state::<AcpState>().clear_sink(target, &session.0);
-
     match outcome {
         Ok(response) => {
             let reason = acp::session::stop_reason_label(&response.stop_reason);
-            let _ = on_event.send(AcpEvent::Done {
+            guard.finish(AcpEvent::Done {
                 stop_reason: reason.clone(),
             });
             Ok(reason)
         }
         Err(e) => {
             let message = e.to_string();
-            let _ = on_event.send(AcpEvent::Failed {
+            guard.finish(AcpEvent::Failed {
                 message: message.clone(),
             });
             Err(AppError::new("acp_prompt_failed", message))

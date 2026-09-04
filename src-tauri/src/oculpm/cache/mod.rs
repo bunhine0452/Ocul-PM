@@ -525,18 +525,26 @@ fn like_escape(raw: &str) -> String {
     out
 }
 
-fn build_list_sql(
+/// 목록 한 쪽 (`{#journal-timeline-limit}`).
+///
+/// 전 이력 조회에 상한이 없었다. 검색창에 한 글자만 쳐도 14일 창이 사라지면서
+/// 이 저장소 기준 537건이 한꺼번에 넘어오고, 가상화가 없는 타임라인이 그만큼의
+/// 카드를 통째로 마운트했다.
+#[derive(Debug, Clone, Copy)]
+pub struct EntryPage {
+    pub limit: u32,
+    pub offset: u32,
+}
+
+/// `WHERE …` 절과 그 바인딩. 목록과 개수가 **같은 조건**을 봐야 "537건 중
+/// 200건"이 참말이 되므로 한 곳에서 만든다. `project_id` 는 항상 `?1` 이다 —
+/// 검색 절의 태그 서브쿼리가 그 자리를 이름으로 참조한다.
+fn build_entry_where(
     project_id: i64,
     workdays: &[String],
     filters: &EntryFilters,
 ) -> (String, Vec<Box<dyn rusqlite::ToSql + Send>>) {
-    let mut sql = String::from(
-        "SELECT relative_path, workday, type, slug, status, difficulty, title, checkbox,
-                session_id, agent_id, agent_version, verified_by_user, created_at, updated_at,
-                parse_ok, parse_warnings
-         FROM oculpm_journal
-         WHERE project_id = ?1",
-    );
+    let mut sql = String::from(" WHERE project_id = ?1");
     let mut bound: Vec<Box<dyn rusqlite::ToSql + Send>> = Vec::new();
     bound.push(Box::new(project_id));
 
@@ -616,8 +624,44 @@ fn build_list_sql(
                   ))"
         ));
     }
-    sql.push_str(" ORDER BY workday DESC, created_at DESC, relative_path DESC");
     (sql, bound)
+}
+
+fn build_list_sql(
+    project_id: i64,
+    workdays: &[String],
+    filters: &EntryFilters,
+    page: Option<EntryPage>,
+) -> (String, Vec<Box<dyn rusqlite::ToSql + Send>>) {
+    let (where_sql, mut bound) = build_entry_where(project_id, workdays, filters);
+    let mut sql = String::from(
+        "SELECT relative_path, workday, type, slug, status, difficulty, title, checkbox,
+                session_id, agent_id, agent_version, verified_by_user, created_at, updated_at,
+                parse_ok, parse_warnings
+         FROM oculpm_journal",
+    );
+    sql.push_str(&where_sql);
+    sql.push_str(" ORDER BY workday DESC, created_at DESC, relative_path DESC");
+    if let Some(page) = page {
+        bound.push(Box::new(i64::from(page.limit)));
+        let limit_idx = bound.len();
+        bound.push(Box::new(i64::from(page.offset)));
+        let offset_idx = bound.len();
+        sql.push_str(&format!(" LIMIT ?{limit_idx} OFFSET ?{offset_idx}"));
+    }
+    (sql, bound)
+}
+
+fn build_count_sql(
+    project_id: i64,
+    workdays: &[String],
+    filters: &EntryFilters,
+) -> (String, Vec<Box<dyn rusqlite::ToSql + Send>>) {
+    let (where_sql, bound) = build_entry_where(project_id, workdays, filters);
+    (
+        format!("SELECT COUNT(*) FROM oculpm_journal{where_sql}"),
+        bound,
+    )
 }
 
 pub(crate) fn walk_journal(journal_root: &Path) -> Vec<(String, i64)> {

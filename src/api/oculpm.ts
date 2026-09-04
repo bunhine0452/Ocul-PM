@@ -31,6 +31,7 @@ import type {
   EntryFilters,
   EntryStatus,
   JournalEntry,
+  JournalEntryPage,
   JournalEntrySummary,
   LayerComparison,
   WorkdayComparison,
@@ -166,6 +167,34 @@ export const oculpmApi = {
     unwrap<JournalEntrySummary[]>(
       "oculpm_list_journal_entries",
       commands.oculpmListJournalEntries(projectId, workday ?? null, filters ?? null)
+    ),
+
+  /**
+   * 상한이 걸린 일지 목록 (`{#journal-timeline-limit}`).
+   *
+   * 타임라인의 전 기간 조회는 **반드시 이쪽**이다. `listJournalEntries` 는
+   * 상한이 없어, 검색창에 한 글자만 쳐도 전 이력(이 저장소 기준 537건)이 한
+   * 번에 넘어와 가상화 없는 타임라인이 그만큼의 카드를 마운트했다.
+   *
+   * `total` 은 상한을 걸기 전 전체 건수 — 화면이 "몇 건 중 몇 건"을 말하는
+   * 근거다.
+   */
+  listJournalEntriesPage: (
+    projectId: number,
+    workday: string | undefined,
+    filters: EntryFilters | undefined,
+    limit: number,
+    offset = 0
+  ) =>
+    unwrap<JournalEntryPage>(
+      "oculpm_list_journal_entries_page",
+      commands.oculpmListJournalEntriesPage(
+        projectId,
+        workday ?? null,
+        filters ?? null,
+        limit,
+        offset
+      )
     ),
 
   getJournalEntry: (projectId: number, relativePath: string) =>

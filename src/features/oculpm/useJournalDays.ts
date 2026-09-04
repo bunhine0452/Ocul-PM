@@ -24,6 +24,15 @@ export interface JournalDay {
 
 const DEFAULT_DAYS = 14;
 
+/**
+ * 전체 기간 조회 한 쪽의 크기 (`{#journal-timeline-limit}`).
+ *
+ * 예전엔 상한이 아예 없었다. 검색창 한 글자 또는 범위 칩 한 번이면 14일 창이
+ * 사라지고 전 이력(이 저장소 기준 537건)이 통째로 넘어와, 가상화 라이브러리가
+ * 없는 타임라인이 그만큼의 카드를 마운트했다.
+ */
+export const JOURNAL_PAGE_SIZE = 200;
+
 
 /** Human label: 오늘 / 어제 / N일 전 prefix + ISO date. */
 function dayLabel(workday: string, todayKey: string): string {
@@ -58,6 +67,8 @@ export interface UseJournalDaysOptions {
    *  the windowed last-N-days load. Removes the 14-day ceiling (F3). */
   allPeriod?: boolean;
   dayCount?: number;
+  /** 전체 기간 조회 한 쪽의 크기. 「더 보기」 한 번에 이만큼 늘어난다. */
+  pageSize?: number;
 }
 
 interface UseJournalDaysResult {
@@ -65,6 +76,20 @@ interface UseJournalDaysResult {
   loading: boolean;
   error: string | null;
   refresh: () => void;
+  /** 조건에 맞는 **전체** 건수. 윈도우 모드(상한 없음)에서는 `null`. */
+  total: number | null;
+  /** 지금 화면에 실린 건수 (전체 기간 모드에서만). */
+  loaded: number | null;
+  /**
+   * 아직 못 받은 것이 남아 있고, 한 쪽 더 달라고 하면 실제로 더 온다.
+   *
+   * `loaded >= limit` 을 함께 보는 이유: 백엔드가 상한을 자체적으로 조인다.
+   * 그 지점을 넘으면 버튼을 눌러도 목록이 안 자라므로, 죽은 버튼을 그리는
+   * 대신 숨기고 「N건 중 M건」만 남긴다.
+   */
+  canLoadMore: boolean;
+  /** 한 쪽 더. */
+  loadMore: () => void;
 }
 
 /**
@@ -78,10 +103,16 @@ export function useJournalDays(
   enabled: boolean,
   options: UseJournalDaysOptions = {},
 ): UseJournalDaysResult {
-  const { filters = null, allPeriod = false, dayCount = DEFAULT_DAYS } = options;
+  const {
+    filters = null,
+    allPeriod = false,
+    dayCount = DEFAULT_DAYS,
+    pageSize = JOURNAL_PAGE_SIZE,
+  } = options;
   const [days, setDays] = useState<JournalDay[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState<{ entries: number; total: number } | null>(null);
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => setTick((n) => n + 1), []);
 
@@ -96,6 +127,17 @@ export function useJournalDays(
   // Stable dependency for the filters object (recreated each render upstream).
   const filtersKey = allPeriod && filters ? JSON.stringify(filters) : "";
 
+  // 조건이 바뀌면 상한은 **처음으로 돌아간다.** 렌더 중에 유도하는 이유는
+  // effect 로 되돌리면 한 프레임 동안 지난 검색에서 늘려 둔 상한이 그대로
+  // 실려, 새 검색이 곧장 전 이력을 끌어오기 때문이다.
+  const queryKey = `${projectId}|${todayKey}|${allPeriod}|${filtersKey}`;
+  const [raised, setRaised] = useState<{ key: string; limit: number } | null>(null);
+  const limit = raised?.key === queryKey ? raised.limit : pageSize;
+  const loadMore = useCallback(
+    () => setRaised({ key: queryKey, limit: limit + pageSize }),
+    [queryKey, limit, pageSize],
+  );
+
   useEffect(() => {
     if (!enabled || projectId == null || !todayKey) {
       setDays(null);
@@ -108,14 +150,16 @@ export function useJournalDays(
       try {
         let grouped: JournalDay[];
         if (allPeriod) {
-          // Single full-history query; the backend applies `filters`.
-          const list = await oculpmApi.listJournalEntries(
+          // 전체 기간 질의 — 백엔드가 `filters` 를 적용하고 **상한도 건다**.
+          const result = await oculpmApi.listJournalEntriesPage(
             projectId,
             undefined,
             filters ?? undefined,
+            limit,
           );
           if (cancelled) return;
-          grouped = groupByWorkday(list, todayKey);
+          grouped = groupByWorkday(result.entries, todayKey);
+          setPage({ entries: result.entries.length, total: result.total });
         } else {
           // v2 U12 — 워크데이당 1콜(×14) 대신 단일 workday brief 로.
           const res = await commands.oculpmWorkdayBrief(projectId, keys, null);
@@ -133,6 +177,8 @@ export function useJournalDays(
                 .sort((a, b) => b.created_at.localeCompare(a.created_at)),
             }))
             .filter((d) => d.entries.length > 0);
+          // 윈도우 모드는 14일 창이 곧 상한이라 "몇 건 중 몇 건"이 없다.
+          setPage(null);
         }
         setDays(grouped);
       } catch (e) {
@@ -147,7 +193,16 @@ export function useJournalDays(
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, todayKey, enabled, keys, allPeriod, filtersKey, tick]);
+  }, [projectId, todayKey, enabled, keys, allPeriod, filtersKey, limit, tick]);
 
-  return { days, loading, error, refresh };
+  return {
+    days,
+    loading,
+    error,
+    refresh,
+    total: page?.total ?? null,
+    loaded: page?.entries ?? null,
+    canLoadMore: page != null && page.entries < page.total && page.entries >= limit,
+    loadMore,
+  };
 }
