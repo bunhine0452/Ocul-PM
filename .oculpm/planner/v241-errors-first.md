@@ -46,8 +46,8 @@ v3-round 감사 5갈래가 찾은 확정 결함 중 소~중 비용을 3.0 앞으
 - [x] 일지 타임라인 상한 — oculpm_list_journal_entries 에 limit 추가(백엔드·API·프런트) + 일자당 더 보기. 지금 검색창 한 글자에 14일 창과 날짜 접기가 동시에 풀려 전 이력이 렌더된다 (537건, 가상화 없음) {#journal-timeline-limit}
 
 ## 릴리스 v2.41.0 {#release-241}
-- [ ] 게이트 전수 — typecheck·test·lint(6종)·build·cargo test·cargo clippy 각각 exit 0 을 직접 확인 {#gates-green}
-- [ ] 릴리스 5면 — 버전 3파일·CHANGELOG·README ko/en 양쪽·landing 6곳. 태그 푸시로 release.yml 이 빌드(로컬 빌드 금지), 랜딩은 landing 에서 vercel --prod {#release-surfaces}
+- [x] 게이트 전수 — typecheck·test·lint(6종)·build·cargo test·cargo clippy 각각 exit 0 을 직접 확인 {#gates-green}
+- [x] 릴리스 5면 — 버전 6파일·CHANGELOG·README ko/en 양쪽·landing ko/en 각 6곳 + plugin.html + build.mjs 재빌드. 태그 푸시로 release.yml 이 빌드(로컬 빌드 금지), 랜딩은 landing 에서 vercel --prod {#release-surfaces}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -79,4 +79,12 @@ v3-round 감사 5갈래가 찾은 확정 결함 중 소~중 비용을 3.0 앞으
 | 2026-09-04T13:05:57+09:00 | #infinite-loading-six | claude-code | ☐→x | 20260904/Bugs/1304_bug_v241-destructive-and-silent-failures.md | 6화면 전부 try/catch/finally + 재시도를 로딩 분기 밖으로. useTodayBrief 관용구를 따랐다 |
 | 2026-09-04T13:06:00+09:00 | #listener-leaks | claude-code | ☐→x | 20260904/Bugs/1304_bug_v241-destructive-and-silent-failures.md | createUnlistenBag 으로 15곳 전부 이주 — bag.add 가 alive 를 소유해 새 구독이 구조적으로 안전 |
 | 2026-09-04T13:06:02+09:00 | #journal-timeline-limit | claude-code | ☐→x | 20260904/Bugs/1304_bug_v241-destructive-and-silent-failures.md | 신규 커맨드 oculpm_list_journal_entries_page(limit/offset/total) + 일자당 더보기 + 그리는 개수 상한 25 |
+| 2026-09-04T06:06:19.705767+00:00 | #gates-green | user | ☐→~ |  |  |
+| 2026-09-04T06:06:20.829451+00:00 | #release-surfaces | user | ☐→~ |  |  |
+| 2026-09-04T06:06:23.157392+00:00 | #gates-green | user | ~→x |  |  |
+| 2026-09-04T06:06:28.725356+00:00 | #release-surfaces | user | ~→x |  |  |
+| 2026-09-04T06:06:30.775749+00:00 | #gates-green | user | x→☐ |  |  |
+| 2026-09-04T06:06:31.414857+00:00 | #release-surfaces | user | x→☐ |  |  |
+| 2026-09-04T15:07:35+09:00 | #gates-green | claude-code | ☐→x | 20260904/Chores/1507_chore_release-v241.md | 로컬 8종 + cargo-deny 전부 exit 0. CI 는 PR·main 양쪽 세 잡 success (cancelled run 하나는 판정에서 제외) |
+| 2026-09-04T15:07:37+09:00 | #release-surfaces | claude-code | ☐→x | 20260904/Chores/1507_chore_release-v241.md | 항목 문구의 「버전 3파일」은 내 오기 — 실제는 6파일이고 그렇게 했다. 랜딩 ko/en 각 6곳 + plugin.html + build.mjs 재빌드. 라이브 2.41.0 확인 |
 <!-- oculpm:plan-log end -->
