@@ -47,7 +47,7 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/en",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "2.40.0",
+  "softwareVersion": "2.41.0",
   "inLanguage": "en",
   "description": "A local-first AI project manager for developers who work with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends). It records what the agents changed, lets you verify it against a local diff, and turns the pile of records back into standups, PR bodies and retrospectives. Two-line install as a Claude Code plugin.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -268,7 +268,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.40.0</span>
+    <span class="nav-ver" data-version>v2.41.0</span>
     <div class="nav-links">
       <a href="#acts">Features</a>
       <a href="/keynote">Keynote</a>
@@ -287,7 +287,7 @@
 <!-- ══════════ hero ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.40.0 — four agents finally look like four</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.41.0 — errors first</a>
   <h1 class="reveal on">Agents write the code.<br /><span class="g">You keep the memory.</span></h1>
   <p class="hero-sub reveal on">
     While Claude Code · Codex · Cursor write your code, <b>Ocul-PM</b> records every unit of work —
@@ -296,7 +296,7 @@
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">Get v2.40.0</span><span class="sub">Free · macOS (Apple Silicon)</span>
+      <span class="lg">Get v2.41.0</span><span class="sub">Free · macOS (Apple Silicon)</span>
     </a>
     <a class="dl-btn ghost" href="/keynote">Watch the keynote →</a>
   </div>
@@ -489,6 +489,7 @@
     <p class="reveal">This app is built with itself — every line below came out of Ocul-PM's own work journal.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v2.41.0 — errors first</b> · <b>⌘W killed a running agent without asking</b> — the odd part is that <b>the same ⌘W did ask one layer up</b> (closing a tab). The check already existed and simply wasn't called at the pane layer. We also fixed <b>"check failed" and "all clear" looking identical</b>: the honesty audit and the "session ended without a journal" card vanished silently on a failed query, and the <b>Diff screen</b> disguised four failed git lookups as "no changes" — it now separates <b>don't know yet · couldn't ask · genuinely none</b>. <b>One screen falling over no longer takes the app with it</b>, and <b>Korean text no longer breaks mid-word</b> (the typographic rule had never been applied anywhere). Markers that were <b>nearly invisible in dark and high-contrast</b> themes (planner checkmarks, <span class="mono">A/M/D</span> badges, toggle knobs — contrast 1.98:1, and 1.43:1 in high contrast) are fixed, along with <b>asking the same conversation twice</b> leaving the first answer nowhere to go and <b>closing a window leaving the screen thinking forever</b>. Search no longer stalls on one keystroke across 537 entries. And <b>three new gates</b> — a code linter (there was none, yet 33 comments disabled it), a pinned compiler version, and security checks across 817 dependencies (<b>four real vulnerabilities on the first run</b>).</li>
     <li class="reveal"><b>v2.40.0 — four agents finally look like four</b> · Splitting the terminal four ways still showed the app <b>a single session</b> — each hook event carries its own conversation id, and we were dropping it at the door. A work session now <b>records every conversation that took part</b> (the tray says "4 conversations") and <b>each journal entry names the conversation that wrote it</b>. Give every terminal <b>its own color</b> (right-click the card — the left stripe and the terminal border both take it), and the card says <b><span class="mono">2/4 running</span></b>, keeping that count on the icon <b>even when the rail is collapsed</b>. <b>Codex gets its own mark.</b> In the code tree you can now <b>drag files to move them</b> (hover a collapsed folder and it opens), grab several at once, undo the move, and do the same from the keyboard — renaming <b>carries open tabs and unsaved edits along</b>. And the collaboration state that was stuck in a Today card became a <b>Sessions screen</b>: when every name is <span class="mono">claude-code-term-&lt;pid&gt;</span>, it layers <b>alias, registered name, surface, claimed ground and last activity</b> until you can tell them apart.</li>
     <li class="reveal"><b>v2.39.1 — one Codex entry per machine; the session picks the project</b> · Fixed: a Codex session working in another project <b>wrote its journal into this one</b>. <span class="mono">~/.codex/config.toml</span> is machine-wide, so a server listed there <b>loads in every session</b> — and v2.39.0 registered it with a project pinned. There is now a single entry with <b>no pinned root</b>: the project is decided by the folder the Codex session opened in. Old entries are named on screen with a <b>"pinned to a project"</b> badge and fixed by one Re-register, and the recording server itself <b>refuses to write into someone else's project</b> — if the pinned root is a different tracked project from where it runs, it does not start.</li>
     <li class="reveal"><b>v2.39.0 — Codex as family, and a plan list that stays short</b> · Until now the only link to Codex was a single <span class="mono">AGENTS.md</span>, and attaching the recording tools meant forcing Claude's plugin onto it — whose Claude-only path variables made Codex <b>fail at startup</b>. Settings → Integration now <b>registers the MCP server</b> (written to <span class="mono">~/.codex/config.toml</span> alone, never touching Claude's plugin or <span class="mono">.mcp.json</span>, preserving your comments and other servers), and a <b>Codex-native plugin</b> installs in two lines. The screen also names the <b>"marketplace missing"</b> state — on first run Codex imports your Claude setup but carries over only the enabled-plugin list, and without its marketplace it <b>silently fails to load</b>. The planner <b>stays short as plans pile up</b>: finished plans fold by month past 12, each section renders 10 rows then "N more", and a whole month <b>archives from one header button</b> (the rail resizes and docks either side). Opening a terminal no longer spills 200 lines of shell variables.</li>
@@ -599,12 +600,12 @@
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v2.40.0 — download now · macOS (Apple Silicon)</span>
+  <span class="eyebrow reveal">v2.41.0 — download now · macOS (Apple Silicon)</span>
   <h2 class="reveal">Nothing is required<br />to start.</h2>
   <p class="sub reveal">No sign-up, no setup, no fee. You download it, and that is the whole thing.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">Get v2.40.0</span><span class="sub">Free · auto-updating</span>
+      <span class="lg">Get v2.41.0</span><span class="sub">Free · auto-updating</span>
     </a>
     <a class="dl-btn ghost" href="/plugin">Start with the plugin →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Enterprise · partnerships</a>

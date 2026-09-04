@@ -47,7 +47,7 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "2.40.0",
+  "softwareVersion": "2.41.0",
   "description": "AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저. 에이전트가 만든 변경을 자동으로 기록하고, 로컬 diff 로 즉시 검증하고, 쌓인 기록을 스탠드업·PR 본문·회고로 되돌려줍니다. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -266,7 +266,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.40.0</span>
+    <span class="nav-ver" data-version>v2.41.0</span>
     <div class="nav-links">
       <a href="#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -285,7 +285,7 @@
 <!-- ══════════ 히어로 ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.40.0 — 넷을 띄우면 넷으로 보인다</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.41.0 — 오류부터</a>
   <h1 class="reveal on">에이전트는 코드를 쓰고,<br /><span class="g">당신은 기억을 갖습니다.</span></h1>
   <p class="hero-sub reveal on">
     Claude Code · Codex · Cursor 가 코드를 쓰는 동안, <b>Ocul-PM</b> 이 모든 작업을
@@ -294,7 +294,7 @@
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v2.40.0 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
+      <span class="lg">v2.41.0 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
     </a>
     <a class="dl-btn ghost" href="/keynote">키노트로 보기 →</a>
   </div>
@@ -487,6 +487,7 @@
     <p class="reveal">이 앱은 자기 자신으로 개발됩니다 — 아래 이력 전부가 Ocul-PM 의 작업 일지에서 나왔습니다.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v2.41.0 — 오류부터</b> · <b>⌘W 가 돌고 있는 에이전트를 묻지 않고 죽였습니다</b> — 이상한 건 <b>같은 ⌘W 가 한 층 위(탭)에서는 물었다</b>는 점입니다. 판정은 이미 있었고 페인 층에서만 안 불렀습니다. <b>"검사 실패"와 "깨끗함"이 구별되지 않던 것</b>도 고쳤습니다: 정직성 감사와 「일지 없이 끝난 세션」 카드가 조회에 실패하면 조용히 사라졌고, <b>변경 화면</b>은 git 조회 실패 네 자리를 "변경 없음"으로 위장했습니다 — 이제 <b>아직 모름 · 못 물어봄 · 정말 없음</b>을 나눠 말합니다. <b>화면 하나가 넘어져도 앱이 통째로 넘어지지 않고</b>, <b>한국어 문장이 어절 한가운데서 꺾이지 않습니다</b>(조판 규칙이 앱 전체에 한 번도 없었습니다). 다크·고대비에서 <b>거의 안 보이던 표시들</b>(플래너 체크·<span class="mono">A/M/D</span> 배지·토글 손잡이, 대비 1.98:1 · 고대비 1.43:1)을 고쳤고, <b>같은 대화에 두 번 물으면 앞의 답이 갈 곳을 잃던 것</b>과 <b>창을 닫으면 영원히 「생각 중」이던 것</b>을 닫았습니다. 일지 537건에서 <b>검색이 한 글자에 멈추지 않습니다</b>. 그리고 <b>게이트 셋</b>을 새로 놓았습니다 — 코드 검사기(없었는데 그걸 끄는 주석은 33개 있었습니다)·컴파일러 버전 고정·의존성 817개 보안 검사(<b>켜자마자 실제 취약점 넷</b>이 나왔습니다).</li>
     <li class="reveal"><b>v2.40.0 — 넷을 띄우면 넷으로 보인다</b> · 터미널을 넷으로 쪼개 에이전트를 넷 띄워도 앱은 <b>세션 하나만</b> 보고 있었습니다 — 훅은 대화마다 다른 id 를 들고 오는데 그 값이 문 앞에서 버려졌습니다. 이제 작업 세션이 <b>참여한 대화를 전부 기록</b>하고(트레이가 「대화 4」로 말합니다), <b>일지가 어느 대화의 것인지</b> 적습니다. 터미널마다 <b>색을 고르고</b>(카드 우클릭 — 왼쪽 띠와 터미널 테두리가 함께 물듭니다), 카드가 <b><span class="mono">2/4 실행 중</span></b> 이라 말하며 <b>레일을 접어도</b> 그 수가 아이콘에 남습니다. <b>Codex 가 제 아이콘</b>을 갖습니다. 코드 트리에서는 파일을 <b>끌어서 옮기고</b>(접힌 폴더는 머물면 열립니다) 여럿을 함께 잡고 되돌리며, 키보드만으로도 같은 이동을 합니다 — 이름을 바꾸면 <b>열려 있던 탭과 미저장 편집이 따라옵니다</b>. 그리고 Today 카드에 갇혀 있던 협업 상태가 <b>「세션」 화면</b>으로 나왔습니다: 이름이 전부 <span class="mono">claude-code-term-&lt;pid&gt;</span> 라 구별이 안 되던 것을 <b>별명·등록 이름·표면·잡은 구역·마지막 활동</b>을 겹쳐 풉니다.</li>
     <li class="reveal"><b>v2.39.1 — Codex 등록은 머신 하나, 프로젝트는 세션이 정한다</b> · 다른 프로젝트에서 일하던 Codex 가 <b>이 프로젝트에 일지를 쓰는</b> 버그를 고쳤습니다. <span class="mono">~/.codex/config.toml</span> 은 머신 전역이라 거기 적힌 MCP 서버는 <b>모든 세션에 실리는데</b>, v2.39.0 은 거기에 프로젝트를 박아 등록했습니다. 이제 항목은 하나이고 <b>루트를 박지 않습니다</b> — 어느 프로젝트인지는 Codex 세션이 열린 폴더가 정합니다. 옛 항목은 <b>「프로젝트 고정됨」</b> 배지로 경로를 짚고 「다시 등록」 한 번에 고쳐지며, 기록 서버 자체도 <b>남의 프로젝트에 쓰기를 거부</b>합니다 (지금 도는 자리와 다른 추적 프로젝트를 가리키면 아예 뜨지 않습니다).</li>
     <li class="reveal"><b>v2.39.0 — Codex 를 식구로, 계획은 짧게</b> · 여태 Codex 와의 연결은 <span class="mono">AGENTS.md</span> 한 장뿐이었고, 기록 도구를 붙이려면 Claude 용 플러그인을 억지로 물려야 했습니다 — 그 안의 Claude 전용 경로 변수 때문에 <b>시작 자체가 실패</b>했습니다. 이제 설정 → 연동에서 <b>Codex MCP 서버를 등록</b>합니다(<span class="mono">~/.codex/config.toml</span> 에만 쓰고 Claude 의 플러그인·<span class="mono">.mcp.json</span> 은 건드리지 않으며, 손으로 적은 주석과 다른 서버는 그대로). <b>Codex 전용 플러그인</b>도 두 줄이면 깔립니다. 그리고 화면이 <b>「마켓플레이스 없음」</b>을 짚습니다 — Codex 는 첫 실행에 Claude 설정을 임포트하면서 활성 플러그인 목록만 옮겨 오는데, 마켓플레이스가 안 따라오면 <b>조용히 로드에 실패</b>하기 때문입니다. 플래너는 <b>계획이 쌓여도 목록이 짧습니다</b>: 완료가 12개를 넘으면 월별로 접히고, 한 섹션 10행 뒤 「N개 더 보기」로 잇고, <b>완료 묶음을 헤더 버튼 하나로 통째 보관</b>합니다(레일 폭·좌우도 고를 수 있습니다). 터미널을 열 때마다 셸 변수 200줄이 쏟아지던 문제도 고쳤습니다.</li>
@@ -611,12 +612,12 @@
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v2.40.0 — 지금 다운로드 · macOS (Apple Silicon)</span>
+  <span class="eyebrow reveal">v2.41.0 — 지금 다운로드 · macOS (Apple Silicon)</span>
   <h2 class="reveal">시작하는 데 필요한 것은,<br />없습니다.</h2>
   <p class="sub reveal">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v2.40.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
+      <span class="lg">v2.41.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
     </a>
     <a class="dl-btn ghost" href="/plugin">플러그인으로 시작 →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>

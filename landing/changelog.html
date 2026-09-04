@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.40.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 91개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.41.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 92개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.40.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 91개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.41.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 92개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.40.0</span>
+    <span class="nav-ver" data-version>v2.41.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>91개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>92개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-41-0">v2.41.0</a>
       <a href="#v2-40-0">v2.40.0</a>
       <a href="#v2-39-1">v2.39.1</a>
       <a href="#v2-39-0">v2.39.0</a>
@@ -61,10 +62,24 @@
       <a href="#v2-34-0">v2.34.0</a>
       <a href="#v2-33-0">v2.33.0</a>
       <a href="#v2-32-0">v2.32.0</a>
-      <a href="#v2-31-0">v2.31.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-41-0"><a href="#v2-41-0">v2.41.0</a></h2>
+      <div class="cl-body">
+<p><b>⌘W 가 돌고 있는 에이전트를 아무것도 묻지 않고 죽였습니다.</b> 터미널을 넷으로 쪼개 에이전트를 넷 띄운 다음 하나를 닫으면, 그 턴은 그냥 사라졌습니다. 이상한 것은 <b>같은 ⌘W 가 한 층 위에서는 물었다</b>는 점입니다 — 탭을 닫을 때는 페인마다 실행 중인 명령을 조회해 확인창을 띄웁니다. 필요한 판정은 이미 있었고, 페인 층에서만 부르지 않았습니다.</p>
+<ul><li><b>페인을 닫을 때도 묻습니다.</b> 무엇이 돌고 있는지 이름을 대고, 취소하면 아무것도 건드리지 않습니다.</li><li><b>화면 하나가 넘어져도 앱이 통째로 넘어지지 않습니다.</b> 여태 경계가 설정 화면과 탭 전체에만 있어서, 화면 하나가 렌더 중 실패하면 사이드바까지 사라져 나갈 길이 없었습니다. 이제 그 화면만 대체 카드가 되고 나머지는 그대로입니다.</li><li><b>저장소가 막힌 브라우저에서도 앱이 뜹니다.</b> 설정 저장에 쓰는 저장소를 무방비로 읽고 있었는데, 우리는 키 하나에 전부 담으므로 그 호출이 실패하면 <b>모든 화면이 한 번에 흰 화면</b>이 됩니다.</li></ul>
+<p><b>"검사 실패"와 "깨끗함"이 화면에서 구별되지 않았습니다.</b> 이 앱은 모르면 모른다고 말하는 것을 원칙으로 삼는데, 정작 정직성 감사와 「일지 없이 끝난 세션」 카드가 조회에 실패하면 조용히 사라졌습니다 — 아무 문제 없는 것과 똑같이 보였습니다.</p>
+<ul><li><b>실패는 실패라고 말합니다.</b> 사유와 다시 시도 버튼이 함께 나옵니다.</li><li><b>변경 화면이 "변경 없음"으로 위장하지 않습니다.</b> git 조회가 실패한 네 자리가 정상 상태와 글자 하나 다르지 않았습니다. 이제 <i>아직 모름</i> · <i>못 물어봄</i> · <i>정말 없음</i> 을 나눠 말합니다.</li><li><b>여섯 화면이 「불러오는 중」에 갇히던 것을 풀었습니다.</b> 코드 맵·검색·플래너·회고·문서·논의 — 드문 실패였지만 한 번 걸리면 화면을 옮기는 것 말고는 나올 길이 없었습니다.</li><li><b>닫은 탭이 계속 말을 걸던 것을 멈췄습니다.</b> 구독 열다섯 자리가 화면을 떠난 뒤에도 남아 있었고, 그중 하나는 사라지지 않는 알림을 띄웠습니다.</li></ul>
+<p><b>한국어 문장이 어절 한가운데서 꺾였습니다.</b> 좁은 창에서 일지 서술과 AI 답변이 "프로젝 / 트를" 처럼 잘렸습니다. 한국어 조판 규칙이 앱 전체에 <b>한 번도</b> 걸려 있지 않았고, 그래서 같은 버그를 자리마다 다른 임시방편으로 네 번 막아 온 흔적이 남아 있었습니다.</p>
+<ul><li><b>어절을 지킵니다.</b> 대신 공백 없는 긴 경로·식별자는 그대로 끊습니다.</li><li><b>다크 테마에서 안 보이던 표시들을 고쳤습니다.</b> 플래너 완료 체크·변경 파일의 <code>A</code>/<code>M</code>/<code>D</code> 배지·설정 토글 손잡이가 액센트 색 위에서 거의 읽히지 않았습니다(대비 1.98:1, 고대비 테마에서는 1.43:1 로 사실상 보이지 않았습니다).</li><li><b>흐린 안내문을 읽을 수 있게 했습니다.</b> 데이터가 없는 화면에서 "무엇을 하면 되는지" 알려주는 유일한 문장이 배경에 녹아 있었습니다 — 여섯 테마 전부에서 기준 미달이었습니다.</li><li><b>같은 코드가 화면마다 다른 색이던 것을 한 벌로 줄였습니다.</b> 문법 강조 정의가 네 벌 있었고 그중 넷은 서로 충돌해 로드 순서가 승자를 정하고 있었습니다.</li></ul>
+<p><b>같은 대화에 두 번 물으면 앞의 답이 갈 곳을 잃었습니다.</b> 대화 하나에 프롬프트가 겹쳐 들어오는 것을 막는 장치가 없어서, 두 번째가 첫 번째의 자리를 덮었습니다. 그리고 턴이 정상 경로가 아닌 방식으로 끝나면 — 창을 닫거나 작업이 중단되면 — 화면은 <b>영원히 「생각 중」</b>이었습니다.</p>
+<ul><li><b>한 대화는 한 번에 하나입니다.</b> 이미 답하는 중이면 그렇게 말합니다.</li><li><b>어떻게 끝나든 끝났다고 말합니다.</b> 성공·실패·취소·중단 전부입니다.</li><li><b>일지가 537건이어도 검색이 한 글자에 멈추지 않습니다.</b> 검색창에 한 글자만 넣어도 14일 창과 날짜 접기가 <b>동시에</b> 풀려 전체 이력을 한꺼번에 그렸습니다. 이제 나눠 불러오고 「전체 N건 중 M건」을 말합니다.</li></ul>
+<p><b>말과 실제가 어긋나 있던 곳들.</b> 소개 문서와 웹사이트가 이미 없어진 자리로 안내하고 있었고(v2.40.0 에서 「세션」 화면으로 옮긴 기능), 검색이 쓰지 않는 기술을 쓴다고 적혀 있었습니다. 개발 문서 206개에는 목차가 없어 넉 달 전 문서가 자기를 최신이라고 말하고 있었습니다 — 사람에게도, 이 저장소에서 일하는 에이전트에게도 오답의 원천이었습니다.</p>
+<p><b>게이트를 새로 셋 놓았습니다.</b> 코드 검사기(ESLint)가 아예 없었는데 그것을 끄는 주석이 33개 있었습니다. Rust 컴파일러 버전이 고정돼 있지 않아 코드가 한 줄도 안 바뀐 날 빌드가 붉어지곤 했습니다. 의존성 817개의 보안 공지·라이선스를 보는 검사는 하나도 없었습니다 — <b>켜자마자 실제 취약점 네 건이 나왔고</b>, 고칠 수 있는 셋은 이 릴리스에서 닫았습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-40-0"><a href="#v2-40-0">v2.40.0</a></h2>
       <div class="cl-body">
