@@ -35,7 +35,7 @@ owner: claude-code
 
 ## 릴리스 v2.42.0 {#release-242}
 - [x] 측정 재실행 — Phase 0 기준 대비 실제로 나아졌는지 확인 (개선 주장은 측정치로만) {#measure-after}
-- [ ] 게이트 전수 exit 0 + 릴리스 5면 + 태그 {#release-242-2}
+- [x] 게이트 전수 exit 0 + 릴리스 5면 + 태그 {#release-242-2}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -56,4 +56,6 @@ owner: claude-code
 | 2026-09-04T16:09:47+09:00 | #floating-promises | claude-code | ☐→x | 20260904/Features_to_add/1609_feature_v242-frontend-rerender-and-swallowed-failures.md | 지목된 자리(AcpConversation 3·TerminalSurface 3·useLsp 2)를 reportFailure 로. useLsp 는 고빈도라 토스트 대신 상태줄+로그 1회. 저장소 전체 ~100개는 플랜 밖으로 남음 |
 | 2026-09-04T16:09:53+09:00 | #settings-set-unhandled | claude-code | ☐→x | 20260904/Features_to_add/1609_feature_v242-frontend-rerender-and-swallowed-failures.md | set() 12곳 전부 useSaveSetting 경유. set 은 거절 대신 알리고 resolve — 소유 밖 8자리가 아직 void set 이라 거절 계약이면 실패가 unhandled rejection 으로 자리만 옮긴다 |
 | 2026-09-04T16:10:01+09:00 | #measure-after | claude-code | ☐→x | 20260904/Chores/1517_chore_v242-measure-once-baseline.md | 재실행했고 **개선을 주장하지 않는다** — 하니스는 날것의 일을 잰다. 바뀐 건 어느 스레드에서 도는가와 큐에 바닥이 있는가. 실제 전/후는 프런트 테스트 단언(쓰기 20→0, 렌더 +10→0). perf-baseline §6 |
+| 2026-09-04T16:18:54+09:00 | #release-242-2 | claude-code | ☐→~ |  | 게이트 8종 전수 exit 0 직접 확인 · PR #13 잡 3개 conclusion=success · rebase 머지(886019c) · 태그 v2.42.0 푸시로 release.yml run 33848106608 시작 확인. 랜딩 배포 진행 중 |
+| 2026-09-04T17:00:15+09:00 | #release-242-2 | claude-code | ~→x |  | release.yml 33848106608 success — dmg·app.tar.gz·sig·latest.json 게시(2026-09-04T07:58Z). 랜딩 ko/en 라이브 v2.42.0 확인 |
 <!-- oculpm:plan-log end -->
