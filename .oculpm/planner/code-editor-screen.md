@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: code-editor-screen
 title: "코드 화면 — 인앱 코드 뷰어·에디터"
-status: done
+status: archived
 created: 2026-08-16
-updated: 2026-08-20
+updated: 2026-09-04
 owner: claude-code
 ---
 

@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: acp-agent-panel
 title: "ACP 에이전트 패널 — AI 패널에서 Claude Code 구동"
-status: done
+status: archived
 created: 2026-08-14
-updated: 2026-08-23
+updated: 2026-09-04
 owner: claude-code
 ---
 

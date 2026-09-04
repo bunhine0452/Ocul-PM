@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: ponytail-round
 title: "ponytail 벤치마킹 라운드 — 카나리·부채 원장·컨텍스트 주입"
-status: done
+status: archived
 created: 2026-07-31
-updated: 2026-08-01
+updated: 2026-09-04
 owner: claude-code
 ---
 

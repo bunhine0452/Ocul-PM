@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: ci-and-module-boundaries
 title: "CI 게이트 · 모듈 경계 정리 — 외부 코드리뷰 피드백 4건 대응"
-status: done
+status: archived
 created: 2026-08-25
-updated: 2026-08-28
+updated: 2026-09-04
 owner: claude-code
 ---
 

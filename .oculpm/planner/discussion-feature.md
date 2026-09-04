@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: discussion-feature
 title: "문제 해결(Discussion) 기능"
-status: done
+status: archived
 created: 2026-06-29
-updated: 2026-07-20
+updated: 2026-09-04
 owner: claude-code
 status_note: "전 PR 구현 완료 (미커밋)"
 ---

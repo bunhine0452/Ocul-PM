@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: agent-discipline-redesign
 title: "스킬·규칙 재설계 — 관리자 화면에서 발동 루프로"
-status: done
+status: archived
 created: 2026-08-29
-updated: 2026-08-31
+updated: 2026-09-04
 owner: claude-code
 ---
 

@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: skill-catalog-round-2
 title: "스킬 카탈로그 2차 — 전수 재감사 채택분 (벤더 12종 + 이식 5건)"
-status: done
+status: archived
 created: 2026-08-01
-updated: 2026-08-20
+updated: 2026-09-04
 owner: claude-code
 ---
 
