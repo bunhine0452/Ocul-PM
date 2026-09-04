@@ -60,15 +60,23 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
   const loadTree = useCallback(() => {
     setStatus("loading");
     setTreeError(null);
-    void commands.docsTree(projectId).then((res) => {
-      if (res.status === "ok") {
-        setTree(res.data);
-        setStatus("ready");
-      } else {
-        setTreeError(res.error);
+    void commands
+      .docsTree(projectId)
+      .then((res) => {
+        if (res.status === "ok") {
+          setTree(res.data);
+          setStatus("ready");
+        } else {
+          setTreeError(res.error);
+          setStatus("error");
+        }
+      })
+      // `.catch` 가 없어 전송 계층 실패·창 teardown 이 진짜 `Error` 로 튀면
+      // status 가 "loading" 에 남아 화면이 영원히 스피너였다.
+      .catch((e) => {
+        setTreeError(String(e));
         setStatus("error");
-      }
-    });
+      });
   }, [projectId]);
 
   useEffect(() => {
@@ -96,17 +104,25 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
     let alive = true;
     setBodyState("loading");
     setBodyError(null);
-    void commands.docsRead(projectId, selected).then((res) => {
-      if (!alive) return;
-      if (res.status === "ok") {
-        setBody(res.data);
-        setBodyState("idle");
-      } else {
+    void commands
+      .docsRead(projectId, selected)
+      .then((res) => {
+        if (!alive) return;
+        if (res.status === "ok") {
+          setBody(res.data);
+          setBodyState("idle");
+        } else {
+          setBody("");
+          setBodyError(res.error);
+          setBodyState("error");
+        }
+      })
+      .catch((e) => {
+        if (!alive) return;
         setBody("");
-        setBodyError(res.error);
+        setBodyError(String(e));
         setBodyState("error");
-      }
-    });
+      });
     return () => {
       alive = false;
     };

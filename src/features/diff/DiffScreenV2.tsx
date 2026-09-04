@@ -1,22 +1,11 @@
 import { ErrorCard } from "@/components/ErrorCard";
+import { SkeletonList } from "@/components/ui/Skeleton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import {
-  FileCode2,
-  ExternalLinkIcon,
-  GitBranchIcon,
-  CheckMark,
-  Loader,
-  ShieldCheck,
-} from "@/components/Icons";
+import { FileCode2, ExternalLinkIcon, GitBranchIcon, CheckMark, Loader, ShieldCheck } from "@/components/Icons";
 import { commands, type DiffResult, type ChangeGroup, type ImpactReport } from "@/lib/bindings";
 import { useWorkspace, type DiffMode } from "@/contexts/WorkspaceContext";
-import {
-  recentChangesStore,
-  useRecentChanges,
-  type ChangeOp,
-  type RecentChange,
-} from "@/lib/recentChangesStore";
+import { recentChangesStore, useRecentChanges, type ChangeOp, type RecentChange } from "@/lib/recentChangesStore";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
 import { requestAgentContext } from "@/lib/agentContextNav";
@@ -89,9 +78,17 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   // `git status` gives us the full uncommitted set regardless of uptime /
   // active project; we seed the file list from it and merge live edits on top.
   const [gitChanges, setGitChanges] = useState<RecentChange[]>([]);
+  // 목록 조회의 첫 프레임 게이트 + 실패 (2026-09-04). 없던 동안 `git status`·직전
+  // 커밋 조회가 실패해도, 답이 오기 **전**에도 화면은 "이 브랜치엔 아직 변경이
+  // 없어요" 라고 단언했다 — 정상 상태와 글자 하나 다르지 않게. 이 화면은 제품
+  // 약속 「믿지 말고 보라」의 본체라 거짓 빈 화면이 특히 비싸다.
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
+  const [listNonce, setListNonce] = useState(0);
   const watcherPathKey = recentChanges.map((c) => c.path).join("\n");
   useEffect(() => {
     let cancelled = false;
+    setListLoading(true);
     commands
       .gitUncommittedChanges(projectId)
       .then((res) => {
@@ -101,17 +98,21 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
             ? res.data.map((c) => ({ path: c.path, op: c.op as ChangeOp, ts: 0, read: true }))
             : [],
         );
+        setListError(res.status === "ok" ? null : tError(res.error));
       })
-      .catch(() => {
-        if (!cancelled) setGitChanges([]);
-      });
+      .catch((e) => {
+        if (cancelled) return;
+        setGitChanges([]);
+        setListError(String(e));
+      })
+      .finally(() => !cancelled && setListLoading(false));
     return () => {
       cancelled = true;
     };
     // Re-seed on project switch and whenever the watcher reports a new edit (a
     // commit / stage / new file changes `git status`); non-git projects yield
     // an empty list and the watcher buffer carries the screen on its own.
-  }, [projectId, watcherPathKey]);
+  }, [projectId, watcherPathKey, listNonce]);
 
   // The 변경 diff screen is uncommitted-only by nature: once work is committed
   // `git status` goes clean and the screen would read "변경 없음" even though the
@@ -123,15 +124,20 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     commands
       .gitLastCommitChanges(projectId)
       .then((res) => {
-        if (!cancelled) setLastCommit(res.status === "ok" ? res.data : null);
+        if (cancelled) return;
+        setLastCommit(res.status === "ok" ? res.data : null);
+        // git status 가 이미 말한 실패를 덮지 않는다 — 먼저 온 사유가 더 가깝다.
+        if (res.status !== "ok") setListError((prev) => prev ?? tError(res.error));
       })
-      .catch(() => {
-        if (!cancelled) setLastCommit(null);
+      .catch((e) => {
+        if (cancelled) return;
+        setLastCommit(null);
+        setListError((prev) => prev ?? String(e));
       });
     return () => {
       cancelled = true;
     };
-  }, [projectId, watcherPathKey]);
+  }, [projectId, watcherPathKey, listNonce]);
 
   // Working-tree changes: persistent git baseline + live edits.
   const workingChanges = useMemo(
@@ -140,12 +146,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   );
   const lastCommitChanges = useMemo<RecentChange[]>(
     () =>
-      (lastCommit?.changes ?? []).map((c) => ({
-        path: c.path,
-        op: c.op as ChangeOp,
-        ts: 0,
-        read: true,
-      })),
+      (lastCommit?.changes ?? []).map((c) => ({ path: c.path, op: c.op as ChangeOp, ts: 0, read: true })),
     [lastCommit],
   );
 
@@ -170,6 +171,8 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   const [newFileError, setNewFileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** 파일 본문 조회의 「다시 시도」 — 같은 파일을 다시 부르려면 흔들 것이 필요하다. */
+  const [diffNonce, setDiffNonce] = useState(0);
   const consumedHandoff = useRef(false);
   // Latest merged change list for use inside the fetch effect (which only
   // depends on projectId/selected) — lets us know a file's op (e.g. "D" =
@@ -181,6 +184,11 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
   // plan items) that recorded them. `null` until loaded / on error → the file
   // list falls back to the flat view.
   const [groups, setGroups] = useState<ChangeGroup[] | null>(null);
+  // 곁들이(그룹핑·영향 분석) 조회의 실패 (2026-09-04). 실패하면 `null` 로 접혀
+  // 목록이 평면으로 **조용히** 되돌아갔다 — "어느 일지에도 안 묶인 변경"과
+  // 구별되지 않는다. 목록 자체는 멀쩡하므로 가리지 않고 카드로만 알린다.
+  const [enrichError, setEnrichError] = useState<string | null>(null);
+  const [enrichNonce, setEnrichNonce] = useState(0);
   const pathKey = changes.map((c) => c.path).join("\n");
   useEffect(() => {
     if (changesRef.current.length === 0) {
@@ -188,19 +196,24 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
       return;
     }
     let cancelled = false;
+    setEnrichError(null);
     const paths = changesRef.current.map((c) => c.path);
     commands
       .oculpmGroupChanges(projectId, paths)
       .then((res) => {
-        if (!cancelled) setGroups(res.status === "ok" ? res.data : null);
+        if (cancelled) return;
+        setGroups(res.status === "ok" ? res.data : null);
+        if (res.status !== "ok") setEnrichError(tError(res.error));
       })
-      .catch(() => {
-        if (!cancelled) setGroups(null);
+      .catch((e) => {
+        if (cancelled) return;
+        setGroups(null);
+        setEnrichError(String(e));
       });
     return () => {
       cancelled = true;
     };
-  }, [projectId, pathKey]);
+  }, [projectId, pathKey, enrichNonce]);
 
   // 그룹 머리글의 확인 토글 — 일지 상세와 같은 쓰기(프런트매터 → 캐시). 성공하면
   // 그룹 상태만 고쳐 다시 묶지 않는다 (검토 루프를 diff 안에서 닫는다, Phase 2).
@@ -305,7 +318,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     return () => {
       cancelled = true;
     };
-  }, [projectId, selected, baseline]);
+  }, [projectId, selected, baseline, diffNonce]);
 
   // Mark the change read once its body renders (mirrors LocalDiffView).
   useEffect(() => {
@@ -339,12 +352,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
 
   const onOpenEditor = useCallback(async () => {
     if (!selected || !projectRoot) return;
-    const res = await commands.openInEditor(
-      projectRoot,
-      selected,
-      settings.externalEditorCommand,
-      null,
-    );
+    const res = await commands.openInEditor(projectRoot, selected, settings.externalEditorCommand, null);
     if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
   }, [projectRoot, selected, settings.externalEditorCommand]);
 
@@ -361,16 +369,19 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     commands
       .getChangeImpact(projectId, paths)
       .then((res) => {
-        if (!cancelled) setImpact(res.status === "ok" ? res.data : null);
+        if (cancelled) return;
+        setImpact(res.status === "ok" ? res.data : null);
+        if (res.status !== "ok") setEnrichError((prev) => prev ?? tError(res.error));
       })
-      .catch(() => {
-        if (!cancelled) setImpact(null);
+      .catch((e) => {
+        if (cancelled) return;
+        setImpact(null);
+        setEnrichError((prev) => prev ?? String(e));
       });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, pathKey]);
+  }, [projectId, pathKey, enrichNonce]);
 
   const onOpenAffected = useCallback(
     async (path: string) => {
@@ -570,12 +581,19 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
 
       {changes.length === 0 ? (
         <div className="scroll">
-          <div className="page fade-in">
-            <div className="empty-hint">
-              {baseline === "working" && lastCommitChanges.length > 0
-                ? t("diff.emptyWorking")
-                : t("diff.emptyBranch")}
-            </div>
+          <div className={"page" + (listLoading ? "" : " fade-in")}>
+            {/* 세 상태를 가른다: 아직 모름 / 못 물어봄 / 정말 없음. */}
+            {listLoading ? (
+              <SkeletonList rows={4} height={44} />
+            ) : listError ? (
+              <ErrorCard title={t("diff.listFailed")} error={listError} onRetry={() => setListNonce((n) => n + 1)} />
+            ) : (
+              <div className="empty-hint">
+                {baseline === "working" && lastCommitChanges.length > 0
+                  ? t("diff.emptyWorking")
+                  : t("diff.emptyBranch")}
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -597,6 +615,14 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
 
           {/* Right: diff body */}
           <div className="diff-main">
+            {enrichError ? (
+              <ErrorCard
+                title={t("diff.enrichFailed")}
+                error={enrichError}
+                onRetry={() => setEnrichNonce((n) => n + 1)}
+                style={{ margin: 12 }}
+              />
+            ) : null}
             <div className="diff-bar">
               <FileCode2 size={15} color="var(--text-2)" />
               <span className="fname">{selected ?? "—"}</span>
@@ -654,7 +680,10 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                   <Loader size={14} /> {t("diff.computing")}
                 </div>
               ) : error ? (
-                <ErrorCard title={t("diff.failed")} error={error} style={{ margin: 16 }} />
+                // 「다시 시도」 버튼이 안 그려지고 있었다 — ErrorCard 는 onRetry 가
+                // 있어야 버튼을 낸다.
+                <ErrorCard title={t("diff.failed")} error={error} style={{ margin: 16 }}
+                  onRetry={() => setDiffNonce((n) => n + 1)} />
               ) : diff ? (
                 <DiffBody
                   result={diff}
@@ -678,15 +707,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
 
 // ── diff body — reuses LocalDiffView's pure parsers, renders mockup .dl rows ──
 
-function DiffBody({
-  result,
-  mode,
-  newFilePatch,
-  newFileError,
-  deleted,
-  baseline,
-  projectId,
-}: {
+function DiffBody({ result, mode, newFilePatch, newFileError, deleted, baseline, projectId }: {
   result: DiffResult;
   mode: DiffMode;
   newFilePatch: string | null;

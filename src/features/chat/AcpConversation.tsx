@@ -25,6 +25,7 @@ import { commands, events,
   type AcpSessionSummary,
   type AppError,
 } from "@/lib/bindings";
+import { createUnlistenBag, safeUnlisten } from "@/lib/unlisten";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { useUiPrefs, useProjectRuntime, useTerminalSessions } from "@/contexts/WorkspaceContext";
@@ -576,7 +577,7 @@ export function AcpConversation({
           setAttachments((prev) => [...new Set([...prev, ...rel])]);
           inputRef.current?.focus();
         });
-        if (disposed) off();
+        if (disposed) safeUnlisten(off);
         else unlisten = off;
       } catch {
         // 웹뷰 밖(테스트·브라우저)에서는 이 API 가 없다 — 드롭만 없는 채로 산다.
@@ -584,7 +585,7 @@ export function AcpConversation({
     })();
     return () => {
       disposed = true;
-      unlisten?.();
+      safeUnlisten(unlisten);
     };
   }, [isVisible, projectRoot]);
 
@@ -886,27 +887,26 @@ export function AcpConversation({
     // Phase 4 #events-over-polling — 4초 폴링 대신 백엔드의 세션 변화 이벤트
     // (어댑터 생사·제목·설정·대화 목록). 창이 깨어날 때 한 번 더 맞춘다.
     sync();
-    let off: (() => void) | undefined;
-    void events.acpSessionChanged
-      .listen((evt) => {
+    // 구독이 **붙기 전에** 이 화면을 떠날 수 있다 — 자루가 그때 도착한 리스너를
+    // 그 자리에서 뗀다 (안 그러면 죽은 화면이 이벤트마다 IPC 를 한 벌 더 쏜다).
+    const bag = createUnlistenBag();
+    bag.add(
+      events.acpSessionChanged.listen((evt) => {
         if (evt.payload.project_id !== projectId || evt.payload.provider !== provider) return;
         sync();
         // 목록의 **내용**이 바뀌는 종류만 다시 읽는다. 뒤에서 도는 대화의
         // 제목은 이 길로만 탭에 닿는다 — 제목은 이제 그 대화의 칸에 들어가서
         // 보고 있는 화면의 상태(`session.title`)로는 오지 않는다.
         if (HISTORY_KINDS.has(evt.payload.kind)) void refreshHistory();
-      })
-      .then((fn) => {
-        off = fn;
-      })
-      .catch(() => {});
+      }),
+    );
     const onWake = () => {
       if (document.visibilityState === "visible") sync();
     };
     window.addEventListener("focus", onWake);
     document.addEventListener("visibilitychange", onWake);
     return () => {
-      if (off) off();
+      bag.dispose();
       window.removeEventListener("focus", onWake);
       document.removeEventListener("visibilitychange", onWake);
     };

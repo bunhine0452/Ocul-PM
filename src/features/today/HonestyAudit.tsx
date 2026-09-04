@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { oculpmApi } from "@/api/oculpm";
+import { oculpmApi, OculpmApiError } from "@/api/oculpm";
+import { ErrorCard } from "@/components/ErrorCard";
 import type { SessionUnrecorded } from "@/lib/bindings";
 import { useT, type I18nKey } from "@/i18n";
 
@@ -43,20 +44,36 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
   const { t } = useT();
   const [rows, setRows] = useState<SessionUnrecorded[]>([]);
   const [loading, setLoading] = useState(false);
+  /**
+   * 검사가 **실패**했다 — 결과가 0건인 것과 다르다 (2026-09-04).
+   *
+   * 예전에는 `catch { setRows([]) }` 였다. 그러면 감사가 못 돌았는데도 화면은
+   * 깨끗한 날과 **글자 하나 다르지 않다**. "모르면 모른다고 말한다" 는 이
+   * 제품의 반복 원칙이고, 미기록 변경을 보여주는 카드가 자기 실패를 숨기는
+   * 것은 그 원칙의 정반대다. 0건일 때 숨는 것은 그대로 둔다(깨끗한 날의
+   * 소음 방지) — 숨기지 않는 것은 **실패**뿐이다.
+   */
+  const [error, setError] = useState<string | null>(null);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     if (!enabled || !workday) {
       setRows([]);
+      setError(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
+    setError(null);
     (async () => {
       try {
         const cmp = await oculpmApi.compareWorkday(projectId, workday);
         if (!cancelled) setRows(cmp.sessions.filter((s) => s.unrecorded.length > 0));
-      } catch {
-        if (!cancelled) setRows([]);
+      } catch (e) {
+        if (!cancelled) {
+          setRows([]);
+          setError(e instanceof OculpmApiError ? e.message : String(e));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -64,9 +81,20 @@ export function HonestyAudit({ projectId, workday, enabled }: HonestyAuditProps)
     return () => {
       cancelled = true;
     };
-  }, [projectId, workday, enabled]);
+  }, [projectId, workday, enabled, nonce]);
 
-  if (!enabled || loading || rows.length === 0) return null;
+  if (!enabled) return null;
+  if (error && !loading) {
+    return (
+      <ErrorCard
+        title={t("today.honesty.failed")}
+        error={error}
+        onRetry={() => setNonce((n) => n + 1)}
+        style={{ marginTop: 16 }}
+      />
+    );
+  }
+  if (loading || rows.length === 0) return null;
 
   const totalMissed = rows.reduce((n, r) => n + r.unrecorded.length, 0);
 

@@ -51,3 +51,68 @@ export function safeUnlistenPromise(
   if (!pending) return;
   void pending.then(safeUnlisten).catch(() => {});
 }
+
+/**
+ * 이펙트 하나가 건 구독 전부를 담는 자루 (2026-09-04).
+ *
+ * `listen()` 은 **프라미스**를 돌려준다. 그래서 거의 모든 구독 지점이 이렇게
+ * 생겼다:
+ *
+ * ```ts
+ * let off: (() => void) | undefined;
+ * void events.foo.listen(fn).then((stop) => { off = stop; });
+ * return () => { if (off) safeUnlisten(off); };
+ * ```
+ *
+ * 이 모양은 **구독이 붙기 전에 언마운트되면 샌다.** cleanup 이 `off === undefined`
+ * 인 채로 돌고, 그 뒤 프라미스가 resolve 하며 리스너가 영구 등록된다. 죽은
+ * 컴포넌트의 핸들러가 계속 도는데, 그 핸들러가 수동적이지 않다 — 토스트를
+ * 띄우고(`durationMs: 0` 이면 영원히 남는다), IPC 를 다시 쏘고, 언마운트된
+ * 트리에 setState 한다. `<React.StrictMode>` 의 mount→cleanup→mount 에서
+ * **결정적으로** 재현되고, 화면을 드나든 횟수만큼 겹친다.
+ *
+ * 2026-09-04 감사에서 이 모양이 15곳에 있었다. 한 곳씩 `alive` 플래그를 손으로
+ * 다는 것은 같은 실수를 다시 부르므로(직전 커밋 `e9fb6e6` 가 정확히 그 반복이다)
+ * **자루 하나**로 접는다 — `add()` 가 alive 검사를 소유하니, 새 구독은 자루에
+ * 넣는 것만으로 구조적으로 안전하다:
+ *
+ * ```ts
+ * useEffect(() => {
+ *   const bag = createUnlistenBag();
+ *   bag.add(events.foo.listen(fn));
+ *   bag.add(events.bar.listen(fn));
+ *   return () => bag.dispose();
+ * }, []);
+ * ```
+ *
+ * `dispose()` 뒤에 도착하는 구독은 그 자리에서 해제한다. listen 자체의 실패도
+ * 삼킨다 (구독이 안 붙었으면 뗄 것도 없다).
+ */
+export interface UnlistenBag {
+  /** 구독 프라미스를 맡긴다. 이미 dispose 됐으면 도착하는 즉시 해제한다. */
+  add(pending: Promise<MaybeAsyncUnlisten>): void;
+  /** 담긴 것을 전부 해제하고 이후 도착분도 거절한다 (effect cleanup 에 그대로). */
+  dispose(): void;
+}
+
+export function createUnlistenBag(): UnlistenBag {
+  let alive = true;
+  const offs: MaybeAsyncUnlisten[] = [];
+  return {
+    add(pending) {
+      void pending
+        .then((off) => {
+          if (alive) offs.push(off);
+          // 붙기 전에 떠났다 — 그 자리에서 뗀다.
+          else safeUnlisten(off);
+        })
+        .catch(() => {
+          /* listen 실패 — 붙은 게 없으니 뗄 것도 없다 */
+        });
+    },
+    dispose() {
+      alive = false;
+      for (const off of offs.splice(0, offs.length)) safeUnlisten(off);
+    },
+  };
+}

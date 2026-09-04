@@ -13,17 +13,8 @@
 //   • inspector  — impact/role-centric, with open-in-editor + code peek.
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ReactFlow,
-  Background,
-  BackgroundVariant,
-  Controls,
-  MiniMap,
-  Panel,
-  MarkerType,
-  type Node,
-  type Edge,
-  type NodeMouseHandler,
-  type Viewport,
+  ReactFlow, Background, BackgroundVariant, Controls, MiniMap, Panel, MarkerType,
+  type Node, type Edge, type NodeMouseHandler, type Viewport,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Toolbar } from "@/components/Toolbar";
@@ -39,17 +30,8 @@ import { GraphInspector } from "./GraphInspector";
 import { dagreLayout, forceLayout, sizeForDegree, type NodeSize } from "./layout";
 import { langColor } from "./palette";
 import {
-  EDGE_META,
-  EDGE_ORDER,
-  baseName,
-  dirOf,
-  lastSeg,
-  dirCrumb,
-  type FileRow,
-  type FileEdge,
-  type GNode,
-  type GEdge,
-  type NeighborRel,
+  EDGE_META, EDGE_ORDER, baseName, dirOf, lastSeg, dirCrumb,
+  type FileRow, type FileEdge, type GNode, type GEdge, type NeighborRel,
 } from "./types";
 import { useT, type I18nKey } from "@/i18n";
 import "./graph.css";
@@ -129,28 +111,38 @@ export function GraphScreenV2({
         if (r.status === "ok") setChunkCount(r.data.chunks);
       })
       .catch(() => {});
-    const res = await commands.getCodeGraph(projectId, { symbol_level: false });
-    if (res.status === "ok") {
-      const code = res.data;
-      const nodeFile = new Map(code.nodes.map((n) => [n.id, n.file_id]));
-      setGraph({
-        nodes: code.nodes
-          .filter((n) => n.kind === "file")
-          .map((n) => ({ fileId: n.file_id, path: n.file_path, language: n.language })),
-        edges: code.edges
-          .map((e) => ({
-            source: nodeFile.get(e.source),
-            target: nodeFile.get(e.target),
-            type: e.edge_type,
-            estimated: e.estimated,
-          }))
-          .filter((e): e is FileEdge => e.source != null && e.target != null),
-      });
-    } else {
+    // IPC 는 봉투(`{status}`)로만 실패하지 않는다 — 전송 계층 실패·창 teardown 은
+    // 진짜 `Error` 로 튄다 (bindings 의 `typedError` 가 그때 재throw 한다). 그걸
+    // 안 받으면 `setLoading(false)` 를 못 지나 화면이 스피너로 **영구히** 굳고,
+    // 「다시 시도」 버튼은 로딩 분기 뒤에 있어 화면을 옮기는 것 말고는 길이 없다.
+    try {
+      const res = await commands.getCodeGraph(projectId, { symbol_level: false });
+      if (res.status === "ok") {
+        const code = res.data;
+        const nodeFile = new Map(code.nodes.map((n) => [n.id, n.file_id]));
+        setGraph({
+          nodes: code.nodes
+            .filter((n) => n.kind === "file")
+            .map((n) => ({ fileId: n.file_id, path: n.file_path, language: n.language })),
+          edges: code.edges
+            .map((e) => ({
+              source: nodeFile.get(e.source),
+              target: nodeFile.get(e.target),
+              type: e.edge_type,
+              estimated: e.estimated,
+            }))
+            .filter((e): e is FileEdge => e.source != null && e.target != null),
+        });
+      } else {
+        setGraph({ nodes: [], edges: [] });
+        setLoadError(res.error);
+      }
+    } catch (e) {
       setGraph({ nodes: [], edges: [] });
-      setLoadError(res.error);
+      setLoadError(String(e));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [projectId]);
 
   useEffect(() => {

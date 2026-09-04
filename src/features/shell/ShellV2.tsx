@@ -3,7 +3,7 @@ import { holdManualEntryRequest, onManualEntryRequest } from "@/lib/journalCompo
 import { onOpenSettingsRequest } from "@/lib/settingsNav";
 import { consumeEntryJump, onEntryJump } from "@/lib/entryJump";
 import { holdAgentContextIntent, onAgentContextRequest } from "@/lib/agentContextNav";
-import { safeUnlisten, safeUnlistenPromise } from "@/lib/unlisten";
+import { createUnlistenBag, safeUnlistenPromise } from "@/lib/unlisten";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
@@ -84,7 +84,9 @@ import "@/styles/index.css";
 // Final UI Update — the 248px-sidebar shell. PR-UI 7 made this the only shell
 // (the feature flag is gone); App mounts it full-screen whenever a project is
 // selected. Each screen renders its OWN <Toolbar> (UI-MASTER-PROMPT §7.4), so
-// the shell only owns the sidebar + the screen router. All 8 screens are built.
+// the shell only owns the sidebar + the screen router. `lib/navRegistry.ts` is
+// the single source for the screen list — 16 as of 2026-09-04 (the comment here
+// said 8, a number the router outgrew long ago; count it there, not here).
 
 /** 트레이 딥링크·URL 이 실어 오는 화면 이름의 허용 목록. */
 const KNOWN_VIEWS: UiV2View[] = [
@@ -298,15 +300,9 @@ export default function ShellV2({
     void commands.listOpenProjectIds().then((res) => {
       if (res.status === "ok") setOpenWindows(res.data);
     });
-    let off: (() => void) | undefined;
-    void events.projectWindowsChanged
-      .listen(({ payload }) => setOpenWindows(payload.open))
-      .then((fn) => {
-        off = fn;
-      });
-    return () => {
-      if (off) safeUnlisten(off);
-    };
+    const bag = createUnlistenBag();
+    bag.add(events.projectWindowsChanged.listen(({ payload }) => setOpenWindows(payload.open)));
+    return () => bag.dispose();
   }, []);
 
   // I3 — "프로젝트 전환"은 제자리 교체가 아니라 **그 프로젝트의 탭을 열거나
@@ -323,17 +319,13 @@ export default function ShellV2({
         setTerminalDetached(res.data.includes(projectId));
       }
     });
-    let off: (() => void) | undefined;
-    void events.terminalWindowsChanged
-      .listen(({ payload }) => {
+    const bag = createUnlistenBag();
+    bag.add(
+      events.terminalWindowsChanged.listen(({ payload }) => {
         if (projectId != null) setTerminalDetached(payload.open.includes(projectId));
-      })
-      .then((fn) => {
-        off = fn;
-      });
-    return () => {
-      if (off) safeUnlisten(off);
-    };
+      }),
+    );
+    return () => bag.dispose();
   }, [projectId, setTerminalDetached]);
 
   // 도크 소유권 (2026-08-15): 같은 PTY 에 xterm 두 개가 붙으면 서로의 fit() 을
@@ -483,6 +475,17 @@ export default function ShellV2({
             </>
           }
         >
+        {/* 화면 단위 렌더 경계 (2026-09-04).
+            경계가 탭 층(`TabbedWindow`)에만 있어서, 화면 16개 중 하나가 렌더
+            중 throw 하면 **프로젝트 탭 전체**가 대체 UI 로 바뀌었다 — 사이드바도
+            탈출로도 함께 사라져 탭을 닫는 것 말고 길이 없었다. 여기서 잡으면
+            사이드바는 살아 있고 다른 화면으로 걸어 나갈 수 있다.
+
+            `key={view}` — 경계는 화면을 바꿔도 스스로 리셋되지 않는다. 키가
+            없으면 한 번 깨진 뒤 다른 화면에 갔다 돌아와도 계속 깨진 채로
+            보인다 (모든 갈래가 서로 다른 컴포넌트 타입이라 어차피 재마운트가
+            일어나므로, 키를 붙여도 새로 잃는 상태는 없다). */}
+        <ErrorBoundary key={view} label={`screen:${view}`}>
         {view === "settings" ? (
           // Unified settings (dogfooding 2026-06-15): the in-project ⌘, screen now
           // renders the SAME comprehensive SettingsPanel as the project-picker, so
@@ -613,6 +616,7 @@ export default function ShellV2({
         ) : view === "sessions" ? (
           <SessionsScreenV2 projectId={projectId} />
         ) : null}
+        </ErrorBoundary>
 
         {/* Claude Code 만 **언마운트하지 않는다** (2026-08-16).
             다른 화면으로 옮기면 화면이 헐리면서 돌던 턴의 스트림이 끊기고,
@@ -630,7 +634,12 @@ export default function ShellV2({
             className="screen-keepalive"
             style={{ display: view === "claudecode" ? "contents" : "none" }}
           >
-            <ClaudeCodeScreenV2 projectId={projectId} />
+            {/* 살려 두는 화면이라 위 경계 밖이다 (`key={view}` 가 닿으면
+                화면을 바꿀 때마다 재마운트되어 돌던 턴이 끊긴다). 자기 경계를
+                따로 둔다 — 키 없이. */}
+            <ErrorBoundary label="screen:claudecode">
+              <ClaudeCodeScreenV2 projectId={projectId} />
+            </ErrorBoundary>
           </div>
         ) : null}
         {codexMounted && projectId != null ? (
@@ -638,7 +647,9 @@ export default function ShellV2({
             className="screen-keepalive"
             style={{ display: view === "codex" ? "contents" : "none" }}
           >
-            <CodexScreenV2 projectId={projectId} />
+            <ErrorBoundary label="screen:codex">
+              <CodexScreenV2 projectId={projectId} />
+            </ErrorBoundary>
           </div>
         ) : null}
         </Suspense>

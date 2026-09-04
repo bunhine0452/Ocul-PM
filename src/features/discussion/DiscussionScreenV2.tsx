@@ -99,12 +99,19 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
 
   const loadList = useCallback(async (): Promise<DiscussionSummary[]> => {
     setListError(null);
-    const res = await commands.discussionList(projectId);
-    if (res.status === "ok") {
-      setList(res.data);
-      return res.data;
+    // 봉투가 아닌 **진짜 Error**(전송 계층 실패·창 teardown)를 안 받으면 `list` 가
+    // `null` 로 남아 스피너가 영원히 돈다 — 오류 카드와 재시도 버튼은 그 분기
+    // **뒤에** 있어서 화면을 옮기는 것 말고는 나올 길이 없었다.
+    try {
+      const res = await commands.discussionList(projectId);
+      if (res.status === "ok") {
+        setList(res.data);
+        return res.data;
+      }
+      setListError(res.error);
+    } catch (e) {
+      setListError(String(e));
     }
-    setListError(res.error);
     setList([]);
     return [];
   }, [projectId]);

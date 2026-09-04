@@ -7,25 +7,13 @@ import { AppDialog } from "@/components/ui/AppDialog";
 import { OculSpinner } from "@/components/OculSpinner";
 import { ClaudeMark } from "@/components/ClaudeMark";
 import {
-  History,
-  TrendingUp,
-  Bug,
-  Wrench,
-  PieChart,
-  TriangleAlert,
-  FileText,
-  NotebookPen,
-  RotateCcw,
-  Download,
+  History, TrendingUp, Bug, Wrench, PieChart, TriangleAlert, FileText, NotebookPen,
+  RotateCcw, Download,
 } from "@/components/Icons";
 import { toast } from "@/lib/toast";
 import { resolveLlmTarget } from "@/lib/llmTarget";
 import {
-  commands,
-  type RetroSignals,
-  type RetroInsight,
-  type GeneratedSummary,
-  type SummaryStyle,
+  commands, type RetroSignals, type RetroInsight, type GeneratedSummary, type SummaryStyle,
 } from "@/lib/bindings";
 import { RuleCandidatesPanel } from "./RuleCandidates";
 import { SkillCandidatesPanel } from "./SkillCandidates";
@@ -147,23 +135,34 @@ export function RetroScreenV2({
     void Promise.all([
       commands.retroSignals(projectId, since, until),
       commands.getRetro(projectId, rangeKey),
-    ]).then(([sigRes, retroRes]) => {
-      if (!alive) return;
-      if (sigRes.status === "ok") setSignals(sigRes.data);
-      else {
+    ])
+      .then(([sigRes, retroRes]) => {
+        if (!alive) return;
+        if (sigRes.status === "ok") setSignals(sigRes.data);
+        else {
+          setSignals(null);
+          setError(sigRes.error);
+        }
+        // 재마운트 refetch 가 (생성 완료 직전에 읽은) null 로, 방금 입양한 같은
+        // 기간의 완료 결과를 덮지 않게 — 같은 range 의 기존 값은 유지한다.
+        // 다른 range 로 전환한 경우엔 prev.range_key 가 달라 정상적으로 비운다.
+        setCached((prev) => {
+          const next = retroRes.status === "ok" ? retroRes.data : null;
+          if (!next && prev && prev.range_key === rangeKey) return prev;
+          return next;
+        });
+      })
+      // `.catch` 가 없어 전송 계층 실패·창 teardown 이 진짜 `Error` 로 튀면
+      // `setLoading(false)` 를 못 지나 화면이 스피너로 굳었다 (재시도 버튼도
+      // 로딩 분기 뒤에 있다). 실패도 로딩을 반드시 내린다.
+      .catch((e) => {
+        if (!alive) return;
         setSignals(null);
-        setError(sigRes.error);
-      }
-      // 재마운트 refetch 가 (생성 완료 직전에 읽은) null 로, 방금 입양한 같은
-      // 기간의 완료 결과를 덮지 않게 — 같은 range 의 기존 값은 유지한다.
-      // 다른 range 로 전환한 경우엔 prev.range_key 가 달라 정상적으로 비운다.
-      setCached((prev) => {
-        const next = retroRes.status === "ok" ? retroRes.data : null;
-        if (!next && prev && prev.range_key === rangeKey) return prev;
-        return next;
+        setError(String(e));
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
       });
-      setLoading(false);
-    });
     return () => {
       alive = false;
     };

@@ -42,6 +42,8 @@ const previewByPath: Record<string, unknown> = {};
 let readFileFails = false;
 // Mutable per-test: oculpmGroupChanges 결과 (null = 그룹 없음 → 평면 목록).
 let groupsResult: unknown = null;
+// Mutable per-test: `git status` 조회가 실패한다 (봉투 오류 / 진짜 Error).
+let gitStatus: "ok" | "error" | "throw" = "ok";
 
 vi.mock("@/lib/bindings", () => {
   const ok = <T,>(data: T) => Promise.resolve({ status: "ok" as const, data });
@@ -62,6 +64,16 @@ vi.mock("@/lib/bindings", () => {
             return (_pid: number, path: string) =>
               ok(previewByPath[path] ?? { old: null, new: null });
           if (prop === "oculpmGroupChanges") return () => ok(groupsResult);
+          // 실제 백엔드는 **배열**을 준다. 예전에는 `ok(null)` 이 와도 화면이
+          // `.catch` 로 조용히 삼켜 "변경 없음"과 구별되지 않았다 (2026-09-04에
+          // 그 침묵을 없앴다) — 목이 진짜 모양을 흉내 내야 그 계약이 지켜진다.
+          if (prop === "gitUncommittedChanges")
+            return () =>
+              gitStatus === "throw"
+                ? Promise.reject(new Error("전송 계층 실패"))
+                : gitStatus === "error"
+                  ? Promise.resolve({ status: "error" as const, error: "git 을 찾지 못했습니다" })
+                  : ok([] as unknown[]);
           if (prop === "openInEditor") return () => ok(null);
           if (prop === "settingsGetAll") return () => ok([] as Array<[string, string]>);
           if (prop === "readProjectFile")
@@ -282,6 +294,7 @@ beforeEach(() => {
   for (const k of Object.keys(previewByPath)) delete previewByPath[k];
   readFileFails = false;
   groupsResult = null;
+  gitStatus = "ok";
 });
 afterEach(() => cleanup());
 
@@ -322,6 +335,26 @@ describe("PR-UI 4 — Diff screen", () => {
     const { findByText } = renderDiff();
     expect(await findByText(/이 브랜치엔 아직 변경이 없어요/)).toBeInTheDocument();
   });
+
+  /**
+   * {#diff-false-empty} — 조회 실패가 "변경 없음" 으로 위장하면 안 된다.
+   *
+   * 이 화면은 제품 약속 「믿지 말고 보라」의 본체다. `git status` 가 죽어도 화면은
+   * 정상 상태와 **글자 하나 다르지 않게** "이 브랜치엔 아직 변경이 없어요" 라고
+   * 단언했다 — 사용자는 볼 것이 없다고 믿고 지나간다.
+   */
+  it.each([["봉투 오류", "error"], ["진짜 Error", "throw"]] as const)(
+    "git status 조회가 실패하면(%s) '변경 없음' 이 아니라 사유와 재시도가 뜬다",
+    async (_label, mode) => {
+      gitStatus = mode;
+      seedRecentChanges([]);
+      const { findByText, findByRole, queryByText } = renderDiff();
+
+      await findByText(/변경 목록을 불러오지 못했어요/);
+      expect(queryByText(/이 브랜치엔 아직 변경이 없어요/)).toBeNull();
+      await findByRole("button", { name: "다시 시도" });
+    },
+  );
 
   // 2026-09-01 — 크롬식 탭은 한 창에서 프로젝트를 여러 개 물고, watcher 버퍼는
   // 모듈 하나다. 프로젝트별로 갈라지지 않으면 옆 탭의 변경이 이 탭의 「미기록

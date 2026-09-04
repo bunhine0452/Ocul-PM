@@ -2,25 +2,11 @@ import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
-  Plus,
-  TriangleAlert,
-  ChevronDown,
-  ChevronUpIcon as ChevronUp,
-  ChevronRight,
-  RefreshCw,
-  Lock,
-  PanelLeft,
-  PanelRight,
-  Pencil,
-  Trash2,
+  Plus, TriangleAlert, ChevronDown, ChevronUpIcon as ChevronUp, ChevronRight,
+  RefreshCw, Lock, PanelLeft, PanelRight, Pencil, Trash2,
 } from "@/components/Icons";
 import {
-  commands,
-  type PlanSummary,
-  type PlanDetail,
-  type PlanItemDto,
-  type PlanItemUpdateDto,
-  type PlanEditOp,
+  commands, type PlanSummary, type PlanDetail, type PlanItemDto, type PlanItemUpdateDto, type PlanEditOp,
 } from "@/lib/bindings";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
@@ -32,12 +18,7 @@ import { AppDialog } from "@/components/ui/AppDialog";
 import { InlineMarkdown } from "@/components/InlineMarkdown";
 import { useTerminalSessions, useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { PlanRailDock, clampRailWidth } from "./PlanRailDock";
-import {
-  facetsOf,
-  latestActivityByPlan,
-  type PlanGroup,
-  type PlanSort,
-} from "./planList";
+import { facetsOf, latestActivityByPlan, type PlanGroup, type PlanSort } from "./planList";
 import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import {
@@ -100,18 +81,25 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   const [activity, setActivity] = useState<Record<string, string>>({});
 
   const refreshPlans = useCallback(async () => {
-    const res = await commands.planList(projectId);
-    if (res.status === "ok") {
-      setPlans(res.data ?? []);
-      // Keep the current selection if it still exists; otherwise fall back to
-      // the first plan. (A persisted id may point at a since-deleted plan.)
-      setSelectedId((cur) =>
-        cur && res.data?.some((p) => p.plan_id === cur)
-          ? cur
-          : res.data?.[0]?.plan_id ?? null,
-      );
-    } else {
-      setError(tError(res.error));
+    // 봉투가 아닌 **진짜 Error**(전송 계층 실패·창 teardown)를 안 받으면 `plans`
+    // 가 `null` 로 남아 스켈레톤이 영원히 돈다 — 오류 카드도 안 뜬다.
+    try {
+      const res = await commands.planList(projectId);
+      if (res.status === "ok") {
+        setPlans(res.data ?? []);
+        // Keep the current selection if it still exists; otherwise fall back to
+        // the first plan. (A persisted id may point at a since-deleted plan.)
+        setSelectedId((cur) =>
+          cur && res.data?.some((p) => p.plan_id === cur)
+            ? cur
+            : res.data?.[0]?.plan_id ?? null,
+        );
+      } else {
+        setError(tError(res.error));
+        setPlans([]);
+      }
+    } catch (e) {
+      setError(String(e));
       setPlans([]);
     }
   }, [projectId]);
@@ -131,10 +119,15 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       return;
     }
     if (!silent) setLoadingDetail(true);
-    const res = await commands.planGet(projectId, selectedId);
-    if (!silent) setLoadingDetail(false);
-    if (res.status === "ok") setDetail(res.data);
-    else setError(tError(res.error));
+    try {
+      const res = await commands.planGet(projectId, selectedId);
+      if (res.status === "ok") setDetail(res.data);
+      else setError(tError(res.error));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      if (!silent) setLoadingDetail(false);
+    }
   }, [projectId, selectedId]);
 
   // 에이전트(또는 다른 창)가 `.oculpm/planner/*.md` 를 건드리면 즉시 다시 읽는다.

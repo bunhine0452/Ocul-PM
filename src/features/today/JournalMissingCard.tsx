@@ -4,7 +4,9 @@ import { safeUnlisten } from "@/lib/unlisten";
 
 import { commands, events, type JournalMissingSignal } from "@/lib/bindings";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
+import { ErrorCard } from "@/components/ErrorCard";
 import { useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 
 interface JournalMissingCardProps {
   projectId: number;
@@ -52,14 +54,27 @@ export function JournalMissingCard({
   const { t } = useT();
   const [signals, setSignals] = useState<JournalMissingSignal[]>([]);
   const [loading, setLoading] = useState(false);
+  /**
+   * 조회가 **실패**했다 — 신호 0건과 다르다 (2026-09-04). 예전에는 봉투의 오류도
+   * throw 도 `setSignals([])` 로 접어, 훅 원장을 못 읽었는데도 화면은 "일지 없이
+   * 끝난 세션 없음"과 똑같이 아무것도 그리지 않았다. 이 카드의 존재 이유가
+   * "기록되지 않은 것을 말해 주는 것"이라 그 침묵은 특히 나쁘다.
+   */
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await commands.journalMissingSignals(projectId, SIGNAL_DAYS);
-      setSignals(res.status === "ok" ? res.data : []);
-    } catch {
+      if (res.status === "ok") setSignals(res.data);
+      else {
+        setSignals([]);
+        setError(tError(res.error));
+      }
+    } catch (e) {
       setSignals([]);
+      setError(String(e));
     } finally {
       setLoading(false);
     }
@@ -68,6 +83,7 @@ export function JournalMissingCard({
   useEffect(() => {
     if (!enabled) {
       setSignals([]);
+      setError(null);
       return;
     }
     void refresh();
@@ -99,7 +115,18 @@ export function JournalMissingCard({
     };
   }, [projectId, enabled, refresh]);
 
-  if (!enabled || loading || signals.length === 0) return null;
+  if (!enabled) return null;
+  if (error && !loading) {
+    return (
+      <ErrorCard
+        title={t("today.missing.failed")}
+        error={error}
+        onRetry={() => void refresh()}
+        style={{ marginTop: 16 }}
+      />
+    );
+  }
+  if (loading || signals.length === 0) return null;
 
   return (
     <section

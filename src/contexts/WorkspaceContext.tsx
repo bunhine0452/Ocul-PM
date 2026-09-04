@@ -14,7 +14,8 @@
  * 서로를 덮어써서 창 B 의 터미널 탭이 창 A 의 탭을 지웠다).
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
-import { safeUnlisten } from "@/lib/unlisten";
+import { createUnlistenBag } from "@/lib/unlisten";
+import { oculpmLog } from "@/lib/oculpmLog";
 
 import { commands, events, type FileOp, type OculpmStatus, type Session } from "@/lib/bindings";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
@@ -58,10 +59,10 @@ export type SidePanelMode = "files" | "diff";
 // SettingsContext remains the single source of truth for theme (Final UI
 // Update decision A, 2026-05-31).
 /**
- * The 8 ui_v2 screens (01-ia-and-shell.md §1.2). Tracked in a SEPARATE field
- * from the legacy `activeView` ("today" | "plan" | "code") so the legacy union
- * and its write-migration stay untouched until PR-UI 7. flag-off never reads
- * this field.
+ * 셸의 화면 이름 (01-ia-and-shell.md §1.2). 여기 적힌 개수가 곧 화면 수이고
+ * 사이드바·팔레트·⌘번호의 정본은 `lib/navRegistry.ts` 다 — 그래서 "화면 8개"
+ * 같은 숫자를 주석에 적지 않는다 (2026-09-04 감사에서 세 곳이 8 에 멈춰 있었다).
+ * 레거시 `activeView` 와는 별도 필드다.
  */
 export type UiV2View =
   | "today"
@@ -86,13 +87,7 @@ export type UiV2View =
   // (docs/a2a/00-master-plan.md D8). Today 카드에서 화면으로 나왔다.
   | "sessions"
   | "settings";
-export type JournalFilter =
-  | "all"
-  | "feature"
-  | "bugfix"
-  | "refactor"
-  | "error"
-  | "chore";
+export type JournalFilter = "all" | "feature" | "bugfix" | "refactor" | "error" | "chore";
 export type DiffMode = "unified" | "split";
 export type SearchScope = "semantic" | "symbol" | "text";
 /** 문제 해결 편집기의 보기 모드 — 원문만 / 나란히 / 미리보기만. */
@@ -175,6 +170,27 @@ export interface OculpmInitCardInfo {
  */
 export const storageKeyFor = (projectId: number) => `aipm:workspace:v2:p${projectId}`;
 
+// 저장소 출입구 — throw 를 밖으로 내보내지 않는다 (2026-09-04). 웹뷰의
+// `localStorage` 는 **읽기만 해도 던진다** (쿼터 초과·프라이빗 모드·사이트 데이터
+// 차단). 저장이 이 한 파일에 모여 있어(lint 강제) 그 한 번의 throw 는 한 곳이
+// 아니라 **전부**를 무너뜨렸다 — 프로바이더 초기화가 던지면 그 위엔 화면 경계가
+// 없어 창이 통째로 흰 화면이다. 읽기 실패는 "저장된 것 없음", 쓰기 실패는 넘기되
+// (저장이 안 돼도 앱은 돌아야 한다) 첫 실패 한 번은 로그에 남긴다.
+let lsBroken = false;
+function guardLs<T>(op: string, run: () => T, fallback: T): T {
+  try {
+    return run();
+  } catch (e) {
+    // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
+    if (!lsBroken) oculpmLog.warn("workspace", `localStorage ${op} 실패 — 이번 실행의 취향은 저장되지 않습니다`, { error: String(e) });
+    lsBroken = true;
+    return fallback;
+  }
+}
+const lsGet = (k: string): string | null => guardLs("getItem", () => localStorage.getItem(k), null);
+const lsSet = (k: string, v: string): void => guardLs("setItem", () => localStorage.setItem(k, v), undefined);
+const lsRemove = (k: string): void => guardLs("removeItem", () => localStorage.removeItem(k), undefined);
+
 // ---------- 사이드바 접힘 — 창/탭을 가로지르는 단일 취향 ----------
 //
 // 접힘 상태는 프로젝트별 레코드 안에 있었다. 탭 하나 = 프로바이더 하나이므로
@@ -189,7 +205,7 @@ const sidebarListeners = new Set<SidebarListener>();
 
 /** 저장된 취향 (한 번도 정한 적 없으면 `null`). */
 function readSidebarCollapsed(): boolean | null {
-  const raw = localStorage.getItem(SIDEBAR_KEY);
+  const raw = lsGet(SIDEBAR_KEY);
   if (raw === "1") return true;
   if (raw === "0") return false;
   return null;
@@ -198,7 +214,7 @@ function readSidebarCollapsed(): boolean | null {
 /** 취향을 기록하고 같은 창의 다른 탭에 알린다. 값이 그대로면 아무것도 안 한다. */
 function writeSidebarCollapsed(collapsed: boolean) {
   if (readSidebarCollapsed() === collapsed) return;
-  localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
+  lsSet(SIDEBAR_KEY, collapsed ? "1" : "0");
   sidebarListeners.forEach((fn) => fn(collapsed));
 }
 
@@ -326,22 +342,18 @@ function mapLegacyTab(tab: LegacyTab): ActiveView {
  */
 function migrateV0(): WorkspaceState | null {
   const legacyKeys = [
-    "selectedProjectId",
-    "selectedProjectName",
-    "selectedProjectRoot",
-    "activeTab",
-    "activeFile",
-    "isTerminalPip",
+    "selectedProjectId", "selectedProjectName", "selectedProjectRoot",
+    "activeTab", "activeFile", "isTerminalPip",
   ];
 
-  const hasLegacy = legacyKeys.some((k) => localStorage.getItem(k) !== null);
+  const hasLegacy = legacyKeys.some((k) => lsGet(k) !== null);
   if (!hasLegacy) return null;
 
-  const projectId = localStorage.getItem("selectedProjectId");
-  const projectName = localStorage.getItem("selectedProjectName");
-  const projectRoot = localStorage.getItem("selectedProjectRoot");
-  const activeTab = (localStorage.getItem("activeTab") as LegacyTab) || "overview";
-  const activeFile = localStorage.getItem("activeFile");
+  const projectId = lsGet("selectedProjectId");
+  const projectName = lsGet("selectedProjectName");
+  const projectRoot = lsGet("selectedProjectRoot");
+  const activeTab = (lsGet("activeTab") as LegacyTab) || "overview";
+  const activeFile = lsGet("activeFile");
 
   const migrated: WorkspaceState = {
     ...DEFAULT_STATE,
@@ -353,11 +365,9 @@ function migrateV0(): WorkspaceState | null {
   };
 
   // Clean up legacy keys
-  legacyKeys.forEach((k) => localStorage.removeItem(k));
+  legacyKeys.forEach((k) => lsRemove(k));
   // Also clean terminal PiP keys (feature removed per MASTER-GUIDE §5.6)
-  ["terminalPipX", "terminalPipY", "terminalSessions", "terminalActiveSessionId"].forEach((k) =>
-    localStorage.removeItem(k)
-  );
+  ["terminalPipX", "terminalPipY", "terminalSessions", "terminalActiveSessionId"].forEach(lsRemove);
 
   return migrated;
 }
@@ -419,9 +429,9 @@ export function migrateV3ToV4(state: WorkspaceState): WorkspaceState {
  * id (테스트용).
  */
 export function migrateSingleKeyToPerProject(): number | null {
-  const raw = localStorage.getItem(LEGACY_SINGLE_KEY);
+  const raw = lsGet(LEGACY_SINGLE_KEY);
   if (raw === null) return null;
-  localStorage.removeItem(LEGACY_SINGLE_KEY);
+  lsRemove(LEGACY_SINGLE_KEY);
   try {
     const parsed = JSON.parse(raw);
     const pid =
@@ -429,7 +439,7 @@ export function migrateSingleKeyToPerProject(): number | null {
     if (pid === null) return null;
     const key = storageKeyFor(pid);
     // 이미 그 프로젝트의 새 레코드가 있으면 그쪽이 최신 — 덮어쓰지 않는다.
-    if (localStorage.getItem(key) === null) localStorage.setItem(key, raw);
+    if (lsGet(key) === null) lsSet(key, raw);
     return pid;
   } catch {
     return null;
@@ -441,7 +451,7 @@ function migrateLegacyRecords(): void {
   const v0 = migrateV0();
   if (v0 && v0.currentProjectId != null) {
     const key = storageKeyFor(v0.currentProjectId);
-    if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(v0));
+    if (lsGet(key) === null) lsSet(key, JSON.stringify(v0));
   }
   migrateSingleKeyToPerProject();
 }
@@ -449,7 +459,7 @@ function migrateLegacyRecords(): void {
 function loadFromStorage(projectId: number): WorkspaceState {
   migrateLegacyRecords();
   const globalSidebar = readSidebarCollapsed();
-  const stored = localStorage.getItem(storageKeyFor(projectId));
+  const stored = lsGet(storageKeyFor(projectId));
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
@@ -522,7 +532,7 @@ interface TerminalSessionFields {
 
 /** 디스크에 있는 레코드 (파싱 실패·부재는 `null`). */
 function readRecord(projectId: number): Record<string, unknown> | null {
-  const stored = localStorage.getItem(storageKeyFor(projectId));
+  const stored = lsGet(storageKeyFor(projectId));
   if (!stored) return null;
   try {
     const parsed = JSON.parse(stored);
@@ -593,7 +603,7 @@ function persistToStorage(projectId: number, state: WorkspaceState, scope: Persi
     const held = readTerminalSessions(projectId);
     if (held) record = { ...persistable, ...held };
   }
-  localStorage.setItem(storageKeyFor(projectId), JSON.stringify(record));
+  lsSet(storageKeyFor(projectId), JSON.stringify(record));
 }
 
 // ---------- 조각 (Phase 4 #workspace-split) ----------
@@ -607,15 +617,8 @@ function persistToStorage(projectId: number, state: WorkspaceState, scope: Persi
 // 조용하다. `useWorkspace()` 는 합친 겉면으로 남는다.
 
 const RUNTIME_KEYS = [
-  "currentProjectId",
-  "currentProjectName",
-  "currentProjectRoot",
-  "indexingProjectId",
-  "oculpmEnabled",
-  "oculpmStatus",
-  "currentSession",
-  "workdayKey",
-  "terminalDetached",
+  "currentProjectId", "currentProjectName", "currentProjectRoot", "indexingProjectId",
+  "oculpmEnabled", "oculpmStatus", "currentSession", "workdayKey", "terminalDetached",
   "sidebarCollapsed",
 ] as const satisfies readonly (keyof WorkspaceState)[];
 const TERMINAL_KEYS = ["terminalTabs", "terminalActiveId"] as const satisfies readonly (keyof WorkspaceState)[];
@@ -695,7 +698,7 @@ interface WorkspaceContextValue {
    * `commands.openProjectWindow` 로 다른 창을 포커스하는 것이다.
    */
   setProjectMeta: (name: string | null, root: string | null) => void;
-  /** Final UI Update (ui_v2) — set the active screen of the 8-view shell. */
+  /** Final UI Update (ui_v2) — 셸의 활성 화면 (목록은 `lib/navRegistry.ts`). */
   setUiV2View: (view: UiV2View) => void;
   /**
    * 분리 터미널 창의 존재 여부 반영 (백엔드 이벤트 미러링). 돌아올 때
@@ -878,23 +881,26 @@ export function WorkspaceProvider({
   // so multi-project setups (future) won't cross-contaminate.
   useEffect(() => {
     const currentProjectId = () => stateRef.current?.currentProjectId ?? null;
-    const offFns: Array<() => void> = [];
+    // 구독 열 개가 한 이펙트에 산다 — `alive` 검사 없이 담으면 붙기 전에 떠난 뒤
+    // 도착한 리스너가 영구 등록되고, 그 핸들러는 수동적이지 않다 (`durationMs: 0`
+    // 인 「인계」 sticky 토스트를 닫은 탭이 계속 띄운다). 자루가 그 창을 닫는다.
+    const bag = createUnlistenBag();
 
-    void events.oculpmSessionStarted.listen((evt) => {
+    bag.add(events.oculpmSessionStarted.listen((evt) => {
       if (evt.payload.project_id === currentProjectId()) {
         setCurrentSession(evt.payload.session);
       }
-    }).then((off) => offFns.push(off));
+    }));
 
-    void events.oculpmSessionEnded.listen((evt) => {
+    bag.add(events.oculpmSessionEnded.listen((evt) => {
       if (evt.payload.project_id === currentProjectId()) {
         // Surface the just-ended session for one render so consumers can
         // animate it out, then clear.
         setCurrentSession(null);
       }
-    }).then((off) => offFns.push(off));
+    }));
 
-    void events.oculpmIntegrityWarning.listen((evt) => {
+    bag.add(events.oculpmIntegrityWarning.listen((evt) => {
       if (evt.payload.project_id !== currentProjectId()) return;
       const w = evt.payload.warning;
       // 닥터(설정 → 진단)가 세션 기록을 보여 준다 — 토스트는 8초면 사라진다.
@@ -908,12 +914,12 @@ export function WorkspaceProvider({
         actions: [{ label: t("ws.viewInDoctor"), onClick: () => openSettings("diagnostics") }],
       });
       console.warn("[oculpm] integrity warning:", w);
-    }).then((off) => offFns.push(off));
+    }));
 
     // F1 — auto-reconcile applied status changes to the active plan in the
     // background. Toast so the user knows the plan moved on its own. Dedup per
     // plan within a short window so a burst of entries doesn't spam.
-    void events.oculpmPlanReconciled.listen((evt) => {
+    bag.add(events.oculpmPlanReconciled.listen((evt) => {
       if (evt.payload.project_id !== currentProjectId()) return;
       const { applied, plan_id: planId } = evt.payload;
       toast.info(t("ws.reconciled", { n: applied }), {
@@ -921,12 +927,12 @@ export function WorkspaceProvider({
         dedupKey: `reconciled:${evt.payload.project_id}:${planId}`,
         dedupWindowMs: 5_000,
       });
-    }).then((off) => offFns.push(off));
+    }));
 
     // 다른 ocul-pm 인스턴스가 이 프로젝트를 가져갔다 (2026-08-23). 이 창은
     // 실시간 갱신을 놓았으므로 **말해 줘야 한다** — 예전에는 화면이 조용히
     // 굳고, 사용자는 새로고침을 반복하는 것 말고 알 방법이 없었다.
-    void events.oculpmWatchYielded.listen((evt) => {
+    bag.add(events.oculpmWatchYielded.listen((evt) => {
       const pid = currentProjectId();
       if (evt.payload.project_id !== pid || pid == null) return;
       toast.warning(t("ws.watchYielded"), {
@@ -947,9 +953,9 @@ export function WorkspaceProvider({
           },
         ],
       });
-    }).then((off) => offFns.push(off));
+    }));
 
-    void events.oculpmAgentDrift.listen((evt) => {
+    bag.add(events.oculpmAgentDrift.listen((evt) => {
       const pid = currentProjectId();
       if (evt.payload.project_id !== pid || pid == null) return;
       const { agent_id: agentId } = evt.payload;
@@ -989,17 +995,17 @@ export function WorkspaceProvider({
           ],
         },
       );
-    }).then((off) => offFns.push(off));
+    }));
 
     // The watcher emits these on every journal file write — TodayScreen
     // listens directly for invalidation (the context only forwards them
     // so multiple screens can subscribe through the same channel).
-    void events.oculpmJournalPathChanged.listen(() => {}).then((off) => offFns.push(off));
+    bag.add(events.oculpmJournalPathChanged.listen(() => {}));
 
     // Lite-W6 PR8 Part 1: feed the change-highlight buffer.
     // v2 U3: 컨텍스트 setState 가 아니라 전용 스토어로 push — 파일 이벤트가
     // 전 화면 리렌더 + localStorage 직렬화를 일으키던 경로를 제거.
-    void events.oculpmFileChanged.listen((evt) => {
+    bag.add(events.oculpmFileChanged.listen((evt) => {
       if (evt.payload.project_id !== currentProjectId()) return;
       const op = mapFileOpToChangeOp(evt.payload.event.op);
       const path = evt.payload.event.path;
@@ -1019,9 +1025,9 @@ export function WorkspaceProvider({
         // diff view can surface "new since you last looked".
         read: false,
       });
-    }).then((off) => offFns.push(off));
+    }));
 
-    void events.oculpmJournalAdded.listen((evt) => {
+    bag.add(events.oculpmJournalAdded.listen((evt) => {
       if (evt.payload.project_id !== currentProjectId()) return;
       const relativePath = evt.payload.summary.relative_path;
       toast.info(t("ws.newEntry", { title: evt.payload.summary.title }), {
@@ -1037,12 +1043,10 @@ export function WorkspaceProvider({
           },
         ],
       });
-    }).then((off) => offFns.push(off));
-    void events.oculpmJournalUpdated.listen(() => {}).then((off) => offFns.push(off));
+    }));
+    bag.add(events.oculpmJournalUpdated.listen(() => {}));
 
-    return () => {
-      offFns.forEach(safeUnlisten);
-    };
+    return () => bag.dispose();
   }, [setCurrentSession]);
 
   // ── Workday rollover (자정 넘김) ─────────────────────────────────────────
@@ -1080,16 +1084,11 @@ export function WorkspaceProvider({
     // Phase 4 #events-over-polling — 60초 폴링 대신 백엔드의 넘김 이벤트(활성
     // 세션의 경계 타이머 + 감독관의 분당 틱). 포커스/재표시 확인은 남긴다:
     // 슬립 중엔 이벤트도 타이머도 밀린다.
-    let off: (() => void) | undefined;
-    void events.oculpmWorkdayChanged
-      .listen((evt) => {
-        if (evt.payload.project_id !== stateRef.current?.currentProjectId) return;
-        void check();
-      })
-      .then((fn) => {
-        off = fn;
-      })
-      .catch(() => {});
+    const bag = createUnlistenBag();
+    bag.add(events.oculpmWorkdayChanged.listen((evt) => {
+      if (evt.payload.project_id !== stateRef.current?.currentProjectId) return;
+      void check();
+    }));
     const onWake = () => {
       if (document.visibilityState === "visible") void check();
     };
@@ -1097,7 +1096,7 @@ export function WorkspaceProvider({
     document.addEventListener("visibilitychange", onWake);
 
     return () => {
-      if (off) safeUnlisten(off);
+      bag.dispose();
       window.removeEventListener("focus", onWake);
       document.removeEventListener("visibilitychange", onWake);
     };

@@ -9,7 +9,7 @@
 // show 시점에 "tray-popover-shown" 을 쏜다). 신규 백엔드 집계 커맨드 없음.
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { safeUnlistenPromise } from "@/lib/unlisten";
+import { createUnlistenBag, safeUnlistenPromise } from "@/lib/unlisten";
 import { listen } from "@tauri-apps/api/event";
 import { ArrowLeft, Check, ChevronDown, ExternalLink } from "lucide-react";
 import {
@@ -658,23 +658,23 @@ export function TrayPopover() {
     };
     // Phase 4 #events-over-polling — 백엔드가 넘김을 알린다 (어느 프로젝트든
     // 하나 넘어가면 전부 다시 읽는다: 팝오버는 프로젝트 전체를 그린다).
-    let off: (() => void) | undefined;
-    void events.oculpmWorkdayChanged
-      .listen(() => {
+    // 팝오버는 앱이 사는 내내 마운트된 채라, 구독이 붙기 전에 떠나는 경우는
+    // 드물다 — 그래도 자루로 통일한다. 손으로 다는 `alive` 가 한 곳만 빠지는
+    // 것이 이 라운드에서 고친 결함의 모양이었다.
+    const bag = createUnlistenBag();
+    bag.add(
+      events.oculpmWorkdayChanged.listen(() => {
         lastDay = localDayKey();
         void reload();
-      })
-      .then((fn) => {
-        off = fn;
-      })
-      .catch(() => {});
+      }),
+    );
     const onWake = () => {
       if (document.visibilityState === "visible") check();
     };
     window.addEventListener("focus", onWake);
     document.addEventListener("visibilitychange", onWake);
     return () => {
-      if (off) off();
+      bag.dispose();
       window.removeEventListener("focus", onWake);
       document.removeEventListener("visibilitychange", onWake);
     };

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { commands, events } from "@/lib/bindings";
-import { safeUnlisten } from "@/lib/unlisten";
+import { createUnlistenBag } from "@/lib/unlisten";
 import { resolveLang, setContentLangSetting, setLangSetting } from "@/i18n";
 import {
   DEFAULTS,
@@ -64,13 +64,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // 내내 살아 있다 — 마운트 1회 조회만으로는 한쪽에서 테마·언어를 바꿔도
   // 나머지가 예전 값을 계속 그린다. 백엔드가 쓰기 직후 쏘는 이벤트로 맞춘다.
   useEffect(() => {
-    let off: (() => void) | undefined;
-    void events.settingsChanged.listen(() => void reload()).then((fn) => {
-      off = fn;
-    });
-    return () => {
-      if (off) safeUnlisten(off);
-    };
+    // 구독이 붙기 전에 프로바이더가 사라질 수 있다 (창을 스쳐 지나가거나 dev
+    // StrictMode). 자루가 그때 도착한 리스너를 그 자리에서 뗀다 — 남으면 설정을
+    // 바꿀 때마다 죽은 프로바이더의 `settingsGetAll` 이 한 벌씩 더 나간다.
+    const bag = createUnlistenBag();
+    bag.add(events.settingsChanged.listen(() => void reload()));
+    return () => bag.dispose();
   }, [reload]);
 
   const set = useCallback(
