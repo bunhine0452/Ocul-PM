@@ -28,13 +28,13 @@ owner: claude-code
 - [x] embedding.rs:177 전역 std 뮤텍스를 spawn_blocking 안에서 잡는 것 — N 동시 호출자가 N개 OS 스레드를 파킹하고 그 풀을 git·히스토리·코드검색과 공유한다 {#embedder-mutex}
 
 ## 재렌더 비용 {#render-cost}
-- [ ] 설정 슬라이더 한 프레임 = 전체 재렌더 + SQLite 쓰기 + setZoom + 구독 재무장. 디바운스 + 커밋 시점 분리 (AppearanceTab.tsx:253) {#settings-slider}
-- [ ] useWorkspace() 전체를 쓰는 상시 마운트 셋(ShellV2·ProjectTab·TerminalDock)을 슬라이스로 — 컨텍스트 4분할은 이미 올바르게 돼 있다 {#workspace-full-consumers}
-- [ ] 떠 있는 프로미스 110곳 중 사용자 조작 발동 경로 우선 (AcpConversation:1514,1527,1567·TerminalSurface:410,451·useLsp:138,153 — 뒤는 버퍼 편집마다) {#floating-promises}
-- [ ] 설정 12곳 중 11곳이 async set() 을 void 도 catch 도 없이 버리는 것 정정 (LlmTab·ContextTab·IndexingTab·AppearanceTab) {#settings-set-unhandled}
+- [x] 설정 슬라이더 한 프레임 = 전체 재렌더 + SQLite 쓰기 + setZoom + 구독 재무장. 디바운스 + 커밋 시점 분리 (AppearanceTab.tsx:253) {#settings-slider}
+- [x] useWorkspace() 전체를 쓰는 상시 마운트 셋(ShellV2·ProjectTab·TerminalDock)을 슬라이스로 — 컨텍스트 4분할은 이미 올바르게 돼 있다 {#workspace-full-consumers}
+- [x] 떠 있는 프로미스 110곳 중 사용자 조작 발동 경로 우선 (AcpConversation:1514,1527,1567·TerminalSurface:410,451·useLsp:138,153 — 뒤는 버퍼 편집마다) {#floating-promises}
+- [x] 설정 12곳 중 11곳이 async set() 을 void 도 catch 도 없이 버리는 것 정정 (LlmTab·ContextTab·IndexingTab·AppearanceTab) {#settings-set-unhandled}
 
 ## 릴리스 v2.42.0 {#release-242}
-- [ ] 측정 재실행 — Phase 0 기준 대비 실제로 나아졌는지 확인 (개선 주장은 측정치로만) {#measure-after}
+- [x] 측정 재실행 — Phase 0 기준 대비 실제로 나아졌는지 확인 (개선 주장은 측정치로만) {#measure-after}
 - [ ] 게이트 전수 exit 0 + 릴리스 5면 + 태그 {#release-242-2}
 
 <!-- oculpm:plan-log begin v1 -->
@@ -51,4 +51,9 @@ owner: claude-code
 | 2026-09-04T15:42:33+09:00 | #embedder-mutex | claude-code | ☐→x | 20260904/Refactors/1541_refactor_v242-lock-scopes-manager-lsp-embed.md | Semaphore(1) 로 줄서기를 blocking 풀 밖으로. 직렬성은 유지 — 바뀐 것은 어디서 기다리는가 |
 | 2026-09-04T15:47:44+09:00 | #pty-write-lock | claude-code | ☐→x | 20260904/Bugs/1547_bug_v242-pty-write-queue-broadcast-verdict.md | 락만 좁혀선 안 됐다 — handle_request 가 접속 읽기루프 안에서 동기라 10초 타임아웃이 접속을 버렸다. 세션별 FIFO 쓰기 큐로. raw+미소비 tty 에서 무기한 블록을 직접 재현 |
 | 2026-09-04T15:47:52+09:00 | #pty-broadcast-scope | claude-code | ☐→- | 20260904/Bugs/1547_bug_v242-pty-write-queue-broadcast-verdict.md | 전제 사망(코드 무변경). tauri 2.11.2 listener.rs:283 이 리스너 없는 웹뷰를 통째로 건너뛴다 — 이벤트명이 세션별이라 남의 창엔 안 간다. emit_to 로 바꿔도 listen()이 Any 라 안 준다. 게다가 한 세션을 두 웹뷰가 그릴 수 있어 좁히면 청크를 잃는다 |
+| 2026-09-04T16:09:33+09:00 | #workspace-full-consumers | claude-code | ☐→x | 20260904/Features_to_add/1609_feature_v242-frontend-rerender-and-swallowed-failures.md | 상시 셋을 조각 훅으로. 회귀 테스트 3겹 — 실제 TerminalDock 마운트해 openTab/selectTab 10회에 추가 렌더 +10→0. useWorkspace 되돌리면 9케이스 중 2개 붉어짐 확인 |
+| 2026-09-04T16:09:40+09:00 | #settings-slider | claude-code | ☐→x | 20260904/Features_to_add/1609_feature_v242-frontend-rerender-and-swallowed-failures.md | useDeferredCommit 으로 미리보기/커밋 분리. 20프레임 쓰기 20→0(놓을 때 1), 언마운트 flush. 공유 슬라이더 8개 동승. 플랜의 "구독 재무장" 갈래는 사실 아님을 확인·정정 |
+| 2026-09-04T16:09:47+09:00 | #floating-promises | claude-code | ☐→x | 20260904/Features_to_add/1609_feature_v242-frontend-rerender-and-swallowed-failures.md | 지목된 자리(AcpConversation 3·TerminalSurface 3·useLsp 2)를 reportFailure 로. useLsp 는 고빈도라 토스트 대신 상태줄+로그 1회. 저장소 전체 ~100개는 플랜 밖으로 남음 |
+| 2026-09-04T16:09:53+09:00 | #settings-set-unhandled | claude-code | ☐→x | 20260904/Features_to_add/1609_feature_v242-frontend-rerender-and-swallowed-failures.md | set() 12곳 전부 useSaveSetting 경유. set 은 거절 대신 알리고 resolve — 소유 밖 8자리가 아직 void set 이라 거절 계약이면 실패가 unhandled rejection 으로 자리만 옮긴다 |
+| 2026-09-04T16:10:01+09:00 | #measure-after | claude-code | ☐→x | 20260904/Chores/1517_chore_v242-measure-once-baseline.md | 재실행했고 **개선을 주장하지 않는다** — 하니스는 날것의 일을 잰다. 바뀐 건 어느 스레드에서 도는가와 큐에 바닥이 있는가. 실제 전/후는 프런트 테스트 단언(쓰기 20→0, 렌더 +10→0). perf-baseline §6 |
 <!-- oculpm:plan-log end -->
