@@ -4,8 +4,9 @@ name: CI
 # release.yml 은 `v*` 태그에서 번들만 굽고 테스트를 돌리지 않으므로, 여기서
 # typecheck · test · lint · build · cargo test 를 강제합니다.
 #
-# 잡을 둘로 나눈 이유: 프런트 게이트는 Rust 툴체인이 필요 없어 ubuntu 에서
-# 1~2분에 끝나고, Rust 잡만 macOS 를 씁니다(아래 사유). 둘은 병렬로 돕니다.
+# 잡을 셋으로 나눈 이유: 프런트 게이트는 Rust 툴체인이 필요 없어 ubuntu 에서
+# 1~2분에 끝나고, Rust 잡만 macOS 를 씁니다(아래 사유). cargo-deny 잡은 Cargo.lock
+# 만 읽어 툴체인 없이 ubuntu 에서 돕니다. 셋은 병렬로 돕니다.
 
 on:
   pull_request:
@@ -54,8 +55,9 @@ jobs:
       - name: Test (vitest)
         run: pnpm test
 
-      # 스토리지 규율(localStorage 직접 접근 금지) + 하드코딩 한국어 검사.
-      - name: Lint (storage · i18n)
+      # 게이트 6종: storage(localStorage 직접 접근 금지) · i18n(하드코딩 한국어) ·
+      # bindings · design · filesize 래칫 · ESLint(react-hooks 중심, 경고 상한 래칫).
+      - name: Lint (storage · i18n · bindings · design · filesize · eslint)
         run: pnpm lint
 
       # tsc && vite build && check-critical-css. dist 는 산출물만 확인하고 버립니다.
@@ -73,14 +75,29 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # 버전의 주인은 `rust-toolchain.toml` 입니다 (#toolchain-pin). dtolnay 액션은
+      # 그 파일을 **읽지 않으므로** 여기서 꺼내 넘깁니다 — `@stable` 로 두면 핀을
+      # 박아 놓고도 CI 는 그날의 stable 을 씁니다(= 핀이 없는 것과 같습니다).
+      - name: 툴체인 버전 읽기 (rust-toolchain.toml)
+        id: toolchain
+        run: |
+          channel=$(grep -m1 '^channel' rust-toolchain.toml | tr -d ' "' | cut -d= -f2)
+          if [ -z "$channel" ]; then
+            echo "::error file=rust-toolchain.toml::channel 을 못 읽었습니다."
+            exit 1
+          fi
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          echo "핀된 툴체인: $channel"
+
       # rust-analyzer 컴포넌트가 필요합니다. tests/lsp_rust_analyzer.rs 의 스킵
       # 가드는 PATH 에서 `rust-analyzer` **파일 존재**만 보는데, rustup 은 항상
       # 같은 이름의 shim 을 깔아 둡니다 — 가드는 통과하고 실행 시 "Unknown binary
       # 'rust-analyzer' in official toolchain" 으로 죽습니다. 픽스처가 의존성 없는
       # 최소 크레이트라 컴포넌트만 있으면 몇 초에 진짜로 돕니다(스킵보다 낫습니다).
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust ${{ steps.toolchain.outputs.channel }}
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
           components: rust-analyzer, rustfmt, clippy
 
       # 2026-08-30 에 `cargo fmt` 를 한 번 전체 적용했다(143 파일). 그 뒤로는 손으로
@@ -121,3 +138,35 @@ jobs:
             echo "::error file=src/lib/bindings.ts::bindings.ts 가 최신이 아닙니다. src-tauri 에서 'cargo test' 를 돌린 뒤 재생성된 src/lib/bindings.ts 를 함께 커밋하세요."
             exit 1
           fi
+
+  # 의존성 게이트 (플랜 `v241-errors-first` #cargo-deny). 그동안 취약점·라이선스·
+  # 출처를 보는 잡이 **하나도 없었다** — Rust 의존성이 817 크레이트인데.
+  #
+  # 위 두 잡과 병렬로 돈다. Rust 툴체인도 pnpm 도 필요 없다: cargo-deny 는
+  # `Cargo.lock` 만 읽고, 액션이 미리 컴파일된 바이너리를 받아 온다. ubuntu 에서
+  # 1분 안팎.
+  deps:
+    name: 의존성 — cargo-deny (취약점 · 라이선스 · 출처)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      # 설정은 저장소 루트의 `deny.toml` 이지만 매니페스트는 `src-tauri/` 에 있다.
+      # cargo-deny 는 설정을 **매니페스트 옆**에서 찾으므로 명시적으로 넘긴다.
+      #
+      # 넷 다 차단이다. 라이선스가 한동안 비차단이었던 이유는 허용 목록이 아니라
+      # 루트 크레이트였다 — `src-tauri/Cargo.toml` 에 `license` 가 없어 cargo-deny
+      # 가 `ocul-pm` 자신을 "unlicensed" 로 봤다(루트 LICENSE 는 다른 디렉터리라
+      # 안 읽힌다). 그 한 줄을 넣어 해소했으므로 여기서 나눌 이유가 없다.
+      #
+      # 2026-09-04 첫 실행 실적: 공지 4건 적발 → 셋은 `cargo update` 로 닫고
+      # (crossbeam-epoch, h2), 둘은 우리가 못 올리는 것이라 해제 조건과 함께
+      # `deny.toml` 의 ignore 로. 로컬 재현: `cargo-deny --manifest-path
+      # src-tauri/Cargo.toml --config deny.toml check`
+      - name: cargo-deny — 취약점 · 금지 · 출처 · 라이선스
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: src-tauri/Cargo.toml
+          command: check advisories bans sources licenses
+          arguments: --config ${{ github.workspace }}/deny.toml

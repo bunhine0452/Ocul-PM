@@ -1,0 +1,36 @@
+# Rust 툴체인 핀 (플랜 `v241-errors-first` #toolchain-pin).
+#
+# CI 는 `dtolnay/rust-toolchain@stable` 을 쓴다 — stable 이 움직이면 **코드가 한
+# 줄도 안 바뀐 커밋이 어제는 초록, 오늘은 레드**가 된다. 이 저장소가 실제로
+# 겪었다: `cargo clippy -- -D warnings` 게이트가 러너의 새 stable 이 들고 온 새
+# lint 하나로 붉어졌고, 로컬 clippy 는 옛 버전이라 재현되지 않았다.
+#
+# rustup 은 이 파일을 보고 자동으로 해당 툴체인을 쓴다. 다만 **dtolnay/rust-toolchain
+# 액션은 이 파일을 읽지 않는다** — ci.yml 이 여기서 channel 을 grep 해 넘긴다.
+# 그래서 CI 와 로컬이 같은 컴파일러를 본다.
+#
+# ## 올릴 때
+#
+# 손으로 올린다. `rustup update && rustup show` 로 새 버전을 확인하고 여기 적은
+# 뒤 `cargo clippy --all-targets -- -D warnings` 가 초록인지 보고 커밋한다.
+# 새 stable 이 들고 온 lint 는 **그 커밋 안에서** 처리한다 — 무관한 PR 을
+# 붉히지 않는 것이 이 핀의 목적이다.
+#
+# ## 이 파일이 들어온 뒤 첫 빌드는 한 번 느리다
+#
+# rustup 은 툴체인을 **이름**으로 구분한다. 개발 머신에 깔린 것은
+# `stable-aarch64-apple-darwin` 이고, 여기 적은 `1.98.0` 은 같은 컴파일러라도
+# `1.98.0-aarch64-apple-darwin` 이라는 **다른 툴체인**이다. 그래서 이 파일이
+# 들어온 뒤 첫 `cargo` 호출은 (1) 툴체인을 내려받고 (2) `target/` 을 통째로 다시
+# 굽는다. 한 번뿐이지만, `cargo test` 가 도는 중에 겹치면 그 실행이 길어진다.
+#
+# 윈도우 타깃(`x86_64-pc-windows-gnu`)을 쓰고 있었다면 새 툴체인에도 한 번 더:
+#   rustup target add x86_64-pc-windows-gnu --toolchain 1.98.0
+
+[toolchain]
+# 2026-09-04 기준 개발 머신의 stable (`rustc 1.98.0 (88d9e12ae 2026-08-18)`).
+channel = "1.98.0"
+# rust-analyzer: tests/lsp_rust_analyzer.rs 가 그 바이너리를 부른다. 빠지면
+# 개발 머신에서 5건이 "Unknown binary 'rust-analyzer'" 로 떨어진다
+# (CI 는 ci.yml 에서 따로 넣어 초록이라 로컬에서만 터진다).
+components = ["rustfmt", "clippy", "rust-analyzer"]

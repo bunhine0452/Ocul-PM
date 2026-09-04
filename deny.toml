@@ -1,0 +1,152 @@
+# cargo-deny — 의존성 취약점 · 라이선스 게이트 (플랜 `v241-errors-first` #cargo-deny).
+#
+# 이 저장소에는 그동안 **의존성 게이트가 전혀 없었다.** Rust 의존성이 817 크레이트
+# 인데 취약점 공지(RustSec)도, 라이선스 허용 목록도, 출처 제한도 없었다.
+#
+# 여기 적힌 값은 전부 2026-09-04 에 `Cargo.lock` 을 **실제로 훑어** 정한 것이다
+# (817 패키지의 `license` 필드를 로컬 레지스트리에서 읽어 집계). 추측이 아니다.
+#
+# 로컬 실행:  cargo deny --manifest-path src-tauri/Cargo.toml check
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# 주의: cargo-deny v2 설정 문법이다. `version = 2`, `[advisories] vulnerability`,
+# `[licenses] copyleft/unlicensed/default` 같은 v1 키는 **에러**가 된다.
+
+[graph]
+# 실제로 배포하는 타깃만 본다. release.yml 은 지금 `aarch64-apple-darwin` 하나만
+# 굽는다(윈도우 매트릭스는 주석 처리되어 있다). 타깃을 좁히면 리눅스 전용
+# gtk/glib 계열의 "unmaintained" 소음이 통째로 사라진다 — 우리가 컴파일하지 않는
+# 코드의 공지는 우리 PR 을 붉힐 이유가 없다.
+#
+# release.yml 에서 윈도우 매트릭스를 다시 켠다면 여기에도
+# "x86_64-pc-windows-msvc" 를 **함께** 추가해야 한다. 안 그러면 윈도우에서만
+# 링크되는 크레이트가 이 게이트에 안 보인 채로 배포된다.
+targets = [
+  { triple = "aarch64-apple-darwin" },
+  { triple = "x86_64-apple-darwin" },
+]
+all-features = false
+
+# ─────────────────────────────────────────────────────────────────────────────
+[advisories]
+# RustSec 공지. vulnerability / unsound / notice 는 v2 에서 **항상 deny** 라
+# 여기서 켜고 끌 수 없다 — 그게 이 게이트의 본체다.
+
+# "관리되지 않음" 공지는 **직접 의존성에만** 건다. 전이 의존성까지 걸면
+# `paste`·`proc-macro-error` 처럼 우리가 고를 수 없는 크레이트로 PR 이 붉어지고,
+# 그러면 게이트가 통째로 무시된다. 우리가 바꿀 수 있는 자리만 붉힌다.
+unmaintained = "workspace"
+
+# yank 는 취약점과 다른 사건이다(잘못 올린 버전, 실수한 배포…). 붉히지 않고
+# 로그로 남긴다 — 우리 코드와 무관한 이유로 파이프라인이 멈추지 않게.
+yanked = "warn"
+
+# 공지를 잠재울 때는 **반드시 해제 조건과 함께** 적는다. 조건 없는 ignore 는
+# 영원히 남고, 남은 ignore 는 게이트가 아니라 장식이다.
+#
+#   ignore = [
+#     # RUSTSEC-YYYY-NNNN — <크레이트> <버전>.
+#     # 우리에게 닿지 않는 이유: <경로 설명>.
+#     # 해제 조건: <크레이트> N.N.N 이 나오면 올리고 이 줄을 지운다.
+#     { id = "RUSTSEC-YYYY-NNNN", reason = "..." },
+#   ]
+#
+# 2026-09-04 첫 실행에서 공지 4건이 잡혔다. 셋은 `cargo update` 로 닫았다
+# (crossbeam-epoch 0.9.18→0.9.20, h2 0.4.14→0.4.19). 남은 둘은 같은 크레이트이고
+# **우리가 올릴 수 없다** — 아래.
+ignore = [
+  # RUSTSEC-2026-0194 / RUSTSEC-2026-0195 — quick-xml 0.39.4.
+  # 둘 다 공격자가 준 XML 을 파싱할 때의 DoS 다(중복 속성 O(N²), 네임스페이스
+  # 선언 무제한 할당).
+  #
+  # 우리에게 닿지 않는 이유: 이 크레이트는 우리 코드가 부르지 않는다.
+  # `cargo tree -i quick-xml` = plist 1.9.0 ← tauri 2.11.2 이고, plist 는 번들
+  # 자신의 Info.plist 를 읽는 데만 쓰인다. 우리가 파싱하는 XML 중 밖에서 온
+  # 것은 없다(LLM 응답은 JSON/SSE, .oculpm 은 마크다운, git 은 텍스트).
+  #
+  # 우리가 못 올리는 이유: 수정본은 >=0.41.0 인데 plist 1.9.0 이 ^0.39 를
+  # 요구한다 — semver 비호환이라 `cargo update` 로는 안 넘어간다.
+  #
+  # 해제 조건: plist 가 quick-xml >=0.41 을 쓰는 버전을 내고 tauri 가 그것을
+  # 물면 `cargo update -p quick-xml` 로 올리고 이 두 줄을 지운다.
+  # 확인: cargo tree -i quick-xml
+  { id = "RUSTSEC-2026-0194", reason = "quick-xml <- plist <- tauri. 외부 XML 을 파싱하지 않는다. plist 가 quick-xml 0.41 을 물면 해제" },
+  { id = "RUSTSEC-2026-0195", reason = "위와 동일 크레이트·동일 경로. plist 가 quick-xml 0.41 을 물면 해제" },
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
+[licenses]
+# 아래 목록은 Cargo.lock 817 패키지의 `license` 필드를 전부 집계해 만든 것이다.
+# **단독으로 등장하는** 라이선스만 넣었다 — "MIT OR Apache-2.0" 같은 OR 식은
+# 한쪽만 허용되면 통과하므로 목록을 늘릴 필요가 없다.
+#
+# 목록을 늘려야 할 상황이 오면 그건 새 종류의 라이선스가 들어왔다는 뜻이다.
+# 그때 한 번 읽어 보라고 게이트가 있는 것이다 — 반사적으로 추가하지 말 것.
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+  # ICU4X 계열(icu_*, zerovec, yoke, tinystr, writeable, litemap …) 19 크레이트.
+  # Unicode 데이터용 허용 라이선스다.
+  "Unicode-3.0",
+]
+
+# 전역 허용에 넣지 **않고** 크레이트별로만 여는 것들. 이렇게 두면 같은
+# 라이선스의 **새** 의존성이 들어올 때 게이트가 한 번 더 묻는다.
+exceptions = [
+  # MPL-2.0 — 파일 단위 카피레프트. 수정 없이 링크만 하므로 우리 소스에
+  # 전염되지 않지만, 새로 들어오는 MPL 크레이트는 한 번 보고 넘어가야 한다.
+  # 전부 전이 의존성이다: cssparser/selectors/dtoa-short 는 tauri 의 CSP
+  # 처리 경로, option-ext 는 `directories` 가 끌고 온다.
+  { crate = "cssparser", allow = ["MPL-2.0"] },
+  { crate = "cssparser-macros", allow = ["MPL-2.0"] },
+  { crate = "dtoa-short", allow = ["MPL-2.0"] },
+  { crate = "selectors", allow = ["MPL-2.0"] },
+  { crate = "option-ext", allow = ["MPL-2.0"] },
+
+  # CDLA-Permissive-2.0 — 소프트웨어가 아니라 **데이터**(루트 CA 목록) 라이선스.
+  # rustls 의 신뢰 저장소로 들어온다.
+  { crate = "webpki-roots", allow = ["CDLA-Permissive-2.0"] },
+  { crate = "webpki-root-certs", allow = ["CDLA-Permissive-2.0"] },
+
+  # notify 6.1.1 은 CC0-1.0 **단독**이다(퍼블릭 도메인 헌정). `.oculpm/` 파일
+  # 워처의 핵심 의존성. notify 7.x 는 MIT 로 바뀌었으니 올릴 때 이 줄을 지운다.
+  { crate = "notify", allow = ["CC0-1.0"] },
+
+  # libfuzzer-sys 는 `(MIT OR Apache-2.0) AND NCSA` 라 NCSA 도 함께 만족해야
+  # 한다. NCSA 는 MIT/BSD 급 허용 라이선스(LLVM 이 쓰던 것)다.
+  { crate = "libfuzzer-sys", allow = ["NCSA"] },
+]
+
+# 허용 목록에 넣어 두고 아무도 안 쓰는 라이선스는 "왜 있는지 모르는 줄"이 된다.
+# 경고로 남겨 청소할 수 있게 한다 (붉히지는 않는다 — 타깃을 좁히면 크레이트가
+# 그래프에서 빠져 정상적으로 안 쓰이게 되는 경우가 있다).
+unused-allowed-license = "warn"
+
+# 0.8 은 cargo-deny 기본값. 라이선스 **파일 텍스트**로 판정할 때의 신뢰도 문턱이라
+# `license` 필드가 있는 크레이트에는 쓰이지 않는다.
+confidence-threshold = 0.8
+
+# ─────────────────────────────────────────────────────────────────────────────
+[bans]
+# 같은 크레이트의 여러 버전은 이 규모(817)에서 정상적으로 생긴다
+# (windows-sys, hashbrown, base64 …). 붉히지 않고 보이게만 한다.
+multiple-versions = "warn"
+
+# `version = "*"` 는 잠글 수 없는 의존성이다 — 재현 가능한 빌드를 깬다.
+# 2026-09-04 현재 Cargo.toml 에 하나도 없다. 앞으로도 못 들어오게 막는다.
+wildcards = "deny"
+allow-wildcard-paths = true
+
+# ─────────────────────────────────────────────────────────────────────────────
+[sources]
+# 크레이트는 crates.io 에서만 온다. 2026-09-04 현재 Cargo.lock 에 git 의존성이
+# **0 개**다 — 그 상태를 유지한다. git 의존성은 감사 대상이 아니고(공지 DB 가
+# 커버하지 않는다) 태그가 움직이면 빌드가 재현되지 않는다.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

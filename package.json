@@ -17,8 +17,9 @@
     "lint:bindings": "node scripts/check-bindings-imports.mjs",
     "lint:design": "node scripts/check-design-discipline.mjs",
     "lint:filesize": "node scripts/check-file-sizes.mjs",
+    "lint:js": "eslint . --max-warnings=61",
     "clean:target": "node scripts/clean-target.mjs",
-    "lint": "pnpm lint:storage && pnpm lint:i18n && pnpm lint:bindings && pnpm lint:design && pnpm lint:filesize"
+    "lint": "pnpm lint:storage && pnpm lint:i18n && pnpm lint:bindings && pnpm lint:design && pnpm lint:filesize && pnpm lint:js"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -78,6 +79,7 @@
     "uqr": "^0.1.3"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.3.0",
     "@tauri-apps/cli": "^2",
@@ -89,10 +91,14 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "axe-core": "^4.11.4",
+    "eslint": "^10.9.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
     "jsdom": "^29.1.1",
     "pretendard": "^1.3.9",
     "tailwindcss": "^4.3.0",
     "typescript": "~5.8.3",
+    "typescript-eslint": "^8.69.0",
     "vite": "^7.0.4",
     "vitest": "^4.1.7",
     "vitest-axe": "^0.1.0"

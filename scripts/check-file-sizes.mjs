@@ -21,50 +21,19 @@
  * (`src/__tests__/file_size_ratchet.test.ts` 가 그 함수들을 문다).
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, realpathSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// 규칙표(무엇을 재고 무엇을 빼는가)는 데이터라 옆 모듈이 소유한다 —
+// 테스트가 모양을 순서까지 못박을 수 있게 (#ratchet-policy).
+import { MAX_LINES, GOVERNED, EXCLUDED, isGoverned } from "./file-size-policy.mjs";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
-/** 한 파일이 가질 수 있는 줄 수 (CLAUDE.md 의 "800줄이 한계"). */
-export const MAX_LINES = 800;
-
-/**
- * 검사 대상 — 손으로 쓰는 소스만.
- *
- * 생성물(`bindings.ts`)과 사전(`i18n/*.ts`)은 뺀다. 둘 다 사람이 설계하는
- * 표면이 아니라 목록이고, 길이가 곧 설계 냄새인 파일들이 아니다.
- */
-export const GOVERNED = [
-  { root: "src-tauri/src/", ext: [".rs"] },
-  { root: "src/", ext: [".ts", ".tsx"] },
-];
-
-export const EXCLUDED = [
-  "src/legacy/", // 빌드·lint 대상 밖 (보존된 죽은 코드)
-  "src/lib/bindings.ts", // tauri-specta 생성물
-  "src/i18n/ko.ts",
-  "src/i18n/en.ts",
-  // 명세서(manifest)들 — 길이가 **설계**가 아니라 **기능 수**의 함수인 파일.
-  // `lib.rs` 는 커맨드 하나가 늘 때마다 `use` 한 줄과 `collect_commands!` 한
-  // 줄이 반드시 는다. 여기에 래칫을 걸면 "커맨드를 더 못 붙인다"가 되고, 그건
-  // 지켜지지 않고 우회될 규칙이다.
-  "src-tauri/src/lib.rs",
-  // 같은 이유의 스키마 파일. `.oculpm` 프론트매터/인덱스의 **모양 자체**라,
-  // 필드가 하나 늘면 줄도 반드시 는다 (주석을 0줄로 줄여도 통과가 불가능하다).
-  // 2026-09-04 에 `agent.session`·`Session.agent_sessions` 를 넣다가 확인됐다.
-  "src-tauri/src/oculpm/spec.rs",
-];
-
-/** 이 경로가 래칫 대상인가. */
-export function isGoverned(relPath) {
-  if (EXCLUDED.some((skip) => relPath === skip || relPath.startsWith(skip))) {
-    return false;
-  }
-  return GOVERNED.some(
-    (rule) => relPath.startsWith(rule.root) && rule.ext.some((e) => relPath.endsWith(e)),
-  );
-}
+// 정책을 여기서도 다시 내보낸다 — 이 스크립트를 물고 있던 기존 테스트
+// (`src/__tests__/file_size_ratchet.test.ts`)의 import 를 깨지 않는다.
+export { MAX_LINES, GOVERNED, EXCLUDED, isGoverned };
 
 /** 빈 파일은 0줄. 그 밖에는 개행으로 자른 조각 수(마지막 개행 뒤 빈 줄 포함). */
 export function countLines(content) {
@@ -125,7 +94,7 @@ export function resolveBaseRef(env = process.env, git = runGit) {
     // 를 주는 것이 정답이고, 안 줬을 때 스택트레이스 대신 **왜 못 잡았는지**를
     // 말한다 — 통과시키지는 않는다.
     try {
-      git(["rev-parse", "--verify", "HEAD^1"], { quiet: true });
+      git(["rev-parse", "--verify", "HEAD^1"]);
     } catch {
       throw new Error(
         "얕은 체크아웃이라 HEAD^1 이 없습니다 — 워크플로 checkout 에 fetch-depth: 2 를 주세요.",
@@ -138,7 +107,7 @@ export function resolveBaseRef(env = process.env, git = runGit) {
   return mergeBase === head ? "HEAD" : mergeBase;
 }
 
-function runGit(args, { quiet = false } = {}) {
+function runGit(args) {
   // 훅이 내보내는 저장소-지역 GIT_* 변수가 자식 명령을 다른 저장소로 돌린다.
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([k]) => !k.startsWith("GIT_")),
@@ -148,18 +117,52 @@ function runGit(args, { quiet = false } = {}) {
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
     env,
-    // 신규 파일은 `git show` 가 "fatal: path ... exists on disk" 를 stderr 로
-    // 뱉는다 — 우리에게는 정상 경로(기준선 없음)라 삼킨다.
-    stdio: quiet ? ["ignore", "pipe", "ignore"] : "pipe",
+    // 셋 다 파이프. stderr 를 "ignore" 로 버리면 실패했을 때 **왜** 실패했는지가
+    // 남지 않는다 — 예전에 여기서 버려서, 기준선을 못 읽은 게이트가 아무 말도
+    // 없이 다른 답을 냈다. 파이프면 터미널을 더럽히지 않으면서 `error.stderr`
+    // 로 붙잡을 수 있다.
+    stdio: "pipe",
   });
 }
 
+/**
+ * 기준선에 있던 그 파일의 내용. **실패하면 던진다.**
+ *
+ * 예전에는 `catch { return null }` 이었다 — `git show` 의 모든 실패를 "신규
+ * 파일" 로 삼켰다. 신규 파일이 실제로 `git show` 를 실패시키기 때문에 그럴듯해
+ * 보였지만, 손상된 ref·blobless 클론·권한·인코딩 실패도 똑같이 "신규"가 됐다.
+ * 그러면 게이트는 **래칫이기를 그만두고** 그냥 800줄 평면 검사가 된다: 3,674줄
+ * 짜리 파일을 줄이는 PR 이 붉어지고(허용 3,674 대신 800), 보고서에는 그 파일이
+ * "신규" 라고 적힌다. 원인은 stderr 와 함께 버려져 아무 데도 안 남는다.
+ *
+ * 이제 신규 여부는 `baselineLinesFor` 가 **git 상태코드**로 판정하므로 여기로는
+ * 기준선이 있는 경로만 온다 — 그래서 실패는 전부 진짜 사고다.
+ */
 function baseContent(base, relPath) {
   try {
-    return runGit(["show", `${base}:${relPath}`], { quiet: true });
-  } catch {
-    return null; // 기준선에 없던 파일 = 신규
+    return runGit(["show", `${base}:${relPath}`]);
+  } catch (error) {
+    const stderr = String(error?.stderr ?? "").trim();
+    throw new Error(
+      `기준선을 못 읽었습니다: git show ${base}:${relPath}\n` +
+        (stderr || String(error?.message ?? error)),
+      { cause: error },
+    );
   }
+}
+
+/**
+ * 이 변경의 기준선 줄 수 — 없으면 `null`(신규).
+ *
+ * **신규 판정은 git 상태코드가 한다.** `A` 는 "기준선에 없던 경로"라는 git 의
+ * 단언이다. 읽어 보고 실패하면 신규로 치는 방식은 신규가 아닌 실패까지 신규로
+ * 만든다 (위 `baseContent` 주석).
+ *
+ * 이름이 바뀐 파일(`R`)·복사(`C`)의 기준선은 **옛 경로**에 있다.
+ */
+export function baselineLinesFor(change, readBase) {
+  if (change.status === "A") return null;
+  return countLines(readBase(change.oldPath ?? change.path));
 }
 
 /**
@@ -206,10 +209,16 @@ function main() {
     if (!existsSync(abs)) continue;
 
     const candidateLines = countLines(readFileSync(abs, "utf8"));
-    // 이름이 바뀐 파일의 기준선은 **옛 경로**에 있다.
-    const source = change.oldPath ?? change.path;
-    const prior = baseContent(base, source);
-    const baseLines = prior == null ? null : countLines(prior);
+    let baseLines;
+    try {
+      baseLines = baselineLinesFor(change, (source) => baseContent(base, source));
+    } catch (error) {
+      // 기준선을 못 읽었으면 **판정하지 않는다.** 예전에는 여기서 조용히
+      // "신규" 로 넘어가 다른 답을 냈다 (#ratchet-fail-open).
+      console.error(`✗ ${change.path}: 기준선(${base})을 읽지 못해 판정할 수 없습니다.`);
+      console.error(String(error?.message ?? error));
+      process.exit(2);
+    }
     const { limit, violates } = evaluateFileSize({ baseLines, candidateLines });
     if (violates) {
       violations.push({ path: change.path, candidateLines, limit, baseLines });
@@ -232,7 +241,31 @@ function main() {
   process.exit(1);
 }
 
+/**
+ * 지금 이 모듈이 **직접 실행된** 것인가 (import 된 것이 아니라).
+ *
+ * 예전 판정은 `process.argv[1].endsWith("check-file-sizes.mjs")` 였다. 파일
+ * **이름**만 보므로 두 방향으로 틀린다:
+ *
+ *  - 심링크(`.git/hooks/pre-commit` → 이 파일)나 다른 이름으로 실행하면 같은
+ *    파일인데도 CLI 가 안 돈다 — 훅이 조용히 아무것도 안 한다.
+ *  - 다른 저장소의 동명 파일(`/other/scripts/check-file-sizes.mjs`)이 이 모듈을
+ *    import 하면 이름이 맞아떨어져 CLI 가 돈다.
+ *
+ * `realpathSync` 로 **실제 파일**을 비교하면 둘 다 사라진다. 비교 함수를 인자로
+ * 받는 이유는 테스트가 심링크를 진짜로 만들지 않고도 이 판정을 물기 위해서다.
+ */
+export function isDirectInvocation(argv1, moduleUrl, resolve = realpathSync) {
+  if (!argv1) return false;
+  try {
+    return resolve(argv1) === resolve(fileURLToPath(moduleUrl));
+  } catch {
+    // 어느 한쪽이 사라졌으면 "직접 실행" 이라고 우기지 않는다.
+    return false;
+  }
+}
+
 // 테스트가 import 할 때는 CLI 를 돌리지 않는다.
-if (process.argv[1] && process.argv[1].endsWith("check-file-sizes.mjs")) {
+if (isDirectInvocation(process.argv[1], import.meta.url)) {
   main();
 }
