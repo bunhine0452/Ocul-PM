@@ -266,7 +266,7 @@
 
 .wz-bigcard svg { color: var(--accent); margin-bottom: 4px; }
 .wz-bigcard b { font-size: var(--fs-7); font-weight: 700; color: var(--text); }
-.wz-bigcard span { font-size: var(--fs-4); line-height: 1.5; color: var(--text-3); }
+.wz-bigcard span { font-size: var(--fs-4); line-height: 1.5; color: var(--text-2); }
 
 .wz-bigcard:hover:not(:disabled) {
   border-color: var(--accent);

@@ -20,7 +20,13 @@
 /* EB Garamond 는 2026-08-12 폴리시에서 제거했다 — 산세리프 UI 위의 세리프
    워드마크/제목은 "AI 가 만든 화면" 의 전형이고, 서체가 두 벌이면 그 자체로
    위계가 흐려진다. 앱 전체가 --font(Pretendard) 한 벌로 간다. */
-@import "highlight.js/styles/github.css";
+/* highlight.js 의 벤더 테마(styles/github.css)는 2026-09-04 에 뺐다
+   ({#hljs-dedupe}). 같은 `.hljs-*` 정의가 네 곳(벤더 · 이 파일의 다크 재정의 ·
+   screens.css 라이트 · screens.css 다크)에 있었고, 넷이 **같은 명시도
+   (0,2,0)** 라 승자를 주입 순서가 정했다 — `.hljs-section`(#1f6feb+bold vs
+   #d2a8ff) · `.hljs-bullet` · `.hljs-addition` · `.hljs-deletion` 이 실제로
+   갈렸다. screens.css 가 ShellV2 청크로 나중에 주입돼 셸 안에서는 늘 그쪽이
+   이겼으므로, 이기던 한 벌만 남긴다. SSOT = styles/screens.css 의 hljs 블록. */
 
 /* Pretendard Variable — UI 본문 서체 (2026-08-11, SUITE 7종 OTF 에서 교체).
    재생성은 scripts/build-pretendard-subset.py (한자·가나를 덜어낸 서브셋).
@@ -312,6 +318,11 @@
   }
   html {
     @apply font-sans;
+    /* 한국어 조판 — styles/base.css 의 body 규칙과 **같은 짝**이다. base.css 는
+       ShellV2(lazy 청크) 전용이라 시작 화면·트레이 팝오버·모바일 셸은 거기
+       닿지 않는다. 근거와 배경은 base.css {#keep-all} 주석 참조. */
+    word-break: keep-all;
+    overflow-wrap: break-word;
     }
 
   /* (Phase 5 정리) 체인지로그 카테고리 색 `--cat-*`·`--motion-*`·recent-change 앰버
@@ -377,99 +388,6 @@
 /* (Phase 5 정리) 옛 textarea 편집기의 `.editor-*` 규칙과 `--editor-*` 토큰은 CodeMirror 로
    옮겨간 뒤 소비처가 없어 지웠다. */
 
-/* --- highlight.js Github Dark Theme Overrides --- */
-[data-theme="dark"] .hljs {
-  color: #c9d1d9;
-  background: transparent; /* overlay on top of editor surface */
-}
-
-[data-theme="dark"] .hljs-doctag,
-[data-theme="dark"] .hljs-keyword,
-[data-theme="dark"] .hljs-meta .hljs-keyword,
-[data-theme="dark"] .hljs-template-tag,
-[data-theme="dark"] .hljs-template-variable,
-[data-theme="dark"] .hljs-type,
-[data-theme="dark"] .hljs-variable.language_ {
-  color: #ff7b72;
-}
-
-[data-theme="dark"] .hljs-title,
-[data-theme="dark"] .hljs-title.class_,
-[data-theme="dark"] .hljs-title.class_.inherited__,
-[data-theme="dark"] .hljs-title.function_ {
-  color: #d2a8ff;
-}
-
-[data-theme="dark"] .hljs-attr,
-[data-theme="dark"] .hljs-attribute,
-[data-theme="dark"] .hljs-literal,
-[data-theme="dark"] .hljs-meta,
-[data-theme="dark"] .hljs-number,
-[data-theme="dark"] .hljs-operator,
-[data-theme="dark"] .hljs-variable,
-[data-theme="dark"] .hljs-selector-attr,
-[data-theme="dark"] .hljs-selector-class,
-[data-theme="dark"] .hljs-selector-id {
-  color: #79c0ff;
-}
-
-[data-theme="dark"] .hljs-regexp,
-[data-theme="dark"] .hljs-string,
-[data-theme="dark"] .hljs-meta .hljs-string {
-  color: #a5d6ff;
-}
-
-[data-theme="dark"] .hljs-built_in,
-[data-theme="dark"] .hljs-symbol {
-  color: #ffa657;
-}
-
-[data-theme="dark"] .hljs-comment,
-[data-theme="dark"] .hljs-code,
-[data-theme="dark"] .hljs-formula {
-  color: #8b949e;
-  font-style: italic;
-}
-
-[data-theme="dark"] .hljs-name,
-[data-theme="dark"] .hljs-quote,
-[data-theme="dark"] .hljs-selector-tag,
-[data-theme="dark"] .hljs-selector-pseudo {
-  color: #7ee787;
-}
-
-[data-theme="dark"] .hljs-subst {
-  color: #c9d1d9;
-}
-
-[data-theme="dark"] .hljs-section {
-  color: #1f6feb;
-  font-weight: bold;
-}
-
-[data-theme="dark"] .hljs-bullet {
-  color: #f2cc60;
-}
-
-[data-theme="dark"] .hljs-emphasis {
-  color: #c9d1d9;
-  font-style: italic;
-}
-
-[data-theme="dark"] .hljs-strong {
-  color: #c9d1d9;
-  font-weight: bold;
-}
-
-[data-theme="dark"] .hljs-addition {
-  color: #aff5b4;
-  background-color: #033a16;
-}
-
-[data-theme="dark"] .hljs-deletion {
-  color: #ffdcd7;
-  background-color: #67060c;
-}
 /* ── Update notifier banner (1.0 release) ──────────────────────────────────
    Rendered globally from App.tsx (above both the shadcn StartScreen and the
    ui_v2 ShellV2). Styled with the always-loaded shadcn tokens so it looks

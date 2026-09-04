@@ -222,7 +222,7 @@
 /* 작업 중 표시 (2026-08-16) — 화면을 옮겨도 에이전트는 돈다. 숫자는 몇 개인지,
    도는 고리는 "지금 이 순간"인지를 말한다. 색은 Claude 주황 고정: 프리셋 테마가
    무엇이든 이 신호만은 같은 색이어야 눈이 바로 찾는다. */
-.nav-badge.working { background: rgba(203, 123, 93, 0.16); color: #cb7b5d; }
+.nav-badge.working { background: color-mix(in srgb, var(--claude) 16%, transparent); color: var(--claude); }
 .nav-item.active .nav-badge.working { background: rgba(255,255,255,0.25); color: inherit; }
 /* 승인 대기 (2026-08-16) — 작업 중과 다르다: 기다린다고 안 풀리고 **사용자가
    눌러야** 풀린다. 그래서 도는 고리와 달리 깜빡여서 부른다 — 에이전트가 승인
@@ -240,7 +240,7 @@
   inset: -4px;
   border-radius: 50%;
   border: 1.5px solid transparent;
-  border-top-color: #cb7b5d;
+  border-top-color: var(--claude);
   animation: nav-working-spin 0.9s linear infinite;
 }
 .nav-item.active .nav-ico.working::after { border-top-color: currentColor; }
@@ -308,8 +308,10 @@
    세로로 꺾이던 버그), 부제는 넘치면 말줄임으로 양보한다. 액션 묶음은
    .toolbar-actions 가 가로 스크롤로 흡수 (스크롤바는 숨김 — 트랙패드/휠). */
 .toolbar-title { font-size: 15px; font-weight: 650; letter-spacing: -0.015em; white-space: nowrap; flex: none; }
+/* 부제는 화면이 지금 무엇을 보고 있는지 말하는 **문장**이다 — 타임스탬프가
+   아니므로 --text-2 (2026-09-04 {#text3-promotion}). */
 .toolbar-sub {
-  font-size: var(--fs-5); color: var(--text-3);
+  font-size: var(--fs-5); color: var(--text-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   flex: 0 1 auto; min-width: 0;
 }

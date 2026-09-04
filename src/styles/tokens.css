@@ -26,11 +26,34 @@
   --bg-hover: rgba(56,48,36,0.05);
   --bg-active: rgba(56,48,36,0.085);
 
-  /* text — 잉크 계열(순수 검정 대신 웜 잉크) */
+  /* text — 잉크 계열(순수 검정 대신 웜 잉크).
+     --text-3 은 meta/placeholder 전용이지만 그래도 **읽히긴 해야 한다**.
+     예전 #9c9588 은 표면 다섯(window·sidebar·content·card·inset) 중 가장 불리한
+     --bg-inset 위에서 2.54:1 이었다 — 설계 SSOT(03-design-system.md §6)가
+     정한 하한도 못 넘었다. 4.0:1 로 한 단계 눌렀다 (2026-09-04 {#text3-promotion}). */
   --text: #211e18;
   --text-2: #6d675c;
-  --text-3: #9c9588;
+  --text-3: #797369;
   --text-on-accent: #ffffff;
+
+  /* 상태색 **배경 위에 얹는 글자** (2026-09-04 {#hardcoded-white}).
+     --text-on-accent 가 액센트 위를 맡듯, 앰버(--t-error/--warn)와
+     레드(--t-bug/--danger) 위는 이 둘이 맡는다. 흰 글자는 두 색 어디에서도
+     4.5:1 을 못 넘긴다 (앰버 2.80 · 레드 3.83) — 흰색이 "맞는 선택" 이었던
+     적이 없고, 배지가 작을수록(9px/800) 더 그렇다.
+     왜 한 벌인가: 프리셋(data-preset)은 표면·액센트만 다시 칠하고 --t-* /
+     --danger / --warn 는 가족(light|dark)에서 물려받는다. 그 앰버·레드는
+     가족당 한 값씩 둘뿐이고, 아래 값은 **둘 다** 4.5:1 을 넘는다:
+       --on-warn   #d9881f 5.82 · #eaa23f 7.57 · #c2810a 5.01
+       --on-danger #e0524b 4.91 · #f1685f 6.17
+     ⚠️ [data-preset] 블록에는 넣지 말 것 — 그 블록은 내장 테마 JSON 으로
+     생성되고(scripts/gen-builtin-themes.mjs) 백엔드 토큰 화이트리스트와 짝이다. */
+  --on-warn: #2a1e05;
+  --on-danger: #250806;
+  /* 토글 노브 — 표면이 아니라 '물체'다. off 트랙(--bg-active) 위에서는 어느
+     테마에서도 흰색이 또렷하고, on 트랙(--accent) 위에서만 --text-on-accent 가
+     필요하다. 가족과 무관하게 한 값이라 :root 한 곳. */
+  --knob: #ffffff;
 
   /* lines */
   --sep: rgba(60,52,38,0.10);
@@ -154,7 +177,8 @@
 
   --text: #f1f4f1;
   --text-2: #a6aea8;
-  --text-3: #6e7670;
+  /* 2.96:1(--bg-inset) → 4.02:1 — 라이트와 같은 이유. */
+  --text-3: #858c87;
   --text-on-accent: #06281c;
 
   --sep: rgba(255,255,255,0.08);
@@ -227,7 +251,10 @@
 }
 /* orange */
 [data-accent="orange"] {
-  --accent: #e07b12; --accent-strong: #c96d0c; --accent-text: #b4620a;
+  /* --accent-text 는 표면 위에 얹히는 **글자**다. 예전 #b4620a 는 가장 불리한
+     표면(--bg-inset)에서 3.82:1 이라 여섯 팔레트 중 혼자 AA 미달이었다
+     (2026-09-04, design_contrast.test.ts 가 잡았다). */
+  --accent: #e07b12; --accent-strong: #c96d0c; --accent-text: #a25809;
   --accent-soft: #fdefdb; --accent-ring: rgba(224,123,18,0.35);
 }
 [data-theme="dark"][data-accent="orange"] {
@@ -267,7 +294,7 @@
   --bg-window: #fdf6e3;  --bg-sidebar: #eee8d5;  --bg-content: #f5eed9;
   --bg-card: #fdf6e3;    --bg-inset: #eee8d5;
   --bg-hover: rgba(101,123,131,0.10);  --bg-active: rgba(101,123,131,0.16);
-  --text: #586e75;  --text-2: #657b83;  --text-3: #93a1a1;  --text-on-accent: #fdf6e3;
+  --text: #47585e;  --text-2: #576a71;  --text-3: #687272;  --text-on-accent: #fdf6e3;
   --sep: rgba(88,110,117,0.16);  --sep-strong: rgba(88,110,117,0.28);
   --border-card: rgba(88,110,117,0.18);
   --accent: #268bd2;  --accent-strong: #1f7ab8;  --accent-text: #1f6a9e;
@@ -279,7 +306,7 @@
   --bg-window: #f4ecd8;  --bg-sidebar: #ece1c8;  --bg-content: #f1e7d0;
   --bg-card: #faf3e0;    --bg-inset: #e9ddc2;
   --bg-hover: rgba(91,70,54,0.07);  --bg-active: rgba(91,70,54,0.12);
-  --text: #4a3a2a;  --text-2: #6b5847;  --text-3: #927b63;  --text-on-accent: #fbf6ea;
+  --text: #4a3a2a;  --text-2: #6b5847;  --text-3: #7a6753;  --text-on-accent: #fbf6ea;
   --sep: rgba(91,70,54,0.16);  --sep-strong: rgba(91,70,54,0.26);
   --border-card: rgba(91,70,54,0.18);
   --accent: #b06a2c;  --accent-strong: #9a5a22;  --accent-text: #8a4f1d;
@@ -291,7 +318,7 @@
   --bg-window: #2e3440;  --bg-sidebar: #2b303b;  --bg-content: #2e3440;
   --bg-card: #3b4252;    --bg-inset: #434c5e;
   --bg-hover: rgba(216,222,233,0.06);  --bg-active: rgba(216,222,233,0.10);
-  --text: #eceff4;  --text-2: #d8dee9;  --text-3: #8d99b3;  --text-on-accent: #2e3440;
+  --text: #eceff4;  --text-2: #d8dee9;  --text-3: #a8b1c5;  --text-on-accent: #2e3440;
   --sep: rgba(216,222,233,0.09);  --sep-strong: rgba(216,222,233,0.16);
   --border-card: rgba(216,222,233,0.10);
   --accent: #88c0d0;  --accent-strong: #79b0c2;  --accent-text: #9fcfdd;
@@ -303,7 +330,7 @@
   --bg-window: #282a36;  --bg-sidebar: #21222c;  --bg-content: #282a36;
   --bg-card: #343746;    --bg-inset: #44475a;
   --bg-hover: rgba(248,248,242,0.06);  --bg-active: rgba(248,248,242,0.10);
-  --text: #f8f8f2;  --text-2: #bdc0d6;  --text-3: #6272a4;  --text-on-accent: #282a36;
+  --text: #f8f8f2;  --text-2: #bdc0d6;  --text-3: #a1abc9;  --text-on-accent: #282a36;
   --sep: rgba(248,248,242,0.09);  --sep-strong: rgba(248,248,242,0.16);
   --border-card: rgba(248,248,242,0.10);
   --accent: #bd93f9;  --accent-strong: #a87fe6;  --accent-text: #d0b3ff;

@@ -63,15 +63,134 @@ describe("화면은 토큰을 fallback 없이 참조한다", () => {
     }
     expect(offenders).toEqual([]);
   });
+});
 
-  it("상태색 hex 리터럴은 tokens.css 밖에 없다", () => {
+// ─── v2.41 {#design-whitelist} — 색 리터럴은 팔레트 층에만 ────────────────
+//
+// 예전 규칙은 hex **여섯 개**를 스팟체크했다. 커버리지 규칙이 아니라 과거에
+// 한 번 걸렸던 값들의 블랙리스트라, 그 뒤에 새로 새어 나간 것들은 전부 통과했다
+// — `#cb7b5d`(shell) · `#16161c`(screens) · 액센트 배경 위 `#fff` 넷 ·
+// hljs GitHub 팔레트 · `var(--accent-uncommitted, #c4922f)` fallback.
+//
+// 뒤집는다: **팔레트 층 밖의 CSS 에는 색 리터럴을 쓰지 않는다.** 팔레트 층은
+// 셋뿐이고(tokens.css · App.css 의 shadcn 블록 · code.css), 그 밖에서 색이
+// 필요하면 토큰을 만든다. 예외는 아래 목록에 **사유와 함께** 적고, 목록이
+// 길어지면 규칙이 무의미해지므로 개수 자체를 이 스위트가 센다.
+
+/** 팔레트 층 — 여기서만 색이 태어난다. */
+const PALETTE_LAYERS = new Set(["styles/tokens.css", "App.css"]);
+
+/**
+ * 명시 예외. 한 줄 = 한 사유. **늘리지 말고 줄이는 방향으로만.**
+ * `selector` 는 그 hex 를 품은 규칙의 셀렉터(직전 `{` 앞 줄), `line` 은 선언 줄.
+ */
+const HEX_EXCEPTIONS: { file: string; selector?: RegExp; line?: RegExp; reason: string }[] = [
+  {
+    file: "features/code/code.css",
+    reason:
+      "CodeMirror 편집기 팔레트(--code-*, One Light/Dark). 그 자체가 팔레트 층이고, " +
+      "highlight.js 토큰과의 통합은 3.0 {#hljs-unify} 몫이다.",
+  },
+  {
+    file: "styles/screens.css",
+    selector: /\.hljs/,
+    reason:
+      "highlight.js 토큰 팔레트 — 앱 전체에서 **여기 한 벌뿐**이다 ({#hljs-dedupe}). " +
+      "토큰화·CodeMirror 통합은 3.0 {#hljs-unify}.",
+  },
+  {
+    file: "components/bootsplash.css",
+    line: /var\(--[\w-]+,\s*#/,
+    reason:
+      "부트 스플래시는 테마 CSS 가 붙기 전 **첫 페인트**다 — 토큰이 아직 없을 때 " +
+      "보이는 안전값이라 fallback 이 곧 존재 이유다.",
+  },
+  {
+    file: "styles/agent.css",
+    line: /mask-image:/,
+    reason: "마스크 스텐실 — 색이 아니라 알파(불투명 62% → 투명)다. 화면에 칠해지지 않는다.",
+  },
+  {
+    file: "styles/agent.css",
+    selector: /\.lightbox/,
+    reason:
+      "이미지 라이트박스는 어느 테마에서도 어둡다(사진 뷰어 관용구). 표면 토큰을 쓰면 " +
+      "다크 가족에서 흰 스크림이 되고, 그 위 닫기 버튼도 흰색이 맞다.",
+  },
+];
+
+/** 규칙의 셀렉터를 따라가며 hex 를 품은 줄을 모은다 (주석은 지운다). */
+function scanHex(src: string): { line: number; selector: string; text: string }[] {
+  const bare = src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "));
+  const out: { line: number; selector: string; text: string }[] = [];
+  let selector = "";
+  let pending = "";
+  bare.split("\n").forEach((raw, i) => {
+    const line = raw.trim();
+    if (line.includes("{")) {
+      selector = (pending + " " + line.slice(0, line.indexOf("{"))).trim();
+      pending = "";
+    } else if (line.endsWith(",")) {
+      pending += " " + line;
+    } else if (line === "}") {
+      pending = "";
+    }
+    // 한 줄 규칙(`.x { color: #fff }`)은 선언 부분만 남긴다 — 셀렉터가 두 번
+    // 찍히면 보고가 읽히지 않고, `line` 정규식이 셀렉터에 걸릴 수도 있다.
+    const text = line.includes("{") ? line.slice(line.indexOf("{") + 1).trim() : line;
+    if (/#[0-9a-fA-F]{3,8}\b/.test(text)) out.push({ line: i + 1, selector, text });
+  });
+  return out;
+}
+
+describe("색 리터럴은 팔레트 층에만 있다 — 화이트리스트", () => {
+  const files = [...walk(join(ROOT))].filter((f) => f.endsWith(".css"));
+  const rel = (f: string) => f.slice(ROOT.length + 1);
+
+  it("팔레트 층 밖에는 예외 목록에 적힌 것만 남는다", () => {
     const offenders: string[] = [];
-    for (const file of walk(join(ROOT))) {
-      if (!file.endsWith(".css") || file.endsWith("tokens.css")) continue;
-      const src = readFileSync(file, "utf8");
-      if (/#(12a06b|c2810a|e5484d|d29922|d9822b|d97757)\b/i.test(src)) offenders.push(file.slice(ROOT.length + 1));
+    for (const file of files) {
+      const name = rel(file);
+      if (name === "features/code/code.css") continue; // 파일 통째 예외 (아래에서 센다)
+      for (const hit of scanHex(readFileSync(file, "utf8"))) {
+        // 팔레트 층에서는 **커스텀 프로퍼티 선언**만 색을 낳을 수 있다.
+        // (`color: var(--x, #hex)` 같은 fallback 은 여기서도 위반이다.)
+        if (PALETTE_LAYERS.has(name) && /--[\w-]+\s*:/.test(hit.text)) continue;
+        const excused = HEX_EXCEPTIONS.some(
+          (e) =>
+            e.file === name &&
+            (!e.selector || e.selector.test(hit.selector)) &&
+            (!e.line || e.line.test(hit.text)),
+        );
+        if (!excused) offenders.push(`${name}:${hit.line}  ${hit.selector} { ${hit.text} }`);
+      }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it("예외는 다섯 줄을 넘지 않는다 — 늘어나면 규칙이 무의미해진다", () => {
+    // 각 예외가 실제로 무엇을 몇 줄 봐주는지 세어, 죽은 예외도 함께 잡는다.
+    const covered = new Map<number, number>();
+    for (const file of files) {
+      const name = rel(file);
+      for (const hit of scanHex(readFileSync(file, "utf8"))) {
+        HEX_EXCEPTIONS.forEach((e, i) => {
+          if (e.file !== name) return;
+          if (e.selector && !e.selector.test(hit.selector)) return;
+          if (e.line && !e.line.test(hit.text)) return;
+          covered.set(i, (covered.get(i) ?? 0) + 1);
+        });
+      }
+    }
+    expect(HEX_EXCEPTIONS.length).toBeLessThanOrEqual(5);
+    // 아무것도 안 봐주는 예외는 지운다 — 목록이 유물이 되지 않게.
+    for (const [i, e] of HEX_EXCEPTIONS.entries()) {
+      expect(covered.get(i) ?? 0, `죽은 예외 #${i}: ${e.file} — ${e.reason}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("모든 예외에 사유가 적혀 있다", () => {
+    for (const e of HEX_EXCEPTIONS) expect(e.reason.length).toBeGreaterThan(30);
   });
 });
 
@@ -106,5 +225,198 @@ describe("App.css — 죽은 토큰·클래스가 되살아나지 않는다", ()
   );
   it("EB Garamond 의존성이 없다", () => {
     expect(read("../package.json")).not.toContain("eb-garamond");
+  });
+});
+
+// ─── v2.41 {#design-whitelist} — 대비를 눈이 아니라 숫자가 지킨다 ──────────
+//
+// 왜 필요한가: 설계 SSOT(`docs/Lite-update/Fianl_UI_update_before1.0/
+// 03-design-system.md` §6)의 대비 매트릭스는 **손으로 적은 표**라 낡았다.
+// 2026-07-16 전면 리스킨이 표면·글자·액센트를 전부 갈았는데 표는 그대로였고,
+// 그 사이 `--text-3` 은 여섯 테마 전부에서 AA 미달인 채 382곳에 쓰였다.
+//
+// 이 스위트는 표를 **매번 다시 계산한다**. tokens.css 를 파싱해 테마별로
+// 캐스케이드를 흉내 내고, 실제 값끼리 WCAG 2.x 상대휘도 대비를 잰다.
+// 손댈 곳은 이 파일이 아니라 tokens.css 다.
+
+const TOKENS = read("styles/tokens.css");
+
+// ─── WCAG 2.x 상대휘도 / 대비 ────────────────────────────────────────────
+function parseHex(hex: string): [number, number, number] {
+  let h = hex.trim().replace("#", "");
+  if (h.length === 3) h = [...h].map((c) => c + c).join("");
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as [number, number, number];
+}
+function channel(c: number): number {
+  const v = c / 255;
+  return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+}
+function luminance(hex: string): number {
+  const [r, g, b] = parseHex(hex);
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+function contrast(a: string, b: string): number {
+  const [la, lb] = [luminance(a), luminance(b)];
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+const round = (n: number) => Math.round(n * 100) / 100;
+
+// ─── tokens.css → 셀렉터별 커스텀 프로퍼티 ────────────────────────────────
+/** `selector { --a: v; --b: v }` 블록을 전부 모은다 (주석 제거 후). */
+function parseBlocks(css: string): Map<string, Record<string, string>> {
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const out = new Map<string, Record<string, string>>();
+  for (const m of bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selector = m[1].trim().replace(/\s+/g, " ");
+    const decls: Record<string, string> = {};
+    for (const decl of m[2].split(";")) {
+      const i = decl.indexOf(":");
+      if (i < 0) continue;
+      const key = decl.slice(0, i).trim();
+      const value = decl.slice(i + 1).trim();
+      if (key.startsWith("--") && value) decls[key] = value;
+    }
+    if (Object.keys(decls).length > 0) out.set(selector, { ...out.get(selector), ...decls });
+  }
+  return out;
+}
+const BLOCKS = parseBlocks(TOKENS);
+
+/** 셀렉터 사슬을 순서대로 겹쳐 "그 테마에서 실제로 풀리는 값" 을 만든다. */
+function resolve(chain: string[]): Record<string, string> {
+  const acc: Record<string, string> = {};
+  for (const sel of chain) {
+    const block = BLOCKS.get(sel);
+    expect(block, `tokens.css 에 \`${sel}\` 블록이 없다`).toBeTruthy();
+    Object.assign(acc, block);
+  }
+  return acc;
+}
+
+const DARK = '[data-theme="dark"]';
+/** 프리셋 → 바탕 가족. `SettingsContext.PRESET_FAMILY` 와 같은 표. */
+const PRESET_FAMILY: Record<string, "light" | "dark"> = {
+  solarized: "light",
+  sepia: "light",
+  nord: "dark",
+  dracula: "dark",
+  "high-contrast": "dark",
+};
+/** `data-accent` 팔레트 6종 중 5종 (green 은 바탕값이라 블록이 없다). */
+const ACCENTS = ["blue", "purple", "orange", "rose", "teal"];
+
+type Theme = { name: string; tokens: Record<string, string> };
+
+const THEMES: Theme[] = [
+  { name: "light", tokens: resolve([":root"]) },
+  { name: "dark", tokens: resolve([":root", DARK]) },
+  ...Object.entries(PRESET_FAMILY).map(([id, family]) => ({
+    name: `preset:${id}`,
+    tokens: resolve(family === "dark" ? [":root", DARK, `[data-preset="${id}"]`] : [":root", `[data-preset="${id}"]`]),
+  })),
+  ...ACCENTS.flatMap((a) => [
+    { name: `accent:${a}/light`, tokens: resolve([":root", `[data-accent="${a}"]`]) },
+    { name: `accent:${a}/dark`, tokens: resolve([":root", DARK, `${DARK}[data-accent="${a}"]`]) },
+  ]),
+];
+
+/** 글자가 얹히는 표면 다섯 — 가장 불리한 하나가 그 토큰의 실력이다. */
+const SURFACES = ["--bg-window", "--bg-sidebar", "--bg-content", "--bg-card", "--bg-inset"] as const;
+
+function worstOnSurfaces(t: Theme, token: string): { ratio: number; surface: string } {
+  let worst = { ratio: Infinity, surface: "" };
+  for (const s of SURFACES) {
+    const r = contrast(t.tokens[token], t.tokens[s]);
+    if (r < worst.ratio) worst = { ratio: r, surface: s };
+  }
+  return worst;
+}
+
+describe("글자 램프는 어느 테마에서도 읽힌다", () => {
+  it.each(THEMES.map((t) => [t.name, t] as const))("%s", (_name, t) => {
+    // `--text` / `--text-2` 는 본문이다 — AA(4.5:1).
+    for (const token of ["--text", "--text-2", "--accent-text"] as const) {
+      const { ratio, surface } = worstOnSurfaces(t, token);
+      expect(round(ratio), `${token} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+    }
+    // `--text-3` 은 meta/placeholder 전용이라 AA 를 요구하지 않는다. 다만
+    // "보이긴 해야 한다" 의 하한은 4.0 — 2026-09-04 이전엔 2.18~3.93 이었다.
+    const t3 = worstOnSurfaces(t, "--text-3");
+    expect(round(t3.ratio), `--text-3 on ${t3.surface}`).toBeGreaterThanOrEqual(4.0);
+  });
+
+  it("램프가 뒤집히지 않는다 — text > text-2 > text-3", () => {
+    for (const t of THEMES) {
+      const on = (k: string) => contrast(t.tokens[k], t.tokens["--bg-content"]);
+      expect(on("--text"), `${t.name} text vs text-2`).toBeGreaterThan(on("--text-2"));
+      expect(on("--text-2"), `${t.name} text-2 vs text-3`).toBeGreaterThan(on("--text-3"));
+    }
+  });
+});
+
+describe("상태색 배경 위의 글자 — {#hardcoded-white}", () => {
+  // 앰버·레드 배지의 글자. 흰색은 어느 테마에서도 4.5 를 못 넘겨서 토큰이 생겼다.
+  it.each([
+    ["--on-warn", ["--t-error", "--warn"]],
+    ["--on-danger", ["--t-bug", "--danger"]],
+  ] as const)("%s", (ink, backgrounds) => {
+    for (const t of THEMES) {
+      for (const bg of backgrounds) {
+        const r = contrast(t.tokens[ink], t.tokens[bg]);
+        expect(round(r), `${t.name}: ${ink} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("--knob 은 on 상태에서 --text-on-accent 로 바뀐다 (노브 규칙의 근거)", () => {
+    // off 트랙(--bg-active)은 알파라 계산 대상이 아니다. on 트랙(--accent)만 잰다.
+    for (const t of THEMES) {
+      expect(t.tokens["--knob"], `${t.name}`).toBe("#ffffff");
+    }
+  });
+});
+
+// ─── 알려진 미달 — 고치는 게 아니라 **나빠지지 않게** 붙잡는다 ─────────────
+//
+// `--text-on-accent` / `--accent` 는 라이트 가족 액센트 팔레트에서 구조적으로
+// AA 를 못 넘긴다: 흰 글자가 밝은 액센트 위에 얹히기 때문이고, 고치려면
+// 액센트 팔레트(12값)를 다시 조율해야 한다 — 3.0 {#v3-surface} 몫이다.
+// 여기 적힌 수치보다 **나빠지면** 실패한다. 좋아졌으면 표를 낮춰 적을 것.
+const ON_ACCENT_FLOOR: Record<string, number> = {
+  light: 4.35,
+  dark: 7.98,
+  "preset:solarized": 3.41,
+  "preset:sepia": 3.94,
+  "preset:nord": 6.24,
+  "preset:dracula": 5.9,
+  "preset:high-contrast": 14.67,
+  "accent:blue/light": 4.7,
+  "accent:blue/dark": 5.71,
+  "accent:purple/light": 4.76,
+  "accent:purple/dark": 5.81,
+  "accent:orange/light": 3.0,
+  "accent:orange/dark": 7.33,
+  "accent:rose/light": 3.83,
+  "accent:rose/dark": 5.18,
+  "accent:teal/light": 3.42,
+  "accent:teal/dark": 8.97,
+};
+
+describe("--text-on-accent / --accent — 알려진 미달의 래칫", () => {
+  it("모든 테마가 표에 있다 (새 팔레트를 추가하면 여기도 적는다)", () => {
+    expect(THEMES.map((t) => t.name).sort()).toEqual(Object.keys(ON_ACCENT_FLOOR).sort());
+  });
+
+  it("어느 테마도 적힌 값보다 나빠지지 않는다", () => {
+    const report: string[] = [];
+    for (const t of THEMES) {
+      const r = round(contrast(t.tokens["--text-on-accent"], t.tokens["--accent"]));
+      expect(r, `${t.name} 이 표(${ON_ACCENT_FLOOR[t.name]})보다 나빠졌다`).toBeGreaterThanOrEqual(
+        ON_ACCENT_FLOOR[t.name],
+      );
+      if (r < 4.5) report.push(`${t.name} ${r}`);
+    }
+    // 미달 목록이 **늘면** 실패한다 — 줄면 이 숫자를 내려 적을 것.
+    expect(report.length, `AA 미달: ${report.join(" · ")}`).toBeLessThanOrEqual(6);
   });
 });

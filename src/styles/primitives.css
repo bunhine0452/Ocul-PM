@@ -164,8 +164,10 @@
 .fpath { font-family: var(--mono); font-size: var(--fs-4); color: var(--text-2); }
 .fpath b { color: var(--text); font-weight: 600; }
 
-/* empty-state hint (shared by placeholder + future screens) */
-.empty-hint { color: var(--text-3); font-size: var(--fs-5); text-align: center; padding: 60px 30px; }
+/* empty-state hint (shared by placeholder + future screens).
+   --text-3 이 아니다 (2026-09-04 {#text3-promotion}): 데이터가 없는 화면에서
+   이 문장은 meta 가 아니라 **그 화면의 유일한 문장**이다. TSX 52곳이 쓴다. */
+.empty-hint { color: var(--text-2); font-size: var(--fs-5); text-align: center; padding: 60px 30px; }
 
 /* ── 인라인 마크다운 (components/InlineMarkdown) ─────────────────────────────
    제목·메모 같은 **한 줄** 텍스트에 쓰는 최소 강조. 블록 문서는 Markdown.tsx.
@@ -282,7 +284,7 @@
   font-weight: 700;
   color: var(--text);
 }
-.sk-modal-sub { margin-left: auto; font-size: var(--fs-3); color: var(--text-3); }
+.sk-modal-sub { margin-left: auto; font-size: var(--fs-3); color: var(--text-2); }
 .sk-modal-warn {
   padding: 0 20px;
   font-size: var(--fs-7);

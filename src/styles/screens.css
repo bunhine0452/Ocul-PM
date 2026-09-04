@@ -58,7 +58,6 @@
   font-size: var(--fs-4);
   line-height: 1.45;
   white-space: normal;
-  word-break: break-word;
   pointer-events: none;
 }
 .stat.has-tip:hover .stat-tip { display: block; }
@@ -301,7 +300,7 @@
 .dfl-filter-clear:hover { background: var(--bg-hover); color: var(--text); }
 
 .dfl-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 8px 10px; }
-.dfl-empty { padding: 12px 10px; font-size: var(--fs-4); color: var(--text-3); }
+.dfl-empty { padding: 12px 10px; font-size: var(--fs-4); color: var(--text-2); }
 
 /* 키 힌트는 목록에서 떼어내 바닥에 고정 — 머리글 폭을 두고 제목과 다투지 않는다. */
 .dfl-foot {
@@ -322,7 +321,7 @@
 .dfl-impact-list { display: flex; flex-direction: column; gap: 1px; padding: 2px 0 4px; }
 .dfl-impact-more { padding: 3px 8px; font-size: var(--fs-3); color: var(--text-3); }
 .dstatus.hop { background: transparent; border: 1px solid var(--sep); color: var(--text-3); width: 17px; font-size: 9px; font-weight: 700; }
-.dstatus.hop.near { color: var(--accent-uncommitted, #c4922f); }
+.dstatus.hop.near { color: var(--accent-uncommitted); }
 
 .diff-search { display: flex; align-items: center; gap: 6px; }
 .diff-search input {
@@ -404,10 +403,13 @@
    자리를 더 먹었다. */
 .dfl-plan-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dfl-plan-n { flex: none; opacity: 0.6; }
-.dstatus { width: 15px; height: 15px; border-radius: 4px; display: grid; place-items: center; font-size: 9px; font-weight: 800; flex: none; color: #fff; }
-.dstatus.M { background: var(--t-error); }
-.dstatus.A { background: var(--accent); }
-.dstatus.D { background: var(--t-bug); }
+/* 상태 배지 — 글자색은 **바탕마다 다르다**. 15×15 안의 9px/800 한 글자라
+   대비가 곧 가독성이고, 흰 글자는 앰버(2.80)에서도 레드(3.83)에서도 AA 를
+   못 넘겼다 (2026-09-04 {#hardcoded-white}). 바탕별 짝은 토큰이 안다. */
+.dstatus { width: 15px; height: 15px; border-radius: 4px; display: grid; place-items: center; font-size: 9px; font-weight: 800; flex: none; }
+.dstatus.M { background: var(--t-error); color: var(--on-warn); }
+.dstatus.A { background: var(--accent); color: var(--text-on-accent); }
+.dstatus.D { background: var(--t-bug); color: var(--on-danger); }
 
 /* ── 작업 일지 디테일 — 변경 파일 내비게이션 ──────────────────────────────
    파일이 스무 개쯤 되면 오른쪽 위 '칩 벽'(줄바꿈되는 파일 버튼 무더기)이
@@ -470,7 +472,7 @@
   color: var(--text-3); background: var(--bg-inset);
   border: 1px solid var(--sep); border-radius: 999px; padding: 0 6px; white-space: nowrap;
 }
-.entry-filelist-empty { padding: 10px 8px; font-size: var(--fs-4); color: var(--text-3); }
+.entry-filelist-empty { padding: 10px 8px; font-size: var(--fs-4); color: var(--text-2); }
 
 /* 오른쪽 pane 머리 — 지금 열린 파일 한 줄 (경로 · 앞뒤 이동 · 위치). */
 .entry-file-bar {
@@ -569,7 +571,7 @@
 }
 .subtask:hover { background: var(--bg-hover); }
 .sub-check { width: 19px; height: 19px; border-radius: 6px; flex: none; display: grid; place-items: center; border: 1.6px solid var(--sep-strong); }
-.sub-check.done { background: var(--accent); border-color: var(--accent); color: #fff; }
+.sub-check.done { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
 .sub-check.active { border-color: var(--accent); border-style: dashed; }
 .sub-title { font-size: var(--fs-7); font-weight: 520; }
 .sub-title.done { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-3); }
@@ -599,7 +601,7 @@
 .pln-item-text { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
 .pln-item-text .jref-wrap { margin-left: 6px; }
 .pln-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
-.pln-item-note { font-size: var(--fs-5); color: var(--text-3); margin-left: 6px; }
+.pln-item-note { font-size: var(--fs-5); color: var(--text-2); margin-left: 6px; }
 .pln-done-hint {
   margin-left: 6px; padding: 1px 8px; border-radius: 99px; cursor: pointer;
   background: var(--accent-ring); border: 1px solid var(--accent); color: var(--accent);
@@ -815,7 +817,7 @@
 }
 
 .pln-rail-list { display: flex; flex-direction: column; gap: 2px; }
-.pln-rail-empty { padding: 12px 10px; font-size: var(--fs-5); color: var(--text-3); }
+.pln-rail-empty { padding: 12px 10px; font-size: var(--fs-5); color: var(--text-2); }
 
 /* 섹션은 이 목록의 뼈대다. 헤더만 조용히 얹으면 '진행 중' 과 '완료' 의 행들이
    한 덩어리로 흘러 어디가 어딘지 안 보인다. 구분선 + 여백으로 물리적으로 끊고,
@@ -1723,7 +1725,7 @@ mark.s-hit {
   font-family: var(--font); font-size: var(--fs-2); text-align: left;
 }
 .tbm-back:hover { color: var(--text); }
-.tbm-empty { padding: 10px 8px; color: var(--text-3); font-size: var(--fs-4); text-align: center; }
+.tbm-empty { padding: 10px 8px; color: var(--text-2); font-size: var(--fs-4); text-align: center; }
 
 /* 움직임을 줄이도록 설정한 사용자에게는 맥동을 끈다 — 색은 그대로 남는다. */
 @media (prefers-reduced-motion: reduce) {
@@ -1780,7 +1782,7 @@ mark.s-hit {
   gap: 8px; padding: 24px; text-align: center;
 }
 .term-dock-away p { margin: 0; font-size: var(--fs-7); font-weight: 600; color: var(--text); }
-.term-dock-away span { font-size: var(--fs-5); color: var(--text-3); max-width: 42ch; line-height: 1.5; }
+.term-dock-away span { font-size: var(--fs-5); color: var(--text-2); max-width: 42ch; line-height: 1.5; }
 .term-dock-away .btn { margin-top: 6px; }
 
 /* ── 분리 터미널 창 ──────────────────────────────────────────────────────
@@ -1890,7 +1892,7 @@ mark.s-hit {
 .msg-bubble {
   max-width: 85%; background: var(--accent-soft); color: var(--text);
   border-radius: 14px 14px 4px 14px; padding: 9px 14px;
-  font-size: 13.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+  font-size: 13.5px; line-height: 1.6; white-space: pre-wrap;
 }
 .msg-head { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; font-size: var(--fs-5); min-height: 22px; }
 .msg-model { font-weight: 650; }
@@ -1906,12 +1908,12 @@ mark.s-hit {
 .msg-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: ai-pulse 1.2s var(--ease-in-out) infinite; }
 @keyframes ai-pulse { 50% { opacity: 0.25; transform: scale(0.8); } }
 .msg-wait { color: var(--text-3); font-size: var(--fs-6); }
-.msg-error { color: var(--t-bug); font-size: var(--fs-6); white-space: pre-wrap; word-break: break-word; }
+.msg-error { color: var(--t-bug); font-size: var(--fs-6); white-space: pre-wrap; }
 
 /* 채팅 마크다운 스케일 — prose 기본 헤딩(2em대)은 채팅에 과대하고, 구
    .msg-text 의 white-space: pre-wrap 상속이 블록 사이 개행 텍스트 노드를
    이중 공백으로 렌더하던 문제(2026-07-20)를 함께 수정한다. */
-.msg-md { font-size: 13.5px; line-height: 1.65; word-break: break-word; white-space: normal; }
+.msg-md { font-size: 13.5px; line-height: 1.65; white-space: normal; }
 .msg-md .prose { font-size: 13.5px; line-height: 1.65; }
 .msg-md .prose h1 { font-size: 1.25em; margin: 1em 0 0.45em; }
 .msg-md .prose h2 { font-size: 1.15em; margin: 1em 0 0.4em; }
@@ -1949,7 +1951,7 @@ mark.s-hit {
 .ai-start { display: flex; flex-direction: column; gap: 4px; margin: 26px 0 0; max-width: 560px; }
 .ai-start-title { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
 .ai-start-actions { display: flex; gap: 8px; margin-top: 14px; }
-.ai-start-sub { font-size: var(--fs-6); color: var(--text-3); }
+.ai-start-sub { font-size: var(--fs-6); color: var(--text-2); }
 .ai-start-label { margin-top: 18px; font-size: var(--fs-3); font-weight: 650; color: var(--text-3); letter-spacing: 0.02em; }
 .ai-start-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; }
 .ai-start-item {
@@ -2047,16 +2049,16 @@ mark.s-hit {
 .tok-row-bar { width: 66px; height: 5px; border-radius: 3px; background: var(--bg-inset); overflow: hidden; flex: none; }
 .tok-row-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
 .tok-row-val { font-family: var(--mono); font-size: var(--fs-2); color: var(--text-3); flex: none; min-width: 44px; text-align: right; }
-.tok-row-empty { font-size: var(--fs-4); color: var(--text-3); padding: 2px 0 4px; }
+.tok-row-empty { font-size: var(--fs-4); color: var(--text-2); padding: 2px 0 4px; }
 .tok-pop-total { display: flex; justify-content: space-between; border-top: 1px solid var(--sep); margin-top: 7px; padding-top: 7px; font-size: var(--fs-4); font-weight: 650; }
-.tok-pop-note { margin-top: 7px; font-size: var(--fs-2); line-height: 1.55; color: var(--text-3); }
+.tok-pop-note { margin-top: 7px; font-size: var(--fs-2); line-height: 1.55; color: var(--text-2); }
 
 /* --- Settings (PR-UI 6) — ported from Ocul-PM1.0/screens.css `.set-*` --- */
 .set-section { margin-bottom: 22px; }
 .set-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--sep); }
 .set-row:last-child { border-bottom: none; }
 .set-label { font-weight: 560; font-size: var(--fs-7); }
-.set-desc { font-size: var(--fs-4); color: var(--text-3); margin-top: 2px; }
+.set-desc { font-size: var(--fs-4); color: var(--text-2); margin-top: 2px; }
 .set-desc.mono { font-family: var(--mono); }
 .set-ctl { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .set-input {
@@ -2076,10 +2078,12 @@ mark.s-hit {
 .toggle.on { background: var(--accent); }
 .toggle > i {
   position: absolute; top: 2px; left: 2px; width: 19px; height: 19px; border-radius: 10px;
-  background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  background: var(--knob); box-shadow: 0 1px 2px rgba(0,0,0,0.3);
   transition: transform var(--dur-2) var(--ease-spring), width var(--dur-2) var(--ease-spring);
 }
-.toggle.on > i { transform: translateX(17px); }
+/* on 이면 노브가 --accent 위에 얹힌다 — 흰 노브는 다크/nord/dracula 에서
+   2.0:1 언저리다. 액센트 위 대비는 --text-on-accent 가 이미 알고 있다. */
+.toggle.on > i { transform: translateX(17px); background: var(--text-on-accent); }
 /* 누르는 동안 썸이 살짝 늘어난다 (iOS 물성). on 상태는 늘어난 만큼 이동을 줄여 맞춘다. */
 .toggle:active > i { width: 22px; }
 .toggle.on:active > i { transform: translateX(14px); }
@@ -2116,7 +2120,7 @@ mark.s-hit {
   to { opacity: 1; transform: none; }
 }
 .set-modal-title { font-size: 15px; font-weight: 650; margin-bottom: 4px; }
-.set-modal-desc { font-size: var(--fs-5); color: var(--text-3); margin-bottom: 16px; }
+.set-modal-desc { font-size: var(--fs-5); color: var(--text-2); margin-bottom: 16px; }
 .set-modal-input {
   width: 100%; height: 38px; padding: 0 12px; border-radius: var(--radius-m); border: 1px solid var(--border-card);
   background: var(--bg-inset); font-family: var(--mono); font-size: var(--fs-7); color: var(--text); outline: none;
@@ -2197,12 +2201,12 @@ mark.s-hit {
 .today-term { margin-bottom: 16px; }
 .today-term-body {
   height: 300px; display: flex; flex-direction: column;
-  background: #16161c; border-radius: 0 0 var(--radius-l) var(--radius-l); overflow: hidden;
+  background: var(--term-bg); border-radius: 0 0 var(--radius-l) var(--radius-l); overflow: hidden;
 }
 
 /* EntryDetailView narrative pane (Dogfooding 2026-06-07) — readable Markdown
    reader, contained in the narrow left column. */
-.entry-narrative { color: var(--text-2); font-size: var(--fs-7); line-height: 1.72; word-break: break-word; }
+.entry-narrative { color: var(--text-2); font-size: var(--fs-7); line-height: 1.72; }
 /* 디테일 뷰 안에서만 — 서술이 왼쪽 pane 의 스크롤 영역을 맡는다. */
 .entry-detail-side > .entry-narrative { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 48px; }
 .entry-narrative > :first-child { margin-top: 0; }
@@ -2264,8 +2268,27 @@ mark.s-hit {
 /* ── 코드 구문 강조 (highlight.js 토큰) — diff + Markdown 공용. 라이트 기준,
    다크는 [data-theme="dark"] 에서 재정의. 배경은 diff add/del 가 담당하므로
    토큰엔 색만 준다. (hljs v11 은 `title.function` 을 `hljs-title function_`
-   두 클래스로 내므로 복합 선택자 `.hljs-title.function_` 사용.) ── */
-.hljs-comment, .hljs-quote, .hljs-doctag { color: #6a737d; font-style: italic; }
+   두 클래스로 내므로 복합 선택자 `.hljs-title.function_` 사용.)
+
+   2026-09-04 {#hljs-dedupe}: **여기가 유일한 한 벌이다.** 예전엔 App.css 가
+   벤더 테마(highlight.js/styles/github.css)를 통째로 들이고 다크 재정의까지
+   따로 들고 있어, 같은 명시도(0,2,0) 네 벌이 주입 순서로 승자를 정했다.
+   벤더 쪽을 걷으면서 벤더만 덮던 토큰 다섯(.hljs 바탕 · variable.language_ ·
+   operator · code/formula · section 의 bold)을 아래에 채웠다. `.hljs-subst`
+   (템플릿 리터럴 `${…}` 안)는 일부러 비워 둔다 — 벤더도 본문색이었고,
+   비워 두면 `.dl-code`/`.scode` 의 테마 색을 그대로 물려받는다.
+   ⚠️ 색 토큰화·CodeMirror(--code-*)와의 통합은 3.0 {#hljs-unify} 몫이다 —
+   여기 hex 는 design_tokens 화이트리스트의 명시 예외로 등록돼 있다. ── */
+/* 벤더의 `.hljs { background: #ffffff }` 가 사라진 자리 — 검색 결과 스니펫
+   (`.scode.hljs`)이 라이트에서만 흰 블록으로 떠 있었다. 다크는 이미
+   transparent 였으므로 양쪽을 맞춘다 (글자색은 `.scode` 가 소유). */
+.hljs { background: transparent; }
+.hljs-comment, .hljs-quote, .hljs-doctag, .hljs-code, .hljs-formula { color: #6a737d; font-style: italic; }
+/* `this`/`self` — 벤더는 키워드 빨강이었다. `.hljs-variable`(파랑, 아래)보다
+   명시도가 높아 순서와 무관하게 이긴다. */
+.hljs-variable.language_ { color: #d73a49; }
+.hljs-operator { color: #005cc5; }
+.hljs-section { font-weight: 700; }
 .hljs-keyword, .hljs-selector-tag, .hljs-meta .hljs-keyword, .hljs-template-tag { color: #d73a49; }
 .hljs-string, .hljs-regexp, .hljs-meta .hljs-string, .hljs-addition { color: #032f62; }
 .hljs-number, .hljs-literal, .hljs-variable.constant_ { color: #005cc5; }
@@ -2280,7 +2303,10 @@ mark.s-hit {
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 700; }
 
-[data-theme="dark"] .hljs-comment, [data-theme="dark"] .hljs-quote, [data-theme="dark"] .hljs-doctag { color: #8b949e; }
+[data-theme="dark"] .hljs-comment, [data-theme="dark"] .hljs-quote, [data-theme="dark"] .hljs-doctag,
+[data-theme="dark"] .hljs-code, [data-theme="dark"] .hljs-formula { color: #8b949e; }
+[data-theme="dark"] .hljs-variable.language_ { color: #ff7b72; }
+[data-theme="dark"] .hljs-operator { color: #79c0ff; }
 [data-theme="dark"] .hljs-keyword, [data-theme="dark"] .hljs-selector-tag, [data-theme="dark"] .hljs-meta .hljs-keyword, [data-theme="dark"] .hljs-template-tag { color: #ff7b72; }
 [data-theme="dark"] .hljs-string, [data-theme="dark"] .hljs-regexp, [data-theme="dark"] .hljs-meta .hljs-string, [data-theme="dark"] .hljs-addition { color: #a5d6ff; }
 [data-theme="dark"] .hljs-number, [data-theme="dark"] .hljs-literal, [data-theme="dark"] .hljs-variable.constant_ { color: #79c0ff; }
@@ -2338,7 +2364,7 @@ mark.s-hit {
 /* 묶을 때 붙일 이름. 비워 두면 placeholder 가 곧 기본값이라 따로 안내가 없다. */
 .a2a-name { flex: 0 1 200px; min-width: 0; padding: 4px 8px; font-size: var(--fs-6); background: var(--bg-inset); border: 1px solid var(--sep); border-radius: var(--radius-s); color: var(--text-1); }
 /* 문단용 — 행 안의 라벨과 달리 접혀야 한다. */
-.a2a-desc { color: var(--text-3); font-size: var(--fs-5); line-height: 1.5; }
+.a2a-desc { color: var(--text-2); font-size: var(--fs-5); line-height: 1.5; }
 .a2a-list li .right { margin-left: auto; display: flex; gap: 4px; flex: none; }
 
 /* 세션 화면 (docs/a2a/00-master-plan.md D8) — 2026-09-04.
@@ -2352,7 +2378,7 @@ mark.s-hit {
 .sess-col.over { border-color: var(--accent); }
 .sess-col-head { display: flex; align-items: baseline; gap: 6px; font-size: var(--fs-6); font-weight: 550; }
 .sess-col-hint { margin: 2px 0 8px; }
-.sess-empty { color: var(--text-3); font-size: var(--fs-5); padding: 12px 2px; margin: 0; }
+.sess-empty { color: var(--text-2); font-size: var(--fs-5); padding: 12px 2px; margin: 0; }
 
 .sess-card { border: 1px solid var(--sep); border-radius: var(--radius-s); padding: 8px 10px; margin-bottom: 8px; background: var(--bg-inset); cursor: grab; }
 .sess-card:last-child { margin-bottom: 0; }
