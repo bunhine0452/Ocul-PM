@@ -11,11 +11,18 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { coreModelTarget, DEFAULTS, PROVIDERS, providerModel, type Provider } from "@/lib/settings";
 import { useReachability } from "../useReachability";
 import { useT } from "@/i18n";
+import { useSaveSetting } from "../saveSetting";
+import { useDeferredCommit } from "../useDeferredCommit";
 import { secretName, Section, Field, NumberSlider } from "./ui";
 
 export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
   const { t } = useT();
-  const { settings, set } = useSettings();
+  const { settings } = useSettings();
+  const save = useSaveSetting();
+  // 생성 파라미터 슬라이더 둘 — 라벨이 초안을 읽으므로 드래그 중에도 숫자가
+  // 즉시 따라오고, 디스크 쓰기만 손을 뗀 뒤 한 번이다 ({#settings-slider}).
+  const temperature = useDeferredCommit(settings.temperature, (v) => save("temperature", v));
+  const maxTokens = useDeferredCommit(settings.maxTokens, (v) => save("maxTokens", v));
   const [provider, setProvider] = useState<Provider>(settings.defaultProvider);
   // 오프라인 표시 (Phase 7) — 마지막 관측만 읽는다. 프로브를 쏘지 않으므로
   // 설정 화면을 여는 것만으로 네트워크가 나가지 않는다.
@@ -159,7 +166,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             return (
               <button
                 key={p}
-                onClick={() => set("defaultProvider", p)}
+                onClick={() => save("defaultProvider", p)}
                 title={
                   offline
                     ? `${t("llm.offline.hint")}${reach.detail(p) ? ` (${reach.detail(p)})` : ""}`
@@ -188,42 +195,42 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
           <Input
             placeholder="claude-sonnet-4-6"
             value={settings.modelAnthropic}
-            onChange={(e) => set("modelAnthropic", e.currentTarget.value)}
+            onChange={(e) => save("modelAnthropic", e.currentTarget.value)}
           />
         </Field>
         <Field label="OpenAI">
           <Input
             placeholder="gpt-4o-mini"
             value={settings.modelOpenai}
-            onChange={(e) => set("modelOpenai", e.currentTarget.value)}
+            onChange={(e) => save("modelOpenai", e.currentTarget.value)}
           />
         </Field>
         <Field label="Gemini">
           <Input
             placeholder="gemini-2.5-flash"
             value={settings.modelGemini}
-            onChange={(e) => set("modelGemini", e.currentTarget.value)}
+            onChange={(e) => save("modelGemini", e.currentTarget.value)}
           />
         </Field>
         <Field label="NVIDIA NIM" hint={t("settings.models.nimHint")}>
           <Input
             placeholder="meta/llama-3.3-70b-instruct"
             value={settings.modelNim}
-            onChange={(e) => set("modelNim", e.currentTarget.value)}
+            onChange={(e) => save("modelNim", e.currentTarget.value)}
           />
         </Field>
         <Field label="OpenRouter" hint={t("settings.models.openrouterHint")}>
           <Input
             placeholder="openai/gpt-4o-mini"
             value={settings.modelOpenrouter}
-            onChange={(e) => set("modelOpenrouter", e.currentTarget.value)}
+            onChange={(e) => save("modelOpenrouter", e.currentTarget.value)}
           />
         </Field>
         <Field label={t("settings.models.fallbackDefault")}>
           <Input
             placeholder="claude-opus-4-7"
             value={settings.defaultModel}
-            onChange={(e) => set("defaultModel", e.currentTarget.value)}
+            onChange={(e) => save("defaultModel", e.currentTarget.value)}
           />
         </Field>
       </Section>
@@ -235,7 +242,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         <Field label={t("settings.coreModel.provider")}>
           <select
             value={settings.coreProvider}
-            onChange={(e) => set("coreProvider", e.currentTarget.value as Provider | "")}
+            onChange={(e) => save("coreProvider", e.currentTarget.value as Provider | "")}
             className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="">{t("settings.coreModel.unset")}</option>
@@ -250,7 +257,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
           <Input
             placeholder={DEFAULTS.modelAnthropic}
             value={settings.coreModel}
-            onChange={(e) => set("coreModel", e.currentTarget.value)}
+            onChange={(e) => save("coreModel", e.currentTarget.value)}
           />
         </Field>
         <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
@@ -261,8 +268,8 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
           </span>
           <button
             onClick={() => {
-              void set("coreProvider", settings.defaultProvider);
-              void set("coreModel", providerModel(settings, settings.defaultProvider));
+              save("coreProvider", settings.defaultProvider);
+              save("coreModel", providerModel(settings, settings.defaultProvider));
             }}
             className="shrink-0 text-primary hover:underline cursor-pointer"
           >
@@ -278,7 +285,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         <Field label={t("settings.fallback.field")} hint={t("settings.fallback.hint")}>
           <textarea
             value={settings.fallbackModels}
-            onChange={(e) => set("fallbackModels", e.currentTarget.value)}
+            onChange={(e) => save("fallbackModels", e.currentTarget.value)}
             placeholder={"openai:gpt-4o-mini\nanthropic:claude-3.5-haiku-latest"}
             rows={3}
             spellCheck={false}
@@ -288,30 +295,32 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
       </Section>
 
       <Section title={t("settings.gen.title")} description={t("settings.gen.desc")}>
-        <Field label={t("settings.gen.temperature", { value: settings.temperature.toFixed(2) })} hint={t("settings.gen.temperatureHint")}>
+        <Field label={t("settings.gen.temperature", { value: temperature.value.toFixed(2) })} hint={t("settings.gen.temperatureHint")}>
           <NumberSlider
-            ariaLabel={t("settings.gen.temperature", { value: settings.temperature.toFixed(2) })}
-            value={settings.temperature}
+            ariaLabel={t("settings.gen.temperature", { value: temperature.value.toFixed(2) })}
+            value={temperature.value}
             min={0}
             max={1}
             step={0.05}
-            onChange={(v) => set("temperature", v)}
+            onChange={temperature.change}
+            onCommit={temperature.flush}
           />
         </Field>
-        <Field label={t("settings.gen.maxTokens", { value: settings.maxTokens })}>
+        <Field label={t("settings.gen.maxTokens", { value: maxTokens.value })}>
           <NumberSlider
-            ariaLabel={t("settings.gen.maxTokens", { value: settings.maxTokens })}
-            value={settings.maxTokens}
+            ariaLabel={t("settings.gen.maxTokens", { value: maxTokens.value })}
+            value={maxTokens.value}
             min={256}
             max={32768}
             step={256}
-            onChange={(v) => set("maxTokens", v)}
+            onChange={maxTokens.change}
+            onCommit={maxTokens.flush}
           />
         </Field>
         <Field label={t("settings.gen.systemPrompt")} hint={t("settings.gen.systemPromptHint")}>
           <textarea
             value={settings.systemPrompt}
-            onChange={(e) => set("systemPrompt", e.currentTarget.value)}
+            onChange={(e) => save("systemPrompt", e.currentTarget.value)}
             placeholder={t("settings.gen.systemPromptPlaceholder")}
             rows={4}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono"

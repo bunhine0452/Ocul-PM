@@ -6,19 +6,25 @@ import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { commands } from "@/lib/bindings";
+import { call } from "@/api/invoke";
 import { Sun, Moon, Monitor, Languages } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
+import { reportRejection } from "@/lib/reportFailure";
 import { ACCENTS } from "@/features/theme/accents";
 import { ThemeGallery } from "@/features/theme/ThemeGallery";
 import { themeOwnsAccent } from "@/features/theme/apply";
 import { useThemeState } from "@/features/theme/store";
 import { TERM_FONT_MIN, TERM_FONT_MAX, TERM_FONT_DEFAULT, clampTermFont } from "@/features/terminal/fontSize";
 import { normalizeLangSetting, resolveLang, useT, type LangSetting } from "@/i18n";
+import { useSaveSetting } from "../saveSetting";
+import { useDeferredCommit } from "../useDeferredCommit";
+import { applyUiScale } from "../uiScale";
 import { Section, Field } from "./ui";
 
 export function AccentPicker() {
-  const { settings, set } = useSettings();
+  const { settings } = useSettings();
+  const save = useSaveSetting();
   const { t } = useT();
   // 테마가 강조를 소유하면 잠근다 — 내장 프리셋과, 강조 토큰을 지정한 커스텀
   // 테마다. 배경만 바꾼 커스텀 테마는 강조색이 그대로 살아 있으므로 잠그지
@@ -33,7 +39,7 @@ export function AccentPicker() {
           return (
             <button
               key={a.id}
-              onClick={() => set("colorTheme", a.id)}
+              onClick={() => save("colorTheme", a.id)}
               title={t(a.labelKey)}
               aria-label={t("settings.accent.aria", { name: t(a.labelKey) })}
               aria-pressed={on}
@@ -118,7 +124,8 @@ export function LangPicker({
  * 같은 관용구다).
  */
 export function LanguageSection() {
-  const { settings, set } = useSettings();
+  const { settings } = useSettings();
+  const save = useSaveSetting();
   const { t } = useT();
   const uiLang = normalizeLangSetting(settings.language);
   const contentLang = normalizeLangSetting(settings.contentLanguage);
@@ -131,7 +138,7 @@ export function LanguageSection() {
         : t("settings.language.system");
 
   const pickUiLang = (next: LangSetting) => {
-    void set("language", next);
+    save("language", next);
     // 해석된 언어가 실제로 갈라질 때만 제안한다 — 둘 다 "system" 이면 이미
     // 같은 언어라 물어볼 게 없다.
     if (resolveLang(next) === resolveLang(contentLang)) return;
@@ -145,7 +152,7 @@ export function LanguageSection() {
           {
             label: t("settings.language.syncAction", { target: langLabel(next) }),
             onClick: () => {
-              void set("contentLanguage", next);
+              save("contentLanguage", next);
               toast.info(t("settings.language.syncDone", { target: langLabel(next) }));
             },
           },
@@ -167,7 +174,7 @@ export function LanguageSection() {
         title={t("settings.language.contentTitle")}
         description={t("settings.language.contentHint")}
       >
-        <LangPicker value={contentLang} onPick={(v) => void set("contentLanguage", v)} />
+        <LangPicker value={contentLang} onPick={(v) => save("contentLanguage", v)} />
       </Section>
     </>
   );
@@ -175,7 +182,8 @@ export function LanguageSection() {
 
 export function AppearanceTab() {
   const { t } = useT();
-  const { settings, set } = useSettings();
+  const { settings } = useSettings();
+  const save = useSaveSetting();
   return (
     <>
       <LanguageSection />
@@ -190,7 +198,7 @@ export function AppearanceTab() {
         >
           <Input
             value={settings.externalEditorCommand}
-            onChange={(e) => set("externalEditorCommand", e.currentTarget.value)}
+            onChange={(e) => save("externalEditorCommand", e.currentTarget.value)}
             placeholder='code "%path"'
             className="font-mono"
           />
@@ -204,7 +212,7 @@ export function AppearanceTab() {
             return (
               <button
                 key={t}
-                onClick={() => set("theme", t)}
+                onClick={() => save("theme", t)}
                 className={`flex flex-col items-center justify-center p-3.5 rounded-xl border text-xs font-semibold gap-2 transition-all cursor-pointer ${
                   isActive
                     ? "bg-primary/10 border-primary text-primary shadow-sm"
@@ -237,58 +245,85 @@ export function AppearanceTab() {
         </div>
       </Section>
 
-      <Section
-        title={t("settings.scale.title")}
-        description={t("settings.scale.desc")}
-      >
-        <Field label={t("settings.scale.field", { pct: Math.round(settings.uiScale * 100) })}>
-          <div className="flex items-center gap-3">
-            <input
-              type="range"
-              aria-label={t("settings.scale.title")}
-              min={70}
-              max={160}
-              step={5}
-              value={Math.round(settings.uiScale * 100)}
-              onChange={(e) => set("uiScale", Number(e.target.value) / 100)}
-              className="flex-1 accent-[color:var(--primary)]"
-            />
-            <span className="text-xs text-foreground font-mono tabular-nums w-12 text-right">
-              {Math.round(settings.uiScale * 100)}%
-            </span>
-          </div>
-        </Field>
-        <div className="grid grid-cols-4 gap-2">
-          {(
-            [
-              ["settings.scale.small", 0.9],
-              ["settings.scale.default", 1],
-              ["settings.scale.large", 1.1],
-              ["settings.scale.xlarge", 1.25],
-            ] as const
-          ).map(([labelKey, v]) => {
-            const isActive = Math.abs(settings.uiScale - v) < 0.001;
-            return (
-              <button
-                key={labelKey}
-                onClick={() => set("uiScale", v)}
-                className={`px-2 py-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                  isActive
-                    ? "bg-primary/10 border-primary text-primary"
-                    : "bg-background border-border hover:border-primary/45 text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t(labelKey)}
-              </button>
-            );
-          })}
-        </div>
-      </Section>
+      <UiScaleSection />
 
       <TerminalFontSection />
 
       <MenubarSection />
     </>
+  );
+}
+
+/**
+ * 앱 배율 (v2.42.0 `{#settings-slider}` — 드래그 한 번이 쓰기 20번이던 자리).
+ *
+ * 슬라이더를 끄는 동안 **눈에 보이는 것은 전부 즉시** 바뀐다: 라벨·숫자·프리셋
+ * 강조는 로컬 초안이 끌고 가고, 웹뷰 줌은 `applyUiScale` 이 프레임마다 건다
+ * (그게 이 슬라이더의 요점이다 — 숫자가 아니라 화면이 커지는 걸 본다).
+ *
+ * 바뀐 것은 **디스크로 가는 시점**뿐이다. 예전에는 프레임마다 SQLite 쓰기 1 +
+ * 그 쓰기가 모든 창에 쏘는 `SettingsChanged` → 창마다 설정 테이블 전체 조회 1 이
+ * 나갔다. 이제 손을 뗀 뒤(또는 220ms 멈춘 뒤) 한 번이다.
+ */
+function UiScaleSection() {
+  const { t } = useT();
+  const { settings } = useSettings();
+  const save = useSaveSetting();
+  const scale = useDeferredCommit(settings.uiScale, (v) => save("uiScale", v), {
+    preview: applyUiScale,
+  });
+  const pct = Math.round(scale.value * 100);
+
+  return (
+    <Section title={t("settings.scale.title")} description={t("settings.scale.desc")}>
+      <Field label={t("settings.scale.field", { pct })}>
+        <div className="flex items-center gap-3">
+          <input
+            type="range"
+            aria-label={t("settings.scale.title")}
+            min={70}
+            max={160}
+            step={5}
+            value={pct}
+            onChange={(e) => scale.change(Number(e.target.value) / 100)}
+            // 포인터·키를 놓는 순간이 사람이 "정했다" 고 말하는 시점이다.
+            // 디바운스는 그것을 놓쳤을 때(창 밖에서 놓기 등)의 그물이다.
+            onPointerUp={scale.flush}
+            onKeyUp={scale.flush}
+            onBlur={scale.flush}
+            className="flex-1 accent-[color:var(--primary)]"
+          />
+          <span className="text-xs text-foreground font-mono tabular-nums w-12 text-right">
+            {pct}%
+          </span>
+        </div>
+      </Field>
+      <div className="grid grid-cols-4 gap-2">
+        {(
+          [
+            ["settings.scale.small", 0.9],
+            ["settings.scale.default", 1],
+            ["settings.scale.large", 1.1],
+            ["settings.scale.xlarge", 1.25],
+          ] as const
+        ).map(([labelKey, v]) => {
+          const isActive = Math.abs(scale.value - v) < 0.001;
+          return (
+            <button
+              key={labelKey}
+              onClick={() => scale.commit(v)}
+              className={`px-2 py-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                isActive
+                  ? "bg-primary/10 border-primary text-primary"
+                  : "bg-background border-border hover:border-primary/45 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t(labelKey)}
+            </button>
+          );
+        })}
+      </div>
+    </Section>
   );
 }
 
@@ -301,15 +336,22 @@ export function AppearanceTab() {
  */
 export function TerminalFontSection() {
   const { t } = useT();
-  const { settings, set } = useSettings();
-  const px = clampTermFont(settings.terminalFontSize || TERM_FONT_DEFAULT);
+  const { settings } = useSettings();
+  const save = useSaveSetting();
+  // 배율 슬라이더와 **같은 병리**였다 — 드래그 한 프레임마다 SQLite 쓰기와
+  // 창 브로드캐스트가 나갔다. 같은 규약으로 커밋 시점만 뒤로 민다.
+  const font = useDeferredCommit(
+    clampTermFont(settings.terminalFontSize || TERM_FONT_DEFAULT),
+    (v) => save("terminalFontSize", v),
+  );
+  const px = font.value;
   // 타이핑 중 초안 — "1"(18 을 치는 중)이 곧장 9 로 튀지 않게 커밋을 미룬다.
   const [draft, setDraft] = useState<string | null>(null);
 
   const commit = () => {
     if (draft === null) return;
     const parsed = Number.parseInt(draft, 10);
-    if (Number.isFinite(parsed)) void set("terminalFontSize", clampTermFont(parsed));
+    if (Number.isFinite(parsed)) font.commit(clampTermFont(parsed));
     setDraft(null);
   };
 
@@ -324,7 +366,10 @@ export function TerminalFontSection() {
             max={TERM_FONT_MAX}
             step={1}
             value={px}
-            onChange={(e) => void set("terminalFontSize", clampTermFont(Number(e.target.value)))}
+            onChange={(e) => font.change(clampTermFont(Number(e.target.value)))}
+            onPointerUp={font.flush}
+            onKeyUp={font.flush}
+            onBlur={font.flush}
             className="flex-1 accent-[color:var(--primary)]"
           />
           <input
@@ -341,7 +386,7 @@ export function TerminalFontSection() {
               const parsed = Number.parseInt(raw, 10);
               // 범위 안 값만 즉시 반영. 범위 밖·빈 값은 blur/Enter 에서 정리.
               if (parsed >= TERM_FONT_MIN && parsed <= TERM_FONT_MAX) {
-                void set("terminalFontSize", parsed);
+                font.commit(parsed);
               }
             }}
             onBlur={commit}
@@ -424,9 +469,15 @@ export function MenubarSection() {
     if (!vals) return;
     const next = { ...vals, [key]: !vals[key] };
     setVals(next);
-    void commands
-      .settingsSet(KEYS[key], next[key] ? "1" : "0")
-      .then(() => commands.trayApplySettings());
+    // 트레이 키는 `SettingsContext` 의 정형 키가 아니라 직접 쓰기다 — 그래도
+    // 실패를 삼키지 않는 것은 같다. 예전에는 두 호출의 봉투를 둘 다 안 봤다.
+    reportRejection(
+      (async () => {
+        await call("settings_set", commands.settingsSet(KEYS[key], next[key] ? "1" : "0"));
+        await call("tray_apply_settings", commands.trayApplySettings());
+      })(),
+      "settings.saveFailed",
+    );
   };
 
   const rows: Array<{ key: keyof typeof KEYS; label: string; hint: string; disabled?: boolean }> = [

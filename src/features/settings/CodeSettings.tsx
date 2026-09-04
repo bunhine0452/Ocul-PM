@@ -20,6 +20,7 @@ import {
 } from "@/features/code/stickyModel";
 import type { I18nKey } from "@/i18n";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useSaveSetting } from "./saveSetting";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
@@ -72,7 +73,10 @@ export function CodeSettings({
   Toggle: React.ComponentType<{ checked: boolean; onChange: (v: boolean) => void; label: string }>;
 }) {
   const { t } = useT();
-  const { settings, set } = useSettings();
+  const { settings } = useSettings();
+  // 쓰기 실패를 삼키지 않는다 — `void set(...)` 는 unhandled rejection 만 지우고
+  // "저장됐다" 는 착각은 그대로 뒀다 (v2.42.0 `{#settings-set-unhandled}`).
+  const save = useSaveSetting();
   const projectId = useOptionalWorkspace()?.state.currentProjectId ?? null;
 
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -166,7 +170,7 @@ export function CodeSettings({
       <Section title={t("settings.code.editorTitle")} description={t("settings.code.editorDesc")}>
         <Toggle
           checked={settings.codeFormatOnSave}
-          onChange={(v) => void set("codeFormatOnSave", v)}
+          onChange={(v) => save("codeFormatOnSave", v)}
           label={t("settings.code.formatOnSave")}
         />
         <p className="text-[11px] text-muted-foreground/80">
@@ -180,19 +184,19 @@ export function CodeSettings({
             value={settings.codeTabSize}
             onChange={(e) => {
               const n = Number(e.currentTarget.value);
-              if (Number.isFinite(n)) void set("codeTabSize", Math.min(16, Math.max(1, n)));
+              if (Number.isFinite(n)) save("codeTabSize", Math.min(16, Math.max(1, n)));
             }}
             className="w-24 font-mono"
           />
         </Field>
         <Toggle
           checked={settings.codeInsertSpaces}
-          onChange={(v) => void set("codeInsertSpaces", v)}
+          onChange={(v) => save("codeInsertSpaces", v)}
           label={t("settings.code.insertSpaces")}
         />
         <Toggle
           checked={settings.codeTrimTrailingWhitespace}
-          onChange={(v) => void set("codeTrimTrailingWhitespace", v)}
+          onChange={(v) => save("codeTrimTrailingWhitespace", v)}
           label={t("settings.code.trimTrailingWhitespace")}
         />
         <p className="text-[11px] text-muted-foreground/80">
@@ -200,17 +204,17 @@ export function CodeSettings({
         </p>
         <Toggle
           checked={settings.codeInsertFinalNewline}
-          onChange={(v) => void set("codeInsertFinalNewline", v)}
+          onChange={(v) => save("codeInsertFinalNewline", v)}
           label={t("settings.code.insertFinalNewline")}
         />
         <Toggle
           checked={settings.codeTrimFinalNewlines}
-          onChange={(v) => void set("codeTrimFinalNewlines", v)}
+          onChange={(v) => save("codeTrimFinalNewlines", v)}
           label={t("settings.code.trimFinalNewlines")}
         />
         <Toggle
           checked={settings.codePreviewTabs}
-          onChange={(v) => void set("codePreviewTabs", v)}
+          onChange={(v) => save("codePreviewTabs", v)}
           label={t("settings.code.previewTabs")}
         />
         <p className="text-[11px] text-muted-foreground/80">
@@ -218,7 +222,7 @@ export function CodeSettings({
         </p>
         <Toggle
           checked={settings.codeStickyScroll}
-          onChange={(v) => void set("codeStickyScroll", v)}
+          onChange={(v) => save("codeStickyScroll", v)}
           label={t("settings.code.stickyScroll")}
         />
         <p className="text-[11px] text-muted-foreground/80">
@@ -233,7 +237,7 @@ export function CodeSettings({
               value={settings.codeStickyMaxLines}
               onChange={(e) => {
                 const n = Number(e.currentTarget.value);
-                if (Number.isFinite(n)) void set("codeStickyMaxLines", clampStickyMax(n));
+                if (Number.isFinite(n)) save("codeStickyMaxLines", clampStickyMax(n));
               }}
               className="w-24 font-mono"
             />
@@ -248,7 +252,7 @@ export function CodeSettings({
         <Field label={t("settings.code.autoSave")}>
           <select
             value={settings.codeAutoSave}
-            onChange={(e) => void set("codeAutoSave", e.currentTarget.value as AutoSaveMode)}
+            onChange={(e) => save("codeAutoSave", e.currentTarget.value as AutoSaveMode)}
             className="h-9 w-56 rounded-md border border-input bg-background px-3 text-sm"
           >
             {AUTO_SAVE_MODES.map((mode) => (
@@ -269,7 +273,7 @@ export function CodeSettings({
               onChange={(e) => {
                 const n = Number(e.currentTarget.value);
                 if (Number.isFinite(n)) {
-                  void set("codeAutoSaveDelay", Math.min(30000, Math.max(AUTO_SAVE_MIN_DELAY_MS, n)));
+                  save("codeAutoSaveDelay", Math.min(30000, Math.max(AUTO_SAVE_MIN_DELAY_MS, n)));
                 }
               }}
               className="w-28 font-mono"
@@ -285,7 +289,7 @@ export function CodeSettings({
       >
         <Toggle
           checked={settings.codeLocalHistory}
-          onChange={(v) => void set("codeLocalHistory", v)}
+          onChange={(v) => save("codeLocalHistory", v)}
           label={t("settings.code.localHistory")}
         />
         <p className="text-[11px] text-muted-foreground/80">
@@ -301,7 +305,7 @@ export function CodeSettings({
               onChange={(e) => {
                 const n = Number(e.currentTarget.value);
                 if (Number.isFinite(n)) {
-                  void set(
+                  save(
                     "codeLocalHistoryMaxEntries",
                     Math.min(MAX_LOCAL_HISTORY_ENTRIES, Math.max(0, Math.floor(n))),
                   );

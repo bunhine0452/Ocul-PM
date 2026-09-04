@@ -7,7 +7,7 @@ import { createUnlistenBag, safeUnlistenPromise } from "@/lib/unlisten";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
-import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { useProjectRuntime, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/i18n";
@@ -124,9 +124,16 @@ export default function ShellV2({
   active = true,
 }: ShellV2Props) {
   const { t } = useT();
-  const { state, setUiV2View, setState, setTerminalDetached } = useWorkspace();
+  // 조각만 구독한다 (v2.42.0 `{#workspace-full-consumers}`). 이 컴포넌트는
+  // **16화면 라우터**다 — 합친 겉면 `useWorkspace()` 를 쓰던 때는 터미널 탭을
+  // 하나 고를 때마다 라우터 전체가 다시 그려졌다. 셸이 읽는 것은 UI 취향
+  // (화면·도크)과 런타임(프로젝트·workday·분리 창·사이드바)뿐이고, 터미널
+  // **세션 목록**은 한 글자도 읽지 않는다.
+  const { prefs, setPrefs, setUiV2View } = useUiPrefs();
+  const runtime = useProjectRuntime();
+  const { setTerminalDetached, setSidebarCollapsed } = runtime;
   const { resolvedTheme, setTheme } = useTheme();
-  const view = state.uiV2View;
+  const view = prefs.uiV2View;
   const isDark = resolvedTheme === "dark";
 
   /**
@@ -184,11 +191,11 @@ export default function ShellV2({
   // Sidebar collapse + hover-reveal (Dogfooding 2026-06-07). `collapsed` is
   // persisted; `hovering` is ephemeral — set by the left-edge hover zone and
   // cleared when the cursor leaves the floating sidebar.
-  const collapsed = state.sidebarCollapsed;
+  const collapsed = runtime.sidebarCollapsed;
   const [hovering, setHovering] = useState(false);
   const toggleSidebar = () => {
     setHovering(false);
-    setState((prev) => ({ ...prev, sidebarCollapsed: !prev.sidebarCollapsed }));
+    setSidebarCollapsed(!collapsed);
   };
 
   // ⌘P 프로젝트 전환 (v2 U1): 사이드바가 접혀 있으면 팝오버가 화면 밖에
@@ -246,15 +253,15 @@ export default function ShellV2({
         setUiV2View("journal");
       } else if (detail.kind === "plan" || detail.kind === "plan_item") {
         const planId = detail.id.split("#")[0];
-        setState((prev) => ({ ...prev, plannerPlanId: planId }));
+        setPrefs(() => ({ plannerPlanId: planId }));
         setJumpNonce((n) => n + 1);
         setUiV2View("planner");
       } else if (detail.kind === "discussion") {
-        setState((prev) => ({ ...prev, discussionActiveId: detail.id }));
+        setPrefs(() => ({ discussionActiveId: detail.id }));
         setJumpNonce((n) => n + 1);
         setUiV2View("discussion");
       } else if (detail.kind === "doc") {
-        setState((prev) => ({ ...prev, docsActivePath: detail.id }));
+        setPrefs(() => ({ docsActivePath: detail.id }));
         setJumpNonce((n) => n + 1);
         setUiV2View("docs");
       } else if (detail.kind === "code") {
@@ -265,7 +272,7 @@ export default function ShellV2({
     };
     window.addEventListener(NAV_BUS.openEntity, onOpenEntity);
     return () => window.removeEventListener(NAV_BUS.openEntity, onOpenEntity);
-  }, [setState, setUiV2View, openInCode, active]);
+  }, [setPrefs, setUiV2View, openInCode, active]);
 
   // macOS uses titleBarStyle "Overlay" (src-tauri/src/lib.rs) — the native
   // traffic lights float over the top-left. With the legacy TitleBar gone in
@@ -273,9 +280,9 @@ export default function ShellV2({
   const isMac =
     typeof navigator !== "undefined" && navigator.platform.toUpperCase().includes("MAC");
 
-  const projectId = state.currentProjectId;
-  const workday = state.workdayKey ?? state.oculpmStatus?.current_workday ?? null;
-  const oculpmReady = state.oculpmStatus?.initialized === true;
+  const projectId = runtime.currentProjectId;
+  const workday = runtime.workdayKey ?? runtime.oculpmStatus?.current_workday ?? null;
+  const oculpmReady = runtime.oculpmStatus?.initialized === true;
 
   // Inline project quick-switch (Dogfooding 2026-06-14c): list projects for the
   // sidebar popover so the user can jump between projects in place, without
@@ -334,8 +341,8 @@ export default function ShellV2({
   //
   // 도크 자체는 분리 중에도 열려 있다: 자리표시자가 "어디로 갔는지 + 되돌리는
   // 길"을 들고 있어야 하기 때문이다 (TerminalAway).
-  const detached = state.terminalDetached;
-  const dockVisible = projectId != null && state.terminalDockOpen && view !== "terminal";
+  const detached = runtime.terminalDetached;
+  const dockVisible = projectId != null && prefs.terminalDockOpen && view !== "terminal";
 
   // 트레이 딥링크로 갓 열린 창 — URL 이 실어 온 목적지를 mount 시 1회 적용한다
   // (새 창의 프런트는 아직 리스너를 달기 전이라 emit 을 받을 수 없다).
@@ -409,7 +416,7 @@ export default function ShellV2({
   // A journal card → 변경 diff 화면. Park the path on WorkspaceContext.
   // diffActivePath so PR-UI 4's DiffScreen can pre-select it.
   const openDiffForEntry = (entry: JournalEntrySummary) => {
-    setState((prev) => ({ ...prev, diffActivePath: entry.relative_path }));
+    setPrefs(() => ({ diffActivePath: entry.relative_path }));
     setUiV2View("diff");
   };
 
@@ -443,18 +450,18 @@ export default function ShellV2({
         isDark={isDark}
         onToggleTheme={() => setTheme(isDark ? "light" : "dark")}
         macTopInset={0}
-        terminalDockOpen={state.terminalDockOpen}
+        terminalDockOpen={prefs.terminalDockOpen}
         onToggleTerminalDock={() =>
-          setState((prev) => ({ ...prev, terminalDockOpen: !prev.terminalDockOpen }))
+          setPrefs((prev) => ({ terminalDockOpen: !prev.terminalDockOpen }))
         }
         onToggleCollapse={toggleSidebar}
         collapsed={collapsed}
         onMouseLeave={collapsed ? () => setHovering(false) : undefined}
       />
       <main className="content">
-        <div className={"content-body" + (dockVisible ? ` with-dock dock-${state.terminalDockPos}` : "")}>
-        {dockVisible && projectId != null && state.terminalDockPos === "left" ? (
-          <Suspense fallback={<div className="term-dock pos-left" style={{ width: state.terminalDockWidth }} />}>
+        <div className={"content-body" + (dockVisible ? ` with-dock dock-${prefs.terminalDockPos}` : "")}>
+        {dockVisible && projectId != null && prefs.terminalDockPos === "left" ? (
+          <Suspense fallback={<div className="term-dock pos-left" style={{ width: prefs.terminalDockWidth }} />}>
             <TerminalDock projectId={projectId} projectRoot={projectRoot} />
           </Suspense>
         ) : null}
@@ -654,18 +661,18 @@ export default function ShellV2({
         ) : null}
         </Suspense>
         </div>
-        {dockVisible && projectId != null && state.terminalDockPos !== "left" ? (
+        {dockVisible && projectId != null && prefs.terminalDockPos !== "left" ? (
           // 아래·오른쪽은 둘 다 콘텐츠 **뒤**에 온다 — 방향은 CSS 가 정한다
           // (dock-bottom = column, dock-right = row). DOM 순서가 화면 순서와
           // 같아야 탭 이동도 눈에 보이는 차례대로 간다.
           <Suspense
             fallback={
               <div
-                className={"term-dock pos-" + state.terminalDockPos}
+                className={"term-dock pos-" + prefs.terminalDockPos}
                 style={
-                  state.terminalDockPos === "bottom"
-                    ? { height: state.terminalDockHeight }
-                    : { width: state.terminalDockWidth }
+                  prefs.terminalDockPos === "bottom"
+                    ? { height: prefs.terminalDockHeight }
+                    : { width: prefs.terminalDockWidth }
                 }
               />
             }

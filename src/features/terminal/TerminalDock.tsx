@@ -6,7 +6,8 @@ import { useT, type I18nKey } from "@/i18n";
 import {
   clampDockSize,
   nextDockPos,
-  useWorkspace,
+  useProjectRuntime,
+  useUiPrefs,
   type TerminalDockPos,
 } from "@/contexts/WorkspaceContext";
 import { TerminalSurface } from "./TerminalSurface";
@@ -51,18 +52,21 @@ interface TerminalDockProps {
 
 export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
   const { t } = useT();
-  const { state, setState } = useWorkspace();
-  const pos = state.terminalDockPos;
-  const detached = state.terminalDetached;
+  // 조각만 구독한다 (v2.42.0 `{#workspace-full-consumers}`) — 합친 겉면
+  // `useWorkspace()` 를 쓰던 때는 **터미널 탭을 하나 고를 때마다** 도크가
+  // 통째로 다시 그려졌다. 도크가 읽는 것은 취향(자리·크기·열림)과 런타임
+  // (분리 창 여부)뿐이고, 세션 목록은 안쪽 `TerminalSurface` 의 몫이다.
+  const { prefs, setPrefs } = useUiPrefs();
+  const { terminalDetached: detached } = useProjectRuntime();
+  const pos = prefs.terminalDockPos;
   const rootRef = useRef<HTMLElement | null>(null);
 
   // 세로 두 자리(왼쪽·오른쪽)는 폭을 함께 쓴다 — 좌↔우로 옮길 때 폭이
   // 유지되는 편이 자연스럽고, 자리마다 따로 기억할 값이 아니다.
-  const size = pos === "bottom" ? state.terminalDockHeight : state.terminalDockWidth;
+  const size = pos === "bottom" ? prefs.terminalDockHeight : prefs.terminalDockWidth;
 
-  const close = () => setState((prev) => ({ ...prev, terminalDockOpen: false }));
-  const cyclePos = () =>
-    setState((prev) => ({ ...prev, terminalDockPos: nextDockPos(prev.terminalDockPos) }));
+  const close = () => setPrefs(() => ({ terminalDockOpen: false }));
+  const cyclePos = () => setPrefs((prev) => ({ terminalDockPos: nextDockPos(prev.terminalDockPos) }));
 
   const detach = () => {
     void commands.openTerminalWindow(projectId).then((r) => {
@@ -87,11 +91,7 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
           : clampDockSize(rect.right - ev.clientX, rect.width);
     const move = (ev: PointerEvent) => {
       const next = calc(ev);
-      setState((prev) =>
-        pos === "bottom"
-          ? { ...prev, terminalDockHeight: next }
-          : { ...prev, terminalDockWidth: next },
-      );
+      setPrefs(() => (pos === "bottom" ? { terminalDockHeight: next } : { terminalDockWidth: next }));
     };
     const up = () => {
       window.removeEventListener("pointermove", move);

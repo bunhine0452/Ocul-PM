@@ -15,6 +15,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useT } from "@/i18n";
+import { useSaveSetting } from "../saveSetting";
 import { tError } from "@/i18n/errors";
 import { toast } from "@/lib/toast";
 import type { RecallStat } from "@/lib/bindings";
@@ -27,7 +28,8 @@ export function ContextTab() {
   const { t } = useT();
   const { state } = useWorkspace();
   const projectId = state.currentProjectId;
-  const { settings, set } = useSettings();
+  const { settings } = useSettings();
+  const save = useSaveSetting();
   const { confirm, confirmDialog } = useConfirm();
   const usage = useRecallUsage();
 
@@ -113,7 +115,7 @@ export function ContextTab() {
         <Field label={t("ctx.always.global")} hint={t("ctx.always.globalHint")}>
           <textarea
             value={settings.systemPrompt}
-            onChange={(e) => void set("systemPrompt", e.currentTarget.value)}
+            onChange={(e) => save("systemPrompt", e.currentTarget.value)}
             rows={4}
             placeholder={t("ctx.always.placeholder")}
             className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm text-foreground font-mono"

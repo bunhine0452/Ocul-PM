@@ -14,6 +14,9 @@ import { requestManualEntry } from "@/lib/journalCompose";
 // 모듈 t() 는 `formatMatchCount`(순수·테스트 대상) 용, useT() 는 컴포넌트 용.
 import { t, useT } from "@/i18n";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useSaveSetting } from "@/features/settings/saveSetting";
+import { reportFailure, reportRejection } from "@/lib/reportFailure";
+import { useTerminalFont } from "./useTerminalFont";
 import { useProjectRuntime, useTerminalSessions, type TerminalTab } from "@/contexts/WorkspaceContext";
 import {
   leaf,
@@ -70,12 +73,7 @@ import { tabDropIndex, DRAG_START_PX } from "@/features/shell/tabOrder";
 // 고스트의 감쇠는 창 탭과 **같은 것**을 쓴다 (lib/dragMotion.ts) — 두 물체가
 // 다른 속도로 따라오면 같은 앱에서 손이 두 가지를 배워야 한다.
 import { advanceGhost, ghostTransform, wantsReducedMotion } from "@/lib/dragMotion";
-import {
-  TERM_FONT_MIN as FONT_MIN,
-  TERM_FONT_MAX as FONT_MAX,
-  TERM_FONT_DEFAULT as FONT_DEFAULT,
-  clampTermFont as clampFont,
-} from "./fontSize";
+import { TERM_FONT_MIN as FONT_MIN, TERM_FONT_MAX as FONT_MAX } from "./fontSize";
 import {
   TERM_DENSITIES,
   TERM_DENSITY_LABEL,
@@ -193,10 +191,12 @@ export function TerminalSurface({
   // 플래너 접힘 같은 취향이 바뀌어도 터미널은 다시 그려지지 않는다.
   const { terminalTabs, terminalActiveId, setSessions } = useTerminalSessions();
   const runtime = useProjectRuntime();
-  const { settings, set: setSetting } = useSettings();
-  // 앱 전역 설정에서 읽는다 (2026-08-15) — 설정 화면·상태바·⌘± 가 한 값을
-  // 공유하고, 창을 여러 개 띄워도 SQLite 라 전부 같은 크기가 된다.
-  const fontSize = clampFont(settings.terminalFontSize || FONT_DEFAULT);
+  const { settings } = useSettings();
+  const setSetting = useSaveSetting();
+  // 글자 크기는 전용 훅이 소유한다 (`useTerminalFont`) — 값·초안·클램프·커밋이
+  // 한 덩어리라 흩어 두면 세 자리를 따로 고치게 된다.
+  const { fontSize, fontDraft, setFontDraft, setFont, fontDelta, fontReset, commitFontDraft } =
+    useTerminalFont();
   // 밀도도 같은 이유로 앱 전역 설정이다 — 도크·터미널 화면·분리 창이 같은
   // 값을 봐야 창을 옮길 때 줄 간격이 튀지 않는다.
   const density = clampTermDensity(settings.terminalDensity);
@@ -227,9 +227,6 @@ export function TerminalSurface({
    */
   const movingRef = useRef<Moving | null>(null);
   movingRef.current = moving;
-  // 글자 크기 px 직접 입력 — 타이핑 중 초안(null = 편집 중 아님).
-  const [fontDraft, setFontDraft] = useState<string | null>(null);
-
   // 단축키 스코프 판정용 — 이 면의 루트.
   const rootRef = useRef<HTMLDivElement | null>(null);
   // 드롭 판정에 필요한 기하 — 전부 ref 다. 드래그 중 매 프레임 읽으므로 상태로
@@ -428,7 +425,9 @@ export function TerminalSurface({
       });
       if (!ok) return false;
     }
-    for (const sid of sids) void commands.killPtySession(sid);
+    // 여기가 조용히 실패하면 화면에서는 탭이 사라졌는데 뒤에서 프로세스가
+    // 계속 돈다 — 사용자가 알 길이 전혀 없는 결말이다 ({#floating-promises}).
+    for (const sid of sids) reportFailure("kill_pty_session", commands.killPtySession(sid), "term.killFailed");
     return true;
   };
 
@@ -469,7 +468,7 @@ export function TerminalSurface({
     if (!activeTab) return;
     const panes = panesOfTab(activeTab);
     if (panes.type === "leaf") {
-      void closeTab(activeTab.id);
+      reportRejection(closeTab(activeTab.id), "term.closeFailed");
       return;
     }
     const nextFocus = siblingSid(panes, sid);
@@ -484,7 +483,7 @@ export function TerminalSurface({
   // 갈래가 `closePane` 을 통째로 베껴 두 곳이 따로 낡을 수 있었다.
   const closeFocusedPane = () => {
     if (!activeTab) return;
-    void closePane(focusOfTab(activeTab));
+    reportRejection(closePane(focusOfTab(activeTab)), "term.closeFailed");
   };
 
   const focusPane = (tabId: string, sid: string) => {
@@ -792,20 +791,6 @@ export function TerminalSurface({
       return;
     }
     selectTab(id);
-  };
-
-  const setFont = (px: number) => void setSetting("terminalFontSize", clampFont(px));
-  // 델타는 화면에 보이는 값 기준이다 — 설정이 범위 밖 값을 들고 있어도
-  // (수동 편집·과거 값) ⌘+ 한 번이 눈에 보이는 크기에서 한 칸 움직인다.
-  const fontDelta = (d: number) => setFont(fontSize + d);
-  const fontReset = () => setFont(FONT_DEFAULT);
-
-  /** px 입력 커밋 — 빈 값·범위 밖은 현재 값으로 되돌린다. */
-  const commitFontDraft = () => {
-    if (fontDraft === null) return;
-    const parsed = Number.parseInt(fontDraft, 10);
-    if (Number.isFinite(parsed)) setFont(parsed);
-    setFontDraft(null);
   };
 
   const focusedHandles = () => (activeTab ? regRef.current.get(focusOfTab(activeTab)) : undefined);
@@ -1245,7 +1230,7 @@ export function TerminalSurface({
         <button
           type="button"
           className="term-tool"
-          onClick={() => void setSetting("terminalRailCollapsed", !railCollapsed)}
+          onClick={() => setSetting("terminalRailCollapsed", !railCollapsed)}
           title={t(railCollapsed ? "term.rail.expand" : "term.rail.collapse")}
           aria-label={t(railCollapsed ? "term.rail.expand" : "term.rail.collapse")}
           aria-pressed={!railCollapsed}
@@ -1451,7 +1436,7 @@ export function TerminalSurface({
           <select
             className="ts-select"
             value={density}
-            onChange={(e) => void setSetting("terminalDensity", clampTermDensity(e.target.value))}
+            onChange={(e) => setSetting("terminalDensity", clampTermDensity(e.target.value))}
             aria-label={t("term.density.label")}
           >
             {TERM_DENSITIES.map((preset) => (

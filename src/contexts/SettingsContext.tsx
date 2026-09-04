@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { commands, events } from "@/lib/bindings";
+import { call } from "@/api/invoke";
+import { announceFailure } from "@/lib/reportFailure";
+import { applyUiScale } from "@/features/settings/uiScale";
 import { createUnlistenBag } from "@/lib/unlisten";
 import { resolveLang, setContentLangSetting, setLangSetting } from "@/i18n";
 import {
@@ -72,10 +74,26 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     return () => bag.dispose();
   }, [reload]);
 
+  // 낙관적으로 먼저 그리고 쓴다. 다만 **봉투를 연다** — 예전에는 `await` 만
+  // 하고 `status` 를 보지 않아, 쓰기가 거절돼도 화면은 새 값을 그린 채였다
+  // (v2.42.0 `{#settings-set-unhandled}`).
+  //
+  // 던지지 않고 **여기서 말한다.** 이 함수를 부르는 곳은 설정 탭 밖에도 있고
+  // (테마 갤러리·온보딩·`lib/theme`), 전부 `void set(...)` 로 버린다. 계약을
+  // 거절로 바꾸면 그 자리들이 unhandled rejection 이 되어, 삼키던 실패를
+  // **콘솔 소음으로 옮기기만** 한다. 반환값으로 분기하는 호출자는 하나도
+  // 없으므로, 이 실패가 쓰일 수 있는 자리는 사용자에게 말하는 것뿐이다.
+  //
+  // 값을 되돌리지는 않는다: 타자 도중 입력이 제자리로 튀는 편이 더 나쁘고,
+  // 다음 `reload()`(다른 창의 변경·재마운트)가 디스크의 진실을 다시 가져온다.
   const set = useCallback(
     async <K extends keyof Settings>(field: K, value: Settings[K]) => {
       setSettings((prev) => ({ ...prev, [field]: value }));
-      await commands.settingsSet(keyForField(field), serialize(field, value));
+      try {
+        await call("settings_set", commands.settingsSet(keyForField(field), serialize(field, value)));
+      } catch (e) {
+        announceFailure("settings.saveFailed", e);
+      }
     },
     []
   );
@@ -85,7 +103,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const entries = (Object.keys(DEFAULTS) as Array<keyof Settings>).map(
       (field) => [keyForField(field), serialize(field, DEFAULTS[field])] as [string, string]
     );
-    await commands.settingsSetMany(entries);
+    try {
+      await call("settings_set_many", commands.settingsSetMany(entries));
+    } catch (e) {
+      announceFailure("settings.saveFailed", e);
+    }
   }, []);
 
   // --- UI language: push the persisted setting into the i18n module store.
@@ -169,18 +191,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // (xterm terminal, React Flow graph, charts) stay correct instead of breaking.
   // Webview zoom resets on reload, so we re-apply on mount + whenever it changes.
   // Clamped so a bad value can't lock the user out. No-op outside Tauri.
+  //
+  // 클램프와 Tauri 밖 no-op 은 `features/settings/uiScale.ts` 가 소유한다 —
+  // 드래그 중인 슬라이더가 **같은 적용**을 미리보기로 직접 부르기 때문이다
+  // (v2.42.0 `{#settings-slider}`).
   useEffect(() => {
     if (!loaded) return;
-    const scale = Math.min(1.6, Math.max(0.7, settings.uiScale || 1));
-    try {
-      // getCurrentWebview() throws synchronously outside Tauri (tests / web
-      // preview); setZoom() may reject — both are ignored as a no-op.
-      void getCurrentWebview()
-        .setZoom(scale)
-        .catch(() => {});
-    } catch {
-      /* not running under Tauri — ignore */
-    }
+    applyUiScale(settings.uiScale);
   }, [settings.uiScale, loaded]);
 
   const value = useMemo<SettingsContextValue>(
