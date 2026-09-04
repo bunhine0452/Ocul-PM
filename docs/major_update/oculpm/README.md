@@ -1,5 +1,13 @@
 # `.oculpm` 아키텍처 — 구현 계획 인덱스
 
+> **아카이브** — 역사적 기록. 현재 코드의 SSOT 가 아니다.
+>
+> **예외 하나**: 같은 폴더의 [`00-spec.md`](00-spec.md) 는 **여전히 살아 있다** —
+> `.oculpm/` 온디스크 레이아웃·frontmatter 스키마·락 프로토콜의 SSOT 이고,
+> `src-tauri/src/oculpm/` 의 여러 모듈이 조항 번호로 인용한다 (`spec.rs`·`config.rs`·
+> `paths.rs`·`frontmatter/`·`lock.rs`·`markdown.rs`). 스펙을 바꾸려면 `schema_version` 을
+> 함께 올린다. **W1~W6 의 PR 문서와 이 인덱스는 역사다.**
+
 > 상태: **확정 (1차 회의 종료)**  · 작성일 2026-05-22 · 작성자 Claude(Opus 4.7)
 > 1차 회의 결과: [`../oculpm-architecture-review.md`](../oculpm-architecture-review.md)
 

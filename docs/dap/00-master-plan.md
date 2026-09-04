@@ -1,6 +1,6 @@
 # DAP — 인앱 디버거 (설계 SSOT)
 
-작성 2026-08-23 · 상태: PR-DAP0 착수 · 플랜 [ide-completion #p3-dap](../../.oculpm/planner/ide-completion.md)
+작성 2026-08-23 · 상태: **구현 완료 · v2.16.0 로 출시** (Rust·Python·Go) · 플랜 [ide-completion #p3-dap](../../.oculpm/planner/ide-completion.md) 은 `archived`, 37항목 중 36 완료 — 남은 하나는 `#dap-more-adapters` (debugpy·dlv 실기 왕복 검증). 2026-09-04 확인 (원문은 "PR-DAP0 착수").
 
 ## 왜 이제 와서
 

@@ -1,5 +1,7 @@
 # Ocul-PM Lite 1.0 — 마스터링 문서
 
+> **아카이브** — 역사적 기록. 현재 코드의 SSOT 가 아니다.
+
 > 상태: **초안 (1차)** · 작성일 2026-05-28 · 작성자 Claude(Opus 4.7)
 > 선행 문서: `docs/refactor/MASTER-GUIDE.md`, `docs/major_update/oculpm/phases/W6-stabilize-dogfood.md`
 > 작업 디렉토리: `docs/Lite-update/`

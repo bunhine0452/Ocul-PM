@@ -1,6 +1,11 @@
 <!-- schema_version: 1 -->
 # 1.0 배포-실용성 리팩토링 라운드 — 문서 인덱스
 
+> **아카이브** — 역사적 기록. 현재 코드의 SSOT 가 아니다.
+>
+> 아래 "시각 SSOT (불변)" 은 **불변이 아니었다** — 그 문서가 기술하는 8화면
+> ui_v2 는 지금 16화면이고, 토큰·프리셋 테마·de-AI 규율이 그 위에 얹혔다.
+
 > 상태: **초안 (1차)** · 작성일 2026-06-06 · 작성자 Claude (Opus 4.8)
 > 선행 라운드: [`../Lite-update/Fianl_UI_update_before1.0/`](../Lite-update/Fianl_UI_update_before1.0/) (Final UI Update — 시각/IA 라운드, PR-UI 0~8 ✅ 완료)
 > 작업 디렉토리: `docs/20260606_refactor/`

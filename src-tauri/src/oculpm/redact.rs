@@ -1,20 +1,36 @@
 //! Secret + forbidden-path helpers for journal-bound data — W4-PR3.
 //!
-//! Two narrowly-scoped utilities used by [`watcher`] and [`manager`]:
+//! Two narrowly-scoped utilities. The path matcher stayed narrow; the content
+//! masker did not — it is now on nearly every write path in the crate.
 //!
 //! * [`build_forbidden_matcher`] / [`is_forbidden_path`] — wraps
 //!   `ignore::Gitignore` so callers can ask "should this path ever be
 //!   journalled?" without rebuilding the matcher on every event.
-//!   Mirrors `00-spec.md` §9 — `git.forbid_journal_for_paths`.
+//!   Mirrors `00-spec.md` §9 — `git.forbid_journal_for_paths`. Four call sites:
+//!   [`watcher`], [`manager`] (journal + AGENTS.md sync), and the MCP tools.
 //! * [`compile_redact_patterns`] / [`redact_text`] — regex-driven content
 //!   masking. Scope is **body / diff-hunk content only**, never path or
 //!   identifier text (variable names like `sk_initialize_module` would
-//!   false-positive). As of dev-report §2 / R1 this is wired into three
-//!   places: the journal SQLite projection (on-read masking in
-//!   [`cache`][super::cache] so agent-authored secrets never reach the cache →
-//!   AI context), the manual-entry / body-edit writers ([`manager`]) at write
-//!   time, and the per-entry diff sidecars ([`entry_diffs`][super::entry_diffs])
-//!   at capture time. Use [`patterns_for_project`] to load+compile a project's
+//!   false-positive). dev-report §2 / R1 wired this into three places in
+//!   2026-06; it is now **22 non-test files** — verify with
+//!   `rg -l 'redact_text|compile_redact_patterns|patterns_for_project' src/`
+//!   rather than trusting a hand-kept list here. They fall into six kinds of
+//!   path, and a new one belongs to one of them:
+//!   1. the journal SQLite projection — on-read masking in
+//!      [`cache`][super::cache], so agent-authored secrets never reach the
+//!      cache → AI context;
+//!   2. journal writers — manual entries, body edits, indexing
+//!      ([`manager`]) and the per-entry diff sidecars
+//!      ([`entry_diffs`][super::entry_diffs]) at capture time;
+//!   3. the agent-facing MCP surface — `mcp::tools` and `mcp::a2a_tools`
+//!      (titles, bodies, notes, journal refs an agent hands us);
+//!   4. model output — [`journal_draft`][super::journal_draft],
+//!      `automation::{runner, scheduler}`, `import::journalize`;
+//!   5. the planner / discussion projections and dispatch prompts;
+//!   6. anything leaving the machine or the journal — `commands::notion`,
+//!      `commands::retro`, `commands::skills`, and rule/skill promotion.
+//!
+//!   Use [`patterns_for_project`] to load+compile a project's
 //!   `auto_redact_patterns` from disk in one call.
 //!
 //! See `docs/major_update/oculpm/W4/PR3-redact-forbid.md`.
