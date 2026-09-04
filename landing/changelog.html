@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.39.1)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 90개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.40.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 91개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.39.1)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 90개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.40.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 91개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.39.1</span>
+    <span class="nav-ver" data-version>v2.40.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>90개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>91개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-40-0">v2.40.0</a>
       <a href="#v2-39-1">v2.39.1</a>
       <a href="#v2-39-0">v2.39.0</a>
       <a href="#v2-38-0">v2.38.0</a>
@@ -61,10 +62,23 @@
       <a href="#v2-33-0">v2.33.0</a>
       <a href="#v2-32-0">v2.32.0</a>
       <a href="#v2-31-0">v2.31.0</a>
-      <a href="#v2-30-0">v2.30.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-40-0"><a href="#v2-40-0">v2.40.0</a></h2>
+      <div class="cl-body">
+<p><b>터미널을 넷으로 쪼개 에이전트를 넷 띄워도, 앱은 세션 하나만 보고 있었습니다.</b> 훅은 대화마다 다른 id 를 들고 도착하는데 그 값이 문 앞에서 버려지고 있었습니다 — 화면에 남는 것은 상수 라벨 <code>claude-code</code> 하나뿐이라, 넷이 돌아도 "에이전트 하나"였고 넷이 쓴 일지가 전부 같은 세션 번호를 달았습니다.</p>
+<ul><li><b>작업 세션이 참여한 대화를 전부 기록합니다.</b> 트레이가 「대화 4」처럼 그 수를 말하고, 툴팁에 어느 대화들이었는지 답니다.</li><li><b>일지가 어느 대화의 것인지 적습니다.</b> 기록 도구는 Claude Code 의 자식 프로세스라 대화 id 를 이미 알고 있었습니다 — 이제 그걸 프론트매터에 남깁니다(모르는 자리에서는 줄 자체가 나가지 않습니다).</li><li><b>작업 세션은 일부러 쪼개지 않았습니다.</b> 파일 변경을 보는 워처는 <i>누가</i> 썼는지 모르므로, 세션을 N개로 나누면 파일 수·커밋 위치가 임의로 복제됩니다. 그릇은 하나로 두고 <b>누가 붙어 있었는지</b>를 기록합니다.</li></ul>
+<p><b>터미널 카드 넷이 전부 같은 회색이고, 이름도 다 <code>claude</code> 였습니다.</b></p>
+<ul><li><b>세션마다 색을 고릅니다.</b> 카드를 오른쪽 클릭하면 색을 고르고, 왼쪽 띠와 <b>터미널 테두리</b>가 같이 물듭니다. 테마·프리셋을 바꿔도 고른 의미가 유지됩니다.</li><li><b>카드가 일감 수를 말합니다.</b> 여태 카드는 <b>포커스된 페인 하나</b>만 보고 있어서, 4분할해 넷을 돌려도 나머지 셋은 화면 어디에도 없었습니다. 이제 <code>2/4 실행 중</code> 이라 적고, <b>레일을 접어도</b> 아이콘 모서리에 그 수가 남습니다. 옆 페인의 에이전트가 부르는 것도 카드가 대신 말합니다.</li><li><b>Codex 가 제 아이콘을 갖습니다.</b> 같은 자리에서 Claude 는 자기 로고인데 Codex 만 정체 모를 칩이었습니다. AI 패널 탭에 Codex 대화인데 Claude 로고가 붙던 것도 고쳤습니다.</li></ul>
+<p><b>코드 트리에서 파일을 손으로 옮길 수 없었습니다.</b> 코드에는 있었는데 앱에서는 죽어 있었습니다 — 행이 버튼이라 웹뷰가 드래그를 열어 주지 않았습니다.</p>
+<ul><li><b>끌어서 옮깁니다.</b> 손에 들린 것이 보이고, 접힌 폴더 위에 머물면 열리고, 목록 가장자리에서 저절로 스크롤하고, 놓을 수 없는 자리는 밝히지 않습니다.</li><li><b>여럿을 함께 잡고, 옮긴 것을 되돌립니다.</b> 키보드만으로도 같은 이동을 합니다(잘라내기·붙여넣기 포함).</li><li><b>이름을 바꾸면 열려 있던 탭과 미저장 편집이 따라옵니다.</b> 삭제는 함께 닫히는 탭을 먼저 보여주고 확인을 받습니다.</li></ul>
+<p><b>「함께 일하는 중」이 Today 카드 한 칸에 갇혀 있었습니다.</b> 한 프로젝트에 세션이 넷 붙어 서로 다른 일을 하면, 그중 둘을 골라 묶는 것은 "오늘 무슨 일이 있나"가 아니라 작정하고 하는 일입니다.</p>
+<ul><li><b>「세션」 화면이 생겼습니다.</b> 누가 붙어 있고 누구와 묶여 있는지, 무엇을 쥐고 있는지가 한 화면입니다. 이름이 전부 <code>claude-code-term-&lt;pid&gt;</code> 라 구별이 안 되던 문제를 <b>별명·등록 이름·표면·잡은 구역·마지막 활동</b>을 겹쳐서 풉니다.</li><li><b>승인 대기는 사이드바 배지가 말합니다</b> — 화면을 안 열어도 놓치지 않습니다.</li><li><b>플래너 항목에 호버카드</b> — 진행률·남은 개수·마지막 활동을 그 자리에서 봅니다.</li></ul>
+<p><b>정리한 것들.</b> 빌드 산출물이 207GB 까지 자라던 것을 비우고 다시 쌓이지 않게 정리기를 뒀습니다. 세션 화면이 화면을 빨리 떠날 때 이벤트 구독을 놓치던 누수와, 이미 끝난 구역 충돌 경고가 화면에 계속 남던 것을 고쳤습니다. 파일 크기 게이트가 <b>아직 커밋하지 않은 새 파일을 못 보던</b> 사각지대도 막았습니다 — 그래서 800줄을 넘겨 태어난 파일이 커밋 뒤에야 CI 에서 붉어졌습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-39-1"><a href="#v2-39-1">v2.39.1</a></h2>
       <div class="cl-body">

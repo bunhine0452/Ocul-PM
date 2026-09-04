@@ -58,7 +58,17 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.39.1 — one Codex entry per machine; the session picks the project
+## 🚀 v2.40.0 — Four agents finally look like four
+
+- **Splitting the terminal four ways still showed the app a single session.** Each hook event carries its own conversation id, and we were dropping it at the door. A work session now **records every conversation that took part** (the tray says "4 conversations"), and **each journal entry names the conversation that wrote it**.
+- **Give every terminal its own color** — right-click the card. The left stripe and the **terminal border** both take it, and the choice survives a theme change.
+- **Cards say how much is running** — until now a card only watched the **focused pane**, so three of four agents were invisible. It now reads `2/4 running`, and the count stays on the icon **even when the rail is collapsed**.
+- **Codex gets its own mark** — in the same places Claude showed a logo and Codex showed a generic chip. Codex conversations in the AI panel no longer wear Claude's logo either.
+- **Move files by hand in the code tree** — drag to move (hover a collapsed folder and it opens), grab several at once, and undo the move. The keyboard does the same thing (cut/paste). Renaming **carries open tabs and unsaved edits along**.
+- **A "Sessions" screen** — collaboration state moved out of the Today card into a destination of its own. When every name is `claude-code-term-<pid>`, it tells them apart by layering **alias, registered name, surface, claimed ground and last activity**. Pending approvals show as a sidebar badge.
+- **Planner hover cards** — progress, remaining count and last activity without leaving the rail.
+
+## v2.39.1 — one Codex entry per machine; the session picks the project
 
 - **Fixed: a Codex session working in another project wrote its journal into this one.** `~/.codex/config.toml` is machine-wide, so a server listed there loads in every session — and v2.39.0 registered it with a project pinned. There is now a single entry with **no pinned root**: the project is decided by the folder the Codex session opened in.
 - **Old entries are named on screen** with a "pinned to a project" badge and fixed by one **Re-register**.
@@ -350,6 +360,7 @@ You no longer go blind the moment you step away from the Mac. Turn the server on
 - **Claude Code** — runs a real `claude` inside the app as an agent (Agent Client Protocol). Tool calls, permission approvals, and Effort/mode all arrive as cards in the conversation, and sessions are managed as tabs. This is the screen where you tell it what to do.
 - **AI panel** — chat that knows your code search, journal, planner, and git context. It loads a **capability list** once per conversation and pulls content on demand; past records attach only when a question asks for them (or push them yourself with `/rules`, `/plan`, `/journal`, `/skill`). Supports Anthropic · OpenAI · Gemini · OpenRouter, with a fallback chain when a call fails. This is the screen where you ask it things.
 - **Skills & rules** — manage Claude Code skills (`.claude/skills/`) and rules (`.claude/rules/`, `CLAUDE.md`) in **one screen with three zones**: a **context budget bar** saying how much goes in per session, one merged list sorted by how often each fires (zero firings in 30 days and disabled skills demote into a collapsed *dormant* section), and a proposal inbox. Create and edit them in a GUI, and copy them between a project and your global `~/.claude/skills`. Disabling a skill doesn't delete it — it moves to `.disabled/` and simply drops out of loading. "Add" installs vetted third-party skills matched to your stack, 25 of them, and **rules that don't belong to this project** are flagged by two deterministic signals with prescriptions to narrow, clean up or fix a trigger. Rules and skills can also be created straight from a journal entry, a diff, a terminal block, Today or ⌘K.
+- **Sessions** — every agent currently attached to this project, plus the **teams you grouped**, on one screen. The ledger names them all `claude-code-term-<pid>`, so with four attached nothing tells them apart; this screen layers **alias, registered name, surface (app or terminal), claimed ground and last activity** until they do. Sessions you haven't grouped are **visible only**, and pending approvals for delegated work show as a sidebar badge so you don't have to open the screen to notice.
 
 ⌘1–⌘0 jump between screens, the ⌘K palette opens journals, plans, discussions and docs by title, ⌘P switches projects, and ⌘⇧M opens project management. Windows and tabs: ⌘T new tab · ⌘W close tab · ⇧⌘N new window · ⇧⌘W close window · ⌃Tab · ⌘⌥←→. **Drag** tabs to reorder, tear one out into its own window, or drop it on another window's tab row to merge — **right-click** (Shift+F10 from the keyboard) offers the same moves as a menu.
 
