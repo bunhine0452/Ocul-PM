@@ -87,4 +87,6 @@ v3-round 감사 5갈래가 찾은 확정 결함 중 소~중 비용을 3.0 앞으
 | 2026-09-04T06:06:31.414857+00:00 | #release-surfaces | user | x→☐ |  |  |
 | 2026-09-04T15:07:35+09:00 | #gates-green | claude-code | ☐→x | 20260904/Chores/1507_chore_release-v241.md | 로컬 8종 + cargo-deny 전부 exit 0. CI 는 PR·main 양쪽 세 잡 success (cancelled run 하나는 판정에서 제외) |
 | 2026-09-04T15:07:37+09:00 | #release-surfaces | claude-code | ☐→x | 20260904/Chores/1507_chore_release-v241.md | 항목 문구의 「버전 3파일」은 내 오기 — 실제는 6파일이고 그렇게 했다. 랜딩 ko/en 각 6곳 + plugin.html + build.mjs 재빌드. 라이브 2.41.0 확인 |
+| 2026-09-04T15:09:35+09:00 | #gates-green | claude-code | x→x |  | v2.41.0 태그(fe7f3ea)로 release.yml 이 빌드·서명·릴리스 완료 — 게이트 통과가 그 전제였다 |
+| 2026-09-04T15:09:41+09:00 | #release-surfaces | claude-code | x→x |  | gh release view v2.41.0 확인 — dmg·app.tar.gz·sig·latest.json 4종 게시(2026-09-04T05:42Z) |
 <!-- oculpm:plan-log end -->

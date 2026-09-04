@@ -38,6 +38,13 @@ if (import.meta.hot) {
 const route = parseWindowRoute(window.location.search);
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
+// 초기 페인트 자동 측정 (dev 전용 — `v242-load-bearing {#measure-once}`).
+// 프로덕션 번들에서는 이 분기와 모듈이 통째로 지워진다. 사람 손이 필요 없어
+// `{#measure-after}` 가 같은 방법으로 다시 잰다.
+if (import.meta.env.DEV) {
+  void import("./lib/perfProbe").then((m) => m.installPerfProbe(route.kind));
+}
+
 // 모바일 브리지 (#mb3-tabs): 웹뷰가 아니면(= 폰/브라우저가 axum 정적 서빙으로
 // 로드) 데스크톱 셸 대신 모바일 셸. ?desktop=1 은 데스크톱-브라우저 스모크용
 // 탈출구 (#mb2-smoke). SettingsProvider 는 올리지 않는다 — settings_get_all 이
