@@ -263,7 +263,7 @@
 .tabstrip-pop-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .tabstrip-pop-name { font-weight: 600; font-size: var(--fs-6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tabstrip-pop-path { font-size: var(--fs-1); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tabstrip-pop-empty { padding: 10px 8px; font-size: var(--fs-4); color: var(--text-3); }
+.tabstrip-pop-empty { padding: 10px 8px; font-size: var(--fs-4); color: var(--text-2); }
 .tabstrip-pop-manage {
   display: flex; align-items: center; gap: 6px; width: 100%; text-align: left;
   margin-top: 4px; padding: 8px; cursor: pointer;

@@ -189,7 +189,7 @@ html, body {
   font-size: var(--fs-5);
 }
 .tp-today b { color: var(--foreground); }
-.tp-warn { color: #d9881f; font-weight: 650; }
+.tp-warn { color: var(--t-error); font-weight: 650; }
 
 /* 일지 목록이 팝오버의 유일한 스크롤 영역 — 남는 높이가 곧 보이는 행 수다
    (플랜 2줄 기준 ~6행). min-height:0 이 없으면 flex 항목이 콘텐츠 높이만큼
@@ -235,7 +235,7 @@ html, body {
   color: var(--muted-foreground);
 }
 .tp-type-feature { color: var(--primary); }
-.tp-type-bug, .tp-type-error { color: #c65550; }
+.tp-type-bug, .tp-type-error { color: var(--t-bug); }
 .tp-title {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -282,9 +282,9 @@ html, body {
 .tp-plan-item { display: flex; gap: 8px; align-items: flex-start; font-size: var(--fs-6); line-height: 1.5; }
 .tp-item-glyph { flex: none; width: 15px; text-align: center; font-weight: 700; font-size: var(--fs-4); }
 .tp-item-glyph.is-done { color: var(--primary); }
-.tp-item-glyph.is-progress { color: #d9881f; }
+.tp-item-glyph.is-progress { color: var(--t-error); }
 .tp-item-glyph.is-todo { color: var(--muted-foreground); }
-.tp-item-glyph.is-blocked { color: #c65550; }
+.tp-item-glyph.is-blocked { color: var(--t-bug); }
 .tp-item-glyph.is-muted { color: var(--muted-foreground); opacity: 0.6; }
 .tp-item-title { min-width: 0; }
 .tp-item-title.is-done { color: var(--muted-foreground); }
@@ -419,11 +419,12 @@ html, body {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--knob);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   transition: left 0.18s var(--ease-out);
 }
-.tp-switch.is-on .tp-switch-knob { left: 14px; }
+/* on 이면 노브가 --primary 위에 얹힌다 — 셸의 .toggle 과 같은 규칙. */
+.tp-switch.is-on .tp-switch-knob { left: 14px; background: var(--primary-foreground); }
 .tp-toggle-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .tp-toggle-label { font-size: var(--fs-6); font-weight: 620; }
 .tp-toggle-hint { font-size: var(--fs-3); color: var(--muted-foreground); line-height: 1.45; }

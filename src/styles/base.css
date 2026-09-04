@@ -19,8 +19,25 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-size: var(--fs-7);
-  line-height: 1.45;
+  /* 13px 한국어 본문에 1.45(=18.85px)는 빡빡하다 — 긴 서술 두 곳(.entry-narrative
+     1.72 · .msg-md 1.65)은 이미 각자 올려 뒀고 전역만 낡아 있었다. 1.55 는
+     밀도를 지키면서 줄 사이가 붙어 보이는 지점을 벗어난다 (2026-09-04). */
+  line-height: 1.55;
   overflow: hidden;
+
+  /* ── 한국어 조판 (2026-09-04 {#keep-all}) ────────────────────────────────
+     CSS 기본값(word-break: normal)은 한국어에서 **음절 사이 어디서나** 줄을
+     끊는다. 그래서 「수정됨」이 세로로 서고 「불러오는 중」이 두 줄로 꺾였다.
+     지금까지의 대응은 자리마다 `white-space: nowrap` 을 붙이는 대증요법
+     네 벌(.chip · .tbadge · .toolbar-title · Toolbar 가로 스크롤)이었다.
+
+     `keep-all` 은 어절(띄어쓰기) 단위로만 끊게 하고, `overflow-wrap:
+     break-word` 가 그래도 안 들어가는 긴 라틴 토큰(URL·해시·식별자)만
+     끊는다. **반드시 짝으로** — keep-all 단독이면 긴 URL 이 컨테이너를
+     밀어낸다. 둘 다 상속되므로 여기 한 번이면 화면 전체가 따라온다.
+     코드·경로 자리는 각자 `overflow-wrap: anywhere` 로 더 세게 끊는다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 #root { height: 100vh; }
 ::selection { background: var(--accent-ring); }

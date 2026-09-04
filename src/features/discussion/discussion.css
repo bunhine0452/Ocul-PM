@@ -294,7 +294,9 @@
   border: 1.5px solid var(--text-3);
   display: grid;
   place-items: center;
-  color: #fff;
+  /* done 이면 바탕이 --accent 가 된다 — 체크 표시 색은 액센트가 안다
+     (2026-09-04 {#hardcoded-white}). */
+  color: var(--text-on-accent);
 }
 .disc-next-box.done {
   background: var(--accent);
@@ -500,7 +502,7 @@
   padding: 7px 18px;
   font-size: var(--fs-4);
   color: var(--text-2);
-  background: color-mix(in srgb, #e5a13d 14%, transparent);
+  background: var(--warn-soft);
   border-bottom: 1px solid var(--sep);
 }
 

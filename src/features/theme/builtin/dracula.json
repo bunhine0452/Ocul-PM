@@ -29,7 +29,7 @@
     "--sep-strong": "rgba(248,248,242,0.16)",
     "--text": "#f8f8f2",
     "--text-2": "#bdc0d6",
-    "--text-3": "#6272a4",
+    "--text-3": "#a1abc9",
     "--text-on-accent": "#282a36"
   }
 }

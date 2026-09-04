@@ -179,7 +179,9 @@
   line-height: 1.5;
   color: var(--text);
   white-space: pre-wrap;
-  word-break: break-word;
+  /* 도구 출력 — 한 줄이 통째로 긴 토큰(해시·JSON·경로)일 수 있다.
+     본문 기본(keep-all)보다 세게 끊는다. */
+  overflow-wrap: anywhere;
 }
 /* 접혀 있을 때의 결과 미리보기 (2026-08-16).
    본문(`.trace-body`)과 **같은 재질**이되 한 톤 더 눌러 둔다 — 펼친 것과
@@ -1797,7 +1799,9 @@
   border: none;
   border-radius: 6px;
   background: var(--t-bug);
-  color: #fff;
+  /* 흰 글자는 레드 위에서 3.83:1 이다 — 배경별 짝은 토큰이 안다
+     (2026-09-04 {#hardcoded-white}). */
+  color: var(--on-danger);
   font-family: var(--font);
   font-size: var(--fs-3);
   font-weight: 700;
@@ -1971,7 +1975,7 @@
   line-height: 1.55;
   color: var(--text-2);
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* ─── 사용자 발화 = 카드 ──────────────────────────────────────────────────
@@ -2083,7 +2087,6 @@
   line-height: 1.65;
   color: var(--text);
   white-space: pre-wrap;
-  word-break: break-word;
 }
 .user-card-files {
   display: flex;
@@ -2590,7 +2593,7 @@
   min-width: 0;
   padding: 0 9px;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   color: var(--text-2);
 }
 .diffv-line.add {
