@@ -27,7 +27,7 @@ The more work you hand to agents, the more you pay a strange new tax: digging ba
 
 Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project folder. Every time an agent finishes a unit of work, it follows those rules and writes a markdown journal entry to `.oculpm/journal/`; the app reads those entries and turns them into a timeline, a daily brief, change diffs, and retrospectives. Because the source of truth is plain markdown, it commits alongside your code and stays readable without the app.
 
-There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache; the only things that leave your machine are the LLM API calls you make yourself and update checks.
+There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache, and the only things that leave your machine are **the ones you start yourself** — the LLM API calls you make, update checks, and things that exist only once you turn them on (GitHub fetches and theme downloads when you click, a one-time embedding-model download, Notion). The full list, countable for yourself, is at [oculpm.com/privacy](https://oculpm.com/privacy).
 
 
 <img src="landing/shots/08-receipt.jpg" alt="Ocul-PM — Claude Code inside the app, with edit diffs and a turn receipt" />
@@ -58,7 +58,20 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.42.0 — structure that carries the load
+## 🚀 v2.43.0 — the record actually survives
+
+- **The app was miscounting "sessions that ended with no entry."** The delivery gate, the missing-entry signal and the Today card all leaned on a single number — the most recent journal timestamp anywhere in the project. Run agents in several terminals at once and all three broke together: a neighbouring conversation writing an entry hid your own miss, and conversely **a file your neighbour edited was read as yours**, accusing a conversation that had done nothing.
+- **We counted first.** The 164 signals on record were not sessions but **session segments** (one conversation emits up to 11), the unique conversations numbered 117, and **only 2 had genuinely skipped the record.** One conversation had called the journal tool 55 times and was still marked missing.
+- **The verdict now lives in one place.** All three surfaces call the same function, and it asks "who wrote this" per conversation. **With no grounds it says "undecided"** instead of folding not-knowing into not-recorded.
+- **Claude Code and Codex conversations opened inside the app now count too.** They are judged at the end of each turn, and if the record is missing the conversation says so once — then clears itself when you record. In-app conversations and terminal agents **recognise each other**, so neither gets blamed for the other's edits.
+- **Reopening a past conversation silently dropped the journaling tools.** They attached on first open but not on resume, so that agent worked with no way to record anything. Fixed — and **when they fail to attach, the screen now says so**, including where it looked and how to fix it.
+- **The card that hid at zero now speaks it.** Hiding looked quiet, but on screen **a genuinely clean week and a week hidden by the verdict looked identical.** It now states what was counted and what cannot be, and the retro carries a standing "record honesty" line.
+- **Which automations send your project's content outward** is now shown by provider name — and stays absent for local models. Automation steps gained **conditions**, so instead of producing an empty summary and calling it a success, a step that cannot run is skipped and says why.
+- **The repository now counts its own outbound connections.** A new one fails the build until it is listed with a reason. Counting them showed **the docs claimed fewer than reality** — README, landing and wiki now carry the real list instead of "only three things leave."
+- **The sidebar was cut off at the bottom of the window.** The terminal dock, theme and settings rows had slid off-screen entirely — now only the list scrolls and those three stay put.
+- **Concurrent edits to the same plan document silently lost one side.** The baseline needed for the check was only handed out by a previous edit, so a session's **first** edit could not be protected at all. Reading a plan now hands you that baseline.
+
+## v2.42.0 — structure that carries the load
 
 - **One large paste cut every open terminal.** Pasting a few hundred KB into a terminal that **isn't reading input right now** (an agent mid tool-call) stalled the entire terminal host, and ten seconds later the connection was dropped outright — an ordinary shell swallows 64MB in 1.7s, but in that state it blocked **indefinitely**. Every terminal now has its own input queue, and once it starts reading again the paste arrives **in order and intact**.
 - **The UI scale slider saved the setting on every frame while you dragged.** One short drag meant 20 writes, 20 zoom calls and 20 full app re-renders — multiplied, if you had several windows open, by **each window re-reading the whole settings table**. Now dragging only previews and the value is written **once, on release**. Eight other sliders behave the same way.

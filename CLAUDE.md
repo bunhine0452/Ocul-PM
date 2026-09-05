@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**Ocul-PM** (`ocul-pm`) is a **Tauri 2 native desktop app** (Rust backend + system webview, *not* Electron) — a local-first AI project manager that records what external coding agents (Claude Code, Cursor, Gemini CLI) do, as human-readable markdown work-journals. All data stays in each project's `.oculpm/` directory plus a local SQLite cache; nothing leaves the machine except LLM API calls the user makes and update checks.
+**Ocul-PM** (`ocul-pm`) is a **Tauri 2 native desktop app** (Rust backend + system webview, *not* Electron) — a local-first AI project manager that records what external coding agents (Claude Code, Cursor, Gemini CLI) do, as human-readable markdown work-journals. All data stays in each project's `.oculpm/` directory plus a local SQLite cache; the only things that leave the machine are ones the user starts — LLM API calls, update checks, GitHub fetches (release notes, plugin/skill bundles, themes), a one-time embedding-model download, and the opt-in Notion integration (whose OAuth exchange is brokered by `oculpm.com`). `src-tauri/tests/egress_inventory.rs` is the ledger that keeps this list honest — it fails the build on a new outbound call that is neither guarded nor listed with a reason.
 
 UI language is **Korean** — match it in UI strings, journals, and commit messages.
 

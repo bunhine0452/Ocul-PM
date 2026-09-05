@@ -49,7 +49,7 @@ The retro's **"With Claude Code"** button hands the job to a terminal Claude Cod
 
 ### Where does my code go?
 
-By default, **nowhere**. Even code-search embeddings are computed locally. Only three things leave the machine: LLM calls you configured, the update check, and Anthropic traffic when you use Claude Code in the app. No account server, no telemetry. ([Details](/wiki/en/data))
+By default, **nowhere**. Code-search embeddings are computed on your machine (only the model is downloaded, once). Six things leave, and you start every one: LLM calls you configured, the update check, provider traffic when you use Claude Code or Codex in the app, GitHub fetches when you click (release notes, bundles, themes), the one-time embedding-model download, and the Notion integration once you enable it (its OAuth exchange alone is brokered by oculpm.com). No account server, no telemetry. ([Details](/wiki/en/data))
 
 ### Does it work offline?
 
