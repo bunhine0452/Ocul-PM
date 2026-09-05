@@ -92,12 +92,36 @@ describe("H3b — 일지 없이 끝난 세션 카드", () => {
     expect(fx.calls).toBe(2);
   });
 
-  it("self-hides when there are no signals", async () => {
+  /**
+   * {#card-unhide} — 0건이어도 **숨지 않는다**. 자기은닉은 "정말 깨끗함"과
+   * "판정에 가려짐"을 화면에서 똑같이 보이게 만든다 (백엔드는 프로젝트 전역
+   * 최신 일지보다 오래된 신호를 해소로 걷고, 훅 없는 에이전트는 신호 자체가
+   * 없다). 그렇다고 "0건 ✅" 로 안심시키면 그것도 거짓이라, 0건 상태는
+   * 숫자와 함께 판정의 한계를 적는다.
+   */
+  it("신호가 0건이어도 카드가 뜨고, 0의 한계를 함께 말한다", async () => {
     fx.signals = [];
-    const { container } = render(
+    const { findByText, queryByText } = render(
       <JournalMissingCard projectId={1} enabled onNavigate={vi.fn()} />,
     );
-    // The fetch resolves to [] → the card must render nothing at all.
-    await waitFor(() => expect(container.innerHTML).toBe(""));
+    await findByText("일지 없이 끝난 세션");
+    expect(await findByText(/최근 7일 0건/)).toBeInTheDocument();
+    // 판정의 한계가 그 자리에 함께 적혀 있다 — "0건 = 기록 완전" 이 아니라고.
+    expect(await findByText(new RegExp(t("today.missing.zeroNote").slice(0, 24)))).toBeInTheDocument();
+    // 소음이 되지 않게, 0건 상태에는 행 목록도 설정 유도 버튼도 없다.
+    expect(queryByText("설정에서 일지 초안 켜기")).toBeNull();
+  });
+
+  it("0건 → N건으로 바뀌면 같은 카드가 행 목록을 펼친다", async () => {
+    fx.signals = [];
+    const { findByText, rerender } = render(
+      <JournalMissingCard projectId={1} enabled onNavigate={vi.fn()} />,
+    );
+    await findByText(/최근 7일 0건/);
+
+    fx.signals = [{ ts: "2026-07-30T02:30:00Z", session_id: "abcd1234-5678-uuid" }];
+    rerender(<JournalMissingCard projectId={2} enabled onNavigate={vi.fn()} />);
+    await findByText(/최근 7일 1건/);
+    await waitFor(() => expect(document.body.textContent).toContain("abcd1234…"));
   });
 });

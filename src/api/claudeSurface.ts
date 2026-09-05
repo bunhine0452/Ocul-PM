@@ -30,6 +30,7 @@ import type {
   SkillScope,
   SkillsOverview,
   RuleEvidence,
+  JournalMissingSignal,
 } from "@/lib/bindings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -134,6 +135,19 @@ export const promoteApi = {
 
   skillCandidates: (projectId: number, since: string, until: string) =>
     unwrap<SkillCandidate[]>("skill_candidates", commands.skillCandidates(projectId, since, until)),
+};
+
+/**
+ * SessionEnd 훅이 남긴 "일지 없이 끝난 세션" 신호 ({#card-unhide} ·
+ * {#retro-standing-line}). 무엇을 해소로 볼지의 **판정은 백엔드 소유**라
+ * (mtime 근사 → 세션 귀속으로 교체 예정) 화면은 행 수만 읽는다.
+ */
+export const hooksApi = {
+  journalMissing: (projectId: number, days: number) =>
+    unwrap<JournalMissingSignal[]>(
+      "journal_missing_signals",
+      commands.journalMissingSignals(projectId, days),
+    ),
 };
 
 /** 스택 감지 — 추천 스킬을 고르는 유일한 신호. */

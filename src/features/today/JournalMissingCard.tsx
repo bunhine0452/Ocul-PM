@@ -41,10 +41,17 @@ function shortSid(sid: string): string {
  * H3b — 일지 없이 끝난 세션. 플러그인 SessionEnd 훅이
  * `.oculpm/hooks/journal-missing.jsonl` 에 남긴 신호를 최근 7일 범위로
  * 보여준다 (근거: benchmarks/agentic — 규칙·도구가 주입돼도 헤드리스 단발
- * 세션의 기록 준수 0/12). HonestyAudit 과 같은 자기은닉 카드 — 신호가
- * 0건이면 렌더하지 않아 깨끗한 날에 소음을 내지 않는다. 세션 종료 이벤트
- * (oculpmSessionEnded — SessionEnd 훅 인박스 소비의 산물)에 재조회를 걸어
- * 앱을 켜둔 채 끝난 세션도 바로 반영한다.
+ * 세션의 기록 준수 0/12). 세션 종료 이벤트(oculpmSessionEnded — SessionEnd 훅
+ * 인박스 소비의 산물)에 재조회를 걸어 앱을 켜둔 채 끝난 세션도 바로 반영한다.
+ *
+ * {#card-unhide} (2026-09-05) — **0건이어도 숨지 않는다.** 예전에는 신호가
+ * 0건이면 카드를 통째로 그리지 않았다. 그런데 이 카드의 판정은 근사다:
+ * 백엔드가 "프로젝트 전역 최신 일지보다 오래된 신호"를 해소로 보고 걷어내고,
+ * 훅이 없는 에이전트의 세션은 애초에 신호를 남기지 않는다. 그래서 자기은닉은
+ * 화면에서 **"정말 깨끗함"과 "가려짐"을 똑같이 보이게** 만들었다 —
+ * 기록 누락을 말해 주는 것이 존재 이유인 카드에서 가장 나쁜 실패다.
+ * 그렇다고 0건에 초록 체크를 그리면 그건 거짓말이라, 0건 상태는
+ * **숫자 + 판정의 한계**만 조용히(경고색 없이) 적는다.
  */
 export function JournalMissingCard({
   projectId,
@@ -126,7 +133,11 @@ export function JournalMissingCard({
       />
     );
   }
-  if (loading || signals.length === 0) return null;
+  if (loading) return null;
+
+  // 0건 = "확인된 누락 없음"이지 "기록이 완전함"이 아니다. 테두리·숫자에서
+  // 경고색을 빼 조용하게 두되, 카드 자체는 남긴다 (위 {#card-unhide}).
+  const clean = signals.length === 0;
 
   return (
     <section
@@ -135,7 +146,9 @@ export function JournalMissingCard({
         padding: "14px 16px",
         borderRadius: 12,
         background: "var(--surface-2, rgba(0,0,0,0.02))",
-        border: "1px solid color-mix(in srgb, var(--warn) 25%, transparent)",
+        border: clean
+          ? "1px solid var(--border-card)"
+          : "1px solid color-mix(in srgb, var(--warn) 25%, transparent)",
       }}
     >
       <div
@@ -151,14 +164,36 @@ export function JournalMissingCard({
           style={{
             fontSize: 12,
             fontWeight: 700,
-            color: "var(--warn)",
+            color: clean ? "var(--text-3)" : "var(--warn)",
           }}
         >
           {t("today.missing.recent", { days: SIGNAL_DAYS, n: signals.length })}
         </span>
       </div>
+      {clean ? (
+        <div style={{ fontSize: 12, color: "var(--text-3)", lineHeight: 1.6 }}>
+          {t("today.missing.zeroNote")}
+        </div>
+      ) : (
+        <MissingRows signals={signals} onNavigate={onNavigate} />
+      )}
+    </section>
+  );
+}
+
+/** 신호가 1건 이상일 때의 본문 — 안내 + 행 목록 + 초안 토글로 가는 버튼. */
+function MissingRows({
+  signals,
+  onNavigate,
+}: {
+  signals: JournalMissingSignal[];
+  onNavigate: (view: UiV2View) => void;
+}) {
+  const { t } = useT();
+  return (
+    <>
       <div style={{ fontSize: 12, color: "var(--text-2)", marginBottom: 10 }}>
-          {t("today.missing.desc")}
+        {t("today.missing.desc")}
       </div>
       <ul
         style={{
@@ -192,6 +227,6 @@ export function JournalMissingCard({
       >
         {t("today.missing.enable")}
       </button>
-    </section>
+    </>
   );
 }
