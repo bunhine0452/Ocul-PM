@@ -82,9 +82,11 @@ const PALETTE_LAYERS = new Set(["styles/tokens.css", "App.css"]);
 
 /**
  * 명시 예외. 한 줄 = 한 사유. **늘리지 말고 줄이는 방향으로만.**
- * `selector` 는 그 hex 를 품은 규칙의 셀렉터(직전 `{` 앞 줄), `line` 은 선언 줄.
+ * `file` 은 파일 이름 그대로거나, 사유가 파일이 아니라 **선언의 종류**에 걸려
+ * 있을 때는 정규식(마스크 스텐실이 그렇다). `selector` 는 그 hex 를 품은 규칙의
+ * 셀렉터(직전 `{` 앞 줄), `line` 은 선언 줄.
  */
-const HEX_EXCEPTIONS: { file: string; selector?: RegExp; line?: RegExp; reason: string }[] = [
+const HEX_EXCEPTIONS: { file: string | RegExp; selector?: RegExp; line?: RegExp; reason: string }[] = [
   {
     file: "features/code/code.css",
     reason:
@@ -106,9 +108,17 @@ const HEX_EXCEPTIONS: { file: string; selector?: RegExp; line?: RegExp; reason: 
       "보이는 안전값이라 fallback 이 곧 존재 이유다.",
   },
   {
-    file: "styles/agent.css",
+    // 2026-09-05 — `styles/agent.css` 한정이던 것을 스타일시트 전체로 넓혔다.
+    // 사이드바 nav 목록이 넘칠 때의 가장자리 페이드(shell.css .side-nav-scroll)가
+    // 같은 관용구를 쓰면서 예외가 하나 더 필요해졌는데, 목록 상한이 5라 늘릴 수
+    // 없었다. 늘리는 대신 **판별자를 제자리로 돌려놨다**: 이 예외를 정당화하는
+    // 것은 어느 파일이냐가 아니라 `mask-image:` 라는 선언 자체다. 마스크는
+    // 알파만 읽히므로 어느 파일에 있든 색을 칠하지 않는다.
+    file: /\.css$/,
     line: /mask-image:/,
-    reason: "마스크 스텐실 — 색이 아니라 알파(불투명 62% → 투명)다. 화면에 칠해지지 않는다.",
+    reason:
+      "마스크 스텐실 — 색이 아니라 알파(불투명 → 투명)다. 화면에 칠해지지 않으므로 " +
+      "토큰화할 대상이 아니고, 파일이 아니라 선언의 종류가 사유다.",
   },
   {
     file: "styles/agent.css",
@@ -143,6 +153,11 @@ function scanHex(src: string): { line: number; selector: string; text: string }[
   return out;
 }
 
+/** 예외의 `file` 이 이 파일에 걸리는가 — 문자열이면 정확히, 정규식이면 매치. */
+function fileHit(pat: string | RegExp, name: string): boolean {
+  return typeof pat === "string" ? pat === name : pat.test(name);
+}
+
 describe("색 리터럴은 팔레트 층에만 있다 — 화이트리스트", () => {
   const files = [...walk(join(ROOT))].filter((f) => f.endsWith(".css"));
   const rel = (f: string) => f.slice(ROOT.length + 1);
@@ -158,7 +173,7 @@ describe("색 리터럴은 팔레트 층에만 있다 — 화이트리스트", (
         if (PALETTE_LAYERS.has(name) && /--[\w-]+\s*:/.test(hit.text)) continue;
         const excused = HEX_EXCEPTIONS.some(
           (e) =>
-            e.file === name &&
+            fileHit(e.file, name) &&
             (!e.selector || e.selector.test(hit.selector)) &&
             (!e.line || e.line.test(hit.text)),
         );
@@ -175,7 +190,7 @@ describe("색 리터럴은 팔레트 층에만 있다 — 화이트리스트", (
       const name = rel(file);
       for (const hit of scanHex(readFileSync(file, "utf8"))) {
         HEX_EXCEPTIONS.forEach((e, i) => {
-          if (e.file !== name) return;
+          if (!fileHit(e.file, name)) return;
           if (e.selector && !e.selector.test(hit.selector)) return;
           if (e.line && !e.line.test(hit.text)) return;
           covered.set(i, (covered.get(i) ?? 0) + 1);
