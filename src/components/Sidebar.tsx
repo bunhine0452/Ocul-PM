@@ -19,6 +19,18 @@ import { useT } from "@/i18n";
 // mockup used <div onClick>. Dogfooding 2026-06-07: now collapsible — a
 // brand-row button toggles `sidebarCollapsed`; ShellV2 owns the hover-reveal.
 // v2: nav 항목은 navRegistry 단일 소스에서 파생 (docs/20260706_v2/01-ux-spec.md §1).
+//
+// 2026-09-05 — **넘치면 잘리는 게 아니라 스크롤된다.** 화면이 16개(+설정)로 늘면서
+// 사이드바 전체 높이가 900px 을 넘었는데 `.app` 이 overflow:hidden 이라 낮은
+// 창에서는 발밑(터미널 도크·테마·설정)이 통째로 잘려 나갔다 — 있는 줄도 모르는
+// 상태. 구조를 세 층으로 나눈다:
+//
+//   고정 머리(드래그 스트립·브랜드·프로젝트 스위처)
+//   → `.side-nav-scroll` (넘치는 만큼만 스크롤)
+//   → 고정 발(.side-foot — 언제나 바닥에 보인다)
+//
+// 스크롤은 안전망이고, 보통 창 높이에서는 스크롤 없이 다 보이는 게 낫다.
+// 그래서 세로 여백을 vh 로 눌러 두었다 (shell.css 의 --side-gap / .nav-item).
 
 const MAIN_NAV = NAV_ENTRIES.filter((e) => e.group === "main");
 const TOOL_NAV = NAV_ENTRIES.filter((e) => e.group === "tools");
@@ -132,6 +144,40 @@ function NavRow({
   );
 }
 
+/**
+ * 스크롤 영역의 위/아래 가장자리 페이드를 켜고 끈다.
+ *
+ * 스크롤바를 상시 띄우면 소음이라(맥은 기본이 오버레이 스크롤바라 가만히 있으면
+ * 아예 안 보인다) "더 있다" 는 사실이 사라진다. 그래서 **넘치는 쪽만** 흐린다 —
+ * 위로 더 있으면 위를, 아래로 더 있으면 아래를. 다 보이면 페이드도 없다.
+ *
+ * 리렌더 없이 DOM 클래스만 토글한다: 스크롤마다 setState 를 돌리면 nav 목록
+ * 전체가 통째로 다시 그려진다.
+ */
+function useEdgeFade(ref: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      const slack = el.scrollHeight - el.clientHeight;
+      // 1px 여유 — 서브픽셀 반올림 때문에 끝까지 내려도 slack 이 0.5 쯤 남는다.
+      el.classList.toggle("fade-top", el.scrollTop > 1);
+      el.classList.toggle("fade-bottom", slack > 1 && el.scrollTop < slack - 1);
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    // 창 높이가 바뀌면 넘치는지 여부도 바뀐다. ResizeObserver 가 없는 환경
+    // (jsdom) 에서는 초기 1회 계산만 하고 조용히 넘어간다 — 레이아웃이 없는
+    // 곳에서는 어차피 늘 "안 넘침" 이다.
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(update) : null;
+    ro?.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro?.disconnect();
+    };
+  }, [ref]);
+}
+
 export function Sidebar({
   view,
   onNavigate,
@@ -153,6 +199,9 @@ export function Sidebar({
 }: SidebarProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
+  /** nav 목록만 담는 스크롤 영역 — 머리(브랜드·프로젝트)와 발(.side-foot)은 밖. */
+  const navScrollRef = useRef<HTMLDivElement>(null);
+  useEdgeFade(navScrollRef);
   /** 지금 돌고 있는 Claude Code 세션 수 (acpBusyBus — 메모리 버스). */
   const acpWorking = useAcpWorkingCount(currentProjectId ?? null, "claude");
   /** 승인을 기다리며 멈춰 있는 세션 수 — 작업 배지보다 우선해 보인다. */
@@ -277,43 +326,49 @@ export function Sidebar({
         ) : null}
       </div>
 
-      {MAIN_NAV.map((slot, i) => (
-        <NavRow key={slot.id} slot={slot} active={view === slot.id} index={i} onNavigate={onNavigate} />
-      ))}
+      {/* 스크롤 영역. 안의 항목이 전부 <button> 이라 탭 키만으로 끝까지 닿는다
+          — 브라우저가 포커스된 행을 스크롤해 들여온다. 그래서 컨테이너 자체에
+          tabIndex 를 주지 않았다(axe scrollable-region-focusable 도 포커스 가능한
+          자식이 있으면 통과한다). 빈 탭 정거장이 하나 늘 뿐이다.
+          aria 도 붙이지 않는다: 바깥 <nav aria-label> 이 이미 이 목록의 이름이고,
+          role 없는 div 에 aria-label 을 얹으면 그게 오히려 위반이다. */}
+      <div className="side-nav-scroll" ref={navScrollRef}>
+        {MAIN_NAV.map((slot, i) => (
+          <NavRow key={slot.id} slot={slot} active={view === slot.id} index={i} onNavigate={onNavigate} />
+        ))}
 
-      <div className="nav-section-label">{t("sidebar.toolsSection")}</div>
-      {TOOL_NAV.map((slot, i) => (
-        <NavRow
-          key={slot.id}
-          slot={slot}
-          active={view === slot.id}
-          index={MAIN_NAV.length + i}
-          onNavigate={onNavigate}
-        />
-      ))}
+        <div className="nav-section-label">{t("sidebar.toolsSection")}</div>
+        {TOOL_NAV.map((slot, i) => (
+          <NavRow
+            key={slot.id}
+            slot={slot}
+            active={view === slot.id}
+            index={MAIN_NAV.length + i}
+            onNavigate={onNavigate}
+          />
+        ))}
 
-      <div className="nav-section-label">{t("sidebar.aiSection")}</div>
-      {AI_NAV.map((slot, i) => (
-        <NavRow
-          key={slot.id}
-          slot={slot}
-          active={view === slot.id}
-          index={MAIN_NAV.length + TOOL_NAV.length + i}
-          onNavigate={onNavigate}
-          working={slot.id === "claudecode" ? acpWorking : slot.id === "codex" ? codexWorking : 0}
-          attention={
-            slot.id === "claudecode"
-              ? acpAttention
-              : slot.id === "codex"
-                ? codexAttention
-                : slot.id === "sessions"
-                  ? sessionAttention
-                  : 0
-          }
-        />
-      ))}
-
-      <div className="side-spacer" />
+        <div className="nav-section-label">{t("sidebar.aiSection")}</div>
+        {AI_NAV.map((slot, i) => (
+          <NavRow
+            key={slot.id}
+            slot={slot}
+            active={view === slot.id}
+            index={MAIN_NAV.length + TOOL_NAV.length + i}
+            onNavigate={onNavigate}
+            working={slot.id === "claudecode" ? acpWorking : slot.id === "codex" ? codexWorking : 0}
+            attention={
+              slot.id === "claudecode"
+                ? acpAttention
+                : slot.id === "codex"
+                  ? codexAttention
+                  : slot.id === "sessions"
+                    ? sessionAttention
+                    : 0
+            }
+          />
+        ))}
+      </div>
 
       <div className="side-foot">
         {onToggleTerminalDock ? (

@@ -23,16 +23,75 @@
    번지는 색 안개는 '메시 그라데이션 배경' 의 관용구라 캔버스가 제품이 아니라
    템플릿으로 읽혔다. 캔버스는 --bg-sidebar 한 색이다. */
 
+/* 세로 여백은 창 높이를 따라 눌린다 (2026-09-05).
+   화면이 16개(+설정)로 늘면서 사이드바 자연 높이가 900px 을 넘었다. 넘치면 스크롤되게
+   고쳤지만(.side-nav-scroll) 스크롤은 **안전망**이고, 흔한 창 높이에서는 한눈에
+   다 보이는 편이 낫다. 그래서 항목을 지우거나 순서를 바꾸는 대신(⌘번호 계약이
+   순서에 걸려 있다) 행간·섹션 여백만 vh 로 압축한다 — 큰 화면에서는 지금 값
+   그대로고, 낮은 창에서만 조여진다. @media 단계식이 아니라 clamp 라 창을 끌어
+   줄일 때 특정 높이에서 툭 튀지 않는다. */
 .sidebar {
+  --side-gap: clamp(2px, 0.4vh, 4px);
   background: transparent;
   border-right: none;
   display: flex;
   flex-direction: column;
+  /* flex 컬럼에서 min-height 를 빠뜨리면 자식이 절대 줄지 않아 스크롤이 안 걸린다. */
+  min-height: 0;
   padding: 14px 12px 12px;
-  gap: 4px;
+  gap: var(--side-gap);
   user-select: none;
   position: relative;
   z-index: 1;
+}
+/* 머리와 발은 고정 — 줄어드는 건 가운데 목록뿐이다. */
+.side-drag-strip,
+.side-brand,
+.proj-switch-wrap,
+.side-foot {
+  flex: none;
+}
+/* 가운데 목록만 스크롤한다. flex-basis 0 이라 남는 만큼만 차지하고, 창이
+   아무리 낮아져도 .side-foot(터미널 도크·테마·설정)을 밀어내지 않는다. */
+.side-nav-scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  /* 한 축이 visible 이 아니면 나머지 축의 visible 은 auto 로 계산된다 — 가로
+     스크롤바가 생기지 않게 명시한다. 활성 항목의 링 그림자가 잘리지 않도록
+     좌우로 3px 만 물러섰다가 음수 마진으로 제자리에 돌려놓는다. */
+  overflow-x: hidden;
+  margin: 0 -3px;
+  padding: 0 3px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--side-gap);
+  /* 얇게, 그리고 가만히 있을 때는 조용하게 (base.css 의 10px 전역값 위로). */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.side-nav-scroll:hover { scrollbar-color: var(--sep-strong) transparent; }
+.side-nav-scroll::-webkit-scrollbar { width: 6px; }
+.side-nav-scroll::-webkit-scrollbar-track { background: transparent; }
+.side-nav-scroll::-webkit-scrollbar-thumb {
+  background: transparent; border: none; border-radius: 3px;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.side-nav-scroll:hover::-webkit-scrollbar-thumb { background: var(--sep-strong); }
+/* "더 있다" 를 스크롤바 대신 가장자리 페이드가 말한다 (맥 오버레이 스크롤바는
+   가만히 있으면 아예 안 보인다). 넘치는 쪽만 흐려진다 — Sidebar 의 useEdgeFade
+   가 클래스를 붙인다. 다 보이면 페이드도 없다. */
+.side-nav-scroll.fade-top {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+}
+.side-nav-scroll.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent 100%);
+}
+.side-nav-scroll.fade-top.fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
 }
 
 /* ── Sidebar collapse + hover-reveal (Dogfooding 2026-06-07) ── */
@@ -103,7 +162,7 @@
 
 .side-brand {
   display: flex; align-items: center; gap: 10px;
-  padding: 4px 8px 14px;
+  padding: 4px 8px clamp(6px, 1.4vh, 14px);
 }
 /* .brand-mark / .brand-name / .brand-sub 는 소비처가 없어 지웠다 (사이드바
    헤더의 아이콘·이름은 2026-06-15 에 이미 빠졌다). */
@@ -141,7 +200,7 @@
 .proj-path { font-size: var(--fs-2); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Inline project quick-switcher popover (Dogfooding 2026-06-14c). */
-.proj-switch-wrap { position: relative; margin: 0 2px 10px; }
+.proj-switch-wrap { position: relative; margin: 0 2px clamp(5px, 1vh, 10px); }
 .proj-pop {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: var(--z-popover);
   background: var(--bg-card); border: 1px solid var(--border-card);
@@ -177,11 +236,14 @@
 .nav-section-label {
   font-size: var(--fs-2); font-weight: 600; letter-spacing: 0.04em;
   color: var(--text-3); text-transform: uppercase;
-  padding: 12px 10px 4px;
+  /* 섹션 사이 숨구멍이 가장 먼저 줄어드는 자리 — 두 라벨에서 최대 14px. */
+  padding: clamp(5px, 1.2vh, 12px) 10px 4px;
 }
 .nav-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 7px 10px; border-radius: var(--radius-s);
+  /* 20행 × 최대 5px = 낮은 창에서 100px 남짓을 되찾는다. 아이콘이 17px 이라
+     최소값에서도 행 높이는 25px 밑으로 내려가지 않는다. */
+  padding: clamp(4px, 0.7vh, 7px) 10px; border-radius: var(--radius-s);
   color: var(--text); cursor: pointer;
   font-size: var(--fs-7); font-weight: 500;
   position: relative;
@@ -258,8 +320,14 @@
 .nav-item:hover .nav-kbd { opacity: 1; }
 .nav-item.active .nav-kbd { color: inherit; opacity: 0.75; }
 
-.side-spacer { flex: 1; }
-.side-foot { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; border-top: 1px solid var(--sep); }
+/* `.side-spacer{flex:1}` 는 2026-09-05 에 지웠다 — 발을 바닥으로 미는 일은
+   이제 `.side-nav-scroll` 이 자기 몫으로 한다. 스페이서가 남아 있으면 그것도
+   flex:1 이라 목록과 남은 높이를 나눠 가져 스크롤 영역이 반토막 난다. */
+.side-foot {
+  display: flex; flex-direction: column; gap: 2px;
+  padding-top: clamp(4px, 0.6vh, 6px);
+  border-top: 1px solid var(--sep);
+}
 
 /* ============================================================ CONTENT */
 /* 콘텐츠 시트 — 캔버스 위에 라운드+테두리+그림자로 떠 있다. 마운트 시
