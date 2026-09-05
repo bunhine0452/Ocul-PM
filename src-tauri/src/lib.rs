@@ -151,6 +151,8 @@ use crate::commands::{
     // PR-ACP1 — ACP 어댑터 런타임 (진단·설치·프로세스 수명)
     acp_diagnose,
     acp_install_adapter,
+    acp_journal_objection,
+    acp_journal_objection_dismiss,
     acp_list_files,
     acp_list_sessions,
     acp_load_session,
@@ -159,6 +161,7 @@ use crate::commands::{
     acp_permission_respond,
     acp_pick_files,
     acp_prompt,
+    acp_recording_status,
     acp_refresh_usage,
     acp_select_session,
     acp_session_title,
@@ -896,6 +899,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             acp_session_title,
             acp_delete_session,
             acp_select_session,
+            // v3-record-integrity {#mcp-missing-visible} — 기록 도구 부착 결과
+            acp_journal_objection,
+            acp_journal_objection_dismiss,
+            acp_recording_status,
             // PR-CI0 — Claude Code 훅 브리지
             claude_hooks_status,
             claude_hooks_install,
@@ -1077,6 +1084,9 @@ pub fn run() {
             // (`ptyhost::client::socket_candidates`).
             // PR-ACP1 — ACP 어댑터 레지스트리 (프로젝트당 1 연결).
             app.manage(crate::acp::AcpState::default());
+            // {#mcp-missing-visible} — 대화를 열 때 기록 도구가 실제로 붙었는지.
+            app.manage(crate::acp::AcpRecordingState::default());
+            app.manage(crate::acp::AcpGateState::default());
             // A2A 외부 문 — 상태만 둔다. 서버는 사용자가 켜야 뜬다(기본 꺼짐).
             app.manage(crate::oculpm::a2a::http::A2aServerState::default());
             // PR-LSP0 — 언어 서버 레지스트리 ((프로젝트, 언어, 워크스페이스 루트)당 1).

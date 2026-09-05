@@ -697,6 +697,24 @@ export const ko = {
   "notHonored.reason.binaries_not_installed": "실행 파일은 설치하지 않습니다",
   "notHonored.reason.not_supported_yet": "이 앱 버전이 아직 다루지 않습니다",
   "automation.editor.notHonored": "이 설정에서는 읽지 않는 값이 남아 있습니다",
+  // ── 유출 배지 ({#automation-egress-badge}) ──
+  "automation.egress.remote": "이 자동화는 프로젝트 내용을 {provider} ({host}) 로 보냅니다.",
+  "automation.egress.remoteHint": "일지 본문·플랜·git 요약이 지시문과 함께 나갑니다. 로컬 모델을 쓰면 이 배지가 사라집니다.",
+  "automation.egress.local": "이 자동화는 {provider} 를 기기 안에서 부릅니다 — 내용이 밖으로 나가지 않습니다.",
+  // ── 실행 조건 ({#automation-step-if}) ──
+  "automation.cond.title": "실행 조건",
+  "automation.cond.hint": "전부 맞아야 실행합니다. 비워 두면 언제나 실행합니다 — 지시문에 「이미 한 건 건너뛰세요」라고 쓰는 것과 달리, 이건 코드가 지키는 게이트입니다.",
+  "automation.cond.add": "조건 추가",
+  "automation.cond.remove": "이 조건 지우기",
+  "automation.cond.none": "조건 없음 — 언제나 실행합니다.",
+  "automation.cond.journal_count_gte": "새 일지가 N건 이상",
+  "automation.cond.plan_has_open_items": "활성 플랜에 미완 항목이 있음",
+  "automation.cond.git_dirty": "git 에 커밋 안 된 변경이 있음",
+  "automation.cond.unknown": "읽지 못한 조건 — 이 자동화는 돌지 않습니다",
+  "automation.cond.threshold": "건 이상",
+  "automation.cond.window": "「직전 성공 실행 이후」를 셉니다. 한 번도 성공한 적 없으면 전체 기간입니다.",
+  "automation.cond.summary": "조건 {n}개",
+  "automation.status.skippedByCondition": "조건 미충족",
   "notHonored.reason.frequency_ignores_field": "이 빈도에서는 쓰이지 않습니다",
   "notHonored.reason.watcher_ignores_schedule": "감시 자동화는 시각 필드를 읽지 않습니다",
   "notHonored.reason.app_older_than_template":
@@ -933,6 +951,8 @@ export const ko = {
   "today.missing.session": "세션",
   "today.missing.more": "… 외 {n}개",
   "today.missing.enable": "설정에서 일지 초안 켜기",
+  "today.missing.zeroNote":
+    "훅이 남긴 세션 종료 신호만 셉니다 — 훅이 없는 에이전트의 세션, 그리고 뒤이어 일지가 쓰이면서 해소로 걷힌 신호는 여기 나타나지 않아요. 0건은 「확인된 누락 없음」이지 「기록이 완전함」은 아닙니다.",
   "today.entry.files": "{n}개 파일",
   "today.next.title": "다음 할 일",
   "today.next.open": "Planner 열기",
@@ -1657,6 +1677,15 @@ export const ko = {
   "retro.staleTitle": "이 회고 이후 일지·코드가 바뀌었어요. 다시 생성하면 최신 상태를 반영합니다.",
   "retro.stale": "오래됨",
   "retro.notionExportTitle": "이 회고를 Notion 부모 페이지 아래 새 페이지로 내보냅니다",
+  "retro.missing.label": "기록 정직성",
+  "retro.missing.count": "최근 {days}일 · 일지 없이 끝난 세션 {n}건",
+  "retro.missing.checking": "최근 {days}일 · 일지 없이 끝난 세션 확인 중…",
+  "retro.missing.failed": "일지 없이 끝난 세션을 확인하지 못했어요 — 지금은 몇 건인지 알 수 없어요",
+  "retro.missing.zeroNote":
+    "훅이 남긴 세션 종료 신호만 셉니다 — 훅이 없는 에이전트의 세션, 그리고 뒤이어 일지가 쓰이면서 해소로 걷힌 신호는 세지 않아요. 0건은 「확인된 누락 없음」이지 「기록이 완전함」은 아닙니다.",
+  "retro.missing.someNote":
+    "이 기간의 회고는 그만큼 덜 보고 쓰인 셈이에요. 훅이 없는 에이전트의 세션은 애초에 세지 않으니 실제 누락은 이보다 많을 수 있습니다.",
+  "retro.missing.goToday": "오늘 화면에서 보기",
 
   // ── 스킬 카탈로그·갤러리 (목록 표시용 — SKILL.md 본문은 디스크 산출물이라 제외)
   "skill.python-patterns.label": "python-patterns — Python 관용구·패턴",
@@ -2928,6 +2957,16 @@ export const ko = {
   "acp.diff.moreLines": "… {n}줄 더",
   "acp.session.confirmDelete": "정말 삭제?",
   "acp.searchClear": "검색 지우기",
+  // v3-record-integrity {#mcp-missing-visible} — 기록 도구 없이 열린 대화.
+  // 셔틀(plugin/oculpm/bin/oculpm-mcp)의 안내와 **같은 어휘**를 쓴다.
+  "acp.recording.title": "기록 도구 없이 열린 대화예요",
+  "acp.recording.body": "이 대화의 에이전트에게 일지·플래너 도구(oculpm-mcp)가 붙지 않았어요. 시키는 일은 되지만 작업 기록이 남지 않습니다.",
+  "acp.recording.searched": "찾아본 자리:",
+  "acp.recording.fix": "ocul-pm 앱을 설치하거나, OCULPM_MCP_BIN 환경변수로 oculpm-mcp 경로를 지정하세요.",
+  "acp.recording.dismiss": "닫기",
+  "acp.gate.title": "이 대화의 변경이 아직 기록되지 않았어요",
+  "acp.gate.files": "바뀐 파일:",
+  "acp.gate.dismiss": "닫기",
   "ai.title": "에이전트",
   "ai.toolbarSub": "여러 LLM에 같은 컨텍스트로 질문",
   "ai.newThread": "새 대화",

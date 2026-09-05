@@ -20,12 +20,27 @@
 //! | 2 | 입출력 |
 //! | 3 | 추적되지 않는 프로젝트 (`.oculpm/` 없음) |
 //! | 4 | 그 밖의 실패 |
-//! | 5 | **쓰기 충돌** — 기대한 내용이 아니다 (`base_hash` 불일치) |
+//! | 5 | **쓰기 충돌** — 기대한 내용이 아니다 (`base_hash` 불일치, 또는 다른 세션이 그 플랜을 쥐고 있다) |
 //!
 //! 5 가 따로 있는 이유는 병렬 세션 때문이다. 두 세션이 같은 플랜 항목을 동시에
 //! 고치면 나중 쓴 쪽이 이기고 그 사이 변경이 사라진다 — 이 저장소가 실제로
 //! 겪은 사고다. 충돌을 일반 오류로 뭉뚱그리면 호출자가 "다시 읽고 다시 쓴다"를
 //! 판단할 수 없다.
+//!
+//! ## `plan_update` 는 두 번 부르는 것이 정상이다
+//!
+//! `base_hash` 는 **필수**다 (플랜 `v3-record-integrity` `{#cas-required}`).
+//! 셸에서는 이렇게 쓴다:
+//!
+//! ```sh
+//! h=$(oculpm plan_status '{"plan_id":"my-plan"}' | jq -r '.plans[0].hash')
+//! oculpm plan_update "{\"plan_id\":\"my-plan\",\"item_id\":\"x\",\"status\":\"done\",\"base_hash\":\"$h\"}"
+//! ```
+//!
+//! **강제 우회 플래그는 두지 않았다.** `--no-base-hash` 같은 것을 만들면 계약이
+//! 둘이 되고, 마찰을 만나는 호출자는 언제나 둘째 계약을 고른다 — 그 순간 이
+//! 안전장치는 문서로 강등된다. exit 5 를 받으면 위 두 줄을 다시 돌리는 것이
+//! 정답이고, 그 재시도가 CAS 가 하려던 일 전부다.
 //!
 //! stdout 은 결과만, stderr 는 오류만 — 에이전트가 파이프로 받는다.
 
@@ -50,13 +65,19 @@ usage: oculpm <tool> [json|-]
                           server serves) and exit
   oculpm whoami           print this session's identity and project root
 
+  plan_update requires base_hash — read it first, then write:
+    h=$(oculpm plan_status '{\"plan_id\":\"P\"}' | jq -r '.plans[0].hash')
+    oculpm plan_update \"{\\\"plan_id\\\":\\\"P\\\",\\\"item_id\\\":\\\"I\\\",\\\"status\\\":\\\"done\\\",\\\"base_hash\\\":\\\"$h\\\"}\"
+  there is no force flag: on exit 5 re-read the hash and call again.
+
 options:
   --project <path>        project root (default: session token, else the
                           nearest ancestor of the current directory that
                           has a .oculpm/)
 
 exit: 0 ok · 1 user error · 2 io · 3 project not tracked · 4 other
-      5 write conflict (base_hash mismatch — re-read and retry)
+      5 write conflict (base_hash mismatch, or another session holds the
+        plan — re-read the hash and retry)
 ";
 
 /// [`crate::oculpm::error`] 없이도 알아볼 수 있게 **오류 문자열 앞에 붙는 표지.**

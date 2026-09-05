@@ -13,6 +13,24 @@ mod search;
 
 use super::*;
 
+/// `plan_update` 의 필수 `base_hash` — **도구가 실제로 발급하는 자리**에서
+/// 가져온다 (플랜 `v3-record-integrity` `{#plan-status-hash}`).
+///
+/// 파일을 테스트가 직접 해싱하지 않는 이유: 발급(`plan_status`)과 대조
+/// (`plan_update`)가 서로 다른 바이트를 보게 되는 회귀를 그 방식으로는 못 본다.
+fn base_hash(root: &Path, plan_id: &str) -> String {
+    let status = call_tool(
+        root,
+        "plan_status",
+        &serde_json::json!({ "plan_id": plan_id }),
+    )
+    .unwrap_or_else(|e| panic!("plan_status 실패: {e}"));
+    status["plans"][0]["hash"]
+        .as_str()
+        .unwrap_or_else(|| panic!("plan_status 가 hash 를 안 줬다: {status}"))
+        .to_string()
+}
+
 fn seed_plan(root: &Path) {
     let dir = planner_dir(root);
     std::fs::create_dir_all(&dir).unwrap();

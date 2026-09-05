@@ -134,6 +134,13 @@ const TESTS = new Set([
   "__tests__/sessions_screen.test.tsx",
   // 세션 id 표면 — 한국어 aria-label("세션 id 복사 …")이 곧 단언 재료다.
   "__tests__/acp_session_id.test.tsx",
+  // {#mcp-missing-visible} — 기록 도구 부재 배너. 화면에 실제로 뜨는 한국어
+  // 문구("기록 도구 없이 열린 대화예요")가 곧 단언 재료다.
+  "__tests__/acp_recording_notice.test.tsx",
+  // {#gate-beyond-cc} — 앱 안 배달 게이트 배너. 화면 문구("아직 기록되지
+  // 않았어요")와 **백엔드 판정이 지은 한국어 문장**(reason·action)이 곧 단언
+  // 재료다: 그 문장을 화면이 다시 짓지 않고 그대로 보여 주는지가 요점이다.
+  "__tests__/acp_journal_gate_notice.test.tsx",
   "__tests__/acp_title.test.ts",
   "__tests__/acp_usage_detail.test.ts",
   // Osaurus 라운드 Phase 7 — 대화 임포트·도달성. 한국어 제목·테스트 이름이
@@ -170,6 +177,9 @@ const TESTS = new Set([
   "__tests__/ai_context_parts.test.ts",
   "__tests__/ai_history.test.tsx",
   "__tests__/app_dialog.test.tsx",
+  // 유출 배지·실행 조건 — 한국어 배지 문구("…로 보냅니다" 가 로컬에 뜨면 거짓말)와
+  // 백엔드 원장 메모 대조 패턴이 곧 단언 재료다.
+  "__tests__/automation_egress_conditions.test.tsx",
   "__tests__/automation_tab.test.tsx",
   "__tests__/claude_hooks_settings.test.tsx",
   "__tests__/close_intent.test.ts",

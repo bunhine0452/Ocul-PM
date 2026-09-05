@@ -1677,7 +1677,13 @@ export const commands = {
 	 *  그릴 수 없기 때문이다. cwd 는 프로젝트 루트로 이미 확정돼 있다.
 	 */
 	acpStart: (projectId: number, provider: "claude" | "codex" | null) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_start", { projectId, provider })),
-	/**  어댑터를 내린다. 떠 있지 않았으면 `false`. */
+	/**
+	 *  어댑터를 내린다. 떠 있지 않았으면 `false`.
+	 * 
+	 *  내리기 **전에** 열려 있던 대화의 세그먼트를 닫는다 — `session-end.sh` 와 같은
+	 *  순서(판정 먼저, 마커 청소 나중)로 판정 한 줄을 원장에 남기고 흔적을 거둔다.
+	 *  안 거두면 죽은 대화의 생존 흔적이 6시간 동안 옆 대화의 게이트를 침묵시킨다.
+	 */
 	acpStop: (projectId: number, provider: "claude" | "codex" | null) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_stop", { projectId, provider })),
 	/**  현재 떠 있는 어댑터 정보 (없으면 `None`). */
 	acpStatus: (projectId: number, provider: "claude" | "codex" | null) => typedError<{
@@ -1850,6 +1856,48 @@ export const commands = {
 	 *  제목은 화면이 안다(탭·목록에서 왔다) — 여기서 다시 물어보지 않는다.
 	 */
 	acpSelectSession: (projectId: number, provider: "claude" | "codex" | null, sessionId: string, title: string | null) => typedError<AcpSession, AppError>(__TAURI_INVOKE("acp_select_session", { projectId, provider, sessionId, title })),
+	/**
+	 *  지금 이 대화에 걸려 있는 이의 (없으면 `None`).
+	 * 
+	 *  화면은 이 값을 **다시 계산하지 않는다.** 판정은 턴이 끝난 그 순간의
+	 *  워킹트리를 보고 내려졌고, 몇 초 뒤에 다시 재면 다른 답이 나온다.
+	 */
+	acpJournalObjection: (sessionId: string) => typedError<{
+	/**  어느 ACP 대화의 이의인가 — 화면이 자기 대화인지 가른다. */
+	acp_session_id: string,
+	/**  그 대화의 기록 신원 (`agent.session` 에 실리는 값). */
+	conversation: string,
+	/**  기록되지 않은 변경 (정렬·중복 제거됨). */
+	changed: string[],
+	/**  몇 개를 왜 붙잡았는가. */
+	reason: string,
+	/**  **무엇을 하라** — 도구 이름과 대상까지. */
+	action: string,
+} | null, AppError>(__TAURI_INVOKE("acp_journal_objection", { sessionId })),
+	/**
+	 *  배너를 닫았다 — 이 대화에서는 다시 띄우지 않는다.
+	 * 
+	 *  게이트가 **대화당 1회**인 규율의 화면 쪽 절반이다. 다음 턴에 다시 판정해도
+	 *  `.delivery-gate-<대화>` 플래그가 이미 서 있어 원장이 또 늘지는 않지만, 배너
+	 *  자체는 판정이 살아 있는 한 다시 그려진다 — 그래서 닫힘을 여기 적어 둔다.
+	 */
+	acpJournalObjectionDismiss: (sessionId: string) => typedError<boolean, AppError>(__TAURI_INVOKE("acp_journal_objection_dismiss", { sessionId })),
+	/**
+	 *  마지막으로 연 대화의 기록 상태 (연 적이 없으면 `None` — 모르는 것을 말하지
+	 *  않는다).
+	 */
+	acpRecordingStatus: (projectId: number, provider: "claude" | "codex" | null) => typedError<{
+	/**  기록 도구가 이 대화에 붙었는가. */
+	attached: boolean,
+	/**  붙였다면 그 바이너리. */
+	binary_path: string | null,
+	/**  못 찾았다면 순서대로 찾아본 자리. */
+	searched: string[],
+	/**  이 대화가 일지에 남길 신원 (`agent.session`). */
+	session_token: string | null,
+	/**  그 신원과 짝지어진 ACP 대화 id. */
+	acp_session_id: string | null,
+} | null, AppError>(__TAURI_INVOKE("acp_recording_status", { projectId, provider })),
 	/**  현재 설치 상태 조회 (쓰기 없음). */
 	claudeHooksStatus: (projectId: number) => typedError<ClaudeHooksStatus, string>(__TAURI_INVOKE("claude_hooks_status", { projectId })),
 	/**  훅 설치 (멱등 — 드리프트 복구도 이걸 다시 부르면 된다). */
@@ -2247,6 +2295,25 @@ export type AcpImage = {
 	data_base64: string,
 };
 
+/**
+ *  대화 위에 뜨는 이의 한 건.
+ * 
+ *  판정이 만든 문구를 그대로 들고 간다 — 화면이 다시 짓지 않는다. 같은 사건에
+ *  두 벌의 어휘가 생기면 어느 쪽이 진짜인지 아무도 모르게 된다.
+ */
+export type AcpObjection = {
+	/**  어느 ACP 대화의 이의인가 — 화면이 자기 대화인지 가른다. */
+	acp_session_id: string,
+	/**  그 대화의 기록 신원 (`agent.session` 에 실리는 값). */
+	conversation: string,
+	/**  기록되지 않은 변경 (정렬·중복 제거됨). */
+	changed: string[],
+	/**  몇 개를 왜 붙잡았는가. */
+	reason: string,
+	/**  **무엇을 하라** — 도구 이름과 대상까지. */
+	action: string,
+};
+
 /**  권한 요청의 선택지 하나. */
 export type AcpPermissionOption = {
 	id: string,
@@ -2286,6 +2353,25 @@ export type AcpRateLimit = {
 	resets_text: string | null,
 	/**  `allowed` · `allowed_warning` … (경고 색을 고르는 열쇠). */
 	status: string | null,
+};
+
+/**
+ *  이 대상(프로젝트×provider)에서 **마지막으로 연 대화**의 기록 상태.
+ * 
+ *  재구성이 아니라 **그때 실제로 일어난 일**을 적어 둔다. 다시 계산하면
+ *  "지금은 있는데 그때는 없었다"를 영영 말할 수 없다.
+ */
+export type AcpRecordingStatus = {
+	/**  기록 도구가 이 대화에 붙었는가. */
+	attached: boolean,
+	/**  붙였다면 그 바이너리. */
+	binary_path: string | null,
+	/**  못 찾았다면 순서대로 찾아본 자리. */
+	searched: string[],
+	/**  이 대화가 일지에 남길 신원 (`agent.session`). */
+	session_token: string | null,
+	/**  그 신원과 짝지어진 ACP 대화 id. */
+	acp_session_id: string | null,
 };
 
 /**  실행 중인 에이전트의 전체 상태 — 상대편 정보 + 세션 설정 항목. */
@@ -2552,6 +2638,21 @@ export type ArtifactKind =
 "not_honored";
 
 /**
+ *  조건 하나.
+ * 
+ *  `raw` 는 [`ConditionWhen::Unknown`] 일 때만 채워지고, 원문을 **잃지 않기
+ *  위해** 있다: 정의 파일은 사람이 손으로 고치는 SSOT 라, 오타 하나를 저장
+ *  한 번으로 지워 버리면 무엇을 쓰려 했는지가 사라진다.
+ */
+export type AutomationCondition = {
+	when: ConditionWhen,
+	/**  임계값. `journal_count_gte` 만 읽는다. 없으면 1로 본다. */
+	n: number | null,
+	/**  `when` 을 읽지 못했을 때의 원문. */
+	raw: string | null,
+};
+
+/**
  *  Osaurus 라운드 Phase 0 (Decision 4) — 자동화의 전역 스위치.
  * 
  *  **전부 옵인, 기본 off.** `#[serde(default)]` 라 `[automation]` 섹션이 없는
@@ -2606,6 +2707,12 @@ export type AutomationDef = {
 	/**  `fast|balanced|patient|relaxed|deferred|extended`. */
 	responsiveness: string | null,
 	output: AutomationOutput,
+	/**
+	 *  실행 조건 ({#automation-step-if}). **빈 목록 = 조건 없음 = 항상 실행**
+	 *  이라 `conditions:` 가 없는 옛 정의는 동작이 그대로다. 어휘는 닫혀 있고
+	 *  (`conditions::ConditionWhen`) 자유 표현식은 받지 않는다.
+	 */
+	conditions: AutomationCondition[],
 	/**  본문 — 모델에게 그대로 가는 지시문. */
 	instructions: string,
 };
@@ -2659,6 +2766,12 @@ export type AutomationOverview = {
 	 */
 	running_automation_id: string | null,
 	running_project_id: number | null,
+	/**
+	 *  배경 모델 호출이 기기 밖으로 나가는가·어디로 ({#automation-egress-badge}).
+	 *  `None` = Core Model 미설정(아무것도 안 돈다) 또는 모르는 프로바이더 —
+	 *  둘 다 배지를 만들지 않는다. **모르면 아는 척하지 않는다.**
+	 */
+	model_egress: ModelEgress | null,
 };
 
 /**
@@ -3163,6 +3276,23 @@ export type CodexRegistrationStatus = {
 	/**  oculpm이 소유하지 않는 Codex MCP 서버 수 (정보 표시용). */
 	foreign_servers: number,
 };
+
+/**
+ *  조건의 종류. **이 목록이 전부다** — 새 조건은 여기에 변형을 더하는 것이지
+ *  문자열로 표현하는 것이 아니다.
+ */
+export type ConditionWhen = 
+/**  직전 성공 실행 이후 새 일지가 `n` 건 이상. */
+"journal_count_gte" | 
+/**  활성 플랜에 미완 항목(todo/in_progress/blocked)이 하나라도 있다. */
+"plan_has_open_items" | 
+/**  git 워킹트리에 커밋되지 않은 변경이 있다. */
+"git_dirty" | 
+/**
+ *  읽지 못한 조건. 정의 파일에만 나타나고 UI 는 만들지 않는다 —
+ *  **항상 불충족**이다.
+ */
+"unknown";
 
 export type ConfigApplyFailure = {
 	surface: ConfigSurface,
@@ -4327,12 +4457,23 @@ export type JournalFrontmatter = {
 };
 
 /**
- *  일지 없이 끝난 세션 1건. `ts` 는 훅이 기록한 UTC ISO 문자열 그대로 —
+ *  일지 없이 끝난 **대화** 1건. `ts` 는 훅이 기록한 UTC ISO 문자열 그대로 —
  *  로컬 시각 변환은 UI 몫이다.
  */
 export type JournalMissingSignal = {
 	ts: string,
+	/**
+	 *  에이전트의 **대화** id (`CLAUDE_CODE_SESSION_ID`). 이름이 `session_id`
+	 *  인 것은 훅 payload 의 필드명을 그대로 물려받았기 때문이고, 세는 단위는
+	 *  세그먼트가 아니라 대화다 (용어: `oculpm::verdict`).
+	 */
 	session_id: string,
+	/**
+	 *  이 대화가 낸 신호 **세그먼트** 수. resume 마다 마커가 새로 열려 한
+	 *  대화가 여러 줄을 남긴다 — 실측(2026-09-05) 원장 164행이 고유 대화
+	 *  117개였던 이유다. 카드가 세는 것은 대화 하나, 이 값은 그 안의 횟수.
+	 */
+	segments: number,
 };
 
 /**
@@ -4760,6 +4901,21 @@ export type MobileDevice = {
 	name: string,
 	created_at: string,
 	last_seen_at: string | null,
+};
+
+/**  배경 모델 호출의 도착지. 프런트가 배지 문구를 이걸로 고른다. */
+export type ModelEgress = {
+	/**
+	 *  설정에 든 프로바이더 id (`anthropic` · `openai` · …). 배지에 그대로
+	 *  찍힌다 — "외부로 나감" 같은 뭉뚱그린 문구를 쓰지 않는다.
+	 */
+	provider: string,
+	/**  배경 작업에 쓰이는 모델 id. */
+	model: string,
+	/**  요청이 닿는 호스트. 로컬이면 루프백 주소다. */
+	host: string,
+	/**  `true` = 기기를 벗어나지 않는다 → 배지를 붙이지 않는다. */
+	local: boolean,
 };
 
 /**  부정 후보 하나. */

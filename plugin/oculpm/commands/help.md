@@ -18,7 +18,7 @@ description: ocul-pm 플러그인 표면 전체 레퍼런스 카드 — 커맨�
 
 ## MCP 도구 5종 (앱 설치 시)
 
-`journal_write`(일지 작성) · `plan_status`(플랜 조회) · `plan_update`(항목 상태 갱신) · `plan_create`(새 플랜) · `project_init`(추적 초기화, confirm 필수)
+`journal_write`(일지 작성) · `plan_status`(플랜 조회 — 응답의 `plans[].hash` 가 `plan_update` 의 `base_hash` 재료) · `plan_update`(항목 상태 갱신 — **`base_hash` 필수**, 병렬 세션 보호) · `plan_create`(새 플랜) · `project_init`(추적 초기화, confirm 필수)
 
 ## 스킬 5종 (자동 발동)
 

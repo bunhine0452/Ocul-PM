@@ -17,6 +17,7 @@ import { ClaudeMark, CLAUDE_ORANGE } from "@/components/ClaudeMark";
 import { CodexMark } from "@/components/CodexMark";
 import { AcpUsageMeter } from "./AcpUsageMeter";
 import { SessionIdChip } from "./SessionIdChip";
+import { AgentGoneNotice, JournalGateNotice, RecordingNotice } from "./RecordingNotice";
 import { commands, events,
   type AcpEvent,
   type AcpImage,
@@ -1827,26 +1828,19 @@ export function AcpConversation({
           {permission ? <PermissionCard request={permission} onDecide={decide} /> : null}
 
           {agentGone ? (
-            /* 어댑터 프로세스가 죽었다. 이 배너가 없으면 마지막 상태가 그대로
-               남아 **아무 일도 없는 척**한다 — 보내면 그때서야 오류가 난다. */
-            <div className="failure" role="status">
-              <span className="failure-icon">
-                <TriangleAlert size={13} />
-              </span>
-              <span className="failure-body">
-                <span className="failure-title">{t("acp.agentGone")}</span>
-                <span className="failure-details">{t("acp.agentGoneSub")}</span>
-              </span>
-              <button
-                type="button"
-                className="btn sm primary failure-act"
-                disabled={starting}
-                onClick={() => void reconnect()}
-              >
-                {t("acp.reconnect")}
-              </button>
-            </div>
+            <AgentGoneNotice starting={starting} onReconnect={() => void reconnect()} />
           ) : null}
+
+          {/* 기록 도구 없이 열린 대화를 드러낸다 ({#mcp-missing-visible}) —
+              붙었으면 아무 것도 안 그린다. */}
+          <RecordingNotice
+            projectId={projectId}
+            provider={provider}
+            sessionId={session?.session_id ?? null}
+          />
+
+          {/* 배달 게이트 — 턴이 끝날 때마다 다시 묻는다 ({#gate-beyond-cc}). */}
+          <JournalGateNotice sessionId={session?.session_id ?? null} turnKey={busy} />
 
           {error ? (
             <div className="msg assistant">

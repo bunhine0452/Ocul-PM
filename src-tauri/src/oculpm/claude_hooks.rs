@@ -316,136 +316,16 @@ pub fn apply_event(open: &mut BTreeSet<String>, ev: &HookEvent) -> HookSignal {
 pub const HOOK_AGENT_LABEL: &str = "claude-code";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// H3b — 미기록 세션 신호 (plugin SessionEnd → journal-missing.jsonl)
+// H3b — 미기록 세션 신호
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// 플러그인 SessionEnd 훅이 "일지 없이 끝난 세션"을 append 하는 신호 파일
-/// (프로젝트 루트 기준). 근거: benchmarks/agentic 실측 — 규칙·도구가 주입돼도
-/// 헤드리스 단발 세션의 기록 준수 0/12. 훅이 200줄 초과 시 최근 100줄로 자체
-/// 트림하므로 **오프셋 소비가 불가** — 항상 전체를 읽고 시간으로 필터한다.
-pub const JOURNAL_MISSING_REL: &str = ".oculpm/hooks/journal-missing.jsonl";
-
-/// 일지 없이 끝난 세션 1건. `ts` 는 훅이 기록한 UTC ISO 문자열 그대로 —
-/// 로컬 시각 변환은 UI 몫이다.
-#[derive(Debug, Clone, Serialize, specta::Type)]
-pub struct JournalMissingSignal {
-    pub ts: String,
-    pub session_id: String,
-}
-
-/// 신호 라인의 관용 파싱형 — 필드 누락은 기본값으로 흡수하고 검증은
-/// [`parse_journal_missing`] 이 한다.
-#[derive(Debug, Deserialize)]
-struct RawJournalMissingLine {
-    #[serde(default)]
-    ts: String,
-    #[serde(default)]
-    session_id: String,
-    #[serde(default)]
-    kind: String,
-}
-
-/// 신호 파일 내용에서 `cutoff` 이후의 유효 라인만 추린다 (최신 우선 정렬).
-/// 깨진 JSON / ts 파싱 불가 / 빈 session_id / 다른 kind 라인은 조용히
-/// 건너뛴다 — 한 줄 오염이 카드 전체를 막으면 안 된다 (인박스 파서와 동일
-/// 철학).
-pub fn parse_journal_missing(
-    content: &str,
-    cutoff: chrono::DateTime<chrono::Utc>,
-) -> Vec<JournalMissingSignal> {
-    let mut rows: Vec<(chrono::DateTime<chrono::Utc>, JournalMissingSignal)> = content
-        .lines()
-        .filter_map(|line| {
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                return None;
-            }
-            let raw: RawJournalMissingLine = serde_json::from_str(trimmed).ok()?;
-            // kind 누락은 허용(구버전 훅), 다른 kind 는 미래 신호용으로 제외.
-            if !raw.kind.is_empty() && raw.kind != "journal_missing" {
-                return None;
-            }
-            if raw.session_id.is_empty() {
-                return None;
-            }
-            let dt = chrono::DateTime::parse_from_rfc3339(&raw.ts)
-                .ok()?
-                .with_timezone(&chrono::Utc);
-            (dt >= cutoff).then_some({
-                (
-                    dt,
-                    JournalMissingSignal {
-                        ts: raw.ts,
-                        session_id: raw.session_id,
-                    },
-                )
-            })
-        })
-        .collect();
-    rows.sort_by_key(|r| std::cmp::Reverse(r.0));
-    rows.into_iter().map(|(_, s)| s).collect()
-}
-
-/// 프로젝트 root 의 신호 파일을 읽어 최근 `days`일 내 항목을 반환한다.
-/// 파일 없음/읽기 실패는 빈 배열 (신호는 옵인 플러그인 훅 전용 — 없는 게
-/// 정상 상태다).
-pub fn journal_missing_signals(root: &Path, days: u32) -> Vec<JournalMissingSignal> {
-    let path = root.join(JOURNAL_MISSING_REL);
-    let content = match std::fs::read_to_string(&path) {
-        Ok(c) => c,
-        Err(_) => return Vec::new(),
-    };
-    let days = i64::from(days.clamp(1, 365));
-    let cutoff = chrono::Utc::now() - chrono::Duration::days(days);
-    let signals = parse_journal_missing(&content, cutoff);
-
-    // 해소 필터 — 신호 이후 **어떤 일지든** 생겼으면(수동 사후 기록·앱의
-    // auto_journal_draft 초안 포함) 그 신호는 낡은 경고다. append-only 신호가
-    // 7일간 거짓 경고로 남는 것(리뷰 MED)을 읽기 시점에 걷어낸다. 세션 단위
-    // 귀속이 아니라 보수적 근사다: 이후 세션이 기록을 재개했다면 과거 미기록
-    // 경고는 행동 유도력이 없는 소음이라 함께 접는다.
-    let newest = newest_journal_mtime(root);
-    match newest {
-        Some(m) => signals
-            .into_iter()
-            .filter(|s| {
-                chrono::DateTime::parse_from_rfc3339(&s.ts)
-                    .map(|t| t.timestamp() > m)
-                    .unwrap_or(false)
-            })
-            .collect(),
-        None => signals,
-    }
-}
-
-/// `.oculpm/journal/**/*.md` 의 최대 mtime (unix 초). 일지가 없으면 `None`.
-fn newest_journal_mtime(root: &Path) -> Option<i64> {
-    fn walk(dir: &Path, best: &mut Option<i64>) {
-        let Ok(rd) = std::fs::read_dir(dir) else {
-            return;
-        };
-        for entry in rd.flatten() {
-            let p = entry.path();
-            if p.is_dir() {
-                walk(&p, best);
-            } else if p.extension().is_some_and(|e| e == "md") {
-                if let Some(t) = std::fs::metadata(&p)
-                    .ok()
-                    .and_then(|m| m.modified().ok())
-                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                {
-                    let secs = t.as_secs() as i64;
-                    if best.map(|b| secs > b).unwrap_or(true) {
-                        *best = Some(secs);
-                    }
-                }
-            }
-        }
-    }
-    let mut best = None;
-    walk(&root.join(".oculpm").join("journal"), &mut best);
-    best
-}
+// 신호 원장(`journal-missing.jsonl`)은 판정의 **산출물**이지 훅 설치기의
+// 관심사가 아니다. 쓰는 쪽(`verdict::cli` 의 `--ledger`)과 읽는 쪽이 한
+// 파일에 있어야 포맷이 어긋나지 않으므로 `oculpm::verdict::ledger` 로 옮겼고,
+// 여기서는 기존 호출자(commands/claude_hooks.rs)를 위해 이름만 잇는다.
+pub use crate::oculpm::verdict::ledger::{
+    journal_missing_signals, parse_journal_missing, JournalMissingSignal, JOURNAL_MISSING_REL,
+};
 
 #[cfg(test)]
 mod tests {
@@ -537,97 +417,6 @@ mod tests {
             apply_event(&mut open, &ev("SessionEnd", "ghost")),
             HookSignal::AgentEnded
         );
-    }
-
-    // ─── H3b — 미기록 세션 신호 파싱 ────────────────────────────────────────
-
-    fn cutoff(s: &str) -> chrono::DateTime<chrono::Utc> {
-        chrono::DateTime::parse_from_rfc3339(s)
-            .unwrap()
-            .with_timezone(&chrono::Utc)
-    }
-
-    #[test]
-    fn journal_missing_parses_valid_lines_newest_first() {
-        let mut buf = String::new();
-        buf.push_str(&line(
-            r#"{"ts":"2026-07-29T01:00:00Z","session_id":"aaa11111","kind":"journal_missing"}"#,
-        ));
-        buf.push_str(&line(
-            r#"{"ts":"2026-07-30T02:30:00Z","session_id":"bbb22222","kind":"journal_missing"}"#,
-        ));
-        let rows = parse_journal_missing(&buf, cutoff("2026-07-01T00:00:00Z"));
-        assert_eq!(rows.len(), 2);
-        // 최신 우선.
-        assert_eq!(rows[0].session_id, "bbb22222");
-        assert_eq!(rows[0].ts, "2026-07-30T02:30:00Z");
-        assert_eq!(rows[1].session_id, "aaa11111");
-    }
-
-    #[test]
-    fn journal_missing_skips_broken_and_foreign_lines() {
-        let mut buf = String::new();
-        buf.push_str(&line("not-json"));
-        buf.push_str(&line(
-            r#"{"ts":"garbage","session_id":"x","kind":"journal_missing"}"#,
-        ));
-        buf.push_str(&line(
-            r#"{"ts":"2026-07-30T00:00:00Z","session_id":"","kind":"journal_missing"}"#,
-        ));
-        buf.push_str(&line(
-            r#"{"ts":"2026-07-30T00:00:00Z","session_id":"y","kind":"future_kind"}"#,
-        ));
-        buf.push_str(&line(
-            r#"{"ts":"2026-07-30T00:00:00Z","session_id":"ok-sid"}"#,
-        )); // kind 누락 허용
-        buf.push('\n'); // 빈 줄 허용
-        let rows = parse_journal_missing(&buf, cutoff("2026-07-01T00:00:00Z"));
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].session_id, "ok-sid");
-    }
-
-    #[test]
-    fn journal_missing_filters_by_cutoff() {
-        let mut buf = String::new();
-        buf.push_str(&line(
-            r#"{"ts":"2026-07-10T00:00:00Z","session_id":"old","kind":"journal_missing"}"#,
-        ));
-        buf.push_str(&line(
-            r#"{"ts":"2026-07-29T00:00:00Z","session_id":"recent","kind":"journal_missing"}"#,
-        ));
-        let rows = parse_journal_missing(&buf, cutoff("2026-07-23T00:00:00Z"));
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].session_id, "recent");
-    }
-
-    #[test]
-    fn journal_missing_signals_missing_file_is_empty() {
-        let tmp = TempDir::new().unwrap();
-        assert!(journal_missing_signals(tmp.path(), 7).is_empty());
-    }
-
-    #[test]
-    fn journal_missing_signals_reads_recent_from_disk() {
-        let tmp = TempDir::new().unwrap();
-        let dir = tmp.path().join(".oculpm/hooks");
-        std::fs::create_dir_all(&dir).unwrap();
-        let now = chrono::Utc::now();
-        let recent = (now - chrono::Duration::hours(1)).to_rfc3339();
-        let stale = (now - chrono::Duration::days(30)).to_rfc3339();
-        std::fs::write(
-            tmp.path().join(JOURNAL_MISSING_REL),
-            format!(
-                "{}\n{}\n",
-                format_args!(r#"{{"ts":"{stale}","session_id":"stale","kind":"journal_missing"}}"#),
-                format_args!(
-                    r#"{{"ts":"{recent}","session_id":"fresh","kind":"journal_missing"}}"#
-                ),
-            ),
-        )
-        .unwrap();
-        let rows = journal_missing_signals(tmp.path(), 7);
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].session_id, "fresh");
     }
 
     // ─── 설치/제거/드리프트 ─────────────────────────────────────────────────
@@ -734,49 +523,5 @@ mod tests {
         // 재설치가 고친다.
         let st = install(root).unwrap();
         assert!(st.installed && !st.partial);
-    }
-
-    /// 크로스-언어 계약 — session-end.sh 의 printf 템플릿과 정확히 같은
-    /// 라인이 파싱돼야 한다 (plugin_manifest 가 스크립트 쪽 문자열을 고정).
-    #[test]
-    fn parses_exact_hook_template_line() {
-        let line = "{\"ts\":\"2026-07-31T12:00:00Z\",\"session_id\":\"abc-123\",\"kind\":\"journal_missing\"}\n";
-        let cutoff = chrono::Utc::now() - chrono::Duration::days(365);
-        let got = parse_journal_missing(line, cutoff);
-        assert_eq!(got.len(), 1, "훅 템플릿 라인이 파싱돼야 한다");
-        assert_eq!(got[0].session_id, "abc-123");
-    }
-
-    /// 해소 필터 — 신호 이후 일지가 생기면(사후 기록·자동 초안) 낡은 경고를
-    /// 걷어낸다. 신호가 일지보다 나중이면 유지 (리뷰 MED 회귀).
-    #[test]
-    fn journal_missing_resolved_by_later_journal() {
-        let dir = TempDir::new().unwrap();
-        let root = dir.path();
-        std::fs::create_dir_all(root.join(".oculpm/hooks")).unwrap();
-        let jdir = root.join(".oculpm/journal/20260731/Chores");
-        std::fs::create_dir_all(&jdir).unwrap();
-
-        let old_ts = (chrono::Utc::now() - chrono::Duration::hours(2)).to_rfc3339();
-        std::fs::write(
-            root.join(JOURNAL_MISSING_REL),
-            format!("{{\"ts\":\"{old_ts}\",\"session_id\":\"s1\",\"kind\":\"journal_missing\"}}\n"),
-        )
-        .unwrap();
-        std::fs::write(jdir.join("0001_chore_x.md"), "x").unwrap();
-        assert!(
-            journal_missing_signals(root, 7).is_empty(),
-            "사후 일지가 신호를 해소"
-        );
-
-        let new_ts = (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339();
-        std::fs::write(
-            root.join(JOURNAL_MISSING_REL),
-            format!("{{\"ts\":\"{new_ts}\",\"session_id\":\"s2\",\"kind\":\"journal_missing\"}}\n"),
-        )
-        .unwrap();
-        let got = journal_missing_signals(root, 7);
-        assert_eq!(got.len(), 1, "일지 이후의 신호는 유지");
-        assert_eq!(got[0].session_id, "s2");
     }
 }

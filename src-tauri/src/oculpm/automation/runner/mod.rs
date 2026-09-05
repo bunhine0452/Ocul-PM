@@ -4,6 +4,7 @@
 //! run(Job) → [동시 1건 try_lock]  → 밀린 것은 큐가 아니라 드롭 + 사유 기록
 //!          → Core Model 해석      → 미설정이면 조용히 스킵 (D2)
 //!          → 일일 예산 확인        → 초과면 스킵 + 사유
+//!          → 실행 조건 판정        → 안 맞으면 **모델을 부르지 않고** 스킵 + 사유
 //!          → LLM 호출 (failover)   → 실패해도 run 레코드는 남는다
 //!          → redact 이중 방어
 //!          → 산출물 쓰기 (일지 / 플랜 / 없음)
@@ -45,6 +46,7 @@ use crate::db::automation::{
 };
 use crate::db::Db;
 use crate::llm::{ChatOptions, ChatResponse, Message, Role};
+use crate::oculpm::automation::conditions::{self, AutomationCondition, ConditionFacts, FactNeeds};
 use crate::oculpm::automation::core_model::{self, CoreTarget};
 use crate::oculpm::automation::store::{AutomationKind, AutomationOutput};
 use crate::oculpm::manager::OculpmManager;
@@ -64,6 +66,11 @@ const SYSTEM_PROMPT: &str = "\
 수행하고, 결과를 마크다운 본문으로만 돌려주세요. 인사말·서론·메타 설명을 \
 붙이지 마세요. 확실하지 않은 것은 추측하지 말고 모른다고 쓰세요.";
 
+/// 조건이 묻는 관측 사실 수집 (`impl AutomationRunner` 의 조각).
+mod facts;
+/// 실행 원장 쓰기 (`impl AutomationRunner` 의 조각).
+mod ledger;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 잡
 // ─────────────────────────────────────────────────────────────────────────────
@@ -79,6 +86,9 @@ pub struct Job {
     pub output: AutomationOutput,
     /// 모델에게 그대로 가는 지시문 (정의 본문).
     pub instructions: String,
+    /// 실행 조건 ({#automation-step-if}). 비면 언제나 실행 — 조건을 쓰지 않는
+    /// 기존 정의의 동작이 그대로다.
+    pub conditions: Vec<AutomationCondition>,
     /// 지시문 뒤에 붙일 관측 사실 (변경 파일 목록·git 요약 등). Phase 1·2 가 채운다.
     pub context: Option<String>,
     /// 이 발동의 **원인이 된 일지**의 프로젝트 상대 경로. `output: plan` 은
@@ -129,6 +139,9 @@ pub struct JobContext<'a> {
     pub root: std::path::PathBuf,
     /// 프로젝트 타임존 — 캐시 투영의 tz 백필이 색인 경로와 같아야 한다.
     pub tz: chrono_tz::Tz,
+    /// `config.workday.day_starts_at` (`HH:MM`). 조건의 「직전 실행 이후」 창을
+    /// 워크데이로 옮길 때 쓴다 — 자정이 아니라 사용자의 하루 시작이 경계다.
+    pub day_starts_at: String,
     /// 프로젝트 `auto_redact_patterns` 컴파일 결과 (이중 방어).
     pub redact: Vec<Regex>,
     /// `config.toml [automation] daily_run_budget`. `0` = 전면 정지.
@@ -316,6 +329,21 @@ impl AutomationRunner {
             self.record_terminal(ctx, &job, RUN_SKIPPED, Some(reason))
                 .await;
             return JobOutcome::Skipped("daily run budget exhausted");
+        }
+
+        // ── 3.5 실행 조건 ({#automation-step-if}) ──
+        //
+        // 모델을 부르기 **전에** 판정한다. 이 게이트가 없던 동안 "일지 3건
+        // 이상일 때만 주간 요약" 은 지시문 본문의 부탁이었고, 모델은 새 일지가
+        // 0건인 주에도 빈 요약을 만들어 냈다 — 원장에 `ok` 가 남고 일지가 한 건
+        // 늘었다. 이제는 사유와 함께 건너뛴다.
+        if !job.conditions.is_empty() {
+            let facts = self.gather_facts(ctx, &job).await;
+            if let Some(reason) = conditions::first_unmet(&job.conditions, &facts) {
+                self.record_terminal(ctx, &job, RUN_SKIPPED, Some(&reason))
+                    .await;
+                return JobOutcome::Skipped("run conditions not met");
+            }
         }
 
         // ── 4. 원장 개시. 여기부터는 어떤 결말이든 이 행이 닫힌다 ──
@@ -549,106 +577,6 @@ impl AutomationRunner {
                 None
             }
         }
-    }
-
-    /// 원장을 열지 않고 끝난 결말(드롭·사전 스킵)을 한 행으로 남긴다.
-    async fn record_terminal(
-        &self,
-        ctx: &JobContext<'_>,
-        job: &Job,
-        status: &str,
-        note: Option<&str>,
-    ) {
-        let at = job.stamp();
-        let run_id = ctx
-            .db
-            .automation_run_start(
-                job.project_id,
-                job.automation_id.clone(),
-                job.session_id().to_string(),
-                at.clone(),
-                status.to_string(),
-            )
-            .await;
-        match run_id {
-            Ok(id) => {
-                let _ = ctx
-                    .db
-                    .automation_run_finish(id, status.to_string(), at, None, job.merged_note(note))
-                    .await;
-            }
-            Err(e) => tracing::warn!(
-                target: "oculpm::automation",
-                error = %e,
-                "could not record the automation outcome"
-            ),
-        }
-        self.stamp_state(ctx, job, status, note.filter(|_| status == RUN_FAILED))
-            .await;
-    }
-
-    async fn close(
-        &self,
-        ctx: &JobContext<'_>,
-        job: &Job,
-        run_id: i64,
-        status: &str,
-        journal_path: Option<&str>,
-        note: Option<&str>,
-    ) {
-        if let Err(e) = ctx
-            .db
-            .automation_run_finish(
-                run_id,
-                status.to_string(),
-                job.stamp(),
-                journal_path.map(str::to_string),
-                job.merged_note(note),
-            )
-            .await
-        {
-            tracing::warn!(
-                target: "oculpm::automation",
-                error = %e,
-                "could not close the automation run row"
-            );
-        }
-        self.stamp_state(ctx, job, status, note.filter(|_| status == RUN_FAILED))
-            .await;
-    }
-
-    /// `automation_state` 의 마지막 실행 요약. `next_run_at` 은 집행 루프
-    /// (Phase 1)가 소유하므로 여기서 건드리지 않는다 — 기존 값을 보존한다.
-    async fn stamp_state(
-        &self,
-        ctx: &JobContext<'_>,
-        job: &Job,
-        status: &str,
-        error: Option<&str>,
-    ) {
-        let next_run_at = ctx
-            .db
-            .automation_state_list(job.project_id)
-            .await
-            .ok()
-            .and_then(|rows| {
-                rows.into_iter()
-                    .find(|r| r.automation_id == job.automation_id)
-                    .and_then(|r| r.next_run_at)
-            });
-        let _ = ctx
-            .db
-            .automation_state_upsert(
-                job.project_id,
-                AutomationState {
-                    automation_id: job.automation_id.clone(),
-                    next_run_at,
-                    last_run_at: Some(job.stamp()),
-                    last_status: Some(status.to_string()),
-                    last_error: error.map(str::to_string),
-                },
-            )
-            .await;
     }
 
     async fn fail(&self, ctx: &JobContext<'_>, job: &Job, error: String) -> JobOutcome {

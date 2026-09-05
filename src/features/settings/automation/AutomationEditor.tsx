@@ -1,7 +1,7 @@
 // 자동화 에디터 — 2-pane 의 오른쪽.
 //
 //   종류 → (스케줄) 빈도·시각  |  (워처) 감시 경로·재귀·반응성
-//        → 출력 → 지시문 → 상시 도움말 → 문제 해결 3종
+//        → 출력 → 실행 조건 → 지시문 → 유출 배지 → 상시 도움말 → 문제 해결 3종
 //
 // 지시문 아래의 도움말은 **상시 노출**이다 (설계 §1.3·§2.4·§2.5). 사용자가
 // 여기 쓰는 문장이 그대로 모델에게 가고, 자동화는 여러 번 돌 수 있다 — 그 두
@@ -9,22 +9,28 @@
 // **같은 컴포넌트**라 두 화면의 말이 갈라지지 않는다.
 
 import { useState } from "react";
+import { X } from "@/components/Icons";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n";
-import type { AutomationDef } from "@/lib/bindings";
+import type { AutomationDef, ConditionWhen, ModelEgress } from "@/lib/bindings";
 import { Field } from "../tabs/ui";
 import {
+  CONDITIONS,
   FREQUENCIES,
   KINDS,
   OUTPUTS,
   RESPONSIVENESS,
   WEEKDAYS,
+  egressNotice,
   fieldsFor,
   localValidation,
+  newCondition,
+  takesThreshold,
   unusedFieldsFor,
   slugify,
   switchKind,
 } from "./automationModel";
+import { EgressBadge } from "./EgressBadge";
 import { AutomationTroubleshooting } from "./AutomationTroubleshooting";
 import { NotHonoredNotice } from "../plugins/NotHonoredNotice";
 
@@ -35,12 +41,15 @@ export function AutomationEditor({
   value,
   isNew,
   busy,
+  egress,
   onCancel,
   onSave,
 }: {
   value: AutomationDef;
   isNew: boolean;
   busy: boolean;
+  /** 배경 모델의 유출 판정 ({#automation-egress-badge}). 백엔드가 소유한다. */
+  egress?: ModelEgress | null;
   onCancel: () => void;
   onSave: (def: AutomationDef) => void;
 }) {
@@ -254,6 +263,87 @@ export function AutomationEditor({
         </select>
       </Field>
 
+      {/* 실행 조건 ({#automation-step-if}) — 열거된 어휘만. 자유 표현식 입력칸이
+          없는 것이 설계다: 정의 파일은 git 에 올라가고 사람이 손으로 고치는
+          SSOT 라, 거기에 실행기를 두지 않는다. */}
+      <Field label={t("automation.cond.title")} hint={t("automation.cond.hint")}>
+        <div className="space-y-2">
+          {def.conditions.length === 0 && (
+            <p className="text-[11px] text-muted-foreground">{t("automation.cond.none")}</p>
+          )}
+          {def.conditions.map((c, i) => (
+            <div key={`${c.when}:${i}`} className="flex items-center gap-2">
+              <select
+                className={SELECT_CLASS}
+                value={c.when}
+                aria-label={t("automation.cond.title")}
+                onChange={(e) => {
+                  const when = e.currentTarget.value as ConditionWhen;
+                  patch({
+                    conditions: def.conditions.map((x, j) =>
+                      j === i ? newCondition(when) : x
+                    ),
+                  });
+                }}
+              >
+                {/* 읽지 못한 조건은 고를 수 없지만, 이미 파일에 있으면 보여야
+                    한다 — 안 보이면 왜 안 도는지 알 수 없다. */}
+                {c.when === "unknown" && (
+                  <option value="unknown">
+                    {`${t("automation.cond.unknown")}: ${c.raw ?? "?"}`}
+                  </option>
+                )}
+                {CONDITIONS.map((w) => (
+                  <option key={w} value={w}>
+                    {t(`automation.cond.${w}` as never)}
+                  </option>
+                ))}
+              </select>
+              {takesThreshold(c.when) && (
+                <>
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-20"
+                    aria-label={t("automation.cond.journal_count_gte")}
+                    value={c.n ?? 1}
+                    onChange={(e) => {
+                      const n = Number(e.currentTarget.value) || 1;
+                      patch({
+                        conditions: def.conditions.map((x, j) => (j === i ? { ...x, n } : x)),
+                      });
+                    }}
+                  />
+                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                    {t("automation.cond.threshold")}
+                  </span>
+                </>
+              )}
+              <button
+                type="button"
+                className="btn ghost sm"
+                aria-label={t("automation.cond.remove")}
+                onClick={() =>
+                  patch({ conditions: def.conditions.filter((_, j) => j !== i) })
+                }
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => patch({ conditions: [...def.conditions, newCondition("journal_count_gte")] })}
+          >
+            + {t("automation.cond.add")}
+          </button>
+          {def.conditions.some((c) => c.when === "journal_count_gte") && (
+            <p className="text-[11px] text-muted-foreground">{t("automation.cond.window")}</p>
+          )}
+        </div>
+      </Field>
+
       <Field label={t("automation.editor.instructions")}>
         <textarea
           value={def.instructions}
@@ -263,6 +353,10 @@ export function AutomationEditor({
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono"
         />
       </Field>
+
+      {/* 유출 배지 ({#automation-egress-badge}) — 지시문 바로 아래다. 여기 쓴
+          글이 **어디로 가는지**가 그 글을 쓰는 자리에서 읽혀야 한다. */}
+      <EgressBadge notice={egressNotice(egress)} />
 
       {/* 상시 도움말 — 설계 §1.3 / §2.4. 접히지 않는다. */}
       <div className="rounded-md border border-border/60 bg-accent/20 px-3 py-2 space-y-1">

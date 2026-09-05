@@ -6,7 +6,9 @@
 //!
 //! - [`env`] — node·npm·claude 탐색 (패키징 `.app` 의 빈약한 PATH 대응)
 //! - [`adapter`] — 어댑터 npm 패키지 버전 고정 설치
+//! - [`journal_gate`] — 앱 안 대화의 생존 흔적 + 기록 판정 (셸 훅이 없는 자리)
 //! - [`process`] — 어댑터 프로세스 수명 + 연결 유지 + 이벤트 라우팅
+//! - [`recording`] — 대화의 기록 신원(ACP UUID ↔ ocul-pm) + 기록 도구 부착 결과
 //! - [`session`] — `session/update` → 프런트 이벤트 매핑
 //! - [`turn`] — 대화당 도는 턴 하나 + 어떻게 끝나든 종료 이벤트 (RAII)
 
@@ -17,11 +19,15 @@ use serde::{Deserialize, Serialize};
 pub mod adapter;
 pub mod env;
 pub mod identity;
+pub mod journal_gate;
 pub mod process;
+pub mod recording;
 pub mod session;
 pub mod turn;
 
+pub use journal_gate::{AcpGateState, AcpObjection};
 pub use process::{AcpAgentInfo, AcpState};
+pub use recording::{AcpRecordingState, AcpRecordingStatus};
 pub use session::AcpEvent;
 pub use turn::TurnGuard;
 

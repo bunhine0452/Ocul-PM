@@ -157,6 +157,10 @@ pub fn send(root: &Path, out: &Outgoing, now: DateTime<Utc>) -> Result<Message, 
         source: std::io::Error::other(e),
     })?;
 
+    // `create_new` 지만 **락이 아니다** — 그래서
+    // [`file_guard`](crate::oculpm::file_guard) 를 쓰지 않는다. 저쪽은 드롭할 때
+    // 파일을 지우는 상호배제 문지기고, 여기 파일은 배달물 그 자체다 (지우면
+    // 편지가 사라진다). 같은 호출을 쓴다는 이유로 묶으면 의미가 뒤집힌다.
     use std::io::Write;
     let mut file = std::fs::OpenOptions::new()
         .write(true)

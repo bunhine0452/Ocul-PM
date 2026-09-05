@@ -701,6 +701,24 @@ export const en: Record<keyof typeof ko, string> = {
   "notHonored.reason.binaries_not_installed": "binaries are not installed",
   "notHonored.reason.not_supported_yet": "this app version doesn't handle it yet",
   "automation.editor.notHonored": "Values are left here that this setting never reads",
+  // ── egress badge ({#automation-egress-badge}) ──
+  "automation.egress.remote": "This automation sends project content to {provider} ({host}).",
+  "automation.egress.remoteHint": "Journal bodies, plans and git summaries leave with your instructions. Point it at a local model and this badge goes away.",
+  "automation.egress.local": "This automation calls {provider} on this machine — nothing leaves it.",
+  // ── run conditions ({#automation-step-if}) ──
+  "automation.cond.title": "Run conditions",
+  "automation.cond.hint": "All of them must hold. Leave it empty to always run — unlike \"skip what you already did\" in the instructions, this is a gate the code enforces.",
+  "automation.cond.add": "Add a condition",
+  "automation.cond.remove": "Remove this condition",
+  "automation.cond.none": "No conditions — always runs.",
+  "automation.cond.journal_count_gte": "At least N new journal entries",
+  "automation.cond.plan_has_open_items": "The active plan has open items",
+  "automation.cond.git_dirty": "git has uncommitted changes",
+  "automation.cond.unknown": "Unreadable condition — this automation will not run",
+  "automation.cond.threshold": "or more",
+  "automation.cond.window": "Counted since the last successful run. All time if it has never succeeded.",
+  "automation.cond.summary": "{n} condition(s)",
+  "automation.status.skippedByCondition": "Condition not met",
   "notHonored.reason.frequency_ignores_field": "not used at this frequency",
   "notHonored.reason.watcher_ignores_schedule": "watcher automations ignore time fields",
   "notHonored.reason.app_older_than_template":
@@ -939,6 +957,8 @@ export const en: Record<keyof typeof ko, string> = {
   "today.missing.session": "session",
   "today.missing.more": "… and {n} more",
   "today.missing.enable": "Turn on journal drafts in settings",
+  "today.missing.zeroNote":
+    "Counts only the session-end signals the hook writes — sessions from agents without the hook, and signals cleared once a later entry was written, never show up here. 0 means “no miss we can see”, not “the record is complete”.",
   "today.entry.files": "{n} files",
   "today.next.title": "Next up",
   "today.next.open": "Open Planner",
@@ -1660,6 +1680,15 @@ export const en: Record<keyof typeof ko, string> = {
   "retro.staleTitle": "Entries and code changed after this retro. Regenerate to reflect the current state.",
   "retro.stale": "Stale",
   "retro.notionExportTitle": "Exports this retro as a new page under your Notion parent page",
+  "retro.missing.label": "Record honesty",
+  "retro.missing.count": "Last {days} days · {n} sessions ended with no entry",
+  "retro.missing.checking": "Last {days} days · checking for sessions that ended with no entry…",
+  "retro.missing.failed": "Could not check for sessions that ended with no entry — we can't tell how many there are",
+  "retro.missing.zeroNote":
+    "Counts only the session-end signals the hook writes — sessions from agents without the hook, and signals cleared once a later entry was written, are not counted. 0 means “no miss we can see”, not “the record is complete”.",
+  "retro.missing.someNote":
+    "This period's retro was written with that much left out. Sessions from agents without the hook are never counted here, so the real gap may be larger.",
+  "retro.missing.goToday": "See them in Today",
 
   // ── Skill catalog & gallery (list display only — SKILL.md bodies are disk artifacts)
   "skill.python-patterns.label": "python-patterns — Python idioms & patterns",
@@ -2946,6 +2975,15 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.diff.moreLines": "… {n} more lines",
   "acp.session.confirmDelete": "Delete?",
   "acp.searchClear": "Clear search",
+  // v3-record-integrity {#mcp-missing-visible}
+  "acp.recording.title": "This conversation opened without the journaling tools",
+  "acp.recording.body": "The agent in this conversation has no journal/planner tools (oculpm-mcp) attached. It can still do the work, but none of it will be recorded.",
+  "acp.recording.searched": "Looked in:",
+  "acp.recording.fix": "Install the ocul-pm app, or point the OCULPM_MCP_BIN environment variable at the oculpm-mcp binary.",
+  "acp.recording.dismiss": "Dismiss",
+  "acp.gate.title": "This conversation's changes are not recorded yet",
+  "acp.gate.files": "Changed files:",
+  "acp.gate.dismiss": "Dismiss",
   "ai.title": "Agent",
   "ai.toolbarSub": "Ask several LLMs with the same context",
   "ai.newThread": "New chat",

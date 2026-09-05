@@ -1,5 +1,8 @@
 pub mod a2a;
 pub mod acp;
+pub mod acp_files;
+pub mod acp_gate;
+pub mod acp_recording;
 pub mod automation;
 pub mod claude_hooks;
 pub mod code;
@@ -45,6 +48,9 @@ pub mod window;
 
 pub use a2a::*;
 pub use acp::*;
+pub use acp_files::*;
+pub use acp_gate::*;
+pub use acp_recording::*;
 pub use automation::*;
 pub use claude_hooks::*;
 pub use code::*;

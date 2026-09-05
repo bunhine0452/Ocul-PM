@@ -32,6 +32,7 @@ use ignore::overrides::OverrideBuilder;
 use serde::{Deserialize, Serialize};
 
 use crate::oculpm::error::OculpmError;
+use crate::oculpm::file_guard::{FileGuard, GuardPolicy};
 
 use super::registry;
 use super::tasks::SYSTEM_ACTOR;
@@ -198,7 +199,7 @@ pub fn claim(
 
     // **확인과 쓰기 사이를 지킨다.** 없으면 둘이 동시에 "안 겹친다"를 확인하고
     // 둘 다 쓴다 — 임대가 겹친 채로 성립하는, 이 기능이 막으려던 바로 그 상태.
-    let _guard = Guard::acquire(root, now)?;
+    let _guard = acquire_guard(root, now)?;
 
     let held = active(root, now);
     for mine in patterns {
@@ -307,54 +308,29 @@ pub fn trespasses(
         .collect()
 }
 
-/// 확인-후-쓰기 구간을 지키는 짧은 문지기. 드롭하면 풀린다.
-struct Guard {
-    path: PathBuf,
-}
-
-impl Guard {
-    fn acquire(root: &Path, now: DateTime<Utc>) -> Result<Self, OculpmError> {
-        let dir = leases_dir(root);
-        std::fs::create_dir_all(&dir).map_err(|source| OculpmError::Io {
-            path: dir.clone(),
-            source,
-        })?;
-        let path = dir.join(".claim.lock");
-        for attempt in 0..2 {
-            match std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&path)
-            {
-                Ok(_) => return Ok(Self { path }),
-                Err(_) if attempt == 0 => {
-                    // 죽은 프로세스가 남긴 문지기인가. 오래됐으면 걷어낸다 —
-                    // 이 구간은 초 단위라, 이보다 오래된 것은 주인이 없다.
-                    let stale = std::fs::metadata(&path)
-                        .and_then(|m| m.modified())
-                        .map(|t| {
-                            now - DateTime::<Utc>::from(t) > Duration::seconds(GUARD_STALE_SECONDS)
-                        })
-                        .unwrap_or(false);
-                    if !stale {
-                        break;
-                    }
-                    let _ = std::fs::remove_file(&path);
-                }
-                Err(_) => break,
-            }
-        }
-        Err(bad_input(
+/// 확인-후-쓰기 구간을 지키는 짧은 문지기.
+///
+/// 구현은 [`file_guard`](crate::oculpm::file_guard) 가 소유한다. 원래 이 자리에
+/// 있던 `create_new` 관용구를 그대로 끌어올린 것이고(동작 동일: 기다리지 않고,
+/// 오래된 락은 한 번 걷어낸다), 플랜 CAS 가 같은 것을 두 벌 만들지 않게 하려고
+/// 옮겼다 (플랜 `v3-record-integrity`).
+fn acquire_guard(root: &Path, now: DateTime<Utc>) -> Result<FileGuard, OculpmError> {
+    let path = leases_dir(root).join(".claim.lock");
+    FileGuard::acquire(
+        &path,
+        now,
+        GuardPolicy {
+            stale_after_seconds: GUARD_STALE_SECONDS,
+            ..GuardPolicy::IMMEDIATE
+        },
+    )
+    // 거절 문구는 에이전트가 그대로 읽는다 — 경로를 노출하지 않고 종전 그대로.
+    .map_err(|_| {
+        bad_input(
             root,
             "another agent is claiming right now — retry".to_string(),
-        ))
-    }
-}
-
-impl Drop for Guard {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.path);
-    }
+        )
+    })
 }
 
 #[cfg(test)]
