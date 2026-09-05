@@ -34,6 +34,27 @@ owner: claude-code
 - [ ] `scripts/check-no-hardcoded-korean.mjs` 의 `TESTS` 허용목록에 `__tests__/workspace_slice_consumers.test.tsx`·`__tests__/settings_deferred_commit.test.tsx` 두 줄 — 지금 그 둘만 테스트 이름이 영어라 집 문체에서 벗어나 있다 {#test-name-allowlist}
 - [ ] `package.json` 의 `--max-warnings=61` 에 여유가 0 이다 — 다음 라운드가 경고 하나만 늘려도 붉어진다. 래칫을 내리는 정리 패스가 필요하다 {#eslint-ratchet-slack}
 
+## v3-record-integrity 이월 — 기둥 1 이 소유 밖에서 남긴 것 {#pillar1-carry}
+
+기둥 1(19항목)을 2026-09-05 에 마감하며 나온 빚. 일지에만 적으면 유실되므로(`{#eyes-mixed-dpi}` 가 그 사고 기록) 여기에 항목으로 적는다.
+
+- [ ] **병렬 세션에서 배달 게이트가 아예 발화하지 않는다** — 살아 있는 옆 대화가 하나라도 있으면 전부 `undecided` 다. 오탐보다 미탐을 고른 결과지만, 이 저장소의 주 사용 방식이 병렬 세션이라 게이트가 사실상 꺼져 있다. 넘어설 재료는 이미 있다: Stop 페이로드의 `transcript_path` 에 그 대화 자신의 Edit/Write 도구 호출이 들어 있어 **대화별 양성 귀속**이 가능하다 {#gate-positive-attribution}
+- [ ] **제품 약속 문구가 사실보다 좁다** — `CLAUDE.md`·README ko/en·랜딩의 "LLM 호출과 업데이트 확인 말고는 기기 밖으로 안 나간다"는 실제로 예외를 다섯 개 더 갖는다: Notion API + `https://oculpm.com/api/notion/oauth/start` **OAuth 브로커**(우리 서버가 사용자 인증 흐름 한가운데 있다) · 플러그인 zip · 테마 다운로드 · fastembed 모델. 원장(`tests/egress_inventory.rs`)이 사실을 적었으니 다음은 문구다 {#promise-text-truth}
+- [ ] `tauri.conf.json` 의 `csp: null` — 웹뷰에 CSP 가 없어 아무 데나 갈 수 있다. 지금은 프런트 유출 원장이 대신 지킨다 {#webview-csp}
+- [ ] `oculpm::reconcile` 이 CAS 문지기 밖 — 앱 내부 화해기가 여전히 인프로세스 `plan_write_lock` 만 써서, 앱과 MCP 서버가 동시에 같은 플랜을 고치는 창이 남아 있다 {#reconcile-file-guard}
+- [ ] 진짜 2-프로세스 CAS 테스트 — 지금은 스레드 동시성 + "남의 락 파일을 존중하는가"로 대신 물었다 {#cas-two-process-test}
+- [ ] `HonestyAudit`(`today/HonestyAudit.tsx:97`)에 같은 자기은닉이 남아 있다. 가르는 선은 **주장하는 카드는 0을 말하고 제안하는 카드는 숨어도 된다** — 이건 "누락 없음"을 주장하므로 앞쪽이다 {#honesty-audit-unhide}
+- [ ] MCP 서버가 신원을 읽는 변수를 `OCULPM_SESSION_ID` 로 완전 이행 — 지금은 옛 `CLAUDE_CODE_SESSION_ID` 폴백이 남아 있어 Claude 어댑터가 자기 값으로 덮어쓸 가능성이 있다 {#neutral-session-env}
+- [ ] SQLite 캐시 `oculpm_journal` 에 `agent_session` 컬럼이 없다(`cache/query.rs:395` 가 `None`) — 캐시 경유 판정은 영원히 `None` 이다. 마이그레이션 2단계 + `ADDITIVE_COLUMNS` {#cache-agent-session}
+- [ ] 앱 종료·ACP 어댑터 사망 시 세그먼트가 안 닫힌다 — `process.rs`(1241/1241)가 크기 래칫 상한이라 손대지 않았다. 그 6시간 동안 옆 대화의 게이트가 침묵한다 {#acp-segment-close}
+- [ ] 삭제만 한 대화는 판정을 빠져나간다 — 삭제된 파일은 mtime 을 물을 자리가 없다(셸 판정에서 물려받은 한계) {#verdict-deletions}
+- [ ] Codex 훅 배포 경로 미확정 — 매니페스트 `hooks` 는 Codex 검증기가 거부하고(실측), `oculpm-codex` 는 스킬만 싣는다. 훅을 원하는 Codex 사용자는 Claude 플러그인을 써야 하는데 지금은 스킬 문서 한 줄로만 안내된다 {#codex-hook-delivery}
+- [ ] `claude-events.jsonl` 에 타임스탬프 필드가 없고, `hooks.json` 의 인라인 append 훅이 `cat >>` 라 개행을 안 붙여 깨진 줄 5건이 실재한다 (`session-end.sh` 는 `printf '%s\n'` 을 쓴다) {#event-ledger-hygiene}
+- [ ] CAS 필수화가 두 문서 표면에 미반영 — `src/features/skills/pluginDocs.ts:90` 과 `mcp/protocol.rs` 의 `MCP_INSTRUCTIONS` {#cas-doc-surfaces}
+- [ ] `src/i18n/errors.ts` 에 `automation_bad_condition` 이 없다 — 지금은 파서 경고가 카드에 뜨고 실행은 fail-closed 로 막힌다 {#automation-error-key}
+- [ ] `config.toml` 의 `forbid_journal_for_paths` 에 있는 `**/*token*` 이 **디자인 토큰 파일을 시크릿으로 오인**해 `files_touched` 에 못 넣는다(`styles/tokens.css`·`design_tokens.test.ts`). 2026-09-04 에 기록된 오탐이 이번에도 그대로 물렸다 {#token-glob-false-positive}
+- [ ] 사이드바 스크롤 실기기 육안 확인 — 낮은 창에서 발(터미널 도크·테마·설정)이 늘 보이는가 · 넘치는 쪽만 페이드가 뜨는가 · **접힌 오버레이**에서도 같은가 · 스크롤바가 떴을 때 활성 항목의 링 그림자가 안 잘리는가 {#eyes-sidebar-scroll}
+
 ## 영문 표면 {#english}
 - [ ] 영문 스크린샷 촬영 — landing/en/index.html 이 한국어 UI 스크린샷을 참조하고 landing/shots/en/ 이 없다 {#en-shots}
 - [ ] /keynote · /plugin 영문판 — 지금 링크가 한국어판뿐이다 {#en-subpages}

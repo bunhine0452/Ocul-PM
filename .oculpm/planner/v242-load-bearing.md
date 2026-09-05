@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: v242-load-bearing
 title: "구조가 하중을 견디게 — 측정 먼저, 그다음 백프레셔와 락 스코프 (v2.42.0)"
-status: active
+status: done
 created: 2026-09-04
 updated: 2026-09-04
 owner: claude-code
