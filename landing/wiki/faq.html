@@ -86,7 +86,7 @@
 <div class="wk-table"><table><thead><tr><th>기능</th><th>비용</th></tr></thead><tbody><tr><td>일지·플래너 기록, 검색, 코드 맵, 회고 지표</td><td><b>무료</b> — 전부 로컬</td></tr><tr><td>회고 서술 생성, AI 패널 대화</td><td>여러분의 API 키·과금</td></tr><tr><td>앱 안 Claude Code</td><td>여러분의 Claude 구독 자격 (별도 과금 없음)</td></tr></tbody></table></div>
 <div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>회고의 <b>「Claude Code 로」</b> 버튼은 터미널 Claude Code 세션에 일을 넘깁니다 — API 키 없이 구독 자격으로 돌아서, 별도 과금 없이 회고를 만들 수 있습니다.</p></div></div>
 <h3 id="제-코드가-어디로-나가나요">제 코드가 어디로 나가나요?</h3>
-<p>기본적으로 <b>아무 데도 안 나갑니다.</b> 코드 검색의 임베딩도 로컬에서 계산합니다. 밖으로 나가는 건 셋뿐입니다 — 여러분이 설정한 LLM 호출, 새 버전 확인, 앱 안 Claude Code 를 쓸 때의 Anthropic 통신. 계정 서버도 텔레메트리도 없습니다. (<a href="/wiki/data">자세히</a>)</p>
+<p>기본적으로 <b>아무 데도 안 나갑니다.</b> 코드 검색의 임베딩은 기기에서 계산합니다(모델만 처음 한 번 내려받습니다). 밖으로 나가는 건 여섯뿐이고 전부 여러분이 시작합니다 — 설정한 LLM 호출, 새 버전 확인, 앱 안 Claude Code·Codex 를 쓸 때의 그 프로바이더 통신, 눌렀을 때의 GitHub 조회(패치노트·번들·테마), 임베딩 모델 최초 1회, 켜야만 존재하는 Notion 연동(인증 교환만 oculpm.com 경유). 계정 서버도 텔레메트리도 없습니다. (<a href="/wiki/data">자세히</a>)</p>
 <h3 id="인터넷-없이-되나요">인터넷 없이 되나요?</h3>
 <p>됩니다. 기록·타임라인·변경 diff·코드 검색·코드 맵·회고 지표는 전부 로컬입니다. AI 호출과 업데이트 확인만 안 됩니다.</p>
 <h3 id="windows-linux-는요">Windows / Linux 는요?</h3>
