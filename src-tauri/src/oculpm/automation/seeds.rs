@@ -12,6 +12,7 @@
 //! UI 언어가 아니라 `content_language` 를 따르는 이유는 `journal_draft` 와 같다 —
 //! 일지는 되돌릴 수 없다.
 
+use crate::oculpm::automation::conditions::{AutomationCondition, ConditionWhen};
 use crate::oculpm::automation::store::{
     AutomationDef, AutomationKind, AutomationOutput, BUILTIN_PLAN_RECONCILE_ID,
 };
@@ -75,6 +76,13 @@ fn weekly_summary(lang: ContentLang, today: &str) -> AutomationDef {
              this automation can run more than once.",
         ),
     );
+    // 「이미 요약한 주는 건너뛰세요」는 지금까지 **부탁**이었다 ({#automation-step-if}).
+    // 모델은 새 일지가 0건인 주에도 빈 요약을 만들어 냈고 원장에는 `ok` 가 남았다.
+    // 이제 게이트가 코드에 있다.
+    def.conditions = vec![AutomationCondition::new(
+        ConditionWhen::JournalCountGte,
+        Some(3),
+    )];
     def.frequency = Some("weekly".into());
     def.at = Some("17:00".into());
     def.weekday = Some("fri".into());
@@ -98,6 +106,11 @@ fn morning_brief(lang: ContentLang, today: &str) -> AutomationDef {
              why now. Do not guess — say so when the record does not support a claim.",
         ),
     );
+    // 「오늘 먼저 할 일 3가지」는 플래너에 미완 항목이 있어야 성립한다.
+    def.conditions = vec![AutomationCondition::new(
+        ConditionWhen::PlanHasOpenItems,
+        None,
+    )];
     def.frequency = Some("daily".into());
     def.at = Some("09:00".into());
     def
@@ -120,6 +133,10 @@ fn monthly_retro(lang: ContentLang, today: &str) -> AutomationDef {
              months you have already reviewed.",
         ),
     );
+    def.conditions = vec![AutomationCondition::new(
+        ConditionWhen::JournalCountGte,
+        Some(3),
+    )];
     def.frequency = Some("monthly".into());
     def.at = Some("09:00".into());
     def.day_of_month = Some(1);
@@ -261,6 +278,38 @@ mod tests {
                 assert_eq!(back.def, def, "{} 왕복 실패", def.id);
                 assert!(back.warnings.is_empty(), "{:?}", back.warnings);
             }
+        }
+    }
+
+    /// 씨앗의 「이미 처리한 것은 건너뛰세요」가 **코드의 게이트**로 옮겨졌다
+    /// ({#automation-step-if}). 지시문에만 남아 있으면 모델이 안 지킬 때 빈
+    /// 산출물이 성공으로 기록된다 — 이 라운드가 없앤 상태가 그것이다.
+    #[test]
+    fn the_summary_seeds_carry_a_real_gate_not_just_a_prompt() {
+        let seeds = all(ContentLang::Korean, "2026-08-31");
+        for id in ["weekly-dev-summary", "monthly-retro"] {
+            let def = seeds.iter().find(|d| d.id == id).unwrap();
+            assert_eq!(
+                def.conditions,
+                vec![AutomationCondition::new(
+                    ConditionWhen::JournalCountGte,
+                    Some(3)
+                )],
+                "{id} 의 조건이 사라졌다"
+            );
+        }
+        let brief = seeds.iter().find(|d| d.id == "morning-brief").unwrap();
+        assert_eq!(
+            brief.conditions,
+            vec![AutomationCondition::new(
+                ConditionWhen::PlanHasOpenItems,
+                None
+            )]
+        );
+        // 초안·화해 씨앗은 조건이 없다 — 파일이 멎었다는 사실 자체가 신호다.
+        for id in ["draft-on-settle", BUILTIN_PLAN_RECONCILE_ID] {
+            let def = seeds.iter().find(|d| d.id == id).unwrap();
+            assert!(def.conditions.is_empty(), "{id} 에 조건이 붙었다");
         }
     }
 

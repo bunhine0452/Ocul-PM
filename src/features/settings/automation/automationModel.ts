@@ -3,7 +3,13 @@
 // 시각 포맷은 **주입받은 `now`** 를 쓴다 (`Date.now()` 직접 호출 금지 규율).
 // 백엔드가 넘기는 시각은 전부 UTC ISO 이고, 여기서 로컬로 되돌려 그린다.
 
-import type { AutomationDef, AutomationSummary } from "@/lib/bindings";
+import type {
+  AutomationCondition,
+  AutomationDef,
+  AutomationSummary,
+  ConditionWhen,
+  ModelEgress,
+} from "@/lib/bindings";
 import { t } from "@/i18n";
 
 /** 정의 파일의 `frequency:` 어휘. 백엔드 `Frequency::as_str` 과 같은 목록. */
@@ -252,6 +258,8 @@ export function blankDefinition(
     recursive: watcher ? true : null,
     responsiveness: watcher ? "balanced" : null,
     output: watcher ? "journal" : "none",
+    // 기본은 조건 없음 = 항상 실행 — 새 자동화가 말없이 안 도는 일이 없게.
+    conditions: [],
     instructions: "",
   };
 }
@@ -269,6 +277,8 @@ export function switchKind(def: AutomationDef, kind: AutomationDef["kind"]): Aut
     title: def.title,
     created: def.created,
     instructions: def.instructions,
+    // 조건은 두 축이 공유하므로 그대로 들고 간다 (일지 수·플랜·git 은 종류와 무관).
+    conditions: def.conditions,
     enabled: false, // 축이 바뀌면 다시 켜는 것은 사용자의 결정이다
   };
 }
@@ -288,4 +298,87 @@ export function slugify(raw: string): string {
     }
   }
   return out.replace(/-+$/, "");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 실행 조건 ({#automation-step-if})
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 고를 수 있는 조건. 백엔드 `ConditionWhen::ALL` 과 **같은 목록·같은 순서**다.
+ * `unknown` 은 여기 없다 — 판정 결과이지 어휘가 아니라, 사람이 고를 수 없다.
+ */
+export const CONDITIONS = [
+  "journal_count_gte",
+  "plan_has_open_items",
+  "git_dirty",
+] as const;
+
+/** 임계값(`n`)을 읽는 조건. 백엔드 `ConditionWhen::takes_threshold` 와 같다. */
+export function takesThreshold(when: ConditionWhen): boolean {
+  return when === "journal_count_gte";
+}
+
+/** 새 조건 한 줄. 임계값을 안 쓰는 조건에는 `n` 을 달지 않는다 (파일이 거짓말하지 않게). */
+export function newCondition(when: ConditionWhen): AutomationCondition {
+  return { when, n: takesThreshold(when) ? 3 : null, raw: null };
+}
+
+/**
+ * 조건 목록의 한 줄 요약 — 카드가 쓴다. 조건이 없으면 `null` (줄을 만들지 않는다).
+ */
+export function describeConditions(def: AutomationDef): string | null {
+  if (def.conditions.length === 0) return null;
+  return def.conditions
+    .map((c) =>
+      c.when === "journal_count_gte"
+        ? `${t("automation.cond.journal_count_gte")} (${c.n ?? 1})`
+        : t(`automation.cond.${c.when}` as never)
+    )
+    .join(" · ");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 유출 배지 ({#automation-egress-badge})
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 배지에 적을 문장. `null` = 배지를 붙이지 않는다.
+ *
+ * 두 경우에 붙지 않는다:
+ *
+ * 1. **로컬 모델** — 내용이 기기를 안 벗어난다. 이 구분이 제품 약속의 핵심이고,
+ *    지금까지 화면에 없던 것이 바로 이것이다.
+ * 2. 배경 모델 미설정 — 아무것도 안 돈다 (그 사실은 게이트 안내가 따로 말한다).
+ *
+ * 판정(`local`)은 **백엔드가 소유한다** (`automation::egress`). 프런트가
+ * 프로바이더 목록을 따로 들면 언젠가 어긋나고, 그때 배지가 조용히 거짓말을 한다.
+ */
+export function egressNotice(
+  egress: ModelEgress | null | undefined
+): { text: string; hint: string | null } | null {
+  if (!egress) return null;
+  const provider = providerLabel(egress.provider);
+  if (egress.local) {
+    return { text: t("automation.egress.local", { provider }), hint: null };
+  }
+  return {
+    text: t("automation.egress.remote", { provider, host: egress.host }),
+    hint: t("automation.egress.remoteHint"),
+  };
+}
+
+/**
+ * 프로바이더 id → 배지에 찍을 이름. 상표라 번역하지 않는다 (`lint:i18n` 은
+ * 한글 리터럴만 본다). 모르는 id 는 **그대로** 보여 준다 — 아는 척하지 않는다.
+ */
+export function providerLabel(id: string): string {
+  const known: Record<string, string> = {
+    anthropic: "Anthropic",
+    openai: "OpenAI",
+    gemini: "Google Gemini",
+    nim: "NVIDIA NIM",
+    openrouter: "OpenRouter",
+  };
+  return known[id] ?? id;
 }

@@ -1,6 +1,6 @@
 //! `plan_*` — 상태 읽기·글리프 갱신·새 계획, 그리고 페이지네이션.
 
-use super::seed_plan;
+use super::{base_hash, seed_plan};
 use crate::oculpm::mcp::tools::*;
 use tempfile::TempDir;
 
@@ -224,7 +224,8 @@ fn plan_update_flips_glyph_appends_log_and_respects_lock() {
     seed_plan(root);
     let args = serde_json::json!({
         "plan_id": "test-plan", "item_id": "#first", "status": "done",
-        "journal_path": "journal/20260720/Bugs/1200_bug_x.md", "note": "MCP 경유"
+        "journal_path": "journal/20260720/Bugs/1200_bug_x.md", "note": "MCP 경유",
+        "base_hash": base_hash(root, "test-plan")
     });
     let out = call_tool(root, "plan_update", &args).unwrap();
     assert_eq!(out["from"], "todo");
@@ -252,7 +253,8 @@ fn plan_update_note_and_journal_ref_are_redacted() {
     seed_plan(root);
     let args = serde_json::json!({
         "plan_id": "test-plan", "item_id": "second", "status": "done",
-        "note": "키 sk-abcdefghijklmnopqrstuvwx 로 검증함"
+        "note": "키 sk-abcdefghijklmnopqrstuvwx 로 검증함",
+        "base_hash": base_hash(root, "test-plan")
     });
     call_tool(root, "plan_update", &args).unwrap();
     let md = std::fs::read_to_string(planner_dir(root).join("test-plan.md")).unwrap();
@@ -322,7 +324,8 @@ fn plan_create_produces_parseable_plan_and_status_sees_it() {
         root,
         "plan_update",
         &serde_json::json!({
-            "plan_id": "token-diet", "item_id": "plan-create", "status": "done"
+            "plan_id": "token-diet", "item_id": "plan-create", "status": "done",
+            "base_hash": base_hash(root, "token-diet")
         }),
     )
     .unwrap();
@@ -378,7 +381,8 @@ fn nested_plan_roundtrip_over_the_wire() {
         root,
         "plan_update",
         &serde_json::json!({
-            "plan_id": "nested", "item_id": "papa", "status": "done"
+            "plan_id": "nested", "item_id": "papa", "status": "done",
+            "base_hash": base_hash(root, "nested")
         }),
     )
     .unwrap_err();
@@ -387,7 +391,8 @@ fn nested_plan_roundtrip_over_the_wire() {
         root,
         "plan_update",
         &serde_json::json!({
-            "plan_id": "nested", "item_id": "kid-a", "status": "done"
+            "plan_id": "nested", "item_id": "kid-a", "status": "done",
+            "base_hash": base_hash(root, "nested")
         }),
     )
     .unwrap();

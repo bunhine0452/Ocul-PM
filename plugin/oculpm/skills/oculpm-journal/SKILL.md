@@ -9,6 +9,11 @@ description: ocul-pm recording spec (journal format, planner glyphs/log, discuss
 `plan_update` 가 경로·파일명·frontmatter 규격을 서버에서 보장한다. 아래는 도구가
 없을 때 파일을 직접 쓰는 규격이다.
 
+> `plan_update` 는 **`base_hash` 가 필수**다 — 먼저 `plan_status` 로 그 플랜의
+> `hash` 를 읽고 그대로 넘긴다. 병렬 세션이 같은 플랜을 고칠 때 한쪽 변경이
+> 조용히 사라지는 것을 막는 장치다. 어긋나면 아무것도 쓰지 않고 현재 hash 를
+> 담은 오류가 오니, 다시 읽어 판단한 뒤 새 hash 로 재호출한다.
+
 ## 1. 작업 일지
 
 경로: `.oculpm/journal/{YYYYMMDD}/{TypeFolder}/{HHMM}_{type}_{slug}.md`

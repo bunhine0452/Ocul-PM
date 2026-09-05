@@ -7,19 +7,20 @@
 use std::path::PathBuf;
 
 use agent_client_protocol::schema::v1::{
-    CancelNotification, ContentBlock, DeleteSessionRequest, EnvVariable, ImageContent,
-    ListSessionsRequest, LoadSessionRequest, McpServer, McpServerStdio, NewSessionRequest,
-    PromptRequest, ResourceLink, SessionConfigOptionValue, SetSessionConfigOptionRequest,
-    TextContent,
+    CancelNotification, ContentBlock, DeleteSessionRequest, ImageContent, ListSessionsRequest,
+    LoadSessionRequest, NewSessionRequest, PromptRequest, ResourceLink, SessionConfigOptionValue,
+    SetSessionConfigOptionRequest, TextContent,
 };
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
 
+use super::acp_gate::{note_closed, note_opened, note_turn_ended};
+use super::acp_recording::note_recording;
 use crate::acp::{self, AcpAgentInfo, AcpDiagnostics, AcpEvent, AcpProvider, AcpState};
 use crate::app_error::AppError;
 use crate::db::Db;
 
-async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, AppError> {
+pub(crate) async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, AppError> {
     let project = db
         .get_project(project_id)
         .await
@@ -202,33 +203,6 @@ fn session_snapshot(
     }
 }
 
-/// 이 세션에 물려 줄 MCP 서버들.
-///
-/// **우리 것 하나**다: `oculpm-mcp`. 그러면 앱 안의 Claude Code 가 `journal_write`
-/// ·`plan_update` 같은 도구를 그대로 쓸 수 있다 — 프로젝트에 `.mcp.json` 을
-/// 등록해 두지 않았어도. (이 앱은 자기 자신을 추적한다. 에이전트가 일지를 못
-/// 쓰는 것이 기본값이면 그 전제가 반쪽이 된다.)
-///
-/// 바이너리를 못 찾으면 **아무 것도 안 넘긴다** — 없는 명령을 서버라고 넘기면
-/// 어댑터가 매 세션마다 그것을 띄우려다 실패한다. 개발 중에는
-/// `cargo build --bin oculpm-mcp` 전까지 그 상태다.
-///
-/// **누가 부르는지도 함께 넘긴다** (`OCULPM_AGENT_ID`). 도구의 `agent_id` 기본값은
-/// `claude-code` 라서, provider 가 둘이 된 뒤로는 Codex 가 쓴 일지·플랜이 전부
-/// Claude 의 것으로 기록됐다 — 이 앱이 자기 자신을 추적하는 이상 귀속이 틀리면
-/// 기록 자체가 거짓이 된다. 에이전트가 인자로 `agent_id` 를 주면 그쪽이 이긴다.
-fn client_mcp_servers(provider: AcpProvider) -> Vec<McpServer> {
-    let Some(binary) = crate::oculpm::mcp::register::resolve_binary_path() else {
-        return Vec::new();
-    };
-    vec![McpServer::Stdio(McpServerStdio::new("oculpm", binary).env(
-        vec![EnvVariable::new(
-            crate::oculpm::mcp::tools::AGENT_ID_ENV,
-            provider.agent_id(),
-        )],
-    ))]
-}
-
 /// `session/new` 실패를 **사용자가 할 수 있는 조치**로 가른다.
 ///
 /// 로그인이 안 된 Codex 는 여기서 원시 오류 문자열로 떨어졌다 — 화면에는
@@ -279,11 +253,27 @@ async fn ensure_session(
     let cwd = project_root(db, project_id).await?;
 
     let auth_advertised = state.info(target).is_some_and(|info| info.auth_required);
+    // 신원을 **먼저** 발급한다 — 환경은 요청에 실려 나가고 대화 id 는 응답에
+    // 실려 온다. 발급이 앞, 짝짓기가 뒤인 이유다 (`acp::recording` 모듈 문서).
+    let app_data = app_data_dir(app)?;
+    let token = acp::recording::mint_token(chrono::Local::now());
+    let probe = acp::recording::probe_mcp_binary();
     let created = connection
-        .send_request(NewSessionRequest::new(cwd).mcp_servers(client_mcp_servers(provider)))
+        .send_request(
+            NewSessionRequest::new(cwd.clone())
+                .mcp_servers(acp::recording::client_mcp_servers(provider, &token, &probe)),
+        )
         .block_task()
         .await
         .map_err(|e| session_create_error(auth_advertised, &e.to_string()))?;
+
+    // 만들기가 실패했으면 여기 오지 않는다 — 고아 매핑이 안 생긴다.
+    let opened = created.session_id.0.to_string();
+    acp::recording::bind(&app_data, &opened, &token, provider, &cwd);
+    note_recording(app, target, &probe, &token, Some(opened));
+    // 이 대화의 생존 흔적 — Claude Code 훅이 쓰는 것과 **같은 자리·같은 이름**
+    // 이라, 같은 워킹트리의 CC 대화가 우리를 용의자로 본다 ({#gate-beyond-cc}).
+    note_opened(&cwd, &token);
 
     state.set_session(
         target,
@@ -294,17 +284,26 @@ async fn ensure_session(
 }
 
 /// 어댑터를 내린다. 떠 있지 않았으면 `false`.
+///
+/// 내리기 **전에** 열려 있던 대화의 세그먼트를 닫는다 — `session-end.sh` 와 같은
+/// 순서(판정 먼저, 마커 청소 나중)로 판정 한 줄을 원장에 남기고 흔적을 거둔다.
+/// 안 거두면 죽은 대화의 생존 흔적이 6시간 동안 옆 대화의 게이트를 침묵시킨다.
 #[tauri::command]
 #[specta::specta]
-pub fn acp_stop(
+pub async fn acp_stop(
     app: AppHandle,
+    db: State<'_, Db>,
     project_id: u32,
     provider: Option<AcpProvider>,
 ) -> Result<bool, AppError> {
-    Ok(acp::process::stop(
-        &app,
-        target_id(project_id, selected_provider(provider)),
-    ))
+    let target = target_id(project_id, selected_provider(provider));
+    if let (Some(session), Ok(root)) = (
+        app.state::<AcpState>().session(target),
+        project_root(&db, project_id).await,
+    ) {
+        note_closed(&app, root, session.0.to_string()).await;
+    }
+    Ok(acp::process::stop(&app, target))
 }
 
 /// 현재 떠 있는 어댑터 정보 (없으면 `None`).
@@ -424,7 +423,9 @@ pub async fn acp_prompt(
         .block_task()
         .await;
 
-    match outcome {
+    // 턴을 **먼저** 닫는다. 판정이 그 앞에 서면 사용자는 답이 끝난 뒤에도 몇 십
+    // ms 를 "생각 중"으로 본다 — 게이트가 대화를 느리게 만들면 안 된다.
+    let result = match outcome {
         Ok(response) => {
             let reason = acp::session::stop_reason_label(&response.stop_reason);
             guard.finish(AcpEvent::Done {
@@ -439,7 +440,19 @@ pub async fn acp_prompt(
             });
             Err(AppError::new("acp_prompt_failed", message))
         }
+    };
+
+    // Claude Code 의 `Stop` 훅이 서는 자리 — 생존 흔적을 갱신하고 기록 판정을
+    // 붙인다 ({#gate-beyond-cc}). 실패로 끝난 턴도 센다: 도중에 파일은 이미
+    // 바뀌었을 수 있고, 그 변경은 누가 기록해도 기록돼야 한다.
+    //
+    // **반환 전**이어야 한다. 화면의 배너는 이 커맨드가 반환한 뒤에 판정을
+    // 물으므로(`RecordingNotice.tsx` 의 `turnKey={busy}`), 여기서 기다리지 않으면
+    // 배너가 늘 한 턴 늦게 뜬다.
+    if let Ok(root) = project_root(&db, project_id).await {
+        note_turn_ended(&app, root, session.0.to_string()).await;
     }
+    result
 }
 
 /// 진행 중인 턴을 취소한다. 세션이 없으면 `false`.
@@ -530,82 +543,6 @@ pub fn acp_permission_respond(
     option_id: Option<String>,
 ) -> Result<bool, AppError> {
     Ok(state.resolve_permission(&request_id, option_id.map(Into::into)))
-}
-
-/// 파일 선택 대화상자 (다중 선택, 프로젝트 루트에서 시작). 취소하면 빈 배열.
-#[tauri::command]
-#[specta::specta]
-pub async fn acp_pick_files(
-    app: AppHandle,
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<Vec<String>, AppError> {
-    use tauri_plugin_dialog::{DialogExt, FilePath};
-
-    let root = project_root(&db, project_id).await?;
-    let (tx, rx) = tokio::sync::oneshot::channel::<Option<Vec<FilePath>>>();
-    app.dialog()
-        .file()
-        .set_directory(root)
-        .pick_files(move |picked| {
-            let _ = tx.send(picked);
-        });
-
-    let picked = rx.await.map_err(|e| e.to_string())?;
-    Ok(picked
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|p| match p {
-            FilePath::Path(path) => Some(path.display().to_string()),
-            _ => None,
-        })
-        .collect())
-}
-
-/// `@` 멘션 자동완성용 프로젝트 파일 목록.
-///
-/// 인덱스(DB)가 아니라 **디스크를 직접 걷는다** — 인덱싱 전이거나 방금 만든
-/// 파일도 멘션할 수 있어야 하기 때문이다. `ignore` 크레이트라 .gitignore 를
-/// 존중한다(node_modules/target 이 딸려오지 않는다).
-#[tauri::command]
-#[specta::specta]
-pub async fn acp_list_files(
-    db: State<'_, Db>,
-    project_id: u32,
-    query: String,
-    limit: u32,
-) -> Result<Vec<String>, AppError> {
-    let root = project_root(&db, project_id).await?;
-    let needle = query.to_lowercase();
-    let cap = limit.clamp(1, 200) as usize;
-
-    let matches = tauri::async_runtime::spawn_blocking(move || {
-        let mut found: Vec<String> = Vec::new();
-        for entry in ignore::WalkBuilder::new(&root)
-            .hidden(true)
-            .build()
-            .flatten()
-        {
-            if !entry.file_type().is_some_and(|t| t.is_file()) {
-                continue;
-            }
-            let Ok(rel) = entry.path().strip_prefix(&root) else {
-                continue;
-            };
-            let rel = rel.display().to_string();
-            if needle.is_empty() || rel.to_lowercase().contains(&needle) {
-                found.push(rel);
-                if found.len() >= cap {
-                    break;
-                }
-            }
-        }
-        found
-    })
-    .await
-    .map_err(|e| e.to_string())?;
-
-    Ok(matches)
 }
 
 /// 대화를 비운다 — 새 세션을 만들고 기존 세션을 버린다.
@@ -761,6 +698,7 @@ pub fn acp_select_session(
 #[specta::specta]
 pub async fn acp_delete_session(
     app: AppHandle,
+    db: State<'_, Db>,
     project_id: u32,
     provider: Option<AcpProvider>,
     session_id: String,
@@ -777,6 +715,15 @@ pub async fn acp_delete_session(
         .block_task()
         .await
         .map_err(|e| AppError::new("acp_session_delete_failed", e.to_string()))?;
+    // 세그먼트를 먼저 닫는다 — 매핑을 거두고 나면 이 대화의 기록 신원을 되찾을
+    // 길이 없어져, 판정도 마커 청소도 할 수 없다 (순서가 곧 계약이다).
+    if let Ok(root) = project_root(&db, project_id).await {
+        note_closed(&app, root, session_id.clone()).await;
+    }
+    // 대화가 사라졌으니 매핑도 거둔다 — 원장은 라우팅 표지 역사가 아니다.
+    if let Ok(dir) = app_data_dir(&app) {
+        acp::recording::forget(&dir, &session_id);
+    }
     acp::session::emit_session_changed(
         &app,
         project_id,
@@ -824,8 +771,20 @@ pub async fn acp_load_session(
     app.state::<AcpState>()
         .set_sink(target, session_id.clone(), on_event);
 
+    // 재개도 MCP 서버를 다시 띄운다 — 예전에는 여기에 아무 것도 안 실어, 지난
+    // 대화를 이어 열면 **기록 도구가 통째로 사라졌다** (열 때는 있었는데).
+    // 신원은 원장에서 되찾는다: 같은 대화의 일지가 계속 같은 값을 받는다.
+    let app_data = app_data_dir(&app)?;
+    let token = acp::recording::token_for_existing(&app_data, &session_id, provider, &cwd);
+    // 재개는 새 세그먼트를 연다 (마커가 아직 있으면 그대로 이어간다 —
+    // create-only 계약은 `session-marker.sh` 와 같다).
+    note_opened(&cwd, &token);
+    let probe = acp::recording::probe_mcp_binary();
     let loaded = connection
-        .send_request(LoadSessionRequest::new(session_id.clone(), cwd))
+        .send_request(
+            LoadSessionRequest::new(session_id.clone(), cwd)
+                .mcp_servers(acp::recording::client_mcp_servers(provider, &token, &probe)),
+        )
         .block_task()
         .await;
 
@@ -833,6 +792,7 @@ pub async fn acp_load_session(
     state.clear_sink(target, &session_id);
 
     let loaded = loaded.map_err(|e| AppError::new("acp_session_load_failed", e.to_string()))?;
+    note_recording(&app, target, &probe, &token, Some(session_id.clone()));
     state.set_session(
         target,
         session_id.clone().into(),

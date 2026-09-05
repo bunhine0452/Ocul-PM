@@ -43,6 +43,13 @@ fn run_gate(root: &Path, payload: &str) -> Output {
     let mut child = Command::new("/bin/sh")
         .arg(gate_path())
         .env("CLAUDE_PROJECT_DIR", root)
+        // 판정 진입점 — 셔틀(`plugin/oculpm/bin/oculpm-mcp`)이 이 변수를 가장
+        // 먼저 본다. 카고가 이번 빌드의 바이너리를 주므로 설치본이 아니라
+        // **지금 고친 코드**를 시험한다.
+        .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"))
+        // 이 테스트를 도는 세션 자신이 플러그인을 로드했으면 이 변수가 설정돼
+        // 있어 설치본을 가리킨다. 훅이 `$0` 로 스스로를 찾게 지운다.
+        .env_remove("CLAUDE_PLUGIN_ROOT")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -104,9 +111,11 @@ fn it_blocks_when_code_changed_without_a_journal() {
     let out = run_gate(dir.path(), &payload("s1", false));
     assert_eq!(out.status.code(), Some(2), "차단은 exit 2 여야 한다");
     let stderr = String::from_utf8_lossy(&out.stderr);
+    // 사유만으로는 모자란다 — 문구가 **무엇을 하라**까지 말해야 게이트가
+    // 잔소리가 아니라 지시가 된다 (도구 이름 + 그 대화가 바꾼 파일).
     assert!(
-        stderr.contains("작업 일지가 없습니다"),
-        "에이전트가 읽을 사유가 없다: {stderr}"
+        stderr.contains("journal_write") && stderr.contains("src.rs"),
+        "에이전트가 무엇을 해야 할지 모른다: {stderr}"
     );
     // 세션당 1회 — 플래그가 남는다.
     assert!(dir.path().join(".oculpm/hooks/.delivery-gate-s1").exists());
@@ -200,4 +209,66 @@ fn without_a_session_marker_it_stays_silent() {
 
     let out = run_gate(root, &payload("s7", false));
     assert_eq!(out.status.code(), Some(0));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 병렬 세션 (v3-record-integrity {#gate-parallel-test})
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 옆 대화가 **살아 있다**는 흔적을 남긴다 — 마커(시작했다) + 생존 파일(이번
+/// 턴에 Stop 훅이 돌았다). 게이트는 이 둘이 다 있는 대화만 용의자로 센다.
+fn live_peer(root: &Path, conversation: &str) {
+    std::fs::write(
+        root.join(format!(".oculpm/hooks/.session-start-{conversation}")),
+        "",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join(format!(".oculpm/hooks/.session-live-{conversation}")),
+        "",
+    )
+    .unwrap();
+}
+
+/// **골든 케이스 (2026-09-05 실측)** — 저장소에 한 글자도 쓰지 않은 읽기 전용
+/// 조사 세션에 `.delivery-gate-…` 플래그가 생겼다. 같은 워킹트리에서 **다른
+/// 에이전트**가 편집한 파일이 이 세션의 마커보다 새로웠다는 것이 유일한 근거
+/// 였다. 프로젝트 전역 mtime 은 *누가* 고쳤는지 말하지 못한다 — 말하지 못하면
+/// 침묵해야지, 아무나 붙잡으면 안 된다.
+#[test]
+fn a_live_peers_edits_do_not_accuse_a_read_only_session() {
+    let dir = tracked_repo("sA");
+    live_peer(dir.path(), "sB");
+    // 옆 대화 B 가 파일을 고쳤다. A 는 읽기만 했다.
+    touch_code(dir.path(), "src.rs");
+
+    let out = run_gate(dir.path(), &payload("sA", false));
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "읽기만 한 세션을 옆 세션의 편집으로 붙잡았다: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        !dir.path().join(".oculpm/hooks/.delivery-gate-sA").exists(),
+        "발화 플래그까지 남겨 이 세션의 남은 턴을 영영 판정 불가로 만들었다"
+    );
+}
+
+/// 그런데 **죽은 옆 세션**(마커만 남고 생존 흔적이 없다)은 용의자가 아니다.
+/// 크래시 잔여 마커는 7일간 남는다 — 그것만으로 판정을 접으면 게이트는
+/// 사고 한 번에 영구히 침묵한다.
+#[test]
+fn a_stale_peer_marker_does_not_mute_the_gate() {
+    let dir = tracked_repo("sC");
+    // 마커만 있고 생존 파일이 없다 = 크래시로 남은 잔여.
+    std::fs::write(dir.path().join(".oculpm/hooks/.session-start-dead"), "").unwrap();
+    touch_code(dir.path(), "src.rs");
+
+    let out = run_gate(dir.path(), &payload("sC", false));
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "잔여 마커 하나로 게이트가 영구 침묵했다"
+    );
 }

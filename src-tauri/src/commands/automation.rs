@@ -16,12 +16,13 @@ use tauri::{AppHandle, Manager, State};
 use crate::app_error::AppError;
 use crate::db::automation::RUN_FAILED;
 use crate::db::Db;
+use crate::oculpm::automation::egress::{self, ModelEgress};
 use crate::oculpm::automation::frequency::ScheduleSpec;
 use crate::oculpm::automation::runner::{AutomationRunner, Job, JobOutcome};
 use crate::oculpm::automation::settle::watch_error;
 use crate::oculpm::automation::store::{AutomationDef, AutomationKind};
 use crate::oculpm::automation::tiers::responsiveness_error;
-use crate::oculpm::automation::{scheduler, seeds, store};
+use crate::oculpm::automation::{core_model, scheduler, seeds, store};
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::OculpmConfig;
 
@@ -86,6 +87,10 @@ pub struct AutomationOverview {
     /// 프로젝트의 잡일 수도 있다 — 그래서 project_id 를 함께 싣는다.
     pub running_automation_id: Option<String>,
     pub running_project_id: Option<u32>,
+    /// 배경 모델 호출이 기기 밖으로 나가는가·어디로 ({#automation-egress-badge}).
+    /// `None` = Core Model 미설정(아무것도 안 돈다) 또는 모르는 프로바이더 —
+    /// 둘 다 배지를 만들지 않는다. **모르면 아는 척하지 않는다.**
+    pub model_egress: Option<ModelEgress>,
 }
 
 /// 자동화 실행이 시작/종료됐다 — 설정 자동화 탭과 닥터가 폴링 없이 안다.
@@ -258,6 +263,16 @@ pub async fn automation_overview(
         });
 
     let running = app.state::<AutomationRunner>().running();
+    // 유출 판정은 `automation::egress` 가 소유한다 — 프로바이더 이름 목록을
+    // 프런트가 따로 들면 언젠가 어긋나고, 그때 배지가 조용히 거짓말을 한다.
+    let model_egress = match core_model::resolve(&db).await {
+        Ok(Some(target)) => egress::classify(&target.provider, &target.model),
+        Ok(None) => None,
+        Err(e) => {
+            tracing::warn!(target: "oculpm::automation", error = %e, "core model 을 읽지 못했다");
+            None
+        }
+    };
     Ok(AutomationOverview {
         schedules_on: config.automation.schedules,
         watchers_on: config.automation.watchers,
@@ -271,6 +286,7 @@ pub async fn automation_overview(
         last_failure,
         running_automation_id: running.as_ref().map(|(_, id)| id.clone()),
         running_project_id: running.map(|(pid, _)| pid),
+        model_egress,
     })
 }
 
@@ -474,6 +490,9 @@ pub async fn automation_run_now(
         title: def.title.clone(),
         output: def.output,
         instructions: def.instructions.clone(),
+        // 「지금 실행」도 조건을 지난다 — 손으로 눌렀다고 빈 결과를 성공이라
+        // 말하지 않는다 ({#automation-step-if}). 안 맞으면 사유가 토스트에 뜬다.
+        conditions: def.conditions.clone(),
         context: None,
         entry_ref: None,
         workday: workday.clone(),

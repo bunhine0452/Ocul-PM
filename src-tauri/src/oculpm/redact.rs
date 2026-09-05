@@ -12,10 +12,12 @@
 //!   masking. Scope is **body / diff-hunk content only**, never path or
 //!   identifier text (variable names like `sk_initialize_module` would
 //!   false-positive). dev-report §2 / R1 wired this into three places in
-//!   2026-06; it is now **22 non-test files** — verify with
-//!   `rg -l 'redact_text|compile_redact_patterns|patterns_for_project' src/`
-//!   rather than trusting a hand-kept list here. They fall into six kinds of
-//!   path, and a new one belongs to one of them:
+//!   2026-06; it is now [`CALL_SITE_FILES`] non-test files. **That number is
+//!   measured, not remembered** — `tests/egress_inventory.rs` counts the files
+//!   on disk and fails when the constant drifts, because the hand-kept "three
+//!   places" in this very paragraph was wrong by an order of magnitude for
+//!   three months. They fall into six kinds of path, and a new one belongs to
+//!   one of them:
 //!   1. the journal SQLite projection — on-read masking in
 //!      [`cache`][super::cache], so agent-authored secrets never reach the
 //!      cache → AI context;
@@ -32,6 +34,18 @@
 //!
 //!   Use [`patterns_for_project`] to load+compile a project's
 //!   `auto_redact_patterns` from disk in one call.
+//!
+//! # What is *not* covered ({#redact-doc-truth})
+//!
+//! Redaction is a boundary, not a blanket — and a boundary has an outside.
+//! [`EXEMPT_LLM_PROMPT_SITES`] prompt-building sites reach a model without
+//! passing through this module or the masked cache projection. They are
+//! enumerated with a reason each in `tests/egress_inventory.rs`
+//! (`LLM_PROMPT_SITES`), which fails when a new one appears undeclared. The
+//! short version: the AI panel and the mobile bridge relay what the *user*
+//! typed (the promise's own exception), the project overview reads README and
+//! manifest files straight off disk, and greenfield sends the wizard blueprint
+//! the user just wrote. Nothing agent-authored reaches a model unmasked.
 //!
 //! See `docs/major_update/oculpm/W4/PR3-redact-forbid.md`.
 //! See `docs/major_update/oculpm/phases/W4-agents-dual-layer.md` §2.6 for the
@@ -52,6 +66,21 @@ use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use regex::Regex;
 
 use crate::oculpm::spec::OculpmConfig;
+
+/// Non-test files under `src-tauri/src/` that call into this module.
+///
+/// Measured, not remembered: `tests/egress_inventory.rs` scans the tree and
+/// fails when this drifts. Bump it in the same commit that adds or removes a
+/// call site — the number is a claim the module doc makes, and a stale claim
+/// about where secrets get masked is worse than no claim.
+pub const CALL_SITE_FILES: usize = 23;
+
+/// Prompt-building sites that reach a model **without** redaction — neither
+/// directly nor through the masked cache projection.
+///
+/// See the module doc's "What is not covered" and `LLM_PROMPT_SITES` in
+/// `tests/egress_inventory.rs`, which owns the per-site reasons.
+pub const EXEMPT_LLM_PROMPT_SITES: usize = 4;
 
 /// One match recorded by [`redact_text`]. Byte offsets reference the
 /// **original** input string (pre-redaction); they are at char boundaries

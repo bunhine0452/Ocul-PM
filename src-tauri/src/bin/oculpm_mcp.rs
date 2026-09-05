@@ -15,8 +15,15 @@ use std::io::{BufRead, Read, Write};
 use ocul_pm_lib::oculpm::mcp::protocol::{oversized_line_response, McpServer, MAX_LINE_BYTES};
 
 fn main() {
+    let argv: Vec<String> = std::env::args().skip(1).collect();
+    // 서브커맨드 — 판정(`verdict`)은 MCP 루프가 아니라 셸 훅이 부르는 자리다.
+    // 새 바이너리를 내지 않은 이유는 `verdict::cli` 문서 참고 (설치 위치
+    // 탐색이 이미 `plugin/oculpm/bin/oculpm-mcp` 셔틀 한 벌에 있다).
+    if argv.first().map(String::as_str) == Some("verdict") {
+        std::process::exit(ocul_pm_lib::oculpm::verdict::cli::run(&argv[1..]));
+    }
     let mut root: Option<std::path::PathBuf> = None;
-    let mut args = std::env::args().skip(1);
+    let mut args = argv.into_iter();
     while let Some(a) = args.next() {
         match a.as_str() {
             "--root" => root = args.next().map(std::path::PathBuf::from),

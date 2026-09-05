@@ -108,44 +108,37 @@ fn hooks_json_guards_and_consumes_stdin() {
         "배달 게이트: 세션당 1회 플래그 파일"
     );
     assert!(
-        gate.contains(".session-start-"),
-        "배달 게이트: 세션 마커를 판정 기준점으로 공유"
+        gate.contains(".session-live-"),
+        "배달 게이트: 생존 흔적을 판정 **전에** 찍는다 (옆 대화가 우리를 볼 수 있게)"
     );
     assert!(
         gate.contains("exit 2"),
         "배달 게이트: 차단은 exit 2 (stderr 가 에이전트에 전달)"
     );
+    // 판정은 더 이상 셸에 없다 — `oculpm-mcp verdict` (oculpm::verdict) 한
+    // 자리다. 그래서 여기서 잠그는 것은 **판정 로직**이 아니라 **진입점의
+    // 계약**이다. 판정 자체의 행위는 tests/delivery_gate.rs 가 훅을 실제로
+    // 실행해 잰다 (문자열 존재 단언은 지워도 통과하므로 아무것도 지키지
+    // 못한다 — 그게 이 가드를 옮긴 이유다).
     assert!(
-        gate.contains("작업 일지가 없습니다"),
-        "배달 게이트: 지시 문구"
+        gate.contains("verdict --root"),
+        "배달 게이트: 판정 진입점 호출"
     );
     assert!(
-        gate.contains("계속하세요"),
-        "배달 게이트: 진행 중 세션의 오탐 자기해소 문구"
-    );
-    // 코드 변경 판정의 3계약 (리뷰 HIGH/MED 회귀 방지):
-    // ① 세션 귀속 — 마커보다 새로운 파일만 (기존 WIP·병렬 세션 잔여 제외),
-    // ② .oculpm 만의 변경 비발화 (모노레포 하위 프로젝트는 show-prefix 보정),
-    // ③ 비ASCII 경로가 8진 이스케이프로 필터를 새지 않게 quotepath off.
-    assert!(
-        gate.contains(r#"-nt "$marker""#),
-        "배달 게이트: 세션 귀속 판정 (마커 mtime 대조)"
+        gate.contains("bin/oculpm-mcp"),
+        "배달 게이트: 설치 위치 탐색은 셔틀 한 벌 (새 바이너리 금지)"
     );
     assert!(
-        gate.contains("show-prefix"),
-        "배달 게이트: 모노레포 하위 디렉터리 경로 보정"
+        gate.contains(r#"[ "$rc" -eq 10 ]"#),
+        "배달 게이트: 이의(10)에만 발화 — 판정 불가(11)는 침묵"
     );
     assert!(
-        gate.contains(".oculpm/*) continue"),
-        "배달 게이트: .oculpm 만의 변경으로는 발화하지 않는다"
+        gate.contains(r#"[ -x "$bin" ] || exit 0"#),
+        "배달 게이트: 진입점이 없으면 침묵 (옛 셸 판정으로 폴백 금지)"
     );
     assert!(
-        gate.contains("core.quotepath=off"),
-        "배달 게이트: 비ASCII 경로 이스케이프 무력화 방지"
-    );
-    assert!(
-        gate.contains("status --porcelain -- ."),
-        "배달 게이트: pathspec 스코프 (이웃 패키지 제외)"
+        gate.contains(r#"printf '%s\n' "$msg" >&2"#),
+        "배달 게이트: 지시 문구는 판정이 만든 것을 그대로 전달"
     );
     for banned in ["curl", "wget", "http://", "https://"] {
         assert!(!gate.contains(banned), "배달 게이트: 네트워크 금지");
@@ -214,8 +207,16 @@ fn hooks_json_guards_and_consumes_stdin() {
         "SessionEnd 스크립트: 미작성 신호 파일"
     );
     assert!(
-        end.contains("journal_missing"),
-        "SessionEnd 스크립트: 신호 kind"
+        end.contains("verdict --root"),
+        "SessionEnd 스크립트: 판정 진입점 호출 (배달 게이트와 같은 함수)"
+    );
+    assert!(
+        end.contains("--ledger"),
+        "SessionEnd 스크립트: 원장 append 는 바이너리 안에서 (회전 경합·개행 누락 방지)"
+    );
+    assert!(
+        end.contains(r#"[ -x "$bin" ]"#),
+        "SessionEnd 스크립트: 진입점이 없으면 침묵"
     );
     assert!(
         end.contains(">&2"),
@@ -230,20 +231,12 @@ fn hooks_json_guards_and_consumes_stdin() {
         "SessionEnd 스크립트: 크래시 잔여 마커 청소 (판정 뒤)"
     );
     assert!(
-        end.contains("tail -n 100"),
-        "SessionEnd 스크립트: 신호 파일 성장 상한"
+        end.contains(".session-live-"),
+        "SessionEnd 스크립트: 생존 흔적도 세그먼트와 함께 걷는다"
     );
-    // 크로스-언어 계약 — 이 두 문자열이 바뀌면 Rust 파서(claude_hooks)가
-    // 전 라인을 skip 해 카드가 무증상으로 죽는다 (리뷰 MED). 파서 쪽에는
-    // 동일 템플릿 라인을 실제 파싱하는 테스트가 있다.
-    assert!(
-        end.contains(r#"'{"ts":"%s","session_id":"%s","kind":"journal_missing"}\n'"#),
-        "SessionEnd 스크립트: 신호 라인 printf 템플릿 변경 금지 (파서 계약)"
-    );
-    assert!(
-        end.contains("date -u +%Y-%m-%dT%H:%M:%SZ"),
-        "SessionEnd 스크립트: ts 는 UTC RFC3339 (파서 계약)"
-    );
+    // 원장 라인의 포맷 계약은 이제 Rust↔Rust 다 (`verdict::cli` 가 쓰고
+    // `claude_hooks` 가 읽는다). 왕복은 tests/session_verdict.rs 가 실제로
+    // 쓰고 읽어 확인한다.
     // B1 — statusline 넛지는 딱 1회 (ponytail 패턴: 반복하면 잔소리).
     assert!(
         end.contains(".statusline-nudged"),
@@ -608,6 +601,31 @@ fn codex_plugin_manifest_follows_the_codex_schema() {
         let s = p.as_str().expect("starter prompt 는 문자열");
         assert!(s.chars().count() <= 128, "128자를 넘으면 잘린다: {s}");
     }
+}
+
+/// **Codex 매니페스트에 훅을 실을 수 없다** (플랜 `v3-record-integrity`
+/// {#gate-beyond-cc}).
+///
+/// Codex 0.153.4 는 훅 자체는 완전히 지원한다 — 이벤트 12종(`SessionStart` ·
+/// `Stop` · `SessionEnd` · `PreToolUse` …), 핸들러 `command`/`async`/MCP, 그리고
+/// `CLAUDE_PLUGIN_ROOT` 까지. 실제로 우리 Claude 플러그인의 `hooks/hooks.json`
+/// 을 Codex 세션이 그대로 실행한 기록이 남아 있다(2026-09-03, 이 저장소의
+/// `.oculpm/hooks/claude-events.jsonl` 에 `transcript_path` 가
+/// `~/.codex/sessions/…` 인 SessionStart·Stop·SessionEnd).
+///
+/// 그런데 **매니페스트 필드로는 못 싣는다**: 번들 1st-party 플러그인(`browser`)은
+/// `hooks` 를 쓰지만, 마켓플레이스 검증은 그 필드를 거부한다 — 실측
+/// `plugin.json field 'hooks' is not accepted by plugin validation`
+/// (`plugin-creator/scripts/validate_plugin.py`). 그래서 이 항목이 들어오는 순간
+/// **플러그인이 설치 불가**가 된다. Claude 판이 `hooks` 를 선언하지 않는 것과
+/// 겉모습은 같지만 이유가 다르므로 따로 못박는다.
+#[test]
+fn the_codex_manifest_declares_no_hooks_because_validation_rejects_them() {
+    let manifest = repo_json("plugin/oculpm-codex/.codex-plugin/plugin.json");
+    assert!(
+        manifest.get("hooks").is_none(),
+        "codex plugin.json 에 hooks 를 실으면 검증이 거부해 설치가 통째로 막힌다"
+    );
 }
 
 /// Codex 는 레포 마켓플레이스를 `<repo-root>/.agents/plugins/marketplace.json`

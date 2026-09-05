@@ -308,6 +308,7 @@ async fn run_due(
         title: def.title.clone(),
         output: def.output,
         instructions: def.instructions.clone(),
+        conditions: def.conditions.clone(),
         context: None,
         entry_ref: None,
         workday: workday.to_string(),
@@ -416,6 +417,7 @@ fn job_context<'a>(
         manager,
         root,
         tz,
+        day_starts_at: config.workday.day_starts_at.clone(),
         redact: crate::oculpm::redact::compile_redact_patterns(&config.git.auto_redact_patterns),
         daily_run_budget: config.automation.daily_run_budget,
         budget_since: workday_start(tz, workday, &config.workday.day_starts_at)

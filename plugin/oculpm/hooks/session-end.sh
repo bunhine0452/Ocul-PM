@@ -1,48 +1,66 @@
 #!/bin/sh
-# ocul-pm — SessionEnd: 이벤트 인박스 append + "일지 미작성 세션" 판정.
+# ocul-pm — SessionEnd: 이벤트 인박스 append + "일지 미작성 대화" 판정.
 #
 # 근거는 에이전틱 A/B 벤치 실측(benchmarks/agentic, 2026-07-31): 규칙·도구가
 # 주입돼도 헤드리스 단발 세션의 기록 준수가 0/12 — 규칙만으로 기록이 담보되지
-# 않는 세션이 실재한다. 그런 세션을 (a) 사용자에게 조건부 stderr 로 알리고
+# 않는 세션이 실재한다. 그런 대화를 (a) 사용자에게 조건부 stderr 로 알리고
 # (b) `.oculpm/hooks/journal-missing.jsonl` 신호로 남겨 앱이 초안 제안 등
-# 후속을 할 수 있게 한다. 계약: 네트워크·외부 실행 없음, 실패는 전부 무해,
+# 후속을 할 수 있게 한다. 계약: 네트워크 없음, 실패는 전부 무해,
 # `.oculpm` 없으면 침묵 (stdin 은 항상 소비).
 #
-# 알려진 한계: 판정은 프로젝트 전역 mtime 이라, 동시 세션이 일지를 쓰면 이
-# 세션의 미작성이 가려진다(미탐 방향 — 소음보다 보수적). 세션 귀속 판정은
-# 일지 frontmatter 의 session_id 상관관계가 필요해 후속(H3b)으로 미룬다.
-ROOT="${CLAUDE_PROJECT_DIR:-.}"
+# **판정은 여기 없다** — `oculpm-mcp verdict` 한 자리다 (delivery-gate.sh 와
+# 같은 함수). 종전의 프로젝트 전역 mtime 판정은 동시 대화가 일지를 쓰면 이
+# 대화의 미작성을 가렸고(미탐), 반대로 옆 대화의 편집을 이 대화의 것으로
+# 읽었다(오탐). 원장 줄에는 이제 `verdict` 가 실려 **미기록과 판정 불가가
+# 구별**된다 — 옛 원장 164행 중 55%가 사후 재판정 불가였던 이유가 그 구별의
+# 부재였다.
 payload=$(cat 2>/dev/null || true)
+# 프로젝트 루트: CLAUDE_PROJECT_DIR → payload 의 cwd → 현재 디렉터리.
+# payload 폴백이 필요한 이유는 실측이다 (2026-09-03): **Codex 0.153 이 이 훅들을
+# 그대로 실행한다.** 플러그인 루트의 hooks/hooks.json 을 관례로 찾아 읽고
+# CLAUDE_PLUGIN_ROOT 도 실어 주지만, CLAUDE_PROJECT_DIR 은 주지 않는다 — 그
+# 자리를 payload 의 cwd 가 대신한다. 없으면 예전처럼 현재 디렉터리.
+ROOT="${CLAUDE_PROJECT_DIR:-}"
+[ -n "$ROOT" ] || ROOT=$(printf '%s' "$payload" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+[ -n "$ROOT" ] || ROOT="."
 [ -d "$ROOT/.oculpm" ] || exit 0
 mkdir -p "$ROOT/.oculpm/hooks" 2>/dev/null || exit 0
 sid=$(printf '%s' "$payload" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9._-]*\)".*/\1/p' | head -1)
-marker="$ROOT/.oculpm/hooks/.session-start-$sid"
-missing=""
-if [ -n "$sid" ] && [ -f "$marker" ]; then
-  if [ -z "$(find "$ROOT/.oculpm/journal" -type f -name '*.md' -newer "$marker" 2>/dev/null | head -1)" ]; then
-    missing=1
+
+rc=""
+if [ -n "$sid" ]; then
+  plugin_root=${CLAUDE_PLUGIN_ROOT:-$(CDPATH= cd -- "$(dirname -- "$0")/.." 2>/dev/null && pwd)}
+  bin="$plugin_root/bin/oculpm-mcp"
+  # 바이너리가 없으면 판정도 신호도 없다 (delivery-gate.sh 와 같은 결정 —
+  # 걷어낸 근사로 폴백하면 오탐이 그대로 되살아난다).
+  if [ -x "$bin" ]; then
+    # --ledger 가 신호 원장 append 를 **바이너리 안에서** 한다: 회전(읽고-
+    # 자르고-바꾸기)은 append 와 달리 원자적이지 않아 공용 파일 문지기가
+    # 필요하고, 셸의 `>>` 는 개행 누락으로 깨진 줄을 남긴 전례가 있다.
+    "$bin" verdict --root "$ROOT" --conversation "$sid" --ledger >/dev/null 2>&1
+    rc=$?
   fi
-  rm -f "$marker" 2>/dev/null || true
+  rm -f "$ROOT/.oculpm/hooks/.session-start-$sid" 2>/dev/null || true
+  rm -f "$ROOT/.oculpm/hooks/.session-live-$sid" 2>/dev/null || true
 fi
-# 크래시 잔여 마커 청소 — SessionStart 가 아니라 여기(판정 뒤)서 돌려, 살아있는
+# 크래시 잔여 청소 — SessionStart 가 아니라 여기(판정 뒤)서 돌려, 살아있는
 # 장기 세션의 마커를 다른 세션의 시작이 쓸어가는 경합을 줄인다 (리뷰 LOW —
 # 7일+ 열린 세션과의 잔여 경합은 미탐 방향이라 수용).
 find "$ROOT/.oculpm/hooks" -name '.session-start-*' -mtime +7 -delete 2>/dev/null || true
+find "$ROOT/.oculpm/hooks" -name '.session-live-*' -mtime +7 -delete 2>/dev/null || true
 
-if [ -n "$missing" ]; then
-  signal="$ROOT/.oculpm/hooks/journal-missing.jsonl"
-  # 무한 성장 방지 — 앱 소비자(후속 H3b)가 붙기 전까지의 상한. 200줄 초과 시
-  # 최근 100줄만 보존 (신호는 최근성이 전부다).
-  if [ -f "$signal" ] && [ "$(wc -l < "$signal" 2>/dev/null || echo 0)" -gt 200 ]; then
-    tail -n 100 "$signal" > "$signal.tmp" 2>/dev/null && mv "$signal.tmp" "$signal" 2>/dev/null || true
-  fi
-  printf '{"ts":"%s","session_id":"%s","kind":"journal_missing"}\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$sid" \
-    >> "$signal" 2>/dev/null || true
-  echo "oculpm: 이 세션은 일지 없이 끝났습니다 — 다음 세션에서 journal_write 로 남기거나, ocul-pm 앱의 일지 초안 기능을 켜 두세요" >&2
-else
-  echo "oculpm: 세션 기록됨 — /oculpm:standup 으로 오늘 요약, 회고·diff 대조는 ocul-pm 앱 (oculpm.com)" >&2
-fi
+case "$rc" in
+  10)
+    echo "oculpm: 이 대화는 일지 없이 끝났습니다 — 다음 세션에서 journal_write 로 남기거나, ocul-pm 앱의 일지 초안 기능을 켜 두세요" >&2
+    ;;
+  0)
+    echo "oculpm: 세션 기록됨 — /oculpm:standup 으로 오늘 요약, 회고·diff 대조는 ocul-pm 앱 (oculpm.com)" >&2
+    ;;
+  *)
+    # 11(판정 불가) · 미실행. 모름을 위반으로도 무결로도 말하지 않는다 —
+    # 원장에는 남았으니 회고가 세면 된다.
+    ;;
+esac
 
 # 이벤트 인박스 append 는 신호 append **뒤에** — 워처의 인박스 소비가 낸
 # oculpmSessionEnded 로 프론트가 재조회할 때 신호가 이미 디스크에 있도록

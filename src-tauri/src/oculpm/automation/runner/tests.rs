@@ -95,6 +95,9 @@ fn job(output: AutomationOutput) -> Job {
         workday: "20260831".into(),
         now: DateTime::parse_from_rfc3339("2026-08-31T17:00:00+09:00").unwrap(),
         note: None,
+        // 조건 없음 = 항상 실행 (옛 정의와 같은 동작). 조건이 실제로 갈리는지는
+        // conditions 쪽 전용 테스트가 문다.
+        conditions: Vec::new(),
     }
 }
 
@@ -107,6 +110,8 @@ fn ctx<'a>(db: &'a Db, manager: &'a OculpmManager, root: &std::path::Path) -> Jo
         redact: Vec::new(),
         daily_run_budget: 20,
         budget_since: "2026-08-31T00:00:00+09:00".into(),
+        // 자정 시작 — 이 픽스처의 workday 계산이 예전(자정 고정)과 같게 남는다.
+        day_starts_at: "00:00".into(),
     }
 }
 
@@ -522,4 +527,128 @@ async fn orphan_state_is_pruned_against_the_on_disk_definitions() {
         .await
         .unwrap()
         .is_empty());
+}
+
+// ─── 실행 조건 ({#automation-step-if}) ───────────────────────────────────────
+
+use crate::oculpm::automation::conditions::{AutomationCondition, ConditionWhen};
+
+/// 원장 한 줄을 그대로 읽어 온다 — 「건너뛴 사실이 이력에 남는가」를
+/// 화면 없이 단언하려면 이 경로가 필요하다.
+async fn last_run(db: &Db) -> crate::db::automation::AutomationRun {
+    db.automation_runs_list(1, Some("weekly-dev-summary".into()), 10)
+        .await
+        .unwrap()
+        .into_iter()
+        .next()
+        .expect("원장에 행이 남아야 한다")
+}
+
+/// **이 라운드의 회귀 테스트.**
+///
+/// 원래 버그: 「일지 3건 이상일 때만 주간 요약」이 지시문 본문의 부탁이라
+/// 새 일지가 0건인 주에도 모델이 불려 나가 빈 요약을 만들었고, 원장에는
+/// `ok` 가 남고 일지가 한 건 늘었다. 세 가지를 한꺼번에 잠근다:
+///
+/// 1. 모델을 **부르지 않는다** (빈 요약도 과금도 없다),
+/// 2. 결말이 `ok` 가 아니라 `skipped` 다,
+/// 3. **왜** 건너뛰었는지가 원장 메모에 관측값과 함께 남는다.
+#[tokio::test]
+async fn an_unmet_condition_skips_the_step_and_says_why_instead_of_faking_success() {
+    let dir = tempdir().unwrap();
+    let db = db(&dir).await;
+    set_core_model(&db).await;
+    let manager = OculpmManager::new();
+
+    let backend = FakeBackend::new();
+    let calls = backend.calls.clone();
+    let runner = AutomationRunner::new(Arc::new(backend));
+    let ctx = ctx(&db, &manager, dir.path());
+
+    let mut job = job(AutomationOutput::Journal);
+    job.conditions = vec![AutomationCondition::new(
+        ConditionWhen::JournalCountGte,
+        Some(3),
+    )];
+
+    let outcome = runner.run(&ctx, job).await;
+    assert!(
+        matches!(outcome, JobOutcome::Skipped(_)),
+        "조건이 안 맞으면 건너뛴다: {outcome:?}"
+    );
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        0,
+        "모델을 불렀다 — 빈 요약을 만들고 과금됐다는 뜻이다"
+    );
+
+    let run = last_run(&db).await;
+    assert_eq!(run.status, RUN_SKIPPED, "성공이라 말하면 안 된다");
+    assert_eq!(run.journal_path, None, "일지가 생겼다");
+    let note = run.note.expect("건너뛴 사유가 남아야 한다");
+    assert!(note.contains("조건 미충족"), "{note}");
+    assert!(
+        note.contains("0건"),
+        "관측값이 없으면 왜인지 모른다: {note}"
+    );
+    assert!(
+        note.contains("3건 이상"),
+        "필요값이 없으면 고칠 수 없다: {note}"
+    );
+}
+
+/// 조건이 맞으면 평소대로 돈다 — 게이트가 문을 잠그기만 하면 안 된다.
+#[tokio::test]
+async fn a_met_condition_lets_the_step_run() {
+    let dir = tempdir().unwrap();
+    let db = db(&dir).await;
+    set_core_model(&db).await;
+    let manager = OculpmManager::new();
+
+    let backend = FakeBackend::new();
+    let calls = backend.calls.clone();
+    let runner = AutomationRunner::new(Arc::new(backend));
+    let ctx = ctx(&db, &manager, dir.path());
+
+    let mut gated = job(AutomationOutput::None);
+    // `n: 0` 은 「0건 이상」이 아니다 — threshold() 가 1로 올린다.
+    gated.conditions = vec![AutomationCondition::new(
+        ConditionWhen::JournalCountGte,
+        Some(0),
+    )];
+    let blocked = runner.run(&ctx, gated).await;
+    assert!(matches!(blocked, JobOutcome::Skipped(_)), "{blocked:?}");
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+
+    // 조건이 아예 없으면 예전처럼 돈다 (기존 정의의 동작 보존).
+    let outcome = runner.run(&ctx, job(AutomationOutput::None)).await;
+    assert!(matches!(outcome, JobOutcome::Ran { .. }), "{outcome:?}");
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(last_run(&db).await.status, RUN_OK);
+}
+
+/// 읽지 못한 조건은 **막는다**. 통과시키면 오타 하나가 게이트를 열고,
+/// 있다고 믿는 게이트는 없는 것보다 나쁘다.
+#[tokio::test]
+async fn an_unreadable_condition_blocks_the_run_and_names_the_typo() {
+    let dir = tempdir().unwrap();
+    let db = db(&dir).await;
+    set_core_model(&db).await;
+    let manager = OculpmManager::new();
+
+    let backend = FakeBackend::new();
+    let calls = backend.calls.clone();
+    let runner = AutomationRunner::new(Arc::new(backend));
+    let ctx = ctx(&db, &manager, dir.path());
+
+    let mut job = job(AutomationOutput::Journal);
+    job.conditions = vec![AutomationCondition::unknown("jornal_count_gte")];
+
+    assert!(matches!(
+        runner.run(&ctx, job).await,
+        JobOutcome::Skipped(_)
+    ));
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    let note = last_run(&db).await.note.unwrap();
+    assert!(note.contains("jornal_count_gte"), "{note}");
 }

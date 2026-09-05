@@ -22,6 +22,7 @@ import { toast } from "@/lib/toast";
 import type {
   AutomationConfig,
   AutomationDef,
+  AutomationOverview,
   AutomationRunDto,
   AutomationSummary,
   OculpmConfig,
@@ -33,9 +34,12 @@ import {
   blankDefinition,
   cardState,
   describeAutomation,
+  describeConditions,
+  egressNotice,
   formatAt,
   sortSummaries,
 } from "./automationModel";
+import { EgressBadge } from "./EgressBadge";
 import { AutomationTroubleshooting } from "./AutomationTroubleshooting";
 
 /**
@@ -74,6 +78,12 @@ export function AutomationTab() {
    * 있던** 잡을 놓치므로, 마운트 때는 `overview` 가 러너에게 직접 물어 채운다.
    */
   const [runningId, setRunningId] = useState<string | null>(null);
+  /**
+   * 배경 모델의 유출 판정 ({#automation-egress-badge}). **백엔드가 소유한다** —
+   * 프런트가 프로바이더 목록을 따로 들면 언젠가 어긋나고, 그때 배지가 조용히
+   * 거짓말을 한다.
+   */
+  const [egress, setEgress] = useState<AutomationOverview["model_egress"]>(null);
 
   const coreModel = coreModelTarget(settings);
 
@@ -94,6 +104,7 @@ export function AutomationTab() {
       setRunningId(
         overview.running_project_id === projectId ? overview.running_automation_id : null,
       );
+      setEgress(overview.model_egress);
     } catch (e) {
       toast.destructive(tError(toAppError(e)));
     } finally {
@@ -251,6 +262,10 @@ export function AutomationTab() {
       </Section>
 
       <Section title={t("automation.list.title")} description={t("automation.list.desc")}>
+        {/* 정의를 **보는** 자리의 배지 — 목록 전체가 같은 배경 모델을 쓰므로
+            카드마다 반복하지 않고 머리에 한 번 적는다. 로컬 모델이면 없다. */}
+        <EgressBadge notice={egressNotice(egress)} />
+
         <div className="flex justify-end gap-2">
           <button
             className="btn ghost sm"
@@ -312,6 +327,13 @@ export function AutomationTab() {
                   {describeAutomation(s.def)}
                   {next ? ` · ${t("automation.card.next", { at: next })}` : ""}
                 </p>
+                {/* 실행 조건 ({#automation-step-if}) — 「왜 안 돌았지」의 절반이
+                    여기 있다. 조건이 없으면 줄을 만들지 않는다. */}
+                {describeConditions(s.def) && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {t("automation.cond.title")}: {describeConditions(s.def)}
+                  </p>
+                )}
                 {last && (
                   <p className="text-[11px] text-muted-foreground">
                     {t("automation.card.last", {
@@ -399,6 +421,7 @@ export function AutomationTab() {
             value={pane.def}
             isNew={pane.isNew}
             busy={busy}
+            egress={egress}
             onCancel={() => setPane({ kind: "none" })}
             onSave={(d) => void save(d)}
           />

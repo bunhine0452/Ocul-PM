@@ -31,6 +31,7 @@ use serde_yaml::Value as YamlValue;
 use specta::Type;
 
 use crate::oculpm::atomic_io::write_atomic;
+use crate::oculpm::automation::conditions::{self, AutomationCondition};
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::frontmatter::parse_frontmatter_and_body;
 
@@ -165,6 +166,10 @@ pub struct AutomationDef {
 
     // ── 공통 ──
     pub output: AutomationOutput,
+    /// 실행 조건 ({#automation-step-if}). **빈 목록 = 조건 없음 = 항상 실행**
+    /// 이라 `conditions:` 가 없는 옛 정의는 동작이 그대로다. 어휘는 닫혀 있고
+    /// (`conditions::ConditionWhen`) 자유 표현식은 받지 않는다.
+    pub conditions: Vec<AutomationCondition>,
     /// 본문 — 모델에게 그대로 가는 지시문.
     pub instructions: String,
 }
@@ -196,6 +201,7 @@ impl AutomationDef {
             recursive: None,
             responsiveness: None,
             output: AutomationOutput::None,
+            conditions: Vec::new(),
             instructions: String::new(),
         }
     }
@@ -252,7 +258,7 @@ pub fn normalize_id(raw: &str) -> Option<String> {
 // 파싱
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn yaml_str(map: &serde_yaml::Mapping, key: &str) -> Option<String> {
+pub(super) fn yaml_str(map: &serde_yaml::Mapping, key: &str) -> Option<String> {
     match map.get(YamlValue::String(key.to_string()))? {
         YamlValue::String(s) if !s.trim().is_empty() => Some(s.trim().to_string()),
         YamlValue::Number(n) => Some(n.to_string()),
@@ -260,7 +266,7 @@ fn yaml_str(map: &serde_yaml::Mapping, key: &str) -> Option<String> {
     }
 }
 
-fn yaml_bool(map: &serde_yaml::Mapping, key: &str) -> Option<bool> {
+pub(super) fn yaml_bool(map: &serde_yaml::Mapping, key: &str) -> Option<bool> {
     match map.get(YamlValue::String(key.to_string()))? {
         YamlValue::Bool(b) => Some(*b),
         YamlValue::String(s) => match s.trim() {
@@ -272,7 +278,7 @@ fn yaml_bool(map: &serde_yaml::Mapping, key: &str) -> Option<bool> {
     }
 }
 
-fn yaml_u32(map: &serde_yaml::Mapping, key: &str) -> Option<u32> {
+pub(super) fn yaml_u32(map: &serde_yaml::Mapping, key: &str) -> Option<u32> {
     match map.get(YamlValue::String(key.to_string()))? {
         YamlValue::Number(n) => n.as_u64().and_then(|v| u32::try_from(v).ok()),
         YamlValue::String(s) => s.trim().parse().ok(),
@@ -352,6 +358,8 @@ pub fn parse_automation(
         None => AutomationOutput::None,
     };
 
+    let conditions = conditions::parse_conditions(&map, &mut warnings);
+
     let instructions = body.trim().to_string();
     if instructions.is_empty() {
         warnings.push("지시문 본문이 비었다 — 이 자동화는 모델에게 줄 말이 없다".into());
@@ -376,6 +384,7 @@ pub fn parse_automation(
         recursive: yaml_bool(&map, "recursive"),
         responsiveness: yaml_str(&map, "responsiveness"),
         output,
+        conditions,
         instructions,
     };
     ParsedAutomation { def, warnings }
@@ -440,6 +449,7 @@ pub fn render_automation(def: &AutomationDef) -> String {
         fm.push_str(&format!("responsiveness: {v}\n"));
     }
     fm.push_str(&format!("output: {}\n", def.output.as_str()));
+    conditions::render_conditions(&mut fm, &def.conditions);
     fm.push_str("---\n\n");
     fm.push_str(def.instructions.trim());
     fm.push('\n');
@@ -592,219 +602,9 @@ pub fn delete_automation(
 // 테스트
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 테스트
+// ─────────────────────────────────────────────────────────────────────────────
+
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::tempdir;
-
-    fn sample() -> AutomationDef {
-        AutomationDef {
-            id: "weekly-dev-summary".into(),
-            kind: AutomationKind::Schedule,
-            title: "주간 개발 요약: 금요일".into(),
-            enabled: true,
-            created: "2026-08-31".into(),
-            updated: "2026-08-31".into(),
-            frequency: Some("weekly".into()),
-            at: Some("17:00".into()),
-            weekday: Some("fri".into()),
-            day_of_month: None,
-            month: None,
-            day: None,
-            every: None,
-            cron: None,
-            watch: None,
-            recursive: None,
-            responsiveness: None,
-            output: AutomationOutput::Journal,
-            instructions: "이번 주 git 활동을 훑고 커밋·브랜치·미결 항목을 요약해 주세요.".into(),
-        }
-    }
-
-    #[test]
-    fn renders_and_parses_back_identically() {
-        let def = sample();
-        let md = render_automation(&def);
-        let parsed = parse_automation(&md, "weekly-dev-summary", AutomationKind::Schedule);
-        assert_eq!(parsed.warnings, Vec::<String>::new(), "{md}");
-        assert_eq!(parsed.def, def);
-    }
-
-    #[test]
-    fn watcher_fields_round_trip() {
-        let mut def = AutomationDef::new(
-            "plan-reconcile",
-            AutomationKind::Watcher,
-            "플랜 화해",
-            "2026-08-31",
-        );
-        def.watch = Some(".oculpm/journal/".into());
-        def.recursive = Some(true);
-        def.responsiveness = Some("relaxed".into());
-        def.output = AutomationOutput::Plan;
-        def.instructions = "새 일지와 활성 플랜을 대조해 글리프 갱신을 제안하세요.".into();
-        let parsed = parse_automation(
-            &render_automation(&def),
-            "plan-reconcile",
-            AutomationKind::Watcher,
-        );
-        assert_eq!(parsed.def, def);
-        assert!(parsed.warnings.is_empty());
-    }
-
-    #[test]
-    fn broken_input_warns_instead_of_failing() {
-        let p = parse_automation("본문만 있다", "orphan", AutomationKind::Schedule);
-        assert_eq!(p.def.id, "orphan");
-        assert_eq!(p.def.kind, AutomationKind::Schedule);
-        assert!(!p.def.enabled, "모르는 정의는 켜지 않는다");
-        assert!(p.warnings.iter().any(|w| w.contains(SCHEMA_MARKER)));
-
-        let p = parse_automation(
-            "---\noculpm_automation: v1\nid: other-name\nkind: watcher\noutput: nonsense\n---\n\n지시문",
-            "real-name",
-            AutomationKind::Schedule,
-        );
-        assert_eq!(p.def.id, "real-name", "파일명이 정본이다");
-        assert_eq!(p.def.kind, AutomationKind::Schedule, "디렉터리가 정본이다");
-        assert_eq!(p.def.output, AutomationOutput::None);
-        assert_eq!(
-            p.warnings.len(),
-            4,
-            "id·kind·title·output 네 경고: {:?}",
-            p.warnings
-        );
-    }
-
-    #[test]
-    fn id_normalization_blocks_path_escapes() {
-        assert_eq!(
-            normalize_id("Weekly Dev Summary").as_deref(),
-            Some("weekly-dev-summary")
-        );
-        assert_eq!(
-            normalize_id("../../etc/passwd").as_deref(),
-            Some("etc-passwd")
-        );
-        assert_eq!(normalize_id("a//b").as_deref(), Some("a-b"));
-        assert_eq!(normalize_id("..."), None);
-        assert_eq!(normalize_id("  "), None);
-
-        let root = Path::new("/tmp/project");
-        let p = automation_path(root, AutomationKind::Schedule, "../../escape").unwrap();
-        assert!(
-            p.starts_with(root.join(".oculpm/automation/schedules")),
-            "{p:?}"
-        );
-    }
-
-    #[test]
-    fn write_is_idempotent_and_delete_reports_presence() {
-        let dir = tempdir().unwrap();
-        let root = dir.path();
-        let def = sample();
-
-        assert!(write_automation(root, &def).unwrap(), "첫 쓰기는 실제 쓰기");
-        assert!(
-            !write_automation(root, &def).unwrap(),
-            "같은 바이트면 무기록"
-        );
-
-        let mut changed = def.clone();
-        changed.enabled = false;
-        assert!(write_automation(root, &changed).unwrap());
-
-        assert!(delete_automation(root, AutomationKind::Schedule, &def.id).unwrap());
-        assert!(!delete_automation(root, AutomationKind::Schedule, &def.id).unwrap());
-    }
-
-    /// 파일 SSOT — 정의를 지우면 목록에서 사라지고, 다시 쓰면 그대로 복구된다.
-    #[test]
-    fn definitions_are_recoverable_from_disk() {
-        let dir = tempdir().unwrap();
-        let root = dir.path();
-
-        assert!(list_automations(root, AutomationKind::Schedule)
-            .unwrap()
-            .is_empty());
-        assert!(list_automation_ids(root).unwrap().is_empty());
-
-        let def = sample();
-        write_automation(root, &def).unwrap();
-        let mut watcher = AutomationDef::new(
-            "plan-reconcile",
-            AutomationKind::Watcher,
-            "플랜 화해",
-            "2026-08-31",
-        );
-        watcher.instructions = "대조하세요".into();
-        write_automation(root, &watcher).unwrap();
-
-        assert_eq!(
-            list_automation_ids(root).unwrap(),
-            vec![
-                "plan-reconcile".to_string(),
-                "weekly-dev-summary".to_string()
-            ]
-        );
-
-        delete_automation(root, AutomationKind::Schedule, &def.id).unwrap();
-        assert_eq!(
-            list_automation_ids(root).unwrap(),
-            vec!["plan-reconcile".to_string()]
-        );
-
-        write_automation(root, &def).unwrap();
-        let back = read_automation(root, AutomationKind::Schedule, &def.id)
-            .unwrap()
-            .expect("복구");
-        assert_eq!(back.def, def);
-    }
-
-    /// 내장 자동화(레거시 플랜 화해)는 정의 파일이 없어도 이력이 살아남는다.
-    #[test]
-    fn builtin_ids_survive_orphan_pruning() {
-        let dir = tempdir().unwrap();
-        let root = dir.path();
-        assert_eq!(
-            known_ids_for_prune(root).unwrap(),
-            vec![BUILTIN_PLAN_RECONCILE_ID.to_string()]
-        );
-
-        write_automation(root, &sample()).unwrap();
-        let ids = known_ids_for_prune(root).unwrap();
-        assert!(ids.contains(&"weekly-dev-summary".to_string()));
-        assert!(ids.contains(&BUILTIN_PLAN_RECONCILE_ID.to_string()));
-        // 씨앗을 만들어도 중복되지 않는다 (이력이 한 줄기로 이어진다).
-        let mut seed = AutomationDef::new(
-            BUILTIN_PLAN_RECONCILE_ID,
-            AutomationKind::Watcher,
-            "플랜 화해",
-            "2026-08-31",
-        );
-        seed.instructions = "대조".into();
-        write_automation(root, &seed).unwrap();
-        let ids = known_ids_for_prune(root).unwrap();
-        assert_eq!(
-            ids.iter()
-                .filter(|i| i.as_str() == BUILTIN_PLAN_RECONCILE_ID)
-                .count(),
-            1
-        );
-    }
-
-    #[test]
-    fn oversized_definition_is_refused_not_sent() {
-        let dir = tempdir().unwrap();
-        let root = dir.path();
-        let path = automation_path(root, AutomationKind::Schedule, "huge").unwrap();
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(&path, "x".repeat(MAX_DEFINITION_BYTES as usize + 1)).unwrap();
-
-        let list = list_automations(root, AutomationKind::Schedule).unwrap();
-        assert_eq!(list.len(), 1);
-        assert!(!list[0].def.enabled);
-        assert!(list[0].def.instructions.is_empty(), "본문을 싣지 않는다");
-        assert!(list[0].warnings[0].contains("바이트"));
-    }
-}
+mod tests;

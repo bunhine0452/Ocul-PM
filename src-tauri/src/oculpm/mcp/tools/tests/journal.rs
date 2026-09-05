@@ -57,6 +57,37 @@ fn journal_entries_carry_the_conversation_that_wrote_them() {
     );
 }
 
+/// **우리가 실은 신원이 이긴다** (플랜 `v3-record-integrity` {#gate-beyond-cc}).
+///
+/// 앱 안 ACP 대화에는 우리가 발급한 토큰이 마커·원장·일지에 다 같이 실려야
+/// 판정이 선다. 그런데 `CLAUDE_CODE_SESSION_ID` 는 Claude Code CLI 도 자식에게
+/// 실어 주는 이름이라, 그 하나만 보던 동안은 어댑터가 우리 값을 덮어쓰면
+/// 일지의 `agent.session` 이 마커와 갈라졌다.
+#[test]
+fn our_own_session_variable_wins_over_the_claude_one() {
+    assert_eq!(
+        session_id_from(
+            Some("acp-20260905-abcd1234".into()),
+            Some("cli-uuid".into())
+        )
+        .as_deref(),
+        Some("acp-20260905-abcd1234"),
+        "어댑터가 덮어쓴 값이 우리 신원을 이겼다"
+    );
+    // 터미널에서 직접 띄운 Claude Code 는 우리 이름을 모른다 — 예전 길 그대로.
+    assert_eq!(
+        session_id_from(None, Some("cli-uuid".into())).as_deref(),
+        Some("cli-uuid")
+    );
+    // 빈 값은 없는 것이다. 여기서 못 내려가면 어댑터가 빈 값을 실어 주는 순간
+    // 신원이 통째로 사라진다.
+    assert_eq!(
+        session_id_from(Some("  ".into()), Some("cli-uuid".into())).as_deref(),
+        Some("cli-uuid")
+    );
+    assert_eq!(session_id_from(None, None), None);
+}
+
 /// Dogfooding follow-up (2026-08-20) — when the app *is* running, the
 /// watcher's live session is on disk and the entry must adopt it. A
 /// synthetic `mcp-…` id can never join against a real session, which is
