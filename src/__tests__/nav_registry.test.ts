@@ -15,8 +15,10 @@ describe("navRegistry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("main 6 + tools 5 + ai 5 = 16개 화면을 커버한다", () => {
-    expect(NAV_ENTRIES.filter((e) => e.group === "main")).toHaveLength(6);
+  it("main 7 + tools 5 + ai 5 = 17개 화면을 커버한다", () => {
+    // 2026-09-06 — 브랜치의 이야기(v3-surface {#branch-story-view})가 main 에 붙었다.
+    // 배열 맨 끝이라 앞 10개의 ⌘번호는 그대로다 (아래 두 테스트가 그걸 문다).
+    expect(NAV_ENTRIES.filter((e) => e.group === "main")).toHaveLength(7);
     // 2026-08-24 — AI 면(Claude Code · AI 대화 · 스킬·규칙)을 tools 에서 분리.
     expect(NAV_ENTRIES.filter((e) => e.group === "tools")).toHaveLength(5);
     // 2026-09-04 — 세션(묶기)이 Today 카드에서 나와 화면이 됐다 (D8).

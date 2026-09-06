@@ -42,6 +42,9 @@ export const UI_V2_VIEWS = [
   // 세션 (2026-09-04) — 붙어 있는 에이전트와 사용자가 묶은 팀
   // (docs/a2a/00-master-plan.md D8). Today 카드에서 화면으로 나왔다.
   "sessions",
+  // 브랜치의 이야기 (v3-surface {#branch-story-view}) — 날짜·타입 말고
+  // **브랜치**로 묶어 읽는 축. "settings" 는 언제나 마지막이다.
+  "branch",
   "settings",
 ] as const;
 

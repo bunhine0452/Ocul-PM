@@ -64,6 +64,11 @@ const CodeScreenV2 = lazy(() =>
 const SessionsScreenV2 = lazy(() =>
   import("@/features/sessions/SessionsScreenV2").then((m) => ({ default: m.SessionsScreenV2 })),
 );
+// 브랜치의 이야기 (v3-surface {#branch-story-view}) — 다른 축으로 다시 읽는
+// 곳이라 코어 루프와 달리 지연 청크다.
+const BranchScreenV2 = lazy(() =>
+  import("@/features/branch/BranchScreenV2").then((m) => ({ default: m.BranchScreenV2 })),
+);
 // 터미널 도크 (2026-08-15) — 열어야 청크를 받는다. 안 여는 사용자에게 xterm
 // 비용을 지우지 않는 것은 터미널 화면과 같은 원칙이다.
 const TerminalDock = lazy(() =>
@@ -613,6 +618,17 @@ export default function ShellV2({
           <SkillsScreenV2 projectId={projectId} active={active} />
         ) : view === "sessions" ? (
           <SessionsScreenV2 projectId={projectId} />
+        ) : view === "branch" ? (
+          <BranchScreenV2
+            projectId={projectId}
+            active={active}
+            onOpenJournal={(path) => {
+              setJournalReturnView("branch");
+              setJournalOpenEntry(path);
+              setUiV2View("journal");
+            }}
+            onOpenFile={(path) => openInCode(path, null)}
+          />
         ) : (
           // 사슬의 **마지막 갈래가 Today** 다 (2026-09-06). 예전엔 `null` 이라,
           // `view` 가 어떤 갈래에도 안 맞으면 툴바도 콘텐츠도 없는 빈 본문이

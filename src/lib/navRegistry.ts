@@ -13,6 +13,7 @@ import {
   Puzzle,
   FileCode,
   Waypoints,
+  GitBranchIcon,
 } from "@/components/Icons";
 import { ClaudeMark } from "@/components/ClaudeMark";
 import { CodexMark } from "@/components/CodexMark";
@@ -81,6 +82,10 @@ export const NAV_ENTRIES: NavEntry[] = [
   // 하는 일**이다. 목적을 갖고 가는 곳은 목적지여야 한다
   // (`docs/a2a/00-master-plan.md` D8).
   { id: "sessions", labelKey: "nav.sessions", aliasKey: "nav.sessions.alias", icon: Waypoints, group: "ai" },
+  // 브랜치의 이야기 (v3-surface {#branch-story-view}) — 일지·플랜·커밋을
+  // **브랜치**로 묶어 읽는다. 코어 루프(일지·플래너·변경)를 다른 축으로 다시
+  // 읽는 곳이라 main 에 둔다. 맨 끝이라 앞 10개의 ⌘번호는 그대로다.
+  { id: "branch", labelKey: "nav.branch", aliasKey: "nav.branch.alias", icon: GitBranchIcon, group: "main" },
 ];
 
 /** ⌘번호 키 → 배열 앞 10개 (⌘0 = 10번째). */
