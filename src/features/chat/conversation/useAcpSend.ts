@@ -13,7 +13,11 @@ import type React from "react";
 import { Channel } from "@tauri-apps/api/core";
 
 import { commands, type AcpCommand, type AcpEvent, type AcpImage, type AcpSession } from "@/lib/bindings";
-import { t as translate, type I18nKey } from "@/i18n";
+// 사전은 **모듈 스토어**에서 바로 읽는다 — 이 훅이 돌려주는 `send` 는 클릭
+// 시점에 불리는 콜백이라 언어가 바뀌어도 다시 만들 이유가 없다. `useT()` 를
+// 쓰면 `t` 가 렌더마다 새 참조가 되어 `send` 가 굳지 못하고, 그 아이덴티티는
+// 대기줄 배출 effect 까지 타고 흘러 같은 문장을 두 번 보낸다.
+import { t } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { applyAcpEvent, closeTurn, openTurn, type AcpTurn } from "../acpTurns";
 import { acpWorkingKey, noteAcpSignal } from "../acpBusyBus";
@@ -108,7 +112,6 @@ export function useAcpSend({
   recallRef,
   followBottom,
 }: AcpSendArgs) {
-  const t = (key: I18nKey) => translate(key);
   const send = useCallback(
     /**
      * `target` 은 **말을 걸 대화**다. 생략하면 지금 보고 있는 대화.
