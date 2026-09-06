@@ -223,6 +223,7 @@ const TESTS = new Set([
   "__tests__/rules_reachability.test.ts",
   "__tests__/session_colors.test.ts",
   "__tests__/sessions_screen.test.tsx",
+  "__tests__/settings_search.test.ts",
   "__tests__/sidebar_a11y.test.tsx",
   "__tests__/skill_promotion_v2.test.tsx",
   "__tests__/skill_shop.test.tsx",

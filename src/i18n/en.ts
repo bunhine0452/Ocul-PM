@@ -3570,4 +3570,7 @@ export const en: Record<keyof typeof ko, string> = {
   "err.code.acp_usage_failed": "Couldn't load usage: {detail}",
   "err.code.acp_prompt_failed": "The request failed: {detail}",
   "err.code.acp_session_busy": "This conversation is still answering. Wait for it to finish, or stop it first.",
+  // ── v3-surface / dialect ──────────────────────────────
+  "settings.search.placeholder": "Search settings",
+  "settings.search.empty": "No matching setting.",
 };

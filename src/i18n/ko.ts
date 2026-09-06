@@ -3559,4 +3559,8 @@ export const ko = {
   "err.code.acp_usage_failed": "사용량을 불러오지 못했어요: {detail}",
   "err.code.acp_prompt_failed": "요청이 실패했어요: {detail}",
   "err.code.acp_session_busy": "이 대화는 이미 답하는 중이에요. 끝나거나 멈춘 뒤에 보내 주세요.",
+  // ── v3-surface / dialect ──────────────────────────────
+  // 설정 검색 ({#settings-search}) — 12탭 + 하위 5탭을 눈으로 훑던 것을 끝낸다.
+  "settings.search.placeholder": "설정 검색",
+  "settings.search.empty": "일치하는 설정이 없어요.",
 } as const;
