@@ -3600,4 +3600,7 @@ export const en: Record<keyof typeof ko, string> = {
   "branch.file.uncommitted": "uncommitted",
   "branch.file.unrecorded": "unrecorded",
   "branch.files.onlyUnrecorded": "Unrecorded only",
+  // ── v3-surface / dialect ──────────────────────────────
+  "settings.search.placeholder": "Search settings",
+  "settings.search.empty": "No matching setting.",
 };

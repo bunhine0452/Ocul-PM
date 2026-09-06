@@ -3589,4 +3589,8 @@ export const ko = {
   "branch.file.uncommitted": "미커밋",
   "branch.file.unrecorded": "기록 없음",
   "branch.files.onlyUnrecorded": "기록 없는 것만",
+  // ── v3-surface / dialect ──────────────────────────────
+  // 설정 검색 ({#settings-search}) — 12탭 + 하위 5탭을 눈으로 훑던 것을 끝낸다.
+  "settings.search.placeholder": "설정 검색",
+  "settings.search.empty": "일치하는 설정이 없어요.",
 } as const;

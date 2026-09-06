@@ -32,20 +32,12 @@ import { OculpmSettings } from "./OculpmSettings";
 import { AutomationTab } from "./automation/AutomationTab";
 import { CodeSettings } from "./CodeSettings";
 import { MobileSettings } from "./MobileSettings";
+import { SettingsSearchBox, SettingsSearchResults } from "./SettingsSearch";
+import type { SettingsTab } from "./settingsIndex";
 
-type TabId =
-  | "appearance"
-  | "llm"
-  | "code"
-  | "indexing"
-  | "graph"
-  | "data"
-  | "oculpm"
-  | "context"
-  | "automation"
-  | "mobile"
-  | "diagnostics"
-  | "update";
+/** 탭 목록의 정본은 아래 `TABS`, 이름의 정본은 `settingsIndex.SettingsTab` 이다 —
+ *  검색 색인이 없는 탭이 생기지 않게 한쪽에서만 정의한다. */
+type TabId = SettingsTab;
 
 const TABS: Array<{ id: TabId; labelKey: I18nKey; icon: React.ComponentType<{ className?: string }> }> = [
   { id: "appearance", labelKey: "settings.tab.appearance", icon: Sun },
@@ -105,6 +97,9 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
     [],
   );
   const [error, setError] = useState<string | null>(null);
+  // 질의가 있으면 탭 내용 대신 결과가 뜬다 — 탭 선택은 그대로 살아 있어서
+  // 질의를 지우면 보던 자리로 돌아온다.
+  const [query, setQuery] = useState("");
   const { loaded } = useSettings();
 
   const activeTab = useMemo(() => {
@@ -156,11 +151,19 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
   //
   // 프로젝트 선택 화면(비-embedded)은 사이드바가 없는 모달이라 세로 목록이
   // 여전히 맞다.
+  const search = (
+    <SettingsSearchBox
+      value={query}
+      onChange={(v) => {
+        setQuery(v);
+        setError(null);
+      }}
+    />
+  );
+
   const tabNav = embedded ? (
-    <nav
-      className="subnav overflow-x-auto border-b border-border/60 px-1 pb-2 mb-5"
-      style={{ scrollbarWidth: "none" }}
-    >
+    <div className="mb-5 flex items-center gap-2 border-b border-border/60 px-1 pb-2">
+    <nav className="subnav min-w-0 flex-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
       {TABS.map((entry) => {
         const isActive = tab === entry.id;
         return (
@@ -176,8 +179,11 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
         );
       })}
     </nav>
+      {search}
+    </div>
   ) : (
     <nav className="subnav vertical w-48 flex-shrink-0 border-r border-border/60 p-2">
+      <div className="mb-2 px-1">{search}</div>
       {TABS.map((entry) => {
         const Icon = entry.icon;
         const isActive = tab === entry.id;
@@ -207,7 +213,17 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
           embedded ? "pb-6" : "p-6 overflow-y-auto max-h-[70vh] scrollbar-thin"
         }`}
       >
-        {activeTab}
+        {query.trim() ? (
+          <SettingsSearchResults
+            query={query}
+            onPick={(entry) => {
+              setTab(entry.tab);
+              setQuery("");
+            }}
+          />
+        ) : (
+          activeTab
+        )}
         {error && (
           <div className="mt-4 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm flex items-center justify-between gap-2">
             <span>{error}</span>
