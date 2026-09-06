@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EmptyState } from "@/components/EmptyState";
 import { Toolbar } from "@/components/Toolbar";
 import {
   AlertTriangle,
@@ -688,15 +689,15 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
           ) : null}
           <div className="diff-code">
             {error ? (
-              <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
+              <EmptyState align="start" style={{ padding: 16 }}>
                 {t("entry.diffLoadFailed", { error })}
-              </div>
+              </EmptyState>
             ) : diffs == null ? (
-              <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
+              <EmptyState align="start" style={{ padding: 16 }}>
                 {t("common.loading")}
-              </div>
+              </EmptyState>
             ) : diffs.length === 0 ? (
-              <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
+              <EmptyState align="start" style={{ padding: 16 }}>
                 {t("entry.noDiff")}
                 <br />
                 <span className="text-muted-foreground" style={{ fontSize: 11 }}>
@@ -707,7 +708,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                     <GitCompareArrows size={14} /> {t("entry.openInDiff")}
                   </button>
                 </div>
-              </div>
+              </EmptyState>
             ) : active ? (
               <PatchView patch={active.patch} mode={diffMode} lang={langFromPath(active.path)} />
             ) : null}

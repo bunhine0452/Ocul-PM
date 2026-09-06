@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { commands, type GitGraphCommit } from "@/lib/bindings";
+import { EmptyState } from "@/components/EmptyState";
 import { GitBranch, RefreshCw, Tag, TriangleAlert } from "@/components/Icons";
 import { computeGitGraph, type GraphRow } from "./gitGraph";
 import { t } from "@/i18n";
@@ -97,13 +98,13 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
           <GitBranch size={16} color="var(--text-2)" />
           <h3>{t("today.git.title")}</h3>
         </div>
-        <div className="empty-hint" style={{ padding: "18px 16px", textAlign: "left" }}>
+        <EmptyState align="start" style={{ padding: "18px 16px" }}>
           {t("today.git.notRepo")}
           <br />
           <span style={{ fontSize: 11, color: "var(--text-3)" }}>
             {t("today.git.notRepoHint")}
           </span>
-        </div>
+        </EmptyState>
       </div>
     );
   }

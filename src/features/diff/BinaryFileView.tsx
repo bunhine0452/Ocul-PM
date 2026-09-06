@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { commands, type BinaryPreview, type BinarySide } from "@/lib/bindings";
 import { File as FileIcon, ImageFileIcon } from "@/components/Icons";
+import { EmptyState } from "@/components/EmptyState";
 import { useT } from "@/i18n";
 
 // 변경 diff — 바이너리 파일 전용 뷰. 이미지/기타 바이너리는 텍스트 diff 가
@@ -82,13 +83,9 @@ export function BinaryFileView({
 
       {isImage ? (
         preview === "loading" ? (
-          <div className="empty-hint" style={{ padding: 16 }}>
-            {t("diff.previewLoading")}
-          </div>
+          <EmptyState style={{ padding: 16 }}>{t("diff.previewLoading")}</EmptyState>
         ) : preview === "error" || (!preview.old && !preview.new) ? (
-          <div className="empty-hint" style={{ padding: 16 }}>
-            {t("diff.previewUnavailable")}
-          </div>
+          <EmptyState style={{ padding: 16 }}>{t("diff.previewUnavailable")}</EmptyState>
         ) : (
           <div className="diff-binary-panes">
             {preview.old ? (

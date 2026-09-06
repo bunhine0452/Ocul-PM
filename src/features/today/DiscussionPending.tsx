@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { EmptyState } from "@/components/EmptyState";
 import { MessageSquare, ArrowRight } from "@/components/Icons";
 import { commands, type DiscussionSummary } from "@/lib/bindings";
 import { type UiV2View } from "@/contexts/WorkspaceContext";
@@ -61,7 +62,7 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
       </div>
       <div className="panel-body">
         {items == null ? (
-          <div className="empty-hint">{t("common.loading")}</div>
+          <EmptyState>{t("common.loading")}</EmptyState>
         ) : (
           items.map((d, i) => (
             <button

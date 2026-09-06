@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { PieChart } from "@/components/Icons";
 import { agentColor, agentLabel } from "./agentColor";
 import type { AgentContribution } from "./useTodayBrief";
@@ -18,9 +19,7 @@ export function AgentBreakdown({ agents }: { agents: AgentContribution[] }) {
       </div>
       <div className="panel-body" style={{ padding: 10 }}>
         {agents.length === 0 ? (
-          <div className="empty-hint" style={{ padding: 16 }}>
-            {t("today.agents.empty")}
-          </div>
+          <EmptyState style={{ padding: 16 }}>{t("today.agents.empty")}</EmptyState>
         ) : (
           <div className="agent-list">
             {agents.map((a) => {

@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { requestReindex } from "@/lib/projectActions";
 import { useIndexProgress } from "@/lib/indexProgressStore";
@@ -362,13 +363,13 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
           ) : noIndex ? (
             <NoIndexHint />
           ) : indexing ? (
-            <div className="empty-hint">
+            <EmptyState>
               {indexProgress && indexProgress.total > 0
                 ? t("search.indexing", { done: indexProgress.current, total: indexProgress.total })
                 : t("search.indexingNoCount")}
-            </div>
+            </EmptyState>
           ) : show && results!.items.length === 0 ? (
-            <div className="empty-hint">{t("search.noResults")}</div>
+            <EmptyState>{t("search.noResults")}</EmptyState>
           ) : show && results!.kind === "symbol" ? (
             <div className="search-results">
               <div className="section-title search-results-bar">
@@ -538,7 +539,7 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
               ) : null}
             </div>
           ) : (
-            <div className="empty-hint">{hint(scope)}</div>
+            <EmptyState>{hint(scope)}</EmptyState>
           )}
         </div>
       </div>
@@ -729,12 +730,17 @@ function hint(scope: SearchScope): string {
 function NoIndexHint() {
   const { t } = useT();
   return (
-    <div className="empty-hint search-noindex">
-      <div className="search-noindex-title">{t("search.noIndex")}</div>
-      <div>{t("search.noIndexHint")}</div>
-      <button className="btn primary sm" onClick={requestReindex}>
-        {t("search.buildIndex")}
-      </button>
-    </div>
+    <EmptyState
+      density="rich"
+      icon={SearchIcon}
+      title={t("search.noIndex")}
+      actions={
+        <button className="btn primary sm" onClick={requestReindex}>
+          {t("search.buildIndex")}
+        </button>
+      }
+    >
+      {t("search.noIndexHint")}
+    </EmptyState>
   );
 }

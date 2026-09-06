@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { SkeletonList } from "@/components/ui/Skeleton";
 // 코드 화면 (13번째 ui_v2 화면) — 프로젝트 파일을 앱 안에서 열어 보고 고친다
 // (docs/code-editor/00-master-plan.md · .oculpm/planner/ide-completion.md).
@@ -1179,11 +1180,7 @@ export function CodeScreenV2({
       ) : treeStatus === "error" ? (
         <div className="scroll" ref={rootRef}>
           <div className="page">
-            <div className="empty-hint">
-              {t("code.listFailed")}
-              <br />
-              {treeError}
-            </div>
+            <EmptyState>{t("code.listFailed")}<br />{treeError}</EmptyState>
           </div>
         </div>
       ) : (
