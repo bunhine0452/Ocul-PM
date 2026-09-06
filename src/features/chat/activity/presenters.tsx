@@ -72,7 +72,8 @@ export function ToolActivity({ activity }: ActivityRowProps) {
       tool={activity.call}
       // 도구 이름("Bash")이 있으면 그대로 둔다 — 우리 어휘는 **글리프**로
       // 말하고, 이름 자리는 실제로 무엇이 돌았는지가 더 알차다.
-      present={{ Icon: present.Icon, name: activity.call.name || t(present.labelKey) }}
+      icon={present.Icon}
+      name={activity.call.name || t(present.labelKey)}
       raw={activity.raw}
     />
   );
@@ -93,7 +94,9 @@ export function LedgerActivity({ activity }: ActivityRowProps) {
   return (
     <TraceRow
       tool={activity.call}
-      present={{ Icon: present.Icon, name: t(verbKey ?? present.labelKey), tone: "ledger" }}
+      icon={present.Icon}
+      name={t(verbKey ?? present.labelKey)}
+      tone="ledger"
       raw={activity.raw}
     />
   );
@@ -113,11 +116,9 @@ export function ThinkActivity({ activity }: ActivityRowProps) {
   return (
     <TraceRow
       tool={activity.call}
-      present={{
-        Icon: MessageSquareDashed,
-        name: activity.call.name || t("activity.kind.think"),
-        tone: "aside",
-      }}
+      icon={MessageSquareDashed}
+      name={activity.call.name || t("activity.kind.think")}
+      tone="aside"
       raw={activity.raw}
     />
   );

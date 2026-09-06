@@ -59,22 +59,8 @@ export function TraceIo({ tag, text }: { tag: string; text: string }) {
   );
 }
 
-/**
- * 활동 어휘가 이 줄에 씌우는 **얼굴** (`activity/presenters.tsx`).
- *
- * 없으면 도구 종류로 폴백한다 — 이 컴포넌트는 어휘를 몰라도 혼자 선다
- * (기존 호출부와 테스트가 그대로 돈다).
- */
-export interface TracePresent {
-  Icon: IconComponent;
-  /** 줄 앞머리의 이름 한 낱말 — "일지 기록" 처럼 **우리 말**이 들어온다. */
-  name: string;
-  /**
-   * 줄의 결. `ledger` 는 우리 원장 기록(눈에 걸려야 한다), `aside` 는 곁가지
-   * (생각처럼 답이 아니라 과정인 것 — 한 톤 물러난다).
-   */
-  tone?: "ledger" | "aside";
-}
+/** 줄의 결. `ledger` 는 우리 원장 기록(눈에 걸려야 한다), `aside` 는 곁가지. */
+export type TraceTone = "ledger" | "aside";
 
 /**
  * 도구 호출 한 단계 — 무엇을 시켰고, 무엇이 나왔나.
@@ -90,11 +76,24 @@ export interface TracePresent {
  */
 export const TraceRow = memo(function TraceRow({
   tool,
-  present,
+  icon,
+  name,
+  tone,
   raw,
 }: {
   tool: AcpToolCall;
-  present?: TracePresent;
+  /**
+   * 활동 어휘가 씌우는 얼굴 (`activity/presenters.tsx`). 없으면 도구 종류로
+   * 폴백한다 — 이 컴포넌트는 어휘를 몰라도 혼자 선다.
+   *
+   * **객체 하나로 묶지 않는다.** 이 컴포넌트는 memo 인데 인라인 객체를 넘기면
+   * 스트리밍 프레임마다 새 참조가 되어 memo 가 한 번도 안 걸린다 — 글자 하나
+   * 흐를 때마다 스무 줄이 전부 다시 그려진다.
+   */
+  icon?: IconComponent;
+  /** 줄 앞머리의 이름 한 낱말 — "일지 기록" 처럼 **우리 말**이 들어온다. */
+  name?: string;
+  tone?: TraceTone;
   /** 원본 이벤트 — 펼친 본문 맨 아래 레일 (`{#raw-rail}`). */
   raw?: unknown;
 }) {
@@ -107,7 +106,7 @@ export const TraceRow = memo(function TraceRow({
    */
   const [choice, setChoice] = useState<boolean | null>(null);
   const open = choice ?? running;
-  const Icon = present?.Icon ?? TOOL_ICON[tool.kind] ?? Code2;
+  const Icon = icon ?? TOOL_ICON[tool.kind] ?? Code2;
   const statusKey = TOOL_STATUS_KEY[tool.status as keyof typeof TOOL_STATUS_KEY];
   const state = running ? " running" : failed ? " failed" : "";
   // 원본 레일도 펼칠 거리다 — 입출력이 하나도 없는 카드에서 **유일한** 거리다.
@@ -153,7 +152,7 @@ export const TraceRow = memo(function TraceRow({
   const status = statusKey ? t(statusKey) : tool.status;
 
   return (
-    <div className={"trace-item" + (open ? " open" : "") + (present?.tone ? " " + present.tone : "")}>
+    <div className={"trace-item" + (open ? " open" : "") + (tone ? " " + tone : "")}>
       <button
         type="button"
         className={"trace-row" + state}
@@ -167,7 +166,7 @@ export const TraceRow = memo(function TraceRow({
         {/* 이름과 설명을 가른다. 예전엔 명령줄 전체가 제목 자리에 들어가서,
             줄이 길수록 "무슨 도구였나"가 말줄임 뒤로 사라졌다. 이름은 짧고
             늘 같은 자리에 있어야 훑을 때 걸린다 (Claude Code 벤치마크). */}
-        <span className="trace-name">{present?.name || tool.name || t("acp.tool.untitled")}</span>
+        <span className="trace-name">{name || tool.name || t("acp.tool.untitled")}</span>
         <span className="trace-title">{tool.subtitle || tool.title}</span>
         {tool.locations.length ? (
           <span className="trace-path" title={tool.locations.join("\n")}>
