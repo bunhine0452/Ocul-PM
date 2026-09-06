@@ -18,6 +18,8 @@ import { commands, events } from "@/lib/bindings";
 import { ApiError, call, toAppError, type Envelope } from "@/api/invoke";
 import type {
   A2aOverview,
+  BranchRef,
+  BranchStory,
   Group,
   A2aServerStatus,
   OculpmA2aChanged,
@@ -405,6 +407,26 @@ export const oculpmApi = {
       return Promise.resolve(() => {});
     }
   },
+
+  // ─── 브랜치 축 (v3-surface) — 전부 로컬 git + 캐시 읽기, 네트워크 0 ───
+
+  /** 로컬 브랜치 목록 (최근 커밋 순). 원격 ref 는 읽지 않는다. */
+  branchList: (projectId: number, limit: number) =>
+    unwrap<BranchRef[]>("branch_list", commands.branchList(projectId, limit)),
+
+  /**
+   * 이 브랜치의 이야기 — 커밋·일지·플랜 항목·파일을 한 좌표로.
+   * `branch`/`base` 를 안 주면 각각 현재 브랜치 · main 계열 기준으로 잡힌다.
+   */
+  branchStory: (projectId: number, branch: string | null, base: string | null) =>
+    unwrap<BranchStory>("branch_story", commands.branchStory(projectId, branch, base)),
+
+  /** 브랜치 이야기를 마크다운 한 장으로. 취소하면 `null` (오류가 아니다). */
+  branchExportDigest: (projectId: number, branch: string | null, base: string | null) =>
+    unwrap<string | null>(
+      "branch_export_digest",
+      commands.branchExportDigest(projectId, branch, base),
+    ),
 
   onFileChanged: (cb: (payload: OculpmFileChanged) => void): Promise<() => void> => {
     try {

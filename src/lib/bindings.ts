@@ -940,6 +940,21 @@ export const commands = {
 	 *  추적되지 않는 폴더를 열어도 편집기는 동작해야 한다).
 	 */
 	gitLineChanges: (projectId: number, relPath: string, text: string) => typedError<GitLineChange[], string>(__TAURI_INVOKE("git_line_changes", { projectId, relPath, text })),
+	/**  로컬 브랜치 목록 (최근 커밋 순). */
+	branchList: (projectId: number, limit: number) => typedError<BranchRef[], string>(__TAURI_INVOKE("branch_list", { projectId, limit })),
+	/**
+	 *  이 브랜치의 이야기 — 커밋·일지·플랜 항목·파일을 한 좌표로.
+	 * 
+	 *  `branch` 가 없으면 지금 체크아웃된 브랜치, `base` 가 없으면
+	 *  main/master/develop 중 있는 첫 번째를 기준으로 잡는다.
+	 */
+	branchStory: (projectId: number, branch: string | null, base: string | null) => typedError<BranchStory, string>(__TAURI_INVOKE("branch_story", { projectId, branch, base })),
+	/**
+	 *  {#branch-digest} — 브랜치 이야기를 마크다운 한 장으로. **내보내기만 한다**:
+	 *  동기화도, 업로드도, 원격 호출도 없다 (v3-round 의 경계 결정).
+	 *  저장 대화상자 + 파일 쓰기는 일지 내보내기와 같은 자리를 쓴다.
+	 */
+	branchExportDigest: (projectId: number, branch: string | null, base: string | null) => typedError<string | null, string>(__TAURI_INVOKE("branch_export_digest", { projectId, branch, base })),
 	/**
 	 *  Re-run the indexing pipeline for `paths` (relative to the project root).
 	 *  Mirrors the per-file branch of `commands::project::index_project` so that
@@ -2858,6 +2873,102 @@ export type BinarySide = {
 	mime: string,
 	base64: string,
 	size: number,
+};
+
+export type BranchCommit = {
+	sha: string,
+	short_sha: string,
+	subject: string,
+	author_name: string,
+	/**  author date, unix seconds. */
+	timestamp: number,
+	/**  로컬 시각 기준 `YYYYMMDD` — 일지 폴더 이름과 같은 모양. */
+	workday: string,
+	file_count: number,
+	/**  이 커밋이 함께 실은 일지 파일 수 (`.oculpm/journal/**.md`). */
+	journal_count: number,
+};
+
+export type BranchEntry = {
+	/**  `.oculpm/journal/` 아래 상대 경로 — 일지 화면이 여는 열쇠. */
+	relative_path: string,
+	workday: string,
+	entry_type: string,
+	status: string,
+	agent_id: string,
+	title: string,
+	link: BranchLink,
+	/**  이 일지가 적은 파일 중 브랜치가 실제로 바꾼 것의 수. */
+	matched_files: number,
+};
+
+export type BranchFile = {
+	path: string,
+	/**  이 파일을 건드린 브랜치 커밋 수. 작업 트리에만 있으면 0. */
+	commits: number,
+	/**  아직 커밋되지 않은 변경인가. */
+	uncommitted: boolean,
+	/**  이 브랜치에 붙은 일지 중 이 파일을 적은 것이 있는가. */
+	recorded: boolean,
+};
+
+/**
+ *  일지가 이 브랜치에 붙은 **이유**. 파생 판정이라 근거를 함께 싣는다 —
+ *  화면이 "왜 이게 여기 있나"를 말할 수 있어야 원장에 대한 거짓말이 안 된다.
+ */
+export type BranchLink = 
+/**  일지 파일 자체가 이 브랜치의 커밋(또는 작업 트리)에 있다. */
+"entry" | 
+/**  일지가 적은 파일이 이 브랜치가 바꾼 파일과 겹치고 날짜도 창 안이다. */
+"files";
+
+export type BranchPlanItem = {
+	plan_id: string,
+	plan_title: string,
+	item_id: string,
+	item_title: string,
+	status: string,
+	/**  이 항목을 브랜치로 끌고 온 일지 (plan-log 의 `journal_ref`). */
+	journal_ref: string,
+};
+
+/**
+ *  로컬 브랜치 하나. `for-each-ref` 한 번으로 전부 읽는다 — 브랜치마다 git 을
+ *  다시 부르지 않는다 (Today 화면이 마운트마다 git 프로세스 15개를 띄우던
+ *  2026-08-30 감사의 교훈).
+ */
+export type BranchRef = {
+	name: string,
+	is_current: boolean,
+	tip_sha: string,
+	short_sha: string,
+	/**  팁 커밋의 커미터 시각 (unix seconds). */
+	tip_timestamp: number,
+	subject: string,
+};
+
+/**  브랜치 하나의 이야기 — 커밋·일지·플랜 항목·파일을 한 좌표로 묶은 것. */
+export type BranchStory = {
+	branch: string,
+	/**  비교 기준. 기준이 될 브랜치를 못 찾으면 `None` — 그때는 최근 커밋만 본다. */
+	base: string | null,
+	merge_base: string | null,
+	is_current: boolean,
+	/**  일지를 찾은 날짜 창 (`YYYYMMDD`, 양끝 포함). */
+	since_workday: string,
+	until_workday: string,
+	commits: BranchCommit[],
+	entries: BranchEntry[],
+	plan_items: BranchPlanItem[],
+	/**  바뀐 파일 — `.oculpm/` 아래(원장 자신)는 뺀다. */
+	files: BranchFile[],
+	/**  바뀐 파일 중 일지가 적은 것의 수. `files.len()` 과의 비가 곧 기록률이다. */
+	recorded_files: number,
+	uncommitted_files: number,
+	/**  브랜치가 실어 온 일지 파일 수 (커밋 + 작업 트리). */
+	journal_files: number,
+	/**  커밋 상한에 걸렸는가 — 걸렸으면 아래 숫자들이 "전부"가 아니다. */
+	truncated: boolean,
 };
 
 export type BreakReason = 

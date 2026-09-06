@@ -188,6 +188,10 @@ use crate::commands::{
     automation_seeds,
     automation_set_enabled,
     begin_tear_off,
+    // v3-surface — 브랜치 축 (파생 전용, 로컬 git 만 읽는다)
+    branch_export_digest,
+    branch_list,
+    branch_story,
     cancel_tear_off,
     chat,
     chat_message_append,
@@ -746,6 +750,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             git_status,
             git_head_status_brief,
             git_line_changes,
+            // v3-surface — 브랜치 축
+            branch_list,
+            branch_story,
+            branch_export_digest,
             // Lite-W6 PR6 — LocalDiffView backend
             reindex_paths,
             compute_diff,

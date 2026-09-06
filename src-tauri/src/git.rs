@@ -301,7 +301,7 @@ pub fn graph(root: &Path, limit: u32) -> Result<Vec<GitGraphCommit>, String> {
 /// every git-backed view work when the `.oculpm/` folder is opened on a *parent*
 /// of the actual repo (nested-repo case); previously only the diff path handled
 /// it and log/status/branch reported "not a git repo". `None` = no repo found.
-fn primary_repo(root: &Path) -> Option<PathBuf> {
+pub fn primary_repo(root: &Path) -> Option<PathBuf> {
     use std::collections::HashMap;
     use std::sync::{LazyLock, Mutex};
     use std::time::{Duration, Instant};
