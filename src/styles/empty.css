@@ -1,0 +1,82 @@
+/* ============================================================
+   empty.css — 빈 상태 두 밀도 (v3-surface {#empty-state-component}).
+
+   `components/EmptyState.tsx` 하나만 이 파일을 쓴다. 예전 `.empty-hint`
+   (primitives.css) 는 아직 chat·sessions·settings 에 남아 있어 그대로 둔다 —
+   그쪽은 다른 레인이 동시에 고치는 중이라 지우면 화면이 벗겨진다.
+
+   치수는 `.empty-hint` 와 docs/code 의 리치 빈 상태에서 그대로 가져왔다.
+   같은 자리에 같은 크기로 들어가야 옮기는 과정에서 화면이 흔들리지 않는다.
+   ============================================================ */
+
+.es {
+  color: var(--text-2);
+  font-size: var(--fs-5);
+}
+
+/* 한 줄 — 목록·패널 안. 예전 .empty-hint 의 치수 그대로. */
+.es--plain {
+  text-align: center;
+  padding: 60px 30px;
+}
+
+/* 화면 전체 — 아이콘·제목·설명·행동. */
+.es--rich {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 52px 24px;
+  text-align: center;
+}
+
+.es--start {
+  text-align: left;
+}
+.es--rich.es--start {
+  align-items: flex-start;
+  margin: 0;
+}
+
+.es-ico {
+  color: var(--text-3);
+}
+
+.es-title {
+  font-size: var(--fs-7);
+  font-weight: 650;
+  color: var(--text);
+}
+
+.es-desc {
+  margin: 0;
+  font-size: var(--fs-5);
+  line-height: 1.6;
+  color: var(--text-2);
+}
+.es--rich .es-desc {
+  color: var(--text-3);
+}
+
+/* 행동 — 빈 상태의 존재 이유. 줄바꿈을 허용해 좁은 열에서도 잘리지 않는다. */
+.es-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 6px;
+}
+.es--start .es-actions {
+  justify-content: flex-start;
+}
+
+/* 설명 안의 경로·명령은 코드로 — "무엇을 하면 살아나는가"가 대부분 명령이다. */
+.es-desc code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: var(--fs-4);
+  background: var(--bg-inset);
+  color: var(--text-2);
+}

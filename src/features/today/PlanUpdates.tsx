@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { EmptyState } from "@/components/EmptyState";
 import { ListChecks, ArrowRight } from "@/components/Icons";
 import { commands, type PlanActivityDto } from "@/lib/bindings";
 import { agentColor, agentLabel } from "./agentColor";
@@ -66,7 +67,7 @@ export function PlanUpdates({ projectId, onNavigate }: PlanUpdatesProps) {
       </div>
       <div className="panel-body">
         {items == null ? (
-          <div className="empty-hint">{t("common.loading")}</div>
+          <EmptyState>{t("common.loading")}</EmptyState>
         ) : (
           items.map((u, i) => (
             <button

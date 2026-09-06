@@ -17,6 +17,7 @@ import {
   type Node, type Edge, type NodeMouseHandler, type Viewport,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { EmptyState } from "@/components/EmptyState";
 import { Toolbar } from "@/components/Toolbar";
 import { SearchIcon, RefreshCw, FileCode2, Target } from "@/components/Icons";
 import { commands, type SymbolDef, type SymbolCall } from "@/lib/bindings";
@@ -856,43 +857,35 @@ export function GraphScreenV2({
               ) : null}
             </ReactFlow>
           ) : (
-            <div className="absolute inset-0 grid place-items-center text-center px-6">
-              <div className="max-w-sm">
-                <FileCode2 size={28} />
-                <p className="mt-3 text-sm font-semibold text-foreground">
-                  {loadError
-                    ? t("graph.loadFailed")
-                    : query
-                      ? t("graph.noFilterMatch")
-                      : noIndex
-                        ? t("graph.noIndex")
-                        : t("graph.noRelations")}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {loadError
-                    ? loadError
-                    : query
-                      ? t("graph.filterHint")
-                      : noIndex
-                        ? t("graph.noIndexHint")
-                        : t("graph.indexHint")}
-                </p>
-                {noIndex && !loadError && !query ? (
-                  <button
-                    onClick={requestReindex}
-                    className="mt-3 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs cursor-pointer"
-                  >
-                    {t("graph.buildIndex")}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => void load()}
-                    className="mt-3 px-3 py-1.5 rounded-md border border-border bg-background text-xs text-foreground hover:border-primary/50 cursor-pointer"
-                  >
-                    {t("graph.refresh")}
-                  </button>
-                )}
-              </div>
+            /* 손으로 짠 네 번째 리치 빈 상태였다 — 같은 뜻을 화면마다 다른
+               무게로 말하지 않게 공용 EmptyState 로 (v3-surface
+               {#empty-state-component}). 네 갈래(실패·필터·무색인·관계없음)는
+               그대로 두되, 무색인일 때의 행동만 「색인 만들기」다. */
+            <div className="absolute inset-0 grid place-items-center px-6">
+              <EmptyState
+                density="rich"
+                icon={FileCode2}
+                title={
+                  loadError ? t("graph.loadFailed")
+                    : query ? t("graph.noFilterMatch")
+                      : noIndex ? t("graph.noIndex") : t("graph.noRelations")
+                }
+                actions={
+                  noIndex && !loadError && !query ? (
+                    <button className="btn primary sm" onClick={requestReindex}>
+                      {t("graph.buildIndex")}
+                    </button>
+                  ) : (
+                    <button className="btn sm" onClick={() => void load()}>
+                      {t("graph.refresh")}
+                    </button>
+                  )
+                }
+              >
+                {loadError ? loadError
+                  : query ? t("graph.filterHint")
+                    : noIndex ? t("graph.noIndexHint") : t("graph.indexHint")}
+              </EmptyState>
             </div>
           )}
         </div>

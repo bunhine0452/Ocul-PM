@@ -9,6 +9,7 @@
 // 기존 커맨드를 그대로 부른다 — 이 화면이 새로 만든 백엔드는 없다.
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { EmptyState } from "@/components/EmptyState";
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { ArrowLeft, Copy, Pencil, Trash2, X } from "@/components/Icons";
@@ -288,17 +289,17 @@ export function ContextEditor({
       {state === "loading" ? (
         <div className="scroll">
           <div className="page">
-            <div className="empty-hint">{t("common.loading")}</div>
+            <EmptyState>{t("common.loading")}</EmptyState>
           </div>
         </div>
       ) : state === "error" ? (
         <div className="scroll">
           <div className="page">
-            <div className="empty-hint">
+            <EmptyState>
               {isSkill ? t("sk.readFailed") : t("ctx.ruleReadFailed")}
               <br />
               {error}
-            </div>
+            </EmptyState>
           </div>
         </div>
       ) : editing ? (

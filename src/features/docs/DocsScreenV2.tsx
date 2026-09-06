@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { ErrorCard } from "@/components/ErrorCard";
 // 문서(docs) 화면 — 프로젝트 루트의 `docs/` 폴더를 읽기 전용 위키처럼 보여준다.
@@ -8,7 +9,7 @@ import type { Components } from "react-markdown";
 
 import { Toolbar } from "@/components/Toolbar";
 import { Markdown } from "@/components/Markdown";
-import { RefreshCw, BookText } from "@/components/Icons";
+import { RefreshCw, BookText, Copy } from "@/components/Icons";
 import { commands, type DocsTree as DocsTreeData, type DocsTreeNode } from "@/lib/bindings";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
@@ -261,7 +262,7 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
           </div>
         </div>
       ) : !tree?.exists ? (
-        <DocsEmptyState />
+        <DocsEmptyState onRetry={loadTree} />
       ) : (
         <div className="docs-body">
           <aside className="docs-sidebar">
@@ -275,15 +276,15 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
           </aside>
           <div className="docs-main" ref={scrollRef}>
             {selected == null ? (
-              <div className="empty-hint">{t("docs.pickLeft")}</div>
+              <EmptyState>{t("docs.pickLeft")}</EmptyState>
             ) : bodyState === "loading" ? (
-              <div className="empty-hint">{t("common.loading")}</div>
+              <EmptyState>{t("common.loading")}</EmptyState>
             ) : bodyState === "error" ? (
-              <div className="empty-hint">
+              <EmptyState>
                 {t("docs.readFailed")}
                 <br />
                 {bodyError}
-              </div>
+              </EmptyState>
             ) : (
               <article className="docs-article">
                 <Markdown components={mdComponents} urlTransform={(u) => u}>
@@ -298,18 +299,46 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
   );
 }
 
-function DocsEmptyState() {
+/**
+ * `docs/` 가 없는 프로젝트의 빈 상태.
+ *
+ * 이 화면을 첫날 살리는 구체적인 행동은 **폴더 하나를 만드는 것**뿐이다
+ * (v3-surface {#first-day-screens}). 앱에는 프로젝트 폴더에 디렉터리를 만드는
+ * 커맨드가 없다 — 그래서 만들라고 말만 하는 대신 붙여넣을 한 줄을 준다.
+ * 만든 뒤 「다시 확인」 이 같은 자리에서 트리를 다시 읽는다.
+ */
+const DOCS_SEED_CMD = `mkdir -p docs && echo "# Docs" > docs/README.md`;
+
+function DocsEmptyState({ onRetry }: { onRetry: () => void }) {
   useT();
   return (
     <div className="scroll">
       <div className="page">
-        <div className="docs-empty">
-          <BookText size={32} strokeWidth={1.5} className="docs-empty-ico" />
-          <div className="docs-empty-title">{t("docs.noFolder")}</div>
-          <p className="docs-empty-desc">
-            {t("docs.noFolderHint1")} <code>docs/</code> {t("docs.noFolderHint2")}<code>.md</code>{t("docs.noFolderHint3")}
-          </p>
-        </div>
+        <EmptyState
+          density="rich"
+          icon={BookText}
+          title={t("docs.noFolder")}
+          actions={
+            <>
+              <button
+                className="btn primary sm"
+                onClick={() => {
+                  void navigator.clipboard
+                    ?.writeText(DOCS_SEED_CMD)
+                    .then(() => toast.info(t("docs.seedCopied")));
+                }}
+              >
+                <Copy size={13} /> {t("docs.copySeed")}
+              </button>
+              <button className="btn sm" onClick={onRetry}>
+                <RefreshCw size={13} /> {t("docs.recheck")}
+              </button>
+            </>
+          }
+        >
+          {t("docs.noFolderHint1")} <code>docs/</code> {t("docs.noFolderHint2")}<code>.md</code>
+          {t("docs.noFolderHint3")}
+        </EmptyState>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { SquareTerminal, ArrowRight, ChevronDown, ChevronRight } from "@/components/Icons";
 import { TerminalInstance } from "@/features/terminal/TerminalInstance";
 import { todayQuickSessionId } from "@/features/terminal/terminalLaunch";
@@ -66,9 +67,7 @@ export function TodayTerminal({
         </div>
       ) : (
         <div className="panel-body">
-          <div className="empty-hint" style={{ padding: "16px" }}>
-            {t("today.terminal.hint")}
-          </div>
+          <EmptyState style={{ padding: "16px" }}>{t("today.terminal.hint")}</EmptyState>
         </div>
       )}
     </div>

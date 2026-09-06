@@ -9,6 +9,7 @@
 // 않는다 — 빈 카드는 Today 의 신호를 흐린다.
 import { useEffect, useState } from "react";
 
+import { EmptyState } from "@/components/EmptyState";
 import { ClipboardCheck, ArrowRight } from "@/components/Icons";
 import { promoteApi } from "@/api/claudeSurface";
 import { requestAgentContext } from "@/lib/agentContextNav";
@@ -67,9 +68,9 @@ export function TodaySuggestions({ projectId, enabled }: { projectId: number; en
         </button>
       </div>
       <div className="panel-body">
-        <div className="empty-hint" style={{ textAlign: "left", padding: "6px 2px" }}>
+        <EmptyState align="start" style={{ padding: "6px 2px" }}>
           {t("promo.ruleTitle")} {rules} · {t("promo.skillTitle")} {skills}
-        </div>
+        </EmptyState>
       </div>
     </div>
   );

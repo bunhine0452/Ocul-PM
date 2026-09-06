@@ -5,6 +5,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 
+import { EmptyState } from "@/components/EmptyState";
 import { Markdown } from "@/components/Markdown";
 import { Check, MessageSquare, Paperclip, X } from "@/components/Icons";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
@@ -32,11 +33,11 @@ export function DiscussionView({
     <>
       {detail.warnings.length > 0 ? (
         <div className="disc-section">
-          <div className="empty-hint" style={{ textAlign: "left", padding: "8px 0" }}>
+          <EmptyState align="start" style={{ padding: "8px 0" }}>
             {/* U+FE0E — ⚠ 는 기본이 컬러 이모지라 텍스트 표현으로 고정해야
                 주변 텍스트와 같은 색·무게로 그려진다. */}
             {t("disc.parseWarn", { list: detail.warnings.join(" · ") })}
-          </div>
+          </EmptyState>
         </div>
       ) : null}
 
@@ -45,9 +46,9 @@ export function DiscussionView({
         {detail.problem.trim() ? (
           <Markdown>{detail.problem}</Markdown>
         ) : (
-          <div className="empty-hint" style={{ textAlign: "left", padding: "8px 0" }}>
+          <EmptyState align="start" style={{ padding: "8px 0" }}>
             {t("disc.sec.problemEmpty")}
-          </div>
+          </EmptyState>
         )}
       </section>
 

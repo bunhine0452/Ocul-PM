@@ -253,7 +253,7 @@ describe("PR-UI 3 — Journal timeline", () => {
   it("empty journal shows the no-entries hint", async () => {
     fixtures.byWorkday["20260531"] = [];
     const { findByText } = renderJournal();
-    expect(await findByText(/아직 일지가 없어요/)).toBeInTheDocument();
+    expect(await findByText(/아직 일지가 한 건도 없어요/)).toBeInTheDocument();
   });
 });
 
@@ -445,7 +445,7 @@ describe("작업 일지 — 목록 감사 회귀", () => {
       summary({ relative_path: "old", workday: "20260101", title: "예전 일지" }),
     ];
     const { findByText, getByText } = renderJournal();
-    await findByText(/아직 일지가 없어요/);
+    await findByText(/아직 일지가 한 건도 없어요/);
     fireEvent.click(getByText(/이전 기록 더 보기/));
     expect(await findByText("예전 일지")).toBeInTheDocument();
   });
@@ -508,7 +508,7 @@ describe("작업 일지 — 목록 감사 회귀", () => {
     fixtures.allPeriodTotal = 250;
 
     const { findByText, getAllByText, getByText, queryByText } = renderJournal();
-    await findByText(/아직 일지가 없어요/);
+    await findByText(/아직 일지가 한 건도 없어요/);
     fireEvent.click(getByText(/이전 기록 더 보기/)); // → 전체 기간 질의
 
     expect(await findByText("전체 250건 중 200건 표시")).toBeInTheDocument();

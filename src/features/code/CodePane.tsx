@@ -25,6 +25,7 @@ import {
   type LspCodeAction,
   type LspSymbol,
 } from "@/lib/bindings";
+import { EmptyState } from "@/components/EmptyState";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { reverseApplyPatch } from "./patchReverse";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -1574,20 +1575,19 @@ export function CodeEmptyState() {
     ["⇧⌘T", t("code.empty.kReopen")],
     ["⌃Tab", t("code.empty.kCycle")],
   ];
+  // 바깥 .code-center-hint 는 남긴다 — flex:1 로 창을 채우는 건 이 자리의
+  // 레이아웃이고, 안쪽 카드만 공용 EmptyState 로 옮겼다 (v3-surface).
   return (
-    <div className="code-center-hint code-empty">
-      <FileCode size={32} strokeWidth={1.5} className="code-empty-ico" />
-      <div className="code-empty-title">{t("code.empty.title")}</div>
-      <p className="code-empty-desc">{t("code.empty.desc")}</p>
-      {/* 단축키 표 — 빈 화면이 곧 치트시트다 (VS Code 와 같은 관례). */}
-      <div className="code-empty-keys">
-        {keys.map(([combo, label]) => (
-          <span key={combo} className="code-empty-key">
-            <kbd>{combo}</kbd>
-            <span>{label}</span>
-          </span>
-        ))}
-      </div>
+    <div className="code-center-hint">
+      <EmptyState density="rich" icon={FileCode} title={t("code.empty.title")}>
+        {t("code.empty.desc")}
+        {/* 단축키 표 — 빈 화면이 곧 치트시트다 (VS Code 와 같은 관례). */}
+        <div className="code-empty-keys">
+          {keys.map(([combo, label]) => (
+            <span key={combo} className="code-empty-key"><kbd>{combo}</kbd><span>{label}</span></span>
+          ))}
+        </div>
+      </EmptyState>
     </div>
   );
 }

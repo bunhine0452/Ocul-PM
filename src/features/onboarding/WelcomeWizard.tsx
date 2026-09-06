@@ -283,24 +283,32 @@ export function WelcomeWizard({
             </section>
           )}
 
+          {/* 마무리 판은 **아직 일어나지 않은 일**을 말하지 않는다 (v3-surface
+              {#wizard-tense}). 이 시점에 실제로 벌어진 것은 둘뿐이다: DB 행
+              하나(`create_project`)와 방금 시작된 코드 색인(`index_project`).
+              `.oculpm/` 과 AGENTS.md 는 **프로젝트를 열 때** 생긴다
+              (`ProjectTab` 의 `oculpmInit`) — 그래서 목록은 체크(✓ 끝났다)가
+              아니라 화살표(→ 열면 이렇게 된다)를 단다. */}
           {step === "ready" && added && (
             <section className="wz-panel">
               <h1 className="wz-title">{t("welcome.ready.title", { name: added.name })}</h1>
               <p className="wz-sub">{t("welcome.ready.sub")}</p>
+              <p className="wz-label">{t("welcome.ready.listLabel")}</p>
               <ul className="wz-list">
                 <li>
-                  <Check size={13} />
+                  <ArrowRight size={13} />
                   <span>{t("welcome.ready.li1")}</span>
                 </li>
                 <li>
-                  <Check size={13} />
+                  <ArrowRight size={13} />
                   <span>{t("welcome.ready.li2")}</span>
                 </li>
                 <li>
-                  <Check size={13} />
+                  <ArrowRight size={13} />
                   <span>{t("welcome.ready.li3")}</span>
                 </li>
               </ul>
+              <p className="wz-note">{t("welcome.ready.note")}</p>
             </section>
           )}
         </div>

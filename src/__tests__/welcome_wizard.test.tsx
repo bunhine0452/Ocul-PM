@@ -158,6 +158,9 @@ describe("WelcomeWizard — 세 판을 지나 프로젝트까지", () => {
 
     // 마무리 판은 방금 들여온 프로젝트의 이름을 말한다.
     await screen.findByText(/ai-pm/);
+    // …그리고 아직 심지 않은 것을 심었다고 말하지 않는다 (v3-surface
+    // {#wizard-tense}) — 목록은 "열면 이렇게 된다" 로 걸려 있어야 한다.
+    expect(screen.getByText(ko["welcome.ready.listLabel"])).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: ko["welcome.ready.open"] }));
     await waitFor(() => expect(onOpenProject).toHaveBeenCalledWith(project));

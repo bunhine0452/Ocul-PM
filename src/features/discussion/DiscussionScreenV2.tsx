@@ -1,11 +1,12 @@
 import { useConfirm } from "@/hooks/useConfirm";
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { Toolbar } from "@/components/Toolbar";
 import { OculSpinner } from "@/components/OculSpinner";
 import { AppDialog } from "@/components/ui/AppDialog";
-import { Plus, Pencil, Check, ArrowRight, TargetIcon, Clipboard, ClipboardCheck } from "@/components/Icons";
+import { Plus, Pencil, Check, ArrowRight, TargetIcon, Clipboard, ClipboardCheck, MessagesSquare } from "@/components/Icons";
 import { toast } from "@/lib/toast";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
@@ -410,11 +411,20 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                 style={{ margin: 12 }}
               />
             ) : list.length === 0 ? (
-              <div className="empty-hint">
-                {t("disc.empty")}
-                <br />
+              /* 첫날 이 화면을 살리는 행동은 하나다 — 지금 걸린 문제 하나를
+                 제목으로 적어 문서를 세우는 것 (v3-surface {#first-day-screens}). */
+              <EmptyState
+                density="rich"
+                icon={MessagesSquare}
+                title={t("disc.empty")}
+                actions={
+                  <button type="button" className="btn primary" onClick={() => setCreating(true)}>
+                    <Plus size={14} /> {t("disc.new")}
+                  </button>
+                }
+              >
                 {t("disc.emptyHint")}
-              </div>
+              </EmptyState>
             ) : (
               <>
                 {active.map(renderItem)}
@@ -430,13 +440,13 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
 
           <div className="disc-main">
             {selectedId == null ? (
-              <div className="empty-hint">{t("disc.pickOne")}</div>
+              <EmptyState>{t("disc.pickOne")}</EmptyState>
             ) : detailLoading && !detail ? (
               <div className="grid place-items-center py-20">
                 <OculSpinner size={24} label={t("disc.openingDoc")} />
               </div>
             ) : !detail ? (
-              <div className="empty-hint">{t("disc.docFailed")}</div>
+              <EmptyState>{t("disc.docFailed")}</EmptyState>
             ) : editing ? (
               <div className="disc-edit-shell">
                 <div className="disc-edit-head">

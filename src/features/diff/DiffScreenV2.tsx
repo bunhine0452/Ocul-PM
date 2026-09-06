@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -157,6 +158,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     workingChanges.length > 0 || lastCommitChanges.length === 0 ? "working" : "last_commit";
   const baseline = baselinePinned ?? autoBaseline;
   const changes = baseline === "last_commit" ? lastCommitChanges : workingChanges;
+  const hasLastCommit = baseline === "working" && lastCommitChanges.length > 0;
 
   // Selected file. Seed from diffActivePath (the journal-card → diff handoff
   // parked by PR-UI 3), else the most recent change.
@@ -588,11 +590,13 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
             ) : listError ? (
               <ErrorCard title={t("diff.listFailed")} error={listError} onRetry={() => setListNonce((n) => n + 1)} />
             ) : (
-              <div className="empty-hint">
-                {baseline === "working" && lastCommitChanges.length > 0
-                  ? t("diff.emptyWorking")
-                  : t("diff.emptyBranch")}
-              </div>
+              /* 직전 커밋으로 가는 길을 글이 아니라 버튼으로 (v3-surface). */
+              <EmptyState density="rich" icon={GitBranchIcon} title={t("diff.emptyTitle")}
+                actions={hasLastCommit ? (
+                  <button className="btn primary sm" onClick={() => setBaselinePinned("last_commit")}>
+                    {t("diff.lastCommit")}</button>) : null}>
+                {hasLastCommit ? t("diff.emptyWorking") : t("diff.emptyBranch")}
+              </EmptyState>
             )}
           </div>
         </div>
@@ -695,7 +699,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                   projectId={projectId}
                 />
               ) : (
-                <div className="empty-hint">{t("diff.pickFile")}</div>
+                <EmptyState>{t("diff.pickFile")}</EmptyState>
               )}
             </div>
           </div>
@@ -734,20 +738,20 @@ function DiffBody({ result, mode, newFilePatch, newFileError, deleted, baseline,
     // A deleted file with no baseline — nothing to diff, but don't error.
     if (deleted) {
       return (
-        <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
+        <EmptyState align="start" style={{ padding: 16 }}>
           {t("diff.fileDeleted")}
           <br />
           <span className="text-muted-foreground" style={{ fontSize: 11 }}>
             {t("diff.noBaseline")}
           </span>
-        </div>
+        </EmptyState>
       );
     }
     // No baseline yet — render the file's whole content as additions so the
     // user sees the change immediately (untracked / never-indexed file).
     if (newFilePatch == null) {
       return (
-        <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
+        <EmptyState align="start" style={{ padding: 16 }}>
           {newFileError ? (
             <>
               {t("diff.readFailed")}
@@ -759,7 +763,7 @@ function DiffBody({ result, mode, newFilePatch, newFileError, deleted, baseline,
           ) : (
             t("diff.readingFile")
           )}
-        </div>
+        </EmptyState>
       );
     }
     return (
@@ -776,9 +780,9 @@ function DiffBody({ result, mode, newFilePatch, newFileError, deleted, baseline,
   const isSnapshot = result.source.source === "snapshot";
   if (!patch.trim()) {
     return (
-      <div className="empty-hint" style={{ textAlign: "left", padding: 16 }}>
+      <EmptyState align="start" style={{ padding: 16 }}>
         {t("diff.noChanges", { base: isSnapshot ? t("diff.baseSnapshot") : t("diff.baseHead") })}
-      </div>
+      </EmptyState>
     );
   }
   return (
