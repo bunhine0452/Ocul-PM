@@ -35,12 +35,30 @@ describe("tokens.css — 상태색·스케일·층·프로젝트 팔레트가 �
     expect(root).toMatch(/--claude:\s*#d97757;/);
   });
 
-  it("글자 7단 · 층 8단 · 이징 3종", () => {
-    for (let i = 1; i <= 7; i++) expect(root).toMatch(new RegExp(`--fs-${i}:\\s*[0-9.]+px;`));
+  it("글자 13단 · 여백 8단 · 층 8단 · 이징 3종", () => {
+    // 0~12 — 3.0 {#fs-scale-up} 이 양 끝을 늘렸다 (9px 메타 · 14~26px 제목).
+    for (let i = 0; i <= 12; i++) expect(root).toMatch(new RegExp(`--fs-${i}:\\s*[0-9.]+px;`));
+    for (let i = 1; i <= 8; i++) expect(root).toMatch(new RegExp(`--space-${i}:\\s*\\d+px;`));
     for (const z of ["sticky", "strip", "panel", "dock", "menu", "popover", "modal", "top"]) {
       expect(root).toMatch(new RegExp(`--z-${z}:\\s*\\d+;`));
     }
     for (const e of ["ease-out", "ease-in-out", "ease-spring"]) expect(root).toMatch(new RegExp(`--${e}:`));
+  });
+
+  it("글자 램프는 단조 증가한다 — 뒤집히면 위계가 거짓말이 된다", () => {
+    const sizes = [...Array(13).keys()].map((i) => {
+      const m = root.match(new RegExp(`--fs-${i}:\\s*([0-9.]+)px;`));
+      expect(m, `--fs-${i}`).toBeTruthy();
+      return Number(m![1]);
+    });
+    for (let i = 1; i < sizes.length; i++) {
+      expect(sizes[i], `--fs-${i} > --fs-${i - 1}`).toBeGreaterThan(sizes[i - 1]);
+    }
+    // 여백은 4px 격자 위에 있다 (App.css 의 Tailwind --spacing 과 같은 격자).
+    for (let i = 1; i <= 8; i++) {
+      const m = root.match(new RegExp(`--space-${i}:\\s*(\\d+)px;`));
+      expect(Number(m![1]) % 2, `--space-${i}`).toBe(0);
+    }
   });
 
   it("프로젝트 색 8종은 tokens.css 의 [data-pc] 한 곳뿐이다", () => {
@@ -90,15 +108,8 @@ const HEX_EXCEPTIONS: { file: string | RegExp; selector?: RegExp; line?: RegExp;
   {
     file: "features/code/code.css",
     reason:
-      "CodeMirror 편집기 팔레트(--code-*, One Light/Dark). 그 자체가 팔레트 층이고, " +
-      "highlight.js 토큰과의 통합은 3.0 {#hljs-unify} 몫이다.",
-  },
-  {
-    file: "styles/screens.css",
-    selector: /\.hljs/,
-    reason:
-      "highlight.js 토큰 팔레트 — 앱 전체에서 **여기 한 벌뿐**이다 ({#hljs-dedupe}). " +
-      "토큰화·CodeMirror 통합은 3.0 {#hljs-unify}.",
+      "CodeMirror 편집기의 상호작용 색(선택·검색 일치)과, tokens.css 로 옮겨 가기 전 " +
+      "남아 있는 문법 팔레트 한 벌. 문법 색의 정본은 이제 tokens.css 다 ({#hljs-unify}).",
   },
   {
     file: "components/bootsplash.css",
@@ -206,6 +217,113 @@ describe("색 리터럴은 팔레트 층에만 있다 — 화이트리스트", (
 
   it("모든 예외에 사유가 적혀 있다", () => {
     for (const e of HEX_EXCEPTIONS) expect(e.reason.length).toBeGreaterThan(30);
+  });
+});
+
+// ─── 3.0 {#hljs-unify} — 문법 색은 한 팔레트에서만 태어난다 ────────────────
+//
+// 예전엔 같은 코드가 편집기에선 보라, 변경/일지 화면에선 빨강이었다. 아래
+// 셋을 못박는다: (1) 토큰이 라이트·다크에 다 있다, (2) 프리셋 5종이 전부
+// 다시 칠한다, (3) hljs 규칙은 색을 **직접 쓰지 않는다**.
+
+const SYNTAX_TOKENS = ["kw", "str", "comment", "num", "fn", "type", "prop", "def", "op"] as const;
+
+describe("문법 강조 — --code-* 한 팔레트", () => {
+  const tokens = read("styles/tokens.css");
+  const root = tokens.slice(0, tokens.indexOf('[data-theme="dark"] {'));
+  const dark = tokens.slice(tokens.indexOf('[data-theme="dark"] {'));
+
+  it("라이트·다크에 아홉 색 + --code-fg 가 있다", () => {
+    expect(root).toMatch(/--code-fg:\s*var\(--text\);/);
+    for (const name of SYNTAX_TOKENS) {
+      expect(root, `light --code-${name}`).toMatch(new RegExp(`--code-${name}:\\s*#`));
+      expect(dark, `dark --code-${name}`).toMatch(new RegExp(`--code-${name}:\\s*#`));
+    }
+  });
+
+  it("프리셋 5종이 전부 다시 칠한다 — 그러지 않으면 Nord 위에 GitHub 색이 뜬다", () => {
+    for (const preset of ["solarized", "sepia", "nord", "dracula", "high-contrast"]) {
+      // 두 번째 블록(문법 전용)만 본다 — 첫 블록은 내장 테마 JSON 의 생성 원본이다.
+      const blocks = tokens.split(`[data-preset="${preset}"] {`);
+      expect(blocks.length, `${preset} 블록 수`).toBe(3);
+      const syntax = blocks[2].slice(0, blocks[2].indexOf("}"));
+      for (const name of SYNTAX_TOKENS) {
+        expect(syntax, `${preset} --code-${name}`).toMatch(new RegExp(`--code-${name}:\\s*#`));
+      }
+    }
+  });
+
+  it("문법 토큰은 내장 테마 JSON 에 새지 않는다 — 백엔드 화이트리스트 밖이다", () => {
+    for (const preset of ["solarized", "sepia", "nord", "dracula", "high-contrast"]) {
+      const first = tokens.split(`[data-preset="${preset}"] {`)[1];
+      expect(first.slice(0, first.indexOf("}")), preset).not.toContain("--code-");
+    }
+  });
+
+  it("hljs 규칙은 색 대신 토큰을 읽는다", () => {
+    const screens = read("styles/screens.css").replace(/\/\*[\s\S]*?\*\//g, "");
+    const hljsLines = screens.split("\n").filter((l) => l.trimStart().startsWith(".hljs"));
+    expect(hljsLines.length).toBeGreaterThan(10);
+    for (const line of hljsLines) expect(line, line).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    // 추가/삭제 줄은 문자열 색이 아니라 변경 팔레트를 쓴다 — 같은 화면의 diff 와 같은 색.
+    expect(screens).toMatch(/\.hljs-addition \{ color: var\(--diff-add-text\); \}/);
+    expect(screens).toMatch(/\.hljs-deletion \{ color: var\(--diff-del-text\); \}/);
+  });
+});
+
+// ─── 3.0 {#claude-coral-unify} — 코랄은 한 값이다 ──────────────────────────
+describe("Claude 코랄", () => {
+  it("--claude 와 CLAUDE_ORANGE 가 같은 값이다", () => {
+    const token = read("styles/tokens.css").match(/--claude:\s*(#[0-9a-f]{6});/)![1];
+    const mark = read("components/ClaudeMark.tsx").match(/CLAUDE_ORANGE = "(#[0-9a-f]{6})"/)![1];
+    expect(mark).toBe(token);
+  });
+});
+
+// ─── 3.0 {#modal-chrome-unify} — 스크림 한 벌, 모달 크롬 한 벌 ─────────────
+describe("모달 크롬", () => {
+  const prim = read("styles/primitives.css");
+  const screens = read("styles/screens.css");
+
+  it(".set-modal-backdrop 이 .scrim 과 같은 바탕을 쓴다", () => {
+    expect(prim).toMatch(/\.scrim,\n\.set-modal-backdrop \{/);
+    // 자기 배경을 다시 칠하면 프리셋을 안 따르던 그 버그가 되돌아온다.
+    const rule = screens.slice(screens.indexOf(".set-modal-backdrop {"));
+    expect(rule.slice(0, rule.indexOf("}"))).not.toMatch(/background/);
+  });
+
+  it("제목·설명·버튼 줄이 한 벌이다", () => {
+    expect(prim).toMatch(/\.sk-modal-head,\n\.set-modal-title \{/);
+    expect(prim).toMatch(/\.sk-modal-warn,\n\.set-modal-desc \{/);
+    expect(prim).toMatch(/\.sk-modal-foot,\n\.set-modal-actions \{/);
+    // screens.css 에는 간격만 남는다.
+    expect(screens).not.toMatch(/\.set-modal-title \{[^}]*font-size/);
+  });
+});
+
+// ─── 3.0 {#theme-inline-scale} — Tailwind 유틸리티가 우리 램프를 읽는다 ────
+describe("@theme inline", () => {
+  const app = read("App.css");
+  it("text-xs~3xl 이 --fs-* 를 가리킨다", () => {
+    for (const [util, fs] of [
+      ["xs", 5],
+      ["sm", 7],
+      ["base", 8],
+      ["lg", 9],
+      ["xl", 10],
+      ["2xl", 11],
+      ["3xl", 12],
+    ] as const) {
+      expect(app, `--text-${util}`).toMatch(new RegExp(`--text-${util}:\\s*var\\(--fs-${fs}\\);`));
+    }
+  });
+  it("Tailwind 여백이 4px 격자에 못박혀 있다", () => {
+    expect(app).toMatch(/--spacing:\s*4px;/);
+  });
+  it("z 유틸리티가 tokens.css 의 여덟 층을 읽는다", () => {
+    for (const z of ["sticky", "strip", "panel", "dock", "menu", "popover", "modal", "top"]) {
+      expect(app, `--z-index-${z}`).toMatch(new RegExp(`--z-index-${z}:\\s*var\\(--z-${z}\\);`));
+    }
   });
 });
 

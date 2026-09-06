@@ -161,7 +161,7 @@
 }
 
 .side-brand {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: var(--space-4);
   padding: 4px 8px clamp(6px, 1.4vh, 14px);
 }
 /* .brand-mark / .brand-name / .brand-sub 는 소비처가 없어 지웠다 (사이드바
@@ -205,7 +205,7 @@
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: var(--z-popover);
   background: var(--bg-card); border: 1px solid var(--border-card);
   border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
-  padding: 4px; max-height: 340px; overflow-y: auto;
+  padding: var(--space-1); max-height: 340px; overflow-y: auto;
   transform-origin: top center;
   animation: popIn var(--dur-2) var(--ease-spring) both;
 }
@@ -215,7 +215,7 @@
 }
 .proj-pop-list { display: flex; flex-direction: column; gap: 1px; }
 .proj-pop-item {
-  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left;
   padding: 7px 8px; border-radius: 8px; cursor: pointer;
   background: none; border: none; color: var(--text); font-family: var(--font);
 }
@@ -224,10 +224,10 @@
 .proj-pop-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .proj-pop-name { font-weight: 600; font-size: var(--fs-6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .proj-pop-path { font-size: var(--fs-1); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.proj-pop-cur { font-size: 9.5px; font-weight: 700; color: var(--accent-text); background: var(--accent-soft); padding: 1px 6px; border-radius: 99px; flex: none; }
+.proj-pop-cur { font-size: var(--fs-0); font-weight: 700; color: var(--accent-text); background: var(--accent-soft); padding: 1px 6px; border-radius: 99px; flex: none; }
 .proj-pop-manage {
-  display: flex; align-items: center; gap: 6px; width: 100%; text-align: left;
-  margin-top: 4px; padding: 8px; cursor: pointer;
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left;
+  margin-top: 4px; padding: var(--space-3); cursor: pointer;
   background: none; border: none; border-top: 1px solid var(--sep);
   color: var(--text-2); font-family: var(--font); font-size: var(--fs-4); font-weight: 600;
 }
@@ -240,7 +240,7 @@
   padding: clamp(5px, 1.2vh, 12px) 10px 4px;
 }
 .nav-item {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: var(--space-4);
   /* 20행 × 최대 5px = 낮은 창에서 100px 남짓을 되찾는다. 아이콘이 17px 이라
      최소값에서도 행 높이는 25px 밑으로 내려가지 않는다. */
   padding: clamp(4px, 0.7vh, 7px) 10px; border-radius: var(--radius-s);
@@ -365,7 +365,7 @@
 }
 .toolbar {
   height: var(--toolbar-h); flex: none;
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: var(--space-5);
   padding: 0 22px;
   border-bottom: 1px solid var(--sep);
   /* 불투명 (2026-09-02). 반투명 + blur(18px) 유리 툴바는 매 프레임 아래를 다시
@@ -375,7 +375,7 @@
 /* 좁은 창 방어 (2026-07-20): 제목은 절대 내부 줄바꿈하지 않고(CJK 가 한 글자씩
    세로로 꺾이던 버그), 부제는 넘치면 말줄임으로 양보한다. 액션 묶음은
    .toolbar-actions 가 가로 스크롤로 흡수 (스크롤바는 숨김 — 트랙패드/휠). */
-.toolbar-title { font-size: 15px; font-weight: 650; letter-spacing: -0.015em; white-space: nowrap; flex: none; }
+.toolbar-title { font-size: var(--fs-9); font-weight: 650; letter-spacing: -0.015em; white-space: nowrap; flex: none; }
 /* 부제는 화면이 지금 무엇을 보고 있는지 말하는 **문장**이다 — 타임스탬프가
    아니므로 --text-2 (2026-09-04 {#text3-promotion}). */
 .toolbar-sub {
@@ -385,7 +385,7 @@
 }
 .toolbar-spacer { flex: 1; min-width: 12px; }
 .toolbar-actions {
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: var(--space-5);
   min-width: 0; max-width: 100%;
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: none;

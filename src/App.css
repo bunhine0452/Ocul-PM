@@ -110,6 +110,51 @@
     --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
 
     --font-sans: 'Pretendard Variable', -apple-system, 'Apple SD Gothic Neo', sans-serif;
+
+    /* 글자 크기 — Tailwind 유틸리티를 tokens.css 램프에 묶는다 (3.0 {#theme-inline-scale}).
+       왜: `text-xs`/`text-sm` 이 297곳(설정 · 회고 · 마법사 · 모바일 · 시작 탭)에
+       쓰이는데, Tailwind 기본값(12/14/16/18/20/24/30px)은 우리 램프(10~13px 본문 +
+       14/15/17/20/26 제목)와 **아무 데서도 만나지 않는다**. 같은 창에서 shadcn 으로
+       그린 설정과 토큰 CSS 로 그린 화면이 서로 다른 글자 크기 두 벌을 쓴다는 뜻이다.
+       여기서 한 번 이어 주면 TSX 는 한 줄도 안 고치고 그 297곳이 정렬된다.
+
+       ⚠️ `text-sm` 이 14px → 13px 이 된다 (본문 기본값과 같아진다). 위로 갈수록
+       폭이 커서 text-base 16→14 · text-3xl 30→26 이다 — 이 앱은 밀도 도구라
+       Tailwind 의 웹 문서용 스케일이 애초에 한 치수 컸다.
+
+       line-height 를 함께 적는 이유: Tailwind 기본은 rem 절대값(text-sm → 1.25rem)
+       이라 글자만 줄면 줄 간격이 상대적으로 벌어진다. 배수로 바꿔 따라오게 한다. */
+    --text-xs: var(--fs-5);    --text-xs--line-height: 1.5;
+    --text-sm: var(--fs-7);    --text-sm--line-height: 1.55;
+    --text-base: var(--fs-8);  --text-base--line-height: 1.55;
+    --text-lg: var(--fs-9);    --text-lg--line-height: 1.5;
+    --text-xl: var(--fs-10);   --text-xl--line-height: 1.4;
+    --text-2xl: var(--fs-11);  --text-2xl--line-height: 1.35;
+    --text-3xl: var(--fs-12);  --text-3xl--line-height: 1.25;
+
+    /* 여백 — Tailwind 의 `p-2`/`gap-3` 는 `calc(var(--spacing) * n)` 이다.
+       기본값 0.25rem 은 루트 글꼴 16px 을 전제로 하는데, 이 앱의 배율은 루트
+       글꼴이 아니라 **네이티브 웹뷰 줌**이라(features/settings/uiScale.ts) rem 이
+       흔들릴 자리가 없다. px 로 못박아 tokens.css 의 --space-* 와 같은 4px 격자
+       위에 세운다 — `p-2`(8px) == `var(--space-3)` 이 우연이 아니게. */
+    --spacing: 4px;
+
+    /* 층 — Tailwind 의 `z` 유틸리티는 `--z-index-*` 를 읽는다. tokens.css 의 여덟
+       층을 그대로 이어 붙여 `z-modal` · `z-popover` 가 CSS 쪽 `var(--z-modal)` 과
+       **같은 숫자**를 쓰게 한다.
+       ⚠️ 아직 호출부는 임의값이다 — 창 최상위 오버레이 다섯이 z-[90] · z-[95] ·
+       z-[100] · z-[110] 을 각자 골라 놓았고(components/CommandPalette ·
+       components/ui/AppDialog · windows/Dialog · windows/SettingsOverlay ·
+       features/onboarding/GreenfieldWizard), 그 다섯은 이 레인의 소유가 아니다.
+       어휘를 먼저 깔아 둔다: 옮기는 쪽은 클래스 이름만 바꾸면 된다. */
+    --z-index-sticky: var(--z-sticky);
+    --z-index-strip: var(--z-strip);
+    --z-index-panel: var(--z-panel);
+    --z-index-dock: var(--z-dock);
+    --z-index-menu: var(--z-menu);
+    --z-index-popover: var(--z-popover);
+    --z-index-modal: var(--z-modal);
+    --z-index-top: var(--z-top);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -399,7 +444,7 @@
   z-index: 200;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-4);
   max-width: 360px;
   padding: 11px 12px 11px 14px;
   border-radius: 12px;
@@ -407,7 +452,7 @@
   color: var(--foreground);
   border: 1px solid var(--border);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
-  font-size: 13px;
+  font-size: var(--fs-7);
   animation: updateBannerIn 0.18s ease-out;
 }
 @keyframes updateBannerIn {
@@ -424,7 +469,7 @@
   cursor: pointer;
   padding: 5px 12px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--fs-5);
   font-weight: 700;
   background: var(--primary);
   color: var(--primary-foreground);
@@ -437,7 +482,7 @@
   background: transparent;
   cursor: pointer;
   color: var(--muted-foreground);
-  padding: 4px;
+  padding: var(--space-1);
   border-radius: 6px;
   display: grid;
   place-items: center;
@@ -461,7 +506,7 @@
 .dl-sub {
   display: block;
   margin-top: 5px;
-  font-size: 11px;
+  font-size: var(--fs-3);
   color: var(--muted-foreground);
 }
 
@@ -479,9 +524,9 @@
 
 .ocul-loading {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 10px; padding: 28px 16px; color: var(--muted-foreground);
+  gap: var(--space-4); padding: 28px 16px; color: var(--muted-foreground);
 }
-.ocul-loading-label { font-size: 13px; }
+.ocul-loading-label { font-size: var(--fs-7); }
 
 @media (prefers-reduced-motion: reduce) {
   .ocul-spin-arc { animation: none; }

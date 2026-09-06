@@ -72,7 +72,7 @@
   height: 32px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   padding: 0 10px;
   border-radius: 9px 9px 0 0;
   color: var(--text-2);
@@ -113,7 +113,7 @@
 .tabstrip-tab {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   /* 하한은 "아이콘 + 활동 점 + 닫기" 가 겹치지 않는 최소치다
      (10 + 13 + 6 + 6 + 6 + 18 + 6 = 65px → 68). 이름은 `min-width: 0` 이라
      그 아래에서 0 폭으로 접히고 아이콘만 남는다 — Chrome 과 같은 거동이다.
@@ -249,13 +249,13 @@
   min-width: 260px;
   background: var(--bg-card); border: 1px solid var(--border-card);
   border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
-  padding: 4px; max-height: 340px; overflow-y: auto;
+  padding: var(--space-1); max-height: 340px; overflow-y: auto;
   transform-origin: top left;
   animation: popIn var(--dur-2) var(--ease-spring) both;
 }
 .tabstrip-pop-list { display: flex; flex-direction: column; gap: 1px; }
 .tabstrip-pop-item {
-  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left;
   padding: 7px 8px; border-radius: 8px; cursor: pointer;
   background: none; border: none; color: var(--text); font-family: var(--font);
 }
@@ -265,8 +265,8 @@
 .tabstrip-pop-path { font-size: var(--fs-1); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tabstrip-pop-empty { padding: 10px 8px; font-size: var(--fs-4); color: var(--text-2); }
 .tabstrip-pop-manage {
-  display: flex; align-items: center; gap: 6px; width: 100%; text-align: left;
-  margin-top: 4px; padding: 8px; cursor: pointer;
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left;
+  margin-top: 4px; padding: var(--space-3); cursor: pointer;
   background: none; border: none; border-top: 1px solid var(--sep);
   color: var(--text-2); font-family: var(--font); font-size: var(--fs-4); font-weight: 600;
 }
