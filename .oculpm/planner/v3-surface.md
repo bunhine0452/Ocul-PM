@@ -16,14 +16,14 @@ owner: claude-code
 - [x] KNOWN_VIEWS 를 딥링크뿐 아니라 영속값에도 적용 {#known-views-persist}
 
 ## 활동 의미 층 — AI 화면이 읽힌다 {#activity-layer}
-- [ ] features/chat/activity/activityTypes.ts — 우리 어휘 15종. oculpm-journal·oculpm-plan·oculpm-a2a 셋이 우리만의 값어치다 {#activity-types}
-- [ ] classify.ts 순수 provider 체인 + parseOculpmCliCommand() 가 셸 문자열에서 oculpm journal write 를 알아본다. 틀리면 shell 로 흘린다 — 잘못된 일지를 썼습니다 는 원장에 대한 거짓말이다 {#activity-classify}
-- [ ] group.ts 2패스 묶기 + 개입 지점 불변 규칙 — permission·error·oculpm-* 는 절대 안 접는다. acpBusyBus 의 attention 집합을 존중하고 테스트로 못 박는다 {#activity-group}
-- [ ] 프레젠터 6~7개 + satisfies Record 로 누락을 컴파일 에러로 {#activity-presenters}
-- [ ] 원본 이벤트 레일(details) — 추상화가 틀려도 도망갈 데를 먼저 만든다. 분류학은 자란다(buzz 도 문서 12 vs 타입 15) {#raw-rail}
-- [ ] AcpConversation.tsx 2,192줄 분해 — TraceRow 는 ToolActivity 몸통으로 재사용, 버리는 코드가 거의 없다. 파일 크기 래칫 부채 -1 {#acp-split}
-- [ ] 바쁨 신호에 source(observer|typing|none) — Liveness 3상태 규율을 같은 자리에. 지금 스트림이 끕긴 것과 진짜 도는 것을 구별 못 한다 {#working-source}
-- [ ] Sessions 화면·Today 함께 일하는 중이 같은 어휘를 쓰게 — 지금 무엇을 하고 있는가 가 lease 뿐이다 {#activity-vocab-reuse}
+- [x] features/chat/activity/activityTypes.ts — 우리 어휘 15종. oculpm-journal·oculpm-plan·oculpm-a2a 셋이 우리만의 값어치다 {#activity-types}
+- [x] classify.ts 순수 provider 체인 + parseOculpmCliCommand() 가 셸 문자열에서 oculpm journal write 를 알아본다. 틀리면 shell 로 흘린다 — 잘못된 일지를 썼습니다 는 원장에 대한 거짓말이다 {#activity-classify}
+- [x] group.ts 2패스 묶기 + 개입 지점 불변 규칙 — permission·error·oculpm-* 는 절대 안 접는다. acpBusyBus 의 attention 집합을 존중하고 테스트로 못 박는다 {#activity-group}
+- [x] 프레젠터 6~7개 + satisfies Record 로 누락을 컴파일 에러로 {#activity-presenters}
+- [x] 원본 이벤트 레일(details) — 추상화가 틀려도 도망갈 데를 먼저 만든다. 분류학은 자란다(buzz 도 문서 12 vs 타입 15) {#raw-rail}
+- [x] AcpConversation.tsx 2,192줄 분해 — TraceRow 는 ToolActivity 몸통으로 재사용, 버리는 코드가 거의 없다. 파일 크기 래칫 부채 -1 {#acp-split}
+- [x] 바쁨 신호에 source(observer|typing|none) — Liveness 3상태 규율을 같은 자리에. 지금 스트림이 끕긴 것과 진짜 도는 것을 구별 못 한다 {#working-source}
+- [x] Sessions 화면·Today 함께 일하는 중이 같은 어휘를 쓰게 — 지금 무엇을 하고 있는가 가 lease 뿐이다 {#activity-vocab-reuse}
 
 ## IA 재편 — 사이드바가 정리된다 (안 A, 17→15) {#ia}
 - [x] Claude Code + Codex → 에이전트 한 행 (컴포넌트는 두 벌 keep-alive 유지, uiV2View 값 보존, 배지 합산) {#agent-row-merge}
@@ -82,4 +82,12 @@ owner: claude-code
 | 2026-09-06T13:07:41+09:00 | #branch-story-view | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1307_feature_branch-story-axis.md | 통계 4칸+4패널, 회고 어휘 재사용으로 새 CSS 0. 실행 확인 미완 |
 | 2026-09-06T13:07:47+09:00 | #branch-digest | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1307_feature_branch-story-axis.md | export_digest 의 저장 대화상자를 save_markdown 으로 추출해 재사용. 동기화 없음 |
 | 2026-09-06T13:12:41+09:00 | #hljs-unify | claude-code | ~→x | .oculpm/journal/20260906/Refactors/1301_refactor_dialect-convergence-tokens.md | 병합 때 code.css 의 편집기 지역 팔레트 제거로 마무리 — 이제 프리셋을 따른다 |
+| 2026-09-06T13:31:16+09:00 | #raw-rail | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1331_feature_activity-meaning-layer.md | 프레젠터보다 먼저 만들었다 — 8KB 상한·순환참조 안전 |
+| 2026-09-06T13:31:24+09:00 | #activity-types | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1331_feature_activity-meaning-layer.md | 15낱말을 실제 표면에서 뽑음. write 는 뺐다 — 프로토콜에 없어 채울 수 없다 |
+| 2026-09-06T13:31:31+09:00 | #activity-classify | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1331_feature_activity-meaning-layer.md | 틀리면 shell 로 흘린다 — 거절 케이스 15개 단언 |
+| 2026-09-06T13:31:39+09:00 | #activity-group | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1331_feature_activity-meaning-layer.md | NEVER_FOLD = attention ∪ error ∪ oculpm-*. 15낱말 전수로 단언 |
+| 2026-09-06T13:31:47+09:00 | #activity-presenters | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1331_feature_activity-meaning-layer.md | satisfies Record — 얼굴 15벌·몸통 6벌, 누락은 컴파일 에러 |
+| 2026-09-06T13:31:53+09:00 | #acp-split | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1331_feature_activity-meaning-layer.md | 2,176→749줄, 13조각. TraceRow 는 ToolActivity 몸통으로 재사용 — 버린 코드 없음 |
+| 2026-09-06T13:32:00+09:00 | #working-source | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1331_feature_activity-meaning-layer.md | typing\|observer\|none + 15초 침묵 타이머 → 「실행 중 · 신호 없음」. 문턱은 실사용 확인 필요 |
+| 2026-09-06T13:32:07+09:00 | #activity-vocab-reuse | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1331_feature_activity-meaning-layer.md | 세션 카드는 같은 어휘로. Today 는 「지금 무엇을」 표면 자체가 없어 새 행이 필요 — 이월 |
 <!-- oculpm:plan-log end -->
