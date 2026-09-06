@@ -5,7 +5,7 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, Search, Square, Trash2, X } from "@/components/Icons";
 import { SessionIdChip, shortSessionId } from "../SessionIdChip";
-import type { AcpRowState } from "../acpBusyBus";
+import type { AcpRowState, BusySource } from "../acpBusyBus";
 import { type AcpSessionSummary } from "@/lib/bindings";
 import { useT } from "@/i18n";
 import { relativeTime } from "../relativeTime";
@@ -33,6 +33,7 @@ export const SessionPanel = memo(function SessionPanel({
   onDelete,
   names,
   stateOf,
+  sourceOf,
   onStop,
 }: {
   open: boolean;
@@ -51,6 +52,13 @@ export const SessionPanel = memo(function SessionPanel({
    * 끝난다 — 부모가 이미 버스를 구독하고 있다.
    */
   stateOf: (id: string) => AcpRowState | null;
+  /**
+   * 그 「도는 중」이 **어디서 온 신호인가** ({#working-source}).
+   *
+   * `none` 이면 턴은 열려 있는데 최근에 아무 것도 안 왔다는 뜻이다 — 그것을
+   * 「실행 중」이라고만 적으면 화면이 모르는 것을 아는 척한 것이 된다.
+   */
+  sourceOf: (id: string) => BusySource;
   /** 열지 않고 중단 — 행의 Stop 이 부른다. */
   onStop: (id: string) => void;
 }) {
@@ -189,6 +197,13 @@ export const SessionPanel = memo(function SessionPanel({
                         {rowState === "attention"
                           ? t("acp.session.needsInput")
                           : t("acp.session.running")}
+                        {/* 「모른다」를 「돌고 있다」로 말하지 않는다 — 경고가
+                            아니라 사실 한 줄이라 조용히 덧붙인다. */}
+                        {rowState === "working" && sourceOf(item.id) === "none" ? (
+                          <span className="acp-session-silent" title={t("acp.liveness.silentHint")}>
+                            {" · " + t("acp.liveness.silent")}
+                          </span>
+                        ) : null}
                       </span>
                     ) : (
                       <span className="acp-session-time">
