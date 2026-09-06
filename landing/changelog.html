@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.43.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 94개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.44.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 95개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.43.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 94개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.44.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 95개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.43.0</span>
+    <span class="nav-ver" data-version>v2.44.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>94개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>95개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-44-0">v2.44.0</a>
       <a href="#v2-43-0">v2.43.0</a>
       <a href="#v2-42-0">v2.42.0</a>
       <a href="#v2-41-0">v2.41.0</a>
@@ -61,10 +62,24 @@
       <a href="#v2-36-0">v2.36.0</a>
       <a href="#v2-35-0">v2.35.0</a>
       <a href="#v2-34-1">v2.34.1</a>
-      <a href="#v2-34-0">v2.34.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-44-0"><a href="#v2-44-0">v2.44.0</a></h2>
+      <div class="cl-body">
+<p><b>에이전트가 일지를 써도 화면은 그걸 「명령 실행」이라고 불렀습니다.</b> 앱이 터미널에 심어 둔 기록 도구로 에이전트가 작업 일지를 남기는데, 대화 화면에는 터미널 아이콘과 셸 명령 한 줄만 떴습니다. 이 제품의 핵심 동작이 화면 어휘에 아예 없었습니다.</p>
+<ul><li><b>이제 「일지 기록」·「계획 갱신」·「에이전트 원장」으로 뜹니다.</b> 도구 호출을 15가지 우리 말로 옮겼고, 파일을 읽고·고치고·찾는 일은 묶어서 한 줄로 접습니다. <b>승인 대기·오류·기록 관련 일은 절대 접지 않습니다</b> — 손이 필요한 자리가 접혀 숨는 일이 없습니다.</li><li><b>셸 명령을 잘못 읽느니 그냥 명령으로 그립니다.</b> 「일지를 썼습니다」가 틀리면 그건 기록에 대한 거짓말이라, 확신이 없으면 원래대로 보여 줍니다.</li><li><b>모든 활동에 원본이 딸려 있습니다.</b> 줄을 펼치면 맨 아래에 에이전트가 실제로 주고받은 내용이 접힌 채로 늘 있습니다.</li><li><b>「돌고 있다」와 「모른다」를 구별합니다.</b> 예전에는 연결이 끊겨 소식이 없는 것과 진짜 오래 걸리는 작업이 똑같이 「작업 중」이었습니다. 이제 15초 넘게 아무 신호가 없으면 「실행 중 · 신호 없음」이라고 말합니다.</li><li>세션 화면의 카드도 같은 말을 씁니다 — 「무엇을 하고 있는가」가 예전에는 잡은 파일 목록뿐이었습니다.</li></ul>
+<p><b>사이드바가 화면 17개를 한 줄씩 늘어놓고 있었습니다.</b> 매일 쓰는 것과 한 달에 한 번 여는 것이 같은 크기로 붙어 있었고, <code>docs</code> 폴더가 없는 프로젝트에서는 ⌘9 가 <b>영원히 빈 화면</b>이었습니다.</p>
+<ul><li><b>Claude Code · Codex · 세션이 「에이전트」 한 줄로 모였습니다.</b> 화면은 셋 다 그대로 있고, 그 면에 들어가면 형제가 아래에 펼쳐집니다. 어느 쪽이 승인을 기다리든 배지는 합쳐서 한 줄에 뜹니다.</li><li><b>논의·문서는 「참고」로 내려갔습니다.</b> 대신 <b>편집기가 ⌘9 를 받았습니다.</b></li><li><b>이름 셋이 바뀝니다</b> — Diff → <b>변경</b>, 코드 검색 → <b>검색</b>, 코드 → <b>편집기</b>. ⌘K 로는 옛 이름으로도 찾힙니다.</li><li>⌘번호가 다시 매겨집니다. ⌘1 오늘 · ⌘2 일지 · ⌘4 플래너는 그대로고, 바뀐 것은 사이드바가 <b>한 번</b> 알려 줍니다 (새로 설치한 분에게는 뜨지 않습니다).</li></ul>
+<p><b>「이 브랜치에서 무슨 일이 있었나」를 볼 자리가 없었습니다.</b> 기록은 날짜별로 쌓이는데 작업은 브랜치 단위로 하니까, 사흘 걸린 브랜치의 일지·계획·커밋을 한자리에서 볼 방법이 없었습니다. <b>새 「브랜치」 화면</b>이 그걸 한 좌표로 묶습니다 — 커밋·일지·바뀐 파일·<b>기록률</b>, 그리고 아직 일지가 없는 변경 목록. 마크다운 한 장으로 내보낼 수도 있습니다. 새로 저장하는 것은 없고 이미 있는 git 을 읽을 뿐이라, 브랜치를 갈아타면 화면도 따라옵니다.</p>
+<p><b>처음 5분이 아직 일어나지 않은 일을 일어난 것처럼 말했습니다.</b></p>
+<ul><li>설치 마법사가 "만들었습니다"라고 했지만 그 시점에 만들어진 것은 없었습니다 — 기록 폴더와 규칙 파일은 <b>프로젝트를 열 때</b> 생깁니다. 이제 "프로젝트를 열면:" 이라고 말합니다.</li><li>오늘 화면이 "자동으로 일지를 작성합니다"라고 했는데, 그 시점에 켜져 있는 자동화는 하나도 없었습니다.</li><li><b>Claude Code 플러그인이 없으면 이제 알려 줍니다.</b> 예전에는 알림도 배지도 없었고 안내가 설정 3단 깊이에만 있었습니다.</li><li><b>첫날 비어 있는 화면 아홉 개가 무엇을 하면 채워지는지 말합니다.</b> 그냥 "비어 있음"이 아니라 그 화면을 살리는 구체적인 행동이 버튼으로 붙습니다.</li><li><b>「기록 정직성」 패널이 문제를 보여만 주고 아무것도 할 수 없었습니다.</b> 이제 그 자리에서 일지로 남기거나·경로를 복사하거나·변경을 볼 수 있습니다. 유일한 선택지가 <b>과금되는 모델 호출</b>이던 카드도 무료 경로를 앞에 놓고, 돈이 드는 쪽에는 라벨에 그렇게 적었습니다.</li></ul>
+<p><b>같은 코드가 화면마다 다른 색이었습니다.</b> 편집기에서는 보라, 변경 화면에서는 빨강이었고, 색 테마를 골라도 <b>편집기만 안 따라왔습니다.</b> 이제 문법 색이 한 벌이고 테마 5종을 전부 따릅니다. 설정 모달의 어두운 배경도 테마를 따릅니다 — 어떤 테마를 골라도 혼자 검정이던 유일한 자리였습니다.</p>
+<p><b>설정이 12개 탭에 100개가 넘는데 검색이 없었습니다.</b> 이제 탭 줄 옆에서 바로 찾습니다 (한국어·영어 둘 다).</p>
+<p>글자 크기와 여백도 정리했습니다 — 자리마다 제각각이던 값이 하나의 단계로 모였습니다. 화면 전체가 미묘하게 촘촘해집니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-43-0"><a href="#v2-43-0">v2.43.0</a></h2>
       <div class="cl-body">
