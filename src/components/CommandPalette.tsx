@@ -17,7 +17,7 @@ import {
   Puzzle,
 } from "@/components/Icons";
 import { useOptionalWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
-import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
+import { NAV_DESTINATIONS, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
 import { tAll, useT, type I18nKey } from "@/i18n";
 import {
   commands,
@@ -224,7 +224,11 @@ export function CommandPalette({
         : []),
       // ── 이동 — navRegistry 단일 소스에서 파생 (v2 U1). 사이드바의 모든
       // 화면이 자동으로 여기 나타나고, ⌘번호 라벨도 배열 순서에서 계산된다.
-      ...(ws ? NAV_ENTRIES : []).map((e) => ({
+      //
+      // `NAV_DESTINATIONS` 이지 `NAV_ENTRIES` 가 아니다 (2026-09-06 IA 재편):
+      // 사이드바에서 에이전트 한 행으로 접힌 Codex·세션도 팔레트에서는 여전히
+      // **각각** 이름으로 찾혀야 한다. 목적을 갖고 가는 곳은 목적지다.
+      ...(ws ? NAV_DESTINATIONS : []).map((e) => ({
         id: `view-${e.id}`,
         label: t(e.labelKey),
         // 양 언어 별칭 + 양 언어 라벨을 전부 색인한다 — 영어 모드에서도 "일지",

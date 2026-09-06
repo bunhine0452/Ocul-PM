@@ -9,9 +9,10 @@ import {
   SquareTerminal,
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
-import { NAV_ENTRIES, NAV_BUS, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
+import { NAV_ENTRIES, NAV_BUS, navRowViews, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
 import { useAcpAttentionCount, useAcpWorkingCount } from "@/features/chat/acpBusyBus";
 import { useSessionAttention } from "@/features/sessions/sessionAttention";
+import { NavRemapNotice } from "@/components/NavRemapNotice";
 import { useT } from "@/i18n";
 
 // Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
@@ -35,6 +36,8 @@ import { useT } from "@/i18n";
 const MAIN_NAV = NAV_ENTRIES.filter((e) => e.group === "main");
 const TOOL_NAV = NAV_ENTRIES.filter((e) => e.group === "tools");
 const AI_NAV = NAV_ENTRIES.filter((e) => e.group === "ai");
+// 2026-09-06 IA 재편 — 가끔 열고, 없으면 비어 있는 것이 정상인 화면들.
+const REF_NAV = NAV_ENTRIES.filter((e) => e.group === "ref");
 
 interface SidebarProps {
   view: UiV2View;
@@ -145,6 +148,56 @@ function NavRow({
 }
 
 /**
+ * 갈래가 있는 행(에이전트)의 하위 목록 — **열려 있을 때만** 펼친다.
+ *
+ * 늘 펼쳐 두면 행을 셋에서 하나로 줄인 뜻이 없어지고, 아예 안 보이면 Codex 로
+ * 건너갈 길이 ⌘K 뿐이 된다. 그 사이를 고른다: 이 면에 들어와 있는 동안에만
+ * 형제가 보인다. (`.subnav.vertical` 은 이미 있는 프리미티브다.)
+ */
+function NavBranches({
+  branches,
+  view,
+  onNavigate,
+  counts,
+}: {
+  branches: NavEntry[];
+  view: UiV2View;
+  onNavigate: (view: UiV2View) => void;
+  counts: (id: UiV2View) => { working: number; attention: number };
+}) {
+  const { t } = useT();
+  return (
+    <div className="subnav vertical nav-branches">
+      {branches.map((b) => {
+        const Icon = b.icon;
+        const { working, attention } = counts(b.id);
+        return (
+          <button
+            key={b.id}
+            type="button"
+            className="subnav-item"
+            aria-current={view === b.id ? "page" : undefined}
+            onClick={() => onNavigate(b.id)}
+          >
+            <Icon size={13} strokeWidth={1.8} />
+            <span>{t(b.labelKey)}</span>
+            {attention > 0 ? (
+              <span className="nav-badge attention" aria-label={t("nav.attention", { n: attention })}>
+                {attention}
+              </span>
+            ) : working > 0 ? (
+              <span className="nav-badge working" aria-label={t("nav.working", { n: working })}>
+                {working}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
  * 스크롤 영역의 위/아래 가장자리 페이드를 켜고 끈다.
  *
  * 스크롤바를 상시 띄우면 소음이라(맥은 기본이 오버레이 스크롤바라 가만히 있으면
@@ -210,6 +263,22 @@ export function Sidebar({
   const codexAttention = useAcpAttentionCount(currentProjectId ?? null, "codex");
   /** 세션 화면에서 **사람이 눌러야** 풀리는 것 — 넘어온 작업의 승인 대기. */
   const sessionAttention = useSessionAttention(currentProjectId ?? null);
+
+  /**
+   * 화면 하나의 배지 수. 갈래를 합산하는 자리(에이전트 행)와 갈래 자신을 그리는
+   * 자리가 둘 다 이걸 쓴다 — 표를 두 벌 두면 한쪽만 고치는 날이 온다.
+   */
+  const counts = (id: UiV2View) => ({
+    working: id === "claudecode" ? acpWorking : id === "codex" ? codexWorking : 0,
+    attention:
+      id === "claudecode"
+        ? acpAttention
+        : id === "codex"
+          ? codexAttention
+          : id === "sessions"
+            ? sessionAttention
+            : 0,
+  });
 
   // ⌘P (useGlobalShortcuts) / 팔레트 "프로젝트 전환" → 팝오버 열기 (v2 U1).
   useEffect(() => {
@@ -333,6 +402,7 @@ export function Sidebar({
           aria 도 붙이지 않는다: 바깥 <nav aria-label> 이 이미 이 목록의 이름이고,
           role 없는 div 에 aria-label 을 얹으면 그게 오히려 위반이다. */}
       <div className="side-nav-scroll" ref={navScrollRef}>
+        <NavRemapNotice />
         {MAIN_NAV.map((slot, i) => (
           <NavRow key={slot.id} slot={slot} active={view === slot.id} index={i} onNavigate={onNavigate} />
         ))}
@@ -349,23 +419,42 @@ export function Sidebar({
         ))}
 
         <div className="nav-section-label">{t("sidebar.aiSection")}</div>
-        {AI_NAV.map((slot, i) => (
+        {AI_NAV.map((slot, i) => {
+          // 갈래가 있는 행은 배지를 **합산**한다 (2026-09-06 IA 재편). 행을
+          // 하나로 줄였다고 "Codex 가 승인을 기다린다" 가 사라지면 안 된다.
+          const views = navRowViews(slot);
+          const working = views.reduce((n, v) => n + counts(v).working, 0);
+          const attention = views.reduce((n, v) => n + counts(v).attention, 0);
+          return (
+            <div key={slot.id} className="nav-group">
+              <NavRow
+                slot={slot}
+                active={views.includes(view)}
+                index={MAIN_NAV.length + TOOL_NAV.length + i}
+                onNavigate={onNavigate}
+                working={working}
+                attention={attention}
+              />
+              {slot.children && views.includes(view) ? (
+                <NavBranches
+                  branches={slot.children}
+                  view={view}
+                  onNavigate={onNavigate}
+                  counts={counts}
+                />
+              ) : null}
+            </div>
+          );
+        })}
+
+        <div className="nav-section-label">{t("sidebar.refSection")}</div>
+        {REF_NAV.map((slot, i) => (
           <NavRow
             key={slot.id}
             slot={slot}
             active={view === slot.id}
-            index={MAIN_NAV.length + TOOL_NAV.length + i}
+            index={MAIN_NAV.length + TOOL_NAV.length + AI_NAV.length + i}
             onNavigate={onNavigate}
-            working={slot.id === "claudecode" ? acpWorking : slot.id === "codex" ? codexWorking : 0}
-            attention={
-              slot.id === "claudecode"
-                ? acpAttention
-                : slot.id === "codex"
-                  ? codexAttention
-                  : slot.id === "sessions"
-                    ? sessionAttention
-                    : 0
-            }
           />
         ))}
       </div>
