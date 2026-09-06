@@ -4,6 +4,8 @@ import { SquarePen } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { agentColor } from "@/features/today/agentColor";
 import { agoText, type SessionSeat } from "./sessionModel";
+import { seatActivity } from "./sessionActivity";
+import { ActivityLine } from "@/features/chat/activity/ActivityLine";
 
 /** 끌고 다니는 것이 무엇인지 — 다른 화면의 드래그(코드 탭)와 섞이지 않게. */
 export const SESSION_DND_MIME = "application/x-oculpm-session";
@@ -52,6 +54,7 @@ export function SessionCard({
   };
 
   const ago = agoText(seat.card.heartbeat_at, now);
+  const doing = seatActivity(seat);
   const swatch = agentColor(seat.card.provider);
 
   return (
@@ -105,19 +108,18 @@ export function SessionCard({
         </div>
       ) : null}
 
-      {/* **무엇을 하고 있는가** — 이름이 없을 때 이 줄이 사용자를 건진다. */}
-      {seat.leases.length ? (
+      {/* **무엇을 하고 있는가** — 이름이 없을 때 이 줄이 사용자를 건진다.
+          대화 화면과 **같은 어휘**로 적는다 ({#activity-vocab-reuse}): 같은
+          일을 두 화면이 다른 낱말로 부르면 오갈 때마다 번역을 한 번씩 한다. */}
+      {doing ? <ActivityLine kind={doing.kind} detail={doing.detail} /> : null}
+      {/* 잡은 구역은 위 한 줄이 이미 말했을 수도 있다 — 태스크가 이겼을 때만
+          따로 적는다 (같은 사실을 두 번 적으면 정보가 아니라 소음이다). */}
+      {doing?.kind !== "edit" && seat.leases.length ? (
         <div className="sess-doing">
           <span className="sess-doing-key">{t("sessions.holding")}</span>
           <span className="sess-doing-val">
             {seat.leases.flatMap((l) => l.patterns).join(" · ")}
           </span>
-        </div>
-      ) : null}
-      {seat.openTasks.length ? (
-        <div className="sess-doing">
-          <span className="sess-doing-key">{t("sessions.openTasks", { n: seat.openTasks.length })}</span>
-          <span className="sess-doing-val">{seat.openTasks[0].title}</span>
         </div>
       ) : null}
 

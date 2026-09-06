@@ -106,12 +106,20 @@ describe("acpRowStateOf", () => {
       setAcpWorking(acpWorkingKey(1, "s1"), true);
       setAcpAttention(acpWorkingKey(1, "s1"), true);
     });
-    const states = { working: new Set([acpWorkingKey(1, "s1")]), attention: new Set([acpWorkingKey(1, "s1")]) };
+    const states = {
+      working: new Set([acpWorkingKey(1, "s1")]),
+      attention: new Set([acpWorkingKey(1, "s1")]),
+      sources: new Map(),
+    };
     expect(acpRowStateOf(states, 1, "s1")).toBe("attention");
   });
 
   it("프로젝트가 다르면 남의 상태를 빌려 오지 않는다", () => {
-    const states = { working: new Set([acpWorkingKey(1, "s1")]), attention: new Set<string>() };
+    const states = {
+      working: new Set([acpWorkingKey(1, "s1")]),
+      attention: new Set<string>(),
+      sources: new Map(),
+    };
     expect(acpRowStateOf(states, 2, "s1")).toBeNull();
   });
 });
@@ -137,6 +145,7 @@ function renderPanel(
       onDelete={() => {}}
       names={{}}
       stateOf={stateOf}
+      sourceOf={() => "none"}
       onStop={onStop}
     />,
   );

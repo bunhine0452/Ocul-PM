@@ -26,6 +26,42 @@ const attention = new Set<string>();
 const listeners = new Set<Listener>();
 
 /**
+ * 바쁨 신호가 **어디서** 왔나 (플랜 `v3-surface` `{#working-source}`).
+ *
+ * 지금까지 `working` 은 참/거짓 하나였다. 그래서 **스트림이 끊긴 것과 진짜로
+ * 도는 것을 구별하지 못했다** — 어댑터가 조용히 죽어도, 30분째 안 끝나는
+ * Bash 가 걸려 있어도 화면은 똑같이 "실행 중"이라고 말한다. 그건 모르는 것을
+ * 아는 척한 것이다.
+ *
+ * 그래서 세 상태로 가른다:
+ *  - `typing`   글자가 흐르고 있다. 가장 강한 근거.
+ *  - `observer` 백엔드 이벤트가 최근에 왔다 (도구 상태·계획 갱신 …).
+ *  - `none`     턴은 열려 있는데 최근 신호가 없다. **모른다**는 뜻이고,
+ *               화면은 모른다고 말한다 (「신호 없음」).
+ */
+export type BusySource = "typing" | "observer" | "none";
+
+/**
+ * 신호가 이만큼 없으면 「모른다」로 내려간다.
+ *
+ * 15초는 셸 통합이 쓰는 문턱과 같다. 짧게 잡으면 생각이 긴 턴이 매번 깜빡이고,
+ * 길게 잡으면 죽은 세션이 한참 동안 살아 있다고 우긴다.
+ */
+export const SILENCE_MS = 15_000;
+
+const sources = new Map<string, BusySource>();
+/** 침묵 강등 타이머 — 키마다 하나. 턴이 끝나면 반드시 걷는다. */
+const decayTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function clearDecay(key: string): void {
+  const timer = decayTimers.get(key);
+  if (timer !== undefined) {
+    clearTimeout(timer);
+    decayTimers.delete(key);
+  }
+}
+
+/**
  * 세션 줄이 읽는 스냅샷 (Phase 3 `#active-rows`).
  *
  * `useSyncExternalStore` 는 **같은 상태면 같은 참조**를 요구한다 — 훅 안에서
@@ -37,12 +73,22 @@ const listeners = new Set<Listener>();
 export interface AcpRowStates {
   working: ReadonlySet<string>;
   attention: ReadonlySet<string>;
+  /** 도는 세션마다 그 바쁨이 **어디서 온 신호인가**. 없으면 `none` 취급. */
+  sources: ReadonlyMap<string, BusySource>;
 }
 
-let rowStates: AcpRowStates = { working: new Set(), attention: new Set() };
+let rowStates: AcpRowStates = { working: new Set(), attention: new Set(), sources: new Map() };
 
 function rebuildRowStates(): void {
-  rowStates = { working: new Set(working), attention: new Set(attention) };
+  rowStates = {
+    working: new Set(working),
+    attention: new Set(attention),
+    sources: new Map(sources),
+  };
+}
+
+function notify(): void {
+  for (const listener of [...listeners]) listener();
 }
 
 export function acpWorkingKey(
@@ -53,13 +99,51 @@ export function acpWorkingKey(
   return `${projectId}:${provider}:${sessionId ?? "new"}`;
 }
 
-/** 턴 시작/종료를 알린다. 같은 상태면 아무 일도 하지 않는다(무한 렌더 방지). */
+/**
+ * 턴 시작/종료를 알린다. 같은 상태면 아무 일도 하지 않는다(무한 렌더 방지).
+ *
+ * 시작 직후의 출처는 **`none`** 이다 — 아직 아무 신호도 못 받았으니까.
+ * 첫 이벤트가 `noteAcpSignal` 로 올려 준다.
+ */
 export function setAcpWorking(key: string, on: boolean): void {
   if (on === working.has(key)) return;
-  if (on) working.add(key);
-  else working.delete(key);
+  if (on) {
+    working.add(key);
+    sources.set(key, "none");
+  } else {
+    working.delete(key);
+    sources.delete(key);
+    clearDecay(key);
+  }
   rebuildRowStates();
-  for (const listener of [...listeners]) listener();
+  notify();
+}
+
+/**
+ * 이 세션에서 **신호를 하나 받았다**.
+ *
+ * 도는 세션에만 붙는다 — 끝난 턴에 늦게 도착한 이벤트가 죽은 줄을 되살리면
+ * 안 된다. 매번 침묵 타이머를 새로 건다: 신호가 멎으면 그 타이머가 출처를
+ * `none` 으로 내리고, 그 순간 화면은 "돌고 있다" 대신 "모른다"를 말한다.
+ */
+export function noteAcpSignal(key: string, typing: boolean): void {
+  if (!working.has(key)) return;
+  const next: BusySource = typing ? "typing" : "observer";
+  clearDecay(key);
+  decayTimers.set(
+    key,
+    setTimeout(() => {
+      decayTimers.delete(key);
+      if (!working.has(key) || sources.get(key) === "none") return;
+      sources.set(key, "none");
+      rebuildRowStates();
+      notify();
+    }, SILENCE_MS),
+  );
+  if (sources.get(key) === next) return;
+  sources.set(key, next);
+  rebuildRowStates();
+  notify();
 }
 
 /** 승인 대기 시작/해소를 알린다. 같은 상태면 아무 일도 하지 않는다. */
@@ -68,7 +152,7 @@ export function setAcpAttention(key: string, on: boolean): void {
   if (on) attention.add(key);
   else attention.delete(key);
   rebuildRowStates();
-  for (const listener of [...listeners]) listener();
+  notify();
 }
 
 function countIn(
@@ -135,11 +219,23 @@ export function useAcpAttentionCount(
 export function resetAcpWorking(): void {
   working.clear();
   attention.clear();
+  sources.clear();
+  for (const key of [...decayTimers.keys()]) clearDecay(key);
   rebuildRowStates();
-  for (const listener of [...listeners]) listener();
+  notify();
 }
 
 function rowStatesSnapshot(): AcpRowStates {
+  return rowStates;
+}
+
+/**
+ * 훅 없이 즉시 읽기 (`countAcpWorkingFor` 와 같은 성격).
+ *
+ * 렌더 밖에서 상태를 물어야 하는 자리 — 탭 닫기 문지기, 그리고 테스트 —
+ * 를 위한 것이다. 반환값은 **읽기 전용 스냅샷**이므로 고쳐 쓰지 않는다.
+ */
+export function acpRowStatesNow(): AcpRowStates {
   return rowStates;
 }
 
@@ -166,4 +262,19 @@ export function acpRowStateOf(
   if (states.attention.has(key)) return "attention";
   if (states.working.has(key)) return "working";
   return null;
+}
+
+/**
+ * 이 세션의 바쁨이 **어디서 온 신호인가**.
+ *
+ * 안 도는 세션도 `none` 이다 — 「모른다」와 「안 돈다」를 부르는 이름이 같아도
+ * 되는 이유는, 이 값을 읽는 자리가 이미 `working` 을 확인한 뒤이기 때문이다.
+ */
+export function acpRowSourceOf(
+  states: AcpRowStates,
+  projectId: number,
+  sessionId: string,
+  provider: "claude" | "codex" = "claude",
+): BusySource {
+  return states.sources.get(acpWorkingKey(projectId, sessionId, provider)) ?? "none";
 }

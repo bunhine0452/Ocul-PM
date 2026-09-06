@@ -46,7 +46,7 @@ owner: claude-code
 - [x] EmptyState 공용 컴포넌트 — .empty-hint 52곳 + 전용 3벌 + 전용 클래스 8종을 하나로 (리치/단순 두 밀도). 일러스트는 넣지 않는다 {#empty-state-component}
 - [x] 모달 크롬 두 벌 통합 + .set-modal-backdrop → .scrim — 프리셋 배경을 안 따르는 유일한 스크림이다 {#modal-chrome-unify}
 - [x] 설정 검색 — 12탭 + 하위 5탭·7,386줄·항목 100+ 인데 검색이 없고 ⌘K 팔레트도 개별 설정을 색인하지 않는다 {#settings-search}
-- [~] 문법 강조를 --code-* 단일 팔레트로 + 프리셋 5종 연결 — 지금 같은 코드가 편집기에선 보라, 변경 화면에선 빨강이다. 언어별 육안 확인 필요 {#hljs-unify}
+- [x] 문법 강조를 --code-* 단일 팔레트로 + 프리셋 5종 연결 — 지금 같은 코드가 편집기에선 보라, 변경 화면에선 빨강이다. 언어별 육안 확인 필요 {#hljs-unify}
 - [x] 상위 액센트 신호색 통일 — --claude 토큰(#d97757)과 shell.css 의 #cb7b5d 가 다른 주황이다 {#claude-coral-unify}
 
 ## 브랜치의 이야기 — 경계를 넘지 않는 신기능 {#branch-axis}
@@ -81,4 +81,5 @@ owner: claude-code
 | 2026-09-06T13:07:35+09:00 | #branch-index | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1307_feature_branch-story-axis.md | 마이그레이션 일부러 안 만듦 — 브랜치는 움직이는 좌표라 저장하면 곧 거짓이 된다 |
 | 2026-09-06T13:07:41+09:00 | #branch-story-view | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1307_feature_branch-story-axis.md | 통계 4칸+4패널, 회고 어휘 재사용으로 새 CSS 0. 실행 확인 미완 |
 | 2026-09-06T13:07:47+09:00 | #branch-digest | claude-code | ☐→x | .oculpm/journal/20260906/Features_to_add/1307_feature_branch-story-axis.md | export_digest 의 저장 대화상자를 save_markdown 으로 추출해 재사용. 동기화 없음 |
+| 2026-09-06T13:12:41+09:00 | #hljs-unify | claude-code | ~→x | .oculpm/journal/20260906/Refactors/1301_refactor_dialect-convergence-tokens.md | 병합 때 code.css 의 편집기 지역 팔레트 제거로 마무리 — 이제 프리셋을 따른다 |
 <!-- oculpm:plan-log end -->

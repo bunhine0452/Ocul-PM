@@ -55,6 +55,7 @@ import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SessionsScreenV2 } from "@/features/sessions/SessionsScreenV2";
 import { SESSION_DND_MIME } from "@/features/sessions/SessionCard";
 import { buildBoard, isUsefulName, seatLabel } from "@/features/sessions/sessionModel";
+import { t } from "@/i18n";
 
 function card(id: string, over: Partial<Record<string, unknown>> = {}) {
   return {
@@ -169,7 +170,15 @@ describe("세션 화면", () => {
     expect(screen.getByText("pid 9160")).toBeTruthy();
     // 무엇을 하고 있는가 — 이름이 같을 때 이 줄이 사용자를 건진다. (아래 임대
     // 목록에도 같은 패턴이 서므로 카드 안쪽을 짚는다.)
-    expect(container.querySelector(".sess-doing-val")?.textContent).toBe("src/features/code/**");
+    //
+    // 이제 이 줄은 **대화 화면과 같은 어휘**로 적힌다 ({#activity-vocab-reuse}) —
+    // 잡은 구역은 「고침」이고, 상세 자리에 그 구역이 선다.
+    expect(container.querySelector(".activity-line-detail")?.textContent).toBe(
+      "src/features/code/**",
+    );
+    expect(container.querySelector(".activity-line-name")?.textContent).toBe(
+      t("activity.kind.edit"),
+    );
   });
 
   it("별명을 붙이면 그 이름이 카드의 제목이 된다", async () => {

@@ -61,6 +61,7 @@ describe("지난 대화 목록", () => {
         onDelete={() => {}}
         names={{}}
         stateOf={() => null}
+        sourceOf={() => "none"}
         onStop={() => {}}
       />,
     );

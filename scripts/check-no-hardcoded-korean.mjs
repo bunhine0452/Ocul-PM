@@ -124,6 +124,7 @@ const PENDING = new Set([
 const TESTS = new Set([
   // 양 언어 a11y — ko 마커("설정")와 한국어 테스트 이름이 검사 재료다.
   "__tests__/a11y_screens.test.tsx",
+  "__tests__/acp_busy_source.test.ts",
   "__tests__/acp_conversation_seams.test.tsx",
   "__tests__/acp_journal_gate_notice.test.tsx",
   "__tests__/acp_parallel_sessions.test.tsx",
@@ -134,6 +135,9 @@ const TESTS = new Set([
   "__tests__/acp_usage_detail.test.ts",
   "__tests__/acp_usage_meter.test.tsx",
   "__tests__/acp_working_indicator.test.tsx",
+  "__tests__/activity_classify.test.ts",
+  "__tests__/activity_group.test.ts",
+  "__tests__/activity_stream.test.tsx",
   "__tests__/agent_context_model.test.ts",
   "__tests__/agent_context_proposals.test.tsx",
   "__tests__/agent_detect.test.ts",
@@ -221,6 +225,7 @@ const TESTS = new Set([
   "__tests__/rule_promotion_v2.test.tsx",
   "__tests__/rules_hub_v2.test.tsx",
   "__tests__/rules_reachability.test.ts",
+  "__tests__/session_activity.test.ts",
   "__tests__/session_colors.test.ts",
   "__tests__/sessions_screen.test.tsx",
   "__tests__/settings_search.test.ts",
