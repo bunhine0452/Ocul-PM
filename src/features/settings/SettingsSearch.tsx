@@ -85,7 +85,7 @@ export function SettingsSearchResults({
           className="subnav-item"
           onClick={() => onPick(entry)}
         >
-          <span className="truncate">{entryLabel(entry.key)}</span>
+          <span className="min-w-0 flex-1 truncate">{entryLabel(entry.key)}</span>
           <span className="ml-auto flex-none text-xs text-muted-foreground">
             {t(TAB_LABEL[entry.tab])}
             {entry.section ? ` · ${entryLabel(entry.section)}` : ""}
