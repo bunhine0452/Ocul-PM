@@ -8,7 +8,8 @@
 // 목록이 스스로 청소되는 쪽이, 사용자가 정리를 결심하기를 기다리는 것보다 낫다.
 import { useMemo, useState } from "react";
 
-import { ChevronDown, ChevronRight, Plus, SearchIcon } from "@/components/Icons";
+import { EmptyState } from "@/components/EmptyState";
+import { ChevronDown, ChevronRight, FileCode, Plus, Puzzle, SearchIcon, Store } from "@/components/Icons";
 import { t, useT } from "@/i18n";
 import type { RuleEntry, RuleScopeFinding } from "@/lib/bindings";
 import { FiringBadge } from "./FiringBadge";
@@ -57,6 +58,9 @@ interface ContextLiveListProps {
    */
   missingMemory: RuleEntry[];
   onCreateMemory: (entry: RuleEntry) => void;
+  /** 첫날의 빈 목록에서 바로 만들 수 있게 (v3-surface {#first-day-screens}). */
+  onCreateRule: () => void;
+  onOpenShop: () => void;
   onOpen: (item: ContextItem) => void;
   /** Cursor 병행 배포 옵인 (config `agents.rules_translate`). */
   cursorTranslate: boolean;
@@ -73,6 +77,8 @@ export function ContextLiveList({
   days,
   missingMemory,
   onCreateMemory,
+  onCreateRule,
+  onOpenShop,
   onOpen,
   cursorTranslate,
   onToggleTranslate,
@@ -125,7 +131,30 @@ export function ContextLiveList({
       </div>
 
       {live.length === 0 ? (
-        <div className="ctx-empty">{t("ctx.live.empty")}</div>
+        /* 필터가 걸러 0건인 것과, 이 프로젝트에 규칙·스킬이 **아직 하나도
+           없는 것**은 다른 사실이다 (v3-surface {#first-day-screens}).
+           앞엣것은 필터를 바꾸면 되고, 뒤엣것은 만들거나 받아야 한다. */
+        items.length === 0 ? (
+          <EmptyState
+            density="rich"
+            icon={Puzzle}
+            title={t("ctx.live.emptyAllTitle")}
+            actions={
+              <>
+                <button type="button" className="btn primary sm" onClick={onCreateRule}>
+                  <FileCode size={13} /> {t("rules.new")}
+                </button>
+                <button type="button" className="btn sm" onClick={onOpenShop}>
+                  <Store size={13} /> {t("ctx.add.shopTitle")}
+                </button>
+              </>
+            }
+          >
+            {t("ctx.live.emptyAll")}
+          </EmptyState>
+        ) : (
+          <EmptyState>{t("ctx.live.empty")}</EmptyState>
+        )
       ) : (
         <ul className="ctx-rows">
           {live.map((item) => (

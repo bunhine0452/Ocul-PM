@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
@@ -19,6 +20,7 @@ import { type UiV2View, useOptionalWorkspace } from "@/contexts/WorkspaceContext
 import { agentLabel } from "./agentColor";
 import { requestOculpmActivate } from "@/lib/projectActions";
 import { FirstRunCard } from "./FirstRunCard";
+import { PluginSetupCard } from "./PluginSetupCard";
 import { CoreModelSeededCard } from "./CoreModelSeededCard";
 import { WhatsNewCard } from "./WhatsNewCard";
 import { commands, type JournalEntrySummary } from "@/lib/bindings";
@@ -247,6 +249,13 @@ export function TodayScreenV2({
           {initCard ? (
             <FirstRunCard info={initCard} onDismiss={dismissInitCard} onNavigate={onNavigate} />
           ) : null}
+          {/* 플러그인 온보딩 — 일지가 한 건도 없는 동안만 (v3-surface
+              {#plugin-onboarding}). 카드가 스스로 판정하고, 판정 근거가
+              없으면 아무것도 그리지 않는다. */}
+          <PluginSetupCard
+            show={oculpmReady && brief != null && brief.totalEntries === 0}
+            onNavigate={onNavigate}
+          />
 
           {/* Stat row */}
           <div className="stat-row">
@@ -300,18 +309,30 @@ export function TodayScreenV2({
           />
 
           {empty ? (
+            /* 「Ocul-PM 이 자동으로 일지를 작성합니다」 는 거짓이었다
+               (v3-surface {#today-empty-truth}) — 그 시점에 켜진 자동화가
+               하나도 없다 (`auto_journal_draft`·`auto_reconcile` 모두 기본
+               false, oculpm/config.rs). 일지는 에이전트가 AGENTS.md 를 읽고
+               직접 쓴다. 그래서 문구는 사실로, 그 옆에는 그걸 지금 일으키는
+               행동 둘을 놓는다. */
             <div className="card card-pad">
-              <div
-                className="empty-hint"
-                style={{ padding: "40px 20px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}
+              <EmptyState
+                density="rich"
+                icon={NotebookText}
+                title={t("today.emptyTitle")}
+                actions={
+                  <>
+                    <button className="btn primary" onClick={() => setTermOpen(true)}>
+                      <Terminal size={15} /> {t("today.runAgent")}
+                    </button>
+                    <button className="btn" onClick={() => onNavigate("skills")}>
+                      {t("today.openRules")}
+                    </button>
+                  </>
+                }
               >
-                <div>
-                  {t("today.empty")}
-                </div>
-                <button className="btn primary" onClick={() => setTermOpen(true)}>
-                  <Terminal size={15} /> {t("today.runAgent")}
-                </button>
-              </div>
+                {t("today.empty")}
+              </EmptyState>
             </div>
           ) : (
             <div className="grid-2 grid-2-fill">
@@ -338,7 +359,7 @@ export function TodayScreenV2({
                         <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
                       ))
                     ) : (
-                      <div className="empty-hint">{t("today.noHighlights")}</div>
+                      <EmptyState>{t("today.noHighlights")}</EmptyState>
                     )}
                   </div>
                 </div>
@@ -357,7 +378,7 @@ export function TodayScreenV2({
                         <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
                       ))
                     ) : (
-                      <div className="empty-hint">{t("today.noYesterday")}</div>
+                      <EmptyState>{t("today.noYesterday")}</EmptyState>
                     )}
                   </div>
                 </div>
@@ -379,7 +400,12 @@ export function TodayScreenV2({
           <TodaySuggestions projectId={projectId} enabled={oculpmReady} />
 
           {/* F2 정직성 감사 — 기록 누락 변경이 있을 때만 렌더 */}
-          <HonestyAudit projectId={projectId} workday={workday} enabled={oculpmReady} />
+          <HonestyAudit
+            projectId={projectId}
+            workday={workday}
+            enabled={oculpmReady}
+            onNavigate={onNavigate}
+          />
 
           {/* H3b 일지 없이 끝난 세션 — 플러그인 훅 신호가 있을 때만 렌더 */}
           <JournalMissingCard

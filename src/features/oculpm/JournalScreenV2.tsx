@@ -1,7 +1,8 @@
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { SearchIcon, X, Plus, ChevronDown, ChevronRight } from "@/components/Icons";
+import { SearchIcon, X, Plus, ChevronDown, ChevronRight, NotebookText } from "@/components/Icons";
 import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
 import type { EntryFilters, EntryType, JournalEntrySummary } from "@/lib/bindings";
 import { oculpmApi } from "@/api/oculpm";
@@ -13,6 +14,7 @@ import { TRIGGER_META } from "./triggerMeta";
 import { SourceFilterRail } from "./SourceBadge";
 import { sourceOf, type EntrySource } from "./entrySource";
 import { toast } from "@/lib/toast";
+import { requestOculpmActivate } from "@/lib/projectActions";
 import {
   consumeManualEntryRequest,
   onManualEntryRequest,
@@ -559,7 +561,15 @@ export function JournalScreenV2({
             {loading && days == null ? (
               <SkeletonList rows={4} height={76} />
             ) : !oculpmReady ? (
-              <div className="empty-hint">{t("journal.notActive")}</div>
+              <EmptyState
+                actions={
+                  <button type="button" className="btn primary" onClick={requestOculpmActivate}>
+                    {t("today.activateNow")}
+                  </button>
+                }
+              >
+                {t("journal.notActive")}
+              </EmptyState>
             ) : filteredDays && filteredDays.length > 0 ? (
               <>
                 {filteredDays.map((day, idx) => {
@@ -633,21 +643,39 @@ export function JournalScreenV2({
                 })}
               </>
             ) : searchActive ? (
-              <div className="empty-hint">{t("journal.noMatch")}</div>
+              <EmptyState>{t("journal.noMatch")}</EmptyState>
             ) : (
-              <div className="empty-hint">
+              /* 「Ocul-PM 이 자동으로 기록합니다」 는 거짓이었다 (v3-surface
+                 {#first-day-screens}) — 일지를 쓰는 것은 에이전트다. 이 화면을
+                 첫날 살리는 구체적인 행동은 둘뿐이다: 지난 커밋에서 만들거나
+                 (git 백필), 지금 한 건을 직접 쓰거나. */
+              <EmptyState
+                density="rich"
+                icon={NotebookText}
+                title={t("journal.emptyTitle")}
+                actions={
+                  <>
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() => setManualSeed({})}
+                      disabled={!todayKey}
+                    >
+                      <Plus size={14} /> {t("journal.new")}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={backfilling}
+                      onClick={runGitBackfill}
+                    >
+                      {backfilling ? t("journal.backfill.busy") : t("journal.backfill.action")}
+                    </button>
+                  </>
+                }
+              >
                 {t("journal.empty")}
-                <div style={{ marginTop: 12 }}>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    disabled={backfilling}
-                    onClick={runGitBackfill}
-                  >
-                    {backfilling ? t("journal.backfill.busy") : t("journal.backfill.action")}
-                  </button>
-                </div>
-              </div>
+              </EmptyState>
             )}
 
             {/* 전체 기간으로 넓히는 손잡이. 목록 **밖**에 두는 이유: 최근 14일이

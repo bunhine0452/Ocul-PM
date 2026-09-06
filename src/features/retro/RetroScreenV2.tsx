@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useSecondTick } from "@/hooks/useSecondTick";
@@ -455,9 +456,27 @@ export function RetroScreenV2({
               style={{ maxWidth: 640 }}
             />
           ) : !hasWork ? (
-            <div className="empty-hint">
+            /* 회고는 일지를 재료로 쓴다 — 재료가 없으면 「다른 기간」이 아니라
+               **어느 기간을 보는지**를 바로 바꿀 수 있어야 한다 (v3-surface
+               {#first-day-screens}). 30일로 넓혀도 0건이면 그건 기간 문제가
+               아니라 아직 첫 일지가 없다는 뜻이고, 그쪽 문은 작업 일지다. */
+            <EmptyState
+              density="rich"
+              icon={History}
+              title={t("retro.emptyTitle")}
+              actions={
+                <>
+                  <button className="btn primary" onClick={() => setDays(30)} disabled={days === 30}>
+                    {t("retro.widen")}
+                  </button>
+                  <button className="btn" onClick={() => onNavigate?.("journal")}>
+                    {t("retro.toJournal")}
+                  </button>
+                </>
+              }
+            >
               {t("retro.emptyPeriod")}
-            </div>
+            </EmptyState>
           ) : (
             <div className="flex flex-col gap-5 max-w-3xl">
               <SignalsPanel signals={signals!} />

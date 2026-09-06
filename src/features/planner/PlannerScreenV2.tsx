@@ -1,9 +1,10 @@
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
   Plus, TriangleAlert, ChevronDown, ChevronUpIcon as ChevronUp, ChevronRight,
-  RefreshCw, Lock, PanelLeft, PanelRight, Pencil, Trash2,
+  RefreshCw, Lock, PanelLeft, PanelRight, Pencil, Trash2, TargetIcon,
 } from "@/components/Icons";
 import {
   commands, type PlanSummary, type PlanDetail, type PlanItemDto, type PlanItemUpdateDto, type PlanEditOp,
@@ -672,14 +673,13 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           {plans == null ? (
             <SkeletonList rows={3} height={44} />
           ) : plans.length === 0 ? (
-            <div className="empty-hint">
-              {t("plan.empty")}
-              <div style={{ marginTop: 12 }}>
-                <button className="btn sm" onClick={() => void importGoals()} disabled={busy}>
-                  {t("plan.importGoals")}
-                </button>
-              </div>
-            </div>
+            /* 계획이 「스스로 갱신된다」는 것은 자동화가 아니다 (v3-surface
+               {#first-day-screens}) — 에이전트가 plan_update 를 부를 때 갱신된다. */
+            <EmptyState density="rich" icon={TargetIcon} title={t("plan.emptyTitle")} actions={<>
+              <button className="btn primary" onClick={() => setNewPlanOpen(true)} disabled={busy}>
+                <Plus size={14} /> {t("plan.newPlan")}</button>
+              <button className="btn" onClick={() => void importGoals()} disabled={busy}>
+                {t("plan.importGoals")}</button></>}>{t("plan.empty")}</EmptyState>
           ) : detail == null ? (
             loadingDetail ? <SkeletonList rows={6} height={30} gap={8} /> : null
           ) : (

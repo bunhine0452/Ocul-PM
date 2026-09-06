@@ -31,6 +31,8 @@ import type {
   SkillsOverview,
   RuleEvidence,
   JournalMissingSignal,
+  ClaudePluginStatus,
+  CliCheckResult,
 } from "@/lib/bindings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -148,6 +150,29 @@ export const hooksApi = {
       "journal_missing_signals",
       commands.journalMissingSignals(projectId, days),
     ),
+};
+
+/**
+ * Claude Code 자체의 설치 상태 (v3-surface {#plugin-onboarding}).
+ *
+ * 두 질문이 다르다: **CLI 가 있는가**(`check_cli_available`)와 **플러그인이
+ * 깔려 있는가**(`claude_plugin_status`). 앞엣것이 거짓이면 플러그인 안내는
+ * 소음이고, 뒤엣것은 설계상 **놓칠 수는 있어도 오탐은 없다** — 그래서 거짓을
+ * "미설치" 가 아니라 "못 찾음" 으로 읽어야 한다 (commands/mcp.rs).
+ *
+ * `claude_plugin_status` 는 봉투 없이 값을 그대로 돌려주는 커맨드라 `call`
+ * 규약 밖이다. 여기서만 감싸 두어 화면이 `bindings` 를 직접 만지지 않게 한다.
+ */
+export const claudeInstallApi = {
+  pluginStatus: (): Promise<ClaudePluginStatus | null> =>
+    Promise.resolve()
+      .then(() => commands.claudePluginStatus())
+      .catch(() => null),
+
+  cli: (name: string): Promise<CliCheckResult | null> =>
+    Promise.resolve()
+      .then(() => unwrap<CliCheckResult>("check_cli_available", commands.checkCliAvailable(name)))
+      .catch(() => null),
 };
 
 /** 스택 감지 — 추천 스킬을 고르는 유일한 신호. */

@@ -64,7 +64,7 @@ describe("H3b — 일지 없이 끝난 세션 카드", () => {
     // Guidance mentions the draft opt-in by its config key.
     expect(getByText(/auto_journal_draft/)).toBeInTheDocument();
 
-    fireEvent.click(getByText("설정에서 일지 초안 켜기"));
+    fireEvent.click(getByText("일지 초안 자동화 켜기 (모델 호출)"));
     expect(onNavigate).toHaveBeenCalledWith("settings");
   });
 
@@ -109,7 +109,7 @@ describe("H3b — 일지 없이 끝난 세션 카드", () => {
     // 판정의 한계가 그 자리에 함께 적혀 있다 — "0건 = 기록 완전" 이 아니라고.
     expect(await findByText(new RegExp(t("today.missing.zeroNote").slice(0, 24)))).toBeInTheDocument();
     // 소음이 되지 않게, 0건 상태에는 행 목록도 설정 유도 버튼도 없다.
-    expect(queryByText("설정에서 일지 초안 켜기")).toBeNull();
+    expect(queryByText("일지 초안 자동화 켜기 (모델 호출)")).toBeNull();
   });
 
   it("0건 → N건으로 바뀌면 같은 카드가 행 목록을 펼친다", async () => {

@@ -242,7 +242,7 @@ describe("PR-UI 2 — Today stat aggregation", () => {
   it("empty day shows the no-records hint + 빠른 터미널 카드 (PR-R2 C2 / icon round)", async () => {
     fixtures.byWorkday["20260531"] = [];
     const { findByText, getByText, onNavigate } = renderToday();
-    expect(await findByText(/오늘 아직 기록이 없어요/)).toBeInTheDocument();
+    expect(await findByText(/오늘 기록이 아직 없어요/)).toBeInTheDocument();
     // "여기서 에이전트 실행" 은 인라인 터미널을 열고(런타임 필요 — 여기선 미클릭),
     // "전체 터미널" 은 터미널 화면으로 핸드오프.
     expect(getByText("여기서 에이전트 실행")).toBeInTheDocument();

@@ -1,4 +1,5 @@
 import { openSettings } from "@/lib/settingsNav";
+import { requestManualEntry } from "@/lib/journalCompose";
 import { useCallback, useEffect, useState } from "react";
 import { safeUnlisten } from "@/lib/unlisten";
 
@@ -215,18 +216,39 @@ function MissingRows({
           </li>
         ) : null}
       </ul>
-      <button
-        type="button"
-        className="btn sm"
-        onClick={() => {
-          // 설정 화면으로 옮기고 ocul-pm 탭(자동 초안 토글이 있는 곳)을 편다 —
-          // 예전엔 화면만 옮겨 사용자가 탭을 찾아야 했다.
-          onNavigate("settings");
-          openSettings("oculpm");
-        }}
-      >
-        {t("today.missing.enable")}
-      </button>
+      {/* 무료 경로가 먼저다 (v3-surface {#honesty-actions}). 예전엔 이 카드의
+          유일한 행동이 **과금 LLM 을 켜라**는 제안뿐이었다 — 자동 초안은
+          세션마다 모델을 부른다. 지금 당장, 돈 없이 누락을 메우는 길은
+          작성기를 신호로 채워 여는 것이다. */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className="btn sm"
+          onClick={() =>
+            requestManualEntry({
+              title: t("today.missing.seedTitle", { session: shortSid(signals[0].session_id) }),
+              body: signals
+                .slice(0, MAX_ROWS)
+                .map((s) => `- ${formatLocalTs(s.ts)} · ${s.session_id}`)
+                .join("\n"),
+            })
+          }
+        >
+          {t("today.missing.write")}
+        </button>
+        <button
+          type="button"
+          className="btn sm"
+          onClick={() => {
+            // 설정 화면으로 옮기고 ocul-pm 탭(자동 초안 토글이 있는 곳)을 편다 —
+            // 예전엔 화면만 옮겨 사용자가 탭을 찾아야 했다.
+            onNavigate("settings");
+            openSettings("oculpm");
+          }}
+        >
+          {t("today.missing.enable")}
+        </button>
+      </div>
     </>
   );
 }

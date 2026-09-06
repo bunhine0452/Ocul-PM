@@ -66,6 +66,7 @@ import { ContextLiveList } from "./ContextLiveList";
 import { ContextInbox } from "./ContextInbox";
 import { ContextEditor } from "./ContextEditor";
 import { SkillShopTab } from "./SkillShopTab";
+import { EmptyState } from "@/components/EmptyState";
 import { PluginDocsTab } from "./PluginDocsTab";
 import "./skills.css";
 
@@ -330,11 +331,11 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
       ) : status === "error" ? (
         <div className="scroll">
           <div className="page">
-            <div className="empty-hint">
+            <EmptyState>
               {t("ctx.loadFailed")}
               <br />
               {loadError}
-            </div>
+            </EmptyState>
           </div>
         </div>
       ) : detail ? (
@@ -371,6 +372,8 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
               totalFiles={totalFiles}
               missingMemory={missingMemory}
               onCreateMemory={(e) => void createMemory(e)}
+              onCreateRule={() => setRuleDialog({})}
+              onOpenShop={() => setExtra("shop")}
               onOpen={setDetail}
               cursorTranslate={rules?.cursor_translate ?? false}
               onToggleTranslate={() => void toggleTranslate()}
