@@ -2768,3 +2768,182 @@
   gap: 0;
   padding: 0;
 }
+
+/* ─── 활동 의미 층 (v3-surface {#activity-layer}) ──────────────────────────
+   행적을 도구 이름이 아니라 **우리 어휘**로 그린다. 새 상자를 만들지 않는다 —
+   기존 `.trace-item` 위에 결(tone)과 묶음 한 줄, 그리고 원본 레일만 얹는다. */
+
+/* 우리 원장에 남은 기록 셋 (일지·계획·세션 원장). 스무 줄을 훑을 때 이 셋만
+   눈에 걸려야 한다 — 강조는 **글리프 하나**로 끝낸다. 배경을 칠하면 카드가
+   되고, 카드가 되면 옆의 도구 줄들과 밀도가 어긋난다. */
+.trace-item.ledger .trace-icon {
+  color: var(--accent-text);
+}
+.trace-item.ledger .trace-name {
+  color: var(--text-1);
+  font-weight: 550;
+}
+/* 곁가지(생각) — 답이 아니라 과정이라 한 톤 물러난다. */
+.trace-item.aside .trace-icon,
+.trace-item.aside .trace-name {
+  color: var(--text-3);
+}
+
+/* 접힌 묶음 한 줄 — "파일 12개 읽음". 밀도는 `.trace-row` 와 같다: 같은 흐름
+   안의 한 줄이지 별도의 카드가 아니다. */
+.activity-run {
+  min-width: 0;
+  margin: 1px 0;
+}
+.activity-run > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding: 3px 4px 3px 0;
+  border-radius: 6px;
+  font-size: var(--fs-5);
+  color: var(--text-3);
+  cursor: pointer;
+  list-style: none;
+}
+.activity-run > summary::-webkit-details-marker {
+  display: none;
+}
+.activity-run > summary:hover {
+  background: var(--bg-hover);
+}
+.activity-run-caret {
+  flex: none;
+  color: var(--text-3);
+  transform: rotate(-90deg);
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.activity-run[open] > summary .activity-run-caret {
+  transform: none;
+}
+.activity-run-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-3);
+}
+.activity-run-text {
+  flex: none;
+}
+/* 대상 하나만 미리 — 접은 이유가 사라지지 않게 길면 그대로 자른다. */
+.activity-run-path {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: var(--fs-4);
+  color: var(--text-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+/* 펼친 줄들은 묶음 안으로 한 칸 들어간다 — 레일 위의 낱줄과 구별된다. */
+.activity-run-body {
+  margin-left: 10px;
+  padding-left: 8px;
+  border-left: 1px solid var(--sep);
+}
+
+/* 도구가 아닌 활동의 한 줄 (승인 기록·할 일 갱신). */
+.activity-notice {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 1px 0;
+}
+.activity-notice-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 24px;
+  font-size: var(--fs-5);
+  color: var(--text-2);
+}
+.activity-notice.attention .activity-notice-head {
+  color: var(--warn-text);
+}
+.activity-notice-name {
+  flex: none;
+  font-weight: 550;
+}
+.activity-notice-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 원본 이벤트 레일 ({#raw-rail}) — 늘 있고, 늘 접혀 있다. 펼친 본문 맨 아래에
+   붙으므로 본문과 같은 재질을 쓰되 한 단 더 눌러 둔다. */
+.raw-rail > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font-size: var(--fs-4);
+  color: var(--text-3);
+  cursor: pointer;
+  list-style: none;
+}
+.raw-rail > summary::-webkit-details-marker {
+  display: none;
+}
+.raw-rail > summary svg {
+  flex: none;
+  transform: rotate(-90deg);
+  transition: transform var(--dur-2) var(--ease-out);
+}
+.raw-rail[open] > summary svg {
+  transform: none;
+}
+.raw-rail-cut {
+  color: var(--warn-text);
+}
+.raw-rail > pre {
+  max-height: 320px;
+  margin: 4px 0 0;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: var(--fs-4);
+  line-height: 1.5;
+  color: var(--text-3);
+  white-space: pre;
+}
+
+/* 레일 위의 점 — 묶음 한 줄도 하나의 단계다 (윗동네의 목록과 같은 규칙). */
+.acp-layout .exchange .msg.assistant > .activity-run,
+.acp-layout .exchange .msg.assistant > .activity-notice {
+  position: relative;
+}
+.acp-layout .exchange .msg.assistant > .activity-run::before,
+.acp-layout .exchange .msg.assistant > .activity-notice::before {
+  content: "";
+  position: absolute;
+  left: -19px;
+  top: 0.62em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-3);
+  box-shadow: 0 0 0 3px var(--bg-content);
+}
+/* 우리 원장 기록의 점은 액센트다 — 이 흐름에서 유일하게 "제품이 한 일"이다. */
+.acp-layout .exchange .msg.assistant > .trace-item.ledger::before {
+  background: var(--accent);
+}
+.acp-layout .exchange .msg.assistant > .trace-item.aside::before {
+  background: var(--sep-strong);
+}
+
+/* 「도는 중」인데 최근 신호가 없다 ({#working-source}). 경고가 아니라 사실
+   한 줄이라 색을 쓰지 않고 한 톤 눌러 둔다 — 모르는 것을 아는 척하지 않되
+   놀라게 하지도 않는다. */
+.acp-session-silent {
+  color: var(--text-3);
+}

@@ -4,15 +4,14 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSecondTick } from "@/hooks/useSecondTick";
-import { AlertTriangle, Check, ChevronDown, Copy, File as FileIcon, TriangleAlert } from "@/components/Icons";
+import { Check, ChevronDown, Copy, File as FileIcon } from "@/components/Icons";
 import { Markdown } from "@/components/Markdown";
 import { useT } from "@/i18n";
 import { turnReceipt, fileChangeDiscrepancy, type AcpBlock, type AcpPlanEntry, type AcpTurn } from "../acpTurns";
 import { typedLength, wordDurationMs, wordKeyAt } from "../agentWords";
 import { estimateTokens } from "@/lib/tokenEstimate";
-import { StreamingMarkdown } from "./Markdown";
 import { ImageAttachment } from "./Attachments";
-import { TraceRow } from "./TraceRow";
+import { ActivityStream } from "../activity/ActivityStream";
 
 /** 지시문을 몇 줄까지 접어 둘지 — 넘으면 "펼치기"가 붙는다. */
 export const USER_CLAMP_LINES = 6;
@@ -117,31 +116,6 @@ export function PlanList({ entries }: { entries: readonly AcpPlanEntry[] }) {
         ))}
       </ul>
     </details>
-  );
-}
-
-/**
- * 세션에 일어난 일 — 한도 초과·인증 실패·모델 폴백.
- *
- * 어시스턴트가 쓴 글이 아니고 지나가는 배너도 아니다. **대화에 남는 기록**이라
- * (스펙의 표현 그대로) 일어난 자리에 그대로 둔다.
- */
-export function FailureRow({
-  block,
-}: {
-  block: Extract<AcpBlock, { kind: "failure" }>;
-}) {
-  const warning = block.severity === "warning";
-  return (
-    <div className={"failure" + (warning ? " warning" : "")} role="status">
-      <span className="failure-icon">
-        {warning ? <AlertTriangle size={13} /> : <TriangleAlert size={13} />}
-      </span>
-      <span className="failure-body">
-        <span className="failure-title">{block.title}</span>
-        {block.details ? <span className="failure-details">{block.details}</span> : null}
-      </span>
-    </div>
   );
 }
 
@@ -305,29 +279,11 @@ export const TurnRow = memo(function TurnRow({
       {turn.plan?.length ? <PlanList entries={turn.plan} /> : null}
       {/* 글과 도구를 **온 순서 그대로** 그린다. 예전엔 도구를 전부 위에, 글을
           전부 아래에 모아 그려서 — 도구 사이사이에 한 줄씩 하던 설명이 맨
-          아래에 줄줄이 붙어 서로 다른 대목의 문장이 한 문단처럼 이어졌다. */}
-      {blocks.map((block, i) =>
-        block.kind === "tool" ? (
-          <TraceRow key={block.call.id} tool={block.call} />
-        ) : block.kind === "failure" ? (
-          <FailureRow key={block.id} block={block} />
-        ) : (
-          <div className="msg-md" key={`t${i}`}>
-            {/* 스트리밍 중에도 **서식이 바로 보인다.** 평문으로 뒀다 끝에
-                포맷하면 점프가 생기고, 매 프레임 전체를 파싱하면 끊긴다 —
-                둘 다 겪었다. 블록으로 쪼개면 완성된 블록은 문자열이 안 바뀌어
-                memo 가 재파싱을 건너뛰고, 매번 다시 파싱되는 건 마지막 블록
-                하나뿐이라 비용이 문단 길이에 묶인다.
+          아래에 줄줄이 붙어 서로 다른 대목의 문장이 한 문단처럼 이어졌다.
 
-                **마지막 조각만** 스트리밍 취급한다 — 앞의 것들은 이미 끝났다. */}
-            {live && i === blocks.length - 1 ? (
-              <StreamingMarkdown text={block.text} />
-            ) : (
-              <Markdown>{block.text}</Markdown>
-            )}
-          </div>
-        ),
-      )}
+          무엇을 한 것인지 판정하고(우리 어휘로) 이웃끼리 묶는 일은
+          `activity/` 가 소유한다 — 여기서는 흐름을 그 자리에 놓기만 한다. */}
+      <ActivityStream blocks={blocks} live={live} />
       {/* 턴 영수증 — 이 턴이 실제로 무엇을 했는지 한 줄. 일지 제품의 DNA 를
           대화 표면에 남기는 자리다. 도구를 쓴 턴에만 — "도구 0" 은 소음이다. */}
       {receipt ? (

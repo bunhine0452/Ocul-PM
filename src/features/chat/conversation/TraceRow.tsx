@@ -4,13 +4,14 @@
 
 import { memo, useCallback, useMemo, useState } from "react";
 import { useSecondTick } from "@/hooks/useSecondTick";
-import { Check, ChevronDown, Code2, Copy } from "@/components/Icons";
+import { Check, ChevronDown, Code2, Copy, type IconComponent } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { type AcpToolCall } from "../acpTurns";
 import { AcpDiffView } from "../AcpDiffView";
 import { diffLines, diffStats } from "../lineDiff";
 import { PEEK_IN_LINES, PEEK_OUT_LINES, peekLines } from "../tracePreview";
 import { TOOL_ICON, TOOL_STATUS_KEY } from "./shared";
+import { RawRail } from "../activity/RawRail";
 
 /** 도는 단계의 경과 초 — 1초마다 다시 그린다 (그 단계가 도는 동안만). */
 export function TraceElapsed({ since }: { since?: number }) {
@@ -59,6 +60,23 @@ export function TraceIo({ tag, text }: { tag: string; text: string }) {
 }
 
 /**
+ * 활동 어휘가 이 줄에 씌우는 **얼굴** (`activity/presenters.tsx`).
+ *
+ * 없으면 도구 종류로 폴백한다 — 이 컴포넌트는 어휘를 몰라도 혼자 선다
+ * (기존 호출부와 테스트가 그대로 돈다).
+ */
+export interface TracePresent {
+  Icon: IconComponent;
+  /** 줄 앞머리의 이름 한 낱말 — "일지 기록" 처럼 **우리 말**이 들어온다. */
+  name: string;
+  /**
+   * 줄의 결. `ledger` 는 우리 원장 기록(눈에 걸려야 한다), `aside` 는 곁가지
+   * (생각처럼 답이 아니라 과정인 것 — 한 톤 물러난다).
+   */
+  tone?: "ledger" | "aside";
+}
+
+/**
  * 도구 호출 한 단계 — 무엇을 시켰고, 무엇이 나왔나.
  *
  * 예전에는 끝나면 한 줄로 접혀서, 스무 번 도구를 쓴 대화가 **똑같이 생긴 스무
@@ -70,7 +88,16 @@ export function TraceIo({ tag, text }: { tag: string; text: string }) {
  * 아래를 페이드로 잘라 더 있음을 알린다. 누르면 들어간 것(IN)과 나온 것(OUT)
  * 전문이 열린다. 훑기만 해도 흐름이 읽히고, 파고들 때만 자리를 내준다.
  */
-export const TraceRow = memo(function TraceRow({ tool }: { tool: AcpToolCall }) {
+export const TraceRow = memo(function TraceRow({
+  tool,
+  present,
+  raw,
+}: {
+  tool: AcpToolCall;
+  present?: TracePresent;
+  /** 원본 이벤트 — 펼친 본문 맨 아래 레일 (`{#raw-rail}`). */
+  raw?: unknown;
+}) {
   const { t } = useT();
   const running = tool.status === "in_progress" || tool.status === "pending";
   const failed = tool.status === "failed";
@@ -80,10 +107,11 @@ export const TraceRow = memo(function TraceRow({ tool }: { tool: AcpToolCall }) 
    */
   const [choice, setChoice] = useState<boolean | null>(null);
   const open = choice ?? running;
-  const Icon = TOOL_ICON[tool.kind] ?? Code2;
+  const Icon = present?.Icon ?? TOOL_ICON[tool.kind] ?? Code2;
   const statusKey = TOOL_STATUS_KEY[tool.status as keyof typeof TOOL_STATUS_KEY];
   const state = running ? " running" : failed ? " failed" : "";
-  const expandable = Boolean(tool.input || tool.output || tool.diffs?.length);
+  // 원본 레일도 펼칠 거리다 — 입출력이 하나도 없는 카드에서 **유일한** 거리다.
+  const expandable = Boolean(tool.input || tool.output || tool.diffs?.length || raw);
 
   /**
    * 변경 규모("+12 −3") — 펼치기 전에 줄에서 바로 읽힌다. 어떤 파일을 몇 줄
@@ -125,7 +153,7 @@ export const TraceRow = memo(function TraceRow({ tool }: { tool: AcpToolCall }) 
   const status = statusKey ? t(statusKey) : tool.status;
 
   return (
-    <div className={"trace-item" + (open ? " open" : "")}>
+    <div className={"trace-item" + (open ? " open" : "") + (present?.tone ? " " + present.tone : "")}>
       <button
         type="button"
         className={"trace-row" + state}
@@ -139,7 +167,7 @@ export const TraceRow = memo(function TraceRow({ tool }: { tool: AcpToolCall }) 
         {/* 이름과 설명을 가른다. 예전엔 명령줄 전체가 제목 자리에 들어가서,
             줄이 길수록 "무슨 도구였나"가 말줄임 뒤로 사라졌다. 이름은 짧고
             늘 같은 자리에 있어야 훑을 때 걸린다 (Claude Code 벤치마크). */}
-        <span className="trace-name">{tool.name || t("acp.tool.untitled")}</span>
+        <span className="trace-name">{present?.name || tool.name || t("acp.tool.untitled")}</span>
         <span className="trace-title">{tool.subtitle || tool.title}</span>
         {tool.locations.length ? (
           <span className="trace-path" title={tool.locations.join("\n")}>
@@ -187,6 +215,8 @@ export const TraceRow = memo(function TraceRow({ tool }: { tool: AcpToolCall }) 
           {/* 편집 도구의 본론 — 무엇이 어떻게 바뀌었나. */}
           {tool.diffs?.length ? <AcpDiffView diffs={tool.diffs} /> : null}
           {tool.output ? <TraceIo tag="OUT" text={tool.output} /> : null}
+          {/* 어휘가 틀린 날의 도망갈 데 — 늘 맨 아래에 있다 ({#raw-rail}). */}
+          <RawRail raw={raw} />
         </div>
       ) : tool.diffs?.length ? (
         // 접힌 편집 카드는 diff 머리를 보여 준다 — 텍스트 미리보기와 같은 이유,
