@@ -18,15 +18,16 @@ import { parseUsageDetail } from "./usageDetail";
 /**
  * 한도 종류 → 사람이 읽는 이름. 모르는 종류는 **원문 그대로** 보여 준다.
  *
- * 두 출처의 어휘가 다르다: `_meta` 는 `seven_day` 같은 기계 이름을, `/usage`
- * 는 `week (all models)` 같은 문장을 준다. 후자는 이미 읽을 만하므로 굳이
- * 번역하지 않는다 — 우리가 지어낸 이름이 CLI 가 쓴 이름과 어긋나는 편이 더
- * 나쁘다.
+ * 출처마다 어휘가 달랐다: `_meta` 는 `seven_day` 같은 기계 이름을, 옛 `/usage`
+ * 평문은 `week (all models)` 같은 문장을 줬다. 어댑터 0.75.1 의 마크다운
+ * 갈래는 백엔드가 기계 이름으로 접어 주므로(`markdown_limit_kind`) 여기서는
+ * 기계 이름이 기본이고, 평문 폴백으로 들어오는 문장형도 계속 받는다.
  */
 const LIMIT_LABEL: Readonly<Record<string, string>> = {
   five_hour: "acp.limit.session",
   seven_day: "acp.limit.week",
   seven_day_opus: "acp.limit.weekOpus",
+  seven_day_sonnet: "acp.limit.weekSonnet",
   seven_day_fable: "acp.limit.weekFable",
   session: "acp.limit.session",
 };
@@ -40,10 +41,11 @@ const LIMIT_SHORT: Readonly<Record<string, string>> = {
   session: "acp.limit.shortSession",
   seven_day: "acp.limit.shortWeek",
   seven_day_opus: "acp.limit.shortOpus",
+  seven_day_sonnet: "acp.limit.shortSonnet",
   seven_day_fable: "acp.limit.shortFable",
 };
 
-/** `/usage` 가 주는 이름은 문장형이라 여기서 짧은 키로 접는다. */
+/** 평문 폴백이 주는 이름은 문장형이라 여기서 짧은 키로 접는다. */
 function shortKeyOf(kind: string): string | undefined {
   const direct = LIMIT_SHORT[kind];
   if (direct) return direct;
@@ -51,6 +53,7 @@ function shortKeyOf(kind: string): string | undefined {
   if (id.startsWith("session")) return "acp.limit.shortSession";
   if (id.includes("fable")) return "acp.limit.shortFable";
   if (id.includes("opus")) return "acp.limit.shortOpus";
+  if (id.includes("sonnet")) return "acp.limit.shortSonnet";
   if (id.startsWith("week")) return "acp.limit.shortWeek";
   return undefined;
 }

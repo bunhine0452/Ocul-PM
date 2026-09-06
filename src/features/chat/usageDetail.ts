@@ -9,7 +9,21 @@
 // 정렬까지). 뜯어 읽는 것은 지금 확실히 아는 세 모양뿐이고, 나머지는 예전과
 // 똑같이 보인다. 조용히 빈칸이 되는 일은 없다.
 //
-// 실측 원문 (claude 2026-08-20):
+// **원문이 두 벌이다.** 어댑터 0.75.0 부터 `/usage` 의 답을 어댑터가 가로채
+// 마크다운으로 다시 그리는데, 구조화 조회가 실패하면 CLI 의 평문이 그대로
+// 온다. 그래서 둘 다 읽는다.
+//
+// 마크다운 (claude-agent-acp 0.75.1):
+//
+//     > Approximate, overlapping measures · this machine only · excludes claude.ai
+//
+//     **Last 24h** · 12 requests · 3 sessions
+//
+//     | MCP server | Usage |
+//     |:--|--:|
+//     | plugin:oculpm:oculpm | `███░░░░░░░░░░░░░░░░░` 15% |
+//
+// 평문 (claude 2026-08-20):
 //
 //     Approximate, based on local sessions on this machine — does not include …
 //
@@ -38,6 +52,49 @@ const ITEM = /^(.*?)\s+(\d{1,3})%$/;
 /** 줄마다 되풀이되는 군더더기 — 넷 중 셋이 같은 말로 시작해 폭만 먹는다. */
 const SHARE_NOISE = /^of your usage\s+/i;
 
+/** 표의 정렬 줄 (`|:--|--:|`) — 그리지 않는다. */
+const TABLE_RULE = /^\|[\s:|-]+$/;
+/** 표 칸에서 비율만 — 값 칸은 `` `███░░` 15% `` 처럼 막대를 달고 온다. */
+const CELL_PCT = /(\d{1,3})%/;
+
+/** 마크다운 장식(강조·인라인 코드·이스케이프)을 뗀 알맹이. */
+function unmark(text: string): string {
+  return text
+    .replace(/\*\*/g, "")
+    .replace(/`/g, "")
+    .replace(/\\([\\`*_[\]<>|])/g, "$1")
+    .trim();
+}
+
+function cellsOf(row: string): string[] {
+  return row
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+/**
+ * 마크다운 표 한 덩어리를 `top` 블록으로. 머리글 첫 칸이 이름표가 된다
+ * ("MCP server").
+ *
+ * 비율을 하나도 못 읽었으면 `null` — 우리가 아는 모양이 아니므로 예전처럼
+ * 원문으로 흘려보낸다.
+ */
+function tableOf(rows: string[]): UsageDetailBlock | null {
+  const label = unmark(cellsOf(rows[0])[0] ?? "");
+  const items = rows
+    .slice(1)
+    .filter((row) => !TABLE_RULE.test(row.trim()))
+    .map((row) => {
+      const cells = cellsOf(row);
+      const pct = CELL_PCT.exec(cells[1] ?? "");
+      return { name: unmark(cells[0] ?? ""), pct: pct ? Number(pct[1]) : null };
+    });
+  return items.some((item) => item.pct !== null) ? { kind: "top", label, items } : null;
+}
+
 function topOf(line: string): UsageDetailBlock | null {
   const found = TOP.exec(line);
   if (!found) return null;
@@ -58,11 +115,39 @@ function isStat(line: string): boolean {
 
 export function parseUsageDetail(source: string): UsageDetailBlock[] {
   const out: UsageDetailBlock[] = [];
-  for (const raw of source.split("\n")) {
+  const lines = source.split("\n");
+  for (let at = 0; at < lines.length; at += 1) {
+    const raw = lines[at];
     const line = raw.trim();
     if (!line) continue;
 
-    const share = SHARE.exec(line);
+    // 붙어 있는 `|` 줄은 표 하나다 — 줄 단위로 보면 정렬 줄과 막대만 남는다.
+    if (line.startsWith("|")) {
+      let end = at;
+      while (end + 1 < lines.length && lines[end + 1].trim().startsWith("|")) end += 1;
+      const table = tableOf(lines.slice(at, end + 1));
+      if (table) {
+        out.push(table);
+        at = end;
+        continue;
+      }
+      // 못 읽은 표는 아래 규칙으로 떨어져 원문 그대로 남는다.
+    }
+
+    // 인용 줄(`> …`)이 마크다운의 단서 문장 자리다.
+    if (line.startsWith(">")) {
+      const note = line.slice(1).trim();
+      if (note) {
+        out.push({ kind: "note", text: note });
+        continue;
+      }
+    }
+
+    // 강조 표시(`**Last 24h**`)는 장식이다 — 뜯어 읽기 전에 뗀다. 평문에는
+    // 애초에 없으므로 옛 갈래는 그대로다.
+    const plain = unmark(line);
+
+    const share = SHARE.exec(plain);
     if (share) {
       out.push({
         kind: "share",
@@ -72,14 +157,14 @@ export function parseUsageDetail(source: string): UsageDetailBlock[] {
       continue;
     }
 
-    const top = topOf(line);
+    const top = topOf(plain);
     if (top) {
       out.push(top);
       continue;
     }
 
-    if (isStat(line)) {
-      out.push({ kind: "stat", text: line });
+    if (isStat(plain)) {
+      out.push({ kind: "stat", text: plain });
       continue;
     }
 

@@ -61,3 +61,51 @@ describe("parseUsageDetail", () => {
     expect(parseUsageDetail("")).toEqual([]);
   });
 });
+
+/** 어댑터 0.75.1 이 `formatUsageResponse` 로 그려 보내는 모양 (머리글은 백엔드가 뗀 뒤). */
+const MARKDOWN = `> Approximate, overlapping measures · this machine only · excludes claude.ai
+
+**Last 24h** · 12 requests · 3 sessions
+
+| MCP server | Usage |
+|:--|--:|
+| plugin:oculpm:oculpm | \`███░░░░░░░░░░░░░░░░░\` 15% |
+| vercel | \`█░░░░░░░░░░░░░░░░░░░\` 4% |
+
+**Last 7d** · 470 requests · 44 sessions`;
+
+describe("parseUsageDetail — 마크다운 갈래", () => {
+  test("인용·강조·표를 예전과 같은 블록으로 뜯는다", () => {
+    expect(parseUsageDetail(MARKDOWN).map((b) => b.kind)).toEqual([
+      "note",
+      "stat",
+      "top",
+      "stat",
+    ]);
+  });
+
+  test("인용 줄에서 꺾쇠를, 집계 줄에서 별표를 뗀다", () => {
+    const blocks = parseUsageDetail(MARKDOWN);
+    expect(blocks[0]).toEqual({
+      kind: "note",
+      text: "Approximate, overlapping measures · this machine only · excludes claude.ai",
+    });
+    expect(blocks[1]).toEqual({ kind: "stat", text: "Last 24h · 12 requests · 3 sessions" });
+  });
+
+  test("표는 머리글이 이름표가 되고 막대는 버린다", () => {
+    expect(parseUsageDetail(MARKDOWN)[2]).toEqual({
+      kind: "top",
+      label: "MCP server",
+      items: [
+        { name: "plugin:oculpm:oculpm", pct: 15 },
+        { name: "vercel", pct: 4 },
+      ],
+    });
+  });
+
+  test("비율이 없는 표는 우리가 아는 모양이 아니다 — 원문으로 남는다", () => {
+    const table = "| Cost | API time |\n|:--|:--|\n| $1.23 | 1m 35s |";
+    expect(parseUsageDetail(table).map((b) => b.kind)).toEqual(["note", "text", "text"]);
+  });
+});

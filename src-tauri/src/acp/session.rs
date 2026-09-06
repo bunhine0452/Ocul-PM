@@ -11,6 +11,11 @@ use super::AcpProvider;
 use agent_client_protocol::schema::v1::{ContentBlock, SessionUpdate};
 use serde::{Deserialize, Serialize};
 
+use super::usage::saturate;
+// 사용량·한도는 [`super::usage`] 로 갈라졌지만, 부르는 자리가 한 곳을 보게
+// `session::` 이름으로 계속 내보낸다.
+pub use super::usage::{parse_usage_detail, parse_usage_report, usage_of, AcpRateLimit, AcpUsage};
+
 /// 에이전트 화면이 받는 스트리밍 이벤트.
 // 태그 이름·표기는 `ChatEvent`(llm/mod.rs)와 맞춘다 — 프런트가 두 스트림을
 // 같은 방식으로 분기한다.
@@ -235,177 +240,6 @@ pub fn map_config_options(
         .collect()
 }
 
-/// 한도 하나 (5시간 세션 · 주간 · 주간 Fable …).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
-pub struct AcpRateLimit {
-    /// 어댑터가 준 종류 문자열 (`seven_day` 등) — 우리가 이름을 지어내지 않는다.
-    pub kind: String,
-    /// 0.0~1.0.
-    pub utilization: f64,
-    /// epoch 초. 표시용 문자열로 바꾸는 건 프런트 몫.
-    pub resets_at: Option<f64>,
-    /// `/usage` 가 준 사람이 읽는 초기화 시각 ("Aug 16 at 4:59am (Asia/Seoul)").
-    /// epoch 보다 **덜 정확하지만 더 정직하다** — 우리가 시간대를 다시 계산하다
-    /// 틀리느니 CLI 가 쓴 문장을 그대로 보여 준다.
-    pub resets_text: Option<String>,
-    /// `allowed` · `allowed_warning` … (경고 색을 고르는 열쇠).
-    pub status: Option<String>,
-}
-
-/// 마지막으로 본 사용량 한 벌.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
-pub struct AcpUsage {
-    pub used: u32,
-    pub size: u32,
-    pub cost_usd: Option<f64>,
-    pub limits: Vec<AcpRateLimit>,
-    /// `/usage` 가 한도 뒤에 덧붙이는 "무엇이 사용량에 기여했나" 대목 — **원문 그대로**.
-    ///
-    /// 구조를 뜯지 않는 이유: 컨텍스트 길이 경고·스킬·플러그인·MCP 서버처럼
-    /// 항목이 계속 늘고 문구도 CLI 판올림마다 바뀐다. 표로 파싱해 두면 다음 판에
-    /// 조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
-    pub detail: Option<String>,
-}
-
-/// `usage_update` 에서 사용량과 한도를 뽑는다. 그 밖의 종류면 `None`.
-///
-/// 한도는 `_meta._claude/rateLimit` 에 실려 오는데 **한 번에 하나씩** 온다 —
-/// 그래서 호출부가 종류별로 누적해야 세 줄(세션·주간·Fable)이 다 모인다.
-pub fn usage_of(update: &SessionUpdate) -> Option<AcpUsage> {
-    let SessionUpdate::UsageUpdate(usage) = update else {
-        return None;
-    };
-
-    let limits = usage
-        .meta
-        .as_ref()
-        .and_then(|meta| serde_json::to_value(meta).ok())
-        .map(|meta| collect_limits(&meta))
-        .unwrap_or_default();
-
-    Some(AcpUsage {
-        used: saturate(usage.used),
-        size: saturate(usage.size),
-        cost_usd: usage
-            .cost
-            .as_ref()
-            .filter(|c| c.currency == "USD")
-            .map(|c| c.amount),
-        limits,
-        detail: None,
-    })
-}
-
-/// `_meta` 어디에 있든 `utilization` 을 가진 객체를 한도로 본다.
-///
-/// 키 이름(`_claude/rateLimit`)에 기대지 않는 이유: `_meta` 는 확장 지점이라
-/// 벤더가 자리를 옮기거나 늘릴 수 있다. 모양으로 찾으면 그때도 살아남는다.
-fn collect_limits(value: &serde_json::Value) -> Vec<AcpRateLimit> {
-    let mut found = Vec::new();
-    walk_limits(value, &mut found);
-    found
-}
-
-fn walk_limits(value: &serde_json::Value, out: &mut Vec<AcpRateLimit>) {
-    match value {
-        serde_json::Value::Object(map) => {
-            if let Some(utilization) = map.get("utilization").and_then(serde_json::Value::as_f64) {
-                out.push(AcpRateLimit {
-                    kind: map
-                        .get("rateLimitType")
-                        .and_then(serde_json::Value::as_str)
-                        .unwrap_or("unknown")
-                        .to_string(),
-                    utilization,
-                    resets_at: map.get("resetsAt").and_then(serde_json::Value::as_f64),
-                    resets_text: None,
-                    status: map
-                        .get("status")
-                        .and_then(serde_json::Value::as_str)
-                        .map(str::to_string),
-                });
-            }
-            for nested in map.values() {
-                walk_limits(nested, out);
-            }
-        }
-        serde_json::Value::Array(items) => {
-            for item in items {
-                walk_limits(item, out);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// `/usage` 응답 본문에서 한도를 읽는다.
-///
-/// **왜 텍스트를 파싱하나**: `/usage` 는 CLI 가 로컬에서 답하는 커맨드라
-/// 토큰을 쓰지 않는다(실측: inputTokens=outputTokens=0). 반면 `usage_update`
-/// 의 `_meta` 한도는 턴이 돌 때 한 종류씩만 온다. 즉 이쪽이 **공짜이면서 더
-/// 완전하다** — 세션·주간·Fable 을 한 번에 준다.
-///
-/// 파싱은 방어적이다. 문구가 바뀌면 못 읽을 뿐 죽지 않고, 못 읽은 줄은
-/// 조용히 빠진다(호출부가 기존 값을 유지한다).
-///
-/// 읽는 모양:
-/// ```text
-/// Current session: 0% used
-/// Current week (all models): 83% used · resets Aug 16 at 4:59am (Asia/Seoul)
-/// ```
-pub fn parse_usage_report(text: &str) -> Vec<AcpRateLimit> {
-    let mut found = Vec::new();
-    for line in text.lines() {
-        let line = line.trim();
-        let Some(rest) = line.strip_prefix("Current ") else {
-            continue;
-        };
-        let Some((label, tail)) = rest.split_once(':') else {
-            continue;
-        };
-        let tail = tail.trim();
-        let Some((percent, after)) = tail.split_once("% used") else {
-            continue;
-        };
-        let Ok(percent) = percent.trim().parse::<f64>() else {
-            continue;
-        };
-
-        // "· resets Aug 16 at 4:59am (Asia/Seoul)" 에서 뒤쪽만.
-        let resets_text = after
-            .split_once("resets")
-            .map(|(_, when)| when.trim().to_string())
-            .filter(|when| !when.is_empty());
-
-        found.push(AcpRateLimit {
-            kind: label.trim().to_string(),
-            utilization: (percent / 100.0).clamp(0.0, 1.0),
-            resets_at: None,
-            resets_text,
-            status: None,
-        });
-    }
-    found
-}
-
-/// `/usage` 답변에서 "무엇이 기여했나" 대목만 잘라낸다 (없으면 `None`).
-///
-/// 머리글 줄 자체는 뺀다 — 카드에 이미 제목이 있어 두 번 쓰면 시끄럽다.
-pub fn parse_usage_detail(text: &str) -> Option<String> {
-    let head = text.lines().position(|line| {
-        line.to_lowercase()
-            .contains("contributing to your limits usage")
-    })?;
-    let body = text
-        .lines()
-        .skip(head + 1)
-        .collect::<Vec<_>>()
-        .join("\n")
-        .trim()
-        .to_string();
-    (!body.is_empty()).then_some(body)
-}
-
 /// `session_info_update` 에 실려 오는 세션 실패 기록.
 ///
 /// 자리는 `_meta.jetbrains.air.sessionFailure` — 그 확장을 그쪽이 먼저 정의해서
@@ -619,11 +453,6 @@ fn label<T: Serialize>(value: &T) -> String {
         .ok()
         .and_then(|v| v.as_str().map(str::to_string))
         .unwrap_or_else(|| "unknown".to_string())
-}
-
-/// 프로토콜의 `u64` 토큰 수를 프런트가 받는 `u32` 로. 넘치면 최대값.
-fn saturate(value: u64) -> u32 {
-    u32::try_from(value).unwrap_or(u32::MAX)
 }
 
 /// 카드에 실을 최대 길이. 도구 출력은 수 MB 도 나온다 — 화면에도 IPC 에도
@@ -1316,34 +1145,6 @@ mod tests {
         assert_eq!(found.used, 52_243);
     }
 
-    /// 실측 응답(2026-08-15) 그대로 — 문구가 바뀌면 여기서 먼저 깨진다.
-    #[test]
-    fn usage_report_parses_the_three_lines() {
-        let report =
-            "You are currently using your subscription to power your Claude Code usage\n\n\
-             Current session: 0% used\n\
-             Current week (all models): 83% used · resets Aug 16 at 4:59am (Asia/Seoul)\n\
-             Current week (Fable): 66% used · resets Aug 16 at 4:59am (Asia/Seoul)\n\n\
-             What's contributing to your limits usage?";
-
-        let limits = parse_usage_report(report);
-        assert_eq!(limits.len(), 3, "관측: {limits:?}");
-
-        assert_eq!(limits[0].kind, "session");
-        assert_eq!(limits[0].utilization, 0.0);
-        assert_eq!(limits[0].resets_text, None, "초기화 시각이 없는 줄도 있다");
-
-        assert_eq!(limits[1].kind, "week (all models)");
-        assert!((limits[1].utilization - 0.83).abs() < 1e-9);
-        assert_eq!(
-            limits[1].resets_text.as_deref(),
-            Some("Aug 16 at 4:59am (Asia/Seoul)")
-        );
-
-        assert_eq!(limits[2].kind, "week (Fable)");
-        assert!((limits[2].utilization - 0.66).abs() < 1e-9);
-    }
-
     #[test]
     fn primary_input_picks_the_one_field_worth_reading() {
         let bash = serde_json::json!({ "command": "pnpm test", "description": "Run tests" });
@@ -1375,48 +1176,6 @@ mod tests {
         assert_eq!(strip_fence("no fence at all"), "no fence at all");
         let two = "```a\none\n```\n```b\ntwo\n```";
         assert_eq!(strip_fence(two), two);
-    }
-
-    #[test]
-    fn usage_detail_keeps_the_body_verbatim_without_its_heading() {
-        let report = "Current session: 0% used\n\n             What's contributing to your limits usage?\n\n             91% of your usage was at >150k context\n             Skills                 % of usage\n               /frontend-design       4%\n";
-
-        let detail = parse_usage_detail(report).expect("기여도 대목이 있어야 한다");
-        assert!(
-            detail.starts_with("91% of your usage"),
-            "머리글은 빼고: {detail:?}"
-        );
-        assert!(
-            detail.contains("/frontend-design       4%"),
-            "정렬 공백까지 그대로"
-        );
-    }
-
-    /// 한도만 오고 대목이 없는 응답도 있다 — 그때 빈 문자열을 만들면 카드에
-    /// 제목만 남은 빈 칸이 생긴다.
-    #[test]
-    fn usage_detail_is_none_when_the_section_is_absent_or_empty() {
-        assert_eq!(parse_usage_detail("Current session: 0% used"), None);
-        assert_eq!(
-            parse_usage_detail("What's contributing to your limits usage?\n\n   \n"),
-            None
-        );
-    }
-
-    /// 문구가 바뀌면 **못 읽을 뿐 죽지 않아야** 한다 — 호출부가 기존 값을 지킨다.
-    #[test]
-    fn usage_report_ignores_lines_it_does_not_understand() {
-        assert!(parse_usage_report("Usage: 없음").is_empty());
-        assert!(parse_usage_report("Current session: unknown used").is_empty());
-        assert!(parse_usage_report("").is_empty());
-    }
-
-    #[test]
-    fn usage_without_meta_yields_no_limits() {
-        use agent_client_protocol::schema::v1::UsageUpdate;
-        let found =
-            usage_of(&SessionUpdate::UsageUpdate(UsageUpdate::new(1, 2))).expect("Usage 여야 한다");
-        assert!(found.limits.is_empty());
     }
 
     #[test]

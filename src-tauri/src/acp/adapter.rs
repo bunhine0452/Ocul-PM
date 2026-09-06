@@ -18,22 +18,29 @@ pub const CODEX_PKG_NAME: &str = "codex-acp";
 /// 고정 버전. 올릴 때는 스파이크(docs/acp-panel/spike/acp_spike.py)를 다시 돌려
 /// `session/update` 종류가 늘거나 바뀌지 않았는지 확인한다.
 ///
-/// 0.70.0 → 0.73.0 (2026-09-02): `session/update` 종류는 그대로다. 세 버전이
-/// 더한 5종(`subagent_spawned`·`subagent_state_update`·`async_task_*`)은 전부
+/// 0.73.0 → 0.75.1 (2026-09-06): `session/update` 종류는 **그대로 15종**이고
+/// `_meta._claude/*` 자리(`rateLimit`·`origin`·`sdkMessage`·
+/// `askUserQuestionOption`)도 불변이다. `subagent_*`·`async_task_*` 는 여전히
 /// **우리가 광고하지 않은 capability 뒤**에 있어 오지 않는다 (그 이유는
-/// `super::process` 의 `air` 광고 주석에).
+/// `super::process` 의 `air` 광고 주석에). 번들 Claude Code
+/// (`claude-agent-sdk`)도 `0.3.257` 그대로 — 이번엔 어댑터만 움직였다.
 ///
-/// 대신 **번들되는 Claude Code 가 올라간다** — `claude-agent-sdk@0.3.232` →
-/// `0.3.257`. 화면에 드러나는 것은 셋이다:
+/// 다만 **`/usage` 의 답이 통째로 바뀌었다.** 어댑터가 CLI 의 평문 출력을
+/// 가로채 SDK 의 구조화 응답을 **마크다운**으로 다시 그린다
+/// (`dist/usage-markdown.js`). 우리 계기는 그 평문을 읽고 있었으므로
+/// `session::parse_usage_report` / `parse_usage_detail` 에 마크다운 갈래를
+/// 더했다 — 구조화 조회가 실패하면 어댑터가 **원래 평문을 그대로 흘려보내므로**
+/// 옛 갈래도 남겨 둔다.
 ///
-/// 1. 대화 제목을 어댑터가 CLI 에 따로 생성 요청해 **세션당 한 번만** 붙인다.
-///    전에는 AI 제목이 붙기 전까지 마지막 지시문이 제목으로 새어 나왔다 —
-///    `acpTitle.ts` 의 메아리 걸러내기가 그 흔적이다(폴백으로 남겨 둔다).
-/// 2. effort 가 모델별로 기억돼, 모델을 바꿔도 우리가 고른 값이 덮이지 않는다.
-/// 3. ExitPlanMode 승인에 "컨텍스트를 비우고 계획만 들고 이어가기" 선택지가
-///    붙는다(`exit-plan-clear-*`). 되돌릴 수 없어 카드가 따로 표시한다 —
-///    `src/features/chat/conversation/permissionOptions.ts`.
-pub const PINNED_VERSION: &str = "0.73.0";
+/// 나머지 새것은 우리 쪽 변경이 필요 없다:
+/// - `_auth/status_update`(연결 단위 로그인 신원 push) — 우리가 모르는 알림은
+///   크레이트가 조용히 버린다(`Ignoring unhandled notification`).
+/// - 컨텍스트 압축이 `tool_call`("Compact conversation", kind=think)로 온다.
+///   평범한 도구 호출이라 이미 그려진다. 곁들인 `_meta.contextCompaction` 은
+///   아직 안 읽는다.
+/// - `sessionFailure` 에 `reason` 이 붙었다 — `--hide-claude-auth` 전용이고
+///   우리는 그 플래그를 넘기지 않는다. `failure_of` 는 모르는 키를 무시한다.
+pub const PINNED_VERSION: &str = "0.75.1";
 pub const CODEX_PINNED_VERSION: &str = "1.8.0";
 
 /// 앱 데이터 디렉터리 하위 설치 경로.

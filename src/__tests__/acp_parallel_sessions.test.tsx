@@ -24,7 +24,7 @@ let settle: (() => void)[] = [];
 
 function session(id: string | null): AcpSession {
   return {
-    agent: { name: "claude-code", title: "Claude Code", version: "0.73.0", auth_required: false, supports_image: true },
+    agent: { name: "claude-code", title: "Claude Code", version: "0.75.1", auth_required: false, supports_image: true },
     commands: [],
     session_id: id,
     title: null,

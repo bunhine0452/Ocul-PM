@@ -13,6 +13,7 @@
 //! - [`session_book`] — 한 어댑터 안의 대화별 설정·제목 장부
 //! - [`session`] — `session/update` → 프런트 이벤트 매핑
 //! - [`turn`] — 대화당 도는 턴 하나 + 어떻게 끝나든 종료 이벤트 (RAII)
+//! - [`usage`] — `/usage`·`usage_update` → 컨텍스트 사용량과 요금제 한도
 
 use std::path::Path;
 
@@ -28,6 +29,7 @@ pub mod segments;
 pub mod session;
 pub mod session_book;
 pub mod turn;
+pub mod usage;
 
 pub use journal_gate::{AcpGateState, AcpObjection};
 pub use process::{AcpAgentInfo, AcpState};
