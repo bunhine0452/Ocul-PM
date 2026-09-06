@@ -7,7 +7,7 @@ import { createUnlistenBag, safeUnlistenPromise } from "@/lib/unlisten";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
-import { useProjectRuntime, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
+import { useProjectRuntime, useUiPrefs, UI_V2_VIEWS, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/i18n";
@@ -88,12 +88,14 @@ import "@/styles/index.css";
 // the single source for the screen list — 16 as of 2026-09-04 (the comment here
 // said 8, a number the router outgrew long ago; count it there, not here).
 
-/** 트레이 딥링크·URL 이 실어 오는 화면 이름의 허용 목록. */
-const KNOWN_VIEWS: UiV2View[] = [
-  "today", "journal", "diff", "planner", "discussion", "retro", "search",
-  "terminal", "ai", "graph", "docs", "skills", "claudecode", "codex", "code", "sessions",
-  "settings",
-];
+/**
+ * 트레이 딥링크·URL 이 실어 오는 화면 이름의 허용 목록.
+ *
+ * 손으로 적은 두 번째 사본이었다 (2026-09-06). 이제 영속값을 거르는 목록과
+ * **같은 배열**(`UI_V2_VIEWS`)을 쓴다 — 화면을 하나 없앨 때 한 곳만 고치면
+ * 딥링크와 저장된 값이 함께 따라온다.
+ */
+const KNOWN_VIEWS: readonly string[] = UI_V2_VIEWS;
 
 interface ShellV2Props {
   projectName: string | null;
@@ -354,7 +356,7 @@ export default function ShellV2({
       setUiV2View("journal");
       return;
     }
-    if (initialView && KNOWN_VIEWS.includes(initialView as UiV2View)) {
+    if (initialView && KNOWN_VIEWS.includes(initialView)) {
       setUiV2View(initialView as UiV2View);
     }
     // 최초 1회 — 이후 사용자의 화면 이동을 되돌리면 안 된다.
@@ -394,7 +396,7 @@ export default function ShellV2({
         return;
       }
       setUiV2View(
-        KNOWN_VIEWS.includes(payload.view as UiV2View) ? (payload.view as UiV2View) : "today",
+        KNOWN_VIEWS.includes(payload.view) ? (payload.view as UiV2View) : "today",
       );
     });
     return () => {
@@ -519,17 +521,6 @@ export default function ShellV2({
               </div>
             </div>
           </>
-        ) : view === "today" ? (
-          <TodayScreenV2
-            projectId={projectId}
-            projectRoot={projectRoot}
-            workday={workday}
-            oculpmReady={oculpmReady}
-            onNavigate={setUiV2View}
-            onOpenEntry={openEntryInJournal}
-            dateLabel={dateLabel}
-            tz={Intl.DateTimeFormat().resolvedOptions().timeZone}
-          />
         ) : view === "journal" ? (
           <JournalScreenV2
             active={active}
@@ -622,7 +613,24 @@ export default function ShellV2({
           <SkillsScreenV2 projectId={projectId} active={active} />
         ) : view === "sessions" ? (
           <SessionsScreenV2 projectId={projectId} />
-        ) : null}
+        ) : (
+          // 사슬의 **마지막 갈래가 Today** 다 (2026-09-06). 예전엔 `null` 이라,
+          // `view` 가 어떤 갈래에도 안 맞으면 툴바도 콘텐츠도 없는 빈 본문이
+          // 남았다 — 화면 id 를 하나 없애는 순간 그 화면에 머물던 사용자가
+          // 곧장 그 상태였다. `migrateUiV2View` 가 영속값을 이미 거르지만
+          // 런타임 `setUiV2View` 는 그 문을 지나지 않으므로 여기도 막는다.
+          // (Today 갈래를 위로 다시 올리지 말 것 — 폴백과 한 몸이다.)
+          <TodayScreenV2
+            projectId={projectId}
+            projectRoot={projectRoot}
+            workday={workday}
+            oculpmReady={oculpmReady}
+            onNavigate={setUiV2View}
+            onOpenEntry={openEntryInJournal}
+            dateLabel={dateLabel}
+            tz={Intl.DateTimeFormat().resolvedOptions().timeZone}
+          />
+        )}
         </ErrorBoundary>
 
         {/* Claude Code 만 **언마운트하지 않는다** (2026-08-16).

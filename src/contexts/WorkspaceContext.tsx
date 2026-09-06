@@ -36,6 +36,12 @@ export { pushRecentChange, RECENT_CHANGES_CAP, recentChangesStore, useRecentChan
 export type { RecentChange, ChangeOp } from "@/lib/recentChangesStore";
 import type { WorkspaceState } from "./workspaceState";
 import { DEFAULT_STATE, WORKSPACE_SCHEMA_VERSION } from "./workspaceDefaults";
+import { UI_V2_VIEWS, migrateUiV2View, type UiV2View } from "./uiV2View";
+
+// 화면 이름은 `uiV2View.ts` 가 소유한다 — 여기서 재수출해 소비처의 import
+// 경로를 유지한다 (셸·팔레트·딥링크가 전부 이 파일을 가리킨다).
+export { UI_V2_VIEWS, migrateUiV2View };
+export type { UiV2View };
 export { WORKSPACE_SCHEMA_VERSION };
 
 // ---------- State Shape ----------
@@ -58,35 +64,7 @@ export type SidePanelMode = "files" | "diff";
 // happens yet (that lands in PR-UI 7). Theme is intentionally absent here:
 // SettingsContext remains the single source of truth for theme (Final UI
 // Update decision A, 2026-05-31).
-/**
- * 셸의 화면 이름 (01-ia-and-shell.md §1.2). 여기 적힌 개수가 곧 화면 수이고
- * 사이드바·팔레트·⌘번호의 정본은 `lib/navRegistry.ts` 다 — 그래서 "화면 8개"
- * 같은 숫자를 주석에 적지 않는다 (2026-09-04 감사에서 세 곳이 8 에 멈춰 있었다).
- * 레거시 `activeView` 와는 별도 필드다.
- */
-export type UiV2View =
-  | "today"
-  | "journal"
-  | "diff"
-  | "planner"
-  | "discussion"
-  | "retro"
-  | "search"
-  | "terminal"
-  | "ai"
-  | "graph"
-  | "docs"
-  | "skills"
-  // PR-ACP6 — Claude Code 구동면. "ai"(프로바이더 채팅)와 성격이 달라 화면을
-  // 나눴다: 저쪽은 물어보는 곳, 이쪽은 시키는 곳이다.
-  | "claudecode"
-  | "codex"
-  // 코드 화면 (docs/code-editor/00-master-plan.md) — 인앱 코드 뷰어·에디터.
-  | "code"
-  // 세션 (2026-09-04) — 붙어 있는 에이전트와 사용자가 묶은 팀
-  // (docs/a2a/00-master-plan.md D8). Today 카드에서 화면으로 나왔다.
-  | "sessions"
-  | "settings";
+
 export type JournalFilter = "all" | "feature" | "bugfix" | "refactor" | "error" | "chore";
 export type DiffMode = "unified" | "split";
 export type SearchScope = "semantic" | "symbol" | "text";
@@ -399,6 +377,8 @@ export function migrateActiveView(raw: unknown): ActiveView {
   return raw === "today" || raw === "plan" || raw === "code" ? raw : "today";
 }
 
+
+
 /**
  * PR-UI 7 — schema v2 → v3. The Code Workbench shell is gone, so its five
  * persisted keys are dropped at parse time (see `loadFromStorage`); this
@@ -464,6 +444,7 @@ function loadFromStorage(projectId: number): WorkspaceState {
     try {
       const parsed = JSON.parse(stored);
       parsed.activeView = migrateActiveView(parsed.activeView);
+      parsed.uiV2View = migrateUiV2View(parsed.uiV2View);
       // PR-UI 7 (schema v3): the Code Workbench shell is gone — drop its five
       // persisted keys (deletion-only). bottomDrawerOpen is the even older
       // PR7-Part-2 legacy key that fed layoutMode.

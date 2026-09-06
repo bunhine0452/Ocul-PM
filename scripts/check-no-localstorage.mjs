@@ -39,6 +39,9 @@ const ALLOWLIST = new Set([
   // Lite-W6 PR2 — vitest scenario seeds localStorage to verify the
   // BottomDrawerTab "problems" → "terminal" migration. Test-only.
   "__tests__/lite_w6_safety_net.test.ts",
+  // v3-surface {#uiv2view-migrate} — 저장된 `uiV2View` 가 허용 목록을 지나는지
+  // 보려면 레코드를 직접 심어야 한다 (그게 검사 대상 자체다). Test-only.
+  "__tests__/uiv2view_route_safety.test.ts",
   // Lite-W6 PR10 Part 2 — axe-core a11y suite clears localStorage between
   // mounts so each screen renders from the default WorkspaceContext state.
   // Test-only.
