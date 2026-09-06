@@ -1,21 +1,17 @@
 /* 코드 화면 — 좌측 트리 + 우측 CodeMirror 2-pane. ui_v2 토큰만 사용.
-   문법 색은 화면 스코프의 --code-* 변수로 정의한다 — CodeEditor 의 테마/
-   HighlightStyle 이 var() 를 참조하므로 data-theme 전환이 즉시 반영된다.
-   (라이트=One Light 계열, 다크=One Dark 계열. 선택/활성줄은 앱 액센트를
-   color-mix 로 섞어 6색 컬러 테마와 자동 연동.) */
+
+   문법 색은 **여기 없다** (v3-surface {#hljs-unify}, 2026-09-06). 예전엔 이
+   화면이 `.code-body` 스코프에 One Light/Dark 팔레트를 따로 적어 두었고, 그
+   결과 같은 코드가 편집기에선 보라, 변경 화면에선 빨강이었다. 더 나쁜 것은
+   프리셋이었다 — Solarized·Nord 를 골라도 **편집기만** 안 따라왔다.
+   이제 `tokens.css` 의 전역 --code-* 를 그대로 상속한다.
+
+   남은 --code-* 다섯은 **편집기 전용**이라 여기 있는 게 맞다: 활성 줄·선택·
+   같은 낱말·검색 일치는 CodeMirror 만 그리는 것이고, 앱 액센트를 color-mix
+   로 섞어 컬러 테마와 자동 연동한다. */
 
 .code-body {
-  /* 라이트 문법 팔레트 */
-  --code-fg: var(--text);
-  --code-kw: #a626a4;
-  --code-str: #50a14f;
-  --code-comment: #a0a1a7;
-  --code-num: #986801;
-  --code-fn: #4078f2;
-  --code-type: #c18401;
-  --code-prop: #e45649;
-  --code-def: #383a42;
-  --code-op: #52565e;
+  /* 편집기 전용 — 문법 색이 아니다 (위 주석 참고). */
   --code-active-line: color-mix(in srgb, var(--accent) 5%, transparent);
   --code-selection: color-mix(in srgb, var(--accent) 20%, transparent);
   --code-selection-match: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -29,15 +25,6 @@
 }
 
 [data-theme="dark"] .code-body {
-  --code-kw: #c678dd;
-  --code-str: #98c379;
-  --code-comment: #6b7280;
-  --code-num: #d19a66;
-  --code-fn: #61afef;
-  --code-type: #e5c07b;
-  --code-prop: #e06c75;
-  --code-def: #abb2bf;
-  --code-op: #9ca3af;
   --code-active-line: color-mix(in srgb, var(--accent) 8%, transparent);
   --code-selection: color-mix(in srgb, var(--accent) 30%, transparent);
   --code-selection-match: color-mix(in srgb, var(--accent) 16%, transparent);
