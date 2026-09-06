@@ -225,6 +225,7 @@ const TESTS = new Set([
   "__tests__/rule_promotion_v2.test.tsx",
   "__tests__/rules_hub_v2.test.tsx",
   "__tests__/rules_reachability.test.ts",
+  "__tests__/session_activity.test.ts",
   "__tests__/session_colors.test.ts",
   "__tests__/sessions_screen.test.tsx",
   "__tests__/sidebar_a11y.test.tsx",
