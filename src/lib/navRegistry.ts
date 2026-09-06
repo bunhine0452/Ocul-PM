@@ -13,6 +13,7 @@ import {
   Puzzle,
   FileCode,
   Waypoints,
+  Bot,
   GitBranchIcon,
 } from "@/components/Icons";
 import { ClaudeMark } from "@/components/ClaudeMark";
@@ -47,46 +48,105 @@ export interface NavEntry {
    */
   aliasKey: I18nKey;
   icon: NavIcon;
-  /** 사이드바 섹션. main = 코어 루프 · tools = 코드 작업면 · ai = AI 면. */
-  group: "main" | "tools" | "ai";
+  /**
+   * 사이드바 섹션. main = 코어 루프 · tools = 코드 작업면 · ai = AI 면 ·
+   * ref = 참고 (2026-09-06 IA 재편에서 추가 — 아래 `NAV_ENTRIES` 주석 참고).
+   */
+  group: "main" | "tools" | "ai" | "ref";
+  /**
+   * 이 행이 대표하는 **갈래들** (2026-09-06 IA 재편).
+   *
+   * 에이전트 한 행이 Claude Code · Codex · 세션 셋을 대표한다. 행의 `id` 는
+   * 눌렀을 때 가는 기본 갈래이고, 갈래 중 어느 것이 열려 있어도 이 행이
+   * 활성으로 보이며 배지는 **합산**된다. 사이드바는 갈래가 열려 있을 때만
+   * 하위 목록을 펼친다 — 안 쓰는 사람에게 세 줄을 늘 보이지 않는다.
+   *
+   * 화면 자체는 하나도 없애지 않았다: `uiV2View` 값 셋이 그대로 살아 있고,
+   * ⌘K 팔레트는 갈래를 **각각** 목적지로 싣는다 (목적을 갖고 가는 곳은
+   * 목적지여야 한다).
+   */
+  children?: NavEntry[];
 }
 
-export const NAV_ENTRIES: NavEntry[] = [
-  { id: "today", labelKey: "nav.today", aliasKey: "nav.today.alias", icon: Sunrise, group: "main" },
-  { id: "journal", labelKey: "nav.journal", aliasKey: "nav.journal.alias", icon: NotebookText, group: "main" },
-  { id: "discussion", labelKey: "nav.discussion", aliasKey: "nav.discussion.alias", icon: MessagesSquare, group: "main" },
-  { id: "planner", labelKey: "nav.planner", aliasKey: "nav.planner.alias", icon: TargetIcon, group: "main" },
-  { id: "diff", labelKey: "nav.diff", aliasKey: "nav.diff.alias", icon: GitCompareArrows, group: "main" },
-  { id: "retro", labelKey: "nav.retro", aliasKey: "nav.retro.alias", icon: History, group: "main" },
-  { id: "search", labelKey: "nav.search", aliasKey: "nav.search.alias", icon: SearchIcon, group: "tools" },
-  { id: "graph", labelKey: "nav.graph", aliasKey: "nav.graph.alias", icon: Network, group: "tools" },
-  { id: "docs", labelKey: "nav.docs", aliasKey: "nav.docs.alias", icon: BookText, group: "tools" },
-  { id: "terminal", labelKey: "nav.terminal", aliasKey: "nav.terminal.alias", icon: SquareTerminal, group: "tools" },
-  // ── 11번째 이후는 ⌘번호가 없다 — 여기서부터는 번호를 밀지 않고 자유롭게
-  // 배치한다 (위 10개의 순서만 ⌘1~⌘0 계약).
-  // 코드 화면 (docs/code-editor/00-master-plan.md) — 인앱 코드 뷰어·에디터.
-  // 코드 작업면(검색·맵·문서·터미널) 곁에 둔다.
-  { id: "code", labelKey: "nav.code", aliasKey: "nav.code.alias", icon: FileCode, group: "tools" },
-  // ── AI 면 — 구동면(Claude Code) · 대화(프로바이더 채팅) · 그 규칙(스킬).
-  // PR-ACP6 — Claude Code 구동면 (프로바이더 채팅과 분리).
+/**
+ * 에이전트 행의 세 갈래. 사이드바에서는 부모가 활성일 때만 펼쳐지고, ⌘K
+ * 팔레트에서는 늘 각각 찾을 수 있다.
+ *
+ * 셋 다 별칭에 "에이전트" 를 넣어 둔다 — 사이드바에서 사라진 이름으로
+ * 검색하는 사람과, 합쳐진 이름으로 검색하는 사람이 둘 다 도착해야 한다.
+ */
+const AGENT_BRANCHES: NavEntry[] = [
   { id: "claudecode", labelKey: "nav.claudecode", aliasKey: "nav.claudecode.alias", icon: ClaudeMark, group: "ai" },
   { id: "codex", labelKey: "nav.codex", aliasKey: "nav.codex.alias", icon: CodexMark, group: "ai" },
+  // 세션은 혼자 쓰면 영구 빈 화면인 행이었다 (붙어 있는 에이전트가 하나뿐이면
+  // 묶을 것이 없다). 화면은 남기고 **행만** 접었다.
+  { id: "sessions", labelKey: "nav.sessions", aliasKey: "nav.sessions.alias", icon: Waypoints, group: "ai" },
+];
+
+/**
+ * 사이드바 행 14개 (2026-09-06 IA 재편, 안 A: 17화면 → 15).
+ *
+ * 무엇이 바뀌었나:
+ *
+ * - **Claude Code · Codex · 세션 → 「에이전트」 한 행.** 셋 다 "에이전트에게
+ *   시키는 곳"인데 사이드바에서 세 줄을 먹었다. 화면은 셋 다 살아 있고
+ *   (`children`), 컴포넌트도 두 벌 keep-alive 그대로다 — 행만 하나다.
+ * - **논의·문서를 `ref`(참고) 로 강등하고 ⌘번호를 회수했다.** 이 저장소 실측
+ *   으로 논의 4건 vs 일지 537건이고, `docs/` 가 없는 프로젝트에서 ⌘9(문서)는
+ *   **영구 빈 화면**이었다. 매일 쓰는 것이 번호를 갖는다.
+ * - **재명명** — 코드 검색 → 검색 · 코드 → 편집기 · Diff → 변경. 옛 이름은
+ *   ⌘K 별칭에 남긴다 (v2.17.0 선례).
+ *
+ * ⌘번호는 여전히 **배열 앞 10개**에 자동 부여된다. ⌘1·⌘2·⌘4 는 뜻이 그대로고
+ * (오늘·일지·플래너), 나머지 일곱은 바뀐다 — 사이드바가 한 번 안내한다
+ * (`NavRemapNotice`).
+ */
+export const NAV_ENTRIES: NavEntry[] = [
+  // ── 코어 루프: 오늘 무슨 일이 있었나 → 뭐라고 적혔나 → 코드가 어떻게
+  //    바뀌었나 → 다음에 뭘 하나 → 무엇을 배웠나.
+  { id: "today", labelKey: "nav.today", aliasKey: "nav.today.alias", icon: Sunrise, group: "main" },
+  { id: "journal", labelKey: "nav.journal", aliasKey: "nav.journal.alias", icon: NotebookText, group: "main" },
+  { id: "diff", labelKey: "nav.diff", aliasKey: "nav.diff.alias", icon: GitCompareArrows, group: "main" },
+  { id: "planner", labelKey: "nav.planner", aliasKey: "nav.planner.alias", icon: TargetIcon, group: "main" },
+  { id: "retro", labelKey: "nav.retro", aliasKey: "nav.retro.alias", icon: History, group: "main" },
+  // ── 코드 작업면. 안쪽 순서는 재편 전과 같다 (문서만 빠졌다).
+  { id: "search", labelKey: "nav.search", aliasKey: "nav.search.alias", icon: SearchIcon, group: "tools" },
+  { id: "graph", labelKey: "nav.graph", aliasKey: "nav.graph.alias", icon: Network, group: "tools" },
+  { id: "terminal", labelKey: "nav.terminal", aliasKey: "nav.terminal.alias", icon: SquareTerminal, group: "tools" },
+  { id: "code", labelKey: "nav.code", aliasKey: "nav.code.alias", icon: FileCode, group: "tools" },
+  // ── AI 면. 「에이전트」가 ⌘0 을 갖는 열 번째 칸이다 — 매일 쓰는 면이
+  //    번호를 갖는다는 규칙의 결과다.
+  { id: "claudecode", labelKey: "nav.agent", aliasKey: "nav.agent.alias", icon: Bot, group: "ai", children: AGENT_BRANCHES },
   { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: MessageSquareText, group: "ai" },
   // PR-CI3 — 스킬 화면을 스킬·규칙·훅 허브로 확장 (id 는 유지 — 저장된 uiV2View 호환).
   { id: "skills", labelKey: "nav.skills", aliasKey: "nav.skills.alias", icon: Puzzle, group: "ai" },
-  // 세션 (2026-09-04) — 누가 붙어 있고 누구와 묶여 있는가.
-  //
-  // 마스터플랜 D4 는 "사이드바 항목을 늘리지 않는다" 였고 묶기가 Today 카드
-  // 안에 있었다. 실사용에서 뒤집혔다: 한 프로젝트에 세션 넷이 붙어 서로 다른
-  // 일을 하면, 그중 둘을 고르는 것은 "오늘 무슨 일이 있나"가 아니라 **작정하고
-  // 하는 일**이다. 목적을 갖고 가는 곳은 목적지여야 한다
-  // (`docs/a2a/00-master-plan.md` D8).
-  { id: "sessions", labelKey: "nav.sessions", aliasKey: "nav.sessions.alias", icon: Waypoints, group: "ai" },
+  // ── 참고. 가끔 열고, 없으면 비어 있는 것이 정상인 화면들.
+  { id: "discussion", labelKey: "nav.discussion", aliasKey: "nav.discussion.alias", icon: MessagesSquare, group: "ref" },
+  { id: "docs", labelKey: "nav.docs", aliasKey: "nav.docs.alias", icon: BookText, group: "ref" },
   // 브랜치의 이야기 (v3-surface {#branch-story-view}) — 일지·플랜·커밋을
   // **브랜치**로 묶어 읽는다. 코어 루프(일지·플래너·변경)를 다른 축으로 다시
-  // 읽는 곳이라 main 에 둔다. 맨 끝이라 앞 10개의 ⌘번호는 그대로다.
+  // 읽는 곳이라 코어 루프 곁(main)에 둔다.
+  //
+  // 배열 **맨 끝**이라 ⌘번호는 없다 — 사이드바에서는 코어 루프의 마지막 줄로
+  // 보이고 번호만 비는데, 그게 규약이다: 번호는 앞 10칸의 것이고 그 계약을
+  // 새 화면 하나 때문에 밀지 않는다 (`code` 도 같은 이유로 오래 번호가 없었다).
   { id: "branch", labelKey: "nav.branch", aliasKey: "nav.branch.alias", icon: GitBranchIcon, group: "main" },
 ];
+
+/**
+ * ⌘K 팔레트가 싣는 목적지 전체 — 갈래가 있는 행은 **갈래로 펼쳐서** 싣는다.
+ *
+ * 사이드바에서 행이 사라졌다고 갈 곳이 사라지면 안 된다. Codex 와 세션은
+ * 여기서 여전히 각각 이름으로 찾힌다. 부모(「에이전트」) 자체는 목적지가
+ * 아니다 — 누를 수 있는 것은 늘 셋 중 하나이므로, 합친 이름은 세 갈래의
+ * **별칭**에 들어간다 (`nav.*.alias` 에 "에이전트").
+ */
+export const NAV_DESTINATIONS: NavEntry[] = NAV_ENTRIES.flatMap((e) => e.children ?? [e]);
+
+/** 이 행이 활성으로 보여야 하는 화면들 (갈래가 있으면 그 전부). */
+export function navRowViews(entry: NavEntry): UiV2View[] {
+  return entry.children ? entry.children.map((c) => c.id) : [entry.id];
+}
 
 /** ⌘번호 키 → 배열 앞 10개 (⌘0 = 10번째). */
 export const NAV_SHORTCUT_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"] as const;

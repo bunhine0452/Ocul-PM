@@ -80,13 +80,31 @@ describe("사이드바 작업 중 표시", () => {
     expect(document.querySelector(".nav-ico.working")).toBeNull();
   });
 
-  it("배지는 Claude Code 줄에만 붙는다", () => {
+  // 2026-09-06 IA 재편 — Claude Code 줄이 「에이전트」 한 행으로 접혔다.
+  // 배지가 붙는 자리는 여전히 그 한 줄이고, 수는 갈래들의 합이다.
+  it("배지는 에이전트 줄에만 붙는다", () => {
     renderSidebar();
     act(() => setAcpWorking(acpWorkingKey(1, "s-1"), true));
 
+    const badges = document.querySelectorAll(".nav-badge.working");
+    expect(badges).toHaveLength(1);
+    const row = badges[0]?.closest(".nav-item");
+    expect(row?.textContent).toContain("에이전트");
+  });
+
+  /**
+   * 행을 하나로 줄였다고 "Codex 가 돈다" 가 사라지면 안 된다 — 접힌 행의
+   * 배지는 갈래의 **합**이다. 이게 IA 재편이 지켜야 할 계약이다.
+   */
+  it("Claude 와 Codex 가 함께 돌면 에이전트 줄의 수가 합쳐진다", () => {
+    renderSidebar();
+    act(() => {
+      setAcpWorking(acpWorkingKey(1, "s-1"), true);
+      setAcpWorking(acpWorkingKey(1, "s-2", "codex"), true);
+    });
+
     const badge = document.querySelector(".nav-badge.working");
-    const row = badge?.closest(".nav-item");
-    expect(row?.textContent).toContain("Claude Code");
+    expect(badge?.textContent).toBe("2");
   });
 });
 

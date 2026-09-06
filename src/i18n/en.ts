@@ -24,7 +24,7 @@ export const en: Record<keyof typeof ko, string> = {
   "nav.planner": "Planner",
   "nav.diff": "Diff",
   "nav.retro": "Retro",
-  "nav.search": "Code Search",
+  "nav.search": "Search",
   "nav.graph": "Code Map",
   "nav.docs": "Docs",
   "nav.terminal": "Terminal",
@@ -107,7 +107,7 @@ export const en: Record<keyof typeof ko, string> = {
   "sessions.ago.minutes": "{n}m ago",
   "sessions.ago.hours": "{n}h ago",
   "sessions.ago.days": "{n}d ago",
-  "nav.code": "Code",
+  "nav.code": "Editor",
   "nav.skills": "Skills & Rules",
   "nav.sessions": "Sessions",
   "nav.aria.main": "Main navigation",
@@ -129,7 +129,7 @@ export const en: Record<keyof typeof ko, string> = {
   "nav.ai.alias": "ai chat agent llm assistant",
   "nav.claudecode.alias": "claude code agent acp run",
   "nav.codex.alias": "codex openai agent acp run",
-  "nav.code.alias": "code editor files edit source",
+  "nav.code.alias": "editor code files edit source",
   "nav.sessions.alias": "sessions bind team group collaborate participants agents a2a lease",
   "nav.skills.alias": "skills rules hooks claude agent prompt cursor",
   /** Sidebar working badge — how many sessions keep running after you navigate away. */
@@ -3639,4 +3639,12 @@ export const en: Record<keyof typeof ko, string> = {
   "ctx.live.emptyAllTitle": "No rules or skills are wired to this project yet",
   "ctx.live.emptyAll":
     "One rule teaches an agent this repo's idioms. Pull one from the catalog, or write a one-liner now.",
+  // ── v3-surface / ia ──────────────────────────────────────────────
+  "nav.agent": "Agents",
+  "nav.agent.alias": "agent claude code codex sessions acp",
+  "sidebar.refSection": "Reference",
+  "sidebar.remapTitle": "Shortcuts moved",
+  "sidebar.remapBody": "Discussion and Docs moved to Reference, so the \u2318 numbers were reassigned. \u23181 Today, \u23182 Journal and \u23184 Planner are unchanged.",
+  "sidebar.remapCheatsheet": "See all",
+  "sidebar.remapDismiss": "Got it",
 };

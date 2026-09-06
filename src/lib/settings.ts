@@ -120,6 +120,8 @@ export const KEYS = {
   // 마지막으로 What's-new 카드를 본 앱 버전. 앱 버전이 이보다 새로우면 Today 가
   // 한 번 릴리스 노트를 보여 준다. 빈 문자열 = 아직 한 번도 기록 안 함(첫 설치).
   lastSeenVersion: "last_seen_version",
+  // 2026-09-06 IA 재편 — ⌘번호 재배정 안내를 봤는가. 한 번 보면 다시 안 뜬다.
+  navRemapSeen: "nav_remap_seen",
 
   // (streamResponses / logLevel 은 감사 2026-07-16 에서 제거 — 소비처 없음.)
 } as const;
@@ -270,6 +272,14 @@ export interface Settings {
   /** What's-new 카드를 마지막으로 본 버전 (`""` = 기록 없음). */
   lastSeenVersion: string;
 
+  /**
+   * ⌘번호 재배정(2026-09-06 IA 재편) 안내를 봤는가.
+   *
+   * 첫 설치에는 **조용히 `true` 로 적는다** — 옛 번호를 모르는 사람에게
+   * "바뀌었어요" 는 거짓말이다 (What's-new 카드와 같은 규율).
+   */
+  navRemapSeen: boolean;
+
   /** 첫 실행 마법사를 끝냈거나 건너뛰었는가 (`false` = 아직 한 번도 안 봄). */
   onboarded: boolean;
 }
@@ -333,6 +343,7 @@ export const DEFAULTS: Settings = {
   codeLocalHistoryMaxEntries: 50,
 
   lastSeenVersion: "",
+  navRemapSeen: false,
 
   onboarded: false,
 };
@@ -385,6 +396,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.codeLocalHistory]: "codeLocalHistory",
   [KEYS.codeLocalHistoryMaxEntries]: "codeLocalHistoryMaxEntries",
   [KEYS.lastSeenVersion]: "lastSeenVersion",
+  [KEYS.navRemapSeen]: "navRemapSeen",
   [KEYS.onboarded]: "onboarded",
 };
 
