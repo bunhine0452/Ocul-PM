@@ -278,6 +278,26 @@ describe("Claude 코랄", () => {
     const mark = read("components/ClaudeMark.tsx").match(/CLAUDE_ORANGE = "(#[0-9a-f]{6})"/)![1];
     expect(mark).toBe(token);
   });
+
+  /**
+   * "Claude 를 뜻하는 색" 이 이 셋 말고 더 생기면 여기서 걸린다. 2026-09-06 에
+   * 네 번째 주황(`#d97a4f`)이 에이전트 스와치와 프로바이더 점 두 곳에 있었다 —
+   * 1% 차이라 눈으로는 못 잡는다.
+   *
+   * `agentColor.ts` 의 `PALETTE` 는 **해시 버킷**이라 일부러 뺐다. 뜻이 다르면
+   * 값이 같아도 한 자리에 두지 않는다 (거기 색은 "모르는 에이전트"의 색이다).
+   */
+  it("Claude 를 뜻하는 다른 자리도 같은 코랄이다", () => {
+    const token = read("styles/tokens.css").match(/--claude:\s*(#[0-9a-f]{6});/)![1];
+    const swatch = read("features/today/agentColor.ts").match(
+      /"claude-code":\s*"(#[0-9a-f]{6})"/,
+    )![1];
+    const provider = read("features/chat/AiPanelScreenV2.tsx").match(
+      /anthropic: \{[^}]*color: "(#[0-9a-f]{6})"/,
+    )![1];
+    expect(swatch).toBe(token);
+    expect(provider).toBe(token);
+  });
 });
 
 // ─── 3.0 {#modal-chrome-unify} — 스크림 한 벌, 모달 크롬 한 벌 ─────────────

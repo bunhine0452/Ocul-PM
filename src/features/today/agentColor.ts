@@ -6,7 +6,10 @@ import { t } from "@/i18n";
 // ids hash into the palette so the swatch stays stable across renders.
 
 const KNOWN: Record<string, string> = {
-  "claude-code": "#d97a4f",
+  // Claude 는 한 값이다 — `--claude` / `CLAUDE_ORANGE` 와 같은 코랄
+  // (v3-surface {#claude-coral-unify}). 아래 PALETTE 는 해시 버킷이라
+  // 별개다 — 뜻이 다르면 값이 같아도 한 자리에 두지 않는다.
+  "claude-code": "#d97757",
   cursor: "#5a7a95",
   "gemini-cli": "#7c5cdb",
   antigravity: "#12a06b",

@@ -64,7 +64,7 @@ import { tError } from "@/i18n/errors";
 // 최신 상태로 1부 재조립해 주입한다.
 
 const VENDOR: Record<Provider, { name: string; vendor: string; color: string }> = {
-  anthropic: { name: "Claude", vendor: "Anthropic", color: "#d97a4f" },
+  anthropic: { name: "Claude", vendor: "Anthropic", color: "#d97757" },
   openai: { name: "GPT", vendor: "OpenAI", color: "#1aa37a" },
   gemini: { name: "Gemini", vendor: "Google", color: "#4a7ad9" },
   nim: { name: "NIM", vendor: "NVIDIA", color: "#76b900" },
