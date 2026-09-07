@@ -83,12 +83,17 @@ impl<'a> JournalCache<'a> {
                             || ex_warnings != &snap.parse_warnings
                             || ex_parse_ok != snap.parse_ok as i64;
                         if coerced_drift || ex_coercion_version != COERCION_VERSION {
+                            // 037 — `agent_session` 도 여기서 함께 낫는다.
+                            // 본문 해시가 같으면 아래 전면 재작성을 타지 않으므로,
+                            // 새로 생긴 칸은 이 자기치유 UPDATE 가 채우지 않으면
+                            // 이미 캐시에 있는 일지에서 영원히 NULL 로 남는다
+                            // (COERCION_VERSION 2 가 그 1회 재투영을 깨운다).
                             c.execute(
                                 "UPDATE oculpm_journal SET
                                    file_mtime = ?1, created_at = ?2, updated_at = ?3,
                                    slug = ?4, parse_warnings = ?5, parse_ok = ?6,
-                                   coercion_version = ?7
-                                 WHERE project_id = ?8 AND relative_path = ?9",
+                                   agent_session = ?7, coercion_version = ?8
+                                 WHERE project_id = ?9 AND relative_path = ?10",
                                 params![
                                     file_mtime,
                                     &snap.created_at,
@@ -96,6 +101,7 @@ impl<'a> JournalCache<'a> {
                                     &snap.slug,
                                     &snap.parse_warnings,
                                     snap.parse_ok as i64,
+                                    &snap.agent_session,
                                     COERCION_VERSION,
                                     pid,
                                     &rp,
@@ -120,10 +126,10 @@ impl<'a> JournalCache<'a> {
                 tx.execute(
                     "INSERT INTO oculpm_journal
                      (project_id, relative_path, workday, type, slug, status, difficulty,
-                      title, checkbox, session_id, agent_id, agent_version, language,
-                      verified_by_user, created_at, updated_at, file_mtime, body_markdown,
-                      body_md_hash, parse_ok, parse_warnings, coercion_version)
-                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22)
+                      title, checkbox, session_id, agent_id, agent_version, agent_session,
+                      language, verified_by_user, created_at, updated_at, file_mtime,
+                      body_markdown, body_md_hash, parse_ok, parse_warnings, coercion_version)
+                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23)
                      ON CONFLICT(project_id, relative_path) DO UPDATE SET
                        workday = excluded.workday,
                        type = excluded.type,
@@ -135,6 +141,7 @@ impl<'a> JournalCache<'a> {
                        session_id = excluded.session_id,
                        agent_id = excluded.agent_id,
                        agent_version = excluded.agent_version,
+                       agent_session = excluded.agent_session,
                        language = excluded.language,
                        verified_by_user = excluded.verified_by_user,
                        created_at = excluded.created_at,
@@ -158,6 +165,7 @@ impl<'a> JournalCache<'a> {
                         &snap.session_id,
                         &snap.agent_id,
                         &snap.agent_version,
+                        &snap.agent_session,
                         &snap.language,
                         snap.verified_by_user as i64,
                         &snap.created_at,

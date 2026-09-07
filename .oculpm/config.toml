@@ -21,6 +21,33 @@ forbid_journal_for_paths = [
     "**/*apikey*",
     "**/*api_key*",
     "**/*private_key*",
+    # {#token-glob-false-positive} — 위 이름 글롭들은 **소스 파일까지** 시크릿으로
+    # 오인한다. 실측 피해자: `src/styles/tokens.css`·`src/__tests__/design_tokens.test.ts`
+    # (디자인 토큰)와 `src-tauri/src/secrets.rs`(키체인 모듈). 이름에 token/secret 이
+    # 들어갔다는 이유로 `files_touched` 에서 조용히 떨어져, 그 파일을 고친 일지가
+    # 무엇을 고쳤는지 말하지 못했다.
+    #
+    # 좁히는 축은 **확장자**다. 자격증명 파일은 소스 확장자를 쓰지 않는다 —
+    # 실제 꼴은 확장자 없음(`access_token`)·점파일(`.token`)·데이터
+    # (`token.json`·`credentials.yml`)·`.pem`/`.key` 다. 반대로 아래 확장자는
+    # 컴파일·번들·렌더되는 코드라 자격증명을 담을 자리가 아니다. 그래서 이름
+    # 글롭의 넓이는 그대로 두고(모르는 꼴은 계속 막힌다) 소스 확장자만 되돌린다.
+    # 뒤에 오는 규칙이 이기므로 이 줄들은 위 글롭 바로 다음이어야 하고,
+    # `**/.ssh/**` 같은 **경로** 규칙보다는 앞이어야 한다 (경로 규칙이 이긴다).
+    #
+    # `.md`·`.json`·`.yml` 은 **일부러 뺐다**. 보고된 오탐의 피해자가 아니고,
+    # 자격증명이 실제로 사는 확장자다 (`token.json`·`credentials.yml`).
+    "!**/*.rs",
+    "!**/*.ts",
+    "!**/*.tsx",
+    "!**/*.js",
+    "!**/*.jsx",
+    "!**/*.mjs",
+    "!**/*.cjs",
+    "!**/*.css",
+    "!**/*.scss",
+    "!**/*.py",
+    "!**/*.go",
     "**/*.pem",
     "**/*.key",
     "**/*.p12",

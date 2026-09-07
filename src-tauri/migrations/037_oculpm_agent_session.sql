@@ -1,0 +1,12 @@
+-- Add agent.session (에이전트 자신의 **대화** id — `OCULPM_SESSION_ID` /
+-- `CLAUDE_CODE_SESSION_ID` 가 실어 주는 값) to the journal cache.
+--
+-- 왜: 프론트매터에는 021 부터 이 줄이 있는데 캐시 표에는 칸이 없어서, 캐시를
+-- 거쳐 하이드레이션한 `JournalEntry` 의 `agent.session` 이 **언제나 None** 이었다
+-- (`cache/query.rs` 의 `session: None`). 디스크를 직접 읽는 판정 경로만 이 값을
+-- 봤고, 캐시 경유 표면(일지 상세·내보내기·자동 화해)은 대화를 구별하지 못했다.
+--
+-- 나머지 oculpm_journal 컬럼과 같은 성질의 **손실 가능한 캐시 칸**이다 — SSOT 는
+-- 디스크 프론트매터이고, 재색인이 거기서 다시 채운다. Nullable: 이 줄이 없는
+-- 옛 일지와 대화 id 를 모르는 에이전트는 NULL 로 남고 프론트매터에도 줄이 안 난다.
+ALTER TABLE oculpm_journal ADD COLUMN agent_session TEXT;

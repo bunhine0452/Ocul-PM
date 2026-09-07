@@ -94,6 +94,10 @@ pub(super) const MIGRATIONS: &[(i64, &str)] = &[
     (34, include_str!("../../migrations/034_project_theme.sql")),
     (35, include_str!("../../migrations/035_context_recall.sql")),
     (36, include_str!("../../migrations/036_firing_quotes.sql")),
+    (
+        37,
+        include_str!("../../migrations/037_oculpm_agent_session.sql"),
+    ),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —
@@ -123,6 +127,7 @@ pub(super) const ADDITIVE_COLUMNS: &[(&str, &str, &str)] = &[
     ),
     ("symbol_relations", "from_symbol", "TEXT"),
     ("oculpm_journal", "agent_version", "TEXT"),
+    ("oculpm_journal", "agent_session", "TEXT"),
     (
         "oculpm_journal",
         "coercion_version",
