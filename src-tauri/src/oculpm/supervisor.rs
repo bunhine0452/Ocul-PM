@@ -30,6 +30,14 @@
 //! 판정은 틱 사이 비교로 한다 — 지난 틱에 프로브를 썼는데 이번 틱에도 카운터가
 //! 그대로면 그 워처는 귀가 먹은 것이다. 잠들어 있는 프로젝트도 프로브 덕분에
 //! 매 틱 카운터가 올라가므로 "조용함" 과 "먹통" 이 구분된다.
+//!
+//! # 손대지 않는 경우
+//!
+//! 감독관이 고치는 것은 **뜻하지 않게** 죽은 워처뿐이다. 사용자가 닥터에서
+//! 직접 「중지」를 누른 프로젝트는 `WatcherHealth::user_paused` 로 표가 나고,
+//! 여기서 그대로 비껴간다. 이 구분이 없던 동안 `is_deaf(None, _) == true` 가
+//! "워처 없음 = 먹통" 으로 읽혀 60초 안에 되살렸고, 그래서 그 시절의 「끄기」는
+//! 60초짜리 거짓말이었다 (`{#watcher-user-pause}`).
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -37,7 +45,7 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Manager};
 
-use crate::oculpm::manager::OculpmManager;
+use crate::oculpm::manager::{OculpmManager, WatcherHealth};
 
 /// 점검 주기. 죽은 워처는 최대 두 틱(≈2분) 안에 되살아난다 — 사람이 알아채기
 /// 전에 복구되면서, 잠든 노트북에서 초당 깨어날 이유는 없는 간격.
@@ -69,7 +77,10 @@ pub fn spawn(app: &AppHandle) {
                 _ = tokio::time::sleep(TICK) => {}
                 _ = evicted.notified() => {}
             }
-            tick(&handle, &mut probed, &mut warned).await;
+            {
+                let manager = handle.state::<OculpmManager>();
+                tick(&manager, Some(&handle), &mut probed, &mut warned).await;
+            }
             announce_workday_rollover(&handle, &mut workdays).await;
         }
     });
@@ -97,15 +108,24 @@ async fn announce_workday_rollover(app: &AppHandle, seen: &mut HashMap<u32, Stri
 }
 
 /// 한 번의 점검 — 추적 중인 모든 프로젝트를 훑는다.
-async fn tick(app: &AppHandle, probed: &mut HashMap<u32, u32>, warned: &mut HashSet<u32>) {
-    let manager = app.state::<OculpmManager>();
-
+///
+/// `app` 이 `None` 이면 이벤트를 쏘지 않고 재무장도 핸들 없이 한다 — 테스트가
+/// Wry 런타임 없이 이 루프를 그대로 돌리기 위한 문이다 (감독관이 일시정지를
+/// 존중하는지는 순수 함수가 아니라 **이 루프**로 못 박아야 한다).
+async fn tick(
+    manager: &OculpmManager,
+    app: Option<&AppHandle>,
+    probed: &mut HashMap<u32, u32>,
+    warned: &mut HashSet<u32>,
+) {
     // 인계당한 락부터 놓는다 — 되살리기보다 먼저다. 순서가 뒤집히면 이미
     // 남의 것이 된 프로젝트를 열심히 재무장하게 된다.
     for project_id in manager.yield_evicted_locks().await {
         probed.remove(&project_id);
-        use tauri_specta::Event;
-        let _ = crate::oculpm::spec::OculpmWatchYielded { project_id }.emit(app);
+        if let Some(app) = app {
+            use tauri_specta::Event;
+            let _ = crate::oculpm::spec::OculpmWatchYielded { project_id }.emit(app);
+        }
     }
 
     let health = manager.watcher_health().await;
@@ -120,49 +140,84 @@ async fn tick(app: &AppHandle, probed: &mut HashMap<u32, u32>, warned: &mut Hash
             continue;
         }
 
-        if is_deaf(h.events_seen, probed.get(&h.project_id).copied()) {
-            if h.events_seen.is_some() {
-                manager.watcher_drop_unresponsive(h.project_id).await;
+        match verdict(&h, probed.get(&h.project_id).copied()) {
+            // 사용자가 직접 멈춘 감시 — 손대지 않는다. 기준값도 지운다:
+            // 다시 켠 뒤의 첫 관측은 판정이 아니라 기준 심기여야 한다.
+            Verdict::LeaveAlone => {
+                probed.remove(&h.project_id);
+                warned.remove(&h.project_id);
             }
-            // `watcher_start` 가 락 재시도 + 재무장을 함께 한다. 실패(저쪽
-            // 인스턴스가 아직 살아 있음)는 다음 틱에 다시 시도한다 — 이게
-            // 예전에 없던 바로 그 재시도다.
-            match manager.watcher_start(h.project_id, Some(app.clone())).await {
-                Ok(()) => {
-                    warned.remove(&h.project_id);
-                    tracing::info!(
-                        target: "oculpm::supervisor",
-                        project_id = h.project_id,
-                        had_lock = h.has_lock,
-                        "[FLOW] 멈춘 감시를 되살렸다 — 실시간 갱신 복구"
-                    );
+            Verdict::Healthy => {
+                // 살아 있다 — 다음 틱이 확인할 프로브를 심는다. 기준값은
+                // **쓰기 전에** 읽은 카운터라야 이번 프로브의 효과를 다음 틱이
+                // 본다.
+                if let Some(seen) = h.events_seen {
+                    if write_probe(&h.root) {
+                        probed.insert(h.project_id, seen);
+                    } else {
+                        probed.remove(&h.project_id);
+                    }
                 }
-                // 첫 실패만 크게 남긴다 — 다른 인스턴스가 락을 쥐고 있는 동안
-                // 매분 같은 줄을 프로젝트 수만큼 쌓으면 로그가 못 읽게 된다.
-                Err(e) if warned.insert(h.project_id) => tracing::warn!(
-                    target: "oculpm::supervisor",
-                    project_id = h.project_id, error = %e,
-                    "[FLOW] 감시 재무장 실패 — 매 틱 다시 시도한다 (해소될 때까지 이 줄은 다시 남기지 않는다)"
-                ),
-                Err(e) => tracing::debug!(
-                    target: "oculpm::supervisor",
-                    project_id = h.project_id, error = %e,
-                    "[FLOW] 감시 재무장 여전히 실패"
-                ),
             }
-            probed.remove(&h.project_id);
-            continue;
-        }
-
-        // 살아 있다 — 다음 틱이 확인할 프로브를 심는다. 기준값은 **쓰기 전에**
-        // 읽은 카운터라야 이번 프로브의 효과를 다음 틱이 볼 수 있다.
-        if let Some(seen) = h.events_seen {
-            if write_probe(&h.root) {
-                probed.insert(h.project_id, seen);
-            } else {
+            Verdict::Rearm => {
+                if h.events_seen.is_some() {
+                    manager.watcher_drop_unresponsive(h.project_id).await;
+                }
+                // `watcher_start` 가 락 재시도 + 재무장을 함께 한다. 실패(저쪽
+                // 인스턴스가 아직 살아 있음)는 다음 틱에 다시 시도한다 — 이게
+                // 예전에 없던 바로 그 재시도다.
+                match manager.watcher_start(h.project_id, app.cloned()).await {
+                    Ok(()) => {
+                        warned.remove(&h.project_id);
+                        tracing::info!(
+                            target: "oculpm::supervisor",
+                            project_id = h.project_id,
+                            had_lock = h.has_lock,
+                            "[FLOW] 멈춘 감시를 되살렸다 — 실시간 갱신 복구"
+                        );
+                    }
+                    // 첫 실패만 크게 남긴다 — 다른 인스턴스가 락을 쥐고 있는 동안
+                    // 매분 같은 줄을 프로젝트 수만큼 쌓으면 로그가 못 읽게 된다.
+                    Err(e) if warned.insert(h.project_id) => tracing::warn!(
+                        target: "oculpm::supervisor",
+                        project_id = h.project_id, error = %e,
+                        "[FLOW] 감시 재무장 실패 — 매 틱 다시 시도한다 (해소될 때까지 이 줄은 다시 남기지 않는다)"
+                    ),
+                    Err(e) => tracing::debug!(
+                        target: "oculpm::supervisor",
+                        project_id = h.project_id, error = %e,
+                        "[FLOW] 감시 재무장 여전히 실패"
+                    ),
+                }
                 probed.remove(&h.project_id);
             }
         }
+    }
+}
+
+/// 감독관이 이 관측에 무엇을 해야 하는가 (순수 함수).
+///
+/// 판정을 루프에서 떼어 낸 이유는 하나다 — 「사용자가 멈춤」이 다른 두 갈래와
+/// **같은 층에서** 결정돼야, 나중에 누가 분기를 하나 더 붙여도 일시정지가
+/// 조용히 빠지지 않는다.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Verdict {
+    /// 손대지 않는다 — 사용자가 직접 멈췄다 (`{#watcher-user-pause}`).
+    LeaveAlone,
+    /// 되살린다 — 뜻하지 않게 귀가 먹었다.
+    Rearm,
+    /// 살아 있다 — 다음 틱이 볼 프로브를 심는다.
+    Healthy,
+}
+
+fn verdict(h: &WatcherHealth, probed_before: Option<u32>) -> Verdict {
+    if h.user_paused {
+        return Verdict::LeaveAlone;
+    }
+    if is_deaf(h.events_seen, probed_before) {
+        Verdict::Rearm
+    } else {
+        Verdict::Healthy
     }
 }
 
@@ -269,5 +324,99 @@ mod tests {
         // 지난 틱에 프로브를 썼는데 카운터가 그대로 = 처리 루프가 못 받는다.
         // "조용한 프로젝트" 는 여기 걸리지 않는다 — 프로브 자체가 이벤트다.
         assert!(is_deaf(Some(6), Some(6)));
+    }
+
+    // ─── 사용자 일시정지 ({#watcher-user-pause}) ────────────────────────────
+
+    fn health(user_paused: bool, events_seen: Option<u32>) -> WatcherHealth {
+        WatcherHealth {
+            project_id: 1,
+            root: std::path::PathBuf::from("/"),
+            has_lock: true,
+            events_seen,
+            user_paused,
+        }
+    }
+
+    /// 워처가 없는 상태는 `is_deaf` 가 늘 "먹통" 으로 읽는다 — 사용자가 직접
+    /// 멈춘 경우도 **똑같이 생겼다**. 그래서 판정이 갈리는 곳은 여기 하나뿐이다.
+    #[test]
+    fn a_user_paused_project_is_left_alone_though_it_looks_deaf() {
+        assert_eq!(verdict(&health(true, None), None), Verdict::LeaveAlone);
+        // 대조군 — 일시정지만 빼면 같은 관측이 재무장 대상이다.
+        assert_eq!(verdict(&health(false, None), None), Verdict::Rearm);
+    }
+
+    /// 일시정지는 프로브 이력보다 **먼저** 본다 — 멈추기 전 심어 둔 기준값이
+    /// 남아 있어도 판정이 뒤집히면 안 된다.
+    #[test]
+    fn pause_outranks_a_stale_probe_baseline() {
+        assert_eq!(
+            verdict(&health(true, Some(9)), Some(9)),
+            Verdict::LeaveAlone
+        );
+        assert_eq!(
+            verdict(&health(true, Some(9)), Some(3)),
+            Verdict::LeaveAlone
+        );
+    }
+
+    /// **이 테스트가 이 항목의 전부다.** 순수 함수만으로는 부족하다 — 예전
+    /// 버그는 판정이 아니라 *루프가 `watcher_start` 를 부르는 자리*에 있었다.
+    /// 그래서 진짜 매니저를 세우고, 진짜 `tick` 을 두 번 돌린다.
+    #[tokio::test]
+    async fn tick_does_not_revive_a_watcher_the_user_stopped() {
+        let dir = TempDir::new().unwrap();
+        let manager = OculpmManager::new();
+        manager.init_project(1, dir.path(), "ko").await.unwrap();
+        manager.watcher_start(1, None).await.unwrap();
+        assert!(
+            manager.watcher_health().await[0].events_seen.is_some(),
+            "전제: 감시가 돌고 있어야 한다"
+        );
+
+        // 사용자의 「중지」.
+        manager.watcher_stop(1).await.unwrap();
+        assert!(manager.get_status(1).await.watcher_user_paused);
+
+        let mut probed: HashMap<u32, u32> = HashMap::new();
+        let mut warned: HashSet<u32> = HashSet::new();
+        // 두 틱 — 예전 코드는 첫 틱에서 `is_deaf(None, _) == true` 로 되살렸다.
+        for _ in 0..2 {
+            tick(&manager, None, &mut probed, &mut warned).await;
+        }
+        assert!(
+            manager.watcher_health().await[0].events_seen.is_none(),
+            "사용자가 멈춘 감시를 감독관이 되살렸다 — 「중지」가 다시 60초짜리 거짓말이 됐다"
+        );
+        assert!(
+            manager.get_status(1).await.watcher_user_paused,
+            "감독관이 지나간 뒤에도 일시정지 표시는 그대로여야 한다"
+        );
+
+        // 대조군 — 사용자가 다시 켜면 감독관도 정상으로 돌아온다.
+        manager.watcher_start(1, None).await.unwrap();
+        assert!(!manager.get_status(1).await.watcher_user_paused);
+        assert!(manager.watcher_health().await[0].events_seen.is_some());
+    }
+
+    /// 감독관이 손대지 않는 것과, 감독관의 그 호출이 무해한 것은 다른 보장이다.
+    /// 매니저 쪽에도 자물쇠를 하나 둔다: 일시정지 중에 들어온 **사용자의** 시작은
+    /// 표시를 풀고 감시를 켠다 (닥터의 「다시 켜기」가 이 문이다).
+    #[tokio::test]
+    async fn a_user_start_is_what_clears_the_pause() {
+        let dir = TempDir::new().unwrap();
+        let manager = OculpmManager::new();
+        manager.init_project(2, dir.path(), "ko").await.unwrap();
+        manager.watcher_start(2, None).await.unwrap();
+        manager.watcher_stop(2).await.unwrap();
+        assert!(manager.get_status(2).await.watcher_user_paused);
+
+        manager.watcher_start(2, None).await.unwrap();
+        assert!(!manager.get_status(2).await.watcher_user_paused);
+        assert!(matches!(
+            manager.watcher_status(2).await.state,
+            crate::oculpm::spec::WatcherStateView::Running
+        ));
     }
 }

@@ -45,9 +45,9 @@ use crate::oculpm::session::{self, SessionActor};
 use crate::oculpm::spec::{
     AgentRef, AgentSyncReport, BackfillReport, CommentStyle, EndedReason, EntryStatus, EntryType,
     FileChangeEvent, FileOp, FileTouched, JournalEntry, JournalEntrySummary, JournalFrontmatter,
-    LayerComparison, LockStateView, ManualEntryDraft, OculpmConfig, OculpmInitReport,
-    OculpmOverviewStats, OculpmStatus, ReindexReport, Session, SessionEnd, Severity, Snapshot,
-    SnapshotKind, WatcherStateView, WatcherStatus,
+    LayerComparison, LockStateView, ManualEntryDraft, OculpmConfig, OculpmInitReport, OculpmStatus,
+    ReindexReport, Session, SessionEnd, Severity, Snapshot, SnapshotKind, WatcherStateView,
+    WatcherStatus,
 };
 use crate::oculpm::watcher::ProjectWatcher;
 
@@ -122,8 +122,8 @@ pub struct OculpmManager {
     lock_evicted: Arc<tokio::sync::Notify>,
 }
 
-/// Cloned view of a project's lazy-loaded state. Used by `overview_stats`
-/// (and other callers) that need to do IO outside the manager's RwLock guard.
+/// Cloned view of a project's lazy-loaded state. Used by callers that need to
+/// do IO outside the manager's RwLock guard.
 struct ProjectSnapshot {
     root: PathBuf,
     resolver: WorkdayResolver,
@@ -161,6 +161,23 @@ struct ProjectEntry {
     /// 떠날 때 본 값과 같을 때만 설치한다. 엔트리를 지웠다 다시 만들어도 값이
     /// 달라지므로, "그만" 과 "다른 엔트리가 됐다" 를 이 하나가 함께 잡는다.
     watcher_epoch: u64,
+    /// 사용자가 직접 「중지」를 눌렀는가 (`{#watcher-user-pause}`). 켜져 있으면
+    /// 감독관(`oculpm::supervisor`)이 이 프로젝트를 **되살리지 않는다**.
+    ///
+    /// # 왜 디스크가 아니라 메모리인가
+    ///
+    /// 1. **번지는 범위가 틀린다.** 디스크 자리는 `.oculpm/config.toml` 인데
+    ///    그 파일은 `.gitignore` 관리 블록에 없다 = 저장소에 커밋된다. 내가 내
+    ///    기계에서 잠깐 멈춘 것이 동료의 실시간 갱신까지 끄게 된다.
+    /// 2. **껐다는 사실이 재시작을 살아남으면 그게 곧 「소리 없이 죽은 워처」다.**
+    ///    이 앱이 감독관을 만든 이유가 바로 그 증상이고(`supervisor.rs` 머리말),
+    ///    사람이 본능적으로 잡는 처방이 앱 재시작이다. 그 처방이 안 듣는 상태를
+    ///    사용자 손으로 만들 수 있게 두면 안 된다.
+    /// 3. 일시정지는 원래 순간의 행위다 — 대량 리베이스·코드모드·빌드가 도는
+    ///    동안 잠깐. 그 수명은 앱 세션과 같으면 충분하다.
+    ///
+    /// 그래서 화면도 그렇게 말한다: 「사용자가 멈춤 · 앱을 다시 켜면 풀립니다」.
+    user_paused: bool,
 }
 
 mod agents_sync;
@@ -538,6 +555,9 @@ pub struct WatcherHealth {
     /// 살아 있는 워처가 지금까지 처리 루프로 받은 이벤트 수. 워처가 없거나
     /// 태스크가 죽었으면 `None` — 그대로 재무장 대상이다.
     pub events_seen: Option<u32>,
+    /// 사용자가 직접 멈춘 감시인가. `true` 면 `events_seen` 이 `None` 이어도
+    /// 먹통이 아니다 — 감독관은 손대지 않는다 (`{#watcher-user-pause}`).
+    pub user_paused: bool,
 }
 
 fn lock_state_from_guard(guard: &Option<LockGuard>) -> LockStateView {

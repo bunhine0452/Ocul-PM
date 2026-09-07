@@ -405,23 +405,4 @@ impl OculpmManager {
     ) -> Result<Vec<String>, OculpmError> {
         JournalCache::new(db).observed_agent_ids(project_id).await
     }
-
-    // ─── W5-PR5: Overview stats ─────────────────────────────────────────────
-
-    /// Single-shot Overview widgets fetch. `window_days` clamps to 1..=365 —
-    /// the heatmap caps at ~90, but we allow 365 so a future "1년 보기" toggle
-    /// works without a backend change.
-    pub async fn overview_stats(
-        &self,
-        db: &Db,
-        project_id: u32,
-        window_days: u32,
-    ) -> Result<OculpmOverviewStats, OculpmError> {
-        let snapshot = self.project_snapshot(project_id).await?;
-        let current_workday = snapshot.resolver.workday_of(chrono::Utc::now());
-        let window = window_days.clamp(1, 365);
-        JournalCache::new(db)
-            .overview_stats(project_id, window, &current_workday)
-            .await
-    }
 }

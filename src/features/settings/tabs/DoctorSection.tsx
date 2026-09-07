@@ -50,8 +50,8 @@ interface DoctorRow {
   value: string;
   /** 고치는 손잡이 — 이상이 있는 행에만 붙는다. */
   action?: DoctorAction;
-  /** 곁들이는 손잡이 — 정상인 행에도 붙을 수 있다 (워처 다시 시작). */
-  secondary?: DoctorAction;
+  /** 곁들이는 손잡이들 — 정상인 행에도 붙는다 (워처 「다시 시작」·「중지」). */
+  secondary?: DoctorAction[];
 }
 
 interface Probe {
@@ -177,10 +177,10 @@ export function DoctorSection() {
     // 앞에서는 손잡이가 아예 없었다. `watcher_stop` 이 세대를 올리고 처리
     // 태스크를 드레인한 뒤에야 다음 `watcher_start` 가 새로 설치한다.
     //
-    // 「중지」로 두지 않은 이유: `supervisor.rs` 가 워처 없는 프로젝트를
-    // 먹통으로 판정해 60초 안에 되살린다(`is_deaf(None, _) == true`). 되살아날
-    // 것을 「껐다」고 말하면 거짓이 된다 — 진짜 끄기는 감독관이 존중할
-    // 「사용자가 껐다」 상태가 먼저 필요하다.
+    // 「중지」가 이제 함께 선다 ({#watcher-user-pause}). 예전엔 못 달았다 —
+    // `supervisor.rs` 가 워처 없는 프로젝트를 먹통으로 읽어 60초 안에
+    // 되살렸으니 「껐다」가 거짓말이었다. 이제 `watcher_stop` 이 엔트리에
+    // `user_paused` 를 세우고 감독관이 그 프로젝트를 비껴간다.
     const failed = (e: unknown) =>
       toast.destructive(t("settings.doctor.a.failed", { error: tError(toAppError(e)) }));
     const restart = async () => {
@@ -200,20 +200,37 @@ export function DoctorSection() {
       }
       await check();
     };
-    const rearmAction: DoctorAction = { labelKey: "settings.doctor.a.restart", run: rearm };
+    const pause = async () => {
+      try {
+        await oculpmApi.watcherStop(projectId);
+      } catch (e) {
+        failed(e);
+      }
+      await check();
+    };
+    // 감시 중인 행의 두 손잡이. 「중지」는 이 행에만 있는 유일한 문이다.
+    const liveActions: DoctorAction[] = [
+      { labelKey: "settings.doctor.a.restart", run: rearm },
+      { labelKey: "settings.doctor.a.pause", run: pause },
+    ];
+    const resumeAction: DoctorAction = { labelKey: "settings.doctor.a.resume", run: restart };
     out.push(
       !s
         ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "off", value: unknown }
-        : s.watcher_state === "running"
-          // {#dropped-total-surface} — 「감시 중」만 말하면, 큐가 넘쳐 1,058건을
-          // 흘린 워처도 건강한 워처와 글자 하나 다르지 않다. 버림이 있으면
-          // 그 수를 말하고 만회 수단(재색인)을 같이 준다.
-          ? s.watcher_dropped_total > 0
-            ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "warn", value: t("settings.doctor.v.dropped", { n: s.watcher_dropped_total }), action: { labelKey: "settings.doctor.a.index", run: () => requestReindex() }, secondary: rearmAction }
-            : { id: "watcher", labelKey: "settings.doctor.watcher", state: "ok", value: t("settings.doctor.v.running"), secondary: rearmAction }
-          : s.watcher_state === "error"
-            ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "danger", value: t("settings.doctor.v.error"), action: { labelKey: "settings.doctor.a.start", run: restart } }
-            : { id: "watcher", labelKey: "settings.doctor.watcher", state: "warn", value: t("settings.doctor.v.stopped"), action: { labelKey: "settings.doctor.a.start", run: restart } },
+        // 사용자가 직접 멈췄다 — 고장이 아니라 뜻이다. 회색 점으로 두고,
+        // 「멈춤」(감독관이 곧 되살릴 상태)과 다른 문장을 쓴다.
+        : s.watcher_user_paused
+          ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "off", value: t("settings.doctor.v.paused"), action: resumeAction }
+          : s.watcher_state === "running"
+            // {#dropped-total-surface} — 「감시 중」만 말하면, 큐가 넘쳐 1,058건을
+            // 흘린 워처도 건강한 워처와 글자 하나 다르지 않다. 버림이 있으면
+            // 그 수를 말하고 만회 수단(재색인)을 같이 준다.
+            ? s.watcher_dropped_total > 0
+              ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "warn", value: t("settings.doctor.v.dropped", { n: s.watcher_dropped_total }), action: { labelKey: "settings.doctor.a.index", run: () => requestReindex() }, secondary: liveActions }
+              : { id: "watcher", labelKey: "settings.doctor.watcher", state: "ok", value: t("settings.doctor.v.running"), secondary: liveActions }
+            : s.watcher_state === "error"
+              ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "danger", value: t("settings.doctor.v.error"), action: { labelKey: "settings.doctor.a.start", run: restart } }
+              : { id: "watcher", labelKey: "settings.doctor.watcher", state: "warn", value: t("settings.doctor.v.stopped"), action: { labelKey: "settings.doctor.a.start", run: restart } },
     );
 
     const takeOver = async () => {
@@ -423,11 +440,11 @@ export function DoctorSection() {
                 <span className="flex-1 min-w-0 truncate text-muted-foreground" title={row.value}>
                   {row.value}
                 </span>
-                {row.secondary ? (
-                  <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => void row.secondary!.run()}>
-                    {t(row.secondary.labelKey)}
+                {row.secondary?.map((sec) => (
+                  <Button key={sec.labelKey} variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => void sec.run()}>
+                    {t(sec.labelKey)}
                   </Button>
-                ) : null}
+                ))}
                 {row.action ? (
                   <Button variant="outline" size="sm" className="h-6 px-2 text-[11px]" onClick={() => void row.action!.run()}>
                     {t(row.action.labelKey)}
