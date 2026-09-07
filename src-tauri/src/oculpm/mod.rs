@@ -52,6 +52,7 @@ pub mod session_id;
 pub mod shell_integration;
 pub mod shim;
 pub mod skill_dormancy;
+pub mod skill_frontmatter;
 pub mod skill_promotion;
 pub mod skill_trigger;
 pub mod spec;

@@ -62,3 +62,87 @@ ${kw}---
 1. 첫 번째 단계를 적으세요.
 `;
 }
+
+// ── `#skill-invocation` — "이 스킬은 언제 쓰이지?" ──────────────────────────
+//
+// 발동 원장은 **사후**를 답한다 (걸린 적 있나, 몇 번). 사용자가 목록 앞에서
+// 실제로 묻는 건 **사전**이다: 이게 언제 걸리나, 내가 불러야 하나.
+//
+// 앱이 새로 아는 사실은 없다 — 답은 이미 description 안에 있고, 산문이라 사람이
+// 파싱해야 할 뿐이다. 그래서 여기서 하는 일은 문장을 **트리거 문장**과 나머지로
+// 가르는 것뿐이다. 못 가르면 나누지 않는다 (아래 참고).
+
+/** description 을 "무엇" 과 "언제" 로 가른 결과. */
+export interface TriggerHints {
+  /** 트리거로 읽히지 않는 문장들 — 이 스킬이 하는 일. */
+  what: string;
+  /** 트리거로 읽히는 문장들 — 언제 걸리는가. */
+  when: string[];
+}
+
+/**
+ * 트리거 문장의 표지. 이 저장소·플러그인 스킬의 description 은 거의 다
+ * "…할 때 사용" / "Use when …" 꼴이라 표지 몇 개로 충분히 갈린다.
+ *
+ * 정밀하게 만들 유혹이 있지만 하지 않았다 — 잘못 가르면 사용자가 *스킬이 안 적은
+ * 말*을 읽게 된다. 애매하면 안 가르는 쪽이 옳다.
+ */
+const TRIGGER_MARKS = [
+  "때",
+  "경우",
+  "하거나",
+  "요청",
+  "사용",
+  "쓴다",
+  "use when",
+  "use this skill",
+  "triggers on",
+  "when the user",
+  "when you",
+];
+
+function isTriggerSentence(sentence: string): boolean {
+  const lower = sentence.toLowerCase();
+  return TRIGGER_MARKS.some((mark) => lower.includes(mark));
+}
+
+/**
+ * 문장 나누기. 마침표 뒤에 공백(또는 끝)이 올 때만 경계로 본다 — `v2.44`,
+ * `e.g.` 처럼 뒤가 붙어 오는 마침표는 문장 끝이 아니다. 정규식 lookbehind 는
+ * 쓰지 않는다 (구형 WebKit 에서 조용히 깨지는 자리다).
+ */
+export function splitSentences(text: string): string[] {
+  const out: string[] = [];
+  let buf = "";
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === "\n") {
+      out.push(buf);
+      buf = "";
+      continue;
+    }
+    buf += ch;
+    const next = text[i + 1];
+    if (".!?。".includes(ch) && (next === undefined || /\s/.test(next))) {
+      out.push(buf);
+      buf = "";
+    }
+  }
+  out.push(buf);
+  return out.map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * description 에서 "언제 걸리나" 를 뽑는다.
+ *
+ * 트리거 문장이 **하나도 없으면 나누지 않고** 전체를 `what` 으로 둔다. 그 자체가
+ * 신호다 — 언제 걸리는지 안 적힌 description 은 에이전트에게도 안 걸린다.
+ */
+export function triggerHints(description: string): TriggerHints {
+  const text = description.trim();
+  if (!text) return { what: "", when: [] };
+  const sentences = splitSentences(text);
+  const when = sentences.filter(isTriggerSentence);
+  if (when.length === 0) return { what: text, when: [] };
+  return { what: sentences.filter((s) => !isTriggerSentence(s)).join(" "), when };
+}

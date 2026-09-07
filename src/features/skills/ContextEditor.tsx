@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { ArrowLeft, Copy, Pencil, Trash2, X } from "@/components/Icons";
-import type { RuleDetail, SkillDetail, SkillScope } from "@/lib/bindings";
+import type { RuleDetail, SkillDetail, SkillEntry, SkillScope } from "@/lib/bindings";
 import { rulesApi, skillsApi } from "@/api/claudeSurface";
 import { toAppError } from "@/api/invoke";
 import { toast } from "@/lib/toast";
@@ -21,7 +21,7 @@ import { tError } from "@/i18n/errors";
 import { t, useT } from "@/i18n";
 import { FiringBadge } from "./FiringBadge";
 import type { FiringLedger } from "./useFiringLedger";
-import { splitFrontmatter } from "./skillsModel";
+import { splitFrontmatter, triggerHints } from "./skillsModel";
 import { parseRulePaths, setRulePaths } from "./rulesModel";
 import { KIND_LABEL_KEY, type ContextItem } from "./contextModel";
 
@@ -326,6 +326,7 @@ export function ContextEditor({
       ) : (
         <div className="sk-scroll">
           <article className="sk-article">
+            {loaded?.kind === "skill" ? <TriggerCard entry={loaded.detail.entry} /> : null}
             <Preview content={content} />
             {loaded?.kind === "skill" && loaded.detail.files.length > 0 ? (
               <div className="sk-files">
@@ -449,6 +450,55 @@ function Editor({
       />
       <div className="sk-editor-hint">{hint}</div>
     </div>
+  );
+}
+
+/**
+ * `#skill-invocation` — "이 스킬은 언제 쓰이지?" 에 답하는 자리.
+ *
+ * 발동 배지가 **사후**(걸린 적 있나·몇 번)를 답하는 것과 짝이다. 여기가 답하는
+ * 건 **사전**이다: 어떻게 불리는가(자동/직접), 어떤 대화에 걸리는가, 능력 검색이
+ * 무엇으로 이걸 찾는가.
+ *
+ * 셋 다 새 데이터가 아니라 frontmatter 에 이미 있던 것이다 — 산문 한 줄에 뭉쳐
+ * 있어 안 보였을 뿐이다. 그래서 **못 뽑으면 뽑은 척하지 않는다**: 트리거 문장이
+ * 없으면 그 사실 자체를 말한다. 그게 곧 이 스킬이 에이전트에게도 안 걸리는
+ * 이유다.
+ */
+function TriggerCard({ entry }: { entry: SkillEntry }) {
+  const hints = useMemo(() => triggerHints(entry.description), [entry.description]);
+  const flagged = entry.user_invoked || !entry.description;
+  const how = entry.user_invoked
+    ? t("sk.trigger.userInvoked", { name: entry.dir_name })
+    : entry.description
+      ? t("sk.trigger.auto", { name: entry.dir_name })
+      : t("sk.trigger.noDescription");
+  return (
+    <section className="sk-trigger" aria-label={t("sk.trigger.title")}>
+      <div className="sk-trigger-title">{t("sk.trigger.title")}</div>
+      <p className={flagged ? "sk-trigger-how alert" : "sk-trigger-how"}>{how}</p>
+      {hints.when.length > 0 ? (
+        <ul className="sk-trigger-when">
+          {hints.when.map((line, i) => (
+            <li key={`${i}:${line}`}>{line}</li>
+          ))}
+        </ul>
+      ) : entry.description ? (
+        <p className="sk-trigger-note">{t("sk.trigger.vague")}</p>
+      ) : null}
+      {hints.what ? <p className="sk-trigger-note">{hints.what}</p> : null}
+      <div className="sk-trigger-kw">
+        {entry.keywords.length > 0 ? (
+          entry.keywords.map((kw) => (
+            <span key={kw} className="sk-chip">
+              {kw}
+            </span>
+          ))
+        ) : (
+          <span className="sk-trigger-note">{t("sk.trigger.keywordsEmpty")}</span>
+        )}
+      </div>
+    </section>
   );
 }
 

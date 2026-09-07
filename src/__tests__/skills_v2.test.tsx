@@ -26,6 +26,8 @@ function entry(over: Record<string, unknown> = {}) {
     dir_name: "review-checklist",
     name: "review-checklist",
     description: "PR 리뷰 체크리스트",
+    keywords: [] as string[],
+    user_invoked: false,
     enabled: true,
     display_path: ".claude/skills/review-checklist",
     extra_files: 1,
@@ -122,10 +124,19 @@ vi.mock("@/lib/bindings", () => {
 
 import { SkillsScreenV2 } from "@/features/skills/SkillsScreenV2";
 import { _resetAgentContextIntent, requestAgentContext } from "@/lib/agentContextNav";
-import { isValidSkillName, skillTemplate, splitFrontmatter } from "@/features/skills/skillsModel";
+import {
+  isValidSkillName,
+  skillTemplate,
+  splitFrontmatter,
+  splitSentences,
+  triggerHints,
+} from "@/features/skills/skillsModel";
 
 beforeEach(() => {
   _resetAgentContextIntent();
+  // 목록도 되돌린다 — 케이스가 픽스처를 갈아끼우므로, 안 되돌리면 뒤 테스트가
+  // 앞 테스트의 스킬을 본다 (순서 의존).
+  fx.overview.project = [entry()];
   fx.calls.setEnabled = [];
   fx.calls.save = [];
   fx.calls.del = [];
@@ -221,6 +232,21 @@ describe("SkillsScreenV2 — 3존 화면 (스킬)", () => {
     expect((getByLabelText("이름 (폴더명)") as HTMLInputElement).value).toBe("from-terminal");
   });
 
+  // `#skill-invocation` — 사용자 발동 스킬은 에이전트 사정권 밖이라 "안 걸림"
+  // 배지가 정상이다. 그 사실을 목록이 말하지 않으면 배지가 거짓말을 한다.
+  it("직접 호출 전용 스킬은 목록에 배지를, 상세에 부르는 법을 낸다", async () => {
+    fx.overview.project = [entry({ user_invoked: true, keywords: ["리뷰", "pr"] })];
+    const { getByText, getAllByText, getByRole } = render(<SkillsScreenV2 projectId={1} />);
+    await waitFor(() => expect(getAllByText("review-checklist").length).toBeGreaterThan(0));
+    expect(getByText("직접 호출")).toBeTruthy();
+
+    fireEvent.click(getAllByText("review-checklist")[0]);
+    await waitFor(() => getByRole("region", { name: "언제 걸리나" }));
+    expect(getByText(/\/review-checklist 을 쳐야 뜹니다/)).toBeTruthy();
+    // keywords 는 능력 검색의 유일한 도달 경로 — 상세에 그대로 보인다.
+    expect(getByText("리뷰")).toBeTruthy();
+  });
+
   // 2026-09-01 — 인텐트 슬롯은 창 전역인데 크롬식 탭은 숨은 탭도 마운트해 둔다.
   // 게이트가 없으면 A 탭 diff 의 「규칙으로」가 숨은 B 탭의 스킬 화면에서 모달을
   // 열고, 저장하면 **B 프로젝트**의 .claude/rules 에 A 의 경로가 적힌다.
@@ -252,6 +278,43 @@ describe("skillsModel (순수 헬퍼)", () => {
     expect(splitFrontmatter("그냥 본문")).toEqual({ meta: null, body: "그냥 본문" });
     // 닫는 --- 가 없는 경우 통짜 본문으로 취급 (관대).
     expect(splitFrontmatter("---\nname: a\n").meta).toBeNull();
+  });
+
+  // `#skill-invocation` — "이 스킬은 언제 쓰이지?" 에 상세가 답하려면 description
+  // 을 갈라야 한다. 잘못 가르는 것이 못 가르는 것보다 나쁘다 (스킬이 안 적은 말을
+  // 사용자가 읽게 된다) — 그래서 실패 쪽을 함께 못박는다.
+  it("splitSentences — 마침표 뒤 공백만 문장 경계", () => {
+    expect(splitSentences("첫 문장. 둘째 문장!")).toEqual(["첫 문장.", "둘째 문장!"]);
+    // 버전·약어의 마침표는 뒤가 붙어 오므로 경계가 아니다.
+    expect(splitSentences("v2.44 에서 고쳤다.")).toEqual(["v2.44 에서 고쳤다."]);
+    expect(splitSentences("한 줄\n다음 줄")).toEqual(["한 줄", "다음 줄"]);
+    expect(splitSentences("   ")).toEqual([]);
+  });
+
+  it("triggerHints — 트리거 문장만 '언제' 로 가른다", () => {
+    const hints = triggerHints(
+      "어려운 버그의 진단 규율. 사용자가 \"디버깅\" 이라고 하거나 느리다고 보고할 때 사용.",
+    );
+    expect(hints.what).toBe("어려운 버그의 진단 규율.");
+    expect(hints.when).toEqual([
+      '사용자가 "디버깅" 이라고 하거나 느리다고 보고할 때 사용.',
+    ]);
+  });
+
+  it("triggerHints — 영어 'Use when' 도 트리거로 읽는다", () => {
+    const hints = triggerHints("Two-axis review of a diff. Use when the user wants to review a PR.");
+    expect(hints.when).toEqual(["Use when the user wants to review a PR."]);
+    expect(hints.what).toBe("Two-axis review of a diff.");
+  });
+
+  it("triggerHints — 트리거가 없으면 나누지 않는다 (뽑은 척 금지)", () => {
+    // 이 상태 자체가 신호다: 언제 걸리는지 안 적힌 description 은 에이전트에게도
+    // 안 걸린다. 화면은 `when` 이 비었다는 것으로 그 사실을 말한다.
+    expect(triggerHints("PR 리뷰 체크리스트")).toEqual({
+      what: "PR 리뷰 체크리스트",
+      when: [],
+    });
+    expect(triggerHints("   ")).toEqual({ what: "", when: [] });
   });
 
   it("skillTemplate — 설명의 따옴표/개행을 YAML 한 줄로 안전 처리", () => {
