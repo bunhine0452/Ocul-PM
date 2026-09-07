@@ -32,7 +32,7 @@ owner: claude-code
 - [ ] 떠 있는 프로미스 약 100개가 플랜이 지목한 경로 밖에 남아 있다 {#floating-promises-rest}
 - [ ] 스케줄링을 재는 계측이 없다 — "런타임 워커가 얼마나 막혔나 · 큐가 얼마나 찼나 · 버림이 몇 번인가". 지금 하니스는 날것의 일만 잰다 (perf-baseline §7) {#scheduling-telemetry}
 - [x] `scripts/check-no-hardcoded-korean.mjs` 의 `TESTS` 허용목록에 `__tests__/workspace_slice_consumers.test.tsx`·`__tests__/settings_deferred_commit.test.tsx` 두 줄 — 지금 그 둘만 테스트 이름이 영어라 집 문체에서 벗어나 있다 {#test-name-allowlist}
-- [ ] `package.json` 의 `--max-warnings=61` 에 여유가 0 이다 — 다음 라운드가 경고 하나만 늘려도 붉어진다. 래칫을 내리는 정리 패스가 필요하다 {#eslint-ratchet-slack}
+- [~] `package.json` 의 `--max-warnings=61` 에 여유가 0 이다 — 다음 라운드가 경고 하나만 늘려도 붉어진다. 래칫을 내리는 정리 패스가 필요하다 {#eslint-ratchet-slack}
 
 ## v3-record-integrity 이월 — 기둥 1 이 소유 밖에서 남긴 것 {#pillar1-carry}
 
@@ -61,10 +61,10 @@ owner: claude-code
 - [ ] i18n 잔여 ~500줄 + 영어 모드 전 화면 순회 (three-features-round 의 i18n-rest·i18n-overflow) {#i18n-rest}
 
 ## 죽은 표면 정리 {#dead-surfaces}
-- [ ] 죽은 커맨드 20개 판정 — overview.rs 표면 전체(폴더도 없다) · oculpm_open_entry_in_editor(opener-scope 3회 회귀 끝에 만든 우회로인데 호출부 0) · acp_stop(멈춘 어댑터를 화면에서 내릴 길이 없다) · dap_clear_breakpoints 등. 각각 제거할지 UI 를 붙일지 {#dead-commands}
-- [ ] 죽은 API 래퍼 7개 — 백엔드가 모바일 브리지에서 쓰이는 것과 구분해서 {#dead-wrappers}
-- [ ] Today 변경된 파일 43% 과대(파일 터치 횟수) + 링 k=400 이 매일 상한에 붙는 문제 (today-ring-followup 이월) {#today-overcount}
-- [ ] oculpm_reindex_cache · oculpm_watcher_stop 에 UI 경로 — 지금 워처는 켜만 있고 끔을 수 없고, 일지 캐시 재색인 복구 버튼이 없다 {#revive-recovery-cmds}
+- [x] 죽은 커맨드 20개 판정 — overview.rs 표면 전체(폴더도 없다) · oculpm_open_entry_in_editor(opener-scope 3회 회귀 끝에 만든 우회로인데 호출부 0) · acp_stop(멈춘 어댑터를 화면에서 내릴 길이 없다) · dap_clear_breakpoints 등. 각각 제거할지 UI 를 붙일지 {#dead-commands}
+- [x] 죽은 API 래퍼 7개 — 백엔드가 모바일 브리지에서 쓰이는 것과 구분해서 {#dead-wrappers}
+- [x] Today 변경된 파일 43% 과대(파일 터치 횟수) + 링 k=400 이 매일 상한에 붙는 문제 (today-ring-followup 이월) {#today-overcount}
+- [x] oculpm_reindex_cache · oculpm_watcher_stop 에 UI 경로 — 지금 워처는 켜만 있고 끔을 수 없고, 일지 캐시 재색인 복구 버튼이 없다 {#revive-recovery-cmds}
 
 ## 릴리스 3.0.0 {#release-300}
 - [ ] EVALS.md 기준 실행 {#evals}
@@ -76,15 +76,15 @@ owner: claude-code
 기둥 2(32항목)를 2026-09-06 에 5레인 병렬로 마감하며 나온 빚. 일지에만 적으면
 유실되므로(`{#eyes-mixed-dpi}` 가 그 사고 기록) 여기에 항목으로 적는다.
 
-- [ ] **Today 에 「지금 무엇을 하고 있는가」 표면이 아예 없다** — `TodayMonitor.tsx:36` 의 「활동 시간」은 집계만 말한다. `{#activity-vocab-reuse}` 가 Today 도 같은 어휘를 쓰라고 했지만 그건 새 행을 만드는 일이라 범위 밖으로 뒀다. 재료는 준비됐다: `features/chat/activity/ActivityLine.tsx`(kind+detail 두 값) + `features/sessions/sessionActivity.ts:seatActivity()` {#today-activity-row}
-- [ ] `agentColor.ts` 의 `PALETTE[0]`(#d97a4f)이 Claude 코랄(#d97757)과 거의 같다 — **모르는 에이전트가 Claude 처럼 보인다.** 해시 버킷이라 코랄로 통일하지 않았고(뜻이 다르다), 대신 구별되는 색이 필요하다 {#palette-claude-collision}
-- [ ] `--code-*` 가 테마 스키마 화이트리스트에 없다 — `features/theme/schema.ts` 와 `src-tauri/src/themes/mod.rs` 를 **함께** 늘려야 한다(`theme_schema.test` 가 둘의 일치를 단언). 지금은 프리셋 5종만 문법색을 정할 수 있고 내려받은 커스텀 테마는 못 정한다 {#code-tokens-theme-schema}
+- [x] **Today 에 「지금 무엇을 하고 있는가」 표면이 아예 없다** — `TodayMonitor.tsx:36` 의 「활동 시간」은 집계만 말한다. `{#activity-vocab-reuse}` 가 Today 도 같은 어휘를 쓰라고 했지만 그건 새 행을 만드는 일이라 범위 밖으로 뒀다. 재료는 준비됐다: `features/chat/activity/ActivityLine.tsx`(kind+detail 두 값) + `features/sessions/sessionActivity.ts:seatActivity()` {#today-activity-row}
+- [x] `agentColor.ts` 의 `PALETTE[0]`(#d97a4f)이 Claude 코랄(#d97757)과 거의 같다 — **모르는 에이전트가 Claude 처럼 보인다.** 해시 버킷이라 코랄로 통일하지 않았고(뜻이 다르다), 대신 구별되는 색이 필요하다 {#palette-claude-collision}
+- [x] `--code-*` 가 테마 스키마 화이트리스트에 없다 — `features/theme/schema.ts` 와 `src-tauri/src/themes/mod.rs` 를 **함께** 늘려야 한다(`theme_schema.test` 가 둘의 일치를 단언). 지금은 프리셋 5종만 문법색을 정할 수 있고 내려받은 커스텀 테마는 못 정한다 {#code-tokens-theme-schema}
 - [x] 화면별 CSS 의 글자 리터럴 잔여 ~40곳 — `projects/graph/code/docs/tray/skills/discussion/welcome/home/mobile` + `agent.css` 3곳(:892 14px · :1465 19px · :2086 13.5px). 전부 램프로 기계 치환 가능 (`bootsplash.css:77` 은 테마 CSS 이전 첫 페인트라 의도적 예외) {#fs-literals-rest}
 - [x] 임의 z 값 5곳을 새 어휘로 — `CommandPalette z-[100]` · `AppDialog z-[95]` · `windows/Dialog z-[110]` · `SettingsOverlay z-[90]` · `GreenfieldWizard z-[90]`. `z-popover`/`z-modal`/`z-top` 은 이미 깔려 있다 {#z-vocab-adopt}
 - [ ] `.empty-hint` 잔여 호출부를 EmptyState 로 — `chat/ConversationHistoryModal.tsx:112,114` · `settings/automation/AutomationHistory.tsx:56,57` · `settings/automation/AutomationTab.tsx:225,287` · `shell/ShellV2.tsx:520` · `features/projects` 의 리치 빈 상태 4번째. 끝나면 `primitives.css` 의 `.empty-hint` 와 죽은 CSS(`.docs-empty*`·`.code-empty-*`·`.search-noindex*`)를 지울 수 있다 {#empty-hint-rest}
 - [x] `PlannerScreenV2.tsx`(1,149줄)·`DiffScreenV2.tsx`(799/800줄) 분할 — 파일 크기 래칫 때문에 새 빈 상태 JSX 를 **압축된 형태**로 넣어야 했다(가독성 나쁨). 래칫이 부채를 정확히 가리키고 있다 {#planner-diff-split}
 - [ ] 브랜치 축의 세 한계 — ① 중첩 저장소(git 루트가 프로젝트 루트 아래)면 `.oculpm/journal/**` 가 git 출력에 안 나와 `Entry` 근거가 통째로 사라지고 조용히 약해진다(코드에 명시 주석 없음) ② `Files` 겹침이 과잉 귀속한다(같은 창의 두 브랜치가 같은 파일을 건드리면 양쪽에 잡히고 배제할 손잡이가 없다) ③ 기준 없는 브랜치는 최근 300 커밋을 보는데 성능 미측정 {#branch-axis-limits}
-- [ ] ACP 화면의 `@/lib/bindings` 직접 호출 5파일을 `api/acp.ts` 로 — 분해로 갈라 나온 것이라 총량은 안 늘었지만, 옮기려면 envelope→throw 로 오류 처리를 전부 바꿔야 한다 {#acp-api-wrapper}
+- [x] ACP 화면의 `@/lib/bindings` 직접 호출 5파일을 `api/acp.ts` 로 — 분해로 갈라 나온 것이라 총량은 안 늘었지만, 옮기려면 envelope→throw 로 오류 처리를 전부 바꿔야 한다 {#acp-api-wrapper}
 - [ ] `PluginSetupCard` 에 닫기 버튼이 없다 — 영구 닫기는 설정 키가 필요하다. 지금은 일지 0건 조건으로 좁혀 첫 일지 한 건이면 사라진다 {#plugin-card-dismiss}
 - [ ] `AcpConversation.tsx` 749줄 · `ShellV2.tsx` 711줄 — 둘 다 한계 안이지만 여유가 적다. 다음 라운드가 여기 붙이면 곧 걸린다 {#big-files-watch}
 
@@ -106,32 +106,27 @@ owner: claude-code
 2026-09-07, 6레인 병렬로 17항목을 닫으며 나온 빚. 일지에만 적으면 유실되므로
 (`{#eyes-mixed-dpi}` 가 그 사고 기록) 여기에 항목으로 적는다.
 
-- [ ] `.empty-hint` 완전 소거 — 이번에 5곳을 `EmptyState` 로 옮겼지만 `primitives.css` 의
-  정의는 못 지웠다. 남은 실사용 4화면: `branch/BranchScreenV2.tsx` ·
-  `today/WhatsNewCard.tsx`(2) · `today/CoreModelSeededCard.tsx` · `diff/DiffScreenV2.tsx` ·
-  `oculpm/JournalScreenV2.tsx`. 이 넷이 옮겨지면 정의와 죽은 CSS 를 함께 지울 수 있다
-  {#empty-hint-final}
-- [ ] z 어휘가 3단(popover/modal/top)뿐이라 `AppDialog`(옛 95)와 `CommandPalette`(옛 100)가
-  같은 층으로 합쳐졌다. 지금은 **DOM 순서**가 타이를 가르고(팔레트가 `ShellV2` 뒤에
-  마운트되어 결과가 종전과 같다) 결과는 맞지만, 값이 아니라 마운트 순서에 기대는 상태다.
-  넷째 단이 필요해지면 그때 어휘를 늘린다 {#z-vocab-fourth-step}
-- [ ] `usePlanDocument.ts` 546줄 — 한계(800) 안이지만 집 규율("200~400 보통") 위다.
-  읽기/쓰기로 더 가를 수 있으나 `selectedId`·`setDetail`·`busy`·`refreshPlans` 를 전부
-  공유해 배관이 커진다. 지금은 응집이 이긴다고 판단했고, 다음 라운드가 여기 붙이면
-  재판단 {#use-plan-document-size}
-- [ ] `JournalEntrySummary`(목록 행)에는 `agent_session` 을 안 넣었다 — 037 이 채우는 자리는
-  `get_entry` 하이드레이션 하나다. 목록에 칸을 늘리려면 `spec.rs`+`bindings.ts`+프런트가
-  함께 움직여야 한다 {#list-agent-session}
-- [ ] `plugin/oculpm/.mcp.json` 에 `OCULPM_SESSION_ID` 매핑 — `{#neutral-session-env}` 를
-  푸는 열쇠이자 그 항목이 `blocked` 인 이유. 넣은 뒤 **실측으로 채워지는지** 확인해야 한다
-  {#mcp-json-session-env}
-- [ ] 플랜 status 가 미완 항목을 남긴 채 `done` 으로 닫히는 일이 이 라운드 **중에도** 났다
-  (`hardening-and-optimization` 이 `{#csp}`·`{#entry-chunk}` 를 남기고 닫혀 있었다).
-  `{#glyph-hygiene}` 는 과거를 청소했을 뿐 재발을 막지 못한다 — 미완 항목이 있는 플랜의
-  `done` 전이를 거부하는 가드가 필요하다 {#done-transition-guard}
-- [ ] `claude-events.jsonl` 의 이미 깨진 5줄(2257·2259·2260·2261·2263)은 소비자가 건너뛰어
-  인박스를 막지는 않지만 **그 이벤트는 잃은 것**이다. 복구할지 그대로 둘지 판정
-  {#broken-event-lines}
+- [x] `.empty-hint` 완전 소거 — 이번에 5곳을 `EmptyState` 로 옮겼지만 `primitives.css` 의 정의는 못 지웠다. 남은 실사용 4화면: `branch/BranchScreenV2.tsx` · `today/WhatsNewCard.tsx`(2) · `today/CoreModelSeededCard.tsx` · `diff/DiffScreenV2.tsx` · `oculpm/JournalScreenV2.tsx`. 이 넷이 옮겨지면 정의와 죽은 CSS 를 함께 지울 수 있다 {#empty-hint-final}
+- [ ] z 어휘가 3단(popover/modal/top)뿐이라 `AppDialog`(옛 95)와 `CommandPalette`(옛 100)가 같은 층으로 합쳐졌다. 지금은 **DOM 순서**가 타이를 가르고(팔레트가 `ShellV2` 뒤에 마운트되어 결과가 종전과 같다) 결과는 맞지만, 값이 아니라 마운트 순서에 기대는 상태다. 넷째 단이 필요해지면 그때 어휘를 늘린다 {#z-vocab-fourth-step}
+- [ ] `usePlanDocument.ts` 546줄 — 한계(800) 안이지만 집 규율("200~400 보통") 위다. 읽기/쓰기로 더 가를 수 있으나 `selectedId`·`setDetail`·`busy`·`refreshPlans` 를 전부 공유해 배관이 커진다. 지금은 응집이 이긴다고 판단했고, 다음 라운드가 여기 붙이면 재판단 {#use-plan-document-size}
+- [ ] `JournalEntrySummary`(목록 행)에는 `agent_session` 을 안 넣었다 — 037 이 채우는 자리는 `get_entry` 하이드레이션 하나다. 목록에 칸을 늘리려면 `spec.rs`+`bindings.ts`+프런트가 함께 움직여야 한다 {#list-agent-session}
+- [ ] `plugin/oculpm/.mcp.json` 에 `OCULPM_SESSION_ID` 매핑 — `{#neutral-session-env}` 를 푸는 열쇠이자 그 항목이 `blocked` 인 이유. 넣은 뒤 **실측으로 채워지는지** 확인해야 한다 {#mcp-json-session-env}
+- [ ] 플랜 status 가 미완 항목을 남긴 채 `done` 으로 닫히는 일이 이 라운드 **중에도** 났다 (`hardening-and-optimization` 이 `{#csp}`·`{#entry-chunk}` 를 남기고 닫혀 있었다). `{#glyph-hygiene}` 는 과거를 청소했을 뿐 재발을 막지 못한다 — 미완 항목이 있는 플랜의 `done` 전이를 거부하는 가드가 필요하다 {#done-transition-guard}
+- [ ] `claude-events.jsonl` 의 이미 깨진 5줄(2257·2259·2260·2261·2263)은 소비자가 건너뛰어 인박스를 막지는 않지만 **그 이벤트는 잃은 것**이다. 복구할지 그대로 둘지 판정 {#broken-event-lines}
+
+## 3.0 라운드 2차 이월 — 5레인이 소유 밖에서 남긴 것 {#round2-carry}
+
+2026-09-07 2차 웨이브(11항목)에서 나온 빚. 1차와 같은 이유로 여기에 항목으로 적는다.
+
+- [ ] `acp_stop` 에 UI — 지우지 않고 남긴 유일한 죽은 커맨드다. `acp::process::stop` 의 유일한 호출부라 지우면 떠 있는 어댑터를 내릴 길이 사라지고 원장 세그먼트를 닫는 부수효과도 잃는다. 자리는 ACP 화면(`features/chat/**`) {#acp-stop-ui}
+- [ ] `EntryDetailView` 에 "파일로 열기" — `openEntryInEditor` 는 새는 게 아니라 **미구현 어포던스**였다(일지 .md 를 OS 로 여는 코드가 아예 없다). 래퍼는 opener-scope 회귀 4번째를 막으려고 남겼으니, 이제 그 버튼을 붙이면 짝이 맞는다 {#entry-open-affordance}
+- [ ] 진짜 워처 「중지」 — `supervisor.rs` 가 워처 없는 프로젝트를 먹통으로 판정해 60초 안에 되살리므로(`is_deaf(None,_)=>true`) 지금 코드의 끄기는 60초짜리 거짓말이다. 감독관이 존중할 사용자 일시정지 상태(예: `entry.user_paused`)가 선행돼야 한다 {#watcher-user-pause}
+- [ ] 고아가 된 백엔드 함수 5개 — `manager::overview_stats` · `Db::conversation_rename` · `Db::conversation_set_context` · `DapStateStore::breakpoint_lines` · `DapStateStore::clear_breakpoints` · `Db::get_blueprint`. 커맨드를 지우며 호출부가 사라졌고 전부 `pub` 이라 경고가 안 난다 {#orphaned-db-fns}
+- [ ] `files` 링도 상한에 붙는다 — `k=8` 문턱이 약 80개인데 이 저장소는 고유 110개/일이다. `lines` 는 k=4000 으로 고쳤지만 이건 저장소 하나로 모든 사용자의 하루를 정할 수 없어 눈금을 안 건드렸다(대신 화면이 「상한」이라고 말한다). 판단이 필요한 값 {#files-ring-scale}
+- [ ] 고유 파일 수의 제 자리는 백엔드 — 지금은 프런트가 오늘 엔트리 상세를 걷어 합집합을 센다(첫 진입 N회 IPC, 캐시 뒤엔 새 일지당 1회). `oculpm_workday_brief` 에 `COUNT(DISTINCT file_path)` 가 생기면 그 걷기와 캐시를 통째로 지울 수 있다 {#distinct-files-backend}
+- [ ] 문법색 편집기 UI — `--code-*` 가 테마 화이트리스트에 들어가 내려받은 테마가 값을 실을 수는 있게 됐지만, 앱에서 점 찍어 고르는 섹션은 없다. 새 편집기 섹션은 `I18nKey` 가 필요하다 {#code-color-editor}
+- [ ] `tests/lite_w6_safety_net.rs` invariant #6 의 주석이 아직 "greenfield `generate_seed_goals` 가 쓴다" 고 적고 있다 — 그 커맨드는 지웠고 이제 `plan_migrate_goals` 하나만 남았다(테스트 자체는 통과) {#w6-comment-stale}
+- [ ] eslint 래칫에 **진짜 여유**가 아직 없다 — 50→46 으로 내렸지만 46이 곧 현재 개수라 여유는 여전히 0이다. 남은 46건을 실제로 걷어야 다음 라운드가 숨을 쉰다 {#eslint-slack-real}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -158,4 +153,15 @@ owner: claude-code
 | 2026-09-07T20:31:27+09:00 | #promise-text-truth | claude-code | ☐→x | .oculpm/journal/20260907/Features_to_add/2029_feature_english-subpages-and-promise-truth.md | egress_inventory.rs 원장과 대조 — CLAUDE.md·랜딩 ko/en 은 이미 브로커를 명시하고 있었고 빠진 곳은 README ko/en 둘뿐이라 거기만 채움 |
 | 2026-09-07T20:31:35+09:00 | #glyph-hygiene | claude-code | ☐→x | .oculpm/journal/20260907/Features_to_add/2029_feature_english-subpages-and-promise-truth.md | codex-acp 는 done→active 로 되돌리고 근거 확인한 2건만 [x]. dnd Phase 8 4건·menubar v2.3.0 은 [-]. 같은 병이 라운드 중에도 나서 hardening-and-optimization 이 미완 2건을 남긴 채 done 으로 닫힌 것도 되돌림 |
 | 2026-09-07T20:31:49+09:00 | #neutral-session-env | claude-code | ☐→! | .oculpm/journal/20260907/Features_to_add/2028_feature_record-integrity-cache-cas-hooks.md | 폴백은 죽은 코드가 아니라 터미널 경로의 유일한 신원 근거다 — .mcp.json 에 env 가 없어 물려받은 CLAUDE_CODE_SESSION_ID 하나로만 얻고, 실측상 OCULPM_SESSION_ID 는 비어 있다. 해제 조건: .mcp.json 에 매핑을 넣고 실측 확인 |
+| 2026-09-07T21:15:58+09:00 | #eyes-terminal | claude-code | ☐→☐ | .oculpm/journal/20260907/Features_to_add/2115_feature_terminal-file-link-menu-and-underline.md | 터미널 육안 부채 3건 추가 — 한글 줄 링크 밑줄이 경로 위에 얹히는가 · ⌘클릭 팝오버 자리 · Quick Look 창이 앞으로 오는가 |
+| 2026-09-07T21:21:28+09:00 | #dead-commands | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2119_refactor_dead-surfaces-and-recovery-handles.md | 17개 중 16개 제거(354→340). mobile_bridge 디스패치 표·MCP·deeplink·tests 전수 확인 결과 백엔드 호출부 0. acp_stop 만 유지 — acp::process::stop 의 유일한 호출부라 지우면 어댑터를 내릴 길이 사라진다 |
+| 2026-09-07T21:21:36+09:00 | #dead-wrappers | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2119_refactor_dead-surfaces-and-recovery-handles.md | openEntryInEditor 는 새는 게 아니라 미구현 어포던스였다(일지를 OS 로 여는 코드가 아예 없다) — 유지하고 doc 에 못박음. watcherStart 는 진짜 우회라 래퍼 경유로 되돌림. 모바일 브리지가 쓰는 백엔드 커맨드는 남기고 래퍼만 제거 |
+| 2026-09-07T21:21:44+09:00 | #revive-recovery-cmds | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2119_refactor_dead-surfaces-and-recovery-handles.md | 닥터에 「일지 캐시 재색인」 + 워처 「다시 시작」. 「중지」가 아닌 이유가 핵심 발견 — supervisor 가 워처 없는 프로젝트를 60초 안에 되살려서 지금 코드의 끄기는 60초짜리 거짓말이다. 진짜 off 는 감독관 opt-out 상태 선행 필요(이월) |
+| 2026-09-07T21:21:52+09:00 | #today-overcount | claude-code | ☐→x | .oculpm/journal/20260907/Bugs/2120_bug_today-counts-ring-scale-and-now.md | 고유 파일 합집합으로 교체(실측 14일 0~105% 과대). 링 k=400→4000 — 26 워크데이 중앙값 15,400줄인데 상한이 4,081줄이라 22/26 이 상한에 붙어 있었다. capped 를 값으로 내보내 호버가 「상한」을 말한다. files 링은 여전히 붙는다(이월) |
+| 2026-09-07T21:21:59+09:00 | #today-activity-row | claude-code | ☐→x | .oculpm/journal/20260907/Bugs/2120_bug_today-counts-ring-scale-and-now.md | seatActivity + ActivityLine 어휘 재사용(새로 만들지 않음). 정직성 3단 — 세션 0 / 아는 일 없음(「조용함」) / 원장 못 읽음(아무 말 안 함). 폴링 없이 onA2aChanged 구독 |
+| 2026-09-07T21:22:06+09:00 | #acp-api-wrapper | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2121_refactor_acp-wrapper-entry-chunk-theme-palette.md | 다섯을 함께(allowlist 주석의 약속). 호출부 18곳의 실패 동작을 한 글자도 안 바꿈 — 유일한 변화는 전송 실패가 예전엔 unhandled rejection 으로 샜다는 것 |
+| 2026-09-07T21:22:14+09:00 | #code-tokens-theme-schema | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2121_refactor_acp-wrapper-entry-chunk-theme-palette.md | --code-* 10개를 schema.ts 와 themes/mod.rs 양쪽에 같은 순서로. 라운드트립 테스트로 실제 칠해지는지까지 확인. 문법색 편집기 UI 섹션은 새 I18nKey 가 필요해 이월 |
+| 2026-09-07T21:22:21+09:00 | #palette-claude-collision | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2121_refactor_acp-wrapper-entry-chunk-theme-palette.md | #d97a4f(코랄과 4도) → #cb4db2(62.9도). 나머지 팔레트와 최소 50.9도, 라이트·다크 6배경 대비비 3.5~4.3. 팔레트 6색 전부가 코랄과 떨어져 있음을 단언하는 회귀 가드 추가 |
+| 2026-09-07T21:23:17+09:00 | #empty-hint-final | claude-code | ☐→x | .oculpm/journal/20260907/Bugs/2120_bug_today-counts-ring-scale-and-now.md | branch·diff·journal·today(3) 이관 후 호출부 0 확인 → primitives.css 정의와 죽은 CSS 삭제. JournalScreenV2 만 EmptyState 를 안 썼다 — 빈 상태가 아니라 「다 못 실었다」 알림이라 오용의 사고 기록이 이미 screens.css 에 있다 |
+| 2026-09-07T21:24:10+09:00 | #eslint-ratchet-slack | claude-code | ☐→~ | .oculpm/journal/20260907/Bugs/2120_bug_today-counts-ring-scale-and-now.md | 래칫 50→46 (죽은 커맨드 제거분 + no-console 규칙이 설정에 아예 없어 처음부터 무의미했던 지시문 3줄). 다만 46이 곧 현재 개수라 **여유는 여전히 0** — 진짜 정리 패스는 {#eslint-slack-real} 로 이월 |
 <!-- oculpm:plan-log end -->

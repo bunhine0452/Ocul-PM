@@ -23,7 +23,7 @@ owner: claude-code
 ## 최적화 {#perf}
 - [x] aiContext.ts 의 IPC 직렬 루프 — :132 플랜마다 planGet 순차, :195 일지 3건 순차. 메시지 하나에 최대 8왕복이 직렬. Promise.all 로 접는다 {#ai-context-parallel}
 - [x] forEach(async …) 떠 있는 프로미스 — AiPanelScreenV2.tsx:318 · GreenfieldWizard.tsx:222. 뒤쪽은 취소 체크도 없고 cliChecks 스테일 클로저까지 겹친다 {#floating-promises}
-- [ ] 진입 청크 606KB(gzip 207KB) — 빌드가 실제로 chunk-size 경고를 낸다. manualChunks 없음. 나누기 전에 무엇이 들었는지부터 측정 {#entry-chunk}
+- [x] ~~진입 청크 606KB(gzip 207KB)~~ **문구가 틀렸다** (2026-09-07 실측) — 606KB 는 CodeMirror 청크이고 이미 `React.lazy` 뒤에서 지연 로드된다(빌드 경고의 최대 청크를 진입으로 오인). 진짜 진입 청크는 288.40KB 였다. `manualChunks` 로 React 를 가르면 합계가 288.07KB 로 같아 라벨만 옮기는 짓이라 되돌렸다. 실제로 뺀 것은 `settings/uiScale.ts` 의 `@tauri-apps/api/webview` 정적 import(→ 동적): **288.40 → 261.86KB, −9.2%**. 측정은 `scripts/measure-entry-chunk.mjs` 로 재현된다 {#entry-chunk}
 - [x] 워처가 루트 전체 recursive 감시 + 필터는 사후 — perf-baseline M1 이 이미 확정한 자리(체크아웃 1회 = 1,058 이벤트, 드레인 4.3초). 큐는 4096 bounded 로 막혔지만 사전 필터는 아직 {#watcher-prefilter}
 
 ## 기록 {#ledger}
