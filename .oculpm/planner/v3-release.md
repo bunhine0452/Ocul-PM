@@ -4,7 +4,7 @@ id: v3-release
 title: "3.0 을 내보내기 전에 — 육안 확인 부채와 영문 표면 (3.0.0)"
 status: active
 created: 2026-09-04
-updated: 2026-09-04
+updated: 2026-09-07
 owner: claude-code
 ---
 
@@ -42,7 +42,7 @@ owner: claude-code
 - [x] **제품 약속 문구가 사실보다 좁다** — `CLAUDE.md`·README ko/en·랜딩의 "LLM 호출과 업데이트 확인 말고는 기기 밖으로 안 나간다"는 실제로 예외를 다섯 개 더 갖는다: Notion API + `https://oculpm.com/api/notion/oauth/start` **OAuth 브로커**(우리 서버가 사용자 인증 흐름 한가운데 있다) · 플러그인 zip · 테마 다운로드 · fastembed 모델. 원장(`tests/egress_inventory.rs`)이 사실을 적었으니 다음은 문구다 {#promise-text-truth}
 - [ ] `tauri.conf.json` 의 `csp: null` — 웹뷰에 CSP 가 없어 아무 데나 갈 수 있다. 지금은 프런트 유출 원장이 대신 지킨다 {#webview-csp}
 - [x] `oculpm::reconcile` 이 CAS 문지기 밖 — 앱 내부 화해기가 여전히 인프로세스 `plan_write_lock` 만 써서, 앱과 MCP 서버가 동시에 같은 플랜을 고치는 창이 남아 있다 {#reconcile-file-guard}
-- [ ] 진짜 2-프로세스 CAS 테스트 — 지금은 스레드 동시성 + "남의 락 파일을 존중하는가"로 대신 물었다 {#cas-two-process-test}
+- [x] 진짜 2-프로세스 CAS 테스트 — 지금은 스레드 동시성 + "남의 락 파일을 존중하는가"로 대신 물었다 {#cas-two-process-test}
 - [x] `HonestyAudit`(`today/HonestyAudit.tsx:97`)에 같은 자기은닉이 남아 있다. 가르는 선은 **주장하는 카드는 0을 말하고 제안하는 카드는 숨어도 된다** — 이건 "누락 없음"을 주장하므로 앞쪽이다 {#honesty-audit-unhide}
 - [!] MCP 서버가 신원을 읽는 변수를 `OCULPM_SESSION_ID` 로 완전 이행 — 지금은 옛 `CLAUDE_CODE_SESSION_ID` 폴백이 남아 있어 Claude 어댑터가 자기 값으로 덮어쓸 가능성이 있다 {#neutral-session-env}
 - [x] SQLite 캐시 `oculpm_journal` 에 `agent_session` 컬럼이 없다(`cache/query.rs:395` 가 `None`) — 캐시 경유 판정은 영원히 `None` 이다. 마이그레이션 2단계 + `ADDITIVE_COLUMNS` {#cache-agent-session}
@@ -83,7 +83,7 @@ owner: claude-code
 - [x] 임의 z 값 5곳을 새 어휘로 — `CommandPalette z-[100]` · `AppDialog z-[95]` · `windows/Dialog z-[110]` · `SettingsOverlay z-[90]` · `GreenfieldWizard z-[90]`. `z-popover`/`z-modal`/`z-top` 은 이미 깔려 있다 {#z-vocab-adopt}
 - [ ] `.empty-hint` 잔여 호출부를 EmptyState 로 — `chat/ConversationHistoryModal.tsx:112,114` · `settings/automation/AutomationHistory.tsx:56,57` · `settings/automation/AutomationTab.tsx:225,287` · `shell/ShellV2.tsx:520` · `features/projects` 의 리치 빈 상태 4번째. 끝나면 `primitives.css` 의 `.empty-hint` 와 죽은 CSS(`.docs-empty*`·`.code-empty-*`·`.search-noindex*`)를 지울 수 있다 {#empty-hint-rest}
 - [x] `PlannerScreenV2.tsx`(1,149줄)·`DiffScreenV2.tsx`(799/800줄) 분할 — 파일 크기 래칫 때문에 새 빈 상태 JSX 를 **압축된 형태**로 넣어야 했다(가독성 나쁨). 래칫이 부채를 정확히 가리키고 있다 {#planner-diff-split}
-- [ ] 브랜치 축의 세 한계 — ① 중첩 저장소(git 루트가 프로젝트 루트 아래)면 `.oculpm/journal/**` 가 git 출력에 안 나와 `Entry` 근거가 통째로 사라지고 조용히 약해진다(코드에 명시 주석 없음) ② `Files` 겹침이 과잉 귀속한다(같은 창의 두 브랜치가 같은 파일을 건드리면 양쪽에 잡히고 배제할 손잡이가 없다) ③ 기준 없는 브랜치는 최근 300 커밋을 보는데 성능 미측정 {#branch-axis-limits}
+- [x] 브랜치 축의 세 한계 — ① 중첩 저장소(git 루트가 프로젝트 루트 아래)면 `.oculpm/journal/**` 가 git 출력에 안 나와 `Entry` 근거가 통째로 사라지고 조용히 약해진다(코드에 명시 주석 없음) ② `Files` 겹침이 과잉 귀속한다(같은 창의 두 브랜치가 같은 파일을 건드리면 양쪽에 잡히고 배제할 손잡이가 없다) ③ 기준 없는 브랜치는 최근 300 커밋을 보는데 성능 미측정 {#branch-axis-limits}
 - [x] ACP 화면의 `@/lib/bindings` 직접 호출 5파일을 `api/acp.ts` 로 — 분해로 갈라 나온 것이라 총량은 안 늘었지만, 옮기려면 envelope→throw 로 오류 처리를 전부 바꿔야 한다 {#acp-api-wrapper}
 - [ ] `PluginSetupCard` 에 닫기 버튼이 없다 — 영구 닫기는 설정 키가 필요하다. 지금은 일지 0건 조건으로 좁혀 첫 일지 한 건이면 사라진다 {#plugin-card-dismiss}
 - [ ] `AcpConversation.tsx` 749줄 · `ShellV2.tsx` 711줄 — 둘 다 한계 안이지만 여유가 적다. 다음 라운드가 여기 붙이면 곧 걸린다 {#big-files-watch}
@@ -111,22 +111,37 @@ owner: claude-code
 - [ ] `usePlanDocument.ts` 546줄 — 한계(800) 안이지만 집 규율("200~400 보통") 위다. 읽기/쓰기로 더 가를 수 있으나 `selectedId`·`setDetail`·`busy`·`refreshPlans` 를 전부 공유해 배관이 커진다. 지금은 응집이 이긴다고 판단했고, 다음 라운드가 여기 붙이면 재판단 {#use-plan-document-size}
 - [ ] `JournalEntrySummary`(목록 행)에는 `agent_session` 을 안 넣었다 — 037 이 채우는 자리는 `get_entry` 하이드레이션 하나다. 목록에 칸을 늘리려면 `spec.rs`+`bindings.ts`+프런트가 함께 움직여야 한다 {#list-agent-session}
 - [ ] `plugin/oculpm/.mcp.json` 에 `OCULPM_SESSION_ID` 매핑 — `{#neutral-session-env}` 를 푸는 열쇠이자 그 항목이 `blocked` 인 이유. 넣은 뒤 **실측으로 채워지는지** 확인해야 한다 {#mcp-json-session-env}
-- [ ] 플랜 status 가 미완 항목을 남긴 채 `done` 으로 닫히는 일이 이 라운드 **중에도** 났다 (`hardening-and-optimization` 이 `{#csp}`·`{#entry-chunk}` 를 남기고 닫혀 있었다). `{#glyph-hygiene}` 는 과거를 청소했을 뿐 재발을 막지 못한다 — 미완 항목이 있는 플랜의 `done` 전이를 거부하는 가드가 필요하다 {#done-transition-guard}
+- [x] 플랜 status 가 미완 항목을 남긴 채 `done` 으로 닫히는 일이 이 라운드 **중에도** 났다 (`hardening-and-optimization` 이 `{#csp}`·`{#entry-chunk}` 를 남기고 닫혀 있었다). `{#glyph-hygiene}` 는 과거를 청소했을 뿐 재발을 막지 못한다 — 미완 항목이 있는 플랜의 `done` 전이를 거부하는 가드가 필요하다 {#done-transition-guard}
 - [ ] `claude-events.jsonl` 의 이미 깨진 5줄(2257·2259·2260·2261·2263)은 소비자가 건너뛰어 인박스를 막지는 않지만 **그 이벤트는 잃은 것**이다. 복구할지 그대로 둘지 판정 {#broken-event-lines}
 
 ## 3.0 라운드 2차 이월 — 5레인이 소유 밖에서 남긴 것 {#round2-carry}
 
 2026-09-07 2차 웨이브(11항목)에서 나온 빚. 1차와 같은 이유로 여기에 항목으로 적는다.
 
-- [ ] `acp_stop` 에 UI — 지우지 않고 남긴 유일한 죽은 커맨드다. `acp::process::stop` 의 유일한 호출부라 지우면 떠 있는 어댑터를 내릴 길이 사라지고 원장 세그먼트를 닫는 부수효과도 잃는다. 자리는 ACP 화면(`features/chat/**`) {#acp-stop-ui}
-- [ ] `EntryDetailView` 에 "파일로 열기" — `openEntryInEditor` 는 새는 게 아니라 **미구현 어포던스**였다(일지 .md 를 OS 로 여는 코드가 아예 없다). 래퍼는 opener-scope 회귀 4번째를 막으려고 남겼으니, 이제 그 버튼을 붙이면 짝이 맞는다 {#entry-open-affordance}
-- [ ] 진짜 워처 「중지」 — `supervisor.rs` 가 워처 없는 프로젝트를 먹통으로 판정해 60초 안에 되살리므로(`is_deaf(None,_)=>true`) 지금 코드의 끄기는 60초짜리 거짓말이다. 감독관이 존중할 사용자 일시정지 상태(예: `entry.user_paused`)가 선행돼야 한다 {#watcher-user-pause}
-- [ ] 고아가 된 백엔드 함수 5개 — `manager::overview_stats` · `Db::conversation_rename` · `Db::conversation_set_context` · `DapStateStore::breakpoint_lines` · `DapStateStore::clear_breakpoints` · `Db::get_blueprint`. 커맨드를 지우며 호출부가 사라졌고 전부 `pub` 이라 경고가 안 난다 {#orphaned-db-fns}
-- [ ] `files` 링도 상한에 붙는다 — `k=8` 문턱이 약 80개인데 이 저장소는 고유 110개/일이다. `lines` 는 k=4000 으로 고쳤지만 이건 저장소 하나로 모든 사용자의 하루를 정할 수 없어 눈금을 안 건드렸다(대신 화면이 「상한」이라고 말한다). 판단이 필요한 값 {#files-ring-scale}
-- [ ] 고유 파일 수의 제 자리는 백엔드 — 지금은 프런트가 오늘 엔트리 상세를 걷어 합집합을 센다(첫 진입 N회 IPC, 캐시 뒤엔 새 일지당 1회). `oculpm_workday_brief` 에 `COUNT(DISTINCT file_path)` 가 생기면 그 걷기와 캐시를 통째로 지울 수 있다 {#distinct-files-backend}
+- [x] `acp_stop` 에 UI — 지우지 않고 남긴 유일한 죽은 커맨드다. `acp::process::stop` 의 유일한 호출부라 지우면 떠 있는 어댑터를 내릴 길이 사라지고 원장 세그먼트를 닫는 부수효과도 잃는다. 자리는 ACP 화면(`features/chat/**`) {#acp-stop-ui}
+- [x] `EntryDetailView` 에 "파일로 열기" — `openEntryInEditor` 는 새는 게 아니라 **미구현 어포던스**였다(일지 .md 를 OS 로 여는 코드가 아예 없다). 래퍼는 opener-scope 회귀 4번째를 막으려고 남겼으니, 이제 그 버튼을 붙이면 짝이 맞는다 {#entry-open-affordance}
+- [x] 진짜 워처 「중지」 — `supervisor.rs` 가 워처 없는 프로젝트를 먹통으로 판정해 60초 안에 되살리므로(`is_deaf(None,_)=>true`) 지금 코드의 끄기는 60초짜리 거짓말이다. 감독관이 존중할 사용자 일시정지 상태(예: `entry.user_paused`)가 선행돼야 한다 {#watcher-user-pause}
+- [x] 고아가 된 백엔드 함수 5개 — `manager::overview_stats` · `Db::conversation_rename` · `Db::conversation_set_context` · `DapStateStore::breakpoint_lines` · `DapStateStore::clear_breakpoints` · `Db::get_blueprint`. 커맨드를 지우며 호출부가 사라졌고 전부 `pub` 이라 경고가 안 난다 {#orphaned-db-fns}
+- [x] `files` 링도 상한에 붙는다 — `k=8` 문턱이 약 80개인데 이 저장소는 고유 110개/일이다. `lines` 는 k=4000 으로 고쳤지만 이건 저장소 하나로 모든 사용자의 하루를 정할 수 없어 눈금을 안 건드렸다(대신 화면이 「상한」이라고 말한다). 판단이 필요한 값 {#files-ring-scale}
+- [x] 고유 파일 수의 제 자리는 백엔드 — 지금은 프런트가 오늘 엔트리 상세를 걷어 합집합을 센다(첫 진입 N회 IPC, 캐시 뒤엔 새 일지당 1회). `oculpm_workday_brief` 에 `COUNT(DISTINCT file_path)` 가 생기면 그 걷기와 캐시를 통째로 지울 수 있다 {#distinct-files-backend}
 - [ ] 문법색 편집기 UI — `--code-*` 가 테마 화이트리스트에 들어가 내려받은 테마가 값을 실을 수는 있게 됐지만, 앱에서 점 찍어 고르는 섹션은 없다. 새 편집기 섹션은 `I18nKey` 가 필요하다 {#code-color-editor}
-- [ ] `tests/lite_w6_safety_net.rs` invariant #6 의 주석이 아직 "greenfield `generate_seed_goals` 가 쓴다" 고 적고 있다 — 그 커맨드는 지웠고 이제 `plan_migrate_goals` 하나만 남았다(테스트 자체는 통과) {#w6-comment-stale}
+- [x] `tests/lite_w6_safety_net.rs` invariant #6 의 주석이 아직 "greenfield `generate_seed_goals` 가 쓴다" 고 적고 있다 — 그 커맨드는 지웠고 이제 `plan_migrate_goals` 하나만 남았다(테스트 자체는 통과) {#w6-comment-stale}
 - [ ] eslint 래칫에 **진짜 여유**가 아직 없다 — 50→46 으로 내렸지만 46이 곧 현재 개수라 여유는 여전히 0이다. 남은 46건을 실제로 걷어야 다음 라운드가 숨을 쉰다 {#eslint-slack-real}
+
+## 3.0 라운드 3차 이월 {#round3-carry}
+
+2026-09-07 3차 웨이브(12항목)에서 나온 빚.
+
+- [ ] `read_branch_git` 되맞춤은 「저장소가 프로젝트 루트 **아래**」 방향만 고친다. 반대 방향(프로젝트 루트가 더 큰 저장소에 중첩된 흔한 모노레포)은 `root_relative` 가 손대지 않고 지나간다 — `uncommitted_changes`·`changes_in_range` 도 같은 한계다. 플랜 문구는 한 방향만 언급했지만 코드상 둘 다 걸린다 {#rebase-other-direction}
+- [ ] `BranchStory` 에 「저장소 루트 ≠ 프로젝트 루트」 신호 필드가 없어, 근거가 빠진 화면이 그 사실을 **말할 수가 없다**. 지금은 코드 주석만 안다 {#branch-nested-signal}
+- [ ] 에이전트가 `Edit`/`Write` 로 플랜 프론트매터를 손수 고치는 길은 `{#done-transition-guard}` 가 못 막는다 — 규칙 문서로만 다룰 수 있다 {#guard-manual-edit}
+- [ ] `archived` 로 접은 미완은 여전히 `plan_status` 에 안 보인다. 보이게 하려면 「잠긴 플랜의 미완 항목」을 경고로 싣는 도구 출력 계약 변경이 필요하다 {#archived-open-items-visibility}
+- [ ] `cargo check`/`clippy --all-targets` 가 `target/debug/<bin>` 을 0바이트 자리표시자로 덮는다. 지금은 `CARGO_BIN_EXE_*` 를 쓰는 테스트가 없어 무해하지만, 다음 사람이 쓰면 같은 함정에 빠진다 {#cargo-bin-exe-trap}
+- [ ] `commands/oculpm.rs` 가 파일 크기 천장에 붙어 있어 `oculpm_workday_brief` **안에서만** `.map_err(AppError::from)?` 를 맨 `?` 로 바꿨다 — 같은 파일에 두 관용구가 생겼다(나머지 33곳은 옛 꼴) {#oculpm-cmd-idiom-split}
+- [ ] `lines_workday` 파라미터 이름이 이제 거짓말이다 — 라인 증감과 고유 파일 수 **둘**의 초점 워크데이다. `focus_workday` 로 고치려면 `useJournalDays.ts` + bindings 가 함께 움직여야 한다 {#lines-workday-misnomer}
+- [ ] 후속 고아 — `BreakpointStore::clear`(`dap/session.rs`)가 호출부 0 이 됐고, `Db::get_goal` 도 프로덕션 호출부가 없다 {#orphans-round2}
+- [ ] `Unplug` 아이콘을 `components/Icons.tsx` 재수출 목록으로 (지금은 `AcpToolbar` 가 `lucide-react` 를 직접 부른다 — 전례는 있지만 집 규약은 Icons 경유다) {#unplug-icon-reexport}
+- [ ] `journal_v2.test.tsx` 의 브리프 mock 이 폐기된 `bytes_added`/`bytes_removed` 를 쓰고 `files_touched` 가 없다. `satisfies WorkdayBrief` 가 안 붙어 아무도 안 잡는다 {#journal-mock-drift}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -164,4 +179,14 @@ owner: claude-code
 | 2026-09-07T21:22:21+09:00 | #palette-claude-collision | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2121_refactor_acp-wrapper-entry-chunk-theme-palette.md | #d97a4f(코랄과 4도) → #cb4db2(62.9도). 나머지 팔레트와 최소 50.9도, 라이트·다크 6배경 대비비 3.5~4.3. 팔레트 6색 전부가 코랄과 떨어져 있음을 단언하는 회귀 가드 추가 |
 | 2026-09-07T21:23:17+09:00 | #empty-hint-final | claude-code | ☐→x | .oculpm/journal/20260907/Bugs/2120_bug_today-counts-ring-scale-and-now.md | branch·diff·journal·today(3) 이관 후 호출부 0 확인 → primitives.css 정의와 죽은 CSS 삭제. JournalScreenV2 만 EmptyState 를 안 썼다 — 빈 상태가 아니라 「다 못 실었다」 알림이라 오용의 사고 기록이 이미 screens.css 에 있다 |
 | 2026-09-07T21:24:10+09:00 | #eslint-ratchet-slack | claude-code | ☐→~ | .oculpm/journal/20260907/Bugs/2120_bug_today-counts-ring-scale-and-now.md | 래칫 50→46 (죽은 커맨드 제거분 + no-console 규칙이 설정에 아예 없어 처음부터 무의미했던 지시문 3줄). 다만 46이 곧 현재 개수라 **여유는 여전히 0** — 진짜 정리 패스는 {#eslint-slack-real} 로 이월 |
+| 2026-09-07T23:10:00+09:00 | #watcher-user-pause | claude-code | ☐→x | .oculpm/journal/20260907/Features_to_add/2308_feature_watcher-pause-and-done-guard.md | 감독관이 존중하는 user_paused. 상태는 **프로세스 메모리** — 디스크면 자리가 .oculpm/config.toml 인데 그건 저장소에 커밋돼서 내 일시정지가 동료의 갱신까지 끈다. 반증 확인(가드 지우면 테스트 빨개짐) |
+| 2026-09-07T23:11:00+09:00 | #orphaned-db-fns | claude-code | ☐→x | .oculpm/journal/20260907/Features_to_add/2308_feature_watcher-pause-and-done-guard.md | 6개 전부 호출부 0 재확인 후 삭제. cache/stats.rs 의 overview_stats 는 살아 있는 테스트 5개가 불러 남김 |
+| 2026-09-07T23:12:00+09:00 | #w6-comment-stale | claude-code | ☐→x | .oculpm/journal/20260907/Features_to_add/2308_feature_watcher-pause-and-done-guard.md | invariant #6 주석을 사실로. get_goal 이 프로덕션 호출부 0 이라는 다음 청소 후보도 함께 적음 |
+| 2026-09-07T23:13:00+09:00 | #done-transition-guard | claude-code | ☐→x | .oculpm/journal/20260907/Features_to_add/2308_feature_watcher-pause-and-done-guard.md | 원시 수술 함수를 비공개로 내리고 공개 진입점이 Result 를 반환 — 새 호출자도 거부를 처리해야 컴파일된다. 막은 자리 3곳 중 mobile_bridge/dispatch.rs 가 요점(프런트만 막았으면 거기로 샜다). archived 는 일부러 안 막음, 강제 옵션 없음 |
+| 2026-09-07T23:14:00+09:00 | #cas-two-process-test | claude-code | ☐→x | .oculpm/journal/20260907/Features_to_add/2308_feature_watcher-pause-and-done-guard.md | 테스트 실행 파일 자기 재진입으로 진짜 OS 프로세스. 6 프로세스 재시도에서 6 전이 전부 생존. 계측으로 5/6 이 실제 크로스프로세스 충돌을 겪음을 확인(공허하지 않다). 3회 연속 0.15초 |
+| 2026-09-07T23:15:00+09:00 | #distinct-files-backend | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2309_refactor_distinct-files-branch-axis-affordances.md | 마이그레이션 불필요 — 012 의 oculpm_journal_files 가 이미 자료를 든다. 44 워크데이 전부에서 옛 프런트 합집합과 새 SQL 차이 0. 프런트 걷기·캐시 통째 삭제(−71/+18) |
+| 2026-09-07T23:16:00+09:00 | #files-ring-scale | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2309_refactor_distinct-files-branch-axis-affordances.md | k=8→20. 실측 분포(44일 중앙값 55·8월↑ 81·max 209), 옛 문턱 108 에서 9/44 가 상한에 붙었다 → 새 문턱 271 에서 0/44. 플랜의 「110개/일·문턱 80」 은 둘 다 틀렸다 |
+| 2026-09-07T23:17:00+09:00 | #branch-axis-limits | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2309_refactor_distinct-files-branch-axis-affordances.md | 진짜 버그 발견·수정 — read_branch_git 이 저장소 상대 경로를 프로젝트 기준으로 안 되맞춰 중첩 배치에서 Files 귀속이 조용히 0건이 됐다. 겹침은 그대로(설계 원칙과 충돌) 툴팁만 강화. 300커밋 캡은 재고 유지(5만 커밋에서도 <10ms) |
+| 2026-09-07T23:18:00+09:00 | #acp-stop-ui | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2309_refactor_distinct-files-branch-axis-affordances.md | ACP 상단바 「어댑터 내리기」 — useConfirm 경유, 내린 뒤 기존 AgentGoneNotice 경로로 |
+| 2026-09-07T23:19:00+09:00 | #entry-open-affordance | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2309_refactor_distinct-files-branch-axis-affordances.md | EntryDetailView 「파일로 열기」 — 반드시 oculpmApi.openEntryInEditor 경유(우회가 opener-scope 회귀 3번을 만든 원인) |
 <!-- oculpm:plan-log end -->
