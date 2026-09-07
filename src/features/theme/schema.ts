@@ -13,12 +13,57 @@ import type { ThemeFile } from "@/lib/bindings";
 
 export type ThemeFamily = "light" | "dark";
 
-/** 편집기 섹션 = 토큰 그룹. 설계 §4 의 다섯 묶음 그대로. */
+/**
+ * 편집기 섹션 = 토큰 그룹. 설계 §4 의 다섯 묶음 + 문법색 하나
+ * (`{#code-color-editor}`).
+ */
 export interface TokenGroup {
-  id: "surface" | "text" | "accent" | "line" | "status";
+  id: "surface" | "text" | "accent" | "line" | "status" | "code";
   titleKey: I18nKey;
   tokens: readonly string[];
+  /**
+   * 토큰별 「사람이 읽는 이름」 — 이름만으로는 뜻이 안 서는 그룹에만 붙인다.
+   * `--bg-window` 는 읽으면 알지만 `--code-kw` 는 아니다. 없으면 편집기가
+   * 지금까지처럼 토큰 이름만 보여 준다.
+   */
+  labelKeys?: Readonly<Record<string, I18nKey>>;
 }
+
+/**
+ * 문법 강조 색 열 개 (`tokens.css` {#hljs-unify}) — 코드 화면·변경 diff 의
+ * 강조가 이 열 개만 본다 (`features/code/CodeEditor.tsx` 의 하이라이트 표).
+ *
+ * 3차 라운드가 화이트리스트 **양쪽**(여기와 `themes/mod.rs`)에 넣어 내려받은
+ * 커스텀 테마가 값을 실을 수 있게 했고, 이번 라운드({#code-color-editor})가
+ * 나머지 절반 — 앱에서 점 찍어 고르는 편집기 섹션 — 을 붙였다. 그래서 지금은
+ * 다른 다섯 묶음과 똑같이 `TOKEN_GROUPS` 의 한 그룹이다.
+ */
+export const CODE_TOKENS: readonly string[] = [
+  "--code-fg",
+  "--code-kw",
+  "--code-str",
+  "--code-comment",
+  "--code-num",
+  "--code-fn",
+  "--code-type",
+  "--code-prop",
+  "--code-def",
+  "--code-op",
+];
+
+/** 문법색 토큰의 사람이 읽는 이름. `CODE_TOKENS` 전부를 덮어야 한다 (테스트가 문다). */
+const CODE_TOKEN_LABELS: Readonly<Record<string, I18nKey>> = {
+  "--code-fg": "theme.token.codeFg",
+  "--code-kw": "theme.token.codeKw",
+  "--code-str": "theme.token.codeStr",
+  "--code-comment": "theme.token.codeComment",
+  "--code-num": "theme.token.codeNum",
+  "--code-fn": "theme.token.codeFn",
+  "--code-type": "theme.token.codeType",
+  "--code-prop": "theme.token.codeProp",
+  "--code-def": "theme.token.codeDef",
+  "--code-op": "theme.token.codeOp",
+};
 
 export const TOKEN_GROUPS: readonly TokenGroup[] = [
   {
@@ -67,32 +112,16 @@ export const TOKEN_GROUPS: readonly TokenGroup[] = [
       "--info-soft",
     ],
   },
+  {
+    id: "code",
+    titleKey: "theme.group.code",
+    tokens: CODE_TOKENS,
+    labelKeys: CODE_TOKEN_LABELS,
+  },
 ] as const;
 
-/**
- * 문법 강조 색 열 개 (`tokens.css` {#hljs-unify}) — `TOKEN_GROUPS` 다섯과는
- * 별도다. 다섯 그룹은 편집기 섹션과 1:1 이라 새 섹션을 열려면 `I18nKey`
- * (`i18n/ko.ts`+`en.ts`)에 제목 키가 있어야 하는데, 이 라운드는 그 파일들
- * 밖이다({#code-tokens-theme-schema}). 그래서 지금은 **가져오기/적용 경로만**
- * 튼다 — 임포트한 커스텀 테마가 `--code-*` 를 지정하면 백엔드가 받아 주고
- * `applyThemeAttrs` 가 인라인으로 칠한다. 점-찍어-고르는 편집기 섹션을 추가하는
- * 것은 별도 후속 작업(새 `I18nKey` 필요)이다.
- */
-export const CODE_TOKENS: readonly string[] = [
-  "--code-fg",
-  "--code-kw",
-  "--code-str",
-  "--code-comment",
-  "--code-num",
-  "--code-fn",
-  "--code-type",
-  "--code-prop",
-  "--code-def",
-  "--code-op",
-];
-
-/** 화이트리스트 — 그룹을 펼친 것 + 문법 색. 밖의 키는 백엔드가 임포트에서 거부한다. */
-export const ALLOWED_TOKENS: readonly string[] = [...TOKEN_GROUPS.flatMap((g) => g.tokens), ...CODE_TOKENS];
+/** 화이트리스트 — 그룹을 펼친 것. 밖의 키는 백엔드가 임포트에서 거부한다. */
+export const ALLOWED_TOKENS: readonly string[] = TOKEN_GROUPS.flatMap((g) => g.tokens);
 
 /**
  * 테마가 강조를 **소유**했는지 판정할 때 보는 다섯 토큰.

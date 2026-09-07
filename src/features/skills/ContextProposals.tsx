@@ -10,7 +10,7 @@
 //   트리거 교정 — 안 걸리는 스킬의 영문 description 재작성 초안(과금, 옵인).
 //
 // "무시" 는 세션-로컬 숨김이다 — 아무 파일도 건드리지 않는다.
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { AppDialog } from "@/components/ui/AppDialog";
 import { OculSpinner } from "@/components/OculSpinner";
@@ -70,13 +70,17 @@ export function ContextProposals({
   const [draft, setDraft] = useState<{ item: ContextItem; draft: SkillTriggerDraft } | null>(null);
 
   const hide = (key: string) => setDismissed((prev) => new Set(prev).add(key));
-  const visible = <T,>(list: T[], key: (v: T) => string) =>
-    list.filter((v) => !dismissed.has(key(v)));
+  // 아래 세 useMemo 의 의존이라 아이덴티티가 안정해야 한다 — 렌더마다 새
+  // 함수면 세 목록이 매 렌더 재계산된다. 실제 의존은 `dismissed` 하나뿐.
+  const visible = useCallback(
+    <T,>(list: T[], key: (v: T) => string) => list.filter((v) => !dismissed.has(key(v))),
+    [dismissed],
+  );
 
-  const scopeShown = useMemo(() => visible(scope, (p) => `scope:${p.item.id}`), [scope, dismissed]);
+  const scopeShown = useMemo(() => visible(scope, (p) => `scope:${p.item.id}`), [scope, visible]);
   const cleanupShown = useMemo(
     () => visible(cleanup, (p) => `cleanup:${p.item.id}`),
-    [cleanup, dismissed],
+    [cleanup, visible],
   );
   // 설명 고쳐쓰기가 답이 아닌 0회들 — 이유를 밝히기만 한다.
   const explained = useMemo(
@@ -85,7 +89,7 @@ export function ContextProposals({
   );
   const triggerShown = useMemo(
     () => visible(trigger, (i) => `trigger:${i.id}`),
-    [trigger, dismissed],
+    [trigger, visible],
   );
 
   // ── 처방 ────────────────────────────────────────────────────────────────

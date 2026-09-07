@@ -49,7 +49,8 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
   };
 
   useEffect(() => {
-    for (const p of PROVIDERS) refreshKeyStatus(p);
+    // 실패는 `refreshKeyStatus` 안에서 `onError` 로 화면에 나간다.
+    for (const p of PROVIDERS) void refreshKeyStatus(p);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

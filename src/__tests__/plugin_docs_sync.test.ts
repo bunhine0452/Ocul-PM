@@ -15,6 +15,9 @@ const toolSources = [
   // 2026-09-04 에 `tools.rs` 가 `tools/mod.rs` + `tools/tests.rs` 로 갈라졌다
   // (파일 크기 래칫). 도구 정의는 본문에 있으므로 `mod.rs` 를 읽는다.
   join(process.cwd(), "src-tauri", "src", "oculpm", "mcp", "tools", "mod.rs"),
+  // 2026-09-08 에 `plan_status` 의 스키마가 구현 옆(`plan_ops.rs`)으로 옮겨
+  // 갔다 — `mod.rs` 가 크기 래칫 위라 인자 한 줄도 못 늘렸기 때문이다.
+  join(process.cwd(), "src-tauri", "src", "oculpm", "mcp", "tools", "plan_ops.rs"),
   join(process.cwd(), "src-tauri", "src", "oculpm", "mcp", "a2a_tools.rs"),
 ];
 const landingPlugin = join(process.cwd(), "landing", "plugin.html");

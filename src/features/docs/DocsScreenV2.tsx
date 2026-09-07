@@ -155,7 +155,7 @@ export function DocsScreenV2({ projectId }: DocsScreenV2Props) {
   const scrollToAnchor = useCallback((hash: string) => {
     const id = hash.replace(/^#/, "");
     if (!id) return;
-    let el: Element | null = null;
+    let el: Element | null;
     try {
       el = scrollRef.current?.querySelector(`#${CSS.escape(id)}`) ?? null;
     } catch {

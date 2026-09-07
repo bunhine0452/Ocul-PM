@@ -3759,4 +3759,26 @@ export const ko = {
   "settings.doctor.v.paused": "사용자가 멈춤 · 앱을 다시 켜면 풀려요",
   "settings.doctor.a.pause": "중지",
   "settings.doctor.a.resume": "다시 켜기",
+  // 테마 편집기의 문법색 섹션 ({#code-color-editor}) — `--code-kw` 같은 토큰
+  // 이름은 읽어도 뜻이 안 서서, 이 그룹만 사람이 읽는 이름을 함께 단다.
+  // 미리보기가 따로 있는 이유도 같다: 설정 화면에는 코드가 한 줄도 없다.
+  "theme.group.code": "문법색",
+  "theme.token.codeFg": "기본 글자",
+  "theme.token.codeKw": "키워드",
+  "theme.token.codeStr": "문자열",
+  "theme.token.codeComment": "주석",
+  "theme.token.codeNum": "숫자",
+  "theme.token.codeFn": "함수",
+  "theme.token.codeType": "타입·클래스",
+  "theme.token.codeProp": "속성·태그",
+  "theme.token.codeDef": "정의한 이름",
+  "theme.token.codeOp": "연산자·구두점",
+  "theme.editor.codePreview": "문법색 미리보기",
+  // 브랜치 축 — 「저장소 루트 ≠ 프로젝트 루트」 신호 ({#branch-nested-signal})
+  "branch.nested.repoBelowRoot":
+    "git 저장소가 프로젝트 폴더 아래({path})에 있어요. 작업 일지는 그 저장소 밖이라 「일지 파일 자체」 근거는 이 배치에서 나올 수 없고, 일지는 파일 겹침으로만 붙어요.",
+  "branch.nested.rootInsideRepo":
+    "이 프로젝트는 더 큰 git 저장소 안({path})에 있어요. 저장소가 함께 바꾼 프로젝트 밖 파일은 아래 목록에서 빠져요.",
+  "branch.nested.disjoint":
+    "git 저장소 루트와 프로젝트 폴더가 서로 겹치지 않아요 — 경로를 되맞출 근거가 없어 아래 목록이 어긋날 수 있어요.",
 } as const;

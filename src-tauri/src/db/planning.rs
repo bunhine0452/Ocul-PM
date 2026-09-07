@@ -120,6 +120,13 @@ impl Db {
         Ok(goals)
     }
 
+    /// {#orphans-round2} — 프로덕션 호출부는 없다(레거시 goals 테이블, `create_goal`
+    /// /`list_goals` 만 `plan_migrate_goals` 경로로 살아 있다). 남기는 이유는
+    /// `tests/lite_w6_safety_net.rs::invariant_06_planner_goal_crud_roundtrip` 가
+    /// 여전히 부르기 때문 — 그 테스트 자신의 주석이 "다음 고아 소탕의 후보"라고
+    /// 이미 표시해 뒀다. 그 테스트 파일은 이 라운드의 담당 밖이라 함께 지우지
+    /// 않았다: 지우려면 db/planning.rs 와 tests/lite_w6_safety_net.rs 가 같이
+    /// 움직여야 한다.
     pub async fn get_goal(&self, goal_id: u32) -> Result<Goal> {
         let goal = self
             .conn

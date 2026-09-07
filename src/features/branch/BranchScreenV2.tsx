@@ -1,10 +1,12 @@
 import { useCallback, useState } from "react";
 
+import type { BranchStory } from "@/lib/bindings";
+
 import { Toolbar } from "@/components/Toolbar";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { SkeletonList } from "@/components/ui/Skeleton";
-import { Download, GitBranchIcon } from "@/components/Icons";
+import { AlertTriangle, Download, GitBranchIcon } from "@/components/Icons";
 import { oculpmApi } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
@@ -26,17 +28,15 @@ import { useBranchStory } from "./useBranchStory";
 // 겹침)를 함께 그린다. 파생 판정을 근거 없이 단정하면 그건 원장에 대한
 // 거짓말이 된다.
 //
-// **이 화면이 모르는 것** (`{#branch-axis-limits}` 감사, 2026-09-07).
-// 1. 중첩 저장소(`.oculpm` 이 실제 git 저장소의 **부모**거나, 반대로 git 루트가
-//    프로젝트 루트보다 **위**인 경우)에서는 근거가 조용히 준다. 백엔드
-//    (`oculpm::index::branch::read_branch_git`)가 `git log` 결과를 프로젝트
-//    루트가 아니라 저장소 루트 기준 경로로 그대로 쓰기 때문에, 일지가 적은
-//    파일 경로(프로젝트 루트 기준)와 비교가 어긋난다 — 그리고 `.oculpm/journal/**`
-//    자체는 "저장소가 프로젝트 루트 아래" 인 배치에서는 애초에 그 저장소
-//    안에 없어 `Entry` 근거가 구조적으로 불가능하다. `git.rs::root_relative`
-//    가 고치는 데 쓸 도구를 준비해 뒀지만 (아직 이 축에서 안 씀), 이 화면은
-//    지금 그 사실을 사용자에게 말하지 못한다 — 신호(저장소 루트 ≠ 프로젝트
-//    루트)를 프런트로 내려주는 필드가 없다.
+// **이 화면이 모르는 것** (`{#branch-axis-limits}` 감사, 2026-09-07 → 09-08 후속).
+// 1. 중첩 저장소에서는 근거가 준다. 경로 되맞춤은 이제 **양방향**이고
+//    (`git::nesting`, {#rebase-other-direction}) 남은 손실은 배치가 결정한다:
+//    저장소가 프로젝트 루트 **아래**면 `.oculpm/journal/**` 이 그 저장소 안에
+//    없어 `Entry` 근거가 **구조적으로 불가능**하고(경로를 고쳐도 못 살린다),
+//    프로젝트 루트가 더 큰 저장소 **안**이면 저장소가 함께 바꾼 프로젝트 밖
+//    파일이 목록에서 빠진다. 이제 화면이 그 사실을 말한다 — `repo_nesting`
+//    신호를 백엔드가 싣고 아래 `NestingNote` 가 읽는다 ({#branch-nested-signal}).
+//    약한 결과를 조용히 보여 주지 않는 것이 이 저장소의 규율이다.
 // 2. `Files` 귀속은 배타적이지 않다 — 같은 창의 두 브랜치가 같은 파일을
 //    건드리면 양쪽 다 이 일지를 붙인다. 배제 손잡이를 일부러 안 둔다: 저장한
 //    제외 목록은 다음 리베이스·머지에 곧 거짓이 된다(위 "무엇을 저장하지
@@ -141,6 +141,8 @@ export function BranchScreenV2({
                 />
               </div>
 
+              <NestingNote nesting={story.repo_nesting} sub={story.repo_subpath} />
+
               {story.truncated ? (
                 <div className="card card-pad text-sm text-muted-foreground">{t("branch.truncated")}</div>
               ) : null}
@@ -162,6 +164,27 @@ export function BranchScreenV2({
         </div>
       </div>
     </>
+  );
+}
+
+// 「저장소 루트 ≠ 프로젝트 루트」 신호 ({#branch-nested-signal}).
+//
+// 배치마다 **잃는 근거가 다르다**. 그래서 한 문장으로 뭉뚱그리지 않고 방향별로
+// 무엇이 빠지는지 적는다 — "모르면 모른다고 말한다" 는 이 저장소의 원칙은,
+// 약한 결과에 그 이유를 붙여야 지켜진다.
+function NestingNote({ nesting, sub }: { nesting: BranchStory["repo_nesting"]; sub: string | null }) {
+  const { t } = useT();
+  if (nesting === "same") return null;
+  const key =
+    nesting === "repo_below_root"
+      ? "branch.nested.repoBelowRoot"
+      : nesting === "root_inside_repo"
+        ? "branch.nested.rootInsideRepo"
+        : "branch.nested.disjoint";
+  return (
+    <div className="card card-pad text-sm text-muted-foreground">
+      <AlertTriangle size={14} aria-hidden /> {t(key, { path: sub ?? "—" })}
+    </div>
   );
 }
 

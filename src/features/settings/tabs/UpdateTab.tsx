@@ -38,7 +38,8 @@ export function UpdateTab() {
     });
 
   useEffect(() => {
-    commands.appInfo().then((res) => {
+    // 바로 아래 `void checkUpdate()` 와 같은 규약 — 버전 문자열 조회 하나다.
+    void commands.appInfo().then((res) => {
       if (res.status === "ok") setVersion(res.data.version);
     });
     // Auto-check on open so the update state isn't hidden behind a manual click.

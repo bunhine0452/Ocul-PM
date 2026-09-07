@@ -65,7 +65,7 @@ export function ConversationHistoryModal({
       setConvs([]);
       toast.destructive(t("chat.listFailed", { error: res.error }));
     }
-  }, [projectId]);
+  }, [projectId, t]);
 
   useEffect(() => {
     void load();

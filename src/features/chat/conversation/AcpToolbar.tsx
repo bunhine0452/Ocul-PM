@@ -7,12 +7,7 @@
 // 것(세션 목록·현재 세션·열기·새로 만들기)이 전부 그 안에 있어서, 위에서
 // 그리려면 상태를 통째로 밖으로 끌어내야 했다.
 
-import { PanelLeft, Terminal, TriangleAlert, X } from "@/components/Icons";
-// `Unplug` 는 아직 `components/Icons.tsx` 재수출 목록에 없다 — 그 파일은 이
-// 작업의 담당 밖이라(다른 레인 소유) 여기서 lucide-react 를 직접 문다. 이미
-// `features/shell/TabStrip.tsx`·`features/tray/TrayPopover.tsx` 에 같은 전례가
-// 있다. 후속으로 Icons.tsx 재수출 목록에 옮기는 편이 컨벤션에 맞다.
-import { Unplug } from "lucide-react";
+import { PanelLeft, Terminal, TriangleAlert, Unplug, X } from "@/components/Icons";
 import { Toolbar } from "@/components/Toolbar";
 import { useT } from "@/i18n";
 import { AcpSessionTabs } from "../AcpSessionTabs";

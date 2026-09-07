@@ -219,7 +219,9 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
   }, [wizState, step, blueprintId]);
 
   useEffect(() => {
-    autoSave();
+    // 버려도 되는 이유 — `autoSave` 는 타이머를 걸기만 하고, 실제 저장 실패는
+    // 그 타이머 안의 try/catch 가 "Non-fatal" 로 처리한다.
+    void autoSave();
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
@@ -314,7 +316,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
         : `${wizState.folderPath}/${wizState.folderName}`;
 
       // Build scaffold args — some templates need the project name appended
-      let finalArgs = [...wizState.scaffoldArgs];
+      const finalArgs = [...wizState.scaffoldArgs];
       if (wizState.stackChoice === "rust") {
         finalArgs.push(wizState.folderName);
       } else if (wizState.stackChoice === "go") {
@@ -400,7 +402,9 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
 
   const goNext = () => {
     if (step === 3 && wizState.seedGoals.length === 0) {
-      handleGenerateGoals();
+      // 다음 단계로 가는 것을 막지 않는다 — 시드 생성은 실패해도 안에서
+      // `finally` 로 스피너를 내리고 목표는 빈 채로 남는다(사용자가 직접 쓴다).
+      void handleGenerateGoals();
     }
     setStep((s) => Math.min(s + 1, 4));
   };

@@ -204,7 +204,8 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
-    commands.appInfo().then((res) => {
+    // 버전·경로 표시용 조회 하나. 못 받으면 그 줄이 비어 있을 뿐이라 버린다.
+    void commands.appInfo().then((res) => {
       if (res.status === "ok") setInfo(res.data);
     });
   }, []);

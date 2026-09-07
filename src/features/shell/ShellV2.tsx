@@ -1,15 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
-import { holdManualEntryRequest, onManualEntryRequest } from "@/lib/journalCompose";
-import { onOpenSettingsRequest } from "@/lib/settingsNav";
-import { consumeEntryJump, onEntryJump } from "@/lib/entryJump";
-import { holdAgentContextIntent, onAgentContextRequest } from "@/lib/agentContextNav";
+import { Suspense, useEffect, useState } from "react";
 import { createUnlistenBag, safeUnlistenPromise } from "@/lib/unlisten";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
 import { EmptyState } from "@/components/EmptyState";
-import { useProjectRuntime, useUiPrefs, UI_V2_VIEWS, type UiV2View } from "@/contexts/WorkspaceContext";
-import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
+import { useProjectRuntime, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
+import { NAV_BUS } from "@/lib/navRegistry";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/i18n";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
@@ -17,64 +13,25 @@ import { TerminalAway } from "@/features/terminal/TerminalAway";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
 import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
-// v2 U6 (docs/20260706_v2/03-performance-spec.md §2) — 핵심 루프 4화면
-// (Today/일지/diff/플래너)만 eager. 나머지는 화면별 청크로 분할해 프로젝트
-// 첫 오픈 비용에서 뺀다 — 특히 터미널(xterm)·AI/문서/토의/회고(markdown)·
-// 설정(1400줄)·검색. 코드 맵(React Flow+dagre)은 이전부터 lazy.
-const RetroScreenV2 = lazy(() =>
-  import("@/features/retro/RetroScreenV2").then((m) => ({ default: m.RetroScreenV2 })),
-);
-const SearchScreenV2 = lazy(() =>
-  import("@/features/search/SearchScreenV2").then((m) => ({ default: m.SearchScreenV2 })),
-);
-const TerminalScreenV2 = lazy(() =>
-  import("@/features/terminal/TerminalScreenV2").then((m) => ({ default: m.TerminalScreenV2 })),
-);
-const AiPanelScreenV2 = lazy(() =>
-  import("@/features/chat/AiPanelScreenV2").then((m) => ({ default: m.AiPanelScreenV2 })),
-);
-const ClaudeCodeScreenV2 = lazy(() =>
-  import("@/features/chat/ClaudeCodeScreenV2").then((m) => ({ default: m.ClaudeCodeScreenV2 })),
-);
-const CodexScreenV2 = lazy(() =>
-  import("@/features/chat/CodexScreenV2").then((m) => ({ default: m.CodexScreenV2 })),
-);
-const DocsScreenV2 = lazy(() =>
-  import("@/features/docs/DocsScreenV2").then((m) => ({ default: m.DocsScreenV2 })),
-);
-const DiscussionScreenV2 = lazy(() =>
-  import("@/features/discussion/DiscussionScreenV2").then((m) => ({
-    default: m.DiscussionScreenV2,
-  })),
-);
-const GraphScreenV2 = lazy(() =>
-  import("@/features/graph/GraphScreenV2").then((m) => ({ default: m.GraphScreenV2 })),
-);
-const SkillsScreenV2 = lazy(() =>
-  import("@/features/skills/SkillsScreenV2").then((m) => ({ default: m.SkillsScreenV2 })),
-);
-const SettingsPanel = lazy(() =>
-  import("@/features/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel })),
-);
-// 코드 화면 (docs/code-editor/00-master-plan.md) — CodeMirror 를 통째로 실은
-// 청크라 lazy 가 필수다. 안 여는 사용자에게 에디터 비용을 지우지 않는다.
-const CodeScreenV2 = lazy(() =>
-  import("@/features/code/CodeScreenV2").then((m) => ({ default: m.CodeScreenV2 })),
-);
-// 세션 화면 (2026-09-04) — 협업하는 프로젝트에서만 여는 곳이라 지연 청크다.
-const SessionsScreenV2 = lazy(() =>
-  import("@/features/sessions/SessionsScreenV2").then((m) => ({ default: m.SessionsScreenV2 })),
-);
-// 브랜치의 이야기 (v3-surface {#branch-story-view}) — 다른 축으로 다시 읽는
-// 곳이라 코어 루프와 달리 지연 청크다.
-const BranchScreenV2 = lazy(() =>
-  import("@/features/branch/BranchScreenV2").then((m) => ({ default: m.BranchScreenV2 })),
-);
-// 터미널 도크 (2026-08-15) — 열어야 청크를 받는다. 안 여는 사용자에게 xterm
-// 비용을 지우지 않는 것은 터미널 화면과 같은 원칙이다.
-const TerminalDock = lazy(() =>
-  import("@/features/terminal/TerminalDock").then((m) => ({ default: m.TerminalDock })),
-);
+// 지연 청크로 가는 나머지 화면들 — 목록과 그 이유는 `./screens` 가 소유한다.
+import {
+  AiPanelScreenV2,
+  BranchScreenV2,
+  ClaudeCodeScreenV2,
+  CodeScreenV2,
+  CodexScreenV2,
+  DiscussionScreenV2,
+  DocsScreenV2,
+  GraphScreenV2,
+  RetroScreenV2,
+  SearchScreenV2,
+  SessionsScreenV2,
+  SettingsPanel,
+  SkillsScreenV2,
+  TerminalDock,
+  TerminalScreenV2,
+} from "./screens";
+import { KNOWN_VIEWS, useShellNav } from "./useShellNav";
 import { Skeleton, SkeletonList } from "@/components/ui/Skeleton";
 import { commands, events, type JournalEntrySummary } from "@/lib/bindings";
 
@@ -93,15 +50,10 @@ import "@/styles/index.css";
 // the shell only owns the sidebar + the screen router. `lib/navRegistry.ts` is
 // the single source for the screen list — 16 as of 2026-09-04 (the comment here
 // said 8, a number the router outgrew long ago; count it there, not here).
-
-/**
- * 트레이 딥링크·URL 이 실어 오는 화면 이름의 허용 목록.
- *
- * 손으로 적은 두 번째 사본이었다 (2026-09-06). 이제 영속값을 거르는 목록과
- * **같은 배열**(`UI_V2_VIEWS`)을 쓴다 — 화면을 하나 없앨 때 한 곳만 고치면
- * 딥링크와 저장된 값이 함께 따라온다.
- */
-const KNOWN_VIEWS: readonly string[] = UI_V2_VIEWS;
+//
+// 셸이 소유하지 **않는** 두 결은 옆 파일에 있다 (2026-09-07, {#big-files-watch}):
+// 지연 청크 목록은 `./screens`, 화면 밖에서 온 이동 요청과 한 번짜리 핸드오프는
+// `./useShellNav`.
 
 interface ShellV2Props {
   projectName: string | null;
@@ -143,6 +95,9 @@ export default function ShellV2({
   const { resolvedTheme, setTheme } = useTheme();
   const view = prefs.uiV2View;
   const isDark = resolvedTheme === "dark";
+  const projectId = runtime.currentProjectId;
+  const workday = runtime.workdayKey ?? runtime.oculpmStatus?.current_workday ?? null;
+  const oculpmReady = runtime.oculpmStatus?.initialized === true;
 
   /**
    * Claude Code 화면을 한 번이라도 열었는가.
@@ -158,43 +113,29 @@ export default function ShellV2({
     if (view === "codex") setCodexMounted(true);
   }, [view]);
 
-  // 터미널 「일지로 남기기」·팔레트 「수동 일지」 는 일지 화면이 마운트돼 있을 때만
-  // 들렸다 — 다른 화면(터미널 ⌘0, 도크 위)에서 누르면 무반응처럼 보이고 일지
-  // 화면에 가야 뒤늦게 모달이 떴다 (2026-08-30 감사). 여기서 요청을 붙들어 두고
-  // 일지 화면으로 옮긴다; 일지 화면이 이미 떠 있으면 그쪽 구독이 먼저 소비한다.
-  // 비활성 탭은 아예 구독하지 않는다 (`active`) — 크롬식 탭에선 숨은 탭도
-  // 마운트된 채라, 창 전역 슬롯을 그대로 들으면 A 탭에서 누른 「일지로
-  // 남기기」가 B 탭까지 일지 화면으로 옮기고 B 프로젝트에 A 의 내용을 적는다.
-  // 아래 `NAV_BUS.openEntity` 가 이미 같은 이유로 `active` 를 본다.
-  useEffect(() => {
-    if (!active) return;
-    return onManualEntryRequest((seed) => {
-      if (view === "journal") return;
-      holdManualEntryRequest(seed);
-      setUiV2View("journal");
-    });
-  }, [active, view, setUiV2View]);
-
-  // 설정 딥링크(`openSettings(tab)`) — 안내 문구의 "설정 → 어디" 를 버튼으로
-  // 바꾸는 쪽 절반. 패널이 탭을 고르고, 셸은 화면만 옮긴다.
-  // 활성 탭만 — 게이트가 없으면 `openSettings(tab)` 한 번이 **모든** 탭을 설정
-  // 화면으로 옮기고, `uiV2View` 는 프로젝트별로 영속되므로 나중에 B 탭에 돌아온
-  // 사용자는 떠났던 화면 대신 설정을 만난다.
-  useEffect(() => {
-    if (!active) return;
-    return onOpenSettingsRequest(() => setUiV2View("settings"));
-  }, [active, setUiV2View]);
-
-  // AD-4 — 일지·diff·터미널·팔레트에서 온 "규칙/스킬로" 요청. 화면이 이미 떠
-  // 있으면 그쪽 구독이 먼저 소비하고, 아니면 여기서 붙들어 두고 옮긴다.
-  useEffect(() => {
-    if (!active) return;
-    return onAgentContextRequest((intent) => {
-      if (view === "skills") return;
-      holdAgentContextIntent(intent);
-      setUiV2View("skills");
-    });
-  }, [active, view, setUiV2View]);
+  // 트레이 딥링크·팔레트 점프·「일지로 남기기」 처럼 **다른 화면이 쏜 이동 요청**과
+  // 그 한 번짜리 핸드오프는 조각 훅이 소유한다 (`./useShellNav`).
+  const {
+    journalFocus,
+    setJournalFocus,
+    journalOpenEntry,
+    setJournalOpenEntry,
+    clearJournalOpenEntry,
+    journalReturnView,
+    setJournalReturnView,
+    codeTarget,
+    openInCode,
+    clearCodeTarget,
+    jumpNonce,
+  } = useShellNav({
+    active,
+    view,
+    projectId,
+    setUiV2View,
+    setPrefs,
+    initialView,
+    initialEntryPath,
+  });
 
   // Sidebar collapse + hover-reveal (Dogfooding 2026-06-07). `collapsed` is
   // persisted; `hovering` is ephemeral — set by the left-edge hover zone and
@@ -215,82 +156,11 @@ export default function ShellV2({
     return () => window.removeEventListener(NAV_BUS.openProjectSwitcher, reveal);
   }, [collapsed, active]);
 
-  // One-shot focus handoff: Today's MiniEntry → 작업 일지 ring-highlight. Kept
-  // as shell-local ephemeral state (focus is not persisted; it's a single
-  // event, mirroring the diffActivePath one-shot handoff in DiffScreenV2).
-  const [journalFocus, setJournalFocus] = useState<string | null>(null);
-
-  // 검색·코드맵 → 코드 화면 열기 목표 (one-shot, journalFocus 와 같은 패턴).
-  // nonce 로 같은 파일·같은 라인의 연속 점프도 구분한다.
-  const [codeTarget, setCodeTarget] = useState<
-    { path: string; line: number | null; nonce: number } | null
-  >(null);
-  const openInCode = useCallback(
-    (path: string, line: number | null) => {
-      setCodeTarget((prev) => ({ path, line, nonce: (prev?.nonce ?? 0) + 1 }));
-      setUiV2View("code");
-    },
-    [setUiV2View],
-  );
-  const clearCodeTarget = useCallback(() => setCodeTarget(null), []);
-
-  // Planner 📓 → open a specific journal entry's detail view directly. Distinct
-  // from `journalFocus` (timeline ring-highlight): this resolves the entry by
-  // path even when it's older than the loaded day window, so completed plans
-  // whose work is weeks old still navigate. Cleared once the journal consumes it.
-  const [journalOpenEntry, setJournalOpenEntry] = useState<string | null>(null);
-  const clearJournalOpenEntry = useCallback(() => setJournalOpenEntry(null), []);
-
-  // When a journal entry is opened from another screen (e.g. the Planner's 일지
-  // link), remember where to send the detail view's "back" button so the user
-  // returns to that origin screen instead of the journal timeline.
-  const [journalReturnView, setJournalReturnView] = useState<UiV2View | null>(null);
-
-  // v2 U7 — 팔레트 엔티티 점프. 플래너/토의/문서 화면은 영속 필드
-  // (plannerPlanId 등)를 mount 시에만 읽으므로, 이미 그 화면에 있어도 점프가
-  // 반영되도록 nonce 로 remount 를 강제한다 (화면은 mount 시 재조회).
-  const [jumpNonce, setJumpNonce] = useState(0);
-  useEffect(() => {
-    if (!active) return;
-    const onOpenEntity = (e: Event) => {
-      const detail = (e as CustomEvent<OpenEntityDetail>).detail;
-      if (!detail?.kind || !detail?.id) return;
-      if (detail.kind === "journal") {
-        setJournalReturnView(null);
-        setJournalOpenEntry(detail.id);
-        setUiV2View("journal");
-      } else if (detail.kind === "plan" || detail.kind === "plan_item") {
-        const planId = detail.id.split("#")[0];
-        setPrefs(() => ({ plannerPlanId: planId }));
-        setJumpNonce((n) => n + 1);
-        setUiV2View("planner");
-      } else if (detail.kind === "discussion") {
-        setPrefs(() => ({ discussionActiveId: detail.id }));
-        setJumpNonce((n) => n + 1);
-        setUiV2View("discussion");
-      } else if (detail.kind === "doc") {
-        setPrefs(() => ({ docsActivePath: detail.id }));
-        setJumpNonce((n) => n + 1);
-        setUiV2View("docs");
-      } else if (detail.kind === "code") {
-        // 워크스페이스 심볼(⌘K) — 코드 화면의 기존 열기 핸드오프를 그대로 탄다.
-        // LSP 는 0-based, jumpLine 은 1-based.
-        openInCode(detail.id, detail.line == null ? null : detail.line + 1);
-      }
-    };
-    window.addEventListener(NAV_BUS.openEntity, onOpenEntity);
-    return () => window.removeEventListener(NAV_BUS.openEntity, onOpenEntity);
-  }, [setPrefs, setUiV2View, openInCode, active]);
-
   // macOS uses titleBarStyle "Overlay" (src-tauri/src/lib.rs) — the native
   // traffic lights float over the top-left. With the legacy TitleBar gone in
   // ui_v2, the sidebar must reserve a top strip so the brand clears them.
   const isMac =
     typeof navigator !== "undefined" && navigator.platform.toUpperCase().includes("MAC");
-
-  const projectId = runtime.currentProjectId;
-  const workday = runtime.workdayKey ?? runtime.oculpmStatus?.current_workday ?? null;
-  const oculpmReady = runtime.oculpmStatus?.initialized === true;
 
   // Inline project quick-switch (Dogfooding 2026-06-14c): list projects for the
   // sidebar popover so the user can jump between projects in place, without
@@ -343,53 +213,14 @@ export default function ShellV2({
     return () => bag.dispose();
   }, [projectId, setTerminalDetached]);
 
-  // 도크 소유권 (2026-08-15): 같은 PTY 에 xterm 두 개가 붙으면 서로의 fit() 을
-  // 되돌려 화면이 떨린다. 그래서 터미널을 **그리는** 면은 언제나 하나다 —
-  // 분리 창 > 터미널 화면 > 도크 순으로 양보한다.
-  //
-  // 도크 자체는 분리 중에도 열려 있다: 자리표시자가 "어디로 갔는지 + 되돌리는
-  // 길"을 들고 있어야 하기 때문이다 (TerminalAway).
-  const detached = runtime.terminalDetached;
-  const dockVisible = projectId != null && prefs.terminalDockOpen && view !== "terminal";
-
-  // 트레이 딥링크로 갓 열린 창 — URL 이 실어 온 목적지를 mount 시 1회 적용한다
-  // (새 창의 프런트는 아직 리스너를 달기 전이라 emit 을 받을 수 없다).
-  useEffect(() => {
-    if (!active) return;
-    if (initialEntryPath) {
-      setJournalReturnView(null);
-      setJournalOpenEntry(initialEntryPath);
-      setUiV2View("journal");
-      return;
-    }
-    if (initialView && KNOWN_VIEWS.includes(initialView)) {
-      setUiV2View(initialView as UiV2View);
-    }
-    // 최초 1회 — 이후 사용자의 화면 이동을 되돌리면 안 된다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // 메인 화면 "오늘의 흐름" → 그 일지 항목 (`lib/entryJump`).
-  //
-  // `active` 로 막지 않는다 — 시작 탭이 승격하거나 숨은 탭이 활성화되는 것은
-  // 이 effect 가 도는 **뒤**라, 활성 여부로 걸면 정작 목적지 탭이 요청을 흘린다.
-  // 대신 프로젝트 id 로 거른다: 한 창의 모든 탭이 같은 버스를 듣기 때문이다.
-  useEffect(() => {
-    if (projectId == null) return;
-    const open = (path: string) => {
-      setJournalReturnView(null);
-      setJournalOpenEntry(path);
-      setUiV2View("journal");
-    };
-    const pending = consumeEntryJump(projectId);
-    if (pending) open(pending);
-    return onEntryJump(projectId, open);
-  }, [projectId, setUiV2View]);
-
   // v2.3.0 메뉴바 팝오버 딥링크 (docs/menubar/00-master-plan.md D5) — 트레이
   // 창이 tray_open_main 으로 쏜 TrayNavigate 를 받아 화면·프로젝트·일지로
   // 이동한다. 다른 프로젝트의 일지면 전환 후 open 핸드오프를 세팅 — 저널
   // 화면이 mount 후 경로로 해소하므로 전환 타이밍과 무관하게 동작한다.
+  //
+  // 나머지 이동 요청은 `useShellNav` 로 나갔는데 이 구독만 남았다: 새 파일이
+  // `events` 를 직접 부르면 `lint:bindings` 가 막고, 이 이벤트를 접는 `@/api/*`
+  // 래퍼가 아직 없다 ({#big-files-watch} 의 이월).
   useEffect(() => {
     const un = events.trayNavigate.listen(({ payload }) => {
       // 백엔드가 대상 창을 지정해 쏘지만(T5), 라벨이 어긋난 페이로드가 남의
@@ -408,7 +239,17 @@ export default function ShellV2({
     return () => {
       safeUnlistenPromise(un);
     };
-  }, [projectId, setUiV2View]);
+  }, [projectId, setUiV2View, setJournalOpenEntry, setJournalReturnView]);
+
+  // 도크 소유권 (2026-08-15): 같은 PTY 에 xterm 두 개가 붙으면 서로의 fit() 을
+  // 되돌려 화면이 떨린다. 그래서 터미널을 **그리는** 면은 언제나 하나다 —
+  // 분리 창 > 터미널 화면 > 도크 순으로 양보한다.
+  //
+  // 도크 자체는 분리 중에도 열려 있다: 자리표시자가 "어디로 갔는지 + 되돌리는
+  // 길"을 들고 있어야 하기 때문이다 (TerminalAway).
+  const detached = runtime.terminalDetached;
+  const dockVisible = projectId != null && prefs.terminalDockOpen && view !== "terminal";
+
   const dateLabel = new Date().toLocaleDateString("ko-KR", {
     year: "numeric",
     month: "long",

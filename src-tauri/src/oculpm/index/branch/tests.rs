@@ -176,28 +176,65 @@ fn files_drop_the_ledger_and_sort_by_weight() {
 }
 
 /// 저장소 루트 == 프로젝트 루트인 흔한 경우 — 경로가 그대로다.
-fn noop_rebase(p: &str) -> String {
-    p.to_string()
+fn noop_rebase(p: &str) -> Option<String> {
+    Some(p.to_string())
 }
 
+/// `RepoNesting` 을 손으로 세워 되맞춤 closure 를 만든다. 진짜 git 저장소가
+/// 필요 없다 — 파서가 무엇을 받는지만 물으면 되기 때문이다.
+fn rebase_for(nest: (RepoNesting, Option<&str>)) -> impl Fn(&str) -> Option<String> {
+    let nest = (nest.0, nest.1.map(str::to_string));
+    move |raw: &str| crate::git::nesting::rebase(&nest, raw)
+}
+
+const ONE_COMMIT: &str = "\x1esha1\x1fKim\x1f1788665203\x1f20260906\x1fsubject\x1f\n\
+                          M\tsrc/a.rs\n";
+
 #[test]
-fn nested_repo_paths_are_rebased_onto_the_project_root() {
+fn repo_below_the_project_root_gets_the_prefix_added() {
     // `.oculpm/` 이 저장소 **위**에 있는 배치: 프로젝트 루트 `/p`, 저장소 `/p/app`.
     // git 이 주는 `src/a.rs` 는 프로젝트 기준으로 `app/src/a.rs` 다. 되맞추지
     // 않으면 `Files` 귀속이 조용히 0건이 된다 ({#branch-axis-limits}).
-    let rebase = |raw: &str| {
-        crate::git::root_relative(
-            std::path::Path::new("/p"),
-            std::path::Path::new("/p/app"),
-            raw,
-        )
-    };
-    let text = "\x1esha1\x1fKim\x1f1788665203\x1f20260906\x1fsubject\x1f\n\
-                M\tsrc/a.rs\n";
-    let (_commits, files) = parse_log_name_status(text, &rebase);
+    let rebase = rebase_for((RepoNesting::RepoBelowRoot, Some("app")));
+    let (_commits, files) = parse_log_name_status(ONE_COMMIT, &rebase);
     assert!(files.contains_key("app/src/a.rs"), "되맞춘 경로: {files:?}");
     assert!(!files.contains_key("src/a.rs"));
 
     let dirty = parse_porcelain(" M src/a.rs\n", &rebase);
     assert!(dirty.contains("app/src/a.rs"));
+}
+
+#[test]
+fn project_root_inside_a_bigger_repo_gets_the_prefix_stripped() {
+    // 반대 방향 — 흔한 모노레포: 저장소 `/mono`, 프로젝트 `/mono/apps/web`.
+    // git 은 `apps/web/src/a.rs` 를 주는데 일지는 `src/a.rs` 로 적는다. 3차까지
+    // 이 방향은 아예 손대지 않고 지나갔다 ({#rebase-other-direction}).
+    let rebase = rebase_for((RepoNesting::RootInsideRepo, Some("apps/web")));
+    let text = "\x1esha1\x1fKim\x1f1788665203\x1f20260906\x1fsubject\x1f\n\
+                M\tapps/web/src/a.rs\nM\tapps/api/main.go\n";
+    let (commits, files) = parse_log_name_status(text, &rebase);
+    assert!(files.contains_key("src/a.rs"), "떼어 낸 경로: {files:?}");
+    assert!(!files.contains_key("apps/web/src/a.rs"));
+    // 프로젝트 **밖** 파일은 목록에서도 파일 수에서도 빠진다 — 남의 저장소
+    // 분량으로 기록률의 분모가 부풀면 그 숫자가 거짓이 된다.
+    assert!(!files.contains_key("apps/api/main.go"));
+    assert_eq!(commits[0].file_count, 1);
+
+    let dirty = parse_porcelain(" M apps/web/src/b.rs\n M apps/api/x.go\n", &rebase);
+    assert_eq!(dirty, set(&["src/b.rs"]));
+}
+
+#[test]
+fn journal_evidence_survives_the_strip_direction() {
+    // 이 방향에서는 `.oculpm/` 이 저장소 **안**에 있어 `Entry` 근거가 살아
+    // 있다. 되맞춤이 빠지면 그 근거까지 함께 죽었다.
+    let rebase = rebase_for((RepoNesting::RootInsideRepo, Some("apps/web")));
+    let text = "\x1esha1\x1fKim\x1f1788665203\x1f20260906\x1fsubject\x1f\n\
+                A\tapps/web/.oculpm/journal/20260906/Features/x.md\n";
+    let (commits, files) = parse_log_name_status(text, &rebase);
+    assert_eq!(commits[0].journal_count, 1);
+    assert_eq!(
+        journal_rel_paths(&files.keys().cloned().collect()),
+        set(&["20260906/Features/x.md"])
+    );
 }

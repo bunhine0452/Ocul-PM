@@ -17,7 +17,8 @@ function CodeBlockWrapper({ children, className }: { children: ReactNode; classN
 
   const handleCopy = useCallback(async () => {
     // Extract text content from the code block
-    const codeEl = (children as any)?.props?.children;
+    const codeEl = (children as { props?: { children?: unknown } } | null | undefined)?.props
+      ?.children;
     const text = typeof codeEl === "string" ? codeEl : String(codeEl ?? "");
 
     try {

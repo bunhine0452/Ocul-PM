@@ -401,3 +401,103 @@ fn nested_plan_roundtrip_over_the_wire() {
 }
 
 // ── journal_search / journal_read ────────────────────────────────────────
+
+// ─── 잠긴 플랜의 미완 ({#archived-open-items-visibility}) ─────────────────────
+
+/// 미완 하나를 남긴 채 접힌(`archived`) 플랜. `done` 가드가 막는 그 상태를
+/// `archived` 로 빠져나간 모양 그대로다 (`planner/lifecycle.rs`).
+fn seed_locked_plan(root: &Path, id: &str, status: &str) {
+    let dir = planner_dir(root);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join(format!("{id}.md")),
+        format!(
+            "---\noculpm_plan: v1\nid: {id}\ntitle: \"접힌 플랜\"\nstatus: {status}\n\
+             created: 2026-07-30\nupdated: 2026-09-07\nowner: claude-code\n---\n\n\
+             ## Phase 1 {{#p1}}\n- [ ] 못 끝낸 항목 {{#left}}\n- [x] 끝난 항목 {{#fin}}\n\
+             - [-] 안 하기로 한 항목 {{#gone}}\n"
+        ),
+    )
+    .unwrap();
+}
+
+#[test]
+fn locked_plans_report_their_open_items_as_a_one_line_summary() {
+    // 기본 출력의 계약은 그대로다 — 활성 플랜의 미완만 `items_tsv` 에 있고,
+    // 잠긴 플랜은 요약 한 줄로만 존재를 알린다. 이 한 줄이 없으면 접힌 미완이
+    // **어느 목록에도** 안 뜬다.
+    let dir = TempDir::new().unwrap();
+    seed_plan(dir.path());
+    seed_locked_plan(dir.path(), "shelved", "archived");
+    seed_locked_plan(dir.path(), "closed", "done");
+
+    let out = call_tool(dir.path(), "plan_status", &serde_json::json!({})).unwrap();
+    assert_eq!(out["plans"].as_array().unwrap().len(), 1, "활성 플랜만");
+    let tsv = out["items_tsv"].as_str().unwrap();
+    assert!(!tsv.contains("shelved"), "기본 목록은 조용하다: {tsv}");
+    assert_eq!(out["locked_open"]["plans"], 2);
+    assert_eq!(
+        out["locked_open"]["items"], 2,
+        "리프 미완만 — dropped/done 제외"
+    );
+    assert!(out["locked_open"]["items_tsv"].is_null(), "목록은 옵트인");
+}
+
+#[test]
+fn locked_summary_is_absent_when_nothing_is_shelved_open() {
+    // 없는 것을 있다고 말하지 않는다 — 세션 시작 훅이 매번 빈 경고를 달고
+    // 다니면 그 경고는 곧 안 읽힌다.
+    let dir = TempDir::new().unwrap();
+    seed_plan(dir.path());
+    let out = call_tool(dir.path(), "plan_status", &serde_json::json!({})).unwrap();
+    assert!(out.get("locked_open").is_none(), "{out}");
+}
+
+#[test]
+fn include_locked_lists_the_shelved_open_items() {
+    let dir = TempDir::new().unwrap();
+    seed_plan(dir.path());
+    seed_locked_plan(dir.path(), "shelved", "archived");
+
+    let out = call_tool(
+        dir.path(),
+        "plan_status",
+        &serde_json::json!({ "include_locked": true }),
+    )
+    .unwrap();
+    let tsv = out["locked_open"]["items_tsv"].as_str().unwrap();
+    let lines: Vec<&str> = tsv.lines().collect();
+    assert_eq!(lines[0], "plan\tplan_st\titem\tst\ttitle");
+    assert_eq!(lines.len(), 2, "미완 1건: {tsv}");
+    assert_eq!(lines[1], "shelved\tarchived\tleft\t \t못 끝낸 항목");
+    assert_eq!(out["locked_open"]["returned"], 1);
+    // 활성 플랜의 목록은 그대로 — 두 모집단이 섞이면 `plan_update` 가 거부할
+    // 항목을 갱신하라고 시키게 된다.
+    assert!(!out["items_tsv"].as_str().unwrap().contains("shelved"));
+}
+
+#[test]
+fn narrowing_to_a_locked_plan_says_it_is_locked() {
+    // "not found" 는 거짓이고 다음 행동을 못 찾게 만든다.
+    let dir = TempDir::new().unwrap();
+    seed_plan(dir.path());
+    seed_locked_plan(dir.path(), "shelved", "archived");
+
+    let err = call_tool(
+        dir.path(),
+        "plan_status",
+        &serde_json::json!({ "plan_id": "shelved" }),
+    )
+    .unwrap_err();
+    assert!(err.contains("locked"), "{err}");
+    assert!(err.contains("include_locked"), "다음 행동을 말한다: {err}");
+
+    let out = call_tool(
+        dir.path(),
+        "plan_status",
+        &serde_json::json!({ "plan_id": "shelved", "include_locked": true }),
+    )
+    .unwrap();
+    assert!(out["plans"].as_array().unwrap().is_empty());
+    assert_eq!(out["locked_open"]["items"], 1);
+}

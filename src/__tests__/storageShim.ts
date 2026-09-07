@@ -49,7 +49,7 @@ class MemoryStorage {
 
 function installIfMissing(name: "localStorage" | "sessionStorage"): void {
   // 접근 자체가 던지는 구현(불투명 origin 의 jsdom)도 "없음"으로 친다.
-  let usable = false;
+  let usable: boolean;
   try {
     usable = typeof (globalThis as Record<string, unknown>)[name] === "object" && (globalThis as Record<string, unknown>)[name] !== null;
   } catch {

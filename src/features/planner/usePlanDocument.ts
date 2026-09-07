@@ -10,6 +10,26 @@
  * 같은 UI 상태는 여기 두지 않는다** — 새 계획 입력칸이나 완료 확인 대화상자는
  * 화면의 것이라, 여기서는 `createPlan(title)` / `setStatus(item, status)` 처럼
  * 인자를 받는 동작만 내놓는다.
+ *
+ * ## 546줄인데 왜 안 쪼개는가 ({#use-plan-document-size}, 2026-09-07 재판단)
+ *
+ * 집 규율("200~400 보통")보다 길다. 그래도 읽기/쓰기로 가르지 않는 이유는 셋이다.
+ *
+ * 1. **가를 자리가 데이터 흐름을 가로지른다.** 쓰기 15개가 읽기 상태를 만지는
+ *    자리가 68곳이고(`setDetail`·`setBusy`·`refreshPlans`·`setSelectedId`·
+ *    `refreshDetail`), 특히 `setStatus` 는 낙관적 갱신이라 **쓰기이면서 읽기**다
+ *    (롤백용 `prevDetail` 을 자기가 읽는다). 읽기/쓰기 선은 이 코드의 이음매가
+ *    아니다.
+ * 2. **지금 사적인 것이 공개된다.** 위 다섯은 이 파일 안에서만 불린다. 갈라 두면
+ *    훅 사이의 계약이 되어, "누가 `setDetail` 을 불러도 되는가"를 두 파일을 열어
+ *    확인해야 한다. 배관 25줄이 늘고 개념은 하나도 안 준다.
+ * 3. **재사용이 없다.** 소비자는 `PlannerScreenV2` 하나뿐이고, 갈라도 그 하나가
+ *    두 훅을 다시 합쳐 쓴다.
+ *
+ * 재판단 조건은 그대로다 — **다음 라운드가 여기에 항목을 더 붙이면** 다시 본다.
+ * 그때 가장 먼저 나갈 후보는 읽기/쓰기가 아니라 `resolveJournalRefs`(이 훅의
+ * 상태를 하나도 안 쓴다 — `projectId` 뿐)와 항목 이력 3종(`historyFor`·
+ * `history`·`toggleHistory`)이다.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";

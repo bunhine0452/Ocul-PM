@@ -152,7 +152,8 @@ export function useTodayBrief(
     let cancelled = false;
     setLoading(true);
     setError(null);
-    (async () => {
+    // 실패는 안에서 `setError` 로 화면에 나간다 — 밖에서 더 할 일이 없다.
+    void (async () => {
       try {
         // v2 U12 — 단일 IPC. 이전: list×7 + getEntry×N.
         const res = await commands.oculpmWorkdayBrief(projectId, weekKeys, workday);

@@ -3757,4 +3757,27 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.doctor.v.paused": "Stopped by you \u00b7 resumes when the app restarts",
   "settings.doctor.a.pause": "Stop",
   "settings.doctor.a.resume": "Resume",
+  // Syntax colour section of the theme editor ({#code-color-editor}) — a token
+  // name like `--code-kw` reads as nothing, so this group alone carries a human
+  // name beside the raw token. The preview exists for the same reason: the
+  // settings screen shows no code at all.
+  "theme.group.code": "Syntax colours",
+  "theme.token.codeFg": "Plain text",
+  "theme.token.codeKw": "Keyword",
+  "theme.token.codeStr": "String",
+  "theme.token.codeComment": "Comment",
+  "theme.token.codeNum": "Number",
+  "theme.token.codeFn": "Function",
+  "theme.token.codeType": "Type & class",
+  "theme.token.codeProp": "Property & tag",
+  "theme.token.codeDef": "Definition",
+  "theme.token.codeOp": "Operator & punctuation",
+  "theme.editor.codePreview": "Syntax colour preview",
+  // Branch axis — "repo root ≠ project root" signal ({#branch-nested-signal})
+  "branch.nested.repoBelowRoot":
+    "The git repository sits below this project folder ({path}). Work journals live outside that repository, so the journal-file-itself evidence cannot appear in this layout — entries attach by file overlap only.",
+  "branch.nested.rootInsideRepo":
+    "This project sits inside a larger git repository ({path}). Files the repository changed outside the project are left out of the lists below.",
+  "branch.nested.disjoint":
+    "The git repository root and the project folder do not overlap — there is no basis for re-basing paths, so the lists below may be off.",
 };

@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown } from "@/components/Icons";
-import { AgentGoneNotice, JournalGateNotice, RecordingNotice } from "./RecordingNotice";
 import { commands, type AcpSession, type AcpSessionSummary } from "@/lib/bindings";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -12,11 +10,10 @@ import { useEscCancel } from "./useEscCancel";
 import { useUiPrefs, useProjectRuntime, useTerminalSessions } from "@/contexts/WorkspaceContext";
 import { useSessionMaps } from "./conversation/useSessionMaps";
 import { type PermissionState } from "./conversation/shared";
-import { TurnRow } from "./conversation/TurnRow";
-import { PermissionCard } from "./conversation/PermissionCard";
 import { SessionPanel } from "./conversation/SessionPanel";
 import { Composer } from "./conversation/Composer";
-import { AcpOffPanel, AcpReadyPanel } from "./conversation/StartPanels";
+import { AcpOffPanel } from "./conversation/StartPanels";
+import { AcpThread } from "./conversation/AcpThread";
 import { useThreadScroll } from "./conversation/useThreadScroll";
 import { useComposerKeys } from "./conversation/useComposerKeys";
 import { useAcpSend } from "./conversation/useAcpSend";
@@ -24,10 +21,11 @@ import { useComposerSuggest } from "./conversation/useComposerSuggest";
 import { useComposerAttachments } from "./conversation/useComposerAttachments";
 import { useAcpSessionSync } from "./conversation/useAcpSessionSync";
 import { useAcpTabs, useAcpTabClose, useAcpTabItems } from "./conversation/useAcpTabs";
-import { AcpErrorCard, AcpToolbar } from "./conversation/AcpToolbar";
+import { AcpToolbar } from "./conversation/AcpToolbar";
 import { useAcpAdapter } from "./conversation/useAcpAdapter";
 import { useAcpSignals } from "./conversation/useAcpSignals";
-import { groupTurns, type AcpTurn } from "./acpTurns";
+import { useTranscripts } from "./conversation/useTranscripts";
+import { useDraftPerSession } from "./conversation/useDraftPerSession";
 import { requestUsagePanel } from "./usageBus";
 import { acpRowSourceOf, acpRowStateOf, useAcpRowStates } from "./acpBusyBus";
 import { type RecallState } from "./promptHistory";
@@ -42,10 +40,7 @@ import {
 /** 아직 안 만든 새 대화의 기록이 머무는 자리 (`session_id` 가 아직 없다). */
 const SLATE = "";
 
-/** 빈 기록의 **한 개짜리** 배열 — 매 렌더 새 배열을 만들면 memo 가 다 깨진다. */
-const EMPTY_TURNS: AcpTurn[] = [];
-
-/** 같은 이유의 빈 목록 (아직 대화 목록을 못 읽었을 때). */
+/** 빈 목록의 **한 개짜리** 배열 (아직 대화 목록을 못 읽었을 때). */
 const EMPTY_SESSIONS: AcpSessionSummary[] = [];
 
 // PR-ACP2~5 — ACP 대화면 (docs/acp-panel/00-master-plan.md §5).
@@ -57,6 +52,10 @@ const EMPTY_SESSIONS: AcpSessionSummary[] = [];
 // 화면의 성격도 다르다: 채팅이 아니라 **작업 콘솔**이다. 사람의 말과 기계의
 // 행적(도구 호출·승인)이 한 흐름에 섞이므로, 산문은 크게 읽히고 행적은 왼쪽
 // 헤어라인에 묶여 눌린다 (agent.css `.trace`).
+//
+// 이 파일에 남은 것은 **배치와 손잡이**다 — 기록(`useTranscripts`)·쓰다 만
+// 글(`useDraftPerSession`)·스레드 마크업(`AcpThread`)을 비롯한 나머지는 전부
+// `conversation/**` 의 조각들이 소유한다 ({#big-files-watch}).
 
 
 export type AcpProvider = "claude" | "codex";
@@ -104,74 +103,19 @@ export function AcpConversation({
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
-  /**
-   * 대화별 기록. **화면이 아니라 대화가 턴을 소유한다.**
-   *
-   * 예전엔 화면이 `turns` 하나를 들고 있어서, 답변 도중 다른 대화로 넘어가면
-   * 흐르던 글자가 **그 대화 화면에 쓰였다**. 반대로 돌아오면 `session/load` 가
-   * 디스크에서 다시 읽는데 아직 안 끝난 답은 디스크에 없어 통째로 사라졌다.
-   * 대화 id 로 갈라 두면 둘 다 저절로 없어진다 — 스트리밍은 자기 대화에
-   * 계속 쌓이고, 돌아오면 그 자리에 그대로 있다.
-   */
-  const [transcripts, setTranscripts] = useState<Record<string, AcpTurn[]>>({});
-  const editTurns = useCallback(
-    (id: string, update: (prev: AcpTurn[]) => AcpTurn[]) => {
-      setTranscripts((prev) => {
-        const before = prev[id] ?? EMPTY_TURNS;
-        const after = update(before);
-        // 리듀서가 **같은 배열**을 돌려주면 아무 일도 없었던 것이다 — 그때
-        // 새 지도를 만들면 화면 전체가 다시 그려진다(그리고 아무 것도 안
-        // 바뀐다). 버려지는 이벤트가 흔한 자리라 이 검사가 값을 한다.
-        return after === before ? prev : { ...prev, [id]: after };
-      });
-    },
-    [],
-  );
-  /**
-   * 같은 값의 **읽기 전용 사본**.
-   *
-   * `openSession` 이 "이미 본 대화인가"를 판단하려고 `transcripts` 를 읽는데,
-   * 의존성에 넣으면 **글자 한 덩어리 올 때마다** openSession 이 새로 만들어진다.
-   * 그 아이덴티티는 `send` → 큐 배출 effect → 툴바 탭까지 줄줄이 타고 흘러서,
-   * 스트리밍 중 초당 수십 번 헛도는 일감이 됐다. 판단에는 최신값만 있으면 된다.
-   */
-  const transcriptsRef = useRef(transcripts);
-  useEffect(() => {
-    transcriptsRef.current = transcripts;
-  }, [transcripts]);
-  /**
-   * 이 대화에 **우리가 보낸 지시문**, 보낸 순서대로.
-   *
-   * 제목을 거르는 데 쓴다 (acpTitle.ts): 어댑터가 주는 제목은 AI 가 진짜 제목을
-   * 붙이기 전까지 **마지막 지시문**이라, 대화를 이어 갈수록 탭이 방금 친 말로
-   * 계속 바뀌었다. 무엇을 보냈는지 알면 그 메아리를 가려낼 수 있다.
-   *
-   * 기록에서 바로 읽는다 — 따로 장부를 두면 지난 대화를 다시 열었을 때(재생분
-   * 으로만 채워지는 경우) 그 장부가 비어 있다. **효과 안에서만** 부른다:
-   * `transcriptsRef` 는 렌더가 아니라 커밋 뒤에 최신이 된다.
-   */
-  const promptsOf = useCallback(
-    (id: string): string[] =>
-      (transcriptsRef.current[id] ?? [])
-        .filter((turn) => turn.role === "user")
-        .map((turn) => turn.text),
-    [],
-  );
   const activeId = session?.session_id ?? SLATE;
   /** 어댑터는 붙었는데 대화는 아직 안 만든 상태 — 곧 "새 세션을 누른 직후". */
   const pending = session != null && session.session_id == null;
-  const turns = transcripts[activeId] ?? EMPTY_TURNS;
-  /**
-   * 묶음 나누기는 렌더마다 하지 않는다 — 스트리밍 중에는 초당 수십 번 렌더되고,
-   * 그때마다 전체 기록을 다시 훑어 새 배열을 만들면 아래의 `TurnRow` memo 도
-   * 통째로 무의미해진다 (props 배열이 매번 새 객체라서).
-   */
-  const groups = useMemo(() => groupTurns(turns), [turns]);
-  /** 이 대화에서 보낸 지시들 — ↑ 되부르기의 원장. */
-  const userPrompts = useMemo(
-    () => turns.filter((turn) => turn.role === "user").map((turn) => turn.text),
-    [turns],
-  );
+  /** 대화별 기록과 거기서 파생되는 것들은 조각 훅이 소유한다. */
+  const {
+    setTranscripts,
+    transcriptsRef,
+    editTurns,
+    promptsOf,
+    turns,
+    groups,
+    userPrompts,
+  } = useTranscripts(activeId);
   const [draft, setDraft] = useState("");
   /** 대화별로 갈라 두는 것들 — 사연과 구현은 `conversation/useSessionMaps` 에 있다. */
   const {
@@ -240,6 +184,11 @@ export function AcpConversation({
    * 않고 그 자리에서 「종료됨」 배너로 넘긴다 — 죽은 어댑터를 살아 있는 것처럼
    * 그리는 순간이 있어서는 안 된다. 배너는 기존 `AgentGoneNotice` 를 그대로
    * 쓴다: 재연결 손잡이가 이미 거기 있다.
+   *
+   * 아래 셋(중단·목록에서 중단·승인 응답)과 함께 `conversation/` 의 조각 훅으로
+   * 나갈 수 있지만, 새 파일이 `commands` 를 직접 부르면 `lint:bindings` 가 막는다
+   * — 먼저 `@/api/acp` 에 `cancel`·`permissionRespond` 래퍼가 필요하다
+   * ({#big-files-watch} 의 이월).
    */
   const stopAdapter = useCallback(async () => {
     const ok = await confirm({
@@ -258,6 +207,34 @@ export function AcpConversation({
     aliveRef.current = false;
     setAgentGone(true);
   }, [confirm, t, projectId, provider, setError, aliveRef, setAgentGone]);
+
+  /** 보고 있는 대화만 멈춘다 — 옆에서 돌던 것은 계속 간다. */
+  const cancel = useCallback(() => {
+    reportFailure("acp_cancel", commands.acpCancel(projectId, provider, activeId === SLATE ? null : activeId), "acp.cancelFailed");
+    putPermission(activeId, null);
+  }, [projectId, provider, activeId, putPermission]);
+
+  /**
+   * 목록에서 **열지 않고** 중단 (Phase 3 `#inline-stop`).
+   *
+   * 지금까지 멈추는 길은 보고 있는 대화의 ESC/정지 버튼뿐이었다 — 뒤에서 도는
+   * 대화를 멈추려면 먼저 그리로 옮겨 가야 했고, 옮기는 것 자체가 스트림의
+   * 자리를 흔든다. 취소는 세션 id 로 보내면 되므로 갈 이유가 없다.
+   */
+  const stopSession = useCallback(
+    (sessionId: string) => {
+      reportFailure("acp_cancel", commands.acpCancel(projectId, provider, sessionId), "acp.cancelFailed");
+      putPermission(sessionId, null);
+    },
+    [projectId, provider, putPermission],
+  );
+
+  const decide = useCallback((requestId: string, optionId: string | null) => {
+    setPermission(null);
+    // 「허용/거부」가 조용히 실패하면 에이전트는 영영 기다리고 화면은 카드를
+    // 지운 뒤다 — 사용자에게는 앱이 멈춘 것처럼 보인다.
+    reportFailure("acp_permission_respond", commands.acpPermissionRespond(requestId, optionId), "acp.respondFailed");
+  }, [setPermission]);
 
   /** 지금 화면이 그리는 대화의 세대 — 지난 로드의 재생분을 걸러 내는 표. */
   const loadSeqRef = useRef(0);
@@ -337,11 +314,6 @@ export function AcpConversation({
   const recallRef = useRef<RecallState | null>(null);
   /** 마지막으로 보낸(보내려던) 지시 — 오류 뒤 "다시 보내기"가 쓴다. */
   const lastSentRef = useRef<string | null>(null);
-  /**
-   * 청크 합치기 버퍼. 토큰 하나마다 setState 하면 스레드 전체가 다시 그려지고
-   * 마크다운이 매번 재파싱돼 **스트리밍이 렉처럼 끊겨 보인다**. 프로바이더
-   * 채팅이 이미 같은 이유로 스로틀을 쓴다 — 여기도 같은 문턱을 쓴다.
-   */
 
   // 지금 보고 있는 대화를 기억해 둔다 — 다시 띄웠을 때 여기로 돌아온다.
   useEffect(() => {
@@ -353,27 +325,8 @@ export function AcpConversation({
     });
   }, [codex, session?.session_id, setPrefs]);
 
-  /**
-   * 쓰다 만 글은 **대화를 따라간다.**
-   *
-   * 입력창이 화면에 하나뿐이라, 탭 A 에서 쓰다 탭 B 로 가면 반쯤 쓴 지시문이
-   * B 의 입력창에 따라붙었다 — B 에서 지우면 A 의 글이 사라진 것이다. 대화를
-   * 옮기는 순간 쓰던 글을 그 대화 몫으로 재워 두고, 돌아오면 꺼낸다.
-   */
-  const draftRef = useRef(draft);
-  useEffect(() => {
-    draftRef.current = draft;
-  }, [draft]);
-  const draftsRef = useRef<Record<string, string>>({});
-  const prevSessionRef = useRef(activeId);
-  useEffect(() => {
-    const prev = prevSessionRef.current;
-    if (prev === activeId) return;
-    draftsRef.current = { ...draftsRef.current, [prev]: draftRef.current };
-    prevSessionRef.current = activeId;
-    setDraft(draftsRef.current[activeId] ?? "");
-    recallRef.current = null;
-  }, [activeId]);
+  // 쓰다 만 글이 대화를 따라가게 하는 재우기·꺼내기는 조각 훅이 소유한다.
+  useDraftPerSession({ activeId, draft, setDraft, recallRef });
 
   // 바깥에 알리는 것들(사이드바 배지·업데이트 문지기)과 대화에 남기는 구분선은
   // 조각 훅이 소유한다.
@@ -539,27 +492,6 @@ export function AcpConversation({
     followBottom,
   });
 
-  /** 보고 있는 대화만 멈춘다 — 옆에서 돌던 것은 계속 간다. */
-  const cancel = useCallback(() => {
-    reportFailure("acp_cancel", commands.acpCancel(projectId, provider, activeId === SLATE ? null : activeId), "acp.cancelFailed");
-    putPermission(activeId, null);
-  }, [projectId, provider, activeId, putPermission]);
-
-  /**
-   * 목록에서 **열지 않고** 중단 (Phase 3 `#inline-stop`).
-   *
-   * 지금까지 멈추는 길은 보고 있는 대화의 ESC/정지 버튼뿐이었다 — 뒤에서 도는
-   * 대화를 멈추려면 먼저 그리로 옮겨 가야 했고, 옮기는 것 자체가 스트림의
-   * 자리를 흔든다. 취소는 세션 id 로 보내면 되므로 갈 이유가 없다.
-   */
-  const stopSession = useCallback(
-    (sessionId: string) => {
-      reportFailure("acp_cancel", commands.acpCancel(projectId, provider, sessionId), "acp.cancelFailed");
-      putPermission(sessionId, null);
-    },
-    [projectId, provider, putPermission],
-  );
-
   // 세션 줄의 상태 — 이 화면이 이미 버스에 쓰고 있으므로 읽기도 여기서 한다.
   const rowStates = useAcpRowStates();
   const rowStateOf = useCallback(
@@ -582,13 +514,6 @@ export function AcpConversation({
 
   // ESC 로 중단 (구독의 전문은 `useEscCancel`).
   useEscCancel(busy, cancel, isVisible);
-
-  const decide = useCallback((requestId: string, optionId: string | null) => {
-    setPermission(null);
-    // 「허용/거부」가 조용히 실패하면 에이전트는 영영 기다리고 화면은 카드를
-    // 지운 뒤다 — 사용자에게는 앱이 멈춘 것처럼 보인다.
-    reportFailure("acp_permission_respond", commands.acpPermissionRespond(requestId, optionId), "acp.respondFailed");
-  }, [setPermission]);
 
   // 컴포저 키보드 — IME·모드 순환·되부르기·팝오버·전송의 우선순위는 조각 훅이 소유한다.
   const onKeyDown = useComposerKeys({
@@ -660,70 +585,31 @@ export function AcpConversation({
     {toolbar}
     <div className="acp-layout" ref={rootRef}>
       <div className="ai-wrap">
-      <div className="ai-thread" ref={attachThread} onScroll={onThreadScroll}>
-        <div className="ai-thread-inner">
-          {turns.length === 0 ? (
-            <AcpReadyPanel codex={codex} />
-          ) : (
-            /* 묶음(지시 + 그 답)을 **실제 요소로** 그린다 — 지시문 sticky 의
-               컨테이닝 블록이 이 묶음이어야 자기 답변이 끝날 때 자리를 비운다.
-               평평하게 늘어놓았더니 카드가 top 에 겹겹이 쌓였다. */
-            groups.map((group, gi, all) => (
-              <section className="exchange" key={gi}>
-                {group.map((turn, i) => (
-                  <TurnRow
-                    key={i}
-                    turn={turn}
-                    live={busy && gi === all.length - 1 && i === group.length - 1}
-                  />
-                ))}
-              </section>
-            ))
-          )}
-
-          {permission ? <PermissionCard request={permission} onDecide={decide} /> : null}
-
-          {agentGone ? (
-            <AgentGoneNotice starting={starting} onReconnect={() => void reconnect()} />
-          ) : null}
-
-          {/* 기록 도구 없이 열린 대화를 드러낸다 ({#mcp-missing-visible}) —
-              붙었으면 아무 것도 안 그린다. */}
-          <RecordingNotice
-            projectId={projectId}
-            provider={provider}
-            sessionId={session?.session_id ?? null}
-          />
-
-          {/* 배달 게이트 — 턴이 끝날 때마다 다시 묻는다 ({#gate-beyond-cc}). */}
-          <JournalGateNotice sessionId={session?.session_id ?? null} turnKey={busy} />
-
-          {error ? (
-            <AcpErrorCard
-              message={error}
-              canRetry={!busy && lastSentRef.current != null}
-              onRetry={() => {
-                setError(null);
-                void send(lastSentRef.current ?? undefined);
-              }}
-              onDismiss={() => setError(null)}
-            />
-          ) : null}
-        </div>
-        {awayFromBottom ? (
-          /* 위에서 앞 카드를 읽는 것은 허용된 동작이다 (stickRef) — 그렇다면
-             돌아오는 길도 한 번의 클릭이어야 한다. */
-          <button
-            type="button"
-            className="ai-scroll-fab"
-            onClick={jumpToBottom}
-            aria-label={t("ai.scrollBottom")}
-            title={t("ai.scrollBottom")}
-          >
-            <ArrowDown size={15} />
-          </button>
-        ) : null}
-      </div>
+      <AcpThread
+        projectId={projectId}
+        provider={provider}
+        sessionId={session?.session_id ?? null}
+        codex={codex}
+        attachThread={attachThread}
+        onThreadScroll={onThreadScroll}
+        awayFromBottom={awayFromBottom}
+        jumpToBottom={jumpToBottom}
+        turns={turns}
+        groups={groups}
+        busy={busy}
+        permission={permission}
+        onDecide={decide}
+        agentGone={agentGone}
+        starting={starting}
+        onReconnect={() => void reconnect()}
+        error={error}
+        canRetry={!busy && lastSentRef.current != null}
+        onRetry={() => {
+          setError(null);
+          void send(lastSentRef.current ?? undefined);
+        }}
+        onDismissError={() => setError(null)}
+      />
 
       <Composer
         activeId={activeId}

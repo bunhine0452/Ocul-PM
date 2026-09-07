@@ -113,10 +113,6 @@ impl BreakpointStore {
             .collect()
     }
 
-    pub fn clear(&mut self) {
-        self.by_file.clear();
-    }
-
     /// 파일이 옮겨졌다 — 찍어 둔 자리가 따라간다 (탭·버퍼와 같은 정합 규칙).
     pub fn rename_path(&mut self, from: &str, to: &str, is_dir: bool) {
         let keys: Vec<String> = self

@@ -37,6 +37,23 @@ pub const CLAUDE_SESSION_ENV: &str = "CLAUDE_CODE_SESSION_ID";
 /// 그래서 이 이름이 먼저다. Claude 도 Codex 도 이 이름은 모르므로 아무도 덮어쓰지
 /// 않고, 없으면 예전 그대로 [`CLAUDE_SESSION_ENV`] 로 내려간다 (터미널에서 직접
 /// 띄운 Claude Code 가 그 길이다).
+///
+/// # 폴백은 왜 못 지우는가 (실측 2026-09-07 · Claude Code 2.1.263)
+///
+/// 이 이름을 실어 주는 자리는 **앱뿐**이다([`crate::acp::recording`]). 터미널에서
+/// 띄운 Claude Code 의 자식으로 뜬 서버에는 아무도 안 실어 준다 —
+/// `plugin/oculpm/.mcp.json` 에 `env` 블록이 없기 때문이다.
+///
+/// 세 라운드가 "`.mcp.json` 에서 `${CLAUDE_CODE_SESSION_ID}` 로 채우면 된다"를
+/// 시도하려 했다. **안 된다.** 보간이 푸는 것은 `CLAUDE_PLUGIN_ROOT` ·
+/// `CLAUDE_PROJECT_DIR` 과 부모 셸의 환경뿐이고, 대화 id 는 부모 프로세스의
+/// 환경에도 없다(자식마다 새로 실어 준다). 그리고 **못 푼 이름은 리터럴로 그대로
+/// 나간다** — 그 매핑을 넣는 순간 [`session_id_from`] 의 1순위가 모든 대화에서
+/// 같은 문자열을 집어 병렬 세션 귀속이 조용히 통째로 망가진다.
+///
+/// 그래서 [`CLAUDE_SESSION_ENV`] 는 "낡은 설치본 폴백"이 아니라 **터미널 경로의
+/// 유일한 신원 근거**다. 실측 표와 회귀 가드는
+/// `tests/plugin_manifest.rs::the_mcp_env_block_never_interpolates_an_unresolvable_variable`.
 pub const OCULPM_SESSION_ENV: &str = "OCULPM_SESSION_ID";
 
 /// 이 서버를 띄운 대화의 id. 다른 CLI(Codex·Gemini)나 손으로 띄운 자리에서는
@@ -173,24 +190,7 @@ pub fn tool_definitions() -> Value {
                 "required": ["path"]
             }
         },
-        {
-            "name": "plan_status",
-            "description": "이 프로젝트의 활성 플랜(.oculpm/planner)과 항목 진행 상태를 반환한다. 작업 시작 전 현재 계획·다음 할 일을 파악할 때 호출. 기본은 요약(계획별 진척 + 아직 안 끝난 항목만) — 완료 항목까지 필요할 때만 view=\"full\", 가능하면 plan_id 로 좁혀 부를 것. **응답의 plans[].hash 는 그 플랜 파일의 현재 해시다 — plan_update 의 필수 인자 base_hash 에 그대로 넘길 것** (플랜마다 값이 다르니 갱신할 플랜의 행에서 가져온다).",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "view": { "type": "string", "enum": ["summary", "full"], "description": "기본 summary (미완 항목만). full 은 완료·폐기까지 전부" },
-                    "plan_id": { "type": "string", "description": "이 계획 하나만 (생략 시 모든 활성 계획)" },
-                    "status": {
-                        "type": "array",
-                        "items": { "type": "string", "enum": ["todo", "in_progress", "done", "blocked", "deferred", "dropped"] },
-                        "description": "이 상태의 항목만. 지정하면 view 는 무시된다"
-                    },
-                    "limit": { "type": "integer", "description": "항목 수 상한 (기본 60, 최대 500)" },
-                    "cursor": { "type": "string", "description": "이어보기 — 이전 응답의 next_cursor 를 그대로 넘긴다" }
-                }
-            }
-        },
+        plan_status_definition(),
         {
             "name": "plan_update",
             "description": "플랜 항목 하나의 상태를 갱신하고 갱신 로그를 남긴다. 일지를 쓴 직후 대응 항목이 있으면 호출 (plan-log append 는 서버가 규격대로 수행). **base_hash 가 필수다** — 먼저 plan_status 로 그 플랜의 hash 를 읽고 그 값을 넘길 것. 병렬 세션이 같은 플랜을 고칠 때 한쪽 변경이 조용히 사라지는 것을 막는다. 해시가 어긋나면 아무것도 쓰지 않고 현재 hash 를 담은 오류로 돌아오니, 다시 읽어 판단한 뒤 새 hash 로 재호출할 것.",

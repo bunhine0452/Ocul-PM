@@ -652,4 +652,8 @@ export {
   // 쓰지 않은 것은 참여자가 사람이 아니라 프로세스이기 때문이고, 로봇(Bot)을
   // 쓰지 않은 것은 de-AI 라운드가 뺀 자리이기 때문이다.
   Waypoints,
+  // ACP 상단바 — 어댑터 내리기(연결 해제). `AcpToolbar.tsx` 가 이전에는 이 파일이
+  // 다른 레인 소유라 lucide-react 를 직접 물었다(`TabStrip.tsx`·`TrayPopover.tsx` 와
+  // 같은 전례) — 지금 이 파일로 옮겨 집 규약(Icons 경유)을 맞춘다 {#unplug-icon-reexport}.
+  Unplug,
 } from "lucide-react";

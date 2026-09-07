@@ -420,7 +420,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [ctx, draft, messages, projectId, settings, streaming, ctxKeyOf]);
+  }, [ctx, draft, messages, projectId, settings, streaming, ctxKeyOf, t]);
 
   const send = useCallback(async () => {
     const raw = draft.trim();
@@ -673,7 +673,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
     // Persist the FULL text (not the partially-revealed display).
     const finalText = assembled + target;
     if (finalText) persist(finalText);
-  }, [draft, streaming, messages, provider, settings, hasKey, ctx, projectId, ctxKeyOf]);
+  }, [draft, streaming, messages, provider, settings, hasKey, ctx, projectId, ctxKeyOf, t]);
 
   const stop = useCallback(() => {
     abortRef.current?.();

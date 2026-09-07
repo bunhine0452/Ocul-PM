@@ -130,7 +130,9 @@ export function ActionProposalCard({
   useEffect(() => {
     let cancelled = false;
     if (conversationId == null) return;
-    (async () => {
+    // 버리는 게 맞다 — 이미 적용된 제안인지 조용히 확인해 뱃지만 올리는 일이다.
+    // 못 읽으면 "idle" 로 남고, 그건 이 카드의 안전한 기본 상태다.
+    void (async () => {
       const res = await commands.listConversationActions(conversationId);
       if (cancelled) return;
       if (res.status !== "ok") return;
@@ -214,9 +216,10 @@ export function ActionProposalCard({
       if (rec.status === "error") throw new Error(rec.error);
       setStatus("applied");
       onApplied();
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || t("ai.actionUnknownError"));
+      const message = (err as { message?: unknown } | null | undefined)?.message;
+      setErrorMsg((typeof message === "string" ? message : "") || t("ai.actionUnknownError"));
       setStatus("error");
     }
   }

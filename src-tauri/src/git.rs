@@ -75,6 +75,8 @@ pub struct LastCommitChanges {
     pub changes: Vec<GitChange>,
 }
 
+pub mod nesting; // 루트 관계와 경로 되맞춤 ({#rebase-other-direction})
+
 /// Git's well-known empty-tree object. `git diff <empty-tree> HEAD` renders the
 /// whole tree as additions — used as the baseline when HEAD is a root commit
 /// (no `HEAD~1` parent).
@@ -180,14 +182,6 @@ fn repo_relative(repo: &Path, abs: &Path) -> Option<String> {
     abs.strip_prefix(repo)
         .ok()
         .map(|p| p.to_string_lossy().to_string())
-}
-
-/// `repo`-relative path restated relative to `root`. See [`primary_repo`].
-pub fn root_relative(root: &Path, repo: &Path, repo_rel: &str) -> String {
-    match repo.strip_prefix(root) {
-        Ok(p) if !p.as_os_str().is_empty() => p.join(repo_rel).to_string_lossy().to_string(),
-        _ => repo_rel.to_string(),
-    }
 }
 
 /// Find the git work-tree root(s) relevant to a project at `root`. The common
@@ -309,8 +303,8 @@ pub fn graph(root: &Path, limit: u32) -> Result<Vec<GitGraphCommit>, String> {
 /// every git-backed view work when the `.oculpm/` folder is opened on a *parent*
 /// of the actual repo (nested-repo case); previously only the diff path handled
 /// it and log/status/branch reported "not a git repo". `None` = no repo found.
-/// Contract: when the result isn't `root`, printed paths are repo- not
-/// root-relative — re-base via [`root_relative`] ({#branch-axis-limits}).
+/// Contract: when the result isn't `root`, printed paths are repo- not root-
+/// relative — re-base via [`nesting::root_relative`] ({#rebase-other-direction}).
 pub fn primary_repo(root: &Path) -> Option<PathBuf> {
     use std::collections::HashMap;
     use std::sync::{LazyLock, Mutex};
@@ -765,6 +759,7 @@ pub fn uncommitted_changes(root: &Path) -> Vec<GitChange> {
     // list is git-backed (survives restarts/updates) for those layouts too.
     let mut changes = Vec::new();
     for repo in discover_repos(root) {
+        let nesting = nesting::repo_nesting(root, &repo); // 저장소당 한 번만
         let out = match run_git(
             &repo,
             &["status", "--porcelain=v1", "-z", "--untracked-files=all"],
@@ -788,10 +783,13 @@ pub fn uncommitted_changes(root: &Path) -> Vec<GitChange> {
             if x == 'R' || x == 'C' {
                 let _ = tokens.next();
             }
-            changes.push(GitChange {
-                path: root_relative(root, &repo, raw),
-                op: porcelain_op(x, y).to_string(),
-            });
+            // `None` = 저장소가 함께 바꾼 **프로젝트 밖** 파일 (여기서 뺀다).
+            if let Some(path) = nesting::rebase(&nesting, raw) {
+                changes.push(GitChange {
+                    path,
+                    op: porcelain_op(x, y).to_string(),
+                });
+            }
         }
     }
     changes
@@ -833,6 +831,7 @@ fn changes_in_range(repo: &Path, root: &Path, from: &str, to: &str) -> Vec<GitCh
         return Vec::new();
     };
     let mut changes = Vec::new();
+    let nesting = nesting::repo_nesting(root, repo);
     let mut tokens = out.split('\0').filter(|t| !t.is_empty());
     while let Some(status) = tokens.next() {
         let code = status.chars().next().unwrap_or('M');
@@ -845,16 +844,17 @@ fn changes_in_range(repo: &Path, root: &Path, from: &str, to: &str) -> Vec<GitCh
             tokens.next()
         };
         let Some(raw) = raw else { break };
-        let path = root_relative(root, repo, raw);
         let op = match code {
             'A' | 'R' | 'C' => "A",
             'D' => "D",
             _ => "M",
         };
-        changes.push(GitChange {
-            path,
-            op: op.to_string(),
-        });
+        if let Some(path) = nesting::rebase(&nesting, raw) {
+            changes.push(GitChange {
+                path,
+                op: op.to_string(),
+            });
+        }
     }
     changes
 }
