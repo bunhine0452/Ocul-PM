@@ -67,7 +67,7 @@ owner: claude-code
 - [x] oculpm_reindex_cache · oculpm_watcher_stop 에 UI 경로 — 지금 워처는 켜만 있고 끔을 수 없고, 일지 캐시 재색인 복구 버튼이 없다 {#revive-recovery-cmds}
 
 ## 릴리스 3.0.0 {#release-300}
-- [ ] EVALS.md 기준 실행 {#evals}
+- [-] ~~EVALS.md 기준 실행~~ — **이 저장소에는 `EVALS.md` 가 없다**(git 이력에도 없다). `oculpm/evals.rs` 는 추적 *대상* 프로젝트에 제공하는 기능이고 파일 부재를 `None` 으로 처리한다. 이 저장소 자신의 완료 기준 문서는 만든 적이 없으므로 「실행」할 대상이 없다 — 3.0 의 완료 기준을 새로 쓸지는 별도 판단 {#evals}
 - [ ] 게이트 전수 exit 0 {#gates-green-300}
 - [ ] 릴리스 5면 + 태그 + 랜딩 배포 (landing 에서 vercel --prod) {#release-300-2}
 
