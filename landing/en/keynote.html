@@ -1,27 +1,28 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Ocul-PM 키노트 — 에이전트 시대의 기억</title>
-<meta name="description" content="어제, 당신의 에이전트는 코드 3,000줄을 고쳤습니다. 당신이 설명할 수 있는 건 몇 줄입니까? — Ocul-PM 의 전 기능을 실제 화면과 함께 키노트로 봅니다. 자동 작업 일지 · 로컬 diff · 앱 속 Claude Code · 로컬-우선." />
+<title>Ocul-PM Keynote — memory for the agent era</title>
+<meta name="description" content="Yesterday your agent touched 3,000 lines of code. How many can you explain? — Watch Ocul-PM's whole feature set in a keynote with real screens. Automatic work journals · local diffs · Claude Code inside the app · local-first." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
-<link rel="canonical" href="https://oculpm.com/keynote" />
-<meta property="og:type" content="website" />
-<meta property="og:site_name" content="Ocul-PM" />
-<meta property="og:locale" content="ko_KR" />
-<meta property="og:url" content="https://oculpm.com/keynote" />
-<meta property="og:title" content="Ocul-PM 키노트 — 에이전트 시대의 기억" />
-<meta property="og:description" content="에이전트는 코드를 쓰고, 당신은 기억을 갖습니다. 5분짜리 제품 키노트." />
-<meta property="og:image" content="https://oculpm.com/og.png" />
-<meta name="twitter:card" content="summary_large_image" />
+<link rel="canonical" href="https://oculpm.com/en/keynote" />
 <link rel="alternate" hreflang="ko" href="https://oculpm.com/keynote" />
 <link rel="alternate" hreflang="en" href="https://oculpm.com/en/keynote" />
 <link rel="alternate" hreflang="x-default" href="https://oculpm.com/keynote" />
-<link rel="icon" href="icon.svg" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:locale:alternate" content="ko_KR" />
+<meta property="og:url" content="https://oculpm.com/en/keynote" />
+<meta property="og:title" content="Ocul-PM Keynote — memory for the agent era" />
+<meta property="og:description" content="Agents write the code. You keep the memory. A five-minute product keynote." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="/icon.svg" />
 <style>
-  /* 키노트 위 얇은 귀환 바 — 무대를 가리지 않는다. */
+  /* Thin return bar over the keynote — never covers the stage. */
   .kn-back, .kn-lang {
     position: fixed; top: 16px; z-index: 200;
     display: inline-flex; align-items: center; gap: 7px;
@@ -37,12 +38,12 @@
 </style>
 </head>
 <body>
-<a class="kn-back" href="/">← oculpm.com</a>
-<a class="kn-lang" href="/en/keynote" hreflang="en">English</a>
+<a class="kn-back" href="/en">← oculpm.com</a>
+<a class="kn-lang" href="/keynote" hreflang="ko">한국어</a>
 <style>
-  /* ── 무대 ─────────────────────────────────────────────
-     키노트는 단일 조명이다 — 테마 분기 없이 무대 하나로 커밋한다.
-     초록은 앱의 것(#12a06b 계열), 종이빛 글자, 그 외엔 어둠. */
+  /* ── Stage ─────────────────────────────────────────────
+     The keynote is a single light — one stage, no theme branching.
+     Green is the app's own (#12a06b family), paper-toned text, darkness elsewhere. */
   :root {
     --stage: #0a0f0c;
     --stage-2: #111a14;
@@ -68,7 +69,7 @@
     overflow-x: hidden;
   }
 
-  /* ── 슬라이드 ── */
+  /* ── Slides ── */
   .slide {
     position: relative;
     min-height: 88vh;
@@ -120,7 +121,7 @@
   .green { color: var(--green); }
   .orange { color: var(--orange); }
 
-  /* 동심원 — 앱 아이콘의 링 모티프. 타이틀과 클로즈에서만 은은하게. */
+  /* Concentric rings — the app icon's ring motif. Subtle, title and close only. */
   .rings {
     position: absolute;
     inset: 0;
@@ -139,7 +140,7 @@
   .rings span:nth-child(3) { width: 980px; height: 980px; border-color: rgba(29,185,129,0.055); }
   .rings span:nth-child(4) { width: 1420px; height: 1420px; border-color: rgba(29,185,129,0.03); }
 
-  /* ── 콜드 오픈 숫자 ── */
+  /* ── Cold open numbers ── */
   .bignum {
     display: flex;
     align-items: baseline;
@@ -153,7 +154,7 @@
   .bignum .vs { font-size: clamp(18px, 3vw, 30px); color: var(--ink-faint); }
   .bignum .lbl { display: block; margin-top: 14px; font-family: var(--font); font-size: 13px; letter-spacing: 0.06em; color: var(--ink-dim); }
 
-  /* ── 셋 = 하나 ── */
+  /* ── Three = one ── */
   .three {
     display: flex;
     flex-direction: column;
@@ -196,7 +197,7 @@
     color: transparent;
   }
 
-  /* ── 제품 샷 ── */
+  /* ── Product shots ── */
   .shot {
     margin: 48px auto 0;
     max-width: 980px;
@@ -226,7 +227,7 @@
   .shot-row .shot { margin: 0; }
   @media (max-width: 760px) { .shot-row { grid-template-columns: 1fr; } }
 
-  /* 막 사이 소제목 리듬 */
+  /* Rhythm between acts */
   .beat {
     margin: 72px auto 0;
     max-width: 640px;
@@ -240,7 +241,7 @@
   .beat p { margin: 0; font-size: 15.5px; line-height: 1.85; color: var(--ink-dim); }
   .beat p b { color: var(--ink); }
 
-  /* ── one more thing: 셋 없음 + 파일 트리 ── */
+  /* ── one more thing: three nones + file tree ── */
   .nones {
     display: flex;
     justify-content: center;
@@ -266,7 +267,7 @@
   .tree b { color: var(--green); font-weight: 600; }
   .tree i { color: var(--ink); font-style: normal; }
 
-  /* ── 클로즈 ── */
+  /* ── Close ── */
   .price {
     font-size: clamp(56px, 10vw, 128px);
     font-weight: 900;
@@ -299,7 +300,7 @@
   }
   .closing-line b { color: var(--ink); }
 
-  /* ── 리빌 ── */
+  /* ── Reveal ── */
   .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
   .reveal.on { opacity: 1; transform: none; }
   @media (prefers-reduced-motion: reduce) {
@@ -308,123 +309,123 @@
   }
 </style>
 
-<!-- ══════════════ S0 · 타이틀 ══════════════ -->
+<!-- ══════════════ S0 · Title ══════════════ -->
 <section class="slide">
   <div class="rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
   <div class="slide-inner">
     <span class="eyebrow reveal">Ocul-PM Keynote · v2.11</span>
-    <h1 class="reveal">에이전트 시대의<br />기억.</h1>
-    <p class="lead reveal">2026년 8월 · macOS · <span class="green">oculpm.com</span></p>
+    <h1 class="reveal">Memory<br />for the agent era.</h1>
+    <p class="lead reveal">August 2026 · macOS · <span class="green">oculpm.com</span></p>
   </div>
 </section>
 
-<!-- ══════════════ S1 · 콜드 오픈 ══════════════ -->
+<!-- ══════════════ S1 · Cold open ══════════════ -->
 <section class="slide">
   <div class="slide-inner">
-    <h2 class="reveal">어제, 당신의 에이전트는<br />코드 3,000줄을 고쳤습니다.</h2>
+    <h2 class="reveal">Yesterday, your agent<br />touched 3,000 lines of code.</h2>
     <div class="bignum reveal" aria-hidden="true">
-      <span><span class="n">3,000</span><span class="lbl">에이전트가 고친 줄</span></span>
+      <span><span class="n">3,000</span><span class="lbl">Lines the agent touched</span></span>
       <span class="vs">vs</span>
-      <span><span class="n dim">0</span><span class="lbl">당신이 설명할 수 있는 줄</span></span>
+      <span><span class="n dim">0</span><span class="lbl">Lines you can explain</span></span>
     </div>
     <p class="lead reveal">
-      우리는 에이전트에게 코드를 맡기는 법을 배웠습니다. 그러자 이상한 일이 생겼습니다 —
-      코드는 그 어느 때보다 <b>빨라졌는데</b>, 이해는 그 어느 때보다 <b>느려졌습니다</b>.
-      속도를 얻고, 기억을 잃었습니다.
+      We learned to hand our code to agents. Then something strange happened —
+      the code moves <b>faster</b> than ever, and understanding it moves <b>slower</b> than ever.
+      We gained speed. We lost memory.
     </p>
   </div>
 </section>
 
-<!-- ══════════════ S2 · 셋 = 하나 ══════════════ -->
+<!-- ══════════════ S2 · Three = one ══════════════ -->
 <section class="slide">
   <div class="slide-inner">
-    <h2 class="reveal">오늘, 세 가지를 발표합니다.</h2>
+    <h2 class="reveal">Today, we're announcing three things.</h2>
     <div class="three">
-      <div class="item reveal">에이전트의 모든 작업을 스스로 적는 <span class="green">기록장</span></div>
-      <div class="item reveal">모든 변경을 그 자리에서 보여 주는 <span class="green">검증대</span></div>
-      <div class="item reveal">에이전트 그 자체를 품은 <span class="green">콘솔</span></div>
+      <div class="item reveal">A <span class="green">ledger</span> that writes down every agent's work — by itself</div>
+      <div class="item reveal">A <span class="green">bench</span> that shows every change, on the spot</div>
+      <div class="item reveal">A <span class="green">console</span> that holds the agent itself</div>
     </div>
-    <p class="punch reveal">기록장. 검증대. 콘솔.<br /><span class="dim">눈치채셨습니까 —</span></p>
-    <p class="punch reveal">이건 세 개의 제품이 아닙니다. 하나입니다.</p>
+    <p class="punch reveal">A ledger. A bench. A console.<br /><span class="dim">Notice something —</span></p>
+    <p class="punch reveal">This isn't three products. It's one.</p>
     <div class="one-name reveal">Ocul-PM</div>
   </div>
 </section>
 
-<!-- ══════════════ S3 · Act 1 기록 ══════════════ -->
+<!-- ══════════════ S3 · Act 1, the ledger ══════════════ -->
 <section class="slide">
   <div class="slide-inner">
-    <span class="eyebrow reveal">첫 번째 · 기록장</span>
-    <h2 class="reveal">기록은 공짜여야 합니다.</h2>
+    <span class="eyebrow reveal">First · The Ledger</span>
+    <h2 class="reveal">Recording should be free.</h2>
     <p class="lead reveal">
-      에이전트가 일을 마치는 순간, 일지는 <b>이미 쓰여 있습니다.</b>
-      무엇을 왜 고쳤는지, 어느 에이전트가 어느 모델로 했는지, 어떤 파일이 움직였는지 —
-      버그·기능·리팩토링·에러·잡일로 분류되어, 사람이 읽는 마크다운으로.
+      The moment an agent finishes, the entry is <b>already written.</b>
+      What changed and why, which agent used which model, which files moved —
+      sorted into bug, feature, refactor, error or chore, as markdown a human can read.
     </p>
     <figure class="shot reveal">
-      <img src="shots/02-journal.jpg" alt="자동 작업 일지 화면 — 에이전트가 작성한 일지가 날짜·분류별로 쌓인 모습" />
-      <figcaption><b>자동 작업 일지.</b> 당신이 한 일이 아니라, 에이전트가 한 일이 적힙니다 — 스스로.</figcaption>
+      <img src="/shots/02-journal.jpg" alt="Automatic work journal screen — entries the agent wrote, stacked by date and type" />
+      <figcaption><b>Automatic work journal.</b> Not what you did — what the agent did, written by itself.</figcaption>
     </figure>
     <div class="beat reveal">
-      <h3>아침에 열면, 어제가 정리되어 있습니다.</h3>
-      <p>오늘 화면이 어제의 작업·커밋·계획을 한 장으로 브리핑합니다. 스탠드업은 <b>복사 버튼 하나</b>입니다.</p>
+      <h3>Open it in the morning, and yesterday is already sorted.</h3>
+      <p>The Today screen briefs yesterday's work, commits and plan on one page. The standup is <b>one copy button.</b></p>
     </div>
     <figure class="shot reveal">
-      <img src="shots/01-today.jpg" alt="Today 일일 브리프 화면 — 어제의 작업 요약과 커밋 그래프" />
-      <figcaption><b>Today 브리프.</b> 그리고 기록은 산출물이 됩니다 — PR 본문, 주간 보고, AI 회고. 전부 버튼 하나.</figcaption>
+      <img src="/shots/01-today.jpg" alt="The Today daily brief screen — yesterday's work summarized with a commit graph" />
+      <figcaption><b>The Today brief.</b> And the record becomes output — PR bodies, weekly reports, AI retros. All one button.</figcaption>
     </figure>
-    <p class="punch reveal">백미러가, 핸들이 됩니다.</p>
+    <p class="punch reveal">The rearview mirror becomes the wheel.</p>
   </div>
 </section>
 
-<!-- ══════════════ S4 · Act 2 검증 ══════════════ -->
+<!-- ══════════════ S4 · Act 2, the bench ══════════════ -->
 <section class="slide">
   <div class="slide-inner">
-    <span class="eyebrow reveal">두 번째 · 검증대</span>
-    <h2 class="reveal">믿지 마십시오.<br />보십시오.</h2>
+    <span class="eyebrow reveal">Second · The Bench</span>
+    <h2 class="reveal">Don't trust it.<br />Look at it.</h2>
     <p class="lead reveal">
-      에이전트가 만졌다는 파일 — 커밋하기 전에, 앱 안에서 diff 로 확인합니다.
-      키보드만으로 넘기며 검토합니다.
+      The files an agent says it touched — check them as a diff inside the app before you commit.
+      Review the whole thing with the keyboard alone.
     </p>
     <figure class="shot reveal">
-      <img src="shots/03-diff.jpg" alt="로컬 diff 검증 화면 — 변경 파일의 줄 단위 diff" />
-      <figcaption><b>변경 diff.</b> 일지와 나란히 — "말한 것"과 "실제로 바뀐 것"을 붙여 놓고 봅니다.</figcaption>
+      <img src="/shots/03-diff.jpg" alt="Local diff review screen — a line-level diff of a changed file" />
+      <figcaption><b>The change diff.</b> Right beside the journal — what it said it did, next to what actually changed.</figcaption>
     </figure>
     <div class="beat reveal">
-      <h3>고치기 전에, 여파를 압니다.</h3>
-      <p>코드 맵이 import·호출·상속을 그래프로 폅니다. 파일 하나를 고르면 — <b>"바꾸면 12개 파일에 영향"</b>이 먼저 보입니다. 검색은 세 가지 방식입니다: 의미로, 심볼로, 텍스트로. 임베딩은 로컬에서 계산됩니다. <b>코드는 한 글자도 밖으로 나가지 않습니다.</b></p>
+      <h3>Know the blast radius before you touch it.</h3>
+      <p>The code map lays out imports, calls and inheritance as a graph. Pick one file, and <b>"touching this affects 12 files"</b> shows up first. Search works three ways: by meaning, by symbol, by text. Embeddings are computed locally. <b>Not one character of your code leaves the machine.</b></p>
     </div>
     <figure class="shot reveal">
-      <img src="shots/04-graph.jpg" alt="코드 맵 화면 — 의존성 그래프와 변경 영향 분석" />
-      <figcaption><b>코드 맵.</b> 의존이 보이면, 두려움이 줄어듭니다.</figcaption>
+      <img src="/shots/04-graph.jpg" alt="Code map screen — a dependency graph with change-impact analysis" />
+      <figcaption><b>Code map.</b> When you can see the dependencies, the fear goes down.</figcaption>
     </figure>
   </div>
 </section>
 
-<!-- ══════════════ S5 · Act 3 콘솔 ══════════════ -->
+<!-- ══════════════ S5 · Act 3, the console ══════════════ -->
 <section class="slide">
   <div class="slide-inner">
-    <span class="eyebrow reveal">세 번째 · 콘솔</span>
-    <h2 class="reveal">그래서, 에이전트를<br />안으로 들였습니다.</h2>
+    <span class="eyebrow reveal">Third · The Console</span>
+    <h2 class="reveal">So we brought<br />the agent inside.</h2>
     <p class="lead reveal">
-      진짜 <span class="orange">Claude Code</span> 가 앱 안에서 구동됩니다.
-      파일을 읽고, 고치고, 명령을 돌리는 매 단계가 <b>카드</b>로 흐릅니다.
-      그리고 v2.11 — <b>고치는 내용이 보입니다.</b> 지운 줄은 빨강, 넣은 줄은 초록.
+      The real <span class="orange">Claude Code</span> runs inside the app.
+      Every step — reading a file, editing it, running a command — flows by as a <b>card.</b>
+      And as of v2.11, <b>you can see what it's changing.</b> Deleted lines in red, added lines in green.
     </p>
     <figure class="shot reveal">
-      <img src="shots/s2.jpg" alt="승인 카드 — 실행될 명령과 변경 내용(diff)이 카드 안에 보이는 모습" />
-      <figcaption><b>보이는 승인.</b> 무엇을 허용하는지 카드 안에 있습니다 — 제목만 보고 누르던 시대의 끝.</figcaption>
+      <img src="/shots/s2.jpg" alt="An approval card — the pending command and its diff shown inside the card" />
+      <figcaption><b>Visible approval.</b> What you're allowing is right there in the card — the era of clicking on a title alone is over.</figcaption>
     </figure>
     <figure class="shot reveal">
-      <img src="shots/08-receipt.jpg" alt="완료된 도구 카드와 턴 영수증 — 도구·파일·명령 수와 소요 시간 한 줄 요약" />
-      <figcaption><b>턴 영수증.</b> 턴이 끝나면 한 줄이 남습니다 — 도구 7 · 파일 3 · 1분 12초. 기록하는 앱답게.</figcaption>
+      <img src="/shots/08-receipt.jpg" alt="A finished tool card and turn receipt — a one-line summary of tools, files and time" />
+      <figcaption><b>Turn receipt.</b> When a turn ends, one line remains — 7 tools · 3 files · 1m 12s. Fitting, for an app built to keep records.</figcaption>
     </figure>
     <div class="beat reveal">
-      <h3>그리고 ⌘J.</h3>
-      <p>어느 화면에서든 터미널이 올라옵니다 — 아래로, 왼쪽으로, 오른쪽으로, 아예 창으로. <b>셸은 끊기지 않습니다.</b></p>
+      <h3>And ⌘J.</h3>
+      <p>The terminal comes up from any screen — docked below, to the left, to the right, or torn off as its own window. <b>The shell never disconnects.</b></p>
     </div>
     <figure class="shot reveal">
-      <img src="shots/05-terminal.jpg" alt="터미널 도크 — 다른 화면 위에 터미널이 도크로 열린 모습" />
-      <figcaption><b>내장 터미널.</b> 일지를 읽다가, 계획을 보다가 — 화면을 떠나지 않고.</figcaption>
+      <img src="/shots/05-terminal.jpg" alt="The terminal dock — a terminal open as a dock over another screen" />
+      <figcaption><b>Built-in terminal.</b> While reading a journal, while checking the plan — without ever leaving the screen.</figcaption>
     </figure>
   </div>
 </section>
@@ -434,43 +435,43 @@
   <div class="rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
   <div class="slide-inner">
     <span class="eyebrow reveal">One more thing…</span>
-    <h2 class="reveal">당신의 데이터는,<br />어디에 있습니까?</h2>
+    <h2 class="reveal">Where does<br />your data live?</h2>
     <div class="nones reveal">
-      <span class="none"><b>없음</b><span>계정</span></span>
-      <span class="none"><b>없음</b><span>서버</span></span>
-      <span class="none"><b>없음</b><span>텔레메트리</span></span>
+      <span class="none"><b>None</b><span>Account</span></span>
+      <span class="none"><b>None</b><span>Server</span></span>
+      <span class="none"><b>None</b><span>Telemetry</span></span>
     </div>
     <p class="lead reveal">
-      전부 당신 프로젝트의 <b>폴더 하나</b>에 있습니다 — 사람이 읽는 마크다운으로.
-      앱을 지워도 기억은 남습니다. <b>당신의 것이니까요.</b>
+      It's all in <b>one folder</b> in your project — as markdown a human can read.
+      Delete the app, and the memory stays. <b>Because it's yours.</b>
     </p>
-    <div class="tree reveal" role="img" aria-label=".oculpm 폴더 구조">
+    <div class="tree reveal" role="img" aria-label=".oculpm folder structure">
 <b>.oculpm/</b>
-├─ journal/    <i>작업 일지 — 날짜·분류별 .md</i>
-├─ planner/    <i>살아있는 계획 .md</i>
-├─ discussion/ <i>결정 전 토의 .md</i>
-└─ agents/     <i>에이전트 기록 규칙</i>
+├─ journal/    <i>work journal — .md by date and type</i>
+├─ planner/    <i>a living plan, .md</i>
+├─ discussion/ <i>pre-decision discussion, .md</i>
+└─ agents/     <i>agent recording rules</i>
     </div>
   </div>
 </section>
 
-<!-- ══════════════ S7 · 클로즈 ══════════════ -->
+<!-- ══════════════ S7 · Close ══════════════ -->
 <section class="slide">
   <div class="slide-inner">
-    <h2 class="reveal">시작하는 데 필요한 것은 —</h2>
-    <div class="price reveal">없습니다.</div>
-    <p class="lead reveal">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다. macOS (Apple Silicon).</p>
+    <h2 class="reveal">What you need to start —</h2>
+    <div class="price reveal">Nothing.</div>
+    <p class="lead reveal">No sign-up, no setup, no cost. Download it, and that's all there is. macOS (Apple Silicon).</p>
     <div class="cta-row reveal">
-      <a class="cta solid" href="https://oculpm.com" target="_blank" rel="noopener noreferrer">oculpm.com 에서 받기</a>
+      <a class="cta solid" href="https://oculpm.com/en" target="_blank" rel="noopener noreferrer">Get it at oculpm.com</a>
       <a class="cta line" href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noopener noreferrer">GitHub</a>
     </div>
-    <p class="fine">Claude Code 사용자라면 플러그인 두 줄로도 시작할 수 있습니다.</p>
-    <p class="closing-line reveal">빨리 가는 개발자는 많습니다.<br /><b>기억하며 가는 개발자가, 멀리 갑니다.</b></p>
+    <p class="fine">On Claude Code? Two lines in the plugin is another way in.</p>
+    <p class="closing-line reveal">Plenty of developers go fast.<br /><b>The ones who remember go far.</b></p>
   </div>
 </section>
 
 <script>
-  // 스크롤 리빌 — 모션 최소화 설정이면 CSS 가 이미 꺼 둔다.
+  // Scroll reveal — CSS already turns this off under reduced-motion.
   const io = new IntersectionObserver(
     (entries) => entries.forEach((e) => e.isIntersecting && e.target.classList.add("on")),
     { threshold: 0.18 }

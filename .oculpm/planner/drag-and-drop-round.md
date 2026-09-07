@@ -4,7 +4,7 @@ id: drag-and-drop-round
 title: "끌어서 옮기기 라운드 — 탭을 창 사이로 · 세션을 페인으로"
 status: archived
 created: 2026-08-28
-updated: 2026-09-04
+updated: 2026-09-07
 owner: claude-code
 ---
 
@@ -111,14 +111,14 @@ Phase 1·2 는 **판정**을 맞췄지만 **손맛**을 안 봤다 — 끌리는
 조작에서 사람이 확인하는 것은 판정 결과가 아니라 손에 무엇이 들려 있고 어디에
 놓이는가다.
 
-- [~] (Phase 9 가 대체) 떼어내면 고스트가 손을 따라온다 — 줄 안에서는 탭 자신, 줄 밖에서는
+- [-] (Phase 9 가 대체) 떼어내면 고스트가 손을 따라온다 — 줄 안에서는 탭 자신, 줄 밖에서는
       `.tabstrip-ghost`(`position: fixed`). 잡은 오프셋을 물어 손가락 아래
       **잡았던 그 자리** 그대로 떨어진다 {#tear-off-ghost}
-- [~] (Phase 9 가 대체) 창 밖으로 나가면 가장자리에 붙는다(`clampGhost`) — 웹뷰는 자기 창 밖에 못
+- [-] (Phase 9 가 대체) 창 밖으로 나가면 가장자리에 붙는다(`clampGhost`) — 웹뷰는 자기 창 밖에 못
       그리므로, 안 가두면 끌어내는 순간 물체가 사라진다 {#ghost-clamp}
-- [~] (Phase 9 가 대체) 놓으면 어떻게 되는지를 물체가 말한다 — `data-mode` new/merge + `data-hint`.
+- [-] (Phase 9 가 대체) 놓으면 어떻게 되는지를 물체가 말한다 — `data-mode` new/merge + `data-hint`.
       스트립 농도(0.55 / 0.32)만으로는 두 결과를 구분하기 어렵다 {#ghost-hint}
-- [~] (Phase 9 가 대체) 원래 탭은 `.torn` 자국으로 남는다 — 폭을 접지 않는다. 그 자리가 "취소하면
+- [-] (Phase 9 가 대체) 원래 탭은 `.torn` 자국으로 남는다 — 폭을 접지 않는다. 그 자리가 "취소하면
       여기" 이고, 접으면 되돌아올 때 이웃이 한 번 더 출렁인다 {#torn-slot}
 - [x] 받는 스트립이 자리를 **벌리고** 자리표시자를 앉힌다 — `TabDragOver.preview`
       (이름·아이콘·색). 3px 캐럿은 자리만 알려 주고 무엇이 오는지는 말하지
@@ -361,4 +361,5 @@ Phase 1·2 는 **판정**을 맞췄지만 **손맛**을 안 봤다 — 끌리는
 | 2026-08-29T19:49:00+09:00 | #p9-tests | claude-code | →☐→[x] | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | Rust 3 + 배선 6 |
 | 2026-08-29T19:49:00+09:00 | #p9-manual-verify | claude-code | →☐ | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | 실기기 미확인 |
 | 2026-08-29T19:49:00+09:00 | #d7-real-window-not-ghost | claude-code | →☐ | 20260829/Features_to_add/1949_feature_chrome-tear-off-real-window.md | 결정 잠금 — Phase 8 을 대체 |
+| 2026-09-07T20:12:25+09:00 | #tear-off-ghost #ghost-clamp #ghost-hint #torn-slot | claude-code | ~→- | | 글리프 위생 정정(v3-release #glyph-hygiene) — Decision 7(#d7-real-window-not-ghost)이 "Phase 8 을 대체"라고 이미 적어 뒀는데도 네 항목의 본문은 "(Phase 9 가 대체)"로 고쳐지고 글리프만 [~]로 남아 있었다. 고스트 방식은 폐기됐으므로 [-]로 정정 |
 <!-- oculpm:plan-log end -->

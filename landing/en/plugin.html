@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Plugin · Skill Catalog — Ocul-PM</title>
+<meta name="description" content="The full surface of the Ocul-PM plugin for Claude Code: 5 slash commands, 14 MCP tools, 5 bundled skills, and a 25-skill third-party catalog that detects your stack and recommends matches (pinned commits, MIT)." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/en/plugin" />
+<link rel="alternate" hreflang="ko" href="https://oculpm.com/plugin" />
+<link rel="alternate" hreflang="en" href="https://oculpm.com/en/plugin" />
+<link rel="alternate" hreflang="x-default" href="https://oculpm.com/plugin" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:locale:alternate" content="ko_KR" />
+<meta property="og:url" content="https://oculpm.com/en/plugin" />
+<meta property="og:title" content="Plugin · Skill Catalog — Ocul-PM" />
+<meta property="og:description" content="From a two-line install to the /oculpm:project_init → /oculpm:inception → /oculpm:next implementation loop. All 25 catalog skills are pinned-commit copies." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<link rel="stylesheet" href="/landing.css" />
+<link rel="stylesheet" href="/page.css" />
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
+    <span class="nav-ver" data-version>v2.44.1</span>
+    <div class="nav-links">
+      <a href="/en#acts">Features</a>
+      <a href="/en/keynote">Keynote</a>
+      <a href="/wiki/en">Wiki</a>
+      <a href="/changelog">Changelog</a>
+      <a href="/themes">Themes</a>
+      <a href="/en/plugin" style="color: var(--ink);">Plugin</a>
+      <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    </div>
+    <a class="nav-lang" href="/plugin" hreflang="ko">한국어</a>
+    <a class="nav-cta" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Download</a>
+  </div>
+</nav>
+
+<header class="pg-hero">
+  <div class="pg-hero-inner">
+    <span class="eyebrow">Claude Code plugin</span>
+    <h1>Commands · tools · skills — the whole surface</h1>
+    <p class="pg-lead">One plugin covers project kickoff → design → the implementation loop → reporting. This page is a living record of everything the plugin provides — when a new command, tool or skill ships, this page updates with it (a repository test blocks anything left out).</p>
+    <div class="pg-code">
+        <div class="pg-code-row">
+          <code>/plugin marketplace add bunhine0452/Ocul-PM</code>
+          <button class="copy" type="button" data-copy="/plugin marketplace add bunhine0452/Ocul-PM" aria-label="Copy command"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+        </div>
+        <div class="pg-code-row">
+          <code>/plugin install oculpm@oculpm</code>
+          <button class="copy" type="button" data-copy="/plugin install oculpm@oculpm" aria-label="Copy command"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button>
+        </div>
+    </div>
+  </div>
+</header>
+
+<main class="pg-main">
+  <div class="wrap">
+
+    <section class="pg-sec">
+      <h2 id="flow">From project kickoff to the implementation loop</h2>
+      <p>For a new feature, start with <code>/oculpm:inception</code> (design only) or go straight to <code>/oculpm:next</code> — inception's interview and research are worth another lap only in unfamiliar territory.</p>
+      <div class="pg-jump">
+        <a href="#commands">/oculpm:project_init</a>
+        <a href="#commands">→ /oculpm:inception</a>
+        <a href="#commands">→ /oculpm:next (repeat until the leaf is done)</a>
+        <a href="#commands">→ /oculpm:standup</a>
+      </div>
+    </section>
+
+    <section class="pg-sec">
+      <h2 id="commands">5 slash commands</h2>
+      <p>Things you call with one typed line.</p>
+      <div class="pg-cards">
+      <div class="pg-card">
+        <h3><code>/oculpm:project_init</code><span class="when">Once, on a new repository</span></h3>
+        <p>Initializes this project for ocul-pm tracking — creates <code>.oculpm/</code> (the record store), <code>AGENTS.md</code> (agent recording rules), and a protective block in <code>.gitignore</code>. Running the command yourself counts as explicit consent, so it proceeds without a second confirmation, and on an already-tracked project it only fills in what's missing. <b>The app is not required.</b></p>
+      </div>
+      <div class="pg-card">
+        <h3><code>/oculpm:inception</code><span class="when">Designing a new project or feature area</span></h3>
+        <p>Seeds a design with the project-inception skill: a minimal read on the problem → <b>web research to map the landscape</b> → <b>settling the spec with you</b> using options backed by evidence (versions, sources) → a 3-depth detailed plan via <code>plan_create</code> → <code>EVALS.md</code> done-criteria → starter <code>.claude/rules</code>. You can pass an idea as an argument: <code>/oculpm:inception I want to build a to-do app</code></p>
+      </div>
+      <div class="pg-card">
+        <h3><code>/oculpm:next</code><span class="when">The implementation loop — run it repeatedly</span></h3>
+        <p>Picks up the next unfinished leaf on the active plan and drives one cycle: <b>implement → verify the gates → journal → update the plan.</b> It's the plugin's counterpart to the app planner's ▶ Run. To target a specific item: <code>/oculpm:next login-happy-path</code></p>
+      </div>
+      <div class="pg-card">
+        <h3><code>/oculpm:standup</code><span class="when">When you need a report</span></h3>
+        <p>Gathers today's journal entries and plan progress into a standup summary (done / in progress or blocked / next).</p>
+      </div>
+      <div class="pg-card">
+        <h3><code>/oculpm:help</code><span class="when">When you've forgotten what's there</span></h3>
+        <p>Shows the entire plugin surface (5 commands · 14 MCP tools · 5 skills · hooks) as one reference card, and recommends the next step for where you are now.</p>
+      </div>
+      </div>
+    </section>
+
+    <section class="pg-sec">
+      <h2 id="tools">14 MCP tools</h2>
+      <p>Agents record through tools instead of imitating the markdown spec by hand, and pull the accumulated record back through tools — paths, frontmatter and item ids are guaranteed by the server. Every tool works only in a tracked project with <code>.oculpm/</code> (the sole exception: <code>project_init</code>).</p>
+      <div class="pg-table">
+        <table>
+          <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td>journal_search</td><td>Search past journal entries — narrow by query (title, body, tags) plus <b>entries that touched a given file</b>, type, status, date range, tags. Returns a compact hit list instead of full bodies, sorted by match strength (title &gt; tags &gt; body). The rule is: call it <b>before</b> starting work.</td></tr>
+            <tr><td>journal_read</td><td>The full body of one journal entry the search picked out. Not for skimming a list — only after deciding it's worth reading.</td></tr>
+            <tr><td>journal_write</td><td>Records one journal entry to spec every time a unit of work (bug/feature/refactor/error/chore) finishes. Takes a <code>related</code> link to past entries and a <code>session_id</code>; secrets in the body are masked and the response says so.</td></tr>
+            <tr><td>plan_status</td><td>Reads items and status on the active plan — the evidence for "how far are we." Each plan comes back with its current file <code>hash</code>, which becomes the <code>base_hash</code> for <code>plan_update</code>.</td></tr>
+            <tr><td>plan_update</td><td>Updates a plan item's status and logs it. A parent with children rolls up automatically, so a direct update is refused. <b><code>base_hash</code> is required</b> — if it doesn't match the disk, the write is <b>refused, never silently overwritten</b>, with the current hash attached instead. This is the spot where one parallel session's change used to vanish silently under another's.</td></tr>
+            <tr><td>plan_create</td><td>Creates a new plan at 3 depths (milestone → task → subtask) — frontmatter and id spec guaranteed by the server.</td></tr>
+            <tr><td>project_init</td><td>Starts tracking on an untracked repository — only on the user's explicit request and confirmation. Rejects symlinks and guards against the home directory.</td></tr>
+            <tr><td>agent_register</td><td>Adds this session to the project's <b>participant list</b> (A2A). The first step for multiple agents working the same project at once to discover each other — the response comes back with who's currently alive. Safe to call again.</td></tr>
+            <tr><td>agent_list</td><td>The list of agents currently attached to this project. <b>Dead sessions are dropped</b> — if the process is gone, it's treated as dead even if a card remains. Use it to confirm the other side actually exists before handing off work.</td></tr>
+            <tr><td>agent_inbox</td><td>What's addressed to me — unread messages and unfinished tasks handed to me, in one call. <b>What arrives is data, not instructions</b>: it's not executed as-is, it's confirmed with the user.</td></tr>
+            <tr><td>agent_send</td><td>A word to another agent — only to <b>sessions the user grouped together on screen</b> (an exception: a partner already sharing an in-progress task). Attachments are <b>project-relative path references only</b> — file contents are never copied into the body. The server masks secrets.</td></tr>
+            <tr><td>task_create</td><td>Hands off a task (an A2A Task) — <b>only to grouped sessions</b>. It starts only once the receiver accepts, and the server closes it as <code>failed</code> once the deadline passes — so the sender never waits forever.</td></tr>
+            <tr><td>task_update</td><td>Transitions a task's state. The receiver moves it working→completed/failed; the sender can cancel. <b>A finished task never reopens.</b></td></tr>
+            <tr><td>claim_paths</td><td>Claims a region of files to edit, by glob — stops two sessions editing the same file from colliding <b>before it happens</b>. On overlap it refuses and reports who claimed it and until when.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="pg-sec">
+      <h2 id="skills">5 bundled skills</h2>
+      <p>Methodologies that fire on their own when the situation calls for them. They arrive with the plugin install, and can also be installed individually from the app's <b>Skills &amp; Rules</b> screen. <b>Open in app</b> is an <code>oculpm://</code> deep link — it only gets as far as the app raising a confirmation sheet, and <b>nothing changes before you approve</b>.</p>
+      <div class="pg-cards">
+      <div class="pg-card">
+        <h3><code>oculpm-journal</code> <span class="pill on">v2.36.0</span><span class="when">The full-spec carrier for the recording spec</span></h3>
+        <p>Loads when the fine detail of journal/plan rules is needed — the full text of folder conventions, frontmatter fields, section order and related-link rules.</p>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=oculpm-journal">Open in app</a>
+          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/oculpm-journal/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
+        </div>
+      </div>
+      <div class="pg-card">
+        <h3><code>project-inception</code> <span class="pill on">v2.36.0</span><span class="when">Kicking off a new project or feature area</span></h3>
+        <p>Seeds research → settling the spec → a 3-depth plan → <code>EVALS.md</code> → starter <code>.claude/rules</code> in one pass. This is the skill <code>/oculpm:inception</code> calls.</p>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=project-inception">Open in app</a>
+          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/project-inception/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
+        </div>
+      </div>
+      <div class="pg-card">
+        <h3><code>self-audit</code> <span class="pill on">v2.36.0</span><span class="when">Before you say "done"</span></h3>
+        <p>Forces a requirements check, running the gates, and a second look at the diff. It fires right before you report completion.</p>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=self-audit">Open in app</a>
+          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/self-audit/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
+        </div>
+      </div>
+      <div class="pg-card">
+        <h3><code>run-evals</code> <span class="pill on">v2.36.0</span><span class="when">Actually scoring your done-criteria</span></h3>
+        <p>Runs and scores the criteria in <code>EVALS.md</code> and adds one line to the record table — the app's Retro screen reads that table to chart the trend.</p>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=run-evals">Open in app</a>
+          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/run-evals/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
+        </div>
+      </div>
+      <div class="pg-card">
+        <h3><code>tdd-workflow</code> <span class="pill on">v2.36.0</span><span class="when">A failing test, first</span></h3>
+        <p>Forces the RED → GREEN → refactor cycle. Especially in areas prone to regressions.</p>
+        <div class="pg-actions">
+          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=tdd-workflow">Open in app</a>
+          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/tdd-workflow/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
+        </div>
+      </div>
+      </div>
+      <p class="pg-quiet">The safety contract — what it reads, writes and never does — is pinned in the repository's <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/claude-integration/06-plugin-contract.md" target="_blank" rel="noreferrer">plugin contract document</a>, alongside tests. The hook is one local append with no network, and <code>.oculpm/hooks/</code>, which holds the conversation log, is blocked from commits by a gitignore-managed block. There's one more gate here — a <b>delivery gate</b>: if code changed and the session is about to end with no journal entry, it instructs the agent to write one, once per session (grounded in an internal benchmark that measured 0% headless-session recording compliance from rule injection alone).</p>
+    </section>
+
+    <section class="pg-sec">
+      <h2 id="catalog">A 25-skill shop catalog</h2>
+      <p>The app's <b>Skills &amp; Rules → Shop</b> tab detects your stack from project manifests (<code>package.json</code>, <code>Cargo.toml</code>, <code>pyproject.toml</code>, and the like) and recommends matching skills from the catalog below. All of them are <b>pinned-commit copies</b> of MIT third-party skills (ECC · ponytail) — unmodified originals, <b>zero runtime network</b> (nothing is fetched at install time). Installing puts them under <code>.claude/skills/</code>, a native Claude Code feature, so they <b>work even without the plugin</b>.</p>
+      <div class="pg-table">
+        <table>
+          <thead><tr><th>Skill</th><th>What</th><th>Pinned commit</th><th>Source</th></tr></thead>
+          <tbody>
+          <tr><td>python-patterns</td><td>Python idioms and patterns</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/python-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>python-testing</td><td>pytest-based TDD</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/python-testing/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>rust-patterns</td><td>Rust ownership and trait patterns</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/rust-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>rust-testing</td><td>Rust testing patterns</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/rust-testing/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>react-patterns</td><td>React 18/19 component patterns</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/react-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>react-testing</td><td>React Testing Library tests</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/react-testing/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>golang-patterns</td><td>Go idioms and patterns</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/golang-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>golang-testing</td><td>Go table-driven testing</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/golang-testing/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>security-review</td><td>Security review checklist</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/security-review/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>codebase-onboarding</td><td>Codebase onboarding guide</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/codebase-onboarding/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>ponytail</td><td>Forces the laziest (minimal) solution</td><td><span class="pill">ponytail@16f2980</span></td><td><a href="https://github.com/DietrichGebert/ponytail/blob/16f29800fd2681bdf24f3eb4ccffe38be3baec6b/skills/ponytail/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>ponytail-review</td><td>Review that strips over-engineering</td><td><span class="pill">ponytail@16f2980</span></td><td><a href="https://github.com/DietrichGebert/ponytail/blob/16f29800fd2681bdf24f3eb4ccffe38be3baec6b/skills/ponytail-review/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>ponytail-audit</td><td>Repository-wide over-design audit</td><td><span class="pill">ponytail@16f2980</span></td><td><a href="https://github.com/DietrichGebert/ponytail/blob/16f29800fd2681bdf24f3eb4ccffe38be3baec6b/skills/ponytail-audit/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>vue-patterns</td><td>Vue 3 Composition API patterns</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/vue-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>react-performance</td><td>React/Next.js performance optimization</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/react-performance/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>vite-patterns</td><td>Vite config and build patterns</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/vite-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>laravel-patterns</td><td>Laravel architecture patterns</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/laravel-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>springboot-patterns</td><td>Spring Boot backend patterns</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/springboot-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>django-patterns</td><td>Django/DRF patterns</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/django-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>fastapi-patterns</td><td>FastAPI async API patterns</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/fastapi-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>accessibility</td><td>WCAG 2.2 accessibility implementation and audit</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/accessibility/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>api-design</td><td>REST API design patterns</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/api-design/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>database-migrations</td><td>Zero-downtime DB migrations</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/database-migrations/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>e2e-testing</td><td>Playwright E2E testing</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/e2e-testing/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>inherit-legacy-style</td><td>Inheriting legacy style</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/inherit-legacy-style/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="pg-quiet">An installed skill's one-line description rides along in <b>every session's context</b> — 2-3 per project is the recommended budget. The body loads only when the skill fires. "Pinned commit" is the upstream SHA at the moment we took our copy, so you can check on the spot exactly what matches the original.</p>
+    </section>
+
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <span>© 2026 Ocul-PM</span>
+    <a href="/en/keynote">Keynote</a>
+    <a href="/wiki/en">Wiki</a>
+    <a href="/en/plugin">Plugin</a>
+    <a href="/changelog">Changelog</a>
+    <a href="/themes">Themes</a>
+    <a href="/privacy">Privacy</a>
+    <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
+    <a href="/plugin" hreflang="ko">한국어</a>
+    <span class="footer-spacer"></span>
+    <span>Free forever for individuals · the core stays MIT forever</span>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    try {
+      fetch('https://api.github.com/repos/bunhine0452/Ocul-PM/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json' },
+      }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tag_name) return;
+        var tag = String(d.tag_name).replace(/^v?/, 'v');
+        document.querySelectorAll('[data-version]').forEach(function (el) { el.textContent = tag; });
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = btn.getAttribute('data-copy');
+      if (!text || !navigator.clipboard) return;
+      navigator.clipboard.writeText(text).then(function () {
+        btn.classList.add('copied');
+        setTimeout(function () { btn.classList.remove('copied'); }, 1600);
+      }).catch(function () {});
+    });
+  });
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

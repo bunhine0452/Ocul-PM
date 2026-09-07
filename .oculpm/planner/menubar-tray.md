@@ -4,7 +4,7 @@ id: menubar-tray
 title: "메뉴바 상주 라운드 — RunCat×Docker 트레이 (v2.3.0)"
 status: archived
 created: 2026-07-20
-updated: 2026-09-04
+updated: 2026-09-07
 owner: claude-code
 ---
 
@@ -26,7 +26,7 @@ docs/menubar/00-master-plan.md — 결정(D1~D5)·수용 기준은 그 문서가
 
 ## Phase C — 상주 {#phase-c}
 - [x] PR-MB4 상주 모드 — 닫기=최소화·Dock 숨김·autostart 옵인 토글 3종 + 종료 메뉴 {#mb4-residency}
-- [ ] v2.3.0 릴리스 — 전 PR 머지 + 실기기 확인(아이콘 상태·팝오버 정확성·상주 왕복) {#v230-release}
+- [-] v2.3.0 릴리스 — 전 PR 머지 + 실기기 확인(아이콘 상태·팝오버 정확성·상주 왕복) {#v230-release}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -40,4 +40,5 @@ docs/menubar/00-master-plan.md — 결정(D1~D5)·수용 기준은 그 문서가
 | 2026-07-20T22:20:45+09:00 | #mb3-popover-full | claude-code | x→x | .oculpm/journal/20260720/Bugs/2220_bug_tray-polish-shadow-picker-settings.md | 실기기 피드백 반영 — 그림자 클리핑·커스텀 스위처·팝오버 내 상단바 설정 패널·⌘W 계약 fix |
 | 2026-07-20T22:38:16+09:00 | #mb1-status-icon | claude-code | x→x | .oculpm/journal/20260720/Features_to_add/2238_feature_tray-arc-icon-and-inline-journal.md | 아이콘 브랜드 아크 재작(끊긴 호 3개·회전 애니·슈퍼샘플링) — 피드백 반영 |
 | 2026-07-30T17:34:11+09:00 | #mb1-status-icon | claude-code | x→x | .oculpm/journal/20260730/Bugs/1733_bug_tray-stop-spin-when-no-session.md | 후속 fix — 세션 이벤트 유실 시 아이콘이 안 멈추던 문제. 액터 실상태 주기 재확인(reconcile_active) 추가 |
+| 2026-09-07T20:12:25+09:00 | #v230-release | claude-code | ☐→- | | 글리프 위생 정정(v3-release #glyph-hygiene) — v2.3.0 은 CHANGELOG.md 에 이미 릴리스된 채로 있다(메뉴바 상주 기능이 그 아래 실려 있다). 그 뒤로 40여 릴리스가 더 나가는 동안 이 항목의 "실기기 확인"은 한 번도 다시 열리지 않은 죽은 todo 라 [-]로 정정 |
 <!-- oculpm:plan-log end -->
