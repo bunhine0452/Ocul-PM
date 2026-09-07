@@ -6,7 +6,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { commands, type AcpImage } from "@/lib/bindings";
+import type { AcpImage } from "@/lib/bindings";
+import { acpApi } from "@/api/acp";
 import { safeUnlisten } from "@/lib/unlisten";
 import type { PendingImage } from "./Composer";
 
@@ -51,8 +52,9 @@ export function useComposerAttachments({
   }, []);
 
   const attach = useCallback(async () => {
-    const res = await commands.acpPickFiles(projectId);
-    if (res.status === "ok" && res.data.length) addAttachments(res.data);
+    // 실패는 조용하다 — 고르기를 취소한 것과 결과가 같다(붙는 것이 없다).
+    const picked = await acpApi.pickFiles(projectId).catch(() => [] as string[]);
+    if (picked.length) addAttachments(picked);
   }, [projectId, addAttachments]);
 
   /**

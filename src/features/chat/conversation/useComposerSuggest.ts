@@ -6,7 +6,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { commands, type AcpCommand } from "@/lib/bindings";
+import type { AcpCommand } from "@/lib/bindings";
+import { acpApi } from "@/api/acp";
 import { useT } from "@/i18n";
 import { applyMention, findMentionQuery } from "../acpMention";
 import { applyCommand, filterCommands, findSlashQuery, withLocalCommands } from "../acpSlash";
@@ -51,11 +52,16 @@ export function useComposerSuggest({
     }
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      void commands.acpListFiles(projectId, mention.query, 8).then((res) => {
-        if (cancelled) return;
-        setMentions(res.status === "ok" ? res.data : []);
-        setMentionIndex(0);
-      });
+      // 실패는 조용하다 — 후보가 없는 것과 같이 다룬다 (자동완성 하나 때문에
+      // 대화창에 빨간 줄이 뜨면 안 된다).
+      void acpApi
+        .listFiles(projectId, mention.query, 8)
+        .catch(() => [] as string[])
+        .then((files) => {
+          if (cancelled) return;
+          setMentions(files);
+          setMentionIndex(0);
+        });
     }, 120);
     return () => {
       cancelled = true;
@@ -72,16 +78,21 @@ export function useComposerSuggest({
       return;
     }
     let cancelled = false;
-    void commands.acpCommands(projectId, provider).then((res) => {
-      if (cancelled) return;
-      // 어댑터 목록 + 앱이 직접 처리하는 명령(`/clear`·`/continue`·`/rc` …).
-      // 어댑터가 못 주는 것까지 합쳐야 `/` 를 눌렀을 때 실제로 되는 것이 다 보인다.
-      const all = withLocalCommands(res.status === "ok" ? res.data : [], (key) =>
-        t(key as Parameters<typeof t>[0]),
-      ).filter((command) => !codex || command.name !== "remote-control");
-      setSlash(filterCommands(all, typed.query));
-      setSlashIndex(0);
-    });
+    // 조회가 실패해도 목록은 뜬다 — 어댑터 몫이 비었을 뿐, 앱이 직접 처리하는
+    // 명령은 그대로 보여야 한다.
+    void acpApi
+      .slashCommands(projectId, provider)
+      .catch(() => [] as AcpCommand[])
+      .then((adapterCommands) => {
+        if (cancelled) return;
+        // 어댑터 목록 + 앱이 직접 처리하는 명령(`/clear`·`/continue`·`/rc` …).
+        // 어댑터가 못 주는 것까지 합쳐야 `/` 를 눌렀을 때 실제로 되는 것이 다 보인다.
+        const all = withLocalCommands(adapterCommands, (key) =>
+          t(key as Parameters<typeof t>[0]),
+        ).filter((command) => !codex || command.name !== "remote-control");
+        setSlash(filterCommands(all, typed.query));
+        setSlashIndex(0);
+      });
     return () => {
       cancelled = true;
     };

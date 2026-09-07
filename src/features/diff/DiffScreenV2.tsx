@@ -305,9 +305,9 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
 
             <div className="diff-code" ref={search.diffCodeRef}>
               {file.loading ? (
-                <div className="empty-hint">
+                <EmptyState>
                   <Loader size={14} /> {t("diff.computing")}
-                </div>
+                </EmptyState>
               ) : file.error ? (
                 // 「다시 시도」 버튼이 안 그려지고 있었다 — ErrorCard 는 onRetry 가
                 // 있어야 버튼을 낸다.

@@ -6,7 +6,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type React from "react";
 
-import { commands, type AcpSession, type AppError } from "@/lib/bindings";
+import type { AcpSession, AppError } from "@/lib/bindings";
+import { acpApi } from "@/api/acp";
+import { toAppError } from "@/api/invoke";
 import { tError } from "@/i18n/errors";
 
 export interface AcpAdapterArgs {
@@ -46,13 +48,16 @@ export function useAcpAdapter({ projectId, provider, setSession, setError }: Acp
     setError(null);
     setNeedsInstall(false);
     setStarting(true);
-    void commands
-      .acpStart(projectId, provider)
-      .then((res) => {
-        if (cancelled) return;
-        if (res.status === "ok") setSession(res.data);
-        else failStart(res.error);
-      })
+    void acpApi
+      .start(projectId, provider)
+      .then(
+        (started) => {
+          if (!cancelled) setSession(started);
+        },
+        (e: unknown) => {
+          if (!cancelled) failStart(toAppError(e));
+        },
+      )
       .finally(() => {
         if (!cancelled) setStarting(false);
       });
@@ -66,9 +71,11 @@ export function useAcpAdapter({ projectId, provider, setSession, setError }: Acp
     setError(null);
     setNeedsInstall(false);
     try {
-      const res = await commands.acpStart(projectId, provider);
-      if (res.status === "ok") setSession(res.data);
-      else failStart(res.error);
+      const started = await acpApi.start(projectId, provider).catch((e: unknown) => {
+        failStart(toAppError(e));
+        return null;
+      });
+      if (started) setSession(started);
     } finally {
       setStarting(false);
     }
@@ -87,12 +94,11 @@ export function useAcpAdapter({ projectId, provider, setSession, setError }: Acp
     setStarting(true);
     setError(null);
     try {
-      const res = await commands.acpInstallAdapter(provider);
-      if (res.status !== "ok") {
-        setError(tError(res.error));
-        return;
-      }
+      await acpApi.installAdapter(provider);
       setNeedsInstall(false);
+    } catch (e) {
+      setError(tError(toAppError(e)));
+      return;
     } finally {
       setStarting(false);
     }
@@ -102,11 +108,11 @@ export function useAcpAdapter({ projectId, provider, setSession, setError }: Acp
   /** 모델·Effort·권한 모드를 바꾼다. 실패하면 화면이 옛 값을 그대로 든다. */
   const setOption = useCallback(
     async (configId: string, value: string) => {
-      const res = await commands.acpSetConfigOption(projectId, provider, configId, value);
-      if (res.status === "ok") {
-        setSession((prev) => (prev ? { ...prev, options: res.data } : prev));
-      } else {
-        setError(tError(res.error));
+      try {
+        const options = await acpApi.setConfigOption(projectId, provider, configId, value);
+        setSession((prev) => (prev ? { ...prev, options } : prev));
+      } catch (e) {
+        setError(tError(toAppError(e)));
       }
     },
     [projectId, provider, setSession, setError],

@@ -12,13 +12,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type React from "react";
 import { Channel } from "@tauri-apps/api/core";
 
-import {
-  commands,
-  events,
-  type AcpEvent,
-  type AcpSession,
-  type AcpSessionSummary,
-} from "@/lib/bindings";
+import type { AcpEvent, AcpSession, AcpSessionSummary } from "@/lib/bindings";
+import { acpApi } from "@/api/acp";
+import { toAppError } from "@/api/invoke";
 import { createUnlistenBag } from "@/lib/unlisten";
 import { tError } from "@/i18n/errors";
 import { applyAcpEvent, closeTurn, type AcpTurn } from "../acpTurns";
@@ -112,18 +108,20 @@ export function useAcpSessionSync({
    * 패널이 자기 빈 상태를 보여 준다.
    */
   const refreshHistory = useCallback(async () => {
-    const res = await commands.acpListSessions(projectId, provider);
-    if (res.status === "ok") {
-      // 목록의 제목도 어댑터가 준 그대로다 — 탭과 같은 잣대로 거른다. 안 그러면
-      // 같은 대화가 탭에서는 제 이름으로, 옆 패널에서는 방금 친 말로 보인다.
-      const stable = stabilizeHistory(res.data, activityRef.current, removedRef.current);
-      setHistory(
-        stable.map((item) => ({ ...item, title: resolveTitle(item.title, promptsOf(item.id)) })),
-      );
-      // 정렬(활성 먼저)은 여기서 하지 않는다 — 조회는 몇 초에 한 번이고 활성
-      // 여부는 그 사이에도 바뀐다. 렌더 시점에 접는다.
-
+    let listed: AcpSessionSummary[];
+    try {
+      listed = await acpApi.listSessions(projectId, provider);
+    } catch {
+      return;
     }
+    // 목록의 제목도 어댑터가 준 그대로다 — 탭과 같은 잣대로 거른다. 안 그러면
+    // 같은 대화가 탭에서는 제 이름으로, 옆 패널에서는 방금 친 말로 보인다.
+    const stable = stabilizeHistory(listed, activityRef.current, removedRef.current);
+    setHistory(
+      stable.map((item) => ({ ...item, title: resolveTitle(item.title, promptsOf(item.id)) })),
+    );
+    // 정렬(활성 먼저)은 여기서 하지 않는다 — 조회는 몇 초에 한 번이고 활성
+    // 여부는 그 사이에도 바뀐다. 렌더 시점에 접는다.
   }, [projectId, provider, promptsOf, activityRef, removedRef]);
 
   /**
@@ -143,24 +141,30 @@ export function useAcpSessionSync({
       if (!isVisible()) return;
       // 어댑터 생사부터 본다. 다른 조회는 백엔드 상태의 **로컬 읽기**라
       // 프로세스가 죽어도 마지막 값을 돌려준다 — 죽음이 화면에 안 보였다.
-      void commands.acpStatus(projectId, provider).then((res) => {
-        if (res.status !== "ok") return;
-        if (res.data) {
-          aliveRef.current = true;
-          setAgentGone(false);
-        } else if (aliveRef.current) {
-          aliveRef.current = false;
-          setAgentGone(true);
-        }
-      });
-      void commands.acpOptions(projectId, provider).then((res) => {
-        if (res.status !== "ok" || !res.data.length) return;
-        // **달라졌을 때만** 갈아 끼운다 (사연은 acpOptions.ts 에). 같은 값을
-        // 새 객체로 넣으면 이 효과가 스스로를 다시 불러 끝없이 돈다.
-        setSession((prev) =>
-          prev && !sameOptions(prev.options, res.data) ? { ...prev, options: res.data } : prev,
-        );
-      });
+      void acpApi
+        .status(projectId, provider)
+        .then((alive) => {
+          if (alive) {
+            aliveRef.current = true;
+            setAgentGone(false);
+          } else if (aliveRef.current) {
+            aliveRef.current = false;
+            setAgentGone(true);
+          }
+        })
+        // 조회가 실패한 것은 **죽었다는 근거가 아니다** — 아무 것도 바꾸지 않는다.
+        .catch(() => {});
+      void acpApi
+        .options(projectId, provider)
+        .then((options) => {
+          if (!options.length) return;
+          // **달라졌을 때만** 갈아 끼운다 (사연은 acpOptions.ts 에). 같은 값을
+          // 새 객체로 넣으면 이 효과가 스스로를 다시 불러 끝없이 돈다.
+          setSession((prev) =>
+            prev && !sameOptions(prev.options, options) ? { ...prev, options } : prev,
+          );
+        })
+        .catch(() => {});
       // 제목은 에이전트가 대화를 보고 **나중에** 붙인다 — 알림을 따라간다.
       // 아직 안 만든 새 대화(`session_id === null`)에서는 건너뛴다: 백엔드에는
       // 직전 대화가 남아 있어서 그 제목이 빈 화면에 되살아난다.
@@ -168,13 +172,12 @@ export function useAcpSessionSync({
       // 최신값은 ref 로 읽는다 — `session` 을 의존성에 넣으면 위와 같은 고리가
       // 다시 생기고, 제목이 하나 바뀔 때마다 구독을 새로 걸기까지 한다.
       if (sessionRef.current?.session_id == null) return;
-      void commands.acpSessionTitle(projectId, provider).then((res) => {
-        if (res.status === "ok") {
-          setSession((prev) =>
-            prev && prev.title !== res.data ? { ...prev, title: res.data } : prev,
-          );
-        }
-      });
+      void acpApi
+        .sessionTitle(projectId, provider)
+        .then((title) => {
+          setSession((prev) => (prev && prev.title !== title ? { ...prev, title } : prev));
+        })
+        .catch(() => {});
     };
     // Phase 4 #events-over-polling — 4초 폴링 대신 백엔드의 세션 변화 이벤트
     // (어댑터 생사·제목·설정·대화 목록). 창이 깨어날 때 한 번 더 맞춘다.
@@ -183,13 +186,13 @@ export function useAcpSessionSync({
     // 그 자리에서 뗀다 (안 그러면 죽은 화면이 이벤트마다 IPC 를 한 벌 더 쏜다).
     const bag = createUnlistenBag();
     bag.add(
-      events.acpSessionChanged.listen((evt) => {
-        if (evt.payload.project_id !== projectId || evt.payload.provider !== provider) return;
+      acpApi.onSessionChanged((payload) => {
+        if (payload.project_id !== projectId || payload.provider !== provider) return;
         sync();
         // 목록의 **내용**이 바뀌는 종류만 다시 읽는다. 뒤에서 도는 대화의
         // 제목은 이 길로만 탭에 닿는다 — 제목은 이제 그 대화의 칸에 들어가서
         // 보고 있는 화면의 상태(`session.title`)로는 오지 않는다.
-        if (HISTORY_KINDS.has(evt.payload.kind)) void refreshHistory();
+        if (HISTORY_KINDS.has(payload.kind)) void refreshHistory();
       }),
     );
     const onWake = () => {
@@ -241,10 +244,16 @@ export function useAcpSessionSync({
       // 스트림의 자리를 잠깐 빼앗아 아예 멎게 만든다. 장부만 바꾼다.
       if (transcriptsRef.current[sessionId]?.length) {
         const title = tabTitleOf(sessionId);
-        const picked = await commands.acpSelectSession(projectId, provider, sessionId, title);
+        let picked: AcpSession;
+        try {
+          picked = await acpApi.selectSession(projectId, provider, sessionId, title);
+        } catch (e) {
+          if (loadSeqRef.current !== seq) return;
+          putError(sessionId, tError(toAppError(e)));
+          return;
+        }
         if (loadSeqRef.current !== seq) return;
-        if (picked.status === "ok") setSession(picked.data);
-        else putError(sessionId, tError(picked.error));
+        setSession(picked);
         return;
       }
 
@@ -264,17 +273,20 @@ export function useAcpSessionSync({
         editTurns(sessionId, (prev) => applyAcpEvent(prev, event, true));
       };
 
-      const res = await commands.acpLoadSession(projectId, provider, sessionId, channel);
-      if (loadSeqRef.current !== seq) return;
-      if (res.status === "ok") {
-        setSession(res.data);
-        addTab(sessionId, res.data.title);
-        // 재생이 끝났으니 마지막 턴을 닫는다 — 안 닫으면 다음 질문의 답이
-        // 지난 답변 꼬리에 붙는다.
-        editTurns(sessionId, closeTurn);
-      } else {
-        putError(sessionId, tError(res.error));
+      let loaded: AcpSession;
+      try {
+        loaded = await acpApi.loadSession(projectId, provider, sessionId, channel);
+      } catch (e) {
+        if (loadSeqRef.current !== seq) return;
+        putError(sessionId, tError(toAppError(e)));
+        return;
       }
+      if (loadSeqRef.current !== seq) return;
+      setSession(loaded);
+      addTab(sessionId, loaded.title);
+      // 재생이 끝났으니 마지막 턴을 닫는다 — 안 닫으면 다음 질문의 답이
+      // 지난 답변 꼬리에 붙는다.
+      editTurns(sessionId, closeTurn);
     },
     [
       projectId, provider, addTab, editTurns, tabTitleOf, putUsage, putPermission,
@@ -295,15 +307,15 @@ export function useAcpSessionSync({
     setStarting(true);
     setError(null);
     try {
-      const res = await commands.acpStart(projectId, provider);
-      if (res.status !== "ok") {
-        setError(tError(res.error));
-        return;
-      }
+      const started = await acpApi.start(projectId, provider).catch((e: unknown) => {
+        setError(tError(toAppError(e)));
+        return null;
+      });
+      if (!started) return;
       aliveRef.current = true;
       setAgentGone(false);
       const previous = session?.session_id ?? null;
-      setSession(res.data);
+      setSession(started);
       await refreshHistory();
       if (previous) {
         setTranscripts((prev) => ({ ...prev, [previous]: [] }));

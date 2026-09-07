@@ -532,9 +532,12 @@ export function JournalScreenV2({
             {/* 상한을 넘겼다는 사실은 **목록 위**에 적는다. 바닥에만 두면
                 끝까지 스크롤한 사람만 알게 되는데, 이 상한은 "전부 보고
                 있다"는 착각을 만드는 종류라 먼저 말해야 한다. */}
+            {/* `EmptyState` 가 아니다 — 목록은 **비어 있지 않다.** 이 줄은 "다
+                못 실었다"는 알림이고, 빈 상태 프리미티브를 알림 줄에 쓰면
+                `padding: 60px 30px` 을 매번 인라인으로 되돌리게 된다
+                (`.a2a-sub` 주석이 같은 사고를 기록해 뒀다). 토큰 두 개면 된다. */}
             {truncated ? (
               <div
-                className="empty-hint"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -542,6 +545,8 @@ export function JournalScreenV2({
                   justifyContent: "space-between",
                   padding: "8px 12px",
                   marginBottom: 10,
+                  color: "var(--text-2)",
+                  fontSize: "var(--fs-5)",
                 }}
               >
                 <span>

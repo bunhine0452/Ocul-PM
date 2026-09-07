@@ -46,7 +46,6 @@ export const oculpmLog = {
   flow(message: string, ctx?: Record<string, unknown>) {
     send("info", "flow", `[FLOW] ${format(message, ctx)}`);
     // Mirror to DevTools too so live debugging doesn't need to tail the file.
-    // eslint-disable-next-line no-console
     console.log(`[oculpm][FLOW] ${format(message, ctx)}`);
   },
   info(target: string, message: string, ctx?: Record<string, unknown>) {
@@ -54,12 +53,10 @@ export const oculpmLog = {
   },
   warn(target: string, message: string, ctx?: Record<string, unknown>) {
     send("warn", target, format(message, ctx));
-    // eslint-disable-next-line no-console
     console.warn(`[oculpm][${target}] ${format(message, ctx)}`);
   },
   error(target: string, message: string, ctx?: Record<string, unknown>) {
     send("error", target, format(message, ctx));
-    // eslint-disable-next-line no-console
     console.error(`[oculpm][${target}] ${format(message, ctx)}`);
   },
 };
