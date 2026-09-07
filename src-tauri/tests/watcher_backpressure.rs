@@ -18,7 +18,7 @@ use std::time::{Duration, Instant};
 use notify::event::{CreateKind, EventKind};
 use notify_debouncer_full::DebouncedEvent;
 
-use ocul_pm_lib::oculpm::watcher_queue::{self, WatcherSink, DEFAULT_CAPACITY};
+use ocul_pm_lib::oculpm::watcher_queue::{self, PreFilter, WatcherSink, DEFAULT_CAPACITY};
 use ocul_pm_lib::oculpm::watcher_tasks::{self, Lane, INDEX_PERMITS};
 
 /// 경로만 다른 이벤트 하나. 실제 워처가 받는 모양(Create + 경로 1개)과 같다.
@@ -344,4 +344,108 @@ async fn stat_and_hash_keeps_the_old_answers() {
     let (bytes, hash) = watcher_tasks::stat_and_hash(dir.path().join("nope"), 1024).await;
     assert_eq!(bytes, 0);
     assert!(hash.is_none());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 사전 필터 (`{#watcher-prefilter}` · `{#watcher-drain-time}`)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// 유계 큐는 **메모리 상한**만 고쳤다. 드레인 시간(측정 4,272 ms)은 큐에
+// 들어오는 양의 함수고, 지금까지 큐가 받은 것은 gitignore 판정 이전의 날것이라
+// `target/`(이 저장소 55,663 파일) 쓰기가 전부 링을 한 바퀴 돌았다. 여기서는
+// 같은 판정을 채널 **앞**으로 당긴 결과를 문다 — 그리고 그 필터가 **삼키면 안
+// 되는 것**을 삼키지 않는지를 더 세게 문다 (거기서 잘못 버리면 그 변경은 영영
+// 안 보인다).
+
+/// 워처가 실제로 쓰는 것과 같은 방식으로 매처를 세운다 — 루트는 실재해야
+/// 하고(`matched_path_or_any_parents` 가 루트 밖 경로를 받지 않는다) macOS 의
+/// `/var` → `/private/var` 때문에 정규화까지 워처와 같아야 한다.
+fn prefilter_at(root: &std::path::Path, ignore_lines: &[&str]) -> PreFilter {
+    let lines: Vec<String> = ignore_lines.iter().map(|s| s.to_string()).collect();
+    let user_ignore = watcher_queue::build_gitignore_from_lines(root, &lines);
+    let project_gitignore = watcher_queue::load_project_gitignore(root);
+    PreFilter::new(root.to_path_buf(), user_ignore, project_gitignore)
+}
+
+/// 기본 `watcher.ignore`(`.git/`·`node_modules/`·`target/`)에 걸리는 경로는
+/// **큐에 들어오기 전에** 사라진다. 사용자 코드는 그대로 들어온다.
+#[test]
+fn prefilter_keeps_build_output_out_of_the_queue() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    let f = prefilter_at(&root, &[".git/", "node_modules/", "target/"]);
+
+    assert!(!f.keeps(&root.join("target/debug/deps/ocul_pm.rlib")));
+    assert!(!f.keeps(&root.join("node_modules/react/index.js")));
+    assert!(!f.keeps(&root.join(".git/index")));
+
+    assert!(f.keeps(&root.join("src/main.rs")));
+    assert!(f.keeps(&root.join("docs/README.md")));
+}
+
+/// **삼키면 안 되는 것들.** 소비자(`handle_event`)가 gitignore 판정보다
+/// **먼저** 처리하는 경로는 사전 필터도 먼저 통과시켜야 한다. 여기서는 사용자가
+/// 전부를 무시하도록(`*` + `.oculpm/`) 극단으로 설정해 놓고 그 계약을 문다.
+#[test]
+fn prefilter_never_swallows_what_the_consumer_judges_first() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    // 프로젝트 `.gitignore` 가 `.oculpm/` 을 무시하는 실제 상황까지 재현한다.
+    std::fs::write(root.join(".gitignore"), "*\n.oculpm/\n.claude/\n.cursor/\n").unwrap();
+    let f = prefilter_at(&root, &["*", ".oculpm/"]);
+
+    // 실시간 갱신의 심장 — 일지·계획·논의·훅 인박스·A2A 원장.
+    assert!(f.keeps(&root.join(".oculpm/journal/20260907/Feature/x.md")));
+    assert!(f.keeps(&root.join(".oculpm/planner/v3-release.md")));
+    assert!(f.keeps(&root.join(".oculpm/discussion/x.md")));
+    assert!(f.keeps(&root.join(".oculpm/hooks/inbox.ndjson")));
+    assert!(f.keeps(&root.join(".oculpm/agents/_template.md")));
+    assert!(f.keeps(&root.join(".oculpm/config.toml")));
+    // 감독관의 생존 프로브(`supervisor::PROBE_REL`). 이게 막히면 멀쩡한 워처가
+    // "귀가 먹었다" 로 판정돼 2분마다 재무장한다.
+    assert!(f.keeps(&root.join(".oculpm/index/.watchdog")));
+
+    // 어댑터 마커 — 소비자 4.5 단계. `.cursor/` 를 무시한 사용자도 드리프트
+    // 알림은 받아야 한다.
+    assert!(f.keeps(&root.join(".cursor/rules/ocul-pm.mdc")));
+    assert!(f.keeps(&root.join(".claude/CLAUDE.md")));
+    assert!(f.keeps(&root.join("AGENTS.md")));
+    // 규칙 파일 — 소비자 4.7 단계.
+    assert!(f.keeps(&root.join(".claude/rules/git.md")));
+    assert!(f.keeps(&root.join("CLAUDE.md")));
+
+    // 반대쪽: 특별하지 않은 경로는 `*` 에 걸려 사라진다.
+    assert!(!f.keeps(&root.join("src/main.rs")));
+}
+
+/// 링 **앞**에서 걸러진다는 것을 큐로 확인한다: 예전이라면 용량 4,096 을 훌쩍
+/// 넘겨 오래된 것들을 밀어내고 재동기화까지 켰을 `target/` 폭풍이, 이제는 링을
+/// 한 칸도 쓰지 않는다.
+#[test]
+fn a_build_storm_no_longer_reaches_the_ring() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    let f = prefilter_at(&root, &["target/"]);
+    let (tx, rx) = watcher_queue::channel_with_filter(DEFAULT_CAPACITY, Some(f));
+
+    let mut batch: Vec<DebouncedEvent> = (0..5_000)
+        .map(|n| at(root.join(format!("target/debug/o{n}.o"))))
+        .collect();
+    batch.push(at(root.join("src/main.rs")));
+    let dropped = tx.push_batch(batch);
+
+    assert_eq!(dropped, 0, "사전 필터가 걸렀으니 밀려난 것도 없어야 한다");
+    assert_eq!(rx.len(), 1, "링에는 사용자 코드 한 건만 들어와야 한다");
+    assert_eq!(rx.metrics().prefiltered_total(), 5_000);
+    assert_eq!(rx.metrics().dropped_total(), 0);
+    assert!(
+        rx.take_resync().is_none(),
+        "걸러 낸 것은 손실이 아니므로 재동기화를 켜서는 안 된다"
+    );
+}
+
+/// 경로 하나짜리 이벤트. `ev()` 와 달리 경로를 직접 준다.
+fn at(path: std::path::PathBuf) -> DebouncedEvent {
+    let event = notify::Event::new(EventKind::Create(CreateKind::File)).add_path(path);
+    DebouncedEvent::new(event, Instant::now())
 }

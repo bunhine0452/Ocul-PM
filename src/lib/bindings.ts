@@ -5255,6 +5255,13 @@ export type OculpmStatus = {
 	lock_state: LockStateView,
 	current_workday: string,
 	watcher_state: WatcherStateView,
+	/**
+	 *  유계 큐가 가득 차 버린 이벤트 누계 — [`WatcherStatus::dropped_total`] 과
+	 *  같은 값이다. 여기 실려 오는 이유는 **닥터가 이미 이 봉투를 읽고 있어서**다
+	 *  (`DoctorSection`). 전용 커맨드를 새로 내는 대신 한 칸을 늘렸다
+	 *  (`{#dropped-total-surface}`).
+	 */
+	watcher_dropped_total: number,
 };
 
 /**

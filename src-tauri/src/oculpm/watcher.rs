@@ -6,7 +6,9 @@
 //!      (**emit 판정과 자동화 트리거 판정은 다르다** — 일지·플랜·정의·색인은
 //!      화면 갱신을 위해 계속 emit 되지만 자동화의 **원인에서는 제외**된다:
 //!      `automation::settle::is_excluded_cause`, 증폭 루프 가드 R1),
-//!   3. `watcher.ignore` glob + project `.gitignore`,
+//!   3. `watcher.ignore` glob + project `.gitignore` (**같은 판정을
+//!      `watcher_queue::PreFilter` 가 채널 앞에서 먼저 한다** — 여기 남은 것은
+//!      두 번째 그물이다),
 //!   4. classify into `FileOp` + blake3 hash (≤ 8 MB),
 //!   5. `git.forbid_journal_for_paths` masking,
 //!   6. `SessionActor::note_activity` (which stamps session_id + ts and
@@ -29,7 +31,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
-use ignore::gitignore::{Gitignore, GitignoreBuilder};
+use ignore::gitignore::Gitignore;
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::{
     new_debouncer, DebounceEventResult, DebouncedEvent, Debouncer, FileIdMap,
@@ -72,6 +74,9 @@ pub struct ProjectWatcher {
     join_handle: JoinHandle<()>,
     stats: Arc<RwLock<WatcherStatsInner>>,
     debounce_ms: u32,
+    /// 큐 계수기 — 버림(`dropped_total`)을 진단에 싣기 위해 소비자를 소비
+    /// 루프에 넘기기 전에 떼어 둔 손잡이.
+    queue_metrics: watcher_queue::QueueMetrics,
     /// 곁일 종료 손잡이 — 드롭만으로도 색인·히스토리 태스크가 끊긴다.
     tasks_shutdown: watcher_tasks::WatcherTasksShutdown,
 }
@@ -99,12 +104,19 @@ impl ProjectWatcher {
         // `/private/tmp`) compare cleanly against the stored root.
         let root = root.canonicalize().unwrap_or(root);
 
-        let user_ignore = build_gitignore_from_lines(&root, &config.watcher.ignore);
+        let user_ignore = watcher_queue::build_gitignore_from_lines(&root, &config.watcher.ignore);
         let project_gitignore = if config.watcher.respect_gitignore {
-            load_project_gitignore(&root)
+            watcher_queue::load_project_gitignore(&root)
         } else {
             None
         };
+        // 같은 매처를 **채널 앞**에도 세운다 (`{#watcher-prefilter}`) — `target/`
+        // 55,663 파일이 큐를 한 바퀴 돌지 않게. 판정 규칙은 `PreFilter` 참고.
+        let prefilter = watcher_queue::PreFilter::new(
+            root.clone(),
+            user_ignore.clone(),
+            project_gitignore.clone(),
+        );
         // Forbidden-path matcher delegated to `oculpm::redact` (W4-PR3) so the
         // watcher and `manager::create_manual_journal_entry` see the same
         // glob semantics — see `oculpm::redact::is_forbidden_path`.
@@ -149,7 +161,9 @@ impl ProjectWatcher {
         // Bridge std/sync notify worker → tokio task. 유계 링이라 콜백은 절대
         // 블록하지 않고, 넘치면 가장 오래된 것을 버린 뒤 재동기화 신호를 켠다
         // (`watcher_queue` 의 용량 근거 주석 참고).
-        let (event_tx, event_rx) = watcher_queue::channel(watcher_queue::DEFAULT_CAPACITY);
+        let (event_tx, event_rx) =
+            watcher_queue::channel_with_filter(watcher_queue::DEFAULT_CAPACITY, Some(prefilter));
+        let queue_metrics = event_rx.metrics();
         // Phase 2 — 티어가 있으면 티어가, 없으면 기존 숫자가 창을 정한다. 어느
         // 쪽이든 `balanced`(1s)로 잘린다: 긴 디바운스는 OS 워처가 이벤트를 들고
         // 있게 만들어 메모리·유실 위험이다. 긴 기다림은 러너 쪽 정착 타이머의 몫.
@@ -208,6 +222,7 @@ impl ProjectWatcher {
             join_handle,
             stats,
             debounce_ms,
+            queue_metrics,
             tasks_shutdown,
         })
     }
@@ -270,6 +285,7 @@ impl ProjectWatcher {
             events_ignored_total: stats.events_ignored_total,
             last_event_at: stats.last_event_at.map(|t| t.to_rfc3339()),
             debounce_ms: self.debounce_ms,
+            dropped_total: self.queue_metrics.dropped_total().min(u64::from(u32::MAX)) as u32,
         }
     }
 }
@@ -1569,7 +1585,7 @@ fn data_area_for_path(rel_str: &str) -> Option<OculpmDataArea> {
 }
 
 /// 규칙 허브가 그리는 파일들 — `oculpm::rules` 의 표면과 같다.
-fn is_rules_path(rel_str: &str) -> bool {
+pub(crate) fn is_rules_path(rel_str: &str) -> bool {
     rel_str.starts_with(".claude/rules/")
         || rel_str.starts_with(".cursor/rules/")
         || matches!(
@@ -1584,23 +1600,6 @@ fn classify_journal_op(kind: &EventKind) -> FileOp {
         EventKind::Remove(_) => FileOp::Delete,
         _ => FileOp::Update,
     }
-}
-
-fn build_gitignore_from_lines(root: &Path, lines: &[String]) -> Gitignore {
-    let mut builder = GitignoreBuilder::new(root);
-    for line in lines {
-        let _ = builder.add_line(None, line);
-    }
-    builder.build().unwrap_or_else(|_| Gitignore::empty())
-}
-
-fn load_project_gitignore(root: &Path) -> Option<Gitignore> {
-    let gi_path = root.join(".gitignore");
-    if !gi_path.exists() {
-        return None;
-    }
-    let (gi, _err) = Gitignore::new(&gi_path);
-    Some(gi)
 }
 
 fn short_hash_of(input: &str) -> String {

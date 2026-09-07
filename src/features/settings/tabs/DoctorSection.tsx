@@ -149,7 +149,12 @@ export function DoctorSection() {
       !s
         ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "off", value: unknown }
         : s.watcher_state === "running"
-          ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "ok", value: t("settings.doctor.v.running") }
+          // {#dropped-total-surface} — 「감시 중」만 말하면, 큐가 넘쳐 1,058건을
+          // 흘린 워처도 건강한 워처와 글자 하나 다르지 않다. 버림이 있으면
+          // 그 수를 말하고 만회 수단(재색인)을 같이 준다.
+          ? s.watcher_dropped_total > 0
+            ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "warn", value: t("settings.doctor.v.dropped", { n: s.watcher_dropped_total }), action: { labelKey: "settings.doctor.a.index", run: () => requestReindex() } }
+            : { id: "watcher", labelKey: "settings.doctor.watcher", state: "ok", value: t("settings.doctor.v.running") }
           : s.watcher_state === "error"
             ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "danger", value: t("settings.doctor.v.error"), action: { labelKey: "settings.doctor.a.start", run: restart } }
             : { id: "watcher", labelKey: "settings.doctor.watcher", state: "warn", value: t("settings.doctor.v.stopped"), action: { labelKey: "settings.doctor.a.start", run: restart } },

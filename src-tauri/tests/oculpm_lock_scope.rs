@@ -303,3 +303,66 @@ async fn stop_racing_start_never_installs_a_discarded_watcher() {
     );
     assert!(lock_file(dir.path()).exists());
 }
+
+/// 감시를 **끄는** 쪽도 맵 락을 드레인 너머로 들고 가지 않는다
+/// (`{#v242-watcher-stop-lock}`).
+///
+/// `watcher_stop` 은 오랫동안 전역 맵의 write 락을 쥔 채 `watcher.stop().await`
+/// 로 드레인이 끝나기를 기다렸다. 기준선이 잰 드레인이 4.3초고, 그동안 *다른
+/// 모든 프로젝트의* manager 접근이 read 조차 막혔다.
+///
+/// 정직하게: 이 테스트는 "빨라졌다" 를 재지 않는다 — 드레인이 빈 큐면 어느
+/// 코드에서도 즉시 끝나므로 시간으로는 둘을 못 가른다. 락을 짧게 잡는다는 것은
+/// **구조의 성질**이고(가드가 `.await` 앞에서 끝나는 블록 안에 산다), 여기서는
+/// 그 구조가 상태를 망가뜨리지 않고 **교착도 만들지 않는지**를 본다: 여러
+/// 프로젝트를 동시에 끄는 와중에 다른 프로젝트의 조회가 계속 응답해야 한다.
+#[tokio::test(flavor = "multi_thread")]
+async fn stopping_one_project_never_wedges_the_others() {
+    let dirs: Vec<_> = (0..4).map(|_| tempfile::tempdir().unwrap()).collect();
+    let manager = Arc::new(OculpmManager::new());
+    for (i, d) in dirs.iter().enumerate() {
+        let id = i as u32 + 31;
+        manager.init_project(id, d.path(), "ko").await.unwrap();
+        manager.watcher_start(id, None).await.unwrap();
+    }
+
+    // 끄기 넷 + 그 와중에 계속 도는 조회 하나.
+    let readers = {
+        let m = manager.clone();
+        tokio::spawn(async move {
+            for _ in 0..200 {
+                let _ = m.get_status(31).await;
+                let _ = m.watcher_health().await;
+                let _ = m.current_workdays().await;
+                tokio::task::yield_now().await;
+            }
+        })
+    };
+    let mut stops = Vec::new();
+    for i in 0..dirs.len() {
+        let m = manager.clone();
+        stops.push(tokio::spawn(
+            async move { m.watcher_stop(i as u32 + 31).await },
+        ));
+    }
+
+    let all = async {
+        for s in stops {
+            s.await.unwrap().expect("끄기는 전부 성공해야 한다");
+        }
+        readers.await.unwrap();
+    };
+    tokio::time::timeout(std::time::Duration::from_secs(30), all)
+        .await
+        .expect("끄기와 조회가 서로를 물었다 (교착)");
+
+    for (i, d) in dirs.iter().enumerate() {
+        let id = i as u32 + 31;
+        assert!(matches!(
+            manager.watcher_status(id).await.state,
+            WatcherStateView::Stopped
+        ));
+        // 감시를 껐다고 쓰기 주인 자리까지 내주지는 않는다.
+        assert!(lock_file(d.path()).exists());
+    }
+}

@@ -11,11 +11,12 @@
 //!
 //! - `git checkout` 한 번(378 파일)이 **한 배치에 1,058 이벤트**를 부었다.
 //!   체크아웃 자체는 149 ms, 워처가 정적화되기까지 **4,272 ms**.
-//! - 채널이 받는 것은 **gitignore 판정 이전의 날것**이다. `target/`·`node_modules/`
-//!   쓰기도 전부 큐에 먼저 들어온 뒤 `handle_event` 6단계에서 버려진다. 지금
+//! - 채널이 받는 것은 **gitignore 판정 이전의 날것**이었다. `target/`·`node_modules/`
+//!   쓰기도 전부 큐에 먼저 들어온 뒤 `handle_event` 6단계에서 버려졌다. 지금
 //!   이 저장소의 `src-tauri/target` 에만 **55,663 파일**이 있다.
-//!
-//! 즉 `cargo build` 한 번이 채널을 수만 건으로 채울 수 있고, 그 상한이 없다.
+//!   → 이 두 번째 사실은 이제 옛말이다: `PreFilter` 가 같은 판정을 **채널
+//!   앞으로** 당겼다 (`{#watcher-prefilter}`). 첫 번째 사실(정상 버스트가
+//!   1,058 이벤트)은 그대로이므로 유계 큐의 존재 이유도 그대로다.
 //!
 //! 이 모듈이 고르는 절충은 **유계 + drop-oldest** 다:
 //!
@@ -30,12 +31,16 @@
 //! 크기 래칫을 넘겨 한 줄도 늘릴 수 없고, 그 제약이 마침 옳은 분리를 시켰다.
 
 use std::collections::VecDeque;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use futures::future::FutureExt;
+use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify_debouncer_full::DebouncedEvent;
 use tokio::sync::Notify;
+
+use crate::oculpm::{agents, watcher};
 
 /// 큐 용량 — **배치가 아니라 이벤트 개수** 단위.
 ///
@@ -54,6 +59,106 @@ use tokio::sync::Notify;
 /// 이 값을 바꾸려면 위 세 근거 중 무엇이 바뀌었는지 함께 적는다.
 pub const DEFAULT_CAPACITY: usize = 4096;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 사전 필터 — 무엇이 **큐에 들어오기 전에** 사라지는가 (`{#watcher-prefilter}`)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 채널 **앞**에 서는 gitignore 판정.
+///
+/// 유계 큐는 메모리 상한만 고쳤다. 드레인 시간 자체(측정 4,272 ms)는 큐에
+/// **들어오는 양**의 함수고, 지금까지 큐가 받은 것은 판정 이전의 날것이었다 —
+/// `target/` 55,663 파일의 쓰기가 전부 링을 한 바퀴 돈 뒤 소비 루프의 6단계에서
+/// 버려졌다. 같은 판정을 생산자 쪽으로 당기면 그 이벤트들은 **큐에 아예 들어오지
+/// 않는다**.
+///
+/// 판정은 소비자(`watcher::handle_event`)와 **같은 매처**로 하되, 소비자가
+/// gitignore 판정 **앞에서** 처리하는 경로는 여기서 절대 삼키지 않는다:
+///
+/// - `.oculpm/**` — 일지·계획·논의·훅 인박스·A2A 원장이 전부 여기 있고,
+///   감독관의 생존 프로브(`.oculpm/index/.watchdog`)도 이 아래를 두드린다.
+///   사용자가 `.oculpm/` 를 gitignore 에 넣었다는 이유로 삼키면 실시간 갱신과
+///   워처 생존 판정이 통째로 죽는다.
+/// - 어댑터 마커(`.cursor/rules/ocul-pm.mdc` 등) — 소비자 4.5 단계. 주석이
+///   명시하듯 "`.cursor/` 를 gitignore 한 사용자도 드리프트 알림은 받는다".
+/// - 규칙 파일(`.claude/rules/**` · 루트 `CLAUDE.md`) — 소비자 4.7 단계.
+pub struct PreFilter {
+    root: PathBuf,
+    user_ignore: Gitignore,
+    project_gitignore: Option<Gitignore>,
+}
+
+impl PreFilter {
+    pub fn new(
+        root: PathBuf,
+        user_ignore: Gitignore,
+        project_gitignore: Option<Gitignore>,
+    ) -> Self {
+        Self {
+            root,
+            user_ignore,
+            project_gitignore,
+        }
+    }
+
+    /// 이 경로를 큐에 넣어야 하는가. **확실할 때만 버린다** — 애매하면 통과
+    /// 시키고 소비자가 판정한다 (거기서 버리는 비용은 큐 한 칸뿐이지만, 여기서
+    /// 잘못 버리면 그 변경은 영영 안 보인다).
+    pub fn keeps(&self, path: &Path) -> bool {
+        // 루트 밖은 소비자가 세고 버린다 (`events_ignored_total`).
+        let Ok(rel) = path.strip_prefix(&self.root) else {
+            return true;
+        };
+        let rel_str = rel.to_string_lossy();
+        if rel_str.is_empty() || rel_str == ".oculpm" || rel_str.starts_with(".oculpm/") {
+            return true;
+        }
+        if watcher::is_rules_path(&rel_str) || agents::lookup_adapter_by_path(&rel_str).is_some() {
+            return true;
+        }
+        if self
+            .user_ignore
+            .matched_path_or_any_parents(path, false)
+            .is_ignore()
+        {
+            return false;
+        }
+        if let Some(gi) = &self.project_gitignore {
+            if gi.matched_path_or_any_parents(path, false).is_ignore() {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn keeps_event(&self, ev: &DebouncedEvent) -> bool {
+        // 경로 없는 이벤트는 소비자도 첫 줄에서 버린다 (계수도 하지 않는다).
+        match ev.event.paths.first() {
+            Some(p) => self.keeps(p),
+            None => false,
+        }
+    }
+}
+
+/// `watcher.ignore` 글롭 줄들로 매처를 만든다. 워처와 사전 필터가 **같은
+/// 매처**를 써야 하므로 구성도 한자리에 둔다.
+pub fn build_gitignore_from_lines(root: &Path, lines: &[String]) -> Gitignore {
+    let mut builder = GitignoreBuilder::new(root);
+    for line in lines {
+        let _ = builder.add_line(None, line);
+    }
+    builder.build().unwrap_or_else(|_| Gitignore::empty())
+}
+
+/// 프로젝트의 `.gitignore` (없으면 `None`).
+pub fn load_project_gitignore(root: &Path) -> Option<Gitignore> {
+    let gi_path = root.join(".gitignore");
+    if !gi_path.exists() {
+        return None;
+    }
+    let (gi, _err) = Gitignore::new(&gi_path);
+    Some(gi)
+}
+
 struct Shared {
     queue: Mutex<VecDeque<DebouncedEvent>>,
     capacity: usize,
@@ -62,6 +167,9 @@ struct Shared {
     open: AtomicBool,
     /// 이 워처가 살아 있는 동안 버린 이벤트 누계 (진단·로그용).
     dropped_total: AtomicU64,
+    /// 큐에 **들어오기 전에** 걸러진 이벤트 누계 (`PreFilter`). 버림과 달리
+    /// 손실이 아니다 — 소비자도 어차피 버렸을 것들이다.
+    prefiltered_total: AtomicU64,
     /// 마지막 재동기화 이후 버림이 있었는가.
     resync_pending: AtomicBool,
 }
@@ -82,13 +190,30 @@ fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 /// 생산자 손잡이. **tokio 밖(std 스레드)에서 부르도록 만들어졌다.**
 pub struct QueueSender {
     shared: Arc<Shared>,
+    /// 채널 앞 판정. `None` 이면 전부 들어온다 (큐 자체를 재는 테스트용).
+    filter: Option<PreFilter>,
 }
 
 impl QueueSender {
     /// 디바운서가 넘긴 배치 하나를 링에 붓는다. **절대 블록하지 않는다.**
     ///
-    /// 반환값은 이번 호출에서 버린 이벤트 수다 (0 이면 전부 들어갔다).
-    pub fn push_batch(&self, events: Vec<DebouncedEvent>) -> usize {
+    /// 사전 필터가 있으면 **여기서** 걸러 낸다 — gitignore 판정을 소비자에서
+    /// 생산자로 당긴 자리다. 판정 자체는 글롭 매칭이라 마이크로초 단위이고,
+    /// 그 대가로 `target/` 같은 대형 산출물 트리는 링을 한 칸도 쓰지 않는다.
+    ///
+    /// 반환값은 이번 호출에서 **버린**(= 큐가 가득 차 밀려난) 이벤트 수다.
+    /// 사전 필터가 걸러 낸 것은 손실이 아니므로 여기 세지 않는다.
+    pub fn push_batch(&self, mut events: Vec<DebouncedEvent>) -> usize {
+        if let Some(filter) = &self.filter {
+            let before = events.len();
+            events.retain(|ev| filter.keeps_event(ev));
+            let skipped = before - events.len();
+            if skipped > 0 {
+                self.shared
+                    .prefiltered_total
+                    .fetch_add(skipped as u64, Ordering::Relaxed);
+            }
+        }
         if events.is_empty() {
             return 0;
         }
@@ -172,21 +297,57 @@ impl QueueReceiver {
     pub fn dropped_total(&self) -> u64 {
         self.shared.dropped_total.load(Ordering::Relaxed)
     }
+
+    /// 계수기만 보는 손잡이. 소비자는 소비 루프에 넘어가 버리므로, 상태를
+    /// 물어보려면 넘기기 **전에** 이걸 떼어 둬야 한다.
+    pub fn metrics(&self) -> QueueMetrics {
+        QueueMetrics {
+            shared: self.shared.clone(),
+        }
+    }
 }
 
-/// 유계 링 하나를 만든다.
+/// 큐의 계수기 창구 (`WatcherStatus` · 진단 로그용).
+#[derive(Clone)]
+pub struct QueueMetrics {
+    shared: Arc<Shared>,
+}
+
+impl QueueMetrics {
+    /// 큐가 가득 차 **버린** 이벤트 누계 = 그만큼의 변경을 이 워처가 못 봤다.
+    pub fn dropped_total(&self) -> u64 {
+        self.shared.dropped_total.load(Ordering::Relaxed)
+    }
+
+    /// 큐에 들어오기 전에 걸러진 이벤트 누계 (손실 아님).
+    pub fn prefiltered_total(&self) -> u64 {
+        self.shared.prefiltered_total.load(Ordering::Relaxed)
+    }
+}
+
+/// 유계 링 하나를 만든다 (사전 필터 없이 — 큐 자체를 재는 테스트용).
 pub fn channel(capacity: usize) -> (QueueSender, QueueReceiver) {
+    channel_with_filter(capacity, None)
+}
+
+/// 유계 링 + **채널 앞 판정**.
+pub fn channel_with_filter(
+    capacity: usize,
+    filter: Option<PreFilter>,
+) -> (QueueSender, QueueReceiver) {
     let shared = Arc::new(Shared {
         queue: Mutex::new(VecDeque::with_capacity(capacity.min(1024))),
         capacity: capacity.max(1),
         notify: Notify::new(),
         open: AtomicBool::new(true),
         dropped_total: AtomicU64::new(0),
+        prefiltered_total: AtomicU64::new(0),
         resync_pending: AtomicBool::new(false),
     });
     (
         QueueSender {
             shared: shared.clone(),
+            filter,
         },
         QueueReceiver { shared },
     )
@@ -242,10 +403,12 @@ pub async fn drain_loop<S: WatcherSink>(project_id: u32, rx: QueueReceiver, sink
     // 여기 도달 = 송신측(debouncer)이 사라졌다. 정상 종료(`stop()`)일 수도,
     // 워커 스레드가 죽은 것일 수도 있다 — 예전 문구는 전자라고 단정해 후자를
     // 은폐했다. 감독관(`supervisor`)이 재무장한다.
+    let metrics = rx.metrics();
     tracing::info!(
         target: "oculpm::watcher",
         project_id,
-        dropped_total = rx.dropped_total(),
+        dropped_total = metrics.dropped_total(),
+        prefiltered_total = metrics.prefiltered_total(),
         "[FLOW] watcher receive loop ended (debouncer dropped — stop() 이거나 워커 사망)"
     );
 }

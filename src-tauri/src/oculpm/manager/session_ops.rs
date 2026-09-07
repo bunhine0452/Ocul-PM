@@ -71,15 +71,22 @@ impl OculpmManager {
 
     /// Get the current active session (if any). Returns None if idle/closing
     /// or if the project hasn't started a watcher yet.
+    ///
+    /// 액터 손잡이만 복제해 나오고 왕복은 락 **밖**에서 한다 — 액터 우편함이
+    /// 밀려 있으면 그 기다림이 전역 맵 락을 쥔 채 늘어난다 (`journal.rs` 가
+    /// 이미 지키는 "IO 를 락 너머로 끌고 가지 않는다" 와 같은 규율).
     pub async fn get_current_session(
         &self,
         project_id: u32,
     ) -> Result<Option<Session>, OculpmError> {
-        let projects = self.projects.read().await;
-        let entry = projects
-            .get(&project_id)
-            .ok_or(OculpmError::NotInitialized(project_id))?;
-        match &entry.session {
+        let actor = {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            entry.session.clone()
+        };
+        match actor {
             Some(actor) => actor.get_current_session().await,
             None => Ok(None),
         }
@@ -123,25 +130,30 @@ impl OculpmManager {
         &self,
         project_id: u32,
     ) -> Result<Option<Session>, OculpmError> {
-        {
+        // 손잡이만 꺼내 오고, 액터 왕복은 락 밖에서 한다.
+        let existing = {
             let projects = self.projects.read().await;
             let entry = projects
                 .get(&project_id)
                 .ok_or(OculpmError::NotInitialized(project_id))?;
-            if let Some(actor) = &entry.session {
-                actor.manual_start()?;
-                // Give the actor a moment to process.
-                tokio::task::yield_now().await;
-                return actor.get_current_session().await;
-            }
+            entry.session.clone()
+        };
+        if let Some(actor) = existing {
+            actor.manual_start()?;
+            // Give the actor a moment to process.
+            tokio::task::yield_now().await;
+            return actor.get_current_session().await;
         }
         // No session actor → need to start watcher first.
         self.watcher_start(project_id, None).await?;
-        let projects = self.projects.read().await;
-        let entry = projects
-            .get(&project_id)
-            .ok_or(OculpmError::NotInitialized(project_id))?;
-        if let Some(actor) = &entry.session {
+        let started = {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            entry.session.clone()
+        };
+        if let Some(actor) = started {
             actor.manual_start()?;
             tokio::task::yield_now().await;
             return actor.get_current_session().await;
@@ -194,11 +206,15 @@ impl OculpmManager {
         workday: String,
         session_id: Option<String>,
     ) -> Result<Vec<FileChangeEvent>, OculpmError> {
-        let projects = self.projects.read().await;
-        let entry = projects
-            .get(&project_id)
-            .ok_or(OculpmError::NotInitialized(project_id))?;
-        let events = entry.index_writer.read_file_changes(&workday, None).await?;
+        // ndjson 읽기는 락 밖에서 — `list_sessions` 와 같은 모양.
+        let writer = {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            entry.index_writer.clone()
+        };
+        let events = writer.read_file_changes(&workday, None).await?;
         Ok(match session_id {
             Some(sid) => events.into_iter().filter(|e| e.session_id == sid).collect(),
             None => events,
@@ -212,18 +228,17 @@ impl OculpmManager {
         workday: String,
         kind: SnapshotKind,
     ) -> Result<Snapshot, OculpmError> {
-        let projects = self.projects.read().await;
-        let entry = projects
-            .get(&project_id)
-            .ok_or(OculpmError::NotInitialized(project_id))?;
-        entry
-            .index_writer
-            .read_snapshot(&workday, kind)
-            .await?
-            .ok_or_else(|| {
-                OculpmError::InvalidConfig(format!(
-                    "snapshot not captured for workday={workday}, kind={kind:?}"
-                ))
-            })
+        let writer = {
+            let projects = self.projects.read().await;
+            let entry = projects
+                .get(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
+            entry.index_writer.clone()
+        };
+        writer.read_snapshot(&workday, kind).await?.ok_or_else(|| {
+            OculpmError::InvalidConfig(format!(
+                "snapshot not captured for workday={workday}, kind={kind:?}"
+            ))
+        })
     }
 }

@@ -530,6 +530,11 @@ pub struct OculpmStatus {
     pub lock_state: LockStateView,
     pub current_workday: String,
     pub watcher_state: WatcherStateView,
+    /// 유계 큐가 가득 차 버린 이벤트 누계 — [`WatcherStatus::dropped_total`] 과
+    /// 같은 값이다. 여기 실려 오는 이유는 **닥터가 이미 이 봉투를 읽고 있어서**다
+    /// (`DoctorSection`). 전용 커맨드를 새로 내는 대신 한 칸을 늘렸다
+    /// (`{#dropped-total-surface}`).
+    pub watcher_dropped_total: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -555,6 +560,16 @@ pub struct WatcherStatus {
     pub events_ignored_total: u32,
     pub last_event_at: Option<String>,
     pub debounce_ms: u32,
+    /// 유계 큐가 가득 차 **버린** 이벤트 누계 (`watcher_queue`). 0 이 아니면
+    /// 그만큼의 파일 변경을 이 워처가 보지 못했다는 뜻이다 — 정착 후
+    /// 재동기화(`resync_after_drops`)가 일지·계획은 디스크에서 다시 읽어
+    /// 만회하지만, 코드 검색 색인은 「인덱스 재구축」이 필요할 수 있다.
+    /// 지금까지 이 값은 로그와 지나가는 토스트로만 보였다
+    /// (`{#dropped-total-surface}`).
+    ///
+    /// 사전 필터(`watcher_queue::PreFilter`)가 채널 앞에서 걸러 낸 이벤트는
+    /// 여기 세지 않는다 — 손실이 아니라 애초에 볼 일이 없던 것들이다.
+    pub dropped_total: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
