@@ -285,8 +285,6 @@ export const commands = {
 	planDelete: (projectId: number, planId: string) => typedError<null, string>(__TAURI_INVOKE("plan_delete", { projectId, planId })),
 	conversationCreate: (title: string, provider: string | null, model: string | null, projectId: number | null) => typedError<Conversation, string>(__TAURI_INVOKE("conversation_create", { title, provider, model, projectId })),
 	conversationList: (projectId: number | null) => typedError<Conversation[], string>(__TAURI_INVOKE("conversation_list", { projectId })),
-	conversationRename: (conversationId: number, title: string) => typedError<null, string>(__TAURI_INVOKE("conversation_rename", { conversationId, title })),
-	conversationSetContext: (conversationId: number, provider: string | null, model: string | null, projectId: number | null) => typedError<null, string>(__TAURI_INVOKE("conversation_set_context", { conversationId, provider, model, projectId })),
 	conversationDelete: (conversationId: number) => typedError<null, string>(__TAURI_INVOKE("conversation_delete", { conversationId })),
 	chatMessageAppend: (conversationId: number, role: string, content: string, provider: string | null, model: string | null) => typedError<ChatMessage, string>(__TAURI_INVOKE("chat_message_append", { conversationId, role, content, provider, model })),
 	chatMessageList: (conversationId: number) => typedError<ChatMessage[], string>(__TAURI_INVOKE("chat_message_list", { conversationId })),
@@ -746,11 +744,8 @@ export const commands = {
 	 *  동안 찍은 중단점이 다음 실행에야 걸리면 쓸모가 없다.
 	 */
 	dapToggleBreakpoint: (projectId: number, relPath: string, line: number) => typedError<number[], string>(__TAURI_INVOKE("dap_toggle_breakpoint", { projectId, relPath, line })),
-	/**  한 파일의 중단점 (거터가 그린다). */
-	dapBreakpoints: (projectId: number, relPath: string) => typedError<number[], string>(__TAURI_INVOKE("dap_breakpoints", { projectId, relPath })),
 	/**  프로젝트 전체 중단점 (디버그 패널의 목록). */
 	dapAllBreakpoints: (projectId: number) => typedError<DapFileBreakpoints[], string>(__TAURI_INVOKE("dap_all_breakpoints", { projectId })),
-	dapClearBreakpoints: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("dap_clear_breakpoints", { projectId })),
 	/**  호출 스택. **멈춰 있을 때만** 의미가 있다 — 아니면 빈 목록이다(오류가 아니라). */
 	dapStack: (projectId: number) => typedError<DapFrame[], string>(__TAURI_INVOKE("dap_stack", { projectId })),
 	dapScopes: (projectId: number, frameId: number | null) => typedError<DapScope[], string>(__TAURI_INVOKE("dap_scopes", { projectId, frameId })),
@@ -868,11 +863,6 @@ export const commands = {
 	 */
 	discussionDelete: (projectId: number, discussionId: string) => typedError<null, string>(__TAURI_INVOKE("discussion_delete", { projectId, discussionId })),
 	/**
-	 *  Copy an external file (known absolute path, e.g. a drag-drop) into the
-	 *  discussion's `attachments/` sidecar. Returns the new `attachments/<file>`.
-	 */
-	discussionAttach: (projectId: number, discussionId: string, sourcePath: string) => typedError<string, string>(__TAURI_INVOKE("discussion_attach", { projectId, discussionId, sourcePath })),
-	/**
 	 *  Open a native file picker and attach the chosen file. Returns the new
 	 *  `attachments/<file>` path, or `None` if the user cancelled.
 	 */
@@ -956,12 +946,6 @@ export const commands = {
 	 */
 	branchExportDigest: (projectId: number, branch: string | null, base: string | null) => typedError<string | null, string>(__TAURI_INVOKE("branch_export_digest", { projectId, branch, base })),
 	/**
-	 *  Re-run the indexing pipeline for `paths` (relative to the project root).
-	 *  Mirrors the per-file branch of `commands::project::index_project` so that
-	 *  LocalDiffView can refresh a small set without re-scanning the whole tree.
-	 */
-	reindexPaths: (projectId: number, paths: string[]) => typedError<LocalDiffReindexReport, string>(__TAURI_INVOKE("reindex_paths", { projectId, paths })),
-	/**
 	 *  Hybrid diff: tries git first, falls back to the captured snapshot when git
 	 *  can't help. Returns `SnapshotsUnavailable` only when neither baseline exists
 	 *  — never bubbles `fatal: bad revision 'HEAD'` to the UI. 이미지/바이너리는
@@ -975,13 +959,6 @@ export const commands = {
 	 *    - `last_commit`: 이전 = `HEAD~1`, 현재 = `HEAD`.
 	 */
 	diffBinaryPreview: (projectId: number, path: string, baseline: string | null) => typedError<BinaryPreview, string>(__TAURI_INVOKE("diff_binary_preview", { projectId, path, baseline })),
-	/**
-	 *  PR6.6 — re-capture snapshots for the supplied paths from disk content.
-	 *  Powers the LocalDiffView "비우기" action: after the user acknowledges a
-	 *  batch of changes, the diff baselines are advanced so subsequent edits
-	 *  show against the just-cleared state instead of the original index.
-	 */
-	resnapshotPaths: (projectId: number, paths: string[]) => typedError<number, string>(__TAURI_INVOKE("resnapshot_paths", { projectId, paths })),
 	/**
 	 *  Persistent uncommitted-change list for the 변경 diff 화면. Backed by
 	 *  `git status` so it survives app restarts and project switches (the live
@@ -1017,49 +994,23 @@ export const commands = {
 	 *  Only http/https/mailto is allowed — never a local path or arbitrary scheme.
 	 */
 	openUrl: (url: string) => typedError<null, string>(__TAURI_INVOKE("open_url", { url })),
-	getProjectOverview: (projectId: number) => typedError<{
-	project_id: number,
-	identity: string | null,
 	/**
-	 *  JSON-encoded stack metadata. Stored as TEXT for forward compatibility
-	 *  (the LLM is free to add new keys without a migration).
+	 *  프로젝트 파일을 **파일 탐색기에서 선택된 채로** 연다 (macOS: Finder).
+	 * 
+	 *  터미널 링크의 ⌘클릭 메뉴가 쓴다. `open_in_editor` 와 같은 경로 가드를 지나며
+	 *  (`secure_join`), 편집기 템플릿과 달리 **셸을 거치지 않는다** — 인자를 그대로
+	 *  넘기므로 인용이 깨질 자리가 없다.
 	 */
-	stack_json: string | null,
-	overview_md: string | null,
-	source_signature: string | null,
-	generated_at: number | null,
-	generated_by_model: string | null,
-} | null, string>(__TAURI_INVOKE("get_project_overview", { projectId })),
-	generateProjectOverview: (projectId: number, provider: string, model: string) => typedError<ProjectOverview, string>(__TAURI_INVOKE("generate_project_overview", { projectId, provider, model })),
+	revealInFileManager: (projectRoot: string, relPath: string) => typedError<null, string>(__TAURI_INVOKE("reveal_in_file_manager", { projectRoot, relPath })),
 	/**
-	 *  Returns `Some(new)` when the LLM was invoked, `None` when the cached
-	 *  overview was still fresh enough to skip work.
+	 *  프로젝트 파일을 **빠른 미리보기**로 띄운다 (macOS Quick Look).
+	 * 
+	 *  `qlmanage -p` 는 파일을 열지 않고 내용만 훑어보는, macOS 에서 스페이스바가
+	 *  하는 그 동작이다. 다른 플랫폼에는 대응물이 없으므로 조용히 아무 일도 하지
+	 *  않는 대신 **이유를 돌려준다** — 화면이 그 문구를 그대로 보여 준다.
 	 */
-	refreshProjectOverviewIfStale: (projectId: number, provider: string, model: string) => typedError<{
-	project_id: number,
-	identity: string | null,
-	/**
-	 *  JSON-encoded stack metadata. Stored as TEXT for forward compatibility
-	 *  (the LLM is free to add new keys without a migration).
-	 */
-	stack_json: string | null,
-	overview_md: string | null,
-	source_signature: string | null,
-	generated_at: number | null,
-	generated_by_model: string | null,
-} | null, string>(__TAURI_INVOKE("refresh_project_overview_if_stale", { projectId, provider, model })),
-	/**
-	 *  Save a user-edited overview body. Setting `source_signature = None` is
-	 *  load-bearing: the indexing hook checks for it and refuses to auto-regen
-	 *  over manual edits (MASTER-GUIDE §4.2 "수동 편집 보호"). Identity and
-	 *  stack_json are passed through unchanged from the caller — the frontend
-	 *  editor lets users tweak the markdown body for now; richer per-section
-	 *  edits land later.
-	 */
-	updateProjectOverview: (projectId: number, identity: string | null, stackJson: string | null, overviewMd: string) => typedError<ProjectOverview, string>(__TAURI_INVOKE("update_project_overview", { projectId, identity, stackJson, overviewMd })),
-	dailyBrief: (projectId: number, dateUnix: number | null) => typedError<DailyBrief, string>(__TAURI_INVOKE("daily_brief", { projectId, dateUnix })),
+	quickLookFile: (projectRoot: string, relPath: string) => typedError<null, string>(__TAURI_INVOKE("quick_look_file", { projectRoot, relPath })),
 	saveBlueprint: (id: number | null, name: string, ideaText: string | null, targetUsers: string | null, stackChoice: string | null, folderName: string | null, folderPath: string | null, seedGoalsJson: string | null, wizardStep: number) => typedError<ProjectBlueprint, string>(__TAURI_INVOKE("save_blueprint", { id, name, ideaText, targetUsers, stackChoice, folderName, folderPath, seedGoalsJson, wizardStep })),
-	getBlueprint: (blueprintId: number) => typedError<ProjectBlueprint, string>(__TAURI_INVOKE("get_blueprint", { blueprintId })),
 	listBlueprints: () => typedError<ProjectBlueprint[], string>(__TAURI_INVOKE("list_blueprints")),
 	deleteBlueprint: (blueprintId: number) => typedError<null, string>(__TAURI_INVOKE("delete_blueprint", { blueprintId })),
 	/**
@@ -1085,12 +1036,6 @@ export const commands = {
 	 *  5. Returns the new project ID
 	 */
 	createGreenfieldProject: (name: string, rootPath: string, scaffoldCmd: string | null, scaffoldArgs: string[] | null, blueprintId: number | null, initOculpm: boolean) => typedError<GreenfieldResult, string>(__TAURI_INVOKE("create_greenfield_project", { name, rootPath, scaffoldCmd, scaffoldArgs, blueprintId, initOculpm })),
-	/**
-	 *  Ask the LLM to generate 3~5 initial goals for a newly created project
-	 *  based on the user's idea and chosen tech stack. The goals are persisted
-	 *  via `goal_create` and returned to the frontend for display in the wizard.
-	 */
-	generateSeedGoals: (projectId: number, ideaText: string, stackChoice: string, provider: string, model: string) => typedError<Goal[], string>(__TAURI_INVOKE("generate_seed_goals", { projectId, ideaText, stackChoice, provider, model })),
 	/**
 	 *  Idempotent project initialisation — creates `.oculpm/`, writes default
 	 *  config, acquires the lock, and patches `.gitignore`. Returns a report of
@@ -1376,11 +1321,6 @@ export const commands = {
 	 */
 	oculpmCompareWorkday: (projectId: number, workday: string) => typedError<WorkdayComparison, AppError>(__TAURI_INVOKE("oculpm_compare_workday", { projectId, workday })),
 	/**
-	 *  프로젝트의 현재 워크데이 (`YYYYMMDD`) — tz·`day_starts_at` 을 아는 유일한
-	 *  답. 프런트가 `new Date()` 로 흉내 내던 것을 대신한다 (Phase 4).
-	 */
-	oculpmCurrentWorkday: (projectId: number) => typedError<string, AppError>(__TAURI_INVOKE("oculpm_current_workday", { projectId })),
-	/**
 	 *  W4 dogfooding follow-up (2026-05-26) — return the absolute path to the
 	 *  directory holding the daily-rotated `oculpm.log.YYYY-MM-DD` files. Settings
 	 *  uses this for the "로그 폴더 열기" button (delegates to opener plugin).
@@ -1412,11 +1352,6 @@ export const commands = {
 	 *  `cmd /c start` directly, sidestepping the scope check entirely.
 	 */
 	oculpmOpenEntryInEditor: (projectId: number, relativePath: string) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_open_entry_in_editor", { projectId, relativePath })),
-	/**
-	 *  Single-shot fetch of every Overview widget. `window_days` clamps to
-	 *  1..=365 inside the manager — the modal-facing default is 90 (heatmap).
-	 */
-	oculpmOverviewStats: (projectId: number, windowDays: number) => typedError<OculpmOverviewStats, AppError>(__TAURI_INVOKE("oculpm_overview_stats", { projectId, windowDays })),
 	/**
 	 *  Synthesise one journal entry per recent git commit (cold-start backfill).
 	 *  Idempotent: re-running only adds commits not seen before. `max_commits`
@@ -3508,29 +3443,6 @@ export type ConversationAction = {
 	applied_at: number,
 };
 
-/**
- *  Structured payload backing the Today screen. The frontend formats the
- *  numbers; we just join the underlying tables in a single round trip.
- * 
- *  `date_unix` is the local-day start (00:00) for which the brief was built.
- *  Callers can request any day, defaulting to "today" by passing `None`.
- * 
- *  Lite-W6 PR4: the changelog-derived fields were retired. The DTO shape
- *  is kept (with empty/zero placeholders) until the legacy DailyBrief
- *  view in TodayScreen is removed in a later PR; today's authoritative
- *  activity source is the journal entries rendered by TimelineView.
- */
-export type DailyBrief = {
-	date_unix: number,
-	/**  Top 3 active goals — already ordered by priority then due_date. */
-	focus_goals: Goal[],
-	/**
-	 *  Goals whose `updated_at` falls inside the requested day AND that are
-	 *  marked completed. The "what did I finish" column.
-	 */
-	completed_today: Goal[],
-};
-
 /**  이 기계에서 쓸 수 있는 디버그 어댑터 한 줄 (안내용). */
 export type DapAdapterInfo = {
 	language_id: string,
@@ -4230,19 +4142,6 @@ export type GlobMatch = {
 	unparsed: boolean,
 };
 
-export type Goal = {
-	id: number,
-	project_id: number | null,
-	title: string,
-	description: string | null,
-	status: string,
-	priority: number,
-	due_date: number | null,
-	progress: number | null,
-	created_at: number,
-	updated_at: number,
-};
-
 export type GraphEdgeDto = {
 	id: number,
 	edge_type: string,
@@ -4276,7 +4175,6 @@ export type GraphOpts = {
 export type GreenfieldResult = {
 	project_id: number,
 	scaffold_output: string | null,
-	seed_goals: Goal[],
 };
 
 /**  사용자가 묶은 한 팀. */
@@ -4287,17 +4185,6 @@ export type Group = {
 	members: string[],
 	created_at: string,
 	updated_at: string,
-};
-
-/**
- *  One day's worth of activity data for the heatmap. `score` is a UI-friendly
- *  derived value (entries weighted higher than file events).
- */
-export type HeatmapCell = {
-	workday: string,
-	entry_count: number,
-	file_event_count: number,
-	score: number,
 };
 
 /**
@@ -4703,14 +4590,6 @@ export type Liveness =
 "dead" | 
 /**  판정할 수 없다. 오프라인이 아니다. */
 "unknown";
-
-export type LocalDiffReindexReport = {
-	indexed: string[],
-	skipped: ReindexSkip[],
-	elapsed_ms: number,
-	embeddings_updated: number,
-	ast_updated: number,
-};
 
 export type LockStateView = "healthy" | "held_by_other" | "recovered" | "uninitialized";
 
@@ -5214,19 +5093,6 @@ export type OculpmJournalUpdated = {
 	summary: JournalEntrySummary,
 };
 
-export type OculpmOverviewStats = {
-	generated_at: string,
-	window_days: number,
-	/**  Every workday in the window (entries=0 days included as empty cells). */
-	heatmap_cells: HeatmapCell[],
-	difficulty_mix: DifficultyMix,
-	agent_breakdown: AgentCount[],
-	/**  Up to 50 unfinished entries, most recent first. */
-	unfinished_entries: JournalEntrySummary[],
-	/**  Up to 30 days of session aggregates, most recent first. */
-	recent_sessions: SessionDailyAgg[],
-};
-
 /**
  *  F1 — emitted after auto-reconcile applies status flips to a plan, so the UI
  *  can toast ("AI 가 N개 항목을 자동 갱신") and refresh the planner. Only fired on
@@ -5482,20 +5348,6 @@ export type ProjectBlueprint = {
 	updated_at: number,
 };
 
-export type ProjectOverview = {
-	project_id: number,
-	identity: string | null,
-	/**
-	 *  JSON-encoded stack metadata. Stored as TEXT for forward compatibility
-	 *  (the LLM is free to add new keys without a migration).
-	 */
-	stack_json: string | null,
-	overview_md: string | null,
-	source_signature: string | null,
-	generated_at: number | null,
-	generated_by_model: string | null,
-};
-
 export type ProjectStats = {
 	files: number,
 	chunks: number,
@@ -5571,20 +5423,6 @@ export type ReindexReport = {
 	skipped: number,
 	completed_at: string,
 };
-
-export type ReindexSkip = {
-	path: string,
-	reason: ReindexSkipReason,
-};
-
-/**
- *  Per-path outcome surfaced to the UI. Skip reasons let the caller render a
- *  "(skipped: too large)" badge next to the path without re-running
- *  `walk_text_files` filters.
- */
-export type ReindexSkipReason = { kind: "not_found" } | { kind: "read_failed"; error: string } | { kind: "upsert_failed"; error: string } | 
-/**  minified/생성 파일 — 한 줄이 `indexer::MAX_LINE_BYTES` 를 넘는다. */
-{ kind: "generated" };
 
 export type RelatedRef = {
 	/**  Path relative to `.oculpm/journal/` (e.g. `20260522/Bugs/2050_bug_X.md`). */
@@ -5832,19 +5670,6 @@ export type SessionConfig = {
 	 *  boundary). `0` disables resume entirely. Defaults to 15 minutes.
 	 */
 	session_resume_grace_minutes?: number,
-};
-
-export type SessionDailyAgg = {
-	workday: string,
-	session_count: number,
-	total_active_seconds: number,
-	files_unique: number,
-	journal_entry_count: number,
-	/**
-	 *  `journal_entry_count / sessions_with_file_events`. `0.0` when no
-	 *  sessions have file events (avoids NaN). UI shows as percentage.
-	 */
-	narrative_rate: number | null,
 };
 
 export type SessionUnrecorded = {

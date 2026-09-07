@@ -80,7 +80,8 @@ pub use mobile::*;
 pub use notion::*;
 #[allow(unused_imports)] // Re-exported for W1-PR6 commands; stub for now.
 pub use oculpm::*;
-pub use overview::*;
+// `overview` 는 커맨드를 내놓지 않는다 — 색인 후 훅이 `overview::run_generation`
+// 을 경로로 부른다 (v3 「죽은 표면 정리」).
 pub use plan::*;
 pub use project::*;
 pub use retro::*;

@@ -4,7 +4,6 @@
 //! - Wizard draft (blueprint) persistence
 //! - External CLI availability checks (OS-aware PATH probing)
 //! - Scaffold execution (`pnpm create vite`, `cargo new`, etc.)
-//! - LLM-powered initial seed goal generation
 //! - Full project creation orchestration
 
 use std::path::{Path, PathBuf};
@@ -12,8 +11,7 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use tauri::State;
 
-use crate::db::{Db, Goal, ProjectBlueprint};
-use crate::llm;
+use crate::db::{Db, ProjectBlueprint};
 use crate::oculpm::manager::OculpmManager;
 
 // ─── Blueprint CRUD ───────────────────────────────────────────────────
@@ -46,17 +44,6 @@ pub async fn save_blueprint(
     )
     .await
     .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn get_blueprint(
-    db: State<'_, Db>,
-    blueprint_id: u32,
-) -> Result<ProjectBlueprint, String> {
-    db.get_blueprint(blueprint_id)
-        .await
-        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -195,7 +182,6 @@ fn get_cli_version_sync(path: &str) -> Option<String> {
 pub struct GreenfieldResult {
     pub project_id: u32,
     pub scaffold_output: Option<String>,
-    pub seed_goals: Vec<Goal>,
 }
 
 /// Create a new project from the Greenfield wizard.
@@ -283,7 +269,6 @@ pub async fn create_greenfield_project(
     Ok(GreenfieldResult {
         project_id,
         scaffold_output,
-        seed_goals: vec![],
     })
 }
 
@@ -335,107 +320,4 @@ async fn run_scaffold_cli(cmd: &str, args: &[&str], cwd: &Path) -> Result<String
             stderr.trim()
         ))
     }
-}
-
-// ─── Seed goal generation (LLM) ─────────────────────────────────────
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct SeedGoalPayload {
-    title: String,
-    description: Option<String>,
-    priority: Option<i32>,
-}
-
-/// Ask the LLM to generate 3~5 initial goals for a newly created project
-/// based on the user's idea and chosen tech stack. The goals are persisted
-/// via `goal_create` and returned to the frontend for display in the wizard.
-#[tauri::command]
-#[specta::specta]
-pub async fn generate_seed_goals(
-    db: State<'_, Db>,
-    project_id: u32,
-    idea_text: String,
-    stack_choice: String,
-    provider: String,
-    model: String,
-) -> Result<Vec<Goal>, String> {
-    let api_key = {
-        let secret_name = format!("{provider}_api_key");
-        crate::secrets::get(&secret_name)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| format!("API key for {provider} is not set"))?
-    };
-    let client = llm::create(&provider, api_key).map_err(|e| e.to_string())?;
-
-    let system_prompt = r#"You are a PM assistant for a software project.
-Based on the project idea and tech stack below, generate 3-5 concrete initial goals
-for the first sprint. Each goal should be actionable and specific.
-
-Return ONLY valid JSON (no fences, no prose) shaped exactly like:
-[
-  {"title": "≤60자 한국어 제목", "description": "2-3줄 구체적인 설명 (한국어)", "priority": 1}
-]
-
-Priority: 1 = urgent, 2 = high, 3 = medium.
-Goals should cover project setup, core feature, and testing/deployment."#;
-
-    let user_msg = format!(
-        "프로젝트 아이디어: {idea}\n기술 스택: {stack}",
-        idea = idea_text,
-        stack = stack_choice,
-    );
-
-    let response = client
-        .chat(
-            vec![
-                llm::Message {
-                    role: llm::Role::System,
-                    content: crate::oculpm::content_lang::current(&db)
-                        .await
-                        .apply(system_prompt),
-                },
-                llm::Message {
-                    role: llm::Role::User,
-                    content: user_msg,
-                },
-            ],
-            llm::ChatOptions {
-                model,
-                temperature: Some(0.4),
-                max_tokens: Some(800),
-            },
-        )
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let content = response.content.trim();
-    let json_str = if content.starts_with("```") {
-        content
-            .trim_start_matches("```json")
-            .trim_start_matches("```")
-            .trim_end_matches("```")
-            .trim()
-    } else {
-        content
-    };
-
-    let payloads: Vec<SeedGoalPayload> = serde_json::from_str(json_str)
-        .map_err(|e| format!("Could not parse the LLM response: {e}\nRaw: {content}"))?;
-
-    let mut goals = Vec::new();
-    for payload in payloads.into_iter().take(5) {
-        let goal = db
-            .create_goal(
-                Some(project_id),
-                payload.title,
-                payload.description,
-                payload.priority.unwrap_or(2),
-                None,
-            )
-            .await
-            .map_err(|e| e.to_string())?;
-        goals.push(goal);
-    }
-
-    Ok(goals)
 }

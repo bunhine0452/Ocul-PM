@@ -28,14 +28,11 @@ import type {
   AgentDetection,
   AgentSyncReport,
   BackfillReport,
-  Difficulty,
   EntryFileDiff,
   EntryFilters,
-  EntryStatus,
   JournalEntry,
   JournalEntryPage,
   JournalEntrySummary,
-  LayerComparison,
   WorkdayComparison,
   AppError,
   ManualEntryDraft,
@@ -233,45 +230,6 @@ export const oculpmApi = {
       commands.oculpmCreateManualEntry(projectId, draft)
     ),
 
-  // ─── W3 follow-up — inline edit for difficulty / status ────────────────
-
-  /**
-   * Inline-edit `difficulty` and/or `status` on an existing entry. Pass
-   * `null` for a parameter to leave it unchanged.
-   *
-   * `difficulty` semantics — three values:
-   *   - `null` / omitted: don't touch the field
-   *   - `{ kind: "clear" }`: write `difficulty: null` to the frontmatter
-   *   - `{ kind: "set", value: "high" }`: set to that level
-   *
-   * The backend returns the hydrated entry so the caller can update its
-   * optimistic state without a second `getJournalEntry` round-trip.
-   */
-  updateEntryMeta: (
-    projectId: number,
-    relativePath: string,
-    opts: {
-      difficulty?: { kind: "clear" } | { kind: "set"; value: Difficulty } | null;
-      status?: EntryStatus | null;
-    },
-  ) => {
-    const difficultyChange =
-      opts.difficulty == null
-        ? null
-        : opts.difficulty.kind === "clear"
-          ? { value: null }
-          : { value: opts.difficulty.value };
-    return unwrap<JournalEntry>(
-      "oculpm_update_entry_meta",
-      commands.oculpmUpdateEntryMeta(
-        projectId,
-        relativePath,
-        difficultyChange,
-        opts.status ?? null,
-      ),
-    );
-  },
-
   /** F7a-B Unit B — write the tz-offset coercion into the on-disk frontmatter
    * once (timestamps only). Returns the re-projected entry. */
   coerceEntryOnDisk: (projectId: number, relativePath: string) =>
@@ -294,39 +252,6 @@ export const oculpmApi = {
       commands.oculpmAgentsDetect(projectId),
     ),
 
-  /**
-   * W4 dogfooding follow-up (2026-05-26) — return the project's master template
-   * text. Intentionally separate from `syncAgents` so the user can distinguish
-   * between "re-render AGENTS.md" (file write, idempotent) and "copy the rules
-   * so I can paste them into a running chat" (one-shot, easy to over-do).
-   */
-  getMasterTemplate: (projectId: number) =>
-    unwrap<string>(
-      "oculpm_agents_get_master_template",
-      commands.oculpmAgentsGetMasterTemplate(projectId),
-    ),
-
-  /**
-   * W4-PR5 — diff a session's index ndjson against the union of journal
-   * `files_touched` paths. Backend strips forbidden + redacted entries from
-   * both sides so callers can render the result directly.
-   * See `docs/major_update/oculpm/W4/PR5-compare-layers.md`.
-   *
-   * Two views come back and they answer different questions:
-   * - `matched` / `only_in_index` / `only_in_journal` / `jaccard_index` join on
-   *   an **exact `session_id`** — precise only when the agent stamps the
-   *   watcher's own scheme.
-   * - `unrecorded` / `unrecorded_severity` measure **workday coverage** — the
-   *   honest "no journal mentions this file" answer, immune to agents that
-   *   mint their own ids (`manual-20260820-205400`). Use these for anything
-   *   user-facing (dogfooding 2026-08-20).
-   */
-  compareLayers: (projectId: number, sessionId: string) =>
-    unwrap<LayerComparison>(
-      "oculpm_compare_layers",
-      commands.oculpmCompareLayers(projectId, sessionId),
-    ),
-
   /** 워크데이 하나의 정직성 감사 — 세션 전부를 IPC 1회에 (Phase 3). */
   compareWorkday: (projectId: number, workday: string) =>
     unwrap<WorkdayComparison>(
@@ -335,25 +260,16 @@ export const oculpmApi = {
     ),
 
   /**
-   * W4 dogfooding (2026-05-27) — overwrite the body markdown of an entry.
-   * Frontmatter survives untouched; the backend re-parses + cache-upserts
-   * and returns the hydrated entry so the detail pane can resync.
-   */
-  updateEntryBody: (
-    projectId: number,
-    relativePath: string,
-    bodyMarkdown: string,
-  ) =>
-    unwrap<JournalEntry>(
-      "oculpm_update_entry_body",
-      commands.oculpmUpdateEntryBody(projectId, relativePath, bodyMarkdown),
-    ),
-
-  /**
    * W4 dogfooding (2026-05-27) — open a journal entry .md in the OS default
    * editor, bypassing the opener plugin's glob scope (which has regressed
    * three times during dogfooding). Backend resolves the absolute path and
    * shells out directly.
+   *
+   * **호출부가 0인데도 남긴다** (v3 「죽은 표면 정리」). 새고 있는 게 아니라
+   * 손잡이가 아직 안 만들어졌다 — ui_v2 의 `EntryDetailView` 에 "파일로 열기"
+   * 가 없다. 지우면 opener-scope 회귀 4번째를 부르는 길이 열린다
+   * (`features/retro/DeferLedger.tsx` 의 주석이 일반 파일용 `openInEditor` 와
+   * 이 일지 전용 경로를 구분해 두는 이유가 그것이다).
    */
   openEntryInEditor: (projectId: number, relativePath: string) =>
     unwrap<null>(
@@ -371,14 +287,6 @@ export const oculpmApi = {
       commands.oculpmBackfillFromGit(projectId, maxCommits),
     ),
 
-  /**
-   * 워처의 파일 변경 스트림 구독. 반환값은 구독 해제 함수다.
-   *
-   * 이벤트라 봉투(`{status}`)가 없으니 여기서 접을 오류도 없다 — 래퍼가 하는
-   * 일은 위 3번(화면이 생성 파일을 직접 만지지 않는다)과, 비-Tauri 컨텍스트
-   * (jsdom·헤드리스)에서 **조용히 아무것도 안 하는 것**이다. 구독 실패로
-   * 화면이 죽어서는 안 된다 — 라이브 갱신만 없는 상태로 두면 된다.
-   */
   /** 외부 A2A 문의 상태 (기본 꺼짐). */
   a2aEndpointStatus: () =>
     unwrap<A2aServerStatus>("a2a_endpoint_status", commands.a2aEndpointStatus()),
@@ -428,6 +336,14 @@ export const oculpmApi = {
       commands.branchExportDigest(projectId, branch, base),
     ),
 
+  /**
+   * 워처의 파일 변경 스트림 구독. 반환값은 구독 해제 함수다.
+   *
+   * 이벤트라 봉투(`{status}`)가 없으니 여기서 접을 오류도 없다 — 래퍼가 하는
+   * 일은 위 3번(화면이 생성 파일을 직접 만지지 않는다)과, 비-Tauri 컨텍스트
+   * (jsdom·헤드리스)에서 **조용히 아무것도 안 하는 것**이다. 구독 실패로
+   * 화면이 죽어서는 안 된다 — 라이브 갱신만 없는 상태로 두면 된다.
+   */
   onFileChanged: (cb: (payload: OculpmFileChanged) => void): Promise<() => void> => {
     try {
       return events.oculpmFileChanged

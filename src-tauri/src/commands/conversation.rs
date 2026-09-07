@@ -31,32 +31,6 @@ pub async fn conversation_list(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn conversation_rename(
-    db: State<'_, Db>,
-    conversation_id: u32,
-    title: String,
-) -> Result<(), String> {
-    db.conversation_rename(conversation_id, title)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn conversation_set_context(
-    db: State<'_, Db>,
-    conversation_id: u32,
-    provider: Option<String>,
-    model: Option<String>,
-    project_id: Option<u32>,
-) -> Result<(), String> {
-    db.conversation_set_context(conversation_id, provider, model, project_id)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn conversation_delete(db: State<'_, Db>, conversation_id: u32) -> Result<(), String> {
     db.conversation_delete(conversation_id)
         .await

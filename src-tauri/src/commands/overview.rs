@@ -6,11 +6,11 @@
 //! produce a README-grade summary. The result is cached in
 //! `project_overviews`; we only regenerate when the input signature changes.
 //!
-//! Commands exposed to the frontend:
-//! - `get_project_overview` — read cached overview (or `None`).
-//! - `generate_project_overview` — force re-run regardless of signature.
-//! - `refresh_project_overview_if_stale` — fire-and-forget after indexing; only
-//!   calls the LLM when the source signature has actually changed.
+//! 화면에 나가는 커맨드는 없다 — 개요 화면이 끝내 만들어지지 않아 네 개의
+//! 진입점(get/generate/refresh/update)이 프런트에서 한 번도 불리지 않은 채로
+//! 남아 있었고, v3 「죽은 표면 정리」에서 걷어 냈다. 살아 있는 진입점은
+//! `commands::project` 의 색인 후 훅이 부르는 `run_generation` 하나뿐이고,
+//! 결과는 시작 화면(`home.rs`)이 `project_overviews.identity` 로 읽는다.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -18,9 +18,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
-use tauri::State;
 
-use crate::db::{Db, Goal, ProjectOverview};
+use crate::db::{Db, ProjectOverview};
 use crate::indexer;
 use crate::llm;
 
@@ -58,89 +57,6 @@ pub struct OverviewSignals {
     /// Concatenated text of manifest files (README first), trimmed to
     /// `MAX_SIGNAL_BYTES`. Sent to the LLM verbatim.
     pub manifests_text: String,
-}
-
-// ---------- get / generate / refresh ----------
-
-#[tauri::command]
-#[specta::specta]
-pub async fn get_project_overview(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<Option<ProjectOverview>, String> {
-    db.get_project_overview(project_id)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn generate_project_overview(
-    db: State<'_, Db>,
-    project_id: u32,
-    provider: String,
-    model: String,
-) -> Result<ProjectOverview, String> {
-    run_generation(&db, project_id, &provider, &model, /*force=*/ true)
-        .await?
-        .ok_or_else(|| "overview generation returned no result".to_string())
-}
-
-/// Returns `Some(new)` when the LLM was invoked, `None` when the cached
-/// overview was still fresh enough to skip work.
-#[tauri::command]
-#[specta::specta]
-pub async fn refresh_project_overview_if_stale(
-    db: State<'_, Db>,
-    project_id: u32,
-    provider: String,
-    model: String,
-) -> Result<Option<ProjectOverview>, String> {
-    run_generation(&db, project_id, &provider, &model, /*force=*/ false).await
-}
-
-/// Save a user-edited overview body. Setting `source_signature = None` is
-/// load-bearing: the indexing hook checks for it and refuses to auto-regen
-/// over manual edits (MASTER-GUIDE §4.2 "수동 편집 보호"). Identity and
-/// stack_json are passed through unchanged from the caller — the frontend
-/// editor lets users tweak the markdown body for now; richer per-section
-/// edits land later.
-#[tauri::command]
-#[specta::specta]
-pub async fn update_project_overview(
-    db: State<'_, Db>,
-    project_id: u32,
-    identity: Option<String>,
-    stack_json: Option<String>,
-    overview_md: String,
-) -> Result<ProjectOverview, String> {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as u32)
-        .unwrap_or(0);
-
-    db.upsert_project_overview(
-        project_id,
-        identity.clone(),
-        stack_json.clone(),
-        Some(overview_md.clone()),
-        // None disables auto-regen until the user clicks "다시 생성".
-        None,
-        Some(now),
-        Some("user-edit".to_string()),
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-
-    Ok(ProjectOverview {
-        project_id,
-        identity,
-        stack_json,
-        overview_md: Some(overview_md),
-        source_signature: None,
-        generated_at: Some(now),
-        generated_by_model: Some("user-edit".to_string()),
-    })
 }
 
 // ---------- internal pipeline ----------
@@ -435,87 +351,6 @@ single JSON object with exactly these keys:
     }
 
     Ok((identity, stack_json, overview_md))
-}
-
-// ---------- daily_brief ----------
-
-/// Structured payload backing the Today screen. The frontend formats the
-/// numbers; we just join the underlying tables in a single round trip.
-///
-/// `date_unix` is the local-day start (00:00) for which the brief was built.
-/// Callers can request any day, defaulting to "today" by passing `None`.
-///
-/// Lite-W6 PR4: the changelog-derived fields were retired. The DTO shape
-/// is kept (with empty/zero placeholders) until the legacy DailyBrief
-/// view in TodayScreen is removed in a later PR; today's authoritative
-/// activity source is the journal entries rendered by TimelineView.
-#[derive(Debug, Clone, Serialize, specta::Type)]
-pub struct DailyBrief {
-    // i32 (not i64) so Specta can export this binding; unix seconds fit in i32
-    // until 2038. See docs/errors/2026-05-21-specta-bigint-export.md
-    pub date_unix: i32,
-    /// Top 3 active goals — already ordered by priority then due_date.
-    pub focus_goals: Vec<Goal>,
-    /// Goals whose `updated_at` falls inside the requested day AND that are
-    /// marked completed. The "what did I finish" column.
-    pub completed_today: Vec<Goal>,
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn daily_brief(
-    db: State<'_, Db>,
-    project_id: u32,
-    // i32 (not i64) so Specta can export this binding. Widened to i64 below
-    // for arithmetic and DB queries.
-    date_unix: Option<i32>,
-) -> Result<DailyBrief, String> {
-    // The frontend computes "today midnight" using the user's LOCAL timezone
-    // (`new Date().setHours(0,0,0,0)`) and passes that as `date_unix`. We must
-    // honor that value verbatim — re-snapping it to a UTC day boundary here
-    // shifted the window by the user's UTC offset, so morning-of-today entries
-    // (created after local midnight but before UTC midnight) silently fell
-    // outside the bucket. Only the `None` fallback snaps, since no client-side
-    // anchor is available then.
-    let day_start: i64 = match date_unix {
-        Some(ts) => ts as i64,
-        None => {
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map(|d| d.as_secs() as i64)
-                .unwrap_or(0);
-            now - now.rem_euclid(86400)
-        }
-    };
-    let day_end = day_start + 86400;
-
-    // Focus = top 3 not-yet-done goals. We pull a small page and slice rather
-    // than threading a LIMIT through list_goals — keeps that helper simple.
-    let active_goals = db
-        .list_goals(Some(project_id), None)
-        .await
-        .map_err(|e| e.to_string())?;
-    let focus_goals: Vec<Goal> = active_goals
-        .iter()
-        .filter(|g| g.status != "completed" && g.status != "archived")
-        .take(3)
-        .cloned()
-        .collect();
-    let completed_today: Vec<Goal> = active_goals
-        .iter()
-        .filter(|g| {
-            g.status == "completed"
-                && (g.updated_at as i64) >= day_start
-                && (g.updated_at as i64) < day_end
-        })
-        .cloned()
-        .collect();
-
-    Ok(DailyBrief {
-        date_unix: day_start as i32,
-        focus_goals,
-        completed_today,
-    })
 }
 
 #[cfg(test)]

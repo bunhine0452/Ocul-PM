@@ -349,21 +349,6 @@ fn copy_into_attachments(folder: &Path, src: &Path) -> Result<String, String> {
     Ok(format!("attachments/{final_name}"))
 }
 
-/// Copy an external file (known absolute path, e.g. a drag-drop) into the
-/// discussion's `attachments/` sidecar. Returns the new `attachments/<file>`.
-#[tauri::command]
-#[specta::specta]
-pub async fn discussion_attach(
-    db: State<'_, Db>,
-    project_id: u32,
-    discussion_id: String,
-    source_path: String,
-) -> Result<String, String> {
-    let root = discussion_root_of(&db, project_id).await?;
-    let folder = discussion_folder(&root, &discussion_id)?;
-    copy_into_attachments(&folder, &PathBuf::from(&source_path))
-}
-
 /// Open a native file picker and attach the chosen file. Returns the new
 /// `attachments/<file>` path, or `None` if the user cancelled.
 #[tauri::command]

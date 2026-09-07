@@ -321,11 +321,6 @@ const LLM_PROMPT_SITES: &[PromptSite] = &[
         reason: "면제 — README·매니페스트·디렉터리 구조를 디스크에서 **직접** 읽어 보낸다. 에이전트가 쓴 글이 아니라 저장소 파일이라 캐시 투영을 지나지 않는다.",
     },
     PromptSite {
-        path: "commands/greenfield.rs",
-        redaction: Redaction::None,
-        reason: "면제 — 사용자가 마법사에 방금 직접 쓴 청사진 텍스트. 에이전트가 쓴 글이 섞이지 않는다.",
-    },
-    PromptSite {
         path: "commands/summary.rs",
         redaction: Redaction::ViaProjection,
         reason: "`range_entries` 만 읽는다 — 캐시는 투영 시점에 마스킹된다 (모듈 문서 §원칙).",

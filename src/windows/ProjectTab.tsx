@@ -9,6 +9,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
 import { commands, type Project, type IndexProgress } from "@/lib/bindings";
+import { oculpmApi } from "@/api/oculpm";
+import { toAppError } from "@/api/invoke";
 
 import { CommandPalette } from "@/components/CommandPalette";
 import { SettingsOverlay } from "@/windows/SettingsOverlay";
@@ -154,10 +156,18 @@ export default function ProjectTab({
       if (cancelled) return;
       setOculpmStatus(statusRes.status === "ok" ? statusRes.data : null);
 
-      const wsRes = await commands.oculpmWatcherStart(projectId);
+      // `.oculpm` 커맨드는 `oculpmApi` 를 지난다 (CLAUDE.md) — 봉투 대신 던지므로
+      // 실패 경로는 catch 로 옮겼고, 문구·감독관 안내는 그대로다.
+      let watcherFailed: unknown = null;
+      try {
+        await oculpmApi.watcherStart(projectId);
+      } catch (e) {
+        watcherFailed = e;
+      }
       if (cancelled) return;
-      if (wsRes.status === "error") {
-        oculpmLog.error("watcher", `watcherStart failed: ${wsRes.error}`, { projectId });
+      if (watcherFailed !== null) {
+        const err = toAppError(watcherFailed);
+        oculpmLog.error("watcher", `watcherStart failed: ${err.detail ?? err.code}`, { projectId });
         // 예전엔 로그 한 줄이 전부였다 — 그래서 "AI 가 일지를 써도 화면이 안
         // 바뀐다" 를 겪은 사람에게 원인을 알려 줄 방법이 없었고, 웹뷰를 직접
         // 새로고침하는 것만이 유일한 대처가 됐다 (도그푸딩 2026-08-23).

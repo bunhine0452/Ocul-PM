@@ -242,16 +242,11 @@ use crate::commands::{
     conversation_create,
     conversation_delete,
     conversation_list,
-    conversation_rename,
-    conversation_set_context,
     create_greenfield_project,
     create_project,
-    daily_brief,
     // 디버거 (DAP) — docs/dap/00-master-plan.md
     dap_adapters,
     dap_all_breakpoints,
-    dap_breakpoints,
-    dap_clear_breakpoints,
     dap_control,
     dap_scopes,
     dap_session,
@@ -270,7 +265,6 @@ use crate::commands::{
     detect_stack,
     diff_binary_preview,
     discussion_asset,
-    discussion_attach,
     discussion_attach_via_dialog,
     discussion_create,
     discussion_delete,
@@ -294,16 +288,12 @@ use crate::commands::{
     // AD-1 — 발동 원장 (transcript 기반 규칙 주입·스킬 발동 계측)
     firing_rescan,
     firing_stats,
-    generate_project_overview,
     generate_retro,
-    generate_seed_goals,
-    get_blueprint,
     get_change_impact,
     get_code_graph,
     get_file_calls,
     get_file_symbols,
     // G2 — Project Overview + Daily Brief
-    get_project_overview,
     get_retro,
     get_window_tabs,
     git_graph,
@@ -380,7 +370,6 @@ use crate::commands::{
     oculpm_compare_layers,
     oculpm_compare_workday,
     oculpm_create_manual_entry,
-    oculpm_current_workday,
     oculpm_end_session_manual,
     // C2 — 일지 내보내기
     oculpm_export_digest,
@@ -401,7 +390,6 @@ use crate::commands::{
     oculpm_log,
     oculpm_open_entry_in_editor,
     // W5-PR5 — Overview stats
-    oculpm_overview_stats,
     oculpm_reindex_cache,
     oculpm_search_entities,
     oculpm_set_config,
@@ -437,6 +425,7 @@ use crate::commands::{
     project_instructions_set,
     project_stats,
     pty_foreground_command,
+    quick_look_file,
     read_file_range,
     read_project_file,
     recall_forget,
@@ -445,15 +434,13 @@ use crate::commands::{
     recall_touch,
     // W5 — action proposal apply-state
     record_conversation_action,
-    refresh_project_overview_if_stale,
-    reindex_paths,
     rename_project,
     reorder_tabs,
     resize_pty,
-    resnapshot_paths,
     retro_dispatch_prompt,
     // F4 — 회고/인사이트 (+ PR-CI6 eval 추이, defer 원장)
     retro_signals,
+    reveal_in_file_manager,
     // PR-CI4 — 실패→규칙 승격 (결정적 후보 + 옵인 LLM 초안; 저장은 rules_save 승인 경로만)
     rule_candidates,
     rule_draft_generate,
@@ -514,7 +501,6 @@ use crate::commands::{
     theme_import_url,
     theme_list,
     theme_save,
-    update_project_overview,
     write_to_pty,
 };
 // 선언적 설정 (Phase 6) — UI 진입점. planner/applier 는 crate::config 에 있다.
@@ -623,8 +609,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // M2-3 — Chat history
             conversation_create,
             conversation_list,
-            conversation_rename,
-            conversation_set_context,
             conversation_delete,
             chat_message_append,
             chat_message_list,
@@ -710,9 +694,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             dap_stop,
             dap_control,
             dap_toggle_breakpoint,
-            dap_breakpoints,
             dap_all_breakpoints,
-            dap_clear_breakpoints,
             dap_stack,
             dap_scopes,
             dap_variables,
@@ -730,7 +712,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             discussion_set_status,
             discussion_rename,
             discussion_delete,
-            discussion_attach,
             discussion_attach_via_dialog,
             discussion_asset,
             discussion_detach,
@@ -757,28 +738,21 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             branch_story,
             branch_export_digest,
             // Lite-W6 PR6 — LocalDiffView backend
-            reindex_paths,
             compute_diff,
             diff_binary_preview,
-            resnapshot_paths,
             git_uncommitted_changes,
             git_last_commit_changes,
             open_in_editor,
             open_url,
-            // G2 — Project Overview + Daily Brief
-            get_project_overview,
-            generate_project_overview,
-            refresh_project_overview_if_stale,
-            update_project_overview,
-            daily_brief,
+            // 터미널 파일 링크 ⌘클릭 메뉴 (2026-09-07)
+            reveal_in_file_manager,
+            quick_look_file,
             // G4 — Greenfield (W6)
             save_blueprint,
-            get_blueprint,
             list_blueprints,
             delete_blueprint,
             check_cli_available,
             create_greenfield_project,
-            generate_seed_goals,
             // .oculpm/ subsystem (W1-PR6 + W2-PR6 + W3-PR3)
             oculpm_init,
             oculpm_get_status,
@@ -812,13 +786,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_agents_apply_master_upgrade,
             oculpm_compare_layers,
             oculpm_compare_workday,
-            oculpm_current_workday,
             oculpm_get_log_dir,
             oculpm_log,
             oculpm_update_entry_body,
             oculpm_open_entry_in_editor,
-            // W5-PR5 — Overview stats
-            oculpm_overview_stats,
             // F5 — git-history backfill
             oculpm_backfill_from_git,
             // F4 — 회고/인사이트 (+ PR-CI6 eval 추이)
