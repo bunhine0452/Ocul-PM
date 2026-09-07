@@ -8,6 +8,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
   GitCompareArrows,
   Link2,
   Search,
@@ -159,6 +160,28 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
       setVerifying(false);
     }
   }, [verifying, verified, projectId, entry.relative_path, t]);
+
+  // {#entry-open-affordance} — 일지 .md 를 OS 기본 편집기로. `openEntryInEditor`
+  // 는 opener-scope 회귀를 세 번 겪고 백엔드가 절대경로를 직접 셸아웃해 여는
+  // 전용 경로로 만든 것이라, 여기서도 **반드시 이 래퍼**를 쓴다 — plugin-opener
+  // 직접 호출이나 일반 파일용 커맨드로 우회하면 그 회귀가 네 번째로 재발한다.
+  const [opening, setOpening] = useState(false);
+  const openInEditor = useCallback(async () => {
+    if (opening) return;
+    setOpening(true);
+    try {
+      await oculpmApi.openEntryInEditor(projectId, entry.relative_path);
+    } catch (e) {
+      toast.destructive(
+        t("entry.openInEditorFailed", {
+          error: e instanceof OculpmApiError ? e.message : String(e),
+        }),
+      );
+    } finally {
+      setOpening(false);
+    }
+  }, [opening, projectId, entry.relative_path, t]);
+
   const related = detail?.frontmatter.related ?? [];
 
   /**
@@ -420,6 +443,15 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
             <ShieldCheck size={13} /> {t("ctx.promote.rule")}
           </button>
         ) : null}
+        <button
+          type="button"
+          className="btn sm"
+          onClick={() => void openInEditor()}
+          disabled={opening}
+          title={t("entry.openInEditorTitle")}
+        >
+          <ExternalLink size={13} /> {t("entry.openInEditor")}
+        </button>
         <button
           type="button"
           className="btn sm"

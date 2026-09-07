@@ -45,9 +45,10 @@ function summary(over: Partial<Record<string, unknown>> = {}) {
 }
 
 // Mutable fixtures the mock reads, so each test can stage its own data.
-// `filesByEntry` 는 일지 하나가 적은 파일 경로들 — Today 의 「변경된 파일」이
-// **고유 파일 수**로 바뀌면서(v3-release {#today-overcount}) 겹침을 세우는
-// 자료가 필요해졌다. 안 세운 엔트리는 기본 두 경로를 쓴다.
+// `filesByEntry` 는 일지 하나가 적은 파일 경로들 — Today 의 「변경된 파일」은
+// **고유 파일 수**라(v3-release {#today-overcount}) 겹침을 세우는 자료가 필요하다.
+// 안 세운 엔트리는 기본 두 경로를 쓴다. 그 합집합은 이제 백엔드가 세므로
+// ({#distinct-files-backend}) 브리프 mock 이 `files_touched` 로 내려준다.
 const fixtures: {
   byWorkday: Record<string, ReturnType<typeof summary>[]>;
   filesByEntry: Record<string, string[]>;
@@ -115,6 +116,13 @@ vi.mock("@/lib/bindings", () => ({
           (a, b) =>
             (b.status === "in_progress" ? 1 : 0) - (a.status === "in_progress" ? 1 : 0),
         );
+      // 백엔드의 `COUNT(DISTINCT file_path)` 자리 — 초점 워크데이 엔트리들의
+      // 경로 합집합. 프런트는 이 스칼라를 그대로 쓴다(걷지 않는다).
+      const distinct = new Set(
+        (linesWorkday ? (fixtures.byWorkday[linesWorkday] ?? []) : []).flatMap(
+          (e) => fixtures.filesByEntry[e.relative_path] ?? ["a.ts", "b.ts"],
+        ),
+      );
       return Promise.resolve({
         status: "ok",
         data: {
@@ -127,6 +135,7 @@ vi.mock("@/lib/bindings", () => ({
           })) as unknown as WorkdayBrief["days"],
           lines_added: todayCount * 15,
           lines_removed: todayCount * 3,
+          files_touched: distinct.size,
           open_plan_items: openItems as WorkdayBrief["open_plan_items"],
           total_entries: 0,
         } satisfies WorkdayBrief,

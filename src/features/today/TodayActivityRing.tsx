@@ -28,7 +28,7 @@ import {
 interface TodayActivityRingProps {
   /** Today's recorded-work count (brief.changedToday). */
   changedToday: number;
-  /** Σ files touched across today's entries (brief.filesTouched). */
+  /** 오늘 만진 **고유** 파일 수 (brief.filesTouched — Σ 가 아니다). */
   filesTouched: number;
   /** Σ lines added / removed across today's entries (from the diff sidecars). */
   linesAdded: number;

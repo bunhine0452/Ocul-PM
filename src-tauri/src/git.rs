@@ -182,6 +182,14 @@ fn repo_relative(repo: &Path, abs: &Path) -> Option<String> {
         .map(|p| p.to_string_lossy().to_string())
 }
 
+/// `repo`-relative path restated relative to `root`. See [`primary_repo`].
+pub fn root_relative(root: &Path, repo: &Path, repo_rel: &str) -> String {
+    match repo.strip_prefix(root) {
+        Ok(p) if !p.as_os_str().is_empty() => p.join(repo_rel).to_string_lossy().to_string(),
+        _ => repo_rel.to_string(),
+    }
+}
+
 /// Find the git work-tree root(s) relevant to a project at `root`. The common
 /// case (root is, or is inside, one repo) returns a single root. When the
 /// `.oculpm/` folder sits above the actual repo(s), it discovers repo roots a
@@ -301,6 +309,8 @@ pub fn graph(root: &Path, limit: u32) -> Result<Vec<GitGraphCommit>, String> {
 /// every git-backed view work when the `.oculpm/` folder is opened on a *parent*
 /// of the actual repo (nested-repo case); previously only the diff path handled
 /// it and log/status/branch reported "not a git repo". `None` = no repo found.
+/// Contract: when the result isn't `root`, printed paths are repo- not
+/// root-relative — re-base via [`root_relative`] ({#branch-axis-limits}).
 pub fn primary_repo(root: &Path) -> Option<PathBuf> {
     use std::collections::HashMap;
     use std::sync::{LazyLock, Mutex};
@@ -755,8 +765,6 @@ pub fn uncommitted_changes(root: &Path) -> Vec<GitChange> {
     // list is git-backed (survives restarts/updates) for those layouts too.
     let mut changes = Vec::new();
     for repo in discover_repos(root) {
-        // Prefix to make each repo's paths relative to the project root.
-        let prefix = repo.strip_prefix(root).ok().map(PathBuf::from);
         let out = match run_git(
             &repo,
             &["status", "--porcelain=v1", "-z", "--untracked-files=all"],
@@ -780,12 +788,8 @@ pub fn uncommitted_changes(root: &Path) -> Vec<GitChange> {
             if x == 'R' || x == 'C' {
                 let _ = tokens.next();
             }
-            let path = match &prefix {
-                Some(p) if !p.as_os_str().is_empty() => p.join(raw).to_string_lossy().to_string(),
-                _ => raw.to_string(),
-            };
             changes.push(GitChange {
-                path,
+                path: root_relative(root, &repo, raw),
                 op: porcelain_op(x, y).to_string(),
             });
         }
@@ -825,7 +829,6 @@ pub fn last_commit_changes(root: &Path) -> Option<LastCommitChanges> {
 /// paths made relative to the project `root` (nested-repo aware). Mirrors the
 /// op mapping the 변경 diff 화면 expects (`A`/`M`/`D`; rename/copy → add).
 fn changes_in_range(repo: &Path, root: &Path, from: &str, to: &str) -> Vec<GitChange> {
-    let prefix = repo.strip_prefix(root).ok().map(PathBuf::from);
     let Ok(out) = run_git(repo, &["diff", "--name-status", "-z", from, to]) else {
         return Vec::new();
     };
@@ -842,10 +845,7 @@ fn changes_in_range(repo: &Path, root: &Path, from: &str, to: &str) -> Vec<GitCh
             tokens.next()
         };
         let Some(raw) = raw else { break };
-        let path = match &prefix {
-            Some(p) if !p.as_os_str().is_empty() => p.join(raw).to_string_lossy().to_string(),
-            _ => raw.to_string(),
-        };
+        let path = root_relative(root, repo, raw);
         let op = match code {
             'A' | 'R' | 'C' => "A",
             'D' => "D",
