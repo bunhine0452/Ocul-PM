@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 
 use tauri::State;
 
+use crate::app_error::AppError;
 use crate::db::Db;
 use crate::llm;
 use crate::oculpm::atomic_io::write_atomic;
@@ -19,13 +20,14 @@ use crate::oculpm::planner::ai::{build_user_prompt, parse_ai_edits, SYSTEM_PROMP
 use crate::oculpm::planner::dispatch::{
     build_dispatch_prompt, project_redact_patterns, shell_command_for,
 };
+use crate::oculpm::planner::lifecycle::set_plan_status;
 use crate::oculpm::planner::migrate::{
     build_imported_md, ImportGoal, ImportSubtask, IMPORTED_PLAN_ID,
 };
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
 use crate::oculpm::planner::plan_edit::{
     add_item, append_log_row, create_plan_skeleton, move_phase, remove_item, remove_phase,
-    rename_item, rename_phase, set_item_status_rolled, set_plan_status, set_plan_title, LogRow,
+    rename_item, rename_phase, set_item_status_rolled, set_plan_title, LogRow,
 };
 use crate::oculpm::planner::project::{
     find_plan_path, planner_dir, slug_for, PlanActivityDto, PlanCache, PlanDetail,
@@ -280,6 +282,12 @@ pub async fn plan_apply_edit(
 /// touch it and AGENTS.md tells external agents the same — so finished plans
 /// stay frozen and work moves to a new plan (Planner #1). Returns refreshed
 /// detail.
+///
+/// 미완 항목이 남은 플랜을 `done` 으로 닫는 전이는
+/// [`planner::lifecycle::set_plan_status`] 가 거부한다 — 이 커맨드가 그
+/// 문지기를 지나는 세 자리 중 하나다 (`{#done-transition-guard}`).
+///
+/// [`planner::lifecycle::set_plan_status`]: crate::oculpm::planner::lifecycle::set_plan_status
 #[tauri::command]
 #[specta::specta]
 pub async fn plan_set_status(
@@ -288,9 +296,12 @@ pub async fn plan_set_status(
     project_id: u32,
     plan_id: String,
     status: String,
-) -> Result<Option<PlanDetail>, String> {
+) -> Result<Option<PlanDetail>, AppError> {
     if !matches!(status.as_str(), "active" | "done" | "archived") {
-        return Err(format!("unknown plan status '{status}'"));
+        return Err(AppError::new(
+            "unknown_plan_status",
+            format!("unknown plan status '{status}'"),
+        ));
     }
     let plan_lock = manager.plan_write_lock(project_id).await;
     let _guard = plan_lock.lock().await;
@@ -299,9 +310,9 @@ pub async fn plan_set_status(
         find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
     let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
     let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let new_md = set_plan_status(&md, &status, &date);
+    let new_md = set_plan_status(&md, &status, &date)?;
     write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
-    PlanCache::new(&db).get(project_id, &root, &plan_id).await
+    Ok(PlanCache::new(&db).get(project_id, &root, &plan_id).await?)
 }
 
 /// Set the same lifecycle status on many plans at once — the rail's "묶어서
@@ -320,26 +331,37 @@ pub async fn plan_set_status_bulk(
     project_id: u32,
     plan_ids: Vec<String>,
     status: String,
-) -> Result<u32, String> {
+) -> Result<u32, AppError> {
     if !matches!(status.as_str(), "active" | "done" | "archived") {
-        return Err(format!("unknown plan status '{status}'"));
+        return Err(AppError::new(
+            "unknown_plan_status",
+            format!("unknown plan status '{status}'"),
+        ));
     }
     let plan_lock = manager.plan_write_lock(project_id).await;
     let _guard = plan_lock.lock().await;
     let root = planner_root_of(&db, project_id).await?;
     let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let mut changed = 0u32;
+    // **먼저 전부 판정하고 그다음에 쓴다.** 문지기가 배치 한가운데서 거부하면
+    // 반은 쓰이고 반은 안 쓰인 상태가 남고, 사용자는 어느 쪽인지 알 길이 없다
+    // (`{#done-transition-guard}`). 없는 id 는 예전처럼 조용히 건너뛴다 —
+    // 레일 목록이 디스크의 삭제를 늦게 따라올 수 있고, 그 하나 때문에 나머지를
+    // 못 옮기는 편이 더 나쁘다.
+    let mut pending: Vec<(std::path::PathBuf, String)> = Vec::new();
     for plan_id in &plan_ids {
         let Some(path) = find_plan_path(&root, plan_id) else {
             continue;
         };
         let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        let new_md = set_plan_status(&md, &status, &date);
+        let new_md = set_plan_status(&md, &status, &date)?;
         if new_md == md {
             continue;
         }
-        write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
-        changed += 1;
+        pending.push((path, new_md));
+    }
+    let changed = pending.len() as u32;
+    for (path, new_md) in &pending {
+        write_atomic(path, new_md.as_bytes()).map_err(|e| e.to_string())?;
     }
     if changed > 0 {
         PlanCache::new(&db).list(project_id, &root).await?;

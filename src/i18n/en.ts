@@ -577,6 +577,7 @@ export const en: Record<keyof typeof ko, string> = {
   "err.code.automation_bad_watch": "The watch path must be relative to the project.",
   "err.code.automation_bad_responsiveness": "Unknown responsiveness tier.",
   "err.code.automation_bad_condition": "Unknown run condition — this automation will not run.",
+  "err.code.plan_has_open_items": "This plan still has open items, so it cannot be closed as done.",
   "automation.output.journal": "One journal entry",
   "automation.output.plan": "Plan update (not wired)",
   "automation.output.none": "No output (history only)",
@@ -3639,6 +3640,7 @@ export const en: Record<keyof typeof ko, string> = {
   "branch.link.entry.why": "The journal file itself is part of this branch's changes.",
   "branch.link.files": "file overlap",
   "branch.link.files.why": "Files the entry names overlap with what this branch changed.",
+  "branch.link.files.overlapHint": "If another branch also touched the overlapping file, the same entry can show up there too.",
   "branch.type.other": "other",
   "branch.commit.journals": "{n} journal",
   "branch.commit.files": "{n} files",
@@ -3741,4 +3743,18 @@ export const en: Record<keyof typeof ko, string> = {
   "today.activity.openAria": "Open the sessions screen",
   "today.activity.none": "No agent session is attached to this project right now. Start one from the terminal or the Claude Code / Codex screen and it shows up here.",
   "today.plugin.dismissHint": "Don't show this again",
+  "acp.stopAdapter": "Shut down adapter",
+  "acp.stopConfirmTitle": "Shut down this project's adapter?",
+  "acp.stopConfirmBody":
+    "Every conversation open for this project right now will disconnect. History stays on disk, so you can reconnect later.",
+  "entry.openInEditor": "Open file",
+  "entry.openInEditorTitle": "Open this journal entry's .md file in the system default editor",
+  "entry.openInEditorFailed": "Could not open the file: {error}",
+  // Doctor watcher row ({#watcher-user-pause}) — "Stopped" and "you stopped it"
+  // are different sentences: the supervisor revives the first within 60s and
+  // never touches the second. The copy says out loud that the pause lives in
+  // process memory only.
+  "settings.doctor.v.paused": "Stopped by you \u00b7 resumes when the app restarts",
+  "settings.doctor.a.pause": "Stop",
+  "settings.doctor.a.resume": "Resume",
 };

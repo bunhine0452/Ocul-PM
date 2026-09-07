@@ -8,6 +8,8 @@
 
 pub mod ai;
 pub mod dispatch;
+/// 플랜 레벨 status 전이의 유일한 문지기 (`{#done-transition-guard}`).
+pub mod lifecycle;
 pub mod migrate;
 pub mod parse;
 pub mod plan_edit;

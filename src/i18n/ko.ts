@@ -573,6 +573,7 @@ export const ko = {
   "err.code.automation_bad_watch": "감시 경로는 프로젝트 안의 상대 경로여야 합니다.",
   "err.code.automation_bad_responsiveness": "반응성 티어를 알 수 없습니다.",
   "err.code.automation_bad_condition": "알 수 없는 실행 조건입니다 — 이 자동화는 돌지 않습니다.",
+  "err.code.plan_has_open_items": "미완 항목이 남아 있어 플랜을 완료로 닫을 수 없어요.",
   "automation.output.journal": "작업 일지 1건",
   "automation.output.plan": "플랜 갱신 (미연결)",
   "automation.output.none": "산출물 없음 (기록에만)",
@@ -3628,6 +3629,7 @@ export const ko = {
   "branch.link.entry.why": "일지 파일 자체가 이 브랜치의 변경에 있어요.",
   "branch.link.files": "파일 겹침",
   "branch.link.files.why": "일지가 적은 파일이 이 브랜치가 바꾼 파일과 겹쳐요.",
+  "branch.link.files.overlapHint": "겹치는 파일을 다른 브랜치도 바꿨다면 같은 일지가 거기서도 보일 수 있어요.",
   "branch.type.other": "기타",
   "branch.commit.journals": "일지 {n}",
   "branch.commit.files": "파일 {n}",
@@ -3741,4 +3743,20 @@ export const ko = {
   "today.activity.openAria": "세션 화면 열기",
   "today.activity.none": "지금 이 프로젝트에 붙어 있는 세션이 없어요. 터미널이나 Claude Code·Codex 화면에서 에이전트를 띄우면 여기에 뜹니다.",
   "today.plugin.dismissHint": "이 안내를 다시 띄우지 않아요",
+  // 어댑터 내리기 ({#acp-stop-ui}) — 되돌릴 수는 있지만(다시 연결) 지금 열린
+  // 대화를 전부 끊는 파괴적인 동작이라 확인을 거친다.
+  "acp.stopAdapter": "어댑터 내리기",
+  "acp.stopConfirmTitle": "이 프로젝트의 어댑터를 내릴까요?",
+  "acp.stopConfirmBody":
+    "지금 열려 있는 이 프로젝트의 모든 대화가 끊겨요. 기록은 디스크에 남아 있어 나중에 다시 연결할 수 있어요.",
+  // 일지 상세 — "파일로 열기" ({#entry-open-affordance}).
+  "entry.openInEditor": "파일로 열기",
+  "entry.openInEditorTitle": "이 일지 .md 파일을 시스템 기본 편집기로 엽니다",
+  "entry.openInEditorFailed": "파일 열기 실패: {error}",
+  // 닥터 워처 행 ({#watcher-user-pause}) — 「멈춤」과 「사용자가 멈춤」은 다른
+  // 말이다. 앞엣것은 감독관이 60초 안에 되살리고, 뒤엣것은 되살리지 않는다.
+  // 일시정지가 프로세스 메모리에만 산다는 사실을 문구가 직접 말한다.
+  "settings.doctor.v.paused": "사용자가 멈춤 · 앱을 다시 켜면 풀려요",
+  "settings.doctor.a.pause": "중지",
+  "settings.doctor.a.resume": "다시 켜기",
 } as const;
