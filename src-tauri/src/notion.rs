@@ -12,6 +12,8 @@
 
 use serde_json::{json, Value};
 
+use crate::text::percent_decode;
+
 /// 키체인 시크릿 이름 — 기존 `secret_set`/`secret_verify` 커맨드로 관리된다.
 pub const NOTION_TOKEN_SECRET: &str = "notion_api_key";
 /// 부모 페이지 설정 키 (SQLite settings — 시크릿 아님).
@@ -394,41 +396,22 @@ pub fn parse_oauth_callback(request_line: &str) -> Option<(String, String)> {
     Some((token?, state?))
 }
 
-/// 최소 퍼센트 디코딩 — Notion 토큰(ntn_…)과 nonce(hex)는 예약 문자가 없지만,
-/// 방어적으로 처리한다.
-fn percent_decode(s: &str) -> String {
-    let bytes = s.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(b) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
-                out.push(b);
-                i += 3;
-                continue;
-            }
-        }
-        out.push(bytes[i]);
-        i += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
-}
-
-/// 프로세스 로컬 nonce — 시각+pid+카운터의 blake3. 예측 불가면 충분하다
-/// (루프백 CSRF 방지 용도).
+/// 루프백 콜백의 CSRF nonce — **CSPRNG** 여야 한다 (uuid v4 = getrandom).
+///
+/// 2026-09-07 감사 이전에는 `blake3(nanos + pid + counter)` 였다. 셋 다 로컬에서
+/// 알아낼 수 있는 값이다 — pid 는 `ps` 로 보이고, 카운터는 0 에서 시작하며,
+/// 나노초는 브라우저가 열리는 순간을 보면 좁혀진다. blake3 는 오프라인
+/// 브루트포스가 빠르니 "해시했으니 안전" 이 성립하지 않는다.
+///
+/// 뚫리면 무슨 일이 나는가: 로컬 프로세스가 nonce 와 포트를 맞혀 180초 창 안에
+/// `127.0.0.1:{port}/oculpm/notion?token=…&state={nonce}` 를 쏘면 **공격자의
+/// Notion 토큰이 사용자 키체인에 저장된다** — 이후 내보내기가 공격자
+/// 워크스페이스로 간다.
+///
+/// 같은 저장소의 [`crate::mobile_bridge::pairing::generate_token`] 이 이미 uuid
+/// v4 를 쓴다. 이 함수는 그 규약에 맞춘 것이다.
 pub fn oauth_nonce() -> String {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    let seed = format!(
-        "{now}-{}-{}",
-        std::process::id(),
-        COUNTER.fetch_add(1, Ordering::Relaxed)
-    );
-    blake3::hash(seed.as_bytes()).to_hex()[..32].to_string()
+    uuid::Uuid::new_v4().simple().to_string()
 }
 
 #[cfg(test)]

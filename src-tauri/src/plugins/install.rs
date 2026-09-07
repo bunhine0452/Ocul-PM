@@ -200,8 +200,16 @@ pub fn unplace(project_root: &Path, bundle_id: &str, dest_rel: &str) -> Placemen
     }
 }
 
-/// 프로젝트 루트 안에 가둔 경로. `..`·절대경로·심링크 탈출을 전부 거절한다
-/// (`docs.rs` 의 `secure_docs_join` 을 쓰기 쪽으로 옮긴 것).
+/// 프로젝트 루트 안에 가둔 경로. `..`·절대경로·심링크 탈출을 전부 거절한다.
+///
+/// 어휘적 검사만으로는 부족하다 — `..` 를 막아도 `root/link/x` 는 통과하고,
+/// `link` 가 밖을 가리키면 **번들이 프로젝트 밖에 쓴다.** 2026-09-07 감사
+/// 이전의 이 함수가 정확히 그랬다(주석은 심링크를 막는다고 적고 있었다).
+/// 그래서 성분을 하나씩 이어 붙이며 **존재하는 성분이 심링크면 거절**한다.
+///
+/// 읽기 쪽 `commands/code.rs` 는 `canonicalize` 로 같은 성질을 얻는다. 여기서
+/// 그걸 못 쓰는 이유는 목적지가 **아직 없는 파일**이라서다 — `canonicalize` 는
+/// 없는 경로에서 실패한다.
 fn secure_join(root: &Path, rel: &str) -> Option<PathBuf> {
     if rel.is_empty() || rel.starts_with('/') {
         return None;
@@ -215,6 +223,14 @@ fn secure_join(root: &Path, rel: &str) -> Option<PathBuf> {
             return None;
         }
         out.push(part);
+        // `symlink_metadata` 는 링크를 따라가지 않는다 — 링크 **자체**를 본다.
+        // 없는 성분은 Err 이고 그건 정상이다(우리가 만들 경로다).
+        if out
+            .symlink_metadata()
+            .is_ok_and(|m| m.file_type().is_symlink())
+        {
+            return None;
+        }
     }
     Some(out)
 }
@@ -647,6 +663,32 @@ mod tests {
             assert!(secure_join(&root, bad).is_none(), "{bad} must be refused");
         }
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    /// 회귀 (2026-09-07 감사) — `..` 를 막아도 **심링크**로는 나갈 수 있었다.
+    /// 주석은 심링크를 거절한다고 적어 두었지만 구현은 어휘적 검사뿐이었다.
+    #[cfg(unix)]
+    #[test]
+    fn a_destination_cannot_escape_through_a_symlink() {
+        let root = tmp("symlink-escape");
+        let outside = root.parent().unwrap().join("outside-symlink-target");
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::create_dir_all(&root).unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("link")).unwrap();
+
+        // 링크 자체도, 링크 너머도 거절이다.
+        assert!(secure_join(&root, "link").is_none());
+        assert!(secure_join(&root, "link/pwned.md").is_none());
+        assert!(secure_join(&root, "link/deep/pwned.md").is_none());
+        // 평범한 경로는 그대로 통과한다 (가드가 전부를 막아 버리지 않았다).
+        assert!(secure_join(&root, "docs/ok.md").is_some());
+
+        let p = place(&root, "kit", "link/pwned.md", b"x");
+        assert_eq!(p.outcome, PlacementOutcome::Failed);
+        assert!(!outside.join("pwned.md").exists());
+
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::remove_dir_all(&outside).ok();
     }
 
     #[test]

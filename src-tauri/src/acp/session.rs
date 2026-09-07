@@ -748,12 +748,7 @@ fn clamp(text: String) -> String {
     if text.len() <= TOOL_TEXT_CAP {
         return text;
     }
-    let cut = text
-        .char_indices()
-        .map(|(i, _)| i)
-        .take_while(|&i| i <= TOOL_TEXT_CAP)
-        .last()
-        .unwrap_or(0);
+    let cut = crate::text::floor_char_boundary(&text, TOOL_TEXT_CAP);
     format!("{}\n… (truncated)", &text[..cut])
 }
 

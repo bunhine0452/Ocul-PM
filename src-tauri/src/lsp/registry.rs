@@ -8,6 +8,8 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::text::percent_decode;
+
 /// 하나의 언어 서버를 어떻게 띄우는가.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ServerSpec {
@@ -103,7 +105,7 @@ pub fn path_to_uri(path: &Path) -> String {
 /// URI → 경로. 서버가 정의 위치로 돌려주는 값을 되돌린다.
 pub fn uri_to_path(uri: &str) -> Option<PathBuf> {
     let rest = uri.strip_prefix("file://")?;
-    Some(PathBuf::from(decode_uri(rest)))
+    Some(PathBuf::from(percent_decode(rest)))
 }
 
 /// 경로 세그먼트의 퍼센트 인코딩. 공백·`#`·`?` 가 든 경로가 실제로 있고,
@@ -119,24 +121,6 @@ fn encode_uri_segment(seg: &str) -> String {
         }
     }
     out
-}
-
-fn decode_uri(s: &str) -> String {
-    let bytes = s.as_bytes();
-    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(b) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
-                out.push(b);
-                i += 3;
-                continue;
-            }
-        }
-        out.push(bytes[i]);
-        i += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
 }
 
 #[cfg(test)]
