@@ -189,28 +189,37 @@ impl OculpmManager {
     pub async fn get_status(&self, project_id: u32) -> OculpmStatus {
         let projects = self.projects.read().await;
         match projects.get(&project_id) {
-            Some(entry) => OculpmStatus {
-                initialized: true,
-                // We validated on init; assume still valid until set_config
-                // re-validates. Future PRs may add disk re-checks here.
-                config_valid: true,
-                lock_state: lock_state_from_guard(&entry.lock),
-                current_workday: entry.resolver.workday_of(chrono::Utc::now()),
-                // 실제 워처 상태. 예전엔 "W2 가 바꾼다" 는 주석과 함께 `Stopped`
-                // 로 박혀 있어 터미널 상태바가 늘 "감시 꺼짐" 을 그렸다
-                // (2026-08-30 감사) — 워처는 잘 돌고 있었는데도.
-                watcher_state: entry
-                    .watcher
-                    .as_ref()
-                    .map(|w| w.status().state)
-                    .unwrap_or(WatcherStateView::Stopped),
-            },
+            Some(entry) => {
+                // 한 번만 찍는다 — 상태와 버림 누계가 **같은 순간**의 값이어야
+                // 「돌고 있는데 N건 버렸다」가 서로 어긋나지 않는다.
+                let watcher_status = entry.watcher.as_ref().map(|w| w.status());
+                OculpmStatus {
+                    initialized: true,
+                    // We validated on init; assume still valid until set_config
+                    // re-validates. Future PRs may add disk re-checks here.
+                    config_valid: true,
+                    lock_state: lock_state_from_guard(&entry.lock),
+                    current_workday: entry.resolver.workday_of(chrono::Utc::now()),
+                    // 실제 워처 상태. 예전엔 "W2 가 바꾼다" 는 주석과 함께 `Stopped`
+                    // 로 박혀 있어 터미널 상태바가 늘 "감시 꺼짐" 을 그렸다
+                    // (2026-08-30 감사) — 워처는 잘 돌고 있었는데도.
+                    watcher_state: watcher_status
+                        .as_ref()
+                        .map(|s| s.state)
+                        .unwrap_or(WatcherStateView::Stopped),
+                    watcher_dropped_total: watcher_status
+                        .as_ref()
+                        .map(|s| s.dropped_total)
+                        .unwrap_or(0),
+                }
+            }
             None => OculpmStatus {
                 initialized: false,
                 config_valid: false,
                 lock_state: LockStateView::Uninitialized,
                 current_workday: String::new(),
                 watcher_state: WatcherStateView::Stopped,
+                watcher_dropped_total: 0,
             },
         }
     }
@@ -558,24 +567,38 @@ impl OculpmManager {
     ///   on next launch finalises anything stuck in Active.
     ///
     /// Idempotent — calling twice is a no-op the second time.
+    ///
+    /// **락 스코프** — 맵 write 락은 **핸들을 꺼내는 데까지만** 쥔다.
+    /// 예전에는 그 락을 쥔 채로 `watcher.stop().await` 로 드레인이 끝나기를
+    /// 기다렸다. 기준선이 잰 드레인이 4.3초고(perf-baseline §1 M1), 그동안
+    /// *다른 모든 프로젝트의* manager 접근이 read 조차 막혔다 —
+    /// `watcher_start_with` 가 이미 고친 것과 같은 병리다
+    /// (`{#manager-write-lock}` → `{#v242-watcher-stop-lock}`).
     pub async fn watcher_stop(&self, project_id: u32) -> Result<(), OculpmError> {
-        let mut projects = self.projects.write().await;
-        let entry = projects
-            .get_mut(&project_id)
-            .ok_or(OculpmError::NotInitialized(project_id))?;
+        // 이 블록이 가드의 수명 전부다 — IO 도 `.await` 도 없다.
+        let (watcher, session_alive) = {
+            let mut projects = self.projects.write().await;
+            let entry = projects
+                .get_mut(&project_id)
+                .ok_or(OculpmError::NotInitialized(project_id))?;
 
-        // 세대를 올린다 — 지금 기동 중인 `watcher_start_with` 가 있으면 그쪽이
-        // 설치를 포기한다 (나중 의도인 "그만" 이 이긴다).
-        entry.watcher_epoch = next_watcher_epoch();
-        let had_watcher = entry.watcher.is_some();
-        if let Some(watcher) = entry.watcher.take() {
+            // 세대를 올린다 — 지금 기동 중인 `watcher_start_with` 가 있으면 그쪽이
+            // 설치를 포기한다 (나중 의도인 "그만" 이 이긴다). 여기서 올려 두므로
+            // 아래 드레인이 락 밖에서 도는 동안 도착한 기동도 버려진다.
+            entry.watcher_epoch = next_watcher_epoch();
+            (entry.watcher.take(), entry.session.is_some())
+        };
+
+        // 드레인은 락 **밖**에서 기다린다.
+        let had_watcher = watcher.is_some();
+        if let Some(watcher) = watcher {
             watcher.stop().await?;
         }
         tracing::info!(
             target: "oculpm::manager",
             project_id,
             had_watcher,
-            session_alive = entry.session.is_some(),
+            session_alive,
             "[FLOW] watcher_stop: watcher halted, session actor kept alive (will end via inactivity timer if user doesn't return)"
         );
         Ok(())
@@ -709,6 +732,7 @@ impl OculpmManager {
                     events_ignored_total: 0,
                     last_event_at: None,
                     debounce_ms: entry.config.watcher.debounce_ms,
+                    dropped_total: 0,
                 },
             },
             None => WatcherStatus {
@@ -717,6 +741,7 @@ impl OculpmManager {
                 events_ignored_total: 0,
                 last_event_at: None,
                 debounce_ms: 0,
+                dropped_total: 0,
             },
         }
     }

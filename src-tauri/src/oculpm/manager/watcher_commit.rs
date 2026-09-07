@@ -49,15 +49,18 @@ impl OculpmManager {
                             entry.lock = Some(g);
                         } else {
                             // 도달 불가 — `lifecycle_lock` 이 막는다. 그래도 여기
-                            // 왔다면 그냥 떨어뜨리면 안 된다: 같은 프로세스라 pid 가
-                            // 같아서 `LockGuard::drop` 이 **엔트리 것**의 락 파일을
-                            // 지운다. 시끄럽게 남기고 하트비트만 새게 둔다.
+                            // 왔다면 **그냥 떨어뜨린다.** 예전에는 `mem::forget` 으로
+                            // 붙잡아 뒀는데, 같은 프로세스의 두 가드가 서로의 락
+                            // 파일을 지우던 시절의 회피책이었다. 지금은 프로세스 내
+                            // 경로별 등록(`lock.rs` 의 `LOCK_REGISTRY`)이 "마지막
+                            // 가드만 지운다"를 보장하므로, 떨어뜨려도 엔트리 것의
+                            // 파일은 무사하고 하트비트도 새지 않는다.
                             tracing::error!(
                                 target: "oculpm::manager",
                                 project_id,
                                 "락 가드가 둘이다 — 생명주기 직렬화가 깨졌다"
                             );
-                            std::mem::forget(g);
+                            drop(g);
                         }
                     }
                     match payload {

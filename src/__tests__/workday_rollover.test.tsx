@@ -17,6 +17,7 @@ const getStatus = vi.fn(async (_pid: number): Promise<OculpmStatus> => ({
   lock_state: { held_by_us: true } as unknown as OculpmStatus["lock_state"],
   current_workday: backendWorkday,
   watcher_state: "running" as unknown as OculpmStatus["watcher_state"],
+  watcher_dropped_total: 0,
 }));
 
 vi.mock("@/api/oculpm", () => ({

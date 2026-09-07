@@ -10,9 +10,10 @@
 
 #![allow(dead_code)] // Whole module is consumed by OculpmManager (W1-PR7).
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 use tokio::sync::Notify;
@@ -88,12 +89,78 @@ pub enum LockAcquisition {
     },
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 프로세스 내 경로별 소유권 등록 (`{#lockguard-disarm}`)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 이 프로세스가 지금 들고 있는 락 경로별 **살아 있는 가드 수**.
+///
+/// 정리 판정이 오랫동안 "디스크의 pid == 내 pid" 하나뿐이었다. 그 판정은 *다른
+/// 프로세스*에게서는 우리를 지켜 주지만 **우리 자신에게서는 못 지킨다** — 한
+/// 프로세스 안에 같은 경로의 가드가 둘이면 pid 가 같으므로 먼저 떨어지는 쪽이
+/// 아직 살아 있는 쪽의 락 파일을 지운다. 지금까지 그 상황을 막고 있던 것은
+/// `lifecycle_lock` 의 직렬화뿐이고(`manager/watcher_commit.rs` 의 "가드가
+/// 둘이다" 분기가 그 자백이다), 근본 해결을 여기에 둔다:
+/// **마지막 가드가 떨어질 때만 지운다.**
+static LOCK_REGISTRY: OnceLock<Mutex<HashMap<PathBuf, usize>>> = OnceLock::new();
+
+fn registry() -> &'static Mutex<HashMap<PathBuf, usize>> {
+    LOCK_REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn registry_lock() -> std::sync::MutexGuard<'static, HashMap<PathBuf, usize>> {
+    registry()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// 같은 파일을 가리키는 두 경로가 서로 다른 열쇠가 되면 등록이 무의미해진다.
+/// 락 파일 자체는 아직 없을 수 있으므로 **부모만** 정규화한다 (macOS 의
+/// `/tmp` → `/private/tmp` 가 실제로 이 차이를 만든다).
+fn registry_key(path: &Path) -> PathBuf {
+    match (path.parent(), path.file_name()) {
+        (Some(dir), Some(name)) => dir
+            .canonicalize()
+            .map(|d| d.join(name))
+            .unwrap_or_else(|_| path.to_path_buf()),
+        _ => path.to_path_buf(),
+    }
+}
+
+fn registry_register(key: &Path) {
+    *registry_lock().entry(key.to_path_buf()).or_insert(0) += 1;
+}
+
+/// 등록을 하나 뺀다. 반환값은 **내가 마지막이었는가** — `true` 일 때만 락
+/// 파일을 지울 자격이 있다.
+fn registry_unregister(key: &Path) -> bool {
+    let mut map = registry_lock();
+    match map.get_mut(key) {
+        Some(n) if *n > 1 => {
+            *n -= 1;
+            false
+        }
+        Some(_) => {
+            map.remove(key);
+            true
+        }
+        // 등록이 없다 = 이미 정리됐다. 지울 자격도 없다.
+        None => false,
+    }
+}
+
 /// RAII handle for an owned lock. Drop or `release()` cleans up the lock file
 /// and the heartbeat task.
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct LockGuard {
     path: PathBuf,
+    /// `LOCK_REGISTRY` 열쇠 (= 부모를 정규화한 `path`). 등록·해제가 같은 값을
+    /// 써야 하므로 획득 시점에 한 번 계산해 들고 다닌다.
+    key: PathBuf,
+    /// 아직 등록이 살아 있는가. `release` 와 `Drop` 이 연달아 불려도 등록이
+    /// 두 번 빠지지 않게 한다 (그러면 남의 가드가 "마지막" 이 돼 버린다).
+    registered: bool,
     /// `Some` only between successful `acquire` and `release`/`drop`.
     heartbeat_handle: Option<tokio::task::JoinHandle<()>>,
     /// Set so the heartbeat task can exit cleanly when `release` is called.
@@ -188,6 +255,11 @@ impl LockGuard {
         let text = serde_json::to_string_pretty(&lock).map_err(OculpmError::JsonSerialize)?;
         write_atomic(path, text.as_bytes())?;
 
+        // 파일을 쓴 직후에 등록한다 — 이 뒤로 이 경로의 락 파일은 **마지막
+        // 가드**만 지울 수 있다.
+        let key = registry_key(path);
+        registry_register(&key);
+
         let shutdown = Arc::new(Notify::new());
         let evicted = Arc::new(AtomicBool::new(false));
         let path_clone = path.to_path_buf();
@@ -233,6 +305,8 @@ impl LockGuard {
 
         Ok(LockGuard {
             path: path.to_path_buf(),
+            key,
+            registered: true,
             heartbeat_handle: Some(heartbeat_handle),
             shutdown,
             evicted,
@@ -256,10 +330,24 @@ impl LockGuard {
             })
             .await;
         }
-        // **우리 것일 때만** 지운다. 인계당했거나(evicted) 좀비 락을 회수당한
-        // 뒤라면 이 경로의 파일은 이미 남의 것이다 — 지우면 살아 있는 소유자의
-        // 락을 지워 두 인스턴스가 동시에 주인이 된다.
-        if !self.owns_file_on_disk() {
+        self.teardown()
+    }
+
+    /// 락 파일 정리 — `release` 와 `Drop` 이 함께 쓴다. 두 번 불러도 안전하다.
+    ///
+    /// 지울 자격은 두 겹이다:
+    /// 1. **이 프로세스 안에서 마지막 가드**여야 한다 (`registry_unregister`).
+    ///    아니면 아직 살아 있는 형제 가드의 파일을 지우는 것이다.
+    /// 2. 디스크의 파일이 아직 **우리 것**이어야 한다 (`owns_file_on_disk`).
+    ///    인계당했거나 좀비 락을 회수당한 뒤라면 그 파일은 남의 것이고,
+    ///    지우면 두 인스턴스가 동시에 주인이 된다.
+    fn teardown(&mut self) -> Result<(), OculpmError> {
+        if !self.registered {
+            return Ok(());
+        }
+        self.registered = false;
+        let last_in_process = registry_unregister(&self.key);
+        if !last_in_process || !self.owns_file_on_disk() {
             return Ok(());
         }
         match std::fs::remove_file(&self.path) {
@@ -289,10 +377,8 @@ impl Drop for LockGuard {
         if let Some(handle) = self.heartbeat_handle.take() {
             handle.abort();
         }
-        // `release` 와 같은 규칙 — 우리 것이 아니면 손대지 않는다.
-        if self.owns_file_on_disk() {
-            let _ = std::fs::remove_file(&self.path);
-        }
+        // `release` 와 **같은 경로**를 탄다 — 규칙이 한 벌이어야 한다.
+        let _ = self.teardown();
     }
 }
 
@@ -578,6 +664,79 @@ mod tests {
             Some(4_999_999),
             "인계당한 가드가 남의 락 파일을 지웠다"
         );
+    }
+
+    /// **한 프로세스 안에 같은 경로의 가드가 둘**이어도 서로의 락 파일을 지우지
+    /// 않는다 (`{#lockguard-disarm}`).
+    ///
+    /// 직렬화(`lifecycle_lock`)가 깨졌다고 가정하고 **불변식 자체**를 문다:
+    /// 살아 있는 가드가 하나라도 있으면 락 파일은 디스크에 남아 있어야 한다.
+    /// 떨어지는 순서에 의존하지 않도록 두 순서를 모두 돈다.
+    #[tokio::test]
+    async fn two_guards_on_one_path_never_delete_each_others_lock_file() {
+        for order in [[0usize, 1usize], [1, 0]] {
+            let dir = tempdir().unwrap();
+            let path = dir.path().join(".lock");
+
+            let first = match LockGuard::acquire(&path).await.unwrap() {
+                LockAcquisition::Acquired(g) => g,
+                other => panic!("expected Acquired, got {other:?}"),
+            };
+            // 두 번째 가드. 양보 정책은 (살아 있는 우리 pid 를 보고) 물러나므로
+            // 실제로 둘이 되게 하려면 가져오기 정책이어야 한다.
+            let second = match LockGuard::acquire_with(
+                &path,
+                AcquirePolicy::TakeOver,
+                Arc::new(Notify::new()),
+            )
+            .await
+            .unwrap()
+            {
+                LockAcquisition::TakenOver { guard, .. } => guard,
+                other => panic!("expected TakenOver, got {other:?}"),
+            };
+
+            let mut guards = [Some(first), Some(second)];
+            guards[order[0]].take();
+            assert!(
+                path.exists(),
+                "순서 {order:?}: 형제 가드가 살아 있는데 락 파일이 지워졌다"
+            );
+            guards[order[1]].take();
+            assert!(
+                !path.exists(),
+                "순서 {order:?}: 마지막 가드가 떨어졌는데 락 파일이 남았다"
+            );
+        }
+    }
+
+    /// `release()` 뒤에 `Drop` 이 이어 돌아도 등록이 두 번 빠지지 않는다 —
+    /// 빠지면 아직 살아 있는 형제 가드가 "마지막" 으로 승격돼 남의 파일을
+    /// 지울 자격을 얻는다.
+    #[tokio::test]
+    async fn release_then_drop_only_unregisters_once() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join(".lock");
+
+        let keeper = match LockGuard::acquire(&path).await.unwrap() {
+            LockAcquisition::Acquired(g) => g,
+            other => panic!("expected Acquired, got {other:?}"),
+        };
+        let transient =
+            match LockGuard::acquire_with(&path, AcquirePolicy::TakeOver, Arc::new(Notify::new()))
+                .await
+                .unwrap()
+            {
+                LockAcquisition::TakenOver { guard, .. } => guard,
+                other => panic!("expected TakenOver, got {other:?}"),
+            };
+
+        // release 는 정리를 마치고, 그 뒤 같은 객체의 Drop 이 한 번 더 돈다.
+        transient.release().await.unwrap();
+        assert!(path.exists(), "형제 가드가 살아 있는데 파일이 지워졌다");
+
+        drop(keeper);
+        assert!(!path.exists(), "마지막 가드가 떨어졌는데 락 파일이 남았다");
     }
 
     /// Case 3 — stale lock (heartbeat older than threshold): recover.
