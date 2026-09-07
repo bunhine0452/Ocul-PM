@@ -16,19 +16,42 @@ pub struct FiringAggregate {
     pub last_workday: Option<String>,
 }
 
+/// `firing_apply_scan` 에 넘기는 집계 행. 튜플 6칸이 되면서 자리를 헷갈릴 수
+/// 있게 됐다 — 이름을 붙인다.
+#[derive(Debug, Clone)]
+pub struct FiringScanRow {
+    pub kind: String,
+    pub key: String,
+    pub workday: String,
+    pub count: u32,
+    pub bytes: u64,
+    pub last_prompt: Option<String>,
+    pub last_ts: i64,
+}
+
 impl Db {
-    /// 파일별 재개점 — `(session_file, bytes_consumed)`.
-    pub async fn firing_scan_points(&self, project_id: u32) -> Result<Vec<(String, u64)>> {
+    /// 파일별 재개점 — `(session_file, bytes_consumed, 이월 프롬프트)`.
+    /// 셋째 값은 지난 스캔이 그 파일 끝에서 들고 있던 사용자 프롬프트다
+    /// (`#firing-quotes` — 재개점이 프롬프트와 발동 사이에 놓이는 경우).
+    #[allow(clippy::type_complexity)]
+    pub async fn firing_scan_points(
+        &self,
+        project_id: u32,
+    ) -> Result<Vec<(String, u64, Option<String>)>> {
         let rows = self
             .conn
             .call(move |c| {
                 let mut stmt = c.prepare(
-                    "SELECT session_file, bytes_consumed
+                    "SELECT session_file, bytes_consumed, last_prompt
                      FROM context_firing_scan WHERE project_id = ?1",
                 )?;
                 let out = stmt
                     .query_map(params![project_id as i64], |r| {
-                        Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)? as u64))
+                        Ok((
+                            r.get::<_, String>(0)?,
+                            r.get::<_, i64>(1)? as u64,
+                            r.get::<_, Option<String>>(2)?,
+                        ))
                     })?
                     .collect::<std::result::Result<Vec<_>, _>>()?;
                 Ok(out)
@@ -53,7 +76,8 @@ impl Db {
         expected_resume: u64,
         reset: bool,
         bytes_consumed: u64,
-        rows: Vec<(String, String, String, u32, u64)>,
+        carry_prompt: Option<String>,
+        rows: Vec<FiringScanRow>,
     ) -> Result<bool> {
         let applied = self
             .conn
@@ -79,33 +103,48 @@ impl Db {
                         params![project_id as i64, &session_file],
                     )?;
                 }
-                for (kind, key, workday, count, bytes) in rows {
+                for row in rows {
+                    // 인용은 가산이 아니라 **가장 늦은 것으로 교체**다. SQLite 의
+                    // DO UPDATE SET 은 우변을 갱신 전 행으로 평가하므로 두 줄의
+                    // 순서에 의존하지 않는다.
                     tx.execute(
                         "INSERT INTO context_firings (
-                            project_id, kind, key, workday, session_file, count, bytes
-                         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                            project_id, kind, key, workday, session_file, count, bytes,
+                            last_prompt, last_ts
+                         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
                          ON CONFLICT(project_id, kind, key, workday, session_file) DO UPDATE SET
                             count = count + excluded.count,
-                            bytes = bytes + excluded.bytes",
+                            bytes = bytes + excluded.bytes,
+                            last_prompt = CASE WHEN excluded.last_ts >= last_ts
+                                               THEN excluded.last_prompt ELSE last_prompt END,
+                            last_ts = MAX(last_ts, excluded.last_ts)",
                         params![
                             project_id as i64,
-                            kind,
-                            key,
-                            workday,
+                            row.kind,
+                            row.key,
+                            row.workday,
                             session_file,
-                            count as i64,
-                            bytes as i64,
+                            row.count as i64,
+                            row.bytes as i64,
+                            row.last_prompt,
+                            row.last_ts,
                         ],
                     )?;
                 }
                 tx.execute(
                     "INSERT INTO context_firing_scan (
-                        project_id, session_file, bytes_consumed, scanned_at
-                     ) VALUES (?1, ?2, ?3, unixepoch())
+                        project_id, session_file, bytes_consumed, scanned_at, last_prompt
+                     ) VALUES (?1, ?2, ?3, unixepoch(), ?4)
                      ON CONFLICT(project_id, session_file) DO UPDATE SET
                         bytes_consumed = excluded.bytes_consumed,
-                        scanned_at = excluded.scanned_at",
-                    params![project_id as i64, session_file, bytes_consumed as i64],
+                        scanned_at = excluded.scanned_at,
+                        last_prompt = excluded.last_prompt",
+                    params![
+                        project_id as i64,
+                        session_file,
+                        bytes_consumed as i64,
+                        carry_prompt
+                    ],
                 )?;
                 tx.commit()?;
                 Ok(true)
@@ -164,6 +203,47 @@ impl Db {
                             last_workday: r.get(5)?,
                         })
                     })?
+                    .collect::<std::result::Result<Vec<_>, _>>()?;
+                Ok(out)
+            })
+            .await?;
+        Ok(rows)
+    }
+
+    /// 한 항목의 발동 인용 — 최근순 (`#firing-quotes`).
+    ///
+    /// 프롬프트가 없는 행은 뺀다. 인용이 없다는 것과 발동이 없다는 것은 다르고,
+    /// 빈 줄을 「최근 이렇게 불렀다」로 보여 주면 거짓말이 된다.
+    pub async fn firing_quotes(
+        &self,
+        project_id: u32,
+        kind: String,
+        key: String,
+        since: String,
+        limit: u32,
+    ) -> Result<Vec<(String, String, u32)>> {
+        let rows = self
+            .conn
+            .call(move |c| {
+                let mut stmt = c.prepare(
+                    "SELECT workday, last_prompt, count
+                     FROM context_firings
+                     WHERE project_id = ?1 AND kind = ?2 AND key = ?3
+                       AND workday >= ?4 AND last_prompt IS NOT NULL AND last_prompt <> ''
+                     ORDER BY last_ts DESC, workday DESC
+                     LIMIT ?5",
+                )?;
+                let out = stmt
+                    .query_map(
+                        params![project_id as i64, kind, key, since, limit as i64],
+                        |r| {
+                            Ok((
+                                r.get::<_, String>(0)?,
+                                r.get::<_, String>(1)?,
+                                r.get::<_, i64>(2)? as u32,
+                            ))
+                        },
+                    )?
                     .collect::<std::result::Result<Vec<_>, _>>()?;
                 Ok(out)
             })

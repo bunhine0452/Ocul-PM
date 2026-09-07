@@ -73,7 +73,7 @@ use crate::oculpm::spec::OculpmConfig;
 /// fails when this drifts. Bump it in the same commit that adds or removes a
 /// call site — the number is a claim the module doc makes, and a stale claim
 /// about where secrets get masked is worse than no claim.
-pub const CALL_SITE_FILES: usize = 23;
+pub const CALL_SITE_FILES: usize = 24;
 
 /// Prompt-building sites that reach a model **without** redaction — neither
 /// directly nor through the masked cache projection.

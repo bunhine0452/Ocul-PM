@@ -29,6 +29,7 @@ import type {
   SkillEntry,
   SkillScope,
   SkillsOverview,
+  FiringQuote,
   RuleEvidence,
   JournalMissingSignal,
   ClaudePluginStatus,
@@ -178,6 +179,20 @@ export const claudeInstallApi = {
 /** 스택 감지 — 추천 스킬을 고르는 유일한 신호. */
 export const stackApi = {
   detect: (projectId: number) => unwrap<string[]>("detect_stack", commands.detectStack(projectId)),
+};
+
+/**
+ * 발동 원장의 **인용** (`#firing-quotes`) — 한 항목이 실제로 불린 순간의 말.
+ *
+ * 원장의 나머지(스캔·창 통계)는 `useFiringLedger` 가 `bindings` 를 직접 쓴다
+ * (AD-1 부터 허용목록에 있다). 인용은 새로 난 경로라 `call` 규약을 따른다.
+ */
+export const firingApi = {
+  quotes: (projectId: number, kind: string, key: string, days: number, limit: number) =>
+    unwrap<FiringQuote[]>(
+      "firing_quotes",
+      commands.firingQuotes(projectId, kind, key, days, limit),
+    ),
 };
 
 export type { RuleEntry };

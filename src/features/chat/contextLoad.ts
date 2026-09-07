@@ -18,6 +18,7 @@
  * 든다. 그래서 `MAX_CONTEXT_HOPS` 로 막는다.
  */
 import { contextRead } from "@/api/context";
+import { rankByTerms } from "@/lib/termMatch";
 
 import type { Manifest, ManifestEntry } from "./manifest";
 
@@ -97,17 +98,7 @@ export function stripContextRequest(text: string): string {
  * 커지고, 그러면 애초에 목록만 올린 이유가 사라진다.
  */
 export function discover(manifest: Manifest, query: string, limit = 8): ManifestEntry[] {
-  const needles = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (!needles.length) return [];
-  const scored = manifest.entries
-    .map((entry) => {
-      const hay = entry.terms.filter(Boolean).join(" ").toLowerCase();
-      const hits = needles.filter((n) => hay.includes(n)).length;
-      return { entry, hits };
-    })
-    .filter((r) => r.hits > 0)
-    .sort((a, b) => b.hits - a.hits);
-  return scored.slice(0, limit).map((r) => r.entry);
+  return rankByTerms(manifest.entries, (e) => e.terms, query, limit).map((r) => r.item);
 }
 
 /** `scope:rest` 로 인코딩된 id 를 가른다. 접두가 없으면 project 로 본다. */

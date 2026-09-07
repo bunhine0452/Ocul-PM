@@ -21,9 +21,11 @@ import {
   partitionItems,
   type ContextItem,
   type ContextKind,
+  type DormantReason,
   type GlobReach,
   type RuleEvidenceSummary,
 } from "./contextModel";
+import { rankByTerms } from "@/lib/termMatch";
 
 type Filter = ContextKind | "all";
 
@@ -53,6 +55,11 @@ interface ContextLiveListProps {
   measured: boolean;
   days: number;
   /**
+   * 항목 id → 「왜 0회인가」 (`#dormant-three-ways`). 감사 전에는 비어 있고,
+   * 그때 배지는 종전대로 뭉뚱그린 「안 걸림」으로 돌아간다.
+   */
+  dormantReasons: Map<string, DormantReason>;
+  /**
    * 아직 만들지 않은 CLAUDE.md 슬롯. 걸려 있는 것은 아니지만 *만들 수 있는*
    * 자리라 목록 끝에 유령 행으로 남긴다 — 예전 규칙 탭의 어포던스를 잃지 않는다.
    */
@@ -75,6 +82,7 @@ export function ContextLiveList({
   totalFiles,
   measured,
   days,
+  dormantReasons,
   missingMemory,
   onCreateMemory,
   onCreateRule,
@@ -90,6 +98,16 @@ export function ContextLiveList({
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [dormantOpen, setDormantOpen] = useState(false);
+  // `#prompt-simulator` — 같은 입력 칸의 두 모드. 「찾기」는 목록을 좁히고,
+  // 「걸릴까」는 그 말에 무엇이 잡히는지 예측한다.
+  const [simulate, setSimulate] = useState(false);
+  const predicted = useMemo(
+    () =>
+      simulate
+        ? rankByTerms(items, (i) => [i.name, i.sub, ...(i.skill?.keywords ?? [])], query, 8)
+        : [],
+    [simulate, items, query],
+  );
 
   const { live, dormant } = useMemo(
     () => partitionItems(filterItems(items, filter, query), measured),
@@ -118,19 +136,43 @@ export function ContextLiveList({
             </button>
           ))}
         </div>
+        <div className="seg ctx-mode" role="tablist" aria-label={t("ctx.mode.aria")}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!simulate}
+            className="seg-item"
+            onClick={() => setSimulate(false)}
+          >
+            {t("ctx.mode.find")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={simulate}
+            className="seg-item"
+            title={t("ctx.mode.simulateTitle")}
+            onClick={() => setSimulate(true)}
+          >
+            {t("ctx.mode.simulate")}
+          </button>
+        </div>
         <label className="ctx-search">
           <SearchIcon size={13} />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("ctx.live.searchPlaceholder")}
-            aria-label={t("ctx.live.searchAria")}
+            placeholder={simulate ? t("ctx.sim.placeholder") : t("ctx.live.searchPlaceholder")}
+            aria-label={simulate ? t("ctx.sim.aria") : t("ctx.live.searchAria")}
             spellCheck={false}
           />
         </label>
       </div>
 
-      {live.length === 0 ? (
+
+      {simulate ? (
+        <Simulator ranked={predicted} query={query} onOpen={onOpen} />
+      ) : live.length === 0 ? (
         /* 필터가 걸러 0건인 것과, 이 프로젝트에 규칙·스킬이 **아직 하나도
            없는 것**은 다른 사실이다 (v3-surface {#first-day-screens}).
            앞엣것은 필터를 바꾸면 되고, 뒤엣것은 만들거나 받아야 한다. */
@@ -165,13 +207,14 @@ export function ContextLiveList({
               evidence={evidence.get(item.id) ?? null}
               measured={measured}
               days={days}
+              reason={dormantReasons.get(item.id)}
               onOpen={onOpen}
             />
           ))}
         </ul>
       )}
 
-      {showMemorySlots
+      {showMemorySlots && !simulate
         ? missingMemory.map((entry) => (
             <button
               key={`${entry.scope}:${entry.rel_path}`}
@@ -190,7 +233,7 @@ export function ContextLiveList({
           ))
         : null}
 
-      {dormant.length > 0 ? (
+      {dormant.length > 0 && !simulate ? (
         <div className="ctx-dormant">
           <button
             type="button"
@@ -205,14 +248,15 @@ export function ContextLiveList({
             <ul className="ctx-rows">
               {dormant.map((item) => (
                 <Row
-              key={item.id}
-              item={item}
-              reach={reachOf(item)}
-              evidence={evidence.get(item.id) ?? null}
-              measured={measured}
-              days={days}
-              onOpen={onOpen}
-            />
+                  key={item.id}
+                  item={item}
+                  reach={reachOf(item)}
+                  evidence={evidence.get(item.id) ?? null}
+                  measured={measured}
+                  days={days}
+                  reason={dormantReasons.get(item.id)}
+                  onOpen={onOpen}
+                />
               ))}
             </ul>
           ) : null}
@@ -297,12 +341,63 @@ function PathsChip({ pathCount, reach }: { pathCount: number; reach: GlobReach |
   );
 }
 
+/**
+ * `#prompt-simulator` — 역방향. 목록은 "이 스킬이 언제 걸리나" 를 답하고, 여기는
+ * "이렇게 말하면 무엇이 걸리나" 를 답한다.
+ *
+ * **정직하게 좁힌 약속**: 이건 Claude Code 의 스킬 라우터가 아니다. 그건 모델의
+ * 판단이라 재현할 수 없다. 여기가 예측하는 것은 이 앱의 **AI 패널 능력 검색**
+ * 하나이고, 그래서 `rankByTerms` 를 그쪽과 **공유**한다 — 채점기를 따로 두면
+ * 보여 준 예측이 실제와 다를 수 있고, 그러면 이 화면은 창작이 된다.
+ */
+function Simulator({
+  ranked,
+  query,
+  onOpen,
+}: {
+  ranked: { item: ContextItem; hits: number; matched: string[] }[];
+  query: string;
+  onOpen: (item: ContextItem) => void;
+}) {
+  if (!query.trim()) {
+    return <EmptyState>{t("ctx.sim.empty")}</EmptyState>;
+  }
+  if (ranked.length === 0) {
+    // 0건이 곧 발견이다 — 이 말로는 아무것도 못 꺼낸다는 뜻이다.
+    return <EmptyState>{t("ctx.sim.none")}</EmptyState>;
+  }
+  return (
+    <>
+      <p className="ctx-sim-note">{t("ctx.sim.note")}</p>
+      <ul className="ctx-rows">
+        {ranked.map(({ item, matched }) => (
+          <li key={item.id}>
+            <button type="button" className="ctx-row" onClick={() => onOpen(item)}>
+              <span className="ctx-row-top">
+                <span className={`ctx-kind ${item.kind}`}>{t(KIND_LABEL_KEY[item.kind])}</span>
+                <span className="ctx-row-name">{item.name}</span>
+                {matched.map((word) => (
+                  <span key={word} className="sk-chip live">
+                    {word}
+                  </span>
+                ))}
+              </span>
+              {item.sub ? <span className="ctx-row-desc">{item.sub}</span> : null}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 function Row({
   item,
   reach,
   evidence,
   measured,
   days,
+  reason,
   onOpen,
 }: {
   item: ContextItem;
@@ -311,6 +406,7 @@ function Row({
   evidence: RuleEvidenceSummary | null;
   measured: boolean;
   days: number;
+  reason: DormantReason | undefined;
   onOpen: (item: ContextItem) => void;
 }) {
   // 에이전트·커맨드는 규칙 허브가 여는 파일이 아니다 (`rules_read` 의 범위는
@@ -329,7 +425,7 @@ function Row({
               {t("firing.always")}
             </span>
           ) : item.measurable ? (
-            <FiringBadge stat={item.firing} measured={measured} days={days} />
+            <FiringBadge stat={item.firing} measured={measured} days={days} reason={reason} />
           ) : null}
           {/* `#skill-invocation` — 기본값(자동 발동)에는 배지를 달지 않는다.
               눈에 띄어야 하는 건 예외뿐이다: 사람이 이름을 쳐야만 뜨는 스킬은

@@ -56,6 +56,10 @@ pub struct Firing {
     pub workday: Option<String>,
     /// 규칙을 끌어들인 glob (AD-5 범위 교정 카드의 근거). 스킬은 빈 벡터.
     pub globs: Vec<String>,
+    /// 발동 시각 (유닉스 초). timestamp 가 없으면 0 — 인용 정렬의 키다.
+    pub ts: i64,
+    /// 이 발동 **직전**에 사용자가 친 말 (`#firing-quotes`). 없으면 None.
+    pub prompt: Option<String>,
 }
 
 /// UTC RFC3339 문자열 → 로컬 캘린더 `YYYYMMDD`.
@@ -71,12 +75,100 @@ fn workday_of(ts: Option<&str>) -> Option<String> {
     )
 }
 
-/// 한 줄(JSON)에서 발동을 뽑는다. 한 줄에 스킬 블록이 여럿일 수 있다.
-fn firings_in_line(line: &str) -> Vec<Firing> {
-    let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else {
-        return Vec::new();
+/// UTC RFC3339 → 유닉스 초. 못 읽으면 0 (정렬에서 맨 뒤로 밀린다).
+fn unix_of(ts: Option<&str>) -> i64 {
+    ts.and_then(|t| DateTime::parse_from_rfc3339(t).ok())
+        .map(|d| d.timestamp())
+        .unwrap_or(0)
+}
+
+/// 인용 한 줄의 문자 상한. 목록 카드에 한 줄로 앉을 만큼만 — 전문을 옮기는 게
+/// 목적이 아니라 "아, 그때 그 말" 이 되게 하는 게 목적이다.
+const PROMPT_CHARS: usize = 160;
+
+/// 문자 경계에서 자른다 (바이트 슬라이스는 한글에서 패닉한다).
+fn truncate_chars(s: &str, cap: usize) -> String {
+    if s.chars().count() <= cap {
+        return s.to_string();
+    }
+    let head: String = s.chars().take(cap).collect();
+    format!("{}…", head.trim_end())
+}
+
+/// 이 줄이 **사람이 친 프롬프트**면 그 텍스트를 돌려준다.
+///
+/// transcript 의 `type:"user"` 는 사람의 말만 담지 않는다 — 도구 결과도 user
+/// 역할로 돌아오고, 슬래시 커맨드·시스템 리마인더도 같은 자리에 실린다. 그것들을
+/// 인용하면 "이 스킬은 언제 걸리나" 의 답이 `<system-reminder>` 가 된다.
+/// 그래서 **사람이 썼다고 확신할 수 있는 것만** 통과시킨다.
+fn user_prompt_in_line(v: &serde_json::Value) -> Option<String> {
+    if v.get("type").and_then(|t| t.as_str()) != Some("user") {
+        return None;
+    }
+    // 훅·요약이 심는 합성 메시지. 사람의 말이 아니다.
+    if v.get("isMeta").and_then(|m| m.as_bool()) == Some(true) {
+        return None;
+    }
+    let content = v.get("message").and_then(|m| m.get("content"))?;
+    let text = match content {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Array(blocks) => {
+            // 도구 결과가 하나라도 섞여 있으면 이 줄은 사람의 차례가 아니다.
+            if blocks
+                .iter()
+                .any(|b| b.get("type").and_then(|t| t.as_str()) == Some("tool_result"))
+            {
+                return None;
+            }
+            blocks
+                .iter()
+                .filter(|b| b.get("type").and_then(|t| t.as_str()) == Some("text"))
+                .filter_map(|b| b.get("text").and_then(|t| t.as_str()))
+                .collect::<Vec<_>>()
+                .join(" ")
+        }
+        _ => return None,
     };
+    let cleaned = strip_wrappers(&text);
+    (!cleaned.is_empty()).then(|| truncate_chars(&cleaned, PROMPT_CHARS))
+}
+
+/// 사람의 말에 딸려 오는 기계 블록을 걷는다 — `<system-reminder>`,
+/// `<command-name>` 계열, `<local-command-stdout>`. 남는 게 없으면 빈 문자열.
+fn strip_wrappers(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(open) = rest.find('<') {
+        out.push_str(&rest[..open]);
+        let after = &rest[open..];
+        // `<tag …>` 의 태그 이름을 읽어 닫는 짝까지 통째로 버린다.
+        let Some(name_end) = after[1..].find(['>', ' ']).map(|i| i + 1) else {
+            out.push_str(after);
+            return out.split_whitespace().collect::<Vec<_>>().join(" ");
+        };
+        let name = &after[1..name_end];
+        let close = format!("</{name}>");
+        match after.find(&close) {
+            Some(at) => rest = &after[at + close.len()..],
+            // 닫는 짝이 없다 — 태그처럼 생긴 평범한 글자일 수 있으니 살린다.
+            None => {
+                out.push_str(after);
+                return out.split_whitespace().collect::<Vec<_>>().join(" ");
+            }
+        }
+    }
+    out.push_str(rest);
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// 한 줄(JSON)에서 발동을 뽑는다. 한 줄에 스킬 블록이 여럿일 수 있다.
+///
+/// `prompt` 는 이 줄 **이전**에 마지막으로 관측한 사용자 프롬프트다 — 호출자가
+/// 청크를 걸으며 이어 준다.
+fn firings_in_value(v: &serde_json::Value, prompt: Option<&str>) -> Vec<Firing> {
     let workday = workday_of(v.get("timestamp").and_then(|t| t.as_str()));
+    let ts = unix_of(v.get("timestamp").and_then(|t| t.as_str()));
+    let prompt = prompt.map(str::to_string);
 
     // ── 규칙 주입 ──
     let attachment = v.get("attachment");
@@ -116,6 +208,8 @@ fn firings_in_line(line: &str) -> Vec<Firing> {
                 bytes,
                 workday,
                 globs,
+                ts,
+                prompt,
             }];
         }
     }
@@ -146,25 +240,50 @@ fn firings_in_line(line: &str) -> Vec<Firing> {
             bytes: 0,
             workday: workday.clone(),
             globs: Vec::new(),
+            ts,
+            prompt: prompt.clone(),
         })
         .collect()
 }
 
 /// 완전한 `\n` 종료 라인만 소비해 발동을 모은다.
+///
+/// 줄을 **순서대로** 걸으며 마지막 사용자 프롬프트를 들고 다닌다 — 발동은 그
+/// 프롬프트가 부른 것으로 본다. `carry_in` 은 이전 청크가 남긴 프롬프트이고,
+/// 반환하는 셋째 값이 다음 청크로 넘길 것이다: 증분 스캔의 재개점이 프롬프트와
+/// 그것이 부른 Skill 호출 **사이**에 놓일 수 있기 때문이다.
+///
 /// 반환 `consumed` 는 이번에 확실히 처리한 바이트 수 (다음 재개점 델타).
-pub fn parse_chunk(chunk: &str) -> (Vec<Firing>, u64) {
+pub fn parse_chunk_from(
+    chunk: &str,
+    carry_in: Option<String>,
+) -> (Vec<Firing>, u64, Option<String>) {
     let Some(last_nl) = chunk.rfind('\n') else {
-        return (Vec::new(), 0);
+        return (Vec::new(), 0, carry_in);
     };
     let complete = &chunk[..=last_nl];
     let mut out = Vec::new();
+    let mut pending = carry_in;
     for line in complete.lines() {
         if line.trim().is_empty() {
             continue;
         }
-        out.extend(firings_in_line(line));
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        if let Some(prompt) = user_prompt_in_line(&v) {
+            pending = Some(prompt);
+            continue;
+        }
+        out.extend(firings_in_value(&v, pending.as_deref()));
     }
-    (out, complete.len() as u64)
+    (out, complete.len() as u64, pending)
+}
+
+/// 이월 없이 한 청크만 — 테스트와 단발 호출용.
+pub fn parse_chunk(chunk: &str) -> (Vec<Firing>, u64) {
+    let (firings, consumed, _) = parse_chunk_from(chunk, None);
+    (firings, consumed)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,6 +374,8 @@ pub struct ScanTarget {
     pub session_file: String,
     pub abs_path: PathBuf,
     pub bytes_consumed: u64,
+    /// 지난 스캔이 이 파일 끝에서 들고 있던 프롬프트 (`#firing-quotes` 이월).
+    pub last_prompt: Option<String>,
 }
 
 /// 한 파일 스캔 결과 — 그대로 UPSERT 되는 집계 행들.
@@ -265,6 +386,9 @@ pub struct FiringRow {
     pub workday: String,
     pub count: u32,
     pub bytes: u64,
+    /// 이 버킷에서 **가장 늦은** 발동의 시각과 그때의 프롬프트 (`#firing-quotes`).
+    pub last_ts: i64,
+    pub last_prompt: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -278,26 +402,44 @@ pub struct ScannedFile {
     /// 이 세션 파일의 기존 집계 행을 지워야 옛 행 위에 가산되지 않는다.
     pub reset: bool,
     pub rows: Vec<FiringRow>,
+    /// 이 청크 끝에서 들고 있는 프롬프트 — 다음 스캔이 이어받는다.
+    pub last_prompt: Option<String>,
 }
 
 /// 발동 목록을 (kind, key, workday) 로 접는다. workday 를 못 읽은 발동은
 /// 버린다 — 창 집계에 넣을 자리가 없고, 총계만 부풀리면 거짓말이 된다.
 pub fn fold_rows(firings: Vec<Firing>) -> Vec<FiringRow> {
     use std::collections::BTreeMap;
-    let mut acc: BTreeMap<(&'static str, String, String), (u32, u64)> = BTreeMap::new();
+    /// 버킷 누산기 — 횟수·바이트는 더하고, 인용은 **가장 늦은 것 하나**만 남는다.
+    #[derive(Default)]
+    struct Slot {
+        count: u32,
+        bytes: u64,
+        last_ts: i64,
+        last_prompt: Option<String>,
+    }
+    let mut acc: BTreeMap<(&'static str, String, String), Slot> = BTreeMap::new();
     for f in firings {
         let Some(workday) = f.workday else { continue };
-        let slot = acc.entry((f.kind, f.key, workday)).or_insert((0, 0));
-        slot.0 += 1;
-        slot.1 += f.bytes;
+        let slot = acc.entry((f.kind, f.key, workday)).or_default();
+        slot.count += 1;
+        slot.bytes += f.bytes;
+        // 시각을 못 읽은 발동(ts=0)은 인용의 주인이 되지 못한다 — 순서를 모르니
+        // 진짜 마지막을 덮어쓸 수 있다.
+        if f.ts > slot.last_ts {
+            slot.last_ts = f.ts;
+            slot.last_prompt = f.prompt;
+        }
     }
     acc.into_iter()
-        .map(|((kind, key, workday), (count, bytes))| FiringRow {
+        .map(|((kind, key, workday), s)| FiringRow {
             kind,
             key,
             workday,
-            count,
-            bytes,
+            count: s.count,
+            bytes: s.bytes,
+            last_ts: s.last_ts,
+            last_prompt: s.last_prompt,
         })
         .collect()
 }
@@ -325,13 +467,17 @@ pub fn scan_targets(targets: Vec<ScanTarget>) -> (Vec<ScannedFile>, bool) {
             continue;
         };
         spent += chunk.len() as u64;
-        let (firings, consumed) = parse_chunk(&chunk);
+        // 회전으로 0 부터 다시 읽는 파일은 이월도 버린다 — 옛 파일의 프롬프트가
+        // 새 파일 첫 발동의 인용이 되면 거짓말이다.
+        let carry = if reset { None } else { target.last_prompt };
+        let (firings, consumed, carry_out) = parse_chunk_from(&chunk, carry);
         out.push(ScannedFile {
             session_file: target.session_file,
             started_at: target.bytes_consumed,
             bytes_consumed: start + consumed,
             reset,
             rows: fold_rows(firings),
+            last_prompt: carry_out,
         });
     }
     (out, true)
@@ -347,7 +493,10 @@ fn read_from(file: &Path, offset: u64) -> Option<String> {
 }
 
 /// 스캔 대상 열거 — `resume(session_file)` 이 DB 의 재개점을 준다.
-pub fn enumerate_targets(dirs: &[PathBuf], resume: impl Fn(&str) -> u64) -> Vec<ScanTarget> {
+pub fn enumerate_targets(
+    dirs: &[PathBuf],
+    resume: impl Fn(&str) -> (u64, Option<String>),
+) -> Vec<ScanTarget> {
     let mut targets = Vec::new();
     for dir in dirs {
         let Some(dir_name) = dir.file_name().and_then(|n| n.to_str()) else {
@@ -365,11 +514,12 @@ pub fn enumerate_targets(dirs: &[PathBuf], resume: impl Fn(&str) -> u64) -> Vec<
                 continue;
             };
             let session_file = format!("{dir_name}/{file_name}");
-            let bytes_consumed = resume(&session_file);
+            let (bytes_consumed, last_prompt) = resume(&session_file);
             targets.push(ScanTarget {
                 session_file,
                 abs_path: path,
                 bytes_consumed,
+                last_prompt,
             });
         }
     }
@@ -424,9 +574,30 @@ pub struct FiringStat {
     pub last_workday: Option<String>,
 }
 
+/// 발동 순간의 인용 1건 (`#firing-quotes`) — "이 스킬은 언제 쓰이지" 에 대한
+/// 가장 강한 답. 산문 설명이 아니라 **이 프로젝트에서 실제로 그것을 부른 말**이다.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct FiringQuote {
+    /// 발동 workday `YYYYMMDD`.
+    pub workday: String,
+    /// 발동 직전 사용자 프롬프트 (redact 통과·길이 상한 적용).
+    pub prompt: String,
+    /// 그날 그 세션에서 이 항목이 걸린 횟수.
+    pub count: u32,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 한 줄만 보는 테스트 셰임 — 본 코드는 청크를 걸으며 프롬프트를 이어 주므로
+    /// `firings_in_value` 를 쓴다.
+    fn firings_in_line(line: &str) -> Vec<Firing> {
+        match serde_json::from_str::<serde_json::Value>(line) {
+            Ok(v) => firings_in_value(&v, None),
+            Err(_) => Vec::new(),
+        }
+    }
 
     const NESTED: &str = r#"{"attachment":{"type":"nested_memory","path":"/home/u/.claude/rules/ecc/arkts/coding-style.md","content":{"content":"1234567890","globs":["**/*.ts","**/*.ets"],"rawContent":"12345678901234"}},"type":"attachment","timestamp":"2026-08-29T04:00:00.000Z","cwd":"/w/proj"}"#;
     const SKILL: &str = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"oculpm:oculpm-journal"}}]},"timestamp":"2026-08-29T04:00:00.000Z"}"#;
@@ -461,6 +632,72 @@ mod tests {
         .is_empty());
         // 모르는 attachment 종류는 규칙이 아니다.
         assert!(firings_in_line(r#"{"attachment":{"type":"image","path":"/a.png"}}"#).is_empty());
+    }
+
+    /// `#firing-quotes` — 발동은 **직전 사용자 프롬프트**가 부른 것으로 본다.
+    #[test]
+    fn quote_attaches_preceding_user_prompt() {
+        let user = r#"{"type":"user","message":{"role":"user","content":"이 IME 버그 왜 나는지 봐줘"},"timestamp":"2026-08-29T03:59:00.000Z"}"#;
+        let (firings, _, carry) = parse_chunk_from(&format!("{user}\n{SKILL}\n"), None);
+        assert_eq!(firings.len(), 1);
+        assert_eq!(
+            firings[0].prompt.as_deref(),
+            Some("이 IME 버그 왜 나는지 봐줘")
+        );
+        // 청크 끝에서도 들고 있어야 다음 청크의 발동이 인용을 잃지 않는다.
+        assert_eq!(carry.as_deref(), Some("이 IME 버그 왜 나는지 봐줘"));
+    }
+
+    /// 재개점이 프롬프트와 그것이 부른 Skill 호출 **사이**에 놓이는 경우.
+    /// 이월이 없으면 이 발동은 인용을 영원히 잃는다.
+    #[test]
+    fn quote_carries_across_chunk_boundary() {
+        let (firings, _, _) = parse_chunk_from(&format!("{SKILL}\n"), Some("앞 청크의 말".into()));
+        assert_eq!(firings[0].prompt.as_deref(), Some("앞 청크의 말"));
+    }
+
+    /// 도구 결과·메타 메시지도 `type:"user"` 로 온다. 그것을 인용하면
+    /// "이 스킬은 언제 걸리나" 의 답이 도구 출력이 된다.
+    #[test]
+    fn machine_user_lines_are_not_quotes() {
+        let cases = [
+            r#"{"type":"user","message":{"role":"user","content":[{"type":"tool_result","content":"ok"}]}}"#,
+            r#"{"type":"user","isMeta":true,"message":{"role":"user","content":"훅이 심은 말"}}"#,
+            r#"{"type":"user","message":{"role":"user","content":"<system-reminder>규칙</system-reminder>"}}"#,
+            r#"{"type":"assistant","message":{"content":[]}}"#,
+        ];
+        for raw in cases {
+            let v: serde_json::Value = serde_json::from_str(raw).unwrap();
+            assert_eq!(user_prompt_in_line(&v), None, "{raw}");
+        }
+        // 사람의 말에 리마인더가 딸려 와도 사람의 말은 살아남는다.
+        let mixed: serde_json::Value = serde_json::from_str(
+            r#"{"type":"user","message":{"role":"user","content":"터미널이 멈췄다 <system-reminder>무시</system-reminder>"}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            user_prompt_in_line(&mixed).as_deref(),
+            Some("터미널이 멈췄다")
+        );
+    }
+
+    /// 같은 버킷에 여러 발동이 모이면 **가장 늦은** 프롬프트만 남는다.
+    #[test]
+    fn fold_keeps_latest_quote_per_bucket() {
+        let firing = |ts: i64, prompt: &str| Firing {
+            kind: KIND_SKILL,
+            key: "s".into(),
+            bytes: 0,
+            workday: Some("20260829".into()),
+            globs: Vec::new(),
+            ts,
+            prompt: Some(prompt.into()),
+        };
+        let rows = fold_rows(vec![firing(200, "나중"), firing(100, "먼저")]);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].count, 2);
+        assert_eq!(rows[0].last_prompt.as_deref(), Some("나중"));
+        assert_eq!(rows[0].last_ts, 200);
     }
 
     #[test]

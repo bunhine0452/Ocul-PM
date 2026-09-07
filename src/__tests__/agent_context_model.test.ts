@@ -16,6 +16,7 @@ import {
   indexFindings,
   classifyDormantSkill,
   dormantSkills,
+  indexDormantReasons,
   indexDormancySignals,
   indexNegations,
   irrelevantBytesPerSession,
@@ -583,13 +584,27 @@ describe("classifyDormantSkill — 0회는 결함이 아니라 네 상태다", (
     expect(classifyDormantSkill(item, undefined, 30).reason).toBe("genuine");
   });
 
-  it("우선순위: 선행조건 > 억제 > 나이", () => {
+  it("우선순위: 직접 호출 > 선행조건 > 억제 > 나이", () => {
     const all = sig({
       missing_files: ["EVALS.md"],
       suppressed_in: "CLAUDE.md",
       age_days: 0,
     });
     expect(classifyDormantSkill(item, all, 30).reason).toBe("precondition-missing");
+    // `#dormant-three-ways` — 사용자 발동 스킬은 다른 신호를 볼 것도 없다.
+    // 그 description 은 트리거가 아니라 사람이 읽는 요약이라, 무엇을 적어도
+    // 자동 발동은 일어나지 않는다.
+    const byHand = { ...item, skill: { ...item.skill!, user_invoked: true } };
+    expect(classifyDormantSkill(byHand, all, 30).reason).toBe("user-invoked");
+    expect(classifyDormantSkill(byHand, undefined, 30).reason).toBe("user-invoked");
+  });
+
+  it("indexDormantReasons — 배지가 볼 수 있게 항목 id 로 잇는다", () => {
+    const signals = indexDormancySignals([sig({ missing_files: ["EVALS.md"] })]);
+    const map = indexDormantReasons(items, signals, true, 30);
+    expect(map.get(item.id)).toBe("precondition-missing");
+    // 계측 전에는 아무 이유도 주장하지 않는다 — 0회 자체를 모르기 때문이다.
+    expect(indexDormantReasons(items, signals, false, 30).size).toBe(0);
   });
 });
 

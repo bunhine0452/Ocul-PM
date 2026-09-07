@@ -13,17 +13,25 @@ import { EmptyState } from "@/components/EmptyState";
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { ArrowLeft, Copy, Pencil, Trash2, X } from "@/components/Icons";
-import type { RuleDetail, SkillDetail, SkillEntry, SkillScope } from "@/lib/bindings";
+import type {
+  FiringQuote,
+  RuleDetail,
+  SkillDetail,
+  SkillEntry,
+  SkillScope,
+} from "@/lib/bindings";
 import { rulesApi, skillsApi } from "@/api/claudeSurface";
 import { toAppError } from "@/api/invoke";
 import { toast } from "@/lib/toast";
 import { tError } from "@/i18n/errors";
 import { t, useT } from "@/i18n";
 import { FiringBadge } from "./FiringBadge";
+import { useFiringQuotes } from "./useFiringQuotes";
 import type { FiringLedger } from "./useFiringLedger";
 import { splitFrontmatter, triggerHints } from "./skillsModel";
+import { shortWorkday } from "./firingModel";
 import { parseRulePaths, setRulePaths } from "./rulesModel";
-import { KIND_LABEL_KEY, type ContextItem } from "./contextModel";
+import { KIND_LABEL_KEY, type ContextItem, type DormantReason } from "./contextModel";
 
 interface ContextEditorProps {
   projectId: number;
@@ -35,6 +43,8 @@ interface ContextEditorProps {
   onChanged: () => void;
   /** 삭제 성공 — 호출부가 목록으로 되돌린다. */
   onDeleted: () => void;
+  /** 0회의 이유 (`#dormant-three-ways`). 헤더 배지가 목록과 같은 말을 하도록. */
+  dormantReason?: DormantReason;
 }
 
 type Loaded =
@@ -51,8 +61,10 @@ export function ContextEditor({
   onBack,
   onChanged,
   onDeleted,
+  dormantReason,
 }: ContextEditorProps) {
   useT();
+  const quotes = useFiringQuotes(projectId, item.firing, firing.days);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -217,7 +229,12 @@ export function ContextEditor({
                 {t("firing.always")}
               </span>
             ) : (
-              <FiringBadge stat={item.firing} measured={firing.measured} days={firing.days} />
+              <FiringBadge
+                stat={item.firing}
+                measured={firing.measured}
+                days={firing.days}
+                reason={dormantReason}
+              />
             )}
             {ruleEntry?.mirror === "mirrored" ? <span className="sk-chip">Cursor</span> : null}
             {ruleEntry?.mirror === "conflict" ? (
@@ -326,7 +343,9 @@ export function ContextEditor({
       ) : (
         <div className="sk-scroll">
           <article className="sk-article">
-            {loaded?.kind === "skill" ? <TriggerCard entry={loaded.detail.entry} /> : null}
+            {loaded?.kind === "skill" ? (
+              <TriggerCard entry={loaded.detail.entry} quotes={quotes} days={firing.days} />
+            ) : null}
             <Preview content={content} />
             {loaded?.kind === "skill" && loaded.detail.files.length > 0 ? (
               <div className="sk-files">
@@ -465,7 +484,15 @@ function Editor({
  * 없으면 그 사실 자체를 말한다. 그게 곧 이 스킬이 에이전트에게도 안 걸리는
  * 이유다.
  */
-function TriggerCard({ entry }: { entry: SkillEntry }) {
+function TriggerCard({
+  entry,
+  quotes,
+  days,
+}: {
+  entry: SkillEntry;
+  quotes: FiringQuote[];
+  days: number;
+}) {
   const hints = useMemo(() => triggerHints(entry.description), [entry.description]);
   const flagged = entry.user_invoked || !entry.description;
   const how = entry.user_invoked
@@ -487,6 +514,19 @@ function TriggerCard({ entry }: { entry: SkillEntry }) {
         <p className="sk-trigger-note">{t("sk.trigger.vague")}</p>
       ) : null}
       {hints.what ? <p className="sk-trigger-note">{hints.what}</p> : null}
+      {quotes.length > 0 ? (
+        <div className="sk-trigger-quotes">
+          <div className="sk-trigger-quotes-head">{t("sk.trigger.quotesTitle", { d: days })}</div>
+          <ul>
+            {quotes.map((q) => (
+              <li key={`${q.workday}:${q.prompt}`}>
+                <span className="sk-trigger-quote-day">{shortWorkday(q.workday)}</span>
+                <span className="sk-trigger-quote-text">“{q.prompt}”</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div className="sk-trigger-kw">
         {entry.keywords.length > 0 ? (
           entry.keywords.map((kw) => (

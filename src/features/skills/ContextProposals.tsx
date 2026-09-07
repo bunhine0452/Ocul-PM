@@ -34,6 +34,7 @@ import type { SkillScope, SkillTriggerDraft } from "@/lib/bindings";
 
 /** 0회 이유 → i18n 키. `genuine` 은 이 절에 오지 않는다 (위 카드가 맡는다). */
 const DORMANT_KEY = {
+  "user-invoked": "ctx.prop.byHandBadge",
   "precondition-missing": "ctx.prop.preconditionBadge",
   suppressed: "ctx.prop.suppressedBadge",
   "too-new": "ctx.prop.tooNewBadge",
@@ -388,7 +389,9 @@ export function ContextProposals({
                       ? t("ctx.prop.preconditionWhy", { files: d.missingFiles.join(", ") })
                       : d.reason === "suppressed"
                         ? t("ctx.prop.suppressedWhy")
-                        : t("ctx.prop.tooNewWhy", { d: days })}
+                        : d.reason === "user-invoked"
+                          ? t("ctx.prop.byHandWhy")
+                          : t("ctx.prop.tooNewWhy", { d: days })}
                   </span>
                   {d.suppression ? (
                     <span className="ctx-prop-quote" title={d.suppression.citedIn}>

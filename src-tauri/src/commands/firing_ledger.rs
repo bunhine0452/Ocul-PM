@@ -10,8 +10,10 @@ use chrono::{Duration, Local};
 use serde::Serialize;
 use tauri::State;
 
+use crate::db::firings::FiringScanRow;
 use crate::db::Db;
-use crate::oculpm::firing_ledger::{self, FiringStat, KIND_RULE};
+use crate::oculpm::firing_ledger::{self, FiringQuote, FiringStat, KIND_RULE};
+use crate::oculpm::redact;
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
     let project = db
@@ -63,12 +65,16 @@ fn scan_lock(project_id: u32) -> std::sync::Arc<tokio::sync::Mutex<()>> {
 async fn rescan_once(db: &Db, project_id: u32) -> Result<FiringScanReport, String> {
     let root = project_root(db, project_id).await?;
     let home = home_dir()?;
-    let resume: std::collections::HashMap<String, u64> = db
+    let resume: std::collections::HashMap<String, (u64, Option<String>)> = db
         .firing_scan_points(project_id)
         .await
         .map_err(|e| e.to_string())?
         .into_iter()
+        .map(|(file, bytes, prompt)| (file, (bytes, prompt)))
         .collect();
+    // 인용은 **사용자가 쓴 말**이다 — 적재 전에 이 프로젝트의 마스킹 규칙을
+    // 태운다. 시크릿이 프롬프트에 실려 오는 것은 가정이 아니라 관측된 일이다.
+    let patterns = redact::patterns_for_project(&root);
 
     // 파일 I/O 와 JSON 파싱은 blocking — 런타임 워커를 붙잡지 않는다.
     let scan = tokio::task::spawn_blocking(move || {
@@ -76,9 +82,22 @@ async fn rescan_once(db: &Db, project_id: u32) -> Result<FiringScanReport, Strin
         if dirs.is_empty() {
             return (Vec::new(), true, true);
         }
-        let targets =
-            firing_ledger::enumerate_targets(&dirs, |f| resume.get(f).copied().unwrap_or(0));
-        let (scanned, complete) = firing_ledger::scan_targets(targets);
+        let targets = firing_ledger::enumerate_targets(&dirs, |f| {
+            resume.get(f).cloned().unwrap_or((0, None))
+        });
+        let (mut scanned, complete) = firing_ledger::scan_targets(targets);
+        for file in &mut scanned {
+            for row in &mut file.rows {
+                row.last_prompt = row
+                    .last_prompt
+                    .take()
+                    .map(|p| redact::redact_text(&p, &patterns).0);
+            }
+            file.last_prompt = file
+                .last_prompt
+                .take()
+                .map(|p| redact::redact_text(&p, &patterns).0);
+        }
         (scanned, complete, false)
     })
     .await
@@ -92,7 +111,15 @@ async fn rescan_once(db: &Db, project_id: u32) -> Result<FiringScanReport, Strin
         let rows = file
             .rows
             .into_iter()
-            .map(|r| (r.kind.to_string(), r.key, r.workday, r.count, r.bytes))
+            .map(|r| FiringScanRow {
+                kind: r.kind.to_string(),
+                key: r.key,
+                workday: r.workday,
+                count: r.count,
+                bytes: r.bytes,
+                last_prompt: r.last_prompt,
+                last_ts: r.last_ts,
+            })
             .collect();
         let applied = db
             .firing_apply_scan(
@@ -101,6 +128,7 @@ async fn rescan_once(db: &Db, project_id: u32) -> Result<FiringScanReport, Strin
                 file.started_at,
                 file.reset,
                 file.bytes_consumed,
+                file.last_prompt,
                 rows,
             )
             .await
@@ -177,6 +205,42 @@ pub struct FiringOverview {
     pub bytes_per_session: u32,
     /// 마지막 스캔 시각 (unix). None = 한 번도 안 돌았다.
     pub last_scan_at: Option<u32>,
+}
+
+/// 한 항목이 **실제로 불린 순간**의 인용 (`#firing-quotes`).
+///
+/// 목록의 배지가 "몇 번" 을 말한다면 이건 "어떤 말에" 를 말한다. 스킬 상세가
+/// 「언제 걸리나」를 답할 때, 스킬 자신이 적은 트리거 문장보다 이쪽이 강하다 —
+/// 사용자 자신의 프로젝트에서 실제로 일어난 일이기 때문이다.
+///
+/// 스캔은 하지 않는다. 인용이 없는 발동(시각·프롬프트를 못 읽었거나 계측 이전에
+/// 걸린 것)은 빠지므로, 빈 목록이 "발동 0회" 를 뜻하지 않는다.
+#[tauri::command]
+#[specta::specta]
+pub async fn firing_quotes(
+    db: State<'_, Db>,
+    project_id: u32,
+    kind: String,
+    key: String,
+    days: u32,
+    limit: u32,
+) -> Result<Vec<FiringQuote>, String> {
+    let today = Local::now().date_naive();
+    let since = (today - Duration::days(days.max(1) as i64 - 1))
+        .format("%Y%m%d")
+        .to_string();
+    let rows = db
+        .firing_quotes(project_id, kind, key, since, limit.clamp(1, 20))
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(rows
+        .into_iter()
+        .map(|(workday, prompt, count)| FiringQuote {
+            workday,
+            prompt,
+            count,
+        })
+        .collect())
 }
 
 /// 최근 `days` 일 창의 발동 통계. 스캔은 하지 않는다 — 순수 조회다.

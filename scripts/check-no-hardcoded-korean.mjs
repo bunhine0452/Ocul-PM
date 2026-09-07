@@ -249,6 +249,7 @@ const TESTS = new Set([
   "__tests__/theme_gallery.test.tsx",
   "__tests__/theme_schema.test.ts",
   "__tests__/today_journal_missing.test.tsx",
+  "__tests__/term_match.test.ts",
   "__tests__/today_v2.test.tsx",
   "__tests__/token_estimate.test.ts",
   "__tests__/tools_v2.test.tsx",

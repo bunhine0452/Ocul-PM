@@ -177,13 +177,15 @@ async fn firing_apply_scan_is_compare_and_swap() {
         .await
         .unwrap();
     let row = |n: u32| {
-        vec![(
-            "rule".to_string(),
-            "/r/a.md".to_string(),
-            "20260830".to_string(),
-            n,
-            100u64,
-        )]
+        vec![crate::db::firings::FiringScanRow {
+            kind: "rule".to_string(),
+            key: "/r/a.md".to_string(),
+            workday: "20260830".to_string(),
+            count: n,
+            bytes: 100,
+            last_prompt: Some(format!("프롬프트 {n}")),
+            last_ts: 1_000 + n as i64,
+        }]
     };
     async fn count(db: &Db) -> u32 {
         db.firing_aggregates(1, "20260101".into(), "20261231".into())
@@ -196,30 +198,48 @@ async fn firing_apply_scan_is_compare_and_swap() {
 
     // 첫 적재: 재개점 0 → 100.
     assert!(db
-        .firing_apply_scan(1, "s/x.jsonl".into(), 0, false, 100, row(1))
+        .firing_apply_scan(1, "s/x.jsonl".into(), 0, false, 100, None, row(1))
         .await
         .unwrap());
     assert_eq!(count(&db).await, 1);
     // 같은 청크를 낡은 재개점(0) 으로 또 — 버려진다.
     assert!(!db
-        .firing_apply_scan(1, "s/x.jsonl".into(), 0, false, 100, row(1))
+        .firing_apply_scan(1, "s/x.jsonl".into(), 0, false, 100, None, row(1))
         .await
         .unwrap());
     assert_eq!(count(&db).await, 1, "이중 집계가 없어야 한다");
     // 이어 붙이기: 100 → 250.
     assert!(db
-        .firing_apply_scan(1, "s/x.jsonl".into(), 100, false, 250, row(2))
+        .firing_apply_scan(1, "s/x.jsonl".into(), 100, false, 250, None, row(2))
         .await
         .unwrap());
     assert_eq!(count(&db).await, 3);
     // 회전: 파일이 줄어 0 부터 다시 읽음 — 옛 행을 지우고 새로.
     assert!(db
-        .firing_apply_scan(1, "s/x.jsonl".into(), 250, true, 40, row(5))
+        .firing_apply_scan(
+            1,
+            "s/x.jsonl".into(),
+            250,
+            true,
+            40,
+            Some("이월".into()),
+            row(5)
+        )
         .await
         .unwrap());
     assert_eq!(count(&db).await, 5, "reset 은 가산이 아니라 교체");
     let points = db.firing_scan_points(1).await.unwrap();
-    assert_eq!(points, vec![("s/x.jsonl".to_string(), 40u64)]);
+    assert_eq!(
+        points,
+        vec![("s/x.jsonl".to_string(), 40u64, Some("이월".to_string()))]
+    );
+    // `#firing-quotes` — 인용은 가산이 아니라 가장 늦은 것으로 교체된다.
+    let quotes = db
+        .firing_quotes(1, "rule".into(), "/r/a.md".into(), "20260101".into(), 5)
+        .await
+        .unwrap();
+    assert_eq!(quotes.len(), 1);
+    assert_eq!(quotes[0].1, "프롬프트 5", "reset 뒤 마지막 적재의 인용");
 
     db.firing_clear(1).await.unwrap();
     assert_eq!(count(&db).await, 0);

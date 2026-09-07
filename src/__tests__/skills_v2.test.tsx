@@ -63,6 +63,9 @@ const fx = {
     project_skills_dir: "/tmp/proj/.claude/skills",
     global_skills_dir: "/home/u/.claude/skills",
   },
+  // 원장은 기본 null — 기존 케이스는 「계측 전」이라 배지가 아예 안 뜬다.
+  firing: null as unknown,
+  quotes: [] as unknown[],
   calls: {
     setEnabled: [] as unknown[][],
     save: [] as unknown[][],
@@ -97,6 +100,10 @@ vi.mock("@/lib/bindings", () => {
                   skill_md_path: `/abs/${dirName}/SKILL.md`,
                 });
               };
+            case "firingStats":
+              return () => ok(fx.firing);
+            case "firingQuotes":
+              return () => ok(fx.quotes);
             case "skillsSetEnabled":
               return (...a: unknown[]) => {
                 fx.calls.setEnabled.push(a);
@@ -137,6 +144,8 @@ beforeEach(() => {
   // 목록도 되돌린다 — 케이스가 픽스처를 갈아끼우므로, 안 되돌리면 뒤 테스트가
   // 앞 테스트의 스킬을 본다 (순서 의존).
   fx.overview.project = [entry()];
+  fx.firing = null;
+  fx.quotes = [];
   fx.calls.setEnabled = [];
   fx.calls.save = [];
   fx.calls.del = [];
@@ -245,6 +254,59 @@ describe("SkillsScreenV2 — 3존 화면 (스킬)", () => {
     expect(getByText(/\/review-checklist 을 쳐야 뜹니다/)).toBeTruthy();
     // keywords 는 능력 검색의 유일한 도달 경로 — 상세에 그대로 보인다.
     expect(getByText("리뷰")).toBeTruthy();
+  });
+
+  // `#prompt-simulator` — 역방향. 「이 스킬 언제 걸리나」의 짝이 「이렇게 말하면
+  // 무엇이 걸리나」다. 채점기는 AI 패널 능력 검색과 공유한다.
+  it("걸릴까 모드는 친 말에 잡히는 것을 예측하고, 0건도 사실로 말한다", async () => {
+    fx.overview.project = [entry({ keywords: ["리뷰", "pr"] })];
+    const { getByRole, getByText, getAllByText, queryByText } = render(
+      <SkillsScreenV2 projectId={1} />,
+    );
+    await waitFor(() => expect(getAllByText("review-checklist").length).toBeGreaterThan(0));
+
+    fireEvent.click(getByRole("tab", { name: "걸릴까" }));
+    // 아직 아무 말도 안 쳤으면 예측을 지어내지 않는다.
+    expect(getByText(/말을 한 줄 쳐 보세요/)).toBeTruthy();
+
+    const box = getByRole("textbox", { name: "발동 시뮬레이터 입력" });
+    fireEvent.change(box, { target: { value: "리뷰" } });
+    await waitFor(() => expect(getAllByText("리뷰").length).toBeGreaterThan(0));
+    expect(getAllByText("review-checklist").length).toBeGreaterThan(0);
+
+    fireEvent.change(box, { target: { value: "쿠버네티스" } });
+    await waitFor(() => getByText(/아무것도 안 잡힙니다/));
+    expect(queryByText(/능력 검색이 이 말에 고르는 것/)).toBeNull();
+  });
+
+  // `#firing-quotes` — 스킬이 스스로 적은 트리거 문장보다, 사용자 자신의
+  // 프로젝트에서 실제로 그것을 부른 말이 강하다.
+  it("상세가 최근 발동의 인용을 보여 준다", async () => {
+    fx.firing = {
+      stats: [
+        {
+          kind: "skill",
+          key: "review-checklist",
+          label: "review-checklist",
+          count: 4,
+          bytes: 0,
+          sessions: 2,
+          last_workday: "20260905",
+        },
+      ],
+      since: "20260807",
+      until: "20260905",
+      sessions: 2,
+      bytes_per_session: 0,
+      last_scan_at: 1_757_000_000,
+    };
+    fx.quotes = [{ workday: "20260905", prompt: "이 PR 좀 봐줘", count: 2 }];
+    const { getAllByText, getByText, getByRole } = render(<SkillsScreenV2 projectId={1} />);
+    await waitFor(() => expect(getAllByText("review-checklist").length).toBeGreaterThan(0));
+    fireEvent.click(getAllByText("review-checklist")[0]);
+    await waitFor(() => getByRole("region", { name: "언제 걸리나" }));
+    await waitFor(() => getByText(/이렇게 불렸습니다/));
+    expect(getByText(/이 PR 좀 봐줘/)).toBeTruthy();
   });
 
   // 2026-09-01 — 인텐트 슬롯은 창 전역인데 크롬식 탭은 숨은 탭도 마운트해 둔다.
