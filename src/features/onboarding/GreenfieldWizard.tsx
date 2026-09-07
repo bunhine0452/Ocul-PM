@@ -10,8 +10,9 @@
  * X 닫으면 blueprint에 초안 저장. 완료 시 blueprint 삭제.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
-import { commands, type CliCheckResult, type ProjectBlueprint } from "@/lib/bindings";
+import { commands, type ProjectBlueprint } from "@/lib/bindings";
 import { setPendingDispatch } from "@/features/terminal/dispatchBus";
+import { useCliChecks } from "./useCliChecks";
 import {
   ArrowRight,
   ArrowLeft,
@@ -116,6 +117,14 @@ const STACK_PRESETS: Array<{
   },
 ];
 
+/**
+ * 프리셋이 요구하는 CLI 이름 (중복 제거). **모듈 상수**여야 한다 —
+ * `useCliChecks` 의 deps 에 들어가므로 렌더마다 새 배열이면 매번 다시 묻는다.
+ */
+const CLI_NAMES: readonly string[] = [
+  ...new Set(STACK_PRESETS.map((s) => s.cli).filter((c): c is string => !!c)),
+];
+
 /** 예시 아이디어 — 키 배열이다 (모듈 상수 문자열이면 언어가 임포트 시점에 굳는다). */
 const IDEA_EXAMPLE_KEYS = [
   "gf.idea1",
@@ -171,7 +180,8 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
         },
   );
   const [blueprintId, setBlueprintId] = useState<number | null>(resume?.id ?? null);
-  const [cliChecks, setCliChecks] = useState<Record<string, CliCheckResult>>({});
+  // 스택 프리셋이 요구하는 CLI 설치 여부 — 2단계에 들어설 때 한 번 (조각 훅).
+  const cliChecks = useCliChecks(CLI_NAMES, step === 2);
   const [isCreating, setIsCreating] = useState(false);
   const [isGeneratingGoals, setIsGeneratingGoals] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -214,20 +224,6 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
   }, [wizState, step, autoSave]);
-
-  // Check CLI availability when entering step 2
-  useEffect(() => {
-    if (step === 2) {
-      const cliNames = [...new Set(STACK_PRESETS.map((s) => s.cli).filter(Boolean))] as string[];
-      cliNames.forEach(async (cli) => {
-        if (cliChecks[cli]) return;
-        const res = await commands.checkCliAvailable(cli);
-        if (res.status === "ok") {
-          setCliChecks((prev) => ({ ...prev, [cli]: res.data }));
-        }
-      });
-    }
-  }, [step]);
 
   const handleClose = async () => {
     // Save draft before closing
@@ -411,10 +407,17 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
 
   const stepTitles = [t("gf.step1"), t("gf.step2"), t("gf.step3"), t("gf.step4"), t("gf.step5")];
 
-  // Escape key to close
+  // Escape key to close.
+  //
+  // `handleClose` 는 **초안을 저장하고** 닫는다 — 리스너가 첫 렌더의 클로저를
+  // 붙들면 사용자가 그때까지 친 아이디어·폴더명이 통째로 사라진다 (2026-09-07
+  // 감사). 리스너는 mount 때 한 번만 달고 최신 함수는 ref 로 따라간다
+  // (`useDeferredCommit` 의 `flushRef` 와 같은 손).
+  const closeRef = useRef(handleClose);
+  closeRef.current = handleClose;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
+      if (e.key === "Escape") void closeRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

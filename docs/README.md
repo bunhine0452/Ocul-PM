@@ -25,6 +25,7 @@
 | 폴더 | 무엇 |
 |---|---|
 | [`RELEASE.md`](RELEASE.md) | **릴리스 체크리스트.** 버전 6파일 · CHANGELOG · README ko/en · 랜딩 ko/en. 릴리스 전에 반드시 연다 |
+| [`optimization/`](optimization/) | **최적화 원장.** 앞으로의 최적화는 라운드 폴더를 새로 파지 않고 여기 적는다 — 고친 것 · 확정했지만 안 고친 것 · 재 봤더니 아니었던 것 · 잔고 표 |
 | [`a2a/`](a2a/) | 다중 에이전트 원장 — 세션 묶기 · 구역 임대 · 작업 넘기기 · 신뢰 경계. D8 이 전용 「세션」 화면을 열었다 |
 | [`acp-panel/`](acp-panel/) | 앱 안 ACP 에이전트 패널(Claude Code · Codex)의 구조. "프로젝트당 1 세션" 비목표는 뒤집혔다 |
 | [`agent-discipline/`](agent-discipline/) | 스킬·규칙·훅 허브 화면의 재설계 (발동 원장 · 예산 바 · 자기정리 제안) |

@@ -31,6 +31,7 @@ import {
   MESSAGE_OVERHEAD_TOKENS,
 } from "@/lib/tokenEstimate";
 import { useDismiss } from "./useDismiss";
+import { useProviderKeys } from "./useProviderKeys";
 import { useReachability } from "@/features/settings/useReachability";
 import { assembleAiContext, type AiContextResult } from "./aiContext";
 import {
@@ -88,10 +89,6 @@ type ChatMsg = {
 
 type EstimateRow = { label: string; tokens: number };
 type Estimate = { total: number; rows: EstimateRow[]; ragPending: boolean };
-
-function secretName(p: Provider): string {
-  return `${p}_api_key`;
-}
 
 /**
  * 예시 질문 칩의 사전 키.
@@ -232,14 +229,8 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
   const [tokenPopOpen, setTokenPopOpen] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   // Keyring presence per provider (null = checking). Models without a key are
-  // disabled (dogfood 발견 4).
-  const [hasKey, setHasKey] = useState<Record<Provider, boolean | null>>({
-    anthropic: null,
-    openai: null,
-    gemini: null,
-    nim: null,
-    openrouter: null,
-  });
+  // disabled (dogfood 발견 4). 조회 자체는 `useProviderKeys` 가 갖는다.
+  const hasKey = useProviderKeys();
   // Which project context to attach to each question. Defaults: 코드(RAG) +
   // 일지 + 플래너 on, git off.
   const [ctx, setCtx] = useState({
@@ -311,20 +302,6 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
       prev.aiActiveModel === provider ? prev : { ...prev, aiActiveModel: provider },
     );
   }, [provider, setState]);
-
-  // Keyring presence per provider (cached check — does NOT unlock the keychain).
-  useEffect(() => {
-    let cancelled = false;
-    PROVIDERS.forEach(async (p) => {
-      const res = await commands.secretHas(secretName(p));
-      if (!cancelled && res.status === "ok") {
-        setHasKey((prev) => ({ ...prev, [p]: res.data }));
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // If the active provider has no key, fall back to the first one that does.
   useEffect(() => {

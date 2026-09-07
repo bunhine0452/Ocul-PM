@@ -126,10 +126,16 @@ export async function buildPlannerSystemContext(projectId: number | null): Promi
   // 제목·항목 본문은 **에이전트가 쓴다** (`plan_create`·`plan_update`). id 는
   // 우리가 좁혀 둔 kebab 이라 그대로 두고, 자유 텍스트만 이스케이프한다
   // (플랜 `untrusted-text-framing`).
+  // 상세는 **한 번에** 받는다 (2026-09-07 감사). 예전에는 루프 안에서 `await`
+  // 해서 계획 수만큼 IPC 왕복이 직렬로 깔렸다 — 이 블록은 매 메시지마다
+  // 재조립되므로 그 지연이 전송 버튼과 첫 토큰 사이에 그대로 쌓였다. 순서는
+  // `shown` 이 정하고 `Promise.all` 이 그 순서를 보존한다.
+  const details = await Promise.all(shown.map((p) => commands.planGet(projectId, p.plan_id)));
+
   let markdown = "Current workspace plans (file-based SSOT, active only):\n";
-  for (const p of shown) {
+  for (const [i, p] of shown.entries()) {
     markdown += `- **Plan (plan_id: ${p.plan_id})**: ${escapeUntrusted(p.title)} | Status: ${p.status} | ${p.done_count}/${p.item_count} done\n`;
-    const dr = await commands.planGet(projectId, p.plan_id);
+    const dr = details[i];
     if (dr.status !== "ok" || !dr.data) continue;
 
     const items = dr.data.items ?? [];
@@ -190,9 +196,13 @@ export async function buildOculpmSystemContext(
       }
 
       // Hydrate the few most-recent entries with their body for real continuity.
+      // 위 계획 블록과 같은 이유로 병렬이다 (2026-09-07 감사) — 3건이 직렬로
+      // 왕복하면 그만큼 첫 토큰이 늦는다.
+      const detailed = await Promise.all(
+        recent.slice(0, 3).map((e) => commands.oculpmGetJournalEntry(projectId, e.relative_path)),
+      );
       const bodies: string[] = [];
-      for (const e of recent.slice(0, Math.min(3, recent.length))) {
-        const detRes = await commands.oculpmGetJournalEntry(projectId, e.relative_path);
+      for (const detRes of detailed) {
         if (detRes.status === "ok" && detRes.data) {
           const title = escapeUntrusted(detRes.data.title);
           const body = escapeUntrusted(clampText(detRes.data.body_markdown.trim(), 1200));
