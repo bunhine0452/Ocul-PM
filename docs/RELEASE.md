@@ -55,10 +55,10 @@ body="$(awk -v t="## ${ver}" '$0==t{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md)
 
 ```bash
 # 이전 버전 문자열이 남지 않았는지 전수 확인 — 변경 이력 <li> 만 남는 것이 정상
-grep -n "2\.8\.5" landing/index.html landing/en/index.html landing/plugin.html
+grep -n "2\.8\.5" landing/index.html landing/en/index.html landing/plugin.html landing/en/plugin.html
 ```
 
-`landing/plugin.html` 의 `nav-ver` 배지도 매 릴리스 함께 올립니다.
+`landing/plugin.html` **과 `landing/en/plugin.html`** 의 `nav-ver` 배지도 매 릴리스 함께 올립니다 (v2.45.0 에서 이 문서가 한국어 쪽만 적어 두어 영문 플러그인 페이지가 옛 버전에 멈출 뻔했습니다 — 아래 grep 에 두 파일을 모두 넣어 두었습니다).
 
 ### 4-1. 생성물 재빌드 (한 줄)
 
@@ -116,3 +116,40 @@ git push origin :refs/tags/vX.Y.Z && git push origin refs/tags/vX.Y.Z
 ```
 
 릴리스 노트 본문이 비어 있지 않은지(`body` 길이 0 이면 §2 의 헤더가 태그와 어긋난 것), 에셋이 4개(`.dmg` · `.app.tar.gz` · `.sig` · `latest.json`)인지, 라이브 사이트 버전이 태그와 같은지까지 보고 마칩니다.
+
+**서명·공증 확인** (§7 을 설정한 뒤로는 매 릴리스 이 두 줄까지 봅니다 — 시크릿이 하나라도 비면 번들러는 *실패하지 않고* 조용히 무서명 번들을 내놓습니다):
+
+```bash
+curl -sL -o /tmp/ocul.dmg "$(gh release view vX.Y.Z --json assets --jq '.assets[]|select(.name|endswith(".dmg")).url')"
+hdiutil attach -nobrowse -quiet /tmp/ocul.dmg -mountpoint /tmp/ocul-dmg
+codesign -dvv /tmp/ocul-dmg/Ocul-PM.app 2>&1 | grep -E "Authority|TeamIdentifier|flags"
+spctl -a -vvv -t install /tmp/ocul-dmg/Ocul-PM.app     # → accepted / source=Notarized Developer ID
+hdiutil detach -quiet /tmp/ocul-dmg
+```
+
+`Signature=adhoc` · `TeamIdentifier=not set` 이 보이면 서명이 안 붙은 것이고, `spctl` 이 `source=Notarized Developer ID` 가 아니면 공증이 빠진 것입니다.
+
+## 7. 서명·공증 시크릿 (한 번만 설정)
+
+Apple Developer Program 계정의 **Developer ID Application** 인증서로 서명하고 공증합니다. 저장소 시크릿 6개가 있어야 `release.yml` 이 서명·공증을 수행하고, 없으면 무서명 번들이 그대로 나갑니다.
+
+로컬 키체인에서 인증서와 개인키를 `.p12` 로 내보낸 뒤 (Keychain Access → *내 인증서* → "Developer ID Application: …" 우클릭 → 항목 내보내기 → `.p12`, 암호 지정):
+
+```bash
+security find-identity -v -p codesigning        # 이름·팀 ID 확인
+base64 -i DeveloperID.p12 | gh secret set APPLE_CERTIFICATE
+gh secret set APPLE_CERTIFICATE_PASSWORD        # .p12 내보낼 때 지정한 암호
+gh secret set APPLE_SIGNING_IDENTITY            # "Developer ID Application: <이름> (<팀ID>)"
+gh secret set APPLE_ID                          # Apple 개발자 계정 이메일
+gh secret set APPLE_PASSWORD                    # appleid.apple.com 의 앱 암호 (계정 암호 아님)
+gh secret set APPLE_TEAM_ID                     # 10자 팀 ID
+gh secret list                                  # 6개가 다 있는지
+```
+
+`APPLE_PASSWORD` 는 **앱 암호**(app-specific password)입니다 — appleid.apple.com → 로그인 및 보안 → 앱 암호에서 발급합니다. 계정 암호를 넣으면 공증 단계에서 인증 실패합니다.
+
+설정은 `tauri.conf.json` 에 인증서 이름을 박지 않습니다 — `bundle.macOS` 에는 `hardenedRuntime: true` 만 두고 신원은 `APPLE_SIGNING_IDENTITY` 환경변수로 들어갑니다. 그래야 인증서 없는 로컬 `pnpm tauri build` 도 그대로 돌아갑니다 (무서명 번들이 나오고, 로컬 실행은 격리 표시가 없어 문제 없습니다).
+
+**엔타이틀먼트 파일은 없습니다.** 하드닝 런타임(`hardenedRuntime`)만 켜져 있고 별도 예외가 필요 없습니다 — 번들에 dylib 이 없고(`ort`/`rusqlite` 모두 정적 링크), WKWebView 는 Apple 서명 프로세스로 분리돼 있으며, `git`·`claude`·`codex` 같은 자식 프로세스 실행은 하드닝 런타임이 막지 않습니다. 이 조건이 깨지면(동적 라이브러리를 싣게 되면) `bundle.macOS.entitlements` 로 `com.apple.security.cs.disable-library-validation` 을 추가해야 합니다.
+
+**서명 주체가 바뀌는 첫 업데이트에서 키체인 프롬프트가 뜹니다.** API 키는 `keyring` 으로 OS 키체인에 들어 있고, 그 항목의 접근 권한은 만들 당시 앱의 코드 서명에 묶입니다. 애드혹 서명 빌드에서 Developer ID 빌드로 올라간 사용자는 처음 한 번 "Ocul-PM 이(가) 키체인의 정보를 사용하려 합니다" 를 보게 되고, **항상 허용**을 누르면 이후로는 조용합니다. 이 릴리스의 CHANGELOG 에 한 줄 적어 두세요.

@@ -5,10 +5,21 @@ name: Release
 # updater artifacts (.sig + latest.json), and publishes a GitHub Release.
 # The in-app updater then pulls `latest.json` from releases/latest/download.
 #
-# Required repo secret:
+# Required repo secrets:
 #   TAURI_PRIVATE_KEY  — contents of src-tauri/updater.key (the minisign private
 #                        key). Set it once: gh secret set TAURI_PRIVATE_KEY < src-tauri/updater.key
 #   (The key was generated with an empty password, so no password secret is needed.)
+#
+#   Apple Developer ID signing + notarization (docs/RELEASE.md 7장):
+#   APPLE_CERTIFICATE           — base64 of the exported Developer ID Application .p12
+#   APPLE_CERTIFICATE_PASSWORD  — the password used when exporting that .p12
+#   APPLE_SIGNING_IDENTITY      — "Developer ID Application: <Name> (<TEAM_ID>)"
+#   APPLE_ID                    — Apple ID e-mail of the developer account
+#   APPLE_PASSWORD              — app-specific password from appleid.apple.com (NOT the
+#                                 account password)
+#   APPLE_TEAM_ID               — the 10-char team id
+#   With any of these missing the bundler silently falls back to an *unsigned* bundle
+#   instead of failing, so verify with `codesign -dvv` / `spctl -a -vvv` after release.
 #
 # NOTE: the in-app updater + the landing download links require this repo's
 # *releases* to be public.
@@ -81,6 +92,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          # Developer ID signing — the CLI imports the .p12 into a temporary keychain
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          # Notarization — xcrun notarytool + stapler run right after signing
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Ocul-PM ${{ github.ref_name }}'
@@ -97,12 +116,9 @@ jobs:
 
             > macOS Intel · Windows 는 추후 업데이트 예정입니다.
 
-            ### ⚠️ macOS 첫 실행
-            공증(notarization) 전 빌드라 처음 열 때 "손상되었기 때문에 열 수 없습니다"가 뜰 수 있어요.
-            실제 손상이 아니라 격리(quarantine) 표시일 뿐입니다 — 터미널에 한 줄:
-            ```
-            xattr -dr com.apple.quarantine /Applications/Ocul-PM.app
-            ```
+            ### macOS 설치
+            Apple Developer ID 서명 + 공증(notarization)을 마친 빌드입니다 — `.dmg` 를 열고
+            `Applications` 로 끌어다 놓으면 끝입니다. `xattr` 같은 우회는 더 이상 필요 없습니다.
 
             이후 버전부터는 앱 안에서 **자동 업데이트**됩니다.
           releaseDraft: false

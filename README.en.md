@@ -58,7 +58,16 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.44.1 — counting characters as characters
+## 🚀 v2.45.0 — open it straight from the download
+
+- **You no longer need a terminal to open the app.** Until now macOS refused the `.dmg` with "is damaged and can't be opened", and clearing it meant typing `xattr -dr com.apple.quarantine` yourself — the first gate after downloading was a terminal. Builds are now **signed with an Apple Developer ID and notarized**. (Because the signature changed, your keychain may ask once on the first launch of this version — click **Always Allow**; nothing stored is lost.)
+- **The app now answers when a skill fires.** That answer used to be one line the skill wrote about itself. The detail view now leads with **"When it fires"** — automatic or user-invoked, and which files wake it — and the ledger quotes **the actual prompt that triggered it** when it did.
+- **Journal watching can really be paused.** The old "off" was a 60-second lie: the supervisor read a watcher-less project as deaf and revived it. It now tells a user pause from a death, and the diagnostics row states the lifetime out loud — "paused by you · restarting the app clears it".
+- **Today tells the truth.** "Files changed" counted **touches**, not files, running up to 105% high; and the activity rings were a wall rather than a scale, with 22 of the last 26 days pinned at the cap and indistinguishable. Both are fixed, and **"What's running now"** is new — when it can't tell, it says nothing rather than inventing.
+- **A plan with unfinished items no longer closes as done.** The refusal holds through the app, MCP and the phone bridge alike. Journal entries gained **"Open as file"**, and the AI screen gained **"Shut down adapter"**.
+- **Out of sight** — 5,000 files landing in `target/` now leave a single entry in the watch queue (no more stutter during builds); closing a project no longer holds a lock for up to 4.3s; the entry chunk is 26.5KB lighter (−9.2%). Also fixed: file attribution silently reading zero in nested git repos, an agent color four degrees from Claude's coral, and design-token files mistaken for secrets. Sixteen dead commands removed (354 → 340).
+
+## v2.44.1 — counting characters as characters
 
 - **An `oculpm://` link containing Korean, or a Korean README over 24KB, could stop the app dead.** Four places counted bytes instead of characters, and cutting through the middle of a multi-byte character killed them on the spot. Deep links, the Notion connection, "go to definition" and "project overview" were all copies of the same code; they now share one.
 - **Closing the setup wizard with ESC threw away everything you had typed.** Closing saves a draft first — but ESC alone was saving **the empty draft from the moment the screen opened**. It now saves exactly what the X button saves.
@@ -453,11 +462,7 @@ One plugin configures, across all your projects: a **hooks bridge** (session sta
 
 Grab `Ocul-PM_x.y.z_aarch64.dmg` from the [latest release](https://github.com/bunhine0452/Ocul-PM/releases/latest) and drag it into `Applications`. It's built for macOS (Apple Silicon), and once installed it auto-updates in place.
 
-The app isn't Apple-notarized yet, so the first launch may claim it "is damaged and can't be opened". It isn't — that's macOS quarantine. One line in the terminal fixes it:
-
-```bash
-xattr -dr com.apple.quarantine /Applications/Ocul-PM.app
-```
+The app is signed with an Apple Developer ID and notarized, so it opens straight from the download — no `xattr` quarantine workaround needed.
 
 The first semantic search downloads an embedding model (~135MB) once. After that it works offline.
 
@@ -496,7 +501,6 @@ Requires Node 18+, pnpm, Rust stable, and Xcode Command Line Tools on macOS.
 ## Roadmap
 
 - [ ] macOS (Intel) · Windows builds
-- [ ] Apple notarization
 - [ ] Team sync (opt-in)
 
 ## One more thing

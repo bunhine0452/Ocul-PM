@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.44.1)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 96개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.45.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 97개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.44.1)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 96개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.45.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 97개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.44.1</span>
+    <span class="nav-ver" data-version>v2.45.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>96개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>97개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-45-0">v2.45.0</a>
       <a href="#v2-44-1">v2.44.1</a>
       <a href="#v2-44-0">v2.44.0</a>
       <a href="#v2-43-0">v2.43.0</a>
@@ -61,10 +62,25 @@
       <a href="#v2-38-0">v2.38.0</a>
       <a href="#v2-37-0">v2.37.0</a>
       <a href="#v2-36-0">v2.36.0</a>
-      <a href="#v2-35-0">v2.35.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-45-0"><a href="#v2-45-0">v2.45.0</a></h2>
+      <div class="cl-body">
+<p><b>앱을 열려고 터미널을 켜지 않아도 됩니다.</b> 지금까지는 내려받은 <code>.dmg</code> 를 열면 macOS 가 "손상되었기 때문에 열 수 없습니다"라고 막았습니다. 실제 손상이 아니라 격리 표시였을 뿐인데, 그걸 풀려면 <code>xattr -dr com.apple.quarantine</code> 한 줄을 직접 쳐야 했습니다 — 다운로드 다음 첫 관문이 터미널이었던 셈입니다. 이번 릴리스부터 <b>Apple Developer ID 로 서명하고 공증(notarization)까지 마친 빌드</b>가 나갑니다. 받아서 <code>Applications</code> 로 끌어다 놓고 그냥 여시면 됩니다.</p>
+<blockquote><p><b>딱 한 번, 키체인이 물어볼 수 있습니다.</b> API 키는 맥의 키체인에 들어 있고 그 접근 권한은 앱의 서명에 묶입니다. 서명 주체가 바뀌었으므로 이 버전으로 올라온 뒤 처음 열 때 "Ocul-PM 이(가) 키체인의 정보를 사용하려 합니다"가 한 번 뜰 수 있습니다. <b>항상 허용</b>을 누르시면 그다음부터는 묻지 않고, 저장해 둔 키가 사라지는 일도 없습니다.</p></blockquote>
+<p><b>스킬이 언제 걸리는지를 앱이 답합니다.</b> 스킬 목록 앞에서 궁금한 건 "이게 언제 걸리나, 내가 직접 불러야 하나"인데, 지금까지 답은 스킬이 스스로 쓴 소개 한 줄이 전부였습니다. 이제 상세 화면이 <b>「언제 걸리나」</b> 를 본문보다 먼저 말합니다 — 자동으로 걸리는지 직접 불러야 하는지, 어떤 파일에서 깨어나는지. 그리고 <b>실제로 걸렸을 때 어떤 말이 그걸 불렀는지</b>를 원장이 인용해 보여줍니다. "안 걸림"이 스킬 잘못인지 원래 수동인지도 이제 구별됩니다.</p>
+<p><b>작업 일지 감시를 진짜로 멈출 수 있습니다.</b> 예전의 "끄기"는 60초짜리 거짓말이었습니다 — 감독관이 워처 없는 프로젝트를 먹통으로 판정해 곧바로 되살렸기 때문입니다. 이제 사용자가 멈춘 것과 죽은 것을 감독관이 구별하고, 진단 화면이 <b>「사용자가 멈춤 · 앱을 다시 켜면 풀려요」</b> 라고 수명까지 말해 줍니다.</p>
+<p><b>오늘 화면이 사실을 말합니다.</b> 세 가지가 어긋나 있었습니다.</p>
+<ul><li><b>「변경된 파일」이 파일 수가 아니라 손댄 횟수</b>를 세고 있었습니다. 실측으로 최대 105% 부풀어 있었고(어떤 날은undefinedvs 실제 128), 이제 백엔드가 고유 파일 수를 직접 셉니다.</li><li><b>활동 링이 바쁜 날마다 똑같은 모양</b>이었습니다. 눈금이 아니라 벽이어서, 최근 26일 중 22일이 상한에 붙어 서로 구별되지 않았습니다. 눈금을 실제 하루 분량에 맞춰 다시 잡았고, 그래도 상한에 붙는 날은 호버 라벨이 「상한」이라고 말합니다.</li><li><b>「지금 하는 일」이 없었습니다.</b> 「활동 시간」은 지나간 일의 합만 말합니다. 이제 돌고 있는 세션이 무엇을 하는 중인지 한 줄로 보여주고, 모를 때는 지어내지 않고 아무 말도 하지 않습니다.</li></ul>
+<p><b>미완 항목이 남은 계획은 완료로 닫히지 않습니다.</b> 아직 할 일이 남은 플랜이 <code>done</code> 으로 닫혀 버리는 일이 실제로 있었습니다. 이제 앱·MCP·폰 연동 어느 경로로 와도 거부되고, 대신 "이건 안 한다"를 항목마다 정직하게 적을 수 있습니다.</p>
+<p><b>손잡이 둘이 생겼습니다.</b> 작업 일지 상세에서 <b>「파일로 열기」</b> 로 원본 마크다운을 에디터에서 바로 열 수 있고, AI 화면에서 <b>「어댑터 내리기」</b> 로 떠 있는 에이전트를 정리할 수 있습니다.</p>
+<p><b>영문 사이트가 제 페이지를 갖습니다.</b> 영문 홈에서 키노트·플러그인 문서를 누르면 여덟 자리 전부가 한국어 페이지로 가고 있었습니다. 영문판을 만들고 링크를 바로잡았습니다.</p>
+<p>보이지 않는 곳도 함께 손봤습니다.</p>
+<ul><li><b>빌드 중에 앱이 버벅이던 것</b> — <code>target/</code> 에 파일 5,000개가 쏟아지면 그게 전부 감시 큐로 들어왔습니다. 이제 큐에 들어오기 전에 걸러져 관심 있는 1건만 남습니다.</li><li><b>프로젝트를 닫을 때 최대 4.3초 멈추던 것</b> — 잠금을 쥔 채 정리가 끝나기를 기다리고 있었습니다.</li><li><b>앱 첫 화면이 26.5KB 가볍습니다</b> (−9.2%). 설정 코드가 창 관련 API 를 통째로 끌고 오고 있었습니다.</li><li><b>중첩된 git 저장소에서 브랜치 화면의 「파일」 귀속이 조용히 0건</b>이 되던 버그. 저장소 루트가 프로젝트 루트 아래에 있는 배치에서만 나던 것입니다.</li><li><b>모르는 에이전트가 Claude 처럼 보이던 것</b> — 에이전트 색 팔레트의 첫 색이 Claude 코랄과 색상환에서 4도 차이였습니다.</li><li><b>디자인 토큰 파일이 시크릿으로 오인</b>돼 작업 일지의 파일 목록에서 조용히 빠지던 오탐.</li><li>내려받은 커스텀 테마가 <b>문법 강조 색</b>까지 정할 수 있습니다.</li><li>화면 뒤에서 아무도 부르지 않던 <b>죽은 명령 16개</b>를 걷어냈습니다 (354 → 340).</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-44-1"><a href="#v2-44-1">v2.44.1</a></h2>
       <div class="cl-body">
