@@ -200,10 +200,16 @@ export function CommandPalette({
   // 영어 모드에서도 "전환" 으로, 한국어 모드에서도 "switch" 로 찾힌다.
   const aliasOf = (key: I18nKey) => tAll(key).join(" ");
 
-  const go = (view: UiV2View) => () => {
-    ws?.setUiV2View(view);
-    onOpenChange(false);
-  };
+  // 아래 `items` useMemo 의 의존이라 아이덴티티가 안정해야 한다 — 렌더마다 새
+  // 함수를 돌려주면 팔레트 아이템이 매 렌더 재계산된다. 캡처하는 둘은 이미
+  // 그 memo 의 deps 이므로 무효화 빈도는 그대로다.
+  const go = useCallback(
+    (view: UiV2View) => () => {
+      ws?.setUiV2View(view);
+      onOpenChange(false);
+    },
+    [ws, onOpenChange],
+  );
 
   const items: CommandItem[] = useMemo(
     () => [
@@ -372,7 +378,7 @@ export function CommandPalette({
     ],
     // `t` 는 언어가 바뀔 때만 아이덴티티가 바뀐다 (useT) — 언어 전환 시
     // 정확히 한 번 재계산되고 평소엔 안정적이다.
-    [t, ws, onOpenChange, onOpenSettings, onReindex, onRegenerateOverview, projects, onSelectProject, currentProjectId, state?.currentSession],
+    [t, go, ws, onOpenChange, onOpenSettings, onReindex, onRegenerateOverview, projects, onSelectProject, currentProjectId, state?.currentSession],
   );
 
   // Group items by `group` field, preserving the original order so the
@@ -397,7 +403,7 @@ export function CommandPalette({
   return (
     <div
       data-home-overlay
-      className="scrim z-modal flex items-start justify-center pt-[18vh] p-4 animate-in fade-in duration-150"
+      className="scrim z-command flex items-start justify-center pt-[18vh] p-4 animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onOpenChange(false);
       }}

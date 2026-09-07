@@ -60,7 +60,7 @@ function deliver(frame: SseFrame): void {
   if (!frame.event) return;
   const set = listeners.get(frame.event);
   if (!set || set.size === 0) return;
-  let payload: unknown = null;
+  let payload: unknown;
   try {
     payload = frame.data === "" ? null : JSON.parse(frame.data);
   } catch {

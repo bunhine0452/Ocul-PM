@@ -142,9 +142,12 @@
   --space-1: 4px;  --space-2: 6px;  --space-3: 8px;  --space-4: 10px;
   --space-5: 12px; --space-6: 16px; --space-7: 20px; --space-8: 24px;
 
-  /* z layers — 전역 층만 (Phase 5). 컴포넌트 안의 0~6 은 지역 겹침이라 그대로. */
+  /* z layers — 전역 층만 (Phase 5). 컴포넌트 안의 0~6 은 지역 겹침이라 그대로.
+     {#z-vocab-fourth-step} — 왜 아직 3단인지는 App.css 의 z 어휘 주석에 있다:
+     AppDialog·CommandPalette 가 같은 층(z-modal)인 게 값이 아니라 **DOM 마운트
+     순서**로만 옳다. */
   --z-sticky: 10; --z-strip: 20; --z-panel: 30; --z-dock: 40;
-  --z-menu: 50; --z-popover: 60; --z-modal: 100; --z-top: 1000;
+  --z-menu: 50; --z-popover: 60; --z-modal: 100; --z-command: 200; --z-top: 1000;
 
   /* elevation — 저불투명 다층 그림자 3단 (경계는 border 가, 깊이는 그림자가 담당).
      hover 승격은 --shadow-raise, 팝오버/모달은 --shadow-pop. */

@@ -82,7 +82,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     if (!selected || !projectRoot) return;
     const res = await commands.openInEditor(projectRoot, selected, settings.externalEditorCommand, null);
     if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
-  }, [projectRoot, selected, settings.externalEditorCommand]);
+  }, [projectRoot, selected, settings.externalEditorCommand, t]);
 
   const onOpenAffected = useCallback(
     async (path: string) => {
@@ -90,7 +90,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
       const res = await commands.openInEditor(projectRoot, path, settings.externalEditorCommand, null);
       if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
     },
-    [projectRoot, settings.externalEditorCommand],
+    [projectRoot, settings.externalEditorCommand, t],
   );
 
   const reviewed = selected ? diffReadPaths.includes(selected) : false;

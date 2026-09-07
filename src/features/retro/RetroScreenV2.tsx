@@ -189,7 +189,7 @@ export function RetroScreenV2({
       state.currentProjectName,
     );
     if (!started) toast.warning(t("retro.alreadyRunning"));
-  }, [generating, signals, projectId, since, until, rangeKey, state.currentProjectName]);
+  }, [generating, signals, projectId, since, until, rangeKey, state.currentProjectName, t]);
 
   // #retro-cc-generate — 회고 생성을 터미널의 Claude Code 세션으로 디스패치.
   // API 키·과금 없이 동작하고, 진행 과정이 터미널에 그대로 보인다.
@@ -220,7 +220,17 @@ export function RetroScreenV2({
     } finally {
       setDispatchBusy(false);
     }
-  }, [dispatchBusy, projectId, since, until, onNavigate, state]);
+  }, [
+    dispatchBusy,
+    projectId,
+    since,
+    until,
+    onNavigate,
+    state,
+    sessions.terminalTabs,
+    sessions.terminalActiveId,
+    t,
+  ]);
 
   // C2 — export the range's journal entries to a shareable .md (native save
   // dialog + write happen in the backend; we just toast the result).
@@ -235,7 +245,7 @@ export function RetroScreenV2({
     } else {
       toast.destructive(t("retro.exportFailed", { error: res.error }));
     }
-  }, [exporting, signals, projectId, since, until]);
+  }, [exporting, signals, projectId, since, until, t]);
 
   const hasWork = !!signals && signals.total_entries > 0;
 
@@ -267,7 +277,7 @@ export function RetroScreenV2({
         toast.destructive(t("retro.notionFailed", { error: res.error }));
       }
     },
-    [notionBusy, projectId],
+    [notionBusy, projectId, t],
   );
 
   // ── v2 U10 (C1) — 스탠드업·PR 본문·주간 보고 생성 ─────────────────────────
@@ -310,7 +320,7 @@ export function RetroScreenV2({
         toast.destructive(t("retro.genFailed", { error: res.error }));
       }
     },
-    [summaryBusy, projectId, since, until],
+    [summaryBusy, projectId, since, until, t],
   );
 
   const copySummary = useCallback(async () => {
@@ -321,7 +331,7 @@ export function RetroScreenV2({
     } catch {
       toast.destructive(t("retro.copyFailed"));
     }
-  }, [summaryResult]);
+  }, [summaryResult, t]);
 
   const SUMMARY_STYLES: { style: SummaryStyle; labelKey: I18nKey }[] = [
     { style: "standup", labelKey: "retro.summary.standup" },

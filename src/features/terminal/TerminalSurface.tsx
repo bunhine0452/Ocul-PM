@@ -1006,7 +1006,7 @@ export function TerminalSurface({
       if (res.status === "error")
         toast.destructive(t("term.openEditorFailed", { error: res.error }));
     },
-    [projectRoot, settings.externalEditorCommand],
+    [projectRoot, settings.externalEditorCommand, t],
   );
 
   // 포커스된 페인의 셸 통합 상태 — 상태바(cwd·라이브 명령)와 툴바 부제가

@@ -1109,7 +1109,7 @@ function LogsSection() {
     } finally {
       setRevealing(false);
     }
-  }, [logDir]);
+  }, [logDir, t]);
 
   return (
     <Section

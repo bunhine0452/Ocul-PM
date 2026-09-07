@@ -27,6 +27,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::db::Db;
+use crate::git::nesting::{self, RepoNesting};
 use crate::oculpm::cache::{JournalCache, RangeEntry};
 use crate::oculpm::paths::workday_of_rel;
 
@@ -140,6 +141,14 @@ pub struct BranchStory {
     pub journal_files: u32,
     /// 커밋 상한에 걸렸는가 — 걸렸으면 아래 숫자들이 "전부"가 아니다.
     pub truncated: bool,
+    /// 저장소 루트와 프로젝트 루트의 상하 관계 ({#branch-nested-signal}).
+    /// `same` 이 아니면 이 이야기의 근거가 구조적으로 약하다 — 화면이 그
+    /// 사실을 말할 수 있게 신호를 싣는다. 조용히 약한 결과를 보여 주는 것이
+    /// 이 저장소가 가장 싫어하는 거짓말이다.
+    pub repo_nesting: RepoNesting,
+    /// 두 루트 사이의 상대 경로 (같거나 겹치지 않으면 `None`). 문구가 "어디"를
+    /// 말할 수 있게 함께 싣는다.
+    pub repo_subpath: Option<String>,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -241,6 +250,10 @@ pub struct BranchGit {
     /// 작업 트리에만 있는 변경 (현재 브랜치일 때만 채워진다).
     pub dirty_files: BTreeSet<String>,
     pub truncated: bool,
+    /// 이 저장소가 프로젝트 루트와 어떤 관계인가 — 되맞춤의 방향이자 화면에
+    /// 그대로 실리는 신호다 ({#branch-nested-signal}).
+    pub nesting: RepoNesting,
+    pub repo_subpath: Option<String>,
 }
 
 impl BranchGit {
@@ -295,11 +308,12 @@ pub fn read_branch_git(
         ],
     )?;
     // git 은 **저장소 상대** 경로를 준다. 프로젝트 루트가 저장소 루트와 다르면
-    // (`.oculpm/` 이 저장소 위에 있는 배치) 그대로 쓰면 `Files` 귀속이 조용히
-    // 0건이 되고 `.oculpm/journal/**` 판정도 빗나간다 — `uncommitted_changes` ·
-    // `changes_in_range` 는 이미 되맞추는데 이 축만 빠져 있었다
-    // ({#branch-axis-limits}).
-    let rebase = |raw: &str| crate::git::root_relative(project_root, &repo, raw);
+    // 그대로 쓸 수 없다 — `Files` 귀속이 조용히 0건이 되고 `.oculpm/journal/**`
+    // 판정도 빗나간다. 관계는 **양방향**이라 접두사를 붙이기도 떼기도 하고,
+    // 떼다가 안 맞으면(프로젝트 밖 파일) 목록에서 빠진다
+    // ({#branch-axis-limits} {#rebase-other-direction}).
+    let nest = nesting::repo_nesting(project_root, &repo);
+    let rebase = |raw: &str| nesting::rebase(&nest, raw);
     let (commits, commit_files) = parse_log_name_status(&text, &rebase);
 
     let dirty_files = if is_current {
@@ -318,6 +332,8 @@ pub fn read_branch_git(
         commit_files,
         dirty_files,
         truncated,
+        nesting: nest.0,
+        repo_subpath: nest.1,
     })
 }
 
@@ -325,7 +341,7 @@ pub fn read_branch_git(
 /// 이름 바꾼 파일은 **새 경로**로 잡는다 (`git.rs::parse_name_status` 와 같은 규칙).
 fn parse_log_name_status(
     text: &str,
-    rebase: &dyn Fn(&str) -> String,
+    rebase: &dyn Fn(&str) -> Option<String>,
 ) -> (Vec<BranchCommit>, BTreeMap<String, u32>) {
     let mut commits = Vec::new();
     let mut files: BTreeMap<String, u32> = BTreeMap::new();
@@ -352,8 +368,9 @@ fn parse_log_name_status(
                 continue;
             };
             // 일지 판정도 되맞춘 뒤에 해야 한다 — `.oculpm/journal/` 은 프로젝트
-            // 루트 기준 경로다.
-            let path = rebase(&path);
+            // 루트 기준 경로다. `None` = 프로젝트 **밖** 파일이라 세지도 않는다:
+            // 파일 수가 남의 저장소 분량으로 부풀면 기록률이 거짓이 된다.
+            let Some(path) = rebase(&path) else { continue };
             file_count += 1;
             if is_journal_path(&path) {
                 journal_count += 1;
@@ -394,7 +411,7 @@ fn name_status_path(line: &str) -> Option<String> {
 }
 
 /// `git status --porcelain` → 경로 집합. 이름 바꿈(`old -> new`)은 새 경로로.
-fn parse_porcelain(text: &str, rebase: &dyn Fn(&str) -> String) -> BTreeSet<String> {
+fn parse_porcelain(text: &str, rebase: &dyn Fn(&str) -> Option<String>) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     for line in text.lines() {
         if line.len() < 4 {
@@ -402,8 +419,11 @@ fn parse_porcelain(text: &str, rebase: &dyn Fn(&str) -> String) -> BTreeSet<Stri
         }
         let path = line[3..].trim();
         let path = path.rsplit(" -> ").next().unwrap_or(path);
-        if !path.is_empty() {
-            out.insert(rebase(path));
+        if path.is_empty() {
+            continue;
+        }
+        if let Some(path) = rebase(path) {
+            out.insert(path);
         }
     }
     out

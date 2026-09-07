@@ -57,7 +57,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    reload();
+    // 버리는 게 맞다 — `reload` 는 envelope 를 스스로 검사하고 실패해도 기본값을
+    // 그대로 쓴다. 여기서 기다릴 것도, 사용자에게 말할 것도 없다.
+    void reload();
   }, [reload]);
 
   // 다른 창(또는 상단바)에서 설정을 바꾸면 여기서도 다시 읽는다.

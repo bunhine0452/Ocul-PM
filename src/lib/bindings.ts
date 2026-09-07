@@ -1228,13 +1228,13 @@ export const commands = {
 	 */
 	oculpmSearchEntities: (projectId: number, query: string, limit: number) => typedError<EntityHit[], AppError>(__TAURI_INVOKE("oculpm_search_entities", { projectId, query, limit })),
 	/**
-	 *  v2 U12 — 워크데이 집합의 일지 요약 + 초점 워크데이(`lines_workday`)의 라인
+	 *  v2 U12 — 워크데이 집합의 일지 요약 + 초점 워크데이(`focus_workday`)의 라인
 	 *  증감·고유 파일 수 + 미완 플랜 항목 + 총 일지 수를 IPC 1회에.
 	 * 
 	 *  완성도 라운드 Phase 3 (2026-08-30): 날짜마다 `list_entries` 를 돌리던 것을
 	 *  `workday IN (…)` 한 번으로 — Today(7일) 17 → 5 왕복, 일지(14일) 30 → 4.
 	 */
-	oculpmWorkdayBrief: (projectId: number, workdays: string[], linesWorkday: string | null) => typedError<WorkdayBrief, AppError>(__TAURI_INVOKE("oculpm_workday_brief", { projectId, workdays, linesWorkday })),
+	oculpmWorkdayBrief: (projectId: number, workdays: string[], focusWorkday: string | null) => typedError<WorkdayBrief, AppError>(__TAURI_INVOKE("oculpm_workday_brief", { projectId, workdays, focusWorkday })),
 	/**
 	 *  Rebuild the journal cache from disk. Drops every cached row for the
 	 *  project and re-walks `.oculpm/journal/`. Use after manual sqlite
@@ -2921,6 +2921,18 @@ export type BranchStory = {
 	journal_files: number,
 	/**  커밋 상한에 걸렸는가 — 걸렸으면 아래 숫자들이 "전부"가 아니다. */
 	truncated: boolean,
+	/**
+	 *  저장소 루트와 프로젝트 루트의 상하 관계 ({#branch-nested-signal}).
+	 *  `same` 이 아니면 이 이야기의 근거가 구조적으로 약하다 — 화면이 그
+	 *  사실을 말할 수 있게 신호를 싣는다. 조용히 약한 결과를 보여 주는 것이
+	 *  이 저장소가 가장 싫어하는 거짓말이다.
+	 */
+	repo_nesting: RepoNesting,
+	/**
+	 *  두 루트 사이의 상대 경로 (같거나 겹치지 않으면 `None`). 문구가 "어디"를
+	 *  말할 수 있게 함께 싣는다.
+	 */
+	repo_subpath: string | null,
 };
 
 export type BreakReason = 
@@ -5460,6 +5472,20 @@ export type RepeatedFile = {
 	count: number,
 };
 
+/**
+ *  프로젝트 루트와 저장소 루트의 상하 관계. 되맞춤의 방향이자, 화면이 근거의
+ *  한계를 말할 때 쓰는 신호다.
+ */
+export type RepoNesting = 
+/**  두 루트가 같다 — 흔한 경우. 되맞출 것이 없다. */
+"same" | 
+/**  저장소가 프로젝트 루트 **아래**다 (`repo = root/<sub>`). */
+"repo_below_root" | 
+/**  프로젝트 루트가 더 큰 저장소 **안**에 있다 (`root = repo/<sub>`). */
+"root_inside_repo" | 
+/**  어느 쪽도 상대의 조상이 아니다 — 되맞출 근거가 없다. */
+"disjoint";
+
 /**  A friction unit — an error/bug journal entry. */
 export type ResistanceItem = {
 	/**  Raw frontmatter type: `error` | `bug`. */
@@ -6122,7 +6148,7 @@ export type WindowTabsSnapshot = {
 export type WorkdayBrief = {
 	days: WorkdayBucket[],
 	/**
-	 *  `lines_workday` 로 지정한 워크데이의 라인 증감 합 (미지정 시 0/0).
+	 *  `focus_workday` 로 지정한 워크데이의 라인 증감 합 (미지정 시 0/0).
 	 *  diff 사이드카에서 파생된 값 — 프론트매터 `bytes_*` 가 아니다.
 	 */
 	lines_added: number,

@@ -16,6 +16,31 @@ use crate::oculpm::file_guard::{FileGuard, GuardPolicy};
 const DEFAULT_ITEM_LIMIT: usize = 60;
 const MAX_ITEM_LIMIT: usize = 500;
 
+/// `tools/list` 가 싣는 이 도구의 계약서. `tools/mod.rs` 의 배열 리터럴에서
+/// 여기로 옮겨 왔다 — 저 파일이 크기 래칫 위(1424줄)라 인자 한 줄도 못 늘리고,
+/// 스키마는 구현 옆에 있어야 둘이 같이 움직인다.
+pub(crate) fn plan_status_definition() -> Value {
+    json!({
+        "name": "plan_status",
+        "description": "이 프로젝트의 활성 플랜(.oculpm/planner)과 항목 진행 상태를 반환한다. 작업 시작 전 현재 계획·다음 할 일을 파악할 때 호출. 기본은 요약(계획별 진척 + 아직 안 끝난 항목만) — 완료 항목까지 필요할 때만 view=\"full\", 가능하면 plan_id 로 좁혀 부를 것. **응답의 plans[].hash 는 그 플랜 파일의 현재 해시다 — plan_update 의 필수 인자 base_hash 에 그대로 넘길 것** (플랜마다 값이 다르니 갱신할 플랜의 행에서 가져온다). 응답에 locked_open 이 있으면 잠긴(done/archived) 플랜에 미완이 남아 있다는 뜻이다 — 목록은 include_locked=true.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "view": { "type": "string", "enum": ["summary", "full"], "description": "기본 summary (미완 항목만). full 은 완료·폐기까지 전부" },
+                "plan_id": { "type": "string", "description": "이 계획 하나만 (생략 시 모든 활성 계획)" },
+                "status": {
+                    "type": "array",
+                    "items": { "type": "string", "enum": ["todo", "in_progress", "done", "blocked", "deferred", "dropped"] },
+                    "description": "이 상태의 항목만. 지정하면 view 는 무시된다"
+                },
+                "limit": { "type": "integer", "description": "항목 수 상한 (기본 60, 최대 500)" },
+                "cursor": { "type": "string", "description": "이어보기 — 이전 응답의 next_cursor 를 그대로 넘긴다" },
+                "include_locked": { "type": "boolean", "description": "잠긴(done/archived) 플랜에 남은 미완 항목까지 목록으로 싣는다 (기본 false — 요약 한 줄은 항상 실린다). 이월할 것을 찾을 때 쓴다: 잠긴 플랜은 plan_update 가 거부하므로, 살릴 항목은 활성 플랜으로 옮겨 적어야 한다" }
+            }
+        }
+    })
+}
+
 /// `summary` 뷰에서 제외하는 종료 상태.
 fn is_terminal(s: ItemStatus) -> bool {
     matches!(s, ItemStatus::Done | ItemStatus::Dropped)
@@ -42,6 +67,10 @@ pub(crate) fn tsv_cell(s: &str) -> String {
 ///   갱신하라고 시키면서 그 사실을 숨기고 있었다 (수십 바이트로 가장 값진 정보).
 pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
     let view_full = arg_str(args, "view") == Some("full");
+    let include_locked = args
+        .get("include_locked")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let only_plan = arg_str(args, "plan_id").map(|s| s.to_string());
     let cursor = arg_str(args, "cursor").map(|s| s.to_string());
     let limit = args
@@ -78,6 +107,10 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
 
     let mut plans: Vec<Value> = Vec::new();
     let mut warnings: Vec<String> = Vec::new();
+    // 잠긴 플랜의 미완 — 아래 루프가 함께 센다 ({#archived-open-items-visibility}).
+    let (mut locked_plans, mut locked_items) = (0usize, 0usize);
+    let mut locked_rows: Vec<(String, String, String, &'static str, String)> = Vec::new();
+    let mut locked_seen: Option<String> = None;
     // (plan_id, item_id, status_token, phase, title) — 필터를 통과한 전체 집합.
     let mut rows: Vec<(String, String, &'static str, String, String, String)> = Vec::new();
 
@@ -87,11 +120,35 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
         };
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("plan");
         let parsed = parse_plan(&md, stem);
-        if parsed.frontmatter.status.as_str() != "active" {
-            continue; // 잠긴(done/archived) plan 은 갱신 대상이 아니다
-        }
         let plan_id = parsed.frontmatter.id.clone();
         if only_plan.as_deref().is_some_and(|want| want != plan_id) {
+            continue;
+        }
+        let plan_status = parsed.frontmatter.status.as_str().to_string();
+        if plan_status != "active" {
+            // 잠긴(done/archived) 플랜은 갱신 대상이 아니라 예전에는 통째로
+            // 건너뛰었다. 그 대가가 {#archived-open-items-visibility} 다:
+            // `archived` 는 `done` 가드의 **탈출구**이므로(`planner/lifecycle.rs`),
+            // 못 끝낸 것을 정직하게 접을수록 그 항목이 **어느 미완 목록에도**
+            // 안 나타났다. 이제 세기는 한다 — 다만 기본 출력에는 요약 한 줄만
+            // 싣는다 (아래 `locked_open`).
+            locked_seen = Some(plan_status.clone());
+            let open = crate::oculpm::planner::lifecycle::open_leaves(&parsed);
+            if !open.is_empty() {
+                locked_plans += 1;
+                locked_items += open.len();
+                if include_locked {
+                    for i in open {
+                        locked_rows.push((
+                            plan_id.clone(),
+                            plan_status.clone(),
+                            i.item_id,
+                            i.status.token(),
+                            i.title,
+                        ));
+                    }
+                }
+            }
             continue;
         }
 
@@ -141,11 +198,16 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
         }
     }
 
-    if only_plan.is_some() && plans.is_empty() {
-        return Err(format!(
-            "plan '{}' not found or not active",
-            only_plan.unwrap_or_default()
-        ));
+    // 좁혀 불렀는데 활성 플랜이 없다. 잠긴 플랜이었다면 그 사실을 말한다 —
+    // "not found" 는 거짓이고, 다음 행동(include_locked)을 못 찾게 만든다.
+    if only_plan.is_some() && plans.is_empty() && !(include_locked && locked_seen.is_some()) {
+        let id = only_plan.unwrap_or_default();
+        return Err(match &locked_seen {
+            Some(st) => format!(
+                "plan '{id}' is locked (status: {st}) - 미완 항목까지 보려면 include_locked=true"
+            ),
+            None => format!("plan '{id}' not found or not active"),
+        });
     }
 
     // cursor 는 **항목 id** 다 — 오프셋으로 하면 필터가 달라진 다음 호출에서
@@ -196,6 +258,36 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
     }
     if !warnings.is_empty() {
         out["warnings"] = json!(warnings);
+    }
+    // **왜 요약 한 줄 + 옵트인 목록 둘 다인가** ({#archived-open-items-visibility}).
+    // 요약만 두면 셀 수는 있어도 **어느 항목인지** 못 찾는다. 옵트인만 두면
+    // 아무도 켜지 않는다 — 존재를 모르는 것을 달라고 하는 호출은 없다. 그래서
+    // 요약이 발견의 문이고 파라미터가 그 문 너머다. 요약은 미완이 있을 때만
+    // 나가고 수십 바이트라, 매 세션 시작 훅의 기본 출력을 부풀리지 않는다.
+    if locked_items > 0 {
+        let mut locked = json!({
+            "plans": locked_plans,
+            "items": locked_items,
+            "note": "잠긴(done/archived) 플랜에 미완 항목이 남아 있다 - archived 는 '못 끝냈다'를 정직하게 적는 자리라 여기 쌓인다. 목록은 include_locked=true. 잠긴 플랜은 plan_update 가 거부하므로, 살릴 항목은 활성 플랜으로 옮겨 적을 것",
+        });
+        if include_locked {
+            let shown = locked_rows.len().min(limit);
+            let mut tsv = String::from("plan\tplan_st\titem\tst\ttitle");
+            for (plan_id, plan_st, item_id, tok, title) in &locked_rows[..shown] {
+                tsv.push('\n');
+                tsv.push_str(&format!(
+                    "{}\t{}\t{}\t{}\t{}",
+                    tsv_cell(plan_id),
+                    tsv_cell(plan_st),
+                    tsv_cell(item_id),
+                    tok,
+                    tsv_cell(title)
+                ));
+            }
+            locked["items_tsv"] = json!(tsv);
+            locked["returned"] = json!(shown);
+        }
+        out["locked_open"] = locked;
     }
     Ok(out)
 }

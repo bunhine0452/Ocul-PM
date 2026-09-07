@@ -77,7 +77,7 @@ export function loadDict(lang: Lang): Promise<void> {
 export async function bootI18n(
   readSetting: () => Promise<string | null | undefined>,
 ): Promise<void> {
-  let setting: string | null | undefined = null;
+  let setting: string | null | undefined;
   try {
     setting = await readSetting();
   } catch {

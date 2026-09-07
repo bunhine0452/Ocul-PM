@@ -67,7 +67,7 @@ export function useFiringLedger(projectId: number, days = FIRING_WINDOW_DAYS): F
       for (let round = 0; round < MAX_SCAN_ROUNDS; round++) {
         // 스캔 실패·transcript 부재는 조용히 끝낸다 — 여기서 토스트를 띄우면
         // Claude Code 를 안 쓰는 사용자에게는 소음일 뿐이다.
-        let done = true;
+        let done: boolean;
         leftover = false;
         try {
           const scan = await commands.firingRescan(projectId);

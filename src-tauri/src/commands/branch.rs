@@ -98,6 +98,8 @@ pub async fn branch_story(
 
     Ok(axis::BranchStory {
         branch: target,
+        repo_nesting: g.nesting,
+        repo_subpath: g.repo_subpath.clone(),
         base: g.base.clone(),
         merge_base: g.merge_base.clone(),
         is_current,

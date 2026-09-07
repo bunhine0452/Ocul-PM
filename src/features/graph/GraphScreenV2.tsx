@@ -192,8 +192,8 @@ export function GraphScreenV2({
     if (!graph) return empty;
     const edges = graph.edges.filter((e) => enabled.has(e.type) && e.source !== e.target);
 
-    let nodes: GNode[] = [];
-    let gedges: GEdge[] = [];
+    let nodes: GNode[];
+    let gedges: GEdge[];
 
     if (mode === "file") {
       nodes = graph.nodes.map((n) => ({

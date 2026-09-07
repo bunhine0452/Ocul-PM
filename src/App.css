@@ -148,7 +148,18 @@
        SettingsOverlay·GreenfieldWizard(90) → z-popover, AppDialog·CommandPalette
        (95·100) → z-modal, windows/Dialog(110, 관리 시트 위에 항상 떠야 하는
        이름변경/삭제 확인창) → z-top. 어휘가 3단뿐이라 AppDialog/CommandPalette 는
-       같은 층으로 합쳐졌다 — 동시에 뜨는 경우가 실질적으로 없어 순서 무관. */
+       같은 층으로 합쳐졌다.
+       {#z-vocab-fourth-step} — 합칠 때의 근거("동시에 뜨는 경우가 실질적으로
+       없다")는 다시 보니 **틀렸다**: `useGlobalShortcuts` 의 ⌘K 는 `window`
+       keydown 을 전역으로 받고, `AppDialog`(`useModalBehavior`)는 Esc/Tab 만
+       막을 뿐 다른 키는 그대로 올려 보낸다 — AppDialog 가 열려 있어도 ⌘K 가
+       먹혀 CommandPalette 가 그 위에 뜬다. 지금 그 순서(팔레트가 위)가 맞는
+       건 두 값이 같아 **DOM 마운트 순서**로 타이가 갈리기 때문이다
+       (`windows/ProjectTab.tsx` 가 `<ShellV2>`(AppDialog 가 그 서브트리 어딘가에
+       있다) 뒤에 `<CommandPalette>` 를 그려 늦게 마운트된 쪽이 위) — JSX 순서를
+       한 줄만 바꿔도 조용히 뒤집힌다. 그래서 넷째 단 `--z-command`(200) 를
+       두고 CommandPalette 만 그리로 옮겼다 — 이제 순서가 **값**으로 정해지고
+       DOM 순서에 기대지 않는다. AppDialog 는 z-modal 그대로다. */
     --z-index-sticky: var(--z-sticky);
     --z-index-strip: var(--z-strip);
     --z-index-panel: var(--z-panel);
@@ -156,6 +167,7 @@
     --z-index-menu: var(--z-menu);
     --z-index-popover: var(--z-popover);
     --z-index-modal: var(--z-modal);
+    --z-index-command: var(--z-command);
     --z-index-top: var(--z-top);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);

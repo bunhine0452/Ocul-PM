@@ -69,8 +69,10 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
   const topTables = health?.top_tables ?? [];
 
   useEffect(() => {
-    check();
-    commands.appInfo().then((res) => {
+    // `check` 는 실패를 스스로 `onError` 로 올린다. `appInfo` 는 버전 문자열
+    // 하나라 못 받으면 그 줄만 빈다 — 둘 다 밖에서 기다릴 것이 없다.
+    void check();
+    void commands.appInfo().then((res) => {
       if (res.status === "ok") setVersion(res.data.version);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

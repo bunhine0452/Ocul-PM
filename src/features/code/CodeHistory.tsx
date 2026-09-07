@@ -34,7 +34,12 @@ export function CodeHistory({
 }) {
   const { t } = useT();
   // 목록 전체가 같은 기준으로 계산돼야 렌더 도중 분이 넘어가며 흔들리지 않는다.
-  const now = useMemo(() => Date.now(), [versions]);
+  // `versions` 를 읽는 것은 값이 필요해서가 아니라 **목록이 바뀔 때만** 기준
+  // 시각을 새로 잡기 위해서다 (deps 가 의도 그대로라는 표시).
+  const now = useMemo(() => {
+    void versions;
+    return Date.now();
+  }, [versions]);
 
   return (
     <div className="code-jrnl-pop code-hist-pop" role="menu" aria-label={t("code.hist.title")}>

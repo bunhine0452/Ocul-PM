@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, fireEvent, waitFor } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
+// 타입 전용 — brief mock 을 생성된 DTO 에 `satisfies` 로 못 박는다 (`today_v2.test.tsx`
+// 와 같은 관용구). {#journal-mock-drift} — 이게 없어 `bytes_added`/`bytes_removed`
+// (폐기된 이름) 를 쓰고 `files_touched` 가 빠진 채로 아무도 못 잡았었다.
+import type { WorkdayBrief } from "@/lib/bindings";
 
 // ─── PR-UI 3 — 작업 일지 timeline ─────────────────────────────────────────
 //
@@ -156,15 +160,18 @@ vi.mock("@/lib/bindings", async (importOriginal) => {
         Promise.resolve({
           status: "ok" as const,
           data: {
+            // `days` 는 픽스처가 느슨하게 타이핑돼 있어 캐스트로 인정한다(다른
+            // 스위트와 동일). 스칼라 필드는 아래 `satisfies` 가 진짜로 검사한다.
             days: workdays.map((wd) => ({
               workday: wd,
               entries: fixtures.byWorkday[wd] ?? [],
-            })),
-            bytes_added: 0,
-            bytes_removed: 0,
-            open_plan_items: [],
+            })) as unknown as WorkdayBrief["days"],
+            lines_added: 0,
+            lines_removed: 0,
+            files_touched: 0,
+            open_plan_items: [] as WorkdayBrief["open_plan_items"],
             total_entries: 0,
-          },
+          } satisfies WorkdayBrief,
         }),
     },
     events: new Proxy(

@@ -118,22 +118,17 @@ export default tseslint.config(
   {
     files: ["src/**/*.{ts,tsx}", "scripts/**/*.mjs"],
     rules: {
-      // 8건. 값을 넣었다가 읽히기 전에 덮어쓰는 자리 — 진짜 죽은 대입일 수도,
-      // 초기화 관용구일 수도 있다. 한 건씩 봐야 해서 이 라운드에서는 안 건드린다.
-      "no-useless-assignment": "warn",
       // 3건. ANSI/제어문자를 **의도적으로** 매칭하는 정규식이다
       // (`lib/framing.ts` 의 프레이밍 파서, `osc_shell` 테스트의 OSC 133 픽스처).
+      // 제어문자를 접거나 이스케이프하는 것이 그 코드의 목적이라 고칠 수 없다.
       "no-control-regex": "warn",
-      // 2건. 한국어 주석·문자열에 섞인 폭 없는 공백. `check-design-discipline.mjs:19`
-      // 은 주석 안에서 `*/` 를 깨뜨리려고 **일부러** 넣은 것이라 고치면 안 된다.
+      // 1건. `check-design-discipline.mjs:19` 는 주석 안에서 `*/` 를 깨뜨리려고
+      // 폭 없는 공백을 **일부러** 넣은 것이라 고치면 안 된다.
       "no-irregular-whitespace": "warn",
-      // 1건. 이모지 스킬 아이콘 문자 클래스 (skills_catalog 테스트).
-      "no-misleading-character-class": "warn",
-      // 1건 (GreenfieldWizard.tsx:321). 한 줄 수정이지만 다른 세션이 그 파일을
-      // 편집 중이라 이 커밋에서는 건드리지 않는다.
-      "prefer-const": "warn",
-      // 1건 (terminal/fileLinks.ts:34). 경로 정규식의 과잉 이스케이프.
-      "no-useless-escape": "warn",
+      //
+      // 빚이 0이 되어 `error` 로 돌아간 규칙 (2026-09-08, `{#eslint-slack-real}`):
+      //   no-useless-assignment(8) · no-misleading-character-class(1)
+      //   prefer-const(1) · no-useless-escape(1)
     },
   },
 );

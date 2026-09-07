@@ -189,7 +189,7 @@ export function ProjectManager(props: ProjectManagerProps) {
     if (failed.length > 0) {
       setError(t("pm.removeFailed", { n: failed.length, names: failed.join(", ") }));
     }
-  }, [selected, wipeOculpm, wipeAgentsMd, onProjectsChanged]);
+  }, [selected, wipeOculpm, wipeAgentsMd, onProjectsChanged, t]);
 
   // Esc — 확인 단계면 확인만 취소하고, 아니면 화면을 닫는다.
   // App 의 이름 변경/제거 다이얼로그가 이 위에 떠 있으면 그쪽이 Esc 의 주인이다.

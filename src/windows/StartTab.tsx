@@ -380,7 +380,8 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
             aria-label={t("project.rename.placeholder")}
             autoFocus
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleSaveProject();
+              // 실패는 `handleSaveProject` 안에서 `setError` 로 화면에 나간다.
+              if (e.key === "Enter") void handleSaveProject();
               if (e.key === "Escape") setRenamingProject(null);
             }}
           />

@@ -436,6 +436,13 @@ export function serialize<K extends keyof Settings>(_field: K, value: Settings[K
   return String(value);
 }
 
+/** 한 칸만 좁혀 쓰는 대입 헬퍼. `field` 를 제네릭으로 받아야 `coerce` 의
+ *  `Settings[K]` 와 대입 대상의 타입이 짝이 맞는다 (`keyof Settings` 유니온
+ *  그대로는 상관이 안 서서 예전에는 `any` 로 뚫었다). */
+function assignField<K extends keyof Settings>(target: Settings, field: K, raw: string): void {
+  target[field] = coerce(field, raw);
+}
+
 /// Convert the raw key/value entries returned by `settings_get_all` into a
 /// fully-typed `Settings` object with defaults applied.
 export function entriesToSettings(entries: Array<[string, string]>): Settings {
@@ -443,7 +450,7 @@ export function entriesToSettings(entries: Array<[string, string]>): Settings {
   for (const [k, v] of entries) {
     const field = KEY_TO_FIELD[k];
     if (!field) continue;
-    (result as any)[field] = coerce(field, v);
+    assignField(result, field, v);
   }
   return result;
 }

@@ -67,7 +67,7 @@ const DEL = "";
 //      올라오면 그 에코를 버린다.
 
 /** IME 가 textarea 에 넣는 공백. 셸에 그대로 보내면 인자 구분이 깨진다. */
-const NBSP = / /g;
+const NBSP = /\u00A0/g;
 
 /**
  * xterm 이 keydown 에서 보낸 글자의 에코를 인정하는 시간 창. 실측 keydown→input

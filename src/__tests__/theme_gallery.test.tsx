@@ -65,6 +65,9 @@ vi.mock("@/contexts/SettingsContext", () => ({
 }));
 
 import { ThemeGallery } from "@/features/theme/ThemeGallery";
+import { CODE_SAMPLE_LINES } from "@/features/theme/ThemeEditor";
+import { applyThemeAttrs, resolveThemeAttrs } from "@/features/theme/apply";
+import { CODE_TOKENS } from "@/features/theme/schema";
 import { getThemeState, refreshThemes, resetThemeStore } from "@/features/theme/store";
 
 const custom = (over: Partial<ThemeFile> = {}): ThemeFile => ({
@@ -203,5 +206,76 @@ describe("가져오기", () => {
     await waitFor(() =>
       expect(calls.current).toContain("import:/tmp/theirs.json:copy"),
     );
+  });
+});
+
+describe("문법색 섹션 — {#code-color-editor}", () => {
+  // 화이트리스트에 --code-* 를 넣은 것은 절반이었다 (내려받은 테마가 값을
+  // 실을 수 있다). 나머지 절반이 여기 — 앱에서 점 찍어 고르는 자리다.
+
+  it("다른 그룹과 같은 꼴로 그려지고, 토큰마다 사람이 읽는 이름이 붙는다", () => {
+    render(<ThemeGallery />);
+    fireEvent.click(screen.getByText("새 테마"));
+    expect(screen.getByText("문법색")).toBeTruthy();
+    expect(screen.getByText("키워드")).toBeTruthy();
+    expect(screen.getByText("주석")).toBeTruthy();
+    // 이름이 이름을 밀어내지 않는다 — 토큰 자체도 그대로 보인다.
+    expect(screen.getByText("--code-kw")).toBeTruthy();
+  });
+
+  it("값을 고치면 초안을 지나 실제 인라인 변수로 칠해진다", () => {
+    render(<ThemeGallery />);
+    fireEvent.click(screen.getByText("새 테마"));
+    fireEvent.change(screen.getByLabelText("--code-kw 값"), { target: { value: "#ff79c6" } });
+
+    const draft = getThemeState().draft;
+    expect(draft?.tokens?.["--code-kw"]).toBe("#ff79c6");
+
+    // SettingsContext 가 매 그림마다 지나는 그 경로 그대로 — 편집기가 값을
+    // 쓰면 곧바로 칠해진다는 주장을 여기서 실제로 돌린다.
+    const root = document.createElement("html");
+    applyThemeAttrs(
+      root,
+      resolveThemeAttrs({
+        themeSetting: "system",
+        colorTheme: "green",
+        customThemes: [],
+        systemAccent: null,
+        prefersDark: false,
+        draft,
+      }),
+    );
+    expect(root.style.getPropertyValue("--code-kw")).toBe("#ff79c6");
+  });
+
+  it("되돌리기가 다른 토큰 그룹과 똑같이 동작한다", () => {
+    render(<ThemeGallery />);
+    fireEvent.click(screen.getByText("새 테마"));
+    fireEvent.change(screen.getByLabelText("--code-comment 값"), {
+      target: { value: "#7684b8" },
+    });
+    expect(getThemeState().draft?.tokens?.["--code-comment"]).toBe("#7684b8");
+
+    const enabled = screen
+      .getAllByLabelText("가족 기본값으로 되돌리기")
+      .filter((b) => !(b as HTMLButtonElement).disabled);
+    expect(enabled).toHaveLength(1);
+    fireEvent.click(enabled[0]);
+    expect(getThemeState().draft?.tokens?.["--code-comment"]).toBeUndefined();
+  });
+
+  it("미리보기 견본이 열 토큰을 전부 한 번씩 보여 준다", () => {
+    render(<ThemeGallery />);
+    fireEvent.click(screen.getByText("새 테마"));
+    expect(screen.getByLabelText("문법색 미리보기")).toBeTruthy();
+
+    // 견본에서 빠진 토큰은 색을 고쳐도 확인할 자리가 없다.
+    const used = new Set(CODE_SAMPLE_LINES.flat().map(([token]) => token));
+    for (const token of CODE_TOKENS) {
+      // --code-fg 는 조각의 색이 아니라 견본 전체의 바탕 글자색이다.
+      if (token === "--code-fg") continue;
+      expect(used, token).toContain(token);
+    }
+    expect(used).toContain(null); // 상속(--code-fg) 조각도 한 번 나온다.
   });
 });

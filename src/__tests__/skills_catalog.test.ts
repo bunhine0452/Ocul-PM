@@ -135,7 +135,7 @@ describe("skills catalog (C1 vendored)", () => {
   const BIDI_AND_ZERO_WIDTH_RE =
     // U+202A–U+202E bidi 임베딩/오버라이드, U+2066–U+2069 bidi 아이솔레이트,
     // U+200B/U+200C/U+200D 제로폭, U+FEFF BOM/ZWNBSP, U+00AD soft hyphen.
-    /[\u202A-\u202E\u2066-\u2069\u200B\u200C\u200D\uFEFF\u00AD]/u;
+    /[\u202A-\u202E\u2066-\u2069\u200B-\u200D\uFEFF\u00AD]/u;
 
   const hygieneTargets = [
     ...fs.readdirSync(CATALOG_DIR).filter((f) => f.endsWith(".md")),

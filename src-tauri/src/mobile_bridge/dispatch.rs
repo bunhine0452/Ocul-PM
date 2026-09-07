@@ -85,7 +85,7 @@ pub async fn dispatch<R: tauri::Runtime>(
             app.state(),
             a.take("projectId")?,
             a.take("workdays")?,
-            a.take("linesWorkday")?,
+            a.take("focusWorkday")?,
         )
         .await?),
         "journal_missing_signals" => ok(commands::journal_missing_signals(

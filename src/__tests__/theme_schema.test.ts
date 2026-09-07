@@ -70,10 +70,22 @@ describe("화이트리스트는 백엔드와 한 목록이다", () => {
     expect([...backend].sort()).toEqual([...ALLOWED_TOKENS].sort());
   });
 
-  it("그룹은 다섯이고 토큰이 겹치지 않는다", () => {
-    expect(TOKEN_GROUPS).toHaveLength(5);
+  it("그룹은 여섯이고 토큰이 겹치지 않는다", () => {
+    // 다섯 → 여섯: 문법색이 별도 목록에서 편집기 섹션으로 올라왔다
+    // ({#code-color-editor}). 화이트리스트는 이제 그룹을 펼친 것 하나뿐이라
+    // 「그룹에는 있는데 화이트리스트에 없는 토큰」이 생길 수가 없다.
+    expect(TOKEN_GROUPS).toHaveLength(6);
     expect(new Set(ALLOWED_TOKENS).size).toBe(ALLOWED_TOKENS.length);
     for (const token of ACCENT_TOKENS) expect(ALLOWED_TOKENS).toContain(token);
+  });
+
+  it("문법색도 다른 다섯과 같은 그룹이고, 토큰마다 사람이 읽는 이름이 있다", () => {
+    const code = TOKEN_GROUPS.find((g) => g.id === "code");
+    expect(code?.tokens).toEqual(CODE_TOKENS);
+    // 라벨이 하나라도 비면 그 줄은 `--code-op` 라고만 적혀 있게 된다.
+    for (const token of CODE_TOKENS) expect(code?.labelKeys?.[token]).toBeTruthy();
+    // 이름 있는 그룹은 문법색 하나뿐 — 나머지는 토큰 이름이 곧 설명이다.
+    expect(TOKEN_GROUPS.filter((g) => g.labelKeys != null).map((g) => g.id)).toEqual(["code"]);
   });
 });
 

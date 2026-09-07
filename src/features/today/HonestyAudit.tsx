@@ -70,7 +70,8 @@ export function HonestyAudit({ projectId, workday, enabled, onNavigate }: Honest
     let cancelled = false;
     setLoading(true);
     setError(null);
-    (async () => {
+    // 실패는 안에서 `setError` 로 화면에 나간다 — 밖에서 더 할 일이 없다.
+    void (async () => {
       try {
         const cmp = await oculpmApi.compareWorkday(projectId, workday);
         if (!cancelled) setRows(cmp.sessions.filter((s) => s.unrecorded.length > 0));

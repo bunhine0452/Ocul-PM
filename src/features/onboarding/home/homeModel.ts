@@ -314,7 +314,7 @@ export function buildHome(args: BuildHomeArgs): HomeModel {
   }));
   const commandRows: CommandRowT[] = commands.map((c) => ({ kind: "command", ...c }));
 
-  let ranked: ProjectRowT[] = [];
+  let ranked: ProjectRowT[];
   let quiet: ProjectRowT[] = [];
 
   if (searching) {

@@ -296,6 +296,8 @@ mod tests {
             uncommitted_files: 0,
             journal_files: 1,
             truncated: false,
+            repo_nesting: Default::default(),
+            repo_subpath: None,
         }
     }
 

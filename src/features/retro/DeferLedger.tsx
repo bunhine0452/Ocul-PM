@@ -51,7 +51,7 @@ export function DeferLedgerPanel({ projectId }: { projectId: number }) {
       );
       if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
     },
-    [projectRoot, settings.externalEditorCommand],
+    [projectRoot, settings.externalEditorCommand, t],
   );
 
   // 마커가 하나도 없으면(또는 수확 실패면) 아무것도 그리지 않는다.

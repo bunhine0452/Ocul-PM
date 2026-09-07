@@ -34,7 +34,8 @@ export function escapeUntrusted(text: string): string {
 function attrValue(value: string): string {
   // 접는 이유: 속성값에 개행이 있으면 여는 태그가 여러 줄로 쪼개져 뒷줄이 태그
   // **밖의** 본문처럼 읽힌다.
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: 제어문자를 접는 것이 목적이다
+  // 제어문자를 **의도적으로** 매칭한다 — 접는 것이 목적이다. eslint 는
+  // `no-control-regex` 래칫으로 이 자리를 알고 있다 (eslint.config.js).
   const folded = value.replace(/[\u0000-\u001F\u007F]/g, " ");
   return escapeUntrusted(folded).replace(/"/g, "&quot;");
 }

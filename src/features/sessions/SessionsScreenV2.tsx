@@ -39,7 +39,9 @@ export function SessionsScreenV2({ projectId }: { projectId: number }) {
     setPicked((prev) => (on ? (prev.includes(id) ? prev : [...prev, id]) : prev.filter((p) => p !== id)));
   }, []);
 
-  const teams = model?.teams ?? [];
+  // `?? []` 는 렌더마다 새 배열이라 아래 `detach`/`targetOptions` 의 메모가
+  // 무력화된다. 값은 그대로 두고 아이덴티티만 고정한다.
+  const teams = useMemo(() => model?.teams ?? [], [model?.teams]);
   const unbound = model?.unbound ?? [];
   // 고른 대상이 그 사이 풀렸을 수 있다 — 없는 팀을 가리키는 채로 두면 버튼이
   // 눌리는데 아무 일도 안 일어난다. 그런 대상은 「새 팀」으로 접는다.

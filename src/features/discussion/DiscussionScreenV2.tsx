@@ -142,7 +142,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
         toast.destructive(t("disc.loadDocFailed", { error: res.error }));
       }
     },
-    [projectId],
+    [projectId, t],
   );
 
   const startEdit = useCallback(

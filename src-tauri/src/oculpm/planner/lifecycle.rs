@@ -87,7 +87,10 @@ pub fn open_items_blocking_done(md: &str) -> Vec<OpenItem> {
     open_leaves(&parse_plan(md, PLAN_ID_FALLBACK))
 }
 
-fn open_leaves(parsed: &ParsedPlan) -> Vec<OpenItem> {
+/// 이미 파싱한 플랜에서 미완 리프만. `plan_status` 가 「잠긴 플랜의 미완」을
+/// 셀 때 이 함수를 그대로 쓴다 ({#archived-open-items-visibility}) — 문지기와
+/// 보고가 **같은 「미완」 정의**를 봐야 둘이 서로를 반박하지 않는다.
+pub fn open_leaves(parsed: &ParsedPlan) -> Vec<OpenItem> {
     let parents = parsed.parent_ids();
     parsed
         .items
