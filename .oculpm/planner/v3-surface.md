@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: v3-surface
 title: "기둥 2 — 보이는 것이 정직하고 읽힌다 + 브랜치 축 (3.0)"
-status: active
+status: done
 created: 2026-09-04
-updated: 2026-09-04
+updated: 2026-09-07
 owner: claude-code
 ---
 

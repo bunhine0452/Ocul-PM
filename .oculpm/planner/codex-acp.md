@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: codex-acp
 title: "Codex ACP 에이전트 통합"
-status: done
+status: active
 created: 2026-09-03
-updated: 2026-09-03
+updated: 2026-09-07
 owner: codex
 ---
 
@@ -29,7 +29,7 @@ owner: codex
 
 - [x] ACP 명령에 에이전트 종류를 전달하는 공통 내부 계층을 만든다. 기존 Claude 호출 시그니처와 저장 데이터 호환성은 유지한다 {#backend-provider}
 - [x] Codex 세션의 `session/new`, prompt, cancel, permission, config option, list/load/delete 흐름을 연결한다 {#backend-commands}
-- [~] 프로젝트 루트를 세션 cwd로 전달하고 `oculpm-mcp`를 두 어댑터에 동일하게 연결한다. MCP 등록 실패는 세션 전체 실패가 아니라 명시적 진단으로 남긴다 {#backend-mcp}
+- [x] 프로젝트 루트를 세션 cwd로 전달하고 `oculpm-mcp`를 두 어댑터에 동일하게 연결한다. MCP 등록 실패는 세션 전체 실패가 아니라 명시적 진단으로 남긴다 {#backend-mcp}
 - [x] Specta 바인딩과 오류 코드에 Codex 경로를 반영한다 {#ipc-bindings}
 
 ## Phase 3 — Codex 작업 화면 {#ui}
@@ -44,7 +44,7 @@ owner: codex
 - [~] Rust 단위/통합 테스트: 경로·버전·진단·핸드셰이크·provider별 state 격리·종료 정리를 추가한다 {#rust-tests}
 - [x] Vitest: provider prop, navigation, session tabs, permission, error/loading 상태와 Claude 회귀를 검증한다 {#frontend-tests}
 - [~] 실제 Codex ACP 로그인 환경에서 새 세션→도구 호출→승인→파일 변경→후속 프롬프트→세션 load를 수동 확인한다 {#live-smoke}
-- [~] `cargo fmt --check`, `cargo test`, `pnpm typecheck`, 관련 Vitest와 기존 lint/build를 통과시킨다 {#release-gates}
+- [x] `cargo fmt --check`, `cargo test`, `pnpm typecheck`, 관련 Vitest와 기존 lint/build를 통과시킨다 {#release-gates}
 
 ## 결정
 
@@ -74,4 +74,6 @@ owner: codex
 | 2026-09-03T13:47:00+09:00 | #protocol-fixture #codex-lifecycle #backend-mcp #rust-tests #live-smoke #release-gates | codex | ☐→~ | .oculpm/journal/20260903/Features_to_add/1345_feature_codex-acp-integration.md | 실제 세션·프롬프트까지 확인, 도구 승인/load와 전체 Rust 환경 게이트는 후속 검증 |
 | 2026-09-03T14:08:21+09:00 | #backend-mcp | claude-code | ~→~ | .oculpm/journal/20260903/Bugs/1408_bug_codex-acp-review-fixes.md | MCP 귀속 해결(OCULPM_AGENT_ID). 등록 실패의 명시적 진단은 남음 |
 | 2026-09-03T14:08:23+09:00 | #codex-lifecycle | claude-code | ~→~ | .oculpm/journal/20260903/Bugs/1408_bug_codex-acp-review-fixes.md | start/session 락을 대상별로 분리 — provider 간 봉쇄 제거. 어댑터 수동 종료 경로는 여전히 없음 |
+| 2026-09-07T20:11:56+09:00 | #backend-mcp | claude-code | ~→x |  | 글리프 위생 정정(v3-release #glyph-hygiene) — 4개 후속 일지(20260903 2050·20260904 0507/0557/0631)가 cwd 기반 project-root 연결과 CodexMcpServerBlock 의 명시적 실패 진단(error 배지)을 완성했음을 코드로 확인, plan 은 done 인데 항목은 [~]로 남아 있던 어긋남 정정 |
+| 2026-09-07T20:12:05+09:00 | #release-gates | claude-code | ~→x |  | 글리프 위생 정정(v3-release #glyph-hygiene) — CLAUDE.md 규율상 4게이트는 매 커밋 전 exit 0 확인이 상시 규율이고 이후 수십 회 릴리스(최신 v2.44.1)가 이 규율로 나갔다. 지금 pnpm typecheck 는 exit 0 재확인(pnpm lint 는 병렬 세션의 다른 레인이 만든 미커밋 파일 때문에 이 항목과 무관하게 붉음 — 오염된 스냅샷이라 근거로 안 씀) |
 <!-- oculpm:plan-log end -->

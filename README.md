@@ -195,7 +195,7 @@ Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 �
 
 - **테마 갤러리와 링크 설치** — [oculpm.com/themes](https://oculpm.com/themes) 에서 라이트·다크 미리보기를 보고 「앱에서 가져오기」를 누르면 앱이 **확인 창**을 띄우고, 승인해야 실제로 받아옵니다. 가져와도 **지금 쓰는 테마는 그대로**입니다 (갤러리에 한 장 늘 뿐). 테마는 JSON 한 장이라 `landing/themes/` 에 PR 로 기여할 수 있습니다 — 저장소 테스트가 스키마·색 값·본문 대비를 검사합니다.
 - **웹 변경 이력** — [oculpm.com/changelog](https://oculpm.com/changelog). 앱의 **설정 → 업데이트** 탭과 같은 내용이고, 파일 한 장에서 웹·GitHub·앱이 함께 나옵니다.
-- **무엇이 나가고 무엇이 절대 안 나가는가** — [oculpm.com/privacy](https://oculpm.com/privacy). 앱이 여는 연결은 **다섯**뿐입니다 (LLM 요청 · 업데이트 확인 · GitHub 조회 · 임베딩 모델 최초 1회 · Notion 옵인). 사용 통계와 크래시 리포트는 **수집하지 않습니다**.
+- **무엇이 나가고 무엇이 절대 안 나가는가** — [oculpm.com/privacy](https://oculpm.com/privacy). 앱이 여는 연결은 **다섯**뿐입니다 (LLM 요청 · 업데이트 확인 · GitHub 조회 · 임베딩 모델 최초 1회 · Notion 옵인 — 그 인증 교환만 oculpm.com 이 중계하고, 문서 내용은 Notion 으로 직접 갑니다). 사용 통계와 크래시 리포트는 **수집하지 않습니다**.
 - **자동화 2분 가이드** — 위키 [자동화](https://oculpm.com/wiki/automation) 면 (한국어·영어).
 - **플러그인 문서 → 스킬 카탈로그** — 제3자 스킬 25종에 **고정된 커밋**과 원문 링크. 「커밋 고정 사본」이라는 말을 그 자리에서 확인할 수 있습니다.
 

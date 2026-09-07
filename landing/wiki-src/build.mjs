@@ -277,8 +277,46 @@ const STATIC_URLS = [
     priority: "0.9",
     alternates: LANDING_ALTERNATES,
   },
-  { loc: "/keynote", lastmod: "2026-08-16", changefreq: "monthly", priority: "0.8" },
-  { loc: "/plugin", lastmod: "2026-09-02", changefreq: "monthly", priority: "0.7" },
+  {
+    loc: "/keynote",
+    lastmod: "2026-09-07",
+    changefreq: "monthly",
+    priority: "0.8",
+    alternates: [
+      { code: "ko", href: "/keynote" },
+      { code: "en", href: "/en/keynote" },
+    ],
+  },
+  {
+    loc: "/en/keynote",
+    lastmod: "2026-09-07",
+    changefreq: "monthly",
+    priority: "0.7",
+    alternates: [
+      { code: "ko", href: "/keynote" },
+      { code: "en", href: "/en/keynote" },
+    ],
+  },
+  {
+    loc: "/plugin",
+    lastmod: "2026-09-07",
+    changefreq: "monthly",
+    priority: "0.7",
+    alternates: [
+      { code: "ko", href: "/plugin" },
+      { code: "en", href: "/en/plugin" },
+    ],
+  },
+  {
+    loc: "/en/plugin",
+    lastmod: "2026-09-07",
+    changefreq: "monthly",
+    priority: "0.6",
+    alternates: [
+      { code: "ko", href: "/plugin" },
+      { code: "en", href: "/en/plugin" },
+    ],
+  },
   // 릴리스마다 갱신되는 유일한 면 — `changefreq: daily` 는 여기 하나뿐이다.
   // lastmod 는 CHANGELOG.md 의 마지막 커밋 날짜라 손으로 관리하지 않는다.
   { loc: "/changelog", lastmod: changelog.lastmod, changefreq: "daily", priority: "0.8" },

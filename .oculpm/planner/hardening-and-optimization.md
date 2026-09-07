@@ -24,7 +24,7 @@ owner: claude-code
 - [x] aiContext.ts 의 IPC 직렬 루프 — :132 플랜마다 planGet 순차, :195 일지 3건 순차. 메시지 하나에 최대 8왕복이 직렬. Promise.all 로 접는다 {#ai-context-parallel}
 - [x] forEach(async …) 떠 있는 프로미스 — AiPanelScreenV2.tsx:318 · GreenfieldWizard.tsx:222. 뒤쪽은 취소 체크도 없고 cliChecks 스테일 클로저까지 겹친다 {#floating-promises}
 - [ ] 진입 청크 606KB(gzip 207KB) — 빌드가 실제로 chunk-size 경고를 낸다. manualChunks 없음. 나누기 전에 무엇이 들었는지부터 측정 {#entry-chunk}
-- [ ] 워처가 루트 전체 recursive 감시 + 필터는 사후 — perf-baseline M1 이 이미 확정한 자리(체크아웃 1회 = 1,058 이벤트, 드레인 4.3초). 큐는 4096 bounded 로 막혔지만 사전 필터는 아직 {#watcher-prefilter}
+- [x] 워처가 루트 전체 recursive 감시 + 필터는 사후 — perf-baseline M1 이 이미 확정한 자리(체크아웃 1회 = 1,058 이벤트, 드레인 4.3초). 큐는 4096 bounded 로 막혔지만 사전 필터는 아직 {#watcher-prefilter}
 
 ## 기록 {#ledger}
 - [x] docs/optimization/ 최적화 원장 개설 — 앞으로의 최적화는 여기 적는다. docs/README.md 「살아 있는 설계」 표에 등재 {#opt-ledger}
@@ -40,4 +40,5 @@ owner: claude-code
 | 2026-09-07T16:44:43+09:00 | #ai-context-parallel | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/1644_refactor_serial-ipc-and-floating-promises.md | 계획 5→2 · 일지 4→2 직렬 단계. 호출부 합치기는 {#ai-context-callsite} 로 원장에 이월 |
 | 2026-09-07T16:44:50+09:00 | #floating-promises | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/1644_refactor_serial-ipc-and-floating-promises.md | 조각 훅 2개로. ESC 스테일 클로저가 초안을 날리던 진짜 버그도 같이 닫음. eslint 상한 61→50 |
 | 2026-09-07T16:44:56+09:00 | #opt-ledger | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/1644_refactor_serial-ipc-and-floating-promises.md | docs/optimization/00-ledger.md 개설 + docs/README 살아있는설계 표 등재. 기각 6건도 기록 |
+| 2026-09-07T20:27:29+09:00 | #watcher-prefilter | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2027_refactor_lock-scope-and-watcher-prefilter.md | PreFilter 로 gitignore 를 채널 앞으로. 빌드 폭풍 5,000건 → 링에 1건. 이 플랜이 status:done 으로 잘못 닫혀 있어 active 로 되돌림 (csp·entry-chunk 미완) |
 <!-- oculpm:plan-log end -->

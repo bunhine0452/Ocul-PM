@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: skill-invocation-visibility
 title: "이 스킬은 언제 쓰이지 — 발동을 사전에 보이게"
-status: active
+status: done
 created: 2026-09-07
 updated: 2026-09-07
 owner: claude-code
