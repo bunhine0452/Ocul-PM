@@ -23,8 +23,8 @@ use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
     AgentSyncReport, BackfillReport, Difficulty, EntryStatus, FileChangeEvent, IntegrityWarning,
     JournalEntry, JournalEntrySummary, LayerComparison, ManualEntryDraft, OculpmConfig,
-    OculpmInitReport, OculpmIntegrityWarning, OculpmStatus, ReindexReport,
-    Session, WorkdayComparison,
+    OculpmInitReport, OculpmIntegrityWarning, OculpmStatus, ReindexReport, Session,
+    WorkdayComparison,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────

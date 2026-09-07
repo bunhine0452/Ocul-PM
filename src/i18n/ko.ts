@@ -3214,6 +3214,7 @@ export const ko = {
   "term.fontLarger": "글자 크게 (⌘+)",
   "term.fontSizeInput": "글자 크기 (px)",
   "term.fontSizeHint": "글자 크기 {min}~{max}px — 직접 입력하거나 ⌘+/⌘- (⇧⌘0 초기화)",
+  "term.openEditorFailed": "에디터 열기 실패: {error}",
   // 터미널 파일 링크 ⌘클릭 메뉴 (2026-09-07).
   "term.fileRef.menu": "이 파일로 할 일",
   "term.fileRef.inApp": "ocul-pm 편집기에서 열기",

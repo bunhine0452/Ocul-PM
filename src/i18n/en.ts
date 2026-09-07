@@ -3227,6 +3227,7 @@ export const en: Record<keyof typeof ko, string> = {
   "term.fontLarger": "Larger text (⌘+)",
   "term.fontSizeInput": "Font size (px)",
   "term.fontSizeHint": "Font size {min}–{max}px — type a value or use ⌘+/⌘- (⇧⌘0 resets)",
+  "term.openEditorFailed": "Could not open editor: {error}",
   // Terminal file-link ⌘click menu (2026-09-07).
   "term.fileRef.menu": "Open this file with",
   "term.fileRef.inApp": "Open in ocul-pm editor",

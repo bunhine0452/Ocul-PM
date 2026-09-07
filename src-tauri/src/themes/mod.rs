@@ -361,11 +361,7 @@ mod tests {
     fn validate_accepts_downloaded_theme_syntax_colors() {
         // {#code-tokens-theme-schema} — 내려받은 커스텀 테마가 문법 강조 색을
         // 지정해도 더 이상 "theme_token_not_allowed" 로 거부되지 않는다.
-        let out = validate(theme(&[
-            ("--code-kw", "#ff79c6"),
-            ("--code-fg", "#f8f8f2"),
-        ]))
-        .unwrap();
+        let out = validate(theme(&[("--code-kw", "#ff79c6"), ("--code-fg", "#f8f8f2")])).unwrap();
         assert_eq!(out.tokens["--code-kw"], "#ff79c6");
         assert_eq!(out.tokens["--code-fg"], "#f8f8f2");
     }
