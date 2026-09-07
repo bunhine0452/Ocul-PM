@@ -47,6 +47,7 @@ const skillEntry = (dirName: string, name = dirName): SkillEntry => ({
   scope: "project",
   dir_name: dirName,
   name,
+  user_invoked: false,
   description: "",
   keywords: [],
   enabled: true,

@@ -88,6 +88,52 @@
   padding: 20px 32px 72px;
 }
 
+/* `#skill-invocation` — "언제 걸리나" 카드. 발동 배지가 사후를 답하고 이 카드가
+   사전을 답한다. 본문(SKILL.md)보다 먼저 온다: 사용자는 지시문을 읽으러 온 게
+   아니라 "이게 나한테 언제 걸리지" 를 물으러 왔다. */
+.sk-trigger {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+  background: var(--bg-inset);
+}
+.sk-trigger-title {
+  margin-bottom: 6px;
+  font-size: var(--fs-3);
+  font-weight: 700;
+  color: var(--text-2);
+}
+.sk-trigger-how {
+  margin: 0;
+  font-size: var(--fs-5);
+  color: var(--text);
+}
+/* 손이 필요한 상태 — 직접 호출 전용이거나 description 이 비어 있다. */
+.sk-trigger-how.alert {
+  color: var(--warn-text);
+}
+.sk-trigger-when {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: var(--fs-5);
+  color: var(--text);
+}
+.sk-trigger-when li {
+  margin: 2px 0;
+}
+.sk-trigger-note {
+  margin: 8px 0 0;
+  font-size: var(--fs-4);
+  color: var(--text-3);
+}
+.sk-trigger-kw {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+}
+
 /* frontmatter 접이식 원문. */
 .sk-fm {
   margin-bottom: 16px;

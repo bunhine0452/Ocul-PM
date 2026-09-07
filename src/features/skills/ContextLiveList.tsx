@@ -331,6 +331,15 @@ function Row({
           ) : item.measurable ? (
             <FiringBadge stat={item.firing} measured={measured} days={days} />
           ) : null}
+          {/* `#skill-invocation` — 기본값(자동 발동)에는 배지를 달지 않는다.
+              눈에 띄어야 하는 건 예외뿐이다: 사람이 이름을 쳐야만 뜨는 스킬은
+              "안 걸림" 이 결함이 아니라 정상이라, 그 사실이 없으면 배지가 거짓말을
+              한다. */}
+          {item.skill?.user_invoked ? (
+            <span className="sk-chip" title={t("sk.trigger.chipTitle")}>
+              {t("sk.trigger.chip")}
+            </span>
+          ) : null}
           {item.kind === "rule" && item.pathCount > 0 ? (
             <PathsChip pathCount={item.pathCount} reach={reach} />
           ) : null}

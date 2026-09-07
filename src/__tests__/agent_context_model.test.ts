@@ -50,6 +50,7 @@ const skill = (over: Partial<SkillsOverview["project"][number]> = {}) => ({
   description: "use when reviewing a PR",
   // Phase 5 — 능력 검색이 색인하는 말. 이 픽스처는 안 쓰므로 빈 배열.
   keywords: [] as string[],
+  user_invoked: false,
   enabled: true,
   display_path: ".claude/skills/review-checklist",
   extra_files: 0,

@@ -5947,6 +5947,12 @@ export type SkillEntry = {
 	 *  없으면 빈 배열이다 (Osaurus 라운드 Phase 5).
 	 */
 	keywords: string[],
+	/**
+	 *  `disable-model-invocation: true` — 사람이 이름을 쳐야만 뜨는 스킬.
+	 *  에이전트는 스스로 부르지 못하고 다른 스킬도 못 부른다. 목록에서 이 사실이
+	 *  안 보이면 "왜 안 걸리지" 의 답이 영원히 안 나온다 (`#skill-invocation`).
+	 */
+	user_invoked: boolean,
 	enabled: boolean,
 	/**  표시용 경로 — project 는 프로젝트 루트 상대, global 은 `~/…`. */
 	display_path: string,
