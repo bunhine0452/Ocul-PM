@@ -1616,6 +1616,17 @@ export const commands = {
 	firingRescan: (projectId: number) => typedError<FiringScanReport, string>(__TAURI_INVOKE("firing_rescan", { projectId })),
 	/**  최근 `days` 일 창의 발동 통계. 스캔은 하지 않는다 — 순수 조회다. */
 	firingStats: (projectId: number, days: number) => typedError<FiringOverview, string>(__TAURI_INVOKE("firing_stats", { projectId, days })),
+	/**
+	 *  한 항목이 **실제로 불린 순간**의 인용 (`#firing-quotes`).
+	 * 
+	 *  목록의 배지가 "몇 번" 을 말한다면 이건 "어떤 말에" 를 말한다. 스킬 상세가
+	 *  「언제 걸리나」를 답할 때, 스킬 자신이 적은 트리거 문장보다 이쪽이 강하다 —
+	 *  사용자 자신의 프로젝트에서 실제로 일어난 일이기 때문이다.
+	 * 
+	 *  스캔은 하지 않는다. 인용이 없는 발동(시각·프롬프트를 못 읽었거나 계측 이전에
+	 *  걸린 것)은 빠지므로, 빈 목록이 "발동 0회" 를 뜻하지 않는다.
+	 */
+	firingQuotes: (projectId: number, kind: string, key: string, days: number, limit: number) => typedError<FiringQuote[], string>(__TAURI_INVOKE("firing_quotes", { projectId, kind, key, days, limit })),
 	/**  지금 이 프로젝트의 협업 상태 (읽기 전용). */
 	a2aOverview: (projectId: number) => typedError<A2aOverview, AppError>(__TAURI_INVOKE("a2a_overview", { projectId })),
 	/**
@@ -4067,6 +4078,19 @@ export type FiringOverview = {
 	bytes_per_session: number,
 	/**  마지막 스캔 시각 (unix). None = 한 번도 안 돌았다. */
 	last_scan_at: number | null,
+};
+
+/**
+ *  발동 순간의 인용 1건 (`#firing-quotes`) — "이 스킬은 언제 쓰이지" 에 대한
+ *  가장 강한 답. 산문 설명이 아니라 **이 프로젝트에서 실제로 그것을 부른 말**이다.
+ */
+export type FiringQuote = {
+	/**  발동 workday `YYYYMMDD`. */
+	workday: string,
+	/**  발동 직전 사용자 프롬프트 (redact 통과·길이 상한 적용). */
+	prompt: string,
+	/**  그날 그 세션에서 이 항목이 걸린 횟수. */
+	count: number,
 };
 
 /**  한 번의 증분 스캔 결과. */

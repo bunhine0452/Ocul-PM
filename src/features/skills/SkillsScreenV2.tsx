@@ -53,6 +53,7 @@ import {
   indexFindings,
   dormantSkills,
   indexDormancySignals,
+  indexDormantReasons,
   indexEvidence,
   indexNegations,
   irrelevantBytesPerSession,
@@ -192,6 +193,12 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
     [items, findings, firing.measured, negations],
   );
   const dormancyIndex = useMemo(() => indexDormancySignals(dormancy), [dormancy]);
+  // `#dormant-three-ways` — 제안 인박스가 쓰던 분류를 목록 배지도 쓴다. 존 3 이
+  // 아니라 존 2 에서 이유가 보여야, 제안 카드까지 안 내려가도 답이 나온다.
+  const dormantReasons = useMemo(
+    () => indexDormantReasons(items, dormancyIndex, firing.measured, firing.days),
+    [items, dormancyIndex, firing.measured, firing.days],
+  );
   /** 0회 스킬 전체 — 이유별로 갈린다. 제안은 `genuine` 만 받는다. */
   const dormant = useMemo(
     () => dormantSkills(items, dormancyIndex, firing.measured, firing.days),
@@ -343,6 +350,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
           projectId={projectId}
           item={detail}
           firing={firing}
+          dormantReason={dormantReasons.get(detail.id)}
           onBack={() => setDetail(null)}
           onChanged={() => void loadAll()}
           onDeleted={() => {
@@ -368,6 +376,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
               evidence={evidenceIndex}
               measured={firing.measured}
               days={firing.days}
+              dormantReasons={dormantReasons}
               findings={findings}
               totalFiles={totalFiles}
               missingMemory={missingMemory}

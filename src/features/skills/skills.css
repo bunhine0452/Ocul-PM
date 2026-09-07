@@ -739,6 +739,57 @@
   color: var(--text);
 }
 
+/* `#prompt-simulator` — 존 2 의 두 모드 토글. 검색칸 바로 왼쪽에 붙어, 같은
+   입력이 두 가지 질문에 쓰인다는 것이 보이게 한다. */
+.ctx-mode {
+  margin-left: auto;
+}
+.ctx-mode + .ctx-search {
+  margin-left: 0;
+}
+/* 예측이 무엇을 예측하는지 좁히는 한 줄. 이 문구가 없으면 사용자는 이것을
+   Claude Code 의 스킬 선택으로 읽는다 — 그건 모델의 판단이라 재현할 수 없다. */
+.ctx-sim-note {
+  margin: 0 0 8px;
+  font-size: var(--fs-3);
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+/* `#firing-quotes` — 상세의 「이렇게 불렸습니다」. 트리거 문장(스킬이 스스로
+   적은 말) 아래에 온다: 적은 말보다 실제로 일어난 일이 강하기 때문이다. */
+.sk-trigger-quotes {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sep);
+}
+.sk-trigger-quotes-head {
+  margin-bottom: 4px;
+  font-size: var(--fs-3);
+  font-weight: 700;
+  color: var(--text-2);
+}
+.sk-trigger-quotes ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sk-trigger-quotes li {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: var(--fs-4);
+}
+.sk-trigger-quote-day {
+  flex: none;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.sk-trigger-quote-text {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
 .ctx-rows {
   margin: 0;
   padding: 0;

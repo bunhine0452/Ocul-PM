@@ -289,6 +289,7 @@ use crate::commands::{
     docs_tree,
     drop_tear_off,
     eval_signals,
+    firing_quotes,
     firing_rebuild,
     // AD-1 — 발동 원장 (transcript 기반 규칙 주입·스킬 발동 계측)
     firing_rescan,
@@ -865,6 +866,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // AD-1 — 발동 원장
             firing_rescan,
             firing_stats,
+            firing_quotes,
             a2a_overview,
             a2a_decide_task,
             a2a_release_lease,

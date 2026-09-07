@@ -622,9 +622,17 @@ export function cleanupProposals(
  *   처방은 설명 고치기가 아니라 **그 파일을 만드는 것**이다.
  * - `suppressed` — CLAUDE.md 가 "요청할 때만" 이라고 억제해 뒀다. 의도된 침묵이다.
  * - `too-new` — 계측 창보다 새 파일이라 0회를 주장할 근거가 없다.
- * - `genuine` — 위 셋 다 아니다. **여기에만** 트리거 교정을 낸다.
+ * - `user-invoked` — `disable-model-invocation`. 에이전트 사정권 밖이라 0회는
+ *   결함이 아니라 정상이고, description 은 애초에 트리거가 아니다 — 고쳐 써 봐야
+ *   도달률이 1도 안 바뀐다 (플랜 `skill-invocation-visibility` `#dormant-three-ways`).
+ * - `genuine` — 위 넷 다 아니다. **여기에만** 트리거 교정을 낸다.
  */
-export type DormantReason = "precondition-missing" | "suppressed" | "too-new" | "genuine";
+export type DormantReason =
+  | "user-invoked"
+  | "precondition-missing"
+  | "suppressed"
+  | "too-new"
+  | "genuine";
 
 export interface DormantSkill {
   item: ContextItem;
@@ -656,6 +664,12 @@ export function classifyDormantSkill(
   signal: SkillDormancySignal | undefined,
   windowDays: number,
 ): DormantSkill {
+  // 가장 먼저 묻는다. 사람이 이름을 쳐야만 뜨는 스킬에 "설명을 고쳐 쓰세요" 는
+  // 틀린 처방이다 — 그 description 은 에이전트가 읽는 트리거가 아니라 사람이
+  // 읽는 한 줄 요약이고, 무엇을 적든 자동 발동은 일어나지 않는다.
+  if (item.skill?.user_invoked) {
+    return { item, reason: "user-invoked", missingFiles: [] };
+  }
   const missingFiles = signal?.missing_files ?? [];
   if (missingFiles.length > 0) {
     return { item, reason: "precondition-missing", missingFiles };
@@ -692,7 +706,28 @@ export function dormantSkills(
 }
 
 /**
- * 트리거 교정 후보 — 이제 `genuine` 만이다. 나머지 셋은 목록에 배지로 남되
+ * 항목 id → 「왜 0회인가」. 행 배지가 `안 걸림` 한 마디로 뭉개던 것을 가른다
+ * (`#dormant-three-ways`).
+ *
+ * 뭉개면 배지가 세 가지 서로 다른 사실을 같은 말로 부른다: 방금 설치한 것 ·
+ * 이 프로젝트엔 애초에 해당 없는 것 · **걸릴 만한데 안 걸린 것**. 셋 중 마지막
+ * 하나만이 사용자가 손댈 자리인데, 뭉쳐 있으면 그게 안 보인다.
+ */
+export function indexDormantReasons(
+  items: ContextItem[],
+  signals: Map<string, SkillDormancySignal>,
+  measured: boolean,
+  windowDays: number,
+): Map<string, DormantReason> {
+  const map = new Map<string, DormantReason>();
+  for (const d of dormantSkills(items, signals, measured, windowDays)) {
+    map.set(d.item.id, d.reason);
+  }
+  return map;
+}
+
+/**
+ * 트리거 교정 후보 — 이제 `genuine` 만이다. 나머지 넷은 목록에 배지로 남되
  * "설명 고쳐 쓰기" 를 권하지 않는다.
  */
 export function triggerProposals(
