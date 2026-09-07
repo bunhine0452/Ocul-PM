@@ -446,16 +446,20 @@ export function MenubarSection() {
   } | null>(null);
 
   useEffect(() => {
-    void commands.settingsGetAll().then((res) => {
-      if (res.status !== "ok") return;
-      const m = new Map(res.data);
-      setVals({
-        show: m.get("tray.show_icon") !== "0",
-        keep: m.get("tray.keep_running") === "1",
-        dock: m.get("tray.hide_dock") === "1",
-        notify: m.get("tray.notify_journal") === "1",
-      });
-    });
+    // 조용히 실패하면 `vals` 가 영영 `null` 로 남아 토글 3종이 이유 없이
+    // 비활성으로 보인다 — `toggle()` 과 같은 표면(토스트)으로 말한다.
+    reportRejection(
+      call("settings_get_all", commands.settingsGetAll()).then((data) => {
+        const m = new Map(data);
+        setVals({
+          show: m.get("tray.show_icon") !== "0",
+          keep: m.get("tray.keep_running") === "1",
+          dock: m.get("tray.hide_dock") === "1",
+          notify: m.get("tray.notify_journal") === "1",
+        });
+      }),
+      "op.loadFailed",
+    );
   }, []);
 
   const KEYS = {

@@ -99,8 +99,12 @@ export function HonestyAudit({ projectId, workday, enabled, onNavigate }: Honest
       />
     );
   }
-  if (loading || rows.length === 0) return null;
+  if (loading) return null;
 
+  // 0건 = "확인된 누락 없음"이지 "기록이 완전함"이 아니다 — 카드는 결과가
+  // 비어도 숨지 않는다 ({#honesty-audit-unhide}, JournalMissingCard 의
+  // {#card-unhide} 와 같은 선). 테두리·숫자에서 경고색만 빼고 카드는 남긴다.
+  const clean = rows.length === 0;
   const totalMissed = rows.reduce((n, r) => n + r.unrecorded.length, 0);
 
   return (
@@ -110,7 +114,9 @@ export function HonestyAudit({ projectId, workday, enabled, onNavigate }: Honest
         padding: "14px 16px",
         borderRadius: 12,
         background: "var(--surface-2, rgba(0,0,0,0.02))",
-        border: "1px solid color-mix(in srgb, var(--warn) 25%, transparent)",
+        border: clean
+          ? "1px solid var(--border-card)"
+          : "1px solid color-mix(in srgb, var(--warn) 25%, transparent)",
       }}
     >
       <div
@@ -126,80 +132,88 @@ export function HonestyAudit({ projectId, workday, enabled, onNavigate }: Honest
           style={{
             fontSize: 12,
             fontWeight: 700,
-            color: "var(--warn)",
+            color: clean ? "var(--text-3)" : "var(--warn)",
           }}
         >
           {t("today.honesty.unlogged", { n: totalMissed })}
         </span>
       </div>
-      <div style={{ fontSize: 12, color: "var(--text-2)", marginBottom: 10 }}>
-          {t("today.honesty.desc")}
-      </div>
-      {rows.map((r) => (
-        <div key={r.session_id} style={{ marginBottom: 10 }}>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: SEV_COLOR[r.unrecorded_severity] ?? "var(--text-2)",
-              marginBottom: 2,
-            }}
-          >
-            {t("today.honesty.session")} {r.session_id} · {SEV_LABEL[r.unrecorded_severity] ? t(SEV_LABEL[r.unrecorded_severity]) : r.unrecorded_severity} ·{" "}
-            {t("today.honesty.count", { n: r.unrecorded.length })}
-          </div>
-          <ul
-            style={{
-              margin: 0,
-              paddingLeft: 16,
-              fontSize: 12,
-              color: "var(--text-2)",
-            }}
-          >
-            {r.unrecorded.slice(0, 12).map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-            {r.unrecorded.length > 12 ? (
-              <li style={{ color: "var(--text-3)" }}>
-                {t("today.honesty.more", { n: r.unrecorded.length - 12 })}
-              </li>
-            ) : null}
-          </ul>
-          {/* 문제를 보여 줬으면 그 자리에서 할 수 있는 일을 놓는다
-              (v3-surface {#honesty-actions}). 셋 다 **무료 경로**다 — 작성기
-              씨앗·클립보드·화면 이동. LLM 을 켜라는 제안은 여기 없다. */}
-          <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              className="btn sm"
-              onClick={() =>
-                requestManualEntry({
-                  title: t("today.honesty.seedTitle", { session: r.session_id }),
-                  body: seedBody(r),
-                })
-              }
-            >
-              {t("today.honesty.write")}
-            </button>
-            <button
-              type="button"
-              className="btn sm"
-              onClick={() => {
-                void navigator.clipboard
-                  ?.writeText(r.unrecorded.join("\n"))
-                  .then(() => toast.info(t("today.honesty.copied", { n: r.unrecorded.length })));
-              }}
-            >
-              {t("today.honesty.copyPaths")}
-            </button>
-            {onNavigate ? (
-              <button type="button" className="btn sm" onClick={() => onNavigate("diff")}>
-                {t("today.honesty.review")}
-              </button>
-            ) : null}
-          </div>
+      {clean ? (
+        <div style={{ fontSize: 12, color: "var(--text-3)", lineHeight: 1.6 }}>
+          {t("today.honesty.zeroNote")}
         </div>
-      ))}
+      ) : (
+        <>
+          <div style={{ fontSize: 12, color: "var(--text-2)", marginBottom: 10 }}>
+            {t("today.honesty.desc")}
+          </div>
+          {rows.map((r) => (
+            <div key={r.session_id} style={{ marginBottom: 10 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: SEV_COLOR[r.unrecorded_severity] ?? "var(--text-2)",
+                  marginBottom: 2,
+                }}
+              >
+                {t("today.honesty.session")} {r.session_id} · {SEV_LABEL[r.unrecorded_severity] ? t(SEV_LABEL[r.unrecorded_severity]) : r.unrecorded_severity} ·{" "}
+                {t("today.honesty.count", { n: r.unrecorded.length })}
+              </div>
+              <ul
+                style={{
+                  margin: 0,
+                  paddingLeft: 16,
+                  fontSize: 12,
+                  color: "var(--text-2)",
+                }}
+              >
+                {r.unrecorded.slice(0, 12).map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+                {r.unrecorded.length > 12 ? (
+                  <li style={{ color: "var(--text-3)" }}>
+                    {t("today.honesty.more", { n: r.unrecorded.length - 12 })}
+                  </li>
+                ) : null}
+              </ul>
+              {/* 문제를 보여 줬으면 그 자리에서 할 수 있는 일을 놓는다
+                  (v3-surface {#honesty-actions}). 셋 다 **무료 경로**다 — 작성기
+                  씨앗·클립보드·화면 이동. LLM 을 켜라는 제안은 여기 없다. */}
+              <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() =>
+                    requestManualEntry({
+                      title: t("today.honesty.seedTitle", { session: r.session_id }),
+                      body: seedBody(r),
+                    })
+                  }
+                >
+                  {t("today.honesty.write")}
+                </button>
+                <button
+                  type="button"
+                  className="btn sm"
+                  onClick={() => {
+                    void navigator.clipboard
+                      ?.writeText(r.unrecorded.join("\n"))
+                      .then(() => toast.info(t("today.honesty.copied", { n: r.unrecorded.length })));
+                  }}
+                >
+                  {t("today.honesty.copyPaths")}
+                </button>
+                {onNavigate ? (
+                  <button type="button" className="btn sm" onClick={() => onNavigate("diff")}>
+                    {t("today.honesty.review")}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
     </section>
   );
 }

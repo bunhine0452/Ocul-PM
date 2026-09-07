@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useSaveSetting } from "@/features/settings/saveSetting";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -20,7 +21,8 @@ function familyNow(): "light" | "dark" {
 }
 
 export function useTheme() {
-  const { settings, set } = useSettings();
+  const { settings } = useSettings();
+  const saveSetting = useSaveSetting();
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(familyNow);
 
   useEffect(() => {
@@ -35,7 +37,7 @@ export function useTheme() {
   return {
     theme: settings.theme,
     setTheme: (t: Theme) => {
-      void set("theme", t);
+      saveSetting("theme", t);
     },
     resolvedTheme,
   };

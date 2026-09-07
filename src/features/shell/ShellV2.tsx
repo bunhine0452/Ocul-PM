@@ -7,6 +7,7 @@ import { createUnlistenBag, safeUnlistenPromise } from "@/lib/unlisten";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
+import { EmptyState } from "@/components/EmptyState";
 import { useProjectRuntime, useUiPrefs, UI_V2_VIEWS, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
 import { useTheme } from "@/lib/theme";
@@ -522,7 +523,7 @@ export default function ShellV2({
             <Toolbar title={view === "today" ? t("nav.today") : t("nav.journal")} />
             <div className="scroll">
               <div className="page fade-in">
-                <div className="empty-hint">{t("shell.selectProjectFirst")}</div>
+                <EmptyState>{t("shell.selectProjectFirst")}</EmptyState>
               </div>
             </div>
           </>

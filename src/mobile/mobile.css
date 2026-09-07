@@ -26,7 +26,7 @@
   margin-left: 2px;
   padding: 1px 6px;
   border-radius: 6px;
-  font-size: 9px;
+  font-size: var(--fs-0);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--accent-text);
@@ -44,7 +44,7 @@
 .mob-card:active { background: var(--bg-hover); }
 
 .mob-sec-title {
-  font-size: 11px;
+  font-size: var(--fs-3);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -59,7 +59,7 @@
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  font-size: 10.5px;
+  font-size: var(--fs-2);
   font-weight: 650;
   padding: 1px 8px;
   line-height: 1.7;
@@ -139,7 +139,7 @@
 .mob-danger { color: var(--t-bug); }
 
 /* ── 플래너 — 글리프·진행 바 ──────────────────────────────────────── */
-.mob-glyph { font-size: 15px; line-height: 20px; }
+.mob-glyph { font-size: var(--fs-9); line-height: 20px; }
 .mob-glyph.done { color: var(--accent); }
 .mob-glyph.in_progress { color: var(--accent); } /* 데스크톱 STATUS_META 동일 */
 .mob-glyph.todo { color: var(--text-3); }
@@ -157,7 +157,7 @@
 }
 
 /* ── 논의 상태 칩 ─────────────────────────────────────────────────── */
-.mob-status { border-radius: 999px; font-size: 10.5px; font-weight: 650; padding: 1px 8px; }
+.mob-status { border-radius: 999px; font-size: var(--fs-2); font-weight: 650; padding: 1px 8px; }
 .mob-status.open { color: var(--accent-text); background: var(--accent-soft); }
 .mob-status.resolved { color: var(--text-2); background: var(--bg-inset); }
 .mob-status.archived { color: var(--text-3); background: var(--bg-inset); }
@@ -194,14 +194,14 @@
 
 /* ── 마크다운 본문 ────────────────────────────────────────────────── */
 .mob-md h1, .mob-md h2, .mob-md h3 { font-weight: 600; margin: 1em 0 0.4em; color: var(--text); }
-.mob-md h2 { font-size: 15px; }
-.mob-md h3 { font-size: 14px; }
+.mob-md h2 { font-size: var(--fs-9); }
+.mob-md h3 { font-size: var(--fs-8); }
 .mob-md p, .mob-md ul, .mob-md ol { margin: 0.4em 0; }
 .mob-md ul { padding-left: 1.2em; list-style: disc; }
 .mob-md ol { padding-left: 1.2em; list-style: decimal; }
 .mob-md code {
   font-family: "D2Coding", ui-monospace, monospace;
-  font-size: 12px;
+  font-size: var(--fs-5);
   background: var(--bg-inset);
   border-radius: 4px;
   padding: 0 4px;
@@ -214,7 +214,7 @@
   margin: 0.6em 0;
 }
 .mob-md pre code { background: none; padding: 0; }
-.mob-md table { font-size: 12px; border-collapse: collapse; display: block; overflow-x: auto; }
+.mob-md table { font-size: var(--fs-5); border-collapse: collapse; display: block; overflow-x: auto; }
 .mob-md th, .mob-md td { border: 1px solid var(--sep); padding: 3px 8px; }
 .mob-md a { color: var(--accent-text); }
 .mob-md blockquote { border-left: 3px solid var(--sep-strong); padding-left: 10px; color: var(--text-2); }

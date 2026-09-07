@@ -152,34 +152,3 @@
   color: var(--text);
 }
 
-/* docs 폴더 부재 빈 상태. */
-.docs-empty {
-  max-width: 440px;
-  margin: 60px auto 0;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-.docs-empty-ico {
-  color: var(--text-3);
-}
-.docs-empty-title {
-  font-size: 15px;
-  font-weight: 650;
-  color: var(--text);
-}
-.docs-empty-desc {
-  font-size: var(--fs-7);
-  line-height: 1.6;
-  color: var(--text-3);
-  margin: 0;
-}
-.docs-empty-desc code {
-  font-size: var(--fs-5);
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--bg-inset);
-  color: var(--text-2);
-}

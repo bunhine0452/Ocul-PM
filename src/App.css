@@ -142,11 +142,13 @@
     /* 층 — Tailwind 의 `z` 유틸리티는 `--z-index-*` 를 읽는다. tokens.css 의 여덟
        층을 그대로 이어 붙여 `z-modal` · `z-popover` 가 CSS 쪽 `var(--z-modal)` 과
        **같은 숫자**를 쓰게 한다.
-       ⚠️ 아직 호출부는 임의값이다 — 창 최상위 오버레이 다섯이 z-[90] · z-[95] ·
-       z-[100] · z-[110] 을 각자 골라 놓았고(components/CommandPalette ·
-       components/ui/AppDialog · windows/Dialog · windows/SettingsOverlay ·
-       features/onboarding/GreenfieldWizard), 그 다섯은 이 레인의 소유가 아니다.
-       어휘를 먼저 깔아 둔다: 옮기는 쪽은 클래스 이름만 바꾸면 된다. */
+       창 최상위 오버레이 다섯(components/CommandPalette · components/ui/AppDialog ·
+       windows/Dialog · windows/SettingsOverlay · features/onboarding/GreenfieldWizard)
+       은 z-[90]·z-[95]·z-[100]·z-[110] 임의값을 이 어휘로 옮겼다({#z-vocab-adopt}):
+       SettingsOverlay·GreenfieldWizard(90) → z-popover, AppDialog·CommandPalette
+       (95·100) → z-modal, windows/Dialog(110, 관리 시트 위에 항상 떠야 하는
+       이름변경/삭제 확인창) → z-top. 어휘가 3단뿐이라 AppDialog/CommandPalette 는
+       같은 층으로 합쳐졌다 — 동시에 뜨는 경우가 실질적으로 없어 순서 무관. */
     --z-index-sticky: var(--z-sticky);
     --z-index-strip: var(--z-strip);
     --z-index-panel: var(--z-panel);

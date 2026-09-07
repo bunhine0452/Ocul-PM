@@ -2,8 +2,9 @@
    empty.css — 빈 상태 두 밀도 (v3-surface {#empty-state-component}).
 
    `components/EmptyState.tsx` 하나만 이 파일을 쓴다. 예전 `.empty-hint`
-   (primitives.css) 는 아직 chat·sessions·settings 에 남아 있어 그대로 둔다 —
-   그쪽은 다른 레인이 동시에 고치는 중이라 지우면 화면이 벗겨진다.
+   (primitives.css) 는 chat·settings/automation·shell·projects 는 옮겼고
+   branch·today·diff·journal 에 아직 남아 있다 ({#empty-hint-rest} 이월) —
+   그쪽은 이 레인의 소유가 아니라 그대로 둔다.
 
    치수는 `.empty-hint` 와 docs/code 의 리치 빈 상태에서 그대로 가져왔다.
    같은 자리에 같은 크기로 들어가야 옮기는 과정에서 화면이 흔들리지 않는다.

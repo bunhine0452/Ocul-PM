@@ -54,7 +54,7 @@
 .pm-title {
   /* 본문과 같은 서체 — 앱 전체가 한 벌로 간다 (워드마크와 같은 정책). */
   font-family: var(--font);
-  font-size: 17px;
+  font-size: var(--fs-10);
   font-weight: 700;
   letter-spacing: -0.012em;
   color: var(--text);
@@ -282,7 +282,7 @@
   outline-offset: 2px;
 }
 .pm-sortcaret {
-  font-size: 8px;
+  font-size: var(--fs-0);
   color: var(--accent-text);
 }
 
@@ -332,7 +332,7 @@
   border: 0;
   padding: 0;
   background: transparent;
-  font-size: 13.5px;
+  font-size: var(--fs-7);
   font-weight: 650;
   color: var(--text);
   text-align: left;
@@ -407,23 +407,6 @@
 .pm-iconbtn--danger:hover {
   color: var(--t-bug);
   background: var(--t-bug-soft);
-}
-
-/* ── 빈 상태 ────────────────────────────────────────────────────────── */
-
-.pm-empty {
-  padding: 44px 22px;
-  text-align: center;
-}
-.pm-empty-title {
-  font-size: var(--fs-7);
-  font-weight: 650;
-  color: var(--text-2);
-}
-.pm-empty-sub {
-  margin-top: 4px;
-  font-size: var(--fs-4);
-  color: var(--text-3);
 }
 
 /* ── 하단 바 (선택 · 일괄 제거 확인) ────────────────────────────────── */

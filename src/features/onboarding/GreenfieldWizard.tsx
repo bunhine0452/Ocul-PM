@@ -426,7 +426,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
   return (
     <div
       data-home-overlay
-      className="scrim z-[90] flex items-center justify-center p-6"
+      className="scrim z-popover flex items-center justify-center p-6"
       onClick={(e) => {
         if (e.target === e.currentTarget) handleClose();
       }}

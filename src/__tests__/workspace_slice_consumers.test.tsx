@@ -91,8 +91,8 @@ const tab = (id: string): TerminalTab => ({ id, label: id, shell: "zsh", cwd: "/
 
 // ── 1. 조각의 격리 ─────────────────────────────────────────────────────────
 
-describe("workspace slice isolation", () => {
-  it("each slice wakes only in its own direction; the merged surface wakes in all four", async () => {
+describe("워크스페이스 조각 격리", () => {
+  it("각 조각은 자기 방향에서만 깨어난다 — 합친 겉면은 네 방향 모두에서 깨어난다", async () => {
     const n = { full: 0, prefs: 0, runtime: 0, terminal: 0 };
     const Full = () => (useWorkspace(), n.full++, null);
     const Prefs = () => (useUiPrefs(), n.prefs++, null);
@@ -161,7 +161,7 @@ describe("workspace slice isolation", () => {
 
 // ── 2. 실제 소비자 — 터미널 도크 ───────────────────────────────────────────
 
-describe("the terminal dock does not subscribe to the session slice", () => {
+describe("터미널 도크는 세션 조각을 구독하지 않는다", () => {
   const mountDock = async () => {
     dock.renders = 0;
     let sessions: ReturnType<typeof useTerminalSessions> | null = null;
@@ -178,7 +178,7 @@ describe("the terminal dock does not subscribe to the session slice", () => {
     return { sessions: sessions!, prefs: prefs! };
   };
 
-  it("opening and selecting terminal tabs does not re-render the dock", async () => {
+  it("터미널 탭을 열고 고르는 것으로는 도크가 다시 그려지지 않는다", async () => {
     const { sessions } = await mountDock();
     const before = dock.renders;
     expect(before).toBeGreaterThan(0); // 마운트는 세어졌다 — 프로브가 살아 있다
@@ -190,7 +190,7 @@ describe("the terminal dock does not subscribe to the session slice", () => {
     expect(dock.renders - before).toBe(0);
   });
 
-  it("still re-renders when its own slice (the dock position) changes", async () => {
+  it("자기 조각(도크 위치)이 바뀌면 그래도 다시 그려진다", async () => {
     const { prefs } = await mountDock();
     const before = dock.renders;
     await act(async () => prefs.setPrefs(() => ({ terminalDockPos: "right" })));
@@ -200,19 +200,19 @@ describe("the terminal dock does not subscribe to the session slice", () => {
 
 // ── 3. 나머지 둘 — 합친 겉면으로 돌아가지 않는다 ───────────────────────────
 
-describe("always-mounted consumers do not use the merged surface", () => {
+describe("상시 마운트 소비자는 합친 겉면을 쓰지 않는다", () => {
   const ALWAYS_MOUNTED = [
     "src/features/shell/ShellV2.tsx",
     "src/windows/ProjectTab.tsx",
     "src/features/terminal/TerminalDock.tsx",
   ];
 
-  it.each(ALWAYS_MOUNTED)("%s does not call useWorkspace()", (rel) => {
+  it.each(ALWAYS_MOUNTED)("%s 는 useWorkspace() 를 부르지 않는다", (rel) => {
     // 주석의 언급(왜 옮겼는지)은 남겨 두므로 **호출**만 찾는다.
     expect(source(rel)).not.toMatch(/(?<!\/\/.*)\buseWorkspace\(\)/);
   });
 
-  it.each(ALWAYS_MOUNTED)("%s does not write whole-state directly (setState)", (rel) => {
+  it.each(ALWAYS_MOUNTED)("%s 는 전체 상태를 직접(setState) 쓰지 않는다", (rel) => {
     // `setState((prev) => ({ ...prev, … }))` 는 조각을 우회해 전체 객체를 새로
     // 만든다 — 네 조각이 전부 새 참조를 받아 격리가 무의미해진다.
     expect(source(rel)).not.toMatch(/\bsetState\(/);

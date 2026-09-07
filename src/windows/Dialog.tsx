@@ -18,7 +18,7 @@ export function Dialog({
     // 다이얼로그와 관리 화면을 **동시에** 닫는다. z 는 그 시트보다 위여야 한다.
     <div
       data-app-dialog
-      className="scrim z-[110] flex items-center justify-center p-4"
+      className="scrim z-top flex items-center justify-center p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

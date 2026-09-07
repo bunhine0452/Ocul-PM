@@ -3,6 +3,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { commands, type Conversation } from "@/lib/bindings";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { Plus, Trash2, MessageSquare } from "@/components/Icons";
+import { EmptyState } from "@/components/EmptyState";
 import { toast } from "@/lib/toast";
 // 모듈 getLang() 은 순수 헬퍼 relTime 용, useT() 는 컴포넌트 용.
 import { getLang, useT } from "@/i18n";
@@ -109,11 +110,9 @@ export function ConversationHistoryModal({
         </div>
 
         {convs == null ? (
-          <div className="empty-hint" style={{ padding: "24px 8px" }}>{t("chat.loading")}</div>
+          <EmptyState style={{ padding: "24px 8px" }}>{t("chat.loading")}</EmptyState>
         ) : convs.length === 0 ? (
-          <div className="empty-hint" style={{ padding: "24px 8px" }}>
-            {t("chat.empty")}
-          </div>
+          <EmptyState style={{ padding: "24px 8px" }}>{t("chat.empty")}</EmptyState>
         ) : (
           <div className="conv-list">
             {convs.map((c) => (

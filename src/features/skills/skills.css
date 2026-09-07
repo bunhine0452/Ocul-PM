@@ -57,7 +57,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: var(--fs-9);
   font-weight: 700;
   color: var(--text);
 }
@@ -472,7 +472,7 @@
   flex-wrap: wrap;
   gap: 8px;
   margin: 0 0 10px;
-  font-size: 13.5px;
+  font-size: var(--fs-7);
   font-weight: 700;
   color: var(--text);
 }

@@ -11,6 +11,7 @@
 import { useT } from "@/i18n";
 import type { AutomationRunDto } from "@/lib/bindings";
 import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
+import { EmptyState } from "@/components/EmptyState";
 import { formatAt } from "./automationModel";
 
 /** 상태별 칩 색. 성공/실패만 색을 쓰고 나머지는 중립이다. */
@@ -53,8 +54,8 @@ export function AutomationHistory({
 }) {
   const { t } = useT();
 
-  if (loading) return <p className="empty-hint">{t("common.loading")}</p>;
-  if (runs.length === 0) return <p className="empty-hint">{t("automation.history.empty")}</p>;
+  if (loading) return <EmptyState>{t("common.loading")}</EmptyState>;
+  if (runs.length === 0) return <EmptyState>{t("automation.history.empty")}</EmptyState>;
 
   const openJournal = (path: string) => {
     const detail: OpenEntityDetail = { kind: "journal", id: path };

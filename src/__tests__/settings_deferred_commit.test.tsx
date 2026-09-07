@@ -74,7 +74,7 @@ describe("useDeferredCommit", () => {
     return { seen, previews, api: () => api!, r };
   }
 
-  it("a 20-frame drag writes 0 times and previews 20 — one commit on release", async () => {
+  it("20프레임 드래그는 쓰기 0번 · 미리보기 20번 — 커밋은 놓을 때 한 번", async () => {
     const h = mount();
     for (let i = 0; i < 20; i++) await act(async () => h.api().change(0.7 + i * 0.01));
 
@@ -89,7 +89,7 @@ describe("useDeferredCommit", () => {
     expect(h.seen).toEqual([0.7 + 19 * 0.01]);
   });
 
-  it("the debounce commits once even when the release is never seen", async () => {
+  it("놓는 순간을 못 봐도 디바운스가 한 번은 커밋한다", async () => {
     vi.useFakeTimers();
     try {
       const h = mount(DEFERRED_COMMIT_MS);
@@ -102,7 +102,7 @@ describe("useDeferredCommit", () => {
     }
   });
 
-  it("unmounting mid-drag flushes the last value instead of losing it", async () => {
+  it("드래그 도중 언마운트되면 마지막 값을 잃지 않고 흘려보낸다", async () => {
     const h = mount();
     await act(async () => h.api().change(1.25));
     expect(h.seen).toEqual([]);
@@ -111,7 +111,7 @@ describe("useDeferredCommit", () => {
     expect(h.seen).toEqual([1.25]);
   });
 
-  it("a value chosen in one go (preset button) commits immediately", async () => {
+  it("한 번에 고른 값(프리셋 버튼)은 즉시 커밋된다", async () => {
     const h = mount();
     await act(async () => h.api().commit(1.1));
     expect(h.seen).toEqual([1.1]);
@@ -120,7 +120,7 @@ describe("useDeferredCommit", () => {
 
 // ── 실패를 말한다 ─────────────────────────────────────────────────────────
 
-describe("a rejected settings write", () => {
+describe("거절된 설정 쓰기", () => {
   function Probe() {
     const save = useSaveSetting();
     const { settings } = useSettings();
@@ -129,7 +129,7 @@ describe("a rejected settings write", () => {
     );
   }
 
-  it("stays quiet on success and sends the value through", async () => {
+  it("성공하면 조용히 값을 그대로 흘려보낸다", async () => {
     const r = render(
       <SettingsProvider>
         <Probe />
@@ -142,7 +142,7 @@ describe("a rejected settings write", () => {
     expect(getToasts()).toHaveLength(0);
   });
 
-  it("says so with a toast — the screen used to draw the new value in silence", async () => {
+  it("토스트로 말한다 — 예전엔 화면이 새 값을 조용히 그렸다", async () => {
     backend.fail = true;
     const r = render(
       <SettingsProvider>

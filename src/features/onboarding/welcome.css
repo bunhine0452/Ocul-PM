@@ -145,7 +145,7 @@
 
 .wz-title {
   margin: 0 0 8px;
-  font-size: 26px;
+  font-size: var(--fs-12);
   font-weight: 800;
   letter-spacing: -0.025em;
   line-height: 1.25;

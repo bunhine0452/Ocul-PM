@@ -889,7 +889,7 @@
   box-shadow: 0 0 0 2px var(--accent-ring);
 }
 .effort-label {
-  font-size: 14px;
+  font-size: var(--fs-8);
   font-weight: 660;
   letter-spacing: -0.015em;
   color: var(--text);
@@ -1462,7 +1462,7 @@
 /* 숫자를 크게 — 이 카드에서 사용자가 실제로 찾는 것은 이것 하나다. */
 .usage-row-pct {
   font-family: var(--mono);
-  font-size: 19px;
+  font-size: var(--fs-11);
   font-weight: 600;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -2083,7 +2083,7 @@
   top: auto;
 }
 .acp-layout .user-card-text {
-  font-size: 13.5px;
+  font-size: var(--fs-7);
   line-height: 1.65;
   color: var(--text);
   white-space: pre-wrap;

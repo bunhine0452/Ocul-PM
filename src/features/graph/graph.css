@@ -96,7 +96,7 @@
 .gn.t1 .gn-name { font-size: var(--fs-4); }
 .gn.t2 .gn-name { font-size: var(--fs-5); }
 .gn.t3 .gn-name { font-size: var(--fs-7); }
-.gn.t4 .gn-name { font-size: 14px; }
+.gn.t4 .gn-name { font-size: var(--fs-8); }
 
 /* 글리프 — 폴더는 둥근 사각, 파일은 원. 언어 색을 명시적으로 보여준다. */
 .gn-glyph {
@@ -145,7 +145,7 @@
 }
 .gn-hubtag {
   margin-left: auto;
-  font-size: 8.5px;
+  font-size: var(--fs-0);
   font-weight: 800;
   letter-spacing: 0.05em;
   padding: 0 5px;
@@ -161,7 +161,7 @@
 }
 .gn-chip {
   flex: none;
-  font-size: 9px;
+  font-size: var(--fs-0);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;

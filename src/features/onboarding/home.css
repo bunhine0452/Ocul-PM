@@ -72,7 +72,7 @@
    랜딩" 의 전형이다. 대신 자간을 조여 워드마크다운 밀도를 만든다. */
 .home-wordmark {
   font-family: var(--font);
-  font-size: 14.5px;
+  font-size: var(--fs-8);
   font-weight: 700;
   letter-spacing: -0.015em;
   color: var(--text);
@@ -111,7 +111,7 @@
   min-width: 0;
   border: 0;
   background: transparent;
-  font-size: 17px;
+  font-size: var(--fs-10);
   font-weight: 400;
   letter-spacing: -0.01em;
   color: var(--text);
@@ -204,7 +204,7 @@
   width: 40px;
   height: 40px;
   border-radius: var(--radius-m);
-  font-size: 14px;
+  font-size: var(--fs-8);
 }
 
 /* ── 스트레치 오픈 — 행/타일 전체가 클릭 영역이 되게 ────────────────
@@ -460,7 +460,7 @@
   box-shadow: var(--shadow-card);
 }
 .home-how-head { display: flex; flex-direction: column; gap: 6px; }
-.home-how-title { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+.home-how-title { margin: 0; font-size: var(--fs-11); font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
 .home-how-body { margin: 0; font-size: var(--fs-6); line-height: 1.6; color: var(--text-2); }
 .home-how-body b { color: var(--text); font-weight: 650; }
 .home-how-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -679,7 +679,7 @@
   gap: 1px;
 }
 .hg-name {
-  font-size: 13.5px;
+  font-size: var(--fs-7);
   font-weight: 700;
   /* 큰 글자일수록 자간을 조인다 — 제목이 헐거우면 본문과 위계가 안 선다. */
   letter-spacing: -0.008em;
@@ -725,7 +725,7 @@
    작은 반경이 훨씬 정밀해 보이고, 옆의 숫자·시각과 광학 높이도 맞는다. */
 .hg-chip,
 .hg-lead-chip {
-  font-size: 9.5px;
+  font-size: var(--fs-0);
   font-weight: 650;
   line-height: 14px;
   padding: 0 5px;
@@ -970,7 +970,7 @@
 /* 초안 행의 액션 칸은 레일 폭(168px)을 전제로 최소폭을 잡고 있다 — 바닥
    띠에서는 내용만큼만 차지하게 푼다. */
 .home-foot .home-row > :last-child { min-width: 0; }
-.home-foot .home-mark { width: 20px; height: 20px; border-radius: 5px; font-size: 9px; }
+.home-foot .home-mark { width: 20px; height: 20px; border-radius: 5px; font-size: var(--fs-0); }
 /* 초안 이름은 폭 상한을 갖는다 — 이름이 길면 항목이 그만큼 넓어져 뒤의 명령을
    다음 줄로 밀어내고, 그게 곧 띠 높이(= 프로젝트 격자 높이)의 변동이 된다.
    상한에 걸리면 이름은 말줄임된다 (.home-open 의 truncate). */
