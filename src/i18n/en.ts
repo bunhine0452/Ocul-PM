@@ -3227,7 +3227,13 @@ export const en: Record<keyof typeof ko, string> = {
   "term.fontLarger": "Larger text (⌘+)",
   "term.fontSizeInput": "Font size (px)",
   "term.fontSizeHint": "Font size {min}–{max}px — type a value or use ⌘+/⌘- (⇧⌘0 resets)",
-  "term.openEditorFailed": "Could not open editor: {error}",
+  // Terminal file-link ⌘click menu (2026-09-07).
+  "term.fileRef.menu": "Open this file with",
+  "term.fileRef.inApp": "Open in ocul-pm editor",
+  "term.fileRef.quickLook": "Quick Look",
+  "term.fileRef.reveal": "Reveal in Finder",
+  "term.fileRef.external": "Open in external editor",
+  "term.fileRef.failed": "Could not open: {error}",
   "term.shellOn":
     "Shell integration on — command boundaries, exit codes, and working directory are tracked",
   "term.shellOff":
@@ -3474,6 +3480,10 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.doctor.warnings": "Recent integrity warnings",
   "settings.doctor.warningsEmpty": "No warnings this session.",
   "settings.doctor.clear": "Clear",
+  // v3 {#revive-recovery-cmds} — re-arm the watcher + rebuild the journal cache
+  "settings.doctor.a.restart": "Restart",
+  "settings.doctor.reindexCache": "Rebuild journal cache",
+  "settings.doctor.reindexCacheDone": "Journal cache rebuilt — {inserted} added · {updated} updated · {deleted} removed",
   // ── Source badges (Osaurus round Phase 3) — who made this record
   "source.direct": "By hand",
   "source.agent": "Agent",
@@ -3724,4 +3734,10 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.liveness.silentHint": "The turn is open but nothing has arrived recently — it may be working, or stuck.",
   "sessions.doing": "Doing",
   "sessions.doingIdle": "quiet",
+  "today.ring.capped": "at cap",
+  "today.activity.title": "Right now",
+  "today.activity.open": "Sessions",
+  "today.activity.openAria": "Open the sessions screen",
+  "today.activity.none": "No agent session is attached to this project right now. Start one from the terminal or the Claude Code / Codex screen and it shows up here.",
+  "today.plugin.dismissHint": "Don't show this again",
 };

@@ -44,6 +44,10 @@ pub const LOCAL_ONLY_KEYS: &[&str] = &[
     "last_seen_version",
     // 배경 모델 1회 시드 표식 — 안내 카드가 닫히면 비워진다.
     "core_model_seeded",
+    // 플러그인 설치 카드를 닫았다는 표식 — 그 카드는 **이 기기에** Claude Code
+    // 가 깔려 있는지로 뜬다. 문서가 실어 나르면 아직 설치 안 한 기기에서도
+    // 카드가 숨어 버린다 ({#plugin-card-dismiss}).
+    "plugin_card_dismissed",
     // 프로젝트 id 로 키가 매겨진다 — id 는 머신마다 다르다.
     "project_instructions.",
 ];

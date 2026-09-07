@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { commands, type EntryType, type JournalEntrySummary } from "@/lib/bindings";
+import { oculpmApi } from "@/api/oculpm";
 import { useJournalEvents, useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { getLang } from "@/i18n";
 import { shiftWorkday } from "@/lib/workday";
@@ -37,12 +38,33 @@ export interface NextTask {
   active: boolean;
 }
 
+/**
+ * 오늘 만진 **고유** 파일 수 — 캐시를 끼고 엔트리 상세를 걷는다
+ * (플랜 `v3-release` `{#today-overcount}`).
+ *
+ * `JournalEntrySummary` 가 들고 오는 것은 `files_count`(엔트리 하나가 적은 파일
+ * 수)뿐이라, 그걸 더하면 **파일 터치 횟수**가 된다. 같은 파일을 두 일지가
+ * 건드리면 둘로 세는 것이다. 이 저장소 실측(2026-09-07, 14 워크데이)으로
+ * 0~105% 과대(중앙값 ~50%)였다.
+ *
+ * 제 자리는 백엔드다 — `oculpm_workday_brief` 가 `COUNT(DISTINCT file_path)` 를
+ * 함께 내려주면 IPC 는 그대로 1회다. 그 커맨드는 이 레인의 소유가 아니라
+ * 프런트에서 경로를 모아 센다. 대신 **캐시가 비용을 갚는다**: 키는
+ * `경로|갱신시각` 이라 일지 한 건이 새로 들어오면 그 한 건만 읽는다(브리프는
+ * 일지·플래너 이벤트마다 다시 도는데, 그때 상세를 매번 N회 읽으면 v2 U12 가
+ * 없앤 N+7 왕복이 되살아난다). 맵은 매번 오늘 것만으로 다시 세워 저절로 비운다.
+ */
+function entryCacheKey(projectId: number, entry: JournalEntrySummary): string {
+  return `${projectId}|${entry.relative_path}|${entry.updated_at ?? entry.created_at}`;
+}
+
 export interface TodayBrief {
   /** All of today's entries, newest first (as returned by the backend). */
   today: JournalEntrySummary[];
   /** Yesterday's `done` entries, newest first. */
   yesterdayDone: JournalEntrySummary[];
   changedToday: number;
+  /** 오늘 만진 **고유** 파일 수 (터치 횟수가 아니다 — `entryCacheKey` 주석). */
   filesTouched: number;
   /** Σ lines added across today's entries, counted from the diff sidecars. */
   linesAdded: number;
@@ -117,6 +139,8 @@ export function useTodayBrief(
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => setTick((n) => n + 1), []);
+  /** `경로|갱신시각` → 그 일지가 적은 파일 경로들 (`entryCacheKey` 주석). */
+  const filesByEntry = useRef(new Map<string, string[]>());
 
   // Live refresh when the watcher indexes a journal change for this project
   // (PR-UI 8b follow-up — Today reflects new entries without a remount).
@@ -173,7 +197,36 @@ export function useTodayBrief(
           .map(([id, count]) => ({ id, count }))
           .sort((a, b) => b.count - a.count);
 
-        const filesTouched = today.reduce((s, e) => s + e.files_count, 0);
+        // 고유 파일 수 — 캐시에 없는 엔트리만 상세를 읽는다. 한 건이 실패하면
+        // (파일이 사라졌거나 읽히지 않으면) 그 엔트리는 **빼고** 센다. 모르는
+        // 경로를 `files_count` 로 대신 채우면 고치려던 그 부풀림이 돌아온다.
+        const wanted = new Map<string, JournalEntrySummary>();
+        for (const e of today) wanted.set(entryCacheKey(projectId, e), e);
+        const fetched = await Promise.all(
+          [...wanted].map(async ([key, entry]) => {
+            const hit = filesByEntry.current.get(key);
+            if (hit) return [key, hit] as const;
+            try {
+              const detail = await oculpmApi.getJournalEntry(projectId, entry.relative_path);
+              const paths = (detail?.frontmatter.files_touched ?? []).map((f) => f.path);
+              return [key, paths] as const;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        if (cancelled) return;
+        const nextFiles = new Map<string, string[]>();
+        const distinct = new Set<string>();
+        for (const row of fetched) {
+          if (!row) continue;
+          nextFiles.set(row[0], row[1]);
+          for (const p of row[1]) distinct.add(p);
+        }
+        // 오늘 것만 남기고 다시 세운다 — 날이 바뀌면 옛 키가 저절로 빠진다.
+        filesByEntry.current = nextFiles;
+
+        const filesTouched = distinct.size;
         const errorCycles = today.filter((e) => e.type === "error").length;
         const highlights = rankHighlights(today);
 

@@ -1,4 +1,5 @@
 import { Cpu, X } from "@/components/Icons";
+import { EmptyState } from "@/components/EmptyState";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
 import { useT } from "@/i18n";
 import { openSettings } from "@/lib/settingsNav";
@@ -31,9 +32,9 @@ export function CoreModelSeededCard() {
           <X size={13} />
         </button>
       </div>
-      <p className="empty-hint" style={{ margin: "6px 0 0" }}>
+      <EmptyState style={{ margin: "6px 0 0" }}>
         {t("today.coreModelSeeded.body", { value: seeded })}
-      </p>
+      </EmptyState>
       <div className="first-run-actions">
         <button
           className="btn sm"

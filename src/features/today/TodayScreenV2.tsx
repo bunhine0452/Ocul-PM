@@ -40,6 +40,7 @@ import { PlanUpdates } from "./PlanUpdates";
 import { TodaySuggestions } from "./TodaySuggestions";
 import { DiscussionPending } from "./DiscussionPending";
 import { TodayMonitor } from "./TodayMonitor";
+import { TodayActivity } from "./TodayActivity";
 import { TodayGitGraph } from "./TodayGitGraph";
 import { useTodayBrief } from "./useTodayBrief";
 import { useTodayMonitor } from "./useTodayMonitor";
@@ -298,6 +299,11 @@ export function TodayScreenV2({
 
           {/* 모니터링 행 — 활동시간 · 전체 작업 일지 · 오늘 커밋 · 미커밋 변경 */}
           {oculpmReady ? <TodayMonitor monitor={monitor} /> : null}
+
+          {/* 지금 무엇을 하고 있는가 ({#today-activity-row}). 바로 위 행이
+              말하는 「활동 시간」은 지난 일의 합이라, 그 옆에 지금을 놓는다. */}
+          <TodayActivity projectId={projectId} enabled={oculpmReady} onNavigate={onNavigate} />
+
 
           {/* 빠른 터미널 — Today 에서 바로 에이전트 실행 (opt-in) */}
           <TodayTerminal

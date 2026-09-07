@@ -45,9 +45,13 @@ function summary(over: Partial<Record<string, unknown>> = {}) {
 }
 
 // Mutable fixtures the mock reads, so each test can stage its own data.
+// `filesByEntry` 는 일지 하나가 적은 파일 경로들 — Today 의 「변경된 파일」이
+// **고유 파일 수**로 바뀌면서(v3-release {#today-overcount}) 겹침을 세우는
+// 자료가 필요해졌다. 안 세운 엔트리는 기본 두 경로를 쓴다.
 const fixtures: {
   byWorkday: Record<string, ReturnType<typeof summary>[]>;
-} = { byWorkday: {} };
+  filesByEntry: Record<string, string[]>;
+} = { byWorkday: {}, filesByEntry: {} };
 
 vi.mock("@/api/oculpm", () => ({
   OculpmApiError: class extends Error {},
@@ -63,10 +67,13 @@ vi.mock("@/api/oculpm", () => ({
       Promise.resolve({
         relative_path: relPath,
         frontmatter: {
-          files_touched: [
-            { path: "a.ts", op: "update", bytes_added: 10, bytes_removed: 3, rename_from: null },
-            { path: "b.ts", op: "create", bytes_added: 5, bytes_removed: 0, rename_from: null },
-          ],
+          files_touched: (fixtures.filesByEntry[relPath] ?? ["a.ts", "b.ts"]).map((path) => ({
+            path,
+            op: "update",
+            bytes_added: 10,
+            bytes_removed: 3,
+            rename_from: null,
+          })),
         },
       }),
     // code-search round — useTodayMonitor reads sessions for active-time.
@@ -217,6 +224,7 @@ function statValue(container: HTMLElement, label: string): string {
 
 afterEach(() => {
   cleanup();
+  fixtures.filesByEntry = {};
   nextFx.plans = [];
   nextFx.items = {};
 });
@@ -228,13 +236,22 @@ describe("PR-UI 2 — Today stat aggregation", () => {
       summary({ relative_path: "b", type: "error", agent_id: "cursor", files_count: 3 }),
       summary({ relative_path: "c", type: "chore", agent_id: "claude-code", files_count: 1 }),
     ];
+    // 세 일지가 같은 파일을 겹쳐 만졌다: Σ files_count = 6 이지만 고유 파일은 4.
+    fixtures.filesByEntry = {
+      a: ["x.ts", "y.ts"],
+      b: ["y.ts", "z.ts", "w.ts"],
+      c: ["x.ts"],
+    };
     const { container, findByText } = renderToday();
 
     // Hero count appears once the brief resolves.
     await findByText(/3건/);
 
     expect(statValue(container, "기록된 작업")).toBe("3건"); // entries
-    expect(statValue(container, "변경된 파일")).toBe("6개"); // 2+3+1
+    // v3-release {#today-overcount} — 여기가 6개였다. 파일 **터치 횟수**를
+    // 세면 같은 파일을 여러 일지가 건드릴 때마다 부풀고, 이 저장소 실측으로
+    // 최대 105%(중앙값 ~50%) 과대였다.
+    await waitFor(() => expect(statValue(container, "변경된 파일")).toBe("4개"));
     expect(statValue(container, "에러 사이클")).toBe("1회"); // one error
     expect(statValue(container, "참여 에이전트")).toBe("2개"); // claude-code, cursor
   });
