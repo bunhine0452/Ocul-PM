@@ -9,6 +9,8 @@
 //! - [`journal_gate`] — 앱 안 대화의 생존 흔적 + 기록 판정 (셸 훅이 없는 자리)
 //! - [`process`] — 어댑터 프로세스 수명 + 연결 유지 + 이벤트 라우팅
 //! - [`recording`] — 대화의 기록 신원(ACP UUID ↔ ocul-pm) + 기록 도구 부착 결과
+//! - [`segments`] — 이 프로세스가 연 세그먼트 등록부 (앱 종료·어댑터 사망 때 닫는다)
+//! - [`session_book`] — 한 어댑터 안의 대화별 설정·제목 장부
 //! - [`session`] — `session/update` → 프런트 이벤트 매핑
 //! - [`turn`] — 대화당 도는 턴 하나 + 어떻게 끝나든 종료 이벤트 (RAII)
 
@@ -22,12 +24,15 @@ pub mod identity;
 pub mod journal_gate;
 pub mod process;
 pub mod recording;
+pub mod segments;
 pub mod session;
+pub mod session_book;
 pub mod turn;
 
 pub use journal_gate::{AcpGateState, AcpObjection};
 pub use process::{AcpAgentInfo, AcpState};
 pub use recording::{AcpRecordingState, AcpRecordingStatus};
+pub use segments::{OpenSegment, OpenSegments};
 pub use session::AcpEvent;
 pub use turn::TurnGuard;
 

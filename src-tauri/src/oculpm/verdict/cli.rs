@@ -10,33 +10,41 @@
 //! 원천이다).
 //!
 //! ```text
-//! oculpm-mcp verdict --root <dir> --conversation <id> [--ledger]
+//! oculpm-mcp verdict --root <dir> --conversation <id> [--transcript <path>] [--ledger]
 //!   exit 0   이의 없음 (기록했거나 기록할 것이 없다)
 //!   exit 10  이의 — stdout 에 에이전트에게 보여줄 전문
 //!   exit 11  판정 불가
 //!   exit 2   사용법 오류
 //! ```
+//!
+//! `--transcript` 는 훅 payload 의 `transcript_path` 다. 그 파일에 **그 대화
+//! 자신의 편집 도구 호출**이 들어 있어, 옆 대화가 살아 있을 때도 우리 몫만
+//! 골라 붙잡을 수 있다 ({#gate-positive-attribution}). 없으면 예전과 같이
+//! 옆 대화가 있는 순간 판정 불가다 — 그러니 **선택**이고, 못 읽어도 무해하다.
 
 use std::path::PathBuf;
 
 use chrono::Utc;
 
-use super::{collect, judge, Verdict};
+use super::{collect_with_transcript, judge, Verdict};
 
 pub fn run(args: &[String]) -> i32 {
     let mut root: Option<PathBuf> = None;
     let mut conversation: Option<String> = None;
+    let mut transcript: Option<PathBuf> = None;
     let mut ledger = false;
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--root" => root = it.next().map(PathBuf::from),
             "--conversation" => conversation = it.next().cloned(),
+            "--transcript" => transcript = it.next().filter(|p| !p.is_empty()).map(PathBuf::from),
             "--ledger" => ledger = true,
             other => {
                 eprintln!(
                     "oculpm-mcp verdict: unknown argument '{other}' \
-                     (usage: verdict --root <dir> --conversation <id> [--ledger])"
+                     (usage: verdict --root <dir> --conversation <id> \
+                     [--transcript <path>] [--ledger])"
                 );
                 return 2;
             }
@@ -52,7 +60,12 @@ pub fn run(args: &[String]) -> i32 {
     }
 
     let now = Utc::now();
-    let verdict = judge(&collect(&root, conversation.trim(), now.timestamp()));
+    let verdict = judge(&collect_with_transcript(
+        &root,
+        conversation.trim(),
+        now.timestamp(),
+        transcript.as_deref(),
+    ));
     if ledger {
         super::ledger::append(&root, conversation.trim(), &verdict, now);
     }

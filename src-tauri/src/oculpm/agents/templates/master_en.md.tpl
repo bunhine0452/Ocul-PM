@@ -1,5 +1,5 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 10 -->
+<!-- template_version: 11 -->
 # ocul-pm work-journal rules
 
 You are working in a project tracked by ocul-pm. Every time you finish **one logical unit of work** (bug fix / feature / refactor / error cycle / chore), record it immediately — do not ask the user first.
@@ -37,6 +37,7 @@ Need an example? Read 1–2 recent entries of the same type — real data is the
 - Never write into `.oculpm/index/**` (app-managed).
 - Never include secrets / API keys / `.env` contents — detected writes are rejected.
 - Never edit an existing journal entry (new file + `related` link) · never bundle two work units in one file.
+- Never hand-edit plan frontmatter — `status:`/`updated:` go through `plan_update`. If you must, don't close a plan while any `[ ]`/`[~]`/`[!]` remains: **move** those into a live plan first (open items in a folded plan are lost).
 
 ## 4. Planner update (right after the journal)
 

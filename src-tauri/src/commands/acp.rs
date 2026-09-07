@@ -273,7 +273,7 @@ async fn ensure_session(
     note_recording(app, target, &probe, &token, Some(opened));
     // 이 대화의 생존 흔적 — Claude Code 훅이 쓰는 것과 **같은 자리·같은 이름**
     // 이라, 같은 워킹트리의 CC 대화가 우리를 용의자로 본다 ({#gate-beyond-cc}).
-    note_opened(&cwd, &token);
+    note_opened(app, target, &cwd, &token);
 
     state.set_session(
         target,
@@ -778,7 +778,7 @@ pub async fn acp_load_session(
     let token = acp::recording::token_for_existing(&app_data, &session_id, provider, &cwd);
     // 재개는 새 세그먼트를 연다 (마커가 아직 있으면 그대로 이어간다 —
     // create-only 계약은 `session-marker.sh` 와 같다).
-    note_opened(&cwd, &token);
+    note_opened(&app, target, &cwd, &token);
     let probe = acp::recording::probe_mcp_binary();
     let loaded = connection
         .send_request(

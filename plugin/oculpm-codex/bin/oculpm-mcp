@@ -1,0 +1,27 @@
+#!/bin/sh
+# oculpm-mcp 셔틀 (#a1-schema-paths) — 설치 위치가 유동적인 실바이너리를 찾아
+# exec 한다. 종전 .mcp.json 은 macOS 절대경로를 하드코딩해 앱을 다른 위치에
+# 설치하면 즉시 깨졌다. 탐색 순서:
+#   1. OCULPM_MCP_BIN 환경변수 (수동 지정)
+#   2. .app 번들 (시스템 / 유저 Applications)
+#   3. ~/.local/bin (수동 설치)
+#   4. 리포 개발 빌드 — `claude --plugin-dir <리포>/plugin/oculpm` 로 리포에서
+#      직접 로드할 때만 존재한다 (마켓플레이스 설치본에는 없는 경로).
+# stdout 은 MCP 프로토콜 전용 — 안내는 전부 stderr 로.
+set -u
+plugin_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+for cand in \
+  "${OCULPM_MCP_BIN:-}" \
+  "/Applications/ocul-pm.app/Contents/MacOS/oculpm-mcp" \
+  "$HOME/Applications/ocul-pm.app/Contents/MacOS/oculpm-mcp" \
+  "$HOME/.local/bin/oculpm-mcp" \
+  "$plugin_root/../../src-tauri/target/debug/oculpm-mcp" \
+  "$plugin_root/../../src-tauri/target/release/oculpm-mcp"
+do
+  if [ -n "$cand" ] && [ -x "$cand" ]; then
+    exec "$cand" "$@"
+  fi
+done
+echo "oculpm-mcp: 실행 파일을 찾지 못했습니다 — ocul-pm 앱을 설치하거나 (https://oculpm.com)" >&2
+echo "OCULPM_MCP_BIN 환경변수로 바이너리 경로를 지정하세요. (플러그인 v1 은 macOS 전용)" >&2
+exit 1

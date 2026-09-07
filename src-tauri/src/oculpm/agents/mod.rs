@@ -858,7 +858,7 @@ mod tests {
             ko <= 4_800,
             "ko 마스터 {ko} chars — 토큰 다이어트 회귀 (상한 4,800)"
         );
-        assert!(en <= 6_100, "en 마스터 {en} chars — 상한 6,100");
+        assert!(en <= 6_320, "en 마스터 {en} chars — 상한 6,320 (6,100 에서 올렸다: {{#guard-manual-edit}} 규칙 231자. 다이어트 회귀가 아니라 의도한 지출 — 손편집으로 미완 남은 plan 을 닫아 항목이 유실된 사고가 3번 났고 코드 가드는 커맨드 경로만 막는다. 다음 인상도 같은 급의 근거를 요구할 것)");
         assert_eq!(
             template_version(MASTER_KO),
             template_version(MASTER_EN),

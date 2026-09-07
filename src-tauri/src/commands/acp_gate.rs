@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 
 use tauri::{AppHandle, Manager, State};
 
-use crate::acp::{self, AcpGateState, AcpObjection};
+use crate::acp::{self, AcpGateState, AcpObjection, AcpState};
 use crate::app_error::AppError;
 
 /// 이 ACP 대화의 **기록 신원**. 원장에 없으면 `None` — 신원을 모르는 채로
@@ -25,12 +25,20 @@ fn identity_of(app: &AppHandle, acp_session_id: &str) -> Option<String> {
     acp::recording::lookup(&app_data, acp_session_id)
 }
 
-/// 세션이 열렸다 — 생존 흔적을 남긴다.
+/// 세션이 열렸다 — 생존 흔적을 남기고 **등록부에 적는다.**
 ///
 /// 여기서 실패해도 대화는 열린다. 흔적이 없으면 판정이 서지 않을 뿐이고, 판정이
 /// 안 서는 것은 "판정 불가"이지 위반이 아니다.
-pub(crate) fn note_opened(root: &Path, conversation: &str) {
+///
+/// 등록부([`acp::segments`])에 적는 이유는 닫는 자리 때문이다. 사용자가 명시적으로
+/// 내리는 길(`acp_stop`·`acp_delete_session`) 말고도 앱 종료·어댑터 사망이 있고,
+/// 그 두 자리에는 대화 목록이 없다 — 우리가 연 것만 적어 두어야 남의 대화 마커를
+/// 함께 쓸어 그쪽이 스스로 눈을 감는 일이 없다 ({#acp-segment-close}).
+pub(crate) fn note_opened(app: &AppHandle, target_id: u64, root: &Path, conversation: &str) {
     acp::journal_gate::opened(root, conversation);
+    app.state::<AcpState>()
+        .segments
+        .remember(target_id, root, conversation);
 }
 
 /// 턴이 끝났다 — 생존 흔적을 갱신하고 판정한다.
@@ -58,6 +66,9 @@ pub(crate) async fn note_closed(app: &AppHandle, root: PathBuf, acp_session_id: 
     let Some(conversation) = identity_of(app, &acp_session_id) else {
         return;
     };
+    // 등록부에서 먼저 뺀다 — 여기서 닫고 있는 대화를 앱 종료가 또 닫으면,
+    // 두 번째는 마커가 없어 "판정 불가" 한 줄을 원장에 덧쓴다.
+    app.state::<AcpState>().segments.forget(&conversation);
     let app = app.clone();
     let outcome = tokio::task::spawn_blocking(move || {
         let state = app.state::<AcpGateState>();

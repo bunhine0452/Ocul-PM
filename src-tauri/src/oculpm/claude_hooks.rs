@@ -41,9 +41,22 @@ pub const HOOK_EVENTS: [&str; 3] = ["SessionStart", "Stop", "SessionEnd"];
 
 /// 훅이 실행할 커맨드 한 줄. 순수 append — 네트워크·외부 실행 없음.
 /// `CLAUDE_PROJECT_DIR` 부재 시 훅 cwd(=프로젝트 루트)로 폴백 (실측 확인).
+///
+/// **`cat >>` 가 아닌 이유** ({#event-ledger-hygiene}): 날 `cat >>` 는 개행을
+/// 안 붙여서, 앞 이벤트가 개행 없이 끝나면 다음 이벤트가 그 줄 꼬리에 달라붙어
+/// **두 이벤트가 한 줄**이 된다. 실제로 이 저장소의 인박스 2,428줄 중 5줄이
+/// 그렇게 깨졌다(이벤트 11개 유실). 플러그인 쪽 `hooks.json` 은 이미 고쳤는데
+/// **앱 설정 토글이 설치하는 이쪽은 같은 버그를 그대로 갖고 있었다** — 문구를
+/// 그쪽과 맞춘다.
+///
+/// 하는 일: ① 추적 프로젝트일 때만 쓴다 ② stdin 을 변수로 받아 `oculpm_ts`
+/// (UTC ISO-8601)를 끼운다 — payload 가 `}`로 끝날 때만이라 JSON 이 아닌 입력은
+/// 원문 그대로 지나간다 ③ `printf '%s\n'` 으로 **개행을 붙여** append.
+/// 비추적 프로젝트에서는 `cat > /dev/null` 로 stdin 만 소비한다(EPIPE 방지).
+/// 끝의 `:` 는 종료코드를 항상 0으로 만든다 — 훅 실패가 대화를 막지 않는다.
 fn hook_command() -> String {
     format!(
-        "mkdir -p \"${{CLAUDE_PROJECT_DIR:-.}}/{HOOKS_DIR_REL}\" && cat >> \"${{CLAUDE_PROJECT_DIR:-.}}/{INBOX_REL}\""
+        "if [ -d \"${{CLAUDE_PROJECT_DIR:-.}}/.oculpm\" ]; then d=\"${{CLAUDE_PROJECT_DIR:-.}}/{HOOKS_DIR_REL}\"; p=$(cat); case \"$p\" in *\\}}) p=\"${{p%\\}}}},\\\"oculpm_ts\\\":\\\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\\\"}}\" ;; esac; if [ -n \"$p\" ]; then mkdir -p \"$d\" && printf '%s\\n' \"$p\" >> \"${{CLAUDE_PROJECT_DIR:-.}}/{INBOX_REL}\"; fi; else cat > /dev/null; fi; :"
     )
 }
 
@@ -523,5 +536,25 @@ mod tests {
         // 재설치가 고친다.
         let st = install(root).unwrap();
         assert!(st.installed && !st.partial);
+    }
+}
+
+#[cfg(test)]
+mod hook_command_tests {
+    use super::hook_command;
+
+    /// {#event-ledger-hygiene} — 앱 토글이 설치하는 커맨드가 **개행을 붙이는가**.
+    /// 이 저장소의 인박스에서 5줄이 붙어 깨진 원인이 정확히 날 `cat >>` 였다.
+    #[test]
+    fn the_installed_command_appends_a_newline_and_never_uses_bare_cat() {
+        let c = hook_command();
+        assert!(c.contains(r"printf '%s\n'"), "개행을 붙여야 한다: {c}");
+        assert!(
+            !c.contains("cat >> "),
+            "날 `cat >>` 는 개행을 안 붙인다: {c}"
+        );
+        assert!(c.contains("oculpm_ts"), "타임스탬프를 실어야 한다: {c}");
+        // 비추적 프로젝트에서 stdin 을 소비해 EPIPE 를 막는다.
+        assert!(c.contains("cat > /dev/null"), "{c}");
     }
 }

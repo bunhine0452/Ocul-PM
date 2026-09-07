@@ -1,5 +1,5 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 10 -->
+<!-- template_version: 11 -->
 # ocul-pm 작업 기록 규칙
 
 당신은 ocul-pm 추적 프로젝트에서 작업 중입니다. **하나의 논리적 작업 단위**(버그 수정 / 기능 / 리팩토링 / 에러 사이클 / 잡일)를 끝낼 때마다 즉시 기록하세요 — 사용자에게 묻지 말 것.
@@ -38,6 +38,7 @@ frontmatter 필수: `schema_version: 1` · `type` · `slug` · `status`(planned|
 - secrets / API key / `.env` 내용 포함 금지 — 감지 시 거부됩니다.
 - 기존 일지 수정 금지 (새 파일 + frontmatter `related` 링크) · 한 파일에 작업 두 개 금지.
 - `git add -A` 금지 (병렬 세션과 인덱스를 공유합니다) — 명시 경로로 stage, add→commit 한 번에.
+- plan frontmatter 를 손으로 고치지 마세요 — `status:`·`updated:` 는 `plan_update` 로만. 직접 고쳐야 하면 미완(`[ ]`·`[~]`·`[!]`)이 남은 plan 을 닫지 말고, 남은 항목을 살아 있는 plan 으로 **옮긴 뒤** 닫으세요 (접힌 plan 의 미완은 유실됩니다).
 
 ## 4. Planner 갱신 (일지 직후)
 

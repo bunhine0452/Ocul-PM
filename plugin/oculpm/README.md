@@ -69,3 +69,14 @@ claude --plugin-dir /path/to/ai-pm/plugin/oculpm
   가 스탬프, `src-tauri/tests/plugin_manifest.rs` 가 강제). `hooks`/`mcpServers` 를
   `plugin.json` 에 선언하지 마세요 — 자동발견(`hooks/hooks.json`·`.mcp.json`)에
   위임하는 것이 신·구 CLI 모두 안전합니다 (같은 테스트가 잠급니다).
+
+## Codex 를 쓴다면
+
+같은 훅 묶음(`hooks/` + `bin/oculpm-mcp`)이 `plugin/oculpm-codex` 에도 **그대로**
+들어 있습니다 (`src-tauri/tests/plugin_manifest.rs` 가 바이트 동일성을 강제).
+Codex 는 마켓플레이스 매니페스트의 `hooks` **필드**는 거부하지만 플러그인 루트의
+`hooks/hooks.json` 은 관례로 읽습니다 — 실측(Codex 0.153.4)으로 설치·실행 양쪽을
+확인했습니다. Claude 판을 대신 깔 필요가 없습니다.
+
+주의: Codex 는 플러그인 훅에 **신뢰**를 한 번 묻습니다. 거절하면 스킬만 동작하고
+세션 마커·배달 게이트는 조용히 멈춥니다 (아무도 그 사실을 보고하지 않습니다).

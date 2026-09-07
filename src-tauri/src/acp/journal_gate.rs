@@ -194,13 +194,37 @@ pub fn turn_ended(
 /// `session-end.sh` 와 같은 순서다: **판정이 먼저**, 그다음 마커 청소. 뒤집으면
 /// 판정이 자기 마커를 못 찾아 늘 판정 불가가 된다.
 pub fn closed(state: &AcpGateState, root: &Path, acp_session_id: &str, conversation: &str) {
+    close_conversation(root, conversation);
+    state.clear(acp_session_id);
+}
+
+/// 세그먼트 하나를 닫는다 — 판정 한 줄을 원장에 남기고 흔적을 거둔다.
+///
+/// [`closed`] 에서 화면 상태(`AcpGateState`)를 뺀 몸통이다. 뺀 이유는 이 일을
+/// **화면이 없는 자리**에서도 해야 하기 때문이다: 앱 종료와 어댑터 사망
+/// ({#acp-segment-close}). 그때 배너를 거둘 대상은 이미 사라지고 없지만, 흔적을
+/// 안 거두면 죽은 대화가 6시간 동안 옆 대화의 게이트를 침묵시킨다.
+pub fn close_conversation(root: &Path, conversation: &str) {
     if !conversation.trim().is_empty() {
         let now = Utc::now();
         let verdict = verdict::judge(&verdict::collect(root, conversation, now.timestamp()));
         verdict::ledger::append(root, conversation, &verdict, now);
     }
     markers::close_segment(root, conversation);
-    state.clear(acp_session_id);
+}
+
+/// 꺼내 온 세그먼트들을 닫는다 (앱 종료 · 어댑터 사망).
+///
+/// 여기서 실패할 수 있는 것은 전부 파일 IO 라 개별로 삼킨다 — 한 프로젝트의
+/// 디스크 오류가 옆 프로젝트의 청소까지 막으면 안 된다.
+pub fn close_open_segments(open: Vec<crate::acp::segments::OpenSegment>) {
+    if open.is_empty() {
+        return;
+    }
+    tracing::info!(count = open.len(), "ACP 세그먼트 정리");
+    for segment in open {
+        close_conversation(&segment.root, &segment.conversation);
+    }
 }
 
 #[cfg(test)]

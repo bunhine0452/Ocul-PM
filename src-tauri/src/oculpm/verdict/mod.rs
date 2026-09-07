@@ -47,8 +47,11 @@ pub mod ledger;
 pub mod markers;
 #[cfg(test)]
 mod tests;
+mod transcript;
 
-pub use collect::{collect, collect_journal_conversations, PEER_LIVE_WINDOW_SECS};
+pub use collect::{
+    collect, collect_journal_conversations, collect_with_transcript, PEER_LIVE_WINDOW_SECS,
+};
 
 use std::collections::BTreeSet;
 
@@ -100,6 +103,17 @@ pub struct VerdictInput {
     pub live_peers: Vec<String>,
     /// 워킹트리의 더티 파일 (`.oculpm` 밖만).
     pub changes: Vec<ChangedFile>,
+    /// **지워진** 더티 파일. mtime 을 물을 자리가 없어 세그먼트 안팎을 가를 수
+    /// 없다 — 그래서 [`changes`](Self::changes) 와 한 통에 담지 않는다
+    /// ({#verdict-deletions}).
+    pub deleted: Vec<String>,
+    /// 이 대화가 **자기 트랜스크립트에 적은** 편집 대상 (git 최상위 기준).
+    ///
+    /// mtime 과 달리 "누가" 를 말하는 1차 출처다. 비어 있으면 근거가 없는
+    /// 것이지 편집이 없었다는 뜻이 아니다 — 셸 훅 밖(앱 안 ACP)이거나,
+    /// `Bash` 로만 고쳤거나, 트랜스크립트를 못 읽었다
+    /// ([`transcript`](self::transcript) 모듈 문서).
+    pub own_edits: BTreeSet<String>,
     /// 최근 일지들 (수집 창은 [`collect`] 가 정한다).
     pub journals: Vec<JournalRecord>,
     /// `sessions.json` 의 작업 세션들. 앱이 안 돌면 비어 있다.
@@ -133,6 +147,10 @@ pub enum RecordBasis {
 pub enum ChangeBasis {
     /// 살아 있는 대화가 우리뿐이라, 세그먼트 시작 이후의 변경은 우리 것이다.
     SoleLiveConversation,
+    /// **이 대화가 자기 입으로 적은 편집.** 옆 대화가 살아 있어도 이건 우리
+    /// 것이다 — 트랜스크립트의 도구 호출은 추론이 아니라 1차 출처다
+    /// ({#gate-positive-attribution}).
+    OwnTranscript,
 }
 
 /// 이의 없음.
@@ -149,10 +167,18 @@ pub enum Clear {
 pub enum Undecided {
     /// 세그먼트 마커가 없다.
     NoSegmentMarker,
-    /// 살아 있는 다른 대화가 있다 — 파일시스템은 누가 고쳤는지 모른다.
+    /// 살아 있는 다른 대화가 있고, **우리 것이라 말할 근거가 없다.**
+    ///
+    /// 트랜스크립트가 있으면 그 대화 자신의 편집만 골라 붙잡을 수 있다
+    /// ({#gate-positive-attribution}) — 여기로 오는 것은 그 근거까지 없을 때다.
     LivePeers { peers: usize },
     /// 워킹트리를 읽지 못했다 (git 부재 등).
     NoWorkingTree,
+    /// **지운 것밖에 없다.** 삭제된 파일은 mtime 을 물을 자리가 없어 세그먼트
+    /// 안팎을 가를 수 없다 — 셸 판정에서 물려받은 한계다. 예전에는 이 자리가
+    /// [`Clear::NothingToRecord`] 였다: 40개를 지운 대화가 "읽기만 했다"로
+    /// 기록됐다는 뜻이다 ({#verdict-deletions}).
+    UntimeableDeletions { deleted: usize },
 }
 
 /// 이의 — 이 대화의 변경이 기록되지 않았다.
@@ -275,22 +301,35 @@ pub fn judge(input: &VerdictInput) -> Verdict {
         .map(|c| c.path.clone())
         .collect();
     if changed.is_empty() {
+        // 지운 것밖에 없으면 **모른다고 말한다.** 삭제는 mtime 이 없어 이
+        // 세그먼트의 일인지 어제의 일인지 가를 수 없는데, 예전에는 그걸
+        // "읽기만 했다"로 접었다 ({#verdict-deletions}).
+        if !input.deleted.is_empty() {
+            return Verdict::Undecided(Undecided::UntimeableDeletions {
+                deleted: input.deleted.len(),
+            });
+        }
         // 읽기만 한 세션은 여기서 끝난다 — 침묵.
         return Verdict::Clear(Clear::NothingToRecord);
     }
+
+    let mut basis = ChangeBasis::SoleLiveConversation;
     if !input.live_peers.is_empty() {
-        // 골든 케이스. mtime 은 "이 창 안에 변경이 있었다"까지만 말하고
-        // "누가" 는 말하지 못한다. 용의자가 둘 이상이면 아무도 붙잡지 않는다.
-        return Verdict::Undecided(Undecided::LivePeers {
-            peers: input.live_peers.len(),
-        });
+        // 옆 대화가 살아 있다. mtime 은 "이 창 안에 변경이 있었다"까지만
+        // 말하고 "누가" 는 말하지 못하므로, **이 대화가 자기 입으로 적은
+        // 편집**만 남긴다 ({#gate-positive-attribution}). 좁히고 나서 남는 것이
+        // 없으면 예전 그대로 아무도 붙잡지 않는다.
+        changed.retain(|path| input.own_edits.contains(path));
+        if changed.is_empty() {
+            return Verdict::Undecided(Undecided::LivePeers {
+                peers: input.live_peers.len(),
+            });
+        }
+        basis = ChangeBasis::OwnTranscript;
     }
     changed.sort();
     changed.dedup();
-    Verdict::Objection(Objection {
-        basis: ChangeBasis::SoleLiveConversation,
-        changed,
-    })
+    Verdict::Objection(Objection { basis, changed })
 }
 
 /// 기록 확인 사다리. 위 칸이 없으면 **다음 칸으로 내려간다** — 없음을
