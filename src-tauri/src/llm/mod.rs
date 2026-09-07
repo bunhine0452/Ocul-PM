@@ -162,10 +162,7 @@ pub(crate) async fn error_body(resp: reqwest::Response) -> String {
     if text.len() <= ERROR_BODY_CAP {
         return text;
     }
-    let mut cut = ERROR_BODY_CAP;
-    while !text.is_char_boundary(cut) {
-        cut -= 1;
-    }
+    let cut = crate::text::floor_char_boundary(&text, ERROR_BODY_CAP);
     format!("{}… (+{} bytes)", &text[..cut], text.len() - cut)
 }
 

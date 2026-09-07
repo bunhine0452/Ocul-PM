@@ -1043,10 +1043,7 @@ pub async fn oculpm_log(level: String, target: String, message: String) {
         )
     });
     let message = if message.len() > LOG_MESSAGE_CAP {
-        let mut cut = LOG_MESSAGE_CAP;
-        while !message.is_char_boundary(cut) {
-            cut -= 1;
-        }
+        let cut = crate::text::floor_char_boundary(&message, LOG_MESSAGE_CAP);
         format!("{}… (+{} bytes)", &message[..cut], message.len() - cut)
     } else {
         message

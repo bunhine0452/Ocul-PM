@@ -252,26 +252,7 @@ async fn collect_signals(db: &Db, project_id: u32, root: &Path) -> Result<Overvi
         .await
         .map_err(|e| e.to_string())?;
 
-    // Manifest text: read in priority order, stop once we've used the budget.
-    let mut manifests_text = String::new();
-    let mut budget = MAX_SIGNAL_BYTES;
-    for manifest in MANIFEST_FILES {
-        if budget == 0 {
-            break;
-        }
-        let path = root.join(manifest);
-        let Ok(content) = fs::read_to_string(&path) else {
-            continue;
-        };
-        let take = content.len().min(budget);
-        manifests_text.push_str(&format!("### {}\n", manifest));
-        manifests_text.push_str(&content[..take]);
-        if take < content.len() {
-            manifests_text.push_str("\n... (truncated)\n");
-        }
-        manifests_text.push_str("\n\n");
-        budget = budget.saturating_sub(take);
-    }
+    let manifests_text = read_manifests(root, MAX_SIGNAL_BYTES);
 
     Ok(OverviewSignals {
         top_level,
@@ -280,6 +261,38 @@ async fn collect_signals(db: &Db, project_id: u32, root: &Path) -> Result<Overvi
         indexed_chunks,
         manifests_text,
     })
+}
+
+/// 매니페스트를 우선순위대로 읽어 `budget` **바이트**까지 이어 붙인다.
+/// 없는 파일은 조용히 건너뛴다 — 대부분의 프로젝트는 두어 개만 갖는다.
+///
+/// `collect_signals` 에서 떼어낸 이유는 하나다: 예산 절단이 한국어 README 에서
+/// 패닉하던 자리라(2026-09-07 감사) **디스크만 있으면 재현되는 회귀 테스트**를
+/// 걸 수 있어야 했다. `collect_signals` 는 `Db` 를 받아 그게 안 된다.
+fn read_manifests(root: &Path, budget: usize) -> String {
+    let mut out = String::new();
+    let mut budget = budget;
+    for manifest in MANIFEST_FILES {
+        if budget == 0 {
+            break;
+        }
+        let Ok(content) = fs::read_to_string(root.join(manifest)) else {
+            continue;
+        };
+        // 예산은 **바이트** 다. 그 오프셋이 UTF-8 문자 중간이면 `&content[..take]`
+        // 가 패닉한다 — 3바이트 문자가 기본인 한국어 README 에서는 대략 2/3
+        // 확률로 그렇다. 이 저장소의 README.md(97KB)는 24,576 번째가 마침 리드
+        // 바이트라 **1바이트 차이로** 비켜가 있었다.
+        let take = crate::text::floor_char_boundary(&content, budget);
+        out.push_str(&format!("### {}\n", manifest));
+        out.push_str(&content[..take]);
+        if take < content.len() {
+            out.push_str("\n... (truncated)\n");
+        }
+        out.push_str("\n\n");
+        budget = budget.saturating_sub(take);
+    }
+    out
 }
 
 fn compute_signature(signals: &OverviewSignals) -> String {
@@ -503,4 +516,50 @@ pub async fn daily_brief(
         focus_goals,
         completed_today,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 회귀 (2026-09-07 감사) — 예산이 UTF-8 문자 **중간**에 떨어지면
+    /// `&content[..take]` 가 패닉했다. 한국어 README 는 3바이트 문자가 기본이라
+    /// 임의의 바이트 예산이 경계일 확률이 1/3 이다. 여기서는 세 잔여값을 전부
+    /// 돌려 어느 위상이든 살아남는지 본다.
+    #[test]
+    fn a_korean_readme_does_not_panic_at_any_budget_phase() {
+        let dir = std::env::temp_dir().join(format!("oculpm-overview-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        // "가" 는 3바이트. 앞에 ASCII 를 0·1·2개 붙여 예산이 문자의 첫·둘째·
+        // 셋째 바이트에 떨어지는 세 경우를 모두 만든다.
+        for pad in 0..3 {
+            let body = format!("{}{}", "x".repeat(pad), "가".repeat(200));
+            std::fs::write(dir.join("README.md"), &body).unwrap();
+
+            let out = read_manifests(&dir, 100);
+            assert!(out.contains("### README.md"), "헤더가 있어야 한다");
+            assert!(out.contains("... (truncated)"), "잘렸다고 말해야 한다");
+            // 본문이 문자 중간에서 끊기지 않았다 — 잘린 조각이 그대로 유효한
+            // UTF-8 이라는 뜻이다 (String 이 살아 있는 것 자체가 증거).
+            assert!(out.len() < body.len(), "예산을 넘겨 담지 않았다");
+        }
+
+        // 예산 안이면 자르지 않는다.
+        std::fs::write(dir.join("README.md"), "짧다").unwrap();
+        let out = read_manifests(&dir, 100);
+        assert!(out.contains("짧다"));
+        assert!(!out.contains("(truncated)"));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn missing_manifests_are_skipped_quietly() {
+        let dir =
+            std::env::temp_dir().join(format!("oculpm-overview-empty-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(read_manifests(&dir, 1024), "");
+        std::fs::remove_dir_all(&dir).ok();
+    }
 }

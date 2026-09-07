@@ -38,6 +38,7 @@ pub mod plugins;
 pub mod ptyhost;
 mod secrets;
 // 테마 파일화 (Osaurus 라운드 Phase 4) — 스키마·검증·앱데이터 저장소
+pub mod text;
 pub mod themes;
 mod tray;
 

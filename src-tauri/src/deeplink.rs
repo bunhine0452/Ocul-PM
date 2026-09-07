@@ -19,6 +19,8 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::Emitter;
 
+use crate::text::percent_decode;
+
 pub const SCHEME: &str = "oculpm";
 /// 테마 파일을 받아올 수 있는 호스트. https 인 것만으로는 부족하다 —
 /// 임의 서버가 우리 앱에 파일을 밀어 넣는 길을 열어 두지 않는다.
@@ -171,26 +173,6 @@ fn parse_query(query: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-/// 최소 퍼센트 디코딩. `+` 는 공백으로 보지 않는다 — 경로에 `+` 가 들어가면
-/// 그대로 `+` 여야 한다.
-fn percent_decode(s: &str) -> String {
-    let bytes = s.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(b) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
-                out.push(b);
-                i += 3;
-                continue;
-            }
-        }
-        out.push(bytes[i]);
-        i += 1;
-    }
-    String::from_utf8_lossy(&out).into_owned()
-}
-
 /// 링크 하나를 프런트로 넘긴다. **여기서 무엇도 실행하지 않는다** — 창을
 /// 앞으로 불러오고 확인 시트를 띄우게 하는 것이 전부다.
 pub fn dispatch(app: &tauri::AppHandle, raw: &str) {
@@ -217,6 +199,36 @@ pub fn dispatch(app: &tauri::AppHandle, raw: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 회귀 (2026-09-07 감사) — 쿼리 디코더가 `%` 뒤의 멀티바이트 문자에서
+    /// 패닉했다. **웹페이지가 링크 한 줄로 유발할 수 있는** 자리였다: 딥링크는
+    /// `on_open_url` 콜백에서 파싱되므로 앱이 떠 있기만 하면 닿는다.
+    ///
+    /// 파싱 결과가 무엇이든 상관없다 — 이 테스트가 지키는 것은 "죽지 않는다"
+    /// 하나다.
+    #[test]
+    fn a_crafted_query_cannot_panic_the_parser() {
+        for raw in [
+            "oculpm://open?project=%한",
+            "oculpm://open?project=%한x&view=journal",
+            "oculpm://open?project=ok&entry=%🙂",
+            "oculpm://skill/install?source=%한/repo",
+            "oculpm://theme/install?url=%",
+            "oculpm://open?%한=%한",
+        ] {
+            let _ = parse(raw);
+        }
+        // 정상 이스케이프는 여전히 풀린다.
+        let link = parse("oculpm://open?project=%2Ftmp%2Fp").unwrap();
+        assert_eq!(
+            link,
+            DeepLink::Open {
+                project: "/tmp/p".into(),
+                view: None,
+                entry: None
+            }
+        );
+    }
 
     #[test]
     fn parses_the_four_documented_routes() {
