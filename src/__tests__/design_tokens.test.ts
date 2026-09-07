@@ -253,7 +253,11 @@ describe("문법 강조 — --code-* 한 팔레트", () => {
     }
   });
 
-  it("문법 토큰은 내장 테마 JSON 에 새지 않는다 — 백엔드 화이트리스트 밖이다", () => {
+  it("문법 토큰은 내장 테마 JSON 의 생성 원본(첫 블록)엔 없다 — 두 번째 블록 전용이다", () => {
+    // {#code-tokens-theme-schema} 이후 --code-* 는 백엔드 화이트리스트 **안**이라
+    // 내려받은 커스텀 테마는 지정할 수 있다. 여기서 안 새는 이유는 화이트리스트가
+    // 아니라 `gen-builtin-themes.mjs` 가 프리셋마다 **첫 블록만** 읽어서다 —
+    // 문법색은 둘째(문법 전용) 블록에만 있으니 내장 5종의 JSON 은 그대로 31개다.
     for (const preset of ["solarized", "sepia", "nord", "dracula", "high-contrast"]) {
       const first = tokens.split(`[data-preset="${preset}"] {`)[1];
       expect(first.slice(0, first.indexOf("}")), preset).not.toContain("--code-");
@@ -297,6 +301,35 @@ describe("Claude 코랄", () => {
     )![1];
     expect(swatch).toBe(token);
     expect(provider).toBe(token);
+  });
+});
+
+// ─── 3.0 {#palette-claude-collision} — 해시 버킷 팔레트가 코랄과 안 겹친다 ───
+//
+// "모르는 에이전트" 색(agentColor.ts 의 PALETTE, 해시 버킷)과 "Claude" 색
+// (coral)은 뜻이 달라서 값을 통일할 수 없다 — 그런데 2026-09-06 까지
+// PALETTE[0](#d97a4f)이 코랄(#d97757)과 RGB 거리 8.5(1% 차이)라 육안으로
+// 구별이 안 됐다. 값 자체가 아니라 "충분히 멀다" 를 숫자로 못박는다.
+describe("agentColor 팔레트 — 코랄과 색이 겹치지 않는다", () => {
+  function rgb(hex: string): [number, number, number] {
+    const h = hex.replace("#", "");
+    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as [number, number, number];
+  }
+  function rgbDistance(a: string, b: string): number {
+    const [ar, ag, ab] = rgb(a);
+    const [br, bg, bb] = rgb(b);
+    return Math.sqrt((ar - br) ** 2 + (ag - bg) ** 2 + (ab - bb) ** 2);
+  }
+
+  const claude = read("styles/tokens.css").match(/--claude:\s*(#[0-9a-f]{6});/)![1];
+  const paletteSrc = read("features/today/agentColor.ts").match(/const PALETTE = \[([^\]]+)\];/)![1];
+  const palette = paletteSrc.match(/#[0-9a-fA-F]{6}/g)!;
+
+  it("해시 버킷 색 여섯 개 전부 코랄과 RGB 거리 20 이상이다", () => {
+    expect(palette.length).toBe(6);
+    for (const hex of palette) {
+      expect(rgbDistance(hex, claude), `${hex} vs 코랄 ${claude}`).toBeGreaterThanOrEqual(20);
+    }
   });
 });
 

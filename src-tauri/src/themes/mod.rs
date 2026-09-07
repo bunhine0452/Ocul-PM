@@ -42,11 +42,18 @@ const MAX_VALUE_LEN: usize = 64;
 /// 이름 길이 상한 (문자 수).
 const MAX_NAME_CHARS: usize = 64;
 
-/// 테마가 칠할 수 있는 토큰 — **다섯 그룹**이고, 편집기 섹션과 1:1 이다.
+/// 테마가 칠할 수 있는 토큰 — **다섯 그룹 + 문법 강조 색 열 개**다.
 ///
 /// 트리거 색(`--t-*`)·diff·터미널 ANSI 는 일부러 뺐다. 그것들은 의미색이라
 /// 가족에서 상속돼야 하고, 편집기에 노출하지 않는 토큰을 임포트로만 칠할 수
 /// 있게 하면 "되돌릴 방법이 없는 색" 이 생긴다.
+///
+/// 다섯 그룹(배경·글자·강조·경계·상태)은 편집기 섹션과 1:1 이다. 마지막의
+/// `--code-*` 열 개(`tokens.css` {#hljs-unify})는 예전엔 이 화이트리스트에
+/// 없어서 프리셋 5종만 문법색을 정할 수 있었다({#code-tokens-theme-schema}) —
+/// 내려받은 커스텀 테마는 지정해도 거부당했다. 편집기 섹션에는 아직 없다
+/// (새 섹션은 프런트 `I18nKey` 가 필요해 이 목록과 분리했다 — `schema.ts` 의
+/// `CODE_TOKENS` 주석 참고); 임포트·적용 경로만 지금 튼다.
 pub const ALLOWED_TOKENS: &[&str] = &[
     // 배경
     "--bg-window",
@@ -84,6 +91,17 @@ pub const ALLOWED_TOKENS: &[&str] = &[
     "--info",
     "--info-text",
     "--info-soft",
+    // 문법 강조 (구문 색) — {#hljs-unify}
+    "--code-fg",
+    "--code-kw",
+    "--code-str",
+    "--code-comment",
+    "--code-num",
+    "--code-fn",
+    "--code-type",
+    "--code-prop",
+    "--code-def",
+    "--code-op",
 ];
 
 /// 테마가 강조를 **소유**했는지 판정할 때 보는 다섯 토큰.
@@ -337,6 +355,19 @@ mod tests {
         ] {
             assert!(!is_color_value(bad), "{bad} must be rejected");
         }
+    }
+
+    #[test]
+    fn validate_accepts_downloaded_theme_syntax_colors() {
+        // {#code-tokens-theme-schema} — 내려받은 커스텀 테마가 문법 강조 색을
+        // 지정해도 더 이상 "theme_token_not_allowed" 로 거부되지 않는다.
+        let out = validate(theme(&[
+            ("--code-kw", "#ff79c6"),
+            ("--code-fg", "#f8f8f2"),
+        ]))
+        .unwrap();
+        assert_eq!(out.tokens["--code-kw"], "#ff79c6");
+        assert_eq!(out.tokens["--code-fg"], "#f8f8f2");
     }
 
     #[test]

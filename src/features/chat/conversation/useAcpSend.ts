@@ -12,7 +12,9 @@ import { useCallback, useEffect, useRef } from "react";
 import type React from "react";
 import { Channel } from "@tauri-apps/api/core";
 
-import { commands, type AcpCommand, type AcpEvent, type AcpImage, type AcpSession } from "@/lib/bindings";
+import type { AcpCommand, AcpEvent, AcpImage, AcpSession } from "@/lib/bindings";
+import { acpApi } from "@/api/acp";
+import { toAppError } from "@/api/invoke";
 // 사전은 **모듈 스토어**에서 바로 읽는다 — 이 훅이 돌려주는 `send` 는 클릭
 // 시점에 불리는 콜백이라 언어가 바뀌어도 다시 만들 이유가 없다. `useT()` 를
 // 쓰면 `t` 가 렌더마다 새 참조가 되어 `send` 가 굳지 못하고, 그 아이덴티티는
@@ -155,12 +157,12 @@ export function useAcpSend({
         setDraft("");
         setSlash(null);
         void (async () => {
-          const res = await commands.acpListSessions(projectId, provider);
-          if (res.status !== "ok") {
-            setError(tError(res.error));
-            return;
-          }
-          const previous = res.data.filter((item) => item.id !== currentSessionId);
+          const listed = await acpApi.listSessions(projectId, provider).catch((e: unknown) => {
+            setError(tError(toAppError(e)));
+            return null;
+          });
+          if (!listed) return;
+          const previous = listed.filter((item) => item.id !== currentSessionId);
           if (!previous.length) {
             setError(t("acp.continueNone"));
             return;
@@ -215,14 +217,22 @@ export function useAcpSend({
         // 세션을 만드는 동안에도 이 자리는 이미 "보내는 중"이다 — 표시가 없으면
         // 사용자가 한 번 더 누른다.
         markBusy(SLATE, true);
-        const opened = await commands.acpNewSession(projectId, provider);
+        // 성공·실패를 한 번에 받아 둔다 — 바쁨 표시를 내리는 순서가 옛 봉투
+        // 분기와 같아야 한다 (내리고 나서 오류를 적는다).
+        let opened: AcpSession | null = null;
+        let openError: unknown = null;
+        try {
+          opened = await acpApi.newSession(projectId, provider);
+        } catch (e) {
+          openError = e;
+        }
         markBusy(SLATE, false);
-        if (opened.status !== "ok") {
-          putError(SLATE, tError(opened.error));
+        if (!opened) {
+          putError(SLATE, tError(toAppError(openError)));
           return;
         }
-        setSession(opened.data);
-        resolved = opened.data.session_id;
+        setSession(opened);
+        resolved = opened.session_id;
         // 빈 자리에 있던 기록은 이제 이 대화의 것이다.
         if (resolved) {
           const id = resolved;
@@ -374,7 +384,7 @@ export function useAcpSend({
       };
 
       try {
-        const res = await commands.acpPrompt(
+        await acpApi.prompt(
           projectId,
           provider,
           into,
@@ -383,7 +393,8 @@ export function useAcpSend({
           sendingBlocks,
           channel,
         );
-        if (res.status === "error") putError(into, tError(res.error));
+      } catch (e) {
+        putError(into, tError(toAppError(e)));
       } finally {
         drain();
         // 커맨드가 끝났으면 턴도 끝났다 — 이후 도착하는 청크는 받지 않는다.

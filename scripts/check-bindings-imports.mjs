@@ -33,6 +33,7 @@ export const ALLOWLIST = new Set([
   "api/codeHistory.ts",
   "api/code.ts",
   "api/acp.ts",
+  "api/fileOpen.ts",
   // 아직 옮기지 않은 직접 호출자 (2026-08-30 기준, 87개). 새로 늘리지 말 것 —
   // 옮기면 여기서 빼고, 목록이 비면 이 주석도 지운다.
   "components/CommandPalette.tsx",
@@ -44,14 +45,6 @@ export const ALLOWLIST = new Set([
   "features/chat/ConversationHistoryModal.tsx",
   "features/chat/aiActions.tsx",
   "features/chat/aiContext.ts",
-  // v3-surface {#acp-split} — `AcpConversation.tsx` 를 2,176줄에서 쪼개며 갈라
-  // 나온 조각들. **직접 호출이 늘어난 것이 아니라** 위 파일이 들고 있던 것이
-  // 그대로 따라온 것이다. 옮길 때는 다섯을 함께 `api/acp.ts` 로 보낸다.
-  "features/chat/conversation/useAcpAdapter.ts",
-  "features/chat/conversation/useAcpSend.ts",
-  "features/chat/conversation/useAcpSessionSync.ts",
-  "features/chat/conversation/useComposerAttachments.ts",
-  "features/chat/conversation/useComposerSuggest.ts",
   "features/code/CodeDebugPanel.tsx",
   "features/code/CodePane.tsx",
   "features/code/CodePreview.tsx",

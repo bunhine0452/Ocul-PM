@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
 import { Toolbar } from "@/components/Toolbar";
+import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { Download, GitBranchIcon } from "@/components/Icons";
@@ -123,10 +124,9 @@ export function BranchScreenV2({
               ) : null}
 
               {empty ? (
-                <div className="empty-hint">
-                  <GitBranchIcon size={18} aria-hidden />
-                  <div style={{ marginTop: 8 }}>{t("branch.empty")}</div>
-                </div>
+                <EmptyState density="rich" icon={GitBranchIcon}>
+                  {t("branch.empty")}
+                </EmptyState>
               ) : null}
 
               {story.entries.length > 0 ? (

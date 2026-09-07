@@ -5,7 +5,7 @@ import { join } from "node:path";
 // @ts-expect-error — 빌드 대상이 아닌 zero-dep 생성 스크립트 (.mjs, 타입 없음).
 import { buildBuiltinThemes } from "../../scripts/gen-builtin-themes.mjs";
 import { BUILTIN_THEMES } from "@/features/theme/builtins";
-import { ALLOWED_TOKENS, ACCENT_TOKENS, ownsAccent, TOKEN_GROUPS } from "@/features/theme/schema";
+import { ALLOWED_TOKENS, ACCENT_TOKENS, CODE_TOKENS, ownsAccent, TOKEN_GROUPS } from "@/features/theme/schema";
 import { applyThemeAttrs, resolveThemeAttrs } from "@/features/theme/apply";
 import { deriveAccentTokens, parseHex } from "@/features/theme/accent";
 import type { ThemeFile } from "@/lib/bindings";
@@ -134,6 +134,33 @@ describe("적용 — 인라인 변수 왕복", () => {
     }));
     expect(root.style.getPropertyValue("--evil")).toBe("");
     expect(root.style.getPropertyValue("--accent")).toBe("#ff7a66");
+  });
+});
+
+describe("문법 강조 색 임포트 — {#code-tokens-theme-schema}", () => {
+  // 예전엔 --code-* 가 화이트리스트에 없어 프리셋 5종만 문법색을 정할 수
+  // 있었다 — 내려받은 커스텀 테마가 지정해도 "theme_token_not_allowed" 로
+  // 거부됐다. 화이트리스트를 넓히는 것만으론 절반이라, 실제로 인라인 변수로
+  // 칠해지는 경로까지 확인한다.
+
+  it("문법 색 열 개가 전부 화이트리스트 안에 있다", () => {
+    for (const token of CODE_TOKENS) expect(ALLOWED_TOKENS).toContain(token);
+  });
+
+  it("내려받은 커스텀 테마의 --code-* 가 인라인 변수로 실제 적용된다", () => {
+    const root = document.createElement("html");
+    applyThemeAttrs(
+      root,
+      resolveThemeAttrs({
+        ...base,
+        themeSetting: "custom:t1",
+        customThemes: [
+          theme({ tokens: { "--code-kw": "#ff79c6", "--code-fg": "#f8f8f2" } }),
+        ],
+      }),
+    );
+    expect(root.style.getPropertyValue("--code-kw")).toBe("#ff79c6");
+    expect(root.style.getPropertyValue("--code-fg")).toBe("#f8f8f2");
   });
 });
 
