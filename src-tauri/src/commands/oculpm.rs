@@ -501,14 +501,16 @@ pub struct WorkdayBrief {
     /// diff 사이드카에서 파생된 값 — 프론트매터 `bytes_*` 가 아니다.
     pub lines_added: u32,
     pub lines_removed: u32,
+    /// 같은 워크데이의 **고유** 파일 수 (미지정 시 0) — 터치 횟수가 아니다.
+    pub files_touched: u32,
     /// 활성 플랜의 미완 항목 (진행중 우선) — Today "다음 할 일" + 스탠드업 공유.
     pub open_plan_items: Vec<crate::db::OpenPlanItem>,
     /// 프로젝트 전체 일지 수 (365일 히트맵 대체 스칼라).
     pub total_entries: u32,
 }
 
-/// v2 U12 — 워크데이 집합의 일지 요약 + 오늘 bytes 합 + 미완 플랜 항목 +
-/// 총 일지 수를 IPC 1회에.
+/// v2 U12 — 워크데이 집합의 일지 요약 + 초점 워크데이(`lines_workday`)의 라인
+/// 증감·고유 파일 수 + 미완 플랜 항목 + 총 일지 수를 IPC 1회에.
 ///
 /// 완성도 라운드 Phase 3 (2026-08-30): 날짜마다 `list_entries` 를 돌리던 것을
 /// `workday IN (…)` 한 번으로 — Today(7일) 17 → 5 왕복, 일지(14일) 30 → 4.
@@ -524,10 +526,7 @@ pub async fn oculpm_workday_brief(
     let cache = crate::oculpm::cache::JournalCache::new(&db);
 
     let wanted: Vec<String> = workdays.into_iter().take(62).collect();
-    let all = cache
-        .list_entries_for_workdays(project_id, &wanted)
-        .await
-        .map_err(AppError::from)?;
+    let all = cache.list_entries_for_workdays(project_id, &wanted).await?;
     let mut buckets: std::collections::HashMap<String, Vec<JournalEntrySummary>> =
         std::collections::HashMap::new();
     for entry in all {
@@ -544,27 +543,26 @@ pub async fn oculpm_workday_brief(
         })
         .collect();
 
-    let (lines_added, lines_removed) = match &lines_workday {
-        Some(wd) => cache
-            .workday_lines(project_id, wd)
-            .await
-            .map_err(AppError::from)?,
-        None => (0, 0),
+    // 초점 워크데이의 스칼라 셋. 고유 파일 수는 `COUNT(DISTINCT file_path)` —
+    // 프런트가 엔트리 상세를 N회 걷어 합집합을 만들던 자리다
+    // (v3-release `{#distinct-files-backend}`).
+    let (lines_added, lines_removed, files_touched) = match &lines_workday {
+        Some(wd) => {
+            let (added, removed) = cache.workday_lines(project_id, wd).await?;
+            let files = cache.count_files_for_workday(project_id, wd).await?;
+            (added, removed, files)
+        }
+        None => (0, 0, 0),
     };
 
-    let open_plan_items = db
-        .list_open_plan_items(project_id, 24)
-        .await
-        .map_err(AppError::from)?;
-    let total_entries = cache
-        .count_entries(project_id)
-        .await
-        .map_err(AppError::from)?;
+    let open_plan_items = db.list_open_plan_items(project_id, 24).await?;
+    let total_entries = cache.count_entries(project_id).await?;
 
     Ok(WorkdayBrief {
         days,
         lines_added,
         lines_removed,
+        files_touched,
         open_plan_items,
         total_entries,
     })

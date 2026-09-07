@@ -5,6 +5,9 @@ import { commands, type AcpSession, type AcpSessionSummary } from "@/lib/binding
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { reportFailure } from "@/lib/reportFailure";
+import { acpApi } from "@/api/acp";
+import { toAppError } from "@/api/invoke";
+import { useConfirm } from "@/hooks/useConfirm";
 import { useEscCancel } from "./useEscCancel";
 import { useUiPrefs, useProjectRuntime, useTerminalSessions } from "@/contexts/WorkspaceContext";
 import { useSessionMaps } from "./conversation/useSessionMaps";
@@ -220,6 +223,41 @@ export function AcpConversation({
     installAdapter,
     setOption,
   } = useAcpAdapter({ projectId, provider, setSession, setError });
+
+  /** 파괴적인 동작이니 확인부터 — 이 저장소가 파괴적 동작에 쓰는 공용 훅. */
+  const { confirm, confirmDialog } = useConfirm();
+
+  /**
+   * 어댑터를 스스로 내린다 (플랜 `v3-release` {#acp-stop-ui}).
+   *
+   * `acp_stop` 은 지난 라운드에 죽은 커맨드 17개 중 유일하게 살려 둔 것이다 —
+   * 부르는 화면이 없었을 뿐, 지우면 떠 있는 어댑터를 내릴 길과 원장 세그먼트를
+   * 닫는 부수효과(`note_closed`)가 함께 사라진다. 이 손잡이가 그 화면이다.
+   *
+   * 하나의 어댑터 프로세스를 이 프로젝트×provider 의 **모든 탭이 나눠 쓴다**
+   * (`acp_start`/`acp_stop` 은 세션이 아니라 project×provider 단위) — 확인
+   * 문구가 그 사실을 먼저 말한다. 성공하면 다음 상태 조회(4초 주기)를 기다리지
+   * 않고 그 자리에서 「종료됨」 배너로 넘긴다 — 죽은 어댑터를 살아 있는 것처럼
+   * 그리는 순간이 있어서는 안 된다. 배너는 기존 `AgentGoneNotice` 를 그대로
+   * 쓴다: 재연결 손잡이가 이미 거기 있다.
+   */
+  const stopAdapter = useCallback(async () => {
+    const ok = await confirm({
+      title: t("acp.stopConfirmTitle"),
+      message: t("acp.stopConfirmBody"),
+      confirmLabel: t("acp.stopAdapter"),
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await acpApi.stop(projectId, provider);
+    } catch (e) {
+      setError(tError(toAppError(e)));
+      return;
+    }
+    aliveRef.current = false;
+    setAgentGone(true);
+  }, [confirm, t, projectId, provider, setError, aliveRef, setAgentGone]);
 
   /** 지금 화면이 그리는 대화의 세대 — 지난 로드의 재생분을 걸러 내는 표. */
   const loadSeqRef = useRef(0);
@@ -591,10 +629,12 @@ export function AcpConversation({
       activeId={activeId}
       slate={SLATE}
       panelOpen={panelOpen}
+      canStop={session != null && !agentGone && !starting}
       onPick={pickSession}
       onClose={closeTab}
       onOpenInTerminal={() => openInTerminal()}
       onTogglePanel={() => setPrefs((prev) => ({ ...prev, acpPanelOpen: !prev.acpPanelOpen }))}
+      onStop={() => void stopAdapter()}
     />
   );
 
@@ -610,6 +650,7 @@ export function AcpConversation({
           onInstall={() => void installAdapter()}
           onRetry={() => void retry()}
         />
+        {confirmDialog}
       </>
     );
   }
@@ -744,6 +785,7 @@ export function AcpConversation({
       />
 
     </div>
+    {confirmDialog}
     </>
   );
 }

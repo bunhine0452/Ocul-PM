@@ -130,6 +130,7 @@ const TESTS = new Set([
   "__tests__/acp_parallel_sessions.test.tsx",
   "__tests__/acp_recording_notice.test.tsx",
   "__tests__/acp_session_id.test.tsx",
+  "__tests__/acp_stop_adapter.test.tsx",
   "__tests__/acp_session_tabs.test.tsx",
   "__tests__/acp_title.test.ts",
   "__tests__/acp_usage_detail.test.ts",

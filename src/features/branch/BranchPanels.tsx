@@ -95,7 +95,16 @@ export function EntriesPanel({
             </button>
             <span
               className="shrink-0 text-xs text-muted-foreground"
-              title={t(e.link === "entry" ? "branch.link.entry.why" : "branch.link.files.why")}
+              title={
+                e.link === "entry"
+                  ? t("branch.link.entry.why")
+                  : // 겹침은 배타적이지 않다 — 같은 파일을 건드린 다른 브랜치에도 이
+                    // 일지가 똑같이 뜬다. 배제할 손잡이는 일부러 안 둔다: 브랜치는
+                    // 리베이스·머지로 움직이는 좌표라 "이 항목 제외" 를 저장해 봐야
+                    // 다음 리베이스에 거짓이 된다 ({#branch-axis-limits}). 대신 이유를
+                    // 매번 밝혀 사용자가 스스로 판단하게 한다.
+                    `${t("branch.link.files.why")} ${t("branch.link.files.overlapHint")}`
+              }
             >
               {t(e.link === "entry" ? "branch.link.entry" : "branch.link.files")}
             </span>

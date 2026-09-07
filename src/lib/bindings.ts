@@ -239,6 +239,12 @@ export const commands = {
 	 *  touch it and AGENTS.md tells external agents the same — so finished plans
 	 *  stay frozen and work moves to a new plan (Planner #1). Returns refreshed
 	 *  detail.
+	 * 
+	 *  미완 항목이 남은 플랜을 `done` 으로 닫는 전이는
+	 *  [`planner::lifecycle::set_plan_status`] 가 거부한다 — 이 커맨드가 그
+	 *  문지기를 지나는 세 자리 중 하나다 (`{#done-transition-guard}`).
+	 * 
+	 *  [`planner::lifecycle::set_plan_status`]: crate::oculpm::planner::lifecycle::set_plan_status
 	 */
 	planSetStatus: (projectId: number, planId: string, status: string) => typedError<{
 	plan: PlanSummary,
@@ -250,7 +256,7 @@ export const commands = {
 	 *  the UI never fails silently on a malformed plan.
 	 */
 	warnings: string[],
-} | null, string>(__TAURI_INVOKE("plan_set_status", { projectId, planId, status })),
+} | null, AppError>(__TAURI_INVOKE("plan_set_status", { projectId, planId, status })),
 	/**
 	 *  Set the same lifecycle status on many plans at once — the rail's "묶어서
 	 *  보관" (Planner 정리 라운드). One lock, N file writes, **one** reprojection:
@@ -261,7 +267,7 @@ export const commands = {
 	 *  disk, and refusing the whole batch over one stale id is worse than archiving
 	 *  the rest. Returns how many files were actually rewritten.
 	 */
-	planSetStatusBulk: (projectId: number, planIds: string[], status: string) => typedError<number, string>(__TAURI_INVOKE("plan_set_status_bulk", { projectId, planIds, status })),
+	planSetStatusBulk: (projectId: number, planIds: string[], status: string) => typedError<number, AppError>(__TAURI_INVOKE("plan_set_status_bulk", { projectId, planIds, status })),
 	/**
 	 *  Rename a plan (frontmatter `title:`). The plan `id` / filename stay the same
 	 *  so item attribution + references keep working. Returns refreshed detail.
@@ -1222,8 +1228,8 @@ export const commands = {
 	 */
 	oculpmSearchEntities: (projectId: number, query: string, limit: number) => typedError<EntityHit[], AppError>(__TAURI_INVOKE("oculpm_search_entities", { projectId, query, limit })),
 	/**
-	 *  v2 U12 — 워크데이 집합의 일지 요약 + 오늘 bytes 합 + 미완 플랜 항목 +
-	 *  총 일지 수를 IPC 1회에.
+	 *  v2 U12 — 워크데이 집합의 일지 요약 + 초점 워크데이(`lines_workday`)의 라인
+	 *  증감·고유 파일 수 + 미완 플랜 항목 + 총 일지 수를 IPC 1회에.
 	 * 
 	 *  완성도 라운드 Phase 3 (2026-08-30): 날짜마다 `list_entries` 를 돌리던 것을
 	 *  `workday IN (…)` 한 번으로 — Today(7일) 17 → 5 왕복, 일지(14일) 30 → 4.
@@ -5128,6 +5134,19 @@ export type OculpmStatus = {
 	 *  (`{#dropped-total-surface}`).
 	 */
 	watcher_dropped_total: number,
+	/**
+	 *  **사용자가 직접** 감시를 멈췄는가 (`{#watcher-user-pause}`).
+	 * 
+	 *  `watcher_state == Stopped` 만으로는 「뜻하지 않게 멈춤」과 「내가 멈춤」이
+	 *  구별되지 않는다 — 앞엣것은 감독관이 60초 안에 되살리고 뒤엣것은 되살리지
+	 *  않으니, 화면이 같은 말을 하면 둘 중 하나는 반드시 거짓말이 된다.
+	 *  상태 봉투에 칸을 하나 더 낸 이유는 `watcher_dropped_total` 과 같다:
+	 *  닥터가 이미 이 봉투를 읽고 있다.
+	 * 
+	 *  **프로세스 메모리에만 산다** — 앱을 다시 켜면 풀린다
+	 *  (`manager::ProjectEntry::user_paused` 주석에 근거).
+	 */
+	watcher_user_paused: boolean,
 };
 
 /**
@@ -6108,6 +6127,8 @@ export type WorkdayBrief = {
 	 */
 	lines_added: number,
 	lines_removed: number,
+	/**  같은 워크데이의 **고유** 파일 수 (미지정 시 0) — 터치 횟수가 아니다. */
+	files_touched: number,
 	/**  활성 플랜의 미완 항목 (진행중 우선) — Today "다음 할 일" + 스탠드업 공유. */
 	open_plan_items: OpenPlanItem[],
 	/**  프로젝트 전체 일지 수 (365일 히트맵 대체 스칼라). */

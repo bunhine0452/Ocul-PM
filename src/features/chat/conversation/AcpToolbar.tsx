@@ -8,6 +8,11 @@
 // 그리려면 상태를 통째로 밖으로 끌어내야 했다.
 
 import { PanelLeft, Terminal, TriangleAlert, X } from "@/components/Icons";
+// `Unplug` 는 아직 `components/Icons.tsx` 재수출 목록에 없다 — 그 파일은 이
+// 작업의 담당 밖이라(다른 레인 소유) 여기서 lucide-react 를 직접 문다. 이미
+// `features/shell/TabStrip.tsx`·`features/tray/TrayPopover.tsx` 에 같은 전례가
+// 있다. 후속으로 Icons.tsx 재수출 목록에 옮기는 편이 컨벤션에 맞다.
+import { Unplug } from "lucide-react";
 import { Toolbar } from "@/components/Toolbar";
 import { useT } from "@/i18n";
 import { AcpSessionTabs } from "../AcpSessionTabs";
@@ -22,10 +27,12 @@ export function AcpToolbar({
   activeId,
   slate,
   panelOpen,
+  canStop,
   onPick,
   onClose,
   onOpenInTerminal,
   onTogglePanel,
+  onStop,
 }: {
   projectId: number;
   provider: "claude" | "codex";
@@ -34,10 +41,14 @@ export function AcpToolbar({
   /** 아직 안 만든 새 대화의 자리 — 이때는 세션 id 칩을 그리지 않는다. */
   slate: string;
   panelOpen: boolean;
+  /** 지금 내릴 어댑터가 떠 있는가 — 아니면 손잡이를 아예 그리지 않는다. */
+  canStop: boolean;
   onPick: (id: string) => void;
   onClose: (id: string) => void;
   onOpenInTerminal: () => void;
   onTogglePanel: () => void;
+  /** 어댑터를 내린다 ({#acp-stop-ui}) — 확인은 호출부(AcpConversation)가 쥔다. */
+  onStop: () => void;
 }) {
   const { t } = useT();
   return (
@@ -79,6 +90,20 @@ export function AcpToolbar({
       >
         <PanelLeft size={15} />
       </button>
+      {/* 어댑터 내리기 — 되돌릴 수는 있지만(다시 연결) 지금 열린 대화를 전부
+          끊는 파괴적인 동작이다. 살아 있을 때만 그린다: 이미 죽은 어댑터에
+          "내리기"를 얹으면 죽은 것을 산 것처럼 보이게 한다. */}
+      {canStop ? (
+        <button
+          type="button"
+          className="btn icon ghost"
+          onClick={onStop}
+          aria-label={t("acp.stopAdapter")}
+          title={t("acp.stopAdapter")}
+        >
+          <Unplug size={15} />
+        </button>
+      ) : null}
     </Toolbar>
   );
 }

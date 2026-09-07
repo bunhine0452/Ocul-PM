@@ -172,6 +172,45 @@ impl<'a> JournalCache<'a> {
         Ok(rows)
     }
 
+    /// 한 워크데이에 만진 **고유** 파일 수 (v3-release `{#distinct-files-backend}`).
+    ///
+    /// 이 셈의 제 자리가 여기인 이유: `JournalEntrySummary.files_count` 는
+    /// *엔트리 하나가 적은 파일 수*라, 프런트가 그걸 더하면 **파일 터치 횟수**가
+    /// 된다 — 같은 파일을 두 일지가 건드리면 둘로 센다(이 저장소 실측으로 최대
+    /// 105% 과대). 그래서 한동안 프런트가 오늘 엔트리 상세를 N회 걷어 경로
+    /// 합집합을 만들고 캐시했는데, 합집합은 SQL 이 이미 아는 것이다.
+    ///
+    /// [`files_for_workday`] 와 같은 자료·같은 인덱스를 타되 경로를 실어
+    /// 나르지 않는다(바쁜 하루면 200줄). 프론트매터에 `files_touched` 가 없는
+    /// 엔트리는 조인에서 행이 안 나와 0 을 보태고, 워크데이에 엔트리가 아예
+    /// 없으면 0 이다.
+    pub async fn count_files_for_workday(
+        &self,
+        project_id: u32,
+        workday: &str,
+    ) -> Result<u32, OculpmError> {
+        let pid = project_id as i64;
+        let workday = workday.to_string();
+        let count = self
+            .db
+            .conn()
+            .call(move |c| {
+                c.query_row(
+                    "SELECT COUNT(DISTINCT f.file_path)
+                     FROM oculpm_journal_files f
+                     JOIN oculpm_journal j
+                       ON j.project_id = f.project_id
+                      AND j.relative_path = f.relative_path
+                     WHERE j.project_id = ?1 AND j.workday = ?2",
+                    params![pid, &workday],
+                    |r| r.get::<_, i64>(0),
+                )
+            })
+            .await
+            .map_err(map_sqlite_err)?;
+        Ok(count.max(0) as u32)
+    }
+
     /// v2 U12 — 한 워크데이의 라인 증감 합. Today 히어로가 엔트리마다
     /// `get_journal_entry` 를 N 회 부르던 것을 SUM 한 방으로 대체한다.
     ///

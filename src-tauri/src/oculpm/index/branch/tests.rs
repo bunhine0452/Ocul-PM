@@ -43,7 +43,7 @@ fn parses_log_with_name_status_and_counts_journals() {
                 A\t.oculpm/journal/20260906/Features/x.md\n\
                 \x1esha2\x1fKim\x1f1788600000\x1f20260905\x1fother\x1f\n\
                 R100\told.rs\tnew.rs\n";
-    let (commits, files) = parse_log_name_status(text);
+    let (commits, files) = parse_log_name_status(text, &noop_rebase);
     assert_eq!(commits.len(), 2);
     assert_eq!(commits[0].file_count, 2);
     assert_eq!(commits[0].journal_count, 1);
@@ -55,7 +55,10 @@ fn parses_log_with_name_status_and_counts_journals() {
 
 #[test]
 fn porcelain_takes_the_new_path_of_a_rename() {
-    let out = parse_porcelain(" M src/a.rs\n?? notes.md\nR  old.rs -> new.rs\n");
+    let out = parse_porcelain(
+        " M src/a.rs\n?? notes.md\nR  old.rs -> new.rs\n",
+        &noop_rebase,
+    );
     assert!(out.contains("src/a.rs"));
     assert!(out.contains("notes.md"));
     assert!(out.contains("new.rs"));
@@ -170,4 +173,31 @@ fn files_drop_the_ledger_and_sort_by_weight() {
     assert_eq!(files[1].path, "src/b.rs");
     assert!(files[1].uncommitted);
     assert!(!files[1].recorded);
+}
+
+/// 저장소 루트 == 프로젝트 루트인 흔한 경우 — 경로가 그대로다.
+fn noop_rebase(p: &str) -> String {
+    p.to_string()
+}
+
+#[test]
+fn nested_repo_paths_are_rebased_onto_the_project_root() {
+    // `.oculpm/` 이 저장소 **위**에 있는 배치: 프로젝트 루트 `/p`, 저장소 `/p/app`.
+    // git 이 주는 `src/a.rs` 는 프로젝트 기준으로 `app/src/a.rs` 다. 되맞추지
+    // 않으면 `Files` 귀속이 조용히 0건이 된다 ({#branch-axis-limits}).
+    let rebase = |raw: &str| {
+        crate::git::root_relative(
+            std::path::Path::new("/p"),
+            std::path::Path::new("/p/app"),
+            raw,
+        )
+    };
+    let text = "\x1esha1\x1fKim\x1f1788665203\x1f20260906\x1fsubject\x1f\n\
+                M\tsrc/a.rs\n";
+    let (_commits, files) = parse_log_name_status(text, &rebase);
+    assert!(files.contains_key("app/src/a.rs"), "되맞춘 경로: {files:?}");
+    assert!(!files.contains_key("src/a.rs"));
+
+    let dirty = parse_porcelain(" M src/a.rs\n", &rebase);
+    assert!(dirty.contains("app/src/a.rs"));
 }

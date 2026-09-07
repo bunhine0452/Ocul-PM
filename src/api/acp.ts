@@ -54,6 +54,15 @@ export const acpApi = {
   status: (projectId: number, provider: AcpProvider | null = null) =>
     unwrap<AcpAdapterStatus>("acp_status", commands.acpStatus(projectId, provider)),
 
+  /**
+   * 어댑터를 내린다 (플랜 `v3-release` {#acp-stop-ui}).
+   *
+   * 이 프로젝트×provider 의 어댑터 프로세스 하나를 끈다 — **그 프로세스를
+   * 나눠 쓰는 다른 대화 탭도 함께 끊긴다.** 떠 있지 않았으면 `false`.
+   */
+  stop: (projectId: number, provider: AcpProvider | null = null) =>
+    unwrap<boolean>("acp_stop", commands.acpStop(projectId, provider)),
+
   // ─── 설정 ───
 
   /** 이 대화의 모델·Effort·권한 모드 목록. */

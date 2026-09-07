@@ -68,6 +68,38 @@ describe("ringScale — 의미의 눈금", () => {
     expect(now[1]).toBeLessThan(0.9);
   });
 
+  it("파일 눈금이 실측 분포를 가른다 — 옛 k=8 은 상한이 108개였다", () => {
+    // 2026-09-07 실측(이 저장소 캐시의 워크데이별 `COUNT(DISTINCT file_path)`,
+    // 44 워크데이): 중앙값 55개 · p75 100 · p90 170 · 범위 2~209.
+    // 아래 다섯은 그 분포를 훑는 실제 날이다.
+    const days = [55, 84, 126, 156, 209];
+    const now = days.map((v) => ringArc(v, RING_K.files, R_MID).fraction);
+    const old = days.map((v) => ringArc(v, 8, R_MID).fraction);
+
+    // 옛 눈금은 108개(=k×13.54)부터 상한이라 뒤 세 날이 한 덩어리로 뭉갰다 —
+    // 44일 중 9일(8월 이후로는 26일 중 8일)이 그랬다.
+    expect(new Set(old.slice(2).map((f) => f.toFixed(6))).size).toBe(1);
+    expect(old.slice(2).every((f) => f === maxFraction(R_MID))).toBe(true);
+
+    // 새 눈금(k=20)의 상한은 271개 — 실측 44일 중 눌리는 날이 하나도 없다.
+    for (let i = 1; i < now.length; i++) expect(now[i]).toBeGreaterThan(now[i - 1]);
+    expect(now.every((f) => f < maxFraction(R_MID))).toBe(true);
+    expect(days.every((v) => !ringArc(v, RING_K.files, R_MID).capped)).toBe(true);
+
+    // 중앙값이 링 한가운데쯤. `lines` 와 같은 읽기를 노렸다.
+    expect(now[0]).toBeGreaterThan(0.6);
+    expect(now[0]).toBeLessThan(0.85);
+
+    // 상한을 없앤 게 아니라 이 저장소 위로 올렸다 — 더 바쁜 하루에는 걸린다.
+    expect(ringArc(271, RING_K.files, R_MID).capped).toBe(true);
+    expect(ringArc(270, RING_K.files, R_MID).capped).toBe(false);
+  });
+
+  it("일지 눈금은 실측 최댓날(46건)도 안 누른다 — 그래서 안 건드렸다", () => {
+    expect(ringArc(46, RING_K.journals, R_OUTER).capped).toBe(false);
+    expect(ringArc(65, RING_K.journals, R_OUTER).capped).toBe(true);
+  });
+
   it("상한에 눌린 것을 값으로 내보낸다 (화면이 말할 수 있게)", () => {
     expect(ringArc(4_100, 400, R_INNER).capped).toBe(true);
     expect(ringArc(4_100, RING_K.lines, R_INNER).capped).toBe(false);

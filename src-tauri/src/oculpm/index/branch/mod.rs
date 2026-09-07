@@ -294,11 +294,17 @@ pub fn read_branch_git(
             &range,
         ],
     )?;
-    let (commits, commit_files) = parse_log_name_status(&text);
+    // git 은 **저장소 상대** 경로를 준다. 프로젝트 루트가 저장소 루트와 다르면
+    // (`.oculpm/` 이 저장소 위에 있는 배치) 그대로 쓰면 `Files` 귀속이 조용히
+    // 0건이 되고 `.oculpm/journal/**` 판정도 빗나간다 — `uncommitted_changes` ·
+    // `changes_in_range` 는 이미 되맞추는데 이 축만 빠져 있었다
+    // ({#branch-axis-limits}).
+    let rebase = |raw: &str| crate::git::root_relative(project_root, &repo, raw);
+    let (commits, commit_files) = parse_log_name_status(&text, &rebase);
 
     let dirty_files = if is_current {
         run_git(&repo, &["status", "--porcelain"])
-            .map(|s| parse_porcelain(&s))
+            .map(|s| parse_porcelain(&s, &rebase))
             .unwrap_or_default()
     } else {
         BTreeSet::new()
@@ -317,7 +323,10 @@ pub fn read_branch_git(
 
 /// `--name-status` 블록이 붙은 로그를 커밋 목록 + 파일→커밋수 로 접는다.
 /// 이름 바꾼 파일은 **새 경로**로 잡는다 (`git.rs::parse_name_status` 와 같은 규칙).
-fn parse_log_name_status(text: &str) -> (Vec<BranchCommit>, BTreeMap<String, u32>) {
+fn parse_log_name_status(
+    text: &str,
+    rebase: &dyn Fn(&str) -> String,
+) -> (Vec<BranchCommit>, BTreeMap<String, u32>) {
     let mut commits = Vec::new();
     let mut files: BTreeMap<String, u32> = BTreeMap::new();
     for rec in text.split('\x1e') {
@@ -342,6 +351,9 @@ fn parse_log_name_status(text: &str) -> (Vec<BranchCommit>, BTreeMap<String, u32
             let Some(path) = name_status_path(line) else {
                 continue;
             };
+            // 일지 판정도 되맞춘 뒤에 해야 한다 — `.oculpm/journal/` 은 프로젝트
+            // 루트 기준 경로다.
+            let path = rebase(&path);
             file_count += 1;
             if is_journal_path(&path) {
                 journal_count += 1;
@@ -382,7 +394,7 @@ fn name_status_path(line: &str) -> Option<String> {
 }
 
 /// `git status --porcelain` → 경로 집합. 이름 바꿈(`old -> new`)은 새 경로로.
-fn parse_porcelain(text: &str) -> BTreeSet<String> {
+fn parse_porcelain(text: &str, rebase: &dyn Fn(&str) -> String) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     for line in text.lines() {
         if line.len() < 4 {
@@ -391,7 +403,7 @@ fn parse_porcelain(text: &str) -> BTreeSet<String> {
         let path = line[3..].trim();
         let path = path.rsplit(" -> ").next().unwrap_or(path);
         if !path.is_empty() {
-            out.insert(path.to_string());
+            out.insert(rebase(path));
         }
     }
     out

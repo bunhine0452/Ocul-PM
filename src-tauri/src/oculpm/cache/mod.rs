@@ -731,3 +731,5 @@ mod tests;
 // (`tests/egress_inventory.rs`)가 테스트 파일을 그 꼬리로 가른다.
 #[cfg(test)]
 mod agent_session_tests;
+#[cfg(test)]
+mod distinct_files_tests;

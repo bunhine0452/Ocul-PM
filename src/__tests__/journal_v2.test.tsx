@@ -76,41 +76,65 @@ const manualMock: { calls: number; lastDraft: Record<string, unknown> | null } =
   lastDraft: null,
 };
 
-vi.mock("@/api/oculpm", () => ({
-  OculpmApiError: class extends Error {},
-  oculpmApi: {
-    listJournalEntries: (_pid: number, workday?: string) =>
-      Promise.resolve(workday ? (fixtures.byWorkday[workday] ?? []) : fixtures.allPeriod),
-    // `{#journal-timeline-limit}` — 타임라인의 전체 기간 경로는 상한이 붙은
-    // 이쪽으로 간다. limit 을 실제로 잘라 줘야 「더 보기」가 자라는지 볼 수 있다.
-    listJournalEntriesPage: (
-      _pid: number,
-      _workday: string | undefined,
-      _filters: unknown,
-      limit: number,
-    ) =>
-      Promise.resolve({
-        entries: fixtures.allPeriod.slice(0, limit),
-        total: fixtures.allPeriodTotal ?? fixtures.allPeriod.length,
-      }),
-    // EntryDetailView's narrative pane loads body_markdown + files_touched.
-    getJournalEntry: (_pid: number, relativePath: string) =>
-      Promise.resolve({
-        relative_path: relativePath,
-        body_markdown: "## 동작 흐름\n- 무언가를 변경했다\n",
-        frontmatter: { files_touched: fixtures.filesTouched },
-      }),
-    // ManualEntryModalV2 pre-fills candidates from today's file changes.
-    getFileChanges: () => Promise.resolve([]),
-    createManualEntry: (_pid: number, draft: Record<string, unknown>) => {
-      manualMock.calls += 1;
-      manualMock.lastDraft = draft;
-      return Promise.resolve({ relative_path: "20260531/x/2000_manual.md", title: draft.title });
+// {#entry-open-affordance} — "파일로 열기" 가 부르는 openEntryInEditor 호출을
+// 가로채 인자와 성공/실패를 검증한다. (참조는 아래 팩토리 **함수 몸통 안**에서만
+// 한다 — vi.mock 은 파일 맨 위로 끌어올려지고, 이 상수들의 초기화는 그 뒤라
+// 팩토리를 만드는 그 순간 바깥 값을 직접 읽으면 TDZ 에 걸린다.)
+const openEditorMock: {
+  calls: Array<{ projectId: number; relativePath: string }>;
+  reject: boolean;
+} = { calls: [], reject: false };
+
+// `vi.hoisted` — `vi.mock` 팩토리가 이 값을 **직접** 참조하므로(중첩 함수 몸통
+// 안이 아니라) TDZ 를 피하려면 mock 등록보다 먼저 초기화돼야 한다.
+const toastMock = vi.hoisted(() => ({ info: vi.fn(), warning: vi.fn(), destructive: vi.fn() }));
+vi.mock("@/lib/toast", () => ({ toast: toastMock }));
+
+vi.mock("@/api/oculpm", () => {
+  class MockOculpmApiError extends Error {}
+  return {
+    OculpmApiError: MockOculpmApiError,
+    oculpmApi: {
+      listJournalEntries: (_pid: number, workday?: string) =>
+        Promise.resolve(workday ? (fixtures.byWorkday[workday] ?? []) : fixtures.allPeriod),
+      // `{#journal-timeline-limit}` — 타임라인의 전체 기간 경로는 상한이 붙은
+      // 이쪽으로 간다. limit 을 실제로 잘라 줘야 「더 보기」가 자라는지 볼 수 있다.
+      listJournalEntriesPage: (
+        _pid: number,
+        _workday: string | undefined,
+        _filters: unknown,
+        limit: number,
+      ) =>
+        Promise.resolve({
+          entries: fixtures.allPeriod.slice(0, limit),
+          total: fixtures.allPeriodTotal ?? fixtures.allPeriod.length,
+        }),
+      // EntryDetailView's narrative pane loads body_markdown + files_touched.
+      getJournalEntry: (_pid: number, relativePath: string) =>
+        Promise.resolve({
+          relative_path: relativePath,
+          body_markdown: "## 동작 흐름\n- 무언가를 변경했다\n",
+          frontmatter: { files_touched: fixtures.filesTouched },
+        }),
+      // ManualEntryModalV2 pre-fills candidates from today's file changes.
+      getFileChanges: () => Promise.resolve([]),
+      createManualEntry: (_pid: number, draft: Record<string, unknown>) => {
+        manualMock.calls += 1;
+        manualMock.lastDraft = draft;
+        return Promise.resolve({ relative_path: "20260531/x/2000_manual.md", title: draft.title });
+      },
+      // EntryDetailView loads the recorded per-file patches.
+      getEntryDiffs: (_pid: number, _relativePath: string) => Promise.resolve(fixtures.entryDiffs),
+      // {#entry-open-affordance} — "파일로 열기" 버튼.
+      openEntryInEditor: (pid: number, relativePath: string) => {
+        openEditorMock.calls.push({ projectId: pid, relativePath });
+        return openEditorMock.reject
+          ? Promise.reject(new MockOculpmApiError("파일이 없어요"))
+          : Promise.resolve(null);
+      },
     },
-    // EntryDetailView loads the recorded per-file patches.
-    getEntryDiffs: (_pid: number, _relativePath: string) => Promise.resolve(fixtures.entryDiffs),
-  },
-}));
+  };
+});
 
 // EntryDetailView's narrative pane renders <Markdown>, which depends on
 // useTheme→useSettings (SettingsProvider). This suite only wraps in
@@ -198,6 +222,11 @@ beforeEach(() => {
   fixtures.entryDiffs = DEFAULT_DIFFS;
   manualMock.calls = 0;
   manualMock.lastDraft = null;
+  openEditorMock.calls = [];
+  openEditorMock.reject = false;
+  toastMock.info.mockClear();
+  toastMock.warning.mockClear();
+  toastMock.destructive.mockClear();
 });
 afterEach(() => cleanup());
 
@@ -359,6 +388,37 @@ describe("작업 일지 디테일 — 변경 파일 내비게이션", () => {
     expect(rows[0]).toBeDisabled();
     expect(rows[1].querySelector(".dfile-note")).toBeNull();
     expect(rows[1]).not.toBeDisabled();
+  });
+});
+
+// ─── {#entry-open-affordance} ─────────────────────────────────────────────
+//
+// `openEntryInEditor` 는 opener-scope 회귀를 세 번 겪고 만든 전용 경로인데
+// 부르는 화면이 없었다 — 여기서 그 짝(버튼)이 실제로 그 래퍼를 호출하는지,
+// 그리고 실패했을 때 조용히 삼키지 않는지를 본다.
+describe("작업 일지 디테일 — 파일로 열기 ({#entry-open-affordance})", () => {
+  it("누르면 이 일지의 project·상대경로로 openEntryInEditor 를 부른다", async () => {
+    fixtures.byWorkday["20260531"] = [
+      summary({ relative_path: "20260531/Features/1000_x.md", title: "검토 대상" }),
+    ];
+    const { findByText } = renderJournal();
+    fireEvent.click(await findByText("검토 대상"));
+    fireEvent.click(await findByText("파일로 열기"));
+    await waitFor(() =>
+      expect(openEditorMock.calls).toEqual([
+        { projectId: 1, relativePath: "20260531/Features/1000_x.md" },
+      ]),
+    );
+  });
+
+  it("실패하면 조용하지 않다 — 파괴적 토스트로 알린다", async () => {
+    openEditorMock.reject = true;
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
+    const { findByText } = renderJournal();
+    fireEvent.click(await findByText("검토 대상"));
+    fireEvent.click(await findByText("파일로 열기"));
+    await waitFor(() => expect(toastMock.destructive).toHaveBeenCalledTimes(1));
+    expect(String(toastMock.destructive.mock.calls[0][0])).toContain("파일 열기 실패");
   });
 });
 
