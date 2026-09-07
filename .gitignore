@@ -5,6 +5,8 @@ node_modules
 # ---------- Build output ----------
 dist
 dist-ssr
+# scripts/measure-entry-chunk.mjs 의 산출물 ({#entry-chunk} 측정용 별도 빌드)
+dist-measure
 build
 *.local
 
