@@ -12,7 +12,7 @@
 //! string surfaces this.
 
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 /// 외부 편집기로 프로젝트 파일을 연다.
 ///
@@ -87,6 +87,87 @@ pub async fn open_url(url: String) -> Result<(), String> {
     cmd.spawn()
         .map(|_| ())
         .map_err(|e| format!("Failed to open URL: {e}"))
+}
+
+/// 프로젝트 파일을 **파일 탐색기에서 선택된 채로** 연다 (macOS: Finder).
+///
+/// 터미널 링크의 ⌘클릭 메뉴가 쓴다. `open_in_editor` 와 같은 경로 가드를 지나며
+/// (`secure_join`), 편집기 템플릿과 달리 **셸을 거치지 않는다** — 인자를 그대로
+/// 넘기므로 인용이 깨질 자리가 없다.
+#[tauri::command]
+#[specta::specta]
+pub async fn reveal_in_file_manager(project_root: String, rel_path: String) -> Result<(), String> {
+    let abs = resolve_project_file(&project_root, &rel_path)?;
+    #[cfg(target_os = "macos")]
+    let mut cmd = {
+        let mut c = Command::new("open");
+        c.arg("-R").arg(&abs);
+        c
+    };
+    // 리눅스 파일 관리자에는 "선택한 채로 열기"의 공통 규약이 없다 — 부모
+    // 폴더를 여는 것이 어느 데스크톱에서나 통하는 최대한이다.
+    #[cfg(target_os = "linux")]
+    let mut cmd = {
+        let parent = abs.parent().unwrap_or(&abs).to_path_buf();
+        let mut c = Command::new("xdg-open");
+        c.arg(parent);
+        c
+    };
+    #[cfg(target_os = "windows")]
+    let mut cmd = {
+        let mut c = Command::new("explorer");
+        c.arg(format!("/select,{}", abs.display()));
+        c
+    };
+    cmd.spawn()
+        .map(|_| ())
+        .map_err(|e| format!("Failed to reveal file: {e}"))
+}
+
+/// 프로젝트 파일을 **빠른 미리보기**로 띄운다 (macOS Quick Look).
+///
+/// `qlmanage -p` 는 파일을 열지 않고 내용만 훑어보는, macOS 에서 스페이스바가
+/// 하는 그 동작이다. 다른 플랫폼에는 대응물이 없으므로 조용히 아무 일도 하지
+/// 않는 대신 **이유를 돌려준다** — 화면이 그 문구를 그대로 보여 준다.
+#[tauri::command]
+#[specta::specta]
+pub async fn quick_look_file(project_root: String, rel_path: String) -> Result<(), String> {
+    let abs = resolve_project_file(&project_root, &rel_path)?;
+    #[cfg(target_os = "macos")]
+    {
+        // stdout/stderr 를 버린다 — qlmanage 는 진단을 잔뜩 뱉고, 그 파이프를
+        // 아무도 읽지 않으면 가득 찬 순간 자식이 멈춘다.
+        Command::new("qlmanage")
+            .arg("-p")
+            .arg(&abs)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| format!("Failed to open Quick Look: {e}"))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = abs;
+        Err("Quick Look is only available on macOS.".to_string())
+    }
+}
+
+/// 프로젝트 루트 기준 상대경로를 **존재가 확인된 절대경로**로 바꾼다.
+///
+/// 터미널 스캐너가 뽑은 경로는 신뢰할 수 없는 바이트다. `secure_join` 이 `..`
+/// 탈출과 절대경로를 막고, 존재 확인이 그 뒤를 받는다 — 없는 파일을 넘기면
+/// Finder 는 아무 말 없이 아무 일도 안 해서, 눌렀는데 왜 안 되는지 알 수 없다.
+fn resolve_project_file(project_root: &str, rel_path: &str) -> Result<PathBuf, String> {
+    let root = PathBuf::from(project_root);
+    if !root.exists() {
+        return Err(format!("project root does not exist: {}", root.display()));
+    }
+    let abs = crate::commands::project::secure_join(&root, rel_path)?;
+    if !abs.exists() {
+        return Err(format!("file does not exist: {rel_path}"));
+    }
+    Ok(abs)
 }
 
 /// POSIX 셸에 안전한 인용. **작은따옴표**로 감싸고 내부의 `'` 만 `'\''` 로

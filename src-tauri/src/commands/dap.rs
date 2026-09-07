@@ -130,17 +130,6 @@ pub async fn dap_toggle_breakpoint(
     Ok(lines)
 }
 
-/// 한 파일의 중단점 (거터가 그린다).
-#[tauri::command]
-#[specta::specta]
-pub async fn dap_breakpoints(
-    dap: State<'_, DapStateStore>,
-    project_id: u32,
-    rel_path: String,
-) -> Result<Vec<u32>, String> {
-    Ok(dap.breakpoint_lines(project_id, &rel_path).await)
-}
-
 /// 프로젝트 전체 중단점 (디버그 패널의 목록).
 #[tauri::command]
 #[specta::specta]
@@ -154,16 +143,6 @@ pub async fn dap_all_breakpoints(
         .into_iter()
         .map(|(path, lines)| DapFileBreakpoints { path, lines })
         .collect())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn dap_clear_breakpoints(
-    dap: State<'_, DapStateStore>,
-    project_id: u32,
-) -> Result<(), String> {
-    dap.clear_breakpoints(project_id).await;
-    Ok(())
 }
 
 /// 디버그 시작. 어댑터를 띄우고 `initialize` → `launch` → 중단점 →

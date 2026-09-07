@@ -1,11 +1,6 @@
 //! Lite-W6 PR6 — backend foundation for LocalDiffView (D5).
 //!
-//! Two commands:
-//!   - `reindex_paths`: re-run the per-file indexing pipeline (hash check +
-//!     chunk + AST + embeddings) for a caller-supplied path list. This is
-//!     the partial-reindex counterpart to `index_project` from
-//!     `commands::project`; the per-file body is kept in sync by hand for
-//!     now. PR6.5+ may extract a shared helper.
+//! `compute_diff` 가 이 파일의 뼈대다:
 //!   - `compute_diff`: returns the unified-diff text for a single path. The
 //!     1.0 implementation is **git-only**; non-git projects receive an
 //!     explicit `SnapshotsUnavailable` error so the UI can surface a
@@ -13,100 +8,12 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::time::Instant;
 
 use serde::Serialize;
 use tauri::State;
-use tracing::info;
 
 use crate::db::Db;
-use crate::embedding::Embedder;
 use crate::git::{self, render_unified_diff};
-use crate::indexer::{self, reindex_single_file, ReindexSkipReason};
-
-#[derive(Debug, Clone, Serialize, specta::Type)]
-pub struct ReindexSkip {
-    pub path: String,
-    pub reason: ReindexSkipReason,
-}
-
-#[derive(Debug, Clone, Serialize, specta::Type)]
-pub struct LocalDiffReindexReport {
-    pub indexed: Vec<String>,
-    pub skipped: Vec<ReindexSkip>,
-    pub elapsed_ms: u32,
-    pub embeddings_updated: u32,
-    pub ast_updated: u32,
-}
-
-/// Re-run the indexing pipeline for `paths` (relative to the project root).
-/// Mirrors the per-file branch of `commands::project::index_project` so that
-/// LocalDiffView can refresh a small set without re-scanning the whole tree.
-#[tauri::command]
-#[specta::specta]
-pub async fn reindex_paths(
-    db: State<'_, Db>,
-    embedder: State<'_, Embedder>,
-    project_id: u32,
-    paths: Vec<String>,
-) -> Result<LocalDiffReindexReport, String> {
-    let project = db
-        .list_projects()
-        .await
-        .map_err(|e| e.to_string())?
-        .into_iter()
-        .find(|p| p.id == project_id)
-        .ok_or_else(|| format!("project {project_id} not found"))?;
-
-    let root = PathBuf::from(&project.root_path);
-    let settings_map: std::collections::HashMap<String, String> = db
-        .settings_get_all()
-        .await
-        .map_err(|e| e.to_string())?
-        .into_iter()
-        .collect();
-    let index_config = indexer::config_from_settings(|k| settings_map.get(k).cloned());
-
-    let start = Instant::now();
-    let mut indexed: Vec<String> = Vec::new();
-    let mut skipped: Vec<ReindexSkip> = Vec::new();
-    let mut embeddings_updated: u32 = 0;
-    let mut ast_updated: u32 = 0;
-
-    for rel_str in paths {
-        match reindex_single_file(&db, &embedder, project_id, &root, &index_config, &rel_str).await
-        {
-            Ok((emb, ast)) => {
-                embeddings_updated += emb;
-                ast_updated += ast;
-                indexed.push(rel_str);
-            }
-            Err(reason) => skipped.push(ReindexSkip {
-                path: rel_str,
-                reason,
-            }),
-        }
-    }
-
-    let elapsed_ms = start.elapsed().as_millis().min(u32::MAX as u128) as u32;
-    info!(
-        project = %project.name,
-        indexed = indexed.len(),
-        skipped = skipped.len(),
-        embeddings_updated,
-        ast_updated,
-        elapsed_ms,
-        "reindex_paths done"
-    );
-
-    Ok(LocalDiffReindexReport {
-        indexed,
-        skipped,
-        elapsed_ms,
-        embeddings_updated,
-        ast_updated,
-    })
-}
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(tag = "source", rename_all = "snake_case")]
@@ -313,39 +220,6 @@ pub async fn git_uncommitted_changes(
         .ok_or_else(|| format!("project {project_id} not found"))?;
     let root = PathBuf::from(&project.root_path);
     Ok(git::uncommitted_changes(&root))
-}
-
-/// PR6.6 — re-capture snapshots for the supplied paths from disk content.
-/// Powers the LocalDiffView "비우기" action: after the user acknowledges a
-/// batch of changes, the diff baselines are advanced so subsequent edits
-/// show against the just-cleared state instead of the original index.
-#[tauri::command]
-#[specta::specta]
-pub async fn resnapshot_paths(
-    db: State<'_, Db>,
-    project_id: u32,
-    paths: Vec<String>,
-) -> Result<u32, String> {
-    let project = db
-        .list_projects()
-        .await
-        .map_err(|e| e.to_string())?
-        .into_iter()
-        .find(|p| p.id == project_id)
-        .ok_or_else(|| format!("project {project_id} not found"))?;
-    let root = PathBuf::from(&project.root_path);
-
-    let mut updated: u32 = 0;
-    for rel in paths {
-        let abs = root.join(&rel);
-        let Ok(bytes) = fs::read(&abs) else { continue };
-        let hash = blake3::hash(&bytes).to_hex().to_string();
-        db.upsert_file_snapshot(project_id, rel, bytes, hash)
-            .await
-            .map_err(|e| e.to_string())?;
-        updated += 1;
-    }
-    Ok(updated)
 }
 
 /// 바이너리 diff 프리뷰의 한 쪽(이전/현재). 프론트가 `data:{mime};base64,…`

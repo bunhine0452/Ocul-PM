@@ -43,9 +43,10 @@
 //! enumerated with a reason each in `tests/egress_inventory.rs`
 //! (`LLM_PROMPT_SITES`), which fails when a new one appears undeclared. The
 //! short version: the AI panel and the mobile bridge relay what the *user*
-//! typed (the promise's own exception), the project overview reads README and
-//! manifest files straight off disk, and greenfield sends the wizard blueprint
-//! the user just wrote. Nothing agent-authored reaches a model unmasked.
+//! typed (the promise's own exception), and the project overview reads README
+//! and manifest files straight off disk. Nothing agent-authored reaches a model
+//! unmasked. (The greenfield seed-goal prompt was a fourth such site until v3
+//! removed it — the wizard seeds the file-based Planner instead.)
 //!
 //! See `docs/major_update/oculpm/W4/PR3-redact-forbid.md`.
 //! See `docs/major_update/oculpm/phases/W4-agents-dual-layer.md` §2.6 for the
@@ -80,7 +81,7 @@ pub const CALL_SITE_FILES: usize = 24;
 ///
 /// See the module doc's "What is not covered" and `LLM_PROMPT_SITES` in
 /// `tests/egress_inventory.rs`, which owns the per-site reasons.
-pub const EXEMPT_LLM_PROMPT_SITES: usize = 4;
+pub const EXEMPT_LLM_PROMPT_SITES: usize = 3;
 
 /// One match recorded by [`redact_text`]. Byte offsets reference the
 /// **original** input string (pre-redaction); they are at char boundaries

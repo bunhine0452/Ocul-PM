@@ -23,7 +23,7 @@ use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
     AgentSyncReport, BackfillReport, Difficulty, EntryStatus, FileChangeEvent, IntegrityWarning,
     JournalEntry, JournalEntrySummary, LayerComparison, ManualEntryDraft, OculpmConfig,
-    OculpmInitReport, OculpmIntegrityWarning, OculpmOverviewStats, OculpmStatus, ReindexReport,
+    OculpmInitReport, OculpmIntegrityWarning, OculpmStatus, ReindexReport,
     Session, WorkdayComparison,
 };
 
@@ -863,20 +863,6 @@ pub async fn oculpm_compare_layers(
         .map_err(AppError::from)
 }
 
-/// 프로젝트의 현재 워크데이 (`YYYYMMDD`) — tz·`day_starts_at` 을 아는 유일한
-/// 답. 프런트가 `new Date()` 로 흉내 내던 것을 대신한다 (Phase 4).
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_current_workday(
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-) -> Result<String, AppError> {
-    manager
-        .current_workday(project_id)
-        .await
-        .map_err(AppError::from)
-}
-
 /// 워크데이 하나의 정직성 감사 — 세션 수만큼 `compare_layers` 를 부르던 Today 를
 /// IPC 1회로 (완성도 라운드 Phase 3).
 #[tauri::command]
@@ -1056,24 +1042,6 @@ pub async fn oculpm_log(level: String, target: String, message: String) {
         "info" => tracing::info!(target: "oculpm::frontend", source = %target_str, "{message}"),
         _ => tracing::debug!(target: "oculpm::frontend", source = %target_str, "{message}"),
     }
-}
-
-// ─── W5-PR5 — Overview stats ────────────────────────────────────────────────
-
-/// Single-shot fetch of every Overview widget. `window_days` clamps to
-/// 1..=365 inside the manager — the modal-facing default is 90 (heatmap).
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_overview_stats(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    window_days: u32,
-) -> Result<OculpmOverviewStats, AppError> {
-    manager
-        .overview_stats(&db, project_id, window_days)
-        .await
-        .map_err(AppError::from)
 }
 
 // ─── F5 — git-history backfill ──────────────────────────────────────────────

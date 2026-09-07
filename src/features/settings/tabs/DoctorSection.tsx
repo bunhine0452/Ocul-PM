@@ -24,6 +24,8 @@ import {
   type OculpmStatus,
   type ProjectStats,
 } from "@/lib/bindings";
+import { oculpmApi } from "@/api/oculpm";
+import { toAppError } from "@/api/invoke";
 import { clearIntegrityLog, useIntegrityLog } from "@/lib/integrityLog";
 import { requestOculpmActivate, requestReindex } from "@/lib/projectActions";
 import { openSettings } from "@/lib/settingsNav";
@@ -36,12 +38,20 @@ import { Section, secretName } from "./ui";
 
 type RowState = "ok" | "warn" | "danger" | "off";
 
+interface DoctorAction {
+  labelKey: I18nKey;
+  run: () => void | Promise<void>;
+}
+
 interface DoctorRow {
   id: string;
   labelKey: I18nKey;
   state: RowState;
   value: string;
-  action?: { labelKey: I18nKey; run: () => void | Promise<void> };
+  /** 고치는 손잡이 — 이상이 있는 행에만 붙는다. */
+  action?: DoctorAction;
+  /** 곁들이는 손잡이 — 정상인 행에도 붙을 수 있다 (워처 다시 시작). */
+  secondary?: DoctorAction;
 }
 
 interface Probe {
@@ -112,6 +122,27 @@ export function DoctorSection() {
     void check();
   }, [check]);
 
+  const [rebuilding, setRebuilding] = useState(false);
+  const rebuildCache = useCallback(async () => {
+    if (projectId == null) return;
+    setRebuilding(true);
+    try {
+      const r = await oculpmApi.reindexCache(projectId);
+      toast.info(
+        t("settings.doctor.reindexCacheDone", {
+          inserted: r.inserted,
+          updated: r.updated,
+          deleted: r.deleted,
+        }),
+      );
+    } catch (e) {
+      toast.destructive(t("settings.doctor.a.failed", { error: tError(toAppError(e)) }));
+    } finally {
+      setRebuilding(false);
+    }
+    await check();
+  }, [projectId, check, t]);
+
   // 색인이 끝나면 색인 행이 저절로 새로 읽힌다.
   useEffect(() => {
     if (!indexing && report) void check();
@@ -140,11 +171,36 @@ export function DoctorSection() {
             : { id: "oculpm", labelKey: "settings.doctor.oculpm", state: "ok", value: t("settings.doctor.v.active") },
     );
 
+    // 「다시 시작」 — 돌고 있는 워처를 다시 무장하는 유일한 길이다
+    // (v3 {#revive-recovery-cmds}). `watcher_start` 는 이미 돌고 있으면
+    // **아무것도 안 하는** no-op 이라, 살아 있는 것처럼 보이지만 먹통인 워처
+    // 앞에서는 손잡이가 아예 없었다. `watcher_stop` 이 세대를 올리고 처리
+    // 태스크를 드레인한 뒤에야 다음 `watcher_start` 가 새로 설치한다.
+    //
+    // 「중지」로 두지 않은 이유: `supervisor.rs` 가 워처 없는 프로젝트를
+    // 먹통으로 판정해 60초 안에 되살린다(`is_deaf(None, _) == true`). 되살아날
+    // 것을 「껐다」고 말하면 거짓이 된다 — 진짜 끄기는 감독관이 존중할
+    // 「사용자가 껐다」 상태가 먼저 필요하다.
+    const failed = (e: unknown) =>
+      toast.destructive(t("settings.doctor.a.failed", { error: tError(toAppError(e)) }));
     const restart = async () => {
-      const r = await commands.oculpmWatcherStart(projectId);
-      if (r.status === "error") toast.destructive(t("settings.doctor.a.failed", { error: tError(r.error) }));
+      try {
+        await oculpmApi.watcherStart(projectId);
+      } catch (e) {
+        failed(e);
+      }
       await check();
     };
+    const rearm = async () => {
+      try {
+        await oculpmApi.watcherStop(projectId);
+        await oculpmApi.watcherStart(projectId);
+      } catch (e) {
+        failed(e);
+      }
+      await check();
+    };
+    const rearmAction: DoctorAction = { labelKey: "settings.doctor.a.restart", run: rearm };
     out.push(
       !s
         ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "off", value: unknown }
@@ -153,8 +209,8 @@ export function DoctorSection() {
           // 흘린 워처도 건강한 워처와 글자 하나 다르지 않다. 버림이 있으면
           // 그 수를 말하고 만회 수단(재색인)을 같이 준다.
           ? s.watcher_dropped_total > 0
-            ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "warn", value: t("settings.doctor.v.dropped", { n: s.watcher_dropped_total }), action: { labelKey: "settings.doctor.a.index", run: () => requestReindex() } }
-            : { id: "watcher", labelKey: "settings.doctor.watcher", state: "ok", value: t("settings.doctor.v.running") }
+            ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "warn", value: t("settings.doctor.v.dropped", { n: s.watcher_dropped_total }), action: { labelKey: "settings.doctor.a.index", run: () => requestReindex() }, secondary: rearmAction }
+            : { id: "watcher", labelKey: "settings.doctor.watcher", state: "ok", value: t("settings.doctor.v.running"), secondary: rearmAction }
           : s.watcher_state === "error"
             ? { id: "watcher", labelKey: "settings.doctor.watcher", state: "danger", value: t("settings.doctor.v.error"), action: { labelKey: "settings.doctor.a.start", run: restart } }
             : { id: "watcher", labelKey: "settings.doctor.watcher", state: "warn", value: t("settings.doctor.v.stopped"), action: { labelKey: "settings.doctor.a.start", run: restart } },
@@ -367,6 +423,11 @@ export function DoctorSection() {
                 <span className="flex-1 min-w-0 truncate text-muted-foreground" title={row.value}>
                   {row.value}
                 </span>
+                {row.secondary ? (
+                  <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => void row.secondary!.run()}>
+                    {t(row.secondary.labelKey)}
+                  </Button>
+                ) : null}
                 {row.action ? (
                   <Button variant="outline" size="sm" className="h-6 px-2 text-[11px]" onClick={() => void row.action!.run()}>
                     {t(row.action.labelKey)}
@@ -382,6 +443,11 @@ export function DoctorSection() {
             <Button onClick={() => void check()} disabled={checking} variant="outline" size="sm">
               <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${checking ? "animate-spin" : ""}`} />
               {t("settings.doctor.refresh")}
+            </Button>
+            {/* 디스크의 일지가 정본이고 SQLite 는 파생 캐시다 — 둘이 어긋났을 때
+                디스크에서 다시 읽어 오는 유일한 손잡이 (v3 {#revive-recovery-cmds}). */}
+            <Button onClick={() => void rebuildCache()} disabled={rebuilding} variant="outline" size="sm">
+              {t("settings.doctor.reindexCache")}
             </Button>
           </div>
 
