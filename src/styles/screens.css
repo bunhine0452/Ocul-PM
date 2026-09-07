@@ -2167,7 +2167,10 @@ mark.s-hit {
 /* --- Today activity ring (브랜드 모티프 라이브 UI, 다중 동심원 + 호버) --- */
 .today-ring { position: relative; display: grid; place-items: center; flex: none; }
 .today-ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.today-ring .tr-track { stroke: var(--bg-inset); opacity: 0.7; }
+/* 트랙은 "아직 안 채워진 곳"을 말한다 — 안 보이면 호가 끊긴 것처럼 읽힌다.
+   --bg-inset × 0.7 은 카드 위에서 (242,240,233) 대 (250,249,245) 라 사실상
+   배경과 같았다. 앱 공통 경계선 색으로 올린다. */
+.today-ring .tr-track { stroke: var(--border); }
 .today-ring .tr-arc {
   transition: stroke-dasharray 0.55s var(--ease-out),
     stroke-width 0.15s var(--ease-out), filter 0.15s var(--ease-out);
@@ -2175,14 +2178,28 @@ mark.s-hit {
 .today-ring .tr-arc.o { stroke: var(--accent); }
 .today-ring .tr-arc.m { stroke: var(--accent-strong); }
 .today-ring .tr-arc.i { stroke: var(--accent-text); }
+/* 8.5 는 TodayActivityRing.tsx 의 ARC_SW_HOVER 와 같은 값이어야 한다 — 호가 절대
+   닫히지 않도록 클램프를 이 굵기(=가장 두꺼운 캡)로 계산한다. 한쪽만 바꾸지 말 것. */
 .today-ring .tr-arc.on { stroke-width: 8.5; filter: drop-shadow(0 0 4px var(--accent)); }
 .today-ring .tr-hit { stroke: transparent; cursor: pointer; }
+/* 링 전체를 덮는 정렬 레이어 — 숫자는 place-items 로 기하학적 정중앙에 놓이고,
+   에러 뱃지는 흐름 밖에서 그 아래 매달린다. 예전처럼 둘을 한 flex 행에 두면
+   "쌍"이 가운데 정렬돼 숫자가 뱃지 절반만큼 왼쪽으로 밀렸다. */
 .today-ring-center {
-  position: relative; display: inline-flex; align-items: baseline; gap: 3px;
-  font-size: var(--fs-12); font-weight: 760; letter-spacing: -0.02em; color: var(--accent-text);
-  font-variant-numeric: tabular-nums; pointer-events: none;
+  position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
 }
-.today-ring-err { font-size: var(--fs-3); font-weight: 680; color: var(--t-bug); letter-spacing: 0; }
+.today-ring-num {
+  font-size: var(--fs-12); font-weight: 760; letter-spacing: -0.02em; color: var(--accent-text);
+  font-variant-numeric: tabular-nums;
+}
+/* margin-top 의 em 은 이 요소의 --fs-3 기준(≈11px) — 숫자 아랫단을 비키면서
+   안쪽 호(내벽 반지름 ≈24px)까지 여유가 남는 거리다. title 툴팁이 뜨도록
+   부모의 pointer-events: none 을 여기서만 되돌린다. */
+.today-ring-err {
+  position: absolute; top: 50%; left: 50%; transform: translateX(-50%); margin-top: 1em;
+  font-size: var(--fs-3); line-height: 1; font-weight: 680; color: var(--t-bug); letter-spacing: 0;
+  pointer-events: auto;
+}
 .today-ring-tip {
   position: absolute; bottom: -6px; left: 50%; transform: translate(-50%, 100%);
   display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 10px;
