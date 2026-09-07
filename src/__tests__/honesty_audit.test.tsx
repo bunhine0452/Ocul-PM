@@ -67,18 +67,31 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("HonestyAudit", () => {
-  it("stays hidden when every changed file is journaled under a foreign session_id", async () => {
+  /**
+   * {#honesty-audit-unhide} — 주장하는 카드는 0을 말한다.
+   *
+   * 예전에는 0건이면 카드째 사라졌다. 그런데 이 카드는 "누락 없음" 을
+   * **주장한다** — 주장하는 카드가 숨으면 "안 봤다" 와 "봤는데 깨끗하다" 가
+   * 화면에서 구별되지 않는다. `JournalMissingCard` 의 `{#card-unhide}` 와
+   * 같은 선이고, 그래서 0의 한계도 함께 적는다.
+   */
+  it("does not hide on a clean day — it says 0 and states the limit of that 0", async () => {
     fixtures.sessions = [row()];
 
-    const { container } = render(
-      <HonestyAudit projectId={1} workday="20260820" enabled />,
-    );
+    render(<HonestyAudit projectId={1} workday="20260820" enabled />);
 
-    // Prove the comparison actually arrived before asserting emptiness —
-    // otherwise this passes vacuously on the pre-fetch render.
+    // Prove the comparison actually arrived before asserting — otherwise this
+    // passes vacuously on the pre-fetch render.
     await waitFor(() => expect(fixtures.asked).toEqual(["20260820"]));
-    expect(container).toBeEmptyDOMElement();
-    expect(screen.queryByText(TITLE)).toBeNull();
+    expect(await screen.findByText(TITLE)).toBeTruthy();
+    expect(screen.getByText(unlogged(0))).toBeTruthy();
+    // 0 은 「확인된 누락 없음」이지 「기록이 완전함」이 아니라고 적혀 있다.
+    expect(
+      screen.getByText(new RegExp(t("today.honesty.zeroNote").slice(0, 24))),
+    ).toBeTruthy();
+    // 소음이 되지 않게, 깨끗한 날에는 경고 문구도 행 목록도 없다.
+    expect(screen.queryByText(t("today.honesty.desc"))).toBeNull();
+    expect(screen.queryByText(WARNING)).toBeNull();
   });
 
   /**

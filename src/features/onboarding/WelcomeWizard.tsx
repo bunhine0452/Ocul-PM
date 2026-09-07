@@ -36,6 +36,7 @@ import {
   Sun,
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useSaveSetting } from "@/features/settings/saveSetting";
 import { ACCENTS } from "@/features/theme/accents";
 import { normalizeLangSetting, useT, type I18nKey, type LangSetting } from "@/i18n";
 import type { Project } from "@/lib/bindings";
@@ -83,7 +84,8 @@ export function WelcomeWizard({
   onClose,
 }: WelcomeWizardProps) {
   const { t } = useT();
-  const { settings, set } = useSettings();
+  const { settings } = useSettings();
+  const saveSetting = useSaveSetting();
 
   const [step, setStep] = useState<Step>("lang");
   /** 폴더 선택 대화상자가 떠 있는 동안 — 버튼을 두 번 누르지 못하게. */
@@ -94,12 +96,13 @@ export function WelcomeWizard({
   const index = STEPS.indexOf(step as (typeof STEPS)[number]);
 
   /** 어느 출구로 나가든 한 번만 적는다 (규칙 2). */
-  const seal = useCallback(async () => {
-    if (!settings.onboarded) await set("onboarded", true);
-  }, [settings.onboarded, set]);
+  const seal = useCallback(() => {
+    if (!settings.onboarded) saveSetting("onboarded", true);
+  }, [settings.onboarded, saveSetting]);
 
   const skip = useCallback(() => {
-    void seal().then(onClose);
+    seal();
+    onClose();
   }, [seal, onClose]);
 
   // 창이 열리면 카드로 초점을 옮긴다 — 뒤에 있는 시작 화면의 검색창이 키를
@@ -127,12 +130,12 @@ export function WelcomeWizard({
   };
 
   const pickLang = (next: LangSetting) => {
-    void set("language", next);
+    saveSetting("language", next);
     // AI 작성 언어를 **여기서만** 함께 맞춘다. 설정 화면에서는 토스트로 물어
     // 보는 축이지만(디스크에 남는 문서의 언어라 되돌리기 어렵다), 첫 실행에는
     // 아직 일지가 한 건도 없어 섞일 이력 자체가 없다 — 그래서 묻지 않고 맞추고,
     // 갈라 쓰고 싶다면 설정 → 모양에서 나눌 수 있다고 아래 줄에 적어 둔다.
-    void set("contentLanguage", next);
+    saveSetting("contentLanguage", next);
   };
 
   const pickFolder = async () => {
@@ -148,18 +151,16 @@ export function WelcomeWizard({
   };
 
   const startGreenfield = () => {
-    void seal().then(() => {
-      onClose();
-      onStartGreenfield();
-    });
+    seal();
+    onClose();
+    onStartGreenfield();
   };
 
   const openAdded = () => {
     if (!added) return;
-    void seal().then(() => {
-      onClose();
-      onOpenProject(added);
-    });
+    seal();
+    onClose();
+    onOpenProject(added);
   };
 
   return (
@@ -226,7 +227,7 @@ export function WelcomeWizard({
                       role="radio"
                       aria-checked={on}
                       className={"wz-choice" + (on ? " on" : "")}
-                      onClick={() => void set("theme", id)}
+                      onClick={() => saveSetting("theme", id)}
                     >
                       <Icon size={18} />
                       <span>{t(labelKey)}</span>
@@ -249,7 +250,7 @@ export function WelcomeWizard({
                       title={t(a.labelKey)}
                       className={"wz-accent" + (on ? " on" : "")}
                       style={{ background: a.color }}
-                      onClick={() => void set("colorTheme", a.id)}
+                      onClick={() => saveSetting("colorTheme", a.id)}
                     />
                   );
                 })}

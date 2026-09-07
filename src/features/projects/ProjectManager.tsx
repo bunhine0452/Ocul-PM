@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMinuteTick } from "@/hooks/useSecondTick";
 
 import { FolderOpen, FolderPlus, Pencil, Search, Trash2, X } from "@/components/Icons";
+import { EmptyState } from "@/components/EmptyState";
 import { commands, type HomeBrief, type Project } from "@/lib/bindings";
 import { initials, relativeTime, tildePath } from "@/features/onboarding/home/homeModel";
 
@@ -386,14 +387,13 @@ export function ProjectManager(props: ProjectManagerProps) {
           </table>
 
           {rows.length === 0 && (
-            <div className="pm-empty">
-              <p className="pm-empty-title">
-                {searching ? t("pm.emptySearch", { query }) : t("pm.emptyNone")}
-              </p>
-              <p className="pm-empty-sub">
-                {searching ? t("pm.emptySearchTip") : t("pm.emptyNoneTip")}
-              </p>
-            </div>
+            <EmptyState
+              density="rich"
+              icon={searching ? Search : FolderOpen}
+              title={searching ? t("pm.emptySearch", { query }) : t("pm.emptyNone")}
+            >
+              {searching ? t("pm.emptySearchTip") : t("pm.emptyNoneTip")}
+            </EmptyState>
           )}
         </div>
 

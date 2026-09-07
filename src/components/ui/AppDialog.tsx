@@ -36,7 +36,7 @@ export function AppDialog({
 
   return (
     <div
-      className="scrim animate-in fade-in z-[95] flex items-center justify-center p-6 duration-150"
+      className="scrim animate-in fade-in z-modal flex items-center justify-center p-6 duration-150"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

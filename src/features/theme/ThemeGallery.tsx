@@ -14,6 +14,7 @@ import { AppDialog } from "@/components/ui/AppDialog";
 import { themesApi } from "@/api/themes";
 import { toAppError } from "@/api/invoke";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useSaveSetting } from "@/features/settings/saveSetting";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -45,7 +46,8 @@ interface Conflict {
 
 export function ThemeGallery() {
   const { t } = useT();
-  const { settings, set } = useSettings();
+  const { settings } = useSettings();
+  const saveSetting = useSaveSetting();
   const { customThemes, systemAccent, loaded } = useThemeState();
   const { confirm, confirmDialog } = useConfirm();
 
@@ -65,7 +67,7 @@ export function ThemeGallery() {
   const apply = (theme: ThemeFile) => {
     const id = theme.metadata.id ?? "";
     const value = theme.is_built_in ? id : `${CUSTOM_PREFIX}${id}`;
-    void set("theme", value as never);
+    saveSetting("theme", value as never);
   };
 
   const save = async () => {
@@ -98,7 +100,7 @@ export function ThemeGallery() {
       // 지운 테마를 쓰고 있었다면 전역 기본으로 되돌린다 — 폴백은 적용
       // 경로에도 있지만, 설정에 죽은 id 를 남겨 두지 않는다.
       if (settings.theme === `${CUSTOM_PREFIX}${theme.metadata.id ?? ""}`) {
-        void set("theme", "system");
+        saveSetting("theme", "system");
       }
       toast.info(t("theme.deleted"));
     } catch (e) {

@@ -29,7 +29,7 @@ export function SettingsOverlay({ onClose }: { onClose: () => void }) {
   return (
     <div
       data-home-overlay
-      className="scrim z-[90] flex items-center justify-center p-6 animate-in fade-in duration-150"
+      className="scrim z-popover flex items-center justify-center p-6 animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

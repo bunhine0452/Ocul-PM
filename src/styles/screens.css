@@ -2342,10 +2342,6 @@ mark.s-hit {
 .dfl-verify.on { color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
 .dfl-verify:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* 검색 — 색인 없음 빈 상태 */
-.search-noindex { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); padding: 40px 20px; }
-.search-noindex-title { font-weight: 600; color: var(--text-1); }
-
 /* Today — 첫 활성화 카드 · What's new 카드 */
 .first-run-card .stat-top, .whats-new-card .stat-top { display: flex; align-items: center; gap: var(--space-3); }
 .first-run-sub { color: var(--text-2); font-size: var(--fs-6); margin-top: 6px; }

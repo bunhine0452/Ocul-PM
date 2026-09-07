@@ -776,21 +776,10 @@
   color: var(--text-3);
   text-align: center;
 }
-.code-empty-ico {
-  color: var(--text-3);
-}
-.code-empty-title,
 .code-unopenable-title {
-  font-size: 15px;
+  font-size: var(--fs-9);
   font-weight: 650;
   color: var(--text);
-}
-.code-empty-desc {
-  max-width: 380px;
-  font-size: var(--fs-7);
-  line-height: 1.6;
-  color: var(--text-3);
-  margin: 0;
 }
 .code-unopenable-desc {
   font-size: var(--fs-5);
@@ -1202,7 +1191,7 @@ body.code-dragging {
   padding: 0 8px 0 4px;
   /* 본문 줄과 같은 리듬 — editorChrome 의 13px × 1.6 을 그대로 쓴다. */
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--fs-7);
   line-height: 1.6;
   color: var(--text-2);
   background: none;
@@ -1812,7 +1801,7 @@ body.code-dragging {
   border-radius: var(--radius-s);
   background: none;
   color: var(--text-3);
-  font-size: 14px;
+  font-size: var(--fs-8);
   line-height: 1;
   cursor: pointer;
 }

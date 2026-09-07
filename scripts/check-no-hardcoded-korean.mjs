@@ -228,6 +228,7 @@ const TESTS = new Set([
   "__tests__/session_activity.test.ts",
   "__tests__/session_colors.test.ts",
   "__tests__/sessions_screen.test.tsx",
+  "__tests__/settings_deferred_commit.test.tsx",
   "__tests__/settings_search.test.ts",
   "__tests__/sidebar_a11y.test.tsx",
   "__tests__/skill_promotion_v2.test.tsx",
@@ -259,6 +260,7 @@ const TESTS = new Set([
   "__tests__/update_banner.test.tsx",
   "__tests__/welcome_wizard.test.tsx",
   "__tests__/workday_rollover.test.tsx",
+  "__tests__/workspace_slice_consumers.test.tsx",
 ]);
 
 const ALLOWLIST = new Set([...PERMANENT, ...DISK_CONTENT, ...TESTS, ...PENDING]);

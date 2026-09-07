@@ -397,7 +397,7 @@ export function CommandPalette({
   return (
     <div
       data-home-overlay
-      className="scrim z-[100] flex items-start justify-center pt-[18vh] p-4 animate-in fade-in duration-150"
+      className="scrim z-modal flex items-start justify-center pt-[18vh] p-4 animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onOpenChange(false);
       }}

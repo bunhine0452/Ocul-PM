@@ -27,6 +27,7 @@ import type {
   AutomationSummary,
   OculpmConfig,
 } from "@/lib/bindings";
+import { EmptyState } from "@/components/EmptyState";
 import { Section, Toggle } from "../tabs/ui";
 import { AutomationEditor } from "./AutomationEditor";
 import { AutomationHistory } from "./AutomationHistory";
@@ -222,7 +223,7 @@ export function AutomationTab() {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   if (projectId == null) {
-    return <p className="empty-hint">{t("automation.noProject")}</p>;
+    return <EmptyState>{t("automation.noProject")}</EmptyState>;
   }
 
   return (
@@ -284,7 +285,7 @@ export function AutomationTab() {
         </div>
 
         {loaded && items.length === 0 && (
-          <p className="empty-hint">{t("automation.list.empty")}</p>
+          <EmptyState>{t("automation.list.empty")}</EmptyState>
         )}
 
         <ul className="space-y-2">
