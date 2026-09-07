@@ -62,6 +62,11 @@ export const ALLOWLIST = new Set([
   "features/code/useLsp.ts",
   "features/diff/BinaryFileView.tsx",
   "features/diff/DiffScreenV2.tsx",
+  // v3-release {#planner-diff-split} — 화면을 쪼개며 갈라 나온 조각들.
+  // 위 `{#acp-split}` 과 같은 사정이다: 직접 호출이 늘어난 것이 아니라
+  // 화면 파일이 들고 있던 것이 그대로 따라왔다. 옮길 때는 셋을 함께 보낸다.
+  "features/diff/useDiffChanges.ts",
+  "features/diff/useDiffFile.ts",
   "features/discussion/DiscussionScreenV2.tsx",
   "features/discussion/DiscussionView.tsx",
   "features/docs/DocsImage.tsx",
@@ -74,6 +79,8 @@ export const ALLOWLIST = new Set([
   "features/onboarding/StartScreen.tsx",
   "features/onboarding/home/useHomeBrief.ts",
   "features/planner/PlannerScreenV2.tsx",
+  // v3-release {#planner-diff-split} — 위 diff 조각들과 한 짝이다.
+  "features/planner/usePlanDocument.ts",
   "features/projects/ProjectManager.tsx",
   "features/retro/DeferLedger.tsx",
   "features/retro/EvalTrend.tsx",

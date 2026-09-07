@@ -99,6 +99,11 @@ import {
   collapsePlanRefs,
   visiblePathsOf,
 } from "@/features/diff/changeGroups";
+import {
+  autoBaseline,
+  mergeChanges,
+  toBaselineChanges,
+} from "@/features/diff/changeList";
 import { WorkspaceProvider, storageKeyFor } from "@/contexts/WorkspaceContext";
 import { recentChangesStore } from "@/lib/recentChangesStore";
 import { SettingsProvider } from "@/contexts/SettingsContext";
@@ -667,5 +672,65 @@ describe("PR-UI 4 — Diff a11y", () => {
     const { container } = renderDiff();
     await waitFor(() => expect(container.querySelector(".dfl-filter")).not.toBeNull());
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
+  });
+});
+
+// ── 목록의 순수 규칙 (분할 라운드 {#planner-diff-split} 에서 화면 밖으로) ────
+//
+// 위 화면 테스트들은 이 규칙을 렌더 너머로만 건드린다 — 병합 우선순위와 정렬
+// 순서, 기준선 자동 선택은 여기서 직접 못박는다.
+
+describe("changeList — 목록 병합과 기준선", () => {
+  const live = (path: string, op: "A" | "M" | "D", ts: number) => ({
+    path,
+    op,
+    ts,
+    read: false,
+  });
+
+  it("git 행을 ts=0 · read=true 로 옮긴다 (바탕은 새 소식이 아니다)", () => {
+    expect(toBaselineChanges([{ path: "src/a.ts", op: "M" }])).toEqual([
+      { path: "src/a.ts", op: "M", ts: 0, read: true },
+    ]);
+  });
+
+  it("같은 경로는 워처 항목이 이긴다 — 최신 op 와 진짜 시각을 갖고 있다", () => {
+    const merged = mergeChanges(toBaselineChanges([{ path: "src/a.ts", op: "M" }]), [
+      live("src/a.ts", "D", 500),
+    ]);
+    expect(merged).toEqual([{ path: "src/a.ts", op: "D", ts: 500, read: false }]);
+  });
+
+  it("git 바탕(ts=0)이 먼저 서고 라이브 편집이 최신으로 뒤에 온다", () => {
+    const merged = mergeChanges(
+      toBaselineChanges([
+        { path: "src/z.ts", op: "M" },
+        { path: "src/b.ts", op: "M" },
+      ]),
+      [live("src/live.ts", "A", 10)],
+    );
+    // ts 가 같으면 경로 사전순 — 목록이 렌더마다 흔들리지 않게.
+    expect(merged.map((c) => c.path)).toEqual(["src/b.ts", "src/z.ts", "src/live.ts"]);
+  });
+
+  it("입력 배열을 변형하지 않는다", () => {
+    const git = toBaselineChanges([
+      { path: "src/z.ts", op: "M" },
+      { path: "src/b.ts", op: "M" },
+    ]);
+    mergeChanges(git, []);
+    expect(git.map((c) => c.path)).toEqual(["src/z.ts", "src/b.ts"]);
+  });
+
+  it("작업트리에 변경이 있으면 작업트리를 본다", () => {
+    expect(autoBaseline(3, 7)).toBe("working");
+  });
+
+  it("작업트리가 깨끗하면 직전 커밋으로 넘어간다", () => {
+    expect(autoBaseline(0, 7)).toBe("last_commit");
+  });
+
+  it("돌아갈 커밋이 없으면 작업트리에 남는다 (빈 화면이 정답인 경우)", () => {
+    expect(autoBaseline(0, 0)).toBe("working");
   });
 });

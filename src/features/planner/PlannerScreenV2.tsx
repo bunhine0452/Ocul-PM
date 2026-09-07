@@ -1,40 +1,30 @@
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
-  Plus, TriangleAlert, ChevronDown, ChevronUpIcon as ChevronUp, ChevronRight,
-  RefreshCw, Lock, PanelLeft, PanelRight, Pencil, Trash2, TargetIcon,
+  Plus, TriangleAlert, RefreshCw, PanelLeft, PanelRight, TargetIcon,
 } from "@/components/Icons";
-import {
-  commands, type PlanSummary, type PlanDetail, type PlanItemDto, type PlanItemUpdateDto, type PlanEditOp,
-} from "@/lib/bindings";
-import { agentColor, agentLabel } from "@/features/today/agentColor";
-import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
-import { oculpmApi } from "@/api/oculpm";
+import { commands, type PlanItemDto } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 import { handoffDispatch, terminalOnScreen } from "@/features/terminal/dispatchTarget";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { AppDialog } from "@/components/ui/AppDialog";
-import { InlineMarkdown } from "@/components/InlineMarkdown";
 import { useTerminalSessions, useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { PlanRailDock, clampRailWidth } from "./PlanRailDock";
-import { facetsOf, latestActivityByPlan, type PlanGroup, type PlanSort } from "./planList";
+import type { PlanGroup, PlanSort } from "./planList";
 import { t, useT } from "@/i18n";
-import { tError } from "@/i18n/errors";
-import {
-  NO_PHASE,
-  phaseProgress,
-  relativeTime,
-  STATUS_META,
-  type JournalRefMeta,
-} from "./planMeta";
-import { PlanItemRow } from "./PlanItemRow";
+import { PlanBody } from "./PlanBody";
+import { usePlanDocument } from "./usePlanDocument";
 
 // Planner Upgrade (PR-PLN 3) — document-style living checklist over the file
 // `.oculpm/planner/*.md` SSOT. Reads via plan_list/plan_get; edits via
 // plan_apply_edit (status cycle / add item) and plan_create. Per-item
 // attribution chips reuse Today's agentColor. Legacy PlannerPanel untouched.
+//
+// 이 파일은 **배치와 UI 상태**만 갖는다 (분할 라운드 {#planner-diff-split}):
+// 읽기·쓰기는 `usePlanDocument`, 문서 본문은 `PlanBody`, 단계 카드는
+// `PhaseCard` 가 소유한다.
 
 interface PlannerScreenV2Props {
   projectId: number;
@@ -49,18 +39,10 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   useT();
   const { state, setState } = useWorkspace();
   const sessions = useTerminalSessions();
-  const [plans, setPlans] = useState<PlanSummary[] | null>(null);
-  // Restore the last-viewed plan (persisted) so returning from a linked journal
-  // lands back on the SAME plan instead of resetting to the first one.
-  const [selectedId, setSelectedId] = useState<string | null>(state.plannerPlanId);
-  const [detail, setDetail] = useState<PlanDetail | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const plan = usePlanDocument(projectId);
+  const { detail, selectedId, busy, locked } = plan;
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [historyFor, setHistoryFor] = useState<string | null>(null);
-  const [history, setHistory] = useState<PlanItemUpdateDto[] | null>(null);
 
   const [newPlanOpen, setNewPlanOpen] = useState(false);
   const [newPlanTitle, setNewPlanTitle] = useState("");
@@ -69,104 +51,6 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   // 계획 레일 (2026-07-30 스케일 라운드). 검색어만 휘발 — 나머지는 영속.
   const [query, setQuery] = useState("");
 
-  /**
-   * 계획별 마지막 **실제** 활동 시각 (plan-log 기반).
-   *
-   * `PlanSummary.updated_at` 은 frontmatter `updated:` 인데 항목 편집으로는
-   * 갱신되지 않아 사실상 생성일에 고정돼 있다 — 그 값으로 '멈춤' 을 주장하면
-   * 거짓 경고가 된다. 그래서 멈춤 배지는 이 맵에 기록이 있는 계획에만 붙고,
-   * 없으면 아무 주장도 하지 않는다 (planList.ts 참고).
-   *
-   * 마운트당 1회만 부른다: 이 커맨드도 plan 파일 전량 재읽기를 한다.
-   */
-  const [activity, setActivity] = useState<Record<string, string>>({});
-
-  const refreshPlans = useCallback(async () => {
-    // 봉투가 아닌 **진짜 Error**(전송 계층 실패·창 teardown)를 안 받으면 `plans`
-    // 가 `null` 로 남아 스켈레톤이 영원히 돈다 — 오류 카드도 안 뜬다.
-    try {
-      const res = await commands.planList(projectId);
-      if (res.status === "ok") {
-        setPlans(res.data ?? []);
-        // Keep the current selection if it still exists; otherwise fall back to
-        // the first plan. (A persisted id may point at a since-deleted plan.)
-        setSelectedId((cur) =>
-          cur && res.data?.some((p) => p.plan_id === cur)
-            ? cur
-            : res.data?.[0]?.plan_id ?? null,
-        );
-      } else {
-        setError(tError(res.error));
-        setPlans([]);
-      }
-    } catch (e) {
-      setError(String(e));
-      setPlans([]);
-    }
-  }, [projectId]);
-
-  // Persist the active plan so it survives navigating away (e.g. to a linked
-  // journal) and back.
-  useEffect(() => {
-    setState((prev) => (prev.plannerPlanId === selectedId ? prev : { ...prev, plannerPlanId: selectedId }));
-  }, [selectedId, setState]);
-
-  // `silent` — 스켈레톤 없이 조용히 다시 읽는다. 디스크 변경(에이전트가 계획을
-  // 고침)으로 도는 갱신은 사용자가 요청한 적이 없으므로, 읽고 있던 내용이
-  // 로딩 뼈대로 깜빡이면 안 된다.
-  const refreshDetail = useCallback(async (silent = false) => {
-    if (selectedId == null) {
-      setDetail(null);
-      return;
-    }
-    if (!silent) setLoadingDetail(true);
-    try {
-      const res = await commands.planGet(projectId, selectedId);
-      if (res.status === "ok") setDetail(res.data);
-      else setError(tError(res.error));
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      if (!silent) setLoadingDetail(false);
-    }
-  }, [projectId, selectedId]);
-
-  // 에이전트(또는 다른 창)가 `.oculpm/planner/*.md` 를 건드리면 즉시 다시 읽는다.
-  // 이 구독이 없던 동안 계획 화면은 마운트 때 읽은 내용에 그대로 머물렀다.
-  const refreshFromDisk = useCallback(() => {
-    void refreshPlans();
-    void refreshDetail(true);
-  }, [refreshPlans, refreshDetail]);
-  useOculpmDataEvents("planner", projectId, true, refreshFromDisk);
-
-  useEffect(() => {
-    void refreshPlans();
-  }, [refreshPlans]);
-
-  useEffect(() => {
-    let alive = true;
-    void commands.planRecentUpdates(projectId, 500).then((res) => {
-      // 응답 모양을 신뢰하지 않는다 — 실패하면 조용히 비워 두고, 레일은
-      // 활동 정보 없이도 완전히 동작한다 (멈춤 배지만 안 붙는다).
-      if (!alive || res.status !== "ok") return;
-      setActivity(latestActivityByPlan(res.data));
-    });
-    return () => {
-      alive = false;
-    };
-  }, [projectId]);
-
-  useEffect(() => {
-    setHistoryFor(null);
-    void refreshDetail();
-  }, [refreshDetail]);
-
-  // v2 U9 (docs/20260706_v2/01-ux-spec.md §4) — 낙관적 업데이트: 글리프를
-  // 즉시 바꾸고 백그라운드로 기록한다. 파생 상태(phases/counts)는 detail 의
-  // useMemo 라 자동 추종. 성공 시 응답의 정규화된 detail 로 치환하고 진행률
-  // 롤업(plans 목록)만 비차단 refetch; 실패 시 이전 detail 로 롤백 + 토스트.
-  // busy 게이트를 걸지 않아 연속 토글이 즉각 반응한다 (백엔드는 N4 공유
-  // plan-write 락이 직렬화).
   // PR-CI6 (EDD-lite) — 완료 소프트 게이트: plan-log 에 검증 일지가 연결되지
   // 않은 항목을 done 으로 바꾸려 하면 확인을 한 번 거친다. 소프트 — "검증
   // 없이 완료" 를 누르면 그대로 진행되고, 어떤 상태도 강제로 막지 않는다.
@@ -177,7 +61,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       setConfirmDone(item);
       return;
     }
-    await doApplyStatus(item, status);
+    await plan.setStatus(item, status);
   };
 
   // IN2 — 항목 실행: 백엔드가 프롬프트를 조립·저장하고, 터미널에 프리필할 한 줄
@@ -209,34 +93,6 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     if (!onScreen) onNavigate("terminal");
   };
 
-  const doApplyStatus = async (item: PlanItemDto, status: string) => {
-    if (selectedId == null || item.status === status) return;
-    const prevDetail = detail;
-    setDetail((d) =>
-      d
-        ? {
-            ...d,
-            items: d.items.map((it) =>
-              it.item_id === item.item_id ? { ...it, status } : it,
-            ),
-          }
-        : d,
-    );
-    const res = await commands.planApplyEdit(
-      projectId,
-      selectedId,
-      { kind: "set_status", item_id: item.item_id, status },
-      "user",
-    );
-    if (res.status === "ok") {
-      if (res.data) setDetail(res.data);
-      void refreshPlans();
-    } else {
-      setDetail(prevDetail);
-      toast.destructive(t("plan.statusFailed", { error: res.error }));
-    }
-  };
-
   // plan-log journal refs are written relative to `.oculpm/` (e.g.
   // "journal/2026…/Bugs/…md"); the journal screen resolves paths relative to the
   // journal root, so strip a leading ".oculpm/" and/or "journal/" prefix. The
@@ -247,276 +103,20 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     else onNavigate("journal");
   };
 
-  // Resolve a plan item's linked journal refs to {date, title} for the picker
-  // shown when an item links MORE THAN ONE journal. The workday comes free from
-  // the path; the real title is the entry's first line (getJournalEntry).
-  const resolveJournalRefs = useCallback(
-    async (refs: string[]): Promise<JournalRefMeta[]> =>
-      Promise.all(
-        refs.map(async (ref) => {
-          const path = ref.replace(/^\.oculpm\//, "").replace(/^journal\//, "");
-          const workday = path.split("/")[0] ?? "";
-          const fallback = path.split("/").pop()?.replace(/\.md$/, "") || path;
-          try {
-            const entry = await oculpmApi.getJournalEntry(projectId, path);
-            return { ref, path, workday, title: entry?.title?.trim() || fallback };
-          } catch {
-            return { ref, path, workday, title: fallback };
-          }
-        }),
-      ),
-    [projectId],
-  );
-
   const submitNewItem = async () => {
-    if (!composer || selectedId == null || !composer.title.trim()) return;
-    setBusy(true);
-    const res = await commands.planApplyEdit(
-      projectId,
-      selectedId,
-      {
-        kind: "add_item",
-        phase: composer.phase.trim() || t("plan.defaultPhase"),
-        title: composer.title.trim(),
-        item_id: null,
-        status: null,
-      },
-      "user",
-    );
-    setBusy(false);
-    if (res.status === "ok") {
-      if (res.data) setDetail(res.data);
-      setComposer(null);
-      void refreshPlans();
-    } else {
-      toast.destructive(t("plan.addItemFailed", { error: res.error }));
-    }
+    if (!composer) return;
+    if (await plan.addItem(composer.phase, composer.title)) setComposer(null);
   };
 
   const submitNewPlan = async () => {
-    if (!newPlanTitle.trim()) return;
-    setBusy(true);
-    const res = await commands.planCreate(projectId, newPlanTitle.trim());
-    setBusy(false);
-    if (res.status === "ok") {
+    if (await plan.createPlan(newPlanTitle)) {
       setNewPlanOpen(false);
       setNewPlanTitle("");
-      setSelectedId(res.data.plan_id);
-      void refreshPlans();
-    } else {
-      toast.destructive(t("plan.createFailed", { error: res.error }));
     }
   };
-
-  // Plan-level CRUD: rename (frontmatter title) + delete (.md unlink + reproject).
-  const renamePlan = async (title: string) => {
-    if (busy || selectedId == null || !title.trim()) return;
-    setBusy(true);
-    const res = await commands.planRename(projectId, selectedId, title.trim());
-    setBusy(false);
-    if (res.status === "ok") {
-      if (res.data) setDetail(res.data);
-      void refreshPlans();
-    } else {
-      toast.destructive(t("plan.renameFailed", { error: res.error }));
-    }
-  };
-
-  const deletePlan = async () => {
-    if (busy || selectedId == null) return;
-    setBusy(true);
-    const res = await commands.planDelete(projectId, selectedId);
-    setBusy(false);
-    if (res.status === "ok") {
-      setSelectedId(null);
-      setDetail(null);
-      void refreshPlans();
-    } else {
-      toast.destructive(t("plan.deleteFailed", { error: res.error }));
-    }
-  };
-
-  // Item-level remove / rename (reuses plan_apply_edit; locked plans rejected).
-  const removeItem = async (item: PlanItemDto) => {
-    if (busy || selectedId == null) return;
-    setBusy(true);
-    const res = await commands.planApplyEdit(
-      projectId,
-      selectedId,
-      { kind: "remove_item", item_id: item.item_id },
-      "user",
-    );
-    setBusy(false);
-    if (res.status === "ok") {
-      if (res.data) setDetail(res.data);
-      void refreshPlans();
-    } else {
-      toast.destructive(t("plan.removeItemFailed", { error: res.error }));
-    }
-  };
-
-  const renameItem = async (item: PlanItemDto, title: string) => {
-    if (busy || selectedId == null || !title.trim()) return;
-    setBusy(true);
-    const res = await commands.planApplyEdit(
-      projectId,
-      selectedId,
-      { kind: "rename_item", item_id: item.item_id, title: title.trim() },
-      "user",
-    );
-    setBusy(false);
-    if (res.status === "ok") {
-      if (res.data) setDetail(res.data);
-      void refreshPlans();
-    } else {
-      toast.destructive(t("plan.renameFailed", { error: res.error }));
-    }
-  };
-
-  // Phase-level CRUD — rename / delete / reorder a `## ` section. Phases were
-  // previously only creatable (implicitly, via add_item); these close the gap.
-  const editPhase = async (op: PlanEditOp, failMsg: string) => {
-    if (busy || selectedId == null) return;
-    setBusy(true);
-    const res = await commands.planApplyEdit(projectId, selectedId, op, "user");
-    setBusy(false);
-    if (res.status === "ok") {
-      if (res.data) setDetail(res.data);
-      void refreshPlans();
-    } else {
-      toast.destructive(`${failMsg}: ${res.error}`);
-    }
-  };
-
-  const renamePhase = (from: string, to: string) => {
-    if (!to.trim() || to.trim() === from) return;
-    void editPhase({ kind: "rename_phase", from, to: to.trim() }, t("plan.phaseRenameFailed"));
-  };
-  const removePhase = (phase: string) => void editPhase({ kind: "remove_phase", phase }, t("plan.phaseRemoveFailed"));
-  const movePhase = (phase: string, up: boolean) =>
-    void editPhase({ kind: "move_phase", phase, up }, t("plan.phaseMoveFailed"));
-
-  // Dogfooding 2026-06-07 (Planner #1) — 완료·잠금: mark the plan done (read-only).
-  // Locked plans reject in-app edits + AI refresh (backend guard) and AGENTS.md
-  // tells external agents the same, so finished plans freeze and work moves on.
-  const setPlanLock = async (lock: boolean) => {
-    if (selectedId == null || busy) return;
-    setBusy(true);
-    const res = await commands.planSetStatus(projectId, selectedId, lock ? "done" : "active");
-    setBusy(false);
-    if (res.status === "ok") {
-      if (res.data) setDetail(res.data);
-      void refreshPlans();
-      toast.info(lock ? t("plan.lockedDone") : t("plan.unlocked"));
-    } else {
-      toast.destructive(tError(res.error));
-    }
-  };
-
-  // PR-PLN 5 — in-app AI updates item statuses from recent journal activity.
-  const aiRefresh = async () => {
-    if (selectedId == null || busy) return;
-    const provR = await commands.settingsGet("default_provider");
-    const provider = provR.status === "ok" ? provR.data : null;
-    if (!provider) {
-      toast.warning(t("plan.needProvider"));
-      return;
-    }
-    const mR = await commands.settingsGet(`model_${provider}`);
-    let model = mR.status === "ok" ? mR.data : null;
-    if (!model) {
-      const dm = await commands.settingsGet("default_model");
-      model = dm.status === "ok" ? dm.data : null;
-    }
-    if (!model) {
-      toast.warning(t("plan.needModel"));
-      return;
-    }
-    setBusy(true);
-    const res = await commands.planAiRefresh(projectId, selectedId, provider, model);
-    setBusy(false);
-    if (res.status === "ok") {
-      if (res.data) setDetail(res.data);
-      void refreshPlans();
-      toast.info(t("plan.aiDone"));
-    } else {
-      toast.destructive(t("plan.aiFailed", { error: res.error }));
-    }
-  };
-
-  // PR-PLN 5 — one-time import of legacy goals/subtasks into _imported.md.
-  const importGoals = async () => {
-    if (busy) return;
-    setBusy(true);
-    const res = await commands.planMigrateGoals(projectId);
-    setBusy(false);
-    if (res.status === "ok") {
-      setSelectedId(res.data.plan_id);
-      void refreshPlans();
-      toast.info(t("plan.goalsImported"));
-    } else {
-      toast.destructive(tError(res.error));
-    }
-  };
-
-  const toggleHistory = async (itemId: string) => {
-    if (historyFor === itemId) {
-      setHistoryFor(null);
-      return;
-    }
-    setHistoryFor(itemId);
-    setHistory(null);
-    if (selectedId == null) return;
-    const res = await commands.planItemHistory(projectId, selectedId, itemId);
-    if (res.status === "ok") setHistory(res.data);
-  };
-
-  const phases = useMemo(() => {
-    const map = new Map<string, PlanItemDto[]>();
-    for (const it of detail?.items ?? []) {
-      const key = it.phase ?? NO_PHASE;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(it);
-    }
-    return [...map.entries()];
-  }, [detail]);
-
-  const counts = useMemo(() => {
-    const c: Record<string, number> = {};
-    for (const it of detail?.items ?? []) c[it.status] = (c[it.status] ?? 0) + 1;
-    return c;
-  }, [detail]);
-
-  const existingPhases = useMemo(
-    () => [...new Set((detail?.items ?? []).map((i) => i.phase).filter((p): p is string => !!p))],
-    [detail],
-  );
-
-  // A plan whose frontmatter status isn't "active" is locked (done/archived):
-  // edits + AI refresh are disabled in the UI (and refused by the backend).
-  const locked = (detail?.plan.status ?? "active") !== "active";
-
-  // 레일과 툴바 카운트가 같은 계산을 공유하도록 패싯은 여기서 한 번만 만든다.
-  // `now` 를 렌더마다 새로 읽으면 useMemo 가 매번 무효화되므로 마운트에 고정한다
-  // (상대 시각 표시는 분 단위 정확도를 요구하지 않는다).
-  const now = useMemo(() => Date.now(), [projectId]);
-  const facets = useMemo(
-    () => facetsOf(plans ?? [], now, activity),
-    [plans, now, activity],
-  );
-
-  const railStats = useMemo(() => {
-    let active = 0;
-    let stale = 0;
-    for (const f of facets.values()) {
-      if (f.bucket === "active") active += 1;
-      if (f.staleDays != null) stale += 1;
-    }
-    return { active, stale };
-  }, [facets]);
 
   // 계획이 하나뿐이면 레일은 제목만 되풀이하므로 가로폭만 낭비한다.
-  const railEligible = (plans?.length ?? 0) >= 2;
+  const railEligible = (plan.plans?.length ?? 0) >= 2;
   const railVisible = railEligible && !state.plannerRailCollapsed;
 
   const setSort = (sort: PlanSort) => setState((p) => ({ ...p, plannerSort: sort }));
@@ -527,36 +127,17 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   // 알 수 없는 영속값은 왼쪽으로 — 렌더는 "right" 하나만 특별 취급한다.
   const railSide = state.plannerRailSide === "right" ? "right" : "left";
 
-  /**
-   * 끝난 계획 묶음을 통째로 보관으로 옮긴다 (레일 완료 섹션의 정리 동작).
-   * 한 번의 백엔드 호출로 처리한다 — `plan_set_status` 를 N번 부르면 계획
-   * 파일 전체를 N번 다시 파싱한다 (바로 이 경우가 가장 아픈 자리다).
-   */
-  const archivePlans = async (planIds: string[]) => {
-    if (planIds.length === 0 || busy) return;
-    setBusy(true);
-    const res = await commands.planSetStatusBulk(projectId, planIds, "archived");
-    setBusy(false);
-    if (res.status === "ok") {
-      void refreshPlans();
-      if (selectedId != null && planIds.includes(selectedId)) void refreshDetail();
-      toast.info(t("plan.rail.archived", { n: res.data }));
-    } else {
-      toast.destructive(tError(res.error));
-    }
-  };
-
   const railDock =
-    railVisible && plans ? (
+    railVisible && plan.plans ? (
       <PlanRailDock
         width={clampRailWidth(state.plannerRailWidth)}
         onWidthChange={(w) => setState((p) => ({ ...p, plannerRailWidth: w }))}
         side={railSide}
-        onArchiveSection={(ids) => void archivePlans(ids)}
-        plans={plans}
-        facets={facets}
+        onArchiveSection={(ids) => void plan.archivePlans(ids)}
+        plans={plan.plans}
+        facets={plan.facets}
         selectedId={selectedId}
-        onSelect={setSelectedId}
+        onSelect={plan.select}
         sort={state.plannerSort}
         onSortChange={setSort}
         group={state.plannerGroup}
@@ -565,7 +146,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         onQueryChange={setQuery}
         openOverride={state.plannerRailOpen}
         onToggleSection={toggleSection}
-        now={now}
+        now={plan.now}
       />
     ) : null;
 
@@ -574,8 +155,8 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       <Toolbar
         title={t("nav.planner")}
         sub={
-          plans && plans.length > 0
-            ? `${t("plan.toolbarSub", { n: plans.length, active: railStats.active })}${railStats.stale ? t("plan.toolbarStale", { n: railStats.stale }) : ""}`
+          plan.plans && plan.plans.length > 0
+            ? `${t("plan.toolbarSub", { n: plan.plans.length, active: plan.railStats.active })}${plan.railStats.stale ? t("plan.toolbarStale", { n: plan.railStats.stale }) : ""}`
             : t("plan.toolbarIdle")
         }
         leading={
@@ -616,7 +197,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         <button
           className="scope-chip"
           style={{ height: 30 }}
-          onClick={() => void aiRefresh()}
+          onClick={() => void plan.aiRefresh()}
           disabled={selectedId == null || busy || locked}
           title={locked ? t("plan.aiLockedTitle") : t("plan.aiTitle")}
         >
@@ -625,7 +206,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         <button
           className="scope-chip"
           style={{ height: 30 }}
-          onClick={() => setComposer((c) => (c ? null : { phase: existingPhases[0] ?? t("plan.defaultPhase"), title: "" }))}
+          onClick={() => setComposer((c) => (c ? null : { phase: plan.existingPhases[0] ?? t("plan.defaultPhase"), title: "" }))}
           disabled={selectedId == null || busy || locked}
           title={locked ? t("plan.addLockedTitle") : t("plan.addItemTitle")}
         >
@@ -641,14 +222,11 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
 
         <div className="pln-main">
         <div className="pln-doc fade-in">
-          {error ? (
+          {plan.error ? (
             <ErrorCard
               title={t("plan.error")}
-              error={error}
-              onRetry={() => {
-                setError(null);
-                void refreshPlans();
-              }}
+              error={plan.error}
+              onRetry={plan.retry}
               style={{ marginBottom: 16 }}
             />
           ) : null}
@@ -670,44 +248,56 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
             </div>
           ) : null}
 
-          {plans == null ? (
+          {plan.plans == null ? (
             <SkeletonList rows={3} height={44} />
-          ) : plans.length === 0 ? (
+          ) : plan.plans.length === 0 ? (
             /* 계획이 「스스로 갱신된다」는 것은 자동화가 아니다 (v3-surface
                {#first-day-screens}) — 에이전트가 plan_update 를 부를 때 갱신된다. */
-            <EmptyState density="rich" icon={TargetIcon} title={t("plan.emptyTitle")} actions={<>
-              <button className="btn primary" onClick={() => setNewPlanOpen(true)} disabled={busy}>
-                <Plus size={14} /> {t("plan.newPlan")}</button>
-              <button className="btn" onClick={() => void importGoals()} disabled={busy}>
-                {t("plan.importGoals")}</button></>}>{t("plan.empty")}</EmptyState>
+            <EmptyState
+              density="rich"
+              icon={TargetIcon}
+              title={t("plan.emptyTitle")}
+              actions={
+                <>
+                  <button className="btn primary" onClick={() => setNewPlanOpen(true)} disabled={busy}>
+                    <Plus size={14} /> {t("plan.newPlan")}
+                  </button>
+                  <button className="btn" onClick={() => void plan.importGoals()} disabled={busy}>
+                    {t("plan.importGoals")}
+                  </button>
+                </>
+              }
+            >
+              {t("plan.empty")}
+            </EmptyState>
           ) : detail == null ? (
-            loadingDetail ? <SkeletonList rows={6} height={30} gap={8} /> : null
+            plan.loadingDetail ? <SkeletonList rows={6} height={30} gap={8} /> : null
           ) : (
             <PlanBody
               detail={detail}
-              counts={counts}
-              phases={phases}
+              counts={plan.counts}
+              phases={plan.phases}
               collapsed={collapsed}
               setCollapsed={setCollapsed}
               onSetStatus={applyStatus}
               onDispatch={dispatchItem}
               busy={busy}
               locked={locked}
-              onToggleLock={setPlanLock}
-              onArchive={() => void archivePlans(selectedId ? [selectedId] : [])}
-              onRename={renamePlan}
-              onDelete={deletePlan}
-              onRemoveItem={removeItem}
-              onRenameItem={renameItem}
-              onRenamePhase={renamePhase}
-              onRemovePhase={removePhase}
-              onMovePhase={movePhase}
-              historyFor={historyFor}
-              history={history}
-              onToggleHistory={toggleHistory}
-              onRefresh={() => void refreshDetail()}
+              onToggleLock={plan.setLock}
+              onArchive={() => void plan.archivePlans(selectedId ? [selectedId] : [])}
+              onRename={plan.renamePlan}
+              onDelete={plan.deletePlan}
+              onRemoveItem={plan.removeItem}
+              onRenameItem={plan.renameItem}
+              onRenamePhase={plan.renamePhase}
+              onRemovePhase={plan.removePhase}
+              onMovePhase={plan.movePhase}
+              historyFor={plan.historyFor}
+              history={plan.history}
+              onToggleHistory={plan.toggleHistory}
+              onRefresh={plan.refreshDetail}
               onOpenJournalRef={openJournal}
-              resolveJournalRefs={resolveJournalRefs}
+              resolveJournalRefs={plan.resolveJournalRefs}
             />
           )}
 
@@ -723,7 +313,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
                 onChange={(e) => setComposer({ ...composer, phase: e.target.value })}
               />
               <datalist id="phase-suggestions">
-                {existingPhases.map((p) => <option key={p} value={p} />)}
+                {plan.existingPhases.map((p) => <option key={p} value={p} />)}
               </datalist>
               <input
                 autoFocus
@@ -772,7 +362,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
                 onClick={() => {
                   const item = confirmDone;
                   setConfirmDone(null);
-                  void doApplyStatus(item, "done");
+                  void plan.setStatus(item, "done");
                 }}
               >
                 {t("plan.confirmDoneAction")}
@@ -782,368 +372,5 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         ) : null}
       </AppDialog>
     </>
-  );
-}
-
-// ── Plan body (header + phases + decisions) ──────────────────────────────────
-
-interface PlanBodyProps {
-  detail: PlanDetail;
-  counts: Record<string, number>;
-  phases: [string, PlanItemDto[]][];
-  collapsed: Record<string, boolean>;
-  setCollapsed: Dispatch<SetStateAction<Record<string, boolean>>>;
-  onSetStatus: (item: PlanItemDto, status: string) => void;
-  onDispatch: (item: PlanItemDto) => void;
-  busy: boolean;
-  locked: boolean;
-  onToggleLock: (lock: boolean) => void;
-  /** 끝난 계획을 보관으로 — 완료 상태에서만 의미가 있다. */
-  onArchive: () => void;
-  onRename: (title: string) => void;
-  onDelete: () => void;
-  onRemoveItem: (item: PlanItemDto) => void;
-  onRenameItem: (item: PlanItemDto, title: string) => void;
-  onRenamePhase: (from: string, to: string) => void;
-  onRemovePhase: (phase: string) => void;
-  onMovePhase: (phase: string, up: boolean) => void;
-  historyFor: string | null;
-  history: PlanItemUpdateDto[] | null;
-  onToggleHistory: (itemId: string) => void;
-  onRefresh: () => void;
-  onOpenJournalRef: (ref: string) => void;
-  resolveJournalRefs: (refs: string[]) => Promise<JournalRefMeta[]>;
-}
-
-function PlanBody(props: PlanBodyProps) {
-  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, onDispatch, busy, locked, onToggleLock, onArchive, onRename, onDelete, onRemoveItem, onRenameItem, onRenamePhase, onRemovePhase, onMovePhase, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs } = props;
-  const [renaming, setRenaming] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const archived = detail.plan.status !== "active" && detail.plan.status !== "done";
-  const pct = Math.round((detail.plan.progress ?? 0) * 100);
-  const phaseMeta = new Map((detail.phases ?? []).map((p) => [p.name, p] as const));
-
-  return (
-    <>
-      {/* Header */}
-      <div className="card card-pad" style={{ marginBottom: 16 }}>
-        <div className="pln-plan-head">
-          <div className="pln-plan-headtitle">
-            {renaming ? (
-              <input
-                autoFocus
-                className="goal-title-input"
-                defaultValue={detail.plan.title}
-                style={{ fontSize: 16, fontWeight: 660 }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    onRename((e.target as HTMLInputElement).value);
-                    setRenaming(false);
-                  }
-                  if (e.key === "Escape") setRenaming(false);
-                }}
-                onBlur={(e) => {
-                  const v = e.target.value.trim();
-                  if (v && v !== detail.plan.title) onRename(v);
-                  setRenaming(false);
-                }}
-              />
-            ) : locked ? (
-              <InlineMarkdown className="goal-title pln-plan-title" text={detail.plan.title} />
-            ) : (
-              <button
-                type="button"
-                className="plan-title-btn"
-                onClick={() => setRenaming(true)}
-                disabled={busy}
-                title={t("plan.renameTitle")}
-              >
-                <InlineMarkdown className="goal-title pln-plan-title" text={detail.plan.title} linkable={false} />
-                <span className="plan-title-pen"><Pencil size={13} /></span>
-              </button>
-            )}
-            <div className="goal-due" style={{ marginTop: 4 }}>
-              <span className={"goal-status " + (locked ? "planned" : "active")}>
-                {locked ? (
-                  <>
-                    <Lock size={11} />{" "}
-                    {archived ? t("plan.group.archived") : t("plan.locked")}
-                  </>
-                ) : (
-                  t("plan.inProgress")
-                )}
-              </span>
-              <span className="dotsep">·</span>
-              {t("plan.doneOf", { done: detail.plan.done_count, total: detail.plan.item_count })}
-            </div>
-          </div>
-          {/* 액션은 한 덩어리다 — 좁아지면 제목 아래로 통째로 내려간다
-              (버튼이 하나씩 흩어져 접히면 어디가 어딘지 안 보인다). */}
-          <div className="pln-plan-headactions">
-            <button
-              className="btn sm"
-              onClick={() => onToggleLock(!locked)}
-              disabled={busy}
-              title={locked ? t("plan.unlockTitle") : t("plan.lockTitle")}
-            >
-              {locked ? t("plan.unlock") : t("plan.locked")}
-            </button>
-            {/* 보관은 '끝났고 이제 목록에서 치운다' 는 뜻이라 완료된 계획에만
-                붙인다. 되돌리기는 왼쪽의 '잠금 해제' 하나로 충분하다. */}
-            {detail.plan.status === "done" ? (
-              <button
-                className="btn sm"
-                onClick={onArchive}
-                disabled={busy}
-                title={t("plan.archiveTitle")}
-              >
-                {t("plan.group.archived")}
-              </button>
-            ) : null}
-            {confirmDelete ? (
-              <>
-                <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDelete(false); onDelete(); }} disabled={busy} title={t("plan.deleteConfirmTitle")}>
-                  {t("plan.deleteConfirm")}
-                </button>
-                <button type="button" className="pln-textbtn" onClick={() => setConfirmDelete(false)}>{t("common.cancel")}</button>
-              </>
-            ) : (
-              <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDelete(true)} disabled={busy} title={t("plan.deleteTitle")}>
-                <Trash2 size={14} />
-              </button>
-            )}
-            <button type="button" className="pln-iconbtn" onClick={onRefresh} title={t("plan.refresh")}><RefreshCw size={14} /></button>
-          </div>
-        </div>
-        {locked ? (
-          <div className="today-date" style={{ marginTop: 8, color: "var(--text-3)" }}>
-            {t("plan.lockedNote")}
-          </div>
-        ) : null}
-
-        <div className="goal-prog-wrap" style={{ marginTop: 12 }}>
-          <div className="prog-track" style={{ flex: 1 }}><i style={{ width: `${pct}%` }} /></div>
-          <span className="prog-pct">{pct}%</span>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-          {(["done", "in_progress", "blocked", "deferred", "todo", "dropped"] as const)
-            .filter((s) => (counts[s] ?? 0) > 0)
-            .map((s) => (
-              <span key={s} style={{ fontSize: 12, color: "var(--text-2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                <span style={{ color: STATUS_META[s].color, fontSize: 14 }}>{STATUS_META[s].glyph}</span>
-                {t(STATUS_META[s].labelKey)} {counts[s]}
-              </span>
-            ))}
-        </div>
-      </div>
-
-      {/* Warnings */}
-      {detail.warnings.length > 0 ? (
-        <div className="card card-pad" style={{ marginBottom: 16, borderColor: "var(--t-bug)" }}>
-          <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-            <TriangleAlert size={14} /> {t("plan.warnings", { n: detail.warnings.length })}
-          </div>
-          <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 12, color: "var(--text-2)" }}>
-            {detail.warnings.slice(0, 8).map((w, i) => <li key={i}>{w}</li>)}
-          </ul>
-        </div>
-      ) : null}
-
-      {/* Phases — reorder bounds are computed among real (on-disk) headings so
-          the synthetic 기타 bucket never blocks moving the last real phase. */}
-      {phases.map(([phase, items]) => {
-        const realPhases = phases.map(([p]) => p).filter((p) => p !== NO_PHASE);
-        const ri = realPhases.indexOf(phase);
-        const canEdit = phase !== NO_PHASE;
-        return (
-        <PhaseCard
-          key={phase}
-          phase={phase}
-          items={items}
-          meta={phaseMeta.get(phase)}
-          isOpen={collapsed[phase] !== true}
-          onToggle={() => setCollapsed((c) => ({ ...c, [phase]: c[phase] !== true }))}
-          busy={busy}
-          locked={locked}
-          canEdit={canEdit}
-          canMoveUp={ri > 0}
-          canMoveDown={ri >= 0 && ri < realPhases.length - 1}
-          onRenamePhase={onRenamePhase}
-          onRemovePhase={onRemovePhase}
-          onMovePhase={onMovePhase}
-          onSetStatus={onSetStatus}
-          onDispatch={onDispatch}
-          onRemoveItem={onRemoveItem}
-          onRenameItem={onRenameItem}
-          historyFor={historyFor}
-          history={history}
-          onToggleHistory={onToggleHistory}
-          onOpenJournalRef={onOpenJournalRef}
-          resolveJournalRefs={resolveJournalRefs}
-        />
-        );
-      })}
-
-      {/* Decisions */}
-      {detail.decisions.length > 0 ? (
-        <div style={{ marginTop: 20 }}>
-          <div className="today-date" style={{ marginBottom: 8, fontWeight: 600 }}>{t("plan.decisions")}</div>
-          {detail.decisions.map((d) => (
-            <div className="card card-pad" key={d.decision_id} style={{ marginBottom: 10 }}>
-              <div className="goal-title" style={{ fontSize: 14 }}>{d.title}</div>
-              {d.body ? <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 6, whiteSpace: "pre-wrap" }}>{d.body}</div> : null}
-              <div className="goal-due" style={{ marginTop: 8 }}>
-                {d.locked_at ? <><Lock size={10} /> {d.locked_at}{d.agent_id ? ` · ${agentLabel(d.agent_id)}` : ""}<span className="dotsep">·</span></> : null}
-                {d.affects.length > 0 ? t("plan.affects", { list: d.affects.map((a) => `#${a}`).join(", ") }) : t("plan.noAffects")}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-// ── Phase card (collapsible section + inline rename / reorder / delete) ──────
-
-interface PhaseCardProps {
-  phase: string;
-  items: PlanItemDto[];
-  meta: NonNullable<PlanDetail["phases"]>[number] | undefined;
-  isOpen: boolean;
-  onToggle: () => void;
-  busy: boolean;
-  locked: boolean;
-  canEdit: boolean;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-  onRenamePhase: (from: string, to: string) => void;
-  onRemovePhase: (phase: string) => void;
-  onMovePhase: (phase: string, up: boolean) => void;
-  onSetStatus: (item: PlanItemDto, status: string) => void;
-  onDispatch: (item: PlanItemDto) => void;
-  onRemoveItem: (item: PlanItemDto) => void;
-  onRenameItem: (item: PlanItemDto, title: string) => void;
-  historyFor: string | null;
-  history: PlanItemUpdateDto[] | null;
-  onToggleHistory: (itemId: string) => void;
-  onOpenJournalRef: (ref: string) => void;
-  resolveJournalRefs: (refs: string[]) => Promise<JournalRefMeta[]>;
-}
-
-function PhaseCard(props: PhaseCardProps) {
-  const {
-    phase, items, meta, isOpen, onToggle, busy, locked, canEdit, canMoveUp, canMoveDown,
-    onRenamePhase, onRemovePhase, onMovePhase,
-    onSetStatus, onDispatch, onRemoveItem, onRenameItem, historyFor, history, onToggleHistory,
-    onOpenJournalRef, resolveJournalRefs,
-  } = props;
-  const [editing, setEditing] = useState(false);
-  const [confirmDel, setConfirmDel] = useState(false);
-  // Phases are matched by name, so a rename must fire exactly once: Enter blurs
-  // the input and the single onBlur commits; Escape blurs with this flag set so
-  // the commit is skipped. (A double submit would re-target the old, now-gone
-  // name and surface a spurious "not found".)
-  const cancelEditRef = useRef(false);
-
-  const sm = STATUS_META[meta?.status ?? "todo"] ?? STATUS_META.todo;
-  const phasePct = meta ? Math.round((meta.progress ?? 0) * 100) : phaseProgress(items);
-
-  return (
-    <div className="card goal-card" style={{ marginBottom: 12 }}>
-      <div className={"goal-head-row" + (confirmDel ? " is-active" : "")}>
-        {editing ? (
-          <div className="goal-head-edit">
-            <span className="goal-glyph" style={{ color: sm.color }}>{sm.glyph}</span>
-            <input
-              autoFocus
-              className="goal-title-input"
-              defaultValue={phase}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
-                if (e.key === "Escape") { cancelEditRef.current = true; (e.target as HTMLInputElement).blur(); }
-              }}
-              onBlur={(e) => {
-                const v = e.target.value.trim();
-                if (!cancelEditRef.current && v && v !== phase) onRenamePhase(phase, v);
-                cancelEditRef.current = false;
-                setEditing(false);
-              }}
-            />
-          </div>
-        ) : (
-          <button type="button" className="goal-head-toggle" onClick={onToggle} aria-expanded={isOpen}>
-            {isOpen ? <ChevronDown size={16} color="var(--text-3)" /> : <ChevronRight size={16} color="var(--text-3)" />}
-            <span className="goal-glyph" style={{ color: sm.color }}>{sm.glyph}</span>
-            <InlineMarkdown
-              className="goal-title goal-title-clip"
-              text={phase === NO_PHASE ? t("plan.noPhase") : phase}
-              linkable={false}
-            />
-            {meta?.last_agent ? (
-              <span
-                className="phase-agent"
-                title={`${agentLabel(meta.last_agent)} · ${relativeTime(meta.last_update)}`}
-              >
-                <span style={{ width: 7, height: 7, borderRadius: 99, background: agentColor(meta.last_agent) }} />
-                {agentLabel(meta.last_agent)}
-              </span>
-            ) : null}
-          </button>
-        )}
-
-        {!locked && !editing && canEdit ? (
-          <div className="phase-actions">
-            {confirmDel ? (
-              <>
-                <button type="button" className="pln-textbtn danger" onClick={() => { setConfirmDel(false); onRemovePhase(phase); }} disabled={busy}>
-                  {t("plan.phaseRemove")}
-                </button>
-                <button type="button" className="pln-textbtn" onClick={() => setConfirmDel(false)}>{t("common.cancel")}</button>
-              </>
-            ) : (
-              <>
-                <button type="button" className="pln-iconbtn" title={t("plan.phaseRename")} onClick={() => setEditing(true)} disabled={busy}>
-                  <Pencil size={13} />
-                </button>
-                <button type="button" className="pln-iconbtn" title={t("plan.phaseUp")} onClick={() => onMovePhase(phase, true)} disabled={busy || !canMoveUp}>
-                  <ChevronUp size={14} />
-                </button>
-                <button type="button" className="pln-iconbtn" title={t("plan.phaseDown")} onClick={() => onMovePhase(phase, false)} disabled={busy || !canMoveDown}>
-                  <ChevronDown size={14} />
-                </button>
-                <button type="button" className="pln-iconbtn danger" title={t("plan.phaseRemoveTitle")} onClick={() => setConfirmDel(true)} disabled={busy}>
-                  <Trash2 size={13} />
-                </button>
-              </>
-            )}
-          </div>
-        ) : null}
-
-        <span className="prog-pct">{phasePct}%</span>
-      </div>
-
-      {isOpen
-        ? items.map((it) => (
-            <PlanItemRow
-              key={it.item_id}
-              item={it}
-              busy={busy}
-              locked={locked}
-              isParent={items.some((c) => c.parent_item === it.item_id)}
-              onSetStatus={onSetStatus}
-              onDispatch={onDispatch}
-              onRemove={onRemoveItem}
-              onRename={onRenameItem}
-              historyOpen={historyFor === it.item_id}
-              history={historyFor === it.item_id ? history : null}
-              onToggleHistory={onToggleHistory}
-              onOpenJournalRef={onOpenJournalRef}
-              resolveJournalRefs={resolveJournalRefs}
-            />
-          ))
-        : null}
-    </div>
   );
 }
