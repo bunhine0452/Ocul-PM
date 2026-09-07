@@ -27,40 +27,10 @@ pub fn create_plan_skeleton(id: &str, title: &str, owner: &str, date: &str) -> S
     )
 }
 
-/// Set the plan-level frontmatter `status:` (and bump `updated:`), preserving
-/// everything else. Used by the 완료·잠금 flow (Planner #1). If the frontmatter
-/// has no `status:` line it's inserted (after `title:` when present); a document
-/// with no frontmatter fence is returned unchanged.
-pub fn set_plan_status(md: &str, status: &str, date: &str) -> String {
-    let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
-    let start = match lines.iter().position(|l| l.trim() == "---") {
-        Some(s) => s,
-        None => return md.to_string(),
-    };
-    let end = match lines[start + 1..].iter().position(|l| l.trim() == "---") {
-        Some(e) => start + 1 + e,
-        None => return md.to_string(),
-    };
-
-    let mut status_set = false;
-    for line in lines.iter_mut().take(end).skip(start + 1) {
-        let t = line.trim_start();
-        if t.starts_with("status:") {
-            *line = format!("status: {status}");
-            status_set = true;
-        } else if t.starts_with("updated:") {
-            *line = format!("updated: {date}");
-        }
-    }
-    if !status_set {
-        let at = ((start + 1)..end)
-            .find(|&i| lines[i].trim_start().starts_with("title:"))
-            .map(|i| i + 1)
-            .unwrap_or(start + 1);
-        lines.insert(at, format!("status: {status}"));
-    }
-    lines.join("\n")
-}
+// 플랜 레벨 `status:` 를 쓰는 자리는 여기가 아니라 `planner/lifecycle.rs` 다.
+// 그 전이에는 문지기가 붙는다 — 미완 항목이 남은 플랜은 `done` 으로 닫히지
+// 않는다 (`v3-release` `{#done-transition-guard}`). 순수 수술 함수를 여기 두면
+// 문지기를 지나지 않고 쓸 수 있으므로 통째로 옮겼다.
 
 /// Set the plan-level frontmatter `title:` (and bump `updated:`), preserving
 /// everything else (PR — plan rename). The plan `id` / filename are unchanged.
@@ -607,30 +577,7 @@ mod tests {
         assert_eq!(last.journal_ref.as_deref(), Some("journal/x.md"));
     }
 
-    #[test]
-    fn set_plan_status_locks_and_bumps_updated() {
-        use crate::oculpm::planner::parse::PlanStatus;
-        let md = create_plan_skeleton("p", "계획", "user", "2026-06-01");
-        let locked = set_plan_status(&md, "done", "2026-06-07");
-        let p = parse_plan(&locked, "p");
-        assert_eq!(p.frontmatter.status, PlanStatus::Done);
-        assert_eq!(p.frontmatter.updated.as_deref(), Some("2026-06-07"));
-        // round-trip back to active.
-        let active = set_plan_status(&locked, "active", "2026-06-08");
-        assert_eq!(
-            parse_plan(&active, "p").frontmatter.status,
-            PlanStatus::Active
-        );
-    }
-
-    #[test]
-    fn set_plan_status_inserts_when_missing() {
-        let md = "---\nid: p\ntitle: \"t\"\n---\n## A\n- [ ] x {#x}\n";
-        let out = set_plan_status(md, "done", "2026-06-07");
-        let p = parse_plan(&out, "p");
-        assert_eq!(p.frontmatter.status.as_str(), "done");
-        assert!(out.contains("- [ ] x {#x}")); // body preserved
-    }
+    // 플랜 레벨 status 전이 테스트는 `planner/lifecycle.rs` 로 함께 옮겼다.
 
     #[test]
     fn set_status_missing_item_errors() {
