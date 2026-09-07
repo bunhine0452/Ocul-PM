@@ -114,4 +114,74 @@ describe("TodayActivityRing", () => {
     rerender(<TodayActivityRing {...props(2)} errorCycles={2} />);
     expect(getByText("⚠2")).toBeInTheDocument();
   });
+
+  it("keeps the count out of the badge's box so it stays centred", () => {
+    // The two used to share an inline-flex row, so the *pair* was centred and
+    // the number drifted left by half the badge on any day with an error cycle.
+    // The badge is absolutely positioned now; the number is the lone grid item.
+    const { container } = render(<TodayActivityRing {...props(17)} errorCycles={3} />);
+    const num = container.querySelector(".today-ring-num");
+    expect(num?.textContent).toBe("17");
+    expect(num?.querySelector(".today-ring-err")).toBeNull();
+    expect(container.querySelector(".today-ring-center > .today-ring-err")).not.toBeNull();
+  });
+
+  // --- arc geometry -------------------------------------------------------
+  // `stroke-dasharray` is not the whole arc: the group's `stroke-linecap:
+  // round` paints half a stroke width past *each* dash end, a real length in
+  // the 0-100 viewBox. Converted into the pathLength=100 space that overshoot
+  // scales with 1/r, so the same dash closes a small ring long before a big
+  // one. `.tr-arc.on` widens the hovered stroke to 8.5, which is the worst
+  // case the clamp has to survive.
+  const CAP_SW = 8.5;
+
+  /** Visible arc length in pathLength=100 units, caps included. */
+  function paintedLength(arc: Element): number {
+    const dash = Number(arc.getAttribute("stroke-dasharray")?.split(" ")[0]);
+    const r = Number(arc.getAttribute("r"));
+    return dash + 2 * ((CAP_SW / 2) / (2 * Math.PI * r)) * 100;
+  }
+
+  it("never paints a full circle, however large the metrics get", () => {
+    // At the old flat 0.97 clamp the innermost ring painted 102.1% of its own
+    // circle: the tail cap rode over the head cap and it rendered as a solid
+    // ring. Every day past ~7,500 lines of churn then looked identical.
+    const { container } = render(
+      <TodayActivityRing
+        changedToday={100_000}
+        filesTouched={100_000}
+        linesAdded={5_000_000}
+        linesRemoved={5_000_000}
+        errorCycles={0}
+      />,
+    );
+    const arcs = [...container.querySelectorAll(".tr-arc")];
+    expect(arcs).toHaveLength(3);
+    for (const arc of arcs) {
+      // 10° of track must survive — a hairline gap still reads as closed.
+      expect(paintedLength(arc)).toBeLessThanOrEqual(100 - (10 / 360) * 100 + 1e-9);
+    }
+  });
+
+  it("clamps each ring by its own radius, not one shared ceiling", () => {
+    const { container } = render(
+      <TodayActivityRing
+        changedToday={100_000}
+        filesTouched={100_000}
+        linesAdded={5_000_000}
+        linesRemoved={5_000_000}
+        errorCycles={0}
+      />,
+    );
+    const [outer, mid, inner] = [...container.querySelectorAll(".tr-arc")].map((a) =>
+      Number(a.getAttribute("stroke-dasharray")?.split(" ")[0]),
+    );
+    // Smaller radius → costlier caps → a strictly lower dash ceiling.
+    expect(outer).toBeGreaterThan(mid);
+    expect(mid).toBeGreaterThan(inner);
+    // …yet all three land on the same painted length, so a saturated day reads
+    // as three concentric arcs that stop together rather than a closing coil.
+    const painted = [...container.querySelectorAll(".tr-arc")].map(paintedLength);
+    for (const p of painted) expect(p).toBeCloseTo(painted[0], 6);
+  });
 });

@@ -29,11 +29,41 @@ interface TodayActivityRingProps {
 
 type RingId = "journals" | "files" | "lines";
 
+// Arc geometry. Radii are in the 0-100 viewBox; the dash lives in a
+// pathLength=100 space, but the group's round linecap paints *past* both dash
+// ends by half the stroke width — a real length in viewBox units. The smaller
+// the ring, the larger that overshoot is as a share of its own circumference
+// (r=22 pays 2.5 dash-units per cap, r=44 only 1.3), so one flat clamp cannot
+// keep all three arcs open. At the old shared 0.97 the innermost ring drew
+// 102% of its circle: the tail rode over the head and it rendered as a solid
+// closed ring, so every day past ~7.5k lines of churn looked identical.
+const R_OUTER = 44;
+const R_MID = 33;
+const R_INNER = 22;
+const ARC_SW = 7;
+/** `.tr-arc.on` thickens the hovered arc and the cap grows with it, so the
+ *  clamp is computed at the widest stroke — otherwise hover alone closes it. */
+const ARC_SW_HOVER = 8.5;
+/** Track the two caps must leave unpainted. "Almost everything" has to stay
+ *  visibly short of "everything"; 10° is ~10px of track at the default size. */
+const MIN_GAP_DEG = 10;
+
+/** Dash length one round cap adds beyond its end, in pathLength=100 units. */
+function capUnits(r: number): number {
+  return ((ARC_SW_HOVER / 2) / (2 * Math.PI * r)) * 100;
+}
+
+/** Largest dash fraction that still leaves MIN_GAP_DEG of visible track on a
+ *  ring of radius `r`, once both caps are paid for. */
+function maxFraction(r: number): number {
+  return Math.max(0, (100 - 2 * capUnits(r) - (MIN_GAP_DEG / 360) * 100) / 100);
+}
+
 /** Saturating 0→~1 mapping so bigger values read as a fuller arc without
  *  needing a historical maximum. `k` is the value at which the ring is ~half. */
-function fillFraction(value: number, k: number): number {
+function fillFraction(value: number, k: number, r: number): number {
   if (value <= 0) return 0;
-  return Math.min(0.97, value / (value + k));
+  return Math.min(maxFraction(r), value / (value + k));
 }
 
 export function TodayActivityRing({
@@ -77,25 +107,25 @@ export function TodayActivityRing({
   }[] = [
     {
       id: "journals",
-      r: 44,
+      r: R_OUTER,
       cls: "o",
-      fraction: fillFraction(changedToday, 4),
+      fraction: fillFraction(changedToday, 4, R_OUTER),
       label: t("today.ring.entries"),
       value: n(changedToday),
     },
     {
       id: "files",
-      r: 33,
+      r: R_MID,
       cls: "m",
-      fraction: fillFraction(filesTouched, 8),
+      fraction: fillFraction(filesTouched, 8, R_MID),
       label: t("today.ring.files"),
       value: n(filesTouched),
     },
     {
       id: "lines",
-      r: 22,
+      r: R_INNER,
       cls: "i",
-      fraction: fillFraction(lineChurn, 400),
+      fraction: fillFraction(lineChurn, 400, R_INNER),
       label: t("today.ring.lines"),
       value: `+${n(linesAdded)} / −${n(linesRemoved)}`,
     },
@@ -128,7 +158,7 @@ export function TodayActivityRing({
           {rings.map((ring) => (
             <g key={ring.id}>
               {/* faint full-circle track */}
-              <circle className="tr-track" cx="50" cy="50" r={ring.r} strokeWidth={7} />
+              <circle className="tr-track" cx="50" cy="50" r={ring.r} strokeWidth={ARC_SW} />
               {/* value arc — dash encodes the fraction (pathLength 100).
                   Skipped entirely at zero: a zero-length dash under the group's
                   round linecap renders as a *dot* (the SVG dotted-line trick),
@@ -140,7 +170,7 @@ export function TodayActivityRing({
                   cx="50"
                   cy="50"
                   r={ring.r}
-                  strokeWidth={7}
+                  strokeWidth={ARC_SW}
                   pathLength={100}
                   strokeDasharray={`${ring.fraction * 100} 100`}
                 />
@@ -163,8 +193,14 @@ export function TodayActivityRing({
         </g>
       </svg>
 
+      {/* The count owns the geometric centre. It used to share an inline-flex row
+          with the error badge, so the *pair* was centred and the number itself
+          drifted left by half the badge (~10px of a 128px ring) on any day that
+          had an error cycle. The badge is out of flow now — it hangs under the
+          number, inside the innermost arc — so the number sits dead centre
+          whether or not the badge is there. */}
       <span className="today-ring-center">
-        {changedToday}
+        <span className="today-ring-num">{changedToday}</span>
         {errorCycles > 0 ? (
           <span className="today-ring-err" title={t("today.ring.errorCycles", { n: errorCycles })}>
             ⚠{errorCycles}

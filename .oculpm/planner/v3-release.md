@@ -104,4 +104,5 @@ owner: claude-code
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
+| 2026-09-07T16:52:28+09:00 | #today-overcount | claude-code | ☐→☐ | .oculpm/journal/20260907/Bugs/1652_bug_today-ring-arc-geometry.md | 상한에 붙었을 때의 렌더 결함만 닫음(캡 미셈 클램프→반지름별). k=400 포화 자체와 파일 43% 과대는 그대로 todo |
 <!-- oculpm:plan-log end -->
