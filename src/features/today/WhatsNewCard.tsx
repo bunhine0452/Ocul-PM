@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, X } from "@/components/Icons";
+import { EmptyState } from "@/components/EmptyState";
 import { Markdown } from "@/components/Markdown";
 import { isNewerVersion } from "@/components/UpdateBanner";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
@@ -87,11 +88,11 @@ export function WhatsNewCard() {
       </div>
       <div className="whats-new-body">
         {notes.kind === "loading" ? (
-          <span className="empty-hint">{t("today.whatsNew.loading")}</span>
+          <EmptyState>{t("today.whatsNew.loading")}</EmptyState>
         ) : notes.kind === "ready" ? (
           <Markdown>{notes.md}</Markdown>
         ) : (
-          <span className="empty-hint">{t("today.whatsNew.unavailable")}</span>
+          <EmptyState>{t("today.whatsNew.unavailable")}</EmptyState>
         )}
       </div>
       <div className="first-run-actions">

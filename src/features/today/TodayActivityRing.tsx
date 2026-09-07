@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { t } from "@/i18n";
+import {
+  ARC_SW,
+  R_INNER,
+  R_MID,
+  R_OUTER,
+  RING_K,
+  ringArc,
+  type RingArc,
+} from "./ringScale";
 
 // Advanced Today UI — a live "aperture" of today's activity. Three concentric,
 // independently-hoverable arcs each encode one of today's metrics (work
@@ -12,7 +21,9 @@ import { t } from "@/i18n";
 // Arc fill uses a saturating curve (value / (value + k)) rather than a strict
 // ratio — there's no reliable per-metric historical max for files/line-churn,
 // and the exact number lives in each ring's hover tooltip anyway. Busier day →
-// fuller ring, which is the read we want.
+// fuller ring, which is the read we want. The scale itself (radii, the
+// per-radius ceiling, and each ring's `k`) lives in `ringScale.ts` — it is
+// arithmetic that has been wrong twice, so it is tested on its own.
 
 interface TodayActivityRingProps {
   /** Today's recorded-work count (brief.changedToday). */
@@ -28,43 +39,6 @@ interface TodayActivityRingProps {
 }
 
 type RingId = "journals" | "files" | "lines";
-
-// Arc geometry. Radii are in the 0-100 viewBox; the dash lives in a
-// pathLength=100 space, but the group's round linecap paints *past* both dash
-// ends by half the stroke width — a real length in viewBox units. The smaller
-// the ring, the larger that overshoot is as a share of its own circumference
-// (r=22 pays 2.5 dash-units per cap, r=44 only 1.3), so one flat clamp cannot
-// keep all three arcs open. At the old shared 0.97 the innermost ring drew
-// 102% of its circle: the tail rode over the head and it rendered as a solid
-// closed ring, so every day past ~7.5k lines of churn looked identical.
-const R_OUTER = 44;
-const R_MID = 33;
-const R_INNER = 22;
-const ARC_SW = 7;
-/** `.tr-arc.on` thickens the hovered arc and the cap grows with it, so the
- *  clamp is computed at the widest stroke — otherwise hover alone closes it. */
-const ARC_SW_HOVER = 8.5;
-/** Track the two caps must leave unpainted. "Almost everything" has to stay
- *  visibly short of "everything"; 10° is ~10px of track at the default size. */
-const MIN_GAP_DEG = 10;
-
-/** Dash length one round cap adds beyond its end, in pathLength=100 units. */
-function capUnits(r: number): number {
-  return ((ARC_SW_HOVER / 2) / (2 * Math.PI * r)) * 100;
-}
-
-/** Largest dash fraction that still leaves MIN_GAP_DEG of visible track on a
- *  ring of radius `r`, once both caps are paid for. */
-function maxFraction(r: number): number {
-  return Math.max(0, (100 - 2 * capUnits(r) - (MIN_GAP_DEG / 360) * 100) / 100);
-}
-
-/** Saturating 0→~1 mapping so bigger values read as a fuller arc without
- *  needing a historical maximum. `k` is the value at which the ring is ~half. */
-function fillFraction(value: number, k: number, r: number): number {
-  if (value <= 0) return 0;
-  return Math.min(maxFraction(r), value / (value + k));
-}
 
 export function TodayActivityRing({
   changedToday,
@@ -101,7 +75,7 @@ export function TodayActivityRing({
     id: RingId;
     r: number;
     cls: string;
-    fraction: number;
+    arc: RingArc;
     label: string;
     value: string;
   }[] = [
@@ -109,7 +83,7 @@ export function TodayActivityRing({
       id: "journals",
       r: R_OUTER,
       cls: "o",
-      fraction: fillFraction(changedToday, 4, R_OUTER),
+      arc: ringArc(changedToday, RING_K.journals, R_OUTER),
       label: t("today.ring.entries"),
       value: n(changedToday),
     },
@@ -117,7 +91,7 @@ export function TodayActivityRing({
       id: "files",
       r: R_MID,
       cls: "m",
-      fraction: fillFraction(filesTouched, 8, R_MID),
+      arc: ringArc(filesTouched, RING_K.files, R_MID),
       label: t("today.ring.files"),
       value: n(filesTouched),
     },
@@ -125,7 +99,7 @@ export function TodayActivityRing({
       id: "lines",
       r: R_INNER,
       cls: "i",
-      fraction: fillFraction(lineChurn, 400, R_INNER),
+      arc: ringArc(lineChurn, RING_K.lines, R_INNER),
       label: t("today.ring.lines"),
       value: `+${n(linesAdded)} / −${n(linesRemoved)}`,
     },
@@ -164,7 +138,7 @@ export function TodayActivityRing({
                   round linecap renders as a *dot* (the SVG dotted-line trick),
                   which read as a stray artifact floating at 12 o'clock on any
                   metric that was 0. Nothing is the honest zero. */}
-              {ring.fraction > 0 ? (
+              {ring.arc.fraction > 0 ? (
                 <circle
                   className={"tr-arc " + ring.cls + (hover === ring.id ? " on" : "")}
                   cx="50"
@@ -172,7 +146,7 @@ export function TodayActivityRing({
                   r={ring.r}
                   strokeWidth={ARC_SW}
                   pathLength={100}
-                  strokeDasharray={`${ring.fraction * 100} 100`}
+                  strokeDasharray={`${ring.arc.fraction * 100} 100`}
                 />
               ) : null}
               {/* wide transparent hit area so the whole band is hoverable. No
@@ -214,7 +188,13 @@ export function TodayActivityRing({
           aria-label (and again as text in the stat row below). */}
       {active ? (
         <div className="today-ring-tip" aria-hidden="true">
-          <span className="today-ring-tip-label">{active.label}</span>
+          {/* 상한에 눌렸으면 그렇다고 적는다 ({#today-overcount}). 호는 값이 더
+              커져도 안 자라므로, 말하지 않으면 상한 위의 날들이 전부 같은 날로
+              읽힌다. 정확한 수치는 바로 아랫줄과 컨테이너 aria-label 이 이미
+              갖고 있으니 여기서 더할 것은 "여기서부터는 호가 안 자란다" 뿐이다. */}
+          <span className="today-ring-tip-label">
+            {active.arc.capped ? `${active.label} · ${t("today.ring.capped")}` : active.label}
+          </span>
           <span className="today-ring-tip-value">{active.value}</span>
         </div>
       ) : null}

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 
-import { Copy, Puzzle, RefreshCw } from "@/components/Icons";
+import { Copy, Puzzle, RefreshCw, X } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
+import { useOptionalSettings } from "@/contexts/SettingsContext";
 import { useT } from "@/i18n";
 import { claudeInstallApi } from "@/api/claudeSurface";
 import { PLUGIN_INSTALL_COMMANDS } from "@/features/skills/pluginDocs";
@@ -23,10 +24,14 @@ import { toast } from "@/lib/toast";
 //   · `check_cli_available("claude")` — Claude Code 자체가 있는가.
 //     없으면 이 카드는 그냥 소음이라 그리지 않는다 (Cursor·Gemini 사용자).
 //
-// 닫기 버튼이 없는 이유: 표시 조건이 이미 **첫 5분**이다. 부르는 쪽이
-// `totalEntries === 0` 일 때만 `show` 를 준다 — 일지가 한 건이라도 쌓이면
-// 영영 사라진다. 세션 한정 닫기는 다음 실행에 또 뜨고, 영구 닫기는 설정 키가
-// 필요한데 그건 이 레인의 파일 밖이다.
+// 닫기 (v3-release {#plugin-card-dismiss}). 표시 조건은 이미 좁다 — 부르는
+// 쪽이 `totalEntries === 0` 일 때만 `show` 를 주므로 일지 한 건이면 영영
+// 사라진다. 그래도 **안 깔기로 고른 사람**에게는 그 조건이 참인 채로 남고,
+// 그때 카드를 내릴 길이 없으면 카드가 사용자를 이긴다.
+//
+// 세션 한정 닫기는 다음 실행에 또 뜬다 — 그건 닫은 게 아니라 미룬 것이다.
+// 그래서 SQLite 설정(`plugin_card_dismissed`)에 적는다. `lastSeenVersion` ·
+// `coreModelSeeded` 와 같은 규약이고, localStorage 는 이 저장소에서 금지다.
 
 type Probe = { cli: boolean; installed: boolean } | null;
 
@@ -59,8 +64,15 @@ export function PluginSetupCard({
   onNavigate: (view: UiV2View) => void;
 }) {
   const { t } = useT();
+  const settings = useOptionalSettings();
   const [probe, setProbe] = useState<Probe>(null);
   const [checking, setChecking] = useState(false);
+  // 설정이 **있는데 아직 안 읽힌** 동안은 기다린다 — 그때 `dismissed` 는
+  // 기본값 false 라, 닫아 둔 사용자에게 카드가 잠깐 떴다 사라진다. 설정
+  // 컨텍스트가 아예 없는 자리(공급자 없이 이 카드만 그리는 테스트)에서는
+  // 기다릴 것이 없으므로 예전처럼 탐침 결과만으로 판정한다.
+  const settingsPending = settings != null && !settings.loaded;
+  const dismissed = settings?.settings.pluginCardDismissed ?? false;
 
   const check = useCallback(async () => {
     setChecking(true);
@@ -78,11 +90,15 @@ export function PluginSetupCard({
   }, []);
 
   useEffect(() => {
-    if (!show) return;
+    // 닫아 둔 사용자에게는 탐침도 돌리지 않는다 — 결과를 쓸 데가 없다.
+    // 설정이 아직 안 읽혔으면 그것도 아직 모르므로 기다린다.
+    if (!show || settingsPending || dismissed) return;
     void check();
-  }, [show, check]);
+  }, [show, settingsPending, dismissed, check]);
 
-  if (!show || !probe || !probe.cli || probe.installed) return null;
+  if (!show || settingsPending || dismissed || !probe || !probe.cli || probe.installed) {
+    return null;
+  }
 
   const copy = (text: string) => {
     void navigator.clipboard?.writeText(text).then(() => toast.info(t("plugin.copyToast")));
@@ -93,6 +109,18 @@ export function PluginSetupCard({
       <div className="stat-top">
         <Puzzle size={15} color="var(--accent-text)" />
         <strong>{t("today.plugin.title")}</strong>
+        {/* 닫으면 다시 안 뜬다. 설정이 없는 자리(테스트·마운트 전)에서는
+            버튼을 안 그린다 — 눌러도 아무 일 없는 버튼이 더 나쁘다. */}
+        {settings?.set ? (
+          <button
+            className="btn ghost sm right"
+            onClick={() => void settings.set("pluginCardDismissed", true)}
+            aria-label={t("common.dismiss")}
+            title={t("today.plugin.dismissHint")}
+          >
+            <X size={13} />
+          </button>
+        ) : null}
       </div>
       <div className="first-run-sub">{t("today.plugin.body")}</div>
       <div className="first-run-sub" style={{ color: "var(--text-3)", marginBottom: 8 }}>

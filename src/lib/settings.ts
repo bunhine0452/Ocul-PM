@@ -122,6 +122,11 @@ export const KEYS = {
   lastSeenVersion: "last_seen_version",
   // 2026-09-06 IA 재편 — ⌘번호 재배정 안내를 봤는가. 한 번 보면 다시 안 뜬다.
   navRemapSeen: "nav_remap_seen",
+  // Today 플러그인 안내 카드를 사용자가 닫았는가 (v3-release
+  // {#plugin-card-dismiss}). 카드의 표시 조건은 이미 좁지만(일지 0건 + Claude
+  // Code 설치됨 + 플러그인 못 찾음) "안 깔 것"을 고른 사람에게는 그 셋이 다
+  // 참인 채로 남는다 — 닫을 길이 없으면 카드가 사용자를 이긴다.
+  pluginCardDismissed: "plugin_card_dismissed",
 
   // (streamResponses / logLevel 은 감사 2026-07-16 에서 제거 — 소비처 없음.)
 } as const;
@@ -280,6 +285,9 @@ export interface Settings {
    */
   navRemapSeen: boolean;
 
+  /** Today 플러그인 안내 카드를 닫았는가 (`true` = 다시 뜨지 않는다). */
+  pluginCardDismissed: boolean;
+
   /** 첫 실행 마법사를 끝냈거나 건너뛰었는가 (`false` = 아직 한 번도 안 봄). */
   onboarded: boolean;
 }
@@ -344,6 +352,7 @@ export const DEFAULTS: Settings = {
 
   lastSeenVersion: "",
   navRemapSeen: false,
+  pluginCardDismissed: false,
 
   onboarded: false,
 };
@@ -397,6 +406,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.codeLocalHistoryMaxEntries]: "codeLocalHistoryMaxEntries",
   [KEYS.lastSeenVersion]: "lastSeenVersion",
   [KEYS.navRemapSeen]: "navRemapSeen",
+  [KEYS.pluginCardDismissed]: "pluginCardDismissed",
   [KEYS.onboarded]: "onboarded",
 };
 

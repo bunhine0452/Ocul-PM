@@ -3214,7 +3214,13 @@ export const ko = {
   "term.fontLarger": "글자 크게 (⌘+)",
   "term.fontSizeInput": "글자 크기 (px)",
   "term.fontSizeHint": "글자 크기 {min}~{max}px — 직접 입력하거나 ⌘+/⌘- (⇧⌘0 초기화)",
-  "term.openEditorFailed": "에디터 열기 실패: {error}",
+  // 터미널 파일 링크 ⌘클릭 메뉴 (2026-09-07).
+  "term.fileRef.menu": "이 파일로 할 일",
+  "term.fileRef.inApp": "ocul-pm 편집기에서 열기",
+  "term.fileRef.quickLook": "빠른 미리보기",
+  "term.fileRef.reveal": "Finder 에서 보기",
+  "term.fileRef.external": "외부 편집기에서 열기",
+  "term.fileRef.failed": "열지 못했습니다: {error}",
   "term.shellOn": "셸 통합 켜짐 — 명령 경계·종료코드·작업 디렉터리를 인식합니다",
   "term.shellOff": "셸 통합이 꺼져 있어요 — 켜면 명령 경계와 종료코드를 인식합니다",
   "term.watchRunning": ".oculpm 감시중",
@@ -3461,6 +3467,10 @@ export const ko = {
   "settings.doctor.warnings": "최근 무결성 경고",
   "settings.doctor.warningsEmpty": "이번 세션에는 경고가 없어요.",
   "settings.doctor.clear": "지우기",
+  // v3 {#revive-recovery-cmds} — 워처 다시 시작 + 일지 캐시 복구
+  "settings.doctor.a.restart": "다시 시작",
+  "settings.doctor.reindexCache": "일지 캐시 재색인",
+  "settings.doctor.reindexCacheDone": "일지 캐시를 다시 읽었어요 — 추가 {inserted} · 갱신 {updated} · 삭제 {deleted}",
   // ── 출처 배지 (Osaurus 라운드 Phase 3) — 누가 이 기록을 만들었는가
   "source.direct": "직접",
   "source.agent": "에이전트",
@@ -3721,4 +3731,13 @@ export const ko = {
   // 세션 카드의 「무엇을 하고 있는가」 — 대화 화면과 같은 어휘.
   "sessions.doing": "하는 중",
   "sessions.doingIdle": "조용함",
+  // Today 링이 상한에 눌렸을 때 ({#today-overcount}) — 여기서부터는 값이 커져도
+  // 호가 안 자란다는 사실 자체를 호버 라벨에 적는다.
+  "today.ring.capped": "상한",
+  // Today 「지금 하는 일」 ({#today-activity-row}) — 어휘는 세션·대화 화면과 공유.
+  "today.activity.title": "지금 하는 일",
+  "today.activity.open": "세션",
+  "today.activity.openAria": "세션 화면 열기",
+  "today.activity.none": "지금 이 프로젝트에 붙어 있는 세션이 없어요. 터미널이나 Claude Code·Codex 화면에서 에이전트를 띄우면 여기에 뜹니다.",
+  "today.plugin.dismissHint": "이 안내를 다시 띄우지 않아요",
 } as const;
