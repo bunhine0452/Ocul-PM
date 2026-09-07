@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.44.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 95개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.44.1)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 96개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.44.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 95개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.44.1)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 96개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.44.0</span>
+    <span class="nav-ver" data-version>v2.44.1</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>95개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>96개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-44-1">v2.44.1</a>
       <a href="#v2-44-0">v2.44.0</a>
       <a href="#v2-43-0">v2.43.0</a>
       <a href="#v2-42-0">v2.42.0</a>
@@ -61,10 +62,21 @@
       <a href="#v2-37-0">v2.37.0</a>
       <a href="#v2-36-0">v2.36.0</a>
       <a href="#v2-35-0">v2.35.0</a>
-      <a href="#v2-34-1">v2.34.1</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-44-1"><a href="#v2-44-1">v2.44.1</a></h2>
+      <div class="cl-body">
+<p><b>한글이 섞인 링크와 README 가 앱을 그 자리에서 멈춰 세울 수 있었습니다.</b> 네 자리에서 같은 실수를 하고 있었습니다 — 글자가 아니라 바이트를 세다가, 한글처럼 여러 바이트로 된 글자 한가운데를 자르면 죽었습니다.</p>
+<ul><li><b><code>oculpm://</code> 링크에 한글이 섞이면</b> 앱이 그걸 읽다 멈췄습니다. 웹페이지의 링크 한 줄로 일어날 수 있는 일이었습니다.</li><li><b>README 가 24KB 를 넘는 한국어 프로젝트</b>에서 「프로젝트 개요」 생성이 죽었습니다. 이 저장소는 마침 1바이트 차이로 비켜가 있었습니다.</li><li>Notion 연동과 편집기의 「정의로 이동」도 같은 코드를 복사해 쓰고 있었습니다. 넷을 한 자리로 모아 다시 갈라지지 않게 했습니다.</li></ul>
+<p><b>설치 마법사에서 ESC 로 닫으면 그때까지 쓴 것이 사라졌습니다.</b> 닫기는 초안을 저장하고 닫는데, ESC 만은 <b>화면이 처음 열렸을 때의 빈 초안</b>을 저장하고 있었습니다. 아이디어와 폴더 이름을 다 적고 ESC 를 누르면 그게 빈 값으로 덮였습니다. 이제 ESC 도 X 버튼과 똑같은 것을 저장합니다.</p>
+<p><b>오늘 화면의 활동 링이 바쁜 날마다 똑같은 모양이었습니다.</b> 둥근 획 끝이 대시 너머로 더 칠해지는 만큼을 셈에 넣지 않아, 안쪽 링은 102% 를 칠하고 있었습니다 — 꼬리가 머리를 타고 넘어 그냥 닫힌 원이 됐습니다. 줄 변화가 7,500 을 넘는 날은 전부 같은 그림이었고, 하루 2만 줄이 예사인 프로젝트에서 안쪽 링은 사실상 매일 아무것도 말하지 않았습니다. 이제 세 링이 반지름에 맞게 각각 잘려, 포화한 날에도 <b>함께 멈춘 동심원 셋</b>으로 읽힙니다. 채워지지 않은 구간도 카드 위에서 보이도록 색을 올렸고, 가운데 숫자가 왼쪽으로 밀리던 것도 바로잡았습니다.</p>
+<p><b>AI 패널이 질문을 보낼 때마다 기다림이 앞에 쌓였습니다.</b> 계획과 일지를 하나씩 차례로 읽어 오느라 최대 여덟 번의 왕복이 줄줄이 이어졌고, 이 조립은 <b>메시지를 보낼 때마다</b> 다시 일어납니다. 이제 한꺼번에 읽어 옵니다 — 첫 글자가 그만큼 빨리 나옵니다.</p>
+<p>보이지 않는 곳도 함께 손봤습니다.</p>
+<ul><li><b>Notion 계정 연결</b>의 일회용 확인 값이 추측할 수 있는 재료(시각·프로세스 번호·순번)로 만들어지고 있었습니다. 같은 앱의 폰 연결이 이미 쓰던 진짜 난수로 맞췄습니다.</li><li><b>플러그인 설치</b>가 프로젝트 안의 심볼릭 링크를 타고 폴더 밖에 쓸 수 있었습니다. 막는다고 적혀 있었지만 실제로는 막지 않고 있었습니다.</li><li>웹뷰에 열려 있던 <b>「아무 경로나 열기」 권한</b>을 지웠습니다 — 쓰는 곳이 한 군데도 없었습니다.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-44-0"><a href="#v2-44-0">v2.44.0</a></h2>
       <div class="cl-body">

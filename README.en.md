@@ -58,7 +58,15 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.44.0 — the screen calls each act by its name
+## 🚀 v2.44.1 — counting characters as characters
+
+- **An `oculpm://` link containing Korean, or a Korean README over 24KB, could stop the app dead.** Four places counted bytes instead of characters, and cutting through the middle of a multi-byte character killed them on the spot. Deep links, the Notion connection, "go to definition" and "project overview" were all copies of the same code; they now share one.
+- **Closing the setup wizard with ESC threw away everything you had typed.** Closing saves a draft first — but ESC alone was saving **the empty draft from the moment the screen opened**. It now saves exactly what the X button saves.
+- **Today's activity rings looked identical on every busy day.** The extra paint a round stroke cap adds past the dash was never counted, so the inner ring drew 102% — its tail rode over its head and became a plain closed circle. Any day past ~7,500 changed lines looked the same. Each ring is now clamped for its own radius, so a saturated day reads as **three concentric rings stopping together**.
+- **The AI panel's first token arrives sooner.** Plans and journal entries were fetched one at a time (up to eight round trips per message, and this block is reassembled on *every* message). They are fetched together now.
+- **Out of sight** — the one-time nonce for connecting a Notion account moved from guessable ingredients to a real random value; plugin installs can no longer write outside the folder by following a symlink (the guard was documented but not implemented); and the webview's "open any path" permission is gone (nothing used it).
+
+## v2.44.0 — the screen calls each act by its name
 
 - **When an agent writes a journal entry, the screen now says "wrote a journal entry."** It used to be a terminal icon and one line of shell — this product's core act had no word on screen. Tool calls are translated into 15 words of our own; reads, edits and searches fold into a single line, while **approvals, errors and anything touching the record never fold**. Expand a row and the agent's raw exchange is always there at the bottom. A stalled stream and a genuinely long task are also told apart now ("running · no signal").
 - **The sidebar goes from 17 rows to 15.** Claude Code, Codex and Sessions collapse into one **Agents** row (siblings unfold once you are in that surface); Discussions and Docs move down to **Reference**. **Diff → Changes · Code Search → Search · Code → Editor**, and the ⌘ numbers are reassigned — ⌘1 Today, ⌘2 Journal and ⌘4 Planner keep their meaning, and the sidebar tells you once about the rest.
