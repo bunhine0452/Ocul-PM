@@ -1,7 +1,7 @@
 //! 판정 입력 **수집**(IO). 판정 자체는 [`super::judge`] 가 하고 여기서는
 //! 아무것도 결정하지 않는다 — 그래야 판정에 하네스가 붙는다.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -34,24 +34,49 @@ const JOURNAL_LOOKBACK_SECS: i64 = 7 * 24 * 3600;
 /// 그래도 파싱할 파일 수의 상한 (최신부터).
 const JOURNAL_PARSE_CAP: usize = 400;
 
-/// 디스크에서 판정 입력을 모은다.
+/// 디스크에서 판정 입력을 모은다 (트랜스크립트 없이 — 앱 안 ACP 대화의 길).
 ///
 /// 실패는 전부 "모름"으로 접힌다 — 수집이 못 읽은 것을 위반으로 바꾸지
 /// 않는다. 그 변환은 [`super::judge`] 만이 한다.
 pub fn collect(root: &Path, conversation: &str, now: i64) -> VerdictInput {
+    collect_with_transcript(root, conversation, now, None)
+}
+
+/// 같은 수집에 **그 대화 자신의 트랜스크립트**를 얹는다
+/// ({#gate-positive-attribution}).
+///
+/// 셸 훅만 이 길을 탄다 — Stop payload 의 `transcript_path` 가 거기에만 있다.
+/// 앱 안 ACP 대화에는 트랜스크립트라 부를 파일이 없어 [`collect`] 로 남는다
+/// (그쪽은 옆 대화가 살아 있으면 여전히 판정 불가다).
+pub fn collect_with_transcript(
+    root: &Path,
+    conversation: &str,
+    now: i64,
+    transcript: Option<&Path>,
+) -> VerdictInput {
     let hooks = root.join(".oculpm").join("hooks");
     let segment_started_at =
         mtime_of(&hooks.join(format!("{SEGMENT_MARKER_PREFIX}{conversation}")));
     let live_peers = live_peers(&hooks, conversation, now);
-    let changes = changed_files(root);
+    let tree = working_tree(root);
     let since = segment_started_at.unwrap_or(now) - JOURNAL_LOOKBACK_SECS;
+
+    // 트랜스크립트 경로는 git 최상위 기준으로 맞춘다 — 워킹트리 목록이 그
+    // 어휘로 오기 때문이다. 워킹트리를 못 읽었으면 맞출 기준이 없으므로 빈
+    // 집합이고, 판정은 예전처럼 판정 불가로 간다.
+    let own_edits = match (&tree, transcript) {
+        (Some(tree), Some(path)) => super::transcript::edited_paths(path, &tree.top),
+        _ => BTreeSet::new(),
+    };
 
     VerdictInput {
         conversation: conversation.to_string(),
         segment_started_at,
         live_peers,
-        working_tree_readable: changes.is_some(),
-        changes: changes.unwrap_or_default(),
+        working_tree_readable: tree.is_some(),
+        changes: tree.as_ref().map(|t| t.changes.clone()).unwrap_or_default(),
+        deleted: tree.map(|t| t.deleted).unwrap_or_default(),
+        own_edits,
         journals: journals(root, since),
         workday_sessions: workday_sessions(root),
     }
@@ -120,11 +145,21 @@ fn git(root: &Path, args: &[&str]) -> Option<String> {
         .then(|| String::from_utf8_lossy(&out.stdout).to_string())
 }
 
+/// 워킹트리에서 읽어 온 것 전부. `None` = 못 읽었다 (git 부재·비저장소).
+pub(super) struct WorkingTree {
+    /// git 최상위. [`ChangedFile::path`] 와 트랜스크립트 경로를 맞추는 기준.
+    pub(super) top: PathBuf,
+    /// mtime 을 물을 수 있었던 더티 파일.
+    pub(super) changes: Vec<ChangedFile>,
+    /// **지워진 파일** — mtime 을 물을 자리가 없다 ({#verdict-deletions}).
+    pub(super) deleted: Vec<String>,
+}
+
 /// 더티 파일 목록. `None` = 워킹트리를 못 읽었다 (git 부재·비저장소).
 ///
 /// pathspec `-- .` 로 이 프로젝트 하위만 본다 (모노레포 이웃 제외). 경로는
 /// git 최상위 기준이라 `show-prefix` 로 우리 자리를 보정한다.
-fn changed_files(root: &Path) -> Option<Vec<ChangedFile>> {
+fn working_tree(root: &Path) -> Option<WorkingTree> {
     let top = PathBuf::from(git(root, &["rev-parse", "--show-toplevel"])?.trim());
     let prefix = git(root, &["rev-parse", "--show-prefix"])
         .unwrap_or_default()
@@ -144,10 +179,12 @@ fn changed_files(root: &Path) -> Option<Vec<ChangedFile>> {
     let oculpm_prefix = format!("{prefix}.oculpm");
 
     let mut out = Vec::new();
+    let mut deleted = Vec::new();
     for line in porcelain.lines() {
         if line.len() < 4 {
             continue;
         }
+        let status = &line[..2];
         let mut path = &line[3..];
         // rename 은 새 경로로 판정한다 (`.oculpm` 밖으로 나간 이동도 실질 변경).
         if let Some(idx) = path.find(" -> ") {
@@ -159,16 +196,27 @@ fn changed_files(root: &Path) -> Option<Vec<ChangedFile>> {
         if path == oculpm_prefix || path.starts_with(&format!("{oculpm_prefix}/")) {
             continue;
         }
-        // 삭제된 파일은 mtime 을 물을 자리가 없다. 셸 판정과 같은 한계
-        // (`[ -e ]`) — 삭제만 한 대화는 지금도 빠져나간다 (이월).
-        if let Some(modified_at) = mtime_of(&top.join(path)) {
-            out.push(ChangedFile {
+        // 삭제된 파일은 mtime 을 물을 자리가 없다 — 셸 판정에서 물려받은
+        // 한계다(`[ -e ]`). **고칠 수는 없지만 말할 수는 있다**: 여기서
+        // 따로 세어 두면 판정이 "지운 것만 있는 대화"를 무결이라고 말하는
+        // 대신 판정 불가라고 말한다 ({#verdict-deletions}).
+        match mtime_of(&top.join(path)) {
+            Some(modified_at) => out.push(ChangedFile {
                 path: path.to_string(),
                 modified_at,
-            });
+            }),
+            // 상태가 삭제(`D`)일 때만 센다. 그 밖의 stat 실패(권한·이스케이프가
+            // 남은 경로)는 예전처럼 조용히 빠진다 — 삭제가 아닌 것을 삭제라고
+            // 세면 그 자체가 새 거짓말이다.
+            None if status.contains('D') => deleted.push(path.to_string()),
+            None => {}
         }
     }
-    Some(out)
+    Some(WorkingTree {
+        top,
+        changes: out,
+        deleted,
+    })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -49,6 +49,8 @@ frontmatter 필수: `schema_version: 1` · `type` · `slug` · `status`(planned|
 
 규칙: `{#id}` 와 managed block 경계는 **보존** · 항목은 한 줄 — `{#id}` 를 줄 *끝* 에 두고 줄바꿈 금지(둘째 줄의 `{#id}` 는 파서가 못 읽음) · 새 항목엔 안정적 영어 kebab id 부여 · 일지 내용을 플래너에 복붙 금지(일지 열로 참조만) · **frontmatter `status:` 가 `active` 가 아닌 plan(done/archived)은 절대 수정 금지** — 그럴 땐 새 plan 에서 진행 · 현재 상태는 본문 글리프가 정답(단, 하위를 가진 부모는 하위 롤업 파생값), 로그는 이력.
 
+- plan frontmatter 를 손으로 고치지 마세요 — `status:`·`updated:` 는 `plan_update` 로만. 직접 고쳐야 하면 미완(`[ ]`·`[~]`·`[!]`)이 남은 plan 을 닫지 말고, 남은 항목을 살아 있는 plan 으로 **옮긴 뒤** 닫으세요 (접힌 plan 의 미완은 유실됩니다).
+
 항목은 **최대 1단계 중첩** 가능 — 하위 작업은 두 칸 들여쓴 `  - [ ] 하위 {#id}`. 하위가 있는 부모의 글리프는 하위 롤업으로 자동 계산되니 **부모를 직접 갱신하지 말 것** (하위만 갱신).
 
 새 plan 은 MCP `plan_create` 로 만드는 것이 정답. 도구가 없으면: YAML frontmatter(`oculpm_plan: v1` · `id`(파일명과 동일 kebab) · `title`(따옴표) · `status: active` · `created`/`updated` · `owner`(네 agent.id)) → `## Phase 제목 {#id}` 헤딩(글리프 없음 — phase 진척은 하위 롤업 자동) → `- [ ] 항목 {#id}` 줄 → 빈 `<!-- oculpm:plan-log begin v1 -->`…`<!-- oculpm:plan-log end -->` 블록 순서로 작성.

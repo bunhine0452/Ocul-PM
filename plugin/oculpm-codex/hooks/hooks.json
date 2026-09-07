@@ -1,0 +1,57 @@
+{
+  "description": "ocul-pm 훅 브리지 — 세션 이벤트를 프로젝트의 .oculpm/hooks 인박스에 한 줄씩(개행 종료 + oculpm_ts 타임스탬프) append 하고 (로컬 파일 한 줄, 네트워크 없음), 세션/서브에이전트 시작 시 활성 플랜 요약을 컨텍스트로 주입합니다. .oculpm 이 없는 프로젝트에서는 아무것도 하지 않습니다.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ]; then d=\"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\"; p=$(cat); case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\\\"}\" ;; esac; if [ -n \"$p\" ]; then mkdir -p \"$d\" && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/plan-context.sh\""
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/session-marker.sh\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -d \"${CLAUDE_PROJECT_DIR:-.}/.oculpm\" ]; then d=\"${CLAUDE_PROJECT_DIR:-.}/.oculpm/hooks\"; p=$(cat); case \"$p\" in *\\}) p=\"${p%\\}},\\\"oculpm_ts\\\":\\\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\\\"}\" ;; esac; if [ -n \"$p\" ]; then mkdir -p \"$d\" && printf '%s\\n' \"$p\" >> \"$d/claude-events.jsonl\"; fi; else cat > /dev/null; fi; :"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/delivery-gate.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/session-end.sh\""
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/plan-context.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

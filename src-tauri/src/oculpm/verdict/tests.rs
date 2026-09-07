@@ -3,6 +3,7 @@
 //! 함수에 대한 단언이고, 디스크를 만지지 않는다.
 
 use super::*;
+use std::collections::BTreeSet;
 
 fn journal(modified_at: i64) -> JournalRecord {
     JournalRecord {
@@ -24,6 +25,8 @@ fn lone_session_with_changes() -> VerdictInput {
         journals: Vec::new(),
         workday_sessions: Vec::new(),
         working_tree_readable: true,
+        deleted: Vec::new(),
+        own_edits: BTreeSet::new(),
     }
 }
 
@@ -222,6 +225,115 @@ fn a_peers_journal_does_not_launder_us_into_recorded() {
     assert_eq!(
         judge(&input),
         Verdict::Undecided(Undecided::LivePeers { peers: 1 })
+    );
+}
+
+// ─── 양성 귀속 — 옆 대화가 있어도 "내가 적은 편집"은 내 것이다 ─────────────
+//   ({#gate-positive-attribution})
+
+/// 병렬 세션이 이 저장소의 기본값이라, 위 골든 케이스만으로는 게이트가 사실상
+/// 꺼져 있다. 트랜스크립트가 "내가 이 파일을 고쳤다"고 적었으면 그건 추론이
+/// 아니라 1차 출처다 — 옆 대화가 살아 있어도 붙잡는다.
+#[test]
+fn a_live_peer_no_longer_hides_what_this_conversation_itself_edited() {
+    let mut input = lone_session_with_changes();
+    input.live_peers = vec!["conv-b".into()];
+    input.own_edits = BTreeSet::from(["src/lib.rs".to_string()]);
+
+    let Verdict::Objection(o) = judge(&input) else {
+        panic!("자기 편집은 붙잡아야 한다");
+    };
+    assert_eq!(o.changed, vec!["src/lib.rs".to_string()]);
+    assert_eq!(o.basis, ChangeBasis::OwnTranscript);
+}
+
+/// **좁히는 쪽으로만 쓴다.** 옆 대화가 고친 파일은 우리 목록에 없으므로
+/// 이의에서 빠진다 — 남을 우리 이름으로 붙잡으면 게이트가 거짓말을 한다.
+#[test]
+fn a_peers_file_is_left_out_of_our_objection() {
+    let mut input = lone_session_with_changes();
+    input.live_peers = vec!["conv-b".into()];
+    input.changes.push(ChangedFile {
+        path: "src/peer.rs".into(),
+        modified_at: 200,
+    });
+    input.own_edits = BTreeSet::from(["src/lib.rs".to_string()]);
+
+    let Verdict::Objection(o) = judge(&input) else {
+        panic!("자기 편집은 붙잡아야 한다");
+    };
+    assert_eq!(o.changed, vec!["src/lib.rs".to_string()]);
+}
+
+/// 근거가 하나도 안 남으면 **예전 그대로 판정 불가**다. 트랜스크립트가 없는
+/// 자리(앱 안 ACP 대화·`Bash` 로만 고친 대화)가 여기로 온다.
+#[test]
+fn without_a_positive_trace_a_live_peer_still_stops_the_verdict() {
+    let mut input = lone_session_with_changes();
+    input.live_peers = vec!["conv-b".into()];
+    input.own_edits = BTreeSet::from(["src/other.rs".to_string()]);
+    assert_eq!(
+        judge(&input),
+        Verdict::Undecided(Undecided::LivePeers { peers: 1 })
+    );
+}
+
+/// 옆 대화가 없으면 좁히지 않는다 — 그때는 세그먼트 이후의 변경이 전부 우리
+/// 것이고, `Bash` 로 고친 것까지 붙잡아야 한다.
+#[test]
+fn a_lone_conversation_is_not_narrowed_by_its_transcript() {
+    let mut input = lone_session_with_changes();
+    input.own_edits = BTreeSet::new();
+
+    let Verdict::Objection(o) = judge(&input) else {
+        panic!("혼자 도는 대화는 예전 그대로 붙잡는다");
+    };
+    assert_eq!(o.basis, ChangeBasis::SoleLiveConversation);
+}
+
+// ─── 삭제 — 못 고치는 한계를 **말하게** 한다 ({#verdict-deletions}) ─────────
+
+/// 지운 것밖에 없는 대화는 "읽기만 했다"가 **아니다.** 삭제는 mtime 이 없어
+/// 세그먼트 안팎을 가를 수 없을 뿐이고, 그걸 무결로 접으면 40개를 지운 대화가
+/// 원장에 "기록 문제 없음"으로 남는다.
+#[test]
+fn a_conversation_that_only_deleted_files_is_undecided_not_clear() {
+    let mut input = lone_session_with_changes();
+    input.changes.clear();
+    input.deleted = vec!["src/gone.rs".into()];
+    assert_eq!(
+        judge(&input),
+        Verdict::Undecided(Undecided::UntimeableDeletions { deleted: 1 })
+    );
+}
+
+/// 삭제가 섞여 있어도 **시각을 아는 변경**이 있으면 그쪽으로 판정한다 —
+/// 삭제는 목록에 넣지 않는다(언제 지웠는지 모르는 것을 이의에 실을 수 없다).
+#[test]
+fn deletions_do_not_join_the_objection_list() {
+    let mut input = lone_session_with_changes();
+    input.deleted = vec!["src/gone.rs".into()];
+
+    let Verdict::Objection(o) = judge(&input) else {
+        panic!("시각을 아는 변경이 있으면 이의다");
+    };
+    assert_eq!(o.changed, vec!["src/lib.rs".to_string()]);
+}
+
+/// 기록한 대화는 삭제가 있어도 그대로 면죄된다 — 사다리가 먼저다.
+#[test]
+fn a_recorded_conversation_is_still_clear_with_deletions() {
+    let mut input = lone_session_with_changes();
+    input.changes.clear();
+    input.deleted = vec!["src/gone.rs".into()];
+    input.journals = vec![JournalRecord {
+        agent_session: Some("conv-a".into()),
+        modified_at: 150,
+        ..Default::default()
+    }];
+    assert_eq!(
+        judge(&input),
+        Verdict::Clear(Clear::Recorded(RecordBasis::AgentSession))
     );
 }
 

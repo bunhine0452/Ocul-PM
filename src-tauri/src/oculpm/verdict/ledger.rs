@@ -163,6 +163,7 @@ pub fn append(root: &Path, conversation: &str, verdict: &Verdict, now: DateTime<
                     Undecided::NoSegmentMarker => "no_segment_marker",
                     Undecided::LivePeers { .. } => "live_peers",
                     Undecided::NoWorkingTree => "no_working_tree",
+                    Undecided::UntimeableDeletions { .. } => "untimeable_deletions",
                 }
             ),
         ),

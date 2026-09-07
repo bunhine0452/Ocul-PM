@@ -538,6 +538,49 @@ fn mcp_json_uses_plugin_root_shuttle() {
     assert_eq!(args, vec!["--root", "${CLAUDE_PROJECT_DIR}"]);
 }
 
+/// **`.mcp.json` 의 `env` 에 `${…}` 를 쓰면 안 된다** (플랜 `v3-release`
+/// {#mcp-json-session-env} · {#neutral-session-env}).
+///
+/// 세 라운드가 같은 아이디어를 만졌다: "`OCULPM_SESSION_ID` 를 `.mcp.json` 에서
+/// `${CLAUDE_CODE_SESSION_ID}` 로 채우면 옛 이름 폴백을 지울 수 있다." 못 한다.
+/// 2026-09-07 실측(Claude Code 2.1.263, `--plugin-dir` 로 띄운 조사용 플러그인의
+/// `.mcp.json` 에 네 값을 넣고 자식 프로세스의 `env` 를 덤프):
+///
+/// ```text
+/// PROBE_PLUGIN=/…/probeplugin              ← ${CLAUDE_PLUGIN_ROOT}   풀린다
+/// PROBE_PROJECT=/…/scratchpad              ← ${CLAUDE_PROJECT_DIR}   풀린다
+/// PROBE_SESSION=${CLAUDE_CODE_SESSION_ID}  ← 리터럴 그대로
+/// PROBE_MISSING=${TOTALLY_UNSET_VAR_ABC}   ← 리터럴 그대로
+/// CLAUDE_CODE_SESSION_ID=3ab00e8b-…        ← 자식은 물려받는다 (진짜 값)
+/// ```
+///
+/// 보간이 보는 것은 **플러그인 컨텍스트 두 값 + 부모 셸의 환경**이고, 대화 id 는
+/// 둘 다 아니다 — 부모 `claude` 프로세스의 환경에도 없다(자식마다 새로 실어
+/// 준다, 같은 날 `ps eww` 로 확인). 그리고 못 푼 `${…}` 는 **리터럴 문자열로
+/// 그대로 나간다.**
+///
+/// 그래서 이 매핑을 넣으면 모든 대화의 `agent.session` 이
+/// `"${CLAUDE_CODE_SESSION_ID}"` 라는 같은 값이 되어 **귀속이 조용히 망가진다** —
+/// 폴백을 남겨 둔 지금보다 나쁘다. 옛 이름 폴백
+/// ([`CLAUDE_SESSION_ENV`](ocul_pm_lib::oculpm::mcp::tools::CLAUDE_SESSION_ENV))
+/// 은 죽은 코드가 아니라 **터미널 경로의 유일한 신원 근거**다.
+#[test]
+fn the_mcp_env_block_never_interpolates_an_unresolvable_variable() {
+    let mcp = read_json(".mcp.json");
+    let Some(env) = mcp["oculpm"].get("env") else {
+        return; // env 블록이 아예 없는 지금 상태가 정답이다.
+    };
+    let env = env.as_object().expect("env 는 객체");
+    for (key, value) in env {
+        let raw = value.as_str().unwrap_or_default();
+        assert!(
+            !raw.contains("${"),
+            "{key} 가 ${{…}} 보간에 기대고 있다 — 못 풀면 리터럴이 그대로 실려 \
+             신원이 조용히 망가진다 (풀리는 것은 CLAUDE_PLUGIN_ROOT·CLAUDE_PROJECT_DIR 둘뿐)"
+        );
+    }
+}
+
 /// 셔틀 실행 비트 — 플러그인 설치는 디렉터리 복사라 실행 비트 유실이
 /// 공식 문서 Troubleshooting 1순위 고장 원인이다.
 #[cfg(unix)]
@@ -652,6 +695,66 @@ fn the_codex_manifest_declares_no_hooks_because_validation_rejects_them() {
         manifest.get("hooks").is_none(),
         "codex plugin.json 에 hooks 를 실으면 검증이 거부해 설치가 통째로 막힌다"
     );
+}
+
+/// **훅은 파일로 싣는다** (플랜 `v3-release` {#codex-hook-delivery}).
+///
+/// 바로 위 테스트가 못박는 것은 매니페스트 **필드**가 거부된다는 사실이다.
+/// 거기서 "그러니 Codex 에는 훅을 못 준다"로 넘어갔던 것이 잘못된 추론이었다 —
+/// Codex 는 플러그인 루트의 `hooks/hooks.json` 을 **관례로** 읽는다.
+///
+/// 실측 (Codex 0.153.4, 2026-09-07, 격리 `CODEX_HOME`):
+///
+/// 1. `hooks/hooks.json` 을 담은 플러그인이 마켓플레이스에서 **설치된다**
+///    (매니페스트에 `hooks` 필드는 없다). 훅 스크립트와 셔틀이 캐시로 복사되고
+///    실행 비트도 살아남는다.
+/// 2. 그 훅이 **실제로 돈다**. `.oculpm/` 이 있는 임시 프로젝트에서
+///    `codex exec` 한 번에 `SessionStart`·`SessionEnd` payload 두 줄이
+///    `.oculpm/hooks/claude-events.jsonl` 에 쌓였다.
+/// 3. 단, 훅에는 **신뢰**가 필요하다. 처음 한 번은 Codex 가 사용자에게 묻고,
+///    자동화에서는 `--dangerously-bypass-hook-trust` 로 넘긴다. 앞선 조사가
+///    "훅이 안 돈다"고 결론 낼 뻔한 이유가 이 문지기였다.
+///
+/// 그래서 두 플러그인의 훅 묶음은 **같은 파일**이어야 한다. 갈라지면 Codex
+/// 사용자만 조용히 옛 판을 쓰게 되고, 그건 아무도 못 본다.
+#[test]
+fn the_codex_plugin_ships_the_same_hook_bundle_as_the_claude_one() {
+    let claude = plugin_root();
+    let codex = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../plugin/oculpm-codex")
+        .canonicalize()
+        .expect("plugin/oculpm-codex");
+
+    for rel in [
+        "hooks/hooks.json",
+        "hooks/session-marker.sh",
+        "hooks/session-end.sh",
+        "hooks/delivery-gate.sh",
+        "hooks/plan-context.sh",
+        "bin/oculpm-mcp",
+    ] {
+        let mine = std::fs::read(codex.join(rel)).unwrap_or_else(|e| {
+            panic!("oculpm-codex 에 {rel} 이 없다 ({e}) — Codex 훅 배포가 끊긴다")
+        });
+        let theirs = std::fs::read(claude.join(rel)).expect("claude 판");
+        assert_eq!(
+            mine, theirs,
+            "{rel} 이 두 플러그인 사이에서 갈라졌다 — Codex 사용자만 옛 판을 쓴다"
+        );
+
+        #[cfg(unix)]
+        if rel.ends_with(".sh") || rel.ends_with("oculpm-mcp") {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(codex.join(rel))
+                .unwrap()
+                .permissions()
+                .mode();
+            assert!(
+                mode & 0o111 != 0,
+                "{rel} 실행 비트 유실 — 설치는 되고 훅만 조용히 죽는다"
+            );
+        }
+    }
 }
 
 /// Codex 는 레포 마켓플레이스를 `<repo-root>/.agents/plugins/marketplace.json`
