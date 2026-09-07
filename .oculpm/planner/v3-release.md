@@ -68,7 +68,7 @@ owner: claude-code
 
 ## 릴리스 3.0.0 {#release-300}
 - [-] ~~EVALS.md 기준 실행~~ — **이 저장소에는 `EVALS.md` 가 없다**(git 이력에도 없다). `oculpm/evals.rs` 는 추적 *대상* 프로젝트에 제공하는 기능이고 파일 부재를 `None` 으로 처리한다. 이 저장소 자신의 완료 기준 문서는 만든 적이 없으므로 「실행」할 대상이 없다 — 3.0 의 완료 기준을 새로 쓸지는 별도 판단 {#evals}
-- [ ] 게이트 전수 exit 0 {#gates-green-300}
+- [x] 게이트 전수 exit 0 — 2026-09-08, main(`547cc41`) 에서 CI 3잡 전부 success: `cargo test`(33 스위트)·bindings 신선도·`clippy -D warnings`·`cargo fmt --check`·cargo-deny · `typecheck`·`test`(190파일)·`lint`(6게이트, 경고 9/9)·`build`. **릴리스 직전에 다시 돌릴 것** — 이 표시는 그 시점의 사실이다 {#gates-green-300}
 - [ ] 릴리스 5면 + 태그 + 랜딩 배포 (landing 에서 vercel --prod) {#release-300-2}
 
 ## 기둥 2 이월 — v3-surface 가 소유 밖에서 남긴 것 {#pillar2-carry}
