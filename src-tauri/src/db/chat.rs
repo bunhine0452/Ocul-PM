@@ -69,41 +69,6 @@ impl Db {
         Ok(convs)
     }
 
-    pub async fn conversation_rename(&self, id: u32, title: String) -> Result<()> {
-        self.conn
-            .call(move |c| {
-                c.execute(
-                    "UPDATE conversations SET title = ?, updated_at = unixepoch()
-                     WHERE id = ?",
-                    params![&title, id as i64],
-                )?;
-                Ok(())
-            })
-            .await?;
-        Ok(())
-    }
-
-    pub async fn conversation_set_context(
-        &self,
-        id: u32,
-        provider: Option<String>,
-        model: Option<String>,
-        project_id: Option<u32>,
-    ) -> Result<()> {
-        self.conn
-            .call(move |c| {
-                c.execute(
-                    "UPDATE conversations
-                     SET provider = ?, model = ?, project_id = ?, updated_at = unixepoch()
-                     WHERE id = ?",
-                    params![&provider, &model, project_id.map(|v| v as i64), id as i64,],
-                )?;
-                Ok(())
-            })
-            .await?;
-        Ok(())
-    }
-
     pub async fn conversation_delete(&self, id: u32) -> Result<()> {
         self.conn
             .call(move |c| {

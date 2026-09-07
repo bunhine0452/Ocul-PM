@@ -387,23 +387,6 @@ impl Db {
         Ok(bp)
     }
 
-    pub async fn get_blueprint(&self, blueprint_id: u32) -> Result<ProjectBlueprint> {
-        let bp = self
-            .conn
-            .call(move |c| {
-                c.query_row(
-                    "SELECT id, name, idea_text, target_users, stack_choice,
-                            folder_name, folder_path, seed_goals_json,
-                            wizard_step, created_at, updated_at
-                     FROM project_blueprints WHERE id = ?1",
-                    [blueprint_id as i64],
-                    blueprint_from_row,
-                )
-            })
-            .await?;
-        Ok(bp)
-    }
-
     pub async fn list_blueprints(&self) -> Result<Vec<ProjectBlueprint>> {
         let bps = self
             .conn

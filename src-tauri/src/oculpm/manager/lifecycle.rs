@@ -178,6 +178,9 @@ impl OculpmManager {
             session: None,
             watcher: None,
             watcher_epoch: next_watcher_epoch(),
+            // 일시정지는 프로세스 메모리에만 산다 — 새로 연 프로젝트는 늘 감시로
+            // 시작한다 (`ProjectEntry::user_paused` 주석).
+            user_paused: false,
         };
         self.projects.write().await.insert(project_id, entry);
 
@@ -211,6 +214,7 @@ impl OculpmManager {
                         .as_ref()
                         .map(|s| s.dropped_total)
                         .unwrap_or(0),
+                    watcher_user_paused: entry.user_paused,
                 }
             }
             None => OculpmStatus {
@@ -220,6 +224,7 @@ impl OculpmManager {
                 current_workday: String::new(),
                 watcher_state: WatcherStateView::Stopped,
                 watcher_dropped_total: 0,
+                watcher_user_paused: false,
             },
         }
     }
@@ -371,6 +376,22 @@ impl OculpmManager {
             let entry = projects
                 .get_mut(&project_id)
                 .ok_or(OculpmError::NotInitialized(project_id))?;
+
+            // 이 문으로 들어오는 건 언제나 **누군가 지금 감시를 원한다** 는 뜻이다
+            // (닥터에서 켰다 · 프로젝트 탭을 열었다 · 수동 세션을 시작했다 ·
+            // 앱이 떴다). 그러니 사용자의 일시정지도 여기서 푼다.
+            //
+            // 감독관은 이 문을 쓰지 않는다 — `watcher_health().user_paused` 를
+            // 보고 그 프로젝트를 아예 비껴간다. 그 구분 하나가 「중지」를
+            // 60초짜리 거짓말에서 구해 낸다 (`{#watcher-user-pause}`).
+            if entry.user_paused {
+                entry.user_paused = false;
+                tracing::info!(
+                    target: "oculpm::manager",
+                    project_id,
+                    "[FLOW] 사용자 일시정지 해제 — 감시를 다시 시작한다"
+                );
+            }
 
             // 인계당한 가드는 더 이상 권한이 없다 — 들고 있어 봐야 남의 락이다.
             // 여기서 놓아야 아래 재시도가 정직하게 "지금 누가 주인인가" 를 묻는다.
@@ -543,14 +564,20 @@ impl OculpmManager {
     /// Stop the watcher. **Does not shut down the session actor** — see
     /// the note below.
     ///
-    /// Why: `watcher_stop` is called by the frontend whenever the UI
-    /// unmounts the project view (e.g. user navigates back to the Start
-    /// screen and forward again). Previously this also called
-    /// `session.shutdown()` which finalised the active session with
-    /// `AppQuit`. The resume mechanism (see `try_resume_session`) only
-    /// rescues sessions closed with `InactivityTimeout`, so every
-    /// navigation cycle produced a fresh session id — the exact bug from
-    /// W4 dogfooding §발견 2 reappeared in a different shape (2026-05-26).
+    /// Why: this used to be called by the frontend on every project-view
+    /// unmount, and it also called `session.shutdown()`, which finalised the
+    /// active session with `AppQuit`. The resume mechanism (see
+    /// `try_resume_session`) only rescues sessions closed with
+    /// `InactivityTimeout`, so every navigation cycle produced a fresh
+    /// session id — the exact bug from W4 dogfooding §발견 2 reappeared in a
+    /// different shape (2026-05-26). Keeping the session actor alive fixed it.
+    ///
+    /// **이제 이 문은 사용자의 「중지」 하나뿐이다** (`{#watcher-user-pause}`).
+    /// 위 주석이 말하던 언마운트 호출은 더 이상 없다 — 탭이 닫힐 때 도는
+    /// `release_project` 는 PTY 만 정리하고, 프런트에서 `watcherStop` 을 부르는
+    /// 자리는 닥터의 버튼이 전부다.
+    /// 그래서 여기서 `user_paused` 를 세운다: 감독관이 존중할 자국이 없으면
+    /// 「껐다」는 다음 틱(≤60초)에 저절로 뒤집힌다.
     ///
     /// Now: stop the fs watcher (so we're not paying for OS-watch threads
     /// while the user is off the project view) but keep the session actor
@@ -582,6 +609,9 @@ impl OculpmManager {
                 .get_mut(&project_id)
                 .ok_or(OculpmError::NotInitialized(project_id))?;
 
+            // 사용자가 멈췄다는 자국. 감독관은 이 값을 보고 되살리기를 건너뛴다.
+            entry.user_paused = true;
+
             // 세대를 올린다 — 지금 기동 중인 `watcher_start_with` 가 있으면 그쪽이
             // 설치를 포기한다 (나중 의도인 "그만" 이 이긴다). 여기서 올려 두므로
             // 아래 드레인이 락 밖에서 도는 동안 도착한 기동도 버려진다.
@@ -599,7 +629,8 @@ impl OculpmManager {
             project_id,
             had_watcher,
             session_alive,
-            "[FLOW] watcher_stop: watcher halted, session actor kept alive (will end via inactivity timer if user doesn't return)"
+            user_paused = true,
+            "[FLOW] watcher_stop: 사용자가 멈췄다 — 감독관은 되살리지 않는다 (세션 액터는 유지)"
         );
         Ok(())
     }
@@ -693,6 +724,7 @@ impl OculpmManager {
                     .as_ref()
                     .filter(|w| w.is_alive())
                     .map(|w| w.events_seen()),
+                user_paused: entry.user_paused,
             })
             .collect()
     }

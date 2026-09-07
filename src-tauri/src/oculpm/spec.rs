@@ -535,6 +535,17 @@ pub struct OculpmStatus {
     /// (`DoctorSection`). 전용 커맨드를 새로 내는 대신 한 칸을 늘렸다
     /// (`{#dropped-total-surface}`).
     pub watcher_dropped_total: u32,
+    /// **사용자가 직접** 감시를 멈췄는가 (`{#watcher-user-pause}`).
+    ///
+    /// `watcher_state == Stopped` 만으로는 「뜻하지 않게 멈춤」과 「내가 멈춤」이
+    /// 구별되지 않는다 — 앞엣것은 감독관이 60초 안에 되살리고 뒤엣것은 되살리지
+    /// 않으니, 화면이 같은 말을 하면 둘 중 하나는 반드시 거짓말이 된다.
+    /// 상태 봉투에 칸을 하나 더 낸 이유는 `watcher_dropped_total` 과 같다:
+    /// 닥터가 이미 이 봉투를 읽고 있다.
+    ///
+    /// **프로세스 메모리에만 산다** — 앱을 다시 켜면 풀린다
+    /// (`manager::ProjectEntry::user_paused` 주석에 근거).
+    pub watcher_user_paused: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

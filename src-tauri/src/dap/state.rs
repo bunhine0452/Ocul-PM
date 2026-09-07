@@ -48,24 +48,11 @@ impl DapState {
         map.entry(project_id).or_default().toggle(path, line)
     }
 
-    pub async fn breakpoint_lines(&self, project_id: u32, path: &str) -> Vec<u32> {
-        let map = self.breakpoints.lock().await;
-        map.get(&project_id)
-            .map(|s| s.lines_for(path))
-            .unwrap_or_default()
-    }
-
     pub async fn all_breakpoints(&self, project_id: u32) -> Vec<(String, Vec<u32>)> {
         let map = self.breakpoints.lock().await;
         map.get(&project_id)
             .map(BreakpointStore::files)
             .unwrap_or_default()
-    }
-
-    pub async fn clear_breakpoints(&self, project_id: u32) {
-        if let Some(store) = self.breakpoints.lock().await.get_mut(&project_id) {
-            store.clear();
-        }
     }
 
     /// 파일이 옮겨졌다 — 찍어 둔 자리가 따라간다 (탭·버퍼와 같은 정합 규칙).

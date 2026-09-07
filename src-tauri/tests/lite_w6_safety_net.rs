@@ -194,12 +194,18 @@ async fn invariant_04_lock_guard_detects_second_acquirer() {
 // ─── #6 — legacy goal read/create round-trip via Db ────────────────────────
 //
 // The goals/subtasks tables are legacy (planner-unify moved the live Plan to
-// file-based `.oculpm/planner/*.md`), but `create_goal`/`list_goals`/`get_goal`
-// /`list_subtasks` are RETAINED — `plan_migrate_goals` (one-time import) and
-// greenfield `generate_seed_goals` still use them. This guards they stay
-// reachable. The write-side methods (update_goal / delete_goal / *_subtask
-// mutators) were orphaned after planner-unify and removed, so they're no
-// longer exercised here.
+// file-based `.oculpm/planner/*.md`). Exactly one command still reads them:
+// `plan_migrate_goals` (the one-time import), through `list_goals` +
+// `list_subtasks`. This test guards that read path stays reachable.
+//
+// The greenfield wizard's `generate_seed_goals` used to be the second reader —
+// it was deleted with the rest of the wizard commands, so it no longer belongs
+// in this note ({#w6-comment-stale}). `create_goal` is this test's own seeding
+// (the read path needs a row), and `get_goal` now has no production caller at
+// all — a candidate for the next orphan sweep, not something this test should
+// keep alive on its own. The write-side methods (update_goal / delete_goal /
+// *_subtask mutators) were orphaned after planner-unify and removed, so
+// they're no longer exercised here.
 
 #[tokio::test]
 async fn invariant_06_planner_goal_crud_roundtrip() {
