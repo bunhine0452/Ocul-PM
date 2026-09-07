@@ -85,6 +85,9 @@ fn mcp_instructions_carry_load_bearing_rules() {
             "시크릿/.env 내용은 어떤 인자에도 넣지 말 것",
             ".oculpm/ 파일을 직접 만들지 말 것",
             "선제 호출 금지",
+            // {#cas-doc-surfaces} — 코드가 강제하는 CAS 를 안내문이 말하지
+            // 않으면, 에이전트는 첫 호출에서 거절당하고 나서야 배운다.
+            "base_hash",
         ],
     );
 }

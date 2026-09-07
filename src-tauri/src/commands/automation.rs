@@ -16,6 +16,7 @@ use tauri::{AppHandle, Manager, State};
 use crate::app_error::AppError;
 use crate::db::automation::RUN_FAILED;
 use crate::db::Db;
+use crate::oculpm::automation::conditions::ConditionWhen;
 use crate::oculpm::automation::egress::{self, ModelEgress};
 use crate::oculpm::automation::frequency::ScheduleSpec;
 use crate::oculpm::automation::runner::{AutomationRunner, Job, JobOutcome};
@@ -145,6 +146,17 @@ fn parse_kind(raw: &str) -> Result<AutomationKind, AppError> {
 /// 스케줄은 빈도를, 워처는 감시 경로와 티어를 본다 — 둘 다 조용히 안 도는
 /// 자동화를 만들 수 있는 필드다.
 fn spec_error(def: &AutomationDef) -> Option<String> {
+    // {#automation-error-key} — 조건은 두 kind 공통이라 match **앞**에서 본다.
+    // 읽지 못한 조건은 실행기에서 fail-closed 로 막히므로(자동화가 조용히 안
+    // 돈다) 스케줄·감시 스펙과 똑같이 카드에 코드로 말해야 한다. 원문은
+    // `warnings` 가 이미 그대로 들고 있다.
+    if def
+        .conditions
+        .iter()
+        .any(|c| c.when == ConditionWhen::Unknown)
+    {
+        return Some("automation_bad_condition".to_string());
+    }
     match def.kind {
         AutomationKind::Schedule => ScheduleSpec::from_def(def).err().map(str::to_string),
         AutomationKind::Watcher => watch_error(def.watch.as_deref())

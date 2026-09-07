@@ -260,9 +260,9 @@ pub(crate) fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
     //
     // 락만으로 닫힌다 — 안에서 다시 읽어 재검증할 필요가 없다. 이 문지기는
     // 프로세스 경계를 넘고(파일 생성), 플랜 파일을 고치는 이 경로의 모든
-    // 진입자가 같은 자리를 잡기 때문이다. 단, **앱 내부의 화해기
-    // (`oculpm::reconcile`)는 아직 인프로세스 `plan_write_lock` 만 쓴다** —
-    // 그쪽은 이 문지기 밖이라 남은 창이다 (후속으로 넘김).
+    // 진입자가 같은 자리를 잡기 때문이다. 앱 내부의 화해기
+    // (`oculpm::reconcile`)도 이제 같은 문(`acquire_plan_guard`)을 지난다
+    // ({#reconcile-file-guard}) — 인프로세스 뮤텍스만 들던 창은 닫혔다.
     let _guard = plan_guard(&path)?;
 
     let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
@@ -336,13 +336,26 @@ pub(crate) fn plan_hash(md: &str) -> String {
 /// **경합은 잠깐 기다린다.** 임계구간이 밀리초인데 부딪혔다는 이유만으로
 /// 충돌을 돌려주면, 정상 동시성이 CAS 충돌로 둔갑해 호출자가 "그냥 다시
 /// 부르면 된다"를 배운다. 그 학습이 CAS 를 무력화한다.
-fn plan_guard(plan_path: &Path) -> Result<FileGuard, String> {
+///
+/// **앱 내부도 같은 문을 쓴다.** 이 문지기가 MCP 전용이던 동안 `oculpm::reconcile`
+/// 은 인프로세스 `plan_write_lock` 만 들고 같은 파일을 고쳤다 — 즉 앱과 MCP
+/// 서버가 동시에 한 플랜을 쓰는 창이 그대로 남아 있었다. 문지기는 **잡는 자리가
+/// 같아야** 문지기이므로, 자물쇠 경로와 정책을 [`acquire_plan_guard`] 하나로
+/// 내려 두 진입자가 그것을 부른다.
+pub(crate) fn acquire_plan_guard(
+    plan_path: &Path,
+) -> Result<FileGuard, crate::oculpm::file_guard::GuardError> {
     let name = plan_path
         .file_name()
         .and_then(|s| s.to_str())
         .unwrap_or("plan.md");
     let lock = plan_path.with_file_name(format!(".{name}.lock"));
-    FileGuard::acquire(&lock, Utc::now(), GuardPolicy::waiting(2_000)).map_err(|e| {
+    FileGuard::acquire(&lock, Utc::now(), GuardPolicy::waiting(2_000))
+}
+
+/// [`acquire_plan_guard`] + MCP 호출자를 위한 다음 행동 안내.
+fn plan_guard(plan_path: &Path) -> Result<FileGuard, String> {
+    acquire_plan_guard(plan_path).map_err(|e| {
         // 문지기를 못 잡았으면 **쓰지 않는다.** 조용히 진행하면 락이 없는 것보다
         // 나쁘다 — 보호받는다고 믿으면서 보호받지 못한다.
         format!(

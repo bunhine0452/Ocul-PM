@@ -108,6 +108,40 @@ fn entry_block(
     )
 }
 
+/// 파일 문지기 안에서 한 플랜을 CAS 로 갈아 끼운 결과.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CasOutcome {
+    Wrote,
+    /// 다른 프로세스가 그 플랜의 문지기를 쥐고 있다 (기다려도 안 놓았다).
+    Busy,
+    /// 우리가 프롬프트를 만든 뒤 누군가 그 플랜을 고쳤다.
+    Changed,
+    /// 읽을 수 없다 — 그 사이 사라졌거나 권한이 바뀌었다.
+    Vanished,
+    WriteFailed(String),
+}
+
+/// **임계구역 전부**: 문지기 획득 → 재확인 → 원자적 쓰기.
+///
+/// 통째로 한 함수인 이유는 세 단계 사이에 틈이 생기면 CAS 가 무의미해지기
+/// 때문이다 (`plan_ops` 의 {#cas-toctou} 와 같은 이유). 블로킹 호출만 들어
+/// 있어 호출자가 blocking 풀로 보낸다.
+fn cas_write_plan(path: &Path, base: &str, next: &str) -> CasOutcome {
+    let Ok(_guard) = crate::oculpm::mcp::tools::acquire_plan_guard(path) else {
+        return CasOutcome::Busy;
+    };
+    let Ok(on_disk) = std::fs::read_to_string(path) else {
+        return CasOutcome::Vanished;
+    };
+    if on_disk != base {
+        return CasOutcome::Changed;
+    }
+    match write_atomic(path, next.as_bytes()) {
+        Ok(()) => CasOutcome::Wrote,
+        Err(e) => CasOutcome::WriteFailed(e.to_string()),
+    }
+}
+
 /// Reconcile every active plan against one freshly-written journal entry.
 /// See the module docs for the safety contract. `redact`/`tz` mirror the
 /// watcher's so the cache read masks secrets + backfills tz exactly as the
@@ -315,42 +349,60 @@ pub async fn reconcile_entry(
         // N4 — take the shared plan-write lock ONLY for the recheck→write (the
         // LLM call above ran unlocked). CAS against the snapshot the edits were
         // built from: if the plan changed under us, yield rather than clobber.
+        //
+        // {#reconcile-file-guard} — 인프로세스 뮤텍스 **하나로는 부족하다.**
+        // `.oculpm/planner/*.md` 를 고치는 주체는 앱만이 아니다: 에이전트가 띄운
+        // MCP 서버와 CLI 어댑터가 각각 **다른 프로세스**로 같은 파일을 쓴다.
+        // 그래서 안쪽에서 MCP 쪽과 **같은** 파일 문지기를 한 번 더 지난다
+        // (`mcp::tools::acquire_plan_guard` — 자물쇠 경로·정책을 저쪽이 소유한다).
+        // 문지기 획득은 최대 2초 잠들 수 있는 블로킹 호출이라 blocking 풀에서 돈다.
         {
             let _plan_guard = plan_lock.lock().await;
-            let Ok(on_disk) = std::fs::read_to_string(&path) else {
-                continue;
-            };
-            if on_disk != md {
-                // A user edit / in-app refresh landed during our LLM call; yield
-                // (the proposed flips are dropped, not retried). Logged so the
-                // dropped reconciliation is diagnosable rather than invisible.
-                tracing::info!(
-                    target: "oculpm::reconcile",
-                    project_id,
-                    plan_id = %plan_id,
-                    "auto-reconcile yielded: plan changed during LLM call (edits dropped)"
-                );
-                results.push(PlanReconcileResult {
-                    plan_id,
-                    applied: 0,
-                    error: None,
-                });
-                continue; // plan changed during reconcile — skip this one
-            }
-            if let Err(e) = write_atomic(&path, cur.as_bytes()) {
-                tracing::warn!(
-                    target: "oculpm::reconcile",
-                    project_id,
-                    plan_id = %plan_id,
-                    error = %e,
-                    "auto-reconcile: plan write failed"
-                );
-                results.push(PlanReconcileResult {
-                    plan_id,
-                    applied: 0,
-                    error: Some(e.to_string()),
-                });
-                continue;
+            let path_c = path.clone();
+            let base = md.clone();
+            let next = cur.clone();
+            let outcome =
+                tokio::task::spawn_blocking(move || cas_write_plan(&path_c, &base, &next))
+                    .await
+                    .unwrap_or_else(|e| CasOutcome::WriteFailed(e.to_string()));
+            match outcome {
+                CasOutcome::Wrote => {}
+                CasOutcome::Vanished => continue, // read failed — 다음 라운드로
+                CasOutcome::Changed | CasOutcome::Busy => {
+                    // A user edit / in-app refresh landed during our LLM call (or
+                    // another process is inside the guard); yield — the proposed
+                    // flips are dropped, not retried. Logged so the dropped
+                    // reconciliation is diagnosable rather than invisible.
+                    tracing::info!(
+                        target: "oculpm::reconcile",
+                        project_id,
+                        plan_id = %plan_id,
+                        busy = matches!(outcome, CasOutcome::Busy),
+                        "auto-reconcile yielded: plan busy or changed during LLM call (edits dropped)"
+                    );
+                    results.push(PlanReconcileResult {
+                        plan_id,
+                        applied: 0,
+                        error: None,
+                    });
+                    continue;
+                }
+                CasOutcome::WriteFailed(ref e) => {
+                    tracing::warn!(
+                        target: "oculpm::reconcile",
+                        project_id,
+                        plan_id = %plan_id,
+                        error = %e,
+                        "auto-reconcile: plan write failed"
+                    );
+                    let error = Some(e.clone());
+                    results.push(PlanReconcileResult {
+                        plan_id,
+                        applied: 0,
+                        error,
+                    });
+                    continue;
+                }
             }
         }
         // Reproject so the cache reflects the new statuses immediately.
@@ -419,6 +471,41 @@ mod tests {
         assert!(!SessionId::new("20260831-001").is_automation_source());
         assert!(!SessionId::new("manual-20260831-170000").is_automation_source());
         assert!(!SessionId::new("mcp-20260831-170000").is_automation_source());
+    }
+
+    /// {#reconcile-file-guard} — 앱 내부 화해기도 **크로스프로세스 문지기**를
+    /// 지난다. 남이 그 플랜의 자물쇠를 쥐고 있으면 쓰지 않고 물러난다.
+    #[test]
+    fn cas_write_yields_while_another_process_holds_the_plan_guard() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("v3-release.md");
+        std::fs::write(&path, "base\n").unwrap();
+
+        // MCP 쪽이 쓰는 그 문지기를 그대로 잡는다 — 자리가 같아야 문지기다.
+        let held = crate::oculpm::mcp::tools::acquire_plan_guard(&path).unwrap();
+        assert_eq!(cas_write_plan(&path, "base\n", "next\n"), CasOutcome::Busy);
+        // 물러났으면 **한 바이트도 안 썼다.**
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "base\n");
+
+        drop(held);
+        assert_eq!(cas_write_plan(&path, "base\n", "next\n"), CasOutcome::Wrote);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "next\n");
+    }
+
+    /// 문지기를 잡았어도 그 사이 내용이 바뀌었으면 덮지 않는다.
+    #[test]
+    fn cas_write_refuses_when_the_plan_changed_under_us() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("plan.md");
+        std::fs::write(&path, "someone else wrote this\n").unwrap();
+        assert_eq!(
+            cas_write_plan(&path, "what we read\n", "next\n"),
+            CasOutcome::Changed
+        );
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "someone else wrote this\n"
+        );
     }
 
     #[test]

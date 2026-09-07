@@ -337,7 +337,7 @@ impl<'a> JournalCache<'a> {
                         "SELECT relative_path, type, slug, status, difficulty, title, checkbox,
                                 session_id, agent_id, language, verified_by_user, created_at,
                                 updated_at, file_mtime, body_markdown, parse_ok, parse_warnings,
-                                agent_version
+                                agent_version, agent_session
                          FROM oculpm_journal
                          WHERE project_id = ?1 AND relative_path = ?2",
                         params![pid, &rp],
@@ -392,7 +392,9 @@ impl<'a> JournalCache<'a> {
                         // PR-CI1 에서 발견한 잠복 버그 fix — 021 부터 캐시 행에
                         // agent_version 이 있는데 하이드레이션이 버리고 있었다.
                         version: r.agent_version,
-                        session: None,
+                        // 037 — 그전에는 칸 자체가 없어 여기가 늘 `None` 이었다.
+                        // 캐시를 거친 표면은 대화를 구별하지 못했다.
+                        session: r.agent_session,
                     },
                     language: r.language,
                     verified_by_user: r.verified_by_user,

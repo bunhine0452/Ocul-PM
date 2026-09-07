@@ -86,9 +86,18 @@ export const PLUGIN_TOOLS: readonly PluginToolDoc[] = [
   },
   { name: "journal_read", desc: "검색이 고른 일지 1건의 본문 전체 — 목록 훑기용이 아님" },
   { name: "journal_write", desc: "작업 단위가 끝날 때마다 일지 1건을 규격대로 기록" },
-  { name: "plan_status", desc: "활성 플랜의 항목·상태 조회 — \"지금 어디까지 됐나\"" },
-  { name: "plan_update", desc: "플랜 항목 상태 갱신 + plan-log (부모는 하위 롤업 자동)" },
-  { name: "plan_create", desc: "새 계획을 3단계로 생성 — frontmatter·id 규격 서버 보장" },
+  {
+    name: "plan_status",
+    desc: "활성 플랜의 항목·상태 조회 — \"지금 어디까지 됐나\". 응답의 plans[].hash 가 plan_update 의 base_hash",
+  },
+  {
+    name: "plan_update",
+    desc: "플랜 항목 상태 갱신 + plan-log (부모는 하위 롤업 자동). base_hash 필수 — 안 주면 거부한다(병렬 세션이 서로의 변경을 덮는 것을 막는 장치)",
+  },
+  {
+    name: "plan_create",
+    desc: "새 계획을 3단계로 생성 — frontmatter·id 규격 서버 보장. 응답의 hash 를 곧바로 base_hash 로 쓸 수 있다",
+  },
   { name: "project_init", desc: "미추적 저장소의 추적 시작 — 사용자 명시 확인 시에만" },
   {
     name: "agent_register",

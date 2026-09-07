@@ -42,7 +42,10 @@ use crate::oculpm::spec::{
 /// them current (and skips again thereafter).
 ///
 /// History: 1 — tz backfill + Unicode-aware (Hangul-preserving) slug normalize.
-pub const COERCION_VERSION: i64 = 1;
+///            2 — 037 `agent_session` 칸이 생겼다. 본문이 그대로인 일지는 전면
+///                재작성을 타지 않으므로, 이미 캐시에 있던 행의 새 칸을 채우는
+///                길이 이 재투영 하나뿐이다.
+pub const COERCION_VERSION: i64 = 2;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -286,6 +289,9 @@ struct CacheRowSnapshot {
     session_id: String,
     agent_id: String,
     agent_version: Option<String>,
+    /// 037 — 에이전트 자신의 **대화** id (`agent.session`). 디스크가 SSOT 이고
+    /// 이 칸은 그 사본이다.
+    agent_session: Option<String>,
     language: String,
     verified_by_user: bool,
     created_at: String,
@@ -369,6 +375,10 @@ impl CacheRowSnapshot {
                     session_id: fm.session_id.clone(),
                     agent_id: fm.agent.id.clone(),
                     agent_version: fm.agent.version.clone(),
+                    // 빈 문자열은 없는 것으로 — 프론트매터에 `session: ""` 이
+                    // 실려 와도 캐시에는 NULL 이 들어가 하이드레이션이 다시
+                    // `None` 을 내놓는다 (왕복이 값을 만들어 내지 않는다).
+                    agent_session: fm.agent.session.clone().filter(|s| !s.trim().is_empty()),
                     language: fm.language.clone(),
                     verified_by_user: fm.verified_by_user,
                     created_at,
@@ -410,6 +420,7 @@ impl CacheRowSnapshot {
                     session_id: String::new(),
                     agent_id: "unknown".to_string(),
                     agent_version: None,
+                    agent_session: None,
                     language: "ko".to_string(),
                     verified_by_user: false,
                     created_at: String::new(),
@@ -439,6 +450,9 @@ struct EntryRow {
     agent_id: String,
     /// PR-CI1 — 021 컬럼. 하이드레이션이 frontmatter.agent.version 으로 복원.
     agent_version: Option<String>,
+    /// 037 컬럼 — frontmatter.agent.session (대화 id). 이 칸이 생기기 전에는
+    /// 하이드레이션이 무조건 `None` 을 채웠다.
+    agent_session: Option<String>,
     language: String,
     verified_by_user: bool,
     created_at: String,
@@ -469,6 +483,7 @@ fn entry_row_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<EntryRow> {
         parse_ok: r.get::<_, i64>(15)? != 0,
         parse_warnings: r.get(16)?,
         agent_version: r.get(17)?,
+        agent_session: r.get(18)?,
     })
 }
 
@@ -712,3 +727,7 @@ pub(crate) fn walk_journal(journal_root: &Path) -> Vec<(String, i64)> {
 
 #[cfg(test)]
 mod tests;
+// 파일명이 `*tests.rs` 로 끝나야 한다 — 유출 원장 스캐너
+// (`tests/egress_inventory.rs`)가 테스트 파일을 그 꼬리로 가른다.
+#[cfg(test)]
+mod agent_session_tests;

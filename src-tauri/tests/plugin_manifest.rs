@@ -78,6 +78,32 @@ fn hooks_json_guards_and_consumes_stdin() {
             );
         }
     }
+    // {#event-ledger-hygiene} — `cat >>` 는 payload 뒤에 개행을 붙이지 않는다.
+    // 실측: 그렇게 쌓인 원장에 두 이벤트가 한 줄에 붙은 깨진 줄 5건이 실재했다
+    // (같은 플러그인의 session-end.sh 는 처음부터 `printf '%s\n'` 을 썼다).
+    // 소비자(`claude_hooks::parse_inbox_slice`)가 깨진 줄을 건너뛰긴 하지만,
+    // 건너뛴 줄은 곧 잃은 이벤트다 — 붙는 쪽을 고치는 것이 원칙이다.
+    for ev in ["SessionStart", "Stop"] {
+        let cmd = map[ev][0]["hooks"][0]["command"].as_str().unwrap();
+        assert!(
+            !cmd.contains("cat >> "),
+            "{ev}: 날 `cat >>` 는 개행을 안 붙여 줄을 붙여 버린다"
+        );
+        assert!(
+            cmd.contains(r#"printf '%s\n'"#),
+            "{ev}: 인박스 append 는 개행으로 끝나야 한다"
+        );
+        // 타임스탬프 — 원장 줄이 **언제**를 스스로 말해야 사후 재구성이 된다
+        // (payload 에는 시각 필드가 없다; 파일 mtime 은 마지막 줄의 것뿐이다).
+        assert!(
+            cmd.contains("oculpm_ts"),
+            "{ev}: 이벤트에 타임스탬프 필드를 실어야 한다"
+        );
+        assert!(
+            cmd.contains("date -u +%Y-%m-%dT%H:%M:%SZ"),
+            "{ev}: 타임스탬프는 UTC ISO-8601"
+        );
+    }
     let stop = map["Stop"][0]["hooks"][0]["command"].as_str().unwrap();
     assert!(
         !stop.contains("echo"),
