@@ -42,7 +42,7 @@ export function JournalTab({ projectId, onOpenEntry }: {
           className="mob-btn-ghost px-3.5 py-1.5 text-sm"
           aria-label={t("mobile.journal.prevDay")}
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={15} />
         </button>
         <button
           onClick={() => setWorkday(todayWorkday())}
@@ -56,7 +56,7 @@ export function JournalTab({ projectId, onOpenEntry }: {
           className="mob-btn-ghost px-3.5 py-1.5 text-sm disabled:opacity-30"
           aria-label={t("mobile.journal.nextDay")}
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={15} />
         </button>
       </div>
 

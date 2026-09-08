@@ -53,7 +53,7 @@ export function UpdateBanner() {
 
   return (
     <div className="update-banner" role="status">
-      <Download size={16} />
+      <Download size={15} />
       <div className="update-banner-text">
         {awaiting ? (
           <>{t("update.awaiting", { reason: awaiting })}</>
@@ -84,7 +84,7 @@ export function UpdateBanner() {
         aria-label={t("update.dismiss")}
         disabled={installing}
       >
-        <X size={14} />
+        <X size={15} />
       </button>
     </div>
   );

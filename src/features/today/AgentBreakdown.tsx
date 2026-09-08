@@ -14,7 +14,7 @@ export function AgentBreakdown({ agents }: { agents: AgentContribution[] }) {
   return (
     <div className="card">
       <div className="panel-head">
-        <PieChart size={16} color="var(--text-2)" />
+        <PieChart size={15} color="var(--text-2)" />
         <h3>{t("today.agents.title")}</h3>
       </div>
       <div className="panel-body" style={{ padding: 10 }}>

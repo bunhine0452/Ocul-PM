@@ -204,7 +204,7 @@ export function ContextProposals({
       {scopeShown.length > 0 ? (
         <div className="ctx-card" id="ctx-scope">
           <div className="ctx-card-head">
-            <Scissors size={14} />
+            <Scissors size={15} />
             <h4>{t("ctx.prop.scopeTitle")}</h4>
             <span className="ctx-zone-sub">{t("ctx.prop.scopeSub")}</span>
           </div>
@@ -271,7 +271,7 @@ export function ContextProposals({
       {cleanupShown.length > 0 ? (
         <div className="ctx-card" id="ctx-cleanup">
           <div className="ctx-card-head">
-            <Trash2 size={14} />
+            <Trash2 size={15} />
             <h4>{t("ctx.prop.cleanupTitle")}</h4>
             <span className="ctx-zone-sub">{t("ctx.prop.cleanupSub", { d: days })}</span>
           </div>
@@ -325,7 +325,7 @@ export function ContextProposals({
       {triggerShown.length > 0 ? (
         <div className="ctx-card" id="ctx-trigger">
           <div className="ctx-card-head">
-            <PenLine size={14} />
+            <PenLine size={15} />
             <h4>{t("ctx.prop.triggerTitle")}</h4>
             <span className="ctx-zone-sub">{t("ctx.prop.triggerSub", { d: days })}</span>
           </div>
@@ -375,7 +375,7 @@ export function ContextProposals({
       {explained.length > 0 ? (
         <div className="ctx-card" id="ctx-dormant-explained">
           <div className="ctx-card-head">
-            <PenLine size={14} />
+            <PenLine size={15} />
             <h4>{t("ctx.prop.explainedTitle")}</h4>
             <span className="ctx-zone-sub">{t("ctx.prop.explainedSub")}</span>
           </div>

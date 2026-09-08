@@ -25,7 +25,7 @@ export function ErrorCard({ title, error, onRetry, style, className }: ErrorCard
   return (
     <div className={"card card-pad" + (className ? ` ${className}` : "")} role="alert" style={style}>
       <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-        <TriangleAlert size={14} /> {title}
+        <TriangleAlert size={15} /> {title}
       </div>
       {error ? (
         <div className="today-date" style={{ marginTop: 8, wordBreak: "break-word" }}>

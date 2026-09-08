@@ -166,7 +166,7 @@ export function PlanRail({
                 aria-label={t("journal.clearSearch")}
                 onClick={() => onQueryChange("")}
               >
-                <X size={12} />
+                <X size={13} />
               </button>
             ) : null}
           </div>
@@ -238,7 +238,7 @@ export function PlanRail({
                       title={t("plan.rail.archiveAria", { n: sec.plans.length })}
                       onClick={() => setConfirmKey(confirming ? null : sec.key)}
                     >
-                      <Archive size={12} />
+                      <Archive size={13} />
                     </button>
                   ) : null}
                 </div>
@@ -424,7 +424,7 @@ const PlanRailRow = memo(function PlanRailRow({
         </span>
         {stale != null ? (
           <span className="pln-row-stale">
-            <TriangleAlert size={10} />
+            <TriangleAlert size={11} />
             {t("plan.rail.stale", { n: stale })}
           </span>
         ) : when ? (

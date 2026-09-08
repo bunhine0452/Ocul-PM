@@ -1223,7 +1223,7 @@ export function TerminalSurface({
           aria-label={t(railCollapsed ? "term.rail.expand" : "term.rail.collapse")}
           aria-pressed={!railCollapsed}
         >
-          <PanelLeftDock size={14} />
+          <PanelLeftDock size={15} />
         </button>
         <span className="term-head-spacer" data-tauri-drag-region={dragRegion || undefined} />
         <div className="term-tools">
@@ -1234,7 +1234,7 @@ export function TerminalSurface({
             title={t("term.searchScrollbackHint")}
             aria-label={t("term.searchScrollback")}
           >
-            <Search size={14} />
+            <Search size={15} />
           </button>
           <button
             type="button"
@@ -1243,7 +1243,7 @@ export function TerminalSurface({
             title={t("term.splitRowHint")}
             aria-label={t("term.splitRow")}
           >
-            <Columns2 size={14} />
+            <Columns2 size={15} />
           </button>
           <button
             type="button"
@@ -1252,7 +1252,7 @@ export function TerminalSurface({
             title={t("term.splitColHint")}
             aria-label={t("term.splitCol")}
           >
-            <Rows2 size={14} />
+            <Rows2 size={15} />
           </button>
           {headerActions}
         </div>
@@ -1379,7 +1379,7 @@ export function TerminalSurface({
                 aria-label={t("term.closeSearch")}
                 title={t("term.closeSearchHint")}
               >
-                <X size={12} />
+                <X size={13} />
               </button>
             </div>
           ) : null}
@@ -1418,7 +1418,7 @@ export function TerminalSurface({
             주지 못하므로 프로젝트 루트 기준 상대 경로로 접는다. 셸 통합이 없어
             cwd 를 모르면 세션 이름으로 물러선다. */}
         <span className="ts-seg ts-crumb" title={focusedShell?.cwd ?? undefined}>
-          <SquareTerminal size={12} />
+          <SquareTerminal size={13} />
           <span className="ts-crumb-text">
             {formatCwdCrumb(focusedShell?.cwd ?? null, projectRoot) || activeTab?.label || "—"}
           </span>
@@ -1516,7 +1516,7 @@ export function TerminalSurface({
             if (el) snapGhost();
           }}
         >
-          <SquareTerminal size={12} />
+          <SquareTerminal size={13} />
           <span className="tg-name">{ghostLabel}</span>
         </div>
       )}

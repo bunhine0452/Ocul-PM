@@ -71,8 +71,8 @@
   align-items: center;
   gap: 8px;
   font-size: var(--fs-7);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-tight);
   color: var(--text);
 }
 
@@ -103,11 +103,11 @@
   border-radius: 50%;
   border: 1px solid var(--sep-strong);
   font-size: var(--fs-1);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   font-variant-numeric: tabular-nums;
 }
 
-.wz-dot.on { color: var(--text); font-weight: 600; }
+.wz-dot.on { color: var(--text); font-weight: var(--fw-strong); }
 .wz-dot.on .wz-dot-mark {
   background: var(--accent);
   border-color: var(--accent);
@@ -146,8 +146,8 @@
 .wz-title {
   margin: 0 0 8px;
   font-size: var(--fs-12);
-  font-weight: 800;
-  letter-spacing: -0.025em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-snug);
   line-height: 1.25;
   color: var(--text);
 }
@@ -162,8 +162,8 @@
 .wz-label {
   margin: 20px 0 8px;
   font-size: var(--fs-2);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps-lg);
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -196,7 +196,7 @@
   background: var(--bg-card);
   color: var(--text-2);
   font-size: var(--fs-6);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   cursor: pointer;
   transition: border-color 120ms var(--ease-out), background 120ms var(--ease-out),
     color 120ms var(--ease-out);
@@ -214,8 +214,8 @@
 }
 
 .wz-choice:focus-visible {
-  outline: 2px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
 }
 
 /* ── 강조색 스와치 6 ────────────────────────────────────────────────── */
@@ -234,7 +234,7 @@
 
 .wz-accent:hover { transform: scale(1.08); }
 .wz-accent.on { border-color: var(--text); transform: scale(1.12); }
-.wz-accent:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+.wz-accent:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
 
 /* ── 큰 카드 두 장 (폴더 열기 · 새로 시작) ──────────────────────────── */
 
@@ -265,7 +265,7 @@
 }
 
 .wz-bigcard svg { color: var(--accent); margin-bottom: 4px; }
-.wz-bigcard b { font-size: var(--fs-7); font-weight: 700; color: var(--text); }
+.wz-bigcard b { font-size: var(--fs-7); font-weight: var(--fw-bold); color: var(--text); }
 .wz-bigcard span { font-size: var(--fs-4); line-height: 1.5; color: var(--text-2); }
 
 .wz-bigcard:hover:not(:disabled) {
@@ -275,7 +275,7 @@
 }
 
 .wz-bigcard:disabled { opacity: 0.55; cursor: progress; }
-.wz-bigcard:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+.wz-bigcard:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
 
 /* ── 마무리 목록 ────────────────────────────────────────────────────── */
 
@@ -325,7 +325,7 @@
   padding: 0 14px;
   border-radius: var(--radius-s);
   font-size: var(--fs-6);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   cursor: pointer;
   border: 1px solid transparent;
   transition: background 120ms var(--ease-out), border-color 120ms var(--ease-out);
@@ -339,6 +339,6 @@
 
 .wz-ghost:focus-visible,
 .wz-primary:focus-visible {
-  outline: 2px solid var(--accent-ring);
-  outline-offset: 2px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
 }

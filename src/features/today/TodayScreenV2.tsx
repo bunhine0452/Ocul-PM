@@ -348,7 +348,7 @@ export function TodayScreenV2({
               <div className="g2col">
                 <div className="card">
                   <div className="panel-head">
-                    <Pin size={16} color="var(--accent-text)" />
+                    <Pin size={15} color="var(--accent-text)" />
                     <h3>{t("today.highlights")}</h3>
                     <span className="count">{brief ? brief.highlights.length : 0}</span>
                     <button
@@ -374,7 +374,7 @@ export function TodayScreenV2({
 
                 <div className="card">
                   <div className="panel-head">
-                    <History size={16} color="var(--text-2)" />
+                    <History size={15} color="var(--text-2)" />
                     <h3>{t("today.yesterday")}</h3>
                     <span className="count">{brief ? brief.yesterdayDone.length : 0}</span>
                   </div>

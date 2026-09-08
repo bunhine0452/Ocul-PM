@@ -88,7 +88,7 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
         hoverTip={
           monitor && monitor.isGitRepo && monitor.latestCommit ? (
             <>
-              <div style={{ fontWeight: 600, color: "var(--text)" }}>
+              <div style={{ fontWeight: "var(--fw-strong)", color: "var(--text)" }}>
                 {monitor.latestCommit.subject}
               </div>
               <div className="mono" style={{ marginTop: 4, color: "var(--text-3)" }}>

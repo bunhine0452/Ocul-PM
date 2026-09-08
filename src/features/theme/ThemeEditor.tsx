@@ -191,7 +191,7 @@ export function ThemeEditor({
       {TOKEN_GROUPS.map((group) => (
         <div key={group.id} className="space-y-2">
           <div className="flex items-center gap-1.5 text-[11px] uppercase text-muted-foreground tracking-wider">
-            <Palette size={12} />
+            <Palette size={13} />
             {t(group.titleKey)}
           </div>
           {group.id === "code" && <CodeSample label={t("theme.editor.codePreview")} />}

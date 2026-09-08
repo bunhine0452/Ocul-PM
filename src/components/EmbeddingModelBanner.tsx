@@ -57,7 +57,7 @@ export function EmbeddingModelBanner() {
 
   return (
     <div className="update-banner" role="status" aria-live="polite">
-      <Download size={16} />
+      <Download size={15} />
       <div className="update-banner-text">
         {p.status === "error" ? (
           <>{t("embed.failed")}</>
@@ -87,7 +87,7 @@ export function EmbeddingModelBanner() {
           onClick={() => setP(null)}
           aria-label={t("common.dismiss")}
         >
-          <X size={14} />
+          <X size={15} />
         </button>
       ) : null}
     </div>

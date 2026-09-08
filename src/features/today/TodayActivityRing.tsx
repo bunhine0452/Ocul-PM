@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { t } from "@/i18n";
+import { AlertTriangle } from "@/components/Icons";
 import {
   ARC_SW,
   R_INNER,
@@ -177,7 +178,11 @@ export function TodayActivityRing({
         <span className="today-ring-num">{changedToday}</span>
         {errorCycles > 0 ? (
           <span className="today-ring-err" title={t("today.ring.errorCycles", { n: errorCycles })}>
-            ⚠{errorCycles}
+            {/* 아이콘이지 글리프가 아니다 (3.0 {#glyph-to-icon}). 맨 `⚠` 는 OS 컬러
+                이모지로 그려져 주변 선화 아이콘과 재료가 달랐고, color 를 무시해
+                --t-bug 붉은색도 안 먹었다. */}
+            <AlertTriangle size={11} aria-hidden />
+            {errorCycles}
           </span>
         ) : null}
       </span>

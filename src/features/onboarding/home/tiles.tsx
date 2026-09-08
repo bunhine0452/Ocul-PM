@@ -212,7 +212,7 @@ export function OnboardingTile({ onStart }: { onStart: () => void }) {
       </ol>
 
       <button type="button" onClick={onStart} className="btn primary" aria-label={t("home.ctaAddProject")}>
-        <Plus size={14} />
+        <Plus size={15} />
         {t("home.ctaAddProject")}
       </button>
     </article>

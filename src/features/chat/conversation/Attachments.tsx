@@ -45,7 +45,7 @@ export function Lightbox({ image, onClose }: { image: AcpTurnImage; onClose: () 
         aria-label={t("acp.image.close")}
         title={t("acp.image.close")}
       >
-        <X size={16} />
+        <X size={15} />
       </button>
     </div>,
     document.body,

@@ -92,7 +92,7 @@ export function SessionsScreenV2({ projectId }: { projectId: number }) {
     <>
       <Toolbar title={t("sessions.title")} sub={t("sessions.attached", { n: attached })}>
         <button type="button" className="btn sm" onClick={board.reload}>
-          <RefreshCw size={14} /> {t("sessions.refresh")}
+          <RefreshCw size={15} /> {t("sessions.refresh")}
         </button>
       </Toolbar>
 

@@ -359,7 +359,7 @@ export const AcpUsageMeter = memo(function AcpUsageMeter({
 
           {usage && usage.size > 0 ? (
             <footer className="usage-card-foot">
-              <Check size={12} />
+              <Check size={13} />
               {t("acp.usageContext", {
                 pct: Math.round((usage.used / Math.max(usage.size, 1)) * 100),
                 cost: usage.cost_usd != null ? `$${usage.cost_usd.toFixed(2)}` : "—",

@@ -58,7 +58,7 @@ export function DiffBody({
         <EmptyState align="start" style={{ padding: 16 }}>
           {t("diff.fileDeleted")}
           <br />
-          <span className="text-muted-foreground" style={{ fontSize: 11 }}>
+          <span className="text-muted-foreground" style={{ fontSize: "var(--fs-3)" }}>
             {t("diff.noBaseline")}
           </span>
         </EmptyState>
@@ -73,7 +73,7 @@ export function DiffBody({
             <>
               {t("diff.readFailed")}
               <br />
-              <span className="text-muted-foreground" style={{ fontSize: 11 }}>
+              <span className="text-muted-foreground" style={{ fontSize: "var(--fs-3)" }}>
                 {newFileError}
               </span>
             </>

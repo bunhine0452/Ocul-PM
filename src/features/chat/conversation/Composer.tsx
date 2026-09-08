@@ -120,7 +120,7 @@ export function Composer({
     <div className={"composer agent" + (dropActive ? " dropping" : "")}>
       {dropActive ? (
         <div className="composer-drop" aria-hidden="true">
-          <Paperclip size={14} />
+          <Paperclip size={15} />
           {t("acp.dropHint")}
         </div>
       ) : null}
@@ -293,7 +293,7 @@ export function Composer({
           aria-label={t("acp.attach.add")}
           title={t("acp.attach.add")}
         >
-          <Paperclip size={14} />
+          <Paperclip size={15} />
         </button>
         <span style={{ flex: 1 }} />
         {/* 노브 묶음은 **한 덩어리로 접힌다**.

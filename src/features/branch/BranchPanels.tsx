@@ -57,7 +57,7 @@ export function Card({
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
-          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
           {head}
         </button>
       ) : (

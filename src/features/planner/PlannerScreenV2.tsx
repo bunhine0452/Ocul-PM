@@ -260,7 +260,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               actions={
                 <>
                   <button className="btn primary" onClick={() => setNewPlanOpen(true)} disabled={busy}>
-                    <Plus size={14} /> {t("plan.newPlan")}
+                    <Plus size={15} /> {t("plan.newPlan")}
                   </button>
                   <button className="btn" onClick={() => void plan.importGoals()} disabled={busy}>
                     {t("plan.importGoals")}
@@ -345,7 +345,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           <>
             <div style={{ display: "flex", gap: 10, padding: "18px 20px 4px" }}>
               <TriangleAlert size={18} style={{ flexShrink: 0, marginTop: 2, color: "var(--t-bug, #d97706)" }} />
-              <div style={{ fontSize: 13, lineHeight: 1.65 }}>
+              <div style={{ fontSize: "var(--fs-7)", lineHeight: 1.65 }}>
                 <strong>{confirmDone.title}</strong> {t("plan.confirmDoneBody1")} <strong>{t("plan.confirmDoneBody2")}</strong>.
                 <br />
                 <span style={{ color: "var(--text-3)" }}>

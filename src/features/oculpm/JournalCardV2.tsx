@@ -69,7 +69,7 @@ export function JournalCardV2({ entry, focused, onOpenEntry }: JournalCardV2Prop
                 aria-label={t("entry.verified")}
                 style={{ display: "inline-flex", color: "var(--ok)" }}
               >
-                <Check size={12} />
+                <Check size={13} />
               </span>
             ) : null}
           </div>

@@ -55,7 +55,7 @@ function TreeLevel({
                   size={13}
                   className={"docs-tree-caret" + (open ? " open" : "")}
                 />
-                <Folder size={14} className="docs-tree-ico" />
+                <Folder size={15} className="docs-tree-ico" />
                 <span className="docs-tree-label">{node.name}</span>
               </button>
               {open ? (
@@ -82,7 +82,7 @@ function TreeLevel({
             style={indent}
             onClick={() => onSelect(node.relative_path)}
           >
-            <File size={14} className="docs-tree-ico" />
+            <File size={15} className="docs-tree-ico" />
             <span className="docs-tree-label">{displayName(node.name)}</span>
           </button>
         );

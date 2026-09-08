@@ -6,9 +6,9 @@
 /* 상태 칩 — 비활성/스코프/보조파일 배지. */
 .sk-chip {
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: var(--fs-2);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
   background: var(--bg-inset);
   border: 1px solid var(--sep);
@@ -58,7 +58,7 @@
   align-items: center;
   gap: 8px;
   font-size: var(--fs-9);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
 }
 .sk-head-path {
@@ -101,7 +101,7 @@
 .sk-trigger-title {
   margin-bottom: 6px;
   font-size: var(--fs-3);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text-2);
 }
 .sk-trigger-how {
@@ -144,7 +144,7 @@
 .sk-fm summary {
   padding: 6px 10px;
   font-size: var(--fs-4);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-3);
   cursor: pointer;
   user-select: none;
@@ -166,7 +166,7 @@
 }
 .sk-files-title {
   font-size: var(--fs-5);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text-3);
   margin-bottom: 6px;
 }
@@ -201,8 +201,8 @@
   line-height: 1.6;
 }
 .sk-textarea:focus {
-  outline: 2px solid var(--accent-ring);
-  outline-offset: -1px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset-inset);
 }
 .sk-editor-hint {
   font-size: var(--fs-4);
@@ -250,7 +250,7 @@
 .sk-field label {
   display: block;
   font-size: var(--fs-5);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
   margin-bottom: 4px;
 }
@@ -264,8 +264,8 @@
   font-size: var(--fs-7);
 }
 .sk-input:focus {
-  outline: 2px solid var(--accent-ring);
-  outline-offset: -1px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset-inset);
 }
 .sk-field-hint {
   margin-top: 4px;
@@ -289,14 +289,14 @@
   border-radius: var(--radius-s);
   background: none;
   font-size: var(--fs-6);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
   cursor: pointer;
 }
 .sk-scope-seg button.on {
   background: var(--bg-card);
   color: var(--accent-text);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card);
 }
 /* 모달 머리·본문·발(.sk-modal-*)은 2026-09-02 에 styles/primitives.css 로
    옮겼다 — 이 파일은 스킬 화면(lazy 청크)만 로드하는데, 그 규칙을 쓰는
@@ -317,7 +317,7 @@
   align-items: center;
   gap: 7px;
   font-size: var(--fs-6);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text);
   cursor: pointer;
 }
@@ -333,7 +333,7 @@
 .sk-translate-hint code {
   font-size: var(--fs-2);
   padding: 0 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--bg-inset);
 }
 
@@ -351,14 +351,14 @@
 }
 .sk-paths-label {
   font-size: var(--fs-3);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   color: var(--text-3);
   font-family: var(--mono, ui-monospace, monospace);
 }
 .sk-path-chip {
   padding: 2px 3px 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--sep);
   background: var(--bg-card);
   font-size: var(--fs-4);
@@ -372,7 +372,7 @@
   height: 16px;
   border: none;
   background: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-3);
   cursor: pointer;
 }
@@ -406,7 +406,7 @@
 .sk-gallery-intro code {
   font-size: var(--fs-3);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--bg-inset);
   color: var(--text-2);
 }
@@ -433,7 +433,7 @@
 }
 .sk-gallery-name {
   font-size: var(--fs-7);
-  font-weight: 650;
+  font-weight: var(--fw-strong);
   color: var(--text);
 }
 .sk-gallery-desc {
@@ -473,7 +473,7 @@
   gap: 8px;
   margin: 0 0 10px;
   font-size: var(--fs-7);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
 }
 .sk-shop-tags {
@@ -498,8 +498,8 @@
   color: var(--text);
 }
 .sk-shop-filter input[type="search"]:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset-inset);
 }
 .sk-shop-tagrow {
   display: flex;
@@ -530,9 +530,9 @@
   color: inherit;
 }
 .sk-shop-meta:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 4px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--radius-xs);
 }
 .sk-shop-preview {
   max-height: 55vh;
@@ -573,12 +573,12 @@
 }
 .ctx-budget-title {
   font-size: var(--fs-5);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
 }
 .ctx-budget-total {
   font-size: var(--fs-7);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
@@ -592,7 +592,7 @@
   display: flex;
   height: 10px;
   margin: 9px 0 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
   background: var(--bg-inset);
 }
@@ -651,7 +651,7 @@
 .ctx-dot {
   width: 8px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .ctx-dot.always {
   background: var(--info);
@@ -669,7 +669,7 @@
   background: var(--text-3);
 }
 .ctx-legend-val {
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
@@ -685,7 +685,7 @@
 .ctx-zone-head h3 {
   margin: 0;
   font-size: var(--fs-6);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
 }
 .ctx-zone-sub {
@@ -701,16 +701,16 @@
   padding: 2px;
   background: var(--bg-inset);
   border: 1px solid var(--sep);
-  border-radius: 8px;
+  border-radius: var(--radius-m);
 }
 .ctx-filters button {
   padding: 3px 9px;
   border: none;
   background: none;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   font-family: var(--font);
   font-size: var(--fs-3);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
   cursor: pointer;
 }
@@ -726,7 +726,7 @@
   padding: 3px 8px;
   background: var(--bg-inset);
   border: 1px solid var(--sep);
-  border-radius: 8px;
+  border-radius: var(--radius-m);
   color: var(--text-3);
 }
 .ctx-search input {
@@ -766,7 +766,7 @@
 .sk-trigger-quotes-head {
   margin-bottom: 4px;
   font-size: var(--fs-3);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text-2);
 }
 .sk-trigger-quotes ul {
@@ -822,7 +822,7 @@
 }
 .ctx-row-name {
   font-size: var(--fs-6);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -849,10 +849,10 @@
 .ctx-kind {
   flex: none;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: var(--fs-2);
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-wide);
 }
 .ctx-kind.skill {
   color: var(--accent-text);
@@ -917,7 +917,7 @@
   cursor: pointer;
   font-family: var(--font);
   font-size: var(--fs-4);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-3);
 }
 .ctx-dormant .ctx-rows {
@@ -943,7 +943,7 @@
   gap: 6px;
   margin-bottom: 8px;
   font-size: var(--fs-5);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
 }
 .ctx-add-list {
@@ -972,7 +972,7 @@
 }
 .ctx-add-name {
   font-size: var(--fs-5);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text);
 }
 .ctx-add-tags {
@@ -1026,7 +1026,7 @@
 .ctx-card-head h4 {
   margin: 0;
   font-size: var(--fs-5);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
 }
 
@@ -1056,12 +1056,12 @@
 }
 .ctx-prop-name {
   font-size: var(--fs-5);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text);
 }
 .ctx-prop-cost {
   font-size: var(--fs-3);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--danger);
   font-variant-numeric: tabular-nums;
 }
@@ -1079,7 +1079,7 @@
 }
 .ctx-prop-globs code {
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--bg-card);
   border: 1px solid var(--sep);
   font-family: var(--mono);
@@ -1125,8 +1125,8 @@
 }
 .ctx-draft-label {
   font-size: var(--fs-2);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-3);
 }

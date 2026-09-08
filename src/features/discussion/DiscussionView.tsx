@@ -147,7 +147,7 @@ function NoteComposer({ onSubmit }: { onSubmit: (body: string) => Promise<boolea
 
   return (
     <div className="disc-note">
-      <MessageSquare size={14} />
+      <MessageSquare size={15} />
       <input
         aria-label={t("disc.noteAria")}
         value={value}
@@ -201,7 +201,7 @@ function AttachmentChip({
     <div className="disc-attach">
       {att.kind === "image" && uri ? <img src={uri} alt={name} /> : null}
       <div className="disc-attach-name">
-        <Paperclip size={12} />
+        <Paperclip size={13} />
         <span title={name}>{name}</span>
         {!locked ? (
           <button

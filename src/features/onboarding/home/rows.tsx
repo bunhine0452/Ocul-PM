@@ -13,7 +13,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 
-import { FolderOpen, FolderPlus, Settings, Trash2, Clock } from "@/components/Icons";
+import { FolderOpen, FolderPlus, PenLine, Settings, Trash2, Clock } from "@/components/Icons";
 import type { ProjectBlueprint } from "@/lib/bindings";
 
 import { Mark } from "./atoms";
@@ -85,7 +85,9 @@ export function DraftRow({
       onMouseMove={w.onMouseMove}
       style={{ gridTemplateColumns: "26px minmax(0,1fr) auto" }}
     >
-      <Mark text="✎" />
+      <Mark>
+        <PenLine className="w-3.5 h-3.5" />
+      </Mark>
       <span className="home-drafttext min-w-0 flex flex-col gap-0.5 py-2">
         <button
           type="button"
@@ -94,7 +96,7 @@ export function DraftRow({
           onKeyDown={w.onKeyDown}
           onFocus={w.onFocus}
           onClick={() => onResume(bp)}
-          className="home-open text-[14px] font-[650] text-[var(--text)] truncate text-left cursor-pointer bg-transparent border-0 p-0"
+          className="home-open text-[14px] font-semibold text-[var(--text)] truncate text-left cursor-pointer bg-transparent border-0 p-0"
           aria-label={t("home.draftResumeAria", { name, step: row.stepLabel })}
         >
           {name}
@@ -175,9 +177,9 @@ export function CommandRow({
       style={{ animationDelay: `${Math.min(index, 12) * 14}ms`, gridTemplateColumns: "26px minmax(0,1fr) auto" }}
       onMouseMove={w.onMouseMove}
     >
-      <span className="home-mark" aria-hidden="true">
+      <Mark>
         <Icon className="w-3.5 h-3.5" />
-      </span>
+      </Mark>
       <button
         type="button"
         ref={w.ref as (el: HTMLButtonElement | null) => void}
@@ -185,7 +187,7 @@ export function CommandRow({
         onKeyDown={w.onKeyDown}
         onFocus={w.onFocus}
         onClick={row.run}
-        className="home-open text-[13.5px] font-[600] text-[var(--text)] text-left truncate cursor-pointer bg-transparent border-0 p-0"
+        className="home-open text-[13px] font-semibold text-[var(--text)] text-left truncate cursor-pointer bg-transparent border-0 p-0"
       >
         {row.label}
       </button>

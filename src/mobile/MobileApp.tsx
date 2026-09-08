@@ -163,7 +163,7 @@ export default function MobileApp() {
               className="mob-tab flex-1 flex flex-col items-center gap-0.5 pt-1.5 pb-1 text-[10px] font-medium"
             >
               <span className="mob-tab-icon" aria-hidden>
-                <Icon size={17} />
+                <Icon size={18} />
               </span>
               {t(entry.labelKey)}
             </button>

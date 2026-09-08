@@ -141,7 +141,7 @@ export function AcpErrorCard({
           title={t("acp.errorDismiss")}
           onClick={onDismiss}
         >
-          <X size={12} />
+          <X size={13} />
         </button>
       </div>
       <div className="msg-error">{message}</div>

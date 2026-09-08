@@ -51,7 +51,7 @@ export function TerminalAgentPill({ shell, signal }: TerminalAgentPillProps) {
         role="status"
         aria-live="polite"
       >
-        <AgentMark agentId={state.agent.id} size={12} aria-hidden="true" />
+        <AgentMark agentId={state.agent.id} size={13} aria-hidden="true" />
         <span className="tap-name">{state.agent.label}</span>
         <span className="tap-sep" aria-hidden="true">
           ·

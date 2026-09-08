@@ -105,7 +105,7 @@ export const CodeDebugPanel = memo(function CodeDebugPanel({
             <ArrowUp size={13} />
           </CtlButton>
           <CtlButton label={t("code.debug.stop")} disabled={!live} onClick={onStop} danger>
-            <Square size={12} />
+            <Square size={13} />
           </CtlButton>
         </div>
         <button
@@ -134,7 +134,7 @@ export const CodeDebugPanel = memo(function CodeDebugPanel({
                   <ul
                     className="code-debug-adapters"
                     aria-label={t("code.debug.adapters")}
-                    style={{ margin: "6px 0 0", paddingLeft: 14, fontSize: 11, color: "var(--text-3)" }}
+                    style={{ margin: "6px 0 0", paddingLeft: 14, fontSize: "var(--fs-3)", color: "var(--text-3)" }}
                   >
                     {adapters.map((a) => (
                       <li key={a.language_id}>

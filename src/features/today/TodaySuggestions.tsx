@@ -57,7 +57,7 @@ export function TodaySuggestions({ projectId, enabled }: { projectId: number; en
   return (
     <div className="card">
       <div className="panel-head">
-        <ClipboardCheck size={16} color="var(--text-2)" />
+        <ClipboardCheck size={15} color="var(--text-2)" />
         <h3>{t("today.suggestions")}</h3>
         <span className="count">{rules + skills}</span>
         <button

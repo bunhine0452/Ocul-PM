@@ -46,7 +46,7 @@ export function PermissionCard({
         {t("acp.perm.title")}
       </div>
       <div className="perm-what">
-        <Icon size={14} style={{ color: "var(--text-3)", flex: "none" }} />
+        <Icon size={15} style={{ color: "var(--text-3)", flex: "none" }} />
         <span className="perm-title">{request.title || t("acp.tool.untitled")}</span>
         {request.locations.length ? (
           <span className="perm-path" title={request.locations.join("\n")}>

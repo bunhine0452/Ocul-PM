@@ -712,7 +712,7 @@ export function TabStrip({
                   onClose(tb.tab_id);
                 }}
               >
-                <X size={12} strokeWidth={2.5} />
+                <X size={13} strokeWidth={2.5} />
               </span>
             </div>
           );
@@ -735,7 +735,7 @@ export function TabStrip({
             setAdderOpen((o) => !o);
           }}
         >
-          <Plus size={14} strokeWidth={2.5} />
+          <Plus size={15} strokeWidth={2.5} />
         </button>
         {adderOpen && (
           <div className="tabstrip-pop" role="menu" aria-label={t("tabs.new")}>
@@ -752,7 +752,7 @@ export function TabStrip({
                       onOpenProject(p.id);
                     }}
                   >
-                    <FolderGit2 size={14} strokeWidth={2} color="var(--accent)" />
+                    <FolderGit2 size={15} strokeWidth={2} color="var(--accent)" />
                     <span className="tabstrip-pop-meta">
                       <span className="tabstrip-pop-name">{p.name}</span>
                       <span className="tabstrip-pop-path">{p.root_path}</span>

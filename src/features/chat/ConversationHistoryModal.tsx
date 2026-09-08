@@ -105,7 +105,7 @@ export function ConversationHistoryModal({
             {t("chat.historyTitle")}
           </div>
           <button type="button" className="btn sm primary" onClick={onNew}>
-            <Plus size={14} /> {t("chat.newConversation")}
+            <Plus size={15} /> {t("chat.newConversation")}
           </button>
         </div>
 
@@ -119,7 +119,7 @@ export function ConversationHistoryModal({
               <div key={c.id} className={"conv-row" + (c.id === activeId ? " active" : "")}>
                 <button type="button" className="conv-main" onClick={() => onSelect(c.id)}>
                   <span className="conv-title">
-                    <MessageSquare size={12} color="var(--text-3)" />{" "}
+                    <MessageSquare size={13} color="var(--text-3)" />{" "}
                     {c.title || t("chat.untitled")}
                   </span>
                   <span className="conv-meta">{relTime(c)}</span>
@@ -131,7 +131,7 @@ export function ConversationHistoryModal({
                   aria-label={t("chat.deleteAria", { title: c.title || t("chat.conversationWord") })}
                   title={t("chat.delete")}
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={15} />
                 </button>
               </div>
             ))}

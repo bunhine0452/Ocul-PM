@@ -198,7 +198,7 @@ export function DiffFileList({
         </span>
         {reviewedSet.has(path) ? (
           <span className="dfile-read" title={t("diff.reviewed")}>
-            <CheckMark size={12} />
+            <CheckMark size={13} />
           </span>
         ) : null}
       </button>
@@ -227,7 +227,7 @@ export function DiffFileList({
 
       {totalFiles >= FILTER_FROM ? (
         <div className="dfl-filter">
-          <Search size={12} />
+          <Search size={13} />
           <input
             ref={filterRef}
             type="text"
@@ -400,14 +400,14 @@ function GroupSection({
             aria-label={view.verified ? t("entry.unverifyTitle") : t("entry.verifyTitle")}
             title={view.verified ? t("entry.unverifyTitle") : t("entry.verifyTitle")}
           >
-            <CheckMark size={10} strokeWidth={2.5} />
+            <CheckMark size={11} strokeWidth={2.5} />
           </button>
         ) : null}
         <span
           className={"dfl-progress" + (done ? " done" : "")}
           title={t("diff.groupProgress", { done: view.reviewed, total: view.total })}
         >
-          {done ? <CheckMark size={10} /> : null}
+          {done ? <CheckMark size={11} /> : null}
           {view.reviewed > 0 && !done ? `${view.reviewed}/${view.total}` : view.total}
         </span>
         {view.date ? <span className="diff-group-time">{view.date}</span> : null}
@@ -427,7 +427,7 @@ function GroupSection({
                       : `${p.title} · ${p.items[0]}`
                   }
                 >
-                  <TargetIcon size={10} />
+                  <TargetIcon size={11} />
                   <span className="dfl-plan-title">{p.title}</span>
                   {p.items.length > 1 ? (
                     <span className="dfl-plan-n">·{p.items.length}</span>

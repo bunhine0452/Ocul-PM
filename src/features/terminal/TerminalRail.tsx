@@ -244,7 +244,7 @@ export function TerminalRail({
             >
               <span className="ts-dot" aria-hidden="true" />
               <span className="ts-icon" aria-hidden="true">
-                {item.agent ? <AgentMark agentId={item.agent.id} size={14} /> : <SquareTerminal size={14} />}
+                {item.agent ? <AgentMark agentId={item.agent.id} size={15} /> : <SquareTerminal size={15} />}
                 {/* 접힘 전용 — 펼친 카드에서는 아래 상태 줄이 같은 것을 글로
                     말하므로 CSS 가 이쪽을 숨긴다 (숫자를 두 번 그리지 않는다). */}
                 {countBadge === null ? null : (
@@ -331,7 +331,7 @@ export function TerminalRail({
                         aria-label={t("term.agentDismiss")}
                         title={t("term.agentDismiss")}
                       >
-                        <X size={10} />
+                        <X size={11} />
                       </button>
                     </span>
                   </span>
@@ -350,7 +350,7 @@ export function TerminalRail({
                 }}
                 aria-label={t("term.closeTab", { label: item.label })}
               >
-                <X size={12} />
+                <X size={13} />
               </button>
             </div>
           );
@@ -369,7 +369,7 @@ export function TerminalRail({
         title={t("term.newSessionHint")}
         aria-label={t("term.newSessionHint")}
       >
-        <Plus size={14} />
+        <Plus size={15} />
         {collapsed ? null : <span>{t("term.newSession")}</span>}
       </button>
     </div>

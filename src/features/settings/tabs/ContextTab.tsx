@@ -137,7 +137,7 @@ export function ContextTab() {
       <Section title={t("ctx.manifest.title")} description={t("ctx.manifest.desc")}>
         <div className="flex justify-end">
           <button type="button" className="btn ghost sm" onClick={copyManifest} disabled={!manifest}>
-            <Copy size={12} /> {t("ctx.manifest.copy")}
+            <Copy size={13} /> {t("ctx.manifest.copy")}
           </button>
         </div>
         <pre className="max-h-64 overflow-auto rounded-lg border border-border bg-[color:var(--bg-inset)] p-3 text-[11px] font-mono whitespace-pre-wrap text-foreground">
@@ -209,7 +209,7 @@ export function ContextTab() {
           disabled={busy || projectId == null}
           onClick={() => void resetAll()}
         >
-          <Trash2 size={12} /> {t("ctx.reset.action")}
+          <Trash2 size={13} /> {t("ctx.reset.action")}
         </button>
       </Section>
 

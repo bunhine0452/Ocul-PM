@@ -257,7 +257,7 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
             {/* 캐럿 자리 확보 — 이게 없으면 파일 라벨이 폴더 라벨보다 왼쪽에
                 서서 같은 깊이가 다른 깊이처럼 보인다. */}
             <span className="code-tree-caret-pad" aria-hidden />
-            <FileIcon name={node.name} size={16} className="code-tree-ico" />
+            <FileIcon name={node.name} size={15} className="code-tree-ico" />
             <span className="code-tree-label">{node.name}</span>
             {dirtyPaths.has(node.relative_path) ? (
               <span className="code-tree-dirty" title={t("code.dirty")} aria-label={t("code.dirty")} />
@@ -307,7 +307,7 @@ function DirRow({
     >
       <Guides depth={depth} />
       <ChevronRight size={13} className={"code-tree-caret" + (open ? " open" : "")} />
-      <FileIcon name={node.name} isDir open={open} size={16} className="code-tree-ico" />
+      <FileIcon name={node.name} isDir open={open} size={15} className="code-tree-ico" />
       <span className="code-tree-label">{node.name}</span>
       {loading ? <span className="code-tree-spin" aria-hidden /> : null}
     </button>
@@ -359,7 +359,7 @@ function DraftRow({
     <div className="code-tree-row code-tree-draft">
       <Guides depth={depth} />
       <span className="code-tree-caret-pad" aria-hidden />
-      <FileIcon name={isDir ? "" : value || initial} isDir={isDir} size={16} className="code-tree-ico" />
+      <FileIcon name={isDir ? "" : value || initial} isDir={isDir} size={15} className="code-tree-ico" />
       <input
         ref={ref}
         className="code-tree-draft-input"

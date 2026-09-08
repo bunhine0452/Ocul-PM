@@ -65,7 +65,7 @@ export function UserTurn({ turn }: { turn: AcpTurn }) {
             ))}
             {turn.attachments?.map((path) => (
               <span key={path} className="user-file" title={path}>
-                <FileIcon size={12} />
+                <FileIcon size={13} />
                 <span className="user-file-name">{path.split("/").pop()}</span>
               </span>
             ))}
@@ -103,7 +103,7 @@ export function PlanList({ entries }: { entries: readonly AcpPlanEntry[] }) {
   return (
     <details className="plan" open>
       <summary>
-        <ChevronDown size={12} />
+        <ChevronDown size={13} />
         <span className="plan-title">{t("acp.plan.title")}</span>
         <span className="plan-count">{t("acp.plan.count", { done, total: entries.length })}</span>
       </summary>
@@ -140,7 +140,7 @@ export function TurnCopy({ text }: { text: string }) {
       aria-label={t("acp.copyTurn")}
       title={t("acp.copyTurn")}
     >
-      {copied ? <Check size={12} /> : <Copy size={12} />}
+      {copied ? <Check size={13} /> : <Copy size={13} />}
     </button>
   );
 }
@@ -265,7 +265,7 @@ export const TurnRow = memo(function TurnRow({
       {turn.thought ? (
         <details className="think">
           <summary>
-            <ChevronDown size={12} />
+            <ChevronDown size={13} />
             <ThinkingLabel turn={turn} live={live} />
           </summary>
           <div className="think-body msg-md">

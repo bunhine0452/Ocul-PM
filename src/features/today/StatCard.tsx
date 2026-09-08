@@ -30,7 +30,7 @@ export function StatCard({ icon: Icon, tone, label, value, unit, sub, hoverTip }
     <div className={"stat" + (hoverTip ? " has-tip" : "")}>
       <div className="stat-top">
         <span className={"stat-ico" + (tone ? ` ${tone}` : "")}>
-          <Icon size={14} strokeWidth={2} />
+          <Icon size={15} strokeWidth={2} />
         </span>
         {label}
       </div>

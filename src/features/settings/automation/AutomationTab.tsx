@@ -296,7 +296,7 @@ export function AutomationTab() {
             return (
               <li key={`${s.def.kind}:${s.def.id}`} className="card card-pad">
                 <div className="stat-top">
-                  <Clock size={14} color="var(--accent-text)" />
+                  <Clock size={15} color="var(--accent-text)" />
                   <strong>{s.def.title}</strong>
                   <span className={st === "broken" ? "chip warn" : "chip"}>
                     {t(`automation.state.${st}` as never)}
@@ -320,7 +320,7 @@ export function AutomationTab() {
                     aria-label={t("automation.card.menu")}
                     onClick={() => setMenuFor(menuFor === s.def.id ? null : s.def.id)}
                   >
-                    <MoreHorizontal size={14} />
+                    <MoreHorizontal size={15} />
                   </button>
                 </div>
 
@@ -364,7 +364,7 @@ export function AutomationTab() {
                       {t("automation.card.edit")}
                     </button>
                     <button className="btn ghost sm" disabled={busy} onClick={() => void runNow(s)}>
-                      <Play size={12} /> {t("automation.card.runNow")}
+                      <Play size={13} /> {t("automation.card.runNow")}
                     </button>
                     <button
                       className="btn ghost sm"
@@ -384,7 +384,7 @@ export function AutomationTab() {
                       disabled={busy}
                       onClick={() => void remove(s)}
                     >
-                      <Trash2 size={12} /> {t("common.delete")}
+                      <Trash2 size={13} /> {t("common.delete")}
                     </button>
                   </div>
                 )}

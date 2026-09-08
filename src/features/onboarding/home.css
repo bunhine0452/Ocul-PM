@@ -73,8 +73,8 @@
 .home-wordmark {
   font-family: var(--font);
   font-size: var(--fs-8);
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-tight);
   color: var(--text);
   white-space: nowrap;
 }
@@ -89,7 +89,7 @@
 .home-dateline {
   font-family: var(--mono);
   font-size: var(--fs-2);
-  letter-spacing: 0.02em;
+  letter-spacing: var(--track-wide);
   color: var(--text-3);
   white-space: nowrap;
   overflow: hidden;
@@ -112,8 +112,8 @@
   border: 0;
   background: transparent;
   font-size: var(--fs-10);
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  font-weight: var(--fw-body);
+  letter-spacing: var(--track-tight);
   color: var(--text);
   outline: none;
   padding: 6px 0;
@@ -170,8 +170,8 @@
 /* 포커스를 실제로 받는 것은 행 안의 '열기' 버튼이므로 자손 기준으로 건다
    (행 자체는 tabindex 가 없어 :focus-visible 이 매칭될 수 없다). */
 .home-row:has(:focus-visible) {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset-inset);
 }
 /* 좌측 액센트 막대는 제거했다 — 유일한 소비처인 바닥 띠에서 모서리 반경과
    어긋났고, 커서는 면(배경)으로 표시하는 편이 어떤 모양에서도 성립한다. */
@@ -194,17 +194,11 @@
   /* 테두리 없음 — 26px 상자에 테두리까지 두르면 아이콘 하나가 세 겹으로
      보인다. 면 하나로 충분하다. */
   font-size: var(--fs-1);
-  font-weight: 750;
-  letter-spacing: 0.02em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-wide);
   color: var(--text-2);
   flex: none;
   user-select: none;
-}
-.home-mark--lg {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-m);
-  font-size: var(--fs-8);
 }
 
 /* ── 스트레치 오픈 — 행/타일 전체가 클릭 영역이 되게 ────────────────
@@ -273,8 +267,8 @@
   background: var(--bg-hover);
 }
 .home-iconbtn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
 }
 .home-iconbtn--danger:hover {
   color: var(--t-bug);
@@ -289,14 +283,14 @@
   gap: 6px;
   font-family: var(--mono);
   font-size: var(--fs-1);
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-wide);
   white-space: nowrap;
 }
 .home-kicker-bar {
   width: 2px;
   height: 10px;
-  border-radius: 1px;
+  border-radius: var(--radius-2xs);
   background: currentColor;
   flex: none;
 }
@@ -320,7 +314,7 @@
 .home-spark-bar {
   flex: 1;
   min-width: 2px;
-  border-radius: 1px;
+  border-radius: var(--radius-2xs);
   background: var(--text-3);
   opacity: 0.45;
   transform-origin: bottom;
@@ -344,7 +338,7 @@
   align-items: center;
   gap: 5px;
   font-size: var(--fs-3);
-  font-weight: 550;
+  font-weight: var(--fw-label);
   color: var(--text-2);
   white-space: nowrap;
 }
@@ -357,15 +351,15 @@
 
 .home-eyebrow {
   font-size: var(--fs-2);
-  font-weight: 750;
-  letter-spacing: 0.09em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps-lg);
   color: var(--text-2);
   text-transform: none;
 }
 
 .home-when {
   font-size: var(--fs-3);
-  font-weight: 500;
+  font-weight: var(--fw-label);
   font-variant-numeric: tabular-nums;
   color: var(--text-2);
   white-space: nowrap;
@@ -376,7 +370,7 @@
   font-size: var(--fs-1);
   color: var(--text-3);
   border: 1px solid var(--sep);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   padding: 1px 4px;
   white-space: nowrap;
 }
@@ -411,8 +405,8 @@
   background: transparent;
 }
 .home-chipbtn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
 }
 .home-chipbtn--danger:hover {
   color: var(--t-bug);
@@ -424,7 +418,7 @@
 .home-hit {
   background: var(--accent-soft);
   color: var(--accent-text);
-  border-radius: 2px;
+  border-radius: var(--radius-2xs);
   padding: 0 1px;
 }
 
@@ -432,14 +426,14 @@
 
 .home-prog {
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-pill);
   background: var(--bg-inset);
   overflow: hidden;
 }
 .home-prog-fill {
   height: 100%;
   background: var(--accent);
-  border-radius: 2px;
+  border-radius: var(--radius-2xs);
 }
 
 /* ── 스켈레톤 ───────────────────────────────────────────────────────
@@ -460,9 +454,9 @@
   box-shadow: var(--shadow-card);
 }
 .home-how-head { display: flex; flex-direction: column; gap: 6px; }
-.home-how-title { margin: 0; font-size: var(--fs-11); font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+.home-how-title { margin: 0; font-size: var(--fs-11); font-weight: var(--fw-bold); letter-spacing: var(--track-snug); color: var(--text); }
 .home-how-body { margin: 0; font-size: var(--fs-6); line-height: 1.6; color: var(--text-2); }
-.home-how-body b { color: var(--text); font-weight: 650; }
+.home-how-body b { color: var(--text); font-weight: var(--fw-strong); }
 .home-how-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .home-how-step {
   display: flex;
@@ -473,7 +467,7 @@
 }
 .home-how-step:last-child { border-bottom: 1px solid var(--sep); }
 .home-how-ico { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--accent); }
-.home-how-step h3 { margin: 0; font-size: var(--fs-6); font-weight: 650; color: var(--text); }
+.home-how-step h3 { margin: 0; font-size: var(--fs-6); font-weight: var(--fw-strong); color: var(--text); }
 .home-how-step p { margin: 3px 0 0; font-size: var(--fs-5); line-height: 1.55; color: var(--text-2); }
 .home-how .btn { align-self: flex-start; }
 
@@ -556,7 +550,7 @@
   padding: 10px 14px;
   border-radius: var(--radius-m);
   font-size: var(--fs-5);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   background: var(--t-error-soft);
   color: var(--t-error);
   border: 1px solid var(--t-error);
@@ -592,7 +586,7 @@
 }
 .home-panecount {
   font-size: var(--fs-3);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -657,8 +651,8 @@
 }
 /* 키보드로 들어왔을 때만 진짜 아웃라인 — 마우스 hover 에는 링을 그리지 않는다. */
 .hg-card:has(:focus-visible) {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
 }
 /* 2주 넘게 조용함 — 밀어내되 읽을 수는 있게. */
 .hg-card.is-quiet { opacity: 0.6; }
@@ -680,9 +674,9 @@
 }
 .hg-name {
   font-size: var(--fs-7);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   /* 큰 글자일수록 자간을 조인다 — 제목이 헐거우면 본문과 위계가 안 선다. */
-  letter-spacing: -0.008em;
+  letter-spacing: var(--track-tight);
   color: var(--text);
   text-align: left;
   background: none;
@@ -719,18 +713,18 @@
 .hg-today {
   flex: none;
   color: var(--accent-text);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
 }
 /* 알약 모양 + 채움 배경을 나열하면 "배지 수프" 가 된다. 윤곽선 한 겹 +
    작은 반경이 훨씬 정밀해 보이고, 옆의 숫자·시각과 광학 높이도 맞는다. */
 .hg-chip,
 .hg-lead-chip {
   font-size: var(--fs-0);
-  font-weight: 650;
+  font-weight: var(--fw-strong);
   line-height: 14px;
   padding: 0 5px;
-  letter-spacing: 0.01em;
-  border-radius: 4px;
+  letter-spacing: var(--track-wide);
+  border-radius: var(--radius-xs);
   border: 1px solid var(--sep);
   background: transparent;
   color: var(--text-3);
@@ -791,7 +785,7 @@
   color: var(--text-2);
   min-height: 98px;
 }
-.hg-add-title { font-size: var(--fs-6); font-weight: 700; }
+.hg-add-title { font-size: var(--fs-6); font-weight: var(--fw-bold); }
 .hg-add-actions { display: flex; gap: 6px; }
 
 /* ── 프로젝트 색 팔레트 ────────────────────────────────────────────────
@@ -867,8 +861,8 @@
   background: var(--bg-hover);
 }
 .hf-row:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset-inset);
 }
 /* 프로젝트가 워크스페이스에서 사라진 일지 — 열 곳이 없다. */
 .hf-row:disabled {
@@ -877,7 +871,7 @@
 }
 .hf-title {
   font-size: var(--fs-7);
-  font-weight: 500;
+  font-weight: var(--fw-label);
   line-height: 1.42;
   color: var(--text);
   /* 두 줄까지. 한국어 제목은 `—` 뒤로 길게 이어지는 일이 흔해서 자르는 선이
@@ -964,13 +958,13 @@
 .home-foot .home-row:hover,
 .home-foot .home-row.is-cursor { background: var(--bg-hover); }
 .home-foot .home-row:has(:focus-visible) {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset-inset);
 }
 /* 초안 행의 액션 칸은 레일 폭(168px)을 전제로 최소폭을 잡고 있다 — 바닥
    띠에서는 내용만큼만 차지하게 푼다. */
 .home-foot .home-row > :last-child { min-width: 0; }
-.home-foot .home-mark { width: 20px; height: 20px; border-radius: 5px; font-size: var(--fs-0); }
+.home-foot .home-mark { width: 20px; height: 20px; border-radius: var(--radius-xs); font-size: var(--fs-0); }
 /* 초안 이름은 폭 상한을 갖는다 — 이름이 길면 항목이 그만큼 넓어져 뒤의 명령을
    다음 줄로 밀어내고, 그게 곧 띠 높이(= 프로젝트 격자 높이)의 변동이 된다.
    상한에 걸리면 이름은 말줄임된다 (.home-open 의 truncate). */
@@ -981,8 +975,8 @@
 .ap-wrap { display: flex; flex-direction: column; gap: 12px; }
 .ap-label {
   font-size: var(--fs-2);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-3);
   margin-bottom: 6px;
@@ -1015,8 +1009,8 @@
 }
 .ap-icon:focus-visible,
 .ap-color:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
 }
 
 .ap-color {

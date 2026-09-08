@@ -134,7 +134,7 @@ export function PlanHoverCard({ target, side, now }: PlanHoverCardProps) {
       <div className="pln-hover-title">{stripInlineMarkdown(plan.title)}</div>
       {facet?.staleDays != null ? (
         <div className="pln-hover-stale">
-          <TriangleAlert size={12} />
+          <TriangleAlert size={13} />
           {t("plan.rail.stale", { n: facet.staleDays })}
         </div>
       ) : null}

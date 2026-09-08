@@ -47,7 +47,7 @@
 
 .es-title {
   font-size: var(--fs-7);
-  font-weight: 650;
+  font-weight: var(--fw-strong);
   color: var(--text);
 }
 
@@ -76,7 +76,7 @@
 /* 설명 안의 경로·명령은 코드로 — "무엇을 하면 살아나는가"가 대부분 명령이다. */
 .es-desc code {
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   font-size: var(--fs-4);
   background: var(--bg-inset);
   color: var(--text-2);

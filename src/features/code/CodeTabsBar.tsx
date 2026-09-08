@@ -138,7 +138,7 @@ export const CodeTabsBar = memo(function CodeTabsBar({
                     onClose(path);
                   }}
                 >
-                  <X size={12} strokeWidth={2.5} />
+                  <X size={13} strokeWidth={2.5} />
                 </button>
               </span>
             </div>
@@ -154,7 +154,7 @@ export const CodeTabsBar = memo(function CodeTabsBar({
           title={isSplit ? t("code.tabs.unsplit") : t("code.tabs.split")}
           aria-label={isSplit ? t("code.tabs.unsplit") : t("code.tabs.split")}
         >
-          {isSplit ? <Minimize2 size={14} /> : <Columns2 size={14} />}
+          {isSplit ? <Minimize2 size={15} /> : <Columns2 size={15} />}
         </button>
       </div>
 

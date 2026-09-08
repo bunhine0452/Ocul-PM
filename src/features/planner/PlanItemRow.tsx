@@ -148,7 +148,7 @@ export function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispa
                 >
                   <NotebookText size={13} strokeWidth={2} />
                   <span>{t("plan.entryLabel")}{multiLinked ? ` ${linked.length}` : ""}</span>
-                  {multiLinked ? <ChevronDown size={12} /> : null}
+                  {multiLinked ? <ChevronDown size={13} /> : null}
                 </button>
                 {multiLinked && pickerOpen ? (
                   <div className="jref-pop" role="menu">
@@ -195,7 +195,7 @@ export function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispa
                 onClick={() => onDispatch(item)}
                 title={t("plan.dispatchTitle")}
               >
-                <Play size={12} strokeWidth={2} />
+                <Play size={13} strokeWidth={2} />
                 <span>{t("plan.dispatch")}</span>
               </button>
             ) : null}
@@ -225,10 +225,10 @@ export function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispa
                 ) : (
                   <>
                     <button type="button" className="pln-iconbtn" onClick={() => setEditing(true)} disabled={busy} title={t("plan.itemRename")}>
-                      <Pencil size={12} />
+                      <Pencil size={13} />
                     </button>
                     <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDel(true)} disabled={busy} title={t("plan.itemDelete")}>
-                      <Trash2 size={12} />
+                      <Trash2 size={13} />
                     </button>
                   </>
                 )}

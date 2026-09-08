@@ -130,7 +130,7 @@ export function PluginSetupCard({
         <div key={c} className="mono" style={CMD_ROW}>
           <code style={CMD_CODE}>{c}</code>
           <button className="btn sm" onClick={() => copy(c)}>
-            <Copy size={12} /> {t("plugin.copy")}
+            <Copy size={13} /> {t("plugin.copy")}
           </button>
         </div>
       ))}

@@ -49,7 +49,7 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <div className="panel-head">
-        <MessageSquare size={16} color="var(--accent-text)" />
+        <MessageSquare size={15} color="var(--accent-text)" />
         <h3>{t("today.discussion.title")}</h3>
         <span className="count">{items?.length ?? 0}</span>
         <button
@@ -85,7 +85,7 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    fontSize: 13,
+                    fontSize: "var(--fs-7)",
                     color: "var(--text-1)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -97,7 +97,7 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
                 {d.problem_preview ? (
                   <div
                     style={{
-                      fontSize: 11,
+                      fontSize: "var(--fs-3)",
                       color: "var(--text-3)",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -109,7 +109,7 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
                 ) : null}
               </div>
               {d.next_step_count > 0 ? (
-                <span style={{ fontSize: 11, color: "var(--text-3)", flexShrink: 0 }}>
+                <span style={{ fontSize: "var(--fs-3)", color: "var(--text-3)", flexShrink: 0 }}>
                   {t("today.discussion.nextSteps", { n: d.next_step_count })}
                 </span>
               ) : null}

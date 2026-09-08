@@ -106,12 +106,12 @@ export const SessionPanel = memo(function SessionPanel({
           **곧장 말을 걸 수 있어야** 한다. 기록도 작업 중 표시도 대화별로
           갈라져 있으므로 서로 기다릴 이유가 없다. */}
       <button type="button" className="acp-panel-new" onClick={onNew}>
-        <Plus size={14} />
+        <Plus size={15} />
         {t("acp.newConversation")}
       </button>
 
       <div className="acp-panel-search">
-        <Search size={12} />
+        <Search size={13} />
         <input
           value={query}
           onChange={(e) => onQuery(e.target.value)}
@@ -249,7 +249,7 @@ export const SessionPanel = memo(function SessionPanel({
                         aria-label={t("acp.session.rename")}
                         title={t("acp.session.rename")}
                       >
-                        <Pencil size={12} />
+                        <Pencil size={13} />
                       </button>
                       {/* X 는 "닫기"로 읽힌다 (탭의 X 가 실제로 그렇다) — 영구
                           삭제는 쓰레기통이어야 한다. */}
@@ -260,7 +260,7 @@ export const SessionPanel = memo(function SessionPanel({
                         aria-label={t("acp.session.delete")}
                         title={t("acp.session.delete")}
                       >
-                        <Trash2 size={12} />
+                        <Trash2 size={13} />
                       </button>
                     </>
                   )}

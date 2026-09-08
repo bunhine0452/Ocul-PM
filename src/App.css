@@ -61,7 +61,7 @@
 @font-face {
     font-family: 'D2Coding';
     src: url('./assets/fonts/D2Coding-term.woff2') format('woff2');
-    font-weight: 400;
+    font-weight: var(--fw-body);
     font-style: normal;
     font-display: swap;
 }
@@ -85,7 +85,7 @@
 @font-face {
     font-family: 'D2Coding Term';
     src: url('./assets/fonts/D2Coding-term.woff2') format('woff2');
-    font-weight: 400;
+    font-weight: var(--fw-body);
     font-style: normal;
     font-display: swap;
     unicode-range: U+3000-303F, U+3130-318F, U+AC00-D7A3, U+FF01-FF60,
@@ -215,6 +215,20 @@
     --radius-2xl: var(--radius-xl);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+    /* 무게·자간도 같은 램프로 (3.0 {#weight-ramp} {#track-ramp}). Tailwind 기본값
+       (font-semibold 600 · tracking-wider 0.05em)은 tokens.css 램프와 미묘하게
+       어긋나, 같은 위계의 제목이 유틸리티로 그렸느냐 CSS 로 그렸느냐에 따라
+       무게가 갈렸다. 화면은 utility 이름을 그대로 쓰고, 값만 여기서 잇는다. */
+    --font-weight-normal: var(--fw-body);
+    --font-weight-medium: var(--fw-label);
+    --font-weight-semibold: var(--fw-strong);
+    --font-weight-bold: var(--fw-bold);
+    --tracking-tighter: var(--track-snug);
+    --tracking-tight: var(--track-tight);
+    --tracking-normal: 0em;
+    --tracking-wide: var(--track-wide);
+    --tracking-wider: var(--track-caps);
+    --tracking-widest: var(--track-caps-lg);
     --shadow-sm: var(--shadow-card);
     --shadow-md: var(--shadow-card);
     --shadow-lg: var(--shadow-raise);
@@ -430,18 +444,14 @@
 .scrollbar-thin::-webkit-scrollbar-track {
   background: transparent;
 }
+/* 손잡이 색은 base.css 의 전역 스크롤바와 같은 재료다 — 가족(light/dark)별
+   하드코딩 두 벌이 필요 없다 ({#scrollbar-theme}). 프리셋도 따라온다. */
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 999px;
-}
-[data-theme="dark"] .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--text-3) 32%, transparent);
+  border-radius: var(--radius-pill);
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
-}
-[data-theme="dark"] .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--text-3) 55%, transparent);
 }
 
 /* (Phase 5 정리) 옛 textarea 편집기의 `.editor-*` 규칙과 `--editor-*` 토큰은 CodeMirror 로
@@ -461,11 +471,11 @@
   gap: var(--space-4);
   max-width: 360px;
   padding: 11px 12px 11px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-l);
   background: var(--card);
   color: var(--foreground);
   border: 1px solid var(--border);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-pop);
   font-size: var(--fs-7);
   animation: updateBannerIn 0.18s ease-out;
 }
@@ -475,16 +485,16 @@
 }
 .update-banner > svg { color: var(--primary); flex: none; }
 .update-banner-text { flex: 1; min-width: 0; }
-.update-banner-text b { font-weight: 700; }
+.update-banner-text b { font-weight: var(--fw-bold); }
 .update-banner-cta {
   flex: none;
   appearance: none;
   border: none;
   cursor: pointer;
   padding: 5px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-m);
   font-size: var(--fs-5);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   background: var(--primary);
   color: var(--primary-foreground);
 }
@@ -497,7 +507,7 @@
   cursor: pointer;
   color: var(--muted-foreground);
   padding: var(--space-1);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   display: grid;
   place-items: center;
 }
@@ -507,13 +517,13 @@
 .dl-progress {
   height: 5px;
   margin-top: 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent-surface);
   overflow: hidden;
 }
 .dl-progress-bar {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--primary);
   transition: width 0.3s ease;
 }

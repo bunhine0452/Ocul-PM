@@ -74,7 +74,7 @@ export function ContextBudgetBar({
   return (
     <section className="ctx-budget" aria-label={t("ctx.budget.aria")}>
       <div className="ctx-budget-head">
-        <PieChart size={14} />
+        <PieChart size={15} />
         <span className="ctx-budget-title">{t("ctx.budget.title")}</span>
         <strong className="ctx-budget-total">{t("ctx.budget.kb", { kb: kb(budget.totalBytes) })}</strong>
         <span className="ctx-budget-note">

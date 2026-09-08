@@ -168,7 +168,7 @@ export function TerminalBlockMenu({
       {view === "root" ? (
         <>
           <div className="tbm-head" title={block.command}>
-            <Terminal size={12} aria-hidden="true" />
+            <Terminal size={13} aria-hidden="true" />
             <span className="tbm-cmd">{blockTitle(block.command, 40)}</span>
           </div>
           <button type="button" className="tbm-item" role="menuitem" onClick={() => copy(block.command, t("term.block.copiedCommand"))}>
@@ -204,7 +204,7 @@ export function TerminalBlockMenu({
           >
             <Target size={13} aria-hidden="true" />
             {t("term.block.toPlan")}
-            <ChevronRight size={12} className="tbm-more" aria-hidden="true" />
+            <ChevronRight size={13} className="tbm-more" aria-hidden="true" />
           </button>
         </>
       ) : null}
@@ -212,7 +212,7 @@ export function TerminalBlockMenu({
       {view === "plans" ? (
         <>
           <button type="button" className="tbm-back" onClick={() => setView("root")}>
-            <ChevronLeft size={12} aria-hidden="true" />
+            <ChevronLeft size={13} aria-hidden="true" />
             {t("term.block.pickPlan")}
           </button>
           {plans === null ? <div className="tbm-empty">{t("term.block.loading")}</div> : null}
@@ -226,7 +226,7 @@ export function TerminalBlockMenu({
               onClick={() => openPhases(candidate)}
             >
               <span className="tbm-label">{candidate.title}</span>
-              <ChevronRight size={12} className="tbm-more" aria-hidden="true" />
+              <ChevronRight size={13} className="tbm-more" aria-hidden="true" />
             </button>
           ))}
         </>
@@ -235,7 +235,7 @@ export function TerminalBlockMenu({
       {view === "phases" ? (
         <>
           <button type="button" className="tbm-back" onClick={() => setView("plans")}>
-            <ChevronLeft size={12} aria-hidden="true" />
+            <ChevronLeft size={13} aria-hidden="true" />
             {t("term.block.pickPhase")}
           </button>
           {phases === null ? <div className="tbm-empty">{t("term.block.loading")}</div> : null}

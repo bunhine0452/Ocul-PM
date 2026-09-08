@@ -115,7 +115,7 @@ export function BranchScreenV2({
           </select>
         ) : null}
         <button type="button" className="btn sm" disabled={!story || exporting} onClick={() => void exportDigest()}>
-          <Download size={14} /> {t("branch.export")}
+          <Download size={15} /> {t("branch.export")}
         </button>
       </Toolbar>
 
@@ -183,7 +183,7 @@ function NestingNote({ nesting, sub }: { nesting: BranchStory["repo_nesting"]; s
         : "branch.nested.disjoint";
   return (
     <div className="card card-pad text-sm text-muted-foreground">
-      <AlertTriangle size={14} aria-hidden /> {t(key, { path: sub ?? "—" })}
+      <AlertTriangle size={15} aria-hidden /> {t(key, { path: sub ?? "—" })}
     </div>
   );
 }

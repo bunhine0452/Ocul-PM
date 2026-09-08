@@ -154,7 +154,7 @@ export function SessionCard({
             setEditing(true);
           }}
         >
-          <SquarePen size={12} />
+          <SquarePen size={13} />
           {seat.alias ?? t("sessions.aliasNone")}
         </button>
       )}

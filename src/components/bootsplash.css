@@ -75,7 +75,7 @@
 
 .boot-name {
   font-size: 12px;
-  font-weight: 650;
+  font-weight: var(--fw-strong);
   text-transform: uppercase;
   /* 자간의 마지막 한 칸이 오른쪽에 남아 가운데 정렬이 틀어지는 걸 보정. */
   text-indent: 0.3em;
@@ -100,8 +100,8 @@
   100% { opacity: 0; transform: scale(1.42); }
 }
 @keyframes bootNameIn {
-  from { opacity: 0; letter-spacing: 0.5em; transform: translateY(5px); }
-  to { opacity: 0.7; letter-spacing: 0.3em; transform: none; }
+  from { opacity: 0; letter-spacing: 0.5em; transform: translateY(5px); } /* design-ignore -- 자간이 좁혀지는 것이 이 애니메이션 자체다 */
+  to { opacity: 0.7; letter-spacing: 0.3em; transform: none; } /* design-ignore -- 위와 짝인 키프레임 */
 }
 /* 초점이 맞은 뒤, 마크가 한 뼘 다가서며 앱이 드러난다. */
 @keyframes bootOut {

@@ -68,14 +68,14 @@ export class ErrorBoundary extends Component<Props, State> {
           minHeight: 160,
           padding: 24,
           color: "var(--text-2)",
-          fontSize: 13,
+          fontSize: "var(--fs-7)",
           textAlign: "center",
         }}
       >
         <strong style={{ color: "var(--text-1)" }}>{t("crash.title")}</strong>
         <code
           style={{
-            fontSize: 11,
+            fontSize: "var(--fs-3)",
             color: "var(--text-3)",
             maxWidth: 480,
             overflow: "hidden",

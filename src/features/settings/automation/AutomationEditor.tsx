@@ -327,7 +327,7 @@ export function AutomationEditor({
                   patch({ conditions: def.conditions.filter((_, j) => j !== i) })
                 }
               >
-                <X size={12} />
+                <X size={13} />
               </button>
             </div>
           ))}

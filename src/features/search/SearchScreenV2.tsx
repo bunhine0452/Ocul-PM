@@ -273,7 +273,7 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
         <div className="page fade-in">
           <div className="search-hero">
             <form className="search-big" onSubmit={onSubmit}>
-              <SearchIcon size={19} color="var(--text-3)" />
+              <SearchIcon size={18} color="var(--text-3)" />
               <input
                 ref={inputRef}
                 value={query}
@@ -657,9 +657,9 @@ function SymbolResult({
           aria-expanded={open}
         >
           {open ? (
-            <ChevronDown size={14} color="var(--text-3)" />
+            <ChevronDown size={15} color="var(--text-3)" />
           ) : (
-            <ChevronRight size={14} color="var(--text-3)" />
+            <ChevronRight size={15} color="var(--text-3)" />
           )}
           <Variable size={15} color="var(--text-2)" />
           <span className="sresult-path">

@@ -174,7 +174,7 @@ export function ThemeGallery() {
             disabled={busy}
             onClick={() => editDraft(blankTheme(t("theme.new.name"), "dark"))}
           >
-            <Plus size={12} /> {t("theme.action.new")}
+            <Plus size={13} /> {t("theme.action.new")}
           </button>
           <button
             type="button"
@@ -182,7 +182,7 @@ export function ThemeGallery() {
             disabled={busy}
             onClick={() => void runImport(null, null)}
           >
-            <Upload size={12} /> {t("theme.action.import")}
+            <Upload size={13} /> {t("theme.action.import")}
           </button>
         </div>
       </div>
@@ -246,7 +246,7 @@ export function ThemeGallery() {
                         className="btn ghost sm"
                         onClick={() => editDraft({ ...theme, tokens: { ...themeTokens(theme) } })}
                       >
-                        <Pencil size={12} /> {t("theme.action.edit")}
+                        <Pencil size={13} /> {t("theme.action.edit")}
                       </button>
                     )}
                     <button
@@ -258,14 +258,14 @@ export function ThemeGallery() {
                         )
                       }
                     >
-                      <Copy size={12} /> {t("theme.action.duplicate")}
+                      <Copy size={13} /> {t("theme.action.duplicate")}
                     </button>
                     <button
                       type="button"
                       className="btn ghost sm"
                       onClick={() => void exportTheme(theme)}
                     >
-                      <Download size={12} /> {t("theme.action.export")}
+                      <Download size={13} /> {t("theme.action.export")}
                     </button>
                     {!theme.is_built_in && (
                       <button
@@ -274,7 +274,7 @@ export function ThemeGallery() {
                         disabled={busy}
                         onClick={() => void remove(theme)}
                       >
-                        <Trash2 size={12} /> {t("theme.action.delete")}
+                        <Trash2 size={13} /> {t("theme.action.delete")}
                       </button>
                     )}
                   </div>
@@ -287,7 +287,7 @@ export function ThemeGallery() {
 
       {loaded && customThemes.length === 0 && (
         <p className="text-[11px] text-muted-foreground/80 flex items-center gap-1.5">
-          <Palette size={12} /> {t("theme.gallery.empty")}
+          <Palette size={13} /> {t("theme.gallery.empty")}
         </p>
       )}
 

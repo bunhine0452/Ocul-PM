@@ -55,10 +55,25 @@ body {
     opacity var(--dur-1) var(--ease-out);
 }
 
-/* 키보드 포커스 — 마우스 클릭엔 침묵(:focus-visible), Tab 이동엔 일관된 액센트 링. */
-:where(button, a, input, textarea, select, summary, [role="button"], [tabindex="0"]):focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+/* 키보드 포커스 — 마우스 클릭엔 침묵(:focus-visible), Tab 이동엔 일관된 액센트 링.
+
+   링은 **한 벌**이다 (3.0 {#focus-ring-unify}). 예전엔 이 전역 규칙 말고도 화면마다
+   재정의가 스무 곳 있었고, 그중 여덟 곳이 `--accent-ring`(알파 0.32)을 outline 색으로
+   썼다 — 32% 불투명 2px 링은 밝은 표면에서 사실상 안 보인다. 이제 색·폭·간격이 전부
+   토큰이고, 화면 파일은 **어긋날 수 없다**.
+
+   역할(role)까지 받는 이유: `<div role="option">` 처럼 버튼이 아닌 태그로 그린
+   상호작용 요소가 목록·트리·메뉴에 있는데, 예전 선택자(button/a/input/…/[tabindex="0"])
+   는 그것들을 하나도 못 잡아 키보드로 들어가면 아무 표시가 없었다. */
+:where(
+  button, a, input, textarea, select, summary,
+  [role="button"], [role="link"], [role="tab"], [role="option"], [role="menuitem"],
+  [role="menuitemradio"], [role="menuitemcheckbox"], [role="radio"], [role="checkbox"],
+  [role="switch"], [role="treeitem"], [role="slider"],
+  [tabindex="0"]
+):focus-visible {
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
 }
 
 /* 접근성 — 모션 최소화 설정을 전역에서 존중한다. */
@@ -70,11 +85,24 @@ body {
   }
 }
 
-/* scrollbars — 얇고 조용하게, hover 에서만 또렷해진다. */
+/* scrollbars — 얇고 조용하게, hover 에서만 또렷해진다.
+
+   손잡이 색은 **테마를 따른다** (3.0 {#scrollbar-theme}). 예전엔 `rgba(120,120,128,…)`
+   고정 회색이었다 — 라이트에서만 그럴듯했고, 다크·프리셋(Nord·Dracula·Solarized·
+   고대비)에서는 종이색이 무엇이든 같은 중성 회색이 얹혀 혼자 다른 제품처럼 보였다.
+   `--text-3`(meta 글자색)을 섞으면 어느 가족에서도 표면과 같은 계열이 된다 —
+   코드 화면(features/code/code.css)이 이미 쓰던 방식이고, 이제 앱 전체가 같다.
+
+   3px 투명 테두리 + `background-clip: padding-box` 로 실제로 보이는 폭은 4px 다.
+   그 폭에서 곡률은 알약 하나뿐이라 램프가 아니라 --radius-pill 이다. */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(120,120,128,0.28); border-radius: 8px;
+  background: color-mix(in srgb, var(--text-3) 32%, transparent);
+  border-radius: var(--radius-pill);
   border: 3px solid transparent; background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(120,120,128,0.5); background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-3) 55%, transparent);
+  background-clip: padding-box;
+}
 ::-webkit-scrollbar-track { background: transparent; }

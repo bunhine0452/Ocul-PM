@@ -7,14 +7,19 @@
 import { agentColor, agentLabelWithModel } from "@/features/today/agentColor";
 import { Pencil, Trash2 } from "@/components/Icons";
 import { SPARK_DAYS } from "./homeModel";
+import { type ReactNode } from "react";
 import { useT, type I18nKey } from "@/i18n";
 
 // ── 프로젝트 마크 ───────────────────────────────────────────────────────
 
-export function Mark({ text, large }: { text: string; large?: boolean }) {
+/** 26px 마크 상자 — 프로젝트 글리프도 초안 표시도 **같은 상자**에 든다.
+ *  예전엔 `text: string` 만 받아서, 초안 행이 맨 글리프(✎)를 넣고 바로 아래
+ *  프로젝트 행은 lucide 선화를 넣었다 — 두 줄 사이에서 재료가 바뀌었다
+ *  (3.0 {#glyph-to-icon}). 이제 둘 다 아이콘이다. */
+export function Mark({ children }: { children: ReactNode }) {
   return (
-    <span className={"home-mark" + (large ? " home-mark--lg" : "")} aria-hidden="true">
-      {text}
+    <span className="home-mark" aria-hidden="true">
+      {children}
     </span>
   );
 }

@@ -12,9 +12,9 @@ import { useT } from "@/i18n";
 /** 제목 줄의 마크 — 색 상자에 넣어 가운데 띄우는 히어로는 뺐다 (de-AI). */
 function Mark({ codex }: { codex: boolean }) {
   return codex ? (
-    <CodexMark size={17} aria-hidden="true" />
+    <CodexMark size={18} aria-hidden="true" />
   ) : (
-    <ClaudeMark size={17} style={{ color: CLAUDE_ORANGE }} aria-hidden="true" />
+    <ClaudeMark size={18} style={{ color: CLAUDE_ORANGE }} aria-hidden="true" />
   );
 }
 

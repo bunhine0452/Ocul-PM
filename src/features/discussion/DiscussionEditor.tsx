@@ -272,37 +272,37 @@ export function DiscussionEditor({
   ];
 
   const fmt: { key: string; label: string; icon: React.ReactNode; run: () => void }[] = [
-    { key: "b", label: t("disc.editor.bold"), icon: <Bold size={14} />, run: () => applyRef.current("**") },
-    { key: "i", label: t("disc.editor.italic"), icon: <Italic size={14} />, run: () => applyRef.current("_") },
+    { key: "b", label: t("disc.editor.bold"), icon: <Bold size={15} />, run: () => applyRef.current("**") },
+    { key: "i", label: t("disc.editor.italic"), icon: <Italic size={15} />, run: () => applyRef.current("_") },
     {
       key: "code",
       label: t("disc.editor.code"),
-      icon: <Code2 size={14} />,
+      icon: <Code2 size={15} />,
       run: () => apply((doc, from, to) => wrapOp(doc, from, to, "`")),
     },
-    { key: "link", label: t("disc.editor.link"), icon: <Link2 size={14} />, run: () => applyRef.current("link") },
+    { key: "link", label: t("disc.editor.link"), icon: <Link2 size={15} />, run: () => applyRef.current("link") },
     {
       key: "h",
       label: t("disc.editor.heading"),
-      icon: <Heading2 size={14} />,
+      icon: <Heading2 size={15} />,
       run: () => apply((doc, from, to) => linePrefixOp(doc, from, to, "#### ")),
     },
     {
       key: "quote",
       label: t("disc.editor.quote"),
-      icon: <Quote size={14} />,
+      icon: <Quote size={15} />,
       run: () => apply((doc, from, to) => linePrefixOp(doc, from, to, "> ")),
     },
     {
       key: "ul",
       label: t("disc.editor.bullet"),
-      icon: <List size={14} />,
+      icon: <List size={15} />,
       run: () => apply((doc, from, to) => linePrefixOp(doc, from, to, "- ")),
     },
     {
       key: "task",
       label: t("disc.editor.task"),
-      icon: <ListTodo size={14} />,
+      icon: <ListTodo size={15} />,
       run: () => apply((doc, from, to) => linePrefixOp(doc, from, to, "- [ ] ")),
     },
   ];
@@ -340,7 +340,7 @@ export function DiscussionEditor({
             aria-expanded={insertOpen}
             onClick={() => setInsertOpen((o) => !o)}
           >
-            <Plus size={14} /> {t("disc.editor.insert")}
+            <Plus size={15} /> {t("disc.editor.insert")}
           </button>
           {insertOpen ? (
             <div className="disc-menu" role="menu" aria-label={t("disc.editor.insert")}>
@@ -409,7 +409,7 @@ export function DiscussionEditor({
             disabled={busy || !dirty}
             onClick={() => onSave(viewRef.current?.state.doc.toString() ?? text)}
           >
-            <Save size={14} /> {t("common.save")}
+            <Save size={15} /> {t("common.save")}
           </button>
         </div>
       </div>

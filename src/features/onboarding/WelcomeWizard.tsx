@@ -171,7 +171,7 @@ export function WelcomeWizard({
       <div className="wz-card" ref={cardRef} tabIndex={-1} onKeyDown={onKeyDown}>
         <header className="wz-head">
           <span className="wz-brand">
-            <OculIcon size={20} />
+            <OculIcon size={18} />
             Ocul-PM
           </span>
           <ol className="wz-dots" aria-hidden="true">
@@ -325,7 +325,7 @@ export function WelcomeWizard({
                 className="wz-ghost"
                 onClick={() => setStep(STEPS[index - 1])}
               >
-                <ArrowLeft size={14} />
+                <ArrowLeft size={15} />
                 {t("welcome.back")}
               </button>
             )}
@@ -336,13 +336,13 @@ export function WelcomeWizard({
                 onClick={() => setStep(STEPS[index + 1])}
               >
                 {t("welcome.next")}
-                <ArrowRight size={14} />
+                <ArrowRight size={15} />
               </button>
             )}
             {step === "ready" && (
               <button type="button" className="wz-primary" onClick={openAdded}>
                 {t("welcome.ready.open")}
-                <ArrowRight size={14} />
+                <ArrowRight size={15} />
               </button>
             )}
           </div>

@@ -79,8 +79,8 @@ export const CodeReferences = memo(function CodeReferences({
                   })
                 }
               >
-                <ChevronRight size={12} className={"code-tree-caret" + (open ? " open" : "")} />
-                <FileIcon name={file.display.slice(file.display.lastIndexOf("/") + 1)} size={14} className="code-refs-ico" />
+                <ChevronRight size={13} className={"code-tree-caret" + (open ? " open" : "")} />
+                <FileIcon name={file.display.slice(file.display.lastIndexOf("/") + 1)} size={15} className="code-refs-ico" />
                 <span className="code-refs-path">{file.display}</span>
                 <span className="code-refs-count">{file.hits.length}</span>
                 {/* 프로젝트 밖(의존성·표준 라이브러리)은 열 수 없다 — 목록에는

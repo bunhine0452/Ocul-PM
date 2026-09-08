@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { commands, type PlanItemDto, type PlanSummary } from "@/lib/bindings";
 import { ChevronLeft } from "@/components/Icons";
+import { STATUS_META } from "@/features/planner/planMeta";
 import { useT } from "@/i18n";
 import { ErrorNote, Loading } from "./shared";
 
@@ -12,8 +13,8 @@ type PlanDetail = NonNullable<Awaited<ReturnType<typeof commands.planGet>> exten
     : never
   : never>;
 
-// 데스크톱 PlannerScreenV2 STATUS_META 와 같은 글리프 — 글리프는 앱의 의도적 어휘다.
-const STATUS_GLYPH: Record<string, string> = { done: "☑", in_progress: "▣", todo: "☐" };
+// 글리프는 데스크톱과 **같은 표**에서 읽는다 (3.0 {#status-glyph-ssot}).
+// 주석으로 "같은 글리프" 라고 적어 둔 사본이었는데, 사본은 언젠가 갈린다.
 const NEXT_STATUS: Record<string, string> = { todo: "in_progress", in_progress: "done", done: "todo" };
 
 export function PlannerTab({ projectId }: { projectId: number }) {
@@ -98,7 +99,7 @@ export function PlannerTab({ projectId }: { projectId: number }) {
                     className="mob-card w-full flex items-start gap-2.5 text-left px-3 py-2.5 disabled:opacity-70"
                   >
                     <span className={`mob-glyph ${item.status}`}>
-                      {STATUS_GLYPH[item.status] ?? "☐"}
+                      {STATUS_META[item.status]?.glyph ?? STATUS_META.todo.glyph}
                     </span>
                     <span
                       className={`text-[13px] leading-5 ${item.status === "done" ? "mob-item-done" : ""}`}

@@ -19,7 +19,7 @@ export function NextTasks({
   return (
     <div className="card">
       <div className="panel-head">
-        <ListTodo size={16} color="var(--text-2)" />
+        <ListTodo size={15} color="var(--text-2)" />
         <h3>{t("today.next.title")}</h3>
         <button
           className="btn ghost sm right"

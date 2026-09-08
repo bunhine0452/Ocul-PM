@@ -207,7 +207,7 @@ export const CodeSearchPanel = memo(function CodeSearchPanel({
           title={t("code.search.close")}
           aria-label={t("code.search.close")}
         >
-          <X size={14} />
+          <X size={15} />
         </button>
       </div>
 
@@ -235,7 +235,7 @@ export const CodeSearchPanel = memo(function CodeSearchPanel({
           title={t("code.search.caseSensitive")}
           aria-label={t("code.search.caseSensitive")}
         >
-          <CaseSensitive size={14} />
+          <CaseSensitive size={15} />
         </button>
         <button
           type="button"
@@ -245,7 +245,7 @@ export const CodeSearchPanel = memo(function CodeSearchPanel({
           title={t("code.search.wholeWord")}
           aria-label={t("code.search.wholeWord")}
         >
-          <WholeWord size={14} />
+          <WholeWord size={15} />
         </button>
         <button
           type="button"
@@ -255,7 +255,7 @@ export const CodeSearchPanel = memo(function CodeSearchPanel({
           title={t("code.search.regex")}
           aria-label={t("code.search.regex")}
         >
-          <Regex size={14} />
+          <Regex size={15} />
         </button>
       </div>
 
@@ -268,7 +268,7 @@ export const CodeSearchPanel = memo(function CodeSearchPanel({
           title={t("code.search.toggleReplace")}
           aria-label={t("code.search.toggleReplace")}
         >
-          <ChevronRight size={12} className={"code-tree-caret" + (replaceOpen ? " open" : "")} />
+          <ChevronRight size={13} className={"code-tree-caret" + (replaceOpen ? " open" : "")} />
         </button>
         {replaceOpen ? (
           <>
@@ -290,7 +290,7 @@ export const CodeSearchPanel = memo(function CodeSearchPanel({
               title={t("code.search.replaceAll")}
               aria-label={t("code.search.replaceAll")}
             >
-              <ReplaceAll size={14} />
+              <ReplaceAll size={15} />
             </button>
           </>
         ) : (
@@ -328,8 +328,8 @@ export const CodeSearchPanel = memo(function CodeSearchPanel({
                     })
                   }
                 >
-                  <ChevronRight size={12} className={"code-tree-caret" + (open ? " open" : "")} />
-                  <FileIcon name={name} size={14} className="code-search-ico" />
+                  <ChevronRight size={13} className={"code-tree-caret" + (open ? " open" : "")} />
+                  <FileIcon name={name} size={15} className="code-search-ico" />
                   <span className="code-search-name">{name}</span>
                   {dir ? <span className="code-search-dir">{dir}</span> : null}
                 </button>

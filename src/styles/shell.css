@@ -74,7 +74,7 @@
 .side-nav-scroll::-webkit-scrollbar { width: 6px; }
 .side-nav-scroll::-webkit-scrollbar-track { background: transparent; }
 .side-nav-scroll::-webkit-scrollbar-thumb {
-  background: transparent; border: none; border-radius: 3px;
+  background: transparent; border: none; border-radius: var(--radius-2xs);
   transition: background-color var(--dur-1) var(--ease-out);
 }
 .side-nav-scroll:hover::-webkit-scrollbar-thumb { background: var(--sep-strong); }
@@ -189,14 +189,14 @@
 .proj-switch:hover { border-color: var(--sep-strong); box-shadow: var(--shadow-raise); }
 .proj-switch:active { transform: scale(0.99); box-shadow: var(--shadow-card); }
 .proj-icon {
-  width: 26px; height: 26px; border-radius: 7px; flex: none;
+  width: 26px; height: 26px; border-radius: var(--radius-s); flex: none;
   /* Follows the 컬러 테마 (accent), not a hardcoded green. 단색이다 — 대각
      그라데이션 타일은 생성형 앱 아이콘의 관용구라 뺐다. */
   background: var(--accent);
   display: grid; place-items: center; color: var(--text-on-accent);
 }
 .proj-meta { flex: 1; min-width: 0; }
-.proj-name { font-weight: 600; font-size: var(--fs-6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-name { font-weight: var(--fw-strong); font-size: var(--fs-6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .proj-path { font-size: var(--fs-2); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Inline project quick-switcher popover (Dogfooding 2026-06-14c). */
@@ -216,25 +216,25 @@
 .proj-pop-list { display: flex; flex-direction: column; gap: 1px; }
 .proj-pop-item {
   display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left;
-  padding: 7px 8px; border-radius: 8px; cursor: pointer;
+  padding: 7px 8px; border-radius: var(--radius-m); cursor: pointer;
   background: none; border: none; color: var(--text); font-family: var(--font);
 }
 .proj-pop-item:hover { background: var(--bg-hover); }
 .proj-pop-item.on { background: var(--accent-soft); }
 .proj-pop-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.proj-pop-name { font-weight: 600; font-size: var(--fs-6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-pop-name { font-weight: var(--fw-strong); font-size: var(--fs-6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .proj-pop-path { font-size: var(--fs-1); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.proj-pop-cur { font-size: var(--fs-0); font-weight: 700; color: var(--accent-text); background: var(--accent-soft); padding: 1px 6px; border-radius: 99px; flex: none; }
+.proj-pop-cur { font-size: var(--fs-0); font-weight: var(--fw-bold); color: var(--accent-text); background: var(--accent-soft); padding: 1px 6px; border-radius: var(--radius-pill); flex: none; }
 .proj-pop-manage {
   display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left;
   margin-top: 4px; padding: var(--space-3); cursor: pointer;
   background: none; border: none; border-top: 1px solid var(--sep);
-  color: var(--text-2); font-family: var(--font); font-size: var(--fs-4); font-weight: 600;
+  color: var(--text-2); font-family: var(--font); font-size: var(--fs-4); font-weight: var(--fw-strong);
 }
 .proj-pop-manage:hover { background: var(--bg-hover); color: var(--text); }
 
 .nav-section-label {
-  font-size: var(--fs-2); font-weight: 600; letter-spacing: 0.04em;
+  font-size: var(--fs-2); font-weight: var(--fw-strong); letter-spacing: var(--track-caps);
   color: var(--text-3); text-transform: uppercase;
   /* 섹션 사이 숨구멍이 가장 먼저 줄어드는 자리 — 두 라벨에서 최대 14px. */
   padding: clamp(5px, 1.2vh, 12px) 10px 4px;
@@ -245,7 +245,7 @@
      최소값에서도 행 높이는 25px 밑으로 내려가지 않는다. */
   padding: clamp(4px, 0.7vh, 7px) 10px; border-radius: var(--radius-s);
   color: var(--text); cursor: pointer;
-  font-size: var(--fs-7); font-weight: 500;
+  font-size: var(--fs-7); font-weight: var(--fw-label);
   position: relative;
   /* button reset (nav-item is a <button> for a11y) */
   appearance: none; -webkit-appearance: none;
@@ -271,14 +271,14 @@
    글자색은 프리셋을 따라 --text-on-accent (고대비 프리셋의 노랑 배경에서도 읽힌다). */
 .nav-item.active {
   background-color: var(--accent);
-  color: var(--text-on-accent); font-weight: 560;
+  color: var(--text-on-accent); font-weight: var(--fw-label);
   box-shadow: 0 1px 3px var(--accent-ring);
 }
 .nav-item.active .nav-ico { color: inherit; }
 .nav-badge {
-  margin-left: auto; font-size: var(--fs-3); font-weight: 600;
+  margin-left: auto; font-size: var(--fs-3); font-weight: var(--fw-strong);
   background: var(--bg-active); color: var(--text-2);
-  padding: 1px 7px; border-radius: 9px; min-width: 20px; text-align: center;
+  padding: 1px 7px; border-radius: var(--radius-m); min-width: 20px; text-align: center;
 }
 .nav-item.active .nav-badge { background: rgba(255,255,255,0.25); color: inherit; }
 /* 작업 중 표시 (2026-08-16) — 화면을 옮겨도 에이전트는 돈다. 숫자는 몇 개인지,
@@ -375,7 +375,7 @@
 /* 좁은 창 방어 (2026-07-20): 제목은 절대 내부 줄바꿈하지 않고(CJK 가 한 글자씩
    세로로 꺾이던 버그), 부제는 넘치면 말줄임으로 양보한다. 액션 묶음은
    .toolbar-actions 가 가로 스크롤로 흡수 (스크롤바는 숨김 — 트랙패드/휠). */
-.toolbar-title { font-size: var(--fs-9); font-weight: 650; letter-spacing: -0.015em; white-space: nowrap; flex: none; }
+.toolbar-title { font-size: var(--fs-9); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); white-space: nowrap; flex: none; }
 /* 부제는 화면이 지금 무엇을 보고 있는지 말하는 **문장**이다 — 타임스탬프가
    아니므로 --text-2 (2026-09-04 {#text3-promotion}). */
 .toolbar-sub {

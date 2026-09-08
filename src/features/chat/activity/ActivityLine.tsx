@@ -29,7 +29,7 @@ export function ActivityLine({
   return (
     <div className="activity-line" title={title ?? detail}>
       <span className="activity-line-icon">
-        <Icon size={12} />
+        <Icon size={13} />
       </span>
       <span className="activity-line-name">{t(labelKey)}</span>
       <span className="activity-line-detail">{detail}</span>

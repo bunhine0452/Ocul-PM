@@ -137,8 +137,8 @@
   color: var(--text);
 }
 .code-tree-row:focus-visible {
-  outline: 1.5px solid var(--accent-ring);
-  outline-offset: -1.5px;
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset-inset);
 }
 .code-tree-file.on {
   background: var(--accent-soft);
@@ -211,7 +211,7 @@
   opacity: 0.7;
 }
 .code-tree-dir.ignored .code-tree-label {
-  font-weight: 500;
+  font-weight: var(--fw-label);
 }
 
 /* 지연 로딩 자리 표시 — "읽는 중"과 "빈 폴더"를 같은 자리에 그린다. */
@@ -543,7 +543,7 @@
 }
 .code-status-dirty.on {
   color: var(--accent-text);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 .code-status-right {
   margin-left: auto;
@@ -683,7 +683,7 @@
 .cm-tooltip.cm-tooltip-lint {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-m);
   box-shadow: var(--shadow-soft);
   color: var(--text-1);
   font-size: var(--fs-6);
@@ -778,7 +778,7 @@
 }
 .code-unopenable-title {
   font-size: var(--fs-9);
-  font-weight: 650;
+  font-weight: var(--fw-strong);
   color: var(--text);
 }
 .code-unopenable-desc {
@@ -859,7 +859,7 @@
 }
 .code-tree-row.cut {
   outline: 1px dashed var(--sep-strong);
-  outline-offset: -2px;
+  outline-offset: var(--focus-offset-inset);
   border-radius: var(--radius-s);
 }
 
@@ -898,12 +898,12 @@
 .code-drag-count {
   flex: none;
   padding: 1px 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--accent-text);
   font-size: var(--fs-3);
   font-style: normal;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   font-variant-numeric: tabular-nums;
 }
 /* 놓을 수 없는 자리 위 — 밝힐 폴더가 아무 데도 없으니 손에 든 것이 대신 말한다. */
@@ -929,7 +929,7 @@ body.code-dragging {
 /* 탭으로 열려 있는 파일 — 트리에서도 눈에 띄게. */
 .code-tree-row.code-tree-file.open .code-tree-label {
   color: var(--text);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 
 /* 인라인 이름 입력 행 — 트리 행과 같은 높이·들여쓰기를 유지해야 자리가 안 튄다. */
@@ -946,7 +946,7 @@ body.code-dragging {
   color: var(--text);
   background: var(--bg-content);
   border: 1px solid var(--accent-ring);
-  border-radius: 3px;
+  border-radius: var(--radius-2xs);
   outline: none;
 }
 
@@ -985,7 +985,7 @@ body.code-dragging {
   font-family: inherit;
   font-size: var(--fs-3);
   color: var(--text-3);
-  letter-spacing: 0.03em;
+  letter-spacing: var(--track-caps);
 }
 .code-ctxmenu-item:hover:not(:disabled) {
   background: var(--bg-hover);
@@ -1029,7 +1029,7 @@ body.code-dragging {
 }
 .code-delete-open li.dirty {
   color: var(--accent-text);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 
 
@@ -1056,8 +1056,8 @@ body.code-dragging {
   width: 100%;
   padding: 7px 10px;
   font-size: var(--fs-3);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-3);
   background: none;
@@ -1073,7 +1073,7 @@ body.code-dragging {
 }
 .code-outline-count {
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 .code-outline-body {
   flex: 1;
@@ -1131,7 +1131,7 @@ body.code-dragging {
   flex: none;
   width: 6px;
   height: 6px;
-  border-radius: 2px;
+  border-radius: var(--radius-2xs);
   background: var(--text-3);
 }
 .code-outline-kind.k-function,
@@ -1341,8 +1341,8 @@ body.code-dragging {
 }
 .code-refs-title {
   font-size: var(--fs-4);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-2);
 }
@@ -1423,7 +1423,7 @@ body.code-dragging {
   color: var(--text-3);
   padding: 1px 5px;
   border: 1px solid var(--sep);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .code-refs-hit {
   display: flex;
@@ -1480,7 +1480,7 @@ body.code-dragging {
 /* 지금 치고 있는 인자 — 이 강조가 이 기능의 전부다. */
 .cm-lsp-signature-label strong {
   color: var(--accent-text);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
 }
 .cm-lsp-signature-doc {
   margin-top: 5px;
@@ -1581,15 +1581,15 @@ body.code-dragging {
 }
 .code-debug-title {
   font-size: var(--fs-4);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-2);
 }
 .code-debug-chip {
   font-size: var(--fs-2);
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--sep);
   color: var(--text-3);
 }
@@ -1664,8 +1664,8 @@ body.code-dragging {
   gap: 8px;
   padding: 5px 10px;
   font-size: var(--fs-2);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-3);
   border-bottom: 1px solid var(--sep);
@@ -1833,12 +1833,12 @@ body.code-dragging {
   padding: 0 6px;
   font-family: inherit;
   font-size: var(--fs-3);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
   background: var(--bg-inset);
   border: 1px solid var(--sep);
   border-bottom-width: 2px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
 }
 
 /* 우클릭 메뉴 마감 — 폭·밀도·위험 항목 호버. */
@@ -1849,7 +1849,7 @@ body.code-dragging {
 .code-ctxmenu-item {
   padding: 6px 11px;
   font-size: var(--fs-7);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
 }
 .code-ctxmenu-item.danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--destructive) 12%, transparent);
@@ -1873,7 +1873,7 @@ body.code-dragging {
 .code-refs-body::-webkit-scrollbar-thumb,
 .code-debug-scroll::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--text-3) 30%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 3px solid transparent;
   background-clip: padding-box;
 }
@@ -1929,7 +1929,7 @@ body.code-dragging {
 }
 .code-crumb-act-n {
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 
 /* 일지 팝오버 — 브레드크럼 바로 아래, 오른쪽 정렬. */
@@ -1950,8 +1950,8 @@ body.code-dragging {
 .code-jrnl-pop-head {
   padding: 5px 9px 7px;
   font-size: var(--fs-3);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -1971,7 +1971,7 @@ body.code-dragging {
   align-items: center;
   padding: 6px 9px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-s);
   background: none;
   text-align: left;
   cursor: pointer;
@@ -2014,7 +2014,7 @@ body.code-dragging {
   justify-content: center;
   width: 30px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-s);
   background: none;
   color: var(--text-3);
   cursor: pointer;
@@ -2046,7 +2046,7 @@ body.code-dragging {
   padding: 7px 9px;
   border: none;
   border-top: 1px solid var(--sep);
-  border-radius: 0 0 7px 7px;
+  border-radius: 0 0 var(--radius-s) var(--radius-s);
   background: none;
   font-size: var(--fs-3);
   color: var(--text-3);
@@ -2125,7 +2125,7 @@ body.code-dragging {
   font-size: var(--fs-2);
   padding: 1px 7px;
   border: 1px solid var(--sep);
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: var(--bg-card);
   color: var(--text-2);
   cursor: pointer;
@@ -2189,8 +2189,8 @@ body.code-dragging {
 }
 .code-search-title {
   font-size: var(--fs-4);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-2);
 }
@@ -2333,7 +2333,7 @@ body.code-dragging {
   flex: none;
   font-size: var(--fs-1);
   padding: 1px 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 12%, transparent);
 }
@@ -2343,7 +2343,7 @@ body.code-dragging {
   min-width: 16px;
   text-align: center;
   padding: 1px 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-m);
   color: var(--text-3);
   background: var(--bg-inset);
   font-variant-numeric: tabular-nums;
@@ -2485,7 +2485,7 @@ body.code-dragging {
   object-fit: contain;
   /* 스프라이트·아이콘을 확대할 때 흐려지지 않게 — 픽셀을 픽셀로 보여 준다. */
   image-rendering: -webkit-optimize-contrast;
-  box-shadow: 0 1px 12px rgb(0 0 0 / 0.18);
+  box-shadow: var(--shadow-raise);
 }
 /* 실제 크기 — 줄이지 않고, 넘치면 스크롤한다.
    가운데 정렬을 `align-items: center` 로 하면 안 된다: 넘치는 항목이 위쪽으로

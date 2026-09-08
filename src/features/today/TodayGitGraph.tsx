@@ -95,13 +95,13 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
     return (
       <div className="card" style={{ marginTop: 16 }}>
         <div className="panel-head">
-          <GitBranch size={16} color="var(--text-2)" />
+          <GitBranch size={15} color="var(--text-2)" />
           <h3>{t("today.git.title")}</h3>
         </div>
         <EmptyState align="start" style={{ padding: "18px 16px" }}>
           {t("today.git.notRepo")}
           <br />
-          <span style={{ fontSize: 11, color: "var(--text-3)" }}>
+          <span style={{ fontSize: "var(--fs-3)", color: "var(--text-3)" }}>
             {t("today.git.notRepoHint")}
           </span>
         </EmptyState>
@@ -116,7 +116,7 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <div className="panel-head">
-        <GitBranch size={16} color="var(--accent-text)" />
+        <GitBranch size={15} color="var(--accent-text)" />
         <h3>{t("today.git.title")}</h3>
         {commits ? <span className="count">{commits.length}</span> : null}
         <button className="btn ghost sm right" onClick={() => void refresh()} disabled={loading} aria-label={t("today.git.refresh")} title={t("today.git.refresh")}>
@@ -151,7 +151,7 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
                         style={{ flexShrink: 0, fontSize: 10.5, padding: "1px 6px", gap: 3, color: "var(--accent-text)", background: "var(--accent-soft)" }}
                         title={r}
                       >
-                        {isTag ? <Tag size={10} /> : <GitBranch size={10} />}
+                        {isTag ? <Tag size={11} /> : <GitBranch size={11} />}
                         {r}
                       </span>
                     );
@@ -163,8 +163,8 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
                     {row.commit.subject}
                   </span>
                 </div>
-                <span style={{ flexShrink: 0, fontSize: 11, color: "var(--text-3)" }}>{row.commit.author_name}</span>
-                <span style={{ flexShrink: 0, fontSize: 11, color: "var(--text-3)", width: 64, textAlign: "right" }}>{relTime(row.commit.timestamp)}</span>
+                <span style={{ flexShrink: 0, fontSize: "var(--fs-3)", color: "var(--text-3)" }}>{row.commit.author_name}</span>
+                <span style={{ flexShrink: 0, fontSize: "var(--fs-3)", color: "var(--text-3)", width: 64, textAlign: "right" }}>{relTime(row.commit.timestamp)}</span>
                 <span className="mono" style={{ flexShrink: 0, fontSize: 10.5, color: "var(--text-3)", width: 56, textAlign: "right" }}>{row.commit.short_sha}</span>
               </div>
             ))
@@ -174,9 +174,9 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
       {!ghBase ? (
         <div
           className="panel-body"
-          style={{ borderTop: "1px solid var(--border-card)", padding: "8px 14px", fontSize: 11, color: "var(--text-3)", display: "flex", alignItems: "center", gap: 6 }}
+          style={{ borderTop: "1px solid var(--border-card)", padding: "8px 14px", fontSize: "var(--fs-3)", color: "var(--text-3)", display: "flex", alignItems: "center", gap: 6 }}
         >
-          <TriangleAlert size={12} />
+          <TriangleAlert size={13} />
           {t("today.git.noRemote")}
         </div>
       ) : null}

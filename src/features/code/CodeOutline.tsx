@@ -40,7 +40,7 @@ export const CodeOutline = memo(function CodeOutline({
         onClick={onToggleOpen}
         aria-expanded={open}
       >
-        <ChevronRight size={12} className={"code-tree-caret" + (open ? " open" : "")} />
+        <ChevronRight size={13} className={"code-tree-caret" + (open ? " open" : "")} />
         <span className="code-outline-title">{t("code.outline.title")}</span>
         {symbols && symbols.length > 0 ? (
           <span className="code-outline-count">{symbols.length}</span>

@@ -322,10 +322,10 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
           <RefreshCw size={15} />
         </button>
         <button type="button" className="btn ghost sm" onClick={() => setRuleDialog({})}>
-          <FileCode size={14} /> {t("rules.new")}
+          <FileCode size={15} /> {t("rules.new")}
         </button>
         <button type="button" className="btn primary sm" onClick={() => setSkillDialog({})}>
-          <Puzzle size={14} /> {t("sk.new")}
+          <Puzzle size={15} /> {t("sk.new")}
         </button>
       </Toolbar>
 

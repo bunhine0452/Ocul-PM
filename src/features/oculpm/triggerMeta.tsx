@@ -41,7 +41,7 @@ export function TriggerBadge({
   const Icon = m.icon;
   return (
     <span className={"tbadge " + m.cls}>
-      <Icon size={12} strokeWidth={2.1} />
+      <Icon size={13} strokeWidth={2.1} />
       {withLabel ? t(m.labelKey) : null}
     </span>
   );

@@ -49,7 +49,7 @@
 .docs-tree-file.on {
   background: var(--accent-soft);
   color: var(--accent-text);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 .docs-tree-ico {
   flex: none;
@@ -59,7 +59,7 @@
   color: var(--accent);
 }
 .docs-tree-dir .docs-tree-label {
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text);
 }
 .docs-tree-label {

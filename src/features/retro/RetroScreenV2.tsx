@@ -371,7 +371,7 @@ export function RetroScreenV2({
             disabled={exporting || loading || !hasWork}
             title={hasWork ? t("retro.exportTitle") : t("retro.noWork")}
           >
-            <Download size={14} /> {exporting ? t("retro.exporting") : t("retro.export")}
+            <Download size={15} /> {exporting ? t("retro.exporting") : t("retro.export")}
           </button>
           {/* v2 U10 (C1) — 이 기간을 스탠드업/PR 본문/주간 보고로 */}
           <div className="relative" ref={summaryMenuRef}>
@@ -383,7 +383,7 @@ export function RetroScreenV2({
               aria-expanded={summaryMenuOpen}
               title={hasWork ? t("retro.summaryTitle") : t("retro.noWork")}
             >
-              <FileText size={14} /> {summaryBusy ? t("retro.summaryBusy", { label: summaryLabel(summaryBusy) }) : t("retro.summary")}
+              <FileText size={15} /> {summaryBusy ? t("retro.summaryBusy", { label: summaryLabel(summaryBusy) }) : t("retro.summary")}
             </button>
             {summaryMenuOpen ? (
               <div
@@ -415,7 +415,7 @@ export function RetroScreenV2({
                 : t("retro.noWork")
             }
           >
-            <ClaudeMark size={14} /> {t("retro.viaClaude")}
+            <ClaudeMark size={15} /> {t("retro.viaClaude")}
           </button>
           <button
             className="btn primary"
@@ -431,15 +431,15 @@ export function RetroScreenV2({
           >
             {generating ? (
               <>
-                <OculSpinner size={14} /> {generatingLabel}
+                <OculSpinner size={15} /> {generatingLabel}
               </>
             ) : cached ? (
               <>
-                <RotateCcw size={14} /> {t("retro.regen")}
+                <RotateCcw size={15} /> {t("retro.regen")}
               </>
             ) : (
               <>
-                <NotebookPen size={14} /> {t("retro.generate")}
+                <NotebookPen size={15} /> {t("retro.generate")}
               </>
             )}
           </button>
@@ -456,7 +456,7 @@ export function RetroScreenV2({
           </div>
           {loading ? (
             <div className="grid place-items-center py-20">
-              <OculSpinner size={28} label={t("retro.gatheringSignals")} />
+              <OculSpinner size={30} label={t("retro.gatheringSignals")} />
             </div>
           ) : error ? (
             <ErrorCard
@@ -602,11 +602,11 @@ function NarrativePanel({
           <button className="btn primary" onClick={onGenerate} disabled={generating}>
             {generating ? (
               <>
-                <OculSpinner size={14} /> {generatingLabel ?? t("retro.busy")}
+                <OculSpinner size={15} /> {generatingLabel ?? t("retro.busy")}
               </>
             ) : (
               <>
-                <NotebookPen size={14} /> {t("retro.generate")}
+                <NotebookPen size={15} /> {t("retro.generate")}
               </>
             )}
           </button>
@@ -615,7 +615,7 @@ function NarrativePanel({
             onClick={onDispatch}
             title={t("retro.claudeTitle")}
           >
-            <ClaudeMark size={14} /> {t("retro.viaClaude")}
+            <ClaudeMark size={15} /> {t("retro.viaClaude")}
           </button>
         </div>
       </div>
@@ -634,7 +634,7 @@ function NarrativePanel({
             className="inline-flex items-center gap-1 rounded bg-(--warn-soft) px-1.5 py-0.5 font-medium text-(--warn-text)"
             title={t("retro.staleTitle")}
           >
-            <TriangleAlert size={12} /> {t("retro.stale")}
+            <TriangleAlert size={13} /> {t("retro.stale")}
           </span>
         )}
         <span className="flex-1" />

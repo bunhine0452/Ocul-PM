@@ -68,7 +68,7 @@
     linear-gradient(135deg, color-mix(in srgb, var(--gn-tint) 9%, transparent), transparent 58%),
     var(--bg-card);
   border: 1px solid color-mix(in srgb, var(--gn-tint) 26%, var(--border-card));
-  border-radius: 12px;
+  border-radius: var(--radius-l);
   box-shadow: var(--shadow-card);
   padding: 0 10px 0 11px;
   transition:
@@ -86,7 +86,7 @@
 }
 .gn.sel {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-ring), var(--shadow-raise);
+  box-shadow: var(--ring-soft), var(--shadow-raise);
 }
 .gn.dim-soft { opacity: 0.3; }
 .gn.dim-hard { opacity: 0.08; }
@@ -104,9 +104,9 @@
   height: 10px;
   flex: none;
   background: var(--gn-tint);
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  box-shadow: inset 0 0 0 1px var(--sep);
 }
-.gn-glyph.dir { border-radius: 3px; }
+.gn-glyph.dir { border-radius: var(--radius-2xs); }
 .gn-glyph.file { border-radius: 50%; }
 
 .gn-row {
@@ -118,7 +118,7 @@
 .gn-name {
   flex: 1;
   min-width: 0;
-  font-weight: 650;
+  font-weight: var(--fw-strong);
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -146,10 +146,10 @@
 .gn-hubtag {
   margin-left: auto;
   font-size: var(--fs-0);
-  font-weight: 800;
-  letter-spacing: 0.05em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: color-mix(in srgb, var(--gn-tint) 72%, var(--text));
   background: color-mix(in srgb, var(--gn-tint) 14%, transparent);
 }
@@ -162,12 +162,12 @@
 .gn-chip {
   flex: none;
   font-size: var(--fs-0);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-2);
   background: var(--bg-inset);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   padding: 0 4px;
 }
 /* 폴더 노드의 언어 구성 미니 바 (near LOD 전용). */
@@ -177,7 +177,7 @@
   right: 11px;
   bottom: 4px;
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
   display: flex;
   opacity: 0.85;
@@ -194,7 +194,7 @@
   gap: 6px;
   justify-content: flex-start;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .gn.far.t3 .gn-name { font-size: var(--fs-7); }
 .gn.far.t4 .gn-name { font-size: var(--fs-7); }
@@ -210,16 +210,16 @@
   padding: 2px;
   background: var(--bg-inset);
   border: 1px solid var(--sep);
-  border-radius: 8px;
+  border-radius: var(--radius-m);
 }
 .gr-seg button {
   padding: 3px 9px;
   border: none;
   background: none;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   font-family: var(--font);
   font-size: var(--fs-4);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
   cursor: pointer;
 }
@@ -235,13 +235,13 @@
   gap: 5px;
   height: 26px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--sep);
   background: transparent;
   color: var(--text-2);
   font-family: var(--font);
   font-size: var(--fs-3);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -257,7 +257,7 @@
 .gr-chip .sw {
   width: 8px;
   height: 8px;
-  border-radius: 3px;
+  border-radius: var(--radius-2xs);
   flex: none;
 }
 
@@ -267,7 +267,7 @@
   gap: 6px;
   height: 26px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-inset);
   border: 1px solid transparent;
   color: var(--text-3);
@@ -284,12 +284,12 @@
 }
 .gr-search:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  box-shadow: var(--ring-soft);
   background: var(--bg-card);
 }
 
 .gr-iconbtn {
-  border-radius: 999px; border: 1px solid var(--sep);
+  border-radius: var(--radius-pill); border: 1px solid var(--sep);
 }
 .gr-iconbtn:hover {
   background: var(--bg-hover);
@@ -304,7 +304,7 @@
   align-items: center;
   max-width: 460px;
   padding: 6px 11px;
-  border-radius: 10px;
+  border-radius: var(--radius-m);
   border: 1px solid var(--border-card);
   /* 불투명 — 유리(반투명 + blur)는 앱의 다른 패널과 재료가 달랐다. */
   background: var(--bg-card);
@@ -331,7 +331,7 @@
 .gr-legend-item .sw {
   width: 8px;
   height: 8px;
-  border-radius: 3px;
+  border-radius: var(--radius-2xs);
 }
 .gr-panel-btn {
   border: none;
@@ -339,10 +339,10 @@
   padding: 2px 4px;
   font-family: var(--font);
   font-size: var(--fs-3);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--accent-text);
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
 }
 .gr-panel-btn:hover {
   background: var(--bg-hover);

@@ -176,7 +176,7 @@ export function ManualEntryModalV2({
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="set-modal-title" id={titleId}>
-          <Plus size={16} /> {t("manual.title")}{" "}
+          <Plus size={15} /> {t("manual.title")}{" "}
           <span className="entry-hint">workday {workday}</span>
         </div>
         <div className="set-modal-desc">

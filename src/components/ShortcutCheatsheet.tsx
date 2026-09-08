@@ -20,7 +20,7 @@ export function ShortcutCheatsheet() {
   return (
     <AppDialog open={open} onClose={() => setOpen(false)} label={t("keys.title")} width={760}>
       <div className="sk-modal-head">
-        <Keyboard size={16} />
+        <Keyboard size={15} />
         <h3>{t("keys.title")}</h3>
         <span className="sk-modal-sub">{t("keys.hint")}</span>
       </div>

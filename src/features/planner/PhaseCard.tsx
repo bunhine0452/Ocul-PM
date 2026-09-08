@@ -91,7 +91,7 @@ export function PhaseCard(props: PhaseCardProps) {
           </div>
         ) : (
           <button type="button" className="goal-head-toggle" onClick={onToggle} aria-expanded={isOpen}>
-            {isOpen ? <ChevronDown size={16} color="var(--text-3)" /> : <ChevronRight size={16} color="var(--text-3)" />}
+            {isOpen ? <ChevronDown size={15} color="var(--text-3)" /> : <ChevronRight size={15} color="var(--text-3)" />}
             <span className="goal-glyph" style={{ color: sm.color }}>{sm.glyph}</span>
             <InlineMarkdown
               className="goal-title goal-title-clip"
@@ -125,10 +125,10 @@ export function PhaseCard(props: PhaseCardProps) {
                   <Pencil size={13} />
                 </button>
                 <button type="button" className="pln-iconbtn" title={t("plan.phaseUp")} onClick={() => onMovePhase(phase, true)} disabled={busy || !canMoveUp}>
-                  <ChevronUp size={14} />
+                  <ChevronUp size={15} />
                 </button>
                 <button type="button" className="pln-iconbtn" title={t("plan.phaseDown")} onClick={() => onMovePhase(phase, false)} disabled={busy || !canMoveDown}>
-                  <ChevronDown size={14} />
+                  <ChevronDown size={15} />
                 </button>
                 <button type="button" className="pln-iconbtn danger" title={t("plan.phaseRemoveTitle")} onClick={() => setConfirmDel(true)} disabled={busy}>
                   <Trash2 size={13} />

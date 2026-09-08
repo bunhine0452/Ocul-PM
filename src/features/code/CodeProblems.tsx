@@ -118,10 +118,10 @@ export const CodeProblems = memo(function CodeProblems({
                   })
                 }
               >
-                <ChevronRight size={12} className={"code-tree-caret" + (open ? " open" : "")} />
+                <ChevronRight size={13} className={"code-tree-caret" + (open ? " open" : "")} />
                 <FileIcon
                   name={file.path.slice(file.path.lastIndexOf("/") + 1)}
-                  size={14}
+                  size={15}
                   className="code-refs-ico"
                 />
                 <span className="code-refs-path">{file.path}</span>
@@ -166,7 +166,7 @@ function ProblemRow({ item, onClick }: { item: LspDiagnostic; onClick: () => voi
   const Icon = SEVERITY_ICON[item.severity];
   return (
     <button type="button" className="code-refs-hit code-problems-hit" onClick={onClick}>
-      <Icon size={12} className={"code-problems-sev s-" + item.severity} aria-hidden />
+      <Icon size={13} className={"code-problems-sev s-" + item.severity} aria-hidden />
       <span className="code-refs-line">{item.start_line + 1}</span>
       <span className="code-refs-preview">{item.message}</span>
       {/* 어느 도구가 한 말인지 — 같은 줄에 rustc 와 clippy 가 겹칠 때 필요하다. */}

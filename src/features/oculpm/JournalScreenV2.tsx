@@ -455,7 +455,7 @@ export function JournalScreenV2({
               onClick={() => setSearch("")}
               aria-label={t("journal.clearSearch")}
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           ) : null}
         </div>
@@ -601,9 +601,9 @@ export function JournalScreenV2({
                       aria-expanded={open}
                     >
                       {open ? (
-                        <ChevronDown size={14} color="var(--text-3)" />
+                        <ChevronDown size={15} color="var(--text-3)" />
                       ) : (
-                        <ChevronRight size={14} color="var(--text-3)" />
+                        <ChevronRight size={15} color="var(--text-3)" />
                       )}
                       <span className="day-head-label">{day.label}</span>
                       <span className="day-head-line" />
@@ -666,7 +666,7 @@ export function JournalScreenV2({
                       onClick={() => setManualSeed({})}
                       disabled={!todayKey}
                     >
-                      <Plus size={14} /> {t("journal.new")}
+                      <Plus size={15} /> {t("journal.new")}
                     </button>
                     <button
                       type="button"

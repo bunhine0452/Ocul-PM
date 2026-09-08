@@ -11,7 +11,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createUnlistenBag, safeUnlistenPromise } from "@/lib/unlisten";
 import { listen } from "@tauri-apps/api/event";
-import { ArrowLeft, Check, ChevronDown, ExternalLink } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, ExternalLink } from "lucide-react";
+import { STATUS_META } from "@/features/planner/planMeta";
 import {
   commands,
   events,
@@ -172,7 +173,7 @@ function ProjectPicker({
         onClick={() => setOpen((v) => !v)}
       >
         <span className="tp-picker-label">{label}</span>
-        <ChevronDown size={14} className={`tp-picker-chev ${open ? "is-open" : ""}`} />
+        <ChevronDown size={15} className={`tp-picker-chev ${open ? "is-open" : ""}`} />
       </button>
       {open && (
         <div className="tp-picker-menu" role="listbox">
@@ -346,7 +347,7 @@ function EntryDetail({
     <div className="tp-detail">
       <div className="tp-settings-head">
         <button className="tp-back" onClick={onBack} aria-label={t("tray.back")}>
-          <ArrowLeft size={14} />
+          <ArrowLeft size={15} />
         </button>
         {entry && (
           <span className={`tp-type tp-type-${entry.type}`}>
@@ -370,7 +371,7 @@ function EntryDetail({
         </div>
       )}
       <button className="tp-open-settings" onClick={onOpenApp}>
-        {t("tray.openInApp")} <ExternalLink size={12} />
+        {t("tray.openInApp")} <ExternalLink size={13} />
       </button>
     </div>
   );
@@ -378,13 +379,12 @@ function EntryDetail({
 
 // ─── 플랜 상세 (팝오버 안에서 보기) ──────────────────────────────────────────
 
-const ITEM_GLYPH: Record<string, { ch: string; cls: string }> = {
-  done: { ch: "✓", cls: "is-done" },
-  in_progress: { ch: "◐", cls: "is-progress" },
-  todo: { ch: "○", cls: "is-todo" },
-  blocked: { ch: "!", cls: "is-blocked" },
-  deferred: { ch: "›", cls: "is-muted" },
-  dropped: { ch: "×", cls: "is-muted" },
+// 상태 기호는 앱과 같은 것을 쓴다 (3.0 {#status-glyph-ssot}). 예전엔 이 팝오버가
+// **자기 어휘**(✓ ◐ ○ ! › ×)를 들고 있어, 같은 항목이 상단바에선 ○ 인데 딥링크로
+// 앱을 열면 ☐ 였다. 색만 팝오버의 shadcn 변수 계열을 그대로 둔다.
+const TRAY_GLYPH_CLS: Record<string, string> = {
+  done: "is-done", in_progress: "is-progress", todo: "is-todo",
+  blocked: "is-blocked", deferred: "is-muted", dropped: "is-muted",
 };
 
 function PlanDetail({
@@ -433,7 +433,7 @@ function PlanDetail({
     <div className="tp-detail">
       <div className="tp-settings-head">
         <button className="tp-back" onClick={onBack} aria-label={t("tray.back")}>
-          <ArrowLeft size={14} />
+          <ArrowLeft size={15} />
         </button>
         <span className="tp-settings-title">{t("tray.planTitle")}</span>
         <span className="tp-detail-proj">{projectName}</span>
@@ -459,8 +459,8 @@ function PlanDetail({
           <div className="tp-plan-items">
             {plan.items.map((it) => (
               <div className="tp-plan-item" key={it.item_id}>
-                <span className={`tp-item-glyph ${ITEM_GLYPH[it.status]?.cls ?? "is-todo"}`}>
-                  {ITEM_GLYPH[it.status]?.ch ?? "○"}
+                <span className={`tp-item-glyph ${TRAY_GLYPH_CLS[it.status] ?? "is-todo"}`}>
+                  {STATUS_META[it.status]?.glyph ?? STATUS_META.todo.glyph}
                 </span>
                 <span className={`tp-item-title ${it.status === "done" ? "is-done" : ""}`}>
                   {it.title}
@@ -471,7 +471,7 @@ function PlanDetail({
         </div>
       )}
       <button className="tp-open-settings" onClick={onOpenApp}>
-        {t("tray.openInApp")} <ExternalLink size={12} />
+        {t("tray.openInApp")} <ExternalLink size={13} />
       </button>
     </div>
   );
@@ -544,7 +544,7 @@ function TraySettings({ onBack, onOpenApp }: { onBack: () => void; onOpenApp: ()
     <div className="tp-settings">
       <div className="tp-settings-head">
         <button className="tp-back" onClick={onBack} aria-label={t("tray.back")}>
-          <ArrowLeft size={14} />
+          <ArrowLeft size={15} />
         </button>
         <span className="tp-settings-title">{t("tray.settingsTitle")}</span>
       </div>
@@ -571,7 +571,7 @@ function TraySettings({ onBack, onOpenApp }: { onBack: () => void; onOpenApp: ()
         })}
       </div>
       <button className="tp-open-settings" onClick={onOpenApp}>
-        {t("tray.openFullSettings")} <ExternalLink size={12} />
+        {t("tray.openFullSettings")} <ExternalLink size={13} />
       </button>
     </div>
   );
@@ -854,7 +854,7 @@ export function TrayPopover() {
         <span>
           {t("tray.filesChanged")} <b>{filesTouched}</b>
         </span>
-        {warnCount > 0 && <span className="tp-warn">⚠ {warnCount}</span>}
+        {warnCount > 0 && <span className="tp-warn"><AlertTriangle size={11} aria-hidden /> {warnCount}</span>}
       </section>
 
       <section className="tp-entries scrollbar-thin">

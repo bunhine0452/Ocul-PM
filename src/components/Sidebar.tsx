@@ -129,7 +129,7 @@ function NavRow({
       {/* 도는 동안에는 아이콘 둘레가 돈다 — 숫자만으로는 "멈춘 채 N 개"인지
           "지금 일하는 중"인지 구분되지 않는다. */}
       <span className={"nav-ico" + (busy ? " working" : "")}>
-        <Icon size={17} strokeWidth={active ? 2 : 1.8} />
+        <Icon size={18} strokeWidth={active ? 2 : 1.8} />
       </span>
       <span>{label}</span>
       {waiting ? (
@@ -322,7 +322,7 @@ export function Sidebar({
             title={collapsed ? t("sidebar.pin") : t("sidebar.collapse")}
             aria-label={collapsed ? t("sidebar.pin") : t("sidebar.collapse")}
           >
-            <PanelLeft size={16} />
+            <PanelLeft size={15} />
           </button>
         ) : null}
       </div>
@@ -343,7 +343,7 @@ export function Sidebar({
             <div className="proj-name">{projectName ?? t("sidebar.selectProject")}</div>
             <div className="proj-path">{projectPath ?? "—"}</div>
           </div>
-          <ChevronsUpDown size={14} color="var(--text-3)" />
+          <ChevronsUpDown size={15} color="var(--text-3)" />
         </button>
 
         {switcherOpen ? (
@@ -365,7 +365,7 @@ export function Sidebar({
                         setSwitcherOpen(false);
                       }}
                     >
-                      <FolderGit2 size={14} strokeWidth={2} color="var(--accent)" />
+                      <FolderGit2 size={15} strokeWidth={2} color="var(--accent)" />
                       <span className="proj-pop-meta">
                         <span className="proj-pop-name">{p.name}</span>
                         <span className="proj-pop-path">{p.root_path}</span>
@@ -468,7 +468,7 @@ export function Sidebar({
             onClick={onToggleTerminalDock}
           >
             <span className="nav-ico">
-              <SquareTerminal size={17} strokeWidth={terminalDockOpen ? 2 : 1.8} />
+              <SquareTerminal size={18} strokeWidth={terminalDockOpen ? 2 : 1.8} />
             </span>
             <span>{t("sidebar.terminalDock")}</span>
             <kbd className="nav-kbd">⌘J</kbd>
@@ -476,7 +476,7 @@ export function Sidebar({
         ) : null}
         <button type="button" className="nav-item" onClick={onToggleTheme}>
           <span className="nav-ico">
-            {isDark ? <SunIcon size={17} strokeWidth={1.8} /> : <MoonIcon size={17} strokeWidth={1.8} />}
+            {isDark ? <SunIcon size={18} strokeWidth={1.8} /> : <MoonIcon size={18} strokeWidth={1.8} />}
           </span>
           <span>{isDark ? t("sidebar.lightMode") : t("sidebar.darkMode")}</span>
         </button>
@@ -487,7 +487,7 @@ export function Sidebar({
           onClick={() => onNavigate("settings")}
         >
           <span className="nav-ico">
-            <SettingsIcon size={17} strokeWidth={1.8} />
+            <SettingsIcon size={18} strokeWidth={1.8} />
           </span>
           <span>{t("sidebar.settings")}</span>
         </button>

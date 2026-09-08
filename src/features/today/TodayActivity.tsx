@@ -39,7 +39,7 @@ export function TodayActivity({
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <div className="panel-head">
-        <Waypoints size={16} color="var(--text-2)" />
+        <Waypoints size={15} color="var(--text-2)" />
         <h3>{t("today.activity.title")}</h3>
         <span className="count">{rows.length}</span>
         <button

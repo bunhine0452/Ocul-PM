@@ -1522,6 +1522,7 @@ export const ko = {
   "disc.promoted": "플래너로 승격했어요",
   "disc.options": "{n}안",
   "disc.nextSteps": "·다음 {n}",
+  "disc.resolvedToPlan": "계획으로",
   "disc.toolbarSub": "{n}건 · 결정 대기 {open}",
   "disc.new": "새 문제",
   "disc.newTitleAria": "새 문제 제목",

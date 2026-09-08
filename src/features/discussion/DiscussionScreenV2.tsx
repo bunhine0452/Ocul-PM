@@ -6,7 +6,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { Toolbar } from "@/components/Toolbar";
 import { OculSpinner } from "@/components/OculSpinner";
 import { AppDialog } from "@/components/ui/AppDialog";
-import { Plus, Pencil, Check, ArrowRight, TargetIcon, Clipboard, ClipboardCheck, MessagesSquare } from "@/components/Icons";
+import { Plus, Pencil, Check, ArrowRight, TargetIcon, Clipboard, ClipboardCheck, MessagesSquare, ListChecks } from "@/components/Icons";
 import { toast } from "@/lib/toast";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
@@ -395,7 +395,10 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
         <div className="disc-item-meta">
           {d.option_count > 0 ? <span>{t("disc.options", { n: d.option_count })}</span> : null}
           {d.next_step_count > 0 ? <span>{t("disc.nextSteps", { n: d.next_step_count })}</span> : null}
-          {d.resolution_plan_id ? <span>· → 📋</span> : null}
+          {/* 컬러 이모지(📋) 대신 선화 — 사유는 discussion.css {#glyph-to-icon}. */}
+          {d.resolution_plan_id ? (
+            <span className="disc-item-resolved"><ListChecks size={11} aria-hidden /> {t("disc.resolvedToPlan")}</span>
+          ) : null}
           <span style={{ marginLeft: "auto" }}>{shortDate(d.updated_at)}</span>
         </div>
       </button>

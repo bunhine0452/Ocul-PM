@@ -206,7 +206,7 @@ export const TraceRow = memo(function TraceRow({
         ) : null}
         {/* 캐럿은 없어도 **자리는 지킨다** — 캐럿 유무에 따라 오른쪽 열이
             들쭉날쭉하면 스무 줄이 줄맞춤을 잃는다. */}
-        <ChevronDown size={12} className={"trace-caret" + (expandable ? "" : " ghost")} />
+        <ChevronDown size={13} className={"trace-caret" + (expandable ? "" : " ghost")} />
       </button>
       {open ? (
         <div className="trace-body">

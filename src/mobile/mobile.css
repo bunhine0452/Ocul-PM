@@ -18,17 +18,17 @@
 .mob-brand {
   width: 20px;
   height: 20px;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
 }
 .mob-header-title { color: var(--text); }
 .mob-header-caret { color: var(--text-3); }
 .mob-beta {
   margin-left: 2px;
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   font-size: var(--fs-0);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps-lg);
   color: var(--accent-text);
   background: var(--accent-soft);
 }
@@ -45,8 +45,8 @@
 
 .mob-sec-title {
   font-size: var(--fs-3);
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: var(--fw-strong);
+  letter-spacing: var(--track-caps-lg);
   text-transform: uppercase;
   color: var(--text-3);
   margin-bottom: 7px;
@@ -58,9 +58,9 @@
 .mob-chip {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: var(--fs-2);
-  font-weight: 650;
+  font-weight: var(--fw-strong);
   padding: 1px 8px;
   line-height: 1.7;
   flex-shrink: 0;
@@ -75,7 +75,7 @@
 .mob-agent-dot {
   width: 7px;
   height: 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   flex-shrink: 0;
 }
 .mob-verified { color: var(--accent-text); }
@@ -95,7 +95,7 @@
   justify-content: center;
   width: 34px;
   height: 24px;
-  border-radius: 8px;
+  border-radius: var(--radius-m);
   transition: background var(--dur-2, 190ms);
 }
 .mob-tab[aria-current="page"] { color: var(--accent-text); }
@@ -106,7 +106,7 @@
   background: var(--accent);
   color: var(--text-on-accent);
   border-radius: var(--radius-m);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   transition: background var(--dur-1, 90ms);
 }
 .mob-btn-primary:active { background: var(--accent-strong); }
@@ -115,14 +115,14 @@
   background: var(--accent-soft);
   color: var(--accent-text);
   border-radius: var(--radius-s);
-  font-weight: 500;
+  font-weight: var(--fw-label);
 }
 .mob-btn-ghost {
   background: var(--bg-inset);
   color: var(--text-2);
   border-radius: var(--radius-s);
 }
-.mob-link { color: var(--accent-text); font-weight: 500; }
+.mob-link { color: var(--accent-text); font-weight: var(--fw-label); }
 .mob-input {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
@@ -134,7 +134,7 @@
 .mob-input::placeholder { color: var(--text-3); }
 .mob-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  box-shadow: var(--ring-soft);
 }
 .mob-danger { color: var(--t-bug); }
 
@@ -146,18 +146,18 @@
 .mob-item-done { color: var(--text-3); text-decoration: line-through; }
 .mob-progress {
   height: 3px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-inset);
   overflow: hidden;
 }
 .mob-progress > div {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent);
 }
 
 /* ── 논의 상태 칩 ─────────────────────────────────────────────────── */
-.mob-status { border-radius: 999px; font-size: var(--fs-2); font-weight: 650; padding: 1px 8px; }
+.mob-status { border-radius: var(--radius-pill); font-size: var(--fs-2); font-weight: var(--fw-strong); padding: 1px 8px; }
 .mob-status.open { color: var(--accent-text); background: var(--accent-soft); }
 .mob-status.resolved { color: var(--text-2); background: var(--bg-inset); }
 .mob-status.archived { color: var(--text-3); background: var(--bg-inset); }
@@ -180,7 +180,7 @@
 }
 
 /* ── 날짜 바 (일지) ───────────────────────────────────────────────── */
-.mob-datebar-label { color: var(--text); font-weight: 600; }
+.mob-datebar-label { color: var(--text); font-weight: var(--fw-strong); }
 .mob-datebar-label.is-today { color: var(--accent-text); }
 
 /* ── 오늘 요약 스트립 ─────────────────────────────────────────────── */
@@ -190,10 +190,10 @@
   border-radius: var(--radius-l);
   box-shadow: var(--shadow-sheet);
 }
-.mob-hero-num { color: var(--accent-text); font-weight: 700; }
+.mob-hero-num { color: var(--accent-text); font-weight: var(--fw-bold); }
 
 /* ── 마크다운 본문 ────────────────────────────────────────────────── */
-.mob-md h1, .mob-md h2, .mob-md h3 { font-weight: 600; margin: 1em 0 0.4em; color: var(--text); }
+.mob-md h1, .mob-md h2, .mob-md h3 { font-weight: var(--fw-strong); margin: 1em 0 0.4em; color: var(--text); }
 .mob-md h2 { font-size: var(--fs-9); }
 .mob-md h3 { font-size: var(--fs-8); }
 .mob-md p, .mob-md ul, .mob-md ol { margin: 0.4em 0; }
@@ -203,7 +203,7 @@
   font-family: "D2Coding", ui-monospace, monospace;
   font-size: var(--fs-5);
   background: var(--bg-inset);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   padding: 0 4px;
 }
 .mob-md pre {

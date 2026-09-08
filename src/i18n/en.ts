@@ -1525,6 +1525,7 @@ export const en: Record<keyof typeof ko, string> = {
   "disc.promoted": "Promoted to the Planner",
   "disc.options": "{n} options",
   "disc.nextSteps": "· {n} next",
+  "disc.resolvedToPlan": "in plan",
   "disc.toolbarSub": "{n} docs · {open} awaiting a decision",
   "disc.new": "New problem",
   "disc.newTitleAria": "New problem title",

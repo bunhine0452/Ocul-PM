@@ -21,7 +21,7 @@
   align-items: center;
   gap: 6px;
   font-size: var(--fs-3);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
 }
 .agent-id-dot {
@@ -37,7 +37,7 @@
 .agent-id-meta {
   font-family: var(--mono);
   font-size: var(--fs-1);
-  font-weight: 500;
+  font-weight: var(--fw-label);
   color: var(--text-3);
 }
 
@@ -60,7 +60,7 @@
   min-height: 24px; /* 히트 타깃 하한 — 22px 줄은 겨냥이 빗나간다. */
   padding: 3px 4px 3px 0;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   background: none;
   text-align: left;
   font-family: var(--font);
@@ -129,8 +129,8 @@
   padding-top: 1px;
   font-family: var(--mono);
   font-size: var(--fs-1);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   color: var(--text-3);
 }
 /* 도구 출력은 이 화면에서 가장 자주 **다른 곳으로 가져가는** 글이다 —
@@ -144,7 +144,7 @@
   width: 22px;
   height: 22px;
   border: 1px solid var(--sep);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   background: var(--bg-card);
   color: var(--text-3);
   cursor: pointer;
@@ -265,7 +265,7 @@
   gap: 5px;
   font-family: var(--mono);
   font-size: var(--fs-2);
-  font-weight: 650;
+  font-weight: var(--fw-strong);
   font-variant-numeric: tabular-nums;
 }
 .trace-diffstat ~ .trace-status,
@@ -326,13 +326,13 @@
   margin-left: auto;
   flex: none;
   font-size: var(--fs-2);
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: var(--fw-strong);
+  letter-spacing: var(--track-wide);
   color: var(--text-3);
 }
 .trace-elapsed {
   font-family: var(--mono);
-  font-weight: 500;
+  font-weight: var(--fw-label);
   font-variant-numeric: tabular-nums;
 }
 .trace-row.running .trace-status {
@@ -353,7 +353,7 @@
   list-style: none;
   cursor: pointer;
   font-size: var(--fs-4);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-3);
 }
 .think > summary::-webkit-details-marker {
@@ -439,7 +439,7 @@
   gap: 7px;
   margin-bottom: 8px;
   font-size: var(--fs-5);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--accent-text);
 }
 .perm-what {
@@ -451,7 +451,7 @@
 }
 .perm-title {
   font-size: var(--fs-7);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text);
 }
 .perm-path {
@@ -479,11 +479,11 @@
   height: 22px;
   padding: 0 6px 0 8px;
   border: 1px solid var(--border-card);
-  border-radius: 7px;
+  border-radius: var(--radius-s);
   background: var(--bg-card);
   cursor: pointer;
   font-size: var(--fs-3);
-  font-weight: 550;
+  font-weight: var(--fw-label);
   color: var(--text-2);
 }
 .attach-chip:hover {
@@ -523,7 +523,7 @@
   width: 100%;
   padding: 6px 9px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-s);
   background: none;
   cursor: pointer;
   text-align: left;
@@ -533,7 +533,7 @@
 }
 .mention-item .mention-name {
   color: var(--text);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 .mention-item:hover,
 .mention-item.active {
@@ -562,7 +562,7 @@
 }
 .composer.agent {
   position: relative; /* 드롭 오버레이의 기준. */
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   padding: 12px 14px 8px;
   gap: 4px;
   box-shadow: var(--shadow-sheet);
@@ -593,7 +593,7 @@
   background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));
   color: var(--accent-text);
   font-size: var(--fs-6);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   pointer-events: none;
 }
 .composer.agent .composer-foot {
@@ -678,12 +678,12 @@
   max-width: 100%;
   padding: 0 8px;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius-m);
   background: transparent;
   cursor: pointer;
   font-family: var(--font);
   font-size: var(--fs-5);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
   transition:
     background-color var(--dur-1) var(--ease-out),
@@ -754,8 +754,8 @@
 .settings-group-label {
   padding: 3px 9px 4px;
   font-size: var(--fs-1);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -770,7 +770,7 @@
   width: 100%;
   padding: 7px 9px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-m);
   background: none;
   cursor: pointer;
   text-align: left;
@@ -803,7 +803,7 @@
 }
 .settings-row-name {
   font-size: var(--fs-6);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 .settings-row-desc {
   font-size: var(--fs-3);
@@ -831,7 +831,7 @@
 .queue-chip {
   padding: 0 2px 0 8px;
   border: 1px dashed var(--sep-strong);
-  border-radius: 9px;
+  border-radius: var(--radius-m);
   background: transparent;
   font-size: var(--fs-4);
   color: var(--text-3);
@@ -860,7 +860,7 @@
   width: 22px;
   height: 22px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   background: none;
   color: var(--text-3);
   cursor: pointer;
@@ -881,7 +881,7 @@
   align-items: stretch;
   gap: 9px;
   padding: 2px 10px 8px;
-  border-radius: 9px;
+  border-radius: var(--radius-m);
   outline: none;
 }
 /* 키보드로 들어왔을 때만 테두리 — 마우스로 열 때는 조용해야 한다. */
@@ -890,8 +890,8 @@
 }
 .effort-label {
   font-size: var(--fs-8);
-  font-weight: 660;
-  letter-spacing: -0.015em;
+  font-weight: var(--fw-strong);
+  letter-spacing: var(--track-tight);
   color: var(--text);
 }
 /* ─── 단계마다 색 ────────────────────────────────────────────────────────
@@ -979,14 +979,14 @@
   left: 3px;
   right: 3px;
   height: 3px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-inset);
 }
 .effort-fill {
   position: absolute;
   left: 3px;
   height: 3px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent);
   transition:
     width var(--dur-2) var(--ease-spring),
@@ -1126,8 +1126,8 @@
 .acp-panel-title {
   flex: 1;
   font-size: var(--fs-2);
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -1140,12 +1140,12 @@
   height: 30px;
   padding: 0 9px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-m);
   background: transparent;
   cursor: pointer;
   font-family: var(--font);
   font-size: var(--fs-6);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text);
 }
 .acp-panel-new:hover:not(:disabled) {
@@ -1191,7 +1191,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  border-radius: 8px;
+  border-radius: var(--radius-m);
 }
 .acp-session-main {
   flex: 1;
@@ -1202,7 +1202,7 @@
   gap: 2px;
   padding: 5px 9px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-m);
   background: none;
   cursor: pointer;
   text-align: left;
@@ -1218,7 +1218,7 @@
   flex: 1;
   min-width: 0;
   font-size: var(--fs-6);
-  font-weight: 550;
+  font-weight: var(--fw-label);
   color: var(--text-2);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1229,7 +1229,7 @@
 }
 .acp-session.active .acp-session-title {
   color: var(--accent-text);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 .acp-session-time {
   flex: none;
@@ -1261,7 +1261,7 @@
 .acp-session-state {
   flex: none;
   font-size: var(--fs-1);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
 }
 .acp-session-state.attention {
@@ -1285,7 +1285,7 @@
 
 /* 슬래시 커맨드의 인자 힌트 — 이름 뒤에 흐리게 붙어 "뭘 더 쳐야 하는지" 만 알린다. */
 .slash-hint {
-  font-weight: 500;
+  font-weight: var(--fw-label);
   color: var(--text-3);
 }
 
@@ -1295,12 +1295,12 @@
   height: 26px;
   padding: 0 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-m);
   background: transparent;
   cursor: pointer;
   font-family: var(--mono);
   font-size: var(--fs-2);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-3);
   transition:
     background-color var(--dur-1) var(--ease-out),
@@ -1327,7 +1327,7 @@
   height: 28px;
   padding: 0 11px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-inset);
   cursor: pointer;
   transition:
@@ -1347,14 +1347,14 @@
 }
 .usage-pill-name {
   font-size: var(--fs-1);
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-weight: var(--fw-strong);
+  letter-spacing: var(--track-wide);
   color: var(--text-3);
 }
 .usage-pill-value {
   font-family: var(--mono);
   font-size: var(--fs-3);
-  font-weight: 650;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
@@ -1398,8 +1398,8 @@
 .usage-card-title {
   flex: 1;
   font-size: var(--fs-2);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps-lg);
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -1409,7 +1409,7 @@
   width: 24px;
   height: 24px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-s);
   background: transparent;
   color: var(--text-3);
   cursor: pointer;
@@ -1456,23 +1456,23 @@
 .usage-row-name {
   flex: 1;
   font-size: var(--fs-5);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text);
 }
 /* 숫자를 크게 — 이 카드에서 사용자가 실제로 찾는 것은 이것 하나다. */
 .usage-row-pct {
   font-family: var(--mono);
   font-size: var(--fs-11);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: var(--track-snug);
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 .usage-row-unit {
   margin-left: 1px;
   font-size: var(--fs-3);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-3);
 }
 .usage-row-pct.warn {
@@ -1483,14 +1483,14 @@
 }
 .usage-bar {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-inset);
   overflow: hidden;
 }
 .usage-bar-fill {
   display: block;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   /* 단색 — 게이지에 그라데이션을 채우면 '대시보드 템플릿' 으로 읽힌다.
      색은 구간(정상·경고·위험)이 말하고, 길이가 양을 말한다. */
   background: var(--accent);
@@ -1529,7 +1529,7 @@
 /* 그룹 라벨 옆의 보조 안내 (⇧Tab 등). */
 .settings-group-hint {
   float: right;
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   text-transform: none;
   letter-spacing: 0;
   color: var(--text-3);
@@ -1544,7 +1544,7 @@
 /* 점 세 개가 차례로 켜진다 — "멈춘 게 아니라 도는 중"을 글자 없이 말한다. */
 .think-dots::after {
   content: "···";
-  letter-spacing: 1px;
+  letter-spacing: 1px; /* design-ignore -- 글자 사이가 아니라 점 세 개의 간격 (본문 자간 램프와 무관) */
   animation: think-dots 1.4s steps(4, end) infinite;
   clip-path: inset(0 100% 0 0);
 }
@@ -1556,7 +1556,7 @@
 .think-meta {
   font-family: var(--mono);
   font-size: var(--fs-1);
-  font-weight: 500;
+  font-weight: var(--fw-label);
   color: var(--text-3);
 }
 .think-meta::before {
@@ -1571,8 +1571,8 @@
   align-items: center;
   min-height: 20px;
   font-size: var(--fs-7);
-  font-weight: 550;
-  letter-spacing: -0.01em;
+  font-weight: var(--fw-label);
+  letter-spacing: var(--track-tight);
   color: var(--text-2);
 }
 .agent-word-caret {
@@ -1580,7 +1580,7 @@
   width: 2px;
   height: 13px;
   margin-left: 2px;
-  border-radius: 1px;
+  border-radius: var(--radius-2xs);
   background: var(--accent);
   animation: agent-caret 1s steps(2, end) infinite;
 }
@@ -1620,7 +1620,7 @@
   flex: none;
   max-width: 220px;
   height: 28px;
-  border-radius: 8px;
+  border-radius: var(--radius-m);
   transition: background-color var(--dur-1) var(--ease-out);
 }
 .acp-tab:hover {
@@ -1637,7 +1637,7 @@
   right: 8px;
   bottom: -1px;
   height: 2px;
-  border-radius: 1px;
+  border-radius: var(--radius-pill);
   background: var(--accent);
 }
 .acp-tab-main {
@@ -1652,14 +1652,14 @@
   cursor: pointer;
   font-family: var(--font);
   font-size: var(--fs-7);
-  font-weight: 550;
-  letter-spacing: -0.01em;
+  font-weight: var(--fw-label);
+  letter-spacing: var(--track-tight);
   color: var(--text-3);
 }
 /* 굵기 점프를 한 단(550→600)으로 — 650 은 글자 폭이 변해 탭 줄 전체가 밀렸다. */
 .acp-tab.active .acp-tab-main {
   color: var(--text);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 /* 마크는 활성 탭에서만 제 색을 낸다 — 모든 탭에 주황 별이 켜져 있으면
    어느 것이 열려 있는지가 안 읽힌다. */
@@ -1681,7 +1681,7 @@
    같은 자리에서 실선이 된다. */
 .acp-tab.pending {
   outline: 1px dashed color-mix(in oklab, var(--text-3) 45%, transparent);
-  outline-offset: -1px;
+  outline-offset: var(--focus-offset-inset);
 }
 .acp-tab.pending .acp-tab-main {
   font-style: italic;
@@ -1695,7 +1695,7 @@
   height: 20px;
   margin-right: 4px;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: none;
   color: var(--text-3);
   cursor: pointer;
@@ -1719,7 +1719,7 @@
   height: 24px;
   margin-left: 2px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-s);
   background: none;
   color: var(--text-3);
   cursor: pointer;
@@ -1777,7 +1777,7 @@
   width: 24px;
   height: 24px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   background: none;
   color: var(--text-3);
   cursor: pointer;
@@ -1797,14 +1797,14 @@
   height: 24px;
   padding: 0 9px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   background: var(--t-bug);
   /* 흰 글자는 레드 위에서 3.83:1 이다 — 배경별 짝은 토큰이 안다
      (2026-09-04 {#hardcoded-white}). */
   color: var(--on-danger);
   font-family: var(--font);
   font-size: var(--fs-3);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1819,7 +1819,7 @@
   width: 18px;
   height: 18px;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: none;
   color: var(--text-3);
   cursor: pointer;
@@ -1836,12 +1836,12 @@
   outline: none;
   font-family: var(--font);
   font-size: var(--fs-5);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text);
 }
 .acp-session.editing {
   outline: 1.5px solid var(--accent);
-  outline-offset: -1.5px;
+  outline-offset: var(--focus-offset-inset);
 }
 
 .toolbar-title:has(.acp-tabs) {
@@ -1862,8 +1862,8 @@
   display: block;
   margin-bottom: 6px;
   font-size: var(--fs-2);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -1890,7 +1890,7 @@
 .usage-stat {
   margin: 0;
   font-size: var(--fs-3);
-  font-weight: 650;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
 }
 
@@ -1914,7 +1914,7 @@
 .usage-share-pct {
   font-family: var(--mono);
   font-size: var(--fs-7);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   line-height: 1;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -1933,8 +1933,8 @@
 }
 .usage-top-label {
   font-size: var(--fs-1);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -1949,7 +1949,7 @@
   align-items: baseline;
   padding: 2px 7px;
   border: 1px solid var(--border-card);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-card);
   font-size: var(--fs-2);
   color: var(--text-2);
@@ -1962,7 +1962,7 @@
 .usage-chip-pct {
   flex: none;
   font-family: var(--mono);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
@@ -1998,7 +1998,7 @@
   border-radius: var(--radius-l);
   background: var(--bg-card);
   padding: 7px 13px 9px;
-  box-shadow: 0 6px 16px -12px rgb(0 0 0 / 0.35);
+  box-shadow: var(--shadow-card);
 }
 /* 접혀 있으면 카드를 눌러 펼친다 — 작은 버튼을 겨냥할 필요가 없다. */
 .acp-layout .user-card.clipped {
@@ -2019,11 +2019,11 @@
   bottom: 8px;
   padding: 3px 9px;
   border: 1px solid var(--sep);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--bg-window);
   font-family: var(--font);
   font-size: var(--fs-3);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
   cursor: pointer;
   transition:
@@ -2103,11 +2103,11 @@
   max-width: 100%;
   padding: 4px 9px 4px 4px;
   border: 1px solid var(--sep);
-  border-radius: 9px;
+  border-radius: var(--radius-m);
   background: var(--bg-window);
   font-family: var(--font);
   font-size: var(--fs-4);
-  font-weight: 550;
+  font-weight: var(--fw-label);
   color: var(--text-2);
 }
 .user-file:not(.image) {
@@ -2128,7 +2128,7 @@
   flex: none;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   object-fit: cover;
   background: var(--bg-inset);
 }
@@ -2142,7 +2142,7 @@
   flex: none;
   font-family: var(--mono);
   font-size: var(--fs-2);
-  font-weight: 500;
+  font-weight: var(--fw-label);
   color: var(--text-3);
 }
 
@@ -2186,7 +2186,7 @@
   max-height: calc(100vh - 132px);
   object-fit: contain;
   border-radius: var(--radius-l);
-  box-shadow: 0 24px 64px rgb(0 0 0 / 0.45);
+  box-shadow: var(--shadow-pop);
 }
 .lightbox-cap {
   display: flex;
@@ -2197,7 +2197,7 @@
   color: rgb(255 255 255 / 0.72);
 }
 .lightbox-name {
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 .lightbox-dim {
   font-family: var(--mono);
@@ -2228,7 +2228,7 @@
    제목 자리에 들어가서, 줄이 길수록 "무슨 도구였나"가 말줄임 뒤로 사라졌다. */
 .trace-name {
   flex: none;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
 }
 /* (윗동네의 옛 `.trace-title` 블록과 이중 정의였던 것을 여기로 합쳤다 —
@@ -2237,7 +2237,7 @@
   flex: none;
   max-width: 46%;
   min-width: 0;
-  font-weight: 500;
+  font-weight: var(--fw-label);
   color: var(--text-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2370,8 +2370,8 @@
 .turn-notice-label {
   flex: none;
   font-size: var(--fs-3);
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-weight: var(--fw-strong);
+  letter-spacing: var(--track-wide);
   white-space: nowrap;
 }
 
@@ -2380,8 +2380,8 @@
   margin-left: 6px;
   font-family: var(--mono);
   font-size: var(--fs-1);
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-weight: var(--fw-label);
+  letter-spacing: var(--track-tight);
   color: var(--text-3);
 }
 
@@ -2416,7 +2416,7 @@
   transform: rotate(180deg);
 }
 .plan-title {
-  font-weight: 650;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
 }
 .plan-count {
@@ -2457,7 +2457,7 @@
 }
 .plan-item.in_progress .plan-text {
   color: var(--text);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 .plan-item.completed .plan-mark {
   border-color: var(--t-feature);
@@ -2506,7 +2506,7 @@
 }
 .failure-title {
   font-size: var(--fs-6);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   line-height: 1.5;
   color: var(--text);
 }
@@ -2551,7 +2551,7 @@
   flex: none;
   font-family: var(--mono);
   font-size: var(--fs-3);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
 }
 .diffv-path {
@@ -2573,12 +2573,12 @@
   gap: 6px;
   font-family: var(--mono);
   font-size: var(--fs-2);
-  font-weight: 650;
+  font-weight: var(--fw-strong);
   font-variant-numeric: tabular-nums;
 }
 .diffv-new {
   color: var(--t-feature);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
 }
 .diffv-body {
   max-height: 320px;
@@ -2672,7 +2672,7 @@
   width: 24px;
   height: 24px;
   border: 1px solid var(--sep);
-  border-radius: 7px;
+  border-radius: var(--radius-s);
   background: var(--bg-card);
   color: var(--text-3);
   cursor: pointer;
@@ -2719,11 +2719,11 @@
   height: 22px;
   padding: 0 8px;
   border: 1px solid var(--sep);
-  border-radius: 7px;
+  border-radius: var(--radius-s);
   background: var(--bg-card);
   font-family: var(--font);
   font-size: var(--fs-3);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
   cursor: pointer;
 }
@@ -2743,7 +2743,7 @@
   height: 26px;
   padding: 0 8px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-m);
   background: transparent;
   cursor: pointer;
   font-family: var(--mono);
@@ -2781,7 +2781,7 @@
 }
 .trace-item.ledger .trace-name {
   color: var(--text-1);
-  font-weight: 550;
+  font-weight: var(--fw-label);
 }
 /* 곁가지(생각) — 답이 아니라 과정이라 한 톤 물러난다. */
 .trace-item.aside .trace-icon,
@@ -2801,7 +2801,7 @@
   gap: 8px;
   min-height: 24px;
   padding: 3px 4px 3px 0;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   font-size: var(--fs-5);
   color: var(--text-3);
   cursor: pointer;
@@ -2869,7 +2869,7 @@
 }
 .activity-notice-name {
   flex: none;
-  font-weight: 550;
+  font-weight: var(--fw-label);
 }
 .activity-notice-title {
   min-width: 0;

@@ -12,7 +12,7 @@
   border-radius: var(--radius-s);
   border: 1px solid var(--border-card);
   background: var(--bg-card); color: var(--text);
-  font-size: var(--fs-6); font-weight: 550; font-family: var(--font);
+  font-size: var(--fs-6); font-weight: var(--fw-label); font-family: var(--font);
   cursor: pointer; white-space: nowrap;
   box-shadow: var(--shadow-card);
   transition:
@@ -96,8 +96,8 @@
   font-family: var(--font);
 }
 .chip {
-  height: 22px; padding: 0 9px; border-radius: 7px;
-  font-size: var(--fs-4); font-weight: 600;
+  height: 22px; padding: 0 9px; border-radius: var(--radius-s);
+  font-size: var(--fs-4); font-weight: var(--fw-strong);
   background: var(--bg-inset); color: var(--text-2);
   /* 좁은 창 방어 (2026-08-23): 칩은 **라벨**이지 본문이 아니다. flex 행에서
      기본 min-width:auto + 한국어(어디서나 줄바꿈 가능) 조합이면 폭이 좁아질 때
@@ -105,7 +105,7 @@
      밀어내게 둔다 — 옆의 경로 텍스트가 대신 …로 줄어든다. */
   white-space: nowrap; flex: none;
 }
-.chip.sm { height: 18px; padding: 0 6px; font-size: var(--fs-2); border-radius: 999px; }
+.chip.sm { height: 18px; padding: 0 6px; font-size: var(--fs-2); border-radius: var(--radius-pill); }
 .chip.outline { background: transparent; border: 1px solid var(--sep); }
 .chip.accent { background: var(--accent-soft); color: var(--accent-text); }
 .chip.ok { background: var(--ok-soft); color: var(--ok-text); }
@@ -113,9 +113,9 @@
 .chip.danger { background: var(--danger-soft); color: var(--danger-text); }
 .chip.info { background: var(--info-soft); color: var(--info-text); }
 .kbd {
-  font-family: var(--mono); font-size: var(--fs-3); font-weight: 600;
+  font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong);
   background: var(--bg-inset); border: 1px solid var(--sep);
-  border-radius: 5px; padding: 1px 6px; color: var(--text-2);
+  border-radius: var(--radius-xs); padding: 1px 6px; color: var(--text-2);
   box-shadow: 0 1px 0 var(--sep);
 }
 .mono { font-family: var(--mono); }
@@ -132,13 +132,13 @@
   font-family: var(--font); font-size: var(--fs-7); color: var(--text);
   flex: 1; min-width: 0;
 }
-.search-box:focus-within { background: var(--bg-card); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.search-box:focus-within { background: var(--bg-card); border-color: var(--accent); box-shadow: var(--ring-soft); }
 
 /* trigger badge */
 .tbadge {
   display: inline-flex; align-items: center; gap: 5px;
-  height: 21px; padding: 0 8px 0 6px; border-radius: 6px;
-  font-size: var(--fs-3); font-weight: 650; letter-spacing: 0.01em;
+  height: 21px; padding: 0 8px 0 6px; border-radius: var(--radius-s);
+  font-size: var(--fs-3); font-weight: var(--fw-strong); letter-spacing: var(--track-wide);
   /* .chip 과 같은 이유 — 배지는 꺾이지 않는다. */
   white-space: nowrap; flex: none;
 }
@@ -149,7 +149,7 @@
 .t-error { background: var(--t-error-soft); color: var(--t-error); }
 .t-chore { background: var(--t-chore-soft); color: var(--t-chore); }
 
-.section-title { font-size: var(--fs-5); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-3); }
+.section-title { font-size: var(--fs-5); font-weight: var(--fw-bold); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--text-3); }
 
 /* 화면 진입 — 얕은 상승 + 페이드. 모든 스크린 전환이 같은 곡선을 공유한다. */
 .fade-in { animation: fadeIn var(--dur-3) var(--ease-out) both; }
@@ -162,16 +162,16 @@
 
 /* file path pill */
 .fpath { font-family: var(--mono); font-size: var(--fs-4); color: var(--text-2); }
-.fpath b { color: var(--text); font-weight: 600; }
+.fpath b { color: var(--text); font-weight: var(--fw-strong); }
 
 /* ── 인라인 마크다운 (components/InlineMarkdown) ─────────────────────────────
    제목·메모 같은 **한 줄** 텍스트에 쓰는 최소 강조. 블록 문서는 Markdown.tsx.
    크기는 전부 `em` 기준이라 13px 항목 제목이든 17px 계획 제목이든 따라간다. */
-.imd-strong { font-weight: 700; }
+.imd-strong { font-weight: var(--fw-bold); }
 .imd-del { color: var(--text-3); }
 .imd-code {
   font-family: var(--mono); font-size: 0.92em;
-  background: var(--bg-inset); border-radius: 4px; padding: 0.05em 0.35em;
+  background: var(--bg-inset); border-radius: var(--radius-xs); padding: 0.05em 0.35em;
   /* 좁은 칸에서 긴 식별자가 줄을 밀어내지 않게 안에서 끊는다. */
   overflow-wrap: anywhere;
 }
@@ -203,19 +203,21 @@
   display: inline-flex;
   padding: 2px;
   gap: 2px;
-  border-radius: 9px;
+  /* 동심원 — 바깥은 안쪽(.seg-item)보다 딱 패딩만큼 더 둥글다. 램프에 스냅하면
+     껍데기와 알맹이의 곡률이 어긋나 모서리에 틈이 보인다 ({#radius-ramp}). */
+  border-radius: calc(var(--radius-s) + 2px);
   background: var(--bg-inset);
 }
 .seg-item {
   height: 24px;
   padding: 0 10px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-s);
   background: transparent;
   cursor: pointer;
   font-family: var(--font);
   font-size: var(--fs-4);
-  font-weight: 600;
+  font-weight: var(--fw-strong);
   color: var(--text-2);
   transition:
     background-color var(--dur-1) var(--ease-out),
@@ -241,7 +243,7 @@
   height: 30px; padding: 0 11px;
   border: none; border-radius: var(--radius-s);
   background: transparent; color: var(--text-2);
-  font-family: var(--font); font-size: var(--fs-6); font-weight: 550;
+  font-family: var(--font); font-size: var(--fs-6); font-weight: var(--fw-label);
   cursor: pointer; white-space: nowrap; flex: none;
   transition:
     background-color var(--dur-1) var(--ease-out),
@@ -250,7 +252,7 @@
 .subnav.vertical .subnav-item { width: 100%; justify-content: flex-start; }
 .subnav-item:hover { background: var(--bg-hover); color: var(--text); }
 .subnav-item[aria-current="page"],
-.subnav-item[aria-selected="true"] { background: var(--bg-inset); color: var(--text); font-weight: 600; }
+.subnav-item[aria-selected="true"] { background: var(--bg-inset); color: var(--text); font-weight: var(--fw-strong); }
 
 /* ── 스켈레톤 — 한 벌 ──────────────────────────────────────────────────────
    screens.css `.skel` · home.css `.home-skel` · docs.css `.docs-img-skeleton`
@@ -288,7 +290,7 @@
 .sk-modal-head,
 .set-modal-title {
   font-size: var(--fs-8);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   color: var(--text);
 }
 .sk-modal-head {
@@ -308,7 +310,7 @@
 .sk-modal-warn code {
   font-size: var(--fs-5);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--bg-inset);
   color: var(--text-2);
 }
@@ -323,7 +325,7 @@
 /* ⌘/ 단축키 치트시트 — 같은 이유로 전역. 좌우 여백은 모달 크롬(20px)에 맞춘다
    (screens.css 시절엔 0 이라 표가 패널 가장자리에 붙어 있었다). */
 .keys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 22px; padding: 4px 20px 16px; }
-.keys-group h4 { font-size: var(--fs-3); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin: 0 0 6px; }
+.keys-group h4 { font-size: var(--fs-3); text-transform: uppercase; letter-spacing: var(--track-caps-lg); color: var(--text-3); margin: 0 0 6px; }
 .keys-group dl { margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .keys-row { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-5); }
 .keys-row dt { flex: 1; min-width: 0; color: var(--text-2); }

@@ -123,7 +123,7 @@ export function ContextInbox({
   return (
     <section className="ctx-inbox" id="ctx-inbox" aria-label={t("ctx.inbox.aria")}>
       <div className="ctx-zone-head">
-        <Inbox size={14} />
+        <Inbox size={15} />
         <h3>{t("ctx.inbox.title")}</h3>
         <span className="ctx-zone-sub">{t("ctx.inbox.sub")}</span>
       </div>

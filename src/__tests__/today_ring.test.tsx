@@ -107,12 +107,17 @@ describe("TodayActivityRing", () => {
   });
 
   it("shows an error badge only when there are error cycles", () => {
-    const { container, rerender, getByText } = render(
+    const { container, rerender } = render(
       <TodayActivityRing {...props(2)} errorCycles={0} />,
     );
     expect(container.querySelector(".today-ring-err")).toBeNull();
     rerender(<TodayActivityRing {...props(2)} errorCycles={2} />);
-    expect(getByText("⚠2")).toBeInTheDocument();
+    // 경고 표시는 맨 글리프(⚠)가 아니라 선화 아이콘 + 숫자다 ({#glyph-to-icon}) —
+    // 텍스트로 단언하면 아이콘을 글자로 되돌리는 순간 통과해 버린다.
+    const badge = container.querySelector(".today-ring-err");
+    expect(badge).not.toBeNull();
+    expect(badge?.querySelector("svg")).not.toBeNull();
+    expect(badge?.textContent).toContain("2");
   });
 
   it("keeps the count out of the badge's box so it stays centred", () => {

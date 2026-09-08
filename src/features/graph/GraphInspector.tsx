@@ -152,7 +152,7 @@ export function GraphInspector({
             className="h-6 w-6 grid place-items-center rounded text-muted-foreground hover:text-foreground cursor-pointer flex-none"
             title={t("common.close")}
           >
-            <X size={14} />
+            <X size={15} />
           </button>
         </div>
 
@@ -175,7 +175,7 @@ export function GraphInspector({
         {/* ── Change-impact headline ── */}
         <div className={`rounded-lg border px-3 py-2.5 ${imp ? TONE_CLASS[imp.tone] : "bg-muted text-muted-foreground"} border-transparent`}>
           <div className="flex items-center gap-1.5 text-[11px] font-medium opacity-80">
-            {imp?.warn ? <AlertTriangle size={12} /> : null}
+            {imp?.warn ? <AlertTriangle size={13} /> : null}
             {t("graph.impact")}
           </div>
           <div className="mt-0.5 text-sm font-semibold">
@@ -416,9 +416,9 @@ function SymbolRow({ projectId, path, sym }: { projectId: number; path: string; 
         aria-expanded={open}
       >
         {open ? (
-          <ChevronDown size={12} className="text-muted-foreground flex-none" />
+          <ChevronDown size={13} className="text-muted-foreground flex-none" />
         ) : (
-          <ChevronRight size={12} className="text-muted-foreground flex-none" />
+          <ChevronRight size={13} className="text-muted-foreground flex-none" />
         )}
         <span className="truncate font-mono">{sym.name}</span>
         <span className="ml-auto text-[10px] text-muted-foreground tabular-nums flex-none">L{sym.start_line}</span>

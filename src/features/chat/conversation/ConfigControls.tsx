@@ -196,7 +196,7 @@ export function ConfigControl({
                     <span className="settings-row-desc">{choice.description}</span>
                   ) : null}
                 </span>
-                {choice.value === option.current ? <Check size={14} /> : null}
+                {choice.value === option.current ? <Check size={15} /> : null}
               </button>
             );
           })}
@@ -257,7 +257,7 @@ export function MoreSettings({
                       <span className="settings-row-desc">{choice.description}</span>
                     ) : null}
                   </span>
-                  {choice.value === option.current ? <Check size={14} /> : null}
+                  {choice.value === option.current ? <Check size={15} /> : null}
                 </button>
               ))}
             </section>

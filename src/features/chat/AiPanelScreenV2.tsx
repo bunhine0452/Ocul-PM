@@ -868,7 +868,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                   title={t("ai.tokenBadgeTitle")}
                 >
                   {t("ai.tokenBadge", { n: formatTokenCount(estimate?.total ?? 0) })}
-                  <ChevronDown size={12} />
+                  <ChevronDown size={13} />
                 </button>
                 {tokenPopOpen && estimate ? (
                   <div className="tok-pop">
@@ -1009,7 +1009,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                   aria-label={t("ai.send")}
                   title={t("ai.sendHint")}
                 >
-                  <ArrowUp size={16} strokeWidth={2.2} />
+                  <ArrowUp size={15} strokeWidth={2.2} />
                 </button>
               )}
             </div>

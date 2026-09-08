@@ -30,9 +30,9 @@ import { TerminalAway } from "./TerminalAway";
  * 번째 자리가 생겼을 때 세 군데를 따로 고쳐야 한다.
  */
 const NEXT_ICON: Record<TerminalDockPos, React.ReactNode> = {
-  bottom: <PanelBottom size={14} />,
-  left: <PanelLeftDock size={14} />,
-  right: <PanelRight size={14} />,
+  bottom: <PanelBottom size={15} />,
+  left: <PanelLeftDock size={15} />,
+  right: <PanelRight size={15} />,
 };
 const MOVE_LABEL = {
   bottom: "term.dock.toBottom",
@@ -123,7 +123,7 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
         title={t("term.dock.detachHint")}
         aria-label={t("term.dock.detach")}
       >
-        <SquareArrowOutUpRight size={14} />
+        <SquareArrowOutUpRight size={15} />
       </button>
       <button
         type="button"
@@ -132,7 +132,7 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
         title={t("term.dock.closeHint")}
         aria-label={t("term.dock.close")}
       >
-        <X size={14} />
+        <X size={15} />
       </button>
     </>
   );

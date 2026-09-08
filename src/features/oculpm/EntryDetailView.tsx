@@ -390,7 +390,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
       <Toolbar
         leading={
           <button type="button" className="iconbtn" onClick={onBack} aria-label={t("entry.back")} title={t("entry.backTitle")}>
-            <ArrowLeft size={17} />
+            <ArrowLeft size={18} />
           </button>
         }
         title={entry.title || entry.slug}
@@ -400,9 +400,9 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
             <SourceBadge source={sourceOf(entry.session_id, entry.agent_id)} />
             {dateLabel(entry.created_at, entry.workday) ? (
               <span className="entry-date-chip">
-                <Calendar size={12} /> {dateLabel(entry.created_at, entry.workday)}
+                <Calendar size={13} /> {dateLabel(entry.created_at, entry.workday)}
                 {timeLabel(entry.created_at) ? (
-                  <span style={{ color: "var(--text-3)", fontWeight: 500 }}>
+                  <span style={{ color: "var(--text-3)", fontWeight: "var(--fw-label)" }}>
                     {timeLabel(entry.created_at)}
                   </span>
                 ) : null}
@@ -418,7 +418,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                   alignItems: "center",
                   gap: 4,
                   color: "var(--warn)",
-                  fontWeight: 600,
+                  fontWeight: "var(--fw-strong)",
                 }}
                 title={
                   parseWarnings.length > 0
@@ -426,7 +426,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                     : t("entry.parseWarn")
                 }
               >
-                <AlertTriangle size={12} /> {parseFailed ? t("entry.parseWarnShort") : t("entry.coerced")}
+                <AlertTriangle size={13} /> {parseFailed ? t("entry.parseWarnShort") : t("entry.coerced")}
                 {parseWarnings.length > 0 ? ` ${parseWarnings.length}` : ""}
               </span>
             ) : null}
@@ -488,16 +488,16 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 4,
-                  fontSize: 12,
-                  fontWeight: 600,
+                  fontSize: "var(--fs-5)",
+                  fontWeight: "var(--fw-strong)",
                   color: "var(--warn)",
                   marginBottom: 4,
                 }}
               >
-                <AlertTriangle size={12} />{" "}
+                <AlertTriangle size={13} />{" "}
                 {parseFailed ? t("entry.parseWarn") : t("entry.coercionTitle")}
               </div>
-              <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--text-2)" }}>
+              <ul style={{ margin: 0, paddingLeft: 16, fontSize: "var(--fs-5)", color: "var(--text-2)" }}>
                 {parseWarnings.map((w, i) => (
                   <li key={i}>{w}</li>
                 ))}
@@ -505,7 +505,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
               {canCoerceTz ? (
                 <div style={{ marginTop: 8 }}>
                   {confirmCoerce ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--fs-5)" }}>
                       <span style={{ color: "var(--text-2)" }}>
                         {t("entry.editsOriginal")}
                       </span>
@@ -590,7 +590,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                 </span>
                 {rows.length >= FILTER_FROM ? (
                   <span className="entry-filelist-filter">
-                    <Search size={12} />
+                    <Search size={13} />
                     <input
                       ref={filterRef}
                       type="text"
@@ -657,13 +657,13 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
 
           <div className="entry-narrative">
             {detail == null ? (
-              <span className="text-muted-foreground" style={{ fontSize: 12 }}>
+              <span className="text-muted-foreground" style={{ fontSize: "var(--fs-5)" }}>
                 {t("common.loading")}
               </span>
             ) : narrative.trim() ? (
               <Markdown>{narrative}</Markdown>
             ) : (
-              <span className="text-muted-foreground" style={{ fontSize: 12 }}>
+              <span className="text-muted-foreground" style={{ fontSize: "var(--fs-5)" }}>
                 {t("entry.noNarrative")}
               </span>
             )}
@@ -732,12 +732,12 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
               <EmptyState align="start" style={{ padding: 16 }}>
                 {t("entry.noDiff")}
                 <br />
-                <span className="text-muted-foreground" style={{ fontSize: 11 }}>
+                <span className="text-muted-foreground" style={{ fontSize: "var(--fs-3)" }}>
                   {t("entry.noDiffHint")}
                 </span>
                 <div style={{ marginTop: 12 }}>
                   <button className="btn sm" onClick={() => onOpenDiff(entry)}>
-                    <GitCompareArrows size={14} /> {t("entry.openInDiff")}
+                    <GitCompareArrows size={15} /> {t("entry.openInDiff")}
                   </button>
                 </div>
               </EmptyState>

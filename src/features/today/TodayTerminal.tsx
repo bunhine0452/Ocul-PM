@@ -35,7 +35,7 @@ export function TodayTerminal({
   return (
     <div className="card today-term">
       <div className="panel-head">
-        <SquareTerminal size={16} color="var(--text-2)" />
+        <SquareTerminal size={15} color="var(--text-2)" />
         <h3>{t("today.terminal.title")}</h3>
         <button
           type="button"
@@ -51,7 +51,7 @@ export function TodayTerminal({
           onClick={() => onOpenChange(!open)}
           aria-expanded={open}
         >
-          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
           {open ? t("today.terminal.collapse") : t("today.terminal.expand")}
         </button>
       </div>

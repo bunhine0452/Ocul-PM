@@ -120,13 +120,13 @@ interface CodeScreenV2Props {
 
 const LABEL: React.CSSProperties = {
   display: "block",
-  fontSize: 13,
-  fontWeight: 600,
+  fontSize: "var(--fs-7)",
+  fontWeight: "var(--fw-strong)",
   marginBottom: 6,
 };
 const HINT: React.CSSProperties = {
   margin: "6px 0 12px",
-  fontSize: 12,
+  fontSize: "var(--fs-5)",
   color: "var(--text-3)",
   lineHeight: 1.6,
 };
@@ -1019,7 +1019,7 @@ export function CodeScreenV2({
           title={t("code.search.open")}
           aria-label={t("code.search.open")}
         >
-          <TextSearch size={14} />
+          <TextSearch size={15} />
         </button>
         <button
           type="button"
@@ -1028,7 +1028,7 @@ export function CodeScreenV2({
           title={t("code.ops.newFile")}
           aria-label={t("code.ops.newFile")}
         >
-          <FilePlus size={14} />
+          <FilePlus size={15} />
         </button>
         <button
           type="button"
@@ -1037,7 +1037,7 @@ export function CodeScreenV2({
           title={t("code.ops.newFolder")}
           aria-label={t("code.ops.newFolder")}
         >
-          <FolderPlus size={14} />
+          <FolderPlus size={15} />
         </button>
         <button
           type="button"
@@ -1046,7 +1046,7 @@ export function CodeScreenV2({
           title={t(sidebarOnRight ? "code.sidebar.toLeft" : "code.sidebar.toRight")}
           aria-label={t(sidebarOnRight ? "code.sidebar.toLeft" : "code.sidebar.toRight")}
         >
-          {sidebarOnRight ? <PanelLeft size={14} /> : <PanelRight size={14} />}
+          {sidebarOnRight ? <PanelLeft size={15} /> : <PanelRight size={15} />}
         </button>
       </div>
       {tree?.truncated ? <div className="code-truncated">{t("code.truncated")}</div> : null}
@@ -1367,7 +1367,7 @@ export function CodeScreenV2({
             });
           }}
         >
-          <h2 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700 }}>
+          <h2 style={{ margin: "0 0 12px", fontSize: "var(--fs-8)", fontWeight: "var(--fw-bold)" }}>
             {t("code.debug.startTitle")}
           </h2>
           <label style={LABEL} htmlFor="dap-language">{t("code.debug.language")}</label>
@@ -1406,7 +1406,7 @@ export function CodeScreenV2({
             style={{ width: "100%", fontFamily: "var(--mono)", marginBottom: 12 }}
           />
 
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--fs-7)" }}>
             <input
               type="checkbox"
               checked={launchForm.stopOnEntry}
@@ -1433,10 +1433,10 @@ export function CodeScreenV2({
         width={440}
       >
         <div style={{ padding: "18px 20px 16px" }}>
-          <h2 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700 }}>
+          <h2 style={{ margin: "0 0 10px", fontSize: "var(--fs-8)", fontWeight: "var(--fw-bold)" }}>
             {t("code.ops.deleteTitle")}
           </h2>
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7 }}>
+          <p style={{ margin: 0, fontSize: "var(--fs-7)", lineHeight: 1.7 }}>
             {/* 하나면 그 이름을 부른다 — 여럿이면 이름 열 개를 늘어놓는 대신
                 개수로 말하고, 무엇이 걸렸는지는 아래 탭 목록이 보여 준다. */}
             {pendingDelete && pendingDelete.targets.length > 1
@@ -1448,7 +1448,7 @@ export function CodeScreenV2({
                   { name: pendingDelete ? baseName(pendingDelete.targets[0]?.path ?? "") : "" },
                 )}
           </p>
-          <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--text-3)", lineHeight: 1.6 }}>
+          <p style={{ margin: "8px 0 0", fontSize: "var(--fs-5)", color: "var(--text-3)", lineHeight: 1.6 }}>
             {t("code.ops.deleteTrashNote")}
           </p>
           {/* 열려 있던 탭·미저장 편집은 **누르기 전에** 말한다. */}

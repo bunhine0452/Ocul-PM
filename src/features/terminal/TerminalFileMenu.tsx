@@ -99,7 +99,7 @@ export function TerminalFileMenu({
       aria-label={t("term.fileRef.menu")}
     >
       <div className="tbm-head" title={hit.path}>
-        <FileCode2 size={12} aria-hidden="true" />
+        <FileCode2 size={13} aria-hidden="true" />
         <span className="tbm-cmd">
           {hit.line === null ? hit.path : `${hit.path}:${hit.line}`}
         </span>

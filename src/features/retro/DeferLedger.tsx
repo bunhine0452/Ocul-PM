@@ -91,7 +91,7 @@ export function DeferLedgerPanel({ projectId }: { projectId: number }) {
                 className="inline-flex shrink-0 items-center gap-1 rounded bg-(--warn-soft) px-1.5 py-0.5 text-[11px] font-medium text-(--warn-text)"
                 title={noTriggerTitle()}
               >
-                <TriangleAlert size={12} /> {t("retro.defer.noTrigger")}
+                <TriangleAlert size={13} /> {t("retro.defer.noTrigger")}
               </span>
             ) : (
               <span
