@@ -221,4 +221,5 @@ owner: claude-code
 | 2026-09-08T00:41:00+09:00 | #plugin-card-dismiss | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/0031_refactor_nesting-visibility-splits-and-warnings.md | 2차에서 이미 끝났는데 원본 항목을 안 닫았다 — pluginCardDismissed 설정 키와 X 버튼 확인 후 정정 |
 | 2026-09-08T00:41:00+09:00 | #neutral-session-env | claude-code | ☐→- | .oculpm/journal/20260908/Features_to_add/0030_feature_gate-attribution-segments-codex-hooks.md | blocked → dropped. 「미확인」이 아니라 「이 경로로는 불가」로 확정됐다(위 {#mcp-json-session-env} 실측). 폴백이 정답이다 |
 | 2026-09-08T15:32:58+09:00 | #eyes-tcc-desktop | claude-code | ☐→☐ | .oculpm/journal/20260908/Bugs/1516_bug_desktop-mcp-status-tcc-prompt-on-mount.md | 신규 항목 — 연동 탭 마운트가 남의 앱 데이터를 stat 하던 것을 버튼 뒤로 옮겼다. 코드 쪽은 회귀 테스트로 잠갔고 프롬프트가 안 뜨는 순간만 사람 눈이 필요하다. 설치본 2.45.1 에는 이 수정이 없으니 다음 릴리스 뒤에 tccutil reset 후 확인 |
+| 2026-09-08T17:40:20+09:00 | #eyes-terminal | claude-code | ~→~ | .oculpm/journal/20260908/Bugs/1740_bug_retire-empty-stale-pty-host.md | 빈 옛 PTY 호스트 자동 교체 추가 — 육안 확인 1건 더: 이 판 설치 뒤 터미널을 안 쓴 채 다음 업데이트를 받고, 새 호스트가 /Applications 실행파일로 떴는지(lsof -p) + 화면 기록 승인이 유지되는지 |
 <!-- oculpm:plan-log end -->

@@ -19,6 +19,15 @@ use serde::{Deserialize, Serialize};
 ///   계속 `-zsh` 를 돌려줘 새 앱에서도 고친 것이 안 고쳐진 것처럼 보인다.
 pub const PROTO_VERSION: u32 = 2;
 
+/// 이 실행파일의 판(`CARGO_PKG_VERSION`).
+///
+/// 호스트는 [`Request::Hello`] 로 이것을 말하고, 앱은 자기 것과 견준다. 호스트는
+/// **앱 업데이트를 넘어 살아남으므로**, 다른 값이 돌아왔다는 것은 지금 돌고 있는
+/// 호스트가 *예전 실행파일* 이라는 뜻이다 — 업데이트가 번들을 옮긴 뒤라 그
+/// 실행파일은 디스크에 없을 수도 있고, 그러면 macOS 가 그 프로세스를 설치된
+/// 앱으로 알아보지 못해 화면 기록 같은 권한이 영영 안 붙는다 (2026-09-08).
+pub const APP_BUILD: &str = env!("CARGO_PKG_VERSION");
+
 /// 클라이언트 → 호스트. `id` 로 응답을 짝짓는다.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClientFrame {
@@ -90,6 +99,20 @@ pub enum Response {
     Ok,
     Proto {
         proto: u32,
+        /// 이 호스트를 띄운 앱의 판 ([`APP_BUILD`]).
+        ///
+        /// **구버전 호스트는 말하지 않는다** — `None` 은 "판이 없다" 가 아니라
+        /// "모른다" 다. 이 자리를 아무 기본값으로 접으면 앱은 옛 호스트를 전부
+        /// 같은 판으로 착각한다.
+        #[serde(default)]
+        build: Option<String>,
+        /// Hello 시점에 쥐고 있는 세션 수.
+        ///
+        /// 여기서도 `None` = 모른다. **0 으로 접지 마라** — 말하지 않는 옛
+        /// 호스트를 빈 것으로 읽는 순간, 앱이 사용자의 셸을 쥔 호스트를
+        /// "비었으니 교체" 로 내린다.
+        #[serde(default)]
+        sessions: Option<u32>,
     },
     /// Start 의 결과 — 프런트 OSC 검증에 필요한 것들.
     Session {
@@ -173,6 +196,28 @@ mod tests {
                 ev: Event::Data { seq: 3, .. }
             }
         ));
+    }
+
+    /// 구버전 호스트의 Hello 응답에는 새 필드가 **없다** — 그때 둘 다 `None`
+    /// 으로 읽혀야 한다. 여기서 `sessions` 가 `0` 으로 접히면, 앱은 사용자의
+    /// 셸을 쥔 옛 호스트를 빈 것으로 보고 통째로 내린다.
+    #[test]
+    fn an_old_hello_reply_admits_it_does_not_know() {
+        let json = r#"{"kind":"reply","id":1,"resp":{"kind":"proto","proto":2}}"#;
+        let HostFrame::Reply { resp, .. } = serde_json::from_str::<HostFrame>(json).unwrap() else {
+            panic!("Reply 가 아니다");
+        };
+        let Response::Proto {
+            proto,
+            build,
+            sessions,
+        } = resp
+        else {
+            panic!("Proto 가 아니다");
+        };
+        assert_eq!(proto, 2);
+        assert_eq!(build, None, "옛 호스트는 판을 말하지 않는다");
+        assert_eq!(sessions, None, "모르는 것은 0 이 아니다");
     }
 
     /// 알 수 없는 **추가 필드**는 무시된다 — 구버전 호스트가 신버전 앱의

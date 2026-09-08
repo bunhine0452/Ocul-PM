@@ -13,7 +13,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::UnixStream;
 use tokio::sync::{mpsc, oneshot};
 
-use super::protocol::{ClientFrame, Event, HostFrame, Request, Response, PROTO_VERSION};
+use super::protocol::{ClientFrame, Event, HostFrame, Request, Response, APP_BUILD, PROTO_VERSION};
 use crate::framing::{encode_frame, parse_frame, Frame};
 
 /// 스폰 후 접속 재시도 — 50ms × 60 = 최대 3초. cargo 디버그 빌드의 느린
@@ -32,6 +32,8 @@ pub struct PtyHostClient {
     alive: Arc<AtomicBool>,
     /// 붙어 있는 호스트가 말하는 프로토콜 번호 — 우리 것과 다를 수 있다.
     host_proto: AtomicU32,
+    /// 이 호스트를 **조용히 갈아 치워도 되는가** — Hello 가 판단해 세운다.
+    replaceable: AtomicBool,
     /// 읽기 루프. 버릴 때 **여기서 소켓을 놓아야** 호스트가 EOF 를 본다.
     reader: tokio::task::JoinHandle<()>,
 }
@@ -137,6 +139,7 @@ impl PtyHostClient {
             next_id: AtomicU64::new(1),
             alive,
             host_proto: AtomicU32::new(PROTO_VERSION),
+            replaceable: AtomicBool::new(false),
             reader,
         };
 
@@ -151,7 +154,11 @@ impl PtyHostClient {
         // 우리 호스트가 아니다. 그때도 내리지는 않는다 — 남의 호스트를
         // 내리는 것은 남의 셸을 죽이는 것이다.
         match client.request(Request::Hello).await? {
-            Response::Proto { proto } => {
+            Response::Proto {
+                proto,
+                build,
+                sessions,
+            } => {
                 client.host_proto.store(proto, Ordering::SeqCst);
                 if proto != PROTO_VERSION {
                     tracing::info!(
@@ -161,10 +168,37 @@ impl PtyHostClient {
                         "옛 PTY 호스트를 이어받는다 — 번호 차이는 앱이 맞춘다"
                     );
                 }
+                if is_replaceable(build.as_deref(), sessions) {
+                    tracing::info!(
+                        target: "terminal",
+                        host = build.as_deref().unwrap_or("?"),
+                        app = APP_BUILD,
+                        "빈 옛 PTY 호스트 — 조용히 교체한다"
+                    );
+                    client.replaceable.store(true, Ordering::SeqCst);
+                } else if build.as_deref().is_some_and(|b| b != APP_BUILD) {
+                    // 옛 판인데 못 내렸다. 이 줄이 없으면 "왜 이 프로세스는 옛
+                    // 실행파일인가" 를 다음에 또 `lsof` 로 캐야 한다 — 진단이 한
+                    // 줄이면 로그에 남겨 둔다. `sessions` 는 **그대로** 찍는다:
+                    // `None`(모른다)을 0 으로 접어 놓으면 로그가 "비었는데도 안
+                    // 갈았다" 고 거짓말한다.
+                    tracing::info!(
+                        target: "terminal",
+                        host = build.as_deref().unwrap_or("?"),
+                        app = APP_BUILD,
+                        sessions = ?sessions,
+                        "옛 판의 PTY 호스트를 이어받는다 — 빈 것이 확인되지 않아 교체하지 않는다"
+                    );
+                }
                 Ok(client)
             }
             other => Err(format!("unexpected hello response: {other:?}")),
         }
+    }
+
+    /// 이 호스트를 내리고 새로 띄워도 **잃을 것이 없는가** ([`is_replaceable`]).
+    pub fn is_replaceable(&self) -> bool {
+        self.replaceable.load(Ordering::SeqCst)
     }
 
     pub async fn request(&self, req: Request) -> Result<Response, String> {
@@ -290,6 +324,43 @@ pub fn spawn_host_process(socket: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// 만난 호스트를 **조용히 갈아 치워도 되는가.**
+///
+/// 호스트가 앱보다 오래 사는 이유는 하나뿐이다 — 업데이트를 건너기 위해서.
+/// 그런데 건넌 다음에도 **영영 그대로 남는다**: 앱은 `Shutdown` 을 보내지 않고,
+/// 유휴 수거는 붙어 있는 클라이언트가 있는 한 걸리지 않는다. 그래서 업데이트
+/// 이후의 호스트는 재부팅 전까지 *옛 실행파일* 로 돈다. 업데이트가 번들을 옮긴
+/// 뒤라 그 실행파일은 디스크에서 사라져 있고, 그러면 macOS 는 그 프로세스를
+/// 설치된 앱으로 알아보지 못한다 — 내장 터미널에서 띄운 도구가 화면 기록 권한을
+/// 달라고 해서 허용해 줘도, 승인은 `/Applications` 의 앱 앞으로 적히고 요청은
+/// 사라진 실행파일에서 오므로 **몇 번을 허용해도 다시 묻는다** (2026-09-08).
+///
+/// 두 조건이 **다 서야** 참이다:
+/// - 호스트가 자기 판을 말했고, 그것이 지금 앱의 판과 다르다. 말하지 않는
+///   구버전 호스트는 판단하지 않는다 — 모르는 것을 옛것으로 몰면 안 된다.
+/// - 쥐고 있는 세션이 0 이라고 **직접 말했다.** 여기가 이 판단의 전부다:
+///   세션을 쥔 호스트를 내리는 것이 애초에 이 기능이 막으려던 사고이고,
+///   `None`(모른다)을 0 으로 읽는 순간 그 사고가 그대로 돌아온다.
+fn is_replaceable(host_build: Option<&str>, sessions: Option<u32>) -> bool {
+    match (host_build, sessions) {
+        (Some(build), Some(0)) => build != APP_BUILD,
+        _ => false,
+    }
+}
+
+/// 빈 옛 호스트를 내린다. 응답이 돌아왔다면 자리(소켓 파일)는 **이미 비어
+/// 있다** — `host::vacate` 가 응답보다 먼저 지운다. 그래서 곧바로 새 호스트를
+/// 띄워도 bind 가 부딪히지 않는다.
+///
+/// 실패해도 그냥 간다. 자리를 못 비웠다면 뒤이어 뜬 호스트가 "이미 있다"고
+/// 조용히 물러나고 우리는 재시도에서 옛 호스트를 다시 만날 뿐 — 교체 이전과
+/// 같은 상태지, 더 나쁘지 않다.
+async fn retire(client: &PtyHostClient) {
+    if let Err(e) = client.request(Request::Shutdown).await {
+        tracing::warn!(target: "terminal", error = %e, "빈 옛 PTY 호스트를 내리지 못했다");
+    }
+}
+
 /// 살아 있는 호스트에 붙는다 — **정식 자리부터 옛 자리까지** 차례로. 아무도
 /// 없으면 (요청 시) 정식 자리에 띄우고 재시도한다.
 ///
@@ -302,16 +373,29 @@ pub async fn connect_or_spawn(
     on_event: impl Fn(Event) + Send + Sync + Clone + 'static,
 ) -> Result<Option<PtyHostClient>, String> {
     for (i, socket) in candidates.iter().enumerate() {
-        if let Ok(c) = PtyHostClient::connect(socket, on_event.clone()).await {
-            if i > 0 {
-                tracing::info!(
-                    target: "terminal",
-                    socket = %socket.display(),
-                    "옛 자리의 PTY 호스트를 이어받았다"
-                );
-            }
-            return Ok(Some(c));
+        let Ok(c) = PtyHostClient::connect(socket, on_event.clone()).await else {
+            continue;
+        };
+        // 업데이트를 건너온 **빈** 호스트는 여기서 갈아 치운다
+        // ([`is_replaceable`]). 세션을 쥔 호스트에는 이 길이 없다 — 그걸
+        // 이어받는 것이 이 함수의 존재 이유고, 그 계약은 그대로다.
+        //
+        // 새로 띄우지 않기로 한 호출(`spawn_if_missing == false`)에서는 손대지
+        // 않는다. 그 길은 "있으면 말만 걸겠다" 는 뜻이라, 내려놓고 안 띄우면
+        // 다음 호출이 만날 호스트가 사라진다.
+        if spawn_if_missing && c.is_replaceable() {
+            retire(&c).await;
+            drop(c);
+            break;
         }
+        if i > 0 {
+            tracing::info!(
+                target: "terminal",
+                socket = %socket.display(),
+                "옛 자리의 PTY 호스트를 이어받았다"
+            );
+        }
+        return Ok(Some(c));
     }
     if !spawn_if_missing {
         return Ok(None);
@@ -360,6 +444,35 @@ mod tests {
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             assert!(name.ends_with("-dev.sock"), "{name}");
         }
+    }
+
+    /// 교체의 두 조건 — **판이 다르고, 세션이 0 이라고 직접 말했다**.
+    #[test]
+    fn only_an_empty_host_from_another_build_is_replaceable() {
+        assert!(is_replaceable(Some("2.44.0"), Some(0)));
+        assert!(
+            !is_replaceable(Some(APP_BUILD), Some(0)),
+            "지금 판의 호스트는 비어 있어도 그대로 쓴다 — 갈아 치울 이유가 없다"
+        );
+        assert!(
+            !is_replaceable(Some("2.44.0"), Some(1)),
+            "세션을 쥔 호스트는 옛 판이어도 못 내린다 — 그게 사용자의 셸이다"
+        );
+    }
+
+    /// 말하지 않는 호스트는 **판단하지 않는다.** `None` 을 0 으로 읽는 순간
+    /// 이 기능은 "빈 호스트 교체" 가 아니라 "옛 호스트의 셸 학살" 이 된다.
+    #[test]
+    fn a_silent_old_host_is_never_replaced() {
+        assert!(!is_replaceable(None, None), "아무 말도 없다");
+        assert!(
+            !is_replaceable(None, Some(0)),
+            "판을 모르면 옛것인지 모른다"
+        );
+        assert!(
+            !is_replaceable(Some("2.44.0"), None),
+            "세션 수를 모르면 비었는지 모른다"
+        );
     }
 
     /// 정식 자리가 먼저, 옛 자리가 뒤 — 새로 띄우는 것은 언제나 정식 자리다.
