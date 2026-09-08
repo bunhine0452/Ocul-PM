@@ -257,65 +257,6 @@ impl Db {
         Ok(subtasks)
     }
 
-    // ---------- F4: Retro insights ----------
-
-    pub async fn get_retro_insight(
-        &self,
-        project_id: u32,
-        range_key: String,
-    ) -> Result<Option<RetroInsight>> {
-        let retro = self
-            .conn
-            .call(move |c| {
-                c.query_row(
-                    "SELECT project_id, range_key, signature, retro_md,
-                            generated_at, generated_by_model
-                     FROM retro_insights WHERE project_id = ?1 AND range_key = ?2",
-                    params![project_id as i64, range_key],
-                    retro_insight_from_row,
-                )
-                .optional()
-            })
-            .await?;
-        Ok(retro)
-    }
-
-    pub async fn upsert_retro_insight(
-        &self,
-        project_id: u32,
-        range_key: String,
-        signature: String,
-        retro_md: String,
-        generated_at: u32,
-        generated_by_model: Option<String>,
-    ) -> Result<()> {
-        self.conn
-            .call(move |c| {
-                c.execute(
-                    "INSERT INTO retro_insights (
-                        project_id, range_key, signature, retro_md,
-                        generated_at, generated_by_model
-                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-                     ON CONFLICT(project_id, range_key) DO UPDATE SET
-                        signature = excluded.signature,
-                        retro_md = excluded.retro_md,
-                        generated_at = excluded.generated_at,
-                        generated_by_model = excluded.generated_by_model",
-                    params![
-                        project_id as i64,
-                        range_key,
-                        signature,
-                        retro_md,
-                        generated_at as i64,
-                        generated_by_model,
-                    ],
-                )?;
-                Ok(())
-            })
-            .await?;
-        Ok(())
-    }
-
     // ---------- Blueprints (W6 / G4) ----------
 
     #[allow(clippy::too_many_arguments)]

@@ -831,9 +831,6 @@ pub enum OculpmDataArea {
     /// 다시 읽는다 (Phase 4). 예전엔 `.claude/**` 가 에이전트 내부 상태로 통째로
     /// 버려져 어떤 신호도 나가지 않았다.
     Rules,
-    /// `.oculpm/retro/**` — 회고 화면이 다시 읽는다 (Phase 4). 예전엔 코드 변경
-    /// 파이프라인으로 새어 들어갔다.
-    Retro,
     /// `.oculpm/automation/**` — 자동화 탭이 다시 읽는다 (Osaurus Phase 2).
     /// 정의는 사람이 손으로 고치고 git 에 올릴 수 있는 파일이라 UI 가 그
     /// 변경을 봐야 한다. 동시에 자동화 **트리거 원인에서는 제외**된다

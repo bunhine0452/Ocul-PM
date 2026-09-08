@@ -398,7 +398,6 @@ impl WatcherInner {
             OculpmDataArea::Planner,
             OculpmDataArea::Discussion,
             OculpmDataArea::Rules,
-            OculpmDataArea::Retro,
             OculpmDataArea::Automation,
         ] {
             self.emit_data_changed(area, "", FileOp::Update);
@@ -1516,6 +1515,8 @@ fn is_agent_state_path(rel_str: &str) -> bool {
         // state below the root (`packages/web/.claude/settings.json`); the
         // root-prefix check alone let those through.
         || paths::is_nested_agent_state_path(rel_str)
+        // 회고 화면은 갔어도 마크다운은 남는다 — 안 삼키면 감사에 가짜 "누락" 이 뜬다.
+        || rel_str.starts_with(".oculpm/retro/")
 }
 
 /// Map a notify [`FileOp`] + disk-existence into a [`PathChangeKind`] that
@@ -1577,9 +1578,6 @@ fn data_area_for_path(rel_str: &str) -> Option<OculpmDataArea> {
     }
     if rel_str.starts_with(".oculpm/discussion/") {
         return Some(OculpmDataArea::Discussion);
-    }
-    if rel_str.starts_with(".oculpm/retro/") {
-        return Some(OculpmDataArea::Retro);
     }
     None
 }
@@ -2155,6 +2153,8 @@ mod tests {
             None
         );
         // 접두사에 `/` 를 넣은 이유 — 이웃 디렉터리를 삼키지 않는다.
+        // 회고 화면 삭제 (2026-09-08) — 데이터 영역이 아니고 `is_agent_state_path` 가 삼킨다.
+        assert_eq!(data_area_for_path(".oculpm/retro/w.md"), None);
         assert_eq!(data_area_for_path(".oculpm/planner-backup/old.md"), None);
         assert_eq!(data_area_for_path(".oculpm/discussions.md"), None);
         // 프로젝트 소스에 같은 이름의 디렉터리가 있어도 무관해야 한다.

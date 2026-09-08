@@ -67,8 +67,6 @@ export const ALLOWLIST = new Set([
   // 아니라 `DiscussionScreenV2` 가 들고 있던 것이 그대로 따라왔다.
   // 옮길 때는 화면과 함께 보낸다.
   "features/discussion/useDiscussionSave.ts",
-  "features/docs/DocsImage.tsx",
-  "features/docs/DocsScreenV2.tsx",
   "features/graph/GraphInspector.tsx",
   "features/graph/GraphScreenV2.tsx",
   "features/oculpm/useJournalDays.ts",
@@ -80,12 +78,6 @@ export const ALLOWLIST = new Set([
   // v3-release {#planner-diff-split} — 위 diff 조각들과 한 짝이다.
   "features/planner/usePlanDocument.ts",
   "features/projects/ProjectManager.tsx",
-  "features/retro/DeferLedger.tsx",
-  "features/retro/EvalTrend.tsx",
-  "features/retro/RetroScreenV2.tsx",
-  "features/retro/RuleCandidates.tsx",
-  "features/retro/SkillCandidates.tsx",
-  "features/retro/retroGen.ts",
   "features/search/SearchScreenV2.tsx",
   "features/settings/CodeSettings.tsx",
   "features/settings/MobileSettings.tsx",
@@ -98,7 +90,9 @@ export const ALLOWLIST = new Set([
   "features/settings/tabs/LlmTab.tsx",
   "features/settings/tabs/UpdateTab.tsx",
   "features/shell/ShellV2.tsx",
+  "features/skills/RuleCandidates.tsx",
   "features/skills/PluginDocsTab.tsx",
+  "features/skills/SkillCandidates.tsx",
   "features/skills/SkillShopTab.tsx",
   "features/skills/useFiringLedger.ts",
   "features/terminal/TerminalAway.tsx",

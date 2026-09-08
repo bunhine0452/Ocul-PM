@@ -88,7 +88,7 @@ vi.mock("@/lib/bindings", () => {
   };
 });
 
-import { RuleCandidatesPanel } from "@/features/retro/RuleCandidates";
+import { RuleCandidatesPanel } from "@/features/skills/RuleCandidates";
 
 beforeEach(() => {
   fx.candidates = [candidate()];

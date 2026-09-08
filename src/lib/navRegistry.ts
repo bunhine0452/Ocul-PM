@@ -4,10 +4,8 @@ import {
   MessagesSquare,
   TargetIcon,
   GitCompareArrows,
-  History,
   SearchIcon,
   Network,
-  BookText,
   SquareTerminal,
   MessageSquareText,
   Puzzle,
@@ -84,16 +82,19 @@ const AGENT_BRANCHES: NavEntry[] = [
 ];
 
 /**
- * 사이드바 행 14개 (2026-09-06 IA 재편, 안 A: 17화면 → 15).
+ * 사이드바 행 13개 (2026-09-06 IA 재편 이후, 2026-09-08 회고·문서 삭제 반영).
  *
  * 무엇이 바뀌었나:
  *
  * - **Claude Code · Codex · 세션 → 「에이전트」 한 행.** 셋 다 "에이전트에게
  *   시키는 곳"인데 사이드바에서 세 줄을 먹었다. 화면은 셋 다 살아 있고
  *   (`children`), 컴포넌트도 두 벌 keep-alive 그대로다 — 행만 하나다.
- * - **논의·문서를 `ref`(참고) 로 강등하고 ⌘번호를 회수했다.** 이 저장소 실측
- *   으로 논의 4건 vs 일지 537건이고, `docs/` 가 없는 프로젝트에서 ⌘9(문서)는
- *   **영구 빈 화면**이었다. 매일 쓰는 것이 번호를 갖는다.
+ * - **논의를 `ref`(참고) 로 강등하고 ⌘번호를 회수했다.** 이 저장소 실측으로
+ *   논의 4건 vs 일지 537건이다. 매일 쓰는 것이 번호를 갖는다.
+ * - **회고·문서 화면을 없앴다 (2026-09-08).** 회고는 신호 집계가 실제 쓰임에
+ *   비해 표면이 컸고, 문서는 `docs/` 가 없는 프로젝트에서 영구 빈 화면이었다.
+ *   두 화면이 빠지면서 ⌘번호가 한 번 더 당겨진다 — 번호는 배열 앞 10칸의
+ *   것이라는 계약 그대로다.
  * - **재명명** — 코드 검색 → 검색 · 코드 → 편집기 · Diff → 변경. 옛 이름은
  *   ⌘K 별칭에 남긴다 (v2.17.0 선례).
  *
@@ -108,8 +109,7 @@ export const NAV_ENTRIES: NavEntry[] = [
   { id: "journal", labelKey: "nav.journal", aliasKey: "nav.journal.alias", icon: NotebookText, group: "main" },
   { id: "diff", labelKey: "nav.diff", aliasKey: "nav.diff.alias", icon: GitCompareArrows, group: "main" },
   { id: "planner", labelKey: "nav.planner", aliasKey: "nav.planner.alias", icon: TargetIcon, group: "main" },
-  { id: "retro", labelKey: "nav.retro", aliasKey: "nav.retro.alias", icon: History, group: "main" },
-  // ── 코드 작업면. 안쪽 순서는 재편 전과 같다 (문서만 빠졌다).
+  // ── 코드 작업면.
   { id: "search", labelKey: "nav.search", aliasKey: "nav.search.alias", icon: SearchIcon, group: "tools" },
   { id: "graph", labelKey: "nav.graph", aliasKey: "nav.graph.alias", icon: Network, group: "tools" },
   { id: "terminal", labelKey: "nav.terminal", aliasKey: "nav.terminal.alias", icon: SquareTerminal, group: "tools" },
@@ -120,9 +120,8 @@ export const NAV_ENTRIES: NavEntry[] = [
   { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: MessageSquareText, group: "ai" },
   // PR-CI3 — 스킬 화면을 스킬·규칙·훅 허브로 확장 (id 는 유지 — 저장된 uiV2View 호환).
   { id: "skills", labelKey: "nav.skills", aliasKey: "nav.skills.alias", icon: Puzzle, group: "ai" },
-  // ── 참고. 가끔 열고, 없으면 비어 있는 것이 정상인 화면들.
+  // ── 참고. 가끔 열고, 없으면 비어 있는 것이 정상인 화면.
   { id: "discussion", labelKey: "nav.discussion", aliasKey: "nav.discussion.alias", icon: MessagesSquare, group: "ref" },
-  { id: "docs", labelKey: "nav.docs", aliasKey: "nav.docs.alias", icon: BookText, group: "ref" },
   // 브랜치의 이야기 (v3-surface {#branch-story-view}) — 일지·플랜·커밋을
   // **브랜치**로 묶어 읽는다. 코어 루프(일지·플래너·변경)를 다른 축으로 다시
   // 읽는 곳이라 코어 루프 곁(main)에 둔다.
@@ -168,12 +167,12 @@ export function navShortcutLabel(view: UiV2View): string | undefined {
  */
 export const NAV_BUS = {
   openProjectSwitcher: "oculpm:open-project-switcher",
-  /** detail: { kind: "journal"|"plan"|"plan_item"|"discussion"|"doc", id: string } */
+  /** detail: { kind: "journal"|"plan"|"plan_item"|"discussion"|"code", id: string } */
   openEntity: "oculpm:open-entity",
 } as const;
 
 export interface OpenEntityDetail {
-  kind: "journal" | "plan" | "plan_item" | "discussion" | "doc" | "code";
+  kind: "journal" | "plan" | "plan_item" | "discussion" | "code";
   /** 엔티티 id. `code` 는 프로젝트 상대 파일 경로. */
   id: string;
   /** `code` 전용 — 0-based 줄. 워크스페이스 심볼이 정확한 자리로 보낸다. */

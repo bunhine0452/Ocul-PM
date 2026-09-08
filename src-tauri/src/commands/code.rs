@@ -1,6 +1,6 @@
 //! 코드 화면 백엔드 — 프로젝트 파일 트리 + 읽기/쓰기 (docs/code-editor/00-master-plan.md).
 //!
-//! SSOT 는 디스크다 — docs 뷰어와 같은 원칙으로 캐시를 두지 않는다. 모든 경로는
+//! SSOT 는 디스크다 — 캐시를 두지 않는다. 모든 경로는
 //! project.rs 의 [`secure_join`] 을 거쳐 프로젝트 루트 밖으로 못 나간다.
 //!
 //! 쓰기는 낙관적 잠금이다: 프런트가 읽을 때 받은 blake3 해시를 저장 시 되돌려
@@ -16,7 +16,7 @@ use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::commands::docs::natural_cmp;
+use crate::commands::fsutil::natural_cmp;
 use crate::commands::project::secure_join;
 use crate::db::Db;
 use crate::oculpm::history::HistoryState;
@@ -37,7 +37,7 @@ const MAX_EDIT_BYTES: u64 = 2 * 1024 * 1024;
 
 /// 미리보기(이미지·PDF)로 실어 나르는 파일의 상한. 편집 상한([`MAX_EDIT_BYTES`])
 /// 보다 크게 잡는다 — 스크린샷 한 장이 2MB 를 넘는 일은 흔해서, 같은 값을 쓰면
-/// 정작 미리보기가 필요한 파일에서만 "너무 큼" 이 뜨는 꼴이 된다. docs 뷰어와 같은 값.
+/// 정작 미리보기가 필요한 파일에서만 "너무 큼" 이 뜨는 꼴이 된다.
 const MAX_PREVIEW_BYTES: u64 = 16 * 1024 * 1024;
 
 /// 바이너리 판정 프로브 크기 — 선두 8KB 에 NUL 이 있으면 바이너리로 본다.
@@ -53,7 +53,7 @@ const PREVIEW_BEFORE_CHARS: usize = 40;
 const PREVIEW_AFTER_CHARS: usize = 200;
 
 /// 코드 트리 한 노드. `relative_path` 는 프로젝트 루트 기준 슬래시 경로 —
-/// 그대로 `code_read`/`code_write` 인자로 쓴다 (docs 뷰어와 같은 계약).
+/// 그대로 `code_read`/`code_write` 인자로 쓴다.
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct CodeTreeNode {
     pub name: String,
@@ -104,7 +104,7 @@ pub struct CodeFileContent {
 
 /// `code_asset` 응답 — 이미지/PDF 바이트를 base64 + MIME 으로. 웹뷰는 임의 파일
 /// 경로를 `<img src>` 로 직접 못 읽으므로, 프런트가 이걸 Blob 으로 되돌려 문다
-/// (docs 뷰어의 `docs_asset` 과 같은 계약).
+
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct CodeAsset {
     pub mime: String,
@@ -256,7 +256,7 @@ pub async fn code_asset(
         .map_err(|e| format!("Failed to read file: {e}"))?;
     let len = bytes.len() as u32;
     Ok(CodeAsset {
-        mime: crate::commands::docs::mime_for(&full),
+        mime: crate::commands::fsutil::mime_for(&full),
         base64: base64::engine::general_purpose::STANDARD.encode(&bytes),
         bytes: len,
     })
@@ -1154,7 +1154,7 @@ fn read_dir_level(root: &Path, dir: &Path, max_entries: usize) -> CodeDirListing
     CodeDirListing { entries, truncated }
 }
 
-/// 폴더 우선, 그다음 자연 정렬 (docs 트리의 `natural_cmp` 재사용 — `10-x` 가
+/// 폴더 우선, 그다음 자연 정렬 (`fsutil::natural_cmp` — `10-x` 가
 /// `2-x` 뒤에 오도록).
 fn sort_nodes(nodes: &mut [CodeTreeNode]) {
     nodes.sort_by(|a, b| {

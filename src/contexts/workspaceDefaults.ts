@@ -68,7 +68,6 @@ export const DEFAULT_STATE: WorkspaceState = {
   codexAcpLastSession: null,
   acpUltracode: false,
   aiThreadId: null,
-  docsActivePath: null,
   codeActivePath: null,
   codeTabs: null,
   codePanelHeight: 240,

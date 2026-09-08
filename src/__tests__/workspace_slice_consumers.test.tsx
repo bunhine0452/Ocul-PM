@@ -135,7 +135,7 @@ describe("워크스페이스 조각 격리", () => {
       };
     };
 
-    const views = ["journal", "diff", "planner", "retro", "search"] as const;
+    const views = ["journal", "diff", "planner", "graph", "search"] as const;
     let i = 0;
     expect(await deltas(() => api!.setUiV2View(views[i++]))).toEqual({
       full: 5, prefs: 5, runtime: 0, terminal: 0,

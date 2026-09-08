@@ -284,14 +284,14 @@ describe("WorkspaceProvider(projectId)", () => {
   it("과거 레코드에 남은 currentProjectId 가 탭의 프로젝트를 덮어쓰지 못한다", () => {
     localStorage.setItem(
       storageKeyFor(9),
-      JSON.stringify({ schemaVersion: 3, currentProjectId: 42, uiV2View: "retro" }),
+      JSON.stringify({ schemaVersion: 3, currentProjectId: 42, uiV2View: "graph" }),
     );
     const r = render(
       <WorkspaceProvider projectId={9}>
         <Probe onReady={() => {}} />
       </WorkspaceProvider>,
     );
-    expect(r.getByTestId("view").textContent).toBe("9:retro");
+    expect(r.getByTestId("view").textContent).toBe("9:graph");
   });
 });
 

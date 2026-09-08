@@ -257,7 +257,6 @@ use crate::commands::{
     dap_variables,
     db_compact,
     db_health,
-    defer_signals,
     delete_blueprint,
     delete_project,
     detach_tab,
@@ -277,24 +276,17 @@ use crate::commands::{
     discussion_rename,
     discussion_set_status,
     discussion_write,
-    docs_asset,
-    docs_read,
-    // 문서(docs) 뷰어 — docs/ 트리 + 마크다운 읽기 + 이미지 자산
-    docs_tree,
     drop_tear_off,
-    eval_signals,
     firing_quotes,
     firing_rebuild,
     // AD-1 — 발동 원장 (transcript 기반 규칙 주입·스킬 발동 계측)
     firing_rescan,
     firing_stats,
-    generate_retro,
     get_change_impact,
     get_code_graph,
     get_file_calls,
     get_file_symbols,
     // G2 — Project Overview + Daily Brief
-    get_retro,
     get_window_tabs,
     git_graph,
     git_head_status_brief,
@@ -437,9 +429,7 @@ use crate::commands::{
     rename_project,
     reorder_tabs,
     resize_pty,
-    retro_dispatch_prompt,
     // F4 — 회고/인사이트 (+ PR-CI6 eval 추이, defer 원장)
-    retro_signals,
     reveal_in_file_manager,
     // PR-CI4 — 실패→규칙 승격 (결정적 후보 + 옵인 LLM 초안; 저장은 rules_save 승인 경로만)
     rule_candidates,
@@ -699,10 +689,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             dap_scopes,
             dap_variables,
             lsp_stop,
-            // 문서(docs) 뷰어
-            docs_tree,
-            docs_read,
-            docs_asset,
             // 문제 해결(Discussion) — PR-DISC 0/1/2/4
             discussion_list,
             discussion_get,
@@ -793,13 +779,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // F5 — git-history backfill
             oculpm_backfill_from_git,
             // F4 — 회고/인사이트 (+ PR-CI6 eval 추이)
-            retro_signals,
             oculpm_generate_summary,
-            get_retro,
-            generate_retro,
-            retro_dispatch_prompt,
-            eval_signals,
-            defer_signals,
             // C2 — 일지 내보내기
             oculpm_export_digest,
             // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills)

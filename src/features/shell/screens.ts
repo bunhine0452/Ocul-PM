@@ -14,11 +14,8 @@ import { lazy } from "react";
 
 // v2 U6 (docs/20260706_v2/03-performance-spec.md §2) — 핵심 루프 4화면
 // (Today/일지/diff/플래너)만 eager. 나머지는 화면별 청크로 분할해 프로젝트
-// 첫 오픈 비용에서 뺀다 — 특히 터미널(xterm)·AI/문서/토의/회고(markdown)·
+// 첫 오픈 비용에서 뺀다 — 특히 터미널(xterm)·AI/토의(markdown)·
 // 설정(1400줄)·검색. 코드 맵(React Flow+dagre)은 이전부터 lazy.
-export const RetroScreenV2 = lazy(() =>
-  import("@/features/retro/RetroScreenV2").then((m) => ({ default: m.RetroScreenV2 })),
-);
 export const SearchScreenV2 = lazy(() =>
   import("@/features/search/SearchScreenV2").then((m) => ({ default: m.SearchScreenV2 })),
 );
@@ -33,9 +30,6 @@ export const ClaudeCodeScreenV2 = lazy(() =>
 );
 export const CodexScreenV2 = lazy(() =>
   import("@/features/chat/CodexScreenV2").then((m) => ({ default: m.CodexScreenV2 })),
-);
-export const DocsScreenV2 = lazy(() =>
-  import("@/features/docs/DocsScreenV2").then((m) => ({ default: m.DocsScreenV2 })),
 );
 export const DiscussionScreenV2 = lazy(() =>
   import("@/features/discussion/DiscussionScreenV2").then((m) => ({

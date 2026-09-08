@@ -98,6 +98,10 @@ pub(super) const MIGRATIONS: &[(i64, &str)] = &[
         37,
         include_str!("../../migrations/037_oculpm_agent_session.sql"),
     ),
+    (
+        38,
+        include_str!("../../migrations/038_drop_retro_insights.sql"),
+    ),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —
