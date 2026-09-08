@@ -58,7 +58,11 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.45.0 — open it straight from the download
+## 🚀 v2.45.1 — the window that opened and vanished
+
+- **A stray Ocul-PM window would pop up and disappear a few seconds later while you worked in the app's terminal.** It really was a second copy of the app: the `oculpm` command the terminal hands to agents launched the whole app whenever it met **a word it did not know** — one stale line in a config, one typo, was enough — and the window vanished when the caller killed it on timeout. A call made under that name now always ends as a command, answering an unknown word with its usage instead of a window. A `--project <path>` written before the tool name, silently dropped until now, is honored too.
+
+## v2.45.0 — open it straight from the download
 
 - **You no longer need a terminal to open the app.** Until now macOS refused the `.dmg` with "is damaged and can't be opened", and clearing it meant typing `xattr -dr com.apple.quarantine` yourself — the first gate after downloading was a terminal. Builds are now **signed with an Apple Developer ID and notarized**. (Because the signature changed, your keychain may ask once on the first launch of this version — click **Always Allow**; nothing stored is lost.)
 - **The app now answers when a skill fires.** That answer used to be one line the skill wrote about itself. The detail view now leads with **"When it fires"** — automatic or user-invoked, and which files wake it — and the ledger quotes **the actual prompt that triggered it** when it did.

@@ -152,6 +152,15 @@ fn dispatch(args: Vec<String>) -> Result<String, Fail> {
     if tool == "tools" {
         return Ok(tools::tool_definitions().to_string());
     }
+    // 모르는 낱말은 **여기서** 끝난다. 계속 내려가면 프로젝트 판정을 먼저
+    // 만나 "추적되지 않는 프로젝트"(3) 같은 엉뚱한 코드로 나가고, 부르는
+    // 쪽은 자기가 이름을 틀렸다는 것을 끝내 모른다.
+    if !is_cli_verb(&tool) {
+        return Err(fail(
+            1,
+            format!("unknown tool: {tool}\n\n{}", USAGE.trim_end()),
+        ));
+    }
 
     let token = shim::resolve_token(std::env::args().next().as_deref());
     let root = resolve_root(project, token.as_ref())?;
@@ -313,6 +322,23 @@ mod tests {
         assert!(!is_cli_verb("-psn_0_1234"));
         assert!(!is_cli_verb("journal"));
         assert!(!is_cli_verb(""));
+    }
+
+    /// 모르는 낱말은 **사용자 오류(1)** 다 — GUI 로 새지 않는다.
+    ///
+    /// 전역 훅에 남아 있던 `oculpm hook pretooluse` 가 `main` 의 낱말 판정을
+    /// 통과하지 못해 tauri 빌더까지 흘러갔고, 편집마다 두 번째 앱 인스턴스가
+    /// 떴다가 훅 타임아웃에 죽었다 (2026-09-08).
+    #[test]
+    fn an_unknown_tool_is_a_user_error() {
+        let err = dispatch(vec!["hook".into(), "pretooluse".into()]).unwrap_err();
+        assert_eq!(err.code, 1);
+        assert!(
+            err.message.contains("unknown tool: hook"),
+            "{}",
+            err.message
+        );
+        assert!(err.message.contains("usage:"), "{}", err.message);
     }
 
     #[test]

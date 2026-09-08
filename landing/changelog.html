@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.45.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 97개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.45.1)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 98개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.45.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 97개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.45.1)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 98개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.45.0</span>
+    <span class="nav-ver" data-version>v2.45.1</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>97개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>98개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-45-1">v2.45.1</a>
       <a href="#v2-45-0">v2.45.0</a>
       <a href="#v2-44-1">v2.44.1</a>
       <a href="#v2-44-0">v2.44.0</a>
@@ -61,10 +62,16 @@
       <a href="#v2-39-0">v2.39.0</a>
       <a href="#v2-38-0">v2.38.0</a>
       <a href="#v2-37-0">v2.37.0</a>
-      <a href="#v2-36-0">v2.36.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-45-1"><a href="#v2-45-1">v2.45.1</a></h2>
+      <div class="cl-body">
+<p><b>앱 안 터미널에서 일하다 보면 ocul-pm 창이 하나 툭 떴다가 몇 초 뒤 저절로 사라졌습니다.</b> 유령이 아니라 진짜로 앱이 한 벌 더 뜬 것이었습니다. 앱 터미널은 에이전트가 기록을 남길 수 있도록 <code>oculpm</code> 명령을 손에 쥐여 주는데, 그 명령이 <b>모르는 낱말</b>을 받으면 — 설정에 남은 옛 줄 하나, 오타 하나면 충분했습니다 — 명령으로 처리하지 않고 앱을 통째로 한 번 더 실행했습니다. 그걸 부른 쪽이 몇 초 뒤 타임아웃으로 그 프로세스를 죽이면 창도 함께 사라졌고요. 편집이 일어날 때만, 그것도 앱 안 터미널에서만 걸려서 「가끔」으로 보였습니다.</p>
+<p>이제 <code>oculpm</code> 이라는 이름으로 불린 호출은 <b>낱말이 무엇이든 명령으로 끝납니다.</b> 모르는 낱말에는 창 대신 「unknown tool」과 사용법을 돌려줍니다. 덤으로 <code>oculpm --project &lt;경로&gt; journal_write …</code> 처럼 경로를 앞에 적은 호출에서 그 경로가 조용히 무시되던 것도 고쳤습니다 — 엉뚱한 프로젝트에 일지가 남을 수 있는 자리였습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-45-0"><a href="#v2-45-0">v2.45.0</a></h2>
       <div class="cl-body">

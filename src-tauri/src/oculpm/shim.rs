@@ -226,6 +226,19 @@ fn resolve_token_from(env_token: Option<&Path>, argv0: Option<&str>) -> Option<S
     read_token(&beside)
 }
 
+/// **심을 거쳐 들어왔는가** — argv0 의 파일명이 심 이름(`oculpm`)인가.
+///
+/// 심은 CLI 표면이다. 이 이름으로 들어온 호출은 낱말이 무엇이든 CLI 로 끝나야
+/// 한다. `main` 이 모르는 낱말을 GUI 로 흘려보내면 에이전트의 오타 하나가
+/// **두 번째 앱 인스턴스**를 띄운다 — 2026-09-08 에 전역 훅에 남아 있던
+/// `oculpm hook pretooluse`(구현된 적 없는 낱말)가 편집마다 창을 띄우고
+/// 5초 훅 타임아웃에 죽었다. 사용자 눈에는 "창이 떴다가 알아서 꺼진다" 였다.
+pub fn invoked_as_shim(argv0: Option<&str>) -> bool {
+    Path::new(argv0.unwrap_or_default())
+        .file_name()
+        .is_some_and(|name| name == SHIM_BIN)
+}
+
 /// 이 경로에서 위로 올라가며 **추적 중인 프로젝트 루트**를 찾는다.
 ///
 /// 터미널은 아무 데서나 열릴 수 있다 — `cwd` 가 곧 프로젝트 루트라는 보장이
@@ -280,6 +293,25 @@ mod tests {
         assert_eq!(first.dir, again.dir);
         assert_eq!(read_token(&first.token_path), Some(token()));
         assert!(first.dir.join(SHIM_BIN).exists() || cfg!(windows));
+    }
+
+    /// **심 이름으로 들어왔는가**가 CLI 냐 GUI 냐를 가른다.
+    ///
+    /// 앱 바이너리(`ocul-pm`)로 들어온 호출은 GUI 로 가야 하고 — Finder 가
+    /// 붙이는 `-psn_…` 때문에 — 심(`oculpm`)으로 들어온 호출은 낱말이
+    /// 무엇이든 CLI 로 끝나야 한다 (2026-09-08 의 유령 창).
+    #[test]
+    fn only_the_shim_name_means_the_cli() {
+        assert!(invoked_as_shim(Some("/x/shim/sess-1/oculpm")));
+        assert!(invoked_as_shim(Some("oculpm")));
+        assert!(!invoked_as_shim(Some(
+            "/Applications/ocul-pm.app/Contents/MacOS/ocul-pm"
+        )));
+        assert!(!invoked_as_shim(Some(
+            "/Applications/ocul-pm.app/Contents/MacOS/oculpm-mcp"
+        )));
+        assert!(!invoked_as_shim(Some("")));
+        assert!(!invoked_as_shim(None));
     }
 
     /// 세션 id 는 파일명이 된다 — 경로를 담아 보내도 밖으로 나가지 못한다.
