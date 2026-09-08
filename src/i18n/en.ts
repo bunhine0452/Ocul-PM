@@ -1428,6 +1428,7 @@ export const en: Record<keyof typeof ko, string> = {
   "op.st.noBinary": "Binary missing",
   "op.st.unregistered": "Not registered",
   "op.st.noDesktop": "Desktop not installed",
+  "op.st.notChecked": "Not checked",
   "op.st.noCodex": "Codex not installed",
   // Integration-tab scope — per-project and machine-wide settings shared one
   // card, so a "Installed" badge never said which of the two it meant.
@@ -1474,9 +1475,11 @@ export const en: Record<keyof typeof ko, string> = {
   "op.desk.copy": "Copy Desktop snippet",
   "op.desk.unregister": "Unregister Desktop",
   "op.desk.register": "Register Desktop",
+  "op.desk.check": "Check Desktop",
   "op.desk.desc1": "Writes the same server into",
   "op.desk.desc2": "under a per-project key",
   "op.desk.desc3": "— so you can ask Claude Desktop \"where is this project at?\". Restart Claude Desktop after registering or unregistering.",
+  "op.desk.checkNote": "Press [Check Desktop] to see the Claude Desktop registration status — that check reads Claude Desktop's app data folder, so macOS may ask once for \"data from other apps\" access. It sits behind a button so nothing is read without you asking.",
   "op.desk.notFound": "Couldn't find the Claude Desktop config folder — if Desktop is installed, launch it once and refresh. If it isn't, copy the snippet and register it by hand on another machine.",
   "op.codexMcp.title": "Codex MCP server",
   "op.codexMcp.registered": "Registered the Codex MCP server — it applies in a new Codex session",

@@ -1425,6 +1425,7 @@ export const ko = {
   "op.st.noBinary": "바이너리 없음",
   "op.st.unregistered": "미등록",
   "op.st.noDesktop": "Desktop 미설치",
+  "op.st.notChecked": "확인 안 함",
   "op.st.noCodex": "Codex 미설치",
   // 연동 탭 적용 범위 — 프로젝트별 설정과 머신 전역 설정이 한 화면에 섞여
   // 있어 "설치됨" 배지가 어느 범위를 말하는지 알 수 없던 것을 갈랐다.
@@ -1471,9 +1472,11 @@ export const ko = {
   "op.desk.copy": "Desktop 스니펫 복사",
   "op.desk.unregister": "Desktop 해제",
   "op.desk.register": "Desktop 등록",
+  "op.desk.check": "Desktop 확인",
   "op.desk.desc1": "같은 서버를",
   "op.desk.desc2": "에 프로젝트별 키",
   "op.desk.desc3": "로 기입합니다 — Claude Desktop 에서 \"이 프로젝트 어디까지 됐어?\" 를 물을 수 있습니다. 등록·해제 후 Claude Desktop 재시작이 필요합니다.",
+  "op.desk.checkNote": "Claude Desktop 연동 상태를 보려면 [Desktop 확인] 을 누르세요 — 그 확인은 Claude Desktop 의 앱 데이터 폴더를 읽으므로, macOS 가 \"다른 앱의 데이터\" 권한을 한 번 물어볼 수 있습니다. 묻지 않고 읽지 않으려고 버튼 뒤에 두었습니다.",
   "op.desk.notFound": "Claude Desktop 설정 폴더를 찾지 못했습니다 — Desktop 이 설치되어 있다면 한 번 실행한 뒤 새로고침하세요. 설치가 안 되어 있으면 스니펫 복사로 다른 머신에 수동 등록할 수 있습니다.",
   "op.codexMcp.title": "Codex MCP 서버",
   "op.codexMcp.registered": "Codex MCP 서버를 등록했습니다 — 새 Codex 세션에서 반영됩니다",

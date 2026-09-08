@@ -64,6 +64,7 @@ const fx = {
   calls: {
     register: [] as unknown[][],
     unregister: [] as unknown[][],
+    deskStatus: [] as unknown[][],
     deskRegister: [] as unknown[][],
     deskUnregister: [] as unknown[][],
     codexRegister: [] as unknown[][],
@@ -94,7 +95,10 @@ vi.mock("@/lib/bindings", () => {
                 return ok(status());
               };
             case "mcpDesktopStatus":
-              return () => ok(fx.desktop);
+              return (...a: unknown[]) => {
+                fx.calls.deskStatus.push(a);
+                return ok(fx.desktop);
+              };
             case "mcpDesktopRegister":
               return (...a: unknown[]) => {
                 fx.calls.deskRegister.push(a);
@@ -132,7 +136,7 @@ vi.mock("@/lib/bindings", () => {
 import { CodexMcpServerBlock } from "@/features/settings/CodexMcpServerBlock";
 import { CodexPluginBlock } from "@/features/settings/CodexPluginBlock";
 import { ClaudePluginBlock } from "@/features/settings/ClaudePluginBlock";
-import { McpServerBlock } from "@/features/settings/OculpmSettings";
+import { McpServerBlock } from "@/features/settings/McpServerBlock";
 
 beforeEach(() => {
   fx.status = status();
@@ -141,6 +145,7 @@ beforeEach(() => {
   fx.codexPlugin = codexPluginStatus();
   fx.calls.register = [];
   fx.calls.unregister = [];
+  fx.calls.deskStatus = [];
   fx.calls.deskRegister = [];
   fx.calls.deskUnregister = [];
   fx.calls.codexRegister = [];
@@ -154,8 +159,9 @@ afterEach(() => {
 describe("McpServerBlock (PR-CI2)", () => {
   it("미등록 + 바이너리 있음: 등록 → mcpRegister(projectId) 호출, 배지 갱신", async () => {
     const r = render(<McpServerBlock projectId={9} />);
-    // 프로젝트(.mcp.json)와 Desktop 두 배지가 각각 미등록으로 뜬다.
-    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
+    // 프로젝트(.mcp.json) 배지만 미등록으로 뜬다 — Desktop 은 조회 자체가
+    // 남의 앱 데이터 접근이라 "확인 안 함" 에서 시작한다.
+    await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
 
     fireEvent.click(r.getByRole("button", { name: "등록" }));
     await waitFor(() => expect(fx.calls.register).toHaveLength(1));
@@ -180,7 +186,7 @@ describe("McpServerBlock (PR-CI2)", () => {
     await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
     fireEvent.click(r.getByRole("button", { name: "해제" }));
     await waitFor(() => expect(fx.calls.unregister).toHaveLength(1));
-    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
+    await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
   });
 
   it("Desktop 스니펫 복사 버튼이 클립보드에 스니펫을 쓴다", async () => {
@@ -195,8 +201,32 @@ describe("McpServerBlock (PR-CI2)", () => {
 
   // ─── Claude Desktop 원클릭 등록 ──────────────────────────────────────────
 
+  // 2026-09-08 회귀 방지 — Desktop 상태 조회는 우리 코드에서 유일하게 남의 앱
+  // 데이터 디렉터리(`~/Library/Application Support/Claude`)를 건드린다. macOS
+  // 는 그것을 "다른 앱의 데이터" TCC 로 보호하고, 백엔드가 파일을 읽기 전에
+  // 부모 폴더를 stat 하므로 조회 자체가 권한 프롬프트를 띄운다. 마운트에
+  // 붙어 있으면 연동 탭을 여는 것만으로 앱이 스스로 묻는다 — 버튼 뒤로.
+  it("마운트만으로는 mcpDesktopStatus 를 부르지 않는다 (남의 앱 데이터 무단 접근 금지)", async () => {
+    const r = render(<McpServerBlock projectId={9} />);
+    // .mcp.json 조회(프로젝트 안 — TCC 무관)는 마운트에서 그대로 돈다.
+    await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
+    expect(fx.calls.deskStatus).toHaveLength(0);
+    expect(r.getByText("확인 안 함")).toBeTruthy();
+    // 스니펫 복사는 mcpStatus 산출물이라 확인 없이도 열려 있어야 한다.
+    expect(
+      (r.getByRole("button", { name: "Desktop 스니펫 복사" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+
+    fireEvent.click(r.getByRole("button", { name: "Desktop 확인" }));
+    await waitFor(() => expect(fx.calls.deskStatus).toHaveLength(1));
+    expect(fx.calls.deskStatus[0][0]).toBe(9);
+  });
+
   it("Desktop 등록 → mcpDesktopRegister(projectId) 호출, 등록됨 + 재시작 고지", async () => {
     const r = render(<McpServerBlock projectId={7} />);
+    await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
+
+    fireEvent.click(r.getByRole("button", { name: "Desktop 확인" }));
     await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
 
     fireEvent.click(r.getByRole("button", { name: "Desktop 등록" }));
@@ -209,6 +239,7 @@ describe("McpServerBlock (PR-CI2)", () => {
   it("Desktop 등록됨: Desktop 해제 → mcpDesktopUnregister 호출", async () => {
     fx.desktop = desktopStatus({ registered: true });
     const r = render(<McpServerBlock projectId={4} />);
+    fireEvent.click(r.getByRole("button", { name: "Desktop 확인" }));
     await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
     fireEvent.click(r.getByRole("button", { name: "Desktop 해제" }));
     await waitFor(() => expect(fx.calls.deskUnregister).toHaveLength(1));
@@ -218,6 +249,7 @@ describe("McpServerBlock (PR-CI2)", () => {
   it("Desktop 미설치: 경고 배지 + 등록 버튼 비활성 (설정 폴더 창조 금지 계약)", async () => {
     fx.desktop = desktopStatus({ installed: false });
     const r = render(<McpServerBlock projectId={5} />);
+    fireEvent.click(r.getByRole("button", { name: "Desktop 확인" }));
     await waitFor(() => expect(r.getByText("Desktop 미설치")).toBeTruthy());
     const btn = r.getByRole("button", { name: "Desktop 등록" }) as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
@@ -228,6 +260,8 @@ describe("McpServerBlock (PR-CI2)", () => {
     fx.status = status({ binary_found: false, binary_path: null });
     const r = render(<McpServerBlock projectId={6} />);
     await waitFor(() => expect(r.getByText("바이너리 없음")).toBeTruthy());
+    fireEvent.click(r.getByRole("button", { name: "Desktop 확인" }));
+    await waitFor(() => expect(r.getByRole("button", { name: "Desktop 등록" })).toBeTruthy());
     const btn = r.getByRole("button", { name: "Desktop 등록" }) as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
   });
@@ -240,7 +274,7 @@ describe("McpServerBlock (PR-CI2)", () => {
 
   it("MCP·Desktop 헤더가 각각 프로젝트 범위 칩을 단다", async () => {
     const r = render(<McpServerBlock projectId={8} />);
-    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
+    await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
     expect(r.getByText("이 프로젝트")).toBeTruthy();
     // Desktop 은 설정 파일이 머신에 하나지만 키가 프로젝트별이라 문구가 다르다.
     expect(r.getByText("이 프로젝트 키")).toBeTruthy();
@@ -248,7 +282,7 @@ describe("McpServerBlock (PR-CI2)", () => {
 
   it("플러그인 파트가 이 블록에서 빠졌다 (머신 전역 섹션으로 이사)", async () => {
     const r = render(<McpServerBlock projectId={8} />);
-    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
+    await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
     expect(r.queryByRole("button", { name: "설치 명령 복사" })).toBeNull();
     expect(r.queryByText("이 머신 전체")).toBeNull();
   });
@@ -339,7 +373,7 @@ describe("CodexMcpServerBlock (머신 스코프)", () => {
 describe("플러그인 겹침 고지", () => {
   it("MCP 미등록: 등록할 필요 없다는 정보 (경고 아님)", async () => {
     const r = render(<McpServerBlock projectId={10} pluginInstalled />);
-    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
+    await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
     expect(r.getByText(/또 등록할 필요가 없습니다/)).toBeTruthy();
     expect(r.queryByText(/도구가 2벌 노출됩니다/)).toBeNull();
   });
@@ -354,7 +388,7 @@ describe("플러그인 겹침 고지", () => {
 
   it("Desktop 은 플러그인이 안 덮는다고 따로 안내한다", async () => {
     const r = render(<McpServerBlock projectId={12} pluginInstalled />);
-    await waitFor(() => expect(r.getAllByText("미등록")).toHaveLength(2));
+    await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
     expect(r.getByText(/Claude Desktop 은 겹치지 않으니/)).toBeTruthy();
   });
 

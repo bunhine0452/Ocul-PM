@@ -41,6 +41,8 @@ import type {
   OculpmStatus,
   CodexPluginStatus,
   CodexRegistrationStatus,
+  DesktopRegistrationStatus,
+  McpRegistrationStatus,
   ReindexReport,
   Session,
   FileChangeEvent,
@@ -73,6 +75,36 @@ async function unwrap<T>(command: string, p: Promise<Envelope<T>>): Promise<T> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const oculpmApi = {
+  // ─── Claude MCP — 프로젝트 `.mcp.json` + Claude Desktop 설정 ───
+  //
+  // Desktop 3종은 `~/Library/Application Support/Claude` 를 건드린다. macOS 가
+  // "다른 앱의 데이터"로 보호하는 자리라 **호출 자체가 권한 프롬프트**다 —
+  // 화면 마운트에 붙이지 말고 사용자 동작 뒤에 두어야 한다 (2026-09-08).
+
+  mcpStatus: (projectId: number) =>
+    unwrap<McpRegistrationStatus>("mcp_status", commands.mcpStatus(projectId)),
+
+  mcpRegister: (projectId: number) =>
+    unwrap<McpRegistrationStatus>("mcp_register", commands.mcpRegister(projectId)),
+
+  mcpUnregister: (projectId: number) =>
+    unwrap<McpRegistrationStatus>("mcp_unregister", commands.mcpUnregister(projectId)),
+
+  mcpDesktopStatus: (projectId: number) =>
+    unwrap<DesktopRegistrationStatus>("mcp_desktop_status", commands.mcpDesktopStatus(projectId)),
+
+  mcpDesktopRegister: (projectId: number) =>
+    unwrap<DesktopRegistrationStatus>(
+      "mcp_desktop_register",
+      commands.mcpDesktopRegister(projectId),
+    ),
+
+  mcpDesktopUnregister: (projectId: number) =>
+    unwrap<DesktopRegistrationStatus>(
+      "mcp_desktop_unregister",
+      commands.mcpDesktopUnregister(projectId),
+    ),
+
   // ─── Codex MCP — Claude `.mcp.json`과 독립된 `~/.codex/config.toml` ───
 
   codexMcpStatus: () => unwrap<CodexRegistrationStatus>("codex_mcp_status", commands.codexMcpStatus()),
