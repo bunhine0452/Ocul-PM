@@ -40,7 +40,8 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "hardenedRuntime": true
+      "hardenedRuntime": true,
+      "minimumSystemVersion": "13.0"
     }
   },
   "plugins": {
