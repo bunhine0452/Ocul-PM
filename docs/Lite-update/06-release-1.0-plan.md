@@ -52,6 +52,8 @@
 
 **결정 권장**: Developer Program 가입. 비용 회수는 *사용자 신뢰* 형태로 즉시.
 
+> **(2026-09-08 정정)** 이 분기는 끝났습니다. Developer Program 에 가입해 **Developer ID Application 서명 + 공증**을 릴리스 파이프라인(`.github/workflows/release.yml`)에 붙였고, **v2.45.0 이 첫 서명·공증 배포**입니다. 위 표의 「1.0: ad-hoc 수용 가능」·「Windows 미서명」 행과 3장의 ad-hoc 대안은 더 이상 현재 상태가 아닙니다 — 현행 절차는 [`docs/RELEASE.md`](../RELEASE.md) §7 입니다.
+
 ### 2.2 Windows
 
 - **EV cert** (~$200~400/년): SmartScreen 즉시 통과.

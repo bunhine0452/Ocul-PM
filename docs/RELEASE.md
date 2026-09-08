@@ -152,4 +152,6 @@ gh secret list                                  # 6개가 다 있는지
 
 **엔타이틀먼트 파일은 없습니다.** 하드닝 런타임(`hardenedRuntime`)만 켜져 있고 별도 예외가 필요 없습니다 — 번들에 dylib 이 없고(`ort`/`rusqlite` 모두 정적 링크), WKWebView 는 Apple 서명 프로세스로 분리돼 있으며, `git`·`claude`·`codex` 같은 자식 프로세스 실행은 하드닝 런타임이 막지 않습니다. 이 조건이 깨지면(동적 라이브러리를 싣게 되면) `bundle.macOS.entitlements` 로 `com.apple.security.cs.disable-library-validation` 을 추가해야 합니다.
 
+**인증서 만료: 2027-02-01.** 지금 쓰는 Developer ID Application 인증서의 `notAfter` 가 그날입니다 — Developer ID 는 보통 5년인데 발급 CA 자체의 만료에 맞춰 짧게 잘려 있습니다. 타임스탬프가 붙은 서명은 만료 뒤에도 계속 유효하므로 **이미 나간 빌드는 안전**하지만, 그날 이후 **새 빌드를 서명하려면 인증서를 갱신하고 `APPLE_CERTIFICATE` 를 다시 올려야** 합니다. 갱신 없이 태그를 밀면 서명 단계가 조용히 무서명으로 떨어지므로, §6 의 `spctl` 두 줄이 그 그물입니다.
+
 **서명 주체가 바뀌는 첫 업데이트에서 키체인 프롬프트가 뜹니다.** API 키는 `keyring` 으로 OS 키체인에 들어 있고, 그 항목의 접근 권한은 만들 당시 앱의 코드 서명에 묶입니다. 애드혹 서명 빌드에서 Developer ID 빌드로 올라간 사용자는 처음 한 번 "Ocul-PM 이(가) 키체인의 정보를 사용하려 합니다" 를 보게 되고, **항상 허용**을 누르면 이후로는 조용합니다. 이 릴리스의 CHANGELOG 에 한 줄 적어 두세요.

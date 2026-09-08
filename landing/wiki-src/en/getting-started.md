@@ -8,7 +8,7 @@ updated: 2026-08-21
 ## Install
 
 1. Grab the `.dmg` from [GitHub Releases](https://github.com/bunhine0452/Ocul-PM/releases/latest) and drop it in Applications. macOS (Apple Silicon) only.
-2. If macOS shows a confirmation dialog on first launch, click **Open**.
+2. Builds are signed with an Apple Developer ID and notarized, so the app **opens without a warning** (since v2.45.0 — no `xattr` quarantine workaround). If macOS shows the usual "downloaded from the internet" confirmation once, click **Open**.
 3. After that the app updates itself (Settings → Updates also has a manual check).
 
 There's no account to create — open the app and you're at the start screen.

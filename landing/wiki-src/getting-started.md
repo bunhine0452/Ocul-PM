@@ -8,7 +8,7 @@ updated: 2026-08-16
 ## 설치
 
 1. [GitHub Releases](https://github.com/bunhine0452/Ocul-PM/releases/latest) 에서 `.dmg` 를 받아 응용 프로그램에 넣습니다. macOS (Apple Silicon) 전용입니다.
-2. 처음 열 때 macOS 가 확인 창을 띄우면 「열기」를 누릅니다.
+2. Apple Developer ID 로 서명하고 공증(notarization)까지 마친 빌드라 **경고 없이 열립니다** (v2.45.0 부터 — `xattr` 로 격리를 벗기는 우회는 필요 없습니다). 인터넷에서 받은 앱임을 알리는 확인 창이 한 번 뜨면 「열기」를 누릅니다.
 3. 이후 버전은 앱 안에서 자동으로 업데이트됩니다 (설정 → 업데이트에서 수동 확인도 가능).
 
 계정을 만들 필요가 없습니다 — 앱을 열면 바로 시작 화면입니다.
