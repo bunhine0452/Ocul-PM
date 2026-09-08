@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: hardening-and-optimization
 title: "감사 후속 — 패닉 경로 · 경계 좁히기 · 최적화 원장"
-status: active
+status: done
 created: 2026-09-07
 updated: 2026-09-07
 owner: claude-code

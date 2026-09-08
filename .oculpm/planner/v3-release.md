@@ -12,7 +12,7 @@ owner: claude-code
 
 ## 육안 확인 부채 {#eyes}
 - [ ] drag-and-drop-round 미확인 6건 — 탭 드래그·떼어내기·창간 이동 {#eyes-dnd}
-- [ ] terminal-identity-round 3건 + search-and-terminal-survival PTY 수동 확인 + tab-reattach-regression 1건 {#eyes-terminal}
+- [~] terminal-identity-round 3건 + search-and-terminal-survival PTY 수동 확인 + tab-reattach-regression 1건 {#eyes-terminal}
 - [ ] skills-star-round 2건 · mobile-bridge 검증 · claude-integration 런타임 확인 2건 {#eyes-skills}
 - [ ] first-run-and-english-landing 의 마법사 실기기 확인 (wizard-eyes) {#eyes-wizard}
 - [ ] 혼합 DPI 커서 좌표계 — improvement-audit-round 에서 이관했는데 받은 플랜에 항목이 없어 유실됐다 {#eyes-mixed-dpi}
@@ -180,6 +180,7 @@ owner: claude-code
 | 2026-09-07T21:22:21+09:00 | #palette-claude-collision | claude-code | ☐→x | .oculpm/journal/20260907/Refactors/2121_refactor_acp-wrapper-entry-chunk-theme-palette.md | #d97a4f(코랄과 4도) → #cb4db2(62.9도). 나머지 팔레트와 최소 50.9도, 라이트·다크 6배경 대비비 3.5~4.3. 팔레트 6색 전부가 코랄과 떨어져 있음을 단언하는 회귀 가드 추가 |
 | 2026-09-07T21:23:17+09:00 | #empty-hint-final | claude-code | ☐→x | .oculpm/journal/20260907/Bugs/2120_bug_today-counts-ring-scale-and-now.md | branch·diff·journal·today(3) 이관 후 호출부 0 확인 → primitives.css 정의와 죽은 CSS 삭제. JournalScreenV2 만 EmptyState 를 안 썼다 — 빈 상태가 아니라 「다 못 실었다」 알림이라 오용의 사고 기록이 이미 screens.css 에 있다 |
 | 2026-09-07T21:24:10+09:00 | #eslint-ratchet-slack | claude-code | ☐→~ | .oculpm/journal/20260907/Bugs/2120_bug_today-counts-ring-scale-and-now.md | 래칫 50→46 (죽은 커맨드 제거분 + no-console 규칙이 설정에 아예 없어 처음부터 무의미했던 지시문 3줄). 다만 46이 곧 현재 개수라 **여유는 여전히 0** — 진짜 정리 패스는 {#eslint-slack-real} 로 이월 |
+| 2026-09-07T22:24:17+09:00 | #eyes-terminal | claude-code | ☐→~ |  |  |
 | 2026-09-07T23:10:00+09:00 | #watcher-user-pause | claude-code | ☐→x | .oculpm/journal/20260907/Features_to_add/2308_feature_watcher-pause-and-done-guard.md | 감독관이 존중하는 user_paused. 상태는 **프로세스 메모리** — 디스크면 자리가 .oculpm/config.toml 인데 그건 저장소에 커밋돼서 내 일시정지가 동료의 갱신까지 끈다. 반증 확인(가드 지우면 테스트 빨개짐) |
 | 2026-09-07T23:11:00+09:00 | #orphaned-db-fns | claude-code | ☐→x | .oculpm/journal/20260907/Features_to_add/2308_feature_watcher-pause-and-done-guard.md | 6개 전부 호출부 0 재확인 후 삭제. cache/stats.rs 의 overview_stats 는 살아 있는 테스트 5개가 불러 남김 |
 | 2026-09-07T23:12:00+09:00 | #w6-comment-stale | claude-code | ☐→x | .oculpm/journal/20260907/Features_to_add/2308_feature_watcher-pause-and-done-guard.md | invariant #6 주석을 사실로. get_goal 이 프로덕션 호출부 0 이라는 다음 청소 후보도 함께 적음 |
