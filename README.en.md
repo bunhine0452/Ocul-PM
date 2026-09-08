@@ -468,6 +468,8 @@ Grab `Ocul-PM_x.y.z_aarch64.dmg` from the [latest release](https://github.com/bu
 
 The app is signed with an Apple Developer ID and notarized, so it opens straight from the download — no `xattr` quarantine workaround needed.
 
+macOS may still ask for **access to files or to other apps' data**. That's a separate gate from notarization and doesn't go away because an app is notarized. In particular, when a command you run in the **built-in terminal** — or an agent running inside it — reads a file, macOS attributes that access to the app, so the prompt names `Ocul-PM.app`. [Troubleshooting](https://oculpm.com/wiki/en/troubleshooting) explains why and how to revoke it.
+
 The first semantic search downloads an embedding model (~135MB) once. After that it works offline.
 
 Stuck on something? The [wiki](https://oculpm.com/wiki/en) collects common problems and fixes.

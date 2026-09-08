@@ -2,7 +2,7 @@
 title: Troubleshooting
 desc: Nothing is being recorded, in-app Claude Code acting up, and the rest of the common friction.
 order: 14
-updated: 2026-08-21
+updated: 2026-09-08
 ---
 
 ## Nothing is being recorded
@@ -49,6 +49,25 @@ The first run downloads a local embedding model and indexes the project. After t
 ## A new conversation isn't in the history list
 
 A conversation with no messages isn't listed — the moment you send the first message a real session is created and it appears.
+
+## macOS asks for access to files or other apps' data
+
+That's expected. Two separate gates are easy to confuse:
+
+- **Notarization** asks "may this app **run**?". Ocul-PM ships signed with an Apple Developer ID and notarized, so it clears that one outright.
+- **Permission prompts** ask "may this app read **that data**?". They are unrelated to notarization and do not go away because an app is notarized.
+
+There are two common cases.
+
+**Your project lives in Desktop, Documents, or Downloads.** macOS protects those folders, so reading files inside them needs a one-time approval.
+
+**You ran something in the built-in terminal.** This is the surprising one — when a command you ran, or an agent running inside it (Claude Code, Codex), reads a file, macOS attributes that access to **the app that launched the command, not the command itself**. So a single `find ~/Library` raises "'Ocul-PM.app' would like to access data from other apps". Every app that embeds a terminal (VS Code, iTerm, …) behaves the same way.
+
+**Asked again after an update?** That happens once when the signature changes. macOS ties an approval to the app's code signature, so a new signing identity invalidates the previous grant. The keychain (your API keys) asks once for the same reason — click "Always Allow" and it's done.
+
+**The app never asks first.** The Claude Desktop row in Settings → ocul-pm → Integration has to read Claude Desktop's app data to report its status, so it only looks **when you press [Check Desktop]**. Leave it alone and that folder is never touched.
+
+Anything you approved can be revoked in System Settings → Privacy & Security.
 
 ## Not listed here?
 
