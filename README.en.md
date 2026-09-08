@@ -58,7 +58,11 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.45.1 — the window that opened and vanished
+## 🚀 v2.45.2 — the permission that kept asking
+
+- **After an update, screen-recording permission asked again no matter how often you granted it.** The process holding your terminals is separate from the app — deliberately, so an update cannot kill your shells — but once started it keeps running **the executable from before the update** until you reboot. That executable is already gone from disk, so macOS could not recognise the process as the installed app: the approval was recorded for `/Applications` while the request came from a file that no longer existed. An old process **holding no terminals at all** is now replaced silently when the app connects. One running shell is enough to leave it alone — carrying sessions across an update is the whole reason that process exists.
+
+## v2.45.1 — the window that opened and vanished
 
 - **A stray Ocul-PM window would pop up and disappear a few seconds later while you worked in the app's terminal.** It really was a second copy of the app: the `oculpm` command the terminal hands to agents launched the whole app whenever it met **a word it did not know** — one stale line in a config, one typo, was enough — and the window vanished when the caller killed it on timeout. A call made under that name now always ends as a command, answering an unknown word with its usage instead of a window. A `--project <path>` written before the tool name, silently dropped until now, is honored too.
 

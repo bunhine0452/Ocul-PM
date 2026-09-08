@@ -47,7 +47,7 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/en",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "2.45.1",
+  "softwareVersion": "2.45.2",
   "inLanguage": "en",
   "description": "A local-first AI project manager for developers who work with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends). It records what the agents changed, lets you verify it against a local diff, and turns the pile of records back into standups, PR bodies and retrospectives. Two-line install as a Claude Code plugin.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -285,7 +285,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.45.1</span>
+    <span class="nav-ver" data-version>v2.45.2</span>
     <div class="nav-links">
       <a href="#acts">Features</a>
       <a href="/en/keynote">Keynote</a>
@@ -304,7 +304,7 @@
 <!-- ══════════ hero ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.45.1 — the window that opened and vanished</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.45.2 — the permission that kept asking</a>
   <h1 class="reveal on">Agents write the code.<br /><span class="g">You keep the memory.</span></h1>
   <p class="hero-sub reveal on">
     While Claude Code · Codex · Cursor write your code, <b>Ocul-PM</b> records every unit of work —
@@ -313,7 +313,7 @@
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">Get v2.45.1</span><span class="sub">Free · macOS (Apple Silicon)</span>
+      <span class="lg">Get v2.45.2</span><span class="sub">Free · macOS (Apple Silicon)</span>
     </a>
     <a class="dl-btn ghost" href="/en/keynote">Watch the keynote →</a>
   </div>
@@ -509,6 +509,7 @@
     <p class="reveal">This app is built with itself — every line below came out of Ocul-PM's own work journal.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v2.45.2 — the permission that kept asking</b> · <b>After an update, screen-recording permission asked again no matter how often you granted it.</b> The process holding your terminals is separate from the app — deliberately, so an update cannot kill your shells — but once started it keeps running <b>the executable from before the update</b> until you reboot. That file is already gone from disk, so macOS could not recognise the process as the installed app: the approval was recorded for <code>/Applications</code> while the request came from a file that no longer existed. An old process <b>holding no terminals at all</b> is now replaced silently when the app connects — one running shell is enough to leave it alone.</li>
     <li class="reveal"><b>v2.45.1 — the window that opened and vanished</b> · <b>A stray Ocul-PM window popped up and disappeared a few seconds later while you worked in the app's terminal.</b> It really was a second copy of the app: the <code>oculpm</code> command the terminal hands to agents launched the whole app whenever it met <b>a word it did not know</b> — one stale line in a config, one typo, was enough — and the window vanished when the caller killed it on timeout. A call made under that name now <b>always ends as a command</b>, answering an unknown word with its usage instead of a window. A <code>--project</code> path written before the tool name, silently dropped until now, is honored too.</li>
     <li class="reveal"><b>v2.45.0 — open it straight from the download</b> · <b>You needed a terminal to open the app.</b> macOS refused the downloaded <code>.dmg</code> with "is damaged and can't be opened" — not real damage, just the quarantine flag on a downloaded file — and clearing it meant typing <code>xattr -dr com.apple.quarantine</code> yourself. Builds are now <b>signed with an Apple Developer ID and notarized</b>. <b>The app now answers when a skill fires</b> — that answer used to be one line the skill wrote about itself; the detail view leads with "When it fires" and the ledger quotes <b>the actual prompt that triggered it</b>. <b>Turning journal watching off was a 60-second lie</b>, because the supervisor read a watcher-less project as deaf and revived it; a user pause and a death are now told apart, and the screen states the lifetime out loud. <b>Today's "files changed" counted touches, not files</b>, running up to 105% high, and the activity rings were a wall rather than a scale with 22 of the last 26 days pinned at the cap — both fixed, and <b>"What's running now"</b> is new (when it can't tell, it says nothing). <b>A plan with unfinished items no longer closes as done.</b> Out of sight: 5,000 files landing in <code>target/</code> leave a single entry in the watch queue, closing a project no longer holds a lock for up to 4.3s, and the entry chunk is 26.5KB lighter (−9.2%).</li>
     <li class="reveal"><b>v2.44.1 — counting characters as characters</b> · <b>A link containing Korean, or a Korean README over 24KB, could stop the app dead</b> — four places counted <b>bytes</b> instead of characters, and cutting through the middle of a multi-byte character killed them on the spot. The <code>oculpm://</code> deep link was reachable from <b>a single link on a web page</b>, and "project overview" missed the same crash in this repository <b>by one byte</b>. Deep links, the Notion connection, "go to definition" and the overview were all copies of the same code; they now share one. <b>Closing the setup wizard with ESC threw away everything you had typed</b> — closing saves a draft, but ESC alone saved <b>the empty draft from the moment the screen opened</b>. <b>Today's activity rings looked identical on every busy day</b>: the extra paint a round stroke cap adds past the dash was never counted, so the inner ring drew 102% and any day past ~7,500 changed lines became a plain closed circle — each ring is now clamped for its own radius, so a saturated day reads as <b>three concentric rings stopping together</b>. <b>The AI panel's first token arrives sooner</b> now that plans and journal entries are fetched together instead of one at a time (up to eight round trips per message). Out of sight: <b>the Notion connection's one-time nonce is a real random value</b>, plugin installs can no longer <b>write outside the folder by following a symlink</b>, and the webview's "open any path" permission is gone.</li>
@@ -629,12 +630,12 @@
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v2.45.1 — download now · macOS (Apple Silicon)</span>
+  <span class="eyebrow reveal">v2.45.2 — download now · macOS (Apple Silicon)</span>
   <h2 class="reveal">Nothing is required<br />to start.</h2>
   <p class="sub reveal">No sign-up, no setup, no fee. You download it, and that is the whole thing.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">Get v2.45.1</span><span class="sub">Free · auto-updating</span>
+      <span class="lg">Get v2.45.2</span><span class="sub">Free · auto-updating</span>
     </a>
     <a class="dl-btn ghost" href="/en/plugin">Start with the plugin →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Enterprise · partnerships</a>
