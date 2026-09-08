@@ -62,6 +62,11 @@ export const ALLOWLIST = new Set([
   "features/diff/useDiffFile.ts",
   "features/discussion/DiscussionScreenV2.tsx",
   "features/discussion/DiscussionView.tsx",
+  // 논의 CAS 라운드 (2026-09-08) — 저장·충돌 조정을 화면에서 갈라 낸 조각.
+  // 위 `{#planner-diff-split}` 과 같은 사정이다: 직접 호출이 늘어난 것이
+  // 아니라 `DiscussionScreenV2` 가 들고 있던 것이 그대로 따라왔다.
+  // 옮길 때는 화면과 함께 보낸다.
+  "features/discussion/useDiscussionSave.ts",
   "features/docs/DocsImage.tsx",
   "features/docs/DocsScreenV2.tsx",
   "features/graph/GraphInspector.tsx",

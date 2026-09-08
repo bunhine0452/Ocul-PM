@@ -277,11 +277,15 @@ pub async fn dispatch<R: tauri::Runtime>(
                     .await?,
             )
         }
+        // `baseHash` 는 폰에서도 **필수**다 (`commands/discussion.rs` 의 CAS
+        // 문단). 폰만 예외를 두면 그 예외가 곧 손실 경로가 된다 — 데스크톱과
+        // 폰이 같은 문서를 동시에 여는 것이 이 브리지의 존재 이유이므로.
         "discussion_write" => ok(commands::discussion_write(
             app.state(),
             a.take("projectId")?,
             a.take("discussionId")?,
             a.take("bodyMd")?,
+            a.take("baseHash")?,
         )
         .await?),
         "discussion_set_status" => ok(commands::discussion_set_status(

@@ -21,6 +21,7 @@ import { DiscussionView } from "./DiscussionView";
 import { shortDate, statusMeta } from "./discussionFormat";
 import { appendLogRowOp, localIsoWithOffset } from "./mdEdit";
 import { buildDiscussionPrompt, promptKindFor } from "./discussionPrompt";
+import { useDiscussionSave } from "./useDiscussionSave";
 import { logColumns, sectionHeadings, TEMPLATE_IDS, templateBody, type TemplateId } from "./discussionTemplates";
 
 interface Props {
@@ -65,6 +66,14 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  /**
+   * 편집기를 열 때 디스크가 갖고 있던 본문의 해시 — 저장의 `base_hash` (CAS).
+   *
+   * 이 값이 없던 동안, 편집기를 열어 둔 사이 에이전트가 적은 문단은 저장 한
+   * 번에 조용히 사라졌다 (`commands/discussion.rs` 의 CAS 문단). 백엔드가
+   * 이제 이 값을 대조하고, 어긋나면 **아무것도 쓰지 않고** 돌려보낸다.
+   */
+  const [draftHash, setDraftHash] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -149,7 +158,8 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     async (id: string) => {
       const res = await commands.discussionReadRaw(projectId, id);
       if (res.status === "ok") {
-        setDraft(res.data);
+        setDraft(res.data.body);
+        setDraftHash(res.data.hash);
         setEditing(true);
       } else toast.destructive(t("disc.editorFailed", { error: res.error }));
     },
@@ -205,7 +215,15 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     // 템플릿은 골격 위에 본문만 덮어쓴다 ("빈 문서" 면 그대로 둔다).
     const body = templateBody(newTemplate);
     if (body) {
-      const w = await commands.discussionWrite(projectId, id, body);
+      // 방금 만든 문서라도 **읽고 나서 쓴다** — `base_hash` 에 예외를 두면 그
+      // 예외가 곧 손실 경로가 된다 (플래너 `{#cas-required}` 와 같은 규율).
+      const seed = await commands.discussionReadRaw(projectId, id);
+      if (seed.status !== "ok") {
+        setBusy(false);
+        toast.destructive(t("disc.saveFailed", { error: seed.error }));
+        return;
+      }
+      const w = await commands.discussionWrite(projectId, id, body, seed.data.hash);
       if (w.status !== "ok") toast.destructive(t("disc.saveFailed", { error: w.error }));
     }
     setBusy(false);
@@ -215,18 +233,20 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     select(id);
   };
 
-  const saveBody = async (text: string) => {
-    if (!selectedId) return;
-    setBusy(true);
-    const res = await commands.discussionWrite(projectId, selectedId, text);
-    setBusy(false);
-    if (res.status === "ok") {
+  // 저장 + 쓰기 충돌 조정은 전용 훅이 소유한다 — 저장 한 번이 세 갈래로 끝나고
+  // 그중 충돌은 두 번째 왕복까지 이어진다 (`useDiscussionSave`).
+  const saveBody = useDiscussionSave({
+    projectId,
+    // 저장이 디스크에 닿았다 — 편집기를 닫고 목록을 다시 읽는다.
+    onSaved: (saved) => {
       setEditing(false);
-      setDetail(res.data);
+      setDetail(saved);
       void loadList();
-      toast.info(t("disc.saved"));
-    } else toast.destructive(t("disc.saveFailed", { error: res.error }));
-  };
+    },
+    onReload: (id) => void startEdit(id),
+    onBusy: setBusy,
+  });
+
 
   /** 이 문서를 읽고 논의를 시작하라는 지시문을 클립보드로. */
   const copyPrompt = async () => {
@@ -260,15 +280,17 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
       toast.destructive(t("disc.editorFailed", { error: raw.error }));
       return false;
     }
-    const op = appendLogRowOp(raw.data, {
+    // 방금 읽은 원문 위에서 조립하고, **그 해시로** 쓴다 — 읽기와 쓰기 사이가
+    // IPC 두 번이라 이 구간에도 남이 끼어들 수 있다.
+    const op = appendLogRowOp(raw.data.body, {
       author: SELF_AUTHOR,
       ts: localIsoWithOffset(new Date()),
       body,
       heading: sectionHeadings().log,
       columns: logColumns(),
     });
-    const next = raw.data.slice(0, op.from) + op.insert + raw.data.slice(op.to);
-    const res = await commands.discussionWrite(projectId, selectedId, next);
+    const next = raw.data.body.slice(0, op.from) + op.insert + raw.data.body.slice(op.to);
+    const res = await commands.discussionWrite(projectId, selectedId, next, raw.data.hash);
     if (res.status !== "ok") {
       toast.destructive(t("disc.saveFailed", { error: res.error }));
       return false;
@@ -388,7 +410,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
         sub={list ? t("disc.toolbarSub", { n: active.length, open: openCount }) : undefined}
       >
         <button type="button" className="disc-btn primary" onClick={openCreate}>
-          <Plus size={14} /> {t("disc.new")}
+          <Plus size={15} /> {t("disc.new")}
         </button>
       </Toolbar>
 
@@ -396,7 +418,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
         <div className="scroll">
           <div className="page">
             <div className="grid place-items-center py-20">
-              <OculSpinner size={28} label={t("common.loading")} />
+              <OculSpinner size={30} label={t("common.loading")} />
             </div>
           </div>
         </div>
@@ -419,7 +441,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                 title={t("disc.empty")}
                 actions={
                   <button type="button" className="btn primary" onClick={() => setCreating(true)}>
-                    <Plus size={14} /> {t("disc.new")}
+                    <Plus size={15} /> {t("disc.new")}
                   </button>
                 }
               >
@@ -443,7 +465,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
               <EmptyState>{t("disc.pickOne")}</EmptyState>
             ) : detailLoading && !detail ? (
               <div className="grid place-items-center py-20">
-                <OculSpinner size={24} label={t("disc.openingDoc")} />
+                <OculSpinner size={22} label={t("disc.openingDoc")} />
               </div>
             ) : !detail ? (
               <EmptyState>{t("disc.docFailed")}</EmptyState>
@@ -465,7 +487,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                     initialText={draft}
                     mode={editorMode}
                     onModeChange={setEditorMode}
-                    onSave={(text) => void saveBody(text)}
+                    onSave={(text) => void saveBody(selectedId, text, draftHash)}
                     onCancel={() => setEditing(false)}
                     busy={busy}
                     author={SELF_AUTHOR}
@@ -524,7 +546,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                     title={t(`disc.promptHint.${promptKindFor(detail)}` as I18nKey)}
                     onClick={() => void copyPrompt()}
                   >
-                    {copied ? <ClipboardCheck size={14} /> : <Clipboard size={14} />}{" "}
+                    {copied ? <ClipboardCheck size={15} /> : <Clipboard size={15} />}{" "}
                     {t("disc.copyPrompt")}
                   </button>
                   {!locked ? (
@@ -533,7 +555,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                       className="disc-btn"
                       onClick={() => void startEdit(detail.discussion.discussion_id)}
                     >
-                      <Pencil size={14} /> {t("disc.edit")}
+                      <Pencil size={15} /> {t("disc.edit")}
                     </button>
                   ) : null}
                   {detail.discussion.status === "open" ? (
@@ -548,7 +570,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                       }
                       onClick={() => setPromoting(true)}
                     >
-                      <TargetIcon size={14} /> {t("disc.promote")}
+                      <TargetIcon size={15} /> {t("disc.promote")}
                     </button>
                   ) : null}
                   <MoreMenu
@@ -696,7 +718,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                 disabled={busy}
                 onClick={() => void confirmPromote()}
               >
-                <ArrowRight size={14} /> {t("disc.promoteAction")}
+                <ArrowRight size={15} /> {t("disc.promoteAction")}
               </button>
             </div>
           </div>

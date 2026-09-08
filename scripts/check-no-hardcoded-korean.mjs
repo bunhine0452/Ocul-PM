@@ -205,6 +205,7 @@ const TESTS = new Set([
   "__tests__/llm_reachability.test.tsx",
   "__tests__/lsp_bridge.test.ts",
   "__tests__/mcp_settings.test.tsx",
+  "__tests__/mobile_pairing_poll.test.tsx",
   "__tests__/multi_window.test.tsx",
   "__tests__/nav_registry.test.ts",
   "__tests__/new_tab_intent.test.ts",
@@ -266,6 +267,7 @@ const TESTS = new Set([
   "__tests__/welcome_wizard.test.tsx",
   "__tests__/workday_rollover.test.tsx",
   "__tests__/workspace_slice_consumers.test.tsx",
+  "__tests__/write_conflict_contract.test.ts",
 ]);
 
 const ALLOWLIST = new Set([...PERMANENT, ...DISK_CONTENT, ...TESTS, ...PENDING]);

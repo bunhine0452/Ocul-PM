@@ -803,7 +803,7 @@ export const commands = {
 	 *  and `updated` re-stamped. Rejected when the document is closed (status not
 	 *  `open`) — the body is read-only after a discussion is resolved/archived.
 	 */
-	discussionWrite: (projectId: number, discussionId: string, bodyMd: string) => typedError<{
+	discussionWrite: (projectId: number, discussionId: string, bodyMd: string, baseHash: string) => typedError<{
 	discussion: DiscussionSummary,
 	problem: string,
 	background: string,
@@ -817,14 +817,18 @@ export const commands = {
 	tags: string[],
 	/**  Non-fatal parse warnings — surfaced so the UI never fails silently. */
 	warnings: string[],
-} | null, string>(__TAURI_INVOKE("discussion_write", { projectId, discussionId, bodyMd })),
+} | null, string>(__TAURI_INVOKE("discussion_write", { projectId, discussionId, bodyMd, baseHash })),
 	/**
 	 *  Read the raw (un-redacted) body markdown (everything after the frontmatter)
 	 *  for the in-app editor. Unlike `discussion_get` (redacted projection for
 	 *  display), this returns exactly what's on disk so a save round-trip is
 	 *  lossless — the user is editing their own file. `discussion_write` saves it.
+	 * 
+	 *  해시는 **본문만** 건다. `write_body` 가 갈아 끼우는 구간이 정확히 본문이라,
+	 *  파일 전체를 걸면 `discussion_set_status` 가 프런트매터만 고친 것까지 충돌로
+	 *  둔갑한다 — 본문은 아무도 안 건드렸는데 저장이 거절되는 거짓 충돌이다.
 	 */
-	discussionReadRaw: (projectId: number, discussionId: string) => typedError<string, string>(__TAURI_INVOKE("discussion_read_raw", { projectId, discussionId })),
+	discussionReadRaw: (projectId: number, discussionId: string) => typedError<DiscussionRaw, string>(__TAURI_INVOKE("discussion_read_raw", { projectId, discussionId })),
 	/**
 	 *  Set a discussion's lifecycle status (`open` / `resolved` / `archived`).
 	 *  `archived` moves the folder into `_archive/`; un-archiving moves it back.
@@ -3805,6 +3809,18 @@ export type DiscussionOptionDto = {
 	title: string,
 	body: string,
 	order_idx: number,
+};
+
+/**
+ *  편집기가 읽는 **원문 본문** + 그 본문의 CAS 해시.
+ * 
+ *  `hash` 는 `discussion_write` 의 `base_hash` 에 그대로 넘긴다 — 이 값이
+ *  "내가 본 것이 아직 디스크에 있는가" 를 묻는 유일한 재료다.
+ */
+export type DiscussionRaw = {
+	body: string,
+	/**  본문의 blake3 hex ([`cas::content_hash`]). */
+	hash: string,
 };
 
 export type DiscussionSummary = {

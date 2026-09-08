@@ -12,7 +12,9 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::db::Db;
+use crate::oculpm::agent_cli::WRITE_CONFLICT_PREFIX;
 use crate::oculpm::atomic_io::write_atomic;
+use crate::oculpm::cas::{acquire_doc_guard, content_hash};
 use crate::oculpm::discussion::doc_edit::{
     create_discussion_skeleton, set_resolution, set_status, set_title, write_body,
 };
@@ -63,31 +65,71 @@ pub async fn discussion_get(
         .await
 }
 
+/// 편집기가 읽는 **원문 본문** + 그 본문의 CAS 해시.
+///
+/// `hash` 는 `discussion_write` 의 `base_hash` 에 그대로 넘긴다 — 이 값이
+/// "내가 본 것이 아직 디스크에 있는가" 를 묻는 유일한 재료다.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+pub struct DiscussionRaw {
+    pub body: String,
+    /// 본문의 blake3 hex ([`cas::content_hash`]).
+    pub hash: String,
+}
+
 /// Read the raw (un-redacted) body markdown (everything after the frontmatter)
 /// for the in-app editor. Unlike `discussion_get` (redacted projection for
 /// display), this returns exactly what's on disk so a save round-trip is
 /// lossless — the user is editing their own file. `discussion_write` saves it.
+///
+/// 해시는 **본문만** 건다. `write_body` 가 갈아 끼우는 구간이 정확히 본문이라,
+/// 파일 전체를 걸면 `discussion_set_status` 가 프런트매터만 고친 것까지 충돌로
+/// 둔갑한다 — 본문은 아무도 안 건드렸는데 저장이 거절되는 거짓 충돌이다.
 #[tauri::command]
 #[specta::specta]
 pub async fn discussion_read_raw(
     db: State<'_, Db>,
     project_id: u32,
     discussion_id: String,
-) -> Result<String, String> {
+) -> Result<DiscussionRaw, String> {
     let root = discussion_root_of(&db, project_id).await?;
     let path = find_discussion_path(&root, &discussion_id)
         .ok_or_else(|| format!("discussion '{discussion_id}' not found"))?;
     let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let (_fm, body) = parse_frontmatter_and_body(&md);
-    Ok(body.trim_start_matches('\n').to_string())
+    Ok(raw_of(&md))
+}
+
+/// 디스크 내용 → 편집기가 받는 본문 + 해시. **읽는 자리와 대조하는 자리가
+/// 같은 함수를 써야** CAS 가 성립한다 ([`cas`] 의 규율).
+fn raw_of(md: &str) -> DiscussionRaw {
+    let (_fm, body) = parse_frontmatter_and_body(md);
+    let body = body.trim_start_matches('\n').to_string();
+    let hash = content_hash(&body);
+    DiscussionRaw { body, hash }
 }
 
 // ─── write side (PR-DISC 1) ───────────────────────────────────────────────────
 //
 // App writes go through these (atomic temp+rename); external agents edit the
 // `.md` directly per AGENTS.md (PR-DISC 5). Both are absorbed by the watcher /
-// reproject-on-read. Single-user tool, so concurrent in-process edits are
-// last-write-wins (no separate lock yet — mirrors planner PR-PLN 1).
+// reproject-on-read.
+//
+// **2026-09-08 — "single-user tool, last-write-wins" 였던 자리다.**
+//
+// 그 문장은 "mirrors planner PR-PLN 1" 이라고 근거를 댔는데, 플래너는 그 뒤
+// 문지기 + 필수 `base_hash` 로 갔고({#cas-required}·{#cas-toctou}) 논의만 옛
+// 규약에 남았다. 전제도 세 방향에서 깨졌다 — 바로 위 줄이 인정하듯 **외부
+// 에이전트가 같은 파일을 고치고**, 모바일 브리지가 `discussion_write` 를 폰에
+// 열어 두었으며, 멀티 창이라 편집기가 둘일 수 있다.
+//
+// 실제 손실 경로는 이랬다: 편집기를 열면 프런트가 본문 스냅숏을 뜨고
+// (`DiscussionScreenV2.startEdit`), **편집 중에는 디스크 변경을 일부러 무시하다가**
+// (초안을 지키려고) 저장 때 그 스냅숏으로 본문을 통째로 덮었다. 그 사이 에이전트가
+// 적은 결론은 오류도 흔적도 없이 사라지고 화면에는 "저장했어요" 가 떴다.
+//
+// 그래서 이 구역의 모든 read-modify-write 는 [`acquire_doc_guard`] 를 **읽기
+// 앞에서** 잡고, 본문을 통째로 갈아 끼우는 `discussion_write` 는 그 위에
+// `base_hash` 대조까지 얹는다. 문지기는 프로세스가 겹치는 창을, 해시는 사람이
+// 편집기를 열어 둔 몇 분짜리 창을 막는다 — 둘은 서로를 대신하지 못한다.
 
 const LOCKED_MSG: &str =
     "이 문제 해결 문서는 닫힘(resolved/archived) 상태입니다. 다시 열어야 본문을 편집할 수 있어요.";
@@ -149,20 +191,67 @@ pub async fn discussion_write(
     project_id: u32,
     discussion_id: String,
     body_md: String,
+    base_hash: String,
 ) -> Result<Option<DiscussionDetail>, String> {
     let root = discussion_root_of(&db, project_id).await?;
     let path = find_discussion_path(&root, &discussion_id)
         .ok_or_else(|| format!("discussion '{discussion_id}' not found"))?;
+
+    // **여기서부터 쓰기까지가 한 임계구간이다.** 락을 읽기 **앞**에 두는 것이
+    // 요점 — 대조에 쓴 그 바이트가 쓰기 순간까지 유효해야 한다.
+    let _guard = doc_guard(&path, &discussion_id)?;
+
     let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+
+    // 잠금 판정이 **해시 대조보다 먼저**다. 닫힌 문서는 어떤 해시로 와도 못
+    // 고치므로, 순서가 반대면 호출자는 "다시 읽고 재시도하라" 는 안내를 받아
+    // 한 왕복을 더 쓴 끝에 결국 같은 거절을 만난다 (플래너와 같은 순서).
     if is_body_locked(&md, &discussion_id) {
         return Err(LOCKED_MSG.to_string());
     }
+
+    let current = raw_of(&md);
+    if !current.hash.eq_ignore_ascii_case(&base_hash) {
+        return Err(conflict_message(&discussion_id, &base_hash, &current.hash));
+    }
+
     let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
     let new_md = write_body(&md, &body_md, &date);
     write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
     DiscussionCache::new(&db)
         .get(project_id, &root, &discussion_id)
         .await
+}
+
+/// [`acquire_doc_guard`] + 다음 행동 안내.
+///
+/// 문지기를 못 잡았으면 **쓰지 않는다.** 조용히 진행하면 락이 없는 것보다
+/// 나쁘다 — 보호받는다고 믿으면서 보호받지 못한다.
+fn doc_guard(
+    path: &Path,
+    discussion_id: &str,
+) -> Result<crate::oculpm::file_guard::FileGuard, String> {
+    acquire_doc_guard(path).map_err(|e| {
+        format!(
+            "{WRITE_CONFLICT_PREFIX} 논의 '{discussion_id}' 을 지금 쓸 수 없습니다: {e}. \
+             다른 세션이 같은 문서를 고치는 중입니다 — 잠시 뒤 다시 시도하세요."
+        )
+    })
+}
+
+/// 해시가 어긋났을 때 — 현재 hash 와 재시도 절차를 함께 싣는다.
+///
+/// 현재 hash 를 주는 것이 "그대로 다시 부르라" 는 뜻은 아니다. 그 사이 남이
+/// 적은 내용이 있으므로 **다시 읽어 판단**하는 것이 먼저다 — 그래도 값을 실어
+/// 주는 것은, 안 실으면 호출자가 파일을 다시 읽어야 하고 그 사이가 또 창이 되기
+/// 때문이다. 프런트는 이 접두사를 보고 초안을 **버리지 않은 채** 사용자에게
+/// 선택(다시 읽기 / 알고 덮어쓰기)을 준다.
+fn conflict_message(discussion_id: &str, expected: &str, actual: &str) -> String {
+    format!(
+        "{WRITE_CONFLICT_PREFIX} 논의 '{discussion_id}' 이 읽은 뒤에 바뀌었습니다 \
+         (expected {expected}, now {actual}) — 그 사이 다른 세션이 이 문서를 고쳤습니다. \
+         아무것도 쓰지 않았습니다."
+    )
 }
 
 /// Set a discussion's lifecycle status (`open` / `resolved` / `archived`).
@@ -181,10 +270,19 @@ pub async fn discussion_set_status(
     let root = discussion_root_of(&db, project_id).await?;
     let path = find_discussion_path(&root, &discussion_id)
         .ok_or_else(|| format!("discussion '{discussion_id}' not found"))?;
-    let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let new_md = set_status(&md, &status, &date);
-    write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
+    // 프런트매터만 고치지만 파일은 **통째로** 다시 쓴다 — 문지기가 없으면
+    // 동시에 도는 `discussion_write` 의 본문 변경을 그대로 덮는다.
+    //
+    // 문지기는 쓰기까지만 잡고 **폴더 이동 전에 놓는다.** 락 파일은 그 폴더 안에
+    // 살아서, 쥔 채로 옮기면 `Drop` 은 옛 자리를 지우려다 헛치고 새 자리에 락이
+    // 남는다 — 보관한 문서가 10초(노후 문턱) 동안 아무도 못 쓰는 상태가 된다.
+    {
+        let _guard = doc_guard(&path, &discussion_id)?;
+        let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+        let new_md = set_status(&md, &status, &date);
+        write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
+    }
 
     // Physically (un)archive the folder so `_archive/` stays in sync with the
     // status. The write above already landed at the current path; move after.
@@ -235,6 +333,9 @@ pub async fn discussion_rename(
     let root = discussion_root_of(&db, project_id).await?;
     let path = find_discussion_path(&root, &discussion_id)
         .ok_or_else(|| format!("discussion '{discussion_id}' not found"))?;
+    // 제목만 고쳐도 파일은 통째로 다시 쓰인다 — `set_status` 와 같은 이유로
+    // 읽기 앞에서 문지기를 잡는다.
+    let _guard = doc_guard(&path, &discussion_id)?;
     let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
     let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
     let new_md = set_title(&md, t, &date);
@@ -497,9 +598,186 @@ pub async fn discussion_promote_to_plan(
     write_atomic(&plan_path, plan_md.as_bytes()).map_err(|e| e.to_string())?;
 
     // Link + resolve the discussion.
+    //
+    // 논의 파일을 고치는 구간만 문지기를 잡고 그 **안에서 다시 읽는다** — 맨 위의
+    // `disc_md` 는 플랜을 만드는 동안 낡았을 수 있고, 그것으로 덮으면 그 사이
+    // 들어온 본문 변경이 사라진다.
     let decided_at = chrono::Utc::now().to_rfc3339();
-    let new_disc = set_resolution(&disc_md, &plan_id, &decided_at, &date);
+    let _disc_guard = doc_guard(&disc_path, &discussion_id)?;
+    let fresh_disc = std::fs::read_to_string(&disc_path).map_err(|e| e.to_string())?;
+    let new_disc = set_resolution(&fresh_disc, &plan_id, &decided_at, &date);
     write_atomic(&disc_path, new_disc.as_bytes()).map_err(|e| e.to_string())?;
 
     Ok(plan_id)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 논의 문서의 **조용한 덮어쓰기 회귀** (2026-09-08).
+///
+/// 무는 것은 셋 — `plan_parallel_write.rs` 가 플래너에 대해 무는 것과 같은
+/// 목록이다:
+///
+/// 1. 낡은 `base_hash` 로 오면 **거절하고 아무것도 안 쓴다**
+/// 2. 방금 읽은 해시로는 **통과한다** (CAS 가 실제로 가능한가)
+/// 3. 문지기를 남이 쥐고 있으면 **조용히 성공하지 않는다**
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tauri::Manager as _;
+
+    const ID: &str = "lost-update";
+
+    /// MockRuntime 앱 + 임시 DB + 논의 문서 하나. 반환은 (앱, 프로젝트 id, tmpdir).
+    async fn fixture() -> (tauri::App<tauri::test::MockRuntime>, u32, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let app = tauri::test::mock_builder()
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .unwrap();
+        let db = Db::open(dir.path().join("test.db")).await.unwrap();
+        let pid = db
+            .create_project("t".to_string(), dir.path().to_string_lossy().into_owned())
+            .await
+            .unwrap();
+        app.manage(db);
+        app.manage(OculpmManager::new());
+
+        let doc_dir = dir.path().join(".oculpm/discussion").join(ID);
+        std::fs::create_dir_all(&doc_dir).unwrap();
+        std::fs::write(
+            doc_dir.join("discussion.md"),
+            create_discussion_skeleton(ID, "손실", "user", "2026-09-08"),
+        )
+        .unwrap();
+        (app, pid, dir)
+    }
+
+    fn doc_path(dir: &tempfile::TempDir) -> PathBuf {
+        dir.path()
+            .join(".oculpm/discussion")
+            .join(ID)
+            .join("discussion.md")
+    }
+
+    /// 편집기가 읽는 자리에서 해시를 얻는다 — 테스트가 따로 해싱하면 발급과
+    /// 대조가 어긋나는 회귀를 못 본다.
+    async fn read_raw(app: &tauri::App<tauri::test::MockRuntime>, pid: u32) -> DiscussionRaw {
+        discussion_read_raw(app.state(), pid, ID.to_string())
+            .await
+            .unwrap()
+    }
+
+    async fn write(
+        app: &tauri::App<tauri::test::MockRuntime>,
+        pid: u32,
+        body: &str,
+        hash: &str,
+    ) -> Result<Option<DiscussionDetail>, String> {
+        discussion_write(
+            app.state(),
+            pid,
+            ID.to_string(),
+            body.to_string(),
+            hash.to_string(),
+        )
+        .await
+    }
+
+    /// **읽은 뒤 남이 고쳤으면 저장은 거절된다** — 이것이 사고의 자리다.
+    ///
+    /// 재현은 실제 경로 그대로다: 편집기가 본문 스냅숏을 뜨고(그 사이 화면은
+    /// 디스크 변경을 일부러 무시한다), 에이전트가 결론을 적고, 사용자가 저장을
+    /// 누른다. 고치기 전에는 여기서 에이전트의 문단이 오류도 흔적도 없이
+    /// 사라지고 화면에는 "저장했어요" 가 떴다.
+    #[tokio::test]
+    async fn a_stale_draft_cannot_silently_erase_what_an_agent_wrote() {
+        let (app, pid, dir) = fixture().await;
+
+        // ① 사용자가 편집기를 연다.
+        let opened = read_raw(&app, pid).await;
+
+        // ② 그 사이 에이전트가 같은 파일에 결론을 적는다 (외부 프로세스).
+        let on_disk = std::fs::read_to_string(doc_path(&dir)).unwrap();
+        let agents_work = on_disk.replace("## 결론\n", "## 결론\n\n에이전트가 적은 결론.\n");
+        assert_ne!(agents_work, on_disk, "픽스처가 결론 절을 안 가졌다");
+        std::fs::write(doc_path(&dir), &agents_work).unwrap();
+
+        // ③ 사용자가 저장을 누른다 — 낡은 스냅숏으로.
+        let err = write(&app, pid, "## 문제 정의\n내가 쓰던 것\n", &opened.hash)
+            .await
+            .expect_err("낡은 해시가 통과했다 — 조용한 덮어쓰기가 돌아왔다");
+        assert!(
+            err.starts_with(WRITE_CONFLICT_PREFIX),
+            "충돌 표지가 없다: {err}"
+        );
+
+        // 아무것도 안 썼다 — 에이전트의 문단이 **그대로** 있다.
+        assert_eq!(
+            std::fs::read_to_string(doc_path(&dir)).unwrap(),
+            agents_work,
+            "거부된 저장이 파일을 건드렸다"
+        );
+    }
+
+    /// **방금 읽은 해시로는 통과한다.** 이게 안 되면 위 테스트는 "아무도 저장
+    /// 못 한다" 를 무는 것이라 아무 값어치가 없다.
+    #[tokio::test]
+    async fn the_hash_read_raw_hands_out_is_the_one_write_accepts() {
+        let (app, pid, dir) = fixture().await;
+
+        let opened = read_raw(&app, pid).await;
+        write(&app, pid, "## 문제 정의\n첫 저장\n", &opened.hash)
+            .await
+            .expect("방금 읽은 해시가 거부됐다");
+        assert!(std::fs::read_to_string(doc_path(&dir))
+            .unwrap()
+            .contains("첫 저장"));
+
+        // 쓰고 나면 해시가 바뀐다 — 옛것으로 또 쓰려 하면 막힌다.
+        let after = read_raw(&app, pid).await;
+        assert_ne!(after.hash, opened.hash);
+        write(&app, pid, "## 문제 정의\n둘째 저장\n", &opened.hash)
+            .await
+            .expect_err("한 번 쓴 해시가 재사용됐다");
+        write(&app, pid, "## 문제 정의\n둘째 저장\n", &after.hash)
+            .await
+            .expect("새 해시가 거부됐다");
+
+        // 프런트매터는 보존된다 — CAS 를 붙이면서 write_body 계약이 깨지지 않았다.
+        let md = std::fs::read_to_string(doc_path(&dir)).unwrap();
+        assert!(md.contains("id: lost-update"), "{md}");
+        assert!(md.contains("둘째 저장"), "{md}");
+    }
+
+    /// **남이 임계구역에 있으면 쓰지 않는다** — 조용한 성공도, 정체불명 오류도
+    /// 아니어야 한다. 인프로세스 뮤텍스로는 못 막는 조합(앱 ↔ MCP 서버 ↔ CLI)이
+    /// 실제 사고 현장이라, 크로스프로세스 신물인 락 파일을 존중하는지로 본다.
+    #[tokio::test]
+    async fn a_lock_held_by_someone_else_blocks_the_write_loudly() {
+        let (app, pid, dir) = fixture().await;
+        let opened = read_raw(&app, pid).await;
+        let before = std::fs::read_to_string(doc_path(&dir)).unwrap();
+
+        let lock = doc_path(&dir).with_file_name(".discussion.md.lock");
+        std::fs::write(&lock, br#"{"pid":999999,"at":"2099-01-01T00:00:00Z"}"#).unwrap();
+
+        let err = write(&app, pid, "## 문제 정의\n무시하고 씀\n", &opened.hash)
+            .await
+            .expect_err("락을 무시하고 썼다");
+        assert!(err.starts_with(WRITE_CONFLICT_PREFIX), "{err}");
+        assert_eq!(
+            std::fs::read_to_string(doc_path(&dir)).unwrap(),
+            before,
+            "못 잡은 락으로 파일을 건드렸다"
+        );
+
+        // 그 프로세스가 나가면 통과하고, 문지기는 자기 뒤를 치운다.
+        std::fs::remove_file(&lock).unwrap();
+        write(&app, pid, "## 문제 정의\n이제 씀\n", &opened.hash)
+            .await
+            .expect("락이 풀렸는데도 거부됐다");
+        assert!(!lock.exists(), "락 파일이 남았다");
+    }
 }

@@ -8,7 +8,7 @@
 
 use super::*;
 
-use crate::oculpm::file_guard::{FileGuard, GuardPolicy};
+use crate::oculpm::file_guard::FileGuard;
 
 // ─── plan_status ─────────────────────────────────────────────────────────────
 
@@ -410,9 +410,10 @@ pub(crate) fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
 ///
 /// 발급하는 자리(`plan_status`·`plan_create`·`plan_update` 응답)와 대조하는
 /// 자리가 **같은 함수**를 써야 한다. 한쪽이 원본 바이트를, 다른 쪽이 정규화된
-/// 문자열을 해싱하면 아무도 CAS 를 통과하지 못한다.
+/// 문자열을 해싱하면 아무도 CAS 를 통과하지 못한다. 그 "같은 함수" 는 이제
+/// [`cas::content_hash`] 하나이고 논의·일지도 그것을 쓴다.
 pub(crate) fn plan_hash(md: &str) -> String {
-    blake3::hash(md.as_bytes()).to_hex().to_string()
+    crate::oculpm::cas::content_hash(md)
 }
 
 /// 플랜 하나를 지키는 크로스프로세스 문지기.
@@ -437,12 +438,7 @@ pub(crate) fn plan_hash(md: &str) -> String {
 pub(crate) fn acquire_plan_guard(
     plan_path: &Path,
 ) -> Result<FileGuard, crate::oculpm::file_guard::GuardError> {
-    let name = plan_path
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("plan.md");
-    let lock = plan_path.with_file_name(format!(".{name}.lock"));
-    FileGuard::acquire(&lock, Utc::now(), GuardPolicy::waiting(2_000))
+    crate::oculpm::cas::acquire_doc_guard(plan_path)
 }
 
 /// [`acquire_plan_guard`] + MCP 호출자를 위한 다음 행동 안내.
