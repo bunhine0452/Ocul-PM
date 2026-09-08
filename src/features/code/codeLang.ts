@@ -102,6 +102,25 @@ export function langLabel(id: CodeLangId | null): string {
   }
 }
 
+/**
+ * 경로에 맞는 **Monaco 언어 id**.
+ *
+ * 여기서 monaco 를 임포트하지 않는 것이 중요하다 — 이 모듈은 `CodePane` 과
+ * jsdom 테스트가 함께 쓰는데, monaco 를 끌어오면 그 테스트가 편집기를 통째로
+ * 로드하게 된다. 문자열 매핑이면 충분하다.
+ *
+ * `json`·`toml` 은 Monaco 0.56 의 Monarch 84종에 **없다** (json 은 워커 기반
+ * 언어 서비스 전용, toml 은 아예 없음). D1 로 그 서비스를 끄므로 지금은 강조가
+ * 없고, Phase 2 `reclaim-lang` 에서 Monarch 문법을 직접 써 채운다
+ * (docs/20260908_monaco-editor/00-master-plan.md `{#d1a-json-toml}`).
+ */
+export function monacoLangForPath(path: string): string {
+  // 우리 `CodeLangId` 12종은 Monaco id 와 이름이 그대로 겹친다 (10종은 문법이
+  // 등록돼 있고, json·toml 은 id 만 맞고 문법이 아직 없다 — Phase 2 가 채우면
+  // 이 함수를 고치지 않아도 켜진다).
+  return langIdForPath(path) ?? "plaintext";
+}
+
 /** 경로에 맞는 CM 언어 확장. tsx/jsx 는 파일명으로 jsx 여부까지 구분한다. */
 export function langExtensionForPath(path: string): Extension[] {
   const id = langIdForPath(path);

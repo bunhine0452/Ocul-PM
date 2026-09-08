@@ -1947,6 +1947,13 @@ export const en: Record<keyof typeof ko, string> = {
   "code.treeAria": "Code file tree",
   "code.truncated": "Too many files — showing a subset",
   "code.editorAria": "Code editor",
+  // Action names shown in the editor's own command palette (F1).
+  "code.action.save": "Save",
+  "code.action.goToDefinition": "Go to definition",
+  "code.action.references": "Find references",
+  "code.action.rename": "Rename symbol",
+  "code.action.codeActions": "Code actions",
+  "code.action.format": "Format",
   "code.empty.title": "Select a file",
   "code.empty.desc": "Open a file from the tree to read and edit it in place. Search and code-map results can jump straight here too.",
   "code.binary": "This file can't be previewed",

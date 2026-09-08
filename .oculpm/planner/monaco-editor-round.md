@@ -19,15 +19,15 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 - [x] 판정 — R1~R3 중 하나라도 붉으면 뒤 Phase 를 쓰지 않고 대안(CodeMirror 기본기 채우기)으로 되돌린다. 결과를 `docs/20260908_monaco-editor/01-spike.md` 에 남긴다 {#spike-verdict}
 
 ## Phase 1 — 이식: props 계약을 한 줄도 안 바꾸고 구현만 간다 {#port}
-- [ ] `CodeEditor.tsx` 를 Monaco 로 다시 쓴다 — `CodeEditorProps` 16개 prop 을 전부 만족시킨다. 언컨트롤드 규약(부모는 초깃값만, 외부 갱신은 key 재마운트)도 유지 — 양방향 동기화가 편집기와 React 상태를 서로 되돌리는 병리는 Monaco 에서도 같다 {#port-shell}
-- [ ] LSP 공급자 배선 — `onComplete`·`onHover`·`onSignatureHelp` 를 Monaco 의 CompletionItemProvider·HoverProvider·SignatureHelpProvider 로. `lspBridge.ts` 의 변환부는 살리고 CM 타입 의존만 걷는다 {#port-lsp}
-  - [ ] `diagnostics` → `monaco.editor.setModelMarkers`. 지금처럼 **재구성 없이 트랜잭션으로만** 반영되는지 확인 {#port-diagnostics}
-  - [ ] F12·⇧F12·F2·⌘.·⇧⌥F·⌘S 를 Monaco action 으로 재등록 — 이동·이름바꾸기·코드액션·포맷의 **실행은 여전히 부모(CodePane)** 가 한다 {#port-commands}
-- [ ] `jump` one-shot 계약 — 1-based 라인 + UTF-16 `ch`/`len` 선택 + `focus:false`(⇧⌘O 미리 점프가 자기 입력창을 안 뺏는 경로). 매번 새 객체라 같은 줄 재점프도 발화해야 한다 {#port-jump}
-- [ ] 거터 재작성 — `gitGutter.ts`(HEAD 대비 줄 변경)는 line 데코레이션으로, `breakpointGutter.ts`(1-based DAP 규약·미검증 줄 구분)는 glyph margin 으로 {#port-gutters}
-- [ ] `diffOriginal` 인라인 비교 — 지금은 `@codemirror/merge` 의 unifiedMergeView(지워진 줄이 빨간 블록으로 끼어들고 청크마다 되돌리기 버튼)다. Monaco 인라인 diff 로 같은 동작을 낸다 {#port-diff}
-- [ ] 테마 다리 — Monaco 는 `defineTheme` 를 JS 로 받고 CSS 변수를 안 읽는다. `data-theme`/`data-preset` 전환 시 계산된 `--code-*` 12개를 읽어 테마를 다시 정의하는 경로를 만든다 (지금은 리마운트 없이 먹던 것이라 회귀하면 눈에 띈다) {#port-theme}
-- [ ] 기존 코드 화면 테스트 30개(5,499줄)를 판정자로 삼아 초록으로 만든다 — 계약이 같으므로 테스트를 고쳐야 한다면 그건 계약이 샜다는 신호다 {#port-tests}
+- [x] `CodeEditor.tsx` 를 Monaco 로 다시 쓴다 — `CodeEditorProps` 16개 prop 을 전부 만족시킨다. 언컨트롤드 규약(부모는 초깃값만, 외부 갱신은 key 재마운트)도 유지 — 양방향 동기화가 편집기와 React 상태를 서로 되돌리는 병리는 Monaco 에서도 같다 {#port-shell}
+- [x] LSP 공급자 배선 — `onComplete`·`onHover`·`onSignatureHelp` 를 Monaco 의 CompletionItemProvider·HoverProvider·SignatureHelpProvider 로. `lspBridge.ts` 의 변환부는 살리고 CM 타입 의존만 걷는다 {#port-lsp}
+  - [x] `diagnostics` → `monaco.editor.setModelMarkers`. 지금처럼 **재구성 없이 트랜잭션으로만** 반영되는지 확인 {#port-diagnostics}
+  - [x] F12·⇧F12·F2·⌘.·⇧⌥F·⌘S 를 Monaco action 으로 재등록 — 이동·이름바꾸기·코드액션·포맷의 **실행은 여전히 부모(CodePane)** 가 한다 {#port-commands}
+- [x] `jump` one-shot 계약 — 1-based 라인 + UTF-16 `ch`/`len` 선택 + `focus:false`(⇧⌘O 미리 점프가 자기 입력창을 안 뺏는 경로). 매번 새 객체라 같은 줄 재점프도 발화해야 한다 {#port-jump}
+- [x] 거터 재작성 — `gitGutter.ts`(HEAD 대비 줄 변경)는 line 데코레이션으로, `breakpointGutter.ts`(1-based DAP 규약·미검증 줄 구분)는 glyph margin 으로 {#port-gutters}
+- [x] `diffOriginal` 인라인 비교 — 지금은 `@codemirror/merge` 의 unifiedMergeView(지워진 줄이 빨간 블록으로 끼어들고 청크마다 되돌리기 버튼)다. Monaco 인라인 diff 로 같은 동작을 낸다 {#port-diff}
+- [x] 테마 다리 — Monaco 는 `defineTheme` 를 JS 로 받고 CSS 변수를 안 읽는다. `data-theme`/`data-preset` 전환 시 계산된 `--code-*` 12개를 읽어 테마를 다시 정의하는 경로를 만든다 (지금은 리마운트 없이 먹던 것이라 회귀하면 눈에 띈다) {#port-theme}
+- [x] 기존 코드 화면 테스트 30개(5,499줄)를 판정자로 삼아 초록으로 만든다 — 계약이 같으므로 테스트를 고쳐야 한다면 그건 계약이 샜다는 신호다 {#port-tests}
 
 ## Phase 2 — 회수: 손으로 만든 것을 내장으로 갈아치우고 지운다 {#reclaim}
 - [ ] `stickyScroll.ts`(229줄) + `stickyModel.ts`(152줄) 삭제 → Monaco 내장 sticky scroll. `stickyMaxLines`·`stickySymbols`·`tabSize` prop 의 뜻을 내장 옵션으로 옮긴다 {#reclaim-sticky}
@@ -70,4 +70,12 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 | 2026-09-08T19:45:44+09:00 | #spike-verdict | claude-code | ☐→x | .oculpm/journal/20260908/Features_to_add/1945_feature_monaco-phase0-spike.md | R1·R2·R3 초록, R5 노랑 → 이관 진행. 01-spike.md 작성. 미결 2: minimumSystemVersion 값, JSON/TOML 강조 |
 | 2026-09-08T19:45:51+09:00 | #spike-min-macos | claude-code | ☐→! | .oculpm/journal/20260908/Features_to_add/1945_feature_monaco-phase0-spike.md | 조사 완료 — 하한은 Safari 16 = macOS 13 이고 Vite 타깃이 정한다(Monaco 무관, 지금도 10.13 은 틀림). 값 박기는 macOS 12 이하 공식 포기라 사용자 결정 대기 |
 | 2026-09-08T19:51:27+09:00 | #spike-min-macos | claude-code | !→x | .oculpm/journal/20260908/Features_to_add/1945_feature_monaco-phase0-spike.md | minimumSystemVersion=13.0 박음. 하한은 Monaco 가 아니라 Vite 7 기본 타깃 safari16 이 정한다 — 앱은 이미 macOS 13 을 요구하고 있었고 10.13 은 못 지킬 약속이었다 |
+| 2026-09-08T20:15:07+09:00 | #port-shell | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/2014_refactor_monaco-port-phase1.md | 572→481줄 + monaco/ 4조각. props 16개 무변경, 언컨트롤드 규약 유지 |
+| 2026-09-08T20:15:13+09:00 | #port-diagnostics | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/2014_refactor_monaco-port-phase1.md | setModelMarkers 로 교체 반영 — 재구성 없음. 길이 0 범위를 한 글자로 넓히는 규칙도 이관 |
+| 2026-09-08T20:15:19+09:00 | #port-commands | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/2014_refactor_monaco-port-phase1.md | F12·⇧F12·F2·⌘.·⇧⌥F·⌘S 를 addAction 으로 + ⌘클릭은 onMouseDown. 실행은 여전히 부모. i18n 키 6개 추가 |
+| 2026-09-08T20:15:25+09:00 | #port-jump | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/2014_refactor_monaco-port-phase1.md | 1-based 라인 + ch/len 을 Monaco 열(1-based)로 죄어 반영, focus:false 경로 유지. diff 모드 결함(숨은 편집기로 점프) 자체 발견·수정 |
+| 2026-09-08T20:15:31+09:00 | #port-gutters | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/2014_refactor_monaco-port-phase1.md | git=line 데코레이션, 중단점=glyph margin. 두 컬렉션을 분리(한 컬렉션이면 git 갱신이 중단점을 지운다). CSS 는 같은 토큰 재사용 |
+| 2026-09-08T20:15:37+09:00 | #port-diff | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/2014_refactor_monaco-port-phase1.md | renderSideBySide:false 인라인 diff. 구현 완료, 렌더 육안 확인은 fin-eyes 로 |
+| 2026-09-08T20:15:43+09:00 | #port-theme | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/2014_refactor_monaco-port-phase1.md | --code-* 15개 → defineTheme + data-theme/preset MutationObserver 재정의. 프리셋 격자 육안 확인은 fin-eyes 로 |
+| 2026-09-08T20:15:50+09:00 | #port-tests | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/2014_refactor_monaco-port-phase1.md | 189파일 2460개 전부 통과, 테스트 한 줄도 안 고침 = 계약 무유출. 기여목록 자물쇠 테스트 신규 추가 |
 <!-- oculpm:plan-log end -->

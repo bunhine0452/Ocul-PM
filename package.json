@@ -66,6 +66,7 @@
     "graphology-communities-louvain": "^2.0.2",
     "highlight.js": "^11.11.1",
     "lucide-react": "^1.16.0",
+    "monaco-editor": "0.56.0",
     "prettier": "^3.8.3",
     "radix-ui": "^1.4.3",
     "react": "^19.1.0",

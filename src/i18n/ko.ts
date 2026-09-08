@@ -1944,6 +1944,13 @@ export const ko = {
   "code.treeAria": "코드 파일 트리",
   "code.truncated": "파일이 너무 많아 일부만 표시합니다",
   "code.editorAria": "코드 에디터",
+  // 편집기 안 명령 팔레트(F1)에 뜨는 액션 이름들. 실행은 부모(CodePane)가 한다.
+  "code.action.save": "저장",
+  "code.action.goToDefinition": "정의로 이동",
+  "code.action.references": "참조 찾기",
+  "code.action.rename": "이름 바꾸기",
+  "code.action.codeActions": "코드 액션",
+  "code.action.format": "포맷팅",
   "code.empty.title": "파일을 선택하세요",
   "code.empty.desc": "왼쪽 트리에서 파일을 열어 바로 보고 고칠 수 있습니다. 검색·코드맵 결과에서 이 화면으로 바로 점프할 수도 있습니다.",
   "code.binary": "미리볼 수 없는 파일입니다",

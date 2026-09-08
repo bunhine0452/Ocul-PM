@@ -2508,3 +2508,78 @@ body.code-dragging {
   border: 0;
   background: var(--bg-inset);
 }
+
+/* ── Monaco 거터·크롬 (#monaco) ────────────────────────────────
+   CodeMirror 의 `.cm-git-gutter-mark` / `.cm-bp-mark` 를 대체한다. Monaco 는
+   거터를 확장이 아니라 **데코레이션**으로 그리므로, 여기서 하는 일은 클래스에
+   모양을 주는 것뿐이다 (`monaco/decorations.ts` 가 클래스를 붙인다).
+   색은 CodeMirror 판과 **같은 토큰**을 쓴다 — 이관으로 색이 바뀌면 안 된다. */
+.code-editor-host .monaco-editor,
+.code-editor-host .code-editor-diff {
+  height: 100%;
+}
+/* 편집면 바탕은 테마가 `#00000000` 로 비워 뒀다 — 뒤의 `.code-pane` 이 그린다.
+   Monaco 가 자체로 까는 불투명 판만 걷어낸다. */
+.code-editor-host .monaco-editor,
+.code-editor-host .monaco-editor .overflow-guard,
+.code-editor-host .monaco-editor-background,
+.code-editor-host .monaco-editor .margin {
+  background: transparent;
+}
+/* 거터는 position:sticky 라 가로 스크롤 때 제자리에 남는다 — 배경이 투명하면
+   긴 줄이 줄번호 밑으로 비쳐 겹쳐 보인다 (CodeMirror 판과 같은 이유). */
+.code-editor-host .monaco-editor .margin {
+  background: var(--bg-content);
+}
+
+/* git 줄 변경 — 줄번호 왼쪽 3px 띠. */
+.code-editor-host .mo-git {
+  width: 3px !important;
+  margin-left: 1px;
+}
+.code-editor-host .mo-git-added {
+  background: var(--diff-add-text);
+}
+.code-editor-host .mo-git-modified {
+  background: var(--accent);
+}
+/* 지워진 줄은 화면에 없다 — 남은 줄의 아래쪽 모서리에 삼각형으로 얹는다
+   (VS Code 와 같은 관용구). */
+.code-editor-host .mo-git-deleted {
+  background: none;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 5px solid var(--diff-del-text);
+  height: 0;
+  align-self: flex-end;
+}
+
+/* 중단점 — glyph margin. git 거터와 달리 사람이 겨눠 눌러야 하므로 넓다. */
+.code-editor-host .mo-bp {
+  cursor: pointer;
+}
+.code-editor-host .mo-bp::after {
+  content: "";
+  display: block;
+  width: 10px;
+  height: 10px;
+  margin: 3px auto 0;
+  border-radius: 50%;
+  background: var(--destructive);
+}
+/* 어댑터가 "이 줄엔 못 건다" 고 답한 것 — 속을 비워 구별한다. 찍었는데 안
+   걸리는 이유를 눈으로 알 수 없으면 사용자는 고장으로 읽는다. */
+.code-editor-host .mo-bp-unverified::after {
+  background: none;
+  border: 1.5px solid var(--text-3);
+}
+/* 거터에 커서를 올리면 찍을 수 있다는 것을 보여 준다 (VS Code 와 같다). */
+.code-editor-host .monaco-editor .margin-view-overlays .cgmr:hover::after {
+  content: "";
+  display: block;
+  width: 10px;
+  height: 10px;
+  margin: 3px auto 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--destructive) 32%, transparent);
+}
