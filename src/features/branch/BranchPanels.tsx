@@ -12,10 +12,10 @@ import type { BranchCommit, BranchEntry, BranchFile, BranchPlanItem } from "@/li
 // 빌렸다 (`.card card-pad` · 배지 · 우측 메타). 히어로도 일러스트도 없다.
 
 const TYPE_LABEL: Record<string, I18nKey> = {
-  feature: "retro.type.feature",
-  refactor: "retro.type.refactor",
-  error: "retro.type.error",
-  bug: "retro.type.bug",
+  feature: "entry.type.feature",
+  refactor: "entry.type.refactor",
+  error: "entry.type.error",
+  bug: "entry.type.bug",
 };
 
 /** "20260906" → "9/6". 회고의 `wd` 와 같은 규칙 — 좁은 폭에서 날짜는 짧아야 한다. */

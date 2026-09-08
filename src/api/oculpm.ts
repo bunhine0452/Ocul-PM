@@ -299,9 +299,8 @@ export const oculpmApi = {
    *
    * **호출부가 0인데도 남긴다** (v3 「죽은 표면 정리」). 새고 있는 게 아니라
    * 손잡이가 아직 안 만들어졌다 — ui_v2 의 `EntryDetailView` 에 "파일로 열기"
-   * 가 없다. 지우면 opener-scope 회귀 4번째를 부르는 길이 열린다
-   * (`features/retro/DeferLedger.tsx` 의 주석이 일반 파일용 `openInEditor` 와
-   * 이 일지 전용 경로를 구분해 두는 이유가 그것이다).
+   * 가 없다. 지우면 opener-scope 회귀 4번째를 부르는 길이 열린다 — 일지 전용
+   * 경로는 일반 파일용 `openInEditor` 와 끝까지 구분해 둔다.
    */
   openEntryInEditor: (projectId: number, relativePath: string) =>
     unwrap<null>(

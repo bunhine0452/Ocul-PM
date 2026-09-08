@@ -21,6 +21,7 @@ import { DiscussionView } from "./DiscussionView";
 import { shortDate, statusMeta } from "./discussionFormat";
 import { appendLogRowOp, localIsoWithOffset } from "./mdEdit";
 import { buildDiscussionPrompt, promptKindFor } from "./discussionPrompt";
+import { isWriteConflict } from "./conflict";
 import { logColumns, sectionHeadings, TEMPLATE_IDS, templateBody, type TemplateId } from "./discussionTemplates";
 
 interface Props {
@@ -65,6 +66,14 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  /**
+   * 편집기를 열 때 디스크가 갖고 있던 본문의 해시 — 저장의 `base_hash` (CAS).
+   *
+   * 이 값이 없던 동안, 편집기를 열어 둔 사이 에이전트가 적은 문단은 저장 한
+   * 번에 조용히 사라졌다 (`commands/discussion.rs` 의 CAS 문단). 백엔드가
+   * 이제 이 값을 대조하고, 어긋나면 **아무것도 쓰지 않고** 돌려보낸다.
+   */
+  const [draftHash, setDraftHash] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -149,7 +158,8 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     async (id: string) => {
       const res = await commands.discussionReadRaw(projectId, id);
       if (res.status === "ok") {
-        setDraft(res.data);
+        setDraft(res.data.body);
+        setDraftHash(res.data.hash);
         setEditing(true);
       } else toast.destructive(t("disc.editorFailed", { error: res.error }));
     },
@@ -205,7 +215,15 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     // 템플릿은 골격 위에 본문만 덮어쓴다 ("빈 문서" 면 그대로 둔다).
     const body = templateBody(newTemplate);
     if (body) {
-      const w = await commands.discussionWrite(projectId, id, body);
+      // 방금 만든 문서라도 **읽고 나서 쓴다** — `base_hash` 에 예외를 두면 그
+      // 예외가 곧 손실 경로가 된다 (플래너 `{#cas-required}` 와 같은 규율).
+      const seed = await commands.discussionReadRaw(projectId, id);
+      if (seed.status !== "ok") {
+        setBusy(false);
+        toast.destructive(t("disc.saveFailed", { error: seed.error }));
+        return;
+      }
+      const w = await commands.discussionWrite(projectId, id, body, seed.data.hash);
       if (w.status !== "ok") toast.destructive(t("disc.saveFailed", { error: w.error }));
     }
     setBusy(false);
@@ -215,17 +233,74 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     select(id);
   };
 
+  /** 저장 성공 뒤의 뒷정리 — 두 경로(그냥 저장·알고 덮어쓰기)가 같은 것을 한다. */
+  const afterSaved = (saved: DiscussionDetail | null) => {
+    setEditing(false);
+    setDetail(saved);
+    void loadList();
+    toast.info(t("disc.saved"));
+  };
+
   const saveBody = async (text: string) => {
     if (!selectedId) return;
     setBusy(true);
-    const res = await commands.discussionWrite(projectId, selectedId, text);
+    const res = await commands.discussionWrite(projectId, selectedId, text, draftHash);
     setBusy(false);
     if (res.status === "ok") {
-      setEditing(false);
-      setDetail(res.data);
-      void loadList();
-      toast.info(t("disc.saved"));
-    } else toast.destructive(t("disc.saveFailed", { error: res.error }));
+      afterSaved(res.data);
+      return;
+    }
+    // 충돌은 다른 실패와 다르다 — 초안이 멀쩡히 살아 있고 고를 것이 있다.
+    if (isWriteConflict(res.error)) {
+      offerConflictChoice(selectedId, text);
+      return;
+    }
+    toast.destructive(t("disc.saveFailed", { error: res.error }));
+  };
+
+  /**
+   * 읽은 뒤에 디스크가 바뀌었다 — **초안은 그대로 두고** 사용자가 고르게 한다.
+   *
+   * 자동 재시도는 없다. 조용히 덮는 것이 애초에 이 라운드가 고친 사고이고,
+   * 새 해시로 다시 쏘는 것은 그 사고를 한 단계 뒤로 옮긴 것에 지나지 않는다.
+   * 그렇다고 막다른 골목으로 두면(같은 해시로는 영영 저장이 안 된다) 사용자가
+   * 잃는 것은 반대쪽 — 자기 초안 — 이므로, 두 길을 **이름을 붙여** 연다.
+   *
+   * 편집기는 열린 채다. 어느 쪽도 안 고르고 창을 떠나는 것이 초안을 지키는
+   * 가장 안전한 선택지라, 토스트는 스스로 사라지지 않는다(`durationMs: 0`).
+   */
+  const offerConflictChoice = (id: string, myDraft: string) => {
+    toast.destructive(t("disc.conflictBody"), {
+      title: t("disc.conflictTitle"),
+      durationMs: 0,
+      dedupKey: `disc-conflict:${projectId}:${id}`,
+      actions: [
+        {
+          label: t("disc.conflictOverwrite"),
+          onClick: () => {
+            void (async () => {
+              // 지금 값을 읽어 그것으로 쓴다 — 사용자가 **알고** 덮는 것이다.
+              const fresh = await commands.discussionReadRaw(projectId, id);
+              if (fresh.status !== "ok") {
+                toast.destructive(t("disc.saveFailed", { error: fresh.error }));
+                return;
+              }
+              const w = await commands.discussionWrite(projectId, id, myDraft, fresh.data.hash);
+              if (w.status !== "ok") {
+                toast.destructive(t("disc.saveFailed", { error: w.error }));
+                return;
+              }
+              afterSaved(w.data);
+            })();
+          },
+        },
+        {
+          // 초안을 버린다 — 라벨이 그렇게 말한다.
+          label: t("disc.conflictReload"),
+          onClick: () => void startEdit(id),
+        },
+      ],
+    });
   };
 
   /** 이 문서를 읽고 논의를 시작하라는 지시문을 클립보드로. */
@@ -260,15 +335,17 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
       toast.destructive(t("disc.editorFailed", { error: raw.error }));
       return false;
     }
-    const op = appendLogRowOp(raw.data, {
+    // 방금 읽은 원문 위에서 조립하고, **그 해시로** 쓴다 — 읽기와 쓰기 사이가
+    // IPC 두 번이라 이 구간에도 남이 끼어들 수 있다.
+    const op = appendLogRowOp(raw.data.body, {
       author: SELF_AUTHOR,
       ts: localIsoWithOffset(new Date()),
       body,
       heading: sectionHeadings().log,
       columns: logColumns(),
     });
-    const next = raw.data.slice(0, op.from) + op.insert + raw.data.slice(op.to);
-    const res = await commands.discussionWrite(projectId, selectedId, next);
+    const next = raw.data.body.slice(0, op.from) + op.insert + raw.data.body.slice(op.to);
+    const res = await commands.discussionWrite(projectId, selectedId, next, raw.data.hash);
     if (res.status !== "ok") {
       toast.destructive(t("disc.saveFailed", { error: res.error }));
       return false;

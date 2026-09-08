@@ -398,7 +398,6 @@ impl WatcherInner {
             OculpmDataArea::Planner,
             OculpmDataArea::Discussion,
             OculpmDataArea::Rules,
-            OculpmDataArea::Retro,
             OculpmDataArea::Automation,
         ] {
             self.emit_data_changed(area, "", FileOp::Update);
@@ -504,6 +503,17 @@ impl WatcherInner {
         //     신호만 내보낸다 — 이게 없던 동안 두 화면은 마운트 때 읽은 내용에
         //     그대로 머물러서, 에이전트가 계획을 고쳐도 사용자가 직접
         //     새로고침해야 보였다 (도그푸딩 2026-08-21).
+        // 3.4 `.oculpm/retro/**` — 회고 화면은 2026-09-08 에 사라졌지만 그 화면이
+        //     남긴 마크다운은 사용자 저장소에 그대로 있다 (앱이 사용자의 파일을
+        //     지우지는 않는다). 다시 읽을 화면이 없으니 신호는 안 내되, **코드
+        //     변경 ndjson 파이프라인으로도 흘리지 않는다** — 흘리면 옛 회고
+        //     파일이 정직성 감사의 가짜 "누락" 행으로 되살아난다 (화면이 있던
+        //     시절 이 경로를 데이터 영역으로 승격한 이유가 그것이었다).
+        if rel_str.starts_with(".oculpm/retro/") {
+            self.bump_ignored();
+            return;
+        }
+
         if let Some(area) = data_area_for_path(&rel_str) {
             let op = classify_journal_op(&ev.event.kind);
             tracing::debug!(
@@ -1578,9 +1588,6 @@ fn data_area_for_path(rel_str: &str) -> Option<OculpmDataArea> {
     if rel_str.starts_with(".oculpm/discussion/") {
         return Some(OculpmDataArea::Discussion);
     }
-    if rel_str.starts_with(".oculpm/retro/") {
-        return Some(OculpmDataArea::Retro);
-    }
     None
 }
 
@@ -2155,6 +2162,9 @@ mod tests {
             None
         );
         // 접두사에 `/` 를 넣은 이유 — 이웃 디렉터리를 삼키지 않는다.
+        // 회고 화면 삭제 (2026-09-08) — 더는 데이터 영역이 아니다. 남은 파일은
+        // 워처 상단(3.4)에서 삼켜지므로 여기서 None 인 것이 맞다.
+        assert_eq!(data_area_for_path(".oculpm/retro/20260714..20260720.md"), None);
         assert_eq!(data_area_for_path(".oculpm/planner-backup/old.md"), None);
         assert_eq!(data_area_for_path(".oculpm/discussions.md"), None);
         // 프로젝트 소스에 같은 이름의 디렉터리가 있어도 무관해야 한다.

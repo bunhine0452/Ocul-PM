@@ -49,15 +49,18 @@ export function DiscussionTab({ projectId }: { projectId: number }) {
       setBusy(false);
       return;
     }
-    const op = appendLogRowOp(raw.data, {
+    // 방금 읽은 원문 위에서 조립하고 **그 해시로** 쓴다. 폰도 예외가 아니다 —
+    // 데스크톱과 폰이 같은 문서를 동시에 여는 것이 이 브리지의 존재 이유라,
+    // 여기에 우회로를 두면 그것이 곧 손실 경로가 된다.
+    const op = appendLogRowOp(raw.data.body, {
       author: "user (mobile)",
       ts: localIsoWithOffset(new Date()),
       body: note.trim(),
       heading: sectionHeadings().log,
       columns: logColumns(),
     });
-    const next = raw.data.slice(0, op.from) + op.insert + raw.data.slice(op.to);
-    const res = await commands.discussionWrite(projectId, selected, next);
+    const next = raw.data.body.slice(0, op.from) + op.insert + raw.data.body.slice(op.to);
+    const res = await commands.discussionWrite(projectId, selected, next, raw.data.hash);
     setBusy(false);
     if (res.status === "ok") {
       setDetail(res.data);

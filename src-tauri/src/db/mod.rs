@@ -318,17 +318,6 @@ fn project_overview_from_row(r: &rusqlite::Row) -> rusqlite::Result<ProjectOverv
     })
 }
 
-fn retro_insight_from_row(r: &rusqlite::Row) -> rusqlite::Result<RetroInsight> {
-    Ok(RetroInsight {
-        project_id: r.get::<_, i64>(0)? as u32,
-        range_key: r.get(1)?,
-        signature: r.get(2)?,
-        retro_md: r.get(3)?,
-        generated_at: r.get::<_, i64>(4)? as u32,
-        generated_by_model: r.get(5)?,
-    })
-}
-
 // ---------- Types ----------
 
 /// 페어링된 모바일 기기 (설정 '모바일' 탭 목록).
@@ -662,20 +651,6 @@ pub struct ProjectOverview {
     pub overview_md: Option<String>,
     pub source_signature: Option<String>,
     pub generated_at: Option<u32>,
-    pub generated_by_model: Option<String>,
-}
-
-/// F4 — one cached retrospective for a workday range. `signature` is a hash of
-/// the deterministic signals; when it diverges from the current signals the
-/// frontend marks the cached narrative stale. Mirrors `project_overviews`.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
-pub struct RetroInsight {
-    pub project_id: u32,
-    /// "YYYYMMDD..YYYYMMDD" (inclusive workday range).
-    pub range_key: String,
-    pub signature: String,
-    pub retro_md: String,
-    pub generated_at: u32,
     pub generated_by_model: Option<String>,
 }
 

@@ -206,7 +206,7 @@ impl<'a> JournalCache<'a> {
     /// (inclusive, string-compared "YYYYMMDD"), each carrying its touched file
     /// paths and tags. Three bounded queries (entries, files, tags) joined in
     /// Rust — no per-entry N+1. Newest workday first. Drives the deterministic
-    /// retro signal + promotion passes without hydrating the full summary.
+    /// promotion passes without hydrating the full summary.
     pub async fn range_entries(
         &self,
         project_id: u32,

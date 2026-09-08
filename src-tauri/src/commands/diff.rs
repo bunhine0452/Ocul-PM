@@ -240,7 +240,7 @@ pub struct BinaryPreview {
 }
 
 /// base64 는 ~33% 부풀고 webview 로 통째로 넘어가므로 프리뷰 상한을 둔다
-/// (docs_asset 의 MAX_ASSET_BYTES 와 동일 기준).
+/// (`code_asset` 의 MAX_ASSET_BYTES 와 동일 기준).
 const MAX_PREVIEW_BYTES: usize = 16 * 1024 * 1024;
 
 /// 변경 diff 화면의 이미지 프리뷰 payload. `compute_diff` 가

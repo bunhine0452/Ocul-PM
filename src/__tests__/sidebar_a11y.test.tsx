@@ -68,7 +68,7 @@ describe("PR-UI 1 — Sidebar a11y", () => {
 describe("PR-UI 1 — Sidebar navigation", () => {
   // 2026-09-06 IA 재편 — 이름 셋이 바뀌었고(Diff→변경 · 코드 검색→검색 ·
   // 코드→편집기), Claude Code·Codex·세션이 「에이전트」 한 행으로 접혔으며,
-  // 논의·문서는 참고 그룹으로 내려갔다. 라벨은 전부 살아 있다.
+  // 논의는 참고 그룹으로 내려갔다 (회고·문서 화면은 2026-09-08 에 사라졌다).
   it("renders every sidebar row", () => {
     const { getByText } = renderSidebar();
     for (const label of [
@@ -76,7 +76,6 @@ describe("PR-UI 1 — Sidebar navigation", () => {
       "작업 일지",
       "변경",
       "플래너",
-      "회고",
       "검색",
       "코드 맵",
       "터미널",
@@ -85,7 +84,6 @@ describe("PR-UI 1 — Sidebar navigation", () => {
       "AI 대화",
       "스킬·규칙",
       "논의",
-      "문서",
       "다크 모드",
       "설정",
     ]) {

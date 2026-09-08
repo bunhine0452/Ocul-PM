@@ -233,8 +233,6 @@ export interface WorkspaceState {
   acpUltracode: boolean;
   /** AI 패널 + 오버레이가 공유하는 thread id. */
   aiThreadId: string | null;
-  /** 문서(docs) 화면에서 마지막으로 본 문서의 프로젝트-루트 기준 경로 (예: docs/README.md). */
-  docsActivePath: string | null;
   /** 코드 화면에서 마지막으로 열었던 파일의 프로젝트-루트 기준 경로. */
   codeActivePath: string | null;
   /**

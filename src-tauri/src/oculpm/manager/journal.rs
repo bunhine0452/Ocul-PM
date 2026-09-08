@@ -32,6 +32,31 @@ pub(crate) fn resolve_entry_path(
     Ok(abs)
 }
 
+/// 일지 항목 하나를 고치는 동안 잡는 크로스프로세스 문지기.
+///
+/// 이 파일의 수정 커맨드 넷(`set_journal_verified` · `update_journal_entry_meta`
+/// · `coerce_journal_entry_timestamps_on_disk` · `update_journal_entry_body`)은
+/// 전부 같은 모양이다 — 파일을 통째로 읽고, 프런트매터나 본문 한쪽을 바꾸고,
+/// **통째로 다시 쓴다.** 그래서 둘이 겹치면 한쪽이 통째로 사라진다: 검증
+/// 토글(프런트매터)과 본문 편집이 동시에 들어오면 나중 쓴 쪽이 앞의 것을 덮고,
+/// 잃은 쪽에는 오류도 흔적도 남지 않는다.
+///
+/// `.oculpm/journal/` 은 워처가 `is_journal_entry_path` 로 거르는 구역이라
+/// 점으로 시작하는 락 파일은 일지로 오인되지 않는다 (그 함수가 점 세그먼트를
+/// 명시적으로 거부한다).
+///
+/// **CAS(`base_hash`)는 여기 없다.** 논의와 달리 일지 본문에는 읽기-편집-쓰기를
+/// 도는 편집기가 아직 없고(`oculpm_update_entry_body` 의 유일한 진입은 모바일
+/// 브리지다), 짝이 되는 읽기(`get_journal_entry`)는 **마스킹된** 투영을
+/// 돌려주므로 호출자가 디스크와 일치하는 해시를 만들 길이 없다. 만들 수 없는
+/// 값을 필수로 걸면 그건 보호가 아니라 고장이다 — 편집기가 생기는 날 원문 읽기와
+/// 함께 붙일 자리다.
+fn entry_write_guard(abs: &Path) -> Result<crate::oculpm::file_guard::FileGuard, OculpmError> {
+    crate::oculpm::cas::acquire_doc_guard(abs).map_err(|e| OculpmError::InvalidConfig(format!(
+        "일지 항목을 지금 쓸 수 없습니다: {e}. 다른 세션이 같은 항목을 고치는 중입니다 — 잠시 뒤 다시 시도하세요."
+    )))
+}
+
 impl OculpmManager {
     // ─── W3-PR3: journal cache + manual entry coordination ──────────────────
 
@@ -133,6 +158,10 @@ impl OculpmManager {
     ) -> Result<(), OculpmError> {
         let journal_root = self.journal_root(project_id).await?;
         let abs = resolve_entry_path(&journal_root, &relative_path)?;
+        // 읽기 **앞**에서 문지기를 잡는다 — 이 아래는 전부 read-modify-write 라,
+        // 락이 없으면 프런트매터만 고치는 호출이 동시에 도는 본문 편집을 그대로
+        // 덮는다 (`entry_write_guard` 의 문단).
+        let _guard = entry_write_guard(&abs)?;
         let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
             path: abs.clone(),
             source,
@@ -189,6 +218,10 @@ impl OculpmManager {
         }
         let journal_root = self.journal_root(project_id).await?;
         let abs = resolve_entry_path(&journal_root, &relative_path)?;
+        // 읽기 **앞**에서 문지기를 잡는다 — 이 아래는 전부 read-modify-write 라,
+        // 락이 없으면 프런트매터만 고치는 호출이 동시에 도는 본문 편집을 그대로
+        // 덮는다 (`entry_write_guard` 의 문단).
+        let _guard = entry_write_guard(&abs)?;
         let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
             path: abs.clone(),
             source,
@@ -246,6 +279,10 @@ impl OculpmManager {
         let tz = self.tz_for(project_id).await;
         let journal_root = self.journal_root(project_id).await?;
         let abs = resolve_entry_path(&journal_root, &relative_path)?;
+        // 읽기 **앞**에서 문지기를 잡는다 — 이 아래는 전부 read-modify-write 라,
+        // 락이 없으면 프런트매터만 고치는 호출이 동시에 도는 본문 편집을 그대로
+        // 덮는다 (`entry_write_guard` 의 문단).
+        let _guard = entry_write_guard(&abs)?;
         let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
             path: abs.clone(),
             source,
@@ -306,6 +343,10 @@ impl OculpmManager {
     ) -> Result<JournalEntry, OculpmError> {
         let journal_root = self.journal_root(project_id).await?;
         let abs = resolve_entry_path(&journal_root, &relative_path)?;
+        // 읽기 **앞**에서 문지기를 잡는다 — 이 아래는 전부 read-modify-write 라,
+        // 락이 없으면 프런트매터만 고치는 호출이 동시에 도는 본문 편집을 그대로
+        // 덮는다 (`entry_write_guard` 의 문단).
+        let _guard = entry_write_guard(&abs)?;
         let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
             path: abs.clone(),
             source,

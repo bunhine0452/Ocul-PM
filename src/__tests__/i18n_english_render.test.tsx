@@ -84,8 +84,8 @@ import { PluginDocsTab } from "@/features/skills/PluginDocsTab";
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
 import { TerminalScreenV2 } from "@/features/terminal/TerminalScreenV2";
-import { RuleCandidatesPanel } from "@/features/retro/RuleCandidates";
-import { SkillCandidatesPanel } from "@/features/retro/SkillCandidates";
+import { RuleCandidatesPanel } from "@/features/skills/RuleCandidates";
+import { SkillCandidatesPanel } from "@/features/skills/SkillCandidates";
 
 // i18n-ignore-next-line -- 한글 **검출**용 정규식 (표시 문자열이 아니다)
 const HANGUL = /[가-힣]/;

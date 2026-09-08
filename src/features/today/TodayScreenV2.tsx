@@ -171,9 +171,6 @@ export function TodayScreenV2({
         >
           <Clipboard size={15} /> {standupBusy ? t("today.standup.busy") : t("today.standup.copy")}
         </button>
-        <button className="btn" onClick={() => onNavigate("retro")} title={t("nav.retro")}>
-          <History size={15} /> {t("today.retro")}
-        </button>
         <button className="btn" onClick={() => onNavigate("journal")}>
           <NotebookText size={15} /> {t("today.allEntries")}
         </button>

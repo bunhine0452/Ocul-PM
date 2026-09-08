@@ -177,8 +177,46 @@ fn resolve_project_file(project_root: &str, rel_path: &str) -> Result<PathBuf, S
 /// 큰따옴표 안에서는 `$`·백틱·`\` 가 여전히 살아 있어서 `/tmp/$(id).rs` 같은
 /// 경로가 `sh -c` 에서 **명령 치환으로 실행**됐고, `\` 로 끝나는 경로는 닫는
 /// 따옴표를 먹어 인용이 통째로 깨졌다.
-fn sh_quote(raw: &str) -> String {
+///
+/// **인용 규칙은 플랫폼마다 다르다** (2026-09-08). 이 함수가 하나였던 동안
+/// [`spawn_detached`] 의 Windows 분기(`cmd /C`)는 POSIX 인용을 받아 갔는데,
+/// **cmd 는 작은따옴표를 인용으로 읽지 않는다** — `'C:\a&calc&b.rs'` 는 리터럴
+/// 한 덩어리가 아니라 `&` 에서 끊긴 세 명령이 된다. 실제 배포는 macOS 뿐이라
+/// 사고는 없었지만 `bundle.targets` 가 `"all"` 이라 형식상 열려 있었다.
+fn posix_quote(raw: &str) -> String {
     format!("'{}'", raw.replace('\'', r"'\''"))
+}
+
+/// `cmd.exe` 에 안전한 인용 — **큰따옴표**로 감싼다.
+///
+/// cmd 는 큰따옴표 안에서 `&`·`|`·`<`·`>`·`(`·`)`·`^` 를 특별하게 보지 않으므로
+/// 이것만으로 명령 주입이 닫힌다. POSIX 쪽이 막는 `$`·백틱은 cmd 의 문법이
+/// 아니라 애초에 위험하지 않다.
+///
+/// `"` 는 지운다. Windows 파일명 예약 문자라 정상 경로에는 올 수 없고, 그래도
+/// 넘어오면 인용이 통째로 깨진다 — **엉뚱한 경로로 실패하는 편이 임의 명령을
+/// 실행하는 것보다 낫다.**
+///
+/// `%` 는 남긴다. cmd 는 인용 안에서도 `%VAR%` 를 펼치므로 그런 이름의 파일은
+/// 엉뚱한 경로로 열릴 수 있다. 다만 펼친 결과도 여전히 따옴표 안이라 주입으로는
+/// 번지지 않고, `%` 는 Windows 에서 **합법적인 파일명 문자**라 지우면 멀쩡한
+/// 파일을 못 열게 된다.
+fn cmd_quote(raw: &str) -> String {
+    format!("\"{}\"", raw.replace('"', ""))
+}
+
+/// 이 빌드가 나가는 셸의 인용.
+///
+/// 두 구현을 **cfg 로 가르지 않고** 둘 다 컴파일해 두는 이유는 검증이다. cfg
+/// 안에 든 코드는 그 플랫폼에서 빌드하기 전까지 컴파일도 테스트도 되지 않아,
+/// 여기 살던 Windows 분기가 몇 달째 아무도 안 본 채 POSIX 인용을 받아 갔다.
+/// 순수 함수 둘로 갈라 두면 계약은 **모든 플랫폼의 테스트가** 문다.
+fn sh_quote(raw: &str) -> String {
+    if cfg!(target_os = "windows") {
+        cmd_quote(raw)
+    } else {
+        posix_quote(raw)
+    }
 }
 
 /// `template` 의 `%path` / `%line` 을 치환한다. Public for unit testing.
@@ -247,7 +285,9 @@ fn spawn_detached(command: &str) -> std::io::Result<()> {
     }
 }
 
-#[cfg(test)]
+// `substitute_path` 를 통과하는 단언은 **이 빌드의 셸** 인용을 본다. 두 인용
+// 규칙 자체는 아래 `quoting` 모듈이 플랫폼과 무관하게 문다.
+#[cfg(all(test, not(target_os = "windows")))]
 mod tests {
     use super::*;
 
@@ -350,5 +390,53 @@ mod tests {
     fn line_number_is_plain_digits() {
         let out = substitute_path("code -g \"%path:%line\"", "/tmp/x.rs", Some(4_294_967_295));
         assert_eq!(out, "code -g '/tmp/x.rs:4294967295'");
+    }
+}
+
+/// 두 셸의 인용 규칙 — **플랫폼과 무관하게** 돈다 (`sh_quote` 문단의 이유).
+#[cfg(test)]
+mod quoting {
+    use super::*;
+
+    /// **cmd 메타문자가 큰따옴표 안에서 리터럴이 된다.** POSIX 인용을 그대로
+    /// `cmd /C` 로 넘기던 시절, 이 경로는 `calc` 를 실행했다 — cmd 는 작은
+    /// 따옴표를 인용으로 읽지 않아 `&` 에서 명령이 끊긴다.
+    #[test]
+    fn cmd_quoting_keeps_metacharacters_inside_the_quotes() {
+        assert_eq!(cmd_quote(r"C:\p\a&calc&b.rs"), "\"C:\\p\\a&calc&b.rs\"");
+        assert_eq!(cmd_quote(r"C:\p\a|calc.rs"), "\"C:\\p\\a|calc.rs\"");
+        assert_eq!(cmd_quote(r"C:\p\a^b(c).rs"), "\"C:\\p\\a^b(c).rs\"");
+    }
+
+    /// 그 경로를 POSIX 인용으로 감싸면 **cmd 에서는 보호가 0** 이다 — 회귀가
+    /// 돌아왔는지 가르는 단언이라 두 규칙이 다르다는 사실 자체를 문다.
+    #[test]
+    fn the_two_shells_do_not_share_a_quoting_rule() {
+        let path = r"C:\p\a&calc&b.rs";
+        assert_ne!(posix_quote(path), cmd_quote(path));
+        assert!(posix_quote(path).starts_with('\''));
+        assert!(cmd_quote(path).starts_with('"'));
+    }
+
+    /// 역슬래시는 cmd 의 이스케이프가 아니다 — 경로가 그대로 살아야 한다.
+    #[test]
+    fn cmd_quoting_leaves_backslashes_alone() {
+        assert_eq!(cmd_quote(r"C:\dir\sub\a.rs"), "\"C:\\dir\\sub\\a.rs\"");
+    }
+
+    /// 인용을 깨뜨릴 수 있는 유일한 문자(`"` — Windows 파일명 예약 문자)는
+    /// 지운다. 엉뚱한 경로로 실패하는 편이 임의 명령을 실행하는 것보다 낫다.
+    #[test]
+    fn cmd_quoting_cannot_be_broken_out_of() {
+        let out = cmd_quote("C:\\a\"&calc&\".rs");
+        assert_eq!(out.matches('"').count(), 2, "따옴표가 둘뿐이어야 한다: {out}");
+        assert_eq!(out, "\"C:\\a&calc&.rs\"");
+    }
+
+    /// `%` 는 남긴다 — Windows 에서 합법적인 파일명 문자라 지우면 멀쩡한 파일을
+    /// 못 연다. 펼쳐지더라도 결과는 여전히 따옴표 안이다.
+    #[test]
+    fn cmd_quoting_keeps_percent_signs() {
+        assert_eq!(cmd_quote(r"C:\a\100%.md"), "\"C:\\a\\100%.md\"");
     }
 }

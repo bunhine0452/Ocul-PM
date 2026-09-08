@@ -21,9 +21,7 @@ import {
   CodeScreenV2,
   CodexScreenV2,
   DiscussionScreenV2,
-  DocsScreenV2,
   GraphScreenV2,
-  RetroScreenV2,
   SearchScreenV2,
   SessionsScreenV2,
   SettingsPanel,
@@ -410,8 +408,6 @@ export default function ShellV2({
               setUiV2View("journal");
             }}
           />
-        ) : view === "retro" ? (
-          <RetroScreenV2 projectId={projectId} onNavigate={setUiV2View} />
         ) : view === "search" ? (
           <SearchScreenV2
             projectId={projectId}
@@ -442,8 +438,6 @@ export default function ShellV2({
           )
         ) : view === "ai" ? (
           <AiPanelScreenV2 projectId={projectId} />
-        ) : view === "docs" ? (
-          <DocsScreenV2 key={`docs-${jumpNonce}`} projectId={projectId} />
         ) : view === "discussion" ? (
           <DiscussionScreenV2
             key={`discussion-${jumpNonce}`}

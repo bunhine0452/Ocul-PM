@@ -84,7 +84,7 @@ vi.mock("@/lib/bindings", () => {
   };
 });
 
-import { SkillCandidatesPanel } from "@/features/retro/SkillCandidates";
+import { SkillCandidatesPanel } from "@/features/skills/SkillCandidates";
 
 beforeEach(() => {
   fx.candidates = [candidate()];

@@ -124,13 +124,12 @@ fn monthly_retro(lang: ContentLang, today: &str) -> AutomationDef {
         AutomationOutput::Journal,
         // i18n-ignore-next-line -- 모델에게 가는 지시문 본문.
         lang.pick(
-            "지난달의 작업 일지와 회고 신호(출시·저항·노력 핫스팟)를 읽고 다음 달의 \
-             초점 3가지를 제안해 주세요.\n무엇이 잘 됐고 무엇이 반복해서 막혔는지 \
-             각각 근거가 된 일지를 함께 적으세요.\n이미 회고한 달은 건너뛰세요.",
-            "Read last month's work journal and retro signals (releases, friction, effort \
-             hotspots) and propose three focuses for the coming month.\nSay what went well \
-             and what kept getting stuck, citing the journal entries behind each.\nSkip \
-             months you have already reviewed.",
+            "지난달의 작업 일지를 읽고 다음 달의 초점 3가지를 제안해 주세요.\n무엇이 \
+             잘 됐고 무엇이 반복해서 막혔는지 각각 근거가 된 일지를 함께 \
+             적으세요.\n이미 회고한 달은 건너뛰세요.",
+            "Read last month's work journal and propose three focuses for the coming \
+             month.\nSay what went well and what kept getting stuck, citing the journal \
+             entries behind each.\nSkip months you have already reviewed.",
         ),
     );
     def.conditions = vec![AutomationCondition::new(

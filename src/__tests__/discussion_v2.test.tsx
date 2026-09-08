@@ -52,14 +52,20 @@ const fx: {
   list: DiscussionSummary[];
   detail: DiscussionDetail | null;
   raw: string;
+  /** `discussionReadRaw` 가 함께 주는 CAS 해시 — 저장이 그대로 되돌려줘야 한다. */
+  rawHash: string;
   written: string[];
+  /** 저장이 실제로 넘긴 `base_hash` (인자 넷째). */
+  writtenHashes: string[];
   /** `discussionList` 가 봉투가 아니라 **진짜 Error** 로 튄다 (전송 계층 실패). */
   listThrows: boolean;
 } = {
   list: [],
   detail: null,
   raw: "",
+  rawHash: "h0",
   written: [],
+  writtenHashes: [],
   listThrows: false,
 };
 
@@ -77,10 +83,11 @@ vi.mock("@/lib/bindings", () => {
             case "discussionGet":
               return () => ok(fx.detail);
             case "discussionReadRaw":
-              return () => ok(fx.raw);
+              return () => ok({ body: fx.raw, hash: fx.rawHash });
             case "discussionWrite":
-              return (_p: number, _id: string, body: string) => {
+              return (_p: number, _id: string, body: string, baseHash: string) => {
                 fx.written.push(body);
+                fx.writtenHashes.push(baseHash);
                 return ok(fx.detail);
               };
             case "settingsGetAll":
@@ -111,7 +118,9 @@ beforeEach(() => {
   fx.list = [];
   fx.detail = null;
   fx.raw = "";
+  fx.rawHash = "h0";
   fx.written = [];
+  fx.writtenHashes = [];
   fx.listThrows = false;
 });
 afterEach(cleanup);
@@ -196,6 +205,9 @@ describe("DiscussionScreenV2", () => {
     fireEvent.click(getByRole("button", { name: "메모 추가" }));
 
     await waitFor(() => expect(fx.written).toHaveLength(1));
+    // 방금 읽은 해시를 **그대로** 넘긴다 — CAS 의 재료다. 이게 끊기면 백엔드는
+    // 모든 저장을 충돌로 거절하거나(값이 틀리면) 조용한 덮어쓰기로 돌아간다.
+    expect(fx.writtenHashes).toEqual(["h0"]);
     const body = fx.written[0];
     expect(body).toContain("| user | A 로 가자 |");
     expect(body.indexOf("A 로 가자")).toBeLessThan(body.indexOf("discussion-log end"));

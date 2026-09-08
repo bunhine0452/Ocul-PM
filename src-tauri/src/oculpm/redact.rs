@@ -30,7 +30,7 @@
 //!      `automation::{runner, scheduler}`, `import::journalize`;
 //!   5. the planner / discussion projections and dispatch prompts;
 //!   6. anything leaving the machine or the journal — `commands::notion`,
-//!      `commands::retro`, `commands::skills`, and rule/skill promotion.
+//!      `commands::skills` and rule/skill promotion.
 //!
 //!   Use [`patterns_for_project`] to load+compile a project's
 //!   `auto_redact_patterns` from disk in one call.
@@ -74,7 +74,7 @@ use crate::oculpm::spec::OculpmConfig;
 /// fails when this drifts. Bump it in the same commit that adds or removes a
 /// call site — the number is a claim the module doc makes, and a stale claim
 /// about where secrets get masked is worse than no claim.
-pub const CALL_SITE_FILES: usize = 24;
+pub const CALL_SITE_FILES: usize = 23;
 
 /// Prompt-building sites that reach a model **without** redaction — neither
 /// directly nor through the masked cache projection.

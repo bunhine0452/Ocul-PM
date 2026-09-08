@@ -166,10 +166,6 @@ export function useShellNav({
         setPrefs(() => ({ discussionActiveId: detail.id }));
         setJumpNonce((n) => n + 1);
         setUiV2View("discussion");
-      } else if (detail.kind === "doc") {
-        setPrefs(() => ({ docsActivePath: detail.id }));
-        setJumpNonce((n) => n + 1);
-        setUiV2View("docs");
       } else if (detail.kind === "code") {
         // 워크스페이스 심볼(⌘K) — 코드 화면의 기존 열기 핸드오프를 그대로 탄다.
         // LSP 는 0-based, jumpLine 은 1-based.

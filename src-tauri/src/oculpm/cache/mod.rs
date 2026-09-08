@@ -127,7 +127,7 @@ pub struct ChangeGroup {
 }
 
 /// One journal entry inside a workday range, with its touched file paths
-/// (F4 retro). A lean projection — just the columns the retro signal pass
+/// A lean projection — just the columns the promotion signal pass
 /// aggregates over, so the heavier `JournalEntrySummary` hydration is avoided.
 #[derive(Debug, Clone)]
 pub struct RangeEntry {

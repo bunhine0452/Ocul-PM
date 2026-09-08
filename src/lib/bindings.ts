@@ -762,12 +762,6 @@ export const commands = {
 	dapVariables: (projectId: number, variablesReference: number | null) => typedError<DapVariable[], string>(__TAURI_INVOKE("dap_variables", { projectId, variablesReference })),
 	/**  이 프로젝트의 언어 서버를 전부 정리한다. */
 	lspStop: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("lsp_stop", { projectId })),
-	/**  프로젝트 `docs/` 폴더를 마크다운 트리로 반환한다. 폴더가 없으면 `exists=false`. */
-	docsTree: (projectId: number) => typedError<DocsTree, string>(__TAURI_INVOKE("docs_tree", { projectId })),
-	/**  단일 문서의 마크다운 본문을 읽는다. `rel_path` 는 프로젝트 루트 기준 (`docs/...`). */
-	docsRead: (projectId: number, relPath: string) => typedError<string, string>(__TAURI_INVOKE("docs_read", { projectId, relPath })),
-	/**  문서가 참조하는 이미지를 base64 로 읽는다. `rel_path` 는 프로젝트 루트 기준. */
-	docsAsset: (projectId: number, relPath: string) => typedError<DocsAsset, string>(__TAURI_INVOKE("docs_asset", { projectId, relPath })),
 	/**
 	 *  List the project's discussions (summary + problem preview + counts).
 	 *  Recent-first.
@@ -803,7 +797,7 @@ export const commands = {
 	 *  and `updated` re-stamped. Rejected when the document is closed (status not
 	 *  `open`) — the body is read-only after a discussion is resolved/archived.
 	 */
-	discussionWrite: (projectId: number, discussionId: string, bodyMd: string) => typedError<{
+	discussionWrite: (projectId: number, discussionId: string, bodyMd: string, baseHash: string) => typedError<{
 	discussion: DiscussionSummary,
 	problem: string,
 	background: string,
@@ -817,14 +811,18 @@ export const commands = {
 	tags: string[],
 	/**  Non-fatal parse warnings — surfaced so the UI never fails silently. */
 	warnings: string[],
-} | null, string>(__TAURI_INVOKE("discussion_write", { projectId, discussionId, bodyMd })),
+} | null, string>(__TAURI_INVOKE("discussion_write", { projectId, discussionId, bodyMd, baseHash })),
 	/**
 	 *  Read the raw (un-redacted) body markdown (everything after the frontmatter)
 	 *  for the in-app editor. Unlike `discussion_get` (redacted projection for
 	 *  display), this returns exactly what's on disk so a save round-trip is
 	 *  lossless — the user is editing their own file. `discussion_write` saves it.
+	 * 
+	 *  해시는 **본문만** 건다. `write_body` 가 갈아 끼우는 구간이 정확히 본문이라,
+	 *  파일 전체를 걸면 `discussion_set_status` 가 프런트매터만 고친 것까지 충돌로
+	 *  둔갑한다 — 본문은 아무도 안 건드렸는데 저장이 거절되는 거짓 충돌이다.
 	 */
-	discussionReadRaw: (projectId: number, discussionId: string) => typedError<string, string>(__TAURI_INVOKE("discussion_read_raw", { projectId, discussionId })),
+	discussionReadRaw: (projectId: number, discussionId: string) => typedError<DiscussionRaw, string>(__TAURI_INVOKE("discussion_read_raw", { projectId, discussionId })),
 	/**
 	 *  Set a discussion's lifecycle status (`open` / `resolved` / `archived`).
 	 *  `archived` moves the folder into `_archive/`; un-archiving moves it back.
@@ -1371,62 +1369,11 @@ export const commands = {
 	 */
 	oculpmBackfillFromGit: (projectId: number, maxCommits: number) => typedError<BackfillReport, AppError>(__TAURI_INVOKE("oculpm_backfill_from_git", { projectId, maxCommits })),
 	/**
-	 *  Deterministic signals for a workday range — no LLM. `since`/`until` are
-	 *  inclusive "YYYYMMDD".
-	 */
-	retroSignals: (projectId: number, since: string, until: string) => typedError<RetroSignals, string>(__TAURI_INVOKE("retro_signals", { projectId, since, until })),
-	/**
 	 *  기간의 일지 + 활성 플랜을 스탠드업/PR 본문/주간 보고 마크다운으로 만든다.
 	 *  provider/model 이 없거나 LLM 이 실패하면 결정적 마크다운으로 폴백한다
 	 *  (`used_llm`/`note` 로 구분) — API 키 없이도 항상 동작.
 	 */
 	oculpmGenerateSummary: (projectId: number, since: string, until: string, style: SummaryStyle, provider: string | null, model: string | null) => typedError<GeneratedSummary, string>(__TAURI_INVOKE("oculpm_generate_summary", { projectId, since, until, style, provider, model })),
-	/**
-	 *  The cached retro narrative for a range, or `None` if never generated.
-	 * 
-	 *  Two generation paths land in two places — the API path in the SQLite cache,
-	 *  the Claude Code dispatch path in `.oculpm/retro/<range_key>.md`. Whichever
-	 *  is newer wins, so "다시 생성" through either path always shows up.
-	 */
-	getRetro: (projectId: number, rangeKey: string) => typedError<{
-	project_id: number,
-	/**  "YYYYMMDD..YYYYMMDD" (inclusive workday range). */
-	range_key: string,
-	signature: string,
-	retro_md: string,
-	generated_at: number,
-	generated_by_model: string | null,
-} | null, string>(__TAURI_INVOKE("get_retro", { projectId, rangeKey })),
-	/**
-	 *  Run the configured LLM over the range's signals and cache a Korean retro.
-	 *  Always regenerates (the user clicked "생성") — the signature is stored so the
-	 *  UI can later tell whether the data has drifted.
-	 */
-	generateRetro: (projectId: number, since: string, until: string, provider: string, model: string) => typedError<RetroInsight, string>(__TAURI_INVOKE("generate_retro", { projectId, since, until, provider, model })),
-	/**
-	 *  #retro-cc-generate — 회고 생성을 터미널의 Claude Code 세션으로 디스패치.
-	 *  API 키·과금 없이 동작하고, 진행 과정이 터미널에 그대로 보인다. 플래너
-	 *  디스패치(IN2)와 같은 결: 프롬프트 파일 저장 → `claude "$(cat …)"` 프리필.
-	 */
-	retroDispatchPrompt: (projectId: number, since: string, until: string) => typedError<DispatchPrompt, string>(__TAURI_INVOKE("retro_dispatch_prompt", { projectId, since, until })),
-	/**
-	 *  PR-CI6 (EDD-lite) — 프로젝트 루트 `EVALS.md` 의 `## 기록` 표를 점수 추이로.
-	 *  파일이 없으면 `None` (UI 는 섹션을 그리지 않는다). 기간과 무관 — 문서
-	 *  전체가 신호다.
-	 */
-	evalSignals: (projectId: number) => typedError<{
-	/**  날짜 오름차순 (동일 날짜는 문서 순서 유지), 최근 200건. */
-	records: EvalRecord[],
-	/**  등장한 스위트명 (등장 순서). */
-	suites: string[],
-} | null, string>(__TAURI_INVOKE("eval_signals", { projectId })),
-	/**
-	 *  미룬 지름길(defer) 원장 — 코드 주석의 defer 마커를 결정적으로 수확한다
-	 *  (LLM 없음). `eval_signals` 미러: `RetroSignals` 에 넣지 않는 **독립**
-	 *  커맨드라 회고 signature 를 오염시키지 않고, UI 는 마커 0건이면 카드를
-	 *  그리지 않는다. 기간과 무관 — 코드의 현재 상태가 신호다.
-	 */
-	deferSignals: (projectId: number) => typedError<DeferSignals, string>(__TAURI_INVOKE("defer_signals", { projectId })),
 	/**
 	 *  Render the range digest, open a native save dialog (default `.md` name), and
 	 *  write the file. Returns the saved path, or `None` if the user cancelled.
@@ -2454,13 +2401,6 @@ export type AgentCard = {
 	verified?: boolean,
 };
 
-export type AgentCount = {
-	agent_id: string,
-	entry_count: number,
-	/**  `entry_count / total_entries`. `0.0` when no entries. */
-	share: number | null,
-};
-
 export type AgentDetection = {
 	agent_id: string,
 	confidence: DetectConfidence,
@@ -3159,7 +3099,6 @@ export type ClusterHit = {
 /**
  *  `code_asset` 응답 — 이미지/PDF 바이트를 base64 + MIME 으로. 웹뷰는 임의 파일
  *  경로를 `<img src>` 로 직접 못 읽으므로, 프런트가 이걸 Blob 으로 되돌려 문다
- *  (docs 뷰어의 `docs_asset` 과 같은 계약).
  */
 export type CodeAsset = {
 	mime: string,
@@ -3304,7 +3243,7 @@ export type CodeTree = {
 
 /**
  *  코드 트리 한 노드. `relative_path` 는 프로젝트 루트 기준 슬래시 경로 —
- *  그대로 `code_read`/`code_write` 인자로 쓴다 (docs 뷰어와 같은 계약).
+ *  그대로 `code_read`/`code_write` 인자로 쓴다.
  */
 export type CodeTreeNode = {
 	name: string,
@@ -3657,30 +3596,6 @@ export type DefectCluster = {
 	last_seen: string,
 };
 
-/**  수확된 마커 한 건. */
-export type DeferMarker = {
-	/**  프로젝트 루트 기준 상대 경로 (`/` 구분자). */
-	path: string,
-	/**  1-based. */
-	line: number,
-	/**  `;` 앞 — 이 지름길의 천장(무엇을 미뤘는가). */
-	ceiling: string,
-	/**  `;` 뒤 — 재방문 트리거. 없으면 `None`. */
-	trigger: string | null,
-	/**  트리거가 없는 마커 — 조용히 썩는 것. 정렬에서 앞선다. */
-	no_trigger: boolean,
-};
-
-/**  `defer_signals` 응답. 마커 0건이면 UI 가 카드를 그리지 않는다. */
-export type DeferSignals = {
-	/**  no_trigger 우선, 그다음 path·line 오름차순. */
-	markers: DeferMarker[],
-	/**  실제로 마커를 찾아본(스킵 제외) 파일 수. */
-	files_scanned: number,
-	/**  파일 2,000개·마커 200개 상한에 걸려 일부만 봤다는 표시. */
-	truncated: boolean,
-};
-
 export type DesktopRegistrationStatus = {
 	/**  설정 폴더가 존재한다 — Claude Desktop 설치 추정 근거. */
 	installed: boolean,
@@ -3747,16 +3662,6 @@ export type DifficultyChange = {
 	value: Difficulty | null,
 };
 
-export type DifficultyMix = {
-	verylow: number,
-	low: number,
-	medium: number,
-	high: number,
-	superhigh: number,
-	/**  Entries that didn't specify a difficulty in frontmatter. */
-	null_count: number,
-};
-
 /**
  *  An attachment's bytes for inline rendering — base64 + MIME, assembled into a
  *  `data:` URI by the frontend (mirrors `DocsAsset`).
@@ -3807,6 +3712,18 @@ export type DiscussionOptionDto = {
 	order_idx: number,
 };
 
+/**
+ *  편집기가 읽는 **원문 본문** + 그 본문의 CAS 해시.
+ * 
+ *  `hash` 는 `discussion_write` 의 `base_hash` 에 그대로 넘긴다 — 이 값이
+ *  "내가 본 것이 아직 디스크에 있는가" 를 묻는 유일한 재료다.
+ */
+export type DiscussionRaw = {
+	body: string,
+	/**  본문의 blake3 hex ([`cas::content_hash`]). */
+	hash: string,
+};
+
 export type DiscussionSummary = {
 	discussion_id: string,
 	title: string,
@@ -3834,46 +3751,6 @@ export type DispatchPrompt = {
 	 */
 	prompt: string,
 	item_title: string,
-};
-
-/**  `docs_asset` 응답 — 이미지 바이트를 base64 + MIME 으로. 프런트는 `data:` URI 로 조립한다. */
-export type DocsAsset = {
-	mime: string,
-	base64: string,
-};
-
-/**  `docs_tree` 응답. `exists=false` 면 프로젝트에 `docs/` 폴더가 없다 (빈 상태 UI). */
-export type DocsTree = {
-	exists: boolean,
-	nodes: DocsTreeNode[],
-};
-
-/**
- *  docs 트리 한 노드. `relative_path` 는 **프로젝트 루트 기준** 슬래시 경로
- *  (예: `docs/graph-upgrade/00-master-plan.md`) — 그대로 `docs_read`/`docs_asset` 인자로 쓴다.
- */
-export type DocsTreeNode = {
-	name: string,
-	relative_path: string,
-	is_dir: boolean,
-	children: DocsTreeNode[],
-};
-
-/**
- *  A file where effort concentrated, annotated with its graph fan-out so the
- *  retro can say "time went into a high-fan-out core module" with evidence.
- */
-export type EffortHotspot = {
-	path: string,
-	/**  Distinct journal entries that touched it in the range. */
-	touch_count: number,
-	/**
-	 *  Files that (transitively) import it (`get_change_impact` reverse-BFS).
-	 *  0 when the path isn't in the code index (deleted / non-source / not yet
-	 *  indexed).
-	 */
-	impact_fan_out: number,
-	is_hub: boolean,
 };
 
 export type EndedReason = "inactivity_timeout" | "app_quit" | "workday_boundary" | "manual" | "crash_recovered" | 
@@ -3935,27 +3812,6 @@ export type EntryFilters = {
 export type EntryStatus = "planned" | "in_progress" | "done" | "abandoned";
 
 export type EntryType = "bug" | "feature" | "error" | "refactor" | "chore";
-
-/**  `## 기록` 표의 한 행. */
-export type EvalRecord = {
-	/**  `YYYY-MM-DD`. */
-	date: string,
-	suite: string,
-	passed: number,
-	total: number,
-	memo: string,
-};
-
-/**
- *  `eval_signals` 응답. `EVALS.md` 자체가 없으면 커맨드가 `None` 을 돌려
- *  UI 가 섹션을 그리지 않는다.
- */
-export type EvalSignals = {
-	/**  날짜 오름차순 (동일 날짜는 문서 순서 유지), 최근 200건. */
-	records: EvalRecord[],
-	/**  등장한 스위트명 (등장 순서). */
-	suites: string[],
-};
 
 export type FileChangeEvent = {
 	ts: string,
@@ -5057,11 +4913,6 @@ export type OculpmDataArea = "planner" | "discussion" |
  */
 "rules" | 
 /**
- *  `.oculpm/retro/**` — 회고 화면이 다시 읽는다 (Phase 4). 예전엔 코드 변경
- *  파이프라인으로 새어 들어갔다.
- */
-"retro" | 
-/**
  *  `.oculpm/automation/**` — 자동화 탭이 다시 읽는다 (Osaurus Phase 2).
  *  정의는 사람이 손으로 고치고 git 에 올릴 수 있는 파일이라 UI 가 그
  *  변경을 봐야 한다. 동시에 자동화 **트리거 원인에서는 제외**된다
@@ -5475,16 +5326,6 @@ export type RelatedRef = {
 };
 
 /**
- *  A file touched by 2+ error/bug entries in the range — a recurring trouble
- *  spot.
- */
-export type RepeatedFile = {
-	path: string,
-	/**  Number of distinct error/bug entries that touched it. */
-	count: number,
-};
-
-/**
  *  프로젝트 루트와 저장소 루트의 상하 관계. 되맞춤의 방향이자, 화면이 근거의
  *  한계를 말할 때 쓰는 신호다.
  */
@@ -5497,51 +5338,6 @@ export type RepoNesting =
 "root_inside_repo" | 
 /**  어느 쪽도 상대의 조상이 아니다 — 되맞출 근거가 없다. */
 "disjoint";
-
-/**  A friction unit — an error/bug journal entry. */
-export type ResistanceItem = {
-	/**  Raw frontmatter type: `error` | `bug`. */
-	kind: string,
-	title: string,
-	status: string,
-	workday: string,
-};
-
-/**
- *  F4 — one cached retrospective for a workday range. `signature` is a hash of
- *  the deterministic signals; when it diverges from the current signals the
- *  frontend marks the cached narrative stale. Mirrors `project_overviews`.
- */
-export type RetroInsight = {
-	project_id: number,
-	/**  "YYYYMMDD..YYYYMMDD" (inclusive workday range). */
-	range_key: string,
-	signature: string,
-	retro_md: string,
-	generated_at: number,
-	generated_by_model: string | null,
-};
-
-/**
- *  The deterministic signal set the retro is grounded in. Returned to the UI
- *  directly *and* fed to the LLM. `signature` hashes everything but itself, so
- *  the frontend can compare it to a cached retro's signature to show staleness.
- */
-export type RetroSignals = {
-	/**  Workday "YYYYMMDD". */
-	since: string,
-	until: string,
-	/**  "since..until". */
-	range_key: string,
-	signature: string,
-	total_entries: number,
-	shipped: ShippedItem[],
-	resistance: ResistanceItem[],
-	repeated_files: RepeatedFile[],
-	effort_hotspots: EffortHotspot[],
-	agent_breakdown: AgentCount[],
-	difficulty_mix: DifficultyMix,
-};
 
 export type Role = "system" | "user" | "assistant";
 
@@ -5771,15 +5567,6 @@ export type ShellIntegrationStatus = {
 export type ShellKind = "zsh" | "bash" | 
 /**  fish·nu·pwsh 등 — 통합 미지원. */
 "unsupported";
-
-/**  A shipped unit — a completed feature/refactor journal entry. */
-export type ShippedItem = {
-	/**  Raw frontmatter type: `feature` | `refactor`. */
-	kind: string,
-	title: string,
-	agent_id: string,
-	workday: string,
-};
 
 /**  결정적 스킬 후보 — 한 tag 의 반복 작업 클러스터. */
 export type SkillCandidate = {

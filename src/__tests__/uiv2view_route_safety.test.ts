@@ -29,6 +29,11 @@ describe("uiV2View — 영속값도 허용 목록을 지난다", () => {
     // IA 재편이 화면을 합치면 저장된 값이 이 모양이 된다.
     expect(migrateUiV2View("claudecode-legacy")).toBe("today");
     expect(migrateUiV2View("overview")).toBe("today");
+    // 2026-09-08 에 삭제된 두 화면. 마지막으로 회고나 문서를 보고 있던
+    // 사용자가 업데이트 후 그 값을 그대로 들고 오는 것이 **실제로 일어나는**
+    // 경우다 — 걸러지지 않으면 툴바도 본문도 없는 빈 화면에 갇힌다.
+    expect(migrateUiV2View("retro")).toBe("today");
+    expect(migrateUiV2View("docs")).toBe("today");
   });
 
   it("빠졌거나 타입이 어긋난 값도 today 로 떨어진다", () => {

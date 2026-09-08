@@ -229,7 +229,6 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     ("evil.test", "deeplink 테스트 — 화이트리스트 밖 호스트가 거부되는지."),
     ("oculpm.com@evil.test", "deeplink 테스트 — `@` 자격증명 트릭으로 화이트리스트를 속일 수 없는지."),
     ("example.com", "lsp/discussion 파서 픽스처 — URI 를 파일 경로로 오인하지 않는지."),
-    ("docs.example.com", "defer_ledger 픽스처 — 문자열 리터럴 속 `//` 를 주석으로 읽지 않는지."),
     ("rubygems.org", "stack_detect 픽스처 — Gemfile 내용 샘플."),
 ];
 
@@ -344,11 +343,6 @@ const LLM_PROMPT_SITES: &[PromptSite] = &[
         path: "commands/skill_promotion.rs",
         redaction: Redaction::ViaProjection,
         reason: "스킬 승격의 증거 발췌를 `oculpm::skill_promotion` 이 리댁션을 지나 만들어 넘긴다.",
-    },
-    PromptSite {
-        path: "commands/retro.rs",
-        redaction: Redaction::Direct,
-        reason: "회고 신호(일지 제목·본문 발췌)를 보내기 전에 직접 마스킹한다.",
     },
     PromptSite {
         path: "commands/skills.rs",
