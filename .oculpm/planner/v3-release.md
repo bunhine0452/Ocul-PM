@@ -17,6 +17,7 @@ owner: claude-code
 - [ ] first-run-and-english-landing 의 마법사 실기기 확인 (wizard-eyes) {#eyes-wizard}
 - [ ] 혼합 DPI 커서 좌표계 — improvement-audit-round 에서 이관했는데 받은 플랜에 항목이 없어 유실됐다 {#eyes-mixed-dpi}
 - [ ] v2.42.0 미확인 ~20건 — 큰 붙여넣기(raw 모드 터미널에 수백 KB: 다른 탭 반응·나중에 순서대로 도착)·한국어 IME 조합 순서·리사이즈와 타이핑 겹침·Kill 뒤 셸 종료·글자크기/터미널폰트 슬라이더 드래그 체감과 놓을 때 저장·드래그 중 탭이동 flush·나머지 슬라이더 7개 라벨 추종·터미널 도크 리사이즈/분리/복귀·⌘K 이동과 사이드바 접기·실패 토스트 문구·index_project 실경로 1회·큐 오버플로 실경로(경고→만회→토스트)·프로젝트 닫은 뒤 색인/히스토리 정지·LSP 서버 일람·임베딩 진행 배너·읽기전용에서 주인 회수 {#eyes-v242}
+- [ ] macOS 권한 프롬프트 — 설정 → ocul-pm → 연동 탭을 열었을 때 **아무것도 안 뜨는지**, 그리고 [Desktop 확인] 을 눌렀을 때**만** 「다른 앱의 데이터」를 묻는지. 승인을 지우고 봐야 한다: `tccutil reset SystemPolicyAppData com.kimhyunbin.ocul-pm`. 코드는 회귀 테스트(마운트 시 호출 0)로 잠갔지만 프롬프트가 뜨는 순간은 사람 눈으로만 본다 — 설치본 2.45.1 에는 이 수정이 없으므로 다음 릴리스 뒤에 {#eyes-tcc-desktop}
 - [x] 글리프 위생 — codex-acp 6건이 [~] 인데 done(release-gates 미확정 포함) · skill-catalog-round-2 는 archived 여야 · drag-and-drop Phase 8 의 4건은 [-] 여야 · menubar-tray 의 v2.3.0 항목은 죽은 항목 {#glyph-hygiene}
 
 ## v2.42.0 이월 — 네 세션이 소유 밖에서 발견한 것 {#v242-carry}
@@ -218,4 +219,5 @@ owner: claude-code
 | 2026-09-08T00:40:00+09:00 | #empty-hint-rest | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/0031_refactor_nesting-visibility-splits-and-warnings.md | 1·2차에서 이미 끝났는데 파생 항목({#empty-hint-final})만 닫고 원본을 안 닫았다 — 호출부 0 확인 후 정정 |
 | 2026-09-08T00:41:00+09:00 | #plugin-card-dismiss | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/0031_refactor_nesting-visibility-splits-and-warnings.md | 2차에서 이미 끝났는데 원본 항목을 안 닫았다 — pluginCardDismissed 설정 키와 X 버튼 확인 후 정정 |
 | 2026-09-08T00:41:00+09:00 | #neutral-session-env | claude-code | ☐→- | .oculpm/journal/20260908/Features_to_add/0030_feature_gate-attribution-segments-codex-hooks.md | blocked → dropped. 「미확인」이 아니라 「이 경로로는 불가」로 확정됐다(위 {#mcp-json-session-env} 실측). 폴백이 정답이다 |
+| 2026-09-08T15:32:58+09:00 | #eyes-tcc-desktop | claude-code | ☐→☐ | .oculpm/journal/20260908/Bugs/1516_bug_desktop-mcp-status-tcc-prompt-on-mount.md | 신규 항목 — 연동 탭 마운트가 남의 앱 데이터를 stat 하던 것을 버튼 뒤로 옮겼다. 코드 쪽은 회귀 테스트로 잠갔고 프롬프트가 안 뜨는 순간만 사람 눈이 필요하다. 설치본 2.45.1 에는 이 수정이 없으니 다음 릴리스 뒤에 tccutil reset 후 확인 |
 <!-- oculpm:plan-log end -->
