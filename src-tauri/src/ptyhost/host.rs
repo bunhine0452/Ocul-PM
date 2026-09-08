@@ -478,20 +478,20 @@ fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
             }
         }
         Request::Attach { sid } => {
-            // 스냅샷은 최대 200KB 를 이어 붙인다 — 전역 락 밖에서. 맵에서 꺼내는
-            // 것은 링버퍼 핸들과 작은 값 둘뿐이다 (`Foreground` 와 같은 모양).
-            let found = state
-                .lock_sessions()
-                .get(&sid)
-                .map(|s| (s.buf.clone(), s.nonce.clone(), s.shell_integration));
+            // 스냅샷(최대 200KB)은 전역 락 **밖에서** 잇는다 — 맵에서 꺼내는 것은 링버퍼 핸들과 작은 값 셋뿐이다.
+            let found = state.lock_sessions().get(&sid).map(|s| {
+                let win = s.master.get_size().ok();
+                (s.buf.clone(), s.nonce.clone(), s.shell_integration, win)
+            });
             Response::Attach {
-                attach: found.map(|(buf, nonce, shell_integration)| {
+                attach: found.map(|(buf, nonce, shell_integration, win)| {
                     let (text, seq) = buf.lock().unwrap_or_else(|p| p.into_inner()).snapshot();
                     AttachPayload {
                         text,
                         seq,
                         nonce,
                         shell_integration,
+                        cols: win.map_or(0, |w| w.cols),
                     }
                 }),
             }

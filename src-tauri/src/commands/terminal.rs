@@ -40,6 +40,10 @@ pub struct PtyAttach {
     /// start 경로와 동일한 값을 여기서도 돌려준다.
     pub nonce: String,
     pub shell_integration: bool,
+    /// 세션이 지금 물고 있는 열 수. 붙는 화면이 이 폭을 이어받아 도크↔터미널
+    /// 화면 이동만으로 폭이 흔들리지 않게 한다 (프런트 `adoptedCols`).
+    /// 0 은 "구버전 호스트라 모른다" 다.
+    pub cols: u16,
 }
 
 /// `pty-data-{id}` 이벤트 페이로드. `seq` 는 attach 스냅샷과의 중복 제거용.
@@ -356,6 +360,7 @@ pub async fn attach_pty_session(
             seq: a.seq,
             nonce: a.nonce,
             shell_integration: a.shell_integration,
+            cols: a.cols,
         })),
         // 접속이 그 사이 죽었다 — "세션 없음" 과 같은 답이 맞다 (start 로 진행).
         Err(_) => Ok(None),

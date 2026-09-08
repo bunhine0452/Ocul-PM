@@ -12,7 +12,11 @@
  */
 import { describe, it, expect, vi } from "vitest";
 
-import { createPtyResizeQueue } from "@/features/terminal/ptyResize";
+import {
+  ADOPT_SLACK_COLS,
+  adoptedCols,
+  createPtyResizeQueue,
+} from "@/features/terminal/ptyResize";
 
 /** 응답 시점을 테스트가 쥐는 sender. */
 function deferredSender() {
@@ -146,3 +150,43 @@ describe("PTY resize 큐", () => {
     expect(s.calls).toEqual([{ rows: 24, cols: 80 }]);
   });
 });
+
+/**
+ * 폭 이어받기 (2026-09-07).
+ *
+ * ⌘J 도크와 터미널 화면은 같은 세션을 다른 크롬으로 그린다 — 자리를 옮기기만
+ * 해도 열 수가 몇 칸 달라지고, claude code 는 그 폭으로 **직접 개행을 넣어**
+ * 뱉으므로 접힌 줄은 되돌릴 수 없다. 그래서 붙는 순간에는 세션이 쓰던 폭을
+ * 그대로 이어받고, 사람이 폭을 바꾼 순간에만 놓는다.
+ */
+describe("adoptedCols", () => {
+  const at = (cols: number, atWidth = 800) => ({ cols, atWidth });
+
+  it("이어받을 폭이 없으면 판정하지 않는다", () => {
+    expect(adoptedCols(null, 120, 800)).toBeNull();
+    // 구버전 호스트는 크기를 모른다 (0) — 그때는 평소대로 맞춘다.
+    expect(adoptedCols(at(0), 120, 800)).toBeNull();
+  });
+
+  it("자리가 있으면 세션이 쓰던 폭을 그대로 쓴다", () => {
+    // 도크(114칸)에서 화면(120칸)으로 — 6칸 차이는 그냥 이어받는다.
+    expect(adoptedCols(at(114), 120, 800)).toBe(114);
+    // 같은 폭이면 그 값 그대로.
+    expect(adoptedCols(at(120), 120, 800)).toBe(120);
+  });
+
+  it("자리가 없으면 놓는다 — 접히는 것을 막을 방법이 없다", () => {
+    expect(adoptedCols(at(150), 120, 800)).toBeNull();
+  });
+
+  it("너무 넓어졌으면 놓는다 — 죽은 띠가 크게 남는다", () => {
+    expect(adoptedCols(at(120), 120 + ADOPT_SLACK_COLS, 800)).toBe(120);
+    expect(adoptedCols(at(120), 120 + ADOPT_SLACK_COLS + 1, 800)).toBeNull();
+  });
+
+  it("사람이 폭을 바꾸면 그 뜻을 따른다", () => {
+    // 창 크기·도크 손잡이·분할 — 컨테이너 폭이 달라진 순간 이어받기는 끝난다.
+    expect(adoptedCols(at(114, 800), 120, 640)).toBeNull();
+  });
+});
+

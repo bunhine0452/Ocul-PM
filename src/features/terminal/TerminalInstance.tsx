@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { useT } from "@/i18n";
 import type { BlockActivation, TerminalHandles } from "./TerminalInstanceImpl";
+import type { FileRefHit } from "./fileRefLinks";
 import type { ShellState } from "./oscShell";
 import type { PaneSignal } from "./agentMode";
 import { TerminalErrorBoundary } from "./TerminalErrorBoundary";
@@ -38,10 +39,10 @@ interface TerminalInstanceProps {
   /** 셸이 스스로 끝났다 (PTY 소멸) — 화면이 «다시 시작» 손잡이를 그린다. */
   onExit?: () => void;
   /** 출력 안의 `파일:줄` ⌘클릭. 없으면 링크를 만들지 않는다. */
-  onOpenFileRef?: (path: string, line: number | null) => void;
+  onFileRef?: (hit: FileRefHit) => void;
 }
 
-export type { TerminalHandles, ShellState, PaneSignal, BlockActivation };
+export type { TerminalHandles, ShellState, PaneSignal, BlockActivation, FileRefHit };
 
 export function TerminalInstance(props: TerminalInstanceProps) {
   const { t } = useT();

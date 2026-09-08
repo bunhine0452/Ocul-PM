@@ -75,3 +75,76 @@ export function scanFileRefs(text: string): FileRef[] {
   }
   return out;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 문자열 인덱스 → 버퍼 열 (2026-09-07)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// `scanFileRefs` 의 인덱스는 **문자 수**고 xterm 의 링크 범위는 **셀 수**다.
+// 한글·이모지는 한 문자가 두 셀을 먹으므로 둘은 같지 않다. 예전에는 문자
+// 인덱스를 그대로 열로 썼고, 그래서 한글이 섞인 줄에서는 링크 상자가 실제
+// 경로보다 **왼쪽으로 밀렸다** — 경로 위에 마우스를 올려도 밑줄이 안 그려지고,
+// 엉뚱한 자리에서 손 모양 커서가 떴다. Claude Code 처럼 한국어로 말하면서
+// 경로를 뱉는 도구에서는 사실상 모든 줄이 그랬다.
+//
+// 그래서 줄을 **셀 단위로 직접 읽어** 문자 하나가 어느 열에서 시작해 어느
+// 열에서 끝나는지 함께 만든다. `translateToString` 은 그 대응을 돌려주지
+// 않는다 (공개 타입에 out 파라미터가 없다).
+
+/** xterm `IBufferCell` 중 여기서 쓰는 부분만. */
+export interface CellLike {
+  getChars(): string;
+  getWidth(): number;
+}
+
+/** xterm `IBufferLine` 중 여기서 쓰는 부분만. */
+export interface BufferLineLike {
+  readonly length: number;
+  getCell(x: number, cell?: CellLike): CellLike | undefined;
+}
+
+export interface LineColumns {
+  /** 줄의 텍스트 — `translateToString(true)` 와 같은 문자열. */
+  text: string;
+  /** `text[i]` 가 시작하는 열 (0-based). */
+  startCol: number[];
+  /** `text[i]` 가 끝나는 열 (0-based, 포함). 넓은 문자는 시작+1. */
+  endCol: number[];
+}
+
+/**
+ * 버퍼 줄 하나를 텍스트 + 열 대응으로 읽는다.
+ *
+ * 폭 0 셀(넓은 문자의 오른쪽 반쪽)은 건너뛴다 — `translateToString` 과 같은
+ * 규칙이라 나오는 문자열도 같다. 코드포인트가 비어 있는 셀은 공백 한 칸으로
+ * 친다 (역시 같은 규칙).
+ *
+ * `cell` 은 재사용 버퍼다. 마우스가 움직일 때마다 불리는 경로라 줄마다
+ * 셀 객체를 새로 만들지 않는다.
+ */
+export function readLineColumns(line: BufferLineLike, cell?: CellLike): LineColumns {
+  let text = "";
+  const startCol: number[] = [];
+  const endCol: number[] = [];
+  for (let col = 0; col < line.length; ) {
+    const at = line.getCell(col, cell);
+    if (!at) break;
+    const width = at.getWidth();
+    // 폭 0 은 앞 문자의 꼬리다 — 문자열에 기여하지 않는다.
+    if (width === 0) {
+      col += 1;
+      continue;
+    }
+    const chars = at.getChars() || " ";
+    for (let i = 0; i < chars.length; i++) {
+      startCol.push(col);
+      endCol.push(col + width - 1);
+    }
+    text += chars;
+    col += width;
+  }
+  // 오른쪽 공백은 잘라 낸다 (`translateToString(true)`). 인덱스는 앞에서부터라
+  // 대응 배열은 손대지 않아도 된다.
+  const trimmed = text.replace(/\s+$/, "");
+  return { text: trimmed, startCol, endCol };
+}

@@ -904,6 +904,12 @@ export const commands = {
 	 */
 	nonce: string,
 	shell_integration: boolean,
+	/**
+	 *  세션이 지금 물고 있는 열 수. 붙는 화면이 이 폭을 이어받아 도크↔터미널
+	 *  화면 이동만으로 폭이 흔들리지 않게 한다 (프런트 `adoptedCols`).
+	 *  0 은 "구버전 호스트라 모른다" 다.
+	 */
+	cols: number,
 } | null, string>(__TAURI_INVOKE("attach_pty_session", { sessionId })),
 	writeToPty: (sessionId: string, data: string) => typedError<null, string>(__TAURI_INVOKE("write_to_pty", { sessionId, data })),
 	/**
@@ -5428,6 +5434,12 @@ export type PtyAttach = {
 	 */
 	nonce: string,
 	shell_integration: boolean,
+	/**
+	 *  세션이 지금 물고 있는 열 수. 붙는 화면이 이 폭을 이어받아 도크↔터미널
+	 *  화면 이동만으로 폭이 흔들리지 않게 한다 (프런트 `adoptedCols`).
+	 *  0 은 "구버전 호스트라 모른다" 다.
+	 */
+	cols: number,
 };
 
 /**  `start_pty_session` 반환값 — 프런트가 OSC 신호를 검증하는 데 필요한 정보. */

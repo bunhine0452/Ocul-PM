@@ -1727,6 +1727,18 @@ mark.s-hit {
 .tbm-back:hover { color: var(--text); }
 .tbm-empty { padding: 10px 8px; color: var(--text-2); font-size: var(--fs-4); text-align: center; }
 
+/* 링크 호버 밑줄 (2026-09-07). xterm 의 기본 밑줄은 DOM 렌더러 전용이라
+   WebGL 에서는 아무것도 안 그려진다 — 장식 오버레이로 직접 긋는다
+   (근거는 src/features/terminal/linkUnderline.ts).
+   색은 본문 글자색을 그대로 쓴다: 링크마다 ANSI 색이 달라(파랑·초록·기본)
+   고정색을 쓰면 어떤 줄에서는 밑줄만 동동 뜬다. */
+.term-link-underline {
+  box-sizing: border-box;
+  border-bottom: 1px solid currentColor;
+  color: var(--term-fg);
+  opacity: 0.75;
+}
+
 /* 움직임을 줄이도록 설정한 사용자에게는 맥동을 끈다 — 색은 그대로 남는다. */
 @media (prefers-reduced-motion: reduce) {
   .term-sess[data-tone="running"] .ts-dot,

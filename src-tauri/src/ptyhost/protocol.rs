@@ -117,6 +117,12 @@ pub struct AttachPayload {
     pub seq: u32,
     pub nonce: String,
     pub shell_integration: bool,
+    /// 세션이 **지금 쓰고 있는** 열 수. 붙는 화면이 이 폭을 그대로 이어받아
+    /// 도크↔터미널 화면을 오갈 때 폭이 흔들리지 않게 한다 (근거는 프런트
+    /// `ptyResize.ts` 의 `adoptedCols`). 구버전 호스트는 이 필드를 모르므로
+    /// `default`(0) 로 받고, 0 은 "모른다" 로 읽는다.
+    #[serde(default)]
+    pub cols: u16,
 }
 
 /// 호스트가 밀어주는 세션 이벤트. 클라이언트(앱)가 tauri 이벤트

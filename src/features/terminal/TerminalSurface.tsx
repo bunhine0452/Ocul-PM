@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   SquareTerminal,
   X,
@@ -85,7 +85,9 @@ import { TerminalRail } from "./TerminalRail";
 import { TerminalAgentPill } from "./TerminalAgentPill";
 import type { PaneSignal } from "./agentMode";
 import { TerminalBlockMenu } from "./TerminalBlockMenu";
+import { TerminalFileMenu } from "./TerminalFileMenu";
 import type { BlockActivation } from "./TerminalInstanceImpl";
+import type { FileRefHit } from "./fileRefLinks";
 import { TerminalShellStatus } from "./TerminalShellStatus";
 import { formatCwdCrumb } from "./railModel";
 
@@ -991,23 +993,9 @@ export function TerminalSurface({
     window.addEventListener("pointerup", up);
   };
 
-  // 출력 안의 `src/foo.ts:42` ⌘클릭 → 외부 편집기. 경로는 터미널이 뱉은
-  // 신뢰할 수 없는 문자열이므로 백엔드가 secure_join 으로 루트 안쪽인지 다시
-  // 판정한다 — 거절당하면 조용히 넘기지 말고 이유를 보여준다.
-  const openFileRef = useCallback(
-    async (path: string, line: number | null) => {
-      if (!projectRoot) return;
-      const res = await commands.openInEditor(
-        projectRoot,
-        path,
-        settings.externalEditorCommand,
-        line,
-      );
-      if (res.status === "error")
-        toast.destructive(t("term.openEditorFailed", { error: res.error }));
-    },
-    [projectRoot, settings.externalEditorCommand, t],
-  );
+  // 출력 안의 `src/foo.ts:42` ⌘클릭 → 무엇으로 열지 고르는 팝오버
+  // (`TerminalFileMenu`). 경로 검증은 여는 순간 백엔드가 한다.
+  const [fileMenu, setFileMenu] = useState<FileRefHit | null>(null);
 
   // 포커스된 페인의 셸 통합 상태 — 상태바(cwd·라이브 명령)와 툴바 부제가
   // 여기서 나온다. 요약 문구는 `TerminalShellStatus` 가 직접 만든다 (시계를
@@ -1143,7 +1131,7 @@ export function TerminalSurface({
             onExit={() =>
               setEnded((prev) => (prev[node.sid] ? prev : { ...prev, [node.sid]: true }))
             }
-            onOpenFileRef={projectRoot ? openFileRef : undefined}
+            onFileRef={projectRoot ? setFileMenu : undefined}
           />
           {/* 에이전트 표시 — 판정과 1초 시계를 이 컴포넌트 안에 가둔다.
               여기서 하면 매초 페인 트리 전체가 다시 그려진다. */}
@@ -1397,6 +1385,15 @@ export function TerminalSurface({
           ) : null}
         </div>
       </div>
+
+      {fileMenu && projectRoot ? (
+        <TerminalFileMenu
+          hit={fileMenu}
+          projectRoot={projectRoot}
+          externalEditorCommand={settings.externalEditorCommand}
+          onClose={() => setFileMenu(null)}
+        />
+      ) : null}
 
       {blockMenu ? (
         <TerminalBlockMenu

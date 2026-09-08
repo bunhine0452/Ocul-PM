@@ -14,7 +14,7 @@ import { oculpmLog } from "@/lib/oculpmLog";
 import { t } from "@/i18n";
 import { attachImeBridge, type ImeBridgeHandle } from "./imeBridge";
 import { nextRevealState, resyncViewport } from "./viewportResync";
-import { createPtyResizeQueue, type PtyResizeQueue } from "./ptyResize";
+import { adoptedCols, createPtyResizeQueue, type AdoptedWidth } from "./ptyResize";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
 import {
   initialShellState,
@@ -24,7 +24,8 @@ import {
   type Osc133Event,
   type ShellState,
 } from "./oscShell";
-import { scanFileRefs } from "./fileLinks";
+import { createFileRefLinkProvider, type FileRefHit } from "./fileRefLinks";
+import { createLinkUnderline } from "./linkUnderline";
 import { emptyPaneSignal, type PaneSignal } from "./agentMode";
 import {
   blockAt,
@@ -153,9 +154,10 @@ interface TerminalInstanceProps {
   onExit?: () => void;
   /**
    * 출력 안의 `파일:줄` 을 ⌘클릭했을 때. 넘기지 않으면 링크를 만들지 않는다
-   * (프로젝트가 없는 세션에서 열 곳이 없으므로).
+   * (프로젝트가 없는 세션에서 열 곳이 없으므로). 여는 방법은 화면이 고른다 —
+   * 여기는 **무엇을 어디서 눌렀는지**만 넘긴다.
    */
-  onOpenFileRef?: (path: string, line: number | null) => void;
+  onFileRef?: (hit: FileRefHit) => void;
 }
 
 export default function TerminalInstanceImpl({
@@ -173,14 +175,16 @@ export default function TerminalInstanceImpl({
   onSignal,
   onBlockActivate,
   onExit,
-  onOpenFileRef,
+  onFileRef,
 }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // 경계 포착용 — 비동기(setTimeout) 지점의 치명 오류를 렌더로 승격한다.
   const [fatal, setFatal] = useState<Error | null>(null);
   if (fatal) throw fatal;
   const termRef = useRef<Terminal | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
+  // 크기 맞춤은 **한 함수**로만 한다 — 폭 이어받기 판정이 그 안에 있어서,
+  // `fit()` 을 직접 부르는 길이 하나라도 남으면 그 길만 판정을 건너뛴다.
+  const applyFitRef = useRef<(deliberate?: boolean) => void>(() => {});
   const searchRef = useRef<SearchAddon | null>(null);
   const imeRef = useRef<ImeBridgeHandle | null>(null);
   // WebGL 애드온 핸들 — 정리 시 코어보다 먼저, 가드하고 dispose 한다.
@@ -199,7 +203,7 @@ export default function TerminalInstanceImpl({
   // 블록 손잡이 — onReady 로 화면에 넘긴다. 목록을 React 상태로 올리면
   // 스크롤·명령마다 페인 트리가 재렌더된다.
   const blockApiRef = useRef<BlockApi | null>(null);
-  const onOpenFileRefRef = useRef(onOpenFileRef);
+  const onFileRefRef = useRef(onFileRef);
   // 세션 nonce — 이 값이 실린 OSC 133 만 신뢰한다. attach/start 응답이 오기
   // 전에는 빈 문자열이라 파서가 전부 거른다 (실패 시 기본값이 "불신"이다).
   const nonceRef = useRef("");
@@ -208,10 +212,6 @@ export default function TerminalInstanceImpl({
   // 발행만 1초로 묶는다. 예약된 타이머 id 는 정리를 위해 따로 든다.
   const signalRef = useRef<PaneSignal>(emptyPaneSignal);
   const signalTimerRef = useRef<number | null>(null);
-  // PTY 크기 통보는 **반드시 이 큐를 거친다** (근거는 ptyResize.ts 주석).
-  // 직접 `commands.resizePty` 를 부르면 순서 없는 통보가 섞여 PTY 가 중간
-  // 크기로 굳고, 그 어긋남이 곧 깨진 화면이다.
-  const resizeQueueRef = useRef<PtyResizeQueue | null>(null);
   useEffect(() => {
     cwdRef.current = cwd;
     persistentRef.current = persistent;
@@ -223,7 +223,7 @@ export default function TerminalInstanceImpl({
     onSignalRef.current = onSignal;
     onBlockActivateRef.current = onBlockActivate;
     onExitRef.current = onExit;
-    onOpenFileRefRef.current = onOpenFileRef;
+    onFileRefRef.current = onFileRef;
   }, [
     cwd,
     persistent,
@@ -235,7 +235,7 @@ export default function TerminalInstanceImpl({
     onSignal,
     onBlockActivate,
     onExit,
-    onOpenFileRef,
+    onFileRef,
   ]);
 
   /**
@@ -325,7 +325,6 @@ export default function TerminalInstanceImpl({
     });
     termRef.current = term;
     const fit = new FitAddon();
-    fitRef.current = fit;
     term.loadAddon(fit);
     // 큐는 **거부된 프라미스**를 실패로 읽는다 (그래야 "보낸 크기" 기억을 지우고
     // 같은 크기를 다시 시도한다). 생성된 커맨드는 실패해도 봉투로 resolve 하므로
@@ -335,15 +334,24 @@ export default function TerminalInstanceImpl({
       const res = await commands.resizePty(sessionId, rows, cols);
       if (res.status === "error") throw new Error(res.error);
     });
-    resizeQueueRef.current = resizeQueue;
     // 한글/이모지 셀 폭 정확도 — Unicode 11 폭 테이블 활성화.
     term.loadAddon(new Unicode11Addon());
     term.unicode.activeVersion = "11";
+    // 링크 호버 밑줄. GPU 렌더러일 때만 우리가 긋는다 (근거는 linkUnderline.ts).
+    const underline = createLinkUnderline(term, () => webglRef.current !== null);
     // URL 클릭 → 시스템 브라우저 (opener 권한 우회: 백엔드 open_url 사용).
+    // 밑줄은 파일 링크와 같은 오버레이를 쓴다 — 애드온이 만든 링크에는
+    // 우리가 `decorations` 를 못 붙이지만, hover/leave 는 열려 있다.
     term.loadAddon(
-      new WebLinksAddon((_event, uri) => {
-        void commands.openUrl(uri);
-      }),
+      new WebLinksAddon(
+        (_event, uri) => {
+          void commands.openUrl(uri);
+        },
+        {
+          hover: (_event, _text, range) => underline.show(range),
+          leave: () => underline.hide(),
+        },
+      ),
     );
     const search = new SearchAddon();
     searchRef.current = search;
@@ -670,46 +678,18 @@ export default function TerminalInstanceImpl({
         }
         return true;
       }),
-      // 출력 안의 `src/foo.ts:42` → ⌘클릭으로 편집기 열기.
-      // WebLinksAddon 과 공존한다: URL 은 저쪽이, 상대경로는 이쪽이 맡는다.
-      term.registerLinkProvider({
-        provideLinks(bufferLineNumber, callback) {
-          const open = onOpenFileRefRef.current;
-          if (!open) {
-            callback(undefined);
-            return;
-          }
-          // 방어 — 이 콜백은 마우스 이동마다 xterm 내부에서 불린다. 여기서
-          // 예외가 새면 렌더러 상태에 따라 컴포넌트째 죽을 수 있어, 링크
-          // 하나 못 만드는 것으로 강등한다.
-          try {
-          // bufferLineNumber 는 이미 스크롤(ydisp)이 반영된 절대 버퍼 줄이다
-          // — viewportY 를 더 하면 스크롤백이 쌓인 뒤 엉뚱한 줄을 스캔한다.
-          const line = term.buffer.active.getLine(bufferLineNumber - 1);
-          const text = line?.translateToString(true) ?? "";
-          const refs = scanFileRefs(text);
-          if (refs.length === 0) {
-            callback(undefined);
-            return;
-          }
-          callback(
-            refs.map((ref) => ({
-              // xterm 의 x/y 는 1-based, end 는 포함(inclusive)이다.
-              range: {
-                start: { x: ref.start + 1, y: bufferLineNumber },
-                end: { x: ref.end, y: bufferLineNumber },
-              },
-              text: text.slice(ref.start, ref.end),
-              activate: () => open(ref.path, ref.line),
-            })),
-          );
-          } catch (err) {
+      // 출력 안의 `src/foo.ts:42` → ⌘클릭 (→ fileRefLinks.ts).
+      term.registerLinkProvider(
+        createFileRefLinkProvider({
+          term,
+          getActivate: () => onFileRefRef.current,
+          underline,
+          onError: (err) =>
             // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
-            oculpmLog.error("terminal", `링크 스캔 실패 (무시): ${String(err)}`);
-            callback(undefined);
-          }
-        },
-      }),
+            oculpmLog.error("terminal", `링크 스캔 실패 (무시): ${String(err)}`),
+        }),
+      ),
+      underline,
     ];
 
     // 앱 테마(<html> 의 data-theme/preset/accent) 전환을 그대로 따라간다.
@@ -725,7 +705,13 @@ export default function TerminalInstanceImpl({
     // Refit whenever the container changes size — including the 0→N jump when
     // the tab goes display:none → block. No-op until opened + sized.
     const container = containerRef.current;
-    const applyFit = () => {
+    // 재접속 직후 이어받는 중인 폭 (근거·규칙은 ptyResize.ts 의 `adoptedCols`).
+    let adopt: AdoptedWidth | null = null;
+    /** @param deliberate 사람이 셀 크기를 바꾼 자리 — 이어받기를 놓는다. */
+    const applyFit = (deliberate = false) => {
+      // 놓는 것은 **아래 가드보다 먼저** — 숨어 있는 동안 글자 크기를 바꿔도
+      // 그 뜻은 남아야 한다 (다시 보일 때 옛 폭으로 되돌아가면 안 된다).
+      if (deliberate) adopt = null;
       // 아직 안 열렸으면 **여기서 연다** — 크기가 0 이던 페인이 자리를 얻는
       // 순간이 바로 이 콜백이다 (display:none → 보임 전환 포함).
       if (!openedRef.current && !openRef.current()) return;
@@ -733,11 +719,15 @@ export default function TerminalInstanceImpl({
       if (container.clientWidth === 0 || container.clientHeight === 0) return;
       try {
         fit.fit();
+        const keep = adoptedCols(adopt, term.cols, container.clientWidth);
+        if (keep === null) adopt = null;
+        else if (keep !== term.cols) term.resize(keep, term.rows);
         resizeQueue.push(term.rows, term.cols);
       } catch {
         /* renderer not ready — ignore */
       }
     };
+    applyFitRef.current = applyFit;
 
     // 분할 막대를 끄는 동안 `ResizeObserver` 는 프레임마다 깨어난다. 그때마다
     // `fit()` 을 부르면 xterm 이 스크롤백을 통째로 접었다 폈다 하고(리플로) PTY
@@ -772,13 +762,10 @@ export default function TerminalInstanceImpl({
         if (!revealed) return;
         // 다시 보이게 된 김에, 아직 안 열렸으면 연다 (위 `applyFit` 과 같은 이유).
         if (!openedRef.current && !openRef.current()) return;
-        if (!container) return;
-        if (container.clientWidth === 0 || container.clientHeight === 0) return;
+        // 자리를 비운 사이 창이 커졌을 수도 있으니 먼저 맞춰 보고,
+        // 크기가 그대로여도 어긋난 스크롤 기하는 반드시 되맞춘다.
+        applyFit();
         try {
-          // 자리를 비운 사이 창이 커졌을 수도 있으니 먼저 맞춰 보고,
-          // 크기가 그대로여도 어긋난 스크롤 기하는 반드시 되맞춘다.
-          fit.fit();
-          resizeQueue.push(term.rows, term.cols);
           resyncViewport(term);
         } catch {
           /* renderer not ready — ignore */
@@ -850,6 +837,12 @@ export default function TerminalInstanceImpl({
           nonceRef.current = at.data.nonce;
           lastSeq = at.data.seq;
           if (at.data.text) term.write(at.data.text);
+          // 도크와 터미널 화면은 크롬이 달라 열 수가 몇 칸 어긋난다. 그 몇 칸이
+          // 매번 대화를 한 번씩 접고, 접힌 줄은 되돌릴 수 없다 — 자리가 있으면
+          // 세션이 쓰던 폭을 그대로 이어받는다 (`adoptedCols`).
+          if (at.data.cols > 0 && container) {
+            adopt = { cols: at.data.cols, atWidth: container.clientWidth };
+          }
         } else {
           const res = await commands.startPtySession(sessionId, cwdRef.current, term.rows, term.cols);
           if (!isMounted) return;
@@ -872,7 +865,7 @@ export default function TerminalInstanceImpl({
         flushInput();
         // PTY 가 방금 바뀌었다 — 큐가 기억하는 "이미 보낸 크기" 는 남의 것이다.
         resizeQueue.reset();
-        resizeQueue.push(term.rows, term.cols);
+        applyFit();
       } catch (err) {
         console.error("[TerminalInstance] setup failed:", err);
       }
@@ -887,7 +880,6 @@ export default function TerminalInstanceImpl({
         settleTimer = null;
       }
       resizeQueue.dispose();
-      resizeQueueRef.current = null;
       stopThemeWatch();
       container?.removeEventListener("focusin", handleFocusIn);
       if (unlistenData) unlistenData();
@@ -948,14 +940,8 @@ export default function TerminalInstanceImpl({
     if (!sizeChanged && !heightChanged) return;
     if (sizeChanged) term.options.fontSize = fontSize;
     if (heightChanged) term.options.lineHeight = lineHeight;
-    if (openedRef.current) {
-      try {
-        fitRef.current?.fit();
-        resizeQueueRef.current?.push(term.rows, term.cols);
-      } catch {
-        /* ignore */
-      }
-    }
+    // 셀 크기가 바뀌면 열 수도 바뀌는 것이 맞다 — 이어받기를 여기서 놓는다.
+    applyFitRef.current(true);
   }, [fontSize, lineHeight, sessionId]);
 
   // Open (once) + fit + focus when visible — guarantees real dimensions so
@@ -967,14 +953,9 @@ export default function TerminalInstanceImpl({
     if (!visible) return;
     const id = window.setTimeout(() => {
       const term = termRef.current;
-      if (!term || !openRef.current()) return;
-      try {
-        fitRef.current?.fit();
-        resizeQueueRef.current?.push(term.rows, term.cols);
-      } catch {
-        /* ignore */
-      }
-      if (autoFocusRef.current) term.focus();
+      if (!term) return;
+      applyFitRef.current();
+      if (autoFocusRef.current && openedRef.current) term.focus();
     }, 0);
     return () => window.clearTimeout(id);
   }, [visible, sessionId]);
@@ -1001,7 +982,12 @@ async function loadWebglRenderer(
     const { WebglAddon } = await import("@xterm/addon-webgl");
     if (!term.element) return; // 로드 중 dispose 된 경우
     const webgl = new WebglAddon();
-    webgl.onContextLoss(() => webgl.dispose());
+    webgl.onContextLoss(() => {
+      // 핸들도 함께 비운다 — xterm 은 DOM 렌더러로 되돌아가고, 그때부터는
+      // 링크 밑줄을 저쪽이 그린다 (겹쳐 그으면 두 줄이 된다).
+      handle.current = null;
+      webgl.dispose();
+    });
     term.loadAddon(webgl);
     handle.current = webgl;
   } catch (err) {
