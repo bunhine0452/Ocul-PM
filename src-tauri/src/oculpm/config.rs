@@ -104,17 +104,33 @@ impl OculpmConfig {
     /// `to_string_pretty` so the file stays human-readable for users editing
     /// it directly. Never leaves a partial file behind.
     pub fn save(&self, path: &Path) -> Result<(), OculpmError> {
-        let text = toml::to_string_pretty(self)?;
-        // 멱등 쓰기 (2026-07-20): 내용이 같으면 디스크를 건드리지 않는다.
-        // 같은-내용 재작성이 mtime 만 바꿔 (a) 우리 watcher 의
-        // "config.toml changed" 재시작 경고, (b) 이 레포를 dev 로 열 때
-        // @tailwindcss/vite 가 change 이벤트에 raw full-reload 를 쏘는
-        // 웹뷰 전체 리로드(스파이 스택으로 확정)를 유발했다. 어댑터
-        // sync 의 byte-stable 규율과 동일한 원칙.
-        if let Ok(existing) = std::fs::read(path) {
-            if existing == text.as_bytes() {
-                return Ok(());
+        let generated = toml::to_string_pretty(self)?;
+
+        let text = match std::fs::read_to_string(path) {
+            Ok(existing) => {
+                // 멱등 쓰기 (2026-07-20, 2026-09-08 수정): 내용이 같으면 디스크를
+                // 건드리지 않는다. 같은-내용 재작성이 mtime 만 바꿔 (a) 우리
+                // watcher 의 "config.toml changed" 재시작 경고, (b) 이 레포를 dev
+                // 로 열 때 @tailwindcss/vite 가 change 이벤트에 raw full-reload 를
+                // 쏘는 웹뷰 전체 리로드(스파이 스택으로 확정)를 유발했다.
+                //
+                // **판정은 바이트가 아니라 값이다.** 바이트 비교는 주석이 있는
+                // 파일에서 절대 같아지지 않아(생성본에는 주석이 없다) 이 문이
+                // 늘 열려 있었고, 설정을 저장할 때마다 손으로 쓴 주석이 통째로
+                // 날아갔다 — 실제 피해자는 `forbid_journal_for_paths` 의
+                // {#token-glob-false-positive} 근거 16줄이다. 값이 안 바뀌므로
+                // diff 가 "설정 안 건드렸네"로 읽혀 조용히 지워졌다.
+                if Self::from_toml_str(&existing).is_ok_and(|current| &current == self) {
+                    return Ok(());
+                }
+                merge_preserving_decor(&existing, &generated, self)
             }
+            // 파일이 없거나 못 읽으면 생성본을 그대로 쓴다.
+            Err(_) => generated,
+        };
+
+        if std::fs::read(path).is_ok_and(|existing| existing == text.as_bytes()) {
+            return Ok(());
         }
         write_atomic(path, text.as_bytes())
     }
@@ -273,6 +289,77 @@ fn default_watcher_ignore() -> Vec<String> {
     .collect()
 }
 
+/// 생성된 TOML 의 **값만** 기존 문서에 얹는다 — 손으로 쓴 주석과 서식은
+/// 사용자 것이라 남긴다 (`mcp/codex.rs` 가 남의 MCP 서버 정의에 쓰는 것과 같은
+/// 규율). 바뀐 키만 갈아끼우므로 손대지 않은 자리는 글자 하나 안 움직인다.
+///
+/// 값이 우선이다 — 병합 결과가 `want` 를 그대로 되읽지 못하면 주석을 포기하고
+/// 생성본을 돌려준다. 설정 파일이 실제 설정과 어긋나는 쪽이 훨씬 나쁘다.
+fn merge_preserving_decor(existing: &str, generated: &str, want: &OculpmConfig) -> String {
+    let Ok(mut doc) = existing.parse::<toml_edit::Document>() else {
+        return generated.to_string();
+    };
+    let Ok(wanted) = generated.parse::<toml_edit::Document>() else {
+        return generated.to_string();
+    };
+    merge_table(doc.as_table_mut(), wanted.as_table());
+
+    let merged = doc.to_string();
+    match OculpmConfig::from_toml_str(&merged) {
+        Ok(back) if &back == want => merged,
+        _ => generated.to_string(),
+    }
+}
+
+fn merge_table(current: &mut toml_edit::Table, wanted: &toml_edit::Table) {
+    // 구조체에서 사라진 키는 파일에서도 지운다 — 안 그러면 죽은 설정이 남는다.
+    let stale: Vec<String> = current
+        .iter()
+        .map(|(key, _)| key.to_string())
+        .filter(|key| !wanted.contains_key(key))
+        .collect();
+    for key in stale {
+        current.remove(&key);
+    }
+
+    for (key, want_item) in wanted.iter() {
+        match (current.get_mut(key), want_item) {
+            // 표는 파고든다 — 통째로 갈아끼우면 안쪽 주석이 다 날아간다.
+            (Some(toml_edit::Item::Table(cur_table)), toml_edit::Item::Table(want_table)) => {
+                merge_table(cur_table, want_table);
+            }
+            // 값이 같으면 손대지 않는다. 이 한 줄이 배열 **안쪽** 주석을 살린다 —
+            // 우리 피해자였던 forbid_journal_for_paths 의 근거 블록이 거기 있다.
+            (Some(cur_item), _) => {
+                if !same_value(cur_item, want_item) {
+                    *cur_item = want_item.clone();
+                }
+            }
+            (None, _) => {
+                current.insert(key, want_item.clone());
+            }
+        }
+    }
+}
+
+/// 서식·주석을 무시한 값 비교. `toml` 파서가 주석을 버리므로, 같은 조각을 양쪽
+/// 다 한 번 통과시키면 "줄바꿈만 다른 같은 배열"이 같다고 나온다.
+fn same_value(a: &toml_edit::Item, b: &toml_edit::Item) -> bool {
+    fn plain(item: &toml_edit::Item) -> Option<toml::Value> {
+        let mut table = toml_edit::Table::new();
+        table.insert("v", item.clone());
+        toml::from_str::<toml::Value>(&table.to_string())
+            .ok()?
+            .get("v")
+            .cloned()
+    }
+    match (plain(a), plain(b)) {
+        (Some(x), Some(y)) => x == y,
+        // 읽어내지 못하면 같다고 우기지 않는다 — 덮어쓰는 쪽이 안전하다.
+        _ => false,
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests — see `docs/major_update/oculpm/W1/PR4-config.md` §5.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -296,6 +383,99 @@ mod tests {
         let c2 = OculpmConfig::load(&path).expect("load");
 
         assert_eq!(c1, c2);
+    }
+
+    /// 2026-09-08 — 설정을 저장할 때마다 손으로 쓴 주석이 통째로 날아갔다.
+    /// 멱등 검사가 바이트 비교였는데, 생성본에는 주석이 없어 주석이 있는 파일은
+    /// 절대 같아지지 않았기 때문이다. 실제 피해자는 forbid_journal_for_paths 의
+    /// {#token-glob-false-positive} 근거 블록이고, 값이 하나도 안 바뀌므로 diff
+    /// 가 "설정 안 건드렸네"로 읽혀 조용히 지워졌다.
+    #[test]
+    fn save_without_changes_leaves_the_file_untouched() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+
+        let cfg = OculpmConfig::default_for_new_project();
+        cfg.save(&path).expect("first save");
+
+        // 사용자가(또는 우리가) 손으로 근거 주석을 달아 둔 상태를 흉내낸다.
+        let annotated = std::fs::read_to_string(&path)
+            .unwrap()
+            .replace("[git]", "# 왜 이 목록이 이렇게 생겼는지에 대한 근거\n[git]");
+        std::fs::write(&path, &annotated).unwrap();
+
+        // 같은 값으로 다시 저장 — 디스크를 아예 건드리지 않아야 한다.
+        cfg.save(&path).expect("idempotent save");
+
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            annotated,
+            "값이 그대로면 파일도 한 바이트도 달라지지 않아야 한다"
+        );
+    }
+
+    /// 값이 실제로 바뀌면 그 키만 갈아끼우고, 손대지 않은 자리의 주석은 살아야
+    /// 한다. 배열 **안쪽** 주석까지 포함해서 — 우리 피해자가 거기 있었다.
+    #[test]
+    fn save_with_changes_keeps_untouched_comments() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+
+        let cfg = OculpmConfig::default_for_new_project();
+        cfg.save(&path).expect("first save");
+
+        let annotated = std::fs::read_to_string(&path)
+            .unwrap()
+            .replace("[watcher]", "# 워처 주석은 살아남아야 한다\n[watcher]")
+            .replace("[git]", "# git 주석도 마찬가지\n[git]");
+        std::fs::write(&path, &annotated).unwrap();
+
+        let mut changed = cfg.clone();
+        changed.watcher.debounce_ms = 900;
+        changed.save(&path).expect("save after change");
+
+        let after = std::fs::read_to_string(&path).unwrap();
+        assert!(after.contains("# 워처 주석은 살아남아야 한다"), "{after}");
+        assert!(after.contains("# git 주석도 마찬가지"), "{after}");
+        assert_eq!(
+            OculpmConfig::load(&path).unwrap().watcher.debounce_ms,
+            900,
+            "값은 확실히 바뀌어야 한다"
+        );
+    }
+
+    /// 배열 원소 사이에 낀 주석 — 실제 사고 현장의 모양 그대로.
+    #[test]
+    fn save_keeps_comments_inside_an_untouched_array() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+
+        let cfg = OculpmConfig::default_for_new_project();
+        cfg.save(&path).expect("first save");
+
+        let raw = std::fs::read_to_string(&path).unwrap();
+        let marker = "\"**/*private_key*\",";
+        assert!(raw.contains(marker), "기본 목록 모양이 바뀌었다: {raw}");
+        let annotated = raw.replace(
+            marker,
+            &format!("{marker}\n    # 아래 되돌림 규칙은 이 자리에 있어야 한다"),
+        );
+        std::fs::write(&path, &annotated).unwrap();
+
+        let mut changed = cfg.clone();
+        changed.session.inactivity_timeout_minutes = 45;
+        changed.save(&path).expect("save after change");
+
+        let after = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            after.contains("# 아래 되돌림 규칙은 이 자리에 있어야 한다"),
+            "건드리지 않은 배열 안쪽 주석이 사라졌다: {after}"
+        );
+        assert_eq!(
+            OculpmConfig::load(&path).unwrap(),
+            changed,
+            "병합 결과가 값을 그대로 되읽어야 한다"
+        );
     }
 
     /// Case 2 — Invalid timezone surfaces as InvalidTimezone.
