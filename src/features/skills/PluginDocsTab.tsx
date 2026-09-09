@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Toolbar } from "@/components/Toolbar";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
 import { commands, type ClaudePluginStatus } from "@/lib/bindings";
@@ -38,14 +37,11 @@ function CopyChip({ text, label }: { text: string; label?: string }) {
   );
 }
 
-export function PluginDocsTab({
-  tabs,
-  embedded = false,
-}: {
-  tabs?: React.ReactNode;
-  /** AD-3 — 3존 화면의 모달 안에서 렌더 (자기 Toolbar 없이). */
-  embedded?: boolean;
-}) {
+/**
+ * AD-3 이후 이 표면의 용법은 하나뿐이다 — 3존 화면의 「스킬·규칙」 모달 안.
+ * 제목은 `AppDialog` 의 label 과 `.sk-modal-head` 가 이미 그린다.
+ */
+export function PluginDocsTab() {
   const { t } = useT();
   const [status, setStatus] = useState<ClaudePluginStatus | null>(null);
   useEffect(() => {
@@ -58,12 +54,7 @@ export function PluginDocsTab({
 
   return (
     <>
-      {embedded ? null : (
-        <Toolbar title={t("plugin.toolbarTitle")} sub={t("plugin.toolbarSub")}>
-          {tabs}
-        </Toolbar>
-      )}
-      <div className={embedded ? "sk-shop-embed" : "scroll"}>
+      <div className="sk-shop-embed">
         <div className="page fade-in flex max-w-3xl flex-col gap-5">
           {/* 설치 상태 + 설치 명령 */}
           <section className="rounded-lg border border-border/60 bg-card p-5">

@@ -63,7 +63,7 @@ owner: claude-code
 - [ ] `EmptyState` 밀도 계약 복구 — plain/rich 두 단으로 선언했는데 호출부 20곳이 인라인 padding 으로 덮는다(16 · "24px 8px" · "16px 20px" · "18px 16px" · "24px 16px" · "6px 2px" · "6px 0 0"). `compact` 한 단을 더해 흡수 {#layout-empty-density}
 - [ ] 검색 화면 툴바 — `SearchScreenV2.tsx:266-270` 은 액션이 0개이고 sub 와 유일한 칩이 같은 문자열이라 한 바에 같은 문장이 두 번 뜬다. 주 컨트롤은 본문의 46px 히어로 카드(웹 랜딩 관용구)에 있다. 일지처럼 툴바 30px 필드로 올린다 {#layout-search-toolbar}
 - [ ] 화면 진입 애니메이션 — `.page fade-in` 8곳 vs 맨 `.page` 8곳(skills·code·discussion) {#layout-page-enter}
-- [~] 잡동사니 — `navRegistry.ts:117` 주석이 「에이전트」를 ⌘0 이라 하지만 index 8 → ⌘9 다(주석 드리프트). 사이드바 첫 그룹만 라벨이 없다(Sidebar.tsx:410/421/450 은 「도구」·「AI」·「참고」). `SkillShopTab.tsx:162`·`PluginDocsTab.tsx:62` 의 <Toolbar> 는 항상 embedded 로만 마운트돼 렌더되지 않는 죽은 코드 {#layout-misc}
+- [x] 잡동사니 — `navRegistry.ts:117` 주석이 「에이전트」를 ⌘0 이라 하지만 index 8 → ⌘9 다(주석 드리프트). 사이드바 첫 그룹만 라벨이 없다(Sidebar.tsx:410/421/450 은 「도구」·「AI」·「참고」). `SkillShopTab.tsx:162`·`PluginDocsTab.tsx:62` 의 <Toolbar> 는 항상 embedded 로만 마운트돼 렌더되지 않는 죽은 코드 {#layout-misc}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -100,4 +100,5 @@ owner: claude-code
 | 2026-09-09T22:08:02+09:00 | #layout-misc | claude-code | ☐→~ | .oculpm/journal/20260909/Refactors/2207_refactor_fs-ramp-caps-icon-stroke-sidebar.md | 셋 중 하나 완료 — 사이드바 첫 그룹에 sidebar.mainSection「작업」. 남은 둘: navRegistry 주석 드리프트, 죽은 Toolbar 2곳 |
 | 2026-09-09T22:08:08+09:00 | #fix-nav-ia | claude-code | ~→~ | .oculpm/journal/20260909/Refactors/2207_refactor_fs-ramp-caps-icon-stroke-sidebar.md | 거짓 fallback 3곳만 제거(var(--fs-2,12px) → var(--fs-3)). shell.css 로의 흡수는 병렬 세션 몫으로 남김 |
 | 2026-09-09T22:52:48+09:00 | #fix-nav-ia | claude-code | ~→x | .oculpm/journal/20260909/Refactors/2252_refactor_nav-ia-absorbed-into-shell.md | 항목 근거 3개 중 3개가 이미 해소돼 있었다(488b6fc) — 남은 건 흡수뿐. 12개 선택자를 뒤 4레이어에서 grep 해 경쟁 선언 0 확인 후 shell.css nav 블록으로. 값은 한 자도 안 바꿈(램프 밖 7px·22px 은 ramp-space 래칫 동결 중). index.css 주석의 "5 files" 가 도로 참이 됐다 |
+| 2026-09-09T22:57:39+09:00 | #layout-misc | claude-code | ~→x | .oculpm/journal/20260909/Refactors/2257_refactor_dead-toolbar-and-nav-comment-drift.md | 셋 다 완료(사이드바 라벨은 488b6fc). 죽은 Toolbar 가 살아남은 이유는 테스트였다 — 영어 렌더 테스트가 비-embedded 경로를 렌더해 죽은 분기에만 있는 "Skills & rules" 를 단언 중이었다. 분기+embedded/tabs 이음매 통째로 제거, 단언은 살아 있는 chrome 으로 이동. 주석 드리프트는 nav_registry.test.ts:77 이 이미 ⌘9 를 못박고 있어 주석만 정정 |
 <!-- oculpm:plan-log end -->

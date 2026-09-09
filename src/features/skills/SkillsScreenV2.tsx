@@ -432,7 +432,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
       {/* 샵·훅·플러그인 — 탭이 아니라 "추가하기" 에서 여는 보조 표면. */}
       <AppDialog open={extra === "shop"} onClose={() => setExtra(null)} label={t("shop.toolbarSub")} width={860}>
         <div className="sk-modal-head">{t("ctx.add.shopTitle")}</div>
-        <SkillShopTab projectId={projectId} embedded onInstalled={() => void loadAll()} />
+        <SkillShopTab projectId={projectId} onInstalled={() => void loadAll()} />
       </AppDialog>
       <AppDialog open={extra === "hooks"} onClose={() => setExtra(null)} label={t("sk.hooksSub")} width={720}>
         <div className="sk-modal-head">{t("sk.tab.hooks")}</div>
@@ -443,7 +443,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
       </AppDialog>
       <AppDialog open={extra === "plugin"} onClose={() => setExtra(null)} label={t("plugin.toolbarSub")} width={860}>
         <div className="sk-modal-head">{t("plugin.toolbarTitle")}</div>
-        <PluginDocsTab embedded />
+        <PluginDocsTab />
       </AppDialog>
     </>
   );

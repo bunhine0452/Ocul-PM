@@ -114,8 +114,10 @@ export const NAV_ENTRIES: NavEntry[] = [
   { id: "graph", labelKey: "nav.graph", aliasKey: "nav.graph.alias", icon: Network, group: "tools" },
   { id: "terminal", labelKey: "nav.terminal", aliasKey: "nav.terminal.alias", icon: SquareTerminal, group: "tools" },
   { id: "code", labelKey: "nav.code", aliasKey: "nav.code.alias", icon: FileCode, group: "tools" },
-  // ── AI 면. 「에이전트」가 ⌘0 을 갖는 열 번째 칸이다 — 매일 쓰는 면이
-  //    번호를 갖는다는 규칙의 결과다.
+  // ── AI 면. 「에이전트」가 아홉 번째 칸(⌘9), 「AI 패널」이 열 번째(⌘0)다 —
+  //    매일 쓰는 면이 번호를 갖는다는 규칙의 결과다. 두 번호는
+  //    `nav_registry.test.ts` 가 못박고 있으므로, 여기 적힌 숫자가 그 테스트와
+  //    어긋나면 **틀린 쪽은 이 주석**이다 (2026-09-09 에 한 번 그랬다).
   { id: "claudecode", labelKey: "nav.agent", aliasKey: "nav.agent.alias", icon: Bot, group: "ai", children: AGENT_BRANCHES },
   { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: MessageSquareText, group: "ai" },
   // PR-CI3 — 스킬 화면을 스킬·규칙·훅 허브로 확장 (id 는 유지 — 저장된 uiV2View 호환).

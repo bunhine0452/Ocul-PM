@@ -179,13 +179,18 @@ describe("영어 모드에서 한글이 남지 않는다", () => {
   it("플러그인 안내 탭 — chrome 만 (데이터는 플러그인 거울이라 한국어가 정상)", async () => {
     const { findByText } = render(
       <Wrap>
-        <PluginDocsTab tabs={null} />
+        <PluginDocsTab />
       </Wrap>,
     );
     // 이 탭은 pluginDocs.ts(플러그인 실표면의 거울)를 그대로 렌더하므로
     // 전체 한글 0 을 요구할 수 없다 — chrome 이 영어인지만 확인한다.
-    await findByText("Skills & rules");
+    //
+    // 예전엔 여기서 "Skills & rules"(plugin.toolbarTitle)를 단언했는데,
+    // 그건 이 컴포넌트의 죽은 <Toolbar> 분기에서만 나오는 문자열이었다 —
+    // 프로덕션은 이 표면을 모달 안에서만 띄우고 제목은 호출부가 그린다.
+    // 테스트가 죽은 코드를 붙들고 있어서 그 분기가 살아남았다 {#layout-misc}.
     await findByText("Suggested flow");
+    await findByText("Slash commands");
   });
 
   it("설정 패널", async () => {

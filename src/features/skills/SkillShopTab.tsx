@@ -6,9 +6,7 @@
 // **네이티브** 기능이라 ocul-pm 플러그인 없이도 동작한다 — 플러그인 설치자
 // 한정으로 잠글 이유가 없고, 대신 하단 안내로 사실을 알린다.
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
 
-import { Toolbar } from "@/components/Toolbar";
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { commands } from "@/lib/bindings";
@@ -17,20 +15,18 @@ import { CATALOG_SKILLS, type CatalogSkill, type CatalogTag } from "./skillsCata
 import { tAll, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 
+/**
+ * AD-3 이후 이 표면의 용법은 하나뿐이다 — 3존 화면의 "추가하기 → 전체
+ * 카탈로그" 모달 안. 제목은 `AppDialog` 의 label 과 `.sk-modal-head` 가
+ * 이미 그리므로 여기서 다시 그리지 않는다.
+ */
 interface SkillShopTabProps {
   projectId: number;
-  /** 허브 세그먼트 탭 — 화면으로 쓸 때만. */
-  tabs?: ReactNode;
-  /**
-   * AD-3 — 3존 화면의 "추가하기 → 전체 카탈로그" 모달 안에서 렌더한다.
-   * 화면이 아니므로 자기 Toolbar 를 그리지 않는다 (탭이 사라진 뒤의 유일한 용법).
-   */
-  embedded?: boolean;
   /** 설치 직후 호출 — 3존 화면이 목록을 다시 읽는다. */
   onInstalled?: () => void;
 }
 
-export function SkillShopTab({ projectId, tabs, embedded = false, onInstalled }: SkillShopTabProps) {
+export function SkillShopTab({ projectId, onInstalled }: SkillShopTabProps) {
   const { t } = useT();
   // 설치 여부 판정은 프로젝트 스코프 폴더명 기준 — 동명의 자작 스킬도 "있음"
   // 으로 표시된다 (백엔드 skills_save 의 동명 거부가 이중 가드, title 로 고지).
@@ -158,12 +154,7 @@ export function SkillShopTab({ projectId, tabs, embedded = false, onInstalled }:
 
   return (
     <>
-      {embedded ? null : (
-        <Toolbar title={t("nav.skills")} sub={t("shop.toolbarSub")}>
-          {tabs}
-        </Toolbar>
-      )}
-      <div className={embedded ? "sk-shop-embed" : "scroll"}>
+      <div className="sk-shop-embed">
         <div className="page sk-shop">
           <section>
             <h2 className="sk-shop-h">

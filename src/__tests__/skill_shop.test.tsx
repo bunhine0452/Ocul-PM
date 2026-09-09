@@ -56,7 +56,7 @@ describe("스킬 샵 탭", () => {
   afterEach(cleanup);
 
   it("플러그인 여부와 무관하게 렌더되고, 전체 카탈로그 수를 표시한다", async () => {
-    render(<SkillShopTab projectId={1} tabs={null} />);
+    render(<SkillShopTab projectId={1} />);
     expect(
       await screen.findByText(`전체 카탈로그 (${CATALOG_SKILLS.length})`),
     ).toBeInTheDocument();
@@ -66,7 +66,7 @@ describe("스킬 샵 탭", () => {
   });
 
   it("감지된 스택(vue)과 태그가 겹치는 스킬을 추천 섹션에 보여준다", async () => {
-    render(<SkillShopTab projectId={1} tabs={null} />);
+    render(<SkillShopTab projectId={1} />);
     await waitFor(() => {
       expect(screen.queryByText("스택 감지 중…")).not.toBeInTheDocument();
     });
@@ -80,7 +80,7 @@ describe("스킬 샵 탭", () => {
   });
 
   it("검색어로 전체 카탈로그를 좁힌다", async () => {
-    render(<SkillShopTab projectId={1} tabs={null} />);
+    render(<SkillShopTab projectId={1} />);
     const input = await screen.findByLabelText("카탈로그 검색");
     fireEvent.change(input, { target: { value: "database-migrations" } });
     // 검색 결과 행 = database-migrations 하나만 (추천 섹션은 검색과 무관).
@@ -91,7 +91,7 @@ describe("스킬 샵 탭", () => {
   });
 
   it("미설치 스킬의 설치 버튼이 skillsSave 를 프로젝트 스코프로 부른다", async () => {
-    render(<SkillShopTab projectId={7} tabs={null} />);
+    render(<SkillShopTab projectId={7} />);
     const input = await screen.findByLabelText("카탈로그 검색");
     fireEvent.change(input, { target: { value: "api-design" } });
     // 추천 섹션에도 설치 버튼이 있으므로 전체 카탈로그 섹션으로 스코프.
@@ -110,7 +110,7 @@ describe("스킬 샵 탭", () => {
   });
 
   it("행을 클릭하면 미리보기 모달이 열리고 원본(핀 커밋) 링크를 보여준다", async () => {
-    render(<SkillShopTab projectId={1} tabs={null} />);
+    render(<SkillShopTab projectId={1} />);
     const input = await screen.findByLabelText("카탈로그 검색");
     fireEvent.change(input, { target: { value: "inherit-legacy-style" } });
     const catalogSec = screen.getByText(/^전체 카탈로그/).closest("section") as HTMLElement;
