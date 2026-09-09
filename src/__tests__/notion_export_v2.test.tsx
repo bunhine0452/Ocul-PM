@@ -115,7 +115,7 @@ describe("NotionSection 설정 (PR-CI7)", () => {
     });
     fireEvent.click(getByRole("button", { name: "검증 후 저장" }));
 
-    await waitFor(() => expect(errors.some((e) => e?.includes("검증 실패"))).toBe(true));
+    await waitFor(() => expect(errors.some((e) => e?.includes("확인하지 못했습니다"))).toBe(true));
     expect(fx.calls.secretSet).toHaveLength(0);
   });
 

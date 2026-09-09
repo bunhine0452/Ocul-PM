@@ -95,3 +95,52 @@ describe("복사 확인은 한 형태다", () => {
     expect(hits, hits.join("\n")).toEqual([]);
   });
 });
+
+describe("한 문자열 안에서 화자가 바뀌지 않는다", () => {
+  /**
+   * **평서 종결만** 본다. 「확인하세요」(명령형 해요체)와 「실행합니다」(평서
+   * 합쇼체)가 한 문장에 있는 건 한국어 UI 의 정상 조합이다 — 서법이 다르다.
+   * 문제는 평서문끼리 갈리는 것이다:
+   *
+   *   "이 컴퓨터에만 **남습니다** — 원장에는 쓰지 **않아요**"
+   *
+   * 라운드 직전 실측 24건. 전부 그 네임스페이스의 우세한 말투로 맞췄다.
+   *
+   * 사전 전체의 합쇼 532 / 해요 396 은 아직 갈려 있다 — 그건 제품 목소리를
+   * 하나로 정하는 결정이라 {#copy-voice} 에 남아 있다. 이 스위트가 막는 것은
+   * "**한 문자열 안**에서 화자가 바뀌는 것" 뿐이다.
+   */
+  const END = "(?=[\\s.,)\\]\"—·…]|\\\\n|$)";
+  const HAP = new RegExp(`(습니다|입니다|됩니다)${END}`);
+  const HAE = new RegExp(`(었어요|았어요|해요|예요|이에요|네요|돼요|어요|아요)${END}`);
+
+  it("평서 종결이 한 문자열 안에서 섞이지 않는다", () => {
+    const mixed: string[] = [];
+    for (const line of bare.split("\n")) {
+      const m = /"([\w.]+)":\s*"((?:[^"\\]|\\.)*)"/.exec(line);
+      if (!m) continue;
+      if (HAP.test(m[2]) && HAE.test(m[2])) mixed.push(`${m[1]} — ${m[2].slice(0, 70)}`);
+    }
+    expect(mixed, mixed.join("\n")).toEqual([]);
+  });
+});
+
+describe("에러는 로그가 아니라 메시지다", () => {
+  /**
+   * 「명사 실패: <영문 원문>」 은 로그를 UI 에 붙여넣은 것이다. 라운드 직전
+   * 41건이었고, `tError()` 가 못 번역한 IO 오류가 그대로 뒤에 붙어
+   * "압축 실패: Could not open database … (os error 2)" 가 한국어 UI 에 떴다.
+   *
+   * 원문을 지울 수는 없다(진단 정보다). 대신 **무엇이 안 됐는지를 한국어 문장으로
+   * 먼저** 말하고 원문을 뒤로 민다 — "데이터베이스를 압축하지 못했습니다 — {error}".
+   */
+  it("「… 실패: {error}」 꼴이 없다", () => {
+    const hits: string[] = [];
+    for (const line of bare.split("\n")) {
+      const m = /"([\w.]+)":\s*"((?:[^"\\]|\\.)*)"/.exec(line);
+      if (!m) continue;
+      if (/실패\s*[:—]\s*\{(error|detail|message)\}/.test(m[2])) hits.push(`${m[1]} — ${m[2]}`);
+    }
+    expect(hits, hits.join("\n")).toEqual([]);
+  });
+});

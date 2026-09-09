@@ -425,7 +425,7 @@ describe("작업 일지 디테일 — 파일로 열기 ({#entry-open-affordance}
     fireEvent.click(await findByText("검토 대상"));
     fireEvent.click(await findByText("파일로 열기"));
     await waitFor(() => expect(toastMock.destructive).toHaveBeenCalledTimes(1));
-    expect(String(toastMock.destructive.mock.calls[0][0])).toContain("파일 열기 실패");
+    expect(String(toastMock.destructive.mock.calls[0][0])).toContain("파일을 열지 못했어요");
   });
 });
 
