@@ -714,3 +714,40 @@ describe("비활성 흐림", () => {
     expect(defs).toHaveLength(1);
   });
 });
+
+// ─── 여백 램프 채택 — 래칫 (2026-09-09) ────────────────────────────────────
+describe("여백", () => {
+  const RAMP = new Set([4, 6, 8, 10, 12, 16, 20, 24]);
+  const PROP = /\b(?:padding|margin|gap|row-gap|column-gap)(?:-[a-z-]+)?\s*:\s*([^;{}]+)/g;
+
+  function offRamp(): Map<number, number> {
+    const hist = new Map<number, number>();
+    for (const file of walk(join(ROOT))) {
+      if (!file.endsWith(".css") || file.endsWith("styles/tokens.css")) continue;
+      const css = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, " ");
+      for (const m of css.matchAll(PROP)) {
+        for (const mm of m[1].matchAll(/(?<![-\w.])(\d+)px/g)) {
+          const v = Number(mm[1]);
+          // 1~3px 은 헤어라인 보정이지 여백 스케일이 아니다 — 램프가 4px 에서 시작한다.
+          if (v >= 4 && !RAMP.has(v)) hist.set(v, (hist.get(v) ?? 0) + 1);
+        }
+      }
+    }
+    return hist;
+  }
+
+  it("램프 밖 여백이 **늘지** 않는다", () => {
+    // 2026-09-09: 램프에 정확히 맞는 892곳을 토큰으로 옮겼다(시각 변화 0인 순수
+    // 개명). 남은 480곳은 램프 밖 값이라 옮기면 1~2px 씩 움직인다 — 5px(108) ·
+    // 7px(88) · 9px(88) 이 최상위이고, 이 셋은 --space 의 저단(4·6·8·10)이
+    // 2px 격자인데 그 사이에 낀 값들이다.
+    //
+    // 램프에 5·7·9 를 더할지 6·8·10 으로 수렴시킬지는 **눈으로 보고** 정할
+    // 일이라 남겨 두었다. 그때까지 이 래칫이 "새로 늘지는 않는다" 만 지킨다.
+    // 줄이면 이 숫자를 내려 적을 것.
+    const hist = offRamp();
+    const total = [...hist.values()].reduce((a, b) => a + b, 0);
+    const top = [...hist.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    expect(total, `램프 밖 여백 ${total}곳 — 최상위 ${JSON.stringify(top)}`).toBeLessThanOrEqual(480);
+  });
+});

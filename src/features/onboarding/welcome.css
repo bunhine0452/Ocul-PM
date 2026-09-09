@@ -18,7 +18,7 @@
   z-index: var(--z-top);
   display: grid;
   place-items: center;
-  padding: 56px 24px 24px;
+  padding: 56px var(--space-8) var(--space-8);
   animation: wz-in 220ms var(--ease-out) both;
 }
 
@@ -60,8 +60,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 16px 22px;
+  gap: var(--space-6);
+  padding: var(--space-6) 22px;
   border-bottom: 1px solid var(--sep);
   background: var(--bg-card);
 }
@@ -69,7 +69,7 @@
 .wz-brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-3);
   font-size: var(--fs-7);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-tight);
@@ -90,7 +90,7 @@
 .wz-dot {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   font-size: var(--fs-3);
   color: var(--text-3);
 }
@@ -144,7 +144,7 @@
 }
 
 .wz-title {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-3);
   font-size: var(--fs-12);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-snug);
@@ -160,7 +160,7 @@
 }
 
 .wz-label {
-  margin: 20px 0 8px;
+  margin: var(--space-7) 0 var(--space-3);
   font-size: var(--fs-2);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-caps-lg);
@@ -182,15 +182,15 @@
 .wz-choices {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: var(--space-4);
 }
 
 .wz-choice {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 14px 10px;
+  gap: var(--space-3);
+  padding: 14px var(--space-4);
   border: 1px solid var(--sep-strong);
   border-radius: var(--radius-m);
   background: var(--bg-card);
@@ -220,7 +220,7 @@
 
 /* ── 강조색 스와치 6 ────────────────────────────────────────────────── */
 
-.wz-accents { display: flex; align-items: center; gap: 10px; }
+.wz-accents { display: flex; align-items: center; gap: var(--space-4); }
 
 .wz-accent {
   width: 28px;
@@ -241,7 +241,7 @@
 .wz-cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: var(--space-5);
 }
 
 @media (max-width: 560px) {
@@ -253,8 +253,8 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
-  padding: 20px 18px;
+  gap: var(--space-2);
+  padding: var(--space-7) 18px;
   text-align: left;
   border: 1px solid var(--sep-strong);
   border-radius: var(--radius-l);
@@ -264,7 +264,7 @@
     transform var(--dur-1) var(--ease-out);
 }
 
-.wz-bigcard svg { color: var(--accent); margin-bottom: 4px; }
+.wz-bigcard svg { color: var(--accent); margin-bottom: var(--space-1); }
 .wz-bigcard b { font-size: var(--fs-7); font-weight: var(--fw-bold); color: var(--text); }
 .wz-bigcard span { font-size: var(--fs-4); line-height: var(--lh-body); color: var(--text-2); }
 
@@ -284,7 +284,7 @@
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 10px;
+  gap: var(--space-4);
 }
 
 .wz-list li {
@@ -308,19 +308,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--space-4);
   padding: 14px 22px;
   border-top: 1px solid var(--sep);
   background: var(--bg-card);
 }
 
-.wz-foot-right { display: flex; align-items: center; gap: 8px; }
+.wz-foot-right { display: flex; align-items: center; gap: var(--space-3); }
 
 .wz-ghost,
 .wz-primary {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   height: 32px;
   padding: 0 14px;
   border-radius: var(--radius-s);

@@ -14,13 +14,13 @@
 /* 갈래 목록 — 에이전트 행이 열려 있을 때만 나타난다. `.subnav.vertical` 이
    레이아웃을 하고, 여기서는 부모 행에 매다는 들여쓰기만 준다. */
 .nav-branches {
-  margin: 2px 0 4px 22px;
-  padding-left: 8px;
+  margin: 2px 0 var(--space-1) 22px;
+  padding-left: var(--space-3);
   border-left: 1px solid var(--border);
 }
 .nav-branches .subnav-item {
   gap: 7px;
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-3);
 }
 .nav-branches .subnav-item svg { color: var(--text-2); flex: none; }
 .nav-branches .subnav-item[aria-current="page"] svg { color: inherit; }
@@ -29,21 +29,21 @@
 /* 단축키 재배정 1회 안내. 카드가 아니라 **줄**이다 — 사이드바에서 자리를
    많이 먹으면 정작 바뀐 번호가 안 보인다. */
 .nav-remap {
-  margin: 0 0 6px;
-  padding: 8px 10px;
+  margin: 0 0 var(--space-2);
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-s);
   background: var(--bg-inset);
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .nav-remap-title { font-size: var(--fs-2, 12px); font-weight: var(--fw-strong); color: var(--text); }
 .nav-remap-body { font-size: var(--fs-1, 11px); line-height: var(--lh-snug); color: var(--text-2); }
-.nav-remap-acts { display: flex; gap: 6px; margin-top: 2px; }
+.nav-remap-acts { display: flex; gap: var(--space-2); margin-top: 2px; }
 .nav-remap-acts button {
   font: inherit;
   font-size: var(--fs-1, 11px);
-  padding: 3px 8px;
+  padding: 3px var(--space-3);
   border-radius: var(--radius-xs);
   border: 1px solid var(--border);
   background: var(--bg-card);

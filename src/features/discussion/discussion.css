@@ -19,7 +19,7 @@
      속 사이드바' 로 읽힌다. 목록은 콘텐츠 시트에 속하므로 표면을 공유하고
      구분선만 둔다 (2026-07-30 디자인 라운드). */
   background: transparent;
-  padding: 10px 8px 40px;
+  padding: var(--space-4) var(--space-3) 40px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -30,7 +30,7 @@
   flex-direction: column;
   gap: 3px;
   width: 100%;
-  padding: 8px 10px;
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-s);
   border: none;
   background: none;
@@ -46,7 +46,7 @@
 .disc-item-top {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .disc-item-title {
   flex: 1;
@@ -71,7 +71,7 @@
 .disc-item-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   font-size: var(--fs-3);
   color: var(--text-3);
 }
@@ -90,7 +90,7 @@
 .disc-archive-head {
   font-size: var(--fs-3);
   color: var(--text-3);
-  padding: 12px 8px 4px;
+  padding: var(--space-5) var(--space-3) var(--space-1);
   text-transform: uppercase;
   letter-spacing: var(--track-caps);
 }
@@ -140,8 +140,8 @@
 .disc-head {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 4px;
+  gap: var(--space-5);
+  margin-bottom: var(--space-1);
 }
 .disc-head-title {
   flex: 1;
@@ -155,7 +155,7 @@
   width: 100%;
   font-size: var(--fs-11);
   font-weight: var(--fw-bold);
-  padding: 2px 6px;
+  padding: 2px var(--space-2);
   border-radius: var(--radius-s);
   border: 1px solid var(--accent);
   background: var(--bg-inset);
@@ -165,8 +165,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin: 12px 0 22px;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 22px;
 }
 .disc-owner {
   display: flex;
@@ -185,7 +185,7 @@
   background: var(--accent-soft);
   border: none;
   border-radius: var(--radius-s);
-  padding: 4px 9px;
+  padding: var(--space-1) 9px;
   cursor: pointer;
 }
 
@@ -200,7 +200,7 @@
   background: var(--bg-card);
   border: 1px solid var(--sep);
   border-radius: var(--radius-s);
-  padding: 5px 10px;
+  padding: 5px var(--space-4);
   cursor: pointer;
 }
 .disc-btn:hover:not(:disabled) {
@@ -230,29 +230,29 @@
   color: var(--text-3);
   text-transform: uppercase;
   letter-spacing: var(--track-caps);
-  margin-bottom: 10px;
-  padding-bottom: 6px;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--sep);
 }
 
 .disc-option-card {
   border: 1px solid var(--sep);
   border-radius: var(--radius-m);
-  padding: 12px 14px;
-  margin-bottom: 10px;
+  padding: var(--space-5) 14px;
+  margin-bottom: var(--space-4);
   background: var(--bg-card);
 }
 .disc-option-title {
   font-size: var(--fs-8);
   font-weight: var(--fw-bold);
   color: var(--text);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-2);
 }
 
 .disc-log-row {
   display: flex;
-  gap: 8px;
-  padding: 8px 0;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--sep);
 }
 .disc-log-row:last-child {
@@ -288,12 +288,12 @@
 .disc-next {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .disc-next-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-3);
   font-size: var(--fs-7);
   color: var(--text);
 }
@@ -322,17 +322,17 @@
 .disc-attach-rail {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
 }
 .disc-attach {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   width: 150px;
   border: 1px solid var(--sep);
   border-radius: var(--radius-s);
-  padding: 8px;
+  padding: var(--space-3);
   background: var(--bg-card);
 }
 .disc-attach img {
@@ -384,8 +384,8 @@
   flex: none;
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  padding: 12px 18px 10px;
+  gap: var(--space-4);
+  padding: var(--space-5) 18px var(--space-4);
   border-bottom: 1px solid var(--sep);
 }
 .disc-edit-title {
@@ -418,8 +418,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 8px 18px;
+  gap: var(--space-4);
+  padding: var(--space-3) 18px;
   border-bottom: 1px solid var(--sep);
   background: var(--bg-inset);
 }
@@ -433,7 +433,7 @@
   content: "";
   width: 1px;
   height: 16px;
-  margin-right: 8px;
+  margin-right: var(--space-3);
   background: var(--sep);
 }
 .disc-tool {
@@ -492,7 +492,7 @@
 .disc-edit-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-3);
   margin-left: auto;
 }
 .disc-dirty {
@@ -560,7 +560,7 @@
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: 18px 24px 40vh;
+  padding: 18px var(--space-8) 40vh;
   border-left: 1px solid var(--sep);
 }
 .disc-edit-panes.preview .disc-edit-preview {
@@ -582,7 +582,7 @@
   left: 0;
   z-index: var(--z-dock);
   min-width: 178px;
-  padding: 4px;
+  padding: var(--space-1);
   border: 1px solid var(--border-card);
   border-radius: var(--radius-m);
   background: var(--bg-content);
@@ -596,7 +596,7 @@
 }
 .disc-menu-item {
   text-align: left;
-  padding: 6px 9px;
+  padding: var(--space-2) 9px;
   border: none;
   border-radius: var(--radius-s);
   background: none;
@@ -613,7 +613,7 @@
 
 /* ── 문서 경로 칩 ──────────────────────────────────────────── */
 .disc-path {
-  margin-left: 6px;
+  margin-left: var(--space-2);
   padding: 1px 7px;
   border: 1px solid var(--sep);
   border-radius: var(--radius-pill);
@@ -636,9 +636,9 @@
 .disc-note {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  padding: 6px 10px;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-4);
   border: 1px solid var(--sep);
   border-radius: var(--radius-m);
   background: var(--bg-inset);
@@ -657,14 +657,14 @@
 
 /* ── 새 문제 대화상자 ──────────────────────────────────────── */
 .disc-new {
-  padding: 20px 22px;
+  padding: var(--space-7) 22px;
   overflow-y: auto;
 }
 .disc-new h2 {
   font-size: var(--fs-9);
   font-weight: var(--fw-bold);
   color: var(--text);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-2);
 }
 .disc-new input {
   width: 100%;
@@ -678,7 +678,7 @@
 .disc-tpl-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: var(--space-3);
   margin-top: 14px;
 }
 .disc-tpl {
@@ -686,7 +686,7 @@
   flex-direction: column;
   gap: 3px;
   text-align: left;
-  padding: 10px 12px;
+  padding: var(--space-4) var(--space-5);
   border: 1px solid var(--sep);
   border-radius: var(--radius-m);
   background: var(--bg-card);
@@ -730,13 +730,13 @@
   border: 1px solid var(--border-card);
   border-radius: var(--radius-m);
   box-shadow: var(--shadow-pop);
-  padding: 20px 22px;
+  padding: var(--space-7) 22px;
 }
 .disc-modal h2 {
   font-size: var(--fs-9);
   font-weight: var(--fw-bold);
   color: var(--text);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-2);
 }
 .disc-modal-sub {
   font-size: var(--fs-6);
@@ -746,6 +746,6 @@
 .disc-modal-foot {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-3);
   margin-top: 18px;
 }

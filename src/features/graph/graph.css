@@ -70,7 +70,7 @@
   border: 1px solid color-mix(in srgb, var(--gn-tint) 26%, var(--border-card));
   border-radius: var(--radius-l);
   box-shadow: var(--shadow-card);
-  padding: 0 10px 0 11px;
+  padding: 0 var(--space-4) 0 11px;
   transition:
     border-color var(--dur-1) var(--ease-out),
     box-shadow var(--dur-1) var(--ease-out),
@@ -138,7 +138,7 @@
   padding-left: 17px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-3);
   font-size: var(--fs-1);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
@@ -168,7 +168,7 @@
   color: var(--text-2);
   background: var(--bg-inset);
   border-radius: var(--radius-xs);
-  padding: 0 4px;
+  padding: 0 var(--space-1);
 }
 /* 폴더 노드의 언어 구성 미니 바 (near LOD 전용). */
 .gn-mix {
@@ -191,9 +191,9 @@
 .gn.far {
   flex-direction: row;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   justify-content: flex-start;
-  padding: 0 10px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
 }
 .gn.far.t3 .gn-name { font-size: var(--fs-7); }
@@ -234,7 +234,7 @@
   align-items: center;
   gap: 5px;
   height: 26px;
-  padding: 0 10px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
   border: 1px solid var(--sep);
   background: transparent;
@@ -264,9 +264,9 @@
 .gr-search {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   height: 26px;
-  padding: 0 10px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
   background: var(--bg-inset);
   border: 1px solid transparent;
@@ -300,10 +300,10 @@
 .gr-panel {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
+  gap: var(--space-1) var(--space-5);
   align-items: center;
   max-width: 460px;
-  padding: 6px 11px;
+  padding: var(--space-2) 11px;
   border-radius: var(--radius-m);
   border: 1px solid var(--border-card);
   /* 불투명 — 유리(반투명 + blur)는 앱의 다른 패널과 재료가 달랐다. */
@@ -318,7 +318,7 @@
 .gr-legend-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
+  gap: var(--space-1) var(--space-5);
   align-items: center;
 }
 .gr-legend-item {
@@ -336,7 +336,7 @@
 .gr-panel-btn {
   border: none;
   background: none;
-  padding: 2px 4px;
+  padding: 2px var(--space-1);
   font-family: var(--font);
   font-size: var(--fs-3);
   font-weight: var(--fw-strong);

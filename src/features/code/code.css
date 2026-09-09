@@ -42,7 +42,7 @@
   overflow: hidden;
   border-right: 1px solid var(--sep);
   background: transparent;
-  padding: 10px 8px 0;
+  padding: var(--space-4) var(--space-3) 0;
 }
 /* 오른쪽에 붙으면 경계선도 반대쪽으로 — 선이 양쪽에 서면 두 줄로 보인다. */
 .code-sidebar.on-right {
@@ -53,7 +53,7 @@
 .code-filter {
   position: relative;
   flex: none;
-  margin: 0 2px 8px;
+  margin: 0 2px var(--space-3);
 }
 .code-filter-ico {
   position: absolute;
@@ -83,8 +83,8 @@
 
 .code-truncated {
   flex: none;
-  margin: 0 2px 6px;
-  padding: 4px 8px;
+  margin: 0 2px var(--space-2);
+  padding: var(--space-1) var(--space-3);
   font-size: var(--fs-4);
   color: var(--text-3);
   background: var(--bg-inset);
@@ -92,7 +92,7 @@
 }
 
 .code-tree-empty {
-  padding: 16px 8px;
+  padding: var(--space-6) var(--space-3);
   font-size: var(--fs-6);
   color: var(--text-3);
   text-align: center;
@@ -117,7 +117,7 @@
   gap: 5px;
   width: 100%;
   height: 24px;
-  padding: 0 8px 0 6px;
+  padding: 0 var(--space-3) 0 var(--space-2);
   border-radius: var(--radius-s);
   font-size: var(--fs-7);
   color: var(--text-2);
@@ -219,7 +219,7 @@
   display: flex;
   align-items: center;
   height: 24px;
-  padding: 0 8px;
+  padding: 0 var(--space-3);
   font-size: var(--fs-5);
   color: var(--text-3);
   font-style: italic;
@@ -316,10 +316,10 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   max-width: 200px;
   min-width: 0;
-  padding: 0 6px 0 10px;
+  padding: 0 var(--space-2) 0 var(--space-4);
   font-size: var(--fs-6);
   color: var(--text-3);
   background: none;
@@ -430,7 +430,7 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 0 6px;
+  padding: 0 var(--space-2);
   border-left: 1px solid var(--sep);
 }
 .code-editor-wrap {
@@ -457,7 +457,7 @@
   background: var(--bg-inset);
 }
 .code-svgpane .code-preview-stage {
-  padding: 12px;
+  padding: var(--space-5);
 }
 .code-svgpane-close {
   display: inline-flex;
@@ -492,7 +492,7 @@
   align-items: center;
   gap: 2px;
   height: 25px;
-  padding: 0 6px;
+  padding: 0 var(--space-2);
   font-size: var(--fs-4);
   color: var(--text-3);
   border-top: 1px solid var(--sep);
@@ -575,7 +575,7 @@
    번갈아 서는 물건이라 모양이 갈라지면 자리를 옮긴 것처럼 보인다. */
 .code-problems-filter {
   flex: none;
-  margin-left: 8px;
+  margin-left: var(--space-3);
 }
 .code-problems-hit {
   gap: 7px;
@@ -594,7 +594,7 @@
 .code-problems-source {
   flex: none;
   margin-left: auto;
-  padding-left: 10px;
+  padding-left: var(--space-4);
   font-size: var(--fs-3);
   color: var(--text-3);
 }
@@ -623,7 +623,7 @@
   display: flex;
   align-items: center;
   height: 24px;
-  padding: 0 10px;
+  padding: 0 var(--space-4);
   overflow: hidden;
   white-space: nowrap;
   background: var(--bg-content);
@@ -638,7 +638,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 1px 4px;
+  padding: 1px var(--space-1);
   border: none;
   border-radius: var(--radius-s);
   background: none;
@@ -697,7 +697,7 @@
 .monaco-editor-hover .monaco-hover-content,
 .monaco-editor .monaco-hover .monaco-hover-content {
   max-height: 320px;
-  padding: 8px 10px;
+  padding: var(--space-3) var(--space-4);
   font-family: var(--font);
   font-size: var(--fs-6);
   line-height: var(--lh-body);
@@ -719,8 +719,8 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--sep);
   background: color-mix(in srgb, #e5c07b 12%, var(--bg-inset));
 }
@@ -755,7 +755,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-3);
   padding: 40px;
   font-size: var(--fs-7);
   color: var(--text-3);
@@ -811,8 +811,8 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 8px;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
 }
 .code-sidebar-head .code-filter {
   flex: 1;
@@ -863,9 +863,9 @@
   z-index: var(--z-menu);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   max-width: 260px;
-  padding: 4px 9px 4px 7px;
+  padding: var(--space-1) 9px var(--space-1) 7px;
   border: 1px solid var(--border-card);
   border-radius: var(--radius-s);
   background: var(--bg-card);
@@ -925,7 +925,7 @@ body.code-dragging {
   flex: 1;
   min-width: 0;
   height: 20px;
-  padding: 0 4px;
+  padding: 0 var(--space-1);
   font-size: var(--fs-7);
   font-family: var(--mono);
   color: var(--text);
@@ -941,7 +941,7 @@ body.code-dragging {
   position: fixed;
   z-index: var(--z-top);
   min-width: 168px;
-  padding: 4px;
+  padding: var(--space-1);
   display: flex;
   flex-direction: column;
   background: var(--bg-card);
@@ -955,7 +955,7 @@ body.code-dragging {
   justify-content: space-between;
   gap: 18px;
   width: 100%;
-  padding: 6px 10px;
+  padding: var(--space-2) var(--space-4);
   text-align: left;
   font-size: var(--fs-6);
   color: var(--text-2);
@@ -984,24 +984,24 @@ body.code-dragging {
   color: var(--destructive);
 }
 .code-ctxmenu-item.sep {
-  margin-top: 4px;
+  margin-top: var(--space-1);
   border-top: 1px solid var(--sep);
-  padding-top: 8px;
+  padding-top: var(--space-3);
   border-radius: 0 0 var(--radius-s) var(--radius-s);
 }
 
 /* 삭제 확인 — 함께 닫히는 탭 목록. 미저장은 눈에 띄게. */
 .code-delete-open {
-  margin-top: 12px;
-  padding: 10px 12px;
+  margin-top: var(--space-5);
+  padding: var(--space-4) var(--space-5);
   font-size: var(--fs-5);
   color: var(--text-2);
   background: var(--bg-inset);
   border-radius: var(--radius-s);
 }
 .code-delete-open ul {
-  margin: 6px 0 0;
-  padding-left: 16px;
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-6);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1039,7 +1039,7 @@ body.code-dragging {
   align-items: center;
   gap: 5px;
   width: 100%;
-  padding: 7px 10px;
+  padding: 7px var(--space-4);
   font-size: var(--fs-3);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-caps);
@@ -1065,19 +1065,19 @@ body.code-dragging {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 8px;
+  padding-bottom: var(--space-3);
 }
 .code-outline-hint {
-  padding: 8px 12px 12px;
+  padding: var(--space-3) var(--space-5) var(--space-5);
   font-size: var(--fs-5);
   color: var(--text-3);
 }
 .code-outline-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   width: 100%;
-  padding: 3px 8px;
+  padding: 3px var(--space-3);
   font-size: var(--fs-6);
   color: var(--text-2);
   background: none;
@@ -1172,7 +1172,7 @@ body.code-dragging {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 14vh 16px 16px;
+  padding: 14vh var(--space-6) var(--space-6);
 }
 .code-goto {
   display: flex;
@@ -1207,13 +1207,13 @@ body.code-dragging {
   max-height: 46vh;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 4px;
+  padding: var(--space-1);
 }
 .code-goto-row {
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-3);
   font-size: var(--fs-6);
   color: var(--text-2);
   border-radius: var(--radius-s);
@@ -1247,7 +1247,7 @@ body.code-dragging {
 .code-goto-line {
   flex: none;
   margin-left: auto;
-  padding-left: 8px;
+  padding-left: var(--space-3);
   font-size: var(--fs-3);
   font-variant-numeric: tabular-nums;
   color: var(--text-3);
@@ -1258,8 +1258,8 @@ body.code-dragging {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 6px 12px;
+  gap: var(--space-5);
+  padding: var(--space-2) var(--space-5);
   font-size: var(--fs-3);
   color: var(--text-3);
   border-top: 1px solid var(--sep);
@@ -1290,8 +1290,8 @@ body.code-dragging {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 10px 7px 12px;
+  gap: var(--space-3);
+  padding: 7px var(--space-4) 7px var(--space-5);
   border-bottom: 1px solid var(--sep);
 }
 .code-refs-title {
@@ -1331,19 +1331,19 @@ body.code-dragging {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 4px 0 10px;
+  padding: var(--space-1) 0 var(--space-4);
 }
 .code-refs-hint {
-  padding: 14px 12px;
+  padding: 14px var(--space-5);
   font-size: var(--fs-6);
   color: var(--text-3);
 }
 .code-refs-file-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   width: 100%;
-  padding: 4px 12px;
+  padding: var(--space-1) var(--space-5);
   font-size: var(--fs-5);
   color: var(--text-2);
   background: none;
@@ -1383,9 +1383,9 @@ body.code-dragging {
 .code-refs-hit {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: var(--space-4);
   width: 100%;
-  padding: 2px 12px 2px 34px;
+  padding: 2px var(--space-5) 2px 34px;
   font-family: var(--mono);
   font-size: var(--fs-5);
   color: var(--text-2);
@@ -1430,7 +1430,7 @@ body.code-dragging {
   box-shadow: var(--shadow-pop);
 }
 .monaco-editor .parameter-hints-widget .signature {
-  padding: 6px 9px;
+  padding: var(--space-2) 9px;
   font-family: var(--mono);
   font-size: var(--fs-5);
   line-height: var(--lh-body);
@@ -1469,8 +1469,8 @@ body.code-dragging {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px 6px 12px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-5);
   border-bottom: 1px solid var(--sep);
 }
 .code-debug-title {
@@ -1527,7 +1527,7 @@ body.code-dragging {
 }
 .code-debug-detail {
   flex: none;
-  padding: 5px 12px;
+  padding: 5px var(--space-5);
   font-size: var(--fs-4);
   color: var(--text-3);
   border-bottom: 1px solid var(--sep);
@@ -1555,8 +1555,8 @@ body.code-dragging {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
+  gap: var(--space-3);
+  padding: 5px var(--space-4);
   font-size: var(--fs-2);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-caps);
@@ -1581,11 +1581,11 @@ body.code-dragging {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 4px 0 8px;
+  padding: var(--space-1) 0 var(--space-3);
 }
 .code-debug-hint {
   margin: 0;
-  padding: 10px 12px;
+  padding: var(--space-4) var(--space-5);
   font-size: var(--fs-5);
   color: var(--text-3);
   line-height: var(--lh-body);
@@ -1595,7 +1595,7 @@ body.code-dragging {
   flex-direction: column;
   gap: 1px;
   width: 100%;
-  padding: 4px 12px;
+  padding: var(--space-1) var(--space-5);
   text-align: left;
   background: none;
   border: none;
@@ -1631,7 +1631,7 @@ body.code-dragging {
   display: flex;
   align-items: baseline;
   gap: 5px;
-  padding: 2px 10px 2px 0;
+  padding: 2px var(--space-4) 2px 0;
   font-family: var(--mono);
   font-size: var(--fs-5);
 }
@@ -1669,7 +1669,7 @@ body.code-dragging {
   font-size: var(--fs-4);
 }
 .code-debug-out {
-  padding: 0 12px;
+  padding: 0 var(--space-5);
   white-space: pre-wrap;
   word-break: break-all;
   color: var(--text-2);
@@ -1708,8 +1708,8 @@ body.code-dragging {
 .code-empty-keys {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 190px));
-  gap: 8px 20px;
-  margin-top: 20px;
+  gap: var(--space-3) var(--space-7);
+  margin-top: var(--space-7);
 }
 .code-empty-key {
   display: inline-flex;
@@ -1724,7 +1724,7 @@ body.code-dragging {
   justify-content: center;
   min-width: 30px;
   height: 21px;
-  padding: 0 6px;
+  padding: 0 var(--space-2);
   font-family: inherit;
   font-size: var(--fs-3);
   font-weight: var(--fw-strong);
@@ -1741,7 +1741,7 @@ body.code-dragging {
   padding: 5px;
 }
 .code-ctxmenu-item {
-  padding: 6px 11px;
+  padding: var(--space-2) 11px;
   font-size: var(--fs-7);
   border-radius: var(--radius-s);
 }
@@ -1803,9 +1803,9 @@ body.code-dragging {
 .code-crumb-act {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   height: 20px;
-  padding: 0 6px;
+  padding: 0 var(--space-2);
   border: none;
   border-radius: var(--radius-s);
   background: none;
@@ -1860,10 +1860,10 @@ body.code-dragging {
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: auto auto;
-  column-gap: 8px;
+  column-gap: var(--space-3);
   row-gap: 1px;
   align-items: center;
-  padding: 6px 9px;
+  padding: var(--space-2) 9px;
   border: none;
   border-radius: var(--radius-s);
   background: none;
@@ -1930,13 +1930,13 @@ body.code-dragging {
 .code-hist-src.s-user { background: var(--accent); }
 .code-hist-src.s-agent { background: var(--text-3); }
 .code-hist-empty {
-  padding: 8px 9px 10px;
+  padding: var(--space-3) 9px var(--space-4);
   font-size: var(--fs-4);
   color: var(--text-3);
 }
 .code-hist-forget {
   width: 100%;
-  margin-top: 4px;
+  margin-top: var(--space-1);
   padding: 7px 9px;
   border: none;
   border-top: 1px solid var(--sep);
@@ -1957,8 +1957,8 @@ body.code-dragging {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-5);
   font-size: var(--fs-5);
   color: var(--text-2);
   background: var(--accent-soft);
@@ -2073,8 +2073,8 @@ body.code-dragging {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 0 2px 8px;
+  gap: var(--space-2);
+  margin: 0 2px var(--space-3);
 }
 .code-search-title {
   font-size: var(--fs-4);
@@ -2103,8 +2103,8 @@ body.code-dragging {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin: 0 2px 6px;
+  gap: var(--space-1);
+  margin: 0 2px var(--space-2);
 }
 .code-search-input {
   flex: 1;
@@ -2145,8 +2145,8 @@ body.code-dragging {
 }
 .code-search-error {
   flex: none;
-  margin: 0 2px 6px;
-  padding: 5px 8px;
+  margin: 0 2px var(--space-2);
+  padding: 5px var(--space-3);
   font-size: var(--fs-4);
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 10%, transparent);
@@ -2155,13 +2155,13 @@ body.code-dragging {
 }
 .code-search-summary {
   flex: none;
-  margin: 0 4px 4px;
+  margin: 0 var(--space-1) var(--space-1);
   font-size: var(--fs-4);
   color: var(--text-3);
 }
 .code-search-truncated {
   flex: none;
-  margin: 0 4px 4px;
+  margin: 0 var(--space-1) var(--space-1);
   font-size: var(--fs-3);
   color: var(--warn);
 }
@@ -2169,7 +2169,7 @@ body.code-dragging {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding-bottom: 10px;
+  padding-bottom: var(--space-4);
 }
 .code-search-file {
   margin-bottom: 2px;
@@ -2177,7 +2177,7 @@ body.code-dragging {
 .code-search-file-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   border-radius: var(--radius-s);
 }
 .code-search-file-row:hover {
@@ -2189,7 +2189,7 @@ body.code-dragging {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 2px 3px 4px;
+  padding: 3px 2px 3px var(--space-1);
   font-size: var(--fs-5);
   color: var(--text-2);
   background: none;
@@ -2221,7 +2221,7 @@ body.code-dragging {
 .code-search-dirty {
   flex: none;
   font-size: var(--fs-1);
-  padding: 1px 4px;
+  padding: 1px var(--space-1);
   border-radius: var(--radius-xs);
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 12%, transparent);
@@ -2231,7 +2231,7 @@ body.code-dragging {
   font-size: var(--fs-2);
   min-width: 16px;
   text-align: center;
-  padding: 1px 4px;
+  padding: 1px var(--space-1);
   border-radius: var(--radius-m);
   color: var(--text-3);
   background: var(--bg-inset);
@@ -2261,7 +2261,7 @@ body.code-dragging {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   padding: 2px 2px 2px 22px;
   font-size: var(--fs-5);
   background: none;
@@ -2296,10 +2296,10 @@ body.code-dragging {
   display: inline-flex;
 }
 .code-search-confirm {
-  padding: 18px 20px;
+  padding: 18px var(--space-7);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-4);
 }
 .code-search-confirm p {
   margin: 0;
@@ -2311,7 +2311,7 @@ body.code-dragging {
 .code-search-confirm-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--space-3);
 }
 
 /* ── 이미지·PDF 미리보기 ─────────────────────────────────────────────────
@@ -2328,9 +2328,9 @@ body.code-dragging {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-4);
   height: 30px;
-  padding: 0 6px 0 10px;
+  padding: 0 var(--space-2) 0 var(--space-4);
   font-size: var(--fs-4);
   color: var(--text-3);
   border-bottom: 1px solid var(--sep);
@@ -2342,7 +2342,7 @@ body.code-dragging {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .code-preview-meta {
   display: inline-flex;
@@ -2357,7 +2357,7 @@ body.code-dragging {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: var(--space-6);
   overflow: auto;
   background-color: var(--bg-inset);
   background-image:
@@ -2407,10 +2407,10 @@ body.code-dragging {
 .code-ai {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 340px;
   max-width: 560px;
-  padding: 7px 8px;
+  padding: 7px var(--space-3);
   border: 1px solid var(--sep);
   border-radius: var(--radius-m);
   background: var(--bg-card);
@@ -2420,7 +2420,7 @@ body.code-dragging {
 .code-ai-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .code-ai-ico {
   flex: none;
@@ -2430,7 +2430,7 @@ body.code-dragging {
   flex: 1;
   min-width: 0;
   height: 26px;
-  padding: 0 8px;
+  padding: 0 var(--space-3);
   border: 1px solid var(--sep);
   border-radius: var(--radius-s);
   background: var(--bg-inset);
@@ -2445,7 +2445,7 @@ body.code-dragging {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   height: 26px;
   padding: 0 9px;
   border: 1px solid var(--sep);
@@ -2486,7 +2486,7 @@ body.code-dragging {
 .code-ai-hunks {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-1);
 }
 .code-ai-hunk {
   display: inline-flex;
@@ -2518,7 +2518,7 @@ body.code-dragging {
 .code-status-ai {
   border: 1px solid var(--sep);
   border-radius: var(--radius-s);
-  padding: 0 6px;
+  padding: 0 var(--space-2);
   background: none;
   color: var(--text-2);
   font: inherit;

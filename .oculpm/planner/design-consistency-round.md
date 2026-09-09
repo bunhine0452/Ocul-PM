@@ -47,7 +47,7 @@ owner: claude-code
 - [x] `ai.actionApply` = "적용하기 (Apply)" → "적용" — 다른 "적용" 3개는 전부 그냥 "적용"이고, 영어를 병기한 유일한 순수 한국어 동사다 {#copy-apply-label}
 
 ## 램프 채택 — 세워 놓고 안 쓴 것들 {#ramps}
-- [ ] 여백 토큰 채택 — padding/margin/gap 이 토큰 129 : px 리터럴 1,007(11%). agent.css·code.css·skills.css 셋만 옮겨도(434곳) 절반이 정리된다. 램프 밖 최빈값 5px(48)·7px(30) 을 6/8 로 수렴시킬지 램프에 5·7 을 더할지 먼저 결정 {#ramp-space}
+- [~] 여백 토큰 채택 — padding/margin/gap 이 토큰 129 : px 리터럴 1,007(11%). agent.css·code.css·skills.css 셋만 옮겨도(434곳) 절반이 정리된다. 램프 밖 최빈값 5px(48)·7px(30) 을 6/8 로 수렴시킬지 램프에 5·7 을 더할지 먼저 결정 {#ramp-space}
 - [ ] 컨트롤 높이 램프 신설 — `height:` 리터럴 42종, 18~40px 구간에만 15종. 곡률·무게처럼 램프를 세우고 칩 2단(22·26)·아이콘 버튼 2단(26·30)으로 접는다 {#ramp-height}
 - [x] 줄간격 램프 신설 — line-height 19종, 본문 계열만 9종(1.4~1.72). 한국어는 제목도 1.3 아래로 안 내린다. `--lh-tight`/`--lh-body`/`--lh-prose` 3~4단. screens.css:2266 은 h1~h6 를 크기와 무관하게 전부 1.35 로 준다 {#ramp-leading}
 - [x] 흐림 토큰 2개 — `:disabled` opacity 가 0.32/0.35/0.4/0.45/0.5/0.55 여섯 단이고 `.btn:disabled`(0.5) 와 `.iconbtn:disabled`(0.32) 가 같은 툴바에서 눈에 띄게 다르다. `--dim-disabled`/`--dim-quiet` 로 {#ramp-dim}
@@ -95,4 +95,5 @@ owner: claude-code
 | 2026-09-09T21:10:55+09:00 | #ramp-leading | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2110_refactor_leading-and-dim-ramps.md | 4단(1.35/1.45/1.55/1.7) 75곳. line-height:1 과 px 7곳은 조판이 아니라 도형(고정 높이 배지 수직 중앙)이라 제외하고 게이트도 소수만 본다. h1~h6 를 크기별로 가르는 건 조판 설계라 값만 램프에 얹음 |
 | 2026-09-09T21:11:02+09:00 | #ramp-dim | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2110_refactor_leading-and-dim-ramps.md | --dim-disabled 0.45 로 24곳. .iconbtn:disabled 의 color:--text-3 는 그대로 뒀다 — 흐림과 색을 동시에 바꾸면 눈으로 확인 없이 두 변수를 움직이는 것. --dim-quiet 은 즉시 소비처가 없어 만들지 않았다 |
 | 2026-09-09T21:38:26+09:00 | #ramp-pulse | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2138_refactor_loop-animation-periods.md | 2벌이 아니라 3벌이 맞았다(회전·맥동·느린 호흡). 25곳 치환, 예외 4(브랜드 로더 합성모션 3·캐럿 1). nav-attention-blink 는 오탐 — 이미 opacity 0.45 맥동이고 이름만 blink 였다(이름을 고침) |
+| 2026-09-09T21:41:45+09:00 | #ramp-space | claude-code | ☐→~ | .oculpm/journal/20260909/Refactors/2141_refactor_space-ramp-adoption.md | 램프에 딱 맞는 892곳 완료(시각 변화 0, 채택 129→850). 남은 480곳은 램프 밖(5px 108·7px 88·9px 88 — 저단 2px 격자 사이에 낀 값)이라 옮기면 1~2px 씩 움직인다. 5·7·9 를 램프에 더할지 수렴시킬지는 실기기 확인이 필요 → 래칫 480 으로 동결 |
 <!-- oculpm:plan-log end -->

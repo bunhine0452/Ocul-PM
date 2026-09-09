@@ -398,7 +398,7 @@
   align-items: center;
   gap: var(--space-4);
   max-width: 360px;
-  padding: 11px 12px 11px 14px;
+  padding: 11px var(--space-5) 11px 14px;
   border-radius: var(--radius-l);
   background: var(--card);
   color: var(--foreground);
@@ -419,7 +419,7 @@
   appearance: none;
   border: none;
   cursor: pointer;
-  padding: 5px 12px;
+  padding: 5px var(--space-5);
   border-radius: var(--radius-m);
   font-size: var(--fs-5);
   font-weight: var(--fw-bold);
@@ -479,7 +479,7 @@
 
 .ocul-loading {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: var(--space-4); padding: 28px 16px; color: var(--muted-foreground);
+  gap: var(--space-4); padding: 28px var(--space-6); color: var(--muted-foreground);
 }
 .ocul-loading-label { font-size: var(--fs-7); }
 

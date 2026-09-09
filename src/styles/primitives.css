@@ -8,7 +8,7 @@
 
 .btn {
   display: inline-flex; align-items: center; gap: 7px;
-  height: 30px; padding: 0 12px;
+  height: 30px; padding: 0 var(--space-5);
   border-radius: var(--radius-s);
   border: 1px solid var(--border-card);
   background: var(--bg-card); color: var(--text);
@@ -105,7 +105,7 @@
      밀어내게 둔다 — 옆의 경로 텍스트가 대신 …로 줄어든다. */
   white-space: nowrap; flex: none;
 }
-.chip.sm { height: 18px; padding: 0 6px; font-size: var(--fs-2); border-radius: var(--radius-pill); }
+.chip.sm { height: 18px; padding: 0 var(--space-2); font-size: var(--fs-2); border-radius: var(--radius-pill); }
 .chip.outline { background: transparent; border: 1px solid var(--sep); }
 .chip.accent { background: var(--accent-soft); color: var(--accent-text); }
 .chip.ok { background: var(--ok-soft); color: var(--ok-text); }
@@ -115,14 +115,14 @@
 .kbd {
   font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong);
   background: var(--bg-inset); border: 1px solid var(--sep);
-  border-radius: var(--radius-xs); padding: 1px 6px; color: var(--text-2);
+  border-radius: var(--radius-xs); padding: 1px var(--space-2); color: var(--text-2);
   box-shadow: 0 1px 0 var(--sep);
 }
 .mono { font-family: var(--mono); }
 
 .search-box {
   display: flex; align-items: center; gap: var(--space-3);
-  height: 30px; padding: 0 10px;
+  height: 30px; padding: 0 var(--space-4);
   background: var(--bg-inset); border: 1px solid transparent;
   border-radius: var(--radius-s); color: var(--text-2);
   min-width: 220px;
@@ -137,7 +137,7 @@
 /* trigger badge */
 .tbadge {
   display: inline-flex; align-items: center; gap: 5px;
-  height: 21px; padding: 0 8px 0 6px; border-radius: var(--radius-s);
+  height: 21px; padding: 0 var(--space-3) 0 var(--space-2); border-radius: var(--radius-s);
   font-size: var(--fs-3); font-weight: var(--fw-strong); letter-spacing: var(--track-wide);
   /* .chip 과 같은 이유 — 배지는 꺾이지 않는다. */
   white-space: nowrap; flex: none;
@@ -208,7 +208,7 @@
 }
 .seg-item {
   height: 24px;
-  padding: 0 10px;
+  padding: 0 var(--space-4);
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
@@ -322,8 +322,8 @@
 
 /* ⌘/ 단축키 치트시트 — 같은 이유로 전역. 좌우 여백은 모달 크롬(20px)에 맞춘다
    (screens.css 시절엔 0 이라 표가 패널 가장자리에 붙어 있었다). */
-.keys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 22px; padding: 4px 20px 16px; }
-.keys-group h4 { font-size: var(--fs-3); text-transform: uppercase; letter-spacing: var(--track-caps-lg); color: var(--text-3); margin: 0 0 6px; }
+.keys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 22px; padding: var(--space-1) var(--space-7) var(--space-6); }
+.keys-group h4 { font-size: var(--fs-3); text-transform: uppercase; letter-spacing: var(--track-caps-lg); color: var(--text-3); margin: 0 0 var(--space-2); }
 .keys-group dl { margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .keys-row { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-5); }
 .keys-row dt { flex: 1; min-width: 0; color: var(--text-2); }

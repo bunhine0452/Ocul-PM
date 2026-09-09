@@ -24,7 +24,7 @@
   display: flex;
   align-items: flex-end;
   gap: 2px;
-  padding: 6px 8px 0;
+  padding: var(--space-2) var(--space-3) 0;
   user-select: none;
   position: relative;
   z-index: var(--z-strip);
@@ -73,7 +73,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0 10px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-m) var(--radius-m) 0 0;
   color: var(--text-2);
   font-size: var(--fs-6);
@@ -123,7 +123,7 @@
   min-width: 68px;
   max-width: 200px;
   height: 32px;
-  padding: 0 6px 0 10px;
+  padding: 0 var(--space-2) 0 var(--space-4);
   border-radius: var(--radius-m) var(--radius-m) 0 0;
   color: var(--text-2);
   font-size: var(--fs-6);
@@ -219,7 +219,7 @@
 }
 .tabstrip-menu-sep {
   height: 1px;
-  margin: 4px 2px;
+  margin: var(--space-1) 2px;
   background: var(--sep);
 }
 .tabstrip-menu-empty {
@@ -256,17 +256,17 @@
 .tabstrip-pop-list { display: flex; flex-direction: column; gap: 1px; }
 .tabstrip-pop-item {
   display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left;
-  padding: 7px 8px; border-radius: var(--radius-m); cursor: pointer;
+  padding: 7px var(--space-3); border-radius: var(--radius-m); cursor: pointer;
   background: none; border: none; color: var(--text); font-family: var(--font);
 }
 .tabstrip-pop-item:hover { background: var(--bg-hover); }
 .tabstrip-pop-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .tabstrip-pop-name { font-weight: var(--fw-strong); font-size: var(--fs-6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tabstrip-pop-path { font-size: var(--fs-1); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tabstrip-pop-empty { padding: 10px 8px; font-size: var(--fs-4); color: var(--text-2); }
+.tabstrip-pop-empty { padding: var(--space-4) var(--space-3); font-size: var(--fs-4); color: var(--text-2); }
 .tabstrip-pop-manage {
   display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left;
-  margin-top: 4px; padding: var(--space-3); cursor: pointer;
+  margin-top: var(--space-1); padding: var(--space-3); cursor: pointer;
   background: none; border: none; border-top: 1px solid var(--sep);
   color: var(--text-2); font-family: var(--font); font-size: var(--fs-4); font-weight: var(--fw-strong);
 }
