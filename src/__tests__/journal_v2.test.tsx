@@ -390,8 +390,8 @@ describe("작업 일지 디테일 — 변경 파일 내비게이션", () => {
     const { container } = await openDetail(); // workday.ts 만 기록됨
     const rows = rowsOf(container);
     expect(rows).toHaveLength(2);
-    // 경로순 정렬 — useToday.ts(기록없음) 가 먼저, workday.ts 가 뒤.
-    expect(rows[0].querySelector(".dfile-note")?.textContent).toBe("기록없음");
+    // 경로순 정렬 — useToday.ts(기록 없음) 가 먼저, workday.ts 가 뒤.
+    expect(rows[0].querySelector(".dfile-note")?.textContent).toBe("기록 없음");
     expect(rows[0]).toBeDisabled();
     expect(rows[1].querySelector(".dfile-note")).toBeNull();
     expect(rows[1]).not.toBeDisabled();

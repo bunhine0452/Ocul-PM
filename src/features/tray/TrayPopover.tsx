@@ -943,7 +943,7 @@ export function TrayPopover() {
           disabled={!standupTarget?.workday || standupState === "busy"}
           onClick={() => void copyStandup()}
         >
-          {standupState === "copied" ? t("tray.standupCopied") : t("tray.standupCopy")}
+          {standupState === "copied" ? t("common.copied") : t("tray.standupCopy")}
         </button>
         <button className="tp-action" onClick={() => setPane("settings")}>
           {t("tray.settings")}

@@ -63,6 +63,7 @@ const PERMANENT = new Set([
   // 영어 모드 렌더 계약 — 한글 **검출** 정규식과 한국어 테스트 설명이 검사
   // 대상 소재다 (여기서 한글이 사라지면 검사기가 아무것도 못 잡는다).
   "__tests__/i18n_english_render.test.tsx",
+  "__tests__/i18n_glossary.test.ts",
 ]);
 
 /**

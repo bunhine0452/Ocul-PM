@@ -41,10 +41,10 @@ owner: claude-code
 - [ ] 화자 통일 + `lint:tone` — 합쇼체 405 / 해요체 253 이 접두사별로 갈리고(code.* 39:5 · today.* 3:19 · graph.* 0:11) 한 문자열 안에서 섞이는 게 28건(ko.ts:41 · :90 · :1512). 해요체로 정하고 code.*·ctx.*·automation.* 87건을 옮긴다. 최소한 "한 문자열 안 혼재" 는 즉시 게이트로 {#copy-voice}
 - [ ] 에러 문안 — `{error}` 를 그대로 보간하는 111건 중 `"…실패: {error}"` 42건을 "무엇이 안 됐는지 + 다음 한 걸음" 으로 바꾸고 영문 원문은 접힌 상세로. 에러성 273건 중 다음 행동을 말해주는 건 32건뿐이다 {#copy-errors}
 - [ ] 파괴 확인 3벌을 `useConfirm` 하나로 — 표준("지울까요? [취소][삭제]") vs settings.danger("정말로 삭제하시겠습니까? [예, 모두 삭제]") vs home/rows.tsx:110("정말 버릴까요? [예][아니오]"). "…할까요?" 22 vs "…하시겠습니까?" 2 인데 그 2건이 가장 위험한 자리다 {#copy-confirm}
-- [ ] "복사됨" 토스트 6종을 `common.copied` 하나로 — 공용 키가 이미 있는데 5곳이 각자 썼다(ko.ts:167 "복사됨" · :671 "복사됨!" ← 사전 유일 느낌표 · :2756 "복사됨 ✓" · :300 · :982 · :1559) {#copy-toast}
-- [ ] 용어집 확정 + 금지어 lint — "작업 일지" 16/"작업일지" 7(같은 화면) · "플래너" 20/"플랜" 15/"계획" 59/"Planner" 4 · "Ocul-PM" 6/"ocul-pm" 35 · "폴더" 46/"디렉토리" 3/"디렉터리" 2 · "기록없음" 1/"기록 없음" 4. 영문 뒤 조사 붙여쓰기 15건(관례는 띄어쓰기 156건) {#copy-glossary}
+- [x] "복사됨" 토스트 6종을 `common.copied` 하나로 — 공용 키가 이미 있는데 5곳이 각자 썼다(ko.ts:167 "복사됨" · :671 "복사됨!" ← 사전 유일 느낌표 · :2756 "복사됨 ✓" · :300 · :982 · :1559) {#copy-toast}
+- [x] 용어집 확정 + 금지어 lint — "작업 일지" 16/"작업일지" 7(같은 화면) · "플래너" 20/"플랜" 15/"계획" 59/"Planner" 4 · "Ocul-PM" 6/"ocul-pm" 35 · "폴더" 46/"디렉토리" 3/"디렉터리" 2 · "기록없음" 1/"기록 없음" 4. 영문 뒤 조사 붙여쓰기 15건(관례는 띄어쓰기 156건) {#copy-glossary}
 - [ ] `gf.*` 54개(GreenfieldWizard)를 `welcome.*` 목소리로 재작성 — 사전 전체의 이상치가 여기 몰려 있다: 유일한 과장어("자유롭게") · 미번역 "narrative" · 정식 명칭 위반("Today 탭" vs nav.today="오늘 현황") · "디렉토리" · 조사 붙여쓰기 2건. 컴포넌트도 `.btn` 대신 raw Tailwind {#copy-greenfield}
-- [ ] `ai.actionApply` = "적용하기 (Apply)" → "적용" — 다른 "적용" 3개는 전부 그냥 "적용"이고, 영어를 병기한 유일한 순수 한국어 동사다 {#copy-apply-label}
+- [x] `ai.actionApply` = "적용하기 (Apply)" → "적용" — 다른 "적용" 3개는 전부 그냥 "적용"이고, 영어를 병기한 유일한 순수 한국어 동사다 {#copy-apply-label}
 
 ## 램프 채택 — 세워 놓고 안 쓴 것들 {#ramps}
 - [ ] 여백 토큰 채택 — padding/margin/gap 이 토큰 129 : px 리터럴 1,007(11%). agent.css·code.css·skills.css 셋만 옮겨도(434곳) 절반이 정리된다. 램프 밖 최빈값 5px(48)·7px(30) 을 6/8 로 수렴시킬지 램프에 5·7 을 더할지 먼저 결정 {#ramp-space}
@@ -85,4 +85,7 @@ owner: claude-code
 | 2026-09-09T20:22:23+09:00 | #fix-aria-icons | claude-code | ☐→x | .oculpm/journal/20260909/Bugs/2022_bug_modal-focus-trap-and-aria-audit.md | 6곳 중 5곳이 오탐 — TrayPopover 3곳·WelcomeWizard·GreenfieldWizard 는 전부 보이는 텍스트 라벨이 있다. 진짜는 CodeDebugPanel 트리 캐럿 하나뿐(aria-label + common.expand/collapse 키 신설) |
 | 2026-09-09T20:36:18+09:00 | #fix-focus-visible | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2036_refactor_focus-visible-and-single-modal-shell.md | 감사 줄번호가 모션 커밋 이후 밀려 다시 도출 — 6곳이 아니라 9곳이고 셋은 고칠 게 아니었다. 진짜 여섯에 focus-within/focus 배선. --input 은 --sep-strong 으로 한 단 올렸지만 3:1 은 미달(입력 전용 경계색 신설은 사용자 판단 사항) |
 | 2026-09-09T20:36:25+09:00 | #unify-modal-shell | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2036_refactor_focus-visible-and-single-modal-shell.md | 층만 올릴 수 없었다 — 중첩 확인창을 백드롭보다 앞에 렌더하고 있어서 순서를 함께 고쳐야 했다. .set-modal 셸 전부 삭제, 스크림 계약 테스트를 "같은 바탕" 에서 "되살아나지 않는다" 로 강화 |
+| 2026-09-09T20:44:32+09:00 | #copy-toast | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2044_refactor_copy-glossary-and-clipboard-form.md | 6종이 아니라 13종이었고 말투가 셋. common.copiedWhat 은 넣을 명사 키가 없어 접고, 키는 두되 값의 형태를 「(무엇) 복사됨」으로 통일. 느낌표·체크글리프 제거 |
+| 2026-09-09T20:44:39+09:00 | #copy-glossary | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2044_refactor_copy-glossary-and-clipboard-form.md | 작업일지·디렉토리/터리·기록없음·값 안의 Planner·조사 붙여쓰기 17곳 정리. Ocul-PM/ocul-pm 은 오탐(CLAUDE.md 가 문서화한 산문/식별자 구분). i18n_glossary.test.ts 15개로 계약화 |
+| 2026-09-09T20:44:44+09:00 | #copy-apply-label | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2044_refactor_copy-glossary-and-clipboard-form.md | "적용하기 (Apply)" → "적용" |
 <!-- oculpm:plan-log end -->

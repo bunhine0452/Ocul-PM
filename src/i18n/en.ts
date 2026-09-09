@@ -305,7 +305,7 @@ export const en: Record<keyof typeof ko, string> = {
   "ctx.manifest.title": "Manifest preview",
   "ctx.manifest.desc": "The capability list this conversation receives. It is a list, not the content, and it stays byte-identical for the life of the conversation.",
   "ctx.manifest.copy": "Copy",
-  "ctx.manifest.copied": "Manifest copied.",
+  "ctx.manifest.copied": "Manifest copied",
   "ctx.manifest.empty": "Nothing to assemble yet (no rules, skills or plans in this project).",
   "ctxTab.budget.title": "Recall budget",
   "ctx.budget.desc": "Past records load only on turns that ask for them. This is what the last send used.",
@@ -674,7 +674,6 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.storage.appData": "App data",
   "settings.storage.secrets": "Secrets",
   "settings.storage.version": "Version",
-  "settings.storage.copied": "Copied!",
   // ── Deep-link confirmation sheet (Osaurus round Phase 6) ──────────────
   "deeplink.origin": "Origin",
   "deeplink.writesNote": "Nothing runs until you approve — nothing has changed yet.",
@@ -987,8 +986,8 @@ export const en: Record<keyof typeof ko, string> = {
   "today.monitor.pending": "Waiting to be committed",
   "today.monitor.allCommitted": "All committed",
   "today.standup.failed": "Couldn't build the standup: {error}",
-  "today.standup.copiedAi": "Copied the AI standup to your clipboard",
-  "today.standup.copiedPlain": "Copied the standup to your clipboard (plain format)",
+  "today.standup.copiedAi": "AI standup copied",
+  "today.standup.copiedPlain": "Standup copied (plain format)",
   "today.search.open": "Open code search",
   "today.search.placeholder": "Search code…",
   "today.standup.title": "Build a standup from yesterday's and today's entries and copy it",
@@ -1561,7 +1560,7 @@ export const en: Record<keyof typeof ko, string> = {
   "disc.deleteAttachment": "Delete attachment {name}",
   "disc.more": "More",
   "disc.copyPath": "Copy the document path",
-  "disc.pathCopied": "Copied the document path",
+  "disc.pathCopied": "Document path copied",
   "disc.copyPrompt": "Copy prompt",
   "disc.promptCopied": "Copied — paste it into your agent and it will read this doc and start talking",
   "disc.promptCopyFailed": "Could not copy to the clipboard",
@@ -2663,7 +2662,6 @@ export const en: Record<keyof typeof ko, string> = {
   // plugin/oculpm/ and stays untranslated (pluginDocs.ts — scanner
   // DISK_CONTENT). The keys here are only the chrome the app wraps around it.
   "plugin.copyTitle": "Copy: {text}",
-  "plugin.copied": "Copied",
   "plugin.copy": "Copy",
   "plugin.copyToast": "Copied — paste it into Claude Code",
   "plugin.toolbarTitle": "Skills & rules",
@@ -2789,7 +2787,6 @@ export const en: Record<keyof typeof ko, string> = {
   "tray.entryTooltip": "{agent} · {files} files",
   "tray.entryTooltipWithModel": "{agent} · {model} · {files} files",
   "tray.standupCopy": "Copy standup",
-  "tray.standupCopied": "Copied ✓",
   "tray.settings": "Settings",
 
   // ── AI panel screen ─────────────────────────────────────────────────────
@@ -3588,7 +3585,7 @@ export const en: Record<keyof typeof ko, string> = {
     "Nothing matched under ~/.claude/plugins — if you installed it elsewhere, ignore this.",
   "today.honesty.write": "Write an entry",
   "today.honesty.copyPaths": "Copy paths",
-  "today.honesty.copied": "Copied {n} paths",
+  "today.honesty.copied": "{n} paths copied",
   "today.honesty.review": "Review changes",
   "today.honesty.seedTitle": "Unrecorded changes from session {session}",
   "today.missing.write": "Write an entry",

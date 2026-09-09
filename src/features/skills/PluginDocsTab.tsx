@@ -33,7 +33,7 @@ function CopyChip({ text, label }: { text: string; label?: string }) {
         });
       }}
     >
-      {copied ? t("plugin.copied") : (label ?? t("plugin.copy"))}
+      {copied ? t("common.copied") : (label ?? t("plugin.copy"))}
     </button>
   );
 }

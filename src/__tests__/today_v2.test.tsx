@@ -352,7 +352,7 @@ describe("PR-R1 (A1) — Today 다음 할 일", () => {
     const { container, findByText } = renderToday();
     await findByText(/1건/);
     expect(
-      within(container).getByText("Planner에서 목표와 다음 할 일을 관리하세요."),
+      within(container).getByText("플래너에서 목표와 다음 할 일을 관리하세요."),
     ).toBeTruthy();
   });
 });

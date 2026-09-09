@@ -265,7 +265,7 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
                 <button
                   onClick={() => copy(v, k)}
                   className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 cursor-pointer"
-                  title={copied === k ? t("settings.storage.copied") : t("common.copy")}
+                  title={copied === k ? t("common.copied") : t("common.copy")}
                 >
                   <Copy size={15} />
                 </button>
