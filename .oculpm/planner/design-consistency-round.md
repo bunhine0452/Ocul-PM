@@ -21,7 +21,7 @@ owner: claude-code
 - [x] `App.css` 의 shadcn 팔레트를 hex 재선언에서 `--foreground: var(--text)` 별칭으로 — ui_v2 CSS 가 shadcn 어휘를 173곳 참조해(--border 87·--primary 19·--muted-foreground 18) 두 팔레트가 한 창에 동시 렌더된다. tokens.css 가 전역이 된 2026-07-31 이후 분리 전제는 무효 {#fix-palette-alias}
 - [x] `design_tokens.test.ts` 대비 래칫에 shadcn 팔레트 추가 — 지금은 tokens.css 쪽만 지킨다. 실측 미달: Nord `--destructive` on `--card` 2.46(삭제 버튼 글자) · Solarized `--muted-foreground` 4.13 · Dracula 3.68 {#fix-contrast-ratchet}
 - [x] 액션 달린 토스트에 기본 지속시간 금지 — `useFileOps.ts:161` 이 durationMs 를 안 줘 info 기본 5초, `undoMoves` 호출부는 코드베이스 전체에서 이 한 줄뿐(메뉴도 ⌘Z 도 없다). push() 에서 actions 가 있으면 최소 15초, 그리고 호버·포커스 시 타이머 정지 {#fix-undo-toast}
-- [ ] 입력 경계와 포커스 — `--input` 대 `--card` 대비가 라이트 1.33·Nord 1.17 로 WCAG 1.4.11 의 3:1 미달이고, `outline:none` 32곳 중 `:focus-within` 대체가 없는 6곳(skills.css:393,736 · agent.css:885,1174,1836 · discussion.css:629)은 Tab 으로 들어가도 화면이 안 변한다 {#fix-focus-visible}
+- [x] 입력 경계와 포커스 — `--input` 대 `--card` 대비가 라이트 1.33·Nord 1.17 로 WCAG 1.4.11 의 3:1 미달이고, `outline:none` 32곳 중 `:focus-within` 대체가 없는 6곳(skills.css:393,736 · agent.css:885,1174,1836 · discussion.css:629)은 Tab 으로 들어가도 화면이 안 변한다 {#fix-focus-visible}
 - [x] 모달 4곳에 `useModalBehavior` — 트랩·복원 없음: WelcomeWizard.tsx:167(첫 실행 화면) · ProjectManager.tsx:224 · Attachments.tsx:29 · AcpUsageMeter.tsx:234. ConfigControls.tsx:372 는 팝오버 메뉴에 role="dialog" 오용 {#fix-modal-trap}
 - [x] `Toaster.tsx:20` 라이브 리전 상시 마운트 — 지금은 `if (toasts.length === 0) return null` 이라 리전이 내용과 동시에 삽입돼 `role="status"` 가 자주 침묵한다. 같은 파일의 `z-[1000]` 도 `--z-*` 램프로 {#fix-live-region}
 - [x] 아이콘 전용 버튼 6곳에 접근명 — TrayPopover.tsx:373,473,573(메뉴바 팝오버의 유일한 "앱 열기") · WelcomeWizard.tsx:343 · GreenfieldWizard.tsx:753 · CodeDebugPanel.tsx:271 {#fix-aria-icons}
@@ -32,7 +32,7 @@ owner: claude-code
 - [x] `SettingsOverlay.tsx:39` 의 하드코딩 영어 `<h2>Settings</h2>` 와 :45 의 손으로 붙인 인라인 SVG 닫기 버튼을 공유물로 {#unify-settings-chrome}
 - [ ] 문서형 드릴다운 통일 — 일지는 전체화면(목록 사라짐, ArrowLeft size=18) · 스킬은 전체화면인데 툴바 자체가 `.sk-head` 로 바뀌어 크롬이 52→60px(ArrowLeft size=15) · 논의/변경은 2-pane. 논의 규격(2-pane)으로 접거나, 최소한 `.sk-head` 를 `<Toolbar>` 로 {#unify-drilldown}
 - [ ] AI 3면 파리티 — `AcpToolbar.tsx:50` 만 title 자리에 세션 탭을 넣어 16화면 중 제목 없는 유일한 둘이다. 지난 대화가 ACP 는 사이드 패널·AI 패널은 모달이고, 컴포저는 `AiPanelScreenV2.tsx:840-1010` 이 170줄을 다시 짰다(공유 Composer.tsx 의 첨부·슬래시 없이) {#unify-chat}
-- [ ] 모달 셸 두 벌 — `AppDialog` 17곳(z-modal 100, useModalBehavior) vs `.set-modal` 2곳(z-popover 60, 자체 keyframes). 층이 달라 `.set-modal` 이 AppDialog 밑으로 들어간다. ConversationHistoryModal·ManualEntryModalV2 를 AppDialog 로 {#unify-modal-shell}
+- [x] 모달 셸 두 벌 — `AppDialog` 17곳(z-modal 100, useModalBehavior) vs `.set-modal` 2곳(z-popover 60, 자체 keyframes). 층이 달라 `.set-modal` 이 AppDialog 밑으로 들어간다. ConversationHistoryModal·ManualEntryModalV2 를 AppDialog 로 {#unify-modal-shell}
 - [ ] 검색 입력 6종을 `.search-box` 2단으로 — 30px/radius-s · 46px/radius-l+그림자(검색 히어로) · 26px/pill(코드 맵) · 24px · 28px · 시작 탭. 공유 프리미티브조차 호출부가 인라인 height 로 덮는다(SettingsSearch.tsx:41 등) {#unify-search-input}
 - [ ] 툴바 버튼 어휘를 4개로 — `btn`/`btn sm`/`btn primary`/`disc-btn primary`/`code-tool-btn`/`gr-chip`/`sk-textbtn` 이 같은 52px 바에 섞이고 SkillsScreenV2.tsx:309-330 은 한 줄에 4종. "선택됨" 표현도 4가지(.seg-item[aria-selected] 는 3곳뿐, DiffScreenV2.tsx:130-133 은 JSX 인라인 배경색 계산) {#unify-toolbar-vocab}
 - [ ] 칩 11벌을 2단으로 — 높이 18·22·23·25·28px, 곡률 xs·s·m·pill 이 섞여 한 줄에 서면 광학 중심이 어긋난다(.file-pill 25 · .chip 22 · .scope-chip 28). 아이콘 버튼 `--iconbtn-size` 도 26/28/30/32 네 단 {#unify-chips}
@@ -83,4 +83,6 @@ owner: claude-code
 | 2026-09-09T20:16:44+09:00 | #fix-live-region | claude-code | ☐→x | .oculpm/journal/20260909/Bugs/2016_bug_toast-undo-window-and-live-region.md | 리전 둘(polite/assertive)을 항상 마운트. z-[1000] 은 앞선 게이트 라운드에서 z-top 으로 이미 처리됨 |
 | 2026-09-09T20:22:16+09:00 | #fix-modal-trap | claude-code | ☐→x | .oculpm/journal/20260909/Bugs/2022_bug_modal-focus-trap-and-aria-audit.md | 셋만 진짜였다 (WelcomeWizard·ProjectManager·Lightbox). AcpUsageMeter 는 오탐 — useDismiss 가 Esc·바깥클릭을 이미 한다. 대신 ConfigControls 의 role="dialog" 오용을 role="group" 으로 |
 | 2026-09-09T20:22:23+09:00 | #fix-aria-icons | claude-code | ☐→x | .oculpm/journal/20260909/Bugs/2022_bug_modal-focus-trap-and-aria-audit.md | 6곳 중 5곳이 오탐 — TrayPopover 3곳·WelcomeWizard·GreenfieldWizard 는 전부 보이는 텍스트 라벨이 있다. 진짜는 CodeDebugPanel 트리 캐럿 하나뿐(aria-label + common.expand/collapse 키 신설) |
+| 2026-09-09T20:36:18+09:00 | #fix-focus-visible | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2036_refactor_focus-visible-and-single-modal-shell.md | 감사 줄번호가 모션 커밋 이후 밀려 다시 도출 — 6곳이 아니라 9곳이고 셋은 고칠 게 아니었다. 진짜 여섯에 focus-within/focus 배선. --input 은 --sep-strong 으로 한 단 올렸지만 3:1 은 미달(입력 전용 경계색 신설은 사용자 판단 사항) |
+| 2026-09-09T20:36:25+09:00 | #unify-modal-shell | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2036_refactor_focus-visible-and-single-modal-shell.md | 층만 올릴 수 없었다 — 중첩 확인창을 백드롭보다 앞에 렌더하고 있어서 순서를 함께 고쳐야 했다. .set-modal 셸 전부 삭제, 스크림 계약 테스트를 "같은 바탕" 에서 "되살아나지 않는다" 로 강화 |
 <!-- oculpm:plan-log end -->

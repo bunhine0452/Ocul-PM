@@ -1,7 +1,7 @@
 import { useConfirm } from "@/hooks/useConfirm";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { commands, type Conversation } from "@/lib/bindings";
-import { useModalBehavior } from "@/hooks/useModalBehavior";
+import { AppDialog } from "@/components/ui/AppDialog";
 import { Plus, Trash2, MessageSquare } from "@/components/Icons";
 import { EmptyState } from "@/components/EmptyState";
 import { toast } from "@/lib/toast";
@@ -49,7 +49,6 @@ export function ConversationHistoryModal({
 }: Props) {
   const { t } = useT();
   const { confirm, confirmDialog } = useConfirm();
-  const titleId = useId();
   const [convs, setConvs] = useState<Conversation[] | null>(null);
 
   const load = useCallback(async () => {
@@ -72,8 +71,6 @@ export function ConversationHistoryModal({
   }, [load]);
 
   // v2 U13 — Esc/포커스 트랩/트리거 복원은 공용 모달 훅으로.
-  const panelRef = useRef<HTMLDivElement>(null);
-  useModalBehavior({ open: true, onClose, panelRef });
 
   const remove = async (id: number) => {
     // 대화 삭제는 되돌릴 수 없는데 확인 없이 지워졌다 (2026-08-30 감사).
@@ -90,18 +87,10 @@ export function ConversationHistoryModal({
 
   return (
     <>
-    {confirmDialog}
-    <div className="set-modal-backdrop" onMouseDown={onClose}>
-      <div
-        ref={panelRef}
-        className="set-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
+    <AppDialog open onClose={onClose} label={t("chat.historyTitle")} width={420}>
+      <div className="set-modal-body">
         <div className="set-modal-actions" style={{ marginTop: 0, marginBottom: 4 }}>
-          <div className="set-modal-title" id={titleId} style={{ marginRight: "auto", marginBottom: 0 }}>
+          <div className="set-modal-title" style={{ marginRight: "auto", marginBottom: 0 }}>
             {t("chat.historyTitle")}
           </div>
           <button type="button" className="btn sm primary" onClick={onNew}>
@@ -138,7 +127,10 @@ export function ConversationHistoryModal({
           </div>
         )}
       </div>
-    </div>
+    </AppDialog>
+    {/* 중첩 확인 다이얼로그는 **뒤에** 둔다 — 같은 z 층이라 DOM 순서가 위아래를
+        정한다 (전에는 .set-modal 이 낮은 층이라 순서가 상관없었다). */}
+    {confirmDialog}
     </>
   );
 }

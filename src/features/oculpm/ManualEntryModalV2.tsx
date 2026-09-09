@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
-import { useModalBehavior } from "@/hooks/useModalBehavior";
+import { AppDialog } from "@/components/ui/AppDialog";
 import { Plus, X, CheckMark } from "@/components/Icons";
 import type {
   Difficulty,
@@ -96,16 +96,11 @@ export function ManualEntryModalV2({
 
   // v2 U13 — Esc/포커스 트랩/트리거 복원은 공용 모달 훅으로 (기존: Esc 만
   // 있고 Tab 이 모달 뒤로 샜음). 제출 중 Esc 는 닫지 않는다.
-  const panelRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
-  useModalBehavior({
-    open: true,
-    onClose: () => {
-      if (!submitting) onClose();
-    },
-    panelRef,
-    initialFocusRef: titleRef,
-  });
+  // 제출 중에는 Esc·백드롭으로 닫지 않는다 — 쓰던 글이 날아간다.
+  const dismiss = () => {
+    if (!submitting) onClose();
+  };
 
   const canSubmit =
     !submitting && title.trim().length > 0 && slug.trim().length > 0 && slugError == null;
@@ -166,16 +161,9 @@ export function ManualEntryModalV2({
   };
 
   return (
-    <div className="set-modal-backdrop" onMouseDown={() => !submitting && onClose()}>
-      <div
-        ref={panelRef}
-        className="set-modal set-modal--wide"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        <div className="set-modal-title" id={titleId}>
+    <AppDialog open onClose={dismiss} label={t("manual.title")} width={560} initialFocusRef={titleRef}>
+      <div className="set-modal-body wide">
+        <div className="set-modal-title">
           <Plus size={15} /> {t("manual.title")}{" "}
           <span className="entry-hint">workday {workday}</span>
         </div>
@@ -375,7 +363,7 @@ export function ManualEntryModalV2({
           </button>
         </div>
       </div>
-    </div>
+    </AppDialog>
   );
 }
 

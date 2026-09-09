@@ -338,11 +338,16 @@ describe("모달 크롬", () => {
   const prim = read("styles/primitives.css");
   const screens = read("styles/screens.css");
 
-  it(".set-modal-backdrop 이 .scrim 과 같은 바탕을 쓴다", () => {
-    expect(prim).toMatch(/\.scrim,\n\.set-modal-backdrop \{/);
-    // 자기 배경을 다시 칠하면 프리셋을 안 따르던 그 버그가 되돌아온다.
-    const rule = screens.slice(screens.indexOf(".set-modal-backdrop {"));
-    expect(rule.slice(0, rule.indexOf("}"))).not.toMatch(/background/);
+  // 2026-09-09: 계약이 한 단 강해졌다. 전에는 "두 번째 스크림이 .scrim 과 **같은
+  // 바탕**을 쓴다" 였는데, 셸을 AppDialog 한 벌로 접으면서 그 이름 자체가 없어졌다.
+  // 이름이 하나면 "이 모달만 프리셋을 안 따른다" 가 구조적으로 불가능해진다.
+  it("스크림이 한 벌이다 — .set-modal-backdrop 은 되살아나지 않는다", () => {
+    // 주석은 뺀다 — 왜 사라졌는지는 두 파일 모두 주석으로 남겨 두었다.
+    const bare = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const [name, css] of [["primitives.css", prim], ["screens.css", screens]] as const) {
+      expect(bare(css), `${name} 에 두 번째 스크림이 생겼다`).not.toMatch(/\.set-modal-backdrop/);
+    }
+    expect(prim).toMatch(/^\.scrim \{/m);
   });
 
   it("제목·설명·버튼 줄이 한 벌이다", () => {
@@ -640,7 +645,7 @@ describe("shadcn 어휘는 ui_v2 토큰의 별칭이다", () => {
     "--accent-foreground": "--text",
     "--destructive": "--danger",
     "--border": "--sep",
-    "--input": "--sep",
+    "--input": "--sep-strong",
     "--ring": "--accent",
     "--sidebar": "--bg-sidebar",
     "--sidebar-foreground": "--text",

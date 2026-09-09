@@ -644,6 +644,7 @@
   background: var(--bg-inset);
   color: var(--text-3);
 }
+.disc-note:focus-within { border-color: var(--accent); box-shadow: var(--ring-soft); }
 .disc-note input {
   flex: 1;
   min-width: 0;

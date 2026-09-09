@@ -288,7 +288,12 @@
     --accent-foreground: var(--text);
     --destructive: var(--danger);
     --border: var(--sep);
-    --input: var(--sep);
+    /* 입력 경계만 헤어라인보다 한 단 위다 (2026-09-09). --sep 로는 카드 위에서
+       1.19~1.31 이라 클릭 전에는 거기가 입력창인지도 잘 안 보였다. --sep-strong
+       도 WCAG 1.4.11 의 3:1 에는 못 미치지만(1.36~1.62) 헤어라인 토큰을 통째로
+       darkening 하지 않고 얻을 수 있는 최선이다 — 3:1 을 채우려면 입력 전용
+       경계색을 새로 만들어야 하고 그건 앱 전체의 인상을 바꾸는 결정이다. */
+    --input: var(--sep-strong);
     --ring: var(--accent);
     --radius: var(--radius-m);
     --sidebar: var(--bg-sidebar);

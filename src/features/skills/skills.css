@@ -729,6 +729,7 @@
   border-radius: var(--radius-m);
   color: var(--text-3);
 }
+.ctx-search:focus-within { border-color: var(--accent); box-shadow: var(--ring-soft); }
 .ctx-search input {
   width: 168px;
   border: none;

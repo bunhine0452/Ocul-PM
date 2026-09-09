@@ -1167,6 +1167,7 @@
   background: var(--bg-inset);
   color: var(--text-3);
 }
+.acp-panel-search:focus-within { box-shadow: var(--ring-soft); }
 .acp-panel-search input {
   flex: 1;
   min-width: 0;
@@ -1839,6 +1840,7 @@
   font-weight: var(--fw-strong);
   color: var(--text);
 }
+.acp-session-input:focus { box-shadow: var(--ring-soft); }
 .acp-session.editing {
   outline: 1.5px solid var(--accent);
   outline-offset: var(--focus-offset-inset);

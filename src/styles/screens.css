@@ -1379,6 +1379,7 @@ mark.s-hit {
   color: var(--text); border-radius: var(--radius-xs); padding: 1px 5px;
   font-family: var(--font); font-size: var(--fs-5); font-weight: var(--fw-strong);
 }
+.term-sess .ts-rename:focus { box-shadow: var(--ring-soft); }
 .term-sess .ts-x {
   display: grid; place-items: center; width: 18px; height: 18px; border-radius: var(--radius-xs); flex: none;
   border: none; background: transparent; color: inherit; cursor: pointer;
@@ -1818,6 +1819,7 @@ mark.s-hit {
   background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-m);
   box-shadow: var(--shadow-pop); color: var(--text-3);
 }
+.term-search:focus-within { border-color: var(--accent); box-shadow: var(--ring-soft), var(--shadow-pop); }
 .term-search input {
   width: 200px; border: none; outline: none; background: transparent;
   color: var(--text); font-family: var(--font); font-size: var(--fs-6);
@@ -2120,21 +2122,12 @@ mark.s-hit {
    (3.0 {#modal-chrome-unify}) — 여기 남는 것은 이 모달만의 격자·층·여백·등장이다.
    둥글기는 AppDialog 의 `rounded-xl`(=--radius-l)에 맞췄다: 같은 창에 뜨는 두
    모달이 20px 과 14px 로 다른 모서리를 갖고 있었다. */
-.set-modal-backdrop {
-  display: grid; place-items: center;
-  z-index: var(--z-popover); padding: var(--space-8);
-  animation: modalFade var(--dur-2) var(--ease-out) both;
-}
-.set-modal {
-  width: 100%; max-width: 420px; background: var(--bg-card); border: 1px solid var(--border-card);
-  border-radius: var(--radius-l); box-shadow: var(--shadow-pop); padding: 22px;
-  animation: modalRise var(--dur-2) var(--ease-spring) both;
-}
-@keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes modalRise {
-  from { opacity: 0; transform: translateY(8px) scale(0.97); }
-  to { opacity: 1; transform: none; }
-}
+/* 셸(백드롭·패널·층·애니메이션)은 2026-09-09 에 AppDialog 로 넘겼다 — .set-modal
+   은 z-popover(60)에 앉아 있어서 진짜 모달(z-modal 100) 밑으로 들어갔고, 같은
+   일을 하는 셸이 두 벌이라는 것 자체가 이 라운드가 지우려는 냄새였다.
+   남은 건 **안쪽 내용**의 스타일뿐이다. */
+.set-modal-body { padding: var(--space-7); }
+.set-modal-body.wide { display: flex; flex-direction: column; min-height: 0; }
 /* 타이포는 primitives.css 의 모달 크롬이 소유한다 — 여기는 간격만. */
 .set-modal-title { margin-bottom: var(--space-1); }
 .set-modal-desc { margin-bottom: var(--space-6); }
@@ -2146,7 +2139,6 @@ mark.s-hit {
 .set-modal-actions { margin-top: 18px; }
 
 /* --- Manual entry modal (PR-R1 A4) — wide variant + form fields --- */
-.set-modal--wide { max-width: 560px; max-height: 86vh; display: flex; flex-direction: column; }
 .entry-form { overflow-y: auto; display: flex; flex-direction: column; gap: 14px; margin-top: 4px; padding-right: 2px; }
 .entry-field { display: flex; flex-direction: column; gap: var(--space-2); }
 .entry-label { font-size: var(--fs-4); font-weight: var(--fw-strong); color: var(--text-2); }
