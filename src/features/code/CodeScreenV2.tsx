@@ -879,9 +879,9 @@ export function CodeScreenV2({
         openGoto(false);
         return;
       }
-      // 에디터·입력칸의 ⌘X/⌘V 는 글자 잘라내기·붙여넣기다 — 가로채면 타이핑이 망가진다.
+      // 편집면(`.monaco-editor`)·입력칸의 ⌘X/⌘V 는 글자 잘라내기·붙여넣기다 — 가로채면 타이핑이 망가진다.
       const editing = (e.target as HTMLElement | null)?.closest?.(
-        ".cm-editor, input, textarea, [contenteditable='true']",
+        ".monaco-editor, input, textarea, [contenteditable='true']",
       );
       if (!e.shiftKey && e.key.toLowerCase() === "v") {
         if (editing) return;
@@ -1244,9 +1244,9 @@ export function CodeScreenV2({
                   setReferences(query);
                 }}
                 onCursorLine={setCursorLine}
-                // 스티키는 아웃라인과 **같은 값**을 쓴다. 설정이 꺼져 있으면
-                // 굳이 내려보내지 않는다 (확장 자체가 안 붙어 있다).
+                // 스티키는 아웃라인과 **같은 값**을 쓴다. 꺼져 있으면 안 내려보낸다.
                 stickySymbols={settings.codeStickyScroll ? symbols : null}
+                onGoToSymbol={() => openGoto(false)}
                 onOpenProblems={openProblems}
                 breakpointsFor={debug.breakpointsFor}
                 unverifiedFor={debug.unverifiedFor}

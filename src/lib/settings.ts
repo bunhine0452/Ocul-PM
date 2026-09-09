@@ -24,6 +24,22 @@ export type Provider = "anthropic" | "openai" | "gemini" | "nim" | "openrouter";
 export type AutoSaveMode = "off" | "afterDelay" | "onFocusChange";
 export const AUTO_SAVE_MODES: AutoSaveMode[] = ["off", "afterDelay", "onFocusChange"];
 
+/**
+ * 스티키 스크롤이 겹쳐 고정할 줄 수의 범위 (VS Code `maxLineCount` 와 같은 기본 5).
+ *
+ * 이 값들이 편집기 쪽이 아니라 여기 있는 이유: 스티키 자체는 이제 Monaco 내장이라
+ * (Phase 2 `{#reclaim-sticky}` — 손으로 만든 `stickyModel.ts` 는 지웠다) 우리에게
+ * 남은 몫은 **설정값을 쓸 수 있는 범위로 접는 것** 하나뿐이다.
+ */
+export const STICKY_MIN_LINES = 1;
+export const STICKY_MAX_LINES = 10;
+
+/** 설정값을 쓸 수 있는 줄 수로 접는다. 쓰레기 값은 기본 5. */
+export function clampStickyMax(raw: number): number {
+  if (!Number.isFinite(raw)) return 5;
+  return Math.min(STICKY_MAX_LINES, Math.max(STICKY_MIN_LINES, Math.trunc(raw)));
+}
+
 export const PROVIDERS: Provider[] = ["anthropic", "openai", "gemini", "nim", "openrouter"];
 
 /// Every setting we recognize. Keys are the exact column values in the

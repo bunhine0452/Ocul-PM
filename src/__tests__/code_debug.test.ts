@@ -11,7 +11,6 @@ import {
   parseArgs,
   toLaunchRequest,
 } from "@/features/code/debugConfig";
-import { unverifiedLines } from "@/features/code/breakpointGutter";
 import { mergeConfirmed } from "@/features/code/useDebug";
 
 describe("debugConfig — 어떤 언어를 디버그할 수 있나", () => {
@@ -82,8 +81,6 @@ describe("중단점 — 어댑터의 확정을 화면에 반영", () => {
     const { lines, unverified } = mergeConfirmed(confirmed);
     expect(lines.get("src/a.rs")).toEqual([13, 40]);
     expect(unverified.get("src/a.rs")).toEqual([40]);
-    // 거터 확장이 쓰는 판정도 같은 답이어야 한다.
-    expect(unverifiedLines(confirmed)).toEqual([40]);
   });
 
   it("줄은 정렬되고 중복은 접힌다", () => {
@@ -107,7 +104,8 @@ describe("중단점 — 어댑터의 확정을 화면에 반영", () => {
   });
 
   it("전부 걸렸으면 표시할 것이 없다", () => {
-    expect(unverifiedLines([bp("x", 1, true), bp("x", 2, true)])).toEqual([]);
-    expect(unverifiedLines([])).toEqual([]);
+    // 못 건 줄이 없으면 항목 자체가 안 생긴다 — 화면은 `?? []` 로 읽는다.
+    expect(mergeConfirmed([bp("x", 1, true), bp("x", 2, true)]).unverified.size).toBe(0);
+    expect(mergeConfirmed([]).unverified.size).toBe(0);
   });
 });

@@ -4,8 +4,10 @@
 // 피한다. **이 규약은 CodeMirror 판에서 그대로 가져왔다** — 편집기를 바꿔도
 // 병리는 같기 때문이다.
 //
-// `CodeEditorProps` 는 이관 전과 **한 줄도 다르지 않다** (D2). 그래서 CodePane
-// 위쪽은 무변경이고, 기존 코드 화면 테스트가 그대로 판정자다.
+// `CodeEditorProps` 는 이관(Phase 1) 때 **한 줄도 바뀌지 않았다** (D2). 그래서
+// CodePane 위쪽이 무변경이었고 기존 코드 화면 테스트가 그대로 판정자였다.
+// Phase 2 에서 `onGoToSymbol` 하나가 늘었다 — 스티키를 내장으로 넘기며 생긴
+// 키 충돌을 되돌리는 자리다(아래 prop 주석). 그 외의 계약은 그대로다.
 import { useEffect, useRef } from "react";
 
 import type * as MonacoNs from "monaco-editor/editor/editor.api";
@@ -20,6 +22,7 @@ import {
   type LspHandlers,
 } from "./monaco/lsp";
 import { breakpointDecorations, gitDecorations, wireBreakpointClicks } from "./monaco/decorations";
+import { registerSymbolProvider } from "./monaco/symbols";
 import { monacoLangForPath } from "./codeLang";
 import { hasLanguageServer } from "./lspBridge";
 import type {
@@ -89,6 +92,16 @@ interface CodeEditorProps {
   stickyMaxLines?: number;
   /** 스티키가 쓸 문서 심볼. `null` 이면 들여쓰기 폴백으로 그린다. */
   stickySymbols?: LspSymbol[] | null;
+  /**
+   * ⇧⌘O — 파일 안에서 이동. **실행은 부모(CodeScreenV2 의 `CodeGoto`)** 다.
+   *
+   * 이 prop 이 필요한 이유는 스티키 때문이다. 심볼 공급자를 달면 Monaco 의
+   * 내장 `quickOutline`(같은 키)이 켜져 우리 이동창을 가린다 — 그쪽은
+   * `hasDocumentSymbolProvider` 를 전제로만 걸리는 키라 "스티키를 켜면
+   * ⇧⌘O 가 다른 창을 연다" 는 들쭉날쭉함이 생긴다. 같은 키에 우리 액션을
+   * 얹어(동적 키바인딩이 기여 액션보다 무겁다) 항상 부모로 되돌린다.
+   */
+  onGoToSymbol?: () => void;
   /** 들여쓰기 폴백의 탭 폭 (설정 `codeTabSize`). */
   tabSize?: number;
   /** HEAD 대비 줄 변경 (거터). LSP 와 무관하므로 모든 파일에 단다. */
@@ -126,6 +139,7 @@ export function CodeEditor({
   onSignatureHelp,
   stickyMaxLines = 0,
   stickySymbols = null,
+  onGoToSymbol,
   tabSize = 2,
   gitChanges,
   diffOriginal,
@@ -160,6 +174,11 @@ export function CodeEditor({
   onFormatRef.current = onFormat;
   const onToggleBpRef = useRef(onToggleBreakpoint);
   onToggleBpRef.current = onToggleBreakpoint;
+  const onGoToSymbolRef = useRef(onGoToSymbol);
+  onGoToSymbolRef.current = onGoToSymbol;
+  // 심볼 공급자는 등록/해제로만 다시 물어보게 되므로 값 자체도 ref 로 든다.
+  const stickySymbolsRef = useRef<readonly LspSymbol[] | null>(stickySymbols);
+  stickySymbolsRef.current = stickySymbols;
   // LSP 공급자 셋은 한 ref 로 묶는다 — 등록은 1회, 호출 때 최신 것을 읽는다.
   const lspRef = useRef<LspHandlers>({ onComplete, onHover, onSignatureHelp });
   lspRef.current = { onComplete, onHover, onSignatureHelp };
@@ -190,13 +209,14 @@ export function CodeEditor({
       // 거터는 중단점을 달 때만 넓힌다 — 디버그 불가 파일에서 빈 칸이 남으면
       // 누를 수 있는 자리처럼 보인다.
       glyphMargin: hasBreakpointsRef.current,
-      // Phase 0 실측: outlineModel 은 DocumentSymbolProvider 가 없으면 0줄을
-      // 그린다. 지금은 그 공급자를 안 붙였으므로 들여쓰기 모델로 떨어뜨린다
-      // (Phase 2 `reclaim-sticky` 가 stickySymbols 를 공급자로 올린다).
+      // `outlineModel` 은 **사슬**이다 — 심볼 공급자가 있으면 그것으로, 없거나
+      // 빈 답이면 폴딩 → 들여쓰기로 스스로 떨어진다(`stickyScrollModelProvider`
+      // 의 fall-through). 그래서 언어 서버가 없는 파일에서도 CodeMirror 판의
+      // 들여쓰기 폴백과 같은 그림이 나온다.
       stickyScroll: {
         enabled: stickyMaxRef.current > 0,
         maxLineCount: Math.max(stickyMaxRef.current, 1),
-        defaultModel: "indentationModel",
+        defaultModel: "outlineModel",
       },
       minimap: { enabled: true },
       scrollBeyondLastLine: true,
@@ -278,6 +298,21 @@ export function CodeEditor({
         keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
         run: () => {
           onSaveRef.current();
+        },
+      }),
+    );
+
+    // ⇧⌘O — Monaco 의 내장 `quickOutline` 을 가린다. 아래 스티키 이펙트가
+    // 심볼 공급자를 다는 순간 그 키가 살아나는데, 이 화면의 "파일 안에서
+    // 이동" 은 부모의 `CodeGoto`(미리 점프 + `:줄` 겸용)라 둘이 같은 키를
+    // 다투면 안 된다. 동적 키바인딩(weight 1000)이 기여 액션(100)을 이긴다.
+    subs.push(
+      editor.addAction({
+        id: "oculpm.goToSymbol",
+        label: t("code.action.goToSymbol"),
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyO],
+        run: () => {
+          onGoToSymbolRef.current?.();
         },
       }),
     );
@@ -446,13 +481,23 @@ export function CodeEditor({
     gitDecoRef.current?.set(gitDecorations(monaco, gitChanges ?? [], model.getLineCount()));
   }, [gitChanges]);
 
-  // 스티키 — 심볼이 늦게 와도(서버 기동 중) 들여쓰기 폴백이 그리다가 갈아탄다.
-  // 지금은 공급자를 안 붙였으므로 탭 폭만 반영한다 (Phase 2 가 심볼을 올린다).
+  // 탭 폭 — 들여쓰기 폴백의 앵커 계산과 본문 렌더가 같은 폭을 써야 한다.
+  useEffect(() => {
+    editorRef.current?.updateOptions({ tabSize });
+  }, [tabSize]);
+
+  // 스티키의 심볼 원천 — 서버가 늦게 답해도 도착하는 대로 갈아탄다.
+  //
+  // **등록/해제로 갱신하는 것이 핵심이다.** Monaco 는 공급자 목록이 바뀔 때만
+  // (`documentSymbolProvider.onDidChange`) 아웃라인을 다시 묻는다. ref 안의
+  // 값만 바꾸면 아무도 다시 안 물어 첫 답(보통 `null`)이 그대로 굳는다.
   useEffect(() => {
     const editor = editorRef.current;
-    if (!editor || stickyMaxRef.current <= 0) return;
-    editor.updateOptions({ tabSize });
-  }, [stickySymbols, tabSize]);
+    const model = editor?.getModel();
+    // 스티키를 껐으면 공급자도 달지 않는다 — 지금 이것을 읽는 유일한 소비자다.
+    if (!model || stickyMaxRef.current <= 0 || stickySymbols == null) return;
+    return registerSymbolProvider(monaco, model, model.getLanguageId(), stickySymbolsRef);
+  }, [stickySymbols]);
 
   // 라인 점프 — 마운트 직후(위 effect 가 먼저 실행돼 editor 가 있다)와 같은
   // 파일에서의 재점프(prop 변화) 둘 다 여기로 온다.

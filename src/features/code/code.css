@@ -484,9 +484,6 @@
 .code-editor-host {
   height: 100%;
 }
-.code-editor-host .cm-editor {
-  height: 100%;
-}
 
 /* 상태줄 — 정보 조각(item) 단위로. 조각 사이 간격이 곧 구분선이다. */
 .code-statusbar {
@@ -665,67 +662,55 @@
   color: color-mix(in srgb, var(--text-3) 60%, transparent);
 }
 
-/* 진단 밑줄 — CM6 lint 의 기본 색은 앱 토큰과 따로 논다. 물결선을 쓰지 않고
-   실선 밑줄로 두는 이유는 13px 모노 본문에서 물결이 글자와 뭉개져서다. */
-.cm-lintRange-error {
+/* 진단 밑줄 (#monaco) — Monaco 기본은 물결선(배경 SVG)이다. 물결을 쓰지 않고
+   실선/점선 밑줄로 두는 이유는 CodeMirror 판과 같다: 13px 모노 본문에서 물결이
+   글자와 뭉개진다. `background-image: none` 이 그 SVG 를 걷는 자리다. */
+.code-editor-host .monaco-editor .squiggly-error,
+.code-editor-host .monaco-editor .squiggly-warning,
+.code-editor-host .monaco-editor .squiggly-info,
+.code-editor-host .monaco-editor .squiggly-hint {
   background: none;
+  background-image: none;
+}
+.code-editor-host .monaco-editor .squiggly-error {
   border-bottom: 1.5px solid var(--danger-text);
 }
-.cm-lintRange-warning {
-  background: none;
+.code-editor-host .monaco-editor .squiggly-warning {
   border-bottom: 1.5px dashed var(--warn-text);
 }
-.cm-lintRange-info,
-.cm-lintRange-hint {
-  background: none;
+.code-editor-host .monaco-editor .squiggly-info,
+.code-editor-host .monaco-editor .squiggly-hint {
   border-bottom: 1px dotted var(--text-3);
 }
-.cm-tooltip.cm-tooltip-lint {
-  background: var(--card);
+
+/* 호버·마커 툴팁 — 시그니처(고정폭)와 문서(본문체)를 눈으로 구별되게. 폭을 묶는
+   이유는 rust-analyzer 의 문서가 길면 툴팁이 화면을 가로지르기 때문이다.
+   Monaco 의 호버는 `fixedOverflowWidgets` 로 body 아래 뜨므로 `.code-editor-host`
+   로 좁힐 수 없다 — 이 앱에 다른 Monaco 는 없으니 전역으로 둔다. */
+.monaco-editor-hover,
+.monaco-editor .monaco-hover {
+  max-width: 480px;
   border: 1px solid var(--line);
   border-radius: var(--radius-m);
   box-shadow: var(--shadow-soft);
-  color: var(--text-1);
-  font-size: var(--fs-6);
-  max-width: 420px;
 }
-.cm-diagnostic {
-  border-left: none;
-  padding: 6px 10px;
-}
-.cm-diagnosticSource {
-  color: var(--text-3);
-  font-size: var(--fs-3);
-}
-
-/* 호버 툴팁 — 시그니처(고정폭)와 문서(본문체)를 눈으로 구별되게. 폭을 묶는
-   이유는 rust-analyzer 의 문서가 길면 툴팁이 화면을 가로지르기 때문이다. */
-.cm-lsp-hover {
-  max-width: 480px;
+.monaco-editor-hover .monaco-hover-content,
+.monaco-editor .monaco-hover .monaco-hover-content {
   max-height: 320px;
-  overflow: auto;
   padding: 8px 10px;
+  font-family: var(--font);
   font-size: var(--fs-6);
   line-height: 1.55;
-}
-.cm-lsp-hover pre {
-  margin: 0 0 6px;
-  font-family: var(--mono);
-  font-size: var(--fs-5);
-  color: var(--code-fg);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.cm-lsp-hover p {
-  margin: 0 0 6px;
   color: var(--text-2);
 }
-.cm-lsp-hover > :last-child {
-  margin-bottom: 0;
+.monaco-editor-hover .monaco-hover-content code,
+.monaco-editor .monaco-hover .monaco-hover-content code {
+  font-family: var(--mono);
+  font-size: var(--fs-5);
 }
 /* 시그니처와 문서 사이 옅은 경계 — 마크다운 `---` 를 버린 자리를 대신한다. */
-.cm-lsp-hover pre + p {
-  padding-top: 6px;
+.monaco-editor-hover .hover-row + .hover-row,
+.monaco-editor .monaco-hover .hover-row + .hover-row {
   border-top: 1px solid var(--sep);
 }
 
@@ -1160,53 +1145,23 @@ body.code-dragging {
   background: var(--code-prop);
 }
 
-/* ── 스티키 스크롤 (#p4-sticky) ────────────────────────────────────────────
-   편집면 맨 위에 겹쳐 고정하는 상위 스코프. `.cm-editor` 안(콘텐츠 밖)에
-   절대 배치하므로 스크롤과 무관하게 제자리에 남는다. 왼쪽 여백은 거터 폭만큼
-   플러그인이 인라인으로 넣는다 (줄 번호가 늘면 폭도 는다).
-
-   하이라이팅은 하지 않는다 — 그러려면 그 줄만 다시 파싱해야 하고, 값의 90%는
-   "어느 함수 안인가" 라 색이 거기 기여하지 않는다. */
-.cm-sticky {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 2;
-  overflow: hidden;
+/* ── 스티키 스크롤 (#reclaim-sticky) ──────────────────────────────────────
+   편집면 맨 위에 겹쳐 고정하는 상위 스코프. 그리는 것은 이제 Monaco 내장
+   위젯이고(`stickyScroll` 옵션 + `monaco/symbols.ts` 의 심볼 공급자), 여기서
+   하는 일은 앱 토큰으로 옷을 입히는 것뿐이다 — CodeMirror 판의 `.cm-sticky`
+   가 갖던 판단(불투명·유리 아님·본문과 같은 리듬)을 그대로 옮긴다. */
+.code-editor-host .monaco-editor .sticky-widget {
   /* 본문을 가리는 물건이라 반드시 불투명하다 (유리 아님). */
   background: var(--bg-content);
   border-bottom: 1px solid var(--sep);
   box-shadow: var(--shadow-card);
 }
-.cm-sticky-inner {
-  display: flex;
-  flex-direction: column;
-  width: max-content;
-  min-width: 100%;
+.code-editor-host .monaco-editor .sticky-widget .sticky-line-number,
+.code-editor-host .monaco-editor .sticky-widget .sticky-line-content {
+  background: transparent;
 }
-.cm-sticky-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 8px 0 4px;
-  /* 본문 줄과 같은 리듬 — editorChrome 의 13px × 1.6 을 그대로 쓴다. */
-  font-family: var(--mono);
-  font-size: var(--fs-7);
-  line-height: 1.6;
-  color: var(--text-2);
-  background: none;
-  border: none;
-  text-align: left;
-  white-space: pre;
-  cursor: pointer;
-}
-.cm-sticky-row:hover {
+.code-editor-host .monaco-editor .sticky-widget .sticky-line-root:hover {
   background: var(--bg-hover);
-  color: var(--text);
-}
-.cm-sticky-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ── 파일 안에서 이동 (#p3-goto) ───────────────────────────────────────────
@@ -1463,101 +1418,40 @@ body.code-dragging {
   white-space: pre;
 }
 
-/* ── 시그니처 힌트 (#lsp-signature) ───────────────────────────
-   CM6 툴팁 안쪽이라 화면 스코프 밖에서도 살아야 하는 :root 토큰만 쓴다. */
-.cm-lsp-signature {
+/* ── 시그니처 힌트 (#reclaim-signature) ───────────────────────
+   손으로 만든 CM6 툴팁(`signatureTooltip.ts` 172줄)을 Monaco 내장 위젯으로
+   갈아치웠다. 남은 판단은 둘: 폭을 묶는 것과, **지금 치고 있는 인자**를
+   강조하는 것(이 강조가 이 기능의 전부다). 위젯은 body 아래 뜨므로 화면
+   스코프 밖에서도 사는 :root 토큰만 쓴다. */
+.monaco-editor .parameter-hints-widget {
   max-width: 560px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-soft);
+}
+.monaco-editor .parameter-hints-widget .signature {
   padding: 6px 9px;
   font-family: var(--mono);
   font-size: var(--fs-5);
   line-height: 1.55;
   color: var(--text-2);
 }
-.cm-lsp-signature-label {
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-/* 지금 치고 있는 인자 — 이 강조가 이 기능의 전부다. */
-.cm-lsp-signature-label strong {
+.monaco-editor .parameter-hints-widget .parameter.active {
   color: var(--accent-text);
   font-weight: var(--fw-bold);
 }
-.cm-lsp-signature-doc {
+.monaco-editor .parameter-hints-widget .docs {
   margin-top: 5px;
   padding-top: 5px;
   border-top: 1px solid var(--sep);
   font-family: var(--font);
   font-size: var(--fs-4);
   color: var(--text-3);
-  white-space: pre-wrap;
 }
-.cm-lsp-signature-count {
-  margin-top: 4px;
+.monaco-editor .parameter-hints-widget .controls {
   font-size: var(--fs-2);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
-}
-
-/* ── git 거터 (#git-gutter) ───────────────────────────────────
-   줄 번호 왼쪽의 가는 색막대. 저장소 밖 파일에서는 마커가 없어 폭도 안 생긴다
-   (CM6 가 빈 거터를 0폭으로 접는다). diff 화면과 같은 색 토큰을 쓴다. */
-.cm-git-gutter {
-  min-width: 3px;
-  padding: 0;
-}
-.cm-git-gutter-mark {
-  width: 3px;
-  height: 100%;
-  margin-left: 1px;
-}
-.cm-git-gutter-mark.added {
-  background: var(--diff-add-text);
-}
-.cm-git-gutter-mark.modified {
-  background: var(--accent);
-}
-/* 지워진 줄은 화면에 없다 — 남은 줄의 **아래쪽 모서리**에 삼각형처럼 얹어
-   "여기 뭔가 사라졌다" 를 표시한다 (VS Code 와 같은 관용구). */
-.cm-git-gutter-mark.deleted {
-  height: 0;
-  margin-top: auto;
-  border-left: 3px solid transparent;
-  border-right: 3px solid transparent;
-  border-top: 5px solid var(--diff-del-text);
-  width: 0;
-}
-
-/* ── 중단점 거터 (#dap-breakpoints) ───────────────────────────
-   git 거터와 **다른 거터**다: 이쪽은 사람이 겨눠 눌러야 하므로 넓다. */
-.cm-bp-gutter {
-  min-width: 14px;
-  padding: 0 2px;
-}
-.cm-bp-mark {
-  width: 10px;
-  height: 10px;
-  margin-top: 3px;
-  border-radius: 50%;
-  background: var(--destructive);
-}
-/* 어댑터가 "이 줄엔 못 건다" 고 답한 것 — 속을 비워 구별한다. 찍었는데 안
-   걸리는 이유를 눈으로 알 수 없으면 사용자는 고장으로 읽는다. */
-.cm-bp-mark.unverified {
-  background: none;
-  border: 1.5px solid var(--text-3);
-}
-/* 거터에 커서를 올리면 찍을 수 있다는 것을 보여 준다 (VS Code 와 같다). */
-.cm-bp-gutter .cm-gutterElement:hover::after {
-  content: "";
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  margin-top: 3px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--destructive) 35%, transparent);
-}
-.cm-bp-gutter .cm-gutterElement {
-  position: relative;
 }
 
 /* ── 디버그 패널 (#dap-control) ───────────────────────────────
@@ -2099,41 +1993,36 @@ body.code-dragging {
   color: var(--text);
 }
 
-/* 인라인 비교(unifiedMergeView) — diff 화면과 같은 색 토큰. */
-.code-editor-host .cm-changedLine {
-  background: var(--diff-add-bg) !important;
-}
-.code-editor-host .cm-changedLineGutter {
+/* 인라인 비교 (#port-diff) — Monaco 의 diff 편집기를 `renderSideBySide: false`
+   로 세운 모습. CodeMirror 의 unifiedMergeView 와 같은 그림이 나오도록 **같은
+   색 토큰**을 쓴다: 추가는 초록 결, 삭제는 붉은 결, 지워진 줄은 본문 사이에
+   끼어드는 블록(뷰 존)으로 그린다. */
+.code-editor-host .monaco-editor .line-insert,
+.code-editor-host .monaco-editor .char-insert {
   background: var(--diff-add-bg);
 }
-.code-editor-host .cm-changedText {
+.code-editor-host .monaco-editor .char-insert {
   background: color-mix(in srgb, var(--diff-add-line) 26%, transparent);
 }
-.code-editor-host .cm-deletedChunk {
+.code-editor-host .monaco-editor .line-delete,
+.code-editor-host .monaco-editor .inline-deleted-margin-view-zone {
   background: var(--diff-del-bg);
-  border-left: 3px solid var(--diff-del-line);
-  padding-left: 6px;
 }
-.code-editor-host .cm-deletedChunk .cm-deletedText,
-.code-editor-host .cm-deletedChunk del {
-  text-decoration: none;
+.code-editor-host .monaco-editor .char-delete,
+.code-editor-host .monaco-editor .inline-deleted-text {
   background: color-mix(in srgb, var(--diff-del-line) 18%, transparent);
+  text-decoration: none;
 }
-/* 청크 되돌리기 버튼 — CM 기본은 브라우저 버튼 그대로다. */
-.code-editor-host .cm-chunkButtons button,
-.code-editor-host .cm-deletedChunk button {
-  font-size: var(--fs-2);
-  padding: 1px 7px;
+/* 청크 되돌리기 — Monaco 는 화살표 하나로 그린다 (CM 의 버튼 자리). 기본은
+   테마색이라 앱 강조색으로 되돌린다. */
+.code-editor-host .monaco-editor .arrow-revert-change {
+  color: var(--accent-text);
+  background: var(--bg-card);
   border: 1px solid var(--sep);
   border-radius: var(--radius-xs);
-  background: var(--bg-card);
-  color: var(--text-2);
-  cursor: pointer;
 }
-.code-editor-host .cm-chunkButtons button:hover,
-.code-editor-host .cm-deletedChunk button:hover {
+.code-editor-host .monaco-editor .arrow-revert-change:hover {
   background: var(--bg-hover);
-  color: var(--text);
 }
 
 /* ── 하단 패널 리사이즈 (#panel-resize) ──────────────────────── */

@@ -1,146 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { Text } from "@codemirror/state";
 
 import {
   completionStart,
   hasLanguageServer,
   LSP_EXTENSIONS,
-  offsetOf,
   parseHover,
-  positionOf,
-  toCmCompletions,
-  toCmDiagnostics,
   wordAtColumn,
 } from "@/features/code/lspBridge";
-import type { LspDiagnostic } from "@/lib/bindings";
 
-// ─── LSP ↔ CodeMirror 좌표 (docs/lsp/00-master-plan.md §위치 인코딩) ─────────
+// ─── LSP 응답의 텍스트 해석 (docs/lsp/00-master-plan.md) ─────────────────────
 //
-// 여기서 ±1 이 어긋나면 진단이 옆 줄에 붙고 완성이 엉뚱한 자리에서 뜬다.
-// 화면으로는 미묘해서 못 잡는 종류라 순수 함수로 잠근다.
-
-const diag = (over: Partial<LspDiagnostic> = {}): LspDiagnostic => ({
-  start_line: 0,
-  start_character: 0,
-  end_line: 0,
-  end_character: 1,
-  severity: "error",
-  message: "boom",
-  source: null,
-  ...over,
-});
-
-describe("좌표 변환", () => {
-  const doc = Text.of(["fn main() {", "    let x = 1;", "}"]);
-
-  it("LSP 0-based 줄을 CM6 1-based 로 옮긴다", () => {
-    // 둘째 줄(LSP line 1) 4번째 문자 = "let" 의 l
-    const at = offsetOf(doc, 1, 4);
-    expect(doc.sliceString(at, at + 3)).toBe("let");
-  });
-
-  it("오프셋 → 위치가 왕복한다", () => {
-    for (const [line, ch] of [
-      [0, 0],
-      [0, 3],
-      [1, 4],
-      [2, 0],
-    ] as const) {
-      const off = offsetOf(doc, line, ch);
-      expect(positionOf(doc, off)).toEqual({ line, character: ch });
-    }
-  });
-
-  it("한글이 있어도 코드 유닛으로 센다", () => {
-    // JS 문자열도 LSP 도 UTF-16 코드 유닛이라 한글 1자 = 1 유닛이다.
-    // (UTF-8 바이트로 세면 여기서 3배로 어긋난다.)
-    const ko = Text.of(["// 한글 주석", "let x = 1;"]);
-    const at = offsetOf(ko, 0, 3); // "// " 다음 = "한"
-    expect(ko.sliceString(at, at + 2)).toBe("한글");
-    expect(positionOf(ko, at)).toEqual({ line: 0, character: 3 });
-  });
-
-  it("문서 밖을 가리키는 오래된 진단은 던지지 않고 접는다", () => {
-    // 편집 직후 도착한 진단은 지워진 줄을 가리킬 수 있다.
-    expect(offsetOf(doc, 999, 0)).toBe(doc.line(doc.lines).from);
-    expect(offsetOf(doc, 0, 9999)).toBe(doc.line(1).to);
-    expect(offsetOf(doc, -5, -5)).toBe(0);
-    expect(positionOf(doc, 99999)).toEqual(positionOf(doc, doc.length));
-  });
-});
-
-describe("진단 변환", () => {
-  const doc = Text.of(["fn main() {", "    let x = ;", "}"]);
-
-  it("범위를 오프셋으로 옮기고 심각도를 넘긴다", () => {
-    const [d] = toCmDiagnostics(doc, [
-      diag({ start_line: 1, start_character: 4, end_line: 1, end_character: 7, source: "rustc" }),
-    ]);
-    expect(doc.sliceString(d.from, d.to)).toBe("let");
-    expect(d.severity).toBe("error");
-    expect(d.source).toBe("rustc");
-    expect(d.message).toBe("boom");
-  });
-
-  it("길이 0 범위를 한 글자로 넓힌다", () => {
-    // 서버는 "이 지점" 을 start==end 로 표현한다. CM6 는 from==to 면 그릴
-    // 밑줄이 없어 진단이 조용히 사라진다 — 있는 오류가 안 보이는 게 최악이다.
-    const [d] = toCmDiagnostics(doc, [
-      diag({ start_line: 1, start_character: 13, end_line: 1, end_character: 13 }),
-    ]);
-    expect(d.to).toBeGreaterThan(d.from);
-  });
-
-  it("네 심각도를 모두 옮긴다", () => {
-    const items = (["error", "warning", "info", "hint"] as const).map((s) =>
-      diag({ severity: s }),
-    );
-    expect(toCmDiagnostics(doc, items).map((d) => d.severity)).toEqual([
-      "error",
-      "warning",
-      "info",
-      "hint",
-    ]);
-  });
-
-  it("빈 목록은 빈 목록", () => {
-    expect(toCmDiagnostics(doc, [])).toEqual([]);
-  });
-});
-
-describe("완성 변환", () => {
-  const item = (over = {}) => ({
-    label: "push",
-    detail: null,
-    kind: null,
-    insert_text: null,
-    sort_text: null,
-    ...over,
-  });
-
-  it("서버 순서를 boost 로 고정한다", () => {
-    // rust-analyzer 는 타입이 맞는 후보를 앞으로 올린다 — CM6 가 알파벳순으로
-    // 다시 섞으면 그 지능이 사라진다.
-    const got = toCmCompletions([item({ label: "zzz" }), item({ label: "aaa" })]);
-    expect(got.map((c) => c.label)).toEqual(["zzz", "aaa"]);
-    expect(got[0].boost).toBeGreaterThan(got[1].boost!);
-  });
-
-  it("boost 가 CM6 범위(-99..99)를 넘지 않는다", () => {
-    const many = Array.from({ length: 250 }, (_, i) => item({ label: `i${i}` }));
-    for (const c of toCmCompletions(many)) {
-      expect(c.boost).toBeGreaterThanOrEqual(-99);
-      expect(c.boost).toBeLessThanOrEqual(99);
-    }
-  });
-
-  it("insert_text 가 있으면 apply 로 넘긴다", () => {
-    const [c] = toCmCompletions([item({ label: "foo", insert_text: "foo()" })]);
-    expect(c.apply).toBe("foo()");
-    // 없으면 undefined — CM6 가 label 을 그대로 넣는다.
-    expect(toCmCompletions([item()])[0].apply).toBeUndefined();
-  });
-});
+// 좌표 변환은 이제 `monaco_lsp.test.ts` 가 본다 — Monaco 는 LSP 와 같은
+// (줄, 문자) 쌍을 쓰므로 오프셋 환산이 사라졌다. 여기 남은 것은 좌표계와
+// 무관한 판단들이고, 화면으로는 미묘해서 못 잡는 종류라 순수 함수로 잠근다.
 
 describe("서버 부착 대상", () => {
   it("등록된 확장자만 서버를 붙인다", () => {

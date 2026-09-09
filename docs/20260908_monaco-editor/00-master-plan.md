@@ -104,6 +104,10 @@ Monaco 0.56 의 Monarch 문법 84종에 **`json` 이 없고**(워커를 쓰는 `
 깨지지 않고 TOML 까지 함께 해결된다. `json.worker` 를 예외로 켜는 안은 기각 —
 +404KB 에 완성·진단 이중화를 막는 배선이 또 붙고 TOML 은 여전히 무채색이다.
 
+**완료 (Phase 2)** — `monaco/langExtra.ts`. `monaco_contributions.test.ts` 가
+"우리가 직접 든 것은 json·toml 뿐이고 그 둘은 정말 0.56 에 없다" 를 문다.
+→ [`02-reclaim.md`](02-reclaim.md#d1a-done)
+
 ### D2 — props 계약은 그대로 둔다 {#d2-same-contract}
 
 `CodeEditorProps`(572줄 파일의 상단 75줄)는 이미 잘 정의된 이음매다 —
@@ -114,6 +118,11 @@ Monaco 0.56 의 Monarch 문법 84종에 **`json` 이 없고**(워커를 쓰는 `
 
 **이 인터페이스를 한 줄도 바꾸지 않고 구현만 갈아끼운다.** 그러면 `CodePane.tsx`
 (1,800줄)와 그 위 전부가 무변경이고, 회귀 범위가 파일 하나로 좁혀진다.
+
+**Phase 1 에서 지켜졌다** (테스트 2,451개가 한 줄도 안 고치고 통과). D2 는 그
+회귀 범위를 좁히는 **장치**였고 목적은 거기서 끝난다 — Phase 2 는 `onGoToSymbol`
+하나를 늘렸다. 심볼 공급자가 켜는 Monaco 내장 ⇧⌘O 가 우리 `CodeGoto` 를 가리는
+것을 막는 자리다. → [`02-reclaim.md`](02-reclaim.md#shadow-quick-outline)
 
 언컨트롤드 규약("마운트 후엔 부모가 초깃값만 주고, 외부 갱신은 key 재마운트")도
 그대로 간다 — 양방향 동기화가 편집기와 React 상태를 서로 되돌리게 만드는 고전적
@@ -202,7 +211,9 @@ D1 로 워커가 `editor.worker` 하나뿐이라 설정이 단순해진다.
   R1~R3 이 여기서 붉으면 뒤 Phase 를 안 쓴다.
 - **Phase 1 이식** — `CodeEditorProps` 를 만족하는 Monaco 구현. 계약이 같으므로
   기존 테스트가 그대로 판정자다.
-- **Phase 2 회수** — 손으로 만든 sticky/signature/search 를 내장으로 갈아치우고 삭제.
+- **Phase 2 회수** — 손으로 만든 sticky/signature 를 내장으로 갈아치우고 삭제.
+  검색 패널은 **자리가 달라 대체 불가**로 닫았다 (프로젝트 전역 vs 문서 하나).
+  → [`02-reclaim.md`](02-reclaim.md)
 - **Phase 3 새 능력** — 지금 없는 기본기(폴딩·다중커서·미니맵·peek)를 켠다.
 - **Phase 4 논의 편집기** — 병렬 세션 머지 후. CodeMirror 의존성 제거.
 - **Phase 5 에이전트 편집면** — ⌘K · hunk 승인.

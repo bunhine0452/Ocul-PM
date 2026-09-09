@@ -11,13 +11,14 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { commands, type LspServerInfo, type LspServerState } from "@/lib/bindings";
-import { AUTO_SAVE_MODES, type AutoSaveMode } from "@/lib/settings";
-import { AUTO_SAVE_MIN_DELAY_MS } from "@/features/code/autoSave";
 import {
+  AUTO_SAVE_MODES,
   clampStickyMax,
   STICKY_MAX_LINES,
   STICKY_MIN_LINES,
-} from "@/features/code/stickyModel";
+  type AutoSaveMode,
+} from "@/lib/settings";
+import { AUTO_SAVE_MIN_DELAY_MS } from "@/features/code/autoSave";
 import type { I18nKey } from "@/i18n";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useSaveSetting } from "./saveSetting";

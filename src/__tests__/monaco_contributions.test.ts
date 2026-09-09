@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 // D1 의 자물쇠 — `monaco/setup.ts` 의 기여 목록이 Monaco 의 `editor.main.js` 와
@@ -56,6 +56,45 @@ describe("monaco contribution list", () => {
     expect(setup).not.toMatch(/monaco-editor\/language\//);
     // 워커도 editor.worker 하나뿐이어야 한다.
     expect([...setup.matchAll(/\?worker/g)]).toHaveLength(1);
+  });
+
+  it("covers every language id we claim", () => {
+    // Every id `codeLang.ts` can hand to the editor must have a grammar behind
+    // it, or that extension opens silently colorless. Two sources only: Monaco's
+    // own Monarch definitions (the register imports in `setup.ts`) and the two
+    // we wrote by hand in `langExtra.ts`.
+    const setup = readFileSync(resolve(ROOT, "src/features/code/monaco/setup.ts"), "utf8");
+    const fromMonaco = new Set(
+      [...setup.matchAll(/^import "monaco-editor\/languages\/definitions\/([^/]+)\/register";$/gm)].map(
+        (m) => m[1],
+      ),
+    );
+    const extra = readFileSync(resolve(ROOT, "src/features/code/monaco/langExtra.ts"), "utf8");
+    const fromUs = new Set(
+      [...extra.matchAll(/languages\.register\(\{ id: "([^"]+)"/g)].map((m) => m[1]),
+    );
+
+    const lang = readFileSync(resolve(ROOT, "src/features/code/codeLang.ts"), "utf8");
+    const declared = lang.slice(lang.indexOf("export type CodeLangId"), lang.indexOf(";", lang.indexOf("export type CodeLangId")));
+    const ids = [...declared.matchAll(/"([a-z]+)"/g)].map((m) => m[1]);
+    expect(ids.length).toBeGreaterThan(0);
+    for (const id of ids) {
+      expect(fromMonaco.has(id) || fromUs.has(id), `no grammar registered for language id "${id}"`).toBe(true);
+    }
+  });
+
+  it("hand-writes only what 0.56 actually lacks (D1a)", () => {
+    // The only justification for hand-writing json/toml is that Monaco lacks
+    // them. If it ever ships one, this goes red and ours should be deleted.
+    const extra = readFileSync(resolve(ROOT, "src/features/code/monaco/langExtra.ts"), "utf8");
+    const ours = [...extra.matchAll(/languages\.register\(\{ id: "([^"]+)"/g)].map((m) => m[1]);
+    expect(ours).toEqual(["json", "toml"]);
+    for (const id of ours) {
+      expect(
+        existsSync(resolve(ROOT, `node_modules/monaco-editor/esm/vs/languages/definitions/${id}`)),
+        `Monaco now ships a "${id}" grammar — drop ours from langExtra.ts`,
+      ).toBe(false);
+    }
   });
 
   it("never imports editor.main wholesale", () => {

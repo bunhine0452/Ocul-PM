@@ -1,18 +1,14 @@
-// 확장자 → CodeMirror 언어 매핑. 이 화면 자체가 lazy 청크라 언어 패키지의
-// 정적 임포트가 메인 번들에 실리지 않는다 (ShellV2 의 청크 분할 원칙).
-import type { Extension } from "@codemirror/state";
-import { javascript } from "@codemirror/lang-javascript";
-import { rust } from "@codemirror/lang-rust";
-import { python } from "@codemirror/lang-python";
-import { go } from "@codemirror/lang-go";
-import { markdown } from "@codemirror/lang-markdown";
-import { json } from "@codemirror/lang-json";
-import { html } from "@codemirror/lang-html";
-import { css } from "@codemirror/lang-css";
-import { yaml } from "@codemirror/lang-yaml";
-import { StreamLanguage } from "@codemirror/language";
-import { toml } from "@codemirror/legacy-modes/mode/toml";
-import { shell } from "@codemirror/legacy-modes/mode/shell";
+// 확장자 → 언어 id. **문자열 매핑뿐이다** (Phase 2 `{#reclaim-lang}`).
+//
+// CodeMirror 판에서는 이 파일이 언어 패키지 12개를 정적으로 임포트해
+// `Extension[]` 을 만들어 줬다. Monaco 는 문법을 **언어 id 로** 찾으므로
+// (`monaco/setup.ts` 가 Monarch 를 등록하고, 0.56 에 없는 json·toml 은
+// `monaco/langExtra.ts` 가 채운다) 여기 남는 것은 표 하나다 —
+// `@codemirror/lang-*` 8개와 `legacy-modes` 의존성이 그래서 사라졌다.
+//
+// 여기서 monaco 를 임포트하지 않는 것이 중요하다: 이 모듈은 `CodePane` 과
+// jsdom 테스트가 함께 쓰는데, monaco 를 끌어오면 그 테스트가 편집기를 통째로
+// 로드하게 된다.
 
 export type CodeLangId =
   | "typescript"
@@ -28,7 +24,7 @@ export type CodeLangId =
   | "toml"
   | "shell";
 
-/** 확장자(소문자, 점 제외) → 언어 id. 상태줄 라벨과 CM 확장 선택의 단일 소스. */
+/** 확장자(소문자, 점 제외) → 언어 id. 상태줄 라벨과 Monaco 문법 선택의 단일 소스. */
 const EXT_TO_LANG: Record<string, CodeLangId> = {
   ts: "typescript",
   tsx: "typescript",
@@ -105,52 +101,10 @@ export function langLabel(id: CodeLangId | null): string {
 /**
  * 경로에 맞는 **Monaco 언어 id**.
  *
- * 여기서 monaco 를 임포트하지 않는 것이 중요하다 — 이 모듈은 `CodePane` 과
- * jsdom 테스트가 함께 쓰는데, monaco 를 끌어오면 그 테스트가 편집기를 통째로
- * 로드하게 된다. 문자열 매핑이면 충분하다.
- *
- * `json`·`toml` 은 Monaco 0.56 의 Monarch 84종에 **없다** (json 은 워커 기반
- * 언어 서비스 전용, toml 은 아예 없음). D1 로 그 서비스를 끄므로 지금은 강조가
- * 없고, Phase 2 `reclaim-lang` 에서 Monarch 문법을 직접 써 채운다
- * (docs/20260908_monaco-editor/00-master-plan.md `{#d1a-json-toml}`).
+ * 우리 `CodeLangId` 12종은 Monaco id 와 이름이 그대로 겹친다 — 10종은 Monaco 의
+ * Monarch 문법이 등록돼 있고, json·toml 은 `monaco/langExtra.ts` 가 등록한다.
+ * 모르는 확장자는 `plaintext`(강조 없음).
  */
 export function monacoLangForPath(path: string): string {
-  // 우리 `CodeLangId` 12종은 Monaco id 와 이름이 그대로 겹친다 (10종은 문법이
-  // 등록돼 있고, json·toml 은 id 만 맞고 문법이 아직 없다 — Phase 2 가 채우면
-  // 이 함수를 고치지 않아도 켜진다).
   return langIdForPath(path) ?? "plaintext";
-}
-
-/** 경로에 맞는 CM 언어 확장. tsx/jsx 는 파일명으로 jsx 여부까지 구분한다. */
-export function langExtensionForPath(path: string): Extension[] {
-  const id = langIdForPath(path);
-  const lower = path.toLowerCase();
-  switch (id) {
-    case "typescript":
-      return [javascript({ typescript: true, jsx: lower.endsWith(".tsx") })];
-    case "javascript":
-      return [javascript({ jsx: lower.endsWith(".jsx") })];
-    case "rust":
-      return [rust()];
-    case "python":
-      return [python()];
-    case "go":
-      return [go()];
-    case "markdown":
-      return [markdown()];
-    case "json":
-      return [json()];
-    case "html":
-      return [html()];
-    case "css":
-      return [css()];
-    case "yaml":
-      return [yaml()];
-    case "toml":
-      return [StreamLanguage.define(toml)];
-    case "shell":
-      return [StreamLanguage.define(shell)];
-    default:
-      return [];
-  }
 }

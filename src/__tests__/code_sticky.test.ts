@@ -1,64 +1,117 @@
-// B7 스티키 스크롤 — 순수 모델 (docs/20260902_vscode-borrows/04-sticky-scroll.md).
+// 스티키 스크롤 — 이제 **그리는 것은 Monaco 내장**이다 (Phase 2 `{#reclaim-sticky}`).
 //
-// jsdom 에는 레이아웃이 없어 CM6 뷰포트를 흉내낼 수 없다. 계산은 전부 여기서
-// 잠그고, 확장(stickyScroll.ts)은 "이 결과를 DOM 으로 옮기기" 만 남긴다.
+// CodeMirror 판에서는 `stickyModel.ts` 가 "지금 줄을 감싸는 상위 스코프" 를
+// 직접 계산했고 이 파일이 그 계산을 잠갔다. 그 계산은 Monaco 가 한다. 우리에게
+// 남은 몫은 둘이고, 여기서 그 둘만 본다.
+//
+//   · `toDocumentSymbols` — 백엔드가 준 평평한 `LspSymbol[]`(시작 줄만)을
+//     Monaco 아웃라인이 요구하는 **중첩 + 범위**로 옮긴다. 여기가 틀리면
+//     사슬이 한 줄로 납작해지거나 함수 범위가 옆 함수까지 먹는다.
+//   · `clampStickyMax` — 설정값을 쓸 수 있는 줄 수로 접는다.
 import { describe, expect, it } from "vitest";
 
-import {
-  clampStickyMax,
-  indentWidth,
-  stickyFromIndent,
-  stickyFromSymbols,
-  type StickySymbol,
-} from "@/features/code/stickyModel";
+import { symbolKindOf, toDocumentSymbols } from "@/features/code/monaco/symbols";
+import { clampStickyMax } from "@/lib/settings";
+import type { LspSymbol } from "@/lib/bindings";
 
-function sym(line: number, depth: number, kind = "function"): StickySymbol {
-  return { line, depth, kind };
+/** Monaco 를 jsdom 에 올리지 않는다 — 이 변환이 monaco 에서 읽는 것은 이 표뿐이다. */
+const SymbolKind = {
+  File: 0,
+  Module: 1,
+  Namespace: 2,
+  Package: 3,
+  Class: 4,
+  Method: 5,
+  Property: 6,
+  Field: 7,
+  Constructor: 8,
+  Enum: 9,
+  Interface: 10,
+  Function: 11,
+  Variable: 12,
+  EnumMember: 15,
+  Struct: 22,
+  TypeParameter: 25,
+} as const;
+const monaco = { languages: { SymbolKind } } as never;
+
+function sym(line: number, depth: number, kind = "function", name = "s" + line): LspSymbol {
+  return { name, detail: null, kind, depth, line, character: 0 };
 }
 
 /** 클래스(10) > 메서드(12) > 클로저(14), 그리고 다음 최상위(30). */
 const NESTED = [sym(10, 0, "class"), sym(12, 1, "method"), sym(14, 2), sym(30, 0)];
 
-const lineNumbers = (rows: { line: number }[]) => rows.map((r) => r.line);
-
-describe("stickyFromSymbols", () => {
-  it("바깥에서 안쪽 순으로 모은다", () => {
-    expect(lineNumbers(stickyFromSymbols(NESTED, 20, 5))).toEqual([10, 12, 14]);
+describe("toDocumentSymbols — 중첩", () => {
+  it("depth 로 트리를 세운다 — 평평하면 스티키가 사슬을 못 그린다", () => {
+    const [cls, next] = toDocumentSymbols(monaco, NESTED, 100);
+    expect(cls.name).toBe("s10");
+    expect(cls.children?.map((c) => c.name)).toEqual(["s12"]);
+    expect(cls.children?.[0].children?.map((c) => c.name)).toEqual(["s14"]);
+    expect(next.name).toBe("s30");
+    expect(next.children).toEqual([]);
   });
 
-  it("종류를 함께 준다 — 아이콘 색은 그 자리의 뜻이다", () => {
-    expect(stickyFromSymbols(NESTED, 20, 5).map((r) => r.kind)).toEqual([
-      "class",
-      "method",
-      "function",
-    ]);
+  it("깊이가 건너뛰어도(0 → 2) 있는 조상 밑으로 붙인다", () => {
+    const [root] = toDocumentSymbols(monaco, [sym(1, 0), sym(4, 2)], 50);
+    expect(root.children?.map((c) => c.name)).toEqual(["s4"]);
   });
 
-  it("max 절단은 안쪽을 버린다 — 바깥 맥락이 더 크다", () => {
-    expect(lineNumbers(stickyFromSymbols(NESTED, 20, 2))).toEqual([10, 12]);
-    expect(lineNumbers(stickyFromSymbols(NESTED, 20, 1))).toEqual([10]);
-    expect(stickyFromSymbols(NESTED, 20, 0)).toEqual([]);
-  });
-
-  it("뷰포트 첫 줄이 심볼 시작이면 그 줄은 뺀다", () => {
-    // 14행이 이미 화면 맨 위에 있다 — 겹쳐 그리면 같은 줄이 두 번 보인다.
-    expect(lineNumbers(stickyFromSymbols(NESTED, 14, 5))).toEqual([10, 12]);
-  });
-
-  it("첫 심볼보다 위면 아무것도 없다", () => {
-    expect(stickyFromSymbols(NESTED, 3, 5)).toEqual([]);
-  });
-
-  it("다음 최상위로 넘어가면 사슬이 끊긴다", () => {
-    expect(lineNumbers(stickyFromSymbols(NESTED, 33, 5))).toEqual([30]);
-  });
-
-  it("깊이가 건너뛰어도(0 → 2) 있는 조상만 모은다", () => {
-    expect(lineNumbers(stickyFromSymbols([sym(1, 0), sym(4, 2)], 6, 5))).toEqual([1, 4]);
+  it("형제가 끝난 뒤 다시 얕아지면 뿌리로 돌아온다", () => {
+    const roots = toDocumentSymbols(monaco, [sym(1, 0), sym(2, 1), sym(9, 0)], 50);
+    expect(roots.map((r) => r.name)).toEqual(["s1", "s9"]);
   });
 
   it("빈 목록", () => {
-    expect(stickyFromSymbols([], 10, 5)).toEqual([]);
+    expect(toDocumentSymbols(monaco, [], 50)).toEqual([]);
+  });
+});
+
+describe("toDocumentSymbols — 지어낸 범위", () => {
+  it("끝은 다음 형제(같거나 얕은 depth)의 시작이다", () => {
+    const [cls] = toDocumentSymbols(monaco, NESTED, 100);
+    // 클래스(10)는 다음 최상위(30) 앞까지.
+    expect(cls.range.startLineNumber).toBe(11);
+    expect(cls.range.endLineNumber).toBe(30);
+    // 메서드(12)도 같은 이유로 30 까지 — 그 사이에 얕은 것이 없다.
+    expect(cls.children?.[0].range.endLineNumber).toBe(30);
+  });
+
+  it("마지막 심볼은 문서 끝까지", () => {
+    const roots = toDocumentSymbols(monaco, [sym(0, 0)], 42);
+    expect(roots[0].range.endLineNumber).toBe(42);
+  });
+
+  it("0-based 줄을 1-based 로 옮긴다 — 여기서 ±1 이 어긋나면 한 줄씩 밀린다", () => {
+    const [root] = toDocumentSymbols(monaco, [sym(0, 0)], 10);
+    expect(root.range.startLineNumber).toBe(1);
+    expect(root.selectionRange.startLineNumber).toBe(1);
+  });
+
+  it("문서보다 뒤를 가리키는 낡은 심볼은 문서 안으로 접는다", () => {
+    // 편집 직후 도착한 옛 응답 — 범위 밖이면 Monaco 가 던진다.
+    const [root] = toDocumentSymbols(monaco, [sym(999, 0)], 5);
+    expect(root.range.startLineNumber).toBe(5);
+    expect(root.range.endLineNumber).toBe(5);
+  });
+
+  it("선택 범위는 이름 자체다 — 고르면 커서가 함수 위 빈 줄이 아니라 이름에 선다", () => {
+    const [root] = toDocumentSymbols(monaco, [sym(3, 0, "function", "render")], 50);
+    expect(root.selectionRange.startColumn).toBe(1);
+    expect(root.selectionRange.endColumn).toBe(1 + "render".length);
+  });
+});
+
+describe("symbolKindOf", () => {
+  it("소문자 하이픈 이름을 Monaco 열거형으로 옮긴다", () => {
+    expect(symbolKindOf(SymbolKind as never, "class")).toBe(SymbolKind.Class);
+    expect(symbolKindOf(SymbolKind as never, "enum-member")).toBe(SymbolKind.EnumMember);
+    expect(symbolKindOf(SymbolKind as never, "type-parameter")).toBe(SymbolKind.TypeParameter);
+  });
+
+  it("모르는 값은 Variable — 백엔드의 `symbol` 폴백이 그대로 온다", () => {
+    expect(symbolKindOf(SymbolKind as never, "symbol")).toBe(SymbolKind.Variable);
+    expect(symbolKindOf(SymbolKind as never, "")).toBe(SymbolKind.Variable);
   });
 });
 
@@ -71,75 +124,5 @@ describe("clampStickyMax", () => {
   });
   it("쓰레기 값은 기본 5", () => {
     expect(clampStickyMax(Number.NaN)).toBe(5);
-  });
-});
-
-describe("indentWidth", () => {
-  it("탭은 다음 탭 스톱까지", () => {
-    expect(indentWidth("\tx", 4)).toBe(4);
-    expect(indentWidth("  \tx", 4)).toBe(4);
-    expect(indentWidth("     \tx", 4)).toBe(8);
-  });
-  it("공백은 그대로 · 내용이 시작하면 멈춘다", () => {
-    expect(indentWidth("    x  y", 4)).toBe(4);
-    expect(indentWidth("x", 4)).toBe(0);
-  });
-});
-
-describe("stickyFromIndent", () => {
-  const DOC = [
-    "body {", //            0
-    "  .card {", //         1
-    "    color: red;", //   2
-    "", //                  3
-    "    margin: 0;", //    4
-    "  }", //               5
-    "  .other {", //        6
-    "    padding: 0;", //   7
-    "  }", //               8
-    "}", //                 9
-  ];
-
-  it("더 얕은 줄만 앵커가 된다", () => {
-    expect(lineNumbers(stickyFromIndent(DOC, 2, 5, 2))).toEqual([0, 1]);
-  });
-
-  it("형제(같은 들여쓰기)는 앵커가 아니다", () => {
-    // 7행의 조상은 6·0 이지 1 이 아니다.
-    expect(lineNumbers(stickyFromIndent(DOC, 7, 5, 2))).toEqual([0, 6]);
-  });
-
-  it("빈 줄은 건너뛰고, 그 아래 내용 줄을 기준으로 삼는다", () => {
-    // 3행은 빈 줄 — 4행(margin)의 들여쓰기로 사슬을 세운다.
-    expect(lineNumbers(stickyFromIndent(DOC, 3, 5, 2))).toEqual([0, 1]);
-  });
-
-  it("최상위 줄은 감싸는 것이 없다", () => {
-    expect(stickyFromIndent(DOC, 0, 5, 2)).toEqual([]);
-    expect(stickyFromIndent(DOC, 9, 5, 2)).toEqual([]);
-  });
-
-  it("종류는 없다 — 들여쓰기는 무엇인지 모른다", () => {
-    expect(stickyFromIndent(DOC, 2, 5, 2).every((r) => r.kind === null)).toBe(true);
-  });
-
-  it("주석만 있는 줄은 앵커가 아니다", () => {
-    const doc = ["fn a() {", "  // 설명", "    let x = 1;"];
-    expect(lineNumbers(stickyFromIndent(doc, 2, 5, 2))).toEqual([0]);
-  });
-
-  it("# 로 시작하는 줄은 주석으로 단정하지 않는다 (CSS 선택자)", () => {
-    const doc = ["#main {", "  color: red;"];
-    expect(lineNumbers(stickyFromIndent(doc, 1, 5, 2))).toEqual([0]);
-  });
-
-  it("탭과 공백이 섞여도 폭으로 비교한다", () => {
-    const doc = ["fn a() {", "\tif x {", "\t\tlet y = 1;"];
-    expect(lineNumbers(stickyFromIndent(doc, 2, 5, 4))).toEqual([0, 1]);
-  });
-
-  it("max 절단은 안쪽을 버린다", () => {
-    expect(lineNumbers(stickyFromIndent(DOC, 2, 1, 2))).toEqual([0]);
-    expect(stickyFromIndent(DOC, 2, 0, 2)).toEqual([]);
   });
 });

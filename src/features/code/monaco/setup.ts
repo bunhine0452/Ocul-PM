@@ -16,6 +16,8 @@
 import * as monaco from "monaco-editor/editor/editor.api";
 import EditorWorker from "monaco-editor/editor/editor.worker?worker";
 
+import { registerExtraLanguages } from "./langExtra";
+
 // ── 기여 (editor.main.js 에서 추출, 언어 서비스 제외) ──
 import "monaco-editor/editor/contrib/anchorSelect/browser/anchorSelect";
 import "monaco-editor/editor/contrib/bracketMatching/browser/bracketMatching";
@@ -91,7 +93,7 @@ import "monaco-editor/editor/contrib/suggest/browser/suggestController";
 import "monaco-editor/editor/common/standaloneStrings";
 // ── Monarch 문법 — 지금 편집기가 강조하던 언어와 같은 집합 ──
 // json·toml 은 0.56 의 Monarch 84종에 **없다** (json 은 워커 서비스 전용, toml 은
-// 아예 없음). D1a 결정에 따라 Phase 2 에서 직접 작성해 채운다.
+// 아예 없음). D1a 결정대로 `langExtra.ts` 에 직접 써서 아래에서 등록한다.
 import "monaco-editor/languages/definitions/css/register";
 import "monaco-editor/languages/definitions/go/register";
 import "monaco-editor/languages/definitions/html/register";
@@ -102,6 +104,9 @@ import "monaco-editor/languages/definitions/python/register";
 import "monaco-editor/languages/definitions/rust/register";
 import "monaco-editor/languages/definitions/yaml/register";
 import "monaco-editor/languages/definitions/shell/register";
+
+// 0.56 이 안 주는 둘 — 등록은 전역이고 이 모듈이 한 번만 평가되므로 여기서 한다.
+registerExtraLanguages(monaco);
 
 // 워커는 D1 로 `editor.worker` 하나뿐이다 (기본 편집 서비스: diff 계산·링크 감지 등).
 // 플러그인 계열(`vite-plugin-monaco-editor`)과 **섞지 않는다** — 둘 다 쓰면 깨진다.

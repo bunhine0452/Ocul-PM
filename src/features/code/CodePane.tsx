@@ -1,4 +1,4 @@
-// 편집 창(pane) 하나 — 탭 바 + CodeMirror + 상태줄. 분할하면 이것이 둘 뜬다.
+// 편집 창(pane) 하나 — 탭 바 + 편집기 + 상태줄. 분할하면 이것이 둘 뜬다.
 //
 // 왜 화면에서 떼어냈나: 좌우 분할은 "에디터를 두 번 그리는 것" 이 아니라
 // **편집 상태를 두 벌 갖는 것**이다 (버퍼·커서·충돌·LSP 수명이 창마다 따로다).
@@ -29,6 +29,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { reverseApplyPatch } from "./patchReverse";
 import { useSettings } from "@/contexts/SettingsContext";
+import { clampStickyMax } from "@/lib/settings";
 import { safeUnlistenPromise } from "@/lib/unlisten";
 import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
@@ -50,7 +51,6 @@ import {
 import { FileIcon } from "./FileIcon";
 
 import { CodeEditor } from "./CodeEditor";
-import { clampStickyMax } from "./stickyModel";
 import { useProblems } from "./problemsStore";
 import { groupByFile, totalCounts } from "./problemsModel";
 import { CodePreview } from "./CodePreview";
@@ -160,11 +160,11 @@ export interface CodePaneProps {
   onReferences: (query: ReferencesQuery) => void;
   /** 커서가 있는 줄(1-based). 사이드바 아웃라인이 지금 위치를 표시한다. */
   onCursorLine: (line: number) => void;
-  /**
-   * 스티키 스크롤이 쓸 문서 심볼 (아웃라인과 **같은 값**). `null` 이면 확장이
-   * 들여쓰기 폴백으로 그린다 — 언어 서버가 없는 파일도 맥락은 보여야 한다.
-   */
+  /** 스티키가 쓸 문서 심볼 (아웃라인과 **같은 값**). `null` 이면 Monaco 가
+   *  들여쓰기로 떨어진다 — 언어 서버가 없는 파일도 맥락은 보여야 한다. */
   stickySymbols: LspSymbol[] | null;
+  /** ⇧⌘O — 파일 안에서 이동. 편집기가 그 키를 먹으므로 여기로 되돌린다. */
+  onGoToSymbol: () => void;
   /** 상태줄의 문제 뱃지를 눌렀다 — 화면이 패널을 연다. */
   onOpenProblems: () => void;
   /** 이 파일의 중단점 줄들 (1-based). */
@@ -206,6 +206,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     onReferences,
     onCursorLine,
     stickySymbols,
+    onGoToSymbol,
     onOpenProblems,
     breakpointsFor,
     unverifiedFor,
@@ -217,7 +218,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   useT();
   const { settings } = useSettings();
 
-  // 스티키 스크롤 — 꺼져 있으면 0 이고, 0 이면 CodeEditor 가 확장을 안 단다.
+  // 스티키 스크롤 — 꺼져 있으면 0 이고, 0 이면 CodeEditor 가 아예 안 켠다.
   const stickyMax = settings.codeStickyScroll ? clampStickyMax(settings.codeStickyMaxLines) : 0;
 
   // 문제 총계 — 스토어를 직접 구독한다 (화면에서 내려보내면 진단이 올 때마다
@@ -244,8 +245,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   // 디스크가 아니라 **버퍼**라, 저장하기 전의 편집이 그대로 보인다.
   const [svgOpen, setSvgOpen] = useState(false);
   const [svgText, setSvgText] = useState("");
-  // 타자 경로(handleChange)는 ref 로 읽는다 — state 를 의존성에 넣으면 콜백
-  // 신원이 바뀌고, 그게 곧 에디터 확장 재설정으로 번진다.
+  // 타자 경로(handleChange)는 ref 로 읽는다 — state 를 의존성에 넣으면 타자마다 새 콜백이다.
   const svgOpenRef = useRef(false);
   svgOpenRef.current = svgOpen;
   const svgTimerRef = useRef<number | null>(null);
@@ -487,10 +487,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     [],
   );
 
-  /**
-   * 판 하나와 비교하기. HEAD·일지 비교와 **같은 기계**를 쓴다 — 원본을
-   * `diffOriginal` 에 넣고 에디터를 다시 마운트하면 끝이다.
-   */
+  /** 판 하나와 비교하기. HEAD·일지 비교와 **같은 기계**를 쓴다 — 원본을
+   *  `diffOriginal` 에 넣고 에디터를 다시 마운트하면 끝이다. */
   const enterHistoryDiff = useCallback(
     async (version: CodeHistoryVersion) => {
       const path = pathRef.current;
@@ -1368,10 +1366,10 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
             onBlur={autoSave.onEditorBlur}
           >
             <CodeEditor
-              // 스티키 설정이 key 에 있는 이유: 확장은 마운트 시점에 결정되므로
-              // 켜고 끈 것이 그 자리에서 보이려면 재마운트해야 한다. 본문은
-              // 버퍼가 갖고 있어 미저장 편집은 살아남는다 (실행 취소 이력만
-              // 잃는다 — 파일을 바꿀 때와 같은 대가).
+              // 스티키 설정이 key 에 있는 이유: 편집기 배선은 마운트 시점에
+              // 정해지므로 켜고 끈 것이 그 자리에서 보이려면 재마운트해야 한다.
+              // 본문은 버퍼가 들고 있어 미저장 편집은 살아남는다 (실행 취소
+              // 이력만 잃는다 — 파일을 바꿀 때와 같은 대가).
               key={`${activePath}:${editorEpoch}:${stickyMax}`}
               initialText={buf.text}
               path={activePath ?? ""}
@@ -1384,11 +1382,12 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               onCodeActions={openCodeActions}
               onReferences={findReferences}
               onFormat={(range) => void formatRef.current(false, range)}
-              // 서버가 안 붙은 창에는 확장을 아예 달지 않는다 (CodeEditor 가
-              // prop 유무로 판단하므로 undefined 여야 한다).
+              // 서버가 안 붙은 창에는 공급자를 아예 안 단다 (CodeEditor 가 prop
+              // 유무로 판단하므로 undefined 여야 한다).
               onSignatureHelp={lspEnabled ? lsp.signatureHelp : undefined}
               stickyMaxLines={stickyMax}
               stickySymbols={stickySymbols}
+              onGoToSymbol={onGoToSymbol}
               tabSize={settings.codeTabSize}
               onSave={() => void saveRef.current()}
               onCursor={(line, col) => {

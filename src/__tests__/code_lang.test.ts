@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { langIdForPath, langLabel, langExtensionForPath } from "@/features/code/codeLang";
+import { langIdForPath, langLabel, monacoLangForPath } from "@/features/code/codeLang";
 
 // 코드 화면 — 확장자 → 언어 매핑 계약 (docs/code-editor/00-master-plan.md).
 
@@ -40,10 +40,19 @@ describe("langLabel", () => {
   });
 });
 
-describe("langExtensionForPath", () => {
-  it("returns a CM extension for known languages and none for unknown", () => {
-    expect(langExtensionForPath("a.rs").length).toBeGreaterThan(0);
-    expect(langExtensionForPath("a.toml").length).toBeGreaterThan(0);
-    expect(langExtensionForPath("LICENSE")).toHaveLength(0);
+describe("monacoLangForPath", () => {
+  it("reuses our language ids as Monaco ids", () => {
+    expect(monacoLangForPath("a.rs")).toBe("rust");
+    expect(monacoLangForPath("src/App.tsx")).toBe("typescript");
+  });
+
+  it("still maps json and toml — 0.56 ships no grammar, langExtra.ts adds one", () => {
+    expect(monacoLangForPath("package.json")).toBe("json");
+    expect(monacoLangForPath("src-tauri/Cargo.toml")).toBe("toml");
+  });
+
+  it("falls back to plaintext for unknown extensions", () => {
+    expect(monacoLangForPath("LICENSE")).toBe("plaintext");
+    expect(monacoLangForPath("data.parquet")).toBe("plaintext");
   });
 });
