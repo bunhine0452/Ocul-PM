@@ -391,7 +391,9 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
       <Toolbar
         leading={
           <button type="button" className="iconbtn" onClick={onBack} aria-label={t("entry.back")} title={t("entry.backTitle")}>
-            <ArrowLeft size={18} />
+            {/* 뒤로가기 화살표는 15 다 — 앱의 일곱 자리 중 여섯이 그렇고,
+                이 하나만 18 이었다 (2026-09-10 {#unify-drilldown}). */}
+            <ArrowLeft size={15} />
           </button>
         }
         title={entry.title || entry.slug}

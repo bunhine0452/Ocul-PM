@@ -41,28 +41,18 @@
 }
 
 /* ── 우측 상세 ─────────────────────────────────────────────── */
-.sk-head {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--space-5);
-  padding: 14px var(--space-7);
-  border-bottom: 1px solid var(--sep);
-}
+/* `.sk-head` 는 `<Toolbar>` 로 접었다 (2026-09-10 {#unify-drilldown}) — 이
+   드릴다운만 자기 머리를 갖고 있어 크롬이 52→60px 로 튀었다. 남는 것은 `sub`
+   자리에 서는 배지·경로 줄뿐이다. */
 .sk-head-meta {
-  min-width: 0;
-  flex: 1;
-}
-.sk-head-name {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--space-3);
-  font-size: var(--fs-6);
-  font-weight: var(--fw-bold);
-  color: var(--text);
+  min-width: 0;
 }
 .sk-head-path {
-  margin-top: 3px;
+  /* 이제 두 번째 줄이 아니라 `sub` 안의 한 조각이다 — 위 여백이 있으면
+     배지들과 기준선이 어긋난다 (2026-09-10 {#unify-drilldown}). */
   font-size: var(--fs-3);
   font-family: var(--mono, ui-monospace, monospace);
   color: var(--text-3);

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { Markdown } from "@/components/Markdown";
+import { Toolbar } from "@/components/Toolbar";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { ArrowLeft, Copy, Pencil, Trash2, X } from "@/components/Icons";
 import type {
@@ -209,19 +210,26 @@ export function ContextEditor({
 
   return (
     <section className="sk-detail" aria-label={t("ctx.detailAria")}>
-      <header className="sk-head">
-        <button
-          type="button"
-          className="sk-iconbtn"
-          onClick={onBack}
-          title={t("ctx.back")}
-          aria-label={t("ctx.back")}
-        >
-          <ArrowLeft size={15} />
-        </button>
-        <div className="sk-head-meta">
-          <div className="sk-head-name">
-            {item.name}
+      {/* 다른 열여섯 화면과 같은 `<Toolbar>` 다 (2026-09-10 {#unify-drilldown}).
+          예전엔 이 드릴다운만 `.sk-head` 라는 자기 머리를 갖고 있어서 크롬이
+          52→60px 로 튀었다 — 일지 드릴다운(`EntryDetailView`)은 이미 `<Toolbar>`
+          의 `leading`/`title`/`sub` 로 같은 것을 그리고 있었다. 배지를 `sub` 에
+          두는 것도 거기서 온 규격이다. */}
+      <Toolbar
+        leading={
+          <button
+            type="button"
+            className="sk-iconbtn"
+            onClick={onBack}
+            title={t("ctx.back")}
+            aria-label={t("ctx.back")}
+          >
+            <ArrowLeft size={15} />
+          </button>
+        }
+        title={item.name}
+        sub={
+          <span className="sk-head-meta">
             <span className="sk-chip">{scopeLabel(item.scope)}</span>
             <span className="sk-chip">{t(KIND_LABEL_KEY[item.kind])}</span>
             {skillEntry && !skillEntry.enabled ? <span className="sk-chip off">{t("sk.inactive")}</span> : null}
@@ -241,9 +249,10 @@ export function ContextEditor({
             {ruleEntry?.mirror === "conflict" ? (
               <span className="sk-chip off">{t("rules.conflict")}</span>
             ) : null}
-          </div>
-          <div className="sk-head-path">{item.path}</div>
-        </div>
+            <span className="sk-head-path">{item.path}</span>
+          </span>
+        }
+      >
         <div className="sk-actions">
           {editing ? (
             <>
@@ -302,7 +311,7 @@ export function ContextEditor({
             </>
           )}
         </div>
-      </header>
+      </Toolbar>
 
       {state === "loading" ? (
         <div className="scroll">

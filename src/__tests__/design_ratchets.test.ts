@@ -219,3 +219,27 @@ describe("칩", () => {
     expect(new Set(sizes)).toEqual(new Set(["var(--ctl-4)", "var(--ctl-3)"]));
   });
 });
+
+// ─── 드릴다운 머리 — 계약 (2026-09-10 {#unify-drilldown}) ──────────────────
+//
+// 일지 드릴다운은 처음부터 `<Toolbar>` 의 leading/title/sub 로 그렸는데, 스킬
+// 드릴다운만 `.sk-head` 라는 자기 머리를 갖고 있어 크롬이 52→60px 로 튀었다.
+// 뒤로가기 화살표도 일곱 자리 중 여섯이 15 인데 일지 하나만 18 이었다.
+describe("드릴다운 머리", () => {
+  it("화면 머리를 대신하는 자기 헤더가 없다", () => {
+    // `.sk-head` 처럼 `<Toolbar>` 자리를 차지하는 규칙이 다시 생기면 걸린다.
+    const css = read("features/skills/skills.css");
+    expect(css).not.toMatch(/^\.sk-head \{/m);
+  });
+
+  it("뒤로가기 화살표는 한 크기다", () => {
+    const sizes = new Set<string>();
+    for (const file of walk(join(ROOT))) {
+      if (!/\.tsx$/.test(file)) continue;
+      for (const m of readFileSync(file, "utf8").matchAll(/<ArrowLeft\s+size=\{(\d+)\}/g)) {
+        sizes.add(m[1]);
+      }
+    }
+    expect([...sizes], `뒤로가기 화살표 크기: ${[...sizes].join(" · ")}`).toEqual(["15"]);
+  });
+});
