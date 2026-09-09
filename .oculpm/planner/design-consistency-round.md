@@ -43,7 +43,7 @@ owner: claude-code
 - [x] 파괴 확인 3벌을 `useConfirm` 하나로 — 표준("지울까요? [취소][삭제]") vs settings.danger("정말로 삭제하시겠습니까? [예, 모두 삭제]") vs home/rows.tsx:110("정말 버릴까요? [예][아니오]"). "…할까요?" 22 vs "…하시겠습니까?" 2 인데 그 2건이 가장 위험한 자리다 {#copy-confirm}
 - [x] "복사됨" 토스트 6종을 `common.copied` 하나로 — 공용 키가 이미 있는데 5곳이 각자 썼다(ko.ts:167 "복사됨" · :671 "복사됨!" ← 사전 유일 느낌표 · :2756 "복사됨 ✓" · :300 · :982 · :1559) {#copy-toast}
 - [x] 용어집 확정 + 금지어 lint — "작업 일지" 16/"작업일지" 7(같은 화면) · "플래너" 20/"플랜" 15/"계획" 59/"Planner" 4 · "Ocul-PM" 6/"ocul-pm" 35 · "폴더" 46/"디렉토리" 3/"디렉터리" 2 · "기록없음" 1/"기록 없음" 4. 영문 뒤 조사 붙여쓰기 15건(관례는 띄어쓰기 156건) {#copy-glossary}
-- [ ] `gf.*` 54개(GreenfieldWizard)를 `welcome.*` 목소리로 재작성 — 사전 전체의 이상치가 여기 몰려 있다: 유일한 과장어("자유롭게") · 미번역 "narrative" · 정식 명칭 위반("Today 탭" vs nav.today="오늘 현황") · "디렉토리" · 조사 붙여쓰기 2건. 컴포넌트도 `.btn` 대신 raw Tailwind {#copy-greenfield}
+- [x] `gf.*` 54개(GreenfieldWizard)를 `welcome.*` 목소리로 재작성 — 사전 전체의 이상치가 여기 몰려 있다: 유일한 과장어("자유롭게") · 미번역 "narrative" · 정식 명칭 위반("Today 탭" vs nav.today="오늘 현황") · "디렉토리" · 조사 붙여쓰기 2건. 컴포넌트도 `.btn` 대신 raw Tailwind {#copy-greenfield}
 - [x] `ai.actionApply` = "적용하기 (Apply)" → "적용" — 다른 "적용" 3개는 전부 그냥 "적용"이고, 영어를 병기한 유일한 순수 한국어 동사다 {#copy-apply-label}
 
 ## 램프 채택 — 세워 놓고 안 쓴 것들 {#ramps}
@@ -91,4 +91,5 @@ owner: claude-code
 | 2026-09-09T20:54:54+09:00 | #copy-errors | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2054_refactor_error-messages-and-voice-mixing.md | 41건을 "무엇이 안 됐는지 — {error}" 로. 원문은 진단 정보라 남겼다(접힌 상세는 토스트에 없는 UI 라 별도 항목). graph.previewFailed 값에 주석 기호 "//" 가 들어가 있던 것도 발견·제거. 「…실패: {error}」 금지 게이트 추가 |
 | 2026-09-09T20:55:01+09:00 | #copy-voice | claude-code | ☐→~ | .oculpm/journal/20260909/Refactors/2054_refactor_error-messages-and-voice-mixing.md | 한 문자열 안 혼재 24건 정리 + 게이트 완료. 「하세요」+「합니다」는 서법이 달라 정상이므로 제외(그걸 세면 66건). 남은 것: 사전 전체 합쇼 532/해요 396 을 하나로 — 900+ 문자열이라 사용자 결정 필요 |
 | 2026-09-09T20:58:54+09:00 | #copy-confirm | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2058_refactor_unify-destructive-confirm.md | "모달로 통일" 이 답이 아니었다 — 목록 행의 초안 버리기는 인라인이 맞다. 진짜 문제는 앱 최대 파괴 동작(전체 삭제)이 그것과 같은 생김새였던 것. DataTab 만 useConfirm 으로, rows 는 버튼이 결과를 말하게. 게이트 2개 추가 |
+| 2026-09-09T21:06:56+09:00 | #copy-greenfield | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2106_refactor_greenfield-wizard-voice.md | 감사가 못 짚은 게 더 컸다 — 다섯 스텝 제목이 물음표 문장 2 + 명사구 3 으로 갈려 있었다. welcome.step.* 규격으로 통일. "Today 탭"(없는 화면 이름) 4곳·"narrative" 2곳도 정리. raw Tailwind 버튼은 시각 변화라 남김 |
 <!-- oculpm:plan-log end -->

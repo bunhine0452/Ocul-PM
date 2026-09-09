@@ -204,7 +204,7 @@ describe("영어 모드에서 한글이 남지 않는다", () => {
         <GreenfieldWizard onClose={() => {}} onComplete={() => {}} />
       </Wrap>,
     );
-    await findByText("What are we building?");
+    await findByText("Idea");
     expect(hangulIn(container)).toEqual([]);
   });
 
