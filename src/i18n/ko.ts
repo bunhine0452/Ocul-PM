@@ -1664,6 +1664,8 @@ export const ko = {
   "skill.e2e-testing.summary": "Playwright E2E 패턴 — Page Object Model, 설정, CI/CD 통합, 아티팩트 관리, flaky 테스트 전략을 다룹니다.",
   "skill.inherit-legacy-style.label": "inherit-legacy-style — 레거시 스타일 상속",
   "skill.inherit-legacy-style.summary": "손으로 짠 레거시 프로젝트에 AI 에이전트를 온보딩할 때 기존 스타일을 학습시켜 스타일 드리프트를 막는 언어 불문 스킬입니다.",
+  "skill.i-have-adhd.label": "i-have-adhd — 실행부터 말하는 출력",
+  "skill.i-have-adhd.summary": "답을 묻어 두지 않도록 응답 형태를 바꿉니다 — 첫 줄이 실행할 명령, 여러 단계는 번호, 서두·요약·마무리 인사는 삭제. 직접 호출 전용이라 에이전트가 스스로 부르지 못합니다.",
   "skill.project-inception.label": "project-inception — 아이디어를 설계 산출물로",
   "skill.project-inception.summary": "웹 리서치로 환경을 탐색하고 근거를 들고 사용자와 사양을 확정해 discussion→3-depth 계획→EVALS.md→초기 rules 를 시드합니다",
   "skill.self-audit.label": "self-audit — 완료 선언 전 자기 감사",

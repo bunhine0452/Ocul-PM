@@ -34,15 +34,30 @@ import apiDesign from "./catalog/api-design.md?raw";
 import databaseMigrations from "./catalog/database-migrations.md?raw";
 import e2eTesting from "./catalog/e2e-testing.md?raw";
 import inheritLegacyStyle from "./catalog/inherit-legacy-style.md?raw";
+import iHaveAdhd from "./catalog/i-have-adhd.md?raw";
 import type { I18nKey } from "@/i18n";
 
 /** 벤더링 당시 핀 고정한 업스트림 커밋 (재fetch 시 갱신). */
 export const CATALOG_PINS = {
   ecc: "e4e4163101f162881e628f300a9ca4e6a940bcea",
   ponytail: "16f29800fd2681bdf24f3eb4ccffe38be3baec6b",
+  "i-have-adhd": "24d22f783e57cb73c957848b588c6f651b6f9cd8",
 } as const;
 
 export type CatalogSource = keyof typeof CATALOG_PINS;
+
+/**
+ * 출처 → 업스트림 저장소. `skillUrl()` 과 랜딩 동기 테스트가 **같은 맵**을
+ * 읽는다 — 예전에는 양쪽이 `source === "ecc" ? … : …` 3항식을 각자 복제하고
+ * 있어서, 출처가 셋이 되는 순간 테스트가 새 출처를 조용히 ponytail 로 읽었다.
+ * `Record<CatalogSource, …>` 라 출처를 추가하면 여기를 채울 때까지 컴파일이
+ * 실패한다.
+ */
+export const CATALOG_REPOS: Record<CatalogSource, string> = {
+  ecc: "affaan-m/ecc",
+  ponytail: "DietrichGebert/ponytail",
+  "i-have-adhd": "ayghri/i-have-adhd",
+};
 
 /** 카탈로그 태그 허용 어휘 (소문자 고정). */
 export const CATALOG_TAGS = [
@@ -70,6 +85,7 @@ export const CATALOG_TAGS = [
   "a11y",
   "backend",
   "database",
+  "output",
 ] as const;
 
 export type CatalogTag = (typeof CATALOG_TAGS)[number];
@@ -96,10 +112,8 @@ export interface CatalogSkill {
 
 const estimateTokens = (content: string): number => Math.round(content.length / 4);
 
-const skillUrl = (source: CatalogSource, id: string): string => {
-  const repo = source === "ecc" ? "affaan-m/ecc" : "DietrichGebert/ponytail";
-  return `https://github.com/${repo}/blob/${CATALOG_PINS[source]}/skills/${id}/SKILL.md`;
-};
+const skillUrl = (source: CatalogSource, id: string): string =>
+  `https://github.com/${CATALOG_REPOS[source]}/blob/${CATALOG_PINS[source]}/skills/${id}/SKILL.md`;
 
 interface CatalogSeed {
   id: string;
@@ -328,5 +342,17 @@ export const CATALOG_SKILLS: CatalogSkill[] = [
     tags: ["onboarding", "style"],
     summaryKey: "skill.inherit-legacy-style.summary",
     content: inheritLegacyStyle,
+  }),
+  // 스택 태그가 아니라 **출력 형태**를 바꾸는 유일한 항목이라 `output` 태그가
+  // 혼자다. `style`(ponytail·inherit-legacy-style)은 코드 스타일 축이므로
+  // 같은 말로 부르지 않는다. 스택 매칭에 안 걸리니 추천 목록엔 뜨지 않고
+  // 검색·브라우즈로만 발견된다 — 의도된 결과다.
+  seed({
+    id: "i-have-adhd",
+    labelKey: "skill.i-have-adhd.label",
+    source: "i-have-adhd",
+    tags: ["output"],
+    summaryKey: "skill.i-have-adhd.summary",
+    content: iHaveAdhd,
   }),
 ];

@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>플러그인 · 스킬 카탈로그 — Ocul-PM</title>
-<meta name="description" content="Claude Code 용 Ocul-PM 플러그인의 전체 표면: 슬래시 커맨드 5종, MCP 도구 14종, 동봉 스킬 5종, 그리고 스택을 감지해 추천하는 제3자 스킬 카탈로그 25종(커밋 고정·MIT)." />
+<meta name="description" content="Claude Code 용 Ocul-PM 플러그인의 전체 표면: 슬래시 커맨드 5종, MCP 도구 14종, 동봉 스킬 5종, 그리고 스택을 감지해 추천하는 제3자 스킬 카탈로그 26종(커밋 고정·MIT)." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/plugin" />
@@ -16,7 +16,7 @@
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/plugin" />
 <meta property="og:title" content="플러그인 · 스킬 카탈로그 — Ocul-PM" />
-<meta property="og:description" content="설치 두 줄부터 /oculpm:project_init → /oculpm:inception → /oculpm:next 구현 루프까지. 스킬 카탈로그 25종은 전부 커밋 고정 사본입니다." />
+<meta property="og:description" content="설치 두 줄부터 /oculpm:project_init → /oculpm:inception → /oculpm:next 구현 루프까지. 스킬 카탈로그 26종은 전부 커밋 고정 사본입니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -176,8 +176,8 @@
     </section>
 
     <section class="pg-sec">
-      <h2 id="catalog">스킬 샵 카탈로그 25종</h2>
-      <p>앱의 <b>스킬·규칙 → 샵</b> 탭은 프로젝트의 매니페스트(<code>package.json</code>·<code>Cargo.toml</code>·<code>pyproject.toml</code> 등)로 스택을 감지해 아래 카탈로그에서 맞는 스킬을 추천합니다. 전부 MIT 제3자 스킬(ECC · ponytail)의 <b>커밋 고정 사본</b>입니다 — 원문 무수정, <b>런타임 네트워크 0</b>(설치 시점에 아무것도 받지 않습니다). 설치하면 <code>.claude/skills/</code> 에 들어가며 이는 Claude Code 네이티브 기능이라 <b>플러그인 없이도 동작</b>합니다.</p>
+      <h2 id="catalog">스킬 샵 카탈로그 26종</h2>
+      <p>앱의 <b>스킬·규칙 → 샵</b> 탭은 프로젝트의 매니페스트(<code>package.json</code>·<code>Cargo.toml</code>·<code>pyproject.toml</code> 등)로 스택을 감지해 아래 카탈로그에서 맞는 스킬을 추천합니다. 전부 MIT 제3자 스킬(ECC · ponytail · i-have-adhd)의 <b>커밋 고정 사본</b>입니다 — 원문 무수정, <b>런타임 네트워크 0</b>(설치 시점에 아무것도 받지 않습니다). 설치하면 <code>.claude/skills/</code> 에 들어가며 이는 Claude Code 네이티브 기능이라 <b>플러그인 없이도 동작</b>합니다. 하나는 스택이 아니라 <b>출력 형태</b>를 바꿉니다 — <code>i-have-adhd</code> 는 매니페스트에 걸리지 않으므로 추천이 아니라 검색으로 찾고, 사람이 이름을 쳐야만 뜹니다.</p>
       <div class="pg-table">
         <table>
           <thead><tr><th>스킬</th><th>무엇</th><th>고정된 커밋</th><th>원문</th></tr></thead>
@@ -207,6 +207,7 @@
           <tr><td>database-migrations</td><td>무중단 DB 마이그레이션</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/database-migrations/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
           <tr><td>e2e-testing</td><td>Playwright E2E 테스트</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/e2e-testing/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
           <tr><td>inherit-legacy-style</td><td>레거시 스타일 상속</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/inherit-legacy-style/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>i-have-adhd</td><td>실행부터 말하는 출력 형태</td><td><span class="pill">i-have-adhd@24d22f7</span></td><td><a href="https://github.com/ayghri/i-have-adhd/blob/24d22f783e57cb73c957848b588c6f651b6f9cd8/skills/i-have-adhd/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
           </tbody>
         </table>
       </div>

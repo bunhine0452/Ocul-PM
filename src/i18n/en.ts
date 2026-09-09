@@ -1664,6 +1664,8 @@ export const en: Record<keyof typeof ko, string> = {
   "skill.e2e-testing.summary": "Playwright E2E patterns — Page Object Model, configuration, CI/CD integration, artifacts, and flaky-test strategy.",
   "skill.inherit-legacy-style.label": "inherit-legacy-style — Inherit legacy style",
   "skill.inherit-legacy-style.summary": "A language-agnostic skill for onboarding an AI agent onto a hand-written legacy project by teaching it the existing style, preventing drift.",
+  "skill.i-have-adhd.label": "i-have-adhd — Action-first output",
+  "skill.i-have-adhd.summary": "Reshapes responses so the answer is not buried: the first line is the next action, multi-step work is numbered, and preamble, recaps, and closing pleasantries are cut. Invoke-only — the agent cannot reach it on its own.",
   "skill.project-inception.label": "project-inception — turn an idea into design artifacts",
   "skill.project-inception.summary": "Researches the landscape on the web, settles the spec with you on evidence, and seeds a discussion doc, a 3-depth plan, EVALS.md, and starter rules.",
   "skill.self-audit.label": "self-audit — audit yourself before declaring done",

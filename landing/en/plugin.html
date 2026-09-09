@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Plugin · Skill Catalog — Ocul-PM</title>
-<meta name="description" content="The full surface of the Ocul-PM plugin for Claude Code: 5 slash commands, 14 MCP tools, 5 bundled skills, and a 25-skill third-party catalog that detects your stack and recommends matches (pinned commits, MIT)." />
+<meta name="description" content="The full surface of the Ocul-PM plugin for Claude Code: 5 slash commands, 14 MCP tools, 5 bundled skills, and a 26-skill third-party catalog that detects your stack and recommends matches (pinned commits, MIT)." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/en/plugin" />
@@ -17,7 +17,7 @@
 <meta property="og:locale:alternate" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/en/plugin" />
 <meta property="og:title" content="Plugin · Skill Catalog — Ocul-PM" />
-<meta property="og:description" content="From a two-line install to the /oculpm:project_init → /oculpm:inception → /oculpm:next implementation loop. All 25 catalog skills are pinned-commit copies." />
+<meta property="og:description" content="From a two-line install to the /oculpm:project_init → /oculpm:inception → /oculpm:next implementation loop. All 26 catalog skills are pinned-commit copies." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -177,8 +177,8 @@
     </section>
 
     <section class="pg-sec">
-      <h2 id="catalog">A 25-skill shop catalog</h2>
-      <p>The app's <b>Skills &amp; Rules → Shop</b> tab detects your stack from project manifests (<code>package.json</code>, <code>Cargo.toml</code>, <code>pyproject.toml</code>, and the like) and recommends matching skills from the catalog below. All of them are <b>pinned-commit copies</b> of MIT third-party skills (ECC · ponytail) — unmodified originals, <b>zero runtime network</b> (nothing is fetched at install time). Installing puts them under <code>.claude/skills/</code>, a native Claude Code feature, so they <b>work even without the plugin</b>.</p>
+      <h2 id="catalog">A 26-skill shop catalog</h2>
+      <p>The app's <b>Skills &amp; Rules → Shop</b> tab detects your stack from project manifests (<code>package.json</code>, <code>Cargo.toml</code>, <code>pyproject.toml</code>, and the like) and recommends matching skills from the catalog below. All of them are <b>pinned-commit copies</b> of MIT third-party skills (ECC · ponytail · i-have-adhd) — unmodified originals, <b>zero runtime network</b> (nothing is fetched at install time). Installing puts them under <code>.claude/skills/</code>, a native Claude Code feature, so they <b>work even without the plugin</b>. One of them reshapes <b>output</b> rather than code: <code>i-have-adhd</code> matches no manifest, so you find it by search rather than by recommendation, and only a person can invoke it.</p>
       <div class="pg-table">
         <table>
           <thead><tr><th>Skill</th><th>What</th><th>Pinned commit</th><th>Source</th></tr></thead>
@@ -208,6 +208,7 @@
           <tr><td>database-migrations</td><td>Zero-downtime DB migrations</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/database-migrations/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
           <tr><td>e2e-testing</td><td>Playwright E2E testing</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/e2e-testing/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
           <tr><td>inherit-legacy-style</td><td>Inheriting legacy style</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/inherit-legacy-style/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
+          <tr><td>i-have-adhd</td><td>Action-first output shaping</td><td><span class="pill">i-have-adhd@24d22f7</span></td><td><a href="https://github.com/ayghri/i-have-adhd/blob/24d22f783e57cb73c957848b588c6f651b6f9cd8/skills/i-have-adhd/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
           </tbody>
         </table>
       </div>

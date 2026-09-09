@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   CATALOG_PINS,
+  CATALOG_REPOS,
   CATALOG_SKILLS,
   CATALOG_TAGS,
 } from "@/features/skills/skillsCatalog";
@@ -27,8 +28,8 @@ const VENDORED_RE =
   /<!-- vendored-from: https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/blob\/([0-9a-f]{40})\/skills\/[\w-]+\/SKILL\.md · MIT License © [^·]+· retrieved \d{4}-\d{2}-\d{2} · ocul-pm catalog -->/;
 
 describe("skills catalog (C1 vendored)", () => {
-  it("25개 엔트리가 있고 id 는 중복이 없다", () => {
-    expect(CATALOG_SKILLS).toHaveLength(25);
+  it("26개 엔트리가 있고 id 는 중복이 없다", () => {
+    expect(CATALOG_SKILLS).toHaveLength(26);
     const ids = CATALOG_SKILLS.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -98,8 +99,11 @@ describe("skills catalog (C1 vendored)", () => {
       expect(t(skill.labelKey).length).toBeGreaterThan(0);
       expect(t(skill.labelKey)).not.toBe(skill.labelKey);
       expect(t(skill.summaryKey)).not.toBe(skill.summaryKey);
-      const repo = skill.source === "ecc" ? "affaan-m/ecc" : "DietrichGebert/ponytail";
-      expect(skill.sourceUrl.startsWith(`https://github.com/${repo}/blob/`)).toBe(true);
+      // 저장소 맵은 프로덕션 코드와 **공유**한다 — 여기서 3항식을 복제하면
+      // 출처가 셋이 되는 순간 새 출처를 조용히 ponytail 로 읽는다.
+      expect(
+        skill.sourceUrl.startsWith(`https://github.com/${CATALOG_REPOS[skill.source]}/blob/`),
+      ).toBe(true);
     }
   });
 
@@ -121,6 +125,7 @@ describe("skills catalog (C1 vendored)", () => {
   it.each([
     ["LICENSE-ecc", "Affaan Mustafa"],
     ["LICENSE-ponytail", "DietrichGebert"],
+    ["LICENSE-i-have-adhd", "Ayoub Ghriss"],
   ])("%s — MIT 허가 고지 전문이 동봉되어 있다 (© %s)", (file, holder) => {
     const text = fs.readFileSync(path.join(CATALOG_DIR, file), "utf8");
     expect(text).toContain("MIT License");
@@ -141,6 +146,7 @@ describe("skills catalog (C1 vendored)", () => {
     ...fs.readdirSync(CATALOG_DIR).filter((f) => f.endsWith(".md")),
     "LICENSE-ecc",
     "LICENSE-ponytail",
+    "LICENSE-i-have-adhd",
   ];
 
   it.each(hygieneTargets.map((f) => [f] as const))(
