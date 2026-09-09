@@ -50,10 +50,10 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 - [x] `DiscussionScreenV2.tsx` 파일 크기 래칫 — 병렬 세션이 `conflict.ts`·`useDiscussionSave.ts` 로 쪼개 796줄로 내려놨다(2026-09-08 확인). 편집기 배선을 갈아끼우며 다시 넘기지 않는지만 본다 {#disc-filesize}
 
 ## Phase 5 — 에이전트 편집면 (Cursor 의 진짜 차별점) {#agent-surface}
-- [ ] ⌘K 인라인 편집 — 선택 범위에 지시를 주면 그 자리에서 고쳐 보여 준다. ACP(Claude Code · Codex)가 이미 붙어 있어 전송 경로는 있고, Monaco 의 inline-diff 위젯이 표시를 맡는다 {#agent-cmdk}
-- [ ] hunk 단위 승인 — 에이전트가 만든 diff 를 편집기 안에서 조각별로 받기/버리기. 지금 `diffOriginal` 이 그리는 청크 되돌리기 버튼의 확장이다 {#agent-hunk}
-- [ ] 귀속 — ⌘K 로 들어간 편집이 일지·`entry_diffs` 에 **누가 고쳤는지** 남는가. 이 앱의 존재 이유가 기록이라 편집기가 기록을 빠뜨리면 안 된다 {#agent-attribution}
-- [ ] **Tab 다음-편집 예측은 이 라운드에서 열지 않는다** — 전용 모델 · 지연시간 예산 · 취소 병합 · 오답 비용까지 설계가 따로 필요하다. 여기 항목으로만 남겨 유실을 막는다 (이월은 살아 있는 플랜의 항목으로) {#agent-tab-predict}
+- [x] ⌘K 인라인 편집 — 선택 범위에 지시를 주면 그 자리에서 고쳐 보여 준다. ACP(Claude Code · Codex)가 이미 붙어 있어 전송 경로는 있고, Monaco 의 inline-diff 위젯이 표시를 맡는다 {#agent-cmdk}
+- [x] hunk 단위 승인 — 에이전트가 만든 diff 를 편집기 안에서 조각별로 받기/버리기. 지금 `diffOriginal` 이 그리는 청크 되돌리기 버튼의 확장이다 {#agent-hunk}
+- [!] 귀속 — ⌘K 로 들어간 편집이 일지·`entry_diffs` 에 **누가 고쳤는지** 남는가. 이 앱의 존재 이유가 기록이라 편집기가 기록을 빠뜨리면 안 된다 {#agent-attribution}
+- [>] **Tab 다음-편집 예측은 이 라운드에서 열지 않는다** — 전용 모델 · 지연시간 예산 · 취소 병합 · 오답 비용까지 설계가 따로 필요하다. 여기 항목으로만 남겨 유실을 막는다 (이월은 살아 있는 플랜의 항목으로) {#agent-tab-predict}
 
 ## Phase 6 — 마감 {#finish}
 - [ ] 육안 확인 격자 — 라이트/다크 × 프리셋 5종으로 문법 강조 · 선택색 · 커서 · 미니맵 · sticky · 진단 밑줄. v3-release `{#eyes-hljs}` 가 이미 같은 격자를 요구하고 있어 한 번에 갚는다 {#fin-eyes}
@@ -92,4 +92,8 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 | 2026-09-09T19:40:42+09:00 | #disc-port | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1940_refactor_monaco-discussion-phase4.md | 이음매는 오프셋 하나 — mdEdit.ts 무변경, 환산을 apply 안에 가둠, executeEdits 한 번(실행취소 한 칸). placeholder/히스토리/검색은 내장으로, 마크다운 강조는 markdown-prose 문법을 직접 씀(0.56 은 제목 단계를 다 keyword 로 낸다 = 회귀). 테마는 전역이라 한 벌에 .md-prose 접미사로 가름. discussion_editor.test.tsx 가 판정자 — 본문 무수정 통과 |
 | 2026-09-09T19:40:48+09:00 | #disc-drop-cm | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1940_refactor_monaco-discussion-phase4.md | **라운드의 완료 신호** — package.json 에 @codemirror/* · codemirror · @lezer/highlight 가 0개. Phase 2 에서 13개, 여기서 7개. DiscussionEditor 청크 537.97→8.77kB |
 | 2026-09-09T19:40:54+09:00 | #disc-filesize | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1940_refactor_monaco-discussion-phase4.md | DiscussionScreenV2.tsx 799줄 유지 — 이 Phase 는 그 파일을 아예 안 건드렸다(편집기 배선은 DiscussionEditor.tsx 안에서 끝난다). lint:filesize 초록 |
+| 2026-09-09T20:09:41+09:00 | #agent-cmdk | claude-code | ☐→x | .oculpm/journal/20260909/Features_to_add/2009_feature_monaco-agent-surface-phase5.md | 항목 문구 정정 — ACP 도 inline-diff 위젯도 아니었다. ACP 는 연결·한턴잠금·에이전트 자체 디스크쓰기를 전제해 미저장 버퍼와 싸운다. commands.chat(폴백 체인 포함, 백엔드 커맨드 0 증가)로 가고, 표시는 "먼저 적용하고 검토"(diffOriginal 이 이미 푼 문제를 두 벌 안 만든다). 펜스 걷기·끝개행 맞추기는 순수 모듈 |
+| 2026-09-09T20:09:49+09:00 | #agent-hunk | claude-code | ☐→x | .oculpm/journal/20260909/Features_to_add/2009_feature_monaco-agent-surface-phase5.md | 버튼이 아니라 토글 — 켜고 끌 때마다 본문이 즉시 다시 계산돼 누르기 전에 결과가 보인다. compose 가 줄 범위(spans)까지 내는 것이 요점(화면이 좌표를 다시 세면 한 줄 밀린 하이라이트). 비교는 chat/lineDiff 재사용 — diff 를 두 벌 만들면 같은 변경이 두 화면에서 다르게 보인다. 전부 끄면 원문 그대로라는 등식을 테스트가 문다 |
+| 2026-09-09T20:09:58+09:00 | #agent-attribution | claude-code | ☐→! | .oculpm/journal/20260909/Features_to_add/2009_feature_monaco-agent-surface-phase5.md | 셋 중 둘 완료. ①entry_diffs 는 이미 된다(만들 것 없음) ②일지 agent — 상태줄 칩 → create_manual_entry(agent={provider,model}, verified_by_user=false. 사람의 확인을 사칭하지 않는다) ③**로컬 히스토리 HistorySource 가 남았다** — 자리는 이미 있는데 ⌘K 편집을 user 로 적는다(code_write 자기-쓰기 쪽지). 고치려면 code_write 인자 추가 → bindings 재생성 → {#cap-semantic} 과 같은 이유로 막힘. **해제 조건: firing-ledger/rules 머지** |
+| 2026-09-09T20:10:05+09:00 | #agent-tab-predict | claude-code | ☐→> | .oculpm/journal/20260909/Features_to_add/2009_feature_monaco-agent-surface-phase5.md | 플랜대로 열지 않았다 — 전용 모델·지연시간 예산·취소 병합·오답 비용이 각각 설계를 요구하고 그 불확실성이 이 라운드를 오염시키면 안 된다. 항목으로 남겨 유실만 막는다 (다음 라운드에서 자기 설계 문서와 함께 열 것) |
 <!-- oculpm:plan-log end -->
