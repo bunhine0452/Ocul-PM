@@ -126,9 +126,9 @@ export function ConversationImportSection() {
           className="flex-1"
         >
           {busy && !scan ? (
-            <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+            <Loader2  className="mr-2 animate-spin" size={15} />
           ) : (
-            <Download className="w-3.5 h-3.5 mr-2" />
+            <Download  className="mr-2" size={15} />
           )}
           {t("settings.import.pick")}
         </Button>
@@ -171,7 +171,7 @@ export function ConversationImportSection() {
                       />
                       <span className="flex-1 min-w-0">
                         <span className="block truncate text-foreground">{c.title}</span>
-                        <span className="block text-muted-foreground font-mono text-[11px]">
+                        <span className="block text-muted-foreground font-mono text-fs-3">
                           {formatWorkday(c.workday)} · {t(TYPE_KEY[c.guessed_type])} ·{" "}
                           {t("settings.import.turns", { count: String(c.message_count) })}
                           {done ? ` · ${t("settings.import.already")}` : ""}
@@ -194,9 +194,9 @@ export function ConversationImportSection() {
             <ImportOutcome report={report} />
           ) : (
             <>
-              <p className="text-[11px] text-muted-foreground">{t("settings.import.costNote")}</p>
+              <p className="text-fs-3 text-muted-foreground">{t("settings.import.costNote")}</p>
               <Button onClick={runImport} disabled={busy || picked.size === 0} className="w-full">
-                {busy ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : null}
+                {busy ? <Loader2  className="mr-2 animate-spin" size={15} /> : null}
                 {t("settings.import.run", { count: String(picked.size) })}
               </Button>
             </>
@@ -229,7 +229,7 @@ function ImportOutcome({ report }: { report: ImportReport }) {
             {e.title} — {e.detail}
           </p>
         ))}
-      <p className="text-[11px] text-muted-foreground">{t("settings.import.verifyNote")}</p>
+      <p className="text-fs-3 text-muted-foreground">{t("settings.import.verifyNote")}</p>
     </div>
   );
 }

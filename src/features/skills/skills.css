@@ -508,7 +508,7 @@
 }
 .sk-chip-btn {
   cursor: pointer;
-  transition: border-color 120ms var(--ease-out), color 120ms var(--ease-out);
+  transition: border-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .sk-chip-btn:hover {
   border-color: var(--accent);

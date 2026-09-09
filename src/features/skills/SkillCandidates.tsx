@@ -125,7 +125,7 @@ export function SkillCandidatesPanel({
       </div>
       <p className="mb-2.5 text-xs text-muted-foreground">
         {t("promo.skillIntroPrefix")}
-        <code className="font-mono text-[11px]">.claude/skills</code>
+        <code className="font-mono text-fs-3">.claude/skills</code>
         {t("promo.skillIntroSuffix")}
       </p>
       <ul className="flex flex-col gap-2">
@@ -136,10 +136,10 @@ export function SkillCandidatesPanel({
           >
             <div className="flex items-center gap-2">
               <span className="truncate font-mono text-xs text-foreground">{c.tag}</span>
-              <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+              <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-fs-3 font-medium text-primary">
                 {t("promo.skillRepeatCount", { n: c.count })}
               </span>
-              <span className="shrink-0 text-[11px] text-muted-foreground">
+              <span className="shrink-0 text-fs-3 text-muted-foreground">
                 {t("promo.recent", { workday: wd(c.last_workday) })}
               </span>
               <span className="flex-1" />
@@ -209,7 +209,7 @@ export function SkillCandidatesPanel({
                 />
                 <div
                   className={
-                    "mt-1 text-[11px] " +
+                    "mt-1 text-fs-3 " +
                     (slug.trim() && !slugValid ? "text-(--danger-text)" : "text-muted-foreground")
                   }
                 >

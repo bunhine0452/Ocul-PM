@@ -45,7 +45,7 @@ export function NotHonoredNotice({
   return (
     <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
       <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-        <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+        <AlertTriangle  className="flex-shrink-0" size={15} aria-hidden="true" />
         {t(titleKey ?? "notHonored.title")}
       </p>
       <ul className="space-y-1">

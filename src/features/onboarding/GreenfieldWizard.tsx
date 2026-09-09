@@ -435,11 +435,11 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
         if (e.target === e.currentTarget) handleClose();
       }}
     >
-      <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
+      <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-(--dur-2)">
         {/* Header */}
         <header className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <FolderPlus className="w-5 h-5 text-primary" />
+            <FolderPlus  className="text-primary" size={22} />
             <h2 className="text-base font-bold">{stepTitles[step]}</h2>
             <span className="text-xs text-muted-foreground font-medium">
               {step + 1} / 5
@@ -450,7 +450,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
             className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             aria-label={t("gf.close")}
           >
-            <X className="w-4 h-4" />
+            <X size={15} />
           </button>
         </header>
 
@@ -557,7 +557,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-mono text-[11px] text-muted-foreground">{preset.cmd ?? ""}</span>
+                        <span className="font-mono text-fs-3 text-muted-foreground">{preset.cmd ?? ""}</span>
                         {preset.cli && (
                           <span
                             className={
@@ -585,7 +585,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                       </div>
                       {isSelected && (
                         <div className="absolute top-2 right-2">
-                          <Check className="w-4 h-4 text-primary" />
+                          <Check  className="text-primary" size={15} />
                         </div>
                       )}
                     </button>
@@ -636,7 +636,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                       className="px-4 py-2.5 border border-border rounded-xl hover:bg-accent text-sm font-semibold transition-colors cursor-pointer flex items-center gap-2"
                       aria-label={t("gf.pickFolder")}
                     >
-                      <Folder className="w-4 h-4" />
+                      <Folder size={15} />
                       {t("gf.pick")}
                     </button>
                   </div>
@@ -658,7 +658,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
 
               {isGeneratingGoals ? (
                 <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2  className="animate-spin" size={22} />
                   <span className="text-sm">{t("gf.generatingGoals")}</span>
                 </div>
               ) : (
@@ -716,11 +716,11 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                     <span className="flex items-center gap-1.5 text-sm font-medium">
                       <BrandMark size={15} />
                       {t("gf.trackLabel")}
-                      <span className="text-[10px] text-primary/80 font-semibold uppercase tracking-wider">
+                      <span className="text-fs-1 text-primary/80 font-semibold uppercase tracking-wider">
                         {t("gf.recommended")}
                       </span>
                     </span>
-                    <span className="block text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                    <span className="block text-fs-3 text-muted-foreground mt-1 leading-relaxed">
                       {t("gf.trackHint1")}
                       <code className="font-mono mx-1 text-[10.5px] bg-muted px-1 rounded">.oculpm/</code>
                       {t("gf.trackHint2Suffix")}
@@ -731,7 +731,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
 
               {createError && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold rounded-xl flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                  <AlertTriangle  className="mt-0.5 shrink-0" size={15} />
                   <span>{createError}</span>
                 </div>
               )}
@@ -745,7 +745,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
             onClick={() => step > 0 ? setStep((s) => s - 1) : handleClose()}
             className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors rounded-xl hover:bg-accent flex items-center gap-1.5 cursor-pointer"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft size={15} />
             {step > 0 ? t("gf.prev") : t("common.close")}
           </button>
 
@@ -756,7 +756,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
               className="px-5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
             >
               {t("gf.next")}
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight size={15} />
             </button>
           ) : (
             <button
@@ -766,13 +766,13 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
             >
               {isCreating ? (
                 <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <Loader2  className="animate-spin" size={15} />
                   {t("gf.creating")}
                 </>
               ) : (
                 <>
                   {t("gf.start")}
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <ArrowRight size={15} />
                 </>
               )}
             </button>

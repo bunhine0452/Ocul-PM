@@ -124,10 +124,10 @@ export function PluginBundlesBlock({ projectId }: { projectId: number }) {
           className="flex-1"
         />
         <Button variant="outline" onClick={previewGithub} disabled={busy || !slug.trim()}>
-          {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t("plugins.preview")}
+          {busy ? <Loader2  className="animate-spin" size={15} /> : t("plugins.preview")}
         </Button>
         <Button variant="outline" onClick={previewFile} disabled={busy}>
-          <Download className="w-3.5 h-3.5 mr-2" />
+          <Download  className="mr-2" size={15} />
           {t("plugins.fromFile")}
         </Button>
       </div>
@@ -148,7 +148,7 @@ export function PluginBundlesBlock({ projectId }: { projectId: number }) {
                     <span className="ml-1.5 text-xs text-muted-foreground">{bundle.version}</span>
                   )}
                 </div>
-                <div className="text-[11px] text-muted-foreground truncate" title={bundle.source}>
+                <div className="text-fs-3 text-muted-foreground truncate" title={bundle.source}>
                   {t("plugins.itemCount", { count: String(bundle.items.length) })} · {bundle.source}
                 </div>
               </div>
@@ -159,7 +159,7 @@ export function PluginBundlesBlock({ projectId }: { projectId: number }) {
                 title={t("plugins.remove")}
                 aria-label={t("plugins.remove")}
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 size={15} />
               </button>
             </li>
           ))}

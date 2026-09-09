@@ -23,7 +23,7 @@ export function Dialog({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-card border border-border/80 rounded-xl max-w-md w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-card border border-border/80 rounded-xl max-w-md w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-(--dur-2)">
         <h3 className={`text-lg font-bold ${titleClass ?? "text-foreground"}`}>{title}</h3>
         {children}
       </div>

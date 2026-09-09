@@ -7,7 +7,7 @@ import { toast } from "@/lib/toast";
 
 function ScopeChip({ label }: { label: string }) {
   return (
-    <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+    <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-fs-1 text-muted-foreground">
       {label}
     </span>
   );
@@ -40,12 +40,12 @@ export function ClaudePluginBlock({ plugin }: { plugin: ClaudePluginStatus | nul
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
           {t("op.plugin.title")}
         </Label>
         <ScopeChip label={t("op.scope.machine")} />
         <span
-          className={`rounded-full border px-2 py-0.5 text-[10px] ${
+          className={`rounded-full border px-2 py-0.5 text-fs-1 ${
             plugin?.installed
               ? "border-(--ok)/40 bg-(--ok-soft) text-(--ok-text)"
               : "border-border bg-muted/30 text-muted-foreground"
@@ -59,13 +59,13 @@ export function ClaudePluginBlock({ plugin }: { plugin: ClaudePluginStatus | nul
           </Button>
         </div>
       </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
-        {t("op.plugin.desc1")} <code className="text-[10px]">/plugin marketplace add bunhine0452/Ocul-PM</code>{" "}
-        {t("op.plugin.desc2")} <code className="text-[10px]">/plugin install oculpm@oculpm</code>{" "}
+      <p className="text-fs-3 leading-relaxed text-muted-foreground">
+        {t("op.plugin.desc1")} <code className="text-fs-1">/plugin marketplace add bunhine0452/Ocul-PM</code>{" "}
+        {t("op.plugin.desc2")} <code className="text-fs-1">/plugin install oculpm@oculpm</code>{" "}
         {t("op.plugin.desc3")}
       </p>
       {plugin?.installed ? (
-        <p className="text-[11px] text-(--warn-text)">{t("op.plugin.warn")}</p>
+        <p className="text-fs-3 text-(--warn-text)">{t("op.plugin.warn")}</p>
       ) : null}
     </div>
   );

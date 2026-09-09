@@ -86,7 +86,7 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
                 <div
                   style={{
                     fontSize: "var(--fs-7)",
-                    color: "var(--text-1)",
+                    color: "var(--text)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",

@@ -51,7 +51,7 @@ export function DeepLinkSheet({
         </div>
 
         <div className="rounded-lg border border-border bg-background px-3 py-2">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <div className="text-fs-1 uppercase tracking-wider text-muted-foreground">
             {t("deeplink.origin")}
           </div>
           <div className="text-xs font-mono text-foreground break-all">{plan.origin}</div>

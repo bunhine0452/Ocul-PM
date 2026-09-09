@@ -120,10 +120,10 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
         </div>
         {topTables.length > 0 ? (
           <div className="space-y-1">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            <div className="text-fs-1 uppercase tracking-wider text-muted-foreground">
               {t("settings.db.topTables")}
             </div>
-            <ul className="text-[11px] font-mono space-y-0.5">
+            <ul className="text-fs-3 font-mono space-y-0.5">
               {topTables.map((row) => (
                 <li key={row.name} className="flex justify-between gap-3">
                   <span className="truncate">{row.name}</span>
@@ -133,19 +133,19 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
             </ul>
           </div>
         ) : null}
-        <div className="text-[11px] font-mono break-all text-muted-foreground">
+        <div className="text-fs-3 font-mono break-all text-muted-foreground">
           {health?.path ?? t("settings.db.noPath")}
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button onClick={check} disabled={loading} variant="outline" size="sm">
-            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`mr-1.5 ${loading ? "animate-spin" : ""}`} size={15} />
             {t("settings.db.refresh")}
           </Button>
           <Button onClick={compact} disabled={compacting || !health} variant="outline" size="sm">
             {compacting ? t("settings.db.compacting") : t("settings.db.compact")}
           </Button>
         </div>
-        <div className="text-[11px] text-muted-foreground">{t("settings.db.compactHint")}</div>
+        <div className="text-fs-3 text-muted-foreground">{t("settings.db.compactHint")}</div>
       </Section>
 
       {/* 「결과가 이상하다」 가 가리키는 그 자리 — 문제 해결 문구 바로 위에 둔다. */}
@@ -166,15 +166,15 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
       >
         <div className="flex gap-2 flex-wrap">
           <Button onClick={() => openIssue("bug")} variant="outline" size="sm">
-            <Bug className="w-3.5 h-3.5 mr-1.5" />
+            <Bug  className="mr-1.5" size={15} />
             {t("settings.feedback.bug")}
           </Button>
           <Button onClick={() => openIssue("feature")} variant="outline" size="sm">
-            <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+            <MessageSquare  className="mr-1.5" size={15} />
             {t("settings.feedback.feature")}
           </Button>
         </div>
-        <div className="text-[11px] text-muted-foreground">
+        <div className="text-fs-3 text-muted-foreground">
           {t("settings.feedback.note")}
         </div>
       </Section>

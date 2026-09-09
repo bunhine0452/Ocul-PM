@@ -51,7 +51,7 @@
   border-radius: var(--radius-m) var(--radius-m) 0 0;
   box-shadow: inset 0 0 0 2px var(--accent-ring, var(--accent));
   pointer-events: none;
-  animation: tabstrip-receive var(--dur-1, 140ms) var(--ease-out, var(--ease-out));
+  animation: tabstrip-receive var(--dur-1) var(--ease-out);
 }
 @keyframes tabstrip-receive {
   from { opacity: 0; }
@@ -85,19 +85,19 @@
   z-index: 3;
   /* 자리는 즉시, 등장만 부드럽게 — transform 은 쓰지 않는다(자리 이동이 아니라
      제자리에서 부푼다). */
-  animation: tabstrip-slot-in 150ms var(--ease-spring, var(--ease-out));
+  animation: tabstrip-slot-in 150ms var(--ease-spring);
 }
 @keyframes tabstrip-slot-in { from { opacity: 0; scale: 0.94; } to { opacity: 1; scale: 1; } }
 
 /* 자리를 내주려 비켜선 탭들. 이동은 짧게 — 자리 표시는 즉시여야 하지만 이건
    "밀려난다" 라 움직임이 보여야 뜻이 선다. */
 .tabstrip-tab.shifted {
-  transition: transform var(--dur-2, 180ms) var(--ease-out, var(--ease-out));
+  transition: transform var(--dur-2) var(--ease-out);
 }
 
 /* 새로 앉은 탭 — 붙이기·새 탭·프로젝트 열기가 모두 여기로 온다. 예고 없이
    나타나면 놓은 자리와 앉은 자리가 같은지조차 눈으로 확인할 수 없다. */
-.tabstrip-tab.arriving { animation: tabstrip-arrive 260ms var(--ease-spring, var(--ease-out)); }
+.tabstrip-tab.arriving { animation: tabstrip-arrive 260ms var(--ease-spring); }
 @keyframes tabstrip-arrive {
   from { opacity: 0; transform: translateY(6px) scale(0.94); }
   to { opacity: 1; transform: none; }

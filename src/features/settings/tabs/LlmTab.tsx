@@ -107,7 +107,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         </select>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <KeyRound className="w-3.5 h-3.5" />
+          <KeyRound size={15} />
           <span>
             {hasKey[provider] === null
               ? t("settings.keys.checking")
@@ -142,7 +142,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
           </Button>
         </div>
 
-        <div className="flex items-center justify-between gap-3 pt-1 text-[11px] text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 pt-1 text-fs-3 text-muted-foreground">
           <span>
             {t("settings.keys.cacheNote")}
           </span>
@@ -181,7 +181,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
               >
                 {p}
                 {offline && (
-                  <span className="block text-[10px] font-normal normal-case opacity-80">
+                  <span className="block text-fs-1 font-normal normal-case opacity-80">
                     {t("llm.offline.badge")}
                   </span>
                 )}
@@ -261,7 +261,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             onChange={(e) => save("coreModel", e.currentTarget.value)}
           />
         </Field>
-        <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 text-fs-3 text-muted-foreground">
           <span>
             {coreModelTarget(settings)
               ? t("settings.coreModel.ready")

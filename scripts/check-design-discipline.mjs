@@ -26,10 +26,44 @@
  *  6. 무게 리터럴(font-weight: 650) — --fw-body|label|strong|bold.
  *     @font-face 의 `font-weight: 45 930` 은 지원 **범위** 선언이라 값 하나짜리만 본다.
  *  7. 자간 리터럴(letter-spacing: 0.04em) — --track-snug|tight|wide|caps|caps-lg.
- *  8. 아이콘 크기(size={14}) — 11 · 13 · 15 · 18 · 22 · 30 여섯 단.
+ *  8. 아이콘 크기(size={14}) — 11 · 13 · 15 · 18 · 22 · 30 여섯 단. 클래스로
+ *     주는 우회(`<Icon className="w-4 h-4">`)도 같이 본다 — 2026-09-09 에
+ *     그 길로 64곳이 램프 밖(12·14·16·20px)에 나가 있었다.
  *  9. 검정 그림자(box-shadow: … rgba(0,0,0,…)) — 그림자는 잉크 계열이고
  *     --shadow-card|raise|pop|sheet|knob 가 그 값을 안다. 순수 검정은 테마·프리셋을
  *     무시한다 (스크롤바 손잡이가 같은 이유로 고정 회색이었다).
+ *
+ * 2026-09-09 일관성 라운드에서 열 번째가 붙었다. 위 아홉이 "손이 고른 값" 을
+ * 막는다면, 이것은 **아무 값도 안 나오는 자리** 를 막는다.
+ *
+ * 10. 정의되지 않은 `var(--x)` — 이름이 없으면 그 선언 전체가 *invalid at
+ *     computed-value time* 으로 무효화된다. 값이 틀리는 게 아니라 규칙이 통째로
+ *     사라지므로, 눈으로는 "왜 테두리가 없지" 로만 보이고 원인이 안 보인다.
+ *     실측(2026-09-09): `--line`·`--shadow-soft`(Monaco 호버 팝업의 테두리와
+ *     그림자) · `--text-1` 7곳(크래시 화면 제목 포함) · `--font-mono`(트레이만
+ *     다른 서체) · `--r-1`/`--r-2`/`--bg`(nav-ia.css 는 통째로 다른 시스템의
+ *     어휘였다) — 17곳이 조용히 죽어 있었다.
+ *     이 규칙은 한 줄이 아니라 파일 전체를 모아 봐야 하므로 RULES 가 아니라
+ *     별도 패스다 (collectVars / reportUndefinedVars).
+ *     **fallback 이 있어도 위반이다** — `var(--surface-2, rgba(0,0,0,.02))` 는
+ *     조용히 다른 값으로 돌아가서 더 안 잡힌다.
+ *
+ * 2026-09-09 일관성 라운드가 더한 둘 (규칙 10 은 아래 별도 패스):
+ *
+ * 11. 타입 리터럴(text-[11px]) — 램프에 **이름이 없어서** 손이 대괄호로 간
+ *     자리다. 실측 282곳(11px 186 · 10px 65 · 13px 15 …). App.css 의
+ *     `@theme inline` 이 이제 램프 전체를 `text-fs-0..12` 로 노출한다 —
+ *     CSS 가 `var(--fs-5)` 라 부르는 단을 TSX 는 `text-fs-5` 라 부른다.
+ * 12. z 리터럴(z-[1000]) — `--z-sticky|strip|panel|dock|menu|popover|modal|
+ *     command|top` 램프가 층을 안다. 숫자를 복사하면 두 물건이 같은 층에 앉는다.
+ * 13. 전이 리터럴(transition: … 0.12s ease) — `--dur-1|2|3`(90·190·320ms) 과
+ *     `--ease-out|in-out|spring` 이 값을 안다. 실측 40종이었고, 그래서 툴바를
+ *     왼쪽에서 오른쪽으로 훑으면 버튼마다 반응 속도가 달랐다. 접는 기준은 값이
+ *     아니라 **역할** 이다 — 색 계열(background·color·border-color·box-shadow·
+ *     opacity)은 hover 응답이니 전부 --dur-1, 기하(transform·width·left)만
+ *     값에 맞는 단으로. 이것도 여러 줄 선언을 봐야 해서 별도 패스다.
+ *     **`animation:` 은 일부러 안 본다** — keyframe 주기(맥동 29개, 0.7~2.4s)는
+ *     상호작용 램프가 아니라 별도 축이고, 그 램프는 아직 없다 (플랜의 {#ramp-pulse}).
  *
  * 예외 주석:  // design-ignore -- 사유   (같은 줄, TS/TSX)
  *            /* design-ignore -- 사유 *​/ (같은 줄, CSS)
@@ -46,6 +80,13 @@ const SKIP_DIRS = new Set(["legacy", "__tests__"]);
 const ALLOW = {
   glass: new Set(["mobile/mobile.css"]),
 };
+
+/**
+ * 규칙 10 의 예외 — 이 저장소 밖에서 정의되는 커스텀 프로퍼티의 접두사.
+ * (Tailwind 런타임의 `--tw-*`, 브라우저/에디터가 심는 것들.)
+ * 늘리기 전에 "정말 우리가 정의할 수 없는 값인가" 를 먼저 물을 것.
+ */
+const EXTERNAL_VAR_PREFIXES = ["--tw-", "--vscode-", "--monaco-", "--xterm-"];
 
 const PALETTE =
   "(?:emerald|green|red|blue|indigo|violet|purple|pink|amber|yellow|orange|slate|gray|zinc|neutral|stone|sky|cyan|teal|lime|rose|fuchsia)";
@@ -101,6 +142,26 @@ const RULES = [
     hint: "아이콘은 11 · 13 · 15 · 18 · 22 · 30 여섯 단",
   },
   {
+    id: "icon-size-class",
+    ext: /\.tsx?$/,
+    // 대문자로 시작하면 컴포넌트 = 아이콘, 소문자면 태그 = 도형(점·아바타·스위치).
+    // 도형은 램프와 무관하므로 `<span className="w-2 h-2">` 는 통과한다.
+    re: /<[A-Z][A-Za-z0-9]*[^<>]*\bw-[0-9.]+ h-[0-9.]+/,
+    hint: "아이콘 크기는 className 이 아니라 size={11|13|15|18|22|30}",
+  },
+  {
+    id: "type-literal",
+    ext: /\.tsx?$/,
+    re: /text-\[\d+px\]/,
+    hint: "text-fs-0..12 (App.css 의 @theme inline 이 --fs-* 램프를 그 이름으로 노출한다)",
+  },
+  {
+    id: "z-literal",
+    ext: /\.tsx?$/,
+    re: /z-\[\d+\]/,
+    hint: "--z-sticky|strip|panel|dock|menu|popover|modal|command|top (Tailwind 로는 z-top 등)",
+  },
+  {
     id: "ink-shadow",
     ext: /\.css$/,
     re: /box-shadow:[^;]*rgba?\(\s*0\s*[,)]/,
@@ -148,6 +209,32 @@ async function* walk(dir) {
   }
 }
 
+/**
+ * 규칙 10 — 파일 전체를 모아야 판정할 수 있는 것.
+ *
+ * `defined` 는 이름이 **생기는** 자리 셋: CSS 의 선언(`--x: …`, 한 줄 규칙 안이든
+ * 어디든), TSX 인라인 스타일 객체의 키(`{ "--x": v }`), `setProperty("--x", …)`.
+ * `used` 는 `var(--x` 전부다.
+ */
+const definedVars = new Set();
+const usedVars = []; // { name, rel, line }
+
+function collectVars(rel, src, isCss) {
+  if (isCss) {
+    for (const m of src.matchAll(/(--[a-zA-Z0-9_-]+)\s*:/g)) definedVars.add(m[1]);
+  } else {
+    for (const m of src.matchAll(/["'](--[a-zA-Z0-9_-]+)["']\s*:/g)) definedVars.add(m[1]);
+    for (const m of src.matchAll(/setProperty\(\s*["'](--[a-zA-Z0-9_-]+)["']/g)) definedVars.add(m[1]);
+  }
+  src.split("\n").forEach((line, i) => {
+    for (const m of line.matchAll(/var\(\s*(--[a-zA-Z0-9_-]*)/g)) {
+      // 템플릿으로 이름을 조립하는 자리 — `var(--t-${type}-soft)` 는 정적으로 못 푼다.
+      if (line.slice(m.index + m[0].length).startsWith("$")) continue;
+      usedVars.push({ name: m[1], rel, line: i + 1 });
+    }
+  });
+}
+
 const violations = [];
 for await (const file of walk(SRC)) {
   const rel = relative(SRC, file);
@@ -155,11 +242,13 @@ for await (const file of walk(SRC)) {
   const raw = await readFile(file, "utf8");
   const isCss = file.endsWith(".css");
   const src = stripComments(raw, isCss);
+  collectVars(rel, src, isCss);
   const lines = src.split("\n");
   // 예외 표시는 **원본** 줄에서 찾는다. CSS 의 design-ignore 는 블록 주석 안에
   // 적는데, stripComments 가 그 주석을 이미 공백으로 지운 뒤라 지운 줄에서 찾으면
   // 영영 안 걸린다 — 머리 주석이 문서화한 탈출구가 CSS 에서만 죽어 있었다 (2026-09-08).
   const rawLines = raw.split("\n");
+  if (isCss) checkTransitions(rel, src, rawLines);
   for (const rule of RULES) {
     if (!rule.ext.test(file)) continue;
     if (ALLOW[rule.id]?.has(rel)) continue;
@@ -169,6 +258,42 @@ for await (const file of walk(SRC)) {
       violations.push(`${rel}:${i + 1}  [${rule.id}] ${line.trim().slice(0, 110)}\n      → ${rule.hint}`);
     });
   }
+}
+
+/**
+ * 규칙 13 — 전이 선언은 여러 줄에 걸치므로(`transition:\n  a …,\n  b …;`) 줄 단위
+ * RULES 로는 값을 못 본다. 선언 하나를 통째로 떠서 검사한다.
+ * design-ignore 는 선언이 걸친 줄 **과 그 앞 3줄** 에서 찾는다 — 블록 주석으로
+ * 사유를 적으면 자연히 선언 위에 놓이기 때문이다.
+ */
+function checkTransitions(rel, src, rawLines) {
+  for (const m of src.matchAll(/transition(?:-duration|-timing-function)?\s*:\s*([^;{}]+)/g)) {
+    const val = m[1];
+    const startLine = src.slice(0, m.index).split("\n").length;
+    const endLine = startLine + val.split("\n").length - 1;
+    const bare = val.replace(/var\(--ease-[\w-]+\)/g, "");
+    const hasTime = /(?<![\w.-])\d*\.?\d+m?s\b/.test(val);
+    const hasEase = /(?<!-)\b(?:ease|ease-in|ease-out|ease-in-out|linear|cubic-bezier)\b/.test(bare);
+    if (!hasTime && !hasEase) continue;
+    let ignored = false;
+    for (let i = Math.max(0, startLine - 4); i <= endLine; i++) {
+      if (/design-ignore\s*--/.test(rawLines[i - 1] ?? "")) ignored = true;
+    }
+    if (ignored) continue;
+    violations.push(
+      `${rel}:${startLine}  [motion-literal] transition: ${val.split("\n").join(" ").replace(/\s+/g, " ").trim().slice(0, 80)}\n` +
+        "      → --dur-1|2|3 · --ease-out|in-out|spring (색 계열은 전부 --dur-1, 기하만 값에 맞는 단)",
+    );
+  }
+}
+
+for (const { name, rel, line } of usedVars) {
+  if (definedVars.has(name)) continue;
+  if (EXTERNAL_VAR_PREFIXES.some((p) => name.startsWith(p))) continue;
+  violations.push(
+    `${rel}:${line}  [undefined-var] var(${name}) — 이 이름을 정의하는 곳이 없다\n` +
+      "      → 선언 전체가 무효화된다 (테두리·그림자·색이 통째로 사라진다). fallback 이 있어도 마찬가지로 위반이다",
+  );
 }
 
 if (violations.length > 0) {

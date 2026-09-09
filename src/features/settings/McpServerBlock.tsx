@@ -11,7 +11,7 @@ import { toast } from "@/lib/toast";
 
 function ScopeChip({ label }: { label: string }) {
   return (
-    <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+    <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-fs-1 text-muted-foreground">
       {label}
     </span>
   );
@@ -169,11 +169,11 @@ export function McpServerBlock({
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
           {t("op.mcp.title")}
         </Label>
         <ScopeChip label={t("op.scope.project")} />
-        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.cls}`}>
+        <span className={`rounded-full border px-2 py-0.5 text-fs-1 ${badge.cls}`}>
           {badge.label}
         </span>
         <div className="ml-auto flex items-center gap-2">
@@ -194,18 +194,18 @@ export function McpServerBlock({
           )}
         </div>
       </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
-        {t("op.mcp.desc1")} <code className="text-[10px]">.mcp.json</code>{t("op.mcp.desc2")}
+      <p className="text-fs-3 leading-relaxed text-muted-foreground">
+        {t("op.mcp.desc1")} <code className="text-fs-1">.mcp.json</code>{t("op.mcp.desc2")}
       </p>
       {mcp && !mcp.binary_found && (
-        <p className="text-[11px] text-(--warn-text)">
+        <p className="text-fs-3 text-(--warn-text)">
           {t("op.mcp.noBinary1")}{" "}
-              <code className="text-[10px]">cargo build --bin oculpm-mcp</code> {t("op.mcp.noBinary2")}
+              <code className="text-fs-1">cargo build --bin oculpm-mcp</code> {t("op.mcp.noBinary2")}
         </p>
       )}
       {pluginInstalled && (
         <p
-          className={`text-[11px] leading-relaxed ${
+          className={`text-fs-3 leading-relaxed ${
             mcp?.registered ? "text-(--warn-text)" : "text-muted-foreground"
           }`}
         >
@@ -213,19 +213,19 @@ export function McpServerBlock({
         </p>
       )}
       {mcp?.registered && (
-        <p className="text-[11px] text-muted-foreground">
-          {t("op.mcp.commitWarn1")} <code className="text-[10px]">.mcp.json</code>{" "}
+        <p className="text-fs-3 text-muted-foreground">
+          {t("op.mcp.commitWarn1")} <code className="text-fs-1">.mcp.json</code>{" "}
               {t("op.mcp.commitWarn2")}
         </p>
       )}
-      {mcpError && <p className="text-[11px] text-(--danger-text)">{mcpError}</p>}
+      {mcpError && <p className="text-fs-3 text-(--danger-text)">{mcpError}</p>}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-2">
-        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
           Claude Desktop
         </Label>
         <ScopeChip label={t("op.scope.projectKey")} />
-        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${deskBadge.cls}`}>
+        <span className={`rounded-full border px-2 py-0.5 text-fs-1 ${deskBadge.cls}`}>
           {deskBadge.label}
         </span>
         <div className="ml-auto flex items-center gap-2">
@@ -253,28 +253,28 @@ export function McpServerBlock({
           )}
         </div>
       </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
-        {t("op.desk.desc1")} <code className="text-[10px]">claude_desktop_config.json</code>{" "}
-            {t("op.desk.desc2")} (<code className="text-[10px]">{desk?.server_key ?? "oculpm-…"}</code>){" "}
+      <p className="text-fs-3 leading-relaxed text-muted-foreground">
+        {t("op.desk.desc1")} <code className="text-fs-1">claude_desktop_config.json</code>{" "}
+            {t("op.desk.desc2")} (<code className="text-fs-1">{desk?.server_key ?? "oculpm-…"}</code>){" "}
             {t("op.desk.desc3")}
       </p>
       {pluginInstalled && (
         // 플러그인은 Claude Code 만 구성한다 — Desktop 은 설정 파일도 등록
         // 경로도 다르다. 위 두 블록의 "플러그인이 이미 한다" 를 여기까지
         // 확대 적용하면 Desktop 을 영영 등록하지 않게 된다.
-        <p className="text-[11px] text-muted-foreground">{t("op.desk.pluginNote")}</p>
+        <p className="text-fs-3 text-muted-foreground">{t("op.desk.pluginNote")}</p>
       )}
       {!deskChecked && (
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
+        <p className="text-fs-3 leading-relaxed text-muted-foreground">
           {t("op.desk.checkNote")}
         </p>
       )}
       {desk && !desk.installed && (
-        <p className="text-[11px] text-(--warn-text)">
+        <p className="text-fs-3 text-(--warn-text)">
           {t("op.desk.notFound")}
         </p>
       )}
-      {deskError && <p className="text-[11px] text-(--danger-text)">{deskError}</p>}
+      {deskError && <p className="text-fs-3 text-(--danger-text)">{deskError}</p>}
     </div>
   );
 }

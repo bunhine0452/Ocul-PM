@@ -70,16 +70,16 @@ export function PluginDocsTab({
             <div className="mb-2 flex items-center gap-2">
               <h3 className="text-sm font-semibold">{t("plugin.name")}</h3>
               {status?.installed ? (
-                <span className="rounded bg-(--ok-soft) px-1.5 py-0.5 text-[11px] font-medium text-(--ok-text)">
+                <span className="rounded bg-(--ok-soft) px-1.5 py-0.5 text-fs-3 font-medium text-(--ok-text)">
                   {t("plugin.installed")}
                 </span>
               ) : status ? (
-                <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                <span className="rounded bg-muted px-1.5 py-0.5 text-fs-3 font-medium text-muted-foreground">
                   {t("plugin.notInstalled")}
                 </span>
               ) : null}
             </div>
-            <p className="text-[13px] leading-relaxed text-muted-foreground">
+            <p className="text-fs-7 leading-relaxed text-muted-foreground">
               {t("plugin.blurb")}
               {status?.installed
                 ? t("plugin.blurbInstalled")
@@ -92,7 +92,7 @@ export function PluginDocsTab({
                     key={c}
                     className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-1.5"
                   >
-                    <code className="flex-1 truncate font-mono text-[12px]">{c}</code>
+                    <code className="flex-1 truncate font-mono text-fs-5">{c}</code>
                     <CopyChip text={c} />
                   </div>
                 ))}
@@ -103,7 +103,7 @@ export function PluginDocsTab({
           {/* 권장 흐름 */}
           <section className="rounded-lg border border-border/60 bg-card p-5">
             <h3 className="mb-2 text-sm font-semibold">{t("plugin.flowTitle")}</h3>
-            <div className="flex flex-wrap items-center gap-1.5 font-mono text-[12px]">
+            <div className="flex flex-wrap items-center gap-1.5 font-mono text-fs-5">
               {PLUGIN_FLOW.map((step, i) => (
                 <span key={step} className="flex items-center gap-1.5">
                   {i > 0 && <span className="text-muted-foreground">→</span>}
@@ -112,9 +112,9 @@ export function PluginDocsTab({
                   </span>
                 </span>
               ))}
-              <span className="text-[11px] text-muted-foreground">{t("plugin.flowRepeat")}</span>
+              <span className="text-fs-3 text-muted-foreground">{t("plugin.flowRepeat")}</span>
             </div>
-            <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+            <p className="mt-2 text-fs-5 leading-relaxed text-muted-foreground">
               {t("plugin.flowNote")}
             </p>
           </section>
@@ -126,7 +126,7 @@ export function PluginDocsTab({
               {PLUGIN_COMMANDS.map((c) => (
                 <div key={c.slug} className="rounded-md border border-border/60 bg-background/60 p-3">
                   <div className="flex items-center gap-2">
-                    <code className="font-mono text-[13px] font-semibold text-primary">{c.cmd}</code>
+                    <code className="font-mono text-fs-7 font-semibold text-primary">{c.cmd}</code>
                     <span className="flex-1" />
                     <CopyChip text={c.example} />
                   </div>
@@ -146,7 +146,7 @@ export function PluginDocsTab({
           {/* MCP 도구 + 훅 */}
           <section className="rounded-lg border border-border/60 bg-card p-5">
             <h3 className="mb-2 text-sm font-semibold">{t("plugin.toolsTitle")}</h3>
-            <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
+            <p className="mb-3 text-fs-5 leading-relaxed text-muted-foreground">
               {t("plugin.toolsNotePrefix")}
               <code className="font-mono">.oculpm</code>
               {t("plugin.toolsNoteSuffix")}
@@ -154,7 +154,7 @@ export function PluginDocsTab({
             <div className="flex flex-col gap-1">
               {PLUGIN_TOOLS.map((tool) => (
                 <div key={tool.name} className="flex items-baseline gap-2 text-[12.5px]">
-                  <code className="w-32 shrink-0 font-mono text-[12px] text-primary">
+                  <code className="w-32 shrink-0 font-mono text-fs-5 text-primary">
                     {tool.name}
                   </code>
                   <span className="text-muted-foreground">{tool.desc}</span>

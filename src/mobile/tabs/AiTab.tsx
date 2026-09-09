@@ -181,7 +181,7 @@ export function AiTab({ projectId }: { projectId: number }) {
           bubbles.map((b, i) => (
             <div
               key={i}
-              className={`max-w-[85%] px-3.5 py-2 text-[14px] whitespace-pre-wrap leading-relaxed ${
+              className={`max-w-[85%] px-3.5 py-2 text-fs-8 whitespace-pre-wrap leading-relaxed ${
                 b.role === "user" ? "mob-bubble-user ml-auto" : "mob-bubble-ai mr-auto"
               }`}
             >

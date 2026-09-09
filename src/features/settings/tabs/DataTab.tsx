@@ -134,18 +134,18 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
             {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
             {t("settings.notion.connect")}
           </Button>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-fs-3 text-muted-foreground">
             {t("settings.notion.connectHint")}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <Label className="text-xs text-muted-foreground">{t("settings.notion.status")}</Label>
           {status?.has_token ? (
-            <span className="rounded-full border border-(--ok)/40 bg-(--ok-soft) px-2 py-0.5 text-[10px] text-(--ok-text)">
+            <span className="rounded-full border border-(--ok)/40 bg-(--ok-soft) px-2 py-0.5 text-fs-1 text-(--ok-text)">
               {t("settings.notion.connected")}{botName ? ` · ${botName}` : ""}
             </span>
           ) : (
-            <span className="rounded-full border border-border bg-muted/30 px-2 py-0.5 text-[10px] text-muted-foreground">
+            <span className="rounded-full border border-border bg-muted/30 px-2 py-0.5 text-fs-1 text-muted-foreground">
               {t("settings.notion.disconnected")}
             </span>
           )}
@@ -255,7 +255,7 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
                 className="flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-background border border-border"
               >
                 <div className="overflow-hidden">
-                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <div className="text-fs-1 uppercase tracking-wider text-muted-foreground">
                     {t(k)}
                   </div>
                   <div className="truncate text-foreground" title={v}>
@@ -267,7 +267,7 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
                   className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 cursor-pointer"
                   title={copied === k ? t("settings.storage.copied") : t("common.copy")}
                 >
-                  <Copy className="w-3.5 h-3.5" />
+                  <Copy size={15} />
                 </button>
               </div>
             ))}
@@ -296,7 +296,7 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
         description={t("settings.reset.desc")}
       >
         <Button variant="outline" onClick={resetSettings} className="w-full">
-          <RefreshCw className="w-3.5 h-3.5 mr-2" />
+          <RefreshCw  className="mr-2" size={15} />
           {t("settings.reset.action")}
         </Button>
       </Section>
@@ -311,7 +311,7 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
             onClick={() => setConfirmingClear(true)}
             className="w-full border-destructive/40 text-destructive hover:bg-destructive/10"
           >
-            <Trash2 className="w-3.5 h-3.5 mr-2" />
+            <Trash2  className="mr-2" size={15} />
             {t("settings.danger.wipe")}
           </Button>
         ) : (

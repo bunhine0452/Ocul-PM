@@ -46,10 +46,10 @@ export function EgressBadge({ notice }: { notice: EgressNotice | null }) {
       data-egress={remote ? "remote" : "local"}
     >
       <p className="flex items-start gap-1.5 text-xs font-medium text-foreground">
-        <Icon className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" aria-hidden="true" />
+        <Icon  className="flex-shrink-0 mt-0.5" size={15} aria-hidden="true" />
         {notice.text}
       </p>
-      {notice.hint && <p className="text-[11px] text-muted-foreground">{notice.hint}</p>}
+      {notice.hint && <p className="text-fs-3 text-muted-foreground">{notice.hint}</p>}
     </div>
   );
 }

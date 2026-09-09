@@ -29,12 +29,12 @@ export function SettingsOverlay({ onClose }: { onClose: () => void }) {
   return (
     <div
       data-home-overlay
-      className="scrim z-popover flex items-center justify-center p-6 animate-in fade-in duration-150"
+      className="scrim z-popover flex items-center justify-center p-6 animate-in fade-in duration-(--dur-2)"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
+      <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-(--dur-2)">
         <header className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
           <h2 className="text-base font-bold">Settings</h2>
           <button

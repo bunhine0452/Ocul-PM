@@ -689,7 +689,7 @@
 }
 /* 이름 버튼은 카드 전체를 덮는 히트박스의 앵커일 뿐이라, hover 색은 카드가
    책임진다 (버튼 위에 있을 때만 색이 변하면 "이름만 눌러야 하나?" 로 읽힌다). */
-.hg-card:hover .hg-name { color: var(--pc-text, var(--accent-text)); }
+.hg-card:hover .hg-name { color: var(--pc, var(--accent-text)); }
 .hg-path {
   font-size: var(--fs-1);
   font-family: var(--mono);

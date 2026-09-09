@@ -114,7 +114,7 @@ export function HonestyAudit({ projectId, workday, enabled, onNavigate }: Honest
         marginTop: 16,
         padding: "14px 16px",
         borderRadius: 12,
-        background: "var(--surface-2, rgba(0,0,0,0.02))",
+        background: "var(--bg-inset)",
         border: clean
           ? "1px solid var(--border-card)"
           : "1px solid color-mix(in srgb, var(--warn) 25%, transparent)",

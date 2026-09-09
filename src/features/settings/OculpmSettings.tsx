@@ -278,7 +278,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
         </div>
       )}
       {savedAt && !saveError && (
-        <div className="text-[11px] text-(--ok-text)">
+        <div className="text-fs-3 text-(--ok-text)">
           {t("op.saved", { time: new Date(savedAt).toLocaleTimeString() })}
         </div>
       )}
@@ -312,7 +312,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             placeholder="00:00"
           />
           {!/^([01]\d|2[0-3]):[0-5]\d$/.test(config.workday.day_starts_at) && (
-            <p className="text-[10px] text-(--warn-text) mt-1">
+            <p className="text-fs-1 text-(--warn-text) mt-1">
               {t("op.hhmm")}
             </p>
           )}
@@ -367,7 +367,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             }
             className="w-full"
           />
-          <p className="text-[10px] text-muted-foreground mt-1">
+          <p className="text-fs-1 text-muted-foreground mt-1">
             {t("op.session.resumeHint")}
           </p>
         </Field>
@@ -446,7 +446,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
         description={t("op.agents.desc")}
       >
         <div className="space-y-1.5">
-          <Label className="text-[11px] uppercase text-muted-foreground tracking-wider">
+          <Label className="text-fs-3 uppercase text-muted-foreground tracking-wider">
             Active adapters
           </Label>
           <div className="flex flex-wrap gap-2">
@@ -477,7 +477,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
                   {active && <Check className="h-3 w-3" />}
                   {"labelKey" in agent ? t(agent.labelKey) : agent.label}
                   {detection && (
-                    <span className="text-[9px] uppercase tracking-wider opacity-70">
+                    <span className="text-fs-0 uppercase tracking-wider opacity-70">
                       {detection.confidence}
                     </span>
                   )}
@@ -492,12 +492,12 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
               title={t("op.agents.nativeNote")}
             >
               Codex
-              <span className="text-[9px] uppercase tracking-wider opacity-70">
+              <span className="text-fs-0 uppercase tracking-wider opacity-70">
                 {t("op.agents.native")}
               </span>
             </span>
           </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-fs-3 leading-relaxed text-muted-foreground">
             {t("op.agents.nativeNote")}
           </p>
         </div>
@@ -515,12 +515,12 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             {t("op.agents.syncNow")}
           </Button>
           {syncStatus?.kind === "ok" && (
-            <span className="text-[11px] text-(--ok-text)">
+            <span className="text-fs-3 text-(--ok-text)">
               {t("op.agents.syncDone", { n: syncStatus.updated })}
             </span>
           )}
           {syncStatus?.kind === "error" && (
-            <span className="text-[11px] text-(--danger-text)">{syncStatus.message}</span>
+            <span className="text-fs-3 text-(--danger-text)">{syncStatus.message}</span>
           )}
         </div>
         {/* 「프로젝트 열 때 자동 감지」·「config 저장 시 자동 동기화」 토글은 뺐다 —
@@ -540,7 +540,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             update((d) => ({ ...d, agents: { ...d.agents, auto_reconcile: v } }))
           }
         />
-        <p className="ml-6 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="ml-6 text-fs-3 leading-relaxed text-muted-foreground">
           {t("op.auto.reconcileDesc")}
         </p>
         <Toggle
@@ -550,7 +550,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             update((d) => ({ ...d, agents: { ...d.agents, auto_journal_draft: v } }))
           }
         />
-        <p className="ml-6 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="ml-6 text-fs-3 leading-relaxed text-muted-foreground">
           {t("op.auto.draftDesc")}
         </p>
       </Section>
@@ -665,11 +665,11 @@ export function ClaudeHooksBlock({
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
           {t("op.hooks.title")}
         </Label>
         <ScopeChip label={t("op.scope.project")} />
-        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.cls}`}>
+        <span className={`rounded-full border px-2 py-0.5 text-fs-1 ${badge.cls}`}>
           {badge.label}
         </span>
         <div className="ml-auto flex items-center gap-2">
@@ -693,15 +693,15 @@ export function ClaudeHooksBlock({
           )}
         </div>
       </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
-        {t("op.hooks.desc1")} <code className="text-[10px]">.claude/settings.local.json</code>{" "}
+      <p className="text-fs-3 leading-relaxed text-muted-foreground">
+        {t("op.hooks.desc1")} <code className="text-fs-1">.claude/settings.local.json</code>{" "}
         {t("op.hooks.desc2")}
       </p>
       {pluginInstalled && (
         // 켜져 있으면 실제 이중 적재(경고), 꺼져 있으면 "켤 필요 없다"(정보).
         // 같은 사실이지만 사용자가 지금 해야 할 일이 다르므로 색을 나눈다.
         <p
-          className={`text-[11px] leading-relaxed ${
+          className={`text-fs-3 leading-relaxed ${
             hooks?.installed || hooks?.partial ? "text-(--warn-text)" : "text-muted-foreground"
           }`}
         >
@@ -711,11 +711,11 @@ export function ClaudeHooksBlock({
         </p>
       )}
       {hooks?.foreign_hooks && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-fs-3 text-muted-foreground">
           {t("op.hooks.custom")}
         </p>
       )}
-      {hooksError && <p className="text-[11px] text-(--danger-text)">{hooksError}</p>}
+      {hooksError && <p className="text-fs-3 text-(--danger-text)">{hooksError}</p>}
     </div>
   );
 }
@@ -786,11 +786,11 @@ export function ShellIntegrationBlock() {
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
           {t("op.shell.title")}
         </Label>
         <ScopeChip label={t("op.scope.machine")} />
-        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.cls}`}>
+        <span className={`rounded-full border px-2 py-0.5 text-fs-1 ${badge.cls}`}>
           {badge.label}
         </span>
         <div className="ml-auto flex items-center gap-2">
@@ -809,27 +809,27 @@ export function ShellIntegrationBlock() {
           ) : null}
         </div>
       </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-fs-3 leading-relaxed text-muted-foreground">
         {t("op.shell.desc1")}
         {status?.rc_path ? (
           <>
             {" "}
-            <code className="text-[10px]">{status.rc_path}</code> {t("op.shell.desc2")}
+            <code className="text-fs-1">{status.rc_path}</code> {t("op.shell.desc2")}
           </>
         ) : null}
       </p>
       {unsupported && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-fs-3 text-muted-foreground">
           {t("op.shell.unsupported")}
         </p>
       )}
       {status?.block_broken && (
-        <p className="text-[11px] text-(--warn-text)">
-          <code className="text-[10px]">oculpm:begin</code> /{" "}
-          <code className="text-[10px]">oculpm:end</code> {t("op.shell.rcBrokenDesc")}
+        <p className="text-fs-3 text-(--warn-text)">
+          <code className="text-fs-1">oculpm:begin</code> /{" "}
+          <code className="text-fs-1">oculpm:end</code> {t("op.shell.rcBrokenDesc")}
         </p>
       )}
-      {error && <p className="text-[11px] text-(--danger-text)">{error}</p>}
+      {error && <p className="text-fs-3 text-(--danger-text)">{error}</p>}
     </div>
   );
 }
@@ -900,7 +900,7 @@ function LogsSection() {
           )}
           {t("op.logs.open")}
         </Button>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
+        <p className="text-fs-3 text-muted-foreground leading-relaxed">
           {t("op.logs.filenameLabel")}{" "}
           <code className="font-mono">oculpm.log.YYYY-MM-DD</code> — backend(rust)
           {t("op.logs.desc2")} <code>[FLOW]</code>{" "}
@@ -986,11 +986,11 @@ export function AcpRuntimeBlock() {
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
           {t("op.acp.title")}
         </Label>
         <ScopeChip label={t("op.scope.machine")} />
-        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.cls}`}>
+        <span className={`rounded-full border px-2 py-0.5 text-fs-1 ${badge.cls}`}>
           {badge.label}
         </span>
         <div className="ml-auto flex gap-1">
@@ -1014,7 +1014,7 @@ export function AcpRuntimeBlock() {
           </Button>
         </div>
       </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">{t("op.acp.desc")}</p>
+      <p className="text-fs-3 leading-relaxed text-muted-foreground">{t("op.acp.desc")}</p>
 
       {diag && (
         <div className="space-y-1 pt-1">
@@ -1072,7 +1072,7 @@ export function AcpRuntimeBlock() {
         </div>
       )}
 
-      {error && <p className="text-[11px] text-(--danger-text)">{error}</p>}
+      {error && <p className="text-fs-3 text-(--danger-text)">{error}</p>}
     </div>
   );
 }
@@ -1089,11 +1089,11 @@ function AcpRow({
   hint?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-2 text-[11px]">
+    <div className="flex flex-wrap items-baseline gap-x-2 text-fs-3">
       <span className={ok ? "text-(--ok-text)" : "text-(--warn-text)"}>{ok ? "●" : "○"}</span>
       <span className="text-muted-foreground">{label}</span>
-      <code className="truncate text-[10px] text-foreground/80">{value}</code>
-      {hint && <span className="text-[10px] text-muted-foreground">— {hint}</span>}
+      <code className="truncate text-fs-1 text-foreground/80">{value}</code>
+      {hint && <span className="text-fs-1 text-muted-foreground">— {hint}</span>}
     </div>
   );
 }
@@ -1108,7 +1108,7 @@ function AcpRow({
  */
 function ScopeChip({ label }: { label: string }) {
   return (
-    <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+    <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-fs-1 text-muted-foreground">
       {label}
     </span>
   );
@@ -1145,7 +1145,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-[11px] uppercase text-muted-foreground tracking-wider">
+      <Label className="text-fs-3 uppercase text-muted-foreground tracking-wider">
         {label}
       </Label>
       {children}
@@ -1194,10 +1194,10 @@ function PatternList({
 
   return (
     <div className="space-y-2">
-      <Label className="text-[11px] uppercase text-muted-foreground tracking-wider">
+      <Label className="text-fs-3 uppercase text-muted-foreground tracking-wider">
         {label}
       </Label>
-      {hint && <p className="text-[10px] text-muted-foreground -mt-1">{hint}</p>}
+      {hint && <p className="text-fs-1 text-muted-foreground -mt-1">{hint}</p>}
       <ul className="space-y-1">
         {values.map((v, i) => (
           <li key={`${v}-${i}`} className="flex items-center gap-2">
@@ -1219,7 +1219,7 @@ function PatternList({
               <Trash2 className="h-3.5 w-3.5" />
             </button>
             {errors[i] && (
-              <span className="text-[10px] text-(--danger-text)">{errors[i]}</span>
+              <span className="text-fs-1 text-(--danger-text)">{errors[i]}</span>
             )}
           </li>
         ))}

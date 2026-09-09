@@ -32,7 +32,7 @@
   margin: 0 0 6px;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: var(--r-2, 8px);
+  border-radius: var(--radius-s);
   background: var(--bg-inset);
   display: grid;
   gap: 4px;
@@ -44,9 +44,9 @@
   font: inherit;
   font-size: var(--fs-1, 11px);
   padding: 3px 8px;
-  border-radius: var(--r-1, 6px);
+  border-radius: var(--radius-xs);
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--bg-card);
   color: var(--text-2);
   cursor: pointer;
 }

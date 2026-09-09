@@ -81,7 +81,7 @@ body {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;  /* design-ignore -- 차단기다: 램프가 아니라 '거의 0' 을 뜻하는 스위치 값 */
   }
 }
 

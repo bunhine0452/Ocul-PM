@@ -267,7 +267,7 @@ export function ActionProposalCard({
           )}
           {action.titles && action.titles.length > 0 && (
             <div className="pt-1">
-              <div className="text-[10px] uppercase text-muted-foreground font-semibold mb-1">
+              <div className="text-fs-1 uppercase text-muted-foreground font-semibold mb-1">
                 {t("ai.actionItemsToAdd")}
               </div>
               <ul className="space-y-1 pl-2">

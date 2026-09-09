@@ -75,12 +75,12 @@ export function AutomationHistory({
             <span className="text-xs text-muted-foreground">
               {formatAt(run.started_at) ?? run.started_at}
             </span>
-            <span className="text-[11px] text-muted-foreground/70 font-mono">
+            <span className="text-fs-3 text-muted-foreground/70 font-mono">
               {run.automation_id}
             </span>
             {run.journal_path && (
               <button
-                className="text-[11px] text-primary hover:underline cursor-pointer ml-auto"
+                className="text-fs-3 text-primary hover:underline cursor-pointer ml-auto"
                 onClick={() => openJournal(run.journal_path as string)}
               >
                 {t("automation.history.openJournal")}
@@ -88,7 +88,7 @@ export function AutomationHistory({
             )}
           </div>
           {run.note && (
-            <p className="text-[11px] text-muted-foreground mt-1 whitespace-pre-wrap">
+            <p className="text-fs-3 text-muted-foreground mt-1 whitespace-pre-wrap">
               {run.note}
             </p>
           )}

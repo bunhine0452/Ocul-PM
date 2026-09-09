@@ -51,11 +51,11 @@ export function EntryDetail({ projectId, relativePath, title, onClose }: {
             <div className="flex items-center gap-2.5">
               <TypeChip type={entry.frontmatter.type} />
               <AgentTag agentId={entry.frontmatter.agent.id} />
-              <span className="text-[11px] mob-text-3">
+              <span className="text-fs-3 mob-text-3">
                 {entry.frontmatter.created_at.slice(0, 16).replace("T", " ")}
               </span>
             </div>
-            <article className="mob-md text-[14px] leading-relaxed">
+            <article className="mob-md text-fs-8 leading-relaxed">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.body_markdown}</ReactMarkdown>
             </article>
           </>

@@ -102,14 +102,14 @@ export function DeclarativeConfigSection() {
     >
       <div className="flex gap-2">
         <Button variant="outline" onClick={exportDoc} disabled={busy} className="flex-1">
-          <Download className="w-3.5 h-3.5 mr-2" />
+          <Download  className="mr-2" size={15} />
           {t("settings.declarative.export")}
         </Button>
         <Button variant="outline" onClick={openDoc} disabled={busy} className="flex-1">
           {busy ? (
-            <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" />
+            <Loader2  className="mr-2 animate-spin" size={15} />
           ) : (
-            <FileCode className="w-3.5 h-3.5 mr-2" />
+            <FileCode  className="mr-2" size={15} />
           )}
           {t("settings.declarative.open")}
         </Button>

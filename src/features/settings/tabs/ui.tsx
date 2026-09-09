@@ -42,11 +42,11 @@ export function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-[11px] uppercase text-muted-foreground tracking-wider">
+      <Label className="text-fs-3 uppercase text-muted-foreground tracking-wider">
         {label}
       </Label>
       {children}
-      {hint && <p className="text-[11px] text-muted-foreground/80">{hint}</p>}
+      {hint && <p className="text-fs-3 text-muted-foreground/80">{hint}</p>}
     </div>
   );
 }
@@ -133,7 +133,7 @@ export function NumberSlider({
 export function Stat({ label, value }: { label: string; value?: string }) {
   return (
     <div className="p-3 bg-secondary/40 rounded-xl">
-      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className="text-fs-1 text-muted-foreground">{label}</div>
       <div className="text-sm font-bold mt-0.5">{value ?? "—"}</div>
     </div>
   );

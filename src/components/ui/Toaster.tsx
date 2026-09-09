@@ -19,7 +19,7 @@ export function Toaster() {
   const toasts = useSyncExternalStore(subscribeToasts, getToasts, getToasts);
   if (toasts.length === 0) return null;
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[1000] flex w-full max-w-sm flex-col-reverse gap-2">
+    <div className="pointer-events-none fixed bottom-4 right-4 z-top flex w-full max-w-sm flex-col-reverse gap-2">
       {toasts.map((t) => (
         <ToastItem key={t.id} toast={t} />
       ))}
@@ -46,7 +46,7 @@ function ToastItem({ toast }: { toast: Toast }) {
   const Icon = toast.kind === "info" ? Check : AlertTriangle;
   return (
     <div
-      className={`animate-in fade-in slide-in-from-bottom-2 pointer-events-auto flex items-start gap-2 rounded-lg border px-3 py-2 text-xs shadow-lg duration-200 ${tone}`}
+      className={`animate-in fade-in slide-in-from-bottom-2 pointer-events-auto flex items-start gap-2 rounded-lg border px-3 py-2 text-xs shadow-lg duration-(--dur-2) ${tone}`}
       role={toast.kind === "info" ? "status" : "alert"}
     >
       <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${iconTone}`} />
@@ -63,7 +63,7 @@ function ToastItem({ toast }: { toast: Toast }) {
                   a.onClick();
                   dismissToast(toast.id);
                 }}
-                className="rounded border border-current/40 px-2 py-0.5 text-[11px] hover:bg-current/10"
+                className="rounded border border-current/40 px-2 py-0.5 text-fs-3 hover:bg-current/10"
               >
                 {a.label}
               </button>

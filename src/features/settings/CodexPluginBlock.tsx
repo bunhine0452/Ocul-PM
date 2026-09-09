@@ -8,7 +8,7 @@ import { toast } from "@/lib/toast";
 
 function ScopeChip({ label }: { label: string }) {
   return (
-    <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+    <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-fs-1 text-muted-foreground">
       {label}
     </span>
   );
@@ -69,29 +69,29 @@ export function CodexPluginBlock() {
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
           {t("op.codexPlugin.title")}
         </Label>
         <ScopeChip label={t("op.scope.machine")} />
-        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.cls}`}>{badge.label}</span>
+        <span className={`rounded-full border px-2 py-0.5 text-fs-1 ${badge.cls}`}>{badge.label}</span>
         <div className="ml-auto">
           <Button size="sm" variant="outline" onClick={() => void copyInstall()}>
             {copied ? t("common.copied") : t("op.codexPlugin.copy")}
           </Button>
         </div>
       </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
-        {t("op.codexPlugin.desc1")} <code className="text-[10px]">{MARKETPLACE_CMD}</code>{" "}
-        {t("op.codexPlugin.desc2")} <code className="text-[10px]">{INSTALL_CMD}</code>{" "}
+      <p className="text-fs-3 leading-relaxed text-muted-foreground">
+        {t("op.codexPlugin.desc1")} <code className="text-fs-1">{MARKETPLACE_CMD}</code>{" "}
+        {t("op.codexPlugin.desc2")} <code className="text-fs-1">{INSTALL_CMD}</code>{" "}
         {t("op.codexPlugin.desc3")}
       </p>
       {codex && !codex.codex_installed && (
-        <p className="text-[11px] text-(--warn-text)">{t("op.codexMcp.notFound")}</p>
+        <p className="text-fs-3 text-(--warn-text)">{t("op.codexMcp.notFound")}</p>
       )}
-      {orphaned && <p className="text-[11px] text-(--warn-text)">{t("op.codexPlugin.orphan")}</p>}
+      {orphaned && <p className="text-fs-3 text-(--warn-text)">{t("op.codexPlugin.orphan")}</p>}
       {installed && (
-        <p className="text-[11px] text-muted-foreground">
-          {t("op.codexPlugin.cached")} <code className="text-[10px]">{codex?.cached_version}</code>
+        <p className="text-fs-3 text-muted-foreground">
+          {t("op.codexPlugin.cached")} <code className="text-fs-1">{codex?.cached_version}</code>
           {codex?.marketplace ? ` · ${codex.marketplace}` : ""}
         </p>
       )}

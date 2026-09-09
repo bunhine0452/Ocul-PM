@@ -129,7 +129,7 @@ export function SkillShopTab({ projectId, tabs, embedded = false, onInstalled }:
         >
           <div className="sk-gallery-name">
             {t(c.labelKey)}{" "}
-            <span className="font-mono text-[10px] text-muted-foreground">
+            <span className="font-mono text-fs-1 text-muted-foreground">
               {c.source} · {c.tags.join("·")} · {t("shop.bodyTok", { n: c.tokenEstimate.toLocaleString() })}
             </span>
           </div>
@@ -228,7 +228,7 @@ export function SkillShopTab({ projectId, tabs, embedded = false, onInstalled }:
             )}
           </section>
 
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-fs-3 leading-relaxed text-muted-foreground">
             {t("shop.note1")} <strong>{t("shop.note2")}</strong>{t("shop.note3")}{" "}
             <code>.claude/skills/</code> {t("shop.note4")}{" "}
             <strong>{t("shop.note5")}</strong>{t("shop.note6")}

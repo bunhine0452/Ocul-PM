@@ -35,17 +35,17 @@ function CodeBlockWrapper({ children, className }: { children: ReactNode; classN
       <pre className={className}>{children}</pre>
       <button
         onClick={handleCopy}
-        className="absolute top-2 right-2 p-1 rounded-md bg-muted/80 border border-border/50 text-muted-foreground hover:text-foreground opacity-0 group-hover/code:opacity-100 transition-opacity duration-150 cursor-pointer"
+        className="absolute top-2 right-2 p-1 rounded-md bg-muted/80 border border-border/50 text-muted-foreground hover:text-foreground opacity-0 group-hover/code:opacity-100 transition-opacity duration-(--dur-1) cursor-pointer"
         aria-label={t("markdown.copyCode")}
       >
         {copied ? (
-          <Check className="w-3.5 h-3.5 text-(--ok-text)" />
+          <Check  className="text-(--ok-text)" size={15} />
         ) : (
-          <Copy className="w-3.5 h-3.5" />
+          <Copy size={15} />
         )}
       </button>
       {copied && (
-        <span className="absolute top-2 right-9 text-[10px] font-bold text-primary bg-muted px-1.5 py-0.5 rounded-md border border-border opacity-0 group-hover/code:opacity-100 transition-opacity">
+        <span className="absolute top-2 right-9 text-fs-1 font-bold text-primary bg-muted px-1.5 py-0.5 rounded-md border border-border opacity-0 group-hover/code:opacity-100 transition-opacity">
           {t("common.copied")}
         </span>
       )}

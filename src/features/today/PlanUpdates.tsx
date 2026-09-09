@@ -95,7 +95,7 @@ export function PlanUpdates({ projectId, onNavigate }: PlanUpdatesProps) {
               />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
-                  style={{ fontSize: "var(--fs-7)", color: "var(--text-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  style={{ fontSize: "var(--fs-7)", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                 >
                   <span className="plu-transition">
                     <StatusGlyph status={u.from_status} />

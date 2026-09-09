@@ -35,7 +35,7 @@ export function FlowTile({
     <article className="home-flow" aria-label={t("home.todayFlow")}>
       <header className="flex items-center justify-between gap-3">
         <h2 className="home-eyebrow flex items-center gap-1.5">
-          <NotebookText className="w-3.5 h-3.5 text-[var(--accent)]" strokeWidth={2} />
+          <NotebookText  className="text-[var(--accent)]" size={15} strokeWidth={2} />
           {t("home.todayFlow")}
         </h2>
         {brief && (
@@ -66,7 +66,7 @@ export function FlowTile({
         <p className="mt-4 text-[12.5px] text-[var(--text-2)] leading-relaxed">
           {t("home.briefFailed")}
           <br />
-          <span className="text-[11px] text-[var(--text-3)]">
+          <span className="text-fs-3 text-[var(--text-3)]">
             {t("home.briefFailedHint")}
           </span>
         </p>
@@ -75,7 +75,7 @@ export function FlowTile({
         <p className="mt-4 text-[12.5px] text-[var(--text-2)] leading-relaxed">
           {t("home.briefEmpty")}
           <br />
-          <span className="text-[11px] text-[var(--text-3)]">
+          <span className="text-fs-3 text-[var(--text-3)]">
             {t("home.briefEmptyHint")}
           </span>
         </p>
@@ -134,15 +134,15 @@ export function AddCard({
   const { t } = useT();
   return (
     <li className="hg-card hg-add">
-      <Plus className="w-5 h-5" strokeWidth={1.6} aria-hidden="true" />
+      <Plus size={22} strokeWidth={1.6} aria-hidden="true" />
       <span className="hg-add-title">{t("home.addProject")}</span>
       <span className="hg-add-actions">
         <button type="button" onClick={onAddExisting} className="home-chipbtn">
-          <FolderOpen className="w-3 h-3" />
+          <FolderOpen size={13} />
           {t("home.existingFolder")}
         </button>
         <button type="button" onClick={onStartNew} className="home-chipbtn">
-          <FolderPlus className="w-3 h-3" />
+          <FolderPlus size={13} />
           {t("home.brandNew")}
         </button>
       </span>

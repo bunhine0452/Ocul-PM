@@ -13,6 +13,7 @@ import {
   Clock,
   PieChart,
   Download,
+  type IconComponent,
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { Section, Field, Toggle } from "./tabs/ui";
@@ -39,7 +40,7 @@ import type { SettingsTab } from "./settingsIndex";
  *  검색 색인이 없는 탭이 생기지 않게 한쪽에서만 정의한다. */
 type TabId = SettingsTab;
 
-const TABS: Array<{ id: TabId; labelKey: I18nKey; icon: React.ComponentType<{ className?: string }> }> = [
+const TABS: Array<{ id: TabId; labelKey: I18nKey; icon: IconComponent }> = [
   { id: "appearance", labelKey: "settings.tab.appearance", icon: Sun },
   { id: "llm", labelKey: "settings.tab.llm", icon: Cpu },
   // GitHub PAT 탭은 감사(2026-07-16)에서 제거 — 소비처가 verify 뿐이라 vestigial
@@ -195,7 +196,7 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
             aria-current={isActive ? "page" : undefined}
             className="subnav-item"
           >
-            <Icon className="w-4 h-4 flex-shrink-0" />
+            <Icon  className="flex-shrink-0" size={15} />
             {t(entry.labelKey)}
           </button>
         );
@@ -246,7 +247,7 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
   return (
     <section className="w-full max-w-4xl rounded-xl border bg-card shadow-sm overflow-hidden">
       <header className="px-6 py-4 border-b border-border/60 flex items-center gap-2">
-        <SettingsIcon className="w-4 h-4 text-primary" />
+        <SettingsIcon  className="text-primary" size={15} />
         <h2 className="text-lg font-semibold tracking-tight">{t("shell.settings.title")}</h2>
       </header>
       {body}

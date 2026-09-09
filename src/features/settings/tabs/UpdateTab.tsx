@@ -82,7 +82,7 @@ export function UpdateTab() {
               onClick={() => void installUpdate()}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              <Download className="w-3.5 h-3.5 mr-2" />
+              <Download  className="mr-2" size={15} />
               {t("settings.update.installRestart", { version: updater.version ?? "" })}
             </Button>
           ) : (
@@ -99,23 +99,23 @@ export function UpdateTab() {
           )}
         </div>
         {updater.kind === "checking" && (
-          <p className="text-[11px] text-muted-foreground">{t("settings.update.checking")}</p>
+          <p className="text-fs-3 text-muted-foreground">{t("settings.update.checking")}</p>
         )}
         {updater.kind === "uptodate" && (
-          <p className="text-[11px] text-primary">{t("settings.update.upToDate")}</p>
+          <p className="text-fs-3 text-primary">{t("settings.update.upToDate")}</p>
         )}
         {updater.kind === "available" && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-fs-3 text-muted-foreground">
             {t("settings.update.availPrefix")} <span className="font-mono">v{updater.version}</span> {t("settings.update.availSuffix")}
           </p>
         )}
         {updater.kind === "installing" && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-fs-3 text-muted-foreground">
             {t("settings.update.installing")}
           </p>
         )}
         {updater.kind === "error" && (
-          <p className="text-[11px] text-destructive">
+          <p className="text-fs-3 text-destructive">
             {t("settings.update.checkFailed", { message: updater.message ?? "" })}
           </p>
         )}
@@ -138,9 +138,9 @@ export function UpdateTab() {
                   >
                     <span className="font-mono text-xs font-semibold text-foreground">{rel.tag}</span>
                     {rel.date ? (
-                      <span className="text-[11px] text-muted-foreground">{rel.date}</span>
+                      <span className="text-fs-3 text-muted-foreground">{rel.date}</span>
                     ) : null}
-                    <span className="ml-auto text-[10px] text-muted-foreground">{isOpen ? "▾" : "▸"}</span>
+                    <span className="ml-auto text-fs-1 text-muted-foreground">{isOpen ? "▾" : "▸"}</span>
                   </button>
                   {isOpen ? (
                     <div className="border-t border-border px-3 py-2 text-xs leading-relaxed [&_h3]:text-xs [&_h3]:font-semibold [&_ul]:my-1 [&_li]:my-0.5">

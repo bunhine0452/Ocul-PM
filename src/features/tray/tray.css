@@ -62,11 +62,11 @@ html, body {
   font-size: var(--fs-6);
   font-weight: var(--fw-strong);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
 }
 .tp-picker-btn:hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); background: var(--muted); }
 .tp-picker-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-.tp-picker-chev { flex: none; color: var(--muted-foreground); transition: transform 0.18s; }
+.tp-picker-chev { flex: none; color: var(--muted-foreground); transition: transform var(--dur-2) var(--ease-out); }
 .tp-picker-chev.is-open { transform: rotate(180deg); }
 .tp-picker-menu {
   position: absolute;
@@ -335,7 +335,7 @@ html, body {
   border-bottom: 1px solid var(--border);
   color: var(--muted-foreground);
   font-size: var(--fs-3);
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--mono);
 }
 .tp-md { margin-top: 9px; display: flex; flex-direction: column; gap: 7px; }
 .tp-md-h { font-size: var(--fs-5); font-weight: var(--fw-bold); margin-top: 6px; letter-spacing: var(--track-wide); }
@@ -343,14 +343,14 @@ html, body {
 .tp-md-li { display: flex; gap: 7px; font-size: var(--fs-6); line-height: 1.6; }
 .tp-md-dot { color: var(--primary); flex: none; }
 .tp-md code {
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--mono);
   font-size: var(--fs-3);
   background: var(--muted);
   border-radius: var(--radius-xs);
   padding: 1px 4px;
 }
 .tp-md-code {
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--mono);
   font-size: var(--fs-3);
   line-height: 1.55;
   background: var(--muted);
@@ -397,7 +397,7 @@ html, body {
   color: var(--foreground);
   text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
 }
 .tp-toggle-row:hover:not(.is-disabled) { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); }
 .tp-toggle-row.is-disabled { opacity: 0.45; cursor: default; }
@@ -409,7 +409,7 @@ html, body {
   margin-top: 1px;
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--muted-foreground) 32%, transparent);
-  transition: background 0.18s;
+  transition: background var(--dur-1) var(--ease-out);
 }
 .tp-switch.is-on { background: var(--primary); }
 .tp-switch-knob {
@@ -421,7 +421,7 @@ html, body {
   border-radius: 50%;
   background: var(--knob);
   box-shadow: var(--shadow-knob);
-  transition: left 0.18s var(--ease-out);
+  transition: left var(--dur-2) var(--ease-out);
 }
 /* on 이면 노브가 --primary 위에 얹힌다 — 셸의 .toggle 과 같은 규칙. */
 .tp-switch.is-on .tp-switch-knob { left: 14px; background: var(--primary-foreground); }

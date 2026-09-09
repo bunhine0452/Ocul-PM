@@ -167,7 +167,7 @@
 .code-tree-caret {
   flex: none;
   color: var(--text-3);
-  transition: transform 0.12s var(--ease-out);
+  transition: transform var(--dur-1) var(--ease-out);
 }
 .code-tree-caret.open {
   transform: rotate(90deg);
@@ -327,7 +327,7 @@
   border-right: 1px solid var(--sep);
   cursor: pointer;
   user-select: none;
-  transition: background 0.1s var(--ease-out), color 0.1s var(--ease-out);
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .code-tab:hover {
   color: var(--text-2);
@@ -690,9 +690,9 @@
 .monaco-editor-hover,
 .monaco-editor .monaco-hover {
   max-width: 480px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--sep);
   border-radius: var(--radius-m);
-  box-shadow: var(--shadow-soft);
+  box-shadow: var(--shadow-pop);
 }
 .monaco-editor-hover .monaco-hover-content,
 .monaco-editor .monaco-hover .monaco-hover-content {
@@ -1425,9 +1425,9 @@ body.code-dragging {
    스코프 밖에서도 사는 :root 토큰만 쓴다. */
 .monaco-editor .parameter-hints-widget {
   max-width: 560px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--sep);
   border-radius: var(--radius-m);
-  box-shadow: var(--shadow-soft);
+  box-shadow: var(--shadow-pop);
 }
 .monaco-editor .parameter-hints-widget .signature {
   padding: 6px 9px;
@@ -2050,7 +2050,7 @@ body.code-dragging {
   top: 2px;
   height: 1px;
   background: transparent;
-  transition: background 0.1s var(--ease-out), height 0.1s var(--ease-out), top 0.1s var(--ease-out);
+  transition: background var(--dur-1) var(--ease-out), height var(--dur-1) var(--ease-out), top var(--dur-1) var(--ease-out);
 }
 .code-panel-resizer:hover::after,
 .code-panel-resizer:focus-visible::after {

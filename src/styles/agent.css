@@ -2780,7 +2780,7 @@
   color: var(--accent-text);
 }
 .trace-item.ledger .trace-name {
-  color: var(--text-1);
+  color: var(--text);
   font-weight: var(--fw-label);
 }
 /* 곁가지(생각) — 답이 아니라 과정이라 한 톤 물러난다. */

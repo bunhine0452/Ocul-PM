@@ -174,7 +174,7 @@ export function CodeSettings({
           onChange={(v) => save("codeFormatOnSave", v)}
           label={t("settings.code.formatOnSave")}
         />
-        <p className="text-[11px] text-muted-foreground/80">
+        <p className="text-fs-3 text-muted-foreground/80">
           {t("settings.code.formatOnSaveHint")}
         </p>
         <Field label={t("settings.code.tabSize")}>
@@ -200,7 +200,7 @@ export function CodeSettings({
           onChange={(v) => save("codeTrimTrailingWhitespace", v)}
           label={t("settings.code.trimTrailingWhitespace")}
         />
-        <p className="text-[11px] text-muted-foreground/80">
+        <p className="text-fs-3 text-muted-foreground/80">
           {t("settings.code.trimTrailingWhitespaceHint")}
         </p>
         <Toggle
@@ -218,7 +218,7 @@ export function CodeSettings({
           onChange={(v) => save("codePreviewTabs", v)}
           label={t("settings.code.previewTabs")}
         />
-        <p className="text-[11px] text-muted-foreground/80">
+        <p className="text-fs-3 text-muted-foreground/80">
           {t("settings.code.previewTabsHint")}
         </p>
         <Toggle
@@ -226,7 +226,7 @@ export function CodeSettings({
           onChange={(v) => save("codeStickyScroll", v)}
           label={t("settings.code.stickyScroll")}
         />
-        <p className="text-[11px] text-muted-foreground/80">
+        <p className="text-fs-3 text-muted-foreground/80">
           {t("settings.code.stickyScrollHint")}
         </p>
         {settings.codeStickyScroll ? (
@@ -249,7 +249,7 @@ export function CodeSettings({
           onChange={(v) => save("codeMinimap", v)}
           label={t("settings.code.minimap")}
         />
-        <p className="text-[11px] text-muted-foreground/80">{t("settings.code.minimapHint")}</p>
+        <p className="text-fs-3 text-muted-foreground/80">{t("settings.code.minimapHint")}</p>
       </Section>
 
       <Section
@@ -287,7 +287,7 @@ export function CodeSettings({
             />
           </Field>
         ) : null}
-        <p className="text-[11px] text-muted-foreground/80">{t("settings.code.autoSaveHint")}</p>
+        <p className="text-fs-3 text-muted-foreground/80">{t("settings.code.autoSaveHint")}</p>
       </Section>
 
       <Section
@@ -299,7 +299,7 @@ export function CodeSettings({
           onChange={(v) => save("codeLocalHistory", v)}
           label={t("settings.code.localHistory")}
         />
-        <p className="text-[11px] text-muted-foreground/80">
+        <p className="text-fs-3 text-muted-foreground/80">
           {t("settings.code.localHistoryHint")}
         </p>
         {settings.codeLocalHistory ? (
@@ -322,7 +322,7 @@ export function CodeSettings({
             />
           </Field>
         ) : null}
-        <p className="text-[11px] text-muted-foreground/80">
+        <p className="text-fs-3 text-muted-foreground/80">
           {t("settings.code.localHistoryMaxHint")}
         </p>
         {/* 보이지 않는 곳에서 디스크를 먹는 기능은 반드시 자기 크기를 보여 줘야 한다. */}
@@ -367,7 +367,7 @@ export function CodeSettings({
             ))}
           </div>
         )}
-        <p className="text-[11px] text-muted-foreground/80">{t("settings.code.noAutoInstall")}</p>
+        <p className="text-fs-3 text-muted-foreground/80">{t("settings.code.noAutoInstall")}</p>
       </Section>
 
       {confirmDialog}
@@ -422,14 +422,14 @@ function ServerRow({
           className="font-mono text-xs"
         />
       </div>
-      <p className="text-[11px] text-muted-foreground/80">
+      <p className="text-fs-3 text-muted-foreground/80">
         {t("settings.code.commandHint", { command: info.command })}
       </p>
 
       {/* 미설치는 조용히 지나가지 않는다 — 설치 방법을 그 자리에 적는다.
           (자동 설치는 하지 않는 것이 이 앱의 결정이다.) */}
       {missing ? (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-fs-3 text-muted-foreground">
           {t("settings.code.missing")}{" "}
           <code className="font-mono text-foreground/80">
             {INSTALL_HINT[info.language_id] ?? info.command}
@@ -437,7 +437,7 @@ function ServerRow({
         </p>
       ) : null}
       {info.detail ? (
-        <p className="text-[11px] text-muted-foreground/80">{info.detail}</p>
+        <p className="text-fs-3 text-muted-foreground/80">{info.detail}</p>
       ) : null}
     </div>
   );
@@ -472,6 +472,6 @@ function Badge({ tone, children }: { tone: "ok" | "warn" | "muted"; children: Re
         ? "text-destructive border-destructive/40"
         : "text-muted-foreground border-border";
   return (
-    <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${cls}`}>{children}</span>
+    <span className={`text-fs-1 px-1.5 py-0.5 rounded-full border ${cls}`}>{children}</span>
   );
 }

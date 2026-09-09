@@ -52,7 +52,7 @@ export function AccentPicker() {
         })}
       </div>
       {presetActive ? (
-        <p className="mt-1.5 text-[11px] text-muted-foreground/80">
+        <p className="mt-1.5 text-fs-3 text-muted-foreground/80">
           {t("settings.accent.presetActive")}
         </p>
       ) : null}
@@ -100,7 +100,7 @@ export function LangPicker({
                 : "bg-background border-border hover:border-primary/45 hover:bg-accent/40 text-muted-foreground hover:text-foreground"
             }`}
           >
-            {o.id === "system" ? <Monitor className="w-4 h-4" /> : <Languages className="w-4 h-4" />}
+            {o.id === "system" ? <Monitor size={15} /> : <Languages size={15} />}
             <span>{o.label}</span>
           </button>
         );
@@ -219,9 +219,9 @@ export function AppearanceTab() {
                     : "bg-background border-border hover:border-primary/45 hover:bg-accent/40 text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {t === "light" && <Sun className="w-4 h-4" />}
-                {t === "dark" && <Moon className="w-4 h-4" />}
-                {t === "system" && <Monitor className="w-4 h-4" />}
+                {t === "light" && <Sun size={15} />}
+                {t === "dark" && <Moon size={15} />}
+                {t === "system" && <Monitor size={15} />}
                 <span className="capitalize">{t}</span>
               </button>
             );
@@ -232,7 +232,7 @@ export function AppearanceTab() {
             v1.3.0 부터 살아있었지만 바꿀 UI 가 유실돼 있었다. 프리셋 테마는
             자기 액센트를 갖고 오므로(data-accent 제거) 그동안은 비활성. */}
         <div className="mt-1">
-          <Label className="text-[11px] uppercase text-muted-foreground tracking-wider">
+          <Label className="text-fs-3 uppercase text-muted-foreground tracking-wider">
             {t("settings.accent.title")}
           </Label>
           <AccentPicker />
@@ -538,7 +538,7 @@ export function MenubarSection() {
             </span>
             <span className="min-w-0">
               <span className="block text-xs font-semibold text-foreground">{r.label}</span>
-              <span className="block text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+              <span className="block text-fs-3 text-muted-foreground mt-0.5 leading-relaxed">
                 {r.hint}
               </span>
             </span>

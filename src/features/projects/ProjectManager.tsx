@@ -242,13 +242,13 @@ export function ProjectManager(props: ProjectManagerProps) {
             </p>
           </div>
           <button type="button" className="pm-close" onClick={onClose} aria-label={t("pm.close")}>
-            <X className="w-4 h-4" />
+            <X size={15} />
           </button>
         </header>
 
         <div className="pm-tools">
           <span className="pm-search">
-            <Search className="w-4 h-4" aria-hidden="true" />
+            <Search size={15} aria-hidden="true" />
             <input
               ref={searchRef}
               type="text"
@@ -261,7 +261,7 @@ export function ProjectManager(props: ProjectManagerProps) {
             />
           </span>
           <button type="button" className="pm-btn" onClick={onAddProject}>
-            <FolderOpen className="w-3.5 h-3.5" />
+            <FolderOpen size={15} />
             {t("pm.openFolder")}
           </button>
           <button
@@ -273,7 +273,7 @@ export function ProjectManager(props: ProjectManagerProps) {
               onStartGreenfield();
             }}
           >
-            <FolderPlus className="w-3.5 h-3.5" />
+            <FolderPlus size={15} />
             {t("pm.newProject")}
           </button>
         </div>
@@ -369,7 +369,7 @@ export function ProjectManager(props: ProjectManagerProps) {
                         aria-label={t("pm.renameAria", { name: p.name })}
                         onClick={() => onRenameProject(p)}
                       >
-                        <Pencil className="w-3.5 h-3.5" />
+                        <Pencil size={15} />
                       </button>
                       <button
                         type="button"
@@ -377,7 +377,7 @@ export function ProjectManager(props: ProjectManagerProps) {
                         aria-label={t("pm.removeAria", { name: p.name })}
                         onClick={() => onDeleteProject(p)}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 size={15} />
                       </button>
                     </span>
                   </td>

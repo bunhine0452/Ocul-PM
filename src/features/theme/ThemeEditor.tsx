@@ -81,7 +81,7 @@ function CodeSample({ label }: { label: string }) {
     <pre
       role="img"
       aria-label={label}
-      className="m-0 px-2.5 py-2 rounded-lg border border-border text-[11px] leading-relaxed font-mono overflow-x-auto"
+      className="m-0 px-2.5 py-2 rounded-lg border border-border text-fs-3 leading-relaxed font-mono overflow-x-auto"
       style={{ color: "var(--code-fg)", background: "var(--bg-inset)" }}
     >
       {CODE_SAMPLE_LINES.map((line, i) => (
@@ -127,11 +127,11 @@ export function ThemeEditor({
 
   return (
     <div className="space-y-4">
-      <p className="text-[11px] text-muted-foreground">{t("theme.editor.hint")}</p>
+      <p className="text-fs-3 text-muted-foreground">{t("theme.editor.hint")}</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="space-y-1.5">
-          <span className="block text-[11px] uppercase text-muted-foreground tracking-wider">
+          <span className="block text-fs-3 uppercase text-muted-foreground tracking-wider">
             {t("theme.editor.name")}
           </span>
           <input
@@ -144,7 +144,7 @@ export function ThemeEditor({
         </label>
 
         <div className="space-y-1.5">
-          <span className="block text-[11px] uppercase text-muted-foreground tracking-wider">
+          <span className="block text-fs-3 uppercase text-muted-foreground tracking-wider">
             {t("theme.editor.family")}
           </span>
           <div className="grid grid-cols-2 gap-2">
@@ -164,7 +164,7 @@ export function ThemeEditor({
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground/80">{t("theme.editor.familyHint")}</p>
+          <p className="text-fs-3 text-muted-foreground/80">{t("theme.editor.familyHint")}</p>
         </div>
       </div>
 
@@ -180,7 +180,7 @@ export function ThemeEditor({
           <span className="block text-xs font-semibold text-foreground">
             {t("theme.editor.systemAccent")}
           </span>
-          <span className="block text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+          <span className="block text-fs-3 text-muted-foreground mt-0.5 leading-relaxed">
             {systemAccent
               ? t("theme.editor.systemAccentHint")
               : t("theme.editor.systemAccentOff")}
@@ -190,7 +190,7 @@ export function ThemeEditor({
 
       {TOKEN_GROUPS.map((group) => (
         <div key={group.id} className="space-y-2">
-          <div className="flex items-center gap-1.5 text-[11px] uppercase text-muted-foreground tracking-wider">
+          <div className="flex items-center gap-1.5 text-fs-3 uppercase text-muted-foreground tracking-wider">
             <Palette size={13} />
             {t(group.titleKey)}
           </div>
@@ -204,13 +204,13 @@ export function ThemeEditor({
                 <li key={token} className="flex items-center gap-2">
                   <span className="w-40 flex-none min-w-0">
                     {labelKey && (
-                      <span className="block text-[11px] text-foreground truncate">
+                      <span className="block text-fs-3 text-foreground truncate">
                         {t(labelKey)}
                       </span>
                     )}
                     <code
                       className={`block font-mono text-muted-foreground truncate ${
-                        labelKey ? "text-[10px]" : "text-[11px]"
+                        labelKey ? "text-fs-1" : "text-fs-3"
                       }`}
                     >
                       {token}

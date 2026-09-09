@@ -36,7 +36,7 @@ export function AppDialog({
 
   return (
     <div
-      className="scrim animate-in fade-in z-modal flex items-center justify-center p-6 duration-150"
+      className="scrim animate-in fade-in z-modal flex items-center justify-center p-6 duration-(--dur-2)"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -47,7 +47,7 @@ export function AppDialog({
         aria-modal="true"
         aria-label={label}
         tabIndex={-1}
-        className="animate-in fade-in zoom-in-95 slide-in-from-bottom-1 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl outline-none duration-200"
+        className="animate-in fade-in zoom-in-95 slide-in-from-bottom-1 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl outline-none duration-(--dur-2)"
         style={{ maxWidth: width }}
       >
         {children}

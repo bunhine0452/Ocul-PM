@@ -53,7 +53,7 @@ export function ProjectThemePicker({ value, onChange }: Props) {
           </option>
         ))}
       </select>
-      <p className="text-[11px] text-muted-foreground/80">{t("theme.project.hint")}</p>
+      <p className="text-fs-3 text-muted-foreground/80">{t("theme.project.hint")}</p>
     </div>
   );
 }

@@ -140,7 +140,7 @@ export function ContextTab() {
             <Copy size={13} /> {t("ctx.manifest.copy")}
           </button>
         </div>
-        <pre className="max-h-64 overflow-auto rounded-lg border border-border bg-[color:var(--bg-inset)] p-3 text-[11px] font-mono whitespace-pre-wrap text-foreground">
+        <pre className="max-h-64 overflow-auto rounded-lg border border-border bg-[color:var(--bg-inset)] p-3 text-fs-3 font-mono whitespace-pre-wrap text-foreground">
           {manifest || t("ctx.manifest.empty")}
         </pre>
       </Section>
@@ -158,7 +158,7 @@ export function ContextTab() {
             {usage.tokens} / {RECALL_BUDGET_TOKENS}
           </span>
         </div>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-fs-3 text-muted-foreground">
           {t("ctx.budget.signal", { signal: t(`ctx.signal.${usage.signal}` as never) })}
           {usage.dropped > 0 ? ` · ${t("ctx.budget.dropped", { n: usage.dropped })}` : ""}
         </p>
@@ -182,7 +182,7 @@ export function ContextTab() {
                     style={{ width: `${Math.round((stat.score ?? 0) * 100)}%` }}
                   />
                 </span>
-                <span className="text-[11px] font-mono tabular-nums text-muted-foreground w-8 text-right">
+                <span className="text-fs-3 font-mono tabular-nums text-muted-foreground w-8 text-right">
                   {stat.use_count}
                 </span>
                 <button

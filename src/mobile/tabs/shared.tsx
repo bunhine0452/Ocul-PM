@@ -36,7 +36,7 @@ export function TypeChip({ type }: { type: EntryType }) {
 /** 에이전트 스와치 + 라벨 — 데스크톱 agentColor 결정론 팔레트 재사용. */
 export function AgentTag({ agentId }: { agentId: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] mob-text-2">
+    <span className="inline-flex items-center gap-1.5 text-fs-3 mob-text-2">
       <span className="mob-agent-dot" style={{ background: agentColor(agentId) }} aria-hidden />
       {agentLabel(agentId)}
     </span>
@@ -54,16 +54,16 @@ export function EntryList({ entries, onOpen }: {
           <button onClick={() => onOpen(e)} className="mob-card w-full text-left px-3.5 py-2.5">
             <div className="flex items-center gap-2">
               <TypeChip type={e.type} />
-              <span className="text-[13px] font-medium truncate flex-1">{e.title}</span>
+              <span className="text-fs-7 font-medium truncate flex-1">{e.title}</span>
               {e.verified_by_user ? (
                 <Check size={13} className="mob-verified shrink-0" aria-hidden />
               ) : null}
             </div>
             <div className="flex items-center gap-2.5 mt-1.5">
               <AgentTag agentId={e.agent_id} />
-              <span className="text-[11px] mob-text-3">{e.created_at.slice(11, 16)}</span>
+              <span className="text-fs-3 mob-text-3">{e.created_at.slice(11, 16)}</span>
               {e.files_count > 0 ? (
-                <span className="text-[11px] mob-text-3">{e.files_count} files</span>
+                <span className="text-fs-3 mob-text-3">{e.files_count} files</span>
               ) : null}
             </div>
           </button>

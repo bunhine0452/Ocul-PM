@@ -47,7 +47,7 @@ export class TerminalErrorBoundary extends Component<Props, State> {
           gap: 10, height: "100%", minHeight: 120, padding: 24, color: "var(--text-2)", fontSize: "var(--fs-7)", textAlign: "center",
         }}
       >
-        <strong style={{ color: "var(--text-1)" }}>{t("term.crashTitle")}</strong>
+        <strong style={{ color: "var(--text)" }}>{t("term.crashTitle")}</strong>
         <code style={{ fontSize: "var(--fs-3)", color: "var(--text-3)", maxWidth: 480, overflow: "hidden", textOverflow: "ellipsis" }}>
           {this.state.error.message}
         </code>

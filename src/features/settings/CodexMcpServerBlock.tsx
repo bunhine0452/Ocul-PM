@@ -9,7 +9,7 @@ import { toast } from "@/lib/toast";
 
 function ScopeChip({ label }: { label: string }) {
   return (
-    <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+    <span className="rounded-full border border-dashed border-border px-2 py-0.5 text-fs-1 text-muted-foreground">
       {label}
     </span>
   );
@@ -79,11 +79,11 @@ export function CodexMcpServerBlock() {
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
           {t("op.codexMcp.title")}
         </Label>
         <ScopeChip label={t("op.scope.machine")} />
-        <span className={`rounded-full border px-2 py-0.5 text-[10px] ${badge.cls}`}>{badge.label}</span>
+        <span className={`rounded-full border px-2 py-0.5 text-fs-1 ${badge.cls}`}>{badge.label}</span>
         <div className="ml-auto flex items-center gap-2">
           {/* 루트가 박힌 항목은 「해제」가 아니라 「다시 등록」이 답이다 —
               지우고 끝내면 기록 도구가 사라지고, 다시 등록하면 바로 고쳐진다. */}
@@ -104,23 +104,23 @@ export function CodexMcpServerBlock() {
           )}
         </div>
       </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
-        {t("op.codexMcp.desc1")} <code className="text-[10px]">{codex?.config_path ?? "~/.codex/config.toml"}</code>
+      <p className="text-fs-3 leading-relaxed text-muted-foreground">
+        {t("op.codexMcp.desc1")} <code className="text-fs-1">{codex?.config_path ?? "~/.codex/config.toml"}</code>
         {t("op.codexMcp.desc2")}
       </p>
       {pinned && (
-        <p className="text-[11px] text-(--warn-text)">{t("op.codexMcp.pinnedWarn", { path: pinned })}</p>
+        <p className="text-fs-3 text-(--warn-text)">{t("op.codexMcp.pinnedWarn", { path: pinned })}</p>
       )}
-      {!codex?.installed && !error && <p className="text-[11px] text-(--warn-text)">{t("op.codexMcp.notFound")}</p>}
+      {!codex?.installed && !error && <p className="text-fs-3 text-(--warn-text)">{t("op.codexMcp.notFound")}</p>}
       {codex && !codex.binary_found && (
-        <p className="text-[11px] text-(--warn-text)">
-          {t("op.mcp.noBinary1")} <code className="text-[10px]">cargo build --bin oculpm-mcp</code> {t("op.mcp.noBinary2")}
+        <p className="text-fs-3 text-(--warn-text)">
+          {t("op.mcp.noBinary1")} <code className="text-fs-1">cargo build --bin oculpm-mcp</code> {t("op.mcp.noBinary2")}
         </p>
       )}
       {codex?.registered && !pinned && (
-        <p className="text-[11px] text-muted-foreground">{t("op.codexMcp.restartNote")}</p>
+        <p className="text-fs-3 text-muted-foreground">{t("op.codexMcp.restartNote")}</p>
       )}
-      {error && <p className="text-[11px] text-(--danger-text)">{error}</p>}
+      {error && <p className="text-fs-3 text-(--danger-text)">{error}</p>}
     </div>
   );
 }

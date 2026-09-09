@@ -51,7 +51,7 @@ export function HomeTopRail({
         {/* 관리는 **글자**로 둔다. 아이콘 하나로는 "설정"과 구별되지 않고,
             프로젝트를 지우러 오는 사람이 아이콘 수수께끼를 풀 이유가 없다. */}
         <button type="button" onClick={onManage} className="home-chipbtn">
-          <Folder className="w-3.5 h-3.5" />
+          <Folder size={15} />
           {t("home.manageProjects")}
         </button>
         <button
@@ -60,14 +60,14 @@ export function HomeTopRail({
           className="home-iconbtn"
           aria-label={t("home.openSettings")}
         >
-          <Settings className="w-4 h-4" />
+          <Settings size={15} />
         </button>
         <button
           type="button"
           onClick={onAdd}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-s)] bg-[var(--accent)] text-[var(--text-on-accent)] text-[12px] font-bold hover:bg-[var(--accent-strong)] transition-colors cursor-pointer whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-s)] bg-[var(--accent)] text-[var(--text-on-accent)] text-fs-5 font-bold hover:bg-[var(--accent-strong)] transition-colors cursor-pointer whitespace-nowrap"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus size={15} />
           {t("home.addProject")}
         </button>
       </span>

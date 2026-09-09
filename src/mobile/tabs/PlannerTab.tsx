@@ -102,7 +102,7 @@ export function PlannerTab({ projectId }: { projectId: number }) {
                       {STATUS_META[item.status]?.glyph ?? STATUS_META.todo.glyph}
                     </span>
                     <span
-                      className={`text-[13px] leading-5 ${item.status === "done" ? "mob-item-done" : ""}`}
+                      className={`text-fs-7 leading-5 ${item.status === "done" ? "mob-item-done" : ""}`}
                     >
                       {item.title}
                     </span>
@@ -129,9 +129,9 @@ export function PlannerTab({ projectId }: { projectId: number }) {
             className="mob-card w-full text-left px-3.5 py-3"
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] font-medium truncate">{p.title}</span>
+              <span className="text-fs-7 font-medium truncate">{p.title}</span>
               {p.progress !== null ? (
-                <span className="text-[11px] mob-text-2 shrink-0 font-mono tabular-nums">
+                <span className="text-fs-3 mob-text-2 shrink-0 font-mono tabular-nums">
                   {Math.round(p.progress * 100)}%
                 </span>
               ) : null}
@@ -141,7 +141,7 @@ export function PlannerTab({ projectId }: { projectId: number }) {
                 <div style={{ width: `${Math.round(p.progress * 100)}%` }} />
               </div>
             ) : null}
-            <div className="text-[11px] mob-text-3 mt-1.5">{p.status}</div>
+            <div className="text-fs-3 mob-text-3 mt-1.5">{p.status}</div>
           </button>
         </li>
       ))}

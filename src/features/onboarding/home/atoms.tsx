@@ -119,7 +119,7 @@ export function Progress({ done, total }: { done: number; total: number }) {
       >
         <span className="home-prog-fill block" style={{ width: `${pct}%` }} />
       </span>
-      <span className="text-[11px] text-[var(--text-3)] tabular-nums whitespace-nowrap">
+      <span className="text-fs-3 text-[var(--text-3)] tabular-nums whitespace-nowrap">
         {done}/{total}
       </span>
     </span>
@@ -183,7 +183,7 @@ export function RowActions({
           onRename();
         }}
       >
-        <Pencil className="w-3.5 h-3.5" />
+        <Pencil size={15} />
       </button>
       <button
         type="button"
@@ -195,7 +195,7 @@ export function RowActions({
           onDelete();
         }}
       >
-        <Trash2 className="w-3.5 h-3.5" />
+        <Trash2 size={15} />
       </button>
     </span>
   );
@@ -217,7 +217,7 @@ export function Skel({ w, h = 10 }: { w: number | string; h?: number }) {
 export function BriefFootnote({ onRetry }: { onRetry: () => void }) {
   const { t } = useT();
   return (
-    <span className="flex items-center gap-2 text-[10px] font-mono text-[var(--text-3)]">
+    <span className="flex items-center gap-2 text-fs-1 font-mono text-[var(--text-3)]">
       {t("home.unverified")}
       <button
         type="button"

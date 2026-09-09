@@ -73,7 +73,7 @@ export function PairScreen({ onPaired }: { onPaired: () => void }) {
             {t("mobile.pair.failed", { message: error })}
           </p>
         ) : null}
-        <p className="text-[11px] mob-text-3 text-center leading-relaxed">
+        <p className="text-fs-3 mob-text-3 text-center leading-relaxed">
           {t("mobile.pair.sleepHint")}
         </p>
       </div>

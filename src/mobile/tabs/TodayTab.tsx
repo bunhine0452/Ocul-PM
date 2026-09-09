@@ -43,7 +43,7 @@ export function TodayTab({ projectId, onOpenEntry }: {
     <div className="space-y-5 p-4">
       <div className="mob-hero px-4 py-3.5 flex items-baseline gap-3">
         <span className="mob-hero-num text-2xl leading-none">{entries.length}</span>
-        <span className="text-[13px] mob-text-2">{t("mobile.today.entries")}</span>
+        <span className="text-fs-7 mob-text-2">{t("mobile.today.entries")}</span>
         <span className="flex-1" />
         <span className="flex items-center gap-1">
           {[...byType.entries()].map(([type, n]) => (
@@ -66,8 +66,8 @@ export function TodayTab({ projectId, onOpenEntry }: {
           <ul className="space-y-2">
             {updates.map((u, i) => (
               <li key={i} className="mob-card px-3.5 py-2.5">
-                <div className="text-[13px] font-medium">{u.item_title || u.item_id}</div>
-                <div className="flex items-center gap-2 text-[11px] mob-text-3 mt-1">
+                <div className="text-fs-7 font-medium">{u.item_title || u.item_id}</div>
+                <div className="flex items-center gap-2 text-fs-3 mob-text-3 mt-1">
                   <span className="truncate">{u.plan_title}</span>
                   <span className="inline-flex items-center gap-1">
                     {u.from_status ?? "·"} <ArrowRight size={11} aria-hidden /> {u.to_status ?? "·"}

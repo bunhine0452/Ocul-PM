@@ -72,7 +72,7 @@ export class ErrorBoundary extends Component<Props, State> {
           textAlign: "center",
         }}
       >
-        <strong style={{ color: "var(--text-1)" }}>{t("crash.title")}</strong>
+        <strong style={{ color: "var(--text)" }}>{t("crash.title")}</strong>
         <code
           style={{
             fontSize: "var(--fs-3)",

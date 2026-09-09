@@ -179,7 +179,7 @@
   display: flex; flex-direction: column; align-items: center; gap: 1px;
   padding: 5px 0; border-radius: var(--radius-m); cursor: pointer;
   background: none; border: 1px solid transparent; color: var(--text-3);
-  font-family: var(--mono); transition: background 0.12s, color 0.12s, border-color 0.12s;
+  font-family: var(--mono); transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 .date-rail-item:hover { background: var(--bg-card); color: var(--text-2); border-color: var(--border-card); }
 .date-rail-item.active { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
@@ -660,19 +660,19 @@
   display: inline-flex; align-items: center; gap: 7px; max-width: 100%;
   appearance: none; -webkit-appearance: none; border: none; background: transparent;
   font-family: var(--font); text-align: left; color: var(--text); cursor: pointer;
-  padding: 2px 6px; margin: -2px -6px; border-radius: var(--radius-s); transition: background 0.12s var(--ease-out);
+  padding: 2px 6px; margin: -2px -6px; border-radius: var(--radius-s); transition: background var(--dur-1) var(--ease-out);
 }
 .plan-title-btn:hover { background: var(--bg-hover); }
 .plan-title-btn:disabled { cursor: default; }
 .plan-title-btn .goal-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plan-title-pen { display: inline-grid; place-items: center; color: var(--text-3); opacity: 0; flex-shrink: 0; transition: opacity 0.12s var(--ease-out); }
+.plan-title-pen { display: inline-grid; place-items: center; color: var(--text-3); opacity: 0; flex-shrink: 0; transition: opacity var(--dur-1) var(--ease-out); }
 .plan-title-btn:hover .plan-title-pen { opacity: 1; }
 
 /* Hover-revealed action clusters — kept out of the way until you reach the row,
    space reserved so nothing reflows when they appear. */
 .phase-actions, .item-actions {
   display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0;
-  opacity: 0; pointer-events: none; transition: opacity 0.12s var(--ease-out);
+  opacity: 0; pointer-events: none; transition: opacity var(--dur-1) var(--ease-out);
 }
 .item-actions { margin-left: 4px; }
 .goal-head-row:hover .phase-actions,
@@ -691,7 +691,7 @@
   appearance: none; -webkit-appearance: none; background: none; border: none; cursor: pointer;
   white-space: nowrap; flex: none;
   padding: 3px 7px; border-radius: var(--radius-s); font-family: var(--font); font-size: var(--fs-4); font-weight: var(--fw-strong);
-  color: var(--text-3); transition: background 0.12s var(--ease-out), color 0.12s var(--ease-out);
+  color: var(--text-3); transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .pln-textbtn:hover { background: var(--bg-hover); color: var(--text); }
 .pln-textbtn.danger { color: var(--t-bug); }
@@ -779,7 +779,7 @@
 .pln-rail-resizer::after {
   content: ""; position: absolute; top: 0; bottom: 0; left: 2px;
   width: 1px; background: transparent;
-  transition: background 0.1s var(--ease-out), width 0.1s var(--ease-out), left 0.1s var(--ease-out);
+  transition: background var(--dur-1) var(--ease-out), width var(--dur-1) var(--ease-out), left var(--dur-1) var(--ease-out);
 }
 .pln-rail-resizer:hover::after,
 .pln-rail-resizer:focus-visible::after {
@@ -880,7 +880,7 @@
   padding: 9px 10px; border: none; background: none;
   border-radius: var(--radius-s);
   text-align: left; cursor: pointer; font-family: var(--font); color: var(--text);
-  transition: background var(--dur-1, 0.12s) ease;
+  transition: background var(--dur-1) var(--ease-out);
 }
 .pln-row:hover { background: var(--bg-hover); }
 .pln-row.on { background: var(--accent-soft); }
@@ -904,7 +904,7 @@
 .pln-row-bar > i {
   display: block; height: 100%; border-radius: var(--radius-2xs);
   background: var(--text-3); opacity: 0.5;
-  transition: width var(--dur-2, 0.2s) ease;
+  transition: width var(--dur-2) var(--ease-out);
 }
 .pln-row.on .pln-row-bar > i { background: var(--accent); opacity: 1; }
 
@@ -982,7 +982,7 @@
   min-height: 24px; padding: 3px 10px; border-radius: var(--radius-s); cursor: pointer;
   background: var(--bg-inset); border: 1px solid var(--border-card);
   color: var(--text-2); font-family: var(--font); font-size: var(--fs-4); font-weight: var(--fw-label);
-  line-height: 1; transition: background 0.12s var(--ease-out), color 0.12s var(--ease-out), border-color 0.12s var(--ease-out);
+  line-height: 1; transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 .jref-btn > svg { flex-shrink: 0; color: var(--text-3); }
 .jref-btn:hover { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
@@ -1106,7 +1106,7 @@ mark.s-hit {
 .term-tool {
   display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--radius-s);
   border: none; background: transparent; color: var(--text-3); cursor: pointer;
-  transition: background 0.12s var(--ease-out), color 0.12s var(--ease-out);
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .term-tool:hover { background: var(--bg-hover); color: var(--text); }
 .term-tool[aria-pressed="true"] { color: var(--text-2); }
@@ -1124,7 +1124,7 @@ mark.s-hit {
   /* 삽입 캐럿을 띄우는 기준. `overflow: hidden` 이 캐럿을 잘라내지는 않는다 —
      캐럿은 언제나 레일 안쪽에 그려진다. */
   position: relative;
-  overflow: hidden; transition: width 0.16s var(--ease-out);
+  overflow: hidden; transition: width var(--dur-2) var(--ease-out);
 }
 .term-rail[data-collapsed] { width: 44px; }
 .term-wrap.compact .term-rail { width: 168px; }
@@ -1382,7 +1382,7 @@ mark.s-hit {
 .term-sess .ts-x {
   display: grid; place-items: center; width: 18px; height: 18px; border-radius: var(--radius-xs); flex: none;
   border: none; background: transparent; color: inherit; cursor: pointer;
-  opacity: 0; transition: opacity 0.12s var(--ease-out);
+  opacity: 0; transition: opacity var(--dur-1) var(--ease-out);
 }
 .term-sess:hover .ts-x, .term-sess.active .ts-x { opacity: 0.55; }
 .term-sess .ts-x:hover { opacity: 1; background: var(--bg-active); }
@@ -1462,7 +1462,7 @@ mark.s-hit {
   margin: 0 6px 6px; padding: 7px 8px; border-radius: var(--radius-m);
   border: 1px dashed var(--sep-strong); background: transparent; color: var(--text-3);
   font-family: var(--font); font-size: var(--fs-4); font-weight: var(--fw-strong); cursor: pointer;
-  transition: background 0.12s var(--ease-out), color 0.12s var(--ease-out), border-color 0.12s var(--ease-out);
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 .term-rail-add:hover { background: var(--bg-hover); color: var(--text); border-color: var(--accent); }
 .term-rail[data-collapsed] .term-rail-add { margin: 0 5px 5px; padding: 7px 0; }
@@ -1487,7 +1487,7 @@ mark.s-hit {
 .term-divider.col { height: 8px; cursor: row-resize; }
 .term-divider::before {
   content: ""; position: absolute; background: var(--sep-strong); border-radius: var(--radius-2xs);
-  transition: background 0.12s var(--ease-out);
+  transition: background var(--dur-1) var(--ease-out);
 }
 .term-divider.row::before { top: 8px; bottom: 8px; left: 50%; width: 1px; transform: translateX(-50%); }
 .term-divider.col::before { left: 8px; right: 8px; top: 50%; height: 1px; transform: translateY(-50%); }
@@ -1658,7 +1658,7 @@ mark.s-hit {
   border-radius: var(--radius-2xs);
   background: var(--block-tone, var(--text-3));
   cursor: pointer;
-  transition: transform 0.12s var(--ease-out), box-shadow 0.12s var(--ease-out);
+  transition: transform var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
 .term-block-mark:hover {
   transform: scaleX(2);
@@ -1912,7 +1912,7 @@ mark.s-hit {
 .msg-copy {
   display: grid; place-items: center; width: 22px; height: 22px; margin-left: auto;
   border: none; border-radius: var(--radius-s); background: transparent; color: var(--text-3);
-  cursor: pointer; opacity: 0; transition: opacity 0.12s var(--ease-out), background 0.12s var(--ease-out);
+  cursor: pointer; opacity: 0; transition: opacity var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
 }
 .msg:hover .msg-copy, .msg-copy:focus-visible { opacity: 1; }
 .msg-copy:hover { background: var(--bg-inset); color: var(--text-2); }
@@ -2184,8 +2184,11 @@ mark.s-hit {
    배경과 같았다. 앱 공통 경계선 색으로 올린다. */
 .today-ring .tr-track { stroke: var(--border); }
 .today-ring .tr-arc {
+  /* design-ignore -- 링 그리기는 상태 전이가 아니라 연출이다: 0.55s 는 호를 눈으로
+     따라가게 하는 시간이라 상호작용 램프(90/190/320) 밖에 있는 게 맞다. 같은 줄의
+     stroke-width·filter 는 hover 응답이라 램프를 쓴다. */
   transition: stroke-dasharray 0.55s var(--ease-out),
-    stroke-width 0.15s var(--ease-out), filter 0.15s var(--ease-out);
+    stroke-width var(--dur-1) var(--ease-out), filter var(--dur-1) var(--ease-out);
 }
 .today-ring .tr-arc.o { stroke: var(--accent); }
 .today-ring .tr-arc.m { stroke: var(--accent-strong); }
@@ -2363,7 +2366,7 @@ mark.s-hit {
   border: 1px solid var(--sep); background: var(--bg-inset); color: var(--text-3);
   cursor: pointer; padding: 0;
 }
-.dfl-verify:hover { color: var(--text-1); border-color: var(--text-3); }
+.dfl-verify:hover { color: var(--text); border-color: var(--text-3); }
 .dfl-verify.on { color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
 .dfl-verify:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
 
@@ -2395,7 +2398,7 @@ mark.s-hit {
 /* 묶을 세션 고르기 — 체크박스와 라벨이 한 줄, 줄 전체가 누를 자리다. */
 .a2a-pick { display: flex; align-items: center; gap: var(--space-3); cursor: pointer; min-width: 0; }
 /* 묶을 때 붙일 이름. 비워 두면 placeholder 가 곧 기본값이라 따로 안내가 없다. */
-.a2a-name { flex: 0 1 200px; min-width: 0; padding: 4px 8px; font-size: var(--fs-6); background: var(--bg-inset); border: 1px solid var(--sep); border-radius: var(--radius-s); color: var(--text-1); }
+.a2a-name { flex: 0 1 200px; min-width: 0; padding: 4px 8px; font-size: var(--fs-6); background: var(--bg-inset); border: 1px solid var(--sep); border-radius: var(--radius-s); color: var(--text); }
 /* 문단용 — 행 안의 라벨과 달리 접혀야 한다. */
 .a2a-desc { color: var(--text-2); font-size: var(--fs-5); line-height: 1.5; }
 .a2a-list li .right { margin-left: auto; display: flex; gap: var(--space-1); flex: none; }

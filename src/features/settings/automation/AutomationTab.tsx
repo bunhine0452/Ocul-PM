@@ -234,7 +234,7 @@ export function AutomationTab() {
         <div className="rounded-md border border-border bg-accent/20 px-3 py-2 mb-4" role="status">
           <p className="text-xs text-foreground">{t("automation.gate.title")}</p>
           <button
-            className="text-[11px] text-primary hover:underline cursor-pointer mt-1"
+            className="text-fs-3 text-primary hover:underline cursor-pointer mt-1"
             onClick={() => openSettings("llm")}
           >
             {t("automation.gate.action")}
@@ -255,7 +255,7 @@ export function AutomationTab() {
           onChange={(v) => void setSwitch("watchers", v)}
           label={t("automation.switches.watchers")}
         />
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-fs-3 text-muted-foreground">
           {t("automation.switches.budget", {
             n: String(config?.automation?.daily_run_budget ?? AUTOMATION_DEFAULT.daily_run_budget),
           })}
@@ -324,19 +324,19 @@ export function AutomationTab() {
                   </button>
                 </div>
 
-                <p className="text-[11px] text-muted-foreground mt-1">
+                <p className="text-fs-3 text-muted-foreground mt-1">
                   {describeAutomation(s.def)}
                   {next ? ` · ${t("automation.card.next", { at: next })}` : ""}
                 </p>
                 {/* 실행 조건 ({#automation-step-if}) — 「왜 안 돌았지」의 절반이
                     여기 있다. 조건이 없으면 줄을 만들지 않는다. */}
                 {describeConditions(s.def) && (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-fs-3 text-muted-foreground">
                     {t("automation.cond.title")}: {describeConditions(s.def)}
                   </p>
                 )}
                 {last && (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-fs-3 text-muted-foreground">
                     {t("automation.card.last", {
                       at: last,
                       status: t(`automation.status.${s.last_status ?? "ok"}` as never),
@@ -344,12 +344,12 @@ export function AutomationTab() {
                   </p>
                 )}
                 {s.spec_error && (
-                  <p className="text-[11px] text-destructive mt-1">
+                  <p className="text-fs-3 text-destructive mt-1">
                     {tError({ code: s.spec_error, detail: null })}
                   </p>
                 )}
                 {s.warnings.map((w) => (
-                  <p key={w} className="text-[11px] text-muted-foreground/80 mt-1">
+                  <p key={w} className="text-fs-3 text-muted-foreground/80 mt-1">
                     {w}
                   </p>
                 ))}
@@ -396,7 +396,7 @@ export function AutomationTab() {
         {/* 씨앗 — 빈 화면 대신 "이걸로 시작". 만들어도 **꺼진 채로** 생긴다. */}
         {seeds.length > 0 && (
           <div className="pt-2">
-            <p className="text-[11px] text-muted-foreground mb-2">{t("automation.seeds.title")}</p>
+            <p className="text-fs-3 text-muted-foreground mb-2">{t("automation.seeds.title")}</p>
             <div className="flex flex-wrap gap-2">
               {seeds.map((seed) => (
                 <button

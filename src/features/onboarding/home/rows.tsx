@@ -86,7 +86,7 @@ export function DraftRow({
       style={{ gridTemplateColumns: "26px minmax(0,1fr) auto" }}
     >
       <Mark>
-        <PenLine className="w-3.5 h-3.5" />
+        <PenLine size={15} />
       </Mark>
       <span className="home-drafttext min-w-0 flex flex-col gap-0.5 py-2">
         <button
@@ -96,18 +96,18 @@ export function DraftRow({
           onKeyDown={w.onKeyDown}
           onFocus={w.onFocus}
           onClick={() => onResume(bp)}
-          className="home-open text-[14px] font-semibold text-[var(--text)] truncate text-left cursor-pointer bg-transparent border-0 p-0"
+          className="home-open text-fs-8 font-semibold text-[var(--text)] truncate text-left cursor-pointer bg-transparent border-0 p-0"
           aria-label={t("home.draftResumeAria", { name, step: row.stepLabel })}
         >
           {name}
         </button>
-        <span className="text-[11px] text-[var(--text-2)]">{t("home.draftStoppedAt", { step: row.stepLabel })}</span>
+        <span className="text-fs-3 text-[var(--text-2)]">{t("home.draftStoppedAt", { step: row.stepLabel })}</span>
       </span>
 
       <span className="home-above flex items-center gap-1.5 justify-end min-w-[168px]">
         {confirming ? (
           <>
-            <span className="text-[11px] text-[var(--text-2)]">{t("home.discardConfirm")}</span>
+            <span className="text-fs-3 text-[var(--text-2)]">{t("home.discardConfirm")}</span>
             <button
               type="button"
               className="home-chipbtn home-chipbtn--danger"
@@ -139,7 +139,7 @@ export function DraftRow({
               setConfirming(true);
             }}
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 size={15} />
           </button>
         )}
       </span>
@@ -178,7 +178,7 @@ export function CommandRow({
       onMouseMove={w.onMouseMove}
     >
       <Mark>
-        <Icon className="w-3.5 h-3.5" />
+        <Icon size={15} />
       </Mark>
       <button
         type="button"
@@ -187,7 +187,7 @@ export function CommandRow({
         onKeyDown={w.onKeyDown}
         onFocus={w.onFocus}
         onClick={row.run}
-        className="home-open text-[13px] font-semibold text-[var(--text)] text-left truncate cursor-pointer bg-transparent border-0 p-0"
+        className="home-open text-fs-7 font-semibold text-[var(--text)] text-left truncate cursor-pointer bg-transparent border-0 p-0"
       >
         {row.label}
       </button>

@@ -82,7 +82,7 @@ export function EntriesPanel({
       <ul className="flex flex-col gap-1.5">
         {entries.map((e) => (
           <li key={e.relative_path} className="flex items-baseline gap-2 text-sm">
-            <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium">
+            <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-fs-3 font-medium">
               {t(TYPE_LABEL[e.entry_type] ?? "branch.type.other")}
             </span>
             <button
@@ -161,7 +161,7 @@ export function CommitsPanel({ commits }: { commits: BranchCommit[] }) {
                   <span className="shrink-0 font-mono text-xs text-muted-foreground">{c.short_sha}</span>
                   <span className="flex-1 truncate text-foreground">{c.subject}</span>
                   {c.journal_count > 0 ? (
-                    <span className="shrink-0 rounded bg-(--ok-soft) px-1.5 py-0.5 text-[11px] font-medium text-(--ok-text)">
+                    <span className="shrink-0 rounded bg-(--ok-soft) px-1.5 py-0.5 text-fs-3 font-medium text-(--ok-text)">
                       {t("branch.commit.journals", { n: c.journal_count })}
                     </span>
                   ) : null}
@@ -206,12 +206,12 @@ export function FilesPanel({ files, onOpen }: { files: BranchFile[]; onOpen: (pa
               {f.path}
             </button>
             {f.uncommitted ? (
-              <span className="shrink-0 rounded bg-(--warn-soft) px-1.5 py-0.5 text-[11px] font-medium text-(--warn-text)">
+              <span className="shrink-0 rounded bg-(--warn-soft) px-1.5 py-0.5 text-fs-3 font-medium text-(--warn-text)">
                 {t("branch.file.uncommitted")}
               </span>
             ) : null}
             {!f.recorded ? (
-              <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+              <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-fs-3 font-medium text-muted-foreground">
                 {t("branch.file.unrecorded")}
               </span>
             ) : null}
