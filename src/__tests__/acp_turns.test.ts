@@ -406,15 +406,15 @@ describe("blocks keep arrival order", () => {
     });
 
     let turns = openTurn([], "go");
-    turns = applyAcpEvent(turns, chunk("먼저 살펴봅니다.")); // i18n-ignore -- 테스트 고정값
+    turns = applyAcpEvent(turns, chunk("먼저 살펴봐요.")); // i18n-ignore -- 테스트 고정값
     turns = applyAcpEvent(turns, call("a"));
-    turns = applyAcpEvent(turns, chunk("이제 고칩니다.")); // i18n-ignore -- 테스트 고정값
+    turns = applyAcpEvent(turns, chunk("이제 고쳐요.")); // i18n-ignore -- 테스트 고정값
     turns = applyAcpEvent(turns, call("b"));
 
     expect(turns[1].blocks).toEqual([
-      { kind: "text", text: "먼저 살펴봅니다." }, // i18n-ignore -- 테스트 고정값
+      { kind: "text", text: "먼저 살펴봐요." }, // i18n-ignore -- 테스트 고정값
       { kind: "tool", call: expect.objectContaining({ id: "a" }) },
-      { kind: "text", text: "이제 고칩니다." }, // i18n-ignore -- 테스트 고정값
+      { kind: "text", text: "이제 고쳐요." }, // i18n-ignore -- 테스트 고정값
       { kind: "tool", call: expect.objectContaining({ id: "b" }) },
     ]);
   });

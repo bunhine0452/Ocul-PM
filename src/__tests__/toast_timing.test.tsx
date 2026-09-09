@@ -25,7 +25,7 @@ const last = () => {
 
 describe("액션이 달린 토스트는 기본값에 기대도 손해가 안 난다", () => {
   it("durationMs 를 안 주면 info 기본 5초가 아니라 15초 바닥을 쓴다", () => {
-    toast.info("옮겼습니다", { actions: [{ label: "되돌리기", onClick: noop }] });
+    toast.info("옮겼어요", { actions: [{ label: "되돌리기", onClick: noop }] });
     expect(last().durationMs).toBe(15_000);
   });
 
@@ -35,7 +35,7 @@ describe("액션이 달린 토스트는 기본값에 기대도 손해가 안 난
   });
 
   it("짧게 준 값은 바닥까지 올린다", () => {
-    toast.info("옮겼습니다", {
+    toast.info("옮겼어요", {
       durationMs: 3_000,
       actions: [{ label: "되돌리기", onClick: noop }],
     });
@@ -51,7 +51,7 @@ describe("액션이 달린 토스트는 기본값에 기대도 손해가 안 난
   });
 
   it("길게 준 값은 건드리지 않는다", () => {
-    toast.warning("확인이 필요합니다", {
+    toast.warning("확인이 필요해요", {
       durationMs: 30_000,
       actions: [{ label: "보기", onClick: noop }],
     });
@@ -64,9 +64,9 @@ describe("호버·포커스가 시계를 멈춘다", () => {
     vi.useFakeTimers();
     render(<Toaster />);
     // 스토어 갱신 → useSyncExternalStore 재렌더를 act 로 흘려보낸다.
-    act(() => void toast.info("옮겼습니다", { actions: [{ label: "되돌리기", onClick: noop }] }));
+    act(() => void toast.info("옮겼어요", { actions: [{ label: "되돌리기", onClick: noop }] }));
 
-    const item = screen.getByText("옮겼습니다").closest("div[class*='pointer-events-auto']")!;
+    const item = screen.getByText("옮겼어요").closest("div[class*='pointer-events-auto']")!;
     vi.advanceTimersByTime(10_000); // 15초 중 10초 경과
 
     fireEvent.mouseEnter(item);

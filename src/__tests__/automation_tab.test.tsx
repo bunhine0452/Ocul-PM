@@ -275,14 +275,14 @@ describe("AutomationTab", () => {
     coreModelSetting.current = { coreProvider: "", coreModel: "" };
     render(<AutomationTab />);
     expect(
-      await screen.findByText(/조용히 건너뜁니다|skipped silently/),
+      await screen.findByText(/조용히 건너뛰어요|skipped silently/),
     ).toBeInTheDocument();
   });
 
   it("Core Model 이 있으면 게이트가 사라진다", async () => {
     render(<AutomationTab />);
     await waitFor(() => expect(screen.getByText("자동화")).toBeInTheDocument());
-    expect(screen.queryByText(/조용히 건너뜁니다/)).toBeNull();
+    expect(screen.queryByText(/조용히 건너뛰어요/)).toBeNull();
   });
 
   /// 「지금 실행」이 스킵으로 끝나면 성공이라고 말하지 않는다.
@@ -301,7 +301,7 @@ describe("AutomationTab", () => {
     await waitFor(() => expect(calls.current).toContain("run:weekly"));
     const [kind, message] = toasts.current[toasts.current.length - 1] ?? [];
     expect(kind).toBe("warning");
-    expect(message).toContain("건너뛰었습니다");
+    expect(message).toContain("건너뛰었어요");
     expect(message).toContain("core model not configured");
   });
 
@@ -318,9 +318,9 @@ describe("AutomationTab", () => {
     render(<AutomationTab />);
     // 두 축이 **따로** 꺼진다 — 시계와 감시는 도는 빈도가 다르다.
     expect(
-      await screen.findByText("정해진 시각에 자동화를 실행합니다")
+      await screen.findByText("정해진 시각에 자동화를 실행해요")
     ).toBeInTheDocument();
-    expect(screen.getByText("파일 변경이 멎으면 자동화를 실행합니다")).toBeInTheDocument();
+    expect(screen.getByText("파일 변경이 멎으면 자동화를 실행해요")).toBeInTheDocument();
     // 문제 해결 3종.
     expect(screen.getByText("안 돌았다 —")).toBeInTheDocument();
     expect(screen.getByText("너무 자주 돈다 —")).toBeInTheDocument();
@@ -387,11 +387,11 @@ describe("AutomationEditor (워처)", () => {
     for (const label of ["즉시 (0.2초)", "보통 (1초)", "느긋 (3초)", "여유 (1분)", "지연 (5분)", "길게 (10분)"]) {
       expect(screen.getByRole("option", { name: label })).toBeInTheDocument();
     }
-    // 문제 해결 문구도 같은 말("지시문은 그대로 모델에게 갑니다")을 쓴다 —
+    // 문제 해결 문구도 같은 말("지시문은 그대로 모델에게 가요")을 쓴다 —
     // 그게 §2.5 의 요구다. 그래서 여기서는 존재만 확인한다.
-    expect(screen.getAllByText(/그대로 모델에게 갑니다/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/그대로 모델에게 가요/).length).toBeGreaterThan(0);
     expect(screen.getByText(/이미 처리한 것은 건너뛰라고 명시/)).toBeInTheDocument();
-    expect(screen.getByText(/손이 멎은 뒤에만 돕니다/)).toBeInTheDocument();
+    expect(screen.getByText(/손이 멎은 뒤에만 돌아요/)).toBeInTheDocument();
     // 문제 해결 3종은 에디터와 목록이 같은 말을 쓴다.
     expect(screen.getByText("결과가 이상하다 —")).toBeInTheDocument();
   });

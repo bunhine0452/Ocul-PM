@@ -25,7 +25,7 @@ const OBJECTION: AcpObjection = {
   acp_session_id: "uuid-1",
   conversation: "acp-20260905-abcd1234",
   changed: ["src/lib.rs", "src-tauri/src/acp/mod.rs"],
-  reason: "이 대화에서 바꾼 파일 2개가 아직 기록되지 않았습니다.",
+  reason: "이 대화에서 바꾼 파일 2개가 아직 기록되지 않았어요.",
   action: "논리 단위가 끝났으면 journal_write 로 위 파일 2개를 기록하고 plan_update 로 갱신하세요.",
 };
 

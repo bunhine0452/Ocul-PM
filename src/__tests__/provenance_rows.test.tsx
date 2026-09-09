@@ -167,7 +167,7 @@ describe("세션 줄 — 상태와 인라인 Stop", () => {
 
   it("승인 대기는 멈출 것이 아니라 답할 것이라 Stop 을 달지 않는다", () => {
     renderPanel((id) => (id === "s1" ? "attention" : null));
-    expect(screen.getByText("입력을 기다립니다")).toBeInTheDocument();
+    expect(screen.getByText("입력을 기다려요")).toBeInTheDocument();
     expect(screen.queryByLabelText("중단")).toBeNull();
   });
 

@@ -207,7 +207,7 @@ describe("능력 검색 — 이름·설명·키워드만", () => {
 
 describe("본문 요청 규약", () => {
   it("펜스 블록에서 요청을 읽는다", () => {
-    const text = '설명입니다.\n\n```json:context\n{ "type": "load", "kind": "rules_master", "id": "" }\n```';
+    const text = '설명이에요.\n\n```json:context\n{ "type": "load", "kind": "rules_master", "id": "" }\n```';
     expect(parseContextRequest(text)).toEqual({ type: "load", kind: "rules_master", id: "" });
   });
 

@@ -153,11 +153,11 @@ describe("AcpConversation — 추출 전 특성화", () => {
 
     await ask("A 질문");
     await waitFor(() => expect(channels).toHaveLength(1));
-    emit({ kind: "failed", message: "무너졌습니다" });
-    await waitFor(() => expect(screen.getByText(/무너졌습니다/)).toBeTruthy());
+    emit({ kind: "failed", message: "무너졌어요" });
+    await waitFor(() => expect(screen.getByText(/무너졌어요/)).toBeTruthy());
 
     newConversation(container);
-    await waitFor(() => expect(screen.queryByText(/무너졌습니다/)).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/무너졌어요/)).toBeNull());
   });
 
   it("새 대화 버튼이 탭을 하나 늘리고, 보낸 곳이 새 대화로 바뀐다", async () => {

@@ -23,9 +23,9 @@ describe("tError — 한국어 모드", () => {
   it("캡처 그룹이 자리표시자로 들어간다", () => {
     setLangSetting("ko");
     expect(tError("No API key configured for anthropic")).toBe(
-      "anthropic API 키가 설정되지 않았습니다",
+      "anthropic API 키가 설정되지 않았어요",
     );
-    expect(tError("Skill not found: my-skill")).toBe("스킬을 찾을 수 없습니다: my-skill");
+    expect(tError("Skill not found: my-skill")).toBe("스킬을 찾을 수 없어요: my-skill");
   });
 
   it("앞뒤 공백이 있어도 매칭된다", () => {

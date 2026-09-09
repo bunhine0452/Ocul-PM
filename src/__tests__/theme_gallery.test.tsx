@@ -191,7 +191,7 @@ describe("가져오기", () => {
     render(<ThemeGallery />);
     fireEvent.click(screen.getByText("가져오기"));
 
-    await waitFor(() => expect(screen.getByText("같은 이름의 테마가 있습니다")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("같은 이름의 테마가 있어요")).toBeTruthy());
     expect(screen.getByText("덮어쓰기")).toBeTruthy();
     expect(screen.getByText("사본으로")).toBeTruthy();
 

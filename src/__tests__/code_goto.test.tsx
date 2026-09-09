@@ -290,7 +290,7 @@ describe("코드 화면 배선 — ⇧⌘O · ⌃G", () => {
       const hit = [...container.querySelectorAll(".code-tree-row")].find(
         (el) => el.querySelector(".code-tree-label")?.textContent === "main.rs",
       );
-      if (!hit) throw new Error("트리에 파일이 없습니다");
+      if (!hit) throw new Error("트리에 파일이 없어요");
       return hit as HTMLElement;
     });
     fireEvent.click(row);

@@ -141,7 +141,7 @@ describe("DeclarativeConfigSection", () => {
     fireEvent.click(r.getByRole("button", { name: /문서 열어 계획 보기/ }));
     await waitFor(() => expect(fx.calls.plan).toBe(1));
     expect(fx.calls.apply).toBe(0);
-    expect(r.getByText(/설정을 이 상태로 맞춥니다/)).toBeTruthy();
+    expect(r.getByText(/설정을 이 상태로 맞춰요/)).toBeTruthy();
     expect(r.getByText(/theme/)).toBeTruthy();
   });
 
@@ -161,7 +161,7 @@ describe("DeclarativeConfigSection", () => {
 
     await waitFor(() => expect(r.getByText(/typescript\/coding-style\.md/)).toBeTruthy());
     expect(r.getByText(/이행하지 않음/)).toBeTruthy();
-    expect(r.getByText(/해시만 싣습니다/)).toBeTruthy();
+    expect(r.getByText(/해시만 실어요/)).toBeTruthy();
     // 쓸 것이 없으므로 적용은 막혀 있다.
     expect(r.getByRole("button", { name: "적용" }).hasAttribute("disabled")).toBe(true);
   });
@@ -201,6 +201,6 @@ describe("DeclarativeConfigSection", () => {
     fireEvent.click(r.getByRole("button", { name: /문서 열어 계획 보기/ }));
     await waitFor(() => expect(fx.calls.read).toBe(1));
     expect(fx.calls.plan).toBe(0);
-    expect(r.queryByText(/설정을 이 상태로 맞춥니다/)).toBeNull();
+    expect(r.queryByText(/설정을 이 상태로 맞춰요/)).toBeNull();
   });
 });

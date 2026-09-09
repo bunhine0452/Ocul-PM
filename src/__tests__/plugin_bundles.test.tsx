@@ -136,9 +136,9 @@ describe("PluginBundlesBlock", () => {
   it("이행하지 않는 아티팩트를 사유와 함께 적는다", async () => {
     const r = render(<PluginBundlesBlock projectId={1} />);
     await openPreview(r);
-    expect(r.getByText(/감지했지만 실행하지 않습니다/)).toBeTruthy();
+    expect(r.getByText(/감지했지만 실행하지 않아요/)).toBeTruthy();
     expect(r.getByText("hooks")).toBeTruthy();
-    expect(r.getByText(/셸 스크립트를 실행합니다/)).toBeTruthy();
+    expect(r.getByText(/셸 스크립트를 실행해요/)).toBeTruthy();
   });
 
   it("놓을 자리를 그대로 보여 준다 — Claude Code 가 읽는 경로", async () => {

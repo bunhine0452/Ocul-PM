@@ -598,7 +598,7 @@ describe("탭 스트립 — 탭 메뉴 (드래그의 등가물)", () => {
   it("보낼 창이 없으면 비우지 않고 이유를 적는다", () => {
     renderStrip({ windowChoices: [] });
     fireEvent.contextMenu(screen.getAllByRole("tab")[0]);
-    expect(screen.getByText("옮길 다른 창이 없습니다.")).toBeInTheDocument();
+    expect(screen.getByText("옮길 다른 창이 없어요.")).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /창으로 옮기기/ })).toBeNull();
   });
 
@@ -668,7 +668,7 @@ describe("탭 스트립 — 새 탭", () => {
   it("전부 열려 있으면 안내와 시작 화면 진입만 남는다", () => {
     const { props } = renderStrip({ closedProjects: [] });
     fireEvent.contextMenu(screen.getByRole("button", { name: "새 탭" }));
-    expect(screen.getByText("모든 프로젝트가 이미 열려 있습니다.")).toBeInTheDocument();
+    expect(screen.getByText("모든 프로젝트가 이미 열려 있어요.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("menuitem", { name: /시작 화면 열기/ }));
     expect(props.onNewTab).toHaveBeenCalled();
   });

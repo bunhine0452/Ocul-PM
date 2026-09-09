@@ -62,7 +62,7 @@ describe("scanSource — 상태 기계가 필요한 이유", () => {
   });
 
   it("문자열 안의 /* 도 주석 시작이 아니다", () => {
-    expect(lines(`const glob = "src/*.ts 를 검사합니다";`)).toEqual([1]);
+    expect(lines(`const glob = "src/*.ts 를 검사해요";`)).toEqual([1]);
   });
 
   it("이스케이프된 따옴표가 문자열을 끝내지 않는다", () => {

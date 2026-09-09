@@ -20,7 +20,7 @@ describe("estimateTokens — 문자 계열별 휴리스틱", () => {
   });
 
   it("한글은 ≈0.7 token/char (ASCII 보다 훨씬 밀도 높음)", () => {
-    const ko = "안녕하세요반갑습니다"; // 10 chars → ceil(7) = 7
+    const ko = "안녕하세요반갑아요"; // 10 chars → ceil(7) = 7
     expect(estimateTokens(ko)).toBe(7);
     // 같은 길이의 ASCII 보다 크게 추정되어야 한다.
     expect(estimateTokens(ko)).toBeGreaterThan(estimateTokens("abcdefghij"));

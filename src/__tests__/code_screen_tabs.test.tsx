@@ -225,7 +225,7 @@ function treeRow(container: HTMLElement, name: string): HTMLElement {
   const hit = [...container.querySelectorAll(".code-tree-row")].find(
     (row) => row.querySelector(".code-tree-label")?.textContent === name,
   );
-  if (!hit) throw new Error(`트리에 "${name}" 행이 없습니다`);
+  if (!hit) throw new Error(`트리에 "${name}" 행이 없어요`);
   return hit as HTMLElement;
 }
 
@@ -235,20 +235,20 @@ function menuItem(label: string): HTMLElement {
   const hit = [...document.querySelectorAll(".code-ctxmenu-item")].find(
     (el) => el.querySelector("span")?.textContent === label,
   );
-  if (!hit) throw new Error(`메뉴에 "${label}" 항목이 없습니다`);
+  if (!hit) throw new Error(`메뉴에 "${label}" 항목이 없어요`);
   return hit as HTMLElement;
 }
 
 function iconButton(container: HTMLElement, selector: string, label: string): HTMLElement {
   const hit = container.querySelector(`${selector} button[aria-label="${label}"]`);
-  if (!hit) throw new Error(`"${label}" 버튼이 없습니다`);
+  if (!hit) throw new Error(`"${label}" 버튼이 없어요`);
   return hit as HTMLElement;
 }
 
 /** 인라인 입력칸 (새 파일·새 폴더·이름 바꾸기 공용). */
 function draftInput(container: HTMLElement): HTMLInputElement {
   const hit = container.querySelector(".code-tree-draft-input");
-  if (!hit) throw new Error("인라인 입력칸이 없습니다");
+  if (!hit) throw new Error("인라인 입력칸이 없어요");
   return hit as HTMLInputElement;
 }
 

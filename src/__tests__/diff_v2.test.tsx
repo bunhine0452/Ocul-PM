@@ -72,7 +72,7 @@ vi.mock("@/lib/bindings", () => {
               gitStatus === "throw"
                 ? Promise.reject(new Error("전송 계층 실패"))
                 : gitStatus === "error"
-                  ? Promise.resolve({ status: "error" as const, error: "git 을 찾지 못했습니다" })
+                  ? Promise.resolve({ status: "error" as const, error: "git 을 찾지 못했어요" })
                   : ok([] as unknown[]);
           if (prop === "openInEditor") return () => ok(null);
           if (prop === "settingsGetAll") return () => ok([] as Array<[string, string]>);

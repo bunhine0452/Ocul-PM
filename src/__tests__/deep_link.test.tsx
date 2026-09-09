@@ -79,7 +79,7 @@ describe("DeepLinkSheet", () => {
     expect(onAccept).not.toHaveBeenCalled();
     // 출처를 요약하지 않고 그대로 보여 준다.
     expect(r.getByText("github.com/owner/repo")).toBeTruthy();
-    expect(r.getByText(/지금까지 바뀐 것은 없습니다/)).toBeTruthy();
+    expect(r.getByText(/지금까지 바뀐 것은 없어요/)).toBeTruthy();
   });
 
   it("승인해야 실행된다", async () => {
@@ -110,7 +110,7 @@ describe("DeepLinkSheet", () => {
 
 // ─── Phase 8 (#landing-themes) — 승인 뒤에 실제로 가져온다 ─────────────────
 //
-// 시트는 「테마 파일을 받아 갤러리에 추가합니다」라고 말한다. 승인해도 설정
+// 시트는 「테마 파일을 받아 갤러리에 추가해요」라고 말한다. 승인해도 설정
 // 화면만 열리고 아무것도 받아오지 않으면 그 문장이 거짓이 된다. 갤러리가
 // 아직 없어도 요청이 사라지지 않는 것까지 잰다 (끈적 플래그).
 describe("themeInstallIntent", () => {

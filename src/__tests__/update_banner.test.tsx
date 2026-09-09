@@ -50,7 +50,7 @@ describe("releaseHighlights", () => {
     "## Ocul-PM v1.1.1",
     "",
     "### ✨ What's new",
-    "- 작업일지 변경 diff가 과거 일지에도 표시됩니다",
+    "- 작업일지 변경 diff가 과거 일지에도 표시돼요",
     "",
     "### Downloads",
     "| Platform | File |",
@@ -62,7 +62,7 @@ describe("releaseHighlights", () => {
 
   it("extracts only the What's new section (drops Downloads / notarization)", () => {
     const out = releaseHighlights(body);
-    expect(out).toContain("과거 일지에도 표시됩니다");
+    expect(out).toContain("과거 일지에도 표시돼요");
     expect(out).not.toContain("Downloads");
     expect(out).not.toContain("macOS 첫 실행");
     expect(out).not.toContain("## Ocul-PM"); // title line dropped too

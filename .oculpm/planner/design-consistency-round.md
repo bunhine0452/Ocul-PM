@@ -38,7 +38,7 @@ owner: claude-code
 - [x] 칩 11벌을 2단으로 — 높이 18·22·23·25·28px, 곡률 xs·s·m·pill 이 섞여 한 줄에 서면 광학 중심이 어긋난다(.file-pill 25 · .chip 22 · .scope-chip 28). 아이콘 버튼 `--iconbtn-size` 도 26/28/30/32 네 단 {#unify-chips}
 
 ## 문안 — 화자를 한 명으로 {#copy}
-- [~] 화자 통일 + `lint:tone` — 합쇼체 405 / 해요체 253 이 접두사별로 갈리고(code.* 39:5 · today.* 3:19 · graph.* 0:11) 한 문자열 안에서 섞이는 게 28건(ko.ts:41 · :90 · :1512). 해요체로 정하고 code.*·ctx.*·automation.* 87건을 옮긴다. 최소한 "한 문자열 안 혼재" 는 즉시 게이트로 {#copy-voice}
+- [x] 화자 통일 + `lint:tone` — 합쇼체 405 / 해요체 253 이 접두사별로 갈리고(code.* 39:5 · today.* 3:19 · graph.* 0:11) 한 문자열 안에서 섞이는 게 28건(ko.ts:41 · :90 · :1512). 해요체로 정하고 code.*·ctx.*·automation.* 87건을 옮긴다. 최소한 "한 문자열 안 혼재" 는 즉시 게이트로 {#copy-voice}
 - [x] 에러 문안 — `{error}` 를 그대로 보간하는 111건 중 `"…실패: {error}"` 42건을 "무엇이 안 됐는지 + 다음 한 걸음" 으로 바꾸고 영문 원문은 접힌 상세로. 에러성 273건 중 다음 행동을 말해주는 건 32건뿐이다 {#copy-errors}
 - [x] 파괴 확인 3벌을 `useConfirm` 하나로 — 표준("지울까요? [취소][삭제]") vs settings.danger("정말로 삭제하시겠습니까? [예, 모두 삭제]") vs home/rows.tsx:110("정말 버릴까요? [예][아니오]"). "…할까요?" 22 vs "…하시겠습니까?" 2 인데 그 2건이 가장 위험한 자리다 {#copy-confirm}
 - [x] "복사됨" 토스트 6종을 `common.copied` 하나로 — 공용 키가 이미 있는데 5곳이 각자 썼다(ko.ts:167 "복사됨" · :671 "복사됨!" ← 사전 유일 느낌표 · :2756 "복사됨 ✓" · :300 · :982 · :1559) {#copy-toast}
@@ -117,4 +117,5 @@ owner: claude-code
 | 2026-09-10T01:24:28+09:00 | #unify-toolbar-vocab | claude-code | ☐→x | .oculpm/journal/20260910/Refactors/0124_refactor_toolbar-vocab-and-selected-state.md | 어휘는 이미 btn 이 23 으로 압도적이었고 스트래글러는 셋(.disc-btn 12·.sk-textbtn 1·.gr-chip 3) — 전부 접고 CSS 삭제. 「선택됨」 인라인 계산은 1곳이 아니라 3곳이었고 셋 다 .seg/.seg-item 프리미티브를 몰랐다(검색 화면은 .diff-mode-toggle 이라는 남의 이름을 쓰고 있었다). aria-selected 없어 AT 에는 그냥 버튼 둘이었다. 게이트 규칙 21 — 첫 정규식이 여러 줄 style 을 놓쳐 probe 가 잡음 |
 | 2026-09-10T01:29:02+09:00 | #unify-drilldown | claude-code | ☐→x | .oculpm/journal/20260910/Refactors/0128_refactor_drilldown-header-unify.md | 항목의 최소안(.sk-head→Toolbar) 채택 — 2-pane 전면 통일은 일관성 수정이 아니라 정보구조 변경이라 범위 밖. 정본은 EntryDetailView 가 이미 Toolbar leading/title/sub 를 쓰고 있었다(다섯 번째 같은 형태). 화살표는 7곳 중 6곳이 15 라 18 이 외톨이. 계약 2(sk-head 부활 금지·화살표 한 크기) |
 | 2026-09-10T01:34:55+09:00 | #unify-chat | claude-code | ☐→~ | .oculpm/journal/20260910/Refactors/0134_refactor_ime-guard-single-definition.md | 정정: "컴포저 170줄 재작성" 은 과장 — 시각 껍데기는 CSS 로 이미 공유되고, 다른 부분은 프로토콜 차이(ACP 노브 vs 공급자 고르개). 첨부·슬래시 부재는 일관성 결함이 아니라 기능 부재. 대신 실측 중 진짜 중복 발견: 한글 IME 가드 4벌, 터미널만 key==="Process" 를 알고 있었다 → lib/ime.ts 단일 정의로 통합(가장 완전한 조건 채택). 남은 것=AcpToolbar title 자리·ACP 패널 vs AI 모달, 둘 다 눈으로 볼 IA 선택 |
+| 2026-09-10T01:47:35+09:00 | #copy-voice | claude-code | ~→x | .oculpm/journal/20260910/Refactors/0147_refactor_copy-voice-haeyo.md | 사용자 결정=해요체. 합쇼체 700곳(206종+109종 종결형) 변환, 최종 합쇼 0/해요 763. 변환기 오류 4건을 표 검토로 잡음(종성 22를 ㅆ로 오독·ㅂㄷ불규칙·접미일치가 옮깁니다→옮길어요·ㅂ니다 계열 269곳 누락). 옛 혼재 게이트가 돼요를 두 목록에 넣어 오탐+합쇼체는 못 막던 것 발견 → "사전에 합쇼체 없음" 으로 교체. file_links 픽스처는 열 좌표 계산 입력이라 원복 |
 <!-- oculpm:plan-log end -->

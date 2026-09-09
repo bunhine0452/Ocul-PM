@@ -79,9 +79,9 @@ describe("유출 배지 — 로컬이면 붙지 않는다", () => {
     render(<EgressBadge notice={notice} />);
     const badge = screen.getByTestId("automation-egress-badge");
     expect(badge.getAttribute("data-egress")).toBe("local");
-    // 「보냅니다」라는 말이 로컬 화면에 뜨면 그게 거짓말이다.
-    expect(badge.textContent).not.toContain("보냅니다");
-    expect(badge.textContent).toContain("나가지 않습니다");
+    // 「보내요」라는 말이 로컬 화면에 뜨면 그게 거짓말이다.
+    expect(badge.textContent).not.toContain("보내요");
+    expect(badge.textContent).toContain("나가지 않아요");
   });
 
   it("에디터에서도 로컬 모델이면 유출 경고가 뜨지 않는다", () => {

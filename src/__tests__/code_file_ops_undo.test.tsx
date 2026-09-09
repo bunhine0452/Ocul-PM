@@ -68,7 +68,7 @@ describe("옮기기 되돌리기", () => {
 
     const toast = latest();
     expect(toast.message).toContain("a.ts");
-    expect(toast.message).toContain("옮겼습니다");
+    expect(toast.message).toContain("옮겼어요");
     const undo = toast.actions?.[0];
     expect(undo?.label).toBe("되돌리기");
 
@@ -132,7 +132,7 @@ describe("삭제", () => {
     act(() => result.current.confirmDelete());
     await waitFor(() => expect(del).toHaveBeenCalledTimes(2));
     const toast = latest();
-    expect(toast.message).toContain("2개를 휴지통으로 보냈습니다");
+    expect(toast.message).toContain("2개를 휴지통으로 보냈어요");
     expect(toast.actions).toBeUndefined();
   });
 

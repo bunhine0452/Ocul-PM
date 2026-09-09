@@ -154,7 +154,7 @@ describe("ClaudeHooksBlock — 플러그인 겹침", () => {
   it("훅 꺼짐: 켤 필요 없다는 정보 (경고 색 아님)", async () => {
     const r = render(<ClaudeHooksBlock projectId={20} pluginInstalled />);
     await waitFor(() => expect(r.getByText("꺼짐")).toBeTruthy());
-    const note = r.getByText(/또 켤 필요가 없습니다/);
+    const note = r.getByText(/또 켤 필요가 없어요/);
     expect(note.className).not.toContain("text-amber-400");
   });
 
@@ -162,7 +162,7 @@ describe("ClaudeHooksBlock — 플러그인 겹침", () => {
     fx.status = status({ installed: true });
     const r = render(<ClaudeHooksBlock projectId={21} pluginInstalled />);
     await waitFor(() => expect(r.getByText("연동됨")).toBeTruthy());
-    const warn = r.getByText(/두 번 적재됩니다/);
+    const warn = r.getByText(/두 번 적재돼요/);
     expect(warn.className).toContain("text-(--warn-text)");
   });
 

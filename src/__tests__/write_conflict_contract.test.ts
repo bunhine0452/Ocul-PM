@@ -25,10 +25,10 @@ describe("write-conflict 표지", () => {
   });
 
   it("논의 저장 실패 중 충돌만 가려낸다", () => {
-    expect(isWriteConflict(`${WRITE_CONFLICT_PREFIX} 논의 'x' 이 읽은 뒤에 바뀌었습니다`)).toBe(true);
+    expect(isWriteConflict(`${WRITE_CONFLICT_PREFIX} 논의 'x' 이 읽은 뒤에 바뀌었어요`)).toBe(true);
     // 평범한 실패는 충돌이 아니다 — 여기에 선택지를 띄우면 거짓말이 된다.
     expect(isWriteConflict("discussion 'x' not found")).toBe(false);
-    expect(isWriteConflict("이 문제 해결 문서는 닫힘(resolved/archived) 상태입니다.")).toBe(false);
+    expect(isWriteConflict("이 문제 해결 문서는 닫힘(resolved/archived) 상태예요.")).toBe(false);
     // 봉투가 아닌 값(전송 계층이 던진 Error 등)에도 안 넘어진다.
     expect(isWriteConflict(undefined)).toBe(false);
     expect(isWriteConflict(new Error(WRITE_CONFLICT_PREFIX))).toBe(false);

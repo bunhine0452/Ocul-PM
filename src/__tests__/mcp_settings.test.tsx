@@ -253,7 +253,7 @@ describe("McpServerBlock (PR-CI2)", () => {
     await waitFor(() => expect(r.getByText("Desktop 미설치")).toBeTruthy());
     const btn = r.getByRole("button", { name: "Desktop 등록" }) as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
-    expect(r.getByText(/설정 폴더를 찾지 못했습니다/)).toBeTruthy();
+    expect(r.getByText(/설정 폴더를 찾지 못했어요/)).toBeTruthy();
   });
 
   it("바이너리 없음: Desktop 등록 버튼도 비활성 (죽은 경로 기입 방지)", async () => {
@@ -339,7 +339,7 @@ describe("CodexMcpServerBlock (머신 스코프)", () => {
     const r = render(<CodexMcpServerBlock />);
     await waitFor(() => expect(r.getByText("Codex 미설치")).toBeTruthy());
     expect((r.getByRole("button", { name: "등록" }) as HTMLButtonElement).disabled).toBe(true);
-    expect(r.getByText(/Codex 설정 폴더를 찾지 못했습니다/)).toBeTruthy();
+    expect(r.getByText(/Codex 설정 폴더를 찾지 못했어요/)).toBeTruthy();
   });
 
   it("Codex 해제는 Codex 설정만 대상으로 한다", async () => {
@@ -374,15 +374,15 @@ describe("플러그인 겹침 고지", () => {
   it("MCP 미등록: 등록할 필요 없다는 정보 (경고 아님)", async () => {
     const r = render(<McpServerBlock projectId={10} pluginInstalled />);
     await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
-    expect(r.getByText(/또 등록할 필요가 없습니다/)).toBeTruthy();
-    expect(r.queryByText(/도구가 2벌 노출됩니다/)).toBeNull();
+    expect(r.getByText(/또 등록할 필요가 없어요/)).toBeTruthy();
+    expect(r.queryByText(/도구가 2벌 노출돼요/)).toBeNull();
   });
 
   it("MCP 등록됨: 실제 겹침 경고로 문구가 바뀐다", async () => {
     fx.status = status({ registered: true });
     const r = render(<McpServerBlock projectId={11} pluginInstalled />);
     await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
-    const warn = r.getByText(/도구가 2벌 노출됩니다/);
+    const warn = r.getByText(/도구가 2벌 노출돼요/);
     expect(warn.className).toContain("text-(--warn-text)");
   });
 
@@ -405,7 +405,7 @@ describe("CodexPluginBlock (머신 스코프 · 읽기 전용)", () => {
     const r = render(<CodexPluginBlock />);
     await waitFor(() => expect(r.getByText("설치됨")).toBeTruthy());
     expect(r.getByText("2.38.0")).toBeTruthy();
-    expect(r.queryByText(/로드하지 못합니다/)).toBeNull();
+    expect(r.queryByText(/로드하지 못해요/)).toBeNull();
   });
 
   /// 항목만 있고 마켓플레이스가 없으면 Codex 는 **조용히** 로드하지 않는다 —
@@ -414,7 +414,7 @@ describe("CodexPluginBlock (머신 스코프 · 읽기 전용)", () => {
     fx.codexPlugin = codexPluginStatus({ marketplace_configured: false, cached_version: null });
     const r = render(<CodexPluginBlock />);
     await waitFor(() => expect(r.getByText("마켓플레이스 없음")).toBeTruthy());
-    expect(r.getByText(/로드하지 못합니다/)).toBeTruthy();
+    expect(r.getByText(/로드하지 못해요/)).toBeTruthy();
   });
 
   it("Codex 미설치: 배지와 안내가 바뀌고 명령은 그대로 복사된다", async () => {

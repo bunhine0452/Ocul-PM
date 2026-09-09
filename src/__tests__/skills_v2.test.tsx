@@ -42,7 +42,7 @@ description: PR 리뷰 체크리스트
 
 # review-checklist
 
-본문 지침입니다.
+본문 지침이에요.
 `;
 
 // Mutable fixtures + 변이 호출 수집.
@@ -174,7 +174,7 @@ describe("SkillsScreenV2 — 3존 화면 (스킬)", () => {
     await waitFor(() =>
       expect(getByText(/\.claude\/skills\/review-checklist\/SKILL\.md/)).toBeTruthy(),
     );
-    await waitFor(() => expect(getByText(/본문 지침입니다/)).toBeTruthy());
+    await waitFor(() => expect(getByText(/본문 지침이에요/)).toBeTruthy());
     expect(getByRole("button", { name: /목록으로/ })).toBeTruthy();
 
     const results = await axe(container, AXE_OPTIONS);
@@ -251,7 +251,7 @@ describe("SkillsScreenV2 — 3존 화면 (스킬)", () => {
 
     fireEvent.click(getAllByText("review-checklist")[0]);
     await waitFor(() => getByRole("region", { name: "언제 걸리나" }));
-    expect(getByText(/\/review-checklist 을 쳐야 뜹니다/)).toBeTruthy();
+    expect(getByText(/\/review-checklist 을 쳐야 떠요/)).toBeTruthy();
     // keywords 는 능력 검색의 유일한 도달 경로 — 상세에 그대로 보인다.
     expect(getByText("리뷰")).toBeTruthy();
   });
@@ -275,7 +275,7 @@ describe("SkillsScreenV2 — 3존 화면 (스킬)", () => {
     expect(getAllByText("review-checklist").length).toBeGreaterThan(0);
 
     fireEvent.change(box, { target: { value: "쿠버네티스" } });
-    await waitFor(() => getByText(/아무것도 안 잡힙니다/));
+    await waitFor(() => getByText(/아무것도 안 잡혀요/));
     expect(queryByText(/능력 검색이 이 말에 고르는 것/)).toBeNull();
   });
 
@@ -305,7 +305,7 @@ describe("SkillsScreenV2 — 3존 화면 (스킬)", () => {
     await waitFor(() => expect(getAllByText("review-checklist").length).toBeGreaterThan(0));
     fireEvent.click(getAllByText("review-checklist")[0]);
     await waitFor(() => getByRole("region", { name: "언제 걸리나" }));
-    await waitFor(() => getByText(/이렇게 불렸습니다/));
+    await waitFor(() => getByText(/이렇게 불렸어요/));
     expect(getByText(/이 PR 좀 봐줘/)).toBeTruthy();
   });
 
