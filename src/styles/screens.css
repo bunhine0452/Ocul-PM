@@ -699,15 +699,11 @@
 .pln-textbtn:disabled { opacity: var(--dim-disabled); cursor: default; }
 
 /* --- Search (PR-UI 5) --- */
-.search-hero { max-width: 720px; margin: var(--space-3) auto 22px; }
-.search-big {
-  display: flex; align-items: center; gap: 11px; height: 46px; padding: 0 var(--space-6);
-  background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-l);
-  box-shadow: var(--shadow-card);
-}
-.search-big:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-ring); }
-.search-big input { flex: 1; border: none; background: transparent; outline: none; font-size: var(--fs-6); color: var(--text); font-family: var(--font); }
-.search-scope { display: flex; align-items: center; gap: var(--space-3); justify-content: center; margin-top: var(--space-5); }
+/* `.search-hero`(720px 가운데 열) + `.search-big`(46px 카드)은 2026-09-09
+   {#layout-search-toolbar} 에서 지웠다. 46px 그림자 카드는 웹 랜딩의 관용구고,
+   이 앱에서 검색 필드의 규격은 이미 `.search-box`(30px, primitives.css)였다 —
+   일지가 그것을 쓰고 있었고 검색 화면만 자기 문법을 갖고 있었다. */
+.search-scope { display: flex; align-items: center; gap: var(--space-3); }
 .scope-chip {
   height: 28px; padding: 0 var(--space-5); border-radius: var(--radius-m);
   font-size: var(--fs-3); font-weight: var(--fw-label); background: var(--bg-card); border: 1px solid var(--border-card);
@@ -1040,13 +1036,13 @@ mark.s-hit {
   padding: 0 1px;
 }
 /* 최근 검색 칩 줄 (검색 히어로 아래) */
+/* 최근 검색 — 예전엔 가운데 정렬된 히어로 열의 마지막 줄이었다. 히어로가
+   사라지면서 이제 본문의 첫 줄이라, 결과 목록과 같은 왼쪽 선에 선다. */
 .search-recent {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
-  justify-content: center;
-  margin-top: 14px;
 }
 .search-recent-label { font-size: var(--fs-2); color: var(--text-3); font-weight: var(--fw-strong); }
 /* 결과 헤더 줄 (개수 + 우측 컨트롤) */

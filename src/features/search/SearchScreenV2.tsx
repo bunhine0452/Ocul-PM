@@ -9,7 +9,6 @@ import {
   Compass,
   Variable,
   CaseSensitive,
-  Database,
   FileCode2,
   ChevronRight,
   ChevronDown,
@@ -263,93 +262,95 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
 
   return (
     <>
+      {/* 주 컨트롤은 툴바에 있다 ({#layout-search-toolbar}). 예전엔 본문에
+          46px 히어로 카드였는데, 그건 웹 랜딩의 관용구지 도구의 관용구가
+          아니다 — 일지가 이미 「.search-box 30px + 스코프 칩」으로 이 패턴을
+          정해 놓았고, 검색 화면만 다른 문법을 쓰고 있었다. sub 는 남긴다:
+          결과가 **로컬 색인**에서 온다는 사실은 이 화면의 정직성 문장이다.
+          예전엔 그 문장이 sub 와 칩에 두 번 떠 있었다. */}
       <Toolbar title={t("nav.search")} sub={t("search.localIndex")}>
-        <span className="chip">
-          <Database size={13} /> {t("search.localIndex")}
-        </span>
+        <form className="search-box" onSubmit={onSubmit}>
+          <SearchIcon size={15} color="var(--text-3)" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("search.inputPlaceholder", { ph: t(activeScope.placeholderKey) })}
+            aria-label={t("search.aria")}
+          />
+          {query ? (
+            <button
+              type="button"
+              className="iconbtn"
+              onClick={() => {
+                setQuery("");
+                setResults(null);
+              }}
+              aria-label={t("journal.clearSearch")}
+            >
+              <X size={15} />
+            </button>
+          ) : null}
+        </form>
+        <div className="search-scope">
+          {SCOPES.map((s) => {
+            const Icon = s.icon;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                className={"scope-chip" + (scope === s.id ? " on" : "")}
+                onClick={() => onScope(s.id)}
+              >
+                <Icon size={13} /> {t(s.labelKey)}
+              </button>
+            );
+          })}
+          {/* `marginLeft: auto` 는 가운데 정렬된 히어로 줄의 사정이었다 —
+              툴바에서는 그냥 다음 칩이다. */}
+          {scope === "semantic" ? (
+            <button
+              type="button"
+              className={"scope-chip" + (includeDocs ? " on" : "")}
+              onClick={() => onToggleDocs(!includeDocs)}
+              title={t("search.includeDocsTitle")}
+            >
+              <FileCode2 size={13} /> {t("search.includeDocs")}
+            </button>
+          ) : null}
+        </div>
       </Toolbar>
 
       <div className="scroll">
         <div className="page fade-in">
-          <div className="search-hero">
-            <form className="search-big" onSubmit={onSubmit}>
-              <SearchIcon size={18} color="var(--text-3)" />
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t("search.inputPlaceholder", { ph: t(activeScope.placeholderKey) })}
-                aria-label={t("search.aria")}
-              />
-              {query ? (
+          {/* 최근 검색 — 입력이 비어 있을 때만. 클릭 = 즉시 재검색. */}
+          {!query.trim() && state.searchRecent.length > 0 ? (
+            <div className="search-recent">
+              <span className="search-recent-label">{t("search.recent")}</span>
+              {state.searchRecent.map((q) => (
                 <button
+                  key={q}
                   type="button"
-                  className="iconbtn"
+                  className="scope-chip"
                   onClick={() => {
-                    setQuery("");
-                    setResults(null);
+                    setQuery(q);
+                    void runSearch(q, scope, includeDocs);
                   }}
-                  aria-label={t("journal.clearSearch")}
                 >
-                  <X size={15} />
+                  {q}
                 </button>
-              ) : null}
-            </form>
-            <div className="search-scope">
-              {SCOPES.map((s) => {
-                const Icon = s.icon;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    className={"scope-chip" + (scope === s.id ? " on" : "")}
-                    onClick={() => onScope(s.id)}
-                  >
-                    <Icon size={13} /> {t(s.labelKey)}
-                  </button>
-                );
-              })}
-              {scope === "semantic" ? (
-                <button
-                  type="button"
-                  className={"scope-chip" + (includeDocs ? " on" : "")}
-                  onClick={() => onToggleDocs(!includeDocs)}
-                  title={t("search.includeDocsTitle")}
-                  style={{ marginLeft: "auto" }}
-                >
-                  <FileCode2 size={13} /> {t("search.includeDocs")}
-                </button>
-              ) : null}
+              ))}
+              <button
+                type="button"
+                className="iconbtn"
+                title={t("search.clearRecent")}
+                aria-label={t("search.clearRecent")}
+                onClick={() => setState((prev) => ({ ...prev, searchRecent: [] }))}
+              >
+                <X size={13} />
+              </button>
             </div>
-            {/* 최근 검색 — 입력이 비어 있을 때만. 클릭 = 즉시 재검색. */}
-            {!query.trim() && state.searchRecent.length > 0 ? (
-              <div className="search-recent">
-                <span className="search-recent-label">{t("search.recent")}</span>
-                {state.searchRecent.map((q) => (
-                  <button
-                    key={q}
-                    type="button"
-                    className="scope-chip"
-                    onClick={() => {
-                      setQuery(q);
-                      void runSearch(q, scope, includeDocs);
-                    }}
-                  >
-                    {q}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className="iconbtn"
-                  title={t("search.clearRecent")}
-                  aria-label={t("search.clearRecent")}
-                  onClick={() => setState((prev) => ({ ...prev, searchRecent: [] }))}
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            ) : null}
-          </div>
+          ) : null}
 
           {error ? (
             <ErrorCard
