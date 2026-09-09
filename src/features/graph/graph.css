@@ -229,32 +229,11 @@
   box-shadow: var(--shadow-card);
 }
 
-.gr-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: 26px;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-s);
-  border: 1px solid var(--sep);
-  background: transparent;
-  color: var(--text-2);
-  font-family: var(--font);
-  font-size: var(--fs-2);
-  font-weight: var(--fw-strong);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.gr-chip:hover {
-  border-color: var(--sep-strong);
-  color: var(--text);
-}
-.gr-chip.on {
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-.gr-chip .sw {
+/* `.gr-chip` 은 `.scope-chip`(screens.css)으로 접었다 (2026-09-10
+   {#unify-toolbar-vocab}) — 검색·일지·AI패널·플래너가 이미 공유하던 필터 칩과
+   같은 물건이 그래프에서만 자기 이름을 갖고 있었다. 여기 남는 것은 이 화면에만
+   있는 색 스와치뿐이다. */
+.scope-chip .sw {
   width: 8px;
   height: 8px;
   border-radius: var(--radius-2xs);

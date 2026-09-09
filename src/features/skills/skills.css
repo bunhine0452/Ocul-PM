@@ -218,26 +218,9 @@
   color: var(--text);
 }
 /* 툴바 글자 버튼 — 아이콘 버튼과 같은 높이·테두리, 폭은 글자만큼. */
-.sk-textbtn {
-  display: inline-flex;
-  align-items: center;
-  height: 30px;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-s);
-  font-size: var(--fs-3);
-  color: var(--text-2);
-  background: none;
-  border: 1px solid var(--sep);
-  cursor: pointer;
-}
-.sk-textbtn:hover:not(:is(:disabled, [aria-disabled="true"])) {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-.sk-textbtn:is(:disabled, [aria-disabled="true"]) {
-  opacity: var(--dim-disabled);
-  cursor: default;
-}
+/* `.sk-textbtn` 은 `.btn`(primitives.css)으로 접었다 (2026-09-10
+   {#unify-toolbar-vocab}) — 쓰는 곳이 한 군데였고 `.btn` 과의 차이는 글자
+   크기 한 단뿐이었다. */
 
 /* 빈 상태 (스킬 0개 / 미선택). */
 /* 생성/삭제 모달 내부 폼. */

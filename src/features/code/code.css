@@ -2546,7 +2546,7 @@ body.code-dragging {
   background: var(--bg-hover);
   color: var(--text);
 }
-/* 논의 화면의 `.disc-btn.primary` 와 같은 처방 — 강조색 위 흰 글자는 이
+/* 논의 화면이 쓰던 `.disc-btn.primary` 와 같은 처방 — 강조색 위 흰 글자는 이
    저장소에서 대비를 못 맞춘 전례가 있다(1.98:1). 옅은 바탕 + 강조 글자로 간다. */
 .code-ai-btn.primary {
   border-color: transparent;

@@ -542,8 +542,9 @@
 .diff-binary-img { display: grid; place-items: center; padding: 14px; min-height: 120px; background: repeating-conic-gradient(var(--bg-inset) 0% 25%, var(--bg-window) 0% 50%) 0 0 / 16px 16px; }
 .diff-binary-img img { max-width: 100%; max-height: 420px; object-fit: contain; }
 .diff-binary-broken { font-size: var(--fs-3); color: var(--text-3); font-family: var(--font); }
-.diff-mode-toggle { display: flex; border: 1px solid var(--border-card); border-radius: var(--radius-s); overflow: hidden; }
-.diff-mode-toggle button { border-radius: 0; }
+/* `.diff-mode-toggle` 은 `.seg`(primitives.css)로 접었다 (2026-09-10
+   {#unify-toolbar-vocab}) — 테두리로 묶고 안쪽 곡률을 0 으로 지우던 자기
+   문법이었는데, 세그먼트는 이미 동심원 규격을 가진 프리미티브다. */
 
 /* --- Planner (PR-UI 5) --- */
 .goal-card { margin-bottom: var(--space-6); }

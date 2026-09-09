@@ -118,8 +118,12 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
           </span>
         }
       >
+        {/* '둘 중 하나' 는 `.seg` 한 물체다 (2026-09-10 {#unify-toolbar-vocab}).
+            예전엔 `.btn ghost sm` 에 선택 배경을 JSX 에서 계산해 얹었다 — 같은
+            뜻을 앱에서 네 가지로 말하던 것 중 하나였고, 인라인이라 테마·프리셋이
+            바뀌어도 따라오지 못했다. */}
         {lastCommitChanges.length > 0 ? (
-          <div className="diff-mode-toggle" title={t("diff.modeTitle")}>
+          <div className="seg" role="tablist" title={t("diff.modeTitle")} aria-label={t("diff.modeTitle")}>
             {(
               [
                 ["working", `${t("diff.modeWorking")}${workingChanges.length ? ` ${workingChanges.length}` : ""}`],
@@ -129,11 +133,9 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
               <button
                 key={b}
                 type="button"
-                className="btn ghost sm"
-                style={{
-                  background: baseline === b ? "var(--accent-soft)" : "transparent",
-                  color: baseline === b ? "var(--accent-text)" : "var(--text-2)",
-                }}
+                role="tab"
+                aria-selected={baseline === b}
+                className="seg-item"
                 onClick={() => list.pinBaseline(b)}
               >
                 {label}
@@ -141,16 +143,14 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
             ))}
           </div>
         ) : null}
-        <div className="diff-mode-toggle">
+        <div className="seg" role="tablist" aria-label={t("diff.viewAria")}>
           {(["unified", "split"] as DiffMode[]).map((m) => (
             <button
               key={m}
               type="button"
-              className="btn ghost sm"
-              style={{
-                background: diffMode === m ? "var(--accent-soft)" : "transparent",
-                color: diffMode === m ? "var(--accent-text)" : "var(--text-2)",
-              }}
+              role="tab"
+              aria-selected={diffMode === m}
+              className="seg-item"
               onClick={() => setMode(m)}
             >
               {m === "unified" ? t("diff.viewUnified") : t("diff.viewSplit")}

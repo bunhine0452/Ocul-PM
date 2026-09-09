@@ -190,35 +190,10 @@
 }
 
 /* ── 버튼 ──────────────────────────────────────────────────── */
-.disc-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--fs-3);
-  font-weight: var(--fw-strong);
-  color: var(--text-2);
-  background: var(--bg-card);
-  border: 1px solid var(--sep);
-  border-radius: var(--radius-s);
-  padding: var(--space-2) var(--space-4);
-  cursor: pointer;
-}
-.disc-btn:hover:not(:is(:disabled, [aria-disabled="true"])) {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-.disc-btn:is(:disabled, [aria-disabled="true"]) {
-  opacity: var(--dim-disabled);
-  cursor: default;
-}
-.disc-btn.primary {
-  color: var(--accent-text);
-  background: var(--accent-soft);
-  border-color: transparent;
-}
-.disc-btn.danger:hover:not(:is(:disabled, [aria-disabled="true"])) {
-  color: var(--danger);
-}
+/* `.disc-btn` 은 `.btn`(primitives.css)으로 접었다 (2026-09-10
+   {#unify-toolbar-vocab}) — 같은 52px 바에서 `.btn` 과 나란히 서던, 여백과
+   글자 크기만 조금 다른 복제본이었다. `.danger` 수정자는 TSX 어디에서도 안
+   쓰이던 죽은 가지라 함께 지웠다. */
 
 /* ── 섹션 ──────────────────────────────────────────────────── */
 .disc-section {

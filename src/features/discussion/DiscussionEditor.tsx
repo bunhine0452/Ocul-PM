@@ -437,7 +437,7 @@ export function DiscussionEditor({
           </span>
           <button
             type="button"
-            className="disc-btn"
+            className="btn"
             disabled={busy}
             onClick={() => {
               // 저장 안 한 편집을 조용히 버리지 않는다.
@@ -458,7 +458,7 @@ export function DiscussionEditor({
           </button>
           <button
             type="button"
-            className="disc-btn primary"
+            className="btn primary"
             disabled={busy || !dirty}
             onClick={() => onSave(viewRef.current?.getValue() ?? text)}
           >

@@ -158,7 +158,7 @@ function NoteComposer({ onSubmit }: { onSubmit: (body: string) => Promise<boolea
           if (e.key === "Enter") void send();
         }}
       />
-      <button type="button" className="disc-btn" disabled={busy || !trimmed} onClick={() => void send()}>
+      <button type="button" className="btn" disabled={busy || !trimmed} onClick={() => void send()}>
         {t("disc.noteAdd")}
       </button>
     </div>

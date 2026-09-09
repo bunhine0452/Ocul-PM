@@ -102,6 +102,13 @@
  *     예외로 알약인데, 18px 에서 `--radius-s`(7)는 이미 반원(9)에 가까워
  *     상자로 두면 "덜 된 알약" 으로 보인다 — 그 사유는 primitives.css 에 있다.
  *
+ * 21. "선택됨" 을 인라인 배경으로 계산하기 — 실측 3곳이 `.btn ghost sm` 에
+ *     `style={{ background: sel ? "var(--accent-soft)" : "transparent" }}` 를
+ *     얹어 세그먼트를 손으로 그리고 있었다(변경 화면 둘 · 검색 하나, 글자만
+ *     달랐다). 인라인이라 `.seg-item[aria-selected]` 이 쓰는 면·그림자와
+ *     달랐고, `aria-selected` 가 없어 보조기술에는 그냥 버튼 둘이었다.
+ *     '둘 중 하나' 는 `.seg` + `.seg-item` 한 물체다 ({#unify-toolbar-vocab}).
+ *
  * 2026-09-09 일관성 라운드가 더한 둘 (규칙 10 은 아래 별도 패스):
  *
  * 11. 타입 리터럴(text-[11px]) — 램프에 **이름이 없어서** 손이 대괄호로 간
@@ -363,6 +370,7 @@ for await (const file of walk(SRC)) {
   if (isCss) checkViewportMedia(rel, src, rawLines);
   if (isCss) checkControlHeights(rel, src, rawLines);
   if (isCss) checkChipRadius(rel, src, rawLines);
+  if (!isCss) checkInlineSelected(rel, src, rawLines);
   for (const rule of RULES) {
     if (!rule.ext.test(file)) continue;
     if (ALLOW[rule.id]?.has(rel)) continue;
@@ -491,6 +499,29 @@ function checkControlHeights(rel, src, rawLines) {
  * 칩 **안의** 물건(`.gr-chip .sw` · `.sk-path-chip button` · `.tbadge .dot`)은
  * 칩이 아니라 칩이 담은 것이라 자기 곡률을 갖는 게 맞다 — 후손 선택자는 뺀다.
  */
+/**
+ * 규칙 21 — 선택 상태를 인라인으로 칠하기. 여는 태그가 여러 줄이라 줄 단위가
+ * 아니다. `--accent-soft`/`--accent` 를 삼항으로 `background` 에 넣는 모양만
+ * 본다 — 그게 "세그먼트를 손으로 그렸다" 의 지문이다.
+ */
+function checkInlineSelected(rel, src, rawLines) {
+  // 끝의 `}}` 를 요구하면 **여러 줄 style 객체를 놓친다** — background 뒤에
+  // color 같은 다른 속성이 더 오기 때문이다. probe 를 한 줄짜리로만 만들었다가
+  // 바로 이 구멍을 봤다 (규칙 16 이 아홉 번째 자리를 놓친 것과 같은 형태).
+  for (const m of src.matchAll(/style=\{\{[^}]*?background:\s*[^,}]*\?[^,}]*var\(--accent/g)) {
+    const line = src.slice(0, m.index).split("\n").length;
+    let ignored = false;
+    for (let i = Math.max(1, line - 3); i <= line; i++) {
+      if (/design-ignore\s*--/.test(rawLines[i - 1] ?? "")) ignored = true;
+    }
+    if (ignored) continue;
+    violations.push(
+      `${rel}:${line}  [inline-selected] 선택 배경을 인라인 삼항으로 계산한다\n` +
+        "      → '둘 중 하나' 는 .seg + .seg-item[aria-selected] 한 물체다 (primitives.css). role=\"tablist\"/\"tab\" 과 함께 쓴다",
+    );
+  }
+}
+
 function checkChipRadius(rel, src, rawLines) {
   for (const m of src.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const selector = m[1].trim().split("\n").pop().trim();

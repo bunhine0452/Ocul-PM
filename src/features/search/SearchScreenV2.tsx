@@ -477,18 +477,17 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
                   {t("search.bySimilarity")}
                 </span>
                 <span style={{ flex: 1 }} />
-                <div className="diff-mode-toggle" role="group" aria-label={t("search.displayAria")}>
+                {/* 세 번째 복제본이었다 — 변경 화면의 둘과 글자만 달랐다
+                    (2026-09-10 {#unify-toolbar-vocab}). */}
+                <div className="seg" role="tablist" aria-label={t("search.displayAria")}>
                   {([true, false] as const).map((on) => (
                     <button
                       key={String(on)}
                       type="button"
-                      className="btn ghost sm"
-                      style={{
-                        background: formatted === on ? "var(--accent-soft)" : "transparent",
-                        color: formatted === on ? "var(--accent-text)" : "var(--text-2)",
-                      }}
+                      role="tab"
+                      aria-selected={formatted === on}
+                      className="seg-item"
                       onClick={() => setFormatted(on)}
-                      aria-pressed={formatted === on}
                     >
                       {on ? t("search.formatted") : t("search.raw")}
                     </button>

@@ -715,7 +715,7 @@ export function GraphScreenV2({
                 ? t("graph.showCore")
                 : t("graph.showAllTitle", { n: built.total })
             }
-            className={`gr-chip${showAll ? " on" : ""}`}
+            className={`scope-chip${showAll ? " on" : ""}`}
           >
             {showAll ? t("graph.showAll", { n: built.total }) : t("graph.showCoreCount", { n: built.visible.length, total: built.total })}
           </button>
@@ -724,7 +724,7 @@ export function GraphScreenV2({
         <button
           onClick={() => setFocusMode((v) => !v)}
           title={t("graph.focusTitle")}
-          className={`gr-chip${focusMode ? " on" : ""}`}
+          className={`scope-chip${focusMode ? " on" : ""}`}
         >
           <Target size={13} /> {t("graph.focus")}
         </button>
@@ -738,7 +738,7 @@ export function GraphScreenV2({
                   key={et}
                   onClick={() => toggleType(et)}
                   title={t("graph.edgeToggle", { label: EDGE_META[et] ? t(EDGE_META[et].labelKey) : et })}
-                  className={`gr-chip${on ? " on" : ""}`}
+                  className={`scope-chip${on ? " on" : ""}`}
                 >
                   <span
                     className="sw"

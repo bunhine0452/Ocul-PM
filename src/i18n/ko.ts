@@ -1143,6 +1143,7 @@ export const ko = {
   "diff.uncommittedFiles": "미커밋 {n}개 파일",
   "diff.modeTitle": "비교 기준 — 미커밋 변경 / 마지막 커밋",
   "diff.modeWorking": "미커밋",
+  "diff.viewAria": "diff 보기 방식",
   "diff.viewUnified": "통합",
   "diff.viewSplit": "분할",
   "diff.markAllTitle": "변경된 모든 파일을 검토 완료로 표시",

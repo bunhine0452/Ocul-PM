@@ -1142,6 +1142,7 @@ export const en: Record<keyof typeof ko, string> = {
   "diff.uncommittedFiles": "{n} uncommitted files",
   "diff.modeTitle": "Compare against — uncommitted changes / last commit",
   "diff.modeWorking": "Uncommitted",
+  "diff.viewAria": "Diff view mode",
   "diff.viewUnified": "Unified",
   "diff.viewSplit": "Split",
   "diff.markAllTitle": "Mark every changed file reviewed",

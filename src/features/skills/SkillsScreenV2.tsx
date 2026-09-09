@@ -306,7 +306,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
       <Toolbar title={t("nav.skills")} sub={sub}>
         <button
           type="button"
-          className="sk-textbtn"
+          className="btn"
           disabled={firing.scanning}
           onClick={() => void firing.rebuild()}
           title={t("firing.rebuildTitle")}

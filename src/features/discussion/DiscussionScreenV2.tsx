@@ -412,7 +412,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
         title={t("nav.discussion")}
         sub={list ? t("disc.toolbarSub", { n: active.length, open: openCount }) : undefined}
       >
-        <button type="button" className="disc-btn primary" onClick={openCreate}>
+        <button type="button" className="btn primary" onClick={openCreate}>
           <Plus size={15} /> {t("disc.new")}
         </button>
       </Toolbar>
@@ -545,7 +545,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                 <div className="disc-actions">
                   <button
                     type="button"
-                    className="disc-btn primary"
+                    className="btn primary"
                     title={t(`disc.promptHint.${promptKindFor(detail)}` as I18nKey)}
                     onClick={() => void copyPrompt()}
                   >
@@ -555,7 +555,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                   {!locked ? (
                     <button
                       type="button"
-                      className="disc-btn"
+                      className="btn"
                       onClick={() => void startEdit(detail.discussion.discussion_id)}
                     >
                       <Pencil size={15} /> {t("disc.edit")}
@@ -564,7 +564,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                   {detail.discussion.status === "open" ? (
                     <button
                       type="button"
-                      className="disc-btn"
+                      className="btn"
                       disabled={busy || detail.next_steps.length === 0}
                       title={
                         detail.next_steps.length === 0
@@ -672,12 +672,12 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
             ))}
           </div>
           <div className="disc-modal-foot">
-            <button type="button" className="disc-btn" onClick={() => setCreating(false)}>
+            <button type="button" className="btn" onClick={() => setCreating(false)}>
               {t("common.cancel")}
             </button>
             <button
               type="button"
-              className="disc-btn primary"
+              className="btn primary"
               disabled={busy || !newTitle.trim()}
               onClick={() => void submitCreate()}
             >
@@ -712,12 +712,12 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
               ))}
             </div>
             <div className="disc-modal-foot">
-              <button type="button" className="disc-btn" onClick={() => setPromoting(false)}>
+              <button type="button" className="btn" onClick={() => setPromoting(false)}>
                 {t("common.cancel")}
               </button>
               <button
                 type="button"
-                className="disc-btn primary"
+                className="btn primary"
                 disabled={busy}
                 onClick={() => void confirmPromote()}
               >
@@ -768,7 +768,7 @@ function MoreMenu({ label, items }: { label: string; items: MenuItem[] }) {
     <div className="disc-more" ref={hostRef}>
       <button
         type="button"
-        className="disc-btn"
+        className="btn"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={label}
