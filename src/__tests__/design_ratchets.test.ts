@@ -182,3 +182,40 @@ describe("읽기 열 폭", () => {
     expect(offenders.length, `램프 밖 읽기 폭 ${offenders.length}곳 — ${offenders.join(" · ")}`).toBeLessThanOrEqual(6);
   });
 });
+
+// ─── 칩 두 단 — 계약 (2026-09-10 {#unify-chips}) ───────────────────────────
+//
+// 게이트(규칙 20)는 "허용된 두 곡률 중 하나인가" 만 본다. 여기서는 더 강한 것,
+// **어느 쪽인지가 크는 방식과 맞는가**를 본다 — 게이트만 있으면 고정 높이 칩이
+// 전부 알약이 되어도 통과한다.
+describe("칩", () => {
+  const FIXED_ONLY = "var(--radius-s)";
+  const GROWS_ONLY = "var(--radius-pill)";
+
+  it("높이가 정해진 칩은 상자, 패딩으로 크는 칩은 알약", () => {
+    const wrong: string[] = [];
+    for (const file of walk(join(ROOT))) {
+      if (!file.endsWith(".css")) continue;
+      const css = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, " ");
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const sel = m[1].trim().split("\n").pop()!.trim();
+        const last = sel.split(/\s+/).pop() ?? "";
+        if (!/\.(?:chip|attach-chip|agent-chip|gr-chip|scope-chip|file-pill|tbadge)(?![\w-])/.test(last)) continue;
+        // `.chip.sm` 은 문서화된 예외 — 가장 작은 단은 알약이다.
+        if (/\.chip\.sm\b/.test(last)) continue;
+        const r = /(?:^|[;{\s])border-radius:\s*([^;]+)/.exec(m[2]);
+        if (!r) continue;
+        const hasHeight = /(?:^|[;{\s])height:\s*/.test(m[2]);
+        const want = hasHeight ? FIXED_ONLY : GROWS_ONLY;
+        if (r[1].trim() !== want) wrong.push(`${sel} → ${r[1].trim()} (기대: ${want})`);
+      }
+    }
+    expect(wrong, wrong.join(" · ")).toEqual([]);
+  });
+
+  it("아이콘 버튼은 램프에서 두 단만 가져간다", () => {
+    const prim = read("styles/primitives.css");
+    const sizes = [...prim.matchAll(/--iconbtn-size:\s*([^;]+)/g)].map((m) => m[1].trim());
+    expect(new Set(sizes)).toEqual(new Set(["var(--ctl-4)", "var(--ctl-3)"]));
+  });
+});

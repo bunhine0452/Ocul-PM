@@ -35,7 +35,7 @@ owner: claude-code
 - [x] 모달 셸 두 벌 — `AppDialog` 17곳(z-modal 100, useModalBehavior) vs `.set-modal` 2곳(z-popover 60, 자체 keyframes). 층이 달라 `.set-modal` 이 AppDialog 밑으로 들어간다. ConversationHistoryModal·ManualEntryModalV2 를 AppDialog 로 {#unify-modal-shell}
 - [x] 검색 입력 6종을 `.search-box` 2단으로 — 30px/radius-s · 46px/radius-l+그림자(검색 히어로) · 26px/pill(코드 맵) · 24px · 28px · 시작 탭. 공유 프리미티브조차 호출부가 인라인 height 로 덮는다(SettingsSearch.tsx:41 등) {#unify-search-input}
 - [ ] 툴바 버튼 어휘를 4개로 — `btn`/`btn sm`/`btn primary`/`disc-btn primary`/`code-tool-btn`/`gr-chip`/`sk-textbtn` 이 같은 52px 바에 섞이고 SkillsScreenV2.tsx:309-330 은 한 줄에 4종. "선택됨" 표현도 4가지(.seg-item[aria-selected] 는 3곳뿐, DiffScreenV2.tsx:130-133 은 JSX 인라인 배경색 계산) {#unify-toolbar-vocab}
-- [ ] 칩 11벌을 2단으로 — 높이 18·22·23·25·28px, 곡률 xs·s·m·pill 이 섞여 한 줄에 서면 광학 중심이 어긋난다(.file-pill 25 · .chip 22 · .scope-chip 28). 아이콘 버튼 `--iconbtn-size` 도 26/28/30/32 네 단 {#unify-chips}
+- [x] 칩 11벌을 2단으로 — 높이 18·22·23·25·28px, 곡률 xs·s·m·pill 이 섞여 한 줄에 서면 광학 중심이 어긋난다(.file-pill 25 · .chip 22 · .scope-chip 28). 아이콘 버튼 `--iconbtn-size` 도 26/28/30/32 네 단 {#unify-chips}
 
 ## 문안 — 화자를 한 명으로 {#copy}
 - [~] 화자 통일 + `lint:tone` — 합쇼체 405 / 해요체 253 이 접두사별로 갈리고(code.* 39:5 · today.* 3:19 · graph.* 0:11) 한 문자열 안에서 섞이는 게 28건(ko.ts:41 · :90 · :1512). 해요체로 정하고 code.*·ctx.*·automation.* 87건을 옮긴다. 최소한 "한 문자열 안 혼재" 는 즉시 게이트로 {#copy-voice}
@@ -113,4 +113,5 @@ owner: claude-code
 | 2026-09-10T00:49:37+09:00 | #ramp-height | claude-code | ☐→x | .oculpm/journal/20260910/Refactors/0049_refactor_control-height-ramp.md | --ctl-1..5=18·22·26·30·34. 구간 안 16종은 2px 어긋난 두 벌(홀58/짝48)이었고 프리미티브가 전부 홀수만 써서 그쪽이 램프. 44곳 수렴(최근접·동점은 낮은 쪽), 계산인 자리 12곳은 design-ignore+사유. 프리미티브 9곳이 토큰 착용. 게이트 규칙 19. --iconbtn-size 네 단은 unify-chips 몫 |
 | 2026-09-10T00:55:23+09:00 | #ramp-space | claude-code | ~→x | .oculpm/journal/20260910/Refactors/0055_refactor_space-ramp-convergence.md | 사용자 결정=수렴. 5→6·7→8·9→10 으로 267곳을 var(--space-N) 으로. 올림인 이유=여백은 중첩 누적(높이는 안 되므로 내림). 계산인 자리 11곳 제외 — .code-tree-row 는 .code-tree-guide 와 규칙을 넘어 결합돼 자동 신호로 안 잡혔다. 래칫 480→202. 남은 152(11·13·14·17·18·21·22)는 결정 대상 밖 |
 | 2026-09-10T01:04:58+09:00 | #fix-disabled-reason | claude-code | !→~ | .oculpm/journal/20260910/Features_to_add/0104_feature_blocked-states-its-reason.md | 사용자 결정=aria-disabled+포커스 유지. lib/blocked.ts 신설 + CSS :disabled 58곳을 :is(:disabled,[aria-disabled]) 로 + 2곳 적용(AutomationEditor·Today 스탠드업). 실측은 35가 아니라 131곳(busy 제외) — 129 를 래칫으로 동결. 나머지는 점진 적용이라 항목 열어 둠 |
+| 2026-09-10T01:17:49+09:00 | #unify-chips | claude-code | ☐→x | .oculpm/journal/20260910/Refactors/0117_refactor_chip-radius-and-iconbtn-tiers.md | 높이는 ramp-height 가 이미 접었고 진짜 결함은 곡률 — 26px 넷이 곡률 넷이었다. 규칙=고정높이는 --radius-s, 패딩형은 --radius-pill (정본은 .chip/.chip.sm). 5곳 이동, .chip.sm 예외 문서화. 아이콘 버튼 4단→2단(.md/.lg 는 TSX 미사용이라 삭제). 게이트 규칙 20 + 계약 2 |
 <!-- oculpm:plan-log end -->

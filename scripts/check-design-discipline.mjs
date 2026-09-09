@@ -92,6 +92,16 @@
  *     글리프다. 그런 자리는 `design-ignore` 로 사유를 적고 빠져나간다.
  *     18 미만(점·막대·글리프)과 34 초과(면)는 이 램프의 구간이 아니다.
  *
+ * 20. 칩 곡률 — 칩 무리 열넷이 `xs`·`s`·`m`·`pill` 네 곡률을 나눠 갖고 있었고,
+ *     **같은 높이(26px)에 곡률이 넷**이었다(`.gr-chip` pill · `.agent-chip` m ·
+ *     `.scope-chip` m · `.file-pill` s). 한 줄에 서면 광학 중심이 어긋난다.
+ *     곡률은 칩이 **어떻게 크는지**를 따른다 ({#unify-chips}):
+ *       높이가 정해진 칩 → `--radius-s` (상자다)
+ *       패딩으로 글자를 감싸는 칩 → `--radius-pill` (글자를 감싼다)
+ *     그래서 칩 클래스에 허용되는 곡률은 그 둘뿐이다. `.chip.sm`(18px)만
+ *     예외로 알약인데, 18px 에서 `--radius-s`(7)는 이미 반원(9)에 가까워
+ *     상자로 두면 "덜 된 알약" 으로 보인다 — 그 사유는 primitives.css 에 있다.
+ *
  * 2026-09-09 일관성 라운드가 더한 둘 (규칙 10 은 아래 별도 패스):
  *
  * 11. 타입 리터럴(text-[11px]) — 램프에 **이름이 없어서** 손이 대괄호로 간
@@ -167,6 +177,16 @@ const PALETTE =
 const ICON_RAMP = new Set([11, 13, 15, 18, 22, 30]);
 /** 규칙 19 — 컨트롤 높이 램프(`--ctl-1..5`). 구간은 18~34px. */
 const CTL_RAMP = new Set([18, 22, 26, 30, 34]);
+/**
+ * 규칙 20 — 칩 무리. 이름이 제각각이라(옛 이름 그대로 남았다) 목록으로 짚는다.
+ * 늘리는 건 새 칩을 만들 때뿐이고, 그때도 곡률은 두 값 중 하나다.
+ */
+const CHIP_CLASSES = [
+  "chip", "attach-chip", "usage-chip", "sk-chip", "sk-path-chip", "code-debug-chip",
+  "entry-date-chip", "scope-chip", "file-pill", "queue-chip", "hg-lead-chip",
+  "agent-chip", "gr-chip", "tbadge",
+];
+const CHIP_RADII = new Set(["var(--radius-s)", "var(--radius-pill)"]);
 const RULES = [
   {
     id: "sparkles",
@@ -342,6 +362,7 @@ for await (const file of walk(SRC)) {
   checkSearchBoxes(rel, src, rawLines, isCss);
   if (isCss) checkViewportMedia(rel, src, rawLines);
   if (isCss) checkControlHeights(rel, src, rawLines);
+  if (isCss) checkChipRadius(rel, src, rawLines);
   for (const rule of RULES) {
     if (!rule.ext.test(file)) continue;
     if (ALLOW[rule.id]?.has(rel)) continue;
@@ -462,6 +483,34 @@ function checkControlHeights(rel, src, rawLines) {
           "      → --ctl-1..5 (18·22·26·30·34). 높이가 선택이 아니라 계산인 자리(스위치 트랙·노브·마크·썸네일)는 design-ignore 로 사유를 적을 것",
       );
     }
+  }
+}
+
+/**
+ * 규칙 20 — 칩 곡률. 선택자를 봐야 어느 칩인지 알 수 있어 줄 단위가 아니다.
+ * 칩 **안의** 물건(`.gr-chip .sw` · `.sk-path-chip button` · `.tbadge .dot`)은
+ * 칩이 아니라 칩이 담은 것이라 자기 곡률을 갖는 게 맞다 — 후손 선택자는 뺀다.
+ */
+function checkChipRadius(rel, src, rawLines) {
+  for (const m of src.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selector = m[1].trim().split("\n").pop().trim();
+    // 마지막 조각이 칩 자신이어야 한다 (".gr-chip .sw" 는 .sw 가 마지막이라 빠진다).
+    const last = selector.split(/\s+/).pop() ?? "";
+    if (!CHIP_CLASSES.some((c) => new RegExp(`\\.${c}(?![\\w-])`).test(last))) continue;
+    const r = /(?:^|[;{\s])border-radius:\s*([^;]+)/.exec(m[2]);
+    if (!r) continue;
+    const val = r[1].trim();
+    if (CHIP_RADII.has(val)) continue;
+    const line = src.slice(0, m.index + m[0].indexOf(r[0])).split("\n").length;
+    let ignored = false;
+    for (let i = Math.max(1, line - 3); i <= line; i++) {
+      if (/design-ignore\s*--/.test(rawLines[i - 1] ?? "")) ignored = true;
+    }
+    if (ignored) continue;
+    violations.push(
+      `${rel}:${line}  [chip-radius] ${selector} { border-radius: ${val} }\n` +
+        "      → 높이가 정해진 칩은 --radius-s, 패딩으로 크는 칩은 --radius-pill (primitives.css 의 .chip / .chip.sm)",
+    );
   }
 }
 

@@ -724,7 +724,7 @@
   line-height: 14px;
   padding: 0 var(--space-2);
   letter-spacing: var(--track-wide);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-pill);
   border: 1px solid var(--sep);
   background: transparent;
   color: var(--text-3);

@@ -47,7 +47,7 @@
 .iconbtn,
 .pln-iconbtn, .pm-iconbtn, .gr-iconbtn, .home-iconbtn, .sk-iconbtn,
 .side-collapse-btn, .code-tool-btn {
-  --iconbtn-size: 30px;
+  --iconbtn-size: var(--ctl-4);
   width: var(--iconbtn-size); height: var(--iconbtn-size);
   flex: none; padding: 0;
   border-radius: var(--radius-s);
@@ -60,9 +60,17 @@
     border-color var(--dur-1) var(--ease-out),
     transform var(--dur-1) var(--ease-out);
 }
-.iconbtn.sm, .pln-iconbtn { --iconbtn-size: 26px; }
-.iconbtn.md, .pm-iconbtn, .gr-iconbtn, .home-iconbtn, .side-collapse-btn { --iconbtn-size: 28px; }
-.iconbtn.lg, .sk-iconbtn { --iconbtn-size: 32px; }
+/* **두 단이다** (2026-09-10 {#unify-chips}). 예전엔 26·28·30·32 네 단이었는데,
+   `.md`·`.lg` 는 TSX 어디에서도 안 쓰였다 — 옛 이름들을 붙여 두려고 만든
+   칸이었지 누가 고른 크기가 아니었다. 컨트롤 높이 램프(`--ctl-*`)로 접으면
+   28→26 · 32→30 이라 네 단이 그대로 두 단이 된다.
+     기본 30px — 툴바처럼 행이 넉넉한 자리
+     `.sm` 26px — 사이드바·레일처럼 촘촘한 자리
+   `.md`/`.lg` 는 지웠다: 남겨 두면 `.sm`·기본과 픽셀이 같은 이름이 둘 더
+   생겨, 다음 사람이 넷 중에서 고르게 된다. */
+.iconbtn.sm, .pln-iconbtn, .pm-iconbtn, .gr-iconbtn, .home-iconbtn, .side-collapse-btn {
+  --iconbtn-size: var(--ctl-3);
+}
 .iconbtn:hover, .pln-iconbtn:hover, .pm-iconbtn:hover, .home-iconbtn:hover,
 .side-collapse-btn:hover, .code-tool-btn:hover { background: var(--bg-hover); color: var(--text); }
 .iconbtn:active { transform: scale(0.92); }
@@ -105,6 +113,14 @@
      밀어내게 둔다 — 옆의 경로 텍스트가 대신 …로 줄어든다. */
   white-space: nowrap; flex: none;
 }
+/* **곡률은 칩이 어떻게 크는지를 따른다** (2026-09-10 {#unify-chips}).
+   높이가 정해진 칩은 상자라 `--radius-s`, 패딩으로 글자를 감싸는 칩은
+   `--radius-pill`. 예전엔 열넷이 xs·s·m·pill 을 나눠 갖고 **같은 26px 높이에
+   곡률이 넷**이었다(.gr-chip pill · .agent-chip m · .scope-chip m · .file-pill
+   s) — 한 줄에 서면 광학 중심이 어긋나는 이유가 그것이었다. (게이트 규칙 20)
+
+   `.sm` 만 예외로 알약이다: 18px 에서 `--radius-s`(7px)는 이미 반원(9px)에
+   가까워, 상자로 두면 "덜 된 알약" 으로 보인다. */
 .chip.sm { height: var(--ctl-1); padding: 0 var(--space-2); font-size: var(--fs-2); border-radius: var(--radius-pill); }
 .chip.outline { background: transparent; border: 1px solid var(--sep); }
 .chip.accent { background: var(--accent-soft); color: var(--accent-text); }

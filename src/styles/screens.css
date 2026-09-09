@@ -703,7 +703,7 @@
    일지가 그것을 쓰고 있었고 검색 화면만 자기 문법을 갖고 있었다. */
 .search-scope { display: flex; align-items: center; gap: var(--space-3); }
 .scope-chip {
-  height: 26px; padding: 0 var(--space-5); border-radius: var(--radius-m);
+  height: 26px; padding: 0 var(--space-5); border-radius: var(--radius-s);
   font-size: var(--fs-3); font-weight: var(--fw-label); background: var(--bg-card); border: 1px solid var(--border-card);
   cursor: pointer; color: var(--text-2);
   appearance: none; -webkit-appearance: none;

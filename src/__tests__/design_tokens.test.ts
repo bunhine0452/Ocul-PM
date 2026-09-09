@@ -402,12 +402,17 @@ describe("@theme inline", () => {
   });
 });
 
-describe("primitives.css — 아이콘 버튼 3크기 · 칩 수정자, 전역 로드", () => {
+describe("primitives.css — 아이콘 버튼 2크기 · 칩 수정자, 전역 로드", () => {
   const prim = read("styles/primitives.css");
-  it("아이콘 버튼 크기 3단과 옛 이름 7벌이 같은 바탕을 쓴다", () => {
-    expect(prim).toMatch(/\.iconbtn\.sm, \.pln-iconbtn \{ --iconbtn-size: 26px; \}/);
-    expect(prim).toMatch(/\.iconbtn\.md, [^{]*\{ --iconbtn-size: 28px; \}/);
-    expect(prim).toMatch(/\.iconbtn\.lg, \.sk-iconbtn \{ --iconbtn-size: 32px; \}/);
+  // 2026-09-10 {#unify-chips}: 26·28·30·32 네 단에서 두 단으로. `.md`·`.lg` 는
+  // TSX 어디에서도 안 쓰이던 칸이라 지웠다 — 램프로 접으면 28→26 · 32→30 이라
+  // 픽셀이 같은 이름이 둘 더 남을 뿐이었다.
+  it("아이콘 버튼은 두 단이고 옛 이름 7벌이 같은 바탕을 쓴다", () => {
+    // 크기는 컨트롤 높이 램프에서 온다 — 리터럴로 되돌아가면 세 번째 단이 생긴다.
+    expect(prim).toMatch(/--iconbtn-size: var\(--ctl-4\);/);
+    expect(prim).toMatch(/\.iconbtn\.sm,[^{]*\{\s*--iconbtn-size: var\(--ctl-3\);/);
+    expect(prim).not.toMatch(/\.iconbtn\.(?:md|lg)\b/);
+    // 옛 이름 일곱은 여전히 두 단 중 하나에 속한다.
     for (const name of ["pln-iconbtn", "pm-iconbtn", "gr-iconbtn", "home-iconbtn", "sk-iconbtn", "side-collapse-btn", "code-tool-btn"]) {
       expect(prim, name).toContain(`.${name}`);
     }

@@ -678,7 +678,7 @@
   max-width: 100%;
   padding: 0 var(--space-3);
   border: none;
-  border-radius: var(--radius-m);
+  border-radius: var(--radius-s);
   background: transparent;
   cursor: pointer;
   font-family: var(--font);
@@ -831,7 +831,7 @@
 .queue-chip {
   padding: 0 2px 0 var(--space-3);
   border: 1px dashed var(--sep-strong);
-  border-radius: var(--radius-m);
+  border-radius: var(--radius-pill);
   background: transparent;
   font-size: var(--fs-3);
   color: var(--text-3);
