@@ -147,7 +147,7 @@
 .tl::before { content: ""; position: absolute; left: 9px; top: 6px; bottom: 6px; width: 2px; background: var(--sep); }
 .tl-node { position: relative; margin-bottom: 14px; }
 .tl-dot {
-  position: absolute; left: -29px; top: 16px; width: 20px; height: 20px; border-radius: 50%;
+  position: absolute; left: -29px; top: 16px; width: 20px; height: 20px /* design-ignore -- 타임라인 점(원) — 장식 */; border-radius: 50%;
   background: var(--bg-content); border: 2px solid var(--sep-strong);
   display: grid; place-items: center; z-index: 1;
 }
@@ -229,7 +229,7 @@
   flex-wrap: wrap;
 }
 .file-pill {
-  height: 25px; padding: 0 9px;
+  height: 26px; padding: 0 9px;
   background: var(--bg-inset); border-radius: var(--radius-s); font-size: var(--fs-3); color: var(--text-2);
 }
 .file-pill b { color: var(--text); font-weight: var(--fw-strong); }
@@ -480,7 +480,7 @@
 .efb-steps { display: flex; gap: 3px; flex: none; }
 .efb-step {
   appearance: none; -webkit-appearance: none; padding: 0;
-  width: 24px; height: 24px; display: grid; place-items: center;
+  width: 24px; height: 22px; display: grid; place-items: center;
   border: 1px solid var(--sep); border-radius: var(--radius-s);
   background: var(--bg-inset); color: var(--text-2); cursor: pointer;
 }
@@ -568,7 +568,7 @@
   font-family: var(--font); text-align: left; width: 100%; color: var(--text); cursor: pointer;
 }
 .subtask:hover { background: var(--bg-hover); }
-.sub-check { width: 19px; height: 19px; border-radius: var(--radius-s); flex: none; display: grid; place-items: center; border: 1.6px solid var(--sep-strong); }
+.sub-check { width: 19px; height: 19px /* design-ignore -- 체크박스 상자 — 짝인 .next-check 가 17 로 램프 구간 밖이라 혼자 옮기면 둘이 어긋난다 */; border-radius: var(--radius-s); flex: none; display: grid; place-items: center; border: 1.6px solid var(--sep-strong); }
 .sub-check.done { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
 .sub-check.active { border-color: var(--accent); border-style: dashed; }
 .sub-title { font-size: var(--fs-4); font-weight: var(--fw-label); }
@@ -703,7 +703,7 @@
    일지가 그것을 쓰고 있었고 검색 화면만 자기 문법을 갖고 있었다. */
 .search-scope { display: flex; align-items: center; gap: var(--space-3); }
 .scope-chip {
-  height: 28px; padding: 0 var(--space-5); border-radius: var(--radius-m);
+  height: 26px; padding: 0 var(--space-5); border-radius: var(--radius-m);
   font-size: var(--fs-3); font-weight: var(--fw-label); background: var(--bg-card); border: 1px solid var(--border-card);
   cursor: pointer; color: var(--text-2);
   appearance: none; -webkit-appearance: none;
@@ -806,7 +806,7 @@
 .pln-rail-clear:hover { color: var(--text); background: var(--bg-hover); }
 .pln-rail-selects { display: flex; gap: var(--space-2); }
 .pln-rail-selects .set-input {
-  flex: 1; min-width: 0; height: 27px; padding: 0 var(--space-2);
+  flex: 1; min-width: 0; height: 26px; padding: 0 var(--space-2);
   font-family: var(--font); font-size: var(--fs-3);
   background: transparent; border-color: var(--sep); color: var(--text-2);
 }
@@ -1209,7 +1209,7 @@ mark.s-hit {
    텍스트 선택과 싸우므로 잡는 자리를 따로 둔다. */
 .term-pane .pane-grip {
   position: absolute; top: 6px; right: 32px; z-index: 5;
-  display: grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-s);
+  display: grid; place-items: center; width: 20px; height: 18px; border-radius: var(--radius-s);
   color: var(--text-3); cursor: grab;
 }
 .term-pane .pane-grip:hover { color: var(--text); }
@@ -1571,7 +1571,7 @@ mark.s-hit {
 .term-pane.lifted { box-shadow: 0 0 0 1px var(--sep); }
 .term-pane .pane-close {
   position: absolute; top: 6px; right: 8px; z-index: 5;
-  display: grid; place-items: center; width: 20px; height: 20px; border-radius: var(--radius-s);
+  display: grid; place-items: center; width: 20px; height: 18px; border-radius: var(--radius-s);
   border: none; color: var(--text-3); cursor: pointer;
 }
 .term-pane .pane-close:hover { color: var(--text); }
@@ -1849,7 +1849,7 @@ mark.s-hit {
 /* 우: 밀도 프리셋 (줄 간격 + 페인 여백). */
 .ts-density { gap: 5px; }
 .ts-select {
-  height: 20px; padding: 0 var(--space-1); border: 1px solid transparent; border-radius: var(--radius-xs);
+  height: 18px; padding: 0 var(--space-1); border: 1px solid transparent; border-radius: var(--radius-xs);
   background: transparent; color: var(--text-3); font-family: var(--font); font-size: var(--fs-2);
   cursor: pointer; appearance: none; -webkit-appearance: none; text-align: center;
 }
@@ -1857,7 +1857,7 @@ mark.s-hit {
 .ts-select:focus-visible { outline: none; border-color: var(--accent); color: var(--text); }
 .ts-select option { color: var(--text); background: var(--bg-card); }
 .ts-btn {
-  display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 18px;
   padding: 0 var(--space-1); border: none; border-radius: var(--radius-xs); background: transparent; color: var(--text-3);
   cursor: pointer; font-family: var(--font); font-size: var(--fs-2);
 }
@@ -1977,7 +1977,7 @@ mark.s-hit {
 /* 위로 스크롤 시 맨아래 FAB — 스크롤러 안 sticky 로 컴포저 위에 뜬다. */
 .ai-scroll-fab {
   position: sticky; bottom: 6px; margin: var(--space-4) auto 0; display: grid; place-items: center;
-  width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-card);
+  width: 32px; height: 30px; border-radius: 50%; border: 1px solid var(--border-card);
   background: var(--bg-card); box-shadow: var(--shadow-pop); color: var(--text-2);
   cursor: pointer; z-index: 5;
 }
@@ -1994,21 +1994,21 @@ mark.s-hit {
 }
 .composer:focus-within { border-color: var(--accent); box-shadow: var(--ring-soft); }
 .composer-ctx { display: flex; align-items: center; gap: 7px; font-size: var(--fs-3); color: var(--text-3); flex-wrap: wrap; }
-.composer-ctx .scope-chip { height: 24px; padding: 0 var(--space-4); font-size: var(--fs-3); border-radius: var(--radius-s); box-shadow: none; }
+.composer-ctx .scope-chip { height: 22px; padding: 0 var(--space-4); font-size: var(--fs-3); border-radius: var(--radius-s); box-shadow: none; }
 .composer-input textarea {
   width: 100%; border: none; outline: none; resize: none; background: transparent;
   font-family: var(--font); font-size: var(--fs-4); color: var(--text); line-height: var(--lh-body);
   max-height: 180px; padding: 2px 2px 0;
 }
 .composer-foot { display: flex; align-items: center; gap: var(--space-3); }
-.composer-send, .composer-stop { width: 32px; height: 32px; border-radius: var(--radius-m); flex: none; }
+.composer-send, .composer-stop { width: 32px; height: 30px; border-radius: var(--radius-m); flex: none; }
 .composer-stop { color: var(--t-bug); border-color: var(--t-bug-soft); }
 .composer-stop:hover { background: var(--t-bug-soft); }
 
 /* Cursor 식 모델 선택 — 트리거 + 위로 열리는 리스트. */
 .model-select { position: relative; }
 .model-trigger {
-  display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 9px;
+  display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 9px;
   border: none; border-radius: var(--radius-m); background: transparent; cursor: pointer;
   font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2);
 }
@@ -2044,7 +2044,7 @@ mark.s-hit {
 /* 입력 토큰 추정 배지 + 브레이크다운 팝오버. */
 .tok-wrap { position: relative; margin-left: auto; }
 .tok-badge {
-  display: inline-flex; align-items: center; gap: var(--space-1); height: 24px; padding: 0 9px;
+  display: inline-flex; align-items: center; gap: var(--space-1); height: 22px; padding: 0 9px;
   border: none; border-radius: var(--radius-s); background: transparent; cursor: pointer;
   font-family: var(--mono); font-size: var(--fs-2); color: var(--text-3);
 }
@@ -2082,13 +2082,13 @@ mark.s-hit {
 
 /* Toggle rendered as a <button> for keyboard a11y (mockup used a div). */
 .toggle {
-  width: 40px; height: 23px; border-radius: var(--radius-pill); background: var(--bg-active); position: relative;
+  width: 40px; height: 23px /* design-ignore -- 스위치 트랙 = 노브 19 + 여백 2·2 */; border-radius: var(--radius-pill); background: var(--bg-active); position: relative;
   cursor: pointer; transition: background-color var(--dur-2) var(--ease-out); flex: none;
   appearance: none; -webkit-appearance: none; border: none; padding: 0;
 }
 .toggle.on { background: var(--accent); }
 .toggle > i {
-  position: absolute; top: 2px; left: 2px; width: 19px; height: 19px; border-radius: var(--radius-m);
+  position: absolute; top: 2px; left: 2px; width: 19px; height: 19px /* design-ignore -- 위 트랙의 노브 */; border-radius: var(--radius-m);
   background: var(--knob); box-shadow: var(--shadow-knob);
   transition: transform var(--dur-2) var(--ease-spring), width var(--dur-2) var(--ease-spring);
 }
@@ -2452,7 +2452,7 @@ mark.s-hit {
 }
 .term-sess-menu .tsm-row { display: flex; align-items: center; gap: var(--space-2); }
 .term-sess-menu .tsm-swatch {
-  width: 20px; height: 20px; border-radius: var(--radius-s); flex: none; cursor: pointer;
+  width: 20px; height: 20px /* design-ignore -- 세션 색 스와치 — 색 면 */; border-radius: var(--radius-s); flex: none; cursor: pointer;
   border: none; padding: 0; background: var(--sw);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent);
 }

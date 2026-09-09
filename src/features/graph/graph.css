@@ -24,7 +24,7 @@
 }
 .gr-wrap .react-flow__controls-button {
   width: 28px;
-  height: 28px;
+  height: 26px;
   background: transparent;
   border-bottom: 1px solid var(--sep);
 }

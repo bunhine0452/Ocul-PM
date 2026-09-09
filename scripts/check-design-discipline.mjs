@@ -82,6 +82,16 @@
  *     시작 탭(home.css)과 시작 창(welcome.css).
  *     **여러 줄 조건을 봐야 해서 별도 패스다** (checkViewportMedia).
  *
+ * 19. 컨트롤 높이 램프 밖 값 — 18~34px 구간에 열여섯 가지가 있었고, 2px
+ *     어긋난 두 벌이 겹쳐 있었다: 홀수 18·22·26·30·34(58곳, **프리미티브가
+ *     쓰는 값**)와 짝수 20·24·28·32(48곳, 이름이 없어서 생긴 자리).
+ *     `--ctl-1..5` 가 홀수 벌이고, 이 구간의 `height` 리터럴은 그 다섯 중
+ *     하나여야 한다 ({#ramp-height}).
+ *     **높이가 선택이 아니라 계산인 자리는 예외다** — 스위치 트랙은 노브 +
+ *     여백이고(`.toggle` 23 = 19 + 2·2), 마크·스와치·썸네일은 컨트롤이 아니라
+ *     글리프다. 그런 자리는 `design-ignore` 로 사유를 적고 빠져나간다.
+ *     18 미만(점·막대·글리프)과 34 초과(면)는 이 램프의 구간이 아니다.
+ *
  * 2026-09-09 일관성 라운드가 더한 둘 (규칙 10 은 아래 별도 패스):
  *
  * 11. 타입 리터럴(text-[11px]) — 램프에 **이름이 없어서** 손이 대괄호로 간
@@ -155,6 +165,8 @@ const EXTERNAL_VAR_PREFIXES = ["--tw-", "--vscode-", "--monaco-", "--xterm-"];
 const PALETTE =
   "(?:emerald|green|red|blue|indigo|violet|purple|pink|amber|yellow|orange|slate|gray|zinc|neutral|stone|sky|cyan|teal|lime|rose|fuchsia)";
 const ICON_RAMP = new Set([11, 13, 15, 18, 22, 30]);
+/** 규칙 19 — 컨트롤 높이 램프(`--ctl-1..5`). 구간은 18~34px. */
+const CTL_RAMP = new Set([18, 22, 26, 30, 34]);
 const RULES = [
   {
     id: "sparkles",
@@ -329,6 +341,7 @@ for await (const file of walk(SRC)) {
   else checkLoadingAsEmpty(rel, src, rawLines);
   checkSearchBoxes(rel, src, rawLines, isCss);
   if (isCss) checkViewportMedia(rel, src, rawLines);
+  if (isCss) checkControlHeights(rel, src, rawLines);
   for (const rule of RULES) {
     if (!rule.ext.test(file)) continue;
     if (ALLOW[rule.id]?.has(rel)) continue;
@@ -427,6 +440,31 @@ function checkSearchBoxes(rel, src, rawLines, isCss) {
  * 규칙 18 — 폭 기반 `@media`. 조건이 여러 줄에 걸칠 수 있어 줄 단위가 아니다.
  * `prefers-*`·`print`·`hover`·`pointer` 는 창 폭과 무관하니 안 본다.
  */
+/**
+ * 규칙 19 — 컨트롤 높이 램프. 선택자를 봐야 예외(`design-ignore`)의 자리를
+ * 정확히 짚을 수 있어 줄 단위가 아니다.
+ */
+function checkControlHeights(rel, src, rawLines) {
+  if (rel === "styles/tokens.css") return;
+  for (const m of src.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const [, selector, body] = m;
+    for (const hm of body.matchAll(/(?:^|[;{\s])height:\s*(\d+)px/g)) {
+      const v = Number(hm[1]);
+      if (v < 18 || v > 34 || CTL_RAMP.has(v)) continue;
+      const line = src.slice(0, m.index + m[0].indexOf(hm[0])).split("\n").length;
+      let ignored = false;
+      for (let i = Math.max(1, line - 3); i <= line; i++) {
+        if (/design-ignore\s*--/.test(rawLines[i - 1] ?? "")) ignored = true;
+      }
+      if (ignored) continue;
+      violations.push(
+        `${rel}:${line}  [ctl-height] ${selector.trim().split("\n").pop().trim()} { height: ${v}px }\n` +
+          "      → --ctl-1..5 (18·22·26·30·34). 높이가 선택이 아니라 계산인 자리(스위치 트랙·노브·마크·썸네일)는 design-ignore 로 사유를 적을 것",
+      );
+    }
+  }
+}
+
 function checkViewportMedia(rel, src, rawLines) {
   if (VIEWPORT_MEDIA_ALLOW.has(rel)) return;
   for (const m of src.matchAll(/@media\s*([^{]+)\{/g)) {

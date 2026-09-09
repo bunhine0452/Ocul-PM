@@ -103,9 +103,10 @@ describe("검색칸", () => {
   it("두 단이 정의 자리에 있다", () => {
     expect(css, "기본 단(.search-box) 이 없다").toMatch(/^\.search-box \{$/m);
     expect(css, "촘촘한 단(.search-box.sm) 이 없다").toMatch(/^\.search-box\.sm \{$/m);
-    // 높이는 이 두 줄에만 있어야 한다 — 셋째 높이가 생기면 13벌로 돌아간다.
-    const heights = [...css.matchAll(/\.search-box(?:\.sm)?\s*\{[^}]*?\bheight:\s*(\d+)px/g)].map((m) => m[1]);
-    expect(heights.sort()).toEqual(["26", "30"]);
+    // 높이는 이 두 줄에만 있어야 하고, **리터럴이 아니라 램프**여야 한다
+    // (2026-09-10 {#ramp-height} 이후 — 그전에는 30px/26px 리터럴이었다).
+    const heights = [...css.matchAll(/\.search-box(?:\.sm)?\s*\{[^}]*?\bheight:\s*([^;]+)/g)].map((m) => m[1].trim());
+    expect(heights.sort()).toEqual(["var(--ctl-3)", "var(--ctl-4)"]);
   });
 
   it("호출부는 상자를 다시 적지 않는다", () => {

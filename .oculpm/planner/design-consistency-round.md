@@ -48,7 +48,7 @@ owner: claude-code
 
 ## 램프 채택 — 세워 놓고 안 쓴 것들 {#ramps}
 - [~] 여백 토큰 채택 — padding/margin/gap 이 토큰 129 : px 리터럴 1,007(11%). agent.css·code.css·skills.css 셋만 옮겨도(434곳) 절반이 정리된다. 램프 밖 최빈값 5px(48)·7px(30) 을 6/8 로 수렴시킬지 램프에 5·7 을 더할지 먼저 결정 {#ramp-space}
-- [ ] 컨트롤 높이 램프 신설 — `height:` 리터럴 42종, 18~40px 구간에만 15종. 곡률·무게처럼 램프를 세우고 칩 2단(22·26)·아이콘 버튼 2단(26·30)으로 접는다 {#ramp-height}
+- [x] 컨트롤 높이 램프 신설 — `height:` 리터럴 42종, 18~40px 구간에만 15종. 곡률·무게처럼 램프를 세우고 칩 2단(22·26)·아이콘 버튼 2단(26·30)으로 접는다 {#ramp-height}
 - [x] 줄간격 램프 신설 — line-height 19종, 본문 계열만 9종(1.4~1.72). 한국어는 제목도 1.3 아래로 안 내린다. `--lh-tight`/`--lh-body`/`--lh-prose` 3~4단. screens.css:2266 은 h1~h6 를 크기와 무관하게 전부 1.35 로 준다 {#ramp-leading}
 - [x] 흐림 토큰 2개 — `:disabled` opacity 가 0.32/0.35/0.4/0.45/0.5/0.55 여섯 단이고 `.btn:disabled`(0.5) 와 `.iconbtn:disabled`(0.32) 가 같은 툴바에서 눈에 띄게 다르다. `--dim-disabled`/`--dim-quiet` 로 {#ramp-dim}
 - [x] 무한 애니메이션 29개를 2벌로 — 주기가 0.7·0.8·0.9·1.0·1.2·1.4·1.6·2.0·2.4s 아홉 종이라 사이드바 배지·탭·터미널이 서로 다른 박자로 숨 쉰다. 회전(작업 중) 하나 + 맥동(주의) 하나, 주기는 토큰. `nav-attention-blink` 깜빡임은 맥동으로 교체 {#ramp-pulse}
@@ -110,4 +110,5 @@ owner: claude-code
 | 2026-09-10T00:27:48+09:00 | #unify-search-input | claude-code | ~→x | .oculpm/journal/20260910/Refactors/0027_refactor_unify-search-input-two-tiers.md | 6종이 아니라 13벌(.dfl-filter·.entry-filelist-filter 누락). 30/26 두 단으로 열한 벌 접음. min-width 바닥→기본 폭. 게이트 규칙 17 + 계약 2 |
 | 2026-09-10T00:33:48+09:00 | #layout-widths | claude-code | ☐→~ | .oculpm/journal/20260910/Refactors/0033_refactor_read-width-tokens-and-page-dedup.md | 읽기 열 절반 완료(--read-narrow/wide, 정확히 맞는 5곳만 이동, 나머지 6 래칫 동결) + .journal-wrap→.page 중복 제거. 실측 정정: 읽기 열은 5종이 아니라 7종, 패널은 264·284·288·320 이 아니라 244·264·268·288 이고 드래그는 플래너·코드 둘. 남은 것=패널 폭(최빈값 없음, 접으면 레이아웃 이동) + 드래그 규약(기능 추가라 범위 밖으로 봄) |
 | 2026-09-10T00:40:48+09:00 | #layout-container-query | claude-code | ☐→x | .oculpm/journal/20260910/Refactors/0040_refactor_screen-container-queries.md | @media 2곳→@container screen(640/460) + stat-row·grid-2 접기. 컨테이너는 .content-main 이 아니라 .page — containment 가 안쪽 fixed 기준을 바꿔서 포털 안 한 넷(term 메뉴 3·disc 스크림)이 깨진다. 정정: .entry-row2 는 모달이라 닿지 않고 .diff-screen 접기는 기능. 게이트 규칙 18 |
+| 2026-09-10T00:49:37+09:00 | #ramp-height | claude-code | ☐→x | .oculpm/journal/20260910/Refactors/0049_refactor_control-height-ramp.md | --ctl-1..5=18·22·26·30·34. 구간 안 16종은 2px 어긋난 두 벌(홀58/짝48)이었고 프리미티브가 전부 홀수만 써서 그쪽이 램프. 44곳 수렴(최근접·동점은 낮은 쪽), 계산인 자리 12곳은 design-ignore+사유. 프리미티브 9곳이 토큰 착용. 게이트 규칙 19. --iconbtn-size 네 단은 unify-chips 몫 |
 <!-- oculpm:plan-log end -->

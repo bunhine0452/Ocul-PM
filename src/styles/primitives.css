@@ -8,7 +8,7 @@
 
 .btn {
   display: inline-flex; align-items: center; gap: 7px;
-  height: 30px; padding: 0 var(--space-5);
+  height: var(--ctl-4); padding: 0 var(--space-5);
   border-radius: var(--radius-s);
   border: 1px solid var(--border-card);
   background: var(--bg-card); color: var(--text);
@@ -36,7 +36,7 @@
 .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
 .btn.ghost:hover { background: var(--bg-hover); border-color: transparent; }
 .btn.icon { width: 30px; padding: 0; justify-content: center; }
-.btn.sm { height: 26px; padding: 0 9px; font-size: var(--fs-3); }
+.btn.sm { height: var(--ctl-3); padding: 0 9px; font-size: var(--fs-3); }
 
 /* 아이콘 버튼 — 한 벌, 세 크기 (Phase 5). 화면마다 이름만 다른 일곱 벌
    (.pln-iconbtn .pm-iconbtn .gr-iconbtn .home-iconbtn .sk-iconbtn
@@ -96,7 +96,7 @@
   font-family: var(--font);
 }
 .chip {
-  height: 22px; padding: 0 9px; border-radius: var(--radius-s);
+  height: var(--ctl-2); padding: 0 9px; border-radius: var(--radius-s);
   font-size: var(--fs-3); font-weight: var(--fw-strong);
   background: var(--bg-inset); color: var(--text-2);
   /* 좁은 창 방어 (2026-08-23): 칩은 **라벨**이지 본문이 아니다. flex 행에서
@@ -105,7 +105,7 @@
      밀어내게 둔다 — 옆의 경로 텍스트가 대신 …로 줄어든다. */
   white-space: nowrap; flex: none;
 }
-.chip.sm { height: 18px; padding: 0 var(--space-2); font-size: var(--fs-2); border-radius: var(--radius-pill); }
+.chip.sm { height: var(--ctl-1); padding: 0 var(--space-2); font-size: var(--fs-2); border-radius: var(--radius-pill); }
 .chip.outline { background: transparent; border: 1px solid var(--sep); }
 .chip.accent { background: var(--accent-soft); color: var(--accent-text); }
 .chip.ok { background: var(--ok-soft); color: var(--ok-text); }
@@ -137,7 +137,7 @@
    포커스)를 다시 적으면 그 순간 14번째 벌이 된다. */
 .search-box {
   display: flex; align-items: center; gap: var(--space-3);
-  height: 30px; padding: 0 var(--space-4);
+  height: var(--ctl-4); padding: 0 var(--space-4);
   background: var(--bg-inset); border: 1px solid transparent;
   border-radius: var(--radius-s); color: var(--text-3);
   /* **바닥이 아니라 기본 폭이다.** 예전 `min-width: 220px` 은 바닥이라
@@ -150,7 +150,7 @@
 /* 촘촘한 단은 기본 폭을 갖지 않는다 — 이 단이 서는 자리(사이드바·보조 바·
    카드 머리)는 폭이 부모에서 오거나 안쪽 입력이 직접 정한다. */
 .search-box.sm {
-  height: 26px; gap: var(--space-2); padding: 0 var(--space-3);
+  height: var(--ctl-3); gap: var(--space-2); padding: 0 var(--space-3);
   width: auto;
 }
 .search-box input {
@@ -168,7 +168,7 @@
 /* trigger badge */
 .tbadge {
   display: inline-flex; align-items: center; gap: 5px;
-  height: 21px; padding: 0 var(--space-3) 0 var(--space-2); border-radius: var(--radius-s);
+  height: var(--ctl-2); padding: 0 var(--space-3) 0 var(--space-2); border-radius: var(--radius-s);
   font-size: var(--fs-2); font-weight: var(--fw-strong); letter-spacing: var(--track-wide);
   /* .chip 과 같은 이유 — 배지는 꺾이지 않는다. */
   white-space: nowrap; flex: none;
@@ -268,7 +268,7 @@
   background: var(--bg-inset);
 }
 .seg-item {
-  height: 24px;
+  height: var(--ctl-2);
   padding: 0 var(--space-4);
   border: none;
   border-radius: var(--radius-s);
@@ -299,7 +299,7 @@
 .subnav.vertical { flex-direction: column; }
 .subnav-item {
   display: inline-flex; align-items: center; gap: 9px;
-  height: 30px; padding: 0 11px;
+  height: var(--ctl-4); padding: 0 11px;
   border: none; border-radius: var(--radius-s);
   background: transparent; color: var(--text-2);
   font-family: var(--font); font-size: var(--fs-4); font-weight: var(--fw-label);

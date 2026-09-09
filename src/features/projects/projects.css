@@ -72,7 +72,7 @@
   display: grid;
   place-items: center;
   width: 28px;
-  height: 28px;
+  height: 26px;
   flex: none;
   border: 0;
   border-radius: var(--radius-s);
@@ -115,7 +115,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  height: 32px;
+  height: 30px;
   padding: 0 var(--space-5);
   flex: none;
   border: 1px solid var(--sep);

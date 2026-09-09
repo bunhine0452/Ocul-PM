@@ -224,7 +224,7 @@
 
 .wz-accent {
   width: 28px;
-  height: 28px;
+  height: 28px /* design-ignore -- 액센트 스와치(원) — 색을 보이는 면이지 누르는 컨트롤의 높이가 아니다 */;
   border-radius: 50%;
   border: 2px solid transparent;
   box-shadow: var(--shadow-card);
@@ -321,7 +321,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  height: 32px;
+  height: 30px;
   padding: 0 14px;
   border-radius: var(--radius-s);
   font-size: var(--fs-4);

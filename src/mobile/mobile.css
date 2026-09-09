@@ -17,7 +17,7 @@
 }
 .mob-brand {
   width: 20px;
-  height: 20px;
+  height: 20px /* design-ignore -- 브랜드 마크 글리프 */;
   border-radius: var(--radius-s);
 }
 .mob-header-title { color: var(--text); }
@@ -94,7 +94,7 @@
   align-items: center;
   justify-content: center;
   width: 34px;
-  height: 24px;
+  height: 24px /* design-ignore -- 탭 아이콘 슬롯 — 글리프 자리 */;
   border-radius: var(--radius-m);
   transition: background var(--dur-2) var(--ease-out);
 }
