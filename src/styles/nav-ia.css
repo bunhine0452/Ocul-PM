@@ -38,7 +38,7 @@
   gap: 4px;
 }
 .nav-remap-title { font-size: var(--fs-2, 12px); font-weight: var(--fw-strong); color: var(--text); }
-.nav-remap-body { font-size: var(--fs-1, 11px); line-height: 1.45; color: var(--text-2); }
+.nav-remap-body { font-size: var(--fs-1, 11px); line-height: var(--lh-snug); color: var(--text-2); }
 .nav-remap-acts { display: flex; gap: 6px; margin-top: 2px; }
 .nav-remap-acts button {
   font: inherit;

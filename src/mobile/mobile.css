@@ -62,7 +62,7 @@
   font-size: var(--fs-2);
   font-weight: var(--fw-strong);
   padding: 1px 8px;
-  line-height: 1.7;
+  line-height: var(--lh-prose);
   flex-shrink: 0;
 }
 .mob-chip.t-feature { color: var(--t-feature); background: var(--t-feature-soft); }
@@ -110,7 +110,7 @@
   transition: background var(--dur-1) var(--ease-out);
 }
 .mob-btn-primary:active { background: var(--accent-strong); }
-.mob-btn-primary:disabled { opacity: 0.4; }
+.mob-btn-primary:disabled { opacity: var(--dim-disabled); }
 .mob-btn-soft {
   background: var(--accent-soft);
   color: var(--accent-text);

@@ -63,7 +63,7 @@
 .pm-sub {
   margin-top: 3px;
   font-size: var(--fs-4);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   color: var(--text-2);
 }
 
@@ -163,7 +163,7 @@
   outline-offset: var(--focus-offset);
 }
 .pm-btn:disabled {
-  opacity: 0.5;
+  opacity: var(--dim-disabled);
   cursor: default;
 }
 
@@ -440,7 +440,7 @@
 }
 .pm-confirm-q {
   font-size: var(--fs-6);
-  line-height: 1.55;
+  line-height: var(--lh-body);
   color: var(--text);
 }
 .pm-confirm-names {

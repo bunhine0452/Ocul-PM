@@ -148,14 +148,14 @@
   font-size: var(--fs-12);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-snug);
-  line-height: 1.25;
+  line-height: var(--lh-tight);
   color: var(--text);
 }
 
 .wz-sub {
   margin: 0 0 22px;
   font-size: var(--fs-7);
-  line-height: 1.6;
+  line-height: var(--lh-body);
   color: var(--text-2);
 }
 
@@ -173,7 +173,7 @@
 .wz-note {
   margin: 18px 0 0;
   font-size: var(--fs-4);
-  line-height: 1.6;
+  line-height: var(--lh-body);
   color: var(--text-3);
 }
 
@@ -266,7 +266,7 @@
 
 .wz-bigcard svg { color: var(--accent); margin-bottom: 4px; }
 .wz-bigcard b { font-size: var(--fs-7); font-weight: var(--fw-bold); color: var(--text); }
-.wz-bigcard span { font-size: var(--fs-4); line-height: 1.5; color: var(--text-2); }
+.wz-bigcard span { font-size: var(--fs-4); line-height: var(--lh-body); color: var(--text-2); }
 
 .wz-bigcard:hover:not(:disabled) {
   border-color: var(--accent);
@@ -274,7 +274,7 @@
   transform: translateY(-1px);
 }
 
-.wz-bigcard:disabled { opacity: 0.55; cursor: progress; }
+.wz-bigcard:disabled { opacity: var(--dim-disabled); cursor: progress; }
 .wz-bigcard:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
 
 /* ── 마무리 목록 ────────────────────────────────────────────────────── */
@@ -296,7 +296,7 @@
   border-radius: var(--radius-m);
   background: var(--bg-card);
   font-size: var(--fs-6);
-  line-height: 1.5;
+  line-height: var(--lh-body);
   color: var(--text-2);
 }
 

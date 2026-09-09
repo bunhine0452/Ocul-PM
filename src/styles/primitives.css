@@ -24,7 +24,7 @@
 }
 .btn:hover { background: var(--bg-hover); border-color: var(--sep-strong); }
 .btn:active { transform: translateY(0.5px) scale(0.98); }
-.btn:disabled { opacity: 0.5; cursor: default; }
+.btn:disabled { opacity: var(--dim-disabled); cursor: default; }
 /* primary — 액센트 단색. 위쪽 광택·안쪽 하이라이트는 2026-09-02 에 뺐다
    (nav-item.active 와 같은 이유). 글자색은 프리셋(고대비 등)을 따라 --text-on-accent. */
 .btn.primary {
@@ -67,7 +67,7 @@
 .side-collapse-btn:hover, .code-tool-btn:hover { background: var(--bg-hover); color: var(--text); }
 .iconbtn:active { transform: scale(0.92); }
 .iconbtn:disabled, .pln-iconbtn:disabled, .code-tool-btn:disabled {
-  opacity: 0.32; cursor: default; background: transparent; color: var(--text-3);
+  opacity: var(--dim-disabled); cursor: default; background: transparent; color: var(--text-3);
 }
 /* 위험 동작(삭제) — 어느 화면이든 같은 붉은 hover. */
 .iconbtn.danger:hover, .pln-iconbtn.danger:hover, .pm-iconbtn--danger:hover, .home-iconbtn--danger:hover {
@@ -301,7 +301,7 @@
 .sk-modal-warn,
 .set-modal-desc {
   font-size: var(--fs-7);
-  line-height: 1.6;
+  line-height: var(--lh-body);
   color: var(--text-2);
 }
 .sk-modal-warn { padding: 0 var(--space-7); }

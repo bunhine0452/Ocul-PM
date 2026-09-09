@@ -54,7 +54,7 @@
 .es-desc {
   margin: 0;
   font-size: var(--fs-5);
-  line-height: 1.6;
+  line-height: var(--lh-body);
   color: var(--text-2);
 }
 .es--rich .es-desc {

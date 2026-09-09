@@ -455,7 +455,7 @@
 }
 .home-how-head { display: flex; flex-direction: column; gap: 6px; }
 .home-how-title { margin: 0; font-size: var(--fs-11); font-weight: var(--fw-bold); letter-spacing: var(--track-snug); color: var(--text); }
-.home-how-body { margin: 0; font-size: var(--fs-6); line-height: 1.6; color: var(--text-2); }
+.home-how-body { margin: 0; font-size: var(--fs-6); line-height: var(--lh-body); color: var(--text-2); }
 .home-how-body b { color: var(--text); font-weight: var(--fw-strong); }
 .home-how-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .home-how-step {
@@ -468,7 +468,7 @@
 .home-how-step:last-child { border-bottom: 1px solid var(--sep); }
 .home-how-ico { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--accent); }
 .home-how-step h3 { margin: 0; font-size: var(--fs-6); font-weight: var(--fw-strong); color: var(--text); }
-.home-how-step p { margin: 3px 0 0; font-size: var(--fs-5); line-height: 1.55; color: var(--text-2); }
+.home-how-step p { margin: 3px 0 0; font-size: var(--fs-5); line-height: var(--lh-body); color: var(--text-2); }
 .home-how .btn { align-self: flex-start; }
 
 /* ── 추가 슬롯 ──────────────────────────────────────────────────────── */
@@ -867,12 +867,12 @@
 /* 프로젝트가 워크스페이스에서 사라진 일지 — 열 곳이 없다. */
 .hf-row:disabled {
   cursor: default;
-  opacity: 0.55;
+  opacity: var(--dim-disabled);
 }
 .hf-title {
   font-size: var(--fs-7);
   font-weight: var(--fw-label);
-  line-height: 1.42;
+  line-height: var(--lh-snug);
   color: var(--text);
   /* 두 줄까지. 한국어 제목은 `—` 뒤로 길게 이어지는 일이 흔해서 자르는 선이
      없으면 한 건이 레일의 절반을 먹는다. */

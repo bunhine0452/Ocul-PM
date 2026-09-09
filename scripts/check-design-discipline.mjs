@@ -56,6 +56,12 @@
  *     CSS 가 `var(--fs-5)` 라 부르는 단을 TSX 는 `text-fs-5` 라 부른다.
  * 12. z 리터럴(z-[1000]) — `--z-sticky|strip|panel|dock|menu|popover|modal|
  *     command|top` 램프가 층을 안다. 숫자를 복사하면 두 물건이 같은 층에 앉는다.
+ * 14. 줄간격 리터럴(line-height: 1.6) — --lh-tight|snug|body|prose 4단.
+ *     실측 12종이었고, 글자 크기는 램프에 접혀 있는데(648개 중 640개가 토큰)
+ *     줄간격만 자유라 두 줄 이상 흐르는 한국어 블록마다 조판 밀도가 달랐다.
+ *     `line-height: 1` 과 px 값은 통과한다 — 그건 조판이 아니라 고정 높이
+ *     배지 안에서 글자를 수직 중앙에 두는 **도형**이다.
+ *
  * 13. 전이 리터럴(transition: … 0.12s ease) — `--dur-1|2|3`(90·190·320ms) 과
  *     `--ease-out|in-out|spring` 이 값을 안다. 실측 40종이었고, 그래서 툴바를
  *     왼쪽에서 오른쪽으로 훑으면 버튼마다 반응 속도가 달랐다. 접는 기준은 값이
@@ -154,6 +160,13 @@ const RULES = [
     ext: /\.tsx?$/,
     re: /text-\[\d+px\]/,
     hint: "text-fs-0..12 (App.css 의 @theme inline 이 --fs-* 램프를 그 이름으로 노출한다)",
+  },
+  {
+    id: "leading-literal",
+    ext: /\.css$/,
+    // 소수만 본다 — 정수 1 과 px 은 도형이라 통과.
+    re: /line-height:\s*\d+\.\d+/,
+    hint: "--lh-tight|snug|body|prose (line-height: 1 과 px 은 도형이라 예외)",
   },
   {
     id: "z-literal",

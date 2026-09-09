@@ -689,3 +689,28 @@ describe("shadcn 어휘는 ui_v2 토큰의 별칭이다", () => {
     expect(offenders, `별칭을 덮어쓰는 블록: ${offenders.join(" · ")}`).toEqual([]);
   });
 });
+
+// ─── 램프 채택 — 비활성 흐림은 한 단이다 (2026-09-09) ──────────────────────
+describe("비활성 흐림", () => {
+  it("`:disabled` 규칙이 opacity 리터럴을 쓰지 않는다", () => {
+    // 실측 0.32 · 0.35 · 0.4 · 0.45 · 0.5 · 0.55 여섯 단이었고, 같은 툴바에서
+    // `.btn:disabled`(0.5) 와 `.iconbtn:disabled`(0.32) 가 눈에 띄게 달랐다.
+    const offenders: string[] = [];
+    for (const file of walk(join(ROOT))) {
+      if (!file.endsWith(".css")) continue;
+      const css = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const m of css.matchAll(/([^{}]*\{)([^{}]*)\}/g)) {
+        if (!/disabled/.test(m[1])) continue;
+        if (/opacity:\s*[0-9.]/.test(m[2])) {
+          offenders.push(`${file.slice(ROOT.length + 1)} — ${m[1].trim().slice(0, 60)}`);
+        }
+      }
+    }
+    expect(offenders, `--dim-disabled 를 쓸 것:\n${offenders.join("\n")}`).toEqual([]);
+  });
+
+  it("--dim-disabled 는 한 곳에서만 정의된다", () => {
+    const defs = [...TOKENS.matchAll(/--dim-disabled:/g)];
+    expect(defs).toHaveLength(1);
+  });
+});

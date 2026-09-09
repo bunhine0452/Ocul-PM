@@ -124,13 +124,13 @@
 
        line-height 를 함께 적는 이유: Tailwind 기본은 rem 절대값(text-sm → 1.25rem)
        이라 글자만 줄면 줄 간격이 상대적으로 벌어진다. 배수로 바꿔 따라오게 한다. */
-    --text-xs: var(--fs-5);    --text-xs--line-height: 1.5;
-    --text-sm: var(--fs-7);    --text-sm--line-height: 1.55;
-    --text-base: var(--fs-8);  --text-base--line-height: 1.55;
-    --text-lg: var(--fs-9);    --text-lg--line-height: 1.5;
-    --text-xl: var(--fs-10);   --text-xl--line-height: 1.4;
-    --text-2xl: var(--fs-11);  --text-2xl--line-height: 1.35;
-    --text-3xl: var(--fs-12);  --text-3xl--line-height: 1.25;
+    --text-xs: var(--fs-5);    --text-xs--line-height: var(--lh-body);
+    --text-sm: var(--fs-7);    --text-sm--line-height: var(--lh-body);
+    --text-base: var(--fs-8);  --text-base--line-height: var(--lh-body);
+    --text-lg: var(--fs-9);    --text-lg--line-height: var(--lh-body);
+    --text-xl: var(--fs-10);   --text-xl--line-height: var(--lh-snug);
+    --text-2xl: var(--fs-11);  --text-2xl--line-height: var(--lh-tight);
+    --text-3xl: var(--fs-12);  --text-3xl--line-height: var(--lh-tight);
 
     /* 램프를 번호 그대로 노출한다 — CSS 가 `var(--fs-5)` 라고 부르는 단을 TSX 는
        `text-fs-5` 라고 부른다. 같은 숫자, 같은 단.
