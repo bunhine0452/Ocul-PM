@@ -37,11 +37,11 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 - [x] `code.css` 의 `.cm-*` 규칙 44개 정리 — 나머지 2,466줄(트리·탭·패널)은 건드리지 않는다 {#reclaim-css}
 
 ## Phase 3 — 새 능력: 지금 아예 없는 기본기 {#capabilities}
-- [ ] 실측으로 **0** 인 것들을 켠다 — 코드 폴딩 · 괄호 매칭 · 자동 괄호 닫기 · 선택 일치 강조 · 입력 시 들여쓰기. 지붕(LSP 17커맨드·DAP)은 올렸는데 바닥이 비어 있던 자리다 {#cap-basics}
-- [ ] 다중 커서 · 열(블록) 선택 — ⌥클릭 · ⌘D 다음 일치 추가 · ⌥⇧드래그 {#cap-multicursor}
-- [ ] 미니맵 · 브래킷 쌍 색칠 · 들여쓰기 가이드. 설정에 켜기/끄기를 둘지 판단 (기본값은 켬) {#cap-minimap}
-- [ ] peek definition/references — 지금은 ⇧F12 가 화면 폭 패널을 그린다. 인라인 peek 이 그 패널을 대체할지, 둘 다 남길지 결정한다 {#cap-peek}
-- [ ] 시맨틱 토큰 — LSP `semanticTokens` 를 백엔드에 없으면 추가하고 Monaco 에 물린다. 없으면 이 항목은 Monarch 강조로 만족하고 닫는다 {#cap-semantic}
+- [x] 실측으로 **0** 인 것들을 켠다 — 코드 폴딩 · 괄호 매칭 · 자동 괄호 닫기 · 선택 일치 강조 · 입력 시 들여쓰기. 지붕(LSP 17커맨드·DAP)은 올렸는데 바닥이 비어 있던 자리다 {#cap-basics}
+- [x] 다중 커서 · 열(블록) 선택 — ⌥클릭 · ⌘D 다음 일치 추가 · ⌥⇧드래그 {#cap-multicursor}
+- [x] 미니맵 · 브래킷 쌍 색칠 · 들여쓰기 가이드. 설정에 켜기/끄기를 둘지 판단 (기본값은 켬) {#cap-minimap}
+- [x] peek definition/references — 지금은 ⇧F12 가 화면 폭 패널을 그린다. 인라인 peek 이 그 패널을 대체할지, 둘 다 남길지 결정한다 {#cap-peek}
+- [!] 시맨틱 토큰 — LSP `semanticTokens` 를 백엔드에 없으면 추가하고 Monaco 에 물린다. 없으면 이 항목은 Monarch 강조로 만족하고 닫는다 {#cap-semantic}
 
 ## Phase 4 — 논의 편집기: CodeMirror 의존성 완전 제거 {#discussion}
 - [ ] **선행 조건** — 병렬 세션의 논의 CAS 손실 수정(`DiscussionScreenV2.tsx` 852줄 · `discussion.rs` · 새 테스트 2개)이 머지될 때까지 시작하지 않는다. 같은 파일을 두 세션이 고치면 한쪽이 조용히 사라진다 {#disc-wait}
@@ -83,4 +83,9 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 | 2026-09-09T19:15:54+09:00 | #reclaim-search | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1915_refactor_monaco-reclaim-phase2.md | 판정 = 대체 불가, 남긴다. Monaco 위젯은 문서 하나, 패널은 프로젝트 전역(code_search)+디스크 직접 치환. 반대로 파일 안 찾기·바꾸기(⌘F·⌥⌘F)는 이관이 공짜로 준 것 — CM 판엔 없었다. 근거는 02-reclaim.md#search-verdict |
 | 2026-09-09T19:16:01+09:00 | #reclaim-lang | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1915_refactor_monaco-reclaim-phase2.md | 137→110줄. 정정: lang-* 는 10개가 아니라 8개만 지울 수 있다 — lang-markdown 은 DiscussionEditor 가 아직 쓴다(Phase 4). legacy-modes 포함 13개 제거. D1a 실행(langExtra.ts JSON·TOML Monarch) + 언어 커버리지 자물쇠 2종 |
 | 2026-09-09T19:16:09+09:00 | #reclaim-css | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1915_refactor_monaco-reclaim-phase2.md | 45규칙 정리 — 지우는 게 아니라 옮기는 것. 진단 밑줄·호버 폭·인자 강조·불투명 스티키·diff 색 토큰을 Monaco 선택자로. 잔재 하나 자체 발견·수정: CodeScreenV2 의 ⌘X/⌘V 가드가 .cm-editor 를 보고 있어 편집기 안 ⌘V 가 트리 붙여넣기로 갔다 |
+| 2026-09-09T19:27:03+09:00 | #cap-basics | claude-code | ☐→x | .oculpm/journal/20260909/Features_to_add/1926_feature_monaco-capabilities-phase3.md | 폴딩·괄호매칭(always)·자동닫기·선택감싸기·autoIndent full(advanced 는 onEnter 만 본다)·선택일치 강조. 옵션을 monaco/options.ts 순수함수로 떼어 자물쇠 16개를 걸었다 — 켠 줄이 조용히 지워지는 것이 진짜 위험이라. detectIndentation:false + insertSpaces prop 으로 화면과 저장 시 포맷이 같은 값을 보게 함 |
+| 2026-09-09T19:27:10+09:00 | #cap-multicursor | claude-code | ☐→x | .oculpm/journal/20260909/Features_to_add/1926_feature_monaco-capabilities-phase3.md | multiCursorModifier:"alt" 하나로 ⌥클릭·⌥⇧드래그(열 선택)가 함께 온다. ⌘D 는 multicursor 기여가 준다 — 앱에 ⌘D 쓰는 자리가 없어 안 부딪힘(확인). mergeOverlapping 도 명시 |
+| 2026-09-09T19:27:18+09:00 | #cap-minimap | claude-code | ☐→x | .oculpm/journal/20260909/Features_to_add/1926_feature_monaco-capabilities-phase3.md | 판정 = 폭을 먹는 것만 설정을 둔다. 미니맵 → codeMinimap(기본 켬, 좌우 분할에서 60~100px 을 본문에서 뺏는다). 브래킷 색칠·들여쓰기 가이드는 설정 없이 항상 켬 — 자리를 안 먹어 끌 이유를 댈 수 없고 아무도 안 바꿀 토글은 소음이다 |
+| 2026-09-09T19:27:25+09:00 | #cap-peek | claude-code | ☐→x | .oculpm/journal/20260909/Features_to_add/1926_feature_monaco-capabilities-phase3.md | 판정 = 만들지 않고 패널을 남긴다. StandaloneTextModelService.createModelReference() 가 모델이 없으면 거부해 표준 Monaco 로는 파일 밖을 못 본다 — 얻는 것이 "같은 파일 안에서만 되는 peek" 이고 반만 되는 이동은 안 되는 이동보다 나쁘다. 정의·참조 공급자도 같은 이유로 미등록. Phase 5 ⌘K 가 파일 모델 레지스트리를 요구하면 재개 |
+| 2026-09-09T19:27:35+09:00 | #cap-semantic | claude-code | ☐→! | .oculpm/journal/20260909/Features_to_add/1926_feature_monaco-capabilities-phase3.md | 백엔드에 semanticTokens 없음 확인(커맨드 17개·initialize capability 어디에도). 추가는 가능하나 cargo test 가 bindings.ts 를 재생성하는데 지금 그 파일이 병렬 세션의 미커밋 변경을 들고 있다(sessions_considered·RuleEntry.readonly) — 재생성하면 남의 진행 중 API 가 섞이고 안 하면 내 바인딩이 빠진다. **해제 조건: firing-ledger/rules 작업 머지.** Monarch 로 만족하고 닫지 않는 이유는 이월을 유실 안 하려고 |
 <!-- oculpm:plan-log end -->
