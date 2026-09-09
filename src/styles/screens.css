@@ -242,7 +242,7 @@
 .tag::before { content: "#"; opacity: 0.6; }
 
 /* --- Diff (PR-UI 4) --- */
-.diff-screen { display: grid; grid-template-columns: 284px 1fr; height: 100%; min-height: 0; }
+.diff-screen { display: grid; grid-template-columns: var(--panel-w) 1fr; height: 100%; min-height: 0; }
 /* 작업 일지 항목 디테일 뷰 (Dogfooding 2026-06-07 — 모달 대체). */
 /* Prominent "작성 날짜" chip in the entry header sub-line. Accent pill so the
    written date reads at a glance when arriving from the planner. */

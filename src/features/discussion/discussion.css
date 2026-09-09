@@ -10,8 +10,8 @@
 /* ── 좌측 목록 ─────────────────────────────────────────────── */
 .disc-list {
   flex: none;
-  width: 288px;
-  min-width: 288px;
+  width: var(--panel-w);
+  min-width: var(--panel-w);
   overflow-y: auto;
   overflow-x: hidden;
   border-right: 1px solid var(--sep);

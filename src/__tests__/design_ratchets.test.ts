@@ -243,3 +243,17 @@ describe("드릴다운 머리", () => {
     expect([...sizes], `뒤로가기 화살표 크기: ${[...sizes].join(" · ")}`).toEqual(["15"]);
   });
 });
+
+// ─── 좌측 목록 열 — 계약 (2026-09-10 {#layout-widths}) ─────────────────────
+//
+// 같은 일을 하는 세 열이 264 · 284 · 288 이었다. 항목은 "264·284·288·320" 이라
+// 했는데 320 은 없고 실제 네 번째는 `.acp-panel`(244)이다 — 그리고 그건 왼쪽
+// 목록 열이 아니라 오른쪽에서 밀려 나오는 세션 패널이라 대상이 아니다.
+describe("좌측 목록 열", () => {
+  it("세 열이 한 토큰을 쓴다", () => {
+    expect(read("styles/tokens.css")).toContain("--panel-w: 284px;");
+    expect(read("features/code/code.css")).toMatch(/\.code-sidebar\s*\{[^}]*width: var\(--panel-w\)/);
+    expect(read("features/discussion/discussion.css")).toMatch(/\.disc-list\s*\{[^}]*width: var\(--panel-w\)/);
+    expect(read("styles/screens.css")).toContain("grid-template-columns: var(--panel-w) 1fr");
+  });
+});

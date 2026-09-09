@@ -35,8 +35,8 @@
 /* ── 트리 사이드바 (기본 왼쪽 · #sidebar-side 로 오른쪽 이동 가능) ── */
 .code-sidebar {
   flex: none;
-  width: 264px;
-  min-width: 264px;
+  width: var(--panel-w);
+  min-width: var(--panel-w);
   display: flex;
   flex-direction: column;
   overflow: hidden;
