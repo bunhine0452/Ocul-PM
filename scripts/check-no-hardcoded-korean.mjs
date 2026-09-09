@@ -53,6 +53,7 @@ const PERMANENT = new Set([
   // i18n 자체를 검증하는 테스트 3종 — 여기서 한글은 번역할 UI 카피가 아니라
   // **검사 대상 소재**다. 스캐너 픽스처("URL 안의 // 를 오독하지 않는가")와
   // 한국어 렌더 단언(`getByText("작업 일지")`)은 한글이어야만 의미가 있다.
+  "__tests__/ime_guard.test.ts",
   "__tests__/i18n.test.ts",
   "__tests__/i18n_lint_scanner.test.ts",
   "__tests__/i18n_switch.test.tsx",

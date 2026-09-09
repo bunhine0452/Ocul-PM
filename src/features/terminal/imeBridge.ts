@@ -1,6 +1,7 @@
 import type { Terminal } from "@xterm/xterm";
 import { oculpmLog } from "@/lib/oculpmLog";
 import { dumpImeTrace, pushImeTrace } from "./imeTrace";
+import { isImeComposing } from "@/lib/ime";
 
 // WKWebView 한글/CJK 입력 브리지 (2026-07-30)
 //
@@ -345,7 +346,9 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
   textarea?.addEventListener("blur", onBlur);
 
   term.attachCustomKeyEventHandler((event) => {
-    const imeKey = event.isComposing || event.keyCode === 229 || event.key === "Process";
+    // 이 세 신호를 처음 알아낸 자리지만, 판정은 이제 lib/ime.ts 가 갖는다 —
+    // 여기서만 알고 있으면 컴포저·시작 화면이 그 지식을 못 받는다.
+    const imeKey = isImeComposing(event);
 
     if (event.type === "keydown") {
       // ⌃⌥⇧I — 그때까지의 입력 흐름을 로그 파일로 비운다. 한글 입력이 이상하게

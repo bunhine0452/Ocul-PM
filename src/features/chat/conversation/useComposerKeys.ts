@@ -11,6 +11,7 @@ import type React from "react";
 import type { AcpCommand, AcpConfigOption } from "@/lib/bindings";
 import { CYCLE_MODES } from "./ConfigControls";
 import { recallBack, recallForward, type RecallState } from "../promptHistory";
+import { isImeComposing } from "@/lib/ime";
 
 export interface ComposerKeysArgs {
   draft: string;
@@ -65,10 +66,8 @@ export function useComposerKeys({
   }, [options, setOption]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // 한글 조합 중의 Enter/방향키는 **IME 의 것**이다. 안 거르면 조합을 확정하는
-    // Enter 가 문장을 그대로 전송한다 — 한글로 쓰는 사용자가 매일 밟는 지뢰.
-    // (일부 엔진이 isComposing 을 늦게 세팅해 keyCode 229 도 같이 본다.)
-    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    // 한글 조합 중의 Enter/방향키는 **IME 의 것**이다 (판정은 lib/ime.ts).
+    if (isImeComposing(e)) return;
     if (e.key === "Tab" && e.shiftKey && !slash?.length && !mentions?.length) {
       e.preventDefault();
       cycleMode();

@@ -52,6 +52,7 @@ import { ConversationHistoryModal } from "./ConversationHistoryModal";
 // 대화 제목처럼 한번 잘못 들어가면 영구히 남는 자리에 쓴다.
 import { t as tNow, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
+import { isImeComposing } from "@/lib/ime";
 
 // AI 패널 (ui_v2) — 2026-07-20 대규모 개편.
 //  - 모델 선택: 상단 칩 바 → Cursor 식 컴포저 하단 드롭다운(위로 열림).
@@ -914,9 +915,8 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
-                  // 한글 조합을 확정하는 Enter 가 문장을 전송하면 안 된다
-                  // (isComposing 을 늦게 세팅하는 엔진이 있어 keyCode 229 도 본다).
-                  if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                  // 한글 조합을 확정하는 Enter 가 문장을 전송하면 안 된다 (lib/ime.ts).
+                  if (isImeComposing(e)) return;
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     void send();

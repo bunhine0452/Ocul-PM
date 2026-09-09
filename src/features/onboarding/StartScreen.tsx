@@ -32,6 +32,7 @@ import { AddCard, FlowTile, OnboardingTile } from "./home/tiles";
 import { ProjectCard } from "./home/ProjectCard";
 import { ProjectManager } from "@/features/projects/ProjectManager";
 import { useT } from "@/i18n";
+import { isImeComposing } from "@/lib/ime";
 
 /**
  * [중요] 이 타입을 export 해야 테스트가 직접 참조할 수 있다. JSX 스프레드는
@@ -173,8 +174,8 @@ export function StartScreen(props: StartScreenProps) {
       // 검색창으로 포커스를 끌어내 모달 밖으로 탈출한다.
       if (document.querySelector('[role="dialog"], [data-home-overlay]')) return;
 
-      // IME 조합 중에는 키를 가로채지 않는다 — 조합 중 키다운은 확정 신호다.
-      if (e.isComposing || e.keyCode === 229) return;
+      // IME 조합 중에는 키를 가로채지 않는다 — 조합 중 키다운은 확정 신호다 (lib/ime.ts).
+      if (isImeComposing(e)) return;
 
       const mod = e.metaKey || e.ctrlKey;
       const typing = isTyping(e.target);
@@ -259,13 +260,10 @@ export function StartScreen(props: StartScreenProps) {
 
   const onSearchKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      // 한글 IME 조합 중의 Enter 는 "후보 확정"이지 "실행"이 아니다. 가드가
+      // 한글 IME 조합 중의 Enter 는 "후보 확정"이지 "실행"이 아니다 — 가드가
       // 없으면 "회고"를 치다가 조합을 확정하는 순간 프로젝트가 열려 버린다.
-      // (`keyCode === 229` 는 조합 중 키다운의 전통적 신호 — Safari 포함
-      //  일부 엔진이 isComposing 을 늦게 세팅해 둘 다 본다.)
-      const composing =
-        e.nativeEvent.isComposing || (e.nativeEvent as KeyboardEvent).keyCode === 229;
-      if (composing) return;
+      // 세 신호를 다 보는 판정은 lib/ime.ts 가 갖는다.
+      if (isImeComposing(e)) return;
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
