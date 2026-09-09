@@ -49,7 +49,7 @@
   letter-spacing: var(--caps-track-lg);
   text-transform: var(--caps-transform);
   color: var(--text-3);
-  margin-bottom: 7px;
+  margin-bottom: var(--space-3);
 }
 .mob-text-2 { color: var(--text-2); }
 .mob-text-3 { color: var(--text-3); }

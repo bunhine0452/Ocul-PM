@@ -432,7 +432,7 @@
 .pm-opt {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
   border: 1px solid var(--sep);
   border-radius: var(--radius-s);

@@ -112,7 +112,7 @@
 .gn-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-3);
   min-width: 0;
 }
 .gn-name {
@@ -148,7 +148,7 @@
   font-size: var(--fs-0);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-caps);
-  padding: 0 5px;
+  padding: 0 var(--space-2);
   border-radius: var(--radius-pill);
   color: color-mix(in srgb, var(--gn-tint) 72%, var(--text));
   background: color-mix(in srgb, var(--gn-tint) 14%, transparent);
@@ -213,7 +213,7 @@
   border-radius: var(--radius-m);
 }
 .gr-seg button {
-  padding: 3px 9px;
+  padding: 3px var(--space-4);
   border: none;
   background: none;
   border-radius: var(--radius-s);
@@ -232,7 +232,7 @@
 .gr-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   height: 26px;
   padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
@@ -305,7 +305,7 @@
 .gr-legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   font-size: var(--fs-1);
   color: var(--text-2);
 }

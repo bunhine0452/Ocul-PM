@@ -418,7 +418,7 @@
   appearance: none;
   border: none;
   cursor: pointer;
-  padding: 5px var(--space-5);
+  padding: var(--space-2) var(--space-5);
   border-radius: var(--radius-m);
   font-size: var(--fs-3);
   font-weight: var(--fw-bold);
@@ -443,7 +443,7 @@
 /* Embedding-model first-run download progress (EmbeddingModelBanner). */
 .dl-progress {
   height: 5px;
-  margin-top: 7px;
+  margin-top: var(--space-3);
   border-radius: var(--radius-pill);
   background: var(--accent-surface);
   overflow: hidden;
@@ -456,7 +456,7 @@
 }
 .dl-sub {
   display: block;
-  margin-top: 5px;
+  margin-top: var(--space-2);
   font-size: var(--fs-2);
   color: var(--muted-foreground);
 }

@@ -104,7 +104,7 @@
   width: 100%;
   height: 22px;
   padding: 0 var(--space-3) 0 var(--space-2);
-  /* 모서리를 **주지 않는다**. 24px 행에 7px 둥글기는 캡슐이 되고, 캡슐 목록은
+  /* 모서리를 **주지 않는다**. 22px 행에 7px 둥글기는 캡슐이 되고, 캡슐 목록은
      파일 트리가 아니라 대시보드의 태그 줄로 읽힌다. 더 나쁜 것은 왼쪽
      액센트 막대(`.marked`)다 — 둥근 상자 안에서 위아래가 깎여 초승달이
      되므로, 신호가 아니라 렌더링 사고처럼 보인다. */
@@ -495,8 +495,8 @@
 .code-status-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 7px;
+  gap: var(--space-2);
+  padding: 2px var(--space-3);
   border-radius: var(--radius-s);
   flex: none;
 }
@@ -569,7 +569,7 @@
   margin-left: var(--space-3);
 }
 .code-problems-hit {
-  gap: 7px;
+  gap: var(--space-3);
 }
 .code-problems-sev {
   flex: none;
@@ -628,7 +628,7 @@
 .code-crumb {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   padding: 1px var(--space-1);
   border: none;
   border-radius: var(--radius-s);
@@ -860,7 +860,7 @@
   align-items: center;
   gap: var(--space-2);
   max-width: 260px;
-  padding: var(--space-1) 9px var(--space-1) 7px;
+  padding: var(--space-1) var(--space-4) var(--space-1) var(--space-3);
   border: 1px solid var(--border-card);
   border-radius: var(--radius-s);
   background: var(--bg-card);
@@ -877,7 +877,7 @@
 /* 여럿을 들었을 때의 "+n" — 이름 하나만 뜨면 나머지가 따라오는 줄 모른다. */
 .code-drag-count {
   flex: none;
-  padding: 1px 5px;
+  padding: 1px var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--accent-text);
@@ -1030,9 +1030,9 @@ body.code-dragging {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   width: 100%;
-  padding: 7px var(--space-3);
+  padding: var(--space-3) var(--space-3);
   font-size: var(--fs-2);
   font-weight: var(--fw-bold);
   letter-spacing: var(--caps-track);
@@ -1206,7 +1206,7 @@ body.code-dragging {
 .code-goto-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-3);
   padding: var(--space-1) var(--space-3);
   font-size: var(--fs-4);
   color: var(--text-2);
@@ -1285,7 +1285,7 @@ body.code-dragging {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 7px var(--space-4) 7px var(--space-5);
+  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--sep);
 }
 .code-refs-title {
@@ -1370,7 +1370,7 @@ body.code-dragging {
   flex: none;
   font-size: var(--fs-2);
   color: var(--text-3);
-  padding: 1px 5px;
+  padding: 1px var(--space-2);
   border: 1px solid var(--sep);
   border-radius: var(--radius-pill);
 }
@@ -1424,7 +1424,7 @@ body.code-dragging {
   box-shadow: var(--shadow-pop);
 }
 .monaco-editor .parameter-hints-widget .signature {
-  padding: var(--space-2) 9px;
+  padding: var(--space-2) var(--space-4);
   font-family: var(--mono);
   font-size: var(--fs-3);
   line-height: var(--lh-body);
@@ -1435,8 +1435,8 @@ body.code-dragging {
   font-weight: var(--fw-bold);
 }
 .monaco-editor .parameter-hints-widget .docs {
-  margin-top: 5px;
-  padding-top: 5px;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
   border-top: 1px solid var(--sep);
   font-family: var(--font);
   font-size: var(--fs-3);
@@ -1564,7 +1564,7 @@ body.code-dragging {
 }
 .code-debug-chip {
   font-size: var(--fs-2);
-  padding: 1px 7px;
+  padding: 1px var(--space-3);
   border-radius: var(--radius-pill);
   border: 1px solid var(--sep);
   color: var(--text-3);
@@ -1609,7 +1609,7 @@ body.code-dragging {
 }
 .code-debug-detail {
   flex: none;
-  padding: 5px var(--space-5);
+  padding: var(--space-2) var(--space-5);
   font-size: var(--fs-3);
   color: var(--text-3);
   border-bottom: 1px solid var(--sep);
@@ -1638,7 +1638,7 @@ body.code-dragging {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 5px var(--space-4);
+  padding: var(--space-2) var(--space-4);
   font-size: var(--fs-2);
   font-weight: var(--fw-bold);
   letter-spacing: var(--caps-track);
@@ -1712,7 +1712,7 @@ body.code-dragging {
 .code-debug-var {
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: var(--space-2);
   padding: 2px var(--space-4) 2px 0;
   font-family: var(--mono);
   font-size: var(--fs-3);
@@ -1794,7 +1794,7 @@ body.code-dragging {
 .code-empty-key {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-4);
   font-size: var(--fs-3);
   color: var(--text-3);
 }
@@ -1818,7 +1818,7 @@ body.code-dragging {
 /* 우클릭 메뉴 마감 — 폭·밀도·위험 항목 호버. */
 .code-ctxmenu {
   min-width: 200px;
-  padding: 5px;
+  padding: var(--space-2);
 }
 .code-ctxmenu-item {
   padding: var(--space-2) 11px;
@@ -1922,7 +1922,7 @@ body.code-dragging {
   box-shadow: var(--shadow-pop);
 }
 .code-jrnl-pop-head {
-  padding: 5px 9px 7px;
+  padding: var(--space-2) var(--space-4) var(--space-3);
   font-size: var(--fs-2);
   font-weight: var(--fw-bold);
   letter-spacing: var(--caps-track);
@@ -1943,7 +1943,7 @@ body.code-dragging {
   column-gap: var(--space-3);
   row-gap: 1px;
   align-items: center;
-  padding: var(--space-2) 9px;
+  padding: var(--space-2) var(--space-4);
   border: none;
   border-radius: var(--radius-s);
   background: none;
@@ -2010,14 +2010,14 @@ body.code-dragging {
 .code-hist-src.s-user { background: var(--accent); }
 .code-hist-src.s-agent { background: var(--text-3); }
 .code-hist-empty {
-  padding: var(--space-3) 9px var(--space-4);
+  padding: var(--space-3) var(--space-4) var(--space-4);
   font-size: var(--fs-3);
   color: var(--text-3);
 }
 .code-hist-forget {
   width: 100%;
   margin-top: var(--space-1);
-  padding: 7px 9px;
+  padding: var(--space-3) var(--space-4);
   border: none;
   border-top: 1px solid var(--sep);
   border-radius: 0 0 var(--radius-s) var(--radius-s);
@@ -2231,7 +2231,7 @@ body.code-dragging {
 .code-search-error {
   flex: none;
   margin: 0 var(--space-2) var(--space-2);
-  padding: 5px var(--space-3);
+  padding: var(--space-2) var(--space-3);
   font-size: var(--fs-3);
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 10%, transparent);
@@ -2274,7 +2274,7 @@ body.code-dragging {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   padding: 3px 2px 3px var(--space-3);
   font-size: var(--fs-3);
   color: var(--text-2);
@@ -2497,7 +2497,7 @@ body.code-dragging {
   gap: var(--space-2);
   min-width: 340px;
   max-width: 560px;
-  padding: 7px var(--space-3);
+  padding: var(--space-3) var(--space-3);
   border: 1px solid var(--sep);
   border-radius: var(--radius-m);
   background: var(--bg-card);
@@ -2534,7 +2534,7 @@ body.code-dragging {
   align-items: center;
   gap: var(--space-1);
   height: 26px;
-  padding: 0 9px;
+  padding: 0 var(--space-4);
   border: 1px solid var(--sep);
   border-radius: var(--radius-s);
   background: var(--bg-inset);
@@ -2578,9 +2578,9 @@ body.code-dragging {
 .code-ai-hunk {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   height: 22px;
-  padding: 0 7px;
+  padding: 0 var(--space-3);
   border: 1px solid var(--sep);
   border-radius: var(--radius-s);
   background: none;

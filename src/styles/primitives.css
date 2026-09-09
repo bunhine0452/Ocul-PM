@@ -7,7 +7,7 @@
    ============================================================ */
 
 .btn {
-  display: inline-flex; align-items: center; gap: 7px;
+  display: inline-flex; align-items: center; gap: var(--space-3);
   height: var(--ctl-4); padding: 0 var(--space-5);
   border-radius: var(--radius-s);
   border: 1px solid var(--border-card);
@@ -36,7 +36,7 @@
 .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
 .btn.ghost:hover { background: var(--bg-hover); border-color: transparent; }
 .btn.icon { width: 30px; padding: 0; justify-content: center; }
-.btn.sm { height: var(--ctl-3); padding: 0 9px; font-size: var(--fs-3); }
+.btn.sm { height: var(--ctl-3); padding: 0 var(--space-4); font-size: var(--fs-3); }
 
 /* 아이콘 버튼 — 한 벌, 세 크기 (Phase 5). 화면마다 이름만 다른 일곱 벌
    (.pln-iconbtn .pm-iconbtn .gr-iconbtn .home-iconbtn .sk-iconbtn
@@ -91,12 +91,12 @@
 .chip,
 .attach-chip, .usage-chip, .sk-chip, .sk-path-chip, .code-debug-chip, .entry-date-chip,
 .scope-chip, .file-pill, .queue-chip, .hg-lead-chip {
-  display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; gap: var(--space-2);
   white-space: nowrap; flex: none; max-width: 100%;
   font-family: var(--font);
 }
 .chip {
-  height: var(--ctl-2); padding: 0 9px; border-radius: var(--radius-s);
+  height: var(--ctl-2); padding: 0 var(--space-4); border-radius: var(--radius-s);
   font-size: var(--fs-3); font-weight: var(--fw-strong);
   background: var(--bg-inset); color: var(--text-2);
   /* 좁은 창 방어 (2026-08-23): 칩은 **라벨**이지 본문이 아니다. flex 행에서
@@ -167,7 +167,7 @@
 
 /* trigger badge */
 .tbadge {
-  display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; gap: var(--space-2);
   height: var(--ctl-2); padding: 0 var(--space-3) 0 var(--space-2); border-radius: var(--radius-s);
   font-size: var(--fs-2); font-weight: var(--fw-strong); letter-spacing: var(--track-wide);
   /* .chip 과 같은 이유 — 배지는 꺾이지 않는다. */
@@ -298,7 +298,7 @@
 .subnav { display: flex; gap: 2px; min-width: 0; }
 .subnav.vertical { flex-direction: column; }
 .subnav-item {
-  display: inline-flex; align-items: center; gap: 9px;
+  display: inline-flex; align-items: center; gap: var(--space-4);
   height: var(--ctl-4); padding: 0 11px;
   border: none; border-radius: var(--radius-s);
   background: transparent; color: var(--text-2);
@@ -373,7 +373,7 @@
 .sk-modal-warn { padding: 0 var(--space-7); }
 .sk-modal-warn code {
   font-size: var(--fs-3);
-  padding: 1px 5px;
+  padding: 1px var(--space-2);
   border-radius: var(--radius-xs);
   background: var(--bg-inset);
   color: var(--text-2);

@@ -28,10 +28,10 @@
      .stat-sub / the subject span actually kicks in. */
   min-width: 0;
 }
-.stat-top { display: flex; align-items: center; gap: 7px; color: var(--text-2); font-size: var(--fs-3); font-weight: var(--fw-label); }
+.stat-top { display: flex; align-items: center; gap: var(--space-3); color: var(--text-2); font-size: var(--fs-3); font-weight: var(--fw-label); }
 .stat-val { font-size: var(--fs-9); font-weight: var(--fw-bold); letter-spacing: var(--track-snug); margin-top: var(--space-2); line-height: 1; }
 .stat-val .unit { font-size: var(--fs-5); font-weight: var(--fw-strong); color: var(--text-3); margin-left: 3px; }
-.stat-sub { font-size: var(--fs-3); color: var(--text-3); margin-top: var(--space-2); display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-sub { font-size: var(--fs-3); color: var(--text-3); margin-top: var(--space-2); display: flex; align-items: center; gap: var(--space-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 지표 아이콘 — 라벨 옆의 선화 한 개. 색 네모 안에 넣지 않는다: 8장의
    타일마다 다른 색 상자를 두는 것은 'KPI 대시보드 템플릿' 그 자체였고, 색이
    의미(잡일·리팩토링…)를 빌려 와 지표와 무관했다. 색은 의미가 있을 때만 —
@@ -80,7 +80,7 @@
 .grid-2-fill > .g2col > .card:last-child { flex: 1 1 auto; display: flex; flex-direction: column; }
 .grid-2-fill > .g2col > .card:last-child > .panel-body { flex: 1 1 auto; }
 .panel-head {
-  display: flex; align-items: center; gap: 9px; padding: 14px 18px;
+  display: flex; align-items: center; gap: var(--space-4); padding: 14px 18px;
   border-bottom: 1px solid var(--sep);
 }
 .panel-head h3 { margin: 0; font-size: var(--fs-5); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); }
@@ -108,7 +108,7 @@
 .diff-add { color: var(--diff-add-line); font-weight: var(--fw-strong); font-family: var(--mono); }
 .diff-del { color: var(--diff-del-line); font-weight: var(--fw-strong); font-family: var(--mono); }
 
-.week-row { display: flex; align-items: flex-end; gap: 9px; height: 92px; padding: var(--space-1) 2px 0; }
+.week-row { display: flex; align-items: flex-end; gap: var(--space-4); height: 92px; padding: var(--space-1) 2px 0; }
 .week-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); height: 100%; justify-content: flex-end; }
 .week-bar { width: 100%; max-width: 26px; background: var(--bg-inset); border-radius: var(--radius-xs); position: relative; overflow: hidden; }
 .week-bar > i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--accent); border-radius: var(--radius-xs); }
@@ -127,7 +127,7 @@
 .agent-bar > i { display: block; height: 100%; border-radius: var(--radius-xs); }
 .agent-count { font-size: var(--fs-3); color: var(--text-2); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; min-width: 16px; text-align: right; }
 
-.next-item { display: flex; align-items: center; gap: var(--space-4); padding: 9px 11px; border-radius: var(--radius-m); cursor: pointer;
+.next-item { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-4) 11px; border-radius: var(--radius-m); cursor: pointer;
   appearance: none; -webkit-appearance: none; border: none; background: transparent; font-family: var(--font); text-align: left; width: 100%; color: var(--text); }
 .next-item:hover { background: var(--bg-hover); }
 .next-check { width: 17px; height: 17px; border-radius: var(--radius-xs); border: 1.6px solid var(--sep-strong); flex: none; display: grid; place-items: center; }
@@ -186,7 +186,7 @@
 }
 .date-rail-item {
   display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding: 5px 0; border-radius: var(--radius-m); cursor: pointer;
+  padding: var(--space-2) 0; border-radius: var(--radius-m); cursor: pointer;
   background: none; border: 1px solid transparent; color: var(--text-3);
   font-family: var(--mono); transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
@@ -219,17 +219,17 @@
   font-family: var(--font); text-align: left; width: 100%; color: var(--text);
   display: block; cursor: pointer; padding: 0;
 }
-.jcard-top { display: flex; align-items: center; gap: 9px; padding: 13px var(--space-6) 0; }
+.jcard-top { display: flex; align-items: center; gap: var(--space-4); padding: 13px var(--space-6) 0; }
 .jcard-time { margin-left: auto; font-size: var(--fs-3); color: var(--text-3); font-family: var(--mono); }
-.jcard-agent { font-size: var(--fs-3); color: var(--text-2); display: flex; align-items: center; gap: 5px; font-weight: var(--fw-label); }
-.jcard-title { font-size: var(--fs-5); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); padding: 9px var(--space-6) 0; }
-.jcard-summary { color: var(--text-2); padding: 5px var(--space-6) 0; line-height: var(--lh-body); }
+.jcard-agent { font-size: var(--fs-3); color: var(--text-2); display: flex; align-items: center; gap: var(--space-2); font-weight: var(--fw-label); }
+.jcard-title { font-size: var(--fs-5); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); padding: var(--space-4) var(--space-6) 0; }
+.jcard-summary { color: var(--text-2); padding: var(--space-2) var(--space-6) 0; line-height: var(--lh-body); }
 .jcard-foot {
   display: flex; align-items: center; gap: var(--space-4); padding: var(--space-5) var(--space-6) 13px; margin-top: var(--space-5);
   flex-wrap: wrap;
 }
 .file-pill {
-  height: 26px; padding: 0 9px;
+  height: 26px; padding: 0 var(--space-4);
   background: var(--bg-inset); border-radius: var(--radius-s); font-size: var(--fs-3); color: var(--text-2);
 }
 .file-pill b { color: var(--text); font-weight: var(--fw-strong); }
@@ -237,7 +237,7 @@
    over the .file-pill base; an accent ring on hover signals it's interactive. */
 .file-pill--btn { appearance: none; -webkit-appearance: none; border: none; cursor: pointer; }
 .file-pill--btn:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
-.cycle-flag { display: inline-flex; align-items: center; gap: 5px; color: var(--t-error); font-size: var(--fs-3); font-weight: var(--fw-strong); }
+.cycle-flag { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--t-error); font-size: var(--fs-3); font-weight: var(--fw-strong); }
 .tag { font-size: var(--fs-2); color: var(--text-3); }
 .tag::before { content: "#"; opacity: 0.6; }
 
@@ -247,7 +247,7 @@
 /* Prominent "작성 날짜" chip in the entry header sub-line. Accent pill so the
    written date reads at a glance when arriving from the planner. */
 .entry-date-chip {
-  padding: 2px 9px; border-radius: var(--radius-pill);
+  padding: 2px var(--space-4); border-radius: var(--radius-pill);
   background: var(--accent-soft); color: var(--accent-text);
   font-size: var(--fs-3); font-weight: var(--fw-strong);
 }
@@ -336,7 +336,7 @@
 .diff-search-count { font-size: var(--fs-2); color: var(--text-3); font-family: var(--mono); white-space: nowrap; }
 .dl-hit { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); border-radius: var(--radius-2xs); }
 .dfile {
-  display: flex; align-items: center; gap: var(--space-3); padding: 7px var(--space-3); border-radius: var(--radius-s); cursor: pointer;
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-3); border-radius: var(--radius-s); cursor: pointer;
   /* button reset (dfile is a <button> for a11y) */
   appearance: none; -webkit-appearance: none; border: none; background: transparent;
   font-family: var(--font); text-align: left; width: 100%; color: var(--text);
@@ -345,7 +345,7 @@
 .dfile.active { background: var(--accent-soft); }
 .dfile-name { flex: 1; min-width: 0; font-family: var(--mono); font-size: var(--fs-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dfile.active .dfile-name { color: var(--accent-text); font-weight: var(--fw-strong); }
-.dfile-stat { font-family: var(--mono); font-size: var(--fs-2); font-weight: var(--fw-strong); display: flex; gap: 5px; }
+.dfile-stat { font-family: var(--mono); font-size: var(--fs-2); font-weight: var(--fw-strong); display: flex; gap: var(--space-2); }
 .dfile-read { margin-left: var(--space-1); color: var(--accent-text); display: grid; place-items: center; flex: none; }
 /* 경로는 디렉터리 + 파일명 두 조각이다 — 폭이 모자라면 **디렉터리부터** 줄고
    파일명은 끝까지 남는다. 전체 경로를 한 덩어리로 흘리면 `WorkspaceCont…` 처럼
@@ -362,7 +362,7 @@
   position: sticky; top: 0; z-index: 1;
   background: var(--bg-window); border-radius: var(--radius-s);
 }
-.diff-group-head { display: flex; align-items: center; gap: 5px; padding: var(--space-3) var(--space-3) var(--space-1); }
+.diff-group-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-3) var(--space-1); }
 .dfl-fold {
   appearance: none; -webkit-appearance: none; border: none; background: transparent;
   flex: none; padding: 0; width: 16px; height: 16px; border-radius: var(--radius-xs);
@@ -389,7 +389,7 @@
   flex: none; display: inline-flex; align-items: center; gap: 2px;
   font-family: var(--mono); font-size: var(--fs-0); font-weight: var(--fw-bold); line-height: 15px;
   color: var(--text-3); background: var(--bg-inset);
-  border: 1px solid var(--sep); border-radius: var(--radius-pill); padding: 0 5px;
+  border: 1px solid var(--sep); border-radius: var(--radius-pill); padding: 0 var(--space-2);
 }
 .dfl-progress.done { color: var(--accent-text); background: var(--accent-soft); border-color: transparent; padding: 0 var(--space-1); }
 .diff-group-time { font-size: var(--fs-2); color: var(--text-3); flex: none; font-family: var(--mono); }
@@ -397,7 +397,7 @@
 /* 플랜 참조는 이미 ◎ 아이콘을 달고 있다 — 해시태그용 `#` 접두는 지운다. */
 .diff-group-plans .tag {
   display: inline-flex; align-items: center; gap: var(--space-1); max-width: 100%;
-  font-size: var(--fs-2); line-height: 17px; padding: 0 7px;
+  font-size: var(--fs-2); line-height: 17px; padding: 0 var(--space-3);
   background: var(--bg-inset); border: 1px solid var(--sep); border-radius: var(--radius-pill);
 }
 .diff-group-plans .tag::before { content: none; }
@@ -452,7 +452,7 @@
    (변경 diff 의 가로 스크롤이 같은 이유로 안 보였던 전례). */
 .entry-filelist.capped {
   border-top: 1px solid var(--sep); border-bottom: 1px solid var(--sep);
-  padding: 5px var(--space-1) 5px 0;
+  padding: var(--space-2) var(--space-1) var(--space-2) 0;
 }
 /* `flex: none` — 세로 flex 안에서 행이 눌려 납작해지지 않게. */
 .entry-filelist .dfile { padding: var(--space-2) var(--space-3); flex: none; }
@@ -516,7 +516,7 @@
 .dl.del .dl-x { background: var(--diff-del-bg); color: var(--diff-del-text); }
 .dl.del .dl-gut { background: color-mix(in srgb, var(--diff-del-bg) 80%, transparent); color: var(--diff-del-line); }
 .dl.split .dl-x.empty { background: var(--bg-inset); opacity: 0.4; }
-.diff-foot { padding: 14px var(--space-6); color: var(--text-3); font-family: var(--font); font-size: var(--fs-3); border-top: 1px solid var(--sep); display: flex; align-items: center; gap: 7px; }
+.diff-foot { padding: 14px var(--space-6); color: var(--text-3); font-family: var(--font); font-size: var(--fs-3); border-top: 1px solid var(--sep); display: flex; align-items: center; gap: var(--space-3); }
 
 /* +N/−M 라인 요약 (diff-bar) */
 .diff-stat { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; flex: none; }
@@ -528,7 +528,7 @@
 .diff-binary-card { display: flex; align-items: center; gap: var(--space-5); border: 1px solid var(--border-card); border-radius: var(--radius-m); padding: 14px var(--space-6); background: var(--bg-inset); }
 .diff-binary-meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .diff-binary-kind { font-size: var(--fs-4); font-weight: var(--fw-strong); }
-.diff-binary-size { font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); display: flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
+.diff-binary-size { font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); display: flex; align-items: center; gap: var(--space-3); font-variant-numeric: tabular-nums; }
 .diff-binary-arrow { color: var(--text-3); }
 .diff-binary-delta { font-weight: var(--fw-strong); }
 .diff-binary-delta.add { color: var(--diff-add-line); }
@@ -554,7 +554,7 @@
   font-family: var(--font); text-align: left; width: 100%; color: var(--text); cursor: pointer;
 }
 .goal-title { font-size: var(--fs-6); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); }
-.goal-due { font-size: var(--fs-3); color: var(--text-3); display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.goal-due { font-size: var(--fs-3); color: var(--text-3); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .goal-prog-wrap { margin-left: auto; display: flex; align-items: center; gap: var(--space-5); }
 .prog-track { width: 110px; height: 7px; background: var(--bg-inset); border-radius: var(--radius-pill); overflow: hidden; }
 .prog-track > i { display: block; height: 100%; background: var(--accent); border-radius: var(--radius-xs); }
@@ -573,8 +573,8 @@
 .sub-check.active { border-color: var(--accent); border-style: dashed; }
 .sub-title { font-size: var(--fs-4); font-weight: var(--fw-label); }
 .sub-title.done { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--text-3); }
-.sub-entries { font-size: var(--fs-2); color: var(--text-3); display: flex; align-items: center; gap: 5px; }
-.sub-active-pill { font-size: var(--fs-1); font-weight: var(--fw-bold); color: var(--accent-text); background: var(--accent-soft); padding: 2px 7px; border-radius: var(--radius-s); text-transform: var(--caps-transform); letter-spacing: var(--caps-track); }
+.sub-entries { font-size: var(--fs-2); color: var(--text-3); display: flex; align-items: center; gap: var(--space-2); }
+.sub-active-pill { font-size: var(--fs-1); font-weight: var(--fw-bold); color: var(--accent-text); background: var(--accent-soft); padding: 2px var(--space-3); border-radius: var(--radius-s); text-transform: var(--caps-transform); letter-spacing: var(--caps-track); }
 
 /* ── 항목 행: 좁아지면 자르지 말고 접는다 (2026-08-23) ──────────────────────
    예전 행은 「제목(flex:1) + 실행 + 에이전트 + 액션」이 한 줄 고정이었고,
@@ -606,7 +606,7 @@
   font-family: var(--font); font-size: var(--fs-2); white-space: nowrap;
 }
 .pln-item-agent {
-  display: inline-flex; align-items: center; gap: 5px; padding: 0;
+  display: inline-flex; align-items: center; gap: var(--space-2); padding: 0;
   background: none; border: none; cursor: pointer; white-space: nowrap;
   font-family: var(--font); font-size: var(--fs-2); color: var(--text-3);
 }
@@ -642,7 +642,7 @@
   flex: 1; min-width: 0; width: 100%;
   font-family: var(--font); font-size: var(--fs-6); font-weight: var(--fw-strong); letter-spacing: var(--track-tight);
   color: var(--text); background: var(--bg-inset);
-  border: 1px solid var(--border-card); border-radius: var(--radius-s); padding: 5px 9px; outline: none;
+  border: 1px solid var(--border-card); border-radius: var(--radius-s); padding: var(--space-2) var(--space-4); outline: none;
 }
 .goal-title-input:focus { border-color: var(--accent); box-shadow: var(--ring-soft); }
 .sub-title-input {
@@ -688,7 +688,7 @@
 .pln-textbtn {
   appearance: none; -webkit-appearance: none; background: none; border: none; cursor: pointer;
   white-space: nowrap; flex: none;
-  padding: 3px 7px; border-radius: var(--radius-s); font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong);
+  padding: 3px var(--space-3); border-radius: var(--radius-s); font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong);
   color: var(--text-3); transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .pln-textbtn:hover { background: var(--bg-hover); color: var(--text); }
@@ -829,7 +829,7 @@
 }
 .pln-sec-toggle {
   flex: 1; min-width: 0;
-  display: flex; align-items: center; gap: 5px;
+  display: flex; align-items: center; gap: var(--space-2);
   padding: 0 var(--space-1) 0 var(--space-4); background: none; border: none; cursor: pointer;
   font-family: var(--font); font-size: var(--fs-2); font-weight: var(--fw-bold);
   letter-spacing: var(--track-caps); color: var(--text-2); text-align: left;
@@ -853,7 +853,7 @@
 }
 /* 상한 뒤에 남은 행 — 행처럼 생겼지만 계획이 아니다 (들여쓰기·색으로 구분). */
 .pln-sec-more {
-  width: 100%; padding: 7px var(--space-4); margin-top: 1px;
+  width: 100%; padding: var(--space-3) var(--space-4); margin-top: 1px;
   border: none; background: none; border-radius: var(--radius-s);
   text-align: left; cursor: pointer;
   font-family: var(--font); font-size: var(--fs-2); color: var(--text-3);
@@ -871,8 +871,8 @@
    시선을 끌어 목록의 리듬을 끊는다. 부드러운 액센트 채움 + 제목 색 승격만으로
    충분히 읽히고 훨씬 조용하다. */
 .pln-row {
-  display: flex; flex-direction: column; gap: 5px; width: 100%;
-  padding: 9px var(--space-4); border: none; background: none;
+  display: flex; flex-direction: column; gap: var(--space-2); width: 100%;
+  padding: var(--space-4) var(--space-4); border: none; background: none;
   border-radius: var(--radius-s);
   text-align: left; cursor: pointer; font-family: var(--font); color: var(--text);
   transition: background var(--dur-1) var(--ease-out);
@@ -927,7 +927,7 @@
 }
 .pln-hover-head { display: flex; align-items: center; gap: var(--space-2); }
 .pln-hover-badge {
-  padding: 1px 7px; border-radius: var(--radius-pill);
+  padding: 1px var(--space-3); border-radius: var(--radius-pill);
   background: var(--bg-inset); color: var(--text-2);
   font-size: var(--fs-2); font-weight: var(--fw-bold); letter-spacing: var(--track-caps);
 }
@@ -957,21 +957,21 @@
   font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
 }
 .pln-hover-grid code { font-family: var(--mono); font-size: var(--fs-2); color: var(--text-3); }
-.pln-hover-prog { display: flex; align-items: center; gap: 7px; }
+.pln-hover-prog { display: flex; align-items: center; gap: var(--space-3); }
 .pln-hover-bar {
   flex: none; width: 54px; height: 3px; border-radius: var(--radius-pill);
   background: var(--sep-strong); overflow: hidden;
 }
 .pln-hover-bar > i { display: block; height: 100%; border-radius: var(--radius-2xs); background: var(--accent); }
 /* 활동 기록이 아니라 frontmatter 시각이라는 단서 — 주장하지 않고 붙여만 둔다. */
-.pln-hover-note { margin-left: 5px; color: var(--text-3); font-size: var(--fs-2); }
+.pln-hover-note { margin-left: var(--space-2); color: var(--text-3); font-size: var(--fs-2); }
 
 /* Journal-ref ("일지" notebook) link button — a real tappable hit target
    (Dogfooding 2026-06-14 #4; enlarged + SVG icon 2026-06-15). Used in plan item
    rows and the per-item history list. Bigger padding + min-height makes it
    easier to click; the icon and label are vertically centered. */
 .jref-btn {
-  display: inline-flex; align-items: center; gap: 5px; vertical-align: middle;
+  display: inline-flex; align-items: center; gap: var(--space-2); vertical-align: middle;
   /* 라벨이라 꺾이지 않는다 (좁은 폭 방어 2026-08-23). */
   white-space: nowrap; flex: none;
   min-height: 24px; padding: 3px var(--space-4); border-radius: var(--radius-s); cursor: pointer;
@@ -997,7 +997,7 @@
 .jref-pop-loading { padding: var(--space-3) var(--space-4); font-size: var(--fs-3); color: var(--text-3); }
 .jref-pop-item {
   display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left;
-  padding: 7px 9px; border-radius: var(--radius-s); cursor: pointer;
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-s); cursor: pointer;
   background: none; border: none; color: var(--text); font-family: var(--font);
 }
 .jref-pop-item:hover { background: var(--accent-soft); }
@@ -1010,12 +1010,12 @@
 .search-results { max-width: var(--read-wide); margin: 0 auto; }
 .sresult { margin-bottom: var(--space-5); }
 .sresult-head {
-  display: flex; align-items: center; gap: 9px; padding: 11px var(--space-6); border-bottom: 1px solid var(--sep);
+  display: flex; align-items: center; gap: var(--space-4); padding: 11px var(--space-6); border-bottom: 1px solid var(--sep);
   appearance: none; -webkit-appearance: none; border-left: none; border-right: none; border-top: none;
   background: transparent; font-family: var(--font); text-align: left; width: 100%; color: var(--text); cursor: pointer;
 }
 .sresult-path { font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); }
-.sresult-sym { font-family: var(--mono); font-size: var(--fs-3); color: var(--accent-text); background: var(--accent-soft); padding: 1px 7px; border-radius: var(--radius-xs); }
+.sresult-sym { font-family: var(--mono); font-size: var(--fs-3); color: var(--accent-text); background: var(--accent-soft); padding: 1px var(--space-3); border-radius: var(--radius-xs); }
 .sresult-lines { margin-left: auto; font-size: var(--fs-2); color: var(--text-3); font-family: var(--mono); }
 .sym-kind { font-size: var(--fs-1); font-weight: var(--fw-bold); text-transform: var(--caps-transform); letter-spacing: var(--caps-track); color: var(--text-3);
   background: var(--bg-inset); border-radius: var(--radius-xs); padding: 1px var(--space-2); margin-left: var(--space-3); }
@@ -1047,11 +1047,11 @@ mark.s-hit {
 /* 결과 헤더 줄 (개수 + 우측 컨트롤) */
 .search-results-bar { margin-bottom: var(--space-5); display: flex; align-items: center; gap: var(--space-4); }
 .search-kinds { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.scope-chip.sm { height: 22px; padding: 0 9px; font-size: var(--fs-2); }
+.scope-chip.sm { height: 22px; padding: 0 var(--space-4); font-size: var(--fs-2); }
 /* 정확 검색 — 파일 그룹 카드 안의 개별 히트 블록 */
 .sresult-hit { border-top: 1px solid var(--sep); }
 .sresult-hit:first-of-type { border-top: none; }
-.sresult-hit-bar { display: flex; align-items: center; gap: var(--space-4); padding: 7px var(--space-6) 0; }
+.sresult-hit-bar { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-6) 0; }
 .sresult-hit-bar .lnk {
   border: none; background: none; padding: 0; cursor: pointer;
   font-family: var(--font); font-size: var(--fs-2); font-weight: var(--fw-strong); color: var(--accent-text);
@@ -1066,7 +1066,7 @@ mark.s-hit {
 .sresult-open:hover { background: var(--bg-hover); color: var(--accent-text); }
 /* 심볼 행 — 펼침 버튼이 헤더 전체를 차지하고 열기 버튼만 우측 분리 */
 .sresult-symrow {
-  flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px;
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-4);
   padding: 11px 0 11px var(--space-6); border: none; background: transparent;
   font-family: var(--font); text-align: left; color: var(--text); cursor: pointer;
 }
@@ -1093,7 +1093,7 @@ mark.s-hit {
    줄에는 레일 토글과 도구만 남겼다. */
 .term-head {
   display: flex; align-items: center; gap: 2px; flex: none;
-  padding: 5px var(--space-3); min-height: 32px;
+  padding: var(--space-2) var(--space-3); min-height: 32px;
   background: var(--term-chrome); border-bottom: 1px solid var(--sep);
 }
 .term-head-spacer { flex: 1; min-width: 8px; align-self: stretch; }
@@ -1133,7 +1133,7 @@ mark.s-hit {
 
 .term-sess {
   display: flex; align-items: center; gap: var(--space-3); min-width: 0; flex: none;
-  padding: 7px var(--space-2) 7px 9px; border-radius: var(--radius-m);
+  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-4); border-radius: var(--radius-m);
   color: var(--text-3); cursor: pointer; user-select: none;
   transition:
     background var(--dur-1) var(--ease-out),
@@ -1189,7 +1189,7 @@ mark.s-hit {
 .term-ghost {
   position: fixed; left: 0; top: 0; z-index: var(--z-popover); pointer-events: none;
   display: flex; align-items: center; gap: var(--space-2); max-width: 220px;
-  margin: var(--space-4) 0 0 var(--space-5); padding: 5px 9px; border-radius: var(--radius-m);
+  margin: var(--space-4) 0 0 var(--space-5); padding: var(--space-2) var(--space-4); border-radius: var(--radius-m);
   background: var(--term-bg); color: var(--text);
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, var(--sep-strong)),
@@ -1248,7 +1248,7 @@ mark.s-hit {
 .term-ended {
   position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 6;
   display: flex; align-items: center; gap: var(--space-3);
-  padding: 5px var(--space-2) 5px var(--space-5); border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-5); border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--term-bg) 82%, var(--term-chrome));
   box-shadow: inset 0 0 0 1px var(--sep-strong), var(--shadow-card);
   color: var(--text-2); font-size: var(--fs-3); white-space: nowrap;
@@ -1340,7 +1340,7 @@ mark.s-hit {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .term-sess .ts-panes {
-  display: inline-block; margin-right: 5px; padding: 0 var(--space-1); border-radius: var(--radius-xs);
+  display: inline-block; margin-right: var(--space-2); padding: 0 var(--space-1); border-radius: var(--radius-xs);
   background: var(--bg-inset); font-size: var(--fs-0); font-weight: var(--fw-strong);
 }
 /* 도는 것이 있으면 같은 배지가 **살아 있는 수**를 말한다. 색을 입히는 것은
@@ -1371,7 +1371,7 @@ mark.s-hit {
 }
 .term-sess .ts-rename {
   width: 100%; min-width: 0; border: none; outline: none; background: var(--bg-inset);
-  color: var(--text); border-radius: var(--radius-xs); padding: 1px 5px;
+  color: var(--text); border-radius: var(--radius-xs); padding: 1px var(--space-2);
   font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong);
 }
 .term-sess .ts-rename:focus { box-shadow: var(--ring-soft); }
@@ -1389,7 +1389,7 @@ mark.s-hit {
    붙어 있으면 "상태가 붙은 터미널"이 아니라 정체 모를 두 덩어리로 보인다.
    점은 아이콘 모서리에 얹는 배지로 내리고, 상태색은 아이콘 자신이 입는다. */
 .term-rail[data-collapsed] .term-sess {
-  position: relative; justify-content: center; padding: 7px 0; gap: 0;
+  position: relative; justify-content: center; padding: var(--space-3) 0; gap: 0;
 }
 .term-rail[data-collapsed] .ts-main,
 .term-rail[data-collapsed] .ts-x,
@@ -1425,7 +1425,7 @@ mark.s-hit {
 }
 .term-rail-alert:hover { background: color-mix(in srgb, var(--term-yellow) 24%, transparent); }
 .term-rail-alert .tra-n { font-variant-numeric: tabular-nums; }
-.term-rail[data-collapsed] .term-rail-alert { margin: 5px 5px 0; padding: var(--space-2) 0; gap: 3px; }
+.term-rail[data-collapsed] .term-rail-alert { margin: var(--space-2) var(--space-2) 0; padding: var(--space-2) 0; gap: 3px; }
 
 /* 방금 끝난 에이전트 실행 — 카드 안에 남는 손잡이. 토스트는 자리를 비운
    사이에 사라지지만 이건 돌아왔을 때 아직 거기 있다. */
@@ -1433,7 +1433,7 @@ mark.s-hit {
    뭉개진다. 두 줄로 나눈다 — 위는 무엇이 끝났는지, 아래는 무엇을 할지. */
 .term-sess .ts-done {
   display: flex; flex-direction: column; gap: 3px; min-width: 0; margin-top: var(--space-1);
-  padding: 5px var(--space-2); border-radius: var(--radius-s);
+  padding: var(--space-2) var(--space-2); border-radius: var(--radius-s);
   background: var(--bg-inset); font-size: var(--fs-1); color: var(--text-3);
 }
 .ts-done .tsd-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1455,13 +1455,13 @@ mark.s-hit {
 
 .term-rail-add {
   flex: none; display: flex; align-items: center; justify-content: center; gap: var(--space-2);
-  margin: 0 var(--space-2) var(--space-2); padding: 7px var(--space-3); border-radius: var(--radius-m);
+  margin: 0 var(--space-2) var(--space-2); padding: var(--space-3) var(--space-3); border-radius: var(--radius-m);
   border: 1px dashed var(--sep-strong); background: transparent; color: var(--text-3);
   font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong); cursor: pointer;
   transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 .term-rail-add:hover { background: var(--bg-hover); color: var(--text); border-color: var(--accent); }
-.term-rail[data-collapsed] .term-rail-add { margin: 0 5px 5px; padding: 7px 0; }
+.term-rail[data-collapsed] .term-rail-add { margin: 0 var(--space-2) var(--space-2); padding: var(--space-3) 0; }
 
 /* ── 페인 캔버스 ────────────────────────────────────────────────────────
    페인은 떠 있는 카드다 (Warp/cmux 톤). 여백을 주고 모서리를 둥글리면 분할이
@@ -1689,13 +1689,13 @@ mark.s-hit {
 /* 블록 액션 팝오버. 마지막 두 줄(일지·플래너)이 ocul-pm 것이다. */
 .term-block-menu {
   position: fixed; z-index: var(--z-dock);
-  display: flex; flex-direction: column; gap: 1px; padding: 5px;
+  display: flex; flex-direction: column; gap: 1px; padding: var(--space-2);
   background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-m);
   box-shadow: var(--shadow-pop); font-family: var(--font);
 }
 .tbm-head {
   display: flex; align-items: center; gap: var(--space-2); min-width: 0;
-  padding: var(--space-1) 7px var(--space-2); color: var(--text-3); font-size: var(--fs-2);
+  padding: var(--space-1) var(--space-3) var(--space-2); color: var(--text-3); font-size: var(--fs-2);
   border-bottom: 1px solid var(--sep); margin-bottom: 3px;
 }
 .tbm-head .tbm-cmd {
@@ -1715,8 +1715,8 @@ mark.s-hit {
 .tbm-item .tbm-more { margin-left: auto; opacity: 0.6; }
 .tbm-sep { height: 1px; margin: var(--space-1) 2px; background: var(--sep); }
 .tbm-back {
-  display: flex; align-items: center; gap: 5px; width: 100%;
-  padding: var(--space-1) 7px var(--space-2); margin-bottom: 3px; border: none; border-bottom: 1px solid var(--sep);
+  display: flex; align-items: center; gap: var(--space-2); width: 100%;
+  padding: var(--space-1) var(--space-3) var(--space-2); margin-bottom: 3px; border: none; border-bottom: 1px solid var(--sep);
   background: transparent; color: var(--text-3); cursor: pointer;
   font-family: var(--font); font-size: var(--fs-2); text-align: left;
 }
@@ -1810,7 +1810,7 @@ mark.s-hit {
 /* 스크롤백 검색 오버레이 (⌘F). */
 .term-search {
   position: absolute; top: 10px; right: 14px; z-index: 6;
-  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) 9px;
+  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4);
   background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-m);
   box-shadow: var(--shadow-pop); color: var(--text-3);
 }
@@ -1828,7 +1828,7 @@ mark.s-hit {
 
 /* 하단 상태바 — 탭·페인·단축키 힌트·글자크기·.oculpm 감시. */
 .term-status {
-  display: flex; align-items: center; gap: 14px; padding: 5px 14px; flex: none;
+  display: flex; align-items: center; gap: 14px; padding: var(--space-2) 14px; flex: none;
   background: var(--term-chrome); border-top: 1px solid var(--sep);
   font-size: var(--fs-2); color: var(--text-3); font-family: var(--font);
 }
@@ -1847,7 +1847,7 @@ mark.s-hit {
   font-variant-numeric: tabular-nums; color: var(--accent);
 }
 /* 우: 밀도 프리셋 (줄 간격 + 페인 여백). */
-.ts-density { gap: 5px; }
+.ts-density { gap: var(--space-2); }
 .ts-select {
   height: 18px; padding: 0 var(--space-1); border: 1px solid transparent; border-radius: var(--radius-xs);
   background: transparent; color: var(--text-3); font-family: var(--font); font-size: var(--fs-2);
@@ -1900,10 +1900,10 @@ mark.s-hit {
 .msg.user { align-items: flex-end; }
 .msg-bubble {
   max-width: 85%; background: var(--accent-soft); color: var(--text);
-  border-radius: var(--radius-l) var(--radius-l) var(--radius-xs) var(--radius-l); padding: 9px 14px;
+  border-radius: var(--radius-l) var(--radius-l) var(--radius-xs) var(--radius-l); padding: var(--space-4) 14px;
   font-size: var(--fs-4); line-height: var(--lh-body); white-space: pre-wrap;
 }
-.msg-head { display: flex; align-items: center; gap: 7px; margin-bottom: var(--space-2); font-size: var(--fs-3); min-height: 22px; }
+.msg-head { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); font-size: var(--fs-3); min-height: 22px; }
 .msg-model { font-weight: var(--fw-strong); }
 .msg-vendor { color: var(--text-3); font-weight: var(--fw-label); font-size: var(--fs-2); }
 .msg-copy {
@@ -1913,7 +1913,7 @@ mark.s-hit {
 }
 .msg:hover .msg-copy, .msg-copy:focus-visible { opacity: 1; }
 .msg-copy:hover { background: var(--bg-inset); color: var(--text-2); }
-.msg-live { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; color: var(--accent-text); font-size: var(--fs-2); font-weight: var(--fw-label); }
+.msg-live { display: inline-flex; align-items: center; gap: var(--space-2); margin-left: auto; color: var(--accent-text); font-size: var(--fs-2); font-weight: var(--fw-label); }
 .msg-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: ai-pulse var(--pulse-dur) var(--ease-in-out) infinite; }
 @keyframes ai-pulse { 50% { opacity: 0.25; transform: scale(0.8); } }
 .msg-wait { color: var(--text-3); font-size: var(--fs-4); }
@@ -1965,7 +1965,7 @@ mark.s-hit {
 .ai-start-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; }
 .ai-start-item {
   display: flex; align-items: baseline; gap: var(--space-4); width: 100%; text-align: left;
-  padding: 7px 0; border: none; border-top: 1px solid var(--sep); background: transparent;
+  padding: var(--space-3) 0; border: none; border-top: 1px solid var(--sep); background: transparent;
   font-family: var(--font); font-size: var(--fs-4); color: var(--text-2); cursor: pointer;
   transition: color var(--dur-1) var(--ease-out);
 }
@@ -1988,12 +1988,12 @@ mark.s-hit {
 /* 스레드와 **같은 열**이어야 한다 — 컴포저가 1px 이라도 어긋나면 말풍선과
    입력이 다른 문서에 속한 것처럼 보인다 (2026-09-10 {#layout-widths}). */
 .composer {
-  max-width: var(--read-narrow); margin: 0 auto; display: flex; flex-direction: column; gap: 7px;
+  max-width: var(--read-narrow); margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-3);
   background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-xl);
   padding: var(--space-4) var(--space-5); box-shadow: var(--shadow-card);
 }
 .composer:focus-within { border-color: var(--accent); box-shadow: var(--ring-soft); }
-.composer-ctx { display: flex; align-items: center; gap: 7px; font-size: var(--fs-3); color: var(--text-3); flex-wrap: wrap; }
+.composer-ctx { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-3); color: var(--text-3); flex-wrap: wrap; }
 .composer-ctx .scope-chip { height: 22px; padding: 0 var(--space-4); font-size: var(--fs-3); border-radius: var(--radius-s); box-shadow: none; }
 .composer-input textarea {
   width: 100%; border: none; outline: none; resize: none; background: transparent;
@@ -2008,7 +2008,7 @@ mark.s-hit {
 /* Cursor 식 모델 선택 — 트리거 + 위로 열리는 리스트. */
 .model-select { position: relative; }
 .model-trigger {
-  display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 9px;
+  display: inline-flex; align-items: center; gap: var(--space-3); height: 26px; padding: 0 var(--space-4);
   border: none; border-radius: var(--radius-m); background: transparent; cursor: pointer;
   font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2);
 }
@@ -2024,7 +2024,7 @@ mark.s-hit {
   border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
 }
 .model-option {
-  display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: 7px 9px;
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-4);
   border: none; border-radius: var(--radius-s); background: none; cursor: pointer; text-align: left;
   font-family: var(--font); font-size: var(--fs-4); color: var(--text);
 }
@@ -2044,7 +2044,7 @@ mark.s-hit {
 /* 입력 토큰 추정 배지 + 브레이크다운 팝오버. */
 .tok-wrap { position: relative; margin-left: auto; }
 .tok-badge {
-  display: inline-flex; align-items: center; gap: var(--space-1); height: 22px; padding: 0 9px;
+  display: inline-flex; align-items: center; gap: var(--space-1); height: 22px; padding: 0 var(--space-4);
   border: none; border-radius: var(--radius-s); background: transparent; cursor: pointer;
   font-family: var(--mono); font-size: var(--fs-2); color: var(--text-3);
 }
@@ -2061,8 +2061,8 @@ mark.s-hit {
 .tok-row-bar > span { display: block; height: 100%; background: var(--accent); border-radius: var(--radius-2xs); }
 .tok-row-val { font-family: var(--mono); font-size: var(--fs-2); color: var(--text-3); flex: none; min-width: 44px; text-align: right; }
 .tok-row-empty { font-size: var(--fs-3); color: var(--text-2); padding: 2px 0 var(--space-1); }
-.tok-pop-total { display: flex; justify-content: space-between; border-top: 1px solid var(--sep); margin-top: 7px; padding-top: 7px; font-size: var(--fs-3); font-weight: var(--fw-strong); }
-.tok-pop-note { margin-top: 7px; font-size: var(--fs-2); line-height: var(--lh-body); color: var(--text-2); }
+.tok-pop-total { display: flex; justify-content: space-between; border-top: 1px solid var(--sep); margin-top: var(--space-3); padding-top: var(--space-3); font-size: var(--fs-3); font-weight: var(--fw-strong); }
+.tok-pop-note { margin-top: var(--space-3); font-size: var(--fs-2); line-height: var(--lh-body); color: var(--text-2); }
 
 /* --- Settings (PR-UI 6) — ported from Ocul-PM1.0/screens.css `.set-*` --- */
 .set-section { margin-bottom: 22px; }
@@ -2102,7 +2102,7 @@ mark.s-hit {
 
 /* Inline "config.toml 에서 관리 →" link button (token-based, no raw color). */
 .set-link {
-  display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-3); font-weight: var(--fw-label);
+  display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-3); font-weight: var(--fw-label);
   color: var(--accent-text); background: transparent; border: none; cursor: pointer; padding: 0;
   font-family: var(--font);
 }
@@ -2147,7 +2147,7 @@ mark.s-hit {
 /* 수동 일지 모달의 후보 파일 칩 행 — 디테일 뷰의 `.entry-filelist` 와 다른 것. */
 .entry-files { display: flex; flex-wrap: wrap; gap: var(--space-2); max-height: 108px; overflow-y: auto;
   border: 1px solid var(--border-card); border-radius: var(--radius-m); background: var(--bg-inset); padding: var(--space-3); }
-.entry-textarea { width: 100%; min-height: 104px; resize: vertical; padding: 9px var(--space-5); border-radius: var(--radius-m);
+.entry-textarea { width: 100%; min-height: 104px; resize: vertical; padding: var(--space-4) var(--space-5); border-radius: var(--radius-m);
   border: 1px solid var(--border-card); background: var(--bg-inset); font-family: var(--mono); font-size: var(--fs-4); color: var(--text); outline: none; }
 .entry-textarea:focus { border-color: var(--accent); box-shadow: var(--ring-soft); }
 .entry-tag { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--fs-2); font-family: var(--mono);
@@ -2159,7 +2159,7 @@ mark.s-hit {
 .conv-row { display: flex; align-items: center; gap: var(--space-2); border-radius: var(--radius-m); }
 .conv-row:hover { background: var(--bg-hover); }
 .conv-row.active { background: var(--accent-soft); }
-.conv-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: 9px 11px;
+.conv-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: var(--space-4) 11px;
   appearance: none; -webkit-appearance: none; border: none; background: transparent; font-family: var(--font); text-align: left; color: var(--text); cursor: pointer; }
 .conv-title { font-size: var(--fs-4); font-weight: var(--fw-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .conv-meta { font-size: var(--fs-2); color: var(--text-3); }
@@ -2281,7 +2281,7 @@ mark.s-hit {
 .entry-narrative :not(pre) > code {
   font-family: var(--mono); font-size: var(--fs-3);
   background: var(--bg-inset); color: var(--text);
-  padding: 1.5px 5px; border-radius: var(--radius-xs); border: 1px solid var(--sep);
+  padding: 1.5px var(--space-2); border-radius: var(--radius-xs); border: 1px solid var(--sep);
   white-space: break-spaces; word-break: break-all;
 }
 .entry-narrative pre {
@@ -2372,7 +2372,7 @@ mark.s-hit {
 
 /* A2A 협업 카드 (docs/a2a/00-master-plan.md §9).
    목록은 한 줄에 [이름] [부연] [행동] — 카드 안의 표가 아니라 줄이다. */
-.a2a-head { margin: var(--space-4) 0 var(--space-1); display: flex; align-items: center; gap: 5px; color: var(--text-2); font-size: var(--fs-4); font-weight: var(--fw-label); }
+.a2a-head { margin: var(--space-4) 0 var(--space-1); display: flex; align-items: center; gap: var(--space-2); color: var(--text-2); font-size: var(--fs-4); font-weight: var(--fw-label); }
 .a2a-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .a2a-list li { display: flex; align-items: center; gap: var(--space-3); min-height: 24px; font-size: var(--fs-4); }
 .a2a-list li strong { font-weight: var(--fw-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2408,7 +2408,7 @@ mark.s-hit {
 .sess-card { border: 1px solid var(--sep); border-radius: var(--radius-s); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); background: var(--bg-inset); cursor: grab; }
 .sess-card:last-child { margin-bottom: 0; }
 .sess-card.picked { border-color: var(--accent); background: var(--accent-soft); }
-.sess-card-top { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.sess-card-top { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .sess-swatch { width: 8px; height: 8px; border-radius: var(--radius-2xs); flex: none; }
 .sess-name { font-size: var(--fs-4); font-weight: var(--fw-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sess-card-top .right { margin-left: auto; flex: none; }
@@ -2430,7 +2430,7 @@ mark.s-hit {
 .sess-lane-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); font-size: var(--fs-4); font-weight: var(--fw-label); }
 .sess-lane-head .right { margin-left: auto; }
 .sess-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-2); }
-.sess-chip { padding: 2px 7px; border: 1px solid var(--accent); border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent-text); font-family: var(--font); font-size: var(--fs-3); cursor: pointer; }
+.sess-chip { padding: 2px var(--space-3); border: 1px solid var(--accent); border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent-text); font-family: var(--font); font-size: var(--fs-3); cursor: pointer; }
 
 .sess-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--sep); }
 .sess-count { font-size: var(--fs-3); color: var(--text-2); }
@@ -2443,7 +2443,7 @@ mark.s-hit {
    같은 목록 구조를 두지 않는다 — 고를 것이 색뿐이면 메뉴는 팔레트다. */
 .term-sess-menu {
   position: fixed; z-index: var(--z-dock); width: 156px;
-  padding: var(--space-3) 9px 9px; border-radius: var(--radius-m);
+  padding: var(--space-3) var(--space-4) var(--space-4); border-radius: var(--radius-m);
   background: var(--bg-card); border: 1px solid var(--border-card); color: var(--text);
   box-shadow: var(--shadow-pop); font-family: var(--font);
 }

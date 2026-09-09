@@ -100,7 +100,7 @@
   flex: none;
   font-size: var(--fs-2);
   font-weight: var(--fw-bold);
-  padding: 1px 7px;
+  padding: 1px var(--space-3);
   border-radius: var(--radius-pill);
   line-height: var(--lh-body);
 }
@@ -172,20 +172,20 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   font-size: var(--fs-3);
   color: var(--text-2);
 }
 .disc-reslink {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   font-size: var(--fs-3);
   color: var(--accent-text);
   background: var(--accent-soft);
   border: none;
   border-radius: var(--radius-s);
-  padding: var(--space-1) 9px;
+  padding: var(--space-1) var(--space-4);
   cursor: pointer;
 }
 
@@ -193,14 +193,14 @@
 .disc-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   color: var(--text-2);
   background: var(--bg-card);
   border: 1px solid var(--sep);
   border-radius: var(--radius-s);
-  padding: 5px var(--space-4);
+  padding: var(--space-2) var(--space-4);
   cursor: pointer;
 }
 .disc-btn:hover:not(:disabled) {
@@ -261,7 +261,7 @@
 .disc-log-author {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   flex: none;
   font-size: var(--fs-3);
   font-weight: var(--fw-strong);
@@ -345,7 +345,7 @@
 .disc-attach-name {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   font-size: var(--fs-2);
   color: var(--text-2);
   overflow: hidden;
@@ -439,11 +439,11 @@
 .disc-tool {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   height: 26px;
   min-width: 26px;
   justify-content: center;
-  padding: 0 5px;
+  padding: 0 var(--space-2);
   border: none;
   border-radius: var(--radius-s);
   background: none;
@@ -453,7 +453,7 @@
   cursor: pointer;
 }
 .disc-tool.wide {
-  padding: 0 9px;
+  padding: 0 var(--space-4);
 }
 .disc-tool:hover {
   background: var(--bg-hover);
@@ -509,8 +509,8 @@
   flex: none;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 18px;
+  gap: var(--space-3);
+  padding: var(--space-3) 18px;
   font-size: var(--fs-3);
   color: var(--text-2);
   background: var(--warn-soft);
@@ -596,7 +596,7 @@
 }
 .disc-menu-item {
   text-align: left;
-  padding: var(--space-2) 9px;
+  padding: var(--space-2) var(--space-4);
   border: none;
   border-radius: var(--radius-s);
   background: none;
@@ -614,7 +614,7 @@
 /* ── 문서 경로 칩 ──────────────────────────────────────────── */
 .disc-path {
   margin-left: var(--space-2);
-  padding: 1px 7px;
+  padding: 1px var(--space-3);
   border: 1px solid var(--sep);
   border-radius: var(--radius-pill);
   background: none;
@@ -669,7 +669,7 @@
 .disc-new input {
   width: 100%;
   font-size: var(--fs-5);
-  padding: 9px 11px;
+  padding: var(--space-4) 11px;
   border-radius: var(--radius-s);
   border: 1px solid var(--sep);
   background: var(--bg-inset);

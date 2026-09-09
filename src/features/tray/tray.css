@@ -54,7 +54,7 @@ html, body {
   gap: var(--space-2);
   width: 100%;
   height: 26px;
-  padding: 0 9px;
+  padding: 0 var(--space-4);
   border-radius: var(--radius-m);
   border: 1px solid var(--border);
   background: transparent;
@@ -90,9 +90,9 @@ html, body {
 .tp-picker-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-3);
   width: 100%;
-  padding: 7px var(--space-3);
+  padding: var(--space-3) var(--space-3);
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
@@ -111,7 +111,7 @@ html, body {
   text-align: center;
   font-size: var(--fs-2);
   font-weight: var(--fw-bold);
-  padding: 1px 5px;
+  padding: 1px var(--space-2);
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--primary) 14%, transparent);
   color: var(--primary);
@@ -208,7 +208,7 @@ html, body {
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  padding: 7px var(--space-3);
+  padding: var(--space-3) var(--space-3);
   border: none;
   background: transparent;
   color: var(--foreground);
@@ -276,9 +276,9 @@ html, body {
   background: var(--muted);
   overflow: hidden;
 }
-.tp-plan-head-progress { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-3); padding-bottom: 9px; border-bottom: 1px solid var(--border); }
+.tp-plan-head-progress { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-3); padding-bottom: var(--space-4); border-bottom: 1px solid var(--border); }
 .tp-plan-head-progress .tp-progress { flex: 1; width: auto; }
-.tp-plan-items { margin-top: 9px; display: flex; flex-direction: column; gap: 5px; }
+.tp-plan-items { margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
 .tp-plan-item { display: flex; gap: var(--space-3); align-items: flex-start; font-size: var(--fs-4); line-height: var(--lh-body); }
 .tp-item-glyph { flex: none; width: 15px; text-align: center; font-weight: var(--fw-bold); font-size: var(--fs-3); }
 .tp-item-glyph.is-done { color: var(--primary); }
@@ -331,16 +331,16 @@ html, body {
 .tp-detail-title { font-size: var(--fs-5); font-weight: var(--fw-strong); line-height: var(--lh-snug); letter-spacing: var(--track-tight); }
 .tp-detail-meta {
   margin-top: var(--space-1);
-  padding-bottom: 9px;
+  padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--border);
   color: var(--muted-foreground);
   font-size: var(--fs-2);
   font-family: var(--mono);
 }
-.tp-md { margin-top: 9px; display: flex; flex-direction: column; gap: 7px; }
+.tp-md { margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
 .tp-md-h { font-size: var(--fs-3); font-weight: var(--fw-bold); margin-top: var(--space-2); letter-spacing: var(--track-wide); }
 .tp-md-p { font-size: var(--fs-4); line-height: var(--lh-prose); margin: 0; color: var(--foreground); }
-.tp-md-li { display: flex; gap: 7px; font-size: var(--fs-4); line-height: var(--lh-body); }
+.tp-md-li { display: flex; gap: var(--space-3); font-size: var(--fs-4); line-height: var(--lh-body); }
 .tp-md-dot { color: var(--primary); flex: none; }
 .tp-md code {
   font-family: var(--mono);

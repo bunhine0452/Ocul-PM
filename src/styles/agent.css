@@ -105,7 +105,7 @@
   flex-direction: column;
   gap: var(--space-2);
   margin: 2px 0 var(--space-3);
-  padding: var(--space-3) 9px;
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-s);
   background: var(--bg-inset);
   /* 승인·사용량 카드와 같은 진입 결 — 하드 컷은 이 화면에서 이것뿐이었다. */
@@ -191,9 +191,9 @@
 .trace-peek {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  margin: 1px 0 7px;
-  padding: 5px 9px;
+  gap: var(--space-2);
+  margin: 1px 0 var(--space-3);
+  padding: var(--space-2) var(--space-4);
   border-left: 2px solid var(--sep);
   border-radius: 0 var(--radius-s) var(--radius-s) 0;
   background: var(--bg-inset);
@@ -216,7 +216,7 @@
   color: var(--text-2);
 }
 .trace-peek .trace-io + .trace-io {
-  padding-top: 5px;
+  padding-top: var(--space-2);
 }
 /* 잘렸으면 아래를 흐린다. 칼로 자른 듯 끊으면 출력이 원래 거기서 끝나는지
    더 있는지 알 수 없다 (지시문 카드와 같은 수법). */
@@ -262,7 +262,7 @@
   margin-left: auto;
   flex: none;
   display: inline-flex;
-  gap: 5px;
+  gap: var(--space-2);
   font-family: var(--mono);
   font-size: var(--fs-2);
   font-weight: var(--fw-strong);
@@ -349,7 +349,7 @@
 .think > summary {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   list-style: none;
   cursor: pointer;
   font-size: var(--fs-3);
@@ -363,7 +363,7 @@
   color: var(--text-2);
 }
 .think[open] > summary {
-  margin-bottom: 5px;
+  margin-bottom: var(--space-2);
 }
 .think-body {
   padding-left: 11px;
@@ -396,7 +396,7 @@
 /* 승인 대상 본문 — 실행이면 명령, 편집이면 diff. 이것 없이는 블라인드 승인이다. */
 .perm-payload {
   margin-bottom: var(--space-5);
-  padding: var(--space-3) 9px;
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-s);
   background: var(--bg-inset);
 }
@@ -436,7 +436,7 @@
 .perm-head {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-3);
   margin-bottom: var(--space-3);
   font-size: var(--fs-3);
   font-weight: var(--fw-bold);
@@ -465,7 +465,7 @@
 .perm-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: var(--space-3);
 }
 
 /* ─── 첨부 칩 ─────────────────────────────────────────────────────────── */
@@ -473,7 +473,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: 7px;
+  margin-bottom: var(--space-3);
 }
 .attach-chip {
   height: 22px;
@@ -521,7 +521,7 @@
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  padding: var(--space-2) 9px;
+  padding: var(--space-2) var(--space-4);
   border: none;
   border-radius: var(--radius-s);
   background: none;
@@ -541,7 +541,7 @@
   color: var(--accent-text);
 }
 .mention-empty {
-  padding: 9px;
+  padding: var(--space-4);
   font-size: var(--fs-3);
   color: var(--text-3);
 }
@@ -587,7 +587,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: var(--space-3);
   border: 1.5px dashed var(--accent);
   border-radius: inherit;
   background: color-mix(in srgb, var(--accent) 7%, var(--bg-card));
@@ -752,7 +752,7 @@
   border-top: 1px solid var(--sep);
 }
 .settings-group-label {
-  padding: 3px 9px var(--space-1);
+  padding: 3px var(--space-4) var(--space-1);
   font-size: var(--fs-1);
   font-weight: var(--fw-bold);
   letter-spacing: var(--caps-track);
@@ -766,9 +766,9 @@
 .settings-row {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
+  gap: var(--space-4);
   width: 100%;
-  padding: 7px 9px;
+  padding: var(--space-3) var(--space-4);
   border: none;
   border-radius: var(--radius-m);
   background: none;
@@ -824,7 +824,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  margin-bottom: 7px;
+  margin-bottom: var(--space-3);
 }
 /* 칩 전체가 삭제 버튼이던 것을 갈랐다 — 공들여 친 문장이 오클릭 한 번에
    증발했다. 본문 클릭 = 입력창으로 회수, X 만 폐기. */
@@ -842,7 +842,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 5px 0;
+  padding: var(--space-2) 0;
   border: none;
   background: none;
   cursor: pointer;
@@ -879,7 +879,7 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 9px;
+  gap: var(--space-4);
   padding: 2px var(--space-4) var(--space-3);
   border-radius: var(--radius-m);
   outline: none;
@@ -952,7 +952,7 @@
    전문은 title 로 남긴다. */
 .effort-hint {
   margin: 2px var(--space-1) var(--space-1);
-  padding: var(--space-2) 9px;
+  padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-s);
   background: var(--bg-inset);
   font-size: var(--fs-2);
@@ -1110,7 +1110,7 @@
   flex-direction: column;
   min-height: 0;
   padding: var(--space-4) var(--space-3);
-  gap: 7px;
+  gap: var(--space-3);
 }
 @media (prefers-reduced-motion: reduce) {
   .acp-panel {
@@ -1138,7 +1138,7 @@
   align-items: center;
   gap: var(--space-3);
   height: 30px;
-  padding: 0 9px;
+  padding: 0 var(--space-4);
   border: none;
   border-radius: var(--radius-m);
   background: transparent;
@@ -1182,7 +1182,7 @@
   flex-direction: column;
   align-items: stretch;
   gap: 2px;
-  padding: 5px 9px;
+  padding: var(--space-2) var(--space-4);
   border: none;
   border-radius: var(--radius-m);
   background: none;
@@ -1251,7 +1251,7 @@
 }
 
 .acp-panel-empty {
-  padding: var(--space-5) 9px;
+  padding: var(--space-5) var(--space-4);
   font-size: var(--fs-3);
   color: var(--text-3);
 }
@@ -1419,7 +1419,7 @@
 .usage-row {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: var(--space-3);
   padding: var(--space-4) var(--space-5) var(--space-5);
   border-radius: var(--radius-m);
   transition: background-color var(--dur-1) var(--ease-out);
@@ -1493,7 +1493,7 @@
   align-items: center;
   gap: var(--space-2);
   margin: 2px var(--space-1) var(--space-1);
-  padding: 9px var(--space-3);
+  padding: var(--space-4) var(--space-3);
   border-radius: var(--radius-s);
   background: var(--bg-inset);
   font-size: var(--fs-2);
@@ -1505,7 +1505,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: 7px;
+  margin-bottom: var(--space-3);
 }
 
 /* 그룹 라벨 옆의 보조 안내 (⇧Tab 등). */
@@ -1630,7 +1630,7 @@
   gap: var(--space-2);
   min-width: 0;
   height: 100%;
-  padding: 0 var(--space-1) 0 9px;
+  padding: 0 var(--space-1) 0 var(--space-4);
   border: none;
   background: none;
   cursor: pointer;
@@ -1779,7 +1779,7 @@
   display: inline-flex;
   align-items: center;
   height: 22px;
-  padding: 0 9px;
+  padding: 0 var(--space-4);
   border: none;
   border-radius: var(--radius-s);
   background: var(--t-bug);
@@ -1814,7 +1814,7 @@
 }
 .acp-session-input {
   width: 100%;
-  padding: var(--space-2) 9px;
+  padding: var(--space-2) var(--space-4);
   border: none;
   background: none;
   outline: none;
@@ -1839,7 +1839,7 @@
 .usage-detail {
   display: block;
   margin: 2px var(--space-1) var(--space-1);
-  padding: 9px 11px var(--space-4);
+  padding: var(--space-4) 11px var(--space-4);
   border-radius: var(--radius-m);
   background: var(--bg-inset);
 }
@@ -1914,7 +1914,7 @@
 .usage-top {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--space-2);
 }
 .usage-top-label {
   font-size: var(--fs-1);
@@ -1932,7 +1932,7 @@
    `title` 로 돌려준다 — 여기서 넘치면 옆의 % 가 밀려 나가 아무 것도 안 읽힌다. */
 .usage-chip {
   align-items: baseline;
-  padding: 2px 7px;
+  padding: 2px var(--space-3);
   border: 1px solid var(--border-card);
   border-radius: var(--radius-pill);
   background: var(--bg-card);
@@ -1982,7 +1982,7 @@
   border: 1px solid var(--sep);
   border-radius: var(--radius-l);
   background: var(--bg-card);
-  padding: 7px 13px 9px;
+  padding: var(--space-3) 13px var(--space-4);
   box-shadow: var(--shadow-card);
 }
 /* 접혀 있으면 카드를 눌러 펼친다 — 작은 버튼을 겨냥할 필요가 없다. */
@@ -2002,7 +2002,7 @@
   position: absolute;
   right: 10px;
   bottom: 8px;
-  padding: 3px 9px;
+  padding: 3px var(--space-4);
   border: 1px solid var(--sep);
   border-radius: var(--radius-pill);
   background: var(--bg-window);
@@ -2077,16 +2077,16 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: 9px;
+  margin-bottom: var(--space-4);
 }
 /* 첨부는 "무엇을 붙였는지" 한 줄이면 된다 — 미리보기를 크게 깔면 정작 지시문이
-   화면 밖으로 밀린다. 그림은 32px 썸네일로만 두고 실물은 눌러서 본다. */
+   화면 밖으로 밀린다. 그림은 28px 썸네일로만 두고 실물은 눌러서 본다. */
 .user-file {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-3);
   max-width: 100%;
-  padding: var(--space-1) 9px var(--space-1) var(--space-1);
+  padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1);
   border: 1px solid var(--sep);
   border-radius: var(--radius-m);
   background: var(--bg-window);
@@ -2096,7 +2096,7 @@
   color: var(--text-2);
 }
 .user-file:not(.image) {
-  padding-left: 9px;
+  padding-left: var(--space-4);
   color: var(--text-3);
 }
 .user-file.image {
@@ -2383,8 +2383,8 @@
 .plan > summary {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px var(--space-4);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   cursor: pointer;
   list-style: none;
   font-size: var(--fs-3);
@@ -2411,7 +2411,7 @@
 }
 .plan-list {
   margin: 0;
-  padding: 0 var(--space-4) 9px var(--space-4);
+  padding: 0 var(--space-4) var(--space-4) var(--space-4);
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -2529,7 +2529,7 @@
   align-items: baseline;
   gap: var(--space-3);
   min-width: 0;
-  padding: 5px 9px;
+  padding: var(--space-2) var(--space-4);
   background: var(--bg-inset);
 }
 .diffv-name {
@@ -2576,7 +2576,7 @@
 .diffv-line {
   display: flex;
   min-width: 0;
-  padding: 0 9px;
+  padding: 0 var(--space-4);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: var(--text-2);
@@ -2607,7 +2607,7 @@
   min-width: 0;
 }
 .diffv-more {
-  padding: 2px 9px;
+  padding: 2px var(--space-4);
   font-family: var(--mono);
   font-size: var(--fs-2);
   color: var(--text-3);
@@ -2724,7 +2724,7 @@
 .session-id-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-2);
   height: 26px;
   padding: 0 var(--space-3);
   border: none;

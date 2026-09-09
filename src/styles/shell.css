@@ -169,8 +169,8 @@
 
 /* project switcher */
 .proj-switch {
-  display: flex; align-items: center; gap: 9px; width: 100%; box-sizing: border-box;
-  padding: var(--space-3) 9px;
+  display: flex; align-items: center; gap: var(--space-4); width: 100%; box-sizing: border-box;
+  padding: var(--space-3) var(--space-4);
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: var(--radius-m);
@@ -203,7 +203,7 @@
 .proj-path { font-size: var(--fs-2); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Inline project quick-switcher popover (Dogfooding 2026-06-14c). */
-.proj-switch-wrap { position: relative; margin: 0 2px clamp(5px, 1vh, var(--space-4)); }
+.proj-switch-wrap { position: relative; margin: 0 2px clamp(var(--space-2), 1vh, var(--space-4)); }
 .proj-pop {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: var(--z-popover);
   background: var(--bg-card); border: 1px solid var(--border-card);
@@ -219,7 +219,7 @@
 .proj-pop-list { display: flex; flex-direction: column; gap: 1px; }
 .proj-pop-item {
   display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left;
-  padding: 7px var(--space-3); border-radius: var(--radius-m); cursor: pointer;
+  padding: var(--space-3) var(--space-3); border-radius: var(--radius-m); cursor: pointer;
   background: none; border: none; color: var(--text); font-family: var(--font);
 }
 .proj-pop-item:hover { background: var(--bg-hover); }
@@ -255,7 +255,7 @@
   display: flex; align-items: center; gap: var(--space-4);
   /* 20행 × 최대 5px = 낮은 창에서 100px 남짓을 되찾는다. 아이콘이 17px 이라
      최소값에서도 행 높이는 25px 밑으로 내려가지 않는다. */
-  padding: clamp(var(--space-1), 0.7vh, 7px) var(--space-4); border-radius: var(--radius-s);
+  padding: clamp(var(--space-1), 0.7vh, var(--space-3)) var(--space-4); border-radius: var(--radius-s);
   color: var(--text); cursor: pointer;
   font-size: var(--fs-4); font-weight: var(--fw-label);
   position: relative;
@@ -305,7 +305,7 @@
 .nav-badge {
   margin-left: auto; font-size: var(--fs-2); font-weight: var(--fw-strong);
   background: var(--bg-active); color: var(--text-2);
-  padding: 1px 7px; border-radius: var(--radius-m); min-width: 20px; text-align: center;
+  padding: 1px var(--space-3); border-radius: var(--radius-m); min-width: 20px; text-align: center;
 }
 /* 작업 중 표시 (2026-08-16) — 화면을 옮겨도 에이전트는 돈다. 숫자는 몇 개인지,
    도는 고리는 "지금 이 순간"인지를 말한다. 색은 Claude 주황 고정: 프리셋 테마가
@@ -351,7 +351,7 @@
   border-left: 1px solid var(--border);
 }
 .nav-branches .subnav-item {
-  gap: 7px;
+  gap: var(--space-3);
   padding: var(--space-1) var(--space-3);
 }
 .nav-branches .subnav-item svg { color: var(--text-2); flex: none; }

@@ -290,7 +290,7 @@
 .wz-list li {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
+  gap: var(--space-4);
   padding: 11px 13px;
   border: 1px solid var(--sep);
   border-radius: var(--radius-m);
