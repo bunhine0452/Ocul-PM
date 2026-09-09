@@ -49,7 +49,7 @@ export function EgressBadge({ notice }: { notice: EgressNotice | null }) {
         <Icon  className="flex-shrink-0 mt-0.5" size={15} aria-hidden="true" />
         {notice.text}
       </p>
-      {notice.hint && <p className="text-fs-3 text-muted-foreground">{notice.hint}</p>}
+      {notice.hint && <p className="text-fs-2 text-muted-foreground">{notice.hint}</p>}
     </div>
   );
 }

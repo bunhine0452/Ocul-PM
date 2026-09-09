@@ -99,23 +99,23 @@ export function UpdateTab() {
           )}
         </div>
         {updater.kind === "checking" && (
-          <p className="text-fs-3 text-muted-foreground">{t("settings.update.checking")}</p>
+          <p className="text-fs-2 text-muted-foreground">{t("settings.update.checking")}</p>
         )}
         {updater.kind === "uptodate" && (
-          <p className="text-fs-3 text-primary">{t("settings.update.upToDate")}</p>
+          <p className="text-fs-2 text-primary">{t("settings.update.upToDate")}</p>
         )}
         {updater.kind === "available" && (
-          <p className="text-fs-3 text-muted-foreground">
+          <p className="text-fs-2 text-muted-foreground">
             {t("settings.update.availPrefix")} <span className="font-mono">v{updater.version}</span> {t("settings.update.availSuffix")}
           </p>
         )}
         {updater.kind === "installing" && (
-          <p className="text-fs-3 text-muted-foreground">
+          <p className="text-fs-2 text-muted-foreground">
             {t("settings.update.installing")}
           </p>
         )}
         {updater.kind === "error" && (
-          <p className="text-fs-3 text-destructive">
+          <p className="text-fs-2 text-destructive">
             {t("settings.update.checkFailed", { message: updater.message ?? "" })}
           </p>
         )}
@@ -138,7 +138,7 @@ export function UpdateTab() {
                   >
                     <span className="font-mono text-xs font-semibold text-foreground">{rel.tag}</span>
                     {rel.date ? (
-                      <span className="text-fs-3 text-muted-foreground">{rel.date}</span>
+                      <span className="text-fs-2 text-muted-foreground">{rel.date}</span>
                     ) : null}
                     <span className="ml-auto text-fs-1 text-muted-foreground">{isOpen ? "▾" : "▸"}</span>
                   </button>

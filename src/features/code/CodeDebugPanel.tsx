@@ -134,7 +134,7 @@ export const CodeDebugPanel = memo(function CodeDebugPanel({
                   <ul
                     className="code-debug-adapters"
                     aria-label={t("code.debug.adapters")}
-                    style={{ margin: "6px 0 0", paddingLeft: 14, fontSize: "var(--fs-3)", color: "var(--text-3)" }}
+                    style={{ margin: "6px 0 0", paddingLeft: 14, fontSize: "var(--fs-2)", color: "var(--text-3)" }}
                   >
                     {adapters.map((a) => (
                       <li key={a.language_id}>

@@ -164,7 +164,7 @@ export function ThemeGallery() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-fs-3 uppercase text-muted-foreground tracking-wider">
+        <span className="text-fs-2 uppercase text-muted-foreground tracking-wider">
           {t("theme.gallery.title")}
         </span>
         <div className="flex gap-2">
@@ -186,7 +186,7 @@ export function ThemeGallery() {
           </button>
         </div>
       </div>
-      <p className="text-fs-3 text-muted-foreground">{t("theme.gallery.desc")}</p>
+      <p className="text-fs-2 text-muted-foreground">{t("theme.gallery.desc")}</p>
 
       <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3 list-none p-0 m-0">
         {cards.map((theme) => {
@@ -286,7 +286,7 @@ export function ThemeGallery() {
       </ul>
 
       {loaded && customThemes.length === 0 && (
-        <p className="text-fs-3 text-muted-foreground/80 flex items-center gap-1.5">
+        <p className="text-fs-2 text-muted-foreground/80 flex items-center gap-1.5">
           <Palette size={13} /> {t("theme.gallery.empty")}
         </p>
       )}

@@ -488,7 +488,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 4,
-                  fontSize: "var(--fs-5)",
+                  fontSize: "var(--fs-3)",
                   fontWeight: "var(--fw-strong)",
                   color: "var(--warn)",
                   marginBottom: 4,
@@ -497,7 +497,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                 <AlertTriangle size={13} />{" "}
                 {parseFailed ? t("entry.parseWarn") : t("entry.coercionTitle")}
               </div>
-              <ul style={{ margin: 0, paddingLeft: 16, fontSize: "var(--fs-5)", color: "var(--text-2)" }}>
+              <ul style={{ margin: 0, paddingLeft: 16, fontSize: "var(--fs-3)", color: "var(--text-2)" }}>
                 {parseWarnings.map((w, i) => (
                   <li key={i}>{w}</li>
                 ))}
@@ -505,7 +505,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
               {canCoerceTz ? (
                 <div style={{ marginTop: 8 }}>
                   {confirmCoerce ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--fs-5)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--fs-3)" }}>
                       <span style={{ color: "var(--text-2)" }}>
                         {t("entry.editsOriginal")}
                       </span>
@@ -657,13 +657,13 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
 
           <div className="entry-narrative">
             {detail == null ? (
-              <span className="text-muted-foreground" style={{ fontSize: "var(--fs-5)" }}>
+              <span className="text-muted-foreground" style={{ fontSize: "var(--fs-3)" }}>
                 {t("common.loading")}
               </span>
             ) : narrative.trim() ? (
               <Markdown>{narrative}</Markdown>
             ) : (
-              <span className="text-muted-foreground" style={{ fontSize: "var(--fs-5)" }}>
+              <span className="text-muted-foreground" style={{ fontSize: "var(--fs-3)" }}>
                 {t("entry.noNarrative")}
               </span>
             )}
@@ -732,7 +732,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
               <EmptyState align="start" style={{ padding: 16 }}>
                 {t("entry.noDiff")}
                 <br />
-                <span className="text-muted-foreground" style={{ fontSize: "var(--fs-3)" }}>
+                <span className="text-muted-foreground" style={{ fontSize: "var(--fs-2)" }}>
                   {t("entry.noDiffHint")}
                 </span>
                 <div style={{ marginTop: 12 }}>

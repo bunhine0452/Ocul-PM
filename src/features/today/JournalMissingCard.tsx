@@ -163,7 +163,7 @@ export function JournalMissingCard({
         <span style={{ fontWeight: "var(--fw-bold)" }}>{t("today.missing.title")}</span>
         <span
           style={{
-            fontSize: "var(--fs-5)",
+            fontSize: "var(--fs-3)",
             fontWeight: "var(--fw-bold)",
             color: clean ? "var(--text-3)" : "var(--warn)",
           }}
@@ -172,7 +172,7 @@ export function JournalMissingCard({
         </span>
       </div>
       {clean ? (
-        <div style={{ fontSize: "var(--fs-5)", color: "var(--text-3)", lineHeight: 1.6 }}>
+        <div style={{ fontSize: "var(--fs-3)", color: "var(--text-3)", lineHeight: 1.6 }}>
           {t("today.missing.zeroNote")}
         </div>
       ) : (
@@ -193,14 +193,14 @@ function MissingRows({
   const { t } = useT();
   return (
     <>
-      <div style={{ fontSize: "var(--fs-5)", color: "var(--text-2)", marginBottom: 10 }}>
+      <div style={{ fontSize: "var(--fs-3)", color: "var(--text-2)", marginBottom: 10 }}>
         {t("today.missing.desc")}
       </div>
       <ul
         style={{
           margin: "0 0 10px",
           paddingLeft: 16,
-          fontSize: "var(--fs-5)",
+          fontSize: "var(--fs-3)",
           color: "var(--text-2)",
         }}
       >

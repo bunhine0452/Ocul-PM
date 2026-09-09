@@ -557,7 +557,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-mono text-fs-3 text-muted-foreground">{preset.cmd ?? ""}</span>
+                        <span className="font-mono text-fs-2 text-muted-foreground">{preset.cmd ?? ""}</span>
                         {preset.cli && (
                           <span
                             className={
@@ -720,7 +720,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
                         {t("gf.recommended")}
                       </span>
                     </span>
-                    <span className="block text-fs-3 text-muted-foreground mt-1 leading-relaxed">
+                    <span className="block text-fs-2 text-muted-foreground mt-1 leading-relaxed">
                       {t("gf.trackHint1")}
                       <code className="font-mono mx-1 text-[10.5px] bg-muted px-1 rounded">.oculpm/</code>
                       {t("gf.trackHint2Suffix")}

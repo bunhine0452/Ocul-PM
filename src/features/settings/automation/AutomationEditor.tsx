@@ -269,7 +269,7 @@ export function AutomationEditor({
       <Field label={t("automation.cond.title")} hint={t("automation.cond.hint")}>
         <div className="space-y-2">
           {def.conditions.length === 0 && (
-            <p className="text-fs-3 text-muted-foreground">{t("automation.cond.none")}</p>
+            <p className="text-fs-2 text-muted-foreground">{t("automation.cond.none")}</p>
           )}
           {def.conditions.map((c, i) => (
             <div key={`${c.when}:${i}`} className="flex items-center gap-2">
@@ -314,7 +314,7 @@ export function AutomationEditor({
                       });
                     }}
                   />
-                  <span className="text-fs-3 text-muted-foreground whitespace-nowrap">
+                  <span className="text-fs-2 text-muted-foreground whitespace-nowrap">
                     {t("automation.cond.threshold")}
                   </span>
                 </>
@@ -339,7 +339,7 @@ export function AutomationEditor({
             + {t("automation.cond.add")}
           </button>
           {def.conditions.some((c) => c.when === "journal_count_gte") && (
-            <p className="text-fs-3 text-muted-foreground">{t("automation.cond.window")}</p>
+            <p className="text-fs-2 text-muted-foreground">{t("automation.cond.window")}</p>
           )}
         </div>
       </Field>
@@ -360,10 +360,10 @@ export function AutomationEditor({
 
       {/* 상시 도움말 — 설계 §1.3 / §2.4. 접히지 않는다. */}
       <div className="rounded-md border border-border/60 bg-accent/20 px-3 py-2 space-y-1">
-        <p className="text-fs-3 text-muted-foreground">{t("automation.editor.helpVerbatim")}</p>
-        <p className="text-fs-3 text-muted-foreground">{t("automation.editor.helpIdempotent")}</p>
+        <p className="text-fs-2 text-muted-foreground">{t("automation.editor.helpVerbatim")}</p>
+        <p className="text-fs-2 text-muted-foreground">{t("automation.editor.helpIdempotent")}</p>
         {isWatcher && (
-          <p className="text-fs-3 text-muted-foreground">{t("automation.editor.helpSettle")}</p>
+          <p className="text-fs-2 text-muted-foreground">{t("automation.editor.helpSettle")}</p>
         )}
       </div>
 
@@ -380,7 +380,7 @@ export function AutomationEditor({
       {/* 문제 해결 3종 — 진단 탭과 같은 컴포넌트 (설계 §2.5). */}
       <AutomationTroubleshooting />
 
-      {problem && <p className="text-fs-3 text-destructive">{t(problem as never)}</p>}
+      {problem && <p className="text-fs-2 text-destructive">{t(problem as never)}</p>}
 
       <div className="flex gap-2 pt-1">
         <button type="submit" className="btn sm" disabled={!!problem || busy}>

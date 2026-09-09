@@ -12,7 +12,7 @@
 
 .es {
   color: var(--text-2);
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
 }
 
 /* 한 줄 — 목록·패널 안. 예전 .empty-hint 의 치수 그대로. */
@@ -46,14 +46,14 @@
 }
 
 .es-title {
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   font-weight: var(--fw-strong);
   color: var(--text);
 }
 
 .es-desc {
   margin: 0;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   line-height: var(--lh-body);
   color: var(--text-2);
 }
@@ -77,7 +77,7 @@
 .es-desc code {
   padding: 1px 5px;
   border-radius: var(--radius-xs);
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   background: var(--bg-inset);
   color: var(--text-2);
 }

@@ -12,7 +12,7 @@
   border-radius: var(--radius-s);
   border: 1px solid var(--border-card);
   background: var(--bg-card); color: var(--text);
-  font-size: var(--fs-6); font-weight: var(--fw-label); font-family: var(--font);
+  font-size: var(--fs-4); font-weight: var(--fw-label); font-family: var(--font);
   cursor: pointer; white-space: nowrap;
   box-shadow: var(--shadow-card);
   transition:
@@ -36,7 +36,7 @@
 .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
 .btn.ghost:hover { background: var(--bg-hover); border-color: transparent; }
 .btn.icon { width: 30px; padding: 0; justify-content: center; }
-.btn.sm { height: 26px; padding: 0 9px; font-size: var(--fs-5); }
+.btn.sm { height: 26px; padding: 0 9px; font-size: var(--fs-3); }
 
 /* 아이콘 버튼 — 한 벌, 세 크기 (Phase 5). 화면마다 이름만 다른 일곱 벌
    (.pln-iconbtn .pm-iconbtn .gr-iconbtn .home-iconbtn .sk-iconbtn
@@ -97,7 +97,7 @@
 }
 .chip {
   height: 22px; padding: 0 9px; border-radius: var(--radius-s);
-  font-size: var(--fs-4); font-weight: var(--fw-strong);
+  font-size: var(--fs-3); font-weight: var(--fw-strong);
   background: var(--bg-inset); color: var(--text-2);
   /* 좁은 창 방어 (2026-08-23): 칩은 **라벨**이지 본문이 아니다. flex 행에서
      기본 min-width:auto + 한국어(어디서나 줄바꿈 가능) 조합이면 폭이 좁아질 때
@@ -113,7 +113,7 @@
 .chip.danger { background: var(--danger-soft); color: var(--danger-text); }
 .chip.info { background: var(--info-soft); color: var(--info-text); }
 .kbd {
-  font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong);
+  font-family: var(--mono); font-size: var(--fs-2); font-weight: var(--fw-strong);
   background: var(--bg-inset); border: 1px solid var(--sep);
   border-radius: var(--radius-xs); padding: 1px var(--space-2); color: var(--text-2);
   box-shadow: 0 1px 0 var(--sep);
@@ -129,7 +129,7 @@
 }
 .search-box input {
   border: none; background: transparent; outline: none;
-  font-family: var(--font); font-size: var(--fs-7); color: var(--text);
+  font-family: var(--font); font-size: var(--fs-4); color: var(--text);
   flex: 1; min-width: 0;
 }
 .search-box:focus-within { background: var(--bg-card); border-color: var(--accent); box-shadow: var(--ring-soft); }
@@ -138,18 +138,26 @@
 .tbadge {
   display: inline-flex; align-items: center; gap: 5px;
   height: 21px; padding: 0 var(--space-3) 0 var(--space-2); border-radius: var(--radius-s);
-  font-size: var(--fs-3); font-weight: var(--fw-strong); letter-spacing: var(--track-wide);
+  font-size: var(--fs-2); font-weight: var(--fw-strong); letter-spacing: var(--track-wide);
   /* .chip 과 같은 이유 — 배지는 꺾이지 않는다. */
   white-space: nowrap; flex: none;
 }
 .tbadge .dot { width: 6px; height: 6px; border-radius: 50%; }
 .t-bugfix { background: var(--t-bug-soft); color: var(--t-bug); }
-.t-feature { background: var(--t-feature-soft); color: var(--accent-text); }
+/* `--accent-text` 가 아니라 자기 색이다 (2026-09-09 {#feature-badge-accent-clash}).
+   나머지 넷은 전부 `--t-*` 를 쓰는데 이 하나만 액센트를 썼다. `--t-feature-soft`
+   는 :root 와 [data-theme="dark"] 두 곳에만 있고 `[data-accent]` 열 블록
+   어디에도 없어서, 액센트를 초록에서 바꾸는 순간 **초록 바탕에 파란(보라·
+   주황·빨강·청록) 글자**가 됐다 — 기본 초록만 우연히 맞았다.
+   이 배지는 triggerMeta.tsx 한 곳에서 나와 일지·Today·변경·검색에 전부 뜬다. */
+.t-feature { background: var(--t-feature-soft); color: var(--t-feature); }
 .t-refactor { background: var(--t-refactor-soft); color: var(--t-refactor); }
 .t-error { background: var(--t-error-soft); color: var(--t-error); }
 .t-chore { background: var(--t-chore-soft); color: var(--t-chore); }
 
-.section-title { font-size: var(--fs-5); font-weight: var(--fw-bold); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--text-3); }
+/* 구조 라벨은 meta 가 아니다 — `--text-3` 는 타임스탬프·placeholder 의 색이고,
+   섹션 제목에 그 색을 쓰면 목차가 각주보다 흐려진다 (2026-09-09 {#hierarchy-by-weight-only}). */
+.section-title { font-size: var(--fs-3); font-weight: var(--fw-bold); letter-spacing: var(--caps-track); text-transform: var(--caps-transform); color: var(--text-2); }
 
 /* 화면 진입 — 얕은 상승 + 페이드. 모든 스크린 전환이 같은 곡선을 공유한다. */
 .fade-in { animation: fadeIn var(--dur-3) var(--ease-out) both; }
@@ -161,7 +169,7 @@
 .divider { height: 1px; background: var(--sep); border: none; margin: 0; }
 
 /* file path pill */
-.fpath { font-family: var(--mono); font-size: var(--fs-4); color: var(--text-2); }
+.fpath { font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2); }
 .fpath b { color: var(--text); font-weight: var(--fw-strong); }
 
 /* ── 인라인 마크다운 (components/InlineMarkdown) ─────────────────────────────
@@ -214,7 +222,7 @@
   background: transparent;
   cursor: pointer;
   font-family: var(--font);
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   color: var(--text-2);
   transition:
@@ -241,7 +249,7 @@
   height: 30px; padding: 0 11px;
   border: none; border-radius: var(--radius-s);
   background: transparent; color: var(--text-2);
-  font-family: var(--font); font-size: var(--fs-6); font-weight: var(--fw-label);
+  font-family: var(--font); font-size: var(--fs-4); font-weight: var(--fw-label);
   cursor: pointer; white-space: nowrap; flex: none;
   transition:
     background-color var(--dur-1) var(--ease-out),
@@ -287,9 +295,12 @@
    패널이 여백을 안 주므로 규칙이 padding 을 대신 낸다). */
 .sk-modal-head,
 .set-modal-title {
-  font-size: var(--fs-8);
+  font-size: var(--fs-5);
   font-weight: var(--fw-bold);
   color: var(--text);
+  /* 두 줄로 꺾이는 제목은 아래 줄이 한 어절만 남는 일이 잦다 (2026-09-09
+     {#orphan-control}). balance 는 줄을 고르게 나눠 그 외톨이를 없앤다. */
+  text-wrap: balance;
 }
 .sk-modal-head {
   display: flex;
@@ -297,16 +308,18 @@
   gap: var(--space-3);
   padding: 14px var(--space-7) 0;
 }
-.sk-modal-sub { margin-left: auto; font-size: var(--fs-3); color: var(--text-2); }
+.sk-modal-sub { margin-left: auto; font-size: var(--fs-2); color: var(--text-2); }
 .sk-modal-warn,
 .set-modal-desc {
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   line-height: var(--lh-body);
   color: var(--text-2);
+  /* 산문은 마지막 줄만 다듬는다 — balance 는 짧은 제목용이다. */
+  text-wrap: pretty;
 }
 .sk-modal-warn { padding: 0 var(--space-7); }
 .sk-modal-warn code {
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   padding: 1px 5px;
   border-radius: var(--radius-xs);
   background: var(--bg-inset);
@@ -323,8 +336,8 @@
 /* ⌘/ 단축키 치트시트 — 같은 이유로 전역. 좌우 여백은 모달 크롬(20px)에 맞춘다
    (screens.css 시절엔 0 이라 표가 패널 가장자리에 붙어 있었다). */
 .keys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 22px; padding: var(--space-1) var(--space-7) var(--space-6); }
-.keys-group h4 { font-size: var(--fs-3); text-transform: uppercase; letter-spacing: var(--track-caps-lg); color: var(--text-3); margin: 0 0 var(--space-2); }
+.keys-group h4 { font-size: var(--fs-2); text-transform: var(--caps-transform); letter-spacing: var(--caps-track-lg); color: var(--text-3); margin: 0 0 var(--space-2); }
 .keys-group dl { margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.keys-row { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-5); }
+.keys-row { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-3); }
 .keys-row dt { flex: 1; min-width: 0; color: var(--text-2); }
 .keys-row dd { margin: 0; display: flex; gap: var(--space-1); flex: none; }

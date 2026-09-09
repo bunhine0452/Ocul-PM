@@ -143,7 +143,7 @@ export function GraphInspector({
             <div className="text-sm font-semibold text-foreground truncate" title={node.path}>
               {node.kind === "dir" ? `${node.label}/` : node.label}
             </div>
-            <div className="text-fs-3 text-muted-foreground truncate" title={node.path}>
+            <div className="text-fs-2 text-muted-foreground truncate" title={node.path}>
               {node.path || t("graph.root")}
             </div>
           </div>
@@ -158,23 +158,23 @@ export function GraphInspector({
 
         {/* ── Role badge ── */}
         <div className="flex items-center gap-2">
-          <span className={`px-2 py-0.5 rounded-md text-fs-3 font-semibold ${TONE_CLASS[role.tone]}`}>
+          <span className={`px-2 py-0.5 rounded-md text-fs-2 font-semibold ${TONE_CLASS[role.tone]}`}>
             {t(role.labelKey)}
           </span>
           {node.kind === "file" && node.language ? (
-            <span className="inline-flex items-center gap-1.5 text-fs-3 text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 text-fs-2 text-muted-foreground">
               <span className="w-2 h-2 rounded-sm" style={{ background: langColor(node.language) }} />
               {node.language}
             </span>
           ) : node.kind === "dir" ? (
-            <span className="text-fs-3 text-muted-foreground">{t("graph.fileCount", { n: node.fileIds.length })}</span>
+            <span className="text-fs-2 text-muted-foreground">{t("graph.fileCount", { n: node.fileIds.length })}</span>
           ) : null}
         </div>
-        {t(role.descKey) ? <p className="-mt-2 text-fs-3 text-muted-foreground">{t(role.descKey)}</p> : null}
+        {t(role.descKey) ? <p className="-mt-2 text-fs-2 text-muted-foreground">{t(role.descKey)}</p> : null}
 
         {/* ── Change-impact headline ── */}
         <div className={`rounded-lg border px-3 py-2.5 ${imp ? TONE_CLASS[imp.tone] : "bg-muted text-muted-foreground"} border-transparent`}>
-          <div className="flex items-center gap-1.5 text-fs-3 font-medium opacity-80">
+          <div className="flex items-center gap-1.5 text-fs-2 font-medium opacity-80">
             {imp?.warn ? <AlertTriangle size={13} /> : null}
             {t("graph.impact")}
           </div>
@@ -286,7 +286,7 @@ export function GraphInspector({
             <ul className="space-y-1.5">
               {callGroups.map((g) => (
                 <li key={g.from || "__top"}>
-                  <div className="text-fs-3 font-mono text-foreground truncate" title={g.from || undefined}>
+                  <div className="text-fs-2 font-mono text-foreground truncate" title={g.from || undefined}>
                     {g.from || t("graph.fileTop")}
                   </div>
                   <ul className="mt-0.5 space-y-0.5 pl-2 border-l border-border">
@@ -327,7 +327,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   useT();
   return (
     <div>
-      <div className="text-fs-3 uppercase tracking-wider text-muted-foreground mb-1">{title}</div>
+      <div className="text-fs-2 uppercase tracking-wider text-muted-foreground mb-1">{title}</div>
       {children}
     </div>
   );
@@ -425,9 +425,9 @@ function SymbolRow({ projectId, path, sym }: { projectId: number; path: string; 
       </button>
       {open ? (
         loading ? (
-          <div className="mt-1 ml-4 text-fs-3 text-muted-foreground">{t("common.loading")}</div>
+          <div className="mt-1 ml-4 text-fs-2 text-muted-foreground">{t("common.loading")}</div>
         ) : (
-          <pre className="mt-1 ml-4 max-h-56 overflow-auto rounded-md border border-border bg-background p-2 text-fs-3 leading-snug font-mono text-foreground scrollbar-thin">
+          <pre className="mt-1 ml-4 max-h-56 overflow-auto rounded-md border border-border bg-background p-2 text-fs-2 leading-snug font-mono text-foreground scrollbar-thin">
             {code}
           </pre>
         )
@@ -466,9 +466,9 @@ function CodePeek({ projectId, path }: { projectId: number; path: string }) {
       </button>
       {open ? (
         loading ? (
-          <div className="mt-1 text-fs-3 text-muted-foreground">{t("common.loading")}</div>
+          <div className="mt-1 text-fs-2 text-muted-foreground">{t("common.loading")}</div>
         ) : (
-          <pre className="mt-1 max-h-64 overflow-auto rounded-md border border-border bg-background p-2 text-fs-3 leading-snug font-mono text-foreground scrollbar-thin">
+          <pre className="mt-1 max-h-64 overflow-auto rounded-md border border-border bg-background p-2 text-fs-2 leading-snug font-mono text-foreground scrollbar-thin">
             {code}
           </pre>
         )

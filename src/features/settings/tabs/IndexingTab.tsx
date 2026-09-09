@@ -75,7 +75,7 @@ export function IndexingTab() {
             {reindexing ? t("settings.index.rebuilding") : t("settings.index.rebuild")}
           </Button>
           {projectId == null ? (
-            <span className="text-fs-3 text-muted-foreground">{t("settings.index.pickProject")}</span>
+            <span className="text-fs-2 text-muted-foreground">{t("settings.index.pickProject")}</span>
           ) : null}
         </div>
       </Section>
@@ -169,7 +169,7 @@ export function IndexingTab() {
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono"
           />
         </Field>
-        <p className="text-fs-3 text-muted-foreground/80 italic">
+        <p className="text-fs-2 text-muted-foreground/80 italic">
           {t("settings.scan.applyNote")}
         </p>
       </Section>

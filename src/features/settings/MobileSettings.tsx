@@ -164,7 +164,7 @@ export function MobileSettings({
           <button
             onClick={() => void toggleServer()}
             disabled={busy}
-            className={`px-3 py-1.5 rounded-md text-fs-7 font-medium transition-colors cursor-pointer disabled:opacity-50 ${
+            className={`px-3 py-1.5 rounded-md text-fs-4 font-medium transition-colors cursor-pointer disabled:opacity-50 ${
               running
                 ? "bg-destructive/10 text-destructive hover:bg-destructive/20"
                 : "bg-primary/10 text-primary hover:bg-primary/20"
@@ -206,7 +206,7 @@ export function MobileSettings({
               ) : null}
               <button
                 onClick={() => void beginPairing()}
-                className="px-3 py-1.5 rounded-md text-fs-7 font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                className="px-3 py-1.5 rounded-md text-fs-4 font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
               >
                 {t("settings.mobile.pairBegin")}
               </button>
@@ -223,7 +223,7 @@ export function MobileSettings({
             {devices.map((d) => (
               <li key={d.id} className="flex items-center justify-between gap-3 rounded-md border border-border/60 px-3 py-2">
                 <div className="min-w-0">
-                  <div className="text-fs-7 text-foreground truncate">{d.name}</div>
+                  <div className="text-fs-4 text-foreground truncate">{d.name}</div>
                   <div className="text-xs text-muted-foreground">
                     {t("settings.mobile.paired", { time: fmtTime(d.created_at) })}
                     {" · "}

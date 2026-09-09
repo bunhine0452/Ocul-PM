@@ -52,7 +52,7 @@ export function AccentPicker() {
         })}
       </div>
       {presetActive ? (
-        <p className="mt-1.5 text-fs-3 text-muted-foreground/80">
+        <p className="mt-1.5 text-fs-2 text-muted-foreground/80">
           {t("settings.accent.presetActive")}
         </p>
       ) : null}
@@ -232,7 +232,7 @@ export function AppearanceTab() {
             v1.3.0 부터 살아있었지만 바꿀 UI 가 유실돼 있었다. 프리셋 테마는
             자기 액센트를 갖고 오므로(data-accent 제거) 그동안은 비활성. */}
         <div className="mt-1">
-          <Label className="text-fs-3 uppercase text-muted-foreground tracking-wider">
+          <Label className="text-fs-2 uppercase text-muted-foreground tracking-wider">
             {t("settings.accent.title")}
           </Label>
           <AccentPicker />
@@ -538,7 +538,7 @@ export function MenubarSection() {
             </span>
             <span className="min-w-0">
               <span className="block text-xs font-semibold text-foreground">{r.label}</span>
-              <span className="block text-fs-3 text-muted-foreground mt-0.5 leading-relaxed">
+              <span className="block text-fs-2 text-muted-foreground mt-0.5 leading-relaxed">
                 {r.hint}
               </span>
             </span>

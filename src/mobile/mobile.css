@@ -44,10 +44,10 @@
 .mob-card:active { background: var(--bg-hover); }
 
 .mob-sec-title {
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   font-weight: var(--fw-strong);
-  letter-spacing: var(--track-caps-lg);
-  text-transform: uppercase;
+  letter-spacing: var(--caps-track-lg);
+  text-transform: var(--caps-transform);
   color: var(--text-3);
   margin-bottom: 7px;
 }
@@ -139,7 +139,7 @@
 .mob-danger { color: var(--t-bug); }
 
 /* ── 플래너 — 글리프·진행 바 ──────────────────────────────────────── */
-.mob-glyph { font-size: var(--fs-9); line-height: 20px; }
+.mob-glyph { font-size: var(--fs-6); line-height: 20px; }
 .mob-glyph.done { color: var(--accent); }
 .mob-glyph.in_progress { color: var(--accent); } /* 데스크톱 STATUS_META 동일 */
 .mob-glyph.todo { color: var(--text-3); }
@@ -194,14 +194,14 @@
 
 /* ── 마크다운 본문 ────────────────────────────────────────────────── */
 .mob-md h1, .mob-md h2, .mob-md h3 { font-weight: var(--fw-strong); margin: 1em 0 0.4em; color: var(--text); }
-.mob-md h2 { font-size: var(--fs-9); }
-.mob-md h3 { font-size: var(--fs-8); }
+.mob-md h2 { font-size: var(--fs-6); }
+.mob-md h3 { font-size: var(--fs-5); }
 .mob-md p, .mob-md ul, .mob-md ol { margin: 0.4em 0; }
 .mob-md ul { padding-left: 1.2em; list-style: disc; }
 .mob-md ol { padding-left: 1.2em; list-style: decimal; }
 .mob-md code {
   font-family: "D2Coding", ui-monospace, monospace;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   background: var(--bg-inset);
   border-radius: var(--radius-xs);
   padding: 0 var(--space-1);
@@ -214,7 +214,7 @@
   margin: 0.6em 0;
 }
 .mob-md pre code { background: none; padding: 0; }
-.mob-md table { font-size: var(--fs-5); border-collapse: collapse; display: block; overflow-x: auto; }
+.mob-md table { font-size: var(--fs-3); border-collapse: collapse; display: block; overflow-x: auto; }
 .mob-md th, .mob-md td { border: 1px solid var(--sep); padding: 3px var(--space-3); }
 .mob-md a { color: var(--accent-text); }
 .mob-md blockquote { border-left: 3px solid var(--sep-strong); padding-left: var(--space-4); color: var(--text-2); }

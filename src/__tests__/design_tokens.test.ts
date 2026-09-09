@@ -35,9 +35,13 @@ describe("tokens.css — 상태색·스케일·층·프로젝트 팔레트가 �
     expect(root).toMatch(/--claude:\s*#d97757;/);
   });
 
-  it("글자 13단 · 여백 8단 · 층 8단 · 이징 3종", () => {
-    // 0~12 — 3.0 {#fs-scale-up} 이 양 끝을 늘렸다 (9px 메타 · 14~26px 제목).
-    for (let i = 0; i <= 12; i++) expect(root).toMatch(new RegExp(`--fs-${i}:\\s*[0-9.]+px;`));
+  it("글자 10단 · 여백 8단 · 층 8단 · 이징 3종", () => {
+    // 0~9 — {#fs-ramp-real-steps} 가 13단을 10단으로 접었다. 반 단(10.5·11.5·
+    // 12.5)은 화면에서 구분되지 않는데 이름을 갖고 있어, 램프가 없앴어야 할
+    // "이건 어느 단인가" 를 다시 고르게 했다.
+    for (let i = 0; i <= 9; i++) expect(root).toMatch(new RegExp(`--fs-${i}:\\s*[0-9.]+px;`));
+    // 열 단으로 끝난다 — 하나 더 생기면 그건 다시 반 단이다.
+    expect(root).not.toMatch(/--fs-10:/);
     for (let i = 1; i <= 8; i++) expect(root).toMatch(new RegExp(`--space-${i}:\\s*\\d+px;`));
     for (const z of ["sticky", "strip", "panel", "dock", "menu", "popover", "modal", "top"]) {
       expect(root).toMatch(new RegExp(`--z-${z}:\\s*\\d+;`));
@@ -46,13 +50,19 @@ describe("tokens.css — 상태색·스케일·층·프로젝트 팔레트가 �
   });
 
   it("글자 램프는 단조 증가한다 — 뒤집히면 위계가 거짓말이 된다", () => {
-    const sizes = [...Array(13).keys()].map((i) => {
+    const sizes = [...Array(10).keys()].map((i) => {
       const m = root.match(new RegExp(`--fs-${i}:\\s*([0-9.]+)px;`));
       expect(m, `--fs-${i}`).toBeTruthy();
       return Number(m![1]);
     });
     for (let i = 1; i < sizes.length; i++) {
-      expect(sizes[i], `--fs-${i} > --fs-${i - 1}`).toBeGreaterThan(sizes[i - 1]);
+      // 단조 증가만으로는 반 단(10 → 10.5)을 막지 못한다. 화면에서 구분되는
+      // 최소 간격이 1px 이므로 그것을 하한으로 못박는다 {#fs-ramp-real-steps}.
+      expect(sizes[i] - sizes[i - 1], `--fs-${i} − --fs-${i - 1} ≥ 1px`).toBeGreaterThanOrEqual(1);
+    }
+    // 전부 정수 — 0.5px 은 어느 배율에서도 이웃과 다른 글자로 안 보인다.
+    for (let i = 0; i < sizes.length; i++) {
+      expect(Number.isInteger(sizes[i]), `--fs-${i} 는 정수`).toBe(true);
     }
     // 여백은 4px 격자 위에 있다 (App.css 의 Tailwind --spacing 과 같은 격자).
     for (let i = 1; i <= 8; i++) {
@@ -364,16 +374,23 @@ describe("@theme inline", () => {
   const app = read("App.css");
   it("text-xs~3xl 이 --fs-* 를 가리킨다", () => {
     for (const [util, fs] of [
-      ["xs", 5],
-      ["sm", 7],
-      ["base", 8],
-      ["lg", 9],
-      ["xl", 10],
-      ["2xl", 11],
-      ["3xl", 12],
+      ["xs", 3],
+      ["sm", 4],
+      ["base", 5],
+      ["lg", 6],
+      ["xl", 7],
+      ["2xl", 8],
+      ["3xl", 9],
     ] as const) {
       expect(app, `--text-${util}`).toMatch(new RegExp(`--text-${util}:\\s*var\\(--fs-${fs}\\);`));
     }
+  });
+  it("text-fs-* 가 램프 열 단을 그대로 노출한다", () => {
+    for (let i = 0; i <= 9; i++) {
+      expect(app, `--text-fs-${i}`).toMatch(new RegExp(`--text-fs-${i}:\\s*var\\(--fs-${i}\\);`));
+    }
+    // 11번째가 생기면 램프와 유틸리티 이름이 어긋난다 {#fs-ramp-real-steps}.
+    expect(app).not.toMatch(/--text-fs-10:/);
   });
   it("Tailwind 여백이 4px 격자에 못박혀 있다", () => {
     expect(app).toMatch(/--spacing:\s*4px;/);

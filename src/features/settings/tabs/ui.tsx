@@ -42,11 +42,11 @@ export function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-fs-3 uppercase text-muted-foreground tracking-wider">
+      <Label className="text-fs-2 uppercase text-muted-foreground tracking-wider">
         {label}
       </Label>
       {children}
-      {hint && <p className="text-fs-3 text-muted-foreground/80">{hint}</p>}
+      {hint && <p className="text-fs-2 text-muted-foreground/80">{hint}</p>}
     </div>
   );
 }

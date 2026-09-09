@@ -96,18 +96,18 @@ export function DraftRow({
           onKeyDown={w.onKeyDown}
           onFocus={w.onFocus}
           onClick={() => onResume(bp)}
-          className="home-open text-fs-8 font-semibold text-[var(--text)] truncate text-left cursor-pointer bg-transparent border-0 p-0"
+          className="home-open text-fs-5 font-semibold text-[var(--text)] truncate text-left cursor-pointer bg-transparent border-0 p-0"
           aria-label={t("home.draftResumeAria", { name, step: row.stepLabel })}
         >
           {name}
         </button>
-        <span className="text-fs-3 text-[var(--text-2)]">{t("home.draftStoppedAt", { step: row.stepLabel })}</span>
+        <span className="text-fs-2 text-[var(--text-2)]">{t("home.draftStoppedAt", { step: row.stepLabel })}</span>
       </span>
 
       <span className="home-above flex items-center gap-1.5 justify-end min-w-[168px]">
         {confirming ? (
           <>
-            <span className="text-fs-3 text-[var(--text-2)]">{t("home.discardConfirm")}</span>
+            <span className="text-fs-2 text-[var(--text-2)]">{t("home.discardConfirm")}</span>
             <button
               type="button"
               className="home-chipbtn home-chipbtn--danger"
@@ -187,7 +187,7 @@ export function CommandRow({
         onKeyDown={w.onKeyDown}
         onFocus={w.onFocus}
         onClick={row.run}
-        className="home-open text-fs-7 font-semibold text-[var(--text)] text-left truncate cursor-pointer bg-transparent border-0 p-0"
+        className="home-open text-fs-4 font-semibold text-[var(--text)] text-left truncate cursor-pointer bg-transparent border-0 p-0"
       >
         {row.label}
       </button>

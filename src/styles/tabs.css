@@ -76,7 +76,7 @@
   padding: 0 var(--space-4);
   border-radius: var(--radius-m) var(--radius-m) 0 0;
   color: var(--text-2);
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   font-weight: var(--fw-label);
   background: color-mix(in srgb, var(--accent) 10%, var(--bg-content));
   box-shadow: inset 0 0 0 1.5px var(--accent);
@@ -126,7 +126,7 @@
   padding: 0 var(--space-2) 0 var(--space-4);
   border-radius: var(--radius-m) var(--radius-m) 0 0;
   color: var(--text-2);
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   font-weight: var(--fw-label);
   cursor: default;
   position: relative;
@@ -204,7 +204,7 @@
   text-align: left;
   padding: 7px 9px;
   border-radius: var(--radius-s);
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   color: var(--text);
   cursor: pointer;
   white-space: nowrap;
@@ -225,7 +225,7 @@
 .tabstrip-menu-empty {
   margin: 0;
   padding: 7px 9px;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   color: var(--text-3);
 }
 
@@ -261,14 +261,14 @@
 }
 .tabstrip-pop-item:hover { background: var(--bg-hover); }
 .tabstrip-pop-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.tabstrip-pop-name { font-weight: var(--fw-strong); font-size: var(--fs-6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tabstrip-pop-name { font-weight: var(--fw-strong); font-size: var(--fs-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tabstrip-pop-path { font-size: var(--fs-1); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tabstrip-pop-empty { padding: var(--space-4) var(--space-3); font-size: var(--fs-4); color: var(--text-2); }
+.tabstrip-pop-empty { padding: var(--space-4) var(--space-3); font-size: var(--fs-3); color: var(--text-2); }
 .tabstrip-pop-manage {
   display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left;
   margin-top: var(--space-1); padding: var(--space-3); cursor: pointer;
   background: none; border: none; border-top: 1px solid var(--sep);
-  color: var(--text-2); font-family: var(--font); font-size: var(--fs-4); font-weight: var(--fw-strong);
+  color: var(--text-2); font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong);
 }
 .tabstrip-pop-manage:hover { background: var(--bg-hover); color: var(--text); }
 

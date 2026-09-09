@@ -60,13 +60,13 @@ function Insights({ projectId }: { projectId: number }) {
       {!ledger.measured ? (
         // 한 번도 안 재 본 원장으로 "안 걸렸다" 를 말하면 그건 관측이 아니라
         // 추측이다. 스캔 전에는 두 목록 다 그리지 않는다.
-        <div className="text-fs-3 text-muted-foreground">
+        <div className="text-fs-2 text-muted-foreground">
           {ledger.scanning ? t("settings.firing.scanning") : t("settings.firing.notMeasured")}
         </div>
       ) : (
         <>
           {ledger.partial ? (
-            <div className="text-fs-3 text-(--warn-text)">{t("settings.firing.partial")}</div>
+            <div className="text-fs-2 text-(--warn-text)">{t("settings.firing.partial")}</div>
           ) : null}
 
           <div className="space-y-1">
@@ -74,9 +74,9 @@ function Insights({ projectId }: { projectId: number }) {
               {t("settings.firing.top")}
             </div>
             {top.length === 0 ? (
-              <div className="text-fs-3 text-muted-foreground">{t("settings.firing.topEmpty")}</div>
+              <div className="text-fs-2 text-muted-foreground">{t("settings.firing.topEmpty")}</div>
             ) : (
-              <ul className="text-fs-3 space-y-0.5">
+              <ul className="text-fs-2 space-y-0.5">
                 {top.map((stat) => (
                   <li key={`${stat.kind}:${stat.key}`} className="flex items-center gap-3">
                     <span className="w-12 flex-none text-muted-foreground">
@@ -104,11 +104,11 @@ function Insights({ projectId }: { projectId: number }) {
               {t("settings.firing.never")}
             </div>
             {!rules ? (
-              <div className="text-fs-3 text-muted-foreground">{t("settings.firing.rulesUnavailable")}</div>
+              <div className="text-fs-2 text-muted-foreground">{t("settings.firing.rulesUnavailable")}</div>
             ) : never.length === 0 ? (
-              <div className="text-fs-3 text-muted-foreground">{t("settings.firing.neverEmpty")}</div>
+              <div className="text-fs-2 text-muted-foreground">{t("settings.firing.neverEmpty")}</div>
             ) : (
-              <ul className="text-fs-3 space-y-0.5">
+              <ul className="text-fs-2 space-y-0.5">
                 {never.map((entry) => (
                   <li key={`${entry.scope}:${entry.rel_path}`} className="flex items-center gap-3">
                     <span className="w-12 flex-none text-muted-foreground">

@@ -1468,7 +1468,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         >
           <label
             htmlFor="code-rename-input"
-            style={{ display: "block", fontSize: "var(--fs-7)", fontWeight: "var(--fw-strong)", marginBottom: 8 }}
+            style={{ display: "block", fontSize: "var(--fs-4)", fontWeight: "var(--fw-strong)", marginBottom: 8 }}
           >
             {t("code.lsp.renameTitle")}
           </label>
@@ -1483,7 +1483,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
             autoComplete="off"
             style={{ width: "100%", fontFamily: "var(--mono)" }}
           />
-          <p style={{ margin: "10px 0 0", fontSize: "var(--fs-5)", color: "var(--text-3)", lineHeight: 1.6 }}>
+          <p style={{ margin: "10px 0 0", fontSize: "var(--fs-3)", color: "var(--text-3)", lineHeight: 1.6 }}>
             {t("code.lsp.renameHint")}
           </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
@@ -1504,7 +1504,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         width={460}
       >
         <div style={{ padding: "16px 20px 18px" }}>
-          <h2 style={{ margin: "0 0 12px", fontSize: "var(--fs-8)", fontWeight: "var(--fw-bold)" }}>
+          <h2 style={{ margin: "0 0 12px", fontSize: "var(--fs-5)", fontWeight: "var(--fw-bold)" }}>
             {t("code.lsp.actionsTitle")}
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1521,12 +1521,12 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
                 {a.preferred ? <Star size={13} fill="currentColor" style={{ color: "var(--accent-text)", flex: "none" }} aria-hidden /> : null}
                 <span style={{ flex: 1 }}>{a.title}</span>
                 {a.kind ? (
-                  <span style={{ fontSize: "var(--fs-3)", color: "var(--text-3)" }}>{a.kind}</span>
+                  <span style={{ fontSize: "var(--fs-2)", color: "var(--text-3)" }}>{a.kind}</span>
                 ) : null}
               </button>
             ))}
           </div>
-          <p style={{ margin: "12px 0 0", fontSize: "var(--fs-5)", color: "var(--text-3)", lineHeight: 1.6 }}>
+          <p style={{ margin: "12px 0 0", fontSize: "var(--fs-3)", color: "var(--text-3)", lineHeight: 1.6 }}>
             {t("code.lsp.renameHint")}
           </p>
         </div>

@@ -57,13 +57,13 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  font-size: var(--fs-9);
+  font-size: var(--fs-6);
   font-weight: var(--fw-bold);
   color: var(--text);
 }
 .sk-head-path {
   margin-top: 3px;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-family: var(--mono, ui-monospace, monospace);
   color: var(--text-3);
   overflow: hidden;
@@ -100,13 +100,13 @@
 }
 .sk-trigger-title {
   margin-bottom: var(--space-2);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   font-weight: var(--fw-bold);
   color: var(--text-2);
 }
 .sk-trigger-how {
   margin: 0;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   color: var(--text);
 }
 /* 손이 필요한 상태 — 직접 호출 전용이거나 description 이 비어 있다. */
@@ -116,7 +116,7 @@
 .sk-trigger-when {
   margin: var(--space-3) 0 0;
   padding-left: 18px;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   color: var(--text);
 }
 .sk-trigger-when li {
@@ -124,7 +124,7 @@
 }
 .sk-trigger-note {
   margin: var(--space-3) 0 0;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-3);
 }
 .sk-trigger-kw {
@@ -143,7 +143,7 @@
 }
 .sk-fm summary {
   padding: var(--space-2) var(--space-4);
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   color: var(--text-3);
   cursor: pointer;
@@ -152,7 +152,7 @@
 .sk-fm pre {
   margin: 0;
   padding: var(--space-1) var(--space-5) var(--space-4);
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   line-height: var(--lh-body);
   color: var(--text-2);
   overflow-x: auto;
@@ -165,14 +165,14 @@
   border-top: 1px dashed var(--sep);
 }
 .sk-files-title {
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-weight: var(--fw-bold);
   color: var(--text-3);
   margin-bottom: var(--space-2);
 }
 .sk-files li {
   list-style: none;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-family: var(--mono, ui-monospace, monospace);
   color: var(--text-2);
   padding: 1px 0;
@@ -197,7 +197,7 @@
   background: var(--bg-inset);
   color: var(--text);
   font-family: var(--mono, ui-monospace, monospace);
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   line-height: var(--lh-body);
 }
 .sk-textarea:focus {
@@ -205,7 +205,7 @@
   outline-offset: var(--focus-offset-inset);
 }
 .sk-editor-hint {
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-3);
 }
 
@@ -224,7 +224,7 @@
   height: 32px;
   padding: 0 var(--space-4);
   border-radius: var(--radius-s);
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   color: var(--text-2);
   background: none;
   border: 1px solid var(--sep);
@@ -249,7 +249,7 @@
 }
 .sk-field label {
   display: block;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   color: var(--text-2);
   margin-bottom: var(--space-1);
@@ -261,7 +261,7 @@
   border-radius: var(--radius-s);
   background: var(--bg-inset);
   color: var(--text);
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
 }
 .sk-input:focus {
   outline: var(--focus-w) solid var(--focus-color);
@@ -269,7 +269,7 @@
 }
 .sk-field-hint {
   margin-top: var(--space-1);
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-3);
 }
 .sk-field-hint.bad {
@@ -288,7 +288,7 @@
   border: none;
   border-radius: var(--radius-s);
   background: none;
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   font-weight: var(--fw-strong);
   color: var(--text-2);
   cursor: pointer;
@@ -316,7 +316,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   font-weight: var(--fw-strong);
   color: var(--text);
   cursor: pointer;
@@ -326,7 +326,7 @@
 }
 .sk-translate-hint {
   margin: 5px 0 0;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   line-height: var(--lh-body);
   color: var(--text-3);
 }
@@ -350,7 +350,7 @@
   background: var(--bg-inset);
 }
 .sk-paths-label {
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-caps);
   color: var(--text-3);
@@ -361,7 +361,7 @@
   border-radius: var(--radius-pill);
   border: 1px solid var(--sep);
   background: var(--bg-card);
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-2);
 }
 .sk-path-chip button {
@@ -386,7 +386,7 @@
   border: none;
   background: none;
   color: var(--text);
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   padding: 3px 2px;
 }
 .sk-paths input:focus {
@@ -399,12 +399,12 @@
 }
 .sk-gallery-intro {
   margin: 0 0 var(--space-5);
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   line-height: var(--lh-body);
   color: var(--text-3);
 }
 .sk-gallery-intro code {
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   padding: 1px 5px;
   border-radius: var(--radius-xs);
   background: var(--bg-inset);
@@ -432,13 +432,13 @@
   min-width: 0;
 }
 .sk-gallery-name {
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   font-weight: var(--fw-strong);
   color: var(--text);
 }
 .sk-gallery-desc {
   margin-top: 2px;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   line-height: var(--lh-body);
   color: var(--text-3);
 }
@@ -453,7 +453,7 @@
   gap: 14px;
 }
 .sk-hooks-hint {
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   line-height: var(--lh-prose);
   color: var(--text-3);
   margin: 0;
@@ -472,7 +472,7 @@
   flex-wrap: wrap;
   gap: var(--space-3);
   margin: 0 0 var(--space-4);
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   font-weight: var(--fw-bold);
   color: var(--text);
 }
@@ -491,7 +491,7 @@
   width: 100%;
   max-width: 340px;
   padding: var(--space-2) var(--space-4);
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   border: 1px solid var(--sep);
   border-radius: var(--radius-m);
   background: var(--bg-inset);
@@ -537,7 +537,7 @@
 .sk-shop-preview {
   max-height: 55vh;
   overflow-y: auto;
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
 }
 /* 갤러리 모달 하단 안내 섹션 (샵 탭 포인터) — 목록과 시각 분리 */
 .sk-gallery-sec {
@@ -572,18 +572,18 @@
   color: var(--text-2);
 }
 .ctx-budget-title {
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   color: var(--text-2);
 }
 .ctx-budget-total {
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   font-weight: var(--fw-bold);
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 .ctx-budget-note {
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-3);
 }
 
@@ -645,7 +645,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-3);
 }
 .ctx-dot {
@@ -684,12 +684,12 @@
 }
 .ctx-zone-head h3 {
   margin: 0;
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   font-weight: var(--fw-bold);
   color: var(--text);
 }
 .ctx-zone-sub {
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-3);
 }
 
@@ -709,7 +709,7 @@
   background: none;
   border-radius: var(--radius-s);
   font-family: var(--font);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   font-weight: var(--fw-strong);
   color: var(--text-2);
   cursor: pointer;
@@ -736,7 +736,7 @@
   background: none;
   outline: none;
   font-family: var(--font);
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text);
 }
 
@@ -752,7 +752,7 @@
    Claude Code 의 스킬 선택으로 읽는다 — 그건 모델의 판단이라 재현할 수 없다. */
 .ctx-sim-note {
   margin: 0 0 var(--space-3);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-3);
   line-height: var(--lh-body);
 }
@@ -766,7 +766,7 @@
 }
 .sk-trigger-quotes-head {
   margin-bottom: var(--space-1);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   font-weight: var(--fw-bold);
   color: var(--text-2);
 }
@@ -779,7 +779,7 @@
   display: flex;
   gap: var(--space-3);
   padding: 2px 0;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
 }
 .sk-trigger-quote-day {
   flex: none;
@@ -822,7 +822,7 @@
   min-width: 0;
 }
 .ctx-row-name {
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   font-weight: var(--fw-strong);
   color: var(--text);
   overflow: hidden;
@@ -832,7 +832,7 @@
 .ctx-row-desc {
   display: block;
   margin-top: 2px;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -843,7 +843,7 @@
   border-radius: var(--radius-m);
   margin-top: var(--space-2);
   color: var(--text-3);
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
 }
 
 /* 종류 배지 — 목록이 한 벌이 되면서 "이게 무엇인가" 를 색으로 가른다. */
@@ -879,7 +879,7 @@
 .ctx-prop-quote {
   display: block;
   margin-top: 3px;
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -899,7 +899,7 @@
 .ctx-empty {
   padding: 22px var(--space-5);
   text-align: center;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-3);
   border: 1px dashed var(--sep);
   border-radius: var(--radius-m);
@@ -917,7 +917,7 @@
   border: none;
   cursor: pointer;
   font-family: var(--font);
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   color: var(--text-3);
 }
@@ -943,7 +943,7 @@
   align-items: center;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-weight: var(--fw-bold);
   color: var(--text);
 }
@@ -972,7 +972,7 @@
   flex: 1;
 }
 .ctx-add-name {
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   color: var(--text);
 }
@@ -983,7 +983,7 @@
 }
 .ctx-add-desc {
   flex-basis: 100%;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-3);
 }
 .ctx-add-actions {
@@ -1026,7 +1026,7 @@
 }
 .ctx-card-head h4 {
   margin: 0;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-weight: var(--fw-bold);
   color: var(--text);
 }
@@ -1056,19 +1056,19 @@
   min-width: 0;
 }
 .ctx-prop-name {
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   color: var(--text);
 }
 .ctx-prop-cost {
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   font-weight: var(--fw-strong);
   color: var(--danger);
   font-variant-numeric: tabular-nums;
 }
 .ctx-prop-why {
   flex-basis: 100%;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-3);
 }
 .ctx-prop-globs {
@@ -1121,18 +1121,18 @@
 }
 .ctx-draft-row p {
   margin: 3px 0 0;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   color: var(--text);
 }
 .ctx-draft-label {
   font-size: var(--fs-2);
   font-weight: var(--fw-bold);
-  letter-spacing: var(--track-caps);
-  text-transform: uppercase;
+  letter-spacing: var(--caps-track);
+  text-transform: var(--caps-transform);
   color: var(--text-3);
 }
 .ctx-draft-why {
   margin: 0;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-3);
 }

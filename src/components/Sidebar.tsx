@@ -13,6 +13,10 @@ import { NAV_ENTRIES, NAV_BUS, navRowViews, navShortcutLabel, type NavEntry } fr
 import { useAcpAttentionCount, useAcpWorkingCount } from "@/features/chat/acpBusyBus";
 import { useSessionAttention } from "@/features/sessions/sessionAttention";
 import { NavRemapNotice } from "@/components/NavRemapNotice";
+// 경로 표기는 앱에서 한 형태다 — 시작 화면 카드·프로젝트 관리가 이미 이걸 쓴다.
+// 사이드바만 원시 경로를 그려서 `/Users/kimhyunbin/De…` 처럼 **집 경로로 폭을
+// 다 쓰고 정작 프로젝트 이름이 잘리는** 유일한 자리였다.
+import { tildePath } from "@/features/onboarding/home/homeModel";
 import { useT } from "@/i18n";
 
 // Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
@@ -129,7 +133,7 @@ function NavRow({
       {/* 도는 동안에는 아이콘 둘레가 돈다 — 숫자만으로는 "멈춘 채 N 개"인지
           "지금 일하는 중"인지 구분되지 않는다. */}
       <span className={"nav-ico" + (busy ? " working" : "")}>
-        <Icon size={18} strokeWidth={active ? 2 : 1.8} />
+        <Icon size={18} />
       </span>
       <span>{label}</span>
       {waiting ? (
@@ -179,7 +183,7 @@ function NavBranches({
             aria-current={view === b.id ? "page" : undefined}
             onClick={() => onNavigate(b.id)}
           >
-            <Icon size={13} strokeWidth={1.8} />
+            <Icon size={13} />
             <span>{t(b.labelKey)}</span>
             {attention > 0 ? (
               <span className="nav-badge attention" aria-label={t("nav.attention", { n: attention })}>
@@ -337,11 +341,11 @@ export function Sidebar({
           aria-expanded={switcherOpen}
         >
           <div className="proj-icon">
-            <FolderGit2 size={15} strokeWidth={2} />
+            <FolderGit2 size={15} />
           </div>
           <div className="proj-meta">
             <div className="proj-name">{projectName ?? t("sidebar.selectProject")}</div>
-            <div className="proj-path">{projectPath ?? "—"}</div>
+            <div className="proj-path">{projectPath ? tildePath(projectPath) : "—"}</div>
           </div>
           <ChevronsUpDown size={15} color="var(--text-3)" />
         </button>
@@ -365,7 +369,7 @@ export function Sidebar({
                         setSwitcherOpen(false);
                       }}
                     >
-                      <FolderGit2 size={15} strokeWidth={2} color="var(--accent)" />
+                      <FolderGit2 size={15} color="var(--accent)" />
                       <span className="proj-pop-meta">
                         <span className="proj-pop-name">{p.name}</span>
                         <span className="proj-pop-path">{p.root_path}</span>
@@ -403,6 +407,10 @@ export function Sidebar({
           role 없는 div 에 aria-label 을 얹으면 그게 오히려 위반이다. */}
       <div className="side-nav-scroll" ref={navScrollRef}>
         <NavRemapNotice />
+        {/* 첫 그룹에도 이름을 준다 (2026-09-09). 셋은 라벨이 있고 하나만 없으면
+            그 하나가 "전부" 로, 나머지가 "예외" 로 읽힌다 — 실제로는 넷 다 대등한
+            갈래다. */}
+        <div className="nav-section-label nav-section-label--first">{t("sidebar.mainSection")}</div>
         {MAIN_NAV.map((slot, i) => (
           <NavRow key={slot.id} slot={slot} active={view === slot.id} index={i} onNavigate={onNavigate} />
         ))}
@@ -463,20 +471,20 @@ export function Sidebar({
         {onToggleTerminalDock ? (
           <button
             type="button"
-            className={"nav-item" + (terminalDockOpen ? " active" : "")}
+            className="nav-item nav-util"
             aria-pressed={terminalDockOpen}
             onClick={onToggleTerminalDock}
           >
             <span className="nav-ico">
-              <SquareTerminal size={18} strokeWidth={terminalDockOpen ? 2 : 1.8} />
+              <SquareTerminal size={18} />
             </span>
             <span>{t("sidebar.terminalDock")}</span>
             <kbd className="nav-kbd">⌘J</kbd>
           </button>
         ) : null}
-        <button type="button" className="nav-item" onClick={onToggleTheme}>
+        <button type="button" className="nav-item nav-util" onClick={onToggleTheme}>
           <span className="nav-ico">
-            {isDark ? <SunIcon size={18} strokeWidth={1.8} /> : <MoonIcon size={18} strokeWidth={1.8} />}
+            {isDark ? <SunIcon size={18} /> : <MoonIcon size={18} />}
           </span>
           <span>{isDark ? t("sidebar.lightMode") : t("sidebar.darkMode")}</span>
         </button>
@@ -487,7 +495,7 @@ export function Sidebar({
           onClick={() => onNavigate("settings")}
         >
           <span className="nav-ico">
-            <SettingsIcon size={18} strokeWidth={1.8} />
+            <SettingsIcon size={18} />
           </span>
           <span>{t("sidebar.settings")}</span>
         </button>

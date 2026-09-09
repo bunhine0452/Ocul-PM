@@ -41,7 +41,7 @@ const CMD_ROW: CSSProperties = {
   alignItems: "center",
   gap: 8,
   marginBottom: 6,
-  fontSize: "var(--fs-5)",
+  fontSize: "var(--fs-3)",
 };
 const CMD_CODE: CSSProperties = {
   flex: 1,

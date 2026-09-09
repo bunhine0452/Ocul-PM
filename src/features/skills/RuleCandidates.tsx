@@ -131,7 +131,7 @@ export function RuleCandidatesPanel({
       </div>
       <p className="mb-2.5 text-xs text-muted-foreground">
         {t("promo.ruleIntroPrefix")}
-        <code className="font-mono text-fs-3">.claude/rules</code>
+        <code className="font-mono text-fs-2">.claude/rules</code>
         {t("promo.ruleIntroSuffix")}
       </p>
       <ul className="flex flex-col gap-2">
@@ -142,13 +142,13 @@ export function RuleCandidatesPanel({
           >
             <div className="flex items-center gap-2">
               <span className="truncate font-mono text-xs text-foreground">{c.area}</span>
-              <span className="shrink-0 rounded bg-(--warn-soft) px-1.5 py-0.5 text-fs-3 font-medium text-(--warn-text)">
+              <span className="shrink-0 rounded bg-(--warn-soft) px-1.5 py-0.5 text-fs-2 font-medium text-(--warn-text)">
                 {t("promo.ruleEntryCount", {
                   kinds: c.kinds.map((k) => (KIND_LABEL[k] ? t(KIND_LABEL[k]) : k)).join("·"),
                   n: c.entry_count,
                 })}
               </span>
-              <span className="shrink-0 text-fs-3 text-muted-foreground">
+              <span className="shrink-0 text-fs-2 text-muted-foreground">
                 {t("promo.recent", { workday: wd(c.last_workday) })}
               </span>
               <span className="flex-1" />
@@ -184,7 +184,7 @@ export function RuleCandidatesPanel({
             </div>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {c.suggested_paths.map((p) => (
-                <span key={p} className="rounded bg-muted px-1.5 py-0.5 font-mono text-fs-3">
+                <span key={p} className="rounded bg-muted px-1.5 py-0.5 font-mono text-fs-2">
                   {p}
                 </span>
               ))}
@@ -225,7 +225,7 @@ export function RuleCandidatesPanel({
                 />
                 <div
                   className={
-                    "mt-1 text-fs-3 " +
+                    "mt-1 text-fs-2 " +
                     (slug.trim() && !slugValid ? "text-(--danger-text)" : "text-muted-foreground")
                   }
                 >
@@ -247,7 +247,7 @@ export function RuleCandidatesPanel({
                     {draft.paths.map((p) => (
                       <span
                         key={p}
-                        className="rounded bg-muted px-1.5 py-0.5 font-mono text-fs-3"
+                        className="rounded bg-muted px-1.5 py-0.5 font-mono text-fs-2"
                       >
                         {p}
                       </span>

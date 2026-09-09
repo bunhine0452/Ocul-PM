@@ -51,7 +51,7 @@
 .disc-item-title {
   flex: 1;
   min-width: 0;
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   font-weight: var(--fw-strong);
   color: var(--text);
   overflow: hidden;
@@ -62,7 +62,7 @@
   color: var(--accent-text);
 }
 .disc-item-preview {
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -72,7 +72,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-3);
 }
 /* "계획으로 넘어감" — 목록에서 유일하게 **결과**를 말하는 조각이라 나머지 meta 보다
@@ -88,11 +88,11 @@
 .disc-item-resolved > svg { flex: none; }
 
 .disc-archive-head {
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-3);
   padding: var(--space-5) var(--space-3) var(--space-1);
-  text-transform: uppercase;
-  letter-spacing: var(--track-caps);
+  text-transform: var(--caps-transform);
+  letter-spacing: var(--caps-track);
 }
 
 /* ── 상태 pill ─────────────────────────────────────────────── */
@@ -146,14 +146,14 @@
 .disc-head-title {
   flex: 1;
   min-width: 0;
-  font-size: var(--fs-11);
+  font-size: var(--fs-8);
   font-weight: var(--fw-bold);
   color: var(--text);
   line-height: var(--lh-tight);
 }
 .disc-head-title input {
   width: 100%;
-  font-size: var(--fs-11);
+  font-size: var(--fs-8);
   font-weight: var(--fw-bold);
   padding: 2px var(--space-2);
   border-radius: var(--radius-s);
@@ -173,14 +173,14 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 5px;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-2);
 }
 .disc-reslink {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   color: var(--accent-text);
   background: var(--accent-soft);
   border: none;
@@ -194,7 +194,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   color: var(--text-2);
   background: var(--bg-card);
@@ -225,11 +225,11 @@
   margin-bottom: 26px;
 }
 .disc-section-title {
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-weight: var(--fw-bold);
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: var(--track-caps);
+  text-transform: var(--caps-transform);
+  letter-spacing: var(--caps-track);
   margin-bottom: var(--space-4);
   padding-bottom: var(--space-2);
   border-bottom: 1px solid var(--sep);
@@ -243,7 +243,7 @@
   background: var(--bg-card);
 }
 .disc-option-title {
-  font-size: var(--fs-8);
+  font-size: var(--fs-5);
   font-weight: var(--fw-bold);
   color: var(--text);
   margin-bottom: var(--space-2);
@@ -263,7 +263,7 @@
   align-items: center;
   gap: 5px;
   flex: none;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   color: var(--text-2);
   min-width: 120px;
@@ -277,7 +277,7 @@
 .disc-log-body {
   flex: 1;
   min-width: 0;
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   color: var(--text);
 }
 .disc-log-ts {
@@ -294,7 +294,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   color: var(--text);
 }
 .disc-next-box {
@@ -346,7 +346,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-2);
   overflow: hidden;
 }
@@ -389,7 +389,7 @@
   border-bottom: 1px solid var(--sep);
 }
 .disc-edit-title {
-  font-size: var(--fs-8);
+  font-size: var(--fs-5);
   font-weight: var(--fw-bold);
   color: var(--text);
   overflow: hidden;
@@ -398,7 +398,7 @@
 }
 .disc-edit-path {
   font-family: var(--mono);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -448,7 +448,7 @@
   border-radius: var(--radius-s);
   background: none;
   color: var(--text-2);
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   cursor: pointer;
 }
@@ -477,7 +477,7 @@
   border-radius: calc(var(--radius-s) - 1px);
   background: none;
   color: var(--text-3);
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   cursor: pointer;
 }
@@ -496,7 +496,7 @@
   margin-left: auto;
 }
 .disc-dirty {
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-3);
 }
 .disc-dirty.on {
@@ -511,7 +511,7 @@
   align-items: center;
   gap: 7px;
   padding: 7px 18px;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-2);
   background: var(--warn-soft);
   border-bottom: 1px solid var(--sep);
@@ -601,7 +601,7 @@
   border-radius: var(--radius-s);
   background: none;
   color: var(--text);
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   cursor: pointer;
 }
 .disc-menu-item:hover {
@@ -651,7 +651,7 @@
   border: none;
   background: none;
   color: var(--text);
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   outline: none;
 }
 
@@ -661,14 +661,14 @@
   overflow-y: auto;
 }
 .disc-new h2 {
-  font-size: var(--fs-9);
+  font-size: var(--fs-6);
   font-weight: var(--fw-bold);
   color: var(--text);
   margin-bottom: var(--space-2);
 }
 .disc-new input {
   width: 100%;
-  font-size: var(--fs-8);
+  font-size: var(--fs-5);
   padding: 9px 11px;
   border-radius: var(--radius-s);
   border: 1px solid var(--sep);
@@ -700,7 +700,7 @@
   background: var(--accent-soft);
 }
 .disc-tpl-name {
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   font-weight: var(--fw-bold);
   color: var(--text);
 }
@@ -708,7 +708,7 @@
   color: var(--accent-text);
 }
 .disc-tpl-desc {
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   line-height: var(--lh-body);
   color: var(--text-3);
 }
@@ -733,13 +733,13 @@
   padding: var(--space-7) 22px;
 }
 .disc-modal h2 {
-  font-size: var(--fs-9);
+  font-size: var(--fs-6);
   font-weight: var(--fw-bold);
   color: var(--text);
   margin-bottom: var(--space-2);
 }
 .disc-modal-sub {
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   color: var(--text-2);
   margin-bottom: 14px;
 }

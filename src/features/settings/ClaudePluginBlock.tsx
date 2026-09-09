@@ -40,7 +40,7 @@ export function ClaudePluginBlock({ plugin }: { plugin: ClaudePluginStatus | nul
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-2 uppercase tracking-wider text-muted-foreground">
           {t("op.plugin.title")}
         </Label>
         <ScopeChip label={t("op.scope.machine")} />
@@ -59,13 +59,13 @@ export function ClaudePluginBlock({ plugin }: { plugin: ClaudePluginStatus | nul
           </Button>
         </div>
       </div>
-      <p className="text-fs-3 leading-relaxed text-muted-foreground">
+      <p className="text-fs-2 leading-relaxed text-muted-foreground">
         {t("op.plugin.desc1")} <code className="text-fs-1">/plugin marketplace add bunhine0452/Ocul-PM</code>{" "}
         {t("op.plugin.desc2")} <code className="text-fs-1">/plugin install oculpm@oculpm</code>{" "}
         {t("op.plugin.desc3")}
       </p>
       {plugin?.installed ? (
-        <p className="text-fs-3 text-(--warn-text)">{t("op.plugin.warn")}</p>
+        <p className="text-fs-2 text-(--warn-text)">{t("op.plugin.warn")}</p>
       ) : null}
     </div>
   );

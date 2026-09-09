@@ -87,7 +87,7 @@ function ToastItem({ toast }: { toast: Toast }) {
                   a.onClick();
                   dismissToast(toast.id);
                 }}
-                className="rounded border border-current/40 px-2 py-0.5 text-fs-3 hover:bg-current/10"
+                className="rounded border border-current/40 px-2 py-0.5 text-fs-2 hover:bg-current/10"
               >
                 {a.label}
               </button>

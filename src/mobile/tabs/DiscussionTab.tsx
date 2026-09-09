@@ -95,7 +95,7 @@ export function DiscussionTab({ projectId }: { projectId: number }) {
             <ul className="space-y-1.5">
               {detail.options.map((o) => (
                 <li key={o.option_id} className="mob-card px-3.5 py-2.5">
-                  <div className="text-fs-7">{o.title}</div>
+                  <div className="text-fs-4">{o.title}</div>
                 </li>
               ))}
             </ul>
@@ -110,11 +110,11 @@ export function DiscussionTab({ projectId }: { projectId: number }) {
           <ul className="space-y-1.5">
             {detail.log.map((l, i) => (
               <li key={i} className="mob-log-row px-3 py-2">
-                <div className="flex items-center gap-1.5 text-fs-3 mob-text-3">
+                <div className="flex items-center gap-1.5 text-fs-2 mob-text-3">
                   <span className="mob-agent-dot" style={{ background: agentColor(l.author) }} aria-hidden />
                   {l.author} · {l.ts.slice(5, 16)}
                 </div>
-                <div className="text-fs-7 whitespace-pre-wrap mt-0.5">{l.body}</div>
+                <div className="text-fs-4 whitespace-pre-wrap mt-0.5">{l.body}</div>
               </li>
             ))}
           </ul>
@@ -151,10 +151,10 @@ export function DiscussionTab({ projectId }: { projectId: number }) {
             className="mob-card w-full text-left px-3.5 py-2.5"
           >
             <div className="flex items-center gap-2">
-              <span className="text-fs-7 font-medium truncate flex-1">{d.title}</span>
+              <span className="text-fs-4 font-medium truncate flex-1">{d.title}</span>
               <StatusChip status={d.status} />
             </div>
-            <div className="text-fs-3 mob-text-3 mt-1 truncate">{d.problem_preview}</div>
+            <div className="text-fs-2 mob-text-3 mt-1 truncate">{d.problem_preview}</div>
           </button>
         </li>
       ))}
@@ -167,7 +167,7 @@ function Section({ title, body }: { title: string; body: string }) {
   return (
     <section>
       <h3 className="mob-sec-title">{title}</h3>
-      <p className="text-fs-7 whitespace-pre-wrap">{body}</p>
+      <p className="text-fs-4 whitespace-pre-wrap">{body}</p>
     </section>
   );
 }

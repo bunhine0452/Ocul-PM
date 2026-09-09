@@ -85,7 +85,7 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    fontSize: "var(--fs-7)",
+                    fontSize: "var(--fs-4)",
                     color: "var(--text)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -97,7 +97,7 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
                 {d.problem_preview ? (
                   <div
                     style={{
-                      fontSize: "var(--fs-3)",
+                      fontSize: "var(--fs-2)",
                       color: "var(--text-3)",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -109,7 +109,7 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
                 ) : null}
               </div>
               {d.next_step_count > 0 ? (
-                <span style={{ fontSize: "var(--fs-3)", color: "var(--text-3)", flexShrink: 0 }}>
+                <span style={{ fontSize: "var(--fs-2)", color: "var(--text-3)", flexShrink: 0 }}>
                   {t("today.discussion.nextSteps", { n: d.next_step_count })}
                 </span>
               ) : null}

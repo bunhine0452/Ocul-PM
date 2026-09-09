@@ -455,7 +455,7 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
               </span>
             </label>
             {(deleteOculpm || deleteAgentsMd) && (
-              <p className="text-fs-3 text-destructive px-1">
+              <p className="text-fs-2 text-destructive px-1">
                 {t("project.remove.irreversible")}
               </p>
             )}

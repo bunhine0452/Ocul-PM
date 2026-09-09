@@ -66,7 +66,7 @@ export function FlowTile({
         <p className="mt-4 text-[12.5px] text-[var(--text-2)] leading-relaxed">
           {t("home.briefFailed")}
           <br />
-          <span className="text-fs-3 text-[var(--text-3)]">
+          <span className="text-fs-2 text-[var(--text-3)]">
             {t("home.briefFailedHint")}
           </span>
         </p>
@@ -75,7 +75,7 @@ export function FlowTile({
         <p className="mt-4 text-[12.5px] text-[var(--text-2)] leading-relaxed">
           {t("home.briefEmpty")}
           <br />
-          <span className="text-fs-3 text-[var(--text-3)]">
+          <span className="text-fs-2 text-[var(--text-3)]">
             {t("home.briefEmptyHint")}
           </span>
         </p>

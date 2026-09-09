@@ -132,7 +132,7 @@ export default function MobileApp() {
       <header className="mob-header sticky top-0 z-40 px-4 py-2.5">
         <button onClick={() => setPicking(true)} className="flex items-center gap-2.5">
           <img src="/icon.svg" alt="" className="mob-brand" />
-          <span className="mob-header-title text-fs-9 font-semibold">{project.name}</span>
+          <span className="mob-header-title text-fs-6 font-semibold">{project.name}</span>
           <ChevronDown size={13} className="mob-header-caret" />
           <span className="mob-beta">BETA</span>
         </button>

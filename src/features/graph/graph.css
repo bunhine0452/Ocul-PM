@@ -92,11 +92,11 @@
 .gn.dim-hard { opacity: 0.08; }
 
 /* tier → 타이포 스케일 */
-.gn .gn-name { font-size: var(--fs-3); }
-.gn.t1 .gn-name { font-size: var(--fs-4); }
-.gn.t2 .gn-name { font-size: var(--fs-5); }
-.gn.t3 .gn-name { font-size: var(--fs-7); }
-.gn.t4 .gn-name { font-size: var(--fs-8); }
+.gn .gn-name { font-size: var(--fs-2); }
+.gn.t1 .gn-name { font-size: var(--fs-3); }
+.gn.t2 .gn-name { font-size: var(--fs-3); }
+.gn.t3 .gn-name { font-size: var(--fs-4); }
+.gn.t4 .gn-name { font-size: var(--fs-5); }
 
 /* 글리프 — 폴더는 둥근 사각, 파일은 원. 언어 색을 명시적으로 보여준다. */
 .gn-glyph {
@@ -163,8 +163,8 @@
   flex: none;
   font-size: var(--fs-0);
   font-weight: var(--fw-bold);
-  letter-spacing: var(--track-caps);
-  text-transform: uppercase;
+  letter-spacing: var(--caps-track);
+  text-transform: var(--caps-transform);
   color: var(--text-2);
   background: var(--bg-inset);
   border-radius: var(--radius-xs);
@@ -196,8 +196,8 @@
   padding: 0 var(--space-4);
   border-radius: var(--radius-pill);
 }
-.gn.far.t3 .gn-name { font-size: var(--fs-7); }
-.gn.far.t4 .gn-name { font-size: var(--fs-7); }
+.gn.far.t3 .gn-name { font-size: var(--fs-4); }
+.gn.far.t4 .gn-name { font-size: var(--fs-4); }
 .gn.far .gn-glyph {
   width: 8px;
   height: 8px;
@@ -218,7 +218,7 @@
   background: none;
   border-radius: var(--radius-s);
   font-family: var(--font);
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   color: var(--text-2);
   cursor: pointer;
@@ -240,7 +240,7 @@
   background: transparent;
   color: var(--text-2);
   font-family: var(--font);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   font-weight: var(--fw-strong);
   cursor: pointer;
   white-space: nowrap;
@@ -279,7 +279,7 @@
   background: transparent;
   outline: none;
   font-family: var(--font);
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   color: var(--text);
 }
 .gr-search:focus-within {
@@ -338,7 +338,7 @@
   background: none;
   padding: 2px var(--space-1);
   font-family: var(--font);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   font-weight: var(--fw-strong);
   color: var(--accent-text);
   cursor: pointer;

@@ -95,7 +95,7 @@ export function PlanUpdates({ projectId, onNavigate }: PlanUpdatesProps) {
               />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
-                  style={{ fontSize: "var(--fs-7)", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  style={{ fontSize: "var(--fs-4)", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                 >
                   <span className="plu-transition">
                     <StatusGlyph status={u.from_status} />
@@ -104,7 +104,7 @@ export function PlanUpdates({ projectId, onNavigate }: PlanUpdatesProps) {
                   </span>{" "}
                   {u.item_title}
                 </div>
-                <div style={{ fontSize: "var(--fs-3)", color: "var(--text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div style={{ fontSize: "var(--fs-2)", color: "var(--text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {agentLabel(u.agent_id)} · {u.plan_title} · {relTime(u.ts)}
                 </div>
               </div>

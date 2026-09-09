@@ -131,7 +131,7 @@ export function HonestyAudit({ projectId, workday, enabled, onNavigate }: Honest
         <span style={{ fontWeight: "var(--fw-bold)" }}>{t("today.honesty.title")}</span>
         <span
           style={{
-            fontSize: "var(--fs-5)",
+            fontSize: "var(--fs-3)",
             fontWeight: "var(--fw-bold)",
             color: clean ? "var(--text-3)" : "var(--warn)",
           }}
@@ -140,19 +140,19 @@ export function HonestyAudit({ projectId, workday, enabled, onNavigate }: Honest
         </span>
       </div>
       {clean ? (
-        <div style={{ fontSize: "var(--fs-5)", color: "var(--text-3)", lineHeight: 1.6 }}>
+        <div style={{ fontSize: "var(--fs-3)", color: "var(--text-3)", lineHeight: 1.6 }}>
           {t("today.honesty.zeroNote")}
         </div>
       ) : (
         <>
-          <div style={{ fontSize: "var(--fs-5)", color: "var(--text-2)", marginBottom: 10 }}>
+          <div style={{ fontSize: "var(--fs-3)", color: "var(--text-2)", marginBottom: 10 }}>
             {t("today.honesty.desc")}
           </div>
           {rows.map((r) => (
             <div key={r.session_id} style={{ marginBottom: 10 }}>
               <div
                 style={{
-                  fontSize: "var(--fs-5)",
+                  fontSize: "var(--fs-3)",
                   fontWeight: "var(--fw-strong)",
                   color: SEV_COLOR[r.unrecorded_severity] ?? "var(--text-2)",
                   marginBottom: 2,
@@ -165,7 +165,7 @@ export function HonestyAudit({ projectId, workday, enabled, onNavigate }: Honest
                 style={{
                   margin: 0,
                   paddingLeft: 16,
-                  fontSize: "var(--fs-5)",
+                  fontSize: "var(--fs-3)",
                   color: "var(--text-2)",
                 }}
               >

@@ -65,7 +65,7 @@ export function HomeTopRail({
         <button
           type="button"
           onClick={onAdd}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-s)] bg-[var(--accent)] text-[var(--text-on-accent)] text-fs-5 font-bold hover:bg-[var(--accent-strong)] transition-colors cursor-pointer whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-s)] bg-[var(--accent)] text-[var(--text-on-accent)] text-fs-3 font-bold hover:bg-[var(--accent-strong)] transition-colors cursor-pointer whitespace-nowrap"
         >
           <Plus size={15} />
           {t("home.addProject")}

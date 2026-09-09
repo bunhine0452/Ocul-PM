@@ -546,7 +546,7 @@ export function JournalScreenV2({
                   padding: "8px 12px",
                   marginBottom: 10,
                   color: "var(--text-2)",
-                  fontSize: "var(--fs-5)",
+                  fontSize: "var(--fs-3)",
                 }}
               >
                 <span>

@@ -429,7 +429,7 @@ export function DoctorSection() {
   return (
     <Section title={t("settings.doctor.title")} description={t("settings.doctor.desc")}>
       {projectId == null ? (
-        <div className="text-fs-3 text-muted-foreground">{t("settings.doctor.noProject")}</div>
+        <div className="text-fs-2 text-muted-foreground">{t("settings.doctor.noProject")}</div>
       ) : (
         <>
           <ul className="divide-y divide-border/60 rounded-xl border border-border/60" aria-busy={checking}>
@@ -441,12 +441,12 @@ export function DoctorSection() {
                   {row.value}
                 </span>
                 {row.secondary?.map((sec) => (
-                  <Button key={sec.labelKey} variant="ghost" size="sm" className="h-6 px-2 text-fs-3" onClick={() => void sec.run()}>
+                  <Button key={sec.labelKey} variant="ghost" size="sm" className="h-6 px-2 text-fs-2" onClick={() => void sec.run()}>
                     {t(sec.labelKey)}
                   </Button>
                 ))}
                 {row.action ? (
-                  <Button variant="outline" size="sm" className="h-6 px-2 text-fs-3" onClick={() => void row.action!.run()}>
+                  <Button variant="outline" size="sm" className="h-6 px-2 text-fs-2" onClick={() => void row.action!.run()}>
                     {t(row.action.labelKey)}
                   </Button>
                 ) : null}
@@ -475,15 +475,15 @@ export function DoctorSection() {
                 {t("settings.doctor.warnings")}
               </div>
               {warnings.length > 0 ? (
-                <Button variant="ghost" size="sm" className="h-6 px-2 text-fs-3" onClick={() => clearIntegrityLog(projectId)}>
+                <Button variant="ghost" size="sm" className="h-6 px-2 text-fs-2" onClick={() => clearIntegrityLog(projectId)}>
                   {t("settings.doctor.clear")}
                 </Button>
               ) : null}
             </div>
             {warnings.length === 0 ? (
-              <div className="text-fs-3 text-muted-foreground">{t("settings.doctor.warningsEmpty")}</div>
+              <div className="text-fs-2 text-muted-foreground">{t("settings.doctor.warningsEmpty")}</div>
             ) : (
-              <ul className="text-fs-3 font-mono space-y-1">
+              <ul className="text-fs-2 font-mono space-y-1">
                 {warnings.map((w) => (
                   <li key={w.id} className="flex gap-3">
                     <span className="text-muted-foreground tabular-nums flex-none">

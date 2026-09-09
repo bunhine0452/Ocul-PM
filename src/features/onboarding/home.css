@@ -72,7 +72,7 @@
    랜딩" 의 전형이다. 대신 자간을 조여 워드마크다운 밀도를 만든다. */
 .home-wordmark {
   font-family: var(--font);
-  font-size: var(--fs-8);
+  font-size: var(--fs-5);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-tight);
   color: var(--text);
@@ -111,7 +111,7 @@
   min-width: 0;
   border: 0;
   background: transparent;
-  font-size: var(--fs-10);
+  font-size: var(--fs-7);
   font-weight: var(--fw-body);
   letter-spacing: var(--track-tight);
   color: var(--text);
@@ -128,7 +128,7 @@
 
 .home-count {
   font-family: var(--mono);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-2);
   white-space: nowrap;
 }
@@ -337,7 +337,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   font-weight: var(--fw-label);
   color: var(--text-2);
   white-space: nowrap;
@@ -358,7 +358,7 @@
 }
 
 .home-when {
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   font-weight: var(--fw-label);
   font-variant-numeric: tabular-nums;
   color: var(--text-2);
@@ -390,7 +390,7 @@
   border-radius: var(--radius-s);
   background: transparent;
   font-family: var(--mono);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-2);
   cursor: pointer;
   white-space: nowrap;
@@ -454,8 +454,8 @@
   box-shadow: var(--shadow-card);
 }
 .home-how-head { display: flex; flex-direction: column; gap: var(--space-2); }
-.home-how-title { margin: 0; font-size: var(--fs-11); font-weight: var(--fw-bold); letter-spacing: var(--track-snug); color: var(--text); }
-.home-how-body { margin: 0; font-size: var(--fs-6); line-height: var(--lh-body); color: var(--text-2); }
+.home-how-title { margin: 0; font-size: var(--fs-8); font-weight: var(--fw-bold); letter-spacing: var(--track-snug); color: var(--text); }
+.home-how-body { margin: 0; font-size: var(--fs-4); line-height: var(--lh-body); color: var(--text-2); }
 .home-how-body b { color: var(--text); font-weight: var(--fw-strong); }
 .home-how-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .home-how-step {
@@ -467,8 +467,8 @@
 }
 .home-how-step:last-child { border-bottom: 1px solid var(--sep); }
 .home-how-ico { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--accent); }
-.home-how-step h3 { margin: 0; font-size: var(--fs-6); font-weight: var(--fw-strong); color: var(--text); }
-.home-how-step p { margin: 3px 0 0; font-size: var(--fs-5); line-height: var(--lh-body); color: var(--text-2); }
+.home-how-step h3 { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); color: var(--text); }
+.home-how-step p { margin: 3px 0 0; font-size: var(--fs-3); line-height: var(--lh-body); color: var(--text-2); }
 .home-how .btn { align-self: flex-start; }
 
 /* ── 추가 슬롯 ──────────────────────────────────────────────────────── */
@@ -493,7 +493,7 @@
   align-items: center;
   gap: var(--space-6);
   min-width: 0;
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-2);
 }
 .home-actionbar-item {
@@ -549,7 +549,7 @@
   margin-top: var(--space-4);
   padding: var(--space-4) 14px;
   border-radius: var(--radius-m);
-  font-size: var(--fs-5);
+  font-size: var(--fs-3);
   font-weight: var(--fw-strong);
   background: var(--t-error-soft);
   color: var(--t-error);
@@ -585,20 +585,20 @@
   gap: var(--space-3);
 }
 .home-panecount {
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   font-weight: var(--fw-bold);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 .home-panehint {
   margin-left: auto;
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-3);
 }
 
 .home-empty {
   padding: 28px var(--space-1);
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   color: var(--text-2);
   display: flex;
   flex-direction: column;
@@ -673,7 +673,7 @@
   gap: 1px;
 }
 .hg-name {
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   font-weight: var(--fw-bold);
   /* 큰 글자일수록 자간을 조인다 — 제목이 헐거우면 본문과 위계가 안 선다. */
   letter-spacing: var(--track-tight);
@@ -756,7 +756,7 @@
   min-width: 0;
   height: 17px;
   margin: 0;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
@@ -785,7 +785,7 @@
   color: var(--text-2);
   min-height: 98px;
 }
-.hg-add-title { font-size: var(--fs-6); font-weight: var(--fw-bold); }
+.hg-add-title { font-size: var(--fs-4); font-weight: var(--fw-bold); }
 .hg-add-actions { display: flex; gap: var(--space-2); }
 
 /* ── 프로젝트 색 팔레트 ────────────────────────────────────────────────
@@ -870,7 +870,7 @@
   opacity: var(--dim-disabled);
 }
 .hf-title {
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   font-weight: var(--fw-label);
   line-height: var(--lh-snug);
   color: var(--text);
@@ -976,8 +976,8 @@
 .ap-label {
   font-size: var(--fs-2);
   font-weight: var(--fw-bold);
-  letter-spacing: var(--track-caps);
-  text-transform: uppercase;
+  letter-spacing: var(--caps-track);
+  text-transform: var(--caps-transform);
   color: var(--text-3);
   margin-bottom: var(--space-2);
 }

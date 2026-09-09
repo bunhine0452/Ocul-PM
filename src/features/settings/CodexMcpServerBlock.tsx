@@ -79,7 +79,7 @@ export function CodexMcpServerBlock() {
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-2 uppercase tracking-wider text-muted-foreground">
           {t("op.codexMcp.title")}
         </Label>
         <ScopeChip label={t("op.scope.machine")} />
@@ -104,23 +104,23 @@ export function CodexMcpServerBlock() {
           )}
         </div>
       </div>
-      <p className="text-fs-3 leading-relaxed text-muted-foreground">
+      <p className="text-fs-2 leading-relaxed text-muted-foreground">
         {t("op.codexMcp.desc1")} <code className="text-fs-1">{codex?.config_path ?? "~/.codex/config.toml"}</code>
         {t("op.codexMcp.desc2")}
       </p>
       {pinned && (
-        <p className="text-fs-3 text-(--warn-text)">{t("op.codexMcp.pinnedWarn", { path: pinned })}</p>
+        <p className="text-fs-2 text-(--warn-text)">{t("op.codexMcp.pinnedWarn", { path: pinned })}</p>
       )}
-      {!codex?.installed && !error && <p className="text-fs-3 text-(--warn-text)">{t("op.codexMcp.notFound")}</p>}
+      {!codex?.installed && !error && <p className="text-fs-2 text-(--warn-text)">{t("op.codexMcp.notFound")}</p>}
       {codex && !codex.binary_found && (
-        <p className="text-fs-3 text-(--warn-text)">
+        <p className="text-fs-2 text-(--warn-text)">
           {t("op.mcp.noBinary1")} <code className="text-fs-1">cargo build --bin oculpm-mcp</code> {t("op.mcp.noBinary2")}
         </p>
       )}
       {codex?.registered && !pinned && (
-        <p className="text-fs-3 text-muted-foreground">{t("op.codexMcp.restartNote")}</p>
+        <p className="text-fs-2 text-muted-foreground">{t("op.codexMcp.restartNote")}</p>
       )}
-      {error && <p className="text-fs-3 text-(--danger-text)">{error}</p>}
+      {error && <p className="text-fs-2 text-(--danger-text)">{error}</p>}
     </div>
   );
 }

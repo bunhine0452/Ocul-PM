@@ -148,7 +148,7 @@ export function PluginBundlesBlock({ projectId }: { projectId: number }) {
                     <span className="ml-1.5 text-xs text-muted-foreground">{bundle.version}</span>
                   )}
                 </div>
-                <div className="text-fs-3 text-muted-foreground truncate" title={bundle.source}>
+                <div className="text-fs-2 text-muted-foreground truncate" title={bundle.source}>
                   {t("plugins.itemCount", { count: String(bundle.items.length) })} · {bundle.source}
                 </div>
               </div>

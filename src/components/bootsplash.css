@@ -76,7 +76,7 @@
 .boot-name {
   font-size: 12px;
   font-weight: var(--fw-strong);
-  text-transform: uppercase;
+  text-transform: var(--caps-transform);
   /* 자간의 마지막 한 칸이 오른쪽에 남아 가운데 정렬이 틀어지는 걸 보정. */
   text-indent: 0.3em;
   color: var(--muted-foreground, #6d675c);

@@ -119,7 +119,7 @@ export function Progress({ done, total }: { done: number; total: number }) {
       >
         <span className="home-prog-fill block" style={{ width: `${pct}%` }} />
       </span>
-      <span className="text-fs-3 text-[var(--text-3)] tabular-nums whitespace-nowrap">
+      <span className="text-fs-2 text-[var(--text-3)] tabular-nums whitespace-nowrap">
         {done}/{total}
       </span>
     </span>

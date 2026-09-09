@@ -70,7 +70,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-tight);
   color: var(--text);
@@ -91,7 +91,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--fs-3);
+  font-size: var(--fs-2);
   color: var(--text-3);
 }
 
@@ -145,7 +145,7 @@
 
 .wz-title {
   margin: 0 0 var(--space-3);
-  font-size: var(--fs-12);
+  font-size: var(--fs-9);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-snug);
   line-height: var(--lh-tight);
@@ -154,7 +154,7 @@
 
 .wz-sub {
   margin: 0 0 22px;
-  font-size: var(--fs-7);
+  font-size: var(--fs-4);
   line-height: var(--lh-body);
   color: var(--text-2);
 }
@@ -163,8 +163,8 @@
   margin: var(--space-7) 0 var(--space-3);
   font-size: var(--fs-2);
   font-weight: var(--fw-bold);
-  letter-spacing: var(--track-caps-lg);
-  text-transform: uppercase;
+  letter-spacing: var(--caps-track-lg);
+  text-transform: var(--caps-transform);
   color: var(--text-3);
 }
 
@@ -172,7 +172,7 @@
 
 .wz-note {
   margin: 18px 0 0;
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
   line-height: var(--lh-body);
   color: var(--text-3);
 }
@@ -195,7 +195,7 @@
   border-radius: var(--radius-m);
   background: var(--bg-card);
   color: var(--text-2);
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   font-weight: var(--fw-strong);
   cursor: pointer;
   transition: border-color var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out),
@@ -265,8 +265,8 @@
 }
 
 .wz-bigcard svg { color: var(--accent); margin-bottom: var(--space-1); }
-.wz-bigcard b { font-size: var(--fs-7); font-weight: var(--fw-bold); color: var(--text); }
-.wz-bigcard span { font-size: var(--fs-4); line-height: var(--lh-body); color: var(--text-2); }
+.wz-bigcard b { font-size: var(--fs-4); font-weight: var(--fw-bold); color: var(--text); }
+.wz-bigcard span { font-size: var(--fs-3); line-height: var(--lh-body); color: var(--text-2); }
 
 .wz-bigcard:hover:not(:disabled) {
   border-color: var(--accent);
@@ -295,7 +295,7 @@
   border: 1px solid var(--sep);
   border-radius: var(--radius-m);
   background: var(--bg-card);
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   line-height: var(--lh-body);
   color: var(--text-2);
 }
@@ -324,7 +324,7 @@
   height: 32px;
   padding: 0 14px;
   border-radius: var(--radius-s);
-  font-size: var(--fs-6);
+  font-size: var(--fs-4);
   font-weight: var(--fw-strong);
   cursor: pointer;
   border: 1px solid transparent;

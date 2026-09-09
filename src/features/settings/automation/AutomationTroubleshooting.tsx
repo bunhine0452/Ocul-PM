@@ -21,11 +21,11 @@ export function AutomationTroubleshooting({ compact = false }: { compact?: boole
   return (
     <div className="rounded-md border border-border/60 bg-accent/10 px-3 py-2 space-y-2">
       {!compact && (
-        <p className="text-fs-3 font-medium text-foreground">{t("automation.trouble.title")}</p>
+        <p className="text-fs-2 font-medium text-foreground">{t("automation.trouble.title")}</p>
       )}
       <ul className="space-y-1.5">
         {rows.map((row) => (
-          <li key={row.id} className="text-fs-3 leading-relaxed">
+          <li key={row.id} className="text-fs-2 leading-relaxed">
             <span className="text-foreground">{row.q}</span>{" "}
             <span className="text-muted-foreground">{row.a}</span>
           </li>

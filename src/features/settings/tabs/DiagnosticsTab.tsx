@@ -123,7 +123,7 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
             <div className="text-fs-1 uppercase tracking-wider text-muted-foreground">
               {t("settings.db.topTables")}
             </div>
-            <ul className="text-fs-3 font-mono space-y-0.5">
+            <ul className="text-fs-2 font-mono space-y-0.5">
               {topTables.map((row) => (
                 <li key={row.name} className="flex justify-between gap-3">
                   <span className="truncate">{row.name}</span>
@@ -133,7 +133,7 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
             </ul>
           </div>
         ) : null}
-        <div className="text-fs-3 font-mono break-all text-muted-foreground">
+        <div className="text-fs-2 font-mono break-all text-muted-foreground">
           {health?.path ?? t("settings.db.noPath")}
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -145,7 +145,7 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
             {compacting ? t("settings.db.compacting") : t("settings.db.compact")}
           </Button>
         </div>
-        <div className="text-fs-3 text-muted-foreground">{t("settings.db.compactHint")}</div>
+        <div className="text-fs-2 text-muted-foreground">{t("settings.db.compactHint")}</div>
       </Section>
 
       {/* 「결과가 이상하다」 가 가리키는 그 자리 — 문제 해결 문구 바로 위에 둔다. */}
@@ -174,7 +174,7 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
             {t("settings.feedback.feature")}
           </Button>
         </div>
-        <div className="text-fs-3 text-muted-foreground">
+        <div className="text-fs-2 text-muted-foreground">
           {t("settings.feedback.note")}
         </div>
       </Section>

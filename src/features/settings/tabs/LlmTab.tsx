@@ -142,7 +142,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
           </Button>
         </div>
 
-        <div className="flex items-center justify-between gap-3 pt-1 text-fs-3 text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 pt-1 text-fs-2 text-muted-foreground">
           <span>
             {t("settings.keys.cacheNote")}
           </span>
@@ -261,7 +261,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             onChange={(e) => save("coreModel", e.currentTarget.value)}
           />
         </Field>
-        <div className="flex items-center justify-between gap-3 text-fs-3 text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 text-fs-2 text-muted-foreground">
           <span>
             {coreModelTarget(settings)
               ? t("settings.coreModel.ready")

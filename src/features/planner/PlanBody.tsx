@@ -64,7 +64,7 @@ export function PlanBody(props: PlanBodyProps) {
                 autoFocus
                 className="goal-title-input"
                 defaultValue={detail.plan.title}
-                style={{ fontSize: "var(--fs-9)", fontWeight: "var(--fw-strong)" }}
+                style={{ fontSize: "var(--fs-6)", fontWeight: "var(--fw-strong)" }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     onRename((e.target as HTMLInputElement).value);
@@ -160,8 +160,8 @@ export function PlanBody(props: PlanBodyProps) {
           {(["done", "in_progress", "blocked", "deferred", "todo", "dropped"] as const)
             .filter((s) => (counts[s] ?? 0) > 0)
             .map((s) => (
-              <span key={s} style={{ fontSize: "var(--fs-5)", color: "var(--text-2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                <span style={{ color: STATUS_META[s].color, fontSize: "var(--fs-8)" }}>{STATUS_META[s].glyph}</span>
+              <span key={s} style={{ fontSize: "var(--fs-3)", color: "var(--text-2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <span style={{ color: STATUS_META[s].color, fontSize: "var(--fs-5)" }}>{STATUS_META[s].glyph}</span>
                 {t(STATUS_META[s].labelKey)} {counts[s]}
               </span>
             ))}
@@ -174,7 +174,7 @@ export function PlanBody(props: PlanBodyProps) {
           <div className="stat-top" style={{ color: "var(--t-bug)" }}>
             <TriangleAlert size={15} /> {t("plan.warnings", { n: detail.warnings.length })}
           </div>
-          <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: "var(--fs-5)", color: "var(--text-2)" }}>
+          <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: "var(--fs-3)", color: "var(--text-2)" }}>
             {detail.warnings.slice(0, 8).map((w, i) => <li key={i}>{w}</li>)}
           </ul>
         </div>
@@ -221,8 +221,8 @@ export function PlanBody(props: PlanBodyProps) {
           <div className="today-date" style={{ marginBottom: 8, fontWeight: "var(--fw-strong)" }}>{t("plan.decisions")}</div>
           {detail.decisions.map((d) => (
             <div className="card card-pad" key={d.decision_id} style={{ marginBottom: 10 }}>
-              <div className="goal-title" style={{ fontSize: "var(--fs-8)" }}>{d.title}</div>
-              {d.body ? <div style={{ fontSize: "var(--fs-7)", color: "var(--text-2)", marginTop: 6, whiteSpace: "pre-wrap" }}>{d.body}</div> : null}
+              <div className="goal-title" style={{ fontSize: "var(--fs-5)" }}>{d.title}</div>
+              {d.body ? <div style={{ fontSize: "var(--fs-4)", color: "var(--text-2)", marginTop: 6, whiteSpace: "pre-wrap" }}>{d.body}</div> : null}
               <div className="goal-due" style={{ marginTop: 8 }}>
                 {d.locked_at ? <><Lock size={11} /> {d.locked_at}{d.agent_id ? ` · ${agentLabel(d.agent_id)}` : ""}<span className="dotsep">·</span></> : null}
                 {d.affects.length > 0 ? t("plan.affects", { list: d.affects.map((a) => `#${a}`).join(", ") }) : t("plan.noAffects")}

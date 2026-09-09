@@ -228,7 +228,7 @@ export function SkillShopTab({ projectId, tabs, embedded = false, onInstalled }:
             )}
           </section>
 
-          <p className="text-fs-3 leading-relaxed text-muted-foreground">
+          <p className="text-fs-2 leading-relaxed text-muted-foreground">
             {t("shop.note1")} <strong>{t("shop.note2")}</strong>{t("shop.note3")}{" "}
             <code>.claude/skills/</code> {t("shop.note4")}{" "}
             <strong>{t("shop.note5")}</strong>{t("shop.note6")}
