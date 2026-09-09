@@ -19,6 +19,7 @@
  *     내려앉게 한다 (StartScreen 의 오버레이 가드가 이 선택자를 본다).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { useMinuteTick } from "@/hooks/useSecondTick";
 
 import { FolderOpen, FolderPlus, Pencil, Search, Trash2, X } from "@/components/Icons";
@@ -82,6 +83,7 @@ export function ProjectManager(props: ProjectManagerProps) {
 
   const searchRef = useRef<HTMLInputElement>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   // 분 단위 상대시각이 얼어붙지 않도록 — 메인 화면과 같은 공유 1분 시계.
   const now = useMinuteTick(true);
@@ -193,17 +195,16 @@ export function ProjectManager(props: ProjectManagerProps) {
 
   // Esc — 확인 단계면 확인만 취소하고, 아니면 화면을 닫는다.
   // App 의 이름 변경/제거 다이얼로그가 이 위에 떠 있으면 그쪽이 Esc 의 주인이다.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      if (document.querySelector("[data-app-dialog]")) return;
-      e.preventDefault();
-      if (confirming) setConfirming(false);
-      else onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+  //
+  // 2026-09-09: window 리스너 대신 공통 훅의 `onClose` 로 옮겼다. 훅이 트랩·
+  // 트리거 복원·스크롤락을 함께 주는데, 훅의 Esc 가 패널에서 전파를 끊으므로
+  // window 리스너와 같이 두면 이 **단계 의미**가 조용히 죽는다.
+  const dismiss = useCallback(() => {
+    if (document.querySelector("[data-app-dialog]")) return;
+    if (confirming) setConfirming(false);
+    else onClose();
   }, [confirming, onClose]);
+  useModalBehavior({ open: true, onClose: dismiss, panelRef: sheetRef });
 
   const searching = query.trim().length > 0;
 
@@ -231,7 +232,7 @@ export function ProjectManager(props: ProjectManagerProps) {
         onClose();
       }}
     >
-      <div className="pm-sheet">
+      <div className="pm-sheet" ref={sheetRef}>
         <header className="pm-head">
           <div className="min-w-0">
             <h2 id="pm-title" className="pm-title">

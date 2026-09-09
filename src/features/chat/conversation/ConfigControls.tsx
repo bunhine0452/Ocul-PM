@@ -368,8 +368,11 @@ export function EffortControl({
         <Gauge size={13} />
         <span className="agent-chip-label">{current?.name ?? currentValue}</span>
       </button>
+      {/* 팝오버지 대화상자가 아니다 — role="dialog" 는 포커스 관리를 약속하는데
+          이 메뉴는 바깥 클릭·Esc(useDismiss)로만 닫힌다. 슬라이더를 담은 묶음이라
+          role="group" 이 맞다. */}
       {open ? (
-        <div className="settings-menu effort-menu" role="dialog" aria-label={option.name}>
+        <div className="settings-menu effort-menu" role="group" aria-label={option.name}>
           <div className="settings-group-label">{option.name}</div>
           <div
             className="effort"

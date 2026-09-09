@@ -268,7 +268,13 @@ function VarNode({
     <>
       <div className="code-debug-var" style={{ paddingLeft: 8 + depth * 13 }}>
         {expandable ? (
-          <button type="button" className="code-debug-var-caret" onClick={toggle} aria-expanded={open}>
+          <button
+            type="button"
+            className="code-debug-var-caret"
+            onClick={toggle}
+            aria-expanded={open}
+            aria-label={t(open ? "common.collapse" : "common.expand")}
+          >
             <ChevronRight size={11} className={"code-tree-caret" + (open ? " open" : "")} />
           </button>
         ) : (

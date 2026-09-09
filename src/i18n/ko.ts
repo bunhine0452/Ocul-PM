@@ -153,6 +153,8 @@ export const ko = {
   "common.retry": "다시 시도",
   "common.dismiss": "닫기",
   "common.discard": "버리기",
+  "common.expand": "펼치기",
+  "common.collapse": "접기",
   "term.shellEnable": "셸 통합 켜기",
   "acp.openSettings": "설정 열기",
   "disc.listFailedTitle": "논의 목록을 불러오지 못했어요",

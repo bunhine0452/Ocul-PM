@@ -2,7 +2,8 @@
 //
 // AcpConversation.tsx 에서 갈라 나온 조각이다 — 순수 이동이며 동작 변경은 없다.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { createPortal } from "react-dom";
 import { X } from "@/components/Icons";
 import { useT } from "@/i18n";
@@ -11,6 +12,10 @@ import { type AcpTurnImage } from "../acpTurns";
 /** 크게 보기. Escape·바깥 클릭으로 닫힌다. */
 export function Lightbox({ image, onClose }: { image: AcpTurnImage; onClose: () => void }) {
   const { t } = useT();
+  const frameRef = useRef<HTMLDivElement>(null);
+  // 트랩·초기 포커스·트리거 복원·스크롤락. Esc 는 아래 capture 리스너가 먼저
+  // 먹고 전파를 끊으므로 훅의 Esc 와 겹치지 않는다.
+  useModalBehavior({ open: true, onClose, panelRef: frameRef });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -26,7 +31,7 @@ export function Lightbox({ image, onClose }: { image: AcpTurnImage; onClose: () 
   }, [onClose]);
 
   return createPortal(
-    <div className="lightbox" role="dialog" aria-modal="true" onClick={onClose}>
+    <div className="lightbox" ref={frameRef} role="dialog" aria-modal="true" onClick={onClose}>
       <figure className="lightbox-frame" onClick={(e) => e.stopPropagation()}>
         <img className="lightbox-img" alt={image.name} src={image.src} />
         <figcaption className="lightbox-cap">

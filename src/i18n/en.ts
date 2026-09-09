@@ -156,6 +156,8 @@ export const en: Record<keyof typeof ko, string> = {
   "common.retry": "Retry",
   "common.dismiss": "Dismiss",
   "common.discard": "Discard",
+  "common.expand": "Expand",
+  "common.collapse": "Collapse",
   "term.shellEnable": "Turn on shell integration",
   "acp.openSettings": "Open settings",
   "disc.listFailedTitle": "Could not load the discussion list",

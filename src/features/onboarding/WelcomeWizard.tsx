@@ -21,7 +21,8 @@
  *     누르면 이 창을 포함한 앱 전체가 그 색이 되는 것이 곧 미리보기다
  *     (테마 편집기와 같은 관용구).
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 
 import {
   ArrowLeft,
@@ -105,22 +106,19 @@ export function WelcomeWizard({
     onClose();
   }, [seal, onClose]);
 
-  // 창이 열리면 카드로 초점을 옮긴다 — 뒤에 있는 시작 화면의 검색창이 키를
-  // 먹지 않게. Esc 는 건너뛰기와 같은 출구다 (규칙 2 가 지켜지므로 안전하다).
-  useEffect(() => {
-    cardRef.current?.focus();
-  }, []);
+  // 트랩·트리거 복원·스크롤락 + Esc + 초기 포커스를 공통 훅에 맡긴다 (2026-09-09).
+  // 첫 실행 화면이라 키보드 사용자가 이 제품에서 **처음 만나는 모달**인데,
+  // 그동안 Tab 이 뒤의 시작 화면으로 빠져나갔다.
+  //
+  // `initialFocusRef` 로 카드 자신을 찍는 이유는 그대로다 — 뒤 화면의 검색창이
+  // 키를 먹지 않게. Esc 는 건너뛰기와 같은 출구다 (규칙 2 가 지켜지므로 안전).
+  useModalBehavior({ open: true, onClose: skip, panelRef: cardRef, initialFocusRef: cardRef });
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     // 뒤에 있는 시작 화면은 **document 에 키 리스너를 건다** — 아무 글자나
     // 치면 검색창으로 초점을 옮긴다. 마법사가 떠 있는 동안 그 손이 닿으면
     // 보이지도 않는 입력창이 키를 먹으므로, 여기서 위로 새지 않게 막는다.
     e.stopPropagation();
-    if (e.key === "Escape") {
-      e.preventDefault();
-      skip();
-      return;
-    }
     // Enter 는 "다음" 이다 — 마지막 두 판(project·ready)에는 명시적 선택이
     // 필요하므로 넘기지 않는다.
     if (e.key === "Enter" && (step === "lang" || step === "look")) {

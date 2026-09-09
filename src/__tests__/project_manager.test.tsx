@@ -219,17 +219,23 @@ describe("프로젝트 관리 — 정렬", () => {
 });
 
 describe("프로젝트 관리 — 닫기", () => {
+  // 2026-09-09: Esc 리스너가 window 에서 **패널** 로 내려왔다 (useModalBehavior).
+  // 포커스 트랩이 생겼으므로 사용자의 Esc 는 언제나 패널 안에서 난다 — window 로
+  // 쏘는 건 옛 구현을 흉내 내는 것이지 실제 경로가 아니다.
+  const escOnSheet = (container: HTMLElement) =>
+    fireEvent.keyDown(container.querySelector(".pm-sheet")!, { key: "Escape" });
+
   it("Esc 로 닫는다", () => {
-    const { props } = renderManager();
-    fireEvent.keyDown(window, { key: "Escape" });
+    const { container, props } = renderManager();
+    escOnSheet(container);
     expect(props.onClose).toHaveBeenCalled();
   });
 
   it("확인 단계의 Esc 는 확인만 취소한다 (화면은 남는다)", () => {
-    const { getByLabelText, getByText, props } = renderManager();
+    const { container, getByLabelText, getByText, props } = renderManager();
     fireEvent.click(getByLabelText("aurora-web 선택"));
     fireEvent.click(getByText("선택 제거"));
-    fireEvent.keyDown(window, { key: "Escape" });
+    escOnSheet(container);
     expect(props.onClose).not.toHaveBeenCalled();
     expect(getByText("선택 제거")).toBeInTheDocument();
   });
