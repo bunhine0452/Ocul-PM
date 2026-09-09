@@ -151,6 +151,7 @@ const TESTS = new Set([
   "__tests__/app_dialog.test.tsx",
   "__tests__/automation_egress_conditions.test.tsx",
   "__tests__/automation_tab.test.tsx",
+  "__tests__/blocked.test.ts",
   "__tests__/claude_hooks_settings.test.tsx",
   "__tests__/close_intent.test.ts",
   "__tests__/code_auto_save.test.tsx",

@@ -381,8 +381,8 @@
   appearance: none; -webkit-appearance: none; border: none; background: transparent;
   font-family: var(--font); padding: 0; cursor: pointer;
 }
-.diff-group-title:hover:not(:disabled) { color: var(--accent-text); text-decoration: underline; }
-.diff-group-title:disabled { cursor: default; }
+.diff-group-title:hover:not(:is(:disabled, [aria-disabled="true"])) { color: var(--accent-text); text-decoration: underline; }
+.diff-group-title:is(:disabled, [aria-disabled="true"]) { cursor: default; }
 .diff-group-title.muted { color: var(--text-3); font-weight: var(--fw-strong); }
 /* 접힌 그룹이 스스로 말해 주는 값 — 파일 수, 그리고 검토가 걸쳐 있으면 진행도. */
 .dfl-progress {
@@ -456,8 +456,8 @@
 }
 /* `flex: none` — 세로 flex 안에서 행이 눌려 납작해지지 않게. */
 .entry-filelist .dfile { padding: var(--space-2) var(--space-3); flex: none; }
-.entry-filelist .dfile:disabled { cursor: default; }
-.entry-filelist .dfile:disabled:hover { background: transparent; }
+.entry-filelist .dfile:is(:disabled, [aria-disabled="true"]) { cursor: default; }
+.entry-filelist .dfile:is(:disabled, [aria-disabled="true"]):hover { background: transparent; }
 .entry-filelist .dfile.muted .dstatus { opacity: 0.5; }
 .entry-filelist .dfile-name { display: flex; align-items: baseline; }
 .entry-filelist .dfile-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
@@ -484,8 +484,8 @@
   border: 1px solid var(--sep); border-radius: var(--radius-s);
   background: var(--bg-inset); color: var(--text-2); cursor: pointer;
 }
-.efb-step:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--sep-strong); color: var(--text); }
-.efb-step:disabled { opacity: var(--dim-disabled); cursor: default; }
+.efb-step:hover:not(:is(:disabled, [aria-disabled="true"])) { background: var(--bg-hover); border-color: var(--sep-strong); color: var(--text); }
+.efb-step:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
 .efb-path { display: flex; align-items: baseline; flex: 1; min-width: 0; font-family: var(--mono); font-size: var(--fs-3); }
 .efb-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
 .efb-base { flex: none; color: var(--text); font-weight: var(--fw-strong); }
@@ -661,7 +661,7 @@
   padding: 2px var(--space-2); margin: -2px -6px; border-radius: var(--radius-s); transition: background var(--dur-1) var(--ease-out);
 }
 .plan-title-btn:hover { background: var(--bg-hover); }
-.plan-title-btn:disabled { cursor: default; }
+.plan-title-btn:is(:disabled, [aria-disabled="true"]) { cursor: default; }
 .plan-title-btn .goal-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-title-pen { display: inline-grid; place-items: center; color: var(--text-3); opacity: 0; flex-shrink: 0; transition: opacity var(--dur-1) var(--ease-out); }
 .plan-title-btn:hover .plan-title-pen { opacity: 1; }
@@ -694,7 +694,7 @@
 .pln-textbtn:hover { background: var(--bg-hover); color: var(--text); }
 .pln-textbtn.danger { color: var(--t-bug); }
 .pln-textbtn.danger:hover { background: var(--t-bug-soft); color: var(--t-bug); }
-.pln-textbtn:disabled { opacity: var(--dim-disabled); cursor: default; }
+.pln-textbtn:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
 
 /* --- Search (PR-UI 5) --- */
 /* `.search-hero`(720px 가운데 열) + `.search-big`(46px 카드)은 2026-09-09
@@ -1708,8 +1708,8 @@ mark.s-hit {
   color: var(--text-2); cursor: pointer; text-align: left;
   font-family: var(--font); font-size: var(--fs-3);
 }
-.tbm-item:hover:not(:disabled) { background: var(--bg-hover); color: var(--text); }
-.tbm-item:disabled { opacity: var(--dim-disabled); cursor: default; }
+.tbm-item:hover:not(:is(:disabled, [aria-disabled="true"])) { background: var(--bg-hover); color: var(--text); }
+.tbm-item:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
 .tbm-item.accent { color: var(--accent-text); font-weight: var(--fw-strong); }
 .tbm-item .tbm-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tbm-item .tbm-more { margin-left: auto; opacity: 0.6; }
@@ -2028,9 +2028,9 @@ mark.s-hit {
   border: none; border-radius: var(--radius-s); background: none; cursor: pointer; text-align: left;
   font-family: var(--font); font-size: var(--fs-4); color: var(--text);
 }
-.model-option:hover:not(:disabled) { background: var(--accent-soft); }
+.model-option:hover:not(:is(:disabled, [aria-disabled="true"])) { background: var(--accent-soft); }
 .model-option.active { background: var(--bg-inset); }
-.model-option:disabled { opacity: var(--dim-disabled); cursor: default; }
+.model-option:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
 /* 오프라인 (Phase 7) — 흐리게만 한다. 숨기거나 막지 않는다: 사라지면 설정이
    날아간 줄 알고, 막으면 네트워크가 돌아온 순간 고를 수가 없다. */
 .model-option.unreachable { opacity: 0.6; }
@@ -2078,7 +2078,7 @@ mark.s-hit {
   outline: none;
 }
 .set-input:focus { border-color: var(--accent); box-shadow: var(--ring-soft); }
-.set-input:disabled { opacity: var(--dim-disabled); }
+.set-input:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); }
 
 /* Toggle rendered as a <button> for keyboard a11y (mockup used a div). */
 .toggle {
@@ -2107,7 +2107,7 @@ mark.s-hit {
   font-family: var(--font);
 }
 .set-link:hover { text-decoration: underline; }
-.set-link:disabled { color: var(--text-3); cursor: default; text-decoration: none; }
+.set-link:is(:disabled, [aria-disabled="true"]) { color: var(--text-3); cursor: default; text-decoration: none; }
 
 /* Destructive button (WorkspaceContext reset / key delete) — uses the bug
    trigger token, never a raw red (UI-MASTER-PROMPT §3.1). */

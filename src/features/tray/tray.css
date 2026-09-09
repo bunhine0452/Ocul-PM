@@ -311,8 +311,8 @@ html, body {
   font-size: var(--fs-3);
   cursor: pointer;
 }
-.tp-action:hover:not(:disabled) { background: var(--accent); }
-.tp-action:disabled { opacity: var(--dim-disabled); cursor: default; }
+.tp-action:hover:not(:is(:disabled, [aria-disabled="true"])) { background: var(--accent); }
+.tp-action:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
 
 .tp-dim { color: var(--muted-foreground); font-size: var(--fs-2); }
 

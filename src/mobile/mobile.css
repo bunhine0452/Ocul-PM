@@ -110,7 +110,7 @@
   transition: background var(--dur-1) var(--ease-out);
 }
 .mob-btn-primary:active { background: var(--accent-strong); }
-.mob-btn-primary:disabled { opacity: var(--dim-disabled); }
+.mob-btn-primary:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); }
 .mob-btn-soft {
   background: var(--accent-soft);
   color: var(--accent-text);

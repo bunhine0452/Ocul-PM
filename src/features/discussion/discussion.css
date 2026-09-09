@@ -203,11 +203,11 @@
   padding: var(--space-2) var(--space-4);
   cursor: pointer;
 }
-.disc-btn:hover:not(:disabled) {
+.disc-btn:hover:not(:is(:disabled, [aria-disabled="true"])) {
   background: var(--bg-hover);
   color: var(--text);
 }
-.disc-btn:disabled {
+.disc-btn:is(:disabled, [aria-disabled="true"]) {
   opacity: var(--dim-disabled);
   cursor: default;
 }
@@ -216,7 +216,7 @@
   background: var(--accent-soft);
   border-color: transparent;
 }
-.disc-btn.danger:hover:not(:disabled) {
+.disc-btn.danger:hover:not(:is(:disabled, [aria-disabled="true"])) {
   color: var(--danger);
 }
 

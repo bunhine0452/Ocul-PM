@@ -268,13 +268,13 @@
 .wz-bigcard b { font-size: var(--fs-4); font-weight: var(--fw-bold); color: var(--text); }
 .wz-bigcard span { font-size: var(--fs-3); line-height: var(--lh-body); color: var(--text-2); }
 
-.wz-bigcard:hover:not(:disabled) {
+.wz-bigcard:hover:not(:is(:disabled, [aria-disabled="true"])) {
   border-color: var(--accent);
   box-shadow: var(--shadow-raise);
   transform: translateY(-1px);
 }
 
-.wz-bigcard:disabled { opacity: var(--dim-disabled); cursor: progress; }
+.wz-bigcard:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: progress; }
 .wz-bigcard:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
 
 /* ── 마무리 목록 ────────────────────────────────────────────────────── */

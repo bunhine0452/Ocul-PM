@@ -230,11 +230,11 @@
   border: 1px solid var(--sep);
   cursor: pointer;
 }
-.sk-textbtn:hover:not(:disabled) {
+.sk-textbtn:hover:not(:is(:disabled, [aria-disabled="true"])) {
   background: var(--bg-hover);
   color: var(--text);
 }
-.sk-textbtn:disabled {
+.sk-textbtn:is(:disabled, [aria-disabled="true"]) {
   opacity: var(--dim-disabled);
   cursor: default;
 }

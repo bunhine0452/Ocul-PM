@@ -45,6 +45,7 @@ import { TodayGitGraph } from "./TodayGitGraph";
 import { useTodayBrief } from "./useTodayBrief";
 import { useTodayMonitor } from "./useTodayMonitor";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 
 // Final UI Update (ui_v2) — Today 6-block dashboard (02-screen-specs §1).
 // Pure presenter over useTodayBrief (frontend aggregation, no new backend
@@ -162,11 +163,22 @@ export function TodayScreenV2({
           <span style={{ color: "var(--text-3)", flex: 1, textAlign: "left" }}>{t("today.search.placeholder")}</span>
           <span className="kbd">⌘K</span>
         </button>
+        {/* `title` 은 **동작 설명**이고 막힌 이유는 다른 문장이다 — 예전엔 못
+            누르는 버튼이 "무엇을 하는 버튼인지" 만 말하고 왜 못 누르는지는
+            말하지 않았다. 이유는 `blocked` 가 나른다 (lib/blocked.ts).
+            생성 중(`standupBusy`)은 스스로 설명되므로 `disabled` 그대로. */}
         <button
           className="btn"
           onClick={() => void copyStandup()}
-          disabled={standupBusy || !oculpmReady || !workday}
-          title={t("today.standup.title")}
+          {...blocked(
+            !oculpmReady
+              ? t("today.standup.blockedNoOculpm")
+              : !workday
+                ? t("today.standup.blockedNoWorkday")
+                : null,
+            t("today.standup.title"),
+          )}
+          disabled={standupBusy}
         >
           <Clipboard size={15} /> {standupBusy ? t("today.standup.busy") : t("today.standup.copy")}
         </button>

@@ -995,6 +995,8 @@ export const en: Record<keyof typeof ko, string> = {
   "today.standup.title": "Build a standup from yesterday's and today's entries and copy it",
   "today.standup.busy": "Building…",
   "today.standup.copy": "Copy standup",
+  "today.standup.blockedNoOculpm": "This project's work journal isn't ready yet",
+  "today.standup.blockedNoWorkday": "No work recorded yesterday or today, so there's nothing to build",
   "today.allEntries": "All entries",
   "today.headlinePrefix": "Recorded",
   "today.headlineSuffix": "pieces of work today",

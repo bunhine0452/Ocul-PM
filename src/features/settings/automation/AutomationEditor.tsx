@@ -30,6 +30,7 @@ import {
   slugify,
   switchKind,
 } from "./automationModel";
+import { blocked } from "@/lib/blocked";
 import { EgressBadge } from "./EgressBadge";
 import { AutomationTroubleshooting } from "./AutomationTroubleshooting";
 import { NotHonoredNotice } from "../plugins/NotHonoredNotice";
@@ -383,7 +384,15 @@ export function AutomationEditor({
       {problem && <p className="text-fs-2 text-destructive">{t(problem as never)}</p>}
 
       <div className="flex gap-2 pt-1">
-        <button type="submit" className="btn sm" disabled={!!problem || busy}>
+        {/* 막힌 이유는 `disabled` 가 아니라 `blocked` 가 나른다 — `disabled` 는
+            포커스도 마우스도 안 받아 이유가 도달하지 않는다 (lib/blocked.ts).
+            진행 중(`busy`)은 스스로 설명되므로 그대로 `disabled` 다. */}
+        <button
+          type="submit"
+          className="btn sm"
+          {...blocked(problem ? t(problem as never) : null)}
+          disabled={busy}
+        >
           {t("common.save")}
         </button>
         <button type="button" className="btn ghost sm" onClick={onCancel} disabled={busy}>

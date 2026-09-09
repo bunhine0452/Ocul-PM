@@ -24,7 +24,7 @@
 }
 .btn:hover { background: var(--bg-hover); border-color: var(--sep-strong); }
 .btn:active { transform: translateY(0.5px) scale(0.98); }
-.btn:disabled { opacity: var(--dim-disabled); cursor: default; }
+.btn:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
 /* primary — 액센트 단색. 위쪽 광택·안쪽 하이라이트는 2026-09-02 에 뺐다
    (nav-item.active 와 같은 이유). 글자색은 프리셋(고대비 등)을 따라 --text-on-accent. */
 .btn.primary {
@@ -66,7 +66,7 @@
 .iconbtn:hover, .pln-iconbtn:hover, .pm-iconbtn:hover, .home-iconbtn:hover,
 .side-collapse-btn:hover, .code-tool-btn:hover { background: var(--bg-hover); color: var(--text); }
 .iconbtn:active { transform: scale(0.92); }
-.iconbtn:disabled, .pln-iconbtn:disabled, .code-tool-btn:disabled {
+.iconbtn:is(:disabled, [aria-disabled="true"]), .pln-iconbtn:is(:disabled, [aria-disabled="true"]), .code-tool-btn:is(:disabled, [aria-disabled="true"]) {
   opacity: var(--dim-disabled); cursor: default; background: transparent; color: var(--text-3);
 }
 /* 위험 동작(삭제) — 어느 화면이든 같은 붉은 hover. */

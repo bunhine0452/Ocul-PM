@@ -140,7 +140,7 @@
   outline: var(--focus-w) solid var(--focus-color);
   outline-offset: var(--focus-offset);
 }
-.pm-btn:disabled {
+.pm-btn:is(:disabled, [aria-disabled="true"]) {
   opacity: var(--dim-disabled);
   cursor: default;
 }

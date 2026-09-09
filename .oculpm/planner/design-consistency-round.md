@@ -25,7 +25,7 @@ owner: claude-code
 - [x] 모달 4곳에 `useModalBehavior` — 트랩·복원 없음: WelcomeWizard.tsx:167(첫 실행 화면) · ProjectManager.tsx:224 · Attachments.tsx:29 · AcpUsageMeter.tsx:234. ConfigControls.tsx:372 는 팝오버 메뉴에 role="dialog" 오용 {#fix-modal-trap}
 - [x] `Toaster.tsx:20` 라이브 리전 상시 마운트 — 지금은 `if (toasts.length === 0) return null` 이라 리전이 내용과 동시에 삽입돼 `role="status"` 가 자주 침묵한다. 같은 파일의 `z-[1000]` 도 `--z-*` 램프로 {#fix-live-region}
 - [x] 아이콘 전용 버튼 6곳에 접근명 — TrayPopover.tsx:373,473,573(메뉴바 팝오버의 유일한 "앱 열기") · WelcomeWizard.tsx:343 · GreenfieldWizard.tsx:753 · CodeDebugPanel.tsx:271 {#fix-aria-icons}
-- [!] 버튼 35개가 왜 비활성인지 말하지 않는다 — 유효성으로 막힌 51개 중 title·aria-describedby 없는 것 35개. AutomationEditor.tsx:386 은 `problem` 이라는 이유 문자열을 손에 들고도 안 붙인다 {#fix-disabled-reason}
+- [~] 버튼 35개가 왜 비활성인지 말하지 않는다 — 유효성으로 막힌 51개 중 title·aria-describedby 없는 것 35개. AutomationEditor.tsx:386 은 `problem` 이라는 이유 문자열을 손에 들고도 안 붙인다 {#fix-disabled-reason}
 
 ## 같은 것을 하나로 — "여러 손" 신호 {#unify}
 - [x] 설정 진입점 단일화 — ⌘, 는 `ProjectTab.tsx:93` 을 거쳐 `.scrim` 모달, 사이드바는 `ShellV2.tsx:343` 전체화면, 안내 버튼은 `settingsNav.ts` 로 전체화면. 탭 내비도 가로 스트립(SettingsPanel.tsx:164)과 세로 192px 열(:185)로 갈린다. 프로젝트 창은 화면으로 통일하고 오버레이는 런처 탭 전용으로 {#unify-settings}
@@ -112,4 +112,5 @@ owner: claude-code
 | 2026-09-10T00:40:48+09:00 | #layout-container-query | claude-code | ☐→x | .oculpm/journal/20260910/Refactors/0040_refactor_screen-container-queries.md | @media 2곳→@container screen(640/460) + stat-row·grid-2 접기. 컨테이너는 .content-main 이 아니라 .page — containment 가 안쪽 fixed 기준을 바꿔서 포털 안 한 넷(term 메뉴 3·disc 스크림)이 깨진다. 정정: .entry-row2 는 모달이라 닿지 않고 .diff-screen 접기는 기능. 게이트 규칙 18 |
 | 2026-09-10T00:49:37+09:00 | #ramp-height | claude-code | ☐→x | .oculpm/journal/20260910/Refactors/0049_refactor_control-height-ramp.md | --ctl-1..5=18·22·26·30·34. 구간 안 16종은 2px 어긋난 두 벌(홀58/짝48)이었고 프리미티브가 전부 홀수만 써서 그쪽이 램프. 44곳 수렴(최근접·동점은 낮은 쪽), 계산인 자리 12곳은 design-ignore+사유. 프리미티브 9곳이 토큰 착용. 게이트 규칙 19. --iconbtn-size 네 단은 unify-chips 몫 |
 | 2026-09-10T00:55:23+09:00 | #ramp-space | claude-code | ~→x | .oculpm/journal/20260910/Refactors/0055_refactor_space-ramp-convergence.md | 사용자 결정=수렴. 5→6·7→8·9→10 으로 267곳을 var(--space-N) 으로. 올림인 이유=여백은 중첩 누적(높이는 안 되므로 내림). 계산인 자리 11곳 제외 — .code-tree-row 는 .code-tree-guide 와 규칙을 넘어 결합돼 자동 신호로 안 잡혔다. 래칫 480→202. 남은 152(11·13·14·17·18·21·22)는 결정 대상 밖 |
+| 2026-09-10T01:04:58+09:00 | #fix-disabled-reason | claude-code | !→~ | .oculpm/journal/20260910/Features_to_add/0104_feature_blocked-states-its-reason.md | 사용자 결정=aria-disabled+포커스 유지. lib/blocked.ts 신설 + CSS :disabled 58곳을 :is(:disabled,[aria-disabled]) 로 + 2곳 적용(AutomationEditor·Today 스탠드업). 실측은 35가 아니라 131곳(busy 제외) — 129 를 래칫으로 동결. 나머지는 점진 적용이라 항목 열어 둠 |
 <!-- oculpm:plan-log end -->

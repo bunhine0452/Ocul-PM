@@ -992,6 +992,10 @@ export const ko = {
   "today.standup.title": "어제~오늘 일지로 스탠드업 공유문을 만들어 클립보드에 복사",
   "today.standup.busy": "생성 중…",
   "today.standup.copy": "스탠드업 복사",
+  // 왜 못 누르는지 — 회색 버튼 앞에서 물을 곳이 없으면 그건 고장으로 읽힌다
+  // ({#fix-disabled-reason}). 동작 설명(`title`)과 막힌 이유는 다른 문장이다.
+  "today.standup.blockedNoOculpm": "이 프로젝트에 작업 일지가 아직 준비되지 않았어요",
+  "today.standup.blockedNoWorkday": "어제~오늘 기록된 작업이 없어 만들 것이 없어요",
   "today.allEntries": "전체 일지",
   // 강조된 카운트가 문장 가운데라 앞/뒤로 나눈다 (§4.2 — 사전에 JSX 없음).
   "today.headlinePrefix": "오늘",

@@ -68,10 +68,10 @@
   color: var(--text-2);
   cursor: pointer;
 }
-.trace-row:disabled {
+.trace-row:is(:disabled, [aria-disabled="true"]) {
   cursor: default;
 }
-.trace-row:not(:disabled):hover {
+.trace-row:not(:is(:disabled, [aria-disabled="true"])):hover {
   background: var(--bg-hover);
 }
 /* 화살표는 **오른쪽 끝에 열을 이룬다.** 제목 길이를 따라 들쭉날쭉하면 스무
@@ -1148,12 +1148,12 @@
   font-weight: var(--fw-strong);
   color: var(--text);
 }
-.acp-panel-new:hover:not(:disabled) {
+.acp-panel-new:hover:not(:is(:disabled, [aria-disabled="true"])) {
   background: var(--accent-soft);
   color: var(--accent-text);
   border-color: transparent;
 }
-.acp-panel-new:disabled {
+.acp-panel-new:is(:disabled, [aria-disabled="true"]) {
   opacity: var(--dim-disabled);
   cursor: default;
 }
@@ -1288,11 +1288,11 @@
     background-color var(--dur-1) var(--ease-out),
     color var(--dur-1) var(--ease-out);
 }
-.usage-btn:hover:not(:disabled) {
+.usage-btn:hover:not(:is(:disabled, [aria-disabled="true"])) {
   background: var(--bg-inset);
   color: var(--text-2);
 }
-.usage-btn:disabled {
+.usage-btn:is(:disabled, [aria-disabled="true"]) {
   opacity: var(--dim-disabled);
   cursor: default;
 }
@@ -1399,7 +1399,7 @@
     background-color var(--dur-1) var(--ease-out),
     color var(--dur-1) var(--ease-out);
 }
-.usage-refresh:hover:not(:disabled) {
+.usage-refresh:hover:not(:is(:disabled, [aria-disabled="true"])) {
   background: var(--bg-inset);
   color: var(--text);
 }
@@ -1709,11 +1709,11 @@
   cursor: pointer;
   transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
-.acp-tab-new:hover:not(:disabled) {
+.acp-tab-new:hover:not(:is(:disabled, [aria-disabled="true"])) {
   background: var(--bg-hover);
   color: var(--text);
 }
-.acp-tab-new:disabled {
+.acp-tab-new:is(:disabled, [aria-disabled="true"]) {
   opacity: var(--dim-disabled);
   cursor: default;
 }

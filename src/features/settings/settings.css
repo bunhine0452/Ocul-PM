@@ -254,7 +254,7 @@
   color: var(--accent-text);
   font-weight: var(--fw-strong);
 }
-.cfg-choice:disabled { opacity: var(--dim-disabled); cursor: default; }
+.cfg-choice:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
 /* 아이콘이 라벨 위에 서는 갈래 — 테마 모드처럼 그림이 설명의 절반인 자리. */
 .cfg-choice.stack { flex-direction: column; gap: var(--space-2); padding: var(--space-4) var(--space-3); }
 /* 타일 아래 붙는 부제 — "지금은 못 닿음" 같은 상태 한 줄. */
@@ -286,8 +286,8 @@
   transition: background-color var(--dur-1) var(--ease-out);
 }
 .cfg-toggle:hover { background: var(--bg-hover); }
-.cfg-toggle:disabled { opacity: var(--dim-disabled); cursor: default; }
-.cfg-toggle:disabled:hover { background: transparent; }
+.cfg-toggle:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
+.cfg-toggle:is(:disabled, [aria-disabled="true"]):hover { background: transparent; }
 .cfg-toggle-text {
   flex: 1;
   min-width: 0;

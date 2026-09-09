@@ -865,7 +865,7 @@
   outline-offset: var(--focus-offset-inset);
 }
 /* 프로젝트가 워크스페이스에서 사라진 일지 — 열 곳이 없다. */
-.hf-row:disabled {
+.hf-row:is(:disabled, [aria-disabled="true"]) {
   cursor: default;
   opacity: var(--dim-disabled);
 }
