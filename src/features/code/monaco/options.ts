@@ -90,6 +90,28 @@ export function baseEditorOptions(
     multiCursorModifier: "alt",
     multiCursorMergeOverlapping: true,
 
+    // ── 기여는 실려 있는데 옵션이 꺼져 있던 것 ──
+    // `setup.ts` 는 `linkedEditing` 기여를 싣지만 Monaco 기본값이 false 라
+    // **죽은 임포트**였다 — 이 파일 머리가 경고하는 바로 그 모양이 이미 한 번
+    // 일어나 있었던 셈이다. 켜면 여는 태그를 고칠 때 닫는 태그가 같이 바뀐다
+    // (JSX·HTML·XML). 서버가 `linkedEditingRangeProvider` 를 안 주면 조용히
+    // 아무 일도 안 하므로 켜 두는 쪽이 손해가 없다.
+    linkedEditing: true,
+
+    // 커서 위아래로 최소 세 줄은 남긴다 (vim 의 scrolloff). 0 이면 화면 맨
+    // 아랫줄에서 타이핑하게 되고, 다음 줄이 안 보이니 매번 손으로 스크롤해야
+    // 한다 — 커서를 따라다니는 것은 편집기의 일이다.
+    cursorSurroundingLines: 3,
+
+    // 탭으로 들여쓴 파일에서 ←/→ 가 **탭 한 칸**씩 움직인다. 없으면 탭 하나가
+    // 커서 한 번에 지나가 버려, 들여쓰기 안에서 자리를 잡을 수가 없다.
+    stickyTabStops: true,
+
+    // 고른 완성 항목이 커서 자리에 미리 들어가 보이고(고스트), 목록 아래에
+    // ⏎/⇥ 안내가 선다. 무엇이 들어갈지 **넣기 전에** 보이는 것이 자동완성의
+    // 절반이다.
+    suggest: { preview: true, showStatusBar: true },
+
     // 마지막 줄 아래 여백 — 파일 끝을 화면 가운데로 올려 읽을 수 있게.
     padding: { bottom: 300 },
     // 위젯(호버·완성·시그니처)을 body 아래로 — 좁은 분할에서 잘리지 않는다.

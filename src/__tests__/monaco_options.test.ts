@@ -49,6 +49,24 @@ describe("기본기 — 실측으로 0 이던 것들", () => {
   });
 });
 
+describe("기여는 실렸는데 옵션이 꺼져 있던 것 (2026-09-09)", () => {
+  it("태그 동시 편집 — `setup.ts` 가 싣는 기여가 옵션 없이는 죽은 임포트다", () => {
+    expect(opts().linkedEditing).toBe(true);
+  });
+
+  it("커서 위아래 여유 줄 (scrolloff) — 맨 아랫줄에서 다음 줄이 보인다", () => {
+    expect(opts().cursorSurroundingLines).toBeGreaterThanOrEqual(3);
+  });
+
+  it("탭 들여쓰기에서 ←/→ 가 탭 한 칸씩 움직인다", () => {
+    expect(opts().stickyTabStops).toBe(true);
+  });
+
+  it("자동완성은 넣기 전에 보여 준다 — 고스트 미리보기 + 상태줄", () => {
+    expect(opts().suggest).toEqual({ preview: true, showStatusBar: true });
+  });
+});
+
 describe("다중 커서 · 열 선택", () => {
   it("⌥ 가 커서를 더한다 (⌥⇧드래그가 열 선택이 되는 것도 이 값에서 온다)", () => {
     expect(opts().multiCursorModifier).toBe("alt");
