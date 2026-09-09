@@ -33,7 +33,7 @@ owner: claude-code
 - [ ] 문서형 드릴다운 통일 — 일지는 전체화면(목록 사라짐, ArrowLeft size=18) · 스킬은 전체화면인데 툴바 자체가 `.sk-head` 로 바뀌어 크롬이 52→60px(ArrowLeft size=15) · 논의/변경은 2-pane. 논의 규격(2-pane)으로 접거나, 최소한 `.sk-head` 를 `<Toolbar>` 로 {#unify-drilldown}
 - [ ] AI 3면 파리티 — `AcpToolbar.tsx:50` 만 title 자리에 세션 탭을 넣어 16화면 중 제목 없는 유일한 둘이다. 지난 대화가 ACP 는 사이드 패널·AI 패널은 모달이고, 컴포저는 `AiPanelScreenV2.tsx:840-1010` 이 170줄을 다시 짰다(공유 Composer.tsx 의 첨부·슬래시 없이) {#unify-chat}
 - [x] 모달 셸 두 벌 — `AppDialog` 17곳(z-modal 100, useModalBehavior) vs `.set-modal` 2곳(z-popover 60, 자체 keyframes). 층이 달라 `.set-modal` 이 AppDialog 밑으로 들어간다. ConversationHistoryModal·ManualEntryModalV2 를 AppDialog 로 {#unify-modal-shell}
-- [ ] 검색 입력 6종을 `.search-box` 2단으로 — 30px/radius-s · 46px/radius-l+그림자(검색 히어로) · 26px/pill(코드 맵) · 24px · 28px · 시작 탭. 공유 프리미티브조차 호출부가 인라인 height 로 덮는다(SettingsSearch.tsx:41 등) {#unify-search-input}
+- [~] 검색 입력 6종을 `.search-box` 2단으로 — 30px/radius-s · 46px/radius-l+그림자(검색 히어로) · 26px/pill(코드 맵) · 24px · 28px · 시작 탭. 공유 프리미티브조차 호출부가 인라인 height 로 덮는다(SettingsSearch.tsx:41 등) {#unify-search-input}
 - [ ] 툴바 버튼 어휘를 4개로 — `btn`/`btn sm`/`btn primary`/`disc-btn primary`/`code-tool-btn`/`gr-chip`/`sk-textbtn` 이 같은 52px 바에 섞이고 SkillsScreenV2.tsx:309-330 은 한 줄에 4종. "선택됨" 표현도 4가지(.seg-item[aria-selected] 는 3곳뿐, DiffScreenV2.tsx:130-133 은 JSX 인라인 배경색 계산) {#unify-toolbar-vocab}
 - [ ] 칩 11벌을 2단으로 — 높이 18·22·23·25·28px, 곡률 xs·s·m·pill 이 섞여 한 줄에 서면 광학 중심이 어긋난다(.file-pill 25 · .chip 22 · .scope-chip 28). 아이콘 버튼 `--iconbtn-size` 도 26/28/30/32 네 단 {#unify-chips}
 
@@ -63,7 +63,7 @@ owner: claude-code
 - [ ] `EmptyState` 밀도 계약 복구 — plain/rich 두 단으로 선언했는데 호출부 20곳이 인라인 padding 으로 덮는다(16 · "24px 8px" · "16px 20px" · "18px 16px" · "24px 16px" · "6px 2px" · "6px 0 0"). `compact` 한 단을 더해 흡수 {#layout-empty-density}
 - [ ] 검색 화면 툴바 — `SearchScreenV2.tsx:266-270` 은 액션이 0개이고 sub 와 유일한 칩이 같은 문자열이라 한 바에 같은 문장이 두 번 뜬다. 주 컨트롤은 본문의 46px 히어로 카드(웹 랜딩 관용구)에 있다. 일지처럼 툴바 30px 필드로 올린다 {#layout-search-toolbar}
 - [ ] 화면 진입 애니메이션 — `.page fade-in` 8곳 vs 맨 `.page` 8곳(skills·code·discussion) {#layout-page-enter}
-- [ ] 잡동사니 — `navRegistry.ts:117` 주석이 「에이전트」를 ⌘0 이라 하지만 index 8 → ⌘9 다(주석 드리프트). 사이드바 첫 그룹만 라벨이 없다(Sidebar.tsx:410/421/450 은 「도구」·「AI」·「참고」). `SkillShopTab.tsx:162`·`PluginDocsTab.tsx:62` 의 <Toolbar> 는 항상 embedded 로만 마운트돼 렌더되지 않는 죽은 코드 {#layout-misc}
+- [~] 잡동사니 — `navRegistry.ts:117` 주석이 「에이전트」를 ⌘0 이라 하지만 index 8 → ⌘9 다(주석 드리프트). 사이드바 첫 그룹만 라벨이 없다(Sidebar.tsx:410/421/450 은 「도구」·「AI」·「참고」). `SkillShopTab.tsx:162`·`PluginDocsTab.tsx:62` 의 <Toolbar> 는 항상 embedded 로만 마운트돼 렌더되지 않는 죽은 코드 {#layout-misc}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -96,4 +96,7 @@ owner: claude-code
 | 2026-09-09T21:11:02+09:00 | #ramp-dim | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2110_refactor_leading-and-dim-ramps.md | --dim-disabled 0.45 로 24곳. .iconbtn:disabled 의 color:--text-3 는 그대로 뒀다 — 흐림과 색을 동시에 바꾸면 눈으로 확인 없이 두 변수를 움직이는 것. --dim-quiet 은 즉시 소비처가 없어 만들지 않았다 |
 | 2026-09-09T21:38:26+09:00 | #ramp-pulse | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2138_refactor_loop-animation-periods.md | 2벌이 아니라 3벌이 맞았다(회전·맥동·느린 호흡). 25곳 치환, 예외 4(브랜드 로더 합성모션 3·캐럿 1). nav-attention-blink 는 오탐 — 이미 opacity 0.45 맥동이고 이름만 blink 였다(이름을 고침) |
 | 2026-09-09T21:41:45+09:00 | #ramp-space | claude-code | ☐→~ | .oculpm/journal/20260909/Refactors/2141_refactor_space-ramp-adoption.md | 램프에 딱 맞는 892곳 완료(시각 변화 0, 채택 129→850). 남은 480곳은 램프 밖(5px 108·7px 88·9px 88 — 저단 2px 격자 사이에 낀 값)이라 옮기면 1~2px 씩 움직인다. 5·7·9 를 램프에 더할지 수렴시킬지는 실기기 확인이 필요 → 래칫 480 으로 동결 |
+| 2026-09-09T22:02:38+09:00 | #unify-search-input | claude-code | ☐→~ | .oculpm/journal/20260909/Refactors/2202_refactor_settings-screen-redesign.md | 6종 중 1종 해소 — 설정 재설계로 SettingsSearch.tsx:41 의 인라인 height 가 사라졌다(레일 머리 `.cfg-search`). 남은 5종은 그대로 |
+| 2026-09-09T22:08:02+09:00 | #layout-misc | claude-code | ☐→~ | .oculpm/journal/20260909/Refactors/2207_refactor_fs-ramp-caps-icon-stroke-sidebar.md | 셋 중 하나 완료 — 사이드바 첫 그룹에 sidebar.mainSection「작업」. 남은 둘: navRegistry 주석 드리프트, 죽은 Toolbar 2곳 |
+| 2026-09-09T22:08:08+09:00 | #fix-nav-ia | claude-code | ~→~ | .oculpm/journal/20260909/Refactors/2207_refactor_fs-ramp-caps-icon-stroke-sidebar.md | 거짓 fallback 3곳만 제거(var(--fs-2,12px) → var(--fs-3)). shell.css 로의 흡수는 병렬 세션 몫으로 남김 |
 <!-- oculpm:plan-log end -->
