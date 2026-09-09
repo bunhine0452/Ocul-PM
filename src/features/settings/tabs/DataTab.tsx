@@ -134,7 +134,7 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
             {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
             {t("settings.notion.connect")}
           </Button>
-          <span className="text-fs-2 text-muted-foreground">
+          <span className="text-fs-3 text-muted-foreground">
             {t("settings.notion.connectHint")}
           </span>
         </div>
@@ -311,6 +311,7 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
       <Section
         title={t("settings.danger.title")}
         description={t("settings.danger.desc")}
+        tone="danger"
       >
         <Button
           variant="outline"

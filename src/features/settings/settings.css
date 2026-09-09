@@ -1,0 +1,455 @@
+/* ============================================================
+   settings.css — 설정 화면의 디자인 시스템 (2026-09-09 재설계).
+
+   왜 새로 쓰는가: 설정은 탭 12개 · 7,900줄 · 항목 100개가 넘는데 크롬은
+   **가로 탭 스트립 하나**였다. 좁은 창에서는 그 스트립이 가로 스크롤로
+   도망가서 열두 탭 중 대여섯만 보였고, 보이는 여섯도 그룹이 없어 「그래프」와
+   「모바일」이 같은 위계로 나란히 섰다. 탭을 열면 `Section` 이 hairline 으로만
+   갈린 채 세로로 흐르고, `Field` 는 라벨을 컨트롤 **위**에 얹어 항목 하나가
+   두 줄을 먹었다 — 항목 열두 개짜리 탭이 화면 두 개 반이 됐다.
+
+   재설계의 세 결정:
+
+   1. **그룹 있는 세로 레일.** 열둘을 다섯 묶음(일반·AI·기록·코드·시스템)으로
+      접는다. 2026-07-30 에 세로 열을 지웠던 사유는 "왼쪽에 이미 앱 사이드바가
+      있어 사이드바 속 사이드바가 된다" 였다. 그 지적은 **채워진 패널**에 대해
+      옳다 — 그래서 이 레일은 배경이 없고(캔버스 그대로), 활성도 액센트 채움이
+      아니라 들어간 면(--bg-inset)이다. 사이드바는 채워진 물체, 레일은 목차다.
+   2. **행(row)으로 눕힌 필드.** 라벨·설명은 왼쪽, 컨트롤은 오른쪽. 세로 길이가
+      절반이 되고 컨트롤이 한 열에 정렬돼 눈이 훑을 축이 생긴다. 여러 줄 입력만
+      예외로 전폭을 쓴다 (`:has(textarea)` — 부르는 쪽이 플래그를 안 넘겨도 된다).
+   3. **섹션은 카드.** 경계가 hairline 하나면 어디까지가 한 묶음인지 안 보인다.
+      카드 머리에 제목·설명, 몸통에 행들. 몸통의 **모든 직계 자식**이 행이 되므로
+      (`.cfg-body > *`) 탭들이 넘기는 임의의 div 도 여백·구분선을 그대로 받는다.
+
+   `.cfg-` 접두. 이 파일은 SettingsPanel.tsx 가 import 해서 설정 청크에 실린다 —
+   런처 모달(styles/index.css 없음)에서도 같은 화면이 나오려면 자립해야 한다.
+   ============================================================ */
+
+/* ── 레이아웃 ───────────────────────────────────────────────────────────── */
+.cfg {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  container-type: inline-size;
+  container-name: cfg;
+}
+.cfg-rail {
+  position: sticky;
+  top: var(--space-1);
+  width: 206px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding-bottom: var(--space-6);
+}
+.cfg-main {
+  flex: 1;
+  min-width: 0;
+  max-width: 780px;
+  padding-bottom: var(--space-8);
+}
+
+/* ── 레일: 검색 + 그룹 목록 ─────────────────────────────────────────────── */
+.cfg-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 32px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--sep);
+  background: var(--bg-inset);
+  color: var(--text-3);
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out);
+}
+.cfg-search:focus-within {
+  background: var(--bg-card);
+  border-color: var(--accent);
+  box-shadow: var(--ring-soft);
+}
+.cfg-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font);
+  font-size: var(--fs-4);
+  color: var(--text);
+}
+.cfg-search input::-webkit-search-cancel-button { display: none; }
+.cfg-search-clear {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-2xs);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.cfg-search-clear:hover { background: var(--bg-hover); color: var(--text); }
+
+.cfg-nav { display: flex; flex-direction: column; gap: var(--space-5); }
+.cfg-group { display: flex; flex-direction: column; gap: 1px; }
+.cfg-group-label {
+  padding: 0 var(--space-4) var(--space-2);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--caps-track-lg);
+  text-transform: var(--caps-transform);
+  color: var(--text-3);
+}
+.cfg-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  height: 30px;
+  padding: 0 var(--space-4);
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-2);
+  font-family: var(--font);
+  font-size: var(--fs-4);
+  font-weight: var(--fw-label);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.cfg-item > svg { flex: none; color: var(--text-3); transition: color var(--dur-1) var(--ease-out); }
+.cfg-item > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cfg-item:hover { background: var(--bg-hover); color: var(--text); }
+.cfg-item:hover > svg { color: var(--text-2); }
+/* 활성 — 액센트 **채움이 아니다**. 사이드바의 활성(단색 액센트)과 같은 문법을
+   쓰면 두 물체가 같은 층위로 읽힌다. 여기는 들어간 면 + 액센트 아이콘. */
+.cfg-item[aria-current="page"] {
+  background: var(--bg-inset);
+  color: var(--text);
+  font-weight: var(--fw-strong);
+}
+.cfg-item[aria-current="page"] > svg { color: var(--accent); }
+
+/* ── 본문 머리 ─────────────────────────────────────────────────────────── */
+.cfg-head { margin-bottom: var(--space-6); }
+.cfg-head h2 {
+  margin: 0;
+  font-size: var(--fs-8);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-snug);
+  line-height: var(--lh-tight);
+  color: var(--text);
+}
+.cfg-head p {
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-4);
+  line-height: var(--lh-body);
+  color: var(--text-2);
+  max-width: 62ch;
+}
+
+/* ── 섹션 카드 ─────────────────────────────────────────────────────────── */
+.cfg-sections { display: flex; flex-direction: column; gap: var(--space-6); }
+.cfg-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-l);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.cfg-card-head {
+  padding: var(--space-5) var(--space-6) var(--space-4);
+  border-bottom: 1px solid var(--sep);
+}
+.cfg-card-head h3 {
+  margin: 0;
+  font-size: var(--fs-5);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-tight);
+  line-height: var(--lh-tight);
+  color: var(--text);
+}
+.cfg-card-head p {
+  margin: 3px 0 0;
+  font-size: var(--fs-3);
+  line-height: var(--lh-snug);
+  color: var(--text-2);
+  max-width: 68ch;
+}
+/* 몸통의 직계 자식은 전부 행이다 — 탭이 넘기는 임의의 div 도 같은 여백·구분선을
+   받는다. 이게 없으면 카드 가장자리에 붙은 컨트롤이 생긴다. */
+.cfg-body > * { padding: var(--space-5) var(--space-6); }
+.cfg-body > * + * { border-top: 1px solid var(--sep); }
+
+/* 위험 구역 — 되돌릴 수 없는 것들. 붉은 테두리 한 겹이면 충분하다. */
+.cfg-card.danger { border-color: color-mix(in srgb, var(--danger) 38%, transparent); }
+.cfg-card.danger .cfg-card-head { border-bottom-color: color-mix(in srgb, var(--danger) 22%, transparent); }
+.cfg-card.danger .cfg-card-head h3 { color: var(--danger-text); }
+
+/* ── 필드 행 ───────────────────────────────────────────────────────────── */
+.cfg-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+  align-items: center;
+  gap: var(--space-3) var(--space-6);
+}
+.cfg-field-label {
+  min-width: 0;
+  font-size: var(--fs-4);
+  font-weight: var(--fw-label);
+  line-height: var(--lh-snug);
+  color: var(--text);
+}
+.cfg-field-hint {
+  margin: 2px 0 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+  color: var(--text-2);
+  max-width: 52ch;
+}
+.cfg-field-ctl { min-width: 0; justify-self: stretch; }
+.cfg-field-ctl > input,
+.cfg-field-ctl > select,
+.cfg-field-ctl > textarea { width: 100%; }
+/* 여러 줄 입력·긴 컨트롤은 오른쪽 320px 로는 못 산다. 부르는 쪽이 플래그를
+   넘기지 않아도 되도록 내용으로 판정한다. */
+.cfg-field:has(textarea),
+.cfg-field.stack {
+  grid-template-columns: minmax(0, 1fr);
+}
+.cfg-field:has(textarea) .cfg-field-ctl,
+.cfg-field.stack .cfg-field-ctl { justify-self: stretch; }
+
+/* ── 선택 타일 — '여럿 중 하나' ───────────────────────────────────────────
+   언어 3지선다 · 밝게/어둡게/OS · 제공자 넷이 저마다 shadcn 방언
+   (`bg-primary/10 border-primary text-primary` + rounded-xl)으로 그려져 있었다.
+   그게 설정 화면을 열면 **가장 먼저 보이는 세 물건** 이라, 이 앱을 처음 보는
+   눈에는 여기부터 다른 제품이 얹힌 것처럼 읽혔다. `.subnav` 주석이 같은
+   방언을 두고 지적한 것과 같은 문제다.
+
+   `.seg` 와의 차이: 세그먼트는 **한 물체 안의 칸**(작고, 붙어 있고, 즉시
+   전환)이고, 이건 **떨어져 선 타일**(아이콘·부제를 품고, 골랐다는 사실이
+   한눈에 보여야 하는 것)이다. 둘을 하나로 접지 않은 이유가 그 크기 차이다. */
+.cfg-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.cfg-choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-s);
+  background: var(--bg-card);
+  color: var(--text-2);
+  font-family: var(--font);
+  font-size: var(--fs-3);
+  font-weight: var(--fw-label);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.cfg-choice > svg { flex: none; }
+.cfg-choice:hover { background: var(--bg-hover); border-color: var(--sep-strong); color: var(--text); }
+.cfg-choice[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: var(--fw-strong);
+}
+.cfg-choice:disabled { opacity: var(--dim-disabled); cursor: default; }
+/* 아이콘이 라벨 위에 서는 갈래 — 테마 모드처럼 그림이 설명의 절반인 자리. */
+.cfg-choice.stack { flex-direction: column; gap: var(--space-2); padding: var(--space-4) var(--space-3); }
+/* 타일 아래 붙는 부제 — "지금은 못 닿음" 같은 상태 한 줄. */
+.cfg-choice-sub { display: block; font-size: var(--fs-1); font-weight: var(--fw-body); opacity: 0.8; }
+
+/* 작은 대문자 라벨 — 카드 안에서 한 덩어리를 더 쪼갤 때. */
+.cfg-sublabel {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ── 토글 행 ───────────────────────────────────────────────────────────── */
+.cfg-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: var(--font);
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.cfg-toggle:hover { background: var(--bg-hover); }
+.cfg-toggle:disabled { opacity: var(--dim-disabled); cursor: default; }
+.cfg-toggle:disabled:hover { background: transparent; }
+.cfg-toggle-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-4);
+  font-weight: var(--fw-label);
+  line-height: var(--lh-snug);
+}
+.cfg-switch {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-active);
+  transition: background-color var(--dur-2) var(--ease-out);
+}
+.cfg-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--knob);
+  box-shadow: var(--shadow-knob);
+  transition: transform var(--dur-2) var(--ease-spring);
+}
+.cfg-toggle[aria-pressed="true"] .cfg-switch { background: var(--accent); }
+.cfg-toggle[aria-pressed="true"] .cfg-switch::after { transform: translateX(14px); }
+.cfg-toggle:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
+
+/* ── 슬라이더 ──────────────────────────────────────────────────────────── */
+.cfg-slider { display: flex; align-items: center; gap: var(--space-5); }
+.cfg-slider input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.cfg-slider-value {
+  flex: none;
+  min-width: 52px;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-xs);
+  background: var(--bg-inset);
+  font-family: var(--mono);
+  font-size: var(--fs-3);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  text-align: right;
+}
+
+/* ── 통계 타일 ─────────────────────────────────────────────────────────── */
+.cfg-stat {
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-m);
+  background: var(--bg-inset);
+}
+.cfg-stat-label {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-label);
+  letter-spacing: var(--caps-track);
+  text-transform: var(--caps-transform);
+  color: var(--text-3);
+}
+.cfg-stat-value {
+  margin-top: 2px;
+  font-size: var(--fs-6);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+}
+
+/* ── 검색 결과 ─────────────────────────────────────────────────────────── */
+.cfg-results { display: flex; flex-direction: column; gap: 1px; }
+.cfg-result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  font-family: var(--font);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.cfg-result:hover,
+.cfg-result[data-active="true"] { background: var(--bg-inset); }
+.cfg-result-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-4);
+  font-weight: var(--fw-label);
+  color: var(--text);
+}
+.cfg-result-where {
+  flex: none;
+  font-size: var(--fs-2);
+  color: var(--text-3);
+}
+.cfg-empty {
+  padding: var(--space-8) var(--space-5);
+  text-align: center;
+  font-size: var(--fs-4);
+  color: var(--text-2);
+}
+
+/* ── 오류 줄 ───────────────────────────────────────────────────────────── */
+.cfg-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--danger) 34%, transparent);
+  border-radius: var(--radius-m);
+  background: var(--danger-soft);
+  font-size: var(--fs-4);
+  color: var(--danger-text);
+}
+.cfg-error span { flex: 1; min-width: 0; }
+
+/* ── 좁은 폭: 레일이 위로 눕는다 ───────────────────────────────────────── */
+@container cfg (max-width: 720px) {
+  .cfg { flex-direction: column; gap: var(--space-6); }
+  .cfg-rail {
+    position: static;
+    width: 100%;
+    padding-bottom: 0;
+  }
+  .cfg-nav {
+    flex-direction: row;
+    gap: var(--space-5);
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: var(--space-1);
+  }
+  .cfg-nav::-webkit-scrollbar { display: none; }
+  .cfg-group { flex-direction: row; align-items: center; gap: 1px; flex: none; }
+  .cfg-group-label { padding: 0 var(--space-2) 0 0; }
+  .cfg-item { width: auto; flex: none; }
+  .cfg-main { max-width: none; }
+  .cfg-field { grid-template-columns: minmax(0, 1fr); }
+}

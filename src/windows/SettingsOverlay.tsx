@@ -42,7 +42,7 @@ export function SettingsOverlay({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-(--dur-2)">
+      <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-5xl max-h-[88vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-(--dur-2)">
         <header className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
           <h2 className="text-base font-bold">{t("shell.settings.title")}</h2>
           <button
@@ -54,10 +54,11 @@ export function SettingsOverlay({ onClose }: { onClose: () => void }) {
             <X size={15} />
           </button>
         </header>
-        {/* `embedded` 는 **호스트가 좌우 여백을 준다**는 전제로 만들어졌다
-            (ShellV2 는 `.page` 로 감싼다 — ShellV2.tsx). 이 모달은 그동안
-            패딩 없는 div 로 감싸고 있어서 탭·입력·카드가 전부 카드 가장자리에
-            붙어 있었다. 헤더의 px-6 과 같은 좌우 여백을 준다. */}
+        {/* 패널은 **호스트가 좌우 여백을 준다**는 전제로 만들어졌다 (ShellV2 는
+            `.page` 로 감싼다 — ShellV2.tsx). 헤더의 px-6 과 같은 좌우 여백을
+            준다. 2026-09-09 재설계 뒤 이 여백 안에서 레일 + 본문 2열이 선다 —
+            모달 폭을 max-w-5xl 로 넓힌 이유이고, 그보다 좁아지면 settings.css
+            의 컨테이너 질의가 레일을 가로 스트립으로 눕힌다. */}
         {/* 설정 탭 하나가 던져도 창 전체가 죽지 않게 — 시작 탭에서 ocul-pm
             탭이 예외를 올려 창이 통째로 빈 화면이 된 적이 있다 (2026-08-16).
             원인은 고쳤지만, 이 패널은 탭이 12개라 같은 실패의 표면이 넓다. */}

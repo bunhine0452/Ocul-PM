@@ -1,8 +1,14 @@
-// 설정 화면 공용 프리미티브 — 섹션·필드·토글·슬라이더·통계 표시.
+// 설정 화면 공용 프리미티브 — 섹션 카드·필드 행·토글·슬라이더·통계 타일.
 //
-// SettingsPanel.tsx 에서 갈라 나온 조각이다 — 순수 이동이며 동작 변경은 없다.
+// 2026-09-09 재설계에서 Tailwind 유틸리티 뭉치를 걷어내고 `.cfg-*`(settings.css)
+// 로 옮겼다. 이 다섯 개가 탭 열둘의 항목 130곳을 그리므로, 여기 한 곳이
+// 설정 화면 전체의 밀도·정렬·위계를 정한다.
+//
+// 가장 큰 변화는 `Field` 다. 예전엔 라벨을 컨트롤 **위**에 얹어(대문자 마이크로
+// 라벨 + 세로 스택) 항목 하나가 두 줄을 먹었고, 컨트롤이 정렬될 축이 없어
+// 스크롤하는 눈이 매번 라벨을 다시 읽어야 했다. 이제 라벨·설명은 왼쪽,
+// 컨트롤은 오른쪽 한 열이다 — 여러 줄 입력만 전폭으로 떨어진다.
 
-import { Label } from "@/components/ui/label";
 import { type Provider } from "@/lib/settings";
 
 export function secretName(provider: Provider): string {
@@ -13,21 +19,23 @@ export function Section({
   title,
   children,
   description,
+  tone,
 }: {
   title: string;
   description?: string;
+  /** 되돌릴 수 없는 것들 — 붉은 테두리 한 겹. */
+  tone?: "danger";
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-3 py-5 first:pt-0 border-b border-border/60 last:border-b-0 last:pb-0">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {description && (
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-        )}
+    <section className={tone === "danger" ? "cfg-card danger" : "cfg-card"}>
+      <div className="cfg-card-head">
+        <h3>{title}</h3>
+        {description && <p>{description}</p>}
       </div>
-      <div className="space-y-3">{children}</div>
-    </div>
+      {/* 직계 자식이 곧 행이다 — 탭이 넘기는 임의의 div 도 여백·구분선을 받는다. */}
+      <div className="cfg-body">{children}</div>
+    </section>
   );
 }
 
@@ -35,18 +43,21 @@ export function Field({
   label,
   hint,
   children,
+  stack,
 }: {
   label: string;
   hint?: string;
+  /** 컨트롤을 전폭으로 — textarea 는 자동 판정되므로 그 밖의 넓은 것에만. */
+  stack?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
-      <Label className="text-fs-2 uppercase text-muted-foreground tracking-wider">
-        {label}
-      </Label>
-      {children}
-      {hint && <p className="text-fs-2 text-muted-foreground/80">{hint}</p>}
+    <div className={stack ? "cfg-field stack" : "cfg-field"}>
+      <div>
+        <div className="cfg-field-label">{label}</div>
+        {hint && <p className="cfg-field-hint">{hint}</p>}
+      </div>
+      <div className="cfg-field-ctl">{children}</div>
     </div>
   );
 }
@@ -55,28 +66,31 @@ export function Toggle({
   checked,
   onChange,
   label,
+  hint,
+  disabled,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   label: string;
+  hint?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
+      type="button"
       onClick={() => onChange(!checked)}
-      className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-border bg-background hover:bg-accent/30 transition-colors cursor-pointer"
+      disabled={disabled}
+      // 스위치는 상태를 **누름**으로 말한다 — role="switch" 를 쓰면 aria-checked
+      // 가 필요한데, 이 버튼은 라벨 전체가 히트 영역이라 체크박스보다 토글 버튼에
+      // 가깝다. (a11y 테스트가 접근 가능한 이름을 별도로 문다.)
+      aria-pressed={checked}
+      className="cfg-toggle"
     >
-      <span className="text-sm text-foreground">{label}</span>
-      <span
-        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-          checked ? "bg-primary" : "bg-muted"
-        }`}
-      >
-        <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-            checked ? "translate-x-4" : "translate-x-0.5"
-          }`}
-        />
+      <span className="cfg-toggle-text">
+        {label}
+        {hint && <p className="cfg-field-hint">{hint}</p>}
       </span>
+      <span className="cfg-switch" aria-hidden="true" />
     </button>
   );
 }
@@ -104,12 +118,12 @@ export function NumberSlider({
    * 미리보기와 커밋을 가르고, 이 콜백이 그 커밋 시점을 준다.
    */
   onCommit?: () => void;
-  /** 접근 가능한 이름. `Field` 의 <Label> 은 htmlFor 가 없어 연결되지 않는다 —
+  /** 접근 가능한 이름. 라벨은 <label for> 로 묶이지 않는 별도 div 다 —
    *  axe "Form elements must have labels" 가 여기서 걸린다. */
   ariaLabel: string;
 }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="cfg-slider">
       <input
         type="range"
         aria-label={ariaLabel}
@@ -121,20 +135,17 @@ export function NumberSlider({
         onPointerUp={onCommit}
         onKeyUp={onCommit}
         onBlur={onCommit}
-        className="flex-1 accent-[color:var(--primary)]"
       />
-      <span className="text-xs text-foreground font-mono tabular-nums w-12 text-right">
-        {value}
-      </span>
+      <span className="cfg-slider-value">{value}</span>
     </div>
   );
 }
 
 export function Stat({ label, value }: { label: string; value?: string }) {
   return (
-    <div className="p-3 bg-secondary/40 rounded-xl">
-      <div className="text-fs-1 text-muted-foreground">{label}</div>
-      <div className="text-sm font-bold mt-0.5">{value ?? "—"}</div>
+    <div className="cfg-stat">
+      <div className="cfg-stat-label">{label}</div>
+      <div className="cfg-stat-value">{value ?? "—"}</div>
     </div>
   );
 }

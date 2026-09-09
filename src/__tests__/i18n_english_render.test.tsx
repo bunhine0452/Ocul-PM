@@ -189,12 +189,14 @@ describe("영어 모드에서 한글이 남지 않는다", () => {
   });
 
   it("설정 패널", async () => {
-    const { container, findByText } = render(
+    const { container, findAllByText } = render(
       <Wrap>
         <SettingsPanel />
       </Wrap>,
     );
-    await findByText("Appearance");
+    // 이름이 두 번 나온다 — 레일의 항목과 본문 머리의 제목 (2026-09-09 재설계).
+    // 지금 어느 탭에 있는지를 목록과 본문 양쪽에서 말하는 게 의도다.
+    expect((await findAllByText("Appearance")).length).toBeGreaterThan(0);
     expect(hangulIn(container)).toEqual([]);
   });
 

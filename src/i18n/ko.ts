@@ -3562,6 +3562,29 @@ export const ko = {
   // 설정 검색 ({#settings-search}) — 12탭 + 하위 5탭을 눈으로 훑던 것을 끝낸다.
   "settings.search.placeholder": "설정 검색",
   "settings.search.empty": "일치하는 설정이 없어요.",
+  // ── 설정 재설계 (2026-09-09) — 그룹 있는 레일 + 탭마다의 한 줄 안내.
+  //    열두 탭이 그룹 없이 한 줄에 서 있어서 「그래프」와 「모바일」이 같은
+  //    위계로 읽혔다. 다섯 묶음으로 접고, 탭을 열면 여기가 무엇을 정하는
+  //    자리인지 한 문장으로 말한다.
+  "settings.group.general": "일반",
+  "settings.group.ai": "AI",
+  "settings.group.journal": "작업 기록",
+  "settings.group.code": "코드",
+  "settings.group.system": "시스템",
+  "settings.tabDesc.appearance": "테마·강조색·언어·글자 크기 — 앱이 보이는 방식을 정합니다.",
+  "settings.tabDesc.llm": "API 키·기본 제공자·모델과 생성 옵션. 키는 OS 키체인에만 저장됩니다.",
+  "settings.tabDesc.code": "내장 편집기의 저장·들여쓰기·기록 동작과 언어 서버.",
+  "settings.tabDesc.indexing": "코드를 조각내 임베딩하는 방식과, AI 가 받을 검색 결과의 양.",
+  "settings.tabDesc.graph": "코드 맵이 무엇을 그리고 무엇을 숨길지.",
+  "settings.tabDesc.data": "로컬 저장소·내보내기·가져오기와 Notion 연동.",
+  "settings.tabDesc.oculpm": "일지·플래너·에이전트 규칙 — 이 앱의 기록 방식 자체.",
+  "settings.tabDesc.context": "매 대화에 무엇이 실리는지와, 과거 기록을 되살릴 예산.",
+  "settings.tabDesc.automation": "정해진 시각·파일 변화에 스스로 도는 작업들.",
+  "settings.tabDesc.mobile": "같은 네트워크의 폰에서 이 프로젝트를 여는 다리.",
+  "settings.tabDesc.diagnostics": "DB 상태·자가 점검·발동 이력. 뭔가 이상할 때 여기부터.",
+  "settings.tabDesc.update": "새 버전 확인과 지난 패치 노트.",
+  "settings.search.clear": "검색어 지우기",
+  "settings.search.count": "결과 {n}개",
 
   // ── v3-surface / firstrun ────────────────────────────────────────────────
   // 첫 5분의 화면이 아직 일어나지 않은 일을 말하지 않게 하는 문구들.

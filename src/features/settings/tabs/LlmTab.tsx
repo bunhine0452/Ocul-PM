@@ -142,7 +142,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
           </Button>
         </div>
 
-        <div className="flex items-center justify-between gap-3 pt-1 text-fs-2 text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 pt-1 text-fs-3 text-muted-foreground">
           <span>
             {t("settings.keys.cacheNote")}
           </span>
@@ -158,33 +158,30 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
       </Section>
 
       <Section title={t("settings.provider.title")} description={t("settings.provider.desc")}>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="cfg-choices">
           {PROVIDERS.map((p) => {
-            const isActive = settings.defaultProvider === p;
             // 못 닿아도 고를 수 있다 — 지금 못 닿는다는 것이 영원히 못 닿는다는
             // 뜻은 아니고, 설정은 사용자의 의도이지 네트워크의 상태가 아니다.
             const offline = reach.offline(p);
             return (
               <button
                 key={p}
+                type="button"
                 onClick={() => save("defaultProvider", p)}
+                aria-pressed={settings.defaultProvider === p}
                 title={
                   offline
                     ? `${t("llm.offline.hint")}${reach.detail(p) ? ` (${reach.detail(p)})` : ""}`
                     : undefined
                 }
-                className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all cursor-pointer capitalize ${
-                  isActive
-                    ? "bg-primary/10 border-primary text-primary"
-                    : "bg-background border-border hover:border-primary/45 text-muted-foreground hover:text-foreground"
-                } ${offline ? "opacity-60" : ""}`}
+                className="cfg-choice capitalize"
               >
-                {p}
-                {offline && (
-                  <span className="block text-fs-1 font-normal normal-case opacity-80">
-                    {t("llm.offline.badge")}
-                  </span>
-                )}
+                <span>
+                  {p}
+                  {offline && (
+                    <span className="cfg-choice-sub normal-case">{t("llm.offline.badge")}</span>
+                  )}
+                </span>
               </button>
             );
           })}
@@ -261,7 +258,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
             onChange={(e) => save("coreModel", e.currentTarget.value)}
           />
         </Field>
-        <div className="flex items-center justify-between gap-3 text-fs-2 text-muted-foreground">
+        <div className="flex items-center justify-between gap-3 text-fs-3 text-muted-foreground">
           <span>
             {coreModelTarget(settings)
               ? t("settings.coreModel.ready")

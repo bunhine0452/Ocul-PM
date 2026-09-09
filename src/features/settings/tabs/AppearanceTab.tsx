@@ -4,7 +4,6 @@
 
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { commands } from "@/lib/bindings";
 import { call } from "@/api/invoke";
 import { Sun, Moon, Monitor, Languages } from "@/components/Icons";
@@ -52,7 +51,7 @@ export function AccentPicker() {
         })}
       </div>
       {presetActive ? (
-        <p className="mt-1.5 text-fs-2 text-muted-foreground/80">
+        <p className="mt-1.5 text-fs-3 text-muted-foreground/80">
           {t("settings.accent.presetActive")}
         </p>
       ) : null}
@@ -86,25 +85,19 @@ export function LangPicker({
     { id: "en", label: t("settings.language.en") },
   ];
   return (
-    <div className="grid grid-cols-3 gap-3">
-      {options.map((o) => {
-        const isActive = value === o.id;
-        return (
-          <button
-            key={o.id}
-            onClick={() => onPick(o.id)}
-            aria-pressed={isActive}
-            className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-              isActive
-                ? "bg-primary/10 border-primary text-primary shadow-sm"
-                : "bg-background border-border hover:border-primary/45 hover:bg-accent/40 text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {o.id === "system" ? <Monitor size={15} /> : <Languages size={15} />}
-            <span>{o.label}</span>
-          </button>
-        );
-      })}
+    <div className="cfg-choices">
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          onClick={() => onPick(o.id)}
+          aria-pressed={value === o.id}
+          className="cfg-choice"
+        >
+          {o.id === "system" ? <Monitor size={13} /> : <Languages size={13} />}
+          <span>{o.label}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -206,41 +199,34 @@ export function AppearanceTab() {
       </Section>
 
       <Section title={t("settings.theme.title")} description={t("settings.theme.desc")}>
-        <div className="grid grid-cols-3 gap-3">
-          {(["light", "dark", "system"] as const).map((t) => {
-            const isActive = settings.theme === t;
-            return (
-              <button
-                key={t}
-                onClick={() => save("theme", t)}
-                className={`flex flex-col items-center justify-center p-3.5 rounded-xl border text-xs font-semibold gap-2 transition-all cursor-pointer ${
-                  isActive
-                    ? "bg-primary/10 border-primary text-primary shadow-sm"
-                    : "bg-background border-border hover:border-primary/45 hover:bg-accent/40 text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t === "light" && <Sun size={15} />}
-                {t === "dark" && <Moon size={15} />}
-                {t === "system" && <Monitor size={15} />}
-                <span className="capitalize">{t}</span>
-              </button>
-            );
-          })}
+        <div className="cfg-choices">
+          {(["light", "dark", "system"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => save("theme", mode)}
+              aria-pressed={settings.theme === mode}
+              className="cfg-choice stack"
+            >
+              {mode === "light" && <Sun size={15} />}
+              {mode === "dark" && <Moon size={15} />}
+              {mode === "system" && <Monitor size={15} />}
+              <span className="capitalize">{mode}</span>
+            </button>
+          ))}
         </div>
 
         {/* 액센트 컬러 (감사 fix 2026-07-16) — colorTheme 인프라(data-accent)는
             v1.3.0 부터 살아있었지만 바꿀 UI 가 유실돼 있었다. 프리셋 테마는
             자기 액센트를 갖고 오므로(data-accent 제거) 그동안은 비활성. */}
-        <div className="mt-1">
-          <Label className="text-fs-2 uppercase text-muted-foreground tracking-wider">
-            {t("settings.accent.title")}
-          </Label>
+        <div>
+          <span className="cfg-sublabel">{t("settings.accent.title")}</span>
           <AccentPicker />
         </div>
 
         {/* 테마 갤러리 (Osaurus 라운드 Phase 4) — 내장 5종은 이제 CSS 가 아니라
             생성된 JSON 이고, 사용자가 만든 테마가 그 옆에 나란히 선다. */}
-        <div className="mt-1">
+        <div>
           <ThemeGallery />
         </div>
       </Section>
@@ -277,7 +263,7 @@ function UiScaleSection() {
   return (
     <Section title={t("settings.scale.title")} description={t("settings.scale.desc")}>
       <Field label={t("settings.scale.field", { pct })}>
-        <div className="flex items-center gap-3">
+        <div className="cfg-slider">
           <input
             type="range"
             aria-label={t("settings.scale.title")}
@@ -291,11 +277,8 @@ function UiScaleSection() {
             onPointerUp={scale.flush}
             onKeyUp={scale.flush}
             onBlur={scale.flush}
-            className="flex-1 accent-[color:var(--primary)]"
           />
-          <span className="text-xs text-foreground font-mono tabular-nums w-12 text-right">
-            {pct}%
-          </span>
+          <span className="cfg-slider-value">{pct}%</span>
         </div>
       </Field>
       <div className="grid grid-cols-4 gap-2">
@@ -538,7 +521,7 @@ export function MenubarSection() {
             </span>
             <span className="min-w-0">
               <span className="block text-xs font-semibold text-foreground">{r.label}</span>
-              <span className="block text-fs-2 text-muted-foreground mt-0.5 leading-relaxed">
+              <span className="block text-fs-3 text-muted-foreground mt-0.5 leading-relaxed">
                 {r.hint}
               </span>
             </span>

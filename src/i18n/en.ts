@@ -3569,6 +3569,26 @@ export const en: Record<keyof typeof ko, string> = {
   // ── v3-surface / dialect ──────────────────────────────
   "settings.search.placeholder": "Search settings",
   "settings.search.empty": "No matching setting.",
+  // ── Settings redesign (2026-09-09) — grouped rail + one line per tab.
+  "settings.group.general": "General",
+  "settings.group.ai": "AI",
+  "settings.group.journal": "Journaling",
+  "settings.group.code": "Code",
+  "settings.group.system": "System",
+  "settings.tabDesc.appearance": "Theme, accent, language and text size — how the app looks.",
+  "settings.tabDesc.llm": "API keys, default provider, models and generation options. Keys live in the OS keychain only.",
+  "settings.tabDesc.code": "Save, indentation and history behaviour of the built-in editor, plus language servers.",
+  "settings.tabDesc.indexing": "How code is chunked and embedded, and how much retrieval the AI receives.",
+  "settings.tabDesc.graph": "What the code map draws and what it hides.",
+  "settings.tabDesc.data": "Local storage, export, import and the Notion integration.",
+  "settings.tabDesc.oculpm": "Journals, planner and agent rules — how this app records work.",
+  "settings.tabDesc.context": "What rides along in every conversation, and the budget for recalling past work.",
+  "settings.tabDesc.automation": "Jobs that run on their own — on a schedule or when files change.",
+  "settings.tabDesc.mobile": "The bridge that opens this project from a phone on the same network.",
+  "settings.tabDesc.diagnostics": "Database health, self-checks and the firing ledger. Start here when something looks off.",
+  "settings.tabDesc.update": "Check for a new version and read past patch notes.",
+  "settings.search.clear": "Clear search",
+  "settings.search.count": "{n} results",
 
   // ── v3-surface / firstrun ────────────────────────────────────────────────
   "welcome.ready.listLabel": "When you open it:",

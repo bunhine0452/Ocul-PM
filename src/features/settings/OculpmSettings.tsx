@@ -270,7 +270,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="cfg-sections">
       {saveError && (
         <div className="rounded border border-(--danger)/40 bg-(--danger-soft) p-2 text-xs text-(--danger-text) flex items-start gap-2">
           <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
@@ -278,7 +278,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
         </div>
       )}
       {savedAt && !saveError && (
-        <div className="text-fs-2 text-(--ok-text)">
+        <div className="text-fs-3 text-(--ok-text)">
           {t("op.saved", { time: new Date(savedAt).toLocaleTimeString() })}
         </div>
       )}
@@ -446,7 +446,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
         description={t("op.agents.desc")}
       >
         <div className="space-y-1.5">
-          <Label className="text-fs-2 uppercase text-muted-foreground tracking-wider">
+          <Label className="text-fs-3 uppercase text-muted-foreground tracking-wider">
             Active adapters
           </Label>
           <div className="flex flex-wrap gap-2">
@@ -497,7 +497,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
               </span>
             </span>
           </div>
-          <p className="text-fs-2 leading-relaxed text-muted-foreground">
+          <p className="text-fs-3 leading-relaxed text-muted-foreground">
             {t("op.agents.nativeNote")}
           </p>
         </div>
@@ -515,12 +515,12 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             {t("op.agents.syncNow")}
           </Button>
           {syncStatus?.kind === "ok" && (
-            <span className="text-fs-2 text-(--ok-text)">
+            <span className="text-fs-3 text-(--ok-text)">
               {t("op.agents.syncDone", { n: syncStatus.updated })}
             </span>
           )}
           {syncStatus?.kind === "error" && (
-            <span className="text-fs-2 text-(--danger-text)">{syncStatus.message}</span>
+            <span className="text-fs-3 text-(--danger-text)">{syncStatus.message}</span>
           )}
         </div>
         {/* 「프로젝트 열 때 자동 감지」·「config 저장 시 자동 동기화」 토글은 뺐다 —
@@ -540,7 +540,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             update((d) => ({ ...d, agents: { ...d.agents, auto_reconcile: v } }))
           }
         />
-        <p className="ml-6 text-fs-2 leading-relaxed text-muted-foreground">
+        <p className="ml-6 text-fs-3 leading-relaxed text-muted-foreground">
           {t("op.auto.reconcileDesc")}
         </p>
         <Toggle
@@ -550,7 +550,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
             update((d) => ({ ...d, agents: { ...d.agents, auto_journal_draft: v } }))
           }
         />
-        <p className="ml-6 text-fs-2 leading-relaxed text-muted-foreground">
+        <p className="ml-6 text-fs-3 leading-relaxed text-muted-foreground">
           {t("op.auto.draftDesc")}
         </p>
       </Section>
@@ -665,7 +665,7 @@ export function ClaudeHooksBlock({
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-fs-2 uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
           {t("op.hooks.title")}
         </Label>
         <ScopeChip label={t("op.scope.project")} />
@@ -693,7 +693,7 @@ export function ClaudeHooksBlock({
           )}
         </div>
       </div>
-      <p className="text-fs-2 leading-relaxed text-muted-foreground">
+      <p className="text-fs-3 leading-relaxed text-muted-foreground">
         {t("op.hooks.desc1")} <code className="text-fs-1">.claude/settings.local.json</code>{" "}
         {t("op.hooks.desc2")}
       </p>
@@ -701,7 +701,7 @@ export function ClaudeHooksBlock({
         // 켜져 있으면 실제 이중 적재(경고), 꺼져 있으면 "켤 필요 없다"(정보).
         // 같은 사실이지만 사용자가 지금 해야 할 일이 다르므로 색을 나눈다.
         <p
-          className={`text-fs-2 leading-relaxed ${
+          className={`text-fs-3 leading-relaxed ${
             hooks?.installed || hooks?.partial ? "text-(--warn-text)" : "text-muted-foreground"
           }`}
         >
@@ -711,11 +711,11 @@ export function ClaudeHooksBlock({
         </p>
       )}
       {hooks?.foreign_hooks && (
-        <p className="text-fs-2 text-muted-foreground">
+        <p className="text-fs-3 text-muted-foreground">
           {t("op.hooks.custom")}
         </p>
       )}
-      {hooksError && <p className="text-fs-2 text-(--danger-text)">{hooksError}</p>}
+      {hooksError && <p className="text-fs-3 text-(--danger-text)">{hooksError}</p>}
     </div>
   );
 }
@@ -786,7 +786,7 @@ export function ShellIntegrationBlock() {
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-fs-2 uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
           {t("op.shell.title")}
         </Label>
         <ScopeChip label={t("op.scope.machine")} />
@@ -809,7 +809,7 @@ export function ShellIntegrationBlock() {
           ) : null}
         </div>
       </div>
-      <p className="text-fs-2 leading-relaxed text-muted-foreground">
+      <p className="text-fs-3 leading-relaxed text-muted-foreground">
         {t("op.shell.desc1")}
         {status?.rc_path ? (
           <>
@@ -819,17 +819,17 @@ export function ShellIntegrationBlock() {
         ) : null}
       </p>
       {unsupported && (
-        <p className="text-fs-2 text-muted-foreground">
+        <p className="text-fs-3 text-muted-foreground">
           {t("op.shell.unsupported")}
         </p>
       )}
       {status?.block_broken && (
-        <p className="text-fs-2 text-(--warn-text)">
+        <p className="text-fs-3 text-(--warn-text)">
           <code className="text-fs-1">oculpm:begin</code> /{" "}
           <code className="text-fs-1">oculpm:end</code> {t("op.shell.rcBrokenDesc")}
         </p>
       )}
-      {error && <p className="text-fs-2 text-(--danger-text)">{error}</p>}
+      {error && <p className="text-fs-3 text-(--danger-text)">{error}</p>}
     </div>
   );
 }
@@ -900,7 +900,7 @@ function LogsSection() {
           )}
           {t("op.logs.open")}
         </Button>
-        <p className="text-fs-2 text-muted-foreground leading-relaxed">
+        <p className="text-fs-3 text-muted-foreground leading-relaxed">
           {t("op.logs.filenameLabel")}{" "}
           <code className="font-mono">oculpm.log.YYYY-MM-DD</code> — backend(rust)
           {t("op.logs.desc2")} <code>[FLOW]</code>{" "}
@@ -986,7 +986,7 @@ export function AcpRuntimeBlock() {
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-fs-2 uppercase tracking-wider text-muted-foreground">
+        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
           {t("op.acp.title")}
         </Label>
         <ScopeChip label={t("op.scope.machine")} />
@@ -1014,7 +1014,7 @@ export function AcpRuntimeBlock() {
           </Button>
         </div>
       </div>
-      <p className="text-fs-2 leading-relaxed text-muted-foreground">{t("op.acp.desc")}</p>
+      <p className="text-fs-3 leading-relaxed text-muted-foreground">{t("op.acp.desc")}</p>
 
       {diag && (
         <div className="space-y-1 pt-1">
@@ -1072,7 +1072,7 @@ export function AcpRuntimeBlock() {
         </div>
       )}
 
-      {error && <p className="text-fs-2 text-(--danger-text)">{error}</p>}
+      {error && <p className="text-fs-3 text-(--danger-text)">{error}</p>}
     </div>
   );
 }
@@ -1089,7 +1089,7 @@ function AcpRow({
   hint?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-2 text-fs-2">
+    <div className="flex flex-wrap items-baseline gap-x-2 text-fs-3">
       <span className={ok ? "text-(--ok-text)" : "text-(--warn-text)"}>{ok ? "●" : "○"}</span>
       <span className="text-muted-foreground">{label}</span>
       <code className="truncate text-fs-1 text-foreground/80">{value}</code>
@@ -1145,7 +1145,7 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-fs-2 uppercase text-muted-foreground tracking-wider">
+      <Label className="text-fs-3 uppercase text-muted-foreground tracking-wider">
         {label}
       </Label>
       {children}
@@ -1194,7 +1194,7 @@ function PatternList({
 
   return (
     <div className="space-y-2">
-      <Label className="text-fs-2 uppercase text-muted-foreground tracking-wider">
+      <Label className="text-fs-3 uppercase text-muted-foreground tracking-wider">
         {label}
       </Label>
       {hint && <p className="text-fs-1 text-muted-foreground -mt-1">{hint}</p>}
