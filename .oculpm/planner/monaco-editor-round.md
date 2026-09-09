@@ -56,10 +56,10 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 - [>] **Tab 다음-편집 예측은 이 라운드에서 열지 않는다** — 전용 모델 · 지연시간 예산 · 취소 병합 · 오답 비용까지 설계가 따로 필요하다. 여기 항목으로만 남겨 유실을 막는다 (이월은 살아 있는 플랜의 항목으로) {#agent-tab-predict}
 
 ## Phase 6 — 마감 {#finish}
-- [ ] 육안 확인 격자 — 라이트/다크 × 프리셋 5종으로 문법 강조 · 선택색 · 커서 · 미니맵 · sticky · 진단 밑줄. v3-release `{#eyes-hljs}` 가 이미 같은 격자를 요구하고 있어 한 번에 갚는다 {#fin-eyes}
-- [ ] 성능 재측정 — 대용량 파일(수천 줄) 열기 · 스크롤 · 타이핑 지연. Phase 0 의 숫자와 대조해 `03-performance.md` 에 남긴다 {#fin-perf}
-- [ ] 게이트 전부 exit 0 직접 확인 — typecheck · test · lint 6종 · build · cargo test. 파일 크기 래칫과 eslint 경고 한계(`--max-warnings`)에 여유가 없으니 함께 본다 {#fin-gates}
-- [ ] 릴리스 5면 — 버전 6파일 · CHANGELOG · README ko/en · 랜딩 ko/en 각 6곳 + `build.mjs` 재빌드. **회고·문서 삭제(2026-09-08)의 미반영분도 이때 함께 간다** — 그 표면들은 아직 두 화면이 있는 v2.45.2 를 설명하고 있다 {#fin-release}
+- [!] 육안 확인 격자 — 라이트/다크 × 프리셋 5종으로 문법 강조 · 선택색 · 커서 · 미니맵 · sticky · 진단 밑줄. v3-release `{#eyes-hljs}` 가 이미 같은 격자를 요구하고 있어 한 번에 갚는다 {#fin-eyes}
+- [!] 성능 재측정 — 대용량 파일(수천 줄) 열기 · 스크롤 · 타이핑 지연. Phase 0 의 숫자와 대조해 `03-performance.md` 에 남긴다 {#fin-perf}
+- [x] 게이트 전부 exit 0 직접 확인 — typecheck · test · lint 6종 · build · cargo test. 파일 크기 래칫과 eslint 경고 한계(`--max-warnings`)에 여유가 없으니 함께 본다 {#fin-gates}
+- [!] 릴리스 5면 — 버전 6파일 · CHANGELOG · README ko/en · 랜딩 ko/en 각 6곳 + `build.mjs` 재빌드. **회고·문서 삭제(2026-09-08)의 미반영분도 이때 함께 간다** — 그 표면들은 아직 두 화면이 있는 v2.45.2 를 설명하고 있다 {#fin-release}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -96,4 +96,8 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 | 2026-09-09T20:09:49+09:00 | #agent-hunk | claude-code | ☐→x | .oculpm/journal/20260909/Features_to_add/2009_feature_monaco-agent-surface-phase5.md | 버튼이 아니라 토글 — 켜고 끌 때마다 본문이 즉시 다시 계산돼 누르기 전에 결과가 보인다. compose 가 줄 범위(spans)까지 내는 것이 요점(화면이 좌표를 다시 세면 한 줄 밀린 하이라이트). 비교는 chat/lineDiff 재사용 — diff 를 두 벌 만들면 같은 변경이 두 화면에서 다르게 보인다. 전부 끄면 원문 그대로라는 등식을 테스트가 문다 |
 | 2026-09-09T20:09:58+09:00 | #agent-attribution | claude-code | ☐→! | .oculpm/journal/20260909/Features_to_add/2009_feature_monaco-agent-surface-phase5.md | 셋 중 둘 완료. ①entry_diffs 는 이미 된다(만들 것 없음) ②일지 agent — 상태줄 칩 → create_manual_entry(agent={provider,model}, verified_by_user=false. 사람의 확인을 사칭하지 않는다) ③**로컬 히스토리 HistorySource 가 남았다** — 자리는 이미 있는데 ⌘K 편집을 user 로 적는다(code_write 자기-쓰기 쪽지). 고치려면 code_write 인자 추가 → bindings 재생성 → {#cap-semantic} 과 같은 이유로 막힘. **해제 조건: firing-ledger/rules 머지** |
 | 2026-09-09T20:10:05+09:00 | #agent-tab-predict | claude-code | ☐→> | .oculpm/journal/20260909/Features_to_add/2009_feature_monaco-agent-surface-phase5.md | 플랜대로 열지 않았다 — 전용 모델·지연시간 예산·취소 병합·오답 비용이 각각 설계를 요구하고 그 불확실성이 이 라운드를 오염시키면 안 된다. 항목으로 남겨 유실만 막는다 (다음 라운드에서 자기 설계 문서와 함께 열 것) |
+| 2026-09-09T20:28:34+09:00 | #fin-gates | claude-code | ☐→x | .oculpm/journal/20260909/Features_to_add/2009_feature_monaco-agent-surface-phase5.md | 전부 exit 0 — typecheck · test(193파일 2,514) · lint 6종 · build · **cargo test 33스위트 1,587개·경고 0**. 함정 하나: cargo test 를 \|tail 에 물리면 exit 0 이 tail 것이고 합계도 "4스위트 20개" 로 거짓이 된다(gh run watch 와 같은 함정). 덤: cargo test 뒤 bindings.ts 해시 무변화 = 이 라운드가 백엔드 커맨드를 0개 늘렸다. 여유 없음 경고: eslint 정확히 9/9, 래칫은 4번 걸려 4번 갚음 |
+| 2026-09-09T20:28:44+09:00 | #eyes-hljs | claude-code | ☐→! | .oculpm/journal/20260909/Features_to_add/2009_feature_monaco-agent-surface-phase5.md | 사람이 앱을 띄워야 답이 나온다 (설치본 도는 중 dev 빌드 금지 — 락 경합). "나중에 봐야 함" 대신 **걸을 수 있는 목록**을 06-finish.md §eyes 에 적었다: 색(프리셋5×언어7, 특히 직접 쓴 json·toml) · 새로 켠 것 · 심볼 스티키 · **키 9개**(⇧⌘O 가 우리 CodeGoto 인지, 편집기 안 ⌘V 가 트리 붙여넣기로 안 새는지 — 둘 다 실제 회귀였다) · 위젯 · ⌘K 흐름 · 논의 편집기. v3-release {#eyes-hljs} 와 같은 격자 |
+| 2026-09-09T20:28:53+09:00 | #fin-perf | claude-code | ☐→! | .oculpm/journal/20260909/Features_to_add/2009_feature_monaco-agent-surface-phase5.md | 절반 완료. **페이로드는 실측**(06-finish.md §perf): CodeScreenV2 335KB→145.08, DiscussionEditor 537.97→8.75(CodeMirror 소멸), 공유 Monaco 3,871.14(gzip 1,001.45), 워커는 editor.worker 273KB 하나뿐(D1 유지 근거), dist 총 16.3MB. **기기 지연(열기·스크롤·타이핑)은 미측정** — Phase 0 하네스가 버리는 브랜치에 있어 절차만 남겼다. 문서명은 03-performance 가 아니라 06-finish §perf (3~5번을 Phase 3~5 문서가 가져갔다) |
+| 2026-09-09T20:29:58+09:00 | #fin-release | claude-code | ☐→! |  | **사용자 지시로 대기** (2026-09-09) — 다른 세션이 끝나면 알려 주기로. 손도 안 댔다: 버전 6파일·CHANGELOG·README ko/en·랜딩 ko/en 전부 그대로. 재개 시 순서는 docs/RELEASE.md — 버전 6곳 → 게이트(cargo test 가 Cargo.lock 갱신) → CHANGELOG → README 양쪽 → 랜딩 각 6곳 + plugin.html 배지 둘 → build.mjs → main CI 초록 확인 후 태그. 릴리스 전에 {#eyes-hljs} 격자를 걷는 것이 이 라운드의 성격상 맞다 — 편집기를 통째로 갈았는데 사람이 한 번도 안 봤다 |
 <!-- oculpm:plan-log end -->
