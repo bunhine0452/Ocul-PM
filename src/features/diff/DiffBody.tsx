@@ -55,7 +55,7 @@ export function DiffBody({
     // A deleted file with no baseline — nothing to diff, but don't error.
     if (deleted) {
       return (
-        <EmptyState align="start" style={{ padding: 16 }}>
+        <EmptyState align="start" density="compact">
           {t("diff.fileDeleted")}
           <br />
           <span className="text-muted-foreground" style={{ fontSize: "var(--fs-2)" }}>
@@ -68,7 +68,7 @@ export function DiffBody({
     // user sees the change immediately (untracked / never-indexed file).
     if (newFilePatch == null) {
       return (
-        <EmptyState align="start" style={{ padding: 16 }}>
+        <EmptyState align="start" density="compact">
           {newFileError ? (
             <>
               {t("diff.readFailed")}
@@ -97,7 +97,7 @@ export function DiffBody({
   const isSnapshot = result.source.source === "snapshot";
   if (!patch.trim()) {
     return (
-      <EmptyState align="start" style={{ padding: 16 }}>
+      <EmptyState align="start" density="compact">
         {t("diff.noChanges", { base: isSnapshot ? t("diff.baseSnapshot") : t("diff.baseHead") })}
       </EmptyState>
     );

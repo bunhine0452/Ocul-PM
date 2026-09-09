@@ -84,9 +84,9 @@ export function BinaryFileView({
 
       {isImage ? (
         preview === "loading" ? (
-          <LoadingState style={{ padding: 16 }}>{t("diff.previewLoading")}</LoadingState>
+          <LoadingState density="compact">{t("diff.previewLoading")}</LoadingState>
         ) : preview === "error" || (!preview.old && !preview.new) ? (
-          <EmptyState style={{ padding: 16 }}>{t("diff.previewUnavailable")}</EmptyState>
+          <EmptyState density="compact">{t("diff.previewUnavailable")}</EmptyState>
         ) : (
           <div className="diff-binary-panes">
             {preview.old ? (

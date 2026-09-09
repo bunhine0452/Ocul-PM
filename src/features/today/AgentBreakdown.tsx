@@ -19,7 +19,7 @@ export function AgentBreakdown({ agents }: { agents: AgentContribution[] }) {
       </div>
       <div className="panel-body" style={{ padding: 10 }}>
         {agents.length === 0 ? (
-          <EmptyState style={{ padding: 16 }}>{t("today.agents.empty")}</EmptyState>
+          <EmptyState density="compact">{t("today.agents.empty")}</EmptyState>
         ) : (
           <div className="agent-list">
             {agents.map((a) => {

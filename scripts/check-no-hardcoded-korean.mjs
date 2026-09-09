@@ -182,6 +182,7 @@ const TESTS = new Set([
   "__tests__/declarative_config.test.tsx",
   "__tests__/deep_link.test.tsx",
   "__tests__/defer_ledger_v2.test.tsx",
+  "__tests__/design_ratchets.test.ts",
   "__tests__/design_tokens.test.ts",
   "__tests__/diff_v2.test.tsx",
   "__tests__/discussion_edit.test.ts",

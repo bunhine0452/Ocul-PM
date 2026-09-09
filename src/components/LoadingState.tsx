@@ -23,6 +23,10 @@ import { useT } from "@/i18n";
 import type { CSSProperties, ReactNode } from "react";
 
 export interface LoadingStateProps {
+  /** `EmptyState` 와 **같은 축** — 로딩과 빈 상태가 한 자리에서 번갈아 뜨므로
+   *  둘의 밀도가 갈리면 전환할 때 자리가 튄다. `rich` 는 없다: 아이콘·제목·
+   *  행동이 있는 로딩은 이 앱에 없다. */
+  density?: "plain" | "compact";
   /** 생략하면 `common.loading`. 자리마다 더 구체적인 문안이 있으면 그것을. */
   children?: ReactNode;
   /** 가운데가 어색한 자리(목록 옆·코드 옆)는 왼쪽으로 — `EmptyState` 와 같은 축. */
@@ -31,9 +35,21 @@ export interface LoadingStateProps {
   style?: CSSProperties;
 }
 
-export function LoadingState({ children, align = "center", className, style }: LoadingStateProps) {
+export function LoadingState({
+  children,
+  density = "plain",
+  align = "center",
+  className,
+  style,
+}: LoadingStateProps) {
   const { t } = useT();
-  const cls = ["es", "es--plain", "ls", align === "start" ? "ls--start" : null, className]
+  const cls = [
+    "es",
+    density === "compact" ? "es--compact" : "es--plain",
+    "ls",
+    align === "start" ? "ls--start" : null,
+    className,
+  ]
     .filter(Boolean)
     .join(" ");
 

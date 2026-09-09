@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
+import { LoadingState } from "@/components/LoadingState";
 import { Toolbar } from "@/components/Toolbar";
 import {
   AlertTriangle,
@@ -721,15 +722,13 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
           ) : null}
           <div className="diff-code">
             {error ? (
-              <EmptyState align="start" style={{ padding: 16 }}>
+              <EmptyState align="start" density="compact">
                 {t("entry.diffLoadFailed", { error })}
               </EmptyState>
             ) : diffs == null ? (
-              <EmptyState align="start" style={{ padding: 16 }}>
-                {t("common.loading")}
-              </EmptyState>
+              <LoadingState align="start" density="compact" />
             ) : diffs.length === 0 ? (
-              <EmptyState align="start" style={{ padding: 16 }}>
+              <EmptyState align="start" density="compact">
                 {t("entry.noDiff")}
                 <br />
                 <span className="text-muted-foreground" style={{ fontSize: "var(--fs-2)" }}>

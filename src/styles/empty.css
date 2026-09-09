@@ -22,6 +22,16 @@
   padding: 60px 30px;
 }
 
+/* 카드·패널 안의 좁은 슬롯 ({#layout-empty-density}). 호출부 20곳이
+   `.es--plain` 의 60px 을 인라인 padding 으로 덮고 있었고 그 최빈값이 정확히
+   16px(10곳)이었다 — 램프의 --space-6 이다. 나머지 10곳(24/8 · 24/16 · 18/16 ·
+   16/20 · 8/0 · 6/2)은 램프 밖이라 여기로 접으면 픽셀이 움직인다: 그건 눈으로
+   보고 정할 일이라 인라인으로 남기고 래칫으로 동결했다. */
+.es--compact {
+  text-align: center;
+  padding: var(--space-6);
+}
+
 /* 화면 전체 — 아이콘·제목·설명·행동. */
 .es--rich {
   display: flex;

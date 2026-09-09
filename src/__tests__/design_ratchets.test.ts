@@ -1,0 +1,89 @@
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { ROOT, read, walk } from "./designFs";
+
+// ─── 디자인 래칫 — "나빠지지 않는다" 만 지킨다 ──────────────────────────────
+//
+// 계약(`design_tokens.test.ts`)과 갈라 둔 이유: 이 파일의 숫자들은 **고쳐야 할
+// 빚의 잔액**이지 지켜야 할 규칙이 아니다. 줄면 숫자를 내려 적고, 늘면 왜
+// 늘었는지를 설명해야 한다. 둘을 한 파일에 두면 "이 expect 는 계약인가
+// 잔액인가" 를 매번 다시 읽게 된다 (그리고 그 파일이 810줄로 크기 래칫에
+// 걸렸다 — 쪼갤 자리를 크기가 아니라 뜻이 정했다).
+
+// ─── EmptyState/LoadingState 밀도 계약 — 래칫 (2026-09-09) ─────────────────
+//
+// `{#layout-empty-density}`: 호출부 50곳 중 **20곳**이 인라인 padding 으로
+// `.es--plain` 의 60px 을 덮고 있었다. 기본값이 지배적 용법에 안 맞으면 호출부가
+// 매번 되돌리고, 되돌리는 값은 자리마다 갈린다 — 실측이 그 증거였다:
+// 16 · "16px" · "24px 8px" · "24px 16px" · "18px 16px" · "16px 20px" · "8px 0" ·
+// "6px 2px" 여덟 가지.
+//
+// 그중 **최빈값이 정확히 16px(10곳)** 이고 그건 램프의 --space-6 이다. 그
+// 10곳만 `density="compact"` 로 옮겼다 — 계산값이 같으니 시각 변화 0이다.
+// 남은 10곳은 램프 밖이라 접으면 2~8px 씩 움직인다: 눈으로 보고 정할 일이라
+// 인라인으로 남기고 여기서 동결한다.
+describe("빈 상태·로딩 밀도", () => {
+  const CALL = /<(?:Empty|Loading)State\b[^>]*\bstyle=/g;
+
+  it("밀도를 인라인으로 덮는 호출부가 **늘지** 않는다", () => {
+    const offenders: string[] = [];
+    for (const file of walk(join(ROOT))) {
+      if (!/\.tsx$/.test(file)) continue;
+      const n = (readFileSync(file, "utf8").match(CALL) ?? []).length;
+      if (n) offenders.push(`${file.slice(ROOT.length + 1)} ×${n}`);
+    }
+    const total = offenders.reduce((a, o) => a + Number(o.split("×")[1]), 0);
+    // 줄이면 이 숫자를 내려 적을 것. 새 밀도가 필요하면 인라인이 아니라
+    // `density` 한 단을 더하는 쪽이다 — 그게 이 항목이 세운 규약이다.
+    expect(total, `인라인 밀도 ${total}곳 — ${offenders.join(" · ")}`).toBeLessThanOrEqual(10);
+  });
+
+  it("세 밀도가 CSS 와 컴포넌트 양쪽에 있다", () => {
+    const css = read("styles/empty.css");
+    for (const cls of ["es--plain", "es--compact", "es--rich"]) {
+      expect(css, `${cls} 가 empty.css 에 없다`).toContain(`.${cls} {`);
+    }
+    // LoadingState 는 `rich` 를 갖지 않는다 — 아이콘·제목·행동이 있는 로딩은 없다.
+    const ls = read("components/LoadingState.tsx");
+    expect(ls).toContain('density?: "plain" | "compact"');
+  });
+});
+
+// ─── 여백 램프 채택 — 래칫 (2026-09-09) ────────────────────────────────────
+describe("여백", () => {
+  const RAMP = new Set([4, 6, 8, 10, 12, 16, 20, 24]);
+  const PROP = /\b(?:padding|margin|gap|row-gap|column-gap)(?:-[a-z-]+)?\s*:\s*([^;{}]+)/g;
+
+  function offRamp(): Map<number, number> {
+    const hist = new Map<number, number>();
+    for (const file of walk(join(ROOT))) {
+      if (!file.endsWith(".css") || file.endsWith("styles/tokens.css")) continue;
+      const css = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, " ");
+      for (const m of css.matchAll(PROP)) {
+        for (const mm of m[1].matchAll(/(?<![-\w.])(\d+)px/g)) {
+          const v = Number(mm[1]);
+          // 1~3px 은 헤어라인 보정이지 여백 스케일이 아니다 — 램프가 4px 에서 시작한다.
+          if (v >= 4 && !RAMP.has(v)) hist.set(v, (hist.get(v) ?? 0) + 1);
+        }
+      }
+    }
+    return hist;
+  }
+
+  it("램프 밖 여백이 **늘지** 않는다", () => {
+    // 2026-09-09: 램프에 정확히 맞는 892곳을 토큰으로 옮겼다(시각 변화 0인 순수
+    // 개명). 남은 480곳은 램프 밖 값이라 옮기면 1~2px 씩 움직인다 — 5px(108) ·
+    // 7px(88) · 9px(88) 이 최상위이고, 이 셋은 --space 의 저단(4·6·8·10)이
+    // 2px 격자인데 그 사이에 낀 값들이다.
+    //
+    // 램프에 5·7·9 를 더할지 6·8·10 으로 수렴시킬지는 **눈으로 보고** 정할
+    // 일이라 남겨 두었다. 그때까지 이 래칫이 "새로 늘지는 않는다" 만 지킨다.
+    // 줄이면 이 숫자를 내려 적을 것.
+    const hist = offRamp();
+    const total = [...hist.values()].reduce((a, b) => a + b, 0);
+    const top = [...hist.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    expect(total, `램프 밖 여백 ${total}곳 — 최상위 ${JSON.stringify(top)}`).toBeLessThanOrEqual(480);
+  });
+});

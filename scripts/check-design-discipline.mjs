@@ -50,13 +50,15 @@
  *     조용히 다른 값으로 돌아가서 더 안 잡힌다.
  *
  * 16. 로딩을 빈 상태로 그리기(<EmptyState>{t("…loading")}</EmptyState>) —
- *     실측 8곳이고, 그중 다섯(NextTasks · WhatsNewCard ·
+ *     실측 **9곳**이고, 그중 다섯(NextTasks · WhatsNewCard ·
  *     ConversationHistoryModal · BinaryFileView · AutomationHistory)은 로딩
  *     분기와 빈 분기가 **같은 컴포넌트에 같은 props** 라 문자열만 달랐다.
  *     화면이 픽셀 단위로 같으면 "기다리면 채워진다" 와 "여기는 원래 비어
  *     있다" 가 구분되지 않는데, 둘은 정반대의 행동을 요구한다.
- *     `LoadingState` 는 `.es--plain` 을 그대로 입어 자리·치수를 유지하고
- *     스피너 하나로만 갈린다 ({#layout-loading-state}).
+ *     `LoadingState` 는 같은 밀도를 그대로 입어 자리·치수를 유지하고
+ *     스피너·role=status 로만 갈린다 ({#layout-loading-state}).
+ *     **여러 줄 JSX 를 봐야 해서 별도 패스다** (checkLoadingAsEmpty) — 처음엔
+ *     줄 단위 규칙으로 넣었다가 아홉 번째 자리를 통째로 놓쳤다.
  *
  * 2026-09-09 일관성 라운드가 더한 둘 (규칙 10 은 아래 별도 패스):
  *
@@ -197,15 +199,6 @@ const RULES = [
     hint: "--z-sticky|strip|panel|dock|menu|popover|modal|command|top (Tailwind 로는 z-top 등)",
   },
   {
-    // 로딩을 빈 상태로 그리면 "기다리면 채워진다" 와 "원래 비어 있다" 가 픽셀
-    // 단위로 같아진다 — 정반대의 행동을 요구하는 두 상태다. 실측 8곳이었고
-    // 그중 다섯은 두 분기가 *같은 컴포넌트에 같은 props* 라 문자열만 달랐다.
-    id: "loading-as-empty",
-    ext: /\.tsx?$/,
-    re: /<EmptyState[^>]*>\s*\{\s*t\(\s*"[^"]*[lL]oading"/,
-    hint: "로딩은 <LoadingState> ({#layout-loading-state}) — 치수는 .es--plain 을 그대로 상속하고 스피너 하나로만 갈린다",
-  },
-  {
     id: "ink-shadow",
     ext: /\.css$/,
     re: /box-shadow:[^;]*rgba?\(\s*0\s*[,)]/,
@@ -293,6 +286,7 @@ for await (const file of walk(SRC)) {
   // 영영 안 걸린다 — 머리 주석이 문서화한 탈출구가 CSS 에서만 죽어 있었다 (2026-09-08).
   const rawLines = raw.split("\n");
   if (isCss) checkTransitions(rel, src, rawLines);
+  else checkLoadingAsEmpty(rel, src, rawLines);
   for (const rule of RULES) {
     if (!rule.ext.test(file)) continue;
     if (ALLOW[rule.id]?.has(rel)) continue;
@@ -301,6 +295,31 @@ for await (const file of walk(SRC)) {
       if (/design-ignore\s*--/.test(rawLines[i] ?? "")) return;
       violations.push(`${rel}:${i + 1}  [${rule.id}] ${line.trim().slice(0, 110)}\n      → ${rule.hint}`);
     });
+  }
+}
+
+/**
+ * 규칙 16 — 로딩을 빈 상태로 그리기. **여러 줄 JSX 를 봐야 한다**: 줄 단위
+ * 규칙으로 넣었다가 `EntryDetailView` 의
+ *
+ *     <EmptyState align="start" style={{ padding: 16 }}>
+ *       {t("common.loading")}
+ *     </EmptyState>
+ *
+ * 한 곳을 통째로 놓쳤다 — 여는 태그와 문안이 다른 줄이면 안 걸린다. 여덟 곳을
+ * 고치고 게이트를 세운 바로 그 라운드에서 아홉 번째가 규칙을 빠져나간 셈이라,
+ * 이 규칙만은 줄이 아니라 **여는 태그부터 첫 문안까지**를 떠서 본다.
+ */
+function checkLoadingAsEmpty(rel, src, rawLines) {
+  for (const m of src.matchAll(/<EmptyState\b[^>]*>\s*\{\s*t\(\s*"([^"]*)"/g)) {
+    if (!/oading/.test(m[1])) continue;
+    const line = src.slice(0, m.index).split("\n").length;
+    // design-ignore 는 여는 태그 줄과 그 앞 3줄에서 찾는다 (checkTransitions 와 같은 규약).
+    if (rawLines.slice(Math.max(0, line - 4), line).some((l) => /design-ignore\s*--/.test(l))) continue;
+    violations.push(
+      `${rel}:${line}  [loading-as-empty] <EmptyState …>{t("${m[1]}")}\n` +
+        "      → 로딩은 <LoadingState> ({#layout-loading-state}) — 치수는 같은 밀도를 상속하고 스피너·role=status 로만 갈린다",
+    );
   }
 }
 

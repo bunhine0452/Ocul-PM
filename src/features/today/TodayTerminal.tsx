@@ -67,7 +67,7 @@ export function TodayTerminal({
         </div>
       ) : (
         <div className="panel-body">
-          <EmptyState style={{ padding: "16px" }}>{t("today.terminal.hint")}</EmptyState>
+          <EmptyState density="compact">{t("today.terminal.hint")}</EmptyState>
         </div>
       )}
     </div>

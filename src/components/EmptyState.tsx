@@ -6,10 +6,15 @@
  * 3벌이 각자 데려온 전용 클래스 8종. 같은 뜻을 세 가지 무게로 말하면 사용자는
  * "이건 오류인가 아직 안 끝난 건가"를 화면마다 다시 배운다.
  *
- * 두 밀도만 둔다:
+ * 세 밀도를 둔다:
  *
- *  - `plain` — 목록 안·패널 안의 한 줄. 예전 `.empty-hint` 자리.
- *  - `rich`  — 화면 전체가 비었을 때. 아이콘·제목·설명·행동.
+ *  - `plain`   — 목록 안·패널 안의 한 줄. 예전 `.empty-hint` 자리(60px).
+ *  - `compact` — 카드·패널 안의 좁은 슬롯(16px). {#layout-empty-density} 에서
+ *                더했다: 호출부 50곳 중 20곳이 인라인 padding 으로 `plain` 의
+ *                60px 을 덮고 있었고, 그 20곳의 **최빈값이 정확히 16px**(10곳)
+ *                이었다. 기본값이 지배적 용법에 안 맞으면 호출부가 매번
+ *                되돌리고, 되돌리는 값은 자리마다 갈린다.
+ *  - `rich`    — 화면 전체가 비었을 때. 아이콘·제목·설명·행동.
  *
  * **일러스트는 없다.** 이 앱은 밀도 도구다 — 빈 화면에 그림을 넣으면 그
  * 자리를 차지하는 것은 "무엇을 하면 채워지는가"가 아니라 장식이 된다.
@@ -23,7 +28,7 @@ import type { IconComponent } from "@/components/Icons";
 
 export interface EmptyStateProps {
   /** 기본은 `plain` — 옮겨온 자리 대부분이 한 줄짜리다. */
-  density?: "plain" | "rich";
+  density?: "plain" | "compact" | "rich";
   /** `rich` 에서만 그린다. 그 자리가 무엇인지 말하는 아이콘 (장식 금지). */
   icon?: IconComponent;
   title?: ReactNode;
@@ -52,7 +57,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   const cls = [
     "es",
-    density === "rich" ? "es--rich" : "es--plain",
+    density === "rich" ? "es--rich" : density === "compact" ? "es--compact" : "es--plain",
     align === "start" ? "es--start" : null,
     className,
   ]
