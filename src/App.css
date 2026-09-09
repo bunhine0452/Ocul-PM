@@ -248,147 +248,57 @@
     --shadow-2xl: var(--shadow-pop);
 }
 
-/* PR-UI 8b — shadcn vars remapped to the ui_v2 token palette (Decision J,
-   Option 2). The dashboard (StartScreen) + global overlays read these, so they
-   now adopt the ui_v2 green / macOS tone instead of the legacy cream/coral.
-   --primary = ui_v2 accent (green); --accent = subtle hover surface. */
+/* shadcn 변수 → ui_v2 토큰 **별칭** (2026-09-09 일관성 라운드).
+   PR-UI 8b(Decision J, Option 2)가 원래 하려던 것이 이것이다. 그때는 hex 를
+   손으로 옮겨 적었고, 그래서 두 팔레트가 조용히 갈라졌다 — 실측 차이:
+
+     Nord      --text-2 #d8dee9  vs  --muted-foreground #aab4c4
+     Solarized --text   #47585e  vs  --foreground       #586e75
+     라이트     --bg-card #ffffff vs  --card             #fdfcf9
+
+   ui_v2 스타일시트가 shadcn 어휘를 173곳 참조하므로(--border 87 · --primary 19 ·
+   --muted-foreground 18) 두 팔레트는 한 창에서 **동시에** 렌더된다. Nord 에서
+   설정 패널의 보조 텍스트만 회색이고 옆의 일지 카드는 거의 흰색이던 이유다.
+
+   "대시보드는 이 파일만 읽는다" 는 전제는 2026-07-31 에 tokens.css 가 App.css
+   로 승격되면서 무효가 됐다. 그래서 값을 다시 적을 이유가 없다 — 별칭이면
+   프리셋 5종·액센트 6종·사용자 커스텀 테마(인라인 변수)가 전부 자동으로 따라온다.
+
+   **블록이 하나인 이유**: `data-preset`/`data-theme` 은 `<html>` 에만 붙는다
+   (features/theme/apply.ts:137). custom property 의 var() 는 쓰이는 요소에서
+   풀리므로, :root 에 한 번 적어 두면 프리셋이 --text 를 갈아끼울 때 --foreground
+   도 같이 갈린다. 프리셋을 하위 요소에 걸기 시작하면 이 전제가 깨지니 주의. */
 :root {
-    /* 전면 리스킨 (2026-07-16) — "Atelier Ivory": 웜 아이보리 캔버스 + 잉크 텍스트.
-       ui_v2 tokens.css 의 라이트 팔레트와 값이 짝을 이룬다 (대시보드는 이 파일만 읽음). */
-    --background: #f1eee6;
-    --foreground: #211e18;
-    --card: #fdfcf9;
-    --card-foreground: #211e18;
-    --popover: #fdfcf9;
-    --popover-foreground: #211e18;
-    --primary: var(--accent, #0e8a60); /* follows 컬러 테마 (--accent); emerald fallback on dashboard */
-    --primary-foreground: #ffffff;
-    --secondary: #eae6da;
-    --secondary-foreground: #211e18;
-    --muted: #eae6da;
-    --muted-foreground: #6d675c;
-    --accent-surface: #eae7dc; /* subtle hover/selected surface (shadcn `accent`) */
-    --accent-foreground: #211e18;
-    --destructive: #e0524b; /* ui_v2 --t-bug */
-    --border: #e1dcd0;
-    --input: #e1dcd0;
-    --ring: var(--accent, #0e8a60);
-    --radius: 0.625rem; /* ~10px, near ui_v2 --radius-m */
-    --sidebar: #f1eee6;
-    --sidebar-foreground: #211e18;
-    --sidebar-primary: var(--accent, #0e8a60);
-    --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #eae7dc;
-    --sidebar-accent-foreground: #211e18;
-    --sidebar-border: #e1dcd0;
-    --sidebar-ring: var(--accent, #0e8a60);
-}
-
-[data-theme="dark"] {
-    /* "Deep Forest" — 초록기 도는 딥 차콜 (tokens.css 다크 팔레트와 짝). */
-    --background: #191d1b;
-    --foreground: #f1f4f1;
-    --card: #232826;
-    --card-foreground: #f1f4f1;
-    --popover: #232826;
-    --popover-foreground: #f1f4f1;
-    --primary: var(--accent, #34d095); /* follows 컬러 테마 (--accent); mint fallback on dashboard */
-    --primary-foreground: #06281c;
-    --secondary: #282e2b;
-    --secondary-foreground: #f1f4f1;
-    --muted: #282e2b;
-    --muted-foreground: #a6aea8;
-    --accent-surface: #2a312d; /* subtle hover/selected surface (shadcn `accent`) */
-    --accent-foreground: #f1f4f1;
-    --destructive: #f1685f; /* ui_v2 --t-bug (dark) */
-    --border: rgba(255, 255, 255, 0.09);
-    --input: rgba(255, 255, 255, 0.09);
-    --ring: var(--accent, #34d095);
-    --sidebar: #121514;
-    --sidebar-foreground: #f1f4f1;
-    --sidebar-primary: var(--accent, #34d095);
-    --sidebar-primary-foreground: #06281c;
-    --sidebar-accent: #2a312d;
-    --sidebar-accent-foreground: #f1f4f1;
-    --sidebar-border: rgba(255, 255, 255, 0.09);
-    --sidebar-ring: var(--accent, #34d095);
-}
-
-/* Preset themes (풀 프리셋 테마) — shadcn vars for the dashboard (StartScreen)
-   + global overlays, which read these always-loaded tokens (tokens.css isn't on
-   the dashboard). `data-preset` is set on <html> alongside the light/dark base
-   `data-theme`; placed after both blocks above so it wins on equal specificity.
-   Accent values are hard-coded (not `var(--accent)`) since tokens.css may not be
-   loaded on the surface reading these. */
-[data-preset="solarized"] {
-    --background: #f3ecd7; --foreground: #586e75;
-    --card: #fdf6e3; --card-foreground: #586e75;
-    --popover: #fdf6e3; --popover-foreground: #586e75;
-    --primary: #268bd2; --primary-foreground: #fdf6e3;
-    --secondary: #eee8d5; --secondary-foreground: #586e75;
-    --muted: #eee8d5; --muted-foreground: #657b83;
-    --accent-surface: #e7e0cb; --accent-foreground: #586e75;
-    --destructive: #dc322f; --border: #ddd6c1; --input: #ddd6c1; --ring: #268bd2;
-    --sidebar: #eee8d5; --sidebar-foreground: #586e75;
-    --sidebar-primary: #268bd2; --sidebar-primary-foreground: #fdf6e3;
-    --sidebar-accent: #e1dac4; --sidebar-accent-foreground: #586e75;
-    --sidebar-border: #ddd6c1; --sidebar-ring: #268bd2;
-}
-[data-preset="sepia"] {
-    --background: #f1e7d0; --foreground: #4a3a2a;
-    --card: #faf3e0; --card-foreground: #4a3a2a;
-    --popover: #faf3e0; --popover-foreground: #4a3a2a;
-    --primary: #b06a2c; --primary-foreground: #fbf6ea;
-    --secondary: #e9ddc2; --secondary-foreground: #4a3a2a;
-    --muted: #e9ddc2; --muted-foreground: #6b5847;
-    --accent-surface: #e4d8bd; --accent-foreground: #4a3a2a;
-    --destructive: #b3433a; --border: #ddcfb0; --input: #ddcfb0; --ring: #b06a2c;
-    --sidebar: #ece1c8; --sidebar-foreground: #4a3a2a;
-    --sidebar-primary: #b06a2c; --sidebar-primary-foreground: #fbf6ea;
-    --sidebar-accent: #e4d8bd; --sidebar-accent-foreground: #4a3a2a;
-    --sidebar-border: #ddcfb0; --sidebar-ring: #b06a2c;
-}
-[data-preset="nord"] {
-    --background: #2e3440; --foreground: #eceff4;
-    --card: #3b4252; --card-foreground: #eceff4;
-    --popover: #3b4252; --popover-foreground: #eceff4;
-    --primary: #88c0d0; --primary-foreground: #2e3440;
-    --secondary: #3b4252; --secondary-foreground: #eceff4;
-    --muted: #3b4252; --muted-foreground: #aab4c4;
-    --accent-surface: #3b4252; --accent-foreground: #eceff4;
-    --destructive: #bf616a; --border: #434c5e; --input: #434c5e; --ring: #88c0d0;
-    --sidebar: #2b303b; --sidebar-foreground: #eceff4;
-    --sidebar-primary: #88c0d0; --sidebar-primary-foreground: #2e3440;
-    --sidebar-accent: #3b4252; --sidebar-accent-foreground: #eceff4;
-    --sidebar-border: #434c5e; --sidebar-ring: #88c0d0;
-}
-[data-preset="dracula"] {
-    --background: #282a36; --foreground: #f8f8f2;
-    --card: #343746; --card-foreground: #f8f8f2;
-    --popover: #343746; --popover-foreground: #f8f8f2;
-    --primary: #bd93f9; --primary-foreground: #282a36;
-    --secondary: #44475a; --secondary-foreground: #f8f8f2;
-    --muted: #44475a; --muted-foreground: #9ea3c0;
-    --accent-surface: #44475a; --accent-foreground: #f8f8f2;
-    --destructive: #ff5555; --border: #44475a; --input: #44475a; --ring: #bd93f9;
-    --sidebar: #21222c; --sidebar-foreground: #f8f8f2;
-    --sidebar-primary: #bd93f9; --sidebar-primary-foreground: #282a36;
-    --sidebar-accent: #343746; --sidebar-accent-foreground: #f8f8f2;
-    --sidebar-border: #44475a; --sidebar-ring: #bd93f9;
-}
-[data-preset="high-contrast"] {
-    --background: #000000; --foreground: #ffffff;
-    --card: #0a0a0a; --card-foreground: #ffffff;
-    --popover: #0a0a0a; --popover-foreground: #ffffff;
-    --primary: #ffd400; --primary-foreground: #000000;
-    --secondary: #1a1a1a; --secondary-foreground: #ffffff;
-    --muted: #1a1a1a; --muted-foreground: #d4d4d4;
-    --accent-surface: #1f1f1f; --accent-foreground: #ffffff;
-    --destructive: #ff5b5b; --border: #8a8a8a; --input: #8a8a8a; --ring: #ffd400;
-    --sidebar: #000000; --sidebar-foreground: #ffffff;
-    --sidebar-primary: #ffd400; --sidebar-primary-foreground: #000000;
-    --sidebar-accent: #1f1f1f; --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: #8a8a8a; --sidebar-ring: #ffd400;
+    --background: var(--bg-window);
+    --foreground: var(--text);
+    --card: var(--bg-card);
+    --card-foreground: var(--text);
+    --popover: var(--bg-card);
+    --popover-foreground: var(--text);
+    --primary: var(--accent);
+    --primary-foreground: var(--text-on-accent);
+    --secondary: var(--bg-inset);
+    --secondary-foreground: var(--text);
+    --muted: var(--bg-inset);
+    --muted-foreground: var(--text-2);
+    /* shadcn 의 `accent` = 은은한 hover/선택 표면. ui_v2 에서는 --bg-active 다
+       (반투명이라 어느 바탕 위에서도 맞는다). ui_v2 의 --accent(초록)와 이름이
+       충돌해서 --accent-surface 로 빼 둔 것은 그대로. */
+    --accent-surface: var(--bg-active);
+    --accent-foreground: var(--text);
+    --destructive: var(--danger);
+    --border: var(--sep);
+    --input: var(--sep);
+    --ring: var(--accent);
+    --radius: var(--radius-m);
+    --sidebar: var(--bg-sidebar);
+    --sidebar-foreground: var(--text);
+    --sidebar-primary: var(--accent);
+    --sidebar-primary-foreground: var(--text-on-accent);
+    --sidebar-accent: var(--bg-active);
+    --sidebar-accent-foreground: var(--text);
+    --sidebar-border: var(--sep);
+    --sidebar-ring: var(--accent);
 }
 
 @layer base {

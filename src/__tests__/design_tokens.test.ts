@@ -606,3 +606,81 @@ describe("--text-on-accent / --accent — 알려진 미달의 래칫", () => {
     expect(report.length, `AA 미달: ${report.join(" · ")}`).toBeLessThanOrEqual(6);
   });
 });
+
+// ─── shadcn 어휘는 ui_v2 토큰의 별칭이다 (2026-09-09 일관성 라운드) ─────────
+//
+// 2026-07-16 리스킨부터 2026-09-08 까지 App.css 는 프리셋 7블록에 shadcn 이름의
+// hex 를 **손으로** 옮겨 적었다. 두 표가 나란히 있으면 갈라진다 — 실측:
+//
+//   Nord      --text-2 #d8dee9  vs  --muted-foreground #aab4c4
+//   Solarized --text   #47585e  vs  --foreground       #586e75
+//   라이트     --bg-card #ffffff vs  --card             #fdfcf9
+//
+// ui_v2 스타일시트가 shadcn 어휘를 173곳 참조하므로 두 팔레트는 한 창에서
+// 동시에 렌더된다. 별칭으로 바꾼 뒤로는 위의 "글자 램프는 어느 테마에서도
+// 읽힌다" 가 shadcn 쪽까지 자동으로 보증한다 — **별칭이 유지되는 한**.
+// 이 스위트가 지키는 게 그 전제다.
+describe("shadcn 어휘는 ui_v2 토큰의 별칭이다", () => {
+  const app = read("App.css");
+  /** shadcn 이름 → 그것이 뜻하는 ui_v2 토큰. 값이 아니라 **의미**의 짝이다. */
+  const ALIAS: Record<string, string> = {
+    "--background": "--bg-window",
+    "--foreground": "--text",
+    "--card": "--bg-card",
+    "--card-foreground": "--text",
+    "--popover": "--bg-card",
+    "--popover-foreground": "--text",
+    "--primary": "--accent",
+    "--primary-foreground": "--text-on-accent",
+    "--secondary": "--bg-inset",
+    "--secondary-foreground": "--text",
+    "--muted": "--bg-inset",
+    "--muted-foreground": "--text-2",
+    "--accent-surface": "--bg-active",
+    "--accent-foreground": "--text",
+    "--destructive": "--danger",
+    "--border": "--sep",
+    "--input": "--sep",
+    "--ring": "--accent",
+    "--sidebar": "--bg-sidebar",
+    "--sidebar-foreground": "--text",
+    "--sidebar-primary": "--accent",
+    "--sidebar-primary-foreground": "--text-on-accent",
+    "--sidebar-accent": "--bg-active",
+    "--sidebar-accent-foreground": "--text",
+    "--sidebar-border": "--sep",
+    "--sidebar-ring": "--accent",
+  };
+
+  const appBlocks = parseBlocks(app);
+
+  it("모든 shadcn 색 이름이 정확히 그 ui_v2 토큰의 별칭이다", () => {
+    const root = appBlocks.get(":root") ?? {};
+    for (const [name, target] of Object.entries(ALIAS)) {
+      expect(root[name], `App.css :root 에 ${name} 이 없다`).toBeTruthy();
+      expect(root[name]?.replace(/\s+/g, ""), `${name}`).toBe(`var(${target})`);
+    }
+  });
+
+  it("별칭이 가리키는 토큰은 tokens.css 에 실재한다", () => {
+    for (const target of new Set(Object.values(ALIAS))) {
+      expect(TOKENS, `tokens.css 에 ${target} 정의가 없다`).toMatch(
+        new RegExp(`${target}\\s*:\\s*[^;]+;`),
+      );
+    }
+  });
+
+  // 되돌아오는 방식은 하나다: "이 프리셋만 다르게" 하려고 블록을 다시 여는 것.
+  // 그러면 그 프리셋에서만 두 팔레트가 갈라지고, 눈으로는 안 보인다.
+  it("다크·프리셋 블록이 shadcn 이름을 다시 선언하지 않는다", () => {
+    const offenders: string[] = [];
+    for (const [selector, decls] of appBlocks) {
+      if (selector === ":root") continue;
+      if (!/\[data-(theme|preset|accent)=/.test(selector)) continue;
+      for (const name of Object.keys(decls)) {
+        if (name in ALIAS) offenders.push(`${selector} { ${name} }`);
+      }
+    }
+    expect(offenders, `별칭을 덮어쓰는 블록: ${offenders.join(" · ")}`).toEqual([]);
+  });
+});
