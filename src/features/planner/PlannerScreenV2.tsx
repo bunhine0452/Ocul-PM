@@ -16,6 +16,7 @@ import type { PlanGroup, PlanSort } from "./planList";
 import { t, useT } from "@/i18n";
 import { PlanBody } from "./PlanBody";
 import { usePlanDocument } from "./usePlanDocument";
+import { blocked } from "@/lib/blocked";
 
 // Planner Upgrade (PR-PLN 3) — document-style living checklist over the file
 // `.oculpm/planner/*.md` SSOT. Reads via plan_list/plan_get; edits via
@@ -198,8 +199,11 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           className="scope-chip"
           style={{ height: 30 }}
           onClick={() => void plan.aiRefresh()}
-          disabled={selectedId == null || busy || locked}
-          title={locked ? t("plan.aiLockedTitle") : t("plan.aiTitle")}
+          {...blocked(
+            locked ? t("plan.aiLockedTitle") : selectedId == null ? t("plan.blockedNoPlan") : null,
+            t("plan.aiTitle"),
+          )}
+          disabled={busy}
         >
           <RefreshCw size={13} /> {t("plan.aiRefresh")}
         </button>
@@ -207,8 +211,11 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           className="scope-chip"
           style={{ height: 30 }}
           onClick={() => setComposer((c) => (c ? null : { phase: plan.existingPhases[0] ?? t("plan.defaultPhase"), title: "" }))}
-          disabled={selectedId == null || busy || locked}
-          title={locked ? t("plan.addLockedTitle") : t("plan.addItemTitle")}
+          {...blocked(
+            locked ? t("plan.addLockedTitle") : selectedId == null ? t("plan.blockedNoPlan") : null,
+            t("plan.addItemTitle"),
+          )}
+          disabled={busy}
         >
           <Plus size={13} /> {t("plan.addItem")}
         </button>
@@ -243,7 +250,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
                 onChange={(e) => setNewPlanTitle(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") void submitNewPlan(); if (e.key === "Escape") setNewPlanOpen(false); }}
               />
-              <button className="btn primary" onClick={() => void submitNewPlan()} disabled={busy || !newPlanTitle.trim()}>{t("plan.create")}</button>
+              <button className="btn primary" onClick={() => void submitNewPlan()} {...blocked(newPlanTitle.trim() ? null : t("plan.blockedNoTitle"))} disabled={busy}>{t("plan.create")}</button>
               <button className="btn sm" onClick={() => setNewPlanOpen(false)}>{t("common.cancel")}</button>
             </div>
           ) : null}
@@ -324,7 +331,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
                 onChange={(e) => setComposer({ ...composer, title: e.target.value })}
                 onKeyDown={(e) => { if (e.key === "Enter") void submitNewItem(); if (e.key === "Escape") setComposer(null); }}
               />
-              <button className="btn primary" onClick={() => void submitNewItem()} disabled={busy || !composer.title.trim()}>{t("plan.add")}</button>
+              <button className="btn primary" onClick={() => void submitNewItem()} {...blocked(composer.title.trim() ? null : t("plan.blockedNoItemTitle"))} disabled={busy}>{t("plan.add")}</button>
               <button className="btn sm" onClick={() => setComposer(null)}>{t("common.cancel")}</button>
             </div>
           ) : null}

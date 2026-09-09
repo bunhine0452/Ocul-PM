@@ -33,6 +33,7 @@ import type { EntryFileDiff, JournalEntry, JournalEntrySummary } from "@/lib/bin
 import { useT, getLang, type I18nKey } from "@/i18n";
 import { requestAgentContext } from "@/lib/agentContextNav";
 import { firstSlug, ruleGlobsFromPaths } from "@/lib/promoteSeed";
+import { blocked } from "@/lib/blocked";
 
 // 작업 일지 항목의 풍부한 열람 — 전용 화면(마스터-디테일). Dogfooding 2026-06-07:
 // 모달(오버레이) 대신 콘텐츠 영역을 가득 채우는 디테일 뷰로 교체. 좌 pane 은
@@ -633,8 +634,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                       key={r.path}
                       type="button"
                       onClick={() => r.hasDiff && setSelected(r.path)}
-                      disabled={!r.hasDiff}
-                      title={r.path}
+                      {...blocked(r.hasDiff ? null : t("entry.blockedNoDiff"), r.path)}
                       aria-current={active?.path === r.path ? "true" : undefined}
                       className={
                         "dfile" +
@@ -684,9 +684,11 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                     type="button"
                     className="efb-step"
                     onClick={() => setSelected(orderedPaths[activeIdx - 1])}
-                    disabled={activeIdx <= 0}
                     aria-label={t("entry.prevFile")}
-                    title={`${t("entry.prevFile")} (k)`}
+                    {...blocked(
+                      activeIdx <= 0 ? t("entry.blockedFirstFile") : null,
+                      `${t("entry.prevFile")} (k)`,
+                    )}
                   >
                     <ChevronLeft size={15} />
                   </button>
@@ -694,9 +696,13 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                     type="button"
                     className="efb-step"
                     onClick={() => setSelected(orderedPaths[activeIdx + 1])}
-                    disabled={activeIdx < 0 || activeIdx >= orderedPaths.length - 1}
                     aria-label={t("entry.nextFile")}
-                    title={`${t("entry.nextFile")} (j)`}
+                    {...blocked(
+                      activeIdx < 0 || activeIdx >= orderedPaths.length - 1
+                        ? t("entry.blockedLastFile")
+                        : null,
+                      `${t("entry.nextFile")} (j)`,
+                    )}
                   >
                     <ChevronRight size={15} />
                   </button>

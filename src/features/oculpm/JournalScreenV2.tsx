@@ -22,6 +22,7 @@ import {
 } from "@/lib/journalCompose";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { useT, type I18nKey } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 
 // Final UI Update (ui_v2) — 작업 일지 timeline (02-screen-specs §2). Frontend
 // aggregation over oculpm_list_journal_entries (Decision F). scope-chip 6 filters
@@ -496,8 +497,7 @@ export function JournalScreenV2({
           type="button"
           className="btn primary"
           onClick={() => setManualSeed({})}
-          disabled={!todayKey}
-          title={todayKey ? t("journal.newTitle") : t("journal.newDisabled")}
+          {...blocked(todayKey ? null : t("journal.newDisabled"), t("journal.newTitle"))}
         >
           <Plus size={15} /> {t("journal.new")}
         </button>
@@ -664,7 +664,7 @@ export function JournalScreenV2({
                       type="button"
                       className="btn primary"
                       onClick={() => setManualSeed({})}
-                      disabled={!todayKey}
+                      {...blocked(todayKey ? null : t("journal.newDisabled"))}
                     >
                       <Plus size={15} /> {t("journal.new")}
                     </button>

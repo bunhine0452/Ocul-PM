@@ -66,6 +66,6 @@ describe("이유 없는 비활성 (래칫)", () => {
         offenders.push(`${file.slice(ROOT.length + 1)}:${src.slice(0, m.index).split("\n").length}`);
       }
     }
-    expect(offenders.length, `이유 없는 비활성 ${offenders.length}곳`).toBeLessThanOrEqual(129);
+    expect(offenders.length, `이유 없는 비활성 ${offenders.length}곳`).toBeLessThanOrEqual(116);
   });
 });

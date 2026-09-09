@@ -17,6 +17,7 @@ import { useDiffChanges } from "./useDiffChanges";
 import { useDiffFile } from "./useDiffFile";
 import { useDiffSearch } from "./useDiffSearch";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 
 // Final UI Update (ui_v2) — 변경 diff 전용 화면 (02-screen-specs §3). Wraps the
 // EXISTING diff pipeline: file list = git uncommitted changes (persistent,
@@ -170,23 +171,30 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
               },
             })
           }
-          disabled={changes.length === 0}
-          title={t("ctx.promote.ruleTitle")}
+          {...blocked(changes.length === 0 ? t("diff.blockedNoChanges") : null, t("ctx.promote.ruleTitle"))}
         >
           <ShieldCheck size={15} /> {t("ctx.promote.diffRule")}
         </button>
         <button
           className="btn ghost"
           onClick={onMarkAllReviewed}
-          disabled={changes.length === 0 || allReviewed}
-          title={t("diff.markAllTitle")}
+          {...blocked(
+            changes.length === 0
+              ? t("diff.blockedNoChanges")
+              : allReviewed
+                ? t("diff.blockedAllReviewed")
+                : null,
+            t("diff.markAllTitle"),
+          )}
         >
           <CheckMark size={15} /> {t("diff.markAll")}
         </button>
         <button
           className="btn primary"
           onClick={onMarkReviewed}
-          disabled={!selected || reviewed}
+          {...blocked(
+            !selected ? t("diff.blockedNoFile") : reviewed ? t("diff.blockedAlreadyReviewed") : null,
+          )}
         >
           <CheckMark size={15} /> {reviewed ? t("diff.isReviewed") : t("diff.reviewed")}
         </button>
@@ -294,9 +302,8 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
               </div>
               <button
                 className="iconbtn"
-                title={t("diff.openEditor")}
                 onClick={onOpenEditor}
-                disabled={!selected}
+                {...blocked(selected ? null : t("diff.blockedNoFile"), t("diff.openEditor"))}
                 aria-label={t("diff.openEditor")}
               >
                 <ExternalLinkIcon size={15} />

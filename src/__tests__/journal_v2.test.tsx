@@ -338,7 +338,10 @@ describe("작업 일지 디테일 — 변경 파일 내비게이션", () => {
     expect(container.querySelector(".efb-base")?.textContent).toBe("route.ts");
 
     // 첫 파일에서는 '이전' 이 잠기고, '다음' 은 그 다음 파일을 연다.
-    expect(getByLabelText("이전 파일")).toBeDisabled();
+    // 2026-09-10 {#fix-disabled-reason}: `disabled` 가 아니라 `aria-disabled` +
+    // 이유다 — 잠긴 이유가 도달해야 한다.
+    expect(getByLabelText("이전 파일")).toHaveAttribute("aria-disabled", "true");
+    expect(getByLabelText("이전 파일").getAttribute("title")).toBe("첫 파일이에요");
     fireEvent.click(getByLabelText("다음 파일"));
     await waitFor(() => expect(dirOf(container)).toBe("ioreum/app/api/g01/"));
     expect(container.querySelector(".efb-count")?.textContent).toBe("2/16");
@@ -386,15 +389,24 @@ describe("작업 일지 디테일 — 변경 파일 내비게이션", () => {
     expect(queryByLabelText("파일 찾기")).toBeNull();
   });
 
-  it("패치가 없는 파일은 사유 배지 + 선택 불가", async () => {
+  // 2026-09-10 {#fix-disabled-reason}: `disabled` 가 아니라 `aria-disabled` 다.
+  // `disabled` 요소는 포커스도 마우스도 안 받아 **왜 못 고르는지가 도달하지
+  // 않았다**. 지금은 살아 있고 클릭만 막히므로, 여기서도 속성이 아니라
+  // **행동**(눌러도 안 골라진다)을 단언한다.
+  it("패치가 없는 파일은 사유 배지 + 눌러도 안 골라진다", async () => {
     const { container } = await openDetail(); // workday.ts 만 기록됨
     const rows = rowsOf(container);
     expect(rows).toHaveLength(2);
     // 경로순 정렬 — useToday.ts(기록 없음) 가 먼저, workday.ts 가 뒤.
     expect(rows[0].querySelector(".dfile-note")?.textContent).toBe("기록 없음");
-    expect(rows[0]).toBeDisabled();
-    expect(rows[1].querySelector(".dfile-note")).toBeNull();
-    expect(rows[1]).not.toBeDisabled();
+    expect(rows[0]).toHaveAttribute("aria-disabled", "true");
+    expect(rows[0].getAttribute("title")).toBe("이 파일은 저장된 diff 가 없어요");
+    expect(rows[1]).not.toHaveAttribute("aria-disabled");
+
+    // 눌러도 선택이 옮겨가지 않는다.
+    const before = container.querySelector('[aria-current="true"]')?.textContent;
+    fireEvent.click(rows[0]);
+    expect(container.querySelector('[aria-current="true"]')?.textContent).toBe(before);
   });
 });
 

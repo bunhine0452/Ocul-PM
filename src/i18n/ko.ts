@@ -1103,6 +1103,10 @@ export const ko = {
   "entry.filterFiles": "파일 찾기",
   "entry.filterClear": "필터 지우기",
   "entry.noFileMatch": "일치하는 파일이 없어요.",
+  // 왜 못 누르는지 ({#fix-disabled-reason}).
+  "entry.blockedNoDiff": "이 파일은 저장된 diff 가 없어요",
+  "entry.blockedFirstFile": "첫 파일이에요",
+  "entry.blockedLastFile": "마지막 파일이에요",
   "entry.prevFile": "이전 파일",
   "entry.nextFile": "다음 파일",
   "entry.noNarrative": "추가 서술이 없어요.",
@@ -1146,6 +1150,11 @@ export const ko = {
   "diff.viewAria": "diff 보기 방식",
   "diff.viewUnified": "통합",
   "diff.viewSplit": "분할",
+  // 왜 못 누르는지 ({#fix-disabled-reason}).
+  "diff.blockedNoChanges": "변경된 파일이 없어요",
+  "diff.blockedAllReviewed": "이미 전부 검토 완료예요",
+  "diff.blockedNoFile": "왼쪽에서 파일을 먼저 고르세요",
+  "diff.blockedAlreadyReviewed": "이미 검토 완료로 표시한 파일이에요",
   "diff.markAllTitle": "변경된 모든 파일을 검토 완료로 표시",
   "diff.markAll": "모두 검토 완료",
   "diff.isReviewed": "검토함",
@@ -1283,6 +1292,11 @@ export const ko = {
   "plan.newPlan": "새 계획",
   "plan.error": "문제가 발생했어요",
   "plan.newPlanPlaceholder": "계획 제목 (예: fastembed 안정화)",
+  // 왜 못 누르는지 ({#fix-disabled-reason}) — `disabled` 는 포커스도 마우스도
+  // 안 받아 이 문장들이 도달하지 않는다. `blocked()` 가 나른다 (lib/blocked.ts).
+  "plan.blockedNoPlan": "왼쪽에서 계획을 먼저 고르세요",
+  "plan.blockedNoTitle": "제목을 입력해야 만들 수 있어요",
+  "plan.blockedNoItemTitle": "제목을 입력해야 추가할 수 있어요",
   "plan.create": "만들기",
   "plan.empty":
     "계획은 마크다운 파일 하나예요. 만들어 두면 에이전트가 plan_update 로 항목을 옮기고, 사람도 여기서 직접 고쳐요.",
