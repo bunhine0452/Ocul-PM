@@ -248,7 +248,9 @@ export function DiscussionEditor({
     return () => {
       stopThemeWatch();
       for (const sub of subs) sub.dispose();
-      editor.getModel()?.dispose();
+      // 모델은 **편집기가 소유한다** — `value` 로 만들게 했으므로 Monaco 가
+      // `_ownsModel` 로 표시해 두고 `dispose()` 때 함께 푼다. 여기서 먼저
+      // 지우면 붙어 있는 모델을 떼면서 두 번 죽이는 셈이다.
       editor.dispose();
       viewRef.current = null;
     };

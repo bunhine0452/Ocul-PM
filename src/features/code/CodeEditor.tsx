@@ -244,7 +244,9 @@ export function CodeEditor({
         value: initialText,
         language: languageId,
       });
-      ownedModels = editor.getModel() ? [editor.getModel()!] : [];
+      // 여기서는 모델을 **편집기가 소유한다** (`value` 로 만들게 했으므로
+      // Monaco 가 `_ownsModel` 로 표시해 두고 `dispose()` 때 함께 푼다).
+      // 그래서 `ownedModels` 는 비워 둔다 — 넣으면 두 번 죽인다.
     }
 
     editorRef.current = editor;
@@ -413,7 +415,9 @@ export function CodeEditor({
       gitDecoRef.current = null;
       bpDecoRef.current = null;
       // diff 모드에서는 diffEditor 가 subs 로 해제된다 — 여기서 편집기를 또
-      // dispose 하면 이미 죽은 것을 두 번 죽인다. 모델만 우리가 소유한 만큼 푼다.
+      // dispose 하면 이미 죽은 것을 두 번 죽인다. 그리고 그쪽 모델 둘은
+      // 우리가 만들었으므로(diff 편집기는 안 갖는다) 우리가 푼다. 평범한
+      // 편집기는 반대로 자기 모델을 스스로 푼다 — 그래서 `ownedModels` 가 비었다.
       if (diffOriginalAtMount == null) editor.dispose();
       for (const m of ownedModels) m.dispose();
       editorRef.current = null;
