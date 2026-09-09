@@ -15,6 +15,10 @@
 .today-greet .accent { color: var(--accent-text); }
 
 .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5); margin-bottom: var(--space-6); }
+/* 네 칸은 이 칸이 넉넉할 때만 네 칸이다 — 700 아래에서 한 장이 150px 로
+   눌리면 숫자와 라벨이 같은 줄에 못 선다 (2026-09-10 {#layout-container-query}). */
+@container screen (max-width: 640px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
+@container screen (max-width: 460px) { .stat-row { grid-template-columns: 1fr; } }
 .stat {
   background: var(--bg-card); border: 1px solid var(--border-card);
   border-radius: var(--radius-l); padding: 14px var(--space-6); box-shadow: var(--shadow-card);
@@ -63,6 +67,9 @@
 .stat.has-tip:hover .stat-tip { display: block; }
 
 .grid-2 { display: grid; grid-template-columns: 1.55fr 1fr; gap: var(--space-6); align-items: start; }
+/* 좁아지면 좁은 쪽이 먼저 죽는다(1.55:1 이라 700 에서 오른쪽이 ~265px) —
+   나란히 두는 대신 세로로 쌓는다 (2026-09-10 {#layout-container-query}). */
+@container screen (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
 
 /* Today 대시보드 — 두 열의 카드 스택 높이가 제각각이라 짧은 쪽 아래로 페이지
    배경이 그대로 드러났다. 열을 flex 스택으로 두고, 마지막 카드가 남는 높이를
@@ -187,7 +194,10 @@
 .date-rail-item.active { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
 .date-rail-md { font-size: var(--fs-2); font-weight: var(--fw-strong); }
 .date-rail-n { font-size: var(--fs-0); opacity: 0.8; }
-@media (max-width: 940px) { .date-rail { display: none; } }
+/* 창이 아니라 **이 화면 칸**의 폭이다 (2026-09-10 {#layout-container-query}).
+   옛 `@media 940` 은 사이드바를 못 봐서, 터미널 도크를 열면 일지 열이 눌리는데도
+   레일이 끝까지 버텼다. */
+@container screen (max-width: 640px) { .date-rail { display: none; } }
 .jcard {
   background: var(--bg-card); border: 1px solid var(--border-card);
   border-radius: var(--radius-l); box-shadow: var(--shadow-card);
@@ -2387,7 +2397,7 @@ mark.s-hit {
    좁은 창에서는 한 단으로 접힌다 — 카드가 두 단에서 각각 180px 이 되면
    사용자가 세션을 구별하라고 세운 사실들이 전부 말줄임표가 된다. */
 .sess-board { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); align-items: start; }
-@media (max-width: 900px) { .sess-board { grid-template-columns: 1fr; } }
+@container screen (max-width: 640px) { .sess-board { grid-template-columns: 1fr; } }
 
 .sess-col { border: 1px solid var(--sep); border-radius: var(--radius-m); padding: var(--space-4); background: var(--bg-card); min-height: 120px; transition: border-color var(--dur-2) var(--ease-out); }
 .sess-col.over { border-color: var(--accent); }

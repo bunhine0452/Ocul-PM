@@ -70,6 +70,18 @@
  *     (checkSearchBoxes). 예외는 `.home-search` 하나 — 시작 탭의 60px 밴드는
  *     상자가 아니라 밑줄이고, 그 결정은 home.css 가 직접 문서화한다.
  *
+ * 18. 폭 기반 `@media` — 프로젝트 창 안에서 창 크기는 **화면이 쓸 수 있는 폭이
+ *     아니다**. 사이드바 248px 나 터미널 도크를 열면 창은 그대로인데 화면만
+ *     좁아진다. 실측 2곳(`.date-rail` 940 · `.sess-board` 900)이 그 눈먼
+ *     기준이었고, 플래머가 `.pln-body` 로 세운 컨테이너 패턴은 2026-08-23
+ *     이후로도 다른 화면에 퍼지지 않았다 ({#layout-container-query}).
+ *     `@container screen (max-width: 640|460px)` 을 쓸 것 — `.page` 가 그
+ *     컨테이너다(shell.css). `.content-main` 이 아닌 이유는 containment 가
+ *     안쪽 `position: fixed` 의 기준을 바꾸기 때문이다(터미널 메뉴 셋 ·
+ *     논의 스크림). 예외는 사이드바가 없는 전창 표면뿐:
+ *     시작 탭(home.css)과 시작 창(welcome.css).
+ *     **여러 줄 조건을 봐야 해서 별도 패스다** (checkViewportMedia).
+ *
  * 2026-09-09 일관성 라운드가 더한 둘 (규칙 10 은 아래 별도 패스):
  *
  * 11. 타입 리터럴(text-[11px]) — 램프에 **이름이 없어서** 손이 대괄호로 간
@@ -123,6 +135,15 @@ const ALLOW = {
  * 아니라 `.search-box` 나 `.search-box.sm` 이다.
  */
 const SEARCH_BOX_ALLOW = new Set(["features/onboarding/home.css"]);
+
+/**
+ * 규칙 18 의 예외 — 사이드바도 도크도 없는 **전창** 표면. 여기서는 창 폭이
+ * 곧 화면 폭이라 `@media` 가 옳다. 프로젝트 창 안의 화면을 여기 넣지 말 것.
+ */
+const VIEWPORT_MEDIA_ALLOW = new Set([
+  "features/onboarding/home.css",
+  "features/onboarding/welcome.css",
+]);
 
 /**
  * 규칙 10 의 예외 — 이 저장소 밖에서 정의되는 커스텀 프로퍼티의 접두사.
@@ -307,6 +328,7 @@ for await (const file of walk(SRC)) {
   if (isCss) checkTransitions(rel, src, rawLines);
   else checkLoadingAsEmpty(rel, src, rawLines);
   checkSearchBoxes(rel, src, rawLines, isCss);
+  if (isCss) checkViewportMedia(rel, src, rawLines);
   for (const rule of RULES) {
     if (!rule.ext.test(file)) continue;
     if (ALLOW[rule.id]?.has(rel)) continue;
@@ -397,6 +419,28 @@ function checkSearchBoxes(rel, src, rawLines, isCss) {
     violations.push(
       `${rel}:${line}  [search-box] 인라인 ${bad[1]} 이 .search-box 를 덮는다\n` +
         "      → 치수는 두 단(.search-box / .search-box.sm)이 갖는다. 이 자리만의 폭이면 호출부 클래스로 (primitives.css)",
+    );
+  }
+}
+
+/**
+ * 규칙 18 — 폭 기반 `@media`. 조건이 여러 줄에 걸칠 수 있어 줄 단위가 아니다.
+ * `prefers-*`·`print`·`hover`·`pointer` 는 창 폭과 무관하니 안 본다.
+ */
+function checkViewportMedia(rel, src, rawLines) {
+  if (VIEWPORT_MEDIA_ALLOW.has(rel)) return;
+  for (const m of src.matchAll(/@media\s*([^{]+)\{/g)) {
+    const cond = m[1].replace(/\s+/g, " ").trim();
+    if (!/\b(?:min|max)-width\s*:/.test(cond)) continue;
+    const line = src.slice(0, m.index).split("\n").length;
+    let ignored = false;
+    for (let i = Math.max(1, line - 3); i <= line; i++) {
+      if (/design-ignore\s*--/.test(rawLines[i - 1] ?? "")) ignored = true;
+    }
+    if (ignored) continue;
+    violations.push(
+      `${rel}:${line}  [viewport-media] @media ${cond.slice(0, 70)}\n` +
+        "      → 창 폭은 화면이 쓸 수 있는 폭이 아니다 (사이드바·터미널 도크). @container screen (max-width: 640|460px) — 컨테이너는 shell.css 의 .page",
     );
   }
 }

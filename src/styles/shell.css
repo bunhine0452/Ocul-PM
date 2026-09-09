@@ -487,4 +487,29 @@
    macOS 13·14(Safari < 18.2)에서는 무시되고 예전 동작으로 남는다 — 퇴화가
    안전한 쪽이라 하한을 올리지 않는다. */
 .scroll { overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; scrollbar-gutter: stable; }
-.page { padding: var(--space-8) 28px 60px; max-width: 1180px; margin: 0 auto; width: 100%; }
+/* 화면이 반응할 기준은 **뷰포트가 아니라 이 칸**이다 (2026-09-10
+   {#layout-container-query}). 플래너가 `.pln-body` 로 이미 세운 패턴인데
+   (screens.css, 2026-08-23) 나머지 화면은 여전히 창 크기를 보고 있었다 —
+   사이드바 248px 나 터미널 도크를 열면 창은 그대로인데 화면만 좁아지므로
+   `@media` 는 그 폭을 못 본다. 프로젝트 셸의 폭 기반 `@media` 는 딱 둘이었고
+   (`.date-rail` 940 · `.sess-board` 900) 둘 다 그 눈먼 기준이었다.
+
+   **컨테이너를 `.content-main` 이 아니라 여기 두는 이유**: `container-type` 은
+   containment 라 안쪽의 `position: fixed` 가 뷰포트가 아니라 컨테이너를
+   기준으로 삼는다 — 플래너가 `PlanHoverCard` 를 body 로 포털해야 했던 이유가
+   그것이다. `.content-main` 에 걸면 포털하지 않은 넷(`.term-ghost` ·
+   `.term-block-menu` · `.term-sess-menu` · `.disc-modal-scrim`)이 조용히
+   어긋난다. 접어야 할 격자는 전부 `.page` 안에 있고, 그 넷은 전부 밖에 있다.
+
+   **접히는 선은 한 벌이다** — `@container screen` 의 640 / 460. 컨테이너
+   조건에는 `var()` 를 못 쓰니 리터럴이고, 그래서 값이 흩어지기 제일 쉬운
+   자리다. 새 격자를 접을 때 세 번째 숫자를 고르지 말 것. (플래너의
+   `plnbody` 는 다른 칸이라 자기 선을 갖는다.)
+
+   환산: 시트 ≈ 창폭 − 258(사이드바 248 + 셸 여백 10), 이 칸의 콘텐츠 상자 =
+   시트 − 56(좌우 28). 옛 `@media 940` 은 626, `@media 900` 은 586 이었다 —
+   640 이 그 자리를 이어받고, 이제는 도크를 열어도 같이 움직인다. */
+.page {
+  padding: var(--space-8) 28px 60px; max-width: 1180px; margin: 0 auto; width: 100%;
+  container-type: inline-size; container-name: screen;
+}
