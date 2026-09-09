@@ -990,7 +990,7 @@ export function CodeScreenV2({
       ) : (
         <>
       <div className="code-sidebar-head">
-        <div className="code-filter">
+        <div className="search-box sm code-filter">
           <Search size={13} className="code-filter-ico" />
           <input
             type="text"

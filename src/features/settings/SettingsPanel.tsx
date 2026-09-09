@@ -186,7 +186,7 @@ export function SettingsPanel() {
       {/* 목차 — 채워진 패널이 아니다. 앱 사이드바와 같은 문법을 쓰면 '사이드바
           속 사이드바' 가 되므로 배경 없이 캔버스 위에 얹는다 (settings.css). */}
       <div className="cfg-rail">
-        <div className="cfg-search">
+        <div className="search-box cfg-search">
           <Search size={13} />
           <input
             ref={searchRef}

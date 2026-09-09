@@ -155,7 +155,6 @@ export function TodayScreenV2({
         <button
           type="button"
           className="search-box"
-          style={{ minWidth: 200 }}
           onClick={() => onNavigate("search")}
           aria-label={t("today.search.open")}
         >

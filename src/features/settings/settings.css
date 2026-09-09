@@ -52,37 +52,17 @@
 }
 
 /* ── 레일: 검색 + 그룹 목록 ─────────────────────────────────────────────── */
+/* 상자는 `.search-box`(primitives.css) 가 갖는다 — 여기 남는 것은 이 자리의
+   폭과 전환뿐이다. 목차 레일(206px)을 꽉 채워야 하므로 기본 폭(200px)을
+   푼다 — 6px 이 남으면 아래 탭들과 좌우 정렬선이 어긋난다
+   (2026-09-10 {#unify-search-input}). */
 .cfg-search {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  height: 32px;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-s);
-  border: 1px solid var(--sep);
-  background: var(--bg-inset);
-  color: var(--text-3);
+  width: auto;
   transition:
     background-color var(--dur-1) var(--ease-out),
     border-color var(--dur-1) var(--ease-out),
     box-shadow var(--dur-1) var(--ease-out);
 }
-.cfg-search:focus-within {
-  background: var(--bg-card);
-  border-color: var(--accent);
-  box-shadow: var(--ring-soft);
-}
-.cfg-search input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-family: var(--font);
-  font-size: var(--fs-4);
-  color: var(--text);
-}
-.cfg-search input::-webkit-search-cancel-button { display: none; }
 .cfg-search-clear {
   flex: none;
   display: grid;

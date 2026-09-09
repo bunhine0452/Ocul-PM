@@ -281,17 +281,11 @@
 .dfl-foldall:hover { color: var(--accent-text); text-decoration: underline; }
 
 /* 파일 필터 — 목록이 길어지면 스크롤 대신 이름으로 찾는다 (`f`). */
-.dfl-filter {
-  flex: none; display: flex; align-items: center; gap: var(--space-2);
-  margin: 0 var(--space-5) var(--space-3); padding: 0 var(--space-2) 0 var(--space-3); height: 26px; border-radius: var(--radius-pill);
-  background: var(--bg-inset); border: 1px solid var(--sep); color: var(--text-3);
-}
-.dfl-filter:focus-within { border-color: var(--accent); color: var(--text-2); }
-.dfl-filter input {
-  flex: 1; min-width: 0; border: none; outline: none; background: transparent; padding: 0;
-  font-family: var(--font); font-size: var(--fs-3); color: var(--text);
-}
-.dfl-filter input::placeholder { color: var(--text-3); }
+/* 상자는 `.search-box.sm`(primitives.css). 감사가 센 6벌에는 이것이 없었다
+   — 파일 목록 안이라 눈에 안 띄었을 뿐 같은 물건이다
+   (2026-09-10 {#unify-search-input}). */
+.dfl-filter { flex: none; margin: 0 var(--space-5) var(--space-3); }
+.dfl-filter:focus-within { color: var(--text-2); }
 .dfl-filter-clear {
   appearance: none; -webkit-appearance: none; border: none; background: transparent;
   padding: 0; width: 16px; height: 16px; flex: none; border-radius: var(--radius-pill);
@@ -323,14 +317,10 @@
 .dstatus.hop { background: transparent; border: 1px solid var(--sep); color: var(--text-3); width: 17px; font-size: var(--fs-0); font-weight: var(--fw-bold); }
 .dstatus.hop.near { color: var(--accent-uncommitted); }
 
-.diff-search { display: flex; align-items: center; gap: var(--space-2); }
-.diff-search input {
-  width: 170px; height: 24px; padding: 0 var(--space-3);
-  font-size: var(--fs-3); font-family: var(--font);
-  color: var(--text); background: var(--bg-inset);
-  border: 1px solid var(--sep); border-radius: var(--radius-s); outline: none;
-}
-.diff-search input:focus { border-color: var(--accent); }
+/* 상자는 `.search-box.sm`(primitives.css) (2026-09-10 {#unify-search-input}).
+   이전에는 입력 자신이 상자였다 — 그래서 `.diff-search` 는 감싸는 줄에
+   불과했고 아이콘을 놓을 자리가 없었다. */
+.diff-search input { flex: none; width: 170px; }
 .diff-search-count { font-size: var(--fs-2); color: var(--text-3); font-family: var(--mono); white-space: nowrap; }
 .dl-hit { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); border-radius: var(--radius-2xs); }
 .dfile {
@@ -426,18 +416,14 @@
 }
 .entry-filelist-head { padding: 0 0 var(--space-3); justify-content: space-between; flex: none; }
 .entry-filelist-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.entry-filelist-filter {
-  display: inline-flex; align-items: center; gap: 5px; flex: none;
-  height: 23px; padding: 0 var(--space-1) 0 7px; border-radius: var(--radius-pill);
-  background: var(--bg-inset); border: 1px solid var(--sep); color: var(--text-3);
-}
-.entry-filelist-filter:focus-within { border-color: var(--accent); color: var(--text-2); }
+/* 상자는 `.search-box.sm`(primitives.css). 23px·`--fs-2`(10px) 는 입력으로
+   쓰기엔 작았고, 이 카드 머리는 대문자 트래킹이 걸린 줄이라 입력이 그것을
+   물려받지 않게 되돌린다 (2026-09-10 {#unify-search-input}). */
+.entry-filelist-filter { flex: none; }
+.entry-filelist-filter:focus-within { color: var(--text-2); }
 .entry-filelist-filter input {
-  width: 92px; border: none; outline: none; background: transparent; padding: 0;
-  font-family: var(--font); font-size: var(--fs-2); font-weight: var(--fw-label);
-  color: var(--text); letter-spacing: 0; text-transform: none;
+  flex: none; width: 92px; letter-spacing: 0; text-transform: none;
 }
-.entry-filelist-filter input::placeholder { color: var(--text-3); font-weight: var(--fw-label); }
 .entry-filelist-clear {
   appearance: none; -webkit-appearance: none; border: none; background: transparent;
   padding: 0; width: 15px; height: 15px; flex: none; border-radius: var(--radius-pill);
@@ -795,11 +781,12 @@
 
 .pln-rail-controls { display: flex; flex-direction: column; gap: var(--space-2); padding: 0 2px var(--space-5); }
 /* 시트 위에 얹히는 컨트롤이라 --bg-inset 대신 옅은 테두리로 존재만 알린다. */
+/* 레일은 폭이 끌려 움직이므로 채운다. 표면만 이 자리의 것이다 — 레일
+   자체가 `background: transparent` 라, 여기서 면을 칠하면 레일 안에 또
+   하나의 면이 생긴다 (2026-09-10 {#unify-search-input}). */
 .pln-rail-search {
-  min-width: 0; height: 30px; background: transparent;
-  border: 1px solid var(--sep); border-radius: var(--radius-s);
+  width: auto; background: transparent; border-color: var(--sep);
 }
-.pln-rail-search input { font-size: var(--fs-4); }
 .pln-rail-clear {
   display: grid; place-items: center; width: 18px; height: 18px; padding: 0;
   border: none; background: none; border-radius: var(--radius-xs); cursor: pointer; color: var(--text-3);

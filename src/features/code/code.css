@@ -53,34 +53,16 @@
   border-left: 1px solid var(--sep);
 }
 
+/* 상자는 `.search-box.sm`(primitives.css) (2026-09-10 {#unify-search-input}).
+   여기만 돋보기를 `position:absolute` 로 띄우고 입력에 좌우 패딩을 손으로
+   비워 자리를 만들고 있었다 — 결과는 같아도 구성이 달라서, 나중에 지우기
+   버튼을 붙일 때 그것도 절대 배치로 따라가야 했다. 이제 셋 다 형제다. */
 .code-filter {
-  position: relative;
   flex: none;
 }
 .code-filter-ico {
-  position: absolute;
-  left: 9px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-3);
+  flex: none;
   pointer-events: none;
-}
-.code-filter input {
-  width: 100%;
-  height: 26px;
-  padding: 0 26px 0 27px;
-  font-size: var(--fs-4);
-  color: var(--text);
-  background: var(--bg-inset);
-  border: 1px solid var(--sep);
-  border-radius: var(--radius-s);
-  outline: none;
-}
-.code-filter input:focus {
-  border-color: var(--accent-ring);
-}
-.code-filter input::placeholder {
-  color: var(--text-3);
 }
 
 .code-truncated {
@@ -1782,12 +1764,10 @@ body.code-dragging {
 
 /* 필터 지우기 — 입력이 있을 때만 뜬다. */
 .code-filter-clear {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
+  flex: none;
   width: 20px;
   height: 20px;
+  margin-right: -4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2218,10 +2198,8 @@ body.code-dragging {
   min-width: 0;
   margin: 0;
 }
-/* 치환 입력은 돋보기 아이콘이 없다 — 왼쪽 여백을 보통으로 되돌린다. */
-.code-search-input-row .code-filter input:only-child {
-  padding-left: 9px;
-}
+/* 치환 입력은 돋보기 아이콘이 없다 — 형제 배치라 되돌릴 여백이 없다
+   (2026-09-10 {#unify-search-input}). */
 .code-search-replace-toggle {
   flex: none;
   display: inline-flex;

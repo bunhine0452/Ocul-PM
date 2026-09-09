@@ -266,7 +266,7 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
               ) : null}
               <span style={{ flex: 1 }} />
               {/* v2 U8 — in-diff 검색. Enter/n=다음, Shift+Enter/N=이전, Esc=해제 */}
-              <div className="diff-search">
+              <div className="search-box sm diff-search">
                 <input
                   ref={search.searchInputRef}
                   value={search.query}

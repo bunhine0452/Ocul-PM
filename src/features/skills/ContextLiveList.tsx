@@ -157,7 +157,7 @@ export function ContextLiveList({
             {t("ctx.mode.simulate")}
           </button>
         </div>
-        <label className="ctx-search">
+        <label className="search-box sm ctx-search">
           <SearchIcon size={13} />
           <input
             value={query}

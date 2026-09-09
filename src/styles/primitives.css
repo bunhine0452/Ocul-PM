@@ -120,18 +120,49 @@
 }
 .mono { font-family: var(--mono); }
 
+/* 검색·필터 입력 — **여기가 정의 자리다**. 2026-09-10 {#unify-search-input}
+   이전에는 같은 물건이 13벌이었다(높이 23·24·26·26·26·28·29·30·30·32·32·60,
+   곡률 s·m·pill 혼재). 감사는 6벌이라고 했는데 `.dfl-filter`(변경 파일목록)와
+   `.entry-filelist-filter`(일지 파일목록)를 못 봤다 — 세는 것보다 접는 것이
+   먼저다.
+
+   단은 둘이고, 무엇이 고르는지는 **높이가 아니라 앉는 자리**다:
+     기본 30px — 화면 `<Toolbar>`(52px)나 페이지 머리처럼 행이 넉넉한 자리
+     `.sm` 26px — 사이드바·보조 바·카드 머리처럼 행이 이미 촘촘한 자리
+   새 검색칸은 이 둘 중 하나다. 세 번째 높이가 필요하다고 느껴지면 그건
+   자리를 잘못 고른 것이다 (게이트: check-design-discipline 규칙 17 이
+   "상자를 다시 적었다" 를, design_ratchets.test.ts 가 "두 단이 있다" 를 본다).
+
+   호출부는 폭·여백·위치만 자기 클래스로 갖는다. 상자(높이·곡률·바탕·테두리·
+   포커스)를 다시 적으면 그 순간 14번째 벌이 된다. */
 .search-box {
   display: flex; align-items: center; gap: var(--space-3);
   height: 30px; padding: 0 var(--space-4);
   background: var(--bg-inset); border: 1px solid transparent;
-  border-radius: var(--radius-s); color: var(--text-2);
-  min-width: 220px;
+  border-radius: var(--radius-s); color: var(--text-3);
+  /* **바닥이 아니라 기본 폭이다.** 예전 `min-width: 220px` 은 바닥이라
+     좁은 툴바에서 줄어들지 못하고 넘쳤고, 기본을 쓰는 다섯 자리 중 넷이
+     그것을 아래로 되돌리고 있었다(200 · 180 · 0 · flex). 되돌리는 값이
+     자리마다 갈리면 그건 호출부의 잘못이 아니라 기본값의 신호다
+     (2026-09-10 {#unify-search-input}). 채우고 싶은 자리는 `flex: 1`. */
+  width: 200px; min-width: 0;
+}
+/* 촘촘한 단은 기본 폭을 갖지 않는다 — 이 단이 서는 자리(사이드바·보조 바·
+   카드 머리)는 폭이 부모에서 오거나 안쪽 입력이 직접 정한다. */
+.search-box.sm {
+  height: 26px; gap: var(--space-2); padding: 0 var(--space-3);
+  width: auto;
 }
 .search-box input {
   border: none; background: transparent; outline: none;
   font-family: var(--font); font-size: var(--fs-4); color: var(--text);
-  flex: 1; min-width: 0;
+  flex: 1; min-width: 0; padding: 0;
 }
+.search-box.sm input { font-size: var(--fs-3); }
+/* 플레이스홀더를 브라우저 기본(글자색의 불투명도 파생)에 맡기면 테마마다
+   다른 회색이 나온다 — 접힌 13벌 중 넷이 이미 이 줄을 손으로 갖고 있었다. */
+.search-box input::placeholder { color: var(--text-3); }
+.search-box input::-webkit-search-cancel-button { display: none; }
 .search-box:focus-within { background: var(--bg-card); border-color: var(--accent); box-shadow: var(--ring-soft); }
 
 /* trigger badge */

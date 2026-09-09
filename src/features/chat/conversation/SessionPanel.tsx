@@ -110,7 +110,7 @@ export const SessionPanel = memo(function SessionPanel({
         {t("acp.newConversation")}
       </button>
 
-      <div className="acp-panel-search">
+      <div className="search-box sm">
         <Search size={13} />
         <input
           value={query}

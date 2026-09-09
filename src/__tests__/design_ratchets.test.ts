@@ -87,3 +87,47 @@ describe("여백", () => {
     expect(total, `램프 밖 여백 ${total}곳 — 최상위 ${JSON.stringify(top)}`).toBeLessThanOrEqual(480);
   });
 });
+
+// ─── 검색칸 두 단 — 계약 (2026-09-10 {#unify-search-input}) ────────────────
+//
+// 래칫이 아니라 계약이라 여기 있는 게 어색하지만, 이 파일이 이미 "디자인
+// 스위트" 의 작은 쪽이고 `design_tokens.test.ts` 는 733줄로 800 래칫에
+// 가깝다 — 55줄을 얹으면 다음 사람이 계약 하나 더할 자리가 없어진다.
+//
+// 게이트(check-design-discipline 규칙 17)가 "상자를 다시 적었다" 를 잡고,
+// 여기서는 **두 단이 실제로 존재하는가** 를 잡는다. 게이트만 있으면 누가
+// `.sm` 을 지워도 조용히 통과한다 (호출부는 그냥 30px 이 된다).
+describe("검색칸", () => {
+  const css = read("styles/primitives.css");
+
+  it("두 단이 정의 자리에 있다", () => {
+    expect(css, "기본 단(.search-box) 이 없다").toMatch(/^\.search-box \{$/m);
+    expect(css, "촘촘한 단(.search-box.sm) 이 없다").toMatch(/^\.search-box\.sm \{$/m);
+    // 높이는 이 두 줄에만 있어야 한다 — 셋째 높이가 생기면 13벌로 돌아간다.
+    const heights = [...css.matchAll(/\.search-box(?:\.sm)?\s*\{[^}]*?\bheight:\s*(\d+)px/g)].map((m) => m[1]);
+    expect(heights.sort()).toEqual(["26", "30"]);
+  });
+
+  it("호출부는 상자를 다시 적지 않는다", () => {
+    // 접힌 열한 벌의 이름. 살아남은 클래스는 폭·여백·표면만 갖는다.
+    const FOLDED = [
+      "cfg-search", "pm-search", "sk-shop-search", "gr-search", "ctx-search",
+      "diff-search", "dfl-filter", "entry-filelist-filter", "code-filter", "pln-rail-search",
+    ];
+    const offenders: string[] = [];
+    for (const file of walk(join(ROOT))) {
+      if (!file.endsWith(".css") || file.endsWith("styles/primitives.css")) continue;
+      const body = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, " ");
+      for (const m of body.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const sel = m[1].trim();
+        if (!FOLDED.some((c) => new RegExp(`\\.${c}(?![\\w-])`).test(sel))) continue;
+        // 곡률·바탕·높이는 단이 갖는다. 표면(`background`)만은 자리의 것이다 —
+        // 플래너 레일은 자기 배경이 투명이라 면을 지워야 한다.
+        for (const prop of ["height", "border-radius"]) {
+          if (new RegExp(`(?:^|[;{\\s])${prop}\\s*:`).test(m[2])) offenders.push(`${sel} { ${prop} }`);
+        }
+      }
+    }
+    expect(offenders, `상자를 다시 적은 곳: ${offenders.join(" · ")}`).toEqual([]);
+  });
+});

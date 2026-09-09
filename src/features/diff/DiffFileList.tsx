@@ -226,7 +226,7 @@ export function DiffFileList({
       </div>
 
       {totalFiles >= FILTER_FROM ? (
-        <div className="dfl-filter">
+        <div className="search-box sm dfl-filter">
           <Search size={13} />
           <input
             ref={filterRef}

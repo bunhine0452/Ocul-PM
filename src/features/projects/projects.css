@@ -103,34 +103,12 @@
   background: var(--bg-sidebar);
 }
 
+/* 상자는 `.search-box`(primitives.css). 이 자리만의 것은 헤더 행에서 남는
+   폭을 다 먹는다는 것뿐이다 (2026-09-10 {#unify-search-input}). */
 .pm-search {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
   flex: 1;
   min-width: 0;
-  height: 32px;
-  padding: 0 var(--space-4);
-  border: 1px solid var(--sep);
-  border-radius: var(--radius-s);
-  background: var(--bg-card);
-  color: var(--text-3);
   transition: border-color var(--dur-1) var(--ease-out);
-}
-.pm-search:focus-within {
-  border-color: var(--accent);
-}
-.pm-search input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  font-size: var(--fs-4);
-  color: var(--text);
-  outline: none;
-}
-.pm-search input::placeholder {
-  color: var(--text-3);
 }
 
 .pm-btn {

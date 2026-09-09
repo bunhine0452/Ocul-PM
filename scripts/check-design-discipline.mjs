@@ -60,6 +60,16 @@
  *     **여러 줄 JSX 를 봐야 해서 별도 패스다** (checkLoadingAsEmpty) — 처음엔
  *     줄 단위 규칙으로 넣었다가 아홉 번째 자리를 통째로 놓쳤다.
  *
+ * 17. 검색칸 상자를 다시 적기 — 실측 **13벌**(높이 23·24·26·26·26·28·29·30·
+ *     30·32·32·60). 이름이 `-search`/`-filter` 로 끝나는 CSS 규칙이 `height`
+ *     를 선언하면, 그건 `.search-box` 두 단(30 · `.sm` 26, primitives.css)
+ *     밖에 열넷째 벌을 만든 것이다. TSX 쪽도 같은 죄가 인라인으로 나온다
+ *     (`className="search-box" style={{ minWidth: 180 }}`) — 실제로 기본을
+ *     쓰는 다섯 자리 중 넷이 그러고 있었다 ({#unify-search-input}).
+ *     **선택자와 여러 줄 여는 태그를 봐야 해서 별도 패스다**
+ *     (checkSearchBoxes). 예외는 `.home-search` 하나 — 시작 탭의 60px 밴드는
+ *     상자가 아니라 밑줄이고, 그 결정은 home.css 가 직접 문서화한다.
+ *
  * 2026-09-09 일관성 라운드가 더한 둘 (규칙 10 은 아래 별도 패스):
  *
  * 11. 타입 리터럴(text-[11px]) — 램프에 **이름이 없어서** 손이 대괄호로 간
@@ -104,6 +114,15 @@ const SKIP_DIRS = new Set(["legacy", "__tests__"]);
 const ALLOW = {
   glass: new Set(["mobile/mobile.css"]),
 };
+
+/**
+ * 규칙 17 의 예외 — 검색칸이되 **상자가 아닌** 자리.
+ * `.home-search`: 시작 탭은 바가 아니라 밴드 레이아웃이고, 포커스를 밑줄
+ * 한 줄로 표현한다(면을 그리면 밴드의 여백감이 죽는다 — home.css 에 사유).
+ * 늘리기 전에 "정말 상자가 아닌가" 를 먼저 물을 것. 30/26 중 하나면 예외가
+ * 아니라 `.search-box` 나 `.search-box.sm` 이다.
+ */
+const SEARCH_BOX_ALLOW = new Set(["features/onboarding/home.css"]);
 
 /**
  * 규칙 10 의 예외 — 이 저장소 밖에서 정의되는 커스텀 프로퍼티의 접두사.
@@ -287,6 +306,7 @@ for await (const file of walk(SRC)) {
   const rawLines = raw.split("\n");
   if (isCss) checkTransitions(rel, src, rawLines);
   else checkLoadingAsEmpty(rel, src, rawLines);
+  checkSearchBoxes(rel, src, rawLines, isCss);
   for (const rule of RULES) {
     if (!rule.ext.test(file)) continue;
     if (ALLOW[rule.id]?.has(rel)) continue;
@@ -329,6 +349,58 @@ function checkLoadingAsEmpty(rel, src, rawLines) {
  * design-ignore 는 선언이 걸친 줄 **과 그 앞 3줄** 에서 찾는다 — 블록 주석으로
  * 사유를 적으면 자연히 선언 위에 놓이기 때문이다.
  */
+/**
+ * 규칙 17 — 검색칸 상자를 다시 적기. **줄 하나로는 못 본다**: CSS 는
+ * 선언이 어느 선택자 밑에 있는지를 알아야 하고, TSX 는 className 과 style 이
+ * 다른 줄에 있을 수 있다(규칙 16 이 아홉 번째 자리를 놓친 그 이유).
+ *
+ * 이름이 `-search`/`-filter` **로 끝나는** 것만 본다 — `.dfl-filter-clear`
+ * (지우기 버튼 20px) · `.code-filter-ico` · `.diff-search-count` 는 상자가
+ * 아니라 상자 **안의** 물건이라 자기 치수를 갖는 게 맞다.
+ * 정의 자리(primitives.css)는 당연히 예외다 — 두 단이 거기서 나온다.
+ */
+function checkSearchBoxes(rel, src, rawLines, isCss) {
+  if (SEARCH_BOX_ALLOW.has(rel)) return;
+  const at = (i) => src.slice(0, i).split("\n").length;
+  const ignoredNear = (line, back = 3) => {
+    for (let i = Math.max(1, line - back); i <= line; i++) {
+      if (/design-ignore\s*--/.test(rawLines[i - 1] ?? "")) return true;
+    }
+    return false;
+  };
+
+  if (isCss) {
+    if (rel === "styles/primitives.css") return;
+    // 선택자 { … } 한 덩이. 중첩 없는 평평한 CSS 라 여는 중괄호까지로 충분하다.
+    for (const m of src.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const [, selector, body] = m;
+      if (!/-(?:search|filter)(?![\w-])/.test(selector)) continue;
+      const h = /(?:^|[;{\s])height\s*:\s*([^;}]+)/.exec(body);
+      if (!h) continue;
+      const line = at(m.index + m[0].indexOf(h[0]));
+      if (ignoredNear(line)) continue;
+      violations.push(
+        `${rel}:${line}  [search-box] ${selector.trim().split("\n").pop().trim()} { height: ${h[1].trim()} }\n` +
+          "      → 높이는 .search-box(30px) 또는 .search-box.sm(26px) 이 갖는다 (primitives.css). 자리가 셋째 높이를 요구하면 자리를 잘못 고른 것이다",
+      );
+    }
+    return;
+  }
+
+  // TSX — className 에 search-box 가 있는 여는 태그가 인라인으로 치수를 덮는가.
+  for (const m of src.matchAll(/<[A-Za-z][^>]*?\bclassName=(?:"[^"]*\bsearch-box\b[^"]*"|\{[^}]*\bsearch-box\b[^}]*\})[\s\S]*?>/g)) {
+    const tag = m[0];
+    const bad = /\bstyle=\{\{[^}]*\b(height|minHeight|width|minWidth|maxWidth|padding|borderRadius)\s*:/.exec(tag);
+    if (!bad) continue;
+    const line = at(m.index + bad.index);
+    if (ignoredNear(line, 4)) continue;
+    violations.push(
+      `${rel}:${line}  [search-box] 인라인 ${bad[1]} 이 .search-box 를 덮는다\n` +
+        "      → 치수는 두 단(.search-box / .search-box.sm)이 갖는다. 이 자리만의 폭이면 호출부 클래스로 (primitives.css)",
+    );
+  }
+}
+
 function checkTransitions(rel, src, rawLines) {
   for (const m of src.matchAll(/transition(?:-duration|-timing-function)?\s*:\s*([^;{}]+)/g)) {
     const val = m[1];

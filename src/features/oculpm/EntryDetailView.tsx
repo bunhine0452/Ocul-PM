@@ -590,7 +590,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                   {t("entry.filesChanged", { n: rows.length })}
                 </span>
                 {rows.length >= FILTER_FROM ? (
-                  <span className="entry-filelist-filter">
+                  <span className="search-box sm entry-filelist-filter">
                     <Search size={13} />
                     <input
                       ref={filterRef}

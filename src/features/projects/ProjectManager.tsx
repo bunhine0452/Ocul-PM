@@ -248,7 +248,7 @@ export function ProjectManager(props: ProjectManagerProps) {
         </header>
 
         <div className="pm-tools">
-          <span className="pm-search">
+          <span className="search-box pm-search">
             <Search size={15} aria-hidden="true" />
             <input
               ref={searchRef}

@@ -261,32 +261,13 @@
   flex: none;
 }
 
+/* 상자는 `.search-box.sm`(primitives.css). 알약 곡률은 접었다 — 이 바에서만
+   검색칸이 알약이었고, 같은 바의 다른 컨트롤은 전부 `--radius-s` 다
+   (2026-09-10 {#unify-search-input}). */
 .gr-search {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: 26px;
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-pill);
-  background: var(--bg-inset);
-  border: 1px solid transparent;
-  color: var(--text-3);
   transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
 }
-.gr-search input {
-  width: 130px;
-  border: none;
-  background: transparent;
-  outline: none;
-  font-family: var(--font);
-  font-size: var(--fs-3);
-  color: var(--text);
-}
-.gr-search:focus-within {
-  border-color: var(--accent);
-  box-shadow: var(--ring-soft);
-  background: var(--bg-card);
-}
+.gr-search input { flex: none; width: 130px; }
 
 .gr-iconbtn {
   border-radius: var(--radius-pill); border: 1px solid var(--sep);

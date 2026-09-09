@@ -1157,27 +1157,8 @@
   opacity: var(--dim-disabled);
   cursor: default;
 }
-.acp-panel-search {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: 28px;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-s);
-  background: var(--bg-inset);
-  color: var(--text-3);
-}
-.acp-panel-search:focus-within { box-shadow: var(--ring-soft); }
-.acp-panel-search input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-family: var(--font);
-  font-size: var(--fs-3);
-  color: var(--text);
-}
+/* 상자는 `.search-box.sm`(primitives.css) — 세션 패널은 행이 촘촘한 자리다
+   (2026-09-10 {#unify-search-input}). */
 .acp-panel-list {
   flex: 1;
   min-height: 0;

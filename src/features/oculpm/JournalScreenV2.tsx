@@ -438,7 +438,7 @@ export function JournalScreenV2({
   return (
     <>
       <Toolbar title={t("nav.journal")} sub={t("journal.toolbarSub", { n: total })}>
-        <div className="search-box" style={{ minWidth: 180 }}>
+        <div className="search-box">
           <SearchIcon size={15} color="var(--text-3)" />
           <input
             ref={searchRef}

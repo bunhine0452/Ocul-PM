@@ -753,7 +753,7 @@ export function GraphScreenV2({
             })}
           </div>
         ) : null}
-        <div className="gr-search">
+        <div className="search-box sm gr-search">
           <SearchIcon size={13} />
           <input
             value={query}

@@ -6,6 +6,7 @@
 // **네이티브** 기능이라 ocul-pm 플러그인 없이도 동작한다 — 플러그인 설치자
 // 한정으로 잠글 이유가 없고, 대신 하단 안내로 사실을 알린다.
 import { useEffect, useMemo, useState } from "react";
+import { Search } from "lucide-react";
 
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
@@ -183,13 +184,16 @@ export function SkillShopTab({ projectId, onInstalled }: SkillShopTabProps) {
           <section>
             <h2 className="sk-shop-h">{t("shop.fullCatalog", { n: CATALOG_SKILLS.length })}</h2>
             <div className="sk-shop-filter">
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t("shop.searchPlaceholder")}
-                aria-label={t("shop.searchAria")}
-              />
+              <div className="search-box sk-shop-search">
+                <Search size={13} aria-hidden="true" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={t("shop.searchPlaceholder")}
+                  aria-label={t("shop.searchAria")}
+                />
+              </div>
               <div className="sk-shop-tagrow" role="group" aria-label={t("shop.tagFilterAria")}>
                 <button
                   type="button"

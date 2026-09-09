@@ -212,7 +212,7 @@ export const CodeSearchPanel = memo(function CodeSearchPanel({
       </div>
 
       <div className="code-search-input-row">
-        <div className="code-filter code-search-input">
+        <div className="search-box sm code-filter code-search-input">
           <Search size={13} className="code-filter-ico" />
           <input
             ref={inputRef}
@@ -272,7 +272,7 @@ export const CodeSearchPanel = memo(function CodeSearchPanel({
         </button>
         {replaceOpen ? (
           <>
-            <div className="code-filter code-search-input">
+            <div className="search-box sm code-filter code-search-input">
               <input
                 type="text"
                 value={replacement}

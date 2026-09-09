@@ -487,19 +487,11 @@
   gap: var(--space-3);
   margin-bottom: var(--space-5);
 }
-.sk-shop-filter input[type="search"] {
+/* 상자는 `.search-box`(primitives.css) — 여기 남는 것은 이 열에서의 폭뿐이다
+   (2026-09-10 {#unify-search-input}). */
+.sk-shop-search {
   width: 100%;
   max-width: 340px;
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--fs-4);
-  border: 1px solid var(--sep);
-  border-radius: var(--radius-m);
-  background: var(--bg-inset);
-  color: var(--text);
-}
-.sk-shop-filter input[type="search"]:focus {
-  outline: var(--focus-w) solid var(--focus-color);
-  outline-offset: var(--focus-offset-inset);
 }
 .sk-shop-tagrow {
   display: flex;
@@ -719,26 +711,8 @@
   color: var(--accent-text);
   box-shadow: var(--shadow-card);
 }
-.ctx-search {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px var(--space-3);
-  background: var(--bg-inset);
-  border: 1px solid var(--sep);
-  border-radius: var(--radius-m);
-  color: var(--text-3);
-}
-.ctx-search:focus-within { border-color: var(--accent); box-shadow: var(--ring-soft); }
-.ctx-search input {
-  width: 168px;
-  border: none;
-  background: none;
-  outline: none;
-  font-family: var(--font);
-  font-size: var(--fs-3);
-  color: var(--text);
-}
+/* 상자는 `.search-box.sm`(primitives.css) (2026-09-10 {#unify-search-input}). */
+.ctx-search input { flex: none; width: 168px; }
 
 /* `#prompt-simulator` — 존 2 의 두 모드 토글. 검색칸 바로 왼쪽에 붙어, 같은
    입력이 두 가지 질문에 쓰인다는 것이 보이게 한다. */
