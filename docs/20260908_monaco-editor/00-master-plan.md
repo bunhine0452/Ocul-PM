@@ -149,7 +149,15 @@ Monaco 0.56 의 Monarch 문법 84종에 **`json` 이 없고**(워커를 쓰는 `
 ### D5 — 에이전트 편집면은 같은 플랜의 뒷 Phase {#d5-agent-surface}
 
 ⌘K 인라인 편집과 hunk 단위 승인은 Monaco 가 안정된 뒤 같은 플랜에서 잇는다.
-Monaco 의 inline-diff 위젯과 ACP(Claude Code · Codex)가 재료다.
+~~Monaco 의 inline-diff 위젯과 ACP(Claude Code · Codex)가 재료다.~~
+
+**정정 (Phase 5 실측)** — 재료 둘 다 아니었다. ACP 는 살아 있는 연결 · 한 번에
+한 턴 · **에이전트가 자기 도구로 디스크를 고치는 것**을 전제한다. ⌘K 는 "선택을
+고쳐 **텍스트로** 돌려 달라" 라 모양이 다르고, 편집기에는 저장 안 한 버퍼가 있어
+둘이 싸운다. 프로바이더 채팅(`commands.chat`)이 맞는 자리다 — 폴백 체인까지
+그대로 타고 **백엔드 커맨드가 하나도 안 는다**. inline-diff 위젯도 안 썼다:
+제안을 먼저 적용하고 조각 토글로 되돌린다.
+→ [`05-agent-surface.md`](05-agent-surface.md#d6-chat-not-acp)
 **Tab 다음-편집 예측은 별도 항목**으로 남긴다 — 전용 모델 · 지연시간 예산 ·
 취소 병합까지 설계가 따로 필요하고, 그 불확실성이 이관 일정을 오염시키면 안 된다.
 
@@ -222,5 +230,7 @@ D1 로 워커가 `editor.worker` 하나뿐이라 설정이 단순해진다.
 - **Phase 4 논의 편집기** — 병렬 세션 머지 후. CodeMirror 의존성 제거.
   **완료** — `@codemirror/*` 와 `@lezer/highlight` 가 `package.json` 에서 사라졌다.
   → [`04-discussion.md`](04-discussion.md)
-- **Phase 5 에이전트 편집면** — ⌘K · hunk 승인.
+- **Phase 5 에이전트 편집면** — ⌘K · hunk 승인. **완료** (귀속은 절반 — 로컬
+  히스토리의 저자 표기는 백엔드가 필요해 막혀 있다).
+  → [`05-agent-surface.md`](05-agent-surface.md)
 - **Phase 6 마감** — 육안 확인 격자 · 릴리스 5면.

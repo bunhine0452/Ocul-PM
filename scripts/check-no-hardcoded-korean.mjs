@@ -91,6 +91,9 @@ const DISK_CONTENT = new Set([
   // 여기만 번역하면 그 게이트가 깨지고, 앱이 플러그인의 실제 문구를 잘못
   // 인용하게 된다. 플러그인 .md 자체가 번역될 때 함께 간다.
   "features/skills/pluginDocs.ts",
+  // ⌘K 편집이 만드는 일지 초안의 본문. `.oculpm/journal/**` 에 그대로 기록되고
+  // 축도 작성 언어(`getContentLang()`)라 위 셋과 같은 부류다.
+  "features/code/inlineEdit/attribution.ts",
 ]);
 
 /**
@@ -159,6 +162,7 @@ const TESTS = new Set([
   "__tests__/code_goto_model.test.ts",
   "__tests__/code_outline.test.ts",
   "__tests__/code_history.test.tsx",
+  "__tests__/code_inline_edit.test.ts",
   "__tests__/code_patch_reverse.test.ts",
   "__tests__/code_problems.test.tsx",
   "__tests__/code_save_hygiene.test.ts",

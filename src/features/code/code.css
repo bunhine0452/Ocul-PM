@@ -2398,6 +2398,141 @@ body.code-dragging {
   background: var(--bg-inset);
 }
 
+/* ── ⌘K 인라인 편집 (#agent-cmdk) ─────────────────────────────
+   Monaco 의 content widget 안이라 편집면 좌표를 따라다닌다 — 위치는 Monaco 가
+   맡고 여기서는 모양만 준다. 본문을 가리는 물건이라 **불투명**하다(유리 아님). */
+.code-ai-widget {
+  z-index: 3;
+}
+.code-ai {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 340px;
+  max-width: 560px;
+  padding: 7px 8px;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-m);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-pop);
+  font-family: var(--font);
+}
+.code-ai-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.code-ai-ico {
+  flex: none;
+  color: var(--text-3);
+}
+.code-ai-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+  color: var(--text);
+  font-size: var(--fs-5);
+}
+.code-ai-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.code-ai-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+  color: var(--text-2);
+  font-size: var(--fs-4);
+  cursor: pointer;
+}
+.code-ai-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+/* 논의 화면의 `.disc-btn.primary` 와 같은 처방 — 강조색 위 흰 글자는 이
+   저장소에서 대비를 못 맞춘 전례가 있다(1.98:1). 옅은 바탕 + 강조 글자로 간다. */
+.code-ai-btn.primary {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.code-ai-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.code-ai-note {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-4);
+  color: var(--text-3);
+}
+.code-ai-err {
+  margin: 0;
+  font-size: var(--fs-4);
+  color: var(--danger-text);
+  overflow-wrap: anywhere;
+}
+/* 조각 토글 — 켜진 것이 곧 본문에 실린 것이다. */
+.code-ai-hunks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.code-ai-hunk {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--text-3);
+  font-size: var(--fs-3);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.code-ai-hunk.on {
+  border-color: color-mix(in srgb, var(--diff-add-line) 60%, transparent);
+  background: var(--diff-add-bg);
+  color: var(--text-2);
+}
+.code-ai-hunk-n {
+  font-weight: var(--fw-bold);
+}
+/* 받은 조각이 본문에서 차지한 줄 — diff 화면과 같은 색 토큰. */
+.code-editor-host .monaco-editor .code-ai-line {
+  background: var(--diff-add-bg);
+}
+/* 상태줄 칩 — 누르면 일지 초안이 된다 (#agent-attribution). */
+.code-status-ai {
+  border: 1px solid var(--sep);
+  border-radius: var(--radius-s);
+  padding: 0 6px;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  cursor: pointer;
+}
+.code-status-ai:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.code-status-ai:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ── Monaco 거터·크롬 (#monaco) ────────────────────────────────
    CodeMirror 의 `.cm-git-gutter-mark` / `.cm-bp-mark` 를 대체한다. Monaco 는
    거터를 확장이 아니라 **데코레이션**으로 그리므로, 여기서 하는 일은 클래스에

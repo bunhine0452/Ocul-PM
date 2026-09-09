@@ -67,6 +67,8 @@ import { toAppError } from "@/api/invoke";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useLsp } from "./useLsp";
 import { langIdForPath, langLabel } from "./codeLang";
+import { useCodeAi } from "./inlineEdit/useCodeAi";
+import { useCodeFormat } from "./useCodeFormat";
 import { adapterLanguageFor } from "./debugConfig";
 import { baseName } from "./fileOps";
 import { formatBytes } from "./treeUtils";
@@ -220,6 +222,9 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
 
   // 스티키 스크롤 — 꺼져 있으면 0 이고, 0 이면 CodeEditor 가 아예 안 켠다.
   const stickyMax = settings.codeStickyScroll ? clampStickyMax(settings.codeStickyMaxLines) : 0;
+
+  // ⌘K 인라인 편집 — 모델 호출과 귀속은 이 훅이 든다 (#agent-cmdk).
+  const codeAi = useCodeAi({ projectId, settings, activePath });
 
   // 문제 총계 — 스토어를 직접 구독한다 (화면에서 내려보내면 진단이 올 때마다
   // 코드 화면 전체가 다시 그려진다. `indexProgressStore` 와 같은 잣대).
@@ -796,52 +801,16 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     [projectId, onBuffersChanged],
   );
 
-  // ── 포맷팅 (⇧⌥F) ──────────────────────────────────────────────────────
-  //
-  // 이름 바꾸기·코드 액션과 정반대다: 그것들은 디스크를 고치므로 미저장을 금지했지만,
-  // 포맷은 **지금 버퍼**를 다듬어 돌려받아 그대로 싣는다 — 저장할지는 사용자가 정한다.
-  const [formatting, setFormatting] = useState(false);
-  const format = useCallback(
-    async (silent = false, range?: import("./CodeEditor").FormatRange): Promise<boolean> => {
-      const buf = bufferRef.current;
-      if (!buf || formatting) return false;
-      setFormatting(true);
-      try {
-        const next = await lsp.format(
-          buf.text,
-          settings.codeTabSize,
-          settings.codeInsertSpaces,
-          range
-            ? {
-                start_line: range.startLine,
-                start_character: range.startCharacter,
-                end_line: range.endLine,
-                end_character: range.endCharacter,
-              }
-            : null,
-        );
-        if (next == null) {
-          // 서버가 없거나·지원하지 않거나·이미 정돈됐다. 저장 시 포맷처럼
-          // 사람이 부르지 않은 호출은 조용히 지나간다.
-          if (!silent) toast.info(t("code.format.noChange"));
-          return false;
-        }
-        replaceBufferText(next);
-        if (!silent) toast.info(t("code.format.done"));
-        return true;
-      } catch (e) {
-        toast.destructive(
-          t("code.format.failed", { error: tError(e instanceof Error ? e.message : String(e)) }),
-        );
-        return false;
-      } finally {
-        setFormatting(false);
-      }
-    },
-    [formatting, lsp, settings.codeTabSize, settings.codeInsertSpaces, replaceBufferText],
-  );
-  const formatRef = useRef(format);
-  formatRef.current = format;
+  // ⇧⌥F 포맷팅 — 훅이 든다 (`useCodeFormat.ts` 에 왜 여기가 아닌지 적었다).
+  // 호출은 전부 `formatRef` 를 지난다 — 저장 타이머와 편집기 액션이 마운트
+  // 시점의 클로저를 들고 있어서다.
+  const { ref: formatRef } = useCodeFormat({
+    format: lsp.format,
+    tabSize: settings.codeTabSize,
+    insertSpaces: settings.codeInsertSpaces,
+    currentText: useCallback(() => bufferRef.current?.text ?? null, []),
+    replaceBufferText,
+  });
 
   // ── 저장 위생 ──────────────────────────────────────────────────────────
   // 설정을 ref 로 잡는 이유: 저장은 타이머·cleanup 안에서도 돌고, 그때 필요한
@@ -926,7 +895,9 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         setSaving(false);
       }
     },
-    [projectId, applySaved, replaceBufferText, settings.codeFormatOnSave],
+    // `formatRef` 는 훅이 돌려준 ref 라 신원이 안 바뀌지만, 컴포넌트 밖에서
+    // 왔으므로 린터는 그걸 모른다 — 적어 두는 편이 규칙을 끄는 것보다 낫다.
+    [projectId, applySaved, replaceBufferText, settings.codeFormatOnSave, formatRef],
   );
   const saveRef = useRef(save);
   saveRef.current = save;
@@ -939,17 +910,17 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       openExternal: () => externalRef.current(),
       format: () => void formatRef.current(),
     }),
-    [],
+    [formatRef],
   );
 
-  // 창 레벨 ⌘S — 트리/필터에 포커스가 있어도 저장된다 (CM 포커스는 CM 키맵이
-  // 먼저 먹는다). 분할 중이면 **포커스된 창만** 반응한다 — 안 그러면 한 번의
-  // ⌘S 가 양쪽에서 저장을 쏜다.
+  // 창 레벨 ⌘S — 트리/필터에 포커스가 있어도 저장된다 (편집면 안이면 편집기의
+  // 액션이 먼저 먹는다). 분할 중이면 **포커스된 창만** 반응한다 — 안 그러면
+  // 한 번의 ⌘S 가 양쪽에서 저장을 쏜다.
   const focusedRef = useRef(isFocused);
   focusedRef.current = isFocused;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // CM 키맵이 이미 처리한 ⌘S (preventDefault 됨) — 여기서 또 부르면
+      // 편집기 액션이 이미 처리한 ⌘S (preventDefault 됨) — 여기서 또 부르면
       // 같은 base_hash 로 저장이 두 번 나간다.
       if (e.defaultPrevented || !focusedRef.current) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
@@ -1390,6 +1361,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               tabSize={settings.codeTabSize}
               insertSpaces={settings.codeInsertSpaces}
               minimap={settings.codeMinimap}
+              onInlineEdit={codeAi.run}
+              onInlineEditAccepted={(info) => codeAi.onAccepted(activePath, info)}
               onSave={() => void saveRef.current()}
               onCursor={(line, col) => {
                 setCursor({ line, col });
@@ -1471,6 +1444,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               {/* 줄바꿈 종류 — CRLF 파일을 모르고 고치면 diff 가 전체 줄로 물든다. */}
               <span className="code-status-item">{buf.eol === "\r\n" ? "CRLF" : "LF"}</span>
               <span className="code-status-item">{langLabel(langId)}</span>
+              {/* ⌘K 로 고친 자리 — 누르면 일지 초안이 된다 (귀속 #agent-attribution). */}
+              {codeAi.chip}
               <span className="code-status-item">{formatBytes(fileView.bytes)}</span>
             </span>
           </div>

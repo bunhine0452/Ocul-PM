@@ -9,6 +9,7 @@
 // Phase 2 에서 `onGoToSymbol` 하나가 늘었다 — 스티키를 내장으로 넘기며 생긴
 // 키 충돌을 되돌리는 자리다(아래 prop 주석). 그 외의 계약은 그대로다.
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 import type * as MonacoNs from "monaco-editor/editor/editor.api";
 import monaco from "./monaco/setup";
@@ -24,6 +25,8 @@ import {
 import { breakpointDecorations, gitDecorations, wireBreakpointClicks } from "./monaco/decorations";
 import { registerSymbolProvider } from "./monaco/symbols";
 import { baseEditorOptions, diffEditorOptions } from "./monaco/options";
+import { useInlineEdit, type RunInlineEdit } from "./inlineEdit/useInlineEdit";
+import { InlineEditWidget } from "./inlineEdit/InlineEditWidget";
 import { monacoLangForPath } from "./codeLang";
 import { hasLanguageServer } from "./lspBridge";
 import type {
@@ -109,6 +112,16 @@ interface CodeEditorProps {
   insertSpaces?: boolean;
   /** 미니맵을 그리는가 (설정 `codeMinimap`). 좁은 분할에서 폭을 먹어 끌 수 있다. */
   minimap?: boolean;
+  /**
+   * ⌘K — 선택 범위를 지시대로 고쳐 달라고 **부모가** 모델에 묻는다. 없으면
+   * 그 키를 아예 안 단다 (프로바이더 키가 없는 프로젝트).
+   *
+   * 다른 LSP 콜백들과 같은 규약이다: 편집기는 자리를 잡고 결과를 앉히기만
+   * 하고, 프로바이더·모델·폴백 체인은 위쪽(CodePane)의 사정이다.
+   */
+  onInlineEdit?: RunInlineEdit;
+  /** ⌘K 편집을 받았다 — 귀속을 남기는 것은 부모의 일이다. */
+  onInlineEditAccepted?: (info: { added: number; removed: number }) => void;
   /** HEAD 대비 줄 변경 (거터). LSP 와 무관하므로 모든 파일에 단다. */
   gitChanges?: readonly GitLineChange[];
   /**
@@ -148,6 +161,8 @@ export function CodeEditor({
   tabSize = 2,
   insertSpaces = true,
   minimap = true,
+  onInlineEdit,
+  onInlineEditAccepted,
   gitChanges,
   diffOriginal,
   breakpoints,
@@ -197,6 +212,17 @@ export function CodeEditor({
   const diffOriginalRef = useRef(diffOriginal);
   const hasLspRef = useRef(onComplete != null && hasLanguageServer(path));
   const stickyMaxRef = useRef(stickyMaxLines);
+
+  // ⌘K 인라인 편집 — 상태·위젯·데코레이션은 이 훅이 들고, 여기서는 키를 달고
+  // 위젯을 포털해 주기만 한다.
+  const inline = useInlineEdit({
+    path,
+    languageId: monacoLangForPath(path),
+    onRun: onInlineEdit,
+    onAccepted: onInlineEditAccepted,
+  });
+  const inlineRef = useRef(inline);
+  inlineRef.current = inline;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -291,6 +317,22 @@ export function CodeEditor({
         },
       }),
     );
+
+    // ⌘K — 선택 범위를 지시대로 고쳐 쓴다. 부모가 모델을 안 주면 안 단다.
+    // Monaco 에서 ⌘K 는 화음(⌘K ⌘C …)의 앞 글자지만, 동적 키바인딩이 기여
+    // 액션보다 무거워 한 타로 잡힌다.
+    if (inlineRef.current.enabled) {
+      subs.push(
+        editor.addAction({
+          id: "oculpm.inlineEdit",
+          label: t("code.ai.action"),
+          keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
+          run: () => {
+            inlineRef.current.open(editor);
+          },
+        }),
+      );
+    }
 
     if (hasLspRef.current) {
       // 공급자는 **언어 단위 전역**이라 언마운트 때 반드시 푼다 — 안 풀면
@@ -411,6 +453,9 @@ export function CodeEditor({
 
     return () => {
       stopThemeWatch();
+      // 위젯을 먼저 뗀다 — 편집기가 죽은 뒤에 떼면 `removeContentWidget` 이
+      // 이미 없는 것을 찾는다.
+      inlineRef.current.close();
       for (const s of subs) s.dispose();
       gitDecoRef.current = null;
       bpDecoRef.current = null;
@@ -505,5 +550,11 @@ export function CodeEditor({
     onJumpConsumedRef.current?.();
   }, [jump]);
 
-  return <div ref={hostRef} className="code-editor-host" aria-label={t("code.editorAria")} />;
+  return (
+    <>
+      <div ref={hostRef} className="code-editor-host" aria-label={t("code.editorAria")} />
+      {/* Monaco 가 만든 위젯 DOM 안으로 그린다 — 자리를 따라다니는 것은 Monaco 가 한다. */}
+      {inline.node ? createPortal(<InlineEditWidget inline={inline} />, inline.node) : null}
+    </>
+  );
 }

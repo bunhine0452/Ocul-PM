@@ -1,14 +1,14 @@
 /**
- * `llmApi` — 프로바이더 도달성 (Osaurus 라운드 Phase 7 #model-picker-offline).
+ * `llmApi` — 프로바이더 도달성 + **한 번짜리** 채팅.
  *
- * 채팅 자체는 아직 `commands.chatStream` 직접 호출이다 (스트리밍 Channel 은
- * 봉투 밖으로 나가므로 `call` 래퍼의 모양과 맞지 않는다). 여기 있는 것은
- * 봉투를 쓰는 조회 하나뿐이다.
+ * 스트리밍 채팅(`commands.chatStream`)은 여전히 직접 호출이다: Channel 이 봉투
+ * 밖으로 나가므로 `call` 래퍼의 모양과 맞지 않는다. 반대로 한 번짜리 `chat` 은
+ * 봉투 그대로라 여기 산다 (⌘K 인라인 편집이 쓴다).
  */
 
 import { call, type Envelope } from "@/api/invoke";
 import { commands } from "@/lib/bindings";
-import type { ProviderReach } from "@/lib/bindings";
+import type { ChatOptions, ChatResponse, Message, ProviderModel, ProviderReach } from "@/lib/bindings";
 import type { Provider } from "@/lib/settings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -32,4 +32,19 @@ export const llmApi = {
    */
   hasKey: (p: Provider): Promise<boolean | null> =>
     unwrap<boolean>("secret_has", commands.secretHas(secretName(p))).catch(() => null),
+
+  /**
+   * 한 번 묻고 한 번 받는다 — 스트리밍이 아니다.
+   *
+   * ⌘K 인라인 편집이 쓴다. 거기서는 글자가 흘러 들어오는 것이 값이 아니라
+   * **완성된 대체 텍스트**가 값이고, 부분 응답을 코드에 끼워 넣으면 그 사이
+   * 파일이 깨진 상태로 있게 된다.
+   */
+  chat: (
+    provider: Provider,
+    messages: Message[],
+    options: ChatOptions,
+    fallbacks: ProviderModel[],
+  ): Promise<ChatResponse> =>
+    unwrap<ChatResponse>("chat", commands.chat(provider, messages, options, fallbacks)),
 };
