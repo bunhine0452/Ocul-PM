@@ -352,7 +352,7 @@ export default function ShellV2({
                 {/* 오버레이 진입점과 같은 경계 — 설정 탭 하나의 예외가 셸
                     전체를 언마운트하지 못하게 한다 (SettingsOverlay 참고). */}
                 <ErrorBoundary label="settings">
-                  <SettingsPanel embedded />
+                  <SettingsPanel />
                 </ErrorBoundary>
               </div>
             </div>

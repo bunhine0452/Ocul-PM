@@ -13,9 +13,8 @@ import { oculpmApi } from "@/api/oculpm";
 import { toAppError } from "@/api/invoke";
 
 import { CommandPalette } from "@/components/CommandPalette";
-import { SettingsOverlay } from "@/windows/SettingsOverlay";
 
-import { useProjectRuntime, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
+import { useProjectRuntime, useUiPrefs } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -66,7 +65,6 @@ export default function ProjectTab({
   const { setPrefs, setUiV2View } = useUiPrefs();
 
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   // 창 전역 버스(활성화·색인 요청)는 **활성 탭만** 받는다 — 탭 수만큼 돌지 않게.
   const activeRef = useRef(active);
   activeRef.current = active;
@@ -88,13 +86,12 @@ export default function ProjectTab({
     enabled: active,
     onOpenPalette: () => setPaletteOpen(true),
     // ⌘1~⌘0 + ⌘, drive the ui_v2 screens (01-ia-and-shell §3).
-    uiV2Nav: (v: UiV2View) => {
-      if (v === "settings") {
-        setSettingsOpen(true);
-        return;
-      }
-      setUiV2View(v);
-    },
+    //
+    // ⌘, 도 **다른 화면과 똑같이** 간다. 2026-09-09 이전에는 여기서 가로채
+    // 모달(SettingsOverlay)을 띄웠고, 그래서 같은 패널이 키보드로 열면 모달·
+    // 사이드바로 열면 화면이었다 — 사용자는 "설정이 어디에 있는 물건인지" 를
+    // 매번 다시 배워야 했다. 오버레이는 사이드바가 없는 런처 탭 전용이다.
+    uiV2Nav: setUiV2View,
     // ⌘J — 어느 화면에서나 터미널 도크. 셸이 아니라 여기서 다는 이유는 이
     // 훅이 이미 "활성 탭만" 게이트를 들고 있어서다 (탭 수만큼 발화 방지).
     onToggleTerminalDock: () =>
@@ -322,7 +319,6 @@ export default function ProjectTab({
               case "plugin_install":
               case "skill_install":
                 openSettings("oculpm");
-                setSettingsOpen(true);
                 return;
               // 테마는 승인 즉시 실제로 받아온다 (Phase 8 `#landing-themes`).
               // 시트가 「받아 갤러리에 추가합니다」라고 말한 그대로 —
@@ -330,20 +326,20 @@ export default function ProjectTab({
               case "theme_install":
                 requestThemeInstall(link.url);
                 openSettings("appearance");
-                setSettingsOpen(true);
                 return;
             }
           }}
         />
       )}
 
-      {/* 팔레트·설정은 활성 탭의 워크스페이스 컨텍스트가 필요해서 탭 안에 산다.
-          활성 탭에만 그려야 창에 하나만 존재한다. */}
+      {/* 팔레트는 활성 탭의 워크스페이스 컨텍스트가 필요해서 탭 안에 산다.
+          활성 탭에만 그려야 창에 하나만 존재한다. (설정은 2026-09-09 부터
+          셸의 화면이다 — 이 창에 모달로 뜨지 않는다.) */}
       {active && (
         <CommandPalette
           open={paletteOpen}
           onOpenChange={setPaletteOpen}
-          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenSettings={() => setUiV2View("settings")}
           onReindex={indexingId === null ? () => void startIndex() : undefined}
           projects={projects}
           // I1 — 팔레트의 "프로젝트 열기"는 이 창의 새 탭이거나, 이미 열려 있으면
@@ -351,7 +347,6 @@ export default function ProjectTab({
           onSelectProject={(p) => void commands.openProjectTab(p.id, windowLabel)}
         />
       )}
-      {active && settingsOpen && <SettingsOverlay onClose={() => setSettingsOpen(false)} />}
     </>
   );
 }

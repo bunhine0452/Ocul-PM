@@ -89,8 +89,8 @@ afterEach(() => {
 // 접근 가능한 이름이 있는가" 검사가 그걸 잡는다 — 한 언어만 돌리면
 // 나머지 언어의 회귀를 못 본다.
 describe.each([
-  ["ko", [], "설정"],
-  ["en", [["language", "en"]], "Settings"],
+  ["ko", [], "모양"],
+  ["en", [["language", "en"]], "Appearance"],
 ] as const)("a11y — SettingsPanel (%s)", (lang, rows, marker) => {
   beforeEach(() => {
     settingsRows.length = 0;

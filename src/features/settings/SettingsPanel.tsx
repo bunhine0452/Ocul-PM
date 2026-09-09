@@ -77,14 +77,7 @@ const TABS: Array<{ id: TabId; labelKey: I18nKey; icon: IconComponent }> = [
 
 // ---------- Root ----------
 
-interface SettingsPanelProps {
-  /** When true, render flush with the surrounding page (no card chrome, no
-   *  duplicate "Settings" heading). Use this inside a workspace that already
-   *  provides its own page header. Defaults to false (modal/standalone). */
-  embedded?: boolean;
-}
-
-export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
+export function SettingsPanel() {
   const { t } = useT();
   // 딥링크(`openSettings(tab)`) — 마운트 전에 온 요청은 여기서 회수하고, 떠 있는
   // 동안 온 요청은 구독으로 받는다. 안내 문구가 "설정 → 어디" 라고 말하는 대신
@@ -134,24 +127,18 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
     }
   }, [tab]);
 
-  if (!loaded) {
-    return (
-      <div className={embedded ? "" : "w-full max-w-4xl rounded-xl border bg-card p-6 shadow-sm"}>
-        <OculSpinner size={22} label={t("common.loading")} />
-      </div>
-    );
-  }
+  if (!loaded) return <OculSpinner size={22} label={t("common.loading")} />;
 
-  // 탭 내비게이션은 두 진입점에서 모양이 다르다.
+  // 탭 내비게이션은 가로 스트립 하나다.
   //
-  // 프로젝트 안(embedded)에서는 왼쪽에 이미 앱 사이드바가 있어서, 세로 192px
-  // 열을 하나 더 세우면 '사이드바 속 사이드바' 가 된다 (2026-07-30 디자인
-  // 라운드). embedded 일 때만 가로 스트립으로 눕혀 좌측 열을 없앤다. 좁은
-  // 창에서는 압착 대신 가로 스크롤로 도망가게 한다 — 툴바 액션과 같은 방어책
-  // 으로, 없으면 flex 압착이 CJK 라벨을 한 글자씩 세로로 꺾는다.
+  // 세로 192px 열을 세우면 왼쪽에 이미 앱 사이드바가 있는 화면에서 '사이드바
+  // 속 사이드바' 가 된다 (2026-07-30 디자인 라운드). 좁은 창에서는 압착 대신
+  // 가로 스크롤로 도망가게 한다 — 툴바 액션과 같은 방어책으로, 없으면 flex
+  // 압착이 CJK 라벨을 한 글자씩 세로로 꺾는다.
   //
-  // 프로젝트 선택 화면(비-embedded)은 사이드바가 없는 모달이라 세로 목록이
-  // 여전히 맞다.
+  // 세로 갈래는 2026-09-09 에 지웠다. "사이드바 없는 모달용" 이라는 사유로
+  // 남아 있었지만 그 모달(SettingsOverlay)도 가로 스트립을 쓰고 있어서
+  // 프로덕션 소비처가 0이었다 — 테스트만 그 갈래를 렌더했다.
   const search = (
     <SettingsSearchBox
       value={query}
@@ -162,58 +149,31 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
     />
   );
 
-  const tabNav = embedded ? (
+  const tabNav = (
     <div className="mb-5 flex items-center gap-2 border-b border-border/60 px-1 pb-2">
-    <nav className="subnav min-w-0 flex-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-      {TABS.map((entry) => {
-        const isActive = tab === entry.id;
-        return (
+      <nav className="subnav min-w-0 flex-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+        {TABS.map((entry) => (
           <button
             key={entry.id}
             type="button"
             onClick={() => setTab(entry.id)}
-            aria-current={isActive ? "page" : undefined}
+            aria-current={tab === entry.id ? "page" : undefined}
             className="subnav-item"
           >
             {t(entry.labelKey)}
           </button>
-        );
-      })}
-    </nav>
+        ))}
+      </nav>
       {search}
     </div>
-  ) : (
-    <nav className="subnav vertical w-48 flex-shrink-0 border-r border-border/60 p-2">
-      <div className="mb-2 px-1">{search}</div>
-      {TABS.map((entry) => {
-        const Icon = entry.icon;
-        const isActive = tab === entry.id;
-        return (
-          <button
-            key={entry.id}
-            type="button"
-            onClick={() => setTab(entry.id)}
-            aria-current={isActive ? "page" : undefined}
-            className="subnav-item"
-          >
-            <Icon  className="flex-shrink-0" size={15} />
-            {t(entry.labelKey)}
-          </button>
-        );
-      })}
-    </nav>
   );
 
   const body = (
-    <div className={embedded ? "flex flex-col" : "flex"}>
+    <div className="flex flex-col">
       {tabNav}
 
       {/* Tab content */}
-      <div
-        className={`flex-1 ${
-          embedded ? "pb-6" : "p-6 overflow-y-auto max-h-[70vh] scrollbar-thin"
-        }`}
-      >
+      <div className="flex-1 pb-6">
         {query.trim() ? (
           <SettingsSearchResults
             query={query}
@@ -240,17 +200,5 @@ export function SettingsPanel({ embedded = false }: SettingsPanelProps) {
     </div>
   );
 
-  if (embedded) {
-    return <div className="w-full">{body}</div>;
-  }
-
-  return (
-    <section className="w-full max-w-4xl rounded-xl border bg-card shadow-sm overflow-hidden">
-      <header className="px-6 py-4 border-b border-border/60 flex items-center gap-2">
-        <SettingsIcon  className="text-primary" size={15} />
-        <h2 className="text-lg font-semibold tracking-tight">{t("shell.settings.title")}</h2>
-      </header>
-      {body}
-    </section>
-  );
+  return <div className="w-full">{body}</div>;
 }

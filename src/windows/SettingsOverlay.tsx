@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { X } from "@/components/Icons";
 import { OculSpinner } from "@/components/OculSpinner";
 import { useT } from "@/i18n";
 
@@ -11,7 +12,14 @@ const SettingsPanel = lazy(() =>
 );
 
 /**
- * ⌘, 설정 오버레이. 런처 창과 프로젝트 창 양쪽에서 각각 마운트한다 —
+ * 설정 오버레이 — **런처 탭 전용**이다.
+ *
+ * 2026-09-09 이전에는 프로젝트 창도 이걸 띄웠고(⌘,), 사이드바 「설정」과 안내
+ * 버튼은 전체화면으로 갔다. 같은 패널이 키보드로 열면 모달·마우스로 열면
+ * 화면이라 사용자는 "설정이 어디에 있는 물건인지" 를 매번 다시 배워야 했다.
+ * 사이드바가 있는 창에서는 화면이 맞고(ShellV2 의 `view === "settings"`),
+ * 사이드바가 없는 런처 탭에는 이 오버레이가 유일한 자리다.
+ *
  * 설정은 SQLite(`settings_*`)에 있어 창 격리와 무관하게 전 창이 같은 값을
  * 본다 (D4).
  */
@@ -36,15 +44,14 @@ export function SettingsOverlay({ onClose }: { onClose: () => void }) {
     >
       <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-(--dur-2)">
         <header className="px-6 py-4 border-b border-border flex items-center justify-between shrink-0">
-          <h2 className="text-base font-bold">Settings</h2>
+          <h2 className="text-base font-bold">{t("shell.settings.title")}</h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             title={t("settings.closeEsc")}
+            aria-label={t("settings.closeEsc")}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X size={15} />
           </button>
         </header>
         {/* `embedded` 는 **호스트가 좌우 여백을 준다**는 전제로 만들어졌다
@@ -57,7 +64,7 @@ export function SettingsOverlay({ onClose }: { onClose: () => void }) {
         <div className="overflow-y-auto scrollbar-thin px-6 pt-5">
           <ErrorBoundary label="settings">
             <Suspense fallback={<OculSpinner size={22} label={t("common.loading")} />}>
-              <SettingsPanel embedded />
+              <SettingsPanel />
             </Suspense>
           </ErrorBoundary>
         </div>

@@ -194,7 +194,7 @@ describe("영어 모드에서 한글이 남지 않는다", () => {
         <SettingsPanel />
       </Wrap>,
     );
-    await findByText("Settings");
+    await findByText("Appearance");
     expect(hangulIn(container)).toEqual([]);
   });
 

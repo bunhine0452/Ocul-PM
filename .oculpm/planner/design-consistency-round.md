@@ -18,8 +18,8 @@ owner: claude-code
 ## 깨져 있는 것 — 스타일이 죽거나 대비가 무너진 자리 {#broken}
 - [x] 정의되지 않은 토큰 17곳 치환 — `--line`·`--shadow-soft`(code.css:693,695 :1428,1430 → Monaco 호버·시그니처 팝업에 테두리도 그림자도 없음) · `--text-1` 7곳(screens.css:2366 hover 무효, ErrorBoundary.tsx:75·TerminalErrorBoundary.tsx:50 = 크래시 화면 제목) · `--font-mono` 3곳(tray.css:338,346,353) {#fix-undef-tokens}
 - [~] `nav-ia.css` 53줄을 `shell.css` nav 블록으로 흡수 — 통째로 다른 시스템 어휘다(`--r-1`/`--r-2`/`--bg` 정의 없음, `var(--fs-2, 12px)` 인데 실제 10.5px 로 fallback 이 거짓말). 파일 머리 주석이 이미 옮기라고 적어 뒀다 {#fix-nav-ia}
-- [ ] `App.css` 의 shadcn 팔레트를 hex 재선언에서 `--foreground: var(--text)` 별칭으로 — ui_v2 CSS 가 shadcn 어휘를 173곳 참조해(--border 87·--primary 19·--muted-foreground 18) 두 팔레트가 한 창에 동시 렌더된다. tokens.css 가 전역이 된 2026-07-31 이후 분리 전제는 무효 {#fix-palette-alias}
-- [ ] `design_tokens.test.ts` 대비 래칫에 shadcn 팔레트 추가 — 지금은 tokens.css 쪽만 지킨다. 실측 미달: Nord `--destructive` on `--card` 2.46(삭제 버튼 글자) · Solarized `--muted-foreground` 4.13 · Dracula 3.68 {#fix-contrast-ratchet}
+- [x] `App.css` 의 shadcn 팔레트를 hex 재선언에서 `--foreground: var(--text)` 별칭으로 — ui_v2 CSS 가 shadcn 어휘를 173곳 참조해(--border 87·--primary 19·--muted-foreground 18) 두 팔레트가 한 창에 동시 렌더된다. tokens.css 가 전역이 된 2026-07-31 이후 분리 전제는 무효 {#fix-palette-alias}
+- [x] `design_tokens.test.ts` 대비 래칫에 shadcn 팔레트 추가 — 지금은 tokens.css 쪽만 지킨다. 실측 미달: Nord `--destructive` on `--card` 2.46(삭제 버튼 글자) · Solarized `--muted-foreground` 4.13 · Dracula 3.68 {#fix-contrast-ratchet}
 - [ ] 액션 달린 토스트에 기본 지속시간 금지 — `useFileOps.ts:161` 이 durationMs 를 안 줘 info 기본 5초, `undoMoves` 호출부는 코드베이스 전체에서 이 한 줄뿐(메뉴도 ⌘Z 도 없다). push() 에서 actions 가 있으면 최소 15초, 그리고 호버·포커스 시 타이머 정지 {#fix-undo-toast}
 - [ ] 입력 경계와 포커스 — `--input` 대 `--card` 대비가 라이트 1.33·Nord 1.17 로 WCAG 1.4.11 의 3:1 미달이고, `outline:none` 32곳 중 `:focus-within` 대체가 없는 6곳(skills.css:393,736 · agent.css:885,1174,1836 · discussion.css:629)은 Tab 으로 들어가도 화면이 안 변한다 {#fix-focus-visible}
 - [ ] 모달 4곳에 `useModalBehavior` — 트랩·복원 없음: WelcomeWizard.tsx:167(첫 실행 화면) · ProjectManager.tsx:224 · Attachments.tsx:29 · AcpUsageMeter.tsx:234. ConfigControls.tsx:372 는 팝오버 메뉴에 role="dialog" 오용 {#fix-modal-trap}
@@ -28,8 +28,8 @@ owner: claude-code
 - [ ] 버튼 35개가 왜 비활성인지 말하지 않는다 — 유효성으로 막힌 51개 중 title·aria-describedby 없는 것 35개. AutomationEditor.tsx:386 은 `problem` 이라는 이유 문자열을 손에 들고도 안 붙인다 {#fix-disabled-reason}
 
 ## 같은 것을 하나로 — "여러 손" 신호 {#unify}
-- [ ] 설정 진입점 단일화 — ⌘, 는 `ProjectTab.tsx:93` 을 거쳐 `.scrim` 모달, 사이드바는 `ShellV2.tsx:343` 전체화면, 안내 버튼은 `settingsNav.ts` 로 전체화면. 탭 내비도 가로 스트립(SettingsPanel.tsx:164)과 세로 192px 열(:185)로 갈린다. 프로젝트 창은 화면으로 통일하고 오버레이는 런처 탭 전용으로 {#unify-settings}
-- [ ] `SettingsOverlay.tsx:39` 의 하드코딩 영어 `<h2>Settings</h2>` 와 :45 의 손으로 붙인 인라인 SVG 닫기 버튼을 공유물로 {#unify-settings-chrome}
+- [x] 설정 진입점 단일화 — ⌘, 는 `ProjectTab.tsx:93` 을 거쳐 `.scrim` 모달, 사이드바는 `ShellV2.tsx:343` 전체화면, 안내 버튼은 `settingsNav.ts` 로 전체화면. 탭 내비도 가로 스트립(SettingsPanel.tsx:164)과 세로 192px 열(:185)로 갈린다. 프로젝트 창은 화면으로 통일하고 오버레이는 런처 탭 전용으로 {#unify-settings}
+- [x] `SettingsOverlay.tsx:39` 의 하드코딩 영어 `<h2>Settings</h2>` 와 :45 의 손으로 붙인 인라인 SVG 닫기 버튼을 공유물로 {#unify-settings-chrome}
 - [ ] 문서형 드릴다운 통일 — 일지는 전체화면(목록 사라짐, ArrowLeft size=18) · 스킬은 전체화면인데 툴바 자체가 `.sk-head` 로 바뀌어 크롬이 52→60px(ArrowLeft size=15) · 논의/변경은 2-pane. 논의 규격(2-pane)으로 접거나, 최소한 `.sk-head` 를 `<Toolbar>` 로 {#unify-drilldown}
 - [ ] AI 3면 파리티 — `AcpToolbar.tsx:50` 만 title 자리에 세션 탭을 넣어 16화면 중 제목 없는 유일한 둘이다. 지난 대화가 ACP 는 사이드 패널·AI 패널은 모달이고, 컴포저는 `AiPanelScreenV2.tsx:840-1010` 이 170줄을 다시 짰다(공유 Composer.tsx 의 첨부·슬래시 없이) {#unify-chat}
 - [ ] 모달 셸 두 벌 — `AppDialog` 17곳(z-modal 100, useModalBehavior) vs `.set-modal` 2곳(z-popover 60, 자체 keyframes). 층이 달라 `.set-modal` 이 AppDialog 밑으로 들어간다. ConversationHistoryModal·ManualEntryModalV2 를 AppDialog 로 {#unify-modal-shell}
@@ -75,4 +75,8 @@ owner: claude-code
 | 2026-09-09T19:53:07+09:00 | #ramp-dur-cleanup | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1952_refactor_design-gates-and-undefined-tokens.md | gate-motion 과 함께 처리. @theme inline --ease-out 이 은퇴 곡선에 고정돼 tokens.css 와 갈라져 있던 것도 동기화 |
 | 2026-09-09T19:53:14+09:00 | #ramp-dead-tokens | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1952_refactor_design-gates-and-undefined-tokens.md | --radius-card\|button\|chip 삭제(소비처 0, rounded-* 유틸리티도 안 생김). z 리터럴 200 둘 + Toaster 의 z-[1000] 까지 램프로 |
 | 2026-09-09T19:53:20+09:00 | #fix-nav-ia | claude-code | ☐→~ | .oculpm/journal/20260909/Refactors/1952_refactor_design-gates-and-undefined-tokens.md | 토큰 셋(--r-1·--r-2·--bg)은 램프 이름으로 고쳤다. 남은 것: shell.css 로 접어 넣기 + --border→--sep + 거짓 fallback var(--fs-2, 12px) 제거 |
+| 2026-09-09T20:02:36+09:00 | #fix-palette-alias | claude-code | ☐→x |  | 142줄 → 52줄, 블록 7개가 :root 하나로 (data-preset 이 html 에만 붙으므로 안전). 부수 효과로 액센트 6종·커스텀 테마가 이제 shadcn 표면까지 칠한다 |
+| 2026-09-09T20:02:42+09:00 | #fix-contrast-ratchet | claude-code | ☐→x |  | 대비를 다시 계산하는 대신 별칭 계약 3개로 대체 — 별칭이면 기존 램프 래칫이 shadcn 쪽까지 자동 보증한다. 회귀 경로("이 프리셋만 다르게")를 셋째 테스트가 막고 실제 패턴으로 음성 확인 |
+| 2026-09-09T20:11:12+09:00 | #unify-settings | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2011_refactor_unify-settings-entry-points.md | ⌘, 가로채기 제거로 프로젝트 창은 화면 하나. 감사의 "탭 내비 두 벌" 지적은 프로덕션에선 틀렸고(둘 다 embedded) 대신 세로 갈래가 죽어 있어 embedded 프롭째 삭제 |
+| 2026-09-09T20:11:18+09:00 | #unify-settings-chrome | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2011_refactor_unify-settings-entry-points.md | 하드코딩 영어 → t("shell.settings.title"), 인라인 SVG → 공유 X 아이콘 + aria-label |
 <!-- oculpm:plan-log end -->
