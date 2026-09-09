@@ -49,6 +49,15 @@
  *     **fallback 이 있어도 위반이다** — `var(--surface-2, rgba(0,0,0,.02))` 는
  *     조용히 다른 값으로 돌아가서 더 안 잡힌다.
  *
+ * 16. 로딩을 빈 상태로 그리기(<EmptyState>{t("…loading")}</EmptyState>) —
+ *     실측 8곳이고, 그중 다섯(NextTasks · WhatsNewCard ·
+ *     ConversationHistoryModal · BinaryFileView · AutomationHistory)은 로딩
+ *     분기와 빈 분기가 **같은 컴포넌트에 같은 props** 라 문자열만 달랐다.
+ *     화면이 픽셀 단위로 같으면 "기다리면 채워진다" 와 "여기는 원래 비어
+ *     있다" 가 구분되지 않는데, 둘은 정반대의 행동을 요구한다.
+ *     `LoadingState` 는 `.es--plain` 을 그대로 입어 자리·치수를 유지하고
+ *     스피너 하나로만 갈린다 ({#layout-loading-state}).
+ *
  * 2026-09-09 일관성 라운드가 더한 둘 (규칙 10 은 아래 별도 패스):
  *
  * 11. 타입 리터럴(text-[11px]) — 램프에 **이름이 없어서** 손이 대괄호로 간
@@ -186,6 +195,15 @@ const RULES = [
     ext: /\.tsx?$/,
     re: /z-\[\d+\]/,
     hint: "--z-sticky|strip|panel|dock|menu|popover|modal|command|top (Tailwind 로는 z-top 등)",
+  },
+  {
+    // 로딩을 빈 상태로 그리면 "기다리면 채워진다" 와 "원래 비어 있다" 가 픽셀
+    // 단위로 같아진다 — 정반대의 행동을 요구하는 두 상태다. 실측 8곳이었고
+    // 그중 다섯은 두 분기가 *같은 컴포넌트에 같은 props* 라 문자열만 달랐다.
+    id: "loading-as-empty",
+    ext: /\.tsx?$/,
+    re: /<EmptyState[^>]*>\s*\{\s*t\(\s*"[^"]*[lL]oading"/,
+    hint: "로딩은 <LoadingState> ({#layout-loading-state}) — 치수는 .es--plain 을 그대로 상속하고 스피너 하나로만 갈린다",
   },
   {
     id: "ink-shadow",

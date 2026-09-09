@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/EmptyState";
+import { LoadingState } from "@/components/LoadingState";
 import { ListTodo, ArrowRight, Loader } from "@/components/Icons";
 import type { NextTask } from "./useTodayBrief";
 import { useT } from "@/i18n";
@@ -31,7 +32,7 @@ export function NextTasks({
       </div>
       <div className="panel-body">
         {tasks == null ? (
-          <EmptyState style={{ padding: "24px 16px" }}>{t("common.loading")}</EmptyState>
+          <LoadingState style={{ padding: "24px 16px" }} />
         ) : tasks.length === 0 ? (
           <EmptyState style={{ padding: "24px 16px" }}>{t("today.next.empty")}</EmptyState>
         ) : (

@@ -4,6 +4,7 @@ import { commands, type Conversation } from "@/lib/bindings";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { Plus, Trash2, MessageSquare } from "@/components/Icons";
 import { EmptyState } from "@/components/EmptyState";
+import { LoadingState } from "@/components/LoadingState";
 import { toast } from "@/lib/toast";
 // 모듈 getLang() 은 순수 헬퍼 relTime 용, useT() 는 컴포넌트 용.
 import { getLang, useT } from "@/i18n";
@@ -99,7 +100,7 @@ export function ConversationHistoryModal({
         </div>
 
         {convs == null ? (
-          <EmptyState style={{ padding: "24px 8px" }}>{t("chat.loading")}</EmptyState>
+          <LoadingState style={{ padding: "24px 8px" }}>{t("chat.loading")}</LoadingState>
         ) : convs.length === 0 ? (
           <EmptyState style={{ padding: "24px 8px" }}>{t("chat.empty")}</EmptyState>
         ) : (

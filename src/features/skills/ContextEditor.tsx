@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/EmptyState";
+import { LoadingState } from "@/components/LoadingState";
 import { Markdown } from "@/components/Markdown";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { ArrowLeft, Copy, Pencil, Trash2, X } from "@/components/Icons";
@@ -306,7 +307,7 @@ export function ContextEditor({
       {state === "loading" ? (
         <div className="scroll">
           <div className="page">
-            <EmptyState>{t("common.loading")}</EmptyState>
+            <LoadingState />
           </div>
         </div>
       ) : state === "error" ? (
