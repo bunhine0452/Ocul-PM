@@ -30,11 +30,11 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 - [x] 기존 코드 화면 테스트 30개(5,499줄)를 판정자로 삼아 초록으로 만든다 — 계약이 같으므로 테스트를 고쳐야 한다면 그건 계약이 샜다는 신호다 {#port-tests}
 
 ## Phase 2 — 회수: 손으로 만든 것을 내장으로 갈아치우고 지운다 {#reclaim}
-- [ ] `stickyScroll.ts`(229줄) + `stickyModel.ts`(152줄) 삭제 → Monaco 내장 sticky scroll. `stickyMaxLines`·`stickySymbols`·`tabSize` prop 의 뜻을 내장 옵션으로 옮긴다 {#reclaim-sticky}
-- [ ] `signatureTooltip.ts`(172줄) 삭제 → Monaco 내장 시그니처 위젯 {#reclaim-signature}
-- [ ] `CodeSearchPanel.tsx`(16KB) 를 Monaco find/replace 위젯으로 대체할 수 있는지 판정 — ⇧⌘F 전역 검색(별도 화면)과는 다른 자리다. 대체 못 하면 이유를 적고 남긴다 {#reclaim-search}
-- [ ] `codeLang.ts`(137줄) 를 Monarch 언어 id 매핑으로 축소 — `@codemirror/lang-*` 10개와 `legacy-modes` 의존성 제거 {#reclaim-lang}
-- [ ] `code.css` 의 `.cm-*` 규칙 44개 정리 — 나머지 2,466줄(트리·탭·패널)은 건드리지 않는다 {#reclaim-css}
+- [x] `stickyScroll.ts`(229줄) + `stickyModel.ts`(152줄) 삭제 → Monaco 내장 sticky scroll. `stickyMaxLines`·`stickySymbols`·`tabSize` prop 의 뜻을 내장 옵션으로 옮긴다 {#reclaim-sticky}
+- [x] `signatureTooltip.ts`(172줄) 삭제 → Monaco 내장 시그니처 위젯 {#reclaim-signature}
+- [x] `CodeSearchPanel.tsx`(16KB) 를 Monaco find/replace 위젯으로 대체할 수 있는지 판정 — ⇧⌘F 전역 검색(별도 화면)과는 다른 자리다. 대체 못 하면 이유를 적고 남긴다 {#reclaim-search}
+- [x] `codeLang.ts`(137줄) 를 Monarch 언어 id 매핑으로 축소 — `@codemirror/lang-*` 10개와 `legacy-modes` 의존성 제거 {#reclaim-lang}
+- [x] `code.css` 의 `.cm-*` 규칙 44개 정리 — 나머지 2,466줄(트리·탭·패널)은 건드리지 않는다 {#reclaim-css}
 
 ## Phase 3 — 새 능력: 지금 아예 없는 기본기 {#capabilities}
 - [ ] 실측으로 **0** 인 것들을 켠다 — 코드 폴딩 · 괄호 매칭 · 자동 괄호 닫기 · 선택 일치 강조 · 입력 시 들여쓰기. 지붕(LSP 17커맨드·DAP)은 올렸는데 바닥이 비어 있던 자리다 {#cap-basics}
@@ -78,4 +78,9 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 | 2026-09-08T20:15:37+09:00 | #port-diff | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/2014_refactor_monaco-port-phase1.md | renderSideBySide:false 인라인 diff. 구현 완료, 렌더 육안 확인은 fin-eyes 로 |
 | 2026-09-08T20:15:43+09:00 | #port-theme | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/2014_refactor_monaco-port-phase1.md | --code-* 15개 → defineTheme + data-theme/preset MutationObserver 재정의. 프리셋 격자 육안 확인은 fin-eyes 로 |
 | 2026-09-08T20:15:50+09:00 | #port-tests | claude-code | ☐→x | .oculpm/journal/20260908/Refactors/2014_refactor_monaco-port-phase1.md | 189파일 2460개 전부 통과, 테스트 한 줄도 안 고침 = 계약 무유출. 기여목록 자물쇠 테스트 신규 추가 |
+| 2026-09-09T19:15:39+09:00 | #reclaim-sticky | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1915_refactor_monaco-reclaim-phase2.md | 381줄 삭제. defaultModel 을 outlineModel 로 올리고 monaco/symbols.ts(123)가 DocumentSymbolProvider 를 낸다. clamp 는 lib/settings 로. ⇧⌘O 충돌은 onGoToSymbol 로 되돌림 |
+| 2026-09-09T19:15:47+09:00 | #reclaim-signature | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1915_refactor_monaco-reclaim-phase2.md | 172줄 삭제 → 내장 parameterHints. 폭 묶기와 "지금 치는 인자 강조" 두 판단은 .parameter-hints-widget 으로 옮김 |
+| 2026-09-09T19:15:54+09:00 | #reclaim-search | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1915_refactor_monaco-reclaim-phase2.md | 판정 = 대체 불가, 남긴다. Monaco 위젯은 문서 하나, 패널은 프로젝트 전역(code_search)+디스크 직접 치환. 반대로 파일 안 찾기·바꾸기(⌘F·⌥⌘F)는 이관이 공짜로 준 것 — CM 판엔 없었다. 근거는 02-reclaim.md#search-verdict |
+| 2026-09-09T19:16:01+09:00 | #reclaim-lang | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1915_refactor_monaco-reclaim-phase2.md | 137→110줄. 정정: lang-* 는 10개가 아니라 8개만 지울 수 있다 — lang-markdown 은 DiscussionEditor 가 아직 쓴다(Phase 4). legacy-modes 포함 13개 제거. D1a 실행(langExtra.ts JSON·TOML Monarch) + 언어 커버리지 자물쇠 2종 |
+| 2026-09-09T19:16:09+09:00 | #reclaim-css | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1915_refactor_monaco-reclaim-phase2.md | 45규칙 정리 — 지우는 게 아니라 옮기는 것. 진단 밑줄·호버 폭·인자 강조·불투명 스티키·diff 색 토큰을 Monaco 선택자로. 잔재 하나 자체 발견·수정: CodeScreenV2 의 ⌘X/⌘V 가드가 .cm-editor 를 보고 있어 편집기 안 ⌘V 가 트리 붙여넣기로 갔다 |
 <!-- oculpm:plan-log end -->
