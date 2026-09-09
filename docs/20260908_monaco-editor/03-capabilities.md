@@ -4,7 +4,7 @@
 > 앞선 단계: [`02-reclaim.md`](02-reclaim.md).
 >
 > ⚠️ 번호 안내 — 플랜의 `{#fin-perf}` 는 성능 문서를 `03-performance.md` 라고
-> 부른다. 이 문서가 3번을 먼저 가져갔으므로 성능은 **`04-performance.md`** 로 간다.
+> 부른다. 3·4번을 Phase 3·4 문서가 가져갔으므로 성능은 **`05-performance.md`** 로 간다.
 
 Phase 0 이 CodeMirror 판에서 실측한 값이다.
 

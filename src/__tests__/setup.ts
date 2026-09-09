@@ -60,6 +60,64 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
   });
 }
 
+// Monaco 가 **모듈 로드 시점에** 묻는 브라우저 능력들 — jsdom 에 없다.
+//
+// 여기(setup) 여야 하는 이유: 클립보드 기여는 임포트되는 순간
+// `document.queryCommandSupported()` 를 부르는데, 그건 테스트 파일의
+// `beforeAll` 보다 먼저다(임포트가 위로 끌어올려진다). 테스트 안에서 채우면
+// 스위트가 통째로 로드에 실패한다.
+if (typeof document !== "undefined" && typeof document.queryCommandSupported !== "function") {
+  Object.assign(document, { queryCommandSupported: () => false });
+}
+if (typeof window !== "undefined" && typeof window.ResizeObserver !== "function") {
+  Object.assign(window, {
+    ResizeObserver: class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  });
+}
+
+// 비동기 클립보드 API — jsdom 에 **없다**.
+//
+// 왜 필요한가: jsdom 의 UA 는 `AppleWebKit` 을 담고 `Chrome`·`Safari` 는 안 담아
+// Monaco 가 이 환경을 WebKit 웹뷰로 읽고(`isWebkitWebView`), Safari 용 쓰기
+// 우회를 켠다. 그 우회는 클릭마다 `DeferredPromise` 를 만들어 `ClipboardItem`
+// 에 넘기고 다음 클릭에서 앞의 것을 **취소**하는데, `ClipboardItem` 이 없으면
+// 그 거절을 아무도 안 받아 unhandled rejection 으로 튄다 (테스트는 통과하는데
+// 러너가 붉어진다).
+//
+// UA 를 크롬처럼 위장해 그 경로를 끄는 대신, **없는 브라우저 API 를 채운다** —
+// 실기기(WKWebView)가 실제로 타는 경로를 테스트에서도 그대로 지나가게 두는
+// 편이 정직하다. 진짜 `ClipboardItem` 도 넘겨받은 프로미스를 소비한다.
+if (typeof globalThis.ClipboardItem === "undefined") {
+  Object.assign(globalThis, {
+    ClipboardItem: class {
+      constructor(items: Record<string, unknown>) {
+        for (const value of Object.values(items ?? {})) {
+          if (value instanceof Promise) value.catch(() => {});
+        }
+      }
+    },
+  });
+}
+if (typeof navigator !== "undefined" && navigator.clipboard === undefined) {
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    // **쓰기 가능이어야 한다.** 여러 스위트가 `Object.assign(navigator, {
+    // clipboard: { writeText } })` 로 자기 스파이를 얹는데, 읽기 전용이면 그
+    // 대입이 조용히 무시돼 "복사했나" 를 보는 테스트가 통째로 죽는다.
+    writable: true,
+    value: {
+      write: () => Promise.resolve(),
+      writeText: () => Promise.resolve(),
+      read: () => Promise.resolve([]),
+      readText: () => Promise.resolve(""),
+    },
+  });
+}
+
 // Lite-W6 PR6.4: components that render `<WorkspaceProvider>` register
 // `events.oculpm*.listen(...)` handlers on mount. Outside the Tauri runtime
 // (jsdom) those calls dereference an undefined `__TAURI_INTERNALS__` and

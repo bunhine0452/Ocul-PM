@@ -1,6 +1,6 @@
 import { useConfirm } from "@/hooks/useConfirm";
 /**
- * 문제 해결 문서 편집기 — CodeMirror 6 마크다운 + 라이브 프리뷰.
+ * 문제 해결 문서 편집기 — Monaco 마크다운 + 라이브 프리뷰.
  *
  * 왜 WYSIWYG 이 아닌가: 이 문서의 SSOT 는 디스크의 `.md` 이고 **외부
  * 에이전트가 같은 파일을 동시에 고친다**. 리치 에디터는 왕복마다 서식을
@@ -12,13 +12,17 @@ import { useConfirm } from "@/hooks/useConfirm";
  * 주고, 문서를 바꿔 끼울 땐 `key` 로 재마운트한다.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EditorState } from "@codemirror/state";
-import { EditorView, keymap, drawSelection, placeholder as cmPlaceholder } from "@codemirror/view";
-import { history, historyKeymap, defaultKeymap } from "@codemirror/commands";
-import { search, searchKeymap } from "@codemirror/search";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
-import { markdown } from "@codemirror/lang-markdown";
-import { tags } from "@lezer/highlight";
+
+import type * as MonacoNs from "monaco-editor/editor/editor.api";
+import monaco from "@/features/code/monaco/setup";
+import { PROSE_LANGUAGE_ID } from "@/features/code/monaco/langProse";
+import {
+  defineCodeTheme,
+  isDarkTheme,
+  readCodeTokens,
+  THEME_NAME,
+  watchThemeChanges,
+} from "@/features/code/monaco/theme";
 
 import { Markdown } from "@/components/Markdown";
 import {
@@ -69,44 +73,55 @@ interface Props {
   author: string;
 }
 
-const chrome = EditorView.theme({
-  "&": { height: "100%", fontSize: "13.5px", backgroundColor: "transparent", color: "var(--text)" },
-  ".cm-scroller": {
-    fontFamily: "var(--mono)",
-    lineHeight: "1.75",
-    overflow: "auto",
-    padding: "18px 4px 40vh",
-  },
-  ".cm-content": { caretColor: "var(--accent)", maxWidth: "78ch", margin: "0 auto" },
-  ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--accent)", borderLeftWidth: "2px" },
-  "&.cm-focused": { outline: "none" },
-  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
-    backgroundColor: "var(--accent-soft) !important",
-  },
-  ".cm-panels": {
-    backgroundColor: "var(--bg-inset)",
-    color: "var(--text)",
-    borderTop: "1px solid var(--sep)",
-  },
-  ".cm-placeholder": { color: "var(--text-3)" },
-});
-
-/** 산문용 하이라이트 — 코드 화면보다 대비를 낮춰 읽는 데 방해가 없게. */
-const mdHighlight = HighlightStyle.define([
-  { tag: tags.heading1, color: "var(--text)", fontWeight: "700" },
-  { tag: tags.heading2, color: "var(--accent-text)", fontWeight: "700" },
-  { tag: tags.heading3, color: "var(--text)", fontWeight: "700" },
-  { tag: tags.heading4, color: "var(--text-2)", fontWeight: "700" },
-  { tag: tags.strong, color: "var(--text)", fontWeight: "700" },
-  { tag: tags.emphasis, color: "var(--text)", fontStyle: "italic" },
-  { tag: tags.link, color: "var(--accent-text)" },
-  { tag: tags.url, color: "var(--text-3)" },
-  { tag: tags.monospace, color: "var(--accent-text)" },
-  { tag: tags.list, color: "var(--text-3)" },
-  { tag: tags.quote, color: "var(--text-2)", fontStyle: "italic" },
-  { tag: tags.comment, color: "var(--text-3)" },
-  { tag: tags.contentSeparator, color: "var(--text-3)" },
-]);
+/**
+ * 편집기 옵션 — 코드 화면과 **다른 물건**이다.
+ *
+ * 여기는 산문이라 줄 번호 · 미니맵 · 거터 · 접기가 전부 소음이고, 대신 줄바꿈이
+ * 켜져 있어야 한다(코드는 가로 스크롤이 맞지만 문단은 아니다). 문법도 코드용
+ * `markdown` 이 아니라 `markdown-prose` 다 — 제목 단계와 `{#id}` 를 갈라 칠한다.
+ *
+ * 색은 `monaco/theme.ts` 의 한 테마가 준다. Monaco 의 테마는 **전역**이라 두
+ * 편집기가 서로 다른 테마를 동시에 쓸 수 없고(코드 화면과 이 화면이 다른 창
+ * 탭에서 함께 살아 있을 수 있다), 그래서 규칙을 `.md-prose` 접미사로 갈랐다.
+ */
+const PROSE_OPTIONS: MonacoNs.editor.IStandaloneEditorConstructionOptions = {
+  theme: THEME_NAME,
+  language: PROSE_LANGUAGE_ID,
+  automaticLayout: true,
+  fontSize: 13.5,
+  fontFamily: "var(--mono)",
+  lineHeight: 1.75,
+  wordWrap: "on",
+  lineNumbers: "off",
+  glyphMargin: false,
+  folding: false,
+  minimap: { enabled: false },
+  renderLineHighlight: "none",
+  lineDecorationsWidth: 0,
+  lineNumbersMinChars: 0,
+  overviewRulerLanes: 0,
+  scrollBeyondLastLine: false,
+  // 문단 끝에서도 화면 가운데로 올려 쓸 수 있게.
+  padding: { top: 18, bottom: 400 },
+  fixedOverflowWidgets: true,
+  scrollbar: { useShadows: false, vertical: "auto", horizontal: "hidden" },
+  // 산문에서 자동 괄호 닫기는 방해가 더 크다(`(그런데` 를 치면 닫는 괄호가 따라온다).
+  // 대신 **선택 감싸기**는 남긴다 — 서식 단축키와 같은 손놀림이다.
+  autoClosingBrackets: "never",
+  autoClosingQuotes: "never",
+  autoSurround: "languageDefined",
+  matchBrackets: "never",
+  occurrencesHighlight: "off",
+  selectionHighlight: true,
+  bracketPairColorization: { enabled: false },
+  guides: { indentation: false, bracketPairs: false },
+  // 다중 커서는 산문에서도 쓸모가 있다 (표의 같은 열을 한꺼번에 고친다).
+  multiCursorModifier: "alt",
+  contextmenu: false,
+  tabSize: 2,
+  insertSpaces: true,
+  detectIndentation: false,
+};
 
 export function DiscussionEditor({
   initialText,
@@ -120,31 +135,52 @@ export function DiscussionEditor({
   const { t } = useT();
   const { confirm, confirmDialog } = useConfirm();
   const hostRef = useRef<HTMLDivElement>(null);
-  const viewRef = useRef<EditorView | null>(null);
+  const viewRef = useRef<MonacoNs.editor.IStandaloneCodeEditor | null>(null);
   const [text, setText] = useState(initialText);
   const [preview, setPreview] = useState(initialText);
   const [insertOpen, setInsertOpen] = useState(false);
   const insertRef = useRef<HTMLDivElement>(null);
 
-  // CM 확장은 마운트 1회 구성이라 최신 콜백은 ref 로 읽는다.
+  // 편집기 배선은 마운트 1회라 최신 콜백은 ref 로 읽는다.
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
 
   const dirty = text !== initialText;
   const unknown = useMemo(() => unknownSections(preview), [preview]);
 
-  /** 순수 모듈이 계산한 교체를 트랜잭션 하나로 반영하고 포커스를 돌려준다. */
+  /**
+   * 순수 모듈이 계산한 교체를 **한 번의 편집**으로 반영하고 포커스를 돌려준다.
+   *
+   * `mdEdit` 의 `EditOp` 는 문서 시작부터의 **오프셋**으로 말한다 (CodeMirror
+   * 시절의 단위). Monaco 는 (줄, 열)이라 여기서만 환산한다 —
+   * `getPositionAt`/`getOffsetAt` 이 그 다리고, 둘 다 UTF-16 코드 유닛이라
+   * 인코딩 변환은 없다. 순수 모듈은 편집기를 여전히 모른다.
+   *
+   * `pushEditOperations` 로 한 번에 넣는 이유는 **실행 취소 한 칸**이다 —
+   * `executeEdits` 를 여러 번 부르면 되돌리기가 조각조각 난다.
+   */
   const apply = useCallback((make: (doc: string, from: number, to: number) => EditOp) => {
-    const view = viewRef.current;
-    if (!view) return;
-    const { from, to } = view.state.selection.main;
-    const op = make(view.state.doc.toString(), from, to);
-    view.dispatch({
-      changes: { from: op.from, to: op.to, insert: op.insert },
-      selection: { anchor: op.selFrom, head: op.selTo },
-      scrollIntoView: true,
-    });
-    view.focus();
+    const editor = viewRef.current;
+    const model = editor?.getModel();
+    if (!editor || !model) return;
+    const sel = editor.getSelection();
+    const from = sel ? model.getOffsetAt(sel.getStartPosition()) : 0;
+    const to = sel ? model.getOffsetAt(sel.getEndPosition()) : 0;
+    const op = make(model.getValue(), from, to);
+    const range = monaco.Range.fromPositions(
+      model.getPositionAt(op.from),
+      model.getPositionAt(op.to),
+    );
+    editor.executeEdits("oculpm.mdEdit", [{ range, text: op.insert, forceMoveMarkers: true }]);
+    // 선택 오프셋은 **교체가 반영된 뒤**의 문서 기준이라 여기서 환산한다.
+    editor.setSelection(
+      monaco.Range.fromPositions(
+        model.getPositionAt(op.selFrom),
+        model.getPositionAt(op.selTo),
+      ),
+    );
+    editor.revealRangeInCenterIfOutsideViewport(editor.getSelection()!);
+    editor.focus();
   }, []);
 
   // 키맵은 마운트 시점에 굳는다 — 서식 단축키가 최신 `apply` 를 보도록 ref 경유.
@@ -158,47 +194,62 @@ export function DiscussionEditor({
   };
 
   useEffect(() => {
-    if (!hostRef.current) return;
-    const view = new EditorView({
-      parent: hostRef.current,
-      state: EditorState.create({
-        doc: initialText,
-        extensions: [
-          history(),
-          drawSelection(),
-          search({ top: true }),
-          EditorView.lineWrapping,
-          markdown(),
-          syntaxHighlighting(mdHighlight),
-          chrome,
-          cmPlaceholder(t("disc.editor.placeholder")),
-          keymap.of([
-            {
-              key: "Mod-s",
-              run: (v) => {
-                onSaveRef.current(v.state.doc.toString());
-                return true;
-              },
-              // 화면 레벨 ⌘S 까지 버블되면 저장이 두 번 나간다.
-              stopPropagation: true,
-            },
-            { key: "Mod-b", run: () => (applyRef.current("**"), true) },
-            { key: "Mod-i", run: () => (applyRef.current("_"), true) },
-            { key: "Mod-k", run: () => (applyRef.current("link"), true) },
-            ...historyKeymap,
-            ...searchKeymap,
-            ...defaultKeymap,
-          ]),
-          EditorView.updateListener.of((u) => {
-            if (u.docChanged) setText(u.state.doc.toString());
-          }),
-        ],
-      }),
+    const host = hostRef.current;
+    if (!host) return;
+
+    // 테마는 편집기를 만들기 **전에** 정의해야 첫 프레임부터 제 색으로 그린다.
+    defineCodeTheme(monaco, readCodeTokens(host), isDarkTheme());
+    const editor = monaco.editor.create(host, {
+      ...PROSE_OPTIONS,
+      value: initialText,
+      placeholder: t("disc.editor.placeholder"),
     });
-    viewRef.current = view;
-    view.focus();
+    viewRef.current = editor;
+    editor.focus();
+
+    const subs: MonacoNs.IDisposable[] = [
+      editor.onDidChangeModelContent(() => setText(editor.getValue())),
+      // ⌘S — Monaco 액션은 기본 동작을 삼키므로 화면 레벨 ⌘S 까지 버블돼
+      // 저장이 두 번 나가지 않는다 (CodeMirror 의 `stopPropagation` 자리).
+      editor.addAction({
+        id: "oculpm.disc.save",
+        label: t("common.save"),
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
+        run: () => onSaveRef.current(editor.getValue()),
+      }),
+      // 서식 단축키 — 배선은 마운트 1회라 최신 `apply` 를 ref 로 읽는다.
+      editor.addAction({
+        id: "oculpm.disc.bold",
+        label: t("disc.editor.bold"),
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB],
+        run: () => applyRef.current("**"),
+      }),
+      editor.addAction({
+        id: "oculpm.disc.italic",
+        label: t("disc.editor.italic"),
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI],
+        run: () => applyRef.current("_"),
+      }),
+      // ⌘K 는 Monaco 에서 화음(⌘K ⌘C …)의 앞 글자지만, 동적 키바인딩이
+      // 기여 액션보다 무거워 여기서는 한 타로 링크 삽입이 된다.
+      editor.addAction({
+        id: "oculpm.disc.link",
+        label: t("disc.editor.link"),
+        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
+        run: () => applyRef.current("link"),
+      }),
+    ];
+
+    const stopThemeWatch = watchThemeChanges(() => {
+      defineCodeTheme(monaco, readCodeTokens(host), isDarkTheme());
+      monaco.editor.setTheme(THEME_NAME);
+    });
+
     return () => {
-      view.destroy();
+      stopThemeWatch();
+      for (const sub of subs) sub.dispose();
+      editor.getModel()?.dispose();
+      editor.dispose();
       viewRef.current = null;
     };
     // 마운트 1회 — 문서 교체는 부모의 `key` 가 담당한다.
@@ -407,7 +458,7 @@ export function DiscussionEditor({
             type="button"
             className="disc-btn primary"
             disabled={busy || !dirty}
-            onClick={() => onSave(viewRef.current?.state.doc.toString() ?? text)}
+            onClick={() => onSave(viewRef.current?.getValue() ?? text)}
           >
             <Save size={15} /> {t("common.save")}
           </button>

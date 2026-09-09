@@ -17,6 +17,7 @@ import * as monaco from "monaco-editor/editor/editor.api";
 import EditorWorker from "monaco-editor/editor/editor.worker?worker";
 
 import { registerExtraLanguages } from "./langExtra";
+import { registerProseLanguage } from "./langProse";
 
 // ── 기여 (editor.main.js 에서 추출, 언어 서비스 제외) ──
 import "monaco-editor/editor/contrib/anchorSelect/browser/anchorSelect";
@@ -107,6 +108,8 @@ import "monaco-editor/languages/definitions/shell/register";
 
 // 0.56 이 안 주는 둘 — 등록은 전역이고 이 모듈이 한 번만 평가되므로 여기서 한다.
 registerExtraLanguages(monaco);
+// 논의 문서용 마크다운 — 제목 단계와 `{#id}` 를 갈라 칠한다 (`langProse.ts`).
+registerProseLanguage(monaco);
 
 // 워커는 D1 로 `editor.worker` 하나뿐이다 (기본 편집 서비스: diff 계산·링크 감지 등).
 // 플러그인 계열(`vite-plugin-monaco-editor`)과 **섞지 않는다** — 둘 다 쓰면 깨진다.

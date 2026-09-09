@@ -531,6 +531,31 @@
 .disc-edit-panes.preview .disc-edit-cm {
   display: none;
 }
+/* 편집면 — CodeMirror 의 `EditorView.theme({...})` 이 인라인으로 들고 있던
+   판단들을 그대로 옮겼다 (Phase 4 `{#disc-port}`). 바탕은 투명이고 뒤의 패널이
+   그린다 · 본문은 78ch 로 묶어 가운데 · 캐럿은 강조색 두 배 굵기.
+   색(문법 강조)은 CSS 가 아니라 `monaco/theme.ts` 의 `.md-prose` 규칙이 준다. */
+.disc-edit-cm .monaco-editor,
+.disc-edit-cm .monaco-editor .overflow-guard,
+.disc-edit-cm .monaco-editor-background {
+  background: transparent;
+}
+/* 산문은 한 칼럼으로 읽는다 — 코드처럼 화면 폭 끝까지 가면 눈이 줄을 잃는다. */
+.disc-edit-cm .monaco-editor .monaco-scrollable-element > .lines-content {
+  max-width: 78ch;
+}
+.disc-edit-cm .monaco-editor .view-lines {
+  max-width: 78ch;
+}
+.disc-edit-cm .monaco-editor .cursor {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  width: 2px !important;
+}
+/* 자리표시자 — 빈 문서에서만 보인다. */
+.disc-edit-cm .monaco-editor .editorPlaceholder {
+  color: var(--text-3);
+}
 .disc-edit-preview {
   flex: 1;
   min-width: 0;

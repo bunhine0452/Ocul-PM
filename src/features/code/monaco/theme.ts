@@ -29,6 +29,13 @@ export const CODE_TOKENS = [
   "--code-selection-match",
   "--code-search-match",
   "--code-search-current",
+  // 산문(논의 문서) 쪽 — 코드 팔레트가 아니라 본문 팔레트를 쓴다. 테마는
+  // Monaco 에서 **전역**이라(같은 시점에 두 벌을 못 쓴다) 한 테마에 두 언어의
+  // 규칙을 함께 싣고, `.md-prose` 접미사로 갈라 서로를 안 건드리게 한다.
+  "--text",
+  "--text-2",
+  "--text-3",
+  "--accent-text",
 ] as const;
 
 export type CodeTokenValues = Record<string, string>;
@@ -115,6 +122,23 @@ export function defineCodeTheme(
       { token: "delimiter", foreground: pick("--code-op", fg) },
       { token: "tag", foreground: pick("--code-kw", fg) },
       { token: "metatag", foreground: pick("--code-comment", fg) },
+
+      // ── 논의 문서(`markdown-prose`) — 대비를 낮춰 읽는 데 방해가 없게 ──
+      // CodeMirror 판 `mdHighlight` 가 하던 판단을 그대로 옮겼다: `##`(파서가
+      // 아는 섹션)만 강조색이고 나머지 제목은 본문색이다.
+      { token: "type.h1.md-prose", foreground: pick("--text", fg), fontStyle: "bold" },
+      { token: "type.h2.md-prose", foreground: pick("--accent-text", fg), fontStyle: "bold" },
+      { token: "type.h3.md-prose", foreground: pick("--text", fg), fontStyle: "bold" },
+      { token: "type.h4.md-prose", foreground: pick("--text-2", fg), fontStyle: "bold" },
+      { token: "strong.md-prose", foreground: pick("--text", fg), fontStyle: "bold" },
+      { token: "emphasis.md-prose", foreground: pick("--text", fg), fontStyle: "italic" },
+      { token: "string.link.md-prose", foreground: pick("--accent-text", fg) },
+      { token: "string.md-prose", foreground: pick("--accent-text", fg) },
+      { token: "keyword.md-prose", foreground: pick("--text-3", fg) },
+      { token: "delimiter.md-prose", foreground: pick("--text-3", fg) },
+      { token: "comment.md-prose", foreground: pick("--text-2", fg), fontStyle: "italic" },
+      // 안정 id — 삽입 메뉴가 만들어 주지만 지워졌는지가 눈에 보여야 한다.
+      { token: "variable.anchor.md-prose", foreground: pick("--text-3", fg) },
     ].map((r) => ({ ...r, foreground: r.foreground.replace("#", "") })),
     colors: {
       // 편집면 바탕은 **투명**이어야 한다 — 뒤의 `.code-pane` 이 그린다.

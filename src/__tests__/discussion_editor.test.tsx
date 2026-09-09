@@ -1,10 +1,14 @@
 /**
- * 편집기 배선 — 순수 모듈(`mdEdit`)이 계산한 교체가 실제로 CodeMirror 문서에
+ * 편집기 배선 — 순수 모듈(`mdEdit`)이 계산한 교체가 실제로 편집기 문서에
  * 반영되고 저장까지 흘러가는지. 순수 함수 단위 테스트는 `discussion_edit`
- * 쪽이고, 여기서 보는 건 **툴바 → 트랜잭션 → onSave** 의 연결이다.
+ * 쪽이고, 여기서 보는 건 **툴바 → 편집 → onSave** 의 연결이다.
  *
- * jsdom 에는 레이아웃이 없어 CodeMirror 의 그리기(가상 스크롤·좌표)는 검증
- * 대상이 아니다. 문서 상태와 콜백만 본다.
+ * Monaco 이관에서 이 스위트가 **판정자**였다. `mdEdit` 의 `EditOp` 는 문서
+ * 오프셋으로 말하고 Monaco 는 (줄, 열)이라, 그 환산이 어긋나면 삽입이 엉뚱한
+ * 자리로 간다 — 여기서 잡힌다. 테스트 본문은 한 줄도 안 고쳤다.
+ *
+ * jsdom 에는 레이아웃이 없어 그리기(가상 스크롤·좌표)는 검증 대상이 아니다.
+ * 문서 상태와 콜백만 본다.
  */
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
@@ -12,9 +16,9 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { DiscussionEditor } from "@/features/discussion/DiscussionEditor";
 
 beforeAll(() => {
-  // CM6 은 마운트 직후 rAF 에서 글자 폭을 재는데, jsdom 의 Range 에는 그
-  // 좌표 API 가 없어 테스트가 끝난 뒤 unhandled error 로 튄다. 레이아웃은
-  // 이 스위트의 검사 대상이 아니므로 빈 값으로 채워 둔다.
+  // 편집기는 마운트 직후 글자 폭을 재는데 jsdom 의 Range 에는 그 좌표 API 가
+  // 없어 테스트가 끝난 뒤 unhandled error 로 튄다. 레이아웃은 이 스위트의
+  // 검사 대상이 아니므로 빈 값으로 채워 둔다.
   Range.prototype.getClientRects = () =>
     ({ length: 0, item: () => null, [Symbol.iterator]: function* () {} }) as unknown as DOMRectList;
   Range.prototype.getBoundingClientRect = () => new DOMRect();

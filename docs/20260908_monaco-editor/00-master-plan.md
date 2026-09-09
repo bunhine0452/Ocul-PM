@@ -138,6 +138,10 @@ Monaco 0.56 의 Monarch 문법 84종에 **`json` 이 없고**(워커를 쓰는 `
 `DiscussionEditor.tsx` 는 마크다운용 CodeMirror 다. 함께 옮겨 **CodeMirror 의존성을
 완전히 끊는다** — 테마·키맵·검색 위젯이 한 벌이 된다.
 
+**완료 (Phase 4).** 테마가 한 벌이 되면서 하나 배웠다: Monaco 의 테마는 **전역**
+이라 두 편집기가 서로 다른 테마를 동시에 못 쓴다. 그래서 규칙을 한 테마에 싣고
+`.md-prose` 접미사로 갈랐다. → [`04-discussion.md`](04-discussion.md#one-theme)
+
 ⚠️ **충돌 주의**: 2026-09-08 현재 병렬 세션이 논의 화면(`DiscussionScreenV2.tsx` ·
 `discussion.rs`)의 CAS 손실 수정을 미커밋으로 들고 있다. 이 Phase 는 **그 작업이
 머지된 뒤에** 시작한다.
@@ -216,5 +220,7 @@ D1 로 워커가 `editor.worker` 하나뿐이라 설정이 단순해진다.
   → [`02-reclaim.md`](02-reclaim.md)
 - **Phase 3 새 능력** — 지금 없는 기본기(폴딩·다중커서·미니맵·peek)를 켠다.
 - **Phase 4 논의 편집기** — 병렬 세션 머지 후. CodeMirror 의존성 제거.
+  **완료** — `@codemirror/*` 와 `@lezer/highlight` 가 `package.json` 에서 사라졌다.
+  → [`04-discussion.md`](04-discussion.md)
 - **Phase 5 에이전트 편집면** — ⌘K · hunk 승인.
 - **Phase 6 마감** — 육안 확인 격자 · 릴리스 5면.
