@@ -144,3 +144,24 @@ describe("에러는 로그가 아니라 메시지다", () => {
     expect(hits, hits.join("\n")).toEqual([]);
   });
 });
+
+describe("파괴 확인은 한 어휘다", () => {
+  /**
+   * 라운드 직전엔 세 방언이 있었다:
+   *   useConfirm 표준     "테마를 지울까요?"          [취소] [삭제]
+   *   settings.danger.*   "정말로 삭제하시겠습니까?"   [예, 모두 삭제]
+   *   home/rows.tsx       "정말 버릴까요?"            [예] [아니오]
+   *
+   * `[예]/[아니오]` 는 2000년대 윈도우 대화상자 관용구다 — 버튼은 결과를 말해야
+   * 한다("버리기"·"모두 삭제"). 질문은 "…할까요?" 로 통일했다(28 대 0).
+   */
+  it("「…하시겠습니까?」 대신 「…할까요?」", () => {
+    const hits = bare.split("\n").filter((l) => /하시겠(습니까|어요)\?/.test(l));
+    expect(hits, hits.join("\n")).toEqual([]);
+  });
+
+  it("버튼이 「예」·「아니오」로 답하지 않는다", () => {
+    const hits = bare.split("\n").filter((l) => /:\s*"(예|아니오|아니요)"/.test(l));
+    expect(hits, hits.join("\n")).toEqual([]);
+  });
+});

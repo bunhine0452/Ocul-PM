@@ -116,7 +116,7 @@ export function DraftRow({
                 onDiscard(bp.id);
               }}
             >
-              {t("home.yes")}
+              {t("common.discard")}
             </button>
             <button
               type="button"
@@ -126,7 +126,7 @@ export function DraftRow({
                 setConfirming(false);
               }}
             >
-              {t("home.no")}
+              {t("common.cancel")}
             </button>
           </>
         ) : (

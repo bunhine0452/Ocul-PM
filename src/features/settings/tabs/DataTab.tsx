@@ -199,7 +199,6 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
   const { confirm, confirmDialog } = useConfirm();
   const { resetAll } = useSettings();
   const [info, setInfo] = useState<{ db_path: string; app_data_dir: string; secrets_store: string; version: string } | null>(null);
-  const [confirmingClear, setConfirmingClear] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -216,12 +215,20 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
     setTimeout(() => setCopied(null), 1200);
   };
 
+  // 앱에서 가장 파괴적인 동작이다 — 인라인 2단계 버튼이 아니라 모달로 묻는다
+  // (2026-09-09). 목록 행의 「버리기」 같은 가벼운 것과 같은 무게로 보이면 안 된다.
   const handleClear = async () => {
     if (busy) return;
+    const ok = await confirm({
+      title: t("settings.danger.confirm"),
+      message: t("settings.danger.confirmBody"),
+      confirmLabel: t("settings.danger.yes"),
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     const res = await commands.clearAllData();
     setBusy(false);
-    setConfirmingClear(false);
     if (res.status === "error") onError(res.error);
     else onError(null);
   };
@@ -305,39 +312,15 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
         title={t("settings.danger.title")}
         description={t("settings.danger.desc")}
       >
-        {!confirmingClear ? (
-          <Button
-            variant="outline"
-            onClick={() => setConfirmingClear(true)}
-            className="w-full border-destructive/40 text-destructive hover:bg-destructive/10"
-          >
-            <Trash2  className="mr-2" size={15} />
-            {t("settings.danger.wipe")}
-          </Button>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-sm text-destructive font-medium">
-              {t("settings.danger.confirm")}
-            </p>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleClear}
-                disabled={busy}
-                className="flex-1 bg-destructive text-white hover:bg-destructive/90"
-              >
-                {busy ? t("settings.danger.deleting") : t("settings.danger.yes")}
-              </Button>
-              <Button
-                onClick={() => setConfirmingClear(false)}
-                variant="outline"
-                disabled={busy}
-                className="flex-1"
-              >
-                {t("common.cancel")}
-              </Button>
-            </div>
-          </div>
-        )}
+        <Button
+          variant="outline"
+          onClick={() => void handleClear()}
+          disabled={busy}
+          className="w-full border-destructive/40 text-destructive hover:bg-destructive/10"
+        >
+          {busy ? <Loader2 className="mr-2 animate-spin" size={15} /> : <Trash2 className="mr-2" size={15} />}
+          {busy ? t("settings.danger.deleting") : t("settings.danger.wipe")}
+        </Button>
       </Section>
       {confirmDialog}
     </>
