@@ -96,7 +96,6 @@ export function HonestyAudit({ projectId, workday, enabled, onNavigate }: Honest
         title={t("today.honesty.failed")}
         error={error}
         onRetry={() => setNonce((n) => n + 1)}
-        style={{ marginTop: 16 }}
       />
     );
   }
@@ -111,7 +110,6 @@ export function HonestyAudit({ projectId, workday, enabled, onNavigate }: Honest
   return (
     <section
       style={{
-        marginTop: 16,
         padding: "14px 16px",
         borderRadius: 12,
         background: "var(--bg-inset)",

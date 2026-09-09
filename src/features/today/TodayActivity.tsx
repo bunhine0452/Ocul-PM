@@ -37,7 +37,7 @@ export function TodayActivity({
   if (!enabled || !loaded) return null;
 
   return (
-    <div className="card" style={{ marginTop: 12 }}>
+    <div className="card">
       <div className="panel-head">
         <Waypoints size={15} color="var(--text-2)" />
         <h3>{t("today.activity.title")}</h3>

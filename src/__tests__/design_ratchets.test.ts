@@ -257,3 +257,31 @@ describe("좌측 목록 열", () => {
     expect(read("styles/screens.css")).toContain("grid-template-columns: var(--panel-w) 1fr");
   });
 });
+
+// ─── Today 세로 리듬 — 계약 (2026-09-10 {#layout-today}) ───────────────────
+//
+// 자식 열일곱이 저마다 인라인으로 간격을 들고 있었다(marginTop 16 · 12 ·
+// marginBottom 16 · 없음). 조건부로 사라지는 자식이 많아 무엇이 뜨느냐에 따라
+// 리듬이 매번 달랐다 — 부모가 gap 하나로 쥐면 자식은 언제 뜨는지만 알면 된다.
+//
+// 항목의 "표면 3겹(시트→카드→카드)" 은 실측에서 확인되지 않았다: Today 의
+// 카드는 전부 `.page` 바로 아래에 있고 카드 안의 카드는 없다. 그래서 "카드를
+// 걷어낸다" 는 하지 않았다 — 없는 문제였다.
+describe("Today 세로 리듬", () => {
+  it("부모가 gap 을 소유한다", () => {
+    expect(read("styles/screens.css")).toMatch(/\.today-page \{[^}]*gap: var\(--space-6\)/);
+  });
+
+  it("자식이 세로 간격을 인라인으로 들지 않는다", () => {
+    const offenders: string[] = [];
+    for (const file of walk(join(ROOT, "features", "today"))) {
+      if (!/\.tsx$/.test(file)) continue;
+      const src = readFileSync(file, "utf8");
+      // 최상위 자식의 리듬만 본다 — 카드 **안쪽** 여백은 그 카드의 것이다.
+      for (const m of src.matchAll(/\bmargin(?:Top|Bottom)\s*:\s*(\d+)/g)) {
+        if (Number(m[1]) >= 16) offenders.push(`${file.slice(ROOT.length + 1)}:${src.slice(0, m.index).split("\n").length}`);
+      }
+    }
+    expect(offenders, `인라인 세로 리듬: ${offenders.join(" · ")}`).toEqual([]);
+  });
+});

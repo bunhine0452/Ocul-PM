@@ -93,7 +93,7 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
   // hiding it) — they asked to be informed.
   if (!isRepo) {
     return (
-      <div className="card" style={{ marginTop: 16 }}>
+      <div className="card">
         <div className="panel-head">
           <GitBranch size={15} color="var(--text-2)" />
           <h3>{t("today.git.title")}</h3>
@@ -114,7 +114,7 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
   const graphWidth = layout ? Math.max(LANE_W, layout.laneCount * LANE_W) : LANE_W;
 
   return (
-    <div className="card" style={{ marginTop: 16 }}>
+    <div className="card">
       <div className="panel-head">
         <GitBranch size={15} color="var(--accent-text)" />
         <h3>{t("today.git.title")}</h3>

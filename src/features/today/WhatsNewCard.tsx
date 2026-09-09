@@ -79,7 +79,7 @@ export function WhatsNewCard() {
   const dismiss = () => void set("lastSeenVersion", version);
 
   return (
-    <div className="card card-pad whats-new-card" role="status" style={{ marginBottom: 16 }}>
+    <div className="card card-pad whats-new-card" role="status">
       <div className="stat-top">
         <Download size={15} color="var(--accent-text)" />
         <strong>{t("today.whatsNew.title", { version })}</strong>

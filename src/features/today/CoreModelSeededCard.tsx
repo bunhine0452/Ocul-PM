@@ -24,7 +24,7 @@ export function CoreModelSeededCard() {
   const dismiss = () => void set("coreModelSeeded", "");
 
   return (
-    <div className="card card-pad" role="status" style={{ marginBottom: 16 }}>
+    <div className="card card-pad" role="status">
       <div className="stat-top">
         <Cpu size={15} color="var(--accent-text)" />
         <strong>{t("today.coreModelSeeded.title")}</strong>

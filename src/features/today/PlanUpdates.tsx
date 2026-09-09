@@ -54,7 +54,7 @@ export function PlanUpdates({ projectId, onNavigate }: PlanUpdatesProps) {
   if (items != null && items.length === 0) return null;
 
   return (
-    <div className="card" style={{ marginTop: 16 }}>
+    <div className="card">
       <div className="panel-head">
         <ListChecks size={15} color="var(--accent-text)" />
         <h3>{t("today.plan.title")}</h3>

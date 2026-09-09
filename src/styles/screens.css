@@ -14,7 +14,14 @@
 .today-date { color: var(--text-2); font-size: var(--fs-4); margin-top: 3px; }
 .today-greet .accent { color: var(--accent-text); }
 
-.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5); margin-bottom: var(--space-6); }
+/* **세로 리듬은 부모가 소유한다** (2026-09-10 {#layout-today}). ⌘1 착지
+   화면의 자식 열일곱이 저마다 인라인으로 간격을 들고 있었고(marginTop 16 ·
+   12 · marginBottom 16 · 없음), 조건부로 사라지는 자식이 많아서 무엇이 뜨느냐에
+   따라 리듬이 매번 달라졌다. 부모가 gap 하나로 쥐면 자식은 자기가 언제 뜨는지만
+   알면 된다 — `null` 을 반환한 자식은 gap 을 만들지 않는다.
+   16px 은 걷어낸 인라인 값의 최빈값이다. */
+.today-page { display: flex; flex-direction: column; gap: var(--space-6); }
+.stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5); }
 /* 네 칸은 이 칸이 넉넉할 때만 네 칸이다 — 700 아래에서 한 장이 150px 로
    눌리면 숫자와 라벨이 같은 줄에 못 선다 (2026-09-10 {#layout-container-query}). */
 @container screen (max-width: 640px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }

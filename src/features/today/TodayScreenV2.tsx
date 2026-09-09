@@ -188,7 +188,7 @@ export function TodayScreenV2({
       </Toolbar>
 
       <div className="scroll">
-        <div className="page fade-in">
+        <div className="page today-page fade-in">
           {/* Hero */}
           <div className="today-hero">
             <div style={{ display: "flex", alignItems: "center", gap: 18, minWidth: 0 }}>
@@ -249,7 +249,6 @@ export function TodayScreenV2({
               title={t("today.loadFailed")}
               error={error}
               onRetry={refresh}
-              style={{ marginBottom: 16 }}
             />
           ) : null}
 

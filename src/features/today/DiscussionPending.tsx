@@ -47,7 +47,7 @@ export function DiscussionPending({ projectId, onNavigate }: DiscussionPendingPr
   if (items != null && items.length === 0) return null;
 
   return (
-    <div className="card" style={{ marginTop: 16 }}>
+    <div className="card">
       <div className="panel-head">
         <MessageSquare size={15} color="var(--accent-text)" />
         <h3>{t("today.discussion.title")}</h3>

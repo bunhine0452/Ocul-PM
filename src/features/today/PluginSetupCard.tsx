@@ -105,7 +105,7 @@ export function PluginSetupCard({
   };
 
   return (
-    <div className="card card-pad" role="status" style={{ marginBottom: 16 }}>
+    <div className="card card-pad" role="status">
       <div className="stat-top">
         <Puzzle size={15} color="var(--accent-text)" />
         <strong>{t("today.plugin.title")}</strong>

@@ -130,7 +130,6 @@ export function JournalMissingCard({
         title={t("today.missing.failed")}
         error={error}
         onRetry={() => void refresh()}
-        style={{ marginTop: 16 }}
       />
     );
   }
@@ -143,7 +142,6 @@ export function JournalMissingCard({
   return (
     <section
       style={{
-        marginTop: 16,
         padding: "14px 16px",
         borderRadius: 12,
         background: "var(--bg-inset)",

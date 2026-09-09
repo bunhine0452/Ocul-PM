@@ -29,7 +29,7 @@ export function FirstRunCard({
     ...(info.wroteGitignore ? [t("today.firstRun.gitignore")] : []),
   ];
   return (
-    <div className="card card-pad first-run-card" role="status" style={{ marginBottom: 16 }}>
+    <div className="card card-pad first-run-card" role="status">
       <div className="stat-top">
         <FolderCheck size={15} color="var(--accent-text)" />
         <strong>{t("today.firstRun.title")}</strong>

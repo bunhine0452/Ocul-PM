@@ -32,7 +32,7 @@ export function TodayMonitor({ monitor }: { monitor: TodayMonitorData | null }) 
     : 0;
 
   return (
-    <div className="stat-row" style={{ marginTop: 12 }}>
+    <div className="stat-row">
       {/* 활동 시간 — Σ session active windows */}
       <StatCard
         icon={Clock}
