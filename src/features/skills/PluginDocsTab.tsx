@@ -55,7 +55,7 @@ export function PluginDocsTab() {
   return (
     <>
       <div className="sk-shop-embed">
-        <div className="page fade-in flex max-w-3xl flex-col gap-5">
+        <div className="page flex max-w-3xl flex-col gap-5">
           {/* 설치 상태 + 설치 명령 */}
           <section className="rounded-lg border border-border/60 bg-card p-5">
             <div className="mb-2 flex items-center gap-2">

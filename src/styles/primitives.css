@@ -159,7 +159,29 @@
    섹션 제목에 그 색을 쓰면 목차가 각주보다 흐려진다 (2026-09-09 {#hierarchy-by-weight-only}). */
 .section-title { font-size: var(--fs-3); font-weight: var(--fw-bold); letter-spacing: var(--caps-track); text-transform: var(--caps-transform); color: var(--text-2); }
 
-/* 화면 진입 — 얕은 상승 + 페이드. 모든 스크린 전환이 같은 곡선을 공유한다. */
+/* 화면 진입 — 얕은 상승 + 페이드. 모든 스크린 전환이 같은 곡선을 공유한다.
+
+   **어디에 붙이는가** ({#layout-page-enter}). 실측 19곳을 분류했더니 규칙은
+   이미 있었고 한 자리에만 적혀 있었다 — `DiffScreenV2` 의
+   `"page" + (listLoading ? "" : " fade-in")` 이 그것이다. 그 규칙을 여기 옮겨
+   적는다:
+
+     붙인다  — 화면 루트이고 **내용이 확정된** `.page`. 사용자가 도착했고
+               읽을 것이 있다.
+     안 붙인다 — ① 로딩 중(Skeleton · OculSpinner · LoadingState). 자리끼가
+               떠오른 뒤 진짜 내용이 또 떠오르면 한 번의 도착이 두 번
+               움직인다. 게다가 스켈레톤은 이미 자기 맥동을 갖는다.
+               ② 모달 본문. `AppDialog` 가 자기 등장을 이미 갖고 있어서
+               안쪽이 또 떠오르면 두 겹이 된다.
+
+   2026-09-09 실측: 로딩 5곳은 전부 맞게 안 붙어 있었고, 어긋난 것은 다섯이었다
+   — 확정 상태인데 빠진 넷(코드/스킬/규칙 오류 화면, 스킬 본문)과 모달 본문인데
+   붙은 하나(`PluginDocsTab`). 그 하나는 형제인 `SkillShopTab` 과 **정반대**라,
+   같은 종류의 표면이 두 손을 거쳤다는 것이 그대로 드러나 있었다.
+
+   게이트는 안 걸었다: 이 규칙의 위반 다수가 "클래스가 **빠진** 것" 인데,
+   빠진 것을 잡으려면 그 `.page` 가 로딩인지 확정인지를 정적으로 알아야 하고
+   그건 JSX 분기를 읽는 일이다. 붙일 자리를 고민할 사람은 이 정의를 보러 온다. */
 .fade-in { animation: fadeIn var(--dur-3) var(--ease-out) both; }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }

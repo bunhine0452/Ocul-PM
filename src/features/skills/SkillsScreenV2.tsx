@@ -338,7 +338,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
         </div>
       ) : status === "error" ? (
         <div className="scroll">
-          <div className="page">
+          <div className="page fade-in">
             <EmptyState>
               {t("ctx.loadFailed")}
               <br />
@@ -361,7 +361,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
         />
       ) : (
         <div className="scroll">
-          <div className="page ctx-page">
+          <div className="page fade-in ctx-page">
             <ContextBudgetBar
               budget={budget}
               evidence={evidenceIndex}

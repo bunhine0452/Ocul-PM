@@ -1179,7 +1179,7 @@ export function CodeScreenV2({
         </div>
       ) : treeStatus === "error" ? (
         <div className="scroll" ref={rootRef}>
-          <div className="page">
+          <div className="page fade-in">
             <EmptyState>{t("code.listFailed")}<br />{treeError}</EmptyState>
           </div>
         </div>

@@ -312,7 +312,7 @@ export function ContextEditor({
         </div>
       ) : state === "error" ? (
         <div className="scroll">
-          <div className="page">
+          <div className="page fade-in">
             <EmptyState>
               {isSkill ? t("sk.readFailed") : t("ctx.ruleReadFailed")}
               <br />
