@@ -464,7 +464,7 @@
   display: flex;
   flex-direction: column;
   gap: 22px;
-  max-width: 760px;
+  max-width: var(--read-narrow);
 }
 .sk-shop-h {
   display: flex;

@@ -131,3 +131,45 @@ describe("검색칸", () => {
     expect(offenders, `상자를 다시 적은 곳: ${offenders.join(" · ")}`).toEqual([]);
   });
 });
+
+// ─── 읽기 열 폭 — 래칫 (2026-09-10 {#layout-widths}) ───────────────────────
+//
+// 실측은 항목이 센 다섯이 아니라 **일곱**이었다(720 · 760 · 780 · 820 · 860 ·
+// 880 + 페이지 셸 1180). 빠져 있던 넷: `.sk-hooks`(720) · `.disc-doc-prose`
+// (780) · `.cfg-main`(780) · `.sk-article`(820).
+//
+// 값이 정확히 맞는 다섯 자리만 토큰으로 옮겼다(시각 변화 0): `.ai-thread-inner`
+// · `.composer` · `.sk-shop` → --read-narrow, `.pln-doc` · `.search-results` →
+// --read-wide. 남은 여섯은 접으면 20~120px 씩 움직여 눈으로 보고 정할 일이라
+// 여기서 동결한다 — {#ramp-space} 와 같은 형태의 이월이다.
+describe("읽기 열 폭", () => {
+  it("두 단이 토큰으로 있다", () => {
+    const tokens = read("styles/tokens.css");
+    expect(tokens).toContain("--read-narrow: 760px;");
+    expect(tokens).toContain("--read-wide: 880px;");
+  });
+
+  it("램프 밖 읽기 폭이 **늘지** 않는다", () => {
+    // 700~1000px 만 읽기 열이다. 그 위(.ctx-page 1040 · .pm-sheet 1080 ·
+    // .page 1180 · .home-wrap 1560)는 읽는 열이 아니라 **창/시트 자체의
+    // 상한**이라 두 단으로 접을 대상이 아니다 — 목록이 아니라 경계로 적는다.
+    const READING_MAX = 1000;
+    const offenders: string[] = [];
+    for (const file of walk(join(ROOT))) {
+      if (!file.endsWith(".css")) continue;
+      const css = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, " ");
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const sel = m[1].trim();
+        // @media/@container 조건의 max-width 는 폭이 아니라 **접히는 선**이다.
+        if (sel.startsWith("@")) continue;
+        const w = /(?:^|[;{\s])max-width:\s*(\d+)px/.exec(m[2]);
+        if (!w) continue;
+        const v = Number(w[1]);
+        if (v < 700 || v > READING_MAX) continue;
+        offenders.push(`${sel.split("\n").pop()!.trim()}=${v}`);
+      }
+    }
+    // 줄이면 이 숫자를 내려 적을 것. 새 읽기 열은 리터럴이 아니라 두 단 중 하나다.
+    expect(offenders.length, `램프 밖 읽기 폭 ${offenders.length}곳 — ${offenders.join(" · ")}`).toBeLessThanOrEqual(6);
+  });
+});

@@ -504,7 +504,7 @@ export function JournalScreenV2({
       </Toolbar>
 
       <div className="scroll" ref={scrollRef}>
-        <div className="journal-wrap">
+        <div className="page journal-wrap">
           <div className="journal-col fade-in">
             {error ? (
               <ErrorCard
