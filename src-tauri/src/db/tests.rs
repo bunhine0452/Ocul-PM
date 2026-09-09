@@ -247,6 +247,65 @@ async fn firing_apply_scan_is_compare_and_swap() {
     assert!(db.firing_last_scan_at(1).await.unwrap().is_none());
 }
 
+/// 세션 창 예산의 분자 — **주어진 세션들의 규칙 바이트만** 더한다.
+///
+/// 날짜로 나누던 종전 방식이 지운 규칙을 30일간 청구했던 자리다. 창에 없는
+/// 세션(옛 구성)은 합에서 빠져야 하고, 스킬 발동은 규칙 비용이 아니다.
+#[tokio::test]
+async fn firing_rule_bytes_counts_only_the_given_sessions() {
+    let dir = tempdir().unwrap();
+    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
+    db.conn()
+        .call(|c| -> Result<()> {
+            c.execute_batch(
+                "INSERT INTO projects (id, name, root_path) VALUES (1, 'p', '/tmp/p');",
+            )?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    let row = |kind: &str, bytes: u64| {
+        vec![crate::db::firings::FiringScanRow {
+            kind: kind.to_string(),
+            key: "/r/a.md".to_string(),
+            workday: "20260830".to_string(),
+            count: 1,
+            bytes,
+            last_prompt: None,
+            last_ts: 1_000,
+        }]
+    };
+    // 창 안 세션 둘, 창 밖(옛 구성) 세션 하나.
+    for (file, bytes) in [("s/new.jsonl", 300u64), ("s/mid.jsonl", 200), ("s/old.jsonl", 9_000)] {
+        db.firing_apply_scan(1, file.into(), 0, false, 10, None, row("rule", bytes))
+            .await
+            .unwrap();
+    }
+    // 스킬 발동은 규칙 예산이 아니다 (bytes 는 0 이지만 kind 로도 갈린다).
+    db.firing_apply_scan(1, "s/new.jsonl".into(), 10, false, 20, None, row("skill", 77))
+        .await
+        .unwrap();
+
+    let window = vec!["s/new.jsonl".to_string(), "s/mid.jsonl".to_string()];
+    assert_eq!(
+        db.firing_rule_bytes_for_sessions(1, window).await.unwrap(),
+        500,
+        "창 밖 세션(9000)과 스킬(77)은 빠진다"
+    );
+    // 원장에 행이 없는 조용한 세션은 0 으로 잡힌다 — 분모에서 빼면 안 된다.
+    assert_eq!(
+        db.firing_rule_bytes_for_sessions(1, vec!["s/quiet.jsonl".to_string()])
+            .await
+            .unwrap(),
+        0
+    );
+    // transcript 가 없으면 질의 자체를 하지 않는다.
+    assert_eq!(
+        db.firing_rule_bytes_for_sessions(1, Vec::new()).await.unwrap(),
+        0
+    );
+}
+
 fn unit_vec(dim: usize, hot: usize) -> Vec<u8> {
     let mut v = vec![0f32; dim];
     v[hot] = 1.0;

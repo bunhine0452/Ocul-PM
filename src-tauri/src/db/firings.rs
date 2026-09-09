@@ -251,6 +251,42 @@ impl Db {
         Ok(rows)
     }
 
+    /// 주어진 세션들의 **규칙** 주입 바이트 합 — 세션 창 예산의 분자.
+    ///
+    /// 분모(세션 수)는 디스크의 transcript 에서 오고 여기서는 그 세션들의 몫만
+    /// 더한다. 원장에 행이 없는 세션은 규칙이 안 걸린 세션이라 0 으로 잡히는
+    /// 것이 맞다 — 종전처럼 분모에서 빼면 평균이 부풀려진다.
+    pub async fn firing_rule_bytes_for_sessions(
+        &self,
+        project_id: u32,
+        session_files: Vec<String>,
+    ) -> Result<u64> {
+        if session_files.is_empty() {
+            return Ok(0);
+        }
+        let bytes = self
+            .conn
+            .call(move |c| {
+                let holes = vec!["?"; session_files.len()].join(",");
+                let sql = format!(
+                    "SELECT COALESCE(SUM(bytes), 0) FROM context_firings
+                     WHERE project_id = ? AND kind = ? AND session_file IN ({holes})"
+                );
+                let mut vals: Vec<rusqlite::types::Value> =
+                    Vec::with_capacity(session_files.len() + 2);
+                vals.push(rusqlite::types::Value::Integer(project_id as i64));
+                vals.push(rusqlite::types::Value::Text(
+                    crate::oculpm::firing_ledger::KIND_RULE.to_string(),
+                ));
+                vals.extend(session_files.into_iter().map(rusqlite::types::Value::Text));
+                let n: i64 =
+                    c.query_row(&sql, rusqlite::params_from_iter(vals), |r| r.get(0))?;
+                Ok(n)
+            })
+            .await?;
+        Ok(bytes.max(0) as u64)
+    }
+
     /// 창 안에서 발동이 하나라도 관측된 세션 수 — 세션당 예산의 분모.
     pub async fn firing_session_count(
         &self,

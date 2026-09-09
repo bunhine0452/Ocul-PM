@@ -23,6 +23,8 @@
 
 use std::path::{Path, PathBuf};
 
+use super::transcript_sessions::list_sessions;
+
 use chrono::{DateTime, Local};
 use serde::Serialize;
 
@@ -31,13 +33,9 @@ pub const KIND_RULE: &str = "rule";
 /// 스킬 발동.
 pub const KIND_SKILL: &str = "skill";
 
-/// transcript 폴더 루트 (홈 기준).
-const PROJECTS_SUBDIR: &str = ".claude/projects";
 /// 한 번의 스캔이 읽는 바이트 예산. 첫 스캔이 UI 를 무한정 붙잡지 않도록
 /// 끊고, 남은 분량은 `complete=false` 로 보고해 호출자가 이어 부른다.
 const SCAN_BUDGET_BYTES: u64 = 96 * 1024 * 1024;
-/// 후보 디렉터리가 정말 이 프로젝트인지 확인할 때 읽는 선두 바이트.
-const CWD_PROBE_BYTES: usize = 64 * 1024;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 파싱
@@ -287,83 +285,6 @@ pub fn parse_chunk(chunk: &str) -> (Vec<Firing>, u64) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// transcript 위치 찾기
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Claude Code 의 프로젝트 폴더 슬러그 — 경로의 비영숫자를 `-` 로 바꾼 형태
-/// (실측: `/Users/x/Desktop/git/ai-pm` → `-Users-x-Desktop-git-ai-pm`).
-pub fn project_slug(root: &Path) -> String {
-    root.to_string_lossy()
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
-        .collect()
-}
-
-/// 파일 선두에서 `cwd` 를 하나 건진다 — 슬러그가 손실 변환이라
-/// (`/` 와 `-` 가 같은 글자가 된다) 후보 폴더의 진짜 주인을 확인하는 용도.
-fn probe_cwd(file: &Path) -> Option<String> {
-    let raw = read_head(file, CWD_PROBE_BYTES)?;
-    for line in raw.lines().take(40) {
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
-            if let Some(cwd) = v.get("cwd").and_then(|c| c.as_str()) {
-                return Some(cwd.to_string());
-            }
-        }
-    }
-    None
-}
-
-fn read_head(file: &Path, cap: usize) -> Option<String> {
-    use std::io::Read;
-    let mut f = std::fs::File::open(file).ok()?;
-    let mut buf = vec![0u8; cap];
-    let n = f.read(&mut buf).ok()?;
-    buf.truncate(n);
-    Some(String::from_utf8_lossy(&buf).into_owned())
-}
-
-/// 이 프로젝트의 transcript 폴더들. 하위 디렉터리에서 시작한 세션은 별도
-/// 슬러그 폴더(`…-ai-pm-src-tauri`)로 갈리므로 접두 일치까지 후보로 잡고,
-/// 실제 `cwd` 가 프로젝트 루트 안인지 확인해 남의 프로젝트를 배제한다.
-pub fn transcript_dirs(home: &Path, project_root: &Path) -> Vec<PathBuf> {
-    let base = home.join(PROJECTS_SUBDIR);
-    let slug = project_slug(project_root);
-    let Ok(entries) = std::fs::read_dir(&base) else {
-        return Vec::new();
-    };
-    let mut dirs: Vec<PathBuf> = Vec::new();
-    for entry in entries.flatten() {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        let candidate = name == slug || name.starts_with(&format!("{slug}-"));
-        if !candidate || !entry.path().is_dir() {
-            continue;
-        }
-        if name == slug || dir_belongs_to(&entry.path(), project_root) {
-            dirs.push(entry.path());
-        }
-    }
-    dirs.sort();
-    dirs
-}
-
-/// 접두 일치 폴더의 소유 확인 — 첫 transcript 의 `cwd` 가 프로젝트 루트
-/// 아래여야 한다. 판단 근거가 없으면(빈 폴더·cwd 부재) 보수적으로 배제한다.
-fn dir_belongs_to(dir: &Path, project_root: &Path) -> bool {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return false;
-    };
-    for entry in entries.flatten() {
-        if entry.path().extension().and_then(|e| e.to_str()) != Some("jsonl") {
-            continue;
-        }
-        if let Some(cwd) = probe_cwd(&entry.path()) {
-            return Path::new(&cwd).starts_with(project_root);
-        }
-    }
-    false
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // 증분 스캔
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -492,50 +413,24 @@ fn read_from(file: &Path, offset: u64) -> Option<String> {
     Some(String::from_utf8_lossy(&buf).into_owned())
 }
 
-/// 스캔 대상 열거 — `resume(session_file)` 이 DB 의 재개점을 준다.
+/// 스캔 대상 열거 — `resume(session_file)` 이 DB 의 재개점을 준다. 최근
+/// 세션부터 돌려주므로, 첫 스캔이 예산으로 끊겨도 창이 먼저 채워진다.
 pub fn enumerate_targets(
     dirs: &[PathBuf],
     resume: impl Fn(&str) -> (u64, Option<String>),
 ) -> Vec<ScanTarget> {
-    let mut targets = Vec::new();
-    for dir in dirs {
-        let Some(dir_name) = dir.file_name().and_then(|n| n.to_str()) else {
-            continue;
-        };
-        let Ok(entries) = std::fs::read_dir(dir) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
-                continue;
-            }
-            let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
-                continue;
-            };
-            let session_file = format!("{dir_name}/{file_name}");
-            let (bytes_consumed, last_prompt) = resume(&session_file);
-            targets.push(ScanTarget {
-                session_file,
-                abs_path: path,
+    list_sessions(dirs)
+        .into_iter()
+        .map(|s| {
+            let (bytes_consumed, last_prompt) = resume(&s.session_file);
+            ScanTarget {
+                session_file: s.session_file,
+                abs_path: s.abs_path,
                 bytes_consumed,
                 last_prompt,
-            });
-        }
-    }
-    // 최근 세션부터 — 첫 스캔이 예산으로 끊겨도 30일 창이 먼저 채워진다.
-    // (파일명은 UUID 라 이름순은 날짜와 무관했다.) 같은 mtime 이면 이름순.
-    targets.sort_by(|a, b| {
-        let mt = |t: &ScanTarget| {
-            std::fs::metadata(&t.abs_path)
-                .and_then(|m| m.modified())
-                .ok()
-        };
-        mt(b)
-            .cmp(&mt(a))
-            .then_with(|| a.session_file.cmp(&b.session_file))
-    });
-    targets
+            }
+        })
+        .collect()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -735,14 +630,6 @@ mod tests {
         let (firings, _) = parse_chunk(&format!("{line}\n"));
         assert_eq!(firings.len(), 1);
         assert!(fold_rows(firings).is_empty());
-    }
-
-    #[test]
-    fn slug_maps_non_alphanumerics_to_dash() {
-        assert_eq!(
-            project_slug(Path::new("/Users/x/Desktop/git/ai-pm")),
-            "-Users-x-Desktop-git-ai-pm"
-        );
     }
 
     #[test]

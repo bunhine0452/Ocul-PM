@@ -2439,6 +2439,13 @@ export type AgentSurface =
 export type AgentSurfaceOverview = {
 	agents: SurfaceEntry[],
 	commands: SurfaceEntry[],
+	/**
+	 *  매 세션 통째로 실리지만 여기서 편집하지 않는 파일 — 지금은 `AGENTS.md`
+	 *  뿐이다. 규칙 목록(`rules_list`)이 아니라 이쪽에 사는 이유: 마스터가
+	 *  `.oculpm/agents/_template.md` 라 `rules::validate_rel` 이 저장·삭제를
+	 *  거부하는 경로고, 편집 가능한 슬롯으로 올리면 누르는 순간 거부된다.
+	 */
+	always_on: SurfaceEntry[],
 	/**  빈 상태 안내용 절대 경로. */
 	project_agents_dir: string,
 	global_agents_dir: string,
@@ -3866,8 +3873,19 @@ export type FiringOverview = {
 	until: string,
 	/**  창 안에서 발동이 관측된 세션 수. */
 	sessions: number,
-	/**  세션 1건당 규칙 주입 바이트 (컨텍스트 예산 바의 값). */
+	/**
+	 *  세션 1건당 규칙 주입 바이트 (컨텍스트 예산 바의 값).
+	 * 
+	 *  날짜 창이 아니라 **최근 [`transcript_sessions::BUDGET_SESSION_WINDOW`] 세션**을 본다 —
+	 *  근거는 그 상수의 주석에.
+	 */
 	bytes_per_session: number,
+	/**
+	 *  `bytes_per_session` 의 분모 — 실제로 센 최근 세션 수. 0 이면 아직
+	 *  말할 것이 없다(막대가 "미계측"으로 그린다). 창의 근거를 화면이 그대로
+	 *  밝힐 수 있도록 함께 내보낸다.
+	 */
+	sessions_considered: number,
 	/**  마지막 스캔 시각 (unix). None = 한 번도 안 돌았다. */
 	last_scan_at: number | null,
 };
@@ -5706,7 +5724,15 @@ export type SurfaceEntry = {
 	body_bytes: number,
 };
 
-export type SurfaceKind = "agent" | "command";
+export type SurfaceKind = "agent" | "command" | 
+/**
+ *  편집하지 않지만 **본문째로** 매 세션 실리는 파일 (`AGENTS.md`).
+ * 
+ *  에이전트·커맨드와 한 표에 두는 이유는 성격이 같아서다 — 사용자가 이
+ *  화면에서 고칠 수 없는데 비용은 확정으로 나간다. 다른 점은 세는 양이다:
+ *  저 둘은 광고(name+description)만 실리지만 이건 파일 전체가 실린다.
+ */
+"memory";
 
 export type SymbolCall = {
 	/**  Caller symbol in this file (None = file top-level). */

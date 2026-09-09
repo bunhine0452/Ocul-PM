@@ -26,6 +26,7 @@ pub mod entry_diffs;
 pub mod error;
 pub mod file_guard;
 pub mod firing_ledger;
+pub mod transcript_sessions;
 pub mod framing;
 pub mod frontmatter;
 pub mod history;

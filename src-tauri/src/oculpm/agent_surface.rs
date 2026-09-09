@@ -31,12 +31,20 @@ const MAX_DEPTH: u8 = 3;
 const MAX_LISTED: usize = 500;
 /// 이 크기를 넘는 파일은 읽지 않는다 (규칙 목록과 같은 가드).
 const MAX_SURFACE_BYTES: u64 = 512 * 1024;
+/// 편집하지 않지만 매 세션 통째로 실리는 프로젝트 파일 (프로젝트 루트 기준).
+const ALWAYS_ON_FILES: &[&str] = &["AGENTS.md"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum SurfaceKind {
     Agent,
     Command,
+    /// 편집하지 않지만 **본문째로** 매 세션 실리는 파일 (`AGENTS.md`).
+    ///
+    /// 에이전트·커맨드와 한 표에 두는 이유는 성격이 같아서다 — 사용자가 이
+    /// 화면에서 고칠 수 없는데 비용은 확정으로 나간다. 다른 점은 세는 양이다:
+    /// 저 둘은 광고(name+description)만 실리지만 이건 파일 전체가 실린다.
+    Memory,
 }
 
 /// 에이전트 또는 커맨드 파일 하나.
@@ -61,6 +69,11 @@ pub struct SurfaceEntry {
 pub struct AgentSurfaceOverview {
     pub agents: Vec<SurfaceEntry>,
     pub commands: Vec<SurfaceEntry>,
+    /// 매 세션 통째로 실리지만 여기서 편집하지 않는 파일 — 지금은 `AGENTS.md`
+    /// 뿐이다. 규칙 목록(`rules_list`)이 아니라 이쪽에 사는 이유: 마스터가
+    /// `.oculpm/agents/_template.md` 라 `rules::validate_rel` 이 저장·삭제를
+    /// 거부하는 경로고, 편집 가능한 슬롯으로 올리면 누르는 순간 거부된다.
+    pub always_on: Vec<SurfaceEntry>,
     /// 빈 상태 안내용 절대 경로.
     pub project_agents_dir: String,
     pub global_agents_dir: String,
@@ -129,6 +142,8 @@ fn list_kind(scope: RuleScope, scope_root: &Path, kind: SurfaceKind) -> Vec<Surf
     let subdir = match kind {
         SurfaceKind::Agent => AGENTS_SUBDIR,
         SurfaceKind::Command => COMMANDS_SUBDIR,
+        // 디렉터리를 걷는 종류가 아니다 — `list_always_on` 이 파일을 직접 집는다.
+        SurfaceKind::Memory => return Vec::new(),
     };
     let dir = scope_root.join(subdir);
     let mut rels = Vec::new();
@@ -165,6 +180,50 @@ fn list_kind(scope: RuleScope, scope_root: &Path, kind: SurfaceKind) -> Vec<Surf
     out
 }
 
+/// 편집하지 않는 항상-로드 파일 — 지금은 프로젝트 `AGENTS.md` 하나.
+///
+/// 세는 양이 에이전트·커맨드와 다르다: 저쪽은 목록에 실리는 광고
+/// (name+description)만 비용이지만, 이 파일은 **본문이 통째로** 매 세션
+/// 들어간다. 그래서 `bytes` 가 파일 전체다.
+///
+/// 없으면 행을 만들지 않는다 — 있지도 않은 파일에 "만들기" 를 붙이면 누르는
+/// 순간 저장이 거부된다 (마스터는 `.oculpm/agents/_template.md`).
+fn list_always_on(project_root: &Path) -> Vec<SurfaceEntry> {
+    let mut out = Vec::new();
+    for rel in ALWAYS_ON_FILES {
+        let abs = project_root.join(rel);
+        let Ok(meta) = std::fs::metadata(&abs) else {
+            continue;
+        };
+        if meta.len() > MAX_SURFACE_BYTES {
+            continue;
+        }
+        let Ok(content) = std::fs::read_to_string(&abs) else {
+            continue;
+        };
+        out.push(SurfaceEntry {
+            scope: RuleScope::Project,
+            kind: SurfaceKind::Memory,
+            rel_path: (*rel).to_string(),
+            name: (*rel).to_string(),
+            description: first_heading(&content),
+            bytes: utf8_len(&content),
+            body_bytes: utf8_len(&content),
+        });
+    }
+    out
+}
+
+/// 본문 첫 H1 — 목록 부제용 (규칙 목록의 `title` 과 같은 규약).
+fn first_heading(content: &str) -> String {
+    content
+        .lines()
+        .find_map(|l| l.strip_prefix("# "))
+        .unwrap_or("")
+        .trim()
+        .to_string()
+}
+
 /// 프로젝트 + 전역의 에이전트·커맨드를 한 번에.
 pub fn overview(project_root: &Path, home: &Path) -> AgentSurfaceOverview {
     let mut agents = list_kind(RuleScope::Project, project_root, SurfaceKind::Agent);
@@ -175,6 +234,7 @@ pub fn overview(project_root: &Path, home: &Path) -> AgentSurfaceOverview {
     AgentSurfaceOverview {
         agents,
         commands,
+        always_on: list_always_on(project_root),
         project_agents_dir: PathBuf::from(project_root)
             .join(AGENTS_SUBDIR)
             .display()
@@ -199,6 +259,31 @@ mod tests {
     }
 
     const AGENT: &str = "---\nname: code-reviewer\ndescription: Reviews code for quality.\n---\n\n# Reviewer\n\n본문은 발동해야 읽힌다.\n";
+
+    /// `AGENTS.md` 는 에이전트·커맨드와 세는 양이 다르다 — 광고가 아니라
+    /// **본문 전체**가 매 세션 실린다. 그리고 없으면 행을 만들지 않는다:
+    /// 있지도 않은 파일에 "만들기" 가 붙으면 누르는 순간 저장이 거부된다
+    /// (마스터는 `.oculpm/agents/_template.md`).
+    #[test]
+    fn always_on_counts_the_whole_body_and_only_when_present() {
+        let proj = TempDir::new().unwrap();
+        let home = TempDir::new().unwrap();
+        assert!(overview(proj.path(), home.path()).always_on.is_empty());
+
+        let body = "# 기록 규칙\n\n- 일지를 쓴다\n";
+        seed(proj.path(), "AGENTS.md", body);
+        let ov = overview(proj.path(), home.path());
+        assert_eq!(ov.always_on.len(), 1);
+        let e = &ov.always_on[0];
+        assert_eq!(e.kind, SurfaceKind::Memory);
+        assert_eq!(e.rel_path, "AGENTS.md");
+        // 광고(name+description)가 아니라 파일 전체가 비용이다.
+        assert_eq!(e.bytes, body.len() as u32);
+        assert_eq!(e.bytes, e.body_bytes);
+        assert_eq!(e.description, "기록 규칙", "부제는 첫 H1");
+        // 에이전트·커맨드 목록은 오염되지 않는다 — 조각이 갈려야 처방이 갈린다.
+        assert!(ov.agents.is_empty() && ov.commands.is_empty());
+    }
 
     #[test]
     fn counts_name_and_description_not_body() {

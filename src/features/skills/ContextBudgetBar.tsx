@@ -14,7 +14,7 @@
 import { PieChart } from "@/components/Icons";
 import { t, useT } from "@/i18n";
 import {
-  BUDGET_BASELINE_BYTES,
+  BUDGET_SCALE_BYTES,
   BUDGET_TARGET_BYTES,
   kb,
   type ContextBudget,
@@ -66,9 +66,8 @@ export function ContextBudgetBar({
   evidence,
 }: ContextBudgetBarProps) {
   useT();
-  // 눈금은 기준선(90KB)에 맞춘다 — 줄어드는 게 보여야 줄일 마음이 든다.
-  // 기준선을 넘으면 눈금이 따라 늘어난다 (막대가 넘치지 않게).
-  const scale = Math.max(budget.totalBytes, BUDGET_BASELINE_BYTES);
+  // 눈금은 목표의 2배 — 목표 눈금이 한가운데 선다. 넘으면 눈금이 따라 늘어난다.
+  const scale = Math.max(budget.totalBytes, BUDGET_SCALE_BYTES);
   const pct = (bytes: number) => `${((bytes / scale) * 100).toFixed(2)}%`;
 
   return (
@@ -93,7 +92,7 @@ export function ContextBudgetBar({
       >
         {budget.segments.map((seg) => {
           if (seg.bytes <= 0) return null;
-          const label = `${t(SEG_KEY[seg.id])} · ${kb(seg.bytes)}KB — ${t(SEG_TITLE[seg.id])}`;
+          const label = `${t(SEG_KEY[seg.id])} · ${kb(seg.bytes)}KB — ${t(SEG_TITLE[seg.id], { n: budget.sessionsConsidered })}`;
           // 무관 조각만 클릭 가능하다 — 비용을 보여 준 자리에서 처방으로 간다.
           return seg.id === "irrelevant" ? (
             <button

@@ -102,6 +102,7 @@ const rules: RulesOverview = {
 // context-budget-truth A — 에이전트·커맨드 표면. 하네스가 매 세션 시스템
 // 프롬프트에 목록으로 싣는 name+description 이 예산에서 통째로 빠져 있었다.
 const surface: AgentSurfaceOverview = {
+  always_on: [],
   agents: [
     {
       scope: "global",
@@ -230,6 +231,46 @@ describe("computeBudget — 세 조각의 출처가 다르다", () => {
 
   it("계측 전에는 조건부가 0 이고 그 사실이 플래그로 남는다", () => {
     expect(computeBudget(items, 0, false).measured).toBe(false);
+  });
+
+  // 스캔이 돌았다는 사실만으로 "실측 0KB" 라고 말하면 거짓이다 — 나눌 세션이
+  // 없으면 관측이 아니라 공백이고, 막대는 "미계측" 으로 그려야 한다.
+  it("셀 세션이 없으면 스캔이 돌았어도 실측이 아니다", () => {
+    expect(computeBudget(items, 0, true, 0, 0).measured).toBe(false);
+    expect(computeBudget(items, 0, true, 0, 20).measured).toBe(true);
+    expect(computeBudget(items, 0, true, 0, 20).sessionsConsidered).toBe(20);
+  });
+
+  // `AGENTS.md` 는 편집하지 않지만 매 세션 **본문째로** 실린다. 표면
+  // (`always_on`)에서 오지만 비용의 성격은 CLAUDE.md 와 같으므로 항상-로드
+  // 조각에 서야 한다 — 빼면 이 화면에서 유일하게 확정인 숫자가 작아진다
+  // (이 저장소 실측으로 7.5KB, 항상-로드의 약 3분의 1).
+  it("AGENTS.md 는 표면에서 와도 항상-로드 조각에 선다", () => {
+    const withAgentsMd = buildContextItems(skills, rules, buildFiringIndex([]), {
+      ...surface,
+      always_on: [
+        {
+          scope: "project",
+          kind: "memory",
+          rel_path: "AGENTS.md",
+          name: "AGENTS.md",
+          description: "기록 규칙",
+          bytes: 7550,
+          body_bytes: 7550,
+        },
+      ],
+    });
+    const seg = Object.fromEntries(
+      computeBudget(withAgentsMd, 0, true, 0, 20).segments.map((s) => [s.id, s.bytes]),
+    );
+    expect(seg.always).toBe(2048 + 512 + 7550);
+
+    const item = withAgentsMd.find((i) => i.path === "AGENTS.md");
+    expect(item?.alwaysOn).toBe(true);
+    // 편집기를 열지 않는다 — 목록이 이 사실로 행을 비활성화한다.
+    expect(item?.readonly).toBe(true);
+    // 에이전트·커맨드는 여전히 광고 비용 조각에 남는다 (처방이 다르므로).
+    expect(seg.surface).toBeGreaterThan(0);
   });
 });
 

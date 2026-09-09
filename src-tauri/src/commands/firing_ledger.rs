@@ -13,6 +13,7 @@ use tauri::State;
 use crate::db::firings::FiringScanRow;
 use crate::db::Db;
 use crate::oculpm::firing_ledger::{self, FiringQuote, FiringStat, KIND_RULE};
+use crate::oculpm::transcript_sessions;
 use crate::oculpm::redact;
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
@@ -78,7 +79,7 @@ async fn rescan_once(db: &Db, project_id: u32) -> Result<FiringScanReport, Strin
 
     // 파일 I/O 와 JSON 파싱은 blocking — 런타임 워커를 붙잡지 않는다.
     let scan = tokio::task::spawn_blocking(move || {
-        let dirs = firing_ledger::transcript_dirs(&home, &root);
+        let dirs = transcript_sessions::transcript_dirs(&home, &root);
         if dirs.is_empty() {
             return (Vec::new(), true, true);
         }
@@ -202,7 +203,14 @@ pub struct FiringOverview {
     /// 창 안에서 발동이 관측된 세션 수.
     pub sessions: u32,
     /// 세션 1건당 규칙 주입 바이트 (컨텍스트 예산 바의 값).
+    ///
+    /// 날짜 창이 아니라 **최근 [`transcript_sessions::BUDGET_SESSION_WINDOW`] 세션**을 본다 —
+    /// 근거는 그 상수의 주석에.
     pub bytes_per_session: u32,
+    /// `bytes_per_session` 의 분모 — 실제로 센 최근 세션 수. 0 이면 아직
+    /// 말할 것이 없다(막대가 "미계측"으로 그린다). 창의 근거를 화면이 그대로
+    /// 밝힐 수 있도록 함께 내보낸다.
+    pub sessions_considered: u32,
     /// 마지막 스캔 시각 (unix). None = 한 번도 안 돌았다.
     pub last_scan_at: Option<u32>,
 }
@@ -272,11 +280,18 @@ pub async fn firing_stats(
         .await
         .map_err(|e| e.to_string())?;
 
-    let rule_bytes: u64 = aggregates
-        .iter()
-        .filter(|a| a.kind == KIND_RULE)
-        .map(|a| a.bytes)
-        .sum();
+    // 예산의 분자·분모는 **날짜 창이 아니라 최근 세션 창**에서 온다. 날짜로
+    // 나누면 창 안에서 규칙을 지우거나 좁혀도 30일간 옛 비용이 따라온다.
+    let recent = transcript_sessions::recent_sessions(
+        &transcript_sessions::transcript_dirs(&home, &root),
+        transcript_sessions::BUDGET_SESSION_WINDOW,
+    );
+    let considered = recent.len() as u32;
+    let recent_rule_bytes = db
+        .firing_rule_bytes_for_sessions(project_id, recent)
+        .await
+        .map_err(|e| e.to_string())?;
+
     let stats = aggregates
         .into_iter()
         .map(|a| {
@@ -302,11 +317,12 @@ pub async fn firing_stats(
         since,
         until,
         sessions,
-        bytes_per_session: if sessions == 0 {
+        bytes_per_session: if considered == 0 {
             0
         } else {
-            saturating_u32(rule_bytes / sessions as u64)
+            saturating_u32(recent_rule_bytes / considered as u64)
         },
+        sessions_considered: considered,
         last_scan_at,
     })
 }

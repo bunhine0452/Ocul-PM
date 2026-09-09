@@ -215,6 +215,7 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
         firing.overview?.bytes_per_session ?? 0,
         firing.measured,
         irrelevantBytesPerSession(scope),
+        firing.overview?.sessions_considered ?? 0,
       ),
     [items, firing.overview, firing.measured, scope],
   );

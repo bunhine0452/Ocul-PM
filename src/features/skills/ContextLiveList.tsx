@@ -412,7 +412,10 @@ function Row({
   // 에이전트·커맨드는 규칙 허브가 여는 파일이 아니다 (`rules_read` 의 범위는
   // CLAUDE.md 계열과 `.claude/rules/**` 뿐). 열 수 없는 것을 누르게 두면 빈
   // 편집기가 뜨므로, 비용만 밝히는 **정보 행**으로 그린다.
-  const openable = item.kind !== "agent" && item.kind !== "command";
+  //
+  // `readonly`(= `AGENTS.md`)도 같은 자리다: 매 세션 실리니 비용은 말해야 하고,
+  // 마스터가 `.oculpm/agents/_template.md` 라 여기서 고치면 안 된다.
+  const openable = item.kind !== "agent" && item.kind !== "command" && !item.readonly;
   const inner = (
     <>
         <span className="ctx-row-top">
@@ -420,6 +423,11 @@ function Row({
           <span className="ctx-row-name">{item.name}</span>
           {item.scope === "global" ? <span className="sk-chip">{t("rules.scope.global")}</span> : null}
           {item.disabled ? <span className="sk-chip off">{t("sk.inactive")}</span> : null}
+          {item.readonly ? (
+            <span className="sk-chip" title={t("ctx.managedTitle")}>
+              {t("ctx.managed")}
+            </span>
+          ) : null}
           {item.alwaysOn ? (
             <span className="sk-chip" title={t("firing.alwaysTitle")}>
               {t("firing.always")}

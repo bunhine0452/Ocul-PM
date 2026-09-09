@@ -72,6 +72,11 @@ export interface ContextItem {
   /** 디스크 바이트 (규칙) · description 바이트 (스킬). */
   bytes: number;
   /**
+   * 여기서 편집하지 않는 항목 — 목록에는 서지만 편집기를 열지 않는다.
+   * `AGENTS.md` 가 그렇다 (마스터는 `.oculpm/agents/_template.md`).
+   */
+  readonly: boolean;
+  /**
    * 발동을 물을 수 있는 항목인가. 항상-로드 규칙은 transcript 에
    * `nested_memory` 로 찍히지 않아 "0회" 가 거짓이 된다 — 묻지 않는다.
    */
@@ -114,6 +119,7 @@ function skillItem(e: SkillEntry, index: FiringIndex): ContextItem {
     // 스킬이 세션마다 먹는 것은 본문이 아니라 **이름+description** 이다
     // (본문은 발동해야 읽힌다). 예산 바가 세는 것도 그 광고 비용이다.
     bytes: e.enabled ? utf8Bytes(e.name) + utf8Bytes(e.description) : 0,
+    readonly: false,
     measurable: true,
     firing: skillFiring(index, e),
   };
@@ -130,6 +136,11 @@ function skillItem(e: SkillEntry, index: FiringIndex): ContextItem {
  * 붙이면 거짓이 되므로 배지를 달지 않는다 (항상-로드 규칙과 같은 처리).
  */
 function surfaceItem(e: SurfaceEntry): ContextItem {
+  // `memory`(= `AGENTS.md`)만 성격이 다르다. 에이전트·커맨드는 목록에 실리는
+  // 광고 비용이지만 이건 **본문째로** 매 세션 들어가므로 항상-로드 조각에 선다.
+  // 편집기는 열지 않는다 — 마스터가 `.oculpm/agents/_template.md` 라
+  // `rules_read`/`rules_save` 의 범위 밖이다.
+  const memory = e.kind === "memory";
   return {
     id: surfaceId(e),
     kind: e.kind,
@@ -137,10 +148,11 @@ function surfaceItem(e: SurfaceEntry): ContextItem {
     name: e.name,
     sub: e.description,
     path: e.scope === "global" ? `~/${e.rel_path}` : e.rel_path,
-    alwaysOn: false,
+    alwaysOn: memory,
     disabled: false,
     pathCount: 0,
     bytes: e.bytes,
+    readonly: memory,
     measurable: false,
   };
 }
@@ -158,6 +170,7 @@ function ruleItem(e: RuleEntry, overview: RulesOverview, index: FiringIndex): Co
     disabled: false,
     pathCount: e.paths.length,
     bytes: e.bytes,
+    readonly: false,
     measurable: !always,
     firing: index.rules.get(ruleAbsPath(e, overview)),
   };
@@ -179,7 +192,9 @@ export function buildContextItems(
     for (const e of [...skills.project, ...skills.global]) items.push(skillItem(e, index));
   }
   if (surface) {
-    for (const e of [...surface.agents, ...surface.commands]) items.push(surfaceItem(e));
+    for (const e of [...surface.always_on, ...surface.agents, ...surface.commands]) {
+      items.push(surfaceItem(e));
+    }
   }
   if (rules) {
     for (const e of [
@@ -271,14 +286,21 @@ export interface ContextBudget {
   totalBytes: number;
   /** 조건부 조각이 실측인가 — 계측 전에는 "아직 모른다" 로 그린다. */
   measured: boolean;
+  /** 조건부 조각을 나눈 세션 수 — 막대가 자기 창의 근거를 밝힌다. */
+  sessionsConsidered: number;
 }
 
 /**
  * 세션당 컨텍스트 예산.
  *
- * - **항상 로드** — CLAUDE.md + `paths` 없는 규칙의 디스크 바이트. 확정 비용이다.
+ * - **항상 로드** — CLAUDE.md + `paths` 없는 규칙 + `AGENTS.md` 의 디스크 바이트.
+ *   확정 비용이다. `AGENTS.md` 는 편집 가능한 규칙이 아니라 ocul-pm 이 관리하는
+ *   템플릿이라 표면 쪽(`always_on`)에서 오지만, **비용의 성격은 같으므로** 같은
+ *   조각에 선다 — 빠뜨리면 이 화면에서 유일하게 확정인 숫자가 작아진다.
  * - **조건부(실측)** — 원장이 transcript 에서 센 세션당 규칙 주입 바이트.
- *   추정이 아니라 관측이라 규칙 다이어트(D4)의 근거가 된다.
+ *   추정이 아니라 관측이라 규칙 다이어트(D4)의 근거가 된다. 창은 날짜가 아니라
+ *   **최근 N 세션**이다 (`BUDGET_SESSION_WINDOW`) — 날짜로 나누면 규칙을 지운
+ *   뒤에도 30일간 옛 비용이 따라온다.
  * - **무관(실측)** — 그 조건부 주입 중, 이 프로젝트가 안 쓰는 스택의 규칙이
  *   먹은 몫(AD-6 범위 교정 후보). 조건부에서 **떼어내** 따로 그린다 — 되찾을
  *   수 있는 양이 숫자로 보여야 줄일 마음이 든다.
@@ -293,6 +315,7 @@ export function computeBudget(
   bytesPerSession: number,
   measured: boolean,
   irrelevantBytes = 0,
+  sessionsConsidered = 0,
 ): ContextBudget {
   const always = items
     .filter((i) => i.alwaysOn && !i.disabled)
@@ -316,21 +339,26 @@ export function computeBudget(
   return {
     segments,
     totalBytes: always + conditional + skills + surface,
-    measured,
+    // 셀 세션이 없으면 조건부는 관측이 아니라 공백이다 — 스캔이 돌았다는
+    // 사실만으로 "실측 0KB" 라고 말하면 거짓이 된다.
+    measured: measured && sessionsConsidered > 0,
+    sessionsConsidered,
   };
 }
 
 /** 예산 바의 눈금 — 재설계 목표치(마스터플랜 §5). */
 export const BUDGET_TARGET_BYTES = 30 * 1024;
 /**
- * 2026-08-29 이 저장소 실측 기준선 — 목표 대비 "지금 어디" 를 말해 준다.
+ * 막대의 눈금 상한 — 목표의 2배. 목표 눈금이 한가운데 서서 "지금 어디" 가
+ * 한눈에 읽힌다. 넘치는 건 `scale` 의 `Math.max` 가 받아 준다.
  *
- * 이 90KB 는 **표면(에이전트·커맨드)을 빼고** 잰 값이다. 2026-09-03 에 그
- * 조각이 들어오면서 같은 설치본의 실측은 약 149KB 였다. 그래도 기준선을
- * 올리지 않는다 — 올리면 아무것도 안 줄였는데 진척이 는 것처럼 보인다.
- * 막대가 넘치는 건 `scale` 의 `Math.max` 가 받아 준다.
+ * 종전에는 2026-08-29 실측 기준선 90KB 를 상한으로 썼다. 그런데 그 값은 ECC
+ * 규칙 팩이 깔려 있던 때의 것이고, 2026-09-03 에 그걸 지우면서 이 저장소의
+ * 실측은 약 15KB 로 떨어졌다. 기준선을 그대로 두면 막대가 "6배 줄였다" 로
+ * 읽히는데, 그 진척은 이번 주에 번 것이 아니다 — 지나간 승리를 눈금으로 계속
+ * 그리면 지표가 반대 방향으로 거짓말한다.
  */
-export const BUDGET_BASELINE_BYTES = 90 * 1024;
+export const BUDGET_SCALE_BYTES = BUDGET_TARGET_BYTES * 2;
 
 /** KB 반올림 (0 은 0 으로 — "0KB" 가 "측정 안 됨" 처럼 읽히지 않게 호출부가 가른다). */
 export function kb(bytes: number): number {
