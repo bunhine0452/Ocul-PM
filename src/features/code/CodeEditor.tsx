@@ -23,6 +23,7 @@ import {
 } from "./monaco/lsp";
 import { breakpointDecorations, gitDecorations, wireBreakpointClicks } from "./monaco/decorations";
 import { registerSymbolProvider } from "./monaco/symbols";
+import { baseEditorOptions, diffEditorOptions } from "./monaco/options";
 import { monacoLangForPath } from "./codeLang";
 import { hasLanguageServer } from "./lspBridge";
 import type {
@@ -102,8 +103,12 @@ interface CodeEditorProps {
    * 얹어(동적 키바인딩이 기여 액션보다 무겁다) 항상 부모로 되돌린다.
    */
   onGoToSymbol?: () => void;
-  /** 들여쓰기 폴백의 탭 폭 (설정 `codeTabSize`). */
+  /** 탭 폭 (설정 `codeTabSize`). 저장 시 포맷이 쓰는 값과 **같아야** 한다. */
   tabSize?: number;
+  /** Tab 키가 공백을 넣는가 (설정 `codeInsertSpaces`). 위와 같은 이유로 함께 온다. */
+  insertSpaces?: boolean;
+  /** 미니맵을 그리는가 (설정 `codeMinimap`). 좁은 분할에서 폭을 먹어 끌 수 있다. */
+  minimap?: boolean;
   /** HEAD 대비 줄 변경 (거터). LSP 와 무관하므로 모든 파일에 단다. */
   gitChanges?: readonly GitLineChange[];
   /**
@@ -141,6 +146,8 @@ export function CodeEditor({
   stickySymbols = null,
   onGoToSymbol,
   tabSize = 2,
+  insertSpaces = true,
+  minimap = true,
   gitChanges,
   diffOriginal,
   breakpoints,
@@ -199,40 +206,14 @@ export function CodeEditor({
     // 테마는 편집기를 만들기 **전에** 정의해야 첫 프레임부터 제 색으로 그린다.
     defineCodeTheme(monaco, readCodeTokens(host), isDarkTheme());
 
-    const options: MonacoNs.editor.IStandaloneEditorConstructionOptions = {
+    const options = baseEditorOptions({
       theme: THEME_NAME,
-      automaticLayout: true,
-      fontSize: 13,
-      fontFamily: "var(--mono)",
-      lineHeight: 1.6,
-      tabSize,
-      // 거터는 중단점을 달 때만 넓힌다 — 디버그 불가 파일에서 빈 칸이 남으면
-      // 누를 수 있는 자리처럼 보인다.
       glyphMargin: hasBreakpointsRef.current,
-      // `outlineModel` 은 **사슬**이다 — 심볼 공급자가 있으면 그것으로, 없거나
-      // 빈 답이면 폴딩 → 들여쓰기로 스스로 떨어진다(`stickyScrollModelProvider`
-      // 의 fall-through). 그래서 언어 서버가 없는 파일에서도 CodeMirror 판의
-      // 들여쓰기 폴백과 같은 그림이 나온다.
-      stickyScroll: {
-        enabled: stickyMaxRef.current > 0,
-        maxLineCount: Math.max(stickyMaxRef.current, 1),
-        defaultModel: "outlineModel",
-      },
-      minimap: { enabled: true },
-      scrollBeyondLastLine: true,
-      renderLineHighlight: "line",
-      bracketPairColorization: { enabled: true },
-      // 지금까지 **아예 없던** 기본기 — Phase 3 가 넓히기 전에 바닥만 깐다.
-      folding: true,
-      autoClosingBrackets: "languageDefined",
-      matchBrackets: "always",
-      selectionHighlight: true,
-      occurrencesHighlight: "singleFile",
-      multiCursorModifier: "alt",
-      padding: { bottom: 300 },
-      fixedOverflowWidgets: true,
-      scrollbar: { useShadows: false },
-    };
+      stickyMaxLines: stickyMaxRef.current,
+      tabSize,
+      insertSpaces,
+      minimap,
+    });
 
     const subs: MonacoNs.IDisposable[] = [];
 
@@ -250,15 +231,7 @@ export function CodeEditor({
     let editor: MonacoNs.editor.IStandaloneCodeEditor;
     let ownedModels: MonacoNs.editor.ITextModel[] = [];
     if (diffOriginalAtMount != null) {
-      const diffEditor = monaco.editor.createDiffEditor(host, {
-        ...options,
-        // 인라인(단일 열) — CodeMirror 의 unifiedMergeView 와 같은 모양.
-        renderSideBySide: false,
-        originalEditable: false,
-        renderOverviewRuler: false,
-        // 미니맵은 diff 에서 자리만 먹는다 (변경 위치는 이미 본문에 보인다).
-        minimap: { enabled: false },
-      });
+      const diffEditor = monaco.editor.createDiffEditor(host, diffEditorOptions(options));
       const original = monaco.editor.createModel(diffOriginalAtMount, languageId);
       const modified = monaco.editor.createModel(initialText, languageId);
       diffEditor.setModel({ original, modified });
@@ -481,10 +454,16 @@ export function CodeEditor({
     gitDecoRef.current?.set(gitDecorations(monaco, gitChanges ?? [], model.getLineCount()));
   }, [gitChanges]);
 
-  // 탭 폭 — 들여쓰기 폴백의 앵커 계산과 본문 렌더가 같은 폭을 써야 한다.
+  // 들여쓰기 — 설정을 바꾸면 열려 있는 편집기에도 바로 먹어야 한다. 재마운트로
+  // 하지 않는 이유는 다른 것들과 같다(실행 취소 이력·접힘 상태가 날아간다).
   useEffect(() => {
-    editorRef.current?.updateOptions({ tabSize });
-  }, [tabSize]);
+    editorRef.current?.updateOptions({ tabSize, insertSpaces });
+  }, [tabSize, insertSpaces]);
+
+  // 미니맵 — 좁은 분할에서 끄는 값이라 켜고 끈 것이 그 자리에서 보여야 한다.
+  useEffect(() => {
+    editorRef.current?.updateOptions({ minimap: { enabled: minimap } });
+  }, [minimap]);
 
   // 스티키의 심볼 원천 — 서버가 늦게 답해도 도착하는 대로 갈아탄다.
   //

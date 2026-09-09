@@ -244,6 +244,12 @@ export function CodeSettings({
             />
           </Field>
         ) : null}
+        <Toggle
+          checked={settings.codeMinimap}
+          onChange={(v) => save("codeMinimap", v)}
+          label={t("settings.code.minimap")}
+        />
+        <p className="text-[11px] text-muted-foreground/80">{t("settings.code.minimapHint")}</p>
       </Section>
 
       <Section

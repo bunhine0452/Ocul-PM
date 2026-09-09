@@ -2130,6 +2130,8 @@ export const ko = {
   "settings.code.previewTabsHint": "트리에서 한 번 누른 파일은 기울임 탭 하나를 돌려 씁니다. 더블클릭하거나 고치기 시작하면 그 탭이 고정됩니다.",
   "settings.code.stickyScroll": "위쪽에 상위 스코프 겹쳐 고정",
   "settings.code.stickyScrollHint": "지금 보고 있는 줄을 감싸는 클래스·함수의 시작 줄을 편집면 맨 위에 붙여 둡니다. 언어 서버가 없는 파일은 들여쓰기로 추정합니다. 줄을 누르면 그리로 갑니다.",
+  "settings.code.minimap": "미니맵 보이기",
+  "settings.code.minimapHint": "편집면 오른쪽에 파일 전체를 축소해 그립니다. 좌우로 나눠 볼 때는 본문 폭을 먹으니 꺼 두는 편이 나을 수 있습니다.",
   "settings.code.stickyMaxLines": "겹쳐 고정할 줄 수",
   "settings.code.historyTitle": "로컬 히스토리",
   "settings.code.historyDesc": "커밋 사이의 시간을 남깁니다. 에이전트는 한 커밋 안에서 같은 파일을 열 번 고치고, git 은 그 사이를 못 봅니다.",

@@ -123,6 +123,7 @@ export const KEYS = {
   codePreviewTabs: "code_preview_tabs",
   codeStickyScroll: "code_sticky_scroll",
   codeStickyMaxLines: "code_sticky_max_lines",
+  codeMinimap: "code_minimap",
   codeLocalHistory: "code_local_history",
   codeLocalHistoryMaxEntries: "code_local_history_max_entries",
 
@@ -279,6 +280,14 @@ export interface Settings {
   /** 겹쳐 고정할 최대 줄 수 (1–10). VS Code 와 같은 기본값 5. */
   codeStickyMaxLines: number;
   /**
+   * 편집면 오른쪽의 미니맵.
+   *
+   * 기본 **켜짐** (VS Code 와 같다). 설정을 둔 이유는 하나뿐이다 — 이 화면은
+   * 좌우로 분할되고, 그때 미니맵이 먹는 폭이 본문에서 나온다. 브래킷 쌍
+   * 색칠·들여쓰기 가이드는 자리를 안 먹으므로 설정을 두지 않는다.
+   */
+  codeMinimap: boolean;
+  /**
    * 파일이 바뀔 때마다 그 시점 내용을 한 판 남긴다 (사람 저장·에이전트 쓰기 모두).
    *
    * 기본 **켜짐** — 이 라운드에서 유일한 예외다. **소급이 불가능**하기 때문이다:
@@ -363,6 +372,7 @@ export const DEFAULTS: Settings = {
   codePreviewTabs: true,
   codeStickyScroll: false,
   codeStickyMaxLines: 5,
+  codeMinimap: true,
   codeLocalHistory: true,
   codeLocalHistoryMaxEntries: 50,
 
@@ -418,6 +428,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.codePreviewTabs]: "codePreviewTabs",
   [KEYS.codeStickyScroll]: "codeStickyScroll",
   [KEYS.codeStickyMaxLines]: "codeStickyMaxLines",
+  [KEYS.codeMinimap]: "codeMinimap",
   [KEYS.codeLocalHistory]: "codeLocalHistory",
   [KEYS.codeLocalHistoryMaxEntries]: "codeLocalHistoryMaxEntries",
   [KEYS.lastSeenVersion]: "lastSeenVersion",

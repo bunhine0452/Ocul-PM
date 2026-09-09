@@ -207,6 +207,7 @@ const TESTS = new Set([
   "__tests__/mcp_settings.test.tsx",
   "__tests__/mobile_pairing_poll.test.tsx",
   "__tests__/monaco_lsp.test.ts",
+  "__tests__/monaco_options.test.ts",
   "__tests__/multi_window.test.tsx",
   "__tests__/nav_registry.test.ts",
   "__tests__/new_tab_intent.test.ts",

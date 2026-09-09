@@ -798,9 +798,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
 
   // ── 포맷팅 (⇧⌥F) ──────────────────────────────────────────────────────
   //
-  // 이름 바꾸기·코드 액션과 정반대다: 그것들은 디스크를 고치므로 미저장을
-  // 금지했지만, 포맷은 **지금 버퍼**를 다듬어 돌려받아 그대로 실는다. 저장을
-  // 강요하지 않고, 결과를 저장할지는 여전히 사용자가 정한다.
+  // 이름 바꾸기·코드 액션과 정반대다: 그것들은 디스크를 고치므로 미저장을 금지했지만,
+  // 포맷은 **지금 버퍼**를 다듬어 돌려받아 그대로 싣는다 — 저장할지는 사용자가 정한다.
   const [formatting, setFormatting] = useState(false);
   const format = useCallback(
     async (silent = false, range?: import("./CodeEditor").FormatRange): Promise<boolean> => {
@@ -1389,6 +1388,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               stickySymbols={stickySymbols}
               onGoToSymbol={onGoToSymbol}
               tabSize={settings.codeTabSize}
+              insertSpaces={settings.codeInsertSpaces}
+              minimap={settings.codeMinimap}
               onSave={() => void saveRef.current()}
               onCursor={(line, col) => {
                 setCursor({ line, col });

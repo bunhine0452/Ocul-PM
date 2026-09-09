@@ -91,6 +91,7 @@ export const SETTINGS_INDEX: readonly SettingsEntry[] = [
   { tab: "code", key: "settings.code.trimFinalNewlines", section: "settings.code.editorTitle" },
   { tab: "code", key: "settings.code.previewTabs", section: "settings.code.editorTitle" },
   { tab: "code", key: "settings.code.stickyScroll", section: "settings.code.editorTitle" },
+  { tab: "code", key: "settings.code.minimap", section: "settings.code.editorTitle" },
   { tab: "code", key: "settings.code.stickyMaxLines", section: "settings.code.editorTitle" },
   { tab: "code", key: "settings.code.autoSaveTitle" },
   { tab: "code", key: "settings.code.autoSave", section: "settings.code.autoSaveTitle" },

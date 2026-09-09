@@ -2127,6 +2127,8 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.code.previewTabsHint": "A single click in the tree reuses one italic tab. Double-clicking it, or starting to edit, keeps it open.",
   "settings.code.stickyScroll": "Pin enclosing scopes to the top",
   "settings.code.stickyScrollHint": "Keeps the opening lines of the class and function around the line you are reading pinned above the editor. Files without a language server fall back to indentation. Click a line to jump to it.",
+  "settings.code.minimap": "Show the minimap",
+  "settings.code.minimapHint": "Draws the whole file, shrunk, down the right edge of the editor. It costs width, so you may want it off while working in a split view.",
   "settings.code.stickyMaxLines": "Lines to pin",
   "settings.code.historyTitle": "Local history",
   "settings.code.historyDesc": "Keeps the time between commits. An agent edits the same file ten times inside one commit, and git cannot see any of it.",
