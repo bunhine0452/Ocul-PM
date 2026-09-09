@@ -259,6 +259,7 @@ const TESTS = new Set([
   "__tests__/terminal_viewport_resync.test.ts",
   "__tests__/theme_gallery.test.tsx",
   "__tests__/theme_schema.test.ts",
+  "__tests__/toast_timing.test.tsx",
   "__tests__/today_activity.test.tsx",
   "__tests__/today_journal_missing.test.tsx",
   "__tests__/today_plugin_dismiss.test.tsx",

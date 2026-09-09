@@ -9,6 +9,8 @@ import { useSyncExternalStore } from "react";
 import {
   dismissToast,
   getToasts,
+  pauseToast,
+  resumeToast,
   subscribeToasts,
   type Toast,
 } from "@/lib/toast";
@@ -17,12 +19,29 @@ import { useT } from "@/i18n";
 
 export function Toaster() {
   const toasts = useSyncExternalStore(subscribeToasts, getToasts, getToasts);
-  if (toasts.length === 0) return null;
+  // 라이브 리전 둘 다 **항상** 마운트한다 (2026-09-09).
+  //
+  // 전에는 `toasts.length === 0` 이면 null 을 돌려주고 role 은 개별 토스트에
+  // 붙어 있었다. 그러면 리전이 내용과 **동시에** DOM 에 삽입되는데, 그건
+  // 스크린리더가 자주 놓치는 고전적 패턴이다 — 특히 `role="status"`(polite).
+  // 빈 리전을 먼저 심어 두고 그 안에 자식을 더해야 읽는다.
+  //
+  // 둘로 가른 이유는 다급함이 다르기 때문이다: 경고·오류는 assertive 로
+  // 끼어들고 info 는 polite 로 기다린다. 시각적으로도 경고가 위에 선다.
+  const alerts = toasts.filter((t) => t.kind !== "info");
+  const infos = toasts.filter((t) => t.kind === "info");
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-top flex w-full max-w-sm flex-col-reverse gap-2">
-      {toasts.map((t) => (
-        <ToastItem key={t.id} toast={t} />
-      ))}
+    <div className="pointer-events-none fixed bottom-4 right-4 z-top flex w-full max-w-sm flex-col">
+      <div role="alert" aria-live="assertive" className="mb-2 flex flex-col-reverse gap-2">
+        {alerts.map((t) => (
+          <ToastItem key={t.id} toast={t} />
+        ))}
+      </div>
+      <div role="status" aria-live="polite" className="flex flex-col-reverse gap-2">
+        {infos.map((t) => (
+          <ToastItem key={t.id} toast={t} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -47,7 +66,12 @@ function ToastItem({ toast }: { toast: Toast }) {
   return (
     <div
       className={`animate-in fade-in slide-in-from-bottom-2 pointer-events-auto flex items-start gap-2 rounded-lg border px-3 py-2 text-xs shadow-lg duration-(--dur-2) ${tone}`}
-      role={toast.kind === "info" ? "status" : "alert"}
+      // 읽는 동안·누르려는 동안 시계를 멈춘다. 액션이 달린 토스트에서는
+      // 이게 없으면 [되돌리기] 를 누르러 가는 도중에 사라진다.
+      onMouseEnter={() => pauseToast(toast.id)}
+      onMouseLeave={() => resumeToast(toast.id)}
+      onFocusCapture={() => pauseToast(toast.id)}
+      onBlurCapture={() => resumeToast(toast.id)}
     >
       <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${iconTone}`} />
       <div className="flex-1 space-y-1">

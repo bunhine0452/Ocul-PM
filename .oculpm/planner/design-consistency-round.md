@@ -20,10 +20,10 @@ owner: claude-code
 - [~] `nav-ia.css` 53줄을 `shell.css` nav 블록으로 흡수 — 통째로 다른 시스템 어휘다(`--r-1`/`--r-2`/`--bg` 정의 없음, `var(--fs-2, 12px)` 인데 실제 10.5px 로 fallback 이 거짓말). 파일 머리 주석이 이미 옮기라고 적어 뒀다 {#fix-nav-ia}
 - [x] `App.css` 의 shadcn 팔레트를 hex 재선언에서 `--foreground: var(--text)` 별칭으로 — ui_v2 CSS 가 shadcn 어휘를 173곳 참조해(--border 87·--primary 19·--muted-foreground 18) 두 팔레트가 한 창에 동시 렌더된다. tokens.css 가 전역이 된 2026-07-31 이후 분리 전제는 무효 {#fix-palette-alias}
 - [x] `design_tokens.test.ts` 대비 래칫에 shadcn 팔레트 추가 — 지금은 tokens.css 쪽만 지킨다. 실측 미달: Nord `--destructive` on `--card` 2.46(삭제 버튼 글자) · Solarized `--muted-foreground` 4.13 · Dracula 3.68 {#fix-contrast-ratchet}
-- [ ] 액션 달린 토스트에 기본 지속시간 금지 — `useFileOps.ts:161` 이 durationMs 를 안 줘 info 기본 5초, `undoMoves` 호출부는 코드베이스 전체에서 이 한 줄뿐(메뉴도 ⌘Z 도 없다). push() 에서 actions 가 있으면 최소 15초, 그리고 호버·포커스 시 타이머 정지 {#fix-undo-toast}
+- [x] 액션 달린 토스트에 기본 지속시간 금지 — `useFileOps.ts:161` 이 durationMs 를 안 줘 info 기본 5초, `undoMoves` 호출부는 코드베이스 전체에서 이 한 줄뿐(메뉴도 ⌘Z 도 없다). push() 에서 actions 가 있으면 최소 15초, 그리고 호버·포커스 시 타이머 정지 {#fix-undo-toast}
 - [ ] 입력 경계와 포커스 — `--input` 대 `--card` 대비가 라이트 1.33·Nord 1.17 로 WCAG 1.4.11 의 3:1 미달이고, `outline:none` 32곳 중 `:focus-within` 대체가 없는 6곳(skills.css:393,736 · agent.css:885,1174,1836 · discussion.css:629)은 Tab 으로 들어가도 화면이 안 변한다 {#fix-focus-visible}
 - [ ] 모달 4곳에 `useModalBehavior` — 트랩·복원 없음: WelcomeWizard.tsx:167(첫 실행 화면) · ProjectManager.tsx:224 · Attachments.tsx:29 · AcpUsageMeter.tsx:234. ConfigControls.tsx:372 는 팝오버 메뉴에 role="dialog" 오용 {#fix-modal-trap}
-- [ ] `Toaster.tsx:20` 라이브 리전 상시 마운트 — 지금은 `if (toasts.length === 0) return null` 이라 리전이 내용과 동시에 삽입돼 `role="status"` 가 자주 침묵한다. 같은 파일의 `z-[1000]` 도 `--z-*` 램프로 {#fix-live-region}
+- [x] `Toaster.tsx:20` 라이브 리전 상시 마운트 — 지금은 `if (toasts.length === 0) return null` 이라 리전이 내용과 동시에 삽입돼 `role="status"` 가 자주 침묵한다. 같은 파일의 `z-[1000]` 도 `--z-*` 램프로 {#fix-live-region}
 - [ ] 아이콘 전용 버튼 6곳에 접근명 — TrayPopover.tsx:373,473,573(메뉴바 팝오버의 유일한 "앱 열기") · WelcomeWizard.tsx:343 · GreenfieldWizard.tsx:753 · CodeDebugPanel.tsx:271 {#fix-aria-icons}
 - [ ] 버튼 35개가 왜 비활성인지 말하지 않는다 — 유효성으로 막힌 51개 중 title·aria-describedby 없는 것 35개. AutomationEditor.tsx:386 은 `problem` 이라는 이유 문자열을 손에 들고도 안 붙인다 {#fix-disabled-reason}
 
@@ -79,4 +79,6 @@ owner: claude-code
 | 2026-09-09T20:02:42+09:00 | #fix-contrast-ratchet | claude-code | ☐→x |  | 대비를 다시 계산하는 대신 별칭 계약 3개로 대체 — 별칭이면 기존 램프 래칫이 shadcn 쪽까지 자동 보증한다. 회귀 경로("이 프리셋만 다르게")를 셋째 테스트가 막고 실제 패턴으로 음성 확인 |
 | 2026-09-09T20:11:12+09:00 | #unify-settings | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2011_refactor_unify-settings-entry-points.md | ⌘, 가로채기 제거로 프로젝트 창은 화면 하나. 감사의 "탭 내비 두 벌" 지적은 프로덕션에선 틀렸고(둘 다 embedded) 대신 세로 갈래가 죽어 있어 embedded 프롭째 삭제 |
 | 2026-09-09T20:11:18+09:00 | #unify-settings-chrome | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2011_refactor_unify-settings-entry-points.md | 하드코딩 영어 → t("shell.settings.title"), 인라인 SVG → 공유 X 아이콘 + aria-label |
+| 2026-09-09T20:16:38+09:00 | #fix-undo-toast | claude-code | ☐→x | .oculpm/journal/20260909/Bugs/2016_bug_toast-undo-window-and-live-region.md | 호출부를 고치는 대신 바닥을 올렸다 (ACTION_MIN_MS=15초, 잊어도 손해가 안 나게). 타이머를 Map 으로 바꿔 호버·포커스에 pause/resume 배선 |
+| 2026-09-09T20:16:44+09:00 | #fix-live-region | claude-code | ☐→x | .oculpm/journal/20260909/Bugs/2016_bug_toast-undo-window-and-live-region.md | 리전 둘(polite/assertive)을 항상 마운트. z-[1000] 은 앞선 게이트 라운드에서 z-top 으로 이미 처리됨 |
 <!-- oculpm:plan-log end -->
