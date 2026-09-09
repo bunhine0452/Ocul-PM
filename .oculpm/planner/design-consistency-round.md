@@ -17,7 +17,7 @@ owner: claude-code
 
 ## 깨져 있는 것 — 스타일이 죽거나 대비가 무너진 자리 {#broken}
 - [x] 정의되지 않은 토큰 17곳 치환 — `--line`·`--shadow-soft`(code.css:693,695 :1428,1430 → Monaco 호버·시그니처 팝업에 테두리도 그림자도 없음) · `--text-1` 7곳(screens.css:2366 hover 무효, ErrorBoundary.tsx:75·TerminalErrorBoundary.tsx:50 = 크래시 화면 제목) · `--font-mono` 3곳(tray.css:338,346,353) {#fix-undef-tokens}
-- [~] `nav-ia.css` 53줄을 `shell.css` nav 블록으로 흡수 — 통째로 다른 시스템 어휘다(`--r-1`/`--r-2`/`--bg` 정의 없음, `var(--fs-2, 12px)` 인데 실제 10.5px 로 fallback 이 거짓말). 파일 머리 주석이 이미 옮기라고 적어 뒀다 {#fix-nav-ia}
+- [x] `nav-ia.css` 53줄을 `shell.css` nav 블록으로 흡수 — 통째로 다른 시스템 어휘다(`--r-1`/`--r-2`/`--bg` 정의 없음, `var(--fs-2, 12px)` 인데 실제 10.5px 로 fallback 이 거짓말). 파일 머리 주석이 이미 옮기라고 적어 뒀다 {#fix-nav-ia}
 - [x] `App.css` 의 shadcn 팔레트를 hex 재선언에서 `--foreground: var(--text)` 별칭으로 — ui_v2 CSS 가 shadcn 어휘를 173곳 참조해(--border 87·--primary 19·--muted-foreground 18) 두 팔레트가 한 창에 동시 렌더된다. tokens.css 가 전역이 된 2026-07-31 이후 분리 전제는 무효 {#fix-palette-alias}
 - [x] `design_tokens.test.ts` 대비 래칫에 shadcn 팔레트 추가 — 지금은 tokens.css 쪽만 지킨다. 실측 미달: Nord `--destructive` on `--card` 2.46(삭제 버튼 글자) · Solarized `--muted-foreground` 4.13 · Dracula 3.68 {#fix-contrast-ratchet}
 - [x] 액션 달린 토스트에 기본 지속시간 금지 — `useFileOps.ts:161` 이 durationMs 를 안 줘 info 기본 5초, `undoMoves` 호출부는 코드베이스 전체에서 이 한 줄뿐(메뉴도 ⌘Z 도 없다). push() 에서 actions 가 있으면 최소 15초, 그리고 호버·포커스 시 타이머 정지 {#fix-undo-toast}
@@ -99,4 +99,5 @@ owner: claude-code
 | 2026-09-09T22:02:38+09:00 | #unify-search-input | claude-code | ☐→~ | .oculpm/journal/20260909/Refactors/2202_refactor_settings-screen-redesign.md | 6종 중 1종 해소 — 설정 재설계로 SettingsSearch.tsx:41 의 인라인 height 가 사라졌다(레일 머리 `.cfg-search`). 남은 5종은 그대로 |
 | 2026-09-09T22:08:02+09:00 | #layout-misc | claude-code | ☐→~ | .oculpm/journal/20260909/Refactors/2207_refactor_fs-ramp-caps-icon-stroke-sidebar.md | 셋 중 하나 완료 — 사이드바 첫 그룹에 sidebar.mainSection「작업」. 남은 둘: navRegistry 주석 드리프트, 죽은 Toolbar 2곳 |
 | 2026-09-09T22:08:08+09:00 | #fix-nav-ia | claude-code | ~→~ | .oculpm/journal/20260909/Refactors/2207_refactor_fs-ramp-caps-icon-stroke-sidebar.md | 거짓 fallback 3곳만 제거(var(--fs-2,12px) → var(--fs-3)). shell.css 로의 흡수는 병렬 세션 몫으로 남김 |
+| 2026-09-09T22:52:48+09:00 | #fix-nav-ia | claude-code | ~→x | .oculpm/journal/20260909/Refactors/2252_refactor_nav-ia-absorbed-into-shell.md | 항목 근거 3개 중 3개가 이미 해소돼 있었다(488b6fc) — 남은 건 흡수뿐. 12개 선택자를 뒤 4레이어에서 grep 해 경쟁 선언 0 확인 후 shell.css nav 블록으로. 값은 한 자도 안 바꿈(램프 밖 7px·22px 은 ramp-space 래칫 동결 중). index.css 주석의 "5 files" 가 도로 참이 됐다 |
 <!-- oculpm:plan-log end -->

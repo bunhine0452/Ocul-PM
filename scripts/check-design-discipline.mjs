@@ -42,7 +42,8 @@
  *     실측(2026-09-09): `--line`·`--shadow-soft`(Monaco 호버 팝업의 테두리와
  *     그림자) · `--text-1` 7곳(크래시 화면 제목 포함) · `--font-mono`(트레이만
  *     다른 서체) · `--r-1`/`--r-2`/`--bg`(nav-ia.css 는 통째로 다른 시스템의
- *     어휘였다) — 17곳이 조용히 죽어 있었다.
+ *     어휘였다 — 그 파일은 {#fix-nav-ia} 에서 shell.css nav 블록으로 흡수됐다)
+ *     — 17곳이 조용히 죽어 있었다.
  *     이 규칙은 한 줄이 아니라 파일 전체를 모아 봐야 하므로 RULES 가 아니라
  *     별도 패스다 (collectVars / reportUndefinedVars).
  *     **fallback 이 있어도 위반이다** — `var(--surface-2, rgba(0,0,0,.02))` 는
