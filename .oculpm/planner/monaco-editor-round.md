@@ -44,10 +44,10 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 - [!] 시맨틱 토큰 — LSP `semanticTokens` 를 백엔드에 없으면 추가하고 Monaco 에 물린다. 없으면 이 항목은 Monarch 강조로 만족하고 닫는다 {#cap-semantic}
 
 ## Phase 4 — 논의 편집기: CodeMirror 의존성 완전 제거 {#discussion}
-- [ ] **선행 조건** — 병렬 세션의 논의 CAS 손실 수정(`DiscussionScreenV2.tsx` 852줄 · `discussion.rs` · 새 테스트 2개)이 머지될 때까지 시작하지 않는다. 같은 파일을 두 세션이 고치면 한쪽이 조용히 사라진다 {#disc-wait}
-- [ ] `DiscussionEditor.tsx`(436줄) 를 Monaco 마크다운으로 — placeholder · 히스토리 · 검색 · 마크다운 강조가 지금 CM 에서 오는 것들이다 {#disc-port}
-- [ ] `package.json` 에서 `@codemirror/*` 18개 + `codemirror` + `@lezer/highlight` 제거. 이 줄이 지워지는 것이 이 라운드의 완료 신호다 {#disc-drop-cm}
-- [ ] `DiscussionScreenV2.tsx` 파일 크기 래칫 — 병렬 세션이 `conflict.ts`·`useDiscussionSave.ts` 로 쪼개 796줄로 내려놨다(2026-09-08 확인). 편집기 배선을 갈아끼우며 다시 넘기지 않는지만 본다 {#disc-filesize}
+- [x] **선행 조건** — 병렬 세션의 논의 CAS 손실 수정(`DiscussionScreenV2.tsx` 852줄 · `discussion.rs` · 새 테스트 2개)이 머지될 때까지 시작하지 않는다. 같은 파일을 두 세션이 고치면 한쪽이 조용히 사라진다 {#disc-wait}
+- [x] `DiscussionEditor.tsx`(436줄) 를 Monaco 마크다운으로 — placeholder · 히스토리 · 검색 · 마크다운 강조가 지금 CM 에서 오는 것들이다 {#disc-port}
+- [x] `package.json` 에서 `@codemirror/*` 18개 + `codemirror` + `@lezer/highlight` 제거. 이 줄이 지워지는 것이 이 라운드의 완료 신호다 {#disc-drop-cm}
+- [x] `DiscussionScreenV2.tsx` 파일 크기 래칫 — 병렬 세션이 `conflict.ts`·`useDiscussionSave.ts` 로 쪼개 796줄로 내려놨다(2026-09-08 확인). 편집기 배선을 갈아끼우며 다시 넘기지 않는지만 본다 {#disc-filesize}
 
 ## Phase 5 — 에이전트 편집면 (Cursor 의 진짜 차별점) {#agent-surface}
 - [ ] ⌘K 인라인 편집 — 선택 범위에 지시를 주면 그 자리에서 고쳐 보여 준다. ACP(Claude Code · Codex)가 이미 붙어 있어 전송 경로는 있고, Monaco 의 inline-diff 위젯이 표시를 맡는다 {#agent-cmdk}
@@ -88,4 +88,8 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 | 2026-09-09T19:27:18+09:00 | #cap-minimap | claude-code | ☐→x | .oculpm/journal/20260909/Features_to_add/1926_feature_monaco-capabilities-phase3.md | 판정 = 폭을 먹는 것만 설정을 둔다. 미니맵 → codeMinimap(기본 켬, 좌우 분할에서 60~100px 을 본문에서 뺏는다). 브래킷 색칠·들여쓰기 가이드는 설정 없이 항상 켬 — 자리를 안 먹어 끌 이유를 댈 수 없고 아무도 안 바꿀 토글은 소음이다 |
 | 2026-09-09T19:27:25+09:00 | #cap-peek | claude-code | ☐→x | .oculpm/journal/20260909/Features_to_add/1926_feature_monaco-capabilities-phase3.md | 판정 = 만들지 않고 패널을 남긴다. StandaloneTextModelService.createModelReference() 가 모델이 없으면 거부해 표준 Monaco 로는 파일 밖을 못 본다 — 얻는 것이 "같은 파일 안에서만 되는 peek" 이고 반만 되는 이동은 안 되는 이동보다 나쁘다. 정의·참조 공급자도 같은 이유로 미등록. Phase 5 ⌘K 가 파일 모델 레지스트리를 요구하면 재개 |
 | 2026-09-09T19:27:35+09:00 | #cap-semantic | claude-code | ☐→! | .oculpm/journal/20260909/Features_to_add/1926_feature_monaco-capabilities-phase3.md | 백엔드에 semanticTokens 없음 확인(커맨드 17개·initialize capability 어디에도). 추가는 가능하나 cargo test 가 bindings.ts 를 재생성하는데 지금 그 파일이 병렬 세션의 미커밋 변경을 들고 있다(sessions_considered·RuleEntry.readonly) — 재생성하면 남의 진행 중 API 가 섞이고 안 하면 내 바인딩이 빠진다. **해제 조건: firing-ledger/rules 작업 머지.** Monarch 로 만족하고 닫지 않는 이유는 이월을 유실 안 하려고 |
+| 2026-09-09T19:40:33+09:00 | #disc-wait | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1940_refactor_monaco-discussion-phase4.md | 선행 조건 만족 확인 — 60b66a9(논의 CAS 손실 수정) 머지됨, features/discussion 과 discussion.rs 에 미커밋 변경 없음. 지금 도는 병렬 세션은 firing-ledger/skills 쪽이라 이 파일들과 무관 |
+| 2026-09-09T19:40:42+09:00 | #disc-port | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1940_refactor_monaco-discussion-phase4.md | 이음매는 오프셋 하나 — mdEdit.ts 무변경, 환산을 apply 안에 가둠, executeEdits 한 번(실행취소 한 칸). placeholder/히스토리/검색은 내장으로, 마크다운 강조는 markdown-prose 문법을 직접 씀(0.56 은 제목 단계를 다 keyword 로 낸다 = 회귀). 테마는 전역이라 한 벌에 .md-prose 접미사로 가름. discussion_editor.test.tsx 가 판정자 — 본문 무수정 통과 |
+| 2026-09-09T19:40:48+09:00 | #disc-drop-cm | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1940_refactor_monaco-discussion-phase4.md | **라운드의 완료 신호** — package.json 에 @codemirror/* · codemirror · @lezer/highlight 가 0개. Phase 2 에서 13개, 여기서 7개. DiscussionEditor 청크 537.97→8.77kB |
+| 2026-09-09T19:40:54+09:00 | #disc-filesize | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/1940_refactor_monaco-discussion-phase4.md | DiscussionScreenV2.tsx 799줄 유지 — 이 Phase 는 그 파일을 아예 안 건드렸다(편집기 배선은 DiscussionEditor.tsx 안에서 끝난다). lint:filesize 초록 |
 <!-- oculpm:plan-log end -->
