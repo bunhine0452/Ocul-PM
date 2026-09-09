@@ -145,7 +145,7 @@ html, body {
   height: 7px;
   border-radius: 50%;
   background: var(--primary);
-  animation: tp-pulse 2s infinite;
+  animation: tp-pulse var(--pulse-dur) infinite;
 }
 @keyframes tp-pulse {
   0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 55%, transparent); }
@@ -454,7 +454,7 @@ html, body {
   /* 좌→우로 달리는 빔 대신 줄 전체가 숨 쉰다 — 스캔 빔은 로딩 연출의
      관용구고, 이 팝오버의 다른 로딩 표시(.tp-live-dot)와도 문법이 달랐다. */
   background: var(--primary);
-  animation: tp-breathe 1.2s ease-in-out infinite;
+  animation: tp-breathe var(--pulse-dur) ease-in-out infinite;
 }
 @keyframes tp-breathe {
   50% { opacity: 0.3; }

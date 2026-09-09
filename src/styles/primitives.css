@@ -261,7 +261,7 @@
   display: block;
   background: var(--bg-inset);
   border-radius: var(--radius-s);
-  animation: skelBreathe 1.6s var(--ease-in-out) infinite;
+  animation: skelBreathe var(--pulse-dur) var(--ease-in-out) infinite;
 }
 @keyframes skelBreathe { 50% { opacity: 0.55; } }
 @media (prefers-reduced-motion: reduce) {

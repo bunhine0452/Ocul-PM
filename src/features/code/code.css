@@ -235,7 +235,7 @@
   border-radius: 50%;
   border: 1.5px solid var(--sep);
   border-top-color: var(--accent);
-  animation: code-tree-spin 0.7s linear infinite;
+  animation: code-tree-spin var(--spin-dur) linear infinite;
 }
 @keyframes code-tree-spin {
   to {
@@ -522,7 +522,7 @@
 .code-status-lsp.indexing .code-status-led,
 .code-status-lsp.starting .code-status-led {
   background: #d9a03f;
-  animation: code-led-pulse 1.4s var(--ease-in-out) infinite;
+  animation: code-led-pulse var(--pulse-dur) var(--ease-in-out) infinite;
 }
 .code-status-lsp.failed .code-status-led,
 .code-status-lsp.missing .code-status-led {
@@ -2092,7 +2092,7 @@ body.code-dragging {
   border: 2px solid var(--sep);
   border-top-color: var(--accent);
   border-radius: 50%;
-  animation: code-search-spin 0.8s linear infinite;
+  animation: code-search-spin var(--spin-dur) linear infinite;
 }
 @keyframes code-search-spin {
   to {

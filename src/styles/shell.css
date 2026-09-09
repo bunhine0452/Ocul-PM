@@ -289,9 +289,9 @@
 /* 승인 대기 (2026-08-16) — 작업 중과 다르다: 기다린다고 안 풀리고 **사용자가
    눌러야** 풀린다. 그래서 도는 고리와 달리 깜빡여서 부른다 — 에이전트가 승인
    대기로 멈춘 걸 모른 채 다른 화면에서 기다리다 몇 분을 잃던 것의 답. */
-.nav-badge.attention { background: var(--t-error-soft); color: var(--t-error); animation: nav-attention-blink 1.2s var(--ease-in-out) infinite; }
+.nav-badge.attention { background: var(--t-error-soft); color: var(--t-error); animation: nav-attention-pulse var(--pulse-dur) var(--ease-in-out) infinite; }
 .nav-item.active .nav-badge.attention { background: rgba(255,255,255,0.25); color: inherit; }
-@keyframes nav-attention-blink { 50% { opacity: 0.45; } }
+@keyframes nav-attention-pulse { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) {
   .nav-badge.attention { animation: none; }
 }
@@ -303,13 +303,13 @@
   border-radius: 50%;
   border: 1.5px solid transparent;
   border-top-color: var(--claude);
-  animation: nav-working-spin 0.9s linear infinite;
+  animation: nav-working-spin var(--spin-dur) linear infinite;
 }
 .nav-item.active .nav-ico.working::after { border-top-color: currentColor; }
 @keyframes nav-working-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
   /* 도는 대신 숨을 쉰다 — 움직임에 민감한 사용자에게도 "살아 있음"은 전해야 한다. */
-  .nav-ico.working::after { animation: nav-working-pulse 1.6s var(--ease-in-out) infinite; }
+  .nav-ico.working::after { animation: nav-working-pulse var(--pulse-dur) var(--ease-in-out) infinite; }
   @keyframes nav-working-pulse { 50% { opacity: 0.25; } }
 }
 /* v2 U1 — ⌘번호 힌트. 상시 노출은 소음이라 hover 시에만 보인다. */

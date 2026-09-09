@@ -56,6 +56,12 @@
  *     CSS 가 `var(--fs-5)` 라 부르는 단을 TSX 는 `text-fs-5` 라 부른다.
  * 12. z 리터럴(z-[1000]) — `--z-sticky|strip|panel|dock|menu|popover|modal|
  *     command|top` 램프가 층을 안다. 숫자를 복사하면 두 물건이 같은 층에 앉는다.
+ * 15. 무한 애니메이션 주기 리터럴(animation: x 1.2s … infinite) —
+ *     --spin-dur|pulse-dur|breathe-dur 3단. 실측 29개가 열 가지 박자여서,
+ *     에이전트가 도는 동안 사이드바 배지·탭·터미널이 **동시에 서로 다른
+ *     박자로** 숨을 쉬었다. 한 번 지나가는 애니메이션(등장·퇴장)은 안 본다 —
+ *     `infinite` 가 붙은 것만이 "여럿이 동시에 뜬다" 는 문제를 만든다.
+ *
  * 14. 줄간격 리터럴(line-height: 1.6) — --lh-tight|snug|body|prose 4단.
  *     실측 12종이었고, 글자 크기는 램프에 접혀 있는데(648개 중 640개가 토큰)
  *     줄간격만 자유라 두 줄 이상 흐르는 한국어 블록마다 조판 밀도가 달랐다.
@@ -160,6 +166,12 @@ const RULES = [
     ext: /\.tsx?$/,
     re: /text-\[\d+px\]/,
     hint: "text-fs-0..12 (App.css 의 @theme inline 이 --fs-* 램프를 그 이름으로 노출한다)",
+  },
+  {
+    id: "loop-period-literal",
+    ext: /\.css$/,
+    re: /animation:[^;]*\b[0-9.]+m?s\b[^;]*\binfinite\b/,
+    hint: "--spin-dur|pulse-dur|breathe-dur (한 번 지나가는 애니메이션은 대상이 아니다)",
   },
   {
     id: "leading-literal",

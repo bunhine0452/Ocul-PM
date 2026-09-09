@@ -1295,7 +1295,7 @@ mark.s-hit {
 .term-sess[data-tone="idle"] { --tone: var(--text-3); }
 /* 셸 통합이 없어 아무것도 모르는 세션 — 속 빈 점. 모르는 걸 색으로 칠하지 않는다. */
 .term-sess[data-tone="off"] .ts-dot { background: transparent; box-shadow: inset 0 0 0 1px var(--sep-strong); }
-.term-sess[data-tone="running"] .ts-dot { animation: term-pulse 1.6s var(--ease-in-out) infinite; }
+.term-sess[data-tone="running"] .ts-dot { animation: term-pulse var(--pulse-dur) var(--ease-in-out) infinite; }
 /* 세션 정체 색 (2026-09-04) — 넷을 띄우면 카드 넷이 전부 같은 회색이고 이름도
    다 `claude` 라, 어느 것이 무엇인지 가르는 값이 화면에 하나도 없었다.
    왼쪽 띠 하나만 쓴다: 점·아이콘·타이머는 이미 상태(실행 중·기다림·실패)를
@@ -1325,7 +1325,7 @@ mark.s-hit {
     inset 2px 0 0 var(--term-yellow),
     inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, var(--sep-strong));
 }
-.term-sess[data-tone="waiting"] .ts-dot { animation: term-pulse 1.6s var(--ease-in-out) infinite; }
+.term-sess[data-tone="waiting"] .ts-dot { animation: term-pulse var(--pulse-dur) var(--ease-in-out) infinite; }
 @keyframes term-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
 .term-sess .ts-icon { display: grid; place-items: center; flex: none; color: var(--tone, currentColor); }
@@ -1549,7 +1549,7 @@ mark.s-hit {
 .term-pane[data-tone="fail"] { --tone: var(--term-red); }
 /* 맥동은 **숨쉬기**다. 예전 term-pulse(1→0.35, 1.6s)는 깜빡임에 가까워 눈이
    자꾸 끌려갔다 — 곁눈질용 신호는 알아채되 붙들지 않아야 한다. */
-.term-pane[data-tone="running"]::before { animation: term-breathe 2.4s var(--ease-in-out) infinite; }
+.term-pane[data-tone="running"]::before { animation: term-breathe var(--breathe-dur) var(--ease-in-out) infinite; }
 /* ok/idle/off 는 띠를 그리지 않는다 — 평상시에 늘 켜져 있는 색은 신호가 아니다. */
 @keyframes term-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
@@ -1637,7 +1637,7 @@ mark.s-hit {
     transparent 78%
   );
   pointer-events: none;
-  animation: term-breathe 2.4s var(--ease-in-out) infinite;
+  animation: term-breathe var(--breathe-dur) var(--ease-in-out) infinite;
 }
 
 /* 왼쪽만 7px 더 준다 — 거터 캡슐이 앉을 자리다. **항상** 같은 폭이어야 한다:
@@ -1669,7 +1669,7 @@ mark.s-hit {
    칠하지 않는다는 규칙이 거터에도 그대로 적용된다. */
 /* 거터도 페인 위 띠와 같은 숨쉬기를 쓴다 — 한 화면 안의 "지금 돌고 있다"가
    서로 다른 박자로 뛰면 어느 쪽을 보라는 것인지 알 수 없다. */
-.term-block-mark[data-tone="running"] { animation: term-breathe 2.4s var(--ease-in-out) infinite; }
+.term-block-mark[data-tone="running"] { animation: term-breathe var(--breathe-dur) var(--ease-in-out) infinite; }
 .term-block-mark[data-tone="unknown"] { opacity: 0.5; }
 
 /* 스티키 헤더 — 긴 출력을 스크롤하는 동안 "어느 명령의 출력인가"를 고정한다.
@@ -1885,7 +1885,7 @@ mark.s-hit {
 }
 .ts-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
 /* 셸 통합(OSC 133) 명령 상태 — 실행 중/성공/실패/대기. */
-.ts-dot.tone-running { background: var(--accent); animation: ts-dot-pulse 1.2s var(--ease-in-out) infinite; }
+.ts-dot.tone-running { background: var(--accent); animation: ts-dot-pulse var(--pulse-dur) var(--ease-in-out) infinite; }
 .ts-dot.tone-ok { background: var(--term-green); }
 .ts-dot.tone-fail { background: var(--t-bug); }
 .ts-dot.tone-idle { background: var(--text-3); }
@@ -1919,7 +1919,7 @@ mark.s-hit {
 .msg:hover .msg-copy, .msg-copy:focus-visible { opacity: 1; }
 .msg-copy:hover { background: var(--bg-inset); color: var(--text-2); }
 .msg-live { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; color: var(--accent-text); font-size: var(--fs-3); font-weight: var(--fw-label); }
-.msg-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: ai-pulse 1.2s var(--ease-in-out) infinite; }
+.msg-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: ai-pulse var(--pulse-dur) var(--ease-in-out) infinite; }
 @keyframes ai-pulse { 50% { opacity: 0.25; transform: scale(0.8); } }
 .msg-wait { color: var(--text-3); font-size: var(--fs-6); }
 .msg-error { color: var(--t-bug); font-size: var(--fs-6); white-space: pre-wrap; }
@@ -1954,7 +1954,7 @@ mark.s-hit {
 .msg.streaming .msg-md:last-of-type .prose > :last-child::after {
   content: ""; display: inline-block; width: 2px; height: 1.05em; margin-left: 2px;
   border-radius: var(--radius-2xs); vertical-align: -0.18em; background: var(--accent);
-  animation: ai-blink 1.4s var(--ease-in-out) infinite;
+  animation: ai-blink var(--pulse-dur) var(--ease-in-out) infinite;
 }
 @keyframes ai-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.18; } }
 

@@ -303,7 +303,7 @@
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
-  animation: tabPulse 2s var(--ease-out) infinite;
+  animation: tabPulse var(--pulse-dur) var(--ease-out) infinite;
 }
 /* 사인에 가까운 감쇠 — 두 지점만 두면 선형 페이드가 되어 '깜빡임' 으로
    읽힌다. 중간 키프레임으로 숨쉬는 곡선을 만든다. */

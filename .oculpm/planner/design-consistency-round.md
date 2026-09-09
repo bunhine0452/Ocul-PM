@@ -51,7 +51,7 @@ owner: claude-code
 - [ ] 컨트롤 높이 램프 신설 — `height:` 리터럴 42종, 18~40px 구간에만 15종. 곡률·무게처럼 램프를 세우고 칩 2단(22·26)·아이콘 버튼 2단(26·30)으로 접는다 {#ramp-height}
 - [x] 줄간격 램프 신설 — line-height 19종, 본문 계열만 9종(1.4~1.72). 한국어는 제목도 1.3 아래로 안 내린다. `--lh-tight`/`--lh-body`/`--lh-prose` 3~4단. screens.css:2266 은 h1~h6 를 크기와 무관하게 전부 1.35 로 준다 {#ramp-leading}
 - [x] 흐림 토큰 2개 — `:disabled` opacity 가 0.32/0.35/0.4/0.45/0.5/0.55 여섯 단이고 `.btn:disabled`(0.5) 와 `.iconbtn:disabled`(0.32) 가 같은 툴바에서 눈에 띄게 다르다. `--dim-disabled`/`--dim-quiet` 로 {#ramp-dim}
-- [ ] 무한 애니메이션 29개를 2벌로 — 주기가 0.7·0.8·0.9·1.0·1.2·1.4·1.6·2.0·2.4s 아홉 종이라 사이드바 배지·탭·터미널이 서로 다른 박자로 숨 쉰다. 회전(작업 중) 하나 + 맥동(주의) 하나, 주기는 토큰. `nav-attention-blink` 깜빡임은 맥동으로 교체 {#ramp-pulse}
+- [x] 무한 애니메이션 29개를 2벌로 — 주기가 0.7·0.8·0.9·1.0·1.2·1.4·1.6·2.0·2.4s 아홉 종이라 사이드바 배지·탭·터미널이 서로 다른 박자로 숨 쉰다. 회전(작업 중) 하나 + 맥동(주의) 하나, 주기는 토큰. `nav-attention-blink` 깜빡임은 맥동으로 교체 {#ramp-pulse}
 - [x] `screens.css` 의 transition 0.12s 15곳 삭제 — 전역 `:where(button)` = `--dur-1`(90ms) 와 싸우는 재정의라 지우기만 하면 된다. `@theme inline --ease-out`(App.css:110) 은 은퇴 곡선에 고정돼 tokens.css:180 과 갈라져 있다 {#ramp-dur-cleanup}
 - [x] 죽은 토큰 정리 — `App.css:404~406` 의 `--radius-card:16px`/`--radius-button:8px`/`--radius-chip:999px` 는 소비처 0인데 램프 밖 값을 이름으로 정당화한다(둥글기 lint 는 `border-radius:` 선언만 본다). `App.css:468`·`bootsplash.css:14` 의 z 리터럴 200 은 `var(--z-command)` 로 {#ramp-dead-tokens}
 
@@ -94,4 +94,5 @@ owner: claude-code
 | 2026-09-09T21:06:56+09:00 | #copy-greenfield | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2106_refactor_greenfield-wizard-voice.md | 감사가 못 짚은 게 더 컸다 — 다섯 스텝 제목이 물음표 문장 2 + 명사구 3 으로 갈려 있었다. welcome.step.* 규격으로 통일. "Today 탭"(없는 화면 이름) 4곳·"narrative" 2곳도 정리. raw Tailwind 버튼은 시각 변화라 남김 |
 | 2026-09-09T21:10:55+09:00 | #ramp-leading | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2110_refactor_leading-and-dim-ramps.md | 4단(1.35/1.45/1.55/1.7) 75곳. line-height:1 과 px 7곳은 조판이 아니라 도형(고정 높이 배지 수직 중앙)이라 제외하고 게이트도 소수만 본다. h1~h6 를 크기별로 가르는 건 조판 설계라 값만 램프에 얹음 |
 | 2026-09-09T21:11:02+09:00 | #ramp-dim | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2110_refactor_leading-and-dim-ramps.md | --dim-disabled 0.45 로 24곳. .iconbtn:disabled 의 color:--text-3 는 그대로 뒀다 — 흐림과 색을 동시에 바꾸면 눈으로 확인 없이 두 변수를 움직이는 것. --dim-quiet 은 즉시 소비처가 없어 만들지 않았다 |
+| 2026-09-09T21:38:26+09:00 | #ramp-pulse | claude-code | ☐→x | .oculpm/journal/20260909/Refactors/2138_refactor_loop-animation-periods.md | 2벌이 아니라 3벌이 맞았다(회전·맥동·느린 호흡). 25곳 치환, 예외 4(브랜드 로더 합성모션 3·캐럿 1). nav-attention-blink 는 오탐 — 이미 opacity 0.45 맥동이고 이름만 blink 였다(이름을 고침) |
 <!-- oculpm:plan-log end -->

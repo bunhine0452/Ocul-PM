@@ -32,7 +32,7 @@
   flex: none;
 }
 .agent-id.busy .agent-id-dot {
-  animation: ai-pulse 1.2s var(--ease-in-out) infinite;
+  animation: ai-pulse var(--pulse-dur) var(--ease-in-out) infinite;
 }
 .agent-id-meta {
   font-family: var(--mono);
@@ -295,7 +295,7 @@
 }
 .trace-row.running .trace-icon {
   color: var(--accent);
-  animation: ai-pulse 1.2s var(--ease-in-out) infinite;
+  animation: ai-pulse var(--pulse-dur) var(--ease-in-out) infinite;
 }
 .trace-row.failed .trace-icon {
   color: var(--t-bug);
@@ -695,7 +695,7 @@
   color: var(--text);
 }
 .agent-chip.busy .agent-id-dot {
-  animation: ai-pulse 1.2s var(--ease-in-out) infinite;
+  animation: ai-pulse var(--pulse-dur) var(--ease-in-out) infinite;
 }
 /* 값이 바뀌어도 **칩 폭이 변하지 않아야** 한다. "Low"→"울트라코드" 로 고칠
    때마다 하단바 전체가 밀리면 다음에 누르려던 버튼이 손 밑에서 도망간다.
@@ -1423,7 +1423,7 @@
   color: var(--text);
 }
 .usage-refresh.busy svg {
-  animation: usage-spin 900ms linear infinite;
+  animation: usage-spin var(--spin-dur) linear infinite;
 }
 @keyframes usage-spin {
   to {
@@ -1546,7 +1546,7 @@
 .think-dots::after {
   content: "···";
   letter-spacing: 1px; /* design-ignore -- 글자 사이가 아니라 점 세 개의 간격 (본문 자간 램프와 무관) */
-  animation: think-dots 1.4s steps(4, end) infinite;
+  animation: think-dots var(--pulse-dur) steps(4, end) infinite;
   clip-path: inset(0 100% 0 0);
 }
 @keyframes think-dots {
@@ -1583,7 +1583,9 @@
   margin-left: 2px;
   border-radius: var(--radius-2xs);
   background: var(--accent);
-  animation: agent-caret 1s steps(2, end) infinite;
+  /* design-ignore -- 텍스트 캐럿이다. 1초 온/오프는 터미널·에디터의 관례라
+     상태 표시의 맥박 주기와 같은 축이 아니다. */
+  animation: agent-caret 1s steps(2, end) infinite; /* design-ignore -- 위 주석의 캐럿 관례 */
 }
 @keyframes agent-caret {
   50% {
@@ -2339,7 +2341,7 @@
 .acp-layout .exchange .msg.assistant > .agent-word::before,
 .acp-layout .exchange .msg.assistant > .trace-item:has(.trace-row.running)::before {
   background: var(--accent);
-  animation: rail-pulse 1.4s var(--ease-in-out) infinite;
+  animation: rail-pulse var(--pulse-dur) var(--ease-in-out) infinite;
 }
 @keyframes rail-pulse {
   50% {
@@ -2455,7 +2457,7 @@
 .plan-item.in_progress .plan-mark {
   border-color: var(--accent);
   background: var(--accent);
-  animation: rail-pulse 1.4s var(--ease-in-out) infinite;
+  animation: rail-pulse var(--pulse-dur) var(--ease-in-out) infinite;
 }
 .plan-item.in_progress .plan-text {
   color: var(--text);
