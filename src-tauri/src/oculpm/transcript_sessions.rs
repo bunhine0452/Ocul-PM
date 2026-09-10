@@ -200,7 +200,7 @@ mod tests {
         // transcript 가 아닌 파일은 세션이 아니다.
         std::fs::write(slug.join("notes.txt"), "x").unwrap();
 
-        let all = recent_sessions(&[slug.clone()], 10);
+        let all = recent_sessions(std::slice::from_ref(&slug), 10);
         assert_eq!(
             all,
             vec![

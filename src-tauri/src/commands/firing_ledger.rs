@@ -13,8 +13,8 @@ use tauri::State;
 use crate::db::firings::FiringScanRow;
 use crate::db::Db;
 use crate::oculpm::firing_ledger::{self, FiringQuote, FiringStat, KIND_RULE};
-use crate::oculpm::transcript_sessions;
 use crate::oculpm::redact;
+use crate::oculpm::transcript_sessions;
 
 async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {
     let project = db

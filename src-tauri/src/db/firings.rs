@@ -279,8 +279,7 @@ impl Db {
                     crate::oculpm::firing_ledger::KIND_RULE.to_string(),
                 ));
                 vals.extend(session_files.into_iter().map(rusqlite::types::Value::Text));
-                let n: i64 =
-                    c.query_row(&sql, rusqlite::params_from_iter(vals), |r| r.get(0))?;
+                let n: i64 = c.query_row(&sql, rusqlite::params_from_iter(vals), |r| r.get(0))?;
                 Ok(n)
             })
             .await?;

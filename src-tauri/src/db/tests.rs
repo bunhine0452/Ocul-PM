@@ -276,15 +276,27 @@ async fn firing_rule_bytes_counts_only_the_given_sessions() {
         }]
     };
     // 창 안 세션 둘, 창 밖(옛 구성) 세션 하나.
-    for (file, bytes) in [("s/new.jsonl", 300u64), ("s/mid.jsonl", 200), ("s/old.jsonl", 9_000)] {
+    for (file, bytes) in [
+        ("s/new.jsonl", 300u64),
+        ("s/mid.jsonl", 200),
+        ("s/old.jsonl", 9_000),
+    ] {
         db.firing_apply_scan(1, file.into(), 0, false, 10, None, row("rule", bytes))
             .await
             .unwrap();
     }
     // 스킬 발동은 규칙 예산이 아니다 (bytes 는 0 이지만 kind 로도 갈린다).
-    db.firing_apply_scan(1, "s/new.jsonl".into(), 10, false, 20, None, row("skill", 77))
-        .await
-        .unwrap();
+    db.firing_apply_scan(
+        1,
+        "s/new.jsonl".into(),
+        10,
+        false,
+        20,
+        None,
+        row("skill", 77),
+    )
+    .await
+    .unwrap();
 
     let window = vec!["s/new.jsonl".to_string(), "s/mid.jsonl".to_string()];
     assert_eq!(
@@ -301,7 +313,9 @@ async fn firing_rule_bytes_counts_only_the_given_sessions() {
     );
     // transcript 가 없으면 질의 자체를 하지 않는다.
     assert_eq!(
-        db.firing_rule_bytes_for_sessions(1, Vec::new()).await.unwrap(),
+        db.firing_rule_bytes_for_sessions(1, Vec::new())
+            .await
+            .unwrap(),
         0
     );
 }
