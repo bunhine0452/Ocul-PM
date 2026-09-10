@@ -59,7 +59,7 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 - [!] 육안 확인 격자 — 라이트/다크 × 프리셋 5종으로 문법 강조 · 선택색 · 커서 · 미니맵 · sticky · 진단 밑줄. v3-release `{#eyes-hljs}` 가 이미 같은 격자를 요구하고 있어 한 번에 갚는다 {#fin-eyes}
 - [!] 성능 재측정 — 대용량 파일(수천 줄) 열기 · 스크롤 · 타이핑 지연. Phase 0 의 숫자와 대조해 `03-performance.md` 에 남긴다 {#fin-perf}
 - [x] 게이트 전부 exit 0 직접 확인 — typecheck · test · lint 6종 · build · cargo test. 파일 크기 래칫과 eslint 경고 한계(`--max-warnings`)에 여유가 없으니 함께 본다 {#fin-gates}
-- [!] 릴리스 5면 — 버전 6파일 · CHANGELOG · README ko/en · 랜딩 ko/en 각 6곳 + `build.mjs` 재빌드. **회고·문서 삭제(2026-09-08)의 미반영분도 이때 함께 간다** — 그 표면들은 아직 두 화면이 있는 v2.45.2 를 설명하고 있다 {#fin-release}
+- [x] 릴리스 5면 — 버전 6파일 · CHANGELOG · README ko/en · 랜딩 ko/en 각 6곳 + `build.mjs` 재빌드. **회고·문서 삭제(2026-09-08)의 미반영분도 이때 함께 간다** — 그 표면들은 아직 두 화면이 있는 v2.45.2 를 설명하고 있다 {#fin-release}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -102,4 +102,5 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 | 2026-09-09T20:29:58+09:00 | #fin-release | claude-code | ☐→! |  | **사용자 지시로 대기** (2026-09-09) — 다른 세션이 끝나면 알려 주기로. 손도 안 댔다: 버전 6파일·CHANGELOG·README ko/en·랜딩 ko/en 전부 그대로. 재개 시 순서는 docs/RELEASE.md — 버전 6곳 → 게이트(cargo test 가 Cargo.lock 갱신) → CHANGELOG → README 양쪽 → 랜딩 각 6곳 + plugin.html 배지 둘 → build.mjs → main CI 초록 확인 후 태그. 릴리스 전에 {#eyes-hljs} 격자를 걷는 것이 이 라운드의 성격상 맞다 — 편집기를 통째로 갈았는데 사람이 한 번도 안 봤다 |
 | 2026-09-10T19:39:54+09:00 | #cap-semantic | claude-code | !→x | .oculpm/journal/20260910/Features_to_add/1939_feature_monaco-semantic-tokens-and-attribution.md | 해제 조건(firing-ledger 머지) 충족 확인 후 구현. legend 는 initialize 답에 이미 있어 요청 0회 — 데이터와 따로 나른 이유는 Monaco 가 공급자당 getLegend() 를 한 번만 읽어 캐시하기 때문. 함정 셋: 핸드셰이크에 안 알리면 rust-analyzer 가 능력조차 광고 안 함 · standalone 테마는 semanticHighlighting 이 항상 false 라 옵션으로 켜야 함 · 테마 규칙 빠뜨린 종류는 본문색이 되어 켜기 전보다 나빠짐(builtinType·lifetime 포함 15종 추가+커버리지 테스트). full 못 하는 서버엔 안 담. spec.rs 래칫 때문에 lsp/semantic.rs 신설 |
 | 2026-09-10T19:40:03+09:00 | #agent-attribution | claude-code | !→x | .oculpm/journal/20260910/Features_to_add/1939_feature_monaco-semantic-tokens-and-attribution.md | 남아 있던 ③ 완료 — code_write 에 by_agent 를 더해 자기-쓰기 쪽지가 손까지 적는다. 저장 창구는 ⌘S 든 ⌘K 든 같은 code_write 라 창구만 보면 둘 다 사람이 된다. 프런트는 "아직 저장 안 함" 집합에 넣고 저장 때 한 번 꺼내 쓴다(한 번 적히고 지워짐 — 안 지우면 이후 저장이 전부 에이전트). 일지 tallies 와 다른 축이라 따로 둠 |
+| 2026-09-10T20:27:09+09:00 | #fin-release | claude-code | !→x | .oculpm/journal/20260910/Chores/2026_chore_release-2-46-0.md | v2.46.0 릴리스 — 다섯 면 전부 + 회고·문서 삭제 미반영분 동승. FAQ 가 실제로 거짓이 되어 있었다(「산출물」 답변이 사라진 PR 본문·주간 보고를 계속 약속) → 지금 있는 것으로 재작성. FAQ 는 JSON-LD 와 <details> 두 곳이라 양쪽 고침. 위키 screens.md ⌘번호 표가 2026-09-06 IA 재편 이전에 멈춰 있던 것도 함께 정정. main CI 3잡 초록 확인 후 태그, 랜딩 배포 후 라이브 확인(ko·en 2.46.0 · /wiki/retro 404) |
 <!-- oculpm:plan-log end -->
