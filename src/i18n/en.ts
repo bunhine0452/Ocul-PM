@@ -1042,6 +1042,7 @@ export const en: Record<keyof typeof ko, string> = {
   "time.minutes": "{n}m",
 
   // ── Journal · diff ──────────────────────────────────────────────────────
+  "journal.typeFilterAria": "Filter by type",
   "journal.filter.all": "All",
   "journal.filter.feature": "Features",
   "journal.filter.bugfix": "Bugs",
@@ -2035,6 +2036,7 @@ export const en: Record<keyof typeof ko, string> = {
   "code.tree.loading": "Loading…",
   "code.tree.emptyDir": "Empty folder",
   "code.tree.empty": "No files to show",
+  "code.tree.collapseAll": "Collapse all",
   "code.tree.ignoredHint": "Your repository has chosen to ignore this (not searched or indexed)",
   "code.tree.dirTruncated": "{dir} has too many entries — showing only some of them",
   "code.tree.dirFailed": "Couldn't read the folder — {error}",

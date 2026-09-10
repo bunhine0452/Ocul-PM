@@ -2,15 +2,16 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { SearchIcon, X, Plus, ChevronDown, ChevronRight, NotebookText } from "@/components/Icons";
+import { SearchIcon, X, Plus, NotebookText } from "@/components/Icons";
 import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
 import type { EntryFilters, EntryType, JournalEntrySummary } from "@/lib/bindings";
 import { oculpmApi } from "@/api/oculpm";
 import { JOURNAL_PAGE_SIZE, useJournalDays } from "./useJournalDays";
-import { JournalCardV2 } from "./JournalCardV2";
+import { JournalDay } from "./JournalDay";
 import { EntryDetailView } from "./EntryDetailView";
 import { ManualEntryModalV2 } from "./ManualEntryModalV2";
 import { TRIGGER_META } from "./triggerMeta";
+import "./journal.css";
 import { SourceFilterRail } from "./SourceBadge";
 import { sourceOf, type EntrySource } from "./entrySource";
 import { toast } from "@/lib/toast";
@@ -48,13 +49,17 @@ const FILTER_TO_TYPE: Record<Exclude<JournalFilter, "all">, EntryType> = {
  */
 const DAY_PAGE_SIZE = 25;
 
-const CHIPS: { id: JournalFilter; labelKey: I18nKey }[] = [
-  { id: "all", labelKey: "journal.filter.all" },
-  { id: "feature", labelKey: "journal.filter.feature" },
-  { id: "bugfix", labelKey: "journal.filter.bugfix" },
-  { id: "refactor", labelKey: "journal.filter.refactor" },
-  { id: "error", labelKey: "journal.filter.error" },
-  { id: "chore", labelKey: "journal.filter.chore" },
+/**
+ * 종류 세그먼트 (2026-09-11 리디자인). 예전엔 칩 여섯이 툴바를 채웠다 — 이제
+ * `.seg` 하나이고, 칸마다 종류색 점이 붙어 본문 척추·범례와 같은 색을 가리킨다.
+ */
+const CHIPS: { id: JournalFilter; labelKey: I18nKey; type: EntryType | null }[] = [
+  { id: "all", labelKey: "journal.filter.all", type: null },
+  { id: "feature", labelKey: "journal.filter.feature", type: "feature" },
+  { id: "bugfix", labelKey: "journal.filter.bugfix", type: "bug" },
+  { id: "refactor", labelKey: "journal.filter.refactor", type: "refactor" },
+  { id: "error", labelKey: "journal.filter.error", type: "error" },
+  { id: "chore", labelKey: "journal.filter.chore", type: "chore" },
 ];
 
 interface JournalScreenV2Props {
@@ -436,6 +441,9 @@ export function JournalScreenV2({
     );
   }
 
+  // 레일 막대의 분모 — 가장 바쁜 날이 꽉 찬 막대다.
+  const railMax = Math.max(1, ...(filteredDays ?? []).map((d) => d.entries.length));
+
   return (
     <>
       <Toolbar title={t("nav.journal")} sub={t("journal.toolbarSub", { n: total })}>
@@ -460,18 +468,28 @@ export function JournalScreenV2({
             </button>
           ) : null}
         </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {CHIPS.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={"scope-chip" + (filter === c.id ? " on" : "")}
-              style={{ height: 28 }}
-              onClick={() => setFilter(c.id)}
-            >
-              {t(c.labelKey)}
-            </button>
-          ))}
+        <div className="seg" role="tablist" aria-label={t("journal.typeFilterAria")}>
+          {CHIPS.map((c) => {
+            const m = c.type ? TRIGGER_META[c.type] : null;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="tab"
+                aria-selected={filter === c.id}
+                className="seg-item"
+                onClick={() => setFilter(c.id)}
+              >
+                {m ? (
+                  <i
+                    className="jl-dot"
+                    style={{ "--c": `var(--t-${m.cssVar})` } as React.CSSProperties}
+                  />
+                ) : null}
+                {t(c.labelKey)}
+              </button>
+            );
+          })}
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <button
@@ -504,8 +522,8 @@ export function JournalScreenV2({
       </Toolbar>
 
       <div className="scroll" ref={scrollRef}>
-        <div className="page journal-wrap">
-          <div className="journal-col fade-in">
+        <div className="page jl-wrap">
+          <div className="jl-col fade-in">
             {error ? (
               <ErrorCard
                 title={t("journal.loadFailed")}
@@ -519,7 +537,7 @@ export function JournalScreenV2({
                 좁히지 못하는 장식이다). 툴바가 아니라 목록 위에 두는 이유: 이건
                 화면의 설정이 아니라 **지금 이 목록**을 좁히는 손잡이다. */}
             {!loading || days != null ? (
-              <div style={{ marginBottom: 10 }}>
+              <div className="jl-notice">
                 <SourceFilterRail
                   sources={sourceStats.list}
                   counts={sourceStats.counts}
@@ -531,24 +549,10 @@ export function JournalScreenV2({
 
             {/* 상한을 넘겼다는 사실은 **목록 위**에 적는다. 바닥에만 두면
                 끝까지 스크롤한 사람만 알게 되는데, 이 상한은 "전부 보고
-                있다"는 착각을 만드는 종류라 먼저 말해야 한다. */}
-            {/* `EmptyState` 가 아니다 — 목록은 **비어 있지 않다.** 이 줄은 "다
-                못 실었다"는 알림이고, 빈 상태 프리미티브를 알림 줄에 쓰면
-                `padding: 60px 30px` 을 매번 인라인으로 되돌리게 된다
-                (`.a2a-sub` 주석이 같은 사고를 기록해 뒀다). 토큰 두 개면 된다. */}
+                있다"는 착각을 만드는 종류라 먼저 말해야 한다. `EmptyState`
+                가 아니다 — 목록은 비어 있지 않다. */}
             {truncated ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  justifyContent: "space-between",
-                  padding: "8px 12px",
-                  marginBottom: 10,
-                  color: "var(--text-2)",
-                  fontSize: "var(--fs-3)",
-                }}
-              >
+              <div className="jl-notice">
                 <span>
                   {t("journal.limited", {
                     loaded: pageLoaded ?? 0,
@@ -576,15 +580,12 @@ export function JournalScreenV2({
                 {t("journal.notActive")}
               </EmptyState>
             ) : filteredDays && filteredDays.length > 0 ? (
-              <>
-                {filteredDays.map((day, idx) => {
+              filteredDays.map((day, idx) => {
                 // 기본값만 필터 여부로 갈린다. 예전엔 `searchActive` 가 값을
                 // 통째로 덮어써서, 필터가 걸린 동안 머리글 버튼이 상태만
                 // 바꾸고 화면은 그대로인 **죽은 버튼**이었다.
                 const open = dayOpen[day.workday] ?? (searchActive ? true : idx < 2);
                 const shown = dayShown[day.workday] ?? DAY_PAGE_SIZE;
-                const visible = day.entries.slice(0, shown);
-                const hidden = day.entries.length - visible.length;
                 return (
                   <div
                     key={day.workday}
@@ -594,59 +595,23 @@ export function JournalScreenV2({
                     data-workday={day.workday}
                     style={{ scrollMarginTop: 8 }}
                   >
-                    <button
-                      type="button"
-                      className="day-head"
-                      onClick={() => setDayOpen((p) => ({ ...p, [day.workday]: !open }))}
-                      aria-expanded={open}
-                    >
-                      {open ? (
-                        <ChevronDown size={15} color="var(--text-3)" />
-                      ) : (
-                        <ChevronRight size={15} color="var(--text-3)" />
-                      )}
-                      <span className="day-head-label">{day.label}</span>
-                      <span className="day-head-line" />
-                      <span className="day-head-count">{t("journal.dayCount", { n: day.entries.length })}</span>
-                    </button>
-                    {open ? (
-                      <div className="tl">
-                        {visible.map((e) => (
-                          <div className="tl-node" key={e.relative_path}>
-                            <span className="tl-dot">
-                              <TriggerMeticon type={e.type} />
-                            </span>
-                            <JournalCardV2
-                              entry={e}
-                              focused={focusPath === e.relative_path}
-                              onOpenEntry={(entry) => {
-                                setDetailFromExternal(false);
-                                setDetailEntry(entry);
-                              }}
-                            />
-                          </div>
-                        ))}
-                        {hidden > 0 ? (
-                          <button
-                            type="button"
-                            className="btn sm"
-                            style={{ margin: "8px 0 0 28px" }}
-                            onClick={() =>
-                              setDayShown((p) => ({
-                                ...p,
-                                [day.workday]: shown + DAY_PAGE_SIZE,
-                              }))
-                            }
-                          >
-                            {t("journal.dayMore", { n: hidden })}
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : null}
+                    <JournalDay
+                      day={day}
+                      open={open}
+                      onToggle={() => setDayOpen((p) => ({ ...p, [day.workday]: !open }))}
+                      shown={shown}
+                      onShowMore={() =>
+                        setDayShown((p) => ({ ...p, [day.workday]: shown + DAY_PAGE_SIZE }))
+                      }
+                      focusPath={focusPath}
+                      onOpenEntry={(entry) => {
+                        setDetailFromExternal(false);
+                        setDetailEntry(entry);
+                      }}
+                    />
                   </div>
                 );
-                })}
-              </>
+              })
             ) : searchActive ? (
               <EmptyState>{t("journal.noMatch")}</EmptyState>
             ) : (
@@ -712,6 +677,7 @@ export function JournalScreenV2({
             ) : null}
           </div>
 
+          {/* 날짜 레일 — 눈금마다 막대가 그날 건수다 (분모 = 최다). */}
           {filteredDays && filteredDays.length > 1 ? (
             <nav className="date-rail" aria-label={t("journal.dateRail")}>
               {filteredDays.map((day) => (
@@ -726,6 +692,13 @@ export function JournalScreenV2({
                     {day.workday.slice(4, 6)}-{day.workday.slice(6, 8)}
                   </span>
                   <span className="date-rail-n">{day.entries.length}</span>
+                  <span className="date-rail-bar" aria-hidden="true">
+                    <i
+                      style={
+                        { "--w": `${Math.round((day.entries.length / railMax) * 100)}%` } as React.CSSProperties
+                      }
+                    />
+                  </span>
                 </button>
               ))}
             </nav>
@@ -748,11 +721,4 @@ export function JournalScreenV2({
       ) : null}
     </>
   );
-}
-
-/** The trigger-colored dot icon inside a timeline node. */
-function TriggerMeticon({ type }: { type: EntryType }) {
-  const m = TRIGGER_META[type] ?? TRIGGER_META.chore;
-  const Icon = m.icon;
-  return <Icon size={11} strokeWidth={2.2} color={`var(--t-${m.cssVar})`} />;
 }

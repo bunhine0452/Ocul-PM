@@ -4,7 +4,7 @@ import type { AxeResults, Result } from "axe-core";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
 import { SourceBadge, SourceFilterRail } from "@/features/oculpm/SourceBadge";
-import { JournalCardV2 } from "@/features/oculpm/JournalCardV2";
+import { JournalDay } from "@/features/oculpm/JournalDay";
 import type { JournalEntrySummary } from "@/lib/bindings";
 import { SessionPanel } from "@/features/chat/conversation/SessionPanel";
 import { sortActiveFirst } from "@/features/chat/acpHistory";
@@ -202,22 +202,74 @@ function entry(over: Partial<JournalEntrySummary>): JournalEntrySummary {
   };
 }
 
-describe("일지 카드의 출처 배지", () => {
-  it("에이전트가 쓴 일지와 자동화가 쓴 일지가 다른 말을 한다", () => {
-    const { rerender } = render(
-      <JournalCardV2 entry={entry({})} focused={false} onOpenEntry={() => {}} />,
-    );
-    expect(screen.getByText("에이전트")).toBeInTheDocument();
+function day(entries: JournalEntrySummary[]) {
+  return { workday: "20260901", label: "2026-09-01", entries };
+}
 
+function renderDay(entries: JournalEntrySummary[]) {
+  return render(
+    <JournalDay
+      day={day(entries)}
+      open
+      onToggle={() => {}}
+      shown={25}
+      onShowMore={() => {}}
+      focusPath={null}
+      onOpenEntry={() => {}}
+    />,
+  );
+}
+
+// 2026-09-11 원장 리디자인 — 출처는 **그날 안에서 갈릴 때만** 행에 남고,
+// 하나뿐이면 날짜 머리글이 한 번 말한다. 에이전트 기록은 기본값이라 아예
+// 말하지 않는다 (카드마다 「에이전트」 가 되풀이되던 것이 소음의 정체였다).
+describe("일지 행의 출처 배지", () => {
+  it("에이전트만 있는 날은 출처를 말하지 않는다 — 기본값이다", () => {
+    renderDay([entry({})]);
+    expect(screen.queryByText("에이전트")).toBeNull();
+  });
+
+  it("자동화만 있는 날은 머리글이 한 번 말한다", () => {
+    renderDay([entry({ session_id: "sched-20260901-090000", agent_id: "auto:anthropic" })]);
+    expect(screen.getAllByText("스케줄")).toHaveLength(1);
+    expect(screen.queryByText("에이전트")).toBeNull();
+  });
+
+  it("섞인 날은 행마다 제 출처를 말한다", () => {
+    renderDay([
+      entry({ relative_path: "a", title: "사람이 시킨 것" }),
+      entry({
+        relative_path: "b",
+        title: "시간이 시킨 것",
+        session_id: "sched-20260901-090000",
+        agent_id: "auto:anthropic",
+      }),
+    ]);
+    const rows = screen.getAllByRole("button", { name: /변경 기록 열기/ });
+    expect(rows).toHaveLength(2);
+    // 에이전트 기록은 섞인 날에도 배지가 없다 — 작성자 이름이 그 말을 한다.
+    expect(within(rows[0]).queryByText("에이전트")).toBeNull();
+    expect(within(rows[0]).getByText("Claude Code")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("스케줄")).toBeInTheDocument();
+  });
+
+  it("작성자가 하나면 머리글에만, 둘이면 행마다 건수와 함께", () => {
+    const { rerender } = renderDay([entry({}), entry({ relative_path: "b" })]);
+    expect(screen.getAllByText("Claude Code")).toHaveLength(1);
     rerender(
-      <JournalCardV2
-        entry={entry({ session_id: "sched-20260901-090000", agent_id: "auto:anthropic" })}
-        focused={false}
+      <JournalDay
+        day={day([entry({}), entry({ relative_path: "b", agent_id: "cursor" })])}
+        open
+        onToggle={() => {}}
+        shown={25}
+        onShowMore={() => {}}
+        focusPath={null}
         onOpenEntry={() => {}}
       />,
     );
-    expect(screen.getByText("스케줄")).toBeInTheDocument();
-    expect(screen.queryByText("에이전트")).toBeNull();
+    // 머리글 명단 1 + 행 1 = 2.
+    expect(screen.getAllByText("Claude Code")).toHaveLength(2);
+    expect(screen.getAllByText("Cursor")).toHaveLength(2);
   });
 });
 

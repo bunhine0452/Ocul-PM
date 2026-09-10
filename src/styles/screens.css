@@ -1,5 +1,5 @@
 /* ============================================================
-   screens.css — .today-* / .stat-* / .jcard / .diff-* / .goal-* /
+   screens.css — .today-* / .stat-* / .diff-* / .goal-* /
    .search-* / .term-* / .ai-* / .set-*
    Final UI Update round. Ported from the mockup (Ocul-PM1.0/screens.css).
    Loaded only with the ui_v2 shell (ShellV2 lazy chunk). Filled per screen PR.
@@ -150,91 +150,6 @@
   font-size: var(--fs-3); font-weight: var(--fw-bold); letter-spacing: var(--caps-track); text-transform: var(--caps-transform); color: var(--text-3);
 }
 .day-label::after { content: ""; flex: 1; height: 1px; background: var(--sep); }
-.tl { position: relative; padding-left: 30px; }
-.tl::before { content: ""; position: absolute; left: 9px; top: 6px; bottom: 6px; width: 2px; background: var(--sep); }
-.tl-node { position: relative; margin-bottom: 14px; }
-.tl-dot {
-  position: absolute; left: -29px; top: 16px; width: 20px; height: 20px /* design-ignore -- 타임라인 점(원) — 장식 */; border-radius: 50%;
-  background: var(--bg-content); border: 2px solid var(--sep-strong);
-  display: grid; place-items: center; z-index: 1;
-}
-
-/* Timeline layout (Dogfooding 2026-06-14 #1): content column + sticky date rail.
-   여백·최대폭·가운데맞춤은 `.page`(shell.css) 가 갖는다 — 예전엔 그 네 줄을
-   손으로 복사해 두고 있었다. 값이 같아 보이는 동안은 아무도 모르지만, `.page`
-   를 고치는 순간 일지만 안 따라온다 (2026-09-10 {#layout-widths}). */
-.journal-wrap {
-  display: flex; gap: var(--space-7); align-items: flex-start; justify-content: center;
-}
-.journal-col { flex: 1 1 auto; min-width: 0; max-width: 820px; }
-
-/* Collapsible day header — replaces the static .day-label. Chevron · label ·
-   filler line · count. The whole row toggles the day open/closed. */
-.day-head {
-  display: flex; align-items: center; gap: var(--space-3); width: 100%;
-  margin: var(--space-4) 2px var(--space-5); padding: var(--space-1) 2px;
-  background: none; border: none; cursor: pointer; text-align: left;
-  font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-bold);
-  letter-spacing: var(--caps-track); text-transform: var(--caps-transform); color: var(--text-3);
-}
-.day-head:hover { color: var(--text-2); }
-.day-head-label { flex: 0 0 auto; }
-.day-head-line { flex: 1 1 auto; height: 1px; background: var(--sep); }
-.day-head-count {
-  flex: 0 0 auto; font-weight: var(--fw-strong); color: var(--text-3);
-  text-transform: none; letter-spacing: 0; font-family: var(--mono); font-size: var(--fs-2);
-}
-
-/* Sticky date scrubber — jump to any loaded day; highlights the one in view. */
-.date-rail {
-  position: sticky; top: 4px; align-self: flex-start; flex: 0 0 auto;
-  width: 58px; max-height: calc(100vh - 130px); overflow-y: auto;
-  display: flex; flex-direction: column; gap: 3px; padding: var(--space-1) 0;
-}
-.date-rail-item {
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-  padding: var(--space-2) 0; border-radius: var(--radius-m); cursor: pointer;
-  background: none; border: 1px solid transparent; color: var(--text-3);
-  font-family: var(--mono); transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
-}
-.date-rail-item:hover { background: var(--bg-card); color: var(--text-2); border-color: var(--border-card); }
-.date-rail-item.active { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
-.date-rail-md { font-size: var(--fs-2); font-weight: var(--fw-strong); }
-.date-rail-n { font-size: var(--fs-0); opacity: 0.8; }
-/* 창이 아니라 **이 화면 칸**의 폭이다 (2026-09-10 {#layout-container-query}).
-   옛 `@media 940` 은 사이드바를 못 봐서, 터미널 도크를 열면 일지 열이 눌리는데도
-   레일이 끝까지 버텼다. */
-@container screen (max-width: 640px) { .date-rail { display: none; } }
-.jcard {
-  background: var(--bg-card); border: 1px solid var(--border-card);
-  border-radius: var(--radius-l); box-shadow: var(--shadow-card);
-  cursor: default; overflow: hidden;
-  transition:
-    border-color var(--dur-1) var(--ease-out),
-    box-shadow var(--dur-2) var(--ease-out),
-    transform var(--dur-2) var(--ease-out);
-  font-family: var(--font); color: var(--text); display: block;
-}
-/* hover 는 팝오버 그림자(--shadow-pop)가 아니라 한 단계 승격 + 1px 상승 —
-   '떠오르는 카드' 물성 (UI 폴리시 라운드 2026-07-16). */
-.jcard:hover { border-color: var(--sep-strong); box-shadow: var(--shadow-raise); transform: translateY(-1px); }
-/* The "open 변경 diff" target — top + title. A real <button> so it's the
-   primary control; the file chips below are sibling buttons (no nested
-   interactive, keeping axe happy). */
-.jcard-main {
-  appearance: none; -webkit-appearance: none; border: none; background: none;
-  font-family: var(--font); text-align: left; width: 100%; color: var(--text);
-  display: block; cursor: pointer; padding: 0;
-}
-.jcard-top { display: flex; align-items: center; gap: var(--space-4); padding: 13px var(--space-6) 0; }
-.jcard-time { margin-left: auto; font-size: var(--fs-3); color: var(--text-3); font-family: var(--mono); }
-.jcard-agent { font-size: var(--fs-3); color: var(--text-2); display: flex; align-items: center; gap: var(--space-2); font-weight: var(--fw-label); }
-.jcard-title { font-size: var(--fs-5); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); padding: var(--space-4) var(--space-6) 0; }
-.jcard-summary { color: var(--text-2); padding: var(--space-2) var(--space-6) 0; line-height: var(--lh-body); }
-.jcard-foot {
-  display: flex; align-items: center; gap: var(--space-4); padding: var(--space-5) var(--space-6) 13px; margin-top: var(--space-5);
-  flex-wrap: wrap;
-}
 .file-pill {
   height: 26px; padding: 0 var(--space-4);
   background: var(--bg-inset); border-radius: var(--radius-s); font-size: var(--fs-3); color: var(--text-2);

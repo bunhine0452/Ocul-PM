@@ -1043,6 +1043,7 @@ export const ko = {
   "time.minutes": "{n}분",
 
   // ── 일지 · diff ─────────────────────────────────────────────────────────
+  "journal.typeFilterAria": "종류로 좁히기",
   "journal.filter.all": "전체",
   "journal.filter.feature": "기능",
   "journal.filter.bugfix": "버그",
@@ -2043,6 +2044,7 @@ export const ko = {
   "code.tree.loading": "읽는 중…",
   "code.tree.emptyDir": "빈 폴더",
   "code.tree.empty": "표시할 파일이 없어요",
+  "code.tree.collapseAll": "모두 접기",
   "code.tree.ignoredHint": "저장소가 무시하도록 정한 항목이에요 (검색·인덱싱 대상 아님)",
   "code.tree.dirTruncated": "{dir} 의 항목이 너무 많아 일부만 보여줘요",
   "code.tree.dirFailed": "폴더를 읽지 못했어요 — {error}",

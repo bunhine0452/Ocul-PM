@@ -1,0 +1,155 @@
+/* ============================================================
+   journal.css — 작업 일지 화면: 원장(ledger) (2026-09-11 리디자인)
+
+   예전 화면은 카드 더미였다. 카드마다 「에이전트 · Claude Code · Fable 5.1」
+   이 되풀이됐고, 종류 아이콘은 타임라인 점과 배지에 두 번 찍혔고, 한 화면에
+   다섯 장이 들어갔다. 일지는 하루치가 수십 건 쌓이는 **기록부**다 — 화면도
+   기록부여야 한다: 한 줄이 한 건, 시각은 왼쪽 여백, 종류는 색 하나.
+
+   구조가 곧 위계다:
+     날짜(masthead)   큰 날짜 · 요일 · 건수 · **하루의 모양**(항목마다 한 조각인
+                      색띠) · 종류 범례 · 작성자 명단. 스크롤 중 위에 붙는다.
+     항목(row)        [시각 | 척추 | 제목 + 메타] 격자. 상자도 그림자도 없이
+                      구분선만. 척추 한 토막이 그 항목의 종류색이다 — 내려
+                      읽으면 하루가 막대그래프로 보인다.
+     메타             날짜 안에서 값이 하나뿐인 것(작성자·출처)은 머리글로
+                      올라가고, 행에는 **달라지는 것만** 남는다.
+   색은 종류만 말한다 (--t-*). 강조색은 선택·초점에만 쓴다.
+
+   `.page`(shell.css) 가 여백·컨테이너를 갖고, 폭 반응은 `@container screen`.
+   ============================================================ */
+
+.jl-wrap { display: flex; gap: var(--space-7); align-items: flex-start; justify-content: center; }
+.jl-col { flex: 1 1 auto; min-width: 0; max-width: var(--read-wide); }
+
+/* 목록 위 손잡이(출처 레일 · 상한 고지)는 절과 같은 간격으로 쌓인다. */
+.jl-notice {
+  display: flex; align-items: center; gap: var(--space-4); justify-content: space-between;
+  padding: var(--space-3) 0; margin-bottom: var(--space-4);
+  color: var(--text-2); font-size: var(--fs-3);
+}
+
+/* ── 날짜 절 ──────────────────────────────────────────────────────────────── */
+.jl-day { margin-bottom: var(--space-8); }
+
+/* 머리글 — 스크롤 중 붙는다. 불투명 바탕이 아니면 행이 글자 뒤로 비친다. */
+.jl-mast {
+  position: sticky; top: 0; z-index: var(--z-sticky);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "title count" "strip strip" "legend roster";
+  column-gap: var(--space-6); row-gap: var(--space-3);
+  align-items: end;
+  padding: var(--space-3) 0 var(--space-4);
+  background: var(--bg-content); border-bottom: 1px solid var(--sep-strong);
+}
+.jl-mast.is-closed { grid-template-areas: "title count" "legend roster"; }
+
+.jl-mast-title { grid-area: title; min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+/* 접기 토글 — 날짜 자체가 손잡이다. */
+.jl-day-toggle {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  appearance: none; -webkit-appearance: none; border: none; background: none;
+  padding: 2px var(--space-2); margin-left: calc(-1 * var(--space-2)); border-radius: var(--radius-s);
+  font-family: var(--font); color: var(--text); cursor: pointer; text-align: left;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.jl-day-toggle:hover { background: var(--bg-hover); }
+.jl-day-toggle > svg { color: var(--text-3); flex: none; }
+.jl-day-label {
+  font-size: var(--fs-8); font-weight: var(--fw-bold); letter-spacing: var(--track-snug);
+  line-height: var(--lh-tight); font-variant-numeric: tabular-nums;
+}
+.jl-day-weekday { font-size: var(--fs-4); color: var(--text-2); font-weight: var(--fw-label); }
+.jl-day-count {
+  grid-area: count; justify-self: end;
+  font-family: var(--mono); font-size: var(--fs-4); color: var(--text-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* 하루의 모양 — 항목마다 한 조각. 왼쪽이 아침. */
+.jl-strip { grid-area: strip; display: flex; gap: 2px; height: 6px; }
+.jl-strip > i { flex: 1 1 0; min-width: 2px; border-radius: var(--radius-2xs); background: var(--c, var(--sep-strong)); }
+
+/* 범례 — 종류색 점 + 이름 + 건수. 툴바 세그먼트와 같은 점이다. */
+.jl-legend { grid-area: legend; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-5); font-size: var(--fs-3); color: var(--text-2); min-width: 0; }
+.jl-legend > span { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+.jl-legend > span > b { font-family: var(--mono); font-weight: var(--fw-strong); color: var(--text); }
+/* `<i>` 는 인라인이라 flex 밖(툴바 세그먼트)에서는 크기가 죽는다 — 블록으로. */
+.jl-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--text-3)); flex: none; vertical-align: 0; }
+.seg-item > .jl-dot { margin-right: var(--space-2); }
+
+/* 작성자 명단 — 그날 값이 하나면 이름만, 여럿이면 이름마다 건수. */
+.jl-roster { grid-area: roster; justify-self: end; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-2) var(--space-4); font-size: var(--fs-3); color: var(--text-2); min-width: 0; }
+.jl-roster > span { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+.jl-roster > span > b { font-family: var(--mono); font-weight: var(--fw-strong); color: var(--text); }
+.jl-agent-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c); flex: none; }
+
+/* ── 항목 행 ──────────────────────────────────────────────────────────────── */
+.jl-rows { display: flex; flex-direction: column; }
+.jl-row {
+  display: grid; grid-template-columns: 44px 3px minmax(0, 1fr);
+  column-gap: var(--space-4);
+  width: 100%; padding: 0; margin: 0;
+  appearance: none; -webkit-appearance: none; border: none; background: none;
+  border-bottom: 1px solid var(--sep);
+  font-family: var(--font); color: var(--text); text-align: left; cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.jl-row:hover { background: var(--bg-hover); }
+.jl-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+/* Today 에서 건너온 초점 — 1.6초 강조 (JournalRow.tsx 가 클래스를 붙였다 뗀다). */
+.jl-row.is-focus { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+.jl-row.is-open { color: var(--text-2); }
+
+.jl-time {
+  padding: var(--space-4) 0 0 var(--space-2);
+  font-family: var(--mono); font-size: var(--fs-3); color: var(--text-3);
+  font-variant-numeric: tabular-nums; line-height: var(--lh-snug); white-space: nowrap;
+}
+/* 척추 — 행 높이를 꽉 채우는 색 토막. 행 사이 구분선이 토막을 가른다. */
+.jl-spine { background: var(--c, var(--sep-strong)); align-self: stretch; margin: 1px 0; border-radius: var(--radius-pill); }
+.jl-body { min-width: 0; padding: var(--space-4) var(--space-3) var(--space-4) 0; }
+.jl-title {
+  font-size: var(--fs-5); font-weight: var(--fw-label); line-height: var(--lh-snug);
+  letter-spacing: var(--track-tight); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.jl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-top: var(--space-2); font-size: var(--fs-3); color: var(--text-3); }
+.jl-type { color: var(--c); font-weight: var(--fw-strong); white-space: nowrap; }
+.jl-meta .cycle-flag { font-size: var(--fs-3); }
+.jl-verified { display: inline-flex; color: var(--ok); }
+.jl-meta-agent { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-2); font-weight: var(--fw-label); white-space: nowrap; }
+.jl-tags { display: inline-flex; flex-wrap: wrap; gap: var(--space-3); margin-left: auto; }
+
+.jl-more { margin: var(--space-4) 0 0 calc(44px + 3px + var(--space-4) * 2); }
+
+/* ── 날짜 레일 — 오른쪽에 붙는 달력 눈금. 막대 = 그날 건수 / 최다 ─────────── */
+.date-rail {
+  position: sticky; top: 4px; align-self: flex-start; flex: 0 0 auto;
+  width: 64px; max-height: calc(100vh - 130px); overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px; padding: var(--space-1) 0;
+}
+.date-rail-item {
+  display: grid; grid-template-columns: 1fr auto; row-gap: 3px; align-items: baseline;
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-s); cursor: pointer;
+  background: none; border: none; color: var(--text-3); text-align: left;
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.date-rail-item:hover { background: var(--bg-hover); color: var(--text-2); }
+.date-rail-item.active { background: var(--accent-soft); color: var(--accent-text); }
+.date-rail-md { font-size: var(--fs-2); font-weight: var(--fw-strong); }
+.date-rail-n { font-size: var(--fs-1); }
+.date-rail-bar { grid-column: 1 / -1; height: 3px; border-radius: var(--radius-pill); background: var(--bg-inset); overflow: hidden; }
+.date-rail-bar > i { display: block; height: 100%; width: var(--w); background: currentColor; opacity: 0.55; border-radius: inherit; }
+.date-rail-item.active .date-rail-bar > i { opacity: 1; }
+
+/* 창이 아니라 **이 화면 칸**의 폭이다 ({#layout-container-query}). */
+@container screen (max-width: 640px) {
+  .date-rail { display: none; }
+  .jl-mast { grid-template-areas: "title count" "strip strip" "legend legend" "roster roster"; }
+  .jl-mast.is-closed { grid-template-areas: "title count" "legend legend" "roster roster"; }
+  .jl-roster { justify-self: start; justify-content: flex-start; }
+  .jl-row { column-gap: var(--space-3); }
+  .jl-more { margin-left: calc(44px + 3px + var(--space-3) * 2); }
+}
