@@ -6,6 +6,7 @@ import { formatCwdCrumb, formatElapsed } from "./railModel";
 import { summarizeShell } from "./shellStatus";
 import { useSecondTick } from "./useSecondTick";
 import type { ShellState } from "./oscShell";
+import type { BlockTone } from "./commandBlocks";
 
 // 페인 머리띠 (2026-09-11 터미널 리디자인).
 //
@@ -35,6 +36,16 @@ import type { ShellState } from "./oscShell";
 
 export type PaneHeadTone = "running" | "waiting" | "ok" | "fail" | "idle" | "off";
 
+/** 머리띠 오른쪽의 이력 핍 하나 — 최근 명령 하나의 결과. */
+export interface PanePip {
+  id: number;
+  tone: BlockTone;
+  command: string;
+}
+
+/** 핍 개수 — 한눈에 세지 않고도 "요즘 어땠나" 가 읽히는 만큼만. */
+export const PIP_COUNT = 8;
+
 export interface TerminalPaneHeadProps {
   /** 세션(탭) 이름 — cwd 를 모르면 이걸 보여준다. */
   label: string;
@@ -46,6 +57,12 @@ export interface TerminalPaneHeadProps {
   zoomed: boolean;
   onZoom: () => void;
   onClose: () => void;
+  /**
+   * 최근 명령 결과의 이력 (오래된 것 → 최신). 셸 통합이 있어야 생긴다 — 없으면
+   * 빈 배열이라 아무것도 그리지 않는다. 누르면 그 명령의 출력으로 스크롤한다.
+   */
+  pips?: readonly PanePip[];
+  onPip?: (id: number) => void;
   /** 페인 집기 — 캔버스에 직접 걸면 셸의 텍스트 선택과 싸운다 (TerminalSurface). */
   grip: {
     onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
@@ -71,6 +88,8 @@ export function TerminalPaneHead({
   zoomed,
   onZoom,
   onClose,
+  pips = [],
+  onPip,
   grip,
 }: TerminalPaneHeadProps) {
   const { t } = useT();
@@ -111,6 +130,25 @@ export function TerminalPaneHead({
           <span className="tph-text">{summary.text}</span>
         ) : null}
       </span>
+      {/* 이력 핍 — 최근 명령 여덟 개의 결과가 왼→오 순으로 선다. 곁눈질로
+          "이 페인은 요즘 잘 돌았나" 를 읽는 자리다; 빨간 핍은 누르면 그
+          출력으로 데려간다. 통합이 없는 세션은 핍이 없다 (모르는 것을 초록으로
+          칠하지 않는다). */}
+      {pips.length > 0 ? (
+        <span className="tph-pips" title={t("term.pips.hint")}>
+          {pips.map((pip) => (
+            <button
+              key={pip.id}
+              type="button"
+              className="tph-pip"
+              data-tone={pip.tone}
+              onClick={() => onPip?.(pip.id)}
+              aria-label={pip.command || t("term.pips.running")}
+              title={pip.command || t("term.pips.running")}
+            />
+          ))}
+        </span>
+      ) : null}
       {/* 경과 시간은 라이브 칸 **밖**이다 — 칸이 좁아져 문구가 잘려도 시계는
           잘리지 않는다 (좁은 도크에서 남는 정보는 이것뿐일 때가 많다). */}
       {running ? (

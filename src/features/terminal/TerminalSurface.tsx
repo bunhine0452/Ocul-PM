@@ -65,17 +65,13 @@ import { tabDropIndex, DRAG_START_PX } from "@/features/shell/tabOrder";
 // 고스트의 감쇠는 창 탭과 **같은 것**을 쓴다 (lib/dragMotion.ts) — 두 물체가
 // 다른 속도로 따라오면 같은 앱에서 손이 두 가지를 배워야 한다.
 import { advanceGhost, ghostTransform, wantsReducedMotion } from "@/lib/dragMotion";
-import { TERM_FONT_MIN as FONT_MIN, TERM_FONT_MAX as FONT_MAX } from "./fontSize";
-import {
-  TERM_DENSITIES,
-  TERM_DENSITY_LABEL,
-  clampTermDensity,
-  termLineHeight,
-  termPanePad,
-} from "./density";
+import { clampTermDensity, termLineHeight, termPanePad } from "./density";
 import { TerminalRail } from "./TerminalRail";
 import { TerminalPaneHead } from "./TerminalPaneHead";
 import { TerminalHeadBar } from "./TerminalHeadBar";
+import { TerminalStatusBar } from "./TerminalStatusBar";
+import { PIP_COUNT, type PanePip } from "./TerminalPaneHead";
+import { blockTone } from "./commandBlocks";
 import type { PaneSignal } from "./agentMode";
 import { TerminalBlockMenu } from "./TerminalBlockMenu";
 import { TerminalFileMenu } from "./TerminalFileMenu";
@@ -248,6 +244,9 @@ export function TerminalSurface({
   // sid → 페인 신호(alt-screen · BEL · 마지막 출력). 셸 통합과 **독립**으로
   // 온다 — 둘을 합쳐 "에이전트가 나를 기다리는가"를 판정한다 (→ agentMode).
   const [paneSignals, setPaneSignals] = useState<Record<string, PaneSignal>>({});
+  // 페인별 최근 명령 결과 (머리띠 핍). 명령 경계(OSC 133)에서만 바뀌므로 셸
+  // 상태 갱신에 얹어 읽는다 — 블록 목록 자체는 xterm 마커라 인스턴스가 쥔다.
+  const [blockPips, setBlockPips] = useState<Record<string, PanePip[]>>({});
   // 거터 캡슐을 눌러 연 블록 액션 팝오버. 한 번에 하나만 뜬다.
   const [blockMenu, setBlockMenu] = useState<BlockActivation | null>(null);
   /**
@@ -1123,6 +1122,14 @@ export function TerminalSurface({
               focusPane(tab.id, node.sid);
             }}
             onClose={() => closePane(node.sid)}
+            pips={blockPips[node.sid]}
+            onPip={(id) => {
+              const h = regRef.current.get(node.sid);
+              const block = h?.blocks.list().find((b) => b.id === id);
+              if (!h || !block) return;
+              h.term.scrollToLine(block.line);
+              h.term.focus();
+            }}
             grip={{
               onPointerDown: beginMove("pane", tab.id, node.sid),
               onPointerMove: onMovePointer,
@@ -1151,11 +1158,16 @@ export function TerminalSurface({
             }}
             onFocusIn={() => focusPane(tab.id, node.sid)}
             onTitleChange={(title) => applyShellTitle(tab.id, title)}
-            onShellState={(shell) =>
+            onShellState={(shell) => {
               setShellStates((prev) =>
                 prev[node.sid] === shell ? prev : { ...prev, [node.sid]: shell },
-              )
-            }
+              );
+              const blocks = regRef.current.get(node.sid)?.blocks.list() ?? [];
+              const pips = blocks
+                .slice(-PIP_COUNT)
+                .map((b) => ({ id: b.id, tone: blockTone(b), command: b.command }));
+              setBlockPips((prev) => ({ ...prev, [node.sid]: pips }));
+            }}
             onSignal={(signal) =>
               setPaneSignals((prev) =>
                 prev[node.sid] === signal ? prev : { ...prev, [node.sid]: signal },
@@ -1217,6 +1229,13 @@ export function TerminalSurface({
         activeTab={activeTab}
         onSearch={() => (searchOpen ? closeSearch() : openSearch())}
         onSplit={splitFocused}
+        zoomed={
+          zoomSid !== null &&
+          activeTab !== null &&
+          collectSids(panesOfTab(activeTab)).length > 1 &&
+          collectSids(panesOfTab(activeTab)).includes(zoomSid)
+        }
+        onUnzoom={() => setZoomSid(null)}
         dragRegion={dragRegion}
       >
         {headerActions}
@@ -1327,6 +1346,7 @@ export function TerminalSurface({
               >
                 {formatMatchCount(query, matches)}
               </span>
+              <span className="ts-search-keys">{t("term.search.keys")}</span>
               <button
                 type="button"
                 className="ts-btn"
@@ -1384,95 +1404,21 @@ export function TerminalSurface({
         />
       ) : null}
 
-      <div className="term-status">
-        {/* 왼쪽 = 어디에 있는가. 절대 경로는 좁은 줄에서 앞이 잘려 아무 정보도
-            주지 못하므로 프로젝트 루트 기준 상대 경로로 접는다. 셸 통합이 없어
-            cwd 를 모르면 세션 이름으로 물러선다. */}
-        <span className="ts-seg ts-crumb" title={focusedShell?.cwd ?? undefined}>
-          <SquareTerminal size={13} />
-          <span className="ts-crumb-text">
-            {formatCwdCrumb(focusedShell?.cwd ?? null, projectRoot) || activeTab?.label || "—"}
-          </span>
-        </span>
-        {/* "지금 무슨 일이 일어나는가" 는 여기 없다 — 페인마다 머리띠가 말한다
-            (2026-09-11). 상태바는 포커스 하나만 말할 수 있었고, 분할이 셋이면
-            나머지 둘은 캔버스 위의 알약뿐이었다. */}
-        {/* 좁은 도크에서는 단축키 힌트가 다른 정보를 밀어낸다 — 넓을 때만. */}
-        {compact ? null : <span className="ts-hint">{t("term.shortcuts")}</span>}
-        <span style={{ flex: 1 }} />
-        <label className="ts-seg ts-density" title={t("term.density.hint")}>
-          {compact ? null : <span>{t("term.density.label")}</span>}
-          <select
-            className="ts-select"
-            value={density}
-            onChange={(e) => setSetting("terminalDensity", clampTermDensity(e.target.value))}
-            aria-label={t("term.density.label")}
-          >
-            {TERM_DENSITIES.map((preset) => (
-              <option key={preset} value={preset}>
-                {t(TERM_DENSITY_LABEL[preset])}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="ts-seg">
-          <button
-            type="button"
-            className="ts-btn"
-            onClick={() => fontDelta(-1)}
-            aria-label={t("term.fontSmaller")}
-          >
-            A−
-          </button>
-          <span className="ts-font">
-            <input
-              type="number"
-              className="ts-font-input"
-              min={FONT_MIN}
-              max={FONT_MAX}
-              step={1}
-              value={fontDraft ?? String(fontSize)}
-              aria-label={t("term.fontSizeInput")}
-              title={t("term.fontSizeHint", { min: FONT_MIN, max: FONT_MAX })}
-              onChange={(e) => {
-                const raw = e.target.value;
-                setFontDraft(raw);
-                // 범위 안 값만 즉시 반영 — "1"(→18 을 치는 중)이 9 로 튀지 않게
-                // 클램프 없이 통과시킨다. 범위 밖·빈 값은 blur 에서 정리.
-                const parsed = Number.parseInt(raw, 10);
-                if (parsed >= FONT_MIN && parsed <= FONT_MAX) setFont(parsed);
-              }}
-              onBlur={commitFontDraft}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  commitFontDraft();
-                  e.currentTarget.blur();
-                } else if (e.key === "Escape") {
-                  e.preventDefault();
-                  setFontDraft(null);
-                  e.currentTarget.blur();
-                }
-              }}
-            />
-            px
-          </span>
-          <button
-            type="button"
-            className="ts-btn"
-            onClick={() => fontDelta(1)}
-            aria-label={t("term.fontLarger")}
-          >
-            A+
-          </button>
-        </span>
-        {compact ? null : (
-          <span className="ts-seg">
-            <span className="ts-dot" style={{ background: watchColor }} />
-            {watchLabel}
-          </span>
-        )}
-      </div>
+      <TerminalStatusBar
+        compact={compact}
+        crumb={formatCwdCrumb(focusedShell?.cwd ?? null, projectRoot) || activeTab?.label || "—"}
+        crumbTitle={focusedShell?.cwd ?? undefined}
+        density={density}
+        onDensity={(d) => setSetting("terminalDensity", clampTermDensity(d))}
+        fontSize={fontSize}
+        fontDraft={fontDraft}
+        setFontDraft={setFontDraft}
+        setFont={setFont}
+        fontDelta={fontDelta}
+        commitFontDraft={commitFontDraft}
+        watchColor={watchColor}
+        watchLabel={watchLabel}
+      />
       {/* 손에 들린 것. 위치는 rAF 안에서 `transform` 으로 직접 쓴다 — 좌표를
           상태에 담으면 포인터마다 이 컴포넌트(살아 있는 xterm 페인 전부)가
           다시 그려져, 고치려던 그 무게가 그대로 돌아온다. */}

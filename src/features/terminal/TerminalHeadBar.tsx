@@ -1,4 +1,5 @@
-import { Columns2, PanelLeftDock, Rows2, Search } from "@/components/Icons";
+import { Columns2, Minimize2, PanelLeftDock, Rows2, Search } from "@/components/Icons";
+import { sessionColorStyle } from "@/lib/sessionColors";
 import { useT } from "@/i18n";
 import type { TerminalTab } from "@/contexts/WorkspaceContext";
 import { collectSids, type PaneDir } from "@/lib/termPanes";
@@ -19,6 +20,9 @@ interface TerminalHeadBarProps {
   activeTab: TerminalTab | null | undefined;
   onSearch: () => void;
   onSplit: (dir: PaneDir) => void;
+  /** 확대 중인 페인이 이 탭에 있다 — 되돌리는 손잡이를 제목 옆에 둔다. */
+  zoomed: boolean;
+  onUnzoom: () => void;
   /** 분리 창에서는 이 줄이 창의 손잡이다. */
   dragRegion: boolean;
   /** 도크가 덧붙이는 도구 (자리 옮기기·떼어내기·닫기). */
@@ -31,6 +35,8 @@ export function TerminalHeadBar({
   activeTab,
   onSearch,
   onSplit,
+  zoomed,
+  onUnzoom,
   dragRegion,
   children,
 }: TerminalHeadBarProps) {
@@ -51,9 +57,19 @@ export function TerminalHeadBar({
       <span className="term-head-title" data-tauri-drag-region={dragRegion || undefined}>
         {activeTab ? (
           <>
+            {/* 세션 색을 고른 탭은 이름 앞에 그 색 점 — 레일 카드의 띠와 같은 색이다. */}
+            {activeTab.color ? (
+              <span className="tht-dot" style={sessionColorStyle(activeTab.color)} aria-hidden="true" />
+            ) : null}
             <span className="tht-name">{activeTab.label}</span>
             {paneCount > 1 ? (
               <span className="tht-count">{t("term.head.panes", { n: paneCount })}</span>
+            ) : null}
+            {zoomed ? (
+              <button type="button" className="tht-zoom" onClick={onUnzoom} title={t("term.zoomedHint")}>
+                <Minimize2 size={11} />
+                {t("term.zoomed")}
+              </button>
             ) : null}
           </>
         ) : null}
