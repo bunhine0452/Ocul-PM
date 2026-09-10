@@ -49,7 +49,7 @@ import {
 } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 import { facetsOf, latestActivityByPlan, type PlanFacet } from "./planList";
-import { NO_PHASE, type JournalRefMeta } from "./planMeta";
+import { countByStatus, leafItems, NO_PHASE, type JournalRefMeta } from "./planMeta";
 
 export interface PlanDocument {
   plans: PlanSummary[] | null;
@@ -66,7 +66,7 @@ export interface PlanDocument {
 
   /** 단계별 항목 묶음 (문서 순서 그대로). */
   phases: [string, PlanItemDto[]][];
-  /** 상태별 항목 수. */
+  /** 상태별 항목 수 (리프 기준 — 부모 항목은 롤업이라 제외). */
   counts: Record<string, number>;
   /** 이미 쓰이고 있는 단계 이름 — 새 항목 작성기의 자동완성. */
   existingPhases: string[];
@@ -490,11 +490,8 @@ export function usePlanDocument(projectId: number): PlanDocument {
     return [...map.entries()];
   }, [detail]);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = {};
-    for (const it of detail?.items ?? []) c[it.status] = (c[it.status] ?? 0) + 1;
-    return c;
-  }, [detail]);
+  // 리프 기준 — 부모는 파생값이라 세지 않는다 (진척 바·done/total 과 같은 모수).
+  const counts = useMemo(() => countByStatus(leafItems(detail?.items ?? [])), [detail]);
 
   const existingPhases = useMemo(
     () => [...new Set((detail?.items ?? []).map((i) => i.phase).filter((p): p is string => !!p))],

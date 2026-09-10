@@ -13,6 +13,7 @@ import { AppDialog } from "@/components/ui/AppDialog";
 import { useTerminalSessions, useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { PlanRailDock, clampRailWidth } from "./PlanRailDock";
 import type { PlanGroup, PlanSort } from "./planList";
+import type { PlanView } from "./planMeta";
 import { t, useT } from "@/i18n";
 import { PlanBody } from "./PlanBody";
 import { usePlanDocument } from "./usePlanDocument";
@@ -127,6 +128,9 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
 
   // 알 수 없는 영속값은 왼쪽으로 — 렌더는 "right" 하나만 특별 취급한다.
   const railSide = state.plannerRailSide === "right" ? "right" : "left";
+  // 보기도 같다 — 알 수 없는 값은 문서로.
+  const view: PlanView = state.plannerView === "board" ? "board" : "doc";
+  const setView = (v: PlanView) => setState((p) => ({ ...p, plannerView: v }));
 
   const railDock =
     railVisible && plan.plans ? (
@@ -195,6 +199,23 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           ) : undefined
         }
       >
+        {/* 문서 / 보드 — 같은 항목의 두 배치. 계획이 없으면 고를 것도 없다. */}
+        {detail ? (
+          <div className="seg" role="tablist" aria-label={t("plan.viewAria")}>
+            {(["doc", "board"] as PlanView[]).map((v) => (
+              <button
+                key={v}
+                type="button"
+                role="tab"
+                aria-selected={view === v}
+                className="seg-item"
+                onClick={() => setView(v)}
+              >
+                {v === "doc" ? t("plan.view.doc") : t("plan.view.board")}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <button
           className="scope-chip"
           style={{ height: 30 }}
@@ -228,7 +249,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         {railSide === "left" ? railDock : null}
 
         <div className="pln-main">
-        <div className="pln-doc fade-in">
+        <div className={"pln-doc fade-in" + (view === "board" && detail ? " is-board" : "")}>
           {plan.error ? (
             <ErrorCard
               title={t("plan.error")}
@@ -240,11 +261,10 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
 
           {/* New plan composer */}
           {newPlanOpen ? (
-            <div className="card card-pad" style={{ marginBottom: 16, display: "flex", gap: 8 }}>
+            <div className="pln-composer">
               <input
                 autoFocus
                 className="set-input"
-                style={{ flex: 1 }}
                 placeholder={t("plan.newPlanPlaceholder")}
                 value={newPlanTitle}
                 onChange={(e) => setNewPlanTitle(e.target.value)}
@@ -305,15 +325,17 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               onRefresh={plan.refreshDetail}
               onOpenJournalRef={openJournal}
               resolveJournalRefs={plan.resolveJournalRefs}
+              hideDone={state.plannerHideDone === true}
+              onHideDoneChange={(hide) => setState((p) => ({ ...p, plannerHideDone: hide }))}
+              view={view}
             />
           )}
 
           {/* New item composer */}
           {composer && detail ? (
-            <div className="card card-pad" style={{ marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div className="pln-composer is-foot">
               <input
-                className="set-input"
-                style={{ width: 180 }}
+                className="set-input is-phase"
                 list="phase-suggestions"
                 placeholder={t("plan.phasePlaceholder")}
                 value={composer.phase}
@@ -325,7 +347,6 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               <input
                 autoFocus
                 className="set-input"
-                style={{ flex: 1, minWidth: 200 }}
                 placeholder={t("plan.itemPlaceholder")}
                 value={composer.title}
                 onChange={(e) => setComposer({ ...composer, title: e.target.value })}

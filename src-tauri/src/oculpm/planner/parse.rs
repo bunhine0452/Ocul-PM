@@ -113,14 +113,14 @@ impl ItemStatus {
         }
     }
 
-    /// Weight for the progress rollup. `None` = excluded from the denominator
-    /// (blocked/deferred/dropped don't count toward "how far along").
+    /// Weight for the progress rollup. `None` = excluded from the denominator (deferred/dropped left
+    /// the plan). blocked 는 남은 미완(lifecycle.rs)이라 0 으로 **센다** — 빼면 막힌 계획이 100% 로 찍힌다.
     pub fn weight(self) -> Option<f64> {
         match self {
-            ItemStatus::Todo => Some(0.0),
+            ItemStatus::Todo | ItemStatus::Blocked => Some(0.0),
             ItemStatus::InProgress => Some(0.5),
             ItemStatus::Done => Some(1.0),
-            ItemStatus::Blocked | ItemStatus::Deferred | ItemStatus::Dropped => None,
+            ItemStatus::Deferred | ItemStatus::Dropped => None,
         }
     }
 
@@ -1050,17 +1050,13 @@ owner: claude-code
     }
 
     #[test]
-    fn progress_rollup_excludes_blocked_deferred_dropped() {
+    fn progress_rollup_counts_blocked_excludes_deferred_dropped() {
         let p = parse_plan(SAMPLE, "x");
         // 3-depth: seed-verify 는 부모(파생)라 제외 — 리프만 센다.
         // Countable leaves: abs-cache(done=1) fresh-machine(todo=0)
-        // search-scopes(todo=0). dl-ux(blocked) + bundle(deferred) excluded.
-        // (1 + 0 + 0) / 3 = 1/3
-        assert!(
-            (p.progress() - 1.0 / 3.0).abs() < 1e-9,
-            "got {}",
-            p.progress()
-        );
+        // search-scopes(todo=0) dl-ux(blocked=0). bundle(deferred) excluded.
+        // (1 + 0 + 0 + 0) / 4 = 1/4 — 막힘은 분모에 남는다 (막힌 계획은 100% 가 아니다).
+        assert!((p.progress() - 0.25).abs() < 1e-9, "got {}", p.progress());
     }
 
     /// 3-depth — 하위가 있는 부모의 상태는 롤업이 파일 글리프를 이긴다.

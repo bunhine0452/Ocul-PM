@@ -1,21 +1,33 @@
 /**
- * 계획 문서의 본문 — 머리글(제목·잠금·진행률·상태 집계) + 경고 + 단계 목록 +
- * 결정 기록.
+ * 계획 문서의 본문 — 머리글(제목 · 한 줄 상태 · 단계 스트립 · 집계) + 경고 +
+ * 다음 할 일 + 단계 절 + 결정.
  *
- * `PlannerScreenV2` 에서 그대로 분리했다 (분할 라운드, 플랜 `v3-release`
- * {#planner-diff-split}). 화면 파일은 툴바·레일·작성기·대화상자만 남고,
- * 「문서를 어떻게 그리는가」는 여기 한 곳에 모인다.
+ * 한 장의 시트다 (2026-09-10 리디자인). 카드는 없다 — 머리글은 문서의 제목부,
+ * 단계는 절, 행은 구분선. 화면 파일(`PlannerScreenV2`)은 툴바·레일·작성기·
+ * 대화상자만 남고, 「문서를 어떻게 그리는가」 는 여기 한 곳에 모인다.
  */
 
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
 
 import { Lock, Pencil, RefreshCw, TriangleAlert, Trash2 } from "@/components/Icons";
 import { InlineMarkdown } from "@/components/InlineMarkdown";
 import { agentLabel } from "@/features/today/agentColor";
 import { t } from "@/i18n";
 import type { PlanDetail, PlanItemDto, PlanItemUpdateDto } from "@/lib/bindings";
+import { NextUp } from "./NextUp";
 import { PhaseCard } from "./PhaseCard";
-import { NO_PHASE, STATUS_META, type JournalRefMeta } from "./planMeta";
+import { PlanBoard } from "./PlanBoard";
+import {
+  isRemaining,
+  leafItems,
+  nextUp,
+  NO_PHASE,
+  phaseStrip,
+  STATUS_META,
+  type JournalRefMeta,
+  type PlanView,
+} from "./planMeta";
+import { StatusMark } from "./StatusMark";
 
 interface PlanBodyProps {
   detail: PlanDetail;
@@ -43,28 +55,76 @@ interface PlanBodyProps {
   onRefresh: () => void;
   onOpenJournalRef: (ref: string) => void;
   resolveJournalRefs: (refs: string[]) => Promise<JournalRefMeta[]>;
+  /** 「남은 것만」 — 완료·폐기 항목을 숨긴다 (프로젝트별 영속). */
+  hideDone: boolean;
+  onHideDoneChange: (hide: boolean) => void;
+  /** 문서형 체크리스트 / 상태별 열 보드. 머리글·결정은 둘 다 같다. */
+  view: PlanView;
 }
 
+/** `[data-item-id]` 로 행을 찾는다 — jsdom 에는 `CSS.escape` 가 없어 손으로 피한다. */
+function itemSelector(itemId: string): string {
+  const esc = typeof CSS !== "undefined" && typeof CSS.escape === "function"
+    ? CSS.escape(itemId)
+    : itemId.replace(/["\\]/g, "\\$&");
+  return `[data-item-id="${esc}"]`;
+}
+
+function phaseSelector(phase: string): string {
+  const esc = typeof CSS !== "undefined" && typeof CSS.escape === "function"
+    ? CSS.escape(phase)
+    : phase.replace(/["\\]/g, "\\$&");
+  return `[data-phase="${esc}"]`;
+}
+
+/** 잠깐 밝혔다가 돌아온다 — 스트립·다음 할 일에서 뛰어온 자리. */
+function flash(el: HTMLElement) {
+  el.scrollIntoView?.({ block: "center", behavior: "smooth" });
+  el.classList.add("is-target");
+  window.setTimeout(() => el.classList.remove("is-target"), 1800);
+}
+
+const LEGEND = ["done", "in_progress", "blocked", "deferred", "todo", "dropped"] as const;
+
 export function PlanBody(props: PlanBodyProps) {
-  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, onDispatch, busy, locked, onToggleLock, onArchive, onRename, onDelete, onRemoveItem, onRenameItem, onRenamePhase, onRemovePhase, onMovePhase, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs } = props;
+  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, onDispatch, busy, locked, onToggleLock, onArchive, onRename, onDelete, onRemoveItem, onRenameItem, onRenamePhase, onRemovePhase, onMovePhase, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs, hideDone, onHideDoneChange, view } = props;
+  const board = view === "board";
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const archived = detail.plan.status !== "active" && detail.plan.status !== "done";
   const pct = Math.round((detail.plan.progress ?? 0) * 100);
   const phaseMeta = new Map((detail.phases ?? []).map((p) => [p.name, p] as const));
 
+  const strip = phaseStrip(phases);
+  const upNext = nextUp(detail.items);
+  const remaining = leafItems(detail.items).filter((i) => isRemaining(i.status)).length;
+
+  // 다음 할 일 → 그 행으로. 접힌 단계는 먼저 펼친다 — 클릭 핸들러 안의
+  // setState 는 핸들러가 끝나기 전에 그려지므로 다음 프레임이면 행이 있다.
+  const jumpTo = (item: PlanItemDto) => {
+    const phase = item.phase ?? NO_PHASE;
+    setCollapsed((c) => (c[phase] === true ? { ...c, [phase]: false } : c));
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(itemSelector(item.item_id));
+      if (el) flash(el);
+    });
+  };
+  // 스트립 조각 → 그 단계 머리로.
+  const jumpToPhase = (phase: string) => {
+    const el = document.querySelector<HTMLElement>(phaseSelector(phase));
+    el?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  };
+
   return (
     <>
-      {/* Header */}
-      <div className="card card-pad" style={{ marginBottom: 16 }}>
-        <div className="pln-plan-head">
-          <div className="pln-plan-headtitle">
+      <header className="pln-mast">
+        <div className="pln-mast-row">
+          <div className="pln-mast-title">
             {renaming ? (
               <input
                 autoFocus
                 className="goal-title-input"
                 defaultValue={detail.plan.title}
-                style={{ fontSize: "var(--fs-6)", fontWeight: "var(--fw-strong)" }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     onRename((e.target as HTMLInputElement).value);
@@ -79,7 +139,7 @@ export function PlanBody(props: PlanBodyProps) {
                 }}
               />
             ) : locked ? (
-              <InlineMarkdown className="goal-title pln-plan-title" text={detail.plan.title} />
+              <InlineMarkdown className="pln-plan-title" text={detail.plan.title} />
             ) : (
               <button
                 type="button"
@@ -88,28 +148,30 @@ export function PlanBody(props: PlanBodyProps) {
                 disabled={busy}
                 title={t("plan.renameTitle")}
               >
-                <InlineMarkdown className="goal-title pln-plan-title" text={detail.plan.title} linkable={false} />
+                <InlineMarkdown className="pln-plan-title" text={detail.plan.title} linkable={false} />
                 <span className="plan-title-pen"><Pencil size={13} /></span>
               </button>
             )}
-            <div className="goal-due" style={{ marginTop: 4 }}>
-              <span className={"goal-status " + (locked ? "planned" : "active")}>
-                {locked ? (
-                  <>
-                    <Lock size={11} />{" "}
-                    {archived ? t("plan.group.archived") : t("plan.locked")}
-                  </>
-                ) : (
-                  t("plan.inProgress")
-                )}
+            {/* 한 줄 상태 — 칩 대신 문장. */}
+            <div className="pln-mast-sub">
+              <span className={"pln-state " + (locked ? "is-locked" : "is-active")}>
+                {locked ? <Lock size={11} /> : <span className="pln-state-dot" />}
+                {locked ? (archived ? t("plan.group.archived") : t("plan.locked")) : t("plan.inProgress")}
               </span>
               <span className="dotsep">·</span>
-              {t("plan.doneOf", { done: detail.plan.done_count, total: detail.plan.item_count })}
+              <span>{t("plan.doneOf", { done: detail.plan.done_count, total: detail.plan.item_count })}</span>
+              <span className="dotsep">·</span>
+              <span>{pct}%</span>
+              {detail.plan.owner_agent ? (
+                <>
+                  <span className="dotsep">·</span>
+                  <span>{t("plan.hover.owner")} {agentLabel(detail.plan.owner_agent)}</span>
+                </>
+              ) : null}
             </div>
           </div>
-          {/* 액션은 한 덩어리다 — 좁아지면 제목 아래로 통째로 내려간다
-              (버튼이 하나씩 흩어져 접히면 어디가 어딘지 안 보인다). */}
-          <div className="pln-plan-headactions">
+          {/* 액션은 한 덩어리다 — 좁아지면 제목 아래로 통째로 내려간다. */}
+          <div className="pln-mast-actions">
             <button
               className="btn sm"
               onClick={() => onToggleLock(!locked)}
@@ -118,15 +180,8 @@ export function PlanBody(props: PlanBodyProps) {
             >
               {locked ? t("plan.unlock") : t("plan.locked")}
             </button>
-            {/* 보관은 '끝났고 이제 목록에서 치운다' 는 뜻이라 완료된 계획에만
-                붙인다. 되돌리기는 왼쪽의 '잠금 해제' 하나로 충분하다. */}
             {detail.plan.status === "done" ? (
-              <button
-                className="btn sm"
-                onClick={onArchive}
-                disabled={busy}
-                title={t("plan.archiveTitle")}
-              >
+              <button className="btn sm" onClick={onArchive} disabled={busy} title={t("plan.archiveTitle")}>
                 {t("plan.group.archived")}
               </button>
             ) : null}
@@ -139,50 +194,110 @@ export function PlanBody(props: PlanBodyProps) {
               </>
             ) : (
               <button type="button" className="pln-iconbtn danger" onClick={() => setConfirmDelete(true)} disabled={busy} title={t("plan.deleteTitle")}>
-                <Trash2 size={15} />
+                <Trash2 size={13} />
               </button>
             )}
-            <button type="button" className="pln-iconbtn" onClick={onRefresh} title={t("plan.refresh")}><RefreshCw size={15} /></button>
+            <button type="button" className="pln-iconbtn" onClick={onRefresh} title={t("plan.refresh")}><RefreshCw size={13} /></button>
           </div>
         </div>
-        {locked ? (
-          <div className="today-date" style={{ marginTop: 8, color: "var(--text-3)" }}>
-            {t("plan.lockedNote")}
-          </div>
+        {locked ? <div className="pln-mast-note">{t("plan.lockedNote")}</div> : null}
+
+        {/* 단계 스트립 — 계획 전체를 한 줄로. 조각 = 단계, 폭 = 항목 수, 색 = 상태. */}
+        {strip.length > 0 ? (
+          <>
+            <div className="pln-strip" role="group" aria-label={t("plan.stripAria")}>
+              {strip.map((seg) => {
+                const label = t("plan.stripSeg", {
+                  phase: seg.phase === NO_PHASE ? t("plan.noPhase") : seg.phase,
+                  done: seg.counts.done,
+                  total: seg.n,
+                  blocked: seg.counts.blocked,
+                });
+                return (
+                  <button
+                    key={seg.phase}
+                    type="button"
+                    className="pln-strip-seg"
+                    style={{ "--n": seg.n } as CSSProperties}
+                    title={label}
+                    aria-label={label}
+                    onClick={() => jumpToPhase(seg.phase)}
+                  >
+                    {(["done", "in_progress", "blocked", "todo"] as const)
+                      .filter((k) => seg.counts[k] > 0)
+                      .map((k) => <i key={k} className={k} style={{ "--n": seg.counts[k] } as CSSProperties} />)}
+                  </button>
+                );
+              })}
+            </div>
+            {strip.length > 1 ? (
+              <div className="pln-strip-legend" aria-hidden="true">
+                <span>{strip[0].phase === NO_PHASE ? t("plan.noPhase") : strip[0].phase}</span>
+                <span>{t("plan.stripCount", { phases: strip.length })}</span>
+                <span>{strip[strip.length - 1].phase === NO_PHASE ? t("plan.noPhase") : strip[strip.length - 1].phase}</span>
+              </div>
+            ) : null}
+          </>
         ) : null}
 
-        <div className="goal-prog-wrap" style={{ marginTop: 12 }}>
-          <div className="prog-track" style={{ flex: 1 }}><i style={{ width: `${pct}%` }} /></div>
-          <span className="prog-pct">{pct}%</span>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-          {(["done", "in_progress", "blocked", "deferred", "todo", "dropped"] as const)
-            .filter((s) => (counts[s] ?? 0) > 0)
-            .map((s) => (
-              <span key={s} style={{ fontSize: "var(--fs-3)", color: "var(--text-2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                <span style={{ color: STATUS_META[s].color, fontSize: "var(--fs-5)" }}>{STATUS_META[s].glyph}</span>
-                {t(STATUS_META[s].labelKey)} {counts[s]}
+        <div className="pln-head-foot">
+          <div className="pln-head-counts">
+            {LEGEND.filter((s) => (counts[s] ?? 0) > 0).map((s) => (
+              <span key={s} className="pln-head-count">
+                <StatusMark status={s} size="sm" />
+                {t(STATUS_META[s].labelKey)} <b>{counts[s]}</b>
               </span>
             ))}
-        </div>
-      </div>
-
-      {/* Warnings */}
-      {detail.warnings.length > 0 ? (
-        <div className="card card-pad" style={{ marginBottom: 16, borderColor: "var(--t-bug)" }}>
-          <div className="stat-top" style={{ color: "var(--t-bug)" }}>
-            <TriangleAlert size={15} /> {t("plan.warnings", { n: detail.warnings.length })}
           </div>
-          <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: "var(--fs-3)", color: "var(--text-2)" }}>
+          {/* 「남은 것만」 은 문서 보기의 것이다 — 보드는 열 자체가 상태라 숨길 게 없다. */}
+          {detail.plan.item_count > 0 && !board ? (
+            <div className="seg" role="tablist" aria-label={t("plan.filterAria")}>
+              {([false, true] as const).map((hide) => (
+                <button
+                  key={String(hide)}
+                  type="button"
+                  role="tab"
+                  aria-selected={hideDone === hide}
+                  className="seg-item"
+                  onClick={() => onHideDoneChange(hide)}
+                >
+                  {hide ? t("plan.filterRemaining") : t("plan.filterAll")}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </header>
+
+      {detail.warnings.length > 0 ? (
+        <div className="pln-warn">
+          <div className="pln-warn-head">
+            <TriangleAlert size={13} /> {t("plan.warnings", { n: detail.warnings.length })}
+          </div>
+          <ul>
             {detail.warnings.slice(0, 8).map((w, i) => <li key={i}>{w}</li>)}
           </ul>
         </div>
       ) : null}
 
+      {detail.plan.item_count > 0 && !board ? (
+        <NextUp items={upNext} remaining={remaining} locked={locked} onJump={jumpTo} onDispatch={onDispatch} />
+      ) : null}
+
+      {board ? (
+        <PlanBoard
+          items={detail.items}
+          busy={busy}
+          locked={locked}
+          onSetStatus={onSetStatus}
+          onDispatch={onDispatch}
+          onOpenJournalRef={onOpenJournalRef}
+        />
+      ) : null}
+
       {/* Phases — reorder bounds are computed among real (on-disk) headings so
           the synthetic 기타 bucket never blocks moving the last real phase. */}
-      {phases.map(([phase, items]) => {
+      {(board ? [] : phases).map(([phase, items]) => {
         const realPhases = phases.map(([p]) => p).filter((p) => p !== NO_PHASE);
         const ri = realPhases.indexOf(phase);
         const canEdit = phase !== NO_PHASE;
@@ -211,25 +326,30 @@ export function PlanBody(props: PlanBodyProps) {
           onToggleHistory={onToggleHistory}
           onOpenJournalRef={onOpenJournalRef}
           resolveJournalRefs={resolveJournalRefs}
+          hideDone={hideDone}
+          onShowAll={() => onHideDoneChange(false)}
         />
         );
       })}
 
-      {/* Decisions */}
       {detail.decisions.length > 0 ? (
-        <div style={{ marginTop: 20 }}>
-          <div className="today-date" style={{ marginBottom: 8, fontWeight: "var(--fw-strong)" }}>{t("plan.decisions")}</div>
+        <section className="pln-decisions" aria-label={t("plan.decisions")}>
+          <div className="pln-decisions-title">{t("plan.decisions")}</div>
           {detail.decisions.map((d) => (
-            <div className="card card-pad" key={d.decision_id} style={{ marginBottom: 10 }}>
-              <div className="goal-title" style={{ fontSize: "var(--fs-5)" }}>{d.title}</div>
-              {d.body ? <div style={{ fontSize: "var(--fs-4)", color: "var(--text-2)", marginTop: 6, whiteSpace: "pre-wrap" }}>{d.body}</div> : null}
-              <div className="goal-due" style={{ marginTop: 8 }}>
-                {d.locked_at ? <><Lock size={11} /> {d.locked_at}{d.agent_id ? ` · ${agentLabel(d.agent_id)}` : ""}<span className="dotsep">·</span></> : null}
-                {d.affects.length > 0 ? t("plan.affects", { list: d.affects.map((a) => `#${a}`).join(", ") }) : t("plan.noAffects")}
+            <div className="pln-dec" key={d.decision_id}>
+              <Lock size={13} />
+              <div>
+                <div className="pln-dec-title">{d.title}</div>
+                {d.body ? <div className="pln-dec-body">{d.body}</div> : null}
+                <div className="pln-dec-meta">
+                  {d.locked_at ? <span>{d.locked_at}{d.agent_id ? ` · ${agentLabel(d.agent_id)}` : ""}</span> : null}
+                  {d.locked_at ? <span className="dotsep">·</span> : null}
+                  <span>{d.affects.length > 0 ? t("plan.affects", { list: d.affects.map((a) => `#${a}`).join(", ") }) : t("plan.noAffects")}</span>
+                </div>
               </div>
             </div>
           ))}
-        </div>
+        </section>
       ) : null}
     </>
   );

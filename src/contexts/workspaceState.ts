@@ -17,6 +17,7 @@
 import type { OculpmStatus, Session } from "@/lib/bindings";
 import type { CodeTabsState } from "@/features/code/codeTabs";
 import type { PlanGroup, PlanSort } from "@/features/planner/planList";
+import type { PlanView } from "@/features/planner/planMeta";
 import type {
   ActiveView,
   DiffMode,
@@ -139,6 +140,14 @@ export interface WorkspaceState {
    */
   plannerRailWidth: number;
   plannerRailSide: "left" | "right";
+  /**
+   * 계획 본문에서 완료·폐기 항목을 숨긴 상태 (2026-09-10 플래너 업그레이드).
+   * 32/35 가 끝난 계획은 남은 셋을 찾으려고 취소선 벽을 스크롤하게 된다 —
+   * 이 값이 켜지면 단계는 남은 항목만 펼치고 숨긴 수를 발치에 적는다.
+   */
+  plannerHideDone: boolean;
+  /** 계획 본문의 보기 — 문서형 체크리스트 / 상태별 열 보드 (2026-09-10). */
+  plannerView: PlanView;
   /** 코드 검색 scope. */
   searchScope: SearchScope;
   /** 최근 검색어 (최대 10개). */

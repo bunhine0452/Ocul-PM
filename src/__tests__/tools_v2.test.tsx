@@ -183,7 +183,7 @@ describe("PR-PLN 3 — Planner", () => {
     );
     // title appears in both the plan pill and the header.
     expect((await findAllByText(/롤오버 안정화/)).length).toBeGreaterThanOrEqual(1);
-    expect(await findByText("타임존 계산")).toBeInTheDocument();
+    expect(await findByText("타임존 계산", { selector: ".sub-title" })).toBeInTheDocument();
   });
 
   it("empty plans shows the create hint", async () => {
@@ -198,7 +198,7 @@ describe("PR-PLN 3 — Planner", () => {
     const { container, findByText } = render(
       wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
     );
-    await findByText("타임존 계산");
+    await findByText("타임존 계산", { selector: ".sub-title" });
     expect(container.querySelector(".pln-rail")).toBeNull();
   });
 
@@ -208,7 +208,7 @@ describe("PR-PLN 3 — Planner", () => {
     const { container, findByText } = render(
       wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
     );
-    await findByText("타임존 계산");
+    await findByText("타임존 계산", { selector: ".sub-title" });
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
   });
 
@@ -234,7 +234,7 @@ describe("PR-PLN 3 — Planner", () => {
       const { container, findByText } = render(
         wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
       );
-      await findByText("타임존 계산");
+      await findByText("타임존 계산", { selector: ".sub-title" });
       expect(container.querySelector(".pln-rail")).not.toBeNull();
       // 칩 벽은 완전히 사라졌다.
       expect(container.querySelector(".plan-chip-row")).toBeNull();
@@ -285,7 +285,7 @@ describe("PR-PLN 3 — Planner", () => {
       const { container, findByText } = render(
         wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
       );
-      await findByText("타임존 계산");
+      await findByText("타임존 계산", { selector: ".sub-title" });
       expect(container.querySelector(".pln-row-stale")).toBeNull();
     });
 
@@ -349,7 +349,7 @@ describe("PR-PLN 3 — Planner", () => {
       const { container, findByText, findByLabelText } = render(
         wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
       );
-      await findByText("타임존 계산");
+      await findByText("타임존 계산", { selector: ".sub-title" });
       const kids = () => [...(container.querySelector(".pln-body")?.children ?? [])];
       expect(kids()[0]?.className).toContain("pln-rail-slot");
       fireEvent.click(await findByLabelText("계획 목록 오른쪽으로"));
@@ -363,7 +363,7 @@ describe("PR-PLN 3 — Planner", () => {
       const { container, findByText, findByLabelText } = render(
         wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
       );
-      await findByText("타임존 계산");
+      await findByText("타임존 계산", { selector: ".sub-title" });
       const slot = () => container.querySelector<HTMLElement>(".pln-rail-slot");
       expect(slot()?.style.width).toBe("236px");
       fireEvent.keyDown(await findByLabelText("계획 목록 폭 조절"), { key: "ArrowRight" });
@@ -376,7 +376,7 @@ describe("PR-PLN 3 — Planner", () => {
       const { container, findByText } = render(
         wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
       );
-      await findByText("타임존 계산");
+      await findByText("타임존 계산", { selector: ".sub-title" });
       expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
     });
   });
@@ -388,11 +388,14 @@ describe("PR-PLN 3 — Planner", () => {
     const { findByText, findByTitle } = render(
       wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
     );
-    await findByText("타임존 계산");
+    await findByText("타임존 계산", { selector: ".sub-title" });
     const toggle = await findByTitle(/클릭하여 진행/);
-    const glyphBefore = toggle.textContent;
+    // 상태는 글리프 글자가 아니라 마크의 클래스(`.pmark.is-<status>`)가 말한다.
+    const mark = () => toggle.querySelector(".pmark")?.className;
+    const before = mark();
+    expect(before).toContain("is-todo");
     fireEvent.click(toggle);
-    await waitFor(() => expect(toggle.textContent).not.toBe(glyphBefore));
+    await waitFor(() => expect(mark()).not.toBe(before));
   });
 
   it("v2 U9 — 백엔드 실패 시 이전 상태로 롤백한다", async () => {
@@ -403,7 +406,7 @@ describe("PR-PLN 3 — Planner", () => {
     const { findByText, findByTitle } = render(
       wrap(<PlannerScreenV2 projectId={1} onNavigate={vi.fn()} />),
     );
-    await findByText("타임존 계산");
+    await findByText("타임존 계산", { selector: ".sub-title" });
     const toggle = await findByTitle(/클릭하여 진행/);
     const glyphBefore = toggle.textContent;
     fireEvent.click(toggle);

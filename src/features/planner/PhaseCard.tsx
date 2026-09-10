@@ -1,9 +1,10 @@
 /**
- * 한 단계(`## ` 섹션) 카드 — 접힘 · 인라인 이름 바꾸기 · 순서 이동 · 삭제.
+ * 한 단계(`## ` 섹션) — 접힘 · 인라인 이름 바꾸기 · 순서 이동 · 삭제.
  *
- * `PlannerScreenV2` 에서 그대로 분리했다 (분할 라운드, 플랜 `v3-release`
- * {#planner-diff-split}). 화면은 문서를 **배치**하고, 단계 하나의 상호작용은
- * 여기가 소유한다 — 항목 행은 다시 `PlanItemRow` 가 가진다.
+ * 카드가 아니라 **절**이다 (2026-09-10 리디자인). 머리는 스크롤 중 위에 붙어
+ * 지금 어느 단계를 읽고 있는지 말하고, 행은 구분선으로만 나뉜다. 화면은
+ * 문서를 **배치**하고, 단계 하나의 상호작용은 여기가 소유한다 — 항목 행은
+ * 다시 `PlanItemRow` 가 가진다. (파일 이름은 옛 것을 그대로 둔다.)
  */
 
 import { useRef, useState } from "react";
@@ -17,10 +18,11 @@ import { t } from "@/i18n";
 import type { PlanDetail, PlanItemDto, PlanItemUpdateDto } from "@/lib/bindings";
 import { PlanItemRow } from "./PlanItemRow";
 import {
+  countByStatus,
+  isHiddenWhenRemainingOnly,
+  leafItems,
   NO_PHASE,
-  phaseProgress,
   relativeTime,
-  STATUS_META,
   type JournalRefMeta,
 } from "./planMeta";
 
@@ -47,6 +49,9 @@ interface PhaseCardProps {
   onToggleHistory: (itemId: string) => void;
   onOpenJournalRef: (ref: string) => void;
   resolveJournalRefs: (refs: string[]) => Promise<JournalRefMeta[]>;
+  /** 「남은 것만」 — 완료·폐기 행을 숨기고 숨긴 수를 발치에 적는다. */
+  hideDone: boolean;
+  onShowAll: () => void;
 }
 
 export function PhaseCard(props: PhaseCardProps) {
@@ -54,7 +59,7 @@ export function PhaseCard(props: PhaseCardProps) {
     phase, items, meta, isOpen, onToggle, busy, locked, canEdit, canMoveUp, canMoveDown,
     onRenamePhase, onRemovePhase, onMovePhase,
     onSetStatus, onDispatch, onRemoveItem, onRenameItem, historyFor, history, onToggleHistory,
-    onOpenJournalRef, resolveJournalRefs,
+    onOpenJournalRef, resolveJournalRefs, hideDone, onShowAll,
   } = props;
   const [editing, setEditing] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -64,18 +69,25 @@ export function PhaseCard(props: PhaseCardProps) {
   // name and surface a spurious "not found".)
   const cancelEditRef = useRef(false);
 
-  const sm = STATUS_META[meta?.status ?? "todo"] ?? STATUS_META.todo;
-  const phasePct = meta ? Math.round((meta.progress ?? 0) * 100) : phaseProgress(items);
+  // 숫자는 리프 기준 — 백엔드 phase meta 와 같은 모수. (기타) 묶음은 meta 가
+  // 없어 여기서 센다.
+  const leafCounts = countByStatus(leafItems(items));
+  const doneCount = meta?.done_count ?? leafCounts.done ?? 0;
+  const totalCount = meta?.item_count ?? leafItems(items).length;
+  const blockedCount = leafCounts.blocked ?? 0;
+  const phaseDone = totalCount > 0 && doneCount === totalCount && blockedCount === 0;
+  const visible = hideDone ? items.filter((it) => !isHiddenWhenRemainingOnly(it.status)) : items;
+  const hiddenCount = items.length - visible.length;
+  const label = phase === NO_PHASE ? t("plan.noPhase") : phase;
 
   return (
-    <div className="card goal-card" style={{ marginBottom: 12 }}>
-      <div className={"goal-head-row" + (confirmDel ? " is-active" : "")}>
+    <section className={"pln-ph" + (phaseDone ? " is-done" : "")} data-phase={phase} aria-label={label}>
+      <div className={"pln-ph-head" + (confirmDel ? " is-active" : "")}>
         {editing ? (
-          <div className="goal-head-edit">
-            <span className="goal-glyph" style={{ color: sm.color }}>{sm.glyph}</span>
+          <div className="pln-ph-edit">
             <input
               autoFocus
-              className="goal-title-input"
+              className="pln-ph-name-input"
               defaultValue={phase}
               onKeyDown={(e) => {
                 if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
@@ -90,23 +102,9 @@ export function PhaseCard(props: PhaseCardProps) {
             />
           </div>
         ) : (
-          <button type="button" className="goal-head-toggle" onClick={onToggle} aria-expanded={isOpen}>
-            {isOpen ? <ChevronDown size={15} color="var(--text-3)" /> : <ChevronRight size={15} color="var(--text-3)" />}
-            <span className="goal-glyph" style={{ color: sm.color }}>{sm.glyph}</span>
-            <InlineMarkdown
-              className="goal-title goal-title-clip"
-              text={phase === NO_PHASE ? t("plan.noPhase") : phase}
-              linkable={false}
-            />
-            {meta?.last_agent ? (
-              <span
-                className="phase-agent"
-                title={`${agentLabel(meta.last_agent)} · ${relativeTime(meta.last_update)}`}
-              >
-                <span style={{ width: 7, height: 7, borderRadius: 99, background: agentColor(meta.last_agent) }} />
-                {agentLabel(meta.last_agent)}
-              </span>
-            ) : null}
+          <button type="button" className="pln-ph-toggle" onClick={onToggle} aria-expanded={isOpen}>
+            {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            <InlineMarkdown className="pln-ph-name" text={label} linkable={false} />
           </button>
         )}
 
@@ -125,10 +123,10 @@ export function PhaseCard(props: PhaseCardProps) {
                   <Pencil size={13} />
                 </button>
                 <button type="button" className="pln-iconbtn" title={t("plan.phaseUp")} onClick={() => onMovePhase(phase, true)} disabled={busy || !canMoveUp}>
-                  <ChevronUp size={15} />
+                  <ChevronUp size={13} />
                 </button>
                 <button type="button" className="pln-iconbtn" title={t("plan.phaseDown")} onClick={() => onMovePhase(phase, false)} disabled={busy || !canMoveDown}>
-                  <ChevronDown size={15} />
+                  <ChevronDown size={13} />
                 </button>
                 <button type="button" className="pln-iconbtn danger" title={t("plan.phaseRemoveTitle")} onClick={() => setConfirmDel(true)} disabled={busy}>
                   <Trash2 size={13} />
@@ -138,11 +136,25 @@ export function PhaseCard(props: PhaseCardProps) {
           </div>
         ) : null}
 
-        <span className="prog-pct">{phasePct}%</span>
+        {meta?.last_agent ? (
+          <span
+            className="phase-agent"
+            title={`${agentLabel(meta.last_agent)} · ${relativeTime(meta.last_update)}`}
+          >
+            <span className="pln-agent-dot" style={{ background: agentColor(meta.last_agent) }} />
+            {agentLabel(meta.last_agent)}
+          </span>
+        ) : null}
+        {blockedCount > 0 ? (
+          <span className="phase-blocked" title={t("plan.phaseBlocked", { n: blockedCount })}>
+            {t("plan.phaseBlocked", { n: blockedCount })}
+          </span>
+        ) : null}
+        <span className="phase-count">{t("plan.doneOf", { done: doneCount, total: totalCount })}</span>
       </div>
 
       {isOpen
-        ? items.map((it) => (
+        ? visible.map((it) => (
             <PlanItemRow
               key={it.item_id}
               item={it}
@@ -161,6 +173,13 @@ export function PhaseCard(props: PhaseCardProps) {
             />
           ))
         : null}
-    </div>
+      {isOpen && hiddenCount > 0 ? (
+        <div className="pln-hidden-done">
+          <span>{t("plan.hiddenDone", { n: hiddenCount })}</span>
+          <span className="dotsep">·</span>
+          <button type="button" className="pln-textbtn" onClick={onShowAll}>{t("plan.showAll")}</button>
+        </div>
+      ) : null}
+    </section>
   );
 }

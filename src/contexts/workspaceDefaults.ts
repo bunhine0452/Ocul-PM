@@ -48,6 +48,8 @@ export const DEFAULT_STATE: WorkspaceState = {
   plannerRailCollapsed: false,
   plannerRailWidth: 236,
   plannerRailSide: "left",
+  plannerHideDone: false,
+  plannerView: "doc",
   searchScope: "semantic",
   searchRecent: [],
   terminalTabs: [],
