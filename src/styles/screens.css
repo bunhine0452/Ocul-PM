@@ -1091,8 +1091,6 @@
   color: var(--text-2); font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-label);
   line-height: 1; transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
-  /* 상태바 키캡 라벨이 폭에 따라 접힌다 — 뷰포트가 아니라 이 면의 폭 기준. */
-  container: terminal / inline-size;
 .jref-btn > svg { flex-shrink: 0; color: var(--text-3); }
 .jref-btn:hover { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
 .jref-btn:hover > svg { color: var(--accent-text); }
@@ -1116,17 +1114,6 @@
 }
 .jref-pop-item:hover { background: var(--accent-soft); }
 .jref-pop-date { font-size: var(--fs-2); color: var(--text-3); font-family: var(--mono); }
-.term-head-title .tht-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--sess, var(--accent)); }
-/* 확대 중 — 제목 옆의 되돌리기 칩. 확대는 화면에서 페인이 사라지는 일이라
-   "왜 하나뿐이지" 를 여기서 바로 답하고 되돌린다. */
-.term-head-title .tht-zoom {
-  display: inline-flex; align-items: center; gap: var(--space-1); flex: none;
-  height: var(--ctl-1); padding: 0 var(--space-2); margin-left: var(--space-1);
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent-text);
-  font-family: var(--font); font-size: var(--fs-1); font-weight: var(--fw-strong); cursor: pointer;
-}
-.term-head-title .tht-zoom:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .jref-pop-item:hover .jref-pop-date { color: var(--accent-text); }
 .jref-pop-title {
   font-size: var(--fs-4); font-weight: var(--fw-label);
@@ -1205,6 +1192,8 @@ mark.s-hit {
 .term-wrap {
   display: flex; flex-direction: column; height: 100%; min-height: 0;
   background: var(--term-chrome);
+  /* 상태바 키캡 라벨이 폭에 따라 접힌다 — 뷰포트가 아니라 이 면의 폭 기준. */
+  container: terminal / inline-size;
   /* 밀도 프리셋이 인라인으로 덮어쓴다 (density.ts). 여기 값은 첫 페인트용. */
   --term-pane-pad: 9px;
   --term-body-pad: 8px;
@@ -1228,6 +1217,17 @@ mark.s-hit {
 }
 .term-head-title .tht-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-strong); }
 .term-head-title .tht-count { flex: none; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.term-head-title .tht-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--sess, var(--accent)); }
+/* 확대 중 — 제목 옆의 되돌리기 칩. 확대는 화면에서 페인이 사라지는 일이라
+   "왜 하나뿐이지" 를 여기서 바로 답하고 되돌린다. */
+.term-head-title .tht-zoom {
+  display: inline-flex; align-items: center; gap: var(--space-1); flex: none;
+  height: var(--ctl-1); padding: 0 var(--space-2); margin-left: var(--space-1);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent-text);
+  font-family: var(--font); font-size: var(--fs-1); font-weight: var(--fw-strong); cursor: pointer;
+}
+.term-head-title .tht-zoom:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .term-tools { display: flex; align-items: center; gap: 2px; flex: none; }
 .term-tool {
   display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--radius-s);
@@ -1492,15 +1492,6 @@ mark.s-hit {
    붙어 있으면 "상태가 붙은 터미널"이 아니라 정체 모를 두 덩어리로 보인다.
    점은 아이콘 모서리에 얹는 배지로 내리고, 상태색은 아이콘 자신이 입는다. */
 .term-rail[data-collapsed] .term-sess {
-/* 가운데 손잡이 알약 — 호버에서만. 선 하나만 있으면 "끌 수 있다" 가 안 읽힌다. */
-.term-divider::after {
-  content: ""; position: absolute; left: 50%; top: 50%; translate: -50% -50%;
-  border-radius: var(--radius-pill); background: var(--sep-strong);
-  opacity: 0; transition: opacity var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
-}
-.term-divider.row::after { width: 4px; height: var(--ctl-3); }
-.term-divider.col::after { width: var(--ctl-3); height: 4px; }
-.term-divider:hover::after, .term-divider:active::after { opacity: 1; background: var(--accent); }
   position: relative; justify-content: center; padding: var(--space-3) 0; gap: 0;
 }
 .term-rail[data-collapsed] .ts-main,
@@ -1602,6 +1593,15 @@ mark.s-hit {
 .term-divider:hover::before, .term-divider:active::before { background: var(--accent); }
 .term-divider.row:hover::before, .term-divider.row:active::before { width: 2px; }
 .term-divider.col:hover::before, .term-divider.col:active::before { height: 2px; }
+/* 가운데 손잡이 알약 — 호버에서만. 선 하나만 있으면 "끌 수 있다" 가 안 읽힌다. */
+.term-divider::after {
+  content: ""; position: absolute; left: 50%; top: 50%; translate: -50% -50%;
+  border-radius: var(--radius-pill); background: var(--sep-strong);
+  opacity: 0; transition: opacity var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
+}
+.term-divider.row::after { width: 4px; height: var(--ctl-3); }
+.term-divider.col::after { width: var(--ctl-3); height: 4px; }
+.term-divider:hover::after, .term-divider:active::after { opacity: 1; background: var(--accent); }
 
 /* 페인의 가장자리 체계 (2026-08-29 재설계).
    ────────────────────────────────────────────────────────────────────────
@@ -1643,22 +1643,6 @@ mark.s-hit {
    신호로 읽힌다. */
 .term-pane::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1.5px; z-index: 4;
-.term-pane-head[data-tone="waiting"] {
-  background: color-mix(in srgb, var(--term-yellow) 11%, var(--term-bg));
-  border-bottom-color: color-mix(in srgb, var(--term-yellow) 35%, var(--sep));
-}
-/* 이력 핍 — 최근 명령 여덟 개. 세로 막대라 점보다 결과의 **순서**가 읽힌다. */
-.term-pane-head .tph-pips { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: var(--space-1); }
-.term-pane-head .tph-pip {
-  width: 4px; height: 10px; padding: 0; border: none; border-radius: var(--radius-pill);
-  background: var(--pip, var(--text-3)); cursor: pointer; opacity: 0.85;
-  transition: transform var(--dur-1) var(--ease-out), opacity var(--dur-1) var(--ease-out);
-}
-.term-pane-head .tph-pip:hover { transform: scaleY(1.3); opacity: 1; }
-.term-pane-head .tph-pip[data-tone="ok"] { --pip: var(--term-green); }
-.term-pane-head .tph-pip[data-tone="fail"] { --pip: var(--term-red); }
-.term-pane-head .tph-pip[data-tone="running"] { --pip: var(--accent); animation: term-breathe var(--breathe-dur) var(--ease-in-out) infinite; }
-.term-pane-head .tph-pip[data-tone="unknown"] { opacity: 0.4; }
   background: linear-gradient(
     90deg,
     var(--tone, transparent) 0%,
@@ -1683,9 +1667,6 @@ mark.s-hit {
   border-radius: inherit; transition: box-shadow var(--dur-1) var(--ease-out);
 }
 
-/* 남은 칸은 자기 비율(인라인 flex-grow, 1 미만)만큼만 자라려 한다 — 혼자
-   남았으면 전부 차지해야 하므로 인라인 값을 덮는다. */
-.term-canvas.zooming .term-cell:has(.term-pane.zoomed) { flex-grow: 1 !important; }
 /* 비활성 페인 디밍 (iTerm2 의 dim inactive panes) — "어디에 타이핑되는가"를
    매번 확인하지 않게 한다.
 
@@ -1763,6 +1744,22 @@ mark.s-hit {
 .term-pane-head[data-tone="waiting"] .tph-agent,
 .term-pane-head[data-tone="waiting"] .tph-phase,
 .term-pane-head[data-tone="waiting"] .tph-elapsed { color: var(--term-yellow); }
+.term-pane-head[data-tone="waiting"] {
+  background: color-mix(in srgb, var(--term-yellow) 11%, var(--term-bg));
+  border-bottom-color: color-mix(in srgb, var(--term-yellow) 35%, var(--sep));
+}
+/* 이력 핍 — 최근 명령 여덟 개. 세로 막대라 점보다 결과의 **순서**가 읽힌다. */
+.term-pane-head .tph-pips { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: var(--space-1); }
+.term-pane-head .tph-pip {
+  width: 4px; height: 10px; padding: 0; border: none; border-radius: var(--radius-pill);
+  background: var(--pip, var(--text-3)); cursor: pointer; opacity: 0.85;
+  transition: transform var(--dur-1) var(--ease-out), opacity var(--dur-1) var(--ease-out);
+}
+.term-pane-head .tph-pip:hover { transform: scaleY(1.3); opacity: 1; }
+.term-pane-head .tph-pip[data-tone="ok"] { --pip: var(--term-green); }
+.term-pane-head .tph-pip[data-tone="fail"] { --pip: var(--term-red); }
+.term-pane-head .tph-pip[data-tone="running"] { --pip: var(--accent); animation: term-breathe var(--breathe-dur) var(--ease-in-out) infinite; }
+.term-pane-head .tph-pip[data-tone="unknown"] { opacity: 0.4; }
 /* 기다리는 페인은 위 가장자리 띠도 노랑으로 숨쉰다 (`.term-pane::before`). */
 .term-pane:has(> .term-pane-head[data-tone="waiting"]) { --tone: var(--term-yellow); }
 .term-pane:has(> .term-pane-head[data-tone="waiting"])::before { animation: term-breathe var(--breathe-dur) var(--ease-in-out) infinite; }
@@ -1787,6 +1784,9 @@ mark.s-hit {
    xterm 은 제자리에서 계속 살고, 되돌리면 크기도 자리도 그대로다. */
 .term-canvas.zooming .term-cell:not(:has(.term-pane.zoomed)) { display: none; }
 .term-canvas.zooming .term-divider { display: none; }
+/* 남은 칸은 자기 비율(인라인 flex-grow, 1 미만)만큼만 자라려 한다 — 혼자
+   남았으면 전부 차지해야 하므로 인라인 값을 덮는다. */
+.term-canvas.zooming .term-cell:has(.term-pane.zoomed) { flex-grow: 1 !important; }
 
 /* 왼쪽만 7px 더 준다 — 거터 캡슐이 앉을 자리다. **항상** 같은 폭이어야 한다:
    블록이 생길 때 padding 을 늘리면 cols 가 바뀌며 셸이 화면을 다시 그린다. */
@@ -1876,7 +1876,6 @@ mark.s-hit {
 
 /* 링크 호버 밑줄 (2026-09-07). xterm 의 기본 밑줄은 DOM 렌더러 전용이라
    WebGL 에서는 아무것도 안 그려진다 — 장식 오버레이로 직접 긋는다
-.term-search .ts-search-keys { font-size: var(--fs-1); color: var(--text-3); white-space: nowrap; }
    (근거는 src/features/terminal/linkUnderline.ts).
    색은 본문 글자색을 그대로 쓴다: 링크마다 ANSI 색이 달라(파랑·초록·기본)
    고정색을 쓰면 어떤 줄에서는 밑줄만 동동 뜬다. */
@@ -1978,6 +1977,7 @@ mark.s-hit {
   color: var(--text-3); font-variant-numeric: tabular-nums;
 }
 .term-search .ts-count.empty { color: var(--t-bug); }
+.term-search .ts-search-keys { font-size: var(--fs-1); color: var(--text-3); white-space: nowrap; }
 
 /* 하단 상태바 — 탭·페인·단축키 힌트·글자크기·.oculpm 감시. */
 .term-status {
