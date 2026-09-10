@@ -36,6 +36,7 @@ import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { AppDialog } from "@/components/ui/AppDialog";
+import { blocked } from "@/lib/blocked";
 
 import { CodeTree } from "./CodeTree";
 import { useCodeImport } from "./useCodeImport";
@@ -1153,9 +1154,8 @@ export function CodeScreenV2({
             type="button"
             className={"code-tool-btn code-save-btn" + (focusedDirty ? " on" : "")}
             onClick={() => paneRefs[tabs.focused]?.current?.save()}
-            disabled={!focusedDirty}
-            title={t("code.save") + " (⌘S)"}
             aria-label={t("code.save")}
+            {...blocked(focusedDirty ? null : t("code.blockedNoChanges"), t("code.save") + " (⌘S)")}
           >
             <Save size={15} />
           </button>

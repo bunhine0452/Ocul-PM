@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 // (de-AI 디자인 규율, `check-design-discipline.mjs`). 여기 동작은 "제자리에서 고쳐 쓰기".
 import { Check, Pencil, X } from "@/components/Icons";
 import { t } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { hunkStats } from "./hunks";
 import type { InlineEditHandle } from "./useInlineEdit";
 
@@ -55,7 +56,7 @@ export function InlineEditWidget({ inline }: { inline: InlineEditHandle }) {
           <button
             type="button"
             className="code-ai-btn primary"
-            disabled={!text.trim()}
+            {...blocked(text.trim() ? null : t("code.blockedNoInstruction"))}
             onClick={() => void inline.submit(text)}
           >
             {t("code.ai.run")}

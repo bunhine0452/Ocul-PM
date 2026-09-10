@@ -7,6 +7,7 @@ import { memo, useCallback, useEffect, useState } from "react";
 
 import { X, Play, Square, ArrowDown, ArrowRight, ArrowUp, ChevronRight } from "@/components/Icons";
 import { t, useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import {
   commands,
   type DapAdapterInfo,
@@ -78,33 +79,38 @@ export const CodeDebugPanel = memo(function CodeDebugPanel({
         <div className="code-debug-controls">
           <CtlButton
             label={t("code.debug.continue")}
-            disabled={!stopped}
+            why={stopped ? null : t("code.debug.blockedNotStopped")}
             onClick={() => onControl("continue")}
           >
             <Play size={13} />
           </CtlButton>
           <CtlButton
             label={t("code.debug.stepOver")}
-            disabled={!stopped}
+            why={stopped ? null : t("code.debug.blockedNotStopped")}
             onClick={() => onControl("next")}
           >
             <ArrowRight size={13} />
           </CtlButton>
           <CtlButton
             label={t("code.debug.stepIn")}
-            disabled={!stopped}
+            why={stopped ? null : t("code.debug.blockedNotStopped")}
             onClick={() => onControl("step_in")}
           >
             <ArrowDown size={13} />
           </CtlButton>
           <CtlButton
             label={t("code.debug.stepOut")}
-            disabled={!stopped}
+            why={stopped ? null : t("code.debug.blockedNotStopped")}
             onClick={() => onControl("step_out")}
           >
             <ArrowUp size={13} />
           </CtlButton>
-          <CtlButton label={t("code.debug.stop")} disabled={!live} onClick={onStop} danger>
+          <CtlButton
+            label={t("code.debug.stop")}
+            why={live ? null : t("code.debug.blockedNoSession")}
+            onClick={onStop}
+            danger
+          >
             <Square size={13} />
           </CtlButton>
         </div>
@@ -331,13 +337,14 @@ function StateChip({ session }: { session: DapSessionInfo | null }) {
 
 function CtlButton({
   label,
-  disabled,
+  why,
   danger,
   onClick,
   children,
 }: {
   label: string;
-  disabled: boolean;
+  /** 지금 못 누르는 이유. `null` 이면 누를 수 있고 툴팁은 `label` 로 돌아간다. */
+  why: string | null;
   danger?: boolean;
   onClick: () => void;
   children: React.ReactNode;
@@ -346,10 +353,9 @@ function CtlButton({
     <button
       type="button"
       className={"code-debug-ctl" + (danger ? " danger" : "")}
-      disabled={disabled}
       onClick={onClick}
-      title={label}
       aria-label={label}
+      {...blocked(why, label)}
     >
       {children}
     </button>

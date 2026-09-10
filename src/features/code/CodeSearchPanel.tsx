@@ -19,6 +19,7 @@ import { commands, type CodeSearchHit, type CodeSearchResult } from "@/lib/bindi
 import { AppDialog } from "@/components/ui/AppDialog";
 import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { FileIcon } from "./FileIcon";
 import {
   dropFile,
@@ -285,10 +286,14 @@ export const CodeSearchPanel = memo(function CodeSearchPanel({
             <button
               type="button"
               className="code-tool-btn sm"
-              disabled={!canReplace || !result || result.files.length === 0}
               onClick={() => setConfirmAll(true)}
-              title={t("code.search.replaceAll")}
               aria-label={t("code.search.replaceAll")}
+              {...blocked(
+                canReplace && result && result.files.length > 0
+                  ? null
+                  : t("code.blockedNoReplaceTarget"),
+                t("code.search.replaceAll"),
+              )}
             >
               <ReplaceAll size={15} />
             </button>

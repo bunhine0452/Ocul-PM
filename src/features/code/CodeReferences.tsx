@@ -9,6 +9,7 @@ import { X, ChevronRight } from "@/components/Icons";
 import { FileIcon } from "./FileIcon";
 import { t, useT } from "@/i18n";
 import type { LspReferenceFile } from "@/lib/bindings";
+import { blocked } from "@/lib/blocked";
 
 export interface ReferencesQuery {
   /** 찾은 심볼 이름 — 패널 제목이 무엇의 참조인지 말한다. */
@@ -97,7 +98,7 @@ export const CodeReferences = memo(function CodeReferences({
                         key={`${hit.line}:${hit.character}`}
                         type="button"
                         className="code-refs-hit"
-                        disabled={path == null}
+                        {...blocked(path == null ? t("code.blockedOutsideProject") : null)}
                         onClick={() => path && onOpen(path, hit.line)}
                       >
                         <span className="code-refs-line">{hit.line + 1}</span>
