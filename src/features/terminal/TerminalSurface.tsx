@@ -1,13 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  SquareTerminal,
-  X,
-  Search,
-  Columns2,
-  Rows2,
-  PanelLeftDock,
-  GripVertical,
-} from "@/components/Icons";
+import { SquareTerminal, Search, X } from "@/components/Icons";
 import { commands } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 import { requestManualEntry } from "@/lib/journalCompose";
@@ -82,13 +74,13 @@ import {
   termPanePad,
 } from "./density";
 import { TerminalRail } from "./TerminalRail";
-import { TerminalAgentPill } from "./TerminalAgentPill";
+import { TerminalPaneHead } from "./TerminalPaneHead";
+import { TerminalHeadBar } from "./TerminalHeadBar";
 import type { PaneSignal } from "./agentMode";
 import { TerminalBlockMenu } from "./TerminalBlockMenu";
 import { TerminalFileMenu } from "./TerminalFileMenu";
 import type { BlockActivation } from "./TerminalInstanceImpl";
 import type { FileRefHit } from "./fileRefLinks";
-import { TerminalShellStatus } from "./TerminalShellStatus";
 import { formatCwdCrumb } from "./railModel";
 
 // 터미널 본체 — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 참조).
@@ -206,6 +198,10 @@ export function TerminalSurface({
   const railCollapsed = settings.terminalRailCollapsed;
 
   const [searchOpen, setSearchOpen] = useState(false);
+  // 확대된 페인 (2026-09-11). sid 는 탭을 가로질러 유일하므로 탭별로 들 필요가
+  // 없다 — 그 sid 가 지금 탭에 없으면 그냥 아무 효과도 없다. 다른 페인은
+  // **숨길 뿐 언마운트하지 않는다**: 셸은 계속 돌고, 돌아오면 그 자리 그대로다.
+  const [zoomSid, setZoomSid] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   // 검색 결과 카운터 "3/17" — SearchAddon.onDidChangeResults 가 채운다.
   const [matches, setMatches] = useState<{ index: number; count: number } | null>(null);
@@ -841,6 +837,15 @@ export function TerminalSurface({
     if (!target && h.blocks.list().length === 0) toast.info(t("term.block.none"));
   };
 
+  /** ⇧⌘↩ — 포커스된 페인만 크게. 분할이 하나뿐이면 뜻이 없다. */
+  const toggleZoom = () => {
+    if (!activeTab) return;
+    if (collectSids(panesOfTab(activeTab)).length < 2) return;
+    const sid = focusOfTab(activeTab);
+    setZoomSid((prev) => (prev === sid ? null : sid));
+    regRef.current.get(sid)?.term.focus();
+  };
+
   /** ⌘L — 스크롤백을 비우고 현재 줄만 남긴다 (Terminal.app 의 ⌘K 자리). */
   const clearScreen = () => {
     const h = focusedHandles();
@@ -854,7 +859,7 @@ export function TerminalSurface({
   // 갈라진다. 한 벌로 만들고 초기값·갱신값이 그것을 함께 본다.
   const actions = {
     addTab, closeFocusedPane, splitFocused, openSearch, closeSearch, clearScreen,
-    gotoBlock, fontDelta, fontReset, searchOpen, keyboardScope, ownsNewTab,
+    gotoBlock, fontDelta, fontReset, toggleZoom, searchOpen, keyboardScope, ownsNewTab,
   };
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
@@ -950,6 +955,11 @@ export function TerminalSurface({
         } else if (e.key === "-") {
           e.preventDefault();
           a.fontDelta(-1);
+        } else if (e.key === "Enter" && e.shiftKey) {
+          // ⇧⌘↩ — 포커스된 페인만 크게 (tmux 의 zoom). 셸의 ↩ 은 수식어가 없다.
+          e.preventDefault();
+          e.stopPropagation();
+          a.toggleZoom();
         } else if (e.shiftKey && (e.key === "0" || e.key === ")")) {
           // ⌘0 은 전역 화면 이동(navRegistry 10번째)이 함께 잡아가 눌렀을 때
           // 글자 크기 초기화 + 화면 전환이 동시에 일어났다 → ⇧⌘0 으로 옮긴다.
@@ -997,9 +1007,8 @@ export function TerminalSurface({
   // (`TerminalFileMenu`). 경로 검증은 여는 순간 백엔드가 한다.
   const [fileMenu, setFileMenu] = useState<FileRefHit | null>(null);
 
-  // 포커스된 페인의 셸 통합 상태 — 상태바(cwd·라이브 명령)와 툴바 부제가
-  // 여기서 나온다. 요약 문구는 `TerminalShellStatus` 가 직접 만든다 (시계를
-  // 그 안에 가두기 위해).
+  // 포커스된 페인의 셸 통합 상태 — 상태바의 cwd 와 툴바 부제가 여기서 나온다.
+  // 페인별 "지금 무슨 일" 문구·시계는 `TerminalPaneHead` 가 스스로 만든다.
   const focusedShell = activeTab ? shellStates[focusOfTab(activeTab)] : undefined;
   const shellActive = focusedShell?.active === true;
   useEffect(() => {
@@ -1079,6 +1088,7 @@ export function TerminalSurface({
       const dropping = moving?.pane?.sid === node.sid;
       // 지금 손에 들려 있는 페인 — 제자리에 남은 것은 자국일 뿐이라는 표시.
       const lifted = moving?.moved === true && moving.kind === "pane" && moving.sid === node.sid;
+      const zoomed = count > 1 && zoomSid === node.sid;
       return (
         <div
           // 드롭 판정은 페인의 실제 화면 상자로 한다 — 트리를 따라 계산하면
@@ -1092,11 +1102,35 @@ export function TerminalSurface({
             (focused ? " focused" : "") +
             (count > 1 && !focused ? " dim" : "") +
             (lifted ? " lifted" : "") +
-            (dropping ? " dropping" : "")
+            (dropping ? " dropping" : "") +
+            (zoomed ? " zoomed" : "")
           }
           data-tone={tone}
+          data-sid={node.sid}
           style={sessionColorStyle(tab.color)}
         >
+          {/* 머리띠 — 고정 높이라 내용이 바뀌어도 캔버스가 움직이지 않는다
+              (TerminalPaneHead 주석). 판정과 1초 시계는 그 안에 갇혀 있다. */}
+          <TerminalPaneHead
+            label={tab.label}
+            projectRoot={projectRoot}
+            shell={shell}
+            signal={paneSignals[node.sid]}
+            multi={count > 1}
+            zoomed={zoomed}
+            onZoom={() => {
+              setZoomSid((prev) => (prev === node.sid ? null : node.sid));
+              focusPane(tab.id, node.sid);
+            }}
+            onClose={() => closePane(node.sid)}
+            grip={{
+              onPointerDown: beginMove("pane", tab.id, node.sid),
+              onPointerMove: onMovePointer,
+              onPointerUp: endMovePointer,
+              onPointerCancel: cancelMove,
+            }}
+          />
+          <div className="term-pane-body">
           <TerminalInstance
             // 다시 시작 = 제자리 재마운트. sid 는 그대로다 (→ restartPane).
             key={`${node.sid}:${restartNonce[node.sid] ?? 0}`}
@@ -1133,9 +1167,6 @@ export function TerminalSurface({
             }
             onFileRef={projectRoot ? setFileMenu : undefined}
           />
-          {/* 에이전트 표시 — 판정과 1초 시계를 이 컴포넌트 안에 가둔다.
-              여기서 하면 매초 페인 트리 전체가 다시 그려진다. */}
-          <TerminalAgentPill shell={shell} signal={paneSignals[node.sid]} />
           {/* 끝난 셸 — 출력은 그대로 둔다 (읽고 복사할 수 있어야 한다). 아래에
               사실과 손잡이만 얹는다. */}
           {ended[node.sid] ? (
@@ -1151,35 +1182,7 @@ export function TerminalSurface({
               </button>
             </div>
           ) : null}
-          {count > 1 ? (
-            <>
-              {/* 페인을 집는 손잡이. 마우스 전용 어포던스라 보조기술에는 감춘다
-                  — 키보드 등가물은 ⌘D/⇧⌘D(분할)와 ⌘W(닫기)가 이미 있다.
-                  캔버스 위에 직접 포인터를 걸면 셸 선택·드래그와 싸우므로,
-                  잡는 자리를 따로 둔다 (iTerm2 도 페인은 손잡이로 옮긴다). */}
-              <span
-                className="pane-grip"
-                role="presentation"
-                aria-hidden="true"
-                title={t("term.dragPaneHint")}
-                onPointerDown={beginMove("pane", tab.id, node.sid)}
-                onPointerMove={onMovePointer}
-                onPointerUp={endMovePointer}
-                onPointerCancel={cancelMove}
-              >
-                <GripVertical size={11} />
-              </span>
-              <button
-                type="button"
-                className="pane-close"
-                onClick={() => closePane(node.sid)}
-                aria-label={t("term.closePane")}
-                title={t("term.closePaneHint")}
-              >
-                <X size={11} />
-              </button>
-            </>
-          ) : null}
+          </div>
         </div>
       );
     }
@@ -1208,55 +1211,16 @@ export function TerminalSurface({
       ref={rootRef}
       style={{ "--term-pane-pad": `${termPanePad(density)}px` } as React.CSSProperties}
     >
-      {/* 얇은 머리줄 — 레일 토글과 도구만 둔다 (2026-08-28). 세션 목록은 아래
-          세로 레일이 맡는다.
-
-          Tauri 는 클릭된 엘리먼트 **자신**의 속성만 본다 (조상을 타고 오르지
-          않는다) — 그래서 컨테이너와 빈 스페이서에 각각 drag-region 을 붙이고,
-          버튼에는 일부러 붙이지 않아 클릭이 그대로 산다. */}
-      <div className="term-head" data-tauri-drag-region={dragRegion || undefined}>
-        <button
-          type="button"
-          className="term-tool"
-          onClick={() => setSetting("terminalRailCollapsed", !railCollapsed)}
-          title={t(railCollapsed ? "term.rail.expand" : "term.rail.collapse")}
-          aria-label={t(railCollapsed ? "term.rail.expand" : "term.rail.collapse")}
-          aria-pressed={!railCollapsed}
-        >
-          <PanelLeftDock size={15} />
-        </button>
-        <span className="term-head-spacer" data-tauri-drag-region={dragRegion || undefined} />
-        <div className="term-tools">
-          <button
-            type="button"
-            className="term-tool"
-            onClick={() => (searchOpen ? closeSearch() : openSearch())}
-            title={t("term.searchScrollbackHint")}
-            aria-label={t("term.searchScrollback")}
-          >
-            <Search size={15} />
-          </button>
-          <button
-            type="button"
-            className="term-tool"
-            onClick={() => splitFocused("row")}
-            title={t("term.splitRowHint")}
-            aria-label={t("term.splitRow")}
-          >
-            <Columns2 size={15} />
-          </button>
-          <button
-            type="button"
-            className="term-tool"
-            onClick={() => splitFocused("col")}
-            title={t("term.splitColHint")}
-            aria-label={t("term.splitCol")}
-          >
-            <Rows2 size={15} />
-          </button>
-          {headerActions}
-        </div>
-      </div>
+      <TerminalHeadBar
+        railCollapsed={railCollapsed}
+        onToggleRail={() => setSetting("terminalRailCollapsed", !railCollapsed)}
+        activeTab={activeTab}
+        onSearch={() => (searchOpen ? closeSearch() : openSearch())}
+        onSplit={splitFocused}
+        dragRegion={dragRegion}
+      >
+        {headerActions}
+      </TerminalHeadBar>
 
       <div className="term-main">
         <TerminalRail
@@ -1306,7 +1270,14 @@ export function TerminalSurface({
           {terminalTabs.map((tab) => (
             <div
               key={tab.id}
-              className="term-canvas"
+              // 확대 중이면 그 페인을 품지 않은 칸을 CSS 로 숨긴다 (:has). 트리를
+              // 다시 그리지 않으니 나머지 xterm 은 그 자리에서 계속 산다.
+              className={
+                "term-canvas" +
+                (zoomSid && collectSids(panesOfTab(tab)).length > 1 && collectSids(panesOfTab(tab)).includes(zoomSid)
+                  ? " zooming"
+                  : "")
+              }
               style={{ display: tab.id === terminalActiveId ? "flex" : "none" }}
             >
               {renderPane(tab, panesOfTab(tab), "")}
@@ -1423,8 +1394,9 @@ export function TerminalSurface({
             {formatCwdCrumb(focusedShell?.cwd ?? null, projectRoot) || activeTab?.label || "—"}
           </span>
         </span>
-        {/* 가운데 = 지금 무슨 일이 일어나는가 (실행 중이면 1초마다 갱신). */}
-        <TerminalShellStatus shell={focusedShell} />
+        {/* "지금 무슨 일이 일어나는가" 는 여기 없다 — 페인마다 머리띠가 말한다
+            (2026-09-11). 상태바는 포커스 하나만 말할 수 있었고, 분할이 셋이면
+            나머지 둘은 캔버스 위의 알약뿐이었다. */}
         {/* 좁은 도크에서는 단축키 힌트가 다른 정보를 밀어낸다 — 넓을 때만. */}
         {compact ? null : <span className="ts-hint">{t("term.shortcuts")}</span>}
         <span style={{ flex: 1 }} />

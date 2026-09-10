@@ -263,6 +263,7 @@ const TESTS = new Set([
   "__tests__/terminal_dock.test.tsx",
   "__tests__/terminal_file_menu.test.tsx",
   "__tests__/terminal_pty_resize.test.ts",
+  "__tests__/terminal_scrollback_replay.test.ts",
   "__tests__/terminal_quality_round.test.ts",
   "__tests__/terminal_rail.test.ts",
   "__tests__/terminal_viewport_resync.test.ts",

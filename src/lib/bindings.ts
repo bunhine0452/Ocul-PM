@@ -926,6 +926,13 @@ export const commands = {
 	 *  0 은 "구버전 호스트라 모른다" 다.
 	 */
 	cols: number,
+	/**
+	 *  `text` 안에서 PTY 크기가 바뀐 자리들 (오름차순, 첫 원소 `at == 0`). 프런트는
+	 *  구간마다 xterm 을 그 크기로 맞춘 뒤 쓴다 — 도크(좁음)↔화면(넓음)을 오갈 때
+	 *  옛 폭의 커서 이동 시퀀스가 새 폭에서 옛 대화를 찌부러뜨리던 경로의 수리.
+	 *  빈 목록이면 구버전 호스트다 (통째로 쓴다).
+	 */
+	sizes: PtySizeMark[],
 } | null, string>(__TAURI_INVOKE("attach_pty_session", { sessionId })),
 	writeToPty: (sessionId: string, data: string) => typedError<null, string>(__TAURI_INVOKE("write_to_pty", { sessionId, data })),
 	/**
@@ -5339,6 +5346,13 @@ export type PtyAttach = {
 	 *  0 은 "구버전 호스트라 모른다" 다.
 	 */
 	cols: number,
+	/**
+	 *  `text` 안에서 PTY 크기가 바뀐 자리들 (오름차순, 첫 원소 `at == 0`). 프런트는
+	 *  구간마다 xterm 을 그 크기로 맞춘 뒤 쓴다 — 도크(좁음)↔화면(넓음)을 오갈 때
+	 *  옛 폭의 커서 이동 시퀀스가 새 폭에서 옛 대화를 찌부러뜨리던 경로의 수리.
+	 *  빈 목록이면 구버전 호스트다 (통째로 쓴다).
+	 */
+	sizes: PtySizeMark[],
 };
 
 /**  `start_pty_session` 반환값 — 프런트가 OSC 신호를 검증하는 데 필요한 정보. */
@@ -5346,6 +5360,13 @@ export type PtySessionInfo = {
 	/**  이 값이 실려 있지 않은 OSC 133 페이로드는 신뢰하지 않는다. */
 	nonce: string,
 	shell_integration: boolean,
+};
+
+/**  스냅샷 텍스트의 `at`(UTF-16 단위 오프셋)부터 PTY 가 `rows`×`cols` 였다. */
+export type PtySizeMark = {
+	at: number,
+	rows: number,
+	cols: number,
 };
 
 export type RecallStat = {

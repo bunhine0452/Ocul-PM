@@ -1208,7 +1208,13 @@ mark.s-hit {
   padding: var(--space-2) var(--space-3); min-height: 32px;
   background: var(--term-chrome); border-bottom: 1px solid var(--sep);
 }
-.term-head-spacer { flex: 1; min-width: 8px; align-self: stretch; }
+/* 가운데 — 지금 보고 있는 세션 이름 (+ 분할 수). 레일을 접으면 이름이 이것뿐이다. */
+.term-head-title {
+  flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; justify-content: center;
+  gap: var(--space-2); overflow: hidden; font-size: var(--fs-2); color: var(--text-2);
+}
+.term-head-title .tht-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-strong); }
+.term-head-title .tht-count { flex: none; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .term-tools { display: flex; align-items: center; gap: 2px; flex: none; }
 .term-tool {
   display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--radius-s);
@@ -1317,36 +1323,8 @@ mark.s-hit {
 /* 끄는 동안은 면 전체가 "쥐고 있음"이다 — 커서가 자리마다 바뀌면 손이 흔들린다. */
 .term-wrap.is-moving, .term-wrap.is-moving * { cursor: grabbing !important; }
 
-/* 페인을 집는 손잡이 — 닫기 버튼 왼쪽. 캔버스 위에 포인터를 직접 걸면 셸의
-   텍스트 선택과 싸우므로 잡는 자리를 따로 둔다. */
-.term-pane .pane-grip {
-  position: absolute; top: 6px; right: 32px; z-index: 5;
-  display: grid; place-items: center; width: 20px; height: 18px; border-radius: var(--radius-s);
-  color: var(--text-3); cursor: grab;
-}
-.term-pane .pane-grip:hover { color: var(--text); }
-.term-pane .pane-grip:active { cursor: grabbing; }
-
-/* 두 버튼은 알약과 같은 칩이다 — 평소엔 없다가 호버에서 **위에서 내려앉는다**
-   (그냥 나타나면 두 개가 동시에 깜빡여 눈에 걸린다). 키보드 포커스에서도
-   반드시 보여야 한다: 안 그러면 도달은 하는데 어디에 있는지 알 수 없다. */
-.term-pane .pane-grip,
-.term-pane .pane-close {
-  background: color-mix(in srgb, var(--term-bg) 84%, var(--term-chrome));
-  box-shadow: inset 0 0 0 1px var(--sep), var(--shadow-card);
-  opacity: 0; transform: translateY(-3px);
-  transition:
-    opacity var(--dur-1) var(--ease-out),
-    transform var(--dur-2) var(--ease-out),
-    color var(--dur-1) var(--ease-out),
-    background var(--dur-1) var(--ease-out);
-}
-.term-pane:hover .pane-grip,
-.term-pane:hover .pane-close,
-.term-pane .pane-grip:focus-visible,
-.term-pane .pane-close:focus-visible { opacity: 1; transform: none; }
-.term-pane .pane-grip:hover,
-.term-pane .pane-close:hover { background: color-mix(in srgb, var(--term-bg) 62%, var(--term-chrome)); }
+/* 페인을 집는 손잡이·확대·닫기는 머리띠 안에 산다 (아래 `.term-pane-head`).
+   2026-09-11 전에는 캔버스 위에 떠 있는 칩이었고, 셸 프롬프트의 오른쪽 끝을 덮었다. */
 /* 겨눠진 페인 — 어느 페인을 기준으로 갈라지는지 알린다 (미리보기 상자만으로는
    두 페인 사이에서 어느 쪽이 기준인지 모른다). 포커스는 요소의 box-shadow 를
    쓰므로 이쪽은 `::after` 다 — 겨눈 페인에 포커스가 있어도 둘 다 산다. */
@@ -1681,71 +1659,93 @@ mark.s-hit {
    캔버스를 축소하지는 않는다 (xterm 이 다시 그려지고 PTY 가 resize 된다). */
 .term-pane.lifted .term-screen { opacity: 0.32; }
 .term-pane.lifted { box-shadow: 0 0 0 1px var(--sep); }
-.term-pane .pane-close {
-  position: absolute; top: 6px; right: 8px; z-index: 5;
-  display: grid; place-items: center; width: 20px; height: 18px; border-radius: var(--radius-s);
-  border: none; color: var(--text-3); cursor: pointer;
-}
-.term-pane .pane-close:hover { color: var(--text); }
+/* ── 페인 머리띠 (2026-09-11 리디자인) ──────────────────────────────────
+   페인은 이제 [머리띠][캔버스] 두 줄이다. 머리띠는 **고정 높이**다 — 에이전트가
+   뜨고 져도, 명령이 끝나도 캔버스는 한 픽셀도 움직이지 않는다 (움직이면 xterm 이
+   refit 하고 PTY 가 resize 되어 전체화면 TUI 가 통째로 다시 그려진다. 2026-08-28
+   에 떠 있는 알약으로 도망갔던 이유가 그것인데, 그 걱정은 *가변* 헤더의 것이다).
 
-/* 페인 위 에이전트 알약 (2026-08-28) — **레이아웃을 건드리지 않는다.**
-   헤더 줄로 만들면 페인 높이가 줄어 xterm 이 refit 하고 PTY 가 resize 되어,
-   에이전트가 뜨고 질 때마다 전체화면 TUI 가 통째로 다시 그려진다. */
-.term-agent-pill {
-  position: absolute; top: 6px; left: 8px; z-index: 5;
-  display: flex; align-items: center; gap: 5px; max-width: calc(100% - 60px);
-  padding: 3px var(--space-3); border-radius: var(--radius-pill); pointer-events: none;
-  /* 떠 있는 크롬(알약·손잡이·닫기)은 한 식구다 — 같은 바탕, 같은 머리카락 줄,
-     같은 옅은 그림자. backdrop-filter 는 쓰지 않는다: 아래가 매 프레임 다시
-     그려지는 터미널 캔버스라 블러를 프레임마다 다시 계산하게 된다. */
-  background: color-mix(in srgb, var(--term-bg) 84%, var(--term-chrome));
-  box-shadow: inset 0 0 0 1px var(--sep), var(--shadow-card);
-  color: var(--text-3); font-family: var(--font); font-size: var(--fs-2); font-weight: var(--fw-strong);
-  opacity: 0.72; transition: opacity var(--dur-2) var(--ease-out);
+   왼쪽: 상태 점 + 작업 폴더(잎만 진하게). 가운데: 지금 무슨 일이 일어나는가.
+   오른쪽: 손잡이·확대·닫기 (분할이 둘 이상일 때만). 출력 위에 떠 있는 것은 없다. */
+.term-pane { flex-direction: column; }
+.term-pane-body { flex: 1; min-width: 0; min-height: 0; position: relative; display: flex; }
+.term-pane-head {
+  flex: none; display: flex; align-items: center; gap: var(--space-2);
+  height: var(--ctl-3); padding: 0 var(--space-2) 0 var(--space-3);
+  background: color-mix(in srgb, var(--term-chrome) 55%, var(--term-bg));
+  border-bottom: 1px solid var(--sep);
+  color: var(--text-3); font-family: var(--font); font-size: var(--fs-2);
+  user-select: none; -webkit-user-select: none;
+  transition: background var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
 }
-.term-pane:hover .term-agent-pill,
-.term-pane.focused .term-agent-pill { opacity: 1; }
-.term-agent-pill .tap-name { color: var(--text-2); }
-.term-agent-pill .tap-sep { opacity: 0.5; }
-.term-agent-pill .tap-phase { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 평소엔 아이콘 + 경과 시간만. 알약은 출력 위에 떠 있으므로 폭이 곧 가리는
-   글자 수다 — 아무 일도 없을 때까지 넓게 자리를 차지할 이유가 없다.
-   포커스·호버·기다림에서 펼친다 (기다림은 지금 읽어야 하는 순간이다). */
-.term-agent-pill .tap-name,
-.term-agent-pill .tap-sep,
-.term-agent-pill .tap-phase { display: none; }
-.term-pane:hover .term-agent-pill .tap-name,
-.term-pane:hover .term-agent-pill .tap-sep,
-.term-pane:hover .term-agent-pill .tap-phase,
-.term-agent-pill.waiting .tap-name,
-.term-agent-pill.waiting .tap-sep,
-.term-agent-pill.waiting .tap-phase { display: inline; }
-.term-agent-pill .tap-elapsed {
-  font-family: var(--mono); font-variant-numeric: tabular-nums; opacity: 0.85;
+.term-wrap.compact .term-pane-head { height: var(--ctl-2); padding-left: var(--space-2); }
+/* 포커스 — 띠가 세션 색(없으면 액센트)으로 옅게 물든다. 후광과 같은 색이라
+   "이 페인" 이 두 층에서 같은 말을 한다. */
+.term-pane.focused .term-pane-head {
+  background: color-mix(in srgb, var(--sess, var(--accent)) 9%, var(--term-bg));
+  border-bottom-color: color-mix(in srgb, var(--sess, var(--accent)) 28%, var(--sep));
+  color: var(--text-2);
 }
-/* 기다리는 중에는 알약이 먼저 눈에 들어와야 한다 — 흐려 두지 않는다. */
-.term-agent-pill.waiting {
-  opacity: 1;
-  color: var(--term-yellow);
-  background: color-mix(in srgb, var(--term-yellow) 14%, var(--term-bg));
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--term-yellow) 42%, transparent),
-    0 1px 2px rgb(0 0 0 / 0.05);
+.term-pane-head .tph-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex: none;
+  background: var(--tone, transparent);
 }
-.term-agent-pill.waiting .tap-name { color: var(--term-yellow); }
-/* 셸 상태에서 파생된 `data-tone` 띠 위에 덧그린다 (판정을 위로 올리면
-   1초 재렌더가 페인 트리로 돌아온다 — TerminalAgentPill 주석 참고). */
-.term-agent-band {
-  position: absolute; top: 0; left: 0; right: 0; height: 1.5px; z-index: 5;
-  background: linear-gradient(
-    90deg,
-    var(--term-yellow) 0%,
-    color-mix(in srgb, var(--term-yellow) 42%, transparent) 34%,
-    transparent 78%
-  );
-  pointer-events: none;
-  animation: term-breathe var(--breathe-dur) var(--ease-in-out) infinite;
+.term-pane-head[data-tone="off"] .tph-dot { box-shadow: inset 0 0 0 1px var(--sep-strong); }
+.term-pane-head[data-tone="running"] { --tone: var(--accent); }
+.term-pane-head[data-tone="waiting"] { --tone: var(--term-yellow); }
+.term-pane-head[data-tone="ok"] { --tone: var(--term-green); }
+.term-pane-head[data-tone="fail"] { --tone: var(--term-red); }
+.term-pane-head[data-tone="idle"] { --tone: var(--text-3); }
+.term-pane-head[data-tone="running"] .tph-dot,
+.term-pane-head[data-tone="waiting"] .tph-dot { animation: term-breathe var(--breathe-dur) var(--ease-in-out) infinite; }
+.term-pane-head .tph-crumb {
+  flex: 0 1 auto; min-width: 36px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono);
 }
+/* 좁은 페인에서 경로와 "지금 무슨 일" 이 자리를 다투면 경로가 양보한다 —
+   경로는 앞이 잘려도 잎이 남지만, 에이전트 문구는 통째로 사라졌다. */
+.term-pane-head:has(.tph-live:not(:empty)) .tph-crumb { max-width: 46%; }
+.term-pane-head .tph-parent { opacity: 0.62; }
+.term-pane-head .tph-leaf { color: var(--text-2); font-weight: var(--fw-strong); }
+.term-pane.focused .tph-leaf { color: var(--text); }
+.term-pane-head .tph-live {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: var(--space-2);
+  overflow: hidden; white-space: nowrap;
+}
+.term-pane-head .tph-agent { flex: none; color: var(--text-2); font-weight: var(--fw-strong); }
+.term-pane-head .tph-phase,
+.term-pane-head .tph-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.term-pane-head .tph-elapsed {
+  flex: none; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--accent);
+}
+/* 기다림은 지금 읽어야 하는 순간이다 — 문구가 노랑을 입는다. */
+.term-pane-head[data-tone="waiting"] .tph-agent,
+.term-pane-head[data-tone="waiting"] .tph-phase,
+.term-pane-head[data-tone="waiting"] .tph-elapsed { color: var(--term-yellow); }
+/* 기다리는 페인은 위 가장자리 띠도 노랑으로 숨쉰다 (`.term-pane::before`). */
+.term-pane:has(> .term-pane-head[data-tone="waiting"]) { --tone: var(--term-yellow); }
+.term-pane:has(> .term-pane-head[data-tone="waiting"])::before { animation: term-breathe var(--breathe-dur) var(--ease-in-out) infinite; }
+.term-pane-head .tph-tools { flex: none; display: flex; align-items: center; gap: 1px; margin-left: var(--space-1); }
+.term-pane-head .pane-grip,
+.term-pane-head .pane-zoom,
+.term-pane-head .pane-close {
+  display: grid; place-items: center; width: 20px; height: 18px; border-radius: var(--radius-xs);
+  border: none; background: transparent; color: var(--text-3); cursor: pointer; opacity: 0.55;
+  transition: opacity var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.term-pane:hover .tph-tools > *,
+.term-pane.focused .tph-tools > * { opacity: 1; }
+.term-pane-head .pane-grip:hover,
+.term-pane-head .pane-zoom:hover,
+.term-pane-head .pane-close:hover { background: var(--bg-hover); color: var(--text); opacity: 1; }
+.term-pane-head .pane-grip { cursor: grab; }
+.term-pane-head .pane-grip:active { cursor: grabbing; }
+.term-pane-head .pane-zoom[aria-pressed="true"] { color: var(--accent-text); opacity: 1; }
+
+/* 확대 (⇧⌘↩) — 확대된 페인을 품지 않은 칸만 숨긴다. 트리는 그대로라 나머지
+   xterm 은 제자리에서 계속 살고, 되돌리면 크기도 자리도 그대로다. */
+.term-canvas.zooming .term-cell:not(:has(.term-pane.zoomed)) { display: none; }
+.term-canvas.zooming .term-divider { display: none; }
 
 /* 왼쪽만 7px 더 준다 — 거터 캡슐이 앉을 자리다. **항상** 같은 폭이어야 한다:
    블록이 생길 때 padding 을 늘리면 cols 가 바뀌며 셸이 화면을 다시 그린다. */
@@ -1795,8 +1795,6 @@ mark.s-hit {
 .term-block-sticky[data-tone="fail"] { --tone: var(--term-red); }
 .term-block-sticky[data-tone="running"] { --tone: var(--accent); }
 .term-block-sticky[data-tone="unknown"] { --tone: var(--text-3); }
-/* 에이전트 알약과 겹치는 자리라 — 알약을 스티키 아래로 내린다. */
-.term-pane:has(.term-block-sticky:not([hidden])) .term-agent-pill { top: 28px; }
 
 /* 블록 액션 팝오버. 마지막 두 줄(일지·플래너)이 ocul-pm 것이다. */
 .term-block-menu {
@@ -1851,7 +1849,8 @@ mark.s-hit {
 @media (prefers-reduced-motion: reduce) {
   .term-sess[data-tone="running"] .ts-dot,
   .term-sess[data-tone="waiting"] .ts-dot,
-  .term-agent-band,
+  .term-pane-head .tph-dot,
+  .term-pane:has(> .term-pane-head[data-tone="waiting"])::before,
   .term-block-mark[data-tone="running"],
   .term-pane[data-tone="running"]::before { animation: none; }
   .term-block-mark { transition: none; }
@@ -1951,13 +1950,6 @@ mark.s-hit {
    오른쪽 조작부(밀도·글자 크기)가 밀려 사라지면 되돌릴 방법이 없다. */
 .term-status .ts-crumb { min-width: 48px; flex: 0 1 auto; font-family: var(--mono); font-size: var(--fs-2); }
 .ts-crumb-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 가운데: 지금 무슨 일이 일어나는가. */
-.term-status .ts-live { min-width: 0; flex: 0 1 auto; }
-.ts-live-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.term-status .ts-live .ts-elapsed {
-  flex: none; font-family: var(--mono); font-size: var(--fs-2);
-  font-variant-numeric: tabular-nums; color: var(--accent);
-}
 /* 우: 밀도 프리셋 (줄 간격 + 페인 여백). */
 .ts-density { gap: var(--space-2); }
 .ts-select {

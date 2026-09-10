@@ -44,6 +44,19 @@ pub struct PtyAttach {
     /// 화면 이동만으로 폭이 흔들리지 않게 한다 (프런트 `adoptedCols`).
     /// 0 은 "구버전 호스트라 모른다" 다.
     pub cols: u16,
+    /// `text` 안에서 PTY 크기가 바뀐 자리들 (오름차순, 첫 원소 `at == 0`). 프런트는
+    /// 구간마다 xterm 을 그 크기로 맞춘 뒤 쓴다 — 도크(좁음)↔화면(넓음)을 오갈 때
+    /// 옛 폭의 커서 이동 시퀀스가 새 폭에서 옛 대화를 찌부러뜨리던 경로의 수리.
+    /// 빈 목록이면 구버전 호스트다 (통째로 쓴다).
+    pub sizes: Vec<PtySizeMark>,
+}
+
+/// 스냅샷 텍스트의 `at`(UTF-16 단위 오프셋)부터 PTY 가 `rows`×`cols` 였다.
+#[derive(Clone, Copy, Serialize, specta::Type)]
+pub struct PtySizeMark {
+    pub at: u32,
+    pub rows: u16,
+    pub cols: u16,
 }
 
 /// `pty-data-{id}` 이벤트 페이로드. `seq` 는 attach 스냅샷과의 중복 제거용.
@@ -361,6 +374,15 @@ pub async fn attach_pty_session(
             nonce: a.nonce,
             shell_integration: a.shell_integration,
             cols: a.cols,
+            sizes: a
+                .sizes
+                .into_iter()
+                .map(|m| PtySizeMark {
+                    at: m.at,
+                    rows: m.rows,
+                    cols: m.cols,
+                })
+                .collect(),
         })),
         // 접속이 그 사이 죽었다 — "세션 없음" 과 같은 답이 맞다 (start 로 진행).
         Err(_) => Ok(None),

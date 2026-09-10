@@ -146,6 +146,20 @@ pub struct AttachPayload {
     /// `default`(0) 로 받고, 0 은 "모른다" 로 읽는다.
     #[serde(default)]
     pub cols: u16,
+    /// `text` 안에서 PTY 크기가 바뀐 자리들 (오름차순, 첫 원소는 `at == 0`).
+    /// 붙는 화면은 구간마다 xterm 을 그 크기로 맞춘 뒤 쓴다 — 근거는
+    /// `scrollback.rs` 머리 주석. 구버전 호스트는 이 필드를 모르므로 빈 목록이고,
+    /// 그때는 프런트가 종전처럼 통째로 쓴다.
+    #[serde(default)]
+    pub sizes: Vec<SizeMark>,
+}
+
+/// 스냅샷 텍스트의 `at`(UTF-16 단위 오프셋)부터 PTY 가 `rows`×`cols` 였다.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SizeMark {
+    pub at: u32,
+    pub rows: u16,
+    pub cols: u16,
 }
 
 /// 호스트가 밀어주는 세션 이벤트. 클라이언트(앱)가 tauri 이벤트

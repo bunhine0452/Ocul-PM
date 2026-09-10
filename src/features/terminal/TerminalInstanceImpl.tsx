@@ -15,6 +15,8 @@ import { t } from "@/i18n";
 import { attachImeBridge, type ImeBridgeHandle } from "./imeBridge";
 import { nextRevealState, resyncViewport } from "./viewportResync";
 import { adoptedCols, createPtyResizeQueue, type AdoptedWidth } from "./ptyResize";
+import { replayInto, splitReplay } from "./scrollbackReplay";
+import { loadWebglRenderer } from "./webglRenderer";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
 import {
   initialShellState,
@@ -707,11 +709,16 @@ export default function TerminalInstanceImpl({
     const container = containerRef.current;
     // 재접속 직후 이어받는 중인 폭 (근거·규칙은 ptyResize.ts 의 `adoptedCols`).
     let adopt: AdoptedWidth | null = null;
+    // 스크롤백을 찍힌 크기대로 재생하는 동안은 **아무도 크기를 못 만진다**
+    // (`scrollbackReplay.ts`). 그 사이 `ResizeObserver` 가 깨어나 fit 을 하면
+    // 구간 하나가 엉뚱한 폭으로 해석된다. 재생이 끝나면 어차피 한 번 맞춘다.
+    let replaying = false;
     /** @param deliberate 사람이 셀 크기를 바꾼 자리 — 이어받기를 놓는다. */
     const applyFit = (deliberate = false) => {
       // 놓는 것은 **아래 가드보다 먼저** — 숨어 있는 동안 글자 크기를 바꿔도
       // 그 뜻은 남아야 한다 (다시 보일 때 옛 폭으로 되돌아가면 안 된다).
       if (deliberate) adopt = null;
+      if (replaying) return;
       // 아직 안 열렸으면 **여기서 연다** — 크기가 0 이던 페인이 자리를 얻는
       // 순간이 바로 이 콜백이다 (display:none → 보임 전환 포함).
       if (!openedRef.current && !openRef.current()) return;
@@ -836,7 +843,16 @@ export default function TerminalInstanceImpl({
           // 들어 있어서, 순서가 뒤바뀌면 재접속마다 통합이 꺼진 것처럼 보인다.
           nonceRef.current = at.data.nonce;
           lastSeq = at.data.seq;
-          if (at.data.text) term.write(at.data.text);
+          // 구간마다 **찍힐 당시의 크기**로 xterm 을 맞춘 뒤 쓴다. 현재 폭으로
+          // 통째로 흘리면 옛 폭의 커서 이동이 새 폭에서 줄을 겹치게 만들었다 —
+          // 도크↔화면을 오갈 때 옛 대화가 찌부러지던 그 경로다 (scrollbackReplay.ts).
+          replaying = true;
+          try {
+            await replayInto(term, splitReplay(at.data.text, at.data.sizes ?? []));
+          } finally {
+            replaying = false;
+          }
+          if (!isMounted) return;
           // 도크와 터미널 화면은 크롬이 달라 열 수가 몇 칸 어긋난다. 그 몇 칸이
           // 매번 대화를 한 번씩 접고, 접힌 줄은 되돌릴 수 없다 — 자리가 있으면
           // 세션이 쓰던 폭을 그대로 이어받는다 (`adoptedCols`).
@@ -967,32 +983,4 @@ export default function TerminalInstanceImpl({
       ref={containerRef}
     />
   );
-}
-
-/**
- * GPU 렌더러로 승격. open() 이후에만 붙일 수 있고, 컨텍스트를 잃으면 dispose 해
- * xterm 이 DOM 렌더러로 되돌아가게 한다. 애드온 청크는 여기서 지연 로드해
- * 터미널을 안 여는 세션에 비용을 지우지 않는다.
- */
-async function loadWebglRenderer(
-  term: Terminal,
-  handle: { current: { dispose(): void } | null },
-): Promise<void> {
-  try {
-    const { WebglAddon } = await import("@xterm/addon-webgl");
-    if (!term.element) return; // 로드 중 dispose 된 경우
-    const webgl = new WebglAddon();
-    webgl.onContextLoss(() => {
-      // 핸들도 함께 비운다 — xterm 은 DOM 렌더러로 되돌아가고, 그때부터는
-      // 링크 밑줄을 저쪽이 그린다 (겹쳐 그으면 두 줄이 된다).
-      handle.current = null;
-      webgl.dispose();
-    });
-    term.loadAddon(webgl);
-    handle.current = webgl;
-  } catch (err) {
-    // WebGL2 미지원/차단 — DOM 렌더러 그대로 (동작엔 문제 없음).
-    // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
-    console.warn("[TerminalInstance] WebGL 렌더러 사용 불가, DOM 렌더러로 진행:", err);
-  }
 }

@@ -24,9 +24,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::{broadcast, mpsc};
 
-use super::protocol::{
-    AttachPayload, ClientFrame, Event, HostFrame, Request, Response, APP_BUILD, PROTO_VERSION,
-};
+use super::protocol::{ClientFrame, Event, HostFrame, Request, Response, APP_BUILD, PROTO_VERSION};
 use super::scrollback::SessionBuf;
 use super::writer::SessionWriter;
 use crate::framing::{encode_frame, parse_frame, Frame};
@@ -362,7 +360,7 @@ fn start_session(
         .take_writer()
         .map_err(|e| format!("Failed to take PTY writer: {e}"))?;
 
-    let buf = Arc::new(Mutex::new(SessionBuf::default()));
+    let buf = Arc::new(Mutex::new(SessionBuf::with_size(rows, cols)));
     let gone = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let session = HostSession {
         writer: Arc::new(SessionWriter::spawn(writer)),
@@ -485,20 +483,15 @@ fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
         }
         Request::Attach { sid } => {
             // 스냅샷(최대 200KB)은 전역 락 **밖에서** 잇는다 — 맵에서 꺼내는 것은 링버퍼 핸들과 작은 값 셋뿐이다.
-            let found = state.lock_sessions().get(&sid).map(|s| {
-                let win = s.master.get_size().ok();
-                (s.buf.clone(), s.nonce.clone(), s.shell_integration, win)
-            });
+            let found = state
+                .lock_sessions()
+                .get(&sid)
+                .map(|s| (s.buf.clone(), s.nonce.clone(), s.shell_integration));
             Response::Attach {
-                attach: found.map(|(buf, nonce, shell_integration, win)| {
-                    let (text, seq) = buf.lock().unwrap_or_else(|p| p.into_inner()).snapshot();
-                    AttachPayload {
-                        text,
-                        seq,
-                        nonce,
-                        shell_integration,
-                        cols: win.map_or(0, |w| w.cols),
-                    }
+                attach: found.map(|(buf, nonce, shell_integration)| {
+                    buf.lock()
+                        .unwrap_or_else(|p| p.into_inner())
+                        .attach_payload(nonce, shell_integration)
                 }),
             }
         }
@@ -531,6 +524,13 @@ fn handle_request(state: &Arc<HostState>, req: Request) -> Response {
                         message: format!("Failed to resize PTY: {e}"),
                     };
                 }
+                // 이 자리부터의 바이트는 새 크기로 찍힌다 — 스냅샷이 그 사실을
+                // 함께 돌려주도록 마커를 남긴다 (`scrollback.rs`).
+                session
+                    .buf
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner())
+                    .resized(rows, cols);
             }
             Response::Ok
         }
