@@ -352,7 +352,9 @@ describe("PR-PLN 3 — Planner", () => {
       await findByText("타임존 계산", { selector: ".sub-title" });
       const kids = () => [...(container.querySelector(".pln-body")?.children ?? [])];
       expect(kids()[0]?.className).toContain("pln-rail-slot");
-      fireEvent.click(await findByLabelText("계획 목록 오른쪽으로"));
+      // 좌우 이동은 툴바 아이콘이 아니라 레일의 옵션 메뉴 안이다 (2026-09-11).
+      fireEvent.click(await findByLabelText("계획 목록 옵션"));
+      fireEvent.click(await findByText("계획 목록 오른쪽으로"));
       await waitFor(() => expect(kids()[0]?.className).toContain("pln-main"));
       expect(container.querySelector(".pln-rail")?.className).toContain("on-right");
     });

@@ -20,6 +20,7 @@ owner: claude-code
 - [ ] macOS 권한 프롬프트 — 설정 → ocul-pm → 연동 탭을 열었을 때 **아무것도 안 뜨는지**, 그리고 [Desktop 확인] 을 눌렀을 때**만** 「다른 앱의 데이터」를 묻는지. 승인을 지우고 봐야 한다: `tccutil reset SystemPolicyAppData com.kimhyunbin.ocul-pm`. 코드는 회귀 테스트(마운트 시 호출 0)로 잠갔지만 프롬프트가 뜨는 순간은 사람 눈으로만 본다 — 설치본 2.45.1 에는 이 수정이 없으므로 다음 릴리스 뒤에 {#eyes-tcc-desktop}
 - [ ] 플래너 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 CSS 상태 마크(`.pmark` 여섯 상태 · 체크 정렬 · 막힘 `!` 대비) · 단계 스트립 조각 색과 hover 늘림 · 스티키 단계 머리 바탕이 시트와 같은지 · 행 hover 동작 무리(▾ ✎ 🗑 실행)의 노출 · 보드 열 위 선 · 좁은 폭(컨테이너 720 이하)에서 메타 열이 제목 아래로 내려가는지. 하네스(vitest DOM 덤프 + 실제 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-planner-redesign}
 - [ ] 작업 일지 원장 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 종류색 척추(`.jl-spine`)와 색띠(`.jl-strip`)의 `--t-*` 대비 · 스티키 날짜 머리글 바탕이 본문과 같은지 · 툴바 `.seg` 안 종류색 점 정렬 · 행 hover/focus 링 · 날짜 레일 막대 · 좁은 폭(컨테이너 640 이하)에서 레일이 숨고 명단이 아래 줄로 내려가는지 · Today→일지 초점 1.6초 강조. 하네스(vitest DOM 덤프 + 실제 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-journal-ledger}
+- [ ] 플래너 계획 레일 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 진행 파이(`.pln-pie` conic-gradient 채움·완료 꽉 찬 원·보관 점선)의 대비 · ⋯ 옵션 메뉴가 레일 폭 170px 에서도 화면 안에 서는지(오른쪽 레일이면 왼쪽으로 여는지) · 접힌 띠의 세로 라벨 · 제목 2줄 클램프와 hover 카드의 역할 분담 · 섹션 머리 sticky 바탕. 하네스로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-planner-rail}
 - [x] 글리프 위생 — codex-acp 6건이 [~] 인데 done(release-gates 미확정 포함) · skill-catalog-round-2 는 archived 여야 · drag-and-drop Phase 8 의 4건은 [-] 여야 · menubar-tray 의 v2.3.0 항목은 죽은 항목 {#glyph-hygiene}
 
 ## v2.42.0 이월 — 네 세션이 소유 밖에서 발견한 것 {#v242-carry}

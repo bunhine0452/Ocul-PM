@@ -53,6 +53,8 @@ function setup() {
       onToggleSection={vi.fn()}
       now={NOW}
       side="left"
+      onSideToggle={vi.fn()}
+      onCollapse={vi.fn()}
     />,
   );
 }

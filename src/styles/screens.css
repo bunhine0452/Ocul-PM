@@ -899,52 +899,63 @@
 
 /* `.pln-main` · `.pln-doc` 는 위 시트 블록(2026-09-10 리디자인)이 정의한다. */
 
-.pln-rail-controls { display: flex; flex-direction: column; gap: var(--space-2); padding: 0 2px var(--space-5); }
-/* 시트 위에 얹히는 컨트롤이라 --bg-inset 대신 옅은 테두리로 존재만 알린다. */
-/* 레일은 폭이 끌려 움직이므로 채운다. 표면만 이 자리의 것이다 — 레일
-   자체가 `background: transparent` 라, 여기서 면을 칠하면 레일 안에 또
-   하나의 면이 생긴다 (2026-09-10 {#unify-search-input}). */
-.pln-rail-search {
-  width: auto; background: transparent; border-color: var(--sep);
-}
+/* ── 레일 머리 · 행 (2026-09-11 레일 리디자인) ──────────────────────────────
+   예전 머리는 검색 상자 + 네이티브 셀렉트 둘이었고, 접기·좌우 이동은 툴바에
+   패널 아이콘 둘로 나가 있었다. 이제 머리는 [검색 | ⋯] 한 줄이고 나머지는
+   전부 그 메뉴 안이다. 행은 [진행 파이 | 제목 2줄 / 남은 일 · 언제] — 숫자
+   분수(11/11)와 34px 막대 대신 원 하나가 진척을 말한다. */
+.pln-rail-head { display: flex; align-items: center; gap: var(--space-2); padding: 0 0 var(--space-4) 2px; }
+.pln-rail-search { flex: 1; min-width: 0; width: auto; background: transparent; border-color: var(--sep); }
+.pln-rail-name { flex: 1; min-width: 0; padding-left: var(--space-2); font-size: var(--fs-3); font-weight: var(--fw-bold); color: var(--text-2); }
 .pln-rail-clear {
   display: grid; place-items: center; width: 18px; height: 18px; padding: 0;
   border: none; background: none; border-radius: var(--radius-xs); cursor: pointer; color: var(--text-3);
 }
 .pln-rail-clear:hover { color: var(--text); background: var(--bg-hover); }
-.pln-rail-selects { display: flex; gap: var(--space-2); }
-.pln-rail-selects .set-input {
-  flex: 1; min-width: 0; height: 26px; padding: 0 var(--space-2);
-  font-family: var(--font); font-size: var(--fs-3);
-  background: transparent; border-color: var(--sep); color: var(--text-2);
-}
+.pln-rail-menu { position: relative; flex: none; }
+.pln-rail-pop { left: auto; right: 0; min-width: 168px; }
+.pln-rail.on-right .pln-rail-pop { left: 0; right: auto; }
+.pln-rail-pop-head { padding: var(--space-2) var(--space-3) 2px; font-size: var(--fs-1); font-weight: var(--fw-bold); letter-spacing: var(--track-caps); text-transform: var(--caps-transform); color: var(--text-3); }
+.pln-rail-pop-sep { height: 1px; margin: var(--space-1) var(--space-2); background: var(--sep); }
 
-.pln-rail-list { display: flex; flex-direction: column; gap: 2px; }
+/* 접힌 레일의 띠 — 되살리는 손잡이는 접힌 자리에 선다. */
+.pln-rail-tab {
+  flex: none; width: 26px; align-self: stretch;
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-3);
+  padding: var(--space-4) 0; border: none; border-right: 1px solid var(--sep-strong);
+  background: transparent; color: var(--text-3); cursor: pointer;
+  font-family: var(--font); transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.pln-rail-tab:hover { background: var(--bg-hover); color: var(--text); }
+.pln-rail-tab.on-right { border-right: none; border-left: 1px solid var(--sep-strong); }
+.pln-rail-tab-label { writing-mode: vertical-rl; font-size: var(--fs-2); font-weight: var(--fw-strong); letter-spacing: var(--track-wide); white-space: nowrap; }
+
+.pln-rail-list { display: flex; flex-direction: column; gap: 1px; }
 .pln-rail-empty { padding: var(--space-5) var(--space-4); font-size: var(--fs-3); color: var(--text-2); }
 
 /* 섹션은 이 목록의 뼈대다. 헤더만 조용히 얹으면 '진행 중' 과 '완료' 의 행들이
    한 덩어리로 흘러 어디가 어딘지 안 보인다. 구분선 + 여백으로 물리적으로 끊고,
    스크롤 중에도 헤더를 고정해 지금 보고 있는 묶음이 항상 보이게 한다. */
-.pln-sec + .pln-sec {
-  margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--sep-strong);
-}
+.pln-sec + .pln-sec { margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--sep); }
 /* 헤더는 **줄**이고 그 안에 접기 버튼과 (완료 묶음에만) 보관 버튼이 산다 —
    버튼 안에 버튼을 넣으면 중첩 인터랙티브가 되어 접근성 검사가 실패한다. */
 .pln-sec-head {
   position: sticky; top: 0; z-index: 1;
   display: flex; align-items: center; gap: 2px;
-  padding: var(--space-1) var(--space-2) var(--space-2) 0; background: var(--bg-content);
+  padding: var(--space-1) 0 var(--space-2) 0; background: var(--bg-content);
 }
 .pln-sec-toggle {
-  flex: 1; min-width: 0;
+  flex: 1; min-width: 0; height: var(--ctl-3);
   display: flex; align-items: center; gap: var(--space-2);
-  padding: 0 var(--space-1) 0 var(--space-4); background: none; border: none; cursor: pointer;
+  padding: 0 var(--space-2) 0 var(--space-2); background: none; border: none; cursor: pointer; border-radius: var(--radius-s);
   font-family: var(--font); font-size: var(--fs-2); font-weight: var(--fw-bold);
-  letter-spacing: var(--track-caps); color: var(--text-2); text-align: left;
+  letter-spacing: var(--track-caps); text-transform: var(--caps-transform); color: var(--text-2); text-align: left;
 }
-.pln-sec-toggle:hover { color: var(--text); }
-.pln-sec-toggle svg { flex: none; opacity: 0.75; }
+.pln-sec-toggle:hover { color: var(--text); background: var(--bg-hover); }
+.pln-sec-toggle svg { flex: none; color: var(--text-3); }
 .pln-sec-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 개수는 오른쪽 끝의 숫자 하나 — 알약을 씌우면 헤더마다 버튼처럼 보인다. */
+.pln-sec-count { margin-left: auto; padding-left: var(--space-3); font-family: var(--mono); font-size: var(--fs-2); font-weight: var(--fw-body); letter-spacing: 0; text-transform: none; color: var(--text-3); font-variant-numeric: tabular-nums; }
 /* 보관 버튼은 평소 흐릿하다 — 정리는 가끔 하는 일이라 목록의 리듬을 끊으면
    안 되고, 그렇다고 hover 로만 나타나면 트랙패드에서 찾을 수가 없다. */
 .pln-sec-act {
@@ -961,65 +972,58 @@
 }
 /* 상한 뒤에 남은 행 — 행처럼 생겼지만 계획이 아니다 (들여쓰기·색으로 구분). */
 .pln-sec-more {
-  width: 100%; padding: var(--space-3) var(--space-4); margin-top: 1px;
+  width: 100%; padding: var(--space-3) var(--space-3) var(--space-3) calc(16px + var(--space-3) * 2); margin-top: 1px;
   border: none; background: none; border-radius: var(--radius-s);
   text-align: left; cursor: pointer;
   font-family: var(--font); font-size: var(--fs-2); color: var(--text-3);
 }
 .pln-sec-more:hover { background: var(--bg-hover); color: var(--text-2); }
-/* 개수는 칩으로 — 오른쪽 끝에 무게를 줘 섹션의 시작을 한 번 더 표시한다. */
-.pln-sec-count {
-  margin-left: auto; padding: 1px var(--space-2); border-radius: var(--radius-pill);
-  background: var(--bg-inset); color: var(--text-3);
-  font-size: var(--fs-2); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums;
-}
 
-/* 선택 표시는 왼쪽 세로 막대가 아니라 **면(面)** 으로 한다. 액센트 바는
-   Discussion/문서 목록(둘 다 채움만 씀)과도 어긋났고, 얇은 색 막대는 행마다
-   시선을 끌어 목록의 리듬을 끊는다. 부드러운 액센트 채움 + 제목 색 승격만으로
-   충분히 읽히고 훨씬 조용하다. */
+/* 행 — [파이 | 제목 / 메타]. 선택은 면(面)으로: 부드러운 액센트 채움 + 제목
+   색 승격. 얇은 색 막대는 행마다 시선을 끌어 목록의 리듬을 끊는다. */
 .pln-row {
-  display: flex; flex-direction: column; gap: var(--space-2); width: 100%;
-  padding: var(--space-4) var(--space-4); border: none; background: none;
+  display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: var(--space-3); align-items: start;
+  width: 100%; padding: var(--space-3) var(--space-3); border: none; background: none;
   border-radius: var(--radius-s);
   text-align: left; cursor: pointer; font-family: var(--font); color: var(--text);
   transition: background var(--dur-1) var(--ease-out);
 }
 .pln-row:hover { background: var(--bg-hover); }
 .pln-row.on { background: var(--accent-soft); }
-.pln-row-top { display: flex; align-items: center; gap: var(--space-2); }
+.pln-row-main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .pln-row-title {
-  flex: 1; min-width: 0; font-size: var(--fs-4); font-weight: var(--fw-label);
-  letter-spacing: var(--track-tight);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--fs-4); font-weight: var(--fw-label); line-height: var(--lh-tight);
+  letter-spacing: var(--track-tight); overflow-wrap: break-word;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .pln-row.on .pln-row-title { color: var(--accent-text); font-weight: var(--fw-strong); }
-.pln-row-lock { flex: none; color: var(--text-3); opacity: 0.75; }
-.pln-row.on .pln-row-lock { color: var(--accent-text); opacity: 1; }
-
-/* 진행 바는 meta 줄 오른쪽 끝의 짧은 미터. 제목 밑에 전폭 막대로 깔면 밑줄로
-   읽혀 제목과 수치가 갈라지고, 액센트로 채우면 레일 전체가 초록 막대 밭이 돼
-   정작 선택된 행이 묻힌다. 평소엔 중성색, 선택된 행에서만 액센트. */
-.pln-row-bar {
-  margin-left: auto; flex: none; width: 34px; height: 3px;
-  border-radius: var(--radius-pill); background: var(--sep-strong); overflow: hidden;
-}
-.pln-row-bar > i {
-  display: block; height: 100%; border-radius: var(--radius-2xs);
-  background: var(--text-3); opacity: 0.5;
-  transition: width var(--dur-2) var(--ease-out);
-}
-.pln-row.on .pln-row-bar > i { background: var(--accent); opacity: 1; }
-
 .pln-row-meta {
   display: flex; align-items: center; gap: var(--space-2);
   font-size: var(--fs-2); color: var(--text-3); font-variant-numeric: tabular-nums;
 }
-.pln-row-count { letter-spacing: var(--track-wide); }
+.pln-row-meta > * + *::before { content: "·"; margin-right: var(--space-2); opacity: 0.6; }
+.pln-row-count { white-space: nowrap; }
+.pln-row-when { white-space: nowrap; }
+.pln-row-lock { flex: none; color: var(--text-3); }
+.pln-row.on .pln-row-lock { color: var(--accent-text); }
 .pln-row-stale {
-  display: inline-flex; align-items: center; gap: 3px;
+  display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;
   color: var(--t-bug); font-weight: var(--fw-strong);
 }
+
+/* 진행 파이 — `.pmark` 와 같은 16px 원. 채움 각도 = 진척. 끝난 계획은 꽉 찬
+   원(마크의 완료와 같은 모양), 보관은 점선 원. 평소엔 잉크, 선택된 행에서만 액센트. */
+.pln-pie {
+  --p: 0; --pie: var(--text-3);
+  width: 16px; height: 16px; margin-top: 1px; border-radius: 50%; box-sizing: border-box;
+  border: 1.5px solid var(--sep-strong);
+  background: conic-gradient(var(--pie) calc(var(--p) * 1%), transparent 0);
+  opacity: 0.7;
+}
+.pln-pie.is-done { background: var(--pie); border-color: transparent; }
+.pln-pie.is-archived { border-style: dashed; background: none; }
+.pln-row.on .pln-pie { --pie: var(--accent); border-color: var(--accent); opacity: 1; }
+.pln-row.on .pln-pie.is-done { border-color: transparent; }
 
 /* 레일 행 위에 뜨는 카드 (`PlanHoverCard`). body 로 포털되므로 `.pln-` 계열
    중 유일하게 레일 밖에 사는 규칙이다 — 좌표는 JS 가 인라인으로 준다. */

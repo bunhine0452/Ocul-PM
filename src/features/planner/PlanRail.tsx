@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Archive, ChevronDown, ChevronRight, Lock, Search, TriangleAlert, X } from "@/components/Icons";
+import { PlanRailMenu } from "./PlanRailMenu";
 import type { PlanSummary } from "@/lib/bindings";
 import {
   groupPlans,
@@ -66,6 +67,10 @@ interface PlanRailProps {
    * 그리지 않는다 — 레일은 무엇을 할 수 있는지 스스로 정하지 않는다.
    */
   onArchiveSection?: (planIds: string[]) => void;
+  /** 레일을 반대쪽으로 옮긴다 (옵션 메뉴). */
+  onSideToggle: () => void;
+  /** 레일을 접는다 (옵션 메뉴). 되살리는 띠는 `PlanRailTab` 이 그린다. */
+  onCollapse: () => void;
 }
 
 export function PlanRail({
@@ -84,6 +89,8 @@ export function PlanRail({
   now,
   side,
   onArchiveSection,
+  onSideToggle,
+  onCollapse,
 }: PlanRailProps) {
   const { t } = useT();
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -149,9 +156,12 @@ export function PlanRail({
 
   return (
     <div className={"pln-rail" + (side === "right" ? " on-right" : "")}>
-      {showControls ? (
-        <div className="pln-rail-controls">
-          <div className="search-box pln-rail-search">
+      {/* 머리 — 검색(계획이 여섯 이상일 때만)과 옵션 메뉴 하나. 정렬·묶기·
+          접기·좌우 이동은 전부 그 메뉴 안이다. 계획이 적으면 검색 자리에
+          레일의 이름(계획 N)이 선다. */}
+      <div className="pln-rail-head">
+        {showControls ? (
+          <div className="search-box sm pln-rail-search">
             <Search size={13} />
             <input
               aria-label={t("plan.rail.searchAria")}
@@ -170,32 +180,19 @@ export function PlanRail({
               </button>
             ) : null}
           </div>
-          <div className="pln-rail-selects">
-            <select
-              className="set-input"
-              aria-label={t("plan.rail.sortAria")}
-              value={sort}
-              onChange={(e) => onSortChange(e.target.value as PlanSort)}
-            >
-              <option value="recent">{t("plan.rail.sort.recent")}</option>
-              <option value="progress">{t("plan.rail.sort.progress")}</option>
-              <option value="remaining">{t("plan.rail.sort.remaining")}</option>
-              <option value="title">{t("plan.rail.sort.title")}</option>
-            </select>
-            <select
-              className="set-input"
-              aria-label={t("plan.rail.groupAria")}
-              value={group}
-              onChange={(e) => onGroupChange(e.target.value as PlanGroup)}
-            >
-              <option value="status">{t("plan.rail.group.status")}</option>
-              <option value="recency">{t("plan.rail.group.recency")}</option>
-              <option value="agent">{t("plan.rail.group.agent")}</option>
-              <option value="none">{t("plan.rail.group.none")}</option>
-            </select>
-          </div>
-        </div>
-      ) : null}
+        ) : (
+          <span className="pln-rail-name">{t("plan.rail.title", { n: plans.length })}</span>
+        )}
+        <PlanRailMenu
+          sort={sort}
+          onSortChange={onSortChange}
+          group={group}
+          onGroupChange={onGroupChange}
+          side={side}
+          onSideToggle={onSideToggle}
+          onCollapse={onCollapse}
+        />
+      </div>
 
       <div className="pln-rail-list" ref={listRef} onKeyDown={onListKeyDown}>
         {sections.length === 0 ? (
@@ -386,8 +383,10 @@ const PlanRailRow = memo(function PlanRailRow({
 }: PlanRailRowProps) {
   const { t } = useT();
   const pct = facet?.pct ?? Math.round((plan.progress ?? 0) * 100);
+  const bucket = facet?.bucket ?? (plan.status === "active" ? "active" : plan.status === "done" ? "done" : "archived");
   const locked = plan.status !== "active";
   const stale = facet?.staleDays ?? null;
+  const remaining = facet?.remaining ?? Math.max(0, plan.item_count - plan.done_count);
   const when = relDay(facet?.touchedAt ?? null, now);
 
   return (
@@ -410,28 +409,33 @@ const PlanRailRow = memo(function PlanRailRow({
       }}
       onBlur={() => onHover(null)}
     >
-      <span className="pln-row-top">
+      {/* 진행 파이 — 본문의 상태 마크(`.pmark`)와 같은 지름의 원. 채워진 만큼이
+          진척이고, 끝난 계획은 꽉 찬 원, 보관은 점선 원. 숫자보다 먼저 읽힌다. */}
+      <span
+        className={"pln-pie is-" + bucket}
+        style={{ "--p": pct } as React.CSSProperties}
+        aria-hidden="true"
+      />
+      <span className="pln-row-main">
         {/* 행 전체가 버튼이라 앵커/강조 요소를 넣지 않는다 — 마크다운 기호만
             걷어낸 평문. 목차에는 `**` 노이즈가 없는 편이 읽기 좋다. */}
         <span className="pln-row-title">{stripInlineMarkdown(plan.title)}</span>
-        {locked ? <Lock size={11} className="pln-row-lock" aria-label={t("plan.locked")} /> : null}
-      </span>
-      {/* 진행 바는 meta 줄 안에 짧게 둔다. 제목 바로 밑에 전폭으로 깔면
-          밑줄·구분선으로 읽혀 제목과 수치가 갈라져 보인다 (하네스에서 확인). */}
-      <span className="pln-row-meta">
-        <span className="pln-row-count">
-          {plan.done_count}/{plan.item_count}
-        </span>
-        {stale != null ? (
-          <span className="pln-row-stale">
-            <TriangleAlert size={11} />
-            {t("plan.rail.stale", { n: stale })}
-          </span>
-        ) : when ? (
-          <span>{when}</span>
-        ) : null}
-        <span className="pln-row-bar" aria-hidden="true">
-          <i style={{ width: `${pct}%` }} />
+        <span className="pln-row-meta">
+          {locked ? (
+            <Lock size={11} className="pln-row-lock" aria-label={t("plan.locked")} />
+          ) : (
+            <span className="pln-row-count">
+              {remaining > 0 ? t("plan.rail.remaining", { n: remaining }) : t("plan.rail.allDone")}
+            </span>
+          )}
+          {stale != null ? (
+            <span className="pln-row-stale">
+              <TriangleAlert size={11} />
+              {t("plan.rail.stale", { n: stale })}
+            </span>
+          ) : when ? (
+            <span className="pln-row-when">{when}</span>
+          ) : null}
         </span>
       </span>
     </button>

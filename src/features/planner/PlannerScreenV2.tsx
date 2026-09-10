@@ -3,7 +3,7 @@ import { ErrorCard } from "@/components/ErrorCard";
 import { useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
-  Plus, TriangleAlert, RefreshCw, PanelLeft, PanelRight, TargetIcon,
+  Plus, TriangleAlert, RefreshCw, TargetIcon,
 } from "@/components/Icons";
 import { commands, type PlanItemDto } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
@@ -11,7 +11,7 @@ import { handoffDispatch, terminalOnScreen } from "@/features/terminal/dispatchT
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { useTerminalSessions, useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
-import { PlanRailDock, clampRailWidth } from "./PlanRailDock";
+import { PlanRailDock, PlanRailTab, clampRailWidth } from "./PlanRailDock";
 import type { PlanGroup, PlanSort } from "./planList";
 import type { PlanView } from "./planMeta";
 import { t, useT } from "@/i18n";
@@ -139,6 +139,13 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         onWidthChange={(w) => setState((p) => ({ ...p, plannerRailWidth: w }))}
         side={railSide}
         onArchiveSection={(ids) => void plan.archivePlans(ids)}
+        onSideToggle={() =>
+          setState((p) => ({
+            ...p,
+            plannerRailSide: p.plannerRailSide === "right" ? "left" : "right",
+          }))
+        }
+        onCollapse={() => setState((p) => ({ ...p, plannerRailCollapsed: true }))}
         plans={plan.plans}
         facets={plan.facets}
         selectedId={selectedId}
@@ -153,6 +160,13 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
         onToggleSection={toggleSection}
         now={plan.now}
       />
+    ) : railEligible ? (
+      // 접힌 레일 — 되살리는 띠는 접힌 자리에 선다 (툴바 아이콘 둘을 걷어냈다).
+      <PlanRailTab
+        side={railSide}
+        count={plan.plans?.length ?? 0}
+        onExpand={() => setState((p) => ({ ...p, plannerRailCollapsed: false }))}
+      />
     ) : null;
 
   return (
@@ -163,40 +177,6 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
           plan.plans && plan.plans.length > 0
             ? `${t("plan.toolbarSub", { n: plan.plans.length, active: plan.railStats.active })}${plan.railStats.stale ? t("plan.toolbarStale", { n: plan.railStats.stale }) : ""}`
             : t("plan.toolbarIdle")
-        }
-        leading={
-          railEligible ? (
-            <>
-              <button
-                className="pln-iconbtn"
-                aria-label={railVisible ? t("plan.railCollapse") : t("plan.railExpand")}
-                aria-expanded={railVisible}
-                title={railVisible ? t("plan.railCollapse") : t("plan.railExpand")}
-                onClick={() =>
-                  setState((p) => ({ ...p, plannerRailCollapsed: !p.plannerRailCollapsed }))
-                }
-              >
-                {/* 접기 글리프는 레일이 붙어 있는 쪽을 가리킨다 — 그래야 옆의
-                    '옮기기' 버튼(반대쪽 글리프)과 한눈에 구별된다. */}
-                {railSide === "right" ? <PanelRight size={15} /> : <PanelLeft size={15} />}
-              </button>
-              {railVisible ? (
-                <button
-                  className="pln-iconbtn"
-                  aria-label={t(railSide === "right" ? "plan.railToLeft" : "plan.railToRight")}
-                  title={t(railSide === "right" ? "plan.railToLeft" : "plan.railToRight")}
-                  onClick={() =>
-                    setState((p) => ({
-                      ...p,
-                      plannerRailSide: p.plannerRailSide === "right" ? "left" : "right",
-                    }))
-                  }
-                >
-                  {railSide === "right" ? <PanelLeft size={15} /> : <PanelRight size={15} />}
-                </button>
-              ) : null}
-            </>
-          ) : undefined
         }
       >
         {/* 문서 / 보드 — 같은 항목의 두 배치. 계획이 없으면 고를 것도 없다. */}

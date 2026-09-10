@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useRef, useState, type ComponentProps } from "react";
+import { ChevronLeft, ChevronRight } from "@/components/Icons";
 import { PlanRail } from "./PlanRail";
 import { useT } from "@/i18n";
 
@@ -101,5 +102,35 @@ export function PlanRailDock({ width, onWidthChange, ...railProps }: PlanRailDoc
       {rail}
       {resizer}
     </>
+  );
+}
+
+/**
+ * 접힌 레일의 자리 — 세로 라벨 띠 하나 (2026-09-11 레일 리디자인).
+ *
+ * 예전엔 툴바의 패널 아이콘이 되살리는 손잡이였다. 접힌 것을 되살리는 손잡이는
+ * **접힌 자리에** 있어야 찾는다 — 코드 화면 사이드바·터미널 도크와 같은 원칙.
+ */
+export function PlanRailTab({
+  side,
+  count,
+  onExpand,
+}: {
+  side: "left" | "right";
+  count: number;
+  onExpand: () => void;
+}) {
+  const { t } = useT();
+  return (
+    <button
+      type="button"
+      className={"pln-rail-tab" + (side === "right" ? " on-right" : "")}
+      aria-label={t("plan.railExpand")}
+      title={t("plan.railExpand")}
+      onClick={onExpand}
+    >
+      {side === "right" ? <ChevronLeft size={13} /> : <ChevronRight size={13} />}
+      <span className="pln-rail-tab-label">{t("plan.rail.title", { n: count })}</span>
+    </button>
   );
 }
