@@ -11,7 +11,11 @@
 // 배선 테스트가 되고, 그러면 규칙이 아니라 환경을 재게 된다.
 import { describe, expect, it } from "vitest";
 
-import { toMarkers, toMonacoCompletions } from "@/features/code/monaco/lsp";
+import {
+  registerSemanticTokens,
+  toMarkers,
+  toMonacoCompletions,
+} from "@/features/code/monaco/lsp";
 import type { LspCompletionItem, LspDiagnostic } from "@/lib/bindings";
 
 const MarkerSeverity = { Hint: 1, Info: 2, Warning: 4, Error: 8 } as const;
@@ -149,5 +153,87 @@ describe("toMonacoCompletions — 완성", () => {
 
   it("치환 범위는 호출자가 준 것을 그대로 쓴다", () => {
     expect(toMonacoCompletions(monaco, [item()], range)[0].range).toBe(range);
+  });
+});
+
+describe("시맨틱 토큰 공급자", () => {
+  const legend = { tokenTypes: ["keyword", "builtinType"], tokenModifiers: ["declaration"] };
+  const model = (uri: string) =>
+    ({ uri: { toString: () => uri }, isDisposed: () => false }) as never;
+
+  /** 등록만 흉내 내는 최소 monaco — 공급자 객체를 그대로 돌려준다. */
+  function fake() {
+    let provider: {
+      getLegend: () => typeof legend;
+      provideDocumentSemanticTokens: (m: never) => Promise<{ data: Uint32Array } | null>;
+    } | null = null;
+    let disposed = false;
+    const monaco = {
+      languages: {
+        registerDocumentSemanticTokensProvider: (_lang: string, p: typeof provider) => {
+          provider = p;
+          return { dispose: () => (disposed = true) };
+        },
+      },
+    } as never;
+    return {
+      monaco,
+      get provider() {
+        return provider!;
+      },
+      get disposed() {
+        return disposed;
+      },
+    };
+  }
+
+  // Monaco 는 공급자당 legend 를 **한 번만** 읽어 WeakMap 에 캐시한다. 등록
+  // 시점에 받은 표를 그대로 들고 있어야 하는 이유가 그것이다.
+  it("등록할 때 받은 legend 를 그대로 돌려준다", () => {
+    const f = fake();
+    registerSemanticTokens(f.monaco, model("file:///a.rs"), "rust", legend, async () => []);
+    expect(f.provider.getLegend()).toEqual(legend);
+  });
+
+  it("데이터를 Uint32Array 로 넘긴다", async () => {
+    const f = fake();
+    registerSemanticTokens(f.monaco, model("file:///a.rs"), "rust", legend, async () => [
+      0, 0, 3, 0, 0,
+    ]);
+    const got = await f.provider.provideDocumentSemanticTokens(model("file:///a.rs"));
+    expect(got?.data).toEqual(new Uint32Array([0, 0, 3, 0, 0]));
+  });
+
+  // 공급자는 언어 단위 전역이라 같은 언어의 다른 편집기(논의 화면)에도 걸린다.
+  it("자기 모델이 아니면 빠진다", async () => {
+    const f = fake();
+    let asked = 0;
+    registerSemanticTokens(f.monaco, model("file:///a.rs"), "rust", legend, async () => {
+      asked += 1;
+      return [0, 0, 3, 0, 0];
+    });
+    expect(await f.provider.provideDocumentSemanticTokens(model("file:///b.rs"))).toBeNull();
+    expect(asked).toBe(0);
+  });
+
+  // 빈 답을 토큰 0개로 넘기면 Monaco 가 Monarch 강조를 **지운다** — 무채색이
+  // 되느니 아예 답을 안 하는 쪽이 맞다.
+  it("서버가 아무것도 안 주면 null 이다 (Monarch 를 지우지 않는다)", async () => {
+    const f = fake();
+    registerSemanticTokens(f.monaco, model("file:///a.rs"), "rust", legend, async () => []);
+    expect(await f.provider.provideDocumentSemanticTokens(model("file:///a.rs"))).toBeNull();
+  });
+
+  it("해제하면 공급자를 푼다", () => {
+    const f = fake();
+    const off = registerSemanticTokens(
+      f.monaco,
+      model("file:///a.rs"),
+      "rust",
+      legend,
+      async () => [],
+    );
+    off();
+    expect(f.disposed).toBe(true);
   });
 });

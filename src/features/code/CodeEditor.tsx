@@ -16,6 +16,7 @@ import monaco from "./monaco/setup";
 import { defineCodeTheme, isDarkTheme, readCodeTokens, THEME_NAME, watchThemeChanges } from "./monaco/theme";
 import {
   registerLspProviders,
+  registerSemanticTokens,
   selectionRange,
   toLspPosition,
   toMarkers,
@@ -33,6 +34,7 @@ import type {
   LspCompletionItem,
   LspDiagnostic,
   LspHover,
+  LspSemanticLegend,
   LspSignatureHelp,
   LspSymbol,
   GitLineChange,
@@ -89,6 +91,14 @@ interface CodeEditorProps {
   onFormat?: (range?: FormatRange) => void;
   /** 인자 입력 중의 시그니처. 없으면 확장을 아예 안 단다. */
   onSignatureHelp?: (line: number, character: number) => Promise<LspSignatureHelp | null>;
+  /**
+   * 시맨틱 강조 — 서버의 legend(숫자 → 이름 표)와 토큰 데이터.
+   *
+   * **둘은 항상 짝이다.** Monaco 는 공급자당 legend 를 한 번만 읽어 캐시하므로
+   * 표를 손에 쥔 뒤에야 공급자를 달 수 있다 (`registerSemanticTokens` 주석).
+   */
+  onSemanticLegend?: () => Promise<LspSemanticLegend | null>;
+  onSemanticTokens?: () => Promise<number[]>;
   /**
    * 스티키 스크롤에 겹쳐 고정할 줄 수. `0`(기본)이면 확장을 아예 안 단다.
    * 설정을 켜고 끄면 부모가 key 로 재마운트한다 (다른 확장들과 같은 규약).
@@ -155,6 +165,8 @@ export function CodeEditor({
   onReferences,
   onFormat,
   onSignatureHelp,
+  onSemanticLegend,
+  onSemanticTokens,
   stickyMaxLines = 0,
   stickySymbols = null,
   onGoToSymbol,
@@ -211,6 +223,9 @@ export function CodeEditor({
   const hasBreakpointsRef = useRef(onToggleBreakpoint != null);
   const diffOriginalRef = useRef(diffOriginal);
   const hasLspRef = useRef(onComplete != null && hasLanguageServer(path));
+  // 시맨틱 토큰의 두 창구. 등록은 legend 가 온 뒤 1회, 호출은 최신 것을 읽는다.
+  const semanticRef = useRef({ legend: onSemanticLegend, tokens: onSemanticTokens });
+  semanticRef.current = { legend: onSemanticLegend, tokens: onSemanticTokens };
   const stickyMaxRef = useRef(stickyMaxLines);
 
   // ⌘K 인라인 편집 — 상태·위젯·데코레이션은 이 훅이 들고, 여기서는 키를 달고
@@ -526,6 +541,40 @@ export function CodeEditor({
     if (!model || stickyMaxRef.current <= 0 || stickySymbols == null) return;
     return registerSymbolProvider(monaco, model, model.getLanguageId(), stickySymbolsRef);
   }, [stickySymbols]);
+
+  // 시맨틱 강조 — legend 가 온 뒤에 단다 {#cap-semantic}.
+  //
+  // 위 마운트 effect 안에 넣을 수 없다. 표는 서버 핸드셰이크가 끝나야 오는데
+  // 그 시점이면 편집기는 이미 그려져 있고, Monaco 는 공급자당 legend 를 **한
+  // 번만** 읽어 캐시한다 — 빈 표로 미리 등록하면 그 파일은 끝까지 무채색이다.
+  // 그래서 비동기로 기다렸다가, 도착하면 그때 등록한다. 서버가 시맨틱 토큰을
+  // 안 하면 아무것도 안 달고 Monarch 강조가 그대로 남는다.
+  useEffect(() => {
+    const editor = editorRef.current;
+    const model = editor?.getModel();
+    if (!model || !hasLspRef.current) return;
+    const askLegend = semanticRef.current.legend;
+    if (!askLegend) return;
+
+    let dispose: (() => void) | null = null;
+    let cancelled = false;
+    void askLegend().then((legend) => {
+      if (cancelled || !legend || model.isDisposed()) return;
+      dispose = registerSemanticTokens(
+        monaco,
+        model,
+        model.getLanguageId(),
+        { tokenTypes: legend.token_types, tokenModifiers: legend.token_modifiers },
+        () => semanticRef.current.tokens?.() ?? Promise.resolve([]),
+      );
+    });
+
+    return () => {
+      cancelled = true;
+      dispose?.();
+    };
+    // 파일이 바뀌면 부모가 key 로 재마운트한다 (다른 공급자들과 같은 규약).
+  }, []);
 
   // 라인 점프 — 마운트 직후(위 effect 가 먼저 실행돼 editor 가 있다)와 같은
   // 파일에서의 재점프(prop 변화) 둘 다 여기로 온다.

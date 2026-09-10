@@ -193,6 +193,31 @@ export function defineCodeTheme(
       { token: "tag", foreground: pick("--code-kw", fg) },
       { token: "metatag", foreground: pick("--code-comment", fg) },
 
+      // ── 시맨틱 토큰의 어휘 {#cap-semantic} ──
+      // 서버가 준 종류 이름이 그대로 스코프가 되어 여기 규칙과 맞춰진다
+      // (`StandaloneTheme.getTokenStyleMetadata` 가 `종류.수식어…` 를 짓는다).
+      // **빠뜨리면 색이 도로 빠진다**: 시맨틱 토큰은 Monarch 위에 덮어쓰므로,
+      // 규칙이 없는 종류는 맨 위 `{ token: "" }` 로 떨어져 본문색이 된다.
+      // 위의 Monarch 어휘와 겹치는 이름(keyword·string·comment·number·
+      // function·type·namespace·variable·operator·regexp)은 다시 적지 않는다.
+      { token: "class", foreground: pick("--code-type", fg) },
+      { token: "struct", foreground: pick("--code-type", fg) },
+      { token: "interface", foreground: pick("--code-type", fg) },
+      { token: "enum", foreground: pick("--code-type", fg) },
+      { token: "typeParameter", foreground: pick("--code-type", fg) },
+      // rust-analyzer 가 표준 밖에서 내는 둘. `builtinType` 이 타입색이 아니면
+      // `u32`·`bool` 만 본문색이 되어 시그니처가 얼룩덜룩해진다.
+      { token: "builtinType", foreground: pick("--code-type", fg) },
+      { token: "lifetime", foreground: pick("--code-kw", fg) },
+      { token: "method", foreground: pick("--code-fn", fg) },
+      { token: "macro", foreground: pick("--code-fn", fg) },
+      { token: "decorator", foreground: pick("--code-fn", fg) },
+      { token: "property", foreground: pick("--code-prop", fg) },
+      { token: "enumMember", foreground: pick("--code-prop", fg) },
+      { token: "event", foreground: pick("--code-prop", fg) },
+      { token: "parameter", foreground: pick("--code-def", fg) },
+      { token: "modifier", foreground: pick("--code-kw", fg) },
+
       // ── 논의 문서(`markdown-prose`) — 대비를 낮춰 읽는 데 방해가 없게 ──
       // CodeMirror 판 `mdHighlight` 가 하던 판단을 그대로 옮겼다: `##`(파서가
       // 아는 섹션)만 강조색이고 나머지 제목은 본문색이다.

@@ -118,6 +118,16 @@ describe("스티키", () => {
   });
 });
 
+describe("시맨틱 강조", () => {
+  // standalone 테마는 `semanticHighlighting` 을 항상 false 로 들고 있어서
+  // (StandaloneTheme 생성자), 이 한 줄이 빠지면 공급자를 등록해도 Monaco 가
+  // 묻지조차 않는다. 화면으로는 "LSP 색이 원래 저런가 보다" 로 보인다.
+  it("옵션으로 켜 둔다 — 테마에 맡기면 꺼진 채로 남는다", () => {
+    const o = opts() as Record<string, unknown>;
+    expect(o["semanticHighlighting.enabled"]).toBe(true);
+  });
+});
+
 describe("인라인 비교", () => {
   it("한 열로 그리고 원본은 못 고친다", () => {
     const d = diffEditorOptions(opts());

@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, State};
 
 use crate::db::Db;
+use crate::lsp::semantic::LspSemanticLegend;
 use crate::lsp::spec::{
     LspCodeAction, LspCompletionItem, LspFileDiagnostics, LspHover, LspLocation, LspReferenceFile,
     LspRenameResult, LspServerInfo, LspSignatureHelp, LspSymbol, LspWorkspaceSymbol,
@@ -318,6 +319,67 @@ pub async fn lsp_document_symbols(
         .request("textDocument/documentSymbol", params)
         .await?;
     Ok(crate::lsp::spec::document_symbols_from_json(&result))
+}
+
+/// 이 파일의 언어 서버가 쓰는 시맨틱 토큰 legend (숫자 → 이름 표).
+///
+/// **요청이 나가지 않는다** — legend 는 `initialize` 답에 이미 들어 있다.
+/// 화면은 이 표를 받은 뒤에야 공급자를 달 수 있어서 토큰 데이터와 분리했다:
+/// Monaco 는 공급자마다 legend 를 **한 번만** 읽어 캐시하므로, 표가 빈 채로
+/// 등록하면 그 편집기는 끝까지 색을 못 칠한다.
+#[tauri::command]
+#[specta::specta]
+pub async fn lsp_semantic_legend(
+    app: AppHandle,
+    db: State<'_, Db>,
+    lsp: State<'_, LspState>,
+    project_id: u32,
+    path: String,
+) -> Result<Option<LspSemanticLegend>, String> {
+    let root = project_root(&db, project_id).await?;
+    let file = resolve_in_root(&root, &path)?;
+    let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    else {
+        return Ok(None);
+    };
+    let Some(cap) = client.capability("semanticTokensProvider") else {
+        return Ok(None);
+    };
+    Ok(crate::lsp::semantic::legend_from_capability(cap))
+}
+
+/// 파일 전체의 시맨틱 토큰 (`textDocument/semanticTokens/full`).
+///
+/// 서버가 안 하면 빈 배열이고, 화면은 그때 Monarch 강조를 그대로 쓴다.
+#[tauri::command]
+#[specta::specta]
+pub async fn lsp_semantic_tokens(
+    app: AppHandle,
+    db: State<'_, Db>,
+    lsp: State<'_, LspState>,
+    project_id: u32,
+    path: String,
+) -> Result<Vec<u32>, String> {
+    let root = project_root(&db, project_id).await?;
+    let file = resolve_in_root(&root, &path)?;
+    let Some(client) = lsp
+        .ensure_for_file(&app, &db, project_id, &root, &file)
+        .await?
+    else {
+        return Ok(Vec::new());
+    };
+    if !client.supports("semanticTokensProvider") {
+        return Ok(Vec::new());
+    }
+    let params = serde_json::json!({
+        "textDocument": { "uri": crate::lsp::registry::path_to_uri(&file) }
+    });
+    let result = client
+        .request("textDocument/semanticTokens/full", params)
+        .await?;
+    Ok(crate::lsp::semantic::tokens_from_json(&result))
 }
 
 /// 지금 언어 서버가 아는 이 프로젝트의 진단 전부 — 문제 패널의 초기 스냅샷.

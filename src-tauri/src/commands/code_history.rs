@@ -124,7 +124,7 @@ pub async fn code_history_restore(
     // 되돌리기는 **사람의 저장**이다 — 워처가 곧 집을 그 이벤트를 에이전트
     // 쓰기로 오해하지 않게 쪽지를 남긴다 (code_write 와 같은 다리).
     if let CodeWriteOutcome::Saved { hash } = &outcome {
-        hist.note_self_write(project_id, &rel, hash);
+        hist.note_self_write(project_id, &rel, hash, false);
     }
     Ok(outcome)
 }

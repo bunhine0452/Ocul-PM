@@ -11,6 +11,7 @@ import {
   type LspLocation,
   type LspReferenceFile,
   type LspRenameResult,
+  type LspSemanticLegend,
   type LspSignatureHelp,
   type LspSymbol,
   type LspServerState,
@@ -65,6 +66,14 @@ export interface UseLspResult {
   documentSymbols: () => Promise<LspSymbol[]>;
   /** 인자 입력 중의 시그니처. 보여줄 것이 없으면 null. */
   signatureHelp: (line: number, character: number) => Promise<LspSignatureHelp | null>;
+  /**
+   * 이 서버의 시맨틱 토큰 legend (숫자 → 이름 표). 서버가 안 하면 null.
+   *
+   * 요청이 나가지 않는다 — 핸드셰이크 답에 이미 있는 표를 읽어 오는 것뿐이다.
+   */
+  semanticLegend: () => Promise<LspSemanticLegend | null>;
+  /** 파일 전체의 시맨틱 토큰. 5칸이 한 토큰인 상대 좌표 배열. */
+  semanticTokens: () => Promise<number[]>;
   /**
    * 포맷팅 — 디스크가 아니라 **넘긴 텍스트**를 다듬어 돌려준다. 바뀐 것이
    * 없으면 null (서버 없음·이미 정돈됨 포함). `range` 가 있으면 그 범위만.
@@ -288,6 +297,16 @@ export function useLsp(
     [ask, projectId],
   );
 
+  const semanticLegend = useCallback(
+    () => ask("lspSemanticLegend", (p) => commands.lspSemanticLegend(projectId, p)),
+    [ask, projectId],
+  );
+
+  const semanticTokens = useCallback(
+    async () => (await ask("lspSemanticTokens", (p) => commands.lspSemanticTokens(projectId, p))) ?? [],
+    [ask, projectId],
+  );
+
   // 포맷팅은 파일을 바꾼다 — 읽기 기능들과 달리 실패를 삼키지 않고 던져서
   // 호출자가 토스트를 띄우게 한다 (코드 액션 적용과 같은 태도).
   const format = useCallback(
@@ -342,6 +361,8 @@ export function useLsp(
       references,
       documentSymbols,
       signatureHelp,
+      semanticLegend,
+      semanticTokens,
       format,
     }),
     [
@@ -357,6 +378,8 @@ export function useLsp(
       references,
       documentSymbols,
       signatureHelp,
+      semanticLegend,
+      semanticTokens,
       format,
     ],
   );

@@ -272,24 +272,29 @@ pub fn plan_budget_eviction(all: &[(String, HistoryEntry)], budget: u64) -> Vec<
 /// `code_write` 가 방금 쓴 것을 잠깐 기억한다. 워처는 사람이 쓰든 에이전트가
 /// 쓰든 **같은 이벤트**를 보므로, 출처를 아는 유일한 길이 이 쪽지다.
 ///
-/// TTL 안에 해시가 맞으면 `User`, 아니면 `Agent`. (에디터 저장과 에이전트
-/// 쓰기가 5초 안에 같은 해시를 만드는 경우 = 내용이 같다 = 어차피 중복
-/// 캡처로 걸러진다.)
+/// TTL 안에 해시가 맞으면 쪽지가 적어 둔 손, 아니면 `Agent`. **쪽지가 손까지
+/// 적는 이유** — 사람의 ⌘S 든 ⌘K 가 쓴 문장의 저장이든 창구는 똑같이
+/// `code_write` 라, 창구만 보면 둘 다 사람이 된다.
 #[derive(Default)]
 pub struct HistoryState {
-    recent: Mutex<HashMap<(u32, String), (String, Instant)>>,
+    recent: Mutex<HashMap<(u32, String), (String, Instant, HistorySource)>>,
 }
 
 impl HistoryState {
-    /// `code_write` / 되돌리기 성공 직후에 부른다.
-    pub fn note_self_write(&self, project_id: u32, rel_path: &str, hash: &str) {
+    /// 저장 성공 직후. `by_agent` 는 **글자를 쓴 손** (저장을 누른 손이 아니다).
+    pub fn note_self_write(&self, project_id: u32, rel_path: &str, hash: &str, by_agent: bool) {
+        let source = if by_agent {
+            HistorySource::Agent
+        } else {
+            HistorySource::User
+        };
         let Ok(mut map) = self.recent.lock() else {
             return;
         };
-        map.retain(|_, (_, at)| at.elapsed() < SELF_WRITE_TTL);
+        map.retain(|_, (_, at, _)| at.elapsed() < SELF_WRITE_TTL);
         map.insert(
             (project_id, rel_path.to_string()),
-            (normalize_hash(hash).to_string(), Instant::now()),
+            (normalize_hash(hash).to_string(), Instant::now(), source),
         );
     }
 
@@ -299,12 +304,13 @@ impl HistoryState {
         let Ok(mut map) = self.recent.lock() else {
             return HistorySource::Agent;
         };
-        map.retain(|_, (_, at)| at.elapsed() < SELF_WRITE_TTL);
+        map.retain(|_, (_, at, _)| at.elapsed() < SELF_WRITE_TTL);
         let key = (project_id, rel_path.to_string());
         match map.get(&key) {
-            Some((h, _)) if h == normalize_hash(hash) => {
+            Some((h, _, source)) if h == normalize_hash(hash) => {
+                let source = *source;
                 map.remove(&key);
-                HistorySource::User
+                source
             }
             _ => HistorySource::Agent,
         }
@@ -772,18 +778,21 @@ mod tests {
     }
 
     #[test]
-    fn self_write_note_expires_into_agent() {
+    fn self_write_note_carries_the_hand_that_wrote_it() {
         let state = HistoryState::default();
-        state.note_self_write(1, "a.ts", "blake3:abc");
+        state.note_self_write(1, "a.ts", "blake3:abc", false);
         assert_eq!(state.take_source(1, "a.ts", "abc"), HistorySource::User);
         // 쪽지는 한 번만 쓰인다.
+        assert_eq!(state.take_source(1, "a.ts", "abc"), HistorySource::Agent);
+        // ⌘K 가 쓴 판은 창구가 같아도 에이전트다 — 안 적으면 사람으로 남는다.
+        state.note_self_write(1, "a.ts", "blake3:abc", true);
         assert_eq!(state.take_source(1, "a.ts", "abc"), HistorySource::Agent);
     }
 
     #[test]
     fn a_different_hash_is_the_agents_write() {
         let state = HistoryState::default();
-        state.note_self_write(1, "a.ts", "abc");
+        state.note_self_write(1, "a.ts", "abc", false);
         assert_eq!(state.take_source(1, "a.ts", "def"), HistorySource::Agent);
         assert_eq!(state.take_source(2, "a.ts", "abc"), HistorySource::Agent);
     }

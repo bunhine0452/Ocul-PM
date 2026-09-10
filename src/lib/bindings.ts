@@ -475,7 +475,7 @@ export const commands = {
 	 *  파일 저장 (낙관적 잠금). **기존 파일만** — 신규 생성은 v1 스코프 밖이라
 	 *  트리와 어긋난 유령 경로 생성을 막는다.
 	 */
-	codeWrite: (projectId: number, relPath: string, content: string, baseHash: string) => typedError<CodeWriteOutcome, string>(__TAURI_INVOKE("code_write", { projectId, relPath, content, baseHash })),
+	codeWrite: (projectId: number, relPath: string, content: string, baseHash: string, byAgent: boolean | null) => typedError<CodeWriteOutcome, string>(__TAURI_INVOKE("code_write", { projectId, relPath, content, baseHash, byAgent })),
 	/**
 	 *  외부 파일·폴더를 프로젝트 안으로 **복사**한다 (원본은 그대로 둔다).
 	 * 
@@ -680,6 +680,24 @@ export const commands = {
 	lspReferences: (projectId: number, path: string, line: number, character: number) => typedError<LspReferenceFile[], string>(__TAURI_INVOKE("lsp_references", { projectId, path, line, character })),
 	/**  파일 안의 구조 (`textDocument/documentSymbol`) — 아웃라인. */
 	lspDocumentSymbols: (projectId: number, path: string) => typedError<LspSymbol[], string>(__TAURI_INVOKE("lsp_document_symbols", { projectId, path })),
+	/**
+	 *  이 파일의 언어 서버가 쓰는 시맨틱 토큰 legend (숫자 → 이름 표).
+	 * 
+	 *  **요청이 나가지 않는다** — legend 는 `initialize` 답에 이미 들어 있다.
+	 *  화면은 이 표를 받은 뒤에야 공급자를 달 수 있어서 토큰 데이터와 분리했다:
+	 *  Monaco 는 공급자마다 legend 를 **한 번만** 읽어 캐시하므로, 표가 빈 채로
+	 *  등록하면 그 편집기는 끝까지 색을 못 칠한다.
+	 */
+	lspSemanticLegend: (projectId: number, path: string) => typedError<{
+	token_types: string[],
+	token_modifiers: string[],
+} | null, string>(__TAURI_INVOKE("lsp_semantic_legend", { projectId, path })),
+	/**
+	 *  파일 전체의 시맨틱 토큰 (`textDocument/semanticTokens/full`).
+	 * 
+	 *  서버가 안 하면 빈 배열이고, 화면은 그때 Monarch 강조를 그대로 쓴다.
+	 */
+	lspSemanticTokens: (projectId: number, path: string) => typedError<number[], string>(__TAURI_INVOKE("lsp_semantic_tokens", { projectId, path })),
 	/**
 	 *  지금 언어 서버가 아는 이 프로젝트의 진단 전부 — 문제 패널의 초기 스냅샷.
 	 * 
@@ -4625,6 +4643,18 @@ export type LspRenamedFile = {
 	/**  프로젝트 상대 경로. */
 	path: string,
 	edit_count: number,
+};
+
+/**
+ *  서버가 광고한 시맨틱 토큰 legend — 데이터의 숫자를 이름으로 되돌리는 표.
+ * 
+ *  화면(Monaco)이 이 표를 **먼저** 알아야 토큰을 해석할 수 있어서 데이터와
+ *  따로 나른다. legend 는 서버 능력에 이미 들어 있으므로 이걸 읽는 데는
+ *  요청이 한 번도 안 나간다.
+ */
+export type LspSemanticLegend = {
+	token_types: string[],
+	token_modifiers: string[],
 };
 
 export type LspServerInfo = {

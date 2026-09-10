@@ -112,6 +112,14 @@ export function baseEditorOptions(
     // 절반이다.
     suggest: { preview: true, showStatusBar: true },
 
+    // ── 시맨틱 강조 {#cap-semantic} ──
+    // 표준 Monaco 의 기본값은 `'configuredByTheme'` 인데 **standalone 테마는
+    // `semanticHighlighting` 을 항상 false 로 들고 있다** (StandaloneTheme 이
+    // 생성자에서 못박는다). 그래서 공급자를 아무리 등록해도 이 한 줄이 없으면
+    // Monaco 는 묻지조차 않는다. 옵션은 설정 서비스로 흘러 들어간다
+    // (`updateConfigurationService` → `editor.semanticHighlighting.enabled`).
+    "semanticHighlighting.enabled": true,
+
     // 마지막 줄 아래 여백 — 파일 끝을 화면 가운데로 올려 읽을 수 있게.
     padding: { bottom: 300 },
     // 위젯(호버·완성·시그니처)을 body 아래로 — 좁은 분할에서 잘리지 않는다.

@@ -246,6 +246,40 @@ export function registerLspProviders(
   };
 }
 
+/**
+ * 시맨틱 토큰 공급자 — 서버가 아는 의미로 문법 강조를 덮는다.
+ *
+ * **legend 를 인자로 받는 것이 이 함수의 계약이다.** Monaco 는 공급자마다
+ * `getLegend()` 를 **딱 한 번** 부르고 그 결과를 WeakMap 에 캐시한다
+ * (`semanticTokensStylingService`). 그래서 빈 표로 등록해 두고 나중에 채우는
+ * 방식은 통하지 않는다 — 그 편집기는 끝까지 무채색으로 남는다. 표를 손에 쥔
+ * 뒤에 등록하는 것이 유일하게 되는 순서다.
+ *
+ * 다른 공급자들과 같은 이유로 `model.uri` 를 대조한다: Monaco 의 공급자는
+ * 언어 단위 전역이라 같은 언어의 다른 편집기(논의 화면)에도 걸린다.
+ */
+export function registerSemanticTokens(
+  monaco: Monaco,
+  model: Model,
+  languageId: string,
+  legend: { tokenTypes: string[]; tokenModifiers: string[] },
+  ask: () => Promise<number[]>,
+): () => void {
+  const mine = (m: Model) => m.uri.toString() === model.uri.toString();
+  const sub = monaco.languages.registerDocumentSemanticTokensProvider(languageId, {
+    getLegend: () => legend,
+    async provideDocumentSemanticTokens(m) {
+      if (!mine(m)) return null;
+      const data = await ask();
+      if (data.length === 0) return null;
+      return { data: new Uint32Array(data) };
+    },
+    // 델타를 안 쓰므로 서버에 놓아 줄 `resultId` 도 없다.
+    releaseDocumentSemanticTokens() {},
+  });
+  return () => sub.dispose();
+}
+
 /** F2·⇧F12 가 입력창·패널 제목에 채울 식별자. */
 export function wordAt(model: Model, position: MonacoNs.IPosition): string {
   return wordAtColumn(model.getLineContent(position.lineNumber), position.column - 1);

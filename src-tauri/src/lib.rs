@@ -322,6 +322,8 @@ use crate::commands::{
     // Phase 2 — 참조·아웃라인·워크스페이스 심볼·시그니처·포맷팅
     lsp_references,
     lsp_rename,
+    lsp_semantic_legend,
+    lsp_semantic_tokens,
     lsp_signature_help,
     // 코드 인텔리전스 — LSP (docs/lsp/00-master-plan.md)
     lsp_status,
@@ -674,6 +676,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             lsp_apply_code_action,
             lsp_references,
             lsp_document_symbols,
+            lsp_semantic_legend,
+            lsp_semantic_tokens,
             lsp_diagnostics_snapshot,
             lsp_workspace_symbols,
             lsp_signature_help,

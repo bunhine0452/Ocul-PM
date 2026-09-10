@@ -273,6 +273,7 @@ pub async fn code_write(
     rel_path: String,
     content: String,
     base_hash: String,
+    by_agent: Option<bool>,
 ) -> Result<CodeWriteOutcome, String> {
     let root = project_root(&db, project_id).await?;
     let full = secure_join(&root, &rel_path)?;
@@ -283,11 +284,10 @@ pub async fn code_write(
     .await
     .map_err(|e| format!("Failed to save file: {e}"))??;
 
-    // 로컬 히스토리는 워처 한 곳에서만 찍는다 (여기서 찍으면 이중 캡처다).
-    // 대신 **누가 썼는지**만 알려 준다 — 워처는 사람의 저장과 에이전트의
-    // 쓰기를 구별할 수 없고, 그 경계가 판 목록에서 가장 중요한 정보다.
+    // 로컬 히스토리는 워처 한 곳에서만 찍는다 (이중 캡처 방지). 대신 **누가
+    // 썼는지**만 알려 준다 — `by_agent` 는 ⌘K 가 쓴 판인가다 (저장한 손이 아니라).
     if let CodeWriteOutcome::Saved { hash } = &outcome {
-        hist.note_self_write(project_id, &rel_path, hash);
+        hist.note_self_write(project_id, &rel_path, hash, by_agent.unwrap_or(false));
     }
     Ok(outcome)
 }

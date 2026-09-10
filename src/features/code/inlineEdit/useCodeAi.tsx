@@ -6,7 +6,7 @@
 //
 // `useConfirm` 과 같은 모양이다 — 상태와 함께 **그릴 것**(`chip`)까지 돌려준다.
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { llmApi } from "@/api/llm";
 import { oculpmApi } from "@/api/oculpm";
@@ -53,9 +53,19 @@ export function useCodeAi({ projectId, settings, activePath }: Options) {
 
   /** 파일별 누적 — 칩과 일지 초안이 같은 값을 읽는다. */
   const [tallies, setTallies] = useState<Map<string, AiEditTally>>(() => new Map());
+  /**
+   * 아직 저장까지 안 간 ⌘K 편집을 들고 있는 파일들 — 로컬 히스토리의 출처가
+   * 이걸 읽는다.
+   *
+   * 위의 `tallies` 와 **다른 축**이라 따로 둔다: 저 쪽은 "일지에 아직 안 적은"
+   * 이고 이쪽은 "디스크에 아직 안 쓴" 이다. 저장이 일지를 지우지 않고, 일지가
+   * 저장을 지우지 않는다.
+   */
+  const unsavedAi = useRef(new Set<string>());
   const onAccepted = useCallback(
     (path: string | null, info: { added: number; removed: number }) => {
       if (!path) return;
+      unsavedAi.current.add(path);
       setTallies((prev) => {
         const next = new Map(prev);
         next.set(path, addEdit(prev.get(path), info, provider, model));
@@ -64,6 +74,18 @@ export function useCodeAi({ projectId, settings, activePath }: Options) {
     },
     [model, provider],
   );
+
+  /**
+   * 이 파일을 지금 저장하면 **에이전트가 쓴 글자**가 함께 나가는가.
+   *
+   * 읽으면 지운다 — 저장이 끝난 뒤의 다음 판은 다시 사람 것이다. 사람이 그
+   * 뒤에 손으로 더 고쳤어도 이 판에는 AI 문장이 들어 있으므로 `Agent` 가 맞다
+   * ("이 판에 AI 글자가 있는가" 를 묻는 것이지 "전부 AI 인가" 가 아니다).
+   */
+  const takeAgentAuthored = useCallback((path: string | null) => {
+    if (!path) return false;
+    return unsavedAi.current.delete(path);
+  }, []);
 
   const [recording, setRecording] = useState(false);
   const record = useCallback(
@@ -103,5 +125,5 @@ export function useCodeAi({ projectId, settings, activePath }: Options) {
       </button>
     ) : null;
 
-  return { run, onAccepted, chip };
+  return { run, onAccepted, takeAgentAuthored, chip };
 }

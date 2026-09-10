@@ -69,6 +69,12 @@ impl LspClient {
         )
     }
 
+    /// 광고한 능력의 **원본 값**. 켜졌는지만이 아니라 안쪽을 읽어야 하는
+    /// 자리(시맨틱 토큰의 legend)가 이걸 쓴다.
+    pub fn capability(&self, capability: &str) -> Option<&Value> {
+        self.capabilities.get(capability).filter(|v| !v.is_null())
+    }
+
     /// 서버를 띄우고 `initialize` 핸드셰이크까지 마친다.
     ///
     /// `binary` 는 호출자가 `acp::env::resolve_binary` 로 찾아 넘긴다 — 여기서
@@ -449,6 +455,18 @@ fn initialize_params(root: &Path) -> Value {
                 },
                 "hover": { "contentFormat": ["markdown", "plaintext"] },
                 "definition": { "linkSupport": false },
+                // 전체 문서만 받는다. 델타(`full.delta`)를 안 켜는 이유는
+                // 우리가 `resultId` 를 들고 있지 않기 때문이다 — 켜 놓고 안
+                // 쓰면 서버가 델타를 보내고 화면은 그걸 전체로 읽는다.
+                "semanticTokens": {
+                    "dynamicRegistration": false,
+                    "requests": { "full": true },
+                    "tokenTypes": crate::lsp::semantic::SEMANTIC_TOKEN_TYPES,
+                    "tokenModifiers": crate::lsp::semantic::SEMANTIC_TOKEN_MODIFIERS,
+                    "formats": ["relative"],
+                    "overlappingTokenSupport": false,
+                    "multilineTokenSupport": false,
+                },
             },
             "window": { "workDoneProgress": true },
         },
@@ -503,6 +521,23 @@ mod tests {
         );
         assert_eq!(error_message(&json!({ "message": "boom" })), "boom");
         assert_eq!(error_message(&json!({})), "알 수 없는 오류");
+    }
+
+    /// 핸드셰이크에서 안 알리면 서버는 시맨틱 토큰을 **아예 안 켠다** —
+    /// rust-analyzer 는 이 항목이 없으면 `semanticTokensProvider` 자체를
+    /// 광고하지 않아, 화면이 아무리 물어도 빈 답만 온다.
+    #[test]
+    fn initialize_params_announce_semantic_tokens() {
+        let params = initialize_params(Path::new("/w/ai-pm"));
+        let st = &params["capabilities"]["textDocument"]["semanticTokens"];
+        assert_eq!(st["requests"]["full"], true);
+        assert_eq!(st["formats"][0], "relative");
+        // 델타는 안 켠다 — resultId 를 안 들고 있어서 델타가 오면 못 읽는다.
+        assert!(st["requests"].get("delta").is_none());
+        assert!(
+            st["tokenTypes"].as_array().is_some_and(|a| !a.is_empty()),
+            "표준 어휘를 안 실으면 규격 위반이라 거절하는 서버가 있다"
+        );
     }
 
     #[test]

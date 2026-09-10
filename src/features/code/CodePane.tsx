@@ -225,6 +225,9 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
 
   // ⌘K 인라인 편집 — 모델 호출과 귀속은 이 훅이 든다 (#agent-cmdk).
   const codeAi = useCodeAi({ projectId, settings, activePath });
+  // 저장 콜백들은 마운트 시 묶여 최신 클로저를 못 본다 — 다른 콜백들과 같은 ref 규약.
+  const codeAiRef = useRef(codeAi);
+  codeAiRef.current = codeAi;
 
   // 문제 총계 — 스토어를 직접 구독한다 (화면에서 내려보내면 진단이 올 때마다
   // 코드 화면 전체가 다시 그려진다. `indexProgressStore` 와 같은 잣대).
@@ -874,6 +877,9 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
           path,
           restoreEol(target.text, target.eol),
           opts?.baseHash ?? target.baseHash,
+          // ⌘K 가 쓴 문장이 이 판에 들어 있으면 로컬 히스토리에 **에이전트**로
+          // 적힌다. 저장을 누른 손이 아니라 글자를 쓴 손이 기준이다.
+          codeAiRef.current.takeAgentAuthored(path),
         );
         if (res.status === "error") {
           // 자동 저장의 쓰기 실패(권한 등)는 경로당 한 번만 알린다.
@@ -949,7 +955,13 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       // 떠난 파일에는 커서가 없다 — 보호할 줄도 없다.
       const text = applyHygiene(buf.text, hygieneForPath(path, hygieneRef.current));
       void (async () => {
-        const res = await commands.codeWrite(projectId, path, restoreEol(text, buf.eol), buf.baseHash);
+        const res = await commands.codeWrite(
+          projectId,
+          path,
+          restoreEol(text, buf.eol),
+          buf.baseHash,
+          codeAiRef.current.takeAgentAuthored(path),
+        );
         if (res.status !== "ok" || res.data.kind !== "saved") return;
         // 쓰는 사이에 그 버퍼가 또 바뀌었으면(다시 열어 고쳤다) 덮지 않는다.
         const latest = getBuffer(key);
@@ -1355,6 +1367,19 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               // 서버가 안 붙은 창에는 공급자를 아예 안 단다 (CodeEditor 가 prop
               // 유무로 판단하므로 undefined 여야 한다).
               onSignatureHelp={lspEnabled ? lsp.signatureHelp : undefined}
+              // 시맨틱 강조 — 서버 문서를 **먼저 맞춘 뒤** 묻는다. 편집은
+              // 디바운스로 밀려 들어가는데 Monaco 는 타자 직후에 토큰을
+              // 물어서, 안 맞추면 옛 문서 좌표로 칠해져 색이 한 칸씩 밀린다
+              // (포맷팅이 flushText 를 먼저 부르는 것과 같은 이유).
+              onSemanticLegend={lspEnabled ? lsp.semanticLegend : undefined}
+              onSemanticTokens={
+                lspEnabled
+                  ? async () => {
+                      await lsp.flushText(bufferRef.current?.text ?? "");
+                      return lsp.semanticTokens();
+                    }
+                  : undefined
+              }
               stickyMaxLines={stickyMax}
               stickySymbols={stickySymbols}
               onGoToSymbol={onGoToSymbol}

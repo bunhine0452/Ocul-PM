@@ -12,5 +12,6 @@
 pub mod client;
 pub mod edit;
 pub mod registry;
+pub mod semantic;
 pub mod spec;
 pub mod state;
