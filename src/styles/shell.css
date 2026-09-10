@@ -65,7 +65,8 @@
   padding: 0 3px;
   display: flex;
   flex-direction: column;
-  gap: var(--side-gap);
+  /* 행간·섹션 간격은 .nav-section 이 갖는다 (2026-09-11) — 여기 gap 을 두면
+     섹션 라벨의 위 여백과 겹쳐 두 번 벌어진다. */
   /* 얇게, 그리고 가만히 있을 때는 조용하게 (base.css 의 10px 전역값 위로). */
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
@@ -150,6 +151,27 @@
    왼쪽에 84px 빈 칸이 생겼다. 규칙을 지운 자리에 이유만 남긴다 — 안 그러면
    "신호등에 겹치겠는데?" 하고 다시 넣게 된다. */
 
+/* ── 사이드바 리디자인 (2026-09-11) — 카드·타일 없이 활자와 척추로 ─────────
+   예전 사이드바는 세 층이 전부 **상자**였다: 프로젝트는 흰 카드 안의 액센트
+   타일, 행은 넉넉한 패딩의 13px 줄, 발밑은 같은 행 셋. 어느 SaaS 사이드바와도
+   구분되지 않았고, 20행이 900px 을 넘겨 낮은 창에서 스크롤에 기대야 했다.
+
+   결정 셋:
+   1. **머리는 활자다.** 프로젝트 이름이 사이드바의 제목(17px bold)이고, 그
+      아래 mono 경로가 부제다. 카드도 타일도 없다 — 액센트 8px 마크 하나가
+      "이건 프로젝트" 라고 말한다. 전환 가능함은 오른쪽 셰브론과 hover 틴트가
+      말한다.
+   2. **묶음은 척추를 가진다.** 섹션 라벨은 오른쪽으로 hairline 을 끌고
+      (`label ────`), 그 아래 행들은 왼쪽 1px 척추에 매달린다. 활성 표시자
+      (3px 액센트 막대)는 그 척추 **위에** 앉는다 — "지금 여기" 가 색이
+      아니라 **트랙 위의 위치**로 읽힌다. 갈래 목록(.nav-branches)이 이미
+      쓰던 border-left 문법의 일반화라 어휘가 하나 늘지 않는다.
+   3. **발은 동사의 줄이다.** 「터미널 도크」만 라벨을 갖고(⌘J·켜짐 상태가
+      있다), 테마·설정은 30px 아이콘 칸으로 오른쪽에 선다. 세 행이 한 줄이
+      되어 60px 을 되찾고, 2026-09-09 {#sidebar-verbs} 가 말한 "이 둘은
+      목적지가 아니다" 가 모양으로도 보인다. 라벨은 .nav-sr 로 남아
+      보조기술·테스트에는 그대로 읽힌다. */
+
 /* Collapse toggle button in the brand row. */
 .side-collapse-btn {
   margin-left: auto;
@@ -160,50 +182,55 @@
   color: var(--text);
 }
 
+/* 브랜드 줄에는 접기 버튼뿐이다 — 높이를 버튼 한 단(ctl-3)으로 조인다.
+   예전엔 위아래 여백이 겹쳐 머리 위에 빈 띠가 40px 가까이 남았다. */
 .side-brand {
   display: flex; align-items: center; gap: var(--space-4);
-  padding: var(--space-1) var(--space-3) clamp(var(--space-2), 1.4vh, 14px);
+  min-height: var(--ctl-3);
+  padding: 0 0 var(--space-1);
 }
-/* .brand-mark / .brand-name / .brand-sub 는 소비처가 없어 지웠다 (사이드바
-   헤더의 아이콘·이름은 2026-06-15 에 이미 빠졌다). */
 
-/* project switcher */
+/* project masthead */
 .proj-switch {
-  display: flex; align-items: center; gap: var(--space-4); width: 100%; box-sizing: border-box;
-  padding: var(--space-3) var(--space-4);
-  background: var(--bg-card);
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-m);
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; box-sizing: border-box;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
   cursor: pointer;
-  /* 그림자 없음 (2026-09-09 {#sidebar-weight}). 카드 그림자 + hover 승격까지
-     달고 있어서, 평평한 캔버스 위에서 **사이드바에서 가장 무거운 물체**가
-     됐다 — 정작 제일 중요한 것(지금 어느 화면인가)보다 눈에 먼저 들어왔다.
-     테두리 한 겹이면 "누를 수 있는 것" 은 이미 다 말한다. */
   /* button reset */
   appearance: none; -webkit-appearance: none;
   font-family: var(--font); text-align: left; color: var(--text);
-}
-.proj-switch {
   transition:
     background-color var(--dur-1) var(--ease-out),
     border-color var(--dur-1) var(--ease-out),
     transform var(--dur-1) var(--ease-out);
 }
-.proj-switch:hover { border-color: var(--sep-strong); background: var(--bg-hover); }
+.proj-switch:hover { background: var(--bg-hover); }
 .proj-switch:active { transform: scale(0.99); }
-.proj-icon {
-  width: 26px; height: 26px; border-radius: var(--radius-s); flex: none;
-  /* Follows the 컬러 테마 (accent), not a hardcoded green. 단색이다 — 대각
-     그라데이션 타일은 생성형 앱 아이콘의 관용구라 뺐다. */
+.proj-switch[aria-expanded="true"] { background: var(--bg-active); }
+/* 액센트 마크 — 사이드바 머리에서 컬러 테마가 보이는 유일한 자리. 원이 아니라
+   모난 정사각형이다: 원은 상태(온라인·배지)의 도형이고, 각진 마크는 사물의 도장. */
+.proj-mark {
+  width: 8px; height: 8px; flex: none; align-self: flex-start; margin-top: 7px;
+  border-radius: var(--radius-2xs);
   background: var(--accent);
-  display: grid; place-items: center; color: var(--text-on-accent);
 }
 .proj-meta { flex: 1; min-width: 0; }
-.proj-name { font-weight: var(--fw-strong); font-size: var(--fs-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.proj-path { font-size: var(--fs-2); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-name {
+  font-weight: var(--fw-bold); font-size: var(--fs-7); letter-spacing: var(--track-tight); line-height: var(--lh-tight);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.proj-path {
+  margin-top: 2px;
+  font-size: var(--fs-1); color: var(--text-3); font-family: var(--mono);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.proj-chev { flex: none; color: var(--text-3); transition: color var(--dur-1) var(--ease-out); }
+.proj-switch:hover .proj-chev { color: var(--text-2); }
 
 /* Inline project quick-switcher popover (Dogfooding 2026-06-14c). */
-.proj-switch-wrap { position: relative; margin: 0 2px clamp(var(--space-2), 1vh, var(--space-4)); }
+.proj-switch-wrap { position: relative; margin: 0 0 clamp(var(--space-3), 1.2vh, var(--space-5)); }
 .proj-pop {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: var(--z-popover);
   background: var(--bg-card); border: 1px solid var(--border-card);
@@ -236,26 +263,36 @@
 }
 .proj-pop-manage:hover { background: var(--bg-hover); color: var(--text); }
 
+/* ── 섹션: 라벨 + 척추 ──────────────────────────────────────────────────── */
+.nav-section { display: flex; flex-direction: column; }
 .nav-section-label {
-  font-size: var(--fs-2); font-weight: var(--fw-strong); letter-spacing: var(--caps-track);
+  display: flex; align-items: center; gap: var(--space-3);
+  font-size: var(--fs-1); font-weight: var(--fw-bold); letter-spacing: var(--caps-track-lg);
   /* 구조 라벨은 meta 가 아니다 — `--text-3` 는 타임스탬프·placeholder 의 색이고
      사이드바에서 그 색을 쓰면 목차가 각주보다 흐리다 {#hierarchy-by-weight-only}. */
   color: var(--text-2); text-transform: var(--caps-transform);
-  /* 섹션 사이 숨구멍이 가장 먼저 줄어드는 자리 — 두 라벨에서 최대 14px.
-     라벨 **앞** 여백이 행간(--side-gap, 2~4px)보다 확실히 커야 네 갈래가
-     갈래로 읽힌다. 예전엔 그 차이가 작아 라벨이 목록에 섞여 보였다. */
-  padding: clamp(var(--space-4), 1.6vh, 18px) var(--space-4) var(--space-1);
+  /* 섹션 사이 숨구멍이 가장 먼저 줄어드는 자리 — 라벨 **앞** 여백이 행간보다
+     확실히 커야 네 갈래가 갈래로 읽힌다. */
+  padding: clamp(var(--space-4), 1.6vh, 18px) 0 var(--space-2) var(--space-3);
 }
-/* 첫 라벨만은 위 여백이 필요 없다 — 바로 위가 프로젝트 스위처의 여백이다. */
+/* 라벨이 오른쪽으로 끄는 hairline — 줄 전체가 "여기서 새 묶음" 이라고 말한다. */
+.nav-section-label::after { content: ""; flex: 1; height: 1px; background: var(--sep); }
+/* 첫 라벨만은 위 여백이 필요 없다 — 바로 위가 프로젝트 머리의 여백이다. */
 .nav-section-label--first { padding-top: var(--space-1); }
-/* 행 + 갈래를 한 덩이로 묶는 껍데기. 스크롤 목록의 gap 은 덩이 **사이**에만
-   걸리고, 안쪽(행 ↔ 갈래)은 붙어 있어야 한 몸으로 읽힌다. */
+/* 행 묶음. 왼쪽 1px 척추가 첫 행부터 마지막 행까지 흐르고, 행은 척추에서
+   7px 물러나 앉는다 — hover 틴트가 척추를 덮지 않게. */
+.nav-rows { position: relative; display: flex; flex-direction: column; gap: 1px; padding-left: 7px; }
+.nav-rows::before {
+  content: ""; position: absolute; left: 1px; top: 3px; bottom: 3px; width: 1px;
+  background: var(--sep-strong);
+}
+/* 행 + 갈래를 한 덩이로 묶는 껍데기. 안쪽(행 ↔ 갈래)은 붙어 있어야 한 몸으로 읽힌다. */
 .nav-group { display: flex; flex-direction: column; }
 .nav-item {
-  display: flex; align-items: center; gap: var(--space-4);
-  /* 20행 × 최대 5px = 낮은 창에서 100px 남짓을 되찾는다. 아이콘이 17px 이라
-     최소값에서도 행 높이는 25px 밑으로 내려가지 않는다. */
-  padding: clamp(var(--space-1), 0.7vh, var(--space-3)) var(--space-4); border-radius: var(--radius-s);
+  display: flex; align-items: center; gap: var(--space-3);
+  /* 20행 × 최대 4px = 낮은 창에서 80px 남짓을 되찾는다. 아이콘이 15px 이라
+     최소값에서도 행 높이는 23px 밑으로 내려가지 않는다. */
+  padding: clamp(var(--space-1), 0.6vh, var(--space-3)) var(--space-3); border-radius: var(--radius-s);
   color: var(--text); cursor: pointer;
   font-size: var(--fs-4); font-weight: var(--fw-label);
   position: relative;
@@ -264,7 +301,7 @@
   border: none; background: transparent;
   font-family: var(--font); text-align: left; width: 100%;
 }
-.nav-item .nav-ico { color: var(--text-2); flex: none; display: grid; place-items: center; }
+.nav-item .nav-ico { color: var(--text-2); flex: none; width: 18px; display: grid; place-items: center; }
 /* 셸 진입 시 위→아래 캐스케이드 (--i 는 Sidebar 가 행 순서대로 주입).
    backwards: 딜레이 동안만 숨고, 종료 후엔 정적 스타일(및 :active 변형)로 복귀. */
 .nav-item {
@@ -278,28 +315,20 @@
 .nav-item:hover { background: var(--bg-hover); }
 .nav-item:active { transform: scale(0.985); }
 .nav-item { transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out); }
-/* 활성 항목 — 틴트 + 표시자 (2026-09-09 {#sidebar-weight}).
-   예전엔 248px 폭을 꽉 채운 **액센트 단색 슬래브 + 링 그림자**였다. 그게
-   창 전체에서 가장 대비가 센 물체였는데, 정작 말하는 내용은 "지금 여기"
-   라는 좌표일 뿐 제일 중요한 정보가 아니다. 목록의 리듬도 그 한 줄에서
-   끊겼다 — 흰 글자만 광학 무게가 달라서.
-
-   같은 앱 안에 이미 더 조용한 '선택됨' 이 둘 있었고(`.proj-pop-item.on` 은
-   --accent-soft, `.subnav-item[aria-current]` 은 --bg-inset), 사이드바만
-   혼자 슬래브였다. 이제 셋이 같은 문법을 쓴다.
-
-   표시자(왼쪽 3px 막대)를 함께 두는 이유: 색만으로 말하면 액센트와 표면의
-   명도가 가까운 프리셋(세피아·고대비)에서 틴트가 거의 안 보인다. 위치는
-   어느 팔레트에서도 읽힌다. */
+/* 활성 항목 — 틴트 + 척추 위의 표시자 (2026-09-09 {#sidebar-weight} 의 문법을
+   잇는다: 248px 액센트 슬래브가 아니라 조용한 틴트). 표시자를 색과 함께 두는
+   이유: 액센트와 표면의 명도가 가까운 프리셋(세피아·고대비)에서 틴트가 거의
+   안 보인다. 위치는 어느 팔레트에서도 읽힌다. */
 .nav-item.active {
   background: var(--accent-soft);
   color: var(--accent-text); font-weight: var(--fw-strong);
 }
 .nav-item.active .nav-ico { color: var(--accent); }
-.nav-item.active::before {
+/* 척추(x=1..2)를 덮는 3px 막대 — 행이 7px 물러나 있으므로 -7px 이 사이드바 x=0. */
+.nav-rows .nav-item.active::before {
   content: "";
-  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-  width: 3px; height: 15px; border-radius: var(--radius-pill);
+  position: absolute; left: -7px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 16px; border-radius: var(--radius-pill);
   background: var(--accent);
 }
 .nav-badge {
@@ -323,7 +352,7 @@
 .nav-ico.working::after {
   content: "";
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border-radius: 50%;
   border: 1.5px solid transparent;
   border-top-color: var(--claude);
@@ -344,15 +373,17 @@
 .nav-item.active .nav-kbd { color: var(--accent-text); opacity: 0.75; }
 
 /* 갈래 목록 — 에이전트 행이 열려 있을 때만 나타난다. `.subnav.vertical` 이
-   레이아웃을 하고, 여기서는 부모 행에 매다는 들여쓰기만 준다. */
+   레이아웃을 하고, 여기서는 부모 행에 매다는 들여쓰기만 준다 — 섹션 척추
+   안의 작은 척추. */
 .nav-branches {
-  margin: 2px 0 var(--space-1) 22px;
+  margin: 2px 0 var(--space-1) 16px;
   padding-left: var(--space-3);
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--sep-strong);
 }
 .nav-branches .subnav-item {
   gap: var(--space-3);
-  padding: var(--space-1) var(--space-3);
+  height: var(--ctl-3);
+  padding: 0 var(--space-3);
 }
 .nav-branches .subnav-item svg { color: var(--text-2); flex: none; }
 .nav-branches .subnav-item[aria-current="page"] svg { color: inherit; }
@@ -361,20 +392,29 @@
 /* `.side-spacer{flex:1}` 는 2026-09-05 에 지웠다 — 발을 바닥으로 미는 일은
    이제 `.side-nav-scroll` 이 자기 몫으로 한다. 스페이서가 남아 있으면 그것도
    flex:1 이라 목록과 남은 높이를 나눠 가져 스크롤 영역이 반토막 난다. */
+/* 발 — 한 줄. [터미널 도크 ⌘J ……] [☾] [⚙] */
 .side-foot {
-  display: flex; flex-direction: column; gap: 2px;
-  padding-top: clamp(var(--space-1), 0.6vh, var(--space-2));
+  display: flex; flex-direction: row; align-items: center; gap: 2px;
+  padding-top: clamp(var(--space-2), 0.8vh, var(--space-3));
   border-top: 1px solid var(--sep);
+}
+.side-foot .nav-item { animation: none; }
+.side-foot .nav-item:first-child { flex: 1; min-width: 0; }
+/* 아이콘 칸 — 라벨은 .nav-sr 로 숨는다(보조기술·테스트에는 그대로). */
+.nav-util--icon {
+  width: var(--ctl-4); height: var(--ctl-4); flex: none;
+  padding: 0; justify-content: center;
+}
+/* 화면 밖으로 치운 텍스트 — 사이드바 안에서만 쓰는 sr-only. */
+.nav-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
 /* 발밑 세 줄 중 **둘은 목적지가 아니다** (2026-09-09 {#sidebar-verbs}).
    「터미널 도크」와 「다크 모드」는 지금 화면 위에서 무언가를 켜고 끄는
-   동작이고, 「설정」만 화면 이동이다. 셋이 위 목록과 똑같은 `.nav-item` 으로
-   그려져서 「다크 모드」가 *다크 모드 화면으로 간다* 처럼 읽혔다.
-
-   더 나빴던 것: 도크가 열렸을 때 `.active` 를 붙여, **켜진 도구**가
-   **지금 보고 있는 화면**과 픽셀 단위로 같아 보였다. 상태는 `aria-pressed`
-   가 이미 정확히 말하고 있었으므로 그것을 그대로 그린다. */
+   동작이고, 「설정」만 화면 이동이다. 상태는 `aria-pressed` 가 정확히 말하고
+   있으므로 그것을 그대로 그린다. */
 .nav-util { color: var(--text-2); }
 .nav-util .nav-ico { color: var(--text-3); }
 .nav-util:hover { color: var(--text); }

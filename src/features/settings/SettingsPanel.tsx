@@ -182,6 +182,11 @@ export function SettingsPanel() {
   }
 
   return (
+    // 바깥 껍데기가 컨테이너다 (settings.css `.cfg-shell`). `.cfg` 자신에게
+    // container-type 을 주면 `@container cfg` 안의 `.cfg { … }` 는 **자기
+    // 자신**을 조회할 수 없어 영영 안 걸린다 — 좁은 창에서 레일만 100% 가
+    // 되고 본문은 0px 로 사라지던 버그 (2026-09-11).
+    <div className="cfg-shell">
     <div className="cfg">
       {/* 목차 — 채워진 패널이 아니다. 앱 사이드바와 같은 문법을 쓰면 '사이드바
           속 사이드바' 가 되므로 배경 없이 캔버스 위에 얹는다 (settings.css). */}
@@ -285,6 +290,7 @@ export function SettingsPanel() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

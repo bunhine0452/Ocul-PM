@@ -27,12 +27,19 @@
    ============================================================ */
 
 /* ── 레이아웃 ───────────────────────────────────────────────────────────── */
+/* 컨테이너는 **껍데기**가 갖는다 (2026-09-11 버그 수정). 컨테이너 질의는
+   조상만 본다 — `.cfg` 자신에게 container-type 을 주면 아래 `@container cfg`
+   안의 `.cfg { flex-direction: column }` 은 절대 걸리지 않고, 자식 규칙
+   (`.cfg-rail { width: 100% }`)만 걸린다. 그 반쪽 적용이 "좁아지면 망가진다"
+   의 정체였다: 레일이 100% 를 먹은 채 row 로 남아 본문 폭이 0 이 됐다. */
+.cfg-shell {
+  container-type: inline-size;
+  container-name: cfg;
+}
 .cfg {
   display: flex;
   align-items: flex-start;
   gap: var(--space-8);
-  container-type: inline-size;
-  container-name: cfg;
 }
 .cfg-rail {
   position: sticky;
@@ -411,7 +418,11 @@
 }
 .cfg-error span { flex: 1; min-width: 0; }
 
-/* ── 좁은 폭: 레일이 위로 눕는다 ───────────────────────────────────────── */
+/* ── 좁은 폭: 레일이 위로 눕는다 ───────────────────────────────────────────
+   목차는 **줄바꿈**한다 — 가로 스크롤이 아니다. 예전 `overflow-x: auto` +
+   숨긴 스크롤바는 2026-09-09 재설계가 없앤 바로 그 병("열두 탭 중 대여섯만
+   보인다")을 좁은 폭에서 되살리고 있었다. 묶음이 통째로 다음 줄로 떨어지고
+   묶음 안의 탭도 줄을 바꾸므로 어느 폭에서도 열둘이 다 보인다. */
 @container cfg (max-width: 720px) {
   .cfg { flex-direction: column; gap: var(--space-6); }
   .cfg-rail {
@@ -421,13 +432,11 @@
   }
   .cfg-nav {
     flex-direction: row;
-    gap: var(--space-5);
-    overflow-x: auto;
-    scrollbar-width: none;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-5);
     padding-bottom: var(--space-1);
   }
-  .cfg-nav::-webkit-scrollbar { display: none; }
-  .cfg-group { flex-direction: row; align-items: center; gap: 1px; flex: none; }
+  .cfg-group { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 1px; flex: none; }
   .cfg-group-label { padding: 0 var(--space-2) 0 0; }
   .cfg-item { width: auto; flex: none; }
   .cfg-main { max-width: none; }

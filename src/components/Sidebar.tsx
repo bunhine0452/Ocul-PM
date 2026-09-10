@@ -6,7 +6,7 @@ import {
   FolderGit2,
   ChevronsUpDown,
   PanelLeft,
-  SquareTerminal,
+  PanelBottom,
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navRowViews, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
@@ -36,6 +36,10 @@ import { useT } from "@/i18n";
 //
 // 스크롤은 안전망이고, 보통 창 높이에서는 스크롤 없이 다 보이는 게 낫다.
 // 그래서 세로 여백을 vh 로 눌러 두었다 (shell.css 의 --side-gap / .nav-item).
+//
+// 2026-09-11 리디자인 — 머리는 활자(카드·타일 없음), 섹션은 라벨 + 왼쪽 척추,
+// 발은 한 줄(도크 라벨 + 아이콘 칸 둘). 결정의 이유는 shell.css 의 리디자인
+// 주석에 있다. DOM 계약(머리/스크롤/발 3층, 발의 버튼 셋, 라벨 텍스트)은 그대로다.
 
 const MAIN_NAV = NAV_ENTRIES.filter((e) => e.group === "main");
 const TOOL_NAV = NAV_ENTRIES.filter((e) => e.group === "tools");
@@ -133,7 +137,7 @@ function NavRow({
       {/* 도는 동안에는 아이콘 둘레가 돈다 — 숫자만으로는 "멈춘 채 N 개"인지
           "지금 일하는 중"인지 구분되지 않는다. */}
       <span className={"nav-ico" + (busy ? " working" : "")}>
-        <Icon size={18} />
+        <Icon size={15} />
       </span>
       <span>{label}</span>
       {waiting ? (
@@ -340,14 +344,14 @@ export function Sidebar({
           aria-haspopup="menu"
           aria-expanded={switcherOpen}
         >
-          <div className="proj-icon">
-            <FolderGit2 size={15} />
-          </div>
+          {/* 머리는 활자다 (2026-09-11) — 카드·타일 대신 이름이 제목, 경로가
+              부제. 액센트 마크 하나가 "프로젝트" 라고 말한다 (shell.css). */}
+          <span className="proj-mark" aria-hidden="true" />
           <div className="proj-meta">
             <div className="proj-name">{projectName ?? t("sidebar.selectProject")}</div>
             <div className="proj-path">{projectPath ? tildePath(projectPath) : "—"}</div>
           </div>
-          <ChevronsUpDown size={15} color="var(--text-3)" />
+          <ChevronsUpDown size={15} className="proj-chev" />
         </button>
 
         {switcherOpen ? (
@@ -410,23 +414,34 @@ export function Sidebar({
         {/* 첫 그룹에도 이름을 준다 (2026-09-09). 셋은 라벨이 있고 하나만 없으면
             그 하나가 "전부" 로, 나머지가 "예외" 로 읽힌다 — 실제로는 넷 다 대등한
             갈래다. */}
-        <div className="nav-section-label nav-section-label--first">{t("sidebar.mainSection")}</div>
-        {MAIN_NAV.map((slot, i) => (
-          <NavRow key={slot.id} slot={slot} active={view === slot.id} index={i} onNavigate={onNavigate} />
-        ))}
+        {/* 섹션 = 라벨 + 척추 달린 행 묶음 (2026-09-11, shell.css .nav-section). */}
+        <div className="nav-section">
+          <div className="nav-section-label nav-section-label--first">{t("sidebar.mainSection")}</div>
+          <div className="nav-rows">
+            {MAIN_NAV.map((slot, i) => (
+              <NavRow key={slot.id} slot={slot} active={view === slot.id} index={i} onNavigate={onNavigate} />
+            ))}
+          </div>
+        </div>
 
-        <div className="nav-section-label">{t("sidebar.toolsSection")}</div>
-        {TOOL_NAV.map((slot, i) => (
-          <NavRow
-            key={slot.id}
-            slot={slot}
-            active={view === slot.id}
-            index={MAIN_NAV.length + i}
-            onNavigate={onNavigate}
-          />
-        ))}
+        <div className="nav-section">
+          <div className="nav-section-label">{t("sidebar.toolsSection")}</div>
+          <div className="nav-rows">
+            {TOOL_NAV.map((slot, i) => (
+              <NavRow
+                key={slot.id}
+                slot={slot}
+                active={view === slot.id}
+                index={MAIN_NAV.length + i}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        </div>
 
-        <div className="nav-section-label">{t("sidebar.aiSection")}</div>
+        <div className="nav-section">
+          <div className="nav-section-label">{t("sidebar.aiSection")}</div>
+          <div className="nav-rows">
         {AI_NAV.map((slot, i) => {
           // 갈래가 있는 행은 배지를 **합산**한다 (2026-09-06 IA 재편). 행을
           // 하나로 줄였다고 "Codex 가 승인을 기다린다" 가 사라지면 안 된다.
@@ -454,19 +469,27 @@ export function Sidebar({
             </div>
           );
         })}
+          </div>
+        </div>
 
-        <div className="nav-section-label">{t("sidebar.refSection")}</div>
-        {REF_NAV.map((slot, i) => (
-          <NavRow
-            key={slot.id}
-            slot={slot}
-            active={view === slot.id}
-            index={MAIN_NAV.length + TOOL_NAV.length + AI_NAV.length + i}
-            onNavigate={onNavigate}
-          />
-        ))}
+        <div className="nav-section">
+          <div className="nav-section-label">{t("sidebar.refSection")}</div>
+          <div className="nav-rows">
+            {REF_NAV.map((slot, i) => (
+              <NavRow
+                key={slot.id}
+                slot={slot}
+                active={view === slot.id}
+                index={MAIN_NAV.length + TOOL_NAV.length + AI_NAV.length + i}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        </div>
       </div>
 
+      {/* 발은 한 줄이다 (2026-09-11): 도크만 라벨을 갖고(⌘J·켜짐 상태), 테마·설정은
+          아이콘 칸. 라벨은 .nav-sr 로 남아 보조기술·테스트에는 그대로 읽힌다. */}
       <div className="side-foot">
         {onToggleTerminalDock ? (
           <button
@@ -474,30 +497,37 @@ export function Sidebar({
             className="nav-item nav-util"
             aria-pressed={terminalDockOpen}
             onClick={onToggleTerminalDock}
+            title={`${t("sidebar.terminalDock")} (⌘J)`}
           >
             <span className="nav-ico">
-              <SquareTerminal size={18} />
+              <PanelBottom size={15} />
             </span>
             <span>{t("sidebar.terminalDock")}</span>
             <kbd className="nav-kbd">⌘J</kbd>
           </button>
         ) : null}
-        <button type="button" className="nav-item nav-util" onClick={onToggleTheme}>
+        <button
+          type="button"
+          className="nav-item nav-util nav-util--icon"
+          onClick={onToggleTheme}
+          title={isDark ? t("sidebar.lightMode") : t("sidebar.darkMode")}
+        >
           <span className="nav-ico">
-            {isDark ? <SunIcon size={18} /> : <MoonIcon size={18} />}
+            {isDark ? <SunIcon size={15} /> : <MoonIcon size={15} />}
           </span>
-          <span>{isDark ? t("sidebar.lightMode") : t("sidebar.darkMode")}</span>
+          <span className="nav-sr">{isDark ? t("sidebar.lightMode") : t("sidebar.darkMode")}</span>
         </button>
         <button
           type="button"
-          className={"nav-item" + (view === "settings" ? " active" : "")}
+          className={"nav-item nav-util nav-util--icon" + (view === "settings" ? " active" : "")}
           aria-current={view === "settings" ? "page" : undefined}
           onClick={() => onNavigate("settings")}
+          title={t("sidebar.settings")}
         >
           <span className="nav-ico">
-            <SettingsIcon size={18} />
+            <SettingsIcon size={15} />
           </span>
-          <span>{t("sidebar.settings")}</span>
+          <span className="nav-sr">{t("sidebar.settings")}</span>
         </button>
       </div>
     </nav>
