@@ -41,7 +41,7 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 - [x] 다중 커서 · 열(블록) 선택 — ⌥클릭 · ⌘D 다음 일치 추가 · ⌥⇧드래그 {#cap-multicursor}
 - [x] 미니맵 · 브래킷 쌍 색칠 · 들여쓰기 가이드. 설정에 켜기/끄기를 둘지 판단 (기본값은 켬) {#cap-minimap}
 - [x] peek definition/references — 지금은 ⇧F12 가 화면 폭 패널을 그린다. 인라인 peek 이 그 패널을 대체할지, 둘 다 남길지 결정한다 {#cap-peek}
-- [!] 시맨틱 토큰 — LSP `semanticTokens` 를 백엔드에 없으면 추가하고 Monaco 에 물린다. 없으면 이 항목은 Monarch 강조로 만족하고 닫는다 {#cap-semantic}
+- [x] 시맨틱 토큰 — LSP `semanticTokens` 를 백엔드에 없으면 추가하고 Monaco 에 물린다. 없으면 이 항목은 Monarch 강조로 만족하고 닫는다 {#cap-semantic}
 
 ## Phase 4 — 논의 편집기: CodeMirror 의존성 완전 제거 {#discussion}
 - [x] **선행 조건** — 병렬 세션의 논의 CAS 손실 수정(`DiscussionScreenV2.tsx` 852줄 · `discussion.rs` · 새 테스트 2개)이 머지될 때까지 시작하지 않는다. 같은 파일을 두 세션이 고치면 한쪽이 조용히 사라진다 {#disc-wait}
@@ -52,7 +52,7 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 ## Phase 5 — 에이전트 편집면 (Cursor 의 진짜 차별점) {#agent-surface}
 - [x] ⌘K 인라인 편집 — 선택 범위에 지시를 주면 그 자리에서 고쳐 보여 준다. ACP(Claude Code · Codex)가 이미 붙어 있어 전송 경로는 있고, Monaco 의 inline-diff 위젯이 표시를 맡는다 {#agent-cmdk}
 - [x] hunk 단위 승인 — 에이전트가 만든 diff 를 편집기 안에서 조각별로 받기/버리기. 지금 `diffOriginal` 이 그리는 청크 되돌리기 버튼의 확장이다 {#agent-hunk}
-- [!] 귀속 — ⌘K 로 들어간 편집이 일지·`entry_diffs` 에 **누가 고쳤는지** 남는가. 이 앱의 존재 이유가 기록이라 편집기가 기록을 빠뜨리면 안 된다 {#agent-attribution}
+- [x] 귀속 — ⌘K 로 들어간 편집이 일지·`entry_diffs` 에 **누가 고쳤는지** 남는가. 이 앱의 존재 이유가 기록이라 편집기가 기록을 빠뜨리면 안 된다 {#agent-attribution}
 - [>] **Tab 다음-편집 예측은 이 라운드에서 열지 않는다** — 전용 모델 · 지연시간 예산 · 취소 병합 · 오답 비용까지 설계가 따로 필요하다. 여기 항목으로만 남겨 유실을 막는다 (이월은 살아 있는 플랜의 항목으로) {#agent-tab-predict}
 
 ## Phase 6 — 마감 {#finish}
@@ -100,4 +100,6 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 | 2026-09-09T20:28:44+09:00 | #eyes-hljs | claude-code | ☐→! | .oculpm/journal/20260909/Features_to_add/2009_feature_monaco-agent-surface-phase5.md | 사람이 앱을 띄워야 답이 나온다 (설치본 도는 중 dev 빌드 금지 — 락 경합). "나중에 봐야 함" 대신 **걸을 수 있는 목록**을 06-finish.md §eyes 에 적었다: 색(프리셋5×언어7, 특히 직접 쓴 json·toml) · 새로 켠 것 · 심볼 스티키 · **키 9개**(⇧⌘O 가 우리 CodeGoto 인지, 편집기 안 ⌘V 가 트리 붙여넣기로 안 새는지 — 둘 다 실제 회귀였다) · 위젯 · ⌘K 흐름 · 논의 편집기. v3-release {#eyes-hljs} 와 같은 격자 |
 | 2026-09-09T20:28:53+09:00 | #fin-perf | claude-code | ☐→! | .oculpm/journal/20260909/Features_to_add/2009_feature_monaco-agent-surface-phase5.md | 절반 완료. **페이로드는 실측**(06-finish.md §perf): CodeScreenV2 335KB→145.08, DiscussionEditor 537.97→8.75(CodeMirror 소멸), 공유 Monaco 3,871.14(gzip 1,001.45), 워커는 editor.worker 273KB 하나뿐(D1 유지 근거), dist 총 16.3MB. **기기 지연(열기·스크롤·타이핑)은 미측정** — Phase 0 하네스가 버리는 브랜치에 있어 절차만 남겼다. 문서명은 03-performance 가 아니라 06-finish §perf (3~5번을 Phase 3~5 문서가 가져갔다) |
 | 2026-09-09T20:29:58+09:00 | #fin-release | claude-code | ☐→! |  | **사용자 지시로 대기** (2026-09-09) — 다른 세션이 끝나면 알려 주기로. 손도 안 댔다: 버전 6파일·CHANGELOG·README ko/en·랜딩 ko/en 전부 그대로. 재개 시 순서는 docs/RELEASE.md — 버전 6곳 → 게이트(cargo test 가 Cargo.lock 갱신) → CHANGELOG → README 양쪽 → 랜딩 각 6곳 + plugin.html 배지 둘 → build.mjs → main CI 초록 확인 후 태그. 릴리스 전에 {#eyes-hljs} 격자를 걷는 것이 이 라운드의 성격상 맞다 — 편집기를 통째로 갈았는데 사람이 한 번도 안 봤다 |
+| 2026-09-10T19:39:54+09:00 | #cap-semantic | claude-code | !→x | .oculpm/journal/20260910/Features_to_add/1939_feature_monaco-semantic-tokens-and-attribution.md | 해제 조건(firing-ledger 머지) 충족 확인 후 구현. legend 는 initialize 답에 이미 있어 요청 0회 — 데이터와 따로 나른 이유는 Monaco 가 공급자당 getLegend() 를 한 번만 읽어 캐시하기 때문. 함정 셋: 핸드셰이크에 안 알리면 rust-analyzer 가 능력조차 광고 안 함 · standalone 테마는 semanticHighlighting 이 항상 false 라 옵션으로 켜야 함 · 테마 규칙 빠뜨린 종류는 본문색이 되어 켜기 전보다 나빠짐(builtinType·lifetime 포함 15종 추가+커버리지 테스트). full 못 하는 서버엔 안 담. spec.rs 래칫 때문에 lsp/semantic.rs 신설 |
+| 2026-09-10T19:40:03+09:00 | #agent-attribution | claude-code | !→x | .oculpm/journal/20260910/Features_to_add/1939_feature_monaco-semantic-tokens-and-attribution.md | 남아 있던 ③ 완료 — code_write 에 by_agent 를 더해 자기-쓰기 쪽지가 손까지 적는다. 저장 창구는 ⌘S 든 ⌘K 든 같은 code_write 라 창구만 보면 둘 다 사람이 된다. 프런트는 "아직 저장 안 함" 집합에 넣고 저장 때 한 번 꺼내 쓴다(한 번 적히고 지워짐 — 안 지우면 이후 저장이 전부 에이전트). 일지 tallies 와 다른 축이라 따로 둠 |
 <!-- oculpm:plan-log end -->

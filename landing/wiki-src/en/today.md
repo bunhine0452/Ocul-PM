@@ -76,7 +76,7 @@ Turns yesterday-and-today's entries into **one shareable block** on your clipboa
 With an API key the AI polishes it; without one you get a **plain template** with the bones. Both work.
 
 :::tip
-For longer periods (weekly, PR descriptions) use the [Retro](/wiki/en/retro) screen. Standup is the shortcut for "yesterday and today."
+Standup is the shortcut for "yesterday and today." For a longer span, the Branch screen groups a whole branch and exports it as a single markdown page.
 :::
 
 ## Code search bar
@@ -87,4 +87,3 @@ Jumps straight to code search from this screen. The **All entries** link goes to
 
 - How the records the rings count pile up → [Work Journal](/wiki/en/journal)
 - Where "Next up" comes from → [Planner](/wiki/en/planner)
-- Looking back over longer periods → [Retro](/wiki/en/retro)

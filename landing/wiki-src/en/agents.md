@@ -80,7 +80,7 @@ If you use Claude Code, installing the plugin makes the biggest difference — t
 
 ## Mixing several agents
 
-No problem. Each entry's frontmatter records `agent.id` and the model name, so you can tell later who did what. The retro's **Agent contributions** card shows the distribution.
+No problem. Each entry's frontmatter records `agent.id` and the model name, so you can tell later who did what. The Today screen's **Agent contributions** card shows the distribution.
 
 ## Skills & Rules hub
 

@@ -123,14 +123,6 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://oculpm.com/wiki/retro</loc>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/retro" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/retro" />
-    <lastmod>2026-08-21</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://oculpm.com/wiki/automation</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/automation" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/automation" />
@@ -254,14 +246,6 @@
     <loc>https://oculpm.com/wiki/en/planner</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/planner" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/planner" />
-    <lastmod>2026-08-21</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://oculpm.com/wiki/en/retro</loc>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/retro" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/retro" />
     <lastmod>2026-08-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>

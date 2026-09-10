@@ -18,7 +18,6 @@ The manual for the places people get stuck. Short, and updated often. (As of v2.
 - **[Today](/wiki/en/today)** — the screen you land on. Activity rings, commit graph, standup copy
 - **[Work Journal](/wiki/en/journal)** — how entries pile up, change diffs, sessions, the honesty audit
 - **[Planner](/wiki/en/planner)** — a plan document agents keep current. Glyphs and the change log
-- **[Retro](/wiki/en/retro)** — period signals, the deferred-shortcut ledger, standup and PR descriptions
 
 ## Agent integration
 

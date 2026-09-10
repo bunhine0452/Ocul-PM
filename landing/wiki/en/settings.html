@@ -47,7 +47,6 @@
     <a class="wk-side-link" href="/wiki/en/today">Today</a>
     <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
     <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
-    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
     <a class="wk-side-link" href="/wiki/en/automation">Automation</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
     <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
@@ -80,11 +79,11 @@
 <div class="wk-table"><table><thead><tr><th></th><th>Unit</th><th>Applies to</th></tr></thead><tbody><tr><td>Text size</td><td>Scale (%)</td><td>The whole app — like browser zoom</td></tr><tr><td>Terminal font size</td><td>px</td><td>Terminal screen, dock, detached windows</td></tr></tbody></table></div>
 <p>The terminal is in px because a fixed-width grid needs px precision more than a percentage. Inside the terminal, <code>⌘+</code> / <code>⌘−</code> adjust it and <code>⇧⌘0</code> resets.</p>
 <h3 id="two-languages">Two languages</h3>
-<p><b>UI language</b> (on-screen text) and <b>AI writing language</b> (the language of entries, planner items, and retros the AI produces) are separate. You can run an English UI and keep records in Korean. Already-written documents don't change.</p>
+<p><b>UI language</b> (on-screen text) and <b>AI writing language</b> (the language of entries, planner items and discussions the AI produces) are separate. You can run an English UI and keep records in Korean. Already-written documents don't change.</p>
 <h3 id="menu-bar-external-editor">Menu bar · external editor</h3>
 <p>Menu bar residency and external editor wiring are covered in <a href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>.</p>
 <h2 id="llm">LLM</h2>
-<p>Needed only for AI features (retro narrative generation, Agent panel chat). <b>Journaling itself needs no key.</b></p>
+<p>Needed only for AI features (AI panel chat, ⌘K inline editing). <b>Journaling itself needs no key.</b></p>
 <h3 id="api-keys">API keys</h3>
 <p><b>Stored only in the OS keychain</b> — never in the app database or a file. The status (set / unset) is cached locally, so opening Settings doesn't trigger a keychain prompt; press <b>Verify against keychain</b> only when you really want to check.</p>
 <h3 id="providers-and-models">Providers and models</h3>
@@ -95,7 +94,7 @@
 <pre class="wk-code"><code>openai:gpt-4o-mini
 anthropic:claude-3.5-haiku-latest
 openrouter:openai/gpt-4o</code></pre>
-<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>If you run retros during hours when rate limits bite, a fallback chain makes a real difference.</p></div></div>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>If you run AI during hours when rate limits bite, a fallback chain makes a real difference.</p></div></div>
 <h3 id="generation">Generation</h3>
 <p>Temperature (lower is focused, higher is creative), max output tokens, and a system prompt prepended to every chat.</p>
 <h2 id="indexing-rag">Indexing &amp; RAG</h2>
@@ -106,7 +105,7 @@ openrouter:openai/gpt-4o</code></pre>
 <p>Defaults for the code map — whether isolated files show by default, and the <b>auto-group threshold</b> (directories with at least this many files become collapsible groups).</p>
 <p>In a big repo, lower the threshold when the map is too dense; raise it when everything is lumped together.</p>
 <h2 id="notion-export">Notion export</h2>
-<p>Exports retros and artifacts as new pages under a parent page you choose. Connect through the browser with your account, or paste an internal token. <b>That token also lives only in the OS keychain.</b></p>
+<p>Exports entries and artifacts as new pages under a parent page you choose. Connect through the browser with your account, or paste an internal token. <b>That token also lives only in the OS keychain.</b></p>
 <h2 id="diagnostics-updates">Diagnostics · Updates</h2>
 <ul><li><b>Diagnostics</b> — the information to attach when reporting a problem. DevTools opens from here too</li><li><b>Updates</b> — manual check and past release notes (GitHub releases). Normally the app updates itself</li></ul>
 <div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>An update restart relaunches the Claude Code adapter along with the app. That's why restarts are deferred while an answer is streaming — the conversation is on disk and comes back, but the answer in flight at that moment is lost.</p></div></div>

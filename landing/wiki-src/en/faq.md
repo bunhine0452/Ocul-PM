@@ -39,12 +39,12 @@ The only thing that costs money is **AI writing new prose**:
 
 | Feature | Cost |
 |---|---|
-| Journal and planner records, search, code map, retro metrics | **Free** — all local |
-| Retro narrative generation, Agent panel chat | Your API key, your billing |
+| Journal and planner records, search, code map, code editing | **Free** — all local |
+| AI panel chat, ⌘K inline editing | Your API key, your billing |
 | Claude Code inside the app | Your Claude subscription (no extra charge) |
 
 :::tip
-The retro's **"With Claude Code"** button hands the job to a terminal Claude Code session — it runs on your subscription with no API key, so you can produce a retro at no extra cost.
+The in-app **Claude Code and Codex screens** run on the same footing as a terminal session — on your subscription, with no API key, so there is no extra cost.
 :::
 
 ### Where does my code go?
@@ -53,7 +53,7 @@ By default, **nowhere**. Code-search embeddings are computed on your machine (on
 
 ### Does it work offline?
 
-Yes. Records, timeline, change diffs, code search, code map, and retro metrics are all local. Only AI calls and the update check need the network.
+Yes. Records, timeline, change diffs, code search, code map and code editing are all local. Only AI calls and the update check need the network.
 
 ### What about Windows / Linux?
 
@@ -120,7 +120,7 @@ Different points on the timeline:
 
 ### Why are there two language settings?
 
-They're different. **UI language** is the text on screen; **AI writing language** is the language of entries, planner items, and retros the AI produces.
+They're different. **UI language** is the text on screen; **AI writing language** is the language of entries, planner items and discussions the AI produces.
 
 You can run an English UI and keep records in Korean. Already-written documents don't change when you switch.
 
@@ -138,7 +138,7 @@ Yes. They're plain markdown and the app re-reads them when you save. Note that *
 
 ### What if there are too many entries?
 
-They collapse by date, there's search and filtering, and the retro summarizes by period. You can filter to **Verified** to see only what a human confirmed. And entries can be deleted — they're just files.
+They collapse by date, there's search and filtering, and the Branch screen groups them per branch. You can filter to **Verified** to see only what a human confirmed. And entries can be deleted — they're just files.
 
 ### If I uninstall the app, do I lose the records?
 
@@ -150,7 +150,7 @@ Yes. `⌘T` opens a project tab, `⌘P` switches. Multiple windows work too. ([D
 
 ### Can I mix several agents?
 
-Yes. Each entry records who did it with which model, and the retro's **Agent contributions** card shows the split. ([Details](/wiki/en/agents))
+Yes. Each entry records who did it with which model, and the Today screen's **Agent contributions** card shows the split. ([Details](/wiki/en/agents))
 
 ### Can I delete `AGENTS.md`?
 

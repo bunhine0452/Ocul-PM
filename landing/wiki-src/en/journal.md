@@ -101,7 +101,6 @@ If this card shows up often, [installing the plugin (hook bridge)](/wiki/en/clau
 
 - **Verified** — entries a human read and confirmed can be filtered with the Verified toggle
 - **Edit directly** — it's plain markdown; save and the app re-reads it
-- **Export** — pick a period on the Retro screen and export entries as one `.md`
 
 :::warn
 `.oculpm/index/` is an app-managed cache — don't edit it. Everything else (`journal/`, `planner/`, `discussion/`) is yours.
@@ -110,5 +109,4 @@ If this card shows up often, [installing the plugin (hook bridge)](/wiki/en/clau
 ## Next steps
 
 - How the planning side works → [Planner](/wiki/en/planner)
-- Looking back over accumulated entries → [Retro](/wiki/en/retro)
 - Nothing being recorded → [Troubleshooting](/wiki/en/troubleshooting)

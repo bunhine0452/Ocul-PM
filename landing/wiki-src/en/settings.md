@@ -44,7 +44,7 @@ The terminal is in px because a fixed-width grid needs px precision more than a 
 
 ### Two languages
 
-**UI language** (on-screen text) and **AI writing language** (the language of entries, planner items, and retros the AI produces) are separate. You can run an English UI and keep records in Korean. Already-written documents don't change.
+**UI language** (on-screen text) and **AI writing language** (the language of entries, planner items and discussions the AI produces) are separate. You can run an English UI and keep records in Korean. Already-written documents don't change.
 
 ### Menu bar · external editor
 
@@ -52,7 +52,7 @@ Menu bar residency and external editor wiring are covered in [Windows, Tabs, Ter
 
 ## LLM
 
-Needed only for AI features (retro narrative generation, Agent panel chat). **Journaling itself needs no key.**
+Needed only for AI features (AI panel chat, ⌘K inline editing). **Journaling itself needs no key.**
 
 ### API keys
 
@@ -76,7 +76,7 @@ openrouter:openai/gpt-4o
 ```
 
 :::tip
-If you run retros during hours when rate limits bite, a fallback chain makes a real difference.
+If you run AI during hours when rate limits bite, a fallback chain makes a real difference.
 :::
 
 ### Generation
@@ -105,7 +105,7 @@ In a big repo, lower the threshold when the map is too dense; raise it when ever
 
 ## Notion export
 
-Exports retros and artifacts as new pages under a parent page you choose. Connect through the browser with your account, or paste an internal token. **That token also lives only in the OS keychain.**
+Exports entries and artifacts as new pages under a parent page you choose. Connect through the browser with your account, or paste an internal token. **That token also lives only in the OS keychain.**
 
 ## Diagnostics · Updates
 

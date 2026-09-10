@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.45.2)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 99개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.46.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 100개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.45.2)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 99개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.46.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 100개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.45.2</span>
+    <span class="nav-ver" data-version>v2.46.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>99개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>100개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-46-0">v2.46.0</a>
       <a href="#v2-45-2">v2.45.2</a>
       <a href="#v2-45-1">v2.45.1</a>
       <a href="#v2-45-0">v2.45.0</a>
@@ -61,10 +62,23 @@
       <a href="#v2-40-0">v2.40.0</a>
       <a href="#v2-39-1">v2.39.1</a>
       <a href="#v2-39-0">v2.39.0</a>
-      <a href="#v2-38-0">v2.38.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-46-0"><a href="#v2-46-0">v2.46.0</a></h2>
+      <div class="cl-body">
+<p><b>앱 안의 코드 편집기가 VS Code 의 그 편집기가 됐습니다.</b> 지금까지 쓰던 편집기(CodeMirror)는 접기도, 괄호 짝 맞추기도, 여러 커서도 없었습니다 — 「코드 화면이 있긴 한데 진짜 편집은 밖에서」가 되기 딱 좋은 상태였습니다. 이번 릴리스에서 편집기 알맹이를 <b>Monaco</b>(VS Code 가 쓰는 바로 그 에디터)로 통째로 갈았습니다. 새로 생긴 것:</p>
+<ul><li><b>접기 · 괄호 짝 강조 · 괄호 자동 닫기 · 선택해 두고 따옴표로 감싸기 · 입력하면서 들여쓰기</b></li><li><b>여러 커서</b> — ⌥클릭으로 커서를 더하고, ⌥⇧드래그로 열(블록)을 고릅니다. ⌘D 로 다음 일치를 더합니다.</li><li><b>파일 안 찾기·바꾸기</b> (⌘F · ⌥⌘F) — 예전 편집기엔 아예 없었습니다. 프로젝트 전역 찾기(⇧⌘F)는 그대로입니다.</li><li><b>미니맵 · 스티키 스크롤 · 괄호 쌍 색칠 · 들여쓰기 가이드 · 태그 동시 편집</b></li><li><b>의미로 칠하는 문법 강조</b> — 언어 서버가 아는 것(이건 함수다, 저건 매개변수다, 이 변수는 읽기 전용이다)으로 색을 다시 칠합니다. 정규식 문법 강조는 이름만 보고 색을 고르지만, 이제는 코드의 뜻을 보고 고릅니다.</li></ul>
+<p><b>⌘K — 고칠 곳을 고르고 말로 시킵니다.</b> 코드를 선택하고 ⌘K 를 누른 뒤 "이걸 async 로 바꿔" 처럼 적으면 그 자리에서 고쳐 씁니다. 결과는 <b>먼저 적용하고 검토</b>하는 방식이라, 조각마다 켜고 끄면서 어느 변경을 남길지 고를 수 있습니다 — 전부 끄면 원문 그대로입니다. 그리고 이렇게 들어온 편집은 <b>작업 일지와 판 목록에 「에이전트가 썼다」로 남습니다.</b> 저장을 누른 손이 아니라 글자를 쓴 손을 적는 것이, 기록이 존재 이유인 앱의 몫입니다.</p>
+<p><b>회고 화면과 문서 화면을 걷어냈습니다.</b> 회고는 표면이 컸는데 쓰임이 그에 못 미쳤고, 문서 화면은 <code>docs/</code> 폴더가 없는 프로젝트에서 <b>영구 빈 화면</b>이었습니다. 이미 써 둔 <code>.oculpm/retro/*.md</code> 는 <b>지우지 않습니다</b> — 사용자의 파일이고, 작업 일지 검색에서 계속 읽힙니다. 마지막으로 그 화면을 보고 있었더라도 빈 화면에 갇히지 않고 오늘 화면으로 돌아옵니다.</p>
+<p><b>여러 손이 만든 티를 지웠습니다.</b> 화면마다 조금씩 다르던 것들을 한 벌로 접었습니다 — 이런 것들입니다.</p>
+<ul><li><b>글자 크기·줄 간격·여백·모서리 곡률·글자 굵기</b>가 화면마다 반 단씩 어긋나 있었습니다. 여백만 892곳, 곡률·굵기 1,012곳을 한 램프로 모았습니다.</li><li><b>설정 여는 길이 셋</b>이었습니다 (⌘, 는 모달, 사이드바는 전체 화면, 안내 버튼은 또 다른 전체 화면). 프로젝트 창에서는 화면 하나로 통일했습니다.</li><li><b>「기다리면 채워진다」와 「원래 비어 있다」가 픽셀 단위로 같았습니다.</b> 이제 로딩에는 스피너가 서고, 화면 읽기 프로그램도 둘을 구별합니다.</li><li><b>포커스 링이 안 보이던 자리 여섯 곳</b> — Tab 으로 들어가도 화면이 아무 말도 안 했습니다.</li><li><b>모달 셋에 포커스 트랩이 없었습니다</b> — Tab 이 모달 밖으로 새고, 닫아도 포커스가 돌아오지 않았습니다.</li><li><b>말투가 두 갈래</b>였습니다. 700곳을 해요체 한 목소리로 모으고, 로그 문자열을 그대로 붙여 놓던 에러 메시지 41건을 사람 말로 바꿨습니다.</li><li><b>회색 버튼이 왜 회색인지 말합니다.</b> 눌리지 않는 버튼에 마우스를 올리면 이제 이유가 뜹니다 — 예전엔 툴팁조차 뜨지 않는 구조였습니다(브라우저가 비활성 요소의 마우스 이벤트를 삼킵니다).</li></ul>
+<p>이 정리가 되살아나지 않도록 <code>pnpm lint</code> 에 게이트 다섯 줄을 더 세웠습니다.</p>
+<p><b>고친 것들.</b></p>
+<ul><li><b>논의 문서를 두 곳에서 열어 두면 나중에 저장한 쪽이 앞의 편집을 조용히 덮었습니다.</b></li><li><b>폰 페어링 화면을 닫아도 앱이 계속 서버를 두드리고 있었습니다.</b></li><li><b>규칙을 지워도 예산 창이 30일 동안 그 규칙 값을 계속 청구했습니다.</b></li><li><b>한글 입력 중 Enter 가 조합을 끊던 판정이 화면마다 네 벌</b>이었고, 그중 제일 많이 데인 터미널만 조건 하나를 더 알고 있었습니다. 한 벌로 모으면서 나머지 셋이 그 조건을 물려받았습니다.</li><li><b>되돌리기 토스트가 읽기도 전에 사라지던 것</b>, <b>편집기가 자기 모델을 두 번 닫던 것</b>.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-45-2"><a href="#v2-45-2">v2.45.2</a></h2>
       <div class="cl-body">

@@ -47,7 +47,6 @@
     <a class="wk-side-link" href="/wiki/en/today">Today</a>
     <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
     <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
-    <a class="wk-side-link" href="/wiki/en/retro">Retro</a>
     <a class="wk-side-link" href="/wiki/en/automation">Automation</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
     <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
@@ -83,12 +82,12 @@
 <h3 id="does-it-cost-anything">Does it cost anything?</h3>
 <p>The app is free, and <b>journaling itself needs no API key</b>. It watches file changes and reads markdown that agents wrote — that costs nothing.</p>
 <p>The only thing that costs money is <b>AI writing new prose</b>:</p>
-<div class="wk-table"><table><thead><tr><th>Feature</th><th>Cost</th></tr></thead><tbody><tr><td>Journal and planner records, search, code map, retro metrics</td><td><b>Free</b> — all local</td></tr><tr><td>Retro narrative generation, Agent panel chat</td><td>Your API key, your billing</td></tr><tr><td>Claude Code inside the app</td><td>Your Claude subscription (no extra charge)</td></tr></tbody></table></div>
-<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>The retro's <b>"With Claude Code"</b> button hands the job to a terminal Claude Code session — it runs on your subscription with no API key, so you can produce a retro at no extra cost.</p></div></div>
+<div class="wk-table"><table><thead><tr><th>Feature</th><th>Cost</th></tr></thead><tbody><tr><td>Journal and planner records, search, code map, code editing</td><td><b>Free</b> — all local</td></tr><tr><td>AI panel chat, ⌘K inline editing</td><td>Your API key, your billing</td></tr><tr><td>Claude Code inside the app</td><td>Your Claude subscription (no extra charge)</td></tr></tbody></table></div>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>The in-app <b>Claude Code and Codex screens</b> run on the same footing as a terminal session — on your subscription, with no API key, so there is no extra cost.</p></div></div>
 <h3 id="where-does-my-code-go">Where does my code go?</h3>
 <p>By default, <b>nowhere</b>. Code-search embeddings are computed on your machine (only the model is downloaded, once). Six things leave, and you start every one: LLM calls you configured, the update check, provider traffic when you use Claude Code or Codex in the app, GitHub fetches when you click (release notes, bundles, themes), the one-time embedding-model download, and the Notion integration once you enable it (its OAuth exchange alone is brokered by oculpm.com). No account server, no telemetry. (<a href="/wiki/en/data">Details</a>)</p>
 <h3 id="does-it-work-offline">Does it work offline?</h3>
-<p>Yes. Records, timeline, change diffs, code search, code map, and retro metrics are all local. Only AI calls and the update check need the network.</p>
+<p>Yes. Records, timeline, change diffs, code search, code map and code editing are all local. Only AI calls and the update check need the network.</p>
 <h3 id="what-about-windows-linux">What about Windows / Linux?</h3>
 <p>Right now it's <b>macOS (Apple Silicon) only</b>.</p>
 <div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>That said, <code>.oculpm/</code> records are plain markdown and read fine anywhere. If you have Windows teammates, they can read committed entries without trouble.</p></div></div>
@@ -121,7 +120,7 @@
 <p>Different points on the timeline:</p>
 <div class="wk-table"><table><thead><tr><th></th><th>When</th><th>What</th></tr></thead><tbody><tr><td><b>Discussions</b></td><td><b>Before</b> deciding</td><td>Lay out options A/B/C and pick</td></tr><tr><td><b>Planner</b></td><td><b>Now</b></td><td>The current plan. Glyphs move as items progress</td></tr><tr><td><b>Work Journal</b></td><td><b>After</b> the work</td><td>What was done, why, and how it was verified</td></tr></tbody></table></div>
 <h3 id="why-are-there-two-language-settings">Why are there two language settings?</h3>
-<p>They're different. <b>UI language</b> is the text on screen; <b>AI writing language</b> is the language of entries, planner items, and retros the AI produces.</p>
+<p>They're different. <b>UI language</b> is the text on screen; <b>AI writing language</b> is the language of entries, planner items and discussions the AI produces.</p>
 <p>You can run an English UI and keep records in Korean. Already-written documents don't change when you switch.</p>
 <h2 id="as-you-use-it">As you use it</h2>
 <h3 id="nothing-is-being-recorded">Nothing is being recorded</h3>
@@ -130,13 +129,13 @@
 <h3 id="can-i-edit-entries">Can I edit entries?</h3>
 <p>Yes. They're plain markdown and the app re-reads them when you save. Note that <b>agents are told not to edit existing entries</b> — history that quietly changes can't be trusted. They write a new entry and link it with <code>related</code>.</p>
 <h3 id="what-if-there-are-too-many-entries">What if there are too many entries?</h3>
-<p>They collapse by date, there's search and filtering, and the retro summarizes by period. You can filter to <b>Verified</b> to see only what a human confirmed. And entries can be deleted — they're just files.</p>
+<p>They collapse by date, there's search and filtering, and the Branch screen groups them per branch. You can filter to <b>Verified</b> to see only what a human confirmed. And entries can be deleted — they're just files.</p>
 <h3 id="if-i-uninstall-the-app-do-i-lose-the-records">If I uninstall the app, do I lose the records?</h3>
 <p><b>No.</b> Everything lives as markdown inside the project folder; the app's database is only a cache for drawing screens quickly.</p>
 <h3 id="can-i-work-on-several-projects-at-once">Can I work on several projects at once?</h3>
 <p>Yes. <code>⌘T</code> opens a project tab, <code>⌘P</code> switches. Multiple windows work too. (<a href="/wiki/en/workspace">Details</a>)</p>
 <h3 id="can-i-mix-several-agents">Can I mix several agents?</h3>
-<p>Yes. Each entry records who did it with which model, and the retro's <b>Agent contributions</b> card shows the split. (<a href="/wiki/en/agents">Details</a>)</p>
+<p>Yes. Each entry records who did it with which model, and the Today screen's <b>Agent contributions</b> card shows the split. (<a href="/wiki/en/agents">Details</a>)</p>
 <h3 id="can-i-delete-agents-md">Can I delete <code>AGENTS.md</code>?</h3>
 <p>Delete it and <b>agents no longer see the journaling rules</b> — entries stop. If you already had your own <code>AGENTS.md</code>, don't worry: the app owns only the <code>&lt;!-- oculpm:begin --&gt;</code> block and leaves the rest alone.</p>
 <h3 id="does-the-app-have-to-stay-open">Does the app have to stay open?</h3>
