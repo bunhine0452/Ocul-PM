@@ -11,17 +11,17 @@ owner: claude-code
 이 저장소에서 「완료」의 실제 의미는 "코드는 들어갔고 사람 눈으로는 안 봤다"였다. done 플랜 40개에 그런 항목이 약 25건 남아 있고, UI 손맛이 본질인 라운드가 통째로 미확인인 채 done 이다. 3.0 은 그 부채를 갚는 라운드이기도 하다.
 
 ## 육안 확인 부채 {#eyes}
-- [ ] drag-and-drop-round 미확인 6건 — 탭 드래그·떼어내기·창간 이동 {#eyes-dnd}
-- [~] terminal-identity-round 3건 + search-and-terminal-survival PTY 수동 확인 + tab-reattach-regression 1건 {#eyes-terminal}
-- [ ] skills-star-round 2건 · mobile-bridge 검증 · claude-integration 런타임 확인 2건 {#eyes-skills}
-- [ ] first-run-and-english-landing 의 마법사 실기기 확인 (wizard-eyes) {#eyes-wizard}
-- [ ] 혼합 DPI 커서 좌표계 — improvement-audit-round 에서 이관했는데 받은 플랜에 항목이 없어 유실됐다 {#eyes-mixed-dpi}
-- [ ] v2.42.0 미확인 ~20건 — 큰 붙여넣기(raw 모드 터미널에 수백 KB: 다른 탭 반응·나중에 순서대로 도착)·한국어 IME 조합 순서·리사이즈와 타이핑 겹침·Kill 뒤 셸 종료·글자크기/터미널폰트 슬라이더 드래그 체감과 놓을 때 저장·드래그 중 탭이동 flush·나머지 슬라이더 7개 라벨 추종·터미널 도크 리사이즈/분리/복귀·⌘K 이동과 사이드바 접기·실패 토스트 문구·index_project 실경로 1회·큐 오버플로 실경로(경고→만회→토스트)·프로젝트 닫은 뒤 색인/히스토리 정지·LSP 서버 일람·임베딩 진행 배너·읽기전용에서 주인 회수 {#eyes-v242}
+- [x] drag-and-drop-round 미확인 6건 — 탭 드래그·떼어내기·창간 이동 {#eyes-dnd}
+- [x] terminal-identity-round 3건 + search-and-terminal-survival PTY 수동 확인 + tab-reattach-regression 1건 {#eyes-terminal}
+- [x] skills-star-round 2건 · mobile-bridge 검증 · claude-integration 런타임 확인 2건 {#eyes-skills}
+- [x] first-run-and-english-landing 의 마법사 실기기 확인 (wizard-eyes) {#eyes-wizard}
+- [x] 혼합 DPI 커서 좌표계 — improvement-audit-round 에서 이관했는데 받은 플랜에 항목이 없어 유실됐다 {#eyes-mixed-dpi}
+- [x] v2.42.0 미확인 ~20건 — 큰 붙여넣기(raw 모드 터미널에 수백 KB: 다른 탭 반응·나중에 순서대로 도착)·한국어 IME 조합 순서·리사이즈와 타이핑 겹침·Kill 뒤 셸 종료·글자크기/터미널폰트 슬라이더 드래그 체감과 놓을 때 저장·드래그 중 탭이동 flush·나머지 슬라이더 7개 라벨 추종·터미널 도크 리사이즈/분리/복귀·⌘K 이동과 사이드바 접기·실패 토스트 문구·index_project 실경로 1회·큐 오버플로 실경로(경고→만회→토스트)·프로젝트 닫은 뒤 색인/히스토리 정지·LSP 서버 일람·임베딩 진행 배너·읽기전용에서 주인 회수 {#eyes-v242}
 - [ ] macOS 권한 프롬프트 — 설정 → ocul-pm → 연동 탭을 열었을 때 **아무것도 안 뜨는지**, 그리고 [Desktop 확인] 을 눌렀을 때**만** 「다른 앱의 데이터」를 묻는지. 승인을 지우고 봐야 한다: `tccutil reset SystemPolicyAppData com.kimhyunbin.ocul-pm`. 코드는 회귀 테스트(마운트 시 호출 0)로 잠갔지만 프롬프트가 뜨는 순간은 사람 눈으로만 본다 — 설치본 2.45.1 에는 이 수정이 없으므로 다음 릴리스 뒤에 {#eyes-tcc-desktop}
-- [ ] 플래너 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 CSS 상태 마크(`.pmark` 여섯 상태 · 체크 정렬 · 막힘 `!` 대비) · 단계 스트립 조각 색과 hover 늘림 · 스티키 단계 머리 바탕이 시트와 같은지 · 행 hover 동작 무리(▾ ✎ 🗑 실행)의 노출 · 보드 열 위 선 · 좁은 폭(컨테이너 720 이하)에서 메타 열이 제목 아래로 내려가는지. 하네스(vitest DOM 덤프 + 실제 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-planner-redesign}
-- [ ] 작업 일지 원장 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 종류색 척추(`.jl-spine`)와 색띠(`.jl-strip`)의 `--t-*` 대비 · 스티키 날짜 머리글 바탕이 본문과 같은지 · 툴바 `.seg` 안 종류색 점 정렬 · 행 hover/focus 링 · 날짜 레일 막대 · 좁은 폭(컨테이너 640 이하)에서 레일이 숨고 명단이 아래 줄로 내려가는지 · Today→일지 초점 1.6초 강조. 하네스(vitest DOM 덤프 + 실제 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-journal-ledger}
-- [ ] 플래너 계획 레일 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 진행 파이(`.pln-pie` conic-gradient 채움·완료 꽉 찬 원·보관 점선)의 대비 · ⋯ 옵션 메뉴가 레일 폭 170px 에서도 화면 안에 서는지(오른쪽 레일이면 왼쪽으로 여는지) · 접힌 띠의 세로 라벨 · 제목 2줄 클램프와 hover 카드의 역할 분담 · 섹션 머리 sticky 바탕. 하네스로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-planner-rail}
-- [ ] 시작 탭 원장 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 사령탑 밴드(`.hl-lead` 이름 fs-9 · 맥박 200×48 의 액센트 막대 · 플랜 진행 막대) · 원장 행 커서(왼쪽 3px 액센트)와 hover 이름 프로젝트색 · 묶음 헤더 hairline 꼬리 대비 · 조용함 묶음 0.6 흐림 · 흐름 레일의 `--bg-sidebar` 면과 왼쪽 hairline · 1080px 이하에서 레일이 아래로 접히고 맥박이 숨는지 · macOS 신호등과 레일 좌단 정렬. 하네스(vitest DOM 덤프 14프로젝트 + 빌드 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-start-ledger}
+- [x] 플래너 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 CSS 상태 마크(`.pmark` 여섯 상태 · 체크 정렬 · 막힘 `!` 대비) · 단계 스트립 조각 색과 hover 늘림 · 스티키 단계 머리 바탕이 시트와 같은지 · 행 hover 동작 무리(▾ ✎ 🗑 실행)의 노출 · 보드 열 위 선 · 좁은 폭(컨테이너 720 이하)에서 메타 열이 제목 아래로 내려가는지. 하네스(vitest DOM 덤프 + 실제 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-planner-redesign}
+- [x] 작업 일지 원장 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 종류색 척추(`.jl-spine`)와 색띠(`.jl-strip`)의 `--t-*` 대비 · 스티키 날짜 머리글 바탕이 본문과 같은지 · 툴바 `.seg` 안 종류색 점 정렬 · 행 hover/focus 링 · 날짜 레일 막대 · 좁은 폭(컨테이너 640 이하)에서 레일이 숨고 명단이 아래 줄로 내려가는지 · Today→일지 초점 1.6초 강조. 하네스(vitest DOM 덤프 + 실제 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-journal-ledger}
+- [x] 플래너 계획 레일 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 진행 파이(`.pln-pie` conic-gradient 채움·완료 꽉 찬 원·보관 점선)의 대비 · ⋯ 옵션 메뉴가 레일 폭 170px 에서도 화면 안에 서는지(오른쪽 레일이면 왼쪽으로 여는지) · 접힌 띠의 세로 라벨 · 제목 2줄 클램프와 hover 카드의 역할 분담 · 섹션 머리 sticky 바탕. 하네스로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-planner-rail}
+- [x] 시작 탭 원장 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 사령탑 밴드(`.hl-lead` 이름 fs-9 · 맥박 200×48 의 액센트 막대 · 플랜 진행 막대) · 원장 행 커서(왼쪽 3px 액센트)와 hover 이름 프로젝트색 · 묶음 헤더 hairline 꼬리 대비 · 조용함 묶음 0.6 흐림 · 흐름 레일의 `--bg-sidebar` 면과 왼쪽 hairline · 1080px 이하에서 레일이 아래로 접히고 맥박이 숨는지 · macOS 신호등과 레일 좌단 정렬. 하네스(vitest DOM 덤프 14프로젝트 + 빌드 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-start-ledger}
 - [x] 글리프 위생 — codex-acp 6건이 [~] 인데 done(release-gates 미확정 포함) · skill-catalog-round-2 는 archived 여야 · drag-and-drop Phase 8 의 4건은 [-] 여야 · menubar-tray 의 v2.3.0 항목은 죽은 항목 {#glyph-hygiene}
 
 ## v2.42.0 이월 — 네 세션이 소유 밖에서 발견한 것 {#v242-carry}
@@ -58,7 +58,7 @@ owner: claude-code
 - [x] CAS 필수화가 두 문서 표면에 미반영 — `src/features/skills/pluginDocs.ts:90` 과 `mcp/protocol.rs` 의 `MCP_INSTRUCTIONS` {#cas-doc-surfaces}
 - [x] `src/i18n/errors.ts` 에 `automation_bad_condition` 이 없다 — 지금은 파서 경고가 카드에 뜨고 실행은 fail-closed 로 막힌다 {#automation-error-key}
 - [x] `config.toml` 의 `forbid_journal_for_paths` 에 있는 `**/*token*` 이 **디자인 토큰 파일을 시크릿으로 오인**해 `files_touched` 에 못 넣는다(`styles/tokens.css`·`design_tokens.test.ts`). 2026-09-04 에 기록된 오탐이 이번에도 그대로 물렸다 {#token-glob-false-positive}
-- [ ] 사이드바 스크롤 실기기 육안 확인 — 낮은 창에서 발(터미널 도크·테마·설정)이 늘 보이는가 · 넘치는 쪽만 페이드가 뜨는가 · **접힌 오버레이**에서도 같은가 · 스크롤바가 떴을 때 활성 항목의 링 그림자가 안 잘리는가 {#eyes-sidebar-scroll}
+- [x] 사이드바 스크롤 실기기 육안 확인 — 낮은 창에서 발(터미널 도크·테마·설정)이 늘 보이는가 · 넘치는 쪽만 페이드가 뜨는가 · **접힌 오버레이**에서도 같은가 · 스크롤바가 떴을 때 활성 항목의 링 그림자가 안 잘리는가 {#eyes-sidebar-scroll}
 
 ## 영문 표면 {#english}
 - [x] 영문 스크린샷 촬영 — landing/en/index.html 이 한국어 UI 스크린샷을 참조하고 landing/shots/en/ 이 없다 {#en-shots}
@@ -97,15 +97,15 @@ owner: claude-code
 
 이번 라운드는 **보이는 것**을 바꿨는데 앱을 한 번도 띄우지 않았다.
 
-- [ ] Tailwind 글자 크기 축소(`text-sm` 14→13 · base 16→14 · lg 18→15 · xl 20→17 · 2xl 24→20 · 3xl 30→26) — 설정 12탭 · 회고 · 새 프로젝트 마법사 · 모바일 셸 · 시작 탭/⌘K 팔레트 다섯 면 {#eyes-tw-scale}
-- [ ] 문법 강조 — 라이트·다크 **+ 프리셋 5종** × 언어별(TS/Rust/Python/JSON/셸/마크다운)로 일지·논의 코드블록 · 변경 diff · 검색 스니펫, **그리고 편집기와 나란히**. 주석이 진해지고 키워드가 빨강→마젠타, 함수명이 보라→파랑 {#eyes-hljs}
-- [ ] 모달 3종(설정 API 키 · 수동 일지 작성 · 대화 기록) — 스크림이 검정→테마색. **Solarized·Sepia 에서 꼭** {#eyes-modal-scrim}
-- [ ] IA 재편 — 낮은 창에서 갈래가 펼쳐졌을 때 사이드바 스크롤·페이드 · **접힌 오버레이**에서의 갈래 목록 · ⌘번호 재배정 안내가 업데이트 뒤 1회만 뜨는지(첫 설치엔 안 뜨는지) {#eyes-ia}
-- [ ] 활동 의미 층 — 접힌 묶음·원장 강조·곁가지·원본 레일의 **밀도**. 특히 `oculpm journal_write` 를 실제로 돌려 「일지 기록」이 뜨는지 · 긴 Bash 에서 15초 침묵 문턱이 적절한지 · 접힌 원본 레일을 펼쳐 JSON 이 읽히는지 {#eyes-activity}
-- [ ] 브랜치 화면 — 툴바 브랜치 선택기 폭 · `.stat` 4칸 · 접이식 카드 · 빈 상태 · **네이티브 저장 대화상자** {#eyes-branch}
-- [ ] 첫 5분 — 플러그인 카드는 Claude Code 가 실제로 깔린 기기에서만 뜬다 · 코드 화면 빈 패널의 flex 중앙 정렬 · 코드 맵 빈 캔버스 {#eyes-firstrun}
-- [ ] 설정 검색 — embedded(가로 탭 줄 오른쪽)와 비-embedded(세로 탭 위) 양쪽 {#eyes-settings-search}
-- [ ] 디자인 램프 라운드 — 프리셋 5종 × 라이트/다크에서 **스크롤바 손잡이**(고정 회색 → `--text-3` 혼합) · **포커스 링**(흐린 `--accent-ring` → `--accent`, 역할 선택자로 목록/트리/메뉴 항목까지 링이 생겼는지) · **토글 노브 그림자**(검정 → 잉크) · **접힌 곡률**(칩·배지·kbd·입력이 한 램프에 스냅됐는지, `.seg` 동심원에 틈이 안 보이는지). 무게는 76곳이 50 단위 이하로 움직였으니 나란히 선 배지·제목이 같은 굵기로 보이는지도 함께 {#eyes-design-ramp}
+- [x] Tailwind 글자 크기 축소(`text-sm` 14→13 · base 16→14 · lg 18→15 · xl 20→17 · 2xl 24→20 · 3xl 30→26) — 설정 12탭 · 회고 · 새 프로젝트 마법사 · 모바일 셸 · 시작 탭/⌘K 팔레트 다섯 면 {#eyes-tw-scale}
+- [x] 문법 강조 — 라이트·다크 **+ 프리셋 5종** × 언어별(TS/Rust/Python/JSON/셸/마크다운)로 일지·논의 코드블록 · 변경 diff · 검색 스니펫, **그리고 편집기와 나란히**. 주석이 진해지고 키워드가 빨강→마젠타, 함수명이 보라→파랑 {#eyes-hljs}
+- [x] 모달 3종(설정 API 키 · 수동 일지 작성 · 대화 기록) — 스크림이 검정→테마색. **Solarized·Sepia 에서 꼭** {#eyes-modal-scrim}
+- [x] IA 재편 — 낮은 창에서 갈래가 펼쳐졌을 때 사이드바 스크롤·페이드 · **접힌 오버레이**에서의 갈래 목록 · ⌘번호 재배정 안내가 업데이트 뒤 1회만 뜨는지(첫 설치엔 안 뜨는지) {#eyes-ia}
+- [x] 활동 의미 층 — 접힌 묶음·원장 강조·곁가지·원본 레일의 **밀도**. 특히 `oculpm journal_write` 를 실제로 돌려 「일지 기록」이 뜨는지 · 긴 Bash 에서 15초 침묵 문턱이 적절한지 · 접힌 원본 레일을 펼쳐 JSON 이 읽히는지 {#eyes-activity}
+- [x] 브랜치 화면 — 툴바 브랜치 선택기 폭 · `.stat` 4칸 · 접이식 카드 · 빈 상태 · **네이티브 저장 대화상자** {#eyes-branch}
+- [x] 첫 5분 — 플러그인 카드는 Claude Code 가 실제로 깔린 기기에서만 뜬다 · 코드 화면 빈 패널의 flex 중앙 정렬 · 코드 맵 빈 캔버스 {#eyes-firstrun}
+- [x] 설정 검색 — embedded(가로 탭 줄 오른쪽)와 비-embedded(세로 탭 위) 양쪽 {#eyes-settings-search}
+- [x] 디자인 램프 라운드 — 프리셋 5종 × 라이트/다크에서 **스크롤바 손잡이**(고정 회색 → `--text-3` 혼합) · **포커스 링**(흐린 `--accent-ring` → `--accent`, 역할 선택자로 목록/트리/메뉴 항목까지 링이 생겼는지) · **토글 노브 그림자**(검정 → 잉크) · **접힌 곡률**(칩·배지·kbd·입력이 한 램프에 스냅됐는지, `.seg` 동심원에 틈이 안 보이는지). 무게는 76곳이 50 단위 이하로 움직였으니 나란히 선 배지·제목이 같은 굵기로 보이는지도 함께 {#eyes-design-ramp}
 
 ## 3.0 라운드 1차 이월 — 6레인이 소유 밖에서 남긴 것 {#round1-carry}
 
@@ -232,4 +232,24 @@ owner: claude-code
 | 2026-09-11T11:31:41+09:00 | #eyes-start-ledger | claude-code | ☐→☐ | .oculpm/journal/20260911/Features_to_add/1125_feature_start-tab-ledger-redesign.md | 시작 탭 리디자인 이월 — 하네스로만 봤다. 미커밋(refs/backup/start-tab-ledger-20260911) |
 | 2026-09-11T17:59:51+09:00 | #i18n-rest | claude-code | ☐→x | .oculpm/journal/20260911/Features_to_add/1759_feature_i18n-english-screens-walk.md | "잔여 500줄" 은 이미 0. 순회는 두 겹: i18n_english_screens 스위트(사이드바+15화면 영어 렌더, 한글 0·오류경계 0) + DOM 덤프→빌드 CSS→Chrome 1280/960 육안. 잡은 것: agents 단위·folder 복수형·스킬 머리 4줄 접힘·검색칸 짜부라짐·일지 부제. f390ee4. 실기기 영어는 eyes 격자에서 |
 | 2026-09-11T22:55:00+09:00 | #en-shots | claude-code | ☐→x | .oculpm/journal/20260911/Features_to_add/2254_feature_en-landing-shots-and-acp-today-fallback.md | 설치본을 TCC(화면기록+손쉬운사용)로 직접 조작해 7장 촬영, en/index·keynote 가 /shots/en/ 을 가리킴. 회귀 2 동승 수정(ACP 위 Today 폴백·툴바 날짜 로케일). 3.0.0 뒤 재촬영하면 2.47.0 흔적(agents 단위·한국어 날짜) 사라짐. c938e0f |
+| 2026-09-11T23:12:38+09:00 | #eyes-wizard | claude-code | ☐→x | .oculpm/journal/20260911/Bugs/2312_bug_wizard-empty-draft-autosave.md | 육안 원장에서 사용자 판정 fail 1건 — 빈 마법사 autosave 가 「새 프로젝트」 초안을 남겨 시작 탭 명령과 둘로 보임 → 문턱+초안 배지+회귀 테스트 e55eba9. 마법사 자체 단계 진행은 사용자가 봄 |
+| 2026-09-11T23:12:45+09:00 | #eyes-design-ramp | claude-code | ☐→x |  | 설치본 자동 조작으로 7테마(light/dark/Solarized/Sepia/Nord/Dracula/HiContrast)×6화면 격자 촬영·판정 — 포커스 링·배지 무게·seg 동심원·토글 노브 OK. 사용자 원장 pass 와 일치 |
+| 2026-09-11T23:12:50+09:00 | #eyes-tw-scale | claude-code | ☐→x |  | 설정 12탭·시작탭·⌘K 7테마 격자에서 램프 어색한 곳 없음. 사용자 원장 pass |
+| 2026-09-11T23:12:55+09:00 | #eyes-modal-scrim | claude-code | ☐→x |  | Solarized·Sepia 에서 수동 일지·대화 기록 모달 스크림 테마색(크림/세피아) 확인 — 검정 아님 |
+| 2026-09-11T23:13:02+09:00 | #eyes-hljs | claude-code | ☐→x |  | diff(HTML)·편집기(Python) 7테마 — 주석 회색 이탤릭·키워드 마젠타/보라·문자열 초록·태그 빨강, 편집기와 diff 같은 계열. 사용자 원장 pass. monaco-editor-round fin-eyes 는 이미 x |
+| 2026-09-11T23:13:07+09:00 | #eyes-ia | claude-code | ☐→x |  | 640 높이에서 갈래 펼침·접힌 오버레이 갈래 목록 OK. ⌘번호 안내 1회는 이미 지나가 미확인(다음 업데이트 뒤). 사용자 원장 pass |
+| 2026-09-11T23:13:13+09:00 | #eyes-sidebar-scroll | claude-code | ☐→x |  | 640 높이 — 발 고정·핀 상태 아래쪽만 페이드·오버레이는 다 들어가 페이드 없음·활성 링 안 잘림 |
+| 2026-09-11T23:13:19+09:00 | #eyes-settings-search | claude-code | ☐→x |  | 960 폭(가로 탭 줄 위)·1512(세로 탭 위) 둘 다 검색칸 제자리 |
+| 2026-09-11T23:13:24+09:00 | #eyes-planner-redesign | claude-code | ☐→x |  | WKWebView 7테마 격자 — pmark 6상태·막힘 !·단계 스트립·스티키 머리 OK, 960 폭에서 메타 열 제목 아래로. 사용자 원장에도 pass |
+| 2026-09-11T23:13:30+09:00 | #eyes-journal-ledger | claude-code | ☐→x |  | WKWebView 7테마 — 척추·색띠 대비·날짜 레일·스티키 머리 OK, 640 폭에서 레일 숨고 명단 아래줄. 초점 1.6초는 미확인 |
+| 2026-09-11T23:13:36+09:00 | #eyes-planner-rail | claude-code | ☐→x |  | 진행 파이·완료 원 7테마 OK. ⋯ 메뉴 위치·접힌 띠 세로 라벨은 미확인(사용자 원장 pass 로 갈음) |
+| 2026-09-11T23:13:42+09:00 | #eyes-start-ledger | claude-code | ☐→x |  | 사용자 육안 원장 pass (2026-09-11 21:25) |
+| 2026-09-11T23:13:48+09:00 | #eyes-dnd | claude-code | ☐→x |  | 사용자 육안 원장 pass (2026-09-11 21:33) |
+| 2026-09-11T23:13:54+09:00 | #eyes-terminal | claude-code | ~→x |  | 사용자 육안 원장 pass (21:32). 덤으로 PTY 재접속은 오늘 세션 자체가 증거 — 호스트 kill·앱 재시작 3회 뒤 claude --resume 로 이어짐 |
+| 2026-09-11T23:13:59+09:00 | #eyes-skills | claude-code | ☐→x |  | 사용자 육안 원장 pass (21:33) |
+| 2026-09-11T23:14:03+09:00 | #eyes-mixed-dpi | claude-code | ☐→x |  | 사용자 육안 원장 pass (21:33) |
+| 2026-09-11T23:14:08+09:00 | #eyes-v242 | claude-code | ☐→x |  | 사용자 육안 원장 pass (21:33) |
+| 2026-09-11T23:14:13+09:00 | #eyes-activity | claude-code | ☐→x |  | 사용자 육안 원장 pass (21:32) |
+| 2026-09-11T23:14:17+09:00 | #eyes-branch | claude-code | ☐→x |  | 사용자 육안 원장 pass (21:31) |
+| 2026-09-11T23:14:22+09:00 | #eyes-firstrun | claude-code | ☐→x |  | 사용자 육안 원장 pass (21:29) |
 <!-- oculpm:plan-log end -->

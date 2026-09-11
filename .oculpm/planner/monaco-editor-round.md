@@ -56,7 +56,7 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 - [>] **Tab 다음-편집 예측은 이 라운드에서 열지 않는다** — 전용 모델 · 지연시간 예산 · 취소 병합 · 오답 비용까지 설계가 따로 필요하다. 여기 항목으로만 남겨 유실을 막는다 (이월은 살아 있는 플랜의 항목으로) {#agent-tab-predict}
 
 ## Phase 6 — 마감 {#finish}
-- [!] 육안 확인 격자 — 라이트/다크 × 프리셋 5종으로 문법 강조 · 선택색 · 커서 · 미니맵 · sticky · 진단 밑줄. v3-release `{#eyes-hljs}` 가 이미 같은 격자를 요구하고 있어 한 번에 갚는다 {#fin-eyes}
+- [x] 육안 확인 격자 — 라이트/다크 × 프리셋 5종으로 문법 강조 · 선택색 · 커서 · 미니맵 · sticky · 진단 밑줄. v3-release `{#eyes-hljs}` 가 이미 같은 격자를 요구하고 있어 한 번에 갚는다 {#fin-eyes}
 - [!] 성능 재측정 — 대용량 파일(수천 줄) 열기 · 스크롤 · 타이핑 지연. Phase 0 의 숫자와 대조해 `03-performance.md` 에 남긴다 {#fin-perf}
 - [x] 게이트 전부 exit 0 직접 확인 — typecheck · test · lint 6종 · build · cargo test. 파일 크기 래칫과 eslint 경고 한계(`--max-warnings`)에 여유가 없으니 함께 본다 {#fin-gates}
 - [x] 릴리스 5면 — 버전 6파일 · CHANGELOG · README ko/en · 랜딩 ko/en 각 6곳 + `build.mjs` 재빌드. **회고·문서 삭제(2026-09-08)의 미반영분도 이때 함께 간다** — 그 표면들은 아직 두 화면이 있는 v2.45.2 를 설명하고 있다 {#fin-release}
@@ -105,4 +105,6 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 | 2026-09-10T20:27:09+09:00 | #fin-release | claude-code | !→x | .oculpm/journal/20260910/Chores/2026_chore_release-2-46-0.md | v2.46.0 릴리스 — 다섯 면 전부 + 회고·문서 삭제 미반영분 동승. FAQ 가 실제로 거짓이 되어 있었다(「산출물」 답변이 사라진 PR 본문·주간 보고를 계속 약속) → 지금 있는 것으로 재작성. FAQ 는 JSON-LD 와 <details> 두 곳이라 양쪽 고침. 위키 screens.md ⌘번호 표가 2026-09-06 IA 재편 이전에 멈춰 있던 것도 함께 정정. main CI 3잡 초록 확인 후 태그, 랜딩 배포 후 라이브 확인(ko·en 2.46.0 · /wiki/retro 404) |
 | 2026-09-11T00:26:48+09:00 | #fin-eyes | claude-code | !→! | .oculpm/journal/20260911/Features_to_add/0026_feature_editor-design-upgrade.md | 편집기 디자인 라운드(미니맵 바탕·크롬/종이 분리·거터 띠·액센트 커서·md 굵기·트리 루트 행)가 격자 항목을 늘렸다 — 미니맵 손잡이·거터 띠·루트 행도 같이 볼 것. 여전히 실기기 미확인 |
 | 2026-09-11T00:48:39+09:00 | #fin-eyes | claude-code | !→! | .oculpm/journal/20260911/Features_to_add/0048_feature_editor-ide-round.md | IDE 라운드가 격자에 넷 더 걸었다 — ⌘P 오버레이 · 트리/탭 git 배지(앰버/초록/빨강) · 심볼 브레드크럼 · 상태줄 줄바꿈 토글. 여전히 실기기 미확인 |
+| 2026-09-11T04:47:00.906100+00:00 | #eyes-hljs | user | !→x |  |  |
+| 2026-09-11T23:14:46+09:00 | #fin-perf | claude-code | !→! |  | 사용자 육안 원장에서 체감 pass(2026-09-11 21:33). 항목의 완료 기준은 03-performance.md 에 숫자를 남기는 것이라 그건 아직 — 체감은 됐고 측정만 남음. 3.0 블로커 아님 |
 <!-- oculpm:plan-log end -->
