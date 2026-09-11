@@ -2,6 +2,8 @@
 
 <img src="landing/banner.png" alt="Ocul-PM — Agents write the code. You keep the memory." width="100%" />
 
+<img src="landing/demo.gif" alt="Ocul-PM demo — ask the agent for a change and the work journal writes itself" width="100%" />
+
 <p><b>While AI coding agents write your code, Ocul-PM keeps the record.</b><br/>
 A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI</p>
 

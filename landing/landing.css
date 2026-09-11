@@ -249,7 +249,9 @@ b, strong { font-weight: 700; color: var(--ink); }
   max-width: 1040px;
   margin: 56px auto 0;
 }
-.hero-shot img {
+.hero-shot img,
+.hero-shot video {
+  display: block; width: 100%; height: auto;
   border-radius: 16px;
   border: 1px solid var(--hairline-strong);
   box-shadow: 0 60px 140px -40px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(0, 0, 0, 0.5);
