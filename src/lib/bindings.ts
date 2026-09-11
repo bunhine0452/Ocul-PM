@@ -5177,7 +5177,12 @@ export type PlanEditOp =
 /**  Remove a phase heading and every item under it. */
 { kind: "remove_phase"; phase: string } | 
 /**  Reorder a phase among its siblings (`up = true` moves it earlier). */
-{ kind: "move_phase"; phase: string; up: boolean };
+{ kind: "move_phase"; phase: string; up: boolean } | 
+/**
+ *  Move an item (with its children) — before another item, or to the end
+ *  of a phase when `before` is absent (E2, 2026-09-11).
+ */
+{ kind: "move_item"; item_id: string; phase: string | null; before: string | null };
 
 export type PlanItemDto = {
 	item_id: string,

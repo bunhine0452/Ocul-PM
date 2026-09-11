@@ -13,6 +13,7 @@ import { requestCheatsheet } from "@/lib/projectActions";
 //        단축키는 유지: 기존 손버릇이 그대로 새 정본으로 간다).
 //   ⌘J : 터미널 도크 (2026-08-15) — VS Code·iTerm 의 관습 그대로.
 //   ⌘/ : 단축키 치트시트 (2026-08-30) — 창에 하나 떠 있는 표를 여닫는다.
+//   ⌘[ / ⌘] : 화면 뒤로/앞으로 (2026-09-11) — `useNavHistory` 의 발자국.
 // Mac ⌘ 과 Win/Linux Ctrl 동일 취급; 입력 필드 안에서도 동작 (기존 정책 유지).
 
 interface Options {
@@ -21,6 +22,9 @@ interface Options {
   uiV2Nav: (view: UiV2View) => void;
   /** ⌘J — 어느 화면에서나 터미널 도크를 여닫는다. */
   onToggleTerminalDock?: () => void;
+  /** ⌘[ / ⌘] — 화면 뒤로/앞으로 (E3). ⇧⌘[ 는 편집기의 탭 순환이라 넘긴다. */
+  onNavBack?: () => void;
+  onNavForward?: () => void;
   /**
    * 크롬식 탭 — 한 창에 탭이 여럿이고 **비활성 탭도 마운트된 채**라, 게이트가
    * 없으면 ⌘1 이 탭 수만큼 발화한다. 기본 true 라 런처처럼 탭이 하나뿐인
@@ -33,6 +37,8 @@ export function useGlobalShortcuts({
   onOpenPalette,
   uiV2Nav,
   onToggleTerminalDock,
+  onNavBack,
+  onNavForward,
   enabled = true,
 }: Options) {
   useEffect(() => {
@@ -52,6 +58,15 @@ export function useGlobalShortcuts({
         e.preventDefault();
         onToggleTerminalDock();
         return;
+      }
+      // ⌘[ / ⌘] — 화면 뒤로/앞으로. ⇧ 가 붙으면 편집기 탭 순환의 것이다.
+      if (!e.shiftKey && !e.altKey && (e.key === "[" || e.key === "]")) {
+        const go = e.key === "[" ? onNavBack : onNavForward;
+        if (go) {
+          e.preventDefault();
+          go();
+          return;
+        }
       }
       // ⌘P — 프로젝트 전환 (사이드바 팝오버)
       if (e.key.toLowerCase() === "p" && !e.shiftKey) {
@@ -87,5 +102,5 @@ export function useGlobalShortcuts({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onOpenPalette, uiV2Nav, onToggleTerminalDock, enabled]);
+  }, [onOpenPalette, uiV2Nav, onToggleTerminalDock, onNavBack, onNavForward, enabled]);
 }

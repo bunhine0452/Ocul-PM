@@ -26,8 +26,8 @@ use crate::oculpm::planner::migrate::{
 };
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
 use crate::oculpm::planner::plan_edit::{
-    add_item, append_log_row, create_plan_skeleton, move_phase, remove_item, remove_phase,
-    rename_item, rename_phase, set_item_status_rolled, set_plan_title, LogRow,
+    add_item, append_log_row, create_plan_skeleton, move_item, move_phase, remove_item,
+    remove_phase, rename_item, rename_phase, set_item_status_rolled, set_plan_title, LogRow,
 };
 use crate::oculpm::planner::project::{
     find_plan_path, planner_dir, slug_for, PlanActivityDto, PlanCache, PlanDetail,
@@ -119,6 +119,13 @@ pub enum PlanEditOp {
     RemovePhase { phase: String },
     /// Reorder a phase among its siblings (`up = true` moves it earlier).
     MovePhase { phase: String, up: bool },
+    /// Move an item (with its children) — before another item, or to the end
+    /// of a phase when `before` is absent (E2, 2026-09-11).
+    MoveItem {
+        item_id: String,
+        phase: Option<String>,
+        before: Option<String>,
+    },
 }
 
 /// True when a plan is locked (frontmatter `status` is anything other than
@@ -252,6 +259,27 @@ pub async fn plan_apply_edit(
                 note: Some("삭제".to_string()),
             };
             append_log_row(&removed, &row)
+        }
+        PlanEditOp::MoveItem {
+            item_id,
+            phase,
+            before,
+        } => {
+            let moved = move_item(&md, &item_id, phase.as_deref(), before.as_deref())?;
+            let row = LogRow {
+                ts,
+                item_id,
+                agent_id: agent,
+                from: None,
+                to: None,
+                journal_ref: None,
+                note: Some(match (&phase, &before) {
+                    (_, Some(b)) => format!("이동 → {b} 앞"),
+                    (Some(p), None) => format!("이동 → {p}"),
+                    (None, None) => "이동".to_string(),
+                }),
+            };
+            append_log_row(&moved, &row)
         }
         PlanEditOp::RenameItem { item_id, title } => {
             let renamed = rename_item(&md, &item_id, &title)?;

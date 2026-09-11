@@ -27,24 +27,53 @@ export function isNewerVersion(latest: string, current: string): boolean {
   return false;
 }
 
+/** 주기 확인 간격 — 하루. */
+const PERIODIC_MS = 24 * 60 * 60 * 1000;
+/** 깨어날 때 다시 묻는 최소 간격 — 6시간. */
+const WAKE_MIN_MS = 6 * 60 * 60 * 1000;
+
 export function UpdateBanner() {
   const { t } = useT();
   const { status, check, install, restartNow } = useUpdater();
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState<string | null>(null);
   // Once we've seen an available update we keep showing the banner through its
   // install / failure transitions. A *check* error (offline, private repo) never
   // flips this, so silent launch-time failures stay hidden.
   const [version, setVersion] = useState<string | null>(null);
 
+  // 기동 1회 + **하루 한 번** + 깨어날 때 (감사 라운드 2026-09-11 E1). 트레이
+  // 상주(`tray.keep_running`)면 창을 닫아도 프로세스가 며칠을 살아, 기동 때
+  // 한 번 물어본 뒤로는 새 버전을 영영 몰랐다. 깨어남은 마지막 확인에서
+  // `WAKE_MIN_MS` 가 지났을 때만 — 창을 오갈 때마다 GitHub 을 두드리지 않는다.
   useEffect(() => {
+    let last = Date.now();
     void check();
+    const timer = window.setInterval(() => {
+      last = Date.now();
+      void check();
+    }, PERIODIC_MS);
+    const onWake = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - last < WAKE_MIN_MS) return;
+      last = Date.now();
+      void check();
+    };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", onWake);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", onWake);
+    };
   }, [check]);
 
   useEffect(() => {
     if (status.kind === "available") setVersion(status.version);
   }, [status]);
 
-  if (dismissed || version == null) return null;
+  // 닫은 배너는 **그 버전**에 대해서만 닫힌 것이다 — 나중에 더 새 버전이
+  // 오면 다시 뜬다.
+  if (version == null || dismissed === version) return null;
 
   const installing = status.kind === "installing";
   const failed = status.kind === "error";
@@ -80,7 +109,7 @@ export function UpdateBanner() {
       <button
         type="button"
         className="update-banner-x"
-        onClick={() => setDismissed(true)}
+        onClick={() => setDismissed(version)}
         aria-label={t("update.dismiss")}
         disabled={installing}
       >

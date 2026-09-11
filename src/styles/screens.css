@@ -560,6 +560,11 @@
 }
 .pln-it:last-child { border-bottom-color: transparent; }
 .pln-it.is-target { background: var(--accent-soft); }
+/* E2 행 드래그 — 놓을 자리는 위 선 하나로 말한다 (행 앞에 들어간다는 뜻).
+   단계 머리는 바탕을 살짝 물들여 "이 단계 끝으로" 를 말한다. */
+.pln-it.is-drop { box-shadow: inset 0 2px 0 var(--accent); }
+.pln-it[draggable="true"] { cursor: grab; }
+.pln-ph-head.is-drop { background: var(--accent-soft); }
 .pln-it.is-child { --pln-indent: 28px; }
 .pln-status-wrap { position: relative; flex: none; }
 .pln-item-glyph {

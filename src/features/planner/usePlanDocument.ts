@@ -86,6 +86,8 @@ export interface PlanDocument {
   renamePlan: (title: string) => void;
   deletePlan: () => void;
   removeItem: (item: PlanItemDto) => void;
+  /** E2 — 항목을 다른 항목 앞으로, 또는 단계 끝으로 (하위가 따라간다). */
+  moveItem: (item: PlanItemDto, target: { before?: string; phase?: string }) => void;
   renameItem: (item: PlanItemDto, title: string) => void;
   renamePhase: (from: string, to: string) => void;
   removePhase: (phase: string) => void;
@@ -345,6 +347,25 @@ export function usePlanDocument(projectId: number): PlanDocument {
     }
   };
 
+  const moveItem = async (item: PlanItemDto, target: { before?: string; phase?: string }) => {
+    if (busy || selectedId == null) return;
+    if (target.before === item.item_id) return;
+    setBusy(true);
+    const res = await commands.planApplyEdit(
+      projectId,
+      selectedId,
+      { kind: "move_item", item_id: item.item_id, phase: target.phase ?? null, before: target.before ?? null },
+      "user",
+    );
+    setBusy(false);
+    if (res.status === "ok") {
+      if (res.data) setDetail(res.data);
+      void refreshPlans();
+    } else {
+      toast.destructive(t("plan.moveItemFailed", { error: res.error }));
+    }
+  };
+
   const renameItem = async (item: PlanItemDto, title: string) => {
     if (busy || selectedId == null || !title.trim()) return;
     setBusy(true);
@@ -552,6 +573,7 @@ export function usePlanDocument(projectId: number): PlanDocument {
     renamePlan,
     deletePlan,
     removeItem,
+    moveItem,
     renameItem,
     renamePhase,
     removePhase,

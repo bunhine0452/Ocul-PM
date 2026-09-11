@@ -295,6 +295,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               onRename={plan.renamePlan}
               onDelete={plan.deletePlan}
               onRemoveItem={plan.removeItem}
+              onMoveItem={plan.moveItem}
               onRenameItem={plan.renameItem}
               onRenamePhase={plan.renamePhase}
               onRemovePhase={plan.removePhase}

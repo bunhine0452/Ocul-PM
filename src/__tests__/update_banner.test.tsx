@@ -88,6 +88,34 @@ describe("UpdateBanner", () => {
     expect(await findByText("지금 업데이트")).toBeInTheDocument();
   });
 
+  it("asks again on a timer and on wake, but not on every focus (E1)", async () => {
+    vi.useFakeTimers();
+    try {
+      fx.update = null;
+      let calls = 0;
+      const mod = await import("@tauri-apps/plugin-updater");
+      const spy = vi.spyOn(mod, "check").mockImplementation(() => {
+        calls += 1;
+        return Promise.resolve(null as never);
+      });
+      render(<UpdateBanner />);
+      await act(async () => {});
+      expect(calls).toBe(1);
+      // 방금 물어봤다 — 초점이 돌아와도 다시 묻지 않는다.
+      window.dispatchEvent(new Event("focus"));
+      await act(async () => {});
+      expect(calls).toBe(1);
+      // 하루가 지나면 스스로 묻는다.
+      await act(async () => {
+        vi.advanceTimersByTime(24 * 60 * 60 * 1000 + 1);
+      });
+      expect(calls).toBe(2);
+      spy.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stays hidden when there is no update", async () => {
     fx.update = null;
     const { container } = render(<UpdateBanner />);

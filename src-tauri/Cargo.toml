@@ -80,6 +80,10 @@ tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-notification = "2"
+# 두 번째 인스턴스는 기존 창을 앞으로 (감사 라운드 2026-09-11 E4) — 같은
+# 번들이 두 번 뜨면 뒤에 뜬 쪽이 기동 때 앞의 것에게서 프로젝트 락을 전부
+# 뺏는다. macOS 는 같은 .app 이중 실행을 보통 막지만 `open -n`·복사본은 아니다.
+tauri-plugin-single-instance = "2"
 
 # .oculpm/ subsystem (W1-PR1)
 notify = "6.1"
