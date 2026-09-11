@@ -33,6 +33,7 @@ const GLOBAL: ShortcutGroup = {
     { keys: "⌘,", labelKey: "keys.settings" },
     { keys: "⌘\\", labelKey: "keys.ai" },
     { keys: "⌘/", labelKey: "keys.cheatsheet" },
+    { keys: "⌘[ / ⌘]", labelKey: "keys.navHistory" },
   ],
 };
 

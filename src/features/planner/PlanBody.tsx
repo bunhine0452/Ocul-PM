@@ -45,6 +45,7 @@ interface PlanBodyProps {
   onRename: (title: string) => void;
   onDelete: () => void;
   onRemoveItem: (item: PlanItemDto) => void;
+  onMoveItem: (item: PlanItemDto, target: { before?: string; phase?: string }) => void;
   onRenameItem: (item: PlanItemDto, title: string) => void;
   onRenamePhase: (from: string, to: string) => void;
   onRemovePhase: (phase: string) => void;
@@ -87,7 +88,7 @@ function flash(el: HTMLElement) {
 const LEGEND = ["done", "in_progress", "blocked", "deferred", "todo", "dropped"] as const;
 
 export function PlanBody(props: PlanBodyProps) {
-  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, onDispatch, busy, locked, onToggleLock, onArchive, onRename, onDelete, onRemoveItem, onRenameItem, onRenamePhase, onRemovePhase, onMovePhase, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs, hideDone, onHideDoneChange, view } = props;
+  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, onDispatch, busy, locked, onToggleLock, onArchive, onRename, onDelete, onRemoveItem, onMoveItem, onRenameItem, onRenamePhase, onRemovePhase, onMovePhase, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs, hideDone, onHideDoneChange, view } = props;
   const board = view === "board";
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -320,6 +321,7 @@ export function PlanBody(props: PlanBodyProps) {
           onSetStatus={onSetStatus}
           onDispatch={onDispatch}
           onRemoveItem={onRemoveItem}
+          onMoveItem={onMoveItem}
           onRenameItem={onRenameItem}
           historyFor={historyFor}
           history={history}

@@ -45,6 +45,7 @@ function setup(over: { hideDone?: boolean; locked?: boolean; view?: "doc" | "boa
   const onSetStatus = vi.fn();
   const onHideDoneChange = vi.fn();
   const onDispatch = vi.fn();
+  const onMoveItem = vi.fn();
   const setCollapsed = vi.fn();
   const phases: [string, PlanItemDto[]][] = [
     ["Phase A", items.filter((i) => i.phase === "Phase A")],
@@ -66,6 +67,7 @@ function setup(over: { hideDone?: boolean; locked?: boolean; view?: "doc" | "boa
       onRename={vi.fn()}
       onDelete={vi.fn()}
       onRemoveItem={vi.fn()}
+      onMoveItem={onMoveItem}
       onRenameItem={vi.fn()}
       onRenamePhase={vi.fn()}
       onRemovePhase={vi.fn()}
@@ -81,7 +83,7 @@ function setup(over: { hideDone?: boolean; locked?: boolean; view?: "doc" | "boa
       view={over.view ?? "doc"}
     />,
   );
-  return { ...utils, onSetStatus, onHideDoneChange, onDispatch, setCollapsed };
+  return { ...utils, onSetStatus, onHideDoneChange, onDispatch, onMoveItem, setCollapsed };
 }
 
 describe("플래너 본문 — 숫자가 서로 맞는다", () => {
@@ -209,5 +211,54 @@ describe("상태 메뉴", () => {
     fireEvent.contextMenu(row.querySelector(".pln-item-glyph")!);
     expect(screen.queryByRole("menu", { name: /제목 p/ })).toBeNull();
     expect(within(row as HTMLElement).queryByTitle("상태 바꾸기")).toBeNull();
+  });
+});
+
+// 감사 라운드 2026-09-11 E2 — 문서 뷰의 행 드래그. 다른 행에 놓으면 그 앞으로,
+// 단계 머리에 놓으면 그 단계 끝으로. 잠긴 플랜은 드래그 자체가 없다.
+describe("플래너 본문 — 항목 드래그로 옮기기", () => {
+  const dt = (id: string) => {
+    const store: Record<string, string> = { "application/x-oculpm-plan-item": id };
+    return {
+      types: Object.keys(store),
+      getData: (k: string) => store[k] ?? "",
+      setData: (k: string, v: string) => {
+        store[k] = v;
+      },
+      effectAllowed: "all",
+      dropEffect: "none",
+    };
+  };
+
+  it("다른 행 위에 놓으면 그 항목 앞으로 옮긴다", () => {
+    const { onMoveItem } = setup();
+    const rows = document.querySelectorAll<HTMLElement>(".pln-it[draggable='true']");
+    expect(rows.length).toBeGreaterThan(1);
+    const from = rows[0];
+    const to = rows[1];
+    const dataTransfer = dt(from.dataset.itemId!);
+    fireEvent.dragStart(from, { dataTransfer });
+    fireEvent.dragOver(to, { dataTransfer });
+    expect(to.className).toContain("is-drop");
+    fireEvent.drop(to, { dataTransfer });
+    expect(onMoveItem).toHaveBeenCalledTimes(1);
+    expect(onMoveItem.mock.calls[0][0].item_id).toBe(from.dataset.itemId);
+    expect(onMoveItem.mock.calls[0][1]).toEqual({ before: to.dataset.itemId });
+  });
+
+  it("단계 머리에 놓으면 그 단계 끝으로 옮긴다", () => {
+    const { onMoveItem } = setup();
+    const from = document.querySelector<HTMLElement>(".pln-it[draggable='true']")!;
+    const head = document.querySelector<HTMLElement>("section[data-phase='Phase B'] .pln-ph-head")!;
+    const dataTransfer = dt(from.dataset.itemId!);
+    fireEvent.dragStart(from, { dataTransfer });
+    fireEvent.dragOver(head, { dataTransfer });
+    fireEvent.drop(head, { dataTransfer });
+    expect(onMoveItem).toHaveBeenCalledWith(expect.objectContaining({ item_id: from.dataset.itemId }), { phase: "Phase B" });
+  });
+
+  it("잠긴 플랜은 드래그할 수 없다", () => {
+    setup({ locked: true });
+    expect(document.querySelector(".pln-it[draggable='true']")).toBeNull();
   });
 });

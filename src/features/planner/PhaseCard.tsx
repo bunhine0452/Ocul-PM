@@ -7,7 +7,7 @@
  * 다시 `PlanItemRow` 가 가진다. (파일 이름은 옛 것을 그대로 둔다.)
  */
 
-import { useRef, useState } from "react";
+import { useRef, useState, type DragEvent } from "react";
 
 import {
   ChevronDown, ChevronUpIcon as ChevronUp, ChevronRight, Pencil, Trash2,
@@ -27,6 +27,11 @@ import {
   type JournalRefMeta,
 } from "./planMeta";
 
+/** 보드(`PlanBoard`)와 같은 MIME — 열 드래그와 행 드래그가 같은 물건을 나른다. */
+export const ITEM_DRAG_MIME = "application/x-oculpm-plan-item";
+/** 단계 사이를 건너는 드래그 — dataTransfer 는 drop 전엔 안 읽히므로 모듈이 든다. */
+const draggedItemRef: { current: PlanItemDto | null } = { current: null };
+
 interface PhaseCardProps {
   phase: string;
   items: PlanItemDto[];
@@ -44,6 +49,8 @@ interface PhaseCardProps {
   onSetStatus: (item: PlanItemDto, status: string) => void;
   onDispatch: (item: PlanItemDto) => void;
   onRemoveItem: (item: PlanItemDto) => void;
+  /** E2 — 행 드래그: 다른 행 위에 놓으면 그 앞으로, 단계 머리에 놓으면 그 끝으로. */
+  onMoveItem: (item: PlanItemDto, target: { before?: string; phase?: string }) => void;
   onRenameItem: (item: PlanItemDto, title: string) => void;
   historyFor: string | null;
   history: PlanItemUpdateDto[] | null;
@@ -59,7 +66,7 @@ export function PhaseCard(props: PhaseCardProps) {
   const {
     phase, items, meta, isOpen, onToggle, busy, locked, canEdit, canMoveUp, canMoveDown,
     onRenamePhase, onRemovePhase, onMovePhase,
-    onSetStatus, onDispatch, onRemoveItem, onRenameItem, historyFor, history, onToggleHistory,
+    onSetStatus, onDispatch, onRemoveItem, onMoveItem, onRenameItem, historyFor, history, onToggleHistory,
     onOpenJournalRef, resolveJournalRefs, hideDone, onShowAll,
   } = props;
   const [editing, setEditing] = useState(false);
@@ -81,9 +88,41 @@ export function PhaseCard(props: PhaseCardProps) {
   const hiddenCount = items.length - visible.length;
   const label = phase === NO_PHASE ? t("plan.noPhase") : phase;
 
+  // 행 드래그 (E2). 보드의 열 드래그와 같은 MIME 을 쓴다 — 같은 데이터(항목 id).
+  // 놓는 자리: 다른 행 = 그 앞, 단계 머리 = 그 단계 끝. 잠긴 플랜·(기타) 묶음은
+  // 드래그하지 않는다.
+  const canDrag = !locked && !busy;
+  const [dropOn, setDropOn] = useState<string | null>(null);
+  const dragged = (e: DragEvent) => e.dataTransfer.types.includes(ITEM_DRAG_MIME);
+  const dropBefore = (e: DragEvent, target: PlanItemDto) => {
+    e.preventDefault();
+    setDropOn(null);
+    const id = e.dataTransfer.getData(ITEM_DRAG_MIME);
+    const item = items.find((it) => it.item_id === id) ?? draggedItemRef.current;
+    if (!item || item.item_id === target.item_id) return;
+    onMoveItem(item, { before: target.item_id });
+  };
+  const dropOnPhase = (e: DragEvent) => {
+    e.preventDefault();
+    setDropOn(null);
+    const item = draggedItemRef.current;
+    if (!item || !canEdit) return;
+    onMoveItem(item, { phase });
+  };
+
   return (
     <section className={"pln-ph" + (phaseDone ? " is-done" : "")} data-phase={phase} aria-label={label}>
-      <div className={"pln-ph-head" + (confirmDel ? " is-active" : "")}>
+      <div
+        className={"pln-ph-head" + (confirmDel ? " is-active" : "") + (dropOn === "__phase" ? " is-drop" : "")}
+        onDragOver={(e) => {
+          if (!canDrag || !canEdit || !dragged(e)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          setDropOn("__phase");
+        }}
+        onDragLeave={() => setDropOn((d) => (d === "__phase" ? null : d))}
+        onDrop={dropOnPhase}
+      >
         {editing ? (
           <div className="pln-ph-edit">
             <input
@@ -159,6 +198,21 @@ export function PhaseCard(props: PhaseCardProps) {
             <PlanItemRow
               key={it.item_id}
               item={it}
+              draggable={canDrag && !it.parent_item}
+              dropTarget={dropOn === it.item_id}
+              onDragStart={(e) => {
+                e.dataTransfer.setData(ITEM_DRAG_MIME, it.item_id);
+                e.dataTransfer.effectAllowed = "move";
+                draggedItemRef.current = it;
+              }}
+              onDragOver={(e) => {
+                if (!canDrag || !dragged(e) || it.parent_item) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDropOn(it.item_id);
+              }}
+              onDragLeave={() => setDropOn((d) => (d === it.item_id ? null : d))}
+              onDrop={(e) => dropBefore(e, it)}
               busy={busy}
               locked={locked}
               isParent={items.some((c) => c.parent_item === it.item_id)}

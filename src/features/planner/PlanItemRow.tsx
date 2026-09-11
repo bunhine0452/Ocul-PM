@@ -7,7 +7,7 @@
  * 이름은 툴팁과 이력에 있다. 공유 어휘는 `planMeta.ts`, 마크는 `StatusMark`.
  */
 
-import { useRef, useState } from "react";
+import { useRef, useState, type DragEvent } from "react";
 import {
   ChevronDown,
   NotebookText,
@@ -47,9 +47,16 @@ export interface PlanItemRowProps {
   onToggleHistory: (itemId: string) => void;
   onOpenJournalRef: (ref: string) => void;
   resolveJournalRefs: (refs: string[]) => Promise<JournalRefMeta[]>;
+  /** E2 — 행 드래그 (PhaseCard 가 준다). */
+  draggable?: boolean;
+  dropTarget?: boolean;
+  onDragStart?: (e: DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: DragEvent<HTMLDivElement>) => void;
+  onDragLeave?: (e: DragEvent<HTMLDivElement>) => void;
+  onDrop?: (e: DragEvent<HTMLDivElement>) => void;
 }
 
-export function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, onRemove, onRename, historyOpen, history, onToggleHistory, onOpenJournalRef, resolveJournalRefs }: PlanItemRowProps) {
+export function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispatch, onRemove, onRename, historyOpen, history, onToggleHistory, onOpenJournalRef, resolveJournalRefs, draggable, dropTarget, onDragStart, onDragOver, onDragLeave, onDrop }: PlanItemRowProps) {
   const meta = STATUS_META[item.status] ?? STATUS_META.todo;
   const linked = item.journal_refs ?? [];
   const multiLinked = linked.length > 1;
@@ -96,7 +103,15 @@ export function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispa
     "pln-it is-" + item.status + (item.parent_item ? " is-child" : "") + (isParent ? " is-parent" : "");
 
   return (
-    <div className={rowClass} data-item-id={item.item_id}>
+    <div
+      className={rowClass + (dropTarget ? " is-drop" : "")}
+      data-item-id={item.item_id}
+      draggable={draggable || undefined}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
       <span className="pln-status-wrap" ref={statusWrap}>
         <button
           type="button"

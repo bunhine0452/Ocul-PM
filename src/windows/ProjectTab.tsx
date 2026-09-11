@@ -16,6 +16,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 
 import { useProjectRuntime, useUiPrefs } from "@/contexts/WorkspaceContext";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
+import { useNavHistory } from "@/hooks/useNavHistory";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { oculpmLog } from "@/lib/oculpmLog";
@@ -62,7 +63,9 @@ export default function ProjectTab({
   // 바뀔 때마다 탭 본문(팔레트·딥링크 시트 포함)이 통째로 다시 그려졌다.
   const { currentProjectName: projectName, currentProjectRoot: projectRoot, indexingProjectId: indexingId,
     setProjectMeta, setIndexing, setOculpmStatus } = useProjectRuntime();
-  const { setPrefs, setUiV2View } = useUiPrefs();
+  const { prefs, setPrefs, setUiV2View } = useUiPrefs();
+  // ⌘[ / ⌘] — 화면 발자국 (E3). 관찰 기반이라 사이드바·팔레트 이동도 쌓인다.
+  const navHistory = useNavHistory(prefs.uiV2View, setUiV2View);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   // 창 전역 버스(활성화·색인 요청)는 **활성 탭만** 받는다 — 탭 수만큼 돌지 않게.
@@ -92,6 +95,8 @@ export default function ProjectTab({
     // 사이드바로 열면 화면이었다 — 사용자는 "설정이 어디에 있는 물건인지" 를
     // 매번 다시 배워야 했다. 오버레이는 사이드바가 없는 런처 탭 전용이다.
     uiV2Nav: setUiV2View,
+    onNavBack: navHistory.goBack,
+    onNavForward: navHistory.goForward,
     // ⌘J — 어느 화면에서나 터미널 도크. 셸이 아니라 여기서 다는 이유는 이
     // 훅이 이미 "활성 탭만" 게이트를 들고 있어서다 (탭 수만큼 발화 방지).
     onToggleTerminalDock: () =>

@@ -999,6 +999,10 @@ pub fn run() {
         .expect("Failed to export typescript bindings");
 
     let app = tauri::Builder::default()
+        // 제일 먼저 — 두 번째 인스턴스는 여기서 끝나고, 첫 인스턴스는 창을 앞으로.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            crate::tray::show_main(app);
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         // `oculpm://` — 웹에서 앱으로 오는 유일한 길. 플러그인은 URL 을
