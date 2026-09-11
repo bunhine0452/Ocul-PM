@@ -457,6 +457,7 @@ export function AcpConversation({
   // 말 걸기 — 로컬 명령 갈래·세션 생성·대기줄·스트림 페이싱은 조각 훅이 소유한다.
   const send = useAcpSend({
     projectId,
+    projectName: runtime.currentProjectName ?? "",
     provider,
     codex,
     activeId,

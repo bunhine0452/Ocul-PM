@@ -10,7 +10,9 @@ import { useId, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n";
-import { commands, type ModelInfo } from "@/lib/bindings";
+import { llmApi } from "@/api/llm";
+import { toAppError } from "@/api/invoke";
+import type { ModelInfo } from "@/lib/bindings";
 import type { Provider } from "@/lib/settings";
 
 type Fetch = { state: "idle" } | { state: "loading" } | { state: "ok"; rows: ModelInfo[] } | { state: "error"; message: string };
@@ -40,12 +42,13 @@ export function ModelInput({ provider, value, placeholder, onChange }: ModelInpu
   const load = async () => {
     if (fetch.state !== "idle") return;
     setFetch({ state: "loading" });
-    const res = await commands.llmListModels(provider);
-    if (res.status === "ok") {
-      cache.set(provider, res.data);
-      setFetch({ state: "ok", rows: res.data });
-    } else {
-      setFetch({ state: "error", message: res.error });
+    try {
+      const rows = await llmApi.listModels(provider);
+      cache.set(provider, rows);
+      setFetch({ state: "ok", rows });
+    } catch (e) {
+      const err = toAppError(e);
+      setFetch({ state: "error", message: err.detail ?? err.code });
     }
   };
 

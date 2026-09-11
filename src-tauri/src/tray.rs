@@ -454,6 +454,10 @@ pub const SETTING_SHOW_ICON: &str = "tray.show_icon"; // 기본 on ("0" 일 때�
 pub const SETTING_KEEP_RUNNING: &str = "tray.keep_running"; // 기본 off
 pub const SETTING_HIDE_DOCK: &str = "tray.hide_dock"; // 기본 off
 pub const SETTING_NOTIFY_JOURNAL: &str = "tray.notify_journal"; // 기본 off
+/// 앱 안 에이전트(Claude Code · Codex)가 **승인을 기다리거나 턴을 끝냈는데** 창이
+/// 뒤에 있을 때의 알림 (감사 라운드 2026-09-11 C3). 기본 **on** — 앱 안에서
+/// 에이전트를 돌리는 값어치가 "안 쳐다봐도 됨" 인데 그 반쪽이 없었다.
+pub const SETTING_NOTIFY_AGENT: &str = "tray.notify_agent"; // 기본 on
 
 async fn setting_on(db: &crate::db::Db, key: &str, default_on: bool) -> bool {
     match db.settings_get(key.to_string()).await {
@@ -608,6 +612,47 @@ pub async fn tray_hide_popover(app: AppHandle) -> Result<(), String> {
 pub async fn tray_apply_settings(app: AppHandle) -> Result<(), String> {
     apply_settings(&app).await;
     Ok(())
+}
+
+/// 에이전트 주의 알림 (C3) — 프런트가 "창이 뒤에 있다" 를 확인한 뒤 부른다.
+/// `kind` 는 `permission`(승인 대기) | `done`(턴 종료) | `failed`. 설정이 꺼져
+/// 있으면 조용히 no-op. 일지 알림과 같은 스로틀(10초에 3건)을 나눠 쓴다 —
+/// 둘 다 "알림 폭주" 를 막는 한 예산이다.
+#[tauri::command]
+#[specta::specta]
+pub async fn notify_agent_attention(
+    app: AppHandle,
+    kind: String,
+    project: String,
+    detail: String,
+) -> Result<(), String> {
+    let db = app.state::<crate::db::Db>();
+    if !setting_on(&db, SETTING_NOTIFY_AGENT, true).await {
+        return Ok(());
+    }
+    if let Some(state) = app.try_state::<Arc<TrayState>>() {
+        let Ok(mut times) = state.notified_at.lock() else {
+            return Ok(());
+        };
+        let now = std::time::Instant::now();
+        times.retain(|t| now.duration_since(*t).as_secs() < 10);
+        if times.len() >= 3 {
+            return Ok(());
+        }
+        times.push(now);
+    }
+    let title = match kind.as_str() {
+        "permission" => format!("{project} — 에이전트가 승인을 기다려요"),
+        "failed" => format!("{project} — 에이전트 턴이 실패했어요"),
+        _ => format!("{project} — 에이전트가 답을 마쳤어요"),
+    };
+    use tauri_plugin_notification::NotificationExt;
+    app.notification()
+        .builder()
+        .title(title)
+        .body(detail)
+        .show()
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

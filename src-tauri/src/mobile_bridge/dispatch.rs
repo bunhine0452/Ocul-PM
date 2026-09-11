@@ -120,13 +120,6 @@ pub async fn dispatch<R: tauri::Runtime>(
             a.take("model")?,
         )
         .await?),
-        "oculpm_compare_layers" => ok(commands::oculpm_compare_layers(
-            app.state(),
-            app.state(),
-            a.take("projectId")?,
-            a.take("sessionId")?,
-        )
-        .await?),
         "oculpm_list_sessions" => ok(commands::oculpm_list_sessions(
             app.state(),
             app.state(),

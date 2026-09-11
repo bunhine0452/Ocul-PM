@@ -9,21 +9,17 @@ import { ModelInput, resetModelListCache } from "@/features/settings/tabs/ModelI
 
 const calls = vi.hoisted(() => ({ list: [] as string[], fail: false }));
 
-vi.mock("@/lib/bindings", () => ({
-  commands: {
-    llmListModels: (provider: string) => {
+vi.mock("@/api/llm", () => ({
+  llmApi: {
+    listModels: (provider: string) => {
       calls.list.push(provider);
-      if (calls.fail) return Promise.resolve({ status: "error" as const, error: "API key for anthropic is not set" });
-      return Promise.resolve({
-        status: "ok" as const,
-        data: [
-          { id: "claude-opus-5", label: "Claude Opus 5" },
-          { id: "claude-sonnet-5", label: "claude-sonnet-5" },
-        ],
-      });
+      if (calls.fail) return Promise.reject({ code: "unknown", detail: "API key for anthropic is not set" });
+      return Promise.resolve([
+        { id: "claude-opus-5", label: "Claude Opus 5" },
+        { id: "claude-sonnet-5", label: "claude-sonnet-5" },
+      ]);
     },
   },
-  events: {},
 }));
 
 beforeEach(() => {

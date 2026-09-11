@@ -88,6 +88,9 @@ const openEditorMock: {
   calls: Array<{ projectId: number; relativePath: string }>;
   reject: boolean;
 } = { calls: [], reject: false };
+const editBodyMock: { calls: Array<{ projectId: number; relativePath: string; body: string }> } = {
+  calls: [],
+};
 
 // `vi.hoisted` — `vi.mock` 팩토리가 이 값을 **직접** 참조하므로(중첩 함수 몸통
 // 안이 아니라) TDZ 를 피하려면 mock 등록보다 먼저 초기화돼야 한다.
@@ -129,6 +132,15 @@ vi.mock("@/api/oculpm", () => {
       },
       // EntryDetailView loads the recorded per-file patches.
       getEntryDiffs: (_pid: number, _relativePath: string) => Promise.resolve(fixtures.entryDiffs),
+      // C2 (감사 라운드 2026-09-11) — 본문 인라인 편집.
+      updateEntryBody: (pid: number, relativePath: string, body: string) => {
+        editBodyMock.calls.push({ projectId: pid, relativePath, body });
+        return Promise.resolve({
+          relative_path: relativePath,
+          body_markdown: body,
+          frontmatter: { files_touched: fixtures.filesTouched },
+        });
+      },
       // {#entry-open-affordance} — "파일로 열기" 버튼.
       openEntryInEditor: (pid: number, relativePath: string) => {
         openEditorMock.calls.push({ projectId: pid, relativePath });
@@ -540,6 +552,41 @@ describe("작업 일지 디테일 — 파일로 열기 ({#entry-open-affordance}
     fireEvent.click(await findByText("파일로 열기"));
     await waitFor(() => expect(toastMock.destructive).toHaveBeenCalledTimes(1));
     expect(String(toastMock.destructive.mock.calls[0][0])).toContain("파일을 열지 못했어요");
+  });
+});
+
+describe("작업 일지 디테일 — 본문 편집 (감사 라운드 2026-09-11 C2)", () => {
+  it("편집 → 고치고 저장하면 updateEntryBody 로 본문만 보내고, 돌아온 본문으로 다시 그린다", async () => {
+    editBodyMock.calls = [];
+    fixtures.byWorkday["20260531"] = [
+      summary({ relative_path: "20260531/Features/1000_x.md", title: "검토 대상" }),
+    ];
+    const { findByText, findByLabelText, queryByLabelText } = renderJournal();
+    fireEvent.click(await findByText("검토 대상"));
+    fireEvent.click(await findByText("편집"));
+    const ta = (await findByLabelText("일지 본문 마크다운")) as HTMLTextAreaElement;
+    expect(ta.value).toContain("무언가를 변경했다");
+    fireEvent.change(ta, { target: { value: "## 동작 흐름\n- 고쳤다\n" } });
+    fireEvent.click(await findByText("저장"));
+    await waitFor(() =>
+      expect(editBodyMock.calls).toEqual([
+        { projectId: 1, relativePath: "20260531/Features/1000_x.md", body: "## 동작 흐름\n- 고쳤다\n" },
+      ]),
+    );
+    await waitFor(() => expect(queryByLabelText("일지 본문 마크다운")).toBeNull());
+    expect(toastMock.info).toHaveBeenCalled();
+  });
+
+  it("Esc 는 저장하지 않고 읽기로 돌아간다", async () => {
+    editBodyMock.calls = [];
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
+    const { findByText, findByLabelText, queryByLabelText } = renderJournal();
+    fireEvent.click(await findByText("검토 대상"));
+    fireEvent.click(await findByText("편집"));
+    const ta = await findByLabelText("일지 본문 마크다운");
+    fireEvent.keyDown(ta, { key: "Escape" });
+    await waitFor(() => expect(queryByLabelText("일지 본문 마크다운")).toBeNull());
+    expect(editBodyMock.calls).toEqual([]);
   });
 });
 

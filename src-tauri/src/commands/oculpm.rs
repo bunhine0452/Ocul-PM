@@ -25,9 +25,8 @@ use crate::oculpm::error::OculpmError;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::{
     AgentSyncReport, BackfillReport, Difficulty, EntryStatus, FileChangeEvent, IntegrityWarning,
-    JournalEntry, JournalEntrySummary, LayerComparison, ManualEntryDraft, OculpmConfig,
-    OculpmInitReport, OculpmIntegrityWarning, OculpmStatus, ReindexReport, Session,
-    WorkdayComparison,
+    JournalEntry, JournalEntrySummary, ManualEntryDraft, OculpmConfig, OculpmInitReport,
+    OculpmIntegrityWarning, OculpmStatus, ReindexReport, Session, WorkdayComparison,
 };
 
 // ─── W1 commands ────────────────────────────────────────────────────────────
@@ -802,21 +801,6 @@ pub async fn oculpm_agents_apply_master_upgrade(
     project_id: u32,
 ) -> Result<AgentSyncReport, AppError> {
     Ok(manager.apply_master_upgrade(&db, project_id).await?)
-}
-
-/// W4-PR5 — compare a session's index ndjson against the union of journal
-/// `files_touched` paths. Returns matched / missing / hallucinated sets +
-/// jaccard severity. (Lite-W6 PR3 retired the DiffVsNarrative UI; the
-/// command is kept for backend introspection + potential future surfaces.)
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_compare_layers(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    session_id: String,
-) -> Result<LayerComparison, AppError> {
-    Ok(manager.compare_layers(&db, project_id, &session_id).await?)
 }
 
 /// 워크데이 하나의 정직성 감사 — 세션 수만큼 `compare_layers` 를 부르던 Today 를

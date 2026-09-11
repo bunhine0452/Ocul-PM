@@ -185,6 +185,7 @@ mod indexing;
 mod journal;
 mod lifecycle;
 mod session_ops;
+mod teardown;
 mod watcher_commit;
 
 impl OculpmManager {
@@ -573,3 +574,5 @@ fn lock_state_from_guard(guard: &Option<LockGuard>) -> LockStateView {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_teardown;

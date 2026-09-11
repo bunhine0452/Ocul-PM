@@ -10,6 +10,7 @@ import { Sun, Moon, Monitor, Languages } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
 import { reportRejection } from "@/lib/reportFailure";
+import { blocked } from "@/lib/blocked";
 import { ACCENTS } from "@/features/theme/accents";
 import { ThemeGallery } from "@/features/theme/ThemeGallery";
 import { themeOwnsAccent } from "@/features/theme/apply";
@@ -426,6 +427,7 @@ export function MenubarSection() {
     keep: boolean;
     dock: boolean;
     notify: boolean;
+    notifyAgent: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -439,6 +441,8 @@ export function MenubarSection() {
           keep: m.get("tray.keep_running") === "1",
           dock: m.get("tray.hide_dock") === "1",
           notify: m.get("tray.notify_journal") === "1",
+          // 기본 켜짐 — "0" 일 때만 꺼진다 (C3).
+          notifyAgent: m.get("tray.notify_agent") !== "0",
         });
       }),
       "op.loadFailed",
@@ -450,6 +454,7 @@ export function MenubarSection() {
     keep: "tray.keep_running",
     dock: "tray.hide_dock",
     notify: "tray.notify_journal",
+    notifyAgent: "tray.notify_agent",
   } as const;
 
   const toggle = (key: keyof typeof KEYS) => {
@@ -467,7 +472,10 @@ export function MenubarSection() {
     );
   };
 
-  const rows: Array<{ key: keyof typeof KEYS; label: string; hint: string; disabled?: boolean }> = [
+  // 설정이 아직 안 왔으면 "진행 중"(곧 풀린다). 조건으로 막힌 행은 이유를
+  // 문장으로 든다 — `blocked()` 가 포커스를 남겨 그 문장이 실제로 도달한다.
+  const loading = vals == null;
+  const rows: Array<{ key: keyof typeof KEYS; label: string; hint: string; reason?: string | null }> = [
     {
       key: "show",
       label: t("settings.tray.showIcon"),
@@ -482,12 +490,17 @@ export function MenubarSection() {
       key: "dock",
       label: t("settings.tray.hideDock"),
       hint: t("settings.tray.hideDockHint"),
-      disabled: !vals?.keep,
+      reason: vals && !vals.keep ? t("settings.tray.hideDockNeedsKeep") : null,
     },
     {
       key: "notify",
       label: t("settings.tray.notify"),
       hint: t("settings.tray.notifyHint"),
+    },
+    {
+      key: "notifyAgent",
+      label: t("settings.tray.notifyAgent"),
+      hint: t("settings.tray.notifyAgentHint"),
     },
   ];
 
@@ -500,22 +513,24 @@ export function MenubarSection() {
         {rows.map((r) => (
           <button
             key={r.key}
-            disabled={!vals || r.disabled}
+            type="button"
+            disabled={loading}
+            {...blocked(r.reason)}
             onClick={() => toggle(r.key)}
             className={`w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all ${
-              vals?.[r.key] && !r.disabled
+              vals?.[r.key] && !r.reason
                 ? "bg-primary/10 border-primary/60"
                 : "bg-background border-border hover:border-primary/45"
-            } ${r.disabled ? "opacity-45 cursor-default" : "cursor-pointer"}`}
+            } ${r.reason ? "opacity-45 cursor-default" : "cursor-pointer"}`}
           >
             <span
               className={`mt-0.5 w-8 h-4.5 rounded-full flex-none relative transition-colors ${
-                vals?.[r.key] && !r.disabled ? "bg-primary" : "bg-muted-foreground/30"
+                vals?.[r.key] && !r.reason ? "bg-primary" : "bg-muted-foreground/30"
               }`}
             >
               <span
                 className={`absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white transition-all ${
-                  vals?.[r.key] && !r.disabled ? "left-4" : "left-0.5"
+                  vals?.[r.key] && !r.reason ? "left-4" : "left-0.5"
                 }`}
               />
             </span>

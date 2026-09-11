@@ -302,6 +302,24 @@ export const oculpmApi = {
    * 가 없다. 지우면 opener-scope 회귀 4번째를 부르는 길이 열린다 — 일지 전용
    * 경로는 일반 파일용 `openInEditor` 와 끝까지 구분해 둔다.
    */
+  /**
+   * 일지 본문을 앱 안에서 고친다 (감사 라운드 2026-09-11 C2). 백엔드 커맨드는
+   * W4 부터 있었고(frontmatter 보존·본문만 교체) 손잡이만 없었다 — Monaco 를
+   * 품은 앱이 제 산출물은 밖에서 고치게 했다.
+   */
+  updateEntryBody: (projectId: number, relativePath: string, bodyMarkdown: string) =>
+    unwrap<JournalEntry>(
+      "oculpm_update_entry_body",
+      commands.oculpmUpdateEntryBody(projectId, relativePath, bodyMarkdown),
+    ),
+
+  /** 기간 다이제스트 .md — 네이티브 저장 대화상자. 취소하면 `null`. */
+  exportDigest: (projectId: number, since: string, until: string) =>
+    unwrap<string | null>(
+      "oculpm_export_digest",
+      commands.oculpmExportDigest(projectId, since, until),
+    ),
+
   openEntryInEditor: (projectId: number, relativePath: string) =>
     unwrap<null>(
       "oculpm_open_entry_in_editor",

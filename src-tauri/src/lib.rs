@@ -362,12 +362,11 @@ use crate::commands::{
     // F5 — git-history backfill
     oculpm_backfill_from_git,
     oculpm_coerce_entry_on_disk,
-    oculpm_compare_layers,
     oculpm_compare_workday,
     oculpm_create_manual_entry,
     oculpm_end_session_manual,
-    // C2 — 일지 내보내기
     oculpm_export_digest,
+    // C2 — 일지 내보내기
     // v2 U10 (C1) — 스탠드업·PR 본문·주간 보고
     oculpm_generate_summary,
     oculpm_get_config,
@@ -509,7 +508,7 @@ use crate::commands::import::{
 // v2.3.0 메뉴바 (docs/menubar/00-master-plan.md)
 use crate::db::Db;
 use crate::embedding::Embedder;
-use crate::tray::{tray_apply_settings, tray_hide_popover, tray_open_main};
+use crate::tray::{notify_agent_attention, tray_apply_settings, tray_hide_popover, tray_open_main};
 
 /// Build the specta Builder with every command + event registered. Extracted
 /// so the W5-PR3 `export_bindings` test can regenerate `src/lib/bindings.ts`
@@ -776,8 +775,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_agents_check_master_ahead,
             oculpm_agents_check_master_upgrade,
             oculpm_agents_apply_master_upgrade,
-            oculpm_compare_layers,
             oculpm_compare_workday,
+            oculpm_export_digest,
             oculpm_get_log_dir,
             oculpm_log,
             oculpm_update_entry_body,
@@ -787,7 +786,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // F4 — 회고/인사이트 (+ PR-CI6 eval 추이)
             oculpm_generate_summary,
             // C2 — 일지 내보내기
-            oculpm_export_digest,
             // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills)
             skills_list,
             skills_read,
@@ -899,6 +897,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             tray_open_main,
             tray_hide_popover,
             tray_apply_settings,
+            notify_agent_attention,
             // 모바일 브리지 (#mb0-axum)
             mobile_bridge_start,
             mobile_bridge_stop,

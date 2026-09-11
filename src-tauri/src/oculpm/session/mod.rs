@@ -129,13 +129,6 @@ impl SessionActor {
             .map_err(|_| OculpmError::ActorClosed)
     }
 
-    /// `shutdown` 의 기다리지 않는 판 — 명령만 넣고 돌아온다. 이미 런타임
-    /// 안에 있어 `block_on` 을 못 쓰는 자리(테스트)의 종료 경로가 쓴다.
-    pub fn shutdown_nowait(&self) {
-        let (tx, _rx) = oneshot::channel();
-        let _ = self.cmd_tx.send(SessionCmd::Shutdown(tx));
-    }
-
     /// Drive the actor to finalize any open session and exit. Resolves once
     /// the actor has processed every queued command before this call.
     pub async fn shutdown(&self) -> Result<(), OculpmError> {

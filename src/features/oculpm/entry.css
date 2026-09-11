@@ -109,6 +109,18 @@
 .entry-narrative { color: var(--text); font-size: var(--fs-5); line-height: var(--lh-prose); }
 .entry-narrative > :first-child { margin-top: 0; }
 .entry-narrative > :last-child { margin-bottom: 0; }
+/* 본문 인라인 편집 (C2) — 읽는 칸과 같은 폭·같은 행간의 마크다운 원문. */
+.entry-edit {
+  width: 100%;
+  min-height: 16em;
+  resize: vertical;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-s);
+  background: var(--bg-card);
+  color: var(--text);
+  font: var(--fs-4) / var(--lh-prose) var(--mono);
+}
 /* 제목 — h2 가 절이다 (추가 기능 · 동작 흐름 · 검증). 절 사이엔 실선 하나.
    맨 앞 절은 마스트헤드가 이미 선을 그었으니 없다. */
 .entry-narrative h1, .entry-narrative h2, .entry-narrative h3,
