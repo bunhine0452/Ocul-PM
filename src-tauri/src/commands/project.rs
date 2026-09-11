@@ -26,6 +26,8 @@ pub struct IndexResult {
     pub files_processed: u32,
     pub files_changed: u32,
     pub chunks_created: u32,
+    /// 이번 walk 에 없어 색인에서 지운 파일 수 (A2 화해).
+    pub files_removed: u32,
     pub took_ms: u32,
 }
 
@@ -81,6 +83,7 @@ pub async fn create_project(
 #[specta::specta]
 pub async fn delete_project(
     db: State<'_, Db>,
+    manager: State<'_, crate::oculpm::manager::OculpmManager>,
     project_id: u32,
     // Independently opt in to deleting Ocul-PM's on-disk artifacts from the
     // project folder: the `.oculpm/` directory and/or `AGENTS.md`. Both off by
@@ -88,6 +91,10 @@ pub async fn delete_project(
     delete_oculpm: bool,
     delete_agents_md: bool,
 ) -> Result<(), String> {
+    // 매니저에서 **먼저** 잊는다 (감사 라운드 2026-09-11 A1) — 워처·세션·락을
+    // 놓지 않으면 자동화 허브가 사라진 프로젝트를 5초마다 두드리고, 아래의
+    // `.oculpm` 삭제 뒤에도 살아 있는 세션 액터가 index 를 되살릴 수 있다.
+    manager.forget_project(project_id).await;
     if delete_oculpm || delete_agents_md {
         // Capture the root BEFORE the DB row is gone. If the project lookup
         // fails we skip file cleanup (nothing reliable to point at) and still
@@ -390,6 +397,41 @@ pub async fn index_project(
         }
     }
 
+    // 화해 — 색인에는 있는데 이번 walk 에 없는 파일을 지운다 (감사 라운드
+    // 2026-09-11 A2). 앱이 꺼진 사이 지워진 파일, 나중에 `.gitignore` 에 들어간
+    // 폴더는 워처의 Delete 이벤트를 받지 못해 영영 남았다 — 이 저장소만 101 행.
+    let files_removed = {
+        let walked: std::collections::HashSet<String> = files
+            .iter()
+            .map(|p| {
+                p.strip_prefix(&root)
+                    .unwrap_or(p)
+                    .to_string_lossy()
+                    .to_string()
+            })
+            .collect();
+        let stale: Vec<String> = db
+            .list_project_files(project_id)
+            .await
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .map(|(_, path)| path)
+            .filter(|path| !walked.contains(path))
+            .collect();
+        let n = db
+            .delete_files_by_paths(project_id, stale)
+            .await
+            .map_err(|e| e.to_string())?;
+        if n > 0 {
+            info!(
+                project_id,
+                removed = n,
+                "index reconcile: dropped files no longer on the walk"
+            );
+        }
+        n
+    };
+
     // Resolve dependencies for changed files
     if !import_resolver_queue.is_empty() {
         let all_files = db
@@ -462,6 +504,7 @@ pub async fn index_project(
         files_processed,
         files_changed,
         chunks_created,
+        files_removed,
         took_ms,
     })
 }

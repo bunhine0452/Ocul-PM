@@ -430,3 +430,67 @@ async fn vec0_rows_copy_between_old_and_partitioned_tables() {
         .unwrap();
     assert_eq!(n, 2);
 }
+
+/// 감사 라운드 2026-09-11 A2 — 전체 색인의 화해: walk 에 없는 파일은 청크·
+/// 스냅샷까지 함께 빠지고, 있는 파일은 건드리지 않는다. 다른 프로젝트의 같은
+/// 경로도 무사하다.
+#[tokio::test]
+async fn delete_files_by_paths_drops_stale_rows_with_snapshots_only_in_that_project() {
+    let dir = tempdir().unwrap();
+    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
+    let a = db
+        .create_project("a".into(), "/tmp/a".into())
+        .await
+        .unwrap();
+    let b = db
+        .create_project("b".into(), "/tmp/b".into())
+        .await
+        .unwrap();
+    for (pid, path) in [
+        (a, "src/keep.rs"),
+        (a, "src/legacy/gone.rs"),
+        (b, "src/legacy/gone.rs"),
+    ] {
+        db.upsert_file(pid, path.into(), "h".into(), 1, 1, Some("rust".into()))
+            .await
+            .unwrap();
+        db.upsert_file_snapshot(pid, path.into(), b"x".to_vec(), "h".into())
+            .await
+            .unwrap();
+    }
+
+    let removed = db
+        .delete_files_by_paths(
+            a,
+            vec!["src/legacy/gone.rs".into(), "not/indexed.rs".into()],
+        )
+        .await
+        .unwrap();
+    assert_eq!(removed, 1, "색인에 없던 경로는 세지 않는다");
+
+    let left: Vec<String> = db
+        .list_project_files(a)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|(_, p)| p)
+        .collect();
+    assert_eq!(left, vec!["src/keep.rs".to_string()]);
+    assert!(db
+        .get_file_snapshot(a, "src/legacy/gone.rs".into())
+        .await
+        .unwrap()
+        .is_none());
+    assert!(db
+        .get_file_snapshot(a, "src/keep.rs".into())
+        .await
+        .unwrap()
+        .is_some());
+    assert_eq!(
+        db.list_project_files(b).await.unwrap().len(),
+        1,
+        "다른 프로젝트는 무사하다"
+    );
+
+    assert_eq!(db.delete_files_by_paths(a, vec![]).await.unwrap(), 0);
+}

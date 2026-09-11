@@ -389,16 +389,47 @@ pub async fn tick(app: &AppHandle, now: DateTime<Utc>) -> Result<(), String> {
         manager.current_workdays().await
     };
     for (project_id, workday) in projects {
-        if let Err(e) = tick_project(app, project_id, &workday, now).await {
-            tracing::warn!(
-                target: "oculpm::automation",
-                project_id,
-                error = %e,
-                "watcher automation tick failed for project"
-            );
+        match tick_project(app, project_id, &workday, now).await {
+            Ok(()) => {}
+            Err(TickError::MissingProject) => {
+                // 매니저는 알고 DB 는 모르는 프로젝트 — 지워진 뒤 떼이지 않은
+                // 좀비다. 여기서 스스로 걷어낸다 (감사 라운드 2026-09-11 A1:
+                // 이 자리가 5초마다 WARN 을 남겨 이틀간 9,820줄이 쌓였다).
+                // `delete_project` 가 이제 먼저 잊으므로 정상 경로에선 오지
+                // 않지만, 두 인스턴스가 DB 를 나눠 쓰는 경우엔 여전히 온다.
+                tracing::warn!(
+                    target: "oculpm::automation",
+                    project_id,
+                    "watcher automation: 프로젝트가 DB 에 없다 — 매니저에서 잊는다"
+                );
+                app.state::<OculpmManager>()
+                    .forget_project(project_id)
+                    .await;
+            }
+            Err(TickError::Other(e)) => {
+                tracing::warn!(
+                    target: "oculpm::automation",
+                    project_id,
+                    error = %e,
+                    "watcher automation tick failed for project"
+                );
+            }
         }
     }
     Ok(())
+}
+
+/// `tick_project` 의 실패 종류 — 「프로젝트가 없다」만 따로 본다. 그 하나만
+/// 호출자가 다르게 처리하기 때문이다.
+enum TickError {
+    MissingProject,
+    Other(String),
+}
+
+impl From<String> for TickError {
+    fn from(e: String) -> Self {
+        TickError::Other(e)
+    }
 }
 
 async fn tick_project(
@@ -406,7 +437,7 @@ async fn tick_project(
     project_id: u32,
     workday: &str,
     now: DateTime<Utc>,
-) -> Result<(), String> {
+) -> Result<(), TickError> {
     let hub = app.state::<WatcherAutomationHub>();
     let config = {
         let manager = app.state::<OculpmManager>();
@@ -415,7 +446,11 @@ async fn tick_project(
             .await
             .map_err(|e| e.to_string())?
     };
-    let root = project_root(app, project_id).await?;
+    let root = match project_root(app, project_id).await {
+        Ok(root) => root,
+        Err(ProjectRootError::Missing) => return Err(TickError::MissingProject),
+        Err(ProjectRootError::Other(e)) => return Err(TickError::Other(e)),
+    };
 
     if hub.needs_rules(project_id, now) {
         let defs = load_watcher_defs(&root);
@@ -546,7 +581,10 @@ pub async fn on_journal_inserted(
             .await
             .map_err(|e| e.to_string())?
     };
-    let root = project_root(app, project_id).await?;
+    let root = project_root(app, project_id).await.map_err(|e| match e {
+        ProjectRootError::Missing => format!("project {project_id} not found"),
+        ProjectRootError::Other(e) => e,
+    })?;
     let defs = load_watcher_defs(&root);
     let Some(rule) = plan_rule(&config, &defs) else {
         return Ok(());
@@ -622,14 +660,31 @@ pub async fn on_journal_inserted(
 // 내부
 // ─────────────────────────────────────────────────────────────────────────────
 
-async fn project_root(app: &AppHandle, project_id: u32) -> Result<PathBuf, String> {
+enum ProjectRootError {
+    /// DB 에 그 id 의 행이 없다 (지워졌다).
+    Missing,
+    Other(String),
+}
+
+async fn project_root(app: &AppHandle, project_id: u32) -> Result<PathBuf, ProjectRootError> {
     let db = app.state::<Db>();
-    Ok(PathBuf::from(
-        db.get_project(project_id)
-            .await
-            .map_err(|e| e.to_string())?
-            .root_path,
-    ))
+    match db.get_project(project_id).await {
+        Ok(p) => Ok(PathBuf::from(p.root_path)),
+        Err(e) if is_no_rows(&e) => Err(ProjectRootError::Missing),
+        Err(e) => Err(ProjectRootError::Other(e.to_string())),
+    }
+}
+
+/// `query_row` 가 행을 못 찾은 것인가 — tokio-rusqlite 는 `QueryReturnedNoRows`
+/// 를 `Rusqlite(..)` 로 감싸 올린다.
+fn is_no_rows(e: &crate::error::Error) -> bool {
+    use crate::error::Error;
+    matches!(
+        e,
+        Error::TokioSqlite(tokio_rusqlite::Error::Error(
+            rusqlite::Error::QueryReturnedNoRows
+        )) | Error::Sqlite(rusqlite::Error::QueryReturnedNoRows)
+    )
 }
 
 /// 워처 정의를 읽는다. 읽지 못하면 빈 목록 — 정의를 못 읽는 것이 자동화를
