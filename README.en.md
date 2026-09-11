@@ -32,7 +32,7 @@ Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project fol
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache, and the only things that leave your machine are **the ones you start yourself** — the LLM API calls you make, update checks, and things that exist only once you turn them on (GitHub fetches and theme downloads when you click, a one-time embedding-model download, Notion). The full list, countable for yourself, is at [oculpm.com/privacy](https://oculpm.com/privacy). The VS Code extension (`oculpm.ocul-pm`) keeps the same promise — it opens no network connection and writes only through this app's `oculpm-mcp`.
 
 
-<img src="landing/shots/08-receipt.jpg" alt="Ocul-PM — Claude Code inside the app, with edit diffs and a turn receipt" />
+<img src="landing/shots/en/08-receipt.jpg" alt="Ocul-PM — Claude Code inside the app, with edit diffs and a turn receipt" />
 <p align="center"><i>A real screen — Claude Code inside the app edited a file, showed the diff, and wrote its own work journal.</i></p>
 
 ## It looks like three tools. It's one app.
@@ -41,23 +41,23 @@ There is no server. Your data lives in the project's `.oculpm/` folder and a loc
 
 The moment an agent finishes, the journal entry is already written — classified as bug/feature/refactor, stamped with which agent ran on which model. The morning Today brief organizes yesterday, and a standup is one button. The rear-view mirror becomes a steering wheel.
 
-<img src="landing/shots/02-journal.jpg" alt="Automatic work journal — a timeline of entries by agent and model" />
+<img src="landing/shots/en/02-journal.jpg" alt="Automatic work journal — a timeline of entries by agent and model" />
 
 ### 🔍 The verifier — don't trust, look
 
 Review what agents changed as a line-level local diff before you commit — side by side with the journal, so you compare "what it said" with "what actually changed". The code map warns you "changing this file affects N files" before you touch it.
 
-<img src="landing/shots/03-diff.jpg" alt="Change diff — line-level local diff of agent-made changes" />
+<img src="landing/shots/en/03-diff.jpg" alt="Change diff — line-level local diff of agent-made changes" />
 
 ### 🖥️ The console — the agent, inside
 
 A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as cards, edit diffs render right in them, and approval cards carry the exact command and the change being approved — no more allowing on a title alone. When a turn ends, a receipt remains: "4 tools · 2m 14s".
 
-<img src="landing/shots/s2.jpg" alt="Approval card — the diff of the change visible inside the card" />
+<img src="landing/shots/en/s2.jpg" alt="Approval card — the diff of the change visible inside the card" />
 
 <table><tr>
-<td width="50%"><img src="landing/shots/04-graph.jpg" alt="Code map — dependency graph with change impact" /><p align="center"><i>Code map — visible dependencies shrink fear</i></p></td>
-<td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
+<td width="50%"><img src="landing/shots/en/04-graph.jpg" alt="Code map — dependency graph with change impact" /><p align="center"><i>Code map — visible dependencies shrink fear</i></p></td>
+<td width="50%"><img src="landing/shots/en/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
 ### 🧩 VS Code extension — edit in the real VS Code

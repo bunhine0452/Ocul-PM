@@ -32,7 +32,7 @@ Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 �
 서버는 없습니다. 데이터는 프로젝트의 `.oculpm/` 폴더와 로컬 SQLite 캐시에만 있고, 기기를 떠나는 것은 **여러분이 시작한 것뿐**입니다 — 직접 부른 LLM API 호출, 새 버전 확인, 그리고 켜야만 존재하는 것들(눌렀을 때의 GitHub 조회·테마 내려받기, 의미 검색 모델 최초 1회, Notion 연동). 세어 볼 수 있는 전체 목록은 [oculpm.com/privacy](https://oculpm.com/privacy) 에 있습니다. VS Code 확장(`oculpm.ocul-pm`)도 같은 약속을 따릅니다 — 네트워크를 쓰지 않고, 쓰기는 이 앱의 `oculpm-mcp` 를 통해서만 합니다.
 
 
-<img src="landing/shots/08-receipt.jpg" alt="Ocul-PM — 앱 안의 Claude Code 가 편집 diff 와 턴 영수증을 남긴 실제 화면" />
+<img src="landing/shots/en/08-receipt.jpg" alt="Ocul-PM — 앱 안의 Claude Code 가 편집 diff 와 턴 영수증을 남긴 실제 화면" />
 <p align="center"><i>실제 화면 — 앱 안의 Claude Code 가 파일을 고치고, diff 로 보여 주고, 스스로 작업 일지를 남긴 턴입니다.</i></p>
 
 ## 세 가지처럼 보이지만, 하나의 앱입니다
@@ -41,23 +41,23 @@ Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 �
 
 에이전트가 일을 마치는 순간 일지는 이미 쓰여 있습니다. 버그·기능·리팩토링으로 분류되고, 어느 에이전트가 어느 모델로 했는지가 붙습니다. 아침의 Today 브리프가 어제를 정리하고, 스탠드업이 버튼 하나로 나옵니다 — 백미러가 핸들이 됩니다.
 
-<img src="landing/shots/02-journal.jpg" alt="자동 작업 일지 — 에이전트·모델별로 분류된 일지 타임라인" />
+<img src="landing/shots/en/02-journal.jpg" alt="자동 작업 일지 — 에이전트·모델별로 분류된 일지 타임라인" />
 
 ### 🔍 검증대 — 믿지 말고 보십시오
 
 에이전트가 만졌다는 파일을 커밋 전에 앱 안에서 줄 단위 diff 로 확인합니다. 일지와 나란히 — "말한 것"과 "실제로 바뀐 것"을 붙여 놓고 봅니다. 코드 맵은 "이 파일을 바꾸면 N개 파일에 영향"을 고치기 전에 알려 줍니다.
 
-<img src="landing/shots/03-diff.jpg" alt="변경 diff — 에이전트가 만든 변경의 줄 단위 로컬 diff" />
+<img src="landing/shots/en/03-diff.jpg" alt="변경 diff — 에이전트가 만든 변경의 줄 단위 로컬 diff" />
 
 ### 🖥️ 콘솔 — 에이전트를 안으로
 
 진짜 `claude` 가 앱 안에서 구동됩니다 (Agent Client Protocol). 도구 호출이 카드로 흐르고, 편집 diff 가 카드에 그대로 그려지고, 승인 카드에는 실행될 명령과 바뀔 내용이 실립니다 — 제목만 보고 허용을 누르지 않습니다. 턴이 끝나면 "도구 4 · 2분 14초" 영수증이 남습니다.
 
-<img src="landing/shots/s2.jpg" alt="승인 카드 — 바뀔 내용의 diff 가 카드 안에 보이는 모습" />
+<img src="landing/shots/en/s2.jpg" alt="승인 카드 — 바뀔 내용의 diff 가 카드 안에 보이는 모습" />
 
 <table><tr>
-<td width="50%"><img src="landing/shots/04-graph.jpg" alt="코드 맵 — 의존성 그래프와 변경 영향 분석" /><p align="center"><i>코드 맵 — 의존이 보이면 두려움이 줄어듭니다</i></p></td>
-<td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J 터미널 도크" /><p align="center"><i>⌘J — 어느 화면에서든 터미널</i></p></td>
+<td width="50%"><img src="landing/shots/en/04-graph.jpg" alt="코드 맵 — 의존성 그래프와 변경 영향 분석" /><p align="center"><i>코드 맵 — 의존이 보이면 두려움이 줄어듭니다</i></p></td>
+<td width="50%"><img src="landing/shots/en/05-terminal.jpg" alt="⌘J 터미널 도크" /><p align="center"><i>⌘J — 어느 화면에서든 터미널</i></p></td>
 </tr></table>
 
 ### 🧩 VS Code 확장 — 편집은 진짜 VS Code 에서
