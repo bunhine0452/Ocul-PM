@@ -1,7 +1,7 @@
 {
   "name": "oculpm",
   "version": "3.0.0",
-  "description": "ocul-pm 훅 브리지(세션 시작·종료 신호)와 oculpm-mcp(구조화 일지/플랜 도구)를 한 번에 구성합니다. .oculpm 이 있는 프로젝트에서만 동작하며, v1 은 macOS 전용입니다.",
+  "description": "Local-first work journal for AI coding agents. Wires a hook bridge (session start/stop, local file append only — no network), MCP tools (journal_write / journal_search / journal_read / plan_status / plan_update / plan_create) that write markdown journals and living plans into your project's .oculpm/, and skills for journaling, project inception, self-audit, evals and TDD. Works only in repos already tracked with .oculpm/; macOS-first. — ocul-pm 훅 브리지와 oculpm-mcp(구조화 일지/플랜 도구)를 한 번에 구성합니다. .oculpm 이 있는 프로젝트에서만 동작합니다.",
   "author": {
     "name": "ocul-pm",
     "url": "https://oculpm.com"
