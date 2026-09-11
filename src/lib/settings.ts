@@ -329,7 +329,8 @@ export const DEFAULTS: Settings = {
 
   defaultProvider: "anthropic",
   defaultModel: "",
-  modelAnthropic: "claude-sonnet-4-6",
+  // Sonnet 5 — 4.6 보다 새롭고 더 싸다 ($2/$10 vs $3/$15 per MTok, 2026-09).
+  modelAnthropic: "claude-sonnet-5",
   modelOpenai: "gpt-4o-mini",
   modelGemini: "gemini-2.5-flash",
   // NVIDIA NIM default — generally-available, competitive open-weights model.

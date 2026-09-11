@@ -15,6 +15,7 @@ import { blocked } from "@/lib/blocked";
 import { useSaveSetting } from "../saveSetting";
 import { useDeferredCommit } from "../useDeferredCommit";
 import { secretName, Section, Field, NumberSlider } from "./ui";
+import { ModelInput, resetModelListCache } from "./ModelInput";
 
 export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
   const { t } = useT();
@@ -60,6 +61,8 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
     const res = await commands.secretSet(secretName(provider), apiKey);
     if (res.status === "ok") {
       setApiKey("");
+      // 새 키는 다른 목록을 볼 수 있다 — 모델 datalist 를 다시 받게 한다.
+      resetModelListCache(provider);
       await refreshKeyStatus(provider);
     } else {
       onError(res.error);
@@ -191,43 +194,48 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
 
       <Section title={t("settings.models.title")} description={t("settings.models.desc")}>
         <Field label="Anthropic">
-          <Input
-            placeholder="claude-sonnet-4-6"
+          <ModelInput
+            provider="anthropic"
+            placeholder={DEFAULTS.modelAnthropic}
             value={settings.modelAnthropic}
-            onChange={(e) => save("modelAnthropic", e.currentTarget.value)}
+            onChange={(v) => save("modelAnthropic", v)}
           />
         </Field>
         <Field label="OpenAI">
-          <Input
-            placeholder="gpt-4o-mini"
+          <ModelInput
+            provider="openai"
+            placeholder={DEFAULTS.modelOpenai}
             value={settings.modelOpenai}
-            onChange={(e) => save("modelOpenai", e.currentTarget.value)}
+            onChange={(v) => save("modelOpenai", v)}
           />
         </Field>
         <Field label="Gemini">
-          <Input
-            placeholder="gemini-2.5-flash"
+          <ModelInput
+            provider="gemini"
+            placeholder={DEFAULTS.modelGemini}
             value={settings.modelGemini}
-            onChange={(e) => save("modelGemini", e.currentTarget.value)}
+            onChange={(v) => save("modelGemini", v)}
           />
         </Field>
         <Field label="NVIDIA NIM" hint={t("settings.models.nimHint")}>
-          <Input
-            placeholder="meta/llama-3.3-70b-instruct"
+          <ModelInput
+            provider="nim"
+            placeholder={DEFAULTS.modelNim}
             value={settings.modelNim}
-            onChange={(e) => save("modelNim", e.currentTarget.value)}
+            onChange={(v) => save("modelNim", v)}
           />
         </Field>
         <Field label="OpenRouter" hint={t("settings.models.openrouterHint")}>
-          <Input
-            placeholder="openai/gpt-4o-mini"
+          <ModelInput
+            provider="openrouter"
+            placeholder={DEFAULTS.modelOpenrouter}
             value={settings.modelOpenrouter}
-            onChange={(e) => save("modelOpenrouter", e.currentTarget.value)}
+            onChange={(v) => save("modelOpenrouter", v)}
           />
         </Field>
         <Field label={t("settings.models.fallbackDefault")}>
           <Input
-            placeholder="claude-opus-4-7"
+            placeholder="claude-opus-5"
             value={settings.defaultModel}
             onChange={(e) => save("defaultModel", e.currentTarget.value)}
           />
@@ -285,7 +293,7 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
           <textarea
             value={settings.fallbackModels}
             onChange={(e) => save("fallbackModels", e.currentTarget.value)}
-            placeholder={"openai:gpt-4o-mini\nanthropic:claude-3.5-haiku-latest"}
+            placeholder={"openai:gpt-4o-mini\nanthropic:claude-haiku-4-5"}
             rows={3}
             spellCheck={false}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono"

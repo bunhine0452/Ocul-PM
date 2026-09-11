@@ -130,6 +130,17 @@ fn note_attempt(provider: &str, e: &LlmError) -> bool {
 ///
 /// 프로브를 쏘지 않는다 — 이미 한 호출의 결과만 읽는다. 한 번도 안 불러 본
 /// 프로바이더는 목록에 없다: "모른다" 를 "안 된다" 로 그리지 않기 위해서다.
+/// 프로바이더의 모델 목록 (감사 라운드 2026-09-11 B2). 설정 → LLM 의 모델
+/// 칸이 datalist 로 띄운다. 키가 없으면 곧바로 실패한다 — 그 칸은 어차피
+/// 키 없이는 못 쓴다.
+#[tauri::command]
+#[specta::specta]
+pub async fn llm_list_models(provider: String) -> Result<Vec<llm::ModelInfo>, String> {
+    let api_key = load_api_key(&provider)?;
+    let client = llm::create(&provider, api_key).map_err(|e| e.to_string())?;
+    client.list_models().await.map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn llm_reachability() -> Result<Vec<llm::reach::ProviderReach>, String> {

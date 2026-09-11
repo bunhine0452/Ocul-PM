@@ -307,6 +307,7 @@ use crate::commands::{
     list_open_project_ids,
     list_projects,
     list_terminal_windows,
+    llm_list_models,
     llm_reachability,
     lsp_apply_code_action,
     lsp_change,
@@ -563,6 +564,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             conversation_import_scan,
             conversation_import_run,
             // 오프라인 표시 (Phase 7) — 프로브가 아니라 마지막 관측을 읽는다.
+            llm_list_models,
             llm_reachability,
             // 컨텍스트 경제학 (Phase 5) — 회상 통계 · 프로젝트 지시문
             recall_top,

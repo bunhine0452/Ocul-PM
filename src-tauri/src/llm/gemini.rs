@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use super::{
-    forward_sse_lines, ChatEvent, ChatOptions, ChatResponse, LlmError, LlmProvider, Message, Role,
+    forward_sse_lines, json_or_api_error, ChatEvent, ChatOptions, ChatResponse, LlmError,
+    LlmProvider, Message, ModelInfo, Role,
 };
 
 const BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
@@ -106,6 +107,53 @@ struct CandidateContent {
 impl LlmProvider for Gemini {
     fn name(&self) -> &'static str {
         "gemini"
+    }
+
+    async fn list_models(&self) -> Result<Vec<ModelInfo>, LlmError> {
+        #[derive(Deserialize)]
+        struct Page {
+            #[serde(default)]
+            models: Vec<Row>,
+        }
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Row {
+            /// `models/gemini-2.5-flash` — 앞의 `models/` 는 우리 id 에 없다.
+            name: String,
+            display_name: Option<String>,
+            #[serde(default)]
+            supported_generation_methods: Vec<String>,
+        }
+        let resp = self
+            .client
+            .get(format!("{BASE_URL}/models?pageSize=200"))
+            .header("x-goog-api-key", &self.api_key)
+            .send()
+            .await?;
+        let page: Page = json_or_api_error(resp).await?;
+        let mut rows: Vec<ModelInfo> = page
+            .models
+            .into_iter()
+            // 채팅에 못 쓰는 것(임베딩·이미지)은 뺀다.
+            .filter(|r| {
+                r.supported_generation_methods
+                    .iter()
+                    .any(|m| m == "generateContent")
+            })
+            .map(|r| {
+                let id = r
+                    .name
+                    .strip_prefix("models/")
+                    .unwrap_or(&r.name)
+                    .to_string();
+                ModelInfo {
+                    label: r.display_name.unwrap_or_else(|| id.clone()),
+                    id,
+                }
+            })
+            .collect();
+        rows.sort_by(|a, b| a.id.cmp(&b.id));
+        Ok(rows)
     }
 
     async fn chat(

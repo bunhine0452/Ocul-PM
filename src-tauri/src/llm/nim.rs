@@ -16,7 +16,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use super::{
-    forward_sse_lines, ChatEvent, ChatOptions, ChatResponse, LlmError, LlmProvider, Message, Role,
+    forward_sse_lines, json_or_api_error, ChatEvent, ChatOptions, ChatResponse, LlmError,
+    LlmProvider, Message, ModelInfo, Role,
 };
 
 const BASE_URL: &str = "https://integrate.api.nvidia.com/v1/chat/completions";
@@ -115,6 +116,35 @@ struct StreamDelta {
 impl LlmProvider for Nim {
     fn name(&self) -> &'static str {
         "nim"
+    }
+
+    async fn list_models(&self) -> Result<Vec<ModelInfo>, LlmError> {
+        #[derive(Deserialize)]
+        struct Page {
+            data: Vec<Row>,
+        }
+        #[derive(Deserialize)]
+        struct Row {
+            id: String,
+        }
+        let url = BASE_URL.replace("/chat/completions", "/models");
+        let resp = self
+            .client
+            .get(url)
+            .bearer_auth(&self.api_key)
+            .send()
+            .await?;
+        let page: Page = json_or_api_error(resp).await?;
+        let mut rows: Vec<ModelInfo> = page
+            .data
+            .into_iter()
+            .map(|r| ModelInfo {
+                label: r.id.clone(),
+                id: r.id,
+            })
+            .collect();
+        rows.sort_by(|a, b| a.id.cmp(&b.id));
+        Ok(rows)
     }
 
     async fn chat(
