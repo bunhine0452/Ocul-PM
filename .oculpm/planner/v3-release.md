@@ -61,7 +61,7 @@ owner: claude-code
 - [ ] 사이드바 스크롤 실기기 육안 확인 — 낮은 창에서 발(터미널 도크·테마·설정)이 늘 보이는가 · 넘치는 쪽만 페이드가 뜨는가 · **접힌 오버레이**에서도 같은가 · 스크롤바가 떴을 때 활성 항목의 링 그림자가 안 잘리는가 {#eyes-sidebar-scroll}
 
 ## 영문 표면 {#english}
-- [ ] 영문 스크린샷 촬영 — landing/en/index.html 이 한국어 UI 스크린샷을 참조하고 landing/shots/en/ 이 없다 {#en-shots}
+- [x] 영문 스크린샷 촬영 — landing/en/index.html 이 한국어 UI 스크린샷을 참조하고 landing/shots/en/ 이 없다 {#en-shots}
 - [x] /keynote · /plugin 영문판 — 지금 링크가 한국어판뿐이다 {#en-subpages}
 - [x] i18n 잔여 ~500줄 + 영어 모드 전 화면 순회 (three-features-round 의 i18n-rest·i18n-overflow) {#i18n-rest}
 
@@ -231,4 +231,5 @@ owner: claude-code
 | 2026-09-11T01:00:06+09:00 | #eyes-sidebar-scroll | claude-code | ☐→☐ |  | 2026-09-11 사이드바 리디자인(활자 머리·섹션 척추·발 한 줄) 뒤 같은 격자로 다시 봐야 — 프리셋 5종에서 척추(--sep-strong)·활성 막대 대비, 접힌 오버레이의 발 아이콘 칸. 하네스로만 봤다 |
 | 2026-09-11T11:31:41+09:00 | #eyes-start-ledger | claude-code | ☐→☐ | .oculpm/journal/20260911/Features_to_add/1125_feature_start-tab-ledger-redesign.md | 시작 탭 리디자인 이월 — 하네스로만 봤다. 미커밋(refs/backup/start-tab-ledger-20260911) |
 | 2026-09-11T17:59:51+09:00 | #i18n-rest | claude-code | ☐→x | .oculpm/journal/20260911/Features_to_add/1759_feature_i18n-english-screens-walk.md | "잔여 500줄" 은 이미 0. 순회는 두 겹: i18n_english_screens 스위트(사이드바+15화면 영어 렌더, 한글 0·오류경계 0) + DOM 덤프→빌드 CSS→Chrome 1280/960 육안. 잡은 것: agents 단위·folder 복수형·스킬 머리 4줄 접힘·검색칸 짜부라짐·일지 부제. f390ee4. 실기기 영어는 eyes 격자에서 |
+| 2026-09-11T22:55:00+09:00 | #en-shots | claude-code | ☐→x | .oculpm/journal/20260911/Features_to_add/2254_feature_en-landing-shots-and-acp-today-fallback.md | 설치본을 TCC(화면기록+손쉬운사용)로 직접 조작해 7장 촬영, en/index·keynote 가 /shots/en/ 을 가리킴. 회귀 2 동승 수정(ACP 위 Today 폴백·툴바 날짜 로케일). 3.0.0 뒤 재촬영하면 2.47.0 흔적(agents 단위·한국어 날짜) 사라짐. c938e0f |
 <!-- oculpm:plan-log end -->
