@@ -210,6 +210,7 @@ pub fn remove_item(md: &str, item_id: &str) -> Result<String, String> {
 ///
 /// - `before = Some(id)`: 그 항목 **바로 앞**에, 그 항목과 같은 들여쓰기로.
 /// - `before = None`: `phase` 의 끝(다음 머리·plan-log 앞)에 최상위로.
+///
 /// 자기 자신 앞으로·자기 하위 앞으로는 거절한다. plan-log 는 건드리지 않는다.
 pub fn move_item(
     md: &str,
