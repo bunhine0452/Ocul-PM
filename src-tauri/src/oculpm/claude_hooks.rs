@@ -263,6 +263,31 @@ pub struct HookEvent {
     pub reason: Option<String>,
 }
 
+/// 다 읽은 인박스가 [`INBOX_COMPACT_BYTES`] 를 넘으면 비운다 (감사 라운드
+/// 2026-09-11 D4). 돌려주는 값은 **다음 소비 오프셋** — 비웠으면 0, 아니면
+/// `consumed_to` 그대로.
+///
+/// 파일은 append 만 되고 지워지는 일이 없어 4.4MB/3주로 자랐고, 워처가 매 틱
+/// **통째로** 읽었다. 조건은 "부분 라인이 없다"(`consumed_to == len`) — 훅이
+/// 방금 append 한 줄을 자르지 않기 위해서다. 읽기와 truncate 사이의 append 는
+/// 잃을 수 있으나 그 창은 마이크로초고 이 경로는 MB 단위로 한 번 온다.
+pub async fn compact_inbox(path: &Path, bytes: &[u8], consumed_to: u64) -> u64 {
+    let len = bytes.len();
+    if consumed_to as usize != len || (len as u64) < INBOX_COMPACT_BYTES {
+        return consumed_to;
+    }
+    if tokio::fs::write(path, b"").await.is_err() {
+        return consumed_to;
+    }
+    tracing::info!(
+        target: "oculpm::watcher",
+        path = %path.display(),
+        bytes = len,
+        "hooks inbox compacted — every line was consumed"
+    );
+    0
+}
+
 /// `bytes`(파일의 `offset` 이후 슬라이스)에서 **완전한 라인만** 파싱한다.
 /// 반환: (이벤트들, 소비한 바이트 수). 마지막 미종결 라인은 소비하지 않고
 /// 다음 라운드로 남긴다 (훅 프로세스가 append 중일 수 있음). 깨진 JSON 라인은
@@ -353,6 +378,27 @@ mod tests {
     }
 
     // ─── 인박스 파싱 ────────────────────────────────────────────────────────
+
+    /// D4 — 부분 라인이 남았거나 작으면 그대로, 다 읽었고 크면 비우고 0.
+    #[tokio::test]
+    async fn compact_only_when_fully_consumed_and_large() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("inbox.jsonl");
+        let big = INBOX_COMPACT_BYTES as usize + 10;
+        let bytes = vec![b'x'; big];
+        std::fs::write(&p, &bytes).unwrap();
+        // 부분 라인이 남았다 → 손대지 않는다.
+        assert_eq!(
+            compact_inbox(&p, &bytes, big as u64 - 5).await,
+            big as u64 - 5
+        );
+        assert_eq!(std::fs::metadata(&p).unwrap().len() as usize, big);
+        // 작다 → 손대지 않는다.
+        assert_eq!(compact_inbox(&p, &bytes[..10], 10).await, 10);
+        // 다 읽었고 크다 → 비우고 0.
+        assert_eq!(compact_inbox(&p, &bytes, big as u64).await, 0);
+        assert_eq!(std::fs::metadata(&p).unwrap().len(), 0);
+    }
 
     #[test]
     fn parse_complete_lines_and_leave_partial_tail() {
