@@ -132,7 +132,11 @@ export const commands = {
 	 * 
 	 *  프로브를 쏘지 않는다 — 이미 한 호출의 결과만 읽는다. 한 번도 안 불러 본
 	 *  프로바이더는 목록에 없다: "모른다" 를 "안 된다" 로 그리지 않기 위해서다.
+	 *  프로바이더의 모델 목록 (감사 라운드 2026-09-11 B2). 설정 → LLM 의 모델
+	 *  칸이 datalist 로 띄운다. 키가 없으면 곧바로 실패한다 — 그 칸은 어차피
+	 *  키 없이는 못 쓴다.
 	 */
+	llmListModels: (provider: string) => typedError<ModelInfo[], string>(__TAURI_INVOKE("llm_list_models", { provider })),
 	llmReachability: () => typedError<ProviderReach[], string>(__TAURI_INVOKE("llm_reachability")),
 	/**  관련도 상위 N (감쇠 반영). 화면의 「회상 후보」 목록. */
 	recallTop: (projectId: number, limit: number) => typedError<RecallStat[], AppError>(__TAURI_INVOKE("recall_top", { projectId, limit })),
@@ -4871,6 +4875,15 @@ export type ModelEgress = {
 	host: string,
 	/**  `true` = 기기를 벗어나지 않는다 → 배지를 붙이지 않는다. */
 	local: boolean,
+};
+
+/**
+ *  프로바이더가 내놓는 모델 한 줄 (감사 라운드 2026-09-11 B2 — 모델 피커).
+ *  `label` 은 사람이 읽는 이름, 없으면 id 와 같다.
+ */
+export type ModelInfo = {
+	id: string,
+	label: string,
 };
 
 /**  부정 후보 하나. */

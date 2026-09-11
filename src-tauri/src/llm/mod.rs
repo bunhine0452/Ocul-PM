@@ -94,10 +94,23 @@ impl LlmError {
     }
 }
 
+/// 프로바이더가 내놓는 모델 한 줄 (감사 라운드 2026-09-11 B2 — 모델 피커).
+/// `label` 은 사람이 읽는 이름, 없으면 id 와 같다.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, PartialEq, Eq)]
+pub struct ModelInfo {
+    pub id: String,
+    pub label: String,
+}
+
 #[async_trait]
 pub trait LlmProvider: Send + Sync {
     #[allow(dead_code)]
     fn name(&self) -> &'static str;
+
+    /// 이 키로 쓸 수 있는 모델 목록. 설정 화면의 모델 칸이 datalist 로 띄운다 —
+    /// 사용자가 모델 id 를 외워 치지 않게. 실패는 그대로 올린다(키가 틀렸다는
+    /// 신호이기도 하다).
+    async fn list_models(&self) -> Result<Vec<ModelInfo>, LlmError>;
 
     async fn chat(
         &self,
@@ -148,6 +161,22 @@ where
         }
     }
     Ok(())
+}
+
+/// GET 응답을 성공이면 JSON 으로, 아니면 `ApiError` 로 — 다섯 프로바이더의
+/// 모델 목록 경로가 전부 이걸 쓴다.
+pub(crate) async fn json_or_api_error<T: serde::de::DeserializeOwned>(
+    resp: reqwest::Response,
+) -> Result<T, LlmError> {
+    let status = resp.status();
+    if !status.is_success() {
+        let body = error_body(resp).await;
+        return Err(LlmError::ApiError {
+            status: status.as_u16(),
+            body,
+        });
+    }
+    Ok(resp.json().await?)
 }
 
 /// 오류 응답 본문 상한. 프로바이더 오류는 그대로 프런트 `console.error` →
