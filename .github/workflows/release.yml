@@ -124,3 +124,21 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+      # VS Code 확장 .vsix 를 같은 릴리스에 첨부 (플랜 vscode-extension-round
+      # {#rel-ci-vsix}) — 마켓이 막힌 환경의 오프라인 설치용:
+      #   code --install-extension ocul-pm-<ver>.vsix
+      # 마켓 게시 자체는 extension-release.yml(태그 ext-v*)이 한다. 확장 버전은
+      # 앱 버전과 별개라 파일명은 확장 package.json 의 것을 쓴다.
+      - name: Package VS Code extension
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm package
+          ver="$(node -p "require('./package.json').version")"
+          npx --yes @vscode/vsce@3 package --no-dependencies -o "ocul-pm-${ver}.vsix"
+        working-directory: extension
+
+      - name: Attach .vsix to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${GITHUB_REF_NAME}" extension/ocul-pm-*.vsix --clobber

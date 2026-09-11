@@ -32,6 +32,7 @@ pub mod mcp;
 pub mod mobile;
 pub mod notion;
 pub mod oculpm;
+mod open_native;
 pub mod overview;
 pub mod plan;
 pub mod plugins;

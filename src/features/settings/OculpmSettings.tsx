@@ -60,6 +60,7 @@ import { ClaudePluginBlock } from "./ClaudePluginBlock";
 import { McpServerBlock } from "./McpServerBlock";
 import { CodexMcpServerBlock } from "./CodexMcpServerBlock";
 import { CodexPluginBlock } from "./CodexPluginBlock";
+import { VscodeExtensionBlock } from "./VscodeExtensionBlock";
 import { PluginBundlesBlock } from "./plugins/PluginBundlesBlock";
 const DEBOUNCE_MS = 500;
 
@@ -570,8 +571,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
           <ClaudeHooksBlock projectId={projectId} pluginInstalled={plugin?.installed ?? false} />
           <McpServerBlock projectId={projectId} pluginInstalled={plugin?.installed ?? false} />
         </Section>
-        {/* 플러그인 번들 임포트 (Phase 6) — 프로젝트 스코프다. 놓이는 자리가
-            전부 `<project>/.claude/` 와 `.mcp.json` 이기 때문이다. */}
+        {/* 플러그인 번들 임포트 (Phase 6) — 프로젝트 스코프: 놓이는 자리가 전부 `<project>/.claude/` 와 `.mcp.json` 이다. */}
         <PluginBundlesBlock projectId={projectId} />
         {/* 외부 A2A 문 — 카드 하나가 프로젝트 하나를 가리키므로 프로젝트 스코프다. */}
         <A2aEndpointBlock projectId={projectId} />
@@ -582,6 +582,7 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
           <ClaudePluginBlock plugin={plugin} />
           <CodexMcpServerBlock />
           <CodexPluginBlock />
+          <VscodeExtensionBlock />
           <AcpRuntimeBlock />
           <ShellIntegrationBlock />
         </Section>
@@ -834,7 +835,6 @@ export function ShellIntegrationBlock() {
     </div>
   );
 }
-
 
 // W4 dogfooding follow-up (2026-05-26) — Logs section. Shows the daily-rotated
 // log dir path + a button to reveal it in Finder/Explorer. The user can then

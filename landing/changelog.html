@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.47.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 101개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.48.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 102개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.47.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 101개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.48.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 102개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.47.0</span>
+    <span class="nav-ver" data-version>v2.48.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>101개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>102개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-48-0">v2.48.0</a>
       <a href="#v2-47-0">v2.47.0</a>
       <a href="#v2-46-0">v2.46.0</a>
       <a href="#v2-45-2">v2.45.2</a>
@@ -61,10 +62,18 @@
       <a href="#v2-42-0">v2.42.0</a>
       <a href="#v2-41-0">v2.41.0</a>
       <a href="#v2-40-0">v2.40.0</a>
-      <a href="#v2-39-1">v2.39.1</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-48-0"><a href="#v2-48-0">v2.48.0</a></h2>
+      <div class="cl-body">
+<p><b>편집기는 진짜 VS Code 로 — 앱은 그 옆에 섭니다.</b> 「VS Code 급 편집기」를 앱 안에 또 만드는 대신 반대로 갔습니다. VS Code 확장 <code>oculpm.ocul-pm</code> 이 <b>사이드바에 오늘 일지와 활성 플랜</b>을 띄우고, 에이전트가 일지를 쓰면 <b>1초 안에</b> 거기 뜹니다. 플랜 항목의 체크박스를 누르면 <code>.md</code> 가 바뀌고 앱 플래너가 같이 바뀝니다 — 파일은 확장이 직접 고치지 않고, 앱에 든 <code>oculpm-mcp</code> 를 통해서만 씁니다(잠금·plan-log·동시 편집 보호가 그대로). Copilot 에이전트 모드에는 <code>journal_write</code>·<code>plan_update</code> 도구가 그대로 보입니다. 확장은 네트워크를 쓰지 않습니다.</p>
+<ul><li><b>앱과 왕복합니다.</b> 일지 열람의 「편집기로 열기」가 확장이 깔려 있으면 VS Code 사이드바의 <b>그 일지</b>로 갑니다(전에는 OS 기본 앱). 반대로 VS Code 트리의 「Ocul-PM 에서 열기」는 앱의 그 프로젝트 탭·그 일지로 착지합니다 — <code>oculpm://open</code> 링크가 그동안 버리던 <code>entry</code> 를 이제 씁니다.</li><li><b>설정 &gt; 통합</b>에 「VS Code 확장」 행 — 설치 여부와 마켓 링크 둘(VS Code 마켓플레이스 · Open VSX). Cursor·VSCodium 은 Open VSX 판을 받습니다.</li><li>앱이 여는 연결 목록에 마켓 링크 두 곳이 <b>브라우저 위임</b>으로 추가됐습니다 — 앱이 보내는 것이 아니라 여러분이 눌러야 열립니다. 원장(<code>egress_inventory</code>)이 잡아 사유와 함께 적었습니다.</li></ul>
+<h3 id="확장">확장</h3>
+<p><code>ocul-pm</code> <b>0.1.0</b> — 첫 게시. VS Code 1.101 이상(포크 호환 하한). 앱 없이 설치하면 <b>읽기 전용</b>(트리·미리보기)으로 동작하고 상태바가 이유를 말합니다. 마켓·Open VSX 게시는 태그 <code>ext-v0.1.0</code>, 앱 릴리스 자산에도 <code>.vsix</code> 가 붙습니다(<code>code --install-extension</code>).</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-47-0"><a href="#v2-47-0">v2.47.0</a></h2>
       <div class="cl-body">

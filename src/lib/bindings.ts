@@ -1893,6 +1893,7 @@ export const commands = {
 	 *  놓쳐도 무해(안내가 안 뜰 뿐), 오탐만 없으면 된다.
 	 */
 	claudePluginStatus: () => __TAURI_INVOKE<ClaudePluginStatus>("claude_plugin_status"),
+	vscodeExtensionStatus: () => __TAURI_INVOKE<VscodeExtensionStatus>("vscode_extension_status"),
 	mcpDesktopRegister: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_register", { projectId })),
 	mcpDesktopUnregister: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_unregister", { projectId })),
 	/**  토큰/부모 페이지 설정 상태 (네트워크 없음). */
@@ -6017,6 +6018,18 @@ export type TrayNavigate = {
 	project_id: number | null,
 	/**  `.oculpm/` 상대 일지 경로 — 있으면 해당 일지를 연다. */
 	entry_path: string | null,
+};
+
+/**
+ *  설정 > 통합 'VS Code 확장' 행 (플랜 `vscode-extension-round`
+ *  {#app-settings}). 판정은 `vscode_ext::detect` — 확장 폴더만 읽는다.
+ */
+export type VscodeExtensionStatus = {
+	installed: boolean,
+	/**  어느 편집기에서 찾았나 — `vscode` | `vscode-insiders`. */
+	editor: string | null,
+	marketplace_url: string,
+	open_vsx_url: string,
 };
 
 export type WatcherConfig = {

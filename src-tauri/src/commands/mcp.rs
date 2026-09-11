@@ -216,3 +216,29 @@ fn find_oculpm_plugin(
     }
     None
 }
+
+/// 설정 > 통합 'VS Code 확장' 행 (플랜 `vscode-extension-round`
+/// {#app-settings}). 판정은 `vscode_ext::detect` — 확장 폴더만 읽는다.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct VscodeExtensionStatus {
+    pub installed: bool,
+    /// 어느 편집기에서 찾았나 — `vscode` | `vscode-insiders`.
+    pub editor: Option<String>,
+    pub marketplace_url: String,
+    pub open_vsx_url: String,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn vscode_extension_status() -> VscodeExtensionStatus {
+    let editor = crate::vscode_ext::detect();
+    VscodeExtensionStatus {
+        installed: editor.is_some(),
+        editor: editor.map(|e| e.scheme().to_string()),
+        marketplace_url: format!(
+            "https://marketplace.visualstudio.com/items?itemName={}",
+            crate::vscode_ext::EXTENSION_ID
+        ),
+        open_vsx_url: "https://open-vsx.org/extension/oculpm/ocul-pm".to_string(),
+    }
+}

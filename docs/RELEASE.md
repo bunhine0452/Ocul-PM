@@ -48,6 +48,27 @@ body="$(awk -v t="## ${ver}" '$0==t{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md)
 
 헤더가 태그와 정확히 일치해야 하고(`## v2.8.5` ↔ 태그 `v2.8.5`), 어긋나면 릴리스 본문이 빈 채로 나갑니다. 톤은 기존 항목을 표본으로 — 기능 나열이 아니라 **사용자가 겪던 증상 → 무엇이 바뀌었나** 를 굵게 시작하는 서술형으로, 내부 구현 용어 대신 화면에서 보이는 말로.
 
+### 2-1. VS Code 확장 (`extension/`) — 릴리스 노트는 여기 한 곳
+
+확장은 **별도 CHANGELOG 를 갖지 않습니다.** `extension/CHANGELOG.md` 는 이 파일을 가리키는 한 줄뿐이고, `extension/LICENSE` 는 루트 `LICENSE` 의 복사본(마켓 리스팅이 패키지 안의 파일을 요구해서)입니다. 확장에 사용자가 보는 변경이 있으면 그 릴리스의 `## vX.Y.Z` 섹션 **안에 `### 확장` 소절**을 두고 거기에 적습니다 — 앱과 확장이 같은 `.oculpm` 규격을 공유하므로 같은 커밋·같은 노트로 움직입니다. `extension/README.md` 는 마켓 리스팅 본문(영어)이라 기능이 늘면 그 파일도 같이 고칩니다. #### 확장 게시 절차 (태그 `ext-v*`)
+
+확장은 앱과 **별도 태그**로 나갑니다 — `extension/package.json` 의 `version` 을 올리고 `ext-v<그 버전>` 태그를 밀면 `.github/workflows/extension-release.yml` 이 패키징(dry-run 과 같은 잡) → Open VSX → VS Marketplace 순으로 게시합니다. 태그와 `package.json` 버전이 다르면 잡이 멈춥니다(마켓은 같은 버전 재게시를 막아 되돌릴 수 없기 때문). 앱 릴리스(`v*`)는 `.vsix` 를 릴리스 자산에도 첨부합니다 — 마켓이 막힌 환경은 `code --install-extension ocul-pm-<ver>.vsix`.
+
+```bash
+cd extension && npm version 0.1.0 --no-git-tag-version   # package.json 만
+git add extension/package.json && git commit -m "release(extension): v0.1.0"
+git tag ext-v0.1.0 && git push origin main ext-v0.1.0
+```
+
+**한 번만 하는 수동 단계** (토큰은 GitHub secret 으로 — 저장소에 적지 않습니다):
+
+- [ ] **Open VSX** — [open-vsx.org](https://open-vsx.org) 에 GitHub 로 로그인 → Publisher Agreement 서명 → Settings → Access Tokens 에서 토큰 생성 → 네임스페이스 `oculpm` 을 **먼저** 만든다: `npx ovsx create-namespace oculpm -p <token>` (네임스페이스가 없으면 첫 게시가 실패한다). 토큰을 `gh secret set OPEN_VSX_TOKEN`.
+- [ ] **VS Marketplace** — [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage) 에서 publisher `oculpm` 생성(Microsoft 계정) → [dev.azure.com](https://dev.azure.com) 에서 PAT 생성: Organization = **All accessible organizations**, Scopes = **Marketplace → Manage**. 토큰을 `gh secret set VSCE_PAT`. 만료(최대 1년)를 캘린더에.
+- [ ] 두 토큰이 들어간 뒤 `workflow_dispatch` 로 `Extension` 워크플로를 한 번 돌려 패키징 잡이 초록인지 본다(게시는 태그에서만).
+- [ ] 첫 게시 뒤 마켓 두 곳의 리스팅(README·아이콘·`repository` 링크)을 눈으로 확인한다.
+
+Open VSX 는 Cursor·VSCodium·code-server 가 쓰는 레지스트리라 **둘 다** 올려야 "VS Code 계열 전부"가 됩니다. MS 마켓은 MS 제품 밖 사용을 ToS 로 막으므로 포크 사용자는 Open VSX 판만 받습니다.
+
 ## 3. README.md · README.en.md — **양쪽 다**
 
 - 최상단 하이라이트 섹션(`## 🚀 vX.Y — …`)에 이번 변경 반영. 섹션이 계속 쌓이지 않도록 오래된 것은 묶어 압축합니다.

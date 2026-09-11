@@ -1,0 +1,128 @@
+name: Extension
+
+# VS Code 확장(`extension/`) 게시 — 플랜 `vscode-extension-round` Phase 4.
+#
+# 두 잡:
+#   package  — PR·수동 실행·태그 전부에서 돈다. 단위 테스트 → esbuild 프로덕션
+#              번들 → `vsce package` 로 .vsix 를 만들어 아티팩트로 남긴다.
+#              이것이 "dry-run" 이다: 게시 없이 매니페스트·번들·패키징까지
+#              전부 검증한다 (`{#rel-ci}`).
+#   publish  — `ext-v*` 태그에서만. package 가 만든 **같은 .vsix** 를 Open VSX
+#              (Cursor·VSCodium 이 여기서 받는다) → MS 마켓 순으로 올린다.
+#              둘 다 실패해도 서로 독립 — 한쪽 토큰이 만료돼도 다른 쪽은 나간다.
+#
+# 시크릿 (docs/RELEASE.md §2-1 의 수동 단계):
+#   OPEN_VSX_TOKEN — open-vsx.org 접근 토큰 (네임스페이스 `oculpm` 선등록 필요)
+#   VSCE_PAT       — Azure DevOps PAT, Marketplace(Manage) 스코프, publisher `oculpm`
+#
+# `vsce package --no-dependencies`: pnpm 의 node_modules 는 vsce 의 `npm list`
+# 의존성 수집과 맞지 않고, 런타임 의존(yaml)은 esbuild 가 dist 에 이미 접었다.
+
+on:
+  push:
+    tags:
+      - 'ext-v*'
+  pull_request:
+    paths:
+      - 'extension/**'
+      - '.github/workflows/extension-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: 패키징 (dry-run) — test · bundle · vsce package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      vsix: ${{ steps.pack.outputs.vsix }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: extension/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: extension
+
+      # 태그 게시라면 package.json 버전과 태그가 같아야 한다 — 어긋난 채 마켓에
+      # 올라가면 되돌릴 수 없다(마켓은 버전 재게시를 막는다).
+      - name: Tag ↔ package.json version
+        if: startsWith(github.ref, 'refs/tags/ext-v')
+        run: |
+          tag="${GITHUB_REF_NAME#ext-v}"
+          ver="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$ver" ]; then
+            echo "::error::태그 ext-v$tag 와 extension/package.json 버전 $ver 이 다릅니다."
+            exit 1
+          fi
+        working-directory: extension
+
+      - name: Unit tests (vitest)
+        run: pnpm test:unit
+        working-directory: extension
+
+      # `pnpm package` = check-types(둘 다) + eslint + esbuild --production.
+      # vsce 가 vscode:prepublish 로 한 번 더 부르지만, 여기서 먼저 붉어지는 편이
+      # 로그 읽기가 쉽다.
+      - name: Bundle
+        run: pnpm package
+        working-directory: extension
+
+      - name: vsce package
+        id: pack
+        run: |
+          ver="$(node -p "require('./package.json').version")"
+          file="ocul-pm-${ver}.vsix"
+          npx --yes @vscode/vsce@3 package --no-dependencies -o "$file"
+          npx --yes @vscode/vsce@3 ls --no-dependencies
+          echo "vsix=$file" >> "$GITHUB_OUTPUT"
+        working-directory: extension
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: extension/${{ steps.pack.outputs.vsix }}
+          if-no-files-found: error
+
+  publish:
+    name: 게시 — Open VSX → VS Marketplace
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/ext-v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: .
+
+      - name: Publish to Open VSX
+        uses: HaaLeo/publish-vscode-extension@v2
+        with:
+          pat: ${{ secrets.OPEN_VSX_TOKEN }}
+          registryUrl: https://open-vsx.org
+          extensionFile: ${{ needs.package.outputs.vsix }}
+          skipDuplicate: true
+
+      - name: Publish to VS Marketplace
+        # Open VSX 가 실패해도 마켓은 시도한다 — 두 레지스트리는 독립이다.
+        if: always()
+        uses: HaaLeo/publish-vscode-extension@v2
+        with:
+          pat: ${{ secrets.VSCE_PAT }}
+          registryUrl: https://marketplace.visualstudio.com
+          extensionFile: ${{ needs.package.outputs.vsix }}
+          skipDuplicate: true

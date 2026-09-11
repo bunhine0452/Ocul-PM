@@ -11,6 +11,7 @@
 //! W1 provides 4 commands (init / get_status / get_config / set_config).
 //! W2-PR6 adds 9 more (session / file_change / snapshot / watcher).
 
+use super::open_native::{open_native, open_native_url};
 use std::path::PathBuf;
 
 use tauri::{AppHandle, State};
@@ -890,49 +891,15 @@ pub async fn oculpm_open_entry_in_editor(
             format!("file not found: {}", abs.display()),
         ));
     }
+    // 플랜 vscode-extension-round {#app-editor-open} — 확장이 깔려 있으면 OS 기본
+    // 앱 대신 확장 URI 로: VS Code 가 파일을 열고 사이드바 트리에서 그 일지를
+    // 선택한다. 같은 `open` 셸아웃이라 opener-scope 회귀와 무관하다.
+    if let Some(editor) = crate::vscode_ext::detect() {
+        return Ok(open_native_url(&crate::vscode_ext::entry_uri(
+            editor, &abs,
+        ))?);
+    }
     Ok(open_native(&abs)?)
-}
-
-#[cfg(target_os = "macos")]
-fn open_native(path: &std::path::Path) -> std::io::Result<()> {
-    std::process::Command::new("open")
-        .arg(path)
-        .status()
-        .and_then(|s| {
-            if s.success() {
-                Ok(())
-            } else {
-                Err(std::io::Error::other(format!("open exited with {s}")))
-            }
-        })
-}
-
-#[cfg(target_os = "linux")]
-fn open_native(path: &std::path::Path) -> std::io::Result<()> {
-    std::process::Command::new("xdg-open")
-        .arg(path)
-        .status()
-        .and_then(|s| {
-            if s.success() {
-                Ok(())
-            } else {
-                Err(std::io::Error::other(format!("xdg-open exited with {s}")))
-            }
-        })
-}
-
-#[cfg(target_os = "windows")]
-fn open_native(path: &std::path::Path) -> std::io::Result<()> {
-    std::process::Command::new("cmd")
-        .args(["/c", "start", "", &path.display().to_string()])
-        .status()
-        .and_then(|s| {
-            if s.success() {
-                Ok(())
-            } else {
-                Err(std::io::Error::other(format!("start exited with {s}")))
-            }
-        })
 }
 
 /// W4 dogfooding follow-up (2026-05-26) — bridge `console.*` calls from the

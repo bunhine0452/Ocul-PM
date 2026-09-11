@@ -25,7 +25,8 @@ import { indexProgressStore } from "@/lib/indexProgressStore";
 import { toast } from "@/lib/toast";
 import { useTabRunningWork } from "@/windows/useTabRunningWork";
 import { DeepLinkSheet } from "@/features/deeplink/DeepLinkSheet";
-import { resolveRegisteredProject } from "@/features/deeplink/deepLinkPlan";
+import { openNavFor, resolveRegisteredProject } from "@/features/deeplink/deepLinkPlan";
+import { UI_V2_VIEWS } from "@/contexts/uiV2View";
 import { requestThemeInstall } from "@/features/theme/themeInstallIntent";
 import { openSettings } from "@/lib/settingsNav";
 
@@ -316,7 +317,10 @@ export default function ProjectTab({
                   toast.warning(t("deeplink.open.notRegistered"));
                   return;
                 }
-                void commands.openProjectTab(id, windowLabel);
+                // view/entry 까지 싣는다 — 탭을 열거나 활성화한 뒤 그 창에만
+                // TrayNavigate 를 쏘는 경로(tray_open_main)를 그대로 탄다.
+                // VS Code 확장의 'Ocul-PM 에서 열기'가 이 자리로 들어온다.
+                void commands.trayOpenMain(openNavFor(link, id, UI_V2_VIEWS));
                 return;
               }
               // 설치는 전부 설정의 해당 자리로 데려간다 — 링크가 직접 쓰지

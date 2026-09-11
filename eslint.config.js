@@ -58,6 +58,12 @@ export default tseslint.config(
       // 빌드·tsconfig·vitest 대상 밖. 2026-09-04 현재 디렉터리 자체가 없지만,
       // 다른 게이트들이 모두 이 경로를 빼 두고 있어 규약을 맞춘다.
       "src/legacy/**",
+      // VS Code 확장은 자기 `extension/eslint.config.mjs` 로 린트한다(react-hooks
+      // 규칙이 없는 Node 코드이고, 루트 `pnpm lint` 가 `lint:extension` 으로
+      // 그쪽 게이트를 부른다). 여기서 빼지 않으면 `eslint .` 가
+      // `extension/.vscode-test/**`(테스트용 VS Code 통째)까지 기어 들어가
+      // 힙 4GB 를 넘겨 죽는다 — 2026-09-11 실측.
+      "extension/**",
     ],
   },
 

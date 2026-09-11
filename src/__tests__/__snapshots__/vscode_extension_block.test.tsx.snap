@@ -1,0 +1,106 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`VscodeExtensionBlock > installed (stable): badge + round-trip hint 1`] = `
+<div>
+  <div
+    class="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3"
+  >
+    <div
+      class="flex flex-wrap items-center gap-2"
+    >
+      <label
+        class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 uppercase tracking-wider text-muted-foreground"
+        data-slot="label"
+      >
+        VS Code 확장 (일지·플랜 사이드바 + 에이전트 도구)
+      </label>
+      <span
+        class="rounded-full border border-dashed border-border px-2 py-0.5 text-fs-1 text-muted-foreground"
+      >
+        이 머신 전체
+      </span>
+      <span
+        class="rounded-full border px-2 py-0.5 text-fs-1 border-(--ok)/40 bg-(--ok-soft) text-(--ok-text)"
+      >
+        설치됨
+      </span>
+    </div>
+    <p
+      class="text-fs-2 leading-relaxed text-muted-foreground"
+    >
+      확장 oculpm.ocul-pm 이 VS Code 사이드바에 오늘 일지와 활성 플랜을 띄우고, Copilot 에이전트에 journal_write · plan_update 도구를 노출해요. 쓰기는 이 앱의 oculpm-mcp 를 통해서만 — 앱이 없으면 읽기 전용이에요.
+    </p>
+    <p
+      class="flex flex-wrap gap-3 text-fs-2"
+    >
+      <a
+        class="underline underline-offset-2"
+        href="https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm"
+      >
+        VS Code 마켓플레이스
+      </a>
+      <a
+        class="underline underline-offset-2"
+        href="https://open-vsx.org/extension/oculpm/ocul-pm"
+      >
+        Open VSX (Cursor · VSCodium)
+      </a>
+    </p>
+    <p
+      class="text-fs-2 text-muted-foreground"
+    >
+      설치돼 있어 일지의 「편집기로 열기」가 VS Code 사이드바까지 맞춰 열어요.
+    </p>
+  </div>
+</div>
+`;
+
+exports[`VscodeExtensionBlock > not installed: badge + machine-scope chip + two market links (user-click anchors) 1`] = `
+<div>
+  <div
+    class="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3"
+  >
+    <div
+      class="flex flex-wrap items-center gap-2"
+    >
+      <label
+        class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 uppercase tracking-wider text-muted-foreground"
+        data-slot="label"
+      >
+        VS Code 확장 (일지·플랜 사이드바 + 에이전트 도구)
+      </label>
+      <span
+        class="rounded-full border border-dashed border-border px-2 py-0.5 text-fs-1 text-muted-foreground"
+      >
+        이 머신 전체
+      </span>
+      <span
+        class="rounded-full border px-2 py-0.5 text-fs-1 border-border bg-muted/30 text-muted-foreground"
+      >
+        미설치
+      </span>
+    </div>
+    <p
+      class="text-fs-2 leading-relaxed text-muted-foreground"
+    >
+      확장 oculpm.ocul-pm 이 VS Code 사이드바에 오늘 일지와 활성 플랜을 띄우고, Copilot 에이전트에 journal_write · plan_update 도구를 노출해요. 쓰기는 이 앱의 oculpm-mcp 를 통해서만 — 앱이 없으면 읽기 전용이에요.
+    </p>
+    <p
+      class="flex flex-wrap gap-3 text-fs-2"
+    >
+      <a
+        class="underline underline-offset-2"
+        href="https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm"
+      >
+        VS Code 마켓플레이스
+      </a>
+      <a
+        class="underline underline-offset-2"
+        href="https://open-vsx.org/extension/oculpm/ocul-pm"
+      >
+        Open VSX (Cursor · VSCodium)
+      </a>
+    </p>
+  </div>
+</div>
+`;

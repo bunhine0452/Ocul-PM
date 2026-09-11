@@ -73,3 +73,28 @@ export function resolveRegisteredProject(
   const norm = (p: string) => p.replace(/\/+$/, "");
   return projects.find((p) => norm(p.root_path) === norm(wanted))?.id ?? null;
 }
+
+/**
+ * `open` 의 목적지 — `view`/`entry` 를 `TrayNavigate` 로 옮긴다 (플랜
+ * `vscode-extension-round` {#app-deeplink-entry}). `entry` 는 VS Code 확장이
+ * 보내는 **일지 절대경로**인데 앱 안의 일지 주소는 `.oculpm/journal/` 기준
+ * 상대경로다 — 그 프로젝트 안의 규격 경로일 때만 받는다(다른 프로젝트·`..`·
+ * 임의 파일은 버리고 화면만 연다). `view` 는 알려진 화면 이름이 아니면 today.
+ */
+export function openNavFor(
+  link: { project: string; view: string | null; entry: string | null },
+  projectId: number,
+  knownViews: readonly string[],
+): { view: string; project_id: number; entry_path: string | null } {
+  const root = link.project.replace(/\/+$/, "");
+  const prefix = `${root}/.oculpm/journal/`;
+  let entryPath: string | null = null;
+  if (link.entry && link.entry.startsWith(prefix)) {
+    const rel = link.entry.slice(prefix.length);
+    if (/^\d{8}\/(Bugs|Features_to_add|Errors|Refactors|Chores)\/\d{4}_(bug|feature|error|refactor|chore)_[A-Za-z0-9-]+\.md$/.test(rel)) {
+      entryPath = rel;
+    }
+  }
+  const view = entryPath ? "journal" : link.view && knownViews.includes(link.view) ? link.view : "today";
+  return { view, project_id: projectId, entry_path: entryPath };
+}

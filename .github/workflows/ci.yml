@@ -49,15 +49,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # VS Code 확장(`extension/`)은 별도 패키지·별도 락파일이다 — 워크스페이스로
+      # 묶지 않은 이유는 루트 락파일·호이스팅을 건드려 `tauri dev` 경로에 위험을
+      # 들이지 않기 위해서. `lint:extension` 이 이 설치를 전제한다.
+      - name: Install extension dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: extension
+
       - name: Typecheck
         run: pnpm typecheck
 
       - name: Test (vitest)
         run: pnpm test
 
-      # 게이트 6종: storage(localStorage 직접 접근 금지) · i18n(하드코딩 한국어) ·
-      # bindings · design · filesize 래칫 · ESLint(react-hooks 중심, 경고 상한 래칫).
-      - name: Lint (storage · i18n · bindings · design · filesize · eslint)
+      # 게이트 7종: storage(localStorage 직접 접근 금지) · i18n(하드코딩 한국어) ·
+      # bindings · design · filesize 래칫 · ESLint(react-hooks 중심, 경고 상한 래칫) ·
+      # extension(확장 자체 tsc + eslint — 앞 넷은 `src/` 만 걷고, filesize 는
+      # `git ls-files` 라 확장 소스를 이미 본다).
+      - name: Lint (storage · i18n · bindings · design · filesize · eslint · extension)
         run: pnpm lint
 
       # tsc && vite build && check-critical-css. dist 는 산출물만 확인하고 버립니다.
