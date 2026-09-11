@@ -194,9 +194,12 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
   const [initOculpm, setInitOculpm] = useState(true);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-save blueprint (debounced 2s)
+  // Auto-save blueprint (debounced 2s). **빈 마법사는 저장하지 않는다**
+  // ({#eyes-wizard} 2026-09-11): 마운트 직후에도 돌아서 아이디어 없는 "새 프로젝트"
+  // 초안이 남았고, 시작 탭 바닥에서 「새 프로젝트 시작하기」와 둘로 보였다.
   const autoSave = useCallback(async () => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (!wizState.ideaText.trim() && !wizState.folderName) return;
     saveTimerRef.current = setTimeout(async () => {
       try {
         const res = await commands.saveBlueprint(
@@ -230,7 +233,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
 
   const handleClose = async () => {
     // Save draft before closing
-    if (wizState.ideaText || wizState.folderName) {
+    if (wizState.ideaText.trim() || wizState.folderName) {
       await commands.saveBlueprint(
         blueprintId,
         wizState.folderName || wizState.ideaText.slice(0, 30) || tc("gf.defaultName"),

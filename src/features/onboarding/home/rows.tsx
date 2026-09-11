@@ -101,6 +101,10 @@ export function DraftRow({
         >
           {name}
         </button>
+        {/* 「초안」 배지 — 이름만 있으면 아래 명령 「새 프로젝트 시작하기」와
+            같은 것으로 읽힌다 (`{#eyes-wizard}`). 이 줄은 이어서 만드는 것이지
+            새로 여는 것이 아님을 첫 낱말이 말한다. */}
+        <span className="tbadge">{t("home.draftBadge")}</span>
         <span className="text-fs-2 text-[var(--text-2)]">{t("home.draftStoppedAt", { step: row.stepLabel })}</span>
       </span>
 

@@ -2674,6 +2674,7 @@ export const ko = {
   "home.newProjectFallback": "새 프로젝트",
   "home.draftResumeAria": "{name} 초안 이어서 만들기 — {step} 단계",
   "home.draftStoppedAt": "{step} 단계에서 멈춤",
+  "home.draftBadge": "초안",
   "home.discardConfirm": "정말 버릴까요?",
   "home.draftDiscardAria": "{name} 초안 버리기",
   // 상단 chrome

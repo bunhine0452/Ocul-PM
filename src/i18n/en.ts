@@ -2669,6 +2669,7 @@ export const en: Record<keyof typeof ko, string> = {
   "home.newProjectFallback": "New project",
   "home.draftResumeAria": "Resume the {name} draft — {step} step",
   "home.draftStoppedAt": "Stopped at {step}",
+  "home.draftBadge": "Draft",
   "home.discardConfirm": "Discard it?",
   "home.draftDiscardAria": "Discard the {name} draft",
   // Top chrome
