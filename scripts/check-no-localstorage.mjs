@@ -54,6 +54,7 @@ const ALLOWLIST = new Set([
   // Test-only.
   "__tests__/i18n_english_render.test.tsx",
   "__tests__/i18n_english_screens.test.tsx",
+  "__tests__/shell_acp_view_no_today_fallback.test.tsx",
   // Final UI Update PR-UI 3 — JournalScreenV2 tests clear localStorage between
   // mounts so the persisted journalFilter (aipm:workspace:v2:p<id> envelope) doesn't
   // leak a scope-chip choice from one test into the next. Test-only.

@@ -81,7 +81,7 @@ export default function ShellV2({
   initialEntryPath = null,
   active = true,
 }: ShellV2Props) {
-  const { t } = useT();
+  const { t, lang } = useT();
   // 조각만 구독한다 (v2.42.0 `{#workspace-full-consumers}`). 이 컴포넌트는
   // **16화면 라우터**다 — 합친 겉면 `useWorkspace()` 를 쓰던 때는 터미널 탭을
   // 하나 고를 때마다 라우터 전체가 다시 그려졌다. 셸이 읽는 것은 UI 취향
@@ -248,7 +248,9 @@ export default function ShellV2({
   const detached = runtime.terminalDetached;
   const dockVisible = projectId != null && prefs.terminalDockOpen && view !== "terminal";
 
-  const dateLabel = new Date().toLocaleDateString("ko-KR", {
+  // 툴바 날짜는 UI 언어를 따른다 — `"ko-KR"` 이 박혀 있어 영어 모드에서도
+  // 「2026년 9월 11일 금」이었다 (2026-09-11 영문 스크린샷 촬영에서 잡음).
+  const dateLabel = new Date().toLocaleDateString(lang === "en" ? "en-US" : "ko-KR", {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -472,6 +474,12 @@ export default function ShellV2({
           // 곧장 그 상태였다. `migrateUiV2View` 가 영속값을 이미 거르지만
           // 런타임 `setUiV2View` 는 그 문을 지나지 않으므로 여기도 막는다.
           // (Today 갈래를 위로 다시 올리지 말 것 — 폴백과 한 몸이다.)
+          //
+          // 단 ACP 두 화면은 **아래 keep-alive 컨테이너가 그린다** — 여기서
+          // 폴백으로 떨어지면 Today 가 그 뒤에 통째로 마운트되어 툴바가 ACP
+          // 머리 위에 얹히고 브리프까지 이중으로 읽었다 (2.47.0 에서 실제로
+          // 그랬다, 2026-09-11). 그 둘만 비운다.
+          view === "claudecode" || view === "codex" ? null : (
           <TodayScreenV2
             projectId={projectId}
             projectRoot={projectRoot}
@@ -482,6 +490,7 @@ export default function ShellV2({
             dateLabel={dateLabel}
             tz={Intl.DateTimeFormat().resolvedOptions().timeZone}
           />
+          )
         )}
         </ErrorBoundary>
 
