@@ -2284,7 +2284,11 @@ export type AcpProvider = "claude" | "codex";
 
 /**  한도 하나 (5시간 세션 · 주간 · 주간 Fable …). */
 export type AcpRateLimit = {
-	/**  어댑터가 준 종류 문자열 (`seven_day` 등) — 우리가 이름을 지어내지 않는다. */
+	/**
+	 *  종류 문자열 (`seven_day` 등). 어댑터가 `_meta` 로 준 기계 이름이 기준이고,
+	 *  `/usage` 의 사람 말 라벨은 **아는 것만** 그 이름으로 접는다
+	 *  (`markdown_limit_kind`). 모르는 이름은 지어내지 않고 원문 그대로 둔다.
+	 */
 	kind: string,
 	/**  0.0~1.0. */
 	utilization: number | null,
