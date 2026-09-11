@@ -9,6 +9,7 @@ import { useT } from "@/i18n";
 import { type AcpToolCall } from "../acpTurns";
 import { AcpDiffView } from "../AcpDiffView";
 import { diffLines, diffStats } from "../lineDiff";
+import { compactionSummary } from "../compaction";
 import { PEEK_IN_LINES, PEEK_OUT_LINES, peekLines } from "../tracePreview";
 import { TOOL_ICON, TOOL_STATUS_KEY } from "./shared";
 import { RawRail } from "../activity/RawRail";
@@ -167,7 +168,11 @@ export const TraceRow = memo(function TraceRow({
             줄이 길수록 "무슨 도구였나"가 말줄임 뒤로 사라졌다. 이름은 짧고
             늘 같은 자리에 있어야 훑을 때 걸린다 (Claude Code 벤치마크). */}
         <span className="trace-name">{name || tool.name || t("acp.tool.untitled")}</span>
-        <span className="trace-title">{tool.subtitle || tool.title}</span>
+        {/* 압축 줄의 제목은 어댑터의 "Compact conversation" 이 아니라 **숫자가
+            든 문장**이다 — 몇 토큰이 줄었는지가 이 줄의 유일한 정보다. */}
+        <span className="trace-title">
+          {tool.compaction ? compactionSummary(tool.compaction, tool.status, t) : tool.subtitle || tool.title}
+        </span>
         {tool.locations.length ? (
           <span className="trace-path" title={tool.locations.join("\n")}>
             {tool.locations[0]}

@@ -2034,6 +2034,24 @@ export type AcpCommand = {
 	hint: string | null,
 };
 
+/**
+ *  컨텍스트 압축 한 번의 사실 (`context-compaction-meta.js`, version 1).
+ * 
+ *  모든 필드가 선택인 이유: 시작 시점엔 아무것도 없고, SDK 가 `post_tokens`·
+ *  `duration_ms` 를 빼먹을 수 있다.
+ */
+export type AcpCompaction = {
+	/**  `manual` · `automatic`. */
+	trigger: string | null,
+	/**  압축 전 컨텍스트 토큰. `u32` 인 이유는 `AcpEvent::Usage` 와 같다. */
+	pre_tokens: number | null,
+	/**  압축 뒤 토큰. */
+	post_tokens: number | null,
+	duration_ms: number | null,
+	/**  실패 사유 (있으면 `status` 도 `failed` 다). */
+	error: string | null,
+};
+
 /**  세션 설정 항목의 선택지 하나. */
 export type AcpConfigChoice = {
 	value: string,
@@ -2148,13 +2166,20 @@ output: string | null;
  *  편집 도구가 실어 온 파일 변경 — 예전엔 `"[diff]"` 문자열로 버렸다.
  *  무엇이 어떻게 바뀌는지는 이 화면의 핵심 정보라 구조 그대로 넘긴다.
  */
-diffs: AcpToolDiff[] } | 
+diffs: AcpToolDiff[]; 
+/**
+ *  컨텍스트 압축이면 그 사실들 — 없으면 화면은 압축을 평범한 생각
+ *  카드로 그린다 (`tool_meta.rs`).
+ */
+compaction: AcpCompaction | null } | 
 /**  진행 중인 도구 호출의 상태·제목이 바뀌었다. 없는 필드는 그대로 둔다. */
 { kind: "tool_update"; id: string; name: string | null; subtitle: string | null; title: string | null; status: string | null; 
 /**  온 것만 실린다 — `None` 은 "안 왔다"이지 "비었다"가 아니다. */
 input: string | null; output: string | null; 
 /**  `None` 은 "content 가 안 왔다" — 이미 받은 diff 를 지우면 안 된다. */
-diffs: AcpToolDiff[] | null } | 
+diffs: AcpToolDiff[] | null; 
+/**  압축 사실의 갱신 — 숫자는 끝에 온다. `None` 은 "안 왔다". */
+compaction: AcpCompaction | null } | 
 /**  사용자 승인이 필요하다. 응답 전까지 에이전트는 멈춰 있다. */
 { kind: "permission"; request_id: string; title: string; tool_kind: string; 
 /**  승인 대상 파일 — "무엇을 허용하는가"의 절반은 경로다. */

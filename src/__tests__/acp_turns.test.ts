@@ -151,6 +151,7 @@ const toolCall = (id: string, title: string): AcpEvent => ({
   input: null,
   output: null,
   diffs: [],
+  compaction: null,
 });
 
 describe("tool calls", () => {
@@ -178,6 +179,7 @@ describe("tool calls", () => {
       input: null,
       output: null,
       diffs: null,
+      compaction: null,
     });
 
     expect(turns[1].tools?.[0]).toMatchObject({ title: "Edit a.ts", status: "completed" });
@@ -196,6 +198,7 @@ describe("tool calls", () => {
       input: null,
       output: null,
       diffs: null,
+      compaction: null,
     });
 
     expect(turns[1].tools).toHaveLength(1);
@@ -279,6 +282,7 @@ describe("tool input/output", () => {
     input: "ls -la",
     output: null,
     diffs: [],
+  compaction: null,
   };
 
   it("carries the input from the initial call", () => {
@@ -299,6 +303,7 @@ describe("tool input/output", () => {
       input: null,
       output: "total 8",
       diffs: null,
+      compaction: null,
     });
 
     expect(turns[1].tools?.[0]).toMatchObject({
@@ -356,6 +361,7 @@ describe("tool_call arriving twice", () => {
       input: null,
       output: null,
       diffs: [],
+  compaction: null,
     };
     let turns = openTurn([], "go");
     turns = applyAcpEvent(turns, call);
@@ -379,6 +385,7 @@ describe("tool_call arriving twice", () => {
       input: null,
       output: null,
       diffs: [],
+  compaction: null,
     };
     let turns = openTurn([], "go");
     turns = applyAcpEvent(turns, { ...base, id: "a" });
@@ -403,6 +410,7 @@ describe("blocks keep arrival order", () => {
       input: null,
       output: null,
       diffs: [],
+  compaction: null,
     });
 
     let turns = openTurn([], "go");
@@ -433,6 +441,7 @@ describe("blocks keep arrival order", () => {
       input: null,
       output: null,
       diffs: [],
+  compaction: null,
     };
     let turns = openTurn([], "go");
     turns = applyAcpEvent(turns, base);
@@ -447,6 +456,7 @@ describe("blocks keep arrival order", () => {
       input: null,
       output: "done",
       diffs: null,
+      compaction: null,
     });
 
     const blocks = turns[1].blocks ?? [];
@@ -575,6 +585,7 @@ describe("turnReceipt", () => {
     input: null,
     output: null,
     diffs: [],
+  compaction: null,
   });
   const bash = (id: string): AcpEvent => ({
     kind: "tool_call",
@@ -588,6 +599,7 @@ describe("turnReceipt", () => {
     input: "pnpm test",
     output: null,
     diffs: [],
+  compaction: null,
   });
 
   it("summarizes tools, touched files and commands of a closed turn", () => {

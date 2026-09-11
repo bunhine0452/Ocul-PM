@@ -18,6 +18,7 @@ import {
   ListChecks,
   ListTodo,
   MessageSquareDashed,
+  Minimize2,
   NotebookPen,
   Pencil,
   Search,
@@ -113,11 +114,14 @@ export function LedgerActivity({ activity }: ActivityRowProps) {
 export function ThinkActivity({ activity }: ActivityRowProps) {
   const { t } = useT();
   if (!activity.call) return null;
+  // 압축은 어댑터가 `think` 로 접어 보내는 **합성** 호출이다 — 생각이 아니라
+  // 대화가 줄어든 사건이라 얼굴과 이름을 따로 준다 (문장은 TraceRow 가 짓는다).
+  const compaction = Boolean(activity.call.compaction);
   return (
     <TraceRow
       tool={activity.call}
-      icon={MessageSquareDashed}
-      name={activity.call.name || t("activity.kind.think")}
+      icon={compaction ? Minimize2 : MessageSquareDashed}
+      name={compaction ? t("acp.compaction.name") : activity.call.name || t("activity.kind.think")}
       tone="aside"
       raw={activity.raw}
     />

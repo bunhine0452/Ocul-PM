@@ -2981,6 +2981,17 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.thinking.tokens": "{n} tokens",
   /** Lines the tool-output preview had to leave out. */
   "acp.tool.moreLines": "+{n} lines",
+  // Context compaction row (acp-adapter-0751 #carry-compaction) — `_meta.contextCompaction`
+  "acp.compaction.name": "Context compaction",
+  "acp.compaction.running": "Compacting the conversation",
+  "acp.compaction.tokens": "{pre} → {post} tokens (−{pct}%)",
+  "acp.compaction.tokensPreOnly": "from {pre} tokens",
+  "acp.compaction.auto": "automatic",
+  "acp.compaction.manual": "manual",
+  "acp.compaction.duration": "{sec}s",
+  "acp.compaction.done": "Compacted",
+  "acp.compaction.failed": "Compaction failed",
+  "acp.compaction.failedWith": "Compaction failed — {error}",
   "acp.cmd.usage": "Show remaining usage",
   "acp.cmd.clear": "Clear the conversation and start a new session",
   "acp.cmd.continue": "Reopen the most recent conversation",

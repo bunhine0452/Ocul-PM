@@ -1,6 +1,6 @@
-import type { AcpEvent, AcpPlanEntry, AcpToolDiff } from "@/lib/bindings";
+import type { AcpCompaction, AcpEvent, AcpPlanEntry, AcpToolDiff } from "@/lib/bindings";
 
-export type { AcpPlanEntry, AcpToolDiff };
+export type { AcpCompaction, AcpPlanEntry, AcpToolDiff };
 
 // PR-ACP2/3 — ACP 스트리밍 이벤트를 화면 턴 목록에 누적하는 순수 리듀서.
 //
@@ -29,6 +29,12 @@ export interface AcpToolCall {
   diffs?: AcpToolDiff[];
   /** 호출이 시작된 시각(ms) — "실행 중 · 12s" 의 근거. 재생에는 없다. */
   startedAt?: number;
+  /**
+   * 컨텍스트 압축이면 그 사실들 (`_meta.contextCompaction`). 어댑터가 압축을
+   * `think` 도구 호출로 접어 보내므로, 이것이 있어야 "생각" 이 아니라 "압축" 으로
+   * 그린다. 숫자는 끝의 갱신에 실려 온다.
+   */
+  compaction?: AcpCompaction;
 }
 
 /** 사용자가 함께 보낸 이미지 한 장 — 화면에 그리는 데 필요한 것만. */
@@ -359,6 +365,7 @@ export function applyAcpEvent(
         input: event.input ?? undefined,
         output: event.output ?? undefined,
         diffs: event.diffs.length ? event.diffs : undefined,
+        compaction: event.compaction ?? undefined,
       };
       if (now != null) fresh.startedAt = now;
       const tools = last.tools ?? [];
@@ -463,6 +470,8 @@ function patchTool(
           input: event.input ?? tool.input,
           output: event.output ?? tool.output,
           diffs: event.diffs?.length ? event.diffs : tool.diffs,
+          // 시작 메타는 빈 껍데기라, 끝의 갱신이 숫자를 들고 오면 그것이 이긴다.
+          compaction: event.compaction ?? tool.compaction,
         }
       : tool,
   );

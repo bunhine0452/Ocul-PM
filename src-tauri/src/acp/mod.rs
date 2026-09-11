@@ -28,6 +28,7 @@ pub mod recording;
 pub mod segments;
 pub mod session;
 pub mod session_book;
+pub mod tool_meta;
 pub mod turn;
 pub mod usage;
 

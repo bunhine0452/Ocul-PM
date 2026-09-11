@@ -11,6 +11,7 @@ use super::AcpProvider;
 use agent_client_protocol::schema::v1::{ContentBlock, SessionUpdate};
 use serde::{Deserialize, Serialize};
 
+use super::tool_meta::{claude_meta, compaction_meta, AcpCompaction};
 use super::usage::saturate;
 // 사용량·한도는 [`super::usage`] 로 갈라졌지만, 부르는 자리가 한 곳을 보게
 // `session::` 이름으로 계속 내보낸다.
@@ -62,6 +63,9 @@ pub enum AcpEvent {
         /// 편집 도구가 실어 온 파일 변경 — 예전엔 `"[diff]"` 문자열로 버렸다.
         /// 무엇이 어떻게 바뀌는지는 이 화면의 핵심 정보라 구조 그대로 넘긴다.
         diffs: Vec<AcpToolDiff>,
+        /// 컨텍스트 압축이면 그 사실들 — 없으면 화면은 압축을 평범한 생각
+        /// 카드로 그린다 (`tool_meta.rs`).
+        compaction: Option<AcpCompaction>,
     },
     /// 진행 중인 도구 호출의 상태·제목이 바뀌었다. 없는 필드는 그대로 둔다.
     ToolUpdate {
@@ -75,6 +79,8 @@ pub enum AcpEvent {
         output: Option<String>,
         /// `None` 은 "content 가 안 왔다" — 이미 받은 diff 를 지우면 안 된다.
         diffs: Option<Vec<AcpToolDiff>>,
+        /// 압축 사실의 갱신 — 숫자는 끝에 온다. `None` 은 "안 왔다".
+        compaction: Option<AcpCompaction>,
     },
     /// 사용자 승인이 필요하다. 응답 전까지 에이전트는 멈춰 있다.
     Permission {
@@ -510,16 +516,6 @@ pub fn strip_fence(text: &str) -> &str {
 ///
 /// 문자열이면 그대로, 그 밖의 JSON 이면 예쁘게 찍는다 — Bash 의 `{"command":
 /// "ls -la"}` 를 한 줄 JSON 으로 보여 주면 카드가 읽히지 않는다.
-/// `_meta.claudeCode` 의 문자열 항목 하나.
-fn claude_meta<T: Serialize>(meta: Option<&T>, key: &str) -> Option<String> {
-    serde_json::to_value(meta?)
-        .ok()?
-        .get("claudeCode")?
-        .get(key)?
-        .as_str()
-        .map(str::to_string)
-}
-
 fn raw_text(value: Option<&serde_json::Value>) -> Option<String> {
     let value = value?;
     let text = match value {
@@ -641,6 +637,7 @@ pub fn map_update(update: &SessionUpdate) -> AcpEvent {
                 .or_else(|| raw_text(call.raw_input.as_ref())),
             output: content_text(&call.content).or_else(|| raw_text(call.raw_output.as_ref())),
             diffs: content_diffs(&call.content),
+            compaction: compaction_meta(call.meta.as_ref()),
         },
         SessionUpdate::ToolCallUpdate(update) => AcpEvent::ToolUpdate {
             id: update.tool_call_id.0.to_string(),
@@ -658,6 +655,7 @@ pub fn map_update(update: &SessionUpdate) -> AcpEvent {
                 .or_else(|| raw_text(update.fields.raw_output.as_ref())),
             // content 자체가 안 왔으면 `None` — 이미 받은 diff 를 지우지 않는다.
             diffs: update.fields.content.as_deref().map(content_diffs),
+            compaction: compaction_meta(update.meta.as_ref()),
         },
         SessionUpdate::Plan(plan) => AcpEvent::Plan {
             entries: plan

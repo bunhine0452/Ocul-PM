@@ -2970,6 +2970,17 @@ export const ko = {
   "acp.thinking.tokens": "{n} 토큰",
   /** 도구 출력 미리보기에서 잘려 나간 줄 수. */
   "acp.tool.moreLines": "+{n}줄",
+  // 컨텍스트 압축 줄 (acp-adapter-0751 #carry-compaction) — `_meta.contextCompaction`
+  "acp.compaction.name": "컨텍스트 압축",
+  "acp.compaction.running": "대화를 접는 중",
+  "acp.compaction.tokens": "{pre} → {post} 토큰 (−{pct}%)",
+  "acp.compaction.tokensPreOnly": "{pre} 토큰에서",
+  "acp.compaction.auto": "자동",
+  "acp.compaction.manual": "수동",
+  "acp.compaction.duration": "{sec}초",
+  "acp.compaction.done": "접었어요",
+  "acp.compaction.failed": "압축에 실패했어요",
+  "acp.compaction.failedWith": "압축에 실패했어요 — {error}",
   "acp.cmd.usage": "남은 사용량 보기",
   "acp.cmd.clear": "대화를 비우고 새 세션 시작",
   "acp.cmd.continue": "최근 대화 이어서 열기",
