@@ -229,6 +229,14 @@ pub fn schedule_history_capture(
             .flatten()
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(history::DEFAULT_MAX_ENTRIES);
+        // 프로젝트 총량 예산 (D1) — 설정 MB, 기본 512.
+        let budget = history::budget_from_setting(
+            db.settings_get("code_local_history_budget_mb".to_string())
+                .await
+                .ok()
+                .flatten()
+                .as_deref(),
+        );
 
         // 쪽지 소비는 동기다 — `spawn_blocking` 너머로 State 를 들고 가지 않는다.
         let source = handle
@@ -237,7 +245,7 @@ pub fn schedule_history_capture(
 
         let path_for_log = rel_path.clone();
         let done = tauri::async_runtime::spawn_blocking(move || {
-            history::capture(&root, &rel_path, op, source, Some(&hash), max)
+            history::capture(&root, &rel_path, op, source, Some(&hash), max, budget)
         })
         .await;
         match done {

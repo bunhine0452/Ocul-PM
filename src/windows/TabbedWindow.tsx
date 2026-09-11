@@ -24,7 +24,7 @@ import StartTab from "@/windows/StartTab";
 
 import { themesApi } from "@/api/themes";
 import { setThemeOverride } from "@/features/theme/store";
-import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { WorkspaceProvider, pruneWorkspaceRecords } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 import { createUnlistenBag } from "@/lib/unlisten";
@@ -252,7 +252,11 @@ export default function TabbedWindow({
 
   useEffect(() => {
     void commands.listProjects().then((res) => {
-      if (res.status === "ok") setProjects(res.data);
+      if (res.status === "ok") {
+        setProjects(res.data);
+        // 지워진 프로젝트의 워크스페이스 레코드 정리 (D3) — 목록이 진실이다.
+        pruneWorkspaceRecords(res.data.map((p) => p.id));
+      }
     });
   }, [tabs.length, openProjects.length, themeRevision]);
 

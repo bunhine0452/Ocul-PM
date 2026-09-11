@@ -147,6 +147,25 @@ export interface OculpmInitCardInfo {
  * 테스트가 키를 하드코딩하지 않도록 export 한다.
  */
 export const storageKeyFor = (projectId: number) => `aipm:workspace:v2:p${projectId}`;
+const STORAGE_KEY_RE = /^aipm:workspace:v2:p(\d+)$/;
+
+/**
+ * 지워진 프로젝트의 레코드를 걷어낸다 (감사 라운드 2026-09-11 D3). 프로젝트를
+ * 지워도 `aipm:workspace:v2:p<id>` 는 영영 남았다 — 열린 코드 탭·필터가 몇 KB
+ * 씩. 살아 있는 id 목록을 받아 그 밖의 키만 지운다. 지운 키 수를 돌려준다.
+ */
+export function pruneWorkspaceRecords(liveProjectIds: Iterable<number>): number {
+  const live = new Set(liveProjectIds);
+  const stale: string[] = [];
+  const n = guardLs("length", () => localStorage.length, 0);
+  for (let i = 0; i < n; i++) {
+    const k = guardLs("key", () => localStorage.key(i), null);
+    const m = k ? STORAGE_KEY_RE.exec(k) : null;
+    if (m && !live.has(Number(m[1]))) stale.push(k!);
+  }
+  stale.forEach(lsRemove);
+  return stale.length;
+}
 
 // 저장소 출입구 — throw 를 밖으로 내보내지 않는다 (2026-09-04). 웹뷰의
 // `localStorage` 는 **읽기만 해도 던진다** (쿼터 초과·프라이빗 모드·사이트 데이터

@@ -2236,6 +2236,8 @@ export const ko = {
   "settings.code.localHistory": "파일이 바뀔 때마다 판 남기기",
   "settings.code.localHistoryHint": "사람이 저장하든 에이전트가 쓰든 그 시점 내용을 한 장 남겨요. 판은 프로젝트의 .oculpm/index/history/ 안에 있고 git 에 올라가지 않아요. 256KB 를 넘는 파일과 .env 류는 남기지 않아요.",
   "settings.code.localHistoryMax": "파일당 남길 판 수",
+  "settings.code.localHistoryBudget": "프로젝트당 총량 (MB)",
+  "settings.code.localHistoryBudgetHint": "이 프로젝트의 히스토리가 이만큼을 넘으면 오래된 판부터 지워요. 저장 50번마다 한 번 확인해요.",
   "settings.code.localHistoryMaxHint": "0 이면 사실상 끄기와 같아요. 10초 안의 연속 저장은 한 판으로 접히지만, 사람과 에이전트 사이는 절대 접지 않아요.",
   "settings.code.historyUsage": "지금 쓰는 용량",
   "settings.code.historyClear": "판 전부 지우기",

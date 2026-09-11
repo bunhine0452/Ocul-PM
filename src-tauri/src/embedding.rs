@@ -209,6 +209,46 @@ impl Embedder {
 
 /// The model cache is "warm" if a reasonably-sized `.onnx` already exists under
 /// `dir` — then `try_new` loads from disk instead of downloading.
+/// hf-hub 가 `models--{owner}--{name}` 로 만드는 캐시 디렉터리 이름.
+fn hf_dir_name(model_code: &str) -> String {
+    format!("models--{}", model_code.replace('/', "--"))
+}
+
+/// 활성 모델이 아닌 모델 캐시를 지운다 (감사 라운드 2026-09-11 D2).
+///
+/// 2026-06-08 에 e5-small(fp32, 465MB) 에서 양자화 MiniLM 으로 바꿨을 때
+/// 마이그레이션 017 은 색인만 비우고 옛 모델 디렉터리는 그대로 뒀다 — 앱
+/// 데이터의 705MB 중 465MB 가 두 번 다시 안 읽힐 파일이었다. 기동 때 한 번,
+/// `models--*` 중 활성 모델의 것이 아니면 지운다. 지운 바이트 수를 돌려준다.
+pub fn prune_retired_model_caches(cache_dir: &Path) -> u64 {
+    let Ok(info) = TextEmbedding::get_model_info(&MODEL) else {
+        return 0;
+    };
+    let keep = hf_dir_name(&info.model_code);
+    let Ok(rd) = std::fs::read_dir(cache_dir) else {
+        return 0;
+    };
+    let mut freed = 0u64;
+    for entry in rd.flatten() {
+        let p = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !p.is_dir() || !name.starts_with("models--") || name == keep {
+            continue;
+        }
+        let size = dir_size(&p);
+        match std::fs::remove_dir_all(&p) {
+            Ok(()) => {
+                freed += size;
+                info!(dir = %p.display(), bytes = size, "retired embedding model cache removed");
+            }
+            Err(e) => {
+                tracing::warn!(dir = %p.display(), error = %e, "retired model cache: remove failed")
+            }
+        }
+    }
+    freed
+}
+
 fn model_cached(dir: &Path) -> bool {
     let Ok(rd) = std::fs::read_dir(dir) else {
         return false;
@@ -255,4 +295,41 @@ pub fn vec_to_bytes(embedding: &[f32]) -> Vec<u8> {
         out.extend_from_slice(&v.to_le_bytes());
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hf_dir_name_matches_hub_layout() {
+        assert_eq!(
+            hf_dir_name("intfloat/multilingual-e5-small"),
+            "models--intfloat--multilingual-e5-small"
+        );
+    }
+
+    /// D2 — 활성 모델의 디렉터리는 남고, 다른 `models--*` 만 사라진다. 모델
+    /// 폴더가 아닌 것(로그 등)은 손대지 않는다.
+    #[test]
+    fn prune_removes_only_other_model_dirs() {
+        let dir = tempfile::tempdir().unwrap();
+        let keep = hf_dir_name(&TextEmbedding::get_model_info(&MODEL).unwrap().model_code);
+        for d in [
+            keep.as_str(),
+            "models--intfloat--multilingual-e5-small",
+            "not-a-model",
+        ] {
+            std::fs::create_dir_all(dir.path().join(d)).unwrap();
+            std::fs::write(dir.path().join(d).join("x.bin"), vec![0u8; 1024]).unwrap();
+        }
+        let freed = prune_retired_model_caches(dir.path());
+        assert_eq!(freed, 1024);
+        assert!(dir.path().join(&keep).exists());
+        assert!(dir.path().join("not-a-model").exists());
+        assert!(!dir
+            .path()
+            .join("models--intfloat--multilingual-e5-small")
+            .exists());
+    }
 }

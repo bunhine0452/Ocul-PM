@@ -2224,6 +2224,8 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.code.localHistory": "Keep a version every time a file changes",
   "settings.code.localHistoryHint": "Saves a copy whether you saved it or an agent wrote it. Versions live in the project's .oculpm/index/history/ and never reach git. Files over 256KB and .env files are never captured.",
   "settings.code.localHistoryMax": "Versions to keep per file",
+  "settings.code.localHistoryBudget": "Budget per project (MB)",
+  "settings.code.localHistoryBudgetHint": "When this project's history grows past this, the oldest versions go first. Checked once every 50 saves.",
   "settings.code.localHistoryMaxHint": "0 is effectively off. Saves within 10 seconds of each other fold into one version, but your save and an agent's write are never folded together.",
   "settings.code.historyUsage": "Currently using",
   "settings.code.historyClear": "Delete every version",

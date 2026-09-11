@@ -326,6 +326,27 @@ export function CodeSettings({
         <p className="text-fs-2 text-muted-foreground/80">
           {t("settings.code.localHistoryMaxHint")}
         </p>
+        {settings.codeLocalHistory ? (
+          <Field label={t("settings.code.localHistoryBudget")}>
+            <Input
+              type="number"
+              min={64}
+              max={8192}
+              step={64}
+              value={settings.codeLocalHistoryBudgetMb}
+              onChange={(e) => {
+                const n = Number(e.currentTarget.value);
+                if (Number.isFinite(n)) {
+                  save("codeLocalHistoryBudgetMb", Math.min(8192, Math.max(64, Math.floor(n))));
+                }
+              }}
+              className="w-24 font-mono"
+            />
+          </Field>
+        ) : null}
+        <p className="text-fs-2 text-muted-foreground/80">
+          {t("settings.code.localHistoryBudgetHint")}
+        </p>
         {/* 보이지 않는 곳에서 디스크를 먹는 기능은 반드시 자기 크기를 보여 줘야 한다. */}
         {projectId == null ? (
           <p className="text-xs text-muted-foreground">{t("settings.code.historyNoProject")}</p>

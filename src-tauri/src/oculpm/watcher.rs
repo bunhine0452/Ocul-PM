@@ -706,7 +706,24 @@ impl WatcherInner {
         }
 
         let (events, consumed) = claude_hooks::parse_inbox_slice(&bytes[offset as usize..]);
-        let new_offset = offset + consumed;
+        let mut new_offset = offset + consumed;
+        // 다 읽은 인박스가 상한을 넘으면 비운다 (감사 라운드 2026-09-11 D4).
+        // 파일은 append 만 되고 지워지는 일이 없어 4.4MB/3주로 자랐고, 매 틱
+        // **통째로** 읽혔다. 조건은 "부분 라인이 없다" — 훅이 방금 append 한
+        // 줄을 자르지 않기 위해서다. 읽기와 truncate 사이의 append 는 잃을 수
+        // 있으나 그 창은 마이크로초고 이 경로는 MB 단위로 한 번 온다.
+        if new_offset as usize == bytes.len()
+            && bytes.len() as u64 >= claude_hooks::INBOX_COMPACT_BYTES
+            && tokio::fs::write(&path, b"").await.is_ok()
+        {
+            tracing::info!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                bytes = bytes.len(),
+                "hooks inbox compacted — every line was consumed"
+            );
+            new_offset = 0;
+        }
         *offset_guard = Some(new_offset);
         drop(offset_guard);
 
