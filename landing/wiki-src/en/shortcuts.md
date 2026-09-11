@@ -12,7 +12,8 @@ updated: 2026-08-21
 | Key | Action |
 |---|---|
 | `⌘K` | Command palette — navigate, plus search entry, plan, discussion, and doc titles |
-| `⌘1`–`⌘9`, `⌘0` | Jump to a screen, in sidebar order (`⌘1` Today … `⌘9` Docs, `⌘0` Terminal) |
+| `⌘1`–`⌘9`, `⌘0` | Jump to a screen, in sidebar order (`⌘1` Today … `⌘9` Agents, `⌘0` AI panel) |
+| `⌘[` / `⌘]` | Screen back / forward — like a browser, back to what you were just reading |
 | `⌘P` | Switch project |
 | `⌘J` | Toggle the terminal dock — from any screen |
 | `⌘\` | Agent panel |

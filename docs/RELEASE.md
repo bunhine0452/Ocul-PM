@@ -18,6 +18,13 @@ cd src-tauri && cargo test      # bindings.ts 재생성 포함
 
 ## 1. 버전 — 6파일 (같은 값)
 
+```bash
+# 6파일 + 랜딩 ko/en 각 6곳을 한 번에 — 자리 수가 어긋나면 아무것도 안 쓰고 멈춥니다
+node scripts/bump-version.mjs 2.48.0 [--title-ko "…" --title-en "…"] [--dry-run]
+```
+
+아래 표와 §4 의 6곳은 이 스크립트가 고치는 자리의 목록입니다 (손으로 고칠 때의 대조표이자, 자리가 늘면 스크립트와 `src/__tests__/bump_version.test.ts` 도 함께 늘립니다). 변경 이력 `<li>`·bento·FAQ·CHANGELOG·README 는 사람이 씁니다.
+
 | 파일 | 위치 |
 | --- | --- |
 | `package.json` | `"version"` |
