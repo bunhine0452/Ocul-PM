@@ -63,7 +63,7 @@ owner: claude-code
 ## 영문 표면 {#english}
 - [ ] 영문 스크린샷 촬영 — landing/en/index.html 이 한국어 UI 스크린샷을 참조하고 landing/shots/en/ 이 없다 {#en-shots}
 - [x] /keynote · /plugin 영문판 — 지금 링크가 한국어판뿐이다 {#en-subpages}
-- [ ] i18n 잔여 ~500줄 + 영어 모드 전 화면 순회 (three-features-round 의 i18n-rest·i18n-overflow) {#i18n-rest}
+- [x] i18n 잔여 ~500줄 + 영어 모드 전 화면 순회 (three-features-round 의 i18n-rest·i18n-overflow) {#i18n-rest}
 
 ## 죽은 표면 정리 {#dead-surfaces}
 - [x] 죽은 커맨드 20개 판정 — overview.rs 표면 전체(폴더도 없다) · oculpm_open_entry_in_editor(opener-scope 3회 회귀 끝에 만든 우회로인데 호출부 0) · acp_stop(멈춘 어댑터를 화면에서 내릴 길이 없다) · dap_clear_breakpoints 등. 각각 제거할지 UI 를 붙일지 {#dead-commands}
@@ -230,4 +230,5 @@ owner: claude-code
 | 2026-09-11T00:54:54+09:00 | #eyes-journal-ledger | claude-code | ☐→☐ | .oculpm/journal/20260911/Features_to_add/0054_feature_entry-detail-reading-column.md | 일지 열람(읽는 칸) 리디자인도 같은 격자로 — 마스트헤드 척추 --c 대비 · 인라인 코드 바탕 · 절 실선 · 파일 메뉴(.efb-menu) 그림자 · 리사이저 hover · 720 이하 위아래 쌓임. 하네스로만 봤다 |
 | 2026-09-11T01:00:06+09:00 | #eyes-sidebar-scroll | claude-code | ☐→☐ |  | 2026-09-11 사이드바 리디자인(활자 머리·섹션 척추·발 한 줄) 뒤 같은 격자로 다시 봐야 — 프리셋 5종에서 척추(--sep-strong)·활성 막대 대비, 접힌 오버레이의 발 아이콘 칸. 하네스로만 봤다 |
 | 2026-09-11T11:31:41+09:00 | #eyes-start-ledger | claude-code | ☐→☐ | .oculpm/journal/20260911/Features_to_add/1125_feature_start-tab-ledger-redesign.md | 시작 탭 리디자인 이월 — 하네스로만 봤다. 미커밋(refs/backup/start-tab-ledger-20260911) |
+| 2026-09-11T17:59:51+09:00 | #i18n-rest | claude-code | ☐→x | .oculpm/journal/20260911/Features_to_add/1759_feature_i18n-english-screens-walk.md | "잔여 500줄" 은 이미 0. 순회는 두 겹: i18n_english_screens 스위트(사이드바+15화면 영어 렌더, 한글 0·오류경계 0) + DOM 덤프→빌드 CSS→Chrome 1280/960 육안. 잡은 것: agents 단위·folder 복수형·스킬 머리 4줄 접힘·검색칸 짜부라짐·일지 부제. f390ee4. 실기기 영어는 eyes 격자에서 |
 <!-- oculpm:plan-log end -->
