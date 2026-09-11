@@ -25,7 +25,7 @@ owner: claude-code
 - [x] 모달 4곳에 `useModalBehavior` — 트랩·복원 없음: WelcomeWizard.tsx:167(첫 실행 화면) · ProjectManager.tsx:224 · Attachments.tsx:29 · AcpUsageMeter.tsx:234. ConfigControls.tsx:372 는 팝오버 메뉴에 role="dialog" 오용 {#fix-modal-trap}
 - [x] `Toaster.tsx:20` 라이브 리전 상시 마운트 — 지금은 `if (toasts.length === 0) return null` 이라 리전이 내용과 동시에 삽입돼 `role="status"` 가 자주 침묵한다. 같은 파일의 `z-[1000]` 도 `--z-*` 램프로 {#fix-live-region}
 - [x] 아이콘 전용 버튼 6곳에 접근명 — TrayPopover.tsx:373,473,573(메뉴바 팝오버의 유일한 "앱 열기") · WelcomeWizard.tsx:343 · GreenfieldWizard.tsx:753 · CodeDebugPanel.tsx:271 {#fix-aria-icons}
-- [~] 버튼 35개가 왜 비활성인지 말하지 않는다 — 유효성으로 막힌 51개 중 title·aria-describedby 없는 것 35개. AutomationEditor.tsx:386 은 `problem` 이라는 이유 문자열을 손에 들고도 안 붙인다 {#fix-disabled-reason}
+- [x] 버튼 35개가 왜 비활성인지 말하지 않는다 — 유효성으로 막힌 51개 중 title·aria-describedby 없는 것 35개. AutomationEditor.tsx:386 은 `problem` 이라는 이유 문자열을 손에 들고도 안 붙인다 {#fix-disabled-reason}
 
 ## 같은 것을 하나로 — "여러 손" 신호 {#unify}
 - [x] 설정 진입점 단일화 — ⌘, 는 `ProjectTab.tsx:93` 을 거쳐 `.scrim` 모달, 사이드바는 `ShellV2.tsx:343` 전체화면, 안내 버튼은 `settingsNav.ts` 로 전체화면. 탭 내비도 가로 스트립(SettingsPanel.tsx:164)과 세로 192px 열(:185)로 갈린다. 프로젝트 창은 화면으로 통일하고 오버레이는 런처 탭 전용으로 {#unify-settings}
@@ -123,4 +123,5 @@ owner: claude-code
 | 2026-09-10T02:02:18+09:00 | #fix-disabled-reason | claude-code | ~→~ | .oculpm/journal/20260910/Features_to_add/0202_feature_blocked-reasons-daily-screens.md | 2차: 매일 보는 화면 12곳 적용, 래칫 129→116. 발견: 셋(plan.aiLockedTitle·plan.addLockedTitle·journal.newDisabled)은 이유를 이미 계산해 title 에 넣어 뒀는데 disabled 라 한 번도 뜬 적이 없었다 — 문안을 새로 쓴 게 아니라 도달하게 만든 것. journal_v2 테스트 둘이 toBeDisabled 로 옛 계약을 붙들고 있어 행동 단언(눌러도 안 골라진다)+이유 단언으로 교체. 남은 116곳은 자리마다 새 문안 필요 |
 | 2026-09-10T19:51:41+09:00 | #fix-disabled-reason | claude-code | ~→~ | .oculpm/journal/20260910/Features_to_add/1951_feature_blocked-reason-ruler-and-code-screen.md | 3차: 자부터 고쳤다. 스캐너가 "진행 중"을 낱말 9개로만 알아 같은 뜻의 다른 낱말(installing·deleting·renaming·scanning…)·표현 형태(busy != null·kind === "checking"·ledger.scanning)·프리미티브 통과(disabled={disabled}, 이유를 알 수 없어 고칠 수 없는 자리)를 전부 부채로 셌다 → 116 이 아니라 78 이 참값. 코드 화면 9곳 갚아 69. 못 간 자리: 실행 대화상자 「시작」은 CodeScreenV2 가 한계의 두 배라 크기 래칫이 막는다(파일을 먼저 쪼개야 함). 곁가지: 저장소에 prettier 설정이 없어 npx prettier 를 돌리면 80칸으로 전체를 다시 접는다 — 프런트에 통째로 돌리지 말 것 |
 | 2026-09-11T11:56:36+09:00 | #fix-disabled-reason | claude-code | ~→~ | .oculpm/journal/20260911/Features_to_add/1153_feature_blocked-reasons-round-4.md | 4차: 69→10. 59곳 blocked() 전환(설정 12탭·MCP/Desktop·ACP·논의·플래너·마법사·스킬·테마·트레이·모바일·시작 탭), 문안 41개 ko/en. 남은 10은 전부 프리미티브 통과·입력·cmdk 항목이라 이 패턴의 자리가 아님 — 다음 라운드는 스캐너가 그 10을 "통과" 로 분류하게 자를 고치는 일 |
+| 2026-09-11T14:34:10+09:00 | #fix-disabled-reason | claude-code | ~→x | .oculpm/journal/20260911/Features_to_add/1434_feature_blocked-reasons-round-5-zero.md | 5차: 10→0. 9곳은 blocked() 의 자리가 아니었다(입력 필드 6·cmdk 1·펼침 1·콜백 부재 1) → 자가 요소를 보고 가른다. 진짜 부채 1(트레이 Dock 숨김)에 이유. 래칫은 숫자 대신 위반 목록([]) 단언. 접두형 진행 중(savingBody)도 받음. b34eca4 |
 <!-- oculpm:plan-log end -->
