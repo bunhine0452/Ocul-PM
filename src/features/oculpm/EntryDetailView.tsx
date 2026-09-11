@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { Toolbar } from "@/components/Toolbar";
-import { AlertTriangle, ArrowLeft, Check, ExternalLink, GitCompareArrows, ShieldCheck } from "@/components/Icons";
+import { AlertTriangle, ArrowLeft, Check, ExternalLink, GitCompareArrows, PenLine, Send, ShieldCheck } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -12,6 +12,7 @@ import { Markdown } from "@/components/Markdown";
 import { useJournalEvents } from "./useOculpmLive";
 import { TRIGGER_META } from "./triggerMeta";
 import { EntryMasthead } from "./EntryMasthead";
+import { useNotionExport } from "./useNotionExport";
 import { EntryFileList, type FileRow } from "./EntryFileList";
 import { EntryFileBar } from "./EntryFileBar";
 import { mapFileOpToChangeOp } from "@/contexts/WorkspaceContext";
@@ -20,6 +21,7 @@ import type { EntryFileDiff, JournalEntry, JournalEntrySummary } from "@/lib/bin
 import { useT } from "@/i18n";
 import { requestAgentContext } from "@/lib/agentContextNav";
 import { firstSlug, ruleGlobsFromPaths } from "@/lib/promoteSeed";
+import { blocked } from "@/lib/blocked";
 import "./entry.css";
 
 // 작업 일지 항목의 열람 — 원장의 한 장 (2026-09-11 리디자인; 처음은 Dogfooding
@@ -128,6 +130,43 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     }
   }, [opening, projectId, entry.relative_path, t]);
 
+  // Notion 으로 — 토큰이 없으면 버튼이 없다 (C1). 본문은 캐시의 마크다운이고
+  // 커맨드가 프로젝트 redact 패턴을 한 번 더 지난다.
+  const notion = useNotionExport(projectId);
+  const sendToNotion = useCallback(() => {
+    if (!detail) return;
+    const head = `> ${entry.workday} · ${entry.type} · ${entry.agent_id}\n\n`;
+    void notion.send(entry.title || entry.slug, head + detail.body_markdown);
+  }, [detail, entry, notion]);
+
+  // 본문 인라인 편집 (C2). frontmatter 는 백엔드가 그대로 두고 본문만 바꾼다.
+  // 저장이 돌아오면 디스크 워처 이벤트가 `reload` 를 부르지만, 돌려받은
+  // 엔트리로 먼저 그린다 — 두 번째 왕복을 기다리지 않는다.
+  const [editing, setEditing] = useState(false);
+  const [draftBody, setDraftBody] = useState("");
+  const [savingBody, setSavingBody] = useState(false);
+  const startEdit = useCallback(() => {
+    if (!detail) return;
+    setDraftBody(detail.body_markdown);
+    setEditing(true);
+  }, [detail]);
+  const saveBody = useCallback(async () => {
+    if (savingBody) return;
+    setSavingBody(true);
+    try {
+      const next = await oculpmApi.updateEntryBody(projectId, entry.relative_path, draftBody);
+      setDetail(next);
+      setEditing(false);
+      toast.info(t("entry.bodySaved"));
+    } catch (e) {
+      toast.destructive(
+        t("entry.bodySaveFailed", { error: e instanceof OculpmApiError ? e.message : String(e) }),
+      );
+    } finally {
+      setSavingBody(false);
+    }
+  }, [savingBody, projectId, entry.relative_path, draftBody, t]);
+
   const related = detail?.frontmatter.related ?? [];
 
   /**
@@ -148,6 +187,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     setError(null);
     setSelected(null);
     setFilter("");
+    setEditing(false);
     readRef.current?.scrollTo?.({ top: 0 });
   }, [entry.relative_path]);
 
@@ -387,6 +427,37 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
             <ShieldCheck size={13} /> {t("ctx.promote.rule")}
           </button>
         ) : null}
+        {notion.ready ? (
+          <button
+            type="button"
+            className="btn sm"
+            onClick={sendToNotion}
+            {...blocked(detail ? null : t("notion.blockedLoading"))}
+            disabled={notion.busy}
+            title={t("notion.sendTitle")}
+          >
+            <Send size={13} /> {t("notion.send")}
+          </button>
+        ) : null}
+        {editing ? (
+          <>
+            <button type="button" className="btn sm" onClick={() => setEditing(false)} disabled={savingBody}>
+              {t("common.cancel")}
+            </button>
+            <button type="button" className="btn sm primary" onClick={() => void saveBody()} disabled={savingBody}>
+              <Check size={13} /> {t("entry.bodySave")}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="btn sm"
+            onClick={startEdit}
+            {...blocked(detail ? null : t("notion.blockedLoading"), t("entry.editTitle"))}
+          >
+            <PenLine size={13} /> {t("entry.edit")}
+          </button>
+        )}
         <button
           type="button"
           className="btn sm"
@@ -433,7 +504,20 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
             />
 
             <div className="entry-narrative">
-              {detail == null ? (
+              {editing ? (
+                <textarea
+                  className="entry-edit"
+                  value={draftBody}
+                  onChange={(e) => setDraftBody(e.currentTarget.value)}
+                  spellCheck={false}
+                  aria-label={t("entry.editAria")}
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void saveBody();
+                    if (e.key === "Escape") setEditing(false);
+                  }}
+                  autoFocus
+                />
+              ) : detail == null ? (
                 <span className="text-muted-foreground" style={{ fontSize: "var(--fs-3)" }}>
                   {t("common.loading")}
                 </span>

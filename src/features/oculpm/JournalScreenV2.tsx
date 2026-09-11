@@ -2,7 +2,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { SearchIcon, X, Plus, NotebookText } from "@/components/Icons";
+import { SearchIcon, X, Plus, NotebookText, Download } from "@/components/Icons";
+import { toAppError } from "@/api/invoke";
 import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
 import type { EntryFilters, EntryType, JournalEntrySummary } from "@/lib/bindings";
 import { oculpmApi } from "@/api/oculpm";
@@ -413,6 +414,22 @@ export function JournalScreenV2({
   }, [filteredDays]);
 
   // Date-rail click: expand the target day, then scroll its section into view.
+  const [exporting, setExporting] = useState(false);
+  const exportDigest = async () => {
+    if (exporting || !days || days.length === 0) return;
+    const keys = days.map((d) => d.workday).sort();
+    setExporting(true);
+    try {
+      const path = await oculpmApi.exportDigest(projectId, keys[0], keys[keys.length - 1]);
+      if (path) toast.info(t("journal.exported", { path }));
+    } catch (e) {
+      const err = toAppError(e);
+      toast.destructive(t("journal.exportFailed", { error: err.detail ?? err.code }));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const jumpToDay = (workday: string) => {
     setDayOpen((p) => ({ ...p, [workday]: true }));
     setActiveWorkday(workday);
@@ -511,6 +528,18 @@ export function JournalScreenV2({
             {t("journal.filterVerified")}
           </button>
         </div>
+        {/* 기간 다이제스트 .md 내보내기 — 회고 화면이 지면서 트리거를 잃었던
+            `oculpm_export_digest` 를 여기 되단다 (감사 라운드 2026-09-11 C2).
+            범위는 **지금 불러온 날짜들**이다: 화면이 보여 주는 것만 내보낸다. */}
+        <button
+          type="button"
+          className="btn"
+          onClick={() => void exportDigest()}
+          disabled={exporting}
+          {...blocked(days && days.length > 0 ? null : t("journal.exportEmpty"), t("journal.exportTitle"))}
+        >
+          <Download size={15} /> {t("journal.export")}
+        </button>
         <button
           type="button"
           className="btn primary"

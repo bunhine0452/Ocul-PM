@@ -27,6 +27,7 @@ import { markSpoken, type ActivityLedger } from "../acpHistory";
 import { titleFromPrompt } from "../acpTitle";
 import { revealCount, splitAt } from "../streamPacer";
 import { withUltracode } from "../ultracode";
+import { notifyIfBehind } from "../attention";
 import { requestUsagePanel } from "../usageBus";
 import type { RecallState } from "../promptHistory";
 import type { PermissionState } from "./shared";
@@ -52,6 +53,8 @@ export interface AcpSendArgs {
   setMentions: React.Dispatch<React.SetStateAction<string[] | null>>;
   setSlash: React.Dispatch<React.SetStateAction<AcpCommand[] | null>>;
   ultracode: boolean;
+  /** OS 알림의 머리에 쓰는 프로젝트 이름 (C3). */
+  projectName: string;
   queue: QueuedPrompt[];
   setQueue: React.Dispatch<React.SetStateAction<QueuedPrompt[]>>;
   busySessions: ReadonlySet<string>;
@@ -80,6 +83,7 @@ export interface AcpSendArgs {
 
 export function useAcpSend({
   projectId,
+  projectName,
   provider,
   codex,
   activeId,
@@ -372,8 +376,10 @@ export function useAcpSend({
           putUsage(into, { used: event.used, size: event.size, costUsd: event.cost_usd });
         } else if (event.kind === "failed") {
           putError(into, event.message);
+          notifyIfBehind("failed", projectName, event.message);
         } else if (event.kind === "permission") {
           putPermission(into, event);
+          notifyIfBehind("permission", projectName, event.title);
         } else if (event.kind === "config_changed") {
           // 설정은 **그 대화의 것**이다 — 뒤에서 도는 대화가 모델을 바꿨다고
           // 보고 있던 대화의 셀렉터를 갈아 끼우면 화면이 거짓을 말한다.
@@ -393,6 +399,8 @@ export function useAcpSend({
           sendingBlocks,
           channel,
         );
+        // 턴이 온전히 끝났다 — 창이 뒤에 있으면 OS 가 대신 말한다 (C3).
+        notifyIfBehind("done", projectName, titleFromPrompt(text));
       } catch (e) {
         putError(into, tError(toAppError(e)));
       } finally {
@@ -408,7 +416,7 @@ export function useAcpSend({
     // eslint 의존성 목록: 위 인자 전부. 하나라도 빠지면 이 함수가 지난 대화·
     // 지난 초안을 들고 굳는다.
     [
-      draft, busySessions, codex, projectId, provider, attachments, images, ultracode,
+      draft, busySessions, codex, projectId, projectName, provider, attachments, images, ultracode,
       activeId, currentSessionId, openSession, newConversation, addTab, editTurns,
       openInTerminal, markBusy, putError, putUsage, putPermission, setDraft, setSlash,
       setQueue, setAttachments, setImages, setMentions, setSession, setTranscripts,

@@ -8,7 +8,7 @@
 
 import { call, type Envelope } from "@/api/invoke";
 import { commands } from "@/lib/bindings";
-import type { ChatOptions, ChatResponse, Message, ProviderModel, ProviderReach } from "@/lib/bindings";
+import type { ChatOptions, ChatResponse, Message, ModelInfo, ProviderModel, ProviderReach } from "@/lib/bindings";
 import type { Provider } from "@/lib/settings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -17,6 +17,9 @@ const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command
 const secretName = (p: Provider): string => `${p}_api_key`;
 
 export const llmApi = {
+  /** 이 키로 쓸 수 있는 모델 목록 (설정 → LLM 의 datalist). 키가 없으면 실패. */
+  listModels: (provider: Provider) => unwrap<ModelInfo[]>("llm_list_models", commands.llmListModels(provider)),
+
   /**
    * 마지막으로 **관측된** 도달성. 프로브를 쏘지 않으므로 목록을 여는 것만으로
    * 네트워크가 나가지 않는다. 한 번도 안 불러 본 프로바이더는 목록에 없다.

@@ -1348,17 +1348,16 @@ export const commands = {
 	 */
 	oculpmAgentsApplyMasterUpgrade: (projectId: number) => typedError<AgentSyncReport, AppError>(__TAURI_INVOKE("oculpm_agents_apply_master_upgrade", { projectId })),
 	/**
-	 *  W4-PR5 — compare a session's index ndjson against the union of journal
-	 *  `files_touched` paths. Returns matched / missing / hallucinated sets +
-	 *  jaccard severity. (Lite-W6 PR3 retired the DiffVsNarrative UI; the
-	 *  command is kept for backend introspection + potential future surfaces.)
-	 */
-	oculpmCompareLayers: (projectId: number, sessionId: string) => typedError<LayerComparison, AppError>(__TAURI_INVOKE("oculpm_compare_layers", { projectId, sessionId })),
-	/**
 	 *  워크데이 하나의 정직성 감사 — 세션 수만큼 `compare_layers` 를 부르던 Today 를
 	 *  IPC 1회로 (완성도 라운드 Phase 3).
 	 */
 	oculpmCompareWorkday: (projectId: number, workday: string) => typedError<WorkdayComparison, AppError>(__TAURI_INVOKE("oculpm_compare_workday", { projectId, workday })),
+	/**
+	 *  Render the range digest, open a native save dialog (default `.md` name), and
+	 *  write the file. Returns the saved path, or `None` if the user cancelled.
+	 *  `since`/`until` are inclusive "YYYYMMDD" workdays.
+	 */
+	oculpmExportDigest: (projectId: number, since: string, until: string) => typedError<string | null, string>(__TAURI_INVOKE("oculpm_export_digest", { projectId, since, until })),
 	/**
 	 *  W4 dogfooding follow-up (2026-05-26) — return the absolute path to the
 	 *  directory holding the daily-rotated `oculpm.log.YYYY-MM-DD` files. Settings
@@ -1403,12 +1402,6 @@ export const commands = {
 	 *  (`used_llm`/`note` 로 구분) — API 키 없이도 항상 동작.
 	 */
 	oculpmGenerateSummary: (projectId: number, since: string, until: string, style: SummaryStyle, provider: string | null, model: string | null) => typedError<GeneratedSummary, string>(__TAURI_INVOKE("oculpm_generate_summary", { projectId, since, until, style, provider, model })),
-	/**
-	 *  Render the range digest, open a native save dialog (default `.md` name), and
-	 *  write the file. Returns the saved path, or `None` if the user cancelled.
-	 *  `since`/`until` are inclusive "YYYYMMDD" workdays.
-	 */
-	oculpmExportDigest: (projectId: number, since: string, until: string) => typedError<string | null, string>(__TAURI_INVOKE("oculpm_export_digest", { projectId, since, until })),
 	/**  프로젝트+전역 스킬을 한 번에 나열한다. 스킬 폴더가 없으면 빈 목록. */
 	skillsList: (projectId: number) => typedError<SkillsOverview, string>(__TAURI_INVOKE("skills_list", { projectId })),
 	/**  단일 스킬의 SKILL.md 원문과 보조 파일 목록을 읽는다. */
@@ -1919,6 +1912,13 @@ export const commands = {
 	trayHidePopover: () => typedError<null, string>(__TAURI_INVOKE("tray_hide_popover")),
 	/**  설정 UI 가 토글 저장 직후 호출 — 아이콘 표시/숨김 즉시 반영. */
 	trayApplySettings: () => typedError<null, string>(__TAURI_INVOKE("tray_apply_settings")),
+	/**
+	 *  에이전트 주의 알림 (C3) — 프런트가 "창이 뒤에 있다" 를 확인한 뒤 부른다.
+	 *  `kind` 는 `permission`(승인 대기) | `done`(턴 종료) | `failed`. 설정이 꺼져
+	 *  있으면 조용히 no-op. 일지 알림과 같은 스로틀(10초에 3건)을 나눠 쓴다 —
+	 *  둘 다 "알림 폭주" 를 막는 한 예산이다.
+	 */
+	notifyAgentAttention: (kind: string, project: string, detail: string) => typedError<null, string>(__TAURI_INVOKE("notify_agent_attention", { kind, project, detail })),
 	/**  서버 기동 (멱등). 실패 사유(Tailscale 미탐지 등)는 설정 화면에 그대로 노출된다. */
 	mobileBridgeStart: () => typedError<MobileBridgeStatus, string>(__TAURI_INVOKE("mobile_bridge_start")),
 	/**  graceful 중지 (멱등). */
@@ -4441,55 +4441,6 @@ export type LastCommitChanges = {
 	short_sha: string,
 	subject: string,
 	changes: GitChange[],
-};
-
-/**
- *  W4-PR5 — diff between the watcher's ndjson (index, ground truth) and
- *  the union of `files_touched[].path` from journal entries that name a
- *  given `session_id`. See `docs/major_update/oculpm/W4/PR5-compare-layers.md`.
- */
-export type LayerComparison = {
-	session_id: string,
-	workday: string,
-	/**
-	 *  Distinct project-relative paths from `file_changes.ndjson` for this
-	 *  session, after stripping forbidden + `**redacted/sensitive**:*` paths.
-	 */
-	index_files: string[],
-	/**
-	 *  Union of `files_touched[].path` across every journal entry that names
-	 *  this session, after the same forbidden / redacted strip.
-	 */
-	journal_files: string[],
-	matched: string[],
-	/**
-	 *  In the index but not the journal **of this exact session**.
-	 * 
-	 *  Only meaningful when the agent stamps the watcher's own `session_id`
-	 *  scheme. Agents that mint their own (`manual-20260820-205400`) make this
-	 *  equal to `index_files` — use [`Self::unrecorded`] to judge honesty.
-	 */
-	only_in_index: string[],
-	/**  In the journal but not the index — likely *hallucinated path*. */
-	only_in_journal: string[],
-	mismatch_severity: Severity,
-	/**
-	 *  `|matched| / |union|`. `1.0` when both sets are empty (treated as
-	 *  trivially in sync — no activity, nothing to disagree on).
-	 */
-	jaccard_index: number | null,
-	/**
-	 *  Changed in this session and named by **no journal entry anywhere in
-	 *  the workday** — the honest "미기록" set, immune to session-id dialect
-	 *  mismatches. This is what 정직성 감사 renders.
-	 */
-	unrecorded: string[],
-	/**
-	 *  Severity of [`Self::unrecorded`], bucketed from the share of this
-	 *  session's changed files that *are* covered by some journal entry.
-	 *  `Ok` when the session changed nothing.
-	 */
-	unrecorded_severity: Severity,
 };
 
 /**  잡아 둔 구역 하나. */

@@ -427,6 +427,7 @@ export function MenubarSection() {
     keep: boolean;
     dock: boolean;
     notify: boolean;
+    notifyAgent: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -440,6 +441,8 @@ export function MenubarSection() {
           keep: m.get("tray.keep_running") === "1",
           dock: m.get("tray.hide_dock") === "1",
           notify: m.get("tray.notify_journal") === "1",
+          // 기본 켜짐 — "0" 일 때만 꺼진다 (C3).
+          notifyAgent: m.get("tray.notify_agent") !== "0",
         });
       }),
       "op.loadFailed",
@@ -451,6 +454,7 @@ export function MenubarSection() {
     keep: "tray.keep_running",
     dock: "tray.hide_dock",
     notify: "tray.notify_journal",
+    notifyAgent: "tray.notify_agent",
   } as const;
 
   const toggle = (key: keyof typeof KEYS) => {
@@ -492,6 +496,11 @@ export function MenubarSection() {
       key: "notify",
       label: t("settings.tray.notify"),
       hint: t("settings.tray.notifyHint"),
+    },
+    {
+      key: "notifyAgent",
+      label: t("settings.tray.notifyAgent"),
+      hint: t("settings.tray.notifyAgentHint"),
     },
   ];
 

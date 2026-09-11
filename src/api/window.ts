@@ -14,6 +14,13 @@ import { commands } from "@/lib/bindings";
 
 export const windowApi = {
   /**
+   * 에이전트 주의 알림 (감사 라운드 2026-09-11 C3) — 창이 뒤에 있을 때만
+   * 부른다. 설정(`tray.notify_agent`)·스로틀은 백엔드가 본다.
+   */
+  notifyAgentAttention: (kind: "permission" | "done" | "failed", project: string, detail: string) =>
+    call<null>("notify_agent_attention", commands.notifyAgentAttention(kind, project, detail)),
+
+  /**
    * 지금 열려 있는 창·탭을 저장한다. **업데이트 재시작 직전에만** 부른다 —
    * 새로 뜬 프로세스가 이 스냅숏을 보고 창을 되살린다
    * (`src-tauri/src/commands/window.rs::SESSION_KEY`).
