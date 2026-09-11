@@ -62,7 +62,15 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v2.48.0 — the editor is VS Code; the record sits beside it
+## 🚀 v3.0.0 — only what we looked at ships
+
+- **3.0 is an inspection release.** Seven releases (2.42–2.48) had left twenty-one lines of "seen in the harness, not on a real device" in the plan. We cashed them out — light/dark × five presets × six screens photographed, tab drag / PTY survival / mixed DPI / the wizard / English mode pressed by hand. What that turned up is below.
+- **The Claude Code usage card says who it's running as** — "Claude Max · subscription · email". When logged out, the meter now stands as a **"Login needed"** pill even with no limits (it used to just vanish). Adapter 0.76.0.
+- **Context compaction in its own shape** — "Context compaction · 128k → 42k tokens (−67%) · manual · 2.3s".
+- **English mode** — a 15-screen render suite plus four things caught by eye (a unit, a plural, a header wrapping at the minimum window, the search box crushed to one character, the toolbar date). The English landing screenshots were retaken in English.
+- **Fixed** — a second "Today" toolbar stacked over the Claude Code/Codex screens · opening and closing the wizard left a "New project" draft behind · the two ACP screens had no title · disabled buttons with no reason: **0**.
+
+## v2.48.0 — the editor is VS Code; the record sits beside it
 
 - **VS Code extension `oculpm.ocul-pm`, first release (0.1.0).** Today's journal and active plans in the sidebar, agent entries appear **within a second**, checkbox toggles reach the `.md` through `oculpm-mcp`. `journal_write` · `plan_update` exposed to Copilot. VS Code 1.101+, read-only without the app, zero network.
 - **App ↔ VS Code round trip** — "Open in editor" on a journal entry goes to that entry in the sidebar when the extension is installed; "Open in Ocul-PM" from VS Code lands on it in the app (the `entry` of `oculpm://open` is finally used).

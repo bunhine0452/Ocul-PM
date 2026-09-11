@@ -47,7 +47,7 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "2.48.0",
+  "softwareVersion": "3.0.0",
   "description": "AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저. 에이전트가 만든 변경을 자동으로 기록하고, 로컬 diff 로 즉시 검증하고, 쌓인 기록을 스탠드업으로 되돌려줍니다. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -290,7 +290,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.48.0</span>
+    <span class="nav-ver" data-version>v3.0.0</span>
     <div class="nav-links">
       <a href="#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -309,7 +309,7 @@
 <!-- ══════════ 히어로 ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v2.48.0 — 편집기는 VS Code, 기록은 그 옆에</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v3.0.0 — 눈으로 본 것만 내보냅니다</a>
   <h1 class="reveal on">에이전트는 코드를 쓰고,<br /><span class="g">당신은 기억을 갖습니다.</span></h1>
   <p class="hero-sub reveal on">
     Claude Code · Codex · Cursor 가 코드를 쓰는 동안, <b>Ocul-PM</b> 이 모든 작업을
@@ -318,7 +318,7 @@
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v2.48.0 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
+      <span class="lg">v3.0.0 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
     </a>
     <a class="dl-btn ghost" href="/keynote">키노트로 보기 →</a>
   </div>
@@ -515,6 +515,7 @@
     <p class="reveal">이 앱은 자기 자신으로 개발됩니다 — 아래 이력 전부가 Ocul-PM 의 작업 일지에서 나왔습니다.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v3.0.0 — 눈으로 본 것만 내보냅니다</b> · <b>3.0 은 새 기능이 아니라 검수입니다.</b> 2.42 부터 2.48 까지 일곱 번의 릴리스가 화면을 다시 그리고 편집기를 갈고 확장을 붙이는 동안 「하네스로는 봤고 실기기로는 안 봤다」가 플랜에 <b>스물한 줄</b> 쌓였습니다. 그 스물한 줄을 라이트/다크 × 프리셋 5종 × 6화면으로 찍고 탭 드래그·PTY 생존·혼합 DPI·마법사·영어 모드를 손으로 눌러 갚았습니다. 그 길에 잡힌 것: <b>Claude Code·Codex 화면 위에 「오늘 현황」 툴바가 하나 더 얹혀 있었고</b>(라우터가 살려 두는 화면 둘을 모르는 화면으로 보고 뒤에 오늘 화면을 붙였습니다), <b>마법사를 열었다 닫기만 해도 「새 프로젝트」 초안이 남아</b> 「새 프로젝트 시작하기」와 둘로 보였고, ACP 두 화면엔 제목이 없었습니다. 그리고 사용량 카드에 <b>신원 줄</b>(「Claude Max · 구독 계정」, 로그아웃이면 「로그인 필요」 pill), <b>컨텍스트 압축이 제 모양으로</b>(「128k → 42k 토큰 (−67%) · 수동 · 2.3초」), 영어 모드 15화면 스위트와 영문 스크린샷 재촬영, 회색 버튼 이유 없음 <b>0곳</b>.</li>
     <li class="reveal"><b>v2.48.0 — 편집기는 VS Code, 기록은 그 옆에</b> · <b>「VS Code 급 편집기」를 앱 안에 또 만드는 대신 반대로 갔습니다.</b> VS Code 확장 <code>oculpm.ocul-pm</code> 이 <b>사이드바에 오늘 일지와 활성 플랜</b>을 띄우고, 에이전트가 일지를 쓰면 <b>1초 안에</b> 거기 뜹니다. 플랜 항목 체크박스를 누르면 <code>.md</code> 가 바뀌고 앱 플래너가 같이 바뀌는데, 파일은 확장이 직접 고치지 않고 앱에 든 <code>oculpm-mcp</code> 를 통해서만 써서 잠금·갱신 로그·동시 편집 보호가 그대로입니다. Copilot 에이전트 모드에는 <code>journal_write</code>·<code>plan_update</code> 도구가 그대로 보이고, 일지의 「편집기로 열기」는 VS Code 사이드바의 그 일지로, VS Code 의 「Ocul-PM 에서 열기」는 앱의 그 일지로 갑니다(<code>oculpm://open</code> 이 버리던 <code>entry</code> 를 이제 씁니다). 설정 &gt; 통합에 「VS Code 확장」 행이 서고, 마켓 링크 둘(VS Code 마켓플레이스 · Open VSX)이 브라우저 위임으로 연결 목록에 올랐습니다. 확장은 VS Code 1.101 이상, 앱 없이는 읽기 전용, <b>네트워크를 쓰지 않습니다</b>.</li>
     <li class="reveal"><b>v2.47.0 — 카드 무더기를 원장으로</b> · <b>플래너·작업 일지·시작 탭·계획 레일이 같은 크기의 카드를 늘어놓고 있었습니다</b> — 카드 열네 장이 같은 무게로 서면 눈은 위계 대신 패턴을 읽습니다. 플래너는 <b>한 장의 시트</b>(단계 스트립 · 상태 마크 · 세 열 행)와 <b>보드 보기</b>(끌어서 상태 변경)가 됐고, 막힌 항목이 둘인 계획이 「진척 100%」로 찍히던 셈을 고쳤습니다. 작업 일지는 <b>시각 · 종류색 척추 · 제목</b>의 원장이고 열면 본문이 읽는 칸입니다. 시작 탭은 사령탑 밴드 + 시간대 원장, 사이드바는 활자 머리·섹션 척추·발 한 줄이며 <b>좁은 창에서 설정 본문이 사라지던 버그</b>를 고쳤습니다. 편집기에는 <b>⌘P 빠른 열기 · git 상태 색과 A/M/D 배지 · 심볼 브레드크럼 · ⌥Z 줄바꿈 · ⌘B</b> 가 붙고 검은 띠였던 미니맵을 고쳤습니다. 터미널은 <b>⌘J 도크와 화면을 오가면 옛 대화가 찌부러지던 것</b>을 스크롤백을 찍힌 폭 그대로 재생해 고쳤고, 페인마다 머리띠·최근 명령 핍·키캡 상태바가 섰습니다. 회색 버튼 59곳이 더 이유를 말합니다.</li>
     <li class="reveal"><b>v2.46.0 — 편집기가 VS Code 의 그 편집기가 됐습니다</b> · <b>앱 안의 코드 편집기 알맹이를 Monaco 로 갈았습니다</b> — VS Code 가 쓰는 바로 그 에디터입니다. 접기 · 괄호 짝 강조 · 자동 닫기 · 선택 감싸기 · <b>여러 커서</b>(⌥클릭 · ⌥⇧드래그 열 선택 · ⌘D) · <b>파일 안 찾기·바꾸기</b>(⌘F · ⌥⌘F) · 미니맵 · 스티키 스크롤 · 괄호 쌍 색칠 · 들여쓰기 가이드가 한꺼번에 생겼고, 언어 서버가 아는 의미로 다시 칠하는 <b>시맨틱 강조</b>가 얹혔습니다. <b>⌘K</b> 로 고칠 곳을 고르고 말로 시키면 그 자리에서 고쳐 쓰는데, 조각마다 켜고 끄며 검토할 수 있고(전부 끄면 원문 그대로) 그렇게 들어온 편집은 작업 일지와 판 목록에 <b>「에이전트가 썼다」</b>로 남습니다. <b>회고·문서 화면은 걷어냈습니다</b> — 이미 써 둔 <code>.oculpm/retro/*.md</code> 는 지우지 않습니다. 그리고 화면마다 반 단씩 어긋나 있던 글자·여백·곡률 약 1,900곳, 설정 여는 길 셋, 말투 700곳을 한 벌로 모았습니다.</li>
@@ -654,12 +655,12 @@
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v2.48.0 — 지금 다운로드 · macOS (Apple Silicon)</span>
+  <span class="eyebrow reveal">v3.0.0 — 지금 다운로드 · macOS (Apple Silicon)</span>
   <h2 class="reveal">시작하는 데 필요한 것은,<br />없습니다.</h2>
   <p class="sub reveal">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v2.48.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
+      <span class="lg">v3.0.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
     </a>
     <a class="dl-btn ghost" href="/plugin">플러그인으로 시작 →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>
