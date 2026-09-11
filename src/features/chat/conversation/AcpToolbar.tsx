@@ -1,4 +1,9 @@
-// 상단바 — 탭 줄이 곧 제목이고, 오른쪽에 세션 id·사용량·터미널·패널.
+// 상단바 — 화면 이름 + 세션 탭 줄, 오른쪽에 세션 id·사용량·터미널·패널.
+//
+// 이름은 다른 14화면과 같은 제목 서체로 선다 ({#unify-chat} 2026-09-11, 사용자
+// 결정 "이름 + 탭"). PR-ACP14 가 이름을 지운 근거("사이드바가 이미 말한다")는
+// 사이드바를 접으면 무너지고, 16화면 중 둘만 제목이 없는 것이 "여러 손" 신호
+// 였다. 탭은 그대로 — "어느 대화에 있는가" 는 여전히 탭이 답한다.
 //
 // `AcpConversation.tsx` 에서 갈라 나온 **순수 뷰**다 (v3-surface {#acp-split}).
 // 순수 이동이며 동작 변경은 없다.
@@ -49,13 +54,18 @@ export function AcpToolbar({
   return (
     <Toolbar
       title={
-        <AcpSessionTabs
-          provider={provider}
-          tabs={tabs}
-          activeId={activeId}
-          onPick={onPick}
-          onClose={onClose}
-        />
+        <>
+          <span className="acp-screen-name" data-tauri-drag-region>
+            {t(provider === "codex" ? "nav.codex" : "nav.claudecode")}
+          </span>
+          <AcpSessionTabs
+            provider={provider}
+            tabs={tabs}
+            activeId={activeId}
+            onPick={onPick}
+            onClose={onClose}
+          />
+        </>
       }
     >
       {/* 지금 보고 있는 대화의 세션 id — 누르면 복사된다.

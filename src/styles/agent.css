@@ -1581,9 +1581,10 @@
   }
 }
 
-/* ─── 세션 탭 = 상단바 ────────────────────────────────────────────────────
-   이 줄이 곧 화면 제목이다. 그래서 툴바 안에 얹히고, 탭이 하나뿐이어도 그린다
-   (지우면 헤더가 빈다). 활성 탭은 배경색이 아니라 **밑줄**로 — 툴바 배경과
+/* ─── 세션 탭 — 상단바의 제목 곁 ──────────────────────────────────────────
+   화면 이름(.acp-screen-name) 다음에 서는 탭 줄이다 ({#unify-chat} 2026-09-11 —
+   그전엔 이 줄 혼자 제목 자리를 차지했다). 탭이 하나뿐이어도 그린다 (지우면
+   "어느 대화인가"가 빈다). 활성 탭은 배경색이 아니라 **밑줄**로 — 툴바 배경과
    카드 배경의 차이가 밝은 테마에서는 거의 안 보인다. */
 .acp-tabs {
   display: flex;
@@ -1829,9 +1830,21 @@
   outline-offset: var(--focus-offset-inset);
 }
 
+/* 이름 + 탭 줄이 한 제목 칸에 산다. 이름은 다른 화면의 제목과 같은 서체(칸이
+   준다), 탭 줄은 hairline 하나로 이름에서 떼어 두 낱말이 한 문장으로 안 읽힌다. */
 .toolbar-title:has(.acp-tabs) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
   flex: 1 1 auto;
   min-width: 0;
+}
+.acp-screen-name {
+  flex: none;
+}
+.toolbar-title > .acp-tabs {
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--sep);
 }
 
 /* `/usage` 의 "무엇이 기여했나" 대목. 길면 카드가 화면을 넘으므로 이 칸만
