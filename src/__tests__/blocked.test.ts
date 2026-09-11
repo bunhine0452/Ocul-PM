@@ -53,7 +53,7 @@ describe("blocked()", () => {
 // 셌다. 부채가 아닌 것을 부채로 세면 숫자를 갚아도 화면은 안 좋아지고, 갚을
 // 수 없는 자리(프리미티브의 `disabled` 통과)까지 목록에 남는다.
 //
-// 그래서 세는 규칙을 셋으로 나눈다:
+// 그래서 세는 규칙을 넷으로 나눈다:
 //
 //   1. **진행 중** — 스스로 설명되고 곧 풀린다. 사용자가 물을 것이 없다.
 //      낱말 목록은 아래 `TRANSIENT` 이고, 늘릴 때는 "곧 저절로 풀리는가" 만
@@ -61,11 +61,23 @@ describe("blocked()", () => {
 //   2. **통과** — `disabled={disabled}` · `item.disabled` 는 프리미티브가
 //      호출자의 값을 나르는 자리다. 이유는 호출자가 알고, 호출자 쪽은 어차피
 //      따로 세어진다. 여기서 세면 고칠 수 없는 항목이 목록에 남는다.
-//   3. 나머지가 진짜 부채 — 조건이 안 맞아 막혔고 **무엇을 고쳐야 하는지**를
+//      `!onOpenEntry` 처럼 **콜백 prop 의 부재**도 같다 — 호출자가 그 능력을
+//      안 준 것이지 사용자가 고칠 조건이 아니다.
+//   3. **이 패턴의 자리가 아닌 요소** (2026-09-11 5차) — 속성만 보면 같은
+//      `disabled=` 지만 `blocked()` 가 들어갈 수 없는 자리다:
+//      - 입력 필드(`input`·`textarea`·`select`·`Input`…): 비활성은 동작이 아니라
+//        **필드 상태**다. `aria-disabled` 는 타이핑을 막지 못하므로 이 헬퍼를
+//        쓸 수 없고, 이유는 placeholder·hint·곁 문장이 말한다.
+//      - cmdk `Command.Item`: cmdk 가 `aria-disabled` 와 키보드 건너뛰기를
+//        스스로 한다. 우리가 덧씌우면 두 손이 된다.
+//      - `aria-expanded` 를 가진 펼침 버튼: 펼칠 것이 없는 펼침은 막힌 동작이
+//        아니다 — 사용자가 고쳐서 생길 내용이 아니다.
+//   4. 나머지가 진짜 부채 — 조건이 안 맞아 막혔고 **무엇을 고쳐야 하는지**를
 //      사용자가 알아야 풀린다.
 //
-// 줄이면 이 숫자를 내려 적을 것. 새 비활성은 `blocked()` 를 거치거나
-// (lib/blocked.ts) `AutomationEditor` 처럼 곁에 보이는 문장을 두는 쪽이다.
+// 131 → 0 (2026-09-11). 새 비활성은 `blocked()` 를 거치거나 (lib/blocked.ts)
+// `AutomationEditor` 처럼 곁에 보이는 문장을 두는 쪽이다 — 이 숫자는 다시
+// 오르지 않는다.
 describe("이유 없는 비활성 (래칫)", () => {
   /** 곧 저절로 풀리는 상태의 낱말. 늘릴 때 보는 것은 그 하나뿐이다. */
   const TRANSIENT = [
@@ -109,8 +121,10 @@ describe("이유 없는 비활성 (래칫)", () => {
     "indexing",
     "generating",
   ];
+  // 접미형(`isSaving`)과 접두형(`savingBody`) 둘 다 — 낱말이 어느 쪽에 붙든
+  // "진행 중"이다.
   const isTransientWord = (w: string) =>
-    TRANSIENT.some((t) => new RegExp(`(?:^|[A-Za-z])${t}$`, "i").test(w));
+    TRANSIENT.some((t) => new RegExp(`(?:(?:^|[A-Za-z])${t}|^${t}[A-Z]\\w*)$`, "i").test(w));
 
   /**
    * 이 조각을 세지 않아도 되는가.
@@ -129,7 +143,38 @@ describe("이유 없는 비활성 (래칫)", () => {
     const last = p.split(/[.?[\]]+/).filter(Boolean).pop() ?? "";
     // 프리미티브가 호출자의 값을 나르는 자리 — 이유는 호출자가 안다.
     if (last.toLowerCase() === "disabled") return true;
+    // 콜백 prop 의 부재(`!onOpenEntry`) — 능력을 안 준 것은 호출자다.
+    if (/^on[A-Z]\w*$/.test(p)) return true;
     return isTransientWord(last);
+  }
+
+  /** `blocked()` 가 들어갈 수 없는 요소 — 규칙 3. */
+  const FIELD_TAGS = /^(?:input|textarea|select|Input|Textarea|Select|Checkbox|Switch|Slider)$/;
+  const CMDK_TAGS = /^(?:Command\.Item|CommandItem)$/;
+
+  /**
+   * 속성이 속한 여는 태그 `<Tag …>` 를 돌려준다. `{}` 깊이 0 의 `>` 가 태그의
+   * 끝이다 — `onClick={() => …}` 의 `=>` 는 깊이 1 이라 걸리지 않는다.
+   */
+  function enclosingTag(src: string, attrIndex: number): { name: string; text: string } | null {
+    const start = src.lastIndexOf("<", attrIndex);
+    if (start < 0) return null;
+    const name = /^<([A-Za-z][\w.]*)/.exec(src.slice(start, start + 80))?.[1];
+    if (!name) return null;
+    let depth = 0;
+    for (let i = start + 1; i < src.length; i++) {
+      const c = src[i];
+      if (c === "{") depth++;
+      else if (c === "}") depth--;
+      else if (c === ">" && depth === 0) return { name, text: src.slice(start, i + 1) };
+    }
+    return null;
+  }
+
+  function notThisPattern(tag: { name: string; text: string } | null): boolean {
+    if (!tag) return false;
+    if (FIELD_TAGS.test(tag.name) || CMDK_TAGS.test(tag.name)) return true;
+    return /\saria-expanded=/.test(tag.text);
   }
 
   it("이유 없이 막는 버튼이 **늘지** 않는다", () => {
@@ -140,10 +185,11 @@ describe("이유 없는 비활성 (래칫)", () => {
       for (const m of src.matchAll(/disabled=\{([^}]*(?:\{[^}]*\}[^}]*)*)\}/g)) {
         const parts = m[1].split(/\|\||&&/);
         if (parts.every(skippable)) continue;
+        if (notThisPattern(enclosingTag(src, m.index!))) continue;
         offenders.push(`${file.slice(ROOT.length + 1)}:${src.slice(0, m.index).split("\n").length}`);
       }
     }
-    expect(offenders.length, `이유 없는 비활성 ${offenders.length}곳`).toBeLessThanOrEqual(10);
+    expect(offenders, "이유 없는 비활성 — blocked() 를 거치거나 곁에 문장을 둘 것").toEqual([]);
   });
 
   // 자를 바꿨으면 자가 맞는지도 본다 (프로브).
@@ -156,5 +202,22 @@ describe("이유 없는 비활성 (래칫)", () => {
     expect(skippable("projectId == null")).toBe(false);
     expect(skippable("!stopped")).toBe(false);
     expect(skippable('state !== "ready"')).toBe(false);
+    expect(skippable("savingBody")).toBe(true);
+    expect(skippable("!onOpenEntry")).toBe(true);
+    expect(skippable("!onOpen.enabled")).toBe(false);
+  });
+
+  it("입력 필드·cmdk 항목·펼침 버튼은 이 패턴의 자리가 아니다", () => {
+    const at = (src: string) => enclosingTag(src, src.indexOf("disabled="));
+    expect(notThisPattern(at('<textarea value={v} disabled={p == null} />'))).toBe(true);
+    expect(notThisPattern(at('<Input value={id} disabled={!isNew} />'))).toBe(true);
+    expect(notThisPattern(at('<Command.Item value="x" disabled={sym.path == null}>'))).toBe(true);
+    expect(
+      notThisPattern(at('<button onClick={() => go()} disabled={!expandable} aria-expanded={open}>')),
+    ).toBe(true);
+    // 화살표의 `>` 는 태그 끝이 아니다 — 그 뒤의 aria-expanded 까지 읽는다.
+    expect(at('<button onClick={() => go()} disabled={!x} aria-expanded={o}>')?.text).toContain("aria-expanded");
+    expect(notThisPattern(at('<button disabled={!draft.trim()}>'))).toBe(false);
+    expect(notThisPattern(at('<Button disabled={projectId == null}>'))).toBe(false);
   });
 });
