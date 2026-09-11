@@ -37,7 +37,7 @@ describe("bump-version", () => {
   it("refuses when a site count is off, and can rewrite the NEW-badge title", () => {
     const html = readFileSync(resolve(ROOT, "landing/index.html"), "utf8");
     expect(() => bumpLanding(html, "0.0.1", "9.9.9", "ko")).toThrow(/expected 1 site/);
-    const out = bumpLanding(html, pkgVersion, "9.9.9", "ko", "새 제목");
-    expect(out).toContain(`<span class="ap-new">NEW</span>&nbsp; v9.9.9 — 새 제목</a>`);
+    const out = bumpLanding(html, pkgVersion, "9.9.9", "ko", "new title");
+    expect(out).toContain(`<span class="ap-new">NEW</span>&nbsp; v9.9.9 — new title</a>`);
   });
 });
