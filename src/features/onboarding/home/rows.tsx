@@ -2,7 +2,7 @@
  * 바닥 띠의 행들 — 초안 / 명령.
  *
  * 프로젝트 행·조용한 색인 행·섹션 헤더는 2026-08-12 대격변에서 제거됐다:
- * 프로젝트는 전부 같은 크기의 `ProjectCard` 격자에 그려지고, 초안·명령만
+ * 프로젝트는 사령탑 밴드와 시간대 원장(`ProjectRow`)에 그려지고, 초안·명령만
  * 바닥에 한 줄로 남는다.
  *
  * 공통 규약 2가지:
@@ -88,7 +88,7 @@ export function DraftRow({
       <Mark>
         <PenLine size={15} />
       </Mark>
-      <span className="home-drafttext min-w-0 flex flex-col gap-0.5 py-2">
+      <span className="home-drafttext min-w-0 flex items-baseline gap-2">
         <button
           type="button"
           ref={w.ref as (el: HTMLButtonElement | null) => void}

@@ -37,18 +37,14 @@ import { tError } from "@/i18n/errors";
 import { AppDialog } from "@/components/ui/AppDialog";
 import {
   AlertTriangle,
-  ChevronRight,
-  CircleX,
   ExternalLink,
   FileCode,
   GitCompareArrows,
   History,
   ImageFileIcon,
   NotebookText, Star,
-  TriangleAlert,
   X,
 } from "@/components/Icons";
-import { FileIcon } from "./FileIcon";
 
 import { CodeEditor } from "./CodeEditor";
 import { useProblems } from "./problemsStore";
@@ -57,6 +53,8 @@ import { CodePreview } from "./CodePreview";
 import { SvgPreview } from "./SvgPreview";
 import type { ReferencesQuery } from "./CodeReferences";
 import { CodeTabsBar } from "./CodeTabsBar";
+import { CodeCrumbs } from "./CodeCrumbs";
+import { CodeStatusBar } from "./CodeStatusBar";
 import { isSvgPath, previewKindFor, type PreviewKind } from "./previewKind";
 import { applyHygiene, hygieneForPath, type HygieneOptions } from "./saveHygiene";
 import { useAutoSave } from "./autoSave";
@@ -177,6 +175,14 @@ export interface CodePaneProps {
   onToggleBreakpoint: (path: string, line: number) => void;
   /** 브레드크럼의 폴더 조각 클릭 — 트리에서 그 폴더를 펼쳐 보여 준다. */
   onRevealDir: (dir: string) => void;
+  /** 상태줄의 커서 조각 클릭 — ⌃G 와 같은 줄 이동 위젯. */
+  onGoToLine: () => void;
+  /** 줄바꿈 (화면 상태 `codeWordWrap` 을 이 파일 종류로 푼 값) + 뒤집기. */
+  wordWrap: boolean;
+  onToggleWordWrap: () => void;
+  /** git 상태 · 진단 표식 — 탭 이름 색 (트리와 같은 규칙, `gitDecor`). */
+  gitMarks: ReadonlyMap<string, "A" | "M" | "D">;
+  problemMarks: ReadonlyMap<string, "error" | "warning">;
 }
 
 export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodePane(
@@ -214,6 +220,11 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     unverifiedFor,
     onToggleBreakpoint,
     onRevealDir,
+    onGoToLine,
+    wordWrap,
+    onToggleWordWrap,
+    gitMarks,
+    problemMarks,
   },
   ref,
 ) {
@@ -240,6 +251,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   const bufferRef = useRef<CodeBuffer | null>(null);
   const [dirty, setDirty] = useState(false);
   const [cursor, setCursor] = useState<{ line: number; col: number }>({ line: 1, col: 1 });
+  const [selection, setSelection] = useState<{ lines: number; chars: number } | null>(null);
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
   const [saving, setSaving] = useState(false);
@@ -1117,32 +1129,20 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         onUnsplit={onUnsplit}
         onMoveToOtherPane={onMoveToOtherPane}
         onDropTab={onDropTab}
+        gitMarks={gitMarks}
+        problemMarks={problemMarks}
       />
 
-      {/* 브레드크럼 — 어느 폴더의 파일인지 탭 이름만으로는 모른다 (같은 이름의
-          파일이 흔하다: mod.rs·index.ts). 폴더 조각을 누르면 트리에서 펼친다. */}
+      {/* 브레드크럼 — 폴더 › 파일 › 커서가 든 심볼 (`CodeCrumbs`). 오른쪽 액션은
+          창의 상태(일지·판·svg·HEAD 비교)라 여기서 만들어 넣는다. */}
       {activePath ? (
-        <nav className="code-crumbs" aria-label={t("code.crumbs.aria")}>
-          {activePath.split("/").map((seg, i, all) => {
-            const isLast = i === all.length - 1;
-            const dir = all.slice(0, i + 1).join("/");
-            return (
-              <span key={dir} className="code-crumb-seg">
-                {i > 0 ? <ChevronRight size={11} className="code-crumb-sep" aria-hidden /> : null}
-                {isLast ? (
-                  <span className="code-crumb current">
-                    <FileIcon name={seg} size={13} />
-                    {seg}
-                  </span>
-                ) : (
-                  <button type="button" className="code-crumb" onClick={() => onRevealDir(dir)}>
-                    {seg}
-                  </button>
-                )}
-              </span>
-            );
-          })}
-          <span className="code-crumbs-actions">
+        <CodeCrumbs
+          path={activePath}
+          symbols={stickySymbols}
+          cursorLine={cursor.line}
+          onRevealDir={onRevealDir}
+          onJumpToSymbol={(line, character) => setPendingJump({ line, ch: character })}
+          actions={<>
             {/* 이 파일을 만진 일지 — 에이전트가 여기에 무슨 일을 했는지. */}
             {fileEntries.length > 0 ? (
               <button
@@ -1204,8 +1204,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
                 <GitCompareArrows size={13} />
               </button>
             ) : null}
-          </span>
-        </nav>
+          </>}
+        />
       ) : null}
 
       {/* 일지 팝오버 — 항목 클릭은 일지 화면으로, diff 버튼은 인라인 비교로. */}
@@ -1389,10 +1389,12 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               onInlineEdit={codeAi.run}
               onInlineEditAccepted={(info) => codeAi.onAccepted(activePath, info)}
               onSave={() => void saveRef.current()}
-              onCursor={(line, col) => {
+              onCursor={(line, col, sel) => {
                 setCursor({ line, col });
+                setSelection(sel ?? null);
                 onCursorLine(line);
               }}
+              wordWrap={wordWrap}
               gitChanges={gitChanges}
               diffOriginal={diffOriginal}
               breakpoints={activePath ? breakpointsFor(activePath) : undefined}
@@ -1413,67 +1415,25 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               />
             ) : null}
           </div>
-          <div className="code-statusbar">
-            {/* 자동 저장을 켰으면 그 사실이 여기 있어야 한다 — ⌘S 습관을 버려도
-                되는지 사용자가 알 방법이 이것뿐이다. */}
-            <span className={"code-status-item code-status-dirty" + (dirty ? " on" : "")}>
-              <span aria-hidden>{dirty ? "●" : "○"}</span>
-              <span>
-                {saving
-                  ? t("code.savingState")
-                  : dirty
-                    ? t("code.dirty")
-                    : autoSaveOn
-                      ? t("code.autoSaveOn")
-                      : t("code.savedState")}
-              </span>
-            </span>
-            <span className="code-status-item">
-              Ln {cursor.line}, Col {cursor.col}
-            </span>
-            <span className="code-status-right">
-              {/* 문제 패널이 있다는 것을 알리는 **유일한 신호**다. 0 일 때도
-                  남긴다 — 감추면 빈 상태(= "아직 아는 문제 없음")를 읽을 길이
-                  없어진다. */}
-              <button
-                type="button"
-                className={
-                  "code-status-item code-status-problems" +
-                  (problemTotals.error > 0 ? " has-error" : problemTotals.warning > 0 ? " has-warn" : "")
-                }
-                onClick={onOpenProblems}
-                title={t("code.problems.badge", {
-                  errors: problemTotals.error,
-                  warnings: problemTotals.warning,
-                })}
-                aria-label={t("code.problems.badge", {
-                  errors: problemTotals.error,
-                  warnings: problemTotals.warning,
-                })}
-              >
-                <CircleX size={11} aria-hidden />
-                <span>{problemTotals.error}</span>
-                <TriangleAlert size={11} aria-hidden />
-                <span>{problemTotals.warning}</span>
-              </button>
-              {lspLabel ? (
-                <span
-                  className={"code-status-item code-status-lsp " + (lsp.status.state ?? "")}
-                  title={lsp.status.detail ?? undefined}
-                >
-                  {/* 상태를 색점으로 — 낱말을 읽기 전에 색이 먼저 답한다. */}
-                  <span className="code-status-led" aria-hidden />
-                  {lspLabel}
-                </span>
-              ) : null}
-              {/* 줄바꿈 종류 — CRLF 파일을 모르고 고치면 diff 가 전체 줄로 물든다. */}
-              <span className="code-status-item">{buf.eol === "\r\n" ? "CRLF" : "LF"}</span>
-              <span className="code-status-item">{langLabel(langId)}</span>
-              {/* ⌘K 로 고친 자리 — 누르면 일지 초안이 된다 (귀속 #agent-attribution). */}
-              {codeAi.chip}
-              <span className="code-status-item">{formatBytes(fileView.bytes)}</span>
-            </span>
-          </div>
+          <CodeStatusBar
+            dirty={dirty}
+            saving={saving}
+            autoSaveOn={autoSaveOn}
+            cursor={cursor}
+            selection={selection}
+            problemTotals={problemTotals}
+            lspState={lsp.status.state ?? null}
+            lspLabel={lspLabel}
+            lspDetail={lsp.status.detail ?? null}
+            eolLabel={buf.eol === "\r\n" ? "CRLF" : "LF"}
+            langLabel={langLabel(langId)}
+            bytesLabel={formatBytes(fileView.bytes)}
+            wordWrap={wordWrap}
+            aiChip={codeAi.chip}
+            onGoToLine={onGoToLine}
+            onToggleWordWrap={onToggleWordWrap}
+            onOpenProblems={onOpenProblems}
+          />
         </>
       ) : null}
 
@@ -1567,6 +1527,7 @@ export function CodeEmptyState() {
   useT();
   const keys: Array<[string, string]> = [
     ["⌘K", t("code.empty.kPalette")],
+    ["⌘P", t("code.empty.kQuickOpen")],
     ["F12", t("code.empty.kDef")],
     ["⇧F12", t("code.empty.kRefs")],
     ["⇧⌥F", t("code.empty.kFormat")],
@@ -1574,6 +1535,8 @@ export function CodeEmptyState() {
     ["⌘W", t("code.empty.kClose")],
     ["⇧⌘T", t("code.empty.kReopen")],
     ["⌃Tab", t("code.empty.kCycle")],
+    ["⌘B", t("code.empty.kSidebar")],
+    ["⌥Z", t("code.empty.kWrap")],
   ];
   // 바깥 .code-center-hint 는 남긴다 — flex:1 로 창을 채우는 건 이 자리의
   // 레이아웃이고, 안쪽 카드만 공용 EmptyState 로 옮겼다 (v3-surface).

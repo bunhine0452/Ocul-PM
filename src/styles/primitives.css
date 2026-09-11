@@ -91,14 +91,14 @@
 .card-pad { padding: 18px; }
 
 /* 칩 — 한 벌 + 수정자 (Phase 5). 라벨이지 본문이 아니라 절대 꺾이지 않는다.
-   화면마다의 열한 벌(.attach-chip .usage-chip .sk-chip .sk-path-chip
-   .code-debug-chip .entry-date-chip .scope-chip .file-pill .queue-chip
-   .hg-lead-chip)은 아래 공통 바탕을 나눠 갖고, 각 파일엔
+   화면마다의 열 벌(.attach-chip .usage-chip .sk-chip .sk-path-chip
+   .code-debug-chip .scope-chip .file-pill .queue-chip
+   .hl-chip)은 아래 공통 바탕을 나눠 갖고, 각 파일엔
    높이·둥글기·색의 차이만 남는다. (.ai-suggest-chip 은 2026-09-02 에 목록형
    `.ai-start-item` 으로 바뀌어 칩 가족에서 나갔다.) */
 .chip,
-.attach-chip, .usage-chip, .sk-chip, .sk-path-chip, .code-debug-chip, .entry-date-chip,
-.scope-chip, .file-pill, .queue-chip, .hg-lead-chip {
+.attach-chip, .usage-chip, .sk-chip, .sk-path-chip, .code-debug-chip,
+.scope-chip, .file-pill, .queue-chip, .hl-chip {
   display: inline-flex; align-items: center; gap: var(--space-2);
   white-space: nowrap; flex: none; max-width: 100%;
   font-family: var(--font);

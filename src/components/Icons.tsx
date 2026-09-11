@@ -583,6 +583,10 @@ export {
   // 코드 화면 — 프로젝트 전역 검색 (#project-search). TextSearch 는 파일명
   // 필터(돋보기)와 구별되는 "내용 검색" 글리프.
   TextSearch,
+  // 편집기 (2026-09-11) — 상태줄 줄바꿈 토글 · 툴바 파일 트리 접기/펴기.
+  WrapText,
+  PanelLeftClose,
+  PanelLeftOpen,
   Regex,
   WholeWord,
   Replace,
@@ -657,3 +661,11 @@ export {
   // 같은 전례) — 지금 이 파일로 옮겨 집 규약(Icons 경유)을 맞춘다 {#unplug-icon-reexport}.
   Unplug,
 } from "lucide-react";
+
+/** 모두 접기 — 위아래 꺾쇠가 안으로 모인다 (lucide `chevrons-down-up`). */
+export const ChevronsDownUp = (props: IconProps) => (
+  <IconWrapper {...props}>
+    <polyline points="7 20 12 15 17 20" />
+    <polyline points="7 4 12 9 17 4" />
+  </IconWrapper>
+);

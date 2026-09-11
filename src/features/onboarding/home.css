@@ -10,14 +10,17 @@
    하드코딩 색상 0 — 라이트/다크/프리셋 5종/액센트 6종에서 전부 성립해야 한다.
    ============================================================ */
 
-/* 판 (2026-08-12 대격변) — 창을 열었을 때 **보이는 것이 전부**여야 한다.
+/* 원장 (2026-09-11 리디자인) — 창을 열었을 때 **보이는 것이 전부**여야 한다.
    그래서 페이지 자체는 스크롤하지 않고(고정 높이 그리드), 스크롤은 안쪽 두
-   칸(프로젝트 격자 · 오늘의 흐름)이 각자 소유한다. */
+   칸(원장 · 오늘의 흐름)이 각자 소유한다.
+
+   면은 종이 한 장이다 — 카드 상자·그림자 없이 hairline 과 활자만으로 위계를
+   세운다. 흐름 레일만 사이드바 톤으로 살짝 가라앉아 "곁" 임을 말한다. */
 .home {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: var(--bg-sidebar);
+  background: var(--bg-content);
   color: var(--text);
   position: relative;
 }
@@ -28,14 +31,15 @@
 
 .home-wrap {
   position: relative;
-  max-width: 1560px;
+  max-width: 1480px;
   height: 100%;
   min-height: 0;
   margin: 0 auto;
   padding: 0 var(--space-8) var(--space-4);
   display: grid;
-  /* 상단 레일 · 검색 · 판(남는 전부) · 바닥 띠 */
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  /* 상단 레일 · (sr-only 상태) · (경고) · 사령탑 · 판(남는 전부) · 바닥 띠 —
+     auto 행은 내용이 없으면 0 이라 개수를 못박지 않아도 된다. */
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
 }
 
 /* ── 밴드 0 — 상단 레일 ─────────────────────────────────────────────── */
@@ -50,11 +54,16 @@
   align-items: center;
   gap: 14px;
   height: 44px;
-  border-bottom: 1px solid var(--sep);
   /* 불투명 배경 — backdrop-filter 를 쓰지 않는다. sticky + backdrop-filter 는
      WKWebView 에서 별도 합성 레이어를 강제해 스크롤 중 미세한 어긋남을 만들고,
      스크롤 콘텐츠를 가린다는 목적 자체는 불투명 배경만으로 달성된다. */
-  background: var(--bg-sidebar);
+  background: var(--bg-content);
+}
+.home-rail-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 /* macOS 는 titleBarStyle Overlay — 신호등이 창 좌상단 ~78px 를 차지한다.
@@ -79,13 +88,6 @@
   white-space: nowrap;
 }
 
-.home-rule {
-  width: 1px;
-  height: 12px;
-  background: var(--sep-strong);
-  flex: none;
-}
-
 .home-dateline {
   font-family: var(--mono);
   font-size: var(--fs-2);
@@ -96,22 +98,28 @@
   text-overflow: ellipsis;
 }
 
-/* ── 밴드 1 — 검색 ──────────────────────────────────────────────────── */
-
+/* ── 원장 머리 — 검색 ─────────────────────────────────────────────────
+   상자가 아니라 밑줄이다. 높이는 흐름 머리(.hf-head)와 같은 44px — 두 칸의
+   머리가 한 선에서 만나야 판이 하나로 읽힌다. (lint 규칙 17 의 유일한 예외) */
 .home-search {
+  flex: none;
   display: flex;
   align-items: center;
-  gap: var(--space-5);
-  height: 60px;
+  gap: var(--space-3);
+  height: 44px;
+  padding: 0 var(--space-3);
   border-bottom: 1px solid var(--sep);
 }
-
+.home-search-icon {
+  color: var(--text-3);
+  flex: none;
+}
 .home-search input {
   flex: 1;
   min-width: 0;
   border: 0;
   background: transparent;
-  font-size: var(--fs-7);
+  font-size: var(--fs-6);
   font-weight: var(--fw-body);
   letter-spacing: var(--track-tight);
   color: var(--text);
@@ -121,7 +129,7 @@
 .home-search input::placeholder {
   color: var(--text-3);
 }
-/* 포커스는 밑줄 한 줄로 — 입력 박스를 그리면 밴드의 여백감이 죽는다. */
+/* 포커스는 밑줄 한 줄로 — 입력 박스를 그리면 머리의 여백감이 죽는다. */
 .home-search:focus-within {
   box-shadow: inset 0 -2px 0 0 var(--accent);
 }
@@ -129,19 +137,12 @@
 .home-count {
   font-family: var(--mono);
   font-size: var(--fs-2);
-  color: var(--text-2);
+  color: var(--text-3);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ── 공통 타일 ──────────────────────────────────────────────────────── */
-
-/* 벤토(사령탑·판·타일) 규칙은 2026-08-12 대격변에서 제거됐다 — 크기로
-   위계를 만들던 구조가 프로젝트 9개에서 무너졌고, 지금은 같은 크기의 카드
-   격자(.hg-*)가 순위만으로 그 일을 한다. */
-
 /* ── 초안·명령 행 ───────────────────────────────────────────────────── */
-
-
 
 /* 행 — 반경 0 풀블리드. 컬럼 폭을 고정해 스켈레톤→실물 전환에 리플로우가
    없다 (내용 길이가 열 폭을 바꾸지 않는다). */
@@ -234,10 +235,7 @@
 }
 .home-row:hover .home-actions,
 .home-row:focus-within .home-actions,
-.home-row.is-cursor .home-actions,
-.hg-card:hover .home-actions,
-.hg-card:focus-within .home-actions,
-.hg-card.is-cursor .home-actions {
+.home-row.is-cursor .home-actions {
   opacity: 1;
 }
 /* 포커스를 받은 버튼은 컨테이너 상태와 무관하게 항상 보여야 한다. */
@@ -306,7 +304,7 @@
   display: flex;
   align-items: flex-end;
   gap: 2px;
-  height: 18px;
+  height: 16px;
 }
 /* 14일 전부를 액센트로 칠하면 카드에서 가장 시끄러운 요소가 된다.
    과거는 중성색으로 두고 **오늘(마지막 막대)만** 액센트 — 그래야 눈이
@@ -349,13 +347,6 @@
   flex: none;
 }
 
-.home-eyebrow {
-  font-size: var(--fs-2);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--track-caps-lg);
-  color: var(--text-2);
-  text-transform: none;
-}
 
 .home-when {
   font-size: var(--fs-2);
@@ -474,33 +465,24 @@
 /* ── 추가 슬롯 ──────────────────────────────────────────────────────── */
 
 
-/* ── 액션 바 (바닥 띠의 마지막 줄) ─────────────────────────────────── */
-
-/* 커서 항목의 단축키 지도. 바닥 띠 안에서 **항상 자기 줄**을 쓴다 (2026-09-02).
-
-   예전엔 초안·명령과 같은 줄에 끼워 오른쪽으로 밀어붙였는데(margin-left:auto),
-   이 바의 폭은 커서 항목의 **이름 길이**에 따라 변한다. 이름이 길어지면 줄에
-   못 들어가 다음 줄로 wrap 되고, 그때마다 띠가 통째로 한 줄(당시 44+var(--space-7))
-   높아졌다 — .home-wrap 은 고정 높이 격자라 그 높이는 프로젝트 격자에서
-   빼앗아 오므로, 사용자 눈에는 **바닥 띠가 위로 튀어 오르는** 것으로 보인다.
-   자기 줄을 주면 이름이 얼마나 길든 띠 높이가 변하지 않는다.
-
-   sticky·면(배경/테두리/44px)은 이 바가 밴드 4 였던 시절의 유물이라 함께
-   걷어냈다 — 바닥 띠에 들어온 뒤로는 .home-foot 규칙이 전부 되돌리고 있었다. */
-.home-actionbar {
-  flex: 1 0 100%;
+/* ── 키 힌트 (바닥 띠 오른쪽) ────────────────────────────────────────
+   고정 문구다. 예전 액션 바는 커서 항목 이름을 앞에 세워 폭이 매번 변했고,
+   그 줄바꿈이 원장 높이를 흔들었다 (2026-09-02 기록). 이름을 빼면 폭이
+   상수가 되어 자기 줄이 필요 없다. */
+.home-hints {
+  margin-left: auto;
+  flex: none;
   display: flex;
   align-items: center;
-  gap: var(--space-6);
-  min-width: 0;
+  gap: var(--space-5);
   font-size: var(--fs-2);
-  color: var(--text-2);
+  color: var(--text-3);
+  white-space: nowrap;
 }
-.home-actionbar-item {
+.home-hint {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  white-space: nowrap;
 }
 
 /* ── 모션 ───────────────────────────────────────────────────────────
@@ -530,19 +512,22 @@
   .home-spark-bar {
     animation: none !important;
   }
-  .hg-card,
+  .hl-row,
+  .hl-lead,
   .home-row {
     transition: none !important;
   }
 }
 
 /* ============================================================
-   판 — 프로젝트 격자 + 오늘의 흐름 (2026-08-12 대격변)
+   사령탑 · 원장 · 흐름 (2026-09-11 원장 리디자인)
 
-   예전 벤토(사령탑 340px / 판 / 행)를 대체한다. 크기로 위계를 만들던 구조가
-   프로젝트 9개에서 무너졌다 — 1위 하나가 화면 절반을 먹고 나머지가 스크롤
-   아래로 사라졌다. 지금은 **같은 크기의 카드**가 순위대로 놓이고, 1위는
-   왼쪽 액센트 모서리로만 드러난다.
+   카드 격자(2026-08-12)를 대체한다. 격자는 프로젝트 9개에서 "전부 보인다" 는
+   약속을 지켰지만 14개에서 "순위" 를 잃었다 — 같은 상자 14개는 위계가 아니라
+   패턴으로 읽힌다. 원장은 상자를 버리고 세 가지로 위계를 세운다:
+     1. 사령탑 밴드 — 1위 하나만 큰 활자 + 큰 맥박
+     2. 시간대 묶음 헤더 — 순위의 근거(마지막 활동이 언제인가)를 글자로
+     3. 열 정렬 — 오늘 건수·맥박·시각이 세로로 줄을 맞춰 훑힌다
    ============================================================ */
 
 .home-alert {
@@ -556,19 +541,186 @@
   border: 1px solid var(--t-error);
 }
 
+/* ── 사령탑 밴드 ────────────────────────────────────────────────────── */
+
+.hl-lead {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-8);
+  align-items: end;
+  padding: var(--space-7) var(--space-3) var(--space-6);
+  border-top: 1px solid var(--sep);
+  border-bottom: 1px solid var(--sep-strong);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out);
+}
+.hl-lead:hover,
+.hl-lead.is-cursor {
+  background: var(--bg-hover);
+}
+.hl-lead.is-cursor {
+  box-shadow: inset 3px 0 0 0 var(--accent);
+}
+.hl-lead:has(:focus-visible) {
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset-inset);
+}
+
+.hl-lead-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.hl-lead-eyebrow {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-wide);
+  color: var(--accent-text);
+}
+.hl-lead-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+/* 이름이 이 화면에서 가장 큰 활자다 — 램프 꼭대기(fs-9). 자간을 조여 큰
+   글자가 헐거워지지 않게 한다. */
+.hl-lead-name {
+  min-width: 0;
+  font-family: var(--font);
+  font-size: var(--fs-9);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-snug);
+  line-height: var(--lh-tight);
+  color: var(--text);
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hl-lead:hover .hl-lead-name {
+  color: var(--pc, var(--accent-text));
+}
+.hl-lead-meta {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: var(--fs-2);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.hl-lead-meta .hl-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hl-lead-when {
+  flex: none;
+  color: var(--text-2);
+}
+.hl-lead-next {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  height: 18px;
+  font-size: var(--fs-4);
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hl-lead-next > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 오른쪽 — 맥박과 그 아래 한 줄. 밴드의 baseline(align-items:end) 에 맞춘다. */
+.hl-lead-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  /* 액션(✎🗑)이 hover 때 이 위에 뜬다 — 자리를 비워 둔다. */
+  padding-right: 68px;
+}
+.hl-pulse {
+  display: block;
+  width: 200px;
+}
+.hl-pulse .home-spark {
+  height: 48px;
+  gap: 3px;
+}
+.hl-pulse .home-spark-bar {
+  min-width: 6px;
+  border-radius: var(--radius-2xs);
+}
+.hl-pulse-label {
+  font-family: var(--mono);
+  font-size: var(--fs-1);
+  color: var(--text-3);
+  letter-spacing: var(--track-wide);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.hl-lead-plan {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 200px;
+  font-size: var(--fs-2);
+  color: var(--text-2);
+}
+.hl-lead-plan-title {
+  flex: none;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hl-lead-plan > span:last-child {
+  flex: 1;
+}
+.hl-lead-actions {
+  position: absolute;
+  top: var(--space-6);
+  right: var(--space-3);
+}
+
+/* ── 판 ─────────────────────────────────────────────────────────────── */
+
 .home-board {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 14px;
-  padding-top: var(--space-3);
+  grid-template-columns: minmax(0, 1fr) 336px;
 }
-/* 좁아지면 흐름 레일이 아래로 접힌다 — 격자가 2열 밑으로 내려가면 카드가
-   읽을 수 없이 좁아지기 때문이다. */
+.home-board.no-lead {
+  border-top: 1px solid var(--sep);
+}
+/* 좁아지면 흐름 레일이 아래로 접힌다. 이 화면은 사이드바가 없는 전창
+   표면이라 창 폭이 곧 쓸 수 있는 폭이다 (lint 규칙 18 의 예외). */
 @media (max-width: 1080px) {
   .home-board {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) 200px;
+    grid-template-rows: minmax(0, 1fr) 220px;
+  }
+  .hl-lead-side {
+    display: none;
   }
 }
 
@@ -576,28 +728,10 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-}
-.home-panehead {
-  flex: none;
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-}
-.home-panecount {
-  font-size: var(--fs-2);
-  font-weight: var(--fw-bold);
-  color: var(--text-3);
-  font-variant-numeric: tabular-nums;
-}
-.home-panehint {
-  margin-left: auto;
-  font-size: var(--fs-2);
-  color: var(--text-3);
 }
 
 .home-empty {
-  padding: 28px var(--space-1);
+  padding: 28px var(--space-3);
   font-size: var(--fs-4);
   color: var(--text-2);
   display: flex;
@@ -605,77 +739,112 @@
   gap: var(--space-1);
 }
 
-/* ── 프로젝트 격자 ────────────────────────────────────────────────────── */
+/* ── 원장 ───────────────────────────────────────────────────────────── */
 
-.hg-grid {
+.hl-ledger {
   min-height: 0;
+  flex: 1;
   overflow-y: auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  grid-auto-rows: min-content;
-  gap: var(--space-4);
-  padding: 2px var(--space-2) var(--space-2) 2px;
-  margin: 0;
+  padding-bottom: var(--space-4);
+  /* 흐름 레일과의 사이 — 레일이 왼쪽 hairline 을 갖고 있어 여기서는 여백만. */
+  padding-right: var(--space-5);
+}
+.hl-list {
   list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.hg-card {
-  /* `.home-open::after` 가 이 상자를 덮어 **카드 전체가 클릭 판정**이 된다 —
-     그 앵커가 되려면 position 이 static 이면 안 된다. */
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: 11px var(--space-5) var(--space-4);
-  cursor: pointer;
-  border-radius: var(--radius-m);
-  border: 1px solid var(--border-card);
-  background: var(--bg-card);
-  /* 색·테두리는 즉답(dur-1), 깊이(그림자)는 한 박자 길게 — 같은 시간을 쓰면
-     그림자가 색을 따라잡지 못해 어긋나 보인다. */
-  transition:
-    border-color var(--dur-1) var(--ease-out),
-    box-shadow var(--dur-2) var(--ease-out);
-}
-.hg-card:hover { border-color: var(--sep-strong); }
-/* 커서는 **헤어라인 한 겹**으로만 표시한다. 예전의 3px 액센트 글로우
-   (`0 0 0 3px accent-soft`)는 카드 9장에서 화면이 번져 보였고, 무엇보다
-   "생성된 UI" 의 전형이다. */
-.hg-card.is-cursor { border-color: var(--accent); }
-/* 1위는 색이 아니라 **깊이**로 말한다 — 왼쪽 액센트 막대는 제거했다.
-   막대는 카드 모서리 반경과 어긋나고, 색으로 순위를 코딩하면 액센트가
-   의미를 잃는다 (열림·오늘 건수도 같은 색을 쓴다). */
-.hg-card.is-lead {
-  border-color: var(--sep-strong);
-  box-shadow: var(--shadow-sheet);
-}
-/* 키보드로 들어왔을 때만 진짜 아웃라인 — 마우스 hover 에는 링을 그리지 않는다. */
-.hg-card:has(:focus-visible) {
-  outline: var(--focus-w) solid var(--focus-color);
-  outline-offset: var(--focus-offset);
-}
-/* 2주 넘게 조용함 — 밀어내되 읽을 수는 있게. */
-.hg-card.is-quiet { opacity: 0.6; }
-.hg-card.is-quiet:hover,
-.hg-card.is-quiet:focus-within { opacity: 1; }
-
-.hg-top {
+/* 묶음 헤더 — 라벨이 오른쪽으로 hairline 을 끌고 간다 (사이드바의 섹션
+   라벨과 같은 문법). 헤더가 순위의 **근거**다: 이 행들이 왜 여기 있는지. */
+.hl-group-head {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-width: 0;
+  margin: 0;
+  padding: var(--space-7) var(--space-3) var(--space-2);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-wide);
+  color: var(--text-2);
+  white-space: nowrap;
 }
-.hg-id {
+.hl-group:first-child .hl-group-head {
+  padding-top: var(--space-4);
+}
+.hl-group-head::after {
+  content: "";
   flex: 1;
+  height: 1px;
+  background: var(--sep-strong);
+}
+.hl-group-count {
+  font-family: var(--mono);
+  font-weight: var(--fw-body);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+/* 조용한 묶음은 헤더까지 흐리다 — 행만 흐리면 헤더가 도드라져 반대로 읽힌다. */
+.hl-group[data-group="quiet"] .hl-group-head {
+  color: var(--text-3);
+}
+
+/* 행 — 열 폭 고정. 이름·할 일 길이가 오른쪽 열(오늘·맥박·시각)을 흔들지
+   않아야 세로로 훑을 수 있다. */
+.hl-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto 64px 60px 56px;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 50px;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--sep);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out);
+}
+.hl-list > .hl-row:last-child {
+  border-bottom: 0;
+}
+.hl-row:hover,
+.hl-row.is-cursor {
+  background: var(--bg-hover);
+}
+/* 커서는 왼쪽 3px 액센트 — 사이드바 활성 표시자와 같은 어휘. */
+.hl-row.is-cursor {
+  box-shadow: inset 3px 0 0 0 var(--accent);
+}
+.hl-row:has(:focus-visible) {
+  outline: var(--focus-w) solid var(--focus-color);
+  outline-offset: var(--focus-offset-inset);
+}
+/* 2주 넘게 조용함 — 밀어내되 읽을 수는 있게. */
+.hl-row.is-quiet {
+  opacity: 0.6;
+}
+.hl-row.is-quiet:hover,
+.hl-row.is-quiet:focus-within {
+  opacity: 1;
+}
+
+.hl-id {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
-.hg-name {
-  font-size: var(--fs-4);
+.hl-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.hl-name {
+  flex: none;
+  max-width: 60%;
+  font-family: var(--font);
+  font-size: var(--fs-5);
   font-weight: var(--fw-bold);
-  /* 큰 글자일수록 자간을 조인다 — 제목이 헐거우면 본문과 위계가 안 선다. */
   letter-spacing: var(--track-tight);
   color: var(--text);
   text-align: left;
@@ -687,146 +856,199 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 이름 버튼은 카드 전체를 덮는 히트박스의 앵커일 뿐이라, hover 색은 카드가
+/* 이름 버튼은 행 전체를 덮는 히트박스의 앵커일 뿐이라, hover 색은 행이
    책임진다 (버튼 위에 있을 때만 색이 변하면 "이름만 눌러야 하나?" 로 읽힌다). */
-.hg-card:hover .hg-name { color: var(--pc, var(--accent-text)); }
-.hg-path {
-  font-size: var(--fs-1);
+.hl-row:hover .hl-name {
+  color: var(--pc, var(--accent-text));
+}
+.hl-path {
+  min-width: 0;
   font-family: var(--mono);
+  font-size: var(--fs-2);
   color: var(--text-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-.hg-meta {
+.hl-next {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-  font-size: var(--fs-2);
-  color: var(--text-3);
-  /* 시각·건수가 카드마다 세로로 흔들리지 않게. */
-  font-variant-numeric: tabular-nums;
-}
-.hg-when { flex: none; }
-.hg-today {
-  flex: none;
-  color: var(--accent-text);
-  font-weight: var(--fw-bold);
-}
-/* 알약 모양 + 채움 배경을 나열하면 "배지 수프" 가 된다. 윤곽선 한 겹 +
-   작은 반경이 훨씬 정밀해 보이고, 옆의 숫자·시각과 광학 높이도 맞는다. */
-.hg-chip,
-.hg-lead-chip {
-  font-size: var(--fs-0);
-  font-weight: var(--fw-strong);
-  line-height: 14px;
-  padding: 0 var(--space-2);
-  letter-spacing: var(--track-wide);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--sep);
-  background: transparent;
-  color: var(--text-3);
-}
-/* '이어서' 는 순위 정보고, 순위는 이미 카드 그림자가 말한다. 액센트는 카드
-   안에서 **오늘의 활동** 한 가지 의미로만 쓴다 (오늘 건수 + 스파크라인의
-   마지막 막대). 색이 두 가지를 뜻하기 시작하면 아무 것도 안 뜻한다. */
-.hg-lead-chip {
-  border-color: var(--sep-strong);
-  color: var(--text-2);
-}
-/* 스파크라인은 카드 안의 작은 지표다 — `.home-spark` 는 폭 지정이 없어
-   부모를 그대로 채우므로(막대가 flex:1), 여기서 폭을 못박지 않으면 카드
-   한 줄을 통째로 먹는다. */
-.hg-spark {
-  margin-left: auto;
-  flex: 0 0 62px;
-  width: 62px;
-  opacity: 0.85;
-}
-.hg-spark .home-spark { height: 14px; }
-.hg-dim { color: var(--text-3); }
-
-/* 높이 고정 — 다음 할 일이 있든 없든 카드 높이가 같아야 격자가 정렬된다. */
-.hg-next {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-  height: 17px;
-  margin: 0;
+  height: 16px;
   font-size: var(--fs-3);
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 아이콘은 글자와 같은 톤 — 여기에 액센트를 쓰면 카드마다 색점이 하나씩
+.hl-next > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 아이콘은 글자와 같은 톤 — 여기에 액센트를 쓰면 행마다 색점이 하나씩
    더 생기고, 액센트가 "오늘" 을 뜻한다는 규칙이 깨진다. */
-.hg-next-icon {
+.hl-next-icon {
   flex: none;
   width: 11px;
   height: 11px;
   color: var(--text-3);
 }
-.hg-next > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.hl-dim {
+  color: var(--text-3);
 }
 
-.hg-add {
+.hl-tags {
+  display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: var(--space-2);
-  border-style: dashed;
+  white-space: nowrap;
+  font-size: var(--fs-2);
+  font-variant-numeric: tabular-nums;
+}
+/* 액센트는 이 화면에서 **오늘의 활동** 한 가지 의미다 (오늘 건수 + 맥박의
+   마지막 막대 + 커서). 색이 두 가지를 뜻하기 시작하면 아무 것도 안 뜻한다. */
+.hl-today {
+  color: var(--accent-text);
+  font-weight: var(--fw-bold);
+}
+/* 윤곽선 한 겹 — 채움 배지를 나열하면 "배지 수프" 가 된다. */
+.hl-chip {
+  font-size: var(--fs-0);
+  font-weight: var(--fw-strong);
+  line-height: 14px;
+  padding: 0 var(--space-2);
+  letter-spacing: var(--track-wide);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--sep-strong);
   background: transparent;
   color: var(--text-2);
-  min-height: 98px;
 }
-.hg-add-title { font-size: var(--fs-4); font-weight: var(--fw-bold); }
-.hg-add-actions { display: flex; gap: var(--space-2); }
 
-/* ── 프로젝트 색 팔레트 ────────────────────────────────────────────────
-   hex 가 아니라 **id** 를 저장하고(`data-pc`) 테마가 해석한다. 라이트/다크에서
-   같은 hex 는 성립하지 않기 때문이다. 각 색은 두 값만 노출한다:
-     --pc      아이콘·강조에 쓰는 선명한 색
-     --pc-soft 마크 배경에 쓰는 아주 옅은 면
-   본문 색은 건드리지 않는다 — 카드 8장이 각자 다른 글자색을 가지면 목록이
-   읽히지 않는다. 색은 **식별자**지 의미가 아니다. */
+.hl-spark {
+  display: block;
+  width: 64px;
+}
+/* 행의 맥박은 작아서 과거 막대의 0.45 가 점으로 읽힌다 — 한 단 올린다. */
+.hl-spark .home-spark-bar {
+  opacity: 0.6;
+}
+.hl-when {
+  font-family: var(--mono);
+  font-size: var(--fs-2);
+  color: var(--text-3);
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.hl-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+/* 액션 노출 조건 — hover / 컨테이너 포커스 / 커서 (rows 의 .home-actions 규칙과 같다). */
+.hl-row:hover .home-actions,
+.hl-row:focus-within .home-actions,
+.hl-row.is-cursor .home-actions,
+.hl-lead:hover .home-actions,
+.hl-lead:focus-within .home-actions,
+.hl-lead.is-cursor .home-actions {
+  opacity: 1;
+}
 
-/* 다크에서는 채도를 낮추고 명도를 올린다 — 라이트용 값을 그대로 쓰면 어두운
-   면 위에서 탁해지고 대비가 부족해진다. */
-
-/* 프로젝트 아이콘 — 색이 실제로 살아 있는 유일한 자리. */
-.hg-mark {
+/* 프로젝트 마크 — 색이 실제로 살아 있는 유일한 자리. 팔레트는 tokens.css 의
+   `[data-pc]` 한 곳이다 (Phase 5). */
+.hl-mark {
   display: grid;
   place-items: center;
   flex: none;
-  width: 28px;
-  height: 28px /* design-ignore -- 마크는 컨트롤이 아니라 글리프다 — 워드마크 상자 크기라 아이콘 램프의 몫 */;
-  border-radius: var(--radius-s);
+  width: 24px;
+  height: 24px /* design-ignore -- 마크는 컨트롤이 아니라 글리프다 */;
+  border-radius: var(--radius-xs);
   background: var(--pc-soft, var(--bg-inset));
   color: var(--pc, var(--text-2));
 }
-.hg-mark svg { width: 15px; height: 15px; }
+.hl-mark svg {
+  width: 13px;
+  height: 13px;
+}
+.hl-mark--lead {
+  width: 36px;
+  height: 36px /* design-ignore -- 위와 같음 — 글리프 상자 */;
+  border-radius: var(--radius-s);
+}
+.hl-mark--lead svg {
+  width: 18px;
+  height: 18px;
+}
 
 /* ── 오늘의 흐름 레일 ─────────────────────────────────────────────────── */
 
-.home-side { min-width: 0; }
+/* 곁이라 한 톤 가라앉는다 — 사이드바 면 + 왼쪽 hairline. 상자·그림자 없음. */
+.home-side {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sidebar);
+  border-left: 1px solid var(--sep);
+}
+@media (max-width: 1080px) {
+  .home-side {
+    border-left: 0;
+    border-top: 1px solid var(--sep);
+  }
+}
 .home-flow {
   min-height: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: var(--space-5) 13px;
-  border-radius: var(--radius-m);
-  border: 1px solid var(--border-card);
-  background: var(--bg-card);
   overflow: hidden;
 }
-/* 피드만 스크롤한다 — 헤더·빈 상태 문구는 제자리에 남는다. */
+.hf-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  height: 44px;
+  padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--sep);
+}
+.hf-title-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-wide);
+  color: var(--text-2);
+}
+.hf-title-head svg {
+  color: var(--accent);
+}
+.hf-count {
+  font-family: var(--mono);
+  font-size: var(--fs-2);
+  color: var(--text-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.hf-count b {
+  color: var(--text);
+  font-weight: var(--fw-bold);
+}
+.hf-empty {
+  margin: 0;
+  padding: var(--space-6) var(--space-5);
+  font-size: var(--fs-3);
+  line-height: var(--lh-body);
+  color: var(--text-2);
+}
+/* 피드만 스크롤한다 — 머리·빈 상태 문구는 제자리에 남는다. */
 .home-flow > ul {
   flex: 1 1 auto;
   min-height: 0;
@@ -834,24 +1056,22 @@
   list-style: none;
 }
 
-/* 흐름 행 — 제목 한 덩이 + 곁줄 한 줄 (2026-09-02 가독성 수정).
-   왼쪽 시각 기둥과 줄마다 다른 글자 크기를 걷어냈다. 제목만 진하게 두고
-   유형·프로젝트·시각을 흐린 한 줄로 모으면, 눈이 세로로 제목만 훑는다. */
+/* 흐름 행 — 제목 한 덩이 + 곁줄 한 줄 (2026-09-02 가독성 수정 유지).
+   제목만 진하게 두고 유형·프로젝트·시각을 흐린 한 줄로 모으면, 눈이 세로로
+   제목만 훑는다. */
 .hf-list {
-  margin: 2px -7px 0;
-  padding: 0 3px;
+  margin: 0;
+  padding: 0 var(--space-3);
 }
-/* 행 사이 실선 — 제목이 두 줄로 접히는 목록에서는 여백만으로 항목 경계가
-   서지 않는다 (어디까지가 한 건인지 매번 다시 읽게 된다). */
 .hf-item + .hf-item {
-  border-top: 1px solid var(--border-card);
+  border-top: 1px solid var(--sep);
 }
 .hf-row {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   width: 100%;
-  padding: var(--space-4) var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-3);
   text-align: left;
   cursor: pointer;
   border-radius: var(--radius-s);
@@ -913,7 +1133,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-4) var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-3);
 }
 
 /* ── 바닥 띠 — 초안·명령·키 안내를 한 줄로 압축 ─────────────────────── */
@@ -925,6 +1145,7 @@
   gap: var(--space-4);
   flex-wrap: wrap;
   padding-top: var(--space-3);
+  border-top: 1px solid var(--sep);
   min-width: 0;
 }
 .home-foot-list {
@@ -968,7 +1189,7 @@
 /* 초안 이름은 폭 상한을 갖는다 — 이름이 길면 항목이 그만큼 넓어져 뒤의 명령을
    다음 줄로 밀어내고, 그게 곧 띠 높이(= 프로젝트 격자 높이)의 변동이 된다.
    상한에 걸리면 이름은 말줄임된다 (.home-open 의 truncate). */
-.home-foot .home-drafttext { max-width: 200px; }
+.home-foot .home-drafttext { max-width: 300px; }
 
 /* ── 겉모습 선택기 (프로젝트 편집 다이얼로그) ────────────────────────── */
 

@@ -30,8 +30,9 @@ const REQUIRED = [
   // 시작 탭(프로젝트 메인 화면) — 창을 열면 가장 먼저 보이는 화면이다.
   ".home-board",
   ".home-wrap",
-  ".hg-grid",
-  ".hg-card",
+  ".hl-lead",
+  ".hl-ledger",
+  ".hl-row",
   // 창 최상위 모달 — 탭 닫기 확인창(useConfirm) · ⌘/ 치트시트. 스킬 화면을
   // 한 번도 안 연 창에서도 뜨므로 lazy 청크에 있으면 뼈대만 남아 나온다
   // (2026-09-02: 실제로 skills.css/screens.css 에 갇혀 있었다).

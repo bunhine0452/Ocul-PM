@@ -31,6 +31,9 @@ interface CodeTabsBarProps {
   onUnsplit: () => void;
   onMoveToOtherPane: (path: string) => void;
   onDropTab: (fromPane: number, path: string) => void;
+  /** git 상태 · 진단 표식 — 탭 이름 색 (트리와 같은 규칙). */
+  gitMarks: ReadonlyMap<string, "A" | "M" | "D">;
+  problemMarks: ReadonlyMap<string, "error" | "warning">;
 }
 
 export const CodeTabsBar = memo(function CodeTabsBar({
@@ -50,6 +53,8 @@ export const CodeTabsBar = memo(function CodeTabsBar({
   onUnsplit,
   onMoveToOtherPane,
   onDropTab,
+  gitMarks,
+  problemMarks,
 }: CodeTabsBarProps) {
   useT();
   const [menu, setMenu] = useState<{ x: number; y: number; path: string } | null>(null);
@@ -89,6 +94,8 @@ export const CodeTabsBar = memo(function CodeTabsBar({
           const isActive = path === active;
           const isDirty = dirtyPaths.has(path);
           const isPreview = path === preview;
+          const git = gitMarks.get(path);
+          const prob = problemMarks.get(path);
           return (
             <div
               key={path}
@@ -100,7 +107,9 @@ export const CodeTabsBar = memo(function CodeTabsBar({
                 "code-tab" +
                 (isActive ? " on" : "") +
                 (isDirty ? " dirty" : "") +
-                (isPreview ? " preview" : "")
+                (isPreview ? " preview" : "") +
+                (git ? " git-" + git : "") +
+                (prob ? " prob-" + prob : "")
               }
               title={isPreview ? `${path}\n${t("code.tabs.previewHint")}` : path}
               onDragStart={(e) => {

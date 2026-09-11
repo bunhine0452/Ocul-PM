@@ -234,6 +234,19 @@ export function defineCodeTheme(
       { token: "comment.md-prose", foreground: pick("--text-2", fg), fontStyle: "italic" },
       // 안정 id — 삽입 메뉴가 만들어 주지만 지워졌는지가 눈에 보여야 한다.
       { token: "variable.anchor.md-prose", foreground: pick("--text-3", fg) },
+
+      // ── 코드 화면의 `.md` (Monaco 내장 markdown, 접미사 `.md`) ──
+      // 2026-09-11 편집기 디자인 라운드. 내장 문법은 제목·글머리를 전부
+      // `keyword` 로, 굵게/기울임을 `strong`/`emphasis` 로 내는데 테마에 규칙이
+      // 없어 굵게가 굵지 않고 제목이 목록 글머리와 같은 무게였다. 서체 굵기는
+      // 색이 아니라 **구조**라 프리셋과 무관하게 항상 켠다.
+      { token: "keyword.md", foreground: pick("--code-kw", fg), fontStyle: "bold" },
+      { token: "strong.md", foreground: pick("--code-fg", fg), fontStyle: "bold" },
+      { token: "emphasis.md", foreground: pick("--code-fg", fg), fontStyle: "italic" },
+      { token: "string.md", foreground: pick("--code-str", fg) },
+      { token: "string.link.md", foreground: pick("--accent-text", fg), fontStyle: "underline" },
+      { token: "variable.md", foreground: pick("--code-def", fg) },
+      { token: "comment.md", foreground: pick("--code-comment", fg), fontStyle: "italic" },
     ].map((r) => ({ ...r, foreground: r.foreground.replace("#", "") })),
     colors: {
       // ── 편집면 ───────────────────────────────────────────────────────
@@ -241,8 +254,13 @@ export function defineCodeTheme(
       // Monaco 는 `#rrggbbaa` 를 받으므로 00 알파로 준다.
       "editor.background": "#00000000",
       "editor.foreground": fg,
-      "editorCursor.foreground": fg,
+      // 커서는 액센트 — 터미널 커서와 같은 색이라 "지금 여기" 가 앱 전체에서
+      // 한 색으로 말한다. 본문색 커서는 글자 사이에서 자주 사라졌다.
+      "editorCursor.foreground": accent,
       "editor.lineHighlightBackground": pick("--code-active-line", "#00000010"),
+      // base(`vs`) 가 현재 줄에 회색 테두리 상자를 그린다 — 띠가 아니라 상자로
+      // 읽혀 표(table) 의 행처럼 보였다. 띠 하나면 된다.
+      "editor.lineHighlightBorder": "#00000000",
       "editor.selectionBackground": pick("--code-selection", "#2c5d8f"),
       "editor.selectionHighlightBackground": pick("--code-selection-match", "#2c5d8f40"),
       "editor.inactiveSelectionBackground": withAlpha(accent, 0.1),
@@ -266,8 +284,14 @@ export function defineCodeTheme(
 
       // 줄번호 — 지금 줄만 본문색으로 올린다. 예전엔 전부 주석색이라
       // 커서가 몇 번째 줄에 있는지 거터가 답하지 않았다.
-      "editorLineNumber.foreground": pick("--code-comment", "#8a8a8a"),
-      "editorLineNumber.activeForeground": ink2,
+      "editorLineNumber.foreground": withAlpha(ink3, 0.75),
+      "editorLineNumber.activeForeground": accentText,
+      // 거터 바탕은 CSS(`--code-gutter`, code-frame.css)가 덮는다 — 여기 값은
+      // CSS 가 못 닿는 자리(접기 손잡이 뒤)의 폴백이다.
+      "editorGutter.background": "#00000000",
+      "editorGutter.modifiedBackground": accent,
+      "editorGutter.addedBackground": addLine,
+      "editorGutter.deletedBackground": delLine,
 
       // 들여쓰기 가이드 · 괄호 — 구조를 그리는 선들.
       "editorIndentGuide.background1": withAlpha(ink3, 0.16),
@@ -303,6 +327,23 @@ export function defineCodeTheme(
       "editorOverviewRuler.deletedForeground": delLine,
       "editorOverviewRuler.modifiedForeground": accent,
       "editorOverviewRuler.bracketMatchForeground": accentRing,
+
+      // ── 미니맵 ──
+      // **바탕을 반드시 준다.** 미니맵은 `minimap.background` 가 없으면
+      // `editor.background` 를 쓰는데 그게 위의 `#00000000` 이라, 캔버스에
+      // 알파 0 의 검정을 깔고 그 위에 글자를 섞었다 — 라이트 테마에서 미니맵만
+      // **검은 띠**로 떴다 (2026-09-11 스크린샷). 손잡이는 액센트를 옅게.
+      "minimap.background": surfaceBody,
+      "minimap.foregroundOpacity": dark ? "#000000a6" : "#00000080",
+      "minimapSlider.background": withAlpha(accent, 0.1),
+      "minimapSlider.hoverBackground": withAlpha(accent, 0.18),
+      "minimapSlider.activeBackground": withAlpha(accent, 0.26),
+      "minimap.selectionHighlight": accent,
+      "minimap.selectionOccurrenceHighlight": withAlpha(accent, 0.6),
+      "minimap.findMatchHighlight": pick("--code-search-current", "#e5c07b99"),
+      "minimap.errorHighlight": danger,
+      "minimap.warningHighlight": warn,
+      "minimap.infoHighlight": info,
 
       // 겹쳐 고정되는 상위 스코프 — 본문과 같은 바탕이어야 "고정된 본문" 으로
       // 읽힌다 (다른 색이면 떠 있는 패널로 보인다).

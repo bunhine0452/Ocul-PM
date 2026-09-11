@@ -108,3 +108,14 @@ export function langLabel(id: CodeLangId | null): string {
 export function monacoLangForPath(path: string): string {
   return langIdForPath(path) ?? "plaintext";
 }
+
+/**
+ * 산문 파일인가 — 줄바꿈의 기본값이 갈린다 (`codeWordWrap: "auto"`). 코드는
+ * 긴 줄이 곧 정보(들여쓰기·정렬)라 자르지 않고, 산문은 한 문단이 한 줄이라
+ * 안 접으면 화면 밖으로 달아난다 (2026-09-11 스크린샷의 AGENTS.md 가 그랬다).
+ */
+export function isProsePath(path: string): boolean {
+  const dot = path.lastIndexOf(".");
+  const ext = dot < 0 ? "" : path.slice(dot + 1).toLowerCase();
+  return ext === "md" || ext === "markdown" || ext === "mdx" || ext === "txt" || ext === "rst" || ext === "adoc";
+}

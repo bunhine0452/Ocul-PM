@@ -141,6 +141,13 @@ export interface WorkspaceState {
   plannerRailWidth: number;
   plannerRailSide: "left" | "right";
   /**
+   * 작업 일지 열람의 서술 칸 폭 px (2026-09-11 원장의 한 장 리디자인). 왼쪽이
+   * 읽는 칸, 오른쪽이 diff 라 둘의 경계는 "얼마나 긴 줄로 읽을 것인가" 의
+   * 취향이고, 일지를 열 때마다 되돌아가면 안 된다. 좁은 칸에서는 CSS 가
+   * 세로로 쌓으며 이 값을 무시한다.
+   */
+  entryReadWidth: number;
+  /**
    * 계획 본문에서 완료·폐기 항목을 숨긴 상태 (2026-09-10 플래너 업그레이드).
    * 32/35 가 끝난 계획은 남은 셋을 찾으려고 취소선 벽을 스크롤하게 된다 —
    * 이 값이 켜지면 단계는 남은 항목만 펼치고 숨긴 수를 발치에 적는다.
@@ -270,6 +277,13 @@ export interface WorkspaceState {
    * 대소문자·단어·정규식 습관은 사람에게 붙는 설정이라 여기 남긴다.
    */
   codeSearchOpts: { caseSensitive: boolean; wholeWord: boolean; regex: boolean };
+  /**
+   * 코드 화면 줄바꿈 (2026-09-11). `auto` 는 파일 종류가 정한다 — 산문(md·txt)
+   * 은 켜고 코드는 끈다. ⌥Z 나 상태줄로 뒤집으면 명시값이 된다.
+   */
+  codeWordWrap: "auto" | "on" | "off";
+  /** 코드 화면 파일 트리를 접었는가 (⌘B). 검색(⇧⌘F)은 접혀 있어도 편다. */
+  codeSidebarHidden: boolean;
   /** 문제 해결(Discussion) 화면에서 마지막으로 본 토의 문서의 id (frontmatter slug). */
   discussionActiveId: string | null;
   /**

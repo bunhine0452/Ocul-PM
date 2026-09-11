@@ -165,6 +165,8 @@ const TESTS = new Set([
   "__tests__/code_goto_model.test.ts",
   "__tests__/code_outline.test.ts",
   "__tests__/code_history.test.tsx",
+  // 2026-09-11 편집기 IDE 라운드 — 순수 모델(⌘P 순위·git 표식·심볼 사슬) 단언.
+  "__tests__/code_ide_round.test.ts",
   "__tests__/code_ai_attribution.test.tsx",
   "__tests__/code_inline_edit.test.ts",
   "__tests__/code_patch_reverse.test.ts",

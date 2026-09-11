@@ -410,6 +410,108 @@ describe("작업 일지 디테일 — 변경 파일 내비게이션", () => {
   });
 });
 
+// ─── 원장의 한 장 (2026-09-11) ─────────────────────────────────────────────
+//
+// 왼쪽 칸이 **읽는 칸**이 됐다: 마스트헤드(종류·날짜·작성자·큰 제목)가 문서의
+// 머리고, 서술이 본문, 변경된 파일은 그 뒤 부록. 파일 바의 경로는 목록 메뉴를
+// 겸하고, 두 칸의 경계는 끌어서·키보드로 옮기며 워크스페이스에 남는다.
+describe("작업 일지 디테일 — 원장의 한 장", () => {
+  const manyFiles = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      path: `ioreum/app/api/g${String(i).padStart(2, "0")}/route.ts`,
+      op: "update",
+      bytes_added: 1,
+      bytes_removed: 0,
+      rename_from: null,
+    }));
+  const dirOf = (c: HTMLElement) => c.querySelector(".efb-dir")?.textContent;
+
+  it("마스트헤드가 문서의 머리다 — 종류 · 날짜/시각 · 작성자 · 큰 제목 · 태그 · 파일 수", async () => {
+    fixtures.byWorkday["20260531"] = [
+      summary({ relative_path: "a", title: "검토 **대상**", tags: ["design"] }),
+    ];
+    const { container, findByText } = renderJournal();
+    fireEvent.click(await findByText("검토 대상"));
+    await waitFor(() => expect(container.querySelector(".entry-mast")).not.toBeNull());
+
+    expect(container.querySelector(".entry-kind")?.textContent).toBe("기능 추가");
+    expect(container.querySelector(".entry-when")?.textContent).toContain("2026.05.31");
+    expect(container.querySelector(".entry-when")?.textContent).toContain("10:00");
+    expect(container.querySelector(".entry-who")?.textContent).toContain("Claude Code");
+    // 제목의 마크다운 표식은 원장 행과 같이 벗긴다.
+    expect(container.querySelector(".entry-title")?.textContent).toBe("검토 대상");
+    expect(container.querySelector(".entry-mast-foot .tag")?.textContent).toBe("design");
+    // 에이전트 출처는 기본값 — 배지를 달지 않는다 (원장의 메타 승격 규칙).
+    expect(container.querySelector(".entry-eyebrow .chip")).toBeNull();
+    // 툴바의 칩 다섯 개는 마스트헤드로 내려갔다.
+    expect(container.querySelector(".toolbar .tbadge")).toBeNull();
+    // 부록의 파일 수 — 기본 fixture 는 2.
+    await waitFor(() =>
+      expect(container.querySelector(".entry-jump")?.textContent).toContain("2"),
+    );
+    // 부록은 본문 **뒤**에 온다.
+    const inner = container.querySelector(".entry-read-inner")!;
+    const order = Array.from(inner.children).map((el) => el.className);
+    expect(order.indexOf("entry-narrative")).toBeLessThan(order.indexOf("entry-appendix"));
+  });
+
+  it("미완료 일지는 마스트헤드가 그 말을 한다", async () => {
+    fixtures.byWorkday["20260531"] = [
+      summary({ relative_path: "a", title: "검토 대상", status: "in_progress" }),
+    ];
+    const { container, findByText } = renderJournal();
+    fireEvent.click(await findByText("검토 대상"));
+    await waitFor(() => expect(container.querySelector(".entry-flag")?.textContent).toBe("미완료"));
+  });
+
+  it("파일 바의 경로가 곧 목록 메뉴 — 열고 고르고, Esc 는 메뉴만 닫는다", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
+    fixtures.filesTouched = manyFiles(3);
+    fixtures.entryDiffs = manyFiles(3).map((f, i) => ({
+      path: f.path,
+      patch: `@@ -1 +1 @@\n-const v = 0;\n+const v = ${i};\n`,
+    }));
+    const { container, findByText, getByRole, queryByRole, queryByLabelText } = renderJournal();
+    fireEvent.click(await findByText("검토 대상"));
+    await waitFor(() =>
+      expect(container.querySelector(".efb-count")?.textContent).toBe("1/3"),
+    );
+
+    const handle = container.querySelector<HTMLButtonElement>(".efb-file")!;
+    expect(handle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(handle);
+    const menu = getByRole("listbox", { name: "변경된 파일 목록" });
+    const options = menu.querySelectorAll('[role="option"]');
+    expect(options).toHaveLength(3);
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(options[2]);
+    await waitFor(() => expect(dirOf(container)).toBe("ioreum/app/api/g02/"));
+    expect(queryByRole("listbox")).toBeNull();
+
+    // Esc — 메뉴만 닫히고 화면은 남는다 (부모의 Esc=목록으로 가 먹지 않는다).
+    fireEvent.click(container.querySelector(".efb-file")!);
+    expect(getByRole("listbox", { name: "변경된 파일 목록" })).toBeInTheDocument();
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(queryByRole("listbox")).toBeNull();
+    expect(queryByLabelText("목록으로")).not.toBeNull();
+  });
+
+  it("두 칸의 경계는 키보드로도 옮기고 워크스페이스에 남는다", async () => {
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "검토 대상" })];
+    const { findByText, getByLabelText } = renderJournal();
+    fireEvent.click(await findByText("검토 대상"));
+    const sep = getByLabelText("서술 칸 폭 조절");
+    expect(sep).toHaveAttribute("aria-valuenow", "520");
+    fireEvent.keyDown(sep, { key: "ArrowRight" });
+    // 영속은 워크스페이스 컨텍스트가 유휴 시점에 몰아서 쓴다 — 여기서는 값이
+    // 컨텍스트 상태(= aria-valuenow 의 출처)에 들어갔는지까지만 본다.
+    await waitFor(() => expect(sep).toHaveAttribute("aria-valuenow", "536"));
+    fireEvent.keyDown(sep, { key: "ArrowLeft" });
+    await waitFor(() => expect(sep).toHaveAttribute("aria-valuenow", "520"));
+  });
+});
+
 // ─── {#entry-open-affordance} ─────────────────────────────────────────────
 //
 // `openEntryInEditor` 는 opener-scope 회귀를 세 번 겪고 만든 전용 경로인데

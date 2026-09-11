@@ -205,18 +205,22 @@ describe("메인 화면 — 프로젝트 행", () => {
   });
 
   /**
-   * 카드 전체가 클릭 판정이다 — 이름 버튼 하나가 `::after` 로 카드를 덮는
-   * 방식(스트레치 오픈). 카드를 통째로 `<button>` 으로 감싸면 안의 ✎/🗑 이
-   * 중첩 인터랙티브가 되어 axe 위반이므로 이 구조여야 한다.
+   * 행 전체가 클릭 판정이다 — 이름 버튼 하나가 `::after` 로 행을 덮는
+   * 방식(스트레치 오픈). 행을 통째로 `<button>` 으로 감싸면 안의 ✎/🗑 이
+   * 중첩 인터랙티브가 되어 axe 위반이므로 이 구조여야 한다. 사령탑 밴드도
+   * 같은 구조다.
    */
-  it("카드 전체가 열기 히트박스다 (중첩 인터랙티브 없이)", () => {
+  it("행·사령탑 전체가 열기 히트박스다 (중첩 인터랙티브 없이)", () => {
     const { container } = renderStart({ projects });
-    const card = container.querySelector(".hg-card:not(.hg-add)")!;
-    // 히트박스 앵커는 카드 안의 '열기' 버튼이고, 카드는 그 ::after 의 기준이다.
-    expect(card.querySelector(".hg-name.home-open")).toBeTruthy();
-    // 카드 자체는 버튼이 아니다 — 그랬다면 안의 액션 버튼이 중첩된다.
-    expect(card.tagName).toBe("LI");
-    expect(card.getAttribute("role")).toBeNull();
+    const row = container.querySelector(".hl-row")!;
+    // 히트박스 앵커는 행 안의 '열기' 버튼이고, 행은 그 ::after 의 기준이다.
+    expect(row.querySelector(".hl-name.home-open")).toBeTruthy();
+    // 행 자체는 버튼이 아니다 — 그랬다면 안의 액션 버튼이 중첩된다.
+    expect(row.tagName).toBe("LI");
+    expect(row.getAttribute("role")).toBeNull();
+    const lead = container.querySelector(".hl-lead")!;
+    expect(lead.querySelector(".hl-lead-name.home-open")).toBeTruthy();
+    expect(lead.getAttribute("role")).toBeNull();
   });
 
   it("프로젝트마다 색·아이콘이 카드에 실린다", () => {
@@ -226,28 +230,41 @@ describe("메인 화면 — 프로젝트 행", () => {
         project({ id: 2, name: "ledger-api", root_path: "/x/ledger-api" }),
       ],
     });
-    const cards = container.querySelectorAll(".hg-card:not(.hg-add)");
+    // 문서 순서: 사령탑(순위 1위 = 기록 없으니 이름순 aurora-web) → 원장 행.
+    const cards = container.querySelectorAll(".hl-lead, .hl-row");
     // 고른 값은 그대로.
     expect(cards[0].getAttribute("data-pc")).toBe("rose");
     // 안 고른 프로젝트도 색이 **있다** — 이름 해시로 유도된다.
     expect(cards[1].getAttribute("data-pc")).toBeTruthy();
-    expect(container.querySelectorAll(".hg-mark svg").length).toBe(2);
+    expect(container.querySelectorAll(".hl-mark svg").length).toBe(2);
   });
 
-  /** 대격변 계약 — 프로젝트는 티어로 나뉘지 않고 **전부** 격자에 그려진다. */
-  it("프로젝트를 하나도 접지 않고 전부 격자에 그린다", () => {
+  /** 계약 — 프로젝트는 접히지 않고 **전부** 그려진다: 사령탑 1 + 원장 행 전부. */
+  it("프로젝트를 하나도 접지 않고 전부 그린다 (사령탑 + 원장)", () => {
     const many = Array.from({ length: 9 }, (_, i) =>
       project({ id: i + 1, name: `proj-${i + 1}`, root_path: `/x/proj-${i + 1}` }),
     );
     const { container } = renderStart({ projects: many });
-    // 추가 카드(.hg-add)는 프로젝트가 아니므로 뺀다.
-    const cards = container.querySelectorAll(".hg-card:not(.hg-add)");
-    expect(cards).toHaveLength(9);
+    expect(container.querySelectorAll(".hl-lead")).toHaveLength(1);
+    expect(container.querySelectorAll(".hl-row")).toHaveLength(8);
+  });
+
+  /** 원장 리디자인 — 순위의 근거(마지막 활동 시간대)가 묶음 헤더로 보인다. */
+  it("검색 중이 아니면 시간대 묶음 헤더가 서고, 검색 중에는 사라진다", () => {
+    const { container, getByLabelText } = renderStart({ projects });
+    // 기록이 없는 프로젝트는 전부 「조용함」 묶음이다 (isQuiet(null) = true).
+    const heads = Array.from(container.querySelectorAll(".hl-group-head")).map(
+      (n) => n.textContent,
+    );
+    expect(heads).toEqual(["2주 넘게 조용함3"]);
+    fireEvent.change(getByLabelText("프로젝트 검색"), { target: { value: "a" } });
+    expect(container.querySelectorAll(".hl-group-head")).toHaveLength(0);
+    expect(container.querySelectorAll(".hl-lead")).toHaveLength(0);
   });
 
   it("이미 다른 탭에서 열린 프로젝트에 '열림' 배지를 붙인다", () => {
     const { container } = renderStart({ projects, openWindows: [1] });
-    const opened = Array.from(container.querySelectorAll(".hg-chip")).map((n) => n.textContent);
+    const opened = Array.from(container.querySelectorAll(".hl-chip")).map((n) => n.textContent);
     expect(opened).toContain("열림");
   });
 
@@ -266,21 +283,22 @@ describe("메인 화면 — 키보드 진입로 (회귀 방지)", () => {
     project({ id: 5, name: "quartz-svc", root_path: "/x/quartz-svc" }),
   ];
 
-  // 로빙 tabindex: 격자 전체에서 '열기' 가능한 탭 스톱은 정확히 하나.
-  // 0개가 되면 Tab 으로 목록에 들어갈 방법이 사라진다 (예전 벤토 시절의 회귀).
-  it("격자에 '열기' 탭 스톱이 정확히 하나 있다", () => {
+  // 로빙 tabindex: 사령탑 + 원장 전체에서 '열기' 가능한 탭 스톱은 정확히 하나.
+  // 0개가 되면 Tab 으로 목록에 들어갈 방법이 사라진다 (예전 벤토 시절의 회귀 —
+  // 등록되지 않은 사령탑이 flat[0] 을 차지하면 탭 스톱이 0개가 됐다).
+  it("사령탑·원장을 합쳐 '열기' 탭 스톱이 정확히 하나 있다", () => {
     const { container } = renderStart({ projects });
-    const grid = container.querySelector(".hg-grid")!;
-    expect(grid).toBeTruthy();
+    const grid = container.querySelector("main")!;
+    expect(container.querySelector(".hl-lead")).toBeTruthy();
     const openStops = Array.from(grid.querySelectorAll('[tabindex="0"]')).filter((el) =>
       /열기|이어서 만들기/.test(el.getAttribute("aria-label") ?? ""),
     );
     expect(openStops).toHaveLength(1);
   });
 
-  it("격자에서 파괴적 액션은 커서 카드 하나만 Tab 에 노출된다", () => {
+  it("파괴적 액션은 커서 행 하나만 Tab 에 노출된다", () => {
     const { container } = renderStart({ projects });
-    const grid = container.querySelector(".hg-grid")!;
+    const grid = container.querySelector("main")!;
     const deletes = Array.from(
       grid.querySelectorAll('[aria-label$="제거"]'),
     ) as HTMLElement[];
@@ -311,7 +329,7 @@ describe("메인 화면 — 접근성 (axe 3상태)", () => {
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
   });
 
-  it("프로젝트 여러 개 (사령탑 + 판 + 행)", async () => {
+  it("프로젝트 여러 개 (사령탑 + 원장 + 흐름)", async () => {
     const { container } = renderStart({
       projects: [
         project({ id: 1, name: "aurora-web" }),

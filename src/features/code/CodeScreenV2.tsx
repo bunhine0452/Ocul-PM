@@ -12,21 +12,13 @@ import { SkeletonList } from "@/components/ui/Skeleton";
 // 움직여야** 하는데, 그 둘을 다 보는 자리가 여기뿐이다.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Toolbar } from "@/components/Toolbar";
-import {
-  RefreshCw,
-  Save,
-  ExternalLink,
-  Search,
-  FilePlus,
-  FolderPlus,
-  AlignLeft,
-  Bug,
-  Play,
-  PanelLeft,
-  PanelRight,
-  TextSearch,
-} from "@/components/Icons";
+import { CodeSidebarHead, CodeTreeRoot } from "./CodeSidebarHead";
+import { CodeQuickOpen } from "./CodeQuickOpen";
+import { flattenFiles } from "./quickOpenModel";
+import { useGitMarks } from "./gitDecor";
+import { groupByFile } from "./problemsModel";
+import { isProsePath } from "./codeLang";
+import { CodeToolbar } from "./CodeToolbar";
 import { commands, events, type CodeTree as CodeTreeData, type LspSymbol } from "@/lib/bindings";
 import { safeUnlisten } from "@/lib/unlisten";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -36,7 +28,6 @@ import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { AppDialog } from "@/components/ui/AppDialog";
-import { blocked } from "@/lib/blocked";
 
 import { CodeTree } from "./CodeTree";
 import { useCodeImport } from "./useCodeImport";
@@ -102,6 +93,7 @@ import {
   listDirtyPaths,
 } from "./codeBuffers";
 import "./code.css";
+import "./code-frame.css";
 
 /** 다른 화면(검색·코드맵)에서 넘어온 열기 목표 — one-shot 핸드오프. */
 export interface CodeOpenTarget {
@@ -193,6 +185,7 @@ export function CodeScreenV2({
   const [sidebarMode, setSidebarMode] = useState<"files" | "search">("files");
   const [searchFocusSeq, setSearchFocusSeq] = useState(0);
   const openSearch = useCallback(() => {
+    setState((prev) => (prev.codeSidebarHidden ? { ...prev, codeSidebarHidden: false } : prev));
     setSidebarMode("search");
     setSearchFocusSeq((n) => n + 1);
   }, []);
@@ -215,6 +208,9 @@ export function CodeScreenV2({
   // 남으면 "아까 그건 어디 갔지" 가 된다).
   const [problemsOpen, setProblemsOpen] = useState(false);
   const problems = useProblems(projectId);
+  // git 상태 장식 — 저장·워처·파일 조작 뒤에 다시 읽는다 (`gitDecor` 가 디바운스).
+  const gitDecor = useGitMarks(projectId);
+  const refreshGitMarks = gitDecor.refresh;
   // 디버그 — 참조 패널과 같은 자리를 쓴다 (둘이 동시에 뜨면 편집 영역이 없어진다).
   const [debugOpen, setDebugOpen] = useState(false);
   const [launchOpen, setLaunchOpen] = useState(false);
@@ -267,13 +263,17 @@ export function CodeScreenV2({
     // 저장·포맷으로 본문이 바뀌면 구조도 바뀐다. 아웃라인이 접혀 있으면
     // effect 가 조회를 건너뛰므로 여기서 조건을 따지지 않는다.
     setSymbolEpoch((n) => n + 1);
-  }, [refreshDirtyPaths]);
+    refreshGitMarks();
+  }, [refreshDirtyPaths, refreshGitMarks]);
 
   // 아웃라인은 **접혀 있으면 묻지 않는다** — rust-analyzer 에 파일을 열 때마다
   // documentSymbol 을 던지는 것은 안 보는 패널을 위한 비용이다. 이동 위젯과
   // 스티키 스크롤도 같은 목록을 쓰므로(새 커맨드 없음) 그때는 접혀 있어도
   // 묻는다 — 스티키는 켜 두면 늘 보이는 물건이라 그 비용이 값을 한다.
-  const symbolsWanted = outlineOpen || gotoState != null || settings.codeStickyScroll;
+  // 2026-09-11: 브레드크럼이 커서가 든 심볼을 늘 보여 주므로 파일이 열려 있으면
+  // 항상 묻는다. 서버가 없는 파일은 빈 답이 즉시 온다 (비용은 열 때 한 번 +
+  // 저장·포맷 때).
+  const symbolsWanted = outlineOpen || gotoState != null || settings.codeStickyScroll || selected != null;
   useEffect(() => {
     if (!symbolsWanted || !selected) {
       setSymbols(null);
@@ -490,6 +490,40 @@ export function CodeScreenV2({
    * 이미 열려 있으면 아무것도 하지 않는다 — 위젯 안에서 `:` 한 글자로 모드를
    * 바꿀 수 있어서, 다시 여는 것은 방금 친 질의만 지운다.
    */
+  // ── ⌘P 빠른 열기 · ⌥Z 줄바꿈 · ⌘B 사이드바 (2026-09-11 IDE 라운드) ──
+  const [quickOpen, setQuickOpen] = useState(false);
+  const wordWrapMode = state.codeWordWrap ?? "auto";
+  const wordWrapFor = useCallback(
+    (path: string | null) =>
+      wordWrapMode === "auto" ? (path != null && isProsePath(path)) : wordWrapMode === "on",
+    [wordWrapMode],
+  );
+  const toggleWordWrap = useCallback(() => {
+    const now = wordWrapFor(focusedPath(tabsRef.current));
+    setState((prev) => ({ ...prev, codeWordWrap: now ? "off" : "on" }));
+  }, [wordWrapFor, setState]);
+  const sidebarHidden = state.codeSidebarHidden === true;
+  const toggleSidebar = useCallback(() => {
+    setState((prev) => ({ ...prev, codeSidebarHidden: !prev.codeSidebarHidden }));
+  }, [setState]);
+  const problemMarks = useMemo(() => {
+    const out = new Map<string, "error" | "warning">();
+    for (const file of groupByFile(problems)) {
+      if (file.counts.error > 0) out.set(file.path, "error");
+      else if (file.counts.warning > 0) out.set(file.path, "warning");
+    }
+    return out;
+  }, [problems]);
+  const quickOpenFiles = useMemo(() => (tree ? flattenFiles(tree.nodes) : []), [tree]);
+  const quickOpenFilesRef = useRef(quickOpenFiles);
+  quickOpenFilesRef.current = quickOpenFiles;
+  // 빠른 열기의 빈 질의 목록 — 보고 있는 파일이 맨 위, 나머지는 탭 순서.
+  const openPathsRecent = useMemo(() => {
+    const active = tabs.panes[tabs.focused]?.active ?? null;
+    const all = allOpenPaths(tabs);
+    return active ? [active, ...all.filter((p) => p !== active)] : all;
+  }, [tabs]);
+
   const openGoto = useCallback(
     (lineMode: boolean) => {
       const path = focusedPath(tabsRef.current);
@@ -619,7 +653,10 @@ export function CodeScreenV2({
   useTreeWatch({
     projectId,
     cachedDirs: () => dirCacheRef.current,
-    onStale: (dirs) => reloadAfterOp(...dirs),
+    onStale: (dirs) => {
+      reloadAfterOp(...dirs);
+      refreshGitMarks();
+    },
   });
 
   /**
@@ -857,7 +894,23 @@ export function CodeScreenV2({
         openGoto(true);
         return;
       }
+      // ⌥Z — 줄바꿈. `code` 로 본다: macOS 에서 ⌥Z 의 `key` 는 "Ω" 다.
+      if (e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.code === "KeyZ") {
+        e.preventDefault();
+        toggleWordWrap();
+        return;
+      }
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      if (!e.shiftKey && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        if (quickOpenFilesRef.current.length > 0) setQuickOpen(true);
+        return;
+      }
+      if (!e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleSidebar();
+        return;
+      }
       // 괄호 키는 `key` 가 아니라 `code` 로 본다 — ⇧ 조합·비영어 자판에서
       // `key` 값이 갈라진다.
       if (e.shiftKey && (e.code === "BracketRight" || e.code === "BracketLeft")) {
@@ -903,7 +956,8 @@ export function CodeScreenV2({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isVisible, reopenClosedTab, startCreate, openSearch, pasteHere, cutFrom, openGoto]);
+  }, [isVisible, reopenClosedTab, startCreate, openSearch, pasteHere, cutFrom, openGoto, toggleWordWrap, toggleSidebar]);
+
 
   /** 트리 안 드래그 이동 — 놓는 순간 이름 바꾸기(=이동)로 합류한다. */
   const treeDrag = useTreeDrag({
@@ -990,66 +1044,20 @@ export function CodeScreenV2({
         />
       ) : (
         <>
-      <div className="code-sidebar-head">
-        <div className="search-box sm code-filter">
-          <Search size={13} className="code-filter-ico" />
-          <input
-            type="text"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder={t("code.filter")}
-            aria-label={t("code.filter")}
-            spellCheck={false}
-          />
-          {filter ? (
-            <button
-              type="button"
-              className="code-filter-clear"
-              onClick={() => setFilter("")}
-              aria-label={t("code.filter.clear")}
-              title={t("code.filter.clear")}
-            >
-              ×
-            </button>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          className="code-tool-btn sm"
-          onClick={openSearch}
-          title={t("code.search.open")}
-          aria-label={t("code.search.open")}
-        >
-          <TextSearch size={15} />
-        </button>
-        <button
-          type="button"
-          className="code-tool-btn sm"
-          onClick={() => startCreate("", false)}
-          title={t("code.ops.newFile")}
-          aria-label={t("code.ops.newFile")}
-        >
-          <FilePlus size={15} />
-        </button>
-        <button
-          type="button"
-          className="code-tool-btn sm"
-          onClick={() => startCreate("", true)}
-          title={t("code.ops.newFolder")}
-          aria-label={t("code.ops.newFolder")}
-        >
-          <FolderPlus size={15} />
-        </button>
-        <button
-          type="button"
-          className="code-tool-btn sm"
-          onClick={toggleSidebarSide}
-          title={t(sidebarOnRight ? "code.sidebar.toLeft" : "code.sidebar.toRight")}
-          aria-label={t(sidebarOnRight ? "code.sidebar.toLeft" : "code.sidebar.toRight")}
-        >
-          {sidebarOnRight ? <PanelLeft size={15} /> : <PanelRight size={15} />}
-        </button>
-      </div>
+      <CodeSidebarHead
+        filter={filter}
+        onFilterChange={setFilter}
+        onOpenSearch={openSearch}
+        onNewFile={() => startCreate("", false)}
+        onNewFolder={() => startCreate("", true)}
+        sidebarOnRight={sidebarOnRight}
+        onToggleSide={toggleSidebarSide}
+      />
+      <CodeTreeRoot
+        name={state.currentProjectName || (projectRoot ? baseName(projectRoot) : "")}
+        canCollapse={expanded.size > 0 && !filtering}
+        onCollapseAll={() => setExpanded(new Set())}
+      />
       {tree?.truncated ? <div className="code-truncated">{t("code.truncated")}</div> : null}
       {treeIsEmpty ? (
         <div className="code-tree-empty">
@@ -1063,6 +1071,8 @@ export function CodeScreenV2({
           expanded={expandedForRender}
           dirtyPaths={dirtyPaths}
           openPaths={openPaths}
+          gitMarks={gitDecor.marks}
+          problemMarks={problemMarks}
           draft={draft}
           marks={marks}
           // 트리 안에서 tabindex 를 가진 자리는 언제나 하나여야 한다.
@@ -1098,78 +1108,30 @@ export function CodeScreenV2({
 
   return (
     <>
-      <Toolbar title={t("nav.code")} sub={selected ? selected + (focusedDirty ? " ●" : "") : undefined}>
-        {selected && projectRoot ? (
-          <button
-            type="button"
-            className="code-tool-btn"
-            onClick={() => paneRefs[tabs.focused]?.current?.openExternal()}
-            title={t("code.openExternal")}
-            aria-label={t("code.openExternal")}
-          >
-            <ExternalLink size={15} />
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className={"code-tool-btn" + (debugOpen ? " on" : "")}
-          onClick={() => setDebugOpen((v) => !v)}
-          title={t("code.debug.open")}
-          aria-label={t("code.debug.open")}
-        >
-          <Bug size={15} />
-        </button>
-        <button
-          type="button"
-          className="code-tool-btn"
-          onClick={() => {
-            // 지금 파일에서 그럴듯한 첫 값을 채운다 — 대개 그대로 눌러서 되고,
-            // 아니면 고치면 된다 (자동 빌드는 하지 않기로 했다).
-            const language = adapterLanguageFor(selected) ?? launchForm.language;
-            setLaunchForm((prev) => ({
-              ...prev,
-              language,
-              program: prev.program || defaultProgramFor(language, selected, state.currentProjectName),
-            }));
-            setLaunchOpen(true);
-          }}
-          title={t("code.debug.run")}
-          aria-label={t("code.debug.run")}
-        >
-          <Play size={15} />
-        </button>
-        {selected ? (
-          <button
-            type="button"
-            className="code-tool-btn"
-            onClick={() => paneRefs[tabs.focused]?.current?.format()}
-            title={t("code.format") + " (⇧⌥F)"}
-            aria-label={t("code.format")}
-          >
-            <AlignLeft size={15} />
-          </button>
-        ) : null}
-        {selected ? (
-          <button
-            type="button"
-            className={"code-tool-btn code-save-btn" + (focusedDirty ? " on" : "")}
-            onClick={() => paneRefs[tabs.focused]?.current?.save()}
-            aria-label={t("code.save")}
-            {...blocked(focusedDirty ? null : t("code.blockedNoChanges"), t("code.save") + " (⌘S)")}
-          >
-            <Save size={15} />
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className="code-tool-btn"
-          onClick={loadTree}
-          title={t("code.refresh")}
-          aria-label={t("code.refresh")}
-        >
-          <RefreshCw size={15} />
-        </button>
-      </Toolbar>
+      <CodeToolbar
+        selected={selected}
+        focusedDirty={focusedDirty}
+        canOpenExternal={projectRoot != null}
+        sidebarHidden={sidebarHidden}
+        debugOpen={debugOpen}
+        onToggleSidebar={toggleSidebar}
+        onOpenExternal={() => paneRefs[tabs.focused]?.current?.openExternal()}
+        onToggleDebug={() => setDebugOpen((v) => !v)}
+        onRun={() => {
+          // 지금 파일에서 그럴듯한 첫 값을 채운다 — 대개 그대로 눌러서 되고,
+          // 아니면 고치면 된다 (자동 빌드는 하지 않기로 했다).
+          const language = adapterLanguageFor(selected) ?? launchForm.language;
+          setLaunchForm((prev) => ({
+            ...prev,
+            language,
+            program: prev.program || defaultProgramFor(language, selected, state.currentProjectName),
+          }));
+          setLaunchOpen(true);
+        }}
+        onFormat={() => paneRefs[tabs.focused]?.current?.format()}
+        onSave={() => paneRefs[tabs.focused]?.current?.save()}
+        onRefresh={loadTree}
+      />
 
       {treeStatus === "loading" ? (
         <div className="scroll" ref={rootRef}>
@@ -1185,7 +1147,7 @@ export function CodeScreenV2({
         </div>
       ) : (
         <div className="code-body" ref={rootRef}>
-          {sidebarOnRight ? null : sidebarEl}
+          {sidebarOnRight || sidebarHidden ? null : sidebarEl}
 
           <div className="code-editors">
             <div className={"code-main" + (isSplit ? " split" : "")}>
@@ -1245,8 +1207,14 @@ export function CodeScreenV2({
                 }}
                 onCursorLine={setCursorLine}
                 // 스티키는 아웃라인과 **같은 값**을 쓴다. 꺼져 있으면 안 내려보낸다.
-                stickySymbols={settings.codeStickyScroll ? symbols : null}
+                // 브레드크럼이 늘 쓰고, 스티키는 CodeEditor 가 설정으로 켜고 끈다.
+                stickySymbols={symbols}
                 onGoToSymbol={() => openGoto(false)}
+                onGoToLine={() => openGoto(true)}
+                wordWrap={wordWrapFor(pane.active)}
+                onToggleWordWrap={toggleWordWrap}
+                gitMarks={gitDecor.marks}
+                problemMarks={problemMarks}
                 onOpenProblems={openProblems}
                 breakpointsFor={debug.breakpointsFor}
                 unverifiedFor={debug.unverifiedFor}
@@ -1315,11 +1283,24 @@ export function CodeScreenV2({
             ) : null}
           </div>
 
-          {sidebarOnRight ? sidebarEl : null}
+          {sidebarOnRight && !sidebarHidden ? sidebarEl : null}
 
           {/* 파일 안 이동 — `.code-body` 안에 둔다. 오버레이는 position:fixed 라
               자리를 차지하지 않고, 여기 있어야 화면 스코프의 --code-* 토큰
               (심볼 종류 점)이 산다. */}
+          {quickOpen ? (
+            <CodeQuickOpen
+              files={quickOpenFiles}
+              truncated={tree?.truncated === true}
+              openPaths={openPathsRecent}
+              dirtyPaths={dirtyPaths}
+              onOpen={(path) => {
+                openPath(path, null);
+                pinPath(tabsRef.current.focused, path);
+              }}
+              onClose={() => setQuickOpen(false)}
+            />
+          ) : null}
           {gotoState ? (
             <CodeGoto
               symbols={symbols}

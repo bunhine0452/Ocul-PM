@@ -7,7 +7,7 @@
 // 값으로 만들고 여기서 문다.
 import { describe, expect, it } from "vitest";
 
-import { baseEditorOptions, diffEditorOptions } from "@/features/code/monaco/options";
+import { baseEditorOptions, diffEditorOptions, minimapOptions } from "@/features/code/monaco/options";
 
 const opts = (over: Partial<Parameters<typeof baseEditorOptions>[0]> = {}) =>
   baseEditorOptions({
@@ -17,6 +17,7 @@ const opts = (over: Partial<Parameters<typeof baseEditorOptions>[0]> = {}) =>
     tabSize: 2,
     insertSpaces: true,
     minimap: true,
+    wordWrap: false,
     ...over,
   });
 
@@ -93,8 +94,21 @@ describe("들여쓰기는 설정이 정한다 — 추정하지 않는다", () =>
 
 describe("미니맵 · 브래킷 색칠 · 들여쓰기 가이드", () => {
   it("미니맵은 설정이 켜고 끈다 (좁은 분할에서 폭을 먹는다)", () => {
-    expect(opts({ minimap: true }).minimap).toEqual({ enabled: true });
-    expect(opts({ minimap: false }).minimap).toEqual({ enabled: false });
+    expect(opts({ minimap: true }).minimap).toMatchObject({ enabled: true });
+    expect(opts({ minimap: false }).minimap).toMatchObject({ enabled: false });
+  });
+
+  it("미니맵은 글자가 아니라 덩어리로, 손잡이는 늘 보인다 (2026-09-11 디자인 라운드)", () => {
+    // 1px 축소 글자는 못 읽는데 읽으려 드는 순간 눈이 샌다 — 덩어리는 밀도만 말한다.
+    expect(opts().minimap).toMatchObject({ renderCharacters: false, showSlider: "always" });
+    // 켜고 끄는 자리(`CodeEditor` 의 updateOptions)도 같은 벌이어야 한다 —
+    // `{ enabled }` 만 넘기면 Monaco 가 나머지를 기본값으로 되돌린다.
+    expect(minimapOptions(false)).toEqual({ ...opts().minimap, enabled: false });
+  });
+
+  it("줄바꿈은 화면이 파일 종류로 정해 내려보낸다 (⌥Z 가 뒤집는다)", () => {
+    expect(opts({ wordWrap: true }).wordWrap).toBe("on");
+    expect(opts({ wordWrap: false }).wordWrap).toBe("off");
   });
 
   it("자리를 안 먹는 둘은 설정 없이 항상 켠다", () => {

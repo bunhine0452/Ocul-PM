@@ -1,11 +1,10 @@
 /**
- * 시작 화면의 큰 조각들 — 오늘의 흐름 레일 · 추가 카드 · 온보딩.
+ * 시작 화면의 큰 조각들 — 오늘의 흐름 레일 · 온보딩.
  *
- * 2026-08-12 대격변에서 벤토(사령탑/판)는 사라졌다. 크기로 위계를 만들던
- * 구조가 프로젝트 9개에서 무너졌기 때문이다 — 지금은 같은 크기의 카드
- * 격자(`ProjectCard`)가 순위만으로 그 일을 한다.
+ * 추가 카드는 2026-09-11 원장 리디자인에서 빠졌다 — 원장에는 격자의 "마지막
+ * 칸" 이 없고, 추가는 레일의 버튼과 바닥 명령(⌘O·⌘N)이 이미 두 번 말한다.
  */
-import { Cpu, NotebookText, Plus, FolderPlus, FolderOpen } from "@/components/Icons";
+import { Cpu, NotebookText, Plus, FolderOpen } from "@/components/Icons";
 import type { HomeBrief, Project } from "@/lib/bindings";
 
 import { Skel, TriggerKicker } from "./atoms";
@@ -33,16 +32,15 @@ export function FlowTile({
 
   return (
     <article className="home-flow" aria-label={t("home.todayFlow")}>
-      <header className="flex items-center justify-between gap-3">
-        <h2 className="home-eyebrow flex items-center gap-1.5">
-          <NotebookText  className="text-[var(--accent)]" size={15} strokeWidth={2} />
+      {/* 머리는 원장 머리(검색)와 같은 높이·같은 밑줄 — 두 칸이 한 줄에서 만난다. */}
+      <header className="hf-head">
+        <h2 className="hf-title-head">
+          <NotebookText size={15} strokeWidth={2} aria-hidden="true" />
           {t("home.todayFlow")}
         </h2>
         {brief && (
-          <span className="home-when">
-            {t("home.todayCountPrefix")}{" "}
-            <span className="text-[var(--text)] font-bold">{brief.today_total}</span>{" "}
-            {t("home.todayCountSuffix")}
+          <span className="hf-count">
+            {t("home.todayCountPrefix")} <b>{brief.today_total}</b> {t("home.todayCountSuffix")}
           </span>
         )}
       </header>
@@ -63,21 +61,17 @@ export function FlowTile({
       {/* 집계가 실패했을 때 "아직 기록이 없어요" 라고 말하면 거짓말이다 —
           기록은 있는데 못 읽어온 것일 수 있다. 두 상태를 구분한다. */}
       {!loading && feed.length === 0 && failed && (
-        <p className="mt-4 text-[12.5px] text-[var(--text-2)] leading-relaxed">
+        <p className="hf-empty">
           {t("home.briefFailed")}
           <br />
-          <span className="text-fs-2 text-[var(--text-3)]">
-            {t("home.briefFailedHint")}
-          </span>
+          <span className="hl-dim">{t("home.briefFailedHint")}</span>
         </p>
       )}
       {!loading && feed.length === 0 && !failed && (
-        <p className="mt-4 text-[12.5px] text-[var(--text-2)] leading-relaxed">
+        <p className="hf-empty">
           {t("home.briefEmpty")}
           <br />
-          <span className="text-fs-2 text-[var(--text-3)]">
-            {t("home.briefEmptyHint")}
-          </span>
+          <span className="hl-dim">{t("home.briefEmptyHint")}</span>
         </p>
       )}
 
@@ -115,38 +109,6 @@ export function FlowTile({
         })}
       </ul>
     </article>
-  );
-}
-
-// ── 추가 카드 ───────────────────────────────────────────────────────────
-
-/**
- * 격자 마지막 칸의 추가 카드. 프로젝트 카드와 **같은 크기**라 격자가 깨지지
- * 않고, "여기서 늘린다" 가 목록의 끝에 자연스럽게 놓인다.
- */
-export function AddCard({
-  onAddExisting,
-  onStartNew,
-}: {
-  onAddExisting: () => void;
-  onStartNew: () => void;
-}) {
-  const { t } = useT();
-  return (
-    <li className="hg-card hg-add">
-      <Plus size={22} strokeWidth={1.6} aria-hidden="true" />
-      <span className="hg-add-title">{t("home.addProject")}</span>
-      <span className="hg-add-actions">
-        <button type="button" onClick={onAddExisting} className="home-chipbtn">
-          <FolderOpen size={13} />
-          {t("home.existingFolder")}
-        </button>
-        <button type="button" onClick={onStartNew} className="home-chipbtn">
-          <FolderPlus size={13} />
-          {t("home.brandNew")}
-        </button>
-      </span>
-    </li>
   );
 }
 

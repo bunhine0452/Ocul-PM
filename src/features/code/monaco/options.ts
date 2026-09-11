@@ -27,6 +27,20 @@ export interface EditorOptionsInput {
   insertSpaces: boolean;
   /** 설정 `codeMinimap`. */
   minimap: boolean;
+  /** 줄바꿈 (화면 상태 `codeWordWrap` 을 파일 종류로 푼 값). */
+  wordWrap: boolean;
+}
+
+/**
+ * 미니맵 옵션 한 벌. **켜고 끄는 자리도 이걸 써야 한다** — Monaco 의
+ * `updateOptions({ minimap: { enabled } })` 는 나머지 필드를 기본값으로 되돌려,
+ * 마운트 직후 효과가 한 번 돌기만 해도 덩어리 렌더·상시 손잡이가 조용히 사라진다.
+ */
+export function minimapOptions(enabled: boolean): MonacoNs.editor.IEditorMinimapOptions {
+  // 글자 대신 **덩어리**로 그린다 — 13px 본문의 1px 축소판은 어차피 못 읽고,
+  // 읽으려 드는 순간 눈이 그리로 샌다. 덩어리는 밀도(어디가 빽빽한가)만 말한다.
+  // 손잡이는 늘 보인다 — 스크롤 위치가 곧 미니맵의 쓸모다.
+  return { enabled, renderCharacters: false, showSlider: "always", maxColumn: 100, scale: 1 };
 }
 
 /**
@@ -61,9 +75,27 @@ export function baseEditorOptions(
       maxLineCount: Math.max(input.stickyMaxLines, 1),
       defaultModel: "outlineModel",
     },
-    minimap: { enabled: input.minimap },
+    minimap: minimapOptions(input.minimap),
+    // 줄바꿈 — 마운트 뒤에는 `CodeEditor` 가 `updateOptions` 로 바꾼다 (⌥Z ·
+    // 상태줄). 산문(md·txt)은 화면이 기본으로 켜서 내려보낸다.
+    wordWrap: input.wordWrap ? "on" : "off",
+    wrappingIndent: "same",
     scrollBeyondLastLine: true,
-    renderLineHighlight: "line",
+    // 거터까지 한 띠로 — 줄번호 칸이 다른 색(`--code-gutter`)이라 `line` 만
+    // 칠하면 띠가 거터 앞에서 끊겨 두 물건으로 보인다.
+    renderLineHighlight: "all",
+    // 줄번호 폭 3자(999줄까지 안 흔들림) · 거터 안쪽 여백은 git 띠(3px)+접기 손잡이.
+    lineNumbersMinChars: 3,
+    lineDecorationsWidth: 14,
+    // 커서 — 2px 액센트 막대, 이동은 미끄러진다. 움직임 축소 설정은 Monaco 가
+    // 스스로 존중한다(`accessibilitySupport` 와 `prefers-reduced-motion`).
+    cursorWidth: 2,
+    cursorBlinking: "smooth",
+    cursorSmoothCaretAnimation: "on",
+    smoothScrolling: true,
+    // 선택 영역 모서리를 둥글리지 않는다 — 글자 격자 위의 도형은 각져야 격자에 맞는다.
+    roundedSelection: false,
+    overviewRulerBorder: false,
 
     // ── 여기서부터가 CodeMirror 판에 **아예 없던** 기본기다 {#cap-basics} ──
     folding: true,
@@ -81,7 +113,8 @@ export function baseEditorOptions(
     // 브래킷 쌍 색칠 · 들여쓰기 가이드는 자리를 안 먹으므로 설정을 두지 않는다
     // (미니맵만 폭을 먹어 좁은 분할에서 문제가 되므로 그것만 끄고 켠다).
     bracketPairColorization: { enabled: true },
-    guides: { indentation: true, bracketPairs: false, highlightActiveIndentation: true },
+    // 괄호 쌍 가이드는 **커서가 든 쌍만** — 전부 그리면 들여쓰기 가이드와 겹쳐 격자가 된다.
+    guides: { indentation: true, bracketPairs: "active", highlightActiveIndentation: true },
 
     // ── 다중 커서 · 열 선택 {#cap-multicursor} ──
     // macOS 관례대로 ⌥클릭이 커서를 더한다. ⌥⇧드래그는 같은 수식키에 ⇧ 가
@@ -124,7 +157,8 @@ export function baseEditorOptions(
     padding: { bottom: 300 },
     // 위젯(호버·완성·시그니처)을 body 아래로 — 좁은 분할에서 잘리지 않는다.
     fixedOverflowWidgets: true,
-    scrollbar: { useShadows: false },
+    // 앱의 가는 스크롤바(10px)와 같은 두께 — 기본 14px 은 편집면 옆에서 혼자 굵었다.
+    scrollbar: { useShadows: false, verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
   };
 }
 

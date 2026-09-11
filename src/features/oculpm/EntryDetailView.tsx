@@ -1,21 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { Toolbar } from "@/components/Toolbar";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Calendar,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  GitCompareArrows,
-  Link2,
-  Search,
-  ShieldCheck,
-  X,
-} from "@/components/Icons";
+import { AlertTriangle, ArrowLeft, Check, ExternalLink, GitCompareArrows, ShieldCheck } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -23,23 +10,24 @@ import { PatchView } from "@/features/diff/PatchView";
 import { langFromPath } from "@/features/diff/diffParse";
 import { Markdown } from "@/components/Markdown";
 import { useJournalEvents } from "./useOculpmLive";
-import { TriggerBadge } from "./triggerMeta";
-import { SourceBadge } from "./SourceBadge";
-import { sourceOf } from "./entrySource";
-import { agentLabelWithModel } from "@/features/today/agentColor";
+import { TRIGGER_META } from "./triggerMeta";
+import { EntryMasthead } from "./EntryMasthead";
+import { EntryFileList, type FileRow } from "./EntryFileList";
+import { EntryFileBar } from "./EntryFileBar";
 import { mapFileOpToChangeOp } from "@/contexts/WorkspaceContext";
-import { commonRoot, splitPath } from "@/lib/filePath";
+import { commonRoot } from "@/lib/filePath";
 import type { EntryFileDiff, JournalEntry, JournalEntrySummary } from "@/lib/bindings";
-import { useT, getLang, type I18nKey } from "@/i18n";
+import { useT } from "@/i18n";
 import { requestAgentContext } from "@/lib/agentContextNav";
 import { firstSlug, ruleGlobsFromPaths } from "@/lib/promoteSeed";
-import { blocked } from "@/lib/blocked";
+import "./entry.css";
 
-// 작업 일지 항목의 풍부한 열람 — 전용 화면(마스터-디테일). Dogfooding 2026-06-07:
-// 모달(오버레이) 대신 콘텐츠 영역을 가득 채우는 디테일 뷰로 교체. 좌 pane 은
-// 메타 + 변경 파일 목록(op 배지·경로 구분) + 일지 서술(body_markdown), 우 pane 은
-// 그 시점에 기록된 unified-diff(PatchView). 서술의 첫 줄(제목)은 헤더와 중복되므로
-// 제거한다.
+// 작업 일지 항목의 열람 — 원장의 한 장 (2026-09-11 리디자인; 처음은 Dogfooding
+// 2026-06-07 의 모달 대체). 왼쪽은 **읽는 칸**: 마스트헤드(EntryMasthead) ·
+// 서술(body_markdown) · 부록(EntryFileList, 변경된 파일). 오른쪽은 그 시점에
+// 기록된 unified-diff(PatchView) 와 파일 바(EntryFileBar). 둘 사이 경계는
+// 끌어서 옮기고 워크스페이스에 남는다(entryReadWidth). 서술의 첫 줄(제목)은
+// 마스트헤드와 중복되므로 제거한다.
 
 interface EntryDetailViewProps {
   projectId: number;
@@ -54,58 +42,12 @@ interface EntryDetailViewProps {
   onOpenRelated?: (relativePath: string) => void;
 }
 
-/** i18n keys for the four spec'd `related.kind` values — unknown kinds render as-is. */
-const RELATED_KIND_KEY: Record<string, I18nKey> = {
-  blocks: "entry.relatedKind.blocks",
-  blocked_by: "entry.relatedKind.blocked_by",
-  followup: "entry.relatedKind.followup",
-  duplicate: "entry.relatedKind.duplicate",
-};
-
-/** HH:MM from an ISO 8601 created_at string. */
-function timeLabel(createdAt: string): string {
-  const m = /T(\d{2}:\d{2})/.exec(createdAt);
-  return m ? m[1] : "";
-}
-
-/** 요일 라벨 — 로케일 인식 (하드코딩 배열 대신 Intl, useTodayBrief 와 같은 방식). */
-const weekdays = () => {
-  const f = new Intl.DateTimeFormat(getLang(), { weekday: "short" });
-  return Array.from({ length: 7 }, (_, i) => f.format(new Date(Date.UTC(1970, 0, 4 + i))));
-};
-
-/**
- * The entry's written date, e.g. "2026.06.15 (월)". Prefers the ISO `created_at`
- * (exact calendar day) and falls back to the YYYYMMDD `workday`. Returns "" when
- * neither parses.
- */
-function dateLabel(createdAt: string, workday: string): string {
-  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(createdAt);
-  let y: string, mo: string, d: string;
-  if (iso) {
-    [, y, mo, d] = iso;
-  } else {
-    const wd = /^(\d{4})(\d{2})(\d{2})$/.exec(workday);
-    if (!wd) return "";
-    [, y, mo, d] = wd;
-  }
-  const dt = new Date(Number(y), Number(mo) - 1, Number(d));
-  return `${y}.${mo}.${d} (${weekdays()[dt.getDay()] ?? ""})`;
-}
-
-/** A row of the changed-file list: the entry's `files_touched` ∪ recorded diffs. */
-interface FileRow {
-  path: string;
-  op: ReturnType<typeof mapFileOpToChangeOp>;
-  /** Whether a patch was recorded for this path (⇒ the row is selectable). */
-  hasDiff: boolean;
-  /** Short muted reason shown when there's no patch to open. */
-  note: string | null;
-}
-
-/** Show the filter box / cap the list height only once the list is actually long. */
-const FILTER_FROM = 8;
-const SCROLL_FROM = 12;
+/** 읽는 칸 폭의 허용 범위 — 아래로는 한국어 한 줄 30자, 위로는 산문 폭. */
+export const READ_MIN_W = 380;
+export const READ_MAX_W = 860;
+export const READ_DEFAULT_W = 520;
+/** diff 칸은 이보다 좁아지지 않는다 — 끌어서 없앨 수 있는 칸이 아니다. */
+const DIFF_MIN_W = 320;
 
 /**
  * The journal body's first non-blank line is the entry title (with a `[ ]`/`[x]`
@@ -130,7 +72,7 @@ function stripLeadingTitle(body: string, title: string): string {
 
 export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRelated }: EntryDetailViewProps) {
   const { t } = useT();
-  const { state } = useWorkspace();
+  const { state, setState } = useWorkspace();
   const diffMode = state.diffMode;
   const [detail, setDetail] = useState<JournalEntry | null>(null);
   const [diffs, setDiffs] = useState<EntryFileDiff[] | null>(null);
@@ -138,7 +80,9 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const filterRef = useRef<HTMLInputElement | null>(null);
-  const listRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLElement | null>(null);
+  const readRef = useRef<HTMLDivElement | null>(null);
+  const detailRef = useRef<HTMLDivElement | null>(null);
 
   // 검토 루프의 마지막 고리 — `verified_by_user` 는 AGENTS.md 가 에이전트에게
   // false 로 쓰라고 강제하는 필드인데, 사람이 true 로 바꾸는 자리가 앱 어디에도
@@ -204,6 +148,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     setError(null);
     setSelected(null);
     setFilter("");
+    readRef.current?.scrollTo?.({ top: 0 });
   }, [entry.relative_path]);
 
   useEffect(() => {
@@ -239,7 +184,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     };
   }, [projectId, entry.relative_path, reloadTick]);
 
-  const files = detail?.frontmatter.files_touched ?? [];
+  const files = useMemo(() => detail?.frontmatter.files_touched ?? [], [detail]);
   const recorded = useMemo(() => new Set((diffs ?? []).map((d) => d.path)), [diffs]);
 
   // One list, path-sorted, covering both sides: the entry's declared
@@ -266,10 +211,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
   }, [files, diffs, recorded, t]);
 
   const root = useMemo(() => commonRoot(rows.map((r) => r.path)), [rows]);
-  const orderedPaths = useMemo(
-    () => rows.filter((r) => r.hasDiff).map((r) => r.path),
-    [rows],
-  );
+  const orderedPaths = useMemo(() => rows.filter((r) => r.hasDiff).map((r) => r.path), [rows]);
 
   const shown = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -317,11 +259,22 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     return () => window.removeEventListener("keydown", onKey);
   }, [onBack, orderedPaths, activeIdx]);
 
-  // Keyboard stepping must not leave the active row outside the (now scrollable)
-  // list viewport.
+  // 부록의 활성 행을 따라가되, **부록이 보일 때만**. 목록이 화면 밖(본문을 읽는
+  // 중)이면 j/k 가 독자를 아래로 끌고 내려가면 안 된다 — 파일 바가 위치를 이미
+  // 말한다.
   useEffect(() => {
-    listRef.current?.querySelector(".dfile.active")?.scrollIntoView?.({ block: "nearest" });
+    const list = listRef.current;
+    const view = readRef.current;
+    if (!list || !view) return;
+    const a = list.getBoundingClientRect();
+    const b = view.getBoundingClientRect();
+    if (a.bottom < b.top || a.top > b.bottom) return;
+    list.querySelector(".dfile.active")?.scrollIntoView?.({ block: "nearest" });
   }, [active?.path]);
+
+  const jumpToFiles = useCallback(() => {
+    listRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  }, []);
 
   const narrative = useMemo(
     () => (detail ? stripLeadingTitle(detail.body_markdown, entry.title || entry.slug) : ""),
@@ -345,13 +298,11 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     setConfirmCoerce(false);
   }, [entry.relative_path, entry.parse_warnings]);
 
-  const parseWarnings = warnings;
   const parseFailed = entry.parse_ok === false;
-  const hasNotice = parseFailed || parseWarnings.length > 0;
+  const hasNotice = parseFailed || warnings.length > 0;
   // A "backfilled to" note means there's a concrete tz offset we can write to
   // the source file. (DST-gap "could not backfill" notes are not writable.)
-  const canCoerceTz =
-    !parseFailed && parseWarnings.some((w) => w.includes("backfilled to"));
+  const canCoerceTz = !parseFailed && warnings.some((w) => w.includes("backfilled to"));
 
   const applyTzToDisk = useCallback(async () => {
     if (coercing) return;
@@ -367,7 +318,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     } finally {
       setCoercing(false);
     }
-  }, [coercing, projectId, entry.relative_path]);
+  }, [coercing, projectId, entry.relative_path, t]);
 
   // AD-4 — 실패를 본 직후가 규칙이 태어나는 자연 시점이다. 여기서 누르면
   // 스킬·규칙 화면의 "새 규칙" 이 **이 일지에서 뽑은 씨앗**으로 열린다:
@@ -387,6 +338,27 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     });
   }, [entry.slug, entry.title, entry.relative_path, rows, t]);
 
+  // ── 읽는 칸 폭 — 끌어서 옮기고 워크스페이스에 남긴다 (플래너 레일과 같은
+  // 손잡이). 드래그 중에는 지역 상태로만 그려 창 전체 리렌더를 피한다.
+  const persistedW = state.entryReadWidth;
+  const [liveW, setLiveW] = useState<number | null>(null);
+  const readW = liveW ?? persistedW;
+  const drag = useRef<{ startX: number; startW: number } | null>(null);
+  const clampW = useCallback((w: number) => {
+    const total = detailRef.current?.clientWidth ?? 0;
+    const max = total > 0 ? Math.min(READ_MAX_W, total - DIFF_MIN_W) : READ_MAX_W;
+    return Math.min(Math.max(READ_MIN_W, max), Math.max(READ_MIN_W, Math.round(w)));
+  }, []);
+  const commitW = useCallback(
+    (w: number) => {
+      setLiveW(null);
+      setState((prev) => (prev.entryReadWidth === w ? prev : { ...prev, entryReadWidth: w }));
+    },
+    [setState],
+  );
+
+  const kind = TRIGGER_META[entry.type] ?? TRIGGER_META.chore;
+
   return (
     <>
       <Toolbar
@@ -399,51 +371,19 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
         }
         title={entry.title || entry.slug}
         sub={
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <TriggerBadge type={entry.type} />
-            <SourceBadge source={sourceOf(entry.session_id, entry.agent_id)} />
-            {dateLabel(entry.created_at, entry.workday) ? (
-              <span className="entry-date-chip">
-                <Calendar size={13} /> {dateLabel(entry.created_at, entry.workday)}
-                {timeLabel(entry.created_at) ? (
-                  <span style={{ color: "var(--text-3)", fontWeight: "var(--fw-label)" }}>
-                    {timeLabel(entry.created_at)}
-                  </span>
-                ) : null}
-              </span>
-            ) : null}
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              {agentLabelWithModel(entry.agent_id, entry.agent_version)}
+          hasNotice ? (
+            <span
+              className="entry-warn"
+              title={warnings.length > 0 ? warnings.join("\n") : t("entry.parseWarn")}
+            >
+              <AlertTriangle size={13} /> {parseFailed ? t("entry.parseWarnShort") : t("entry.coerced")}
+              {warnings.length > 0 ? ` ${warnings.length}` : ""}
             </span>
-            {hasNotice ? (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  color: "var(--warn)",
-                  fontWeight: "var(--fw-strong)",
-                }}
-                title={
-                  parseWarnings.length > 0
-                    ? parseWarnings.join("\n")
-                    : t("entry.parseWarn")
-                }
-              >
-                <AlertTriangle size={13} /> {parseFailed ? t("entry.parseWarnShort") : t("entry.coerced")}
-                {parseWarnings.length > 0 ? ` ${parseWarnings.length}` : ""}
-              </span>
-            ) : null}
-          </span>
+          ) : undefined
         }
       >
         {promotable ? (
-          <button
-            type="button"
-            className="btn sm"
-            onClick={promoteToRule}
-            title={t("ctx.promote.ruleTitle")}
-          >
+          <button type="button" className="btn sm" onClick={promoteToRule} title={t("ctx.promote.ruleTitle")}>
             <ShieldCheck size={13} /> {t("ctx.promote.rule")}
           </button>
         ) : null}
@@ -463,270 +403,110 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
           disabled={verifying}
           aria-pressed={verified}
           title={verified ? t("entry.unverifyTitle") : t("entry.verifyTitle")}
-          style={
-            verified
-              ? { color: "var(--ok)", borderColor: "var(--ok)" }
-              : undefined
-          }
+          style={verified ? { color: "var(--ok)", borderColor: "var(--ok)" } : undefined}
         >
           <Check size={13} /> {verified ? t("entry.verified") : t("entry.verify")}
         </button>
       </Toolbar>
 
-      <div className="entry-detail">
-        {/* Left: meta + changed-file list + narrative */}
-        <aside className="entry-detail-side">
-          {parseWarnings.length > 0 ? (
-            <div
-              className="entry-detail-notice"
-              style={{
-                marginBottom: 14,
-                padding: "8px 10px",
-                borderRadius: 8,
-                background: "var(--warn-soft)",
-                border: "1px solid color-mix(in srgb, var(--warn) 25%, transparent)",
-              }}
-            >
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontSize: "var(--fs-3)",
-                  fontWeight: "var(--fw-strong)",
-                  color: "var(--warn)",
-                  marginBottom: 4,
-                }}
-              >
-                <AlertTriangle size={13} />{" "}
-                {parseFailed ? t("entry.parseWarn") : t("entry.coercionTitle")}
-              </div>
-              <ul style={{ margin: 0, paddingLeft: 16, fontSize: "var(--fs-3)", color: "var(--text-2)" }}>
-                {parseWarnings.map((w, i) => (
-                  <li key={i}>{w}</li>
-                ))}
-              </ul>
-              {canCoerceTz ? (
-                <div style={{ marginTop: 8 }}>
-                  {confirmCoerce ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--fs-3)" }}>
-                      <span style={{ color: "var(--text-2)" }}>
-                        {t("entry.editsOriginal")}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn sm"
-                        onClick={() => void applyTzToDisk()}
-                        disabled={coercing}
-                      >
-                        {coercing ? t("entry.applying") : t("entry.apply")}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn sm"
-                        onClick={() => setConfirmCoerce(false)}
-                        disabled={coercing}
-                      >
-                        {t("common.cancel")}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn sm"
-                      onClick={() => setConfirmCoerce(true)}
-                      title={t("entry.applyTzTitle")}
-                    >
-                      {t("entry.applyTz")}
-                    </button>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+      <div
+        ref={detailRef}
+        className="entry-detail"
+        style={{ "--entry-read-w": `${readW}px`, "--c": `var(--t-${kind.cssVar})` } as CSSProperties}
+      >
+        {/* Left: the reading column — masthead · narrative · files appendix. */}
+        <div className="entry-read" ref={readRef}>
+          <div className="entry-read-inner">
+            <EntryMasthead
+              entry={entry}
+              related={related}
+              filesCount={rows.length}
+              onJumpToFiles={jumpToFiles}
+              onOpenRelated={onOpenRelated}
+              warnings={warnings}
+              parseFailed={parseFailed}
+              canCoerceTz={canCoerceTz}
+              confirmCoerce={confirmCoerce}
+              onConfirmCoerce={setConfirmCoerce}
+              coercing={coercing}
+              onApplyTz={() => void applyTzToDisk()}
+            />
 
-          {related.length > 0 ? (
-            <div className="entry-detail-related" style={{ marginBottom: 14 }}>
-              <div className="entry-filelist-title" style={{ marginBottom: 6 }}>
-                {t("entry.related")}
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {related.map((r) => {
-                  const kindKey = RELATED_KIND_KEY[r.kind];
-                  const base = r.ref.split("/").pop() ?? r.ref;
-                  return (
-                    <button
-                      key={`${r.kind}:${r.ref}`}
-                      type="button"
-                      className="tag"
-                      title={r.ref}
-                      onClick={() => onOpenRelated?.(r.ref)}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        cursor: onOpenRelated ? "pointer" : "default",
-                      }}
-                    >
-                      <Link2 size={11} /> {kindKey ? t(kindKey) : r.kind} · {base}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
-
-          {entry.tags.length > 0 ? (
-            <div className="entry-detail-tags flex flex-wrap gap-1" style={{ marginBottom: 14 }}>
-              {entry.tags.map((t) => (
-                <span className="tag" key={t}>
-                  {t}
+            <div className="entry-narrative">
+              {detail == null ? (
+                <span className="text-muted-foreground" style={{ fontSize: "var(--fs-3)" }}>
+                  {t("common.loading")}
                 </span>
-              ))}
-            </div>
-          ) : null}
-
-          {rows.length > 0 ? (
-            <section className="entry-filelist-block">
-              <div className="diff-files-head entry-filelist-head">
-                <span className="entry-filelist-title">
-                  {t("entry.filesChanged", { n: rows.length })}
+              ) : narrative.trim() ? (
+                <Markdown>{narrative}</Markdown>
+              ) : (
+                <span className="text-muted-foreground" style={{ fontSize: "var(--fs-3)" }}>
+                  {t("entry.noNarrative")}
                 </span>
-                {rows.length >= FILTER_FROM ? (
-                  <span className="search-box sm entry-filelist-filter">
-                    <Search size={13} />
-                    <input
-                      ref={filterRef}
-                      type="text"
-                      value={filter}
-                      onChange={(e) => setFilter(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key !== "Escape") return;
-                        e.stopPropagation();
-                        if (filter) setFilter("");
-                        else e.currentTarget.blur();
-                      }}
-                      placeholder={t("entry.filterFiles")}
-                      aria-label={t("entry.filterFiles")}
-                      spellCheck={false}
-                    />
-                    {filter ? (
-                      <button
-                        type="button"
-                        className="entry-filelist-clear"
-                        onClick={() => setFilter("")}
-                        aria-label={t("entry.filterClear")}
-                      >
-                        <X size={11} />
-                      </button>
-                    ) : null}
-                  </span>
-                ) : null}
-              </div>
-              <div
+              )}
+            </div>
+
+            {rows.length > 0 ? (
+              <EntryFileList
                 ref={listRef}
-                className={"entry-filelist" + (rows.length > SCROLL_FROM ? " capped" : "")}
-              >
-                {shown.map((r) => {
-                  const { dir, base } = splitPath(r.path, root);
-                  return (
-                    <button
-                      key={r.path}
-                      type="button"
-                      onClick={() => r.hasDiff && setSelected(r.path)}
-                      {...blocked(r.hasDiff ? null : t("entry.blockedNoDiff"), r.path)}
-                      aria-current={active?.path === r.path ? "true" : undefined}
-                      className={
-                        "dfile" +
-                        (active?.path === r.path ? " active" : "") +
-                        (r.hasDiff ? "" : " muted")
-                      }
-                    >
-                      <span className={"dstatus " + r.op}>{r.op}</span>
-                      <span className="dfile-name">
-                        {dir ? <span className="dfile-dir">{dir}</span> : null}
-                        <span className="dfile-base">{base}</span>
-                      </span>
-                      {r.note ? <span className="dfile-note">{r.note}</span> : null}
-                    </button>
-                  );
-                })}
-                {shown.length === 0 ? (
-                  <div className="entry-filelist-empty">{t("entry.noFileMatch")}</div>
-                ) : null}
-              </div>
-            </section>
-          ) : null}
-
-          <div className="entry-narrative">
-            {detail == null ? (
-              <span className="text-muted-foreground" style={{ fontSize: "var(--fs-3)" }}>
-                {t("common.loading")}
-              </span>
-            ) : narrative.trim() ? (
-              <Markdown>{narrative}</Markdown>
-            ) : (
-              <span className="text-muted-foreground" style={{ fontSize: "var(--fs-3)" }}>
-                {t("entry.noNarrative")}
-              </span>
-            )}
+                rows={rows}
+                shown={shown}
+                root={root}
+                filter={filter}
+                onFilter={setFilter}
+                filterRef={filterRef}
+                activePath={active?.path ?? null}
+                onSelect={setSelected}
+              />
+            ) : null}
           </div>
-        </aside>
+        </div>
 
-        {/* Right: recorded diff. The file list lives entirely in the left pane —
-            this bar only says which file is open and steps between them. */}
+        <div
+          className="entry-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t("entry.readResize")}
+          aria-valuenow={readW}
+          aria-valuemin={READ_MIN_W}
+          aria-valuemax={READ_MAX_W}
+          tabIndex={0}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            drag.current = { startX: e.clientX, startW: readW };
+          }}
+          onPointerMove={(e) => {
+            const d = drag.current;
+            if (d) setLiveW(clampW(d.startW + (e.clientX - d.startX)));
+          }}
+          onPointerUp={(e) => {
+            const d = drag.current;
+            if (!d) return;
+            drag.current = null;
+            commitW(clampW(d.startW + (e.clientX - d.startX)));
+          }}
+          // 더블클릭으로 기본 폭 — 끌다가 망친 폭을 되돌릴 길이 있어야 한다.
+          onDoubleClick={() => commitW(READ_DEFAULT_W)}
+          onKeyDown={(e) => {
+            // 키보드로도 조절된다 — 드래그만 있으면 separator 는 장식이다.
+            const step = e.key === "ArrowLeft" ? -16 : e.key === "ArrowRight" ? 16 : 0;
+            if (step === 0) return;
+            e.preventDefault();
+            commitW(clampW(readW + step));
+          }}
+        />
+
+        {/* Right: recorded diff. The file bar says which file is open, steps
+            between them, and drops the whole list as a menu. */}
         <section className="entry-detail-main">
           {active ? (
-            <div className="entry-file-bar">
-              {orderedPaths.length > 1 ? (
-                <div className="efb-steps">
-                  <button
-                    type="button"
-                    className="efb-step"
-                    onClick={() => setSelected(orderedPaths[activeIdx - 1])}
-                    aria-label={t("entry.prevFile")}
-                    {...blocked(
-                      activeIdx <= 0 ? t("entry.blockedFirstFile") : null,
-                      `${t("entry.prevFile")} (k)`,
-                    )}
-                  >
-                    <ChevronLeft size={15} />
-                  </button>
-                  <button
-                    type="button"
-                    className="efb-step"
-                    onClick={() => setSelected(orderedPaths[activeIdx + 1])}
-                    aria-label={t("entry.nextFile")}
-                    {...blocked(
-                      activeIdx < 0 || activeIdx >= orderedPaths.length - 1
-                        ? t("entry.blockedLastFile")
-                        : null,
-                      `${t("entry.nextFile")} (j)`,
-                    )}
-                  >
-                    <ChevronRight size={15} />
-                  </button>
-                </div>
-              ) : null}
-              <div className="efb-path" title={active.path}>
-                {(() => {
-                  const { dir, base } = splitPath(active.path, "", Infinity);
-                  return (
-                    <>
-                      {dir ? <span className="efb-dir">{dir}</span> : null}
-                      <span className="efb-base">{base}</span>
-                    </>
-                  );
-                })()}
-              </div>
-              {orderedPaths.length > 1 ? (
-                <span className="efb-count">
-                  {Math.max(activeIdx, 0) + 1}
-                  <span className="efb-count-sep">/</span>
-                  {orderedPaths.length}
-                </span>
-              ) : null}
-            </div>
+            <EntryFileBar
+              rows={rows}
+              orderedPaths={orderedPaths}
+              activePath={active.path}
+              activeIdx={activeIdx}
+              onSelect={setSelected}
+            />
           ) : null}
           <div className="diff-code">
             {error ? (

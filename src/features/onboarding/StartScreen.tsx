@@ -4,14 +4,15 @@
  * 이 화면은 앱을 열면 처음 보는 얼굴이자 프로젝트 선택기다. 답해야 할 질문은
  * 하나다: **"어디서 이어서 일하지?"**
  *
- * 구성 (2026-07-31 벤토 콕핏 재구성):
- *   밴드 0  상단 레일 — 워드마크 · 데이트라인 · 설정 · 추가 (macOS 드래그 영역)
- *   밴드 1  검색 전용 밴드 (자동 포커스)
- *   밴드 2  벤토 — 사령탑(이어서 일하기) · 오늘의 흐름 · 판 2개
- *   밴드 3  레일 — 모든 프로젝트 / 색인(조용한 곳) / 초안 / 명령
- *   밴드 4  액션 바 — 커서 항목의 단축키 지도
+ * 구성 (2026-09-11 원장 리디자인):
+ *   레일    워드마크 · 데이트라인 · 관리 · 설정 · 추가 (macOS 드래그 영역)
+ *   사령탑  순위 1위 하나 — 큰 활자 이름 · 14일 맥박 · 다음 할 일 · 플랜 진행
+ *   판      왼쪽 원장(머리=검색, 시간대 묶음 행) · 오른쪽 오늘의 흐름
+ *   바닥    초안 · 명령 · 키 힌트 한 줄
  *
- * 검색어가 있으면 벤토가 빠지고 레일이 점수순 단일 목록이 된다.
+ * 검색어가 있으면 사령탑과 묶음이 빠지고 원장이 점수순 단일 목록이 된다.
+ * 카드 격자(2026-08-12)를 걷어낸 이유: 상자 14개가 같은 무게로 늘어서면 눈은
+ * 순위 대신 격자를 읽는다. 행 + 시간대 헤더는 순위의 **근거**를 글자로 말한다.
  *
  * 데이터는 `home_brief` 1콜이 전부다 (프로젝트 수와 무관하게 SQL 6문).
  * 백엔드가 실패해도 `projects` prop 만으로 화면 전체가 선다.
@@ -23,16 +24,31 @@ import { commands, type Project, type ProjectBlueprint } from "@/lib/bindings";
 import { NAV_BUS } from "@/lib/navRegistry";
 
 import "./home.css";
-import { buildHome, type CommandSpec, type HomeRow } from "./home/homeModel";
+import {
+  buildHome,
+  type CommandSpec,
+  type HomeRow,
+  type ProjectRowT,
+  type RecencyGroup,
+} from "./home/homeModel";
 import { useHomeBrief } from "./home/useHomeBrief";
 import { useHomeCursor } from "./home/useHomeCursor";
-import { HomeActionBar, HomeSearchBand, HomeTopRail } from "./home/chrome";
+import { HomeKeyHints, HomeSearch, HomeTopRail } from "./home/chrome";
 import { CommandRow, DraftRow, type RowWiring } from "./home/rows";
-import { AddCard, FlowTile, OnboardingTile } from "./home/tiles";
-import { ProjectCard } from "./home/ProjectCard";
+import { FlowTile, OnboardingTile } from "./home/tiles";
+import { ProjectRow } from "./home/ProjectRow";
+import { LeadBand } from "./home/LeadBand";
 import { ProjectManager } from "@/features/projects/ProjectManager";
-import { useT } from "@/i18n";
+import { useT, type I18nKey } from "@/i18n";
 import { isImeComposing } from "@/lib/ime";
+
+/** 시간대 묶음 헤더의 라벨 키. */
+const GROUP_LABEL: Record<RecencyGroup, I18nKey> = {
+  today: "home.groupToday",
+  week: "home.groupWeek",
+  fortnight: "home.groupFortnight",
+  quiet: "home.groupQuiet",
+};
 
 /**
  * [중요] 이 타입을 export 해야 테스트가 직접 참조할 수 있다. JSX 스프레드는
@@ -321,6 +337,23 @@ export function StartScreen(props: StartScreenProps) {
   const quietIds = useMemo(() => new Set(model.quiet.map((r) => r.id)), [model.quiet]);
   const openSet = useMemo(() => new Set(openWindows), [openWindows]);
 
+  const renderRow = (row: ProjectRowT) => (
+    <ProjectRow
+      key={row.id}
+      row={row}
+      query={query}
+      now={now}
+      loading={loading}
+      quiet={quietIds.has(row.id)}
+      indexing={indexingId === row.project.id}
+      opened={openSet.has(row.project.id)}
+      wiring={wiringFor(row)}
+      onOpen={onSelectProject}
+      onRename={onRenameProject}
+      onDelete={onDeleteProject}
+    />
+  );
+
   return (
     <main className="home">
       <div className="home-wrap">
@@ -332,15 +365,6 @@ export function StartScreen(props: StartScreenProps) {
           onManage={openManage}
           onOpenSettings={onOpenSettings}
           onAdd={onAddProject}
-        />
-
-        <HomeSearchBand
-          value={query}
-          onChange={setQuery}
-          inputRef={searchRef}
-          matchCount={matchCount}
-          total={projects.length}
-          onKeyDown={onSearchKeyDown}
         />
 
         {/* 검색 결과 건수만 알린다 — 커서 이동은 실제 포커스가 옮겨가므로
@@ -358,68 +382,78 @@ export function StartScreen(props: StartScreenProps) {
         {!hasProjects ? (
           <OnboardingTile onStart={onAddProject} />
         ) : (
-          // 두 칸 판 — 왼쪽은 프로젝트 **전부**, 오른쪽은 오늘의 흐름.
-          // 스크롤은 각 칸이 소유한다 (페이지 자체는 스크롤하지 않는다):
-          // 창을 열었을 때 보이는 것이 곧 전부여야 한다.
-          <div className="home-board">
-            <section className="home-pane" aria-labelledby="home-projects-head">
-              <header className="home-panehead">
-                <h2 id="home-projects-head" className="home-eyebrow">
+          <>
+            {/* 사령탑 — 순위 1위. 첫 집계 전에도 밴드는 선다 (집계에서 오는
+                칸만 스켈레톤) — 커서 평면의 첫 행이 화면에 없으면 탭 스톱이
+                0개가 되는 예전 벤토 회귀가 되살아난다. */}
+            {model.lead && (
+              <LeadBand
+                row={model.lead}
+                now={now}
+                loading={loading}
+                indexing={indexingId === model.lead.project.id}
+                opened={openSet.has(model.lead.project.id)}
+                wiring={wiringFor(model.lead)}
+                onOpen={onSelectProject}
+                onRename={onRenameProject}
+                onDelete={onDeleteProject}
+              />
+            )}
+
+            {/* 두 칸 판 — 왼쪽은 원장(프로젝트 **전부**), 오른쪽은 오늘의 흐름.
+                스크롤은 각 칸이 소유한다 (페이지 자체는 스크롤하지 않는다). */}
+            <div className={"home-board" + (model.lead ? "" : " no-lead")}>
+              <section className="home-pane" aria-labelledby="home-projects-head">
+                <h2 id="home-projects-head" className="sr-only">
                   {searching ? t("home.sectionSearch") : t("home.allProjects")}
                 </h2>
-                <span className="home-panecount">{matchCount}</span>
-                {!searching && model.quiet.length > 0 && (
-                  <span className="home-panehint">
-                    {t("home.quietTail", { n: model.quiet.length })}
-                  </span>
+                <HomeSearch
+                  value={query}
+                  onChange={setQuery}
+                  inputRef={searchRef}
+                  matchCount={matchCount}
+                  total={projects.length}
+                  onKeyDown={onSearchKeyDown}
+                />
+
+                {matchCount === 0 ? (
+                  <div className="home-empty">
+                    <p>{t("home.noMatch", { query })}</p>
+                    <p className="hl-dim">{t("home.noMatchTip")}</p>
+                  </div>
+                ) : (
+                  <div className="hl-ledger scrollbar-thin">
+                    {searching ? (
+                      <ul className="hl-list">{model.ranked.map(renderRow)}</ul>
+                    ) : (
+                      model.groups.map((g) => (
+                        <section key={g.key} className="hl-group" data-group={g.key}>
+                          <h3 className="hl-group-head">
+                            <span>{t(GROUP_LABEL[g.key])}</span>
+                            <span className="hl-group-count">{g.rows.length}</span>
+                          </h3>
+                          <ul className="hl-list">{g.rows.map(renderRow)}</ul>
+                        </section>
+                      ))
+                    )}
+                  </div>
                 )}
-              </header>
+              </section>
 
-              {matchCount === 0 ? (
-                <div className="home-empty">
-                  <p>{t("home.noMatch", { query })}</p>
-                  <p className="hg-dim">{t("home.noMatchTip")}</p>
-                </div>
-              ) : (
-                <ul className="hg-grid scrollbar-thin">
-                  {model.ranked.map((row, i) => (
-                    <ProjectCard
-                      key={row.id}
-                      row={row}
-                      query={query}
-                      now={now}
-                      loading={loading}
-                      lead={!searching && i === 0}
-                      quiet={quietIds.has(row.id)}
-                      indexing={indexingId === row.project.id}
-                      opened={openSet.has(row.project.id)}
-                      wiring={wiringFor(row)}
-                      onOpen={onSelectProject}
-                      onRename={onRenameProject}
-                      onDelete={onDeleteProject}
-                    />
-                  ))}
-                  {!searching && (
-                    <AddCard onAddExisting={onAddProject} onStartNew={onStartGreenfield} />
-                  )}
-                </ul>
-              )}
-            </section>
-
-            <aside className="home-pane home-side" aria-label={t("home.todayFlow")}>
-              <FlowTile
-                brief={brief}
-                projects={projects}
-                loading={loading}
-                failed={failed}
-                onOpenEntry={onOpenEntry}
-              />
-            </aside>
-          </div>
+              <aside className="home-side" aria-label={t("home.todayFlow")}>
+                <FlowTile
+                  brief={brief}
+                  projects={projects}
+                  loading={loading}
+                  failed={failed}
+                  onOpenEntry={onOpenEntry}
+                />
+              </aside>
+            </div>
+          </>
         )}
 
-        {/* 바닥 띠 — 초안과 명령을 한 줄로 압축한다. 예전에는 각각 섹션이라
-            세로를 먹었고, 정작 프로젝트가 화면 밖으로 밀렸다. */}
+        {/* 바닥 띠 — 초안·명령·키 힌트를 한 줄로. */}
         <footer className="home-foot">
           {model.drafts.length > 0 && (
             <ul className="home-foot-list">
@@ -441,7 +475,7 @@ export function StartScreen(props: StartScreenProps) {
               ))}
             </ul>
           )}
-          <HomeActionBar row={cursor.row} />
+          <HomeKeyHints />
         </footer>
       </div>
 

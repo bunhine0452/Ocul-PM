@@ -1,21 +1,18 @@
 /**
- * 화면 크롬 — 상단 레일(밴드 0) / 검색 밴드(밴드 1) / 액션 바(밴드 4).
+ * 화면 크롬 — 상단 레일 / 원장 머리(검색) / 흐름 머리 / 키 힌트.
  */
 import { Folder, Plus, Search, Settings } from "@/components/Icons";
 
 import { BriefFootnote } from "./atoms";
 import { useT } from "@/i18n";
-import type { HomeRow } from "./homeModel";
 
-// ── 밴드 0 — 상단 레일 ──────────────────────────────────────────────────
+// ── 상단 레일 ──────────────────────────────────────────────────────────
 
 /**
  * macOS 는 `titleBarStyle: Overlay` 라 웹뷰가 창 최상단까지 올라오고 잡을
- * 타이틀바가 없다. 예전 화면은 34px 투명 스트립을 `fixed` 로 덮어 뒀는데,
- * 그건 `pointer-events` 해제가 없어 그 아래 클릭을 전부 삼키는 데드존이었다.
- * 이제 상단 레일 자체가 드래그 영역이고, 그 안의 버튼·입력만 예외가 된다
- * (Tauri 는 `data-tauri-drag-region` 이 붙은 엘리먼트에서만 드래그를 시작하고
- * 자식 인터랙티브 요소는 자기 이벤트를 먼저 가져간다).
+ * 타이틀바가 없다. 상단 레일 자체가 드래그 영역이고, 그 안의 버튼·입력만
+ * 예외가 된다 (Tauri 는 `data-tauri-drag-region` 이 붙은 엘리먼트에서만
+ * 드래그를 시작하고 자식 인터랙티브 요소는 자기 이벤트를 먼저 가져간다).
  */
 export function HomeTopRail({
   isMac,
@@ -41,16 +38,15 @@ export function HomeTopRail({
       <h1 className="home-wordmark" data-tauri-drag-region>
         Ocul-PM
       </h1>
-      <span className="home-rule" aria-hidden="true" data-tauri-drag-region />
       <p className="home-dateline" data-tauri-drag-region>
         {dateline}
       </p>
 
-      <span className="ml-auto flex items-center gap-2">
+      <span className="home-rail-actions">
         {failed && <BriefFootnote onRetry={onRetry} />}
         {/* 관리는 **글자**로 둔다. 아이콘 하나로는 "설정"과 구별되지 않고,
             프로젝트를 지우러 오는 사람이 아이콘 수수께끼를 풀 이유가 없다. */}
-        <button type="button" onClick={onManage} className="home-chipbtn">
+        <button type="button" onClick={onManage} className="btn ghost sm">
           <Folder size={15} />
           {t("home.manageProjects")}
         </button>
@@ -62,11 +58,7 @@ export function HomeTopRail({
         >
           <Settings size={15} />
         </button>
-        <button
-          type="button"
-          onClick={onAdd}
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[var(--radius-s)] bg-[var(--accent)] text-[var(--text-on-accent)] text-fs-3 font-bold hover:bg-[var(--accent-strong)] transition-colors cursor-pointer whitespace-nowrap"
-        >
+        <button type="button" onClick={onAdd} className="btn primary sm">
           <Plus size={15} />
           {t("home.addProject")}
         </button>
@@ -75,14 +67,14 @@ export function HomeTopRail({
   );
 }
 
-// ── 밴드 1 — 검색 ──────────────────────────────────────────────────────
+// ── 원장 머리 — 검색 ───────────────────────────────────────────────────
 
 /**
- * 검색을 상단 레일에서 꺼내 **전용 밴드**로 승격했다. 프로젝트가 10개를
- * 넘어가면 목록을 눈으로 훑는 것보다 세 글자 치는 게 빠른데, 검색이 툴바
- * 구석의 작은 입력이면 그 사실이 발견되지 않는다.
+ * 검색은 원장의 머리다. 전폭 밴드였던 것을 왼쪽 칸 머리로 내렸다 — 오른쪽
+ * 흐름 레일 위까지 뻗은 입력은 폭만 먹고 아무것도 거르지 않았다. 타입어헤드
+ * (아무 데서나 글자를 치면 여기로 흘러든다)는 그대로라 발견성은 잃지 않는다.
  */
-export function HomeSearchBand({
+export function HomeSearch({
   value,
   onChange,
   inputRef,
@@ -101,7 +93,7 @@ export function HomeSearchBand({
   const searching = value.trim().length > 0;
   return (
     <div className="home-search">
-      <Search className="w-[18px] h-[18px] text-[var(--text-3)] shrink-0" aria-hidden="true" />
+      <Search size={15} className="home-search-icon" aria-hidden="true" />
       <input
         ref={inputRef}
         type="text"
@@ -113,7 +105,9 @@ export function HomeSearchBand({
         autoComplete="off"
         spellCheck={false}
       />
-      <span className="home-count">{searching ? t("home.matchCount", { n: matchCount }) : t("home.totalCount", { n: total })}</span>
+      <span className="home-count">
+        {searching ? t("home.matchCount", { n: matchCount }) : t("home.totalCount", { n: total })}
+      </span>
       <kbd className="home-kbd" aria-hidden="true">
         /
       </kbd>
@@ -121,50 +115,30 @@ export function HomeSearchBand({
   );
 }
 
-// ── 밴드 4 — 액션 바 ───────────────────────────────────────────────────
+// ── 키 힌트 ────────────────────────────────────────────────────────────
 
 /**
- * 커서 항목에 무엇을 할 수 있는지 **상시** 노출한다. 인타일 버튼을 대체하는
- * 것이 아니라 보조한다 — 포인터가 이 바로 내려가는 동안 커서가 재할당돼
- * 대상이 바뀌면 안 되므로, 여기 있는 것은 안내이지 버튼이 아니다.
+ * 키보드 지도 — **고정 문구**다. 예전 액션 바는 커서 항목의 이름을 앞에
+ * 세웠는데, 이름 길이가 바뀔 때마다 바닥 띠의 폭이 변해 줄바꿈이 생기고
+ * 그 높이가 원장에서 빠져나갔다. 커서가 어디 있는지는 행의 강조가 이미
+ * 말하므로 여기서는 손이 할 수 있는 일만 적는다.
  */
-export function HomeActionBar({ row }: { row: HomeRow | null }) {
+export function HomeKeyHints() {
   const { t } = useT();
-  const name =
-    row?.kind === "project"
-      ? row.project.name
-      : row?.kind === "draft"
-        ? row.bp.name || t("home.stepDraft")
-        : row?.kind === "command"
-          ? row.label
-          : null;
-
+  const items: Array<[string, string]> = [
+    ["↑↓", t("home.kbdMove")],
+    ["⏎", t("home.kbdOpen")],
+    ["⌘E", t("home.kbdRename")],
+    ["⌘⌫", t("home.kbdRemove")],
+    ["⌘K", t("home.kbdPalette")],
+  ];
   return (
-    <div className="home-actionbar" role="status" aria-live="off">
-      <span className="font-semibold text-[var(--text)] truncate max-w-[220px]">
-        {name ?? t("home.pickProject")}
-      </span>
-      <span className="home-actionbar-item">
-        <kbd className="home-kbd">⏎</kbd> {t("home.kbdOpen")}
-      </span>
-      {row?.kind === "project" && (
-        <>
-          <span className="home-actionbar-item">
-            <kbd className="home-kbd">⌘E</kbd> {t("home.kbdRename")}
-          </span>
-          <span className="home-actionbar-item">
-            <kbd className="home-kbd">⌘⌫</kbd> {t("home.kbdRemove")}
-          </span>
-        </>
-      )}
-      <span className="ml-auto flex items-center gap-4">
-        <span className="home-actionbar-item">
-          <kbd className="home-kbd">↑↓</kbd> {t("home.kbdMove")}
+    <span className="home-hints" aria-hidden="true">
+      {items.map(([k, label]) => (
+        <span key={k} className="home-hint">
+          <kbd className="home-kbd">{k}</kbd> {label}
         </span>
-        <span className="home-actionbar-item">
-          <kbd className="home-kbd">⌘K</kbd> {t("home.kbdPalette")}
-        </span>
-      </span>
-    </div>
+      ))}
+    </span>
   );
 }

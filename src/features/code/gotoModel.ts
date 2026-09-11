@@ -169,3 +169,32 @@ export function countLines(text: string): number {
   for (let i = 0; i < text.length; i += 1) if (text[i] === "\n") n += 1;
   return n;
 }
+
+/**
+ * 커서가 든 심볼의 **바깥→안쪽** 사슬 (브레드크럼용).
+ *
+ * 목록은 문서 순서의 평면 배열이고 `depth` 만 있다 — 끝 줄이 없다. 그래서
+ * "커서 줄보다 앞에서 시작한 마지막 심볼" 을 안쪽 끝으로 잡고(`indexOfEnclosing`
+ * 과 같은 규칙), 거기서 거꾸로 올라가며 깊이가 **한 단씩 줄어드는** 것만 줍는다.
+ * 함수 A 가 끝난 뒤 B 가 시작하기 전의 빈 줄에서는 A 가 나온다 — 아웃라인의
+ * 현재 위치 표시와 같은 오차이고, 같은 오차라야 두 곳이 서로 안 어긋난다.
+ *
+ * `line` 은 0-based. 반환은 원본 배열의 인덱스들.
+ */
+export function enclosingChain(symbols: readonly LspSymbol[], line: number): number[] {
+  let inner = -1;
+  for (let i = 0; i < symbols.length; i++) {
+    if (symbols[i].line > line) break;
+    inner = i;
+  }
+  if (inner < 0) return [];
+  const chain = [inner];
+  let depth = symbols[inner].depth;
+  for (let i = inner - 1; i >= 0 && depth > 0; i--) {
+    if (symbols[i].depth < depth) {
+      chain.push(i);
+      depth = symbols[i].depth;
+    }
+  }
+  return chain.reverse();
+}

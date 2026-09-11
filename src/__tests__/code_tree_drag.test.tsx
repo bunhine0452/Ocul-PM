@@ -64,6 +64,8 @@ function Harness({
         expanded={expanded}
         dirtyPaths={new Set()}
         openPaths={new Set()}
+        gitMarks={new Map()}
+        problemMarks={new Map()}
         draft={null}
         onDraftSubmit={vi.fn()}
         onDraftCancel={vi.fn()}

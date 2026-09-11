@@ -1,0 +1,267 @@
+/* ============================================================
+   entry.css — 작업 일지 한 건의 열람: 원장의 한 장 (2026-09-11 리디자인)
+
+   예전 화면은 왼쪽 320~440px 칸에 메타·파일 목록·서술을 위에서부터 쌓았다.
+   일지의 **본문**이 사이드바 신세였다 — 파일 목록이 화면 절반을 먹어 서술은
+   접힌 곳에서 시작했고, 13px 회색 글자에 테두리 친 코드 칩이 `toLocaleDa|
+   teString` 처럼 낱말 한가운데서 꺾였다.
+
+   이제 왼쪽은 **읽는 칸**이다. 원장(journal.css)에서 누른 행이 그대로 펼쳐진
+   모양이라, 행의 척추(종류색 토막)가 마스트헤드의 척추가 된다:
+     마스트헤드   척추 · 종류 · 날짜/시각 · 작성자 · 큰 제목 · 태그/관련/파일 수
+     본문         14px · 1.7 · 어절 단위 줄바꿈 · 절 사이 실선 · 가벼운 코드 칩
+     부록         변경된 파일 — 본문 **뒤에**. 서술이 먼저고 증거가 다음이다.
+   오른쪽은 diff. 둘 사이 경계는 끌어서 옮기고 (`entryReadWidth`), 파일 바의
+   경로가 곧 파일 목록 메뉴라 부록까지 내려가지 않고도 아무 파일이나 연다.
+
+   색은 종류만 말한다 (`--c` = `--t-*`, 읽는 칸 루트에 한 번). 강조색은 선택·
+   초점에만. `.dfile*`/`.dstatus` 는 변경 diff 화면과 나눠 쓰는 기본형이라
+   여기서는 `.entry-filelist` / `.efb-menu` 아래로만 덧칠한다.
+   ============================================================ */
+
+/* `flex-wrap` 은 좁은 칸을 위한 것이다 — 컨테이너는 **자기 쿼리로 자기를 못
+   고치므로** 방향을 바꾸는 대신 자식 둘을 한 줄 가득으로 만들어 두 줄로
+   감기게 한다 (아래 @container). 넓을 땐 둘이 한 줄에 들어가 감기지 않는다. */
+.entry-detail {
+  display: flex; flex-wrap: wrap; height: 100%; min-height: 0;
+  container-type: inline-size; container-name: entry;
+}
+
+/* ── 읽는 칸 ──────────────────────────────────────────────────────────────── */
+.entry-read {
+  flex: none; width: var(--entry-read-w, 520px); min-width: 0; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  border-right: 1px solid var(--sep); background: var(--bg-window);
+}
+.entry-read-inner { max-width: var(--read-narrow); margin: 0 auto; padding: var(--space-8) 32px 80px; }
+
+/* 잡는 선 — 평소엔 경계선과 구별되지 않고, 올리면 도톰해진다
+   (플래너 레일의 `.pln-rail-resizer` 와 같은 규격). */
+.entry-resizer {
+  flex: none; width: 6px; margin: 0 -3px;
+  position: relative; z-index: var(--z-sticky);
+  cursor: col-resize; touch-action: none;
+}
+.entry-resizer::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 2px;
+  width: 1px; background: transparent;
+  transition: background var(--dur-1) var(--ease-out), width var(--dur-1) var(--ease-out), left var(--dur-1) var(--ease-out);
+}
+.entry-resizer:hover::after,
+.entry-resizer:focus-visible::after { left: 1px; width: 3px; background: var(--accent); }
+.entry-resizer:focus-visible { outline: none; }
+
+/* ── 마스트헤드 ───────────────────────────────────────────────────────────── */
+.entry-mast { position: relative; padding-left: var(--space-6); margin-bottom: var(--space-8); }
+/* 척추 — 원장 행의 그 토막. 종류색 하나로 "이건 무슨 일지인가" 를 말한다. */
+.entry-mast::before {
+  content: ""; position: absolute; left: 0; top: 3px; bottom: 3px; width: 3px;
+  border-radius: var(--radius-pill); background: var(--c, var(--sep-strong));
+}
+.entry-eyebrow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4);
+  font-size: var(--fs-3); line-height: var(--lh-snug); color: var(--text-2);
+}
+.entry-kind { color: var(--c, var(--text)); font-weight: var(--fw-strong); white-space: nowrap; }
+.entry-flag { color: var(--warn-text); font-weight: var(--fw-strong); white-space: nowrap; }
+.entry-when { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.entry-when > b { font-weight: var(--fw-strong); color: var(--text); margin-left: var(--space-2); }
+.entry-who { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+.entry-warn { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--warn-text); font-weight: var(--fw-strong); white-space: nowrap; }
+
+.entry-title {
+  margin: var(--space-3) 0 0; color: var(--text);
+  font-size: var(--fs-9); font-weight: var(--fw-bold);
+  letter-spacing: var(--track-snug); line-height: var(--lh-tight);
+  overflow-wrap: anywhere;
+}
+
+/* 마스트헤드 발치 — 태그 · 관련 일지 · 파일 수. 전부 한 줄의 작은 글자. */
+.entry-mast-foot {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-4); font-size: var(--fs-3); color: var(--text-3);
+}
+.entry-mast-foot .tag { font-size: var(--fs-3); }
+/* "변경된 파일 9" — 누르면 부록으로 내려간다. 링크지 버튼 모양이 아니다. */
+.entry-jump {
+  appearance: none; -webkit-appearance: none; border: none; background: none; padding: 0;
+  font: inherit; color: var(--text-2); cursor: pointer; white-space: nowrap;
+  text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px;
+  transition: color var(--dur-1) var(--ease-out), text-decoration-color var(--dur-1) var(--ease-out);
+}
+.entry-jump:hover { color: var(--text); text-decoration-color: var(--sep-strong); }
+.entry-jump > b { font-family: var(--mono); font-weight: var(--fw-strong); color: var(--text); }
+.entry-rel { cursor: pointer; }
+.entry-rel[data-inert="true"] { cursor: default; }
+
+/* frontmatter 보정·파싱 경고 — 마스트헤드 아래 한 상자. */
+.entry-notice {
+  margin-top: var(--space-5); padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-s); background: var(--warn-soft);
+  border: 1px solid color-mix(in srgb, var(--warn) 25%, transparent);
+  font-size: var(--fs-3); color: var(--text-2);
+}
+.entry-notice-title { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--warn-text); font-weight: var(--fw-strong); margin-bottom: var(--space-1); }
+.entry-notice ul { margin: 0; padding-left: var(--space-6); }
+.entry-notice-act { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); }
+
+/* ── 본문 ─────────────────────────────────────────────────────────────────── */
+.entry-narrative { color: var(--text); font-size: var(--fs-5); line-height: var(--lh-prose); }
+.entry-narrative > :first-child { margin-top: 0; }
+.entry-narrative > :last-child { margin-bottom: 0; }
+/* 제목 — h2 가 절이다 (추가 기능 · 동작 흐름 · 검증). 절 사이엔 실선 하나.
+   맨 앞 절은 마스트헤드가 이미 선을 그었으니 없다. */
+.entry-narrative h1, .entry-narrative h2, .entry-narrative h3,
+.entry-narrative h4, .entry-narrative h5, .entry-narrative h6 {
+  color: var(--text); font-weight: var(--fw-bold); letter-spacing: var(--track-tight);
+  line-height: var(--lh-tight); margin: var(--space-8) 0 var(--space-4);
+}
+.entry-narrative h1, .entry-narrative h2 { font-size: var(--fs-7); padding-top: var(--space-6); border-top: 1px solid var(--sep); }
+.entry-narrative h1:first-child, .entry-narrative h2:first-child { padding-top: 0; border-top: none; }
+.entry-narrative h3 { font-size: var(--fs-6); }
+.entry-narrative h4, .entry-narrative h5, .entry-narrative h6 { font-size: var(--fs-5); }
+.entry-narrative p { margin: var(--space-4) 0; }
+.entry-narrative ul, .entry-narrative ol { margin: var(--space-4) 0; padding-left: var(--space-7); }
+.entry-narrative ul { list-style: none; padding-left: var(--space-1); }
+.entry-narrative ul > li { position: relative; padding-left: var(--space-6); }
+/* 점은 첫 줄의 x-높이 가운데. 1.7 줄높이라 em 으로 잡아야 글자 크기를 따라온다. */
+.entry-narrative ul > li::before {
+  content: ""; position: absolute; left: 3px; top: calc(0.85em - 2px);
+  width: 5px; height: 5px; border-radius: 50%; background: var(--text-3);
+}
+.entry-narrative ol { list-style: decimal; }
+.entry-narrative ol > li::marker { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.entry-narrative li { margin: var(--space-2) 0; }
+.entry-narrative li > p { margin: var(--space-1) 0; }
+.entry-narrative li > ul, .entry-narrative li > ol { margin: var(--space-2) 0; }
+.entry-narrative strong { font-weight: var(--fw-strong); color: var(--text); }
+.entry-narrative em { font-style: italic; }
+.entry-narrative a { color: var(--accent-text); text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px; }
+.entry-narrative a:hover { text-decoration-color: currentColor; }
+.entry-narrative blockquote {
+  margin: var(--space-5) 0; padding: var(--space-2) var(--space-5);
+  border-left: 3px solid var(--sep-strong); color: var(--text-2);
+}
+.entry-narrative blockquote > p { margin: var(--space-2) 0; }
+.entry-narrative hr { border: none; border-top: 1px solid var(--sep); margin: var(--space-7) 0; }
+/* 인라인 코드 — 테두리 없는 바탕 한 장. 예전엔 `word-break: break-all` 이라
+   칸이 남아도 낱말 가운데서 꺾였다(`toLocaleDa|teString`). 이제 통째로 다음
+   줄로 내려가고, 한 줄에 안 들어갈 때만 끊는다. */
+.entry-narrative :not(pre) > code {
+  font-family: var(--mono); font-size: 0.88em; font-weight: var(--fw-body);
+  color: var(--text); background: var(--bg-inset);
+  padding: 0.1em 0.4em; border-radius: var(--radius-2xs); border: none;
+  word-break: normal; overflow-wrap: anywhere;
+}
+.entry-narrative pre {
+  overflow-x: auto; margin: var(--space-5) 0; padding: var(--space-4) var(--space-5);
+  background: var(--bg-inset); border: 1px solid var(--sep); border-radius: var(--radius-s);
+  font-size: var(--fs-3); line-height: var(--lh-body);
+}
+.entry-narrative pre code { font-family: var(--mono); font-weight: var(--fw-body); background: none; border: none; padding: 0; }
+.entry-narrative table { border-collapse: collapse; margin: var(--space-5) 0; font-size: var(--fs-4); display: block; overflow-x: auto; }
+.entry-narrative th, .entry-narrative td { border: 1px solid var(--sep); padding: var(--space-2) var(--space-4); text-align: left; vertical-align: top; }
+.entry-narrative th { background: var(--bg-inset); font-weight: var(--fw-strong); }
+.entry-narrative img { max-width: 100%; border-radius: var(--radius-s); }
+
+/* ── 부록 — 변경된 파일 ─────────────────────────────────────────────────────
+   `.entry-files` 는 수동 일지 모달의 칩 행(screens.css)이 이미 쓰는 이름이라
+   피한다 — 하네스에서 부록이 회색 상자로 찍혀 잡았다. */
+.entry-appendix { margin-top: 48px; }
+.entry-appendix-head {
+  display: flex; align-items: center; gap: var(--space-4);
+  padding-bottom: var(--space-3); margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--sep-strong);
+}
+.entry-appendix-title { font-size: var(--fs-5); font-weight: var(--fw-bold); color: var(--text); white-space: nowrap; }
+/* 작업 요약 — M 4 · A 3 · D 2. 목록의 배지와 같은 색이라 범례를 겸한다. */
+.entry-appendix-ops { display: inline-flex; align-items: center; gap: var(--space-3); flex: 1; min-width: 0; }
+.entry-appendix-ops > span { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--mono); font-size: var(--fs-2); color: var(--text-2); font-variant-numeric: tabular-nums; }
+.entry-filelist-filter { flex: none; }
+.entry-filelist-filter input { flex: none; width: 108px; }
+.entry-filelist-clear {
+  appearance: none; -webkit-appearance: none; border: none; background: transparent;
+  padding: 0; width: 15px; height: 15px; flex: none; border-radius: var(--radius-pill);
+  display: grid; place-items: center; cursor: pointer; color: var(--text-3);
+}
+.entry-filelist-clear:hover { background: var(--bg-hover); color: var(--text); }
+
+.entry-filelist { display: flex; flex-direction: column; gap: 1px; }
+.entry-filelist .dfile { padding: var(--space-2) var(--space-3); margin: 0 calc(-1 * var(--space-3)); width: auto; }
+.entry-filelist .dfile:is(:disabled, [aria-disabled="true"]) { cursor: default; }
+.entry-filelist .dfile:is(:disabled, [aria-disabled="true"]):hover { background: transparent; }
+.entry-filelist .dfile.muted .dstatus { opacity: 0.5; }
+.entry-filelist .dfile-name, .efb-menu .dfile-name { display: flex; align-items: baseline; }
+.entry-filelist .dfile-dir, .efb-menu .dfile-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
+/* 파일명은 절대 줄지 않는다 — 좁아지면 앞쪽 디렉터리부터 잘린다. */
+.entry-filelist .dfile-base, .efb-menu .dfile-base { flex: none; }
+.entry-filelist .dfile.muted .dfile-base { color: var(--text-2); }
+.entry-filelist .dfile.active .dfile-base, .efb-menu .dfile.active .dfile-base { color: var(--accent-text); font-weight: var(--fw-strong); }
+.entry-filelist .dfile-note, .efb-menu .dfile-note {
+  flex: none; font-size: var(--fs-1); font-weight: var(--fw-strong); line-height: var(--lh-body);
+  color: var(--text-3); background: var(--bg-inset);
+  border: 1px solid var(--sep); border-radius: var(--radius-pill); padding: 0 var(--space-2); white-space: nowrap;
+}
+.entry-filelist-empty { padding: var(--space-4) var(--space-3); font-size: var(--fs-3); color: var(--text-2); }
+
+/* ── diff 칸 ──────────────────────────────────────────────────────────────── */
+.entry-detail-main { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; min-height: 0; }
+
+/* 파일 바 — 지금 열린 파일 한 줄 (앞뒤 이동 · 경로=목록 메뉴 · 위치). */
+.entry-file-bar {
+  position: relative; flex: none; display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) 14px; border-bottom: 1px solid var(--sep); background: var(--bg-window);
+}
+.efb-steps { display: flex; gap: 3px; flex: none; }
+.efb-step {
+  appearance: none; -webkit-appearance: none; padding: 0;
+  width: 24px; height: 22px; display: grid; place-items: center;
+  border: 1px solid var(--sep); border-radius: var(--radius-s);
+  background: var(--bg-inset); color: var(--text-2); cursor: pointer;
+}
+.efb-step:hover:not(:is(:disabled, [aria-disabled="true"])) { background: var(--bg-hover); border-color: var(--sep-strong); color: var(--text); }
+.efb-step:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
+/* 경로 자체가 손잡이 — 누르면 아래로 파일 목록이 떨어진다. */
+.efb-file {
+  appearance: none; -webkit-appearance: none; border: none; background: transparent;
+  display: flex; align-items: center; gap: var(--space-2); flex: 1 1 auto; min-width: 0;
+  padding: 2px var(--space-2); margin: 0 calc(-1 * var(--space-2)); border-radius: var(--radius-s);
+  font-family: var(--mono); font-size: var(--fs-3); color: var(--text); text-align: left; cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.efb-file:hover, .efb-file[aria-expanded="true"] { background: var(--bg-hover); }
+.efb-file[data-static="true"] { cursor: default; }
+.efb-file[data-static="true"]:hover { background: transparent; }
+.efb-file > svg { flex: none; color: var(--text-3); }
+.efb-path { display: flex; align-items: baseline; min-width: 0; }
+.efb-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
+.efb-base { flex: none; color: var(--text); font-weight: var(--fw-strong); }
+.efb-count {
+  flex: none; font-family: var(--mono); font-size: var(--fs-2); font-weight: var(--fw-strong);
+  color: var(--text-3); background: var(--bg-inset); border: 1px solid var(--sep);
+  border-radius: var(--radius-pill); padding: 2px var(--space-3); white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.efb-count-sep { opacity: 0.45; margin: 0 3px; }
+
+.efb-menu {
+  position: absolute; top: calc(100% + 4px); left: 14px; z-index: var(--z-popover);
+  width: min(560px, calc(100% - 28px)); max-height: min(60vh, 480px); overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--space-2); background: var(--bg-window);
+  border: 1px solid var(--sep-strong); border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
+}
+.efb-menu .dfile { padding: var(--space-2) var(--space-3); }
+.efb-menu .dfile:is(:disabled, [aria-disabled="true"]) { cursor: default; }
+.efb-menu .dfile:is(:disabled, [aria-disabled="true"]):hover { background: transparent; }
+.efb-menu .dfile.muted .dstatus { opacity: 0.5; }
+
+/* ── 좁은 칸 — 읽는 칸과 diff 를 세로로 쌓는다 ──────────────────────────── */
+/* 접는 선 720 — `.page` 의 640/460 과 다른 칸이라 자기 선을 갖는다 (플래너
+   `plnbody` 와 같은 사정): 640 에서는 읽는 칸·diff 가 320 씩이라 둘 다 못 쓴다. */
+@container entry (max-width: 720px) {
+  .entry-read { flex: 0 0 100%; width: auto; height: 50%; border-right: none; border-bottom: 1px solid var(--sep-strong); }
+  .entry-read-inner { padding: var(--space-7) 20px 48px; }
+  .entry-resizer { display: none; }
+  .entry-detail-main { flex: 0 0 100%; height: 50%; }
+  .entry-title { font-size: var(--fs-8); }
+}

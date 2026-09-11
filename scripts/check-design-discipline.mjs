@@ -190,7 +190,7 @@ const CTL_RAMP = new Set([18, 22, 26, 30, 34]);
  */
 const CHIP_CLASSES = [
   "chip", "attach-chip", "usage-chip", "sk-chip", "sk-path-chip", "code-debug-chip",
-  "entry-date-chip", "scope-chip", "file-pill", "queue-chip", "hg-lead-chip",
+  "scope-chip", "file-pill", "queue-chip", "hg-lead-chip",
   "agent-chip", "gr-chip", "tbadge",
 ];
 const CHIP_RADII = new Set(["var(--radius-s)", "var(--radius-pill)"]);

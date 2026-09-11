@@ -25,7 +25,7 @@ import {
 } from "./monaco/lsp";
 import { breakpointDecorations, gitDecorations, wireBreakpointClicks } from "./monaco/decorations";
 import { registerSymbolProvider } from "./monaco/symbols";
-import { baseEditorOptions, diffEditorOptions } from "./monaco/options";
+import { baseEditorOptions, diffEditorOptions, minimapOptions } from "./monaco/options";
 import { useInlineEdit, type RunInlineEdit } from "./inlineEdit/useInlineEdit";
 import { InlineEditWidget } from "./inlineEdit/InlineEditWidget";
 import { monacoLangForPath } from "./codeLang";
@@ -57,7 +57,11 @@ interface CodeEditorProps {
   onChange: (text: string) => void;
   /** ⌘S. 편집기가 포커스를 쥔 동안의 저장 경로 (화면 레벨 리스너와 이중). */
   onSave: () => void;
-  onCursor?: (line: number, col: number) => void;
+  /**
+   * 커서·선택. `sel` 은 선택이 있을 때만 — 줄 수와 글자 수 (상태줄의
+   * "3줄 · 120자 선택"). 커서만 움직여도 온다 (선택은 커서를 포함한다).
+   */
+  onCursor?: (line: number, col: number, sel?: { lines: number; chars: number }) => void;
   /**
    * 1-based 라인 점프 (one-shot) — 소비 후 onJumpConsumed 를 부른다.
    * `ch`/`len` (UTF-16, 0-based) 이 있으면 그 범위를 선택한다 — 전역 검색이
@@ -122,6 +126,8 @@ interface CodeEditorProps {
   insertSpaces?: boolean;
   /** 미니맵을 그리는가 (설정 `codeMinimap`). 좁은 분할에서 폭을 먹어 끌 수 있다. */
   minimap?: boolean;
+  /** 줄바꿈 (⌥Z · 상태줄). 부모가 파일 종류와 화면 상태로 푼 값이다. */
+  wordWrap?: boolean;
   /**
    * ⌘K — 선택 범위를 지시대로 고쳐 달라고 **부모가** 모델에 묻는다. 없으면
    * 그 키를 아예 안 단다 (프로바이더 키가 없는 프로젝트).
@@ -173,6 +179,7 @@ export function CodeEditor({
   tabSize = 2,
   insertSpaces = true,
   minimap = true,
+  wordWrap = false,
   onInlineEdit,
   onInlineEditAccepted,
   gitChanges,
@@ -254,6 +261,7 @@ export function CodeEditor({
       tabSize,
       insertSpaces,
       minimap,
+      wordWrap,
     });
 
     const subs: MonacoNs.IDisposable[] = [];
@@ -299,9 +307,20 @@ export function CodeEditor({
         onChangeRef.current(editor.getValue());
       }),
     );
+    // 선택 변경은 커서 이동을 포함한다 — 둘을 따로 구독하면 한 키 입력에 두 번 온다.
     subs.push(
-      editor.onDidChangeCursorPosition((e) => {
-        onCursorRef.current?.(e.position.lineNumber, e.position.column);
+      editor.onDidChangeCursorSelection((e) => {
+        const sel = e.selection;
+        const model = editor.getModel();
+        const pos = sel.getPosition();
+        const info =
+          sel.isEmpty() || !model
+            ? undefined
+            : {
+                lines: sel.endLineNumber - sel.startLineNumber + 1,
+                chars: model.getValueLengthInRange(sel),
+              };
+        onCursorRef.current?.(pos.lineNumber, pos.column, info);
       }),
     );
 
@@ -526,8 +545,14 @@ export function CodeEditor({
 
   // 미니맵 — 좁은 분할에서 끄는 값이라 켜고 끈 것이 그 자리에서 보여야 한다.
   useEffect(() => {
-    editorRef.current?.updateOptions({ minimap: { enabled: minimap } });
+    // `{ enabled }` 만 넘기면 나머지 미니맵 필드가 기본값으로 돌아간다 — 한 벌로.
+    editorRef.current?.updateOptions({ minimap: minimapOptions(minimap) });
   }, [minimap]);
+
+  // 줄바꿈 — ⌥Z 가 재마운트 없이 뒤집는다 (접힘·실행 취소 이력이 산다).
+  useEffect(() => {
+    editorRef.current?.updateOptions({ wordWrap: wordWrap ? "on" : "off" });
+  }, [wordWrap]);
 
   // 스티키의 심볼 원천 — 서버가 늦게 답해도 도착하는 대로 갈아탄다.
   //

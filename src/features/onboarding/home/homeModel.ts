@@ -82,6 +82,19 @@ export interface CommandRowT extends CommandSpec {
 
 export type HomeRow = ProjectRowT | DraftRowT | CommandRowT;
 
+/**
+ * 원장의 시간대 묶음 (2026-09-11 원장 리디자인). 순위는 예전에도 있었지만
+ * 격자에서는 **보이지 않았다** — 카드 14장이 같은 크기로 늘어서면 "왜 이게
+ * 여기 있지" 를 읽을 방법이 없다. 묶음 헤더가 그 순위의 근거(마지막 활동이
+ * 언제였나)를 글자로 말한다. `quiet` 의 문턱은 `QUIET_DAYS` 와 같은 값이다.
+ */
+export type RecencyGroup = "today" | "week" | "fortnight" | "quiet";
+
+export interface HomeGroup {
+  key: RecencyGroup;
+  rows: ProjectRowT[];
+}
+
 export interface HomeModel {
   /**
    * 화면에 그릴 프로젝트 **전부**, 순위대로. 활발한 것이 앞, 2주 넘게 조용한
@@ -91,8 +104,19 @@ export interface HomeModel {
    * 크기가 곧 "9개 중 6개는 안 보인다" 였다.
    */
   ranked: ProjectRowT[];
-  /** `ranked` 중 조용한 것들 (뒤쪽 꼬리) — 카드를 흐리게 그리는 데 쓴다. */
+  /** `ranked` 중 조용한 것들 (뒤쪽 꼬리) — 행을 흐리게 그리는 데 쓴다. */
   quiet: ProjectRowT[];
+  /**
+   * 사령탑 — 검색 중이 아닐 때의 순위 1위. 원장 위의 밴드 하나로 승격되고
+   * `groups` 에서는 빠진다 (같은 프로젝트를 두 번 그리지 않는다). 커서 평면
+   * `flat` 에서는 여전히 첫 항목이라 ↓ 한 번이면 밴드에서 원장으로 내려간다.
+   */
+  lead: ProjectRowT | null;
+  /**
+   * 사령탑을 뺀 나머지를 시간대별로 묶은 것 (빈 묶음은 없다). 검색 중에는
+   * 비어 있다 — 그때는 `ranked` 가 점수순 단일 목록이다.
+   */
+  groups: HomeGroup[];
   drafts: DraftRowT[];
   commands: CommandRowT[];
   /**
@@ -232,6 +256,44 @@ export function isQuiet(lastAt: string | null, now: number): boolean {
   return now - at >= QUIET_DAYS * DAY_MS;
 }
 
+/** 두 시각이 같은 로컬 달력일인가. */
+function sameLocalDay(a: number, b: number): boolean {
+  const da = new Date(a);
+  const db = new Date(b);
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+}
+
+/**
+ * 마지막 활동 시각 → 시간대 묶음. 경계는 `isQuiet` 와 같은 자를 쓴다 —
+ * 흐리게 그리는 행과 「조용함」 묶음에 드는 행이 어긋나면 안 된다.
+ */
+export function recencyGroup(lastAt: string | null, now: number): RecencyGroup {
+  if (isQuiet(lastAt, now)) return "quiet";
+  // isQuiet 가 false 면 lastAt 은 파싱 가능한 시각이다.
+  const at = Date.parse(lastAt as string);
+  if (sameLocalDay(at, now)) return "today";
+  if (now - at < 7 * DAY_MS) return "week";
+  return "fortnight";
+}
+
+const GROUP_ORDER: RecencyGroup[] = ["today", "week", "fortnight", "quiet"];
+
+/** 순위대로 놓인 행을 시간대 묶음으로 가른다 (순서 보존, 빈 묶음 제거). */
+export function groupByRecency(rows: ProjectRowT[], now: number): HomeGroup[] {
+  const buckets = new Map<RecencyGroup, ProjectRowT[]>();
+  for (const r of rows) {
+    const k = recencyGroup(r.snap?.lastAt ?? null, now);
+    const list = buckets.get(k);
+    if (list) list.push(r);
+    else buckets.set(k, [r]);
+  }
+  return GROUP_ORDER.filter((k) => buckets.has(k)).map((k) => ({ key: k, rows: buckets.get(k)! }));
+}
+
 function toSnap(b: HomeProjectBrief, since: string): ProjectSnap {
   return {
     lastAt: b.last_at,
@@ -329,8 +391,12 @@ export function buildHome(args: BuildHomeArgs): HomeModel {
     quiet = sleeping;
   }
 
-  // 커서 평면 = 화면 순서 그대로. 이제 모든 카드가 같은 격자에 있으므로
-  // 예전처럼 "타일은 빼고 행만" 이라는 예외가 필요 없다.
+  // 사령탑은 순위 1위 하나 — 검색 중에는 없다 (점수순 목록이 전부다).
+  const lead = searching ? null : (ranked[0] ?? null);
+  const groups = searching ? [] : groupByRecency(ranked.slice(1), now);
+
+  // 커서 평면 = 화면 순서 그대로 (사령탑 → 묶음 순서의 원장 → 초안 → 명령).
+  // 묶음은 순위를 자르지 않고 가르기만 하므로 `ranked` 순서가 곧 화면 순서다.
   const flat: HomeRow[] = [...ranked, ...drafts, ...commandRows];
   const primary: HomeRow | null = flat[0] ?? null;
 
@@ -344,6 +410,8 @@ export function buildHome(args: BuildHomeArgs): HomeModel {
   return {
     ranked,
     quiet,
+    lead,
+    groups,
     drafts,
     commands: commandRows,
     flat,

@@ -1,0 +1,600 @@
+/* 코드 화면의 **틀(frame)** — 탭 바 · 브레드크럼 · 상태줄 · 사이드바 머리 ·
+   툴바 버튼. 편집면(Monaco)과 트리 본문은 `code.css` 에 남아 있다.
+
+   2026-09-11 편집기 디자인 라운드에서 `code.css` 에서 떼어냈다. 이 다섯은
+   "편집기를 둘러싼 크롬" 이라 한 벌로 읽혀야 하는데, 2,700줄짜리 파일의 다섯
+   자리에 흩어져 있어 서로 다른 시점에 다른 손이 고쳤고 — 높이가 34·22·26 으로
+   제각각이고, 사이드바 머리만 바탕이 없어 두 기둥의 머리가 다른 재료였다.
+
+   여기서 세운 규칙 셋:
+   1. **띠 높이는 두 단뿐** — 머리띠 `--code-band` (탭 바 = 사이드바 머리) 와
+      아랫띠 `--code-strip` (브레드크럼 = 상태줄). 같은 y 에서 시작·끝나야
+      사이드바와 편집면이 한 창으로 읽힌다.
+   2. **크롬은 `--bg-sidebar` 재료, 편집면만 `--bg-content`** — 편집면이 크롬
+      안에서 한 단 밝게 떠오르고, 활성 탭이 그 밝기를 이어받아 편집면에 붙는다.
+   3. **색은 상태에만** — 액센트는 활성 탭 윗선 · 커서 · 미저장 · 활성 액션에만
+      쓰고, 쉬고 있는 글자는 전부 잉크 램프다. */
+
+.code-body {
+  --code-band: 36px;
+  --code-strip: 24px;
+  /* 크롬 재료. 사이드바(`.code-sidebar`)와 탭 바·상태줄이 같은 값을 본다. */
+  --code-chrome: var(--bg-sidebar);
+  /* 거터 — 편집면보다 한 숨 가라앉은 띠. 줄번호가 본문과 다른 층에 선다.
+     Monaco `editorGutter.background` 는 CSS 가 덮으므로 여기가 유일한 정의다. */
+  --code-gutter: color-mix(in srgb, var(--bg-inset) 55%, var(--bg-content));
+}
+
+/* ── 툴바 액션 버튼 — 고스트 ───────────────────────────────────────────────
+   테두리 상자를 한 줄로 늘어놓으면 버튼 여섯 개가 전부 같은 무게로 소리친다.
+   평상시엔 조용히, 호버·활성만 말한다. */
+.code-tool-btn {
+  color: var(--text-3);
+}
+.code-tool-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.code-tool-btn.on {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+.code-tool-btn:is(:disabled, [aria-disabled="true"]) {
+  opacity: var(--dim-disabled);
+  cursor: default;
+}
+.code-tool-btn:is(:disabled, [aria-disabled="true"]):hover {
+  background: none;
+  color: var(--text-3);
+}
+.code-save-btn.on {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+/* 작은 아이콘 버튼 — 사이드바 머리·탭 바처럼 32px 이 과한 자리. */
+.code-tool-btn.sm {
+  width: 26px;
+  height: 26px;
+}
+
+/* ── 사이드바 머리 — 필터 + 새 파일/폴더 ─────────────────────────────────
+   편집기 탭 줄과 **같은 높이·같은 재료·같은 아래선**이다. */
+.code-sidebar-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--code-band);
+  padding: 0 var(--space-2);
+  background: var(--code-chrome);
+  border-bottom: 1px solid var(--sep);
+}
+.code-sidebar-head .code-filter {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+/* ── 트리 루트 행 — 저장소 이름이 탐색기의 머리다 ────────────────────────
+   예전엔 `.agent` 폴더가 첫 줄이라 "이게 어느 저장소의 트리인가" 를 트리가
+   말하지 않았다. VS Code 의 루트 폴더 행과 같은 자리: 굵은 이름 하나와, 올리면
+   드러나는 「모두 접기」. 스크롤 밖에 고정된다 — 깊이 들어가도 뿌리가 보인다. */
+.code-tree-root {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--code-strip);
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--sep) 55%, transparent);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-strong);
+  letter-spacing: var(--track-caps);
+  text-transform: uppercase;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.code-tree-root-ico {
+  flex: none;
+  color: var(--text-3);
+}
+.code-tree-root-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.code-tree-root .code-tool-btn {
+  width: var(--ctl-1);
+  height: var(--ctl-1);
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+.code-tree-root:hover .code-tool-btn,
+.code-tree-root .code-tool-btn:focus-visible {
+  opacity: 1;
+}
+
+/* ── 탭 바 ────────────────────────────────────────────────────────────────── */
+.code-tabs {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  height: var(--code-band);
+  border-bottom: 1px solid var(--sep);
+  background: var(--code-chrome);
+}
+.code-tabs.drop {
+  background: var(--accent-soft);
+}
+.code-tabs-list {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.code-tabs-list::-webkit-scrollbar {
+  display: none;
+}
+.code-tab {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 120px;
+  max-width: 240px;
+  padding: 0 var(--space-2) 0 var(--space-4);
+  font-size: var(--fs-4);
+  color: var(--text-3);
+  background: none;
+  border: none;
+  border-right: 1px solid var(--sep);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.code-tab:hover {
+  color: var(--text-2);
+  background: var(--bg-hover);
+}
+/* 활성 탭 — 편집면과 같은 바탕 + 상단 액센트선. 아래 경계선을 제 색으로 덮어
+   탭이 편집면에 **붙어 있는** 모양을 만든다 (떠 있는 탭은 어느 파일을 보고
+   있는지 한 박자 늦게 읽힌다). 크롬이 한 단 어두워진 만큼 이 이음새가 예전보다
+   또렷하다 — 그게 재료를 가른 이유다. */
+.code-tab.on {
+  color: var(--text);
+  background: var(--bg-content);
+}
+.code-tab.on:hover {
+  background: var(--bg-content);
+}
+.code-tab.on::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -1px;
+  right: -1px;
+  height: 2px;
+  background: var(--accent);
+}
+.code-tab.on::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: var(--bg-content);
+}
+.code-tab-ico {
+  flex: none;
+}
+/* 비활성 탭의 아이콘은 살짝 죽인다 — 색색의 배지가 활성보다 먼저 읽히면 안 된다. */
+.code-tab:not(.on):not(:hover) .code-tab-ico {
+  opacity: 0.6;
+  filter: saturate(0.75);
+}
+.code-tab-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 미리보기 탭 — 훑어보는 중이라 다음 미리보기가 이 자리를 차지한다.
+   기울임 하나로만 말한다 (VS Code 와 같다). */
+.code-tab.preview .code-tab-name {
+  font-style: italic;
+}
+/* 미저장 탭의 이름은 액센트 글자다 — 점 하나는 탭 열 개 사이에서 잘 안 보인다. */
+.code-tab.dirty .code-tab-name {
+  color: var(--accent-text);
+}
+/* 미저장 점과 닫기 ×의 공용 슬롯 — 상태에 따라 CSS 가 겹쳐 갈아끼운다.
+   기본: 활성 탭만 × 노출. dirty: 점. 탭 호버: 언제나 ×. */
+.code-tab-slot {
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.code-tab-close {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-s);
+  color: inherit;
+  background: none;
+  cursor: pointer;
+  opacity: 0;
+}
+.code-tab.on .code-tab-close,
+.code-tab:hover .code-tab-close,
+.code-tab-close:focus-visible {
+  opacity: 1;
+}
+.code-tab.dirty:not(:hover) .code-tab-close {
+  opacity: 0;
+}
+.code-tab-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.code-tab-dot {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  pointer-events: none;
+  opacity: 0;
+}
+.code-tab.dirty:not(:hover) .code-tab-dot {
+  opacity: 1;
+}
+.code-tabs-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 var(--space-2);
+  border-left: 1px solid var(--sep);
+}
+
+/* ── 브레드크럼 — 탭 바 바로 아래, 편집면 위 ─────────────────────────────── */
+.code-crumbs {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: var(--code-strip);
+  padding: 0 var(--space-3) 0 var(--space-4);
+  overflow: hidden;
+  white-space: nowrap;
+  background: var(--bg-content);
+  border-bottom: 1px solid color-mix(in srgb, var(--sep) 55%, transparent);
+}
+.code-crumb-seg {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.code-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 18px;
+  padding: 0 var(--space-1);
+  border: none;
+  border-radius: var(--radius-2xs);
+  background: none;
+  font-size: var(--fs-3);
+  color: var(--text-3);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.code-crumb:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+/* 마지막 조각(파일)만 본문색 — 경로는 배경, 파일이 주인공이다. */
+.code-crumb.current {
+  color: var(--text);
+  cursor: default;
+}
+.code-crumb-sep {
+  flex: none;
+  color: color-mix(in srgb, var(--text-3) 60%, transparent);
+}
+
+/* 브레드크럼 오른쪽 액션 — 일지 칩 · 판(버전) · HEAD 비교 (#agent-diff). */
+.code-crumbs-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+.code-crumb-act {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 18px;
+  padding: 0 var(--space-1);
+  border: none;
+  border-radius: var(--radius-2xs);
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.code-crumb-act:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.code-crumb-act.on {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+/* 셈 — 아이콘 옆 작은 알약. 숫자만 덜렁 있으면 어느 아이콘의 것인지 흔들린다. */
+.code-crumb-act-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 14px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--bg-inset);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-strong);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.code-crumb-act.on .code-crumb-act-n {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* ── 상태줄 — 정보 조각(item) 단위로 ────────────────────────────────────────
+   왼쪽은 **이 버퍼의 상태**(저장·커서), 오른쪽은 **이 파일의 성질**(문제·
+   언어 서버·줄바꿈·언어·크기). 조각 사이 간격이 곧 구분선이다. */
+.code-statusbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--code-strip);
+  padding: 0 var(--space-2);
+  font-size: var(--fs-2);
+  color: var(--text-3);
+  border-top: 1px solid var(--sep);
+  background: var(--code-chrome);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.code-status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 18px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-2xs);
+  flex: none;
+}
+/* 저장 상태 — 상태줄에서 유일하게 **면**을 갖는 조각. 미저장이면 액센트 알약이
+   되어, 탭의 점·이름색과 함께 "저장 안 됨" 이 세 자리에서 같은 색으로 말한다. */
+.code-status-dirty {
+  color: var(--text-3);
+}
+.code-status-dirty.on {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  font-weight: var(--fw-strong);
+}
+/* LSP 상태 색점 — 낱말을 읽기 전에 색이 먼저 답한다. */
+.code-status-led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+.code-status-lsp.ready .code-status-led {
+  background: var(--ok);
+}
+.code-status-lsp.indexing .code-status-led,
+.code-status-lsp.starting .code-status-led {
+  background: var(--warn);
+  animation: code-led-pulse var(--pulse-dur) var(--ease-in-out) infinite;
+}
+.code-status-lsp.failed .code-status-led,
+.code-status-lsp.missing .code-status-led {
+  background: var(--danger);
+}
+@keyframes code-led-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .code-status-lsp .code-status-led {
+    animation: none;
+  }
+}
+.code-status-right {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* 문제 뱃지 — 패널이 있다는 것을 알리는 유일한 신호. 0 일 때는 다른 상태
+   항목과 같은 무게로 가라앉고, 오류가 생기면 그때만 색이 올라온다. */
+.code-status-problems {
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--text-3);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.code-status-problems:hover {
+  background: var(--bg-hover);
+  color: var(--text-2);
+}
+.code-status-problems.has-warn {
+  color: var(--warn-text);
+}
+.code-status-problems.has-error {
+  color: var(--danger-text);
+}
+
+/* 언어 서버 상태 칩. 색은 상태 자체가 아니라 **주의를 요구하는지** 로 정한다 —
+   분석 중/완료는 배경 정보라 흐리게, 없음/오류만 눈에 띈다. */
+.code-status-lsp {
+  color: var(--text-3);
+}
+.code-status-lsp.indexing,
+.code-status-lsp.starting {
+  color: var(--text-2);
+}
+.code-status-lsp.missing,
+.code-status-lsp.failed {
+  color: var(--warn-text);
+  cursor: help;
+}
+
+/* ── 문제 패널 (#p5-problems) ─────────────────────────────────────────────
+   참조 패널의 뼈대(.code-refs)를 그대로 쓰고 차이만 얹는다 — 같은 자리에
+   번갈아 서는 물건이라 모양이 갈라지면 자리를 옮긴 것처럼 보인다. */
+.code-problems-filter {
+  flex: none;
+  margin-left: var(--space-3);
+}
+.code-problems-hit {
+  gap: var(--space-3);
+}
+.code-problems-sev {
+  flex: none;
+  color: var(--text-3);
+}
+.code-problems-sev.s-error {
+  color: var(--destructive);
+}
+.code-problems-sev.s-warning {
+  color: var(--warn-text);
+}
+/* 어느 도구가 한 말인지 — 메시지와 겨루지 않게 끝으로 밀고 흐리게. */
+.code-problems-source {
+  flex: none;
+  margin-left: auto;
+  padding-left: var(--space-4);
+  font-size: var(--fs-2);
+  color: var(--text-3);
+}
+.code-problems-more {
+  color: var(--accent-text);
+}
+
+/* ── 상태줄의 누르는 조각 (2026-09-11 IDE 라운드) ──────────────────────────
+   커서(→ 줄 이동) · 줄바꿈 토글. 평소엔 다른 조각과 같은 무게로 앉아 있고,
+   올리면 눌리는 것임이 드러난다 — 상태줄은 읽는 곳이지 버튼 줄이 아니다. */
+.code-status-btn {
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.code-status-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.code-status-wrap.on {
+  color: var(--text-2);
+  background: var(--bg-active);
+}
+.code-status-sel {
+  color: var(--text-2);
+}
+
+/* ── 브레드크럼의 심볼 조각 ─────────────────────────────────────────────────
+   파일 뒤에 이어 붙는다. 마지막(커서가 든 것)만 본문색 — 파일 조각과 같은
+   규칙: 경로는 배경, 지금 있는 자리가 주인공. 종류 점은 아웃라인의 것을 쓴다. */
+.code-crumb-syms {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+.code-crumb-sym {
+  color: var(--text-3);
+}
+.code-crumb-sym.current {
+  color: var(--text);
+  cursor: pointer;
+}
+/* 심볼 사슬이 붙으면 파일 조각은 한 단 물러난다 — 주인공이 하나여야 한다. */
+.code-crumb.current.has-sym {
+  color: var(--text-2);
+}
+
+/* ── ⌘P 빠른 열기 — `.code-goto` 껍데기 위의 파일 행 ───────────────────────── */
+.code-qo-ico {
+  flex: none;
+}
+.code-qo-row .code-goto-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 50%;
+}
+.code-qo-dirty {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.code-qo-open {
+  flex: none;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bg-inset);
+  font-size: var(--fs-1);
+  color: var(--text-3);
+  line-height: 16px;
+}
+
+/* ── git 상태 · 진단 — 탭 이름 색 (트리와 같은 규칙, code.css) ───────────────
+   순서가 우선순위다: git < 진단 < 미저장. 미저장(액센트)은 "지금 내 손에 있는
+   것" 이라 무엇보다 먼저 읽혀야 한다. */
+.code-tab.git-M .code-tab-name {
+  color: var(--warn-text);
+}
+.code-tab.git-A .code-tab-name {
+  color: var(--ok-text);
+}
+.code-tab.git-D .code-tab-name {
+  color: var(--danger-text);
+  text-decoration: line-through;
+}
+.code-tab.prob-warning .code-tab-name {
+  color: var(--warn-text);
+}
+.code-tab.prob-error .code-tab-name {
+  color: var(--danger-text);
+}
+.code-tab.dirty .code-tab-name {
+  color: var(--accent-text);
+}

@@ -34,6 +34,12 @@ interface CodeTreeProps {
   dirtyPaths: Set<string>;
   /** 어느 창에든 탭으로 열려 있는 파일 — 굵게. */
   openPaths: Set<string>;
+  /**
+   * git 상태 (`gitDecor`) — 파일은 A/M/D 글자 배지 + 이름 색, 폴더는 안에
+   * 변경이 있으면 이름 색만. 진단은 그 위에 얹힌다 (오류가 git 보다 급하다).
+   */
+  gitMarks: ReadonlyMap<string, "A" | "M" | "D">;
+  problemMarks: ReadonlyMap<string, "error" | "warning">;
   draft: TreeDraft | null;
   /**
    * 행을 눌렀다. 열기·펼치기·다중 선택의 판단은 전부 화면이 한다 — 행은
@@ -146,6 +152,8 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
     onContextMenu,
     rowDrag,
     draggingPaths,
+    gitMarks,
+    problemMarks,
   } = props;
   const nodes = childrenOf(dirPath);
   const creatingHere = draft?.kind === "create" && draft.parent === dirPath;
@@ -192,7 +200,11 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
           (cutPaths.has(node.relative_path) ? " cut" : "") +
           // 뽑아 둔 것은 **열려 있는 파일과 다르게** 보여야 한다 — 둘이 같은
           // 강조를 쓰면 "지금 보고 있는 것"과 "지금 손대려는 것"이 겹친다.
-          (marks.has(node.relative_path) ? " marked" : "");
+          (marks.has(node.relative_path) ? " marked" : "") +
+          // git 상태와 진단 — 색은 CSS 가 이름에 준다.
+          (gitMarks.has(node.relative_path) ? " git-" + gitMarks.get(node.relative_path) : "") +
+          (problemMarks.has(node.relative_path) ? " prob-" + problemMarks.get(node.relative_path) : "");
+        const gitMark = node.is_dir ? undefined : gitMarks.get(node.relative_path);
         // 좌표→행 되찾기용 표식. OS 드롭도 트리 안 드래그도 `elementFromPoint`
         // 말고는 어느 행 위인지 알 방법이 없다.
         const dragProps = {
@@ -261,6 +273,11 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
             <span className="code-tree-label">{node.name}</span>
             {dirtyPaths.has(node.relative_path) ? (
               <span className="code-tree-dirty" title={t("code.dirty")} aria-label={t("code.dirty")} />
+            ) : null}
+            {gitMark ? (
+              <span className="code-tree-git" title={t(`code.git.${gitMark}`)} aria-label={t(`code.git.${gitMark}`)}>
+                {gitMark}
+              </span>
             ) : null}
           </button>
         );

@@ -21,6 +21,7 @@ owner: claude-code
 - [ ] 플래너 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 CSS 상태 마크(`.pmark` 여섯 상태 · 체크 정렬 · 막힘 `!` 대비) · 단계 스트립 조각 색과 hover 늘림 · 스티키 단계 머리 바탕이 시트와 같은지 · 행 hover 동작 무리(▾ ✎ 🗑 실행)의 노출 · 보드 열 위 선 · 좁은 폭(컨테이너 720 이하)에서 메타 열이 제목 아래로 내려가는지. 하네스(vitest DOM 덤프 + 실제 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-planner-redesign}
 - [ ] 작업 일지 원장 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 종류색 척추(`.jl-spine`)와 색띠(`.jl-strip`)의 `--t-*` 대비 · 스티키 날짜 머리글 바탕이 본문과 같은지 · 툴바 `.seg` 안 종류색 점 정렬 · 행 hover/focus 링 · 날짜 레일 막대 · 좁은 폭(컨테이너 640 이하)에서 레일이 숨고 명단이 아래 줄로 내려가는지 · Today→일지 초점 1.6초 강조. 하네스(vitest DOM 덤프 + 실제 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-journal-ledger}
 - [ ] 플래너 계획 레일 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 진행 파이(`.pln-pie` conic-gradient 채움·완료 꽉 찬 원·보관 점선)의 대비 · ⋯ 옵션 메뉴가 레일 폭 170px 에서도 화면 안에 서는지(오른쪽 레일이면 왼쪽으로 여는지) · 접힌 띠의 세로 라벨 · 제목 2줄 클램프와 hover 카드의 역할 분담 · 섹션 머리 sticky 바탕. 하네스로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-planner-rail}
+- [ ] 시작 탭 원장 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 사령탑 밴드(`.hl-lead` 이름 fs-9 · 맥박 200×48 의 액센트 막대 · 플랜 진행 막대) · 원장 행 커서(왼쪽 3px 액센트)와 hover 이름 프로젝트색 · 묶음 헤더 hairline 꼬리 대비 · 조용함 묶음 0.6 흐림 · 흐름 레일의 `--bg-sidebar` 면과 왼쪽 hairline · 1080px 이하에서 레일이 아래로 접히고 맥박이 숨는지 · macOS 신호등과 레일 좌단 정렬. 하네스(vitest DOM 덤프 14프로젝트 + 빌드 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-start-ledger}
 - [x] 글리프 위생 — codex-acp 6건이 [~] 인데 done(release-gates 미확정 포함) · skill-catalog-round-2 는 archived 여야 · drag-and-drop Phase 8 의 4건은 [-] 여야 · menubar-tray 의 v2.3.0 항목은 죽은 항목 {#glyph-hygiene}
 
 ## v2.42.0 이월 — 네 세션이 소유 밖에서 발견한 것 {#v242-carry}
@@ -226,4 +227,7 @@ owner: claude-code
 | 2026-09-08T00:41:00+09:00 | #neutral-session-env | claude-code | ☐→- | .oculpm/journal/20260908/Features_to_add/0030_feature_gate-attribution-segments-codex-hooks.md | blocked → dropped. 「미확인」이 아니라 「이 경로로는 불가」로 확정됐다(위 {#mcp-json-session-env} 실측). 폴백이 정답이다 |
 | 2026-09-08T15:32:58+09:00 | #eyes-tcc-desktop | claude-code | ☐→☐ | .oculpm/journal/20260908/Bugs/1516_bug_desktop-mcp-status-tcc-prompt-on-mount.md | 신규 항목 — 연동 탭 마운트가 남의 앱 데이터를 stat 하던 것을 버튼 뒤로 옮겼다. 코드 쪽은 회귀 테스트로 잠갔고 프롬프트가 안 뜨는 순간만 사람 눈이 필요하다. 설치본 2.45.1 에는 이 수정이 없으니 다음 릴리스 뒤에 tccutil reset 후 확인 |
 | 2026-09-08T17:40:20+09:00 | #eyes-terminal | claude-code | ~→~ | .oculpm/journal/20260908/Bugs/1740_bug_retire-empty-stale-pty-host.md | 빈 옛 PTY 호스트 자동 교체 추가 — 육안 확인 1건 더: 이 판 설치 뒤 터미널을 안 쓴 채 다음 업데이트를 받고, 새 호스트가 /Applications 실행파일로 떴는지(lsof -p) + 화면 기록 승인이 유지되는지 |
+| 2026-09-11T00:54:54+09:00 | #eyes-journal-ledger | claude-code | ☐→☐ | .oculpm/journal/20260911/Features_to_add/0054_feature_entry-detail-reading-column.md | 일지 열람(읽는 칸) 리디자인도 같은 격자로 — 마스트헤드 척추 --c 대비 · 인라인 코드 바탕 · 절 실선 · 파일 메뉴(.efb-menu) 그림자 · 리사이저 hover · 720 이하 위아래 쌓임. 하네스로만 봤다 |
+| 2026-09-11T01:00:06+09:00 | #eyes-sidebar-scroll | claude-code | ☐→☐ |  | 2026-09-11 사이드바 리디자인(활자 머리·섹션 척추·발 한 줄) 뒤 같은 격자로 다시 봐야 — 프리셋 5종에서 척추(--sep-strong)·활성 막대 대비, 접힌 오버레이의 발 아이콘 칸. 하네스로만 봤다 |
+| 2026-09-11T11:31:41+09:00 | #eyes-start-ledger | claude-code | ☐→☐ | .oculpm/journal/20260911/Features_to_add/1125_feature_start-tab-ledger-redesign.md | 시작 탭 리디자인 이월 — 하네스로만 봤다. 미커밋(refs/backup/start-tab-ledger-20260911) |
 <!-- oculpm:plan-log end -->

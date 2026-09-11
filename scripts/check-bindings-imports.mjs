@@ -31,6 +31,8 @@ export const ALLOWLIST = new Set([
   "api/import.ts",
   "api/llm.ts",
   "api/codeHistory.ts",
+  // git 커맨드 래퍼 (2026-09-11 편집기 IDE 라운드) — 트리·탭 git 상태 장식의 창구.
+  "api/git.ts",
   "api/code.ts",
   "api/acp.ts",
   "api/fileOpen.ts",

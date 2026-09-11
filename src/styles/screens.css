@@ -165,27 +165,9 @@
 
 /* --- Diff (PR-UI 4) --- */
 .diff-screen { display: grid; grid-template-columns: var(--panel-w) 1fr; height: 100%; min-height: 0; }
-/* 작업 일지 항목 디테일 뷰 (Dogfooding 2026-06-07 — 모달 대체). */
-/* Prominent "작성 날짜" chip in the entry header sub-line. Accent pill so the
-   written date reads at a glance when arriving from the planner. */
-.entry-date-chip {
-  padding: 2px var(--space-4); border-radius: var(--radius-pill);
-  background: var(--accent-soft); color: var(--accent-text);
-  font-size: var(--fs-3); font-weight: var(--fw-strong);
-}
-
-.entry-detail { display: grid; grid-template-columns: minmax(320px, 440px) 1fr; height: 100%; min-height: 0; }
-/* 왼쪽 pane 은 두 영역이다 — 위쪽(메타 + 변경 파일)은 제자리에 남고, 일지
-   서술만 스크롤한다. 예전처럼 pane 전체가 하나로 스크롤하면 서술을 읽으려고
-   내리는 순간 파일 목록이 화면 밖으로 밀려나, 파일이 많을수록 다음 파일을
-   열려면 매번 위로 되돌아가야 했다. */
-.entry-detail-side {
-  border-right: 1px solid var(--sep); background: var(--bg-window);
-  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
-  padding: 18px 18px 0;
-}
-.entry-detail-notice, .entry-detail-tags { flex: none; }
-.entry-detail-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+/* 작업 일지 열람(EntryDetailView)의 스타일은 features/oculpm/entry.css 로
+   옮겼다 (2026-09-11 원장의 한 장 리디자인). `.dfile*` / `.dstatus` 기본형은
+   두 화면이 나눠 쓰므로 여기 남는다. */
 /* ── 변경 diff 왼쪽 pane — 변경된 파일 목록 ────────────────────────────────
    2026-08-20: 일지가 쌓이면 그룹이 전부 펼쳐진 채 세로로 이어 붙어 끝없이
    길어졌고, 경로는 폭이 모자라 끝에서 잘려 파일명이 사라졌다. pane 을 세 층
@@ -334,89 +316,6 @@
 .dstatus.M { background: var(--t-error); color: var(--on-warn); }
 .dstatus.A { background: var(--accent); color: var(--text-on-accent); }
 .dstatus.D { background: var(--t-bug); color: var(--on-danger); }
-
-/* ── 작업 일지 디테일 — 변경 파일 내비게이션 ──────────────────────────────
-   파일이 스무 개쯤 되면 오른쪽 위 '칩 벽'(줄바꿈되는 파일 버튼 무더기)이
-   diff 위를 서너 줄씩 차지하면서, 왼쪽 목록과 똑같은 내용을 두 번 보여줬다.
-   칩을 걷어내고 역할을 갈랐다 — 왼쪽 목록이 유일한 파일 내비게이션(필터 ·
-   자체 스크롤 · 경로 접기), 오른쪽은 지금 열린 파일 한 줄.
-   선택자는 전부 `.entry-filelist*` / `.efb-*` 로 가둔다 — `.dfile*` 기본형은
-   변경 diff 화면과 공유하는 표면이라 여기서 건드리지 않는다. */
-/* 목록은 필요한 만큼만 차지하고 남는 높이는 서술에 넘긴다 — 대신 pane 의
-   절반을 넘지 않는다. */
-.entry-filelist-block {
-  flex: 0 1 auto; min-height: 0; max-height: 52%;
-  display: flex; flex-direction: column; margin-bottom: var(--space-6);
-}
-.entry-filelist-head { padding: 0 0 var(--space-3); justify-content: space-between; flex: none; }
-.entry-filelist-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* 상자는 `.search-box.sm`(primitives.css). 23px·`--fs-2`(10px) 는 입력으로
-   쓰기엔 작았고, 이 카드 머리는 대문자 트래킹이 걸린 줄이라 입력이 그것을
-   물려받지 않게 되돌린다 (2026-09-10 {#unify-search-input}). */
-.entry-filelist-filter { flex: none; }
-.entry-filelist-filter:focus-within { color: var(--text-2); }
-.entry-filelist-filter input {
-  flex: none; width: 92px; letter-spacing: 0; text-transform: none;
-}
-.entry-filelist-clear {
-  appearance: none; -webkit-appearance: none; border: none; background: transparent;
-  padding: 0; width: 15px; height: 15px; flex: none; border-radius: var(--radius-pill);
-  display: grid; place-items: center; cursor: pointer; color: var(--text-3);
-}
-.entry-filelist-clear:hover { background: var(--bg-hover); color: var(--text); }
-
-.entry-filelist {
-  display: flex; flex-direction: column; gap: 2px;
-  flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-}
-/* macOS 오버레이 스크롤바는 손대기 전엔 보이지 않는다 — 목록이 확실히 잘리는
-   길이부터는 위아래 실선이 "여기서 끝난 게 아니라 잘렸다" 를 대신 말해준다
-   (변경 diff 의 가로 스크롤이 같은 이유로 안 보였던 전례). */
-.entry-filelist.capped {
-  border-top: 1px solid var(--sep); border-bottom: 1px solid var(--sep);
-  padding: var(--space-2) var(--space-1) var(--space-2) 0;
-}
-/* `flex: none` — 세로 flex 안에서 행이 눌려 납작해지지 않게. */
-.entry-filelist .dfile { padding: var(--space-2) var(--space-3); flex: none; }
-.entry-filelist .dfile:is(:disabled, [aria-disabled="true"]) { cursor: default; }
-.entry-filelist .dfile:is(:disabled, [aria-disabled="true"]):hover { background: transparent; }
-.entry-filelist .dfile.muted .dstatus { opacity: 0.5; }
-.entry-filelist .dfile-name { display: flex; align-items: baseline; }
-.entry-filelist .dfile-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
-/* 파일명은 절대 줄지 않는다 — 좁아지면 앞쪽 디렉터리부터 잘린다. */
-.entry-filelist .dfile-base { flex: none; }
-.entry-filelist .dfile.muted .dfile-base { color: var(--text-2); }
-.entry-filelist .dfile.active .dfile-base { color: var(--accent-text); font-weight: var(--fw-strong); }
-.entry-filelist .dfile-note {
-  flex: none; font-size: var(--fs-1); font-weight: var(--fw-strong); line-height: var(--lh-body);
-  color: var(--text-3); background: var(--bg-inset);
-  border: 1px solid var(--sep); border-radius: var(--radius-pill); padding: 0 var(--space-2); white-space: nowrap;
-}
-.entry-filelist-empty { padding: var(--space-4) var(--space-3); font-size: var(--fs-3); color: var(--text-2); }
-
-/* 오른쪽 pane 머리 — 지금 열린 파일 한 줄 (경로 · 앞뒤 이동 · 위치). */
-.entry-file-bar {
-  flex: none; display: flex; align-items: center; gap: var(--space-4);
-  padding: var(--space-3) 14px; border-bottom: 1px solid var(--sep); background: var(--bg-window);
-}
-.efb-steps { display: flex; gap: 3px; flex: none; }
-.efb-step {
-  appearance: none; -webkit-appearance: none; padding: 0;
-  width: 24px; height: 22px; display: grid; place-items: center;
-  border: 1px solid var(--sep); border-radius: var(--radius-s);
-  background: var(--bg-inset); color: var(--text-2); cursor: pointer;
-}
-.efb-step:hover:not(:is(:disabled, [aria-disabled="true"])) { background: var(--bg-hover); border-color: var(--sep-strong); color: var(--text); }
-.efb-step:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
-.efb-path { display: flex; align-items: baseline; flex: 1; min-width: 0; font-family: var(--mono); font-size: var(--fs-3); }
-.efb-dir { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); }
-.efb-base { flex: none; color: var(--text); font-weight: var(--fw-strong); }
-.efb-count {
-  flex: none; font-family: var(--mono); font-size: var(--fs-2); font-weight: var(--fw-strong);
-  color: var(--text-3); background: var(--bg-inset); border: 1px solid var(--sep);
-  border-radius: var(--radius-pill); padding: 2px var(--space-3); white-space: nowrap;
-}
-.efb-count-sep { opacity: 0.45; margin: 0 3px; }
 
 .diff-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg-window); }
 .diff-bar { display: flex; align-items: center; gap: var(--space-5); padding: 11px 18px; border-bottom: 1px solid var(--sep); }
@@ -2387,56 +2286,6 @@ mark.s-hit {
   height: 300px; display: flex; flex-direction: column;
   background: var(--term-bg); border-radius: 0 0 var(--radius-l) var(--radius-l); overflow: hidden;
 }
-
-/* EntryDetailView narrative pane (Dogfooding 2026-06-07) — readable Markdown
-   reader, contained in the narrow left column. */
-.entry-narrative { color: var(--text-2); font-size: var(--fs-4); line-height: var(--lh-prose); }
-/* 디테일 뷰 안에서만 — 서술이 왼쪽 pane 의 스크롤 영역을 맡는다. */
-.entry-detail-side > .entry-narrative { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 48px; }
-.entry-narrative > :first-child { margin-top: 0; }
-.entry-narrative h1 { font-size: var(--fs-6); }
-.entry-narrative h2 { font-size: var(--fs-5); padding-bottom: var(--space-1); border-bottom: 1px solid var(--sep); }
-.entry-narrative h3 { font-size: var(--fs-4); }
-.entry-narrative h4, .entry-narrative h5, .entry-narrative h6 { font-size: var(--fs-4); }
-.entry-narrative h1, .entry-narrative h2, .entry-narrative h3,
-.entry-narrative h4, .entry-narrative h5, .entry-narrative h6 {
-  font-weight: var(--fw-bold); color: var(--text); margin: var(--space-7) 0 var(--space-3); letter-spacing: var(--track-tight); line-height: var(--lh-tight);
-}
-.entry-narrative p { margin: var(--space-3) 0; }
-.entry-narrative ul, .entry-narrative ol { margin: var(--space-3) 0; padding-left: var(--space-7); }
-.entry-narrative ul { list-style: none; padding-left: var(--space-2); }
-.entry-narrative ul > li { position: relative; padding-left: var(--space-6); }
-.entry-narrative ul > li::before {
-  content: ""; position: absolute; left: 2px; top: 0.62em;
-  width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
-}
-.entry-narrative ol { list-style: decimal; }
-.entry-narrative li { margin: var(--space-1) 0; }
-.entry-narrative li > ul, .entry-narrative li > ol { margin: var(--space-1) 0; }
-.entry-narrative strong { font-weight: var(--fw-bold); color: var(--text); }
-.entry-narrative em { font-style: italic; }
-.entry-narrative a { color: var(--accent); text-decoration: none; }
-.entry-narrative a:hover { text-decoration: underline; }
-.entry-narrative blockquote {
-  margin: var(--space-4) 0; padding: var(--space-1) var(--space-5); border-left: 3px solid var(--accent-soft);
-  color: var(--text-3); background: var(--bg-inset); border-radius: 0 var(--radius-s) var(--radius-s) 0;
-}
-.entry-narrative hr { border: none; border-top: 1px solid var(--sep); margin: var(--space-6) 0; }
-/* Inline code → chip. */
-.entry-narrative :not(pre) > code {
-  font-family: var(--mono); font-size: var(--fs-3);
-  background: var(--bg-inset); color: var(--text);
-  padding: 1.5px var(--space-2); border-radius: var(--radius-xs); border: 1px solid var(--sep);
-  white-space: break-spaces; word-break: break-all;
-}
-.entry-narrative pre {
-  overflow-x: auto; background: var(--bg-inset); border: 1px solid var(--sep);
-  padding: var(--space-4) var(--space-5); border-radius: var(--radius-m); font-size: var(--fs-3); line-height: var(--lh-body); margin: var(--space-4) 0;
-}
-.entry-narrative pre code { font-family: var(--mono); background: none; border: none; padding: 0; }
-.entry-narrative table { border-collapse: collapse; margin: var(--space-4) 0; font-size: var(--fs-3); }
-.entry-narrative th, .entry-narrative td { border: 1px solid var(--sep); padding: var(--space-1) var(--space-3); text-align: left; }
-.entry-narrative th { background: var(--bg-inset); font-weight: var(--fw-strong); }
 
 /* Today 커밋 그래프 — 클릭 가능한 행 hover (GitHub 열기). */
 .git-graph-row:hover { background: var(--bg-inset); }
