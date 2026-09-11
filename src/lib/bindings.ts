@@ -4280,6 +4280,8 @@ export type IndexResult = {
 	files_processed: number,
 	files_changed: number,
 	chunks_created: number,
+	/**  이번 walk 에 없어 색인에서 지운 파일 수 (A2 화해). */
+	files_removed: number,
 	took_ms: number,
 };
 
