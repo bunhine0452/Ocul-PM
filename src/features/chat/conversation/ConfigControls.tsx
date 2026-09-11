@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Code2, ClipboardCheck, Cpu, Gauge, Lock, Play, Rocket, Settings, type IconComponent } from "@/components/Icons";
 import { type AcpConfigOption } from "@/lib/bindings";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { nextIndex } from "../ultracode";
 import { useDismiss } from "../useDismiss";
 
@@ -440,9 +441,11 @@ export function EffortControl({
                     (choice.value === ULTRA_VALUE ? " top" : "") +
                     (choice.value === ULTRA_VALUE && !ultraReady ? " locked" : "")
                   }
-                  disabled={choice.value === ULTRA_VALUE && !ultraReady}
+                  {...blocked(
+                    choice.value === ULTRA_VALUE && !ultraReady ? t("acp.ultracodeNeedsModel") : null,
+                    choice.description ?? choice.name,
+                  )}
                   aria-label={choice.name}
-                  title={choice.description ?? choice.name}
                   onClick={() => onPick(choice.value)}
                 />
               ))}

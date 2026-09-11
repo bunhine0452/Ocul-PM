@@ -25,6 +25,7 @@ import { importApi } from "@/api/import";
 import { toAppError } from "@/api/invoke";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useT, type I18nKey } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { toast } from "@/lib/toast";
 import type { EntryType, ImportReport, ImportScan } from "@/lib/bindings";
@@ -122,7 +123,8 @@ export function ConversationImportSection() {
         <Button
           variant="outline"
           onClick={choose}
-          disabled={busy || projectId == null}
+          {...blocked(projectId == null ? t("common.blockedNoProject") : null)}
+          disabled={busy}
           className="flex-1"
         >
           {busy && !scan ? (
@@ -195,7 +197,7 @@ export function ConversationImportSection() {
           ) : (
             <>
               <p className="text-fs-2 text-muted-foreground">{t("settings.import.costNote")}</p>
-              <Button onClick={runImport} disabled={busy || picked.size === 0} className="w-full">
+              <Button onClick={runImport} {...blocked(picked.size === 0 ? t("settings.import.blockedNone") : null)} disabled={busy} className="w-full">
                 {busy ? <Loader2  className="mr-2 animate-spin" size={15} /> : null}
                 {t("settings.import.run", { count: String(picked.size) })}
               </Button>

@@ -5,6 +5,7 @@ import { commands, type PlanItemDto, type PlanSummary } from "@/lib/bindings";
 import { ChevronLeft } from "@/components/Icons";
 import { STATUS_META } from "@/features/planner/planMeta";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { ErrorNote, Loading } from "./shared";
 
 type PlanDetail = NonNullable<Awaited<ReturnType<typeof commands.planGet>> extends infer R
@@ -95,8 +96,8 @@ export function PlannerTab({ projectId }: { projectId: number }) {
                 <li key={item.item_id}>
                   <button
                     onClick={() => (active ? void toggle(item) : undefined)}
-                    disabled={!active}
-                    className="mob-card w-full flex items-start gap-2.5 text-left px-3 py-2.5 disabled:opacity-70"
+                    {...blocked(active ? null : t("mobile.planner.blockedLocked"))}
+                    className="mob-card w-full flex items-start gap-2.5 text-left px-3 py-2.5 disabled:opacity-70 aria-disabled:opacity-70"
                   >
                     <span className={`mob-glyph ${item.status}`}>
                       {STATUS_META[item.status]?.glyph ?? STATUS_META.todo.glyph}

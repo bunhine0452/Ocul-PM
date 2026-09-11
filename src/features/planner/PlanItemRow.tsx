@@ -19,6 +19,7 @@ import type { PlanItemDto, PlanItemUpdateDto } from "@/lib/bindings";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { InlineMarkdown } from "@/components/InlineMarkdown";
 import { t } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import {
   fmtWorkday,
   relativeTime,
@@ -106,14 +107,15 @@ export function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispa
             e.preventDefault();
             setMenuOpen((o) => !o);
           }}
-          disabled={busy || locked || isParent}
-          title={
+          {...blocked(
             isParent
               ? t("plan.statusParent", { label: t(meta.labelKey) })
               : locked
                 ? t("plan.statusLocked", { label: t(meta.labelKey) })
-                : t("plan.statusClick", { label: t(meta.labelKey) })
-          }
+                : null,
+            t("plan.statusClick", { label: t(meta.labelKey) }),
+          )}
+          disabled={busy}
           aria-label={t(meta.labelKey)}
         >
           <StatusMark status={item.status} />

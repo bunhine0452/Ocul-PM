@@ -39,6 +39,7 @@ import { Dialog } from "@/windows/Dialog";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { toast } from "@/lib/toast";
 import { requestEntryJump } from "@/lib/entryJump";
 import { AppearancePicker } from "@/features/onboarding/home/AppearancePicker";
@@ -401,8 +402,8 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
             </button>
             <button
               onClick={handleSaveProject}
-              disabled={!newName.trim()}
-              className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 rounded-xl text-xs font-semibold transition-colors"
+              {...blocked(newName.trim() ? null : t("common.blockedNoName"))}
+              className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 aria-disabled:opacity-50 rounded-xl text-xs font-semibold transition-colors"
             >
               {t("common.save")}
             </button>

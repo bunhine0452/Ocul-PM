@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { commands, type Role } from "@/lib/bindings";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import {
   entriesToSettings,
   KEYS,
@@ -211,7 +212,8 @@ export function AiTab({ projectId }: { projectId: number }) {
         />
         <button
           onClick={() => void send()}
-          disabled={!input.trim() || streaming}
+          {...blocked(input.trim() ? null : t("common.blockedEmptyDraft"))}
+          disabled={streaming}
           className="mob-btn-primary px-4 text-sm"
         >
           {t("mobile.ai.send")}

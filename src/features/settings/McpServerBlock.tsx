@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "@/components/Icons";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { oculpmApi } from "@/api/oculpm";
 import { toAppError } from "@/api/invoke";
@@ -185,7 +186,11 @@ export function McpServerBlock({
           ) : (
             <Button
               size="sm"
-              disabled={busy || !!mcpError || !mcp?.binary_found}
+              {...blocked(
+                mcpError ??
+                  (mcp == null ? t("op.blockedStatusUnknown") : !mcp.binary_found ? t("op.blockedNoBinary") : null),
+              )}
+              disabled={busy}
               onClick={() => void mutate("register")}
             >
               {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
@@ -229,7 +234,7 @@ export function McpServerBlock({
           {deskBadge.label}
         </span>
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="outline" disabled={busy || !mcp} onClick={() => void copySnippet()}>
+          <Button size="sm" variant="outline" {...blocked(mcp ? null : t("op.blockedStatusUnknown"))} disabled={busy} onClick={() => void copySnippet()}>
             {copied ? t("common.copied") : t("op.desk.copy")}
           </Button>
           {!deskChecked ? (
@@ -244,7 +249,15 @@ export function McpServerBlock({
           ) : (
             <Button
               size="sm"
-              disabled={busy || !!deskError || !desk?.installed || !mcp?.binary_found}
+              {...blocked(
+                deskError ??
+                  (!desk?.installed
+                    ? t("op.desk.blockedNotInstalled")
+                    : !mcp?.binary_found
+                      ? t("op.blockedNoBinary")
+                      : null),
+              )}
+              disabled={busy}
               onClick={() => void mutateDesktop("register")}
             >
               {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}

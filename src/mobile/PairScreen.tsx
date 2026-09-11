@@ -2,6 +2,7 @@
 import { useState } from "react";
 
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { setToken } from "@/lib/transport/http";
 
 export function PairScreen({ onPaired }: { onPaired: () => void }) {
@@ -63,7 +64,8 @@ export function PairScreen({ onPaired }: { onPaired: () => void }) {
         />
         <button
           onClick={() => void submit()}
-          disabled={code.trim().length !== 6 || busy}
+          {...blocked(code.trim().length === 6 ? null : t("mobile.pair.blockedCode"))}
+          disabled={busy}
           className="mob-btn-primary w-full py-3 text-sm font-semibold"
         >
           {t("mobile.pair.submit")}

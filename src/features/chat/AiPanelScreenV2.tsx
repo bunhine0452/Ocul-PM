@@ -51,6 +51,7 @@ import { ConversationHistoryModal } from "./ConversationHistoryModal";
 // 없고, deps 에 t 가 빠진 콜백에서도 낡은 언어로 굳지 않는다. DB 에 저장되는
 // 대화 제목처럼 한번 잘못 들어가면 영구히 남는 자리에 쓴다.
 import { t as tNow, useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { isImeComposing } from "@/lib/ime";
 
@@ -1005,9 +1006,8 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
                   type="button"
                   className="btn primary icon composer-send"
                   onClick={() => void send()}
-                  disabled={!draft.trim()}
+                  {...blocked(draft.trim() ? null : t("common.blockedEmptyDraft"), t("ai.sendHint"))}
                   aria-label={t("ai.send")}
-                  title={t("ai.sendHint")}
                 >
                   <ArrowUp size={15} strokeWidth={2.2} />
                 </button>

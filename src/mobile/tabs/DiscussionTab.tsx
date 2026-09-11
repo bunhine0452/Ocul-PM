@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { commands, type DiscussionDetail, type DiscussionSummary } from "@/lib/bindings";
 import { ChevronLeft } from "@/components/Icons";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { appendLogRowOp, localIsoWithOffset } from "@/features/discussion/mdEdit";
 import { agentColor } from "@/features/today/agentColor";
 import { logColumns, sectionHeadings } from "@/features/discussion/discussionTemplates";
@@ -127,7 +128,8 @@ export function DiscussionTab({ projectId }: { projectId: number }) {
             />
             <button
               onClick={() => void addNote()}
-              disabled={!note.trim() || busy}
+              {...blocked(note.trim() ? null : t("disc.blockedNoNote"))}
+              disabled={busy}
               className="mob-btn-primary px-4 text-sm"
             >
               {t("mobile.discussion.addNote")}

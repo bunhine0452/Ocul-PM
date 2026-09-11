@@ -26,6 +26,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { registerCloseHandler } from "@/lib/closeIntent";
 import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { AppDialog } from "@/components/ui/AppDialog";
 
@@ -188,7 +189,7 @@ export function CodeScreenV2({
     setState((prev) => (prev.codeSidebarHidden ? { ...prev, codeSidebarHidden: false } : prev));
     setSidebarMode("search");
     setSearchFocusSeq((n) => n + 1);
-  }, []);
+  }, [setState]);
 
   // ── Phase 2 — 아웃라인 · 참조 ───────────────────────────────────────────
   //
@@ -1397,10 +1398,8 @@ export function CodeScreenV2({
           </label>
 
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-            <button type="button" className="btn sm" onClick={() => setLaunchOpen(false)} disabled={starting}>
-              {t("common.cancel")}
-            </button>
-            <button type="submit" className="btn sm primary" disabled={starting || !launchForm.program.trim()}>
+            <button type="button" className="btn sm" onClick={() => setLaunchOpen(false)} disabled={starting}>{t("common.cancel")}</button>
+            <button type="submit" className="btn sm primary" {...blocked(launchForm.program.trim() ? null : t("code.debug.blockedNoProgram"))} disabled={starting}>
               {t("code.debug.start")}
             </button>
           </div>

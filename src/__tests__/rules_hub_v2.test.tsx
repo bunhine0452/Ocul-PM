@@ -258,7 +258,7 @@ describe("에이전트 컨텍스트 화면 — 규칙", () => {
     const submit = within(dialog).getByRole("button", { name: "만들기" });
 
     fireEvent.change(name, { target: { value: "Bad Name" } });
-    expect((submit as HTMLButtonElement).disabled).toBe(true);
+    expect(submit).toHaveAttribute("aria-disabled", "true");
 
     fireEvent.change(name, { target: { value: "pr-check" } });
     fireEvent.change(getByLabelText(/paths/), {

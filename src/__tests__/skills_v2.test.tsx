@@ -200,13 +200,13 @@ describe("SkillsScreenV2 — 3존 화면 (스킬)", () => {
 
     // 잘못된 이름 → 비활성 + 안내.
     fireEvent.change(name, { target: { value: "Bad Name" } });
-    expect((submit as HTMLButtonElement).disabled).toBe(true);
+    expect(submit).toHaveAttribute("aria-disabled", "true");
     expect(within(dialog).getByText(/kebab-case/)).toBeTruthy();
 
     // 올바른 이름 + 설명 → 저장 호출.
     fireEvent.change(name, { target: { value: "pr-review" } });
     fireEvent.change(getByLabelText(/설명/), { target: { value: "PR 만들 때" } });
-    expect((submit as HTMLButtonElement).disabled).toBe(false);
+    expect(submit).not.toHaveAttribute("aria-disabled");
     fireEvent.click(submit);
 
     await waitFor(() => expect(fx.calls.save).toHaveLength(1));

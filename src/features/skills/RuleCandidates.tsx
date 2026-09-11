@@ -16,6 +16,7 @@ import { resolveLlmTarget } from "@/lib/llmTarget";
 import { commands, type RuleCandidate, type RuleDraft } from "@/lib/bindings";
 import { isValidRuleName } from "@/features/skills/rulesModel";
 import { useT, type I18nKey } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 
 /** 반복 종류 배지 — 표시만 사전을 거치고 kind 자체는 판별자로 남는다. */
@@ -155,9 +156,8 @@ export function RuleCandidatesPanel({
               <button
                 type="button"
                 className="btn sm"
-                disabled={draftingKey != null}
+                {...blocked(draftingKey != null ? t("promo.blockedDrafting") : null, t("promo.ruleDraftHint"))}
                 onClick={() => void generateDraft(c)}
-                title={t("promo.ruleDraftHint")}
               >
                 {draftingKey === c.key ? (
                   <>
@@ -271,7 +271,8 @@ export function RuleCandidatesPanel({
               <button
                 type="button"
                 className="btn primary sm"
-                disabled={saving || !slugValid}
+                {...blocked(slugValid ? null : t("promo.slugInvalid"))}
+                disabled={saving}
                 onClick={() => void approve()}
               >
                 {saving ? t("promo.saving") : t("promo.ruleSave")}

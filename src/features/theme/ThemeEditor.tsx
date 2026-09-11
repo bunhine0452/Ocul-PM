@@ -15,6 +15,7 @@
  */
 import { Palette, RotateCcw } from "@/components/Icons";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import type { ThemeFile } from "@/lib/bindings";
 
 import { TOKEN_GROUPS, themeTokens, type ThemeFamily } from "./schema";
@@ -236,9 +237,8 @@ export function ThemeEditor({
                   <button
                     type="button"
                     className="iconbtn"
-                    title={t("theme.action.revert")}
                     aria-label={t("theme.action.revert")}
-                    disabled={current == null}
+                    {...blocked(current == null ? t("theme.blockedNoOverride") : null, t("theme.action.revert"))}
                     onClick={() => setToken(token, null)}
                   >
                     <RotateCcw size={13} />
@@ -257,7 +257,8 @@ export function ThemeEditor({
         <button
           type="button"
           className="btn sm"
-          disabled={busy || !value.metadata.name.trim()}
+          {...blocked(value.metadata.name.trim() ? null : t("theme.blockedNoName"))}
+          disabled={busy}
           onClick={onSave}
         >
           {t("theme.editor.save")}

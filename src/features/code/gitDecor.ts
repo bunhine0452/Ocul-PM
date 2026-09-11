@@ -77,10 +77,13 @@ export function useGitMarks(projectId: number): { marks: GitMarks; refresh: () =
 
   useEffect(() => {
     load();
+    // 카운터 ref 라 DOM 노드가 아니다 — 정리 시점에 같은 객체를 올리면 된다.
+    const seq = seqRef;
+    const timer = timerRef;
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (timer.current) clearTimeout(timer.current);
       // 언마운트 뒤 도착하는 답을 버린다.
-      seqRef.current++;
+      seq.current++;
     };
   }, [load]);
 

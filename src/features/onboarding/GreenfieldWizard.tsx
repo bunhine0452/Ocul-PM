@@ -27,6 +27,7 @@ import { BrandMark } from "../../components/BrandMark";
 import { Checkbox } from "@/components/ui/checkbox";
 // t() = 화면 문구, tc() = 디스크·에이전트로 나가는 산출물 (작성 언어 축).
 import { tc, useT, type I18nKey } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 
 interface GreenfieldWizardProps {
   onClose: () => void;
@@ -400,6 +401,14 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
     }
   };
 
+  /** 「다음」이 왜 막혔는지 — 단계마다 비어 있는 칸 하나를 말한다. */
+  const nextBlockedReason = (): string | null => {
+    if (canNext()) return null;
+    if (step === 0) return t("gf.blockedNoIdea");
+    if (step === 2) return t("gf.blockedNoStack");
+    return t("gf.blockedNoFolder");
+  };
+
   const goNext = () => {
     if (step === 3 && wizState.seedGoals.length === 0) {
       // 다음 단계로 가는 것을 막지 않는다 — 시드 생성은 실패해도 안에서
@@ -752,8 +761,8 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
           {step < 4 ? (
             <button
               onClick={goNext}
-              disabled={!canNext()}
-              className="px-5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+              {...blocked(nextBlockedReason())}
+              className="px-5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
             >
               {t("gf.next")}
               <ArrowRight size={15} />

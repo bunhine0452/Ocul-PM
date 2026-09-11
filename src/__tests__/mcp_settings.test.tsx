@@ -176,7 +176,7 @@ describe("McpServerBlock (PR-CI2)", () => {
     const r = render(<McpServerBlock projectId={1} />);
     await waitFor(() => expect(r.getByText("바이너리 없음")).toBeTruthy());
     const btn = r.getByRole("button", { name: "등록" }) as HTMLButtonElement;
-    expect(btn.disabled).toBe(true);
+    expect(btn).toHaveAttribute("aria-disabled", "true");
     expect(r.getByText(/cargo build --bin oculpm-mcp/)).toBeTruthy();
   });
 
@@ -214,7 +214,7 @@ describe("McpServerBlock (PR-CI2)", () => {
     expect(r.getByText("확인 안 함")).toBeTruthy();
     // 스니펫 복사는 mcpStatus 산출물이라 확인 없이도 열려 있어야 한다.
     expect(
-      (r.getByRole("button", { name: "Desktop 스니펫 복사" }) as HTMLButtonElement).disabled,
+      r.getByRole("button", { name: "Desktop 스니펫 복사" }).getAttribute("aria-disabled") === "true",
     ).toBe(false);
 
     fireEvent.click(r.getByRole("button", { name: "Desktop 확인" }));
@@ -252,7 +252,7 @@ describe("McpServerBlock (PR-CI2)", () => {
     fireEvent.click(r.getByRole("button", { name: "Desktop 확인" }));
     await waitFor(() => expect(r.getByText("Desktop 미설치")).toBeTruthy());
     const btn = r.getByRole("button", { name: "Desktop 등록" }) as HTMLButtonElement;
-    expect(btn.disabled).toBe(true);
+    expect(btn).toHaveAttribute("aria-disabled", "true");
     expect(r.getByText(/설정 폴더를 찾지 못했어요/)).toBeTruthy();
   });
 
@@ -263,7 +263,7 @@ describe("McpServerBlock (PR-CI2)", () => {
     fireEvent.click(r.getByRole("button", { name: "Desktop 확인" }));
     await waitFor(() => expect(r.getByRole("button", { name: "Desktop 등록" })).toBeTruthy());
     const btn = r.getByRole("button", { name: "Desktop 등록" }) as HTMLButtonElement;
-    expect(btn.disabled).toBe(true);
+    expect(btn).toHaveAttribute("aria-disabled", "true");
   });
 
   // ─── 적용 범위 표시 ──────────────────────────────────────────────────────
@@ -338,7 +338,7 @@ describe("CodexMcpServerBlock (머신 스코프)", () => {
     fx.codex = codexStatus({ installed: false, binary_found: false, binary_path: null });
     const r = render(<CodexMcpServerBlock />);
     await waitFor(() => expect(r.getByText("Codex 미설치")).toBeTruthy());
-    expect((r.getByRole("button", { name: "등록" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(r.getByRole("button", { name: "등록" })).toHaveAttribute("aria-disabled", "true");
     expect(r.getByText(/Codex 설정 폴더를 찾지 못했어요/)).toBeTruthy();
   });
 

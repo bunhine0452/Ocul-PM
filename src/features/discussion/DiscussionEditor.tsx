@@ -42,6 +42,7 @@ import {
   Save,
 } from "@/components/Icons";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import {
   appendLogRowOp,
   insertInSectionOp,
@@ -459,7 +460,8 @@ export function DiscussionEditor({
           <button
             type="button"
             className="btn primary"
-            disabled={busy || !dirty}
+            {...blocked(dirty ? null : t("disc.blockedNoChanges"))}
+            disabled={busy}
             onClick={() => onSave(viewRef.current?.getValue() ?? text)}
           >
             <Save size={15} /> {t("common.save")}

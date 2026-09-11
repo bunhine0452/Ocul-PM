@@ -53,6 +53,7 @@ import {
   Plus,
 } from "@/components/Icons";
 import { useT, type I18nKey } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { A2aEndpointBlock } from "./A2aEndpointBlock";
 import { ClaudePluginBlock } from "./ClaudePluginBlock";
@@ -686,7 +687,7 @@ export function ClaudeHooksBlock({
               </Button>
             </>
           ) : (
-            <Button size="sm" disabled={busy || !!hooksError} onClick={() => void mutate("install")}>
+            <Button size="sm" {...blocked(hooksError)} disabled={busy} onClick={() => void mutate("install")}>
               {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
               {t("op.turnOn")}
             </Button>
@@ -801,7 +802,7 @@ export function ShellIntegrationBlock() {
                 {t("op.turnOff")}
               </Button>
             ) : (
-              <Button size="sm" disabled={busy || status.block_broken} onClick={() => void mutate("install")}>
+              <Button size="sm" {...blocked(status.block_broken ? t("op.st.rcBroken") : null)} disabled={busy} onClick={() => void mutate("install")}>
                 {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
                 {t("op.turnOn")}
               </Button>
@@ -887,12 +888,7 @@ function LogsSection() {
             {logDir ?? t("op.logs.disabled")}
           </span>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={reveal}
-          disabled={!logDir || revealing}
-        >
+        <Button size="sm" variant="outline" onClick={reveal} {...blocked(logDir ? null : t("op.log.blockedNoDir"))} disabled={revealing}>
           {revealing ? (
             <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
           ) : (
@@ -997,7 +993,8 @@ export function AcpRuntimeBlock() {
           <Button
             size="sm"
             variant={diag?.adapter_ok ? "outline" : "default"}
-            disabled={busy !== null || !diag}
+            {...blocked(diag ? null : t("op.acp.blockedNoDiag"))}
+            disabled={busy !== null}
             onClick={() => void install("claude")}
           >
             {busy === "claude" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
@@ -1006,7 +1003,8 @@ export function AcpRuntimeBlock() {
           <Button
             size="sm"
             variant={diag?.codex_adapter_ok ? "outline" : "default"}
-            disabled={busy !== null || !diag}
+            {...blocked(diag ? null : t("op.acp.blockedNoDiag"))}
+            disabled={busy !== null}
             onClick={() => void install("codex")}
           >
             {busy === "codex" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}

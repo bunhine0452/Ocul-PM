@@ -27,6 +27,7 @@ import { toAppError } from "@/api/invoke";
 import { toast } from "@/lib/toast";
 import { tError } from "@/i18n/errors";
 import { t, useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { FiringBadge } from "./FiringBadge";
 import { useFiringQuotes } from "./useFiringQuotes";
 import type { FiringLedger } from "./useFiringLedger";
@@ -293,7 +294,7 @@ export function ContextEditor({
               <button
                 type="button"
                 className="btn ghost sm"
-                disabled={state !== "ready"}
+                {...blocked(state === "ready" ? null : t("sk.blockedNotReady"))}
                 onClick={startEdit}
               >
                 <Pencil size={13} /> {t("sk.edit")}
@@ -302,7 +303,8 @@ export function ContextEditor({
                 <button
                   type="button"
                   className="btn danger sm"
-                  disabled={busy || state !== "ready"}
+                  {...blocked(state === "ready" ? null : t("sk.blockedNotReady"))}
+                  disabled={busy}
                   onClick={() => setDeleteOpen(true)}
                 >
                   <Trash2 size={13} /> {t("common.delete")}

@@ -505,7 +505,10 @@ export function usePlanDocument(projectId: number): PlanDocument {
   // 레일과 툴바 카운트가 같은 계산을 공유하도록 패싯은 여기서 한 번만 만든다.
   // `now` 를 렌더마다 새로 읽으면 useMemo 가 매번 무효화되므로 마운트에 고정한다
   // (상대 시각 표시는 분 단위 정확도를 요구하지 않는다).
-  const now = useMemo(() => Date.now(), [projectId]);
+  const now = useMemo(() => {
+    void projectId; // 프로젝트가 바뀔 때만 다시 읽는다 — 값 자체는 안 쓴다.
+    return Date.now();
+  }, [projectId]);
   const facets = useMemo(
     () => facetsOf(plans ?? [], now, activity),
     [plans, now, activity],

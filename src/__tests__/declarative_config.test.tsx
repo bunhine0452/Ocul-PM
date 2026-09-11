@@ -162,8 +162,11 @@ describe("DeclarativeConfigSection", () => {
     await waitFor(() => expect(r.getByText(/typescript\/coding-style\.md/)).toBeTruthy());
     expect(r.getByText(/이행하지 않음/)).toBeTruthy();
     expect(r.getByText(/해시만 실어요/)).toBeTruthy();
-    // 쓸 것이 없으므로 적용은 막혀 있다.
-    expect(r.getByRole("button", { name: "적용" }).hasAttribute("disabled")).toBe(true);
+    // 쓸 것이 없으므로 적용은 막혀 있다 — {#fix-disabled-reason}: `disabled` 가
+    // 아니라 `aria-disabled` + 이유이고, 눌러도 아무 일도 없다.
+    const apply = r.getByRole("button", { name: "적용" });
+    expect(apply).toHaveAttribute("aria-disabled", "true");
+    expect(apply).toHaveAttribute("title", "적용할 변경이 없어요");
   });
 
   it("대조 검증에서 남은 차이가 있으면 «적용 완료» 라고 말하지 않는다", async () => {

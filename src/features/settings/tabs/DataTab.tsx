@@ -12,6 +12,7 @@ import { Trash2, Copy, RefreshCw, Loader2 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
 import { useT, type I18nKey } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { Section } from "./ui";
 import { DeclarativeConfigSection } from "../config/DeclarativeConfigSection";
 import { ConversationImportSection } from "../import/ConversationImportSection";
@@ -165,7 +166,7 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
               onChange={(e) => setToken(e.target.value)}
               autoComplete="off"
             />
-            <Button size="sm" disabled={busy || !token.trim()} onClick={() => void saveToken()}>
+            <Button size="sm" {...blocked(token.trim() ? null : t("settings.notion.blockedNoToken"))} disabled={busy} onClick={() => void saveToken()}>
               {busy ? t("settings.notion.verifying") : t("settings.notion.verifySave")}
             </Button>
           </div>

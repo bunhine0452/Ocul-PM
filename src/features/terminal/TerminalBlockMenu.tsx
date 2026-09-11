@@ -6,6 +6,7 @@ import { requestManualEntry } from "@/lib/journalCompose";
 import { requestAgentContext } from "@/lib/agentContextNav";
 import { commandsToCodeBlock, firstSlug } from "@/lib/promoteSeed";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { blockBody, blockTitle } from "./commandBlocks";
 import type { BlockActivation } from "./TerminalInstanceImpl";
 
@@ -200,7 +201,7 @@ export function TerminalBlockMenu({
             className="tbm-item accent"
             role="menuitem"
             onClick={openPlans}
-            disabled={projectId == null}
+            {...blocked(projectId == null ? t("common.blockedNoProject") : null)}
           >
             <Target size={13} aria-hidden="true" />
             {t("term.block.toPlan")}

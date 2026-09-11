@@ -20,6 +20,7 @@ import { declarativeConfigApi } from "@/api/declarativeConfig";
 import { toAppError } from "@/api/invoke";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { toast } from "@/lib/toast";
 import type { ConfigApplyResult, ConfigPlan, ConfigPlanItem } from "@/lib/bindings";
@@ -140,7 +141,7 @@ export function DeclarativeConfigSection() {
               <Button variant="outline" onClick={reset} disabled={busy} className="flex-1">
                 {t("common.cancel")}
               </Button>
-              <Button onClick={applyDoc} disabled={busy || !hasWrites(plan)} className="flex-1">
+              <Button onClick={applyDoc} {...blocked(hasWrites(plan) ? null : t("settings.declarative.blockedNoWrites"))} disabled={busy} className="flex-1">
                 {t("settings.declarative.card.apply")}
               </Button>
             </div>

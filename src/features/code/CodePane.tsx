@@ -33,6 +33,7 @@ import { clampStickyMax } from "@/lib/settings";
 import { safeUnlistenPromise } from "@/lib/unlisten";
 import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { AppDialog } from "@/components/ui/AppDialog";
 import {
@@ -1472,10 +1473,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
             {t("code.lsp.renameHint")}
           </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-            <button type="button" className="btn sm" onClick={() => setRenameAt(null)} disabled={renaming}>
-              {t("common.cancel")}
-            </button>
-            <button type="submit" className="btn sm primary" disabled={renaming || !renameName.trim()}>
+            <button type="button" className="btn sm" onClick={() => setRenameAt(null)} disabled={renaming}>{t("common.cancel")}</button>
+            <button type="submit" className="btn sm primary" {...blocked(renameName.trim() ? null : t("code.lsp.blockedNoName"))} disabled={renaming}>
               {renaming ? t("code.lsp.renaming") : t("code.lsp.renameApply")}
             </button>
           </div>

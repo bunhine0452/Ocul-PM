@@ -205,7 +205,7 @@ describe("세션 화면", () => {
     renderScreen();
     const boxes = await screen.findAllByRole("checkbox");
     fireEvent.click(boxes[0]);
-    expect((screen.getByText("선택한 1개 묶기") as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("선택한 1개 묶기")).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(boxes[1]);
     fireEvent.click(screen.getByText("선택한 2개 묶기"));
     await waitFor(() => expect(bind).toHaveBeenCalledWith(1, "팀 1", expect.arrayContaining(["claude-code-app", "codex-app"])));

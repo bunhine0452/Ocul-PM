@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { commands, type EntryType, type JournalEntrySummary } from "@/lib/bindings";
 import { ChevronLeft, ChevronRight, Plus } from "@/components/Icons";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { shiftWorkday, todayWorkday, workdayLabel } from "../workday";
 import { EntryList, ErrorNote, Loading } from "./shared";
@@ -52,8 +53,8 @@ export function JournalTab({ projectId, onOpenEntry }: {
         </button>
         <button
           onClick={() => setWorkday((w) => shiftWorkday(w, 1))}
-          disabled={isToday}
-          className="mob-btn-ghost px-3.5 py-1.5 text-sm disabled:opacity-30"
+          {...blocked(isToday ? t("mobile.journal.blockedToday") : null)}
+          className="mob-btn-ghost px-3.5 py-1.5 text-sm disabled:opacity-30 aria-disabled:opacity-30"
           aria-label={t("mobile.journal.nextDay")}
         >
           <ChevronRight size={15} />
@@ -164,7 +165,8 @@ function WriteForm({ projectId, onDone, onCancel }: {
       <div className="flex gap-2">
         <button
           onClick={() => void submit()}
-          disabled={!title.trim() || busy}
+          {...blocked(title.trim() ? null : t("manual.blockedNoTitle"))}
+          disabled={busy}
           className="mob-btn-primary flex-1 py-2 text-sm"
         >
           {t("mobile.journal.save")}

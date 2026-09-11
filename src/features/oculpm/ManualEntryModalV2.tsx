@@ -12,6 +12,7 @@ import type {
   ManualEntryDraft,
 } from "@/lib/bindings";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 
 // PR-R1 (A4) — 수동 일지 작성 모달 (ui_v2 토큰 셸).
 //
@@ -92,7 +93,7 @@ export function ManualEntryModalV2({
     } else {
       setSlugError(null);
     }
-  }, [slug]);
+  }, [slug, t]);
 
   // v2 U13 — Esc/포커스 트랩/트리거 복원은 공용 모달 훅으로 (기존: Esc 만
   // 있고 Tab 이 모달 뒤로 샜음). 제출 중 Esc 는 닫지 않는다.
@@ -357,7 +358,10 @@ export function ManualEntryModalV2({
             type="button"
             className="btn sm primary"
             onClick={() => void submit()}
-            disabled={!canSubmit}
+            {...blocked(
+              !title.trim() ? t("manual.blockedNoTitle") : !slug.trim() ? t("manual.blockedNoSlug") : slugError,
+            )}
+            disabled={submitting}
           >
             {submitting ? t("manual.submitting") : t("manual.submit")}
           </button>

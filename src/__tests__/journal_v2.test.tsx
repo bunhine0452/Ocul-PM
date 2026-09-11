@@ -571,7 +571,11 @@ describe("PR-R1 (A4) — Journal 수동 일지", () => {
     fireEvent.change(getByLabelText(/제목/), { target: { value: "제목 있음" } });
     fireEvent.change(getByLabelText(/slug/), { target: { value: "Bad Slug!" } });
     expect(await findByText(/소문자\/숫자\/하이픈만/)).toBeInTheDocument();
-    expect((getByText("작성") as HTMLButtonElement).disabled).toBe(true);
+    // {#fix-disabled-reason} 4차: 인라인 에러가 곧 버튼의 이유다 (aria-disabled + title).
+    const submit = getByText("작성");
+    expect(submit).toHaveAttribute("aria-disabled", "true");
+    expect(submit).toHaveAttribute("title", expect.stringMatching(/소문자\/숫자\/하이픈만/));
+    fireEvent.click(submit);
     expect(manualMock.calls).toBe(0);
   });
 

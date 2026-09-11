@@ -10,6 +10,7 @@ import { AlertTriangle, Download, GitBranchIcon } from "@/components/Icons";
 import { oculpmApi } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { CommitsPanel, EntriesPanel, FilesPanel, PlanPanel, wd } from "./BranchPanels";
 import { useBranchStory } from "./useBranchStory";
 
@@ -114,7 +115,7 @@ export function BranchScreenV2({
             ))}
           </select>
         ) : null}
-        <button type="button" className="btn sm" disabled={!story || exporting} onClick={() => void exportDigest()}>
+        <button type="button" className="btn sm" {...blocked(story ? null : t("branch.blockedNoStory"))} disabled={exporting} onClick={() => void exportDigest()}>
           <Download size={15} /> {t("branch.export")}
         </button>
       </Toolbar>

@@ -17,6 +17,7 @@ import { resolveLlmTarget } from "@/lib/llmTarget";
 import { commands, type SkillCandidate, type SkillDraft } from "@/lib/bindings";
 import { isValidSkillName } from "@/features/skills/skillsModel";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 
 /** "YYYYMMDD" → "M/D". */
@@ -146,9 +147,8 @@ export function SkillCandidatesPanel({
               <button
                 type="button"
                 className="btn sm"
-                disabled={draftingTag != null}
+                {...blocked(draftingTag != null ? t("promo.blockedDrafting") : null, t("promo.skillDraftHint"))}
                 onClick={() => void generateDraft(c)}
-                title={t("promo.skillDraftHint")}
               >
                 {draftingTag === c.tag ? (
                   <>
@@ -242,7 +242,8 @@ export function SkillCandidatesPanel({
               <button
                 type="button"
                 className="btn primary sm"
-                disabled={saving || !slugValid}
+                {...blocked(slugValid ? null : t("promo.slugInvalid"))}
+                disabled={saving}
                 onClick={() => void approve()}
               >
                 {saving ? t("promo.saving") : t("promo.skillSave")}

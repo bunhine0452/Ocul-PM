@@ -11,6 +11,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { useSaveSetting } from "../saveSetting";
 import { useDeferredCommit } from "../useDeferredCommit";
 import { Section, Field, Toggle, NumberSlider } from "./ui";
@@ -67,7 +68,8 @@ export function IndexingTab() {
         <div className="flex items-center gap-3 pt-1">
           <Button
             onClick={reindex}
-            disabled={projectId == null || reindexing}
+            {...blocked(projectId == null ? t("common.blockedNoProject") : null)}
+            disabled={reindexing}
             variant="outline"
             className="gap-2"
           >

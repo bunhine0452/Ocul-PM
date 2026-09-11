@@ -9,6 +9,7 @@
 import type React from "react";
 import { ArrowUp, Clock, Paperclip, Square, Terminal, X } from "@/components/Icons";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import type { AcpCommand, AcpConfigOption, AcpImage } from "@/lib/bindings";
 import type { UsageState } from "./useSessionMaps";
 import {
@@ -357,10 +358,9 @@ export function Composer({
         <button
           type="button"
           className="btn icon composer-send"
-          disabled={!draft.trim()}
+          {...blocked(draft.trim() ? null : t("common.blockedEmptyDraft"), busy ? t("acp.queueSend") : t("acp.send"))}
           onClick={() => send()}
           aria-label={busy ? t("acp.queueSend") : t("acp.send")}
-          title={busy ? t("acp.queueSend") : t("acp.send")}
         >
           <ArrowUp size={13} />
         </button>

@@ -46,14 +46,20 @@ const REQUIRED = [
  * 창이 **열자마자** 들고 있는 CSS 청크들.
  *
  *  · `TabbedWindow-*.css` — 창 엔트리가 직접 임포트한 것 (tabs.css 등).
- *  · `App-*.css` — `import "@/App.css"` 가 여러 엔트리에 공유돼 빠진 공용 청크.
+ *  · 공용 청크 — `import "@/App.css"` 가 여러 엔트리에 공유돼 빠진 것.
  *    토큰(tokens.css)·프리미티브(primitives.css)가 여기 산다. 엔트리 JS 가
- *    **정적으로** 물고 있으므로 창과 함께 무조건 로드된다.
+ *    **정적으로** 물고 있으므로 창과 함께 무조건 로드된다. **이름으로 찾지
+ *    않는다** — rollup 이 공용 청크를 그 안의 어떤 모듈 이름으로 부를지는
+ *    공유 그래프에 따라 바뀐다 (`App-*` 였다가 `lib/blocked.ts` 가 화면
+ *    마흔 곳에 들어가자 `blocked-*` 가 됐다). 대신 tokens.css 의 토큰 하나를
+ *    지문으로 삼아 **내용**으로 찾는다.
  *
  * lazy 청크(ShellV2-*.css · SkillsScreenV2-*.css …)는 여기 없다 — 그게 이
  * 검사의 존재 이유다.
  */
-const ENTRY_CSS = [/^TabbedWindow-.*\.css$/, /^App-.*\.css$/];
+const ENTRY_CSS = [/^TabbedWindow-.*\.css$/];
+/** tokens.css 에만 사는 토큰 — 이걸 가진 CSS 청크가 공용 청크다. */
+const SHARED_FINGERPRINT = "--dim-disabled:";
 
 let files;
 try {
@@ -70,11 +76,19 @@ if (missingChunk) {
   console.error("  청크 이름이 바뀌었다면 이 스크립트의 ENTRY_CSS 도 함께 고치세요.");
   process.exit(1);
 }
-const entryCss = files.filter((f) => ENTRY_CSS.some((re) => re.test(f)));
+const cssFiles = files.filter((f) => f.endsWith(".css"));
+const contents = new Map(
+  await Promise.all(cssFiles.map(async (f) => [f, await readFile(join(assetsDir, f), "utf8")])),
+);
+const shared = cssFiles.filter((f) => contents.get(f).includes(SHARED_FINGERPRINT));
+if (shared.length === 0) {
+  console.error(`✗ 공용 CSS 청크(토큰 ${SHARED_FINGERPRINT} 를 가진 것)를 찾지 못했습니다.`);
+  console.error("  tokens.css 의 토큰 이름이 바뀌었다면 이 스크립트의 SHARED_FINGERPRINT 도 함께 고치세요.");
+  process.exit(1);
+}
+const entryCss = [...new Set([...cssFiles.filter((f) => ENTRY_CSS.some((re) => re.test(f))), ...shared])];
 
-const css = (
-  await Promise.all(entryCss.map((f) => readFile(join(assetsDir, f), "utf8")))
-).join("\n");
+const css = entryCss.map((f) => contents.get(f)).join("\n");
 
 // 부분 문자열이 아니라 **선택자 토큰**으로 찾는다 — `includes(".winroot")` 는
 // `.winroot-DISABLED` 에도 걸려서, 규칙 이름이 바뀐 사고를 놓친다.

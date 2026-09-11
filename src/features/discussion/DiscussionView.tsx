@@ -11,6 +11,7 @@ import { Check, MessageSquare, Paperclip, X } from "@/components/Icons";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { commands, type DiscussionAttachmentDto, type DiscussionDetail } from "@/lib/bindings";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 
 import { shortDate } from "./discussionFormat";
 
@@ -158,7 +159,7 @@ function NoteComposer({ onSubmit }: { onSubmit: (body: string) => Promise<boolea
           if (e.key === "Enter") void send();
         }}
       />
-      <button type="button" className="btn" disabled={busy || !trimmed} onClick={() => void send()}>
+      <button type="button" className="btn" {...blocked(trimmed ? null : t("disc.blockedNoNote"))} disabled={busy} onClick={() => void send()}>
         {t("disc.noteAdd")}
       </button>
     </div>

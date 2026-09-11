@@ -22,6 +22,7 @@ import {
   type Session,
 } from "@/lib/bindings";
 import { useT, type I18nKey } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { TraySessions } from "./TraySessions";
 import "./tray.css";
 
@@ -938,11 +939,7 @@ export function TrayPopover() {
       )}
 
       <footer className="tp-foot">
-        <button
-          className="tp-action"
-          disabled={!standupTarget?.workday || standupState === "busy"}
-          onClick={() => void copyStandup()}
-        >
+        <button className="tp-action" {...blocked(standupTarget?.workday ? null : t("tray.blockedNoStandup"))} disabled={standupState === "busy"} onClick={() => void copyStandup()}>
           {standupState === "copied" ? t("common.copied") : t("tray.standupCopy")}
         </button>
         <button className="tp-action" onClick={() => setPane("settings")}>

@@ -175,7 +175,7 @@ describe("SkillCandidatesPanel", () => {
       target: { value: "Bad Name" },
     });
     const save = within(dialog).getByRole("button", { name: "스킬로 저장" });
-    expect((save as HTMLButtonElement).disabled).toBe(true);
+    expect(save).toHaveAttribute("aria-disabled", "true");
     expect(within(dialog).getByText(/kebab-case/)).toBeTruthy();
     expect(fx.calls.save).toHaveLength(0);
   });

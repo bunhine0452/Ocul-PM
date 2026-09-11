@@ -14,6 +14,7 @@ import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { commands, type DiscussionSummary, type DiscussionDetail } from "@/lib/bindings";
 import { useT, type I18nKey } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import "./discussion.css";
 import { tError } from "@/i18n/errors";
 import type { EditorMode } from "./DiscussionEditor";
@@ -565,12 +566,8 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                     <button
                       type="button"
                       className="btn"
-                      disabled={busy || detail.next_steps.length === 0}
-                      title={
-                        detail.next_steps.length === 0
-                          ? t("disc.promoteNeedSteps")
-                          : t("disc.promoteTitle")
-                      }
+                      {...blocked(detail.next_steps.length === 0 ? t("disc.promoteNeedSteps") : null, t("disc.promoteTitle"))}
+                      disabled={busy}
                       onClick={() => setPromoting(true)}
                     >
                       <TargetIcon size={15} /> {t("disc.promote")}
@@ -678,7 +675,8 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
             <button
               type="button"
               className="btn primary"
-              disabled={busy || !newTitle.trim()}
+              {...blocked(newTitle.trim() ? null : t("disc.blockedNoTitle"))}
+              disabled={busy}
               onClick={() => void submitCreate()}
             >
               {t("disc.create")}

@@ -9,6 +9,7 @@ import type { HomeBrief, Project } from "@/lib/bindings";
 
 import { Skel, TriggerKicker } from "./atoms";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { dayLabel, FEED_MAX, hhmm } from "./homeModel";
 
 export function FlowTile({
@@ -90,7 +91,7 @@ export function FlowTile({
             <li key={`${it.project_id}:${it.relative_path}`} className="hf-item">
               <button
                 type="button"
-                disabled={!p}
+                {...blocked(p ? null : t("home.blockedNoProject"))}
                 onClick={() => p && onOpenEntry(p, it.relative_path)}
                 className="hf-row"
                 aria-label={

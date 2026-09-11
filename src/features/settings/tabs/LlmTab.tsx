@@ -11,6 +11,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { coreModelTarget, DEFAULTS, PROVIDERS, providerModel, type Provider } from "@/lib/settings";
 import { useReachability } from "../useReachability";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { useSaveSetting } from "../saveSetting";
 import { useDeferredCommit } from "../useDeferredCommit";
 import { secretName, Section, Field, NumberSlider } from "./ui";
@@ -127,14 +128,14 @@ export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
         <div className="flex gap-2">
           <Button
             onClick={saveKey}
-            disabled={!apiKey}
+            {...blocked(apiKey ? null : t("settings.llm.blockedNoKey"))}
             className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {t("common.save")}
           </Button>
           <Button
             onClick={clearKey}
-            disabled={!hasKey[provider]}
+            {...blocked(hasKey[provider] ? null : t("settings.llm.blockedNoSaved"))}
             variant="outline"
             className="flex-1"
           >

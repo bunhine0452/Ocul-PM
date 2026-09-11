@@ -25,6 +25,7 @@ import {
   type NeighborRel,
 } from "./types";
 import { t, useT, type I18nKey } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 
 type Tone = "muted" | "ok" | "info" | "warn" | "danger";
 
@@ -215,7 +216,7 @@ export function GraphInspector({
             ) : null}
             <button
               onClick={() => void onOpenEditor()}
-              disabled={!projectRoot}
+              {...blocked(projectRoot ? null : t("graph.blockedNoRoot"))}
               className="btn sm flex-1 justify-center"
             >
               <ExternalLink size={13} /> {t("graph.openEditor")}

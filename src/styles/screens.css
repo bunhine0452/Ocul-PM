@@ -567,9 +567,9 @@
   background: none; border: none; cursor: pointer; border-radius: 50%;
   transition: background-color var(--dur-1) var(--ease-out);
 }
-.pln-item-glyph:hover:not(:disabled) { background: var(--bg-hover); }
-.pln-item-glyph:hover:not(:disabled) .pmark.is-todo { border-color: var(--accent); }
-.pln-item-glyph:disabled { cursor: default; }
+.pln-item-glyph:hover:not(:is(:disabled, [aria-disabled="true"])) { background: var(--bg-hover); }
+.pln-item-glyph:hover:not(:is(:disabled, [aria-disabled="true"])) .pmark.is-todo { border-color: var(--accent); }
+.pln-item-glyph:is(:disabled, [aria-disabled="true"]) { cursor: default; }
 .pln-item-main { min-width: 0; padding-right: var(--space-4); }
 .sub-title { font-size: var(--fs-4); font-weight: var(--fw-label); line-height: var(--lh-snug); overflow-wrap: anywhere; }
 .pln-it.is-done .sub-title, .pln-it.is-dropped .sub-title { color: var(--text-3); font-weight: var(--fw-body); }

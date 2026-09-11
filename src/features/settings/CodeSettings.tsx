@@ -20,6 +20,7 @@ import {
 } from "@/lib/settings";
 import { AUTO_SAVE_MIN_DELAY_MS } from "@/features/code/autoSave";
 import type { I18nKey } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useSaveSetting } from "./saveSetting";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
@@ -339,7 +340,7 @@ export function CodeSettings({
             <button
               type="button"
               className="btn ghost sm"
-              disabled={usage === 0}
+              {...blocked(usage === 0 ? t("settings.code.blockedHistoryEmpty") : null)}
               onClick={() => void clearHistory()}
             >
               {t("settings.code.historyClear")}

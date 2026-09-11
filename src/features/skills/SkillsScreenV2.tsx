@@ -33,6 +33,7 @@ import { toast } from "@/lib/toast";
 import { oculpmApi } from "@/api/oculpm";
 import { tError } from "@/i18n/errors";
 import { t, useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { localWorkdayKey, shiftWorkday } from "@/lib/workday";
 import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import {
@@ -583,7 +584,7 @@ function CreateSkillDialog({
         <button type="button" className="btn ghost sm" onClick={onClose}>
           {t("common.cancel")}
         </button>
-        <button type="button" className="btn primary sm" disabled={!valid || busy} onClick={() => void submit()}>
+        <button type="button" className="btn primary sm" {...blocked(valid ? null : name.trim() ? t("sk.nameInvalid") : t("common.blockedNoName"))} disabled={busy} onClick={() => void submit()}>
           {t("sk.create")}
         </button>
       </div>
@@ -703,7 +704,7 @@ function CreateRuleDialog({
         <button type="button" className="btn ghost sm" onClick={onClose}>
           {t("common.cancel")}
         </button>
-        <button type="button" className="btn primary sm" disabled={!valid || busy} onClick={() => void submit()}>
+        <button type="button" className="btn primary sm" {...blocked(valid ? null : name.trim() ? t("rules.nameInvalid") : t("common.blockedNoName"))} disabled={busy} onClick={() => void submit()}>
           {t("rules.create")}
         </button>
       </div>

@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "@/components/Icons";
 import { oculpmApi } from "@/api/oculpm";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import type { CodexRegistrationStatus } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 
@@ -95,7 +96,17 @@ export function CodexMcpServerBlock() {
           ) : (
             <Button
               size="sm"
-              disabled={busy || !!error || !codex?.installed || !codex?.binary_found}
+              {...blocked(
+                error ??
+                  (codex == null
+                    ? t("op.blockedStatusUnknown")
+                    : !codex.installed
+                      ? t("op.codexMcp.blockedNotInstalled")
+                      : !codex.binary_found
+                        ? t("op.blockedNoBinary")
+                        : null),
+              )}
+              disabled={busy}
               onClick={() => void mutate("register")}
             >
               {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}

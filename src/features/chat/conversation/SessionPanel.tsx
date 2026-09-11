@@ -81,7 +81,10 @@ export const SessionPanel = memo(function SessionPanel({
   }, [confirming]);
   // 목록 전체가 **같은 기준 시각**을 써야 렌더 도중 분이 넘어가며 순서가
   // 흔들리지 않는다.
-  const now = useMemo(() => Date.now(), [sessions]);
+  const now = useMemo(() => {
+    void sessions; // 목록이 바뀔 때만 기준 시각을 다시 읽는다 — 값 자체는 안 쓴다.
+    return Date.now();
+  }, [sessions]);
   const needle = query.trim().toLowerCase();
   const titleOf = (item: AcpSessionSummary) => names[item.id] ?? item.title ?? "";
   // 이름표를 붙인 대화는 **그 이름으로** 찾을 수 있어야 한다 — 붙여 놓고 원래

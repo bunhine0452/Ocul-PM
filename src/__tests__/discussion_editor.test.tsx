@@ -59,7 +59,7 @@ afterEach(cleanup);
 describe("DiscussionEditor", () => {
   it("저장 버튼은 편집이 없으면 잠겨 있다 (빈 저장으로 updated 를 흔들지 않는다)", () => {
     const { getByRole } = mount();
-    expect(getByRole("button", { name: /저장/ })).toBeDisabled();
+    expect(getByRole("button", { name: /저장/ })).toHaveAttribute("aria-disabled", "true");
   });
 
   it("‘후보 방안’ 삽입은 다음 id 를 붙여 그 섹션에 넣고, 저장까지 흘러간다", async () => {
@@ -69,7 +69,7 @@ describe("DiscussionEditor", () => {
     fireEvent.click(getByText("후보 방안 (id 자동)"));
 
     const save = getByRole("button", { name: /저장/ });
-    await waitFor(() => expect(save).not.toBeDisabled());
+    await waitFor(() => expect(save).not.toHaveAttribute("aria-disabled"));
     fireEvent.click(save);
 
     expect(onSave).toHaveBeenCalledTimes(1);

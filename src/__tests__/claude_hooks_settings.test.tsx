@@ -125,7 +125,7 @@ describe("ClaudeHooksBlock (PR-CI0)", () => {
     await waitFor(() => expect(r.getByText("설정 파일 오류")).toBeTruthy());
     expect(r.getByText(/json parse error/)).toBeTruthy();
     const enable = r.getByRole("button", { name: "켜기" }) as HTMLButtonElement;
-    expect(enable.disabled).toBe(true);
+    expect(enable).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(enable);
     expect(fx.calls.install).toHaveLength(0);
   });

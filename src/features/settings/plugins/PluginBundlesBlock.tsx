@@ -21,6 +21,7 @@ import { pluginsApi } from "@/api/plugins";
 import { toAppError } from "@/api/invoke";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useT, type I18nKey } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { toast } from "@/lib/toast";
 import type { BundleImportResult, InstalledBundle } from "@/lib/bindings";
@@ -123,7 +124,7 @@ export function PluginBundlesBlock({ projectId }: { projectId: number }) {
           aria-label={t("plugins.source.aria")}
           className="flex-1"
         />
-        <Button variant="outline" onClick={previewGithub} disabled={busy || !slug.trim()}>
+        <Button variant="outline" onClick={previewGithub} {...blocked(slug.trim() ? null : t("plugins.blockedNoSlug"))} disabled={busy}>
           {busy ? <Loader2  className="animate-spin" size={15} /> : t("plugins.preview")}
         </Button>
         <Button variant="outline" onClick={previewFile} disabled={busy}>

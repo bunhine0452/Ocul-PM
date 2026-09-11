@@ -9,6 +9,7 @@ import { RefreshCw, Bug, MessageSquare } from "@/components/Icons";
 import { formatBytes } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { Section, Stat } from "./ui";
 import { DoctorSection } from "./DoctorSection";
 import { FiringInsights } from "./FiringInsights";
@@ -141,7 +142,7 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
             <RefreshCw className={`mr-1.5 ${loading ? "animate-spin" : ""}`} size={15} />
             {t("settings.db.refresh")}
           </Button>
-          <Button onClick={compact} disabled={compacting || !health} variant="outline" size="sm">
+          <Button onClick={compact} {...blocked(health ? null : t("settings.db.blockedNoHealth"))} disabled={compacting} variant="outline" size="sm">
             {compacting ? t("settings.db.compacting") : t("settings.db.compact")}
           </Button>
         </div>

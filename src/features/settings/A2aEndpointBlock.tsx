@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Network } from "@/components/Icons";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { toAppError } from "@/api/invoke";
 import { oculpmApi } from "@/api/oculpm";
@@ -81,7 +82,8 @@ export function A2aEndpointBlock({ projectId }: { projectId: number | null }) {
       <div className="first-run-actions">
         <button
           className={running ? "btn sm" : "btn sm primary"}
-          disabled={busy || projectId == null}
+          {...blocked(projectId == null ? t("common.blockedNoProject") : null)}
+          disabled={busy}
           onClick={() => void toggle()}
         >
           {running ? t("a2a.endpoint.close") : t("a2a.endpoint.open")}

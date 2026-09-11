@@ -15,6 +15,7 @@ import {
 import { InlineMarkdown } from "@/components/InlineMarkdown";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
 import { t } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import type { PlanDetail, PlanItemDto, PlanItemUpdateDto } from "@/lib/bindings";
 import { PlanItemRow } from "./PlanItemRow";
 import {
@@ -122,10 +123,10 @@ export function PhaseCard(props: PhaseCardProps) {
                 <button type="button" className="pln-iconbtn" title={t("plan.phaseRename")} onClick={() => setEditing(true)} disabled={busy}>
                   <Pencil size={13} />
                 </button>
-                <button type="button" className="pln-iconbtn" title={t("plan.phaseUp")} onClick={() => onMovePhase(phase, true)} disabled={busy || !canMoveUp}>
+                <button type="button" className="pln-iconbtn" {...blocked(canMoveUp ? null : t("plan.blockedTop"), t("plan.phaseUp"))} onClick={() => onMovePhase(phase, true)} disabled={busy}>
                   <ChevronUp size={13} />
                 </button>
-                <button type="button" className="pln-iconbtn" title={t("plan.phaseDown")} onClick={() => onMovePhase(phase, false)} disabled={busy || !canMoveDown}>
+                <button type="button" className="pln-iconbtn" {...blocked(canMoveDown ? null : t("plan.blockedBottom"), t("plan.phaseDown"))} onClick={() => onMovePhase(phase, false)} disabled={busy}>
                   <ChevronDown size={13} />
                 </button>
                 <button type="button" className="pln-iconbtn danger" title={t("plan.phaseRemoveTitle")} onClick={() => setConfirmDel(true)} disabled={busy}>

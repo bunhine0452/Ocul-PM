@@ -4,6 +4,7 @@ import { Toolbar } from "@/components/Toolbar";
 import { ErrorCard } from "@/components/ErrorCard";
 import { RefreshCw } from "@/components/Icons";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { SESSION_DND_MIME, SessionCard } from "./SessionCard";
 import { SessionLedger } from "./SessionLedger";
 import { useSessionBoard } from "./useSessionBoard";
@@ -259,7 +260,7 @@ export function SessionsScreenV2({ projectId }: { projectId: number }) {
                 maxLength={60}
               />
             )}
-            <button type="button" className="btn sm primary" disabled={!canSubmit} onClick={() => void submit()}>
+            <button type="button" className="btn sm primary" {...blocked(canSubmit ? null : dest ? t("sessions.blockedPick") : t("sessions.needTwo"))} onClick={() => void submit()}>
               {targetTeam ? t("sessions.bindTo") : t("a2a.bind", { n: picked.length })}
             </button>
             <span className="a2a-sub">

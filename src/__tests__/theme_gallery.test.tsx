@@ -155,7 +155,7 @@ describe("편집 — 앱이 곧 미리보기", () => {
     expect(getThemeState().draft?.tokens?.["--accent"]).toBe("#ff7a66");
 
     const reverts = screen.getAllByLabelText("가족 기본값으로 되돌리기");
-    const enabled = reverts.filter((b) => !(b as HTMLButtonElement).disabled);
+    const enabled = reverts.filter((b) => b.getAttribute("aria-disabled") !== "true");
     expect(enabled).toHaveLength(1);
     fireEvent.click(enabled[0]);
     expect(getThemeState().draft?.tokens?.["--accent"]).toBeUndefined();
@@ -258,7 +258,7 @@ describe("문법색 섹션 — {#code-color-editor}", () => {
 
     const enabled = screen
       .getAllByLabelText("가족 기본값으로 되돌리기")
-      .filter((b) => !(b as HTMLButtonElement).disabled);
+      .filter((b) => b.getAttribute("aria-disabled") !== "true");
     expect(enabled).toHaveLength(1);
     fireEvent.click(enabled[0]);
     expect(getThemeState().draft?.tokens?.["--code-comment"]).toBeUndefined();

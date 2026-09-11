@@ -15,6 +15,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useT } from "@/i18n";
+import { blocked } from "@/lib/blocked";
 import { useSaveSetting } from "../saveSetting";
 import { tError } from "@/i18n/errors";
 import { toast } from "@/lib/toast";
@@ -136,7 +137,7 @@ export function ContextTab() {
       {/* ── 매니페스트 미리보기 ──────────────────────────────────────────── */}
       <Section title={t("ctx.manifest.title")} description={t("ctx.manifest.desc")}>
         <div className="flex justify-end">
-          <button type="button" className="btn ghost sm" onClick={copyManifest} disabled={!manifest}>
+          <button type="button" className="btn ghost sm" onClick={copyManifest} {...blocked(manifest ? null : t("ctx.manifest.blockedEmpty"))}>
             <Copy size={13} /> {t("ctx.manifest.copy")}
           </button>
         </div>
@@ -206,7 +207,8 @@ export function ContextTab() {
         <button
           type="button"
           className="btn ghost sm danger"
-          disabled={busy || projectId == null}
+          {...blocked(projectId == null ? t("common.blockedNoProject") : null)}
+          disabled={busy}
           onClick={() => void resetAll()}
         >
           <Trash2 size={13} /> {t("ctx.reset.action")}
