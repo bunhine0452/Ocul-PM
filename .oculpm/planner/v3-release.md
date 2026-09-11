@@ -17,7 +17,7 @@ owner: claude-code
 - [x] first-run-and-english-landing 의 마법사 실기기 확인 (wizard-eyes) {#eyes-wizard}
 - [x] 혼합 DPI 커서 좌표계 — improvement-audit-round 에서 이관했는데 받은 플랜에 항목이 없어 유실됐다 {#eyes-mixed-dpi}
 - [x] v2.42.0 미확인 ~20건 — 큰 붙여넣기(raw 모드 터미널에 수백 KB: 다른 탭 반응·나중에 순서대로 도착)·한국어 IME 조합 순서·리사이즈와 타이핑 겹침·Kill 뒤 셸 종료·글자크기/터미널폰트 슬라이더 드래그 체감과 놓을 때 저장·드래그 중 탭이동 flush·나머지 슬라이더 7개 라벨 추종·터미널 도크 리사이즈/분리/복귀·⌘K 이동과 사이드바 접기·실패 토스트 문구·index_project 실경로 1회·큐 오버플로 실경로(경고→만회→토스트)·프로젝트 닫은 뒤 색인/히스토리 정지·LSP 서버 일람·임베딩 진행 배너·읽기전용에서 주인 회수 {#eyes-v242}
-- [ ] macOS 권한 프롬프트 — 설정 → ocul-pm → 연동 탭을 열었을 때 **아무것도 안 뜨는지**, 그리고 [Desktop 확인] 을 눌렀을 때**만** 「다른 앱의 데이터」를 묻는지. 승인을 지우고 봐야 한다: `tccutil reset SystemPolicyAppData com.kimhyunbin.ocul-pm`. 코드는 회귀 테스트(마운트 시 호출 0)로 잠갔지만 프롬프트가 뜨는 순간은 사람 눈으로만 본다 — 설치본 2.45.1 에는 이 수정이 없으므로 다음 릴리스 뒤에 {#eyes-tcc-desktop}
+- [x] macOS 권한 프롬프트 — 설정 → ocul-pm → 연동 탭을 열었을 때 **아무것도 안 뜨는지**, 그리고 [Desktop 확인] 을 눌렀을 때**만** 「다른 앱의 데이터」를 묻는지. 승인을 지우고 봐야 한다: `tccutil reset SystemPolicyAppData com.kimhyunbin.ocul-pm`. 코드는 회귀 테스트(마운트 시 호출 0)로 잠갔지만 프롬프트가 뜨는 순간은 사람 눈으로만 본다 — 설치본 2.45.1 에는 이 수정이 없으므로 다음 릴리스 뒤에 {#eyes-tcc-desktop}
 - [x] 플래너 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 CSS 상태 마크(`.pmark` 여섯 상태 · 체크 정렬 · 막힘 `!` 대비) · 단계 스트립 조각 색과 hover 늘림 · 스티키 단계 머리 바탕이 시트와 같은지 · 행 hover 동작 무리(▾ ✎ 🗑 실행)의 노출 · 보드 열 위 선 · 좁은 폭(컨테이너 720 이하)에서 메타 열이 제목 아래로 내려가는지. 하네스(vitest DOM 덤프 + 실제 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-planner-redesign}
 - [x] 작업 일지 원장 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 종류색 척추(`.jl-spine`)와 색띠(`.jl-strip`)의 `--t-*` 대비 · 스티키 날짜 머리글 바탕이 본문과 같은지 · 툴바 `.seg` 안 종류색 점 정렬 · 행 hover/focus 링 · 날짜 레일 막대 · 좁은 폭(컨테이너 640 이하)에서 레일이 숨고 명단이 아래 줄로 내려가는지 · Today→일지 초점 1.6초 강조. 하네스(vitest DOM 덤프 + 실제 CSS)로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-journal-ledger}
 - [x] 플래너 계획 레일 리디자인 실기기 육안 확인 — 라이트/다크 × 프리셋 5종에서 진행 파이(`.pln-pie` conic-gradient 채움·완료 꽉 찬 원·보관 점선)의 대비 · ⋯ 옵션 메뉴가 레일 폭 170px 에서도 화면 안에 서는지(오른쪽 레일이면 왼쪽으로 여는지) · 접힌 띠의 세로 라벨 · 제목 2줄 클램프와 hover 카드의 역할 분담 · 섹션 머리 sticky 바탕. 하네스로는 봤고 WKWebView 실기기는 안 봤다 {#eyes-planner-rail}
@@ -74,7 +74,7 @@ owner: claude-code
 ## 릴리스 3.0.0 {#release-300}
 - [-] ~~EVALS.md 기준 실행~~ — **이 저장소에는 `EVALS.md` 가 없다**(git 이력에도 없다). `oculpm/evals.rs` 는 추적 *대상* 프로젝트에 제공하는 기능이고 파일 부재를 `None` 으로 처리한다. 이 저장소 자신의 완료 기준 문서는 만든 적이 없으므로 「실행」할 대상이 없다 — 3.0 의 완료 기준을 새로 쓸지는 별도 판단 {#evals}
 - [x] 게이트 전수 exit 0 — 2026-09-08, main(`547cc41`) 에서 CI 3잡 전부 success: `cargo test`(33 스위트)·bindings 신선도·`clippy -D warnings`·`cargo fmt --check`·cargo-deny · `typecheck`·`test`(190파일)·`lint`(6게이트, 경고 9/9)·`build`. **릴리스 직전에 다시 돌릴 것** — 이 표시는 그 시점의 사실이다 {#gates-green-300}
-- [ ] 릴리스 5면 + 태그 + 랜딩 배포 (landing 에서 vercel --prod) {#release-300-2}
+- [x] 릴리스 5면 + 태그 + 랜딩 배포 (landing 에서 vercel --prod) {#release-300-2}
 
 ## 기둥 2 이월 — v3-surface 가 소유 밖에서 남긴 것 {#pillar2-carry}
 
@@ -252,4 +252,6 @@ owner: claude-code
 | 2026-09-11T23:14:13+09:00 | #eyes-activity | claude-code | ☐→x |  | 사용자 육안 원장 pass (21:32) |
 | 2026-09-11T23:14:17+09:00 | #eyes-branch | claude-code | ☐→x |  | 사용자 육안 원장 pass (21:31) |
 | 2026-09-11T23:14:22+09:00 | #eyes-firstrun | claude-code | ☐→x |  | 사용자 육안 원장 pass (21:29) |
+| 2026-09-11T14:15:28.643116+00:00 | #eyes-tcc-desktop | user | ☐→x |  |  |
+| 2026-09-12T00:11:34+09:00 | #release-300-2 | claude-code | ☐→x | .oculpm/journal/20260911/Chores/2327_chore_release-3-0-0.md | 087a4d7 → main CI 초록 → 태그 v3.0.0 → release.yml 성공(run 34610837451): dmg·app.tar.gz·sig·latest.json(3.0.0)·vsix. 릴리스 노트 = CHANGELOG 본문 확인. 랜딩 ko/en 라이브 v3.0.0 |
 <!-- oculpm:plan-log end -->
