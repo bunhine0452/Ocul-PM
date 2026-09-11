@@ -194,7 +194,10 @@ fn classify(body: &str) -> Vec<(&'static ClusterDef, String, String)> {
         .filter(|sec| {
             sec.lines()
                 .next()
-                .is_some_and(|h| h.starts_with('#') && h.contains("원인"))
+                // 영어 일지는 `## Root cause` (agents 템플릿 EN · journal_draft 와 같은 이름).
+                .is_some_and(|h| {
+                    h.starts_with('#') && (h.contains("원인") || h.contains("Root cause"))
+                })
         })
         .collect();
     let haystack: String = std::iter::once(title.clone())
