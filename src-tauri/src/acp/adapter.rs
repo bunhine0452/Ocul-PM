@@ -40,7 +40,14 @@ pub const CODEX_PKG_NAME: &str = "codex-acp";
 ///   아직 안 읽는다.
 /// - `sessionFailure` 에 `reason` 이 붙었다 — `--hide-claude-auth` 전용이고
 ///   우리는 그 플래그를 넘기지 않는다. `failure_of` 는 모르는 키를 무시한다.
-pub const PINNED_VERSION: &str = "0.75.1";
+///
+/// 0.75.1 → 0.76.0 (2026-09-11): 두 tarball 의 `dist/` 를 대조했다. 바뀐 것은
+/// `acp-agent`·`air-extension`·`clear-context-coordinator` 셋과 새 모듈
+/// `session-model`·`session-effort` — 모델/effort 설정 옵션의 내부 정리와,
+/// 클라이언트가 광고해야만 켜지는 AIR capability `recommendedValue` 하나다.
+/// 우리는 광고하지 않으므로 무영향. `usage-markdown.js` 는 바이트 동일,
+/// 번들 SDK 도 `0.3.257` 그대로 — 우리 쪽 변경은 이 상수 한 줄뿐이다.
+pub const PINNED_VERSION: &str = "0.76.0";
 pub const CODEX_PINNED_VERSION: &str = "1.8.0";
 
 /// 앱 데이터 디렉터리 하위 설치 경로.
