@@ -52,7 +52,7 @@ body="$(awk -v t="## ${ver}" '$0==t{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md)
 
 확장은 **별도 CHANGELOG 를 갖지 않습니다.** `extension/CHANGELOG.md` 는 이 파일을 가리키는 한 줄뿐이고, `extension/LICENSE` 는 루트 `LICENSE` 의 복사본(마켓 리스팅이 패키지 안의 파일을 요구해서)입니다. 확장에 사용자가 보는 변경이 있으면 그 릴리스의 `## vX.Y.Z` 섹션 **안에 `### 확장` 소절**을 두고 거기에 적습니다 — 앱과 확장이 같은 `.oculpm` 규격을 공유하므로 같은 커밋·같은 노트로 움직입니다. `extension/README.md` 는 마켓 리스팅 본문(영어)이라 기능이 늘면 그 파일도 같이 고칩니다. #### 확장 게시 절차 (태그 `ext-v*`)
 
-확장은 앱과 **별도 태그**로 나갑니다 — `extension/package.json` 의 `version` 을 올리고 `ext-v<그 버전>` 태그를 밀면 `.github/workflows/extension-release.yml` 이 패키징(dry-run 과 같은 잡) → Open VSX → VS Marketplace 순으로 게시합니다. 태그와 `package.json` 버전이 다르면 잡이 멈춥니다(마켓은 같은 버전 재게시를 막아 되돌릴 수 없기 때문). 앱 릴리스(`v*`)는 `.vsix` 를 릴리스 자산에도 첨부합니다 — 마켓이 막힌 환경은 `code --install-extension ocul-pm-<ver>.vsix`.
+확장은 앱과 **별도 태그**로 나갑니다 — `extension/package.json` 의 `version` 을 올리고 `ext-v<그 버전>` 태그를 밀면 `.github/workflows/extension-release.yml` 이 패키징(dry-run 과 같은 잡) → **GitHub Release 에 .vsix 첨부(항상)** → Open VSX → VS Marketplace 순으로 갑니다. 마켓 토큰이 없으면 마켓 단계는 **건너뛰고**(실패 아님) GitHub Release 만 납니다 — 토큰을 넣은 뒤 그 run 을 re-run 하면 게시됩니다. 태그와 `package.json` 버전이 다르면 잡이 멈춥니다(마켓은 같은 버전 재게시를 막아 되돌릴 수 없기 때문). 앱 릴리스(`v*`)는 `.vsix` 를 릴리스 자산에도 첨부합니다 — 마켓이 막힌 환경은 `code --install-extension ocul-pm-<ver>.vsix`.
 
 ```bash
 cd extension && npm version 0.1.0 --no-git-tag-version   # package.json 만
