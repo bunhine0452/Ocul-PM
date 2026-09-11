@@ -519,6 +519,11 @@
 }
 .toolbar-actions::-webkit-scrollbar { display: none; }
 .toolbar-actions button { white-space: nowrap; }
+/* 툴바의 검색칸은 줄어들되 **바닥이 있다** — 최소 창(960)에서 영어 스코프 버튼
+   넷이 검색칸을 글자 하나 폭으로 짜부라뜨렸다(2026-09-11 영어 순회). 이 아래로는
+   묶음이 가로 스크롤로 도망간다. primitives.css 의 `.search-box` 는 기본 폭
+   200 에 바닥 0 이 맞다(다른 자리는 부모가 폭을 준다) — 툴바만 바닥을 둔다. */
+.toolbar-actions > .search-box { min-width: 120px; }
 /* `scrollbar-gutter` 로 자리를 미리 잡는다 (2026-09-09 {#scrollbar-gutter}).
    base.css 가 `::-webkit-scrollbar { width: 10px }` 를 선언하는 순간 WebKit 은
    오버레이 스크롤바를 끄고 **레이아웃 폭을 차지하는** 고전 스크롤바로 바꾼다.

@@ -640,8 +640,12 @@
 }
 
 /* ── 존 공통 헤더 ────────────────────────────────────────── */
+/* 좁은 폭(최소 창 960)에서 영어 머리("What's attached · 0 · most fired first")가
+   낱말 단위로 네 줄 접히던 것 — 제목과 부제는 안 접고, 필터·모드·검색 묶음이
+   통째로 다음 줄로 내려간다 (2026-09-11 영어 순회). */
 .ctx-zone-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
@@ -652,10 +656,15 @@
   font-size: var(--fs-4);
   font-weight: var(--fw-bold);
   color: var(--text);
+  white-space: nowrap;
 }
 .ctx-zone-sub {
   font-size: var(--fs-2);
   color: var(--text-3);
+  white-space: nowrap;
+}
+.ctx-zone-head .seg-item {
+  white-space: nowrap;
 }
 
 /* ── 존 2 — 걸려 있는 것 ─────────────────────────────────── */

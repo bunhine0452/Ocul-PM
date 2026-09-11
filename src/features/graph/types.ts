@@ -69,3 +69,14 @@ export function lastSeg(p: string): string {
 export function dirCrumb(p: string): string {
   return dirOf(p).split("/").slice(-2).join("/");
 }
+
+/**
+ * 툴바 부제가 세는 자리의 단위 키 — 하나면 단수, 아니면 복수. 토글 라벨은
+ * 단수 키를 그대로 쓴다. 한국어는 수가 없어 두 키가 같은 말이지만, 영어
+ * "0 folder" 는 틀린 말이라 갈라 둔다 (2026-09-11 영어 순회, v3-release
+ * `{#i18n-rest}`). `GraphScreenV2` 가 크기 래칫에 붙어 있어 여기 둔다.
+ */
+export function unitKey(mode: string, n: number): I18nKey {
+  if (mode === "dir") return n === 1 ? "graph.unitDir" : "graph.unitDirs";
+  return n === 1 ? "graph.unitFile" : "graph.unitFiles";
+}

@@ -31,7 +31,7 @@ import { GraphInspector } from "./GraphInspector";
 import { dagreLayout, forceLayout, sizeForDegree, type NodeSize } from "./layout";
 import { langColor } from "./palette";
 import {
-  EDGE_META, EDGE_ORDER, baseName, dirOf, lastSeg, dirCrumb,
+  EDGE_META, EDGE_ORDER, baseName, dirOf, lastSeg, dirCrumb, unitKey,
   type FileRow, type FileEdge, type GNode, type GEdge, type NeighborRel,
 } from "./types";
 import { useT, type I18nKey } from "@/i18n";
@@ -671,7 +671,7 @@ export function GraphScreenV2({
     return [...set.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(0, 10);
   }, [laidOut.nodes]);
 
-  const unit = mode === "dir" ? t("graph.unitDir") : t("graph.unitFile");
+  const unit = t(unitKey(mode, built.visible.length));
 
   return (
     <div className="flex flex-col h-full">

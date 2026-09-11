@@ -53,6 +53,7 @@ const ALLOWLIST = new Set([
   // (지속된 WorkspaceContext 상태가 화면 분기를 바꾸면 한글 검출이 흔들린다).
   // Test-only.
   "__tests__/i18n_english_render.test.tsx",
+  "__tests__/i18n_english_screens.test.tsx",
   // Final UI Update PR-UI 3 — JournalScreenV2 tests clear localStorage between
   // mounts so the persisted journalFilter (aipm:workspace:v2:p<id> envelope) doesn't
   // leak a scope-chip choice from one test into the next. Test-only.

@@ -300,7 +300,9 @@ export function TodayScreenV2({
               icon={Cpu}
               label={t("today.stat.agents")}
               value={brief ? brief.agents.length : "—"}
-              unit={t("today.unit.files")}
+              // 한국어 「개」는 만능 조수사라 `unit.files` 를 돌려 써도 됐지만
+              // 영어에선 "N files" 가 된다 — 영어 순회(2026-09-11)가 잡았다.
+              unit={t("today.unit.agents")}
             />
           </div>
 

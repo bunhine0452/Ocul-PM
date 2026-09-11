@@ -1019,6 +1019,7 @@ export const en: Record<keyof typeof ko, string> = {
   "today.unit.files": "files",
   "today.unit.times": "times",
   "today.unit.count": "total",
+  "today.unit.agents": "agents",
   "today.unit.lines": "lines",
   "today.empty":
     "The app does not write journals behind your back — your agent does, after reading this folder's AGENTS.md and finishing a unit of work. Run one here and the record starts right there.",
@@ -1064,7 +1065,7 @@ export const en: Record<keyof typeof ko, string> = {
   "journal.resolveFailed": "Couldn't resolve the entry path.",
   "journal.linkNotFound": "Couldn't find the linked entry.",
   "journal.linkOpenFailed": "Couldn't open the linked entry.",
-  "journal.toolbarSub": "{n} recorded automatically",
+  "journal.toolbarSub": "{n} auto-recorded",
   "journal.searchPlaceholder": "Search entries (⌘F)",
   "journal.searchAria": "Search entries",
   "journal.clearSearch": "Clear search",
@@ -2441,6 +2442,9 @@ export const en: Record<keyof typeof ko, string> = {
   "graph.impactBody": "Changing this {unit} affects {n} files",
   "graph.unitDir": "folder",
   "graph.unitFile": "file",
+  // 세는 자리의 복수형 — 토글 라벨(위)과 갈라 둔다. 한국어는 수가 없어 같은 말.
+  "graph.unitDirs": "folders",
+  "graph.unitFiles": "files",
   "graph.metricOut": "Depends on",
   "graph.metricOutHint": "How many this node uses",
   "graph.metricIn": "Depended on by",

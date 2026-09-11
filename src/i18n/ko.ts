@@ -1020,6 +1020,7 @@ export const ko = {
   "today.unit.files": "개",
   "today.unit.times": "회",
   "today.unit.count": "개",
+  "today.unit.agents": "개",
   "today.unit.lines": "줄",
   "today.empty":
     "일지는 앱이 몰래 쓰는 게 아니라, 에이전트가 이 폴더의 AGENTS.md 규칙을 읽고 일을 마칠 때 직접 남겨요. 여기서 에이전트를 한 번 돌리면 그 자리에서 시작돼요.",
@@ -2453,6 +2454,8 @@ export const ko = {
   "graph.impactBody": "이 {unit}을 바꾸면 {n}개 파일에 영향",
   "graph.unitDir": "폴더",
   "graph.unitFile": "파일",
+  "graph.unitDirs": "폴더",
+  "graph.unitFiles": "파일",
   "graph.metricOut": "의존",
   "graph.metricOutHint": "이 노드가 가져다 쓰는 수",
   "graph.metricIn": "의존받음",
