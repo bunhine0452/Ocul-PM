@@ -24,7 +24,8 @@ import StartTab from "@/windows/StartTab";
 
 import { themesApi } from "@/api/themes";
 import { setThemeOverride } from "@/features/theme/store";
-import { WorkspaceProvider, pruneWorkspaceRecords } from "@/contexts/WorkspaceContext";
+import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { pruneWorkspaceRecords } from "@/contexts/workspacePrune";
 import { useSettings } from "@/contexts/SettingsContext";
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 import { createUnlistenBag } from "@/lib/unlisten";

@@ -21,6 +21,9 @@ const ROOT = new URL("../src", import.meta.url).pathname;
 // short and aim for the empty state.
 const ALLOWLIST = new Set([
   "contexts/WorkspaceContext.tsx", // Owns persistence + legacy-key migration.
+  // 감사 라운드 2026-09-11 D3 — 지워진 프로젝트의 `p<id>` 레코드 정리. 컨텍스트의
+  // 키 규약(`storageKeyFor`)만 빌리고, 키 열거는 컨텍스트가 할 일이 아니다.
+  "contexts/workspacePrune.ts",
   // mobile-bridge #mb2-shim — 폰 브라우저의 Bearer 토큰. React/WorkspaceContext
   // 가 뜨기 전(첫 invoke 전)에 필요해 컨텍스트 경유가 성립하지 않는 유일한 축.
   "lib/transport/http.ts",

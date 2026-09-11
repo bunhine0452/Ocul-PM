@@ -32,7 +32,16 @@ fn write(root: &Path, rel: &str, body: &str) {
 }
 
 fn capture(root: &Path, rel: &str, source: HistorySource, max: usize) -> CaptureOutcome {
-    history::capture(root, rel, HistoryOp::Update, source, None, max).unwrap()
+    history::capture(
+        root,
+        rel,
+        HistoryOp::Update,
+        source,
+        None,
+        max,
+        history::PROJECT_BUDGET_BYTES,
+    )
+    .unwrap()
 }
 
 #[test]
@@ -48,6 +57,7 @@ fn one_capture_leaves_one_meta_and_one_snapshot() {
         HistorySource::Agent,
         None,
         DEFAULT_MAX_ENTRIES,
+        history::PROJECT_BUDGET_BYTES,
     )
     .unwrap();
     assert_eq!(out, CaptureOutcome::Captured);

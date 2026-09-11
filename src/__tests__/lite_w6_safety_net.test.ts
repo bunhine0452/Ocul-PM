@@ -325,7 +325,7 @@ describe("vitest infra smoke", () => {
 // 받은 자리에서 걷어낸다. 살아 있는 것과 다른 접두의 키는 손대지 않는다.
 describe("pruneWorkspaceRecords", () => {
   it("removes records whose project is gone and nothing else", async () => {
-    const { pruneWorkspaceRecords } = await import("@/contexts/WorkspaceContext");
+    const { pruneWorkspaceRecords } = await import("@/contexts/workspacePrune");
     localStorage.clear();
     localStorage.setItem(storageKeyFor(1), "{}");
     localStorage.setItem(storageKeyFor(7), "{}");
