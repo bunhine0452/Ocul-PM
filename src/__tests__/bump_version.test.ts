@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+// @ts-expect-error — 빌드 대상이 아닌 zero-dep 릴리스 스크립트 (.mjs, 타입 없음).
 import { bumpLanding, bumpVersionFile, LANDINGS, leftoverLines, VERSION_FILES } from "../../scripts/bump-version.mjs";
 
 // 감사 라운드 2026-09-11 F3 — 릴리스 버전 6파일 + 랜딩 ko/en 각 6곳을 한 번에.
