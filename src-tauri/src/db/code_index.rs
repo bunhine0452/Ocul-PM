@@ -499,6 +499,38 @@ impl Db {
         Ok(())
     }
 
+    /// 색인에 있지만 이번 walk 에 없는 파일들을 한 트랜잭션으로 지운다 — 청크·
+    /// 임베딩·심볼은 FK cascade 로, diff 기준선(`file_snapshots`)은 여기서 함께.
+    /// (감사 라운드 2026-09-11 A2: 전체 색인이 upsert 만 하고 화해를 안 해 이
+    /// 저장소의 1,459 행 중 101 이 디스크에 없는 파일이었다 — 지운 `src/legacy/`,
+    /// 나중에 gitignore 된 `dist-measure/`. 의미 검색이 없는 파일을 돌려줬다.)
+    pub async fn delete_files_by_paths(&self, project_id: u32, paths: Vec<String>) -> Result<u32> {
+        if paths.is_empty() {
+            return Ok(0);
+        }
+        let removed = self
+            .conn
+            .call(move |c| {
+                let tx = c.transaction()?;
+                let mut n = 0u32;
+                {
+                    let mut del_file =
+                        tx.prepare("DELETE FROM files WHERE project_id = ?1 AND path = ?2")?;
+                    let mut del_snap = tx.prepare(
+                        "DELETE FROM file_snapshots WHERE project_id = ?1 AND path = ?2",
+                    )?;
+                    for path in &paths {
+                        n += del_file.execute(params![project_id as i64, path])? as u32;
+                        del_snap.execute(params![project_id as i64, path])?;
+                    }
+                }
+                tx.commit()?;
+                Ok(n)
+            })
+            .await?;
+        Ok(removed)
+    }
+
     /// Newest `indexed_at` across the project's files — `None` when nothing
     /// has been indexed yet (the doctor row "마지막 색인").
     pub async fn last_indexed_at(&self, project_id: u32) -> Result<Option<i64>> {

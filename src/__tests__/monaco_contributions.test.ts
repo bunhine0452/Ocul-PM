@@ -58,6 +58,21 @@ describe("monaco contribution list", () => {
     expect([...setup.matchAll(/\?worker/g)]).toHaveLength(1);
   });
 
+  it("installs the clipboard override before the first service lookup (A3)", () => {
+    // `StandaloneServices.initialize` 는 첫 호출만 오버라이드를 받고, 언어 등록이
+    // 그 첫 조회다. 순서가 뒤집히면 오류 없이 조용히 무시돼 WKWebView 에서
+    // 키 입력마다 ERROR 두 줄이 되돌아온다 (감사 라운드 2026-09-11).
+    const setup = readFileSync(resolve(ROOT, "src/features/code/monaco/setup.ts"), "utf8");
+    const install = setup.indexOf("installClipboardService();");
+    const firstLookup = setup.indexOf("registerExtraLanguages(monaco);");
+    expect(install).toBeGreaterThan(-1);
+    expect(firstLookup).toBeGreaterThan(install);
+
+    const clip = readFileSync(resolve(ROOT, "src/features/code/monaco/clipboard.ts"), "utf8");
+    expect(clip).toMatch(/override installWebKitWriteTextWorkaround\(\): void \{/);
+    expect(clip).toMatch(/clipboardService: new SyncDescriptor\(/);
+  });
+
   it("covers every language id we claim", () => {
     // Every id `codeLang.ts` can hand to the editor must have a grammar behind
     // it, or that extension opens silently colorless. Two sources only: Monaco's

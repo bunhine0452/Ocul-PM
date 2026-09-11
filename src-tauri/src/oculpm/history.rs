@@ -342,9 +342,30 @@ fn write_meta(dir: &Path, meta: &HistoryMeta) -> std::io::Result<()> {
     std::fs::create_dir_all(dir)?;
     let json = serde_json::to_vec_pretty(meta)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    let tmp = dir.join("meta.json.tmp");
+    // 임시 이름은 쓰는 쪽마다 다르게 — 예산 정리(`enforce_budget`)는 캡처
+    // 게이트 밖에서 같은 meta 를 다시 쓸 수 있다. 같은 이름을 쓰면 한쪽의
+    // rename 이 다른 쪽의 tmp 를 가져간다.
+    let tmp = dir.join(format!(
+        "meta.json.{}.tmp",
+        TMP_SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
     std::fs::write(&tmp, json)?;
     std::fs::rename(&tmp, dir.join("meta.json"))
+}
+
+/// `write_meta` 임시 파일 이름의 일련번호.
+static TMP_SEQ: AtomicU64 = AtomicU64::new(0);
+
+/// 파일(=히스토리 디렉터리)당 캡처 게이트. 프로세스 수명 동안 자라지만 키는
+/// 편집된 파일 수라 작다.
+fn capture_gate(dir: &Path) -> std::sync::Arc<Mutex<()>> {
+    static GATES: Mutex<Option<HashMap<PathBuf, std::sync::Arc<Mutex<()>>>>> = Mutex::new(None);
+    let mut gates = GATES.lock().unwrap_or_else(|e| e.into_inner());
+    gates
+        .get_or_insert_with(HashMap::new)
+        .entry(dir.to_path_buf())
+        .or_default()
+        .clone()
 }
 
 /// 캡처 결과 — 호출자가 로그로 구분할 수 있게.
@@ -373,6 +394,14 @@ pub fn capture(
         return Ok(CaptureOutcome::Skipped);
     }
     let dir = dir_for(root, rel_path);
+    // 같은 파일의 캡처는 한 번에 하나만 (감사 라운드 2026-09-11 A5). rename
+    // 저장은 Create+Modify 두 이벤트로 와서 두 `spawn_blocking` 이 같은
+    // 디렉터리에서 동시에 돌았다 — 둘 다 같은 `meta.json.tmp` 를 쓰고 먼저
+    // rename 한 쪽이 이기면 뒤쪽은 `No such file or directory` 로 죽었다
+    // (일주일 4,451줄 WARN). 게다가 둘 다 빈 meta 를 읽고 자기 판만 적으니
+    // 한 판의 기록은 유실됐다(스냅샷 파일만 고아로 남고).
+    let gate = capture_gate(&dir);
+    let _held = gate.lock().unwrap_or_else(|e| e.into_inner());
     let meta = read_meta(&dir, rel_path);
 
     // 워처의 해시로 먼저 거른다 — 여기서 걸리면 파일을 읽지도 않는다.
@@ -795,5 +824,54 @@ mod tests {
         state.note_self_write(1, "a.ts", "abc", false);
         assert_eq!(state.take_source(1, "a.ts", "def"), HistorySource::Agent);
         assert_eq!(state.take_source(2, "a.ts", "abc"), HistorySource::Agent);
+    }
+
+    /// 감사 라운드 2026-09-11 A5 — 같은 파일의 캡처가 동시에 들어와도(rename
+    /// 저장의 Create+Modify 쌍) 한 쪽이 `No such file` 로 죽지 않고, meta 는
+    /// 한 판만 갖고, 임시 파일이 남지 않는다.
+    #[test]
+    fn concurrent_captures_of_one_file_neither_fail_nor_leave_tmp_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().to_path_buf();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src/a.ts"), b"export const a = 1;\n").unwrap();
+
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                let root = root.clone();
+                std::thread::spawn(move || {
+                    capture(
+                        &root,
+                        "src/a.ts",
+                        HistoryOp::Create,
+                        HistorySource::User,
+                        None,
+                        50,
+                    )
+                })
+            })
+            .collect();
+        let outcomes: Vec<CaptureOutcome> = handles
+            .into_iter()
+            .map(|h| h.join().unwrap().expect("no capture may fail"))
+            .collect();
+        assert_eq!(
+            outcomes
+                .iter()
+                .filter(|o| **o == CaptureOutcome::Captured)
+                .count(),
+            1,
+            "같은 내용은 한 번만 찍힌다"
+        );
+
+        let hdir = dir_for(&root, "src/a.ts");
+        assert_eq!(read_meta(&hdir, "src/a.ts").entries.len(), 1);
+        let leftovers: Vec<_> = std::fs::read_dir(&hdir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|n| n.ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "임시 파일이 남았다: {leftovers:?}");
     }
 }

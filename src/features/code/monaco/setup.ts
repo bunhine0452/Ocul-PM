@@ -16,6 +16,7 @@
 import * as monaco from "monaco-editor/editor/editor.api";
 import EditorWorker from "monaco-editor/editor/editor.worker?worker";
 
+import { installClipboardService } from "./clipboard";
 import { registerExtraLanguages } from "./langExtra";
 import { registerProseLanguage } from "./langProse";
 
@@ -106,6 +107,9 @@ import "monaco-editor/languages/definitions/rust/register";
 import "monaco-editor/languages/definitions/yaml/register";
 import "monaco-editor/languages/definitions/shell/register";
 
+// 클립보드 서비스 오버라이드는 서비스가 하나라도 만들어지기 **전**이어야
+// 받아들여진다 — 아래 언어 등록이 첫 서비스 조회다 (`clipboard.ts` 머리말).
+installClipboardService();
 // 0.56 이 안 주는 둘 — 등록은 전역이고 이 모듈이 한 번만 평가되므로 여기서 한다.
 registerExtraLanguages(monaco);
 // 논의 문서용 마크다운 — 제목 단계와 `{#id}` 를 갈라 칠한다 (`langProse.ts`).
