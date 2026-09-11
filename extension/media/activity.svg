@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 1024 1024" fill="none">
+  <!-- 앱 아이콘(landing/icon.svg)의 동심 링 — Activity Bar 규약대로 단색 currentColor -->
+  <g transform="translate(512 512) scale(1.4) translate(-512 -512)" stroke="currentColor" stroke-width="56">
+    <circle cx="512" cy="512" r="190" stroke-dasharray="970 224" transform="rotate(125 512 512)"/>
+    <circle cx="512" cy="512" r="132" stroke-dasharray="640 190" transform="rotate(-40 512 512)"/>
+    <circle cx="512" cy="512" r="74" stroke-dasharray="330 135" transform="rotate(70 512 512)"/>
+  </g>
+  <circle cx="512" cy="512" r="30" fill="currentColor"/>
+</svg>

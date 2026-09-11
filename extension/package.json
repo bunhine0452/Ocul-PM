@@ -1,0 +1,241 @@
+{
+  "name": "ocul-pm",
+  "displayName": "Ocul-PM",
+  "description": "Ocul-PM work journals and planner beside your code — local-first, zero network.",
+  "version": "0.1.0",
+  "publisher": "oculpm",
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bunhine0452/Ocul-PM.git",
+    "directory": "extension"
+  },
+  "homepage": "https://oculpm.com",
+  "engines": {
+    "vscode": "^1.101.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "ocul-pm",
+    "journal",
+    "planner",
+    "claude code",
+    "mcp"
+  ],
+  "activationEvents": [
+    "workspaceContains:.oculpm/journal",
+    "onUri"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ocul-pm.openWebsite",
+        "title": "웹사이트 열기",
+        "category": "Ocul-PM"
+      },
+      {
+        "command": "ocul-pm.rescanBinary",
+        "title": "oculpm-mcp 다시 찾기",
+        "category": "Ocul-PM"
+      },
+      {
+        "command": "ocul-pm.refresh",
+        "title": "새로고침",
+        "category": "Ocul-PM",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "ocul-pm.journal.open",
+        "title": "미리보기로 열기",
+        "category": "Ocul-PM"
+      },
+      {
+        "command": "ocul-pm.openInEditor",
+        "title": "편집기로 열기",
+        "category": "Ocul-PM",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "ocul-pm.openInApp",
+        "title": "Ocul-PM 에서 열기",
+        "category": "Ocul-PM",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "ocul-pm.copyPath",
+        "title": "경로 복사",
+        "category": "Ocul-PM"
+      },
+      {
+        "command": "ocul-pm.injectRules",
+        "title": "기록 규칙 주입 (AGENTS.md 등)",
+        "category": "Ocul-PM"
+      },
+      {
+        "command": "ocul-pm.registerCursorMcp",
+        "title": "Cursor 에 MCP 서버 등록 (.cursor/mcp.json)",
+        "category": "Ocul-PM"
+      }
+    ],
+    "configuration": {
+      "title": "Ocul-PM",
+      "properties": {
+        "oculpm.mcpBinaryPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "설치된 Ocul-PM 앱의 `oculpm-mcp` 경로. 비우면 `/Applications/Ocul-PM.app` → `~/Applications/Ocul-PM.app` 순으로 찾습니다. 없으면 확장은 읽기 전용으로 동작합니다."
+        },
+        "oculpm.mcpAgentId": {
+          "type": "string",
+          "default": "copilot",
+          "scope": "machine",
+          "markdownDescription": "VS Code 에이전트(Copilot 등)가 `oculpm-mcp` 로 쓰는 일지·플랜 로그의 `agent.id`. 확장 자신의 체크박스 토글은 항상 `vscode-ext` 로 기록됩니다."
+        }
+      }
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "ocul-pm.journal.open",
+          "when": "false"
+        },
+        {
+          "command": "ocul-pm.openInEditor",
+          "when": "false"
+        },
+        {
+          "command": "ocul-pm.copyPath",
+          "when": "false"
+        },
+        {
+          "command": "ocul-pm.injectRules",
+          "when": "!oculpm.readOnly"
+        },
+        {
+          "command": "ocul-pm.registerCursorMcp",
+          "when": "!oculpm.readOnly && !oculpm.mcpProviderApi"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "ocul-pm.refresh",
+          "when": "view == oculpm.journal || view == oculpm.plans",
+          "group": "navigation"
+        },
+        {
+          "command": "ocul-pm.openInApp",
+          "when": "view == oculpm.journal",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "ocul-pm.openInEditor",
+          "when": "view == oculpm.journal && viewItem == entry || view == oculpm.plans && viewItem == plan",
+          "group": "inline"
+        },
+        {
+          "command": "ocul-pm.openInApp",
+          "when": "view == oculpm.journal && viewItem == entry",
+          "group": "1_open@1"
+        },
+        {
+          "command": "ocul-pm.openInEditor",
+          "when": "view == oculpm.journal && viewItem == entry || view == oculpm.plans && viewItem == plan",
+          "group": "1_open@2"
+        },
+        {
+          "command": "ocul-pm.copyPath",
+          "when": "view == oculpm.journal && viewItem == entry || view == oculpm.plans && viewItem == plan",
+          "group": "2_copy"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ocul-pm",
+          "title": "Ocul-PM",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "ocul-pm": [
+        {
+          "id": "oculpm.journal",
+          "name": "오늘 일지",
+          "icon": "media/activity.svg",
+          "contextualTitle": "Ocul-PM 일지"
+        },
+        {
+          "id": "oculpm.plans",
+          "name": "활성 플랜",
+          "icon": "media/activity.svg",
+          "contextualTitle": "Ocul-PM 플랜"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "oculpm.journal",
+        "contents": "이 워크스페이스는 Ocul-PM 추적 대상이 아닙니다(`.oculpm/journal` 없음).\n앱에서 프로젝트를 추가하면 여기에 일지가 뜹니다.\n[Ocul-PM 웹사이트](command:ocul-pm.openWebsite)"
+      },
+      {
+        "view": "oculpm.plans",
+        "contents": "활성 플랜이 없습니다."
+      }
+    ],
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "oculpm",
+        "label": "Ocul-PM (oculpm-mcp)"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run package",
+    "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
+    "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.vitest.json",
+    "lint": "eslint src",
+    "test": "vitest run && vscode-test",
+    "test:unit": "vitest run"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "@types/vscode": "1.101.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.5.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1",
+    "vitest": "^4.1.7"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
+  }
+}

@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "module": "Node16",
+        "target": "ES2022",
+        "lib": [
+            "ES2022"
+        ],
+        "types": [
+            "node",
+            "mocha"
+        ],
+        "sourceMap": true,
+        "rootDir": "src",
+        "strict": true, /* enable all strict type-checking options */
+        /* Additional Checks */
+        // "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
+        // "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
+        // "noUnusedParameters": true,  /* Report errors on unused parameters. */
+    },
+    "include": ["src"],
+    // vitest 단위 테스트(`src/**/*.spec.ts` — mocha 의 `src/test/*.test.ts` 와 이름으로 구분)는 ESM 전용 vitest 를 임포트해
+    // Node16/CJS 규약의 이 프로젝트에서 TS1479 가 난다 — `tsconfig.vitest.json`
+    // 이 번들러 해석으로 따로 검사한다 (`check-types` 가 둘 다 돈다).
+    "exclude": ["src/**/*.spec.ts"]
+}

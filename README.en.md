@@ -27,7 +27,7 @@ The more work you hand to agents, the more you pay a strange new tax: digging ba
 
 Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project folder. Every time an agent finishes a unit of work, it follows those rules and writes a markdown journal entry to `.oculpm/journal/`; the app reads those entries and turns them into a timeline, a daily brief and change diffs. Because the source of truth is plain markdown, it commits alongside your code and stays readable without the app.
 
-There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache, and the only things that leave your machine are **the ones you start yourself** — the LLM API calls you make, update checks, and things that exist only once you turn them on (GitHub fetches and theme downloads when you click, a one-time embedding-model download, Notion). The full list, countable for yourself, is at [oculpm.com/privacy](https://oculpm.com/privacy).
+There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache, and the only things that leave your machine are **the ones you start yourself** — the LLM API calls you make, update checks, and things that exist only once you turn them on (GitHub fetches and theme downloads when you click, a one-time embedding-model download, Notion). The full list, countable for yourself, is at [oculpm.com/privacy](https://oculpm.com/privacy). The VS Code extension (`oculpm.ocul-pm`) keeps the same promise — it opens no network connection and writes only through this app's `oculpm-mcp`.
 
 
 <img src="landing/shots/08-receipt.jpg" alt="Ocul-PM — Claude Code inside the app, with edit diffs and a turn receipt" />
@@ -58,7 +58,17 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.47.0 — from piles of cards to ledgers
+### 🧩 VS Code extension — edit in the real VS Code
+
+Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
+
+## 🚀 v2.48.0 — the editor is VS Code; the record sits beside it
+
+- **VS Code extension `oculpm.ocul-pm`, first release (0.1.0).** Today's journal and active plans in the sidebar, agent entries appear **within a second**, checkbox toggles reach the `.md` through `oculpm-mcp`. `journal_write` · `plan_update` exposed to Copilot. VS Code 1.101+, read-only without the app, zero network.
+- **App ↔ VS Code round trip** — "Open in editor" on a journal entry goes to that entry in the sidebar when the extension is installed; "Open in Ocul-PM" from VS Code lands on it in the app (the `entry` of `oculpm://open` is finally used).
+- **Settings > Integration** gains a "VS Code extension" row (installed? · two market links). App releases attach the `.vsix`.
+
+## v2.47.0 — from piles of cards to ledgers
 
 - **The planner is one sheet.** Click a segment of the **phase strip** in the masthead to jump to that phase; rows are a `[status mark | title | meta]` grid, and done items dim instead of striking through. A new **board view** shows the same items in status columns and lets you **drag to change status**. A plan with two blocked items no longer reads "100% done" (blocked was left out of the denominator), and the plan rail folds to one ⋯ menu with a **progress pie** per row.
 - **The journal is a ledger.** Rows are one line of `[time | type-colored spine | title]`; the repeated "agent · Claude Code" meta moves to the day header once, which also carries **the shape of the day** (a colour strip). Opening an entry gives it a proper **reading column** — masthead, 14px body, inline code that no longer breaks mid-word.

@@ -27,7 +27,7 @@ Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프
 
 Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 것으로 시작합니다. 에이전트는 작업 하나를 끝낼 때마다 이 규칙대로 `.oculpm/journal/` 에 마크다운 일지를 남기고, 앱은 그것을 읽어 타임라인과 일일 브리프, 변경 diff 로 보여줍니다. 원본이 전부 마크다운 파일이라 코드와 함께 커밋할 수 있고, 앱이 없어도 그냥 읽힙니다.
 
-서버는 없습니다. 데이터는 프로젝트의 `.oculpm/` 폴더와 로컬 SQLite 캐시에만 있고, 기기를 떠나는 것은 **여러분이 시작한 것뿐**입니다 — 직접 부른 LLM API 호출, 새 버전 확인, 그리고 켜야만 존재하는 것들(눌렀을 때의 GitHub 조회·테마 내려받기, 의미 검색 모델 최초 1회, Notion 연동). 세어 볼 수 있는 전체 목록은 [oculpm.com/privacy](https://oculpm.com/privacy) 에 있습니다.
+서버는 없습니다. 데이터는 프로젝트의 `.oculpm/` 폴더와 로컬 SQLite 캐시에만 있고, 기기를 떠나는 것은 **여러분이 시작한 것뿐**입니다 — 직접 부른 LLM API 호출, 새 버전 확인, 그리고 켜야만 존재하는 것들(눌렀을 때의 GitHub 조회·테마 내려받기, 의미 검색 모델 최초 1회, Notion 연동). 세어 볼 수 있는 전체 목록은 [oculpm.com/privacy](https://oculpm.com/privacy) 에 있습니다. VS Code 확장(`oculpm.ocul-pm`)도 같은 약속을 따릅니다 — 네트워크를 쓰지 않고, 쓰기는 이 앱의 `oculpm-mcp` 를 통해서만 합니다.
 
 
 <img src="landing/shots/08-receipt.jpg" alt="Ocul-PM — 앱 안의 Claude Code 가 편집 diff 와 턴 영수증을 남긴 실제 화면" />
@@ -58,7 +58,17 @@ Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 �
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J 터미널 도크" /><p align="center"><i>⌘J — 어느 화면에서든 터미널</i></p></td>
 </tr></table>
 
-## 🚀 v2.47.0 — 카드 무더기를 원장으로
+### 🧩 VS Code 확장 — 편집은 진짜 VS Code 에서
+
+「VS Code 급 편집기」를 앱 안에 또 만드는 대신, 확장 **`oculpm.ocul-pm`** 이 VS Code 사이드바에 **오늘 일지와 활성 플랜**을 띄웁니다. 에이전트가 일지를 쓰면 1초 안에 거기 뜨고, 플랜 항목 체크박스를 누르면 `.md` 와 앱 플래너가 같이 바뀝니다 — 쓰기는 이 앱의 `oculpm-mcp` 를 통해서만(앱이 없으면 읽기 전용). Copilot 에이전트 모드에는 `journal_write`·`plan_update` 도구가 그대로 보이고, 일지의 「편집기로 열기」는 VS Code 사이드바의 그 일지로, VS Code 의 「Ocul-PM 에서 열기」는 앱의 그 일지로 갑니다. [VS Code 마켓플레이스](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm)(Cursor · VSCodium). 확장은 네트워크를 쓰지 않습니다.
+
+## 🚀 v2.48.0 — 편집기는 VS Code, 기록은 그 옆에
+
+- **VS Code 확장 `oculpm.ocul-pm` 첫 게시(0.1.0).** 사이드바에 오늘 일지·활성 플랜, 에이전트 일지가 **1초 안에** 뜨고, 체크박스 토글이 `oculpm-mcp` 를 거쳐 `.md` 에 반영됩니다. Copilot 에 `journal_write`·`plan_update` 노출. VS Code 1.101+, 앱 없으면 읽기 전용, 네트워크 0.
+- **앱 ↔ VS Code 왕복** — 일지 「편집기로 열기」가 확장이 있으면 사이드바의 그 일지로, VS Code 「Ocul-PM 에서 열기」가 앱의 그 일지로(`oculpm://open` 의 `entry` 를 이제 씁니다).
+- **설정 > 통합**에 「VS Code 확장」 행(설치 여부 · 마켓 링크 둘). 앱 릴리스에 `.vsix` 첨부.
+
+## v2.47.0 — 카드 무더기를 원장으로
 
 - **플래너가 한 장의 시트입니다.** 머리글의 **단계 스트립**을 누르면 그 단계로 뛰고, 행은 `[상태 마크 | 제목 | 메타]` 세 열, 완료는 취소선 대신 흐려집니다. **보드 보기**에서 같은 항목을 상태별 열로 보고 **끌어서 상태를 바꿉니다**. 막힌 항목이 둘인 계획이 「진척 100%」로 찍히던 것을 고쳤고, 계획 레일은 ⋯ 메뉴 하나와 행마다 **진행 파이** 하나입니다.
 - **작업 일지가 원장입니다.** 행은 `[시각 | 종류색 척추 | 제목]` 한 줄, 되풀이되던 메타는 날짜 머리글이 한 번만 말하고, 머리글에 **하루의 모양**(색띠)이 섭니다. 일지를 열면 본문이 **읽는 칸** — 마스트헤드 · 14px 본문 · 낱말 가운데서 꺾이지 않는 인라인 코드.

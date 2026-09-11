@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 // 이 라운드의 보안 규약은 하나다: **무확인 실행 0.** 백엔드가 URL 을 파싱해
 // 이벤트로 넘기고, 실행은 이 시트를 지나야만 일어난다. 그 구조를 잰다.
 
-import { planFor, resolveRegisteredProject } from "@/features/deeplink/deepLinkPlan";
+import { openNavFor, planFor, resolveRegisteredProject } from "@/features/deeplink/deepLinkPlan";
 import {
   consumeThemeInstall,
   onThemeInstallRequest,
@@ -133,5 +133,23 @@ describe("themeInstallIntent", () => {
     // 구독이 처리했으면 마운트 회수가 같은 것을 또 열지 않는다.
     resetThemeInstallIntent();
     expect(consumeThemeInstall()).toBeNull();
+  });
+});
+
+describe("openNavFor — open 링크의 view/entry 를 TrayNavigate 로", () => {
+  const views = ["today", "journal", "planner"] as const;
+  it("프로젝트 안의 규격 일지 절대경로만 상대경로로 받고 journal 로 간다", () => {
+    const nav = openNavFor(
+      { project: "/Users/me/proj/", view: null, entry: "/Users/me/proj/.oculpm/journal/20260911/Chores/1403_chore_x.md" },
+      7,
+      views,
+    );
+    expect(nav).toEqual({ view: "journal", project_id: 7, entry_path: "20260911/Chores/1403_chore_x.md" });
+  });
+  it("다른 프로젝트·탈출·규격 밖 entry 는 버리고 view 만 — 모르는 view 는 today", () => {
+    expect(openNavFor({ project: "/p", view: "planner", entry: "/q/.oculpm/journal/20260911/Chores/1_chore_x.md" }, 1, views).entry_path).toBeNull();
+    expect(openNavFor({ project: "/p", view: "planner", entry: "/p/.oculpm/journal/../../x.md" }, 1, views)).toEqual({ view: "planner", project_id: 1, entry_path: null });
+    expect(openNavFor({ project: "/p", view: "nope", entry: null }, 1, views).view).toBe("today");
+    expect(openNavFor({ project: "/p", view: null, entry: null }, 1, views).view).toBe("today");
   });
 });

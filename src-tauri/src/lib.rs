@@ -41,6 +41,7 @@ mod secrets;
 pub mod text;
 pub mod themes;
 mod tray;
+pub mod vscode_ext;
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -493,6 +494,7 @@ use crate::commands::{
     theme_import_url,
     theme_list,
     theme_save,
+    vscode_extension_status,
     write_to_pty,
 };
 // 선언적 설정 (Phase 6) — UI 진입점. planner/applier 는 crate::config 에 있다.
@@ -885,6 +887,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             codex_plugin_status,
             mcp_desktop_status,
             claude_plugin_status,
+            vscode_extension_status,
             mcp_desktop_register,
             mcp_desktop_unregister,
             // PR-CI7 — Notion 내보내기

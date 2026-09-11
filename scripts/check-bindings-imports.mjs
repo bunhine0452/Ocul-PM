@@ -38,6 +38,8 @@ export const ALLOWLIST = new Set([
   "api/fileOpen.ts",
   // Notion 상태·내보내기 (감사 라운드 2026-09-11 C1) — 일지 상세의 「Notion 으로」.
   "api/notion.ts",
+  // VS Code 확장 설치 상태 (vscode-extension-round {#app-settings}) — 설정 통합 행의 창구.
+  "api/vscodeExt.ts",
   // 아직 옮기지 않은 직접 호출자 (2026-08-30 기준, 87개). 새로 늘리지 말 것 —
   // 옮기면 여기서 빼고, 목록이 비면 이 주석도 지운다.
   "components/CommandPalette.tsx",

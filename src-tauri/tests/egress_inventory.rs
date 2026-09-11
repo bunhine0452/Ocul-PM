@@ -178,10 +178,10 @@ const RUST_SITES: &[Site] = &[
         reason: "링크를 OS 기본 브라우저에 넘긴다. 앱이 보내는 것이 아니라 사용자의 브라우저가 연다 (위임).",
     },
     Site {
-        path: "commands/oculpm.rs",
+        path: "commands/open_native.rs",
         primitives: &["xdg-open"],
         control: Control::LocalOnly,
-        reason: "로그 폴더·일지 파일을 OS 기본 앱으로 연다 — 로컬 경로뿐, URL 이 아니다.",
+        reason: "로그 폴더·일지 파일을 OS 기본 앱으로 연다 — 로컬 경로, 그리고 앱이 스스로 조립하는 `vscode://oculpm.ocul-pm/open?entry=<로컬 경로>` 하나(설치된 VS Code 확장으로 위임 — vscode_ext.rs). 기기 밖으로 나가는 목적지가 아니다.",
     },
     // ── 인바운드(듣는 쪽). 나가지는 않지만 경계는 경계다 ──
     Site {
@@ -220,6 +220,8 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     // ── 브라우저에 넘기는 링크 (앱이 보내지 않는다) ──
     ("github.com", "저장소·이슈·릴리스 링크 — open_url 로 OS 브라우저에 위임한다. plugins/source.rs 의 테스트 픽스처이기도 하다."),
     ("www.notion.so", "사용자의 Notion 페이지 링크 — 브라우저 위임. notion.rs 에서는 URL 파서의 테스트 픽스처다."),
+    ("marketplace.visualstudio.com", "VS Code 확장 마켓 링크 (commands/mcp.rs vscode_extension_status) — 설정 화면 앵커, 사용자 클릭 시 open_url 로 브라우저 위임. 앱은 보내지 않는다."),
+    ("open-vsx.org", "같은 확장의 Open VSX 링크 (Cursor·VSCodium 사용자용) — 위와 동일하게 브라우저 위임."),
     // ── 목적지가 아닌 것 ──
     ("127.0.0.1:8737", "루프백 — a2a 로컬 HTTP 문의 기본 주소. 기기 밖에서 닿지 않는다."),
     ("mcp.notion.com", "앱이 부르지 않는다 — 에이전트 CLI 설정 파일(.mcp.json/config.toml)에 **적히는 값**이고, 그 파서의 테스트 픽스처다."),
