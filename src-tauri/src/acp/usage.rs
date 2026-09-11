@@ -11,6 +11,8 @@
 use agent_client_protocol::schema::v1::SessionUpdate;
 use serde::{Deserialize, Serialize};
 
+use super::auth_status::AcpAuthStatus;
+
 /// 한도 하나 (5시간 세션 · 주간 · 주간 Fable …).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct AcpRateLimit {
@@ -43,6 +45,80 @@ pub struct AcpUsage {
     /// 항목이 계속 늘고 문구도 CLI 판올림마다 바뀐다. 표로 파싱해 두면 다음 판에
     /// 조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
     pub detail: Option<String>,
+    /// 어댑터가 **어떤 신원으로** 도는가 (`_auth/status_update`). 한도는 계정의
+    /// 것이라 같은 벌에 산다. `None` 은 "어댑터가 보고하지 않았다" — 로그아웃은
+    /// `Some(kind: "none")` 으로 따로 온다 (`auth_status.rs`).
+    pub identity: Option<AcpAuthStatus>,
+}
+
+impl AcpUsage {
+    /// 아무것도 못 본 상태 — 첫 조각이 오기 전의 바탕.
+    pub fn empty() -> Self {
+        Self {
+            used: 0,
+            size: 0,
+            cost_usd: None,
+            limits: Vec::new(),
+            detail: None,
+            identity: None,
+        }
+    }
+
+    /// `usage_update` 한 조각을 접는다. 한도는 한 번에 한 종류씩 오므로 종류별로
+    /// **누적**한다 — 덮어쓰면 마지막 한 줄만 남는다. 알림에는 기여도 대목과
+    /// 신원이 없으니 갖고 있던 것을 유지한다.
+    pub fn fold_update(previous: Option<Self>, fresh: Self) -> Self {
+        let base = previous.unwrap_or_else(Self::empty);
+        let mut limits = base.limits;
+        for limit in fresh.limits {
+            match limits.iter_mut().find(|l| l.kind == limit.kind) {
+                Some(existing) => *existing = limit,
+                None => limits.push(limit),
+            }
+        }
+        Self {
+            limits,
+            detail: base.detail,
+            identity: base.identity,
+            ..fresh
+        }
+    }
+
+    /// `/usage` 의 답으로 한도를 **교체**한다 — 세 줄을 한 번에 주는 완전한
+    /// 스냅샷이라, 옛 `_meta` 조각과 섞으면 같은 한도가 두 이름으로 두 줄 보인다
+    /// (`seven_day` 와 `week (all models)`).
+    ///
+    /// 둘 다 못 읽었으면 `None` — 파싱이 실패한 응답으로 멀쩡한 값을 지우면
+    /// 카드가 비어 버린다. 한쪽만 못 읽은 경우도 그쪽은 지난 것을 남긴다:
+    /// 기여도 대목은 `/usage` 만 주고, 한도가 빈 목록으로 갈리면 계기가 통째로
+    /// 사라진다(계기는 한도가 없으면 안 그린다).
+    pub fn fold_report(
+        previous: Option<Self>,
+        limits: Vec<AcpRateLimit>,
+        detail: Option<String>,
+    ) -> Option<Self> {
+        if limits.is_empty() && detail.is_none() {
+            return None;
+        }
+        let base = previous.unwrap_or_else(Self::empty);
+        Some(Self {
+            limits: if limits.is_empty() {
+                base.limits
+            } else {
+                limits
+            },
+            detail: detail.or(base.detail),
+            ..base
+        })
+    }
+
+    /// 신원 갱신 — 나머지는 그대로.
+    pub fn with_identity(previous: Option<Self>, identity: AcpAuthStatus) -> Self {
+        Self {
+            identity: Some(identity),
+            ..previous.unwrap_or_else(Self::empty)
+        }
+    }
 }
 
 /// `usage_update` 에서 사용량과 한도를 뽑는다. 그 밖의 종류면 `None`.
@@ -71,6 +147,7 @@ pub fn usage_of(update: &SessionUpdate) -> Option<AcpUsage> {
             .map(|c| c.amount),
         limits,
         detail: None,
+        identity: None,
     })
 }
 
@@ -251,6 +328,97 @@ pub(super) fn saturate(value: u64) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn limit(kind: &str, utilization: f64) -> AcpRateLimit {
+        AcpRateLimit {
+            kind: kind.to_string(),
+            utilization,
+            resets_at: None,
+            resets_text: None,
+            status: None,
+        }
+    }
+
+    fn identity(kind: &str) -> AcpAuthStatus {
+        AcpAuthStatus {
+            kind: kind.to_string(),
+            label: "Claude Max".to_string(),
+            detail: None,
+            email: Some("me@example.com".to_string()),
+            organization: None,
+            plan: None,
+        }
+    }
+
+    /// `usage_update` 는 한도를 한 종류씩 준다 — 누적돼야 세 줄이 모이고, 알림에
+    /// 없는 기여도·신원은 지난 것이 남아야 한다 (`process.rs` 에서 옮겨 온 규칙).
+    #[test]
+    fn fold_update_accumulates_limits_and_keeps_detail_and_identity() {
+        let first = AcpUsage {
+            limits: vec![limit("five_hour", 0.2)],
+            detail: Some("기여도".to_string()),
+            identity: Some(identity("account")),
+            ..AcpUsage::empty()
+        };
+        let fresh = AcpUsage {
+            used: 10,
+            limits: vec![limit("seven_day", 0.5), limit("five_hour", 0.3)],
+            ..AcpUsage::empty()
+        };
+        let folded = AcpUsage::fold_update(Some(first), fresh);
+        assert_eq!(folded.used, 10);
+        assert_eq!(folded.limits.len(), 2);
+        assert_eq!(folded.limits[0].utilization, 0.3, "같은 종류는 제자리 갱신");
+        assert_eq!(folded.detail.as_deref(), Some("기여도"));
+        assert_eq!(
+            folded.identity.as_ref().map(|i| i.kind.as_str()),
+            Some("account")
+        );
+    }
+
+    /// `/usage` 는 완전한 스냅샷이라 한도를 **교체**한다. 다만 못 읽은 쪽은 지난
+    /// 것을 남기고, 둘 다 못 읽었으면 아무 것도 바꾸지 않는다.
+    #[test]
+    fn fold_report_replaces_limits_but_never_blanks_what_it_could_not_read() {
+        let base = AcpUsage {
+            limits: vec![limit("five_hour", 0.2), limit("seven_day", 0.5)],
+            detail: Some("옛 기여도".to_string()),
+            identity: Some(identity("api_key")),
+            ..AcpUsage::empty()
+        };
+        assert_eq!(
+            AcpUsage::fold_report(Some(base.clone()), Vec::new(), None),
+            None
+        );
+
+        let only_limits =
+            AcpUsage::fold_report(Some(base.clone()), vec![limit("seven_day", 0.9)], None)
+                .expect("한도만 읽어도 갱신");
+        assert_eq!(only_limits.limits.len(), 1, "병합이 아니라 교체");
+        assert_eq!(only_limits.detail.as_deref(), Some("옛 기여도"));
+        assert_eq!(
+            only_limits.identity.as_ref().map(|i| i.kind.as_str()),
+            Some("api_key")
+        );
+
+        let only_detail =
+            AcpUsage::fold_report(Some(base), Vec::new(), Some("새 기여도".to_string()))
+                .expect("기여도만 읽어도 갱신");
+        assert_eq!(
+            only_detail.limits.len(),
+            2,
+            "빈 목록으로 갈면 계기가 사라진다"
+        );
+        assert_eq!(only_detail.detail.as_deref(), Some("새 기여도"));
+    }
+
+    /// 신원은 한도가 오기 전에도 올 수 있다 — 빈 바탕 위에 신원만 선다.
+    #[test]
+    fn with_identity_stands_alone_before_any_usage() {
+        let got = AcpUsage::with_identity(None, identity("none"));
+        assert!(got.limits.is_empty());
+        assert_eq!(got.identity.as_ref().map(|i| i.kind.as_str()), Some("none"));
+    }
 
     /// 실측 응답(2026-08-15) 그대로 — 문구가 바뀌면 여기서 먼저 깨진다.
     #[test]

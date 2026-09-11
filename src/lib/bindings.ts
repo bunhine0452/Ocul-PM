@@ -1740,6 +1740,12 @@ export const commands = {
 	 *  조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
 	 */
 	detail: string | null,
+	/**
+	 *  어댑터가 **어떤 신원으로** 도는가 (`_auth/status_update`). 한도는 계정의
+	 *  것이라 같은 벌에 산다. `None` 은 "어댑터가 보고하지 않았다" — 로그아웃은
+	 *  `Some(kind: "none")` 으로 따로 온다 (`auth_status.rs`).
+	 */
+	identity: AcpAuthStatus | null,
 } | null, AppError>(__TAURI_INVOKE("acp_usage", { projectId, provider })),
 	/**
 	 *  `/usage` 로 한도를 **실제로 새로 읽는다**.
@@ -1765,6 +1771,12 @@ export const commands = {
 	 *  조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
 	 */
 	detail: string | null,
+	/**
+	 *  어댑터가 **어떤 신원으로** 도는가 (`_auth/status_update`). 한도는 계정의
+	 *  것이라 같은 벌에 산다. `None` 은 "어댑터가 보고하지 않았다" — 로그아웃은
+	 *  `Some(kind: "none")` 으로 따로 온다 (`auth_status.rs`).
+	 */
+	identity: AcpAuthStatus | null,
 } | null, AppError>(__TAURI_INVOKE("acp_refresh_usage", { projectId, provider })),
 	/**
 	 *  현재 세션 설정 (에이전트 쪽 변경까지 반영된 값). 읽기 전용·값싸다.
@@ -2024,6 +2036,23 @@ export type AcpAgentInfo = {
 	 *  안 받는 에이전트에게는 붙임 하나로 턴 전체가 실패한다.
 	 */
 	supports_image: boolean,
+};
+
+/**  어댑터가 도는 신원 한 벌 — 프런트가 받는 모양. */
+export type AcpAuthStatus = {
+	/**
+	 *  `account`(구독 로그인) · `api_key` · `gateway` · `external`(Bedrock 등) ·
+	 *  `none`(로그아웃). 모르는 값은 원문 그대로 흘린다.
+	 */
+	kind: string,
+	/**  그대로 보여도 되는 한 줄 — "Claude Max" · "Anthropic API key" · "AWS Bedrock". */
+	label: string,
+	/**  둘째 줄(키 출처·게이트웨이 호스트 …). 없으면 프런트가 이메일로 대신한다. */
+	detail: string | null,
+	email: string | null,
+	organization: string | null,
+	/**  요금제 문자열, 정규화하지 않은 원문. */
+	plan: string | null,
 };
 
 /**  슬래시 커맨드 하나 (`/plugin` 등). 어댑터가 세션 시작 때 통째로 준다. */
@@ -2420,6 +2449,12 @@ export type AcpUsage = {
 	 *  조용히 빈칸이 되는데, 원문을 그대로 보이면 무엇이 늘어도 그대로 보인다.
 	 */
 	detail: string | null,
+	/**
+	 *  어댑터가 **어떤 신원으로** 도는가 (`_auth/status_update`). 한도는 계정의
+	 *  것이라 같은 벌에 산다. `None` 은 "어댑터가 보고하지 않았다" — 로그아웃은
+	 *  `Some(kind: "none")` 으로 따로 온다 (`auth_status.rs`).
+	 */
+	identity: AcpAuthStatus | null,
 };
 
 /**

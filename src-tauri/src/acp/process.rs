@@ -29,6 +29,7 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 use tauri::Manager;
 
+use super::auth_status::{AcpAuthStatus, AuthStatusUpdate};
 use super::identity;
 use super::session::{
     commands_of, config_of, emit_session_changed, failure_of, file_change_report_of, map_update,
@@ -252,29 +253,20 @@ impl AcpState {
         self.running.lock().ok()?.get(&target_id)?.usage.clone()
     }
 
-    /// 한도는 한 번에 한 종류씩 온다 — 종류별로 **누적**해야 세션·주간·Fable
-    /// 세 줄이 다 모인다. 덮어쓰면 마지막 한 줄만 남는다.
+    /// `usage_update` 한 조각 — 접는 규칙은 `AcpUsage::fold_update` 에.
     fn merge_usage(&self, target_id: u64, fresh: AcpUsage) {
         if let Ok(mut map) = self.running.lock() {
             if let Some(running) = map.get_mut(&target_id) {
-                let mut limits = running
-                    .usage
-                    .as_ref()
-                    .map(|u| u.limits.clone())
-                    .unwrap_or_default();
-                for limit in fresh.limits {
-                    match limits.iter_mut().find(|l| l.kind == limit.kind) {
-                        Some(existing) => *existing = limit,
-                        None => limits.push(limit),
-                    }
-                }
-                // 알림에는 기여도 대목이 없다 — 갖고 있던 것을 유지한다.
-                let detail = running.usage.as_ref().and_then(|u| u.detail.clone());
-                running.usage = Some(AcpUsage {
-                    limits,
-                    detail,
-                    ..fresh
-                });
+                running.usage = Some(AcpUsage::fold_update(running.usage.take(), fresh));
+            }
+        }
+    }
+
+    /// 어댑터가 밀어 준 신원 (`_auth/status_update`) — 한도와 같은 벌에 산다.
+    fn set_identity(&self, target_id: u64, identity: AcpAuthStatus) {
+        if let Ok(mut map) = self.running.lock() {
+            if let Some(running) = map.get_mut(&target_id) {
+                running.usage = Some(AcpUsage::with_identity(running.usage.take(), identity));
             }
         }
     }
@@ -386,46 +378,18 @@ impl AcpState {
         }
     }
 
-    /// `/usage` 가 준 한도로 갈아 끼운다.
-    ///
-    /// 병합이 아니라 **교체**인 이유: `/usage` 는 세 줄을 한 번에 주는 완전한
-    /// 스냅샷이라, 옛 `_meta` 조각과 섞으면 같은 한도가 두 이름으로 두 줄
-    /// 보인다(`seven_day` 와 `week (all models)`).
+    /// `/usage` 가 준 한도로 갈아 끼운다 — 교체·보존 규칙은 `AcpUsage::fold_report` 에.
     pub fn replace_limits(
         &self,
         target_id: u64,
         limits: Vec<AcpRateLimit>,
         detail: Option<String>,
     ) {
-        // 둘 다 못 읽었으면 아무 것도 하지 않는다 — 파싱이 실패한 응답으로
-        // 멀쩡한 값을 지우면 카드가 비어 버린다.
-        if limits.is_empty() && detail.is_none() {
-            return;
-        }
         if let Ok(mut map) = self.running.lock() {
             if let Some(running) = map.get_mut(&target_id) {
-                let base = running.usage.clone().unwrap_or(AcpUsage {
-                    used: 0,
-                    size: 0,
-                    cost_usd: None,
-                    limits: Vec::new(),
-                    detail: None,
-                });
-                // 기여도 대목은 `/usage` 만 준다 — 이번에 못 받았으면 지난 것을
-                // 남긴다. 지우면 턴이 한 번 돌 때마다 카드가 반쪽이 된다.
-                let detail = detail.or(base.detail.clone());
-                // 한도만 못 읽은 경우도 있다 — 그때 빈 목록으로 갈아 끼우면
-                // 계기가 통째로 사라진다(계기는 한도가 없으면 안 그린다).
-                let limits = if limits.is_empty() {
-                    base.limits.clone()
-                } else {
-                    limits
-                };
-                running.usage = Some(AcpUsage {
-                    limits,
-                    detail,
-                    ..base
-                });
+                if let Some(next) = AcpUsage::fold_report(running.usage.clone(), limits, detail) {
+                    running.usage = Some(next);
+                }
             }
         }
     }
@@ -632,6 +596,7 @@ pub async fn start(
     // 클로저는 등록에, 알림 핸들러는 라우팅에, 태스크 본문은 등록 해제에 쓴다.
     let register_app = app.clone();
     let notify_app = app.clone();
+    let ext_app = app.clone();
     let permission_app = app.clone();
 
     // 연결 태스크 하나 = 살아 있는 어댑터 하나. 태스크 끝에서 내린다
@@ -723,6 +688,24 @@ pub async fn start(
                         state.emit(target_id, &from, report);
                     }
                     state.emit(target_id, &from, map_update(&notification.update));
+                    Ok(())
+                },
+                agent_client_protocol::on_receive_notification!(),
+            )
+            // 신원 push (`_auth/status_update`, `auth_status.rs`). 이 메서드만 받는
+            // 타입이라 다른 확장·`$/` 알림은 건드리지 않고 다음 핸들러로 흘린다.
+            .on_receive_notification(
+                async move |update: AuthStatusUpdate, _cx| {
+                    ext_app
+                        .state::<AcpState>()
+                        .set_identity(target_id, update.into_status());
+                    emit_session_changed(
+                        &ext_app,
+                        project_id,
+                        provider,
+                        None,
+                        AcpSessionChangeKind::Usage,
+                    );
                     Ok(())
                 },
                 agent_client_protocol::on_receive_notification!(),

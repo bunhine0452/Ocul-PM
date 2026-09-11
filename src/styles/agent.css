@@ -1488,6 +1488,51 @@
   font-size: var(--fs-2);
   color: var(--text-3);
 }
+/* 신원 줄 — 한도 위에 "누구의 한도인가". 로그아웃(`.warn`)만 색을 낸다. */
+.usage-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: 0 var(--space-1) var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-s);
+  background: var(--bg-inset);
+}
+.usage-identity-icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--text-3);
+}
+.usage-identity.warn .usage-identity-icon,
+.usage-identity.warn .usage-identity-label {
+  color: var(--t-bug);
+}
+.usage-identity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.usage-identity-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--fs-4);
+  font-weight: var(--fw-strong);
+  color: var(--text);
+}
+.usage-identity-kind {
+  font-size: var(--fs-2);
+  font-weight: var(--fw-label);
+  color: var(--text-3);
+}
+.usage-identity-detail {
+  font-size: var(--fs-2);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .usage-card-foot {
   display: flex;
   align-items: center;

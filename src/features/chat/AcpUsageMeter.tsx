@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, RefreshCw } from "@/components/Icons";
-import { commands, type AcpUsage } from "@/lib/bindings";
+import { Check, CircleUser, Cloud, KeyRound, LogOut, RefreshCw, type IconComponent } from "@/components/Icons";
+import { commands, type AcpAuthStatus, type AcpUsage } from "@/lib/bindings";
 import { useT } from "@/i18n";
 import { useDismiss } from "./useDismiss";
 import { onUsagePanel } from "./usageBus";
@@ -56,6 +56,48 @@ function shortKeyOf(kind: string): string | undefined {
   if (id.includes("sonnet")) return "acp.limit.shortSonnet";
   if (id.startsWith("week")) return "acp.limit.shortWeek";
   return undefined;
+}
+
+/**
+ * 신원 종류 → 얼굴. 어댑터가 `_auth/status_update` 로 밀어 준다 (`auth_status.rs`).
+ * **침묵은 "보고 안 함"** 이라 아무 것도 안 그리고, `none` 은 로그아웃이라는
+ * 값이라 경고로 그린다 — 둘을 섞으면 CLI 가 알아낸 로그아웃이 지워진다.
+ */
+const IDENTITY_ICON: Readonly<Record<string, IconComponent>> = {
+  account: CircleUser,
+  api_key: KeyRound,
+  gateway: KeyRound,
+  external: Cloud,
+  none: LogOut,
+};
+
+function identityKindKey(kind: string): string | undefined {
+  return kind in IDENTITY_ICON && kind !== "none" ? `acp.identity.kind.${kind}` : undefined;
+}
+
+/** 카드의 신원 줄 — 이름표 + 둘째 줄(상세 → 이메일 → 조직 순으로 있는 것). */
+function IdentityRow({ identity }: { identity: AcpAuthStatus }) {
+  const { t } = useT();
+  const Icon = IDENTITY_ICON[identity.kind] ?? CircleUser;
+  const loggedOut = identity.kind === "none";
+  const kindKey = identityKindKey(identity.kind);
+  const second = loggedOut
+    ? t("acp.identity.loggedOutHint")
+    : identity.detail || identity.email || identity.organization || null;
+  return (
+    <div className={"usage-identity" + (loggedOut ? " warn" : "")} data-testid="usage-identity">
+      <Icon size={15} className="usage-identity-icon" />
+      <div className="usage-identity-text">
+        <span className="usage-identity-label">
+          {loggedOut ? t("acp.identity.loggedOut") : identity.label}
+          {kindKey ? (
+            <span className="usage-identity-kind">{t(kindKey as Parameters<typeof t>[0])}</span>
+          ) : null}
+        </span>
+        {second ? <span className="usage-identity-detail">{second}</span> : null}
+      </div>
+    </div>
+  );
 }
 
 function pct(utilization: number | null): number {
@@ -205,7 +247,11 @@ export const AcpUsageMeter = memo(function AcpUsageMeter({
   );
 
   const limits = usage?.limits ?? [];
-  if (!limits.length) return null;
+  const identity = usage?.identity ?? null;
+  const loggedOut = identity?.kind === "none";
+  // 한도가 없으면 계기를 안 그린다 — 0% 는 "여유롭다"는 거짓말이다. 단 로그아웃은
+  // 한도가 **없는 이유**라 그때만 한도 없이도 선다.
+  if (!limits.length && !loggedOut) return null;
 
   return (
     <div className="knob-wrap" ref={wrapRef}>
@@ -217,6 +263,12 @@ export const AcpUsageMeter = memo(function AcpUsageMeter({
         title={t("acp.usageTitle")}
         onClick={() => setOpen((v) => !v)}
       >
+        {loggedOut ? (
+          <span className="usage-pill warn">
+            <LogOut size={11} />
+            <span className="usage-pill-name">{t("acp.identity.pillLoggedOut")}</span>
+          </span>
+        ) : null}
         {limits.map((limit) => {
           const shortKey = shortKeyOf(limit.kind);
           return (
@@ -251,6 +303,8 @@ export const AcpUsageMeter = memo(function AcpUsageMeter({
               <RefreshCw size={13} />
             </button>
           </header>
+
+          {identity ? <IdentityRow identity={identity} /> : null}
 
           <div className="usage-rows">
             {limits.map((limit) => {

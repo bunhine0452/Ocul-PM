@@ -662,6 +662,12 @@ export {
   // 다른 레인 소유라 lucide-react 를 직접 물었다(`TabStrip.tsx`·`TrayPopover.tsx` 와
   // 같은 전례) — 지금 이 파일로 옮겨 집 규약(Icons 경유)을 맞춘다 {#unplug-icon-reexport}.
   Unplug,
+  // 사용량 카드의 신원 줄 (`_auth/status_update`, acp-adapter-0751 #carry-auth) —
+  // 구독 계정은 사람(CircleUser), 키·게이트웨이는 KeyRound(위에 정의됨), 외부
+  // 클라우드는 Cloud, 로그아웃은 LogOut.
+  CircleUser,
+  Cloud,
+  LogOut,
 } from "lucide-react";
 
 /** 모두 접기 — 위아래 꺾쇠가 안으로 모인다 (lucide `chevrons-down-up`). */

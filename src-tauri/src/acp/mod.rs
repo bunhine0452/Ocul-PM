@@ -20,6 +20,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 pub mod adapter;
+pub mod auth_status;
 pub mod env;
 pub mod identity;
 pub mod journal_gate;
