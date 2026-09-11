@@ -26,10 +26,10 @@ Journal and Planner are the two pillars — see [Work Journal](/wiki/en/journal)
 
 | Screen | Key | What it does |
 |---|---|---|
-| **Code Search** | `⌘5` | Semantic · Symbols · Exact match — three modes |
+| **Search** | `⌘5` | Semantic · Symbols · Exact match — three modes |
 | **Code Map** | `⌘6` | File and symbol dependency graph. How far a change reaches |
 | **Terminal** | `⌘7` | A real shell rooted in the project |
-| **Code** | `⌘8` | The in-app editor (Monaco — VS Code's own editor) |
+| **Editor** | `⌘8` | The in-app editor (Monaco — VS Code's own editor) |
 | **Agents** | `⌘9` | Claude Code and Codex running inside the app ([integration](/wiki/en/claude-code)) |
 | **AI panel** | `⌘0` | Chat with several LLM providers, including planner action proposals |
 | **Skills & Rules** | — | Everything injected into agents, in one place |
