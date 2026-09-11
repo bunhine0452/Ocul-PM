@@ -29,6 +29,9 @@ use crate::oculpm::error::{OculpmError, OculpmResult};
 
 /// 훅 이벤트 인박스 (프로젝트 루트 기준). D1.
 pub const INBOX_REL: &str = ".oculpm/hooks/claude-events.jsonl";
+/// 전부 소비한 인박스가 이 크기를 넘으면 비운다 (D4). 워처가 매 틱 파일을
+/// 통째로 읽으므로 상한이 곧 틱당 읽기 비용의 상한이다.
+pub const INBOX_COMPACT_BYTES: u64 = 1024 * 1024;
 /// 인박스 폴더 (gitignore 대상).
 pub const HOOKS_DIR_REL: &str = ".oculpm/hooks";
 /// 훅 설정 파일 (프로젝트 루트 기준). D2 — 비공유 local 스코프.

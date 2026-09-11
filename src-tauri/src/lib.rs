@@ -1043,6 +1043,14 @@ pub fn run() {
             // packaged .app runs with CWD `/`, so fastembed's relative default
             // would fail to retrieve `onnx/model.onnx`.
             let embed_cache = app_data.join("fastembed_cache");
+            // 옛 임베딩 모델 캐시(465MB)는 기동 때 걷어낸다 (D2) — 블로킹 IO 라
+            // 세터 밖에서.
+            {
+                let dir = embed_cache.clone();
+                std::thread::spawn(move || {
+                    crate::embedding::prune_retired_model_caches(&dir);
+                });
+            }
             app.manage(Embedder::new(app.handle().clone(), embed_cache));
             app.manage(crate::commands::terminal::PtyState::default());
             // 옛 이름의 PTY 호스트를 여기서 걷던 코드가 있었다 (v2.34.1). 지웠다

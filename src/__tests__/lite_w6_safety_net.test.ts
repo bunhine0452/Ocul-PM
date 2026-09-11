@@ -320,3 +320,21 @@ describe("vitest infra smoke", () => {
     expect(el).toHaveTextContent("hello");
   });
 });
+
+// 감사 라운드 2026-09-11 D3 — 지워진 프로젝트의 워크스페이스 레코드는 목록을
+// 받은 자리에서 걷어낸다. 살아 있는 것과 다른 접두의 키는 손대지 않는다.
+describe("pruneWorkspaceRecords", () => {
+  it("removes records whose project is gone and nothing else", async () => {
+    const { pruneWorkspaceRecords } = await import("@/contexts/WorkspaceContext");
+    localStorage.clear();
+    localStorage.setItem(storageKeyFor(1), "{}");
+    localStorage.setItem(storageKeyFor(7), "{}");
+    localStorage.setItem(storageKeyFor(42), "{}");
+    localStorage.setItem("aipm:sidebar:collapsed", "1");
+    expect(pruneWorkspaceRecords([1, 42])).toBe(1);
+    expect(localStorage.getItem(storageKeyFor(1))).toBe("{}");
+    expect(localStorage.getItem(storageKeyFor(7))).toBeNull();
+    expect(localStorage.getItem(storageKeyFor(42))).toBe("{}");
+    expect(localStorage.getItem("aipm:sidebar:collapsed")).toBe("1");
+  });
+});

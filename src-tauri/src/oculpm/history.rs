@@ -52,8 +52,18 @@ pub const DEFAULT_MAX_ENTRIES: usize = 50;
 /// 병합 창 — 이 안에 들어온 **같은 source** 의 판은 직전 판을 교체한다.
 pub const MERGE_WINDOW_MS: i64 = 10_000;
 
-/// 프로젝트 총량 상한. 넘으면 오래된 판부터 정리한다.
+/// 프로젝트 총량 상한의 **기본값** (설정 `code_local_history_budget_mb`, 감사
+/// 라운드 2026-09-11 D1). 넘으면 오래된 판부터 정리한다.
 pub const PROJECT_BUDGET_BYTES: u64 = 512 * 1024 * 1024;
+/// 설정이 받을 수 있는 예산의 범위 (MB).
+pub const BUDGET_MB_RANGE: (u64, u64) = (64, 8192);
+
+/// 설정 문자열 → 예산 바이트. 비었거나 이상하면 기본값, 범위 밖은 잘라 낸다.
+pub fn budget_from_setting(raw: Option<&str>) -> u64 {
+    raw.and_then(|v| v.trim().parse::<u64>().ok())
+        .map(|mb| mb.clamp(BUDGET_MB_RANGE.0, BUDGET_MB_RANGE.1) * 1024 * 1024)
+        .unwrap_or(PROJECT_BUDGET_BYTES)
+}
 
 /// 전역 정리를 몇 번의 캡처마다 한 번 돌릴지. 매번 디렉터리를 걷지 않는다.
 const SWEEP_EVERY: u64 = 50;
@@ -389,6 +399,7 @@ pub fn capture(
     source: HistorySource,
     expected_hash: Option<&str>,
     max_entries: usize,
+    budget_bytes: u64,
 ) -> std::io::Result<CaptureOutcome> {
     if !should_capture(rel_path) || max_entries == 0 {
         return Ok(CaptureOutcome::Skipped);
@@ -478,17 +489,17 @@ pub fn capture(
         let _ = std::fs::remove_file(dir.join(snap_name(old)));
     }
 
-    maybe_sweep(root);
+    maybe_sweep(root, budget_bytes);
     Ok(CaptureOutcome::Captured)
 }
 
 /// 캡처 횟수 — [`SWEEP_EVERY`] 번마다 한 번 전역 정리를 돌린다.
 static CAPTURES: AtomicU64 = AtomicU64::new(0);
 
-fn maybe_sweep(root: &Path) {
+fn maybe_sweep(root: &Path, budget_bytes: u64) {
     let n = CAPTURES.fetch_add(1, Ordering::Relaxed);
     if n % SWEEP_EVERY == SWEEP_EVERY - 1 {
-        let _ = enforce_budget(root, PROJECT_BUDGET_BYTES);
+        let _ = enforce_budget(root, budget_bytes);
     }
 }
 

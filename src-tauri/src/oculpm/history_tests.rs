@@ -197,6 +197,7 @@ fn concurrent_captures_of_one_file_neither_fail_nor_leave_tmp_files() {
                     HistorySource::User,
                     None,
                     50,
+                    PROJECT_BUDGET_BYTES,
                 )
             })
         })
@@ -223,4 +224,14 @@ fn concurrent_captures_of_one_file_neither_fail_nor_leave_tmp_files() {
         .filter(|n| n.ends_with(".tmp"))
         .collect();
     assert!(leftovers.is_empty(), "임시 파일이 남았다: {leftovers:?}");
+}
+
+/// D1 — 예산 설정은 MB 문자열이고, 없거나 이상하면 기본값·범위 밖은 잘린다.
+#[test]
+fn budget_setting_parses_clamps_and_defaults() {
+    assert_eq!(budget_from_setting(None), PROJECT_BUDGET_BYTES);
+    assert_eq!(budget_from_setting(Some("abc")), PROJECT_BUDGET_BYTES);
+    assert_eq!(budget_from_setting(Some("200")), 200 * 1024 * 1024);
+    assert_eq!(budget_from_setting(Some("1")), 64 * 1024 * 1024);
+    assert_eq!(budget_from_setting(Some("999999")), 8192 * 1024 * 1024);
 }

@@ -64,6 +64,7 @@ export const SETTINGS_INDEX: readonly SettingsEntry[] = [
   { tab: "appearance", key: "settings.termFont.title" },
   { tab: "appearance", key: "settings.termFont.field", section: "settings.termFont.title" },
   { tab: "appearance", key: "settings.tray.title" },
+  { tab: "appearance", key: "settings.tray.notifyAgent", section: "settings.tray.title" },
 
   // ── llm
   { tab: "llm", key: "settings.keys.title" },
@@ -99,6 +100,7 @@ export const SETTINGS_INDEX: readonly SettingsEntry[] = [
   { tab: "code", key: "settings.code.historyTitle" },
   { tab: "code", key: "settings.code.localHistory", section: "settings.code.historyTitle" },
   { tab: "code", key: "settings.code.localHistoryMax", section: "settings.code.historyTitle" },
+  { tab: "code", key: "settings.code.localHistoryBudget", section: "settings.code.historyTitle" },
   { tab: "code", key: "settings.code.lspTitle" },
 
   // ── indexing

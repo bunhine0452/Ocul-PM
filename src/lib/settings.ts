@@ -126,6 +126,8 @@ export const KEYS = {
   codeMinimap: "code_minimap",
   codeLocalHistory: "code_local_history",
   codeLocalHistoryMaxEntries: "code_local_history_max_entries",
+  // 프로젝트 총량 예산 (MB) — 넘으면 오래된 판부터 정리 (감사 라운드 2026-09-11 D1).
+  codeLocalHistoryBudgetMb: "code_local_history_budget_mb",
 
   // --- 첫 실행 ---
   // 첫 실행 마법사(언어·모양·첫 프로젝트)를 끝냈거나 건너뛰었는가.
@@ -298,6 +300,8 @@ export interface Settings {
   codeLocalHistory: boolean;
   /** 파일당 남길 최대 판 수 (0 이면 사실상 끄기와 같다). VS Code 기본값 50. */
   codeLocalHistoryMaxEntries: number;
+  /** 프로젝트당 히스토리 총량 예산 (MB). 백엔드 기본 512, 64~8192. */
+  codeLocalHistoryBudgetMb: number;
 
   /** What's-new 카드를 마지막으로 본 버전 (`""` = 기록 없음). */
   lastSeenVersion: string;
@@ -376,6 +380,7 @@ export const DEFAULTS: Settings = {
   codeMinimap: true,
   codeLocalHistory: true,
   codeLocalHistoryMaxEntries: 50,
+  codeLocalHistoryBudgetMb: 512,
 
   lastSeenVersion: "",
   navRemapSeen: false,
@@ -432,6 +437,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.codeMinimap]: "codeMinimap",
   [KEYS.codeLocalHistory]: "codeLocalHistory",
   [KEYS.codeLocalHistoryMaxEntries]: "codeLocalHistoryMaxEntries",
+  [KEYS.codeLocalHistoryBudgetMb]: "codeLocalHistoryBudgetMb",
   [KEYS.lastSeenVersion]: "lastSeenVersion",
   [KEYS.navRemapSeen]: "navRemapSeen",
   [KEYS.pluginCardDismissed]: "pluginCardDismissed",
