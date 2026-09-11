@@ -58,7 +58,16 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 <td width="50%"><img src="landing/shots/05-terminal.jpg" alt="⌘J terminal dock" /><p align="center"><i>⌘J — a terminal on any screen</i></p></td>
 </tr></table>
 
-## 🚀 v2.46.0 — the editor is now VS Code's editor
+## 🚀 v2.47.0 — from piles of cards to ledgers
+
+- **The planner is one sheet.** Click a segment of the **phase strip** in the masthead to jump to that phase; rows are a `[status mark | title | meta]` grid, and done items dim instead of striking through. A new **board view** shows the same items in status columns and lets you **drag to change status**. A plan with two blocked items no longer reads "100% done" (blocked was left out of the denominator), and the plan rail folds to one ⋯ menu with a **progress pie** per row.
+- **The journal is a ledger.** Rows are one line of `[time | type-colored spine | title]`; the repeated "agent · Claude Code" meta moves to the day header once, which also carries **the shape of the day** (a colour strip). Opening an entry gives it a proper **reading column** — masthead, 14px body, inline code that no longer breaks mid-word.
+- **Start tab and sidebar.** Fourteen equal project cards become a **lead band** for the top project plus a **recency ledger** ("today / this week / two weeks / quiet"). The sidebar is type instead of boxes — a name as heading, section spines, a one-line foot — and **the settings body collapsing to 0px in a narrow window** is fixed.
+- **Around the editor** — **⌘P quick open** (`agmd` → `AGENTS.md`), **git status colours and A/M/D badges on tree and tabs** (plus diagnostics), **symbol breadcrumbs**, **⌥Z word wrap** (automatic for prose), **⌘B sidebar**, a clickable Ln/Col and selection stats in the status bar. The **minimap that rendered as a black strip** is fixed, and chrome and paper are now two tones.
+- **Terminal** — **old conversations no longer get mangled when you move between the ⌘J dock and the terminal screen** (scrollback replays at the width it was recorded). Each pane gets a fixed-height **header** (folder · what's running · elapsed · zoom ⇧⌘↩), **result pips for the last 8 commands**, and a keycap status bar.
+- **59 more grey buttons say why** — settings, MCP/Desktop registration, discussions, planner, the wizard, skills and rules, theme editor, tray, mobile. Reason-less blocked spots: 131 → 10.
+
+## v2.46.0 — the editor is now VS Code's editor
 
 - **The code editor core is now Monaco** — the very editor VS Code uses. Folding, bracket matching, auto-closing brackets, wrap-selection, indent-on-type, **multiple cursors** (⌥click, ⌥⇧drag for column select, ⌘D), **in-file find & replace** (⌘F, ⌥⌘F), minimap, sticky scroll, bracket-pair colorization, indent guides and linked tag editing all arrived at once. None of them existed in the old editor.
 - **Semantic highlighting.** Colors now come from what the language server knows — this is a function, that is a parameter, this variable is read-only — instead of what a regular expression guesses from the name.

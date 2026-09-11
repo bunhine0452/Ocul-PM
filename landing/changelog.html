@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v2.46.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 100개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v2.47.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 101개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.46.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 100개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v2.47.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 101개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v2.46.0</span>
+    <span class="nav-ver" data-version>v2.47.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>100개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>101개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v2-47-0">v2.47.0</a>
       <a href="#v2-46-0">v2.46.0</a>
       <a href="#v2-45-2">v2.45.2</a>
       <a href="#v2-45-1">v2.45.1</a>
@@ -61,10 +62,21 @@
       <a href="#v2-41-0">v2.41.0</a>
       <a href="#v2-40-0">v2.40.0</a>
       <a href="#v2-39-1">v2.39.1</a>
-      <a href="#v2-39-0">v2.39.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v2-47-0"><a href="#v2-47-0">v2.47.0</a></h2>
+      <div class="cl-body">
+<p><b>카드 무더기가 원장이 됐습니다.</b> 플래너·작업 일지·시작 탭·계획 레일 — 네 화면이 전부 같은 크기의 카드를 늘어놓고 있었습니다. 카드 열네 장이 같은 무게로 서면 눈은 위계 대신 패턴을 읽고, 완료 32개가 취소선 벽을 이루면 남은 셋은 스크롤 뒤에 숨습니다. 이번 릴리스는 그 네 화면을 <b>한 장의 시트 · 한 줄의 원장</b>으로 다시 그렸습니다.</p>
+<ul><li><b>플래너</b> — 계획은 디스크의 마크다운 한 장이니 화면도 한 장입니다. 머리글의 <b>단계 스트립</b>(조각 하나가 단계 하나, 색이 완료/진행/막힘)을 누르면 그 단계로 뛰고, 행은 <code>[상태 마크 | 제목 | 메타]</code> 세 열이며, 완료는 취소선 대신 흐려집니다. <b>보드 보기</b>가 새로 생겨 같은 항목을 상태별 열로 보고 <b>끌어서 상태를 바꿉니다</b>. 그리고 <b>숫자가 맞습니다</b> — 막힌 항목이 둘인 계획이 「진척 100%」로 찍히던 것(막힘을 분모에서 빼고 있었습니다)을 고쳤습니다. 왼쪽 계획 레일은 아이콘 둘·셀렉트 둘을 ⋯ 메뉴 하나로 접고, 행마다 <b>진행 파이</b> 하나로 진척을 말합니다.</li><li><b>작업 일지</b> — 카드마다 되풀이되던 「에이전트 · Claude Code」를 날짜 머리글이 한 번만 말하고, 행은 <code>[시각 | 종류색 척추 | 제목]</code> 한 줄입니다. 내려 읽으면 하루가 막대그래프로 보이고, 날짜 머리글에는 <b>하루의 모양</b>(항목마다 한 조각인 색띠)이 섭니다. 일지를 열면 본문이 <b>읽는 칸</b>입니다 — 사이드바 신세이던 13px 회색 글자와 낱말 가운데서 꺾이던 코드 칩을, 마스트헤드 · 14px 본문 · 통째로 다음 줄로 넘어가는 인라인 코드로 다시 짰습니다.</li><li><b>시작 탭</b> — 프로젝트 카드 열네 장 격자 대신, 순위 1위 하나가 <b>사령탑 밴드</b>(다음 할 일 · 14일 맥박 · 활성 플랜 진행)로 서고 나머지는 「오늘 / 7일 안 / 14일 안 / 2주 넘게 조용함」 <b>시간대 원장</b>입니다. 바닥의 액션 바는 커서 이름을 빼 높이가 더는 튀지 않습니다.</li><li><b>사이드바</b> — 흰 카드 셋 대신 활자입니다. 프로젝트 이름이 제목이고, 섹션 라벨은 hairline 을 끌며, 행은 왼쪽 척추에 매달리고 활성 표시자가 그 척추 위에 앉습니다. 발은 「터미널 도크 ⌘J」 한 줄. 그리고 <b>좁은 창에서 설정 화면 본문이 0px 로 사라지던 버그</b>를 고쳤습니다 — 컨테이너 질의를 자기 자신에게 걸어 반쪽만 적용되고 있었습니다.</li></ul>
+<p><b>편집기가 IDE 의 나머지 반을 갖췄습니다.</b> 지난 릴리스가 편집기 알맹이를 갈았다면 이번엔 그 둘레입니다.</p>
+<ul><li><b>⌘P 빠른 열기</b> — <code>agmd</code> 로 <code>AGENTS.md</code> 를, <code>src/feat</code> 로 경로를 엽니다. 목록은 화면이 이미 든 트리라 서버 왕복이 없습니다.</li><li><b>git 상태가 트리와 탭에 보입니다</b> — 수정은 앰버, 추가는 초록, 삭제는 빨강+취소선, 파일 끝에 A/M/D 배지, 폴더는 안에 바뀐 것이 있으면 함께 물듭니다. 오류·경고가 있는 파일도 같은 자리에서 빨강/앰버입니다.</li><li><b>심볼 브레드크럼</b> — 폴더 › 파일 › 커서가 든 함수·클래스. 누르면 점프합니다.</li><li><b>⌥Z 줄바꿈</b>(산문 파일은 자동으로 켜져 AGENTS.md 가 화면 밖으로 달아나지 않습니다) · <b>⌘B 사이드바 접기</b> · 상태줄의 Ln/Col 이 버튼(⌃G 줄 이동)이 되고, 선택하면 「N줄 · M자 선택」을 말합니다.</li><li><b>미니맵이 검은 띠였습니다</b> — 편집면 배경을 비워 둔 것을 미니맵이 물려받아 알파<code>.md</code>의 검정 위에 글자를 섞고 있었습니다. 고쳤고, 트리·탭 바·상태줄(크롬)과 편집면(종이)을 두 톤으로 가르고, 띠 높이 셋(34·22·26)을 두 단으로 접고, 커서를 액센트 2px 로, <code>.md</code> 의 굵게가 굵게 보이게 했습니다.</li></ul>
+<p><b>터미널.</b></p>
+<ul><li><b>⌘J 도크와 터미널 화면을 오가면 옛 대화가 찌부러졌습니다.</b> 도크와 화면이 같은 세션의 스크롤백을 각자 <b>자기 폭</b>으로 다시 해석해, 에이전트가 「커서를 N줄 올려 지우고 다시 쓴」 시퀀스가 다른 폭에서 겹치고 같은 문단이 두 번 남았습니다. 이제 스크롤백에 <b>찍힐 당시의 크기 표식</b>이 함께 실리고, 구간마다 그 폭으로 재생한 뒤 지금 폭에 맞춥니다. (좁은 폭에서 <b>새로</b> 찍힌 줄의 개행은 진짜 문자라 어떤 터미널도 펴지 못합니다 — 고친 것은 멀쩡했던 줄이 옮겨 오다 망가지던 경로입니다.)</li><li>페인마다 <b>고정 높이 머리띠</b> — 작업 폴더 · 지금 무슨 일(에이전트 이름·단계 / 마지막 명령·종료코드) · 경과 시계 · 확대(⇧⌘↩)·닫기. 캔버스 위에 떠서 셸 프롬프트를 덮던 알약은 없어졌습니다. 오른쪽에 <b>최근 명령 8개의 결과가 핍</b>으로 서고 누르면 그 출력으로 갑니다. 상태바는 단축키 문장 대신 키캡 넷(⌘D · ⌘F · ⇧⌘↩ · ⌘↑↓)입니다.</li></ul>
+<p><b>회색 버튼 59곳이 더 이유를 말합니다.</b> 지난 릴리스가 시작한 일의 4차입니다 — 설정 12탭의 저장·등록·다시 만들기, MCP/Claude Desktop 등록(「Codex CLI 가 설치되어 있지 않아요」 · 「MCP 서버 실행 파일을 못 찾았어요」), 논의의 승격·저장, 플래너의 단계 이동·상태 글리프(「하위 롤업」·「완료·잠금」은 예전에도 계산돼 있었는데 한 번도 뜬 적이 없었습니다), 새 프로젝트 마법사의 「다음」, 스킬·규칙 작성, 테마 편집기, 트레이 스탠드업, 모바일 다섯 탭까지. 이유 없이 막힌 자리는undefined에서undefined이 됐고, 남은undefined은 전부 이 패턴의 자리가 아닙니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v2-46-0"><a href="#v2-46-0">v2.46.0</a></h2>
       <div class="cl-body">
