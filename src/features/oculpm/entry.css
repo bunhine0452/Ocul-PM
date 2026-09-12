@@ -21,7 +21,13 @@
 
 /* `flex-wrap` 은 좁은 칸을 위한 것이다 — 컨테이너는 **자기 쿼리로 자기를 못
    고치므로** 방향을 바꾸는 대신 자식 둘을 한 줄 가득으로 만들어 두 줄로
-   감기게 한다 (아래 @container). 넓을 땐 둘이 한 줄에 들어가 감기지 않는다. */
+   감기게 한다 (아래 @container). 넓을 땐 둘이 한 줄에 들어가 감기지 않는다.
+
+   대신 두 칸 모두 `height` 를 **명시**해야 한다 (2026-09-13 버그). 감기는 flex
+   줄의 높이는 컨테이너가 아니라 **가장 큰 자식의 내용 높이**다 — 높이를 안 준
+   `.entry-read` 는 본문 길이만큼 자라(실측 300px 칸에서 2816px) 스크롤이 생기지
+   않았고, 시트의 `overflow: hidden` 이 접힌 아래를 통째로 잘랐다. 100% 를 주면
+   줄이 칸에 묶이고 안에서 스크롤한다. 좁은 칸의 50% 도 같은 이유다. */
 .entry-detail {
   display: flex; flex-wrap: wrap; height: 100%; min-height: 0;
   container-type: inline-size; container-name: entry;
@@ -29,7 +35,7 @@
 
 /* ── 읽는 칸 ──────────────────────────────────────────────────────────────── */
 .entry-read {
-  flex: none; width: var(--entry-read-w, 520px); min-width: 0; min-height: 0;
+  flex: none; width: var(--entry-read-w, 520px); height: 100%; min-width: 0; min-height: 0;
   overflow-y: auto; overscroll-behavior: contain;
   border-right: 1px solid var(--sep); background: var(--bg-window);
 }
@@ -217,7 +223,7 @@
 .entry-filelist-empty { padding: var(--space-4) var(--space-3); font-size: var(--fs-3); color: var(--text-2); }
 
 /* ── diff 칸 ──────────────────────────────────────────────────────────────── */
-.entry-detail-main { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; min-height: 0; }
+.entry-detail-main { display: flex; flex-direction: column; flex: 1 1 0; height: 100%; min-width: 0; min-height: 0; }
 
 /* 파일 바 — 지금 열린 파일 한 줄 (앞뒤 이동 · 경로=목록 메뉴 · 위치). */
 .entry-file-bar {
