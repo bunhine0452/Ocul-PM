@@ -56,6 +56,51 @@ function drain(): Entry[] {
 export function dumpImeTrace(reason: string): number {
   const entries = drain();
   if (!entries.length) return 0;
+  return flush(reason, entries);
+}
+
+/**
+ * 자동 덤프의 예산 — 코드가 "모양이 수상하다" 고 판단해 부르는 자리용
+ * (`imeBridge` 의 post-commit-passthrough). 사람이 ⌃⌥⇧I 로 부르는
+ * `dumpImeTrace` 는 예산을 타지 않는다.
+ *
+ * 왜: 그 판정이 **정상 한글 타이핑에서 분당 1회꼴**로 걸렸다 (2026-09-12 로그
+ * 집계 — 하루 최대 1,264회, 12일간 5,500회, 매일 로그의 85~90%). 덤프 하나가
+ * 타이핑 도중 5~20KB 를 직렬화해 IPC 로 보내니, 이 모듈 머리말이 경고한 "진단이
+ * 관측을 바꾼다" 가 상시로 일어나고 있었다. 첫 몇 번은 그대로 남겨 재현 시점의
+ * 흐름을 잃지 않고, 그 뒤로는 간격을 둔다 — 같은 모양이 계속 걸린다면 400번째
+ * 덤프가 3번째보다 더 알려 주는 것은 없다.
+ */
+const AUTO_DUMP_FREE = 3;
+const AUTO_DUMP_INTERVAL_MS = 10 * 60_000;
+let autoDumps = 0;
+let lastAutoDumpAt = 0;
+/** 예산에 막혀 버린 횟수 — 다음 덤프 머리에 붙여, 사이가 조용했던 게 아님을 남긴다. */
+let autoSuppressed = 0;
+
+export function dumpImeTraceAuto(reason: string, now: number = Date.now()): number {
+  const overFree = autoDumps >= AUTO_DUMP_FREE;
+  if (overFree && now - lastAutoDumpAt < AUTO_DUMP_INTERVAL_MS) {
+    autoSuppressed += 1;
+    return 0;
+  }
+  const entries = drain();
+  if (!entries.length) return 0;
+  autoDumps += 1;
+  lastAutoDumpAt = now;
+  const tag = autoSuppressed > 0 ? `${reason} (+${autoSuppressed} suppressed)` : reason;
+  autoSuppressed = 0;
+  return flush(tag, entries);
+}
+
+/** 테스트용 — 예산 카운터를 처음으로. */
+export function resetImeTraceBudget(): void {
+  autoDumps = 0;
+  lastAutoDumpAt = 0;
+  autoSuppressed = 0;
+}
+
+function flush(reason: string, entries: Entry[]): number {
   const base = entries[0].at;
   const lines = entries.map((entry) => {
     const offset = String(entry.at - base).padStart(6, " ");

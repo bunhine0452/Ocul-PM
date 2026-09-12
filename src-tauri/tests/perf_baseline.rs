@@ -281,3 +281,276 @@ fn m4_db_actor_queue_latency() {
         println!("  동시 {N} upsert : {par_ms} ms  (마지막 대기자의 총 지연)");
     });
 }
+
+/// M5 — `compact()` 가 라이브 DB 사본에서 실제로 돌려주는 바이트
+/// (`{#vec0-holes}` · `{#snapshot-git-dup}`, 2026-09-12).
+///
+/// ```bash
+/// cp "<앱데이터>/ocul-pm.db" /tmp/snap.db && cp "<앱데이터>/ocul-pm.db-wal" /tmp/snap.db-wal
+/// OCULPM_DB_SNAPSHOT=/tmp/snap.db cargo test --release --test perf_baseline m5 -- --ignored --nocapture
+/// ```
+/// 앱이 도는 중에도 된다 — 사본을 열지 원본을 열지 않는다. 설정 안 하면 건너뛴다.
+#[test]
+#[ignore = "측정 전용 — OCULPM_DB_SNAPSHOT=<사본> 필요"]
+fn m5_compact_reclaims_on_live_snapshot() {
+    let Ok(path) = std::env::var("OCULPM_DB_SNAPSHOT") else {
+        println!("OCULPM_DB_SNAPSHOT 미설정 — 건너뜀");
+        return;
+    };
+    let path = PathBuf::from(path);
+    let size = |p: &Path| {
+        std::fs::metadata(p).map(|m| m.len()).unwrap_or(0)
+            + std::fs::metadata(format!("{}-wal", p.display()))
+                .map(|m| m.len())
+                .unwrap_or(0)
+    };
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(async {
+        let db = ocul_pm_lib::db::Db::open(path.clone()).await.expect("open");
+        let before = size(&path);
+        async fn stat(db: &ocul_pm_lib::db::Db) -> (i64, i64, i64) {
+            db.conn()
+                .call(|c| {
+                    let live: i64 =
+                        c.query_row("SELECT COUNT(*) FROM chunk_embeddings", [], |r| r.get(0))?;
+                    let blocks: i64 =
+                        c.query_row("SELECT COUNT(*) FROM chunk_embeddings_chunks", [], |r| {
+                            r.get(0)
+                        })?;
+                    let snaps: i64 =
+                        c.query_row("SELECT COUNT(*) FROM file_snapshots", [], |r| r.get(0))?;
+                    Ok::<_, tokio_rusqlite::Error>((live, blocks, snaps))
+                })
+                .await
+                .unwrap()
+        }
+        let (live, blocks, snaps) = stat(&db).await;
+        let t0 = Instant::now();
+        db.compact().await.expect("compact");
+        let ms = t0.elapsed().as_millis();
+        let (live2, blocks2, _) = stat(&db).await;
+        let after = size(&path);
+        println!("\n== M5 compact (라이브 사본) ==");
+        println!(
+            "  벡터 {live} → {live2} · vec0 블록 {blocks} (슬롯 {}) → {blocks2} (슬롯 {})",
+            blocks * 1024,
+            blocks2 * 1024
+        );
+        println!("  file_snapshots {snaps}행 (색인이 돌기 전이라 그대로)");
+        println!(
+            "  파일 {:.1} MB → {:.1} MB  (−{:.1} MB, {ms} ms)",
+            before as f64 / 1048576.0,
+            after as f64 / 1048576.0,
+            (before as f64 - after as f64) / 1048576.0
+        );
+    });
+}
+
+/// M6 — 임베딩 한 판이 남기는 RSS (`{#ort-arena}`, 2026-09-12).
+///
+/// ORT 의 CPU 아레나는 추론 피크만큼 자라고 세션이 살아 있는 한 줄지 않는다.
+/// 라이브 앱은 32분 만에 RSS 1.9GB(MALLOC_LARGE 1.5GB) 였다. 이 테스트는 같은
+/// 모델로 2KB 짜리 코드 청크 N 개를 임베딩한 뒤 RSS 를 찍고, 모델을 drop 한 뒤
+/// 다시 찍는다 — 앞의 값이 (max_length, batch) 가 정하는 상주량, 뒤의 값이
+/// 유휴 언로드가 되돌려주는 양이다.
+///
+/// ```bash
+/// OCULPM_EMBED_MAXLEN=512 OCULPM_EMBED_BATCH=32 cargo test --release --test perf_baseline m6 -- --ignored --nocapture
+/// OCULPM_EMBED_MAXLEN=256 OCULPM_EMBED_BATCH=8  cargo test --release --test perf_baseline m6 -- --ignored --nocapture
+/// ```
+/// 모델 캐시는 앱 데이터의 `fastembed_cache` 를 그대로 쓴다 (없으면 내려받는다).
+#[test]
+#[ignore = "측정 전용 — 프로세스 하나에 설정 하나"]
+fn m6_embedding_arena_rss() {
+    use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+    let env_usize = |k: &str, d: usize| {
+        std::env::var(k)
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(d)
+    };
+    let max_len = env_usize("OCULPM_EMBED_MAXLEN", 256);
+    let batch = env_usize("OCULPM_EMBED_BATCH", 8);
+    let n = env_usize("OCULPM_EMBED_N", 256);
+    let cache = std::env::var("OCULPM_EMBED_CACHE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs_fallback()
+                .join("Library/Application Support/com.kimhyunbin.ocul-pm/fastembed_cache")
+        });
+    fn dirs_fallback() -> PathBuf {
+        PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/".into()))
+    }
+    // `ps rss` 는 macOS 에서 free 된 큰 블록(MADV_FREE)을 커널이 회수하기 전까지
+    // 그대로 센다 — drop 뒤에도 안 줄어 보인다. 물리 풋프린트가 실제 점유다.
+    fn rss_mb() -> String {
+        let pid = std::process::id().to_string();
+        let out = std::process::Command::new("ps")
+            .args(["-o", "rss=", "-p", &pid])
+            .output()
+            .unwrap();
+        let rss = String::from_utf8_lossy(&out.stdout)
+            .trim()
+            .parse::<f64>()
+            .unwrap_or(0.0)
+            / 1024.0;
+        let out = std::process::Command::new("vmmap")
+            .args(["--summary", &pid])
+            .output()
+            .unwrap();
+        let fp = String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .find(|l| l.starts_with("Physical footprint:"))
+            .map(|l| {
+                l.trim_start_matches("Physical footprint:")
+                    .trim()
+                    .to_string()
+            })
+            .unwrap_or_else(|| "?".into());
+        format!("rss {rss:.0} MB / footprint {fp}")
+    }
+    // 2KB 남짓의 코드 조각 — 라이브 DB 청크의 상위 6,000개가 이 크기다.
+    let line = "    let value = compute_something(index, &buffer).unwrap_or_default(); // 처리\n";
+    let text: String = std::iter::repeat_n(line, 26).collect();
+    let texts: Vec<String> = (0..n)
+        .map(|i| format!("fn f{i}() {{\n{text}}}\n"))
+        .collect();
+
+    let cache2 = cache.clone();
+    let base = rss_mb();
+    let mut model = TextEmbedding::try_new(
+        InitOptions::new(EmbeddingModel::ParaphraseMLMiniLML12V2Q)
+            .with_cache_dir(cache)
+            .with_max_length(max_len)
+            .with_show_download_progress(false),
+    )
+    .expect("model");
+    let loaded = rss_mb();
+    let t0 = Instant::now();
+    for chunk in texts.chunks(batch) {
+        model.embed(chunk, None).expect("embed");
+    }
+    let ms = t0.elapsed().as_millis();
+    let after = rss_mb();
+    drop(model);
+    let dropped = rss_mb();
+    // 되돌아온 것이 OS 로 갔는지, malloc 이 쥐고 있는지 — 압력 완화를 부른 뒤 다시.
+    #[cfg(target_os = "macos")]
+    let relieved = {
+        extern "C" {
+            fn malloc_zone_pressure_relief(zone: *mut std::ffi::c_void, goal: usize) -> usize;
+        }
+        // SAFETY: NULL zone = 모든 zone, goal 0 = 가능한 만큼. 부작용은 페이지 반환뿐.
+        let n = unsafe { malloc_zone_pressure_relief(std::ptr::null_mut(), 0) };
+        format!(
+            "{} (relief 가 돌려준 {:.0} MB)",
+            rss_mb(),
+            n as f64 / 1048576.0
+        )
+    };
+    #[cfg(not(target_os = "macos"))]
+    let relieved = String::from("-");
+    // 두 번째 사이클 — 누수(두 배로 늚)인지 재사용(그대로)인지 가른다.
+    let mut model2 = TextEmbedding::try_new(
+        InitOptions::new(EmbeddingModel::ParaphraseMLMiniLML12V2Q)
+            .with_cache_dir(cache2)
+            .with_max_length(max_len)
+            .with_show_download_progress(false),
+    )
+    .expect("model");
+    let loaded2 = rss_mb();
+    for chunk in texts.chunks(batch) {
+        model2.embed(chunk, None).expect("embed");
+    }
+    let after2 = rss_mb();
+    drop(model2);
+    let dropped2 = rss_mb();
+    println!("\n== M6 임베딩 아레나 (max_length={max_len}, batch={batch}, n={n}) ==");
+    println!("  기준      {base}");
+    println!("  모델 로드 {loaded}");
+    println!("  임베딩 뒤 {after}");
+    println!("  drop 뒤   {dropped}");
+    println!("  relief 뒤 {relieved}");
+    println!("  2차 로드  {loaded2}");
+    println!("  2차 임베딩 {after2}");
+    println!("  2차 drop  {dropped2}");
+    println!("  임베딩 {n}건 {ms} ms ({:.1} ms/건)", ms as f64 / n as f64);
+}
+
+/// M6b — 같은 모델 파일을 ORT 세션으로 직접 열 때 최적화 단계별 상주 풋프린트.
+/// fastembed 는 Level3 를 고정한다 (`impl.rs:87`). 로드만으로 637MB 인 이유가
+/// 그래프 최적화(프리패킹·융합 사본)인지 파일 자체인지를 가른다.
+///
+/// ```bash
+/// OCULPM_ORT_LEVEL=0|1|2|3 cargo test --release --test perf_baseline m6b -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore = "측정 전용 — 프로세스 하나에 단계 하나"]
+fn m6b_session_footprint_by_optimization_level() {
+    use ort::session::{builder::GraphOptimizationLevel, Session};
+    let level = std::env::var("OCULPM_ORT_LEVEL")
+        .ok()
+        .and_then(|v| v.parse::<u8>().ok())
+        .unwrap_or(3);
+    let home = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/".into()));
+    let cache = home.join("Library/Application Support/com.kimhyunbin.ocul-pm/fastembed_cache");
+    let Some(model) = walkdir::WalkDir::new(&cache)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .map(|e| e.into_path())
+        .find(|p| {
+            p.extension().is_some_and(|x| x == "onnx")
+                && p.to_string_lossy().contains("MiniLM-L12-v2-onnx-Q")
+        })
+    else {
+        println!("모델 캐시 없음 — 건너뜀");
+        return;
+    };
+    fn footprint() -> String {
+        let out = std::process::Command::new("vmmap")
+            .args(["--summary", &std::process::id().to_string()])
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&out.stdout);
+        let pick = |prefix: &str| {
+            text.lines()
+                .find(|l| l.starts_with(prefix))
+                .map(|l| l.split_whitespace().take(4).collect::<Vec<_>>().join(" "))
+                .unwrap_or_default()
+        };
+        format!(
+            "{} | {} | {} | {}",
+            pick("Physical footprint:"),
+            pick("MALLOC_LARGE "),
+            pick("MALLOC_SMALL "),
+            pick("mapped file")
+        )
+    }
+    let opt = match level {
+        0 => GraphOptimizationLevel::Disable,
+        1 => GraphOptimizationLevel::Level1,
+        2 => GraphOptimizationLevel::Level2,
+        _ => GraphOptimizationLevel::Level3,
+    };
+    let base = footprint();
+    let t0 = Instant::now();
+    let session = Session::builder()
+        .unwrap()
+        .with_optimization_level(opt)
+        .unwrap()
+        .commit_from_file(&model)
+        .expect("session");
+    let ms = t0.elapsed().as_millis();
+    let loaded = footprint();
+    drop(session);
+    let dropped = footprint();
+    println!(
+        "\n== M6b ORT 세션 (level={level}, {}) ==",
+        model.file_name().unwrap().to_string_lossy()
+    );
+    println!(
+        "  파일 {:.0} MB",
+        std::fs::metadata(&model).map(|m| m.len()).unwrap_or(0) as f64 / 1048576.0
+    );
+    println!("  기준 {base} → 로드 {loaded} ({ms} ms) → drop {dropped}");
+}

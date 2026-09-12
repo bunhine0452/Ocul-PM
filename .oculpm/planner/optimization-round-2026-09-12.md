@@ -1,0 +1,28 @@
+---
+oculpm_plan: v1
+id: optimization-round-2026-09-12
+title: "최적화 라운드 (2026-09-12) — 실측이 낸 확정 3건과 이월"
+status: active
+created: 2026-09-12
+updated: 2026-09-12
+owner: claude-code
+---
+
+코드 감사는 포화라 실행 중 프로세스(vmmap)·라이브 DB 사본(dbstat)·12일 로그 집계로 쟀다. 원장 docs/optimization/00-ledger.md §1.4~1.6 · §2.4~2.5 가 근거. 진행 상태는 여기.
+
+## 확정 — 측정으로 잡은 것 {#confirmed}
+- [ ] 임베딩 아레나 피크 2.2G → 940M — `with_max_length(256)` + `EMBED_BATCH` 8 (perf_baseline M6, 속도 27→11 ms/청크) {#ort-arena}
+- [ ] `Db::compact()` 가 vec0 를 살아 있는 행으로 재구축 + VACUUM 뒤 WAL 절단 — 라이브 사본 553MB → 434MB (M5) {#vec0-holes}
+- [ ] `file_snapshots` 를 HEAD 밖 파일에만 — 전체 색인은 저장소당 `ls-tree` 1회(`HeadIndex`), 끝에 `retain_file_snapshots` 로 HEAD 복사본·고아 정리; 단일 파일은 `path_in_head` {#snapshot-git-dup}
+- [ ] IME 자동 덤프 예산 — 처음 3회, 이후 10분 1회, 억제 횟수 표기. 수동 ⌃⌥⇧I 는 예산 밖 {#ime-dump-budget}
+
+## 이월 — 추정이거나 측정이 막은 것 {#carry}
+- [ ] 모델 로드 상주 ~640MB 의 정체 — drop 이 안 돌려주고 재로드가 +140MB 남긴다(M6). mmap 외부 데이터 · `use_device_allocator_for_initializers` 를 재 본 뒤에만 유휴 언로드를 다시 연다 {#embed-unload}
+- [ ] 실기기: 설치본에서 진단 탭 「정리」 눌러 DB 크기·의미 검색 정상 확인, 그 뒤 전체 재색인으로 스냅샷 81+12MB 회수 확인 {#eyes-compact}
+- [ ] (추정) `chunks.content` 97MB 는 파일 원문의 사본 — 줄 범위 디스크 재읽기로 대체할지, 의미 변화(삭제 파일)를 포함해 판단 {#chunks-content-dup}
+- [ ] (추정) 워처 `FileIdMap` 이 Create 마다 자라고 Delete 에서만 준다 — `target/` 프로젝트에서 장기 실행 후 MALLOC_SMALL 을 재 볼 것 {#fileidmap-growth}
+
+<!-- oculpm:plan-log begin v1 -->
+| 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
+|---|---|---|---|---|---|
+<!-- oculpm:plan-log end -->

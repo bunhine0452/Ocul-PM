@@ -42,6 +42,55 @@ pub enum RepoNesting {
     Disjoint,
 }
 
+/// `path_in_head` 를 **파일 수천 개**에 묻는 자리용 (전체 색인). 파일마다
+/// `cat-file -e` 를 띄우면 3,000 파일에 git 프로세스 3,000개다 — 저장소당
+/// `ls-tree -r HEAD` **한 번**으로 HEAD 의 경로 집합을 받아 두고 멤버십만 본다.
+/// 중첩 저장소는 파일이 속한 저장소를 `repo_root_for`(디렉터리별 캐시) 로 찾아
+/// 그 저장소의 집합을 쓴다. 저장소 밖이거나 HEAD 가 없으면(unborn) `false`.
+#[derive(Default)]
+pub struct HeadIndex {
+    /// 저장소 루트 → HEAD 트리의 (저장소 상대) 경로 집합. `None` = unborn HEAD.
+    repos: std::collections::HashMap<PathBuf, Option<std::collections::HashSet<String>>>,
+}
+
+impl HeadIndex {
+    /// `root/file_path` 가 자기 저장소의 HEAD 커밋에 있는가.
+    pub fn contains(&mut self, root: &Path, file_path: &str) -> bool {
+        let abs = root.join(file_path);
+        let Some(repo) = super::repo_root_for(&abs) else {
+            return false;
+        };
+        let Some(rel) = super::repo_relative(&repo, &abs) else {
+            return false;
+        };
+        let set = self
+            .repos
+            .entry(repo.clone())
+            .or_insert_with(|| head_tree_paths(&repo));
+        set.as_ref().is_some_and(|s| s.contains(&rel))
+    }
+}
+
+/// `git ls-tree -r --name-only -z HEAD` — 저장소 상대 경로 집합. unborn HEAD 면 `None`.
+fn head_tree_paths(repo: &Path) -> Option<std::collections::HashSet<String>> {
+    let out = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["ls-tree", "-r", "--name-only", "-z", "HEAD"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    Some(
+        String::from_utf8_lossy(&out.stdout)
+            .split('\0')
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+            .collect(),
+    )
+}
+
 /// 두 루트의 관계와 그 사이 상대 경로 (같거나 겹치지 않으면 `None`).
 ///
 /// 심링크 루트에 지지 않게 양쪽을 실경로로 편 뒤 비교한다 — `repo` 는

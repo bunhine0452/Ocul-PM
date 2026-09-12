@@ -1,6 +1,6 @@
 import type { Terminal } from "@xterm/xterm";
 import { oculpmLog } from "@/lib/oculpmLog";
-import { dumpImeTrace, pushImeTrace } from "./imeTrace";
+import { dumpImeTrace, dumpImeTraceAuto, pushImeTrace } from "./imeTrace";
 import { isImeComposing } from "@/lib/ime";
 
 // WKWebView 한글/CJK 입력 브리지 (2026-07-30)
@@ -309,7 +309,7 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
     // 첫 input 으로 오지 않는다. 그것만 남긴다.
     if (isLeftoverShaped(value) && echoed === "" && sinceCommit() <= STALE_COMMIT_WINDOW_MS) {
       trace("post-commit-passthrough", { inputType, value, lastCommitted });
-      dumpImeTrace("post-commit-passthrough");
+      dumpImeTraceAuto("post-commit-passthrough");
     }
 
     const had = echoed;

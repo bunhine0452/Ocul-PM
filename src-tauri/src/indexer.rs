@@ -997,8 +997,8 @@ mod walk_tests {
 // 워처의 증분 자동 색인(`oculpm/watcher.rs`)이 커맨드 계층을 역참조하던 유일한
 // 자리였다. 커맨드는 얇은 오케스트레이션이어야 하므로 실제 일은 여기 산다.
 
-/// 임베딩 배치 크기 — `index_project` 와 단일 파일 재색인이 같은 값을 쓴다.
-pub const EMBED_BATCH: usize = 32;
+/// 임베딩 배치 크기 (두 색인 경로 공용). 32 → 8: `{#ort-arena}`, 근거는 `embedding.rs` `MAX_TOKENS`.
+pub const EMBED_BATCH: usize = 8;
 
 /// Per-path outcome surfaced to the UI. Skip reasons let the caller render a
 /// "(skipped: too large)" badge next to the path without re-running
@@ -1069,18 +1069,18 @@ pub async fn reindex_single_file(
             error: e.to_string(),
         })?;
 
-    // PR6.6 — refresh the diff baseline so LocalDiffView's snapshot fallback
-    // stays current.
-    db.upsert_file_snapshot(
-        project_id,
-        rel_str.to_string(),
-        content.as_bytes().to_vec(),
-        hash.clone(),
-    )
-    .await
-    .map_err(|e| ReindexSkipReason::UpsertFailed {
-        error: e.to_string(),
-    })?;
+    // PR6.6 diff 기준선 — HEAD 가 서빙하면 안 찍고 지운다 (`{#snapshot-git-dup}`).
+    let in_head = {
+        let (root, rel) = (root.to_path_buf(), rel_str.to_string());
+        tokio::task::spawn_blocking(move || crate::git::path_in_head(&root, &rel) == Some(true))
+            .await
+            .unwrap_or(false)
+    };
+    db.sync_file_snapshot(project_id, rel_str, content.as_bytes(), &hash, in_head)
+        .await
+        .map_err(|e| ReindexSkipReason::UpsertFailed {
+            error: e.to_string(),
+        })?;
 
     let mut embeddings_updated: u32 = 0;
     let mut ast_updated: u32 = 0;

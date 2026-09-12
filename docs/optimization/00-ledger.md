@@ -26,6 +26,9 @@
 | 800줄 초과 잔고 | 아래 §4 스니펫 |
 | lint 잔고 | `npx eslint . -f json` · `cargo clippy --all-targets` |
 | WKWebView 초기 페인트 | dev 실행 후 `grep '\[perf\]' <앱데이터>/logs/oculpm.log.$(date +%F)` |
+| 실행 중 프로세스 메모리 | `vmmap --summary <pid>` (Physical footprint · MALLOC_LARGE 행) |
+| 라이브 DB 조성 | 사본에 `sqlite3 snap.db "SELECT name, SUM(pgsize) FROM dbstat GROUP BY name ORDER BY 2 DESC"` |
+| 로그 소음 | `sed -E 's/[0-9]+/N/g' oculpm.log.<날짜> \| sort \| uniq -c \| sort -rn` |
 
 백엔드 하니스의 상세와 v2.42.0 기준선은 [`perf-baseline.md`](../20260904_v242-load-bearing/perf-baseline.md)
 에 있다. 그 표는 **다시 재서 비교할 기준선**이므로 이 문서가 대체하지 않는다.
@@ -78,11 +81,82 @@ ESC 리스너가 `[]` deps 로 걸려 첫 렌더의 `handleClose` 를 붙들고 
 교훈 한 줄: **이 저장소가 이미 아는 것이 코드 한 자리에 모여 있지 않으면, 다음
 사람은 그걸 모른다.**
 
+
+### 1.4 임베딩 한 판이 RSS 1.9GB 를 남긴다 `{#ort-arena}`
+
+2026-09-12 · `src-tauri/src/embedding.rs` · `indexer.rs` `EMBED_BATCH`
+
+라이브 앱을 `vmmap --summary` 로 봤다 (32분 경과, 색인 한 번 뒤): RSS 1,887MB ·
+풋프린트 2.1G (피크 2.7G) · **MALLOC_LARGE 1.5GB / 46 regions** — 4M→8M→16M→
+32M→64M→128M×9 로 2배씩 자란 뒤 전부 dirty. ORT CPU 아레나(`kNextPowerOfTwo`)의
+모양이고, 아레나는 세션이 사는 한 줄지 않는다. 피크를 정하는 것은 배치 × 토큰
+길이의 어텐션이었다: fastembed 기본 `max_length` **512** 에 `EMBED_BATCH` **32**.
+이 모델(paraphrase-multilingual-MiniLM-L12-v2)은 128 토큰에서 학습됐다.
+
+`with_max_length(256)` + 배치 **8**. 같은 2KB 청크 256개 (`perf_baseline` M6):
+
+| 설정 | 임베딩 뒤 풋프린트 | 속도 |
+|---|---|---|
+| 512 / 32 (전) | **2.2G** | 27.5 ms/청크 |
+| 256 / 8 (후) | **940M** | **11.1 ms/청크** |
+
+패딩이 줄어 속도까지 2.5배. 재현: `OCULPM_EMBED_MAXLEN=512 OCULPM_EMBED_BATCH=32
+cargo test --release --test perf_baseline m6 -- --ignored --nocapture` (한 프로세스에
+설정 하나).
+
+**넣지 않은 것 — 유휴 언로드.** 같은 측정에서 세션 drop 은 아레나 300MB 만 돌려주고
+(940→647M), 모델 로드의 ~640M 은 그대로 남았으며(`malloc_zone_pressure_relief` 0
+바이트), 재로드 사이클마다 +140M 이 더 남았다(647→786). 5분마다 내렸다 올리는
+설계는 오히려 자랄 수 있어 보류 → `{#embed-unload}` (§2.4).
+
+### 1.5 DB 553MB 중 ~280MB 가 회수 가능한데 「정리」가 못 줄인다 `{#vec0-holes}` `{#snapshot-git-dup}`
+
+2026-09-12 · 라이브 DB 사본에 `dbstat` — 15 프로젝트 · 파일 9,817 · 청크 101,120.
+
+| 표 | 실측 | 원인 |
+|---|---|---|
+| `chunk_embeddings` (vec0) | 278MB · 슬롯 **189,440 / 살아 있는 101,120 (53%)** | sqlite-vec 는 통째로 빈 블록만 버리고 부분 구멍은 되돌리지 않는다. `chunks.id` 는 1,296,118 까지 갔다 |
+| `file_snapshots` | 100MB · 10,817행 | `commands/diff.rs` 는 `git show HEAD:` 가 실패할 때만 읽는데 색인은 모든 파일을 찍었다 — 9,817행 **81MB 가 git 이 이미 가진 복사본**, 거기에 `files` 행 없는 고아 1,000행 12MB (`.vscode-test/` 313행 등; `delete_files_by_paths` 가 `files` 기준이라 못 봤다) |
+| `freelist_count` | **1** | 그래서 `compact()` 의 VACUUM 은 사실상 0 바이트 |
+
+고친 것: (a) `Db::compact()` 가 vec0 를 살아 있는 행으로 **다시 짓고** VACUUM 뒤
+WAL 을 한 번 더 자른다 (VACUUM 이 WAL 모드에서 새 DB 전체를 WAL 에 쓰는 것을
+사본에서 봤다 — 458MB 남음). (b) 전체 색인이 저장소당 `ls-tree` 한 번으로 HEAD
+집합을 받아 **HEAD 에 있는 파일은 스냅샷을 찍지 않고**, 끝나면 필요 목록 밖의
+스냅샷(HEAD 복사본·고아)을 한 트랜잭션으로 지운다 (`retain_file_snapshots`).
+단일 파일 재색인은 `path_in_head` 하나로 같은 판정.
+
+라이브 사본에서 (a) 만: **553MB(+WAL 64) → 434MB, 4.8초**, vec0 블록 185 → 107.
+(b) 는 다음 전체 색인 때 81+12MB 를 더 뺀다. 재현: `OCULPM_DB_SNAPSHOT=<사본>
+cargo test --release --test perf_baseline m5 -- --ignored --nocapture`.
+
+### 1.6 IME 자동 덤프가 로그의 85~90% `{#ime-dump-budget}`
+
+2026-09-12 · `src/features/terminal/imeTrace.ts`
+
+| 날짜 | 전체 줄 | 덤프 | 덤프 줄 |
+|---|---|---|---|
+| 09-04 | 67,217 | 1,264 | 59,890 |
+| 09-07 | 33,442 | 578 | 28,560 |
+| 09-12 | 2,459 | 44 | 2,134 |
+
+`imeBridge` 의 `post-commit-passthrough` 판정이 **정상 한글 타이핑에서 분당 1회꼴**
+로 걸렸다 (샘플: "치" 확정 → "며" 조합 시작). 12일 5,500회 = 타이핑 도중 5~20KB
+직렬화 + IPC 5,500번, 로그 ~50MB. 모듈 머리말이 경고한 "진단이 관측을 바꾼다"
+가 상시였다. 자동 덤프에 예산을 뒀다 — 처음 3회는 그대로, 그 뒤 10분에 1회,
+막힌 횟수는 다음 덤프 머리에 `(+N suppressed)`. 사람이 부르는 ⌃⌥⇧I 는 예산 밖.
+재현: `grep -c IME-DUMP <앱데이터>/logs/oculpm.log.<날짜>`.
+
 ---
 
 ## 2. 확정 — 아직 안 고쳤다
 
 ### 2.1 진입 청크 606KB `{#entry-chunk}`
+
+> **2026-09-12 정정 — 해결됨.** 같은 방법으로 다시 재니 진입 `index-*.js` 는
+> **271KB (gzip 85KB)** 이고 조성은 react-dom 176KB + bindings 25KB 가 바닥이다.
+> monaco(3.8MB, 청크 이름은 `theme-*`)·prettier(317KB, `babel-*`)는 전부 지연
+> 로드로 확인. 아래는 09-07 의 기록.
 
 2026-09-07 측정 (`pnpm build`, 이 저장소 HEAD)
 
@@ -118,6 +192,9 @@ ESC 리스너가 `[]` deps 로 걸려 첫 렌더의 `handleClose` 를 붙들고 
 
 ### 2.2 워처가 루트 전체를 감시하고 필터는 사후 `{#watcher-prefilter}`
 
+> **2026-09-12 정정 — 해결됨.** `watcher.rs:113` 이 같은 매처를 채널 앞에 세운다.
+> perf-baseline M2 의 색인 blocking 도 `spawn_blocking` 으로 옮겨져 있다.
+
 [`perf-baseline.md` M1](../20260904_v242-load-bearing/perf-baseline.md) 이 이미
 확정한 자리다. 체크아웃 한 번 = 한 배치 1,058 이벤트, 드레인 4.3초 (체크아웃
 자체는 0.15초).
@@ -149,6 +226,26 @@ ESC 리스너가 `[]` deps 로 걸려 첫 렌더의 `handleClose` 를 붙들고 
   | xargs wc -l | awk '$1>800 && $2!="total"' | sort -rn
 ```
 
+
+### 2.4 임베딩 모델 로드 자체가 ~640MB 상주 `{#embed-unload}`
+
+2026-09-12 · perf_baseline M6 · **부분 추정**
+
+세션 로드만으로 풋프린트 602~637MB (파일 224MB). drop 해도 남고 재로드는 +140MB
+를 더 남긴다 — 그래서 유휴 언로드를 넣지 않았다 (§1.4). 그 640MB 가 무엇인지
+(ORT 초기화자 사본·프리패킹·malloc 보유)는 **안 쟀다**. 최적화 단계 0/1/3 은
+차이가 없었다(M6b). 다음에 볼 자리: `commit_from_file` 대신 mmap 외부 데이터,
+또는 ORT 세션 옵션 `session.use_device_allocator_for_initializers`.
+
+### 2.5 그 밖의 추정 (측정 없음)
+
+- `chunks.content` 97MB 는 파일 원문의 또 한 벌 — 검색 결과 표시용. 줄 범위로
+  디스크에서 재읽기 가능하나 "파일이 지워지면 결과도 사라짐" 의 의미 변화가 있다.
+- 워처 15개의 `FileIdMap` 은 `add_root` 를 안 부르니 시작 시 비어 있지만 Create
+  마다 넣고 Delete 에서만 뺀다 — `target/` 프로젝트에서 서서히 자란다
+  (MALLOC_SMALL 182MB 의 일부일 수 있음).
+- `Pretendard-subset.woff2` 1.7MB — 모바일 브리지에서만 체감.
+
 ---
 
 ## 3. 기각 — 재 봤더니 아니었다
@@ -160,6 +257,10 @@ ESC 리스너가 `[]` deps 로 걸려 첫 렌더의 `handleClose` 를 붙들고 
 | SQL 문자열 조립 | **기각** | `format!` 로 만드는 곳도 placeholder 만 조립하고 값은 전부 바인딩 (`cache/mod.rs`·`db/planning.rs`) |
 | clippy 부채 | **기각** | `cargo clippy --all-targets` 경고 **0** |
 | 마크다운·하이라이트 XSS | **기각** | hljs `.value` 는 이스케이프 출력, `markMatchesInHtml` 은 DOM 기반, `rehype-raw` 부재 |
+| 텍스트 검색 LIKE 풀스캔 (2026-09-12 재측정) | **기각** | 가장 큰 프로젝트(청크 30MB)에서 30ms, 나머지 10~20ms. 커버링 인덱스 → `idx_chunks_file` 로 프로젝트만 훑는다 |
+| 기동 경로 | **기각** | DB ready 200ms · 창 마운트 1초 · 워처 15개는 의도된 420ms 간격. 일지 재색인은 증분(skipped=690) |
+| 프런트 폴링 | **기각** | `setInterval` 8곳 전부 가시성 게이트 또는 유한 재시도 |
+| `acp/` 518MB | **기각** | codex·claude-agent-sdk 어댑터 바이너리 — 정당 |
 | `t` 누락 exhaustive-deps 18건 | **기각(무해)** | `useT()` 의 `t` 는 모듈 레벨 `t()` 에 위임하고 그쪽이 호출 시점에 언어를 읽는다. 스테일 클로저여도 현재 언어가 나온다 — 다만 **이 노이즈가 진짜 2건을 덮고 있었다** (§1.2) |
 
 ---
@@ -168,14 +269,18 @@ ESC 리스너가 `[]` deps 로 걸려 첫 렌더의 `handleClose` 를 붙들고 
 
 이 표만 라운드마다 갱신하면 추세가 보인다.
 
-| 지표 | 2026-09-07 | 목표 |
-|---|---|---|
-| 진입 청크 (gzip) | 207 KB | 조성 파악 후 결정 |
-| eslint 경고 | 50 (`--max-warnings=50`) | 잔고와 상한을 붙여 뒀다 — 늘리려면 상한을 먼저 올려야 한다 |
-| clippy 경고 | 0 | 0 유지 |
-| 800줄 초과 파일 | 37 | 늘지 않기 (래칫) |
-| 800줄 초과 줄 합 | 17,923 | 감소 |
-| AI 컨텍스트 직렬 왕복 | 4 | 2 (`{#ai-context-callsite}`) |
+| 지표 | 2026-09-07 | 2026-09-12 | 목표 |
+|---|---|---|---|
+| 진입 청크 (gzip) | 207 KB | **85 KB** | 유지 (react-dom 이 바닥) |
+| 임베딩 뒤 백엔드 풋프린트 (M6, 256청크) | — | 2.2G → **940M** | `{#embed-unload}` 가 640M 을 설명하면 그 아래 |
+| DB 파일 (라이브) | — | 553MB → **434MB** (정리 후) | 다음 전체 색인 뒤 ~340MB |
+| vec0 슬롯 점유율 | — | 53% → **92%** | 정리 시 재구축 |
+| IME 자동 덤프 / 일 | — | 최대 1,264 → **≤ 3 + 6/시간** | — |
+| eslint 경고 | 50 (`--max-warnings=50`) | 4 (`--max-warnings=4`) | 잔고와 상한을 붙여 뒀다 — 늘리려면 상한을 먼저 올려야 한다 |
+| clippy 경고 | 0 | 0 | 0 유지 |
+| 800줄 초과 파일 | 37 | 래칫 기준 유지 | 늘지 않기 (래칫) |
+| 800줄 초과 줄 합 | 17,923 | — | 감소 |
+| AI 컨텍스트 직렬 왕복 | 4 | 4 | 2 (`{#ai-context-callsite}`) |
 
 ---
 

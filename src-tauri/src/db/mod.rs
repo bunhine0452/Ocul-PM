@@ -237,15 +237,55 @@ impl Db {
     /// 빈 페이지를 되돌려주고 WAL 을 잘라낸다 — 색인 정리(031)·프로젝트 삭제 뒤
     /// 파일 크기는 저절로 줄지 않는다. 사용자가 진단 탭에서 직접 누른다.
     /// VACUUM 은 트랜잭션 밖이어야 하고 파일 크기만큼 임시 공간을 쓴다.
+    ///
+    /// 그 전에 vec0 를 **다시 짓는다** (`{#vec0-holes}`, 2026-09-12). sqlite-vec 는
+    /// 지운 벡터의 자리를 되돌리지 않는다 — 라이브 DB 에서 슬롯 189,440 중 살아
+    /// 있는 벡터가 101,120(53%) 이라 130MB 가 죽은 공간이었는데, 그건 freelist 가
+    /// 아니라 vec0 의 블롭 **안쪽** 구멍이라 VACUUM 이 0 바이트를 돌려줬다
+    /// (`freelist_count = 1`). 032 와 같은 방식: 살아 있는 벡터를 보통 표로 옮겨
+    /// 두고 vec0 를 새로 만든 뒤 되넣는다. 임베딩은 보존한다(재색인 없음).
     pub async fn compact(&self) -> Result<()> {
         self.conn
             .call(|c| {
-                c.execute_batch("PRAGMA wal_checkpoint(TRUNCATE); VACUUM;")?;
+                rebuild_vec0(c)?;
+                // VACUUM 은 WAL 모드에서 **새 DB 전체를 WAL 에 쓴다** — 라이브 사본
+                // 553MB 를 434MB 로 줄이면서 WAL 458MB 를 남겼다. 연결이 열려 있는
+                // 앱에서는 다음 자동 체크포인트까지 그 파일이 산다. 뒤에서 한 번 더
+                // 잘라 준다.
+                c.execute_batch(
+                    "PRAGMA wal_checkpoint(TRUNCATE); VACUUM; PRAGMA wal_checkpoint(TRUNCATE);",
+                )?;
                 Ok(())
             })
             .await?;
         Ok(())
     }
+}
+
+/// `chunk_embeddings` 를 살아 있는 행만으로 다시 만든다 (`{#vec0-holes}`). 한
+/// 트랜잭션 — 중간에 죽어도 옛 표가 그대로다. 정의는 032 의 것과 **같아야**
+/// 한다 (partition key 포함); 바꿀 일이 생기면 마이그레이션이 먼저다.
+fn rebuild_vec0(c: &mut rusqlite::Connection) -> rusqlite::Result<()> {
+    let tx = c.transaction()?;
+    tx.execute_batch(
+        "CREATE TABLE chunk_embeddings_rebuild (
+           chunk_id INTEGER PRIMARY KEY,
+           project_id INTEGER NOT NULL,
+           embedding BLOB NOT NULL
+         );
+         INSERT INTO chunk_embeddings_rebuild (chunk_id, project_id, embedding)
+           SELECT chunk_id, project_id, embedding FROM chunk_embeddings;
+         DROP TABLE chunk_embeddings;
+         CREATE VIRTUAL TABLE chunk_embeddings USING vec0(
+           chunk_id INTEGER PRIMARY KEY,
+           project_id INTEGER PARTITION KEY,
+           embedding FLOAT[384]
+         );
+         INSERT INTO chunk_embeddings (chunk_id, project_id, embedding)
+           SELECT chunk_id, project_id, embedding FROM chunk_embeddings_rebuild;
+         DROP TABLE chunk_embeddings_rebuild;",
+    )?;
+    tx.commit()
 }
 
 // ---------- Row mapper ----------

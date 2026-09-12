@@ -276,6 +276,34 @@ pub async fn index_project(
     let total = files.len() as u32;
     info!(project = %project.name, files = total, "indexing start");
 
+    // diff 기준선 스냅샷은 **git 이 HEAD 로 못 주는 파일**에만 남긴다
+    // (`{#snapshot-git-dup}`, 2026-09-12). `commands/diff.rs` 는 `git show HEAD:`
+    // 가 실패할 때만 `file_snapshots` 를 읽는데, 색인은 모든 파일을 찍고 있었다 —
+    // 라이브 DB 에서 9,817행 81MB 가 git 이 이미 가진 내용의 복사본이었다.
+    // 저장소당 `ls-tree` 한 번이라 파일 수천 개에도 git 프로세스는 손에 꼽는다.
+    let in_head: std::collections::HashSet<String> = {
+        let (root, files) = (root.clone(), files.clone());
+        tokio::task::spawn_blocking(move || {
+            let mut head = crate::git::nesting::HeadIndex::default();
+            files
+                .iter()
+                .filter_map(|p| {
+                    let rel = p
+                        .strip_prefix(&root)
+                        .unwrap_or(p)
+                        .to_string_lossy()
+                        .to_string();
+                    head.contains(&root, &rel).then_some(rel)
+                })
+                .collect()
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    };
+    // 이번 walk 에서 스냅샷이 **필요한** 파일 — 색인이 끝나면 이 밖의 스냅샷은
+    // 전부 지운다 (HEAD 에 들어간 파일의 옛 복사본 · `files` 행이 없는 고아).
+    let mut snapshot_keep: Vec<String> = Vec::new();
+
     let start = Instant::now();
     let mut files_processed = 0u32;
     let mut files_changed = 0u32;
@@ -322,6 +350,10 @@ pub async fn index_project(
             .await
             .map_err(|e| e.to_string())?;
 
+        let needs_snapshot = !in_head.contains(&rel_str);
+        if needs_snapshot {
+            snapshot_keep.push(rel_str.clone());
+        }
         files_processed += 1;
         if !changed {
             continue;
@@ -342,15 +374,18 @@ pub async fn index_project(
 
         // PR6.6 — capture the just-indexed content as the diff baseline so
         // LocalDiffView can fall back to a snapshot diff when git can't
-        // serve `HEAD` (fresh repo) or the project isn't a git repo.
-        db.upsert_file_snapshot(
-            project_id,
-            rel_str.clone(),
-            content.into_bytes(),
-            prepared.hash.clone(),
-        )
-        .await
-        .map_err(|e| e.to_string())?;
+        // serve `HEAD` (fresh repo, untracked file) or the project isn't a
+        // git repo. HEAD 에 있는 파일은 찍지 않는다 (`{#snapshot-git-dup}`).
+        if needs_snapshot {
+            db.upsert_file_snapshot(
+                project_id,
+                rel_str.clone(),
+                content.into_bytes(),
+                prepared.hash.clone(),
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        }
         if let Some(ref ana) = analysis {
             db.insert_symbol_definitions(file_id, ana.symbols.clone())
                 .await
@@ -431,6 +466,20 @@ pub async fn index_project(
         }
         n
     };
+    // 스냅샷 화해 (`{#snapshot-git-dup}`) — 위 `files` 화해와 같은 가정(이번
+    // walk 가 완전하다) 위에서, 필요 목록 밖의 스냅샷을 한 트랜잭션으로 지운다.
+    match db
+        .retain_file_snapshots(project_id, std::mem::take(&mut snapshot_keep))
+        .await
+    {
+        Ok(n) if n > 0 => info!(
+            project_id,
+            removed = n,
+            "index reconcile: dropped snapshots git already serves (or orphans)"
+        ),
+        Ok(_) => {}
+        Err(e) => tracing::warn!(project_id, error = %e, "snapshot reconcile failed"),
+    }
 
     // Resolve dependencies for changed files
     if !import_resolver_queue.is_empty() {
