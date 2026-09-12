@@ -104,10 +104,25 @@ ESC 리스너가 `[]` deps 로 걸려 첫 렌더의 `handleClose` 를 붙들고 
 cargo test --release --test perf_baseline m6 -- --ignored --nocapture` (한 프로세스에
 설정 하나).
 
-**넣지 않은 것 — 유휴 언로드.** 같은 측정에서 세션 drop 은 아레나 300MB 만 돌려주고
-(940→647M), 모델 로드의 ~640M 은 그대로 남았으며(`malloc_zone_pressure_relief` 0
-바이트), 재로드 사이클마다 +140M 이 더 남았다(647→786). 5분마다 내렸다 올리는
-설계는 오히려 자랄 수 있어 보류 → `{#embed-unload}` (§2.4).
+**같은 날 후속 — 640MB 의 정체는 ORT 가 아니라 macOS malloc 이었다** (M6b).
+세션 로드 직후 풋프린트 602MB 중 살아 있는 malloc 은 234MB(모델 224MB 파일과
+같다)이고 **`MALLOC_LARGE (empty)` 323MB** 가 free 된 뒤에도 dirty 로 남아 있었다
+— libmalloc 의 대형 블록 캐시. `malloc_zone_pressure_relief` 는 0 바이트, ORT 세션
+옵션(prepacking·device allocator·memory pattern·threads·commit_from_memory)은 전부
+602MB 로 무관. **`MallocLargeCache=0`** 이면 로드 237MB · drop 뒤 12MB.
+
+| M6 (256/8) | 캐시 켬 (기본) | `MallocLargeCache=0` |
+|---|---|---|
+| 임베딩 뒤 | 936M | **806M** (2차 사이클 504M) |
+| 세션 drop 뒤 | 645M | **38M** |
+| 속도 | 12.7 ms/청크 | 13.7 ms/청크 (−8%) |
+
+이 변수는 malloc 초기화 때만 읽히므로 `main.rs` 가 GUI 경로에서 **자기 자신을
+그 env 로 다시 exec** 한다(`reexec_with_malloc_tuning`; 심·CLI 는 제외, PTY 호스트가
+사용자 셸에는 걷어 낸다 — `ptyhost/env.rs`). 그 위에 **유휴 언로드**(5분, 1분
+스윕)를 넣었다 — 이제 내리면 실제로 돌아온다. 재현: `MallocLargeCache=0
+OCULPM_EMBED_MAXLEN=256 OCULPM_EMBED_BATCH=8 cargo test --release --test
+perf_baseline m6_ -- --ignored --nocapture`, 옵션 비교는 `m6b` 와 `OCULPM_ORT_OPTS`.
 
 ### 1.5 DB 553MB 중 ~280MB 가 회수 가능한데 「정리」가 못 줄인다 `{#vec0-holes}` `{#snapshot-git-dup}`
 
@@ -229,22 +244,16 @@ cargo test --release --test perf_baseline m5 -- --ignored --nocapture`.
 
 ### 2.4 임베딩 모델 로드 자체가 ~640MB 상주 `{#embed-unload}`
 
-2026-09-12 · perf_baseline M6 · **부분 추정**
+> **2026-09-12 (같은 날) — 해결됨.** 정체는 macOS malloc 대형 캐시였다 — §1.4 의
+> 후속 표. 아래는 그 전의 기록.
 
-세션 로드만으로 풋프린트 602~637MB (파일 224MB). drop 해도 남고 재로드는 +140MB
-를 더 남긴다 — 그래서 유휴 언로드를 넣지 않았다 (§1.4). 그 640MB 가 무엇인지
-(ORT 초기화자 사본·프리패킹·malloc 보유)는 **안 쟀다**. 최적화 단계 0/1/3 은
-차이가 없었다(M6b). 다음에 볼 자리: `commit_from_file` 대신 mmap 외부 데이터,
-또는 ORT 세션 옵션 `session.use_device_allocator_for_initializers`.
+2026-09-12 · perf_baseline M6 · 세션 로드만으로 풋프린트 602~637MB (파일 224MB).
+drop 해도 남고 재로드는 +140MB 를 더 남긴다. 최적화 단계 0/1/3 은 차이가 없었다(M6b).
 
 ### 2.5 그 밖의 추정 (측정 없음)
 
-- `chunks.content` 97MB 는 파일 원문의 또 한 벌 — 검색 결과 표시용. 줄 범위로
-  디스크에서 재읽기 가능하나 "파일이 지워지면 결과도 사라짐" 의 의미 변화가 있다.
-- 워처 15개의 `FileIdMap` 은 `add_root` 를 안 부르니 시작 시 비어 있지만 Create
-  마다 넣고 Delete 에서만 뺀다 — `target/` 프로젝트에서 서서히 자란다
-  (MALLOC_SMALL 182MB 의 일부일 수 있음).
 - `Pretendard-subset.woff2` 1.7MB — 모바일 브리지에서만 체감.
+- (`chunks.content`·`FileIdMap` 은 같은 날 재서 §3 으로 갔다.)
 
 ---
 
@@ -261,6 +270,8 @@ cargo test --release --test perf_baseline m5 -- --ignored --nocapture`.
 | 기동 경로 | **기각** | DB ready 200ms · 창 마운트 1초 · 워처 15개는 의도된 420ms 간격. 일지 재색인은 증분(skipped=690) |
 | 프런트 폴링 | **기각** | `setInterval` 8곳 전부 가시성 게이트 또는 유한 재시도 |
 | `acp/` 518MB | **기각** | codex·claude-agent-sdk 어댑터 바이너리 — 정당 |
+| `chunks.content` 97MB 를 디스크 재읽기로 대체 | **기각** | 텍스트 검색이 그 열의 `LIKE` 풀스캔이다 (`search_text`, 2026-08-30 결정). 열을 빼면 검색이 없어진다 |
+| 워처 `FileIdMap` 성장 (2026-09-12, M7) | **기각** | 파일 20,000 개 Create 에 NoCache 대비 **+3.8MB** (엔트리 ~190B). `target/` 55k 가 전부 쌓여도 ~10MB. `OCULPM_WATCH_CACHE=fileid\|none cargo test --release --test perf_baseline m7 -- --ignored --nocapture` |
 | `t` 누락 exhaustive-deps 18건 | **기각(무해)** | `useT()` 의 `t` 는 모듈 레벨 `t()` 에 위임하고 그쪽이 호출 시점에 언어를 읽는다. 스테일 클로저여도 현재 언어가 나온다 — 다만 **이 노이즈가 진짜 2건을 덮고 있었다** (§1.2) |
 
 ---
@@ -272,7 +283,8 @@ cargo test --release --test perf_baseline m5 -- --ignored --nocapture`.
 | 지표 | 2026-09-07 | 2026-09-12 | 목표 |
 |---|---|---|---|
 | 진입 청크 (gzip) | 207 KB | **85 KB** | 유지 (react-dom 이 바닥) |
-| 임베딩 뒤 백엔드 풋프린트 (M6, 256청크) | — | 2.2G → **940M** | `{#embed-unload}` 가 640M 을 설명하면 그 아래 |
+| 임베딩 뒤 백엔드 풋프린트 (M6, 256청크) | — | 2.2G → **806M** (`MallocLargeCache=0`) | — |
+| 유휴 시 임베더 풋프린트 (M6 drop 뒤) | — | 645M → **38M** | 5분 유휴 언로드 |
 | DB 파일 (라이브) | — | 553MB → **434MB** (정리 후) | 다음 전체 색인 뒤 ~340MB |
 | vec0 슬롯 점유율 | — | 53% → **92%** | 정리 시 재구축 |
 | IME 자동 덤프 / 일 | — | 최대 1,264 → **≤ 3 + 6/시간** | — |
