@@ -16,6 +16,7 @@
 //! 실패할 일이 없다 (Chrome 헬퍼 프로세스 방식).
 
 pub mod client;
+pub mod env;
 pub mod host;
 pub mod protocol;
 pub mod scrollback;

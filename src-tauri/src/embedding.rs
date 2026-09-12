@@ -11,7 +11,9 @@
 //! otherwise the first semantic index just looks frozen while ~135MB downloads.
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use serde::Serialize;
@@ -35,10 +37,15 @@ pub const EMBEDDING_DIM: usize = 384;
 /// 67%)는 온전히 들어가고, 아레나 피크는 4배 내려간다.
 const MAX_TOKENS: usize = 256;
 
-// 유휴 언로드는 **넣지 않았다** (2026-09-12, perf_baseline M6). 세션을 drop 해도
-// 돌아오는 것은 아레나 300MB 뿐이고(풋프린트 940→647MB) 모델 로드의 ~640MB 는
-// 그대로 남으며, 재로드 사이클마다 +140MB 가 더 남았다(647→786). 5분마다 내렸다
-// 올리면 오히려 자랄 수 있어 측정 없이는 켜지 않는다.
+/// 이만큼 안 쓰이면 모델(=ORT 세션과 아레나)을 내린다 (`{#embed-unload}`).
+///
+/// 처음 재봤을 때는 넣지 않았다 — drop 이 아레나 300MB 만 돌려주고(940→647MB)
+/// 모델 로드 ~640MB 는 남았으며 재로드마다 +140MB 가 더 남았다. 원인은 ORT 가
+/// 아니라 macOS malloc 의 대형 블록 캐시였고(`main.rs` `reexec_with_malloc_tuning`),
+/// 그걸 끄니 내린 뒤 **38MB**, 다시 올리면 247MB 다 (perf_baseline M6, 세션
+/// 빌드 ~100ms). 색인·의미 검색이 없는 시간에 900MB 를 붙들 이유가 없다.
+const IDLE_UNLOAD: Duration = Duration::from_secs(5 * 60);
+const IDLE_SWEEP: Duration = Duration::from_secs(60);
 
 /// Rough on-disk size of the quantized model, used only to render a progress bar
 /// before the real total is known. The bar is clamped to 99% until `done`.
@@ -74,16 +81,55 @@ pub struct Embedder {
     /// 이제는 여기서 **비동기로** 기다린 뒤에야 blocking 풀에 들어간다. 직렬성은
     /// 그대로(퍼밋 1개)이고, 바뀐 것은 대기 장소뿐이다.
     turnstile: Arc<Semaphore>,
+    /// 마지막 `embed` 호출 시각 (`started` 기준 ms). 유휴 언로드의 잣대.
+    last_used_ms: Arc<AtomicU64>,
+    started: Instant,
 }
 
 impl Embedder {
     pub fn new(app: AppHandle, cache_dir: PathBuf) -> Self {
-        Self {
+        let this = Self {
             app,
             cache_dir,
             inner: Arc::new(AsyncMutex::new(None)),
             turnstile: Arc::new(Semaphore::new(1)),
-        }
+            last_used_ms: Arc::new(AtomicU64::new(0)),
+            started: Instant::now(),
+        };
+        this.spawn_idle_unloader();
+        this
+    }
+
+    /// 1분마다 보고, 마지막 사용에서 `IDLE_UNLOAD` 가 지났고 **지금 추론 중이
+    /// 아니면** 내린다. 추론 중 판정은 회전문 퍼밋이 남아 있는가로 — 쥔 호출자가
+    /// 있으면 다음 분에 다시 본다. 그 사이 `ensure_loaded` 로 Arc 를 복제해 둔
+    /// 호출자가 있어도 안전하다: 그쪽 Arc 가 마지막 참조라 추론이 끝난 뒤 세션이
+    /// 해제될 뿐이다.
+    fn spawn_idle_unloader(&self) {
+        let inner = self.inner.clone();
+        let turnstile = self.turnstile.clone();
+        let last_used = self.last_used_ms.clone();
+        let started = self.started;
+        tauri::async_runtime::spawn(async move {
+            loop {
+                tokio::time::sleep(IDLE_SWEEP).await;
+                let idle = elapsed_ms(started).saturating_sub(last_used.load(Ordering::Relaxed));
+                if idle < IDLE_UNLOAD.as_millis() as u64 || turnstile.available_permits() == 0 {
+                    continue;
+                }
+                let mut guard = inner.lock().await;
+                let Some(model) = guard.take() else {
+                    continue;
+                };
+                drop(guard);
+                // ORT 세션 해제는 동기 — 런타임 워커 밖에서.
+                let _ = tokio::task::spawn_blocking(move || drop(model)).await;
+                info!(
+                    "embedding model unloaded after {}s idle",
+                    IDLE_UNLOAD.as_secs()
+                );
+            }
+        });
     }
 
     async fn ensure_loaded(&self) -> Result<SharedModel, String> {
@@ -198,6 +244,8 @@ impl Embedder {
         if texts.is_empty() {
             return Ok(Vec::new());
         }
+        self.last_used_ms
+            .store(elapsed_ms(self.started), Ordering::Relaxed);
         let model = self.ensure_loaded().await?;
         // 줄서기는 blocking 풀 **밖**에서 (필드 주석 참고). 기다리는 호출자는
         // tokio 태스크로 잠들 뿐 OS 스레드를 쥐지 않는다.
@@ -218,6 +266,10 @@ impl Embedder {
         .await
         .map_err(|e| e.to_string())?
     }
+}
+
+fn elapsed_ms(since: Instant) -> u64 {
+    since.elapsed().as_millis().min(u64::MAX as u128) as u64
 }
 
 /// The model cache is "warm" if a reasonably-sized `.onnx` already exists under

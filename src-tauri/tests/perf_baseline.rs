@@ -532,20 +532,67 @@ fn m6b_session_footprint_by_optimization_level() {
         2 => GraphOptimizationLevel::Level2,
         _ => GraphOptimizationLevel::Level3,
     };
+    // OCULPM_ORT_OPTS=noprepack,devalloc,nomempat,threads1,memory — 세션 옵션 조합.
+    let opts = std::env::var("OCULPM_ORT_OPTS").unwrap_or_default();
+    let has = |k: &str| opts.split(',').any(|o| o == k);
     let base = footprint();
     let t0 = Instant::now();
-    let session = Session::builder()
+    let mut b = Session::builder()
         .unwrap()
         .with_optimization_level(opt)
-        .unwrap()
-        .commit_from_file(&model)
-        .expect("session");
+        .unwrap();
+    if has("noprepack") {
+        b = b.with_prepacking(false).unwrap();
+    }
+    if has("devalloc") {
+        b = b
+            .with_config_entry("session.use_device_allocator_for_initializers", "1")
+            .unwrap();
+    }
+    if has("nomempat") {
+        b = b.with_memory_pattern(false).unwrap();
+    }
+    if has("threads1") {
+        b = b.with_intra_threads(1).unwrap();
+    }
+    let session = if has("memory") {
+        let bytes = std::fs::read(&model).unwrap();
+        b.commit_from_memory(&bytes).expect("session")
+    } else {
+        b.commit_from_file(&model).expect("session")
+    };
     let ms = t0.elapsed().as_millis();
     let loaded = footprint();
+    if std::env::var("OCULPM_ORT_FULL").is_ok() {
+        let out = std::process::Command::new("vmmap")
+            .args(["--summary", &std::process::id().to_string()])
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&out.stdout);
+        let start = text.find("REGION TYPE").unwrap_or(0);
+        println!("{}", &text[start..]);
+    }
     drop(session);
     let dropped = footprint();
+    extern "C" {
+        fn malloc_zone_pressure_relief(zone: *mut std::ffi::c_void, goal: usize) -> usize;
+        fn malloc_default_zone() -> *mut std::ffi::c_void;
+    }
+    // SAFETY: 기본 zone 에 압력 완화 — 부작용은 free 된 페이지 반환뿐.
+    let (relief_all, relief_default) = unsafe {
+        (
+            malloc_zone_pressure_relief(std::ptr::null_mut(), 0),
+            malloc_zone_pressure_relief(malloc_default_zone(), 0),
+        )
+    };
+    let relieved = footprint();
     println!(
-        "\n== M6b ORT 세션 (level={level}, {}) ==",
+        "  relief: all-zones {:.0} MB · default-zone {:.0} MB → {relieved}",
+        relief_all as f64 / 1048576.0,
+        relief_default as f64 / 1048576.0
+    );
+    println!(
+        "\n== M6b ORT 세션 (level={level}, opts=[{opts}], {}) ==",
         model.file_name().unwrap().to_string_lossy()
     );
     println!(
@@ -553,4 +600,121 @@ fn m6b_session_footprint_by_optimization_level() {
         std::fs::metadata(&model).map(|m| m.len()).unwrap_or(0) as f64 / 1048576.0
     );
     println!("  기준 {base} → 로드 {loaded} ({ms} ms) → drop {dropped}");
+}
+
+/// M7 — 디바운서 `FileIdMap` 이 Create 마다 쌓는 메모리 (`{#fileidmap-growth}`).
+///
+/// 워처는 `debouncer.watcher().watch(root)` 만 부르고 `cache().add_root` 는 안
+/// 부르므로 시작 시 캐시는 비어 있다. 그러나 Create 이벤트마다 `add_path` 가
+/// 경로→FileId 를 넣고 Remove 에서만 뺀다 — `target/`·`node_modules/` 처럼 우리
+/// 사전 필터 **앞**에서 일어나는 일이라 무시 경로도 전부 쌓인다. `cargo build`
+/// 한 번을 흉내 내(파일 N 개 생성) 두 캐시의 풋프린트 차이를 잰다.
+///
+/// ```bash
+/// OCULPM_WATCH_CACHE=fileid OCULPM_WATCH_N=20000 cargo test --release --test perf_baseline m7 -- --ignored --nocapture
+/// OCULPM_WATCH_CACHE=none   OCULPM_WATCH_N=20000 cargo test --release --test perf_baseline m7 -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore = "측정 전용 — 프로세스 하나에 캐시 하나"]
+fn m7_debouncer_file_id_cache_growth() {
+    use notify_debouncer_full::{new_debouncer_opt, FileIdMap, NoCache};
+    let n: usize = std::env::var("OCULPM_WATCH_N")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(20_000);
+    let use_fileid = std::env::var("OCULPM_WATCH_CACHE")
+        .map(|v| v != "none")
+        .unwrap_or(true);
+    fn footprint_mb() -> f64 {
+        let out = std::process::Command::new("vmmap")
+            .args(["--summary", &std::process::id().to_string()])
+            .output()
+            .unwrap();
+        let line = String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .find(|l| l.starts_with("Physical footprint:"))
+            .map(|l| {
+                l.trim_start_matches("Physical footprint:")
+                    .trim()
+                    .to_string()
+            })
+            .unwrap_or_default();
+        let num: f64 = line
+            .trim_end_matches(|c: char| c.is_alphabetic())
+            .parse()
+            .unwrap_or(0.0);
+        if line.ends_with('K') {
+            num / 1024.0
+        } else if line.ends_with('G') {
+            num * 1024.0
+        } else {
+            num
+        }
+    }
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("proj");
+    std::fs::create_dir_all(root.join("target/debug/deps")).unwrap();
+    let (tx, rx) = mpsc::channel::<usize>();
+    let handler = move |res: DebounceEventResult| {
+        if let Ok(events) = res {
+            let _ = tx.send(events.len());
+        }
+    };
+    let base = footprint_mb();
+    let mut fileid = None;
+    let mut nocache = None;
+    if use_fileid {
+        let mut d = new_debouncer_opt::<_, notify::RecommendedWatcher, _>(
+            Duration::from_millis(500),
+            None,
+            handler,
+            FileIdMap::new(),
+            notify::Config::default(),
+        )
+        .unwrap();
+        d.watcher().watch(&root, RecursiveMode::Recursive).unwrap();
+        fileid = Some(d);
+    } else {
+        let mut d = new_debouncer_opt::<_, notify::RecommendedWatcher, _>(
+            Duration::from_millis(500),
+            None,
+            handler,
+            NoCache,
+            notify::Config::default(),
+        )
+        .unwrap();
+        d.watcher().watch(&root, RecursiveMode::Recursive).unwrap();
+        nocache = Some(d);
+    }
+    std::thread::sleep(Duration::from_millis(300));
+    let armed = footprint_mb();
+    let t0 = Instant::now();
+    for i in 0..n {
+        let dir = root.join(format!("target/debug/deps/crate{}", i % 200));
+        if i < 200 {
+            std::fs::create_dir_all(&dir).unwrap();
+        }
+        std::fs::write(dir.join(format!("obj-{i:06}.o")), b"x").unwrap();
+    }
+    let wrote_ms = t0.elapsed().as_millis();
+    // 이벤트가 다 흘러나올 때까지.
+    let mut seen = 0usize;
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while Instant::now() < deadline {
+        match rx.recv_timeout(Duration::from_millis(1500)) {
+            Ok(k) => seen += k,
+            Err(_) => break,
+        }
+    }
+    let after = footprint_mb();
+    drop(fileid);
+    drop(nocache);
+    println!(
+        "\n== M7 디바운서 캐시 ({}, 파일 {n}개 생성 {wrote_ms} ms, 이벤트 {seen}) ==",
+        if use_fileid { "FileIdMap" } else { "NoCache" }
+    );
+    println!(
+        "  풋프린트 기준 {base:.1} MB → 감시 {armed:.1} MB → 생성 뒤 {after:.1} MB  (Δ {:.1} MB)",
+        after - armed
+    );
 }
