@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.0.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 103개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.0.1)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 104개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.0.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 103개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.0.1)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 104개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.0.0</span>
+    <span class="nav-ver" data-version>v3.0.1</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>103개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>104개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-0-1">v3.0.1</a>
       <a href="#v3-0-0">v3.0.0</a>
       <a href="#v2-48-0">v2.48.0</a>
       <a href="#v2-47-0">v2.47.0</a>
@@ -61,10 +62,15 @@
       <a href="#v2-44-0">v2.44.0</a>
       <a href="#v2-43-0">v2.43.0</a>
       <a href="#v2-42-0">v2.42.0</a>
-      <a href="#v2-41-0">v2.41.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-0-1"><a href="#v3-0-1">v3.0.1</a></h2>
+      <div class="cl-body">
+<p><b>작업 일지를 열면 스크롤이 안 되고 첫 화면 아래가 잘려 있었습니다.</b> 2.47 의 「읽는 칸」 리디자인이 좁은 창에서 본문과 diff 를 위아래로 쌓으려고 flex 줄바꿈을 썼는데, 줄바꿈이 켜진 flex 상자는 줄 높이를 칸이 아니라 <b>가장 긴 자식의 내용 높이</b>로 잡습니다. 본문이 긴 일지는 읽는 칸이 본문만큼 늘어나 스크롤이 생길 자리가 없었고, 시트가 접힌 아래를 통째로 감췄습니다 — 본문이 짧은 일지에서는 줄이 칸 높이까지 늘어나 멀쩡해 보여서 잡히지 않았습니다. 두 칸에 높이를 못 박아 고쳤고, 3.0.0 사용자는 이 업데이트로 다시 스크롤됩니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-0-0"><a href="#v3-0-0">v3.0.0</a></h2>
       <div class="cl-body">
