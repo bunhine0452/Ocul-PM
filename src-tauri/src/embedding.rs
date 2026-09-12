@@ -28,6 +28,18 @@ const MODEL: EmbeddingModel = EmbeddingModel::ParaphraseMLMiniLML12V2Q;
 #[allow(dead_code)]
 pub const EMBEDDING_DIM: usize = 384;
 
+/// 토크나이저 절단 길이 (`{#ort-arena}`, 2026-09-12). fastembed 기본은 512 인데
+/// 이 모델(paraphrase-multilingual-MiniLM-L12-v2)은 128 토큰에서 학습됐다 —
+/// 그 너머는 품질이 정의되지 않은 채 어텐션 메모리만 길이의 **제곱**으로 든다.
+/// 청크 6,000개가 2KB 를 넘어 512 를 꽉 채우고 있었다. 256 이면 1KB 청크(전체의
+/// 67%)는 온전히 들어가고, 아레나 피크는 4배 내려간다.
+const MAX_TOKENS: usize = 256;
+
+// 유휴 언로드는 **넣지 않았다** (2026-09-12, perf_baseline M6). 세션을 drop 해도
+// 돌아오는 것은 아레나 300MB 뿐이고(풋프린트 940→647MB) 모델 로드의 ~640MB 는
+// 그대로 남으며, 재로드 사이클마다 +140MB 가 더 남았다(647→786). 5분마다 내렸다
+// 올리면 오히려 자랄 수 있어 측정 없이는 켜지 않는다.
+
 /// Rough on-disk size of the quantized model, used only to render a progress bar
 /// before the real total is known. The bar is clamped to 99% until `done`.
 const MODEL_EST_BYTES: u64 = 135_000_000;
@@ -126,6 +138,7 @@ impl Embedder {
             TextEmbedding::try_new(
                 InitOptions::new(MODEL)
                     .with_cache_dir(cache_dir)
+                    .with_max_length(MAX_TOKENS)
                     .with_show_download_progress(true),
             )
         })

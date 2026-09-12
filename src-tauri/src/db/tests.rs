@@ -494,3 +494,157 @@ async fn delete_files_by_paths_drops_stale_rows_with_snapshots_only_in_that_proj
 
     assert_eq!(db.delete_files_by_paths(a, vec![]).await.unwrap(), 0);
 }
+
+/// `{#snapshot-git-dup}` — `retain_file_snapshots` 는 keep 밖의 것을 전부
+/// 지운다: HEAD 가 서빙하는 파일의 복사본도, `files` 행이 없는 고아도. 다른
+/// 프로젝트는 손대지 않는다.
+#[tokio::test]
+async fn retain_file_snapshots_drops_unlisted_and_orphans() {
+    let dir = tempdir().unwrap();
+    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
+    let a = db
+        .create_project("a".into(), "/tmp/a".into())
+        .await
+        .unwrap();
+    let b = db
+        .create_project("b".into(), "/tmp/b".into())
+        .await
+        .unwrap();
+    db.upsert_file(a, "src/tracked.rs".into(), "h".into(), 1, 1, None)
+        .await
+        .unwrap();
+    db.upsert_file(a, "src/untracked.rs".into(), "h".into(), 1, 1, None)
+        .await
+        .unwrap();
+    for (pid, path) in [
+        (a, "src/tracked.rs"),
+        (a, "src/untracked.rs"),
+        (a, ".vscode-test/orphan.js"), // `files` 행 없음
+        (b, "src/tracked.rs"),
+    ] {
+        db.upsert_file_snapshot(pid, path.into(), b"x".to_vec(), "h".into())
+            .await
+            .unwrap();
+    }
+
+    let removed = db
+        .retain_file_snapshots(a, vec!["src/untracked.rs".into()])
+        .await
+        .unwrap();
+    assert_eq!(removed, 2, "HEAD 복사본 하나 + 고아 하나");
+    assert!(db
+        .get_file_snapshot(a, "src/untracked.rs".into())
+        .await
+        .unwrap()
+        .is_some());
+    assert!(db
+        .get_file_snapshot(a, "src/tracked.rs".into())
+        .await
+        .unwrap()
+        .is_none());
+    assert!(db
+        .get_file_snapshot(a, ".vscode-test/orphan.js".into())
+        .await
+        .unwrap()
+        .is_none());
+    assert!(
+        db.get_file_snapshot(b, "src/tracked.rs".into())
+            .await
+            .unwrap()
+            .is_some(),
+        "다른 프로젝트는 무사하다"
+    );
+
+    // 빈 keep = 전부 지운다 (비-git 파일이 하나도 없는 프로젝트).
+    assert_eq!(db.retain_file_snapshots(a, vec![]).await.unwrap(), 1);
+    db.delete_file_snapshot(b, "src/tracked.rs".into())
+        .await
+        .unwrap();
+    assert!(db
+        .get_file_snapshot(b, "src/tracked.rs".into())
+        .await
+        .unwrap()
+        .is_none());
+}
+
+/// `{#vec0-holes}` — 지운 벡터의 슬롯은 vec0 가 되돌리지 않는다. `compact` 가
+/// 표를 다시 지어 블록 수를 살아 있는 행 수에 맞추고, 임베딩은 보존한다 (KNN 이
+/// 같은 답을 준다).
+#[tokio::test]
+async fn compact_rebuilds_vec0_and_keeps_embeddings() {
+    let dir = tempdir().unwrap();
+    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
+    let a = db
+        .create_project("a".into(), "/tmp/a".into())
+        .await
+        .unwrap();
+    let (fa, _) = db
+        .upsert_file(a, "src/a.rs".into(), "h1".into(), 1, 1, Some("rust".into()))
+        .await
+        .unwrap();
+    let (fb, _) = db
+        .upsert_file(a, "src/b.rs".into(), "h2".into(), 1, 1, Some("rust".into()))
+        .await
+        .unwrap();
+    // vec0 블록 하나가 1,024 슬롯. 살아남을 a 의 행이 **두 블록에 걸쳐** 놓이게
+    // a·b 를 번갈아 넣는다 — 통째로 빈 블록은 vec0 도 스스로 버리므로, 라이브
+    // DB 의 모양(블록마다 구멍이 흩어진 53% 점유)을 재현하려면 이래야 한다.
+    let rows = |n: usize, hot: usize| -> Vec<ChunkInsert> {
+        (0..n)
+            .map(|i| ChunkInsert {
+                kind: "lines".into(),
+                start_line: i as u32,
+                end_line: i as u32 + 1,
+                content: format!("fn f{i}() {{\n}}\n"),
+                embedding: unit_vec(384, hot),
+            })
+            .collect()
+    };
+    for (na, nb) in [(100, 1000), (100, 300)] {
+        db.insert_chunks_with_embeddings(a, fa, rows(na, 3))
+            .await
+            .unwrap();
+        db.insert_chunks_with_embeddings(a, fb, rows(nb, 9))
+            .await
+            .unwrap();
+    }
+    db.delete_files_by_paths(a, vec!["src/b.rs".into()])
+        .await
+        .unwrap();
+
+    async fn blocks(db: &Db) -> i64 {
+        db.conn()
+            .call(|c| -> Result<i64> {
+                Ok(
+                    c.query_row("SELECT COUNT(*) FROM chunk_embeddings_chunks", [], |r| {
+                        r.get(0)
+                    })?,
+                )
+            })
+            .await
+            .unwrap()
+    }
+    assert_eq!(blocks(&db).await, 2, "지워도 블록은 남는다 — 그게 재현이다");
+
+    db.compact().await.unwrap();
+
+    assert_eq!(blocks(&db).await, 1, "살아 있는 200 행은 한 블록에 든다");
+    let hits = db
+        .search_chunks(a, unit_vec(384, 3), 5, false)
+        .await
+        .unwrap();
+    assert_eq!(hits.len(), 5);
+    assert!(hits.iter().all(|h| h.file_path == "src/a.rs"));
+    // 트리거는 여전히 vec0 를 거울처럼 따라간다.
+    db.delete_files_by_paths(a, vec!["src/a.rs".into()])
+        .await
+        .unwrap();
+    let live: i64 = db
+        .conn()
+        .call(|c| -> Result<i64> {
+            Ok(c.query_row("SELECT COUNT(*) FROM chunk_embeddings", [], |r| r.get(0))?)
+        })
+        .await
+        .unwrap();
+    assert_eq!(live, 0);
+}

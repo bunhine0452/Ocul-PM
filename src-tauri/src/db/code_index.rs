@@ -633,6 +633,80 @@ impl Db {
         Ok(())
     }
 
+    /// 한 경로의 스냅샷을 지운다 — 파일이 HEAD 에 들어간 순간 그 기준선은
+    /// git 이 갖는다 (`{#snapshot-git-dup}`).
+    pub async fn delete_file_snapshot(&self, project_id: u32, path: String) -> Result<()> {
+        self.conn
+            .call(move |c| {
+                c.execute(
+                    "DELETE FROM file_snapshots WHERE project_id = ?1 AND path = ?2",
+                    params![project_id as i64, &path],
+                )?;
+                Ok(())
+            })
+            .await?;
+        Ok(())
+    }
+
+    /// 단일 파일 재색인의 기준선 동기 — HEAD 가 서빙하면 지우고, 아니면 찍는다
+    /// (`{#snapshot-git-dup}`). 방금 커밋된 파일의 옛 스냅샷이 남지 않게.
+    pub async fn sync_file_snapshot(
+        &self,
+        project_id: u32,
+        path: &str,
+        content: &[u8],
+        hash: &str,
+        in_head: bool,
+    ) -> Result<()> {
+        if in_head {
+            self.delete_file_snapshot(project_id, path.to_string())
+                .await
+        } else {
+            self.upsert_file_snapshot(
+                project_id,
+                path.to_string(),
+                content.to_vec(),
+                hash.to_string(),
+            )
+            .await
+        }
+    }
+
+    /// `keep` 에 없는 이 프로젝트의 스냅샷을 전부 지운다 (`{#snapshot-git-dup}`).
+    /// 전체 색인이 끝난 뒤 한 번 — `keep` 은 이번 walk 에서 **HEAD 에 없는**
+    /// 파일들이다. 그러면 두 부류가 함께 빠진다: git 이 HEAD 로 서빙하는 파일의
+    /// 복사본(라이브 DB 81MB), 그리고 `files` 행이 없는 고아(`.vscode-test/`
+    /// 313행처럼 `delete_files_by_paths` 가 `files` 기준이라 못 보던 것, 12MB).
+    pub async fn retain_file_snapshots(&self, project_id: u32, keep: Vec<String>) -> Result<u32> {
+        let removed = self
+            .conn
+            .call(move |c| {
+                let tx = c.transaction()?;
+                tx.execute_batch(
+                    "CREATE TEMP TABLE IF NOT EXISTS snapshot_keep (path TEXT PRIMARY KEY);
+                     DELETE FROM snapshot_keep;",
+                )?;
+                {
+                    let mut ins =
+                        tx.prepare("INSERT OR IGNORE INTO snapshot_keep (path) VALUES (?1)")?;
+                    for path in &keep {
+                        ins.execute(params![path])?;
+                    }
+                }
+                let n = tx.execute(
+                    "DELETE FROM file_snapshots
+                     WHERE project_id = ?1
+                       AND path NOT IN (SELECT path FROM snapshot_keep)",
+                    params![project_id as i64],
+                )? as u32;
+                tx.execute_batch("DELETE FROM snapshot_keep;")?;
+                tx.commit()?;
+                Ok(n)
+            })
+            .await?;
+        Ok(removed)
+    }
+
     /// Fetch the snapshot row for a path. Returns `None` when no snapshot has
     /// been captured yet — `compute_diff` surfaces this as
     /// `DiffSource::SnapshotsUnavailable` so the UI can ask the user to run a

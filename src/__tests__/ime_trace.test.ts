@@ -9,10 +9,13 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 const info = vi.fn();
 vi.mock("@/lib/oculpmLog", () => ({ oculpmLog: { info: (...a: unknown[]) => info(...a) } }));
 
-const { dumpImeTrace, pushImeTrace } = await import("@/features/terminal/imeTrace");
+const { dumpImeTrace, dumpImeTraceAuto, pushImeTrace, resetImeTraceBudget } = await import(
+  "@/features/terminal/imeTrace",
+);
 
 afterEach(() => {
   dumpImeTrace("cleanup");
+  resetImeTraceBudget();
   info.mockClear();
 });
 
@@ -50,5 +53,36 @@ describe("imeTrace", () => {
     const count = dumpImeTrace("manual");
     expect(count).toBe(400);
     expect(String(info.mock.calls[0][1])).toContain('"seq":899');
+  });
+
+  // 2026-09-12 — 자동 덤프 예산. 판정이 정상 타이핑에서 분당 1회꼴로 걸려
+  // 하루 로그의 85~90% 가 덤프였다. 처음 3번은 그대로, 그 뒤엔 10분에 1번.
+  test("자동 덤프는 처음 3번 뒤로 10분에 1번만 나간다", () => {
+    const t0 = 1_000_000;
+    for (let n = 0; n < 5; n += 1) {
+      pushImeTrace("input", { value: "가", n });
+      dumpImeTraceAuto("post-commit-passthrough", t0 + n * 1_000);
+    }
+    expect(info).toHaveBeenCalledTimes(3);
+
+    // 10분이 지나면 하나 더 — 그 사이 막힌 횟수를 머리에 단다.
+    pushImeTrace("input", { value: "나" });
+    expect(dumpImeTraceAuto("post-commit-passthrough", t0 + 11 * 60_000)).toBe(3);
+    expect(info).toHaveBeenCalledTimes(4);
+    expect(String(info.mock.calls[3][1])).toContain("(+2 suppressed)");
+    // 막힌 동안 링은 비워지지 않는다 — 다음 덤프가 그 흐름을 그대로 실어 낸다.
+    expect(String(info.mock.calls[3][1])).toContain('"n":3');
+  });
+
+  test("사람이 부르는 덤프는 예산을 타지 않는다", () => {
+    for (let n = 0; n < 4; n += 1) {
+      pushImeTrace("input", { value: "가" });
+      dumpImeTraceAuto("post-commit-passthrough", n * 1_000);
+    }
+    info.mockClear();
+    pushImeTrace("input", { value: "다" });
+    // 4번째 자동 덤프는 막혔으니 그 이벤트도 링에 남아 있다 — 수동 덤프가 둘 다 싣는다.
+    expect(dumpImeTrace("manual")).toBe(2);
+    expect(info).toHaveBeenCalledTimes(1);
   });
 });
