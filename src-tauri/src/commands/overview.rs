@@ -17,11 +17,36 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde::Serialize;
+use std::sync::{LazyLock, Mutex};
+
+use serde::{Deserialize, Serialize};
+use specta::Type;
+use tauri_specta::Event;
 
 use crate::db::{Db, ProjectOverview};
 use crate::indexer;
 use crate::llm;
+
+/// 백그라운드 LLM 작업이 실패했다 — 화면이 토스트로 알린다 (2026-09-14 감사 7번).
+///
+/// 색인 후 개요 생성은 사용자가 시킨 일이 아니라서 실패가 WARN 로그에만
+/// 남았다. 기본 모델이 EOL(410) 된 뒤 3주 동안 색인마다 죽은 엔드포인트를
+/// 두드렸고, 설정 화면은 그 모델이 목록에 없다는 말을 하지 않았다.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]
+pub struct LlmBackgroundFailed {
+    pub project_id: u32,
+    pub provider: String,
+    pub model: String,
+    /// 어느 작업인가 — 지금은 `overview` 하나.
+    pub job: String,
+    pub message: String,
+}
+
+/// 같은 입력 서명으로 실패한 개요 생성은 다시 시도하지 않는다 (프로세스 수명).
+/// 서명이 바뀌거나(파일이 달라짐) `force` 면 다시 간다 — 죽은 모델을 색인마다
+/// 두드리던 것을 막는 최소 장치. 설정을 고치면 서명은 같아도 재시작이 푼다.
+static FAILED_SIGNATURES: LazyLock<Mutex<std::collections::HashMap<u32, String>>> =
+    LazyLock::new(|| Mutex::new(std::collections::HashMap::new()));
 
 /// Upper bound on how much raw text we feed to the LLM, in bytes. README +
 /// manifests easily blow up on monorepos, so we hard-cap and prefer README.
@@ -92,16 +117,41 @@ pub async fn run_generation(
                 return Ok(None);
             }
         }
+        let backed_off = FAILED_SIGNATURES
+            .lock()
+            .map(|m| m.get(&project_id) == Some(&signature))
+            .unwrap_or(false);
+        if backed_off {
+            tracing::debug!(
+                project_id,
+                "overview: same signature failed before; not retrying"
+            );
+            return Ok(None);
+        }
     }
 
-    let (identity, stack_json, overview_md) = call_llm(
+    let generated = call_llm(
         provider,
         model,
         &project.name,
         &signals,
         crate::oculpm::content_lang::current(db).await,
     )
-    .await?;
+    .await;
+    let (identity, stack_json, overview_md) = match generated {
+        Ok(v) => {
+            if let Ok(mut m) = FAILED_SIGNATURES.lock() {
+                m.remove(&project_id);
+            }
+            v
+        }
+        Err(e) => {
+            if let Ok(mut m) = FAILED_SIGNATURES.lock() {
+                m.insert(project_id, signature);
+            }
+            return Err(e);
+        }
+    };
 
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)

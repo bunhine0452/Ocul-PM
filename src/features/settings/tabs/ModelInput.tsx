@@ -53,6 +53,11 @@ export function ModelInput({ provider, value, placeholder, onChange }: ModelInpu
   };
 
   const rows = fetch.state === "ok" ? fetch.rows : [];
+  // 목록은 받았는데 적힌 모델이 거기 없다 — 대개 EOL 된 모델이다 (2026-09-14
+  // 감사 7번: `z-ai/glm-5.2` 가 410 을 돌려주는 3주 동안 이 칸은 잠잠했다).
+  // 목록이 비었거나 못 받았으면 판단하지 않는다 (키 없는 프로바이더).
+  const typed = value.trim();
+  const notInList = fetch.state === "ok" && rows.length > 0 && typed !== "" && !rows.some((m) => m.id === typed);
   return (
     <div className="flex flex-col gap-1">
       <Input
@@ -73,9 +78,14 @@ export function ModelInput({ provider, value, placeholder, onChange }: ModelInpu
           ))}
         </datalist>
       )}
-      <span className="text-fs-1 text-muted-foreground min-h-[1em]" aria-live="polite">
+      <span
+        className="text-fs-1 text-muted-foreground min-h-[1em]"
+        aria-live="polite"
+        style={notInList ? { color: "var(--warn)" } : undefined}
+      >
         {fetch.state === "loading" && t("settings.models.listLoading")}
-        {fetch.state === "ok" && t("settings.models.listReady", { n: rows.length })}
+        {fetch.state === "ok" && notInList && t("settings.models.notInList", { model: typed })}
+        {fetch.state === "ok" && !notInList && t("settings.models.listReady", { n: rows.length })}
         {fetch.state === "error" && t("settings.models.listFailed", { error: fetch.message })}
       </span>
     </div>

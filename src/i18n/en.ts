@@ -618,6 +618,7 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.models.listLoading": "Loading the models this key can use…",
   "settings.models.listReady": "{n} models — pick one as you type.",
   "settings.models.listFailed": "Couldn't fetch the model list: {error}",
+  "settings.models.notInList": "\u201c{model}\u201d is not in this key's model list \u2014 it was retired or renamed. Pick one from the list.",
   "settings.gen.title": "Generation",
   "settings.gen.desc": "How the model responds.",
   "settings.gen.temperature": "Temperature — {value}",
@@ -2569,6 +2570,8 @@ export const en: Record<keyof typeof ko, string> = {
   // ── Workspace-wide toasts (WorkspaceContext) ────────────────────────────
   "ws.reconciled": "AI updated {n} plan items automatically",
   "ws.reconciledTitle": "Auto-reconcile",
+  "ws.llmBgFailedTitle": "Background AI job failed",
+  "ws.llmBgFailed": "Couldn't build the overview with {provider} \u00b7 {model}. Switch to a live model in Settings \u203a Models. ({message})",
   "ws.driftBody": "The {agent} rule file was modified outside the app.",
   "ws.watchYieldedTitle": "Another ocul-pm window took this project",
   "ws.watchYielded": "Live refresh stopped in this window. It comes back automatically when that one closes.",

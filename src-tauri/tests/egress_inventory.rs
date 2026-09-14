@@ -220,8 +220,9 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     // ── 브라우저에 넘기는 링크 (앱이 보내지 않는다) ──
     ("github.com", "저장소·이슈·릴리스 링크 — open_url 로 OS 브라우저에 위임한다. plugins/source.rs 의 테스트 픽스처이기도 하다."),
     ("www.notion.so", "사용자의 Notion 페이지 링크 — 브라우저 위임. notion.rs 에서는 URL 파서의 테스트 픽스처다."),
-    ("marketplace.visualstudio.com", "VS Code 확장 마켓 링크 (commands/mcp.rs vscode_extension_status) — 설정 화면 앵커, 사용자 클릭 시 open_url 로 브라우저 위임. 앱은 보내지 않는다."),
-    ("open-vsx.org", "같은 확장의 Open VSX 링크 (Cursor·VSCodium 사용자용) — 위와 동일하게 브라우저 위임."),
+    // marketplace.visualstudio.com 은 2026-09-14 에 표에서 뺐다 — 확장이 아직 거기 발행되지 않아
+    // (404) 링크 자체를 내지 않는다 (commands/mcp.rs marketplace_url = None). 발행하면 링크와 함께 되살린다.
+    ("open-vsx.org", "확장의 Open VSX 링크 (Cursor·VSCodium 사용자용, commands/mcp.rs vscode_extension_status) — 설정 화면 앵커, 사용자 클릭 시 open_url 로 브라우저 위임. 앱은 보내지 않는다."),
     // ── 목적지가 아닌 것 ──
     ("127.0.0.1:8737", "루프백 — a2a 로컬 HTTP 문의 기본 주소. 기기 밖에서 닿지 않는다."),
     ("mcp.notion.com", "앱이 부르지 않는다 — 에이전트 CLI 설정 파일(.mcp.json/config.toml)에 **적히는 값**이고, 그 파서의 테스트 픽스처다."),

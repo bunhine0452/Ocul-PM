@@ -617,6 +617,7 @@ export const ko = {
   "settings.models.listLoading": "이 키로 쓸 수 있는 모델을 불러오는 중…",
   "settings.models.listReady": "모델 {n}개 — 입력하면서 고를 수 있어요.",
   "settings.models.listFailed": "모델 목록을 못 받았어요: {error}",
+  "settings.models.notInList": "「{model}」 은 이 키의 모델 목록에 없어요 — 지원 종료됐거나 이름이 바뀐 모델이에요. 목록에서 골라 주세요.",
   "settings.gen.title": "생성",
   "settings.gen.desc": "모델 응답 방식.",
   "settings.gen.temperature": "Temperature — {value}",
@@ -2578,6 +2579,8 @@ export const ko = {
   // ── 워크스페이스 전역 토스트 (WorkspaceContext) ─────────────────────────
   "ws.reconciled": "AI 가 계획 항목 {n}개를 자동 갱신했어요",
   "ws.reconciledTitle": "자동 화해",
+  "ws.llmBgFailedTitle": "백그라운드 AI 작업 실패",
+  "ws.llmBgFailed": "{provider} · {model} 로 개요를 만들지 못했어요. 설정 › 모델에서 살아 있는 모델로 바꿔 주세요. ({message})",
   "ws.driftBody": "{agent} 규칙 파일이 외부에서 수정되었어요.",
   "ws.watchYieldedTitle": "다른 ocul-pm 창이 이 프로젝트를 가져갔어요",
   "ws.watchYielded": "이 창은 실시간 갱신을 멈췄어요. 저쪽을 닫으면 자동으로 돌아와요.",

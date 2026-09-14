@@ -1954,6 +1954,7 @@ export const events = {
 	dapOutputEmitted: makeEvent<DapOutputEmitted>("dap-output-emitted"),
 	dapSessionChanged: makeEvent<DapSessionChanged>("dap-session-changed"),
 	deepLinkReceived: makeEvent<DeepLinkReceived>("deep-link-received"),
+	llmBackgroundFailed: makeEvent<LlmBackgroundFailed>("llm-background-failed"),
 	lspDiagnosticsPublished: makeEvent<LspDiagnosticsPublished>("lsp-diagnostics-published"),
 	lspServerStateChanged: makeEvent<LspServerStateChanged>("lsp-server-state-changed"),
 	newTabIntent: makeEvent<NewTabIntent>("new-tab-intent"),
@@ -4536,6 +4537,22 @@ export type Liveness =
 /**  판정할 수 없다. 오프라인이 아니다. */
 "unknown";
 
+/**
+ *  백그라운드 LLM 작업이 실패했다 — 화면이 토스트로 알린다 (2026-09-14 감사 7번).
+ * 
+ *  색인 후 개요 생성은 사용자가 시킨 일이 아니라서 실패가 WARN 로그에만
+ *  남았다. 기본 모델이 EOL(410) 된 뒤 3주 동안 색인마다 죽은 엔드포인트를
+ *  두드렸고, 설정 화면은 그 모델이 목록에 없다는 말을 하지 않았다.
+ */
+export type LlmBackgroundFailed = {
+	project_id: number,
+	provider: string,
+	model: string,
+	/**  어느 작업인가 — 지금은 `overview` 하나. */
+	job: string,
+	message: string,
+};
+
 export type LockStateView = "healthy" | "held_by_other" | "recovered" | "uninitialized";
 
 export type LspCodeAction = {
@@ -6028,7 +6045,11 @@ export type VscodeExtensionStatus = {
 	installed: boolean,
 	/**  어느 편집기에서 찾았나 — `vscode` | `vscode-insiders`. */
 	editor: string | null,
-	marketplace_url: string,
+	/**
+	 *  VS Code 마켓플레이스 — **아직 발행 전**이라 `None` (2026-09-14 실측 404).
+	 *  발행 뒤 `Some` 으로 돌리면 행에 링크가 다시 선다.
+	 */
+	marketplace_url: string | null,
 	open_vsx_url: string,
 };
 

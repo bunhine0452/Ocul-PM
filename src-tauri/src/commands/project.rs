@@ -544,7 +544,18 @@ pub async fn index_project(
             {
                 Ok(Some(_)) => info!(project_id, "overview refreshed after indexing"),
                 Ok(None) => info!(project_id, "overview signature unchanged; skipped"),
-                Err(e) => tracing::warn!(project_id, error = %e, "overview refresh failed"),
+                Err(e) => {
+                    tracing::warn!(project_id, error = %e, "overview refresh failed");
+                    // 로그만으로는 아무도 모른다 — 화면으로 올린다 (2026-09-14 감사 7번).
+                    let evt = crate::commands::overview::LlmBackgroundFailed {
+                        project_id,
+                        provider: provider.clone(),
+                        model: model.clone(),
+                        job: "overview".to_string(),
+                        message: e,
+                    };
+                    let _ = tauri_specta::Event::emit(&evt, &app_handle);
+                }
             }
         });
     }

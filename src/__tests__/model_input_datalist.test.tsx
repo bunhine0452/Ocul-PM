@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 
+import { t } from "@/i18n";
 import { ModelInput, resetModelListCache } from "@/features/settings/tabs/ModelInput";
 
 // 감사 라운드 2026-09-11 B2 — 모델 칸이 프로바이더의 실제 목록을 datalist 로
@@ -45,6 +46,24 @@ describe("ModelInput", () => {
 
     fireEvent.change(input, { target: { value: "claude-opus-5" } });
     expect(onChange).toHaveBeenCalledWith("claude-opus-5");
+  });
+
+  // 2026-09-14 감사 7번 — 적힌 모델이 받은 목록에 없으면 말한다 (EOL 된 모델이
+  // 3주 동안 조용히 410 을 받던 것). 목록이 없을 때는 판단하지 않는다.
+  it("warns when the typed model is not in the fetched list", async () => {
+    const { container } = render(
+      <ModelInput provider="anthropic" value="z-ai/glm-5.2" placeholder="" onChange={() => {}} />,
+    );
+    fireEvent.focus(container.querySelector("input")!);
+    await waitFor(() => expect(container.querySelectorAll("datalist option")).toHaveLength(2));
+    expect(container.textContent).toContain(t("settings.models.notInList", { model: "z-ai/glm-5.2" }));
+    cleanup();
+    const ok = render(
+      <ModelInput provider="anthropic" value="claude-opus-5" placeholder="" onChange={() => {}} />,
+    );
+    fireEvent.focus(ok.container.querySelector("input")!);
+    await waitFor(() => expect(ok.container.querySelectorAll("datalist option")).toHaveLength(2));
+    expect(ok.container.textContent).toContain(t("settings.models.listReady", { n: 2 }));
   });
 
   it("keeps the field usable and says why when the list fails", async () => {

@@ -349,6 +349,12 @@ pub fn schedule_incremental_index(
                         target: "oculpm::watcher", project_id, path = %rel_path,
                         embeddings = emb, "auto-index: reindexed"
                     ),
+                    // 생성물(minified·tsbuildinfo)을 건너뛴 것은 정상 동작이다 —
+                    // WARN 으로 두면 진짜 실패(읽기·저장)가 그 사이에 묻힌다.
+                    Err(reason @ crate::indexer::ReindexSkipReason::Generated) => tracing::debug!(
+                        target: "oculpm::watcher", project_id, path = %rel_path,
+                        ?reason, "auto-index: reindex skipped"
+                    ),
                     Err(reason) => tracing::warn!(
                         target: "oculpm::watcher", project_id, path = %rel_path,
                         ?reason, "auto-index: reindex skipped"

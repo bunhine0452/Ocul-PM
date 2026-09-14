@@ -563,9 +563,9 @@ pub async fn start(
 
     let mut config = AcpAgentConfig::new(node)
         .arg(entry.to_string_lossy().to_string())
-        // 어댑터는 내부에서 `claude` 바이너리를 다시 찾는다 — 우리가 해석한
-        // PATH 를 물려주지 않으면 패키징된 앱에서만 조용히 실패한다.
-        .env("PATH", &path_env);
+        // 어댑터가 `claude` 를 다시 찾는다 — 해석한 PATH 를 안 물려주면 패키징 앱에서만 조용히 실패.
+        .env("PATH", &path_env)
+        .env(crate::oculpm::mcp::protocol::ACP_HOST_ENV, "1"); // 플러그인 쪽 oculpm-mcp 휴면 표식
     if let Some(shim) = &shim {
         for (key, value) in shim.env_pairs() {
             config = config.env(key, value);
