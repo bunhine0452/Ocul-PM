@@ -8,8 +8,7 @@
 //! See `docs/major_update/oculpm/01-backend.md` §9 (SSOT for table shape)
 //! and `docs/major_update/oculpm/W3/PR2-cache-sqlite.md`.
 
-#![allow(dead_code)] // Surfaced as Tauri commands by `commands/oculpm.rs`
-                     // (W3-PR3) and consumed by `WorkspaceContext` (W3-PR4).
+// (W3-PR3) and consumed by `WorkspaceContext` (W3-PR4).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

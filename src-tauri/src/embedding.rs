@@ -27,7 +27,6 @@ use tracing::info;
 /// (paraphrase-multilingual-MiniLM-L12-v2, int8) — ~135MB vs the old fp32 e5
 /// model's ~480MB, same 384 dims.
 const MODEL: EmbeddingModel = EmbeddingModel::ParaphraseMLMiniLML12V2Q;
-#[allow(dead_code)]
 pub const EMBEDDING_DIM: usize = 384;
 
 /// 토크나이저 절단 길이 (`{#ort-arena}`, 2026-09-12). fastembed 기본은 512 인데
@@ -355,6 +354,7 @@ fn dir_size(dir: &Path) -> u64 {
 /// Convert an embedding vector into the little-endian byte layout sqlite-vec
 /// stores. Length must equal `EMBEDDING_DIM`.
 pub fn vec_to_bytes(embedding: &[f32]) -> Vec<u8> {
+    debug_assert_eq!(embedding.len(), EMBEDDING_DIM, "vec0 column is FLOAT[384]");
     let mut out = Vec::with_capacity(embedding.len() * 4);
     for v in embedding {
         out.extend_from_slice(&v.to_le_bytes());

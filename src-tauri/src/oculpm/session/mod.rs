@@ -15,8 +15,6 @@
 //! See `docs/major_update/oculpm/W2/PR2-session-actor.md` for the full state
 //! transition table.
 
-#![allow(dead_code)] // Consumed by W2-PR3 (Watcher) + W2-PR6 (commands) + W2-PR7 (manager bootstrap).
-
 use std::collections::{BTreeSet, HashSet};
 use std::sync::Arc;
 use std::time::Duration;

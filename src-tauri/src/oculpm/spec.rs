@@ -15,8 +15,7 @@
 //! sees them as distinct symbols — we grep-checked main has no collisions
 //! (only `FileChange` exists, which is different from our `FileChangeEvent`).
 
-#![allow(dead_code)] // Many fields are consumed by sibling modules landing in
-                     // W1-PR3..W1-PR8 and W2+; this PR establishes the surface.
+// W1-PR3..W1-PR8 and W2+; this PR establishes the surface.
 
 use serde::{Deserialize, Serialize};
 use specta::Type;

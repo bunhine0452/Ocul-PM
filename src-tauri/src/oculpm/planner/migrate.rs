@@ -3,8 +3,6 @@
 //! item; a goal with no subtasks becomes one item. Pure markdown build (tested
 //! via a parse round-trip); the command reads the DB and writes the file.
 
-#![allow(dead_code)]
-
 use crate::oculpm::planner::parse::ItemStatus;
 use crate::oculpm::planner::plan_edit::{add_item, create_plan_skeleton};
 

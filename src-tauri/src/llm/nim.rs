@@ -114,10 +114,6 @@ struct StreamDelta {
 
 #[async_trait]
 impl LlmProvider for Nim {
-    fn name(&self) -> &'static str {
-        "nim"
-    }
-
     async fn list_models(&self) -> Result<Vec<ModelInfo>, LlmError> {
         #[derive(Deserialize)]
         struct Page {

@@ -105,10 +105,6 @@ struct CandidateContent {
 
 #[async_trait]
 impl LlmProvider for Gemini {
-    fn name(&self) -> &'static str {
-        "gemini"
-    }
-
     async fn list_models(&self) -> Result<Vec<ModelInfo>, LlmError> {
         #[derive(Deserialize)]
         struct Page {

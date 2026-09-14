@@ -15,8 +15,6 @@
 //! `SessionActor`, W2-PR3 `Watcher`) in a uniform `.await` shape and gives us
 //! room to migrate to `tokio::fs` later without churning callers.
 
-#![allow(dead_code)] // Consumed by W2-PR2 + W2-PR3 + W2-PR6.
-
 // 브랜치 축 (v3-surface {#branch-index}) — 파생 전용 읽기라 쓰기 경로와 섞지 않는다.
 pub mod branch;
 

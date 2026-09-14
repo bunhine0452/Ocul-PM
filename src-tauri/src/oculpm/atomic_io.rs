@@ -32,7 +32,6 @@ pub const NDJSON_LINE_CAP: usize = 4096;
 /// Write `contents` to `path` via temp file + rename. Never produces a
 /// partially-written `path`: callers either see the previous content (if any)
 /// or the new content in full.
-#[allow(dead_code)] // Consumed by config (W1-PR4), lock (W1-PR5), gitignore (W1-PR8).
 pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<(), OculpmError> {
     let parent = path.parent().ok_or_else(|| OculpmError::Io {
         path: path.to_path_buf(),
@@ -99,7 +98,6 @@ pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<(), OculpmError> {
 /// Each call writes `line + "\n"` and fsyncs. A truncated tail on crash will
 /// always be at a newline boundary, so the file remains valid ndjson minus
 /// (at most) the final line.
-#[allow(dead_code)] // Consumed by the watcher (W2).
 pub fn append_ndjson(path: &Path, line: &str) -> Result<(), OculpmError> {
     if line.len() > NDJSON_LINE_CAP {
         return Err(OculpmError::NdjsonLineTooLarge(line.len(), NDJSON_LINE_CAP));
@@ -160,7 +158,6 @@ pub const MANAGED_BLOCK_VERSION: u32 = 1;
 /// Inner contents of a managed block (the lines between `begin`/`end`, with
 /// the marker lines stripped).
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[allow(dead_code)]
 pub struct ManagedBlock {
     /// Version embedded in the `begin` marker (`v1`, `v2`, ...).
     pub version: u32,
@@ -171,7 +168,6 @@ pub struct ManagedBlock {
 /// Outcome of `write_managed_block` — lets callers (e.g. `init_project`)
 /// decide whether to surface "we touched the file" to the user.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum ManagedBlockResult {
     /// No block was present; one was created.
     Inserted,
@@ -189,7 +185,6 @@ pub enum ManagedBlockResult {
 /// Locate the `<begin v1> ... <end>` block for `block_id` in `path`. Returns
 /// `Ok(None)` if no block is present, `Err(ManagedBlockMismatch)` if only one
 /// marker is found, otherwise the inner content joined by `\n`.
-#[allow(dead_code)] // Consumed by gitignore (W1-PR8) and agents (W4).
 pub fn read_managed_block(
     path: &Path,
     block_id: &str,
@@ -243,7 +238,6 @@ pub fn read_managed_block(
 /// `path` with `new_content`. EOL convention (LF / CRLF) is detected from
 /// existing content and preserved. Creates `path` if missing. Returns
 /// `Err(ManagedBlockMismatch)` if only one marker is present in the file.
-#[allow(dead_code)] // Consumed by gitignore (W1-PR8) and agents (W4).
 pub fn write_managed_block(
     path: &Path,
     block_id: &str,
@@ -305,7 +299,6 @@ pub fn write_managed_block(
 
 /// Remove the `<begin v1> ... <end>` block for `block_id` from `path`,
 /// preserving surrounding user content. No-op if no block or no file.
-#[allow(dead_code)] // Consumed by agents (W4) when deactivating an adapter.
 pub fn remove_managed_block(
     path: &Path,
     block_id: &str,

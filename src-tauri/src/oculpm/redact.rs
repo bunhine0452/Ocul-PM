@@ -56,10 +56,9 @@
 //! [`watcher`]: super::watcher
 //! [`manager`]: super::manager
 
-#![allow(dead_code)] // A few accessors stay unused; the core (`redact_text` /
-                     // `compile_redact_patterns` / `patterns_for_project`) is
-                     // consumed by the journal cache projection, manual-entry
-                     // writes, and per-entry diff capture (dev-report §2 / R1).
+// `compile_redact_patterns` / `patterns_for_project`) is
+// consumed by the journal cache projection, manual-entry
+// writes, and per-entry diff capture (dev-report §2 / R1).
 
 use std::path::Path;
 

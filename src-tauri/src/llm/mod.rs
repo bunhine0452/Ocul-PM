@@ -104,9 +104,6 @@ pub struct ModelInfo {
 
 #[async_trait]
 pub trait LlmProvider: Send + Sync {
-    #[allow(dead_code)]
-    fn name(&self) -> &'static str;
-
     /// 이 키로 쓸 수 있는 모델 목록. 설정 화면의 모델 칸이 datalist 로 띄운다 —
     /// 사용자가 모델 id 를 외워 치지 않게. 실패는 그대로 올린다(키가 틀렸다는
     /// 신호이기도 하다).

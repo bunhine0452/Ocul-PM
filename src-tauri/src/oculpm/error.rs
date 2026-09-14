@@ -8,7 +8,6 @@ use thiserror::Error;
 
 /// Unified error type for every `.oculpm/` subsystem operation. Flat by
 /// design — `thiserror` provides `Display` + `std::error::Error`.
-#[allow(dead_code)] // Variants are consumed by sibling modules landing in W1-PR4..PR8.
 #[derive(Debug, Error)]
 pub enum OculpmError {
     #[error("io error at {path}: {source}")]
@@ -99,5 +98,4 @@ pub enum OculpmError {
     NotImplemented,
 }
 
-#[allow(dead_code)] // Used by sibling modules landing in W1-PR3..PR8.
 pub type OculpmResult<T> = Result<T, OculpmError>;

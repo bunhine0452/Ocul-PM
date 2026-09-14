@@ -8,8 +8,6 @@
 //! the frontmatter (id/title/status/created/owner/tags/resolution_ref) stays
 //! app-managed.
 
-#![allow(dead_code)] // Consumed by commands/discussion.rs.
-
 const LOG_BEGIN: &str = "<!-- oculpm:discussion-log begin v1 -->";
 const LOG_END: &str = "<!-- oculpm:discussion-log end -->";
 

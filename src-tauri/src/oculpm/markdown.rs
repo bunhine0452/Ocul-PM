@@ -16,8 +16,7 @@
 //! result. The first-line heading is intentionally skipped because it is
 //! already represented as `title`.
 
-#![allow(dead_code)] // Consumed by `cache.rs` (W3-PR2) and
-                     // `commands/oculpm.rs` (W3-PR3).
+// `commands/oculpm.rs` (W3-PR3).
 
 use pulldown_cmark::{Event, HeadingLevel, Parser, Tag};
 

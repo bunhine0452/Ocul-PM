@@ -19,8 +19,7 @@
 //! first run (user-editable from then on). Per-agent overrides live in
 //! `.oculpm/agents/per-agent/{id}.md`.
 
-#![allow(dead_code)] // Consumed by manager / commands / watcher in this PR
-                     // and by PR4 (drift) / PR5 (compare) / PR7 (settings).
+// and by PR4 (drift) / PR5 (compare) / PR7 (settings).
 
 use std::path::{Path, PathBuf};
 
