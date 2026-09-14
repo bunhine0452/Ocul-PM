@@ -7,8 +7,16 @@
  */
 
 import { call, type Envelope } from "@/api/invoke";
-import { commands } from "@/lib/bindings";
-import type { ChatOptions, ChatResponse, Message, ModelInfo, ProviderModel, ProviderReach } from "@/lib/bindings";
+import { commands, events } from "@/lib/bindings";
+import type {
+  ChatOptions,
+  ChatResponse,
+  LlmBackgroundFailed,
+  Message,
+  ModelInfo,
+  ProviderModel,
+  ProviderReach,
+} from "@/lib/bindings";
 import type { Provider } from "@/lib/settings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -17,6 +25,18 @@ const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command
 const secretName = (p: Provider): string => `${p}_api_key`;
 
 export const llmApi = {
+  /**
+   * 백그라운드 LLM 작업(색인 후 개요 생성)이 실패했다 (2026-09-14). 구독 해제
+   * 함수를 돌려준다 — 죽은 모델이 로그에만 남던 것을 창까지 올리는 통로.
+   */
+  onBackgroundFailed: (cb: (payload: LlmBackgroundFailed) => void): Promise<() => void> => {
+    try {
+      return events.llmBackgroundFailed.listen(({ payload }) => cb(payload)).catch(() => () => {});
+    } catch {
+      return Promise.resolve(() => {});
+    }
+  },
+
   /** 이 키로 쓸 수 있는 모델 목록 (설정 → LLM 의 datalist). 키가 없으면 실패. */
   listModels: (provider: Provider) => unwrap<ModelInfo[]>("llm_list_models", commands.llmListModels(provider)),
 

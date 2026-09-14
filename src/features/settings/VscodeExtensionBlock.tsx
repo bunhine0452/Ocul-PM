@@ -60,9 +60,11 @@ export function VscodeExtensionBlock({ status: given }: { status?: VscodeExtensi
       <p className="text-fs-2 leading-relaxed text-muted-foreground">{t("op.vscode.desc")}</p>
       {status ? (
         <p className="flex flex-wrap gap-3 text-fs-2">
-          <a href={status.marketplace_url} className="underline underline-offset-2">
-            {t("op.vscode.marketplace")}
-          </a>
+          {status.marketplace_url ? (
+            <a href={status.marketplace_url} className="underline underline-offset-2">
+              {t("op.vscode.marketplace")}
+            </a>
+          ) : null}
           <a href={status.open_vsx_url} className="underline underline-offset-2">
             {t("op.vscode.openVsx")}
           </a>

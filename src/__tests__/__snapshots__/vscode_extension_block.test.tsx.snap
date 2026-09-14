@@ -35,12 +35,6 @@ exports[`VscodeExtensionBlock > installed (stable): badge + round-trip hint 1`] 
     >
       <a
         class="underline underline-offset-2"
-        href="https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm"
-      >
-        VS Code 마켓플레이스
-      </a>
-      <a
-        class="underline underline-offset-2"
         href="https://open-vsx.org/extension/oculpm/ocul-pm"
       >
         Open VSX (Cursor · VSCodium)
@@ -55,7 +49,7 @@ exports[`VscodeExtensionBlock > installed (stable): badge + round-trip hint 1`] 
 </div>
 `;
 
-exports[`VscodeExtensionBlock > not installed: badge + machine-scope chip + two market links (user-click anchors) 1`] = `
+exports[`VscodeExtensionBlock > not installed: badge + machine-scope chip + only the published market link (user-click anchors) 1`] = `
 <div>
   <div
     class="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3"
@@ -88,12 +82,6 @@ exports[`VscodeExtensionBlock > not installed: badge + machine-scope chip + two 
     <p
       class="flex flex-wrap gap-3 text-fs-2"
     >
-      <a
-        class="underline underline-offset-2"
-        href="https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm"
-      >
-        VS Code 마켓플레이스
-      </a>
       <a
         class="underline underline-offset-2"
         href="https://open-vsx.org/extension/oculpm/ocul-pm"

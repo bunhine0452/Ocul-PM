@@ -82,7 +82,14 @@ fn setup_logging() {
     let log_dir = directories::ProjectDirs::from("com", "kimhyunbin", "ocul-pm")
         .map(|p| p.data_dir().join("logs"));
 
-    let stdout_layer = fmt::layer().with_target(true).with_thread_ids(false);
+    // stdout 도 ANSI 를 끈다 — fmt 레이어는 스팬 필드를 **한 번만** 포맷해 스팬
+    // 확장에 캐시하고(`FormattedFields`, 필드 포매터 타입별), 같은 포매터를 쓰는
+    // 뒤 레이어는 그걸 재사용한다. stdout 이 색을 켜면 그 색이 파일에도 실린다
+    // (`connection{\x1b[1mname\x1b[0m=…}`, 2026-09-14 로그 실측 18줄).
+    let stdout_layer = fmt::layer()
+        .with_target(true)
+        .with_thread_ids(false)
+        .with_ansi(false);
 
     match log_dir.as_ref().and_then(|d| {
         std::fs::create_dir_all(d).ok()?;
@@ -922,6 +929,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::oculpm::spec::OculpmJournalUpdated,
             crate::oculpm::spec::OculpmIntegrityWarning,
             crate::oculpm::spec::OculpmPlanReconciled,
+            // 백그라운드 LLM 작업 실패 (개요 생성) — 죽은 모델이 조용히 실패하지 않게
+            crate::commands::overview::LlmBackgroundFailed,
             crate::oculpm::spec::OculpmWatchYielded,
             crate::oculpm::spec::OculpmAgentDrift,
             crate::oculpm::spec::OculpmJournalPathChanged,

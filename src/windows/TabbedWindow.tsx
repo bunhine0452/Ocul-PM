@@ -29,6 +29,7 @@ import { pruneWorkspaceRecords } from "@/contexts/workspacePrune";
 import { useSettings } from "@/contexts/SettingsContext";
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 import { createUnlistenBag } from "@/lib/unlisten";
+import { useLlmBackgroundToast } from "@/hooks/useLlmBackgroundToast";
 import { hasRunningWork, runCloseIntent, runTabCloseGuard } from "@/lib/closeIntent";
 import { runNewTabIntent } from "@/lib/newTabIntent";
 import { toast } from "@/lib/toast";
@@ -222,6 +223,8 @@ export default function TabbedWindow({
     bag.add(events.projectWindowsChanged.listen(({ payload }) => setOpenProjects(payload.open)));
     return () => bag.dispose();
   }, []);
+
+  useLlmBackgroundToast();
 
   // 세션 활동 점 — 백그라운드 탭에서 에이전트가 돌고 있다는 유일한 신호다
   // (탭이 숨어 있으면 화면으로는 알 수 없다).

@@ -224,7 +224,9 @@ pub struct VscodeExtensionStatus {
     pub installed: bool,
     /// 어느 편집기에서 찾았나 — `vscode` | `vscode-insiders`.
     pub editor: Option<String>,
-    pub marketplace_url: String,
+    /// VS Code 마켓플레이스 — **아직 발행 전**이라 `None` (2026-09-14 실측 404).
+    /// 발행 뒤 `Some` 으로 돌리면 행에 링크가 다시 선다.
+    pub marketplace_url: Option<String>,
     pub open_vsx_url: String,
 }
 
@@ -235,10 +237,7 @@ pub fn vscode_extension_status() -> VscodeExtensionStatus {
     VscodeExtensionStatus {
         installed: editor.is_some(),
         editor: editor.map(|e| e.scheme().to_string()),
-        marketplace_url: format!(
-            "https://marketplace.visualstudio.com/items?itemName={}",
-            crate::vscode_ext::EXTENSION_ID
-        ),
+        marketplace_url: None,
         open_vsx_url: "https://open-vsx.org/extension/oculpm/ocul-pm".to_string(),
     }
 }

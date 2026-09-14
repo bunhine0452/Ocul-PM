@@ -72,7 +72,19 @@ fn main() {
         root.display()
     );
 
-    let server = McpServer::new(root);
+    // 앱이 띄운 대화 안의 **두 번째** 인스턴스인가 — 표식은 있는데 신원이 없다.
+    // (신원 있는 쪽이 앱이 물려 준 서버다. protocol.rs `ACP_HOST_ENV` 참고.)
+    let dormant = std::env::var_os(ocul_pm_lib::oculpm::mcp::protocol::ACP_HOST_ENV).is_some()
+        && std::env::var_os(ocul_pm_lib::oculpm::mcp::tools::OCULPM_SESSION_ENV).is_none();
+    let server = if dormant {
+        eprintln!(
+            "oculpm-mcp: dormant — the app already attached an oculpm server to this conversation \
+             (OCULPM_ACP_HOST set, OCULPM_SESSION_ID absent); serving an empty tool list."
+        );
+        McpServer::dormant(root)
+    } else {
+        McpServer::new(root)
+    };
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
     let mut out = stdout.lock();

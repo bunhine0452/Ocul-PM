@@ -29,13 +29,37 @@ pub const MCP_INSTRUCTIONS: &str = "ocul-pm 작업 기록 도구. ① 작업 단
 const KNOWN_PROTOCOL_VERSIONS: [&str; 3] = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const DEFAULT_PROTOCOL_VERSION: &str = "2025-06-18";
 
+/// 앱이 띄운 ACP 어댑터(와 그 아래 CLI·MCP 자식 전부)에 실리는 표식
+/// (2026-09-14 감사 9번). 앱은 대화마다 **자기** `oculpm-mcp` 를 신원
+/// (`tools::OCULPM_SESSION_ENV`) 과 함께 물려 주는데, 사용자가 oculpm 플러그인까지
+/// 켜 두면 CLI 가 플러그인의 `.mcp.json` 으로 **같은 도구를 한 벌 더** 띄웠다
+/// (실측: Claude 프로세스 하나에 `oculpm-mcp` 둘, pid 35587/35592). 모델이
+/// 플러그인 쪽을 고르면 그 일지는 신원 없이 적혀 판정 사다리 1순위가 못
+/// 알아본다. 그래서 이 표식이 있는데 신원이 없는 인스턴스는 **휴면**한다 —
+/// 프로토콜엔 답하되 도구 목록을 비운다 (죽으면 CLI 가 MCP 실패를 떠든다).
+pub const ACP_HOST_ENV: &str = "OCULPM_ACP_HOST";
+
 pub struct McpServer {
     root: PathBuf,
+    /// 휴면 — 프로토콜엔 답하되 도구를 내놓지 않는다 ([`ACP_HOST_ENV`]).
+    dormant: bool,
 }
 
 impl McpServer {
     pub fn new(root: PathBuf) -> Self {
-        Self { root }
+        Self {
+            root,
+            dormant: false,
+        }
+    }
+
+    /// 앱이 이미 신원 붙은 서버를 물려 준 대화 안에서 한 벌 더 뜬 인스턴스.
+    /// 빈 도구 목록으로 서서 모델의 선택지에서 사라진다.
+    pub fn dormant(root: PathBuf) -> Self {
+        Self {
+            root,
+            dormant: true,
+        }
     }
 
     /// 한 입력 라인 → 응답 라인 (없으면 None: 알림/빈 줄).
@@ -83,7 +107,15 @@ impl McpServer {
                 )
             }
             "ping" => ok_response(id, json!({})),
+            "tools/list" if self.dormant => ok_response(id, json!({ "tools": [] })),
             "tools/list" => ok_response(id, json!({ "tools": tools::tool_definitions() })),
+            "tools/call" if self.dormant => ok_response(
+                id,
+                json!({
+                    "content": [{ "type": "text", "text": "oculpm-mcp is dormant here: the app already attached its own oculpm server to this conversation — call the tools under that server instead." }],
+                    "isError": true,
+                }),
+            ),
             "tools/call" => {
                 let name = msg
                     .pointer("/params/name")
@@ -171,6 +203,33 @@ mod tests {
         assert!(s
             .handle_line(r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#)
             .is_none());
+    }
+
+    /// 2026-09-14 감사 9번 — 앱이 띄운 대화 안의 두 번째 인스턴스는 프로토콜엔
+    /// 답하되 도구를 내놓지 않는다. 죽지 않는 이유: CLI 가 MCP 실패를 떠든다.
+    #[test]
+    fn dormant_server_answers_the_protocol_but_offers_no_tools() {
+        let dir = TempDir::new().unwrap();
+        std::fs::create_dir_all(dir.path().join(".oculpm")).unwrap();
+        let s = McpServer::dormant(dir.path().to_path_buf());
+        let init = call(
+            &s,
+            r#"{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}"#,
+        );
+        assert_eq!(init["result"]["serverInfo"]["name"], "oculpm-mcp");
+        let list = call(&s, r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#);
+        assert_eq!(list["result"]["tools"].as_array().unwrap().len(), 0);
+        let called = call(
+            &s,
+            r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"plan_status","arguments":{}}}"#,
+        );
+        assert_eq!(called["result"]["isError"], true);
+        assert!(called["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("dormant"));
+        // 휴면이어도 디스크는 건드리지 않았다.
+        assert!(!dir.path().join(".oculpm/journal").exists());
     }
 
     #[test]
