@@ -13,7 +13,7 @@ owner: claude-code
 ## Phase 1 — 배포 계보 {#lineage}
 - [x] 최적화 라운드 4커밋(d429ef4·af009e5·31d5c75·63bcf72)을 origin/main 위로 cherry-pick 해 합류 — 설치본 RSS 2,229MB 실측이 근거. 스냅샷 HEAD 중복(69%)·파일당 git spawn·gitignore 잔존 행은 이 커밋의 index_project 화해가 함께 푼다 {#merge-optimization}
 - [x] feat/audit-round-20260911 의 dirty 76파일(전부 main 에 이미 있는 옛 WIP)을 stash 로 치우고 refs/backup 스냅샷, 로컬 main 을 origin 에 맞춤. 유일한 미반영 일지 2건만 새 브랜치로 {#stale-worktree}
-- [~] v3.1.0 릴리스 — 6 버전 파일·CHANGELOG·README ko/en·랜딩 ko/en 12곳·build.mjs, 태그 푸시(CI 빌드), landing vercel --prod {#release-310}
+- [x] v3.1.0 릴리스 — 6 버전 파일·CHANGELOG·README ko/en·랜딩 ko/en 12곳·build.mjs, 태그 푸시(CI 빌드), landing vercel --prod {#release-310}
 
 ## Phase 2 — 조용한 실패를 화면으로 {#silent-failures}
 - [x] 색인 후 개요 생성 실패(기본 nim 모델 z-ai/glm-5.2 EOL 410, 3주간 WARN 로그만)를 LlmBackgroundFailed 이벤트 → 토스트로. 같은 서명은 프로세스 수명 동안 재시도하지 않는 백오프 {#model-eol-toast}
@@ -75,4 +75,5 @@ owner: claude-code
 | 2026-09-14T17:57:33+09:00 | #dead-code-allow | claude-code | ☐→x | 20260914/Chores/1755_chore_dead-code-allow-purge.md | 40곳 제거, 죽은 심볼 4 + 테스트 헬퍼 1 정리 (6fc4ddc) |
 | 2026-09-14T17:57:40+09:00 | #verified-loop | claude-code | ☐→! |  | 사용자 결정 대기 — 추천: 항목별 토글 대신 육안 원장으로 통합 |
 | 2026-09-14T17:57:52+09:00 | #release-310 | claude-code | ☐→~ |  | 게이트 4종 exit 0 확인, 5면 갱신 시작 |
+| 2026-09-14T19:30:43+09:00 | #release-310 | claude-code | ~→x |  | PR #23 rebase 머지 b1990ce · release.yml 성공(자산 5) · 랜딩 ko/en 3.1.0 라이브 · latest.json 3.1.0 |
 <!-- oculpm:plan-log end -->
