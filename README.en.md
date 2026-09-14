@@ -64,7 +64,14 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.0.1 — the journal reading pane scrolls again
+## 🚀 v3.1.0 — the quiet failures speak up
+
+- **The installed app grew past 2GB after a day — fixed on Sep 12, never shipped.** The four commits (embedding arena 2.2GB → 940MB · vector table rebuild · unloading the model when idle 645MB → 38MB) sat on a branch outside 3.0.x. 3.1.0 ships them, and the index stops keeping copies of files git already has.
+- **A retired default model failed silently for three weeks.** The background overview job now toasts on failure (once an hour per model) and stops retrying the same input; the model field in Settings warns when the name isn't in the provider's list.
+- **oculpm tools showed up twice inside Claude Code sessions** (the app's server plus the plugin's). Inside an app-hosted conversation the plugin copy now offers no tools, so entries keep their session identity.
+- Fixes: the VS Code Marketplace link in Settings led to a 404 (not published there yet — Open VSX only) · terminal color codes in the log file · build artifacts logged as warnings when skipped.
+
+## v3.0.1 — the journal reading pane scrolls again
 
 - **Opening a journal entry didn't scroll and everything below the fold was cut off** (3.0.0). The flex wrap meant for narrow windows let the reading pane grow to the length of the body — both panes now have a pinned height.
 

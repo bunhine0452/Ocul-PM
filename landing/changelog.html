@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.0.1)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 104개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.1.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 105개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.0.1)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 104개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.1.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 105개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.0.1</span>
+    <span class="nav-ver" data-version>v3.1.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>104개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>105개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-1-0">v3.1.0</a>
       <a href="#v3-0-1">v3.0.1</a>
       <a href="#v3-0-0">v3.0.0</a>
       <a href="#v2-48-0">v2.48.0</a>
@@ -61,10 +62,19 @@
       <a href="#v2-44-1">v2.44.1</a>
       <a href="#v2-44-0">v2.44.0</a>
       <a href="#v2-43-0">v2.43.0</a>
-      <a href="#v2-42-0">v2.42.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-1-0"><a href="#v3-1-0">v3.1.0</a></h2>
+      <div class="cl-body">
+<p><b>설치본이 하루 넘게 돌면 2GB 를 넘게 먹던 것 — 9월 12일에 고쳐 놓고 내보내지 않았습니다.</b> 임베딩 아레나(2.2GB → 940MB)·벡터 테이블 재구축·쓰지 않을 때 임베딩 모델 내려놓기(유휴 645MB → 38MB)를 담은 네 커밋이 3.0.0 과 3.0.1 에 실리지 않은 채 브랜치에 남아 있었습니다. 이번 감사가 설치본의 메모리(가동 1일 14시간에 2,229MB)로 그것을 잡았고, 3.1.0 이 싣습니다. 같은 커밋이 git 이 이미 가진 파일의 사본을 색인이 따로 찍던 것도 멈추고, 프로젝트를 열 때 옛 사본을 지웁니다 — 이 저장소만 2,262건 중 1,553건이 그런 사본이었습니다.</p>
+<p><b>기본 모델이 지원 종료돼도 아무 데도 안 보였습니다.</b> 색인이 끝날 때마다 뒤에서 도는 「프로젝트 개요」 생성이 8월 21일에 사라진 모델을 3주 동안 두드리고 로그에만 적었습니다. 이제 실패하면 경고 토스트가 뜨고(같은 모델은 한 시간에 한 번), 같은 입력으로는 다시 두드리지 않습니다. 설정의 모델 칸도 받아 온 목록에 없는 이름이면 「지원 종료됐거나 이름이 바뀐 모델」이라고 말합니다 — 지금까지는 자동완성 목록만 조용히 띄웠습니다.</p>
+<p><b>Claude Code 화면 안에서 oculpm 도구가 두 벌로 보이던 것.</b> 앱이 대화에 붙여 주는 기록 서버와, oculpm 플러그인을 켠 사용자에게 CLI 가 한 벌 더 띄우는 서버가 나란히 섰습니다(프로세스도 둘). 모델이 플러그인 쪽을 고르면 그 일지는 어느 대화의 것인지 모른 채 적혔습니다. 이제 앱이 띄운 대화 안에서는 플러그인 쪽이 도구를 내놓지 않습니다.</p>
+<p><b>고친 것.</b> 설정 &gt; 통합의 VS Code 마켓플레이스 링크가undefined로 갔습니다 — 확장이 아직 거기 발행되지 않아 링크를 내리고 Open VSX 만 둡니다 · 앱 로그 파일에 터미널 색 코드가 섞이던 것 · 빌드 산출물을 색인에서 건너뛴 것이 경고로 찍히던 것.</p>
+<p><b>안쪽.</b> <code>allow(dead_code)</code> 억제 42곳을 걷어냈더니 진짜 죽은 코드는 넷이었습니다 — 지웠습니다. 닫힌 플랜 스무 개에 남아 있던 미완 63건을 살아 있는 플랜 하나로 옮겨 적었습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-0-1"><a href="#v3-0-1">v3.0.1</a></h2>
       <div class="cl-body">
