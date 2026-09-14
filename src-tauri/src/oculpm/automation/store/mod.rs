@@ -22,8 +22,6 @@
 //!   한다. 8빈도 해석은 Phase 1(`#schedule-frequency`), 티어 해석은
 //!   Phase 2(`#responsiveness-tiers`) 의 몫이다.
 
-#![allow(dead_code)] // 큐에 넣는 쪽(Phase 1·2)이 아직 없다 — mod.rs 참조.
-
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};

@@ -29,14 +29,12 @@ use crate::oculpm::spec::EntryType;
 /// Timezone-aware workday + path resolver. One per `ProjectEntry` — owns the
 /// project's tz / `day_starts_at` config plus the `.oculpm/` path layout
 /// helpers, so the rest of the subsystem never hard-codes either.
-#[allow(dead_code)] // Consumed by config.rs (W1-PR4) and OculpmManager (W1-PR7).
 #[derive(Debug, Clone)]
 pub struct WorkdayResolver {
     pub tz: Tz,
     pub day_starts_at: NaiveTime,
 }
 
-#[allow(dead_code)] // Consumed by config.rs (W1-PR4) and OculpmManager (W1-PR7).
 impl WorkdayResolver {
     /// Construct from string forms.
     ///

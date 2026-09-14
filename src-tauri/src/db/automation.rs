@@ -43,7 +43,6 @@ pub const RUN_CANCELLED: &str = "cancelled";
 /// 없었으므로 일일 예산에서도 세지 않는다.
 pub const RUN_DEFERRED: &str = "deferred";
 
-#[allow(dead_code)] // 목록/이력 조회는 Phase 1 의 자동화 탭이 소비한다.
 impl Db {
     pub async fn automation_state_list(&self, project_id: u32) -> Result<Vec<AutomationState>> {
         let rows = self

@@ -22,8 +22,6 @@
 //!
 //! See `docs/major_update/oculpm/W2/PR3-watcher-notify.md`.
 
-#![allow(dead_code)] // Consumed by W2-PR6 (commands) + W2 manager bootstrap.
-
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};

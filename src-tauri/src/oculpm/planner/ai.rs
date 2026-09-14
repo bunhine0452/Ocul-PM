@@ -3,8 +3,6 @@
 //! same `plan_edit` primitives, stamping `agent_id = inapp:<provider>`. Only the
 //! parse is here (pure + testable); the network call lives in `commands/plan.rs`.
 
-#![allow(dead_code)]
-
 /// One status edit the model asked for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AiEdit {

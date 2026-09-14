@@ -9,8 +9,6 @@
 //!
 //! Format reference: `docs/discussion-feature/01-data-model-and-markdown-spec.md` §2.
 
-#![allow(dead_code)] // Fields consumed by the projection + commands (PR-DISC 0/1/4).
-
 use std::collections::HashSet;
 
 use serde_yaml::Value as YamlValue;

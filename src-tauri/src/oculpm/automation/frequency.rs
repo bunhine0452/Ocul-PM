@@ -21,8 +21,6 @@
 //! 안 도는데, 사용자가 고른 건 "매달"이다. 그 달의 마지막 날로 자른다 (2/29 →
 //! 평년 2/28 도 같다).
 
-#![allow(dead_code)] // 집행 루프(scheduler.rs)와 커맨드가 소비한다.
-
 use std::str::FromStr;
 
 use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, TimeZone, Timelike, Utc};

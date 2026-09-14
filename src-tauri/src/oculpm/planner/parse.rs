@@ -10,8 +10,6 @@
 //!
 //! Format reference: `docs/planner-upgrade/01-data-model-and-markdown-spec.md` §2.
 
-#![allow(dead_code)] // Fields/methods consumed by the projection + commands (PR-PLN 0 part 2/3).
-
 use std::collections::{HashMap, HashSet};
 
 use serde_yaml::Value as YamlValue;

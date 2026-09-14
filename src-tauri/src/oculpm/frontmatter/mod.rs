@@ -13,8 +13,7 @@
 //! - `write_frontmatter_and_body` emits keys in a deterministic order to
 //!   keep `git diff` minimal across re-writes.
 
-#![allow(dead_code)] // Consumed by `cache.rs` (W3-PR2) and `commands/oculpm.rs`
-                     // (W3-PR3).
+// (W3-PR3).
 
 use chrono::{DateTime, NaiveDateTime, TimeZone};
 use chrono_tz::Tz;

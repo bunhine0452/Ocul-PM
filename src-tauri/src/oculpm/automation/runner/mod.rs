@@ -31,8 +31,6 @@
 //! 않는다 — 놓친 실행 따라잡기(Phase 1)와 정착 타이머(Phase 2)를 결정적으로
 //! 시험할 수 있어야 한다.
 
-#![allow(dead_code)] // 큐에 넣는 쪽(Phase 1·2)이 아직 없다 — mod.rs 참조.
-
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 

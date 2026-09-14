@@ -13,8 +13,6 @@
 //! W2 needs to emit Tauri events — keeping it out for now means tests can
 //! construct a real `OculpmManager` without a Wry runtime.
 
-#![allow(dead_code)] // Most surface is consumed by W1-PR7 + W2 + W4 commands.
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -256,21 +254,6 @@ impl OculpmManager {
             Ok(cfg) => cfg.workday.timezone.parse().unwrap_or(chrono_tz::UTC),
             Err(_) => chrono_tz::UTC,
         }
-    }
-
-    /// Snapshot of a project's lazy-loaded state (root + resolver + config).
-    /// Cloned so the caller can drop the read lock before doing IO.
-    async fn project_snapshot(&self, project_id: u32) -> Result<ProjectSnapshot, OculpmError> {
-        let projects = self.projects.read().await;
-        let entry = projects
-            .get(&project_id)
-            .ok_or(OculpmError::NotInitialized(project_id))?;
-        Ok(ProjectSnapshot {
-            root: entry.root.clone(),
-            resolver: entry.resolver.clone(),
-            config: entry.config.clone(),
-            index_writer: entry.index_writer.clone(),
-        })
     }
 }
 

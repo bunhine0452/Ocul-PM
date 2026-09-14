@@ -8,8 +8,6 @@
 //!
 //! See `docs/major_update/oculpm/00-spec.md` §6 for the protocol.
 
-#![allow(dead_code)] // Whole module is consumed by OculpmManager (W1-PR7).
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -58,7 +56,6 @@ struct LockFile {
 
 /// Diagnostics about a stale lock that we just took over — surfaced through
 /// `LockAcquisition::Recovered` so callers can emit an integrity_warning.
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ZombieInfo {
     pub previous_pid: u32,
@@ -66,7 +63,6 @@ pub struct ZombieInfo {
 }
 
 /// Outcome of `LockGuard::acquire`. Maps to `LockStateView` for the UI.
-#[allow(dead_code)]
 #[derive(Debug)]
 pub enum LockAcquisition {
     /// No prior lock; we created a fresh one.
@@ -151,7 +147,6 @@ fn registry_unregister(key: &Path) -> bool {
 
 /// RAII handle for an owned lock. Drop or `release()` cleans up the lock file
 /// and the heartbeat task.
-#[allow(dead_code)]
 #[derive(Debug)]
 pub struct LockGuard {
     path: PathBuf,
@@ -320,7 +315,6 @@ impl LockGuard {
     }
 
     /// Stop the heartbeat task and remove the lock file.
-    #[allow(dead_code)] // Used by OculpmManager teardown (W1-PR7).
     pub async fn release(mut self) -> Result<(), OculpmError> {
         self.shutdown.notify_waiters();
         if let Some(handle) = self.heartbeat_handle.take() {

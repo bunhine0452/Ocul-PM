@@ -149,10 +149,6 @@ struct StreamDelta {
 
 #[async_trait]
 impl LlmProvider for Anthropic {
-    fn name(&self) -> &'static str {
-        "anthropic"
-    }
-
     async fn list_models(&self) -> Result<Vec<ModelInfo>, LlmError> {
         #[derive(Deserialize)]
         struct Page {

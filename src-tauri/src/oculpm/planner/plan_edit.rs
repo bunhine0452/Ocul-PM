@@ -7,8 +7,6 @@
 //! same `<!-- oculpm:plan-log … -->` markers the parser reads, so a write →
 //! parse round-trip is lossless.
 
-#![allow(dead_code)] // Consumed by commands/plan.rs.
-
 use crate::oculpm::planner::parse::ItemStatus;
 
 const LOG_BEGIN: &str = "<!-- oculpm:plan-log begin v1 -->";

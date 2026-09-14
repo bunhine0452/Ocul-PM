@@ -102,7 +102,7 @@ fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
 
 // Now only referenced from tests — project queries go through `primary_repo`
 // (nested-aware). Kept as a focused predicate for the test fixtures.
-#[allow(dead_code)]
+#[cfg(test)]
 fn is_repo(root: &Path) -> bool {
     Command::new("git")
         .arg("-C")

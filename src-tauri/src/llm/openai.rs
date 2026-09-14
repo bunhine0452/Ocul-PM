@@ -155,10 +155,6 @@ struct StreamDelta {
 
 #[async_trait]
 impl LlmProvider for OpenAi {
-    fn name(&self) -> &'static str {
-        "openai"
-    }
-
     async fn list_models(&self) -> Result<Vec<ModelInfo>, LlmError> {
         #[derive(Deserialize)]
         struct Page {

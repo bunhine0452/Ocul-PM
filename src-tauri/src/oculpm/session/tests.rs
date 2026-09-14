@@ -358,15 +358,6 @@ async fn shutdown_on_idle_is_clean_noop() {
     assert!(sessions.is_empty());
 }
 
-// Helper accessor for tests that need to inject internal commands. Keeps
-// the `cmd_tx` field private from the public API while letting unit tests
-// simulate InactivityFired without 60-second waits.
-impl SessionActor {
-    fn cmd_tx_clone(&self) -> mpsc::UnboundedSender<SessionCmd> {
-        self.cmd_tx.clone()
-    }
-}
-
 // Silence unused-config warning when running tests — these structs are
 // referenced by the doc comments and serve as future test scaffolding.
 #[allow(dead_code)]

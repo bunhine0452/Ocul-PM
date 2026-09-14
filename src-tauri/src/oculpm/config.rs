@@ -32,7 +32,6 @@ pub const KNOWN_AGENT_IDS: &[&str] = &[
     "zed",
 ];
 
-#[allow(dead_code)] // Consumed by OculpmManager (W1-PR6) and Settings UI (W4).
 impl OculpmConfig {
     /// Conservative defaults for a freshly-initialised project.
     /// See `phases/README.md` §0.2 and `00-spec.md` §5.
