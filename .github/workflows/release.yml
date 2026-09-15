@@ -33,7 +33,127 @@ permissions:
   contents: write
 
 jobs:
+  # 태그가 가리키는 **정확히 그 커밋**에서 ci.yml 이 초록으로 끝났는지 확인한 뒤에만
+  # 빌드로 넘어간다 (플랜 astra-feedback-round {#release-ci-gate}). 이 게이트가 없던
+  # 동안 v3.1.1 은 cargo-deny 잡이 붉은 커밋(5432b6e)에서 그대로 릴리스됐다 — release.yml
+  # 은 테스트를 돌리지 않으니, "main 이 초록인지 보고 태그를 민다" 는 사람의 습관이
+  # 유일한 방어였다.
+  #
+  # 폴링하는 이유: 태그는 보통 커밋을 민 지 몇 초 뒤에 밀리므로 그 순간 CI 는
+  # queued/in_progress 다. 60초 간격으로 최대 45분(ci.yml Rust 잡의 timeout 40분보다
+  # 길게) 기다렸다가 판정한다.
+  #
+  # ⚠ 판정은 반드시 `conclusion` 필드로 한다. `gh run watch --exit-status` 는 **취소된
+  # run 도 exit 0** 으로 끝나고(같은 브랜치에 연속 푸시하면 ci.yml 의 concurrency 가
+  # 앞선 run 을 취소한다), 파이프로 이으면 종료 코드는 마지막 명령의 것이 된다. 그래서
+  # watch 를 쓰지 않고 API 의 status/conclusion 을 직접 읽는다: success 만 통과,
+  # failure · cancelled · timed_out · skipped 는 전부 차단.
+  gate:
+    name: 게이트 — 태그 커밋의 CI 통과 확인
+    runs-on: ubuntu-latest
+    # 45회 × 60초 폴링 + API 왕복. 이보다 오래 걸리면 매달린 것이다.
+    timeout-minutes: 50
+    # 최상위 permissions 를 좁혀 쓴다 — 여기서는 읽기만. contents: read 는 태그 → 커밋
+    # 해석(git/ref), actions: read 는 run · job 조회에 쓰인다. 체크아웃은 필요 없다.
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: CI conclusion 폴링 (${{ github.ref_name }} → ${{ github.sha }})
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 체크아웃이 없어 gh 가 저장소를 스스로 못 찾는다 — 명시한다.
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          EVENT_SHA: ${{ github.sha }}
+          CI_WORKFLOW_PATH: .github/workflows/ci.yml
+          POLL_INTERVAL: '60'
+          POLL_MAX: '45'
+        run: |
+          set -euo pipefail
+
+          # 태그 → 커밋. 경량 태그면 ref 가 곧 커밋이고, 주석 태그면 태그 객체를 한 번 더
+          # 풀어야 커밋이 나온다. RELEASE.md 는 경량 태그(`git tag vX.Y.Z`)를 쓰지만
+          # 주석 태그를 밀어도 엉뚱한 sha 로 판정하지 않게 API 로 직접 해석한다.
+          ref="$(gh api "repos/$GH_REPO/git/ref/tags/$TAG")"
+          obj_type="$(jq -r '.object.type' <<<"$ref")"
+          sha="$(jq -r '.object.sha' <<<"$ref")"
+          if [ "$obj_type" = "tag" ]; then
+            sha="$(gh api "repos/$GH_REPO/git/tags/$sha" --jq '.object.sha')"
+          fi
+          echo "태그 $TAG → 커밋 $sha (이벤트 sha: $EVENT_SHA, 태그 객체: $obj_type)"
+
+          # 이 커밋에서 돈 ci.yml 의 run 들. 이름("CI")이 아니라 **경로**로 고른다 —
+          # 이름은 바뀔 수 있고, 지금 돌고 있는 이 Release 워크플로 자신도 같은 sha 에
+          # 잡히므로 걸러야 한다. head_sha 필터는 정확히 그 커밋만 돌려주며, 재실행
+          # (re-run)한 run 은 마지막 attempt 의 status/conclusion 으로 나온다.
+          runs='[]'
+          for ((i = 1; i <= POLL_MAX; i++)); do
+            # API 가 잠깐 죽어도 게이트를 붉히지 않는다 — 직전 응답을 들고 다음 회차에
+            # 다시 본다.
+            if ! fresh="$(gh api "repos/$GH_REPO/actions/runs?head_sha=$sha&per_page=100" \
+                           --jq "[.workflow_runs[] | select(.path == \"$CI_WORKFLOW_PATH\")]")"; then
+              echo "[$i/$POLL_MAX] API 호출 실패 — ${POLL_INTERVAL}초 뒤 다시"
+              sleep "$POLL_INTERVAL"
+              continue
+            fi
+            runs="$fresh"
+            total="$(jq 'length' <<<"$runs")"
+            pending="$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs")"
+            if [ "$total" -gt 0 ] && [ "$pending" -eq 0 ]; then
+              break
+            fi
+            if [ "$total" -eq 0 ]; then
+              echo "[$i/$POLL_MAX] 이 커밋의 CI run 이 아직 없다"
+            else
+              echo "[$i/$POLL_MAX] CI run $total 개 중 $pending 개가 아직 진행 중"
+            fi
+            if [ "$i" -lt "$POLL_MAX" ]; then
+              sleep "$POLL_INTERVAL"
+            fi
+          done
+
+          total="$(jq 'length' <<<"$runs")"
+          if [ "$total" -eq 0 ]; then
+            echo "::error::CI 가 이 커밋($sha)에서 돌지 않았다. 커밋이 main 에 푸시됐는지, 커밋 메시지에 [skip ci] 가 없는지 확인하고, CI 를 돌린 뒤 태그를 다시 미세요 (docs/RELEASE.md §0)."
+            exit 1
+          fi
+          pending="$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs")"
+          if [ "$pending" -gt 0 ]; then
+            echo "::error::CI 가 $((POLL_MAX * POLL_INTERVAL / 60))분 안에 끝나지 않았다 — 끝난 뒤 이 워크플로를 re-run 하세요."
+            jq -r '.[] | "  \(.status)\t\(.html_url)"' <<<"$runs"
+            exit 1
+          fi
+
+          # 같은 커밋에 run 이 여럿이면(PR 이벤트 + main 푸시 등) 가장 최근 것이 판정
+          # 대상이다 — 앞선 run 이 concurrency 로 취소됐어도 뒤의 run 이 초록이면 된다.
+          run="$(jq 'sort_by(.created_at) | last' <<<"$runs")"
+          run_id="$(jq -r '.id' <<<"$run")"
+          run_url="$(jq -r '.html_url' <<<"$run")"
+          conclusion="$(jq -r '.conclusion' <<<"$run")"
+          echo "판정 대상 run: $run_url (attempt $(jq -r '.run_attempt' <<<"$run"), conclusion=$conclusion)"
+
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::이 커밋의 CI conclusion 이 '$conclusion' 이다 (success 만 통과). 취소된 run 이면 그 run 을 re-run 해 초록으로 만든 뒤 이 워크플로를 re-run 하세요: $run_url"
+            exit 1
+          fi
+
+          # run 의 conclusion 이 success 여도 잡 단위로 한 번 더 본다 — `if:` 로 건너뛴
+          # 잡(skipped)은 run 을 붉히지 않는다. ci.yml 의 세 잡(프런트 · Rust · 의존성)
+          # 이 전부 실제로 돌아 success 여야 한다.
+          jobs="$(gh api "repos/$GH_REPO/actions/runs/$run_id/jobs?per_page=100" --jq '.jobs')"
+          echo "잡 결과:"
+          jq -r '.[] | "  \(.conclusion)\t\(.name)"' <<<"$jobs"
+          bad="$(jq '[.[] | select(.conclusion != "success")] | length' <<<"$jobs")"
+          job_count="$(jq 'length' <<<"$jobs")"
+          if [ "$job_count" -eq 0 ] || [ "$bad" -gt 0 ]; then
+            echo "::error::CI 잡 $job_count 개 중 $bad 개가 success 가 아니다 — $run_url"
+            exit 1
+          fi
+          echo "게이트 통과 — CI 잡 $job_count 개 전부 success."
+
   build:
+    needs: gate
     strategy:
       fail-fast: false
       matrix:
