@@ -64,7 +64,16 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.1.1 — macOS 27 menu bar icon restored
+## 🚀 v3.2.0 — a review is bound to the content
+
+- **"Verified" on a journal entry is now a promise, not a switch** — the mark is stored with a fingerprint of the body you verified; if an agent edits the body afterwards, the ledger row and the reading pane show **"Changed after review · re-check"**, and the "verified only" filter and change-review groups stop counting it as verified. Entries verified before 3.2.0 are honoured as-is.
+- **Two processes could overwrite the same entry** — when the app and the MCP server (or two parallel agent sessions) wrote an entry with the same minute, type and title, the later one could silently replace the earlier one (an 8-process reproduction kept 3 of 24). New entries are now created exclusively. A slow process deleting another's lock after being reclaimed is closed too (locks are owned by a nonce, not a path).
+- **Diagnostics tab "Watcher metrics"** — events, drops, queue depth, handling time. First measurement: of the 3.6 s it takes to settle after a branch switch, actual handling is 32 ms.
+- **Agent support in four honest tiers** — see "Supported agents" below. Tiers were read from the code; the "Verified" column lists only what the changelog and journals record as actually run.
+- **Releases are published only after verification** — the tag's commit must have a green CI run, the release is built as a draft, and it is published only after code-signing, notarization and updater-signature checks pass. 3.1.1 went out from a commit whose dependency audit was red; the machine now blocks that.
+- Internals: the seven largest files (over 800 lines) split by responsibility (37 → 26 files over the limit), AI panel context assembly 4 → 2 sequential round-trips, extension unit tests in CI.
+
+## v3.1.1 — macOS 27 menu bar icon restored
 
 - **After updating to macOS 27 the Ocul-PM icon vanished from the menu bar** — not folded behind `«`, just gone. macOS 27 ties each status item to the process identity captured at launch, and this app re-launched itself right after start to apply its memory tuning (idle 645MB → 38MB), so the system no longer recognised it as "that app". The bundle now injects the same tuning at process creation, so nothing re-launches and the icon stays put. Nothing changes on macOS 26 and earlier.
 - **Claude Code adapter 0.77.0** — the bundled Claude Code updates with it. Approvals the CLI marks "default to no" (delete-class commands, publishes) now list the decline buttons first, and account-verification / cloud-credential failures are distinguished from login failures.

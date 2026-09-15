@@ -24,7 +24,7 @@ docs/optimization/00-ledger.md 에서 아직 안 고친 것만. chunks.content·
 - [x] 스케줄링 계측 (perf-baseline §7, ← v3-release #scheduling-telemetry) — WatcherStatus 에 dropped_total·queue_depth(현재/최대)·handle_event 누적 ms 노출(spec.rs+bindings), 진단 탭에 표시, perf_baseline 하니스가 같은 값을 찍는다 {#scheduling-telemetry}
 
 ## Phase 3 — 합류·원장·육안 {#p3-merge}
-- [ ] 병렬 세션 브랜치 합류 → typecheck·test·lint(래칫 포함)·build·cargo fmt/clippy/test 전부 exit 0 → PR → CI 초록이면 rebase 머지 {#merge-gates}
+- [x] 병렬 세션 브랜치 합류 → typecheck·test·lint(래칫 포함)·build·cargo fmt/clippy/test 전부 exit 0 → PR → CI 초록이면 rebase 머지 {#merge-gates}
 - [x] docs/optimization/00-ledger.md §2.3 재측(초과 파일 수·초과 줄 합) + §4 잔고 표 2026-09-15 열 추가(AI 컨텍스트 왕복 2 포함) {#ledger-update}
 - [ ] 실기기: 설치본에서 창 탭 드래그·코드 화면 편집/포매터·터미널 확대/리사이즈·브랜치 전환 시 워처 — 분할 뒤 회귀 없는지 (설치본 도는 중 dev 빌드 금지) {#eyes-split-regression}
 
@@ -49,4 +49,5 @@ docs/optimization/00-ledger.md 에서 아직 안 고친 것만. chunks.content·
 | 2026-09-15T23:14:49+09:00 | #split-watcher-rs | claude-code | ~→x | .oculpm/journal/20260915/Refactors/2314_refactor_split-watcher-rs.md | WT 완료 a0f6d9d7 — 2,161→8파일(최대 539 tests), 16 테스트, lib/bindings 무변경 |
 | 2026-09-15T23:14:55+09:00 | #scheduling-telemetry | claude-code | ☐→x | .oculpm/journal/20260915/Features_to_add/2314_feature_watcher-scheduling-telemetry.md | WT 완료 e732a476 — WatcherSchedStats·진단 탭·M2c(드레인 3.6s 중 handle_event 32ms 실측). v3-release #scheduling-telemetry 도 닫을 것 |
 | 2026-09-15T23:18:16+09:00 | #ledger-update | claude-code | ☐→x |  | 원장 §2.3 재측정 블록(37→26 파일, 17,923→7,924 줄) + §4 에 2026-09-15 열(DB 673MB dbstat·M2c 행 추가) + perf-baseline §7 정정 |
+| 2026-09-15T23:26:15+09:00 | #merge-gates | claude-code | ☐→x |  | PR #25 CI 3잡 success → rebase 머지, main f042e241. 로컬 게이트 전부 0 |
 <!-- oculpm:plan-log end -->

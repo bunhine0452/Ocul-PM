@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.1.1)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 106개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.2.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 107개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.1.1)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 106개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.2.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 107개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.1.1</span>
+    <span class="nav-ver" data-version>v3.2.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>106개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>107개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-2-0">v3.2.0</a>
       <a href="#v3-1-1">v3.1.1</a>
       <a href="#v3-1-0">v3.1.0</a>
       <a href="#v3-0-1">v3.0.1</a>
@@ -61,10 +62,17 @@
       <a href="#v2-45-1">v2.45.1</a>
       <a href="#v2-45-0">v2.45.0</a>
       <a href="#v2-44-1">v2.44.1</a>
-      <a href="#v2-44-0">v2.44.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-2-0"><a href="#v3-2-0">v3.2.0</a></h2>
+      <div class="cl-body">
+<p><b>확인 표시가 내용에 묶입니다.</b> 지금까지 작업 일지의 「확인」은 켜고 끄는 스위치였습니다 — 확인한 뒤 에이전트가 본문을 고쳐도 초록 표시는 그대로였고, 그래서 700건 가까운 일지 중 확인된 것이 8건에 그친 채 검토 루프가 돌지 않았습니다. 3.2.0 부터 확인 표시는 <b>확인한 그 본문의 지문</b>과 함께 남습니다. 그 뒤 본문이 바뀌면 원장 행과 열람 머리띠에 <b>「확인 뒤 내용이 변경됐어요 · 다시 검토」</b> 가 서고, 「검증됨만」 필터와 변경 검토의 그룹은 그 일지를 확인된 것으로 세지 않습니다. 다시 읽고 확인을 누르면 지금 내용에 다시 묶입니다. 3.2.0 이전에 확인해 둔 일지는 지문이 없으므로 그대로 인정합니다 — 소급해서 흔들지 않습니다.</p>
+<p>이번 릴리스는 외부 리뷰(Ocul-PM 10점 마스터보고서, 48건 백로그)를 코드로 대조해 <b>확인된 결함만</b> 받은 라운드와, 최적화 원장에 남아 있던 항목을 갚은 라운드를 함께 싣습니다. 병렬 세션 13개가 항목 하나씩 맡았습니다.</p>
+<ul><li><b>두 프로세스가 같은 일지를 덮던 것</b> — 같은 분·같은 종류·같은 제목으로 앱과 MCP 서버(또는 병렬 에이전트 세션 둘)가 동시에 일지를 쓰면, 이름을 고르는 순간과 파일을 놓는 순간 사이의 틈에서 <b>뒤의 것이 앞의 것을 조용히 교체</b>할 수 있었습니다. 8프로세스로 재현하니 24건 중 3건만 남았습니다. 이제 새 일지는 배타적으로 생성되어(이미 있으면 다음 번호) 어느 프로세스의 것도 사라지지 않습니다.</li><li><b>느린 프로세스가 남의 락을 지우던 것</b> — 10초 넘게 늦은 쪽이 락을 회수당한 뒤 놓으면서 새 주인의 락을 경로째 지워 셋째가 들어올 수 있었습니다. 락은 이제 경로가 아니라 <b>nonce</b> 가 소유하고, 회수도 옮긴 뒤 확인합니다.</li><li><b>진단 탭 「워처 계측」</b> — 파일 워처가 받은 이벤트·버린 수·큐 깊이(현재/최대)·처리 누적/최대 시간을 셉니다. 첫 실측: 브랜치 전환 뒤 3.6초 정착하는 동안 실제 처리는 <b>32ms</b> 였습니다 — 나머지가 디바운스와 정착 대기라는 것이 처음으로 숫자로 보입니다.</li><li><b>지원 에이전트를 네 등급으로</b> — 「N개 에이전트 지원」 한 줄이 서로 다른 약속 넷을 뭉뚱그리고 있었습니다. 규칙 호환 / 구조화 기록(MCP) / 세션 관측(훅) / 앱 통합(ACP) 으로 나누고, 등급은 문구가 아니라 코드에서 읽었으며, 「검증」 열은 실측 기록이 있는 것만 적었습니다(Claude Code · Codex 는 4등급, Claude Desktop 은 2, 나머지는 1). README 와 <a href="https://oculpm.com/wiki/agents">oculpm.com/wiki/agents</a>.</li><li><b>배포가 검증을 통과한 것만 공개합니다</b> — 태그가 가리키는 정확한 커밋의 CI 통과를 확인한 뒤에만 빌드하고, 릴리스는 draft 로 만들어져 서명(<code>codesign --strict</code>)·공증(<code>spctl</code>·<code>stapler</code>)·업데이터 서명(<code>.sig</code>·<code>latest.json</code>)을 검사한 다음에만 공개됩니다. 하나라도 어긋나면 draft 로 남아 앱 내 업데이터에 닿지 않습니다. 이 게이트가 없던 3.1.1 은 의존성 검사가 붉은 커밋에서 그대로 나갔습니다 — 그 실수를 기계가 막습니다. 3.2.0 이 이 경로로 나가는 첫 릴리스입니다.</li><li><b>안쪽</b> — 800줄 넘는 파일 상위 7개(<code>window.rs</code> 3,028 · <code>code.rs</code> · <code>watcher.rs</code> · <code>git.rs</code> · <code>CodePane</code> · <code>CodeScreenV2</code> · <code>TerminalSurface</code>)를 책임별로 나눴습니다(초과 파일 37 → 26, 초과 줄 17,923 → 7,924). 동작은 한 줄도 바뀌지 않았고 공개 경로·바인딩도 그대로입니다. AI 패널의 컨텍스트 조립은 직렬 왕복 4 → 2 로 전송 뒤 첫 토큰이 빨라집니다. 확장의 단위 테스트가 CI 에 들어갔습니다.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-1-1"><a href="#v3-1-1">v3.1.1</a></h2>
       <div class="cl-body">
