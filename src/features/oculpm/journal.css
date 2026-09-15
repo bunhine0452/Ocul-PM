@@ -118,6 +118,8 @@
 .jl-type { color: var(--c); font-weight: var(--fw-strong); white-space: nowrap; }
 .jl-meta .cycle-flag { font-size: var(--fs-3); }
 .jl-verified { display: inline-flex; color: var(--ok); }
+/* 확인 뒤 본문이 바뀐 일지 ({#reviewed-hash}) — 체크 자리에 「다시 검토」. 경고 잉크. */
+.jl-stale { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--warn-text); font-weight: var(--fw-strong); white-space: nowrap; }
 .jl-meta-agent { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-2); font-weight: var(--fw-label); white-space: nowrap; }
 .jl-tags { display: inline-flex; flex-wrap: wrap; gap: var(--space-3); margin-left: auto; }
 

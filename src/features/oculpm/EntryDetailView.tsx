@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { Toolbar } from "@/components/Toolbar";
-import { AlertTriangle, ArrowLeft, Check, ExternalLink, GitCompareArrows, PenLine, Send, ShieldCheck } from "@/components/Icons";
+import { AlertTriangle, ArrowLeft, Check, ExternalLink, GitCompareArrows, PenLine, RotateCcw, Send, ShieldCheck } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -89,17 +89,25 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
   // 검토 루프의 마지막 고리 — `verified_by_user` 는 AGENTS.md 가 에이전트에게
   // false 로 쓰라고 강제하는 필드인데, 사람이 true 로 바꾸는 자리가 앱 어디에도
   // 없었다(2026-08-30 감사: 백엔드·필터 칩만 있고 토글 0). 여기서 닫는다.
+  //
+  // 확인은 내용에 묶인다 ({#reviewed-hash}): 백엔드가 확인 시점의 본문 해시를 적고,
+  // 그 뒤 본문이 바뀌면 `verified_stale` 가 선다. 그때 이 버튼은 「다시 검토」 —
+  // 같은 커맨드에 `true` 를 보내면 해시가 지금 본문으로 다시 묶인다.
   const [verified, setVerified] = useState(entry.verified_by_user);
+  const [stale, setStale] = useState(entry.verified_stale);
   const [verifying, setVerifying] = useState(false);
   useEffect(() => {
     setVerified(entry.verified_by_user);
-  }, [entry.relative_path, entry.verified_by_user]);
+    setStale(entry.verified_stale);
+  }, [entry.relative_path, entry.verified_by_user, entry.verified_stale]);
   const toggleVerified = useCallback(async () => {
     if (verifying) return;
     setVerifying(true);
+    const next = stale ? true : !verified;
     try {
-      await oculpmApi.setJournalVerified(projectId, entry.relative_path, !verified);
-      setVerified(!verified);
+      await oculpmApi.setJournalVerified(projectId, entry.relative_path, next);
+      setVerified(next);
+      setStale(false);
     } catch (e) {
       toast.destructive(
         t("entry.verifyFailed", { error: e instanceof OculpmApiError ? e.message : String(e) }),
@@ -107,7 +115,8 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     } finally {
       setVerifying(false);
     }
-  }, [verifying, verified, projectId, entry.relative_path, t]);
+  }, [verifying, verified, stale, projectId, entry.relative_path, t]);
+  const confirmed = verified && !stale;
 
   // {#entry-open-affordance} — 일지 .md 를 OS 기본 편집기로. `openEntryInEditor`
   // 는 opener-scope 회귀를 세 번 겪고 백엔드가 절대경로를 직접 셸아웃해 여는
@@ -156,6 +165,10 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
     try {
       const next = await oculpmApi.updateEntryBody(projectId, entry.relative_path, draftBody);
       setDetail(next);
+      // 확인된 일지의 본문을 여기서 고치면 그 확인은 이제 다른 내용에 대한 것이다
+      // — 백엔드가 돌려준 판정을 그대로 받는다 (워처 왕복을 기다리지 않는다).
+      setVerified(next.frontmatter.verified_by_user);
+      setStale(next.verified_stale);
       setEditing(false);
       toast.info(t("entry.bodySaved"));
     } catch (e) {
@@ -472,11 +485,24 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
           className="btn sm"
           onClick={() => void toggleVerified()}
           disabled={verifying}
-          aria-pressed={verified}
-          title={verified ? t("entry.unverifyTitle") : t("entry.verifyTitle")}
-          style={verified ? { color: "var(--ok)", borderColor: "var(--ok)" } : undefined}
+          aria-pressed={confirmed}
+          title={
+            stale
+              ? t("entry.reverifyTitle")
+              : verified
+                ? t("entry.unverifyTitle")
+                : t("entry.verifyTitle")
+          }
+          style={
+            confirmed
+              ? { color: "var(--ok)", borderColor: "var(--ok)" }
+              : stale
+                ? { color: "var(--warn-text)", borderColor: "var(--warn)" }
+                : undefined
+          }
         >
-          <Check size={13} /> {verified ? t("entry.verified") : t("entry.verify")}
+          {stale ? <RotateCcw size={13} /> : <Check size={13} />}{" "}
+          {stale ? t("entry.reverify") : verified ? t("entry.verified") : t("entry.verify")}
         </button>
       </Toolbar>
 
@@ -490,6 +516,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
           <div className="entry-read-inner">
             <EntryMasthead
               entry={entry}
+              staleVerified={stale}
               related={related}
               filesCount={rows.length}
               onJumpToFiles={jumpToFiles}
