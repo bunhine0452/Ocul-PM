@@ -106,6 +106,8 @@
 
 **충돌 회피**: 동일 파일명이 이미 존재하면 suffix `__2`, `__3`… 추가. (LLM 이 같은 분 같은 슬러그를 두 번 쓰면 자동 분리)
 
+> **게시는 배타적 생성이다** (2026-09-15): 새 엔트리는 §6 의 tmp+fsync 스테이징 뒤 `rename` 이 아니라 **`hard_link(tmp → path)`** 로 이름을 얻는다 — 목적지가 있으면 `EEXIST` 로 거부되고 그때만 다음 suffix 로 넘어간다. "있는가" 판정과 생성이 커널 안에서 한 번에 일어나므로, 같은 분·종류·슬러그로 동시에 쓰는 두 프로세스(앱 + MCP 서버, 병렬 에이전트 세션의 MCP 서버 둘)가 서로의 파일을 바꿔치기할 수 없다. 하드링크가 없는 볼륨(exFAT/FAT · 일부 네트워크 마운트)에서만 `rename` 으로 물러선다(그 볼륨에서는 배타성을 잃는다). 코드: `atomic_io::write_atomic_new` · `manager::create_journal_file`.
+
 **카테고리 폴더 매핑**:
 - `bug` → `Bugs/`
 - `feature` → `Features_to_add/`
@@ -357,7 +359,7 @@ auto_sync_adapters = true            # _template.md 변경 시 어댑터 자동 
 4. 정상 종료 시 락 파일 삭제.
 5. heartbeat: 정상 모드에서 30초마다 `heartbeat_at` 갱신 (락 파일을 in-place 가 아닌 **atomic rename**으로 갱신).
 
-**atomic rename**: 모든 `.oculpm/` 쓰기는 `path.tmp` 에 쓰고 fsync, 그다음 `rename(path.tmp, path)`. POSIX 보장. Windows 도 `MoveFileEx(MOVEFILE_REPLACE_EXISTING)`.
+**atomic rename**: 모든 `.oculpm/` 쓰기는 `path.tmp` 에 쓰고 fsync, 그다음 `rename(path.tmp, path)`. POSIX 보장. Windows 도 `MoveFileEx(MOVEFILE_REPLACE_EXISTING)`. 예외 하나 — **새 저널 엔트리의 게시**는 `rename` 대신 배타적 `hard_link` 다 (§2.1 충돌 회피).
 
 ---
 

@@ -7,6 +7,10 @@
 //!
 //! Three families:
 //! - [`write_atomic`] — temp-file + rename + fsync, never leaves a partial file.
+//!   Its sibling [`write_atomic_new`] stages the same way but publishes with
+//!   `hard_link` instead of `rename`, so it **refuses to replace** an existing
+//!   file — the primitive for "create a new journal entry" where two processes
+//!   may pick the same name (`manager::create_journal_file`).
 //! - [`append_ndjson`] — append-only single line with 4 KB cap and no-newline
 //!   guard. Each line is written + fsynced individually so crash truncation is
 //!   line-aligned.
@@ -15,7 +19,7 @@
 //!   may also be editing. EOL convention (LF / CRLF) of the existing file is
 //!   preserved.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::spec::CommentStyle;
@@ -33,6 +37,68 @@ pub const NDJSON_LINE_CAP: usize = 4096;
 /// partially-written `path`: callers either see the previous content (if any)
 /// or the new content in full.
 pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<(), OculpmError> {
+    let tmp = stage_tmp(path, contents)?;
+
+    // `rename` is atomic on POSIX and on Windows via ReplaceFile semantics.
+    // If this fails after the temp file has been written, we clean it up so
+    // we don't leave litter behind.
+    if let Err(source) = std::fs::rename(&tmp, path) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(OculpmError::Io {
+            path: path.to_path_buf(),
+            source,
+        });
+    }
+
+    Ok(())
+}
+
+/// [`write_atomic`] 의 **배타적** 판 — `path` 가 이미 있으면 덮지 않고
+/// `AlreadyExists` 로 실패한다 ([`OculpmError::is_already_exists`] 로 가른다).
+///
+/// 게시를 `rename` 대신 `hard_link(tmp → path)` 로 한다. `rename` 은 목적지가
+/// 있으면 소리 없이 바꿔치기하지만, `link(2)` 는 목적지가 있으면 `EEXIST` 로
+/// 거부한다 — 그리고 그 판정과 생성이 커널 안에서 한 번에 일어난다 (APFS ·
+/// ext4 · NTFS 모두). 내용은 여전히 tmp 에서 fsync 를 마친 뒤 이름을 얻으므로
+/// "반쪽 파일이 보이는 순간" 은 없다. 성공하면 tmp 링크를 지운다; 어느 단계에서
+/// 실패하든 tmp 는 남기지 않는다.
+///
+/// 이름을 `exists()` 로 고른 뒤 `write_atomic` 하는 조합은 두 프로세스가
+/// 같은 이름을 고르면 뒤가 앞을 덮는다 — 그 창을 막는 것이 이 함수의 존재
+/// 이유다 (`manager::create_journal_file` 참고).
+///
+/// 하드링크가 없는 파일시스템(exFAT/FAT · 일부 네트워크 마운트)에서는
+/// `rename` 으로 물러선다 — 그 볼륨 하나에서는 배타성을 잃지만, 거기서 일지
+/// 쓰기 자체가 막히는 것은 우리가 닫으려는 경합보다 큰 퇴행이다.
+pub fn write_atomic_new(path: &Path, contents: &[u8]) -> Result<(), OculpmError> {
+    let tmp = stage_tmp(path, contents)?;
+
+    let published = match std::fs::hard_link(&tmp, path) {
+        Ok(()) => Ok(()),
+        // 목적지가 있다 — 호출자가 다음 이름으로 넘어가는 신호. 그대로 올린다.
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Err(e),
+        // `link(2)` 를 지원하지 않는 볼륨(EPERM/ENOTSUP 등). `write_atomic` 과
+        // 같은 `rename` 게시로 물러선다 — 이 FS 에서만 exists→rename 창이 남는다
+        // (`file_guard::put_back` 도 같은 이유로 같은 모양이다).
+        Err(_) => std::fs::rename(&tmp, path),
+    };
+    if let Err(source) = published {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(OculpmError::Io {
+            path: path.to_path_buf(),
+            source,
+        });
+    }
+    // 게시는 끝났다 — 두 번째 이름만 걷는다 (`rename` 뒤라면 이미 없다). 이
+    // 삭제가 실패해도 `path` 는 온전하므로 오류로 올리지 않는다.
+    let _ = std::fs::remove_file(&tmp);
+    Ok(())
+}
+
+/// `path` 옆에 `<name>.<uuid>.tmp` 를 만들어 `contents` 를 쓰고 fsync 한다.
+/// 부모 디렉터리는 없으면 만든다. 돌려주는 경로는 호출자가 게시(`rename` /
+/// `hard_link`)하고 치울 책임을 진다; 쓰기·fsync 가 실패하면 여기서 치운다.
+fn stage_tmp(path: &Path, contents: &[u8]) -> Result<PathBuf, OculpmError> {
     let parent = path.parent().ok_or_else(|| OculpmError::Io {
         path: path.to_path_buf(),
         source: std::io::Error::new(std::io::ErrorKind::InvalidInput, "path has no parent"),
@@ -54,36 +120,22 @@ pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<(), OculpmError> {
     );
     let tmp = parent.join(tmp_name);
 
-    // Write + fsync the temp file, then rename. fsync guarantees the contents
-    // hit the disk before the rename advertises them.
-    {
+    // Write + fsync the temp file, then let the caller publish. fsync
+    // guarantees the contents hit the disk before the name advertises them.
+    let staged = (|| {
         use std::io::Write;
-        let mut f = std::fs::File::create(&tmp).map_err(|source| OculpmError::Io {
-            path: tmp.clone(),
-            source,
-        })?;
-        f.write_all(contents).map_err(|source| OculpmError::Io {
-            path: tmp.clone(),
-            source,
-        })?;
-        f.sync_all().map_err(|source| OculpmError::Io {
-            path: tmp.clone(),
-            source,
-        })?;
-    } // file closed here
-
-    // `rename` is atomic on POSIX and on Windows via ReplaceFile semantics.
-    // If this fails after the temp file has been written, we clean it up so
-    // we don't leave litter behind.
-    if let Err(source) = std::fs::rename(&tmp, path) {
+        let mut f = std::fs::File::create(&tmp)?;
+        f.write_all(contents)?;
+        f.sync_all()
+    })(); // file closed here
+    if let Err(source) = staged {
         let _ = std::fs::remove_file(&tmp);
         return Err(OculpmError::Io {
-            path: path.to_path_buf(),
+            path: tmp.clone(),
             source,
         });
     }
-
-    Ok(())
+    Ok(tmp)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -514,6 +566,60 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join("nested/deeper/file.txt");
         write_atomic(&path, b"ok").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"ok");
+    }
+
+    // ─── write_atomic_new ───────────────────────────────────────────────────
+
+    fn tmp_strays(dir: &Path) -> Vec<String> {
+        std::fs::read_dir(dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.ends_with(".tmp"))
+            .collect()
+    }
+
+    /// 새 파일을 만들고 같은 바이트를 읽는다 — tmp 는 남지 않는다.
+    #[test]
+    fn write_atomic_new_creates_file() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("n.txt");
+        write_atomic_new(&path, b"fresh").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"fresh");
+        assert!(tmp_strays(dir.path()).is_empty());
+    }
+
+    /// 있는 파일은 **덮지 않는다** — 원본 내용이 그대로고, 실패는
+    /// `is_already_exists` 로 가려지며, tmp 도 남기지 않는다.
+    #[test]
+    fn write_atomic_new_refuses_to_overwrite() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("n.txt");
+        write_atomic_new(&path, b"first").unwrap();
+        let err = write_atomic_new(&path, b"second").unwrap_err();
+        assert!(err.is_already_exists(), "{err}");
+        assert_eq!(std::fs::read(&path).unwrap(), b"first");
+        assert!(
+            tmp_strays(dir.path()).is_empty(),
+            "{:?}",
+            tmp_strays(dir.path())
+        );
+        // `write_atomic` 으로 만든 파일도 마찬가지로 지킨다.
+        let other = dir.path().join("o.txt");
+        write_atomic(&other, b"plain").unwrap();
+        assert!(write_atomic_new(&other, b"x")
+            .unwrap_err()
+            .is_already_exists());
+        assert_eq!(std::fs::read(&other).unwrap(), b"plain");
+    }
+
+    /// 없는 부모 디렉터리는 만든다.
+    #[test]
+    fn write_atomic_new_creates_missing_parent() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("nested/deeper/n.txt");
+        write_atomic_new(&path, b"ok").unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"ok");
     }
 
