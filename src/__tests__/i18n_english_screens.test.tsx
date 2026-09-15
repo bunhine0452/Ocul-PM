@@ -19,7 +19,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 const ACP_SESSION = {
-  agent: { name: "claude-code", title: "Claude Code", version: "0.76.0", auth_required: false, supports_image: true },
+  agent: { name: "claude-code", title: "Claude Code", version: "0.77.0", auth_required: false, supports_image: true },
   commands: [],
   session_id: "sess-1",
   title: null,

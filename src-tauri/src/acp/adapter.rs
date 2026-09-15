@@ -47,7 +47,33 @@ pub const CODEX_PKG_NAME: &str = "codex-acp";
 /// 클라이언트가 광고해야만 켜지는 AIR capability `recommendedValue` 하나다.
 /// 우리는 광고하지 않으므로 무영향. `usage-markdown.js` 는 바이트 동일,
 /// 번들 SDK 도 `0.3.257` 그대로 — 우리 쪽 변경은 이 상수 한 줄뿐이다.
-pub const PINNED_VERSION: &str = "0.76.0";
+///
+/// 0.76.0 → 0.77.0 (2026-09-15): `dist/` 대조. **번들 SDK 가 `0.3.257` →
+/// `0.3.270` 으로 움직였다** — 딸려 오는 Claude Code CLI 도 같이 바뀐다는 뜻.
+/// 어댑터 쪽 변경 11개 파일 중 우리 계기에 닿는 것:
+/// - **agent 설정 옵션 제거** (`AGENT_CONFIG_ID`·`DEFAULT_AGENT_ID` 삭제,
+///   `configOptions` 에서 빠짐). 우리 셀렉터는 온 목록을 그대로 그리므로
+///   항목 하나가 사라질 뿐이다(`id === "agent"` 를 집는 코드 없음).
+/// - **권한 요청 `defaultToNo`** (SDK 0.3.268+ 의 삭제류 Bash·Artifact 게시
+///   안전 확인): 어댑터가 **거절 선택지를 앞에** 정렬하고 `_meta` 에 힌트를
+///   싣는다. `PermissionCard` 는 강조를 순서가 아니라 kind 로 고르고 포커스도
+///   뺏지 않으므로 순서만 바뀐다 — 의도된 "거절이 먼저" 다.
+///   `suppressAlwaysAllowRule` 이 참이면 「항상 허용」이 아예 안 온다.
+/// - `sessionFailure.reason` 에 `access_denied` 신설(조직 검증 필요 ·
+///   Bedrock/Vertex 자격 증명 실패, category `access`). `FailureRow` 는
+///   category 로 분기하지 않고 제목·상세만 그리므로 그대로 흐른다.
+/// - 재시도 안내에 `no_response`(첫 바이트 대기) 문구 추가 — 텍스트다.
+/// - 재생되는 사용자 메시지에서 `<system-reminder>` 를 벗긴다(CLI 주입
+///   컨텍스트). `owedTrailingIdles` 정산이 `running` 전이에서 리셋된다
+///   (CLI 2.1.270+ 가 백그라운드 에이전트 중 idle 을 보류하는 것 대응).
+///   둘 다 어댑터 내부.
+/// - elicitation(AskUserQuestion) 다중 선택 + 자유 답 병합, TaskList 파서
+///   재작성, `allowBypass` 매개변수화 — 우리는 elicitation 을 광고하지 않고
+///   나머지는 내부다.
+///
+/// `session/update` 종류·`_meta._claude/*` 자리는 불변. 우리 쪽 변경은 이
+/// 상수 한 줄뿐이다.
+pub const PINNED_VERSION: &str = "0.77.0";
 pub const CODEX_PINNED_VERSION: &str = "1.8.0";
 
 /// 앱 데이터 디렉터리 하위 설치 경로.
