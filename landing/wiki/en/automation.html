@@ -94,7 +94,7 @@
 <p>Journal entries, planner files, automation definitions and the index are <b>excluded as causes</b>. That breaks the loop where a job's own output wakes it again — structurally, not by convention.</p>
 <h2 id="the-instructions-are-everything">The instructions are everything</h2>
 <p>Automation calls the background model <b>directly</b> — none of your rules or skills ride along the way they do in the chat panel. So write two things into every instruction.</p>
-<ol><li><b>What to read and what to produce</b> — "read the lastundefineddays of entries and summarise as shipped / resisted / next"</li><li><b>Skip what you've already handled</b> — automations run more than once</li></ol>
+<ol><li><b>What to read and what to produce</b> — "read the last 7 days of entries and summarise as shipped / resisted / next"</li><li><b>Skip what you've already handled</b> — automations run more than once</li></ol>
 <p>Definitions are markdown files under <code>.oculpm/automation/</code>. Edit them by hand and commit them — that is how a team shares the same automations.</p>
 <h2 id="what-gets-billed-what-never-leaves">What gets billed, what never leaves</h2>
 <p><b>Billed</b>: exactly one LLM call, when a job actually runs. Browsing or editing automations sends nothing.</p>

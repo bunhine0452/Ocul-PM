@@ -17,10 +17,13 @@ export const esc = (s) =>
 
 export function inline(s) {
   // 코드 스팬을 먼저 떼어내 보호한다 — 안의 *, [ 가 서식으로 오해되면 안 된다.
+  // 자리표시자는 산문에 나올 수 없는 제어문자로 감싼다 — 예전의 ` N ` 은
+  // 「macOS 27 」 같은 띄어쓴 숫자를 코드 스팬 번호로 오해해 `undefined` 를
+  // 박았다 (v3.1.1 변경 이력에서 발견).
   const codes = [];
   s = s.replace(/`([^`]+)`/g, (_, c) => {
     codes.push(`<code>${esc(c)}</code>`);
-    return ` ${codes.length - 1} `;
+    return `\u0000${codes.length - 1}\u0000`;
   });
   s = esc(s)
     .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
@@ -29,7 +32,7 @@ export function inline(s) {
       const ext = /^https?:\/\//.test(u) && !u.startsWith("https://oculpm.com");
       return `<a href="${u}"${ext ? ' target="_blank" rel="noreferrer"' : ""}>${t}</a>`;
     });
-  return s.replace(/ (\d+) /g, (_, i) => codes[+i]);
+  return s.replace(/\u0000(\d+)\u0000/g, (_, i) => codes[+i]);
 }
 
 /** 콜아웃 배지 문구. 로케일마다 다르므로 `render` 가 인자로 받는다. */
