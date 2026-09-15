@@ -379,26 +379,35 @@ export async function assembleAiContext(opts: AiContextOptions): Promise<AiConte
   let recallDropped = 0;
 
   if (recall !== "none") {
-    const candidates: RecallCandidate[] = [];
     const scoreOf = (kind: string, ref: string) => opts.recallScores?.[`${kind}:${ref}`] ?? 0.5;
+    // 빌더 출력 → 후보. 빈 문자열(실을 것이 없었음)은 null — 예전의 `if (planner)`
+    // 가드와 같다.
+    const asCandidate =
+      (kind: RecallCandidate["kind"], boosted: boolean) =>
+      (text: string): RecallCandidate | null =>
+        text ? { text, score: scoreOf(kind, "*") + (boosted ? 0.5 : 0), kind, ref: "*" } : null;
 
+    // 두 빌더는 서로 독립이라 **동시에** 시작한다 (원장 §1.1 `{#ai-context-callsite}`,
+    // 2026-09-15). 예전에는 각자의 if 분기 안에서 차례로 `await` 해서 빌더 안의
+    // 병렬화(5→2 · 4→2)에도 호출부에서 다시 2 + 2 = 4 왕복이 직렬로 쌓였다.
+    // 조건은 글자 그대로다 — 바뀐 것은 시작 시점뿐이다.
+    //
+    // `candidates` 의 적재 순서(플랜 → 일지)는 아래 `selectWithinBudget` 이
+    // 동점을 가를 때 쓰는 순서다(안정 정렬). 그래서 후보를 빌더 순서의 배열로
+    // 만들고 `Promise.all` 로 그 순서를 보존한 뒤, null 만 걸러 같은 순서로 담는다
+    // — 순차 코드가 push 하던 순서와 바이트까지 같다.
+    const jobs: Array<Promise<RecallCandidate | null>> = [];
     if (includePlanner && (recall === "plan" || recall === "fact" || recall === "episode")) {
-      const planner = await buildPlannerSystemContext(projectId);
-      if (planner) {
-        candidates.push({ text: planner, score: scoreOf("plan", "*") + (recall === "plan" ? 0.5 : 0), kind: "plan", ref: "*" });
-      }
+      jobs.push(buildPlannerSystemContext(projectId).then(asCandidate("plan", recall === "plan")));
     }
     if (includeOculpm && recall !== "plan") {
-      const journal = await buildOculpmSystemContext(projectId, settings.oculpmContextEntries);
-      if (journal) {
-        candidates.push({
-          text: journal,
-          score: scoreOf("journal", "*") + (recall === "episode" || recall === "verbatim" ? 0.5 : 0),
-          kind: "journal",
-          ref: "*",
-        });
-      }
+      jobs.push(
+        buildOculpmSystemContext(projectId, settings.oculpmContextEntries).then(
+          asCandidate("journal", recall === "episode" || recall === "verbatim"),
+        ),
+      );
     }
+    const candidates = (await Promise.all(jobs)).filter((c): c is RecallCandidate => c !== null);
 
     const selection = selectWithinBudget(candidates);
     recallTokens = selection.tokens;

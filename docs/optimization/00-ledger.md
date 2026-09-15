@@ -56,6 +56,15 @@
 (조건 분기 안에 각각 들어 있다). 합치면 4 → 2 가 되지만 `candidates` 의 적재
 순서를 건드려야 해서 이 라운드에서는 손대지 않았다 → `{#ai-context-callsite}`.
 
+**2026-09-15 · 호출부도 병렬 (`{#ai-context-callsite}`).** 두 빌더를 각자의 if
+분기 안에서 `Promise<RecallCandidate | null>` 로 **시작만** 하고 `Promise.all`
+로 모은 뒤 null 을 걸러 담는다 — 조건은 그대로, `candidates` 의 적재 순서(플랜
+→ 일지)는 `Promise.all` 의 입력 순서가 보존하므로 순차 코드와 바이트까지 같다.
+전송 버튼 → 첫 토큰 사이의 직렬 왕복 **4 → 2** (두 빌더 중 긴 쪽). 검증은
+`src/__tests__/ai_context_parts.test.ts` — 회상 신호 4 × 토글 4 = 16 조합을 옮겨
+적은 순차 구현과 `toEqual` 로 대조하고, `planList` 를 열어 둔 채 일지 빌더가
+이미 출발했는지 타이머 없이 단언한다 (순차 코드에서는 2ms 만에 빨개진다).
+
 ### 1.2 키체인·CLI 탐지가 `forEach(async …)` `{#floating-probes}`
 
 2026-09-07 · `AiPanelScreenV2.tsx` · `GreenfieldWizard.tsx`
@@ -292,7 +301,7 @@ drop 해도 남고 재로드는 +140MB 를 더 남긴다. 최적화 단계 0/1/3
 | clippy 경고 | 0 | 0 | 0 유지 |
 | 800줄 초과 파일 | 37 | 래칫 기준 유지 | 늘지 않기 (래칫) |
 | 800줄 초과 줄 합 | 17,923 | — | 감소 |
-| AI 컨텍스트 직렬 왕복 | 4 | 4 | 2 (`{#ai-context-callsite}`) |
+| AI 컨텍스트 직렬 왕복 | 4 | 4 → **2** (2026-09-15, `{#ai-context-callsite}`) | 2 — 달성 |
 
 ---
 
