@@ -182,9 +182,30 @@ jobs:
         with:
           version: 10
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      # 버전의 주인은 `rust-toolchain.toml` 입니다 (#toolchain-pin). dtolnay 액션은
+      # 그 파일을 **읽지 않으므로** 여기서 꺼내 넘깁니다 — `@stable` 로 두면 핀을
+      # 박아 놓고도 CI 는 그날의 stable 을 씁니다(= 핀이 없는 것과 같습니다).
+      #
+      # ci.yml 의 같은 이름 단계가 원본입니다(플랜 astra-feedback-round
+      # {#release-toolchain}) — 여기만 `@stable` 로 남아 있어, CI 가 검증한 컴파일러와
+      # 릴리스 번들을 구운 컴파일러가 달랐습니다. 고칠 때 두 파일을 함께 grep 하세요.
+      - name: 툴체인 버전 읽기 (rust-toolchain.toml)
+        id: toolchain
+        run: |
+          channel=$(grep -m1 '^channel' rust-toolchain.toml | tr -d ' "' | cut -d= -f2)
+          if [ -z "$channel" ]; then
+            echo "::error file=rust-toolchain.toml::channel 을 못 읽었습니다."
+            exit 1
+          fi
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          echo "핀된 툴체인: $channel"
+
+      # ci.yml 은 여기에 components(rust-analyzer 등)를 더 넣지만 번들 빌드엔 필요
+      # 없습니다. 타깃만 매트릭스에서 넘깁니다.
+      - name: Install Rust ${{ steps.toolchain.outputs.channel }}
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
           targets: ${{ matrix.rust_target }}
 
       - name: Rust cache
