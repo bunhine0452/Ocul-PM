@@ -294,9 +294,50 @@ mod tests {
     /// `apply` 하나로 강제한다.
     #[test]
     fn set_menu_is_reached_only_through_apply() {
+        // `commands/window/` 는 책임별 파일로 갈라져 있다 — 창을 만들거나
+        // 메뉴 언어를 되돌리는 어느 조각에서도 `set_menu` 가 새면 안 된다.
         for (name, src) in [
             ("lib.rs", include_str!("lib.rs")),
-            ("commands/window.rs", include_str!("commands/window.rs")),
+            (
+                "commands/window/mod.rs",
+                include_str!("commands/window/mod.rs"),
+            ),
+            (
+                "commands/window/drag.rs",
+                include_str!("commands/window/drag.rs"),
+            ),
+            (
+                "commands/window/events.rs",
+                include_str!("commands/window/events.rs"),
+            ),
+            (
+                "commands/window/focus.rs",
+                include_str!("commands/window/focus.rs"),
+            ),
+            (
+                "commands/window/lifecycle.rs",
+                include_str!("commands/window/lifecycle.rs"),
+            ),
+            (
+                "commands/window/registry.rs",
+                include_str!("commands/window/registry.rs"),
+            ),
+            (
+                "commands/window/session.rs",
+                include_str!("commands/window/session.rs"),
+            ),
+            (
+                "commands/window/tabs.rs",
+                include_str!("commands/window/tabs.rs"),
+            ),
+            (
+                "commands/window/terminal_windows.rs",
+                include_str!("commands/window/terminal_windows.rs"),
+            ),
+            (
+                "commands/window/watchers.rs",
+                include_str!("commands/window/watchers.rs"),
+            ),
         ] {
             assert!(
                 !src.contains("set_menu("),
