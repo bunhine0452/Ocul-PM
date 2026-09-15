@@ -22,13 +22,16 @@ vi.mock("@/lib/bindings", () => ({
       }),
     // Phase 5 — 프로젝트 지시문 (없음).
     projectInstructionsGet: () => Promise.resolve({ status: "ok", data: "" }),
-    planList: () =>
+    // 두 빌더의 **첫 왕복**(planList · oculpmListJournalEntries)은 vi.fn 이다 —
+    // 호출부 병렬성 테스트가 이 둘을 지연 프라미스로 바꿔 끼운다.
+    planList: vi.fn(() =>
       Promise.resolve({
         status: "ok",
         data: [
           { plan_id: "p1", title: "개편 플랜", status: "active", done_count: 1, item_count: 2 },
         ],
       }),
+    ),
     planGet: () =>
       Promise.resolve({
         status: "ok",
@@ -60,7 +63,7 @@ vi.mock("@/lib/bindings", () => ({
           },
         ],
       }),
-    oculpmListJournalEntries: () =>
+    oculpmListJournalEntries: vi.fn(() =>
       Promise.resolve({
         status: "ok",
         data: [
@@ -76,6 +79,7 @@ vi.mock("@/lib/bindings", () => ({
           },
         ],
       }),
+    ),
     oculpmGetJournalEntry: () =>
       Promise.resolve({
         status: "ok",
@@ -135,8 +139,21 @@ vi.mock("@/lib/bindings", () => ({
   },
 }));
 
-import { assembleAiContext } from "@/features/chat/aiContext";
-import { resetManifestFreeze } from "@/features/chat/manifest";
+// `selectWithinBudget` 만 스파이로 감싼다 — 호출부가 넘기는 `candidates` 배열을
+// 그대로 들여다보기 위해서다. 판정 로직은 원본 그대로 돈다.
+vi.mock("@/features/chat/recallGate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/chat/recallGate")>();
+  return { ...actual, selectWithinBudget: vi.fn(actual.selectWithinBudget) };
+});
+
+import {
+  assembleAiContext,
+  buildOculpmSystemContext,
+  buildPlannerSystemContext,
+} from "@/features/chat/aiContext";
+import { frozenManifest, resetManifestFreeze } from "@/features/chat/manifest";
+import { selectWithinBudget, type RecallCandidate, type RecallSignal } from "@/features/chat/recallGate";
+import { commands } from "@/lib/bindings";
 import { DEFAULTS, type Settings } from "@/lib/settings";
 
 const settings: Settings = { ...DEFAULTS, systemPrompt: "너는 한국어로 답한다." };
@@ -268,5 +285,156 @@ describe("assembleAiContext — parts 분해", () => {
     // 꺼낼 길을 잃으면 안 된다.
     expect(res.parts.map((p) => p.key)).toEqual(["system", "manifest"]);
     expect(res.chunks).toHaveLength(0);
+  });
+});
+
+// ── 호출부 병렬화 (원장 §1.1 `{#ai-context-callsite}`, 2026-09-15) ────────────
+//
+// 두 빌더는 이제 호출부에서 **동시에** 시작한다. 지켜야 할 것은 둘이다:
+// (a) `candidates` 의 적재 순서가 예전 순차 코드와 같다 — `selectWithinBudget`
+//     의 동점 처리(안정 정렬)가 이 순서에 기댄다.
+// (b) 두 번째 빌더가 첫 번째의 결과를 기다리지 않고 출발한다.
+
+/** 신호별 대표 질문 — `detectRecall` 이 그 신호로 판정하는지 테스트 안에서 단언한다. */
+const QUERY_FOR: Record<Exclude<RecallSignal, "none">, string> = {
+  verbatim: "내가 뭐라고 했지",
+  episode: "지난주에 뭐 했지",
+  plan: "계획 어디까지 했지",
+  fact: "우리가 정한 규칙이 뭐지",
+};
+
+/**
+ * **예전 순차 구현** 그대로 — 병렬화 전 호출부(2026-09-12 까지의 `aiContext.ts`)
+ * 가 `candidates` 를 쌓던 코드를 조건·점수까지 옮겨 적었다 (`recallScores`
+ * 없음 → 기본 0.5). 새 구현이 넘기는 배열은 이것과 `toEqual` 이어야 한다.
+ */
+async function sequentialCandidates(
+  recall: Exclude<RecallSignal, "none">,
+  includePlanner: boolean,
+  includeOculpm: boolean,
+): Promise<RecallCandidate[]> {
+  const candidates: RecallCandidate[] = [];
+  if (includePlanner && (recall === "plan" || recall === "fact" || recall === "episode")) {
+    const planner = await buildPlannerSystemContext(1);
+    if (planner) {
+      candidates.push({ text: planner, score: 0.5 + (recall === "plan" ? 0.5 : 0), kind: "plan", ref: "*" });
+    }
+  }
+  if (includeOculpm && recall !== "plan") {
+    const journal = await buildOculpmSystemContext(1, settings.oculpmContextEntries);
+    if (journal) {
+      candidates.push({
+        text: journal,
+        score: 0.5 + (recall === "episode" || recall === "verbatim" ? 0.5 : 0),
+        kind: "journal",
+        ref: "*",
+      });
+    }
+  }
+  return candidates;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+describe("assembleAiContext — 회상 빌더 호출부 병렬화", () => {
+  beforeEach(() => {
+    resetManifestFreeze();
+    vi.mocked(selectWithinBudget).mockClear();
+  });
+
+  const signals = Object.keys(QUERY_FOR) as Array<Exclude<RecallSignal, "none">>;
+  const combos = signals.flatMap((recall) =>
+    [true, false].flatMap((includePlanner) =>
+      [true, false].map((includeOculpm) => ({ recall, includePlanner, includeOculpm })),
+    ),
+  );
+
+  it.each(combos)(
+    "candidates 가 순차 구현과 같다 — $recall / planner=$includePlanner / oculpm=$includeOculpm",
+    async ({ recall, includePlanner, includeOculpm }) => {
+      const expected = await sequentialCandidates(recall, includePlanner, includeOculpm);
+      const res = await assembleAiContext({
+        projectId: 1,
+        query: QUERY_FOR[recall],
+        settings,
+        includeRag: false,
+        includePlanner,
+        includeGit: false,
+        includeOculpm,
+      });
+      expect(res.recall).toBe(recall);
+      expect(selectWithinBudget).toHaveBeenCalledTimes(1);
+      // 텍스트·점수·kind·ref·순서 전부 — 바이트까지 같아야 한다.
+      expect(vi.mocked(selectWithinBudget).mock.calls[0][0]).toEqual(expected);
+    },
+  );
+
+  it("동점(fact)이면 적재 순서가 승부를 가른다 — 플랜이 일지보다 앞", async () => {
+    // fact 신호는 둘 다 가산 0 이라 점수가 같다. 안정 정렬이 적재 순서를 지키므로
+    // 플랜 → 일지 — 순차 코드가 push 하던 순서다. 위 표가 빈 조합에만 기대지
+    // 않았음도 이 테스트가 보증한다 (후보 2개가 실제로 실린다).
+    const res = await assembleAiContext({
+      projectId: 1,
+      query: QUERY_FOR.fact,
+      settings,
+      includeRag: false,
+      includePlanner: true,
+      includeGit: false,
+      includeOculpm: true,
+    });
+    expect(res.recallUsed).toEqual([
+      { kind: "plan", ref: "*" },
+      { kind: "journal", ref: "*" },
+    ]);
+    expect(res.parts.map((p) => p.key)).toEqual(["system", "manifest", "actions", "planner", "oculpm"]);
+  });
+
+  it("두 번째 빌더는 첫 번째가 끝나기 전에 출발한다 (직렬 왕복 4 → 2)", async () => {
+    // 매니페스트도 planList 를 읽는다 — 먼저 얼려 두어 아래 게이트를 먹지 않게 한다.
+    await frozenManifest(1, null);
+
+    // 플랜 빌더의 첫 왕복(planList)을 **열어 둔 채** 붙잡는다. 순차 구현이면 일지
+    // 빌더는 이 프라미스가 풀릴 때까지 시작조차 못 한다 — 타이머 없이 결정적으로
+    // 갈린다 (게이트를 풀기 전에 단언한다).
+    const planListCalled = deferred<void>();
+    const planListGate = deferred<void>();
+    const calls: string[] = [];
+    const planListOriginal = vi.mocked(commands.planList).getMockImplementation()!;
+    vi.mocked(commands.planList).mockImplementationOnce((...args) => {
+      calls.push("planList");
+      planListCalled.resolve();
+      return planListGate.promise.then(() => planListOriginal(...args));
+    });
+    const journalOriginal = vi.mocked(commands.oculpmListJournalEntries).getMockImplementation()!;
+    vi.mocked(commands.oculpmListJournalEntries).mockImplementationOnce((...args) => {
+      calls.push("oculpmListJournalEntries");
+      return journalOriginal(...args);
+    });
+
+    const run = assembleAiContext({
+      projectId: 1,
+      query: QUERY_FOR.fact,
+      settings,
+      includeRag: false,
+      includePlanner: true,
+      includeGit: false,
+      includeOculpm: true,
+    });
+    try {
+      await planListCalled.promise;
+      // planList 는 아직 안 풀렸다 — 그런데 일지 빌더가 이미 출발했다.
+      expect(calls).toEqual(["planList", "oculpmListJournalEntries"]);
+    } finally {
+      planListGate.resolve();
+    }
+    const res = await run;
+    // 게이트가 풀린 뒤에도 순서는 적재 순서다 — 먼저 끝난 쪽이 앞서지 않는다.
+    expect(res.recallUsed.map((c) => c.kind)).toEqual(["plan", "journal"]);
   });
 });
