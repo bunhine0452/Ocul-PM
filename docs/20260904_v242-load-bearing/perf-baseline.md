@@ -267,6 +267,13 @@ Phase 0 의 목적은 **고칠 것을 정하는 게 아니라 고칠 값어치�
 
 ## 7. 다음 라운드를 위한 메모
 
+> **2026-09-15 정정 — 계측이 생겼다.** `WatcherSchedStats`(이벤트·버림·큐 깊이/최대·
+> `handle_event` 누적/최대 ms)가 `OculpmStatus.watcher_sched` 로 진단 탭에 뜨고,
+> `perf_baseline` **M2c** 가 같은 값을 찍는다: 같은 재생에서 `events_total 587 ·
+> dropped 0 · queue_high_water 577 · handle_ms_total 32 · 정착 3,625 ms` — 드레인
+> 4초 중 처리 자체는 32 ms 다. 아래는 그 전의 메모.
+
+
 이 하니스의 한계가 곧 다음에 만들 것을 가리킨다. **스케줄링을 재는 계측이 없다** — "런타임
 워커가 얼마나 오래 막혀 있었나", "큐가 얼마나 찼나", "버림이 몇 번 있었나" 는 지금 로그로만
 보인다. `WatcherStatus` 에 `dropped_total` 을 노출하는 것이 그 첫 걸음이고, 이번에는
