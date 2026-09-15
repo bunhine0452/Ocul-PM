@@ -124,12 +124,37 @@ Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 �
 
 ## 지원 에이전트
 
-`AGENTS.md` 를 읽을 수 있는 에이전트라면 무엇이든 동작합니다.
+「지원한다」 한 마디에 서로 다른 약속 넷이 섞여 있어 등급으로 나눕니다. 등급은 마케팅 문구가 아니라 코드에서 읽었습니다 — 규칙 파일 어댑터 표(`src-tauri/src/oculpm/agents/`), MCP 등록기(`oculpm/mcp/register.rs` · `mcp/codex.rs`), 훅(`plugin/*/hooks/`), ACP 어댑터(`src-tauri/src/acp/`).
 
-- 별도 설정 없이: **Claude Code · Codex CLI · Gemini CLI · Antigravity · pi**
-- 설정 → Agents 에서 규칙 파일을 켜면: **Cursor · Windsurf · GitHub Copilot · aider · Cline · Zed**
-- **Codex CLI** 는 v2.39.0 부터 한 단계 더 — 설정 → 연동에서 **MCP 서버를 등록**하고(머신 하나 · 프로젝트는 세션이 정합니다), Codex 전용 플러그인(기록 규칙 스킬)을 마켓플레이스로 깔 수 있습니다. Claude 쪽 설정과는 완전히 독립입니다.
-- **Claude Code · Claude Desktop** 은 여기서 한 단계 더 — 훅(정확한 세션 감지)과 MCP 도구(구조화 기록·플랜 질의)로 직접 연동됩니다 (v2.2.0). Claude Code 는 **Claude Code 화면**에서 앱 안 에이전트로 직접 구동까지 됩니다 (v2.10.0, Agent Client Protocol)
+| 등급 | 뜻 |
+|---|---|
+| **1 · 규칙 호환** | Ocul-PM 은 그 에이전트가 읽는 규칙 파일만 씁니다 (`AGENTS.md`, `.claude/CLAUDE.md` 블록, `.cursor/rules/*.mdc`, `GEMINI.md` …). 일지는 모델이 규칙을 지키는 만큼만 남습니다. |
+| **2 · 구조화 기록** | 에이전트가 `oculpm` MCP 서버의 도구(`journal_write` · `plan_update` …)를 부를 수 있고, 그 등록을 Ocul-PM 이 대신 해 줍니다. |
+| **3 · 세션 관측** | Ocul-PM 이 세션 시작·종료를 훅으로 받고, 일지 없이 끝난 대화를 가려냅니다 (Stop 배달 게이트 · `sessions.json` · 판정). |
+| **4 · 앱 통합** | 에이전트가 앱 안에서 돕니다 (Agent Client Protocol) — 도구 승인·출력이 대화 카드로 오고, 기록 도구가 세션에 직접 물립니다. |
+
+| 에이전트 | 등급 | Ocul-PM 이 하는 일 | 검증 |
+|---|---|---|---|
+| **Claude Code** | 4 앱 통합 | 앱 안 구동(ACP) · 훅(플러그인 또는 `.claude/settings.local.json`) · `.mcp.json` MCP 등록 · `AGENTS.md` + `.claude/CLAUDE.md` 블록 | v3.0.0 · 2026-09-11 |
+| **Codex** | 4 앱 통합 | 앱 안 구동(ACP) · Codex 플러그인 훅 · `~/.codex/config.toml` MCP 등록 · `AGENTS.md`(네이티브, 전용 파일 없음) | v2.37.0 · 2026-09-03 |
+| **Claude Desktop** | 2 구조화 기록 | `claude_desktop_config.json` 에 MCP 서버 등록 — 훅도 규칙 파일도 없음 | — (v2.2.0 출시 · 실연결 기록 없음) |
+| **Gemini CLI** | 1 규칙 호환 | `AGENTS.md` + `GEMINI.md` 블록 | — |
+| **Cursor** | 1 규칙 호환 | `.cursor/rules/ocul-pm.mdc` | — |
+| **GitHub Copilot** | 1 규칙 호환 | `.github/copilot-instructions.md` 블록 | — (v2.0.0 출시) |
+| **Windsurf** | 1 규칙 호환 | `.windsurf/rules/ocul-pm.md` | — (v2.0.0 출시) |
+| **Cline** | 1 규칙 호환 | `.clinerules/ocul-pm.md` | — (v2.0.0 출시) |
+| **aider** | 1 규칙 호환 | `CONVENTIONS.md` 블록 | — (v2.0.0 출시) |
+| **Zed** | 1 규칙 호환 | `.rules` 블록 | — (v2.0.0 출시) |
+| **Antigravity** | 1 규칙 호환 | `.agent/rules/ocul-pm.md` | — (v1.11.0 출시) |
+| **pi** | 1 규칙 호환 | `AGENTS.md` 만 (전용 파일 없음) | — (v1.11.0 출시) |
+
+읽는 법:
+
+- **검증** 열은 이 저장소의 `CHANGELOG.md` 와 `.oculpm/journal/` 에 그 등급이 **실제로 돌았다**고 적힌 마지막 근거(앱 버전 · 날짜)입니다. `—` 는 코드는 있지만 실측 기록이 없다는 뜻이고, 괄호의 「출시」는 CHANGELOG 에 기능이 실린 버전입니다. 날짜와 버전을 지어내지 않았습니다.
+- `AGENTS.md` 는 프로젝트를 추가하면 항상 심어지고, 나머지 규칙 파일은 설정 → Agents 에서 켭니다(감지 버튼이 후보를 추려 줍니다). 1등급 에이전트라면 오늘 화면의 정직성 감사를 가끔 보세요 — 규칙을 잊고 고친 파일이 거기 뜹니다.
+- 내장 터미널에서 실행한 CLI(`claude` · `codex` · `gemini` · `cursor-agent` · `aider` …)는 셸 통합으로 **시작·종료만** 잡힙니다. 미기록 판정은 없으므로 3등급이 아닙니다.
+- 아직 실기기로 못 본 것: Claude Desktop 실연결 · Codex 의 도구 승인→파일 변경 한 흐름 · VS Code 확장이 Copilot 에이전트 모드와 Cursor(`.cursor/mcp.json`)에 MCP 도구를 노출하는 것. 셋 다 코드는 있지만 그 이유로 표의 등급을 올리지 않았습니다.
+- **플랫폼**: 공식 빌드는 macOS Apple Silicon 뿐입니다. Intel 맥은 임베딩 런타임(ONNX)의 x86_64 사전 빌드가 없어 보류, Windows 는 추후입니다. 위 표는 그 빌드에서의 이야기입니다.
 
 git 백필 시에는 커밋 서명으로 에이전트를 구분합니다.
 

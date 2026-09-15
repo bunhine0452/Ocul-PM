@@ -46,6 +46,7 @@
 | [`notion-oauth-setup.md`](notion-oauth-setup.md) | Notion 퍼블릭 연동(OAuth) 등록 절차 — 운영 체크리스트 |
 | [`launch/`](launch/) | 출시 채널 조사와 발사 글 초안 |
 | [`vibe coding/`](<vibe coding/>) | 배경 리서치 — `claude-integration/` 라운드의 근거 보고서 |
+| [`Astra feedback/`](<Astra feedback/>) | **외부 리뷰** (2026-09-15 · 기준 커밋 `ebbeb1b`). 살아 있는 **백로그의 출처**다 — 수용한 항목은 플랜 `astra-feedback-round` 가 갖는다. 나머지는 채택하지 않았다: B06 · B09 · B15 보류, B21 · B43 · B47 기각 |
 
 ## 역사 (아카이브)
 
