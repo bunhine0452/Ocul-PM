@@ -30,7 +30,7 @@ docs/Astra feedback/ 의 10점 마스터보고서·백로그 48건을 검토해(
 ## Phase 5 — 합류·게이트·이월 {#p5-merge}
 - [x] 병렬 세션 브랜치를 feat/astra-feedback-round 로 합류 → typecheck·test·lint·build·cargo fmt/clippy/test 전부 exit 0 직접 확인 → PR → CI 초록이면 rebase 머지 {#merge-gates}
 - [x] improvement-round-2026-09-14 #verified-loop 를 #reviewed-hash 일지로 닫기 {#verified-loop-close}
-- [ ] 실기기·다음 릴리스: gate 잡이 CI 를 기다렸다 통과하는지, codesign/spctl/stapler 검증 로그, draft→공개 전환, 설치본 자동 업데이트 정상 (릴리스 때 확인) {#eyes-release-gate}
+- [~] 실기기·다음 릴리스: gate 잡이 CI 를 기다렸다 통과하는지, codesign/spctl/stapler 검증 로그, draft→공개 전환, 설치본 자동 업데이트 정상 (릴리스 때 확인) {#eyes-release-gate}
 - [x] 랜딩 등급표 배포 — cd landing && vercel --prod (수동, 머지 뒤) {#landing-deploy}
 
 <!-- oculpm:plan-log begin v1 -->
@@ -53,4 +53,5 @@ docs/Astra feedback/ 의 10점 마스터보고서·백로그 48건을 검토해(
 | 2026-09-15T22:16:06+09:00 | #verified-loop-close | claude-code | ☐→x |  | improvement-round #verified-loop done 처리 |
 | 2026-09-15T22:25:18+09:00 | #merge-gates | claude-code | ☐→x |  | PR #24 CI 3잡 success → rebase 머지, main 1e4116b4. 로컬 게이트 전부 0 확인 뒤 푸시 |
 | 2026-09-15T22:25:23+09:00 | #landing-deploy | claude-code | ☐→x |  | vercel --prod → oculpm.com 별칭, 등급 문구 라이브 확인 (api/notion TS 경고는 기존 비치명) |
+| 2026-09-16T00:27:10+09:00 | #eyes-release-gate | claude-code | ☐→~ | .oculpm/journal/20260915/Chores/2342_chore_release-3-2-0.md | v3.2.0 run 34983572575: gate 가 CI(34983566910) 8분 대기 뒤 success 판정 → draft → 서명·공증·업데이터 검증 step 전부 success → undraft. 자산 5, latest 리다이렉트 v3.2.0. 남은 것: 설치본 자동 업데이트 육안(사용자) |
 <!-- oculpm:plan-log end -->
