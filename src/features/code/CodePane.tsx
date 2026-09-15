@@ -7,6 +7,10 @@
 //
 // 창이 소유하는 것: 활성 파일의 버퍼·저장·충돌·커서·LSP·watcher 반응.
 // 부모가 소유하는 것: 탭 목록 자체(어떤 파일이 어느 창에 열렸는가)·트리·파일 조작.
+//
+// 책임별로 `codePane/` 에 나눠 두었다 — 거터·비교 모드·LSP 동작·버퍼 쓰기·저장
+// 경로·외부 변경은 훅으로, 배너·팝오버·다이얼로그는 하위 컴포넌트로. 여기는
+// 창의 공유 상태(버퍼 ref·커서·충돌·epoch)와 파일 로드, 그리고 조립만 남았다.
 import {
   forwardRef,
   useCallback,
@@ -17,35 +21,12 @@ import {
   useState,
 } from "react";
 
-import {
-  commands,
-  events,
-  type FileJournalEntry,
-  type GitLineChange,
-  type LspCodeAction,
-  type LspSymbol,
-} from "@/lib/bindings";
-import { EmptyState } from "@/components/EmptyState";
-import { NAV_BUS } from "@/lib/navRegistry";
-import { reverseApplyPatch } from "./patchReverse";
+import { commands, type FileJournalEntry, type LspSymbol } from "@/lib/bindings";
 import { useSettings } from "@/contexts/SettingsContext";
 import { clampStickyMax } from "@/lib/settings";
-import { safeUnlistenPromise } from "@/lib/unlisten";
 import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
-import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
-import { AppDialog } from "@/components/ui/AppDialog";
-import {
-  AlertTriangle,
-  ExternalLink,
-  FileCode,
-  GitCompareArrows,
-  History,
-  ImageFileIcon,
-  NotebookText, Star,
-  X,
-} from "@/components/Icons";
 
 import { CodeEditor } from "./CodeEditor";
 import { useProblems } from "./problemsStore";
@@ -56,13 +37,9 @@ import type { ReferencesQuery } from "./CodeReferences";
 import { CodeTabsBar } from "./CodeTabsBar";
 import { CodeCrumbs } from "./CodeCrumbs";
 import { CodeStatusBar } from "./CodeStatusBar";
-import { isSvgPath, previewKindFor, type PreviewKind } from "./previewKind";
-import { applyHygiene, hygieneForPath, type HygieneOptions } from "./saveHygiene";
-import { useAutoSave } from "./autoSave";
-import { CodeHistory, versionTimeLabel } from "./CodeHistory";
+import { previewKindFor } from "./previewKind";
+import { CodeHistory } from "./CodeHistory";
 import { useFileHistory } from "./useFileHistory";
-import { codeHistoryApi, type CodeHistoryVersion } from "@/api/codeHistory";
-import { toAppError } from "@/api/invoke";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useLsp } from "./useLsp";
 import { langIdForPath, langLabel } from "./codeLang";
@@ -79,25 +56,25 @@ import {
   isDirty as bufferIsDirty,
   normalizeEol,
   putBuffer,
-  restoreEol,
   type CodeBuffer,
 } from "./codeBuffers";
+import type { FileView, PendingJump } from "./codePane/types";
+import { lspLabelFor } from "./codePane/lspLabel";
+import { useGitGutter } from "./codePane/useGitGutter";
+import { useDiffModes } from "./codePane/useDiffModes";
+import { useLspActions } from "./codePane/useLspActions";
+import { useBufferEdits } from "./codePane/useBufferEdits";
+import { useSaveFlow } from "./codePane/useSaveFlow";
+import { useExternalChanges } from "./codePane/useExternalChanges";
+import { CodeEmptyState } from "./codePane/CodeEmptyState";
+import { CrumbActions } from "./codePane/CrumbActions";
+import { JournalEntriesPop } from "./codePane/JournalEntriesPop";
+import { ConflictBanner, DiffBanner } from "./codePane/PaneBanners";
+import { UnopenableHint } from "./codePane/UnopenableHint";
+import { CodeActionsDialog, RenameDialog } from "./codePane/LspDialogs";
 
-/** 거터 갱신 디바운스. 타자마다 `git show` 를 부를 수는 없다. */
-const GUTTER_DEBOUNCE_MS = 500;
-
-/** svg 미리보기 갱신 디바운스 — 타자마다 blob 을 새로 굽지 않는다. */
-const SVG_DEBOUNCE_MS = 250;
-
-type FileView =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "error"; message: string }
-  | { kind: "binary"; bytes: number }
-  | { kind: "tooLarge"; bytes: number }
-  /** 이미지·PDF — 편집은 못 하지만 볼 수는 있다. 크기는 미리보기가 직접 알린다. */
-  | { kind: "preview"; preview: PreviewKind }
-  | { kind: "editor"; bytes: number };
+// 빈 상태는 화면(`CodeScreenV2`)도 쓴다 — import 경로를 지키려고 여기서 재수출한다.
+export { CodeEmptyState };
 
 /** 부모(툴바)가 이 창에 지시하는 창구 — 툴바는 포커스된 창 하나만 겨눈다. */
 export interface CodePaneHandle {
@@ -255,7 +232,6 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   const [selection, setSelection] = useState<{ lines: number; chars: number } | null>(null);
   const cursorRef = useRef(cursor);
   cursorRef.current = cursor;
-  const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<{ diskHash: string } | null>(null);
   // 에디터 재마운트 스위치 — 파일 전환·디스크 리로드가 올린다.
   const [editorEpoch, setEditorEpoch] = useState(0);
@@ -272,17 +248,6 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   const svgTimerRef = useRef<number | null>(null);
   // 자동 저장의 타자 트리거 — 훅이 저장 경로보다 아래에서 만들어지므로 ref 로 잇는다.
   const onEditRef = useRef<() => void>(() => {});
-  // ── 인라인 비교 (Cursor 식) ─────────────────────────────────────────────
-  // original 이 있으면 에디터가 그 텍스트와의 차이를 본문 안에 그린다.
-  // 두 원본이 있다: HEAD(마지막 커밋 이후 = 지금 에이전트가 한 일 전부)와
-  // 특정 일지(그 작업 단위가 바꾼 것만 — 사이드카 패치를 거꾸로 물려 얻는다).
-  const [diffMode, setDiffMode] = useState<
-    | { kind: "head" }
-    | { kind: "entry"; title: string; journalPath: string }
-    | { kind: "history"; ts: string; label: string }
-    | null
-  >(null);
-  const [diffOriginal, setDiffOriginal] = useState<string | null>(null);
   // 이 파일을 files_touched 로 만진 일지들 — 브레드크럼의 일지 칩.
   const [fileEntries, setFileEntries] = useState<FileJournalEntry[]>([]);
   const [entriesOpen, setEntriesOpen] = useState(false);
@@ -297,13 +262,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     refreshSoon: refreshHistorySoon,
     forget: forgetVersions,
   } = useFileHistory(projectId, activePath, settings.codeLocalHistory);
-  const [pendingJump, setPendingJump] = useState<{
-    line: number;
-    ch?: number;
-    len?: number;
-    /** false 면 에디터가 포커스를 가져가지 않는다 (파일 안 이동의 미리 점프). */
-    focus?: boolean;
-  } | null>(null);
+  const [pendingJump, setPendingJump] = useState<PendingJump | null>(null);
 
   const pathRef = useRef(activePath);
   pathRef.current = activePath;
@@ -317,8 +276,6 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     bufferRef.current?.text ?? "",
     editorEpoch,
   );
-  // watcher 가 "파일이 사라졌다" 토스트를 같은 파일에 반복하지 않기 위한 부기.
-  const goneNotifiedRef = useRef<string | null>(null);
 
   // putBuffer 가 dirty 버퍼를 밀어냈으면(상한 초과) 조용한 유실 대신 알린다.
   const notifyIfEvicted = useCallback((evictedKey: string | null) => {
@@ -328,36 +285,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   }, []);
 
   // ── git 거터 (#git-gutter) ─────────────────────────────────────────────
-  //
-  // 저장이 아니라 **버퍼**를 기준으로 본다 — 고치는 즉시 거터가 따라와야
-  // 쓸모가 있다. 타자마다 git 을 부를 수는 없으므로 디바운스한다.
-  const [gitChanges, setGitChanges] = useState<GitLineChange[]>([]);
-  const gutterTimerRef = useRef<number | null>(null);
-  const refreshGutter = useCallback(
-    (text: string, immediate = false) => {
-      const path = pathRef.current;
-      if (!path) return;
-      if (gutterTimerRef.current != null) window.clearTimeout(gutterTimerRef.current);
-      const run = () => {
-        gutterTimerRef.current = null;
-        void commands.gitLineChanges(projectId, path, text).then((res) => {
-          // 그 사이 다른 파일로 옮겼으면 버린다 — 늦게 온 응답이 남의 파일
-          // 거터를 그리면 줄이 통째로 어긋나 보인다.
-          if (pathRef.current !== path) return;
-          setGitChanges(res.status === "ok" ? res.data : []);
-        });
-      };
-      if (immediate) run();
-      else gutterTimerRef.current = window.setTimeout(run, GUTTER_DEBOUNCE_MS);
-    },
-    [projectId],
-  );
-  useEffect(
-    () => () => {
-      if (gutterTimerRef.current != null) window.clearTimeout(gutterTimerRef.current);
-    },
-    [],
-  );
+  const { gitChanges, setGitChanges, refreshGutter } = useGitGutter(projectId, pathRef);
 
   // ── 파일 로드 ──────────────────────────────────────────────────────────
   const loadFile = useCallback(
@@ -423,6 +351,35 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     [projectId, onBuffersChanged, notifyIfEvicted, refreshGutter],
   );
 
+  // ── 인라인 비교 (Cursor 식) ─────────────────────────────────────────────
+  const {
+    diffMode,
+    setDiffMode,
+    diffOriginal,
+    setDiffOriginal,
+    enterHeadDiff,
+    enterEntryDiff,
+    enterHistoryDiff,
+    restoreVersion,
+    forgetHistory,
+    exitDiff,
+    openJournal,
+  } = useDiffModes({
+    projectId,
+    pathRef,
+    bufferRef,
+    cursorRef,
+    setPendingJump,
+    setEditorEpoch,
+    setConflict,
+    setHistoryOpen,
+    loadFile,
+    confirm,
+    refreshHistory,
+    refreshHistorySoon,
+    forgetVersions,
+  });
+
   useEffect(() => {
     setDiffMode(null);
     setDiffOriginal(null);
@@ -445,48 +402,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       if (pathRef.current !== activePath) return;
       setFileEntries(res.status === "ok" && Array.isArray(res.data) ? res.data : []);
     });
-  }, [activePath, loadFile, projectId]);
-
-  // ── 비교 모드 들고 나기 — 에디터는 key 재마운트로 갈아탄다 ──────────────
-  const enterHeadDiff = useCallback(async () => {
-    const path = pathRef.current;
-    const buf = bufferRef.current;
-    if (!path || !buf) return;
-    const res = await commands.codeHeadContent(projectId, path);
-    if (pathRef.current !== path) return;
-    if (res.status !== "ok" || res.data == null) {
-      toast.info(t("code.diff.noHead"));
-      return;
-    }
-    setDiffOriginal(normalizeEol(res.data));
-    setDiffMode({ kind: "head" });
-    setPendingJump({ line: cursorRef.current.line });
-    setEditorEpoch((n) => n + 1);
-  }, [projectId]);
-
-  const enterEntryDiff = useCallback(
-    async (entry: FileJournalEntry) => {
-      const path = pathRef.current;
-      const buf = bufferRef.current;
-      if (!path || !buf) return;
-      const res = await commands.oculpmGetEntryDiffs(projectId, entry.journal_path);
-      if (pathRef.current !== path) return;
-      const filePatch =
-        res.status === "ok" ? res.data.find((d) => d.path === path)?.patch : undefined;
-      const before = filePatch ? reverseApplyPatch(buf.text, filePatch) : null;
-      if (before == null) {
-        // 파일이 그 일지 이후로 더 바뀌어 문맥이 안 맞는다 — 거짓 비교 대신
-        // 일지 화면의 diff 모달로 안내한다.
-        toast.info(t("code.diff.entryStale"));
-        return;
-      }
-      setDiffOriginal(before);
-      setDiffMode({ kind: "entry", title: entry.title, journalPath: entry.journal_path });
-      setPendingJump({ line: cursorRef.current.line });
-      setEditorEpoch((n) => n + 1);
-    },
-    [projectId],
-  );
+  }, [activePath, loadFile, projectId, setDiffMode, setDiffOriginal, setGitChanges]);
 
   /**
    * 미리보기 본문을 버퍼에서 다시 뜬다.
@@ -508,314 +424,61 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     [],
   );
 
-  /** 판 하나와 비교하기. HEAD·일지 비교와 **같은 기계**를 쓴다 — 원본을
-   *  `diffOriginal` 에 넣고 에디터를 다시 마운트하면 끝이다. */
-  const enterHistoryDiff = useCallback(
-    async (version: CodeHistoryVersion) => {
-      const path = pathRef.current;
-      if (!path || !bufferRef.current) return;
-      try {
-        const text = await codeHistoryApi.read(projectId, path, version.ts);
-        if (pathRef.current !== path) return;
-        setDiffOriginal(normalizeEol(text));
-        setDiffMode({
-          kind: "history",
-          ts: version.ts,
-          label: versionTimeLabel(version.ts, Date.now()),
-        });
-        setPendingJump({ line: cursorRef.current.line });
-        setEditorEpoch((n) => n + 1);
-      } catch {
-        // 캡·예산 정리가 그 사이 그 판을 걷어 갔다 — 목록을 새로 읽어 맞춘다.
-        toast.info(t("code.hist.gone"));
-        void refreshHistory();
-      }
-    },
-    [projectId, refreshHistory],
-  );
-
-  /**
-   * 이 판으로 되돌리기. `code_write` 와 **같은 낙관적 잠금**을 통과한다 —
-   * 판을 되살리는 것이 남의 최신 작업을 조용히 덮는 창구가 되면 안 된다.
-   */
-  const restoreVersion = useCallback(async () => {
-    const path = pathRef.current;
-    const buf = bufferRef.current;
-    if (!path || !buf || diffMode?.kind !== "history") return;
-    const isDirty = buf.text !== buf.baseText;
-    const ok = await confirm({
-      title: t("code.hist.restoreTitle", { time: diffMode.label }),
-      message: isDirty ? t("code.hist.restoreDirty") : t("code.hist.restoreBody"),
-      confirmLabel: t("code.hist.restore"),
-      danger: isDirty,
-    });
-    if (!ok) return;
-    try {
-      const outcome = await codeHistoryApi.restore(projectId, path, diffMode.ts, buf.baseHash);
-      if (pathRef.current !== path) return;
-      if (outcome.kind === "conflict") {
-        setConflict({ diskHash: outcome.disk_hash });
-        return;
-      }
-      setDiffMode(null);
-      setDiffOriginal(null);
-      // 되돌리기는 디스크를 갈아 끼운다 — 버퍼도 그 자리에서 새로 읽는다.
-      await loadFile(path, { discardBuffer: true });
-      toast.info(t("code.hist.restored", { time: diffMode.label }));
-      refreshHistorySoon();
-    } catch (e) {
-      toast.destructive(t("code.hist.restoreFailed", { error: tError(toAppError(e)) }));
-    }
-  }, [projectId, diffMode, confirm, loadFile, refreshHistorySoon]);
-
-  /** 이 파일의 판 전부 지우기 — 민감한 파일이 한 번 들어왔을 때의 문. */
-  const forgetHistory = useCallback(async () => {
-    const path = pathRef.current;
-    if (!path) return;
-    const ok = await confirm({
-      title: t("code.hist.forgetTitle"),
-      message: t("code.hist.forgetBody", { path }),
-      confirmLabel: t("code.hist.forget"),
-      danger: true,
-    });
-    if (!ok) return;
-    setHistoryOpen(false);
-    try {
-      await forgetVersions();
-    } catch (e) {
-      toast.destructive(tError(toAppError(e)));
-    }
-  }, [confirm, forgetVersions]);
-
-  const exitDiff = useCallback(() => {
-    setDiffMode(null);
-    setDiffOriginal(null);
-    setPendingJump({ line: cursorRef.current.line });
-    setEditorEpoch((n) => n + 1);
-  }, []);
-
-  /** 일지 화면으로 점프 — 팔레트와 같은 전역 버스를 쓴다 (화면 결합 없음). */
-  const openJournal = useCallback((journalPath: string) => {
-    window.dispatchEvent(
-      new CustomEvent(NAV_BUS.openEntity, { detail: { kind: "journal", id: journalPath } }),
-    );
-  }, []);
-
   // 부모가 지시한 줄 점프. 같은 파일·같은 줄의 연속 점프도 다시 돌도록 nonce 로 건다.
   useEffect(() => {
     if (jump) setPendingJump({ line: jump.line, ch: jump.ch, len: jump.len, focus: jump.focus });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jump?.nonce]);
 
-  // ── 정의로 이동 (F12 · ⌘클릭) ──────────────────────────────────────────
-  //
-  // 세 갈래다. 셋 다 **말은 한다** — 조용히 아무 일도 안 하면 사용자는 기능이
-  // 고장난 줄 안다.
-  const goToDefinition = useCallback(
-    (line: number, character: number) => {
-      void (async () => {
-        const loc = await lsp.definition(line, character);
-        if (!loc) {
-          toast.info(t("code.lsp.noDefinition"));
-          return;
-        }
-        if (!loc.path) {
-          // 표준 라이브러리·의존성 — 코드 화면은 프로젝트 안만 연다.
-          toast.info(t("code.lsp.definitionOutside", { file: loc.display }));
-          return;
-        }
-        // jumpLine 은 1-based, LSP 는 0-based.
-        if (loc.path === pathRef.current) setPendingJump({ line: loc.line + 1 });
-        else onOpenPath(loc.path, loc.line + 1);
-      })();
-    },
-    [lsp, onOpenPath],
-  );
-
-  // ── 이름 바꾸기 (F2) ───────────────────────────────────────────────────
-  //
-  // 이 창에서 유일하게 **여러 파일을 한꺼번에 고치는** 동작이다. 백엔드가
-  // 전부-아니면-전무로 적용하지만, 그 전에 프런트가 막아야 하는 것이 하나 있다:
-  // **미저장 버퍼**. 서버는 didChange 로 받은 버퍼 내용을 보고 편집을 계산하는데
-  // 백엔드는 디스크에 적용하므로, 둘이 다르면 엉뚱한 자리를 덮어쓴다.
-  const [renameAt, setRenameAt] = useState<{ line: number; character: number } | null>(null);
-  const [renameName, setRenameName] = useState("");
-  const [renaming, setRenaming] = useState(false);
-  const renameInputRef = useRef<HTMLInputElement>(null);
-
-  const startRename = useCallback(
-    (line: number, character: number, word: string) => {
-      if (dirtyPaths.size > 0) {
-        toast.warning(t("code.lsp.renameNeedsSave"));
-        return;
-      }
-      setRenameName(word);
-      setRenameAt({ line, character });
-    },
-    [dirtyPaths],
-  );
-
-  const submitRename = useCallback(() => {
-    const at = renameAt;
-    const next = renameName.trim();
-    const path = pathRef.current;
-    if (!at || !next || !path || renaming) return;
-    setRenaming(true);
-    void (async () => {
-      const res = await commands.lspRename(projectId, path, at.line, at.character, next);
-      setRenaming(false);
-      if (res.status === "error") {
-        toast.destructive(tError(res.error));
-        return;
-      }
-      setRenameAt(null);
-      toast.info(
-        t("code.lsp.renameDone", { files: res.data.files.length, edits: res.data.total_edits }),
-      );
-      // 열려 있는 파일도 디스크에서 바뀌었다 — 버퍼를 버리고 다시 읽는다.
-      void loadFile(path, { discardBuffer: true });
-      setEditorEpoch((n) => n + 1);
-    })();
-  }, [renameAt, renameName, renaming, projectId, loadFile]);
-
-  // ── 코드 액션 (⌘.) ─────────────────────────────────────────────────────
-  //
-  // 이름 바꾸기와 같은 이유로 미저장 게이트를 건다 — 서버는 버퍼를, 백엔드는
-  // 디스크를 본다.
-  const [actions, setActions] = useState<LspCodeAction[] | null>(null);
-  const [actionsBusy, setActionsBusy] = useState(false);
-
-  const openCodeActions = useCallback(
-    (sl: number, sc: number, el: number, ec: number) => {
-      if (dirtyPaths.size > 0) {
-        toast.warning(t("code.lsp.renameNeedsSave"));
-        return;
-      }
-      setActionsBusy(true);
-      setActions([]);
-      void (async () => {
-        const list = await lsp.codeActions(sl, sc, el, ec);
-        setActionsBusy(false);
-        if (list.length === 0) {
-          setActions(null);
-          toast.info(t("code.lsp.noActions"));
-          return;
-        }
-        setActions(list);
-      })();
-    },
-    [dirtyPaths, lsp],
-  );
-
-  const runCodeAction = useCallback(
-    (index: number) => {
-      const path = pathRef.current;
-      if (!path || actionsBusy) return;
-      setActionsBusy(true);
-      void (async () => {
-        try {
-          const res = await lsp.applyCodeAction(index);
-          setActions(null);
-          if (res) {
-            toast.info(
-              t("code.lsp.renameDone", { files: res.files.length, edits: res.total_edits }),
-            );
-            // 열려 있는 파일도 디스크에서 바뀌었다 — 버퍼를 버리고 다시 읽는다.
-            void loadFile(path, { discardBuffer: true });
-            setEditorEpoch((n) => n + 1);
-          }
-        } catch (e) {
-          toast.destructive(tError(e instanceof Error ? e.message : String(e)));
-        } finally {
-          setActionsBusy(false);
-        }
-      })();
-    },
-    [actionsBusy, lsp, loadFile],
-  );
-
-  // ── 참조 찾기 (⇧F12) ───────────────────────────────────────────────────
-  //
-  // 결과는 창이 아니라 **화면**이 그린다 — 편집 영역 전체 폭이 필요하고,
-  // 분할 중에도 패널은 하나여야 한다.
-  const findReferences = useCallback(
-    (line: number, character: number, word: string) => {
-      const symbol = word || (pathRef.current ?? "");
-      onReferences({ symbol, status: "loading", files: [] });
-      void lsp.references(line, character).then((files) => {
-        onReferences({ symbol, status: "ready", files });
-      });
-    },
-    [lsp, onReferences],
-  );
+  // ── 언어 서버 동작 (F12 · F2 · ⌘. · ⇧F12) ──────────────────────────────
+  const {
+    goToDefinition,
+    renameAt,
+    setRenameAt,
+    renameName,
+    setRenameName,
+    renaming,
+    renameInputRef,
+    startRename,
+    submitRename,
+    actions,
+    setActions,
+    actionsBusy,
+    openCodeActions,
+    runCodeAction,
+    findReferences,
+  } = useLspActions({
+    projectId,
+    lsp,
+    dirtyPaths,
+    pathRef,
+    setPendingJump,
+    setEditorEpoch,
+    loadFile,
+    onOpenPath,
+    onReferences,
+  });
 
   // ── 편집·저장 ──────────────────────────────────────────────────────────
-  const handleChange = useCallback(
-    (text: string) => {
-      const buf = bufferRef.current;
-      const path = pathRef.current;
-      if (!buf || !path) return;
-      const next = { ...buf, text };
-      bufferRef.current = next;
-      putBuffer(bufferKey(projectId, path), next);
-      const nowDirty = text !== next.baseText;
-      setDirty((prev) => (prev === nowDirty ? prev : nowDirty));
-      if (nowDirty !== dirtyPaths.has(path)) onBuffersChanged();
-      // 고치기 시작한 파일은 더 이상 "훑어보는 중" 이 아니다 — 미리보기가 아니면
-      // `pinTab` 이 같은 상태를 돌려주므로 타자마다 불러도 리렌더가 없다.
-      if (nowDirty) onPinTab(path);
-      // 저장을 기다리지 않고 서버에 밀어 넣는다 — 진단은 미저장 상태에서
-      // 가장 쓸모 있다 (내부에서 디바운스).
-      lsp.pushText(text);
-      refreshGutter(text);
-      onEditRef.current();
-      if (svgOpenRef.current) {
-        if (svgTimerRef.current != null) window.clearTimeout(svgTimerRef.current);
-        svgTimerRef.current = window.setTimeout(() => {
-          svgTimerRef.current = null;
-          setSvgText(text);
-        }, SVG_DEBOUNCE_MS);
-      }
-    },
-    [projectId, dirtyPaths, onBuffersChanged, onPinTab, lsp, refreshGutter],
-  );
-
-  /**
-   * 버퍼 본문을 통째로 갈아끼운다 (포맷팅). 에디터는 언컨트롤드라 `key` 로
-   * 재마운트해야 새 본문이 실리고, 그러면 커서가 맨 위로 가므로 보던 줄을
-   * 점프로 복원한다 — watcher 리로드가 쓰는 것과 같은 수법.
-   */
-  const replaceBufferText = useCallback(
-    (text: string) => {
-      const buf = bufferRef.current;
-      const path = pathRef.current;
-      if (!buf || !path) return;
-      const next = { ...buf, text };
-      bufferRef.current = next;
-      putBuffer(bufferKey(projectId, path), next);
-      setDirty(text !== next.baseText);
-      onBuffersChanged();
-      lsp.pushText(text);
-      refreshGutter(text);
-      setPendingJump({ line: cursorRef.current.line });
-      setEditorEpoch((n) => n + 1);
-    },
-    [projectId, onBuffersChanged, lsp, refreshGutter],
-  );
-
-  const applySaved = useCallback(
-    (path: string, hash: string) => {
-      const buf = bufferRef.current;
-      if (!buf) return;
-      const next = { ...buf, baseText: buf.text, baseHash: hash };
-      bufferRef.current = next;
-      putBuffer(bufferKey(projectId, path), next);
-      setDirty(false);
-      setConflict(null);
-      onBuffersChanged();
-    },
-    [projectId, onBuffersChanged],
-  );
+  const { handleChange, replaceBufferText, applySaved } = useBufferEdits({
+    projectId,
+    dirtyPaths,
+    onBuffersChanged,
+    onPinTab,
+    lsp,
+    refreshGutter,
+    bufferRef,
+    pathRef,
+    cursorRef,
+    setDirty,
+    setConflict,
+    setPendingJump,
+    setEditorEpoch,
+    onEditRef,
+    svgOpenRef,
+    svgTimerRef,
+    setSvgText,
+  });
 
   // ⇧⌥F 포맷팅 — 훅이 든다 (`useCodeFormat.ts` 에 왜 여기가 아닌지 적었다).
   // 호출은 전부 `formatRef` 를 지난다 — 저장 타이머와 편집기 액션이 마운트
@@ -828,98 +491,27 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     replaceBufferText,
   });
 
-  // ── 저장 위생 ──────────────────────────────────────────────────────────
-  // 설정을 ref 로 잡는 이유: 저장은 타이머·cleanup 안에서도 돌고, 그때 필요한
-  // 것은 "저장을 부른 순간의 설정" 이다.
-  const hygieneOptions = useMemo<HygieneOptions>(
-    () => ({
-      trimTrailingWhitespace: settings.codeTrimTrailingWhitespace,
-      insertFinalNewline: settings.codeInsertFinalNewline,
-      trimFinalNewlines: settings.codeTrimFinalNewlines,
-      protectedLines: [],
-    }),
-    [
-      settings.codeTrimTrailingWhitespace,
-      settings.codeInsertFinalNewline,
-      settings.codeTrimFinalNewlines,
-    ],
-  );
-  const hygieneRef = useRef(hygieneOptions);
-  hygieneRef.current = hygieneOptions;
-
-  // ⌘S 는 CM 키맵과 화면 레벨 리스너 양쪽에 걸릴 수 있는데, `saving` state 는
-  // 같은 틱의 두 번째 호출에 아직 낡은 값이라 재진입을 못 막는다 — 같은
-  // base_hash 로 codeWrite 가 두 번 나가면 두 번째가 가짜 충돌 배너를 띄운다.
-  const savingRef = useRef(false);
-  // 자동 저장이 반복 실패하는 경로 — 토스트를 한 번만 낸다. 사용자가 부르지
-  // 않은 동작이 1초마다 같은 말을 하면 그건 알림이 아니라 소음이다.
-  const autoFailedRef = useRef<Set<string>>(new Set());
-  const save = useCallback(
-    async (opts?: { baseHash?: string; auto?: boolean }) => {
-      const path = pathRef.current;
-      const auto = opts?.auto === true;
-      if (!bufferRef.current || !path || savingRef.current) return;
-      if (bufferRef.current.text === bufferRef.current.baseText && !opts?.baseHash) return; // no-op
-      savingRef.current = true;
-      setSaving(true);
-      try {
-        // 저장 시 포맷 — **쓰기 전에** 다듬는다. 쓴 뒤에 고치면 저장 직후 다시
-        // dirty 가 되어 무엇이 디스크에 있는지 알 수 없다. 조용히(silent) 돌려
-        // 서버가 없거나 이미 정돈된 경우에 토스트를 내지 않는다.
-        //
-        // 자동 저장은 포맷을 **건너뛴다** — VS Code 가 정확히 그렇게 한다
-        // (`saveParticipants.ts` 의 `if (context.reason === SaveReason.AUTO) return`).
-        // 타자 도중 1초마다 포매터가 도는 것은 편집기가 아니라 방해다.
-        if (settings.codeFormatOnSave && !auto) await formatRef.current(true);
-        // 포맷이 본문을 갈아끼웠을 수 있으므로 **여기서 다시 읽는다**.
-        const buf = bufferRef.current;
-        if (!buf) return;
-        // 저장 시 정리 — 자동 저장이면 커서 줄을 보호한다(커서가 튀지 않게).
-        const tidied = applyHygiene(
-          buf.text,
-          hygieneForPath(path, {
-            ...hygieneRef.current,
-            protectedLines: auto ? [cursorRef.current.line] : [],
-          }),
-        );
-        if (tidied !== buf.text) replaceBufferText(tidied);
-        const target = bufferRef.current;
-        if (!target) return;
-        const res = await commands.codeWrite(
-          projectId,
-          path,
-          restoreEol(target.text, target.eol),
-          opts?.baseHash ?? target.baseHash,
-          // ⌘K 가 쓴 문장이 이 판에 들어 있으면 로컬 히스토리에 **에이전트**로
-          // 적힌다. 저장을 누른 손이 아니라 글자를 쓴 손이 기준이다.
-          codeAiRef.current.takeAgentAuthored(path),
-        );
-        if (res.status === "error") {
-          // 자동 저장의 쓰기 실패(권한 등)는 경로당 한 번만 알린다.
-          if (auto && autoFailedRef.current.has(path)) return;
-          if (auto) autoFailedRef.current.add(path);
-          toast.destructive(t("code.saveFailed", { error: tError(res.error) }));
-          return;
-        }
-        autoFailedRef.current.delete(path);
-        if (res.data.kind === "saved") {
-          applySaved(path, res.data.hash);
-        } else {
-          // 충돌은 배너만 — 자동 저장이 토스트를 쏘지 않는다 (D7: 남의 작업을
-          // 덮는 경로는 없고, 사용자는 배너에서 고르면 된다).
-          setConflict({ diskHash: res.data.disk_hash });
-        }
-      } finally {
-        savingRef.current = false;
-        setSaving(false);
-      }
-    },
-    // `formatRef` 는 훅이 돌려준 ref 라 신원이 안 바뀌지만, 컴포넌트 밖에서
-    // 왔으므로 린터는 그걸 모른다 — 적어 두는 편이 규칙을 끄는 것보다 낫다.
-    [projectId, applySaved, replaceBufferText, settings.codeFormatOnSave, formatRef],
-  );
-  const saveRef = useRef(save);
-  saveRef.current = save;
+  // ── 저장 위생 · ⌘S · 자동 저장 · 충돌 해소 ─────────────────────────────
+  const { saving, saveRef, autoSave, autoSaveOn, reloadFromDisk, overwriteDisk } = useSaveFlow({
+    projectId,
+    settings,
+    activePath,
+    isFocused,
+    formatRef,
+    replaceBufferText,
+    applySaved,
+    loadFile,
+    onBuffersChanged,
+    bufferRef,
+    pathRef,
+    cursorRef,
+    codeAiRef,
+    conflict,
+    setConflict,
+    diffMode,
+    fileView,
+    onEditRef,
+  });
 
   const externalRef = useRef<() => void>(() => {});
   useImperativeHandle(
@@ -929,142 +521,21 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       openExternal: () => externalRef.current(),
       format: () => void formatRef.current(),
     }),
-    [formatRef],
+    [formatRef, saveRef],
   );
-
-  // 창 레벨 ⌘S — 트리/필터에 포커스가 있어도 저장된다 (편집면 안이면 편집기의
-  // 액션이 먼저 먹는다). 분할 중이면 **포커스된 창만** 반응한다 — 안 그러면
-  // 한 번의 ⌘S 가 양쪽에서 저장을 쏜다.
-  const focusedRef = useRef(isFocused);
-  focusedRef.current = isFocused;
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      // 편집기 액션이 이미 처리한 ⌘S (preventDefault 됨) — 여기서 또 부르면
-      // 같은 base_hash 로 저장이 두 번 나간다.
-      if (e.defaultPrevented || !focusedRef.current) return;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        e.stopPropagation();
-        void saveRef.current();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  // ── 자동 저장 ──────────────────────────────────────────────────────────
-  /**
-   * 화면을 떠난 경로를 조용히 저장한다 (탭 전환·창 정리).
-   *
-   * 이 창의 state 를 건드리지 않는다 — 충돌 배너·저장 중 표시는 **지금 보이는
-   * 파일**의 것이다. 충돌하면 버퍼를 그대로 두고 지나간다: 탭 배지가 미저장으로
-   * 남아, 사용자가 그 파일로 돌아오면 평소의 배너로 만난다.
-   */
-  const flushPath = useCallback(
-    (path: string) => {
-      const key = bufferKey(projectId, path);
-      const buf = getBuffer(key);
-      if (!buf || buf.text === buf.baseText) return;
-      // 떠난 파일에는 커서가 없다 — 보호할 줄도 없다.
-      const text = applyHygiene(buf.text, hygieneForPath(path, hygieneRef.current));
-      void (async () => {
-        const res = await commands.codeWrite(
-          projectId,
-          path,
-          restoreEol(text, buf.eol),
-          buf.baseHash,
-          codeAiRef.current.takeAgentAuthored(path),
-        );
-        if (res.status !== "ok" || res.data.kind !== "saved") return;
-        // 쓰는 사이에 그 버퍼가 또 바뀌었으면(다시 열어 고쳤다) 덮지 않는다.
-        const latest = getBuffer(key);
-        if (!latest || latest.text !== buf.text) return;
-        putBuffer(key, { ...latest, text, baseText: text, baseHash: res.data.hash });
-        onBuffersChanged();
-      })();
-    },
-    [projectId, onBuffersChanged],
-  );
-
-  const autoSave = useAutoSave({
-    mode: settings.codeAutoSave,
-    delayMs: settings.codeAutoSaveDelay,
-    activePath,
-    isFocused,
-    // 하나라도 걸리면 조용히 건너뛴다. 충돌 배너가 떠 있는 동안 자동으로
-    // 덮어쓰지 않고(D7), 인라인 비교 중에는 사용자가 읽는 중이다.
-    canAutoSave: () =>
-      bufferRef.current != null &&
-      bufferRef.current.text !== bufferRef.current.baseText &&
-      !savingRef.current &&
-      conflict == null &&
-      diffMode == null &&
-      fileView.kind === "editor",
-    saveActive: () => void saveRef.current({ auto: true }),
-    flushPath,
-  });
-  onEditRef.current = autoSave.onEdit;
-  const autoSaveOn = settings.codeAutoSave !== "off";
-
-  // ── 충돌 해소 ──────────────────────────────────────────────────────────
-  const reloadFromDisk = useCallback(() => {
-    const path = pathRef.current;
-    if (!path) return;
-    void loadFile(path, { discardBuffer: true });
-  }, [loadFile]);
-
-  const overwriteDisk = useCallback(() => {
-    if (!conflict) return;
-    void save({ baseHash: conflict.diskHash });
-  }, [conflict, save]);
 
   // ── 열린 파일의 외부 변경 감지 (watcher) ───────────────────────────────
-  useEffect(() => {
-    const un = events.oculpmFileChanged.listen(({ payload }) => {
-      if (payload.project_id !== projectId) return;
-      const path = pathRef.current;
-      if (!path || payload.event.path !== path) return;
-      // 캡처는 이 이벤트 **뒤에** fire-and-forget 으로 돈다 — 곧바로 물으면
-      // 방금 그 판이 아직 없다. 잠깐 뒤에 다시 센다.
-      refreshHistorySoon();
-      void (async () => {
-        // 미리보기 파일은 본문이 아니라 자산을 다시 읽는다 — 에이전트가 스크린샷을
-        // 갈아 끼우면 화면도 따라가야 한다.
-        if (previewKindFor(path)) {
-          setPreviewEpoch((n) => n + 1);
-          return;
-        }
-        const res = await commands.codeRead(projectId, path);
-        if (pathRef.current !== path) return;
-        if (res.status !== "ok") {
-          // 외부에서 파일이 지워지거나 이동됐다 — 조용히 삼키면 사용자는
-          // 저장 실패에서야 알게 된다. 같은 파일에 한 번만 알린다.
-          if (goneNotifiedRef.current !== path) {
-            goneNotifiedRef.current = path;
-            toast.warning(t("code.fileGone", { path }));
-          }
-          return;
-        }
-        goneNotifiedRef.current = null;
-        const buf = bufferRef.current;
-        if (!buf || res.data.binary || res.data.too_large) return;
-        if (res.data.hash === buf.baseHash) return; // 자기 저장의 에코
-        if (buf.text === buf.baseText) {
-          // 깨끗한 버퍼 — 조용히 최신화하되 읽던 줄은 유지한다.
-          const eol = detectEol(res.data.content);
-          const text = normalizeEol(res.data.content);
-          const fresh: CodeBuffer = { text, baseText: text, baseHash: res.data.hash, eol };
-          bufferRef.current = fresh;
-          putBuffer(bufferKey(projectId, path), fresh);
-          setPendingJump({ line: cursorRef.current.line });
-          setEditorEpoch((n) => n + 1);
-        } else {
-          setConflict({ diskHash: res.data.hash });
-        }
-      })();
-    });
-    return () => safeUnlistenPromise(un);
-  }, [projectId, refreshHistorySoon]);
+  useExternalChanges({
+    projectId,
+    pathRef,
+    bufferRef,
+    cursorRef,
+    refreshHistorySoon,
+    setPreviewEpoch,
+    setPendingJump,
+    setEditorEpoch,
+    setConflict,
+  });
 
   // ── 외부 에디터 ────────────────────────────────────────────────────────
   const openExternal = useCallback(async () => {
@@ -1085,25 +556,8 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   const debuggable = adapterLanguageFor(activePath) != null;
   const buf = bufferRef.current;
 
-  // 서버 상태를 한 낱말로. **"인덱싱 중" 을 밝히는 것이 요점** — rust-analyzer 는
-  // 첫 기동에 수십 초를 쓰는데, 그동안 진단이 안 오는 것을 "안 붙었다" 와
-  // 구별할 수 없으면 사용자는 고장으로 읽는다.
-  const lspLabel = useMemo((): string | null => {
-    switch (lsp.status.state) {
-      case "indexing":
-        return t("code.lsp.indexing");
-      case "ready":
-        return t("code.lsp.ready");
-      case "starting":
-        return t("code.lsp.starting");
-      case "missing":
-        return t("code.lsp.missing");
-      case "failed":
-        return t("code.lsp.failed");
-      default:
-        return null;
-    }
-  }, [lsp.status.state]);
+  // 서버 상태를 한 낱말로 (`codePane/lspLabel.ts`).
+  const lspLabel = useMemo((): string | null => lspLabelFor(lsp.status.state), [lsp.status.state]);
 
   return (
     <div
@@ -1143,108 +597,35 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
           cursorLine={cursor.line}
           onRevealDir={onRevealDir}
           onJumpToSymbol={(line, character) => setPendingJump({ line, ch: character })}
-          actions={<>
-            {/* 이 파일을 만진 일지 — 에이전트가 여기에 무슨 일을 했는지. */}
-            {fileEntries.length > 0 ? (
-              <button
-                type="button"
-                className={"code-crumb-act" + (entriesOpen ? " on" : "")}
-                onClick={() => {
-                  setEntriesOpen((v) => !v);
-                  setHistoryOpen(false);
-                }}
-                title={t("code.jrnl.chipTitle", { count: fileEntries.length })}
-                aria-label={t("code.jrnl.chipTitle", { count: fileEntries.length })}
-                aria-expanded={entriesOpen}
-              >
-                <NotebookText size={13} />
-                <span className="code-crumb-act-n">{fileEntries.length}</span>
-              </button>
-            ) : null}
-            {/* 이 파일의 판 — 커밋 사이의 시간을 여는 유일한 문. */}
-            {historyVersions.length > 0 ? (
-              <button
-                type="button"
-                className={"code-crumb-act" + (historyOpen ? " on" : "")}
-                onClick={() => {
-                  setHistoryOpen((v) => {
-                    if (!v) void refreshHistory();
-                    return !v;
-                  });
-                  setEntriesOpen(false);
-                }}
-                title={t("code.hist.chipTitle", { count: historyVersions.length })}
-                aria-label={t("code.hist.chipTitle", { count: historyVersions.length })}
-                aria-expanded={historyOpen}
-              >
-                <History size={13} />
-                <span className="code-crumb-act-n">{historyVersions.length}</span>
-              </button>
-            ) : null}
-            {/* svg — 코드로 열되 그림도 옆에 띄운다 (VS Code 의 Open Preview 자리). */}
-            {fileView.kind === "editor" && activePath && isSvgPath(activePath) ? (
-              <button
-                type="button"
-                className={"code-crumb-act" + (svgOpen ? " on" : "")}
-                onClick={() => setSvgOpen((v) => !v)}
-                title={t("code.svg.toggle")}
-                aria-label={t("code.svg.toggle")}
-                aria-pressed={svgOpen}
-              >
-                <ImageFileIcon size={13} />
-              </button>
-            ) : null}
-            {fileView.kind === "editor" ? (
-              <button
-                type="button"
-                className={"code-crumb-act" + (diffMode?.kind === "head" ? " on" : "")}
-                onClick={() => (diffMode ? exitDiff() : void enterHeadDiff())}
-                title={t("code.diff.head")}
-                aria-label={t("code.diff.head")}
-              >
-                <GitCompareArrows size={13} />
-              </button>
-            ) : null}
-          </>}
+          actions={
+            <CrumbActions
+              activePath={activePath}
+              editorShown={fileView.kind === "editor"}
+              entriesCount={fileEntries.length}
+              entriesOpen={entriesOpen}
+              setEntriesOpen={setEntriesOpen}
+              historyCount={historyVersions.length}
+              historyOpen={historyOpen}
+              setHistoryOpen={setHistoryOpen}
+              refreshHistory={refreshHistory}
+              svgOpen={svgOpen}
+              setSvgOpen={setSvgOpen}
+              diffMode={diffMode}
+              exitDiff={exitDiff}
+              enterHeadDiff={enterHeadDiff}
+            />
+          }
         />
       ) : null}
 
       {/* 일지 팝오버 — 항목 클릭은 일지 화면으로, diff 버튼은 인라인 비교로. */}
       {entriesOpen ? (
-        <div className="code-jrnl-pop" role="menu" aria-label={t("code.jrnl.title")}>
-          <div className="code-jrnl-pop-head">{t("code.jrnl.title")}</div>
-          {fileEntries.map((entry) => (
-            <div key={entry.journal_path} className="code-jrnl-row">
-              <button
-                type="button"
-                className="code-jrnl-open"
-                onClick={() => {
-                  setEntriesOpen(false);
-                  openJournal(entry.journal_path);
-                }}
-                title={t("code.jrnl.open")}
-              >
-                <span className={"code-jrnl-type t-" + entry.entry_type} aria-hidden />
-                <span className="code-jrnl-title">{entry.title}</span>
-                <span className="code-jrnl-meta">
-                  {entry.agent_id} · {entry.created_at.slice(5, 16).replace("T", " ")} · {entry.op}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="code-jrnl-diff"
-                onClick={() => {
-                  setEntriesOpen(false);
-                  void enterEntryDiff(entry);
-                }}
-                title={t("code.jrnl.diff")}
-                aria-label={t("code.jrnl.diff")}
-              >
-                <GitCompareArrows size={13} />
-              </button>
-            </div>
-          ))}
-        </div>
+        <JournalEntriesPop
+          entries={fileEntries}
+          setEntriesOpen={setEntriesOpen}
+          openJournal={openJournal}
+          enterEntryDiff={enterEntryDiff}
+        />
       ) : null}
 
       {historyOpen ? (
@@ -1260,54 +641,16 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
 
       {/* 비교 모드 배너 — 지금 무엇과 비교 중인지, 나가는 길. */}
       {diffMode ? (
-        <div className="code-diffbar" role="status">
-          <GitCompareArrows size={13} className="code-diffbar-ico" />
-          <span className="code-diffbar-label">
-            {diffMode.kind === "head"
-              ? t("code.diff.banner.head")
-              : diffMode.kind === "entry"
-                ? t("code.diff.banner.entry", { title: diffMode.title })
-                : t("code.diff.banner.history", { time: diffMode.label })}
-          </span>
-          {diffMode.kind === "entry" ? (
-            <button
-              type="button"
-              className="btn ghost sm"
-              onClick={() => openJournal(diffMode.journalPath)}
-            >
-              {t("code.jrnl.open")}
-            </button>
-          ) : null}
-          {diffMode.kind === "history" ? (
-            <button type="button" className="btn ghost sm" onClick={() => void restoreVersion()}>
-              {t("code.hist.restore")}
-            </button>
-          ) : null}
-          <button type="button" className="code-diffbar-exit" onClick={exitDiff} aria-label={t("code.diff.exit")} title={t("code.diff.exit")}>
-            <X size={13} strokeWidth={2.5} />
-          </button>
-        </div>
+        <DiffBanner
+          diffMode={diffMode}
+          openJournal={openJournal}
+          restoreVersion={restoreVersion}
+          exitDiff={exitDiff}
+        />
       ) : null}
 
       {conflict ? (
-        <div className="code-conflict" role="alert">
-          <AlertTriangle size={15} className="code-conflict-ico" />
-          <div className="code-conflict-text">
-            <strong>{t("code.conflict.title")}</strong>
-            <span>{t("code.conflict.desc")}</span>
-          </div>
-          <button type="button" className="btn ghost sm" onClick={reloadFromDisk}>
-            {t("code.conflict.reload")}
-          </button>
-          <button
-            type="button"
-            className="btn sm code-conflict-overwrite"
-            onClick={overwriteDisk}
-            disabled={saving}
-          >
-            {t("code.conflict.overwrite")}
-          </button>
-        </div>
+        <ConflictBanner reloadFromDisk={reloadFromDisk} overwriteDisk={overwriteDisk} saving={saving} />
       ) : null}
 
       {fileView.kind === "idle" ? (
@@ -1330,18 +673,12 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
           onOpenExternal={() => void openExternal()}
         />
       ) : fileView.kind === "binary" || fileView.kind === "tooLarge" ? (
-        <div className="code-center-hint code-unopenable">
-          <FileCode size={30} strokeWidth={1.5} />
-          <div className="code-unopenable-title">
-            {fileView.kind === "binary" ? t("code.binary") : t("code.tooLarge")}
-          </div>
-          <div className="code-unopenable-desc">{formatBytes(fileView.bytes)}</div>
-          {projectRoot ? (
-            <button type="button" className="btn sm" onClick={() => void openExternal()}>
-              <ExternalLink size={13} /> {t("code.openExternal")}
-            </button>
-          ) : null}
-        </div>
+        <UnopenableHint
+          kind={fileView.kind}
+          bytes={fileView.bytes}
+          projectRoot={projectRoot}
+          openExternal={openExternal}
+        />
       ) : buf ? (
         <>
           <div
@@ -1438,118 +775,24 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         </>
       ) : null}
 
-      <AppDialog
-        open={renameAt != null}
-        onClose={() => setRenameAt(null)}
-        label={t("code.lsp.renameTitle")}
-        width={420}
-        initialFocusRef={renameInputRef}
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submitRename();
-          }}
-          style={{ padding: "18px 20px 16px" }}
-        >
-          <label
-            htmlFor="code-rename-input"
-            style={{ display: "block", fontSize: "var(--fs-4)", fontWeight: "var(--fw-strong)", marginBottom: 8 }}
-          >
-            {t("code.lsp.renameTitle")}
-          </label>
-          <input
-            id="code-rename-input"
-            ref={renameInputRef}
-            className="input"
-            value={renameName}
-            onChange={(e) => setRenameName(e.target.value)}
-            disabled={renaming}
-            spellCheck={false}
-            autoComplete="off"
-            style={{ width: "100%", fontFamily: "var(--mono)" }}
-          />
-          <p style={{ margin: "10px 0 0", fontSize: "var(--fs-3)", color: "var(--text-3)", lineHeight: 1.6 }}>
-            {t("code.lsp.renameHint")}
-          </p>
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-            <button type="button" className="btn sm" onClick={() => setRenameAt(null)} disabled={renaming}>{t("common.cancel")}</button>
-            <button type="submit" className="btn sm primary" {...blocked(renameName.trim() ? null : t("code.lsp.blockedNoName"))} disabled={renaming}>
-              {renaming ? t("code.lsp.renaming") : t("code.lsp.renameApply")}
-            </button>
-          </div>
-        </form>
-      </AppDialog>
+      <RenameDialog
+        renameAt={renameAt}
+        setRenameAt={setRenameAt}
+        renameName={renameName}
+        setRenameName={setRenameName}
+        renaming={renaming}
+        submitRename={submitRename}
+        renameInputRef={renameInputRef}
+      />
 
-      <AppDialog
-        open={actions != null && actions.length > 0}
-        onClose={() => setActions(null)}
-        label={t("code.lsp.actionsTitle")}
-        width={460}
-      >
-        <div style={{ padding: "16px 20px 18px" }}>
-          <h2 style={{ margin: "0 0 12px", fontSize: "var(--fs-5)", fontWeight: "var(--fw-bold)" }}>
-            {t("code.lsp.actionsTitle")}
-          </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {(actions ?? []).map((a) => (
-              <button
-                key={a.index}
-                type="button"
-                className="btn sm"
-                disabled={actionsBusy}
-                onClick={() => runCodeAction(a.index)}
-                style={{ justifyContent: "flex-start", textAlign: "left", gap: 8 }}
-              >
-                {/* 서버가 "이걸 먼저" 라고 표시한 것 — 대개 진짜 고치려던 fix 다. */}
-                {a.preferred ? <Star size={13} fill="currentColor" style={{ color: "var(--accent-text)", flex: "none" }} aria-hidden /> : null}
-                <span style={{ flex: 1 }}>{a.title}</span>
-                {a.kind ? (
-                  <span style={{ fontSize: "var(--fs-2)", color: "var(--text-3)" }}>{a.kind}</span>
-                ) : null}
-              </button>
-            ))}
-          </div>
-          <p style={{ margin: "12px 0 0", fontSize: "var(--fs-3)", color: "var(--text-3)", lineHeight: 1.6 }}>
-            {t("code.lsp.renameHint")}
-          </p>
-        </div>
-      </AppDialog>
+      <CodeActionsDialog
+        actions={actions}
+        setActions={setActions}
+        actionsBusy={actionsBusy}
+        runCodeAction={runCodeAction}
+      />
 
       {confirmDialog}
     </div>
   );
 });
-
-/** 빈 상태 — 화면(모든 탭 닫힘)과 창(파일 미선택)이 공유한다. */
-export function CodeEmptyState() {
-  useT();
-  const keys: Array<[string, string]> = [
-    ["⌘K", t("code.empty.kPalette")],
-    ["⌘P", t("code.empty.kQuickOpen")],
-    ["F12", t("code.empty.kDef")],
-    ["⇧F12", t("code.empty.kRefs")],
-    ["⇧⌥F", t("code.empty.kFormat")],
-    ["⌘N", t("code.empty.kNewFile")],
-    ["⌘W", t("code.empty.kClose")],
-    ["⇧⌘T", t("code.empty.kReopen")],
-    ["⌃Tab", t("code.empty.kCycle")],
-    ["⌘B", t("code.empty.kSidebar")],
-    ["⌥Z", t("code.empty.kWrap")],
-  ];
-  // 바깥 .code-center-hint 는 남긴다 — flex:1 로 창을 채우는 건 이 자리의
-  // 레이아웃이고, 안쪽 카드만 공용 EmptyState 로 옮겼다 (v3-surface).
-  return (
-    <div className="code-center-hint">
-      <EmptyState density="rich" icon={FileCode} title={t("code.empty.title")}>
-        {t("code.empty.desc")}
-        {/* 단축키 표 — 빈 화면이 곧 치트시트다 (VS Code 와 같은 관례). */}
-        <div className="code-empty-keys">
-          {keys.map(([combo, label]) => (
-            <span key={combo} className="code-empty-key"><kbd>{combo}</kbd><span>{label}</span></span>
-          ))}
-        </div>
-      </EmptyState>
-    </div>
-  );
-}
