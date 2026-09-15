@@ -312,6 +312,7 @@ impl OculpmManager {
                 },
                 language: language.clone(),
                 verified_by_user: false,
+                verified_hash: None,
                 files_touched: files_touched.clone(),
                 related: Vec::new(),
                 tags: vec!["git-backfill".to_string(), c.short_sha.clone()],

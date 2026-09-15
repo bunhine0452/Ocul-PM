@@ -30,7 +30,7 @@ use crate::oculpm::cache::{
 };
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::frontmatter::{
-    backfill_tz_offset, parse_frontmatter_and_body, write_frontmatter_and_body,
+    backfill_tz_offset, parse_frontmatter_and_body, verified_body_hash, write_frontmatter_and_body,
 };
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::lock::{AcquirePolicy, LockAcquisition, LockGuard};
@@ -559,3 +559,5 @@ fn lock_state_from_guard(guard: &Option<LockGuard>) -> LockStateView {
 mod tests;
 #[cfg(test)]
 mod tests_teardown;
+#[cfg(test)]
+mod tests_verified;

@@ -26,7 +26,7 @@ use crate::db::Db;
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::frontmatter::{
     backfill_tz_offset, iso_lacks_offset, normalize_slug, parse_frontmatter_and_body,
-    ParsedFrontmatter,
+    verified_body_hash, ParsedFrontmatter,
 };
 use crate::oculpm::markdown::{parse_body, ParsedBody};
 use crate::oculpm::spec::{
@@ -44,7 +44,10 @@ use crate::oculpm::spec::{
 ///            2 — 037 `agent_session` 칸이 생겼다. 본문이 그대로인 일지는 전면
 ///                재작성을 타지 않으므로, 이미 캐시에 있던 행의 새 칸을 채우는
 ///                길이 이 재투영 하나뿐이다.
-pub const COERCION_VERSION: i64 = 2;
+///            3 — 039 `verified_stale` 칸이 생겼다. 같은 이유로 1회 재투영이
+///                필요하다 — 옛 빌드가 투영한 행은 `verified_hash` 를 본 적이
+///                없어 기본값 0 이 거짓일 수 있다.
+pub const COERCION_VERSION: i64 = 3;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -121,6 +124,9 @@ pub struct ChangeGroup {
     /// diff group header renders the same toggle the entry detail has, so a
     /// review can be closed without leaving the diff (polish-round Phase 2).
     pub verified_by_user: Option<bool>,
+    /// 확인 뒤 본문이 바뀐 일지 ({#reviewed-hash}) — 머리글의 토글은
+    /// `verified_by_user && !verified_stale` 만 켜진 것으로 그린다.
+    pub verified_stale: Option<bool>,
     pub plan_refs: Vec<ChangePlanRef>,
     pub files: Vec<String>,
 }
@@ -163,12 +169,14 @@ pub struct JournalCache<'a> {
 
 mod conv;
 mod files;
+mod project;
 mod query;
 mod reindex;
 mod stats;
 mod write;
 
 use conv::*;
+pub(crate) use project::Projected;
 
 impl<'a> JournalCache<'a> {
     pub fn new(db: &'a Db) -> Self {
@@ -198,43 +206,6 @@ impl<'a> JournalCache<'a> {
     pub fn with_tz(mut self, tz: Tz) -> Self {
         self.tz = Some(tz);
         self
-    }
-
-    /// Parse a journal file's raw text for projection into the cache, masking
-    /// secrets in the **body only** — never the YAML frontmatter, where a
-    /// `[REDACTED]` placeholder would parse as a flow sequence (`['REDACTED']`)
-    /// and degrade the row to an unparseable `chore` (dev-report §2 / R1). The
-    /// at-write writers (`create_manual_journal_entry` / `update_journal_entry_body`)
-    /// already mask only the body for the same reason.
-    ///
-    /// Returns `(frontmatter, masked body, full-text for the body-hash gate,
-    /// redacted span count)`. This is the **single producer** of the cache's
-    /// `full_text`, so the body-hash basis is consistent across every projection
-    /// path. When nothing is masked it returns `raw` verbatim, so a no-secret
-    /// file projects byte-identically to the non-redacting path (the no-churn
-    /// mtime fast path in [`upsert_entry`][Self::upsert_entry] still holds);
-    /// only when a secret is actually replaced does it rebuild a deterministic
-    /// `---\n<frontmatter>\n---\n<masked body>` so re-scans stay stable.
-    pub(crate) fn project_text(&self, raw: &str) -> (ParsedFrontmatter, ParsedBody, String, usize) {
-        let (parsed, body_text) = parse_frontmatter_and_body(raw);
-        if self.redact.is_empty() {
-            let body = parse_body(&body_text);
-            return (parsed, body, raw.to_string(), 0);
-        }
-        let (masked_body, hits) = crate::oculpm::redact::redact_text(&body_text, &self.redact);
-        if hits.is_empty() {
-            // No secret in the body → identical projection to the non-redacting
-            // path (full_text == raw keeps the hash basis stable).
-            let body = parse_body(&body_text);
-            return (parsed, body, raw.to_string(), 0);
-        }
-        let full = if parsed.raw_yaml.is_empty() {
-            masked_body.clone()
-        } else {
-            format!("---\n{}\n---\n{}", parsed.raw_yaml, masked_body)
-        };
-        let body = parse_body(&masked_body);
-        (parsed, body, full, hits.len())
     }
 }
 
@@ -293,6 +264,9 @@ struct CacheRowSnapshot {
     agent_session: Option<String>,
     language: String,
     verified_by_user: bool,
+    /// 039 — `verified_by_user && verified_hash != hash(디스크 본문)`. 해시가
+    /// 없는 확인(옛 일지·수동 저작)은 거짓 = 그대로 유효.
+    verified_stale: bool,
     created_at: String,
     updated_at: Option<String>,
     body_markdown: String,
@@ -312,12 +286,16 @@ struct CacheFileRow {
 }
 
 impl CacheRowSnapshot {
+    /// `disk_body_hash` — 마스킹 전 디스크 본문의 [`verified_body_hash`]
+    /// ([`Projected::disk_body_hash`]). 쓰기 시점에 이미 마스킹을 끝낸 경로는
+    /// `body.raw` 가 곧 디스크 본문이라 그 해시를 넘긴다.
     fn from(
         parsed: &ParsedFrontmatter,
         body: &ParsedBody,
         relative_path: &str,
         full_text: &str,
         tz: Option<Tz>,
+        disk_body_hash: &str,
     ) -> Result<Self, OculpmError> {
         // Hash the full on-disk text so frontmatter-only edits (verified
         // toggle, status change) defeat the mtime-only fast path.
@@ -380,6 +358,7 @@ impl CacheRowSnapshot {
                     agent_session: fm.agent.session.clone().filter(|s| !s.trim().is_empty()),
                     language: fm.language.clone(),
                     verified_by_user: fm.verified_by_user,
+                    verified_stale: verified_stale(fm, disk_body_hash),
                     created_at,
                     updated_at,
                     body_markdown: body.raw.clone(),
@@ -422,6 +401,7 @@ impl CacheRowSnapshot {
                     agent_session: None,
                     language: "ko".to_string(),
                     verified_by_user: false,
+                    verified_stale: false,
                     created_at: String::new(),
                     updated_at: None,
                     body_markdown: body.raw.clone(),
@@ -434,6 +414,16 @@ impl CacheRowSnapshot {
             }
         }
     }
+}
+
+/// 확인이 내용에서 떨어졌는가 ({#reviewed-hash}). 확인되지 않았거나 해시가
+/// 없으면(옛 일지·수동 저작) 거짓 — 해시가 있을 때만 디스크 본문과 대조한다.
+fn verified_stale(fm: &JournalFrontmatter, disk_body_hash: &str) -> bool {
+    fm.verified_by_user
+        && fm
+            .verified_hash
+            .as_deref()
+            .is_some_and(|h| h != disk_body_hash)
 }
 
 #[derive(Debug)]
@@ -454,6 +444,8 @@ struct EntryRow {
     agent_session: Option<String>,
     language: String,
     verified_by_user: bool,
+    /// 039 컬럼 — 확인 뒤 본문이 바뀐 일지.
+    verified_stale: bool,
     created_at: String,
     updated_at: Option<String>,
     file_mtime: i64,
@@ -483,6 +475,7 @@ fn entry_row_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<EntryRow> {
         parse_warnings: r.get(16)?,
         agent_version: r.get(17)?,
         agent_session: r.get(18)?,
+        verified_stale: r.get::<_, i64>(19)? != 0,
     })
 }
 
@@ -504,6 +497,7 @@ fn summary_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<JournalEntrySumma
         agent_id: r.get("agent_id")?,
         agent_version: r.get("agent_version")?,
         verified_by_user: r.get::<_, i64>("verified_by_user")? != 0,
+        verified_stale: r.get::<_, i64>("verified_stale")? != 0,
         created_at: r.get("created_at")?,
         updated_at: r.get("updated_at")?,
         tags: Vec::new(), // filled by list_entries' batch query
@@ -592,7 +586,8 @@ fn build_entry_where(
         sql.push_str(&format!(" AND type IN ({})", placeholders.join(",")));
     }
     if filters.verified_only {
-        sql.push_str(" AND verified_by_user = 1");
+        // 확인 뒤 본문이 바뀐 일지는 「확인됨」이 아니다 ({#reviewed-hash}).
+        sql.push_str(" AND verified_by_user = 1 AND verified_stale = 0");
     }
     if filters.mismatch_only {
         // Reserved for W4 — no row carries the flag yet. Use an impossible
@@ -650,8 +645,8 @@ fn build_list_sql(
     let (where_sql, mut bound) = build_entry_where(project_id, workdays, filters);
     let mut sql = String::from(
         "SELECT relative_path, workday, type, slug, status, difficulty, title, checkbox,
-                session_id, agent_id, agent_version, verified_by_user, created_at, updated_at,
-                parse_ok, parse_warnings
+                session_id, agent_id, agent_version, verified_by_user, verified_stale,
+                created_at, updated_at, parse_ok, parse_warnings
          FROM oculpm_journal",
     );
     sql.push_str(&where_sql);

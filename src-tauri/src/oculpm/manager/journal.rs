@@ -149,6 +149,11 @@ impl OculpmManager {
     /// Toggle `verified_by_user` on a journal entry. Reads the disk file,
     /// mutates the frontmatter only, atomic-writes it back, then upserts the
     /// cache so the UI sees the change before the next watcher event lands.
+    ///
+    /// 확인은 **내용에 묶인다** ({#reviewed-hash}): `true` 는 지금 디스크에 있는
+    /// 본문의 해시를 `verified_hash` 에 같이 적고, `false` 는 그 줄을 지운다.
+    /// 이미 확인된 일지에 다시 `true` 를 보내면 해시를 지금 본문으로 다시
+    /// 묶는다 — 「확인 뒤 변경됨」을 사람이 다시 검토하고 닫는 길이 이것이다.
     pub async fn set_journal_verified(
         &self,
         db: &Db,
@@ -173,6 +178,9 @@ impl OculpmManager {
             ));
         };
         fm.verified_by_user = verified;
+        // 해시는 마스킹 전 디스크 본문(SSOT)에서 — 캐시 투영(`project_text`)이
+        // 같은 본문을 같은 식으로 해시해 비교한다.
+        fm.verified_hash = verified.then(|| verified_body_hash(&body));
         let new_text = write_frontmatter_and_body(&fm, &body);
         write_atomic(&abs, new_text.as_bytes())?;
 
@@ -494,6 +502,9 @@ impl OculpmManager {
             }),
             language,
             verified_by_user: draft.verified_by_user.unwrap_or(true),
+            // 수동 일지의 `true` 는 검토가 아니라 저작이다 — 해시는 사람이
+            // 「확인」을 눌러 다시 묶을 때(`set_journal_verified`) 생긴다.
+            verified_hash: None,
             files_touched: draft.files_touched.clone(),
             related: Vec::new(),
             tags: draft.tags.clone(),

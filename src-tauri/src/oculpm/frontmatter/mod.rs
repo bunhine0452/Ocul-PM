@@ -24,6 +24,9 @@ use crate::oculpm::spec::{
     RelatedRef,
 };
 
+mod verified;
+pub use verified::verified_body_hash;
+
 /// Spec-defined required field names (`00-spec.md` §3.1). `agent.id` is
 /// validated separately because it lives one level deeper.
 pub const REQUIRED_FIELDS: &[&str] = &[
@@ -435,6 +438,14 @@ fn coerce_frontmatter(value: &YamlValue, warnings: &mut Vec<String>) -> Option<J
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
+    // verified_hash — 선택. 없는 것이 정상이다 (확인 안 됨 · 이 키가 생기기
+    // 전에 확인된 옛 일지). 빈 문자열은 없는 것으로 친다.
+    let verified_hash = map
+        .get(YamlValue::String("verified_hash".into()))
+        .and_then(stringify_scalar)
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+
     let files_touched = match map.get(YamlValue::String("files_touched".into())) {
         Some(YamlValue::Sequence(seq)) => seq
             .iter()
@@ -483,6 +494,7 @@ fn coerce_frontmatter(value: &YamlValue, warnings: &mut Vec<String>) -> Option<J
         agent,
         language,
         verified_by_user,
+        verified_hash,
         files_touched,
         related,
         tags,
@@ -637,6 +649,9 @@ fn render_frontmatter_yaml(fm: &JournalFrontmatter) -> String {
         "verified_by_user",
         &fm.verified_by_user.to_string(),
     );
+    if let Some(h) = &fm.verified_hash {
+        push_quoted(&mut out, "verified_hash", h);
+    }
     if fm.files_touched.is_empty() {
         out.push_str("files_touched: []\n");
     } else {

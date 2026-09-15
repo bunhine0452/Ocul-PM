@@ -55,12 +55,12 @@ impl<'a> JournalCache<'a> {
                 Ok(t) => t,
                 Err(_) => continue, // file deleted between walk and read
             };
-            let (parsed, body, full, _redacted) = self.project_text(&raw);
-            if parsed.parsed.is_none() {
+            let projected = self.project_text(&raw);
+            if projected.parsed.parsed.is_none() {
                 report.parse_errors += 1;
             }
             match self
-                .upsert_entry(project_id, &relative_path, &parsed, &body, mtime, &full)
+                .upsert_projected(project_id, &relative_path, &projected, mtime)
                 .await
             {
                 Ok(UpsertOutcome::Inserted) => report.inserted += 1,
@@ -126,12 +126,12 @@ impl<'a> JournalCache<'a> {
                 Ok(t) => t,
                 Err(_) => continue,
             };
-            let (parsed, body, full, _redacted) = self.project_text(&raw);
-            if parsed.parsed.is_none() {
+            let projected = self.project_text(&raw);
+            if projected.parsed.parsed.is_none() {
                 report.parse_errors += 1;
             }
             match self
-                .upsert_entry(project_id, &relative_path, &parsed, &body, mtime, &full)
+                .upsert_projected(project_id, &relative_path, &projected, mtime)
                 .await
             {
                 Ok(UpsertOutcome::Inserted) => report.inserted += 1,
