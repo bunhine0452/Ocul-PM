@@ -50,7 +50,7 @@
   </url>
   <url>
     <loc>https://oculpm.com/changelog</loc>
-    <lastmod>2026-09-14</lastmod>
+    <lastmod>2026-09-15</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
@@ -142,7 +142,7 @@
     <loc>https://oculpm.com/wiki/agents</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/agents" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/agents" />
-    <lastmod>2026-08-21</lastmod>
+    <lastmod>2026-09-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -270,7 +270,7 @@
     <loc>https://oculpm.com/wiki/en/agents</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/agents" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/agents" />
-    <lastmod>2026-08-21</lastmod>
+    <lastmod>2026-09-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>

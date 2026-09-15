@@ -124,12 +124,37 @@ Pick your UI language — **한국어 · English** — in Settings → Appearanc
 
 ## Supported agents
 
-Anything that can read `AGENTS.md` works.
+"Supported" hides four different promises, so we split them into tiers. The tiers are read from code, not from marketing copy — the rules-file adapter table (`src-tauri/src/oculpm/agents/`), the MCP registrars (`oculpm/mcp/register.rs` · `mcp/codex.rs`), the hooks (`plugin/*/hooks/`) and the ACP adapters (`src-tauri/src/acp/`).
 
-- Zero setup: **Claude Code · Codex CLI · Gemini CLI · Antigravity · pi**
-- Enable their rules file in Settings → Agents: **Cursor · Windsurf · GitHub Copilot · aider · Cline · Zed**
-- **Codex CLI** goes one step further as of v2.39.0 — register its **MCP server** from Settings → Integration (one machine-wide entry; the session picks the project), and install the Codex-native plugin (the journaling-rules skill) from the marketplace. Entirely independent of the Claude setup.
-- **Claude Code · Claude Desktop** go one step further — hooks (precise session detection) and MCP tools (structured recording, plan queries) integrate directly (v2.2.0). Claude Code also runs as an in-app agent from the **Claude Code screen** (v2.10.0, Agent Client Protocol).
+| Tier | What it means |
+|---|---|
+| **1 · Rules-compatible** | Ocul-PM only writes the rules file that agent reads (`AGENTS.md`, a `.claude/CLAUDE.md` block, `.cursor/rules/*.mdc`, `GEMINI.md` …). Journals get written only as far as the model obeys the rules. |
+| **2 · Structured journaling** | The agent can call the `oculpm` MCP server's tools (`journal_write` · `plan_update` …), and Ocul-PM registers that server for it. |
+| **3 · Session observation** | Ocul-PM receives session start/stop through hooks and can tell when a conversation ended without a journal (the Stop delivery gate · `sessions.json` · the verdict). |
+| **4 · In-app** | The agent runs inside the app (Agent Client Protocol) — tool approvals and output arrive as conversation cards, and the journaling tools are attached to the session directly. |
+
+| Agent | Tier | What Ocul-PM does | Verified |
+|---|---|---|---|
+| **Claude Code** | 4 In-app | Runs in-app (ACP) · hooks (plugin or `.claude/settings.local.json`) · `.mcp.json` MCP registration · `AGENTS.md` + `.claude/CLAUDE.md` block | v3.0.0 · 2026-09-11 |
+| **Codex** | 4 In-app | Runs in-app (ACP) · Codex plugin hooks · `~/.codex/config.toml` MCP registration · `AGENTS.md` (native, no dedicated file) | v2.37.0 · 2026-09-03 |
+| **Claude Desktop** | 2 Structured journaling | MCP server registered in `claude_desktop_config.json` — no hooks, no rules file | — (shipped v2.2.0 · no live-connection record) |
+| **Gemini CLI** | 1 Rules-compatible | `AGENTS.md` + `GEMINI.md` block | — |
+| **Cursor** | 1 Rules-compatible | `.cursor/rules/ocul-pm.mdc` | — |
+| **GitHub Copilot** | 1 Rules-compatible | `.github/copilot-instructions.md` block | — (shipped v2.0.0) |
+| **Windsurf** | 1 Rules-compatible | `.windsurf/rules/ocul-pm.md` | — (shipped v2.0.0) |
+| **Cline** | 1 Rules-compatible | `.clinerules/ocul-pm.md` | — (shipped v2.0.0) |
+| **aider** | 1 Rules-compatible | `CONVENTIONS.md` block | — (shipped v2.0.0) |
+| **Zed** | 1 Rules-compatible | `.rules` block | — (shipped v2.0.0) |
+| **Antigravity** | 1 Rules-compatible | `.agent/rules/ocul-pm.md` | — (shipped v1.11.0) |
+| **pi** | 1 Rules-compatible | `AGENTS.md` only (no dedicated file) | — (shipped v1.11.0) |
+
+How to read it:
+
+- **Verified** is the latest evidence in this repository's own `CHANGELOG.md` and `.oculpm/journal/` that the tier **actually ran** (app version · date). `—` means the code exists but there is no on-device record; "shipped" in parentheses is the version the CHANGELOG lists the feature under. No dates or versions were invented.
+- `AGENTS.md` is always planted when you add a project; the other rules files are switched on in Settings → Agents (the detect button suggests candidates). If you're on a tier-1 agent, glance at Today's honesty audit now and then — files edited without a journal show up there.
+- A CLI started in the built-in terminal (`claude` · `codex` · `gemini` · `cursor-agent` · `aider` …) is caught by shell integration for **start and stop only**. There is no missing-journal verdict, so that is not tier 3.
+- Not yet seen on a real machine: a live Claude Desktop connection · Codex's tool-approval → file-change flow end to end · the VS Code extension exposing MCP tools to Copilot agent mode and to Cursor (`.cursor/mcp.json`). All three exist in code, and for that reason none of them raised a tier in the table.
+- **Platform**: official builds are macOS Apple Silicon only. Intel Macs are on hold because the embedding runtime (ONNX) has no x86_64 prebuilt; Windows is later. The table describes that build.
 
 Git backfill tells agents apart by commit signatures.
 

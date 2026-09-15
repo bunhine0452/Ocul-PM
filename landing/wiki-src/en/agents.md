@@ -2,7 +2,7 @@
 title: Other Agents
 desc: Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — how one AGENTS.md drives them all, plus the Skills & Rules hub.
 order: 10
-updated: 2026-08-21
+updated: 2026-09-15
 ---
 
 Ocul-PM isn't Claude Code only. **Any agent that reads `AGENTS.md`** can leave entries, and for agents that don't, a thin delegating stub is placed in their own rules file.
@@ -62,17 +62,39 @@ To give one agent different wording, put a file for it under `.oculpm/agents/per
 
 App updates can raise the rules spec. **Resend rules** in Settings → ocul-pm → Agents reinstalls the current spec. The detect button narrows the list to agents that appear to be in use in this project.
 
-## Degrees of automatic recording
+## Support tiers
 
-"Leaves entries" comes in different strengths:
+"Leaves entries" comes in different strengths. The tiers are read from code — the rules-file adapter table, the MCP registrars, the hooks, the ACP adapters.
 
-| Approach | Confidence |
+| Tier | What it means |
 |---|---|
-| In-app Claude Code | **High** — recording tools (MCP) attached directly to the session |
-| Terminal Claude Code + plugin | **High** — a session-end hook fires structurally |
-| Any other agent (rules file only) | **Medium** — as much as the model remembers the rules |
+| **1 · Rules-compatible** | The app only writes the rules file that agent reads. Journals get written as far as the model obeys it |
+| **2 · Structured journaling** | The agent can call the `oculpm` MCP server's tools (`journal_write` · `plan_update` …) and the app registers that server for it |
+| **3 · Session observation** | The app receives session start/stop through hooks and flags conversations that ended without a journal (the Stop delivery gate · `sessions.json`) |
+| **4 · In-app** | The agent runs inside the app (Agent Client Protocol) — tool approvals and output arrive as conversation cards and the journaling tools are attached to the session directly |
 
-On that third tier, check the **[honesty audit](/wiki/en/journal)** on Today now and then. Anything missed shows up there.
+| Agent | Tier | What the app does | Verified |
+|---|---|---|---|
+| Claude Code | **4 In-app** | Runs in-app · hooks (plugin or `.claude/settings.local.json`) · `.mcp.json` MCP registration · `AGENTS.md` + `.claude/CLAUDE.md` block | v3.0.0 · 2026-09-11 |
+| Codex | **4 In-app** | Runs in-app · Codex plugin hooks · `~/.codex/config.toml` MCP registration · `AGENTS.md` (native) | v2.37.0 · 2026-09-03 |
+| Claude Desktop | **2 Structured journaling** | MCP server registered in `claude_desktop_config.json` — no hooks, no rules file | — (shipped v2.2.0 · no live-connection record) |
+| Gemini CLI | 1 Rules-compatible | `AGENTS.md` + `GEMINI.md` block | — |
+| Cursor | 1 Rules-compatible | `.cursor/rules/ocul-pm.mdc` | — |
+| GitHub Copilot | 1 Rules-compatible | `.github/copilot-instructions.md` block | — (shipped v2.0.0) |
+| Windsurf | 1 Rules-compatible | `.windsurf/rules/ocul-pm.md` | — (shipped v2.0.0) |
+| Cline | 1 Rules-compatible | `.clinerules/ocul-pm.md` | — (shipped v2.0.0) |
+| aider | 1 Rules-compatible | `CONVENTIONS.md` block | — (shipped v2.0.0) |
+| Zed | 1 Rules-compatible | `.rules` block | — (shipped v2.0.0) |
+| Antigravity | 1 Rules-compatible | `.agent/rules/ocul-pm.md` | — (shipped v1.11.0) |
+| pi | 1 Rules-compatible | `AGENTS.md` only | — (shipped v1.11.0) |
+
+**Verified** is the latest evidence in the repository's `CHANGELOG.md` and work journals that the tier **actually ran** (app version · date). `—` means the code exists but there is no on-device record; "shipped" in parentheses is the version the CHANGELOG lists the feature under.
+
+:::note
+A CLI started in the built-in terminal (`claude` · `codex` · `gemini` · `cursor-agent` · `aider` …) is caught by shell integration for **start and stop only**. There is no missing-journal verdict, so that is not tier 3. Not yet seen on a real machine — a live Claude Desktop connection, Codex's tool-approval → file-change flow end to end, and the VS Code extension exposing MCP tools to Copilot agent mode and Cursor — did not raise a tier even though the code exists. Official builds are macOS Apple Silicon only.
+:::
+
+On tier 1, check the **[honesty audit](/wiki/en/journal)** on Today now and then. Anything missed shows up there.
 
 :::tip
 If you use Claude Code, installing the plugin makes the biggest difference — two lines, in [Claude Code](/wiki/en/claude-code).
