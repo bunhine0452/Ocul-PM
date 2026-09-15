@@ -331,10 +331,10 @@ impl OculpmManager {
                 continue;
             }
             let base = format!("{hhmm}_{}_{}", entry_type_filename_token(entry_type), slug);
-            let (abs, file_name) = pick_nonconflicting_path(&category_dir, &base);
-            if write_atomic(&abs, text.as_bytes()).is_err() {
+            let Ok((abs, file_name)) = create_journal_file(&category_dir, &base, text.as_bytes())
+            else {
                 continue;
-            }
+            };
 
             let relative_path = format!("{workday}/{}/{file_name}", category_subdir(entry_type));
             let mtime = std::fs::metadata(&abs)

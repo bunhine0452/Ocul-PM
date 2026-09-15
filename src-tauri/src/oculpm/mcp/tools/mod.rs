@@ -97,9 +97,7 @@ use serde_json::{json, Value};
 use crate::oculpm::atomic_io::write_atomic;
 use crate::oculpm::frontmatter::{parse_frontmatter_and_body, write_frontmatter_and_body};
 use crate::oculpm::index::read_sessions_sync;
-use crate::oculpm::manager::{
-    category_subdir, entry_type_filename_token, pick_nonconflicting_path,
-};
+use crate::oculpm::manager::{category_subdir, create_journal_file, entry_type_filename_token};
 use crate::oculpm::markdown::parse_body;
 use crate::oculpm::paths::WorkdayResolver;
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
@@ -788,9 +786,11 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         entry_type_filename_token(entry_type),
         slug
     );
-    let (abs, file_name) = pick_nonconflicting_path(&dir, &base);
     let markdown = write_frontmatter_and_body(&fm, &full_body);
-    write_atomic(&abs, markdown.as_bytes()).map_err(|e| e.to_string())?;
+    // 배타적 생성 — 병렬 세션의 MCP 서버 둘이 같은 이름을 골라도 뒤가 앞을
+    // 덮지 않는다 (`manager::create_journal_file` 주석).
+    let (_, file_name) =
+        create_journal_file(&dir, &base, markdown.as_bytes()).map_err(|e| e.to_string())?;
 
     let rel = format!(
         ".oculpm/journal/{workday}/{}/{file_name}",

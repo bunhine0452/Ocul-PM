@@ -98,4 +98,17 @@ pub enum OculpmError {
     NotImplemented,
 }
 
+impl OculpmError {
+    /// 이 오류가 "그 경로에 이미 파일이 있다" 인가 — 배타적 생성
+    /// (`atomic_io::write_atomic_new`) 의 `AlreadyExists` 를 호출자가 "다음
+    /// 이름으로" 신호로 읽을 수 있게 한다. 다른 io 오류와 섞이면 그 신호가
+    /// 사라져 진짜 실패(권한·디스크)까지 재시도 루프에 삼켜진다.
+    pub fn is_already_exists(&self) -> bool {
+        matches!(
+            self,
+            OculpmError::Io { source, .. } if source.kind() == std::io::ErrorKind::AlreadyExists
+        )
+    }
+}
+
 pub type OculpmResult<T> = Result<T, OculpmError>;
