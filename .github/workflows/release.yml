@@ -19,7 +19,11 @@ name: Release
 #                                 account password)
 #   APPLE_TEAM_ID               — the 10-char team id
 #   With any of these missing the bundler silently falls back to an *unsigned* bundle
-#   instead of failing, so verify with `codesign -dvv` / `spctl -a -vvv` after release.
+#   instead of failing. That is why the release is created as a DRAFT and only
+#   published after the "서명·공증 검증" steps below pass (codesign --verify,
+#   spctl -a, stapler validate, updater .sig + latest.json). A failed check leaves
+#   the draft in place — drafts are never `releases/latest`, so the in-app updater
+#   cannot pick up a broken build. docs/RELEASE.md §6 describes the recovery.
 #
 # NOTE: the in-app updater + the landing download links require this repo's
 # *releases* to be public.
@@ -262,9 +266,182 @@ jobs:
             `Applications` 로 끌어다 놓으면 끝입니다. `xattr` 같은 우회는 더 이상 필요 없습니다.
 
             이후 버전부터는 앱 안에서 **자동 업데이트**됩니다.
-          releaseDraft: false
+          # draft 로 만든다 — 아래 검증 단계가 전부 통과한 뒤 마지막 단계가 공개한다
+          # (플랜 astra-feedback-round {#release-sign-verify}). 검증이 하나라도 붉으면
+          # 그 뒤 단계는 건너뛰어져 draft 로 남고, draft 는 `releases/latest` 가 아니라
+          # 앱 내 업데이터도 랜딩 링크도 그것을 보지 못한다. tauri-action(v0) 은 draft
+          # 의 `untagged-…` 다운로드 URL 을 latest.json 에 넣기 전에 태그 URL 로 바꿔
+          # 쓰므로(upload-version-json.ts) 공개 뒤에도 업데이터 URL 이 맞는다 — 아래
+          # 검증이 그것까지 단언한다.
+          releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      # ── 서명·공증 사후 검증 ─────────────────────────────────────────────────
+      # 번들러는 Apple 시크릿이 하나라도 비면 실패하지 않고 조용히 애드혹 서명으로
+      # 떨어진다(인증서 만료 2027-02-01 뒤에도 같은 증상). 그래서 산출물을 디스크에서
+      # 직접 본다. 경로는 tauri-bundler 가 정한다:
+      #   bundle/macos/<이름>.app            — 서명 + 공증 + 스테이플 (app.rs)
+      #   bundle/macos/<이름>.app.tar.gz(.sig) — 업데이터 아카이브 (updater_bundle.rs)
+      #   bundle/dmg/<이름>_<ver>_<arch>.dmg — 서명만 (dmg/mod.rs 는 공증을 안 한다)
+      # .dmg 는 공증·스테이플을 **단언하지 않는다**: v3.1.1 실측으로 `spctl -t open` 이
+      # `rejected source=Unnotarized Developer ID`, stapler 는 "no ticket" 이었다 —
+      # 이 파이프라인이 원래 그렇다. Gatekeeper 는 마운트된 .app 의 스테이플로 판정하므로
+      # 사용자 경험은 문제없고, 로그만 남긴다. 서명(Developer ID)은 .dmg 도 단언한다.
+      - name: 서명·공증 검증 — .app / .dmg (codesign · spctl · stapler)
+        env:
+          BUNDLE_DIR: src-tauri/target/${{ matrix.rust_target }}/release/bundle
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          # 서명 주체 단언: `codesign -dvv` 의 Authority 줄이 Developer ID Application
+          # 이어야 한다. 애드혹이면 `Signature=adhoc` · `TeamIdentifier=not set` 이 찍힌다.
+          assert_developer_id() {
+            local target="$1" info
+            info="$(codesign -dvv "$target" 2>&1)"
+            echo "$info"
+            if grep -q '^Signature=adhoc' <<<"$info"; then
+              echo "::error::$target 이 애드혹(무서명) 번들이다 — Apple 시크릿 6개가 다 있는지, 인증서가 만료되지 않았는지 확인 (docs/RELEASE.md §7)."
+              return 1
+            fi
+            if ! grep -q '^Authority=Developer ID Application:' <<<"$info"; then
+              echo "::error::$target 의 서명 주체가 Developer ID Application 이 아니다."
+              return 1
+            fi
+          }
+
+          apps=("$BUNDLE_DIR"/macos/*.app)
+          if [ "${#apps[@]}" -ne 1 ]; then
+            echo "::error::$BUNDLE_DIR/macos 에 .app 이 정확히 하나여야 하는데 ${#apps[@]}개다: ${apps[*]:-없음}"
+            exit 1
+          fi
+          app="${apps[0]}"
+
+          echo "::group::codesign --verify --deep --strict ($app)"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          echo "::endgroup::"
+
+          echo "::group::codesign -dvv ($app)"
+          assert_developer_id "$app"
+          echo "::endgroup::"
+
+          # 공증: Gatekeeper 평가. 공증이 빠졌으면 `rejected` + `source=Unnotarized
+          # Developer ID`, 됐으면 `accepted` + `source=Notarized Developer ID`.
+          echo "::group::spctl -a -vvv -t exec ($app)"
+          if ! spctl_out="$(spctl -a -vvv -t exec "$app" 2>&1)"; then
+            echo "$spctl_out"
+            echo "::error::Gatekeeper 가 .app 을 거부했다 — 공증(notarytool)이 빠졌거나 실패했다. APPLE_ID / APPLE_PASSWORD(앱 암호) / APPLE_TEAM_ID 확인."
+            exit 1
+          fi
+          echo "$spctl_out"
+          if ! grep -q 'source=Notarized Developer ID' <<<"$spctl_out"; then
+            echo "::error::spctl 이 accepted 지만 source 가 'Notarized Developer ID' 가 아니다."
+            exit 1
+          fi
+          echo "::endgroup::"
+
+          # 스테이플: 공증 티켓이 번들 안에 박혀 있어야 오프라인 첫 실행도 통과한다.
+          echo "::group::xcrun stapler validate ($app)"
+          xcrun stapler validate "$app"
+          echo "::endgroup::"
+
+          dmgs=("$BUNDLE_DIR"/dmg/*.dmg)
+          if [ "${#dmgs[@]}" -ne 1 ]; then
+            echo "::error::$BUNDLE_DIR/dmg 에 .dmg 가 정확히 하나여야 하는데 ${#dmgs[@]}개다: ${dmgs[*]:-없음}"
+            exit 1
+          fi
+          dmg="${dmgs[0]}"
+
+          echo "::group::codesign --verify --strict ($dmg)"
+          codesign --verify --strict --verbose=2 "$dmg"
+          echo "::endgroup::"
+
+          echo "::group::codesign -dvv ($dmg)"
+          assert_developer_id "$dmg"
+          echo "::endgroup::"
+
+          # 참고용 — 단언하지 않는다 (위 주석: 번들러가 .dmg 는 공증하지 않는다).
+          echo "::group::(참고) .dmg 공증·스테이플 상태 — 단언 안 함"
+          spctl -a -vvv -t open --context context:primary-signature "$dmg" 2>&1 || true
+          xcrun stapler validate "$dmg" 2>&1 || true
+          echo "::endgroup::"
+
+          echo "서명·공증 검증 통과: $app / $dmg"
+
+      # 업데이터가 다음 버전에서 살아 있으려면 `.tar.gz` 옆의 `.sig` 와 릴리스의
+      # `latest.json` 이 있어야 한다 — 하나라도 빠지면 이번 릴리스는 열리지만 **다음**
+      # 릴리스로 못 올라간다(TAURI_PRIVATE_KEY 가 비면 번들러는 .sig 없이 조용히
+      # 끝나고, tauri-action 은 .sig 가 없으면 latest.json 업로드를 건너뛴다).
+      - name: 업데이터 산출물 검증 — .sig · latest.json · 다운로드 URL
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUNDLE_DIR: src-tauri/target/${{ matrix.rust_target }}/release/bundle
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          archives=("$BUNDLE_DIR"/macos/*.app.tar.gz)
+          if [ "${#archives[@]}" -ne 1 ]; then
+            echo "::error::$BUNDLE_DIR/macos 에 업데이터 아카이브(.app.tar.gz)가 정확히 하나여야 하는데 ${#archives[@]}개다 — tauri.conf.json bundle.createUpdaterArtifacts 확인."
+            exit 1
+          fi
+          archive="${archives[0]}"
+          if [ ! -s "$archive.sig" ]; then
+            echo "::error::$archive.sig 가 없거나 비어 있다 — TAURI_PRIVATE_KEY 시크릿 확인 (docs/RELEASE.md §6)."
+            exit 1
+          fi
+          echo "디스크: $archive (+ .sig $(wc -c <"$archive.sig" | tr -d ' ') bytes)"
+
+          # draft 릴리스의 자산. `gh release view <tag>` 는 공개 릴리스가 없으면 그 태그를
+          # 기다리는 draft 로 넘어간다(FetchRelease → fetchDraftRelease).
+          release="$(gh release view "$GITHUB_REF_NAME" --json isDraft,assets)"
+          echo "isDraft=$(jq -r '.isDraft' <<<"$release") — 자산:"
+          jq -r '.assets[] | "  \(.size)\t\(.name)"' <<<"$release"
+          names="$(jq -r '.assets[].name' <<<"$release")"
+          for pattern in '\.dmg$' '\.app\.tar\.gz$' '\.app\.tar\.gz\.sig$' '^latest\.json$'; do
+            if ! grep -qE "$pattern" <<<"$names"; then
+              echo "::error::릴리스 자산에 /$pattern/ 이 없다 — 업데이터가 다음 버전에서 깨진다."
+              exit 1
+            fi
+          done
+
+          # latest.json 의 내용까지 본다: 버전이 태그와 같고, 다운로드 URL 이 이 태그의
+          # 자산을 가리켜야 한다. draft 에서 `untagged-…` URL 이 그대로 남으면 공개 뒤
+          # 업데이터가 404 를 맞는다.
+          tmp="$(mktemp -d)"
+          gh release download "$GITHUB_REF_NAME" --pattern latest.json --dir "$tmp"
+          echo "::group::latest.json"
+          jq 'del(.notes)' "$tmp/latest.json"
+          echo "::endgroup::"
+          version="$(jq -r '.version' "$tmp/latest.json")"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::latest.json 의 version($version)이 태그($GITHUB_REF_NAME)와 다르다 — 6 버전 파일 중 tauri.conf.json 이 안 올라간 것."
+            exit 1
+          fi
+          platform_count="$(jq '.platforms | length' "$tmp/latest.json")"
+          if [ "$platform_count" -eq 0 ]; then
+            echo "::error::latest.json 에 platforms 가 비어 있다."
+            exit 1
+          fi
+          while IFS= read -r url; do
+            case "$url" in
+              *"/releases/download/$GITHUB_REF_NAME/"*) ;;
+              *)
+                echo "::error::latest.json 의 다운로드 URL 이 이 태그를 가리키지 않는다: $url"
+                exit 1
+                ;;
+            esac
+            if ! grep -qxF "$(basename "$url")" <<<"$names"; then
+              echo "::error::latest.json 이 가리키는 자산이 릴리스에 없다: $(basename "$url")"
+              exit 1
+            fi
+          done < <(jq -r '.platforms[].url' "$tmp/latest.json")
+          if jq -e '.platforms[] | select((.signature // "") == "")' "$tmp/latest.json" >/dev/null; then
+            echo "::error::latest.json 에 signature 가 빈 플랫폼이 있다."
+            exit 1
+          fi
+          echo "업데이터 산출물 검증 통과: 플랫폼 $platform_count 개, version=$version"
 
       # VS Code 확장 .vsix 를 같은 릴리스에 첨부 (플랜 vscode-extension-round
       # {#rel-ci-vsix}) — 마켓이 막힌 환경의 오프라인 설치용:
@@ -279,7 +456,23 @@ jobs:
           npx --yes @vscode/vsce@3 package --no-dependencies -o "ocul-pm-${ver}.vsix"
         working-directory: extension
 
+      # draft 에도 올라간다 — 공개(아래) 전에 첨부해야 공개 순간 자산이 완전하다.
       - name: Attach .vsix to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${GITHUB_REF_NAME}" extension/ocul-pm-*.vsix --clobber
+
+      # ── 공개 ───────────────────────────────────────────────────────────────
+      # 여기까지 왔다는 것은 위 검증이 전부 초록이라는 뜻이다(붉은 단계 뒤는 건너뛴다).
+      # `--latest` 를 명시해 공개와 동시에 `releases/latest` 가 되게 한다 — 업데이터
+      # 엔드포인트가 그 경로다. 이미 공개된 릴리스(re-run)면 둘 다 no-op.
+      - name: 검증 통과 — draft 해제 (공개)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+          gh release view "$GITHUB_REF_NAME" --json isDraft,publishedAt,url \
+            --jq '"공개됨: draft=\(.isDraft) publishedAt=\(.publishedAt) \(.url)"'
+          # 업데이터 엔드포인트가 실제로 이 버전을 가리키는지 — 참고용이라 실패해도
+          # 이미 공개된 릴리스를 붉게 만들지 않는다.
+          gh release view --json tagName --jq '"releases/latest → \(.tagName)"' || true
