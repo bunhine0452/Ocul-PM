@@ -3855,6 +3855,13 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.doctor.v.paused": "Stopped by you \u00b7 resumes when the app restarts",
   "settings.doctor.a.pause": "Stop",
   "settings.doctor.a.resume": "Resume",
+  // Doctor watcher-counters row ({#scheduling-telemetry}) — the numbers
+  // perf-baseline §7 said were missing: how full the queue got and how long
+  // the handler held the worker, on one line. Cumulative since the watcher
+  // was armed; never reset.
+  "settings.doctor.watcherSched": "Watcher counters",
+  "settings.doctor.v.watcherSched":
+    "{events} events \u00b7 {dropped} dropped \u00b7 queue {depth}/peak {high} \u00b7 handled {total}s total \u00b7 {max}ms max",
   // Syntax colour section of the theme editor ({#code-color-editor}) — a token
   // name like `--code-kw` reads as nothing, so this group alone carries a human
   // name beside the raw token. The preview exists for the same reason: the
