@@ -199,6 +199,8 @@ const TESTS = new Set([
   "__tests__/discussion_editor.test.tsx",
   "__tests__/discussion_v2.test.tsx",
   "__tests__/dispatch_handoff.test.ts",
+  // 닥터 「워처 계측」 행 — 한국어 문장에 여섯 숫자가 실리는지가 검사 재료다.
+  "__tests__/doctor_watcher_sched.test.tsx",
   "__tests__/docs_resolve.test.ts",
   "__tests__/drag_motion.test.ts",
   "__tests__/edd_lite_v2.test.tsx",

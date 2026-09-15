@@ -3869,6 +3869,12 @@ export const ko = {
   "settings.doctor.v.paused": "사용자가 멈춤 · 앱을 다시 켜면 풀려요",
   "settings.doctor.a.pause": "중지",
   "settings.doctor.a.resume": "다시 켜기",
+  // 닥터 워처 계측 행 ({#scheduling-telemetry}) — perf-baseline §7 이 "없다" 고
+  // 적어 둔 숫자들. 큐가 얼마나 찼고 처리기가 얼마나 오래 워커를 잡았는지를
+  // 한 줄로. 워처를 켠 뒤의 누계라 리셋되지 않는다.
+  "settings.doctor.watcherSched": "워처 계측",
+  "settings.doctor.v.watcherSched":
+    "이벤트 {events} · 버림 {dropped} · 큐 {depth}/최대 {high} · 처리 누적 {total}s · 최대 {max}ms",
   // 테마 편집기의 문법색 섹션 ({#code-color-editor}) — `--code-kw` 같은 토큰
   // 이름은 읽어도 뜻이 안 서서, 이 그룹만 사람이 읽는 이름을 함께 단다.
   // 미리보기가 따로 있는 이유도 같다: 설정 화면에는 코드가 한 줄도 없다.

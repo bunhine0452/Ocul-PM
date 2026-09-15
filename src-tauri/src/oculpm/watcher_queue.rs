@@ -28,12 +28,21 @@
 //!   큐가 비는 첫 순간(= 정착) 에 `WatcherSink::resync_after_drops` 로 만회한다.
 //!
 //! 소비 루프(`drain_loop`)도 여기 산다 — `watcher.rs` 는 2,241줄로 이미 파일
-//! 크기 래칫을 넘겨 한 줄도 늘릴 수 없고, 그 제약이 마침 옳은 분리를 시켰다.
+//! 크기 래칫을 넘겨 한 줄도 늘릴 수 없고, 그 제약이 마침 옳은 분리를 시켰다
+//! (그 뒤 `watcher/` 로 쪼개졌지만 소비 루프는 큐 곁에 그대로 둔다).
+//!
+//! **스케줄링 계측**도 여기다 (`{#scheduling-telemetry}`). perf-baseline §7 이
+//! "런타임 워커가 얼마나 오래 막혀 있었나·큐가 얼마나 찼나·버림이 몇 번 있었나
+//! 를 재는 계측이 없다" 고 적어 둔 자리. 생산자는 밀어 넣은 뒤의 깊이로
+//! `high_water` 를 올리고, 소비 루프는 `handle_event` 한 번의 벽시계를 잰다 —
+//! 전부 원자 계수기라 뜨거운 길에 잠금이 하나도 늘지 않는다. 워처 시작 이후
+//! 단조 증가하고 리셋하지 않는다.
 
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use futures::future::FutureExt;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
@@ -172,6 +181,17 @@ struct Shared {
     prefiltered_total: AtomicU64,
     /// 마지막 재동기화 이후 버림이 있었는가.
     resync_pending: AtomicBool,
+    /// 큐가 가장 깊었던 순간의 이벤트 수 — 생산자가 밀어 넣은 **직후**의 깊이로
+    /// 올린다. 용량(4,096)에 얼마나 가까이 갔는지가 버림의 전조다.
+    high_water: AtomicUsize,
+    /// 소비 루프가 큐에서 꺼내 처리기에 넘긴 이벤트 누계 (사전 필터 이후,
+    /// 버림 제외). 처리기가 패닉한 이벤트도 꺼낸 것은 꺼낸 것이라 센다.
+    events_total: AtomicU64,
+    /// `handle_event` 안에서 보낸 벽시계 누계 (µs). ms 로 세면 1 ms 아래의
+    /// 흔한 이벤트가 전부 0 이 되어 누계가 거짓말을 한다 — 읽을 때 ms 로 줄인다.
+    handle_us_total: AtomicU64,
+    /// 가장 오래 걸린 `handle_event` 한 번 (µs).
+    handle_max_us: AtomicU64,
 }
 
 impl Shared {
@@ -218,7 +238,7 @@ impl QueueSender {
             return 0;
         }
         let mut dropped = 0usize;
-        {
+        let depth = {
             let mut q = lock(&self.shared.queue);
             for ev in events {
                 if q.len() >= self.shared.capacity {
@@ -227,7 +247,10 @@ impl QueueSender {
                 }
                 q.push_back(ev);
             }
-        }
+            q.len()
+        };
+        // 잠금 밖에서 — 소비자가 그 사이 꺼냈어도 "가장 깊었던 순간" 은 이 값이다.
+        self.shared.high_water.fetch_max(depth, Ordering::Relaxed);
         if dropped > 0 {
             self.shared
                 .dropped_total
@@ -298,6 +321,14 @@ impl QueueReceiver {
         self.shared.dropped_total.load(Ordering::Relaxed)
     }
 
+    /// 소비 루프가 이벤트 하나를 처리기에 넘겼다 돌아왔다 — 걸린 시간을 적는다.
+    fn note_handled(&self, elapsed: Duration) {
+        let us = u64::try_from(elapsed.as_micros()).unwrap_or(u64::MAX);
+        self.shared.events_total.fetch_add(1, Ordering::Relaxed);
+        self.shared.handle_us_total.fetch_add(us, Ordering::Relaxed);
+        self.shared.handle_max_us.fetch_max(us, Ordering::Relaxed);
+    }
+
     /// 계수기만 보는 손잡이. 소비자는 소비 루프에 넘어가 버리므로, 상태를
     /// 물어보려면 넘기기 **전에** 이걸 떼어 둬야 한다.
     pub fn metrics(&self) -> QueueMetrics {
@@ -323,6 +354,32 @@ impl QueueMetrics {
     pub fn prefiltered_total(&self) -> u64 {
         self.shared.prefiltered_total.load(Ordering::Relaxed)
     }
+
+    /// 소비 루프가 처리기에 넘긴 이벤트 누계.
+    pub fn events_total(&self) -> u64 {
+        self.shared.events_total.load(Ordering::Relaxed)
+    }
+
+    /// 지금 큐에 쌓여 있는 이벤트 수. 잠금을 잡지만 진단 읽기뿐이라 뜨거운
+    /// 길이 아니다.
+    pub fn queue_depth(&self) -> usize {
+        lock(&self.shared.queue).len()
+    }
+
+    /// 큐가 가장 깊었던 순간의 이벤트 수.
+    pub fn queue_high_water(&self) -> usize {
+        self.shared.high_water.load(Ordering::Relaxed)
+    }
+
+    /// `handle_event` 안에서 보낸 벽시계 누계 (ms, 내림).
+    pub fn handle_ms_total(&self) -> u64 {
+        self.shared.handle_us_total.load(Ordering::Relaxed) / 1_000
+    }
+
+    /// 가장 오래 걸린 `handle_event` 한 번 (ms, 내림).
+    pub fn handle_max_ms(&self) -> u64 {
+        self.shared.handle_max_us.load(Ordering::Relaxed) / 1_000
+    }
 }
 
 /// 유계 링 하나를 만든다 (사전 필터 없이 — 큐 자체를 재는 테스트용).
@@ -343,6 +400,10 @@ pub fn channel_with_filter(
         dropped_total: AtomicU64::new(0),
         prefiltered_total: AtomicU64::new(0),
         resync_pending: AtomicBool::new(false),
+        high_water: AtomicUsize::new(0),
+        events_total: AtomicU64::new(0),
+        handle_us_total: AtomicU64::new(0),
+        handle_max_us: AtomicU64::new(0),
     });
     (
         QueueSender {
@@ -384,9 +445,13 @@ pub async fn drain_loop<S: WatcherSink>(project_id: u32, rx: QueueReceiver, sink
         }
         let Some(ev) = rx.recv().await else { break };
         let path = ev.event.paths.first().cloned();
+        // 처리기 한 번의 벽시계 — "런타임 워커가 얼마나 오래 막혀 있었나" 의
+        // 답이 이 누계다 (`{#scheduling-telemetry}`).
+        let t0 = Instant::now();
         let caught = std::panic::AssertUnwindSafe(sink.handle_event(ev))
             .catch_unwind()
             .await;
+        rx.note_handled(t0.elapsed());
         if caught.is_err() {
             tracing::error!(
                 target: "oculpm::watcher",
@@ -407,8 +472,12 @@ pub async fn drain_loop<S: WatcherSink>(project_id: u32, rx: QueueReceiver, sink
     tracing::info!(
         target: "oculpm::watcher",
         project_id,
+        events_total = metrics.events_total(),
         dropped_total = metrics.dropped_total(),
         prefiltered_total = metrics.prefiltered_total(),
+        queue_high_water = metrics.queue_high_water(),
+        handle_ms_total = metrics.handle_ms_total(),
+        handle_max_ms = metrics.handle_max_ms(),
         "[FLOW] watcher receive loop ended (debouncer dropped — stop() 이거나 워커 사망)"
     );
 }

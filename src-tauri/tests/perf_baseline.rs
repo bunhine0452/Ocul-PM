@@ -48,7 +48,7 @@ fn git(dir: &Path, args: &[&str]) -> String {
 /// 라운드가 비교할 수 없기 때문이다.
 const DEBOUNCE_MS: u64 = 1000;
 
-/// `watcher.rs:785-790` 의 해시 상한과 같은 값.
+/// `watcher/handle.rs` 의 해시 상한(`HASH_BYTE_CAP`)과 같은 값.
 const HASH_BYTE_CAP: u64 = 8 * 1024 * 1024;
 
 // ─── M2 — 브랜치 전환이 워처에 쏟는 양 ───────────────────────────────────────
@@ -136,7 +136,7 @@ fn m2_branch_switch_watcher_volume() {
     );
 
     // M2b — classify 의 read+blake3 를 같은 경로 집합에 그대로 재현한다
-    // (`watcher.rs:785-790`). 지금 이 일은 tokio 런타임 워커 위에서 돈다.
+    // (`watcher/handle.rs` `classify`). 지금 이 일은 tokio 런타임 워커 위에서 돈다.
     let mut hashed = 0usize;
     let mut skipped = 0usize;
     let mut bytes = 0u64;
@@ -164,6 +164,76 @@ fn m2_branch_switch_watcher_volume() {
     println!("  해시한 파일 : {hashed} (상한 초과로 건너뜀 {skipped})");
     println!("  읽은 바이트 : {bytes}");
     println!("  총 소요     : {} ms ({hash_us} us)", hash_us / 1000);
+
+    // M2c — **실제 워처**의 스케줄링 계측 (`{#scheduling-telemetry}`). 위의
+    // 날것 디바운서는 그대로 두고(측정이 바뀌면 안 된다), 그것을 내린 뒤 같은
+    // 파일 집합을 **반대 방향**으로 되돌리는 체크아웃을 `ProjectWatcher` 에
+    // 흘린다. 큐가 얼마나 찼는지·처리기가 얼마나 오래 워커를 잡았는지가
+    // `WatcherStatus.sched` 로 나온다 — 다음 기준선이 이 줄들을 견준다.
+    drop(debouncer);
+    let sched = {
+        use ocul_pm_lib::oculpm::index::IndexWriter;
+        use ocul_pm_lib::oculpm::paths::WorkdayResolver;
+        use ocul_pm_lib::oculpm::session::SessionActor;
+        use ocul_pm_lib::oculpm::spec::OculpmConfig;
+        use ocul_pm_lib::oculpm::watcher::ProjectWatcher;
+        use std::sync::Arc;
+
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async {
+            let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+            let writer = Arc::new(IndexWriter::new(clone.clone(), resolver.clone()));
+            let mut cfg = OculpmConfig::default_for_new_project();
+            cfg.watcher.debounce_ms = u32::try_from(DEBOUNCE_MS).unwrap();
+            let actor = SessionActor::spawn(1, resolver, writer.clone(), cfg.session.clone(), None);
+            let watcher = ProjectWatcher::start(1, clone.clone(), actor.clone(), writer, cfg, None)
+                .await
+                .unwrap();
+            tokio::time::sleep(Duration::from_millis(500)).await;
+
+            let t2 = Instant::now();
+            git(&clone, &["checkout", "--quiet", "--detach", &base]);
+            // 정착 = 처리기에 넘긴 수가 디바운스 창 2배 동안 안 늘어남. 보고하는
+            // 시각은 **마지막으로 늘어난 순간**이다 — 기다린 창은 빼야 M2 의
+            // "체크아웃~정적화" 와 같은 뜻이 된다. 세션 액터가 5초 뒤에 쓰는
+            // `sessions.json` 도 `.oculpm/index/` 아래라 큐를 한 번 지나가는데,
+            // 그건 홍수가 아니라 장부라 여기서 기다리지 않는다.
+            let mut last = 0u32;
+            let mut last_change = Instant::now();
+            let deadline = t2 + Duration::from_secs(12);
+            loop {
+                tokio::time::sleep(Duration::from_millis(250)).await;
+                let now = watcher.sched_stats().events_total;
+                if now != last {
+                    last = now;
+                    last_change = Instant::now();
+                } else if now > 0 && last_change.elapsed() >= Duration::from_millis(DEBOUNCE_MS * 2)
+                {
+                    break;
+                }
+                if Instant::now() >= deadline {
+                    break;
+                }
+            }
+            let settle_ms = last_change.duration_since(t2).as_millis();
+            let sched = watcher.sched_stats();
+            watcher.stop().await.unwrap();
+            actor.shutdown().await.unwrap();
+            (sched, settle_ms)
+        })
+    };
+    let (sched, settle_ms) = sched;
+    println!("\n== M2c 실제 워처 스케줄링 계측 (역방향 체크아웃, 같은 파일 집합) ==");
+    println!("  events_total     : {}", sched.events_total);
+    println!("  dropped_total    : {}", sched.dropped_total);
+    println!("  queue_high_water : {}", sched.queue_high_water);
+    println!("  handle_ms_total  : {} ms", sched.handle_ms_total);
+    println!("  handle_max_ms    : {} ms", sched.handle_max_ms);
+    println!("  체크아웃~정착     : {settle_ms} ms");
 
     assert!(changed_files > 0, "측정 대상 diff 가 비어 있다");
 }

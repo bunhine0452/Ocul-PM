@@ -5146,6 +5146,11 @@ export type OculpmStatus = {
 	 *  (`manager::ProjectEntry::user_paused` 주석에 근거).
 	 */
 	watcher_user_paused: boolean,
+	/**
+	 *  스케줄링 계측 한 벌 (`{#scheduling-telemetry}`). 봉투에 실리는 이유는
+	 *  위 두 칸과 같다 — 닥터가 이미 이 봉투를 읽는다. 워처가 없으면 전부 0.
+	 */
+	watcher_sched?: WatcherSchedStats,
 };
 
 /**
@@ -6092,6 +6097,32 @@ export type WatcherConfig = {
 	 *  `automation::tiers::os_debounce_ms`.
 	 */
 	responsiveness?: string | null,
+};
+
+/**
+ *  워처 하나의 **스케줄링 계측** — perf-baseline §7 이 "없다" 고 적어 둔 것들.
+ * 
+ *  "런타임 워커가 얼마나 오래 막혀 있었나"(`handle_ms_total` · `handle_max_ms`),
+ *  "큐가 얼마나 찼나"(`queue_depth` · `queue_high_water`), "버림이 몇 번
+ *  있었나"(`dropped_total`). 전부 워처가 무장한 시각(`started_at`) 이후의
+ *  누계이고 리셋하지 않는다 — 다음 기준선 측정이 두 실행을 그대로 견줄 수 있게.
+ *  계수기 본체는 `watcher_queue` 의 원자 값이라 뜨거운 길에 잠금이 없다.
+ */
+export type WatcherSchedStats = {
+	/**  워처가 무장한 시각 (RFC 3339). 아래 계수기 전부의 기준점. 워처가 없으면 `None`. */
+	started_at: string | null,
+	/**  소비 루프가 큐에서 꺼내 처리기에 넘긴 이벤트 누계 (사전 필터 이후, 버림 제외). */
+	events_total: number,
+	/**  유계 큐가 가득 차 버린 이벤트 누계 — [`WatcherStatus::dropped_total`] 과 같은 값. */
+	dropped_total: number,
+	/**  지금 큐에 쌓여 있는 이벤트 수. */
+	queue_depth: number,
+	/**  큐가 가장 깊었던 순간의 이벤트 수. 용량 4,096 에 가까우면 버림의 전조다. */
+	queue_high_water: number,
+	/**  `handle_event` 안에서 보낸 벽시계 누계 (ms). */
+	handle_ms_total: number,
+	/**  가장 오래 걸린 `handle_event` 한 번 (ms). */
+	handle_max_ms: number,
 };
 
 export type WatcherStateView = "running" | "stopped" | "error";

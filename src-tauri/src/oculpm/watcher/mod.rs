@@ -60,7 +60,7 @@ use crate::oculpm::error::OculpmError;
 use crate::oculpm::index::IndexWriter;
 use crate::oculpm::redact::{self, build_forbidden_matcher};
 use crate::oculpm::session::SessionActor;
-use crate::oculpm::spec::{OculpmConfig, WatcherStateView, WatcherStatus};
+use crate::oculpm::spec::{OculpmConfig, WatcherSchedStats, WatcherStateView, WatcherStatus};
 use crate::oculpm::{watcher_queue, watcher_tasks};
 
 use handle::WatcherInner;
@@ -83,6 +83,8 @@ pub struct ProjectWatcher {
     queue_metrics: watcher_queue::QueueMetrics,
     /// 곁일 종료 손잡이 — 드롭만으로도 색인·히스토리 태스크가 끊긴다.
     tasks_shutdown: watcher_tasks::WatcherTasksShutdown,
+    /// 무장한 시각 — 스케줄링 계수기 전부의 기준점 (`{#scheduling-telemetry}`).
+    started_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Default)]
@@ -228,6 +230,7 @@ impl ProjectWatcher {
             debounce_ms,
             queue_metrics,
             tasks_shutdown,
+            started_at: Utc::now(),
         })
     }
 
@@ -279,6 +282,7 @@ impl ProjectWatcher {
 
     pub fn status(&self) -> WatcherStatus {
         let stats = self.stats.read().unwrap();
+        let sched = self.sched_stats();
         WatcherStatus {
             state: if self.debouncer.is_some() {
                 WatcherStateView::Running
@@ -289,7 +293,24 @@ impl ProjectWatcher {
             events_ignored_total: stats.events_ignored_total,
             last_event_at: stats.last_event_at.map(|t| t.to_rfc3339()),
             debounce_ms: self.debounce_ms,
-            dropped_total: self.queue_metrics.dropped_total().min(u64::from(u32::MAX)) as u32,
+            dropped_total: sched.dropped_total,
+            sched,
+        }
+    }
+
+    /// 스케줄링 계측 한 벌 — 큐의 원자 계수기를 한 순간에 읽는다
+    /// (`{#scheduling-telemetry}`). u32 로 포화시킨다: 49일치 ms 누계다.
+    pub fn sched_stats(&self) -> WatcherSchedStats {
+        let m = &self.queue_metrics;
+        let sat = |v: u64| u32::try_from(v).unwrap_or(u32::MAX);
+        WatcherSchedStats {
+            started_at: Some(self.started_at.to_rfc3339()),
+            events_total: sat(m.events_total()),
+            dropped_total: sat(m.dropped_total()),
+            queue_depth: sat(m.queue_depth() as u64),
+            queue_high_water: sat(m.queue_high_water() as u64),
+            handle_ms_total: sat(m.handle_ms_total()),
+            handle_max_ms: sat(m.handle_max_ms()),
         }
     }
 }
