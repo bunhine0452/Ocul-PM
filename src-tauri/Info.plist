@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Tauri 가 번들의 Info.plist 에 병합한다 (docs: distribute/macos-application-bundle).
+
+	  LSEnvironment — LaunchServices(Dock·Finder·open·로그인 항목)가 앱 프로세스를
+	  만들 때 넣어 주는 환경. `MallocLargeCache=0` 은 malloc 초기화 때만 읽히므로
+	  프로세스 안에서 켤 수 없고(main.rs `reexec_with_malloc_tuning` 참고), 예전엔
+	  자기 자신을 exec 로 다시 띄워 걸었다. macOS 27 부터 그 re-exec 가 메뉴바
+	  아이콘을 없앤다 — 메뉴바가 상태 아이템을 FrontBoard 씬으로 호스팅하며
+	  연결해 온 프로세스를 RunningBoard 의 (pid, pidversion) 으로 찾는데, exec 는
+	  pidversion 을 올리므로 기동 시점 핸들과 어긋나 씬 배정이 거부된다
+	  (`process has mismatched pid version`). 여기서 환경으로 주면 exec 없이
+	  같은 효과다. `OCULPM_MALLOC_TUNED` 는 PTY 호스트가 사용자 셸에서 이 변수를
+	  걷어낼 때 쓰는 표식 (ptyhost/env.rs).
+	-->
+	<key>LSEnvironment</key>
+	<dict>
+		<key>MallocLargeCache</key>
+		<string>0</string>
+		<key>OCULPM_MALLOC_TUNED</key>
+		<string>1</string>
+	</dict>
+</dict>
+</plist>

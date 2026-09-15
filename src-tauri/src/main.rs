@@ -50,7 +50,8 @@ fn main() {
 }
 
 /// GUI 프로세스만 `MallocLargeCache=0` 으로 자기 자신을 다시 exec 한다
-/// (`{#embed-unload}`, 2026-09-12, perf_baseline M6/M6b).
+/// (`{#embed-unload}`, 2026-09-12, perf_baseline M6/M6b) — **launchd 가 띄운
+/// 프로세스는 제외** (2026-09-15, macOS 27).
 ///
 /// macOS libmalloc 은 free 된 **대형 블록을 프로세스가 죽을 때까지 dirty 로
 /// 쥔다** — `malloc_zone_pressure_relief` 도 이 캐시는 안 비운다(0 바이트).
@@ -60,6 +61,20 @@ fn main() {
 /// 프로세스 안에서 켤 방법이 없어 exec 로 다시 뜬다 — 창·플러그인·DB 가
 /// 만들어지기 전이라 되돌릴 것이 없고, 인자(`-psn_…` 포함)는 그대로 넘긴다.
 ///
+/// **macOS 27 은 이 re-exec 가 메뉴바 아이콘을 없앤다.** 메뉴바가 창 하나로
+/// 합쳐지면서 상태 아이템은 FrontBoard 씬(`com.apple.appkit.status-items`)으로
+/// 호스팅되고, MenuBarAgent 는 연결해 온 프로세스를 RunningBoard 의
+/// (pid, pidversion) 핸들로 찾는다. exec 는 pid 를 지키지만 **pidversion 을
+/// 올리므로** LaunchServices 가 기동 시점에 잡아 둔 핸들과 어긋나 씬 배정이
+/// 거부된다 — 로그에 `RunningBoardServices: handle has mismatched pid version`
+/// → `FrontBoard: Unable to assign new incoming connection to a process` 가
+/// 찍히고 아이콘은 `«` 접힘 없이 그냥 없다. 터미널이 띄운 프로세스(dev 빌드)는
+/// 기동 핸들이 없어 멀쩡했기에 재현이 늦었다. 그래서 launchd 자식(ppid 1 =
+/// Dock·Finder·`open`·로그인 항목)에서는 exec 하지 않는다 — 그 경로는 번들
+/// `Info.plist` 의 `LSEnvironment` 가 프로세스 생성 시점에 같은 변수를 넣어
+/// 주므로 위의 `KEY` 검사에서 이미 돌아간다. 이 가드는 LSEnvironment 가 빠진
+/// 번들에서의 실패 모드를 "아이콘 실종" 대신 "튜닝 생략" 으로 바꾸는 보험이다.
+///
 /// PTY 호스트·MCP 는 이 프로세스의 자식이라 저절로 물려받는다. 사용자 셸에는
 /// 새면 안 되므로 호스트가 셸을 띄울 때 `OCULPM_MALLOC_TUNED` 표식과 함께
 /// 걷어낸다 (`ptyhost/host`). 심·CLI 는 매 훅 호출마다 exec 를 하나 더 얹을
@@ -68,7 +83,11 @@ fn main() {
 fn reexec_with_malloc_tuning() {
     use std::os::unix::process::CommandExt;
     const KEY: &str = "MallocLargeCache";
-    if std::env::var_os(KEY).is_some() || std::env::var_os("OCULPM_NO_MALLOC_REEXEC").is_some() {
+    let already_tuned = std::env::var_os(KEY).is_some();
+    let opted_out = std::env::var_os("OCULPM_NO_MALLOC_REEXEC").is_some();
+    // SAFETY: getppid 는 인자 없는 단순 시스템 콜이며 실패하지 않는다.
+    let ppid = unsafe { libc::getppid() };
+    if !should_reexec(already_tuned, opted_out, ppid) {
         return;
     }
     let Ok(exe) = std::env::current_exe() else {
@@ -82,4 +101,36 @@ fn reexec_with_malloc_tuning() {
         .env("OCULPM_MALLOC_TUNED", "1")
         .exec();
     eprintln!("malloc tuning re-exec failed, continuing without it: {err}");
+}
+
+/// re-exec 판정 — 순수 함수라 프로세스 없이 단위 테스트한다.
+/// `ppid == 1` 은 launchd 자식, 즉 LaunchServices 가 띄운 앱이다.
+#[cfg(target_os = "macos")]
+fn should_reexec(already_tuned: bool, opted_out: bool, ppid: libc::pid_t) -> bool {
+    !already_tuned && !opted_out && ppid != 1
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    use super::should_reexec;
+
+    /// macOS 27 회귀 방지 — launchd 가 띄운 프로세스는 무슨 일이 있어도 exec 로
+    /// 다시 뜨지 않는다 (pidversion 이 바뀌면 메뉴바 아이콘이 사라진다).
+    #[test]
+    fn never_reexecs_under_launchd() {
+        assert!(!should_reexec(false, false, 1));
+        assert!(!should_reexec(true, false, 1));
+        assert!(!should_reexec(false, true, 1));
+    }
+
+    /// 터미널·`tauri dev`·재시작 자식은 예전처럼 튜닝을 건다.
+    #[test]
+    fn reexecs_only_when_untuned_and_not_opted_out() {
+        assert!(should_reexec(false, false, 4242));
+        assert!(
+            !should_reexec(true, false, 4242),
+            "LSEnvironment 가 이미 걸었다"
+        );
+        assert!(!should_reexec(false, true, 4242), "OCULPM_NO_MALLOC_REEXEC");
+    }
 }

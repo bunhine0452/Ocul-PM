@@ -12,9 +12,11 @@ pub fn shell_command(shell: impl AsRef<OsStr>) -> CommandBuilder {
     cmd
 }
 
-/// `main.rs` 의 `reexec_with_malloc_tuning` 이 GUI 프로세스에 건 `MallocLargeCache=0`
-/// 은 이 호스트까지 물려받지만, 사용자가 그 셸에서 돌리는 프로그램의 malloc 까지
-/// 바꿀 이유는 없다. 표식이 있을 때만 걷는다 — 사용자가 직접 건 값은 존중.
+/// GUI 프로세스에 걸린 `MallocLargeCache=0`(LaunchServices 기동이면 번들
+/// `Info.plist` 의 `LSEnvironment`, 그 밖에는 `main.rs` 의
+/// `reexec_with_malloc_tuning`)은 이 호스트까지 물려받지만, 사용자가 그 셸에서
+/// 돌리는 프로그램의 malloc 까지 바꿀 이유는 없다. 표식이 있을 때만 걷는다 —
+/// 사용자가 직접 건 값은 존중.
 pub fn scrub_app_malloc_env(cmd: &mut CommandBuilder) {
     if std::env::var_os("OCULPM_MALLOC_TUNED").is_some() {
         cmd.env_remove("MallocLargeCache");
