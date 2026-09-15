@@ -53,6 +53,16 @@ export const ALLOWLIST = new Set([
   "features/chat/aiContext.ts",
   "features/code/CodeDebugPanel.tsx",
   "features/code/CodePane.tsx",
+  // optimization-round-2 {#split-codepane} (2026-09-15) — 창을 책임별 훅으로
+  // 쪼개며 갈라 나온 조각들. 위 `{#planner-diff-split}` 과 같은 사정이다:
+  // 직접 호출이 늘어난 것이 아니라 `CodePane` 이 들고 있던 것이 그대로
+  // 따라왔다 (순수 이동이라 `call` 래퍼로 바꾸지 않았다). 옮길 때는 다섯을
+  // 창과 함께 보낸다.
+  "features/code/codePane/useDiffModes.ts",
+  "features/code/codePane/useExternalChanges.ts",
+  "features/code/codePane/useGitGutter.ts",
+  "features/code/codePane/useLspActions.ts",
+  "features/code/codePane/useSaveFlow.ts",
   "features/code/CodePreview.tsx",
   "features/code/CodeScreenV2.tsx",
   "features/code/CodeSearchPanel.tsx",
