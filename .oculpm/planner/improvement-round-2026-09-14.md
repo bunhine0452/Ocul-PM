@@ -23,7 +23,7 @@ owner: claude-code
 - [x] 설정의 VS Code 마켓플레이스 링크(404, 미발행) 숨김 — Open VSX 만. 발행되면 marketplace_url 을 Some 으로 {#marketplace-404}
 
 ## Phase 3 — 제품 신호 {#product}
-- [!] verified_by_user 가 699건 중 8건 — 검토 루프가 안 돈다. 결정 필요: 항목별 토글을 v3 「눈으로 본 것」 원장과 합치거나(추천), 필드를 정리하거나. 사용자 결정 뒤 실행 {#verified-loop}
+- [x] verified_by_user 가 699건 중 8건 — 검토 루프가 안 돈다. 결정 필요: 항목별 토글을 v3 「눈으로 본 것」 원장과 합치거나(추천), 필드를 정리하거나. 사용자 결정 뒤 실행 {#verified-loop}
 - [x] 죽은 커맨드 감사 — 334개 중 프런트 미호출 0 (oculpm_update_entry_meta 는 모바일 브리지). 항목 종료 (← ci-and-module-boundaries #dead-command-audit, improvement-audit-round #dead-commands) {#dead-command-close}
 - [x] allow(dead_code) 42곳 — 대부분 W1~W4 시절 「곧 소비된다」 주석의 모듈 전체 억제. 걷어 내고 진짜 죽은 코드는 삭제, 남은 것은 항목별 억제로 좁힌다 {#dead-code-allow}
 - [ ] 800줄 한계 초과 7파일(window.rs 3,028 · code.rs 2,251 · watcher.rs 2,163 · git.rs 1,580 · CodePane 1,555 · CodeScreenV2 1,471 · TerminalSurface 1,445) — 파일 크기 래칫 예외 6건과 함께 라운드 하나로 분할 (← ci-and-module-boundaries #acp-extract-hooks 와 같은 결) {#big-files}
@@ -76,4 +76,6 @@ owner: claude-code
 | 2026-09-14T17:57:40+09:00 | #verified-loop | claude-code | ☐→! |  | 사용자 결정 대기 — 추천: 항목별 토글 대신 육안 원장으로 통합 |
 | 2026-09-14T17:57:52+09:00 | #release-310 | claude-code | ☐→~ |  | 게이트 4종 exit 0 확인, 5면 갱신 시작 |
 | 2026-09-14T19:30:43+09:00 | #release-310 | claude-code | ~→x |  | PR #23 rebase 머지 b1990ce · release.yml 성공(자산 5) · 랜딩 ko/en 3.1.0 라이브 · latest.json 3.1.0 |
+| 2026-09-15T21:38:15+09:00 | #verified-loop | claude-code | !→~ |  | 결정: 토글을 내용 해시에 묶는다(Astra B10) → astra-feedback-round #reviewed-hash 에서 구현 |
+| 2026-09-15T22:16:01+09:00 | #verified-loop | claude-code | ~→x | .oculpm/journal/20260915/Features_to_add/2215_feature_verified-hash-stale-review.md | 토글을 본문 해시에 묶는 것으로 해소 (astra-feedback-round #reviewed-hash). 「눈으로 본 것」 원장 통합은 별도 결정 |
 <!-- oculpm:plan-log end -->
