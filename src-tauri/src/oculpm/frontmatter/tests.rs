@@ -301,6 +301,7 @@ fn round_trip_with_body_starting_with_triple_dash_is_preserved() {
         },
         language: "ko".into(),
         verified_by_user: false,
+        verified_hash: None,
         files_touched: Vec::new(),
         related: Vec::new(),
         tags: Vec::new(),
@@ -367,6 +368,7 @@ fn write_emits_stable_key_order() {
         },
         language: "ko".into(),
         verified_by_user: true,
+        verified_hash: None,
         files_touched: vec![FileTouched {
             path: "a.rs".into(),
             op: FileOp::Update,
@@ -406,4 +408,82 @@ fn write_emits_stable_key_order() {
     assert!(vu < ft);
     assert!(ft < rl);
     assert!(rl < tg);
+}
+
+// ─── verified_hash ({#reviewed-hash}) ────────────────────────────────────
+//
+// 확인은 내용에 묶인다 — 키는 **선택**이고, 없는 일지(확인 전 · 이 키가 생기기
+// 전에 확인된 옛 일지)는 그대로 파싱되며 쓰기는 `Some` 일 때만 줄을 낸다.
+
+#[test]
+fn verified_hash_absent_parses_as_none_and_is_not_written() {
+    let (pf, body) = parse_frontmatter_and_body(&sample_yaml());
+    let fm = pf.parsed.expect("parsed");
+    assert_eq!(fm.verified_hash, None);
+    assert_eq!(fm.schema_version, 1, "키가 없어도 버전은 1 그대로");
+
+    let rendered = write_frontmatter_and_body(&fm, &body);
+    assert!(
+        !rendered.contains("verified_hash"),
+        "None 은 줄 자체가 나가지 않는다:\n{rendered}"
+    );
+    let (pf2, _) = parse_frontmatter_and_body(&rendered);
+    assert_eq!(pf2.parsed.expect("re-parse").verified_hash, None);
+}
+
+#[test]
+fn verified_hash_round_trips_and_sits_right_after_verified_by_user() {
+    let (pf, body) = parse_frontmatter_and_body(&sample_yaml());
+    let mut fm = pf.parsed.expect("parsed");
+    fm.verified_by_user = true;
+    fm.verified_hash = Some(verified_body_hash(&body));
+
+    let rendered = write_frontmatter_and_body(&fm, &body);
+    let vu = rendered.find("verified_by_user:").unwrap();
+    let vh = rendered.find("verified_hash:").unwrap();
+    let ft = rendered.find("files_touched:").unwrap();
+    assert!(
+        vu < vh && vh < ft,
+        "키 순서가 안정적이어야 diff 가 작다:\n{rendered}"
+    );
+
+    let (pf2, body2) = parse_frontmatter_and_body(&rendered);
+    let fm2 = pf2.parsed.expect("re-parse");
+    assert_eq!(fm2.verified_hash, fm.verified_hash);
+    assert_eq!(fm2.schema_version, 1, "additive — 버전을 올리지 않는다");
+    assert!(pf2.parse_warnings.is_empty(), "{:?}", pf2.parse_warnings);
+    assert_eq!(body, body2);
+}
+
+#[test]
+fn verified_hash_is_read_from_a_hand_written_entry_and_blank_means_none() {
+    // 사람이나 다른 앱이 쓴 값도 그대로 읽는다 — 알고리즘 접두는 값의 일부다.
+    let input = "---\nschema_version: 1\ntype: chore\nslug: x\nstatus: done\ncreated_at: \"x\"\nsession_id: \"x\"\nagent: manual\nlanguage: en\nverified_by_user: true\nverified_hash: \"blake3:abc\"\n---\nbody\n";
+    let (pf, _) = parse_frontmatter_and_body(input);
+    assert_eq!(
+        pf.parsed.expect("parsed").verified_hash.as_deref(),
+        Some("blake3:abc")
+    );
+    // 빈 값은 없는 것과 같다 — 빈 문자열로 「해시가 있는데 다르다」가 되면
+    // 모든 일지가 거짓 「다시 검토」가 된다.
+    let blank = input.replace("\"blake3:abc\"", "\"\"");
+    let (pf, _) = parse_frontmatter_and_body(&blank);
+    assert_eq!(pf.parsed.expect("parsed").verified_hash, None);
+}
+
+#[test]
+fn verified_body_hash_ignores_only_trailing_whitespace() {
+    let base = verified_body_hash("[x] title\n\n## body\nline\n");
+    assert!(base.starts_with("blake3:"), "{base}");
+    assert_eq!(base.len(), "blake3:".len() + 64);
+    // 마지막 개행의 유무·꼬리 공백은 내용이 아니다.
+    assert_eq!(base, verified_body_hash("[x] title\n\n## body\nline"));
+    assert_eq!(
+        base,
+        verified_body_hash("[x] title\n\n## body\nline\n\n  \n")
+    );
+    // 그 밖의 바이트는 전부 뜻이 있다 — 앞 공백·줄 사이 공백·본문 한 글자.
+    assert_ne!(base, verified_body_hash("\n[x] title\n\n## body\nline\n"));
+    assert_ne!(base, verified_body_hash("[x] title\n\n## body\nline!\n"));
+    assert_ne!(base, verified_body_hash("[x] title\n## body\nline\n"));
 }

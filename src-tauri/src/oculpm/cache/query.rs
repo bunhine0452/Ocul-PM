@@ -337,7 +337,7 @@ impl<'a> JournalCache<'a> {
                         "SELECT relative_path, type, slug, status, difficulty, title, checkbox,
                                 session_id, agent_id, language, verified_by_user, created_at,
                                 updated_at, file_mtime, body_markdown, parse_ok, parse_warnings,
-                                agent_version, agent_session
+                                agent_version, agent_session, verified_stale
                          FROM oculpm_journal
                          WHERE project_id = ?1 AND relative_path = ?2",
                         params![pid, &rp],
@@ -398,6 +398,10 @@ impl<'a> JournalCache<'a> {
                     },
                     language: r.language,
                     verified_by_user: r.verified_by_user,
+                    // 해시 자체는 캐시에 없다 — 파생 답인 `verified_stale` 만
+                    // 있다 (아래). 디스크가 SSOT 이고 어떤 쓰기도 이 하이드레이션을
+                    // 다시 디스크에 적지 않는다 (`related` 와 같은 사정).
+                    verified_hash: None,
                     files_touched: files,
                     related: Vec::new(), // related is not cached separately yet
                     tags,
@@ -409,6 +413,7 @@ impl<'a> JournalCache<'a> {
                 mtime: r.file_mtime.to_string(),
                 parse_ok: r.parse_ok,
                 parse_warnings: parse_warnings_vec(&r.parse_warnings),
+                verified_stale: r.verified_stale,
             }
         }))
     }
@@ -437,7 +442,8 @@ impl<'a> JournalCache<'a> {
                     .query_row(
                         "SELECT relative_path, workday, type, slug, status, difficulty,
                                 title, checkbox, session_id, agent_id, agent_version,
-                                verified_by_user, created_at, updated_at, parse_ok, parse_warnings
+                                verified_by_user, verified_stale, created_at, updated_at,
+                                parse_ok, parse_warnings
                          FROM oculpm_journal
                          WHERE project_id = ?1 AND relative_path = ?2",
                         params![pid, &rp],

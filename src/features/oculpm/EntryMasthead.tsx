@@ -1,4 +1,4 @@
-import { AlertTriangle, Link2 } from "@/components/Icons";
+import { AlertTriangle, Link2, RotateCcw } from "@/components/Icons";
 import type { JournalEntrySummary, RelatedRef } from "@/lib/bindings";
 import { useT, getLang, type I18nKey } from "@/i18n";
 import { agentLabelWithModel } from "@/features/today/agentColor";
@@ -50,6 +50,12 @@ export function dateLabel(createdAt: string, workday: string): string {
 
 interface EntryMastheadProps {
   entry: JournalEntrySummary;
+  /**
+   * 확인 뒤 본문이 바뀌었다 ({#reviewed-hash}). `entry.verified_stale` 가 아니라
+   * 열람 화면의 지역 상태를 받는다 — 「다시 검토」를 누른 직후 워처 왕복 없이
+   * 이 줄이 바로 사라져야 한다.
+   */
+  staleVerified: boolean;
   related: RelatedRef[];
   /** 부록의 파일 수 — 0 이면 "변경된 파일" 링크를 그리지 않는다. */
   filesCount: number;
@@ -68,6 +74,7 @@ interface EntryMastheadProps {
 
 export function EntryMasthead({
   entry,
+  staleVerified,
   related,
   filesCount,
   onJumpToFiles,
@@ -109,6 +116,13 @@ export function EntryMasthead({
         {parseFailed ? (
           <span className="entry-warn" title={t("entry.parseWarn")}>
             <AlertTriangle size={13} /> {t("entry.parseWarnShort")}
+          </span>
+        ) : null}
+        {staleVerified ? (
+          // 확인 뒤 본문이 바뀌었다 — 파싱 경고와 같은 자리·같은 잉크. 사람이
+          // 「다시 검토」(툴바) 를 누르면 지금 내용에 다시 묶이고 이 줄이 진다.
+          <span className="entry-warn entry-stale" title={t("entry.reverifyTitle")}>
+            <RotateCcw size={13} /> {t("entry.staleLine")}
           </span>
         ) : null}
       </div>

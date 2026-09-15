@@ -3,6 +3,7 @@
 import type { EntryType, JournalEntrySummary } from "@/lib/bindings";
 import { Check } from "@/components/Icons";
 import { agentColor, agentLabel } from "@/features/today/agentColor";
+import { isConfirmed } from "@/features/oculpm/verified";
 import { useT } from "@/i18n";
 import { OculSpinner } from "@/components/OculSpinner";
 
@@ -55,7 +56,7 @@ export function EntryList({ entries, onOpen }: {
             <div className="flex items-center gap-2">
               <TypeChip type={e.type} />
               <span className="text-fs-4 font-medium truncate flex-1">{e.title}</span>
-              {e.verified_by_user ? (
+              {isConfirmed(e) ? (
                 <Check size={13} className="mob-verified shrink-0" aria-hidden />
               ) : null}
             </div>

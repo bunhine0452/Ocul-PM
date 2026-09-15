@@ -1234,6 +1234,11 @@ export const commands = {
 	parse_ok: boolean,
 	/**  Non-fatal parse warnings (missing tz offset, agent-as-string, bad op, …). */
 	parse_warnings: string[],
+	/**
+	 *  `verified_by_user` 가 참인데 본문이 확인 시점(`verified_hash`)과 다르다 —
+	 *  캐시가 투영 때 계산한다. 참이면 「확인됨」이 아니라 「다시 검토」다.
+	 */
+	verified_stale: boolean,
 } | null, AppError>(__TAURI_INVOKE("oculpm_get_journal_entry", { projectId, relativePath })),
 	/**
 	 *  Read the per-file diffs recorded for a journal entry at the moment it was
@@ -3085,6 +3090,11 @@ export type ChangeGroup = {
 	 *  review can be closed without leaving the diff (polish-round Phase 2).
 	 */
 	verified_by_user: boolean | null,
+	/**
+	 *  확인 뒤 본문이 바뀐 일지 ({#reviewed-hash}) — 머리글의 토글은
+	 *  `verified_by_user && !verified_stale` 만 켜진 것으로 그린다.
+	 */
+	verified_stale: boolean | null,
 	plan_refs: ChangePlanRef[],
 	files: string[],
 };
@@ -4418,6 +4428,11 @@ export type JournalEntry = {
 	parse_ok: boolean,
 	/**  Non-fatal parse warnings (missing tz offset, agent-as-string, bad op, …). */
 	parse_warnings: string[],
+	/**
+	 *  `verified_by_user` 가 참인데 본문이 확인 시점(`verified_hash`)과 다르다 —
+	 *  캐시가 투영 때 계산한다. 참이면 「확인됨」이 아니라 「다시 검토」다.
+	 */
+	verified_stale: boolean,
 };
 
 /**  상한이 걸린 일지 목록 한 쪽. */
@@ -4447,6 +4462,8 @@ export type JournalEntrySummary = {
 	 */
 	agent_version: string | null,
 	verified_by_user: boolean,
+	/**  [`JournalEntry::verified_stale`] 와 같다 — 확인 뒤 본문이 바뀐 일지. */
+	verified_stale: boolean,
 	created_at: string,
 	updated_at: string | null,
 	tags: string[],
@@ -4468,6 +4485,16 @@ export type JournalFrontmatter = {
 	/**  Two-letter ISO 639-1, e.g. `ko` or `en`. */
 	language: string,
 	verified_by_user: boolean,
+	/**
+	 *  사람이 「확인」을 누른 순간의 **본문** 해시 — `"blake3:<hex>"`
+	 *  ([`crate::oculpm::frontmatter::verified_body_hash`]). 확인은 내용에
+	 *  묶인다: 이 값이 있는데 디스크 본문의 해시와 다르면 캐시가
+	 *  `verified_stale` 를 세우고, 그 일지는 더는 확인된 것으로 세지 않는다
+	 *  (「확인 뒤 내용이 변경됐습니다 · 다시 검토」). `None` 은 두 경우다 —
+	 *  확인되지 않았거나, 이 키가 생기기 전에 확인된 옛 일지(그대로 유효).
+	 *  줄은 `Some` 일 때만 프론트매터에 나간다.
+	 */
+	verified_hash?: string | null,
 	files_touched: FileTouched[],
 	related: RelatedRef[],
 	tags: string[],

@@ -192,6 +192,7 @@ function entry(over: Partial<JournalEntrySummary>): JournalEntrySummary {
     agent_id: "claude-code",
     agent_version: null,
     verified_by_user: false,
+    verified_stale: false,
     created_at: "2026-09-01T09:00:00+09:00",
     updated_at: null,
     tags: [],

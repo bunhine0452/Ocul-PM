@@ -78,8 +78,14 @@ export interface GroupView {
   /** How many of `total` are marked reviewed. */
   reviewed: number;
   collapsed: boolean;
-  /** 일지의 `verified_by_user` — 미추적 묶음·평면 목록은 `null` (토글 없음). */
+  /**
+   * 일지가 지금 내용에 대해 **확인됐는가** (`verified_by_user && !verified_stale`)
+   * — 미추적 묶음·평면 목록은 `null` (토글 없음). 확인 뒤 본문이 바뀐 일지는
+   * 여기서 `false` 라 토글이 꺼진 채로 그려지고, 누르면 다시 묶는다.
+   */
   verified: boolean | null;
+  /** 확인 뒤 본문이 바뀌었다 ({#reviewed-hash}) — 토글의 설명이 「다시 검토」가 된다. */
+  stale: boolean;
 }
 
 /** 그룹이 이만큼보다 많아지면 처음 열 때 알아서 접는다 (하나만 펼친 채로). */
@@ -137,6 +143,7 @@ export function buildGroupViews({
         reviewed: countReviewed(all),
         collapsed: false,
         verified: null,
+        stale: false,
       },
     ];
   }
@@ -165,7 +172,8 @@ export function buildGroupViews({
       total: g.files.length,
       reviewed: countReviewed(g.files),
       collapsed: q ? false : collapsed.has(key),
-      verified: g.verified_by_user ?? null,
+      verified: g.verified_by_user == null ? null : g.verified_by_user && !g.verified_stale,
+      stale: (g.verified_by_user && g.verified_stale) ?? false,
     });
   }
   return out;
