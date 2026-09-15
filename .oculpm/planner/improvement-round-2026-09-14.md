@@ -26,12 +26,12 @@ owner: claude-code
 - [x] verified_by_user 가 699건 중 8건 — 검토 루프가 안 돈다. 결정 필요: 항목별 토글을 v3 「눈으로 본 것」 원장과 합치거나(추천), 필드를 정리하거나. 사용자 결정 뒤 실행 {#verified-loop}
 - [x] 죽은 커맨드 감사 — 334개 중 프런트 미호출 0 (oculpm_update_entry_meta 는 모바일 브리지). 항목 종료 (← ci-and-module-boundaries #dead-command-audit, improvement-audit-round #dead-commands) {#dead-command-close}
 - [x] allow(dead_code) 42곳 — 대부분 W1~W4 시절 「곧 소비된다」 주석의 모듈 전체 억제. 걷어 내고 진짜 죽은 코드는 삭제, 남은 것은 항목별 억제로 좁힌다 {#dead-code-allow}
-- [ ] 800줄 한계 초과 7파일(window.rs 3,028 · code.rs 2,251 · watcher.rs 2,163 · git.rs 1,580 · CodePane 1,555 · CodeScreenV2 1,471 · TerminalSurface 1,445) — 파일 크기 래칫 예외 6건과 함께 라운드 하나로 분할 (← ci-and-module-boundaries #acp-extract-hooks 와 같은 결) {#big-files}
+- [x] 800줄 한계 초과 7파일(window.rs 3,028 · code.rs 2,251 · watcher.rs 2,163 · git.rs 1,580 · CodePane 1,555 · CodeScreenV2 1,471 · TerminalSurface 1,445) — 파일 크기 래칫 예외 6건과 함께 라운드 하나로 분할 (← ci-and-module-boundaries #acp-extract-hooks 와 같은 결) {#big-files}
 
 ## Phase 4 — 이월: 잠긴 플랜의 진짜 결함·부채 {#carried-bugs}
-- [ ] Today 변경 파일 수가 터치 횟수라 43% 과대(117 vs 82) — 백엔드 COUNT(DISTINCT file_path) 신설 (← today-ring-followup #distinct-file-count) {#distinct-file-count}
-- [ ] 라인 링 k=400 이면 매일 상한에 붙는다 — 실데이터로 재측정 뒤 결정 (← today-ring-followup #churn-k-value) {#churn-k-value}
-- [ ] Today 라인 증감 표시를 검증하는 테스트가 없다 (← today-ring-followup #lines-display-coverage) {#lines-display-coverage}
+- [x] Today 변경 파일 수가 터치 횟수라 43% 과대(117 vs 82) — 백엔드 COUNT(DISTINCT file_path) 신설 (← today-ring-followup #distinct-file-count) {#distinct-file-count}
+- [x] 라인 링 k=400 이면 매일 상한에 붙는다 — 실데이터로 재측정 뒤 결정 (← today-ring-followup #churn-k-value) {#churn-k-value}
+- [x] Today 라인 증감 표시를 검증하는 테스트가 없다 (← today-ring-followup #lines-display-coverage) {#lines-display-coverage}
 - [ ] tests/lsp_rust_analyzer.rs 스킵 가드가 rustup shim 에 속는다 — --version 기동 확인으로 (← ci-and-module-boundaries #ra-guard-hardening) {#ra-guard-hardening}
 - [ ] src/api/oculpm.ts 파사드 패턴을 code·terminal·git·llm 으로 확장 (← ci-and-module-boundaries #api-facades) {#api-facades}
 - [ ] i18n 마감 — 나머지 화면 묶음8, 영어 모드 12화면 오버플로 순회, check-no-hardcoded-korean allowlist 빈 배열 게이트 (← three-features-round #i18n-rest #i18n-overflow #i18n-gate) {#i18n-finish}
@@ -50,7 +50,7 @@ owner: claude-code
 - [ ] 스킬 카탈로그 2차 B1~B8 — 훅 Windows·일지 스키마 2(실패 원장·ADR)·회고 승격 루프·플래너 승인 게이트·비용 텔레메트리·카탈로그 3차·스킬 출처·잡동사니 (← skill-catalog-round-2 #hooks-xplat #journal-schema-2 #evolve-loop #plan-canvas #cost-telemetry #catalog-3rd #skill-provenance #misc-backlog) {#skill-catalog-b}
 - [ ] 모바일 브리지 — 데스크톱 브라우저 스모크·폰 E2E·1주 회고 (← mobile-bridge #mb2-smoke #mb3-verify #mb4-retro) {#mobile-bridge-rest}
 - [ ] 저장소 topics·Show HN/awesome 런칭 — 사용자 액션 (← skills-star-round #star-outreach) {#star-outreach}
-- [ ] 런타임 스케줄링 계측 (← v3-release #scheduling-telemetry, 활성 플랜이라 원본 유지) {#scheduling-telemetry}
+- [x] 런타임 스케줄링 계측 (← v3-release #scheduling-telemetry, 활성 플랜이라 원본 유지) {#scheduling-telemetry}
 
 ## Phase 6 — 이월: 실기기·육안 확인 원장 (설치본 도는 중 dev 빌드 금지) {#carried-eyes}
 - [ ] 설치본 진단 탭 「정리」 → DB 크기·의미 검색 정상, 전체 재색인으로 스냅샷 회수 확인 (← optimization-round-2026-09-12 #eyes-compact, 활성) {#eyes-compact}
@@ -78,4 +78,9 @@ owner: claude-code
 | 2026-09-14T19:30:43+09:00 | #release-310 | claude-code | ~→x |  | PR #23 rebase 머지 b1990ce · release.yml 성공(자산 5) · 랜딩 ko/en 3.1.0 라이브 · latest.json 3.1.0 |
 | 2026-09-15T21:38:15+09:00 | #verified-loop | claude-code | !→~ |  | 결정: 토글을 내용 해시에 묶는다(Astra B10) → astra-feedback-round #reviewed-hash 에서 구현 |
 | 2026-09-15T22:16:01+09:00 | #verified-loop | claude-code | ~→x | .oculpm/journal/20260915/Features_to_add/2215_feature_verified-hash-stale-review.md | 토글을 본문 해시에 묶는 것으로 해소 (astra-feedback-round #reviewed-hash). 「눈으로 본 것」 원장 통합은 별도 결정 |
+| 2026-09-15T22:38:40+09:00 | #distinct-file-count | claude-code | ☐→x |  | 이미 됨 — v3-release #distinct-files-backend 가 commands/oculpm.rs count_files_for_workday(COUNT DISTINCT) 로 답한다. 이월이 낡은 항목을 복사했음 |
+| 2026-09-15T22:38:45+09:00 | #churn-k-value | claude-code | ☐→x |  | 이미 됨 — ringScale.ts RING_K.lines 400→4000 (2026-09-07, 26워크데이 실측 중앙값 15,400줄로 결정, 주석에 분포 기록) |
+| 2026-09-15T22:38:50+09:00 | #lines-display-coverage | claude-code | ☐→x |  | 이미 됨 — today_ring.test.tsx 가 "+12,345 / −6,789" 표기·0 케이스·상한 케이스를 단언한다 |
+| 2026-09-15T23:18:04+09:00 | #big-files | claude-code | ☐→x | .oculpm/journal/20260915/Refactors/2301_refactor_split-window-rs.md | optimization-round-2 Phase 1 로 7파일 전부 분할(37→26 파일, 17,923→7,924 줄). 래칫 제외 6건(legacy·bindings·ko/en·lib.rs·spec.rs)은 생성물·레지스트리라 그대로 |
+| 2026-09-15T23:18:09+09:00 | #scheduling-telemetry | claude-code | ☐→x | .oculpm/journal/20260915/Features_to_add/2314_feature_watcher-scheduling-telemetry.md | optimization-round-2 #scheduling-telemetry 로 구현 (v3-release 원본은 잠겨 갱신 불가) |
 <!-- oculpm:plan-log end -->
