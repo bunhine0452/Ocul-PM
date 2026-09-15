@@ -2309,7 +2309,7 @@ export const ko = {
   "entry.reverify": "다시 검토",
   "entry.reverifyTitle": "확인 뒤 내용이 변경됐어요 — 다시 읽고 확인하면 지금 내용에 확인 표시가 묶여요",
   "entry.staleShort": "다시 검토",
-  "entry.staleLine": "확인 뒤 내용이 변경됐습니다 · 다시 검토",
+  "entry.staleLine": "확인 뒤 내용이 변경됐어요 · 다시 검토",
   "entry.related": "관련 일지",
   "entry.fileMenu": "변경된 파일 목록",
   "entry.readResize": "서술 칸 폭 조절",

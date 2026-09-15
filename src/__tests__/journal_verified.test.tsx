@@ -119,7 +119,7 @@ describe("원장 행 — 체크 대신 「다시 검토」", () => {
     expect(container.querySelector(".jl-verified")).toBeNull();
     const stale = container.querySelector(".jl-stale");
     expect(stale?.textContent).toContain("다시 검토");
-    expect(stale?.getAttribute("title")).toBe("확인 뒤 내용이 변경됐습니다 · 다시 검토");
+    expect(stale?.getAttribute("title")).toBe("확인 뒤 내용이 변경됐어요 · 다시 검토");
   });
 
   it("확인 안 된 일지는 둘 다 없다", () => {
@@ -140,7 +140,7 @@ describe("열람 — 마스트헤드의 한 줄과 툴바의 「다시 검토」
     const { container, getByRole } = renderDetail(entry);
     await waitFor(() =>
       expect(container.querySelector(".entry-stale")?.textContent).toContain(
-        "확인 뒤 내용이 변경됐습니다 · 다시 검토",
+        "확인 뒤 내용이 변경됐어요 · 다시 검토",
       ),
     );
     const btn = getByRole("button", { name: /다시 검토/, pressed: false });

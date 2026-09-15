@@ -4490,7 +4490,7 @@ export type JournalFrontmatter = {
 	 *  ([`crate::oculpm::frontmatter::verified_body_hash`]). 확인은 내용에
 	 *  묶인다: 이 값이 있는데 디스크 본문의 해시와 다르면 캐시가
 	 *  `verified_stale` 를 세우고, 그 일지는 더는 확인된 것으로 세지 않는다
-	 *  (「확인 뒤 내용이 변경됐습니다 · 다시 검토」). `None` 은 두 경우다 —
+	 *  (「확인 뒤 내용이 변경됐어요 · 다시 검토」). `None` 은 두 경우다 —
 	 *  확인되지 않았거나, 이 키가 생기기 전에 확인된 옛 일지(그대로 유효).
 	 *  줄은 `Some` 일 때만 프론트매터에 나간다.
 	 */
