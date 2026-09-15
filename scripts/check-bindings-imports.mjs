@@ -54,8 +54,15 @@ export const ALLOWLIST = new Set([
   "features/code/CodeDebugPanel.tsx",
   "features/code/CodePane.tsx",
   "features/code/CodePreview.tsx",
-  "features/code/CodeScreenV2.tsx",
   "features/code/CodeSearchPanel.tsx",
+  // optimization-round-2 {#split-codescreen} — `CodeScreenV2` 를 쪼개며 갈라 나온
+  // 조각들. 위 `{#planner-diff-split}` 과 같은 사정이다: 직접 호출이 늘어난 것이
+  // 아니라 화면 파일이 들고 있던 것이 그대로 따라왔다 (화면 자체는 목록에서
+  // 빠졌다). 옮길 때는 넷을 함께 보낸다.
+  "features/code/codeScreen/useCodeTree.ts",
+  "features/code/codeScreen/useClosedTabs.ts",
+  "features/code/codeScreen/useDocumentSymbols.ts",
+  "features/code/codeScreen/useProblemsFeed.ts",
   "features/code/useCodeImport.ts",
   "features/code/useDebug.ts",
   "features/code/useLsp.ts",

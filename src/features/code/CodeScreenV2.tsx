@@ -10,89 +10,63 @@ import { SkeletonList } from "@/components/ui/Skeleton";
 //
 // 조작이 여기 있는 이유: 파일이 없어지거나 이름이 바뀌면 **탭과 버퍼가 따라
 // 움직여야** 하는데, 그 둘을 다 보는 자리가 여기뿐이다.
+//
+// 훅·하위 컴포넌트는 `codeScreen/` 에 책임별로 갈라 두었다 (optimization-round-2
+// {#split-codescreen}): 트리(`useCodeTree`·`useTreeInteraction`·`CodeSidebar`)·
+// 탭(`useCodeTabs`·`useClosedTabs`)·심볼/진단 피드·단축키·패널 높이·다이얼로그 둘.
+// 순수 이동이며 동작 변경은 없다 — 상태·effect 순서·DOM 은 그대로다.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { CodeSidebarHead, CodeTreeRoot } from "./CodeSidebarHead";
 import { CodeQuickOpen } from "./CodeQuickOpen";
 import { flattenFiles } from "./quickOpenModel";
 import { useGitMarks } from "./gitDecor";
 import { groupByFile } from "./problemsModel";
 import { isProsePath } from "./codeLang";
 import { CodeToolbar } from "./CodeToolbar";
-import { commands, events, type CodeTree as CodeTreeData, type LspSymbol } from "@/lib/bindings";
-import { safeUnlisten } from "@/lib/unlisten";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { registerCloseHandler } from "@/lib/closeIntent";
-import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
-import { blocked } from "@/lib/blocked";
-import { tError } from "@/i18n/errors";
-import { AppDialog } from "@/components/ui/AppDialog";
 
-import { CodeTree } from "./CodeTree";
 import { useCodeImport } from "./useCodeImport";
-import { treeMenuItems } from "./treeMenu";
 import { useTreeDrag } from "./useTreeDrag";
 import { useFileOps } from "./useFileOps";
-import { useTreeKeys } from "./useTreeKeys";
-import {
-  actionTargets,
-  clickIntent,
-  marksOf,
-  rangeBetween,
-  toggleMark,
-  visibleEntries,
-  type Marks,
-} from "./treeSelection";
+import { actionTargets, type Marks } from "./treeSelection";
 import type { TreeHit } from "./importTarget";
-import { CodePane, CodeEmptyState, type CodePaneHandle } from "./CodePane";
+import { CodePane, CodeEmptyState } from "./CodePane";
 import { CodeContextMenu, type CodeMenuItem } from "./CodeContextMenu";
-import { CodeOutline } from "./CodeOutline";
 import { CodeGoto } from "./CodeGoto";
 import { countLines } from "./gotoModel";
 import { CodeDebugPanel } from "./CodeDebugPanel";
 import { useDebug } from "./useDebug";
-import { adapterLanguageFor, defaultProgramFor, toLaunchRequest } from "./debugConfig";
+import { adapterLanguageFor, defaultProgramFor } from "./debugConfig";
 import { CodeReferences, type ReferencesQuery } from "./CodeReferences";
 import { CodeProblems } from "./CodeProblems";
-import { problemsStore, useProblems } from "./problemsStore";
-import { CodeSearchPanel } from "./CodeSearchPanel";
-import {
-  ancestorDirs,
-  collectDirs,
-  collectFiles,
-  filterTree,
-  flattenToDirMap,
-  type DirMap,
-} from "./treeUtils";
+import { useProblems } from "./problemsStore";
 import { useTreeWatch } from "./useTreeWatch";
 import {
   activateTab,
-  allOpenPaths,
-  closeOpenPath,
-  closeOthers,
   closeTab,
-  cycleTab,
   focusPane,
   focusedPath,
   moveTabToOtherPane,
   openFile,
   pinTab,
-  sanitizeTabs,
   splitEditor,
   unsplitEditor,
-  type CodeTabsState,
 } from "./codeTabs";
-import {
-  baseName,
-  parentDir,
-} from "./fileOps";
-import {
-  bufferKey,
-  getBuffer,
-  listDirtyPaths,
-} from "./codeBuffers";
+import { baseName } from "./fileOps";
+import { bufferKey, getBuffer } from "./codeBuffers";
+import { useCodeTabs } from "./codeScreen/useCodeTabs";
+import { useDocumentSymbols } from "./codeScreen/useDocumentSymbols";
+import { useProblemsFeed } from "./codeScreen/useProblemsFeed";
+import { useCodeTree } from "./codeScreen/useCodeTree";
+import { useClosedTabs } from "./codeScreen/useClosedTabs";
+import { useCodeScreenKeys } from "./codeScreen/useCodeScreenKeys";
+import { useTreeInteraction } from "./codeScreen/useTreeInteraction";
+import { usePanelResize } from "./codeScreen/usePanelResize";
+import { CodeSidebar } from "./codeScreen/CodeSidebar";
+import { DebugLaunchDialog, type LaunchForm } from "./codeScreen/DebugLaunchDialog";
+import { DeleteConfirmDialog } from "./codeScreen/DeleteConfirmDialog";
 import "./code.css";
 import "./code-frame.css";
 
@@ -112,22 +86,6 @@ interface CodeScreenV2Props {
   onOpenTargetConsumed: () => void;
 }
 
-const LABEL: React.CSSProperties = {
-  display: "block",
-  fontSize: "var(--fs-4)",
-  fontWeight: "var(--fw-strong)",
-  marginBottom: 6,
-};
-const HINT: React.CSSProperties = {
-  margin: "6px 0 12px",
-  fontSize: "var(--fs-3)",
-  color: "var(--text-3)",
-  lineHeight: 1.6,
-};
-
-/** ⇧⌘T 로 되살릴 수 있는 "닫은 탭" 기억의 상한 — 무한히 쌓을 이유가 없다. */
-const CLOSED_STACK_MAX = 20;
-
 export function CodeScreenV2({
   projectId,
   projectRoot,
@@ -137,48 +95,6 @@ export function CodeScreenV2({
   useT();
   const { state, setState } = useWorkspace();
   const { settings } = useSettings();
-
-  // 트리 소스가 둘이다.
-  //   · `dirCache` — 평소 탐색. `code_dir` 로 **펼친 폴더 한 단계씩** 읽고,
-  //     무시된 항목까지 보여준다(흐리게). 한 번에 다 걷지 않는 이유는 무시를 끄면
-  //     이 저장소만 해도 114,419 파일이라 어떤 상한에도 걸리기 때문.
-  //   · `tree` — 필터 전용. 안 읽은 가지의 매치는 지연 로딩으로 찾을 수 없어서,
-  //     gitignore 를 존중하는 전량 걸음을 그대로 남겨 검색에 쓴다.
-  const [tree, setTree] = useState<CodeTreeData | null>(null);
-  const [treeStatus, setTreeStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [treeError, setTreeError] = useState<string | null>(null);
-  const [dirCache, setDirCache] = useState<DirMap>(() => new Map());
-  const [loadingDirs, setLoadingDirs] = useState<Set<string>>(() => new Set());
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [filter, setFilter] = useState("");
-
-  // ── 탭 ──────────────────────────────────────────────────────────────────
-  const [tabs, setTabs] = useState<CodeTabsState>(() => sanitizeTabs(state.codeTabs));
-  const tabsRef = useRef(tabs);
-  tabsRef.current = tabs;
-  const [dirtyPaths, setDirtyPaths] = useState<Set<string>>(new Set());
-  // 여는 순간에 읽어야 하는 값들 — 콜백은 렌더보다 늦게 돌고, 여기서 낡은
-  // 값을 쓰면 미저장 탭이 교체된다.
-  const dirtyPathsRef = useRef(dirtyPaths);
-  dirtyPathsRef.current = dirtyPaths;
-  const previewTabsRef = useRef(true);
-  previewTabsRef.current = settings.codePreviewTabs;
-  // 창별 줄 점프 지시 — nonce 로 같은 줄의 연속 점프도 다시 발화시킨다.
-  // ch/len (UTF-16) 이 있으면 그 범위를 선택한다 (전역 검색의 매치 표시).
-  const [jump, setJump] = useState<{
-    pane: number;
-    line: number;
-    ch?: number;
-    len?: number;
-    /** false 면 에디터가 포커스를 가져가지 않는다 (⇧⌘O 의 미리 점프). */
-    focus?: boolean;
-    nonce: number;
-  } | null>(null);
-  const jumpSeq = useRef(0);
-  const paneRefs = [useRef<CodePaneHandle>(null), useRef<CodePaneHandle>(null)];
-
-  const selected = focusedPath(tabs);
-  const openPaths = useMemo(() => new Set(allOpenPaths(tabs)), [tabs]);
 
   // ── 전역 검색 (#project-search) ─────────────────────────────────────────
   // 사이드바 자리를 파일 트리와 나눠 쓴다 (VS Code 의 액티비티 바 전환처럼).
@@ -197,8 +113,6 @@ export function CodeScreenV2({
   // 영역 아래 전체 폭에 앉으므로 창(pane) 바깥이어야 하고, 분할 중에도 하나씩만
   // 떠야 한다.
   const [outlineOpen, setOutlineOpen] = useState(false);
-  const [symbols, setSymbols] = useState<LspSymbol[] | null>(null);
-  const [symbolsLoading, setSymbolsLoading] = useState(false);
   const [cursorLine, setCursorLine] = useState(1);
   // 이동 위젯(⇧⌘O · ⌃G)이 열릴 때 읽어야 하는 값 — keydown 클로저는 렌더보다
   // 오래 산다.
@@ -218,15 +132,12 @@ export function CodeScreenV2({
   const debug = useDebug(projectId);
   // 실행 구성 — 영속하지 않는다. v1 은 "이번에 무엇을 띄울지" 만 묻고, 다음
   // 실행에는 다시 그럴듯한 기본값을 채워 준다 (구성 파일은 Phase 3 밖).
-  const [launchForm, setLaunchForm] = useState({
+  const [launchForm, setLaunchForm] = useState<LaunchForm>({
     language: "rust",
     program: "",
     args: "",
     stopOnEntry: false,
   });
-  const [starting, setStarting] = useState(false);
-  /** 저장·포맷 뒤 아웃라인을 다시 묻게 하는 신호. */
-  const [symbolEpoch, setSymbolEpoch] = useState(0);
   /**
    * 파일 안에서 이동 (#p3-goto). 열려 있는 동안만 값이 있고, 그 안에 **열던
    * 순간**의 커서 줄과 줄 수를 담는다 — Esc 되돌리기와 줄 번호 상한은 그때의
@@ -238,19 +149,41 @@ export function CodeScreenV2({
     lineCount: number;
   } | null>(null);
 
-  // 탭 상태는 영속된다 (#tabs-persist). `codeTabs` 는 여기서만 쓰기 때문에
-  // 되읽기 루프가 없다 — 초기값으로 한 번 읽고, 이후로는 이쪽이 진실이다.
-  useEffect(() => {
-    setState((prev) =>
-      prev.codeTabs === tabs
-        ? prev
-        : { ...prev, codeTabs: tabs, codeActivePath: focusedPath(tabs) },
-    );
-  }, [tabs, setState]);
+  // ── 탭 ──────────────────────────────────────────────────────────────────
+  const {
+    tabs,
+    setTabs,
+    tabsRef,
+    dirtyPaths,
+    jump,
+    paneRefs,
+    selected,
+    openPaths,
+    refreshDirtyPaths,
+    openPath,
+    jumpInFocusedPane,
+    openPathsRecent,
+    pinPath,
+  } = useCodeTabs({
+    projectId,
+    persistedTabs: state.codeTabs,
+    previewTabs: settings.codePreviewTabs,
+    setState,
+  });
 
-  const refreshDirtyPaths = useCallback(() => {
-    setDirtyPaths(listDirtyPaths(projectId));
-  }, [projectId]);
+  // 아웃라인은 **접혀 있으면 묻지 않는다** — rust-analyzer 에 파일을 열 때마다
+  // documentSymbol 을 던지는 것은 안 보는 패널을 위한 비용이다. 이동 위젯과
+  // 스티키 스크롤도 같은 목록을 쓰므로(새 커맨드 없음) 그때는 접혀 있어도
+  // 묻는다 — 스티키는 켜 두면 늘 보이는 물건이라 그 비용이 값을 한다.
+  // 2026-09-11: 브레드크럼이 커서가 든 심볼을 늘 보여 주므로 파일이 열려 있으면
+  // 항상 묻는다. 서버가 없는 파일은 빈 답이 즉시 온다 (비용은 열 때 한 번 +
+  // 저장·포맷 때).
+  const symbolsWanted = outlineOpen || gotoState != null || settings.codeStickyScroll || selected != null;
+  const { symbols, symbolsLoading, setSymbolEpoch } = useDocumentSymbols({
+    projectId,
+    selected,
+    wanted: symbolsWanted,
+  });
 
   /**
    * 창이 버퍼를 건드렸다.
@@ -265,66 +198,10 @@ export function CodeScreenV2({
     // effect 가 조회를 건너뛰므로 여기서 조건을 따지지 않는다.
     setSymbolEpoch((n) => n + 1);
     refreshGitMarks();
-  }, [refreshDirtyPaths, refreshGitMarks]);
+  }, [refreshDirtyPaths, refreshGitMarks, setSymbolEpoch]);
 
-  // 아웃라인은 **접혀 있으면 묻지 않는다** — rust-analyzer 에 파일을 열 때마다
-  // documentSymbol 을 던지는 것은 안 보는 패널을 위한 비용이다. 이동 위젯과
-  // 스티키 스크롤도 같은 목록을 쓰므로(새 커맨드 없음) 그때는 접혀 있어도
-  // 묻는다 — 스티키는 켜 두면 늘 보이는 물건이라 그 비용이 값을 한다.
-  // 2026-09-11: 브레드크럼이 커서가 든 심볼을 늘 보여 주므로 파일이 열려 있으면
-  // 항상 묻는다. 서버가 없는 파일은 빈 답이 즉시 온다 (비용은 열 때 한 번 +
-  // 저장·포맷 때).
-  const symbolsWanted = outlineOpen || gotoState != null || settings.codeStickyScroll || selected != null;
-  useEffect(() => {
-    if (!symbolsWanted || !selected) {
-      setSymbols(null);
-      return;
-    }
-    let cancelled = false;
-    setSymbolsLoading(true);
-    void commands.lspDocumentSymbols(projectId, selected).then((res) => {
-      if (cancelled) return;
-      setSymbolsLoading(false);
-      setSymbols(res.status === "ok" ? res.data : []);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [symbolsWanted, selected, projectId, symbolEpoch]);
-
-  /**
-   * 워크스페이스 진단 모으기 (#p5-problems).
-   *
-   * 구독은 **창 최상위가 아니라 이 화면**이 한다 — 코드 화면을 한 번도 안 연
-   * 창이 진단을 메모리에 쌓을 이유가 없다. 순서가 중요하다: 리스너를 먼저 걸고
-   * 스냅샷을 부른다. 반대로 하면 그 사이에 온 갱신이 통째로 빈다.
-   */
-  useEffect(() => {
-    const offs: Array<() => void> = [];
-    let active = true;
-    const keep = (off: () => void) => (active ? offs.push(off) : safeUnlisten(off));
-    try {
-      void events.lspDiagnosticsPublished
-        .listen((e) => {
-          if (e.payload.project_id !== projectId) return;
-          problemsStore.applyPublished(e.payload);
-        })
-        .then(keep)
-        .catch(() => {});
-    } catch {
-      /* jsdom / 비-Tauri — 라이브 갱신만 없다 */
-    }
-    void commands.lspDiagnosticsSnapshot(projectId).then((res) => {
-      if (!active || res.status !== "ok" || !Array.isArray(res.data)) return;
-      problemsStore.seed(projectId, res.data);
-    });
-    return () => {
-      active = false;
-      for (const off of offs) safeUnlisten(off);
-      // 프로젝트를 바꾸면 비운다 — 안 하면 남의 프로젝트 진단이 섞인다.
-      problemsStore.clearProject(projectId);
-    };
-  }, [projectId]);
+  // 워크스페이스 진단 모으기 (#p5-problems).
+  useProblemsFeed(projectId);
 
   /** 패널 자리는 하나다 — 여는 쪽이 상대를 닫는다. */
   const openProblems = useCallback(() => {
@@ -333,164 +210,26 @@ export function CodeScreenV2({
   }, []);
 
   // ── 트리 ────────────────────────────────────────────────────────────────
-  /** 디렉터리 한 단계를 읽어 캐시에 넣는다. 이미 읽었거나 읽는 중이면 무시. */
-  const loadDir = useCallback(
-    (dirPath: string, force = false) => {
-      if (!force) {
-        let already = false;
-        setDirCache((prev) => {
-          already = prev.has(dirPath);
-          return prev;
-        });
-        if (already) return;
-      }
-      setLoadingDirs((prev) => {
-        if (prev.has(dirPath)) return prev;
-        const next = new Set(prev);
-        next.add(dirPath);
-        return next;
-      });
-      void commands.codeDir(projectId, dirPath).then((res) => {
-        setLoadingDirs((prev) => {
-          const next = new Set(prev);
-          next.delete(dirPath);
-          return next;
-        });
-        if (res.status === "ok") {
-          setDirCache((prev) => new Map(prev).set(dirPath, res.data.entries));
-          if (res.data.truncated) toast.warning(t("code.tree.dirTruncated", { dir: dirPath || "/" }));
-        } else {
-          // 조용히 빈 폴더로 보이게 두지 않는다 — 읽기 실패는 말한다.
-          toast.destructive(t("code.tree.dirFailed", { error: tError(res.error) }));
-          setDirCache((prev) => new Map(prev).set(dirPath, []));
-        }
-      });
-    },
-    [projectId],
-  );
+  const {
+    tree,
+    treeStatus,
+    treeError,
+    dirCache,
+    loadingDirs,
+    expanded,
+    setExpanded,
+    filter,
+    setFilter,
+    loadDir,
+    refreshTree,
+    loadTree,
+    filtering,
+    childrenOf,
+    expandedForRender,
+    revealDir,
+    treeOrder,
+  } = useCodeTree({ projectId, tabsRef, setTabs, selected, refreshDirtyPaths });
 
-  /**
-   * 전량 트리(필터용)를 다시 읽는다.
-   *
-   * `silent` 는 파일 조작 뒤에 쓴다 — 파일 하나 만들 때마다 트리 전체가
-   * "불러오는 중" 으로 깜빡이면 안 되지만, 방금 만든 파일이 필터에 안 걸리는
-   * 것도 안 된다. 그래서 상태는 안 건드리고 결과만 갈아끼운다.
-   */
-  const refreshTree = useCallback(
-    (silent = false) => {
-      if (!silent) {
-        setTreeStatus("loading");
-        setTreeError(null);
-      }
-      void commands.codeTree(projectId).then((res) => {
-        if (res.status === "ok") {
-          setTree(res.data);
-          setTreeStatus("ready");
-        } else if (!silent) {
-          setTreeError(tError(res.error));
-          setTreeStatus("error");
-        }
-      });
-    },
-    [projectId],
-  );
-
-  const loadTree = useCallback(() => {
-    // 새로고침은 지연 캐시도 버린다 — 안 그러면 디스크가 바뀌어도 이미 펼친
-    // 가지는 옛 목록을 계속 보여준다.
-    setDirCache(new Map());
-    loadDir("", true);
-    refreshTree(false);
-  }, [loadDir, refreshTree]);
-
-  useEffect(() => {
-    loadTree();
-    refreshDirtyPaths();
-  }, [loadTree, refreshDirtyPaths]);
-
-  const fileSet = useMemo(() => new Set(collectFiles(tree?.nodes ?? [])), [tree]);
-
-  // 되살린 탭 중 **디스크에 없는 것**을 한 번 걷어낸다.
-  //
-  // 트리에 없다고 곧 없는 파일은 아니다 — 지연 트리는 무시된 파일도 보여주고
-  // 그것도 열 수 있다. 그래서 트리에 없는 것만 실제로 읽어 보고 판정한다
-  // (대개 0~2건이라 비용이 없다).
-  const prunedRef = useRef(false);
-  useEffect(() => {
-    if (treeStatus !== "ready" || prunedRef.current) return;
-    prunedRef.current = true;
-    const suspects = allOpenPaths(tabsRef.current).filter((p) => !fileSet.has(p));
-    if (suspects.length === 0) return;
-    void (async () => {
-      for (const path of suspects) {
-        const res = await commands.codeRead(projectId, path);
-        if (res.status === "error") setTabs((prev) => closeOpenPath(prev, path, false));
-      }
-    })();
-  }, [treeStatus, fileSet, projectId]);
-
-  // 활성 파일의 조상 폴더는 펼쳐 두고 읽어 둔다 — 검색·코드맵에서 건너온
-  // 파일은 그 가지가 아직 안 읽혔을 수 있고, 펼치기만 하면 "읽는 중" 에서 멈춘다.
-  useEffect(() => {
-    if (!selected) return;
-    const ancestors = ancestorDirs(selected);
-    if (ancestors.length === 0) return;
-    setExpanded((prev) => {
-      if (ancestors.every((d) => prev.has(d))) return prev;
-      const next = new Set(prev);
-      for (const dir of ancestors) next.add(dir);
-      return next;
-    });
-    for (const dir of ancestors) loadDir(dir);
-  }, [selected, loadDir]);
-
-  // ── 열기 ────────────────────────────────────────────────────────────────
-  //
-  // `preview` 를 켜는 입구는 **트리 단일 클릭 하나뿐**이다 (VS Code 기본과 같다).
-  // 팔레트·전역 검색·코드 이동·일지는 전부 고정으로 연다 — 거기는 "훑어본다" 가
-  // 아니라 "이걸 하려고 왔다" 는 신호다.
-  const openPath = useCallback(
-    (
-      path: string,
-      line: number | null,
-      pane?: number,
-      sel?: { ch?: number; len?: number; preview?: boolean },
-    ) => {
-      // 갱신 함수 안에서 setJump 를 부르지 않는다 — StrictMode 는 갱신 함수를 두 번
-      // 부르므로 그 안의 부수효과는 두 번 난다. 대신 다음 상태를 밖에서 계산하고,
-      // `tabsRef` 를 즉시 앞당겨 같은 틱의 연속 호출도 앞의 결과 위에서 쌓이게 한다.
-      const next = openFile(tabsRef.current, path, pane, {
-        preview: sel?.preview === true && previewTabsRef.current,
-        dirtyPaths: dirtyPathsRef.current,
-      });
-      tabsRef.current = next;
-      setTabs(next);
-      if (line != null) {
-        jumpSeq.current += 1;
-        setJump({ pane: next.focused, line, ch: sel?.ch, len: sel?.len, nonce: jumpSeq.current });
-      }
-    },
-    [],
-  );
-
-  /**
-   * 지금 보고 있는 파일 안에서만 뛴다 (파일 안 이동의 미리 점프·확정).
-   *
-   * `openPath` 를 쓰지 않는 이유: 같은 파일이라도 `openFile` 은 매번 새 탭
-   * 상태를 만들고, 그 값이 그대로 워크스페이스에 저장된다 — 화살표를 누를
-   * 때마다 탭 목록을 다시 쓰게 된다.
-   */
-  const jumpInFocusedPane = useCallback((line: number, ch?: number, focus = true) => {
-    jumpSeq.current += 1;
-    setJump({ pane: tabsRef.current.focused, line, ch, focus, nonce: jumpSeq.current });
-  }, []);
-
-  /**
-   * 파일 안 이동을 연다. `lineMode` 면 `:` 를 채워 (⌃G) 연다.
-   *
-   * 이미 열려 있으면 아무것도 하지 않는다 — 위젯 안에서 `:` 한 글자로 모드를
-   * 바꿀 수 있어서, 다시 여는 것은 방금 친 질의만 지운다.
-   */
   // ── ⌘P 빠른 열기 · ⌥Z 줄바꿈 · ⌘B 사이드바 (2026-09-11 IDE 라운드) ──
   const [quickOpen, setQuickOpen] = useState(false);
   const wordWrapMode = state.codeWordWrap ?? "auto";
@@ -502,7 +241,7 @@ export function CodeScreenV2({
   const toggleWordWrap = useCallback(() => {
     const now = wordWrapFor(focusedPath(tabsRef.current));
     setState((prev) => ({ ...prev, codeWordWrap: now ? "off" : "on" }));
-  }, [wordWrapFor, setState]);
+  }, [wordWrapFor, setState, tabsRef]);
   const sidebarHidden = state.codeSidebarHidden === true;
   const toggleSidebar = useCallback(() => {
     setState((prev) => ({ ...prev, codeSidebarHidden: !prev.codeSidebarHidden }));
@@ -518,13 +257,13 @@ export function CodeScreenV2({
   const quickOpenFiles = useMemo(() => (tree ? flattenFiles(tree.nodes) : []), [tree]);
   const quickOpenFilesRef = useRef(quickOpenFiles);
   quickOpenFilesRef.current = quickOpenFiles;
-  // 빠른 열기의 빈 질의 목록 — 보고 있는 파일이 맨 위, 나머지는 탭 순서.
-  const openPathsRecent = useMemo(() => {
-    const active = tabs.panes[tabs.focused]?.active ?? null;
-    const all = allOpenPaths(tabs);
-    return active ? [active, ...all.filter((p) => p !== active)] : all;
-  }, [tabs]);
 
+  /**
+   * 파일 안 이동을 연다. `lineMode` 면 `:` 를 채워 (⌃G) 연다.
+   *
+   * 이미 열려 있으면 아무것도 하지 않는다 — 위젯 안에서 `:` 한 글자로 모드를
+   * 바꿀 수 있어서, 다시 여는 것은 방금 친 질의만 지운다.
+   */
   const openGoto = useCallback(
     (lineMode: boolean) => {
       const path = focusedPath(tabsRef.current);
@@ -541,17 +280,8 @@ export function CodeScreenV2({
             },
       );
     },
-    [projectId],
+    [projectId, tabsRef],
   );
-
-  /** 미리보기 탭을 보통 탭으로 — 더블클릭·첫 편집·컨텍스트 메뉴가 부른다. */
-  const pinPath = useCallback((pane: number, path: string) => {
-    setTabs((prev) => {
-      const next = pinTab(prev, pane, path);
-      tabsRef.current = next;
-      return next;
-    });
-  }, []);
 
   // 다른 화면(검색·코드맵)에서 온 열기 목표.
   useEffect(() => {
@@ -568,67 +298,13 @@ export function CodeScreenV2({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const isVisible = useCallback(() => (rootRef.current?.getClientRects().length ?? 0) > 0, []);
 
-  /** UI 로 닫은 탭의 최근 순 목록 — ⇧⌘T 가 하나씩 되살린다. 삭제·외부 소실로
-   *  닫힌 것은 넣지 않는다 (되살릴 파일이 없다). */
-  const closedStackRef = useRef<string[]>([]);
-  const rememberClosed = useCallback((...paths: string[]) => {
-    const stack = closedStackRef.current.filter((p) => !paths.includes(p));
-    stack.push(...paths);
-    closedStackRef.current = stack.slice(-CLOSED_STACK_MAX);
-  }, []);
-
-  const closeTabTracked = useCallback(
-    (pane: number, path: string) => {
-      rememberClosed(path);
-      setTabs((prev) => closeTab(prev, pane, path));
-    },
-    [rememberClosed],
-  );
-
-  const closeOthersTracked = useCallback(
-    (pane: number, path: string) => {
-      const others = tabsRef.current.panes[pane]?.tabs.filter((p) => p !== path) ?? [];
-      if (others.length > 0) rememberClosed(...others);
-      setTabs((prev) => closeOthers(prev, pane, path));
-    },
-    [rememberClosed],
-  );
-
-  const reopenClosedTab = useCallback(() => {
-    const open = new Set(allOpenPaths(tabsRef.current));
-    let path: string | undefined;
-    while ((path = closedStackRef.current.pop()) !== undefined) {
-      if (!open.has(path)) break;
-    }
-    if (path === undefined) return;
-    const target = path;
-    // 닫은 사이 디스크에서 사라졌을 수 있다 — 깨진 탭을 열어 두는 대신 말한다.
-    void commands.codeRead(projectId, target).then((res) => {
-      if (res.status === "error") {
-        toast.warning(t("code.fileGone", { path: target }));
-        return;
-      }
-      openPath(target, null);
-    });
-  }, [projectId, openPath]);
-
-  // ⌘W — 코드 탭을 **먼저** 닫는다.
-  //
-  // macOS 는 메뉴 액셀러레이터가 웹뷰 keydown 보다 먼저 ⌘W 를 소비하므로,
-  // 여기는 keydown 이 아니라 "안쪽부터 닫기" 사슬(lib/closeIntent)로 온다.
-  // 열린 탭이 없으면 받지 않는다 — 그때의 ⌘W 는 프로젝트 탭을 닫는 것이 맞다.
-  useEffect(
-    () =>
-      registerCloseHandler(() => {
-        if (!isVisible()) return false;
-        const path = focusedPath(tabsRef.current);
-        if (path == null) return false;
-        rememberClosed(path);
-        setTabs((prev) => closeTab(prev, prev.focused, path));
-        return true;
-      }),
-    [isVisible, rememberClosed],
-  );
+  const { closedStackRef, closeTabTracked, closeOthersTracked, reopenClosedTab } = useClosedTabs({
+    projectId,
+    tabsRef,
+    setTabs,
+    openPath,
+    isVisible,
+  });
 
   // ── 파일 조작 ───────────────────────────────────────────────────────────
   const [menu, setMenu] = useState<{ x: number; y: number; items: CodeMenuItem[] } | null>(null);
@@ -706,7 +382,7 @@ export function CodeScreenV2({
       if (destDir) setExpanded((prev) => (prev.has(destDir) ? prev : new Set(prev).add(destDir)));
       reloadAfterOp(destDir);
     },
-    [reloadAfterOp],
+    [reloadAfterOp, setExpanded],
   );
   const { dropDir, pasteFiles } = useCodeImport({
     projectId,
@@ -728,237 +404,49 @@ export function CodeScreenV2({
     [targetsFor, marks],
   );
 
-
-
-  // ── 트리 파생값 ────────────────────────────────────────────────────────
-  const filtering = filter.trim().length > 0;
-
-  const filteredNodes = useMemo(() => {
-    if (!tree || !filtering) return [];
-    return filterTree(tree.nodes, filter);
-  }, [tree, filter, filtering]);
-
-  // 필터 중에는 전량 트리를 지연 캐시와 **같은 모양**으로 펴서 넣는다 — 렌더러가
-  // 하나로 유지되고, "미로드(undefined)" 와 "빈 폴더([])" 의 구별도 그대로 산다.
-  const filteredMap = useMemo(
-    () => (filtering ? flattenToDirMap(filteredNodes) : null),
-    [filtering, filteredNodes],
-  );
-
-  const childrenOf = useCallback(
-    (dirPath: string) => (filteredMap ?? dirCache).get(dirPath),
-    [filteredMap, dirCache],
-  );
-
   const treeIsEmpty = (childrenOf("") ?? []).length === 0 && !loadingDirs.has("") && !draft;
 
-  // 필터 중엔 매치가 보이도록 전부 펼친다 (사용자 펼침 상태는 건드리지 않음).
-  const expandedForRender = useMemo(() => {
-    if (!filtering) return expanded;
-    return new Set(collectDirs(filteredNodes));
-  }, [filtering, expanded, filteredNodes]);
+  /** 트리 행과의 상호작용 — 클릭·키보드 표면·로빙 tabindex·우클릭 메뉴. */
+  const { clickRow, treeFocusPath, cut, cutFrom, pasteHere, onTreeKeyDown, openTreeMenu } =
+    useTreeInteraction({
+      treeOrder,
+      expandedForRender,
+      treeFocus,
+      setTreeFocus,
+      setExpanded,
+      loadDir,
+      setMarks,
+      markAnchor,
+      setMarkAnchor,
+      clearMarks,
+      targetsFor,
+      openPath,
+      startCreate,
+      startRename,
+      askDelete,
+      moveInto: ops.moveInto,
+      pasteFiles,
+      selected,
+      tabsRef,
+      setMenu,
+    });
 
-  /**
-   * 브레드크럼의 폴더 조각 → 트리에서 그 자리를 펼쳐 보여 준다.
-   * 필터 중이면 필터를 걷는다 — 필터된 트리에는 그 폴더가 없을 수 있다.
-   */
-  const revealDir = useCallback(
-    (dir: string) => {
-      setFilter("");
-      const dirs = [...ancestorDirs(dir + "/x"), dir];
-      setExpanded((prev) => {
-        const next = new Set(prev);
-        for (const d of dirs) next.add(d);
-        return next;
-      });
-      for (const d of dirs) loadDir(d);
-    },
-    [loadDir],
-  );
-
-  const toggleDir = useCallback(
-    (path: string) => {
-      setTreeFocus({ path, isDir: true });
-      setExpanded((prev) => {
-        const next = new Set(prev);
-        if (next.has(path)) next.delete(path);
-        else {
-          next.add(path);
-          loadDir(path);
-        }
-        return next;
-      });
-    },
-    [loadDir],
-  );
-
-  /** 지금 트리에 보이는 순서 — ⇧ 범위 선택과 화살표 이동의 기준. */
-  const treeOrder = useMemo(
-    () => visibleEntries(childrenOf, expandedForRender),
-    [childrenOf, expandedForRender],
-  );
-
-  /**
-   * 트리 행을 눌렀다. 평범한 클릭은 예전 그대로다 — 하나만 뽑고, 파일이면 열고
-   * 폴더면 펼친다. ⌘·⇧ 는 **고르기만** 한다 (열면 뽑아 둔 것이 곧바로 흩어진다).
-   */
-  const clickRow = useCallback(
-    (path: string, isDir: boolean, e: React.MouseEvent) => {
-      const intent = clickIntent(e);
-      if (intent === "toggle") {
-        setMarks((prev) => toggleMark(prev, { path, isDir }));
-        setMarkAnchor(path);
-        return;
-      }
-      if (intent === "range") {
-        setMarks(marksOf(rangeBetween(treeOrder, markAnchor, path)));
-        return;
-      }
-      setMarks(marksOf([{ path, isDir }]));
-      setMarkAnchor(path);
-      setTreeFocus({ path, isDir });
-      if (isDir) toggleDir(path);
-      else openPath(path, null, undefined, { preview: true });
-    },
-    [markAnchor, treeOrder, toggleDir, openPath],
-  );
-
-  /**
-   * 트리가 Tab 으로 들어오는 자리. 서 있던 행이 사라졌으면(옮김·삭제·필터)
-   * 첫 행으로 돌아간다 — 없는 경로가 주인이면 트리에 **아예 들어갈 수 없다**.
-   */
-  const treeFocusPath =
-    treeFocus && treeOrder.some((x) => x.path === treeFocus.path)
-      ? treeFocus.path
-      : (treeOrder[0]?.path ?? null);
-
-  /** 트리의 키보드 표면 — 화살표 이동과 ⌘X/⌘V. 둘 다 `treeFocus` 를 공유한다. */
-  const { cut, cutFrom, pasteInto, pasteHere, onKeyDown: onTreeKeyDown } = useTreeKeys({
-    order: treeOrder,
-    focus: treeFocus,
-    setFocus: setTreeFocus,
-    isExpanded: (dir) => expandedForRender.has(dir),
-    setMarks,
-    markAnchor,
-    setMarkAnchor,
-    clearMarks,
-    targetsFor,
-    toggleDir,
-    openPath,
-    startRename,
-    askDelete,
-    moveInto: ops.moveInto,
-    pasteFiles,
-    selectedPath: selected,
+  // 화면 단축키 — 이 화면이 보일 때만 (목록은 `useCodeScreenKeys` 머리말에).
+  useCodeScreenKeys({
+    isVisible,
+    tabsRef,
+    setTabs,
+    quickOpenFilesRef,
+    setQuickOpen,
+    openGoto,
+    toggleWordWrap,
+    toggleSidebar,
+    reopenClosedTab,
+    openSearch,
+    pasteHere,
+    cutFrom,
+    startCreate,
   });
-
-  const openTreeMenu = useCallback(
-    (e: React.MouseEvent, entry: { path: string; isDir: boolean } | null) => {
-      const items = treeMenuItems(entry, {
-        startCreate,
-        startRename,
-        // 뽑아 둔 것 안에서 우클릭했으면 그 전부가 대상이다 — 메뉴가 하나만
-        // 지우면 방금 열 개를 고른 손이 무엇을 눌러야 할지 알 수 없다.
-        askDelete: (path, isDir) => askDelete(targetsFor(path, isDir)),
-        cut: (path, isDir) => cutFrom({ path, isDir }),
-        // 잘라 둔 것이 없으면 항목을 아예 그리지 않는다 — 회색으로 놔두면
-        // 왜 못 누르는지 알 수 없다.
-        paste: cut.size > 0 ? () => pasteInto(entry) : undefined,
-        openBeside: (path) =>
-          openPath(path, null, tabsRef.current.panes.length > 1 ? 1 : 0),
-      });
-      setMenu({ x: e.clientX, y: e.clientY, items });
-    },
-    [startCreate, startRename, askDelete, targetsFor, cut.size, cutFrom, pasteInto, openPath],
-  );
-
-  // 화면 단축키 — 이 화면이 보일 때만.
-  //   ⌃Tab / ⌃⇧Tab · ⇧⌘] / ⇧⌘[ : 탭 순환 (브라우저·VS Code 관례 양쪽)
-  //   ⇧⌘T : 닫은 탭 다시 열기
-  //   ⇧⌘F : 전역 검색 (사이드바를 검색 패널로 전환 + 입력 포커스)
-  //   ⌘N : 새 파일 (보고 있던 파일의 폴더에)
-  //   ⇧⌘O / ⌃G : 파일 안에서 심볼·줄로 이동
-  // ⌘W 는 여기 없다 — macOS 는 메뉴 액셀러레이터가 keydown 보다 먼저 먹으므로
-  // 위의 closeIntent 사슬이 받는다. keydown 에도 달면 두 번 닫힌다.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || !isVisible()) return;
-      if (e.ctrlKey && !e.metaKey && !e.altKey && e.key === "Tab") {
-        e.preventDefault();
-        setTabs((prev) => cycleTab(prev, e.shiftKey ? -1 : 1));
-        return;
-      }
-      // ⌃G — CM6 기본 키맵에 없는 조합이라 여기서 처음 잡힌다 (emacs 키맵을
-      // 쓰지 않는다). ⌘ 조합보다 먼저 봐야 아래 metaKey 게이트에 안 걸린다.
-      if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "g") {
-        e.preventDefault();
-        openGoto(true);
-        return;
-      }
-      // ⌥Z — 줄바꿈. `code` 로 본다: macOS 에서 ⌥Z 의 `key` 는 "Ω" 다.
-      if (e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.code === "KeyZ") {
-        e.preventDefault();
-        toggleWordWrap();
-        return;
-      }
-      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
-      if (!e.shiftKey && e.key.toLowerCase() === "p") {
-        e.preventDefault();
-        if (quickOpenFilesRef.current.length > 0) setQuickOpen(true);
-        return;
-      }
-      if (!e.shiftKey && e.key.toLowerCase() === "b") {
-        e.preventDefault();
-        toggleSidebar();
-        return;
-      }
-      // 괄호 키는 `key` 가 아니라 `code` 로 본다 — ⇧ 조합·비영어 자판에서
-      // `key` 값이 갈라진다.
-      if (e.shiftKey && (e.code === "BracketRight" || e.code === "BracketLeft")) {
-        e.preventDefault();
-        setTabs((prev) => cycleTab(prev, e.code === "BracketRight" ? 1 : -1));
-        return;
-      }
-      if (e.shiftKey && e.key.toLowerCase() === "t") {
-        e.preventDefault();
-        reopenClosedTab();
-        return;
-      }
-      if (e.shiftKey && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        openSearch();
-        return;
-      }
-      if (e.shiftKey && e.key.toLowerCase() === "o") {
-        e.preventDefault();
-        openGoto(false);
-        return;
-      }
-      // 편집면(`.monaco-editor`)·입력칸의 ⌘X/⌘V 는 글자 잘라내기·붙여넣기다 — 가로채면 타이핑이 망가진다.
-      const editing = (e.target as HTMLElement | null)?.closest?.(
-        ".monaco-editor, input, textarea, [contenteditable='true']",
-      );
-      if (!e.shiftKey && e.key.toLowerCase() === "v") {
-        if (editing) return;
-        pasteHere();
-        return;
-      }
-      if (!e.shiftKey && e.key.toLowerCase() === "x") {
-        if (editing) return;
-        e.preventDefault();
-        cutFrom(null);
-        return;
-      }
-      if (!e.shiftKey && e.key.toLowerCase() === "n") {
-        e.preventDefault();
-        const current = focusedPath(tabsRef.current);
-        startCreate(current != null ? parentDir(current) : "", false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isVisible, reopenClosedTab, startCreate, openSearch, pasteHere, cutFrom, openGoto, toggleWordWrap, toggleSidebar]);
-
 
   /** 트리 안 드래그 이동 — 놓는 순간 이름 바꾸기(=이동)로 합류한다. */
   const treeDrag = useTreeDrag({
@@ -985,126 +473,68 @@ export function CodeScreenV2({
   }, [setState]);
 
   // ── 하단 패널 높이 (#panel-resize) ─────────────────────────────────────
-  // 드래그 중에는 로컬 값으로만 그리고, 놓는 순간 영속한다 — 매 이동마다
-  // 컨텍스트를 통과시키면 창 전체가 60fps 로 리렌더된다.
-  const persistedPanelHeight = state.codePanelHeight;
-  const [livePanelHeight, setLivePanelHeight] = useState<number | null>(null);
-  const panelHeight = livePanelHeight ?? persistedPanelHeight;
-  const panelDragRef = useRef<{ startY: number; startH: number } | null>(null);
-
-  const clampPanelHeight = (h: number) => Math.min(560, Math.max(140, Math.round(h)));
-
-  const persistPanelHeight = useCallback(
-    (h: number) => {
-      setLivePanelHeight(null);
-      setState((prev) =>
-        prev.codePanelHeight === h ? prev : { ...prev, codePanelHeight: h },
-      );
-    },
-    [setState],
-  );
-
-  const onResizerPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      e.currentTarget.setPointerCapture(e.pointerId);
-      panelDragRef.current = { startY: e.clientY, startH: panelHeight };
-    },
-    [panelHeight],
-  );
-  const onResizerPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    const drag = panelDragRef.current;
-    if (!drag) return;
-    // 위로 끌면 커진다 (패널은 아래에 붙어 있다).
-    setLivePanelHeight(clampPanelHeight(drag.startH + (drag.startY - e.clientY)));
-  }, []);
-  const onResizerPointerUp = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      const drag = panelDragRef.current;
-      if (!drag) return;
-      panelDragRef.current = null;
-      persistPanelHeight(clampPanelHeight(drag.startH + (drag.startY - e.clientY)));
-    },
-    [persistPanelHeight],
-  );
+  const {
+    panelHeight,
+    clampPanelHeight,
+    persistPanelHeight,
+    onResizerPointerDown,
+    onResizerPointerMove,
+    onResizerPointerUp,
+  } = usePanelResize({ persistedPanelHeight: state.codePanelHeight, setState });
 
   // 트리 사이드바 — 좌/우 어느 쪽이든 **DOM 순서를 화면 순서와 같게** 두 자리
   // 중 한 곳에 렌더한다 (터미널 도크와 같은 원칙: row-reverse 로 뒤집으면
   // Tab 이동이 눈에 보이는 차례와 어긋난다).
   // 검색 모드에서는 같은 자리를 검색 패널이 통째로 가져간다.
   const sidebarEl = (
-    <aside className={"code-sidebar" + (sidebarOnRight ? " on-right" : "")}>
-      {sidebarMode === "search" ? (
-        <CodeSearchPanel
-          projectId={projectId}
-          opts={state.codeSearchOpts}
-          onOptsChange={(next) => setState((prev) => ({ ...prev, codeSearchOpts: next }))}
-          dirtyPaths={dirtyPaths}
-          onOpenHit={(path, line, ch, len) => openPath(path, line, undefined, { ch, len })}
-          onClose={() => setSidebarMode("files")}
-          focusSeq={searchFocusSeq}
-        />
-      ) : (
-        <>
-      <CodeSidebarHead
-        filter={filter}
-        onFilterChange={setFilter}
-        onOpenSearch={openSearch}
-        onNewFile={() => startCreate("", false)}
-        onNewFolder={() => startCreate("", true)}
-        sidebarOnRight={sidebarOnRight}
-        onToggleSide={toggleSidebarSide}
-      />
-      <CodeTreeRoot
-        name={state.currentProjectName || (projectRoot ? baseName(projectRoot) : "")}
-        canCollapse={expanded.size > 0 && !filtering}
-        onCollapseAll={() => setExpanded(new Set())}
-      />
-      {tree?.truncated ? <div className="code-truncated">{t("code.truncated")}</div> : null}
-      {treeIsEmpty ? (
-        <div className="code-tree-empty">
-          {filtering ? t("code.noMatch") : t("code.tree.empty")}
-        </div>
-      ) : (
-        <CodeTree
-          childrenOf={childrenOf}
-          loadingDirs={loadingDirs}
-          selected={selected}
-          expanded={expandedForRender}
-          dirtyPaths={dirtyPaths}
-          openPaths={openPaths}
-          gitMarks={gitDecor.marks}
-          problemMarks={problemMarks}
-          draft={draft}
-          marks={marks}
-          // 트리 안에서 tabindex 를 가진 자리는 언제나 하나여야 한다.
-          focusPath={treeFocusPath}
-          cutPaths={cut}
-          onKeyDown={onTreeKeyDown}
-          onClickRow={clickRow}
-          // 더블클릭은 고정 — 첫 클릭이 이미 열었으므로 승격만 하면 된다.
-          onPin={(path) => pinPath(tabsRef.current.focused, path)}
-          onDraftSubmit={ops.submitDraft}
-          onDraftCancel={ops.cancelDraft}
-          onContextMenu={openTreeMenu}
-          rowDrag={treeDrag.rowDrag}
-          draggingPaths={treeDrag.draggingPaths}
-          // Finder 드롭과 트리 안 이동이 같은 자리를 밝힌다 — 둘이 동시에
-          // 일어날 수는 없다.
-          dropDir={dropDir ?? treeDrag.dropDir}
-        />
-      )}
-      {treeDrag.ghost}
-      <CodeOutline
-        symbols={symbols}
-        loading={symbolsLoading}
-        open={outlineOpen}
-        cursorLine={cursorLine}
-        onToggleOpen={() => setOutlineOpen((v) => !v)}
-        onJump={(line) => selected && openPath(selected, line + 1)}
-      />
-        </>
-      )}
-    </aside>
+    <CodeSidebar
+      projectId={projectId}
+      sidebarOnRight={sidebarOnRight}
+      sidebarMode={sidebarMode}
+      onCloseSearch={() => setSidebarMode("files")}
+      searchOpts={state.codeSearchOpts}
+      onSearchOptsChange={(next) => setState((prev) => ({ ...prev, codeSearchOpts: next }))}
+      searchFocusSeq={searchFocusSeq}
+      dirtyPaths={dirtyPaths}
+      openPath={openPath}
+      filter={filter}
+      onFilterChange={setFilter}
+      onOpenSearch={openSearch}
+      onNewFile={() => startCreate("", false)}
+      onNewFolder={() => startCreate("", true)}
+      onToggleSide={toggleSidebarSide}
+      rootName={state.currentProjectName || (projectRoot ? baseName(projectRoot) : "")}
+      canCollapse={expanded.size > 0 && !filtering}
+      onCollapseAll={() => setExpanded(new Set())}
+      truncated={tree?.truncated === true}
+      treeIsEmpty={treeIsEmpty}
+      filtering={filtering}
+      childrenOf={childrenOf}
+      loadingDirs={loadingDirs}
+      selected={selected}
+      expandedForRender={expandedForRender}
+      openPaths={openPaths}
+      gitMarks={gitDecor.marks}
+      problemMarks={problemMarks}
+      draft={draft}
+      marks={marks}
+      treeFocusPath={treeFocusPath}
+      cut={cut}
+      onTreeKeyDown={onTreeKeyDown}
+      onClickRow={clickRow}
+      // 더블클릭은 고정 — 첫 클릭이 이미 열었으므로 승격만 하면 된다.
+      onPin={(path) => pinPath(tabsRef.current.focused, path)}
+      onDraftSubmit={ops.submitDraft}
+      onDraftCancel={ops.cancelDraft}
+      onContextMenu={openTreeMenu}
+      treeDrag={treeDrag}
+      dropDir={dropDir}
+      symbols={symbols}
+      symbolsLoading={symbolsLoading}
+      outlineOpen={outlineOpen}
+      cursorLine={cursorLine}
+      onToggleOutline={() => setOutlineOpen((v) => !v)}
+    />
   );
 
   return (
@@ -1326,146 +756,25 @@ export function CodeScreenV2({
         />
       ) : null}
 
-      <AppDialog
+      <DebugLaunchDialog
         open={launchOpen}
         onClose={() => setLaunchOpen(false)}
-        label={t("code.debug.startTitle")}
-        width={460}
-      >
-        <form
-          style={{ padding: "18px 20px 16px" }}
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (starting || !launchForm.program.trim()) return;
-            setStarting(true);
-            void debug.start(toLaunchRequest(launchForm)).then((error) => {
-              setStarting(false);
-              if (error) {
-                toast.destructive(t("code.debug.startFailed", { error: tError(error) }));
-                return;
-              }
-              setLaunchOpen(false);
-              setDebugOpen(true);
-            });
-          }}
-        >
-          <h2 style={{ margin: "0 0 12px", fontSize: "var(--fs-5)", fontWeight: "var(--fw-bold)" }}>
-            {t("code.debug.startTitle")}
-          </h2>
-          <label style={LABEL} htmlFor="dap-language">{t("code.debug.language")}</label>
-          <select
-            id="dap-language"
-            className="input"
-            value={launchForm.language}
-            onChange={(e) => setLaunchForm((p) => ({ ...p, language: e.target.value }))}
-            style={{ width: "100%", marginBottom: 12 }}
-          >
-            <option value="rust">rust</option>
-            <option value="python">python</option>
-            <option value="go">go</option>
-          </select>
+        form={launchForm}
+        setForm={setLaunchForm}
+        start={debug.start}
+        onStarted={() => {
+          setLaunchOpen(false);
+          setDebugOpen(true);
+        }}
+      />
 
-          <label style={LABEL} htmlFor="dap-program">{t("code.debug.program")}</label>
-          <input
-            id="dap-program"
-            className="input"
-            value={launchForm.program}
-            onChange={(e) => setLaunchForm((p) => ({ ...p, program: e.target.value }))}
-            spellCheck={false}
-            autoComplete="off"
-            style={{ width: "100%", fontFamily: "var(--mono)" }}
-          />
-          <p style={HINT}>{t("code.debug.programHint")}</p>
-
-          <label style={LABEL} htmlFor="dap-args">{t("code.debug.args")}</label>
-          <input
-            id="dap-args"
-            className="input"
-            value={launchForm.args}
-            onChange={(e) => setLaunchForm((p) => ({ ...p, args: e.target.value }))}
-            spellCheck={false}
-            autoComplete="off"
-            style={{ width: "100%", fontFamily: "var(--mono)", marginBottom: 12 }}
-          />
-
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--fs-4)" }}>
-            <input
-              type="checkbox"
-              checked={launchForm.stopOnEntry}
-              onChange={(e) => setLaunchForm((p) => ({ ...p, stopOnEntry: e.target.checked }))}
-            />
-            {t("code.debug.stopOnEntry")}
-          </label>
-
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-            <button type="button" className="btn sm" onClick={() => setLaunchOpen(false)} disabled={starting}>{t("common.cancel")}</button>
-            <button type="submit" className="btn sm primary" {...blocked(launchForm.program.trim() ? null : t("code.debug.blockedNoProgram"))} disabled={starting}>
-              {t("code.debug.start")}
-            </button>
-          </div>
-        </form>
-      </AppDialog>
-
-      <AppDialog
-        open={pendingDelete != null}
-        onClose={() => ops.setPendingDelete(null)}
-        label={t("code.ops.deleteTitle")}
-        width={440}
-      >
-        <div style={{ padding: "18px 20px 16px" }}>
-          <h2 style={{ margin: "0 0 10px", fontSize: "var(--fs-5)", fontWeight: "var(--fw-bold)" }}>
-            {t("code.ops.deleteTitle")}
-          </h2>
-          <p style={{ margin: 0, fontSize: "var(--fs-4)", lineHeight: 1.7 }}>
-            {/* 하나면 그 이름을 부른다 — 여럿이면 이름 열 개를 늘어놓는 대신
-                개수로 말하고, 무엇이 걸렸는지는 아래 탭 목록이 보여 준다. */}
-            {pendingDelete && pendingDelete.targets.length > 1
-              ? t("code.ops.deleteManyAsk", { count: pendingDelete.targets.length })
-              : t(
-                  pendingDelete?.targets[0]?.isDir
-                    ? "code.ops.deleteFolderAsk"
-                    : "code.ops.deleteFileAsk",
-                  { name: pendingDelete ? baseName(pendingDelete.targets[0]?.path ?? "") : "" },
-                )}
-          </p>
-          <p style={{ margin: "8px 0 0", fontSize: "var(--fs-3)", color: "var(--text-3)", lineHeight: 1.6 }}>
-            {t("code.ops.deleteTrashNote")}
-          </p>
-          {/* 열려 있던 탭·미저장 편집은 **누르기 전에** 말한다. */}
-          {pendingDelete && pendingDelete.openTabs.length > 0 ? (
-            <div className="code-delete-open" role="note">
-              <strong>{t("code.ops.deleteOpenTabs", { count: pendingDelete.openTabs.length })}</strong>
-              <ul>
-                {pendingDelete.openTabs.map((p) => (
-                  <li key={p} className={dirtyPaths.has(p) ? "dirty" : undefined}>
-                    {p}
-                    {dirtyPaths.has(p) ? ` — ${t("code.dirty")}` : ""}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-            <button
-              type="button"
-              className="btn sm"
-              onClick={() => ops.setPendingDelete(null)}
-              disabled={deleting}
-            >
-              {t("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className="btn sm code-conflict-overwrite"
-              onClick={ops.confirmDelete}
-              disabled={deleting}
-            >
-              {deleting ? t("code.ops.deleting") : t("code.ops.delete")}
-            </button>
-          </div>
-        </div>
-      </AppDialog>
+      <DeleteConfirmDialog
+        pendingDelete={pendingDelete}
+        deleting={deleting}
+        dirtyPaths={dirtyPaths}
+        onCancel={() => ops.setPendingDelete(null)}
+        onConfirm={ops.confirmDelete}
+      />
     </>
   );
 }
-
