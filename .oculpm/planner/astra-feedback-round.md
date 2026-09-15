@@ -28,10 +28,10 @@ docs/Astra feedback/ 의 10점 마스터보고서·백로그 48건을 검토해(
 - [x] docs/README.md 색인에 docs/Astra feedback/ 를 외부 리뷰(살아 있는 백로그 출처)로 한 줄 추가 {#docs-index}
 
 ## Phase 5 — 합류·게이트·이월 {#p5-merge}
-- [ ] 병렬 세션 브랜치를 feat/astra-feedback-round 로 합류 → typecheck·test·lint·build·cargo fmt/clippy/test 전부 exit 0 직접 확인 → PR → CI 초록이면 rebase 머지 {#merge-gates}
+- [x] 병렬 세션 브랜치를 feat/astra-feedback-round 로 합류 → typecheck·test·lint·build·cargo fmt/clippy/test 전부 exit 0 직접 확인 → PR → CI 초록이면 rebase 머지 {#merge-gates}
 - [x] improvement-round-2026-09-14 #verified-loop 를 #reviewed-hash 일지로 닫기 {#verified-loop-close}
 - [ ] 실기기·다음 릴리스: gate 잡이 CI 를 기다렸다 통과하는지, codesign/spctl/stapler 검증 로그, draft→공개 전환, 설치본 자동 업데이트 정상 (릴리스 때 확인) {#eyes-release-gate}
-- [ ] 랜딩 등급표 배포 — cd landing && vercel --prod (수동, 머지 뒤) {#landing-deploy}
+- [x] 랜딩 등급표 배포 — cd landing && vercel --prod (수동, 머지 뒤) {#landing-deploy}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -51,4 +51,6 @@ docs/Astra feedback/ 의 10점 마스터보고서·백로그 48건을 검토해(
 | 2026-09-15T22:01:53+09:00 | #ci-ext-unit | claude-code | ☐→x | .oculpm/journal/20260915/Features_to_add/2201_feature_release-gate-sign-verify.md | Y1 완료 6826f63 — extension vitest 27 통과. vscode-test(xvfb) 는 후속 |
 | 2026-09-15T22:15:54+09:00 | #reviewed-hash | claude-code | ~→x | .oculpm/journal/20260915/Features_to_add/2215_feature_verified-hash-stale-review.md | R3 완료 51c6034+2001325 + 해요체 fix-up — verified_hash·verified_stale(039)·「다시 검토」. 육안은 eyes 원장으로 |
 | 2026-09-15T22:16:06+09:00 | #verified-loop-close | claude-code | ☐→x |  | improvement-round #verified-loop done 처리 |
+| 2026-09-15T22:25:18+09:00 | #merge-gates | claude-code | ☐→x |  | PR #24 CI 3잡 success → rebase 머지, main 1e4116b4. 로컬 게이트 전부 0 확인 뒤 푸시 |
+| 2026-09-15T22:25:23+09:00 | #landing-deploy | claude-code | ☐→x |  | vercel --prod → oculpm.com 별칭, 등급 문구 라이브 확인 (api/notion TS 경고는 기존 비치명) |
 <!-- oculpm:plan-log end -->
