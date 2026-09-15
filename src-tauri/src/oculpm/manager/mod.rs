@@ -23,7 +23,7 @@ use tokio::sync::RwLock;
 use crate::db::Db;
 use crate::oculpm::agents::{self, AgentDetection};
 use crate::oculpm::atomic_io::{
-    read_managed_block, write_atomic, write_managed_block, ManagedBlockResult,
+    read_managed_block, write_atomic, write_atomic_new, write_managed_block, ManagedBlockResult,
 };
 use crate::oculpm::cache::{
     CacheReindexReport, EntryFilters, EntryPage, JournalCache, PathChangeKind,
@@ -395,28 +395,47 @@ pub(crate) fn category_subdir(t: EntryType) -> &'static str {
     }
 }
 
-/// Resolve a non-conflicting file path: `base.md` first, then `base__2.md`,
-/// `base__3.md`, …. Returns the absolute path and the chosen file name.
-pub(crate) fn pick_nonconflicting_path(dir: &Path, base: &str) -> (PathBuf, String) {
-    let initial = format!("{base}.md");
-    let first = dir.join(&initial);
-    if !first.exists() {
-        return (first, initial);
-    }
-    for n in 2..=999 {
-        let name = format!("{base}__{n}.md");
-        let p = dir.join(&name);
-        if !p.exists() {
-            return (p, name);
+/// 새 일지 파일을 `dir` 아래에 **배타적으로** 만든다 — `base.md` 부터
+/// `base__2.md`, `base__3.md`, … 순으로 빈 이름을 잡아 `contents` 를 게시하고
+/// (절대경로, 파일명) 을 돌려준다 (규격 §2.1 의 충돌 접미사).
+///
+/// 세 쓰기 진입점(MCP `journal_write` · 앱 수동 작성 · git 백필)이 전부 이
+/// 함수를 탄다. 예전에는 `exists()` 로 빈 이름을 고른 뒤 `write_atomic`
+/// (tmp → `rename`) 으로 게시했는데, 그 두 호출 사이가 열려 있었다: 같은
+/// 분·종류·slug 로 동시에 쓰는 두 **프로세스**(앱과 MCP 서버, 또는 병렬
+/// 에이전트 세션이 띄운 MCP 서버 둘)가 둘 다 `base.md` 를 비었다고 보고,
+/// 뒤의 `rename` 이 앞 프로세스의 일지를 소리 없이 덮었다 (B04/B05).
+/// 인프로세스 뮤텍스는 프로세스 경계에서 아무것도 아니므로 **이름 선점
+/// 자체가 원자적**이어야 한다 — [`write_atomic_new`] 는 목적지가 있으면
+/// `AlreadyExists` 로 거부하고, 여기서는 그 거부를 "다음 번호로" 신호로
+/// 읽는다. 다른 io 오류(권한·디스크)는 그대로 올린다.
+///
+/// `pub` 인 이유: `tests/journal_create_two_process.rs` 가 진입점을 거치지
+/// 않고 같은 `base` 로 직접 때려 번호 매김까지 단언한다.
+pub fn create_journal_file(
+    dir: &Path,
+    base: &str,
+    contents: &[u8],
+) -> Result<(PathBuf, String), OculpmError> {
+    // 999 를 넘는 충돌은 비현실적이다 — 마지막 후보는 타임스탬프.
+    let candidates = std::iter::once(format!("{base}.md"))
+        .chain((2..=999).map(|n| format!("{base}__{n}.md")))
+        .chain(std::iter::once_with(|| {
+            format!(
+                "{base}__{}.md",
+                chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+            )
+        }));
+    let mut last_err = None;
+    for name in candidates {
+        let path = dir.join(&name);
+        match write_atomic_new(&path, contents) {
+            Ok(()) => return Ok((path, name)),
+            Err(e) if e.is_already_exists() => last_err = Some(e),
+            Err(e) => return Err(e),
         }
     }
-    // Theoretical fallback — collisions beyond 999 are absurd. Use timestamp.
-    let name = format!(
-        "{base}__{}.md",
-        chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
-    );
-    let p = dir.join(&name);
-    (p, name)
+    Err(last_err.expect("후보 이름이 하나도 없을 수 없다"))
 }
 
 /// Extract the project tz from a `WorkdayResolver` for local-time

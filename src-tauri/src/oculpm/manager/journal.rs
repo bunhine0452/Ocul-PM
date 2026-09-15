@@ -524,8 +524,9 @@ impl OculpmManager {
         let (body, _hits) = redact_text(&body, &redact);
         let text = write_frontmatter_and_body(&fm, &body);
 
-        // Resolve target path + write atomically. On filename collision we
-        // suffix `__2`, `__3`, … per spec §2.1.
+        // 배타적 생성 — 이름 충돌은 `__2`, `__3`, … 로 비켜 간다 (규격 §2.1).
+        // 선점과 게시가 한 번에 일어나므로 다른 프로세스와 같은 이름을 골라도
+        // 서로를 덮지 않는다 (`create_journal_file` 주석).
         let category_dir = resolver.journal_dir(&root, &workday, draft.entry_type);
         std::fs::create_dir_all(&category_dir).map_err(|source| OculpmError::Io {
             path: category_dir.clone(),
@@ -533,8 +534,7 @@ impl OculpmManager {
         })?;
         let type_str = entry_type_filename_token(draft.entry_type);
         let base_name = format!("{hhmm}_{type_str}_{}", draft.slug);
-        let (abs, file_name) = pick_nonconflicting_path(&category_dir, &base_name);
-        write_atomic(&abs, text.as_bytes())?;
+        let (abs, file_name) = create_journal_file(&category_dir, &base_name, text.as_bytes())?;
 
         // Upsert into the cache so the caller can re-read immediately.
         let relative_path = format!(
