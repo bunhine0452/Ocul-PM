@@ -66,18 +66,31 @@ pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<(), OculpmError> {
 /// 이름을 `exists()` 로 고른 뒤 `write_atomic` 하는 조합은 두 프로세스가
 /// 같은 이름을 고르면 뒤가 앞을 덮는다 — 그 창을 막는 것이 이 함수의 존재
 /// 이유다 (`manager::create_journal_file` 참고).
+///
+/// 하드링크가 없는 파일시스템(exFAT/FAT · 일부 네트워크 마운트)에서는
+/// `rename` 으로 물러선다 — 그 볼륨 하나에서는 배타성을 잃지만, 거기서 일지
+/// 쓰기 자체가 막히는 것은 우리가 닫으려는 경합보다 큰 퇴행이다.
 pub fn write_atomic_new(path: &Path, contents: &[u8]) -> Result<(), OculpmError> {
     let tmp = stage_tmp(path, contents)?;
 
-    if let Err(source) = std::fs::hard_link(&tmp, path) {
+    let published = match std::fs::hard_link(&tmp, path) {
+        Ok(()) => Ok(()),
+        // 목적지가 있다 — 호출자가 다음 이름으로 넘어가는 신호. 그대로 올린다.
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Err(e),
+        // `link(2)` 를 지원하지 않는 볼륨(EPERM/ENOTSUP 등). `write_atomic` 과
+        // 같은 `rename` 게시로 물러선다 — 이 FS 에서만 exists→rename 창이 남는다
+        // (`file_guard::put_back` 도 같은 이유로 같은 모양이다).
+        Err(_) => std::fs::rename(&tmp, path),
+    };
+    if let Err(source) = published {
         let _ = std::fs::remove_file(&tmp);
         return Err(OculpmError::Io {
             path: path.to_path_buf(),
             source,
         });
     }
-    // 게시는 끝났다 — 두 번째 이름만 걷는다. 이 삭제가 실패해도 `path` 는
-    // 온전하므로 오류로 올리지 않는다 (남는 것은 같은 inode 의 tmp 이름 하나).
+    // 게시는 끝났다 — 두 번째 이름만 걷는다 (`rename` 뒤라면 이미 없다). 이
+    // 삭제가 실패해도 `path` 는 온전하므로 오류로 올리지 않는다.
     let _ = std::fs::remove_file(&tmp);
     Ok(())
 }
