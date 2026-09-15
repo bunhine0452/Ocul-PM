@@ -233,6 +233,29 @@ export function DoctorSection() {
               : { id: "watcher", labelKey: "settings.doctor.watcher", state: "warn", value: t("settings.doctor.v.stopped"), action: { labelKey: "settings.doctor.a.start", run: restart } },
     );
 
+    // 스케줄링 계측 ({#scheduling-telemetry}) — perf-baseline §7 이 "재는 계측이
+    // 없다" 고 적어 둔 숫자들: 큐가 얼마나 찼나(깊이·고수위), 처리기가 워커를
+    // 얼마나 오래 잡았나(누적·최대), 버림이 몇 번인가. 워처를 켠 뒤의 누계라
+    // 리셋하지 않고, 워처가 돌지 않으면 전부 0 이라 회색 점으로 둔다.
+    const sc = s?.watcher_sched;
+    out.push(
+      !s || !sc
+        ? { id: "watcher-sched", labelKey: "settings.doctor.watcherSched", state: "off", value: unknown }
+        : {
+            id: "watcher-sched",
+            labelKey: "settings.doctor.watcherSched",
+            state: s.watcher_state === "running" && !s.watcher_user_paused ? "ok" : "off",
+            value: t("settings.doctor.v.watcherSched", {
+              events: sc.events_total,
+              dropped: sc.dropped_total,
+              depth: sc.queue_depth,
+              high: sc.queue_high_water,
+              total: (sc.handle_ms_total / 1000).toFixed(1),
+              max: sc.handle_max_ms,
+            }),
+          },
+    );
+
     const takeOver = async () => {
       const r = await commands.oculpmWatcherTakeOver(projectId);
       if (r.status === "error") toast.destructive(t("settings.doctor.a.failed", { error: tError(r.error) }));

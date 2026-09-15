@@ -215,6 +215,7 @@ impl OculpmManager {
                         .map(|s| s.dropped_total)
                         .unwrap_or(0),
                     watcher_user_paused: entry.user_paused,
+                    watcher_sched: watcher_status.map(|s| s.sched).unwrap_or_default(),
                 }
             }
             None => OculpmStatus {
@@ -225,6 +226,7 @@ impl OculpmManager {
                 watcher_state: WatcherStateView::Stopped,
                 watcher_dropped_total: 0,
                 watcher_user_paused: false,
+                watcher_sched: WatcherSchedStats::default(),
             },
         }
     }
@@ -732,6 +734,7 @@ impl OculpmManager {
                     last_event_at: None,
                     debounce_ms: entry.config.watcher.debounce_ms,
                     dropped_total: 0,
+                    sched: WatcherSchedStats::default(),
                 },
             },
             None => WatcherStatus {
@@ -741,6 +744,7 @@ impl OculpmManager {
                 last_event_at: None,
                 debounce_ms: 0,
                 dropped_total: 0,
+                sched: WatcherSchedStats::default(),
             },
         }
     }

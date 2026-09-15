@@ -215,6 +215,96 @@ async fn one_panicking_event_does_not_kill_the_loop() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 스케줄링 계측 (`{#scheduling-telemetry}`)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// perf-baseline §7 이 "없다" 고 적어 둔 계측 — 큐 깊이·고수위·처리 시간이
+/// 소비 루프를 따라 움직인다. **관계만 단언한다**: 느린 처리기가 이벤트마다
+/// 최소 얼마를 쓰는지는 `sleep` 이 보장하지만 정확한 값은 러너의 것이다.
+#[tokio::test]
+async fn scheduling_counters_follow_the_drain() {
+    struct Slow;
+    impl WatcherSink for Slow {
+        async fn handle_event(&self, _e: DebouncedEvent) {
+            // ms 단위 계수기가 0 에 머물지 않을 만큼만 느리다.
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+        async fn resync_after_drops(&self, _dropped: u64) {}
+    }
+
+    let n = 20usize;
+    let (tx, rx) = watcher_queue::channel(DEFAULT_CAPACITY);
+    let metrics = rx.metrics();
+
+    // 아무것도 흐르기 전 — 전부 0.
+    assert_eq!(metrics.events_total(), 0);
+    assert_eq!(metrics.queue_depth(), 0);
+    assert_eq!(metrics.queue_high_water(), 0);
+    assert_eq!(metrics.handle_ms_total(), 0);
+    assert_eq!(metrics.handle_max_ms(), 0);
+
+    assert_eq!(
+        tx.push_batch((0..n).map(ev).collect()),
+        0,
+        "용량 안이라 버림 없음"
+    );
+    // 소비자가 아직 안 돌았으니 깊이 = 고수위 = N.
+    assert_eq!(metrics.queue_depth(), n);
+    assert_eq!(metrics.queue_high_water(), n);
+    drop(tx);
+
+    watcher_queue::drain_loop(1, rx, Slow).await;
+
+    assert_eq!(metrics.events_total(), n as u64, "꺼낸 이벤트 수 = 넣은 수");
+    assert_eq!(metrics.queue_depth(), 0, "다 비웠다");
+    assert_eq!(
+        metrics.queue_high_water(),
+        n,
+        "고수위는 내려가지 않는다 — 가장 깊었던 순간의 기록"
+    );
+    assert!(
+        metrics.handle_ms_total() > 0,
+        "느린 처리기의 시간이 누계에 보인다"
+    );
+    assert!(metrics.handle_max_ms() >= 1, "가장 느린 한 번도 잡힌다");
+    assert!(
+        metrics.handle_max_ms() <= metrics.handle_ms_total(),
+        "한 번의 최대는 누계를 넘을 수 없다"
+    );
+    assert_eq!(metrics.dropped_total(), 0);
+}
+
+/// 고수위는 **밀어 넣은 직후**의 깊이다 — 소비가 끼어들어 깊이가 낮아져도
+/// 기록은 남고, 넘쳐서 버린 뒤에는 용량에서 멈춘다.
+#[test]
+fn high_water_is_the_deepest_moment_and_caps_at_capacity() {
+    let cap = 8;
+    let (tx, rx) = watcher_queue::channel(cap);
+    let metrics = rx.metrics();
+
+    tx.push_batch((0..3).map(ev).collect());
+    assert_eq!(metrics.queue_high_water(), 3);
+
+    // 두 개 꺼내도(깊이 1) 고수위는 3 그대로.
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    rt.block_on(async {
+        rx.recv().await;
+        rx.recv().await;
+    });
+    assert_eq!(metrics.queue_depth(), 1);
+    assert_eq!(metrics.queue_high_water(), 3);
+
+    // 넘치면 깊이는 용량에서 멈추고 고수위도 용량이다 — 그 이상은 버림 계수기가 말한다.
+    let dropped = tx.push_batch((0..20).map(ev).collect());
+    assert_eq!(dropped, 13, "1 + 20 - 8");
+    assert_eq!(metrics.queue_depth(), cap);
+    assert_eq!(metrics.queue_high_water(), cap);
+    assert_eq!(metrics.dropped_total(), 13);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 곁일 게이트 — 동시 상한과 수명 (`{#index-semaphore}`)
 // ─────────────────────────────────────────────────────────────────────────────
 

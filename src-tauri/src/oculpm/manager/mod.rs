@@ -44,8 +44,8 @@ use crate::oculpm::spec::{
     AgentRef, AgentSyncReport, BackfillReport, CommentStyle, EndedReason, EntryStatus, EntryType,
     FileChangeEvent, FileOp, FileTouched, JournalEntry, JournalEntrySummary, JournalFrontmatter,
     LayerComparison, LockStateView, ManualEntryDraft, OculpmConfig, OculpmInitReport, OculpmStatus,
-    ReindexReport, Session, SessionEnd, Severity, Snapshot, SnapshotKind, WatcherStateView,
-    WatcherStatus,
+    ReindexReport, Session, SessionEnd, Severity, Snapshot, SnapshotKind, WatcherSchedStats,
+    WatcherStateView, WatcherStatus,
 };
 use crate::oculpm::watcher::ProjectWatcher;
 
