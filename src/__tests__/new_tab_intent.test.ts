@@ -72,7 +72,8 @@ describe("⌘T 는 keydown 이 아니라 인텐트로 온다", () => {
    * 먼저 먹는다) 다른 플랫폼에서는 인텐트와 겹쳐 **탭이 두 개** 열린다.
    */
   it("터미널은 ⌘T keydown 을 잡지 않고 사슬에 등록한다", () => {
-    const src = read("features/terminal/TerminalSurface.tsx");
+    // 2026-09-15 분할 — 단축키·인텐트 배선은 terminalSurface/useTerminalKeys 로 갔다.
+    const src = read("features/terminal/terminalSurface/useTerminalKeys.ts");
     expect(src).toContain("registerNewTabHandler");
     expect(src).not.toMatch(/k === "t"/);
   });
