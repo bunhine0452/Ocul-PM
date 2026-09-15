@@ -12,9 +12,19 @@ cd src-tauri && cargo test      # bindings.ts 재생성 포함
 네 개 모두 exit 0 인지 **직접 확인**합니다 (통과했겠거니 하지 않기).
 
 이 게이트는 `.github/workflows/ci.yml` 이 PR 과 main 푸시에서도 자동으로 돌립니다
-(프런트 잡 = typecheck·test·lint·build / Rust 잡 = `cargo test --locked` + bindings 신선도).
-**태그를 밀기 전에 main 의 CI 가 그린인지 확인하세요** — release.yml 은 테스트를 돌리지
-않고 번들만 굽기 때문에, 붉은 main 에 태그를 밀면 깨진 빌드가 그대로 릴리스로 나갑니다.
+(프런트 잡 = typecheck·test·lint·build·확장 vitest / Rust 잡 = `cargo test --locked` + bindings 신선도 / 의존성 잡 = cargo-deny).
+**태그를 밀기 전에 그 커밋의 CI 가 그린인지 확인하세요** — release.yml 은 테스트를 돌리지
+않고 번들만 굽습니다. 다만 사람이 잊어도 이제 기계가 막습니다: release.yml 의 첫 잡 `gate` 가
+**태그가 가리키는 정확히 그 커밋**의 CI run 을 API 로 찾아 `conclusion == success` 일 때만
+빌드로 넘어갑니다. 태그를 커밋 직후에 밀어 CI 가 아직 도는 중이면 60초 간격으로 최대 45분
+기다렸다가 판정하고, `failure`·`cancelled`·`timed_out` 은 물론 **CI run 이 아예 없는 커밋**
+(`[skip ci]`, main 에 없는 커밋)도 차단합니다. 이 게이트가 없던 v3.1.1 은 cargo-deny 잡이
+붉은 커밋에서 그대로 릴리스됐습니다.
+
+게이트에 걸렸을 때: CI 가 실제로 붉으면 고쳐서 새 커밋 → 새 버전으로 다시 갑니다(태그를 옮기지
+않습니다). 같은 브랜치에 연속 푸시해 concurrency 로 **취소된** run 이면 그 run 을 `gh run rerun
+<id>` 로 다시 돌려 초록을 만든 뒤 Release run 을 re-run 합니다(`gh run rerun <release run id>` —
+태그를 다시 밀 필요 없습니다).
 
 ## 1. 버전 — 6파일 (같은 값)
 
@@ -115,10 +125,33 @@ git add <명시 경로만>          # git add -A 금지 (병렬 세션 WIP 를 �
 git commit -m "release: vX.Y.Z — <한 줄 요약>"
 git tag vX.Y.Z
 git push origin main           # 커밋 먼저
-git push origin vX.Y.Z         # 태그는 단독으로 — release.yml 이 빌드·서명·릴리스 (로컬 빌드 금지)
+git push origin vX.Y.Z         # 태그는 단독으로 — release.yml 이 게이트→빌드·서명→검증→공개 (로컬 빌드 금지)
 cd landing && vercel --prod --yes               # 랜딩은 git 연동이 없어 push 로 안 나갑니다
                                                # (§4-1 재빌드가 먼저 — 배포는 디스크에 있는 것만 올립니다)
 ```
+
+태그를 밀면 release.yml 은 이 순서로 갑니다 — **릴리스는 draft 로 만들어졌다가 검증을 전부
+통과한 마지막 단계에서만 공개됩니다**:
+
+1. `gate` — 태그 커밋의 CI `conclusion == success` (§0)
+2. `build` — 핀된 툴체인(`rust-toolchain.toml`, ci.yml 과 같은 단계)으로 번들 → tauri-action 이
+   **draft** 릴리스에 `.dmg` · `.app.tar.gz` · `.sig` · `latest.json` 업로드
+3. 서명·공증 검증 — `.app` 에 `codesign --verify --deep --strict` · `codesign -dvv` 의 Authority 가
+   `Developer ID Application` · `spctl -a -t exec` 가 `accepted` + `source=Notarized Developer ID` ·
+   `xcrun stapler validate`. `.dmg` 는 서명(Developer ID)만 단언하고 공증·스테이플은 로그만 남깁니다 —
+   tauri-bundler 가 `.dmg` 는 공증하지 않기 때문입니다(v3.1.1 실측: `spctl -t open` 이
+   `Unnotarized Developer ID`). Gatekeeper 는 마운트한 `.app` 의 스테이플로 판정하므로 사용자에겐
+   문제없습니다.
+4. 업데이터 검증 — 디스크의 `.app.tar.gz` 옆에 `.sig` 가 있고, draft 자산에 `.dmg` · `.app.tar.gz` ·
+   `.sig` · `latest.json` 이 다 있으며, `latest.json` 의 `version` 이 태그와 같고 각 플랫폼 `url` 이
+   `releases/download/vX.Y.Z/` 아래의 **실제 자산**을 가리키는지(draft 의 `untagged-…` URL 이
+   남지 않았는지), `signature` 가 비지 않았는지
+5. `.vsix` 패키징·첨부 (draft 에 올라갑니다)
+6. `gh release edit vX.Y.Z --draft=false --latest` — 여기서 비로소 `releases/latest` 가 됩니다
+
+3~4 중 하나라도 붉으면 **그 뒤 단계는 건너뛰고 릴리스는 draft 로 남습니다.** draft 는
+`releases/latest` 가 아니라 앱 내 업데이터도 랜딩의 다운로드 링크도 그것을 보지 못합니다 — 깨진
+빌드가 사용자에게 닿지 않는 것이 이 구조의 목적입니다.
 
 **`--tags` 를 쓰지 않습니다.** 로컬에 원격과 어긋난 옛 태그가 하나라도 있으면 푸시가 **통째로** 거부되고, 그 안에 섞인 새 태그의 push 이벤트까지 함께 묻혀 **워크플로가 아예 돌지 않습니다** (v2.9.0 에서 겪음 — 태그는 원격에 올라갔는데 빌드는 시작되지 않았습니다). 태그를 하나만 밀면 옛 태그의 상태와 무관해집니다.
 
@@ -143,9 +176,42 @@ curl -s https://oculpm.com/changelog | grep -c 'id="v'   # 릴리스 수만큼 �
 git push origin :refs/tags/vX.Y.Z && git push origin refs/tags/vX.Y.Z
 ```
 
-릴리스 노트 본문이 비어 있지 않은지(`body` 길이 0 이면 §2 의 헤더가 태그와 어긋난 것), 에셋이 4개(`.dmg` · `.app.tar.gz` · `.sig` · `latest.json`)인지, 라이브 사이트 버전이 태그와 같은지까지 보고 마칩니다.
+릴리스 노트 본문이 비어 있지 않은지(`body` 길이 0 이면 §2 의 헤더가 태그와 어긋난 것), 에셋이 5개(`.dmg` · `.app.tar.gz` · `.sig` · `latest.json` · `.vsix`)인지, 라이브 사이트 버전이 태그와 같은지까지 보고 마칩니다.
 
-**서명·공증 확인** (§7 을 설정한 뒤로는 매 릴리스 이 두 줄까지 봅니다 — 시크릿이 하나라도 비면 번들러는 *실패하지 않고* 조용히 무서명 번들을 내놓습니다):
+### 6-1. 검증에 걸려 draft 로 남았을 때
+
+Release run 이 붉은데 `gh release view vX.Y.Z --json isDraft` 가 `true` 면 §5 의 3~4 단계 중 하나가
+막은 것입니다. 붉은 단계의 로그에 `::error::` 한 줄로 원인이 적혀 있습니다:
+
+| 로그 | 뜻 | 조치 |
+| --- | --- | --- |
+| `애드혹(무서명) 번들이다` / `Signature=adhoc` | 서명이 안 붙음 | §7 시크릿 6개가 다 있는지(`gh secret list`), 인증서 만료(2027-02-01) 여부 |
+| `Gatekeeper 가 .app 을 거부했다` / `source=Unnotarized Developer ID` | 서명은 됐는데 공증이 빠짐 | `APPLE_ID` · `APPLE_PASSWORD`(앱 암호여야 함) · `APPLE_TEAM_ID`; tauri-action 로그의 notarytool 출력 |
+| `stapler validate` 실패 | 공증은 됐는데 티켓이 안 박힘 | 대개 일시적 — re-run |
+| `.sig 가 없거나 비어 있다` | 업데이터 서명 키 없음 | `TAURI_PRIVATE_KEY` 시크릿 |
+| `릴리스 자산에 … 이 없다` / `latest.json …` | 업로드 누락·URL 불일치 | tauri-action 로그; `version` 불일치면 §1 의 `tauri.conf.json` |
+
+고친 뒤에는 **draft 를 지우고 run 을 다시 돌립니다** — 시크릿 문제라면 커밋을 바꿀 필요가 없으므로
+태그도 그대로입니다:
+
+```bash
+gh release delete vX.Y.Z --yes                  # draft 삭제 (태그는 남습니다 — --cleanup-tag 금지)
+gh run rerun <release run id>                    # 같은 태그로 다시: gate → build → 검증 → 공개
+# 또는 push 이벤트를 새로 내고 싶으면: git push origin :refs/tags/vX.Y.Z && git push origin refs/tags/vX.Y.Z
+```
+
+코드를 고쳐야 하는 문제(예: 번들에 dylib 이 실려 하드닝 런타임 예외가 필요해짐)라면 태그를 옮기지
+말고 새 커밋 → 새 버전으로 갑니다. 그 경우도 남아 있는 draft 는 지웁니다 — 같은 태그의 draft 가
+있으면 다음 run 의 tauri-action 이 그 draft 를 찾아 자산을 덮어쓰기 때문에 지우지 않아도 동작은
+하지만, 옛 시도의 자산이 섞여 남을 수 있습니다.
+
+**손으로 `--draft=false` 를 누르지 마세요.** 검증을 건너뛰고 공개하는 유일한 경로가 그것이고, 그
+순간 업데이터가 무서명 빌드를 모든 사용자에게 밀어 넣습니다.
+
+**서명·공증 확인** — §5 의 3~4 단계가 매 릴리스 자동으로 단언하므로 이 두 줄은 이제 *교차 확인*입니다
+(워크플로가 보는 것은 러너 디스크의 번들이고, 여기서 보는 것은 실제로 내려받은 `.dmg` 입니다). 시크릿이
+하나라도 비면 번들러는 *실패하지 않고* 조용히 무서명 번들을 내놓는데, 그 경우 릴리스는 draft 로 남아
+여기까지 오지도 않습니다(§6-1):
 
 ```bash
 curl -sL -o /tmp/ocul.dmg "$(gh release view vX.Y.Z --json assets --jq '.assets[]|select(.name|endswith(".dmg")).url')"
@@ -159,7 +225,7 @@ hdiutil detach -quiet /tmp/ocul-dmg
 
 ## 7. 서명·공증 시크릿 (한 번만 설정)
 
-Apple Developer Program 계정의 **Developer ID Application** 인증서로 서명하고 공증합니다. 저장소 시크릿 6개가 있어야 `release.yml` 이 서명·공증을 수행하고, 없으면 무서명 번들이 그대로 나갑니다.
+Apple Developer Program 계정의 **Developer ID Application** 인증서로 서명하고 공증합니다. 저장소 시크릿 6개가 있어야 `release.yml` 이 서명·공증을 수행합니다. 없으면 번들러는 조용히 무서명 번들을 내놓지만, §5 의 검증 단계가 그것을 잡아 릴리스를 draft 로 묶어 둡니다(§6-1) — 사용자에게 나가지는 않습니다.
 
 로컬 키체인에서 인증서와 개인키를 `.p12` 로 내보낸 뒤 (Keychain Access → *내 인증서* → "Developer ID Application: …" 우클릭 → 항목 내보내기 → `.p12`, 암호 지정):
 
@@ -180,6 +246,6 @@ gh secret list                                  # 6개가 다 있는지
 
 **엔타이틀먼트 파일은 없습니다.** 하드닝 런타임(`hardenedRuntime`)만 켜져 있고 별도 예외가 필요 없습니다 — 번들에 dylib 이 없고(`ort`/`rusqlite` 모두 정적 링크), WKWebView 는 Apple 서명 프로세스로 분리돼 있으며, `git`·`claude`·`codex` 같은 자식 프로세스 실행은 하드닝 런타임이 막지 않습니다. 이 조건이 깨지면(동적 라이브러리를 싣게 되면) `bundle.macOS.entitlements` 로 `com.apple.security.cs.disable-library-validation` 을 추가해야 합니다.
 
-**인증서 만료: 2027-02-01.** 지금 쓰는 Developer ID Application 인증서의 `notAfter` 가 그날입니다 — Developer ID 는 보통 5년인데 발급 CA 자체의 만료에 맞춰 짧게 잘려 있습니다. 타임스탬프가 붙은 서명은 만료 뒤에도 계속 유효하므로 **이미 나간 빌드는 안전**하지만, 그날 이후 **새 빌드를 서명하려면 인증서를 갱신하고 `APPLE_CERTIFICATE` 를 다시 올려야** 합니다. 갱신 없이 태그를 밀면 서명 단계가 조용히 무서명으로 떨어지므로, §6 의 `spctl` 두 줄이 그 그물입니다.
+**인증서 만료: 2027-02-01.** 지금 쓰는 Developer ID Application 인증서의 `notAfter` 가 그날입니다 — Developer ID 는 보통 5년인데 발급 CA 자체의 만료에 맞춰 짧게 잘려 있습니다. 타임스탬프가 붙은 서명은 만료 뒤에도 계속 유효하므로 **이미 나간 빌드는 안전**하지만, 그날 이후 **새 빌드를 서명하려면 인증서를 갱신하고 `APPLE_CERTIFICATE` 를 다시 올려야** 합니다. 갱신 없이 태그를 밀면 서명 단계가 조용히 무서명으로 떨어지고, release.yml 의 서명·공증 검증이 그것을 잡아 draft 로 남깁니다(§6-1) — 인증서를 갱신해 시크릿을 올린 뒤 draft 를 지우고 run 을 re-run 하면 됩니다.
 
 **서명 주체가 바뀌는 첫 업데이트에서 키체인 프롬프트가 뜹니다.** API 키는 `keyring` 으로 OS 키체인에 들어 있고, 그 항목의 접근 권한은 만들 당시 앱의 코드 서명에 묶입니다. 애드혹 서명 빌드에서 Developer ID 빌드로 올라간 사용자는 처음 한 번 "Ocul-PM 이(가) 키체인의 정보를 사용하려 합니다" 를 보게 되고, **항상 허용**을 누르면 이후로는 조용합니다. 이 릴리스의 CHANGELOG 에 한 줄 적어 두세요.

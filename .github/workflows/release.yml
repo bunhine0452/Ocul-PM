@@ -19,7 +19,11 @@ name: Release
 #                                 account password)
 #   APPLE_TEAM_ID               — the 10-char team id
 #   With any of these missing the bundler silently falls back to an *unsigned* bundle
-#   instead of failing, so verify with `codesign -dvv` / `spctl -a -vvv` after release.
+#   instead of failing. That is why the release is created as a DRAFT and only
+#   published after the "서명·공증 검증" steps below pass (codesign --verify,
+#   spctl -a, stapler validate, updater .sig + latest.json). A failed check leaves
+#   the draft in place — drafts are never `releases/latest`, so the in-app updater
+#   cannot pick up a broken build. docs/RELEASE.md §6 describes the recovery.
 #
 # NOTE: the in-app updater + the landing download links require this repo's
 # *releases* to be public.
@@ -33,7 +37,127 @@ permissions:
   contents: write
 
 jobs:
+  # 태그가 가리키는 **정확히 그 커밋**에서 ci.yml 이 초록으로 끝났는지 확인한 뒤에만
+  # 빌드로 넘어간다 (플랜 astra-feedback-round {#release-ci-gate}). 이 게이트가 없던
+  # 동안 v3.1.1 은 cargo-deny 잡이 붉은 커밋(5432b6e)에서 그대로 릴리스됐다 — release.yml
+  # 은 테스트를 돌리지 않으니, "main 이 초록인지 보고 태그를 민다" 는 사람의 습관이
+  # 유일한 방어였다.
+  #
+  # 폴링하는 이유: 태그는 보통 커밋을 민 지 몇 초 뒤에 밀리므로 그 순간 CI 는
+  # queued/in_progress 다. 60초 간격으로 최대 45분(ci.yml Rust 잡의 timeout 40분보다
+  # 길게) 기다렸다가 판정한다.
+  #
+  # ⚠ 판정은 반드시 `conclusion` 필드로 한다. `gh run watch --exit-status` 는 **취소된
+  # run 도 exit 0** 으로 끝나고(같은 브랜치에 연속 푸시하면 ci.yml 의 concurrency 가
+  # 앞선 run 을 취소한다), 파이프로 이으면 종료 코드는 마지막 명령의 것이 된다. 그래서
+  # watch 를 쓰지 않고 API 의 status/conclusion 을 직접 읽는다: success 만 통과,
+  # failure · cancelled · timed_out · skipped 는 전부 차단.
+  gate:
+    name: 게이트 — 태그 커밋의 CI 통과 확인
+    runs-on: ubuntu-latest
+    # 45회 × 60초 폴링 + API 왕복. 이보다 오래 걸리면 매달린 것이다.
+    timeout-minutes: 50
+    # 최상위 permissions 를 좁혀 쓴다 — 여기서는 읽기만. contents: read 는 태그 → 커밋
+    # 해석(git/ref), actions: read 는 run · job 조회에 쓰인다. 체크아웃은 필요 없다.
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: CI conclusion 폴링 (${{ github.ref_name }} → ${{ github.sha }})
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 체크아웃이 없어 gh 가 저장소를 스스로 못 찾는다 — 명시한다.
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          EVENT_SHA: ${{ github.sha }}
+          CI_WORKFLOW_PATH: .github/workflows/ci.yml
+          POLL_INTERVAL: '60'
+          POLL_MAX: '45'
+        run: |
+          set -euo pipefail
+
+          # 태그 → 커밋. 경량 태그면 ref 가 곧 커밋이고, 주석 태그면 태그 객체를 한 번 더
+          # 풀어야 커밋이 나온다. RELEASE.md 는 경량 태그(`git tag vX.Y.Z`)를 쓰지만
+          # 주석 태그를 밀어도 엉뚱한 sha 로 판정하지 않게 API 로 직접 해석한다.
+          ref="$(gh api "repos/$GH_REPO/git/ref/tags/$TAG")"
+          obj_type="$(jq -r '.object.type' <<<"$ref")"
+          sha="$(jq -r '.object.sha' <<<"$ref")"
+          if [ "$obj_type" = "tag" ]; then
+            sha="$(gh api "repos/$GH_REPO/git/tags/$sha" --jq '.object.sha')"
+          fi
+          echo "태그 $TAG → 커밋 $sha (이벤트 sha: $EVENT_SHA, 태그 객체: $obj_type)"
+
+          # 이 커밋에서 돈 ci.yml 의 run 들. 이름("CI")이 아니라 **경로**로 고른다 —
+          # 이름은 바뀔 수 있고, 지금 돌고 있는 이 Release 워크플로 자신도 같은 sha 에
+          # 잡히므로 걸러야 한다. head_sha 필터는 정확히 그 커밋만 돌려주며, 재실행
+          # (re-run)한 run 은 마지막 attempt 의 status/conclusion 으로 나온다.
+          runs='[]'
+          for ((i = 1; i <= POLL_MAX; i++)); do
+            # API 가 잠깐 죽어도 게이트를 붉히지 않는다 — 직전 응답을 들고 다음 회차에
+            # 다시 본다.
+            if ! fresh="$(gh api "repos/$GH_REPO/actions/runs?head_sha=$sha&per_page=100" \
+                           --jq "[.workflow_runs[] | select(.path == \"$CI_WORKFLOW_PATH\")]")"; then
+              echo "[$i/$POLL_MAX] API 호출 실패 — ${POLL_INTERVAL}초 뒤 다시"
+              sleep "$POLL_INTERVAL"
+              continue
+            fi
+            runs="$fresh"
+            total="$(jq 'length' <<<"$runs")"
+            pending="$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs")"
+            if [ "$total" -gt 0 ] && [ "$pending" -eq 0 ]; then
+              break
+            fi
+            if [ "$total" -eq 0 ]; then
+              echo "[$i/$POLL_MAX] 이 커밋의 CI run 이 아직 없다"
+            else
+              echo "[$i/$POLL_MAX] CI run $total 개 중 $pending 개가 아직 진행 중"
+            fi
+            if [ "$i" -lt "$POLL_MAX" ]; then
+              sleep "$POLL_INTERVAL"
+            fi
+          done
+
+          total="$(jq 'length' <<<"$runs")"
+          if [ "$total" -eq 0 ]; then
+            echo "::error::CI 가 이 커밋($sha)에서 돌지 않았다. 커밋이 main 에 푸시됐는지, 커밋 메시지에 [skip ci] 가 없는지 확인하고, CI 를 돌린 뒤 태그를 다시 미세요 (docs/RELEASE.md §0)."
+            exit 1
+          fi
+          pending="$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs")"
+          if [ "$pending" -gt 0 ]; then
+            echo "::error::CI 가 $((POLL_MAX * POLL_INTERVAL / 60))분 안에 끝나지 않았다 — 끝난 뒤 이 워크플로를 re-run 하세요."
+            jq -r '.[] | "  \(.status)\t\(.html_url)"' <<<"$runs"
+            exit 1
+          fi
+
+          # 같은 커밋에 run 이 여럿이면(PR 이벤트 + main 푸시 등) 가장 최근 것이 판정
+          # 대상이다 — 앞선 run 이 concurrency 로 취소됐어도 뒤의 run 이 초록이면 된다.
+          run="$(jq 'sort_by(.created_at) | last' <<<"$runs")"
+          run_id="$(jq -r '.id' <<<"$run")"
+          run_url="$(jq -r '.html_url' <<<"$run")"
+          conclusion="$(jq -r '.conclusion' <<<"$run")"
+          echo "판정 대상 run: $run_url (attempt $(jq -r '.run_attempt' <<<"$run"), conclusion=$conclusion)"
+
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::이 커밋의 CI conclusion 이 '$conclusion' 이다 (success 만 통과). 취소된 run 이면 그 run 을 re-run 해 초록으로 만든 뒤 이 워크플로를 re-run 하세요: $run_url"
+            exit 1
+          fi
+
+          # run 의 conclusion 이 success 여도 잡 단위로 한 번 더 본다 — `if:` 로 건너뛴
+          # 잡(skipped)은 run 을 붉히지 않는다. ci.yml 의 세 잡(프런트 · Rust · 의존성)
+          # 이 전부 실제로 돌아 success 여야 한다.
+          jobs="$(gh api "repos/$GH_REPO/actions/runs/$run_id/jobs?per_page=100" --jq '.jobs')"
+          echo "잡 결과:"
+          jq -r '.[] | "  \(.conclusion)\t\(.name)"' <<<"$jobs"
+          bad="$(jq '[.[] | select(.conclusion != "success")] | length' <<<"$jobs")"
+          job_count="$(jq 'length' <<<"$jobs")"
+          if [ "$job_count" -eq 0 ] || [ "$bad" -gt 0 ]; then
+            echo "::error::CI 잡 $job_count 개 중 $bad 개가 success 가 아니다 — $run_url"
+            exit 1
+          fi
+          echo "게이트 통과 — CI 잡 $job_count 개 전부 success."
+
   build:
+    needs: gate
     strategy:
       fail-fast: false
       matrix:
@@ -62,9 +186,30 @@ jobs:
         with:
           version: 10
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      # 버전의 주인은 `rust-toolchain.toml` 입니다 (#toolchain-pin). dtolnay 액션은
+      # 그 파일을 **읽지 않으므로** 여기서 꺼내 넘깁니다 — `@stable` 로 두면 핀을
+      # 박아 놓고도 CI 는 그날의 stable 을 씁니다(= 핀이 없는 것과 같습니다).
+      #
+      # ci.yml 의 같은 이름 단계가 원본입니다(플랜 astra-feedback-round
+      # {#release-toolchain}) — 여기만 `@stable` 로 남아 있어, CI 가 검증한 컴파일러와
+      # 릴리스 번들을 구운 컴파일러가 달랐습니다. 고칠 때 두 파일을 함께 grep 하세요.
+      - name: 툴체인 버전 읽기 (rust-toolchain.toml)
+        id: toolchain
+        run: |
+          channel=$(grep -m1 '^channel' rust-toolchain.toml | tr -d ' "' | cut -d= -f2)
+          if [ -z "$channel" ]; then
+            echo "::error file=rust-toolchain.toml::channel 을 못 읽었습니다."
+            exit 1
+          fi
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          echo "핀된 툴체인: $channel"
+
+      # ci.yml 은 여기에 components(rust-analyzer 등)를 더 넣지만 번들 빌드엔 필요
+      # 없습니다. 타깃만 매트릭스에서 넘깁니다.
+      - name: Install Rust ${{ steps.toolchain.outputs.channel }}
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
           targets: ${{ matrix.rust_target }}
 
       - name: Rust cache
@@ -121,9 +266,182 @@ jobs:
             `Applications` 로 끌어다 놓으면 끝입니다. `xattr` 같은 우회는 더 이상 필요 없습니다.
 
             이후 버전부터는 앱 안에서 **자동 업데이트**됩니다.
-          releaseDraft: false
+          # draft 로 만든다 — 아래 검증 단계가 전부 통과한 뒤 마지막 단계가 공개한다
+          # (플랜 astra-feedback-round {#release-sign-verify}). 검증이 하나라도 붉으면
+          # 그 뒤 단계는 건너뛰어져 draft 로 남고, draft 는 `releases/latest` 가 아니라
+          # 앱 내 업데이터도 랜딩 링크도 그것을 보지 못한다. tauri-action(v0) 은 draft
+          # 의 `untagged-…` 다운로드 URL 을 latest.json 에 넣기 전에 태그 URL 로 바꿔
+          # 쓰므로(upload-version-json.ts) 공개 뒤에도 업데이터 URL 이 맞는다 — 아래
+          # 검증이 그것까지 단언한다.
+          releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      # ── 서명·공증 사후 검증 ─────────────────────────────────────────────────
+      # 번들러는 Apple 시크릿이 하나라도 비면 실패하지 않고 조용히 애드혹 서명으로
+      # 떨어진다(인증서 만료 2027-02-01 뒤에도 같은 증상). 그래서 산출물을 디스크에서
+      # 직접 본다. 경로는 tauri-bundler 가 정한다:
+      #   bundle/macos/<이름>.app            — 서명 + 공증 + 스테이플 (app.rs)
+      #   bundle/macos/<이름>.app.tar.gz(.sig) — 업데이터 아카이브 (updater_bundle.rs)
+      #   bundle/dmg/<이름>_<ver>_<arch>.dmg — 서명만 (dmg/mod.rs 는 공증을 안 한다)
+      # .dmg 는 공증·스테이플을 **단언하지 않는다**: v3.1.1 실측으로 `spctl -t open` 이
+      # `rejected source=Unnotarized Developer ID`, stapler 는 "no ticket" 이었다 —
+      # 이 파이프라인이 원래 그렇다. Gatekeeper 는 마운트된 .app 의 스테이플로 판정하므로
+      # 사용자 경험은 문제없고, 로그만 남긴다. 서명(Developer ID)은 .dmg 도 단언한다.
+      - name: 서명·공증 검증 — .app / .dmg (codesign · spctl · stapler)
+        env:
+          BUNDLE_DIR: src-tauri/target/${{ matrix.rust_target }}/release/bundle
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          # 서명 주체 단언: `codesign -dvv` 의 Authority 줄이 Developer ID Application
+          # 이어야 한다. 애드혹이면 `Signature=adhoc` · `TeamIdentifier=not set` 이 찍힌다.
+          assert_developer_id() {
+            local target="$1" info
+            info="$(codesign -dvv "$target" 2>&1)"
+            echo "$info"
+            if grep -q '^Signature=adhoc' <<<"$info"; then
+              echo "::error::$target 이 애드혹(무서명) 번들이다 — Apple 시크릿 6개가 다 있는지, 인증서가 만료되지 않았는지 확인 (docs/RELEASE.md §7)."
+              return 1
+            fi
+            if ! grep -q '^Authority=Developer ID Application:' <<<"$info"; then
+              echo "::error::$target 의 서명 주체가 Developer ID Application 이 아니다."
+              return 1
+            fi
+          }
+
+          apps=("$BUNDLE_DIR"/macos/*.app)
+          if [ "${#apps[@]}" -ne 1 ]; then
+            echo "::error::$BUNDLE_DIR/macos 에 .app 이 정확히 하나여야 하는데 ${#apps[@]}개다: ${apps[*]:-없음}"
+            exit 1
+          fi
+          app="${apps[0]}"
+
+          echo "::group::codesign --verify --deep --strict ($app)"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          echo "::endgroup::"
+
+          echo "::group::codesign -dvv ($app)"
+          assert_developer_id "$app"
+          echo "::endgroup::"
+
+          # 공증: Gatekeeper 평가. 공증이 빠졌으면 `rejected` + `source=Unnotarized
+          # Developer ID`, 됐으면 `accepted` + `source=Notarized Developer ID`.
+          echo "::group::spctl -a -vvv -t exec ($app)"
+          if ! spctl_out="$(spctl -a -vvv -t exec "$app" 2>&1)"; then
+            echo "$spctl_out"
+            echo "::error::Gatekeeper 가 .app 을 거부했다 — 공증(notarytool)이 빠졌거나 실패했다. APPLE_ID / APPLE_PASSWORD(앱 암호) / APPLE_TEAM_ID 확인."
+            exit 1
+          fi
+          echo "$spctl_out"
+          if ! grep -q 'source=Notarized Developer ID' <<<"$spctl_out"; then
+            echo "::error::spctl 이 accepted 지만 source 가 'Notarized Developer ID' 가 아니다."
+            exit 1
+          fi
+          echo "::endgroup::"
+
+          # 스테이플: 공증 티켓이 번들 안에 박혀 있어야 오프라인 첫 실행도 통과한다.
+          echo "::group::xcrun stapler validate ($app)"
+          xcrun stapler validate "$app"
+          echo "::endgroup::"
+
+          dmgs=("$BUNDLE_DIR"/dmg/*.dmg)
+          if [ "${#dmgs[@]}" -ne 1 ]; then
+            echo "::error::$BUNDLE_DIR/dmg 에 .dmg 가 정확히 하나여야 하는데 ${#dmgs[@]}개다: ${dmgs[*]:-없음}"
+            exit 1
+          fi
+          dmg="${dmgs[0]}"
+
+          echo "::group::codesign --verify --strict ($dmg)"
+          codesign --verify --strict --verbose=2 "$dmg"
+          echo "::endgroup::"
+
+          echo "::group::codesign -dvv ($dmg)"
+          assert_developer_id "$dmg"
+          echo "::endgroup::"
+
+          # 참고용 — 단언하지 않는다 (위 주석: 번들러가 .dmg 는 공증하지 않는다).
+          echo "::group::(참고) .dmg 공증·스테이플 상태 — 단언 안 함"
+          spctl -a -vvv -t open --context context:primary-signature "$dmg" 2>&1 || true
+          xcrun stapler validate "$dmg" 2>&1 || true
+          echo "::endgroup::"
+
+          echo "서명·공증 검증 통과: $app / $dmg"
+
+      # 업데이터가 다음 버전에서 살아 있으려면 `.tar.gz` 옆의 `.sig` 와 릴리스의
+      # `latest.json` 이 있어야 한다 — 하나라도 빠지면 이번 릴리스는 열리지만 **다음**
+      # 릴리스로 못 올라간다(TAURI_PRIVATE_KEY 가 비면 번들러는 .sig 없이 조용히
+      # 끝나고, tauri-action 은 .sig 가 없으면 latest.json 업로드를 건너뛴다).
+      - name: 업데이터 산출물 검증 — .sig · latest.json · 다운로드 URL
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUNDLE_DIR: src-tauri/target/${{ matrix.rust_target }}/release/bundle
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          archives=("$BUNDLE_DIR"/macos/*.app.tar.gz)
+          if [ "${#archives[@]}" -ne 1 ]; then
+            echo "::error::$BUNDLE_DIR/macos 에 업데이터 아카이브(.app.tar.gz)가 정확히 하나여야 하는데 ${#archives[@]}개다 — tauri.conf.json bundle.createUpdaterArtifacts 확인."
+            exit 1
+          fi
+          archive="${archives[0]}"
+          if [ ! -s "$archive.sig" ]; then
+            echo "::error::$archive.sig 가 없거나 비어 있다 — TAURI_PRIVATE_KEY 시크릿 확인 (docs/RELEASE.md §6)."
+            exit 1
+          fi
+          echo "디스크: $archive (+ .sig $(wc -c <"$archive.sig" | tr -d ' ') bytes)"
+
+          # draft 릴리스의 자산. `gh release view <tag>` 는 공개 릴리스가 없으면 그 태그를
+          # 기다리는 draft 로 넘어간다(FetchRelease → fetchDraftRelease).
+          release="$(gh release view "$GITHUB_REF_NAME" --json isDraft,assets)"
+          echo "isDraft=$(jq -r '.isDraft' <<<"$release") — 자산:"
+          jq -r '.assets[] | "  \(.size)\t\(.name)"' <<<"$release"
+          names="$(jq -r '.assets[].name' <<<"$release")"
+          for pattern in '\.dmg$' '\.app\.tar\.gz$' '\.app\.tar\.gz\.sig$' '^latest\.json$'; do
+            if ! grep -qE "$pattern" <<<"$names"; then
+              echo "::error::릴리스 자산에 /$pattern/ 이 없다 — 업데이터가 다음 버전에서 깨진다."
+              exit 1
+            fi
+          done
+
+          # latest.json 의 내용까지 본다: 버전이 태그와 같고, 다운로드 URL 이 이 태그의
+          # 자산을 가리켜야 한다. draft 에서 `untagged-…` URL 이 그대로 남으면 공개 뒤
+          # 업데이터가 404 를 맞는다.
+          tmp="$(mktemp -d)"
+          gh release download "$GITHUB_REF_NAME" --pattern latest.json --dir "$tmp"
+          echo "::group::latest.json"
+          jq 'del(.notes)' "$tmp/latest.json"
+          echo "::endgroup::"
+          version="$(jq -r '.version' "$tmp/latest.json")"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::latest.json 의 version($version)이 태그($GITHUB_REF_NAME)와 다르다 — 6 버전 파일 중 tauri.conf.json 이 안 올라간 것."
+            exit 1
+          fi
+          platform_count="$(jq '.platforms | length' "$tmp/latest.json")"
+          if [ "$platform_count" -eq 0 ]; then
+            echo "::error::latest.json 에 platforms 가 비어 있다."
+            exit 1
+          fi
+          while IFS= read -r url; do
+            case "$url" in
+              *"/releases/download/$GITHUB_REF_NAME/"*) ;;
+              *)
+                echo "::error::latest.json 의 다운로드 URL 이 이 태그를 가리키지 않는다: $url"
+                exit 1
+                ;;
+            esac
+            if ! grep -qxF "$(basename "$url")" <<<"$names"; then
+              echo "::error::latest.json 이 가리키는 자산이 릴리스에 없다: $(basename "$url")"
+              exit 1
+            fi
+          done < <(jq -r '.platforms[].url' "$tmp/latest.json")
+          if jq -e '.platforms[] | select((.signature // "") == "")' "$tmp/latest.json" >/dev/null; then
+            echo "::error::latest.json 에 signature 가 빈 플랫폼이 있다."
+            exit 1
+          fi
+          echo "업데이터 산출물 검증 통과: 플랫폼 $platform_count 개, version=$version"
 
       # VS Code 확장 .vsix 를 같은 릴리스에 첨부 (플랜 vscode-extension-round
       # {#rel-ci-vsix}) — 마켓이 막힌 환경의 오프라인 설치용:
@@ -138,7 +456,23 @@ jobs:
           npx --yes @vscode/vsce@3 package --no-dependencies -o "ocul-pm-${ver}.vsix"
         working-directory: extension
 
+      # draft 에도 올라간다 — 공개(아래) 전에 첨부해야 공개 순간 자산이 완전하다.
       - name: Attach .vsix to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${GITHUB_REF_NAME}" extension/ocul-pm-*.vsix --clobber
+
+      # ── 공개 ───────────────────────────────────────────────────────────────
+      # 여기까지 왔다는 것은 위 검증이 전부 초록이라는 뜻이다(붉은 단계 뒤는 건너뛴다).
+      # `--latest` 를 명시해 공개와 동시에 `releases/latest` 가 되게 한다 — 업데이터
+      # 엔드포인트가 그 경로다. 이미 공개된 릴리스(re-run)면 둘 다 no-op.
+      - name: 검증 통과 — draft 해제 (공개)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+          gh release view "$GITHUB_REF_NAME" --json isDraft,publishedAt,url \
+            --jq '"공개됨: draft=\(.isDraft) publishedAt=\(.publishedAt) \(.url)"'
+          # 업데이터 엔드포인트가 실제로 이 버전을 가리키는지 — 참고용이라 실패해도
+          # 이미 공개된 릴리스를 붉게 만들지 않는다.
+          gh release view --json tagName --jq '"releases/latest → \(.tagName)"' || true

@@ -56,6 +56,14 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: extension
 
+      # 확장의 순수 함수 테스트(`src/**/*.spec.ts`, vitest) — `pnpm lint` 는 확장의
+      # tsc·eslint 만 걷고 테스트는 안 돌렸다 (플랜 astra-feedback-round {#ci-ext-unit}).
+      # 몇 초에 끝난다. `vscode-test`(mocha, `src/test/**`) 는 VS Code 를 내려받아
+      # 실제 호스트에서 돌아 디스플레이(xvfb)가 필요해 넣지 않았다 — 후속.
+      - name: Test — 확장 (vitest)
+        run: pnpm test:unit
+        working-directory: extension
+
       - name: Typecheck
         run: pnpm typecheck
 
