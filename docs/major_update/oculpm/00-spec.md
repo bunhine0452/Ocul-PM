@@ -155,6 +155,7 @@ agent:
   version: "opus-4.7"               # 선택. 식별 가능하면 채움
 language: ko                        # ko | en (LLM 이 본문에 쓴 언어)
 verified_by_user: false             # 앱 UI 에서 사용자가 수동 체크
+verified_hash: "blake3:<64-hex>"    # 선택 (2026-09-15 {#reviewed-hash}). 확인을 누른 순간의 본문 해시 — 아래 3.4
 files_touched:
   - path: "src-tauri/src/db.rs"
     op: update                      # create | update | delete | rename
@@ -197,6 +198,35 @@ LLM 프롬프트(`agents/_template.md`)가 다음 헤더를 작성하도록 지�
 3. **type 미정** → `chore` 로 분류.
 4. **session_id 가 sessions.json 에 없음** → "고아 엔트리" 로 표시, 가장 가까운 세션에 attach 제안.
 5. **files_touched 가 index/ 의 변경 파일 집합과 불일치** → "narrative mismatch" 배지 (review §3.1 의 이중 레이어 검증).
+
+### 3.4 `verified_hash` — 확인은 내용에 묶인다 (2026-09-15, `{#reviewed-hash}`)
+
+`verified_by_user: true` 만으로는 확인이 **무엇에 대한** 것인지 알 수 없었다 —
+확인 뒤 에이전트가 본문을 고쳐도 표시는 켜진 채였다. 그래서 사람이 「확인」을
+누르면 앱이 그 순간의 본문 해시를 같이 적는다.
+
+- **값**: `"blake3:<64-hex>"`. 알고리즘 이름이 값의 일부다 — 나중에 바꿔도 옛
+  값을 읽고 "모르는 알고리즘 → 다시 검토" 로 떨어뜨릴 수 있게.
+- **해시 대상**: 프론트매터 닫는 `---` 다음의 **디스크 본문 그대로** (마스킹 전,
+  `parse_frontmatter_and_body` 가 돌려주는 그 문자열) 에서 **꼬리 공백만**
+  떼어낸 바이트. 편집기가 마지막 개행을 붙이고 떼는 것은 내용 변경이 아니라서다.
+  그 밖의 바이트(앞 공백·줄 끝 공백·CRLF)는 전부 뜻이 있다.
+  구현: `src-tauri/src/oculpm/frontmatter/mod.rs` 의 `verified_body_hash`.
+- **쓰기**: `oculpm_set_journal_verified(true)` 가 적고, `false` 가 지운다. 이미
+  확인된 일지에 다시 `true` 를 보내면 지금 본문으로 다시 묶는다 (= 「다시 검토」).
+  에이전트·MCP·수동 작성·git 백필은 이 키를 쓰지 않는다 (수동 일지의
+  `verified_by_user: true` 는 검토가 아니라 저작이다).
+- **읽기**: 캐시가 투영 때 `verified_by_user && verified_hash != hash(디스크 본문)`
+  을 `verified_stale` 로 계산한다 (`oculpm_journal.verified_stale`, 039). 참이면
+  UI 는 「확인 뒤 내용이 변경됐습니다 · 다시 검토」를 달고, 「확인됨」으로 세는
+  곳(목록의 확인 필터·변경 그룹 머리글)은 `verified_by_user AND NOT verified_stale`
+  만 센다.
+- **선택 키 · `schema_version` 은 1 그대로**: 파서는 키를 이름으로 골라 읽어
+  모르는 키를 버리지 않고, 버전 값은 읽기만 하고 비교하지 않으므로 옛 앱·플러그인이
+  이 키가 있는 일지를 거부하지 않는다. `agent.session` 과 같은 방식의 가산이다.
+  **해시 없는 확인**(이 키가 생기기 전의 일지, 수동 일지)은 그대로 유효하며 디스크
+  백필은 하지 않는다. 옛 앱이 프론트매터를 다시 쓰면 이 줄이 빠질 수 있는데, 그
+  결과도 「해시 없는 확인」= 유효라 거짓 「다시 검토」는 생기지 않는다.
 
 ---
 

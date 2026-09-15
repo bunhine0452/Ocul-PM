@@ -16,6 +16,11 @@ impl<'a> JournalCache<'a> {
     /// it drives the content hash used by the mtime-only fast path. Hashing
     /// only `body.raw` would miss frontmatter-only edits like the
     /// `verified_by_user` toggle.
+    ///
+    /// 이 진입은 **쓰기 시점에 마스킹을 끝낸** 경로(수동 작성·본문 편집·git
+    /// 백필)의 것이라 `body.raw` 가 곧 디스크 본문이다 — `verified_hash` 의
+    /// 대조 기준도 그 해시다. 디스크를 읽어 투영하는 경로(워처·재색인)는
+    /// [`upsert_projected`][Self::upsert_projected] 로 온다.
     pub async fn upsert_entry(
         &self,
         project_id: u32,
@@ -25,7 +30,49 @@ impl<'a> JournalCache<'a> {
         file_mtime: i64,
         full_text: &str,
     ) -> Result<UpsertOutcome, OculpmError> {
-        let snapshot = CacheRowSnapshot::from(parsed, body, relative_path, full_text, self.tz)?;
+        let disk_body_hash = verified_body_hash(&body.raw);
+        let snapshot = CacheRowSnapshot::from(
+            parsed,
+            body,
+            relative_path,
+            full_text,
+            self.tz,
+            &disk_body_hash,
+        )?;
+        self.upsert_snapshot(project_id, relative_path, snapshot, file_mtime)
+            .await
+    }
+
+    /// [`upsert_entry`][Self::upsert_entry] 의 디스크→캐시 투영 쪽 — [`Projected`]
+    /// 가 들고 온 마스킹 **전** 본문 해시로 `verified_stale` 를 정한다. 마스킹된
+    /// `body.raw` 를 해시하면 비밀이 들어 있는 일지는 확인하자마자 거짓 「다시
+    /// 검토」가 되므로 이 둘은 갈라져 있어야 한다.
+    pub(crate) async fn upsert_projected(
+        &self,
+        project_id: u32,
+        relative_path: &str,
+        projected: &Projected,
+        file_mtime: i64,
+    ) -> Result<UpsertOutcome, OculpmError> {
+        let snapshot = CacheRowSnapshot::from(
+            &projected.parsed,
+            &projected.body,
+            relative_path,
+            &projected.full_text,
+            self.tz,
+            &projected.disk_body_hash,
+        )?;
+        self.upsert_snapshot(project_id, relative_path, snapshot, file_mtime)
+            .await
+    }
+
+    async fn upsert_snapshot(
+        &self,
+        project_id: u32,
+        relative_path: &str,
+        snapshot: CacheRowSnapshot,
+        file_mtime: i64,
+    ) -> Result<UpsertOutcome, OculpmError> {
         let pid = project_id as i64;
         let rp = relative_path.to_string();
         let snap = snapshot.clone();
@@ -88,12 +135,14 @@ impl<'a> JournalCache<'a> {
                             // 새로 생긴 칸은 이 자기치유 UPDATE 가 채우지 않으면
                             // 이미 캐시에 있는 일지에서 영원히 NULL 로 남는다
                             // (COERCION_VERSION 2 가 그 1회 재투영을 깨운다).
+                            // 039 `verified_stale` 도 같다 (COERCION_VERSION 3).
                             c.execute(
                                 "UPDATE oculpm_journal SET
                                    file_mtime = ?1, created_at = ?2, updated_at = ?3,
                                    slug = ?4, parse_warnings = ?5, parse_ok = ?6,
-                                   agent_session = ?7, coercion_version = ?8
-                                 WHERE project_id = ?9 AND relative_path = ?10",
+                                   agent_session = ?7, coercion_version = ?8,
+                                   verified_stale = ?9
+                                 WHERE project_id = ?10 AND relative_path = ?11",
                                 params![
                                     file_mtime,
                                     &snap.created_at,
@@ -103,6 +152,7 @@ impl<'a> JournalCache<'a> {
                                     snap.parse_ok as i64,
                                     &snap.agent_session,
                                     COERCION_VERSION,
+                                    snap.verified_stale as i64,
                                     pid,
                                     &rp,
                                 ],
@@ -128,8 +178,9 @@ impl<'a> JournalCache<'a> {
                      (project_id, relative_path, workday, type, slug, status, difficulty,
                       title, checkbox, session_id, agent_id, agent_version, agent_session,
                       language, verified_by_user, created_at, updated_at, file_mtime,
-                      body_markdown, body_md_hash, parse_ok, parse_warnings, coercion_version)
-                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23)
+                      body_markdown, body_md_hash, parse_ok, parse_warnings, coercion_version,
+                      verified_stale)
+                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24)
                      ON CONFLICT(project_id, relative_path) DO UPDATE SET
                        workday = excluded.workday,
                        type = excluded.type,
@@ -151,7 +202,8 @@ impl<'a> JournalCache<'a> {
                        body_md_hash = excluded.body_md_hash,
                        parse_ok = excluded.parse_ok,
                        parse_warnings = excluded.parse_warnings,
-                       coercion_version = excluded.coercion_version",
+                       coercion_version = excluded.coercion_version,
+                       verified_stale = excluded.verified_stale",
                     params![
                         pid,
                         &rp,
@@ -176,6 +228,7 @@ impl<'a> JournalCache<'a> {
                         snap.parse_ok as i64,
                         &snap.parse_warnings,
                         COERCION_VERSION,
+                        snap.verified_stale as i64,
                     ],
                 )?;
 
@@ -327,11 +380,11 @@ impl<'a> JournalCache<'a> {
                     .unwrap_or_else(|| Utc::now().timestamp());
                 let raw = std::fs::read_to_string(&abs)
                     .map_err(|source| OculpmError::Io { path: abs, source })?;
-                let (parsed, body, full, redacted) = self.project_text(&raw);
+                let projected = self.project_text(&raw);
                 let outcome = self
-                    .upsert_entry(project_id, relative_path, &parsed, &body, mtime, &full)
+                    .upsert_projected(project_id, relative_path, &projected, mtime)
                     .await?;
-                Ok((Some(outcome), redacted))
+                Ok((Some(outcome), projected.redacted))
             }
         }
     }

@@ -745,9 +745,8 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
                 .map(str::to_string)
                 .unwrap_or_else(default_agent_id),
             version: arg_str(args, "agent_version").map(str::to_string),
-            // 인자로 준 값이 이기고, 없으면 우리를 띄운 대화를 적는다.
-            // 에이전트에게 물어보지 않는 이유는 자기 대화 id 를 모르기
-            // 때문이다 — 환경변수는 안다.
+            // 인자로 준 값이 이기고, 없으면 우리를 띄운 대화를 적는다. 에이전트에게
+            // 물어보지 않는 이유는 자기 대화 id 를 모르기 때문이다 — 환경변수는 안다.
             session: arg_str(args, "agent_session")
                 .map(str::to_string)
                 .or_else(claude_session_id),
@@ -755,6 +754,7 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         // 프로젝트의 AI 작성 언어 — 영문 프로젝트도 "ko" 로 색인되던 것을 바로잡는다.
         language: cfg.agents.template_language.clone(),
         verified_by_user: false,
+        verified_hash: None,
         files_touched: files,
         related,
         tags,

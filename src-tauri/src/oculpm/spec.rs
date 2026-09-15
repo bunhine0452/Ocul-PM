@@ -187,6 +187,15 @@ pub struct JournalFrontmatter {
     /// Two-letter ISO 639-1, e.g. `ko` or `en`.
     pub language: String,
     pub verified_by_user: bool,
+    /// 사람이 「확인」을 누른 순간의 **본문** 해시 — `"blake3:<hex>"`
+    /// ([`crate::oculpm::frontmatter::verified_body_hash`]). 확인은 내용에
+    /// 묶인다: 이 값이 있는데 디스크 본문의 해시와 다르면 캐시가
+    /// `verified_stale` 를 세우고, 그 일지는 더는 확인된 것으로 세지 않는다
+    /// (「확인 뒤 내용이 변경됐습니다 · 다시 검토」). `None` 은 두 경우다 —
+    /// 확인되지 않았거나, 이 키가 생기기 전에 확인된 옛 일지(그대로 유효).
+    /// 줄은 `Some` 일 때만 프론트매터에 나간다.
+    #[serde(default)]
+    pub verified_hash: Option<String>,
     pub files_touched: Vec<FileTouched>,
     pub related: Vec<RelatedRef>,
     pub tags: Vec<String>,
@@ -212,6 +221,9 @@ pub struct JournalEntry {
     pub parse_ok: bool,
     /// Non-fatal parse warnings (missing tz offset, agent-as-string, bad op, …).
     pub parse_warnings: Vec<String>,
+    /// `verified_by_user` 가 참인데 본문이 확인 시점(`verified_hash`)과 다르다 —
+    /// 캐시가 투영 때 계산한다. 참이면 「확인됨」이 아니라 「다시 검토」다.
+    pub verified_stale: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -231,6 +243,8 @@ pub struct JournalEntrySummary {
     /// `"Opus 4.8"` / `"Gemini 3 Pro"`. `None` when not reported.
     pub agent_version: Option<String>,
     pub verified_by_user: bool,
+    /// [`JournalEntry::verified_stale`] 와 같다 — 확인 뒤 본문이 바뀐 일지.
+    pub verified_stale: bool,
     pub created_at: String,
     pub updated_at: Option<String>,
     pub tags: Vec<String>,

@@ -1,0 +1,12 @@
+-- 확인 표시를 본문에 묶는다 ({#reviewed-hash}) — 일지 캐시에 `verified_stale`.
+--
+-- 왜: `verified_by_user` 는 한 번 켜지면 그 뒤 본문이 어떻게 바뀌어도 켜진
+-- 채였다. 사람의 「확인」은 그가 읽은 내용에 대한 것이므로, 프론트매터에
+-- 확인 시점의 본문 해시(`verified_hash`)를 같이 적고, 투영 때 디스크 본문의
+-- 해시와 다르면 이 칸을 세운다. 「확인됨」으로 세는 것은
+-- `verified_by_user = 1 AND verified_stale = 0` 뿐이다.
+--
+-- 나머지 oculpm_journal 컬럼과 같은 **손실 가능한 파생 칸**이다 — SSOT 는
+-- 디스크 프론트매터(`verified_hash`)와 본문이고, 재투영이 다시 계산한다.
+-- 기본값 0: 해시 없이 확인된 옛 일지는 그대로 유효하다 (디스크 백필 없음).
+ALTER TABLE oculpm_journal ADD COLUMN verified_stale INTEGER NOT NULL DEFAULT 0;
