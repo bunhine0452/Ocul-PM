@@ -395,10 +395,24 @@ function GroupSection({
           <button
             type="button"
             className={"dfl-verify" + (view.verified ? " on" : "")}
+            // 확인 뒤 바뀐 일지(`stale`)는 `verified === false` 라 이 클릭이 곧
+            // 다시 묶기(`true`) 다 — 일지 상세의 「다시 검토」와 같은 커맨드.
             onClick={() => onToggleVerified(view.entryPath!, !view.verified)}
             aria-pressed={view.verified}
-            aria-label={view.verified ? t("entry.unverifyTitle") : t("entry.verifyTitle")}
-            title={view.verified ? t("entry.unverifyTitle") : t("entry.verifyTitle")}
+            aria-label={
+              view.stale
+                ? t("entry.reverifyTitle")
+                : view.verified
+                  ? t("entry.unverifyTitle")
+                  : t("entry.verifyTitle")
+            }
+            title={
+              view.stale
+                ? t("entry.reverifyTitle")
+                : view.verified
+                  ? t("entry.unverifyTitle")
+                  : t("entry.verifyTitle")
+            }
           >
             <CheckMark size={11} strokeWidth={2.5} />
           </button>

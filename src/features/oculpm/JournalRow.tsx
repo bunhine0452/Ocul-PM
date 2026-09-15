@@ -3,6 +3,7 @@ import { Check, RotateCcw } from "@/components/Icons";
 import { TRIGGER_META } from "./triggerMeta";
 import { SourceBadge } from "./SourceBadge";
 import { sourceOf } from "./entrySource";
+import { isConfirmed, isStaleVerified } from "./verified";
 import { agentColor, agentLabelWithModel } from "@/features/today/agentColor";
 import type { JournalEntrySummary } from "@/lib/bindings";
 import { useT } from "@/i18n";
@@ -85,9 +86,15 @@ export function JournalRow({ entry, focused, showAgent, showSource, onOpenEntry 
               {entry.status === "in_progress" ? t("journal.card.inProgress") : entry.status}
             </span>
           ) : null}
-          {entry.verified_by_user ? (
+          {isConfirmed(entry) ? (
             <span className="jl-verified" title={t("entry.verified")} aria-label={t("entry.verified")}>
               <Check size={13} />
+            </span>
+          ) : isStaleVerified(entry) ? (
+            // 확인 뒤 본문이 바뀌었다 ({#reviewed-hash}) — 체크 대신 「다시 검토」.
+            <span className="jl-stale" title={t("entry.staleLine")}>
+              <RotateCcw size={11} />
+              {t("entry.staleShort")}
             </span>
           ) : null}
           {showSource && source !== "agent" ? <SourceBadge source={source} /> : null}

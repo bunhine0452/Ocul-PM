@@ -108,6 +108,7 @@ describe("변경 그룹 뷰 — verified_by_user 가 머리글까지 온다", ()
     entry_type: path ? "feature" : null,
     created_at: path ? "2026-08-30T10:00:00+09:00" : null,
     verified_by_user: verified,
+    verified_stale: verified == null ? null : false,
     plan_refs: [],
     files: ["src/a.ts"],
   });
@@ -146,6 +147,38 @@ describe("변경 그룹 뷰 — verified_by_user 가 머리글까지 온다", ()
       />,
     );
     const btn = getByRole("button", { name: ko["entry.verifyTitle"] });
+    expect(btn).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(btn);
+    expect(onToggleVerified).toHaveBeenCalledWith("j/1.md", true);
+  });
+
+  // {#reviewed-hash} — 확인 뒤 본문이 바뀐 일지는 「확인됨」이 아니다.
+  it("확인 뒤 바뀐 일지는 토글이 꺼진 「다시 검토」이고, 누르면 다시 묶는다(true)", () => {
+    const stale = { ...group("j/1.md", true), verified_stale: true };
+    const views = buildGroupViews({
+      groups: [stale],
+      changes: [],
+      filter: "",
+      collapsed: new Set(),
+      reviewed: new Set(),
+    });
+    expect(views[0].verified).toBe(false);
+    expect(views[0].stale).toBe(true);
+
+    const onToggleVerified = vi.fn();
+    const { getByRole } = render(
+      <DiffFileList
+        changes={[{ path: "src/a.ts", op: "M", ts: 1, read: false }]}
+        groups={[stale]}
+        selected={null}
+        reviewedPaths={[]}
+        impact={null}
+        onSelect={() => {}}
+        onToggleVerified={onToggleVerified}
+        onOpenAffected={() => {}}
+      />,
+    );
+    const btn = getByRole("button", { name: ko["entry.reverifyTitle"] });
     expect(btn).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(btn);
     expect(onToggleVerified).toHaveBeenCalledWith("j/1.md", true);

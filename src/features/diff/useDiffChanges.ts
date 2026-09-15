@@ -221,9 +221,14 @@ export function useDiffChanges(projectId: number): DiffChanges {
     async (relativePath: string, next: boolean) => {
       try {
         await oculpmApi.setJournalVerified(projectId, relativePath, next);
+        // `true` 는 해시를 지금 본문으로 다시 묶으므로 「확인 뒤 변경됨」도 함께 진다.
         setGroups((prev) =>
           prev
-            ? prev.map((g) => (g.entry_path === relativePath ? { ...g, verified_by_user: next } : g))
+            ? prev.map((g) =>
+                g.entry_path === relativePath
+                  ? { ...g, verified_by_user: next, verified_stale: false }
+                  : g,
+              )
             : prev,
         );
       } catch (e) {

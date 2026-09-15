@@ -216,6 +216,8 @@ const TESTS = new Set([
   "__tests__/ime_trace.test.ts",
   "__tests__/inline_markdown.test.tsx",
   "__tests__/journal_v2.test.tsx",
+  // journal_v2 의 형제 — 「다시 검토」 배지의 한국어 렌더를 검사한다 ({#reviewed-hash}).
+  "__tests__/journal_verified.test.tsx",
   "__tests__/landing_pages.test.ts",
   "__tests__/landing_themes.test.ts",
   "__tests__/llm_reachability.test.tsx",
