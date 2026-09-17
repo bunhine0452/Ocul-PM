@@ -81,8 +81,30 @@ impl IndexWriter {
         self
     }
 
-    /// `.oculpm/index/<workday>/` mkdir (idempotent).
+    /// 프로젝트 루트가 아직 있는가. 사용자가 Finder 에서 폴더를 지우거나 옮기면
+    /// 워처는 그 삭제를 파일 이벤트로 받고, 세션 액터는 그걸 활동으로 읽어
+    /// `sessions.json` 을 쓰려 든다 — `create_dir_all` 이 지운 자리에
+    /// `<root>/.oculpm/index/…` 를 되살려 **빈 폴더가 다시 생기는** 버그가 그것이다
+    /// (2026-09-17). 색인 쓰기는 전부 이 문을 지나므로, 루트가 없으면 어떤 경로도
+    /// 디렉터리를 만들지 않는다. 루트가 없는 채로 쓰기를 기다리는 정당한 순간은
+    /// 없다 — `init_project` 가 `.oculpm/` 을 만든 뒤에야 세션이 시작된다.
+    fn ensure_root_present(&self) -> Result<(), OculpmError> {
+        if self.root.is_dir() {
+            return Ok(());
+        }
+        Err(OculpmError::Io {
+            path: self.root.clone(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "project root is gone — refusing to recreate it",
+            ),
+        })
+    }
+
+    /// `.oculpm/index/<workday>/` mkdir (idempotent). 루트가 사라졌으면 만들지
+    /// 않는다 (`ensure_root_present`).
     pub async fn ensure_workday_dirs(&self, workday: &str) -> Result<(), OculpmError> {
+        self.ensure_root_present()?;
         let dir = self.resolver.index_dir(&self.root, workday);
         std::fs::create_dir_all(&dir).map_err(|source| OculpmError::Io { path: dir, source })
     }
@@ -331,6 +353,7 @@ impl IndexWriter {
 
         let path = self.snapshot_path(workday, kind);
         let bytes = serde_json::to_vec_pretty(&snapshot).map_err(OculpmError::JsonSerialize)?;
+        self.ensure_root_present()?;
         write_atomic(&path, &bytes)?;
         Ok(snapshot)
     }
@@ -456,6 +479,7 @@ impl IndexWriter {
 
     fn write_sessions_file(&self, path: &Path, file: &SessionsFile) -> Result<(), OculpmError> {
         let bytes = serde_json::to_vec_pretty(file).map_err(OculpmError::JsonSerialize)?;
+        self.ensure_root_present()?;
         write_atomic(path, &bytes)
     }
 }

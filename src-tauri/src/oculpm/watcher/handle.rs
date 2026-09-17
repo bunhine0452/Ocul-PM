@@ -5,6 +5,7 @@
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
 use chrono::Utc;
@@ -71,6 +72,9 @@ pub(super) struct WatcherInner {
     /// PR-CI1 — 일지 초안 단일 인플라이트 (reconcile_lock 동형).
     pub(super) draft_lock: Arc<tokio::sync::Mutex<()>>,
     pub(super) stats: Arc<RwLock<WatcherStatsInner>>,
+    /// 루트가 사라진 것을 이미 한 번 남겼는가 — 폴더 하나를 지우면 이벤트가
+    /// 수백 개 오므로, 같은 줄을 그 수만큼 찍지 않기 위한 래치.
+    pub(super) root_gone_logged: AtomicBool,
 }
 
 /// 큐가 넘쳐 이벤트를 버렸을 때, 소비자가 정착한 뒤 만회하는 쪽.
@@ -166,7 +170,35 @@ impl WatcherInner {
 
         self.bump_seen();
 
+        // 0. 루트가 사라졌다 — 사용자가 Finder 에서 프로젝트 폴더를 지우거나
+        //    (휴지통 = 이름 바꾸기) 옮겼다. 그 삭제가 만든 이벤트를 아래로 흘리면
+        //    세션 액터가 활동으로 읽어 세션을 열고, 그 쓰기가 지운 자리에
+        //    `.oculpm/index/…` 를 되살린다 — "지웠는데 빈 폴더가 다시 생긴다"
+        //    (2026-09-17). 색인 쓰기 쪽에도 같은 문이 있지만(`IndexWriter::
+        //    ensure_root_present`) 여기서 먼저 끊어야 히스토리 캡처·증분 색인·
+        //    자동화 타이머까지 헛돌지 않는다. 되살리는 건 감독관도 하지 않는다
+        //    (`supervisor::tick` 의 `root.is_dir()` 가드).
+        if !self.root.is_dir() {
+            if !self.root_gone_logged.swap(true, Ordering::Relaxed) {
+                tracing::info!(
+                    target: "oculpm::watcher",
+                    project_id = self.project_id,
+                    root = %self.root.display(),
+                    "[FLOW] 프로젝트 루트가 사라졌다 — 이벤트를 버리고 아무것도 다시 만들지 않는다"
+                );
+            }
+            self.bump_ignored();
+            return;
+        }
+        // 루트가 다시 있으면(휴지통에서 되돌림) 래치를 풀어 다음 실종을 또 남긴다.
+        self.root_gone_logged.store(false, Ordering::Relaxed);
+
         let rel_str = match path.strip_prefix(&self.root) {
+            // 루트 자신에 대한 이벤트(이름 바꾸기·속성 변경)는 파일 변경이 아니다.
+            Ok(p) if p.as_os_str().is_empty() => {
+                self.bump_ignored();
+                return;
+            }
             Ok(p) => p.to_string_lossy().to_string(),
             // Outside our watched root — ignore quietly.
             Err(_) => {

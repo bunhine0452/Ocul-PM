@@ -537,3 +537,53 @@ fn data_area_for_path_routes_planner_and_discussion_only() {
     // 프로젝트 소스에 같은 이름의 디렉터리가 있어도 무관해야 한다.
     assert_eq!(data_area_for_path("src/planner/index.ts"), None);
 }
+
+/// Finder 에서 프로젝트 폴더를 지우면(휴지통 = 이름 바꾸기) 삭제가 만든
+/// 이벤트가 세션을 열고, 그 쓰기가 지운 자리에 `.oculpm/index/…` 를 되살려
+/// **빈 폴더가 다시 생겼다** (2026-09-17). 워처는 루트가 없으면 이벤트를
+/// 버리고, 색인 쓰기도 루트를 만들지 않는다.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn removing_the_project_root_does_not_resurrect_it() {
+    let parent = tempfile::tempdir().unwrap();
+    let root = parent.path().join("project");
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    let resolver = WorkdayResolver::new("UTC", "00:00").unwrap();
+    let writer = Arc::new(IndexWriter::new(root.clone(), resolver.clone()));
+    let cfg = fast_config();
+    let actor = SessionActor::spawn(
+        1,
+        resolver.clone(),
+        writer.clone(),
+        cfg.session.clone(),
+        None,
+    );
+    let watcher = ProjectWatcher::start(1, root.clone(), actor.clone(), writer.clone(), cfg, None)
+        .await
+        .unwrap();
+    sleep(Duration::from_millis(150)).await;
+
+    // 살아 있는 동안의 활동 — 세션이 열리고 색인이 생긴다 (대조군).
+    std::fs::write(root.join("src/a.rs"), "fn a() {}").unwrap();
+    settle().await;
+    assert!(
+        root.join(".oculpm/index").is_dir(),
+        "대조군: 살아 있는 루트에는 쓴다"
+    );
+
+    // Finder 의 삭제.
+    let trashed = parent.path().join("project (trashed)");
+    std::fs::rename(&root, &trashed).unwrap();
+    settle().await;
+    settle().await;
+
+    // 세션 액터를 강제로 마감시켜도(비활성 타임아웃·앱 종료 경로) 되살리지 않는다.
+    watcher.stop().await.unwrap();
+    actor.shutdown().await.unwrap();
+    sleep(Duration::from_millis(200)).await;
+
+    assert!(
+        !root.exists(),
+        "지운 루트가 되살아났다: {:?}",
+        std::fs::read_dir(&root).map(|d| d.flatten().map(|e| e.path()).collect::<Vec<_>>())
+    );
+}

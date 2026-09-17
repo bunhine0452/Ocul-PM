@@ -348,3 +348,49 @@ async fn integrity_warning_emit_path_safe_without_app_handle() {
         .collect();
     assert_eq!(backups.len(), 1, "corruption backup must exist");
 }
+
+/// 루트가 사라진 뒤의 쓰기는 **아무것도 만들지 않는다** (2026-09-17).
+///
+/// Finder 에서 프로젝트 폴더를 지우면 삭제 이벤트가 세션을 열고, 그 upsert 의
+/// `create_dir_all` 이 `<root>/.oculpm/index/…` 를 되살려 빈 폴더가 다시
+/// 생겼다. 세션 upsert · ndjson append · 스냅샷 세 경로 모두 여기서 막힌다.
+#[tokio::test]
+async fn writes_after_root_removal_do_not_resurrect_it() {
+    let parent = tempdir().unwrap();
+    let root = parent.path().join("project");
+    std::fs::create_dir(&root).unwrap();
+    let w = make_writer(&root);
+    let workday = "20260917";
+    w.upsert_session(&make_session("20260917-001", "2026-09-17T10:00:00+09:00"))
+        .await
+        .unwrap();
+    assert!(
+        root.join(".oculpm/index").is_dir(),
+        "살아 있는 루트에는 쓴다"
+    );
+
+    // Finder 의 휴지통 이동 = 이름 바꾸기.
+    let trashed = parent.path().join("project (trashed)");
+    std::fs::rename(&root, &trashed).unwrap();
+    assert!(!root.exists());
+
+    let err = w
+        .upsert_session(&make_session("20260917-002", "2026-09-17T10:05:00+09:00"))
+        .await
+        .unwrap_err();
+    assert!(matches!(err, OculpmError::Io { .. }), "{err:?}");
+    let err = w
+        .append_file_change(&make_event("20260917-001", 1, "src/a.rs"))
+        .await
+        .unwrap_err();
+    assert!(matches!(err, OculpmError::Io { .. }), "{err:?}");
+    assert!(
+        w.capture_snapshot(workday, SnapshotKind::Close)
+            .await
+            .is_err(),
+        "스냅샷도 루트를 되살리면 안 된다"
+    );
+    assert!(w.ensure_workday_dirs(workday).await.is_err());
+
+    assert!(!root.exists(), "지운 루트가 되살아났다");
+}

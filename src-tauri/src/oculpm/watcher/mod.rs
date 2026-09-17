@@ -156,6 +156,7 @@ impl ProjectWatcher {
             auto_journal_draft: config.agents.auto_journal_draft,
             draft_lock: Arc::new(tokio::sync::Mutex::new(())),
             stats: stats.clone(),
+            root_gone_logged: std::sync::atomic::AtomicBool::new(false),
         };
 
         // PR-CI0 — 앱이 꺼진 동안 큐잉된 훅 이벤트를 즉시 소비한다. 인박스는

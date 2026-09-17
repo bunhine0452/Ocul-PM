@@ -507,6 +507,19 @@ pub fn handle_last_window_closed(app: &AppHandle, label: &str) -> bool {
     true
 }
 
+/// 오른쪽 클릭 메뉴 — 붙이고, 띄우고, 뗀다. `show_menu` 는 메뉴 추적이 끝날
+/// 때까지 돌아오지 않으므로(중첩 이벤트 루프) 돌아온 순간 떼면 다음 왼쪽
+/// 클릭은 다시 우리 손에 온다. 트레이 이벤트 핸들러는 메인 스레드에서 돌아
+/// 세 호출 모두 제자리에서 실행된다.
+fn show_context_menu(tray: &tauri::tray::TrayIcon, menu: &tauri::menu::Menu<tauri::Wry>) {
+    if let Err(e) = tray.set_menu(Some(menu.clone())) {
+        tracing::warn!(target: "tray", error = %e, "트레이 메뉴 부착 실패");
+        return;
+    }
+    let _ = tray.with_inner_tray_icon(|inner| inner.show_menu());
+    let _ = tray.set_menu(None::<tauri::menu::Menu<tauri::Wry>>);
+}
+
 /// 앱 창을 앞으로 (트레이 메뉴 "열기"). 없으면 시작 탭으로 하나 만든다.
 pub fn show_main(app: &AppHandle) {
     let handle = app.clone();
@@ -529,11 +542,16 @@ pub fn init(app: &tauri::App) -> tauri::Result<()> {
         .item(&quit_item)
         .build()?;
 
+    // 메뉴를 빌더에 **붙이지 않는다** — 오른쪽 클릭 순간에만 잠깐 붙였다 뗀다
+    // (`show_context_menu`). macOS 27 부터 상태 아이템에 메뉴가 달려 있으면
+    // AppKit 이 왼쪽 클릭까지 자기가 삼켜 메뉴를 띄우고, tray-icon 0.23 의 가로채기
+    // 뷰에는 아무 이벤트도 오지 않는다 — 아이콘을 눌러도 팝오버 대신 "열기/종료"
+    // 메뉴가 뜨던 회귀(2026-09-17). 상류 수정은 tray-icon 0.25.1 (#365) 에만 있고
+    // Tauri 2.11 은 ^0.24 에 묶여 있어 같은 수법을 앱 쪽에서 재현한다.
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(render_icon(false))
         .icon_as_template(true)
         .tooltip("Ocul-PM")
-        .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "tray-open" => show_main(app),
@@ -549,6 +567,11 @@ pub fn init(app: &tauri::App) -> tauri::Result<()> {
                     position,
                     ..
                 } => toggle_popover(tray.app_handle(), &state, position),
+                TrayIconEvent::Click {
+                    button: MouseButton::Right,
+                    button_state: MouseButtonState::Down,
+                    ..
+                } => show_context_menu(tray, &menu),
                 // 더블클릭 = 팝오버 닫기 (앱 열기 아님 — 실기기 피드백).
                 // macOS 는 Click(→팝오버 열림) 후 DoubleClick 이 이어지므로
                 // 여기서 숨기면 더블클릭의 순효과가 "닫힘"이 된다.
