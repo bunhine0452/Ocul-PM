@@ -64,7 +64,12 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.2.0 — a review is bound to the content
+## 🚀 v3.2.1 — menu bar clicks and deleted folders
+
+- **On macOS 27, clicking the menu bar icon opened the "Open / Quit" menu instead of the status popover** — this OS intercepts left clicks too whenever a menu is attached to a status item. The menu is now attached only for the instant of a right click, so left click is the popover and right click is the menu.
+- **Deleting a project folder in Finder while the app was running brought back an empty folder** — the file events from the deletion started a session, and writing that session recreated `.oculpm/index/` in the deleted spot. When the root is gone the watcher now drops the events and the index refuses to recreate anything.
+
+## v3.2.0 — a review is bound to the content
 
 - **"Verified" on a journal entry is now a promise, not a switch** — the mark is stored with a fingerprint of the body you verified; if an agent edits the body afterwards, the ledger row and the reading pane show **"Changed after review · re-check"**, and the "verified only" filter and change-review groups stop counting it as verified. Entries verified before 3.2.0 are honoured as-is.
 - **Two processes could overwrite the same entry** — when the app and the MCP server (or two parallel agent sessions) wrote an entry with the same minute, type and title, the later one could silently replace the earlier one (an 8-process reproduction kept 3 of 24). New entries are now created exclusively. A slow process deleting another's lock after being reclaimed is closed too (locks are owned by a nonce, not a path).
