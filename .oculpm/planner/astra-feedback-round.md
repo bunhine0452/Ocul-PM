@@ -55,4 +55,5 @@ docs/Astra feedback/ 의 10점 마스터보고서·백로그 48건을 검토해(
 | 2026-09-15T22:25:23+09:00 | #landing-deploy | claude-code | ☐→x |  | vercel --prod → oculpm.com 별칭, 등급 문구 라이브 확인 (api/notion TS 경고는 기존 비치명) |
 | 2026-09-16T00:27:10+09:00 | #eyes-release-gate | claude-code | ☐→~ | .oculpm/journal/20260915/Chores/2342_chore_release-3-2-0.md | v3.2.0 run 34983572575: gate 가 CI(34983566910) 8분 대기 뒤 success 판정 → draft → 서명·공증·업데이터 검증 step 전부 success → undraft. 자산 5, latest 리다이렉트 v3.2.0. 남은 것: 설치본 자동 업데이트 육안(사용자) |
 | 2026-09-17T20:50:30+09:00 | #eyes-release-gate | claude-code | ~→~ | .oculpm/journal/20260917/Chores/2050_chore_release-3-2-1.md | v3.2.1 로 2회째 통과 — gate 가 CI 6분 대기 후 통과·draft→공개·latest.json 실자산. 남은 것: 설치본 3.2.0→3.2.1 자동 업데이트 육안 |
+| 2026-09-18T22:49:18+09:00 | #eyes-release-gate | claude-code | ~→~ | .oculpm/journal/20260918/Chores/2249_chore_release-3-2-2.md | v3.2.2 3회째 통과 — gate·검증·draft 해제 전부 success. 남은 것: 설치본 자동 업데이트 육안 |
 <!-- oculpm:plan-log end -->
