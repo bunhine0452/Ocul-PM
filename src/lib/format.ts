@@ -29,6 +29,18 @@ export function toEpochMs(at: string | number | null | undefined): number | null
  * 렌더 도중 분이 넘어가며 순서가 흔들리지 않기 때문이다. 미래로 찍힌 값은
  * "방금" 으로 눕힌다 (음수 표기는 버그로 읽힌다).
  */
+/**
+ * ISO 시각 문자열 두 개를 **시점**으로 비교한다 (내림차순 = 최신 먼저).
+ * `localeCompare` 는 `+09:00` 와 `Z` 가 섞인 순간 어긋난다 — 백필·임포트로
+ * 들어온 일지는 오프셋이 다를 수 있다. 못 읽는 값은 문자열 비교로 물러선다.
+ */
+export function compareIsoDesc(a: string, b: string): number {
+  const ea = toEpochMs(a);
+  const eb = toEpochMs(b);
+  if (ea != null && eb != null && ea !== eb) return eb - ea;
+  return b.localeCompare(a);
+}
+
 export function relativeTime(
   at: string | number | null | undefined,
   now: number,

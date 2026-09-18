@@ -159,6 +159,7 @@ fn run_git(repo: &Path, args: &[&str]) -> Result<String, String> {
     let out = Command::new("git")
         .arg("-C")
         .arg(repo)
+        .args(crate::git::QUOTEPATH_OFF)
         .args(args)
         .output()
         .map_err(|e| format!("Failed to run git ({}): {e}", args.join(" ")))?;
@@ -407,7 +408,9 @@ fn name_status_path(line: &str) -> Option<String> {
     } else {
         Some(p1)
     };
-    picked.filter(|p| !p.is_empty()).map(str::to_string)
+    picked
+        .filter(|p| !p.is_empty())
+        .map(crate::git::unquote_git_path)
 }
 
 /// `git status --porcelain` → 경로 집합. 이름 바꿈(`old -> new`)은 새 경로로.
@@ -419,10 +422,12 @@ fn parse_porcelain(text: &str, rebase: &dyn Fn(&str) -> Option<String>) -> BTree
         }
         let path = line[3..].trim();
         let path = path.rsplit(" -> ").next().unwrap_or(path);
+        // 공백이 든 경로는 `quotepath=off` 여도 `"a b.md"` 로 감싸 온다.
+        let path = crate::git::unquote_git_path(path);
         if path.is_empty() {
             continue;
         }
-        if let Some(path) = rebase(path) {
+        if let Some(path) = rebase(&path) {
             out.insert(path);
         }
     }

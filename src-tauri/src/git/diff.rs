@@ -107,16 +107,28 @@ pub(crate) fn split_multi_diff(text: &str) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
     let mut current: Option<(String, String)> = None;
     for line in text.split_inclusive('\n') {
-        if let Some(rest) = line.strip_prefix("diff --git a/") {
+        // 공백·따옴표가 든 경로는 git 이 머리글을 `diff --git "a/x y" "b/x y"` 로
+        // 감싼다 (`quotepath=off` 여도). 예전엔 `a/` 접두만 봐서 그런 파일의
+        // 패치가 앞 파일 조각에 붙거나 통째로 빠졌다 — 한국어 파일명이 흔한
+        // 저장소에서 일지 diff 가 조용히 사라지던 원인.
+        let header = line
+            .strip_prefix("diff --git a/")
+            .or_else(|| line.strip_prefix("diff --git \"a/"));
+        if let Some(rest) = header {
             if let Some(done) = current.take() {
                 out.push(done);
             }
-            // `a/<x> b/<y>` — 공백이 든 경로는 git 이 따옴표를 붙이지만, 여기선
-            // `b/` 뒤를 그대로 쓴다 (이 앱이 다루는 경로엔 따옴표가 없다).
             let path = rest
                 .rsplit_once(" b/")
-                .map(|(_, b)| b.trim_end_matches(['\n', '\r', '"']).to_string())
+                .or_else(|| rest.rsplit_once(" \"b/"))
+                .map(|(_, b)| b.trim_end_matches(['\n', '\r']).to_string())
                 .unwrap_or_else(|| rest.trim_end().to_string());
+            // 닫는 따옴표가 남아 있으면 C-quote 다 — 여는 쪽을 되살려 풀어 준다.
+            let path = if path.ends_with('"') {
+                super::repo::unquote_git_path(&format!("\"{path}"))
+            } else {
+                path
+            };
             current = Some((path, line.to_string()));
         } else if let Some((_, buf)) = current.as_mut() {
             buf.push_str(line);

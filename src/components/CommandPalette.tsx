@@ -141,15 +141,24 @@ export function CommandPalette({
       setSymbolHits([]);
       return;
     }
+    // 디바운스는 요청 수만 줄인다 — 이미 나간 요청은 검색어가 바뀐 뒤에도
+    // 돌아와 새 결과를 덮는다 (워크스페이스 심볼은 수백 ms 걸릴 수 있다).
+    // 정리 함수에서 낡은 응답을 버린다.
+    let stale = false;
     const timer = window.setTimeout(() => {
       void commands.oculpmSearchEntities(pid, q, 8).then((res) => {
+        if (stale) return;
         setEntityHits(res.status === "ok" ? res.data : []);
       });
       void commands.lspWorkspaceSymbols(pid, q).then((res) => {
+        if (stale) return;
         setSymbolHits(res.status === "ok" ? res.data.slice(0, 8) : []);
       });
     }, 120);
-    return () => window.clearTimeout(timer);
+    return () => {
+      stale = true;
+      window.clearTimeout(timer);
+    };
   }, [open, search, currentProjectId]);
 
   const openEntity = (detail: OpenEntityDetail) => {

@@ -40,6 +40,9 @@ export const ALLOWLIST = new Set([
   "api/notion.ts",
   // VS Code 확장 설치 상태 (vscode-extension-round {#app-settings}) — 설정 통합 행의 창구.
   "api/vscodeExt.ts",
+  // 플래너 읽기 (`{#api-facades}` 첫 조각, 2026-09-18) — 트레이 스냅숏이 첫 호출자.
+  "api/plan.ts",
+  "api/shellIntegration.ts",
   // 아직 옮기지 않은 직접 호출자 (2026-08-30 기준, 87개). 새로 늘리지 말 것 —
   // 옮기면 여기서 빼고, 목록이 비면 이 주석도 지운다.
   "components/CommandPalette.tsx",

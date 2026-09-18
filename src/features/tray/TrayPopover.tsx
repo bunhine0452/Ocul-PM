@@ -13,34 +13,13 @@ import { createUnlistenBag, safeUnlistenPromise } from "@/lib/unlisten";
 import { listen } from "@tauri-apps/api/event";
 import { AlertTriangle, ArrowLeft, Check, ChevronDown, ExternalLink } from "lucide-react";
 import { STATUS_META } from "@/features/planner/planMeta";
-import {
-  commands,
-  events,
-  type JournalEntrySummary,
-  type PlanItemDto,
-  type PlanSummary,
-  type Session,
-} from "@/lib/bindings";
+import { commands, events, type PlanItemDto } from "@/lib/bindings";
+import { loadProject, type ProjectSnapshot } from "./traySnapshot";
 import { useT, type I18nKey } from "@/i18n";
 import { blocked } from "@/lib/blocked";
+import { compareIsoDesc } from "@/lib/format";
 import { TraySessions } from "./TraySessions";
 import "./tray.css";
-
-interface ActivePlan {
-  summary: PlanSummary;
-  /** 진행중 우선, 없으면 첫 todo — "다음 할 일" 1줄. */
-  next: string | null;
-}
-
-interface ProjectSnapshot {
-  id: number;
-  name: string;
-  rootPath: string;
-  workday: string | null;
-  sessions: Session[];
-  entries: JournalEntrySummary[];
-  plans: ActivePlan[];
-}
 
 /** 일지 목록 렌더 상한 — 팝오버에는 6행 남짓만 보이고 나머지는 세로 스크롤로
     거슬러 올라간다. 전체(수백 건)를 DOM 에 얹지 않기 위한 상한. */
@@ -81,42 +60,6 @@ function yesterdayOf(workday: string): string {
   ).padStart(2, "0")}`;
 }
 
-async function loadProject(p: {
-  id: number;
-  name: string;
-  root_path: string;
-}): Promise<ProjectSnapshot> {
-  const [status, sessions, entries, plans] = await Promise.all([
-    commands.oculpmGetStatus(p.id),
-    commands.oculpmListSessions(p.id, null),
-    commands.oculpmListJournalEntries(p.id, null, null),
-    commands.planList(p.id),
-  ]);
-  // 활성 플랜(표시 상한 2)은 항목까지 당겨 "다음 할 일"을 계산한다.
-  const active = plans.status === "ok" ? plans.data.filter((x) => x.status === "active") : [];
-  const enriched: ActivePlan[] = await Promise.all(
-    active.slice(0, 2).map(async (summary) => {
-      const d = await commands.planGet(p.id, summary.plan_id);
-      let next: string | null = null;
-      if (d.status === "ok" && d.data) {
-        const items = [...d.data.items].sort((a, b) => a.order_idx - b.order_idx);
-        next =
-          (items.find((i) => i.status === "in_progress") ??
-            items.find((i) => i.status === "todo"))?.title ?? null;
-      }
-      return { summary, next };
-    }),
-  );
-  return {
-    id: p.id,
-    name: p.name,
-    rootPath: p.root_path,
-    workday: status.status === "ok" ? status.data.current_workday : null,
-    sessions: sessions.status === "ok" ? sessions.data : [],
-    entries: entries.status === "ok" ? entries.data : [],
-    plans: enriched,
-  };
-}
 
 // ─── 프로젝트 스위처 (커스텀 드롭다운 — 네이티브 select 는 팝오버 톤과 어긋남) ──
 
@@ -605,9 +548,18 @@ export function TrayPopover() {
     try {
       const res = await commands.listProjects();
       if (res.status !== "ok") return;
-      const snaps = await Promise.all(res.data.map((p) => loadProject(p)));
-      // 활동 많은 순 — 오늘 일지 많은 프로젝트가 위로.
-      snaps.sort((a, b) => b.entries.length - a.entries.length);
+      // 한 프로젝트의 전송 실패(닫히는 중인 창·지워진 폴더)가 나머지 목록까지
+      // 지우지 않게 — 실패한 것만 빠진다.
+      const settled = await Promise.allSettled(res.data.map((p) => loadProject(p)));
+      const snaps = settled
+        .filter((r): r is PromiseFulfilledResult<ProjectSnapshot> => r.status === "fulfilled")
+        .map((r) => r.value);
+      // 활동 많은 순 — 오늘 일지 많은 프로젝트가 위로. `entries` 는 전 기간이라
+      // 프로젝트별 current_workday 로 잘라 세야 한다 (누적 건수로 정렬하면 오래된
+      // 프로젝트가 늘 위에 붙는다).
+      const todayOf = (s: ProjectSnapshot) =>
+        s.entries.filter((e) => e.workday === s.workday).length;
+      snaps.sort((a, b) => todayOf(b) - todayOf(a));
       setSnapshots(snaps);
     } finally {
       setLoading(false);
@@ -721,7 +673,7 @@ export function TrayPopover() {
     () =>
       visible
         .flatMap((s) => s.entries.map((e) => ({ project: s, entry: e })))
-        .sort((a, b) => (a.entry.created_at < b.entry.created_at ? 1 : -1)),
+        .sort((a, b) => compareIsoDesc(a.entry.created_at, b.entry.created_at)),
     [visible],
   );
 

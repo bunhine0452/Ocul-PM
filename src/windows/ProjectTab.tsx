@@ -129,7 +129,10 @@ export default function ProjectTab({
       const initRes = await commands.oculpmInit(projectId);
       if (cancelled) return;
       if (initRes.status === "error") {
-        oculpmLog.error("init", `oculpmInit failed: ${initRes.error}`, { projectId });
+        // 봉투의 error 는 `AppError` 객체다 — 템플릿에 그대로 넣으면 로그에
+        // `[object Object]` 만 남는다 (2026-09-18 oculpm.log 에서 발견).
+        const initErr = toAppError(initRes.error);
+        oculpmLog.error("init", `oculpmInit failed: ${initErr.detail ?? initErr.code}`, { projectId });
         setOculpmStatus(null);
         // 예전엔 로그 한 줄뿐이라 Today 의 "아직 활성화되지 않았어요" 가 이유도
         // 재시도도 없이 그대로였다 (완성도 감사 2026-08-30).

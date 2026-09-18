@@ -165,7 +165,7 @@ export default function TabbedWindow({
    * 알려 주면 여기서 한 번 묻는다. 프롬프트만 떠 있는 셸은 묻지 않는다.
    */
   const { confirm, confirmDialog } = useConfirm();
-  const closeTabGuarded = useCallback(
+  const closeTabAfterGuard = useCallback(
     async (id: number) => {
       const work = await runTabCloseGuard(id);
       if (hasRunningWork(work)) {
@@ -193,6 +193,23 @@ export default function TabbedWindow({
       closeTab(id);
     },
     [closeTab, confirm, t],
+  );
+
+  // 닫기가 진행 중인 탭 — 가드 조회·확인 대화상자가 떠 있는 동안 × 를 다시
+  // 누르면 대화상자가 겹치고, 두 번째 close_tab 은 레지스트리에 없는 탭으로
+  // 떨어진다 (백엔드 WARN `close_tab: 레지스트리에 없는 탭` 의 정체).
+  const closingRef = useRef<Set<number>>(new Set());
+  const closeTabGuarded = useCallback(
+    async (id: number) => {
+      if (closingRef.current.has(id)) return;
+      closingRef.current.add(id);
+      try {
+        await closeTabAfterGuard(id);
+      } finally {
+        closingRef.current.delete(id);
+      }
+    },
+    [closeTabAfterGuard],
   );
 
   /**

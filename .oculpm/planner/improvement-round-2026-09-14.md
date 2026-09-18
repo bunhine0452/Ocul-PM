@@ -33,7 +33,7 @@ owner: claude-code
 - [x] 라인 링 k=400 이면 매일 상한에 붙는다 — 실데이터로 재측정 뒤 결정 (← today-ring-followup #churn-k-value) {#churn-k-value}
 - [x] Today 라인 증감 표시를 검증하는 테스트가 없다 (← today-ring-followup #lines-display-coverage) {#lines-display-coverage}
 - [ ] tests/lsp_rust_analyzer.rs 스킵 가드가 rustup shim 에 속는다 — --version 기동 확인으로 (← ci-and-module-boundaries #ra-guard-hardening) {#ra-guard-hardening}
-- [ ] src/api/oculpm.ts 파사드 패턴을 code·terminal·git·llm 으로 확장 (← ci-and-module-boundaries #api-facades) {#api-facades}
+- [~] src/api/oculpm.ts 파사드 패턴을 code·terminal·git·llm 으로 확장 (← ci-and-module-boundaries #api-facades) {#api-facades}
 - [ ] i18n 마감 — 나머지 화면 묶음8, 영어 모드 12화면 오버플로 순회, check-no-hardcoded-korean allowlist 빈 배열 게이트 (← three-features-round #i18n-rest #i18n-overflow #i18n-gate) {#i18n-finish}
 - [ ] A2A 앱 쪽 쓰기 경로(수락·거절·메시지)가 멤버십을 검사한다 (← a2a-session-grouping #enforce-app) {#a2a-enforce-app}
 - [ ] ACP 턴 종료 → 일지 초안 + UUID↔session_id 매핑 (← acp-agent-panel #acp5-journal #acp2-sid) {#acp-journal-draft}
@@ -83,4 +83,6 @@ owner: claude-code
 | 2026-09-15T22:38:50+09:00 | #lines-display-coverage | claude-code | ☐→x |  | 이미 됨 — today_ring.test.tsx 가 "+12,345 / −6,789" 표기·0 케이스·상한 케이스를 단언한다 |
 | 2026-09-15T23:18:04+09:00 | #big-files | claude-code | ☐→x | .oculpm/journal/20260915/Refactors/2301_refactor_split-window-rs.md | optimization-round-2 Phase 1 로 7파일 전부 분할(37→26 파일, 17,923→7,924 줄). 래칫 제외 6건(legacy·bindings·ko/en·lib.rs·spec.rs)은 생성물·레지스트리라 그대로 |
 | 2026-09-15T23:18:09+09:00 | #scheduling-telemetry | claude-code | ☐→x | .oculpm/journal/20260915/Features_to_add/2314_feature_watcher-scheduling-telemetry.md | optimization-round-2 #scheduling-telemetry 로 구현 (v3-release 원본은 잠겨 갱신 불가) |
+| 2026-09-18T19:15:14+09:00 | #api-facades | claude-code | ☐→~ | .oculpm/journal/20260918/Bugs/1914_bug_bug-hunt-round2-git-quotepath.md | 첫 조각 src/api/plan.ts (planApi.list/get) — 트레이 스냅숏이 첫 호출자. code·terminal·git·llm 은 남음 |
+| 2026-09-18T20:00:16+09:00 | #api-facades | claude-code | ~→~ | .oculpm/journal/20260918/Bugs/2000_bug_bug-hunt-round3-settings-writeback.md | 두 번째 조각 src/api/shellIntegration.ts (ShellIntegrationBlock 분리). 직접 호출자 111→ 유지, code·terminal·git·llm 남음 |
 <!-- oculpm:plan-log end -->

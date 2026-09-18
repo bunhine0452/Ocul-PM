@@ -85,7 +85,7 @@ export function useAgentRuns(
       void commands.oculpmAgentRunSignal(pid, started, agent.id).then((res) => {
         if (res.status === "error") {
           // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
-          oculpmLog.error("terminal", `에이전트 세션 신호 실패: ${res.error}`);
+          oculpmLog.error("terminal", `에이전트 세션 신호 실패: ${res.error.detail ?? res.error.code}`);
         }
       });
     };

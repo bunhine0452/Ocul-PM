@@ -32,7 +32,7 @@
  * `history`·`toggleHistory`)이다.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { oculpmApi } from "@/api/oculpm";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -106,6 +106,10 @@ export function usePlanDocument(projectId: number): PlanDocument {
   // Restore the last-viewed plan (persisted) so returning from a linked journal
   // lands back on the SAME plan instead of resetting to the first one.
   const [selectedId, setSelectedId] = useState<string | null>(state.plannerPlanId);
+  // 늦게 온 `planGet` 응답이 그 사이 바뀐 선택을 덮지 않게 — 계획 레일을 빠르게
+  // 오가면 느린 첫 응답이 나중에 도착해 다른 계획의 본문이 실렸다.
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
   const [detail, setDetail] = useState<PlanDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,17 +166,20 @@ export function usePlanDocument(projectId: number): PlanDocument {
   const refreshDetail = useCallback(async (silent = false) => {
     if (selectedId == null) {
       setDetail(null);
+      setLoadingDetail(false);
       return;
     }
     if (!silent) setLoadingDetail(true);
     try {
       const res = await commands.planGet(projectId, selectedId);
+      if (selectedIdRef.current !== selectedId) return;
       if (res.status === "ok") setDetail(res.data);
       else setError(tError(res.error));
     } catch (e) {
+      if (selectedIdRef.current !== selectedId) return;
       setError(String(e));
     } finally {
-      if (!silent) setLoadingDetail(false);
+      if (!silent && selectedIdRef.current === selectedId) setLoadingDetail(false);
     }
   }, [projectId, selectedId]);
 

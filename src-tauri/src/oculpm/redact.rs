@@ -197,11 +197,17 @@ pub fn patterns_for_project(project_root: &Path) -> Vec<Regex> {
 /// Returns the rewritten string + an ordered list of [`RedactHit`] suitable
 /// for logging / `IntegrityWarning` payloads.
 ///
-/// Overlap handling: all hits are collected, then sorted by `(start, end)`
-/// and de-duplicated by keeping the leftmost when ranges overlap. The
-/// rewrite runs right-to-left so earlier offsets stay valid as the buffer
-/// shrinks. Overlapping secrets are vanishingly rare in real journals, so
-/// the simple "leftmost wins" policy is enough.
+/// Overlap handling: all hits are collected, sorted by `(start, end)`, and
+/// overlapping ranges are **merged into their union** — the kept hit carries
+/// the pattern of the first (leftmost) match. The rewrite runs right-to-left
+/// so earlier offsets stay valid as the buffer shrinks.
+///
+/// It used to keep only the leftmost hit and *drop* anything overlapping it.
+/// With two patterns matching the same key at different lengths (a strict
+/// user rule `sk-[A-Za-z0-9]{20}` next to the default `sk-[A-Za-z0-9_-]{20,}`)
+/// the shorter one sorted first and won, and the tail of the key survived as
+/// `[REDACTED]tail…`. A mask that leaks half a secret is worse than none — it
+/// reads as "this was checked".
 pub fn redact_text(text: &str, patterns: &[Regex]) -> (String, Vec<RedactHit>) {
     let mut raw: Vec<RedactHit> = Vec::new();
     for r in patterns {
@@ -219,11 +225,10 @@ pub fn redact_text(text: &str, patterns: &[Regex]) -> (String, Vec<RedactHit>) {
     raw.sort_by_key(|h| (h.start, h.end));
 
     let mut kept: Vec<RedactHit> = Vec::with_capacity(raw.len());
-    let mut cursor: usize = 0;
     for h in raw {
-        if h.start >= cursor {
-            cursor = h.end;
-            kept.push(h);
+        match kept.last_mut() {
+            Some(last) if h.start < last.end => last.end = last.end.max(h.end),
+            _ => kept.push(h),
         }
     }
 
@@ -294,6 +299,32 @@ mod tests {
         assert!(out.contains("[REDACTED]"));
         assert!(out.contains("여기 비밀키"));
         assert!(out.contains("여기까지"));
+        assert_eq!(hits.len(), 1);
+    }
+
+    /// Two patterns, same start, different length — the union must be masked.
+    /// The old "leftmost wins" kept the shorter hit and let the key's tail
+    /// through as `[REDACTED]5678ijklMNOP…`.
+    #[test]
+    fn redact_overlapping_hits_mask_the_union() {
+        let regs = compile_redact_patterns(&[
+            r"sk-[A-Za-z0-9]{8}".to_string(),
+            r"sk-[A-Za-z0-9_-]{20,}".to_string(),
+        ]);
+        let key = "sk-abcdEFGH1234ijklMNOP5678";
+        let (out, hits) = redact_text(&format!("key={key} done"), &regs);
+        assert_eq!(out, "key=[REDACTED] done", "{out:?}");
+        assert_eq!(hits.len(), 1);
+        assert_eq!((hits[0].start, hits[0].end), (4, 4 + key.len()));
+
+        // Partial overlap (a range that starts inside the previous one and
+        // ends after it) also extends the mask instead of leaking the tail.
+        let regs = compile_redact_patterns(&[
+            r"token=[a-z]{4}".to_string(),
+            r"[a-z]{4}[0-9]{6}".to_string(),
+        ]);
+        let (out, hits) = redact_text("token=abcd123456;", &regs);
+        assert_eq!(out, "[REDACTED];", "{out:?}");
         assert_eq!(hits.len(), 1);
     }
 

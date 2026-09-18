@@ -441,10 +441,13 @@ async fn tick_project(
     let hub = app.state::<WatcherAutomationHub>();
     let config = {
         let manager = app.state::<OculpmManager>();
-        manager
-            .get_config(project_id)
-            .await
-            .map_err(|e| e.to_string())?
+        match manager.get_config(project_id).await {
+            Ok(cfg) => cfg,
+            // `current_workdays()` 가 돌려준 뒤 닫힌(release/forget) 프로젝트 —
+            // 다음 틱엔 목록에서 빠진다. 경고할 일이 아니다.
+            Err(crate::oculpm::error::OculpmError::NotInitialized(_)) => return Ok(()),
+            Err(e) => return Err(TickError::Other(e.to_string())),
+        }
     };
     let root = match project_root(app, project_id).await {
         Ok(root) => root,

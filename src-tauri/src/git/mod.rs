@@ -43,6 +43,7 @@ pub use history::{
 };
 pub(crate) use repo::EMPTY_TREE;
 pub use repo::{primary_repo, repo_root_for};
+pub(crate) use repo::{unquote_git_path, QUOTEPATH_OFF};
 pub use status::{
     head_status_brief, remotes, status, GitHeadStatusBrief, GitRemote, GitRepoStatus,
 };

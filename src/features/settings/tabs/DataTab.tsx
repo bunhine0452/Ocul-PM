@@ -210,8 +210,13 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
     });
   }, []);
 
-  const copy = (s: string, label: string) => {
-    navigator.clipboard.writeText(s);
+  const copy = async (s: string, label: string) => {
+    // 다른 복사 버튼과 같은 모양 — 실패(권한·비활성 창)를 "복사됨" 으로 보이면 안 된다.
+    try {
+      await navigator.clipboard.writeText(s);
+    } catch {
+      return;
+    }
     setCopied(label);
     setTimeout(() => setCopied(null), 1200);
   };
@@ -271,7 +276,7 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
                   </div>
                 </div>
                 <button
-                  onClick={() => copy(v, k)}
+                  onClick={() => void copy(v, k)}
                   className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 cursor-pointer"
                   title={copied === k ? t("common.copied") : t("common.copy")}
                 >

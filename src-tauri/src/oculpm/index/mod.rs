@@ -533,7 +533,7 @@ fn collect_git_info(root: &Path) -> SnapshotGit {
             continue;
         }
         let status = &line[..2];
-        let path = line[3..].trim();
+        let path = crate::git::unquote_git_path(&line[3..]);
         if status == "??" {
             untracked_files.push(path.to_string());
         } else {
@@ -550,6 +550,7 @@ fn collect_git_info(root: &Path) -> SnapshotGit {
 
 fn run_git(root: &Path, args: &[&str]) -> Option<String> {
     let out = std::process::Command::new("git")
+        .args(crate::git::QUOTEPATH_OFF)
         .args(args)
         .current_dir(root)
         .output()

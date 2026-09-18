@@ -55,6 +55,16 @@ export function trimAroundMatch(content: string, query: string, context = 5): Tr
  * 한계: 매치가 하이라이트 토큰 경계에 걸쳐 쪼개진 경우(예: 문자열 안 키워드
  * 색칠)는 표시하지 못한다 — 코드 검색 쿼리는 대부분 식별자 단위라 실용상 충분.
  */
+/**
+ * 인덱스 계산용 소문자화. `toLowerCase()` 는 일부 문자(`İ` → `i̇`)에서 길이가
+ * 변해 소문자 문자열의 인덱스로 원문을 자르면 한 글자씩 밀린다 — 그런 입력은
+ * 원문 그대로 비교한다 (그 줄만 대소문자를 구분하되 잘림은 정확하다).
+ */
+function foldForIndex(s: string): string {
+  const lower = s.toLowerCase();
+  return lower.length === s.length ? lower : s;
+}
+
 export function markMatchesInHtml(html: string, query: string): string {
   const q = query.trim();
   if (!q) return html;
@@ -67,7 +77,7 @@ export function markMatchesInHtml(html: string, query: string): string {
   const ql = q.toLowerCase();
   for (const node of texts) {
     const value = node.nodeValue ?? "";
-    const lower = value.toLowerCase();
+    const lower = foldForIndex(value);
     let i = lower.indexOf(ql);
     if (i === -1) continue;
     const frag = doc.createDocumentFragment();
@@ -91,7 +101,7 @@ export function markMatchesInHtml(html: string, query: string): string {
 export function splitMatch(text: string, query: string): { text: string; hit: boolean }[] {
   const q = query.trim().toLowerCase();
   if (!q) return [{ text, hit: false }];
-  const lower = text.toLowerCase();
+  const lower = foldForIndex(text);
   const out: { text: string; hit: boolean }[] = [];
   let pos = 0;
   let i = lower.indexOf(q);

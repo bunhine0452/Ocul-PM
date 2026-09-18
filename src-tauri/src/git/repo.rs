@@ -13,9 +13,68 @@ use walkdir::WalkDir;
 /// (no `HEAD~1` parent).
 pub(crate) const EMPTY_TREE: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 
+/// git 이 경로를 내놓을 때 비ASCII 를 8진수로 이스케이프하지 않게 하는 설정.
+/// 기본값(`core.quotepath=on`)이면 `한글.md` 가 `"\355\225\234\352\270\200.md"`
+/// 로 나와 `--name-status`·`--porcelain`·`diff --git` 머리글의 경로가 전부
+/// 실제 파일명과 어긋난다 — 백필 일지의 `files_touched`, 브랜치 화면의 파일
+/// 귀속, 일지 diff 캡처가 한국어 파일명에서 조용히 빠졌다. 세 `run_git` 이
+/// 같은 값을 쓴다.
+pub(crate) const QUOTEPATH_OFF: [&str; 2] = ["-c", "core.quotepath=off"];
+
+/// git 이 C-quote 로 감싼 경로(`"a b.md"`, 공백·따옴표·제어문자가 있을 때는
+/// `quotepath=off` 여도 감싼다)의 겉따옴표와 흔한 이스케이프를 풀어 준다.
+/// 8진수 이스케이프(`\355`)도 처리해 `quotepath` 를 못 끈 출력에도 안전하다.
+pub(crate) fn unquote_git_path(raw: &str) -> String {
+    let raw = raw.trim();
+    let Some(inner) = raw.strip_prefix('"').and_then(|s| s.strip_suffix('"')) else {
+        return raw.to_string();
+    };
+    let bytes = inner.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b != b'\\' || i + 1 >= bytes.len() {
+            out.push(b);
+            i += 1;
+            continue;
+        }
+        let esc = bytes[i + 1];
+        match esc {
+            b'0'..=b'7' => {
+                // 최대 세 자리 8진수.
+                let mut val: u32 = 0;
+                let mut n = 0;
+                while n < 3 && i + 1 + n < bytes.len() && (b'0'..=b'7').contains(&bytes[i + 1 + n])
+                {
+                    val = val * 8 + u32::from(bytes[i + 1 + n] - b'0');
+                    n += 1;
+                }
+                out.push(val as u8);
+                i += 1 + n;
+            }
+            b'n' => {
+                out.push(b'\n');
+                i += 2;
+            }
+            b't' => {
+                out.push(b'\t');
+                i += 2;
+            }
+            _ => {
+                // `\\`, `\"` 등 — 이스케이프된 글자 그대로.
+                out.push(esc);
+                i += 2;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
 pub(super) fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.arg("-C").arg(root);
+    cmd.args(QUOTEPATH_OFF);
     cmd.args(args);
     let out = cmd
         .output()

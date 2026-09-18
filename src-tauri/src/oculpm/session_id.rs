@@ -62,6 +62,18 @@ fn is_digits(s: &str, n: usize) -> bool {
     s.len() == n && s.bytes().all(|b| b.is_ascii_digit())
 }
 
+/// 앞 8바이트가 `YYYYMMDD` 숫자면 그 슬라이스. **바이트로** 자르므로 비ASCII
+/// 가 섞인 id(`manual-한글`)에서 `&s[..8]` 이 문자 중간을 잘라 패닉하지 않도록
+/// `get` 으로 경계를 검사한다 — 프론트매터는 손으로 적힐 수 있는 값이다.
+fn leading_workday(s: &str) -> Option<&str> {
+    s.get(..8).filter(|head| is_digits(head, 8))
+}
+
+/// `<prefix><YYYYMMDD>-…` 모양인가 (접두형 방언 다섯 개가 같은 검사를 쓴다).
+fn has_dated_tail(rest: &str) -> bool {
+    leading_workday(rest).is_some() && rest.as_bytes().get(8) == Some(&b'-')
+}
+
 impl SessionId {
     pub fn new(raw: impl Into<String>) -> Self {
         Self(raw.into())
@@ -141,35 +153,35 @@ impl SessionId {
     pub fn kind(&self) -> SessionKind {
         let s = self.0.as_str();
         if let Some(rest) = s.strip_prefix(MANUAL_PREFIX) {
-            return if rest.len() >= 9 && is_digits(&rest[..8], 8) && rest.as_bytes()[8] == b'-' {
+            return if has_dated_tail(rest) {
                 SessionKind::Manual
             } else {
                 SessionKind::Unknown
             };
         }
         if let Some(rest) = s.strip_prefix(MCP_PREFIX) {
-            return if rest.len() >= 9 && is_digits(&rest[..8], 8) && rest.as_bytes()[8] == b'-' {
+            return if has_dated_tail(rest) {
                 SessionKind::Mcp
             } else {
                 SessionKind::Unknown
             };
         }
         if let Some(rest) = s.strip_prefix(SCHEDULE_PREFIX) {
-            return if rest.len() >= 9 && is_digits(&rest[..8], 8) && rest.as_bytes()[8] == b'-' {
+            return if has_dated_tail(rest) {
                 SessionKind::Schedule
             } else {
                 SessionKind::Unknown
             };
         }
         if let Some(rest) = s.strip_prefix(AUTOMATION_PREFIX) {
-            return if rest.len() >= 9 && is_digits(&rest[..8], 8) && rest.as_bytes()[8] == b'-' {
+            return if has_dated_tail(rest) {
                 SessionKind::Automation
             } else {
                 SessionKind::Unknown
             };
         }
         if let Some(rest) = s.strip_prefix(IMPORT_PREFIX) {
-            return if rest.len() >= 9 && is_digits(&rest[..8], 8) && rest.as_bytes()[8] == b'-' {
+            return if has_dated_tail(rest) {
                 SessionKind::Imported
             } else {
                 SessionKind::Unknown
@@ -204,7 +216,7 @@ impl SessionId {
             }
             SessionKind::Imported => Some(&s[IMPORT_PREFIX.len()..IMPORT_PREFIX.len() + 8]),
             SessionKind::Watcher | SessionKind::GitBackfill => Some(&s[..8]),
-            SessionKind::Unknown => (s.len() >= 8 && is_digits(&s[..8], 8)).then(|| &s[..8]),
+            SessionKind::Unknown => leading_workday(s),
         }
     }
 
@@ -310,6 +322,27 @@ mod tests {
         assert_eq!(SessionId::new("sched-x").kind(), SessionKind::Unknown);
         assert_eq!(SessionId::new("auto-x").kind(), SessionKind::Unknown);
         assert_eq!(SessionId::new("import-x").kind(), SessionKind::Unknown);
+    }
+
+    /// 손으로 적은 비ASCII id — `&rest[..8]` 이 UTF-8 문자 중간을 자르면 패닉한다.
+    /// 프론트매터는 사람·에이전트가 쓰는 파일이라 이 모양이 들어올 수 있고,
+    /// 여기서 죽으면 색인 태스크가 통째로 멎는다.
+    #[test]
+    fn non_ascii_ids_classify_as_unknown_without_panicking() {
+        for raw in [
+            "manual-한글세션이름",
+            "mcp-세션테스트",
+            "sched-한글",
+            "auto-한글한글한글",
+            "import-가나다라마바사",
+            "한글세션-001",
+            "세션",
+            "가나다",
+        ] {
+            let id = SessionId::new(raw);
+            assert_eq!(id.kind(), SessionKind::Unknown, "{raw}");
+            assert_eq!(id.workday(), None, "{raw}");
+        }
     }
 
     /// D8 회귀 — 접미 방언(`<workday>-sNN`)은 색인은 통과하되 분류가 죽는다.

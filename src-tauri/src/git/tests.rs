@@ -230,3 +230,77 @@ fn nested_repo_below_root_is_diffable() {
 
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[test]
+fn unquote_git_path_handles_plain_quoted_and_octal_forms() {
+    use super::repo::unquote_git_path;
+    assert_eq!(unquote_git_path("src/a.rs"), "src/a.rs");
+    assert_eq!(unquote_git_path("\"docs/a b.md\""), "docs/a b.md");
+    // `quotepath=on` 의 8진수 이스케이프 — "한글 파일.md".
+    assert_eq!(
+        unquote_git_path("\"\\355\\225\\234\\352\\270\\200 \\355\\214\\214\\354\\235\\274.md\""),
+        "한글 파일.md"
+    );
+    assert_eq!(unquote_git_path("\"a\\\"b\\\\c.md\""), "a\"b\\c.md");
+    // 따옴표가 한쪽만 있으면 감싼 것이 아니다 — 그대로.
+    assert_eq!(unquote_git_path("\"half"), "\"half");
+}
+
+#[test]
+fn split_multi_diff_reads_quoted_headers() {
+    let text = "diff --git \"a/docs/한글 파일.md\" \"b/docs/한글 파일.md\"\n\
+                index 1..2 100644\n--- \"a/docs/한글 파일.md\"\n+++ \"b/docs/한글 파일.md\"\n\
+                @@ -1 +1 @@\n-x\n+y\n\
+                diff --git a/src/a.rs b/src/a.rs\n@@ -1 +1 @@\n-1\n+2\n";
+    let parts = split_multi_diff(text);
+    let keys: Vec<&str> = parts.iter().map(|(k, _)| k.as_str()).collect();
+    assert_eq!(keys, vec!["docs/한글 파일.md", "src/a.rs"]);
+    assert!(parts[0].1.contains("+y"));
+    assert!(
+        !parts[0].1.contains("+2"),
+        "두 번째 파일의 패치가 첫 조각에 붙었다"
+    );
+}
+
+/// 한국어 파일명(공백 포함)이 git 을 지나며 8진수 이스케이프·C-quote 로 바뀌지
+/// 않고 실제 이름으로 돌아오는지 — 백필(`--name-status`)·일지 diff 캡처
+/// (`diff_patches`)·변경 목록(`uncommitted_changes`) 세 경로 전부.
+#[test]
+fn korean_file_names_survive_every_git_reader() {
+    let root = std::env::temp_dir().join(format!("ocul-quotepath-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("docs")).unwrap();
+    if git(&root, &["init", "-q"]).is_err() {
+        return; // git unavailable
+    }
+    git(&root, &["config", "user.email", "t@t.dev"]).unwrap();
+    git(&root, &["config", "user.name", "t"]).unwrap();
+    // 기본값을 강제해 이 머신의 전역 설정과 무관하게 재현한다.
+    git(&root, &["config", "core.quotepath", "true"]).unwrap();
+    let rel = "docs/한글 파일.md";
+    std::fs::write(root.join(rel), "처음\n").unwrap();
+    git(&root, &["add", rel]).unwrap();
+    git(&root, &["commit", "-qm", "base"]).unwrap();
+
+    let commits = commits_for_backfill(&root, 5).unwrap();
+    assert_eq!(
+        commits[0].files[0].path, rel,
+        "name-status: {:?}",
+        commits[0].files
+    );
+
+    std::fs::write(root.join(rel), "고침\n").unwrap();
+    let changes = uncommitted_changes(&root);
+    assert!(
+        changes.iter().any(|c| c.path == rel),
+        "porcelain: {changes:?}"
+    );
+
+    let patches = diff_patches(&root, &[rel.to_string()], 64 * 1024);
+    let patch = patches
+        .get(rel)
+        .unwrap_or_else(|| panic!("diff_patches 에 {rel} 가 없다: {patches:?}"));
+    assert!(patch.contains("+고침"), "{patch}");
+
+    let _ = std::fs::remove_dir_all(&root);
+}

@@ -32,54 +32,92 @@ pub const KNOWN_AGENT_IDS: &[&str] = &[
     "zed",
 ];
 
+impl Default for OculpmConfig {
+    fn default() -> Self {
+        Self {
+            schema_version: 1,
+            workday: WorkdayConfig::default(),
+            session: SessionConfig::default(),
+            git: GitConfig::default(),
+            watcher: WatcherConfig::default(),
+            agents: AgentsConfig::default(),
+            // D4 — 자동화는 전부 옵인. 새 프로젝트도 꺼진 채로 시작한다.
+            automation: AutomationConfig::default(),
+        }
+    }
+}
+
+impl Default for WorkdayConfig {
+    fn default() -> Self {
+        Self {
+            timezone: "Asia/Seoul".into(),
+            day_starts_at: "00:00".into(),
+        }
+    }
+}
+
+impl Default for SessionConfig {
+    fn default() -> Self {
+        Self {
+            // W4 dogfooding fix (2026-05-25) — external agents (Claude
+            // Code / antigravity / etc.) have natural pauses while waiting
+            // on LLM responses or user prompts. 30 min split single
+            // logical sessions into many. 60 min covers most agent gaps;
+            // session_resume_grace handles the remaining tail.
+            inactivity_timeout_minutes: 60,
+            session_resume_grace_minutes: 15,
+        }
+    }
+}
+
+impl Default for GitConfig {
+    fn default() -> Self {
+        Self {
+            forbid_journal_for_paths: default_forbid_paths(),
+            auto_redact_patterns: default_redact_patterns(),
+        }
+    }
+}
+
+impl Default for WatcherConfig {
+    fn default() -> Self {
+        Self {
+            ignore: default_watcher_ignore(),
+            respect_gitignore: true,
+            debounce_ms: 500,
+            // 기본은 숫자 그대로 — 티어를 고른 사람만 이름을 적는다.
+            responsiveness: None,
+        }
+    }
+}
+
+impl Default for AgentsConfig {
+    fn default() -> Self {
+        Self {
+            // `agents-md` is the universal surface — always on by default
+            // so the root AGENTS.md gets the master content even before
+            // the user toggles individual adapters. Per-adapter ids stay
+            // empty until detection or Settings picks them.
+            active: vec!["agents-md".into()],
+            // F1 — automatic background LLM reconciliation is opt-in.
+            auto_reconcile: false,
+            // PR-CI1 — hook-session journal drafting is opt-in (billable).
+            auto_journal_draft: false,
+            // PR-CI3 — rules cross-tool translation is opt-in.
+            rules_translate: vec![],
+            // TK1 — master template language (ko | en).
+            template_language: "ko".into(),
+        }
+    }
+}
+
 impl OculpmConfig {
     /// Conservative defaults for a freshly-initialised project.
     /// See `phases/README.md` §0.2 and `00-spec.md` §5.
     pub fn default_for_new_project() -> Self {
-        Self {
-            schema_version: 1,
-            workday: WorkdayConfig {
-                timezone: "Asia/Seoul".into(),
-                day_starts_at: "00:00".into(),
-            },
-            session: SessionConfig {
-                // W4 dogfooding fix (2026-05-25) — external agents (Claude
-                // Code / antigravity / etc.) have natural pauses while waiting
-                // on LLM responses or user prompts. 30 min split single
-                // logical sessions into many. 60 min covers most agent gaps;
-                // session_resume_grace handles the remaining tail.
-                inactivity_timeout_minutes: 60,
-                session_resume_grace_minutes: 15,
-            },
-            git: GitConfig {
-                forbid_journal_for_paths: default_forbid_paths(),
-                auto_redact_patterns: default_redact_patterns(),
-            },
-            watcher: WatcherConfig {
-                ignore: default_watcher_ignore(),
-                respect_gitignore: true,
-                debounce_ms: 500,
-                // 기본은 숫자 그대로 — 티어를 고른 사람만 이름을 적는다.
-                responsiveness: None,
-            },
-            agents: AgentsConfig {
-                // `agents-md` is the universal surface — always on by default
-                // so the root AGENTS.md gets the master content even before
-                // the user toggles individual adapters. Per-adapter ids stay
-                // empty until detection or Settings picks them.
-                active: vec!["agents-md".into()],
-                // F1 — automatic background LLM reconciliation is opt-in.
-                auto_reconcile: false,
-                // PR-CI1 — hook-session journal drafting is opt-in (billable).
-                auto_journal_draft: false,
-                // PR-CI3 — rules cross-tool translation is opt-in.
-                rules_translate: vec![],
-                // TK1 — master template language (ko | en).
-                template_language: "ko".into(),
-            },
-            // D4 — 자동화는 전부 옵인. 새 프로젝트도 꺼진 채로 시작한다.
-            automation: AutomationConfig::default(),
-        }
+        // 각 섹션의 `Default` 가 단일 출처다 — 손으로 고친 config 에서 빠진
+        // 키도 같은 값으로 채워진다 (`#[serde(default)]`).
+        Self::default()
     }
 
     /// Load + parse from a TOML file. Unknown keys are silently ignored to
@@ -94,9 +132,17 @@ impl OculpmConfig {
 
     /// Parse from a TOML string without touching the filesystem. Handy for
     /// testing and for surface-level UI validation.
+    ///
+    /// 사용자가 손으로 고치는 파일이라 **빠진 키·섹션은 새 프로젝트 기본값으로
+    /// 채운다** (2026-09-18). 예전엔 `auto_redact_patterns` 한 줄을 지우면 전체
+    /// 로드가 실패해 `config_valid=false` — 워처도 마스킹도 멈췄다. 구조체에
+    /// `#[serde(default)]` 를 붙이는 대신 여기서 값을 덧씌우는 이유: specta 가
+    /// 그 속성을 옵셔널 TS 타입으로 내보내 프런트의 모든 접근이 흔들린다.
     pub fn from_toml_str(text: &str) -> Result<Self, OculpmError> {
-        let cfg: OculpmConfig = toml::from_str(text)?;
-        Ok(cfg)
+        let user: toml::Value = toml::from_str(text)?;
+        let mut base = toml::Value::try_from(Self::default_for_new_project())?;
+        overlay_toml(&mut base, user);
+        Ok(base.try_into()?)
     }
 
     /// Serialise + write to disk via `atomic_io::write_atomic`. Uses
@@ -191,6 +237,25 @@ impl OculpmConfig {
 // Default value sources — split out for readability and easy diffing against
 // `phases/README.md` §0.2 and `00-spec.md` §5.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// `user` 를 `base` 위에 덧씌운다 — 테이블은 재귀로 합치고 그 외는 사용자 값이
+/// 이긴다. 사용자가 적은 배열은 **통째로** 교체다 (기본 목록에 합치지 않는다:
+/// `forbid_journal_for_paths = []` 는 "다 지웠다" 는 뜻이어야 한다).
+fn overlay_toml(base: &mut toml::Value, user: toml::Value) {
+    match (base, user) {
+        (toml::Value::Table(b), toml::Value::Table(u)) => {
+            for (k, v) in u {
+                match b.get_mut(&k) {
+                    Some(slot) if slot.is_table() && v.is_table() => overlay_toml(slot, v),
+                    _ => {
+                        b.insert(k, v);
+                    }
+                }
+            }
+        }
+        (slot, v) => *slot = v,
+    }
+}
 
 fn default_forbid_paths() -> Vec<String> {
     [
@@ -593,6 +658,44 @@ active = []
         assert!(!cfg.automation.watchers);
         assert_eq!(cfg.automation.daily_run_budget, 20);
         cfg.validate().expect("validate");
+    }
+
+    /// 손으로 고친 config 에 키가 빠져도 로드가 실패하지 않는다 (2026-09-18).
+    /// 예전엔 `auto_redact_patterns` 한 줄을 지우면 `toml::from_str` 이 통째로
+    /// 실패해 `config_valid=false` — 워처도 마스킹도 멈췄다. 빠진 값은 새
+    /// 프로젝트 기본값과 **같아야** 한다 (`Default` 가 단일 출처).
+    #[test]
+    fn field_defaults_agree() {
+        let fresh = OculpmConfig::default_for_new_project();
+        let trimmed = OculpmConfig::from_toml_str(
+            r#"
+schema_version = 1
+[workday]
+timezone = "Asia/Seoul"
+[git]
+forbid_journal_for_paths = ["**/.env*"]
+[agents]
+active = ["agents-md"]
+"#,
+        )
+        .expect("키가 빠진 config 도 읽힌다");
+        assert_eq!(trimmed.workday.day_starts_at, fresh.workday.day_starts_at);
+        assert_eq!(trimmed.session, fresh.session, "[session] 섹션 통째로 없음");
+        assert_eq!(
+            trimmed.git.auto_redact_patterns,
+            fresh.git.auto_redact_patterns
+        );
+        assert_eq!(
+            trimmed.git.forbid_journal_for_paths,
+            vec!["**/.env*".to_string()]
+        );
+        assert_eq!(trimmed.watcher, fresh.watcher, "[watcher] 섹션 통째로 없음");
+        assert_eq!(trimmed.agents.template_language, "ko");
+        assert_eq!(trimmed.automation, fresh.automation);
+        assert!(trimmed.validate().is_ok());
+
+        // 빈 파일도 새 프로젝트 기본값과 같다.
+        assert_eq!(OculpmConfig::from_toml_str("").unwrap(), fresh);
     }
 
     /// 통째로 빠진 `[automation]` 과 부분만 적힌 `[automation]` 이 같은 값을 내야

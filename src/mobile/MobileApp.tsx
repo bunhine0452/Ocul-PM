@@ -53,10 +53,17 @@ export default function MobileApp() {
   useEffect(() => {
     if (boot !== "ready") return;
     let cleanup: (() => void) | undefined;
+    let disposed = false;
     void applyDesktopTheme().then((c) => {
-      cleanup = c;
+      // 적용이 끝나기 전에 effect 가 내려갔으면 곧장 되돌린다 — 안 그러면 그
+      // 구독은 아무도 풀지 않는다.
+      if (disposed) c();
+      else cleanup = c;
     });
-    return () => cleanup?.();
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
   }, [boot]);
 
   const boot_ = useCallback(async () => {

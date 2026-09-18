@@ -5,6 +5,7 @@ import { useJournalEvents } from "./useOculpmLive";
 import { t } from "@/i18n";
 import { shiftWorkday } from "@/lib/workday";
 import { tError } from "@/i18n/errors";
+import { compareIsoDesc } from "@/lib/format";
 
 // Final UI Update (ui_v2) — fetch journal entries and group them by day for the
 // timeline. F3 (2026-06-22): two modes. The default windowed load (last N
@@ -55,7 +56,7 @@ function groupByWorkday(list: JournalEntrySummary[], todayKey: string): JournalD
     .map(([wd, entries]) => ({
       workday: wd,
       label: dayLabel(wd, todayKey),
-      entries: entries.slice().sort((a, b) => b.created_at.localeCompare(a.created_at)),
+      entries: entries.slice().sort((a, b) => compareIsoDesc(a.created_at, b.created_at)),
     }))
     .sort((a, b) => b.workday.localeCompare(a.workday));
 }
@@ -141,6 +142,9 @@ export function useJournalDays(
   useEffect(() => {
     if (!enabled || projectId == null || !todayKey) {
       setDays(null);
+      // 직전 요청이 취소되며 finally 를 건너뛰었으면 loading 이 true 로 남는다 —
+      // 비활성 상태에서 빈 화면 대신 스켈레톤이 계속 그려진다.
+      setLoading(false);
       return;
     }
     let cancelled = false;
@@ -174,7 +178,7 @@ export function useJournalDays(
               label: dayLabel(wd, todayKey),
               entries: (byKey.get(wd) ?? [])
                 .slice()
-                .sort((a, b) => b.created_at.localeCompare(a.created_at)),
+                .sort((a, b) => compareIsoDesc(a.created_at, b.created_at)),
             }))
             .filter((d) => d.entries.length > 0);
           // 윈도우 모드는 14일 창이 곧 상한이라 "몇 건 중 몇 건"이 없다.

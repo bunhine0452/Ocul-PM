@@ -269,13 +269,10 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
 
   // 언어 서버 — `editorEpoch` 를 같이 넘긴다. 파일을 고른 순간이 아니라 **내용이
   // 실제로 로드된 순간**에 didOpen 이 나가야 서버가 빈 문서를 보고 엉뚱한 진단을
-  // 내지 않는다 (에디터 재마운트와 같은 신호를 쓴다).
-  const lsp = useLsp(
-    projectId,
-    lspEnabled ? activePath : null,
-    bufferRef.current?.text ?? "",
-    editorEpoch,
-  );
+  // 내지 않는다. 에디터가 실제로 연 파일에만 — 읽기가 거부된 파일(밖을 가리키는
+  // 심링크)·이미지·바이너리에 보내면 같은 거절이 ERROR 로 한 번 더 남는다.
+  const lspPath = lspEnabled && fileView.kind === "editor" ? activePath : null;
+  const lsp = useLsp(projectId, lspPath, bufferRef.current?.text ?? "", editorEpoch);
 
   // putBuffer 가 dirty 버퍼를 밀어냈으면(상한 초과) 조용한 유실 대신 알린다.
   const notifyIfEvicted = useCallback((evictedKey: string | null) => {

@@ -218,8 +218,8 @@ fn parse_name_status(block: &str) -> Vec<BackfillFileChange> {
         let Some(status) = code.chars().next() else {
             continue;
         };
-        let p1 = cols.next().unwrap_or("");
-        let p2 = cols.next();
+        let p1 = super::repo::unquote_git_path(cols.next().unwrap_or(""));
+        let p2 = cols.next().map(super::repo::unquote_git_path);
         let renamed = if status == 'R' || status == 'C' {
             p2
         } else {
@@ -228,13 +228,13 @@ fn parse_name_status(block: &str) -> Vec<BackfillFileChange> {
         if let Some(p2) = renamed {
             out.push(BackfillFileChange {
                 status,
-                path: p2.to_string(),
-                rename_from: Some(p1.to_string()),
+                path: p2,
+                rename_from: Some(p1),
             });
         } else if !p1.is_empty() {
             out.push(BackfillFileChange {
                 status,
-                path: p1.to_string(),
+                path: p1,
                 rename_from: None,
             });
         }
