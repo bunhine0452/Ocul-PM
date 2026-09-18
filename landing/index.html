@@ -47,7 +47,7 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "3.2.1",
+  "softwareVersion": "3.2.2",
   "description": "AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저. 에이전트가 만든 변경을 자동으로 기록하고, 로컬 diff 로 즉시 검증하고, 쌓인 기록을 스탠드업으로 되돌려줍니다. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -296,7 +296,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.2.1</span>
+    <span class="nav-ver" data-version>v3.2.2</span>
     <div class="nav-links">
       <a href="#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -315,7 +315,7 @@
 <!-- ══════════ 히어로 ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v3.2.1 — 메뉴바 클릭과 지운 폴더</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v3.2.2 — 한국어 파일명과 열일곱 가지 조용한 결함</a>
   <h1 class="reveal on">에이전트는 코드를 쓰고,<br /><span class="g">당신은 기억을 갖습니다.</span></h1>
   <p class="hero-sub reveal on">
     Claude Code · Codex · Cursor 가 코드를 쓰는 동안, <b>Ocul-PM</b> 이 모든 작업을
@@ -324,7 +324,7 @@
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v3.2.1 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
+      <span class="lg">v3.2.2 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
     </a>
     <a class="dl-btn ghost" href="/keynote">키노트로 보기 →</a>
   </div>
@@ -522,6 +522,7 @@
     <p class="reveal">이 앱은 자기 자신으로 개발됩니다 — 아래 이력 전부가 Ocul-PM 의 작업 일지에서 나왔습니다.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v3.2.2 — 한국어 파일명과 열일곱 가지 조용한 결함</b> · <b>한국어 파일명이 git 을 지나며 8진수 이스케이프로 깨졌습니다.</b> 백필 일지의 <code>files_touched</code>, 브랜치 화면의 파일 귀속, 일지 변경 diff 캡처(감싼 머리글을 못 알아봐 그 파일의 diff 가 빠졌습니다)가 전부 실제 파일명으로 돌아옵니다. <b>손으로 고친 <code>config.toml</code> 에 키 하나가 빠지면 프로젝트가 통째로 무효가 되던 것</b>은 빠진 값을 기본값으로 채워 넘어갑니다. 그 밖에 비밀 마스킹이 겹치는 매치의 꼬리를 남기던 것, 비ASCII 세션 id 에 색인이 멎던 것, 설정 화면이 열 때마다 config 를 되쓰던 것, 늦은 응답이 새 화면을 덮던 것, 메뉴바 팝오버의 부분 실패·정렬, 탭 × 두 번 누름 — 열일곱 건.</li>
     <li class="reveal"><b>v3.2.1 — 메뉴바 클릭과 지운 폴더</b> · <b>macOS 27 에서 메뉴바 아이콘을 누르면 상태 팝오버 대신 「열기 / 종료」 메뉴가 떴습니다.</b> 이 OS 는 상태 아이템에 메뉴가 붙어 있으면 왼쪽 클릭까지 시스템이 가로챕니다 — 메뉴를 오른쪽 클릭 순간에만 붙였다 떼도록 바꿔 왼쪽 클릭은 팝오버, 오른쪽 클릭은 메뉴입니다. 그리고 <b>앱을 켜 둔 채 Finder 에서 프로젝트 폴더를 지우면 빈 폴더가 되살아나던 것</b> — 삭제가 만든 파일 이벤트를 워처가 활동으로 읽어 세션을 열고, 그 기록이 <code>.oculpm/index/</code> 를 다시 만들었습니다. 루트가 사라지면 이벤트를 버리고 아무것도 다시 만들지 않습니다.</li>
     <li class="reveal"><b>v3.2.0 — 확인은 내용에 묶입니다</b> · <b>일지의 「확인」이 스위치가 아니라 약속이 됩니다.</b> 확인 표시는 확인한 그 본문의 지문과 함께 남고, 그 뒤 에이전트가 본문을 고치면 <b>「확인 뒤 내용이 변경됐어요 · 다시 검토」</b>가 서며 「검증됨만」 필터에서 빠집니다. 같은 분·종류·제목으로 두 프로세스가 쓴 일지가 서로를 덮던 것(8프로세스 재현에서 24건 중 3건 생존)을 배타적 생성으로 막았고, 진단 탭에 <b>워처 계측</b>(브랜치 전환 3.6초 중 실제 처리 32ms)이 생겼습니다. 지원 에이전트는 코드에서 읽은 <b>네 등급</b>으로, 배포는 태그 커밋의 CI 통과와 서명·공증·업데이터 서명 검증을 <b>통과한 것만 공개</b>합니다. 안쪽에서는 800줄 넘는 파일 상위 7개를 나눴습니다(37 → 26).</li>
     <li class="reveal"><b>v3.1.1 — macOS 27 메뉴바 아이콘 복구</b> · <b>macOS 27 로 올리면 메뉴바에서 Ocul-PM 아이콘이 사라졌습니다.</b> 접힘(<code>«</code>) 뒤로 간 것도 아니고 그냥 없었습니다. macOS 27 은 상태 아이템을 프로세스의 기동 시점 신원에 묶는데, 이 앱은 메모리 튜닝(유휴 645MB → 38MB)을 걸려고 기동 직후 자기 자신을 다시 띄우고 있어 「아까 그 앱」으로 인정받지 못했습니다. 같은 튜닝을 번들이 프로세스 생성 시점에 넣어 주도록 바꿔 다시 띄우지 않고, 아이콘은 제자리입니다. Claude Code 어댑터는 0.77.0.</li>
@@ -668,12 +669,12 @@
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v3.2.1 — 지금 다운로드 · macOS (Apple Silicon)</span>
+  <span class="eyebrow reveal">v3.2.2 — 지금 다운로드 · macOS (Apple Silicon)</span>
   <h2 class="reveal">시작하는 데 필요한 것은,<br />없습니다.</h2>
   <p class="sub reveal">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v3.2.1 받기</span><span class="sub">무료 · 자동 업데이트</span>
+      <span class="lg">v3.2.2 받기</span><span class="sub">무료 · 자동 업데이트</span>
     </a>
     <a class="dl-btn ghost" href="/plugin">플러그인으로 시작 →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>

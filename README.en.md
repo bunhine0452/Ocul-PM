@@ -64,7 +64,13 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.2.1 — menu bar clicks and deleted folders
+## 🚀 v3.2.2 — Korean file names and seventeen quiet defects
+
+- **Non-ASCII file names came out of git octal-escaped** — backfilled journals' `files_touched`, the branch screen's file attribution, and journal diff capture (the quoted header went unrecognized, so that file's diff was dropped) all come back as the real file name now.
+- **A hand-edited `config.toml` missing one key invalidated the whole project** — missing values are now filled from the new-project defaults.
+- Secret masking leaving the tail of an overlapping match, an indexing panic on non-ASCII session ids, the settings screen rewriting the config on every open, stale responses overwriting the palette and plan screens, tray popover partial failures and sort order, double-click on a tab's ×, `[object Object]` in logs — seventeen fixes in all.
+
+## v3.2.1 — menu bar clicks and deleted folders
 
 - **On macOS 27, clicking the menu bar icon opened the "Open / Quit" menu instead of the status popover** — this OS intercepts left clicks too whenever a menu is attached to a status item. The menu is now attached only for the instant of a right click, so left click is the popover and right click is the menu.
 - **Deleting a project folder in Finder while the app was running brought back an empty folder** — the file events from the deletion started a session, and writing that session recreated `.oculpm/index/` in the deleted spot. When the root is gone the watcher now drops the events and the index refuses to recreate anything.
