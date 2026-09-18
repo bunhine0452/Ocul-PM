@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: v3-release
 title: "3.0 을 내보내기 전에 — 육안 확인 부채와 영문 표면 (3.0.0)"
-status: active
+status: done
 created: 2026-09-04
-updated: 2026-09-08
+updated: 2026-09-15
 owner: claude-code
 ---
 

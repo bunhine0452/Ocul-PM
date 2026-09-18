@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: design-consistency-round
 title: "디자인 일관성 라운드 — \"여러 손이 만든 티\" 지우기"
-status: active
+status: done
 created: 2026-09-09
-updated: 2026-09-09
+updated: 2026-09-15
 owner: claude-code
 ---
 

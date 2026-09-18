@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: acp-adapter-0751
 title: "ACP 어댑터 0.75.1 이월 — 아직 안 읽는 새것과 육안 확인"
-status: active
+status: done
 created: 2026-09-06
-updated: 2026-09-06
+updated: 2026-09-15
 owner: claude-code
 ---
 

@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: audit-round-2026-09-11
 title: "개선점 감사 라운드 — 로그·DB 실측 결함 21건 (2026-09-11)"
-status: active
+status: done
 created: 2026-09-11
-updated: 2026-09-11
+updated: 2026-09-15
 owner: claude-code
 ---
 
