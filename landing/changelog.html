@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.2.2)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 109개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.3.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 110개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.2.2)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 109개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.3.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 110개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.2.2</span>
+    <span class="nav-ver" data-version>v3.3.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>109개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>110개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-3-0">v3.3.0</a>
       <a href="#v3-2-2">v3.2.2</a>
       <a href="#v3-2-1">v3.2.1</a>
       <a href="#v3-2-0">v3.2.0</a>
@@ -61,10 +62,17 @@
       <a href="#v2-47-0">v2.47.0</a>
       <a href="#v2-46-0">v2.46.0</a>
       <a href="#v2-45-2">v2.45.2</a>
-      <a href="#v2-45-1">v2.45.1</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-3-0"><a href="#v3-3-0">v3.3.0</a></h2>
+      <div class="cl-body">
+<p><b>앱을 두 개 띄운 순간 멀쩡한 감시가 끊겼다 되살아나기를 반복했습니다.</b> 설치본을 켜 둔 채 개발 빌드나 두 번째 인스턴스가 뜨면 프로젝트의 락이 하나씩 새 인스턴스로 넘어가는데, 그때마다 감독관이 즉시 깨어나 「이 워처가 살아 있나」 판정까지 함께 돌렸습니다. 판정은 60초 전에 심어 둔 프로브가 처리됐는지를 보는 것이라, 0.5초 간격으로 깨어난 감독관은 방금 심은 프로브가 아직 닿지 않은 것을 「먹통」으로 읽어 워처를 끊고 되살렸습니다 — 로그에는 2분 동안 52번 남았습니다. 이제 락 인계 웨이크는 락을 놓는 일만 하고, 심은 지 20초가 안 된 프로브는 판정 근거로 쓰지 않습니다.</p>
+<p><b>계획이 라운드마다 하나씩 늘어 잠긴 계획 스무 개에 미완 항목 63건이 쌓였습니다.</b> 에이전트가 <code>plan_create</code> 를 부를 때 같은 일을 다루는 활성 계획이 이미 있어도 그대로 새 파일을 만들었기 때문입니다. 이제 제목이나 id 가 겹치는 <b>활성</b> 계획이 있으면 만들지 않고 그 계획의 id·제목·hash 를 돌려줘 거기에 항목을 더하도록 권합니다. 정말 별개의 계획이면 <code>allow_similar: true</code> 로 지나갑니다. 끝나서 잠긴 계획은 후보가 아니므로, 같은 이름으로 다음 라운드를 여는 것은 그대로 됩니다.</p>
+<ul><li><b>오늘 화면 머리글의 조사가 떨어져 있던 것</b> — 「오늘 4건 의 작업이 기록됐어요」가 「오늘 4건의 작업이 기록됐어요」로. 이음 공백이 언어가 아니라 화면 코드에 박혀 있었습니다.</li><li><b>git 저장소가 아닌 프로젝트의 브랜치 화면이 「불러오지 못했어요」 오류 카드였던 것</b> — 정상 상태라 차분한 빈 상태로 바뀌고, 첫 커밋이 생기면 브랜치별 커밋·일지·파일이 모입니다.</li><li><b>검색 화면의 빈 상태</b>가 한 줄 문장뿐이어서 다른 화면과 어긋나던 것 — 스코프 아이콘과 제목이 붙습니다.</li><li>안쪽: 디버그 빌드가 읽기 전용 위치에서 뜨면 바인딩 내보내기 실패로 죽던 것을 경고로, <code>rust-analyzer</code> 왕복 테스트가 rustup 프록시에 속아 붉어지던 것을 실제 기동 확인으로.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-2-2"><a href="#v3-2-2">v3.2.2</a></h2>
       <div class="cl-body">
