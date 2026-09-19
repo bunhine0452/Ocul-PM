@@ -124,6 +124,11 @@ export function BranchScreenV2({
         <div className="page fade-in">
           {error ? <ErrorCard title={t("branch.loadFailed")} error={error} onRetry={reload} /> : null}
           {loading && !story ? <SkeletonList rows={4} height={76} /> : null}
+          {!loading && !story && !error ? (
+            <EmptyState density="rich" icon={GitBranchIcon} title={t("branch.noRepoTitle")}>
+              {t("branch.noRepo")}
+            </EmptyState>
+          ) : null}
 
           {story ? (
             <div className="flex flex-col gap-4">

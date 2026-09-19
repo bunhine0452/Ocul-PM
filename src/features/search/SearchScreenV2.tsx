@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/EmptyState";
+import type { IconComponent } from "@/components/Icons";
 import { ErrorCard } from "@/components/ErrorCard";
 import { requestReindex } from "@/lib/projectActions";
 import { useIndexProgress } from "@/lib/indexProgressStore";
@@ -49,7 +50,7 @@ const RECENT_MAX = 8;
 const SCOPES: {
   id: SearchScope;
   labelKey: I18nKey;
-  icon: React.ComponentType<{ size?: number }>;
+  icon: IconComponent;
   placeholderKey: I18nKey;
 }[] = [
   { id: "semantic", labelKey: "search.scope.semantic", icon: Compass, placeholderKey: "search.ph.semantic" },
@@ -539,7 +540,13 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
               ) : null}
             </div>
           ) : (
-            <EmptyState>{hint(scope)}</EmptyState>
+            <EmptyState
+              density="rich"
+              icon={SCOPES.find((s) => s.id === scope)?.icon ?? SearchIcon}
+              title={t("search.emptyTitle")}
+            >
+              {hint(scope)}
+            </EmptyState>
           )}
         </div>
       </div>

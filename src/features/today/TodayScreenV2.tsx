@@ -211,7 +211,7 @@ export function TodayScreenV2({
                   {oculpmReady && brief ? (
                     <>
                       {t("today.headlinePrefix")}{" "}
-                      <span className="accent">{t("today.headlineCount", { n: brief.changedToday })}</span>{" "}
+                      <span className="accent">{t("today.headlineCount", { n: brief.changedToday })}</span>
                       {t("today.headlineSuffix")}
                     </>
                   ) : oculpmReady ? (

@@ -46,17 +46,31 @@ export function useBranchStory(projectId: number, active: boolean): BranchStoryS
     setError(null);
     void (async () => {
       try {
-        const [refs, next] = await Promise.all([
-          oculpmApi.branchList(projectId, 100),
-          oculpmApi.branchStory(projectId, picked, null),
-        ]);
+        // 목록부터 — 브랜치가 하나도 없으면(git 저장소가 아니거나 첫 커밋 전)
+        // 이야기는 물을 수 없다. 예전엔 둘을 함께 물어 백엔드의 "no local
+        // branch" 오류가 그대로 오류 카드가 됐다 — 정상 상태를 실패처럼 보였다.
+        const refs = await oculpmApi.branchList(projectId, 100);
         if (!alive) return;
         setBranches(refs);
+        if (refs.length === 0) {
+          setStory(null);
+          return;
+        }
+        const next = await oculpmApi.branchStory(projectId, picked, null);
+        if (!alive) return;
         setStory(next);
       } catch (e) {
         if (!alive) return;
         setStory(null);
-        setError(e instanceof Error ? e.message : String(e));
+        const msg = e instanceof Error ? e.message : String(e);
+        // `list_branches` 는 git 저장소가 아니면 이 문장으로 거절한다
+        // (`oculpm/index/branch/mod.rs`). 그건 실패가 아니라 이 프로젝트의
+        // 상태다 — 오류 카드가 아니라 빈 상태로 간다. 다른 오류는 그대로.
+        if (/not a git repository/i.test(msg)) {
+          setBranches([]);
+          return;
+        }
+        setError(msg);
       } finally {
         if (alive) setLoading(false);
       }
