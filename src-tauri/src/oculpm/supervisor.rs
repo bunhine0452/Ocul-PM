@@ -31,6 +31,13 @@
 //! 그대로면 그 워처는 귀가 먹은 것이다. 잠들어 있는 프로젝트도 프로브 덕분에
 //! 매 틱 카운터가 올라가므로 "조용함" 과 "먹통" 이 구분된다.
 //!
+//! 단, 프로브에는 **최소 연령**이 있다 (`MIN_PROBE_AGE`). 심은 지 얼마 안 된
+//! 프로브는 판정하지 않는다 — fs 이벤트가 처리 루프에 닿기까지 수백 ms 가
+//! 걸리는데, 락 인계 신호로 틱이 연달아 깨어나면 0.5초 전에 심은 프로브를
+//! "안 움직였다" 고 읽어 멀쩡한 워처를 끊고 되살렸다 (2026-09-15 로그: 2분 동안
+//! 52번). 같은 이유로 인계 신호 웨이크는 **락을 놓는 일만** 하고 판정은
+//! 정기 틱에 맡긴다.
+//!
 //! # 손대지 않는 경우
 //!
 //! 감독관이 고치는 것은 **뜻하지 않게** 죽은 워처뿐이다. 사용자가 닥터에서
@@ -41,7 +48,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Manager};
 
@@ -55,13 +62,39 @@ const TICK: Duration = Duration::from_secs(60);
 /// self-suppress 대상이라, 여기 쓰는 건 파이프라인에 아무 자국도 남기지 않는다.
 const PROBE_REL: &str = ".oculpm/index/.watchdog";
 
+/// 이보다 어린 프로브는 판정 근거가 아니다. 정기 틱(60초) 사이의 판정만
+/// 유효하고, 그보다 촘촘한 웨이크(락 인계 신호)는 이 값에 걸려 기준값을
+/// 그대로 둔다. fs 이벤트 지연(수백 ms~수 초)보다 넉넉히 크고 TICK 보다 작다.
+const MIN_PROBE_AGE: Duration = Duration::from_secs(20);
+
+/// 지난 틱에 심은 프로브 — 쓰기 **전에** 읽은 카운터와 심은 시각.
+#[derive(Debug, Clone, Copy)]
+struct Probe {
+    baseline: u32,
+    planted_at: Instant,
+}
+
+impl Probe {
+    fn plant(baseline: u32) -> Self {
+        Self {
+            baseline,
+            planted_at: Instant::now(),
+        }
+    }
+
+    /// 판정용 관측 — (기준 카운터, 심은 뒤 지난 시간).
+    fn observation(&self) -> (u32, Duration) {
+        (self.baseline, self.planted_at.elapsed())
+    }
+}
+
 /// 상주 감독관을 띄운다 (앱 시작 시 1회, `start_background_watchers` 뒤).
 pub fn spawn(app: &AppHandle) {
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
         let evicted = handle.state::<OculpmManager>().lock_evicted_signal();
-        // project_id → 직전 틱에 프로브를 쓰기 **전에** 읽은 이벤트 카운터.
-        let mut probed: HashMap<u32, u32> = HashMap::new();
+        // project_id → 직전 틱에 심은 프로브 (쓰기 **전에** 읽은 카운터 + 시각).
+        let mut probed: HashMap<u32, Probe> = HashMap::new();
         // 이미 실패를 알린 프로젝트 — 다른 인스턴스가 락을 쥐고 있는 동안
         // 매분 같은 경고를 11줄씩 쌓지 않기 위해서다 (한 번만 크게 남긴다).
         let mut warned: HashSet<u32> = HashSet::new();
@@ -73,9 +106,17 @@ pub fn spawn(app: &AppHandle) {
             // 정기 점검을 기다리되, 락을 인계당하면 **즉시** 깨어난다 —
             // 다음 틱까지 기다리면 그동안 두 인스턴스가 같은 프로젝트를 함께
             // 감시하고 세션 활동이 이중으로 기록된다.
+            //
+            // 인계 웨이크는 **락을 놓는 일만** 한다. 여기서 판정까지 돌리면
+            // 프로젝트 수만큼 연달아 깨어나며 방금 심은 프로브를 먹통으로 읽는다
+            // (`MIN_PROBE_AGE` 가 2차 방어선이지만, 애초에 부르지 않는 게 맞다).
             tokio::select! {
                 _ = tokio::time::sleep(TICK) => {}
-                _ = evicted.notified() => {}
+                _ = evicted.notified() => {
+                    let manager = handle.state::<OculpmManager>();
+                    yield_evicted(&manager, Some(&handle), &mut probed).await;
+                    continue;
+                }
             }
             {
                 let manager = handle.state::<OculpmManager>();
@@ -107,6 +148,22 @@ async fn announce_workday_rollover(app: &AppHandle, seen: &mut HashMap<u32, Stri
     }
 }
 
+/// 인계당한 락을 놓고 화면에 알린다 — 정기 틱의 첫 단계이자, 인계 신호
+/// 웨이크가 하는 **전부**.
+async fn yield_evicted(
+    manager: &OculpmManager,
+    app: Option<&AppHandle>,
+    probed: &mut HashMap<u32, Probe>,
+) {
+    for project_id in manager.yield_evicted_locks().await {
+        probed.remove(&project_id);
+        if let Some(app) = app {
+            use tauri_specta::Event;
+            let _ = crate::oculpm::spec::OculpmWatchYielded { project_id }.emit(app);
+        }
+    }
+}
+
 /// 한 번의 점검 — 추적 중인 모든 프로젝트를 훑는다.
 ///
 /// `app` 이 `None` 이면 이벤트를 쏘지 않고 재무장도 핸들 없이 한다 — 테스트가
@@ -115,18 +172,12 @@ async fn announce_workday_rollover(app: &AppHandle, seen: &mut HashMap<u32, Stri
 async fn tick(
     manager: &OculpmManager,
     app: Option<&AppHandle>,
-    probed: &mut HashMap<u32, u32>,
+    probed: &mut HashMap<u32, Probe>,
     warned: &mut HashSet<u32>,
 ) {
     // 인계당한 락부터 놓는다 — 되살리기보다 먼저다. 순서가 뒤집히면 이미
     // 남의 것이 된 프로젝트를 열심히 재무장하게 된다.
-    for project_id in manager.yield_evicted_locks().await {
-        probed.remove(&project_id);
-        if let Some(app) = app {
-            use tauri_specta::Event;
-            let _ = crate::oculpm::spec::OculpmWatchYielded { project_id }.emit(app);
-        }
-    }
+    yield_evicted(manager, app, probed).await;
 
     let health = manager.watcher_health().await;
     let live: Vec<u32> = health.iter().map(|h| h.project_id).collect();
@@ -140,20 +191,24 @@ async fn tick(
             continue;
         }
 
-        match verdict(&h, probed.get(&h.project_id).copied()) {
+        let observed = probed.get(&h.project_id).map(Probe::observation);
+        match verdict(&h, observed) {
             // 사용자가 직접 멈춘 감시 — 손대지 않는다. 기준값도 지운다:
             // 다시 켠 뒤의 첫 관측은 판정이 아니라 기준 심기여야 한다.
             Verdict::LeaveAlone => {
                 probed.remove(&h.project_id);
                 warned.remove(&h.project_id);
             }
+            // 어린 프로브 — 판정도, 다시 심기도 하지 않는다. 기준값을 갈아
+            // 끼우면 정기 틱이 볼 프로브가 늘 "방금 것" 이 돼 영영 판정이 없다.
+            Verdict::TooEarly => {}
             Verdict::Healthy => {
                 // 살아 있다 — 다음 틱이 확인할 프로브를 심는다. 기준값은
                 // **쓰기 전에** 읽은 카운터라야 이번 프로브의 효과를 다음 틱이
                 // 본다.
                 if let Some(seen) = h.events_seen {
                     if write_probe(&h.root) {
-                        probed.insert(h.project_id, seen);
+                        probed.insert(h.project_id, Probe::plant(seen));
                     } else {
                         probed.remove(&h.project_id);
                     }
@@ -208,13 +263,20 @@ enum Verdict {
     Rearm,
     /// 살아 있다 — 다음 틱이 볼 프로브를 심는다.
     Healthy,
+    /// 지난 프로브가 아직 어리다 — 판정을 미루고 기준값을 그대로 둔다.
+    TooEarly,
 }
 
-fn verdict(h: &WatcherHealth, probed_before: Option<u32>) -> Verdict {
+/// `probe`: 지난 틱에 심은 프로브의 (기준 카운터, 지난 시간).
+fn verdict(h: &WatcherHealth, probe: Option<(u32, Duration)>) -> Verdict {
     if h.user_paused {
         return Verdict::LeaveAlone;
     }
-    if is_deaf(h.events_seen, probed_before) {
+    // 워처가 아예 없으면 나이와 무관하게 재무장 — 비교할 카운터가 없다.
+    if h.events_seen.is_some() && probe.is_some_and(|(_, age)| age < MIN_PROBE_AGE) {
+        return Verdict::TooEarly;
+    }
+    if is_deaf(h.events_seen, probe.map(|(baseline, _)| baseline)) {
         Verdict::Rearm
     } else {
         Verdict::Healthy
@@ -352,12 +414,87 @@ mod tests {
     #[test]
     fn pause_outranks_a_stale_probe_baseline() {
         assert_eq!(
-            verdict(&health(true, Some(9)), Some(9)),
+            verdict(&health(true, Some(9)), Some((9, TICK))),
             Verdict::LeaveAlone
         );
         assert_eq!(
-            verdict(&health(true, Some(9)), Some(3)),
+            verdict(&health(true, Some(9)), Some((3, TICK))),
             Verdict::LeaveAlone
+        );
+    }
+
+    // ─── 프로브 최소 연령 (2026-09-15 로그의 52번 오탐) ─────────────────────
+
+    /// 락 인계 신호로 틱이 0.5초 만에 다시 돌면, 방금 심은 프로브는 아직 처리
+    /// 루프에 닿지 않았다. 그 카운터가 그대로인 건 먹통이 아니라 **너무 이른
+    /// 관측**이다 — 판정을 미루고, 기준값도 갈아 끼우지 않는다.
+    #[test]
+    fn a_young_probe_is_not_judged() {
+        let young = Duration::from_millis(500);
+        assert_eq!(
+            verdict(&health(false, Some(6)), Some((6, young))),
+            Verdict::TooEarly
+        );
+        // 대조군 — 같은 관측이 정기 틱 간격을 지났으면 진짜 먹통이다.
+        assert_eq!(
+            verdict(&health(false, Some(6)), Some((6, TICK))),
+            Verdict::Rearm
+        );
+        // 경계 — 최소 연령을 딱 채우면 판정한다.
+        assert_eq!(
+            verdict(&health(false, Some(6)), Some((6, MIN_PROBE_AGE))),
+            Verdict::Rearm
+        );
+    }
+
+    /// 어린 프로브라도 워처가 **없으면** 미루지 않는다 — 비교할 카운터가 없고,
+    /// 죽은 태스크를 20초 더 두는 건 아무 이득이 없다.
+    #[test]
+    fn a_missing_watcher_is_rearmed_regardless_of_probe_age() {
+        assert_eq!(
+            verdict(&health(false, None), Some((6, Duration::from_millis(1)))),
+            Verdict::Rearm
+        );
+    }
+
+    /// 최소 연령은 정기 틱보다 짧아야 한다 — 아니면 어떤 프로브도 판정되지
+    /// 않아 감독관이 영영 아무것도 되살리지 못한다.
+    #[test]
+    fn probe_age_guard_fits_inside_a_tick() {
+        assert!(MIN_PROBE_AGE < TICK);
+    }
+
+    /// **루프 수준** — 진짜 매니저에서 틱을 연달아 두 번 돌려도 살아 있는
+    /// 워처를 끊지 않는다. 예전 코드는 둘째 틱이 첫 틱의 프로브를 먹통으로
+    /// 읽어 `watcher_drop_unresponsive` 를 불렀다.
+    #[tokio::test]
+    async fn back_to_back_ticks_do_not_cut_a_live_watcher() {
+        let dir = TempDir::new().unwrap();
+        let manager = OculpmManager::new();
+        manager.init_project(3, dir.path(), "ko").await.unwrap();
+        manager.watcher_start(3, None).await.unwrap();
+
+        let mut probed: HashMap<u32, Probe> = HashMap::new();
+        let mut warned: HashSet<u32> = HashSet::new();
+        tick(&manager, None, &mut probed, &mut warned).await;
+        let planted = probed.get(&3).copied().expect("첫 틱은 프로브를 심는다");
+
+        tick(&manager, None, &mut probed, &mut warned).await;
+        let after = probed
+            .get(&3)
+            .copied()
+            .expect("둘째 틱이 기준값을 지웠다 — 재무장했다는 뜻");
+        assert_eq!(
+            after.baseline, planted.baseline,
+            "기준값을 갈아 끼우면 안 된다"
+        );
+        assert_eq!(
+            after.planted_at, planted.planted_at,
+            "프로브를 다시 심으면 안 된다"
+        );
+        assert!(
+            manager.watcher_health().await[0].events_seen.is_some(),
+            "워처는 그대로 살아 있어야 한다"
         );
     }
 
@@ -379,7 +516,7 @@ mod tests {
         manager.watcher_stop(1).await.unwrap();
         assert!(manager.get_status(1).await.watcher_user_paused);
 
-        let mut probed: HashMap<u32, u32> = HashMap::new();
+        let mut probed: HashMap<u32, Probe> = HashMap::new();
         let mut warned: HashSet<u32> = HashSet::new();
         // 두 틱 — 예전 코드는 첫 틱에서 `is_deaf(None, _) == true` 로 되살렸다.
         for _ in 0..2 {

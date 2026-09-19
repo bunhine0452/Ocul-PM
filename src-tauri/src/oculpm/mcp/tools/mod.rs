@@ -208,7 +208,7 @@ pub fn tool_definitions() -> Value {
         },
         {
             "name": "plan_create",
-            "description": "새 플랜 파일(.oculpm/planner/<plan_id>.md)을 규격대로 생성한다. 사용자가 새 계획 수립을 승인/요청했고 기존 활성 플랜에 넣을 자리가 없을 때 호출. frontmatter·phase 헤딩·항목 {#id}·plan-log 블록은 서버가 보장 — 파일을 직접 만들지 말 것. 응답의 hash 는 곧바로 이어지는 plan_update 의 base_hash 로 쓸 수 있다.",
+            "description": "새 플랜 파일(.oculpm/planner/<plan_id>.md)을 규격대로 생성한다. 사용자가 새 계획 수립을 승인/요청했고 기존 활성 플랜에 넣을 자리가 없을 때 호출. 제목이나 id 가 겹치는 **활성** 플랜이 이미 있으면 만들지 않고 그 후보(id·제목·hash)를 돌려준다 — 거기에 항목을 더하는 쪽을 먼저 검토할 것(plan_update). 정말 별개 계획이면 allow_similar: true. frontmatter·phase 헤딩·항목 {#id}·plan-log 블록은 서버가 보장 — 파일을 직접 만들지 말 것. 응답의 hash 는 곧바로 이어지는 plan_update 의 base_hash 로 쓸 수 있다.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -250,7 +250,8 @@ pub fn tool_definitions() -> Value {
                             "required": ["title"]
                         }
                     },
-                    "agent_id": { "type": "string", "description": "생략 시 이 세션을 띄운 에이전트 — frontmatter owner" }
+                    "agent_id": { "type": "string", "description": "생략 시 이 세션을 띄운 에이전트 — frontmatter owner" },
+                    "allow_similar": { "type": "boolean", "description": "기본 false — 제목/id 가 겹치는 활성 플랜이 있으면 거부하고 후보를 돌려준다. 그 플랜과 정말 별개일 때만 true" }
                 },
                 "required": ["plan_id", "title", "phases"]
             }
@@ -1187,238 +1188,10 @@ fn journal_read(root: &Path, args: &Value) -> Result<Value, String> {
 mod plan_ops;
 pub(crate) use plan_ops::*;
 
-// ─── plan_create ─────────────────────────────────────────────────────────────
+// ─── plan_create → plan_create.rs ───────────────────────────────────────────
 
-/// 플랜 규모 상한 — 한 호출로 거대 계획을 욱여넣는 것 방지 (TK0).
-const MAX_PLAN_PHASES: usize = 20;
-const MAX_PLAN_ITEMS: usize = 120;
-
-/// frontmatter/{#id} 에 쓰는 kebab 검증 — sanitize 가 아니라 거부 (id 는
-/// 에이전트가 안정적으로 재참조해야 하므로 조용한 변형이 더 위험하다).
-fn valid_kebab(s: &str) -> bool {
-    !s.is_empty()
-        && s.len() <= 40
-        && !s.starts_with('-')
-        && !s.ends_with('-')
-        && s.chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
-}
-
-/// used 에 없는 id 를 확보한다 (충돌 시 -2, -3 … 접미).
-fn claim_unique_id(used: &mut std::collections::HashSet<String>, base: String) -> String {
-    if used.insert(base.clone()) {
-        return base;
-    }
-    let mut n = 2usize;
-    loop {
-        let cand = format!("{base}-{n}");
-        if used.insert(cand.clone()) {
-            return cand;
-        }
-        n += 1;
-    }
-}
-
-/// TK0 — 새 plan 파일 생성. §7 의 "새 plan 템플릿" 을 서버가 규격대로 조립해
-/// frontmatter 누락(title 경고)·{#id} 줄바꿈 파손 같은 자기신고 오류를 원천
-/// 차단한다. 슬림 템플릿(TK1)이 §7 생성 규격을 들어낼 수 있는 전제 조건.
-fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
-    let plan_id = arg_str(args, "plan_id").ok_or("'plan_id' is required")?;
-    if !valid_kebab(plan_id) {
-        return Err(format!(
-            "plan_id '{plan_id}' must be kebab-case, 40 chars or fewer"
-        ));
-    }
-    let fallback_agent_id = default_agent_id();
-    let agent_id = arg_str(args, "agent_id").unwrap_or(&fallback_agent_id);
-    if !agent_id
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | ':' | '.'))
-    {
-        return Err(format!(
-            "agent_id '{agent_id}' contains disallowed characters"
-        ));
-    }
-    let phases_in = args
-        .get("phases")
-        .and_then(Value::as_array)
-        .ok_or("'phases' is required")?;
-    if phases_in.is_empty() || phases_in.len() > MAX_PLAN_PHASES {
-        return Err(format!("phases must number 1-{MAX_PLAN_PHASES}"));
-    }
-
-    let planner_root = planner_dir(root);
-    if planner_root.join(format!("{plan_id}.md")).exists()
-        || find_plan_path(&planner_root, plan_id).is_some()
-    {
-        return Err(format!(
-            "plan '{plan_id}' already exists - use plan_update to change it, or a different id for a new plan"
-        ));
-    }
-
-    let cfg = load_config(root);
-    let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
-    let one_line = |s: &str| {
-        redact_text(s, &patterns)
-            .0
-            .replace(['\n', '\r'], " ")
-            .trim()
-            .to_string()
-    };
-    let title = one_line(arg_str(args, "title").ok_or("'title' is required")?);
-
-    let mut used_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let empty: Vec<Value> = Vec::new();
-    let mut body = String::new();
-    let mut item_count = 0usize;
-    for (pi, phase) in phases_in.iter().enumerate() {
-        let ptitle_raw = phase
-            .get("title")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .ok_or_else(|| format!("phases[{pi}].title is required"))?;
-        let pid = match phase.get("id").and_then(Value::as_str).map(str::trim) {
-            Some(s) if !s.is_empty() => {
-                if !valid_kebab(s) {
-                    return Err(format!("phase id '{s}' must be kebab-case"));
-                }
-                claim_unique_id(&mut used_ids, s.to_string())
-            }
-            _ => claim_unique_id(&mut used_ids, format!("p{}", pi + 1)),
-        };
-        body.push_str(&format!("\n## {} {{#{pid}}}\n", one_line(ptitle_raw)));
-
-        let items = phase
-            .get("items")
-            .and_then(Value::as_array)
-            .unwrap_or(&empty);
-        for (ii, item) in items.iter().enumerate() {
-            item_count += 1;
-            if item_count > MAX_PLAN_ITEMS {
-                return Err(format!("Too many items (limit {MAX_PLAN_ITEMS})"));
-            }
-            let text_raw = item
-                .get("text")
-                .and_then(Value::as_str)
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-                .ok_or_else(|| format!("phases[{pi}].items[{ii}].text is required"))?;
-            let text = one_line(text_raw);
-            let iid = match item.get("id").and_then(Value::as_str).map(str::trim) {
-                Some(s) if !s.is_empty() => {
-                    if !valid_kebab(s) {
-                        return Err(format!("item id '{s}' must be kebab-case"));
-                    }
-                    claim_unique_id(&mut used_ids, s.to_string())
-                }
-                _ => {
-                    // 텍스트에서 유도 — 한글뿐이면 빈 slug 가 되므로 위치 기반 폴백.
-                    let derived = sanitize_slug(&text)
-                        .ok()
-                        .map(|s| s.chars().take(40).collect::<String>())
-                        .map(|s| s.trim_end_matches('-').to_string())
-                        .filter(|s| !s.is_empty());
-                    claim_unique_id(
-                        &mut used_ids,
-                        derived.unwrap_or_else(|| format!("{pid}-{}", ii + 1)),
-                    )
-                }
-            };
-            body.push_str(&format!("- [ ] {text} {{#{iid}}}\n"));
-
-            // 3-depth — 하위 작업 (두 칸 들여쓰기, 최대 1단계).
-            let children = item
-                .get("children")
-                .and_then(Value::as_array)
-                .unwrap_or(&empty);
-            for (ci, child) in children.iter().enumerate() {
-                item_count += 1;
-                if item_count > MAX_PLAN_ITEMS {
-                    return Err(format!("Too many items (limit {MAX_PLAN_ITEMS})"));
-                }
-                if child.get("children").is_some() {
-                    return Err(format!(
-                        "phases[{pi}].items[{ii}].children[{ci}] cannot have children - nesting is one level deep"
-                    ));
-                }
-                let ctext_raw = child
-                    .get("text")
-                    .and_then(Value::as_str)
-                    .map(str::trim)
-                    .filter(|s| !s.is_empty())
-                    .ok_or_else(|| {
-                        format!("phases[{pi}].items[{ii}].children[{ci}].text is required")
-                    })?;
-                let ctext = one_line(ctext_raw);
-                let cid = match child.get("id").and_then(Value::as_str).map(str::trim) {
-                    Some(s) if !s.is_empty() => {
-                        if !valid_kebab(s) {
-                            return Err(format!("child id '{s}' must be kebab-case"));
-                        }
-                        claim_unique_id(&mut used_ids, s.to_string())
-                    }
-                    _ => {
-                        let derived = sanitize_slug(&ctext)
-                            .ok()
-                            .map(|s| s.chars().take(40).collect::<String>())
-                            .map(|s| s.trim_end_matches('-').to_string())
-                            .filter(|s| !s.is_empty());
-                        claim_unique_id(
-                            &mut used_ids,
-                            derived.unwrap_or_else(|| format!("{iid}-{}", ci + 1)),
-                        )
-                    }
-                };
-                body.push_str(&format!("  - [ ] {ctext} {{#{cid}}}\n"));
-            }
-        }
-    }
-
-    let resolver = resolver_of(&cfg);
-    let today = Utc::now().with_timezone(&resolver.tz).format("%Y-%m-%d");
-    let yaml_title = title.replace('\\', "\\\\").replace('"', "\\\"");
-    let mut md = format!(
-        "---\noculpm_plan: v1\nid: {plan_id}\ntitle: \"{yaml_title}\"\nstatus: active\n\
-         created: {today}\nupdated: {today}\nowner: {agent_id}\n---\n"
-    );
-    if let Some(desc) = arg_str(args, "description") {
-        let desc = redact_text(desc, &patterns).0;
-        md.push_str(&format!("\n{}\n", desc.trim()));
-    }
-    md.push_str(&body);
-    md.push_str(
-        "\n<!-- oculpm:plan-log begin v1 -->\n\
-         | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |\n\
-         |---|---|---|---|---|---|\n\
-         <!-- oculpm:plan-log end -->\n",
-    );
-
-    // 자기 검증 — 방금 조립한 마크다운이 파서 경고 0 으로 읽혀야 규격 보증이
-    // 말이 된다. 실패는 구현 버그이므로 파일을 쓰지 않고 에러로 노출한다.
-    let parsed = parse_plan(&md, plan_id);
-    if !parsed.warnings.is_empty() {
-        return Err(format!(
-            "internal: the generated file produced parser warnings - {:?}",
-            parsed.warnings
-        ));
-    }
-
-    std::fs::create_dir_all(&planner_root).map_err(|e| format!("mkdir failed: {e}"))?;
-    let path = planner_root.join(format!("{plan_id}.md"));
-    write_atomic(&path, md.as_bytes()).map_err(|e| e.to_string())?;
-
-    Ok(json!({
-        "path": format!(".oculpm/planner/{plan_id}.md"),
-        "id": plan_id,
-        "phases": phases_in.len(),
-        "items": item_count,
-        // 만든 직후의 첫 `plan_update` 가 CAS 를 쓸 수 있게 ({#cas-required}).
-        // 없으면 방금 자기가 만든 파일을 다시 조회해야 하고, 그 왕복이 곧
-        // "귀찮으니 안 쓴다"의 이유가 된다.
-        "hash": plan_hash(&md),
-    }))
-}
+mod plan_create;
+pub(crate) use plan_create::*;
 
 #[cfg(test)]
 mod tests;

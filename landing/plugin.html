@@ -113,7 +113,7 @@
             <tr><td>journal_write</td><td>작업 단위(버그/기능/리팩토링/에러/잡일) 하나가 끝날 때마다 일지 1건을 규격대로 기록. 과거 일지와의 <code>related</code> 링크와 <code>session_id</code> 를 받고, 본문의 시크릿은 마스킹한 뒤 응답으로 알림.</td></tr>
             <tr><td>plan_status</td><td>활성 플랜의 항목·상태를 조회 — 「지금 어디까지 됐나」의 근거. 플랜마다 현재 파일 <code>hash</code> 가 함께 오고, 그것이 <code>plan_update</code> 의 <code>base_hash</code> 재료입니다.</td></tr>
             <tr><td>plan_update</td><td>플랜 항목의 상태를 갱신하고 plan-log 를 남김. 하위를 가진 부모는 롤업 자동이라 직접 갱신 거부. <b><code>base_hash</code> 필수</b> — <code>plan_status</code> 로 읽은 해시와 디스크가 어긋나면 <b>덮어쓰지 않고</b> 현재 해시를 담아 거절합니다. 병렬 세션이 같은 플랜을 고칠 때 한쪽 변경이 조용히 사라지던 자리입니다.</td></tr>
-            <tr><td>plan_create</td><td>새 계획을 3-depth(마일스톤→작업→하위 작업)로 생성 — frontmatter·id 규격 서버 보장.</td></tr>
+            <tr><td>plan_create</td><td>새 계획을 3-depth(마일스톤→작업→하위 작업)로 생성 — frontmatter·id 규격 서버 보장. 제목·id 가 겹치는 활성 계획이 있으면 만들지 않고 그 후보를 돌려줘 재사용을 권합니다(<code>allow_similar</code> 로 통과).</td></tr>
             <tr><td>project_init</td><td>미추적 저장소의 추적 시작 — 사용자의 명시적 요청·확인(confirm)이 있을 때만. 심볼릭 링크 거부·홈 디렉터리 가드.</td></tr>
             <tr><td>agent_register</td><td>이 세션을 프로젝트의 <b>참여자 목록</b>에 올림 (A2A). 같은 프로젝트에서 여러 에이전트가 동시에 일할 때 서로를 발견하는 첫 걸음 — 응답에 지금 살아 있는 참여자가 함께 온다. 다시 불러도 안전.</td></tr>
             <tr><td>agent_list</td><td>지금 이 프로젝트에 붙어 있는 에이전트 목록. <b>죽은 세션은 빠진다</b> — 프로세스가 사라졌으면 카드가 남아 있어도 죽은 것으로 본다. 작업을 넘기기 전에 상대가 실재하는지 확인하는 용도.</td></tr>

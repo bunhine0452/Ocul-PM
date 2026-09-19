@@ -501,3 +501,142 @@ fn narrowing_to_a_locked_plan_says_it_is_locked() {
     assert!(out["plans"].as_array().unwrap().is_empty());
     assert_eq!(out["locked_open"]["items"], 1);
 }
+
+// ─── plan_create 재사용 권고 ({#dedupe-on-create}) ────────────────────────────
+
+fn minimal_plan_args(plan_id: &str, title: &str) -> serde_json::Value {
+    serde_json::json!({
+        "plan_id": plan_id,
+        "title": title,
+        "phases": [{ "title": "Phase 1", "items": [{ "text": "first thing" }] }]
+    })
+}
+
+#[test]
+fn similarity_tokens_drop_dates_and_case() {
+    let t = similarity_tokens("Optimization-Round-2026-09-12");
+    assert_eq!(
+        t,
+        ["optimization", "round"]
+            .into_iter()
+            .map(String::from)
+            .collect()
+    );
+    let k = similarity_tokens("개선 라운드 (2026-09-14) — 미출시 최적화 합류");
+    assert!(
+        k.contains("개선") && k.contains("라운드") && k.contains("최적화"),
+        "{k:?}"
+    );
+    assert!(!k.contains("2026"));
+}
+
+#[test]
+fn jaccard_is_zero_for_empty_sets() {
+    let a = similarity_tokens("");
+    let b = similarity_tokens("xx-yy");
+    assert_eq!(jaccard(&a, &b), 0.0);
+    assert_eq!(jaccard(&b, &b), 1.0);
+}
+
+/// 같은 이름 계열의 활성 플랜이 있으면 만들지 않고 후보를 돌려준다 — 후보에는
+/// 곧바로 plan_update 에 넘길 hash 가 실린다. allow_similar 가 문이다.
+#[test]
+fn plan_create_refuses_a_lookalike_of_an_active_plan_unless_allowed() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+    call_tool(
+        root,
+        "plan_create",
+        &minimal_plan_args(
+            "optimization-round-2026-09-12",
+            "최적화 라운드 (2026-09-12)",
+        ),
+    )
+    .unwrap();
+
+    let again = minimal_plan_args(
+        "optimization-round-2026-09-20",
+        "최적화 라운드 2 (2026-09-20)",
+    );
+    let err = call_tool(root, "plan_create", &again).unwrap_err();
+    assert!(err.contains("similar active plan"), "{err}");
+    assert!(err.contains("optimization-round-2026-09-12"), "{err}");
+    assert!(
+        err.contains(&base_hash(root, "optimization-round-2026-09-12")),
+        "후보에 hash 가 실려야 곧바로 plan_update 로 이어진다: {err}"
+    );
+    assert!(
+        !planner_dir(root)
+            .join("optimization-round-2026-09-20.md")
+            .exists(),
+        "거부했으면 파일도 없어야 한다"
+    );
+
+    // 문 — 정말 별개라고 말하면 만든다.
+    let mut forced = again.clone();
+    forced["allow_similar"] = serde_json::Value::Bool(true);
+    let out = call_tool(root, "plan_create", &forced).unwrap();
+    assert_eq!(
+        out["path"],
+        ".oculpm/planner/optimization-round-2026-09-20.md"
+    );
+}
+
+/// 제목만 겹쳐도 잡는다 (id 가 전혀 다른 경우) — 그리고 전혀 다른 계획은
+/// 그냥 통과한다.
+#[test]
+fn plan_create_matches_on_title_and_ignores_unrelated_plans() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+    call_tool(
+        root,
+        "plan_create",
+        &minimal_plan_args("alpha", "터미널 IME 조합 수정"),
+    )
+    .unwrap();
+
+    let err = call_tool(
+        root,
+        "plan_create",
+        &minimal_plan_args("beta", "터미널 IME 조합 수정 2차"),
+    )
+    .unwrap_err();
+    assert!(err.contains("alpha"), "{err}");
+
+    call_tool(
+        root,
+        "plan_create",
+        &minimal_plan_args("gamma", "랜딩 페이지 영문판"),
+    )
+    .unwrap();
+}
+
+/// 잠긴 플랜은 후보가 아니다 — 라운드를 끝내 잠근 뒤 같은 이름으로 다음
+/// 라운드를 여는 것이 이 저장소의 정상 경로다.
+#[test]
+fn plan_create_ignores_locked_lookalikes() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    let planner = planner_dir(root);
+    std::fs::create_dir_all(&planner).unwrap();
+    std::fs::write(
+        planner.join("improvement-round-2026-09-14.md"),
+        "---\noculpm_plan: v1\nid: improvement-round-2026-09-14\ntitle: \"개선 라운드 (2026-09-14)\"\nstatus: done\n\
+         created: 2026-09-14\nupdated: 2026-09-15\nowner: claude-code\n---\n\n## Phase 1 {#p1}\n- [x] 끝 {#fin}\n\n\
+         <!-- oculpm:plan-log begin v1 -->\n<!-- oculpm:plan-log end -->\n",
+    )
+    .unwrap();
+
+    let out = call_tool(
+        root,
+        "plan_create",
+        &minimal_plan_args("improvement-round-2026-09-20", "개선 라운드 (2026-09-20)"),
+    )
+    .unwrap();
+    assert_eq!(
+        out["path"],
+        ".oculpm/planner/improvement-round-2026-09-20.md"
+    );
+}

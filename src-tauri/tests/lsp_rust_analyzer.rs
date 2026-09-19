@@ -19,11 +19,23 @@ use ocul_pm_lib::lsp::spec::{
     LspSeverity,
 };
 
+/// PATH 의 `rust-analyzer` 가운데 **실제로 뜨는** 것. `is_file()` 만으로는
+/// 부족하다 — `~/.cargo/bin/rust-analyzer` 는 컴포넌트를 설치하지 않아도 rustup
+/// 프록시로 존재하고, 실행하면 "component not installed" 로 죽는다. 그러면
+/// 이 스위트는 "있다" 고 믿고 핸드셰이크에서 빨개졌다 (`{#ra-guard-hardening}`).
 fn rust_analyzer() -> Option<PathBuf> {
     let path = std::env::var("PATH").ok()?;
     path.split(':')
         .map(|d| PathBuf::from(d).join("rust-analyzer"))
-        .find(|p| p.is_file())
+        .filter(|p| p.is_file())
+        .find(|p| {
+            std::process::Command::new(p)
+                .arg("--version")
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .is_ok_and(|st| st.success())
+        })
 }
 
 /// 진단이 있는 최소 크레이트. 의존성이 없어 오프라인에서도 뜬다.
@@ -42,7 +54,7 @@ fn seed_crate(dir: &std::path::Path, body: &str) -> PathBuf {
 #[tokio::test(flavor = "multi_thread")]
 async fn rust_analyzer_handshakes_and_publishes_diagnostics() {
     let Some(binary) = rust_analyzer() else {
-        eprintln!("rust-analyzer 가 PATH 에 없어 건너뜁니다 (rustup component add rust-analyzer)");
+        eprintln!("실행되는 rust-analyzer 가 PATH 에 없어 건너뜁니다 (rustup component add rust-analyzer)");
         return;
     };
 

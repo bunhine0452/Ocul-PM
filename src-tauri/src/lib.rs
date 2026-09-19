@@ -1005,10 +1005,17 @@ pub fn run() {
 
     let builder = build_specta_builder();
 
+    // 개발 빌드의 편의 — 실패해도 앱은 떠야 한다. 경로가 CWD 상대라, 디버그
+    // 바이너리를 Finder 나 다른 디렉터리에서 띄우면 `../src/lib` 가 없거나
+    // 읽기 전용이다 (2026-09 로그: "Read-only file system" 패닉 2회). 바인딩은
+    // `cargo test` 가 어차피 다시 낸다.
     #[cfg(debug_assertions)]
-    builder
-        .export(Typescript::default(), "../src/lib/bindings.ts")
-        .expect("Failed to export typescript bindings");
+    if let Err(e) = builder.export(Typescript::default(), "../src/lib/bindings.ts") {
+        tracing::warn!(
+            error = %e,
+            "[FLOW] bindings.ts 내보내기 실패 — 개발 빌드 편의 기능이라 계속 뜬다 (cargo test 가 다시 낸다)"
+        );
+    }
 
     let app = tauri::Builder::default()
         // 제일 먼저 — 두 번째 인스턴스는 여기서 끝나고, 첫 인스턴스는 창을 앞으로.
