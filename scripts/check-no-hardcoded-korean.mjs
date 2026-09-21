@@ -216,10 +216,16 @@ const TESTS = new Set([
   "__tests__/home_model.test.ts",
   "__tests__/ime_bridge.test.ts",
   "__tests__/ime_trace.test.ts",
+  // {#index-usage} — 인덱스 사용량 섹션의 한국어 라벨·확인 대화상자 렌더 검사.
+  "__tests__/index_usage_section.test.tsx",
   "__tests__/inline_markdown.test.tsx",
+  // {#tag-source-marker} — mcp-tool 출처 표식이 태그 칩에서 빠지는지 검사.
+  "__tests__/journal_tag_source_marker.test.tsx",
   "__tests__/journal_v2.test.tsx",
   // journal_v2 의 형제 — 「다시 검토」 배지의 한국어 렌더를 검사한다 ({#reviewed-hash}).
   "__tests__/journal_verified.test.tsx",
+  // {#related-ui} — 후보 카드의 근거 줄·「잇기」를 한국어 렌더로 단언한다.
+  "__tests__/related_suggest.test.tsx",
   "__tests__/landing_pages.test.ts",
   "__tests__/landing_themes.test.ts",
   "__tests__/llm_reachability.test.tsx",

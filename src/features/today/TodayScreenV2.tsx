@@ -35,6 +35,7 @@ import { NextTasks } from "./NextTasks";
 import { TodayActivityRing } from "./TodayActivityRing";
 import { TodayTerminal } from "./TodayTerminal";
 import { HonestyAudit } from "./HonestyAudit";
+import { HotspotCard } from "./HotspotCard";
 import { JournalMissingCard } from "./JournalMissingCard";
 import { PlanUpdates } from "./PlanUpdates";
 import { TodaySuggestions } from "./TodaySuggestions";
@@ -108,6 +109,12 @@ export function TodayScreenV2({
     if (onOpenEntry) onOpenEntry(entry);
     else onNavigate("journal");
   };
+
+  // HotspotCard 는 파일 단위 집계라 풀 JournalEntrySummary 가 없다 — 그 파일의
+  // 마지막 일지 경로만 있으면 되므로, openEntry 가 실제로 읽는 필드
+  // (relative_path) 만 채운 최소 객체로 같은 핸드오프를 탄다.
+  const openEntryPath = (relativePath: string) =>
+    openEntry({ relative_path: relativePath } as JournalEntrySummary);
 
   const empty = oculpmReady && !loading && brief != null && brief.changedToday === 0;
 
@@ -427,6 +434,14 @@ export function TodayScreenV2({
             projectId={projectId}
             enabled={oculpmReady}
             onNavigate={onNavigate}
+          />
+
+          {/* journal-scale-round {#hotspot-card} — 같은 파일에 몰린 bug/error
+              일지(재발 신호). 0건이어도 카드는 남는다(위 둘과 같은 선). */}
+          <HotspotCard
+            projectId={projectId}
+            enabled={oculpmReady}
+            onOpenEntry={openEntryPath}
           />
 
           {/* 커밋 그래프 — 맨 아래 (dogfooding 2026-06-15) */}

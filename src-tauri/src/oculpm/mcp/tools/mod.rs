@@ -95,10 +95,9 @@ fn agent_id_or_default(raw: Option<String>) -> String {
 use serde_json::{json, Value};
 
 use crate::oculpm::atomic_io::write_atomic;
-use crate::oculpm::frontmatter::{parse_frontmatter_and_body, write_frontmatter_and_body};
+use crate::oculpm::frontmatter::write_frontmatter_and_body;
 use crate::oculpm::index::read_sessions_sync;
 use crate::oculpm::manager::{category_subdir, create_journal_file, entry_type_filename_token};
-use crate::oculpm::markdown::parse_body;
 use crate::oculpm::paths::WorkdayResolver;
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
 use crate::oculpm::planner::plan_edit::{append_log_row, set_item_status_rolled, LogRow};
@@ -109,7 +108,7 @@ use crate::oculpm::redact::{
 use crate::oculpm::session::resolve_session_for_timestamp;
 use crate::oculpm::spec::{
     AgentRef, Difficulty, EntryStatus, EntryType, FileOp, FileTouched, JournalFrontmatter,
-    OculpmConfig, RelatedRef,
+    OculpmConfig,
 };
 
 /// MCP `tools/list` 응답의 도구 정의. 스키마는 에이전트가 읽는 계약서다 —
@@ -166,7 +165,7 @@ pub fn tool_definitions() -> Value {
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "query": { "type": "string", "description": "제목·본문·태그·슬러그에서 찾을 문자열 (대소문자 무시, 부분 일치). 생략하면 필터에 맞는 것을 최신순으로." },
+                    "query": { "type": "string", "description": "제목·태그·슬러그·경로·본문에서 찾을 문자열 (대소문자 무시, 부분 일치). 공백으로 나눈 토큰이 **전부** 걸린 일지만 남고, 제목>태그>슬러그>경로>본문 가중치에 최신성을 조금 더해 관련도순으로 싣는다 — 오래된 일지도 강하게 걸리면 위로 온다. 생략하면 필터에 맞는 것을 최신순으로." },
                     "file": { "type": "string", "description": "이 경로를 건드린 일지만 (frontmatter files_touched 부분 일치). 전체 경로도 파일명만도 된다 — 예: \"src/oculpm/watcher.rs\" 또는 \"watcher.rs\"" },
                     "types": { "type": "array", "items": { "type": "string", "enum": ["bug", "feature", "error", "refactor", "chore"] }, "description": "이 종류만. 생략 = 전부" },
                     "status": { "type": "array", "items": { "type": "string", "enum": ["planned", "in_progress", "done", "abandoned"] }, "description": "이 상태만. 생략 = 전부" },
@@ -670,41 +669,12 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         tags.push("mcp-tool".to_string()); // 출처 표식 — 파일 자기신고와 구분
     }
 
-    // related — AGENTS.md §0 이 "찾은 것이 이어지면 related 에 넣으라" 고 하는데
-    // 정작 도구가 인자를 안 받아 늘 빈 배열이었다. 존재하지 않는 참조는 거부하지
-    // 않고 경고로 돌려준다 (오타 하나로 일지 전체가 막히면 안 쓴다).
+    // related — 인자 파싱도 자동 연결도 `related.rs` 가 소유한다. 자동 연결은
+    // related 를 **안 준** bug/error 일지에만 붙고, 붙었으면 응답이 말한다
+    // ({#related-auto}).
     let mut warnings: Vec<String> = Vec::new();
-    let related: Vec<RelatedRef> = args
-        .get("related")
-        .and_then(Value::as_array)
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|r| {
-                    let raw = r.get("ref")?.as_str()?.trim();
-                    let ref_path = raw
-                        .trim_start_matches("./")
-                        .trim_start_matches(".oculpm/journal/")
-                        .to_string();
-                    if ref_path.is_empty() {
-                        return None;
-                    }
-                    let kind = match r.get("kind").and_then(Value::as_str).unwrap_or("followup") {
-                        k @ ("blocks" | "blocked_by" | "followup" | "duplicate") => k.to_string(),
-                        other => {
-                            warnings.push(format!(
-                                "related.kind {other:?} 는 blocks|blocked_by|followup|duplicate 중 하나여야 한다 — followup 으로 기록"
-                            ));
-                            "followup".to_string()
-                        }
-                    };
-                    if !root.join(".oculpm").join("journal").join(&ref_path).is_file() {
-                        warnings.push(format!("related 참조가 존재하지 않는다: {ref_path}"));
-                    }
-                    Some(RelatedRef { ref_path, kind })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let mut related = self::related::parse_related_arg(root, args, &mut warnings);
+    let auto_related = self::related::auto_relate(root, entry_type, &files, &mut related);
     if redacted > 0 {
         warnings.push(format!(
             "시크릿 패턴 {redacted}건이 마스킹됐다 — 일지에 비밀을 적지 말 것 (git.auto_redact_patterns)"
@@ -805,383 +775,20 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         "session_id": fm.session_id,
         "language": fm.language,
         "related": fm.related.len(),
+        "auto_related": auto_related,
         "redacted": redacted,
         "warnings": warnings,
     }))
 }
 
-// ─── journal_search / journal_read ───────────────────────────────────────────
+// ─── journal_search · journal_read → search.rs ──────────────────────────────
 
-/// 히트 수 기본값과 상한. `plan_status` 의 상한과 같은 이유의 안전핀이다 —
-/// "한 번에 다 받겠다" 는 호출이 에이전트 컨텍스트를 통째로 먹는 걸 막는다.
-const DEFAULT_HIT_LIMIT: usize = 20;
-const MAX_HIT_LIMIT: usize = 50;
+mod search;
+pub(crate) use search::*;
 
-/// 히트 한 줄에 붙는 매치 근방 발췌의 최대 **문자** 수 (바이트 아님 — 본문이
-/// 한국어라 바이트로 자르면 글자가 쪼개진다).
-const SNIPPET_CHARS: usize = 140;
+// ─── journal_write 의 related → related.rs ──────────────────────────────────
 
-/// 매치 강도. 작을수록 강하고, 그대로 정렬 키가 된다 — 제목에 그 말이 있는
-/// 일지가 본문 어딘가에 우연히 부분 일치한 일지보다 먼저다.
-const RANK_TITLE: u8 = 0;
-const RANK_TAG: u8 = 1;
-const RANK_SLUG: u8 = 2;
-/// query 없이 필터만으로 걸린 것 — 강도를 따질 근거가 없으니 최신순 그대로.
-const RANK_FILTER_ONLY: u8 = 3;
-const RANK_BODY: u8 = 4;
-
-/// `20260821/Bugs/1842_bug_slug.md` 의 첫 세그먼트에서 workday 를 꺼낸다.
-///
-/// 경로만 보고 기간 필터를 걸기 위한 것 — 파일을 열지 않고 거를 수 있으면
-/// 스캔 비용이 그만큼 사라진다.
-fn workday_of_rel(rel: &str) -> Option<&str> {
-    crate::oculpm::paths::workday_of_rel(rel)
-}
-
-/// 파일명 `HHMM_<type>_<slug>.md` 의 type 토큰. 알려진 종류가 아니면 `None`
-/// 이고, 그 경우 호출자는 **거르지 않고** 파일을 읽어 frontmatter 로 판정한다
-/// (파일명 규약을 안 지킨 손수 쓴 일지를 놓치지 않기 위해).
-fn type_token_of_rel(rel: &str) -> Option<&'static str> {
-    let file = rel.rsplit('/').next()?;
-    match file.split('_').nth(1)? {
-        "bug" => Some("bug"),
-        "feature" => Some("feature"),
-        "error" => Some("error"),
-        "refactor" => Some("refactor"),
-        "chore" => Some("chore"),
-        _ => None,
-    }
-}
-
-/// 사용자가 준 경로를 `.oculpm/journal/` 기준 상대경로로 정규화한다.
-/// `journal_search` 가 돌려준 형태와 사람이 복붙하는 형태를 모두 받는다.
-fn normalize_entry_rel(input: &str) -> String {
-    let mut s = input.trim().replace('\\', "/");
-    for prefix in ["./", ".oculpm/", "journal/"] {
-        if let Some(rest) = s.strip_prefix(prefix) {
-            s = rest.to_string();
-        }
-    }
-    s
-}
-
-/// 일지 경로로 인정할 수 있는 모양인가. `walk_journal` 의 스킵 규칙과 같은
-/// 어휘를 쓰고, 여기에 경로 탈출 방어를 더한다 — 이 값은 사용자(=에이전트)가
-/// 준 문자열이고 곧바로 파일 경로가 되기 때문이다.
-fn is_safe_entry_rel(rel: &str) -> bool {
-    if rel.is_empty() || !rel.ends_with(".md") {
-        return false;
-    }
-    if rel.starts_with('/') || rel.contains(':') {
-        return false; // 절대경로 · 윈도우 드라이브
-    }
-    rel.split('/')
-        .all(|seg| !seg.is_empty() && seg != ".." && !seg.starts_with('.'))
-}
-
-/// 매치 지점 근방을 한 줄 발췌로 접는다. 줄바꿈·연속 공백을 한 칸으로 눌러
-/// TSV 한 칸에 안전하게 들어가게 하고, 문자 단위로 자른다.
-fn snippet_around(body: &str, match_at: usize) -> String {
-    // 매치 앞 40자쯤부터 보여준다 — 문맥 없이 잘린 발췌는 읽을 수 없다.
-    let lead = 40;
-    let start = body[..match_at]
-        .char_indices()
-        .rev()
-        .nth(lead)
-        .map(|(i, _)| i)
-        .unwrap_or(0);
-    let raw: String = body[start..]
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
-    let mut out: String = raw.chars().take(SNIPPET_CHARS).collect();
-    if raw.chars().count() > SNIPPET_CHARS {
-        out.push('…');
-    }
-    if start > 0 {
-        out.insert(0, '…');
-    }
-    out
-}
-
-/// 과거 일지 검색.
-///
-/// **디스크만 읽는다** — 이 모듈의 계약(앱이 꺼져 있어도 동작)을 지키려면
-/// SQLite 캐시에 기댈 수 없다. 대신 경로만으로 거를 수 있는 것(기간·종류)을
-/// 먼저 걸러 파일을 여는 횟수 자체를 줄인다.
-fn journal_search(root: &Path, args: &Value) -> Result<Value, String> {
-    let query = arg_str(args, "query")
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_lowercase);
-    let file_filter = arg_str(args, "file")
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(|s| s.replace('\\', "/").to_lowercase());
-    let since = arg_str(args, "since").map(str::to_string);
-    let until = arg_str(args, "until").map(str::to_string);
-    let limit = args
-        .get("limit")
-        .and_then(Value::as_u64)
-        .map(|n| (n as usize).clamp(1, MAX_HIT_LIMIT))
-        .unwrap_or(DEFAULT_HIT_LIMIT);
-
-    let want_types: Vec<EntryType> = str_array(args, "types")
-        .iter()
-        .map(|s| parse_entry_type(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let want_status: Vec<EntryStatus> = str_array(args, "status")
-        .iter()
-        .map(|s| parse_entry_status(s))
-        .collect::<Result<Vec<_>, _>>()?;
-    let want_tags: Vec<String> = str_array(args, "tags")
-        .iter()
-        .map(|s| s.to_lowercase())
-        .collect();
-
-    let journal_root = root.join(".oculpm").join("journal");
-    let mut rels: Vec<String> = crate::oculpm::cache::walk_journal(&journal_root)
-        .into_iter()
-        .map(|(rel, _mtime)| rel)
-        .collect();
-    // 최신순. 경로가 `YYYYMMDD/Folder/HHMM_…` 라 문자열 역순이 곧 시간 역순이고,
-    // 파일을 열지 않고 정할 수 있어 결정적이다 (mtime 은 체크아웃마다 바뀐다).
-    rels.sort_unstable_by(|a, b| b.cmp(a));
-
-    let cfg = load_config(root);
-    let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
-
-    // (rank, path, workday, type, status, title, why) — rank 는 매치 강도.
-    let mut rows: Vec<(
-        u8,
-        String,
-        String,
-        &'static str,
-        &'static str,
-        String,
-        String,
-    )> = Vec::new();
-    let mut scanned = 0usize;
-
-    for rel in &rels {
-        // ── 경로만으로 거르기 (파일을 열지 않는다) ──────────────────────────
-        let workday = workday_of_rel(rel).unwrap_or("");
-        if let Some(s) = &since {
-            if workday < s.as_str() {
-                continue;
-            }
-        }
-        if let Some(u) = &until {
-            if workday > u.as_str() {
-                continue;
-            }
-        }
-        if !want_types.is_empty() {
-            // 토큰을 못 읽는 파일은 거르지 않고 통과시켜 frontmatter 로 판정한다.
-            if let Some(tok) = type_token_of_rel(rel) {
-                if !want_types
-                    .iter()
-                    .any(|t| entry_type_filename_token(*t) == tok)
-                {
-                    continue;
-                }
-            }
-        }
-
-        // ── 파일을 읽어야만 알 수 있는 것 ──────────────────────────────────
-        let Ok(raw) = std::fs::read_to_string(journal_root.join(rel)) else {
-            continue;
-        };
-        scanned += 1;
-        let (fm, body) = parse_frontmatter_and_body(&raw);
-        let parsed = parse_body(&body);
-
-        // frontmatter 가 깨진 일지도 검색 대상이다 — 오히려 그런 것이 잊히기
-        // 쉽다. 파싱된 값이 있을 때만 그 값으로 거른다.
-        let entry_type = fm.parsed.as_ref().map(|f| f.entry_type);
-        let status = fm.parsed.as_ref().map(|f| f.status);
-        if !want_types.is_empty() {
-            match entry_type {
-                Some(t) if want_types.contains(&t) => {}
-                Some(_) => continue,
-                // 파싱 실패 — 파일명 토큰이 통과시킨 것이므로 남긴다.
-                None if type_token_of_rel(rel).is_none() => continue,
-                None => {}
-            }
-        }
-        if !want_status.is_empty() && !status.is_some_and(|s| want_status.contains(&s)) {
-            continue;
-        }
-
-        let tags_lower: Vec<String> = fm
-            .parsed
-            .as_ref()
-            .map(|f| f.tags.iter().map(|t| t.to_lowercase()).collect())
-            .unwrap_or_default();
-        if !want_tags.iter().all(|w| tags_lower.iter().any(|t| t == w)) {
-            continue;
-        }
-
-        // files_touched 필터 — 에이전트가 가장 자주 던지는 질문("이 파일 전에
-        // 왜 건드렸지")이 여기로 답해진다.
-        let mut why_file: Option<String> = None;
-        if let Some(want) = &file_filter {
-            let hit = fm.parsed.as_ref().and_then(|f| {
-                f.files_touched
-                    .iter()
-                    .find(|ft| ft.path.replace('\\', "/").to_lowercase().contains(want))
-                    .map(|ft| ft.path.clone())
-            });
-            match hit {
-                Some(p) => why_file = Some(format!("file:{p}")),
-                None => continue,
-            }
-        }
-
-        // query — 제목·태그·슬러그·본문 순으로 본다. 순서가 곧 **매치 강도**고,
-        // 아래에서 그대로 정렬 키가 된다. 부분 일치라 짧은 ASCII 질의는 본문에서
-        // 우연히 걸린다 (실측: "IME" 가 `mtime`·`time` 에 22건). 최신순으로만
-        // 자르면 그 소음이 진짜 히트를 limit 밖으로 밀어낸다.
-        let (rank, why_query) = match &query {
-            None => (RANK_FILTER_ONLY, None),
-            Some(q) => {
-                let title_l = parsed.title.to_lowercase();
-                if title_l.contains(q.as_str()) {
-                    (RANK_TITLE, Some("title".to_string()))
-                } else if let Some(t) = tags_lower.iter().find(|t| t.contains(q.as_str())) {
-                    (RANK_TAG, Some(format!("tag:{t}")))
-                } else if fm
-                    .parsed
-                    .as_ref()
-                    .is_some_and(|f| f.slug.to_lowercase().contains(q.as_str()))
-                {
-                    (RANK_SLUG, Some("slug".to_string()))
-                } else {
-                    let body_l = body.to_lowercase();
-                    // 소문자 변환이 바이트 길이를 바꿀 수 있어(터키어 I 등)
-                    // 위치를 원문에 그대로 쓰면 경계가 어긋난다. 길이가 같을
-                    // 때만 원문 오프셋으로 쓰고, 아니면 앞부분을 보여준다.
-                    match body_l.find(q.as_str()) {
-                        Some(at) if body_l.len() == body.len() => {
-                            (RANK_BODY, Some(snippet_around(&body, at)))
-                        }
-                        Some(_) => (RANK_BODY, Some(snippet_around(&body, 0))),
-                        None => continue,
-                    }
-                }
-            }
-        };
-
-        let why = why_query
-            .or(why_file)
-            .unwrap_or_else(|| snippet_around(&body, 0));
-        let (title, _) = redact_text(&parsed.title, &patterns);
-        let (why, _) = redact_text(&why, &patterns);
-        rows.push((
-            rank,
-            rel.clone(),
-            workday.to_string(),
-            entry_type
-                .map(entry_type_filename_token)
-                .unwrap_or_else(|| type_token_of_rel(rel).unwrap_or("?")),
-            status.map(entry_status_token).unwrap_or("?"),
-            title,
-            why,
-        ));
-    }
-
-    // 매치 강도 우선, 같은 강도 안에서는 최신순. `rels` 가 이미 최신순이고
-    // `sort_by_key` 는 안정 정렬이라 두 번째 키를 따로 줄 필요가 없다.
-    let total = rows.len();
-    rows.sort_by_key(|r| r.0);
-    rows.truncate(limit);
-
-    let mut tsv = String::from("path\tdate\ttype\tst\ttitle\twhy");
-    for (_rank, path, date, ty, st, title, why) in &rows {
-        tsv.push('\n');
-        tsv.push_str(&format!(
-            "{}\t{}\t{}\t{}\t{}\t{}",
-            tsv_cell(path),
-            date,
-            ty,
-            st,
-            tsv_cell(title),
-            tsv_cell(why)
-        ));
-    }
-
-    let mut out = json!({
-        "hits_tsv": tsv,
-        "returned": rows.len(),
-        "total_matched": total,
-        "more": total > rows.len(),
-        "scanned": scanned,
-        "legend": "why: 본문 매치는 발췌, 그 외는 매치한 자리(title/tag:…/slug/file:…). 본문 전체는 journal_read 로.",
-    });
-    if total == 0 {
-        out["note"] = json!(
-            "일치하는 일지가 없습니다. query 를 짧게 하거나(부분 일치), file 필터를 파일명만으로 좁혀 보세요."
-        );
-    } else if total > rows.len() {
-        out["note"] =
-            json!("limit 을 넘겼습니다 — 최신순 상위만 실렸습니다. 더 좁히거나 limit 을 올리세요.");
-    }
-    Ok(out)
-}
-
-/// 일지 1건 전문.
-fn journal_read(root: &Path, args: &Value) -> Result<Value, String> {
-    let input = arg_str(args, "path").ok_or("'path' is required")?;
-    let rel = normalize_entry_rel(input);
-    if !is_safe_entry_rel(&rel) {
-        return Err(format!(
-            "'{input}' 은 일지 경로로 인정되지 않습니다 — journal_search 응답의 path 를 그대로 넘기세요 \
-             (예: 20260821/Bugs/1842_bug_live-refresh.md)."
-        ));
-    }
-    let abs = root.join(".oculpm").join("journal").join(&rel);
-    // 실파일만 인정한다 — `.oculpm` 가드와 같은 이유로 심볼릭 링크는 거부
-    // (일지 트리 안의 링크가 프로젝트 밖 파일을 읽어 오는 경로를 막는다).
-    let is_real_file = std::fs::symlink_metadata(&abs)
-        .map(|m| m.file_type().is_file())
-        .unwrap_or(false);
-    if !is_real_file {
-        return Err(format!("일지를 찾을 수 없습니다: {rel}"));
-    }
-    let raw = std::fs::read_to_string(&abs).map_err(|e| format!("read failed: {e}"))?;
-    let (fm, body) = parse_frontmatter_and_body(&raw);
-    let parsed = parse_body(&body);
-
-    let cfg = load_config(root);
-    let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
-    let (title, _) = redact_text(&parsed.title, &patterns);
-    let (body, _) = redact_text(&body, &patterns);
-
-    let mut out = json!({
-        "path": format!(".oculpm/journal/{rel}"),
-        "workday": workday_of_rel(&rel).unwrap_or(""),
-        "title": title,
-        "body_markdown": body,
-    });
-    if let Some(f) = &fm.parsed {
-        out["type"] = json!(entry_type_filename_token(f.entry_type));
-        out["status"] = json!(entry_status_token(f.status));
-        out["created_at"] = json!(f.created_at);
-        out["agent"] = json!({ "id": f.agent.id, "version": f.agent.version });
-        out["tags"] = json!(f.tags);
-        out["files_touched"] = json!(f
-            .files_touched
-            .iter()
-            .map(|ft| ft.path.clone())
-            .collect::<Vec<_>>());
-        out["related"] = json!(f.related);
-    }
-    if !fm.parse_warnings.is_empty() {
-        // 망가진 frontmatter 를 숨기지 않는다 — plan_status 의 warnings 와 같은 원칙.
-        out["parse_warnings"] = json!(fm.parse_warnings);
-    }
-    Ok(out)
-}
+mod related;
 
 // ─── plan_status · plan_update → plan_ops.rs ─────────────────────────────────
 

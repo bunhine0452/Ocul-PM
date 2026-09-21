@@ -108,7 +108,7 @@
         <table>
           <thead><tr><th>도구</th><th>하는 일</th></tr></thead>
           <tbody>
-            <tr><td>journal_search</td><td>과거 일지 검색 — 질의(제목·본문·태그)에 더해 <b>그 파일을 건드린 일지</b>·종류·상태·기간·태그로 좁힘. 본문 전문 대신 압축 히트 목록을 돌려주고, 매치 강도순(제목&gt;태그&gt;본문)으로 정렬. 작업 <b>시작 전</b> 호출이 규칙.</td></tr>
+            <tr><td>journal_search</td><td>과거 일지 검색 — 질의(제목·본문·태그)에 더해 <b>그 파일을 건드린 일지</b>·종류·상태·기간·태그로 좁힘. 본문 전문 대신 압축 히트 목록을 돌려주고, <b>관련도순</b>(제목&gt;태그&gt;슬러그&gt;경로&gt;본문 가중치 + 최신성 소량 가산)으로 정렬 — 오래된 일지도 강하게 걸리면 위로 온다. 앱이 켜져 있으면 SQLite 캐시를, 아니면 디스크를 읽는다(응답의 <code>source</code>). 작업 <b>시작 전</b> 호출이 규칙.</td></tr>
             <tr><td>journal_read</td><td>검색이 고른 일지 1건의 본문 전체. 목록을 훑는 용도가 아니라, 읽을 값어치가 있다고 판단한 뒤에만.</td></tr>
             <tr><td>journal_write</td><td>작업 단위(버그/기능/리팩토링/에러/잡일) 하나가 끝날 때마다 일지 1건을 규격대로 기록. 과거 일지와의 <code>related</code> 링크와 <code>session_id</code> 를 받고, 본문의 시크릿은 마스킹한 뒤 응답으로 알림.</td></tr>
             <tr><td>plan_status</td><td>활성 플랜의 항목·상태를 조회 — 「지금 어디까지 됐나」의 근거. 플랜마다 현재 파일 <code>hash</code> 가 함께 오고, 그것이 <code>plan_update</code> 의 <code>base_hash</code> 재료입니다.</td></tr>

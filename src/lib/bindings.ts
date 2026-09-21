@@ -586,6 +586,19 @@ export const commands = {
 	 *  보이지 않는 곳에서 디스크를 먹는 기능은 반드시 자기 크기를 밝혀야 한다.
 	 */
 	codeHistoryUsage: (projectId: number) => typedError<number, string>(__TAURI_INVOKE("code_history_usage", { projectId })),
+	/**
+	 *  지금 `.oculpm/index/` 가 먹는 용량 — 세 갈래로 쪼개서. 보이지 않는 곳에서
+	 *  디스크를 먹는 기능은 반드시 자기 크기를 밝혀야 한다(`history.rs` 와 같은
+	 *  원칙).
+	 */
+	oculpmIndexUsage: (projectId: number) => typedError<IndexUsage, string>(__TAURI_INVOKE("oculpm_index_usage", { projectId })),
+	/**
+	 *  diff 사이드카 전부 삭제 — 전문 스냅샷(로컬 히스토리)과 달리 diff 는 git 이
+	 *  있으면 다시 만들 수 있다(`read_or_reconstruct_entry_diffs`). git 이 없는
+	 *  프로젝트라면 이후 일지들은 캡처 시점의 diff 를 다시 못 얻으니, 그 사실은
+	 *  프런트 확인 문구가 말한다.
+	 */
+	oculpmIndexClearDiffs: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_index_clear_diffs", { projectId })),
 	/**  프로젝트의 판 전부 삭제 (설정 화면의 "전부 지우기"). */
 	codeHistoryClear: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("code_history_clear", { projectId })),
 	/**  이 프로젝트의 언어 서버 일람 — 설치됨/미설치/실행 중. */
@@ -1248,6 +1261,20 @@ export const commands = {
 	 */
 	oculpmGetEntryDiffs: (projectId: number, relativePath: string) => typedError<EntryFileDiff[], AppError>(__TAURI_INVOKE("oculpm_get_entry_diffs", { projectId, relativePath })),
 	/**
+	 *  이 일지 옆에 두어야 할 과거 일지 후보.
+	 * 
+	 *  **대상 일지는 디스크에서 읽는다.** 캐시가 아니라 원본이어야 하는 이유는
+	 *  `related` 가 캐시에 없기 때문이다 (`cache/query.rs` 가 빈 배열로 투영한다)
+	 *  — 이미 이어 둔 것을 빼려면 원본 프런트매터를 봐야 한다.
+	 */
+	oculpmSuggestRelated: (projectId: number, relativePath: string, limit: number | null) => typedError<RelatedSuggestion[], AppError>(__TAURI_INVOKE("oculpm_suggest_related", { projectId, relativePath, limit })),
+	/**
+	 *  후보 하나를 **디스크 원본**의 frontmatter `related` 에 더한다. 워처가
+	 *  그 변경을 보고 캐시를 갱신하지만, 화면이 왕복을 기다리지 않게 재투영된
+	 *  엔트리를 그대로 돌려준다 (`oculpm_coerce_entry_on_disk` 와 같은 계약).
+	 */
+	oculpmAddRelated: (projectId: number, relativePath: string, relatedRef: string, kind: string) => typedError<JournalEntry, AppError>(__TAURI_INVOKE("oculpm_add_related", { projectId, relativePath, relatedRef, kind })),
+	/**
 	 *  Group the watcher's changed file paths by the journal entry that recorded
 	 *  each, with the plan items linked to that entry (Dogfooding #3). Files no
 	 *  entry recorded land in a trailing `entry_path: None` bucket.
@@ -1265,6 +1292,21 @@ export const commands = {
 	 *  (타이핑 debounce 마다 호출됨).
 	 */
 	oculpmSearchEntities: (projectId: number, query: string, limit: number) => typedError<EntityHit[], AppError>(__TAURI_INVOKE("oculpm_search_entities", { projectId, query, limit })),
+	/**  일지를 관련도순으로 찾는다. */
+	oculpmSearchJournal: (projectId: number, query: string, filters: {
+	/**  `bug|feature|error|refactor|chore`. */
+	types?: string[],
+	/**  `planned|in_progress|done|abandoned`. */
+	status?: string[],
+	/**  태그는 **전부** 가진 일지만 (AND). */
+	tags?: string[],
+	/**  `files_touched` 경로의 부분 일치. */
+	file?: string | null,
+	/**  `YYYYMMDD` 이상. */
+	since?: string | null,
+	/**  `YYYYMMDD` 이하. */
+	until?: string | null,
+} | null, limit: number | null) => typedError<JournalSearchPage, AppError>(__TAURI_INVOKE("oculpm_search_journal", { projectId, query, filters, limit })),
 	/**
 	 *  v2 U12 — 워크데이 집합의 일지 요약 + 초점 워크데이(`focus_workday`)의 라인
 	 *  증감·고유 파일 수 + 미완 플랜 항목 + 총 일지 수를 IPC 1회에.
@@ -1407,6 +1449,11 @@ export const commands = {
 	 *  (`used_llm`/`note` 로 구분) — API 키 없이도 항상 동작.
 	 */
 	oculpmGenerateSummary: (projectId: number, since: string, until: string, style: SummaryStyle, provider: string | null, model: string | null) => typedError<GeneratedSummary, string>(__TAURI_INVOKE("oculpm_generate_summary", { projectId, since, until, style, provider, model })),
+	/**
+	 *  파일별 bug/error 재발 신호. `days` 가 있으면 그 일수만큼의 workday 창으로
+	 *  좁힌다 (오늘 포함 `days`일 — `firing_stats` 와 같은 계산).
+	 */
+	oculpmFileHotspots: (projectId: number, days: number | null, limit: number | null) => typedError<FileHotspot[], string>(__TAURI_INVOKE("oculpm_file_hotspots", { projectId, days, limit })),
 	/**  프로젝트+전역 스킬을 한 번에 나열한다. 스킬 폴더가 없으면 빈 목록. */
 	skillsList: (projectId: number) => typedError<SkillsOverview, string>(__TAURI_INVOKE("skills_list", { projectId })),
 	/**  단일 스킬의 SKILL.md 원문과 보조 파일 목록을 읽는다. */
@@ -3940,6 +3987,22 @@ export type FileChangeEvent = {
 };
 
 /**
+ *  파일 하나의 재발 신호 — Today 의 `HotspotCard` (`{#hotspot-card}`) 가
+ *  상위 5개를 보여준다.
+ */
+export type FileHotspot = {
+	file_path: string,
+	bug_count: number,
+	error_count: number,
+	total_entries: number,
+	/**  이 파일을 건드린 가장 최근 일지의 workday (YYYYMMDD). */
+	last_workday: string,
+	/**  그 일지의 캐시 키 — 그대로 일지 화면 점프에 쓴다. */
+	last_entry_path: string,
+	last_entry_title: string,
+};
+
+/**
  *  v2 U7 (docs/20260706_v2/02-features-spec.md §2) — 팔레트 "go to anything"
  *  히트 한 건. `id` 는 kind 별 라우팅 키: journal=relative_path,
  *  plan=plan_id, plan_item="plan_id#item_id", discussion=discussion_id.
@@ -4361,6 +4424,20 @@ export type IndexResult = {
 	took_ms: number,
 };
 
+/**
+ *  `history`/`diffs`/그 밖(워크데이 캐시 등) 세 갈래 사용량. specta 는 `u64` 를
+ *  못 내보내 정밀도를 잃으므로(`DbHealth::db_bytes` 와 같은 관례) `f64` 로
+ *  건넌다 — JS `number` 는 2^53 까지 정확하다.
+ */
+export type IndexUsage = {
+	history_bytes: number | null,
+	history_files: number,
+	diffs_bytes: number | null,
+	diffs_files: number,
+	other_bytes: number | null,
+	total_bytes: number | null,
+};
+
 export type InstallReport = {
 	bundle_id: string,
 	/**  미리보기였다 — 디스크는 그대로다. `wrote` 는 "쓸 것" 의 수다. */
@@ -4518,6 +4595,52 @@ export type JournalMissingSignal = {
 	 *  117개였던 이유다. 카드가 세는 것은 대화 하나, 이 값은 그 안의 횟수.
 	 */
 	segments: number,
+};
+
+/**  프런트가 거르는 축. 전부 선택이고, 빈 값은 "제약 없음". */
+export type JournalSearchFilters = {
+	/**  `bug|feature|error|refactor|chore`. */
+	types?: string[],
+	/**  `planned|in_progress|done|abandoned`. */
+	status?: string[],
+	/**  태그는 **전부** 가진 일지만 (AND). */
+	tags?: string[],
+	/**  `files_touched` 경로의 부분 일치. */
+	file?: string | null,
+	/**  `YYYYMMDD` 이상. */
+	since?: string | null,
+	/**  `YYYYMMDD` 이하. */
+	until?: string | null,
+};
+
+/**  히트 한 건. */
+export type JournalSearchHit = {
+	relative_path: string,
+	workday: string,
+	/**  `bug|feature|…`, 판정 불가면 `?`. */
+	entry_type: string,
+	/**  `planned|in_progress|…`, 판정 불가면 `?`. */
+	status: string,
+	title: string,
+	/**  본문 한 줄 발췌 — 본문 매치면 매치 근방, 아니면 앞머리. */
+	snippet: string,
+	/**  어디서 걸렸는가: `title|tag|slug|path|body|filter`. */
+	matched_field: string,
+	/**  사람이 읽는 매치 자리 (`title` · `tag:cache` · `path:src/…` · 발췌). */
+	why: string,
+	/**  관련도 점수 — 정렬은 이미 되어 있고, 화면이 등급을 나눌 때 쓴다. */
+	score: number | null,
+};
+
+/**  상한이 걸린 검색 결과. */
+export type JournalSearchPage = {
+	hits: JournalSearchHit[],
+	/**
+	 *  **상한을 걸기 전** 매치 건수. 상한이 있는데 그 사실이 안 보이면
+	 *  사용자는 "전부 보고 있다"고 읽는다 (`oculpm_list_journal_entries_page`
+	 *  와 같은 계약).
+	 */
+	total: number,
 };
 
 /**
@@ -5472,11 +5595,34 @@ export type ReindexReport = {
 	completed_at: string,
 };
 
+/**
+ *  사람이 읽는 근거 — **코드와 파라미터만** 낸다. 번역은 프런트 몫이다
+ *  (백엔드가 한국어 문장을 만들면 영어 모드에서 그대로 새어 나온다).
+ * 
+ *  코드는 셋: `shared_files`(n, 대표 파일) · `plan_item`(항목 id) ·
+ *  `title`(일치율 %).
+ */
+export type RelatedReason = {
+	code: string,
+	params: string[],
+};
+
 export type RelatedRef = {
 	/**  Path relative to `.oculpm/journal/` (e.g. `20260522/Bugs/2050_bug_X.md`). */
 	ref: string,
 	/**  One of `blocks`, `blocked_by`, `followup`, `duplicate`. */
 	kind: string,
+};
+
+/**  후보 한 건. */
+export type RelatedSuggestion = {
+	/**  `.oculpm/journal/` 기준 상대경로 — frontmatter `related.ref` 에 그대로 쓴다. */
+	relative_path: string,
+	title: string,
+	workday: string,
+	entry_type: string,
+	score: number | null,
+	reasons: RelatedReason[],
 };
 
 /**

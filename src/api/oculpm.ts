@@ -30,6 +30,7 @@ import type {
   BackfillReport,
   EntryFileDiff,
   EntryFilters,
+  FileHotspot,
   JournalEntry,
   JournalEntryPage,
   JournalEntrySummary,
@@ -44,6 +45,7 @@ import type {
   DesktopRegistrationStatus,
   McpRegistrationStatus,
   ReindexReport,
+  RelatedSuggestion,
   Session,
   FileChangeEvent,
   OculpmFileChanged,
@@ -262,6 +264,32 @@ export const oculpmApi = {
       commands.oculpmCreateManualEntry(projectId, draft)
     ),
 
+  /**
+   * 이 일지 옆에 두어야 할 과거 일지 후보 ({#related-suggest}). 근거는 코드와
+   * 파라미터로 오고 문장은 화면이 만든다 — 백엔드가 한국어를 만들면 영어
+   * 모드에서 그대로 새어 나온다.
+   */
+  suggestRelated: (projectId: number, relativePath: string, limit?: number) =>
+    unwrap<RelatedSuggestion[]>(
+      "oculpm_suggest_related",
+      commands.oculpmSuggestRelated(projectId, relativePath, limit ?? null),
+    ),
+
+  /**
+   * 후보 하나를 **디스크 원본** frontmatter 의 `related` 에 더한다
+   * ({#related-ui}). 되돌리기는 없다 — 그 일지를 열어 직접 지우는 것이 길이다.
+   */
+  addRelated: (
+    projectId: number,
+    relativePath: string,
+    relatedRef: string,
+    kind: string,
+  ) =>
+    unwrap<JournalEntry>(
+      "oculpm_add_related",
+      commands.oculpmAddRelated(projectId, relativePath, relatedRef, kind),
+    ),
+
   /** F7a-B Unit B — write the tz-offset coercion into the on-disk frontmatter
    * once (timestamps only). Returns the re-projected entry. */
   coerceEntryOnDisk: (projectId: number, relativePath: string) =>
@@ -289,6 +317,17 @@ export const oculpmApi = {
     unwrap<WorkdayComparison>(
       "oculpm_compare_workday",
       commands.oculpmCompareWorkday(projectId, workday),
+    ),
+
+  /**
+   * journal-scale-round `{#hotspot-query}` — 같은 파일에 bug/error 일지가
+   * 몰린 "재발" 신호. 잡음 제거(허브 파일 제외) 규칙은 백엔드 SSOT
+   * (`db::hotspot::Db::file_hotspots` 의 doc comment).
+   */
+  fileHotspots: (projectId: number, days: number | null, limit: number | null) =>
+    unwrap<FileHotspot[]>(
+      "oculpm_file_hotspots",
+      commands.oculpmFileHotspots(projectId, days, limit),
     ),
 
   /**

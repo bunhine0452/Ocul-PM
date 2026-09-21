@@ -109,7 +109,7 @@
         <table>
           <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
           <tbody>
-            <tr><td>journal_search</td><td>Search past journal entries — narrow by query (title, body, tags) plus <b>entries that touched a given file</b>, type, status, date range, tags. Returns a compact hit list instead of full bodies, sorted by match strength (title &gt; tags &gt; body). The rule is: call it <b>before</b> starting work.</td></tr>
+            <tr><td>journal_search</td><td>Search past journal entries — narrow by query (title, body, tags) plus <b>entries that touched a given file</b>, type, status, date range, tags. Returns a compact hit list instead of full bodies, sorted by <b>relevance</b> (title &gt; tags &gt; slug &gt; path &gt; body weights plus a small recency bonus) — an old entry still comes first when it matches strongly. Reads the SQLite cache when the app is running, the disk otherwise (see <code>source</code> in the response). The rule is: call it <b>before</b> starting work.</td></tr>
             <tr><td>journal_read</td><td>The full body of one journal entry the search picked out. Not for skimming a list — only after deciding it's worth reading.</td></tr>
             <tr><td>journal_write</td><td>Records one journal entry to spec every time a unit of work (bug/feature/refactor/error/chore) finishes. Takes a <code>related</code> link to past entries and a <code>session_id</code>; secrets in the body are masked and the response says so.</td></tr>
             <tr><td>plan_status</td><td>Reads items and status on the active plan — the evidence for "how far are we." Each plan comes back with its current file <code>hash</code>, which becomes the <code>base_hash</code> for <code>plan_update</code>.</td></tr>

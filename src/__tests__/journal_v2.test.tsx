@@ -132,6 +132,8 @@ vi.mock("@/api/oculpm", () => {
       },
       // EntryDetailView loads the recorded per-file patches.
       getEntryDiffs: (_pid: number, _relativePath: string) => Promise.resolve(fixtures.entryDiffs),
+      // {#related-ui} — 상세가 열릴 때 후보를 묻는다. 이 스위트의 관심은 아니라 빈 목록.
+      suggestRelated: () => Promise.resolve([]),
       // C2 (감사 라운드 2026-09-11) — 본문 인라인 편집.
       updateEntryBody: (pid: number, relativePath: string, body: string) => {
         editBodyMock.calls.push({ projectId: pid, relativePath, body });

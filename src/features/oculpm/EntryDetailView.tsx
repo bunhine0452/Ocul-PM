@@ -15,6 +15,7 @@ import { EntryMasthead } from "./EntryMasthead";
 import { useNotionExport } from "./useNotionExport";
 import { EntryFileList, type FileRow } from "./EntryFileList";
 import { EntryFileBar } from "./EntryFileBar";
+import { RelatedSuggestCard } from "./RelatedSuggestCard";
 import { mapFileOpToChangeOp } from "@/contexts/WorkspaceContext";
 import { commonRoot } from "@/lib/filePath";
 import type { EntryFileDiff, JournalEntry, JournalEntrySummary } from "@/lib/bindings";
@@ -570,6 +571,16 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                 onSelect={setSelected}
               />
             ) : null}
+
+            {/* 부록 뒤에 후보 — 읽기를 끝낸 자리에서 "다음에 읽을 것"을 준다
+                ({#related-ui}). 근거 있는 후보가 없으면 아무것도 안 그린다. */}
+            <RelatedSuggestCard
+              projectId={projectId}
+              relativePath={entry.relative_path}
+              relatedCount={related.length}
+              onLinked={reload}
+              onOpenRelated={onOpenRelated}
+            />
           </div>
         </div>
 

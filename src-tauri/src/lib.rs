@@ -360,6 +360,8 @@ use crate::commands::{
     // PR-CI7 — Notion 내보내기 (키체인 토큰 + REST 페이지 생성)
     notion_status,
     notion_verify_token,
+    // {#related-ui} — 후보를 원본 frontmatter 에 잇는다
+    oculpm_add_related,
     oculpm_agent_run_signal,
     oculpm_agents_apply_master_upgrade,
     oculpm_agents_check_master_ahead,
@@ -374,6 +376,8 @@ use crate::commands::{
     oculpm_create_manual_entry,
     oculpm_end_session_manual,
     oculpm_export_digest,
+    // journal-scale-round {#hotspot-query} — 파일별 bug/error 재발 신호
+    oculpm_file_hotspots,
     // C2 — 일지 내보내기
     // v2 U10 (C1) — 스탠드업·PR 본문·주간 보고
     oculpm_generate_summary,
@@ -384,6 +388,9 @@ use crate::commands::{
     oculpm_get_log_dir,
     oculpm_get_status,
     oculpm_group_changes,
+    // journal-scale-round {#index-usage} — index/ 사용량 조회 + diff 정리
+    oculpm_index_clear_diffs,
+    oculpm_index_usage,
     // .oculpm/ subsystem (W1-PR6 + W2-PR6 + W3-PR3)
     oculpm_init,
     oculpm_list_journal_entries,
@@ -394,9 +401,12 @@ use crate::commands::{
     // W5-PR5 — Overview stats
     oculpm_reindex_cache,
     oculpm_search_entities,
+    oculpm_search_journal,
     oculpm_set_config,
     oculpm_set_journal_verified,
     oculpm_start_session_manual,
+    // {#related-suggest} — 공유 파일·플랜 항목·제목으로 고른 관련 후보
+    oculpm_suggest_related,
     oculpm_update_entry_body,
     oculpm_update_entry_meta,
     oculpm_watcher_start,
@@ -673,6 +683,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             code_history_restore,
             code_history_forget,
             code_history_usage,
+            oculpm_index_usage,
+            oculpm_index_clear_diffs,
             code_history_clear,
             lsp_status,
             lsp_open,
@@ -770,9 +782,12 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_list_journal_entries_page,
             oculpm_get_journal_entry,
             oculpm_get_entry_diffs,
+            oculpm_suggest_related,
+            oculpm_add_related,
             oculpm_group_changes,
             oculpm_set_journal_verified,
             oculpm_search_entities,
+            oculpm_search_journal,
             oculpm_workday_brief,
             oculpm_reindex_cache,
             oculpm_create_manual_entry,
@@ -794,6 +809,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_backfill_from_git,
             // F4 — 회고/인사이트 (+ PR-CI6 eval 추이)
             oculpm_generate_summary,
+            // journal-scale-round {#hotspot-query} — Today 「반복 수정 파일」 카드
+            oculpm_file_hotspots,
             // C2 — 일지 내보내기
             // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills)
             skills_list,
