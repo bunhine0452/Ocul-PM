@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.3.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 110개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.4.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 111개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.3.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 110개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.4.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 111개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.3.0</span>
+    <span class="nav-ver" data-version>v3.4.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>110개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>111개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-4-0">v3.4.0</a>
       <a href="#v3-3-0">v3.3.0</a>
       <a href="#v3-2-2">v3.2.2</a>
       <a href="#v3-2-1">v3.2.1</a>
@@ -61,10 +62,19 @@
       <a href="#v2-48-0">v2.48.0</a>
       <a href="#v2-47-0">v2.47.0</a>
       <a href="#v2-46-0">v2.46.0</a>
-      <a href="#v2-45-2">v2.45.2</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-4-0"><a href="#v3-4-0">v3.4.0</a></h2>
+      <div class="cl-body">
+<p><b>첫 일지가 남았는지를 이제 그 대화 단위로 확인합니다.</b> 지금까지 오늘 화면이 기록의 시작을 아는 방법은 총 일지 수뿐이었습니다 — git 백필로도, 옆 터미널의 대화로도, 손으로 쓴 일지로도 오르는 숫자라 방금 돌린 에이전트가 기록했는지는 말하지 못했습니다. 일지가 한 건도 없는 프로젝트를 열면 이제 「첫 기록」 카드가 서고, 준비(Claude Code·플러그인·훅 연결) → 대화 진행 중 → 그 대화가 남긴 첫 일지 → 기록 없이 끝남 → 귀속 불명의 다섯 상태를 <b>대화 id</b> 로 판정합니다. 백필이나 옆 대화의 일지로는 성공이 되지 않고, 기록이 남았다는 뜻이지 코드가 검증됐다는 뜻은 아니라고 카드가 스스로 말합니다. 첫 5분의 문구 아홉 곳도 실제 조건에 맞췄습니다 — 일지는 앱이 아니라 규칙을 읽은 에이전트가 쓰고, 초기화는 프로젝트를 열 때 일어나며, 플러그인 훅은 턴 종료와 세션 종료 둘입니다.</p>
+<p><b>다음 세션이 지난 작업을 이어받습니다.</b> Claude Code 플러그인의 SessionStart 훅이 활성 계획의 미완 항목 뒤에 <b>마지막 작업 일지 3건</b>을 시작 컨텍스트에 싣고, 무엇을 실었는지 <code>.oculpm/hooks/resume-delivered.jsonl</code> 에 한 줄 남깁니다. 오늘 화면의 「이어하기」 카드가 같은 자료(마지막 작업·다음 항목)를 보여 주고, 어느 대화의 시작 컨텍스트에 포함됐는지까지 적습니다 — 참조했는지·도움이 됐는지는 알 수 없다고 정직하게. 「터미널에서 이어서 작업」이 그 경로를 엽니다. Codex 에서도 같은 훅이 돌도록 프로젝트 루트 폴백을 맞췄습니다.</p>
+<p><b>일지 700건 시대의 찾기·잇기·묶기.</b> 일지가 주 100건씩 늘면 문제는 성능이 아니라 찾고 믿고 묶는 일이었습니다.</p>
+<ul><li><b>찾기</b> — <code>journal_search</code> 가 디스크 전수 스캔 대신 SQLite 캐시와 관련도 랭킹(제목 &gt; 태그 &gt; 파일 &gt; 본문, 최근 가산)으로 답합니다(727건에서 132→25ms). 검색 화면에 「일지」 스코프가 생기고, 의미 검색이 일지와 주간 요약까지 찾습니다.</li><li><b>잇기</b> — 같은 파일·같은 계획 항목·제목 유사도로 관련 일지를 제안하고 1클릭으로 원본 frontmatter 에 잇습니다. <code>journal_write</code> 는 같은 파일을 만진 지난 결함에 스스로 후속을 겁니다. 캐시에 related 칸이 없어 일지 상세의 관련 칩이 한 번도 안 뜨던 잠복 결함도 함께 고쳤습니다.</li><li><b>묶기</b> — 태그 사전과 정규화 힌트, 「태그 정리」 시트로 병합, <code>mcp-tool</code> 같은 출처 표식은 통계에서 제외. <code>.oculpm/rollups/</code> 주간 요약 층을 두고 <code>journal_search</code> 와 AI 컨텍스트가 요약을 먼저 보고 원본으로 내려갑니다. 주간 보고의 60건 상한은 청킹으로 풀었습니다.</li><li><b>오늘 화면</b> — 반복 수정 파일(핫스팟) 카드, 주간 작업 속도와 계획 완료 예상 카드, 이번 주 요약 카드. 미검토 일지 대기함과 일괄 확인. 계획 로그가 40행을 넘으면 별도 파일로. 설정 진단에 색인 사용량과 정리 버튼. 태그 사이 일지로 릴리스 노트 초안.</li></ul>
+<ul><li><b>숨은 프로젝트 탭으로 새던 둘</b> — 탭 A 의 터미널 ⌘D 가 배경 탭의 터미널까지 쪼개던 것(보이는 면만 듣습니다), 새 일지 토스트의 「열기」가 보고 있던 다른 프로젝트의 일지 화면으로 가던 것(그 프로젝트 탭을 활성화해 엽니다).</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-3-0"><a href="#v3-3-0">v3.3.0</a></h2>
       <div class="cl-body">

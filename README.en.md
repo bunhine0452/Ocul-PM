@@ -64,7 +64,14 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.3.0 — a supervisor's false alarm and look-alike plans
+## 🚀 v3.4.0 — first record and resume
+
+- **Whether the first entry landed is now judged per conversation** — a project with zero entries gets a "First record" card that moves through ready → in progress → that conversation's first entry → ended without one → unattributed, keyed by the conversation id. Backfills and a neighbouring conversation's entries never count as success, and the card says recorded is not reviewed. Nine first-five-minutes strings were aligned with what actually happens.
+- **The next session picks up where the last one stopped** — the plugin's SessionStart hook now carries the last three journal entries after the active plan items into the session-start context and writes one ledger line. Today's "Resume" card shows the same material and which conversation it was delivered to (and says it cannot know whether it was referenced or helped).
+- **Finding, linking and grouping 700 entries** — `journal_search` answers from the SQLite cache with relevance ranking (132→25 ms), a Journal scope on the Search screen, related-entry suggestions with one-click linking, a tag dictionary and clean-up sheet, a weekly rollup layer, hotspot and velocity cards, an unreviewed queue, plan-log archiving, index usage clean-up.
+- Two leaks into hidden project tabs — terminal ⌘D splitting background tabs, and the new-entry toast's Open landing on another project's screen.
+
+## v3.3.0 — a supervisor's false alarm and look-alike plans
 
 - **Running two instances made healthy watchers get cut and revived over and over** — each time a project lock moved to the new instance the supervisor woke immediately and judged a probe it had planted half a second earlier as "deaf" (52 times in two minutes). The hand-over wake now only yields locks, and a probe younger than 20 s is never judged.
 - **`plan_create` points at look-alike active plans** — when an active plan with an overlapping title or id exists it refuses and returns that plan's id, title and hash so items go there instead (`allow_similar: true` overrides). Locked plans are never candidates.
