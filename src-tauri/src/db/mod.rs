@@ -32,6 +32,7 @@ mod chat;
 mod code_index;
 pub mod firings;
 mod graph;
+pub mod hotspot;
 mod planning;
 mod projects;
 pub mod recall;
