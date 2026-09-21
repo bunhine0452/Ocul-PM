@@ -464,6 +464,8 @@ use crate::commands::{
     rename_project,
     reorder_tabs,
     resize_pty,
+    // first-record-loop Phase 2 — 이어하기 자료 (Today 이어하기 카드)
+    resume_digest,
     // F4 — 회고/인사이트 (+ PR-CI6 eval 추이, defer 원장)
     reveal_in_file_manager,
     // PR-CI4 — 실패→규칙 승격 (결정적 후보 + 옵인 LLM 초안; 저장은 rules_save 승인 경로만)
@@ -929,6 +931,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             journal_missing_signals,
             // first-record-loop — 첫 기록 원장 (Today 첫 기록 카드)
             first_record_ledger,
+            // first-record-loop Phase 2 — 이어하기 자료
+            resume_digest,
             // PR-CI2 — oculpm-mcp 서버 등록
             mcp_status,
             mcp_register,

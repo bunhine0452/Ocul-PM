@@ -6,7 +6,7 @@ ocul-pm 의 Claude Code 연동 두 가지를 **한 번에** 구성합니다 (수
 |---|---|---|
 | 훅 브리지 (CI0) | 앱 설정의 "Claude Code 훅 연동" 토글 (`.claude/settings.local.json`) | SessionStart / Stop / SessionEnd 이벤트를 프로젝트의 `.oculpm/hooks/claude-events.jsonl` 에 append — 앱 watcher 가 소비해 세션을 실측 신호로 기록 |
 | oculpm-mcp (CI2) | 앱 설정의 "MCP 등록" (`.mcp.json`) | `journal_write` / `plan_status` / `plan_update` / `plan_create` / `project_init` 구조화 도구 — `--root "${CLAUDE_PROJECT_DIR}"` 라 어느 프로젝트에서든 그 프로젝트의 `.oculpm/` 에 기록 |
-| 플랜 컨텍스트 주입 | (앱에 없는 플러그인 전용) | 세션·서브에이전트 시작 시 활성 플랜의 미완 항목 요약(≤1,600자)을 컨텍스트로 주입 — 에이전트가 "현재 계획"을 알고 시작. 파일 쓰기 없음 |
+| 재개 컨텍스트 주입 | (앱에 없는 플러그인 전용) | 세션·서브에이전트 시작 시 활성 플랜의 미완 항목 요약(≤1,600자)과 **마지막 작업 일지 3건**(경로·제목만 — 원문은 `journal_read`)을 컨텍스트로 주입 — 에이전트가 "현재 계획"과 "직전에 한 일"을 알고 시작. 무엇을 실었는지는 `.oculpm/hooks/resume-delivered.jsonl` 에 한 줄(SessionStart 만) — 이 원장은 **"시작 컨텍스트에 포함됐다"까지만** 뜻하며, 읽었는지·도움이 됐는지는 말하지 않는다 |
 | 미기록 세션 신호 | (앱에 없는 플러그인 전용) | 세션이 일지 없이 끝나면 stderr 경고 + `.oculpm/hooks/journal-missing.jsonl` 신호 — 근거: 헤드리스 단발 세션 준수 0/12 실측(benchmarks/agentic) |
 | statusline 배지 | (앱에 없는 플러그인 전용) | 디스패치된 플랜 항목을 터미널 상태줄에 `⏵ OCULPM: <항목>` 으로 — 아래 "statusline 설정" 참조 |
 

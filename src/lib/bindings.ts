@@ -1990,6 +1990,11 @@ export const commands = {
 	 *  경계와 어긋나도 창이 **넓어질** 뿐 좁아지지 않는다.
 	 */
 	firstRecordLedger: (projectId: number, days: number) => typedError<FirstRecordLedger, AppError>(__TAURI_INVOKE("first_record_ledger", { projectId, days })),
+	/**
+	 *  이어하기 자료 — 마지막 일지·활성 계획의 다음 항목·전달 원장
+	 *  (플랜 `first-record-loop` Phase 2). 디스크만 읽는다; 훅과 같은 선택 규칙.
+	 */
+	resumeDigest: (projectId: number) => typedError<ResumeDigest, AppError>(__TAURI_INVOKE("resume_digest", { projectId })),
 	mcpStatus: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_status", { projectId })),
 	mcpRegister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_register", { projectId })),
 	mcpUnregister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_unregister", { projectId })),
@@ -5847,6 +5852,49 @@ export type RepoNesting =
 "root_inside_repo" | 
 /**  어느 쪽도 상대의 조상이 아니다 — 되맞출 근거가 없다. */
 "disjoint";
+
+/**  원장 한 줄 — 어느 대화의 시작 컨텍스트에 무엇이 실렸는가. */
+export type ResumeDelivery = {
+	/**  훅이 적은 UTC ISO 문자열 그대로. */
+	ts: string,
+	/**  대화 id (훅 payload 의 `session_id`). */
+	conversation: string,
+	journals: string[],
+	plan_items: number,
+};
+
+export type ResumeDigest = {
+	last_journals: ResumeJournal[],
+	next_items: ResumeItem[],
+	/**  가장 최근 전달 (대화 단위로 접은 뒤 최신). */
+	last_delivery: ResumeDelivery | null,
+	/**  창 안에서 전달받은 **대화** 수. */
+	deliveries_recent: number,
+	/**
+	 *  훅이 이 프로젝트에 한 번이라도 닿았다 — 「아직 전달 안 됨」이 "훅이 없다"
+	 *  인지 "새 세션이 아직 없다" 인지를 가른다.
+	 */
+	hooks_seen: boolean,
+	/**  복사용 본문 — 같은 자료의 사람용 렌더링 (훅의 컨텍스트와 문장은 다르다). */
+	text: string,
+};
+
+export type ResumeItem = {
+	plan_id: string,
+	plan_title: string,
+	item_id: string,
+	title: string,
+	/**  `todo` · `in_progress` · `blocked`. */
+	status: string,
+};
+
+export type ResumeJournal = {
+	/**  `.oculpm/journal/` 기준 상대경로. */
+	relative_path: string,
+	title: string,
+	created_at: string | null,
+	agent_id: string | null,
+};
 
 export type Role = "system" | "user" | "assistant";
 

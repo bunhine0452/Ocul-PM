@@ -105,3 +105,26 @@
 `sessions.json` 의 `agent_sessions` 에도 이 id 가 있다. 이 라운드의 일지가
 `agent.session: 11374f00-…` 로 남으면 「첫 기록」 카드의 `recorded` 입력이 실제로
 만들어지는 것이다 — 카드 화면 자체는 설치본 재빌드 전이라 미확인.
+
+## P1-V 화면 검증 — 실제 CSS 스크린샷 하네스 (2026-09-22)
+
+설치본이 도는 동안 dev 빌드 대신 빌드 산출물 CSS(`dist/assets/*.css`)로 카드를
+정적 렌더해 Chrome 으로 찍었다 (레시피: 화면 테스트 → DOM 덤프 → `.app` 격자
+래퍼 → `http.server`). 첫 기록 카드 5상태 × 라이트/다크, 이어하기 카드 2상태 ×
+라이트/다크 = 14장.
+
+- 다섯 상태 모두 의도한 문구·행동 버튼으로 그려진다. 다크 테마의 경고색(`--warn`)·
+  강조색이 토큰대로 나온다.
+- 잡은 결함 1: 인라인 아이콘(`NotebookText`·`ListTodo`)이 SVG 의 block 표시 때문에
+  제목 **위 별도 줄**로 떨어졌다 → 아이콘 행을 flex 로 고쳤다 (두 카드 모두). 재촬영 확인.
+- 남은 것: 설치본 안에서 실제 원장(`first_record_ledger`·`resume_digest`)이 실데이터로
+  카드를 채우는지 — 앱 재빌드·실행 후 `{#p1-verify}` 를 닫는다.
+
+## Phase 2 실제 왕복 증거 (2026-09-22, 이 저장소)
+
+확장된 `plan-context.sh` 를 이 저장소에서 SessionStart payload(대화 `11374f00-…`)로
+직접 실행했다. `additionalContext` 에 활성 플랜 미완 항목 뒤에 **마지막 작업 일지
+3건**(Phase 0·1 일지가 첫 줄)이 실렸고, `.oculpm/hooks/resume-delivered.jsonl` 에
+`{"session_id":"11374f00-…","kind":"resume_delivered","journals":[…3건],"plan_items":N}`
+한 줄이 남았다. 앱의 `resume_digest` 는 같은 원장을 읽어 「마지막 전달: 대화
+11374f00… — 시작 컨텍스트에 포함됐어요」를 그린다 (증명 범위는 §9 의 "포함됨"까지).

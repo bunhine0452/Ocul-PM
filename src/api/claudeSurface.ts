@@ -35,6 +35,7 @@ import type {
   ClaudePluginStatus,
   CliCheckResult,
   FirstRecordLedger,
+  ResumeDigest,
 } from "@/lib/bindings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -160,6 +161,13 @@ export const hooksApi = {
    */
   firstRecordLedger: (projectId: number, days: number) =>
     unwrap<FirstRecordLedger>("first_record_ledger", commands.firstRecordLedger(projectId, days)),
+
+  /**
+   * 이어하기 자료 (first-record-loop Phase 2) — 마지막 일지 3건·활성 계획의
+   * 다음 항목·전달 원장. 훅(plan-context.sh)과 같은 선택 규칙으로 디스크만 읽는다.
+   */
+  resumeDigest: (projectId: number) =>
+    unwrap<ResumeDigest>("resume_digest", commands.resumeDigest(projectId)),
 };
 
 /**

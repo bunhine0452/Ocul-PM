@@ -365,6 +365,17 @@ fn hooks_json_guards_and_consumes_stdin() {
         script.contains("status: active"),
         "주입 스크립트: 활성 플랜만 (frontmatter 스코프)"
     );
+    // first-record-loop P2-3 — 플랜 옆에 **마지막 일지 3건**도 싣고, 무엇을
+    // 실었는지 전달 원장에 남긴다 (앱의 「이어하기」가 "시작 컨텍스트에 포함됨"
+    // 을 말할 수 있는 유일한 근거). 행위 단언은 tests/resume_context.rs.
+    assert!(
+        script.contains("resume-delivered.jsonl"),
+        "주입 스크립트: 전달 원장 (무엇을 실었는지 남긴다)"
+    );
+    assert!(
+        script.contains("journal_read"),
+        "주입 스크립트: 일지 원문 회수 경로 안내 (손잡이만 싣는다)"
+    );
     for banned in ["curl", "wget", "http://", "https://"] {
         assert!(!script.contains(banned), "주입 스크립트: 네트워크 금지");
     }

@@ -4121,4 +4121,19 @@ export const ko = {
   "today.firstRecord.unattributed.body":
     "{n}건에 대화 id 가 없어요 — 플러그인 없이 쓴 에이전트나 git 백필·수동 기록이에요. 첫 기록 성공으로 세지는 않지만 내용은 그대로 읽을 수 있어요.",
   "today.firstRecord.unattributed.open": "일지 보기",
+  // 이어하기 카드 (플랜 first-record-loop Phase 2) — 다음 세션의 시작점.
+  // 원장이 증명하는 것은 "포함됨" 까지 — 참조·도움은 모른다고 적는다.
+  "today.resume.title": "이어하기",
+  "today.resume.lastWork": "마지막 작업",
+  "today.resume.nextItems": "다음 항목",
+  "today.resume.moreItems": "외 {n}개 — 계획 화면에서",
+  "today.resume.delivered":
+    "마지막 전달: 대화 {id} · {ago} — 시작 컨텍스트에 포함됐어요 (일지 {n}건 · 항목 {m}개). 참조했는지·도움이 됐는지는 알 수 없어요.",
+  "today.resume.notYet": "아직 전달된 적 없어요 — 다음 세션이 시작될 때 훅이 이 자료를 실어요.",
+  "today.resume.noHooks": "훅이 아직 이 프로젝트에 닿지 않았어요 — oculpm 플러그인이 있는 세션부터 실려요.",
+  "today.resume.continue": "터미널에서 이어서 작업",
+  "today.resume.copy": "자료 복사",
+  "today.resume.copied": "복사했어요 — 붙여넣기는 전달로 세지 않아요",
+  "today.resume.planner": "계획 보기",
+  "today.resume.loadFailed": "이어하기 자료를 읽지 못했어요",
 } as const;
