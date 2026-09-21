@@ -14,7 +14,7 @@ owner: claude-code
 - [x] journal_search 를 SQLite 캐시 기반으로 — 디스크 전수 스캔 제거, 캐시 비었을 때만 디스크 폴백 {#search-cache}
 - [x] 관련도+최신성 혼합 랭킹(제목>태그>파일>본문, 최근 가산) + 프런트용 oculpm_search_journal 커맨드 {#search-rank}
 - [x] 검색 화면에 일지 스코프 추가 (의미·심볼·텍스트 옆) — 랭킹 결과·스니펫·일지 열기 {#search-scope-ui}
-- [ ] 의미검색에 일지 포함 옵션 (임베딩 대상 확장) — 검토 후 착수 {#search-semantic-journal}
+- [x] 의미검색에 일지 포함 옵션 (임베딩 대상 확장) — 검토 후 착수 {#search-semantic-journal}
 
 ## 연결 — related 자동 제안과 재발 링크 {#links}
 - [x] 관련 후보 산출 커맨드 — 같은 파일·같은 플랜 항목·제목 유사도로 점수, 상위 N {#related-suggest}
@@ -39,8 +39,8 @@ owner: claude-code
 - [x] 미검토 일지 필터 + 일괄 확인(검토 대기함) — verified_by_user 를 살린다 {#review-queue}
 - [x] 플랜 로그 표가 N행을 넘으면 <plan>.log.md 로 분리 — 파서·락 호환 {#plan-log-archive}
 - [x] 설정 진단에 .oculpm/index 사용량(history·diffs) 표시 + 정리 버튼 {#index-usage}
-- [ ] 태그 사이 일지로 CHANGELOG 초안 생성 — 검토 후 착수 {#release-notes-draft}
-- [ ] 주당 건수·유형 추이와 플랜 완료 속도 — 검토 후 착수 {#velocity}
+- [x] 태그 사이 일지로 CHANGELOG 초안 생성 — 검토 후 착수 {#release-notes-draft}
+- [x] 주당 건수·유형 추이와 플랜 완료 속도 — 검토 후 착수 {#velocity}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -71,4 +71,10 @@ owner: claude-code
 | 2026-09-21T23:38:05+09:00 | #rollup-first | claude-code | ☐→x | .oculpm/journal/20260921/Features_to_add/2336_feature_weekly-rollup-layer.md | journal_search rollups · journal_read 확장 · aiContext 롤업 우선 · AGENTS §0 (template_version 13) |
 | 2026-09-21T23:38:11+09:00 | #plan-log-archive | claude-code | ☐→x | .oculpm/journal/20260921/Features_to_add/2337_feature_plan-log-archive-sidecar.md | LOG_KEEP 40, 아카이브 먼저 쓰기, 4 append 경로 같은 락, 잠긴 플랜 무접촉 |
 | 2026-09-21T23:38:17+09:00 | #review-queue | claude-code | ☐→x | .oculpm/journal/20260921/Features_to_add/2337_feature_review-queue-unverified.md | unverified_only 필터 + bulk 확인 + ReviewQueueBar + v 토글 |
+| 2026-09-21T23:51:57+09:00 | #search-semantic-journal | claude-code | ☐→~ |  | 3차 웨이브 — 세션 E (opus) |
+| 2026-09-21T23:52:02+09:00 | #release-notes-draft | claude-code | ☐→~ |  | 3차 웨이브 — 세션 N (opus) |
+| 2026-09-21T23:52:07+09:00 | #velocity | claude-code | ☐→~ |  | 3차 웨이브 — 세션 Y (sonnet) |
+| 2026-09-22T00:37:17+09:00 | #search-semantic-journal | claude-code | ~→x | .oculpm/journal/20260922/Features_to_add/0036_feature_semantic-search-includes-journal.md | journal_index.rs 전용 청킹, kind=journal, include_journal 축, 워처 증분. PR #28 |
+| 2026-09-22T00:37:24+09:00 | #release-notes-draft | claude-code | ~→x | .oculpm/journal/20260922/Features_to_add/0036_feature_release-notes-draft-from-journals.md | 태그~HEAD 커밋·일지 연결, 결정적+LLM 문체 표본, 브랜치 화면 시트(클립보드만) |
+| 2026-09-22T00:37:29+09:00 | #velocity | claude-code | ~→x | .oculpm/journal/20260922/Features_to_add/0037_feature_velocity-card-weekly-trend.md | ISO 주 버킷·유형 스택·플랜 ETA, Today VelocityCard |
 <!-- oculpm:plan-log end -->
