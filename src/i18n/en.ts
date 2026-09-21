@@ -1062,7 +1062,7 @@ export const en: Record<keyof typeof ko, string> = {
   "today.terminal.full": "Full terminal",
   "today.terminal.collapse": "Collapse",
   "today.terminal.expand": "Open",
-  "today.terminal.hint": "Run your agent right here. The work is journaled automatically.",
+  "today.terminal.hint": "Run your agent right here. The entry is written by the agent that read AGENTS.md — not by the app.",
   "today.week.title": "This week's output",
   "agent.manual": "Manual entry",
   "time.justNow": "just now",
@@ -3513,11 +3513,11 @@ export const en: Record<keyof typeof ko, string> = {
   //    guard · doctor · index empty states · shortcut cheatsheet · What's new · review loop
   "today.activateNow": "Activate now",
   "today.activateFailed": "Could not turn on ocul-pm — {error}",
-  "today.activated": "ocul-pm is on — agent work is journaled from here on.",
+  "today.activated": "ocul-pm is on — from here on you can see the entries your agents write.",
   "today.firstRun.title": "ocul-pm has settled into this project",
   "today.firstRun.sub": "Commit the files below — your team and your agents will read the same journaling rules.",
-  "today.firstRun.oculpmDir": ".oculpm/ — config.toml · journal/ · planner/ (index/ is app-managed and not committed)",
-  "today.firstRun.gitignore": ".gitignore — added a `.oculpm/index/` line",
+  "today.firstRun.oculpmDir": ".oculpm/ — config.toml · README.md · agents/ (journal/ and planner/ appear with the first entry; index/ is app-managed and not committed)",
+  "today.firstRun.gitignore": ".gitignore — an ocul-pm block listing app-managed paths like `.oculpm/index/`",
   "today.firstRun.agentFile": "{file} — journaling rules block",
   "today.firstRun.viewChanges": "View changes",
   "today.firstRun.dismiss": "Got it",
@@ -3739,7 +3739,7 @@ export const en: Record<keyof typeof ko, string> = {
   "welcome.next": "Next",
   "welcome.lang.title": "Welcome.",
   "welcome.lang.sub":
-    "Your agents write the code; Ocul-PM keeps the record. Start by picking the language for the app.",
+    "Your agents write the code and the journal entries; Ocul-PM collects them and shows you what happened. Start by picking the language for the app.",
   "welcome.lang.note":
     "The language the AI writes journals in is matched to this too — to split them (English screen, Korean journals), go to Settings → Appearance.",
   "welcome.look.title": "Pick what's easy on the eyes.",
@@ -3752,20 +3752,20 @@ export const en: Record<keyof typeof ko, string> = {
   "welcome.look.note":
     "Presets like Solarized and Nord — and themes you build yourself as .json — live in Settings → Appearance.",
   "welcome.project.title": "Bring in your first project.",
-  "welcome.project.sub": "Point at a repo folder you already have and the record starts right there.",
+  "welcome.project.sub": "Point at a repo folder you already have. Opening it is what creates the place the record lives.",
   "welcome.project.open": "Open a folder",
   "welcome.project.openDesc": "Track a project you already have",
   "welcome.project.new": "Start something new",
   "welcome.project.newDesc": "The wizard walks you from idea to a seeded plan",
   "welcome.project.working": "Opening…",
   "welcome.project.note":
-    ".oculpm/ and a journaling-rules file (AGENTS.md) are created in the folder. Your code never leaves this machine.",
+    "When you open the project, .oculpm/ and a journaling-rules file (AGENTS.md) are created in the folder. Your code never leaves this machine.",
   "welcome.ready.title": "{name} — one step left: open it.",
   "welcome.ready.sub":
     "It's on your list and the code index has started. Nothing has been written inside the folder yet.",
   "welcome.ready.li1": ".oculpm/ — the place journals, plans and discussions will pile up as markdown",
   "welcome.ready.li2": "AGENTS.md — the journaling rules your agents will read gets planted",
-  "welcome.ready.li3": "From then on, one entry lands each time an agent finishes a unit of work",
+  "welcome.ready.li3": "From then on, an agent that reads those rules writes one entry itself each time it finishes a unit of work",
   "welcome.ready.open": "Open project",
   // ── Error codes (Phase 4 #error-convention) — backend AppError.code → sentence
   "err.code.not_initialized": "ocul-pm isn't active in this project yet — activate it from Today.",
@@ -3889,7 +3889,7 @@ export const en: Record<keyof typeof ko, string> = {
   "today.openRules": "Open the rules screen",
   "today.plugin.title": "No Claude Code plugin found",
   "today.plugin.body":
-    "AGENTS.md alone is enough for an agent to write journals. The plugin adds tools (journal_write, plan_update) and a session-end hook on top, so sessions that skipped the write-up get caught.",
+    "An agent can write journals from the AGENTS.md rules alone, but rules alone let some conversations slip by. The plugin adds tools (journal_write, plan_update) and session hooks that catch those.",
   "today.plugin.how": "Run these two lines inside Claude Code.",
   "today.plugin.recheck": "Check again",
   "today.plugin.settings": "See in settings",
@@ -4072,4 +4072,43 @@ export const en: Record<keyof typeof ko, string> = {
   "mobile.pair.blockedCode": "Enter the 6-digit code",
   "mobile.journal.blockedToday": "Today is the latest day",
   "mobile.planner.blockedLocked": "This plan is locked",
+  // First-record card (plan first-record-loop {#p1-card}) — checks the first
+  // journal entry per conversation. Success only counts an entry attributed
+  // to a conversation id. Recorded ≠ reviewed.
+  "today.firstRecord.loadFailed": "Couldn't load the first-record ledger",
+  "today.firstRecord.dismissHint": "Don't show this card again",
+  "today.firstRecord.run": "Run an agent in the terminal",
+  "today.firstRecord.ready.title":
+    "Once an agent finishes, this conversation's first journal entry shows up here",
+  "today.firstRecord.ready.body":
+    "The journal entry is written by the agent itself, reading this folder's AGENTS.md rules — not by the app. The readiness below is for the Claude Code path; other agents run on the rules alone, with no conversation attribution.",
+  "today.firstRecord.probe.cli": "Claude Code",
+  "today.firstRecord.probe.plugin": "oculpm plugin",
+  "today.firstRecord.probe.hooks": "Hook link",
+  "today.firstRecord.probe.yes": "found",
+  "today.firstRecord.probe.no": "not found",
+  "today.firstRecord.probe.unknown": "couldn't check",
+  "today.firstRecord.probe.hooksSeen": "confirmed — a session was observed in this project",
+  "today.firstRecord.probe.hooksNotYet": "not yet — this gets confirmed once the first session starts",
+  "today.firstRecord.running.title": "Conversation in progress — nothing recorded yet",
+  "today.firstRecord.running.body":
+    "The agent writes a journal entry when a logical unit of work finishes. This card updates once it does.",
+  "today.firstRecord.running.meta": "Conversation {id}",
+  "today.firstRecord.running.metaSince": "Conversation {id} · started {since}",
+  "today.firstRecord.running.more": "+{n} more conversations",
+  "today.firstRecord.recorded.title": "First journal entry recorded",
+  "today.firstRecord.recorded.body":
+    "Written by conversation {id}. Recorded means logged, not reviewed — review it in the Diff screen.",
+  "today.firstRecord.recorded.open": "Open the entry",
+  "today.firstRecord.recorded.review": "Review changes",
+  "today.firstRecord.recorded.ack": "Got it",
+  "today.firstRecord.missing.title": "Conversation ended without a journal entry",
+  "today.firstRecord.missing.body":
+    'Conversation {id} made changes but ended with no entry. Run it again to record one, or write it yourself below under "Sessions that ended with no entry."',
+  "today.firstRecord.missing.retry": "Run again",
+  "today.firstRecord.unattributed.title":
+    "An entry appeared, but it's not clear which conversation wrote it",
+  "today.firstRecord.unattributed.body":
+    "{n} entries have no conversation id — from an agent that ran without the plugin, a git backfill, or a manual entry. They don't count as a first-record success, but you can still read them.",
+  "today.firstRecord.unattributed.open": "View the entry",
 };

@@ -257,7 +257,8 @@ export default function ShellV2({
     weekday: "short",
   });
 
-  const openEntryInJournal = (entry: JournalEntrySummary) => {
+  // 경로만 읽는다 — Today 첫 기록 카드는 요약 없이 경로만 들고 온다.
+  const openEntryInJournal = (entry: Pick<JournalEntrySummary, "relative_path">) => {
     setJournalFocus(entry.relative_path);
     setUiV2View("journal");
   };

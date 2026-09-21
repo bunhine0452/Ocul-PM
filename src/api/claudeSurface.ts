@@ -34,6 +34,7 @@ import type {
   JournalMissingSignal,
   ClaudePluginStatus,
   CliCheckResult,
+  FirstRecordLedger,
 } from "@/lib/bindings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -151,6 +152,14 @@ export const hooksApi = {
       "journal_missing_signals",
       commands.journalMissingSignals(projectId, days),
     ),
+
+  /**
+   * 첫 기록 원장 (플랜 `first-record-loop` {#p1-ledger}) — 창 안 대화별 첫
+   * 일지 귀속. 성공은 `agent.session` 으로 귀속된 일지뿐이고, 총 일지 수는
+   * 여기 없다 — 백필·옆 대화의 일지가 "내 첫 기록" 으로 보이지 않게.
+   */
+  firstRecordLedger: (projectId: number, days: number) =>
+    unwrap<FirstRecordLedger>("first_record_ledger", commands.firstRecordLedger(projectId, days)),
 };
 
 /**

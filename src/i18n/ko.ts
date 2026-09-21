@@ -1063,7 +1063,7 @@ export const ko = {
   "today.terminal.full": "전체 터미널",
   "today.terminal.collapse": "접기",
   "today.terminal.expand": "열기",
-  "today.terminal.hint": "여기서 바로 에이전트를 실행하세요. 작업은 자동으로 일지에 기록돼요.",
+  "today.terminal.hint": "여기서 바로 에이전트를 실행하세요. 일지는 앱이 아니라, AGENTS.md 규칙을 읽은 에이전트가 직접 남겨요.",
   "today.week.title": "이번 주 작업량",
   "agent.manual": "수동 기록",
   "time.justNow": "방금",
@@ -3510,11 +3510,11 @@ export const ko = {
   //    닥터 · 색인 빈 상태 · 단축키 치트시트 · What's new · 검토 루프
   "today.activateNow": "지금 활성화",
   "today.activateFailed": "ocul-pm 을 켜지 못했어요 — {error}",
-  "today.activated": "ocul-pm 이 켜졌어요 — 이제부터 에이전트 작업이 일지로 남아요.",
+  "today.activated": "ocul-pm 이 켜졌어요 — 이제 에이전트가 남기는 일지를 여기서 볼 수 있어요.",
   "today.firstRun.title": "ocul-pm 이 이 프로젝트에 자리를 잡았어요",
   "today.firstRun.sub": "아래 파일들을 저장소에 커밋하세요 — 팀과 에이전트가 같은 기록 규칙을 읽어요.",
-  "today.firstRun.oculpmDir": ".oculpm/ — config.toml · journal/ · planner/ (index/ 는 앱이 관리해 커밋하지 않아요)",
-  "today.firstRun.gitignore": ".gitignore — `.oculpm/index/` 한 줄을 넣었어요",
+  "today.firstRun.oculpmDir": ".oculpm/ — config.toml · README.md · agents/ (journal/ · planner/ 는 첫 기록 때 생기고, index/ 는 앱이 관리해 커밋하지 않아요)",
+  "today.firstRun.gitignore": ".gitignore — `.oculpm/index/` 등 앱이 관리하는 경로를 ocul-pm 블록으로 넣었어요",
   "today.firstRun.agentFile": "{file} — 기록 규칙 블록",
   "today.firstRun.viewChanges": "변경 보기",
   "today.firstRun.dismiss": "알겠어요",
@@ -3736,7 +3736,7 @@ export const ko = {
   "welcome.next": "다음",
   "welcome.lang.title": "반가워요.",
   "welcome.lang.sub":
-    "에이전트가 코드를 쓰는 동안, Ocul-PM 이 기록을 남겨요. 먼저 화면에 쓸 언어를 고르세요.",
+    "에이전트가 코드를 쓰고 작업 일지도 직접 남기면, Ocul-PM 이 그 기록을 모아서 보여줘요. 먼저 화면에 쓸 언어를 고르세요.",
   "welcome.lang.note":
     "AI 가 쓰는 일지의 언어도 함께 맞춰요 — 화면은 영어, 기록은 한국어처럼 갈라 쓰려면 설정 → 모양에서 나누세요.",
   "welcome.look.title": "눈에 편한 쪽으로.",
@@ -3749,20 +3749,20 @@ export const ko = {
   "welcome.look.note":
     "Solarized·Nord 같은 프리셋과 직접 만드는 테마(.json)는 설정 → 모양에 있어요.",
   "welcome.project.title": "첫 프로젝트를 불러오세요.",
-  "welcome.project.sub": "이미 있는 저장소 폴더를 고르면 그 자리에서 기록이 시작돼요.",
+  "welcome.project.sub": "이미 있는 저장소 폴더를 고르세요. 그 폴더를 열 때 기록이 쌓일 자리가 만들어져요.",
   "welcome.project.open": "폴더 열기",
   "welcome.project.openDesc": "이미 있는 프로젝트를 추적해요",
   "welcome.project.new": "새로 시작",
   "welcome.project.newDesc": "아이디어에서 계획까지 마법사가 안내해요",
   "welcome.project.working": "여는 중…",
   "welcome.project.note":
-    "폴더에 .oculpm/ 과 기록 규칙(AGENTS.md)이 생겨요. 코드는 이 컴퓨터를 떠나지 않아요.",
+    "프로젝트를 열면 그 폴더에 .oculpm/ 과 기록 규칙(AGENTS.md)이 생겨요. 코드는 이 컴퓨터를 떠나지 않아요.",
   "welcome.ready.title": "{name} — 이제 열기만 남았어요.",
   "welcome.ready.sub":
     "목록에 추가하고 코드 색인을 시작했어요. 폴더 안에는 아직 아무것도 쓰지 않았어요.",
   "welcome.ready.li1": ".oculpm/ — 일지·계획·논의가 마크다운으로 쌓일 자리가 생겨요",
   "welcome.ready.li2": "AGENTS.md — 에이전트가 읽을 기록 규칙이 심겨요",
-  "welcome.ready.li3": "그다음부터, 에이전트가 일을 마칠 때 일지가 한 건씩 쌓여요",
+  "welcome.ready.li3": "그다음부터, 그 규칙을 읽은 에이전트가 일을 마칠 때마다 일지를 한 건씩 직접 남겨요",
   "welcome.ready.open": "프로젝트 열기",
   // ── 오류 코드 (Phase 4 #error-convention) — 백엔드 AppError.code → 문장
   "err.code.not_initialized": "이 프로젝트에 ocul-pm 이 아직 켜져 있지 않아요 — 「오늘 현황」에서 활성화하세요.",
@@ -3893,7 +3893,7 @@ export const ko = {
   "today.openRules": "규칙 화면 열기",
   "today.plugin.title": "Claude Code 플러그인이 안 보여요",
   "today.plugin.body":
-    "AGENTS.md 만으로도 에이전트는 일지를 써요. 플러그인은 여기에 도구(journal_write·plan_update)와 세션 종료 훅을 더해, 기록을 건너뛴 세션까지 잡아 줘요.",
+    "AGENTS.md 규칙만 읽고도 에이전트가 일지를 쓸 수 있지만, 규칙만으로는 그냥 지나가는 대화가 있어요. 플러그인은 도구(journal_write·plan_update)와 세션 훅을 더해 그런 대화를 붙잡아요.",
   "today.plugin.how": "Claude Code 안에서 두 줄을 실행하세요.",
   "today.plugin.recheck": "다시 확인",
   "today.plugin.settings": "설정에서 보기",
@@ -4086,4 +4086,39 @@ export const ko = {
   "mobile.pair.blockedCode": "6자리 코드를 입력해 주세요",
   "mobile.journal.blockedToday": "오늘이 마지막이에요",
   "mobile.planner.blockedLocked": "잠긴 계획이라 바꿀 수 없어요",
+  // 첫 기록 카드 (플랜 first-record-loop {#p1-card}) — 대화 단위 첫 일지 확인.
+  // 성공은 대화 id 로 귀속된 일지뿐이다. 기록 ≠ 검증.
+  "today.firstRecord.loadFailed": "첫 기록 원장을 읽지 못했어요",
+  "today.firstRecord.dismissHint": "이 카드를 다시 띄우지 않아요",
+  "today.firstRecord.run": "터미널에서 에이전트 실행",
+  "today.firstRecord.ready.title": "에이전트가 일을 마치면 여기서 그 대화의 첫 일지를 확인해요",
+  "today.firstRecord.ready.body":
+    "일지는 앱이 아니라, 이 폴더의 AGENTS.md 규칙을 읽은 에이전트가 직접 남겨요. 아래 준비 상태는 Claude Code 경로 기준이에요 — 다른 에이전트는 규칙만으로 동작하고 대화 귀속은 없어요.",
+  "today.firstRecord.probe.cli": "Claude Code",
+  "today.firstRecord.probe.plugin": "oculpm 플러그인",
+  "today.firstRecord.probe.hooks": "훅 연결",
+  "today.firstRecord.probe.yes": "있음",
+  "today.firstRecord.probe.no": "못 찾음",
+  "today.firstRecord.probe.unknown": "확인 못 함",
+  "today.firstRecord.probe.hooksSeen": "확인됨 — 이 프로젝트에서 세션이 관측됐어요",
+  "today.firstRecord.probe.hooksNotYet": "아직 — 첫 세션이 시작되면 확인돼요",
+  "today.firstRecord.running.title": "대화가 진행 중이에요 — 기록은 아직이에요",
+  "today.firstRecord.running.body": "논리적 작업 단위가 끝날 때 에이전트가 일지를 남겨요. 남기면 이 자리가 바뀌어요.",
+  "today.firstRecord.running.meta": "대화 {id}",
+  "today.firstRecord.running.metaSince": "대화 {id} · {since} 시작",
+  "today.firstRecord.running.more": "외 {n}개 대화",
+  "today.firstRecord.recorded.title": "첫 일지가 남았어요",
+  "today.firstRecord.recorded.body":
+    "대화 {id}가 남긴 기록이에요. 기록이 남았다는 뜻이지 코드가 검증됐다는 뜻은 아니에요 — 검토는 변경 화면에서 해요.",
+  "today.firstRecord.recorded.open": "일지 열기",
+  "today.firstRecord.recorded.review": "변경 검토",
+  "today.firstRecord.recorded.ack": "확인했어요",
+  "today.firstRecord.missing.title": "대화가 일지 없이 끝났어요",
+  "today.firstRecord.missing.body":
+    "대화 {id}는 변경을 남기고 기록 없이 끝났어요. 다시 실행해 기록을 남기거나, 아래 「일지 없이 끝난 세션」에서 직접 남길 수 있어요.",
+  "today.firstRecord.missing.retry": "다시 실행",
+  "today.firstRecord.unattributed.title": "일지는 생겼지만 어느 대화의 것인지 알 수 없어요",
+  "today.firstRecord.unattributed.body":
+    "{n}건에 대화 id 가 없어요 — 플러그인 없이 쓴 에이전트나 git 백필·수동 기록이에요. 첫 기록 성공으로 세지는 않지만 내용은 그대로 읽을 수 있어요.",
+  "today.firstRecord.unattributed.open": "일지 보기",
 } as const;

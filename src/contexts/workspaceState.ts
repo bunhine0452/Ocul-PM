@@ -79,6 +79,13 @@ export interface WorkspaceState {
    * 영속: 카드를 보기 전에 앱을 닫아도 다음에 보인다.
    */
   oculpmInitCard: OculpmInitCardInfo | null;
+  /**
+   * 첫 기록 카드 (플랜 `first-record-loop` {#p1-states}). Today 가 이
+   * 프로젝트의 일지가 **0건**인 것을 처음 본 순간 켜고, 사용자가 「확인했어요」
+   * 나 닫기를 누르면 끈다. 영속: 첫 일지를 기다리다 앱을 닫아도 다음에 이어
+   * 본다. 이전부터 쓰던 프로젝트는 켜진 적이 없으므로 보지 않는다.
+   */
+  firstRecordArmed: boolean;
 
   // Volatile (not persisted)
   /** 색인 중인 프로젝트 — 진행률 자체는 `lib/indexProgressStore` (컨텍스트 밖). */

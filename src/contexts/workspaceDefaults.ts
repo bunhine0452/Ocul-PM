@@ -28,6 +28,7 @@ export const DEFAULT_STATE: WorkspaceState = {
   schemaVersion: WORKSPACE_SCHEMA_VERSION,
   defaultTabUserOverride: false,
   oculpmInitCard: null,
+  firstRecordArmed: false,
   indexingProjectId: null,
   oculpmEnabled: false,
   oculpmStatus: null,
