@@ -394,6 +394,7 @@ use crate::commands::{
     // W5-PR5 — Overview stats
     oculpm_reindex_cache,
     oculpm_search_entities,
+    oculpm_search_journal,
     oculpm_set_config,
     oculpm_set_journal_verified,
     oculpm_start_session_manual,
@@ -773,6 +774,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_group_changes,
             oculpm_set_journal_verified,
             oculpm_search_entities,
+            oculpm_search_journal,
             oculpm_workday_brief,
             oculpm_reindex_cache,
             oculpm_create_manual_entry,

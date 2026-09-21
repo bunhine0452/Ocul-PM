@@ -1265,6 +1265,21 @@ export const commands = {
 	 *  (타이핑 debounce 마다 호출됨).
 	 */
 	oculpmSearchEntities: (projectId: number, query: string, limit: number) => typedError<EntityHit[], AppError>(__TAURI_INVOKE("oculpm_search_entities", { projectId, query, limit })),
+	/**  일지를 관련도순으로 찾는다. */
+	oculpmSearchJournal: (projectId: number, query: string, filters: {
+	/**  `bug|feature|error|refactor|chore`. */
+	types?: string[],
+	/**  `planned|in_progress|done|abandoned`. */
+	status?: string[],
+	/**  태그는 **전부** 가진 일지만 (AND). */
+	tags?: string[],
+	/**  `files_touched` 경로의 부분 일치. */
+	file?: string | null,
+	/**  `YYYYMMDD` 이상. */
+	since?: string | null,
+	/**  `YYYYMMDD` 이하. */
+	until?: string | null,
+} | null, limit: number | null) => typedError<JournalSearchPage, AppError>(__TAURI_INVOKE("oculpm_search_journal", { projectId, query, filters, limit })),
 	/**
 	 *  v2 U12 — 워크데이 집합의 일지 요약 + 초점 워크데이(`focus_workday`)의 라인
 	 *  증감·고유 파일 수 + 미완 플랜 항목 + 총 일지 수를 IPC 1회에.
@@ -4518,6 +4533,52 @@ export type JournalMissingSignal = {
 	 *  117개였던 이유다. 카드가 세는 것은 대화 하나, 이 값은 그 안의 횟수.
 	 */
 	segments: number,
+};
+
+/**  프런트가 거르는 축. 전부 선택이고, 빈 값은 "제약 없음". */
+export type JournalSearchFilters = {
+	/**  `bug|feature|error|refactor|chore`. */
+	types?: string[],
+	/**  `planned|in_progress|done|abandoned`. */
+	status?: string[],
+	/**  태그는 **전부** 가진 일지만 (AND). */
+	tags?: string[],
+	/**  `files_touched` 경로의 부분 일치. */
+	file?: string | null,
+	/**  `YYYYMMDD` 이상. */
+	since?: string | null,
+	/**  `YYYYMMDD` 이하. */
+	until?: string | null,
+};
+
+/**  히트 한 건. */
+export type JournalSearchHit = {
+	relative_path: string,
+	workday: string,
+	/**  `bug|feature|…`, 판정 불가면 `?`. */
+	entry_type: string,
+	/**  `planned|in_progress|…`, 판정 불가면 `?`. */
+	status: string,
+	title: string,
+	/**  본문 한 줄 발췌 — 본문 매치면 매치 근방, 아니면 앞머리. */
+	snippet: string,
+	/**  어디서 걸렸는가: `title|tag|slug|path|body|filter`. */
+	matched_field: string,
+	/**  사람이 읽는 매치 자리 (`title` · `tag:cache` · `path:src/…` · 발췌). */
+	why: string,
+	/**  관련도 점수 — 정렬은 이미 되어 있고, 화면이 등급을 나눌 때 쓴다. */
+	score: number | null,
+};
+
+/**  상한이 걸린 검색 결과. */
+export type JournalSearchPage = {
+	hits: JournalSearchHit[],
+	/**
+	 *  **상한을 걸기 전** 매치 건수. 상한이 있는데 그 사실이 안 보이면
+	 *  사용자는 "전부 보고 있다"고 읽는다 (`oculpm_list_journal_entries_page`
+	 *  와 같은 계약).
+	 */
+	total: number,
 };
 
 /**
