@@ -6,12 +6,13 @@ import { Toolbar } from "@/components/Toolbar";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { SkeletonList } from "@/components/ui/Skeleton";
-import { AlertTriangle, Download, GitBranchIcon } from "@/components/Icons";
+import { AlertTriangle, Download, GitBranchIcon, PenLine } from "@/components/Icons";
 import { oculpmApi } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
 import { blocked } from "@/lib/blocked";
 import { CommitsPanel, EntriesPanel, FilesPanel, PlanPanel, wd } from "./BranchPanels";
+import { ReleaseNotesSheet } from "./ReleaseNotesSheet";
 import { useBranchStory } from "./useBranchStory";
 
 // 「브랜치의 이야기」 (v3-surface {#branch-story-view}).
@@ -64,6 +65,10 @@ export function BranchScreenV2({
   const { t } = useT();
   const { branches, story, picked, loading, error, pick, reload } = useBranchStory(projectId, active);
   const [exporting, setExporting] = useState(false);
+  // 「릴리스 노트 초안」 ({#release-notes-draft}) — 범위는 시트가 스스로 정한다
+  // (지난 `v*` 태그..HEAD). 브랜치 선택과 묶지 않는 이유: 릴리스의 좌표는
+  // 브랜치가 아니라 태그이고, 둘을 묶으면 기준이 조용히 어긋난다.
+  const [relNotesOpen, setRelNotesOpen] = useState(false);
 
   const exportDigest = useCallback(async () => {
     if (exporting || !story) return;
@@ -115,10 +120,19 @@ export function BranchScreenV2({
             ))}
           </select>
         ) : null}
+        <button type="button" className="btn sm" onClick={() => setRelNotesOpen(true)}>
+          <PenLine size={15} /> {t("branch.relnotes.open")}
+        </button>
         <button type="button" className="btn sm" {...blocked(story ? null : t("branch.blockedNoStory"))} disabled={exporting} onClick={() => void exportDigest()}>
           <Download size={15} /> {t("branch.export")}
         </button>
       </Toolbar>
+
+      <ReleaseNotesSheet
+        projectId={projectId}
+        open={relNotesOpen}
+        onClose={() => setRelNotesOpen(false)}
+      />
 
       <div className="scroll">
         <div className="page fade-in">

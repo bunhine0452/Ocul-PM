@@ -1485,6 +1485,15 @@ export const commands = {
 	 */
 	oculpmGenerateSummary: (projectId: number, since: string, until: string, style: SummaryStyle, provider: string | null, model: string | null) => typedError<GeneratedSummary, string>(__TAURI_INVOKE("oculpm_generate_summary", { projectId, since, until, style, provider, model })),
 	/**
+	 *  지난 태그부터 지금까지의 커밋과 일지로 릴리스 노트 초안을 만든다.
+	 * 
+	 *  `from_ref` 기본값 = `to_ref` 에서 거슬러 닿는 마지막 `v*` 태그,
+	 *  `to_ref` 기본값 = `HEAD`. `use_llm` 이 참이어도 모델이 없거나 호출이 실패하면
+	 *  결정적 초안으로 물러선다 (`used_llm=false` + `note`) — `oculpm_generate_summary`
+	 *  와 같은 폴백 규약. **`CHANGELOG.md` 는 건드리지 않는다** (모듈 문서 §왜 초안인가).
+	 */
+	oculpmReleaseNotesDraft: (projectId: number, fromRef: string | null, toRef: string | null, useLlm: boolean) => typedError<ReleaseNotesDraft, AppError>(__TAURI_INVOKE("oculpm_release_notes_draft", { projectId, fromRef, toRef, useLlm })),
+	/**
 	 *  파일별 bug/error 재발 신호. `days` 가 있으면 그 일수만큼의 workday 창으로
 	 *  좁힌다 (오늘 포함 `days`일 — `firing_stats` 와 같은 계산).
 	 */
@@ -5719,6 +5728,23 @@ export type RelatedSuggestion = {
 	entry_type: string,
 	score: number | null,
 	reasons: RelatedReason[],
+};
+
+export type ReleaseNotesDraft = {
+	/**  붙여 넣을 마크다운 한 판. **어디에도 쓰이지 않았다.** */
+	markdown: string,
+	/**  범위 안 커밋 수. */
+	commits: number,
+	/**  그 워크데이 범위에서 모은 일지 수. */
+	entries: number,
+	/**  그중 커밋이 만진 파일과 겹친 일지 수. */
+	linked: number,
+	/**  실제로 쓰인 기준. `None` = `v*` 태그를 찾지 못해 전체 이력을 읽었다. */
+	from_ref: string | null,
+	to_ref: string,
+	used_llm: boolean,
+	/**  사용자에게 알릴 한 줄 (폴백 사유·태그 없음 등). */
+	note: string | null,
 };
 
 /**

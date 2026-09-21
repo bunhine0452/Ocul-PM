@@ -161,6 +161,65 @@ pub(super) async fn generate_with_llm(
     call_llm(provider, model, system_prompt(style), input, content_lang).await
 }
 
+/// 같은 map-reduce 를 **다른 재료**에 쓰는 자리 (`{#release-notes-draft}`).
+///
+/// 위 [`generate_with_llm`] 은 스탠드업/PR/주간의 재료(`RangeEntry` +
+/// 플랜 항목)를 안다. 릴리스 노트 초안의 재료는 그게 아니라 일지 발췌 블록과
+/// 문체 표본이다 — 그래서 **정책만** 나눠 쓴다: 조각 크기([`LLM_ENTRY_CAP`]),
+/// 조각 수 상한([`MAX_CHUNKS`]), 1단계 압축 프롬프트, 순차 호출.
+///
+/// * `blocks` — 항목 하나당 한 덩어리. 조각내는 단위가 이것이다.
+/// * `header` — 두 단계 모두의 머리글(범위·전체 건수).
+/// * `tail` — **합성 단계에만** 붙는 꼬리(문체 표본 등). 1단계는 압축만 하므로
+///   표본을 넣을 이유가 없고, 넣으면 조각 수만큼 토큰을 되쓴다.
+pub(crate) async fn map_reduce_blocks(
+    provider: &str,
+    model: &str,
+    final_system: &str,
+    header: &str,
+    blocks: &[String],
+    tail: &str,
+    content_lang: ContentLang,
+) -> Result<String, String> {
+    if blocks.len() <= LLM_ENTRY_CAP {
+        let input = format!("{header}\n{}\n{tail}", blocks.join("\n"));
+        return call_llm(provider, model, final_system, input, content_lang).await;
+    }
+    let chunks: Vec<&[String]> = blocks.chunks(LLM_ENTRY_CAP).collect();
+    if chunks.len() > MAX_CHUNKS {
+        return Err(format!(
+            "blocks={} would need {} chunks (cap {MAX_CHUNKS})",
+            blocks.len(),
+            chunks.len()
+        ));
+    }
+    let mut partials: Vec<String> = Vec::with_capacity(chunks.len());
+    for (i, chunk) in chunks.iter().enumerate() {
+        let input = format!(
+            "{header}\n조각 {}/{} (이 조각 {}개)\n\n{}",
+            i + 1,
+            chunks.len(),
+            chunk.len(),
+            chunk.join("\n")
+        );
+        partials.push(call_llm(provider, model, CHUNK_SYSTEM_PROMPT, input, content_lang).await?);
+    }
+    let mut input = format!(
+        "{header}\n(아래 부분 요약 {}개가 그 전부를 덮는다)\n",
+        partials.len()
+    );
+    for (i, part) in partials.iter().enumerate() {
+        input.push_str(&format!(
+            "\n[부분 요약 {}/{}]\n{}\n",
+            i + 1,
+            partials.len(),
+            part.trim()
+        ));
+    }
+    input.push_str(tail);
+    call_llm(provider, model, final_system, input, content_lang).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

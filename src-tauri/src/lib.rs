@@ -400,6 +400,8 @@ use crate::commands::{
     oculpm_open_entry_in_editor,
     // W5-PR5 — Overview stats
     oculpm_reindex_cache,
+    // journal-scale-round {#release-notes-draft} — 태그 사이 커밋·일지 → CHANGELOG 초안
+    oculpm_release_notes_draft,
     // journal-scale-round {#rollup-weekly} — 주간 요약 층 (.oculpm/rollups/)
     oculpm_rollup_list,
     oculpm_rollup_read,
@@ -820,6 +822,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_backfill_from_git,
             // F4 — 회고/인사이트 (+ PR-CI6 eval 추이)
             oculpm_generate_summary,
+            // journal-scale-round {#release-notes-draft} — 브랜치 화면의 「릴리스 노트 초안」
+            oculpm_release_notes_draft,
             // journal-scale-round {#hotspot-query} — Today 「반복 수정 파일」 카드
             oculpm_file_hotspots,
             // journal-scale-round {#rollup-weekly} — Today 「이번 주 요약」 카드

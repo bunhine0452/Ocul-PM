@@ -23,7 +23,9 @@ const FILES_CAP: usize = 12;
 
 // 잘라내기 대신 청킹 — 프롬프트 조립과 map-reduce 는 옆 모듈이 소유한다
 // (`{#weekly-cap}`). 모델 호출 자체(`llm::create`)만 여기 남는다.
-mod chunking;
+// `pub(crate)` 인 이유: 릴리스 노트 초안(`commands/release_notes.rs`)이 같은
+// map-reduce 정책을 재료만 바꿔 쓴다 (`chunking::map_reduce_blocks`).
+pub(crate) mod chunking;
 use chunking::generate_with_llm;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
