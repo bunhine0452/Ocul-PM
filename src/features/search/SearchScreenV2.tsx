@@ -10,6 +10,7 @@ import {
   Compass,
   Variable,
   CaseSensitive,
+  NotebookText,
   FileCode2,
   ChevronRight,
   ChevronDown,
@@ -17,12 +18,14 @@ import {
   FileCode,
   X,
 } from "@/components/Icons";
-import { commands, type ChunkSearchResult, type SymbolSearchResult } from "@/lib/bindings";
+import { commands, type ChunkSearchResult, type JournalSearchHit, type SymbolSearchResult } from "@/lib/bindings";
 import { useWorkspace, type SearchScope } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { OculSpinner } from "@/components/OculSpinner";
 import { toast } from "@/lib/toast";
+import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { CodeSnippet } from "./CodeSnippet";
+import { JournalScopeResults } from "./JournalScopeResults";
 import { splitMatch, trimAroundMatch } from "./searchUtils";
 import { t, useT, type I18nKey } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -46,6 +49,11 @@ import { tError } from "@/i18n/errors";
 const SEARCH_LIMIT = 20;
 const MORE_STEP = 30;
 const RECENT_MAX = 8;
+// 일지 스코프는 20→50→100 계단만 (다른 스코프의 +30 누적과 다른 계약, {#search-scope-ui}).
+const JOURNAL_LIMIT_STEPS = [20, 50, 100];
+function nextJournalLimit(current: number): number {
+  return JOURNAL_LIMIT_STEPS.find((s) => s > current) ?? current;
+}
 
 const SCOPES: {
   id: SearchScope;
@@ -56,6 +64,7 @@ const SCOPES: {
   { id: "semantic", labelKey: "search.scope.semantic", icon: Compass, placeholderKey: "search.ph.semantic" },
   { id: "symbol", labelKey: "search.scope.symbol", icon: Variable, placeholderKey: "search.ph.symbol" },
   { id: "text", labelKey: "search.scope.text", icon: CaseSensitive, placeholderKey: "search.ph.text" },
+  { id: "journal", labelKey: "search.scope.journal", icon: NotebookText, placeholderKey: "search.ph.journal" },
 ];
 
 // Discriminated by which command produced the results — `mode` distinguishes
@@ -63,7 +72,8 @@ const SCOPES: {
 // `query` = 이 결과를 만든 검색어 (하이라이트/트리밍이 입력 중 쿼리에 안 흔들리게).
 type Results =
   | { kind: "chunk"; mode: "semantic" | "text"; items: ChunkSearchResult[]; query: string }
-  | { kind: "symbol"; items: SymbolSearchResult[]; query: string };
+  | { kind: "symbol"; items: SymbolSearchResult[]; query: string }
+  | { kind: "journal"; items: JournalSearchHit[]; total: number; query: string };
 
 interface SearchScreenV2Props {
   projectId: number;
@@ -71,9 +81,11 @@ interface SearchScreenV2Props {
   projectRoot: string | null;
   /** 결과를 인앱 코드 화면으로 여는 핸드오프 (ShellV2 가 내려준다). */
   onOpenInCode?: (path: string, line: number | null) => void;
+  /** 일지 스코프 히트 → 일지 화면 이동 (Planner 의 `onOpenJournal` 과 같은 핸드오프). */
+  onOpenJournal?: (relativePath: string) => void;
 }
 
-export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchScreenV2Props) {
+export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJournal }: SearchScreenV2Props) {
   useT();
   const { state, setState } = useWorkspace();
   // "결과 없음" 과 "색인 없음" 을 가른다 (완성도 라운드 Phase 2). 세 검색
@@ -94,9 +106,10 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
       cancelled = true;
     };
   }, [projectId, indexing]);
-  const noIndex = chunkCount === 0 && !indexing;
   const { settings } = useSettings();
   const scope = state.searchScope;
+  // 일지 스코프는 코드 색인(chunkCount)과 무관한 SQLite 일지 캐시만 읽는다.
+  const noIndex = scope !== "journal" && chunkCount === 0 && !indexing;
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Results | null>(null);
@@ -156,6 +169,12 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
             setResults(null);
             setError(tError(res.error));
           }
+        } else if (scopeArg === "journal") {
+          // 봉투가 아니라 `OculpmApiError` 를 던진다 — 아래 공용 catch 가 받는다.
+          const page = await oculpmApi.searchJournal(projectId, trimmed, undefined, limitArg);
+          if (seq !== seqRef.current) return;
+          setResults({ kind: "journal", items: page.hits, total: page.total, query: trimmed });
+          if (page.hits.length > 0) pushRecent(trimmed);
         } else {
           const res =
             scopeArg === "text"
@@ -178,7 +197,7 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
       } catch (e) {
         if (seq === seqRef.current) {
           setResults(null);
-          setError(String(e));
+          setError(e instanceof OculpmApiError ? tError(e.toAppError()) : String(e));
         }
       } finally {
         if (seq === seqRef.current) setLoading(false);
@@ -207,6 +226,12 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
       if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
     },
     [projectRoot, settings.externalEditorCommand],
+  );
+
+  // 일지 스코프 히트 → 일지 화면. 핸드오프가 없으면 조용히 무시.
+  const openJournalHit = useCallback(
+    (relativePath: string) => onOpenJournal?.(relativePath),
+    [onOpenJournal],
   );
 
   // ⌘F focuses input, ⌘N clears (01-ia-and-shell §3). Screen-local; stop
@@ -259,7 +284,12 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
   const show = query.trim().length > 0 && results != null;
   const activeScope = SCOPES.find((s) => s.id === scope) ?? SCOPES[0];
   // 결과가 limit 에 꽉 찼으면 더 있을 수 있다 — "더 보기"로 limit 상향 재검색.
-  const canMore = results != null && results.items.length >= limit;
+  // 일지 스코프는 `total`(상한 전 전체 건수)과 20→50→100 계단이 계약.
+  const canMore =
+    results != null &&
+    (results.kind === "journal"
+      ? results.total > results.items.length && limit < JOURNAL_LIMIT_STEPS[JOURNAL_LIMIT_STEPS.length - 1]
+      : results.items.length >= limit);
 
   return (
     <>
@@ -364,7 +394,7 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
             <OculSpinner label={t("search.searching")} />
           ) : noIndex ? (
             <NoIndexHint />
-          ) : indexing ? (
+          ) : indexing && scope !== "journal" ? (
             <EmptyState>
               {indexProgress && indexProgress.total > 0
                 ? t("search.indexing", { done: indexProgress.current, total: indexProgress.total })
@@ -372,6 +402,15 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode }: SearchS
             </EmptyState>
           ) : show && results!.items.length === 0 ? (
             <EmptyState>{t("search.noResults")}</EmptyState>
+          ) : show && results!.kind === "journal" ? (
+            <JournalScopeResults
+              hits={results!.items}
+              total={results!.total}
+              query={results!.query}
+              canMore={canMore}
+              onMore={() => void runSearch(results!.query, scope, includeDocs, nextJournalLimit(limit))}
+              onOpen={openJournalHit}
+            />
           ) : show && results!.kind === "symbol" ? (
             <div className="search-results">
               <div className="section-title search-results-bar">
@@ -730,6 +769,7 @@ function MoreButton({ onClick }: { onClick: () => void }) {
 function hint(scope: SearchScope): string {
   if (scope === "symbol") return t("search.hintSymbol");
   if (scope === "text") return t("search.hintText");
+  if (scope === "journal") return t("search.hintJournal");
   return t("search.hintSemantic");
 }
 

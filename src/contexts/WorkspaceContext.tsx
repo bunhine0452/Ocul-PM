@@ -67,7 +67,7 @@ export type SidePanelMode = "files" | "diff";
 
 export type JournalFilter = "all" | "feature" | "bugfix" | "refactor" | "error" | "chore";
 export type DiffMode = "unified" | "split";
-export type SearchScope = "semantic" | "symbol" | "text";
+export type SearchScope = "semantic" | "symbol" | "text" | "journal";
 /** 문제 해결 편집기의 보기 모드 — 원문만 / 나란히 / 미리보기만. */
 export type DiscussionEditorMode = "write" | "split" | "preview";
 export interface TerminalTab {
