@@ -20,8 +20,11 @@ use crate::oculpm::content_lang::ContentLang;
 const OPEN_ITEMS_CAP: u32 = 12;
 /// PR 본문의 "주요 변경 파일" 상한.
 const FILES_CAP: usize = 12;
-/// LLM 입력에 넣는 일지 줄 수 상한 (프롬프트 폭주 방지).
-const LLM_ENTRY_CAP: usize = 60;
+
+// 잘라내기 대신 청킹 — 프롬프트 조립과 map-reduce 는 옆 모듈이 소유한다
+// (`{#weekly-cap}`). 모델 호출 자체(`llm::create`)만 여기 남는다.
+mod chunking;
+use chunking::generate_with_llm;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
@@ -35,6 +38,12 @@ pub enum SummaryStyle {
 pub struct GeneratedSummary {
     pub style: SummaryStyle,
     pub markdown: String,
+    /// **실제로 반영된** 일지 건수 (`{#weekly-cap}`).
+    ///
+    /// 예전엔 이 값이 기간 내 전체 건수였는데 LLM 경로는 60건만 보냈다 —
+    /// 100건짜리 주에 "100건을 요약했다"고 적힌 40건이 빠진 글이 나갔다.
+    /// 이제 두 경로 모두 전 건을 덮으므로(청킹 · 결정적 전건 포함) 이 숫자가
+    /// 곧 반영 건수다.
     pub entry_count: u32,
     pub used_llm: bool,
     /// LLM 폴백 사유 등 사용자에게 알릴 한 줄 (없으면 None).
@@ -246,7 +255,7 @@ pub(crate) fn deterministic_markdown(
 
 // ─── LLM ─────────────────────────────────────────────────────────────────────
 
-fn system_prompt(style: SummaryStyle) -> &'static str {
+pub(super) fn system_prompt(style: SummaryStyle) -> &'static str {
     match style {
         SummaryStyle::Standup => {
             r#"너는 개발자의 데일리 스탠드업 공유문을 한국어로 쓰는 조수다.
@@ -271,47 +280,17 @@ fn system_prompt(style: SummaryStyle) -> &'static str {
     }
 }
 
-fn fmt_llm_input(
-    since: &str,
-    until: &str,
-    entries: &[RangeEntry],
-    open_items: &[OpenPlanItem],
-) -> String {
-    let mut out = format!(
-        "기간: {since} ~ {until} (일지 {}개)\n\n[작업 일지]\n",
-        entries.len()
-    );
-    for e in entries.iter().take(LLM_ENTRY_CAP) {
-        out.push_str(&format!(
-            "- ({}, {}) {} / {} / 파일 {}개\n",
-            e.entry_type,
-            e.status,
-            e.title,
-            e.workday,
-            e.files.len()
-        ));
-    }
-    if entries.len() > LLM_ENTRY_CAP {
-        out.push_str(&format!("… 외 {}개\n", entries.len() - LLM_ENTRY_CAP));
-    }
-    out.push_str("\n[활성 플랜 미완 항목]\n");
-    if open_items.is_empty() {
-        out.push_str("(없음)\n");
-    } else {
-        for i in open_items {
-            out.push_str(&format!(
-                "- [{}] {} ({})\n",
-                i.plan_title, i.item_title, i.status
-            ));
-        }
-    }
-    out
-}
-
-async fn call_llm(
+/// 모델 호출 한 번.
+///
+/// **이 크레이트에서 `llm::create` 를 부르는 자리는 여기 하나로 묶여 있다** —
+/// 주간 롤업(`commands/rollup.rs`)도 이 함수를 지난다. 유출 경계 원장
+/// (`tests/egress_inventory.rs` 의 `LLM_PROMPT_SITES`)이 파일 단위로 세므로,
+/// 새 기능마다 새 호출 자리를 만들면 원장이 그만큼 늘어난다. 시스템 프롬프트를
+/// 인자로 받는 이유가 그것이다 (예전엔 `SummaryStyle` 을 받아 안에서 골랐다).
+pub(crate) async fn call_llm(
     provider: &str,
     model: &str,
-    style: SummaryStyle,
+    system: &str,
     input: String,
     content_lang: crate::oculpm::content_lang::ContentLang,
 ) -> Result<String, String> {
@@ -327,7 +306,7 @@ async fn call_llm(
             vec![
                 llm::Message {
                     role: llm::Role::System,
-                    content: content_lang.apply(system_prompt(style)),
+                    content: content_lang.apply(system),
                 },
                 llm::Message {
                     role: llm::Role::User,
@@ -392,8 +371,18 @@ pub async fn oculpm_generate_summary(
         deterministic_markdown(style, &since, &until, &entries, &open_items, content_lang);
 
     if let (Some(provider), Some(model)) = (provider, model) {
-        let input = fmt_llm_input(&since, &until, &entries, &open_items);
-        match call_llm(&provider, &model, style, input, content_lang).await {
+        match generate_with_llm(
+            &provider,
+            &model,
+            style,
+            &since,
+            &until,
+            &entries,
+            &open_items,
+            content_lang,
+        )
+        .await
+        {
             Ok(markdown) => {
                 return Ok(GeneratedSummary {
                     style,
@@ -427,10 +416,16 @@ pub async fn oculpm_generate_summary(
 // ─── tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
 
-    fn entry(ty: &str, status: &str, workday: &str, title: &str, files: &[&str]) -> RangeEntry {
+    pub(super) fn entry(
+        ty: &str,
+        status: &str,
+        workday: &str,
+        title: &str,
+        files: &[&str],
+    ) -> RangeEntry {
         RangeEntry {
             relative_path: format!("{workday}/X/{title}.md"),
             workday: workday.to_string(),
@@ -444,7 +439,7 @@ mod tests {
         }
     }
 
-    fn item(plan: &str, title: &str, status: &str) -> OpenPlanItem {
+    pub(super) fn item(plan: &str, title: &str, status: &str) -> OpenPlanItem {
         OpenPlanItem {
             plan_id: "p".to_string(),
             plan_title: plan.to_string(),
