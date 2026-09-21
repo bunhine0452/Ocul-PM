@@ -304,6 +304,25 @@ pub fn workday_of_rel(rel: &str) -> Option<&str> {
     (seg.len() == 8 && seg.bytes().all(|b| b.is_ascii_digit())).then_some(seg)
 }
 
+/// 파일명 `HHMM_<type>_<slug>.md` 의 type 토큰. 알려진 종류가 아니면 `None`
+/// 이고, 그 경우 호출자는 **거르지 않고** frontmatter 로 판정한다 (파일명
+/// 규약을 안 지킨 손수 쓴 일지를 놓치지 않기 위해).
+///
+/// `workday_of_rel` 과 같은 이유로 여기 산다 — frontmatter 가 깨진 일지의
+/// 종류를 메우는 자리가 MCP 검색과 SQLite 캐시 양쪽에 있고, 둘이 서로 다른
+/// 규칙을 들면 같은 일지가 경로에 따라 다른 종류로 보인다.
+pub fn type_token_of_rel(rel: &str) -> Option<&'static str> {
+    let file = rel.rsplit('/').next()?;
+    match file.split('_').nth(1)? {
+        "bug" => Some("bug"),
+        "feature" => Some("feature"),
+        "error" => Some("error"),
+        "refactor" => Some("refactor"),
+        "chore" => Some("chore"),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

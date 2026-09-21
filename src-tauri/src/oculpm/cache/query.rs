@@ -492,4 +492,23 @@ impl<'a> JournalCache<'a> {
         summary.files_count = files_count;
         Ok(Some(summary))
     }
+
+    /// 검색 후보 행 ({#search-cache}).
+    ///
+    /// 구조 필터(기간·종류·상태·태그·파일)만 SQL 로 걸고, 질의 매칭과 랭킹은
+    /// [`crate::oculpm::journal_search::rank`] 에게 넘긴다 — MCP 서버가 읽기
+    /// 전용 커넥션에서 부르는 것과 **같은 함수**를 여기서도 부른다. 판정이 두
+    /// 벌이면 앱과 에이전트가 서로 다른 답을 본다.
+    pub async fn search_rows(
+        &self,
+        project_id: u32,
+        filters: crate::oculpm::journal_search::cache::SqlFilters,
+    ) -> Result<Vec<crate::oculpm::journal_search::SearchRow>, OculpmError> {
+        let pid = project_id as i64;
+        self.db
+            .conn()
+            .call(move |c| crate::oculpm::journal_search::cache::fetch_rows(c, pid, &filters))
+            .await
+            .map_err(map_sqlite_err)
+    }
 }

@@ -32,6 +32,7 @@ pub mod history;
 pub mod import;
 pub mod index;
 pub mod journal_draft;
+pub mod journal_search;
 pub mod lock;
 pub mod manager;
 pub mod markdown;
