@@ -12,7 +12,7 @@ The journal exists to be **re-read**. A long-tracked repo holds hundreds of entr
 
 - Know the file you'll change? `journal_search(file: "watcher.rs")` — most precise filter; start here.
 - Have a symptom? `journal_search(query: "IME composition", types: ["bug"])`.
-- Expand only what's worth reading: `journal_read(path: …)`. Plan context: `plan_status`.
+- Expand only what's worth reading: `journal_read(path: …)` — if the response carries `rollups` (weekly summaries), read those **first**. Plan context: `plan_status`.
 
 Link what you find from the new entry's `related`. Without the tools, grep `.oculpm/journal/**`.
 

@@ -12,7 +12,7 @@
 
 - 고칠 파일을 알면 `journal_search(file: "watcher.rs")` — 가장 정확한 필터이니 이것부터.
 - 증상·기능 이름이 있으면 `journal_search(query: "IME 조합", types: ["bug"])`.
-- 읽을 가치가 있는 것만 `journal_read(path: …)` 로 펼칩니다. 계획 맥락은 `plan_status`.
+- 읽을 가치가 있는 것만 `journal_read(path: …)` 로 펼칩니다 — 응답에 `rollups`(주간 요약)가 있으면 **그것부터**. 계획 맥락은 `plan_status`.
 
 찾은 것이 이어지면 새 일지의 `related` 에 그 경로를 넣으세요. 도구가 없으면 `.oculpm/journal/**` 를 grep.
 

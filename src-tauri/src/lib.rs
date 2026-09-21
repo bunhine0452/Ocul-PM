@@ -400,6 +400,10 @@ use crate::commands::{
     oculpm_open_entry_in_editor,
     // W5-PR5 — Overview stats
     oculpm_reindex_cache,
+    // journal-scale-round {#rollup-weekly} — 주간 요약 층 (.oculpm/rollups/)
+    oculpm_rollup_list,
+    oculpm_rollup_read,
+    oculpm_rollup_week,
     oculpm_search_entities,
     oculpm_search_journal,
     oculpm_set_config,
@@ -818,6 +822,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_generate_summary,
             // journal-scale-round {#hotspot-query} — Today 「반복 수정 파일」 카드
             oculpm_file_hotspots,
+            // journal-scale-round {#rollup-weekly} — Today 「이번 주 요약」 카드
+            oculpm_rollup_week,
+            oculpm_rollup_list,
+            oculpm_rollup_read,
             // C2 — 일지 내보내기
             // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills)
             skills_list,

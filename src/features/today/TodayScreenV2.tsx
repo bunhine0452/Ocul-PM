@@ -36,6 +36,7 @@ import { TodayActivityRing } from "./TodayActivityRing";
 import { TodayTerminal } from "./TodayTerminal";
 import { HonestyAudit } from "./HonestyAudit";
 import { HotspotCard } from "./HotspotCard";
+import { WeeklyRollupCard } from "./WeeklyRollupCard";
 import { JournalMissingCard } from "./JournalMissingCard";
 import { PlanUpdates } from "./PlanUpdates";
 import { TodaySuggestions } from "./TodaySuggestions";
@@ -443,6 +444,10 @@ export function TodayScreenV2({
             enabled={oculpmReady}
             onOpenEntry={openEntryPath}
           />
+
+          {/* journal-scale-round {#rollup-weekly} — 일지 위 한 층(주간 요약).
+              없으면 만들기 버튼이 서고, 있으면 첫 문단과 「오래됨」이 뜬다. */}
+          <WeeklyRollupCard projectId={projectId} enabled={oculpmReady} />
 
           {/* 커밋 그래프 — 맨 아래 (dogfooding 2026-06-15) */}
           {oculpmReady ? <TodayGitGraph projectId={projectId} enabled={oculpmReady} /> : null}

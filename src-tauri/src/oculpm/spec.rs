@@ -899,6 +899,14 @@ pub enum OculpmDataArea {
     /// 변경을 봐야 한다. 동시에 자동화 **트리거 원인에서는 제외**된다
     /// (`automation::settle::is_excluded_cause` — 증폭 루프 가드 R1).
     Automation,
+    /// `.oculpm/rollups/**` — 주간 요약 층 (journal-scale-round
+    /// `{#rollup-weekly}`). **일지가 아니다**: 라우팅이 없으면 `.md` 파일
+    /// 하나가 코드 변경 ndjson 파이프라인까지 흘러 정직성 감사에 가짜 「누락」을
+    /// 만들고, 옆에 서는 문지기 락 파일(`.2026-W38.md.lock`)의 생성·삭제까지
+    /// 변경 원장을 오염시킨다 (`cas::acquire_doc_guard` 의 doc comment 가 바로
+    /// 이 함정을 적어 두었다). 대신 "다시 읽어라" 신호만 낸다 — 읽을 때
+    /// 파일에서 투영하는 planner/discussion 과 같은 모양.
+    Rollups,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, Event)]

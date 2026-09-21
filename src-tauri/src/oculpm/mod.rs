@@ -43,6 +43,7 @@ pub mod readme;
 pub mod reconcile;
 pub mod redact;
 pub mod related;
+pub mod rollup;
 pub mod rule_negation;
 pub mod rule_promotion;
 pub mod rule_scope;

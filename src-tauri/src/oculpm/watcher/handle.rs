@@ -147,6 +147,7 @@ impl WatcherInner {
             OculpmDataArea::Discussion,
             OculpmDataArea::Rules,
             OculpmDataArea::Automation,
+            OculpmDataArea::Rollups,
         ] {
             self.emit_data_changed(area, "", FileOp::Update);
         }

@@ -73,7 +73,14 @@ use crate::oculpm::spec::OculpmConfig;
 /// fails when this drifts. Bump it in the same commit that adds or removes a
 /// call site — the number is a claim the module doc makes, and a stale claim
 /// about where secrets get masked is worse than no claim.
-pub const CALL_SITE_FILES: usize = 26;
+///
+/// 27 부터 (같은 라운드의 두 자리): `planner/log_archive.rs` — 아카이브 사이드카도
+/// 사람이 읽는 파일이라 옮기는 행을 한 번 더 지난다 (`{#plan-log-archive}`);
+/// `mcp/tools/search/rollup_hits.rs` — 주간 요약의 스니펫도 에이전트
+/// 에게 가는 글이라 종류 3(에이전트 대면 MCP 표면)에 속한다. 롤업 본문은
+/// 마스킹된 캐시 투영에서 났지만, 사람이 그 파일을 손으로 고칠 수 있으므로
+/// 내보내기 직전에 한 번 더 지난다 (journal-scale-round `{#rollup-first}`).
+pub const CALL_SITE_FILES: usize = 27;
 
 /// Prompt-building sites that reach a model **without** redaction — neither
 /// directly nor through the masked cache projection.

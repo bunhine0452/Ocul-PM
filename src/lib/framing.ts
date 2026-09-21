@@ -18,7 +18,16 @@
  * 쓸 수 있는 태그는 여기 적힌 것뿐이다 — 데이터에서 온 문자열은 타입이 안 맞아
  * 애초에 들어올 수 없다. 태그 자체가 주입 표면이 되는 길을 컴파일러가 막는다.
  */
-export type FramingTag = "code-snippet" | "journal" | "plans" | "git-context";
+// `journal-rollup` — 주간 요약 층 (journal-scale-round {#rollup-first}).
+// `journal` 과 태그를 나누는 이유는 모델이 **무엇을 읽고 있는지** 알아야 하기
+// 때문이다: 롤업은 원본이 아니라 접힌 글이고, 인용할 때 원본을 한 번 더
+// 확인해야 하는 종류다.
+export type FramingTag =
+  | "code-snippet"
+  | "journal"
+  | "journal-rollup"
+  | "plans"
+  | "git-context";
 
 /**
  * 비신뢰 텍스트의 경계 문자를 무력화한다.

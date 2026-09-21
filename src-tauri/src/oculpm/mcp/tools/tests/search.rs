@@ -648,3 +648,101 @@ async fn a_stale_cache_is_detected_before_it_is_trusted() {
         "캐시가 뒤처진 것을 못 봤다 — 이걸 놓치면 새 일지가 검색에서 사라진다"
     );
 }
+
+// ── 요약 층 ({#rollup-first}) ────────────────────────────────────────────
+//
+// 에이전트가 층에 닿는 길은 둘이다: 검색 응답의 `rollups` 배열과, **같은**
+// `journal_read` 문. 도구를 하나 더 배우게 하지 않는 것이 설계의 전부다.
+
+fn seed_rollup(root: &Path, week: &str, body: &str) {
+    use crate::oculpm::rollup::{self, RollupFrontmatter, RollupRange, ROLLUP_SCHEMA};
+    let fm = RollupFrontmatter {
+        oculpm_rollup: ROLLUP_SCHEMA.into(),
+        week: week.into(),
+        range: RollupRange {
+            from: "20260629".into(),
+            to: "20260705".into(),
+        },
+        entry_count: 12,
+        entries_hash: "h".into(),
+        generated_at: "2026-07-06T10:00:00+09:00".into(),
+        generator: "deterministic".into(),
+    };
+    rollup::write(root, &fm, body).unwrap();
+}
+
+#[test]
+fn journal_search_surfaces_matching_rollups_in_their_own_array() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    seed_corpus(root);
+    seed_rollup(
+        root,
+        "2026-W27",
+        "## 한 주 요약\n\n캐시 무효화를 손봤어요.\n\n## 결정\n- 키 정규화를 하기로 결정했어요.\n",
+    );
+
+    let out = call_tool(
+        root,
+        "journal_search",
+        &serde_json::json!({ "query": "캐시" }),
+    )
+    .unwrap();
+    let rollups = out["rollups"].as_array().expect("rollups 배열");
+    assert_eq!(rollups.len(), 1, "{out:#?}");
+    assert_eq!(rollups[0]["week"], "2026-W27");
+    assert_eq!(rollups[0]["path"], ".oculpm/rollups/2026-W27.md");
+    assert!(
+        out["rollups_hint"].is_string(),
+        "먼저 읽으라는 말이 따라간다"
+    );
+    // 원본 히트는 그대로다 — 층이 원본을 밀어내지 않는다.
+    assert!(out["total_matched"].as_u64().unwrap() > 0);
+
+    // 안 걸리면 키 자체가 없다 (빈 배열로 소음을 만들지 않는다).
+    let miss = call_tool(
+        root,
+        "journal_search",
+        &serde_json::json!({ "query": "전혀없는말" }),
+    )
+    .unwrap();
+    assert!(miss.get("rollups").is_none(), "{miss:#?}");
+}
+
+#[test]
+fn journal_read_opens_a_rollup_through_the_same_door() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    seed_corpus(root);
+    seed_rollup(root, "2026-W27", "## 한 주 요약\n\n그 주의 요약이에요.\n");
+
+    for path in [
+        "rollups/2026-W27.md",
+        ".oculpm/rollups/2026-W27.md",
+        "./rollups/2026-W27.md",
+    ] {
+        let out = call_tool(root, "journal_read", &serde_json::json!({ "path": path })).unwrap();
+        assert_eq!(out["kind"], "rollup", "{path}: {out:#?}");
+        assert_eq!(out["week"], "2026-W27");
+        assert_eq!(out["entry_count"], 12);
+        assert!(out["body_markdown"]
+            .as_str()
+            .unwrap()
+            .contains("그 주의 요약이에요"));
+        assert!(out["note"].is_string(), "층임을 밝힌다");
+    }
+
+    // 없는 주는 오류. 탈출도 여전히 막힌다.
+    assert!(call_tool(
+        root,
+        "journal_read",
+        &serde_json::json!({ "path": "rollups/2026-W01.md" })
+    )
+    .is_err());
+    assert!(call_tool(
+        root,
+        "journal_read",
+        &serde_json::json!({ "path": "rollups/../../config.toml" })
+    )
+    .is_err());
+}
