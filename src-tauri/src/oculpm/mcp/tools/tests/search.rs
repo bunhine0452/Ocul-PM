@@ -489,3 +489,162 @@ fn path_prefilter_helpers_read_the_naming_convention() {
     assert!(!is_safe_entry_rel("a.txt"));
     assert!(!is_safe_entry_rel("20260821/.hidden/a.md"));
 }
+
+// ─── 캐시 경로 ({#search-cache}) ─────────────────────────────────────────────
+
+/// 같은 디스크 코퍼스를 앱 캐시에 투영한 뒤 **읽기 전용** 커넥션을 물려
+/// 돌려준다 — 프로덕션에서 `oculpm-mcp` 가 앱 DB 를 여는 모양 그대로다.
+///
+/// `Db` 를 같이 돌려주는 이유: WAL 파일이 살아 있는 동안에만 읽기 전용
+/// 커넥션이 `-shm` 을 붙일 수 있다. 호출자가 둘을 같이 붙들어야 한다.
+async fn cache_of(
+    root: &Path,
+) -> (
+    crate::db::Db,
+    crate::oculpm::journal_search::cache::CacheHandle,
+) {
+    let db_path = root.join("appdata").join("ocul-pm.db");
+    let db = crate::db::Db::open(db_path.clone()).await.unwrap();
+    let pid = db
+        .create_project("t".to_string(), root.to_string_lossy().into_owned())
+        .await
+        .unwrap();
+    crate::oculpm::cache::JournalCache::new(&db)
+        .reindex_full(pid, &root.join(".oculpm").join("journal"))
+        .await
+        .unwrap();
+    let conn = crate::oculpm::journal_search::cache::open_readonly(&db_path)
+        .expect("읽기 전용으로 열려야 한다");
+    let project_id =
+        crate::oculpm::journal_search::cache::lookup_project_id(&conn, root).expect("프로젝트 행");
+    assert_eq!(
+        project_id,
+        i64::from(pid),
+        "root 로 찾은 프로젝트가 달라졌다"
+    );
+    (
+        db,
+        crate::oculpm::journal_search::cache::CacheHandle { conn, project_id },
+    )
+}
+
+/// 캐시 경로와 디스크 경로는 **같은 답**을 내야 한다. 앱이 켜져 있냐에 따라
+/// 검색 결과가 달라지면 그건 검색이 아니라 운이다.
+#[tokio::test]
+async fn the_cache_path_answers_exactly_like_the_disk_path() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    seed_corpus(root);
+    let (_db, handle) = cache_of(root).await;
+
+    for args in [
+        serde_json::json!({}),
+        serde_json::json!({ "query": "정규화" }),
+        serde_json::json!({ "query": "캐시" }),
+        serde_json::json!({ "file": "watcher.rs" }),
+        serde_json::json!({ "types": ["feature", "chore"], "since": "20260810" }),
+        serde_json::json!({ "status": ["in_progress"] }),
+        serde_json::json!({ "tags": ["cache", "sqlite"] }),
+        serde_json::json!({ "query": "워처", "limit": 1 }),
+    ] {
+        let disk = journal_search_with(root, &args, None).unwrap();
+        let cached = journal_search_with(root, &args, Some(&handle))
+            .unwrap_or_else(|e| panic!("캐시 경로 실패 ({args}): {e}"));
+        assert_eq!(disk["source"], "disk");
+        assert_eq!(cached["source"], "cache");
+        assert_eq!(
+            cached["hits_tsv"], disk["hits_tsv"],
+            "두 경로의 히트가 갈렸다 ({args})"
+        );
+        assert_eq!(cached["total_matched"], disk["total_matched"], "{args}");
+        assert_eq!(cached["returned"], disk["returned"], "{args}");
+    }
+}
+
+/// 이 저장소 자신의 일지(700건+)로 두 경로를 재 본다.
+///
+/// `#[ignore]` 인 이유: 실측은 **이 저장소의 `.oculpm/journal`** 에 기대고,
+/// 그 크기는 날마다 변한다 — 게이트로 삼을 숫자가 아니다. 수치가 궁금할 때
+/// `cargo test measure_cache_vs_disk -- --ignored --nocapture` 로 돌린다.
+#[tokio::test]
+#[ignore = "이 저장소의 일지 크기에 기댄 실측 — 게이트가 아니다"]
+async fn measure_cache_vs_disk_on_this_repo() {
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let entries = crate::oculpm::journal_search::cache::disk_signature(repo).0;
+    assert!(entries > 0, "이 저장소에 일지가 없다");
+    let tmp = TempDir::new().unwrap();
+    let db_path = tmp.path().join("ocul-pm.db");
+    let db = crate::db::Db::open(db_path.clone()).await.unwrap();
+    let pid = db
+        .create_project("self".to_string(), repo.to_string_lossy().into_owned())
+        .await
+        .unwrap();
+    crate::oculpm::cache::JournalCache::new(&db)
+        .reindex_full(pid, &repo.join(".oculpm").join("journal"))
+        .await
+        .unwrap();
+    let conn = crate::oculpm::journal_search::cache::open_readonly(&db_path).unwrap();
+    let handle = crate::oculpm::journal_search::cache::CacheHandle {
+        conn,
+        project_id: i64::from(pid),
+    };
+
+    for q in ["ime", "터미널", "캐시 무효화", "릴리스"] {
+        let args = serde_json::json!({ "query": q });
+        let t0 = std::time::Instant::now();
+        let disk = journal_search_with(repo, &args, None).unwrap();
+        let disk_ms = t0.elapsed().as_secs_f64() * 1000.0;
+        let t1 = std::time::Instant::now();
+        let cached = journal_search_with(repo, &args, Some(&handle)).unwrap();
+        let cache_ms = t1.elapsed().as_secs_f64() * 1000.0;
+        println!(
+            "일지 {entries}건 · query={q:>10} · 디스크 {disk_ms:7.2}ms ({} 건) · 캐시 {cache_ms:7.2}ms ({} 건) · {:.1}배",
+            disk["total_matched"],
+            cached["total_matched"],
+            disk_ms / cache_ms.max(0.001),
+        );
+        assert_eq!(
+            cached["hits_tsv"], disk["hits_tsv"],
+            "실측 코퍼스에서 두 경로가 갈렸다 (query={q})"
+        );
+    }
+}
+
+/// 캐시가 디스크보다 뒤처져 있으면(앱이 꺼진 동안 손으로 쓴 일지) 캐시를 쓰지
+/// 않는다 — 그 판정이 `disk_signature` 대 `cache_signature` 다.
+#[tokio::test]
+async fn a_stale_cache_is_detected_before_it_is_trusted() {
+    use crate::oculpm::journal_search::cache::{cache_signature, disk_signature};
+
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    seed_corpus(root);
+    let (_db, handle) = cache_of(root).await;
+    assert_eq!(
+        cache_signature(&handle.conn, handle.project_id).unwrap().0,
+        disk_signature(root).0,
+        "막 색인했으면 같아야 한다"
+    );
+
+    // 앱이 꺼진 사이에 새 일지가 생겼다.
+    seed_entry(
+        root,
+        "20260901",
+        "Bugs",
+        "0900_bug_offline.md",
+        &entry_md(
+            "bug",
+            "offline",
+            "done",
+            "앱 꺼진 새 일지",
+            "본문",
+            &[],
+            &[],
+        ),
+    );
+    assert_ne!(
+        cache_signature(&handle.conn, handle.project_id).unwrap().0,
+        disk_signature(root).0,
+        "캐시가 뒤처진 것을 못 봤다 — 이걸 놓치면 새 일지가 검색에서 사라진다"
+    );
+}
