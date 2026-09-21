@@ -57,6 +57,27 @@ fn entry_write_guard(abs: &Path) -> Result<crate::oculpm::file_guard::FileGuard,
     )))
 }
 
+/// 캐시가 못 싣는 `related` 를 **디스크에서** 채운다.
+///
+/// `oculpm_journal` 에는 `related` 칸이 없다 — 캐시 투영은 늘 빈 배열을 넣고
+/// (`cache/query.rs`), 그래서 일지 상세의 관련 칩은 frontmatter 에 값이 있어도
+/// 화면에 한 번도 안 떴다 ({#related-ui} 을 붙이다 드러난 잠복 결함). 표를
+/// 하나 더 만드는 대신 **SSOT 를 그 자리에서 읽는다** — 상세는 한 건짜리
+/// 조회라 파일 하나 더 읽는 비용이고, 디스크가 정답이라는 규약과도 같은 방향이다.
+///
+/// 실패는 무해하다 (파일이 없거나 frontmatter 가 깨졌으면 그냥 빈 배열).
+fn hydrate_related_from_disk(journal_root: &Path, relative_path: &str, entry: &mut JournalEntry) {
+    let Ok(abs) = resolve_entry_path(journal_root, relative_path) else {
+        return;
+    };
+    let Ok(text) = std::fs::read_to_string(abs) else {
+        return;
+    };
+    if let Some(fm) = parse_frontmatter_and_body(&text).0.parsed {
+        entry.frontmatter.related = fm.related;
+    }
+}
+
 impl OculpmManager {
     // ─── W3-PR3: journal cache + manual entry coordination ──────────────────
 
@@ -120,11 +141,12 @@ impl OculpmManager {
         relative_path: String,
     ) -> Result<Option<JournalEntry>, OculpmError> {
         let cache = JournalCache::new(db);
-        if let Some(entry) = cache.get_entry(project_id, &relative_path).await? {
+        let journal_root = self.journal_root(project_id).await?;
+        if let Some(mut entry) = cache.get_entry(project_id, &relative_path).await? {
+            hydrate_related_from_disk(&journal_root, &relative_path, &mut entry);
             return Ok(Some(entry));
         }
         // Cache miss — check disk.
-        let journal_root = self.journal_root(project_id).await?;
         let abs = resolve_entry_path(&journal_root, &relative_path)?;
         if !abs.exists() {
             return Ok(None);
@@ -143,7 +165,11 @@ impl OculpmManager {
                 PathChangeKind::Created,
             )
             .await?;
-        redacting.get_entry(project_id, &relative_path).await
+        let mut entry = redacting.get_entry(project_id, &relative_path).await?;
+        if let Some(e) = entry.as_mut() {
+            hydrate_related_from_disk(&journal_root, &relative_path, e);
+        }
+        Ok(entry)
     }
 
     /// Toggle `verified_by_user` on a journal entry. Reads the disk file,
@@ -263,12 +289,16 @@ impl OculpmManager {
             .await?;
         // Return the hydrated entry so the UI can update without a second
         // fetch — keeps optimistic UI in sync with cache truth.
-        cache
+        let mut entry = cache
             .get_entry(project_id, &relative_path)
             .await?
             .ok_or_else(|| {
                 OculpmError::InvalidConfig(format!("entry vanished after upsert: {relative_path}"))
-            })
+            })?;
+        // 돌려주는 엔트리에도 `related` 를 싣는다 — 화면은 이 값으로 곧바로
+        // 다시 그리므로, 비워 보내면 관련 칩이 편집 한 번에 사라져 보인다.
+        hydrate_related_from_disk(&journal_root, &relative_path, &mut entry);
+        Ok(entry)
     }
 
     /// F7a-B Unit B — write the tz-offset backfill into the on-disk frontmatter
@@ -331,12 +361,107 @@ impl OculpmManager {
                 PathChangeKind::Modified,
             )
             .await?;
-        cache
+        let mut entry = cache
             .get_entry(project_id, &relative_path)
             .await?
             .ok_or_else(|| {
                 OculpmError::InvalidConfig(format!("entry vanished after coerce: {relative_path}"))
-            })
+            })?;
+        // 돌려주는 엔트리에도 `related` 를 싣는다 — 화면은 이 값으로 곧바로
+        // 다시 그리므로, 비워 보내면 관련 칩이 편집 한 번에 사라져 보인다.
+        hydrate_related_from_disk(&journal_root, &relative_path, &mut entry);
+        Ok(entry)
+    }
+
+    /// 디스크 원본 frontmatter 의 `related` 에 참조 하나를 **더한다**
+    /// ({#related-ui} 의 「잇기」).
+    ///
+    /// `coerce_journal_entry_timestamps_on_disk` 와 같은 모양이다 — 같은
+    /// 문지기(`entry_write_guard`)를 읽기 **앞**에서 잡고, 프런트매터만 바꾸고,
+    /// 통째로 다시 쓰고, 워처와 같은 길로 캐시에 재투영한다. 본문은 읽은
+    /// 바이트 그대로 되돌려 쓰므로 서술은 한 글자도 안 변한다.
+    ///
+    /// 거절하는 넷: 규격 밖 `kind` · 자기 자신 · 존재하지 않는 대상 ·
+    /// 이미 이어 둔 참조. 마지막 것을 오류로 돌리는 이유는 조용히 무시하면
+    /// 화면이 "이었다"고 말하는데 파일은 그대로이기 때문이다.
+    pub async fn add_journal_related(
+        &self,
+        db: &Db,
+        project_id: u32,
+        relative_path: String,
+        ref_path: String,
+        kind: String,
+    ) -> Result<JournalEntry, OculpmError> {
+        if !matches!(
+            kind.as_str(),
+            "blocks" | "blocked_by" | "followup" | "duplicate"
+        ) {
+            return Err(OculpmError::InvalidConfig(format!(
+                "related.kind must be blocks|blocked_by|followup|duplicate, got {kind:?}"
+            )));
+        }
+        let target = crate::oculpm::related::normalize_journal_ref(&ref_path);
+        if target.is_empty() || target == relative_path {
+            return Err(OculpmError::InvalidConfig(
+                "an entry cannot be related to itself".to_string(),
+            ));
+        }
+        let journal_root = self.journal_root(project_id).await?;
+        let abs = resolve_entry_path(&journal_root, &relative_path)?;
+        // 대상도 같은 가드를 태운다 — 이 값은 프런트가 준 문자열이고 곧바로
+        // frontmatter 에 적히는 경로다.
+        let target_abs = resolve_entry_path(&journal_root, &target)?;
+        if !target_abs.is_file() {
+            return Err(OculpmError::InvalidConfig(format!(
+                "related target does not exist: {target}"
+            )));
+        }
+
+        let _guard = entry_write_guard(&abs)?;
+        let text = std::fs::read_to_string(&abs).map_err(|source| OculpmError::Io {
+            path: abs.clone(),
+            source,
+        })?;
+        let (mut parsed, body) = parse_frontmatter_and_body(&text);
+        let Some(mut fm) = parsed.parsed.take() else {
+            return Err(OculpmError::InvalidConfig(
+                "cannot link an entry with broken frontmatter".to_string(),
+            ));
+        };
+        if fm
+            .related
+            .iter()
+            .any(|r| crate::oculpm::related::normalize_journal_ref(&r.ref_path) == target)
+        {
+            return Err(OculpmError::InvalidConfig(format!(
+                "already related: {target}"
+            )));
+        }
+        fm.related.push(crate::oculpm::spec::RelatedRef {
+            ref_path: target,
+            kind,
+        });
+        let new_text = write_frontmatter_and_body(&fm, &body);
+        write_atomic(&abs, new_text.as_bytes())?;
+
+        let redact = self.redact_patterns(project_id).await;
+        let cache = JournalCache::with_redaction(db, redact).with_tz(self.tz_for(project_id).await);
+        cache
+            .apply_path_change(
+                project_id,
+                &journal_root,
+                &relative_path,
+                PathChangeKind::Modified,
+            )
+            .await?;
+        let mut entry = cache
+            .get_entry(project_id, &relative_path)
+            .await?
+            .ok_or_else(|| {
+                OculpmError::InvalidConfig(format!("entry vanished after link: {relative_path}"))
+            })?;
+        hydrate_related_from_disk(&journal_root, &relative_path, &mut entry);
+        Ok(entry)
     }
 
     /// Replace the body markdown of an existing entry, keeping the YAML
@@ -395,12 +520,16 @@ impl OculpmManager {
                 &new_text,
             )
             .await?;
-        cache
+        let mut entry = cache
             .get_entry(project_id, &relative_path)
             .await?
             .ok_or_else(|| {
                 OculpmError::InvalidConfig(format!("entry vanished after upsert: {relative_path}"))
-            })
+            })?;
+        // 돌려주는 엔트리에도 `related` 를 싣는다 — 화면은 이 값으로 곧바로
+        // 다시 그리므로, 비워 보내면 관련 칩이 편집 한 번에 사라져 보인다.
+        hydrate_related_from_disk(&journal_root, &relative_path, &mut entry);
+        Ok(entry)
     }
 
     /// Resolve a journal-relative path to its absolute on-disk location so

@@ -108,7 +108,7 @@ use crate::oculpm::redact::{
 use crate::oculpm::session::resolve_session_for_timestamp;
 use crate::oculpm::spec::{
     AgentRef, Difficulty, EntryStatus, EntryType, FileOp, FileTouched, JournalFrontmatter,
-    OculpmConfig, RelatedRef,
+    OculpmConfig,
 };
 
 /// MCP `tools/list` 응답의 도구 정의. 스키마는 에이전트가 읽는 계약서다 —
@@ -669,41 +669,12 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         tags.push("mcp-tool".to_string()); // 출처 표식 — 파일 자기신고와 구분
     }
 
-    // related — AGENTS.md §0 이 "찾은 것이 이어지면 related 에 넣으라" 고 하는데
-    // 정작 도구가 인자를 안 받아 늘 빈 배열이었다. 존재하지 않는 참조는 거부하지
-    // 않고 경고로 돌려준다 (오타 하나로 일지 전체가 막히면 안 쓴다).
+    // related — 인자 파싱도 자동 연결도 `related.rs` 가 소유한다. 자동 연결은
+    // related 를 **안 준** bug/error 일지에만 붙고, 붙었으면 응답이 말한다
+    // ({#related-auto}).
     let mut warnings: Vec<String> = Vec::new();
-    let related: Vec<RelatedRef> = args
-        .get("related")
-        .and_then(Value::as_array)
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|r| {
-                    let raw = r.get("ref")?.as_str()?.trim();
-                    let ref_path = raw
-                        .trim_start_matches("./")
-                        .trim_start_matches(".oculpm/journal/")
-                        .to_string();
-                    if ref_path.is_empty() {
-                        return None;
-                    }
-                    let kind = match r.get("kind").and_then(Value::as_str).unwrap_or("followup") {
-                        k @ ("blocks" | "blocked_by" | "followup" | "duplicate") => k.to_string(),
-                        other => {
-                            warnings.push(format!(
-                                "related.kind {other:?} 는 blocks|blocked_by|followup|duplicate 중 하나여야 한다 — followup 으로 기록"
-                            ));
-                            "followup".to_string()
-                        }
-                    };
-                    if !root.join(".oculpm").join("journal").join(&ref_path).is_file() {
-                        warnings.push(format!("related 참조가 존재하지 않는다: {ref_path}"));
-                    }
-                    Some(RelatedRef { ref_path, kind })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let mut related = self::related::parse_related_arg(root, args, &mut warnings);
+    let auto_related = self::related::auto_relate(root, entry_type, &files, &mut related);
     if redacted > 0 {
         warnings.push(format!(
             "시크릿 패턴 {redacted}건이 마스킹됐다 — 일지에 비밀을 적지 말 것 (git.auto_redact_patterns)"
@@ -804,6 +775,7 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         "session_id": fm.session_id,
         "language": fm.language,
         "related": fm.related.len(),
+        "auto_related": auto_related,
         "redacted": redacted,
         "warnings": warnings,
     }))
@@ -813,6 +785,10 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
 
 mod search;
 pub(crate) use search::*;
+
+// ─── journal_write 의 related → related.rs ──────────────────────────────────
+
+mod related;
 
 // ─── plan_status · plan_update → plan_ops.rs ─────────────────────────────────
 

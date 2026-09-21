@@ -58,6 +58,8 @@ vi.mock("@/api/oculpm", () => {
           verified_stale: false,
         }),
       getEntryDiffs: () => Promise.resolve([]),
+      // {#related-ui} — 상세가 열릴 때 후보를 묻는다. 이 스위트의 관심은 아니라 빈 목록.
+      suggestRelated: () => Promise.resolve([]),
       // 백엔드는 `true` 에 지금 본문의 해시를 묶고, `false` 에 그 줄을 지운다.
       setJournalVerified: (pid: number, relativePath: string, verified: boolean) => {
         verifyMock.calls.push({ projectId: pid, relativePath, verified });
