@@ -174,6 +174,7 @@ mod query;
 mod reindex;
 mod related;
 mod stats;
+mod tags;
 mod write;
 
 use conv::*;

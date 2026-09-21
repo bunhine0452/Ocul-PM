@@ -183,6 +183,7 @@ mod indexing;
 mod journal;
 mod lifecycle;
 mod session_ops;
+mod tags;
 mod teardown;
 mod watcher_commit;
 
@@ -578,6 +579,8 @@ fn lock_state_from_guard(guard: &Option<LockGuard>) -> LockStateView {
 mod tests;
 #[cfg(test)]
 mod tests_related;
+#[cfg(test)]
+mod tests_tags;
 #[cfg(test)]
 mod tests_teardown;
 #[cfg(test)]

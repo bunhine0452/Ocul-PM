@@ -51,7 +51,9 @@ pub(crate) fn resolve_entry_path(
 /// 돌려주므로 호출자가 디스크와 일치하는 해시를 만들 길이 없다. 만들 수 없는
 /// 값을 필수로 걸면 그건 보호가 아니라 고장이다 — 편집기가 생기는 날 원문 읽기와
 /// 함께 붙일 자리다.
-fn entry_write_guard(abs: &Path) -> Result<crate::oculpm::file_guard::FileGuard, OculpmError> {
+pub(super) fn entry_write_guard(
+    abs: &Path,
+) -> Result<crate::oculpm::file_guard::FileGuard, OculpmError> {
     crate::oculpm::cas::acquire_doc_guard(abs).map_err(|e| OculpmError::InvalidConfig(format!(
         "일지 항목을 지금 쓸 수 없습니다: {e}. 다른 세션이 같은 항목을 고치는 중입니다 — 잠시 뒤 다시 시도하세요."
     )))

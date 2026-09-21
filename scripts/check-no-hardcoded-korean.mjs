@@ -226,6 +226,8 @@ const TESTS = new Set([
   "__tests__/journal_verified.test.tsx",
   // {#related-ui} — 후보 카드의 근거 줄·「잇기」를 한국어 렌더로 단언한다.
   "__tests__/related_suggest.test.tsx",
+  // {#tag-merge} — 「태그 정리」 시트의 확인 단계를 한국어 렌더로 단언한다.
+  "__tests__/tag_tidy_sheet.test.tsx",
   "__tests__/landing_pages.test.ts",
   "__tests__/landing_themes.test.ts",
   "__tests__/llm_reachability.test.tsx",

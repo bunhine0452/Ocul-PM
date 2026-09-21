@@ -1308,6 +1308,19 @@ export const commands = {
 	until?: string | null,
 } | null, limit: number | null) => typedError<JournalSearchPage, AppError>(__TAURI_INVOKE("oculpm_search_journal", { projectId, query, filters, limit })),
 	/**
+	 *  이 프로젝트의 태그 어휘 — 빈도 내림차순, 동점은 사전순(결정적).
+	 * 
+	 *  출처 표식(`mcp-tool`)은 어휘가 아니라 기록 경로의 표식이라 뺀다
+	 *  ({#tag-source-marker}). `suggest_into` 는 **사전에 없는** 태그에만 붙는다 —
+	 *  이미 사전에 오른 말은 모을 데가 아니라 모일 곳이다.
+	 */
+	oculpmTagStats: (projectId: number) => typedError<TagStat[], AppError>(__TAURI_INVOKE("oculpm_tag_stats", { projectId })),
+	/**
+	 *  `from` 의 태그들을 `into` 하나로 모은다 — **디스크 원본**의 frontmatter 를
+	 *  다시 쓰고, 워처가 캐시를 재투영한다. 되돌리기는 없다 (git 이 그 길이다).
+	 */
+	oculpmTagMerge: (projectId: number, from: string[], into: string) => typedError<TagMergeReport, AppError>(__TAURI_INVOKE("oculpm_tag_merge", { projectId, from, into })),
+	/**
 	 *  v2 U12 — 워크데이 집합의 일지 요약 + 초점 워크데이(`focus_workday`)의 라인
 	 *  증감·고유 파일 수 + 미완 플랜 항목 + 총 일지 수를 IPC 1회에.
 	 * 
@@ -6106,6 +6119,32 @@ export type TabPreview = {
 	color: string | null,
 	/**  시작 탭인가 — 이름이 비어 있고 아이콘이 고정이라 갈래가 필요하다. */
 	is_start: boolean,
+};
+
+/**
+ *  병합 한 번의 결과. 실패한 파일은 **건너뛰고 이름을 댄다** — 한 건이 막혔다고
+ *  나머지를 되돌리면 사용자는 아무것도 못 고친다.
+ */
+export type TagMergeReport = {
+	rewritten: number,
+	skipped: TagMergeSkip[],
+};
+
+export type TagMergeSkip = {
+	/**  `.oculpm/journal/` 기준 상대경로. */
+	path: string,
+	/**  기계가 읽는 사유 토큰 — 문장은 화면이 만든다 (영어 모드로 새지 않게). */
+	reason: string,
+};
+
+/**  「태그 정리」 시트의 한 줄 ({#tag-merge}). */
+export type TagStat = {
+	tag: string,
+	count: number,
+	/**  이 태그가 붙은 가장 최근 일지의 workday (YYYYMMDD). */
+	last_workday: string,
+	/**  사전의 어느 말로 모을 만한가. 근거를 못 대면 `None` 이다. */
+	suggest_into: string | null,
 };
 
 /**  원장을 접어 만든 지금 상태. */

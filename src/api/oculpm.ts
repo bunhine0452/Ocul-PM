@@ -47,6 +47,8 @@ import type {
   ReindexReport,
   RelatedSuggestion,
   Session,
+  TagMergeReport,
+  TagStat,
   FileChangeEvent,
   OculpmFileChanged,
 } from "@/lib/bindings";
@@ -289,6 +291,21 @@ export const oculpmApi = {
       "oculpm_add_related",
       commands.oculpmAddRelated(projectId, relativePath, relatedRef, kind),
     ),
+
+  /**
+   * 이 프로젝트의 태그 어휘 — 빈도 내림차순 ({#tag-merge}). `suggestInto` 는
+   * 「이 말로 모을 만하다」는 백엔드 판정이고, 실행은 사용자가 누른 뒤에만
+   * 일어난다.
+   */
+  tagStats: (projectId: number) =>
+    unwrap<TagStat[]>("oculpm_tag_stats", commands.oculpmTagStats(projectId)),
+
+  /**
+   * `from` 의 태그들을 `into` 하나로 모은다 — **디스크 원본** frontmatter 를
+   * 다시 쓴다. 되돌리기는 없다 (git 이 그 길이다).
+   */
+  tagMerge: (projectId: number, from: string[], into: string) =>
+    unwrap<TagMergeReport>("oculpm_tag_merge", commands.oculpmTagMerge(projectId, from, into)),
 
   /** F7a-B Unit B — write the tz-offset coercion into the on-disk frontmatter
    * once (timestamps only). Returns the re-projected entry. */
