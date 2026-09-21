@@ -736,7 +736,7 @@ fn flush_decision(
 
 /// Parse one markdown table row inside the plan-log block.
 /// `| ts | #item | agent | from→to | journal | note |`
-fn parse_log_row(line: &str) -> Option<PlanItemUpdate> {
+pub(crate) fn parse_log_row(line: &str) -> Option<PlanItemUpdate> {
     let line = line.trim();
     if !line.starts_with('|') {
         return None;

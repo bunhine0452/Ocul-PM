@@ -89,7 +89,7 @@ pub(crate) fn similar_active_plans(
     let mut paths: Vec<_> = entries
         .flatten()
         .map(|f| f.path())
-        .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("md"))
+        .filter(|p| crate::oculpm::planner::log_archive::is_plan_path(p))
         .collect();
     paths.sort();
     let mut out = Vec::new();
@@ -99,7 +99,9 @@ pub(crate) fn similar_active_plans(
         };
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("plan");
         let parsed = parse_plan(&md, stem);
-        if parsed.frontmatter.status.as_str() != "active" {
+        if crate::oculpm::planner::log_archive::is_archive_markdown(&md)
+            || parsed.frontmatter.status.as_str() != "active"
+        {
             continue;
         }
         let id_score = jaccard(&new_id, &similarity_tokens(&parsed.frontmatter.id));

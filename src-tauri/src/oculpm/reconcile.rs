@@ -32,6 +32,7 @@ use crate::llm;
 use crate::oculpm::atomic_io::write_atomic;
 use crate::oculpm::cache::JournalCache;
 use crate::oculpm::planner::ai::{build_user_prompt, parse_ai_edits, SYSTEM_PROMPT};
+use crate::oculpm::planner::log_archive::archive_overflow;
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus};
 use crate::oculpm::planner::plan_edit::{append_log_row, set_item_status_rolled, LogRow};
 use crate::oculpm::planner::project::{find_plan_path, planner_dir, PlanCache};
@@ -126,7 +127,7 @@ enum CasOutcome {
 /// 통째로 한 함수인 이유는 세 단계 사이에 틈이 생기면 CAS 가 무의미해지기
 /// 때문이다 (`plan_ops` 의 {#cas-toctou} 와 같은 이유). 블로킹 호출만 들어
 /// 있어 호출자가 blocking 풀로 보낸다.
-fn cas_write_plan(path: &Path, base: &str, next: &str) -> CasOutcome {
+fn cas_write_plan(path: &Path, plan_id: &str, base: &str, next: &str) -> CasOutcome {
     let Ok(_guard) = crate::oculpm::mcp::tools::acquire_plan_guard(path) else {
         return CasOutcome::Busy;
     };
@@ -136,6 +137,12 @@ fn cas_write_plan(path: &Path, base: &str, next: &str) -> CasOutcome {
     if on_disk != base {
         return CasOutcome::Changed;
     }
+    // 로그 표가 넘쳤으면 같은 임계구역 안에서 `<plan_id>.log.md` 로 갈라 낸다.
+    let planner_root = path.parent().unwrap_or(path);
+    let next = match archive_overflow(planner_root, plan_id, next) {
+        Ok(md) => md,
+        Err(e) => return CasOutcome::WriteFailed(e),
+    };
     match write_atomic(path, next.as_bytes()) {
         Ok(()) => CasOutcome::Wrote,
         Err(e) => CasOutcome::WriteFailed(e.to_string()),
@@ -361,8 +368,9 @@ pub async fn reconcile_entry(
             let path_c = path.clone();
             let base = md.clone();
             let next = cur.clone();
+            let pid_c = plan_id.clone();
             let outcome =
-                tokio::task::spawn_blocking(move || cas_write_plan(&path_c, &base, &next))
+                tokio::task::spawn_blocking(move || cas_write_plan(&path_c, &pid_c, &base, &next))
                     .await
                     .unwrap_or_else(|e| CasOutcome::WriteFailed(e.to_string()));
             match outcome {
@@ -483,12 +491,18 @@ mod tests {
 
         // MCP 쪽이 쓰는 그 문지기를 그대로 잡는다 — 자리가 같아야 문지기다.
         let held = crate::oculpm::mcp::tools::acquire_plan_guard(&path).unwrap();
-        assert_eq!(cas_write_plan(&path, "base\n", "next\n"), CasOutcome::Busy);
+        assert_eq!(
+            cas_write_plan(&path, "p", "base\n", "next\n"),
+            CasOutcome::Busy
+        );
         // 물러났으면 **한 바이트도 안 썼다.**
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "base\n");
 
         drop(held);
-        assert_eq!(cas_write_plan(&path, "base\n", "next\n"), CasOutcome::Wrote);
+        assert_eq!(
+            cas_write_plan(&path, "p", "base\n", "next\n"),
+            CasOutcome::Wrote
+        );
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "next\n");
     }
 
@@ -499,7 +513,7 @@ mod tests {
         let path = dir.path().join("plan.md");
         std::fs::write(&path, "someone else wrote this\n").unwrap();
         assert_eq!(
-            cas_write_plan(&path, "what we read\n", "next\n"),
+            cas_write_plan(&path, "p", "what we read\n", "next\n"),
             CasOutcome::Changed
         );
         assert_eq!(

@@ -640,3 +640,125 @@ fn plan_create_ignores_locked_lookalikes() {
         ".oculpm/planner/improvement-round-2026-09-20.md"
     );
 }
+
+// ─── {#plan-log-archive} — 넘친 plan-log 이력 분리 ────────────────────────────
+
+use crate::oculpm::planner::log_archive::{archive_path, is_archive_markdown, LOG_KEEP};
+
+/// plan-log 표에 데이터 행 `rows` 개를 심은 플랜. `status` 로 잠금도 만든다.
+fn seed_logged_plan(root: &Path, id: &str, rows: usize, status: &str) {
+    let dir = planner_dir(root);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut md = format!(
+        "---\noculpm_plan: v1\nid: {id}\ntitle: \"로그 플랜\"\nstatus: {status}\n\
+         created: 2026-07-30\nupdated: 2026-07-30\nowner: claude-code\n---\n\n\
+         ## Phase 1 {{#p1}}\n- [ ] 첫 항목 {{#first}}\n\n\
+         <!-- oculpm:plan-log begin v1 -->\n| 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |\n\
+         |---|---|---|---|---|---|\n"
+    );
+    for i in 0..rows {
+        md.push_str(&format!(
+            "| 2026-08-{:02}T0{}:00:00+09:00 | #first | claude-code | ☐→x | | seed-{i} |\n",
+            (i % 28) + 1,
+            i % 10
+        ));
+    }
+    md.push_str("<!-- oculpm:plan-log end -->\n");
+    std::fs::write(dir.join(format!("{id}.md")), md).unwrap();
+}
+
+fn log_rows(md: &str) -> usize {
+    md.lines()
+        .filter(|l| crate::oculpm::planner::parse::parse_log_row(l.trim()).is_some())
+        .count()
+}
+
+#[test]
+fn plan_update_splits_the_overflowing_log_into_a_sidecar() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    // 45 행 + 이번 갱신 1 행 = 46 → 6 행이 아카이브로 간다.
+    seed_logged_plan(root, "loggy", 45, "active");
+    let args = serde_json::json!({
+        "plan_id": "loggy", "item_id": "first", "status": "done",
+        "base_hash": base_hash(root, "loggy")
+    });
+    let out = call_tool(root, "plan_update", &args).unwrap();
+
+    let body = std::fs::read_to_string(planner_dir(root).join("loggy.md")).unwrap();
+    let side = std::fs::read_to_string(archive_path(&planner_dir(root), "loggy")).unwrap();
+    assert_eq!(log_rows(&body), LOG_KEEP, "본문에 최신 40행만: {body}");
+    assert_eq!(log_rows(&side), 6, "오래된 6행이 아카이브로: {side}");
+    assert!(is_archive_markdown(&side));
+    assert!(side.contains("plan: loggy"));
+    // 가장 오래된 행은 본문을 떠났고, 방금 쓴 행은 본문에 남는다.
+    assert!(!body.contains("seed-0") && side.contains("seed-0"));
+    assert!(body.contains("| #first | claude-code |"));
+    // 마커는 표 위/아래 한 줄씩, 그리고 분리 뒤 내용의 해시를 돌려준다.
+    assert_eq!(
+        body.lines()
+            .filter(|l| l.trim_start().starts_with("<!-- oculpm:plan-log archived:"))
+            .count(),
+        2,
+        "{body}"
+    );
+    assert!(body.contains("6 rows → loggy.log.md"));
+    assert_eq!(out["hash"].as_str().unwrap(), plan_hash(&body));
+
+    // 이어지는 갱신은 그 hash 로 통과하고, 아카이브는 중복 없이 자란다.
+    let next = serde_json::json!({
+        "plan_id": "loggy", "item_id": "first", "status": "todo",
+        "base_hash": out["hash"].as_str().unwrap()
+    });
+    call_tool(root, "plan_update", &next).unwrap();
+    let side2 = std::fs::read_to_string(archive_path(&planner_dir(root), "loggy")).unwrap();
+    assert_eq!(log_rows(&side2), 7, "한 행만 더: {side2}");
+}
+
+#[test]
+fn an_archived_log_never_shows_up_as_a_plan() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    seed_logged_plan(root, "loggy", 45, "active");
+    call_tool(
+        root,
+        "plan_update",
+        &serde_json::json!({
+            "plan_id": "loggy", "item_id": "first", "status": "done",
+            "base_hash": base_hash(root, "loggy")
+        }),
+    )
+    .unwrap();
+    assert!(archive_path(&planner_dir(root), "loggy").exists());
+
+    let out = call_tool(root, "plan_status", &serde_json::json!({})).unwrap();
+    let plans = out["plans"].as_array().unwrap();
+    assert_eq!(plans.len(), 1, "아카이브가 플랜으로 샜다: {out}");
+    assert_eq!(plans[0]["id"], "loggy");
+    assert!(
+        out["warnings"]
+            .as_array()
+            .map(|w| w.is_empty())
+            .unwrap_or(true),
+        "아카이브가 '손상된 플랜' 경고를 냈다: {out}"
+    );
+}
+
+#[test]
+fn a_locked_plan_keeps_its_whole_log() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    seed_logged_plan(root, "frozen", 102, "done");
+    let err = call_tool(
+        root,
+        "plan_update",
+        &serde_json::json!({
+            "plan_id": "frozen", "item_id": "first", "status": "done", "base_hash": "x"
+        }),
+    )
+    .unwrap_err();
+    assert!(err.contains("locked"), "{err}");
+    let body = std::fs::read_to_string(planner_dir(root).join("frozen.md")).unwrap();
+    assert_eq!(log_rows(&body), 102, "잠긴 플랜은 무접촉");
+    assert!(!archive_path(&planner_dir(root), "frozen").exists());
+}
