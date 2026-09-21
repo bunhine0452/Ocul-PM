@@ -1454,6 +1454,22 @@ export const commands = {
 	 *  좁힌다 (오늘 포함 `days`일 — `firing_stats` 와 같은 계산).
 	 */
 	oculpmFileHotspots: (projectId: number, days: number | null, limit: number | null) => typedError<FileHotspot[], string>(__TAURI_INVOKE("oculpm_file_hotspots", { projectId, days, limit })),
+	/**
+	 *  한 주의 롤업을 만들어 `.oculpm/rollups/<week>.md` 에 쓴다.
+	 * 
+	 *  `week` 가 없으면 **오늘이 속한 ISO 주**. `use_llm` 이 참이어도 provider/model
+	 *  미설정·호출 실패·과대 입력이면 결정적 본문으로 물러선다 (`used_llm=false`
+	 *  + `note`) — `oculpm_generate_summary` 와 같은 폴백 규약이라 API 키 없이도
+	 *  항상 파일이 나온다.
+	 */
+	oculpmRollupWeek: (projectId: number, week: string | null, useLlm: boolean, provider: string | null, model: string | null) => typedError<RollupDoc, AppError>(__TAURI_INVOKE("oculpm_rollup_week", { projectId, week, useLlm, provider, model })),
+	/**
+	 *  디스크의 롤업 목록 — 최신 주 먼저. `stale` 은 그 주의 **현재** 일지 지문과
+	 *  frontmatter 의 `entries_hash` 를 대조해 매긴다.
+	 */
+	oculpmRollupList: (projectId: number) => typedError<RollupSummary[], AppError>(__TAURI_INVOKE("oculpm_rollup_list", { projectId })),
+	/**  한 주의 롤업 전문 — 모달이 렌더한다. 없으면 `rollup_missing`. */
+	oculpmRollupRead: (projectId: number, week: string) => typedError<RollupDoc, AppError>(__TAURI_INVOKE("oculpm_rollup_read", { projectId, week })),
 	/**  프로젝트+전역 스킬을 한 번에 나열한다. 스킬 폴더가 없으면 빈 목록. */
 	skillsList: (projectId: number) => typedError<SkillsOverview, string>(__TAURI_INVOKE("skills_list", { projectId })),
 	/**  단일 스킬의 SKILL.md 원문과 보조 파일 목록을 읽는다. */
@@ -4107,6 +4123,14 @@ export type FiringStat = {
 export type GeneratedSummary = {
 	style: SummaryStyle,
 	markdown: string,
+	/**
+	 *  **실제로 반영된** 일지 건수 (`{#weekly-cap}`).
+	 * 
+	 *  예전엔 이 값이 기간 내 전체 건수였는데 LLM 경로는 60건만 보냈다 —
+	 *  100건짜리 주에 "100건을 요약했다"고 적힌 40건이 빠진 글이 나갔다.
+	 *  이제 두 경로 모두 전 건을 덮으므로(청킹 · 결정적 전건 포함) 이 숫자가
+	 *  곧 반영 건수다.
+	 */
 	entry_count: number,
 	used_llm: boolean,
 	/**  LLM 폴백 사유 등 사용자에게 알릴 한 줄 (없으면 None). */
@@ -5171,7 +5195,17 @@ export type OculpmDataArea = "planner" | "discussion" |
  *  변경을 봐야 한다. 동시에 자동화 **트리거 원인에서는 제외**된다
  *  (`automation::settle::is_excluded_cause` — 증폭 루프 가드 R1).
  */
-"automation";
+"automation" | 
+/**
+ *  `.oculpm/rollups/**` — 주간 요약 층 (journal-scale-round
+ *  `{#rollup-weekly}`). **일지가 아니다**: 라우팅이 없으면 `.md` 파일
+ *  하나가 코드 변경 ndjson 파이프라인까지 흘러 정직성 감사에 가짜 「누락」을
+ *  만들고, 옆에 서는 문지기 락 파일(`.2026-W38.md.lock`)의 생성·삭제까지
+ *  변경 원장을 오염시킨다 (`cas::acquire_doc_guard` 의 doc comment 가 바로
+ *  이 함정을 적어 두었다). 대신 "다시 읽어라" 신호만 낸다 — 읽을 때
+ *  파일에서 투영하는 planner/discussion 과 같은 모양.
+ */
+"rollups";
 
 export type OculpmDataChanged = {
 	project_id: number,
@@ -5640,6 +5674,36 @@ export type RepoNesting =
 "disjoint";
 
 export type Role = "system" | "user" | "assistant";
+
+/**  파일 한 판 (본문 포함) — 모달이 렌더한다. */
+export type RollupDoc = {
+	summary: RollupSummary,
+	body_markdown: string,
+	/**  이번 호출이 모델을 실제로 썼는가 (읽기에서는 `generator` 에서 파생). */
+	used_llm: boolean,
+	/**  폴백 사유 등 사용자에게 알릴 한 줄. */
+	note: string | null,
+};
+
+/**  그 주의 workday 경계 (포함, `YYYYMMDD`). */
+export type RollupRange = {
+	from: string,
+	to: string,
+};
+
+/**  목록 한 줄 — 카드·AI 컨텍스트가 파일을 열지 않고 판단할 수 있는 만큼. */
+export type RollupSummary = {
+	week: string,
+	range: RollupRange,
+	entry_count: number,
+	/**  그 주의 일지가 롤업 생성 이후 바뀌었다 (`entries_hash` 불일치). */
+	stale: boolean,
+	/**  프로젝트 루트 기준 — `.oculpm/rollups/2026-W38.md`. */
+	path: string,
+	generator: string,
+	/**  「한 주 요약」의 첫 문단. 카드가 접힌 상태로 보여 주는 한 조각. */
+	summary: string,
+};
 
 /**  `rules_save_with_backup` 응답 — 저장 결과 + 되돌릴 백업 경로. */
 export type RuleBackupOutcome = {

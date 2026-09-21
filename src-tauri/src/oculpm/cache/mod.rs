@@ -173,6 +173,7 @@ mod project;
 mod query;
 mod reindex;
 mod related;
+mod rollup;
 mod stats;
 mod write;
 
@@ -180,6 +181,8 @@ use conv::*;
 // 후보 계산의 원재료 묶음 — 커맨드가 이 타입으로 받아 순수 점수 함수에 넘긴다.
 pub(crate) use project::Projected;
 pub use related::RelatedRaw;
+// 주간 롤업의 원재료 (journal-scale-round {#rollup-weekly}).
+pub use rollup::RollupSourceEntry;
 
 impl<'a> JournalCache<'a> {
     pub fn new(db: &'a Db) -> Self {

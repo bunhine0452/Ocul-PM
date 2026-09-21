@@ -11,7 +11,11 @@ use crate::oculpm::atomic_io::write_atomic;
 
 /// 생성 마커 — 향후 내용 개정 시 구버전 자동 생성본만 식별하기 위한 표식
 /// (덮어쓰기에 쓰지는 않는다 — 존재하면 무조건 불변).
-pub const README_MARKER: &str = "<!-- oculpm:readme v1 -->";
+///
+/// v2: `rollups/` 행 추가 (journal-scale-round `{#rollup-weekly}`). 이미 v1
+/// README 를 가진 프로젝트는 그대로 둔다 — 마커는 "이 파일이 어느 판에서
+/// 났는가"를 말할 뿐 재생성 신호가 아니다.
+pub const README_MARKER: &str = "<!-- oculpm:readme v2 -->";
 
 const README_BODY: &str = "\
 # .oculpm — 이 폴더는 뭔가요?
@@ -23,6 +27,7 @@ const README_BODY: &str = "\
 |---|---|
 | `journal/` | 작업 일지 — 버그/기능/리팩토링 단위의 회고 기록 |
 | `planner/` | 살아있는 계획 문서 — 항목별 진행 글리프와 갱신 로그 |
+| `rollups/` | 주간 요약 (`YYYY-Www.md`) — 일지 위에 얹은 한 층 |
 | `discussion/` | 결정 전 문제 정의·옵션 비교 문서 |
 | `agents/` | 에이전트 기록 규칙 템플릿 |
 | `index/` · `hooks/` | 앱 관리 영역 (gitignore — 커밋되지 않음) |

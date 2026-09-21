@@ -153,6 +153,13 @@ pub(super) fn data_area_for_path(rel_str: &str) -> Option<OculpmDataArea> {
     if rel_str.starts_with(".oculpm/discussion/") {
         return Some(OculpmDataArea::Discussion);
     }
+    // 롤업(`{#rollup-weekly}`)도 같은 취급 — 파일이 SSOT 고 읽을 때 투영한다.
+    // 이 줄이 없으면 `.oculpm/rollups/**` 는 위 3.5 를 그냥 지나 코드 변경
+    // 파이프라인(ndjson·증분 색인·히스토리 캡처)으로 들어간다. 접두사가
+    // 문지기의 락 파일(`.2026-W38.md.lock`)까지 덮는 것은 의도다.
+    if rel_str.starts_with(".oculpm/rollups/") {
+        return Some(OculpmDataArea::Rollups);
+    }
     None
 }
 

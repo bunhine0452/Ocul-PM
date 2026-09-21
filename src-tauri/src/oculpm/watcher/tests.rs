@@ -538,6 +538,27 @@ fn data_area_for_path_routes_planner_and_discussion_only() {
     assert_eq!(data_area_for_path("src/planner/index.ts"), None);
 }
 
+/// 롤업(`{#rollup-weekly}`)은 **코드 변경 파이프라인에 들어가면 안 된다**.
+///
+/// 라우팅이 없으면 `.oculpm/rollups/2026-W38.md` 는 3.5 단계를 지나쳐
+/// ndjson·증분 색인·히스토리 캡처까지 흘러가고, 정직성 감사에 "일지가
+/// 기록하지 않은 변경"으로 뜬다 — 아무 일지도 자기 요약 파일을 files_touched
+/// 에 적지 않기 때문이다. 문지기의 락 파일도 같은 접두사가 삼킨다.
+#[test]
+fn data_area_for_path_routes_rollups_including_their_lock_files() {
+    assert_eq!(
+        data_area_for_path(".oculpm/rollups/2026-W38.md"),
+        Some(OculpmDataArea::Rollups)
+    );
+    assert_eq!(
+        data_area_for_path(".oculpm/rollups/.2026-W38.md.lock"),
+        Some(OculpmDataArea::Rollups)
+    );
+    // 이웃을 삼키지 않는다 (접두사에 `/` 가 있는 이유).
+    assert_eq!(data_area_for_path(".oculpm/rollups.md"), None);
+    assert_eq!(data_area_for_path("src/rollups/index.ts"), None);
+}
+
 /// Finder 에서 프로젝트 폴더를 지우면(휴지통 = 이름 바꾸기) 삭제가 만든
 /// 이벤트가 세션을 열고, 그 쓰기가 지운 자리에 `.oculpm/index/…` 를 되살려
 /// **빈 폴더가 다시 생겼다** (2026-09-17). 워처는 루트가 없으면 이벤트를
