@@ -1995,6 +1995,14 @@ export const commands = {
 	 *  (플랜 `first-record-loop` Phase 2). 디스크만 읽는다; 훅과 같은 선택 규칙.
 	 */
 	resumeDigest: (projectId: number) => typedError<ResumeDigest, AppError>(__TAURI_INVOKE("resume_digest", { projectId })),
+	/**
+	 *  이어하기 디스패치 (first-record-loop P2-3) — 이어하기 자료를 프롬프트로 만들어
+	 *  디스패치 폴더에 쓰고 터미널 프리필용 명령을 돌려준다. 플래너 ▶실행과 같은
+	 *  핸드오프(`dispatchTarget`)를 타므로 화면이 바뀌고 무슨 일이 일어났는지 토스트가
+	 *  말한다 — 그전의 「빠른 터미널 열기」는 화면 아래에서 조용히 열려 아무것도
+	 *  바뀌지 않은 것처럼 보였다 (2026-09-22 사용자 지적).
+	 */
+	resumeDispatchPrompt: (projectId: number) => typedError<ResumeDispatch, AppError>(__TAURI_INVOKE("resume_dispatch_prompt", { projectId })),
 	mcpStatus: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_status", { projectId })),
 	mcpRegister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_register", { projectId })),
 	mcpUnregister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_unregister", { projectId })),
@@ -5877,6 +5885,16 @@ export type ResumeDigest = {
 	hooks_seen: boolean,
 	/**  복사용 본문 — 같은 자료의 사람용 렌더링 (훅의 컨텍스트와 문장은 다르다). */
 	text: string,
+};
+
+/**  「이 맥락으로 이어서 작업」의 산출물 — 플래너 ▶실행(`DispatchPrompt`)과 같은 모양. */
+export type ResumeDispatch = {
+	/**  `.oculpm/index/dispatch/resume.md` (앱 관리·gitignore 영역). */
+	file_rel: string,
+	/**  셸 프롬프트에 프리필할 한 줄 (`claude "$(cat '…')"`). 실행(Enter)은 사용자가. */
+	command: string,
+	/**  프롬프트 본문 — 돌고 있는 에이전트가 있으면 이걸 붙여넣는다. */
+	prompt: string,
 };
 
 export type ResumeItem = {

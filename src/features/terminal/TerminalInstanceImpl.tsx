@@ -206,8 +206,7 @@ export default function TerminalInstanceImpl({
   // 스크롤·명령마다 페인 트리가 재렌더된다.
   const blockApiRef = useRef<BlockApi | null>(null);
   const onFileRefRef = useRef(onFileRef);
-  // 세션 nonce — 이 값이 실린 OSC 133 만 신뢰한다. attach/start 응답이 오기
-  // 전에는 빈 문자열이라 파서가 전부 거른다 (실패 시 기본값이 "불신"이다).
+  // 세션 nonce — 이 값이 실린 OSC 133 만 신뢰한다. 응답 전엔 빈 문자열이라 전부 거른다(기본값 = 불신).
   const nonceRef = useRef("");
   const shellStateRef = useRef<ShellState>(initialShellState);
   // 페인 신호(alt-screen · BEL · 마지막 출력) — 출력 시각은 청크마다 갱신되고
@@ -838,11 +837,11 @@ export default function TerminalInstanceImpl({
         const at = await commands.attachPtySession(sessionId);
         if (!isMounted) return;
         if (at.status === "ok" && at.data) {
-          // 살아있는 세션 재접속 — 스크롤백 리플레이.
-          // nonce 를 write 보다 **먼저** 세운다. 리플레이 안에도 OSC 133 이
-          // 들어 있어서, 순서가 뒤바뀌면 재접속마다 통합이 꺼진 것처럼 보인다.
+          // 살아있는 세션 재접속 — 스크롤백 리플레이. 통합 플래그는 호스트가 안다 (먼저 적는다).
+          // nonce 를 write 보다 **먼저** — 리플레이 안의 OSC 133 이 순서가 뒤바뀌면 통합이 꺼진 것처럼 보인다.
           nonceRef.current = at.data.nonce;
           lastSeq = at.data.seq;
+          publishShellState({ ...shellStateRef.current, provisioned: at.data.shell_integration });
           // 구간마다 **찍힐 당시의 크기**로 xterm 을 맞춘 뒤 쓴다. 현재 폭으로
           // 통째로 흘리면 옛 폭의 커서 이동이 새 폭에서 줄을 겹치게 만들었다 —
           // 도크↔화면을 오갈 때 옛 대화가 찌부러지던 그 경로다 (scrollbackReplay.ts).
@@ -867,6 +866,7 @@ export default function TerminalInstanceImpl({
             return;
           }
           nonceRef.current = res.data.nonce;
+          publishShellState({ ...shellStateRef.current, provisioned: res.data.shell_integration });
           // **갓 뜬 셸에만** 첫 명령을 친다. 재접속 갈래(위 `attachPtySession`
           // 성공)에서는 건드리지 않는다 — 사용자는 셸을 이어 쓰려고 돌아온
           // 것이지 `claude` 를 또 띄우려는 것이 아니다.

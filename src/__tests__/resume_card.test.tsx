@@ -68,7 +68,7 @@ function mount(over: Partial<Parameters<typeof ResumeCard>[0]> = {}) {
     enabled: true,
     onNavigate: vi.fn(),
     onOpenEntryPath: vi.fn(),
-    onRunAgent: vi.fn(),
+    onContinue: vi.fn(),
     ...over,
   };
   const utils = render(<ResumeCard {...props} />);
@@ -155,7 +155,7 @@ describe("ResumeCard", () => {
     expect(b.container.textContent).toContain(t("today.resume.noHooks"));
   });
 
-  it("복사는 자료 본문을 클립보드에 넣고 전달로 세지 않는다 · 이어서 작업은 터미널을 연다", async () => {
+  it("복사는 자료 본문을 클립보드에 넣고 전달로 세지 않는다 · 이어서 작업은 디스패치를 부른다", async () => {
     fx.digest = empty({ last_journals: [journal], text: "DIGEST TEXT" });
     const { container, props } = mount();
     await waitFor(() => expect(cardOf(container)).not.toBeNull());
@@ -165,7 +165,7 @@ describe("ResumeCard", () => {
     expect(cardOf(container)?.getAttribute("data-resume-card")).toBe("pending");
 
     fireEvent.click(screen.getByText(t("today.resume.continue")));
-    expect(props.onRunAgent).toHaveBeenCalledTimes(1);
+    expect(props.onContinue).toHaveBeenCalledTimes(1);
   });
 
   it("자료를 못 읽으면 숨기지 않고 실패를 말한다", async () => {

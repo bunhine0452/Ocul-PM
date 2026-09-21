@@ -30,14 +30,18 @@ export function ResumeCard({
   enabled,
   onNavigate,
   onOpenEntryPath,
-  onRunAgent,
+  onContinue,
 }: {
   projectId: number;
   enabled: boolean;
   onNavigate: (view: UiV2View) => void;
   onOpenEntryPath: (relativePath: string) => void;
-  /** 「터미널에서 이어서 작업」 — Today 빠른 터미널. 훅이 자료를 싣는 그 경로다. */
-  onRunAgent: () => void;
+  /**
+   * 「이 맥락으로 이어서 작업」 — 플래너 ▶실행과 같은 디스패치: 돌고 있는
+   * 에이전트에 붙여넣거나 셸에 한 줄을 프리필하고, 터미널이 안 보이면 그쪽으로
+   * 이동한다. 보내는 건 사용자의 Enter.
+   */
+  onContinue: () => void;
 }) {
   const { t } = useT();
   const { digest, loaded, error, refresh } = useResumeDigest(projectId, enabled);
@@ -146,7 +150,11 @@ export function ResumeCard({
         </div>
 
         <div className="first-run-actions">
-          <button className="btn primary sm" onClick={onRunAgent}>
+          <button
+            className="btn primary sm"
+            onClick={onContinue}
+            title={t("today.resume.continueHint")}
+          >
             <Terminal size={13} /> {t("today.resume.continue")}
           </button>
           <button className="btn sm" onClick={copy}>

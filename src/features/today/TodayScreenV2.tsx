@@ -22,6 +22,10 @@ import { requestOculpmActivate } from "@/lib/projectActions";
 import { FirstRunCard } from "./FirstRunCard";
 import { FirstRecordCard } from "./FirstRecordCard";
 import { ResumeCard } from "./ResumeCard";
+import { hooksApi } from "@/api/claudeSurface";
+import { toAppError } from "@/api/invoke";
+import { tError } from "@/i18n/errors";
+import { handoffDispatch, terminalOnScreen } from "@/features/terminal/dispatchTarget";
 import { PluginSetupCard } from "./PluginSetupCard";
 import { CoreModelSeededCard } from "./CoreModelSeededCard";
 import { WhatsNewCard } from "./WhatsNewCard";
@@ -119,6 +123,48 @@ export function TodayScreenV2({
   }, [ws, firstRecordArmed, oculpmReady, brief]);
   const disarmFirstRecord = () =>
     ws?.setState((prev) => (prev.firstRecordArmed ? { ...prev, firstRecordArmed: false } : prev));
+
+  // 「에이전트 실행」 — 예전엔 아래쪽 빠른 터미널을 조용히 열었다. 스크롤을 내리기
+  // 전까지 아무것도 안 바뀐 것처럼 보였다 (2026-09-22 지적). 이제 터미널이 화면에
+  // 없으면 터미널 화면으로 **이동**하고, 이미 보이면 그렇다고 말한다.
+  const openAgentTerminal = () => {
+    if (ws && terminalOnScreen(ws.state)) {
+      toast.info(t("today.terminalAlreadyOpen"));
+      return;
+    }
+    onNavigate("terminal");
+  };
+
+  // 「이 맥락으로 이어서 작업」 — 플래너 ▶실행과 같은 디스패치 경로. 백엔드가
+  // 이어하기 자료를 프롬프트로 만들고, `handoffDispatch` 가 돌고 있는 에이전트에
+  // 붙여넣거나 셸에 한 줄을 프리필한다. **보내는 건 Enter 로 사용자가** — 이것이
+  // 곧 전달 전 미리보기다. 터미널이 안 보이면 그쪽으로 이동해 어디에 꽂혔는지
+  // 보여 준다.
+  const continueFromResume = async () => {
+    if (!ws) {
+      onNavigate("terminal");
+      return;
+    }
+    try {
+      const res = await hooksApi.resumeDispatchPrompt(projectId);
+      const onScreen = terminalOnScreen(ws.state);
+      const done = await handoffDispatch(
+        { projectId, command: res.command, prompt: res.prompt },
+        ws.state.terminalTabs,
+        ws.state.terminalActiveId,
+      );
+      toast.info(
+        done.kind === "pasted"
+          ? t("today.resume.dispatchPasted", { agent: done.agent })
+          : done.kind === "typed"
+            ? t("today.resume.dispatchTyped")
+            : t("today.resume.dispatchQueued"),
+      );
+      if (!onScreen) onNavigate("terminal");
+    } catch (e) {
+      toast.destructive(t("today.resume.dispatchFailed", { error: tError(toAppError(e)) }));
+    }
+  };
 
   // Clicking a highlight / yesterday row jumps to the Journal screen with the
   // entry ring-highlighted (ShellV2 owns the one-shot focus path). Without the
@@ -287,7 +333,7 @@ export function TodayScreenV2({
               if (onOpenEntry) onOpenEntry({ relative_path });
               else onNavigate("journal");
             }}
-            onRunAgent={() => setTermOpen(true)}
+            onContinue={() => void continueFromResume()}
           />
 
           <WhatsNewCard />
@@ -312,7 +358,7 @@ export function TodayScreenV2({
               if (onOpenEntry) onOpenEntry({ relative_path });
               else onNavigate("journal");
             }}
-            onRunAgent={() => setTermOpen(true)}
+            onRunAgent={openAgentTerminal}
             onDone={disarmFirstRecord}
           />
 

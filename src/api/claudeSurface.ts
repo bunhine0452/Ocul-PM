@@ -36,6 +36,7 @@ import type {
   CliCheckResult,
   FirstRecordLedger,
   ResumeDigest,
+  ResumeDispatch,
 } from "@/lib/bindings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -168,6 +169,14 @@ export const hooksApi = {
    */
   resumeDigest: (projectId: number) =>
     unwrap<ResumeDigest>("resume_digest", commands.resumeDigest(projectId)),
+
+  /**
+   * 「이 맥락으로 이어서 작업」 — 이어하기 자료를 프롬프트 파일로 쓰고 터미널
+   * 프리필용 명령·본문을 돌려준다. 꽂는 자리는 플래너 ▶실행과 같은
+   * `dispatchTarget` 이 고른다 (돌고 있는 에이전트면 붙여넣기, 셸이면 한 줄).
+   */
+  resumeDispatchPrompt: (projectId: number) =>
+    unwrap<ResumeDispatch>("resume_dispatch_prompt", commands.resumeDispatchPrompt(projectId)),
 };
 
 /**

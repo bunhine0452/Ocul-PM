@@ -145,6 +145,15 @@ export function parseOsc7(payload: string): string | null {
 export interface ShellState {
   /** nonce 유효 신호를 한 번이라도 받았다 = 통합이 실제로 켜져 있다. */
   active: boolean;
+  /**
+   * 이 세션이 통합 스크립트를 물고 떴다 — 앱이 spawn 때 `OCULPM_SHELL_INTEGRATION`
+   * 을 실었고 PTY 호스트가 start/attach 응답에 `shell_integration` 로 돌려준 값.
+   * `active` 가 아직 false 인 것과 "통합이 꺼져 있다" 는 다르다: 재접속한 세션,
+   * 프로그램이 오래 도는 페인, rc 를 아직 안 읽은 새 셸은 **신호가 없을 뿐**이다
+   * (2026-09-22 — 설정은 켜짐인데 터미널 화면이 「꺼져 있어요」라고 하던 것).
+   * `undefined` = 아직 모른다 (응답 전).
+   */
+  provisioned?: boolean;
   /** 마지막으로 확인된 작업 디렉터리 (nonce 검증된 A 에서만). */
   cwd: string | null;
   /** 지금 실행 중인 명령 (C 수신 후 D 이전). */
