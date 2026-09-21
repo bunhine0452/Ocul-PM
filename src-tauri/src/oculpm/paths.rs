@@ -323,6 +323,31 @@ pub fn type_token_of_rel(rel: &str) -> Option<&'static str> {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 롤업 (`.oculpm/rollups/`) — journal-scale-round {#rollup-weekly}
+//
+// `WorkdayResolver` 의 메서드가 아니라 **자유 함수**인 이유는 위의
+// `workday_of_rel` 과 같다: 롤업 파일명은 ISO 주(`YYYY-Www`)라 tz 도
+// `day_starts_at` 도 타지 않는다. 주를 **고르는** 쪽(어느 workday 가 어느 주인가)
+// 은 이미 resolver 가 매긴 workday 문자열을 읽으므로, 여기는 순수한 경로 조립이다.
+// MCP 도구처럼 resolver 를 들지 않는 호출자도 같은 자리를 쓰게 된다.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// `<project_root>/.oculpm/rollups`.
+pub fn rollups_root(project_root: &Path) -> PathBuf {
+    project_root.join(".oculpm").join("rollups")
+}
+
+/// `<project_root>/.oculpm/rollups/<week>.md` (`week` = `YYYY-Www`).
+pub fn rollup_path(project_root: &Path, week: &str) -> PathBuf {
+    rollups_root(project_root).join(format!("{week}.md"))
+}
+
+/// 프로젝트 루트 기준 상대경로 — 프런트·MCP 응답에 싣는 표기.
+pub fn rollup_rel(week: &str) -> String {
+    format!(".oculpm/rollups/{week}.md")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

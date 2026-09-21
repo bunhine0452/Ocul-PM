@@ -415,6 +415,11 @@ export default function ShellV2({
             projectId={projectId}
             projectRoot={projectRoot}
             onOpenInCode={openInCode}
+            onOpenJournal={(path) => {
+              setJournalReturnView("search");
+              setJournalOpenEntry(path);
+              setUiV2View("journal");
+            }}
           />
         ) : view === "code" ? (
           <CodeScreenV2

@@ -857,7 +857,7 @@ mod tests {
             ko <= 4_800,
             "ko 마스터 {ko} chars — 토큰 다이어트 회귀 (상한 4,800)"
         );
-        assert!(en <= 6_320, "en 마스터 {en} chars — 상한 6,320 (6,100 에서 올렸다: {{#guard-manual-edit}} 규칙 231자. 다이어트 회귀가 아니라 의도한 지출 — 손편집으로 미완 남은 plan 을 닫아 항목이 유실된 사고가 3번 났고 코드 가드는 커맨드 경로만 막는다. 다음 인상도 같은 급의 근거를 요구할 것)");
+        assert!(en <= 6_500, "en 마스터 {en} chars — 상한 6,500 (6,320 에서 올렸다: journal-scale-round 두 절 — {{#plan-log-archive}} 의 `<plan_id>.log.md` 금지 한 절(§4 런온 90자: 이 줄이 없으면 에이전트가 앱이 만든 이력 보관함을 플랜으로 오인해 고치거나 통째로 컨텍스트에 싣는다) + {{#rollup-first}} 의 §0 롤업 한 줄 77자(주간 요약 층을 만들어 놓고 규칙이 그것을 가리키지 않으면 에이전트는 영영 안 읽는다). 다음 인상도 같은 급의 근거를 요구할 것)");
         assert_eq!(
             template_version(MASTER_KO),
             template_version(MASTER_EN),

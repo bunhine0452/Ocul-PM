@@ -284,7 +284,9 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
 
   // Esc → back to the list. j/k step through the recorded files and `/` jumps
   // to the filter — same keys as the 변경 diff screen, so the two file lists
-  // are driven identically.
+  // are driven identically. review-queue round — `v` toggles 확인 (checked
+  // for conflicts against navRegistry.ts and this screen's own bindings;
+  // none found — the code screen's `v` is a different screen entirely).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -307,11 +309,14 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
         e.preventDefault();
         filterRef.current.focus();
         filterRef.current.select();
+      } else if (e.key === "v") {
+        e.preventDefault();
+        void toggleVerified();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onBack, orderedPaths, activeIdx]);
+  }, [onBack, orderedPaths, activeIdx, toggleVerified]);
 
   // 부록의 활성 행을 따라가되, **부록이 보일 때만**. 목록이 화면 밖(본문을 읽는
   // 중)이면 j/k 가 독자를 아래로 끌고 내려가면 안 된다 — 파일 바가 위치를 이미

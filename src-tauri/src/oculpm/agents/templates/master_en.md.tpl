@@ -1,5 +1,5 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 12 -->
+<!-- template_version: 13 -->
 # ocul-pm work-journal rules
 
 You are working in a project tracked by ocul-pm. Every time you finish **one logical unit of work** (bug fix / feature / refactor / error cycle / chore), record it immediately — do not ask the user first.
@@ -12,7 +12,7 @@ The journal exists to be **re-read**. A long-tracked repo holds hundreds of entr
 
 - Know the file you'll change? `journal_search(file: "watcher.rs")` — most precise filter; start here.
 - Have a symptom? `journal_search(query: "IME composition", types: ["bug"])`.
-- Expand only what's worth reading: `journal_read(path: …)`. Plan context: `plan_status`.
+- Expand only what's worth reading: `journal_read(path: …)` — if the response carries `rollups` (weekly summaries), read those **first**. Plan context: `plan_status`.
 
 Link what you find from the new entry's `related`. Without the tools, grep `.oculpm/journal/**`.
 
@@ -47,7 +47,7 @@ The journal is retrospect; the **Planner** (`.oculpm/planner/*.md`) is the curre
 2. Append **one row** to the `<!-- oculpm:plan-log begin v1 -->` table at the bottom (never edit existing rows):
    `| <ISO time+offset> | #item-id | <your agent.id verbatim> | old→new glyph (→☐ for new items) | <journal path you just wrote> | short note |`
 
-Rules: preserve `{#id}` markers and managed-block boundaries · items are ONE line — keep `{#id}` at the *end* of the line, never wrap (a wrapped `{#id}` is invisible) · give new items stable English kebab ids · never paste journal content into the planner (reference it via the journal column) · **never modify a plan whose frontmatter `status:` is not `active`** (done/archived — work in a new plan instead) · the body glyph is the truth for current state (except parents with children — their state is the rollup of their children); the log is history.
+Rules: preserve `{#id}` markers and managed-block boundaries · items are ONE line — keep `{#id}` at the *end* of the line, never wrap (a wrapped `{#id}` is invisible) · give new items stable English kebab ids · never paste journal content into the planner (reference it via the journal column) · **never modify a plan whose frontmatter `status:` is not `active`** (done/archived — work in a new plan instead) · never touch `<plan_id>.log.md` (the app's **log archive**) or the `archived:` marker lines · the body glyph is the truth for current state (except parents with children — their state is the rollup of their children); the log is history.
 
 Items may nest **one level**: indent sub-tasks two spaces (`  - [ ] sub {#id}`). A parent's glyph is derived by rolling up its children — **never set a parent directly** (update the children instead).
 

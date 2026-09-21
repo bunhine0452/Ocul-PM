@@ -400,13 +400,21 @@ use crate::commands::{
     oculpm_open_entry_in_editor,
     // W5-PR5 — Overview stats
     oculpm_reindex_cache,
+    // journal-scale-round {#rollup-weekly} — 주간 요약 층 (.oculpm/rollups/)
+    oculpm_rollup_list,
+    oculpm_rollup_read,
+    oculpm_rollup_week,
     oculpm_search_entities,
     oculpm_search_journal,
     oculpm_set_config,
     oculpm_set_journal_verified,
+    oculpm_set_journal_verified_bulk,
     oculpm_start_session_manual,
     // {#related-suggest} — 공유 파일·플랜 항목·제목으로 고른 관련 후보
     oculpm_suggest_related,
+    // {#tag-merge} — 태그 어휘 통계와 A→B 일괄 병합
+    oculpm_tag_merge,
+    oculpm_tag_stats,
     oculpm_update_entry_body,
     oculpm_update_entry_meta,
     oculpm_watcher_start,
@@ -786,8 +794,11 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_add_related,
             oculpm_group_changes,
             oculpm_set_journal_verified,
+            oculpm_set_journal_verified_bulk,
             oculpm_search_entities,
             oculpm_search_journal,
+            oculpm_tag_stats,
+            oculpm_tag_merge,
             oculpm_workday_brief,
             oculpm_reindex_cache,
             oculpm_create_manual_entry,
@@ -811,6 +822,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_generate_summary,
             // journal-scale-round {#hotspot-query} — Today 「반복 수정 파일」 카드
             oculpm_file_hotspots,
+            // journal-scale-round {#rollup-weekly} — Today 「이번 주 요약」 카드
+            oculpm_rollup_week,
+            oculpm_rollup_list,
+            oculpm_rollup_read,
             // C2 — 일지 내보내기
             // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills)
             skills_list,

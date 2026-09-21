@@ -51,7 +51,9 @@ pub(crate) fn resolve_entry_path(
 /// 돌려주므로 호출자가 디스크와 일치하는 해시를 만들 길이 없다. 만들 수 없는
 /// 값을 필수로 걸면 그건 보호가 아니라 고장이다 — 편집기가 생기는 날 원문 읽기와
 /// 함께 붙일 자리다.
-fn entry_write_guard(abs: &Path) -> Result<crate::oculpm::file_guard::FileGuard, OculpmError> {
+pub(super) fn entry_write_guard(
+    abs: &Path,
+) -> Result<crate::oculpm::file_guard::FileGuard, OculpmError> {
     crate::oculpm::cas::acquire_doc_guard(abs).map_err(|e| OculpmError::InvalidConfig(format!(
         "일지 항목을 지금 쓸 수 없습니다: {e}. 다른 세션이 같은 항목을 고치는 중입니다 — 잠시 뒤 다시 시도하세요."
     )))
@@ -227,6 +229,37 @@ impl OculpmManager {
             )
             .await?;
         Ok(())
+    }
+
+    /// review-queue round — verify (or un-verify) several entries in one
+    /// round-trip. Sequential, reusing [`set_journal_verified`] per path
+    /// unchanged (same write guard, same content-hash binding, same
+    /// redacting re-projection) — a batch is not a reason to shortcut the
+    /// single-entry contract. One bad path (broken frontmatter, concurrent
+    /// lock, ...) is recorded in `skipped` and the rest of the batch proceeds.
+    pub async fn set_journal_verified_bulk(
+        &self,
+        db: &Db,
+        project_id: u32,
+        paths: Vec<String>,
+        verified: bool,
+    ) -> Result<crate::oculpm::spec::BulkVerifyReport, OculpmError> {
+        use crate::oculpm::spec::{BulkVerifyReport, BulkVerifySkip};
+        let mut updated = 0u32;
+        let mut skipped = Vec::new();
+        for path in paths {
+            match self
+                .set_journal_verified(db, project_id, path.clone(), verified)
+                .await
+            {
+                Ok(()) => updated += 1,
+                Err(e) => skipped.push(BulkVerifySkip {
+                    path,
+                    reason: e.to_string(),
+                }),
+            }
+        }
+        Ok(BulkVerifyReport { updated, skipped })
     }
 
     /// Update one or both of `difficulty` / `status` on an existing entry.

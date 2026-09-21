@@ -139,7 +139,7 @@ pub fn tool_definitions() -> Value {
                             "required": ["path"]
                         }
                     },
-                    "tags": { "type": "array", "items": { "type": "string" } },
+                    "tags": { "type": "array", "items": { "type": "string" }, "description": "**이 프로젝트가 이미 쓰는 태그를 먼저 쓸 것** (journal_search 결과의 태그가 그 목록이다) — 매번 새 말을 지으면 태그 필터가 죽는다. 표기(대소문자·공백·밑줄)는 서버가 정규화하고, 기존 태그와 닮았으면 응답 `tag_hints` 로 알려주니 **다음 호출에 반영할 것**." },
                     "related": {
                         "type": "array",
                         "description": "이어지는 과거 일지 링크 (journal_search 결과의 path 를 그대로). kind 는 blocks|blocked_by|followup|duplicate, 기본 followup",
@@ -161,7 +161,7 @@ pub fn tool_definitions() -> Value {
         },
         {
             "name": "journal_search",
-            "description": "이 프로젝트의 과거 작업 일지를 검색한다. **작업을 시작하기 전에 부르라** — 같은 파일이나 같은 증상을 전에 건드린 기록이 있으면 그때의 원인·결정·실패한 접근을 그대로 물려받을 수 있고, 이미 해결된 문제를 다시 푸는 일을 막는다. 본문 전문이 아니라 압축된 히트 목록을 돌려주니, 읽을 것을 고른 뒤 journal_read 로 펼칠 것. 필터 중 file(이 경로를 건드린 일지)이 가장 정확하다.",
+            "description": "이 프로젝트의 과거 작업 일지를 검색한다. **작업을 시작하기 전에 부르라** — 같은 파일이나 같은 증상을 전에 건드린 기록이 있으면 그때의 원인·결정·실패한 접근을 그대로 물려받을 수 있고, 이미 해결된 문제를 다시 푸는 일을 막는다. 본문 전문이 아니라 압축된 히트 목록을 돌려주니, 읽을 것을 고른 뒤 journal_read 로 펼칠 것. 필터 중 file(이 경로를 건드린 일지)이 가장 정확하다. 응답에 rollups(주간 요약) 배열이 있으면 **개별 일지보다 그것부터** 읽어라 — 그 주의 결정·결함·이월이 한 장에 접혀 있다.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -178,11 +178,11 @@ pub fn tool_definitions() -> Value {
         },
         {
             "name": "journal_read",
-            "description": "일지 1건의 본문 전체를 읽는다. journal_search 가 고른 path 를 그대로 넘길 것 — 목록을 훑을 때 쓰지 말고, 읽을 가치가 있다고 판단한 뒤에만 부른다.",
+            "description": "일지 1건의 본문 전체를 읽는다. journal_search 가 고른 path 를 그대로 넘길 것 — 목록을 훑을 때 쓰지 말고, 읽을 가치가 있다고 판단한 뒤에만 부른다. journal_search 응답의 rollups[].path(주간 요약)도 같은 인자로 읽는다.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "journal_search 응답의 path (예: \"20260821/Bugs/1842_bug_live-refresh.md\"). \".oculpm/journal/\" 접두사가 붙어 있어도 된다" }
+                    "path": { "type": "string", "description": "journal_search 응답의 path (예: \"20260821/Bugs/1842_bug_live-refresh.md\", 또는 주간 요약 \"rollups/2026-W38.md\"). \".oculpm/\" 접두사가 붙어 있어도 된다" }
                 },
                 "required": ["path"]
             }
@@ -655,19 +655,9 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     let (body, body_hits) = redact_text(body, &patterns);
     let redacted = title_hits.len() + body_hits.len();
 
-    let mut tags: Vec<String> = args
-        .get("tags")
-        .and_then(Value::as_array)
-        .map(|a| {
-            a.iter()
-                .filter_map(|t| t.as_str())
-                .map(str::to_string)
-                .collect()
-        })
-        .unwrap_or_default();
-    if !tags.iter().any(|t| t == "mcp-tool") {
-        tags.push("mcp-tool".to_string()); // 출처 표식 — 파일 자기신고와 구분
-    }
+    // 정규화(적용)와 유사 태그 힌트(제안만)는 `tags.rs` 가 소유한다
+    // ({#tag-normalize}). 출처 표식도 거기서 붙는다.
+    let (tags, tag_hints) = self::tags::normalize_and_hint(root, args);
 
     // related — 인자 파싱도 자동 연결도 `related.rs` 가 소유한다. 자동 연결은
     // related 를 **안 준** bug/error 일지에만 붙고, 붙었으면 응답이 말한다
@@ -776,6 +766,7 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         "language": fm.language,
         "related": fm.related.len(),
         "auto_related": auto_related,
+        "tag_hints": tag_hints,
         "redacted": redacted,
         "warnings": warnings,
     }))
@@ -789,6 +780,10 @@ pub(crate) use search::*;
 // ─── journal_write 의 related → related.rs ──────────────────────────────────
 
 mod related;
+
+// ─── journal_write 의 tags → tags.rs ────────────────────────────────────────
+
+mod tags;
 
 // ─── plan_status · plan_update → plan_ops.rs ─────────────────────────────────
 

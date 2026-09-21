@@ -2,7 +2,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { SearchIcon, X, Plus, NotebookText, Download } from "@/components/Icons";
+import { SearchIcon, X, Plus, NotebookText, Download, Tag } from "@/components/Icons";
 import { toAppError } from "@/api/invoke";
 import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
 import type { EntryFilters, EntryType, JournalEntrySummary } from "@/lib/bindings";
@@ -10,7 +10,10 @@ import { oculpmApi } from "@/api/oculpm";
 import { JOURNAL_PAGE_SIZE, useJournalDays } from "./useJournalDays";
 import { JournalDay } from "./JournalDay";
 import { EntryDetailView } from "./EntryDetailView";
+import { ReviewQueueBar } from "./ReviewQueueBar";
+import { JournalStatusChips } from "./JournalStatusChips";
 import { ManualEntryModalV2 } from "./ManualEntryModalV2";
+import { TagTidySheet } from "./TagTidySheet";
 import { TRIGGER_META } from "./triggerMeta";
 import "./journal.css";
 import { SourceFilterRail } from "./SourceBadge";
@@ -117,6 +120,10 @@ export function JournalScreenV2({
   const searchRef = useRef<HTMLInputElement>(null);
   const [unfinishedOnly, setUnfinishedOnly] = useState(false);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  // review-queue round — 「미검토」. `verifiedOnly` 와 상호 배타(둘 다 켜면
+  // 결과가 늘 비므로 서로를 끈다). 미완료·확인됨과 같은 이유로 화면 지역
+  // 상태다(위 주석) — 열 때마다 전체로 시작한다.
+  const [unverifiedOnly, setUnverifiedOnly] = useState(false);
   const [showAll, setShowAll] = useState(false);
   /**
    * 출처 필터 (Phase 3). `WorkspaceContext` 에 영속하지 않는다 — 열 때마다
@@ -128,6 +135,9 @@ export function JournalScreenV2({
   // 작성기 열림 여부 + 미리 채울 재료를 한 값으로 든다 — 따로 두면 "열려는
   // 있는데 씨앗이 아직 안 온" 한 프레임에 빈 작성기가 그려진다.
   const [manualSeed, setManualSeed] = useState<ManualEntrySeed | null>(null);
+  // 「태그 정리」 ({#tag-merge}) — 시트가 디스크 frontmatter 를 고치므로 닫힌
+  // 동안은 아무것도 안 받아 온다.
+  const [tagTidyOpen, setTagTidyOpen] = useState(false);
   const manualOpen = manualSeed !== null;
   const [backfilling, setBackfilling] = useState(false);
 
@@ -148,17 +158,19 @@ export function JournalScreenV2({
     filter !== "all" ||
     unfinishedOnly ||
     verifiedOnly ||
+    unverifiedOnly ||
     debouncedSearch.trim() !== "";
   const backendFilters = useMemo<EntryFilters | null>(() => {
     if (!allPeriod) return null;
     return {
       types: filter === "all" ? [] : [FILTER_TO_TYPE[filter]],
       verified_only: verifiedOnly,
+      unverified_only: unverifiedOnly,
       mismatch_only: false,
       unfinished_only: unfinishedOnly,
       search: debouncedSearch.trim() || null,
     };
-  }, [allPeriod, filter, verifiedOnly, unfinishedOnly, debouncedSearch]);
+  }, [allPeriod, filter, verifiedOnly, unverifiedOnly, unfinishedOnly, debouncedSearch]);
 
   const {
     days,
@@ -342,7 +354,12 @@ export function JournalScreenV2({
   // While a filter/search is active, days default to open so matches in older
   // (default-collapsed) days are visible — but an explicit toggle still wins.
   const searchActive =
-    search.trim() !== "" || filter !== "all" || unfinishedOnly || verifiedOnly || sourceFilter != null;
+    search.trim() !== "" ||
+    filter !== "all" ||
+    unfinishedOnly ||
+    verifiedOnly ||
+    unverifiedOnly ||
+    sourceFilter != null;
 
   // Planner 📓 → open this entry's detail view directly. Resolved by the entry's
   // workday (parsed from the path), so a completed plan's weeks-old journal opens
@@ -508,26 +525,22 @@ export function JournalScreenV2({
             );
           })}
         </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <button
-            type="button"
-            className={"scope-chip" + (unfinishedOnly ? " on" : "")}
-            style={{ height: 28 }}
-            onClick={() => setUnfinishedOnly((v) => !v)}
-            title={t("journal.filterOpenTitle")}
-          >
-            {t("journal.filterOpen")}
-          </button>
-          <button
-            type="button"
-            className={"scope-chip" + (verifiedOnly ? " on" : "")}
-            style={{ height: 28 }}
-            onClick={() => setVerifiedOnly((v) => !v)}
-            title={t("journal.filterVerifiedTitle")}
-          >
-            {t("journal.filterVerified")}
-          </button>
-        </div>
+        <JournalStatusChips
+          unfinishedOnly={unfinishedOnly}
+          verifiedOnly={verifiedOnly}
+          unverifiedOnly={unverifiedOnly}
+          setUnfinishedOnly={setUnfinishedOnly}
+          setVerifiedOnly={setVerifiedOnly}
+          setUnverifiedOnly={setUnverifiedOnly}
+        />
+        <button
+          type="button"
+          className="btn"
+          onClick={() => setTagTidyOpen(true)}
+          title={t("journal.tags.tidyTitle")}
+        >
+          <Tag size={15} /> {t("journal.tags.tidy")}
+        </button>
         {/* 기간 다이제스트 .md 내보내기 — 회고 화면이 지면서 트리거를 잃었던
             `oculpm_export_digest` 를 여기 되단다 (감사 라운드 2026-09-11 C2).
             범위는 **지금 불러온 날짜들**이다: 화면이 보여 주는 것만 내보낸다. */}
@@ -574,6 +587,17 @@ export function JournalScreenV2({
                   onChange={setSourceFilter}
                 />
               </div>
+            ) : null}
+
+            {/* review-queue round — 「미검토」가 켜졌을 때만. 상한 고지보다
+                위: "몇 건 못 받았다"가 아니라 "여기서 할 일"이다. */}
+            {unverifiedOnly ? (
+              <ReviewQueueBar
+                projectId={projectId}
+                total={matchTotal}
+                entries={(filteredDays ?? []).flatMap((d) => d.entries)}
+                onConfirmed={refresh}
+              />
             ) : null}
 
             {/* 상한을 넘겼다는 사실은 **목록 위**에 적는다. 바닥에만 두면
@@ -748,6 +772,13 @@ export function JournalScreenV2({
           onClose={() => setManualSeed(null)}
         />
       ) : null}
+
+      <TagTidySheet
+        projectId={projectId}
+        open={tagTidyOpen}
+        onClose={() => setTagTidyOpen(false)}
+        onMerged={() => void refresh()}
+      />
     </>
   );
 }

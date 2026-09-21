@@ -31,6 +31,11 @@ use crate::oculpm::spec::{EntryStatus, EntryType};
 use super::plan_ops::tsv_cell;
 use super::{arg_str, load_config, parse_entry_status, parse_entry_type, str_array};
 
+// 요약 층 히트 (`{#rollup-first}`). `tools/mod.rs` 가 아니라 여기서 선언하는
+// 이유는 크기 래칫이다 — 그 파일은 이미 한계 위라 `mod` 한 줄도 못 늘린다.
+// `search.rs` 의 하위 모듈은 `tools/search/` 에 산다 (Rust 2018 모듈 규칙).
+mod rollup_hits;
+
 /// 히트 수 기본값과 상한. `plan_status` 의 상한과 같은 이유의 안전핀이다 —
 /// "한 번에 다 받겠다" 는 호출이 에이전트 컨텍스트를 통째로 먹는 걸 막는다.
 pub(crate) const DEFAULT_HIT_LIMIT: usize = 20;
@@ -156,6 +161,10 @@ pub(crate) fn journal_search_with(
         ));
     }
 
+    // 요약 층을 **먼저** 본다 (`{#rollup-first}`). 원본 히트는 그대로 두고
+    // 별도 배열로 얹는다 — 섞으면 "먼저 읽을 것"이라는 신호가 사라진다.
+    let rollups = rollup_hits::rollup_hits(root, &parsed.tokens, &patterns);
+
     let mut out = json!({
         "hits_tsv": tsv,
         "returned": shown,
@@ -165,6 +174,12 @@ pub(crate) fn journal_search_with(
         "source": source,
         "legend": "why: 본문 매치는 발췌, 그 외는 매치한 자리(title/tag:…/slug/path:…/file:…). 본문 전체는 journal_read 로.",
     });
+    if !rollups.is_empty() {
+        out["rollups"] = json!(rollups);
+        out["rollups_hint"] = json!(
+            "주간 요약이 같은 질의에 걸렸습니다 — 개별 일지보다 먼저 journal_read 로 펼쳐 그 주의 맥락을 잡으세요."
+        );
+    }
     if total == 0 {
         out["note"] = json!(
             "일치하는 일지가 없습니다. query 를 짧게 하거나(부분 일치), file 필터를 파일명만으로 좁혀 보세요."
@@ -318,15 +333,25 @@ fn collect_from_disk(root: &Path, args: &Args) -> Vec<SearchRow> {
     rows
 }
 
-/// 일지 1건 전문.
+/// 롤업 경로인가 — `rollups/2026-W38.md` (접두사는 `normalize_entry_rel` 이
+/// 이미 걷었다). 이 한 술어가 `journal_read` 의 뿌리를 가른다.
+fn is_rollup_rel(rel: &str) -> bool {
+    rel.starts_with("rollups/") && rel[("rollups/".len())..].split('/').count() == 1
+}
+
+/// 일지 1건 전문. `{#rollup-first}` 이후로 **주간 요약도 같은 문으로** 읽는다
+/// — 에이전트가 도구를 하나 더 배우지 않아도 요약 층에 닿는다.
 pub(crate) fn journal_read(root: &Path, args: &Value) -> Result<Value, String> {
     let input = arg_str(args, "path").ok_or("'path' is required")?;
     let rel = normalize_entry_rel(input);
     if !is_safe_entry_rel(&rel) {
         return Err(format!(
             "'{input}' 은 일지 경로로 인정되지 않습니다 — journal_search 응답의 path 를 그대로 넘기세요 \
-             (예: 20260821/Bugs/1842_bug_live-refresh.md)."
+             (예: 20260821/Bugs/1842_bug_live-refresh.md, 또는 rollups/2026-W38.md)."
         ));
+    }
+    if is_rollup_rel(&rel) {
+        return rollup_read(root, &rel);
     }
     let abs = root.join(".oculpm").join("journal").join(&rel);
     // 실파일만 인정한다 — `.oculpm` 가드와 같은 이유로 심볼릭 링크는 거부
@@ -370,4 +395,33 @@ pub(crate) fn journal_read(root: &Path, args: &Value) -> Result<Value, String> {
         out["parse_warnings"] = json!(fm.parse_warnings);
     }
     Ok(out)
+}
+
+/// 주간 요약 1건 전문. 일지와 같은 봉투 모양(path/title/body_markdown)을 쓰되
+/// `kind: "rollup"` 로 자신을 밝힌다 — 에이전트가 "이건 원본이 아니라 층"임을
+/// 알아야 인용할 때 원본을 한 번 더 확인한다.
+fn rollup_read(root: &Path, rel: &str) -> Result<Value, String> {
+    let week = rel
+        .trim_start_matches("rollups/")
+        .trim_end_matches(".md")
+        .to_string();
+    let (fm, body) = crate::oculpm::rollup::read_one(root, &week)
+        .ok_or_else(|| format!("주간 요약을 찾을 수 없습니다: {rel}"))?;
+
+    let cfg = load_config(root);
+    let patterns = compile_redact_patterns(&cfg.git.auto_redact_patterns);
+    let (body, _) = redact_text(&body, &patterns);
+
+    Ok(json!({
+        "kind": "rollup",
+        "path": crate::oculpm::paths::rollup_rel(&fm.week),
+        "week": fm.week,
+        "range": { "from": fm.range.from, "to": fm.range.to },
+        "entry_count": fm.entry_count,
+        "generator": fm.generator,
+        "generated_at": fm.generated_at,
+        "title": format!("{} 주간 요약", fm.week),
+        "body_markdown": body,
+        "note": "요약 층입니다 — 그 주 일지를 접은 것이라 세부는 원본에 있습니다. 필요하면 journal_search(since/until) 로 그 주를 펼치세요.",
+    }))
 }

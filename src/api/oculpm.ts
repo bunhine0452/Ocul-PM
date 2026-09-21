@@ -28,12 +28,17 @@ import type {
   AgentDetection,
   AgentSyncReport,
   BackfillReport,
+  BulkVerifyReport,
   EntryFileDiff,
   EntryFilters,
   FileHotspot,
+  RollupDoc,
+  RollupSummary,
   JournalEntry,
   JournalEntryPage,
   JournalEntrySummary,
+  JournalSearchFilters,
+  JournalSearchPage,
   WorkdayComparison,
   AppError,
   ManualEntryDraft,
@@ -47,6 +52,8 @@ import type {
   ReindexReport,
   RelatedSuggestion,
   Session,
+  TagMergeReport,
+  TagStat,
   FileChangeEvent,
   OculpmFileChanged,
 } from "@/lib/bindings";
@@ -255,8 +262,33 @@ export const oculpmApi = {
       commands.oculpmSetJournalVerified(projectId, relativePath, verified)
     ),
 
+  /** review-queue round — verify (or un-verify) several entries in one call
+   *  (「보이는 것 전부 확인」). One bad path lands in `skipped`, not a rejection. */
+  setJournalVerifiedBulk: (projectId: number, paths: string[], verified: boolean) =>
+    unwrap<BulkVerifyReport>(
+      "oculpm_set_journal_verified_bulk",
+      commands.oculpmSetJournalVerifiedBulk(projectId, paths, verified)
+    ),
+
   reindexCache: (projectId: number) =>
     unwrap<ReindexReport>("oculpm_reindex_cache", commands.oculpmReindexCache(projectId)),
+
+  /**
+   * 일지를 관련도순으로 찾는다 — 검색 화면의 「일지」 스코프
+   * (journal-scale-round `{#search-scope-ui}`). MCP `journal_search` 와 같은
+   * 캐시 조회·랭킹 함수를 탄다 — 화면과 에이전트가 같은 질의에 다른 답을 주지
+   * 않는다.
+   */
+  searchJournal: (
+    projectId: number,
+    query: string,
+    filters?: JournalSearchFilters,
+    limit?: number
+  ) =>
+    unwrap<JournalSearchPage>(
+      "oculpm_search_journal",
+      commands.oculpmSearchJournal(projectId, query, filters ?? null, limit ?? null)
+    ),
 
   createManualEntry: (projectId: number, draft: ManualEntryDraft) =>
     unwrap<JournalEntry>(
@@ -289,6 +321,21 @@ export const oculpmApi = {
       "oculpm_add_related",
       commands.oculpmAddRelated(projectId, relativePath, relatedRef, kind),
     ),
+
+  /**
+   * 이 프로젝트의 태그 어휘 — 빈도 내림차순 ({#tag-merge}). `suggestInto` 는
+   * 「이 말로 모을 만하다」는 백엔드 판정이고, 실행은 사용자가 누른 뒤에만
+   * 일어난다.
+   */
+  tagStats: (projectId: number) =>
+    unwrap<TagStat[]>("oculpm_tag_stats", commands.oculpmTagStats(projectId)),
+
+  /**
+   * `from` 의 태그들을 `into` 하나로 모은다 — **디스크 원본** frontmatter 를
+   * 다시 쓴다. 되돌리기는 없다 (git 이 그 길이다).
+   */
+  tagMerge: (projectId: number, from: string[], into: string) =>
+    unwrap<TagMergeReport>("oculpm_tag_merge", commands.oculpmTagMerge(projectId, from, into)),
 
   /** F7a-B Unit B — write the tz-offset coercion into the on-disk frontmatter
    * once (timestamps only). Returns the re-projected entry. */
@@ -329,6 +376,32 @@ export const oculpmApi = {
       "oculpm_file_hotspots",
       commands.oculpmFileHotspots(projectId, days, limit),
     ),
+
+  /**
+   * journal-scale-round `{#rollup-weekly}` — 한 주의 요약을
+   * `.oculpm/rollups/<week>.md` 에 쓴다. `week` 가 `null` 이면 오늘이 속한 ISO
+   * 주. `useLlm` 이 참이어도 키·모델이 없거나 호출이 실패하면 결정적 본문으로
+   * 물러선다 (`used_llm` / `note` 로 구분) — 키 없이도 항상 파일이 나온다.
+   */
+  rollupWeek: (
+    projectId: number,
+    week: string | null,
+    useLlm: boolean,
+    provider: string | null,
+    model: string | null,
+  ) =>
+    unwrap<RollupDoc>(
+      "oculpm_rollup_week",
+      commands.oculpmRollupWeek(projectId, week, useLlm, provider, model),
+    ),
+
+  /** 디스크의 주간 요약 목록 (최신 주 먼저). `stale` 은 그 주 일지의 현재 지문과 대조한 값. */
+  rollupList: (projectId: number) =>
+    unwrap<RollupSummary[]>("oculpm_rollup_list", commands.oculpmRollupList(projectId)),
+
+  /** 한 주의 요약 전문 — 모달이 렌더한다. */
+  rollupRead: (projectId: number, week: string) =>
+    unwrap<RollupDoc>("oculpm_rollup_read", commands.oculpmRollupRead(projectId, week)),
 
   /**
    * W4 dogfooding (2026-05-27) — open a journal entry .md in the OS default
