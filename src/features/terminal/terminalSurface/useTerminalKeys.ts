@@ -1,6 +1,7 @@
 // 화면-로컬 단축키(⌘D·⌘F·⌘L·⌘↑↓·⌘±·⇧⌘↩·⇧⌘0·Esc) 와 ⌘W/⌘T 인텐트 사슬 등록 —
 // `TerminalSurface.tsx` 에서 옮겨 왔다 (2026-09-15 분할). 핸들러는 ref 로 최신을
 // 읽고 리스너는 1회 등록. 이펙트 순서(닫기 → 새 탭 → keydown) 불변.
+// keydown 은 이 면이 **화면에 보일 때만** 듣는다 — 숨은 프로젝트 탭 게이트.
 import { useEffect, useRef } from "react";
 import type { PaneDir } from "@/lib/termPanes";
 import { registerCloseHandler } from "@/lib/closeIntent";
@@ -87,12 +88,16 @@ export function useTerminalKeys(actions: TerminalKeyActions) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const a = actionsRef.current;
+      const root = rootRef.current;
+      // 이 면이 **보일 때만** 듣는다 (2026-09-21). 크롬식 탭에선 숨은 프로젝트
+      // 탭의 터미널 화면도 마운트된 채인데 `always` 스코프는 포커스를 묻지
+      // 않아, A 탭에서 누른 ⌘D 가 열려 있는 **모든** 탭의 터미널을 함께
+      // 쪼갰다. 숨은 탭은 `display:none` 이라 레이아웃 사각형이 없다 — 코드
+      // 화면의 `isVisible` 과 같은 판정이다.
+      if (!root || root.getClientRects().length === 0) return;
       // 도크는 다른 화면 **위에 얹혀** 있다 — 포커스가 터미널 안에 없는데도
       // ⌘F 를 가로채면 일지를 읽던 사용자가 스크롤백 검색을 만나게 된다.
-      if (a.keyboardScope === "focused") {
-        const root = rootRef.current;
-        if (!root || !root.contains(document.activeElement)) return;
-      }
+      if (a.keyboardScope === "focused" && !root.contains(document.activeElement)) return;
       if ((e.metaKey || e.ctrlKey) && !e.altKey) {
         const k = e.key.toLowerCase();
         // ⌘T 는 여기 없다 — ⌘W 와 같이 앱 메뉴 액셀러레이터라 keydown 이 오지

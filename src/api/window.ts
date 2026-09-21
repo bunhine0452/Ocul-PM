@@ -26,4 +26,12 @@ export const windowApi = {
    * (`src-tauri/src/commands/window.rs::SESSION_KEY`).
    */
   saveSession: () => call<null>("save_window_session", commands.saveWindowSession()),
+
+  /**
+   * 프로젝트를 탭으로 연다 — 이미 어딘가 열려 있으면 **그 창을 포커스하고 그
+   * 탭을 활성화**한다 (I1, `commands/window/tabs.rs`). `window` 는 아직 열려
+   * 있지 않을 때 붙일 창 — 활성화만 바라면 `null`.
+   */
+  openProjectTab: (projectId: number, window: string | null) =>
+    call<null>("open_project_tab", commands.openProjectTab(projectId, window)),
 };
