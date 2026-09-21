@@ -1093,6 +1093,15 @@ export const ko = {
   "today.rollup.failed": "주간 요약을 불러오지 못했어요 — 지금 있는지 알 수 없어요",
   "today.rollup.generateFailed": "주간 요약을 만들지 못했어요 ({error})",
   "today.rollup.modalLabel": "{week} 주간 요약",
+  // journal-scale-round {#velocity} — 일지 속도 + 플랜 완료 ETA
+  "today.velocity.title": "작업 속도",
+  "today.velocity.window": "최근 {n}주",
+  "today.velocity.desc": "주당 일지 건수와 유형 비율이에요.",
+  "today.velocity.zeroNote": "최근 {n}주 동안 기록된 일지가 없어요.",
+  "today.velocity.failed": "작업 속도를 불러오지 못했어요 — 지금은 알 수 없어요",
+  "today.velocity.total": "총 {n}건",
+  "today.velocity.summary": "플랜 미완 {open} · 최근 4주 주당 {avg} 완료 · 이 속도면 약 {eta}주",
+  "today.velocity.summaryNoEta": "완료 속도 데이터가 아직 없어요",
 
   // ── 일지 · diff ─────────────────────────────────────────────────────────
   "journal.filterUnverifiedTitle": "미검토만 (전체 기간 검색)",

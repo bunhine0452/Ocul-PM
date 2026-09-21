@@ -52,6 +52,7 @@ pub mod summary;
 pub mod tags;
 pub mod terminal;
 pub mod themes;
+pub mod velocity;
 pub mod window;
 
 pub use a2a::*;
@@ -105,4 +106,5 @@ pub use summary::*;
 pub use tags::*;
 pub use terminal::*;
 pub use themes::*;
+pub use velocity::*;
 pub use window::*;

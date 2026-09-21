@@ -56,6 +56,7 @@ import type {
   TagStat,
   FileChangeEvent,
   OculpmFileChanged,
+  Velocity,
 } from "@/lib/bindings";
 
 /**
@@ -376,6 +377,14 @@ export const oculpmApi = {
       "oculpm_file_hotspots",
       commands.oculpmFileHotspots(projectId, days, limit),
     ),
+
+  /**
+   * journal-scale-round `{#velocity}` — 주당 일지 건수·유형 비율 + 플랜 완료
+   * 속도(ETA). 주 버킷·ETA 계산은 백엔드 SSOT (`db::velocity::Db::velocity`
+   * 의 doc comment). `weeks` 가 `null` 이면 8주.
+   */
+  velocity: (projectId: number, weeks: number | null) =>
+    unwrap<Velocity>("oculpm_velocity", commands.oculpmVelocity(projectId, weeks)),
 
   /**
    * journal-scale-round `{#rollup-weekly}` — 한 주의 요약을
