@@ -37,6 +37,7 @@ mod planning;
 mod projects;
 pub mod recall;
 mod settings;
+pub mod velocity;
 
 impl Db {
     pub async fn open(path: PathBuf) -> Result<Self> {
@@ -413,6 +414,10 @@ pub struct Project {
 pub struct ChunkSearchResult {
     pub chunk_id: u32,
     pub file_path: String,
+    /// `chunks.kind` — `ast` / `lines` 는 코드, `journal` 은 일지·롤업이다
+    /// (journal-scale-round `{#search-semantic-journal}`). 검색 화면이 행을
+    /// 파일 카드로 그릴지 일지 카드로 그릴지 이 값 하나로 가른다.
+    pub kind: String,
     pub start_line: u32,
     pub end_line: u32,
     pub content: String,
@@ -482,11 +487,17 @@ pub struct OpenPlanItem {
     pub status: String,
 }
 
-/// SQL fragment that excludes prose/documentation files from a result set by
+/// SQL predicate that excludes prose/documentation files from a result set by
 /// path suffix (의미검색 문서 제외). Appended to `search_chunks` when the
 /// caller asks for code-only results. Lives here next to the search queries so
 /// the extension list stays in one place.
-const DOC_EXCLUDE_SQL: &str = " AND lower(f.path) NOT LIKE '%.md' \
+///
+/// 앞의 `AND` 가 빠진 **술어**인 이유는 일지다 (journal-scale-round
+/// `{#search-semantic-journal}`): 일지도 `.md` 라 이 목록에 통째로 걸린다.
+/// 「문서 포함」이 꺼져 있어도 일지는 나와야 하므로 호출자가
+/// `(c.kind = 'journal' OR (…))` 로 감싼다. 조각을 `AND` 로 시작하게 두면
+/// 그 괄호를 못 친다.
+const DOC_EXCLUDE_SQL: &str = "lower(f.path) NOT LIKE '%.md' \
      AND lower(f.path) NOT LIKE '%.mdx' \
      AND lower(f.path) NOT LIKE '%.markdown' \
      AND lower(f.path) NOT LIKE '%.txt' \

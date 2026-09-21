@@ -364,3 +364,70 @@ pub fn schedule_incremental_index(
         }
     });
 }
+
+/// 일지·롤업 한 편의 증분 의미 색인 (journal-scale-round
+/// `{#search-semantic-journal}`).
+///
+/// 가드레일은 `schedule_incremental_index` 와 같은 셋이다 — 설정 뒤에 있고
+/// (여기서는 `search_include_journal`, 미설정이면 켬), **이미 색인이 있는**
+/// 프로젝트에서만 돌고 (첫 임베딩 모델 다운로드는 「인덱스 재구축」의 몫),
+/// 워처 루프를 막지 않도록 곁일로 돈다.
+///
+/// 해시 게이트는 `reindex_journal_file` 안에 있다 (`upsert_file` 이
+/// `changed=false` 를 돌려주면 임베딩을 아예 안 부른다) — 워처가 일지 이벤트에
+/// 해시를 달아 오지 않으므로 여기서 미리 걸 수 없다.
+pub fn schedule_journal_index(
+    tasks: &WatcherTasks,
+    handle: &tauri::AppHandle,
+    project_id: u32,
+    root: &Path,
+    rel_path: String,
+) {
+    let handle = handle.clone();
+    let root = root.to_path_buf();
+    tasks.spawn(Lane::Index, async move {
+        use tauri::Manager;
+        let db = handle.state::<Db>();
+
+        let raw = db
+            .settings_get(crate::journal_index::SETTING_INCLUDE_JOURNAL.to_string())
+            .await
+            .ok()
+            .flatten();
+        if !crate::journal_index::include_journal_enabled(raw.as_deref()) {
+            return;
+        }
+        if !matches!(db.count_files(project_id).await, Ok(n) if n > 0) {
+            return;
+        }
+
+        // 지워진 일지는 행부터 걷는다 — 파일이 없으면 재색인할 것도 없다.
+        if !root.join(&rel_path).exists() {
+            if let Err(e) = db.delete_file_by_path(project_id, rel_path.clone()).await {
+                tracing::warn!(
+                    target: "oculpm::watcher", project_id, path = %rel_path, error = %e,
+                    "journal-index: delete failed"
+                );
+            }
+            return;
+        }
+
+        let embedder = handle.state::<Embedder>();
+        // 리댁션은 `journal_index` 가 소유한다 — 여기서 패턴을 만들지 않는다.
+        match crate::journal_index::reindex_journal_entry(
+            &db, &embedder, project_id, &root, &rel_path,
+        )
+        .await
+        {
+            Ok((true, chunks)) => tracing::debug!(
+                target: "oculpm::watcher", project_id, path = %rel_path, chunks,
+                "journal-index: reindexed"
+            ),
+            Ok((false, _)) => {}
+            Err(e) => tracing::warn!(
+                target: "oculpm::watcher", project_id, path = %rel_path, error = %e,
+                "journal-index: skipped"
+            ),
+        }
+    });
+}

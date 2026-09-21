@@ -51,11 +51,13 @@ import type {
   McpRegistrationStatus,
   ReindexReport,
   RelatedSuggestion,
+  ReleaseNotesDraft,
   Session,
   TagMergeReport,
   TagStat,
   FileChangeEvent,
   OculpmFileChanged,
+  Velocity,
 } from "@/lib/bindings";
 
 /**
@@ -378,6 +380,14 @@ export const oculpmApi = {
     ),
 
   /**
+   * journal-scale-round `{#velocity}` — 주당 일지 건수·유형 비율 + 플랜 완료
+   * 속도(ETA). 주 버킷·ETA 계산은 백엔드 SSOT (`db::velocity::Db::velocity`
+   * 의 doc comment). `weeks` 가 `null` 이면 8주.
+   */
+  velocity: (projectId: number, weeks: number | null) =>
+    unwrap<Velocity>("oculpm_velocity", commands.oculpmVelocity(projectId, weeks)),
+
+  /**
    * journal-scale-round `{#rollup-weekly}` — 한 주의 요약을
    * `.oculpm/rollups/<week>.md` 에 쓴다. `week` 가 `null` 이면 오늘이 속한 ISO
    * 주. `useLlm` 이 참이어도 키·모델이 없거나 호출이 실패하면 결정적 본문으로
@@ -495,6 +505,22 @@ export const oculpmApi = {
     unwrap<string | null>(
       "branch_export_digest",
       commands.branchExportDigest(projectId, branch, base),
+    ),
+
+  /**
+   * 릴리스 노트 **초안** (`{#release-notes-draft}`). 태그 사이 커밋과 그
+   * 워크데이의 일지를 묶어 마크다운 한 판을 돌려준다 — **파일은 건드리지
+   * 않는다.** `from`/`to` 가 비면 각각 마지막 `v*` 태그 · `HEAD`.
+   */
+  releaseNotesDraft: (
+    projectId: number,
+    fromRef: string | null,
+    toRef: string | null,
+    useLlm: boolean,
+  ) =>
+    unwrap<ReleaseNotesDraft>(
+      "oculpm_release_notes_draft",
+      commands.oculpmReleaseNotesDraft(projectId, fromRef, toRef, useLlm),
     ),
 
   /**

@@ -97,6 +97,118 @@ pub fn tags(root: &Path, limit: u32) -> Result<Vec<GitTag>, String> {
     Ok(out)
 }
 
+/// 릴리스 노트 초안이 기본 기준으로 삼을 **가장 최근 `v*` 태그**
+/// (`{#release-notes-draft}`).
+///
+/// 두 물음이 다르다. `describe --tags --abbrev=0` 은 "`to` 에서 **거슬러 닿는**
+/// 마지막 태그"를 준다 — 지난 릴리스 이후를 묻는 자리에서 원하는 답이 이쪽이다.
+/// 닿는 태그가 없을 때만(갓 만든 브랜치·얕은 클론) 저장소 전체에서 버전 정렬로
+/// 고른다. 둘 다 없으면 `None` — 호출자는 "태그가 없다"를 초안에 적는다.
+pub fn latest_version_tag(root: &Path, to: &str) -> Result<Option<String>, String> {
+    let Some(repo) = primary_repo(root) else {
+        return Err("Not a git repository.".to_string());
+    };
+    let root = repo.as_path();
+    let described = run_git(
+        root,
+        &["describe", "--tags", "--abbrev=0", "--match", "v*", to],
+    )
+    .ok()
+    .map(|s| s.trim().to_string())
+    .filter(|s| !s.is_empty());
+    if described.is_some() {
+        return Ok(described);
+    }
+    let listed = run_git(root, &["tag", "--list", "v*", "--sort=-v:refname"])?;
+    Ok(listed
+        .lines()
+        .map(str::trim)
+        .find(|l| !l.is_empty())
+        .map(String::from))
+}
+
+/// `from..to` 커밋 하나 — 파일까지. [`log_range`] 와 달리 `--name-only` 를 함께
+/// 읽는다: 릴리스 노트 초안은 "이 커밋이 만진 파일"로 일지에 가중을 매긴다.
+#[derive(Debug, Clone)]
+pub struct RangeCommit {
+    pub sha: String,
+    pub short_sha: String,
+    /// Unix seconds (author date).
+    pub timestamp: i32,
+    pub subject: String,
+    /// 저장소 기준 경로. 프로젝트 기준으로 되맞추는 것은 호출자의 몫이다
+    /// (`git::nesting::rebase`).
+    pub files: Vec<String>,
+}
+
+/// `from..to` 의 비-머지 커밋 + 각 커밋이 만진 파일 (`{#release-notes-draft}`).
+///
+/// `commits_for_backfill`(history) 과 모양이 같지만 **범위를 받는다** — 백필은
+/// "최근 N개"를, 여기는 "태그 사이"를 묻는다. 상태 문자(`A`/`M`/`D`)는 쓰지
+/// 않으므로 `--name-only` 로 족하다.
+pub fn log_range_with_files(
+    root: &Path,
+    from: &str,
+    to: &str,
+    limit: u32,
+) -> Result<Vec<RangeCommit>, String> {
+    let Some(repo) = primary_repo(root) else {
+        return Err("Not a git repository.".to_string());
+    };
+    let range = if from.is_empty() {
+        to.to_string()
+    } else {
+        format!("{from}..{to}")
+    };
+    // RS(0x1e) 가 커밋 레코드를, US(0x1f) 가 머리글 필드를 가른다 —
+    // `commits_for_backfill` 과 같은 규약.
+    let text = run_git(
+        repo.as_path(),
+        &[
+            "log",
+            "--no-color",
+            "--no-merges",
+            "-M",
+            &range,
+            &format!("-n{}", limit.max(1)),
+            "--name-only",
+            "--pretty=format:\x1e%H\x1f%at\x1f%s\x1f",
+        ],
+    )?;
+
+    let mut out = Vec::new();
+    for rec in text.split('\x1e') {
+        let rec = rec.trim_start_matches('\n');
+        if rec.is_empty() {
+            continue;
+        }
+        let mut parts = rec.splitn(4, '\x1f');
+        let sha = parts.next().unwrap_or("").trim().to_string();
+        if sha.is_empty() {
+            continue;
+        }
+        let timestamp = parts.next().unwrap_or("0").trim().parse().unwrap_or(0);
+        let subject = parts.next().unwrap_or("").to_string();
+        let files = parts
+            .next()
+            .unwrap_or("")
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .map(super::unquote_git_path)
+            .collect();
+        let short_sha: String = sha.chars().take(7).collect();
+        out.push(RangeCommit {
+            sha,
+            short_sha,
+            timestamp,
+            subject,
+            files,
+        });
+    }
+    Ok(out)
+}
+
 /// Commits between two refs (`from..to`). Used to assemble per-tag commit
 /// lists for an auto-generated changelog.
 pub fn log_range(root: &Path, from: &str, to: &str, limit: u32) -> Result<Vec<GitCommit>, String> {

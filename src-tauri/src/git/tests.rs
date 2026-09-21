@@ -304,3 +304,60 @@ fn korean_file_names_survive_every_git_reader() {
 
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// 태그 사이 범위 읽기 (`{#release-notes-draft}`) — 기준 태그 해석과, 그 범위
+/// 커밋이 **만진 파일**까지. 셋을 한 픽스처로 묶는 이유는 셋이 한 물음이기
+/// 때문이다: "지난 릴리스 이후 무엇이 바뀌었나".
+#[test]
+fn a_tag_range_yields_only_the_commits_after_it_with_their_files() {
+    let root = std::env::temp_dir().join(format!("ocul-relnotes-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    if git(&root, &["init", "-q"]).is_err() {
+        return; // git unavailable
+    }
+    git(&root, &["config", "user.email", "t@t.dev"]).unwrap();
+    git(&root, &["config", "user.name", "t"]).unwrap();
+
+    let commit = |name: &str, body: &str, msg: &str| {
+        std::fs::write(root.join(name), body).unwrap();
+        git(&root, &["add", name]).unwrap();
+        git(&root, &["commit", "-qm", msg]).unwrap();
+    };
+    commit("src/a.rs", "1\n", "base");
+    git(&root, &["tag", "v1.0.0"]).unwrap();
+    commit("src/b.rs", "1\n", "feat: b");
+    commit("src/c.rs", "1\n", "fix: c");
+    git(&root, &["tag", "v1.1.0"]).unwrap();
+    commit("src/d.rs", "1\n", "chore: d");
+
+    // 기준은 HEAD 에서 거슬러 닿는 마지막 태그 — 만든 순서가 아니라 도달성이다.
+    assert_eq!(
+        latest_version_tag(&root, "HEAD").unwrap().as_deref(),
+        Some("v1.1.0")
+    );
+
+    let after = log_range_with_files(&root, "v1.1.0", "HEAD", 50).unwrap();
+    assert_eq!(after.len(), 1, "{after:?}");
+    assert_eq!(after[0].subject, "chore: d");
+    assert_eq!(after[0].files, vec!["src/d.rs".to_string()]);
+
+    // 태그 두 개 사이는 그 사이 커밋만 — 기준 커밋(base)은 빠진다.
+    let between = log_range_with_files(&root, "v1.0.0", "v1.1.0", 50).unwrap();
+    let subjects: Vec<&str> = between.iter().map(|c| c.subject.as_str()).collect();
+    assert_eq!(subjects, vec!["fix: c", "feat: b"], "최신 먼저");
+    let files: Vec<&str> = between
+        .iter()
+        .flat_map(|c| c.files.iter().map(String::as_str))
+        .collect();
+    assert_eq!(files, vec!["src/c.rs", "src/b.rs"]);
+    assert!(between.iter().all(|c| c.timestamp > 0), "{between:?}");
+
+    // 기준이 비면 이력 전체.
+    assert_eq!(
+        log_range_with_files(&root, "", "HEAD", 50).unwrap().len(),
+        4
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}

@@ -163,6 +163,7 @@ impl Db {
         query_embedding_bytes: Vec<u8>,
         limit: u32,
         include_docs: bool,
+        include_journal: bool,
     ) -> Result<Vec<ChunkSearchResult>> {
         // Over-fetch from the vector index so we still have `limit` results
         // after the single-line / docs filters below. (Project filtering no
@@ -183,8 +184,14 @@ impl Db {
                 // 의미검색 문서 제외 — by default semantic search hides prose
                 // files (.md/.txt/…) that match loosely and bury real code
                 // hits; `include_docs` opts them back in.
+                //
+                // 일지 청크(`kind = 'journal'`)는 두 필터 **밖**에 있다
+                // (journal-scale-round `{#search-semantic-journal}`). `.md` 라
+                // 문서 제외 목록에 통째로 걸리지만 일지는 문서 잡음이 아니라
+                // 이 검색의 목적이고, 대신 `include_journal` 이라는 제 스위치를
+                // 갖는다 — 프런트의 「일지 제외」 토글이 그 인자다.
                 let mut sql = String::from(
-                    "SELECT c.id, f.path, c.start_line, c.end_line, c.content, ce.distance
+                    "SELECT c.id, f.path, c.kind, c.start_line, c.end_line, c.content, ce.distance
                      FROM chunk_embeddings ce
                      JOIN chunks c ON c.id = ce.chunk_id
                      JOIN files f ON f.id = c.file_id
@@ -192,8 +199,13 @@ impl Db {
                        AND ce.project_id = ?3
                        AND instr(c.content, char(10)) > 0",
                 );
+                if !include_journal {
+                    sql.push_str(" AND c.kind <> 'journal'");
+                }
                 if !include_docs {
+                    sql.push_str(" AND (c.kind = 'journal' OR (");
                     sql.push_str(DOC_EXCLUDE_SQL);
+                    sql.push_str("))");
                 }
                 sql.push_str(" ORDER BY ce.distance ASC LIMIT ?4");
                 let mut stmt = c.prepare(&sql)?;
@@ -204,10 +216,11 @@ impl Db {
                             Ok(ChunkSearchResult {
                                 chunk_id: r.get::<_, i64>(0)? as u32,
                                 file_path: r.get(1)?,
-                                start_line: r.get::<_, i64>(2)? as u32,
-                                end_line: r.get::<_, i64>(3)? as u32,
-                                content: r.get(4)?,
-                                distance: r.get(5)?,
+                                kind: r.get(2)?,
+                                start_line: r.get::<_, i64>(3)? as u32,
+                                end_line: r.get::<_, i64>(4)? as u32,
+                                content: r.get(5)?,
+                                distance: r.get(6)?,
                             })
                         },
                     )?
@@ -240,7 +253,7 @@ impl Db {
             .conn
             .call(move |c| {
                 let mut stmt = c.prepare(
-                    "SELECT c.id, f.path, c.start_line, c.end_line, c.content
+                    "SELECT c.id, f.path, c.kind, c.start_line, c.end_line, c.content
                      FROM chunks c
                      JOIN files f ON f.id = c.file_id
                      WHERE f.project_id = ?1 AND c.content LIKE ?2 ESCAPE '\\'
@@ -252,9 +265,10 @@ impl Db {
                         Ok(ChunkSearchResult {
                             chunk_id: r.get::<_, i64>(0)? as u32,
                             file_path: r.get(1)?,
-                            start_line: r.get::<_, i64>(2)? as u32,
-                            end_line: r.get::<_, i64>(3)? as u32,
-                            content: r.get(4)?,
+                            kind: r.get(2)?,
+                            start_line: r.get::<_, i64>(3)? as u32,
+                            end_line: r.get::<_, i64>(4)? as u32,
+                            content: r.get(5)?,
                             distance: 0.0,
                         })
                     })?

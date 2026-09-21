@@ -80,7 +80,12 @@ use crate::oculpm::spec::OculpmConfig;
 /// 에게 가는 글이라 종류 3(에이전트 대면 MCP 표면)에 속한다. 롤업 본문은
 /// 마스킹된 캐시 투영에서 났지만, 사람이 그 파일을 손으로 고칠 수 있으므로
 /// 내보내기 직전에 한 번 더 지난다 (journal-scale-round `{#rollup-first}`).
-pub const CALL_SITE_FILES: usize = 27;
+///
+/// 28 부터: `journal_index.rs` — 일지 의미검색 색인은 마스킹된 캐시 투영이
+/// 아니라 **디스크 원문**을 읽는다. 청크 텍스트가 SQLite 에 남고 검색 결과로
+/// 화면에 뜨므로, 자르기 직전에 한 번 지난다
+/// (journal-scale-round `{#search-semantic-journal}`).
+pub const CALL_SITE_FILES: usize = 28;
 
 /// Prompt-building sites that reach a model **without** redaction — neither
 /// directly nor through the masked cache projection.

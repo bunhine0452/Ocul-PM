@@ -164,7 +164,7 @@ export const commands = {
 	 */
 	homeBrief: (days: number) => typedError<HomeBrief, string>(__TAURI_INVOKE("home_brief", { days })),
 	indexProject: (projectId: number, onProgress: Channel<IndexProgress>) => typedError<IndexResult, string>(__TAURI_INVOKE("index_project", { projectId, onProgress })),
-	searchChunks: (projectId: number, query: string, limit: number, includeDocs: boolean) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_chunks", { projectId, query, limit, includeDocs })),
+	searchChunks: (projectId: number, query: string, limit: number, includeDocs: boolean, includeJournal: boolean) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_chunks", { projectId, query, limit, includeDocs, includeJournal })),
 	searchText: (projectId: number, query: string, limit: number) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_text", { projectId, query, limit })),
 	searchSymbols: (projectId: number, query: string, limit: number) => typedError<SymbolSearchResult[], string>(__TAURI_INVOKE("search_symbols", { projectId, query, limit })),
 	getFileSymbols: (fileId: number) => typedError<SymbolDef[], string>(__TAURI_INVOKE("get_file_symbols", { fileId })),
@@ -1485,10 +1485,24 @@ export const commands = {
 	 */
 	oculpmGenerateSummary: (projectId: number, since: string, until: string, style: SummaryStyle, provider: string | null, model: string | null) => typedError<GeneratedSummary, string>(__TAURI_INVOKE("oculpm_generate_summary", { projectId, since, until, style, provider, model })),
 	/**
+	 *  지난 태그부터 지금까지의 커밋과 일지로 릴리스 노트 초안을 만든다.
+	 * 
+	 *  `from_ref` 기본값 = `to_ref` 에서 거슬러 닿는 마지막 `v*` 태그,
+	 *  `to_ref` 기본값 = `HEAD`. `use_llm` 이 참이어도 모델이 없거나 호출이 실패하면
+	 *  결정적 초안으로 물러선다 (`used_llm=false` + `note`) — `oculpm_generate_summary`
+	 *  와 같은 폴백 규약. **`CHANGELOG.md` 는 건드리지 않는다** (모듈 문서 §왜 초안인가).
+	 */
+	oculpmReleaseNotesDraft: (projectId: number, fromRef: string | null, toRef: string | null, useLlm: boolean) => typedError<ReleaseNotesDraft, AppError>(__TAURI_INVOKE("oculpm_release_notes_draft", { projectId, fromRef, toRef, useLlm })),
+	/**
 	 *  파일별 bug/error 재발 신호. `days` 가 있으면 그 일수만큼의 workday 창으로
 	 *  좁힌다 (오늘 포함 `days`일 — `firing_stats` 와 같은 계산).
 	 */
 	oculpmFileHotspots: (projectId: number, days: number | null, limit: number | null) => typedError<FileHotspot[], string>(__TAURI_INVOKE("oculpm_file_hotspots", { projectId, days, limit })),
+	/**
+	 *  주당 일지 건수·유형 비율 + 플랜 완료 속도. `weeks` 가 없으면
+	 *  `DEFAULT_WEEKS`(8), 범위는 `[MIN_WEEKS, MAX_WEEKS]`(1~26)로 clamp.
+	 */
+	oculpmVelocity: (projectId: number, weeks: number | null) => typedError<Velocity, string>(__TAURI_INVOKE("oculpm_velocity", { projectId, weeks })),
 	/**
 	 *  한 주의 롤업을 만들어 `.oculpm/rollups/<week>.md` 에 쓴다.
 	 * 
@@ -2599,6 +2613,11 @@ export type AgentCard = {
 	verified?: boolean,
 };
 
+export type AgentCount = {
+	agent_id: string,
+	count: number,
+};
+
 export type AgentDetection = {
 	agent_id: string,
 	confidence: DetectConfidence,
@@ -3260,6 +3279,12 @@ export type ChatResponse = {
 export type ChunkSearchResult = {
 	chunk_id: number,
 	file_path: string,
+	/**
+	 *  `chunks.kind` — `ast` / `lines` 는 코드, `journal` 은 일지·롤업이다
+	 *  (journal-scale-round `{#search-semantic-journal}`). 검색 화면이 행을
+	 *  파일 카드로 그릴지 일지 카드로 그릴지 이 값 하나로 가른다.
+	 */
+	kind: string,
 	start_line: number,
 	end_line: number,
 	content: string,
@@ -5564,6 +5589,19 @@ export type PlanSummary = {
 	done_count: number,
 };
 
+export type PlanVelocity = {
+	open_items: number,
+	done_last_4w: number,
+	weekly_done_avg: number | null,
+	eta_weeks: number | null,
+	/**
+	 *  `oculpm_plan_item_updates` 가 이 프로젝트에 대해 통째로 빈 경우에만
+	 *  Some — "플래너를 한 번도 안 그렸다" 는 "최근 4주에 완료가 없다" 와
+	 *  다른 사실이라 별도로 알린다.
+	 */
+	note: string | null,
+};
+
 export type Project = {
 	id: number,
 	name: string,
@@ -5719,6 +5757,23 @@ export type RelatedSuggestion = {
 	entry_type: string,
 	score: number | null,
 	reasons: RelatedReason[],
+};
+
+export type ReleaseNotesDraft = {
+	/**  붙여 넣을 마크다운 한 판. **어디에도 쓰이지 않았다.** */
+	markdown: string,
+	/**  범위 안 커밋 수. */
+	commits: number,
+	/**  그 워크데이 범위에서 모은 일지 수. */
+	entries: number,
+	/**  그중 커밋이 만진 파일과 겹친 일지 수. */
+	linked: number,
+	/**  실제로 쓰인 기준. `None` = `v*` 태그를 찾지 못해 전체 이력을 읽었다. */
+	from_ref: string | null,
+	to_ref: string,
+	used_llm: boolean,
+	/**  사용자에게 알릴 한 줄 (폴백 사유·태그 없음 등). */
+	note: string | null,
 };
 
 /**
@@ -6367,6 +6422,20 @@ export type TrayNavigate = {
 	entry_path: string | null,
 };
 
+export type TypeCounts = {
+	feature: number,
+	bug: number,
+	error: number,
+	refactor: number,
+	chore: number,
+};
+
+export type Velocity = {
+	/**  오래된 주 → 최신 주(오늘이 속한 주) 순, `WeekChart` 와 같은 방향. */
+	weeks: WeekBucket[],
+	plan: PlanVelocity,
+};
+
 /**
  *  설정 > 통합 'VS Code 확장' 행 (플랜 `vscode-extension-round`
  *  {#app-settings}). 판정은 `vscode_ext::detect` — 확장 폴더만 읽는다.
@@ -6424,6 +6493,19 @@ export type WatcherSchedStats = {
 };
 
 export type WatcherStateView = "running" | "stopped" | "error";
+
+export type WeekBucket = {
+	/**  "2026-W38" (월요일이 속한 ISO 주). */
+	iso_week: string,
+	/**  그 주의 월요일, workday 형식 "YYYYMMDD". */
+	from_workday: string,
+	/**  그 주의 일요일, workday 형식 "YYYYMMDD". */
+	to_workday: string,
+	total: number,
+	by_type: TypeCounts,
+	/**  count 내림차순 → agent_id 오름차순 (동점을 결정적으로). */
+	by_agent: AgentCount[],
+};
 
 /**
  *  한 창의 탭 구성이 바뀌었다 — 그 창의 프런트가 스트립을 다시 그린다.

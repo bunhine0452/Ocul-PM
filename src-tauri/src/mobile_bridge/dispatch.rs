@@ -331,6 +331,8 @@ pub async fn dispatch<R: tauri::Runtime>(
             a.take("query")?,
             a.take("limit")?,
             a.take("includeDocs")?,
+            // 모바일 클라이언트는 아직 이 인자를 안 보낸다 — 빠지면 기본(켬).
+            a.take("includeJournal").unwrap_or(true),
         )
         .await?),
         "search_symbols" => ok(commands::search_symbols(

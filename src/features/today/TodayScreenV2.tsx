@@ -36,6 +36,7 @@ import { TodayActivityRing } from "./TodayActivityRing";
 import { TodayTerminal } from "./TodayTerminal";
 import { HonestyAudit } from "./HonestyAudit";
 import { HotspotCard } from "./HotspotCard";
+import { VelocityCard } from "./VelocityCard";
 import { WeeklyRollupCard } from "./WeeklyRollupCard";
 import { JournalMissingCard } from "./JournalMissingCard";
 import { PlanUpdates } from "./PlanUpdates";
@@ -444,6 +445,10 @@ export function TodayScreenV2({
             enabled={oculpmReady}
             onOpenEntry={openEntryPath}
           />
+
+          {/* journal-scale-round {#velocity-card} — 주당 일지 속도 + 플랜
+              완료 ETA. 0건이어도 카드는 남는다(위와 같은 선). */}
+          <VelocityCard projectId={projectId} enabled={oculpmReady} />
 
           {/* journal-scale-round {#rollup-weekly} — 일지 위 한 층(주간 요약).
               없으면 만들기 버튼이 서고, 있으면 첫 문단과 「오래됨」이 뜬다. */}

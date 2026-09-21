@@ -403,7 +403,10 @@ export async function assembleAiContext(opts: AiContextOptions): Promise<AiConte
   }
 
   if (includeRag && projectId != null && query.trim() && settings.ragTopK > 0) {
-    const res = await commands.searchChunks(projectId, query, settings.ragTopK, false);
+    // 일지는 빼고 코드만 (`includeJournal: false`). 이 블록의 라벨이
+    // 「관련 코드 N개」 고, 일지 맥락은 `includeOculpmContext` 가 최근 일지를
+    // 따로 싣는다 — 같은 글을 두 경로로 넣으면 topK 를 서로 잡아먹는다.
+    const res = await commands.searchChunks(projectId, query, settings.ragTopK, false, false);
     if (res.status === "ok" && res.data.length > 0) {
       chunks = res.data;
       const ragLabel = t("ai.partCode", { n: chunks.length });
