@@ -11,6 +11,7 @@ import { JOURNAL_PAGE_SIZE, useJournalDays } from "./useJournalDays";
 import { JournalDay } from "./JournalDay";
 import { EntryDetailView } from "./EntryDetailView";
 import { ReviewQueueBar } from "./ReviewQueueBar";
+import { JournalStatusChips } from "./JournalStatusChips";
 import { ManualEntryModalV2 } from "./ManualEntryModalV2";
 import { TagTidySheet } from "./TagTidySheet";
 import { TRIGGER_META } from "./triggerMeta";
@@ -524,52 +525,14 @@ export function JournalScreenV2({
             );
           })}
         </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <button
-            type="button"
-            className={"scope-chip" + (unfinishedOnly ? " on" : "")}
-            style={{ height: 28 }}
-            onClick={() => setUnfinishedOnly((v) => !v)}
-            title={t("journal.filterOpenTitle")}
-          >
-            {t("journal.filterOpen")}
-          </button>
-          <button
-            type="button"
-            className={"scope-chip" + (verifiedOnly ? " on" : "")}
-            style={{ height: 28 }}
-            onClick={() =>
-              setVerifiedOnly((v) => {
-                const next = !v;
-                if (next) setUnverifiedOnly(false);
-                return next;
-              })
-            }
-            title={t("journal.filterVerifiedTitle")}
-          >
-            {t("journal.filterVerified")}
-          </button>
-          {/* review-queue round — 「확인됨」과 상호 배타(둘 다 켜면 결과가
-              늘 비니 서로를 끈다). */}
-          <button
-            type="button"
-            className={"scope-chip" + (unverifiedOnly ? " on" : "")}
-            style={{ height: 28 }}
-            onClick={() =>
-              setUnverifiedOnly((v) => {
-                const next = !v;
-                if (next) setVerifiedOnly(false);
-                return next;
-              })
-            }
-            title={t("journal.filterUnverifiedTitle")}
-          >
-            {t("journal.filterUnverified")}
-          </button>
-        </div>
-        {/* 기간 다이제스트 .md 내보내기 — 회고 화면이 지면서 트리거를 잃었던
-            `oculpm_export_digest` 를 여기 되단다 (감사 라운드 2026-09-11 C2).
-            범위는 **지금 불러온 날짜들**이다: 화면이 보여 주는 것만 내보낸다. */}
+        <JournalStatusChips
+          unfinishedOnly={unfinishedOnly}
+          verifiedOnly={verifiedOnly}
+          unverifiedOnly={unverifiedOnly}
+          setUnfinishedOnly={setUnfinishedOnly}
+          setVerifiedOnly={setVerifiedOnly}
+          setUnverifiedOnly={setUnverifiedOnly}
+        />
         <button
           type="button"
           className="btn"
@@ -578,6 +541,9 @@ export function JournalScreenV2({
         >
           <Tag size={15} /> {t("journal.tags.tidy")}
         </button>
+        {/* 기간 다이제스트 .md 내보내기 — 회고 화면이 지면서 트리거를 잃었던
+            `oculpm_export_digest` 를 여기 되단다 (감사 라운드 2026-09-11 C2).
+            범위는 **지금 불러온 날짜들**이다: 화면이 보여 주는 것만 내보낸다. */}
         <button
           type="button"
           className="btn"
