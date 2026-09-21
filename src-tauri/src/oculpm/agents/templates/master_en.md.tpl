@@ -1,5 +1,5 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 12 -->
+<!-- template_version: 13 -->
 # ocul-pm work-journal rules
 
 You are working in a project tracked by ocul-pm. Every time you finish **one logical unit of work** (bug fix / feature / refactor / error cycle / chore), record it immediately — do not ask the user first.
@@ -12,7 +12,7 @@ The journal exists to be **re-read**. A long-tracked repo holds hundreds of entr
 
 - Know the file you'll change? `journal_search(file: "watcher.rs")` — most precise filter; start here.
 - Have a symptom? `journal_search(query: "IME composition", types: ["bug"])`.
-- Expand only what's worth reading: `journal_read(path: …)`. Plan context: `plan_status`.
+- Expand only what's worth reading: `journal_read(path: …)` — if the response carries `rollups` (weekly summaries), read those **first**. Plan context: `plan_status`.
 
 Link what you find from the new entry's `related`. Without the tools, grep `.oculpm/journal/**`.
 

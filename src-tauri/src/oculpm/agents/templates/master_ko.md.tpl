@@ -1,5 +1,5 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 12 -->
+<!-- template_version: 13 -->
 # ocul-pm 작업 기록 규칙
 
 당신은 ocul-pm 추적 프로젝트에서 작업 중입니다. **하나의 논리적 작업 단위**(버그 수정 / 기능 / 리팩토링 / 에러 사이클 / 잡일)를 끝낼 때마다 즉시 기록하세요 — 사용자에게 묻지 말 것.
@@ -12,7 +12,7 @@
 
 - 고칠 파일을 알면 `journal_search(file: "watcher.rs")` — 가장 정확한 필터이니 이것부터.
 - 증상·기능 이름이 있으면 `journal_search(query: "IME 조합", types: ["bug"])`.
-- 읽을 가치가 있는 것만 `journal_read(path: …)` 로 펼칩니다. 계획 맥락은 `plan_status`.
+- 읽을 가치가 있는 것만 `journal_read(path: …)` 로 펼칩니다 — 응답에 `rollups`(주간 요약)가 있으면 **그것부터**. 계획 맥락은 `plan_status`.
 
 찾은 것이 이어지면 새 일지의 `related` 에 그 경로를 넣으세요. 도구가 없으면 `.oculpm/journal/**` 를 grep.
 
