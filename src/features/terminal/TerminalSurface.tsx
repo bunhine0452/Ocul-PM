@@ -21,7 +21,7 @@ import { sessionColorStyle } from "@/lib/sessionColors";
 import { useSessionColorMenu } from "./useSessionColorMenu";
 import { TerminalInstance } from "./TerminalInstance";
 import { canAutoRename, shellTitleToTabLabel } from "./tabTitle";
-import { summarizeShell } from "./shellStatus";
+import { deriveIntegrationStatus, summarizeShell, type IntegrationStatus } from "./shellStatus";
 import { useAgentRuns } from "./useAgentRuns";
 import { foregroundCommands } from "@/windows/useTabRunningWork";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -96,7 +96,8 @@ export interface TerminalSurfaceProps {
   /** 탭 줄 오른쪽 끝에 덧붙이는 버튼들 (도크의 자리 바꾸기·분리·닫기). */
   headerActions?: React.ReactNode;
   /** 포커스된 페인의 셸 통합이 켜져 있는지 — 화면 툴바 부제에 쓴다. */
-  onShellActiveChange?: (active: boolean) => void;
+  /** 포커스된 페인의 셸 통합 상태 세 갈래 — 툴바 부제가 쓴다 (shellStatus.ts). */
+  onShellStatusChange?: (status: IntegrationStatus) => void;
   /**
    * 탭 줄의 빈 자리를 **창 드래그 영역**으로 쓴다 (분리 터미널 창 전용).
    *
@@ -122,7 +123,7 @@ export function TerminalSurface({
   compact = false,
   keyboardScope = "always",
   headerActions,
-  onShellActiveChange,
+  onShellStatusChange,
   dragRegion = false,
   ownsNewTab = false,
 }: TerminalSurfaceProps) {
@@ -422,10 +423,11 @@ export function TerminalSurface({
   // 포커스된 페인의 셸 통합 상태 — 상태바의 cwd 와 툴바 부제가 여기서 나온다.
   // 페인별 "지금 무슨 일" 문구·시계는 `TerminalPaneHead` 가 스스로 만든다.
   const focusedShell = activeTab ? shellStates[focusOfTab(activeTab)] : undefined;
-  const shellActive = focusedShell?.active === true;
+  // 설치 여부는 화면(TerminalScreenV2)이 안다 — 여기서는 페인이 말하는 것만 올린다.
+  const shellStatus = deriveIntegrationStatus(focusedShell, null);
   useEffect(() => {
-    onShellActiveChange?.(shellActive);
-  }, [shellActive, onShellActiveChange]);
+    onShellStatusChange?.(shellStatus);
+  }, [shellStatus, onShellStatusChange]);
 
   // 감사 fix (2026-07-16): 실제 워처 상태(oculpmStatus.watcher_state) 그대로.
   const watcher = runtime.oculpmStatus?.watcher_state ?? null;

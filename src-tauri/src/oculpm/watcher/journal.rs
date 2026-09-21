@@ -67,12 +67,16 @@ impl WatcherInner {
                 // a journal entry. Previously only the low-level
                 // OculpmJournalPathChanged event was emitted, so the user
                 // never saw "새 기록" toasts.
-                let inserted = matches!(outcome, Some(UpsertOutcome::Inserted));
                 let content_changed = matches!(
                     outcome,
                     Some(UpsertOutcome::Inserted | UpsertOutcome::Updated)
                 );
-                self.emit_journal_outcome(&cache, entry_rel, outcome).await;
+                // `inserted` 는 "캐시에 새 행" 이 아니라 **새 기록** 이다. git 체크아웃·
+                // 리베이스·stash 는 일지 폴더를 통째로 지웠다 되살리는데, 그때 옛
+                // 일지가 전부 `Inserted` 로 돌아와 토스트 18건·diff 캡처·플랜 화해가
+                // 한꺼번에 돌았다 (2026-09-21 19:23 로그). 재출현은 방출 쪽이
+                // `created_at` 으로 가르고 여기로는 false 가 온다.
+                let inserted = self.emit_journal_outcome(&cache, entry_rel, outcome).await;
                 // R1 — the entry carried secret(s); we masked them in the cache
                 // (disk untouched) and warn so the user can scrub the on-disk
                 // markdown before committing `.oculpm/`. Gated on an actual
@@ -285,11 +289,11 @@ impl WatcherInner {
         cache: &JournalCache<'_>,
         entry_rel: &str,
         outcome: Option<UpsertOutcome>,
-    ) {
+    ) -> bool {
         let Some(handle) = &self.app_handle else {
-            return;
+            return false;
         };
-        let Some(outcome) = outcome else { return };
+        let Some(outcome) = outcome else { return false };
         let should_emit_added = matches!(outcome, UpsertOutcome::Inserted);
         let should_emit_updated = matches!(outcome, UpsertOutcome::Updated);
         if !should_emit_added && !should_emit_updated {
@@ -300,7 +304,7 @@ impl WatcherInner {
                 outcome = ?outcome,
                 "outcome not emit-worthy (mtime-only / unchanged)"
             );
-            return;
+            return false;
         }
 
         let summary = match cache.get_summary_by_path(self.project_id, entry_rel).await {
@@ -312,7 +316,7 @@ impl WatcherInner {
                     path = %entry_rel,
                     "summary lookup returned None despite Inserted/Updated outcome — race?"
                 );
-                return;
+                return false;
             }
             Err(e) => {
                 tracing::warn!(
@@ -322,11 +326,30 @@ impl WatcherInner {
                     error = %e,
                     "summary lookup failed; skipping journal-added/updated emit"
                 );
-                return;
+                return false;
             }
         };
 
         use tauri_specta::Event;
+        // 재출현 판정 — 캐시에는 새 행이지만 `created_at` 이 오래됐으면 새 기록이
+        // 아니라 되돌아온 것이다 (git 이 폴더째 지웠다 되살린 경우, 백필). 그런
+        // 일지는 조용한 갱신으로 내보낸다: 목록은 다시 그려지고 토스트는 없다.
+        let fresh = is_fresh_entry(&summary.created_at, Utc::now().timestamp());
+        if should_emit_added && !fresh {
+            tracing::info!(
+                target: "oculpm::watcher",
+                project_id = self.project_id,
+                path = %entry_rel,
+                created_at = %summary.created_at,
+                "[FLOW] old entry re-appeared — emitting OculpmJournalUpdated instead of Added"
+            );
+            let _ = OculpmJournalUpdated {
+                project_id: self.project_id,
+                summary,
+            }
+            .emit(handle);
+            return false;
+        }
         if should_emit_added {
             tracing::info!(
                 target: "oculpm::watcher",
@@ -340,6 +363,7 @@ impl WatcherInner {
                 summary,
             }
             .emit(handle);
+            return true;
         } else {
             tracing::info!(
                 target: "oculpm::watcher",
@@ -354,5 +378,68 @@ impl WatcherInner {
             }
             .emit(handle);
         }
+        false
+    }
+}
+
+/// 재출현 판정 창 — 이보다 오래된 `created_at` 을 가진 일지가 "새 행" 으로
+/// 들어오면 새 기록이 아니라 되돌아온 것이다. 30분은 에이전트가 일지를 쓰고
+/// 워처가 색인하기까지의 어떤 지연보다도 넉넉하고, git 체크아웃이 되살리는
+/// 옛 일지(며칠·몇 주 전)와는 자릿수가 다르다.
+pub(super) const FRESH_ENTRY_WINDOW_SECS: i64 = 30 * 60;
+
+/// `created_at`(RFC3339, 오프셋 포함) 이 지금부터 [`FRESH_ENTRY_WINDOW_SECS`]
+/// 안인가. **못 읽으면 새것으로** — 토스트 하나가 침묵보다 낫다 (프론트매터가
+/// 깨진 일지는 어차피 parse_warnings 로 따로 보인다).
+pub(super) fn is_fresh_entry(created_at: &str, now: i64) -> bool {
+    match chrono::DateTime::parse_from_rfc3339(created_at) {
+        Ok(t) => now - t.timestamp() <= FRESH_ENTRY_WINDOW_SECS,
+        Err(_) => true,
+    }
+}
+
+#[cfg(test)]
+mod fresh_tests {
+    use super::*;
+
+    const NOW: i64 = 1_800_000_000;
+
+    fn iso(t: i64) -> String {
+        chrono::DateTime::<Utc>::from_timestamp(t, 0)
+            .unwrap()
+            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+    }
+
+    /// 방금 쓴 일지는 새것, 어제 쓴 일지가 다시 나타나면 되돌아온 것이다.
+    #[test]
+    fn a_recent_entry_is_fresh_and_an_old_one_is_a_reappearance() {
+        assert!(is_fresh_entry(&iso(NOW - 60), NOW));
+        assert!(
+            is_fresh_entry(&iso(NOW - FRESH_ENTRY_WINDOW_SECS), NOW),
+            "경계는 포함"
+        );
+        assert!(!is_fresh_entry(
+            &iso(NOW - FRESH_ENTRY_WINDOW_SECS - 1),
+            NOW
+        ));
+        assert!(!is_fresh_entry(&iso(NOW - 3 * 24 * 3600), NOW));
+    }
+
+    /// 오프셋이 붙은 로컬 시각도 같은 순간으로 읽는다 — 프론트매터는 `+09:00` 이다.
+    #[test]
+    fn offset_timestamps_compare_by_instant() {
+        let local = chrono::DateTime::<Utc>::from_timestamp(NOW - 120, 0)
+            .unwrap()
+            .with_timezone(&chrono::FixedOffset::east_opt(9 * 3600).unwrap())
+            .to_rfc3339_opts(chrono::SecondsFormat::Secs, false);
+        assert!(local.ends_with("+09:00"));
+        assert!(is_fresh_entry(&local, NOW));
+    }
+
+    /// 못 읽는 값은 새것으로 — 침묵 쪽으로 넘어지지 않는다.
+    #[test]
+    fn unparsable_created_at_counts_as_fresh() {
+        assert!(is_fresh_entry("", NOW));
+        assert!(is_fresh_entry("어제", NOW));
     }
 }

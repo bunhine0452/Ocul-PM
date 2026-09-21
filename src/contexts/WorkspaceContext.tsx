@@ -20,11 +20,9 @@ import { oculpmLog } from "@/lib/oculpmLog";
 import { commands, events, type FileOp, type OculpmStatus, type Session } from "@/lib/bindings";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast, DriftCooldown } from "@/lib/toast";
+import { makeJournalAddedListener } from "@/lib/journalAddedToast";
 import { pushIntegrityWarning } from "@/lib/integrityLog";
 import { openSettings } from "@/lib/settingsNav";
-import { requestEntryJump } from "@/lib/entryJump";
-import { windowApi } from "@/api/window";
-import { toAppError } from "@/api/invoke";
 import { recentChangesStore, type ChangeOp } from "@/lib/recentChangesStore";
 // 이벤트 리스너 안에서 부르는 토스트라 훅이 아닌 모듈 t() 가 맞다
 // (구독 시점이 아니라 **발생 시점**의 언어를 읽어야 한다).
@@ -1010,21 +1008,8 @@ export function WorkspaceProvider({
       });
     }));
 
-    bag.add(events.oculpmJournalAdded.listen((evt) => {
-      const projectId = evt.payload.project_id;
-      if (projectId !== currentProjectId()) return;
-      const relativePath = evt.payload.summary.relative_path;
-      // 「열기」 — 이 탭은 숨어 있을 수 있다 (크롬식 탭). 창 전역 `openEntity` 버스는 활성
-      // 탭이 받아 **보고 있던 프로젝트의** 일지로 갔다 (2026-09-21) → `lib/entryJump` + 탭 활성화.
-      const open = () => {
-        requestEntryJump(projectId, relativePath);
-        windowApi.openProjectTab(projectId, null).catch((e) => toast.destructive(tError(toAppError(e))));
-      };
-      toast.info(t("ws.newEntry", { title: evt.payload.summary.title }), {
-        dedupKey: `journal_added:${relativePath}`,
-        actions: [{ label: t("ws.openEntry"), onClick: open }],
-      });
-    }));
+    // 「새 일지」 토스트 — 문지기·열기 동선은 lib/journalAddedToast (2026-09-22).
+    bag.add(events.oculpmJournalAdded.listen(makeJournalAddedListener(currentProjectId)));
     bag.add(events.oculpmJournalUpdated.listen(() => {}));
 
     return () => bag.dispose();

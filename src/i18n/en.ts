@@ -4121,9 +4121,22 @@ export const en: Record<keyof typeof ko, string> = {
     "Last delivery: conversation {id} · {ago} — included in its session-start context ({n} entries · {m} items). Whether it was referenced or helped is unknown.",
   "today.resume.notYet": "Not delivered yet — the hook will carry this when the next session starts.",
   "today.resume.noHooks": "The hook hasn't reached this project yet — it starts working once a session runs with the oculpm plugin.",
-  "today.resume.continue": "Continue in the terminal",
+  "today.resume.continue": "Continue with this context",
   "today.resume.copy": "Copy context",
   "today.resume.copied": "Copied — pasting doesn't count as a delivery.",
   "today.resume.planner": "View the planner",
   "today.resume.loadFailed": "Couldn't load the resume context",
+  "today.resume.continueHint":
+    "Pastes the material into a running Claude Code, or prepares the command in the terminal — sending is Enter.",
+  "today.resume.dispatchPasted":
+    "Pasted the resume material into {agent} — press Enter to send",
+  "today.resume.dispatchTyped":
+    "Prepared the resume command in the terminal — press Enter to start",
+  "today.resume.dispatchQueued":
+    "The resume command will be queued once the terminal opens — press Enter to start",
+  "today.resume.dispatchFailed": "Could not hand off the resume — {error}",
+  "today.terminalAlreadyOpen":
+    "The terminal is already open — run claude there.",
+  "ws.newEntriesBurst":
+    "Several entries arrived at once — see the Journal screen.",  "term.shellPending": "Shell integration on — no signal from this session yet (recognised from the next prompt)",
 };

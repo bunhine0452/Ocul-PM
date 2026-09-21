@@ -87,3 +87,26 @@ export function summarizeShell(state: ShellState): ShellSummary | null {
     SIGNAL_NAMES[last.exitCode - 128] ?? t("term.shellFailed", { code: last.exitCode });
   return { text: `${head}${reason}${duration ? ` · ${duration}` : ""}`, tone: "fail" };
 }
+
+/** 툴바 부제가 고르는 세 갈래 — 셸 통합에 대해 정직하게 말할 수 있는 전부. */
+export type IntegrationStatus = "active" | "pending" | "off";
+
+/**
+ * 포커스된 페인의 상태 + 설정의 설치 여부 → 툴바 부제.
+ *
+ * - `active`  — 이 페인이 nonce 검증된 신호를 받았다.
+ * - `pending` — 신호는 아직인데 통합이 있기는 하다: 페인이 스크립트를 물고 떴거나
+ *   (재접속·긴 프로그램·첫 프롬프트 전) rc 에 설치돼 있다(새 세션부터 인식).
+ *   여기에 「켜기」 버튼을 달면 사용자는 이미 켜 둔 것을 또 켜러 간다.
+ * - `off`     — 둘 다 아니다. 켜기 버튼이 맞는 유일한 자리.
+ *
+ * `installed` 가 `null` 이면 아직 못 물어본 것 — 페인이 말하는 것만 본다.
+ */
+export function deriveIntegrationStatus(
+  shell: Pick<ShellState, "active" | "provisioned"> | undefined,
+  installed: boolean | null,
+): IntegrationStatus {
+  if (shell?.active) return "active";
+  if (shell?.provisioned || installed) return "pending";
+  return "off";
+}

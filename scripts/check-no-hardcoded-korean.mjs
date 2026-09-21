@@ -137,6 +137,7 @@ const TESTS = new Set([
   // 첫 기록 카드 — 상태 이름·픽스처 제목이 한국어 검사 재료다 (first-record-loop).
   "__tests__/first_record_card.test.tsx",
   "__tests__/first_record_model.test.ts",
+  "__tests__/journal_toast_gate.test.ts",
   "__tests__/resume_card.test.tsx",
   "__tests__/greenfield_empty_draft.test.tsx",
   "__tests__/shell_acp_view_no_today_fallback.test.tsx",

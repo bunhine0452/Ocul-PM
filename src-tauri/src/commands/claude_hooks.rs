@@ -105,3 +105,46 @@ pub async fn resume_digest(db: State<'_, Db>, project_id: u32) -> Result<ResumeD
     let root = std::path::PathBuf::from(project.root_path);
     Ok(resume::digest(&root, chrono::Utc::now(), 30))
 }
+
+/// 「이 맥락으로 이어서 작업」의 산출물 — 플래너 ▶실행(`DispatchPrompt`)과 같은 모양.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct ResumeDispatch {
+    /// `.oculpm/index/dispatch/resume.md` (앱 관리·gitignore 영역).
+    pub file_rel: String,
+    /// 셸 프롬프트에 프리필할 한 줄 (`claude "$(cat '…')"`). 실행(Enter)은 사용자가.
+    pub command: String,
+    /// 프롬프트 본문 — 돌고 있는 에이전트가 있으면 이걸 붙여넣는다.
+    pub prompt: String,
+}
+
+/// 이어하기 디스패치 (first-record-loop P2-3) — 이어하기 자료를 프롬프트로 만들어
+/// 디스패치 폴더에 쓰고 터미널 프리필용 명령을 돌려준다. 플래너 ▶실행과 같은
+/// 핸드오프(`dispatchTarget`)를 타므로 화면이 바뀌고 무슨 일이 일어났는지 토스트가
+/// 말한다 — 그전의 「빠른 터미널 열기」는 화면 아래에서 조용히 열려 아무것도
+/// 바뀌지 않은 것처럼 보였다 (2026-09-22 사용자 지적).
+#[tauri::command]
+#[specta::specta]
+pub async fn resume_dispatch_prompt(
+    db: State<'_, Db>,
+    project_id: u32,
+) -> Result<ResumeDispatch, AppError> {
+    let project = db.get_project(project_id).await?;
+    let root = std::path::PathBuf::from(project.root_path);
+    let digest = resume::digest(&root, chrono::Utc::now(), 30);
+    if digest.last_journals.is_empty() && digest.next_items.is_empty() {
+        return Err(AppError::from("이어갈 일지도 계획 항목도 없습니다"));
+    }
+    let lang = crate::oculpm::content_lang::current(&db).await;
+    let prompt = resume::render_prompt(&digest, lang);
+
+    let dispatch_dir = root.join(".oculpm").join("index").join("dispatch");
+    std::fs::create_dir_all(&dispatch_dir)?;
+    let abs = dispatch_dir.join("resume.md");
+    crate::oculpm::atomic_io::write_atomic(&abs, prompt.as_bytes())
+        .map_err(|e| AppError::from(e.to_string()))?;
+    Ok(ResumeDispatch {
+        file_rel: ".oculpm/index/dispatch/resume.md".to_string(),
+        command: crate::oculpm::planner::dispatch::shell_command_for(&abs),
+        prompt,
+    })
+}
