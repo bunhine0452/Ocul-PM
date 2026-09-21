@@ -79,6 +79,9 @@ vi.mock("@/api/oculpm", () => ({
       }),
     // code-search round — useTodayMonitor reads sessions for active-time.
     listSessions: () => Promise.resolve([]),
+    // first-record-loop — 첫 기록 카드가 원장을 다시 읽는 신호 셋.
+    onSessionStarted: () => Promise.resolve(() => {}),
+    onSessionEnded: () => Promise.resolve(() => {}),
   },
 }));
 
@@ -141,6 +144,13 @@ vi.mock("@/lib/bindings", () => ({
         } satisfies WorkdayBrief,
       });
     },
+    // first-record-loop — 일지 0건이면 첫 기록 카드가 켜져 원장을 읽는다. 빈
+    // 원장 = 「준비」 상태 (관측된 대화 없음).
+    firstRecordLedger: () =>
+      Promise.resolve({
+        status: "ok",
+        data: { conversations: [], unattributed_recent: 0, hooks_seen: false, window_days: 30 },
+      }),
     planList: () => Promise.resolve({ status: "ok", data: nextFx.plans }),
     planGet: (_pid: number, planId: string) =>
       Promise.resolve({

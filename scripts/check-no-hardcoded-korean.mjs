@@ -134,6 +134,9 @@ const TESTS = new Set([
   "__tests__/acp_conversation_seams.test.tsx",
   "__tests__/acp_identity_row.test.tsx",
   "__tests__/i18n_english_screens.test.tsx",
+  // 첫 기록 카드 — 상태 이름·픽스처 제목이 한국어 검사 재료다 (first-record-loop).
+  "__tests__/first_record_card.test.tsx",
+  "__tests__/first_record_model.test.ts",
   "__tests__/greenfield_empty_draft.test.tsx",
   "__tests__/shell_acp_view_no_today_fallback.test.tsx",
   "__tests__/acp_journal_gate_notice.test.tsx",

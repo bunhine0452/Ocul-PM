@@ -57,6 +57,8 @@ import type {
   TagStat,
   FileChangeEvent,
   OculpmFileChanged,
+  OculpmSessionEnded,
+  OculpmSessionStarted,
   Velocity,
 } from "@/lib/bindings";
 
@@ -534,6 +536,29 @@ export const oculpmApi = {
   onFileChanged: (cb: (payload: OculpmFileChanged) => void): Promise<() => void> => {
     try {
       return events.oculpmFileChanged
+        .listen(({ payload }) => cb(payload))
+        .catch(() => () => {});
+    } catch {
+      return Promise.resolve(() => {});
+    }
+  },
+
+  /**
+   * 작업 세션 열림·닫힘 — 훅 인박스 소비의 산물 (Today 첫 기록 카드가 원장을
+   * 다시 읽는 신호). 채널이 없는 자리(테스트)에서는 빈 해제 함수.
+   */
+  onSessionStarted: (cb: (payload: OculpmSessionStarted) => void): Promise<() => void> => {
+    try {
+      return events.oculpmSessionStarted
+        .listen(({ payload }) => cb(payload))
+        .catch(() => () => {});
+    } catch {
+      return Promise.resolve(() => {});
+    }
+  },
+  onSessionEnded: (cb: (payload: OculpmSessionEnded) => void): Promise<() => void> => {
+    try {
+      return events.oculpmSessionEnded
         .listen(({ payload }) => cb(payload))
         .catch(() => () => {});
     } catch {

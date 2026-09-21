@@ -291,6 +291,8 @@ use crate::commands::{
     // AD-1 — 발동 원장 (transcript 기반 규칙 주입·스킬 발동 계측)
     firing_rescan,
     firing_stats,
+    // first-record-loop — 대화별 첫 일지 귀속 원장 (Today 첫 기록 카드)
+    first_record_ledger,
     get_change_impact,
     get_code_graph,
     get_file_calls,
@@ -925,6 +927,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             claude_hooks_uninstall,
             // H3b — "일지 없이 끝난 세션" 신호 (Today 카드)
             journal_missing_signals,
+            // first-record-loop — 첫 기록 원장 (Today 첫 기록 카드)
+            first_record_ledger,
             // PR-CI2 — oculpm-mcp 서버 등록
             mcp_status,
             mcp_register,

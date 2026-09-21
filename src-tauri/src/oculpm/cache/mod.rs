@@ -174,6 +174,7 @@ pub struct JournalCache<'a> {
 }
 
 mod conv;
+mod conversations;
 mod files;
 mod project;
 mod query;
@@ -183,6 +184,8 @@ mod rollup;
 mod stats;
 mod tags;
 mod write;
+
+pub use conversations::ConversationJournalRow;
 
 use conv::*;
 // 후보 계산의 원재료 묶음 — 커맨드가 이 타입으로 받아 순수 점수 함수에 넘긴다.

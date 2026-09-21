@@ -6,8 +6,11 @@
 
 use tauri::State;
 
+use crate::app_error::AppError;
 use crate::db::Db;
+use crate::oculpm::cache::JournalCache;
 use crate::oculpm::claude_hooks::{self, ClaudeHooksStatus, JournalMissingSignal};
+use crate::oculpm::first_record::{self, FirstRecordLedger};
 
 async fn project_root(db: &Db, project_id: u32) -> Result<std::path::PathBuf, String> {
     let project = db
@@ -62,4 +65,32 @@ pub async fn journal_missing_signals(
 ) -> Result<Vec<JournalMissingSignal>, String> {
     let root = project_root(&db, project_id).await?;
     Ok(claude_hooks::journal_missing_signals(&root, days))
+}
+
+/// 첫 기록 원장 — 창 안(`days`, 1~30)의 대화별 첫 일지 귀속
+/// (플랜 `first-record-loop` {#p1-ledger}). Today 「첫 기록」 카드가 읽는다.
+///
+/// 일지 행은 캐시(037 `agent_session`)에서, 마커·세션·신호는 디스크에서.
+/// 워크데이 하한은 UTC 기준에 하루를 더 물러 잡는다 — 프로젝트 tz 의 워크데이
+/// 경계와 어긋나도 창이 **넓어질** 뿐 좁아지지 않는다.
+#[tauri::command]
+#[specta::specta]
+pub async fn first_record_ledger(
+    db: State<'_, Db>,
+    project_id: u32,
+    days: u32,
+) -> Result<FirstRecordLedger, AppError> {
+    let days = days.clamp(1, 30);
+    let project = db.get_project(project_id).await?;
+    let root = std::path::PathBuf::from(project.root_path);
+    let now = chrono::Utc::now();
+    let since = (now - chrono::Duration::days(i64::from(days) + 1))
+        .format("%Y%m%d")
+        .to_string();
+    let journals = JournalCache::new(&db)
+        .entries_since_workday(project_id, &since, 500)
+        .await?;
+    Ok(first_record::assemble(&first_record::collect(
+        &root, journals, days, now,
+    )))
 }

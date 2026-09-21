@@ -1,6 +1,6 @@
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import {
   SearchIcon,
@@ -20,6 +20,7 @@ import { type UiV2View, useOptionalWorkspace } from "@/contexts/WorkspaceContext
 import { agentLabel } from "./agentColor";
 import { requestOculpmActivate } from "@/lib/projectActions";
 import { FirstRunCard } from "./FirstRunCard";
+import { FirstRecordCard } from "./FirstRecordCard";
 import { PluginSetupCard } from "./PluginSetupCard";
 import { CoreModelSeededCard } from "./CoreModelSeededCard";
 import { WhatsNewCard } from "./WhatsNewCard";
@@ -70,7 +71,7 @@ interface TodayScreenV2Props {
    * Open the 작업 일지 화면 with this entry ring-highlighted. Provided by
    * ShellV2 (PR-UI 3 focus handoff). When omitted, falls back to a plain nav.
    */
-  onOpenEntry?: (entry: JournalEntrySummary) => void;
+  onOpenEntry?: (entry: Pick<JournalEntrySummary, "relative_path">) => void;
 }
 
 export function TodayScreenV2({
@@ -103,6 +104,20 @@ export function TodayScreenV2({
   const ws = useOptionalWorkspace();
   const initCard = ws?.state.oculpmInitCard ?? null;
   const dismissInitCard = () => ws?.setState((prev) => ({ ...prev, oculpmInitCard: null }));
+
+  // 첫 기록 카드 — 이 프로젝트의 일지가 **0건**인 것을 처음 본 순간 켠다
+  // (플랜 `first-record-loop` {#p1-states}). 총 일지 수는 켜는 조건일 뿐이고
+  // 끄는 조건이 아니다: 백필로 숫자가 올라도 카드는 **대화가 귀속된 첫 일지**를
+  // 확인할 때까지 남는다. 켜진 적 없는(이전부터 쓰던) 프로젝트는 보지 않는다.
+  const firstRecordArmed = ws?.state.firstRecordArmed ?? false;
+  useEffect(() => {
+    if (!ws || firstRecordArmed) return;
+    if (oculpmReady && brief != null && brief.totalEntries === 0) {
+      ws.setState((prev) => (prev.firstRecordArmed ? prev : { ...prev, firstRecordArmed: true }));
+    }
+  }, [ws, firstRecordArmed, oculpmReady, brief]);
+  const disarmFirstRecord = () =>
+    ws?.setState((prev) => (prev.firstRecordArmed ? { ...prev, firstRecordArmed: false } : prev));
 
   // Clicking a highlight / yesterday row jumps to the Journal screen with the
   // entry ring-highlighted (ShellV2 owns the one-shot focus path). Without the
@@ -272,6 +287,19 @@ export function TodayScreenV2({
           <PluginSetupCard
             show={oculpmReady && brief != null && brief.totalEntries === 0}
             onNavigate={onNavigate}
+          />
+          {/* 첫 기록 — 방금 돌린 **그 대화**의 첫 일지를 확인한다. 총 일지 수로
+              성공을 말하지 않는다 (first-record-loop {#p1-card}). */}
+          <FirstRecordCard
+            projectId={projectId}
+            enabled={oculpmReady && firstRecordArmed}
+            onNavigate={onNavigate}
+            onOpenEntryPath={(relative_path) => {
+              if (onOpenEntry) onOpenEntry({ relative_path });
+              else onNavigate("journal");
+            }}
+            onRunAgent={() => setTermOpen(true)}
+            onDone={disarmFirstRecord}
           />
 
           {/* Stat row */}

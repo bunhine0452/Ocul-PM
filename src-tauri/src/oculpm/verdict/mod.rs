@@ -50,7 +50,8 @@ mod tests;
 mod transcript;
 
 pub use collect::{
-    collect, collect_journal_conversations, collect_with_transcript, PEER_LIVE_WINDOW_SECS,
+    collect, collect_journal_conversations, collect_with_transcript, marker_traces,
+    workday_sessions, MarkerTrace, PEER_LIVE_WINDOW_SECS,
 };
 
 use std::collections::BTreeSet;

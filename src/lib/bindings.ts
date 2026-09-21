@@ -1981,6 +1981,15 @@ export const commands = {
 	 *  배열 — 플러그인 미설치 프로젝트에서 에러 경로를 만들지 않는다.
 	 */
 	journalMissingSignals: (projectId: number, days: number) => typedError<JournalMissingSignal[], string>(__TAURI_INVOKE("journal_missing_signals", { projectId, days })),
+	/**
+	 *  첫 기록 원장 — 창 안(`days`, 1~30)의 대화별 첫 일지 귀속
+	 *  (플랜 `first-record-loop` {#p1-ledger}). Today 「첫 기록」 카드가 읽는다.
+	 * 
+	 *  일지 행은 캐시(037 `agent_session`)에서, 마커·세션·신호는 디스크에서.
+	 *  워크데이 하한은 UTC 기준에 하루를 더 물러 잡는다 — 프로젝트 tz 의 워크데이
+	 *  경계와 어긋나도 창이 **넓어질** 뿐 좁아지지 않는다.
+	 */
+	firstRecordLedger: (projectId: number, days: number) => typedError<FirstRecordLedger, AppError>(__TAURI_INVOKE("first_record_ledger", { projectId, days })),
 	mcpStatus: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_status", { projectId })),
 	mcpRegister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_register", { projectId })),
 	mcpUnregister: (projectId: number) => typedError<McpRegistrationStatus, string>(__TAURI_INVOKE("mcp_unregister", { projectId })),
@@ -3661,6 +3670,31 @@ export type ConversationAction = {
 	applied_at: number,
 };
 
+/**
+ *  대화 하나의 흔적. 어느 표면이 남겼는지는 묻지 않는다 — 셸 훅과 앱 안 ACP
+ *  가 같은 마커·같은 프론트매터 키를 쓴다 ([`verdict::markers`] 의 계약).
+ */
+export type ConversationTrace = {
+	/**  대화 id (`agent.session` / 훅 payload 의 `session_id`). */
+	conversation: string,
+	/**  세그먼트 마커가 있다 — 시작했고 아직 SessionEnd 를 못 받았다. */
+	segment_open: boolean,
+	/**  생존 흔적이 창 안이다 — **지금** 살아 있다고 볼 근거. */
+	live: boolean,
+	/**
+	 *  시작 시각 (RFC3339 UTC). 마커 > 작업 세션 시작 > 첫 일지 순으로 잡는다.
+	 *  작업 세션에서 온 값은 그 대화가 속한 세션의 시작이라 **근사**다.
+	 */
+	started_at: string | null,
+	/**  마지막 활동 (생존 흔적·마커·마지막 일지 중 최신). 정렬 키. */
+	last_activity_at: string | null,
+	/**  이 대화가 남긴 첫 일지. `None` = 아직 없다 (판정 불가가 아니라 "없다"). */
+	first_journal: FirstJournal | null,
+	journal_count: number,
+	/**  미기록 신호 원장에 `missing` 으로 남아 있고 그 뒤 일지도 없다. */
+	missing_signal: boolean,
+};
+
 /**  이 기계에서 쓸 수 있는 디버그 어댑터 한 줄 (안내용). */
 export type DapAdapterInfo = {
 	language_id: string,
@@ -4205,6 +4239,30 @@ export type FiringStat = {
 	sessions: number,
 	/**  가장 최근 발동 workday. */
 	last_workday: string | null,
+};
+
+/**  한 대화의 **첫** 일지 — 카드가 제목과 열기 링크로 쓴다. */
+export type FirstJournal = {
+	relative_path: string,
+	title: string,
+	created_at: string,
+	agent_id: string,
+};
+
+export type FirstRecordLedger = {
+	/**  최근 활동 순. */
+	conversations: ConversationTrace[],
+	/**
+	 *  창 안 일지 중 대화 id 가 **없는** 것 — 귀속 불명 (플러그인 없이 쓴
+	 *  에이전트, git 백필, 수동 기록, 037 이전 일지).
+	 */
+	unattributed_recent: number,
+	/**
+	 *  훅이 이 프로젝트에 한 번이라도 닿았다 (마커·인박스·신호 원장 중 하나가
+	 *  있다). "설정이 있다"와 "실제로 연결됐다"를 가르는 유일한 관측 근거.
+	 */
+	hooks_seen: boolean,
+	window_days: number,
 };
 
 export type GeneratedSummary = {

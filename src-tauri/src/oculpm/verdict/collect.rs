@@ -120,6 +120,39 @@ pub fn live_peers(hooks_dir: &Path, conversation: &str, now: i64) -> Vec<String>
     peers
 }
 
+/// 마커 폴더가 아는 대화 하나 — 세그먼트 마커와 생존 흔적의 mtime.
+///
+/// [`live_peers`] 는 "나 말고 살아 있는 것"만 답하는데, 첫 기록 원장
+/// (`oculpm::first_record`)은 **전부**를 시각과 함께 알아야 한다 — 어느
+/// 대화가 언제 시작했고 아직 살아 있는지. 같은 폴더를 두 번 읽지 않도록
+/// 여기 한 번 걷는다.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct MarkerTrace {
+    /// `.session-start-<대화>` 의 mtime (unix 초). `None` = 세그먼트 닫힘.
+    pub segment_started_at: Option<i64>,
+    /// `.session-live-<대화>` 의 mtime (unix 초). 살아 있음의 유일한 근거.
+    pub live_at: Option<i64>,
+}
+
+/// 훅 폴더의 마커·생존 흔적을 대화별로 접는다. 폴더가 없으면 빈 맵.
+pub fn marker_traces(hooks_dir: &Path) -> BTreeMap<String, MarkerTrace> {
+    let mut out: BTreeMap<String, MarkerTrace> = BTreeMap::new();
+    let Ok(rd) = std::fs::read_dir(hooks_dir) else {
+        return out;
+    };
+    for entry in rd.flatten() {
+        let Ok(name) = entry.file_name().into_string() else {
+            continue;
+        };
+        if let Some(id) = name.strip_prefix(SEGMENT_MARKER_PREFIX) {
+            out.entry(id.to_string()).or_default().segment_started_at = mtime_of(&entry.path());
+        } else if let Some(id) = name.strip_prefix(LIVE_MARKER_PREFIX) {
+            out.entry(id.to_string()).or_default().live_at = mtime_of(&entry.path());
+        }
+    }
+    out
+}
+
 fn mtime_of(path: &Path) -> Option<i64> {
     std::fs::metadata(path)
         .ok()?
@@ -277,7 +310,7 @@ struct SessionsFileView {
     sessions: Vec<Session>,
 }
 
-fn workday_sessions(root: &Path) -> Vec<WorkdaySession> {
+pub fn workday_sessions(root: &Path) -> Vec<WorkdaySession> {
     let index = root.join(".oculpm").join("index");
     let Ok(rd) = std::fs::read_dir(&index) else {
         return Vec::new();
