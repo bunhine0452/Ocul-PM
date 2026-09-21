@@ -386,6 +386,9 @@ use crate::commands::{
     oculpm_get_log_dir,
     oculpm_get_status,
     oculpm_group_changes,
+    // journal-scale-round {#index-usage} — index/ 사용량 조회 + diff 정리
+    oculpm_index_clear_diffs,
+    oculpm_index_usage,
     // .oculpm/ subsystem (W1-PR6 + W2-PR6 + W3-PR3)
     oculpm_init,
     oculpm_list_journal_entries,
@@ -675,6 +678,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             code_history_restore,
             code_history_forget,
             code_history_usage,
+            oculpm_index_usage,
+            oculpm_index_clear_diffs,
             code_history_clear,
             lsp_status,
             lsp_open,

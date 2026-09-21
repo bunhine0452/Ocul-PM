@@ -6,6 +6,7 @@ import { TRIGGER_META } from "./triggerMeta";
 import { SourceBadge } from "./SourceBadge";
 import { sourceOf } from "./entrySource";
 import { plainTitle, timeLabel } from "./JournalRow";
+import { visibleTags } from "./sourceMarkerTags";
 
 // 작업 일지 열람의 마스트헤드 (2026-09-11 원장의 한 장 리디자인) — 원장 행을
 // 펼친 모양이다: 척추(종류색) · 종류 · 날짜/시각 · 작성자 · 큰 제목 · 발치
@@ -98,7 +99,10 @@ export function EntryMasthead({
       : entry.status === "abandoned"
         ? "entry.status.abandoned"
         : "entry.status.open";
-  const hasFoot = entry.tags.length > 0 || related.length > 0 || filesCount > 0;
+  // 출처 표식(`mcp-tool`) 은 칩에서 뺀다 — 위 `entry-eyebrow` 의 `SourceBadge`
+  // 가 이미 그 사실을 따로 보여준다 ({#tag-source-marker}).
+  const tags = visibleTags(entry.tags);
+  const hasFoot = tags.length > 0 || related.length > 0 || filesCount > 0;
 
   return (
     <header className="entry-mast">
@@ -131,7 +135,7 @@ export function EntryMasthead({
 
       {hasFoot ? (
         <div className="entry-mast-foot">
-          {entry.tags.map((tag) => (
+          {tags.map((tag) => (
             <span className="tag" key={tag}>
               {tag}
             </span>
