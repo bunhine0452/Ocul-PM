@@ -25,10 +25,10 @@ docs/product-direction-2026-09-21/REPORT.md 의 실행 플랜. 검증 경로 하
 - [~] P1-V 실제 왕복 검증 — 이 경로에서 실제 대화의 첫 일지가 카드에 도착하는지(설치본 재빌드 전이면 미검증으로 명시) {#p1-verify}
 
 ## Phase 2 — 다음 세션에서 이어가기 (검토 후 착수) {#p2}
-- [ ] P2-1 기존 기록·활성 플랜을 읽어 이어하기 자료 구성 (결정적 목록·발췌, LLM 불필요) {#p2-resume-data}
-- [ ] P2-2 근거 원문 확인과 전달 내용 미리보기 {#p2-preview}
-- [ ] P2-3 기존 에이전트 실행 또는 외부 전달 경로 하나에 연결 — AGENTS.md §0 / plan-context.sh 외에 일지 회상 주입 경로 {#p2-deliver}
-- [ ] P2-4 검색·읽기·전달의 관측 의미 구분 표시 — recall_touch 는 AI 패널 전용이라는 한계 명시 {#p2-observe}
+- [x] P2-1 기존 기록·활성 플랜을 읽어 이어하기 자료 구성 (결정적 목록·발췌, LLM 불필요) {#p2-resume-data}
+- [x] P2-2 근거 원문 확인과 전달 내용 미리보기 {#p2-preview}
+- [x] P2-3 기존 에이전트 실행 또는 외부 전달 경로 하나에 연결 — AGENTS.md §0 / plan-context.sh 외에 일지 회상 주입 경로 {#p2-deliver}
+- [x] P2-4 검색·읽기·전달의 관측 의미 구분 표시 — recall_touch 는 AI 패널 전용이라는 한계 명시 {#p2-observe}
 
 ## Phase 3~4 — 소개 정렬·소규모 관찰 (근거 생긴 뒤) {#p3}
 - [ ] P3 README·랜딩·시작 위키를 핵심 경험 중심으로 편집 + 실제 왕복 촬영 — 사용자 결정 후 {#p3-intro}
@@ -47,4 +47,8 @@ docs/product-direction-2026-09-21/REPORT.md 의 실행 플랜. 검증 경로 하
 | 2026-09-22T01:17:11+09:00 | #p1-states | claude-code | ☐→x | .oculpm/journal/20260922/Features_to_add/0116_feature_first-record-card-and-ledger.md | workspace firstRecordArmed(프로젝트별 영속) — 일지 0건에 켜고 확인·닫기로 끔. 백필로 숫자 올라도 유지, 기존 프로젝트 미노출, 귀속 불명은 별 상태 |
 | 2026-09-22T01:17:20+09:00 | #p1-copy | claude-code | ☐→x | .oculpm/journal/20260922/Features_to_add/0116_feature_first-record-card-and-ledger.md | opus worktree 감사 — ko/en 9키 값 교정(welcome.lang.sub·project.sub/note·ready.li3·today.activated·terminal.hint·plugin.body·firstRun.oculpmDir/gitignore). 새 키·컴포넌트 변경 0 |
 | 2026-09-22T01:17:27+09:00 | #p1-verify | claude-code | ☐→~ | .oculpm/journal/20260922/Features_to_add/0116_feature_first-record-card-and-ledger.md | 입력 쪽 실증 완료 — 이 대화의 일지가 agent.session=11374f00-… 로 남았고, 개발 빌드 verdict --transcript 가 파일 7개를 양성 귀속. 카드 화면은 설치본 재빌드·실행 후 확인 필요 |
+| 2026-09-22T01:45:08+09:00 | #p2-resume-data | claude-code | ☐→x | .oculpm/journal/20260922/Features_to_add/0144_feature_resume-context-and-card.md | oculpm::resume — 마지막 일지 3건·활성 플랜 미완 리프(8/24)·전달 원장을 디스크에서 결정적으로. 커맨드 resume_digest (449e29ca) |
+| 2026-09-22T01:45:15+09:00 | #p2-preview | claude-code | ☐→x | .oculpm/journal/20260922/Features_to_add/0144_feature_resume-context-and-card.md | Today ResumeCard — 마지막 작업 3건(원문 열기)·다음 항목 3건·자료 복사(전달 아님). 실제 CSS 스크린샷으로 라이트/다크 확인 |
+| 2026-09-22T01:45:24+09:00 | #p2-deliver | claude-code | ☐→x | .oculpm/journal/20260922/Features_to_add/0144_feature_resume-context-and-card.md | plan-context.sh 가 SessionStart 컨텍스트에 마지막 일지 3건을 싣고 resume-delivered.jsonl 원장을 남긴다 (codex 사본 동기, cwd 폴백, resume_context 5건 실제 sh 테스트). 이 저장소·이 대화로 실제 왕복 확인 |
+| 2026-09-22T01:45:32+09:00 | #p2-observe | claude-code | ☐→x | .oculpm/journal/20260922/Features_to_add/0144_feature_resume-context-and-card.md | 전달 줄 세 갈래(포함됨/아직/훅 없음) — 원장은 "컨텍스트 포함"까지만 증명, 참조·도움은 모른다고 표시. 복사는 전달로 세지 않음. recall_touch 는 AI 패널 전용(PHASE0 관측표) |
 <!-- oculpm:plan-log end -->
