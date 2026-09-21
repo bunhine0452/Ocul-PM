@@ -12,6 +12,7 @@ use rusqlite::params;
 use serde::Serialize;
 
 use crate::db::Db;
+use crate::oculpm::planner::log_archive as archive;
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus, ParsedPlan};
 use crate::oculpm::redact::{compile_redact_patterns, redact_text};
 use crate::oculpm::spec::OculpmConfig;
@@ -27,7 +28,7 @@ pub fn find_plan_path(planner_root: &Path, plan_id: &str) -> Option<PathBuf> {
     let entries = std::fs::read_dir(planner_root).ok()?;
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.extension().and_then(|x| x.to_str()) != Some("md") {
+        if !archive::is_plan_path(&path) {
             continue;
         }
         let Ok(text) = std::fs::read_to_string(&path) else {
@@ -151,8 +152,8 @@ struct LoadedPlan {
     parsed: ParsedPlan,
 }
 
-/// Parse every top-level `*.md` under `planner_root`. Missing dir → empty.
-/// Subdirectories (e.g. `_archive/`) are not listed as active plans.
+/// Parse every top-level plan `*.md` under `planner_root`. Missing dir → empty.
+/// Subdirectories (`_archive/`) and `*.log.md` 이력 보관함은 플랜이 아니다.
 fn load_all_plans(planner_root: &Path) -> Vec<LoadedPlan> {
     let mut out = Vec::new();
     let Ok(entries) = std::fs::read_dir(planner_root) else {
@@ -170,24 +171,23 @@ fn load_all_plans(planner_root: &Path) -> Vec<LoadedPlan> {
         .unwrap_or_default();
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.extension().and_then(|x| x.to_str()) != Some("md") {
+        if !archive::is_plan_path(&path) {
             continue;
         }
-        let file_name = match path.file_name().and_then(|n| n.to_str()) {
-            Some(n) => n.to_string(),
-            None => continue,
+        let Some(file_name) = path.file_name().and_then(|n| n.to_str()).map(String::from) else {
+            continue;
         };
-        let stem = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("plan")
-            .to_string();
-        let text = match std::fs::read_to_string(&path) {
-            Ok(t) => t,
-            Err(_) => continue,
+        let stem = archive::plan_stem(&path);
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
         };
         let (text, _hits) = redact_text(&text, &redact_patterns);
-        let parsed = parse_plan(&text, &stem);
+        if archive::is_archive_markdown(&text) {
+            continue;
+        }
+        // 넘쳐서 나간 이력(`*.log.md`)도 같은 투영에 실린다.
+        let mut parsed = parse_plan(&text, &stem);
+        archive::merge_archived_updates(planner_root, &mut parsed, &redact_patterns);
         let updated_at = parsed
             .frontmatter
             .updated

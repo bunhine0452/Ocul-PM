@@ -9,6 +9,7 @@
 use super::*;
 
 use crate::oculpm::file_guard::FileGuard;
+use crate::oculpm::planner::log_archive::{archive_overflow, is_archive_markdown, is_plan_path};
 
 // ─── plan_status ─────────────────────────────────────────────────────────────
 
@@ -98,10 +99,11 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
 
     // 파일 순서는 OS 가 정하므로 정렬해 응답을 결정적으로 만든다 (cursor 가
     // 호출 간에 같은 자리를 가리켜야 한다).
+    // `*.log.md` 는 이력 보관함이다 — 플랜으로 세지 않는다.
     let mut paths: Vec<_> = entries
         .flatten()
         .map(|f| f.path())
-        .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("md"))
+        .filter(|p| is_plan_path(p))
         .collect();
     paths.sort();
 
@@ -118,6 +120,9 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
         let Ok(md) = std::fs::read_to_string(&path) else {
             continue;
         };
+        if is_archive_markdown(&md) {
+            continue;
+        }
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("plan");
         let parsed = parse_plan(&md, stem);
         let plan_id = parsed.frontmatter.id.clone();
@@ -390,7 +395,9 @@ pub(crate) fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
         journal_ref: arg_str(args, "journal_path").map(|s| redact_text(s, &patterns).0),
         note: arg_str(args, "note").map(|s| redact_text(s, &patterns).0),
     };
-    let with_log = append_log_row(&result.md, &row);
+    // 로그 표가 넘쳤으면 여기서 `<plan_id>.log.md` 로 갈라진다 — 본문 해시가
+    // 바뀌는 것은 정상이고, 아래 응답의 `hash` 는 갈라진 뒤 내용을 가리킨다.
+    let with_log = archive_overflow(&planner_root, plan_id, &append_log_row(&result.md, &row))?;
     write_atomic(&path, with_log.as_bytes()).map_err(|e| e.to_string())?;
 
     Ok(json!({

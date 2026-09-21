@@ -21,6 +21,7 @@ use crate::oculpm::planner::dispatch::{
     build_dispatch_prompt, project_redact_patterns, shell_command_for,
 };
 use crate::oculpm::planner::lifecycle::set_plan_status;
+use crate::oculpm::planner::log_archive::archive_overflow;
 use crate::oculpm::planner::migrate::{
     build_imported_md, ImportGoal, ImportSubtask, IMPORTED_PLAN_ID,
 };
@@ -301,6 +302,8 @@ pub async fn plan_apply_edit(
         PlanEditOp::MovePhase { phase, up } => move_phase(&md, &phase, up)?,
     };
 
+    // 로그 표가 넘쳤으면 `<plan_id>.log.md` 로 갈라 낸 뒤 본문을 쓴다.
+    let new_md = archive_overflow(&root, &plan_id, &new_md)?;
     write_atomic(&path, new_md.as_bytes()).map_err(|e| e.to_string())?;
     PlanCache::new(&db).get(project_id, &root, &plan_id).await
 }
@@ -577,6 +580,7 @@ pub async fn plan_ai_refresh(
         }
     }
 
+    let cur = archive_overflow(&root, &plan_id, &cur)?;
     write_atomic(&path, cur.as_bytes()).map_err(|e| e.to_string())?;
     PlanCache::new(&db).get(project_id, &root, &plan_id).await
 }

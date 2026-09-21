@@ -513,12 +513,22 @@ pub fn append_log_row(md: &str, row: &LogRow) -> String {
                 let t = l.trim_start();
                 t.starts_with('|') && (t.contains("시각") || t.contains("항목"))
             });
+            // 표 아래에 이력 분리 마커(`log_archive`)가 있으면 그 **위**로
+            // 끼운다 — 아니면 새 행이 "여기까지 표" 라는 안내 밖으로 밀려난다.
+            let mut at = e;
+            while at > b + 1
+                && lines[at - 1]
+                    .trim_start()
+                    .starts_with(crate::oculpm::planner::log_archive::ARCHIVED_MARKER_PREFIX)
+            {
+                at -= 1;
+            }
             if has_header {
-                lines.insert(e, render_row(row));
+                lines.insert(at, render_row(row));
             } else {
-                lines.insert(e, render_row(row));
-                lines.insert(e, LOG_SEP.to_string());
-                lines.insert(e, LOG_HEADER.to_string());
+                lines.insert(at, render_row(row));
+                lines.insert(at, LOG_SEP.to_string());
+                lines.insert(at, LOG_HEADER.to_string());
             }
         }
         _ => {
