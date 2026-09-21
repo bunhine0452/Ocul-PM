@@ -324,32 +324,60 @@ pub async fn reindex_journal_file(
     Ok((true, created))
 }
 
+/// 설정을 읽어 이번 색인의 일지 대상 목록을 걷는다 — 꺼져 있으면 빈 목록.
+///
+/// 걷기를 [`sweep`] 안이 아니라 **앞**에 두는 이유는 진행률이다: 호출자가
+/// 일지 수를 총계에 미리 더해야 막대가 코드 파일 끝에서 멈춘 것처럼 보이지
+/// 않는다. 설정 판정까지 여기로 모아 두면 호출부는 한 줄이 된다.
+pub async fn todo_from_settings(
+    root: &Path,
+    settings: &std::collections::HashMap<String, String>,
+) -> Result<Vec<String>, String> {
+    if !include_journal_enabled(settings.get(SETTING_INCLUDE_JOURNAL).map(String::as_str)) {
+        return Ok(Vec::new());
+    }
+    let root = root.to_path_buf();
+    tokio::task::spawn_blocking(move || walk_journal_files(&root))
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// 진행률 보고 간격 — `index_project` 의 코드 루프와 같은 규칙(완성도 라운드
+/// Phase 3): 파일마다 IPC 를 쏘면 웹뷰 렌더가 밀린다.
+const PROGRESS_INTERVAL: std::time::Duration = std::time::Duration::from_millis(100);
+
 /// 전체 색인(`index_project`)이 부르는 일지 스윕 — `(색인한 상대 경로, 청크 수)`.
 ///
 /// 경로 목록을 **돌려주는 것이 계약**이다: `index_project` 의 화해가 "이번
 /// walk 에 없는 파일" 을 지우므로, 여기서 돌려주지 않으면 방금 넣은 일지 행이
-/// 같은 호출 끝에서 다시 지워진다. 옵션이 꺼져 있으면 빈 목록을 돌려주고 —
-/// 그 화해가 곧 청소가 된다.
+/// 같은 호출 끝에서 다시 지워진다. 옵션이 꺼져 있으면 호출자가 빈 `files` 를
+/// 주고, 그 화해가 곧 청소가 된다.
+///
+/// `files` 를 호출자가 미리 걷어 넘기는 이유는 진행률이다: 일지 수를 **총계에
+/// 미리 더해** 두지 않으면 코드 파일이 끝나는 순간 막대가 100% 에서 멈춘 채
+/// 일지 727편의 임베딩을 기다리게 된다 (멈춘 것처럼 보인다).
+/// `on_progress(색인 순번 1.., 경로)` 는 100ms 에 한 번, 마지막 한 편은 무조건.
 pub async fn sweep(
     db: &Db,
     embedder: &Embedder,
     project_id: u32,
     root: &Path,
-    include_journal: bool,
+    files: Vec<String>,
+    on_progress: impl Fn(u32, &str),
 ) -> Result<(Vec<String>, u32), String> {
-    if !include_journal {
+    if files.is_empty() {
         return Ok((Vec::new(), 0));
     }
-    let files = {
-        let root = root.to_path_buf();
-        tokio::task::spawn_blocking(move || walk_journal_files(&root))
-            .await
-            .map_err(|e| e.to_string())?
-    };
     let redact = patterns_for_project(root);
     let mut chunks = 0u32;
     let mut indexed = Vec::with_capacity(files.len());
-    for rel in files {
+    let mut last: Option<std::time::Instant> = None;
+    let n_files = files.len();
+    for (i, rel) in files.into_iter().enumerate() {
+        if i + 1 == n_files || last.is_none_or(|t| t.elapsed() >= PROGRESS_INTERVAL) {
+            on_progress((i + 1) as u32, &rel);
+            last = Some(std::time::Instant::now());
+        }
         match reindex_journal_file(db, embedder, project_id, root, &rel, &redact).await {
             Ok((_, n)) => {
                 chunks += n;

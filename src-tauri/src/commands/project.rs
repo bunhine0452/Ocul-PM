@@ -273,7 +273,11 @@ pub async fn index_project(
             .await
             .map_err(|e| e.to_string())?
     };
-    let total = files.len() as u32;
+    // 일지·롤업은 코드 걷기가 `.oculpm/` 을 숨김으로 건너뛰므로 전용 스윕이
+    // 따로 돈다 (`{#search-semantic-journal}`). 총계에 미리 더한다 — 안 그러면
+    // 막대가 코드 끝에서 100% 로 멈춘 채 일지 임베딩을 기다린다.
+    let journal_todo = crate::journal_index::todo_from_settings(&root, &settings_map).await?;
+    let total = (files.len() + journal_todo.len()) as u32;
     info!(project = %project.name, files = total, "indexing start");
 
     // diff 기준선 스냅샷은 **git 이 HEAD 로 못 주는 파일**에만 남긴다
@@ -432,23 +436,26 @@ pub async fn index_project(
         }
     }
 
-    // 일지·롤업 스윕 (journal-scale-round `{#search-semantic-journal}`).
-    // `walk_text_files` 는 `.oculpm/` 이 숨김 디렉터리라 한 번도 걷지 않는다 —
-    // 코드 걷기에 예외를 끼워 넣는 대신 전용 스윕이 따로 돈다. 옵션이 꺼져
-    // 있으면 빈 목록이고, 그러면 바로 아래 화해가 남은 일지 행을 청소한다.
+    // 일지·롤업 스윕. 옵션이 꺼져 있으면 `journal_todo` 가 비어 있고, 그러면
+    // 바로 아래 화해가 남은 일지 행을 청소한다.
+    let code_done = files.len() as u32;
     let (journal_files, journal_chunks) = crate::journal_index::sweep(
         &db,
         &embedder,
         project_id,
         &root,
-        crate::journal_index::include_journal_enabled(
-            settings_map
-                .get(crate::journal_index::SETTING_INCLUDE_JOURNAL)
-                .map(String::as_str),
-        ),
+        journal_todo,
+        |n, path| {
+            let _ = on_progress.send(IndexProgress {
+                current: code_done + n,
+                total,
+                current_file: path.to_string(),
+            });
+        },
     )
     .await?;
     chunks_created += journal_chunks;
+    files_processed += journal_files.len() as u32;
 
     // 화해 — 색인에는 있는데 이번 walk 에 없는 파일을 지운다 (감사 라운드
     // 2026-09-11 A2). 앱이 꺼진 사이 지워진 파일, 나중에 `.gitignore` 에 들어간
