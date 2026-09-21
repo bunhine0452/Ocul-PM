@@ -274,3 +274,141 @@ fn journal_write_rejects_forbidden_paths_and_redacts_body() {
     let raw = std::fs::read_to_string(root.join(out["path"].as_str().unwrap())).unwrap();
     assert!(!raw.contains("sk-abcdef123"), "redact 적용: {raw}");
 }
+
+// ─── {#related-auto} — related 를 안 준 bug/error 일지의 자동 연결 ───────────
+
+/// 과거 결함 일지 하나를 심는다. `files_touched` 가 이 테스트들의 전부다.
+fn seed_defect(
+    root: &std::path::Path,
+    workday: &str,
+    hhmm: &str,
+    slug: &str,
+    file: &str,
+) -> String {
+    let dir = root.join(".oculpm/journal").join(workday).join("Bugs");
+    std::fs::create_dir_all(&dir).unwrap();
+    let name = format!("{hhmm}_bug_{slug}.md");
+    std::fs::write(
+        dir.join(&name),
+        format!(
+            "---\nschema_version: 1\ntype: bug\nslug: \"{slug}\"\nstatus: done\n\
+             created_at: \"{y}-{m}-{d}T{h}:{mi}:00+09:00\"\nsession_id: \"manual-{workday}-000000\"\n\
+             agent:\n  id: \"claude-code\"\nlanguage: ko\nverified_by_user: false\n\
+             files_touched:\n  - path: \"{file}\"\n    op: update\nrelated: []\ntags: []\n---\n[x] {slug}\n",
+            y = &workday[0..4],
+            m = &workday[4..6],
+            d = &workday[6..8],
+            h = &hhmm[0..2],
+            mi = &hhmm[2..4],
+        ),
+    )
+    .unwrap();
+    format!("{workday}/Bugs/{name}")
+}
+
+fn write_bug(root: &std::path::Path, file: &str) -> serde_json::Value {
+    call_tool(
+        root,
+        "journal_write",
+        &serde_json::json!({
+            "type": "bug",
+            "slug": "again",
+            "title": "또 터졌다",
+            "body_markdown": "## 발생 원인\n\n같은 자리.\n\n## 해결 방법\n\n고쳤다.\n\n## 검증\n\n테스트",
+            "files_touched": [{ "path": file, "op": "update" }],
+        }),
+    )
+    .unwrap()
+}
+
+/// 같은 파일에 붙은 **가장 최근** 결함 일지를 followup 으로 잇는다. 규칙을
+/// 읽은 에이전트도 `related` 를 절반 넘게 빼먹는다 (727건 중 243건) — 재발은
+/// 그 빈칸에서 안 보이게 된다.
+#[test]
+fn a_defect_entry_links_the_latest_past_defect_on_the_same_file() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+    let old = seed_defect(root, "20260101", "0900", "old", "src/watcher.rs");
+    let recent = seed_defect(root, "20260301", "1400", "recent", "src/watcher.rs");
+    // 다른 파일의 결함은 후보가 아니다.
+    seed_defect(root, "20260401", "1000", "elsewhere", "src/other.rs");
+
+    let out = write_bug(root, "src/watcher.rs");
+    let auto = out["auto_related"].as_array().unwrap();
+    assert_eq!(auto.len(), 1, "{out}");
+    assert_eq!(auto[0]["ref"].as_str().unwrap(), recent, "최신 1건만");
+    assert_ne!(auto[0]["ref"].as_str().unwrap(), old);
+    assert_eq!(auto[0]["kind"], "followup");
+    assert_eq!(auto[0]["via"], "src/watcher.rs", "근거를 드러낸다");
+    assert_eq!(out["related"], 1);
+
+    let raw = std::fs::read_to_string(root.join(out["path"].as_str().unwrap())).unwrap();
+    let (parsed, _) = parse_frontmatter_and_body(&raw);
+    let fm = parsed.parsed.expect("frontmatter parses");
+    assert_eq!(fm.related.len(), 1);
+    assert_eq!(fm.related[0].ref_path, recent);
+    assert_eq!(fm.related[0].kind, "followup");
+}
+
+/// 허브 파일은 근거가 아니다 — 이 저장소에서 `src/i18n/ko.ts` 는 일지 199건이
+/// 만졌다. 그걸로 이으면 i18n 을 건드린 모든 일지가 서로에게 붙는다.
+#[test]
+fn hub_files_do_not_earn_an_automatic_link() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+    seed_defect(root, "20260301", "1400", "i18n", "src/i18n/ko.ts");
+
+    let out = write_bug(root, "src/i18n/ko.ts");
+    assert!(out["auto_related"].as_array().unwrap().is_empty(), "{out}");
+    assert_eq!(out["related"], 0);
+}
+
+/// 자동은 **빈칸을 채우는 것**이지 사람(에이전트)의 판단을 덮는 것이 아니다.
+/// 그리고 결함이 아닌 일지는 대상이 아니다.
+#[test]
+fn an_explicit_related_or_a_non_defect_type_is_left_alone() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+    let past = seed_defect(root, "20260301", "1400", "past", "src/watcher.rs");
+    let other = seed_defect(root, "20260302", "1400", "other", "src/watcher.rs");
+
+    let explicit = call_tool(
+        root,
+        "journal_write",
+        &serde_json::json!({
+            "type": "bug",
+            "slug": "explicit",
+            "title": "직접 이은 것",
+            "body_markdown": "## 발생 원인\n\nx\n\n## 해결 방법\n\ny\n\n## 검증\n\nz",
+            "files_touched": [{ "path": "src/watcher.rs", "op": "update" }],
+            "related": [{ "ref": past, "kind": "duplicate" }],
+        }),
+    )
+    .unwrap();
+    assert!(explicit["auto_related"].as_array().unwrap().is_empty());
+    assert_eq!(explicit["related"], 1);
+    let raw = std::fs::read_to_string(root.join(explicit["path"].as_str().unwrap())).unwrap();
+    let (parsed, _) = parse_frontmatter_and_body(&raw);
+    let fm = parsed.parsed.unwrap();
+    assert_eq!(fm.related[0].ref_path, past, "준 것이 그대로 남는다");
+    assert_eq!(fm.related[0].kind, "duplicate");
+    assert_ne!(fm.related[0].ref_path, other);
+
+    let chore = call_tool(
+        root,
+        "journal_write",
+        &serde_json::json!({
+            "type": "chore",
+            "slug": "chore-x",
+            "title": "잡일",
+            "body_markdown": "그냥 잡일",
+            "files_touched": [{ "path": "src/watcher.rs", "op": "update" }],
+        }),
+    )
+    .unwrap();
+    assert!(chore["auto_related"].as_array().unwrap().is_empty());
+    assert_eq!(chore["related"], 0);
+}
