@@ -34,6 +34,8 @@ import type {
   JournalEntry,
   JournalEntryPage,
   JournalEntrySummary,
+  JournalSearchFilters,
+  JournalSearchPage,
   WorkdayComparison,
   AppError,
   ManualEntryDraft,
@@ -257,6 +259,23 @@ export const oculpmApi = {
 
   reindexCache: (projectId: number) =>
     unwrap<ReindexReport>("oculpm_reindex_cache", commands.oculpmReindexCache(projectId)),
+
+  /**
+   * 일지를 관련도순으로 찾는다 — 검색 화면의 「일지」 스코프
+   * (journal-scale-round `{#search-scope-ui}`). MCP `journal_search` 와 같은
+   * 캐시 조회·랭킹 함수를 탄다 — 화면과 에이전트가 같은 질의에 다른 답을 주지
+   * 않는다.
+   */
+  searchJournal: (
+    projectId: number,
+    query: string,
+    filters?: JournalSearchFilters,
+    limit?: number
+  ) =>
+    unwrap<JournalSearchPage>(
+      "oculpm_search_journal",
+      commands.oculpmSearchJournal(projectId, query, filters ?? null, limit ?? null)
+    ),
 
   createManualEntry: (projectId: number, draft: ManualEntryDraft) =>
     unwrap<JournalEntry>(
