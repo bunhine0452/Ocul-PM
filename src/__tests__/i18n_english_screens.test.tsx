@@ -109,6 +109,10 @@ const EMPTY_BY_METHOD: Record<string, unknown> = {
   branchStory: null,
   listSessions: [],
   listJournalEntries: { entries: [], sessions: [] },
+  // journal-scale-round {#hotspot-card} — HotspotCard 는 배열을 기대한다
+  // (기본 폴백 `{ entries: [], sessions: [], items: [] }` 로는 `rows.map`
+  // 에서 터진다).
+  fileHotspots: [],
 };
 vi.mock("@/api/oculpm", () => ({
   oculpmApi: new Proxy(

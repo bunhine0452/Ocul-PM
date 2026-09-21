@@ -965,6 +965,13 @@ export const ko = {
   "today.missing.enable": "일지 초안 자동화 켜기 (모델 호출)",
   "today.missing.zeroNote":
     "훅이 남긴 세션 종료 신호만 세요 — 훅이 없는 에이전트의 세션, 그리고 뒤이어 일지가 쓰이면서 해소로 걷힌 신호는 여기 나타나지 않아요. 0건은 「확인된 누락 없음」이지 「기록이 완전함」은 아니에요.",
+  "today.hotspot.title": "반복 수정 파일",
+  "today.hotspot.recent": "최근 {days}일 {n}개",
+  "today.hotspot.desc": "같은 파일에 버그·에러 일지가 몰려 있어요 — 재발이 잦다는 신호예요.",
+  "today.hotspot.failed": "반복 수정 파일을 확인하지 못했어요 — 지금은 없는지 알 수 없어요",
+  "today.hotspot.zeroNote": "반복 수정 파일이 없어요 — 같은 파일에 버그·에러 일지가 겹친 적이 없어요.",
+  "today.hotspot.counts": "버그 {bug} · 에러 {error}",
+  "today.hotspot.last": "마지막 {date}",
   "today.entry.files": "{n}개 파일",
   "today.next.title": "다음 할 일",
   "today.next.open": "플래너 열기",

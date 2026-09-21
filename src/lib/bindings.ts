@@ -1407,6 +1407,11 @@ export const commands = {
 	 *  (`used_llm`/`note` 로 구분) — API 키 없이도 항상 동작.
 	 */
 	oculpmGenerateSummary: (projectId: number, since: string, until: string, style: SummaryStyle, provider: string | null, model: string | null) => typedError<GeneratedSummary, string>(__TAURI_INVOKE("oculpm_generate_summary", { projectId, since, until, style, provider, model })),
+	/**
+	 *  파일별 bug/error 재발 신호. `days` 가 있으면 그 일수만큼의 workday 창으로
+	 *  좁힌다 (오늘 포함 `days`일 — `firing_stats` 와 같은 계산).
+	 */
+	oculpmFileHotspots: (projectId: number, days: number | null, limit: number | null) => typedError<FileHotspot[], string>(__TAURI_INVOKE("oculpm_file_hotspots", { projectId, days, limit })),
 	/**  프로젝트+전역 스킬을 한 번에 나열한다. 스킬 폴더가 없으면 빈 목록. */
 	skillsList: (projectId: number) => typedError<SkillsOverview, string>(__TAURI_INVOKE("skills_list", { projectId })),
 	/**  단일 스킬의 SKILL.md 원문과 보조 파일 목록을 읽는다. */
@@ -3937,6 +3942,22 @@ export type FileChangeEvent = {
 	 *  (`tags: ["large-file-hash-skipped"]`) so the value will be clamped.
 	 */
 	bytes: number,
+};
+
+/**
+ *  파일 하나의 재발 신호 — Today 의 `HotspotCard` (`{#hotspot-card}`) 가
+ *  상위 5개를 보여준다.
+ */
+export type FileHotspot = {
+	file_path: string,
+	bug_count: number,
+	error_count: number,
+	total_entries: number,
+	/**  이 파일을 건드린 가장 최근 일지의 workday (YYYYMMDD). */
+	last_workday: string,
+	/**  그 일지의 캐시 키 — 그대로 일지 화면 점프에 쓴다. */
+	last_entry_path: string,
+	last_entry_title: string,
 };
 
 /**

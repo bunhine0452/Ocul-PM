@@ -374,6 +374,8 @@ use crate::commands::{
     oculpm_create_manual_entry,
     oculpm_end_session_manual,
     oculpm_export_digest,
+    // journal-scale-round {#hotspot-query} — 파일별 bug/error 재발 신호
+    oculpm_file_hotspots,
     // C2 — 일지 내보내기
     // v2 U10 (C1) — 스탠드업·PR 본문·주간 보고
     oculpm_generate_summary,
@@ -794,6 +796,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_backfill_from_git,
             // F4 — 회고/인사이트 (+ PR-CI6 eval 추이)
             oculpm_generate_summary,
+            // journal-scale-round {#hotspot-query} — Today 「반복 수정 파일」 카드
+            oculpm_file_hotspots,
             // C2 — 일지 내보내기
             // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills)
             skills_list,

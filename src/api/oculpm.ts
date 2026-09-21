@@ -30,6 +30,7 @@ import type {
   BackfillReport,
   EntryFileDiff,
   EntryFilters,
+  FileHotspot,
   JournalEntry,
   JournalEntryPage,
   JournalEntrySummary,
@@ -289,6 +290,17 @@ export const oculpmApi = {
     unwrap<WorkdayComparison>(
       "oculpm_compare_workday",
       commands.oculpmCompareWorkday(projectId, workday),
+    ),
+
+  /**
+   * journal-scale-round `{#hotspot-query}` — 같은 파일에 bug/error 일지가
+   * 몰린 "재발" 신호. 잡음 제거(허브 파일 제외) 규칙은 백엔드 SSOT
+   * (`db::hotspot::Db::file_hotspots` 의 doc comment).
+   */
+  fileHotspots: (projectId: number, days: number | null, limit: number | null) =>
+    unwrap<FileHotspot[]>(
+      "oculpm_file_hotspots",
+      commands.oculpmFileHotspots(projectId, days, limit),
     ),
 
   /**

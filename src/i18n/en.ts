@@ -968,6 +968,13 @@ export const en: Record<keyof typeof ko, string> = {
   "today.missing.enable": "Turn on draft automation (calls a model)",
   "today.missing.zeroNote":
     "Counts only the session-end signals the hook writes — sessions from agents without the hook, and signals cleared once a later entry was written, never show up here. 0 means “no miss we can see”, not “the record is complete”.",
+  "today.hotspot.title": "Recurring files",
+  "today.hotspot.recent": "{n} in the last {days} days",
+  "today.hotspot.desc": "Bug and error entries keep landing on the same file — a sign it keeps breaking.",
+  "today.hotspot.failed": "Could not check for recurring files — we can't tell whether there are any",
+  "today.hotspot.zeroNote": "No recurring files — no file has had overlapping bug/error entries.",
+  "today.hotspot.counts": "{bug} bugs · {error} errors",
+  "today.hotspot.last": "Last {date}",
   "today.entry.files": "{n} files",
   "today.next.title": "Next up",
   "today.next.open": "Open Planner",
