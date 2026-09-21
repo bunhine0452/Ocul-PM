@@ -408,6 +408,9 @@ use crate::commands::{
     oculpm_start_session_manual,
     // {#related-suggest} — 공유 파일·플랜 항목·제목으로 고른 관련 후보
     oculpm_suggest_related,
+    // {#tag-merge} — 태그 어휘 통계와 A→B 일괄 병합
+    oculpm_tag_merge,
+    oculpm_tag_stats,
     oculpm_update_entry_body,
     oculpm_update_entry_meta,
     oculpm_watcher_start,
@@ -790,6 +793,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_set_journal_verified_bulk,
             oculpm_search_entities,
             oculpm_search_journal,
+            oculpm_tag_stats,
+            oculpm_tag_merge,
             oculpm_workday_brief,
             oculpm_reindex_cache,
             oculpm_create_manual_entry,

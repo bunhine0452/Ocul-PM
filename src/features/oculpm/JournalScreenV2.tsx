@@ -2,7 +2,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { SearchIcon, X, Plus, NotebookText, Download } from "@/components/Icons";
+import { SearchIcon, X, Plus, NotebookText, Download, Tag } from "@/components/Icons";
 import { toAppError } from "@/api/invoke";
 import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
 import type { EntryFilters, EntryType, JournalEntrySummary } from "@/lib/bindings";
@@ -12,6 +12,7 @@ import { JournalDay } from "./JournalDay";
 import { EntryDetailView } from "./EntryDetailView";
 import { ReviewQueueBar } from "./ReviewQueueBar";
 import { ManualEntryModalV2 } from "./ManualEntryModalV2";
+import { TagTidySheet } from "./TagTidySheet";
 import { TRIGGER_META } from "./triggerMeta";
 import "./journal.css";
 import { SourceFilterRail } from "./SourceBadge";
@@ -133,6 +134,9 @@ export function JournalScreenV2({
   // 작성기 열림 여부 + 미리 채울 재료를 한 값으로 든다 — 따로 두면 "열려는
   // 있는데 씨앗이 아직 안 온" 한 프레임에 빈 작성기가 그려진다.
   const [manualSeed, setManualSeed] = useState<ManualEntrySeed | null>(null);
+  // 「태그 정리」 ({#tag-merge}) — 시트가 디스크 frontmatter 를 고치므로 닫힌
+  // 동안은 아무것도 안 받아 온다.
+  const [tagTidyOpen, setTagTidyOpen] = useState(false);
   const manualOpen = manualSeed !== null;
   const [backfilling, setBackfilling] = useState(false);
 
@@ -569,6 +573,14 @@ export function JournalScreenV2({
         <button
           type="button"
           className="btn"
+          onClick={() => setTagTidyOpen(true)}
+          title={t("journal.tags.tidyTitle")}
+        >
+          <Tag size={15} /> {t("journal.tags.tidy")}
+        </button>
+        <button
+          type="button"
+          className="btn"
           onClick={() => void exportDigest()}
           disabled={exporting}
           {...blocked(days && days.length > 0 ? null : t("journal.exportEmpty"), t("journal.exportTitle"))}
@@ -794,6 +806,13 @@ export function JournalScreenV2({
           onClose={() => setManualSeed(null)}
         />
       ) : null}
+
+      <TagTidySheet
+        projectId={projectId}
+        open={tagTidyOpen}
+        onClose={() => setTagTidyOpen(false)}
+        onMerged={() => void refresh()}
+      />
     </>
   );
 }

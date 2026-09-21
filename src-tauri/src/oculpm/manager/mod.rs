@@ -183,6 +183,7 @@ mod indexing;
 mod journal;
 mod lifecycle;
 mod session_ops;
+mod tags;
 mod teardown;
 mod watcher_commit;
 
@@ -580,6 +581,8 @@ mod tests;
 mod tests_bulk_verify;
 #[cfg(test)]
 mod tests_related;
+#[cfg(test)]
+mod tests_tags;
 #[cfg(test)]
 mod tests_teardown;
 #[cfg(test)]

@@ -155,3 +155,37 @@
   .jl-row { column-gap: var(--space-3); }
   .jl-more { margin-left: calc(44px + 3px + var(--space-3) * 2); }
 }
+
+/* ── 「태그 정리」 시트 ({#tag-merge}) ──────────────────────────────────────
+   머리·발은 primitives.css 의 모달 공용(.sk-modal-*)을 그대로 쓴다. 여기 있는
+   것은 목록 두 벌뿐 — 제안 그룹(tt-group)과 전체 태그(tt-row). */
+.tt-body { overflow-y: auto; padding: var(--space-4) var(--space-7); display: flex; flex-direction: column; gap: var(--space-3); }
+.tt-h { margin: var(--space-3) 0 0; font-size: var(--fs-2); text-transform: var(--caps-transform); letter-spacing: var(--caps-track-lg); color: var(--text-3); }
+.tt-h:first-child { margin-top: 0; }
+.tt-empty { margin: 0; font-size: var(--fs-3); color: var(--text-3); }
+.tt-sub { font-size: var(--fs-2); color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+.tt-groups, .tt-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+
+.tt-group, .tt-row {
+  display: flex; align-items: center; gap: var(--space-3); min-height: 30px;
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-s);
+}
+.tt-group { flex-wrap: wrap; background: var(--bg-inset); }
+.tt-row:hover { background: var(--bg-hover); }
+.tt-group-main { display: flex; align-items: center; gap: var(--space-3); flex: 1; min-width: 0; flex-wrap: wrap; }
+.tt-from { font-size: var(--fs-3); color: var(--text-2); overflow-wrap: anywhere; }
+.tt-arrow { color: var(--text-3); }
+.tt-into, .tt-tag {
+  font-family: var(--mono); font-size: var(--fs-2); color: var(--text-2);
+  padding: 1px var(--space-2); border-radius: var(--radius-xs); background: var(--bg-inset);
+  overflow-wrap: anywhere;
+}
+.tt-row .tt-tag { background: none; padding-left: 0; }
+.tt-tag.on { color: var(--accent-text); background: var(--accent-soft); padding-left: var(--space-2); }
+.tt-once { font-size: var(--fs-1); color: var(--warn-text); font-weight: var(--fw-strong); }
+.tt-spacer { flex: 1; }
+.tt-pick { display: flex; align-items: center; gap: var(--space-3); min-width: 0; cursor: pointer; }
+.tt-confirm { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; font-size: var(--fs-3); color: var(--warn-text); width: 100%; }
+.tt-foot { align-items: center; }
+.tt-foot-note { margin-right: auto; font-size: var(--fs-2); color: var(--text-3); }

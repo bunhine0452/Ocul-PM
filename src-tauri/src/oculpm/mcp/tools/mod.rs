@@ -139,7 +139,7 @@ pub fn tool_definitions() -> Value {
                             "required": ["path"]
                         }
                     },
-                    "tags": { "type": "array", "items": { "type": "string" } },
+                    "tags": { "type": "array", "items": { "type": "string" }, "description": "**이 프로젝트가 이미 쓰는 태그를 먼저 쓸 것** (journal_search 결과의 태그가 그 목록이다) — 매번 새 말을 지으면 태그 필터가 죽는다. 표기(대소문자·공백·밑줄)는 서버가 정규화하고, 기존 태그와 닮았으면 응답 `tag_hints` 로 알려주니 **다음 호출에 반영할 것**." },
                     "related": {
                         "type": "array",
                         "description": "이어지는 과거 일지 링크 (journal_search 결과의 path 를 그대로). kind 는 blocks|blocked_by|followup|duplicate, 기본 followup",
@@ -655,19 +655,9 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     let (body, body_hits) = redact_text(body, &patterns);
     let redacted = title_hits.len() + body_hits.len();
 
-    let mut tags: Vec<String> = args
-        .get("tags")
-        .and_then(Value::as_array)
-        .map(|a| {
-            a.iter()
-                .filter_map(|t| t.as_str())
-                .map(str::to_string)
-                .collect()
-        })
-        .unwrap_or_default();
-    if !tags.iter().any(|t| t == "mcp-tool") {
-        tags.push("mcp-tool".to_string()); // 출처 표식 — 파일 자기신고와 구분
-    }
+    // 정규화(적용)와 유사 태그 힌트(제안만)는 `tags.rs` 가 소유한다
+    // ({#tag-normalize}). 출처 표식도 거기서 붙는다.
+    let (tags, tag_hints) = self::tags::normalize_and_hint(root, args);
 
     // related — 인자 파싱도 자동 연결도 `related.rs` 가 소유한다. 자동 연결은
     // related 를 **안 준** bug/error 일지에만 붙고, 붙었으면 응답이 말한다
@@ -776,6 +766,7 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
         "language": fm.language,
         "related": fm.related.len(),
         "auto_related": auto_related,
+        "tag_hints": tag_hints,
         "redacted": redacted,
         "warnings": warnings,
     }))
@@ -789,6 +780,10 @@ pub(crate) use search::*;
 // ─── journal_write 의 related → related.rs ──────────────────────────────────
 
 mod related;
+
+// ─── journal_write 의 tags → tags.rs ────────────────────────────────────────
+
+mod tags;
 
 // ─── plan_status · plan_update → plan_ops.rs ─────────────────────────────────
 
