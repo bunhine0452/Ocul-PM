@@ -1248,6 +1248,20 @@ export const commands = {
 	 */
 	oculpmGetEntryDiffs: (projectId: number, relativePath: string) => typedError<EntryFileDiff[], AppError>(__TAURI_INVOKE("oculpm_get_entry_diffs", { projectId, relativePath })),
 	/**
+	 *  이 일지 옆에 두어야 할 과거 일지 후보.
+	 * 
+	 *  **대상 일지는 디스크에서 읽는다.** 캐시가 아니라 원본이어야 하는 이유는
+	 *  `related` 가 캐시에 없기 때문이다 (`cache/query.rs` 가 빈 배열로 투영한다)
+	 *  — 이미 이어 둔 것을 빼려면 원본 프런트매터를 봐야 한다.
+	 */
+	oculpmSuggestRelated: (projectId: number, relativePath: string, limit: number | null) => typedError<RelatedSuggestion[], AppError>(__TAURI_INVOKE("oculpm_suggest_related", { projectId, relativePath, limit })),
+	/**
+	 *  후보 하나를 **디스크 원본**의 frontmatter `related` 에 더한다. 워처가
+	 *  그 변경을 보고 캐시를 갱신하지만, 화면이 왕복을 기다리지 않게 재투영된
+	 *  엔트리를 그대로 돌려준다 (`oculpm_coerce_entry_on_disk` 와 같은 계약).
+	 */
+	oculpmAddRelated: (projectId: number, relativePath: string, relatedRef: string, kind: string) => typedError<JournalEntry, AppError>(__TAURI_INVOKE("oculpm_add_related", { projectId, relativePath, relatedRef, kind })),
+	/**
 	 *  Group the watcher's changed file paths by the journal entry that recorded
 	 *  each, with the plan items linked to that entry (Dogfooding #3). Files no
 	 *  entry recorded land in a trailing `entry_path: None` bucket.
@@ -5472,11 +5486,34 @@ export type ReindexReport = {
 	completed_at: string,
 };
 
+/**
+ *  사람이 읽는 근거 — **코드와 파라미터만** 낸다. 번역은 프런트 몫이다
+ *  (백엔드가 한국어 문장을 만들면 영어 모드에서 그대로 새어 나온다).
+ * 
+ *  코드는 셋: `shared_files`(n, 대표 파일) · `plan_item`(항목 id) ·
+ *  `title`(일치율 %).
+ */
+export type RelatedReason = {
+	code: string,
+	params: string[],
+};
+
 export type RelatedRef = {
 	/**  Path relative to `.oculpm/journal/` (e.g. `20260522/Bugs/2050_bug_X.md`). */
 	ref: string,
 	/**  One of `blocks`, `blocked_by`, `followup`, `duplicate`. */
 	kind: string,
+};
+
+/**  후보 한 건. */
+export type RelatedSuggestion = {
+	/**  `.oculpm/journal/` 기준 상대경로 — frontmatter `related.ref` 에 그대로 쓴다. */
+	relative_path: string,
+	title: string,
+	workday: string,
+	entry_type: string,
+	score: number | null,
+	reasons: RelatedReason[],
 };
 
 /**

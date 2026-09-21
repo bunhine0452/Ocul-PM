@@ -360,6 +360,8 @@ use crate::commands::{
     // PR-CI7 — Notion 내보내기 (키체인 토큰 + REST 페이지 생성)
     notion_status,
     notion_verify_token,
+    // {#related-ui} — 후보를 원본 frontmatter 에 잇는다
+    oculpm_add_related,
     oculpm_agent_run_signal,
     oculpm_agents_apply_master_upgrade,
     oculpm_agents_check_master_ahead,
@@ -397,6 +399,8 @@ use crate::commands::{
     oculpm_set_config,
     oculpm_set_journal_verified,
     oculpm_start_session_manual,
+    // {#related-suggest} — 공유 파일·플랜 항목·제목으로 고른 관련 후보
+    oculpm_suggest_related,
     oculpm_update_entry_body,
     oculpm_update_entry_meta,
     oculpm_watcher_start,
@@ -770,6 +774,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_list_journal_entries_page,
             oculpm_get_journal_entry,
             oculpm_get_entry_diffs,
+            oculpm_suggest_related,
+            oculpm_add_related,
             oculpm_group_changes,
             oculpm_set_journal_verified,
             oculpm_search_entities,

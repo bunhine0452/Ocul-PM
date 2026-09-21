@@ -37,6 +37,7 @@ pub mod overview;
 pub mod plan;
 pub mod plugins;
 pub mod project;
+pub mod related;
 pub mod rule_promotion;
 pub mod rules;
 pub mod shell_integration;
@@ -83,6 +84,7 @@ pub use oculpm::*;
 // 을 경로로 부른다 (v3 「죽은 표면 정리」).
 pub use plan::*;
 pub use project::*;
+pub use related::*;
 pub use rule_promotion::*;
 pub use rules::*;
 pub use shell_integration::*;
