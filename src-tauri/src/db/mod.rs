@@ -37,6 +37,7 @@ mod planning;
 mod projects;
 pub mod recall;
 mod settings;
+pub mod velocity;
 
 impl Db {
     pub async fn open(path: PathBuf) -> Result<Self> {

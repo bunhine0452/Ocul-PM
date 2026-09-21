@@ -113,6 +113,12 @@ const EMPTY_BY_METHOD: Record<string, unknown> = {
   // (기본 폴백 `{ entries: [], sessions: [], items: [] }` 로는 `rows.map`
   // 에서 터진다).
   fileHotspots: [],
+  // journal-scale-round {#velocity-card} — VelocityCard 는 `{ weeks, plan }`
+  // 을 기대한다 (기본 폴백에는 `weeks` 가 없어 `.every` 에서 터진다).
+  velocity: {
+    weeks: [],
+    plan: { open_items: 0, done_last_4w: 0, weekly_done_avg: 0, eta_weeks: null, note: null },
+  },
 };
 vi.mock("@/api/oculpm", () => ({
   oculpmApi: new Proxy(

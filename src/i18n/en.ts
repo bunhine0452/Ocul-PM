@@ -1092,6 +1092,15 @@ export const en: Record<keyof typeof ko, string> = {
   "today.rollup.failed": "Could not load the weekly rollup — we can't tell whether one exists",
   "today.rollup.generateFailed": "Could not create the weekly rollup ({error})",
   "today.rollup.modalLabel": "{week} weekly rollup",
+  // journal-scale-round {#velocity} — journal velocity + plan completion ETA
+  "today.velocity.title": "Velocity",
+  "today.velocity.window": "Last {n} weeks",
+  "today.velocity.desc": "Entries per week and their type mix.",
+  "today.velocity.zeroNote": "No entries recorded in the last {n} weeks.",
+  "today.velocity.failed": "Could not load velocity — we can't tell right now",
+  "today.velocity.total": "{n} total",
+  "today.velocity.summary": "{open} plan items open · {avg}/week done (last 4 weeks) · about {eta} weeks at this pace",
+  "today.velocity.summaryNoEta": "No completion-pace data yet",
 
   // ── Journal · diff ──────────────────────────────────────────────────────
   "journal.filterUnverifiedTitle": "Unreviewed only (searches all time)",

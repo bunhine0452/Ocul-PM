@@ -417,6 +417,8 @@ use crate::commands::{
     oculpm_tag_stats,
     oculpm_update_entry_body,
     oculpm_update_entry_meta,
+    // journal-scale-round {#velocity} — 주당 일지 속도 + 플랜 완료 ETA
+    oculpm_velocity,
     oculpm_watcher_start,
     oculpm_watcher_stop,
     oculpm_watcher_take_over,
@@ -822,6 +824,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_generate_summary,
             // journal-scale-round {#hotspot-query} — Today 「반복 수정 파일」 카드
             oculpm_file_hotspots,
+            // journal-scale-round {#velocity} — Today 「작업 속도」 카드
+            oculpm_velocity,
             // journal-scale-round {#rollup-weekly} — Today 「이번 주 요약」 카드
             oculpm_rollup_week,
             oculpm_rollup_list,

@@ -1490,6 +1490,11 @@ export const commands = {
 	 */
 	oculpmFileHotspots: (projectId: number, days: number | null, limit: number | null) => typedError<FileHotspot[], string>(__TAURI_INVOKE("oculpm_file_hotspots", { projectId, days, limit })),
 	/**
+	 *  주당 일지 건수·유형 비율 + 플랜 완료 속도. `weeks` 가 없으면
+	 *  `DEFAULT_WEEKS`(8), 범위는 `[MIN_WEEKS, MAX_WEEKS]`(1~26)로 clamp.
+	 */
+	oculpmVelocity: (projectId: number, weeks: number | null) => typedError<Velocity, string>(__TAURI_INVOKE("oculpm_velocity", { projectId, weeks })),
+	/**
 	 *  한 주의 롤업을 만들어 `.oculpm/rollups/<week>.md` 에 쓴다.
 	 * 
 	 *  `week` 가 없으면 **오늘이 속한 ISO 주**. `use_llm` 이 참이어도 provider/model
@@ -2597,6 +2602,11 @@ export type AgentCard = {
 	 *  `false`: 모르는 것을 검증됨으로 올리지 않는다.
 	 */
 	verified?: boolean,
+};
+
+export type AgentCount = {
+	agent_id: string,
+	count: number,
 };
 
 export type AgentDetection = {
@@ -5564,6 +5574,19 @@ export type PlanSummary = {
 	done_count: number,
 };
 
+export type PlanVelocity = {
+	open_items: number,
+	done_last_4w: number,
+	weekly_done_avg: number | null,
+	eta_weeks: number | null,
+	/**
+	 *  `oculpm_plan_item_updates` 가 이 프로젝트에 대해 통째로 빈 경우에만
+	 *  Some — "플래너를 한 번도 안 그렸다" 는 "최근 4주에 완료가 없다" 와
+	 *  다른 사실이라 별도로 알린다.
+	 */
+	note: string | null,
+};
+
 export type Project = {
 	id: number,
 	name: string,
@@ -6367,6 +6390,20 @@ export type TrayNavigate = {
 	entry_path: string | null,
 };
 
+export type TypeCounts = {
+	feature: number,
+	bug: number,
+	error: number,
+	refactor: number,
+	chore: number,
+};
+
+export type Velocity = {
+	/**  오래된 주 → 최신 주(오늘이 속한 주) 순, `WeekChart` 와 같은 방향. */
+	weeks: WeekBucket[],
+	plan: PlanVelocity,
+};
+
 /**
  *  설정 > 통합 'VS Code 확장' 행 (플랜 `vscode-extension-round`
  *  {#app-settings}). 판정은 `vscode_ext::detect` — 확장 폴더만 읽는다.
@@ -6424,6 +6461,19 @@ export type WatcherSchedStats = {
 };
 
 export type WatcherStateView = "running" | "stopped" | "error";
+
+export type WeekBucket = {
+	/**  "2026-W38" (월요일이 속한 ISO 주). */
+	iso_week: string,
+	/**  그 주의 월요일, workday 형식 "YYYYMMDD". */
+	from_workday: string,
+	/**  그 주의 일요일, workday 형식 "YYYYMMDD". */
+	to_workday: string,
+	total: number,
+	by_type: TypeCounts,
+	/**  count 내림차순 → agent_id 오름차순 (동점을 결정적으로). */
+	by_agent: AgentCount[],
+};
 
 /**
  *  한 창의 탭 구성이 바뀌었다 — 그 창의 프런트가 스트립을 다시 그린다.
