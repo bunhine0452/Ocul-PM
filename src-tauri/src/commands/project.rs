@@ -432,11 +432,29 @@ pub async fn index_project(
         }
     }
 
+    // 일지·롤업 스윕 (journal-scale-round `{#search-semantic-journal}`).
+    // `walk_text_files` 는 `.oculpm/` 이 숨김 디렉터리라 한 번도 걷지 않는다 —
+    // 코드 걷기에 예외를 끼워 넣는 대신 전용 스윕이 따로 돈다. 옵션이 꺼져
+    // 있으면 빈 목록이고, 그러면 바로 아래 화해가 남은 일지 행을 청소한다.
+    let (journal_files, journal_chunks) = crate::journal_index::sweep(
+        &db,
+        &embedder,
+        project_id,
+        &root,
+        crate::journal_index::include_journal_enabled(
+            settings_map
+                .get(crate::journal_index::SETTING_INCLUDE_JOURNAL)
+                .map(String::as_str),
+        ),
+    )
+    .await?;
+    chunks_created += journal_chunks;
+
     // 화해 — 색인에는 있는데 이번 walk 에 없는 파일을 지운다 (감사 라운드
     // 2026-09-11 A2). 앱이 꺼진 사이 지워진 파일, 나중에 `.gitignore` 에 들어간
     // 폴더는 워처의 Delete 이벤트를 받지 못해 영영 남았다 — 이 저장소만 101 행.
     let files_removed = {
-        let walked: std::collections::HashSet<String> = files
+        let mut walked: std::collections::HashSet<String> = files
             .iter()
             .map(|p| {
                 p.strip_prefix(&root)
@@ -445,6 +463,7 @@ pub async fn index_project(
                     .to_string()
             })
             .collect();
+        walked.extend(journal_files);
         let stale: Vec<String> = db
             .list_project_files(project_id)
             .await
@@ -593,6 +612,10 @@ pub async fn search_chunks(
     // 의미검색 문서 제외 — false (default from the UI) hides .md/.txt/… so code
     // hits aren't buried; the search screen exposes a "문서 포함" toggle.
     include_docs: bool,
+    // 일지 청크 포함 — 기본 true (「일지 제외」 토글이 false 를 보낸다). 프런트
+    // 필터가 아니라 인자인 이유는 상한(limit)이 백엔드에 있어서다: 프런트에서
+    // 걸러 내면 "일지를 뺀 20건" 이 아니라 "20건 중 남은 것" 이 된다.
+    include_journal: bool,
 ) -> Result<Vec<ChunkSearchResult>, String> {
     if query.trim().is_empty() {
         return Ok(Vec::new());
@@ -608,6 +631,7 @@ pub async fn search_chunks(
         vec_to_bytes(&query_emb),
         limit.max(1),
         include_docs,
+        include_journal,
     )
     .await
     .map_err(|e| e.to_string())

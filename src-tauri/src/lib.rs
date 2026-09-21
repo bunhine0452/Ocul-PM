@@ -26,6 +26,7 @@ pub mod git;
 // 메인 화면 집계 — `home_brief` 통합 테스트가 `crate::home::collect` 를 직접 부른다.
 pub mod home;
 pub mod indexer;
+pub mod journal_index;
 mod llm;
 pub mod lsp;
 mod notion;
