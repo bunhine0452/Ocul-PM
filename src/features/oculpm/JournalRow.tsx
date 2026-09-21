@@ -3,6 +3,7 @@ import { Check, RotateCcw } from "@/components/Icons";
 import { TRIGGER_META } from "./triggerMeta";
 import { SourceBadge } from "./SourceBadge";
 import { sourceOf } from "./entrySource";
+import { visibleTags } from "./sourceMarkerTags";
 import { isConfirmed, isStaleVerified } from "./verified";
 import { agentColor, agentLabelWithModel } from "@/features/today/agentColor";
 import type { JournalEntrySummary } from "@/lib/bindings";
@@ -64,6 +65,9 @@ export function JournalRow({ entry, focused, showAgent, showSource, onOpenEntry 
   // 에이전트 기록은 기본값이라 섞인 날에도 배지를 달지 않는다 — 옆의 작성자
   // 이름이 이미 그 말을 한다. 손으로·MCP·자동화·백필만 배지가 된다.
   const source = sourceOf(entry.session_id, entry.agent_id);
+  // 출처 표식(`mcp-tool`) 은 칩에서 뺀다 — `SourceBadge` 가 이미 그 사실을
+  // 따로 보여준다 ({#tag-source-marker}).
+  const tags = visibleTags(entry.tags);
 
   return (
     <button
@@ -104,9 +108,9 @@ export function JournalRow({ entry, focused, showAgent, showSource, onOpenEntry 
               {agentLabelWithModel(entry.agent_id, entry.agent_version)}
             </span>
           ) : null}
-          {entry.tags.length > 0 ? (
+          {tags.length > 0 ? (
             <span className="jl-tags">
-              {entry.tags.slice(0, 5).map((tag) => (
+              {tags.slice(0, 5).map((tag) => (
                 <span className="tag" key={tag}>
                   {tag}
                 </span>

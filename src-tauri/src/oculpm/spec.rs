@@ -890,3 +890,17 @@ pub struct OculpmDataChanged {
     pub relative_path: String,
     pub op: FileOp,
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 출처 표식 태그 (wire 타입이 아니라 상수 — 이 파일이 커맨드·프런트가 공유하는
+// .oculpm 상수의 정본이라 여기 둔다)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// `journal_write`(MCP) 가 모든 일지에 자동으로 붙이는 출처 표식 태그
+/// (`mcp/tools/mod.rs` 의 `journal_write` — "파일 자기신고와 구분"). 사람이
+/// 고른 태그가 아니라 **누가 기록했는가**의 신호라 태그 통계(스킬 후보
+/// 클러스터링 — `skill_promotion::is_stoplisted`)와 태그 칩 렌더에서는 뺀다
+/// — 그 사실은 이미 `SourceBadge`(`source: "mcp"`)가 따로 보여준다. 프런트
+/// 짝은 `src/features/oculpm/sourceMarkerTags.ts` — 값이 바뀌면 양쪽을 같이
+/// 고친다.
+pub const SOURCE_MARKER_TAGS: &[&str] = &["mcp-tool"];

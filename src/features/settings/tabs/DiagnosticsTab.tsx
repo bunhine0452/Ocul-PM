@@ -13,6 +13,7 @@ import { blocked } from "@/lib/blocked";
 import { Section, Stat } from "./ui";
 import { DoctorSection } from "./DoctorSection";
 import { FiringInsights } from "./FiringInsights";
+import { IndexUsageSection } from "./IndexUsageSection";
 import { AutomationTroubleshooting } from "../automation/AutomationTroubleshooting";
 
 /** 크기 지표는 f64 라 바인딩이 `number | null` 로 낸다 — 숫자일 때만 표기. */
@@ -148,6 +149,8 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
         </div>
         <div className="text-fs-2 text-muted-foreground">{t("settings.db.compactHint")}</div>
       </Section>
+
+      <IndexUsageSection />
 
       {/* 「결과가 이상하다」 가 가리키는 그 자리 — 문제 해결 문구 바로 위에 둔다. */}
       <FiringInsights />

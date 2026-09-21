@@ -586,6 +586,19 @@ export const commands = {
 	 *  보이지 않는 곳에서 디스크를 먹는 기능은 반드시 자기 크기를 밝혀야 한다.
 	 */
 	codeHistoryUsage: (projectId: number) => typedError<number, string>(__TAURI_INVOKE("code_history_usage", { projectId })),
+	/**
+	 *  지금 `.oculpm/index/` 가 먹는 용량 — 세 갈래로 쪼개서. 보이지 않는 곳에서
+	 *  디스크를 먹는 기능은 반드시 자기 크기를 밝혀야 한다(`history.rs` 와 같은
+	 *  원칙).
+	 */
+	oculpmIndexUsage: (projectId: number) => typedError<IndexUsage, string>(__TAURI_INVOKE("oculpm_index_usage", { projectId })),
+	/**
+	 *  diff 사이드카 전부 삭제 — 전문 스냅샷(로컬 히스토리)과 달리 diff 는 git 이
+	 *  있으면 다시 만들 수 있다(`read_or_reconstruct_entry_diffs`). git 이 없는
+	 *  프로젝트라면 이후 일지들은 캡처 시점의 diff 를 다시 못 얻으니, 그 사실은
+	 *  프런트 확인 문구가 말한다.
+	 */
+	oculpmIndexClearDiffs: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_index_clear_diffs", { projectId })),
 	/**  프로젝트의 판 전부 삭제 (설정 화면의 "전부 지우기"). */
 	codeHistoryClear: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("code_history_clear", { projectId })),
 	/**  이 프로젝트의 언어 서버 일람 — 설치됨/미설치/실행 중. */
@@ -4359,6 +4372,20 @@ export type IndexResult = {
 	/**  이번 walk 에 없어 색인에서 지운 파일 수 (A2 화해). */
 	files_removed: number,
 	took_ms: number,
+};
+
+/**
+ *  `history`/`diffs`/그 밖(워크데이 캐시 등) 세 갈래 사용량. specta 는 `u64` 를
+ *  못 내보내 정밀도를 잃으므로(`DbHealth::db_bytes` 와 같은 관례) `f64` 로
+ *  건넌다 — JS `number` 는 2^53 까지 정확하다.
+ */
+export type IndexUsage = {
+	history_bytes: number | null,
+	history_files: number,
+	diffs_bytes: number | null,
+	diffs_files: number,
+	other_bytes: number | null,
+	total_bytes: number | null,
 };
 
 export type InstallReport = {
