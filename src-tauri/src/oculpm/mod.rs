@@ -58,6 +58,7 @@ pub mod skill_trigger;
 pub mod spec;
 pub mod stack_detect;
 pub mod supervisor;
+pub mod tags;
 pub mod transcript;
 pub mod transcript_sessions;
 pub mod verdict;

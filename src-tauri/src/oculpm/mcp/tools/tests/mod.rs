@@ -10,6 +10,7 @@ mod guards;
 mod journal;
 mod plan;
 mod search;
+mod tags;
 
 use super::*;
 
