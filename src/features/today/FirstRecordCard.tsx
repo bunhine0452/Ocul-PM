@@ -113,9 +113,10 @@ export function FirstRecordCard({
           <strong>{t("today.firstRecord.recorded.title")}</strong>
           {dismiss}
         </div>
-        <div className="first-run-sub">
-          <NotebookText size={13} style={{ verticalAlign: "-2px", marginRight: 4 }} />
-          <b>{view.journal.title}</b>
+        {/* SVG 는 block 이라 인라인로 두면 제목 위 줄로 떨어진다 — flex 한 줄. */}
+        <div className="first-run-sub" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <NotebookText size={13} />
+          <b style={{ minWidth: 0 }}>{view.journal.title}</b>
         </div>
         <div className="first-run-sub" style={{ color: "var(--text-3)" }}>
           {t("today.firstRecord.recorded.body", { id })}

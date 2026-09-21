@@ -4111,4 +4111,19 @@ export const en: Record<keyof typeof ko, string> = {
   "today.firstRecord.unattributed.body":
     "{n} entries have no conversation id — from an agent that ran without the plugin, a git backfill, or a manual entry. They don't count as a first-record success, but you can still read them.",
   "today.firstRecord.unattributed.open": "View the entry",
+  // Resume card (plan first-record-loop Phase 2) — the next session's starting point.
+  // The ledger only proves "included" — whether it was referenced or helped is unknown.
+  "today.resume.title": "Resume",
+  "today.resume.lastWork": "Last work",
+  "today.resume.nextItems": "Next up",
+  "today.resume.moreItems": "+{n} more — in the planner",
+  "today.resume.delivered":
+    "Last delivery: conversation {id} · {ago} — included in its session-start context ({n} entries · {m} items). Whether it was referenced or helped is unknown.",
+  "today.resume.notYet": "Not delivered yet — the hook will carry this when the next session starts.",
+  "today.resume.noHooks": "The hook hasn't reached this project yet — it starts working once a session runs with the oculpm plugin.",
+  "today.resume.continue": "Continue in the terminal",
+  "today.resume.copy": "Copy context",
+  "today.resume.copied": "Copied — pasting doesn't count as a delivery.",
+  "today.resume.planner": "View the planner",
+  "today.resume.loadFailed": "Couldn't load the resume context",
 };

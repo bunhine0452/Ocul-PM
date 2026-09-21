@@ -21,6 +21,7 @@ import { agentLabel } from "./agentColor";
 import { requestOculpmActivate } from "@/lib/projectActions";
 import { FirstRunCard } from "./FirstRunCard";
 import { FirstRecordCard } from "./FirstRecordCard";
+import { ResumeCard } from "./ResumeCard";
 import { PluginSetupCard } from "./PluginSetupCard";
 import { CoreModelSeededCard } from "./CoreModelSeededCard";
 import { WhatsNewCard } from "./WhatsNewCard";
@@ -275,6 +276,19 @@ export function TodayScreenV2({
               onRetry={refresh}
             />
           ) : null}
+
+          {/* 이어하기 — 다음 세션의 시작점 (first-record-loop Phase 2). 일지도
+              계획도 없는 프로젝트에는 그리지 않는다. */}
+          <ResumeCard
+            projectId={projectId}
+            enabled={oculpmReady}
+            onNavigate={onNavigate}
+            onOpenEntryPath={(relative_path) => {
+              if (onOpenEntry) onOpenEntry({ relative_path });
+              else onNavigate("journal");
+            }}
+            onRunAgent={() => setTermOpen(true)}
+          />
 
           <WhatsNewCard />
           <CoreModelSeededCard />

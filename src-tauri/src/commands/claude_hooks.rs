@@ -11,6 +11,7 @@ use crate::db::Db;
 use crate::oculpm::cache::JournalCache;
 use crate::oculpm::claude_hooks::{self, ClaudeHooksStatus, JournalMissingSignal};
 use crate::oculpm::first_record::{self, FirstRecordLedger};
+use crate::oculpm::resume::{self, ResumeDigest};
 
 async fn project_root(db: &Db, project_id: u32) -> Result<std::path::PathBuf, String> {
     let project = db
@@ -93,4 +94,14 @@ pub async fn first_record_ledger(
     Ok(first_record::assemble(&first_record::collect(
         &root, journals, days, now,
     )))
+}
+
+/// 이어하기 자료 — 마지막 일지·활성 계획의 다음 항목·전달 원장
+/// (플랜 `first-record-loop` Phase 2). 디스크만 읽는다; 훅과 같은 선택 규칙.
+#[tauri::command]
+#[specta::specta]
+pub async fn resume_digest(db: State<'_, Db>, project_id: u32) -> Result<ResumeDigest, AppError> {
+    let project = db.get_project(project_id).await?;
+    let root = std::path::PathBuf::from(project.root_path);
+    Ok(resume::digest(&root, chrono::Utc::now(), 30))
 }

@@ -151,6 +151,19 @@ vi.mock("@/lib/bindings", () => ({
         status: "ok",
         data: { conversations: [], unattributed_recent: 0, hooks_seen: false, window_days: 30 },
       }),
+    // first-record-loop Phase 2 — 이어하기 카드. 빈 자료면 카드가 안 그려진다.
+    resumeDigest: () =>
+      Promise.resolve({
+        status: "ok",
+        data: {
+          last_journals: [],
+          next_items: [],
+          last_delivery: null,
+          deliveries_recent: 0,
+          hooks_seen: false,
+          text: "",
+        },
+      }),
     planList: () => Promise.resolve({ status: "ok", data: nextFx.plans }),
     planGet: (_pid: number, planId: string) =>
       Promise.resolve({
