@@ -1173,6 +1173,13 @@ export const commands = {
 	types: EntryType[],
 	verified_only: boolean,
 	/**
+	 *  review-queue round — the complement of `verified_only`'s "confirmed"
+	 *  (`isConfirmed` in `verified.ts`): rows where `verified_by_user = 0`
+	 *  OR `verified_stale = 1`, so a re-review-needed entry stays in the
+	 *  queue instead of silently dropping out once it's flagged stale.
+	 */
+	unverified_only?: boolean,
+	/**
 	 *  Reserved for W4 (LayerComparison). PR2 wires the column path but
 	 *  `mismatch_only=true` returns no rows because no entry has been
 	 *  flagged yet.
@@ -1201,6 +1208,13 @@ export const commands = {
 	oculpmListJournalEntriesPage: (projectId: number, workday: string | null, filters: {
 	types: EntryType[],
 	verified_only: boolean,
+	/**
+	 *  review-queue round — the complement of `verified_only`'s "confirmed"
+	 *  (`isConfirmed` in `verified.ts`): rows where `verified_by_user = 0`
+	 *  OR `verified_stale = 1`, so a re-review-needed entry stays in the
+	 *  queue instead of silently dropping out once it's flagged stale.
+	 */
+	unverified_only?: boolean,
 	/**
 	 *  Reserved for W4 (LayerComparison). PR2 wires the column path but
 	 *  `mismatch_only=true` returns no rows because no entry has been
@@ -1286,6 +1300,14 @@ export const commands = {
 	 *  the same call so the UI sees the change immediately.
 	 */
 	oculpmSetJournalVerified: (projectId: number, relativePath: string, verified: boolean) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_set_journal_verified", { projectId, relativePath, verified })),
+	/**
+	 *  Verify (or un-verify) several journal entries in one round-trip, e.g.
+	 *  "보이는 것 전부 확인" on the 일지 화면's ReviewQueueBar. Reuses
+	 *  [`OculpmManager::set_journal_verified`] per path unchanged (same write
+	 *  guard, same content-hash binding); one bad path is reported in `skipped`
+	 *  instead of aborting the batch.
+	 */
+	oculpmSetJournalVerifiedBulk: (projectId: number, paths: string[], verified: boolean) => typedError<BulkVerifyReport, AppError>(__TAURI_INVOKE("oculpm_set_journal_verified_bulk", { projectId, paths, verified })),
 	/**
 	 *  v2 U7 — 커맨드 팔레트 엔티티 점프 ("go to anything"): 일지·플랜·플랜
 	 *  항목·토의를 제목으로 통합 검색한다. SQLite 캐시만 읽는 저비용 경로
@@ -3043,6 +3065,26 @@ export type BreakReason =
 /**  앞선 줄에서 갈라졌다 — 동시 쓰기의 흔적이지 변조가 아니다. */
 "forked";
 
+/**
+ *  Result of `oculpm_set_journal_verified_bulk` — sequential per-path
+ *  `set_journal_verified` calls (same write-through guard each), so a single
+ *  broken entry never aborts the rest of the batch.
+ */
+export type BulkVerifyReport = {
+	updated: number,
+	skipped: BulkVerifySkip[],
+};
+
+/**
+ *  review-queue round — one path `oculpm_set_journal_verified_bulk` could not
+ *  verify, with a human-readable reason (broken frontmatter, concurrent lock,
+ *  path outside the journal root, …).
+ */
+export type BulkVerifySkip = {
+	path: string,
+	reason: string,
+};
+
 export type BundleImportResult = {
 	manifest: BundleManifest,
 	report: InstallReport,
@@ -3949,6 +3991,13 @@ export type EntryFileDiff = {
 export type EntryFilters = {
 	types: EntryType[],
 	verified_only: boolean,
+	/**
+	 *  review-queue round — the complement of `verified_only`'s "confirmed"
+	 *  (`isConfirmed` in `verified.ts`): rows where `verified_by_user = 0`
+	 *  OR `verified_stale = 1`, so a re-review-needed entry stays in the
+	 *  queue instead of silently dropping out once it's flagged stale.
+	 */
+	unverified_only?: boolean,
 	/**
 	 *  Reserved for W4 (LayerComparison). PR2 wires the column path but
 	 *  `mismatch_only=true` returns no rows because no entry has been

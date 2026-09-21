@@ -229,6 +229,37 @@ impl OculpmManager {
         Ok(())
     }
 
+    /// review-queue round — verify (or un-verify) several entries in one
+    /// round-trip. Sequential, reusing [`set_journal_verified`] per path
+    /// unchanged (same write guard, same content-hash binding, same
+    /// redacting re-projection) — a batch is not a reason to shortcut the
+    /// single-entry contract. One bad path (broken frontmatter, concurrent
+    /// lock, ...) is recorded in `skipped` and the rest of the batch proceeds.
+    pub async fn set_journal_verified_bulk(
+        &self,
+        db: &Db,
+        project_id: u32,
+        paths: Vec<String>,
+        verified: bool,
+    ) -> Result<crate::oculpm::spec::BulkVerifyReport, OculpmError> {
+        use crate::oculpm::spec::{BulkVerifyReport, BulkVerifySkip};
+        let mut updated = 0u32;
+        let mut skipped = Vec::new();
+        for path in paths {
+            match self
+                .set_journal_verified(db, project_id, path.clone(), verified)
+                .await
+            {
+                Ok(()) => updated += 1,
+                Err(e) => skipped.push(BulkVerifySkip {
+                    path,
+                    reason: e.to_string(),
+                }),
+            }
+        }
+        Ok(BulkVerifyReport { updated, skipped })
+    }
+
     /// Update one or both of `difficulty` / `status` on an existing entry.
     /// Mirrors [`set_journal_verified`] — read → parse → mutate frontmatter →
     /// atomic-write → cache upsert — but operates on the W3 inline-edit

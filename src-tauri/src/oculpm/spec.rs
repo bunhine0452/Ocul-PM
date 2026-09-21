@@ -775,6 +775,24 @@ pub struct BackfillReport {
     pub skipped: u32,
 }
 
+/// review-queue round — one path `oculpm_set_journal_verified_bulk` could not
+/// verify, with a human-readable reason (broken frontmatter, concurrent lock,
+/// path outside the journal root, …).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct BulkVerifySkip {
+    pub path: String,
+    pub reason: String,
+}
+
+/// Result of `oculpm_set_journal_verified_bulk` — sequential per-path
+/// `set_journal_verified` calls (same write-through guard each), so a single
+/// broken entry never aborts the rest of the batch.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct BulkVerifyReport {
+    pub updated: u32,
+    pub skipped: Vec<BulkVerifySkip>,
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tauri events — emitted by the backend, listened on the frontend.
 // All carry `project_id` so multi-project listeners can filter.

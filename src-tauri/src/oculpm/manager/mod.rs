@@ -577,6 +577,8 @@ fn lock_state_from_guard(guard: &Option<LockGuard>) -> LockStateView {
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_bulk_verify;
+#[cfg(test)]
 mod tests_related;
 #[cfg(test)]
 mod tests_teardown;

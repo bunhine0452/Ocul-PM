@@ -59,6 +59,9 @@ const ALLOWLIST = new Set([
   // mounts so the persisted journalFilter (aipm:workspace:v2:p<id> envelope) doesn't
   // leak a scope-chip choice from one test into the next. Test-only.
   "__tests__/journal_v2.test.tsx",
+  // review-queue round — 「미검토」 칩도 같은 이유로 마운트 사이에 비운다
+  // (persisted journalFilter 가 새지 않도록). Test-only.
+  "__tests__/journal_review_queue.test.tsx",
   // Final UI Update PR-UI 4 — DiffScreenV2 tests seed the persisted
   // WorkspaceContext envelope (recentChanges / diffActivePath) so the diff
   // file list mounts populated. Test-only.

@@ -494,6 +494,7 @@ pub async fn plan_ai_refresh(
     let filters = EntryFilters {
         types: Vec::new(),
         verified_only: false,
+        unverified_only: false,
         mismatch_only: false,
         unfinished_only: false,
         search: None,
