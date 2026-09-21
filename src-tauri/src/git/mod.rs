@@ -33,7 +33,10 @@ mod status;
 mod tests;
 
 pub use blob::{blob_size, path_in_head, show_file_bytes};
-pub use changelog::{log_range, read_changelog, tags, ChangelogFile, GitTag};
+pub use changelog::{
+    latest_version_tag, log_range, log_range_with_files, read_changelog, tags, ChangelogFile,
+    GitTag, RangeCommit,
+};
 pub use changes::{last_commit_changes, uncommitted_changes, GitChange, LastCommitChanges};
 pub(crate) use diff::truncate_at_char_boundary;
 pub use diff::{diff_at_nearest_commit, diff_patch, diff_patches, render_unified_diff};

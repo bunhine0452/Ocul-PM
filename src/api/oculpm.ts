@@ -51,6 +51,7 @@ import type {
   McpRegistrationStatus,
   ReindexReport,
   RelatedSuggestion,
+  ReleaseNotesDraft,
   Session,
   TagMergeReport,
   TagStat,
@@ -504,6 +505,22 @@ export const oculpmApi = {
     unwrap<string | null>(
       "branch_export_digest",
       commands.branchExportDigest(projectId, branch, base),
+    ),
+
+  /**
+   * 릴리스 노트 **초안** (`{#release-notes-draft}`). 태그 사이 커밋과 그
+   * 워크데이의 일지를 묶어 마크다운 한 판을 돌려준다 — **파일은 건드리지
+   * 않는다.** `from`/`to` 가 비면 각각 마지막 `v*` 태그 · `HEAD`.
+   */
+  releaseNotesDraft: (
+    projectId: number,
+    fromRef: string | null,
+    toRef: string | null,
+    useLlm: boolean,
+  ) =>
+    unwrap<ReleaseNotesDraft>(
+      "oculpm_release_notes_draft",
+      commands.oculpmReleaseNotesDraft(projectId, fromRef, toRef, useLlm),
     ),
 
   /**
