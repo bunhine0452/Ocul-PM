@@ -98,6 +98,10 @@ export const KEYS = {
   // When on, the filesystem watcher incrementally reindexes a file as soon as
   // it changes on disk (keeps an existing index fresh without a manual rebuild).
   autoIndex: "auto_index",
+  // 의미검색이 `.oculpm/journal/**` · `.oculpm/rollups/**` 도 색인·검색할지
+  // (journal-scale-round {#search-semantic-journal}). 기본 켬 — 일지는 4MB
+  // 규모라 비용이 작고, 끄면 기존과 완전히 같다.
+  searchIncludeJournal: "search_include_journal",
 
   // --- AI 작업 맥락 (oculpm 기록 주입) ---
   includeOculpmContext: "include_oculpm_context",
@@ -211,6 +215,8 @@ export interface Settings {
   excludePatterns: string;
   /** Incrementally reindex changed files via the watcher (no manual rebuild). */
   autoIndex: boolean;
+  /** 의미검색 색인에 일지·롤업을 포함한다. */
+  searchIncludeJournal: boolean;
 
   /**
    * When true the chat prepends a "프로젝트 작업 맥락" block built from the most
@@ -357,6 +363,7 @@ export const DEFAULTS: Settings = {
   maxFileSizeKb: 500,
   excludePatterns: "",
   autoIndex: true,
+  searchIncludeJournal: true,
 
   includeOculpmContext: true,
   oculpmContextEntries: 5,
@@ -418,6 +425,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.maxFileSizeKb]: "maxFileSizeKb",
   [KEYS.excludePatterns]: "excludePatterns",
   [KEYS.autoIndex]: "autoIndex",
+  [KEYS.searchIncludeJournal]: "searchIncludeJournal",
   [KEYS.includeOculpmContext]: "includeOculpmContext",
   [KEYS.oculpmContextEntries]: "oculpmContextEntries",
   [KEYS.graphShowIsolated]: "graphShowIsolated",

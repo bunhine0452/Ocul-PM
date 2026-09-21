@@ -374,13 +374,13 @@ async fn knn_search_stays_inside_the_project_partition() {
     .unwrap();
 
     let hits = db
-        .search_chunks(a, unit_vec(384, 0), 1, false)
+        .search_chunks(a, unit_vec(384, 0), 1, false, true)
         .await
         .unwrap();
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].file_path, "src/a.rs");
     let hits_b = db
-        .search_chunks(b, unit_vec(384, 0), 10, false)
+        .search_chunks(b, unit_vec(384, 0), 10, false, true)
         .await
         .unwrap();
     assert_eq!(hits_b.len(), 3);
@@ -630,7 +630,7 @@ async fn compact_rebuilds_vec0_and_keeps_embeddings() {
 
     assert_eq!(blocks(&db).await, 1, "살아 있는 200 행은 한 블록에 든다");
     let hits = db
-        .search_chunks(a, unit_vec(384, 3), 5, false)
+        .search_chunks(a, unit_vec(384, 3), 5, false, true)
         .await
         .unwrap();
     assert_eq!(hits.len(), 5);
@@ -647,4 +647,97 @@ async fn compact_rebuilds_vec0_and_keeps_embeddings() {
         .await
         .unwrap();
     assert_eq!(live, 0);
+}
+
+/// 일지 청크는 「문서 포함」 과 무관하고 「일지 제외」에만 반응한다
+/// (journal-scale-round `{#search-semantic-journal}`).
+///
+/// 일지는 `.md` 라 `DOC_EXCLUDE_SQL` 에 통째로 걸린다 — 그 목록 밖으로
+/// 꺼내지 않으면 기본 상태(문서 제외)에서 일지가 **한 건도** 안 나온다.
+/// 그게 이 라운드가 고치려던 것 자체이므로 SQL 모양을 여기서 못 박는다.
+#[tokio::test]
+async fn journal_chunks_ride_outside_the_doc_filter_and_obey_include_journal() {
+    let dir = tempdir().unwrap();
+    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
+    let p = db
+        .create_project("p".into(), "/tmp/p".into())
+        .await
+        .unwrap();
+    let (code, _) = db
+        .upsert_file(p, "src/a.rs".into(), "h1".into(), 1, 1, Some("rust".into()))
+        .await
+        .unwrap();
+    let (doc, _) = db
+        .upsert_file(p, "docs/x.md".into(), "h2".into(), 1, 1, None)
+        .await
+        .unwrap();
+    let (journal, _) = db
+        .upsert_file(
+            p,
+            ".oculpm/journal/20260921/Bugs/1000_bug_x.md".into(),
+            "h3".into(),
+            1,
+            1,
+            Some("markdown".into()),
+        )
+        .await
+        .unwrap();
+    let row = |kind: &str| ChunkInsert {
+        kind: kind.into(),
+        start_line: 1,
+        end_line: 3,
+        content: "같은 벡터, 다른 종류\n두 줄\n".into(),
+        embedding: unit_vec(384, 0),
+    };
+    db.insert_chunks_with_embeddings(p, code, vec![row("ast")])
+        .await
+        .unwrap();
+    db.insert_chunks_with_embeddings(p, doc, vec![row("lines")])
+        .await
+        .unwrap();
+    db.insert_chunks_with_embeddings(p, journal, vec![row("journal")])
+        .await
+        .unwrap();
+
+    let paths = |hits: Vec<ChunkSearchResult>| {
+        let mut v: Vec<String> = hits.into_iter().map(|h| h.file_path).collect();
+        v.sort();
+        v
+    };
+
+    // 기본 — 문서는 빠지고, 코드와 일지는 남는다.
+    assert_eq!(
+        paths(
+            db.search_chunks(p, unit_vec(384, 0), 10, false, true)
+                .await
+                .unwrap()
+        ),
+        vec![
+            ".oculpm/journal/20260921/Bugs/1000_bug_x.md".to_string(),
+            "src/a.rs".to_string()
+        ]
+    );
+    // 「일지 제외」 — 일지만 빠진다 (문서는 여전히 빠진 채).
+    assert_eq!(
+        paths(
+            db.search_chunks(p, unit_vec(384, 0), 10, false, false)
+                .await
+                .unwrap()
+        ),
+        vec!["src/a.rs".to_string()]
+    );
+    // 「문서 포함」 — 셋 다.
+    assert_eq!(
+        db.search_chunks(p, unit_vec(384, 0), 10, true, true)
+            .await
+            .unwrap()
+            .len(),
+        3
+    );
+    // kind 가 결과에 실린다 — 프런트가 일지 행을 가르는 유일한 근거.
+    let hits = db
+        .search_chunks(p, unit_vec(384, 0), 10, false, true)
+        .await
+        .unwrap();
+    assert!(hits.iter().any(|h| h.kind == "journal"));
 }

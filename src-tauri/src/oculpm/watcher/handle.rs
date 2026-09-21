@@ -264,6 +264,7 @@ impl WatcherInner {
                 "[FLOW] journal fs event detected"
             );
             self.apply_journal_cache_invalidation(&rel_str, op).await;
+            self.schedule_journal_index(&rel_str);
             // 캐시를 갱신한 **뒤에** 알린다. 이 순서가 뒤집혀 있던 동안 프런트의
             // (디바운스된) 재조회가 아직 옛 행이 남은 SQLite 를 읽고 그대로 굳었다
             // — 특히 삭제는 `apply_path_change` 가 outcome `None` 을 돌려줘
@@ -297,6 +298,9 @@ impl WatcherInner {
                     crate::oculpm::automation::watchers::invalidate_rules(handle, self.project_id);
                 }
             }
+            // 롤업도 일지와 같은 글이다 — 의미검색 색인을 같이 태운다
+            // (다른 데이터 영역은 `is_journal_index_path` 가 거른다).
+            self.schedule_journal_index(&rel_str);
             self.emit_data_changed(area, &rel_str, op);
             return;
         }
@@ -547,6 +551,24 @@ impl WatcherInner {
                 rel_path,
                 op,
                 hash_after,
+            );
+        }
+    }
+
+    /// 일지·롤업 한 편의 증분 의미 색인 (journal-scale-round
+    /// `{#search-semantic-journal}`). 이 이벤트들은 3·3.5 단계에서 되돌아가므로
+    /// 7.5 의 코드 색인을 지나지 않는다 — 같은 이벤트에서 따로 건다.
+    fn schedule_journal_index(&self, rel_path: &str) {
+        if !crate::journal_index::is_journal_index_path(rel_path) {
+            return;
+        }
+        if let Some(handle) = &self.app_handle {
+            watcher_tasks::schedule_journal_index(
+                &self.tasks,
+                handle,
+                self.project_id,
+                &self.root,
+                rel_path.to_string(),
             );
         }
     }

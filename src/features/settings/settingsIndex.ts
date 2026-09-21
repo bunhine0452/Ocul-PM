@@ -106,6 +106,7 @@ export const SETTINGS_INDEX: readonly SettingsEntry[] = [
   // ── indexing
   { tab: "indexing", key: "settings.index.title" },
   { tab: "indexing", key: "settings.index.auto", section: "settings.index.title" },
+  { tab: "indexing", key: "settings.index.journal", section: "settings.index.title" },
   { tab: "indexing", key: "settings.chunk.title" },
   { tab: "indexing", key: "settings.chunk.size", section: "settings.chunk.title" },
   { tab: "indexing", key: "settings.chunk.overlap", section: "settings.chunk.title" },

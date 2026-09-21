@@ -65,6 +65,16 @@ export function IndexingTab() {
           onChange={(v) => save("autoIndex", v)}
           label={t("settings.index.auto")}
         />
+        {/* 의미검색 색인에 `.oculpm/journal/**` · `.oculpm/rollups/**` 를
+            포함할지 ({#search-semantic-journal}). 끄면 다음 「인덱스 재구축」의
+            화해가 남은 일지 행을 걷어낸다 — 토글만으로는 이미 든 청크가 안
+            사라지므로 힌트에 그 사실을 적는다. */}
+        <Toggle
+          checked={settings.searchIncludeJournal}
+          onChange={(v) => save("searchIncludeJournal", v)}
+          label={t("settings.index.journal")}
+          hint={t("settings.index.journalHint")}
+        />
         <div className="flex items-center gap-3 pt-1">
           <Button
             onClick={reindex}

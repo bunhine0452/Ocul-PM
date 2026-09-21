@@ -26,6 +26,7 @@ import { toast } from "@/lib/toast";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { CodeSnippet } from "./CodeSnippet";
 import { JournalScopeResults } from "./JournalScopeResults";
+import { SemanticResults } from "./SemanticResults";
 import { splitMatch, trimAroundMatch } from "./searchUtils";
 import { t, useT, type I18nKey } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -122,6 +123,11 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
   const [formatted, setFormatted] = useState(true);
   // 의미검색 문서 제외 — off by default so code hits aren't buried by docs.
   const [includeDocs, setIncludeDocs] = useState(false);
+  // 일지 포함 — 기본 **켬** ({#search-semantic-journal}). 일지는 `.md` 라
+  // 「문서 포함」 과 같은 스위치에 묶으면 같이 숨는데, 이 라운드의 취지는 그
+  // 반대다. 그래서 축이 둘이고, 프런트 필터가 아니라 백엔드 인자다 —
+  // limit 이 백엔드에 있어서 프런트에서 걸러 내면 건수가 줄어든다.
+  const [includeJournal, setIncludeJournal] = useState(true);
   // 심볼 kind 필터 (null = 전체). 새 검색마다 리셋.
   const [kindFilter, setKindFilter] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -144,7 +150,13 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
   );
 
   const runSearch = useCallback(
-    async (q: string, scopeArg: SearchScope, includeDocsArg: boolean, limitArg = SEARCH_LIMIT) => {
+    async (
+      q: string,
+      scopeArg: SearchScope,
+      includeDocsArg: boolean,
+      includeJournalArg: boolean,
+      limitArg = SEARCH_LIMIT,
+    ) => {
       const trimmed = q.trim();
       if (!trimmed) {
         setResults(null);
@@ -179,7 +191,13 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
           const res =
             scopeArg === "text"
               ? await commands.searchText(projectId, trimmed, limitArg)
-              : await commands.searchChunks(projectId, trimmed, limitArg, includeDocsArg);
+              : await commands.searchChunks(
+                  projectId,
+                  trimmed,
+                  limitArg,
+                  includeDocsArg,
+                  includeJournalArg,
+                );
           if (seq !== seqRef.current) return;
           if (res.status === "ok") {
             setResults({
@@ -209,13 +227,19 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
   // Switching scope re-runs the current query so results match the active mode.
   const onScope = (next: SearchScope) => {
     setState((prev) => ({ ...prev, searchScope: next }));
-    if (query.trim()) void runSearch(query, next, includeDocs);
+    if (query.trim()) void runSearch(query, next, includeDocs, includeJournal);
   };
 
   // Toggling "문서 포함" only affects semantic search — re-run when on it.
   const onToggleDocs = (next: boolean) => {
     setIncludeDocs(next);
-    if (query.trim() && scope === "semantic") void runSearch(query, scope, next);
+    if (query.trim() && scope === "semantic") void runSearch(query, scope, next, includeJournal);
+  };
+
+  // 「일지 제외」 — 같은 이유로 의미검색에서만 의미가 있다.
+  const onToggleJournal = (next: boolean) => {
+    setIncludeJournal(next);
+    if (query.trim() && scope === "semantic") void runSearch(query, scope, includeDocs, next);
   };
 
   // 에디터 라인 점프 — 검색 결과의 실질적 목적지. line=null 이면 파일만 연다.
@@ -257,7 +281,7 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    void runSearch(query, scope, includeDocs);
+    void runSearch(query, scope, includeDocs, includeJournal);
   };
 
   // 정확 검색 — 파일별 그룹핑 (백엔드가 path 순 정렬로 주므로 안정적).
@@ -269,6 +293,16 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
     }
     return [...m.entries()];
   }, [results]);
+
+  // 「일지 N건 포함」 — 결과 안의 일지 청크 수. 백엔드가 이미 걸러 보내므로
+  // 세기만 한다.
+  const journalCount = useMemo(
+    () =>
+      results?.kind === "chunk" && results.mode === "semantic"
+        ? results.items.filter((r) => r.kind === "journal").length
+        : 0,
+    [results],
+  );
 
   const symbolKinds = useMemo(() => {
     if (results?.kind !== "symbol") return [];
@@ -349,6 +383,16 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
               <FileCode2 size={13} /> {t("search.includeDocs")}
             </button>
           ) : null}
+          {scope === "semantic" ? (
+            <button
+              type="button"
+              className={"scope-chip" + (!includeJournal ? " on" : "")}
+              onClick={() => onToggleJournal(!includeJournal)}
+              title={t("search.excludeJournalTitle")}
+            >
+              <NotebookText size={13} /> {t("search.excludeJournal")}
+            </button>
+          ) : null}
         </div>
       </Toolbar>
 
@@ -365,7 +409,7 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
                   className="scope-chip"
                   onClick={() => {
                     setQuery(q);
-                    void runSearch(q, scope, includeDocs);
+                    void runSearch(q, scope, includeDocs, includeJournal);
                   }}
                 >
                   {q}
@@ -387,7 +431,7 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
             <ErrorCard
               title={t("search.failed")}
               error={error}
-              onRetry={() => void runSearch(query, scope, includeDocs)}
+              onRetry={() => void runSearch(query, scope, includeDocs, includeJournal)}
               style={{ maxWidth: 880, margin: "0 auto" }}
             />
           ) : loading ? (
@@ -408,7 +452,7 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
               total={results!.total}
               query={results!.query}
               canMore={canMore}
-              onMore={() => void runSearch(results!.query, scope, includeDocs, nextJournalLimit(limit))}
+              onMore={() => void runSearch(results!.query, scope, includeDocs, includeJournal, nextJournalLimit(limit))}
               onOpen={openJournalHit}
             />
           ) : show && results!.kind === "symbol" ? (
@@ -505,79 +549,24 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
                 </div>
               ))}
               {canMore ? (
-                <MoreButton onClick={() => void runSearch(results!.query, scope, includeDocs, limit + MORE_STEP)} />
+                <MoreButton onClick={() => void runSearch(results!.query, scope, includeDocs, includeJournal, limit + MORE_STEP)} />
               ) : null}
             </div>
           ) : show ? (
-            /* 의미 검색 — 유사도순 flat 카드 (점수 바 + 정렬/원본 토글). */
-            <div className="search-results">
-              <div className="section-title search-results-bar">
-                <span>
-                  {t("search.resultCount", { n: results!.items.length })}
-                  {t("search.bySimilarity")}
-                </span>
-                <span style={{ flex: 1 }} />
-                {/* 세 번째 복제본이었다 — 변경 화면의 둘과 글자만 달랐다
-                    (2026-09-10 {#unify-toolbar-vocab}). */}
-                <div className="seg" role="tablist" aria-label={t("search.displayAria")}>
-                  {([true, false] as const).map((on) => (
-                    <button
-                      key={String(on)}
-                      type="button"
-                      role="tab"
-                      aria-selected={formatted === on}
-                      className="seg-item"
-                      onClick={() => setFormatted(on)}
-                    >
-                      {on ? t("search.formatted") : t("search.raw")}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {(results as { items: ChunkSearchResult[] }).items.map((r) => (
-                <div className="card sresult" key={`${r.chunk_id}`}>
-                  <div className="sresult-head" style={{ cursor: "default" }}>
-                    <FileCode2 size={15} color="var(--text-2)" />
-                    <span className="sresult-path">{r.file_path}</span>
-                    <span className="sresult-lines">
-                      L{r.start_line}–{r.end_line}
-                      {onOpenInCode ? (
-                        <button
-                          type="button"
-                          className="sresult-open"
-                          title={t("code.openInCode")}
-                          onClick={() => onOpenInCode(r.file_path, r.start_line)}
-                        >
-                          <FileCode size={13} />
-                        </button>
-                      ) : null}
-                      {projectRoot ? (
-                        <button
-                          type="button"
-                          className="sresult-open"
-                          title={t("search.openAtLine", { n: r.start_line })}
-                          onClick={() => void openAt(r.file_path, r.start_line)}
-                        >
-                          <ExternalLink size={13} />
-                        </button>
-                      ) : null}
-                    </span>
-                    {r.distance != null ? (
-                      <div className="score" style={{ marginLeft: 14 }}>
-                        <div className="score-bar">
-                          <i style={{ width: `${Math.max(0, Math.min(1, 1 - r.distance)) * 100}%` }} />
-                        </div>
-                        {Math.round(Math.max(0, Math.min(1, 1 - r.distance)) * 100)}%
-                      </div>
-                    ) : null}
-                  </div>
-                  <CodeSnippet path={r.file_path} content={r.content} formatted={formatted} />
-                </div>
-              ))}
-              {canMore ? (
-                <MoreButton onClick={() => void runSearch(results!.query, scope, includeDocs, limit + MORE_STEP)} />
-              ) : null}
-            </div>
+            /* 의미 검색 — 유사도순 flat 카드. 일지 청크 행까지 포함해
+               `SemanticResults` 가 소유한다 ({#search-semantic-journal}). */
+            <SemanticResults
+              items={(results as { items: ChunkSearchResult[] }).items}
+              journalCount={journalCount}
+              formatted={formatted}
+              onFormatted={setFormatted}
+              canOpenInEditor={!!projectRoot}
+              onOpenAt={(p, line) => void openAt(p, line)}
+              onOpenInCode={onOpenInCode}
+              onOpenJournal={onOpenJournal}
+              canMore={canMore}
+              onMore={() => void runSearch(results!.query, scope, includeDocs, includeJournal, limit + MORE_STEP)}
+            />
           ) : (
             <EmptyState
               density="rich"

@@ -164,7 +164,7 @@ export const commands = {
 	 */
 	homeBrief: (days: number) => typedError<HomeBrief, string>(__TAURI_INVOKE("home_brief", { days })),
 	indexProject: (projectId: number, onProgress: Channel<IndexProgress>) => typedError<IndexResult, string>(__TAURI_INVOKE("index_project", { projectId, onProgress })),
-	searchChunks: (projectId: number, query: string, limit: number, includeDocs: boolean) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_chunks", { projectId, query, limit, includeDocs })),
+	searchChunks: (projectId: number, query: string, limit: number, includeDocs: boolean, includeJournal: boolean) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_chunks", { projectId, query, limit, includeDocs, includeJournal })),
 	searchText: (projectId: number, query: string, limit: number) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_text", { projectId, query, limit })),
 	searchSymbols: (projectId: number, query: string, limit: number) => typedError<SymbolSearchResult[], string>(__TAURI_INVOKE("search_symbols", { projectId, query, limit })),
 	getFileSymbols: (fileId: number) => typedError<SymbolDef[], string>(__TAURI_INVOKE("get_file_symbols", { fileId })),
@@ -3279,6 +3279,12 @@ export type ChatResponse = {
 export type ChunkSearchResult = {
 	chunk_id: number,
 	file_path: string,
+	/**
+	 *  `chunks.kind` — `ast` / `lines` 는 코드, `journal` 은 일지·롤업이다
+	 *  (journal-scale-round `{#search-semantic-journal}`). 검색 화면이 행을
+	 *  파일 카드로 그릴지 일지 카드로 그릴지 이 값 하나로 가른다.
+	 */
+	kind: string,
 	start_line: number,
 	end_line: number,
 	content: string,
