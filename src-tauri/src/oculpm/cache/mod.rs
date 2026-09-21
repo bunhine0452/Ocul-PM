@@ -61,6 +61,12 @@ pub const COERCION_VERSION: i64 = 3;
 pub struct EntryFilters {
     pub types: Vec<EntryType>,
     pub verified_only: bool,
+    /// review-queue round — the complement of `verified_only`'s "confirmed"
+    /// (`isConfirmed` in `verified.ts`): rows where `verified_by_user = 0`
+    /// OR `verified_stale = 1`, so a re-review-needed entry stays in the
+    /// queue instead of silently dropping out once it's flagged stale.
+    #[serde(default)]
+    pub unverified_only: bool,
     /// Reserved for W4 (LayerComparison). PR2 wires the column path but
     /// `mismatch_only=true` returns no rows because no entry has been
     /// flagged yet.
@@ -592,6 +598,11 @@ fn build_entry_where(
         // 확인 뒤 본문이 바뀐 일지는 「확인됨」이 아니다 ({#reviewed-hash}).
         sql.push_str(" AND verified_by_user = 1 AND verified_stale = 0");
     }
+    if filters.unverified_only {
+        // `verified_only` 의 정반대 — 한 번도 확인되지 않았거나, 확인 뒤
+        // 본문이 바뀌어 다시 검토가 필요한 행(둘 다 대기열에 남아야 한다).
+        sql.push_str(" AND NOT (verified_by_user = 1 AND verified_stale = 0)");
+    }
     if filters.mismatch_only {
         // Reserved for W4 — no row carries the flag yet. Use an impossible
         // predicate so the result set is provably empty without raising.
@@ -730,3 +741,5 @@ mod tests;
 mod agent_session_tests;
 #[cfg(test)]
 mod distinct_files_tests;
+#[cfg(test)]
+mod unverified_tests;

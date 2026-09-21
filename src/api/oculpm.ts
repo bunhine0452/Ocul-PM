@@ -28,6 +28,7 @@ import type {
   AgentDetection,
   AgentSyncReport,
   BackfillReport,
+  BulkVerifyReport,
   EntryFileDiff,
   EntryFilters,
   FileHotspot,
@@ -253,6 +254,14 @@ export const oculpmApi = {
     unwrap<null>(
       "oculpm_set_journal_verified",
       commands.oculpmSetJournalVerified(projectId, relativePath, verified)
+    ),
+
+  /** review-queue round — verify (or un-verify) several entries in one call
+   *  (「보이는 것 전부 확인」). One bad path lands in `skipped`, not a rejection. */
+  setJournalVerifiedBulk: (projectId: number, paths: string[], verified: boolean) =>
+    unwrap<BulkVerifyReport>(
+      "oculpm_set_journal_verified_bulk",
+      commands.oculpmSetJournalVerifiedBulk(projectId, paths, verified)
     ),
 
   reindexCache: (projectId: number) =>

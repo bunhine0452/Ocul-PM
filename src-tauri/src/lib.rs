@@ -404,6 +404,7 @@ use crate::commands::{
     oculpm_search_journal,
     oculpm_set_config,
     oculpm_set_journal_verified,
+    oculpm_set_journal_verified_bulk,
     oculpm_start_session_manual,
     // {#related-suggest} — 공유 파일·플랜 항목·제목으로 고른 관련 후보
     oculpm_suggest_related,
@@ -786,6 +787,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_add_related,
             oculpm_group_changes,
             oculpm_set_journal_verified,
+            oculpm_set_journal_verified_bulk,
             oculpm_search_entities,
             oculpm_search_journal,
             oculpm_workday_brief,

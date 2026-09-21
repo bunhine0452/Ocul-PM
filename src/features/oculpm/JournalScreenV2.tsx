@@ -10,6 +10,7 @@ import { oculpmApi } from "@/api/oculpm";
 import { JOURNAL_PAGE_SIZE, useJournalDays } from "./useJournalDays";
 import { JournalDay } from "./JournalDay";
 import { EntryDetailView } from "./EntryDetailView";
+import { ReviewQueueBar } from "./ReviewQueueBar";
 import { ManualEntryModalV2 } from "./ManualEntryModalV2";
 import { TRIGGER_META } from "./triggerMeta";
 import "./journal.css";
@@ -117,6 +118,10 @@ export function JournalScreenV2({
   const searchRef = useRef<HTMLInputElement>(null);
   const [unfinishedOnly, setUnfinishedOnly] = useState(false);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  // review-queue round — 「미검토」. `verifiedOnly` 와 상호 배타(둘 다 켜면
+  // 결과가 늘 비므로 서로를 끈다). 미완료·확인됨과 같은 이유로 화면 지역
+  // 상태다(위 주석) — 열 때마다 전체로 시작한다.
+  const [unverifiedOnly, setUnverifiedOnly] = useState(false);
   const [showAll, setShowAll] = useState(false);
   /**
    * 출처 필터 (Phase 3). `WorkspaceContext` 에 영속하지 않는다 — 열 때마다
@@ -148,17 +153,19 @@ export function JournalScreenV2({
     filter !== "all" ||
     unfinishedOnly ||
     verifiedOnly ||
+    unverifiedOnly ||
     debouncedSearch.trim() !== "";
   const backendFilters = useMemo<EntryFilters | null>(() => {
     if (!allPeriod) return null;
     return {
       types: filter === "all" ? [] : [FILTER_TO_TYPE[filter]],
       verified_only: verifiedOnly,
+      unverified_only: unverifiedOnly,
       mismatch_only: false,
       unfinished_only: unfinishedOnly,
       search: debouncedSearch.trim() || null,
     };
-  }, [allPeriod, filter, verifiedOnly, unfinishedOnly, debouncedSearch]);
+  }, [allPeriod, filter, verifiedOnly, unverifiedOnly, unfinishedOnly, debouncedSearch]);
 
   const {
     days,
@@ -342,7 +349,12 @@ export function JournalScreenV2({
   // While a filter/search is active, days default to open so matches in older
   // (default-collapsed) days are visible — but an explicit toggle still wins.
   const searchActive =
-    search.trim() !== "" || filter !== "all" || unfinishedOnly || verifiedOnly || sourceFilter != null;
+    search.trim() !== "" ||
+    filter !== "all" ||
+    unfinishedOnly ||
+    verifiedOnly ||
+    unverifiedOnly ||
+    sourceFilter != null;
 
   // Planner 📓 → open this entry's detail view directly. Resolved by the entry's
   // workday (parsed from the path), so a completed plan's weeks-old journal opens
@@ -522,10 +534,33 @@ export function JournalScreenV2({
             type="button"
             className={"scope-chip" + (verifiedOnly ? " on" : "")}
             style={{ height: 28 }}
-            onClick={() => setVerifiedOnly((v) => !v)}
+            onClick={() =>
+              setVerifiedOnly((v) => {
+                const next = !v;
+                if (next) setUnverifiedOnly(false);
+                return next;
+              })
+            }
             title={t("journal.filterVerifiedTitle")}
           >
             {t("journal.filterVerified")}
+          </button>
+          {/* review-queue round — 「확인됨」과 상호 배타(둘 다 켜면 결과가
+              늘 비니 서로를 끈다). */}
+          <button
+            type="button"
+            className={"scope-chip" + (unverifiedOnly ? " on" : "")}
+            style={{ height: 28 }}
+            onClick={() =>
+              setUnverifiedOnly((v) => {
+                const next = !v;
+                if (next) setVerifiedOnly(false);
+                return next;
+              })
+            }
+            title={t("journal.filterUnverifiedTitle")}
+          >
+            {t("journal.filterUnverified")}
           </button>
         </div>
         {/* 기간 다이제스트 .md 내보내기 — 회고 화면이 지면서 트리거를 잃었던
@@ -574,6 +609,17 @@ export function JournalScreenV2({
                   onChange={setSourceFilter}
                 />
               </div>
+            ) : null}
+
+            {/* review-queue round — 「미검토」가 켜졌을 때만. 상한 고지보다
+                위: "몇 건 못 받았다"가 아니라 "여기서 할 일"이다. */}
+            {unverifiedOnly ? (
+              <ReviewQueueBar
+                projectId={projectId}
+                total={matchTotal}
+                entries={(filteredDays ?? []).flatMap((d) => d.entries)}
+                onConfirmed={refresh}
+              />
             ) : null}
 
             {/* 상한을 넘겼다는 사실은 **목록 위**에 적는다. 바닥에만 두면
