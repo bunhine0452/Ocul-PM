@@ -241,6 +241,8 @@ const TESTS = new Set([
   "__tests__/lsp_bridge.test.ts",
   "__tests__/mcp_settings.test.tsx",
   "__tests__/mobile_pairing_poll.test.tsx",
+  // Monaco URL ⌘클릭 오프너 — 쿼리 픽스처("두 번")가 인코딩 검사 재료다.
+  "__tests__/monaco_link_opener.test.ts",
   "__tests__/monaco_lsp.test.ts",
   "__tests__/monaco_options.test.ts",
   "__tests__/monaco_semantic_theme.test.ts",
@@ -292,6 +294,8 @@ const TESTS = new Set([
   "__tests__/terminal_scrollback_replay.test.ts",
   "__tests__/terminal_quality_round.test.ts",
   "__tests__/terminal_rail.test.ts",
+  // 터미널 OSC 8 링크 처리기 — 한국어 테스트 이름이 서술 언어다.
+  "__tests__/terminal_url_links.test.ts",
   "__tests__/terminal_viewport_resync.test.ts",
   "__tests__/theme_gallery.test.tsx",
   "__tests__/theme_schema.test.ts",
