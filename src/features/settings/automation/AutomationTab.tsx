@@ -14,7 +14,6 @@ import { toAppError } from "@/api/invoke";
 import { automationApi } from "@/api/automation";
 import { oculpmApi } from "@/api/oculpm";
 import { useConfirm } from "@/hooks/useConfirm";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { coreModelTarget } from "@/lib/settings";
 import { openSettings } from "@/lib/settingsNav";
@@ -28,7 +27,7 @@ import type {
   OculpmConfig,
 } from "@/lib/bindings";
 import { EmptyState } from "@/components/EmptyState";
-import { Section, Toggle } from "../tabs/ui";
+import { Section, Toggle, useSettingsProjectId } from "../tabs/ui";
 import { AutomationEditor } from "./AutomationEditor";
 import { AutomationHistory } from "./AutomationHistory";
 import {
@@ -61,10 +60,10 @@ type Pane =
 
 export function AutomationTab() {
   const { t } = useT();
-  const { state } = useWorkspace();
   const { settings } = useSettings();
   const { confirm, confirmDialog } = useConfirm();
-  const projectId = state.currentProjectId;
+  // 시작 탭에는 `WorkspaceProvider` 가 없다 (tabs/ui `useSettingsProjectId`).
+  const projectId = useSettingsProjectId();
 
   const [items, setItems] = useState<AutomationSummary[]>([]);
   const [seeds, setSeeds] = useState<AutomationDef[]>([]);

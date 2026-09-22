@@ -18,13 +18,12 @@ import { Button } from "@/components/ui/button";
 import { Download, FileCode, Loader2 } from "@/components/Icons";
 import { declarativeConfigApi } from "@/api/declarativeConfig";
 import { toAppError } from "@/api/invoke";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useT } from "@/i18n";
 import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { toast } from "@/lib/toast";
 import type { ConfigApplyResult, ConfigPlan, ConfigPlanItem } from "@/lib/bindings";
-import { Section } from "../tabs/ui";
+import { Section, useSettingsProjectId } from "../tabs/ui";
 import { groupPlan, hasWrites, reasonKey, surfaceLabelKey, type VisibleOp } from "./planView";
 
 const OP_MARK: Record<VisibleOp, string> = { add: "+", change: "~", blocked: "⚠" };
@@ -36,8 +35,9 @@ const OP_TONE: Record<VisibleOp, string> = {
 
 export function DeclarativeConfigSection() {
   const { t } = useT();
-  const { state } = useWorkspace();
-  const projectId = state.currentProjectId;
+  // 시작 탭에는 `WorkspaceProvider` 가 없다 (tabs/ui `useSettingsProjectId`).
+  // 프로젝트가 없으면 전역 설정만 담긴 문서가 오간다 — API 가 `null` 을 받는다.
+  const projectId = useSettingsProjectId();
 
   const [doc, setDoc] = useState<string | null>(null);
   const [plan, setPlan] = useState<ConfigPlan | null>(null);

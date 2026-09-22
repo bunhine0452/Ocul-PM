@@ -9,6 +9,8 @@
 // 스크롤하는 눈이 매번 라벨을 다시 읽어야 했다. 이제 라벨·설명은 왼쪽,
 // 컨트롤은 오른쪽 한 열이다 — 여러 줄 입력만 전폭으로 떨어진다.
 
+import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
+import { useT } from "@/i18n";
 import { type Provider } from "@/lib/settings";
 
 export function secretName(provider: Provider): string {
@@ -148,4 +150,24 @@ export function Stat({ label, value }: { label: string; value?: string }) {
       <div className="cfg-stat-value">{value ?? "—"}</div>
     </div>
   );
+}
+
+/**
+ * 이 설정 화면이 서 있는 프로젝트 — **없을 수도 있다** (I2).
+ *
+ * 같은 `SettingsPanel` 이 두 자리에서 뜬다: 프로젝트 탭의 화면(`ShellV2`)과
+ * 시작 탭의 오버레이(`SettingsOverlay`). 시작 탭에는 `WorkspaceProvider` 가
+ * 없어서 `useWorkspace()` 는 **던진다** — 2026-09-11 로그의 `화면 크래시
+ * [settings]: useWorkspace must be used within a WorkspaceProvider` 3건이
+ * 그것이고, 경계가 잡아 주는 덕에 창은 살지만 설정 자리에는 크래시 카드만
+ * 남는다. 프로젝트에 매인 탭은 이 접근자로 읽고 `<NeedsProject/>` 를 그린다.
+ */
+export function useSettingsProjectId(): number | null {
+  return useOptionalWorkspace()?.state.currentProjectId ?? null;
+}
+
+/** 프로젝트가 있어야 성립하는 탭·섹션의 빈 상태. */
+export function NeedsProject() {
+  const { t } = useT();
+  return <div className="cfg-empty">{t("op.pickProject")}</div>;
 }
