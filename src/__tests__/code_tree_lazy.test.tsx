@@ -10,7 +10,7 @@ import { CodeTree } from "@/features/code/CodeTree";
 afterEach(cleanup);
 
 function entry(name: string, path: string, isDir: boolean, ignored = false): CodeDirEntry {
-  return { name, relative_path: path, is_dir: isDir, ignored };
+  return { name, relative_path: path, is_dir: isDir, ignored, link: null };
 }
 
 function setup(map: Map<string, CodeDirEntry[]>, expanded: string[] = [], loading: string[] = []) {

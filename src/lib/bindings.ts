@@ -3393,6 +3393,12 @@ export type CodeDirEntry = {
 	 *  않고 **흐리게** 그린다 — 디스크에 있는 것은 보이되 성질은 밝힌다.
 	 */
 	ignored: boolean,
+	/**
+	 *  심볼릭 링크면 어디를 가리키는지. 평범한 항목은 `None`.
+	 *  `Outside`·`Dangling` 은 `is_dir` 가 항상 `false` 다 — 펼치거나 열 수
+	 *  없는 것을 폴더로 그리면 드롭·펼침이 전부 가드에 부딪힌다.
+	 */
+	link: SymlinkTarget | null,
 };
 
 /**  `code_dir` 응답. */
@@ -6351,6 +6357,22 @@ export type SymbolSearchResult = {
 	start_line: number,
 	end_line: number,
 };
+
+/**
+ *  심볼릭 링크가 가리키는 곳 — 트리가 링크를 **어떻게 다룰지**를 정한다.
+ * 
+ *  여는 시점의 가드(`canonical_within_root`)는 루트 밖을 거부하는데, 트리가
+ *  링크를 평범한 파일처럼 그리면 사용자는 클릭한 뒤에야 「Path escapes the
+ *  project root」라는 뜬금없는 보안 문구를 본다 (설치본 로그 2026-09-17/18,
+ *  `acestep → ~/Desktop/Local_ai/…`). 그래서 트리 단계에서 미리 판정해 싣는다.
+ */
+export type SymlinkTarget = 
+/**  프로젝트 안을 가리킨다 — 대상의 종류(`is_dir`)로 그리고, 평범하게 연다. */
+"inside" | 
+/**  프로젝트 밖을 가리킨다 — 보이되 열 수 없다 (가드가 거부한다). */
+"outside" | 
+/**  가리키는 곳이 없다 (대상이 지워졌거나 옮겨졌다). */
+"dangling";
 
 /**  그 탭이 이 창의 스트립을 벗어났다 (또는 드래그가 끝났다) — 캐럿을 지운다. */
 export type TabDragLeave = {

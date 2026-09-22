@@ -45,6 +45,23 @@ pub struct CodeTree {
     pub truncated: bool,
 }
 
+/// 심볼릭 링크가 가리키는 곳 — 트리가 링크를 **어떻게 다룰지**를 정한다.
+///
+/// 여는 시점의 가드(`canonical_within_root`)는 루트 밖을 거부하는데, 트리가
+/// 링크를 평범한 파일처럼 그리면 사용자는 클릭한 뒤에야 「Path escapes the
+/// project root」라는 뜬금없는 보안 문구를 본다 (설치본 로그 2026-09-17/18,
+/// `acestep → ~/Desktop/Local_ai/…`). 그래서 트리 단계에서 미리 판정해 싣는다.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum SymlinkTarget {
+    /// 프로젝트 안을 가리킨다 — 대상의 종류(`is_dir`)로 그리고, 평범하게 연다.
+    Inside,
+    /// 프로젝트 밖을 가리킨다 — 보이되 열 수 없다 (가드가 거부한다).
+    Outside,
+    /// 가리키는 곳이 없다 (대상이 지워졌거나 옮겨졌다).
+    Dangling,
+}
+
 /// 디렉터리 한 단계의 항목. 지연 로딩 트리가 폴더를 펼칠 때마다 이것만 받는다.
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct CodeDirEntry {
@@ -54,6 +71,10 @@ pub struct CodeDirEntry {
     /// 저장소가 무시하도록 정한 항목(gitignore · git exclude · global). 숨기지
     /// 않고 **흐리게** 그린다 — 디스크에 있는 것은 보이되 성질은 밝힌다.
     pub ignored: bool,
+    /// 심볼릭 링크면 어디를 가리키는지. 평범한 항목은 `None`.
+    /// `Outside`·`Dangling` 은 `is_dir` 가 항상 `false` 다 — 펼치거나 열 수
+    /// 없는 것을 폴더로 그리면 드롭·펼침이 전부 가드에 부딪힌다.
+    pub link: Option<SymlinkTarget>,
 }
 
 /// `code_dir` 응답.
@@ -93,17 +114,18 @@ pub async fn code_dir(
     rel_path: String,
 ) -> Result<CodeDirListing, String> {
     let root = project_root(&db, project_id).await?;
-    let full = if rel_path.is_empty() {
+    let rel_dir = normalize_dir_path(&rel_path);
+    let full = if rel_dir.is_empty() {
         root.clone()
     } else {
-        secure_join(&root, &rel_path)?
+        secure_join(&root, &rel_dir)?
     };
     tauri::async_runtime::spawn_blocking(move || {
         let full = canonical_within_root(&root, &full)?;
         if !full.is_dir() {
             return Err("Not a directory".to_string());
         }
-        Ok(read_dir_level(&root, &full, MAX_DIR_ENTRIES))
+        Ok(read_dir_level(&root, &rel_dir, &full, MAX_DIR_ENTRIES))
     })
     .await
     .map_err(|e| format!("Failed to read the directory: {e}"))?
@@ -199,14 +221,48 @@ pub(super) fn build_code_tree(root: &Path, max_files: usize) -> CodeTree {
     }
 }
 
-/// 한 디렉터리를 읽어 `ignored` 를 채운다.
+/// `code_dir` 의 `rel_path` 인자 정리 — 슬래시 방향·양끝·중복 슬래시. 자식의
+/// `relative_path` 가 이 접두로 만들어지므로 여기서 한 번 고른다.
+pub(super) fn normalize_dir_path(rel: &str) -> String {
+    rel.replace('\\', "/")
+        .split('/')
+        .filter(|seg| !seg.is_empty())
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+/// 심링크 항목의 판정 — 대상을 끝까지 풀어 루트 안인지, 그리고 폴더인지.
+///
+/// `Outside`·`Dangling` 은 `is_dir = false` 로 고정한다: 열 수도 펼칠 수도 없는
+/// 것을 폴더로 그리면 드롭 대상·펼침이 전부 가드에 부딪히며 오류를 낸다.
+fn classify_symlink(canon_root: &Path, full: &Path) -> (bool, SymlinkTarget) {
+    match std::fs::canonicalize(full) {
+        Ok(target) if target.starts_with(canon_root) => (target.is_dir(), SymlinkTarget::Inside),
+        Ok(_) => (false, SymlinkTarget::Outside),
+        Err(_) => (false, SymlinkTarget::Dangling),
+    }
+}
+
+/// 한 디렉터리를 읽어 `ignored` 와 `link` 를 채운다.
+///
+/// `rel_dir` 은 사용자가 펼친 폴더의 **프로젝트 상대 경로**(루트는 `""`) 다.
+/// 자식의 `relative_path` 는 `dir` 에서 `root` 를 떼어 만들지 않고 이 접두에
+/// 이름을 붙여 만든다 — `dir` 은 canonical 이라 루트 안을 가리키는 심링크
+/// 폴더를 펼치면 **대상**의 경로가 되어 트리의 자리(링크 이름)와 어긋나고,
+/// 루트 자체가 심링크 아래에 있으면(`/tmp` → `/private/tmp`) 접두가 안 맞아
+/// 목록이 통째로 빈다.
 ///
 /// 무시 여부는 직접 판정하지 않고 **같은 걸음에 한 번 더 물어서** 얻는다:
 /// `max_depth(1)` 걸음이 살려 둔 이름의 집합을 만들고, `read_dir` 이 본 것 중
 /// 거기 없는 것을 무시된 것으로 본다. gitignore 는 중첩 `.gitignore` · git
 /// exclude · global 까지 얽혀 있어 손으로 다시 판정하면 [`code_tree`] 와 시야가
 /// 어긋나기 시작한다 — 판정 주체를 하나로 둔다.
-pub(super) fn read_dir_level(root: &Path, dir: &Path, max_entries: usize) -> CodeDirListing {
+pub(super) fn read_dir_level(
+    root: &Path,
+    rel_dir: &str,
+    dir: &Path,
+    max_entries: usize,
+) -> CodeDirListing {
     let mut kept: std::collections::HashSet<std::ffi::OsString> = std::collections::HashSet::new();
     for entry in ignore::WalkBuilder::new(dir)
         .standard_filters(true)
@@ -227,6 +283,9 @@ pub(super) fn read_dir_level(root: &Path, dir: &Path, max_entries: usize) -> Cod
             truncated: false,
         };
     };
+    // 심링크 판정의 기준. 루트를 못 풀면(지워진 프로젝트) 링크는 전부 밖으로
+    // 본다 — 안이라고 잘못 말하는 쪽이 더 나쁘다.
+    let canon_root = std::fs::canonicalize(root).ok();
 
     let mut entries: Vec<CodeDirEntry> = Vec::new();
     let mut truncated = false;
@@ -236,14 +295,25 @@ pub(super) fn read_dir_level(root: &Path, dir: &Path, max_entries: usize) -> Cod
             continue;
         }
         let name = name_os.to_string_lossy().to_string();
-        // 심링크는 따라가지 않고 링크 자체의 종류로 본다 — 루프와 루트 밖 탈출을
-        // 트리 단계에서부터 막는다 (여는 시점의 canonical 가드와 이중 방어).
+        // `DirEntry::metadata` 는 링크를 따라가지 않는다 — 심링크는 여기서
+        // 따로 판정한다. 안 하면 링크 폴더가 **파일처럼** 그려지고, 클릭한
+        // 뒤에야 가드의 거절을 본다.
         let Ok(meta) = item.metadata() else { continue };
         let full = item.path();
-        let Ok(rel) = full.strip_prefix(root) else {
-            continue;
+        let (is_dir, link) = if meta.is_symlink() {
+            let (is_dir, target) = match &canon_root {
+                Some(canon_root) => classify_symlink(canon_root, &full),
+                None => (false, SymlinkTarget::Outside),
+            };
+            (is_dir, Some(target))
+        } else {
+            (meta.is_dir(), None)
         };
-        let rel = rel.to_string_lossy().replace('\\', "/");
+        let rel = if rel_dir.is_empty() {
+            name.clone()
+        } else {
+            format!("{rel_dir}/{name}")
+        };
         if entries.len() >= max_entries {
             truncated = true;
             break;
@@ -251,8 +321,9 @@ pub(super) fn read_dir_level(root: &Path, dir: &Path, max_entries: usize) -> Cod
         entries.push(CodeDirEntry {
             name,
             relative_path: rel,
-            is_dir: meta.is_dir(),
+            is_dir,
             ignored: !kept.contains(&name_os),
+            link,
         });
     }
 

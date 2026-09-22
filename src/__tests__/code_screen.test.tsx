@@ -8,6 +8,7 @@ import type {
   CodeTreeNode,
   CodeFileContent,
   CodeWriteOutcome,
+  SymlinkTarget,
 } from "@/lib/bindings";
 
 // 코드 화면 — 트리/선택/저장/충돌의 상태 흐름. CodeMirror 는 jsdom 에서
@@ -28,6 +29,10 @@ const fx: {
   renames: { from: string; to: string }[];
   /** `settings_get_all` 이 돌려줄 항목 — 저장 위생·자동 저장을 켜는 손잡이. */
   settings: [string, string][];
+  /** 경로 → 심링크 판정. `code_dir` 이 트리 항목에 실어 준다 (없으면 평범한 항목). */
+  links: Record<string, SymlinkTarget>;
+  /** `code_read` 가 불린 경로들 — 열지 말아야 할 것을 열려 했는지. */
+  reads: string[];
 } = {
   tree: { nodes: [], file_count: 0, truncated: false },
   read: {},
@@ -35,6 +40,8 @@ const fx: {
   writeCalls: [],
   renames: [],
   settings: [],
+  links: {},
+  reads: [],
 };
 
 function textFile(content: string, hash = "h1"): CodeFileContent {
@@ -50,6 +57,7 @@ function dirEntriesOf(nodes: CodeTreeNode[], dirPath: string): CodeDirEntry[] {
     relative_path: n.relative_path,
     is_dir: n.is_dir,
     ignored: false,
+    link: fx.links[n.relative_path] ?? null,
   });
   if (dirPath === "") return nodes.map(toEntry);
   let cur = nodes;
@@ -75,8 +83,10 @@ vi.mock("@/lib/bindings", () => {
               return (_pid: number, relPath: string) =>
                 ok({ entries: dirEntriesOf(fx.tree.nodes, relPath), truncated: false });
             case "codeRead":
-              return (_pid: number, relPath: string) =>
-                ok(fx.read[relPath] ?? textFile("// missing fixture"));
+              return (_pid: number, relPath: string) => {
+                fx.reads.push(relPath);
+                return ok(fx.read[relPath] ?? textFile("// missing fixture"));
+              };
             case "codeWrite":
               return (_pid: number, relPath: string, content: string, baseHash: string) => {
                 fx.writeCalls.push({ relPath, content, baseHash });
@@ -173,6 +183,8 @@ beforeEach(() => {
   fx.writeCalls = [];
   fx.renames = [];
   fx.settings = [];
+  fx.links = {};
+  fx.reads = [];
   // jsdom 에는 blob: URL 이 없다 — svg 미리보기가 이 둘을 쓴다.
   URL.createObjectURL = vi.fn(() => "blob:mock/1");
   URL.revokeObjectURL = vi.fn();
@@ -204,6 +216,32 @@ describe("CodeScreenV2", () => {
     fireEvent.click(readme);
     expect(src.className).not.toContain("marked");
     expect(readme.className).toContain("marked");
+  });
+
+  it("does not try to open a symlink that points outside the project", async () => {
+    // 설치본 로그 2026-09-17/18: `acestep → ~/Desktop/Local_ai/…` 를 클릭하자
+    // 「Path escapes the project root」. 트리가 앞에서 흐리게 + 이유를 달고,
+    // 클릭·⏎ 은 백엔드에 읽기를 보내지 않는다 — 가드에 부딪히는 대신 토스트.
+    fx.tree.nodes.push({ name: "acestep", relative_path: "acestep", is_dir: false, children: [] });
+    fx.links = { acestep: "outside" };
+    const { findByText, findByRole, queryByTestId } = render(wrap(screenEl()));
+    const tree = await findByRole("tree");
+    const row = (await findByText("acestep")).closest("button")!;
+    expect(row.className).toContain("unreachable");
+    expect(row.title).toBe(t("code.tree.linkOutsideHint"));
+
+    fireEvent.click(row);
+    // 행은 뽑혔다(지우기·이름 바꾸기는 여전히 가능) — 그러나 열리지 않았다.
+    expect(row.className).toContain("marked");
+    expect(fx.reads).not.toContain("acestep");
+    expect(queryByTestId("editor-text")).toBeNull();
+    // ⏎ 도 같은 문을 지난다.
+    fireEvent.keyDown(tree, { key: "Enter" });
+    expect(fx.reads).not.toContain("acestep");
+
+    // 평범한 파일은 예전 그대로 열린다.
+    fireEvent.click(await findByText("README.md"));
+    await vi.waitFor(() => expect(fx.reads).toContain("README.md"));
   });
 
   it("walks the tree with arrow keys and opens the rename box on F2", async () => {

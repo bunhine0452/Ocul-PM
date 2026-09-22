@@ -10,6 +10,17 @@ import type { CodeDirEntry, CodeTreeNode } from "@/lib/bindings";
 export type CodeEntry = CodeDirEntry;
 
 /**
+ * 열 수도 펼칠 수도 없는 링크 — 프로젝트 밖을 가리키거나 대상이 없다.
+ *
+ * 백엔드 가드(`canonical_within_root`)가 어차피 거부하므로 시도할 이유가 없다.
+ * 시도하면 사용자는 「Path escapes the project root」라는 보안 문구를 본다
+ * (설치본 로그 2026-09-17/18) — 트리가 앞에서 말하고, 열기는 아예 보내지 않는다.
+ */
+export function isUnreachableLink(entry: Pick<CodeEntry, "link"> | undefined): boolean {
+  return entry?.link === "outside" || entry?.link === "dangling";
+}
+
+/**
  * 부모 경로 → 자식들. 루트의 키는 `""`.
  *
  * 지연 트리는 이 모양을 그대로 캐시로 쓰고, 필터 결과는 [`flattenToDirMap`] 이
@@ -22,7 +33,8 @@ export type DirMap = Map<string, CodeEntry[]>;
  * 필터 결과(중첩 전량 트리)를 [`DirMap`] 으로 편다.
  *
  * `code_tree` 는 gitignore 를 존중하므로 여기서 나온 것은 정의상 무시되지 않은
- * 항목이다 — `ignored: false` 로 고정한다.
+ * 항목이다 — `ignored: false` 로 고정한다. 그 걸음은 심링크를 따라가지도 싣지도
+ * 않으므로 `link` 도 `null` 이다.
  */
 export function flattenToDirMap(
   nodes: CodeTreeNode[],
@@ -36,6 +48,7 @@ export function flattenToDirMap(
       relative_path: n.relative_path,
       is_dir: n.is_dir,
       ignored: false,
+      link: null,
     })),
   );
   for (const n of nodes) {

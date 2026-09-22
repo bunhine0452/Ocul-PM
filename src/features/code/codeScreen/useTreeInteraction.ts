@@ -3,6 +3,9 @@
 // `CodeScreenV2` 에서 그대로 들어냈다 (optimization-round-2 {#split-codescreen}) — 동작 불변.
 import { useCallback } from "react";
 
+import { t } from "@/i18n";
+import { toast } from "@/lib/toast";
+
 import type { CodeMenuItem } from "../CodeContextMenu";
 import type { CodeTabsState } from "../codeTabs";
 import type { TreeHit } from "../importTarget";
@@ -81,6 +84,26 @@ export function useTreeInteraction({
   );
 
   /**
+   * 트리에서 파일을 여는 유일한 문 — 클릭·⏎·「옆에 열기」가 전부 여기를 지난다.
+   *
+   * 열 수 없는 링크(프로젝트 밖을 가리키거나 대상이 없음)는 백엔드에 보내지
+   * 않는다. 보내면 가드가 거부하고 사용자는 「Path escapes the project root」를
+   * 본다 (설치본 로그 2026-09-17/18, `acestep`). 행 자체는 뽑히고 포커스도
+   * 옮겨진다 — 지우거나 이름을 바꾸는 것까지 막을 이유는 없다.
+   */
+  const openFromTree = useCallback(
+    (path: string, line: number | null, pane?: number, sel?: { preview?: boolean }) => {
+      const row = treeOrder.find((x) => x.path === path);
+      if (row?.unreachable) {
+        toast.info(t("code.tree.linkUnreachable"), { dedupKey: "code.tree.unreachable" });
+        return;
+      }
+      openPath(path, line, pane, sel);
+    },
+    [treeOrder, openPath],
+  );
+
+  /**
    * 트리 행을 눌렀다. 평범한 클릭은 예전 그대로다 — 하나만 뽑고, 파일이면 열고
    * 폴더면 펼친다. ⌘·⇧ 는 **고르기만** 한다 (열면 뽑아 둔 것이 곧바로 흩어진다).
    */
@@ -100,9 +123,9 @@ export function useTreeInteraction({
       setMarkAnchor(path);
       setTreeFocus({ path, isDir });
       if (isDir) toggleDir(path);
-      else openPath(path, null, undefined, { preview: true });
+      else openFromTree(path, null, undefined, { preview: true });
     },
-    [markAnchor, treeOrder, toggleDir, openPath, setMarks, setMarkAnchor, setTreeFocus],
+    [markAnchor, treeOrder, toggleDir, openFromTree, setMarks, setMarkAnchor, setTreeFocus],
   );
 
   /**
@@ -126,7 +149,7 @@ export function useTreeInteraction({
     clearMarks,
     targetsFor,
     toggleDir,
-    openPath,
+    openPath: openFromTree,
     startRename,
     askDelete,
     moveInto,
@@ -147,11 +170,11 @@ export function useTreeInteraction({
         // 왜 못 누르는지 알 수 없다.
         paste: cut.size > 0 ? () => pasteInto(entry) : undefined,
         openBeside: (path) =>
-          openPath(path, null, tabsRef.current.panes.length > 1 ? 1 : 0),
+          openFromTree(path, null, tabsRef.current.panes.length > 1 ? 1 : 0),
       });
       setMenu({ x: e.clientX, y: e.clientY, items });
     },
-    [startCreate, startRename, askDelete, targetsFor, cut.size, cutFrom, pasteInto, openPath, tabsRef, setMenu],
+    [startCreate, startRename, askDelete, targetsFor, cut.size, cutFrom, pasteInto, openFromTree, tabsRef, setMenu],
   );
 
   return { clickRow, treeFocusPath, cut, cutFrom, pasteHere, onTreeKeyDown, openTreeMenu };

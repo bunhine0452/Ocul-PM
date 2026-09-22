@@ -22,7 +22,7 @@ vi.mock("@/lib/bindings", () => {
     const out: CodeDirEntry[] = [];
     for (const key of fx.files.keys()) {
       if (!key.startsWith(prefix) || key.slice(prefix.length).includes("/")) continue;
-      out.push({ name: key.slice(prefix.length), relative_path: key, is_dir: false, ignored: false });
+      out.push({ name: key.slice(prefix.length), relative_path: key, is_dir: false, ignored: false, link: null });
     }
     return out;
   };

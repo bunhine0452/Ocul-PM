@@ -12,7 +12,7 @@ import { dropDirFor, SPRING_MS, useTreeDrag } from "@/features/code/useTreeDrag"
 afterEach(cleanup);
 
 function entry(name: string, path: string, isDir: boolean): CodeDirEntry {
-  return { name, relative_path: path, is_dir: isDir, ignored: false };
+  return { name, relative_path: path, is_dir: isDir, ignored: false, link: null };
 }
 
 describe("dropDirFor — 어디로 들어가는가", () => {
