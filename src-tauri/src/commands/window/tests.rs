@@ -638,3 +638,77 @@ fn an_all_stale_snapshot_restores_nothing() {
     };
     assert!(sanitize_session(&session, &known(&[])).windows.is_empty());
 }
+
+// ─── 지운 프로젝트의 창 흔적 (2026-09-17 06:11 로그) ─────────────────────────
+//
+// `delete_project` 가 DB 행만 지우던 동안, 그 프로젝트의 탭은 스트립에 `#22`
+// 로 남았다. 뒤늦게 그 탭을 누르면 `oculpm_init` 이 "project not found" 로
+// 떨어졌고(로그의 `oculpmInit failed`), 사용자는 껍데기를 손으로 닫아야 했다.
+
+/// 지운 프로젝트의 탭은 **어느 창에 있든** 찾아낸다. 이 판정이 창 하나만 보면
+/// 다른 창에 껍데기가 남는다 (I1 이라 탭은 많아야 하나지만 그 하나가 어디
+/// 있는지는 정해져 있지 않다).
+#[test]
+fn project_surfaces_finds_the_tab_in_any_window() {
+    let mut reg = reg_with(&[("main", &[Some(7)]), ("win-1", &[None, Some(22)])]);
+    reg.terminal_windows.insert(22);
+
+    let (tab, had_terminal) = project_surfaces(&reg, 22);
+    assert_eq!(tab, Some(ids(&reg, "win-1")[1]));
+    // 분리 터미널 창도 함께 걷어야 한다 — 남으면 프런트가 「창으로 떼어냄」
+    // 상태에 갇힌다.
+    assert!(had_terminal);
+}
+
+/// 열려 있지 않은 프로젝트를 지우는 것이 정상 경로다 — 아무것도 안 건드린다.
+#[test]
+fn project_surfaces_of_an_unopened_project_is_empty() {
+    let reg = reg_with(&[("main", &[Some(7)])]);
+    assert_eq!(project_surfaces(&reg, 999), (None, false));
+}
+
+/// 탭은 없고 분리 터미널 창만 떠 있는 경우도 걷는다.
+#[test]
+fn project_surfaces_reports_a_lone_terminal_window() {
+    let mut reg = reg_with(&[("main", &[Some(7)])]);
+    reg.terminal_windows.insert(9);
+    assert_eq!(project_surfaces(&reg, 9), (None, true));
+}
+
+/// 배선 가드 — 위 판정이 **불리는지**는 소스로만 확인할 수 있다 (두 경로 모두
+/// `AppHandle` 을 받아 웹뷰를 만지므로 MockRuntime 으로는 닿지 않는다).
+///
+/// 순서까지 본다: `close_project_surfaces` 는 `db.delete_project` **앞**이어야
+/// 남은 탭의 이름 조회(`snapshot`)가 성립한다.
+#[test]
+fn delete_project_closes_the_windows_before_dropping_the_row() {
+    let src = include_str!("../project.rs");
+    let close = src
+        .find("close_project_surfaces")
+        .expect("delete_project 가 창 흔적을 걷지 않는다");
+    let drop_row = src
+        .find("db.delete_project(project_id)")
+        .expect("delete_project 가 행을 지우지 않는다");
+    assert!(close < drop_row, "행을 지우기 전에 창을 걷어야 한다");
+}
+
+/// 같은 규율 — 지운 프로젝트를 여는 **두** 경로 모두 레지스트리를 건드리기
+/// 전에 거절한다. 탭을 여는 길이 둘이라(스트립·팔레트의 `open_project_tab`,
+/// 시작 탭의 `set_tab_project`) 한쪽만 막으면 다른 쪽으로 유령 탭이 들어온다.
+#[test]
+fn opening_a_project_checks_it_exists_first() {
+    let src = include_str!("tabs.rs");
+    for entry in [
+        "pub async fn open_project_tab_with_nav",
+        "pub async fn set_tab_project",
+    ] {
+        let body = src.split(entry).nth(1).expect(entry);
+        let guard = body
+            .find("db.get_project(project_id)")
+            .unwrap_or_else(|| panic!("{entry} 가 지운 프로젝트를 거르지 않는다"));
+        let touches_registry = body
+            .find("locate_project")
+            .unwrap_or_else(|| panic!("{entry} 본문이 바뀌었다 — 기준점을 다시 잡을 것"));
+        assert!(guard < touches_registry, "{entry}: 검사가 먼저다");
+    }
+}

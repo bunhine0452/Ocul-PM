@@ -26,6 +26,17 @@ pub async fn open_project_tab_with_nav(
     window: Option<String>,
     nav: Option<&crate::tray::TrayNavigate>,
 ) -> Result<(), String> {
+    // 지운 프로젝트는 열지 않는다 — 프런트의 목록은 창마다 따로 살아 방금
+    // 지운 것이 남아 있을 수 있다. 여기서 막지 않으면 존재하지 않는 프로젝트의
+    // 탭이 레지스트리에 생기고, 그 탭의 `oculpm_init` 이 "project not found"
+    // 로 떨어진 뒤 사용자가 껍데기를 손으로 닫아야 한다 (2026-09-17 06:11).
+    {
+        let db = app.state::<crate::db::Db>();
+        db.get_project(project_id)
+            .await
+            .map_err(|_| format!("project {project_id} not found"))?;
+    }
+
     // 상주 모드에서 Dock 아이콘을 내려놨을 수 있다 — 창을 띄우기 전에 되돌린다.
     #[cfg(target_os = "macos")]
     let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
@@ -124,6 +135,14 @@ pub async fn new_window_inner(app: &AppHandle) -> Result<(), String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn set_tab_project(app: AppHandle, tab_id: u32, project_id: u32) -> Result<(), String> {
+    // `open_project_tab_with_nav` 과 같은 가드 — 시작 탭의 목록은 그 창이 따로
+    // 조회한 것이라 방금 다른 창에서 지운 프로젝트가 남아 있을 수 있다.
+    {
+        let db = app.state::<crate::db::Db>();
+        db.get_project(project_id)
+            .await
+            .map_err(|_| format!("project {project_id} not found"))?;
+    }
     let already = {
         let state = app.state::<WindowTabs>();
         let reg = state.lock();
@@ -247,6 +266,51 @@ async fn close_tab_from(app: &AppHandle, asking: Option<&str>, tab_id: u32) -> R
         broadcast(app, &label).await;
     }
     Ok(())
+}
+
+/// 지운 프로젝트가 창에 남긴 것 — (그 프로젝트의 탭, 분리 터미널 창이 있는가).
+///
+/// 판정만 순수 함수로 뺀다 (`ghost_window` 와 같은 규율). 아래 `close_project_
+/// surfaces` 는 웹뷰를 만지므로 단위 테스트가 닿지 않는데, **어느 창에 있든
+/// 찾아내는가**는 여기서 전부 결정된다 — 지운 프로젝트의 탭이 다른 창에 있을 때
+/// 그냥 지나치면 그 창에 껍데기 탭이 남는다.
+pub(super) fn project_surfaces(reg: &Registry, project_id: u32) -> (Option<u32>, bool) {
+    (
+        reg.locate_project(project_id).map(|(_, tab_id)| tab_id),
+        reg.terminal_windows.contains(&project_id),
+    )
+}
+
+/// 워크스페이스에서 **지운** 프로젝트의 창 흔적을 걷는다 — `delete_project` 가
+/// DB 행을 지우기 전에 부른다.
+///
+/// 분리 터미널 창(`term-{pid}`)을 닫고, 그 프로젝트의 탭(I1 이라 많아야 하나)을
+/// `close_tab` 과 **같은 길**로 닫는다 — PTY 정리·브로드캐스트·마지막 탭이면
+/// 창 닫기까지 같다. 둘 중 나중에 정리되는 쪽이 셸을 죽인다 (`releasable`).
+///
+/// 이걸 안 하던 동안 (2026-09-17 06:11 로그): 지운 프로젝트의 탭이 스트립에
+/// `#22` 로 남았고, 아직 마운트되지 않았던 그 탭을 뒤늦게 누르면 `oculpm_init`
+/// 이 "project not found" 로 떨어졌으며, 사용자는 껍데기 탭을 손으로 닫아야
+/// 했다. 프런트에서 닫게 하지 않는 이유는 삭제 흐름이 둘(시작 탭·관리 시트)이고
+/// 탭은 다른 창에 있을 수도 있어서다 — 레지스트리를 쥔 쪽이 닫는 것이 맞다.
+pub async fn close_project_surfaces(app: &AppHandle, project_id: u32) {
+    let (tab, had_terminal) = {
+        let state = app.state::<WindowTabs>();
+        let reg = state.lock();
+        project_surfaces(&reg, project_id)
+    };
+    if had_terminal {
+        if let Err(e) = close_terminal_window(app.clone(), project_id).await {
+            tracing::warn!(project_id, error = %e, "[FLOW] 지운 프로젝트의 터미널 창을 닫지 못했다");
+        }
+    }
+    let Some(tab_id) = tab else {
+        return;
+    };
+    tracing::info!(project_id, tab_id, "[FLOW] 지운 프로젝트의 탭을 닫는다");
+    if let Err(e) = close_tab_from(app, None, tab_id).await {
+        tracing::warn!(project_id, tab_id, error = %e, "[FLOW] 지운 프로젝트의 탭을 닫지 못했다");
+    }
 }
 
 #[tauri::command]
