@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Ocul-PM — 코딩 에이전트용 AI 프로젝트 매니저 (AI PM) · 로컬-우선</title>
-<meta name="description" content="Claude Code · Codex · Cursor · Gemini CLI 같은 AI 코딩 에이전트가 코드를 쓰는 동안, Ocul-PM(AI PM)이 작업을 자동으로 기록하고 스탠드업으로 되돌려줍니다. 자동 작업 일지, 로컬 diff 검증, 코드 맵, 스킬 샵, ⌘K 팔레트. 화면 언어 한국어·English. 로컬-우선 · 계정 없음 · 텔레메트리 없음." />
+<title>Ocul-PM — AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요 · 코딩 에이전트용 AI PM</title>
+<meta name="description" content="AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요. Claude Code 가 작업을 끝내면 Ocul-PM(AI PM)에 일지가 남고, 다음 대화는 그 일지에서 이어서 시작합니다. Codex · Cursor · Gemini CLI 도 규칙 파일로 기록합니다. 자동 작업 일지, 로컬 diff 검증, 코드 맵, 스킬 샵, ⌘K 팔레트. 화면 언어 한국어·English. 로컬-우선 · 계정 없음 · 텔레메트리 없음." />
 <meta name="keywords" content="AI PM, AI 프로젝트 매니저, AI project manager, ai pm tool, Ocul-PM, 코딩 에이전트, AI 코딩 에이전트, AI coding agent, coding agent manager, Claude Code, Codex CLI, Cursor, Gemini CLI, Windsurf, GitHub Copilot, aider, Cline, Zed, Antigravity, 작업 일지, 개발 일지, dev journal, agent work log, 코드 변경 추적, 코드 변경 일지, AI 페어 프로그래밍 기록, vibe coding 관리, Claude Code 작업 기록, Cursor 변경 추적, 스탠드업 생성, Monaco 편집기, AI 코드 편집, 코드 맵, 의존성 그래프, Claude Code 스킬, 스킬 샵, Claude Code skills, AI 개발 도구, 로컬 우선, local-first, 시맨틱 코드 검색, macOS 개발 도구, 개발 생산성, English UI, 영어 지원" />
 <meta name="author" content="Ocul-PM" />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
@@ -20,8 +20,8 @@
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:locale:alternate" content="en_US" />
 <meta property="og:url" content="https://oculpm.com/" />
-<meta property="og:title" content="Ocul-PM — 코딩 에이전트용 AI 프로젝트 매니저 (AI PM)" />
-<meta property="og:description" content="AI 코딩 에이전트가 코드를 쓰는 동안, 당신은 기록·관리·검증만 합니다. 자동 일지 · 로컬 diff 검증 · 스탠드업 산출물. 로컬-우선 · 계정 없음 · 텔레메트리 없음." />
+<meta property="og:title" content="Ocul-PM — AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요" />
+<meta property="og:description" content="Claude Code 가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지에서 이어서 시작합니다. 자동 일지 · 이어하기 · 로컬 diff 검증. 로컬-우선 · 계정 없음 · 텔레메트리 없음." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="1200" />
@@ -29,8 +29,8 @@
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Ocul-PM — 코딩 에이전트용 AI 프로젝트 매니저 (AI PM)" />
-<meta name="twitter:description" content="AI 코딩 에이전트가 코드를 쓰는 동안, 당신은 기록·관리·검증만 합니다. 로컬-우선 · macOS 네이티브." />
+<meta name="twitter:title" content="Ocul-PM — AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요" />
+<meta name="twitter:description" content="Claude Code 가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지에서 이어서 시작합니다. 로컬-우선 · macOS 네이티브." />
 <meta name="twitter:image" content="https://oculpm.com/og.png" />
 
 <link rel="icon" href="icon.svg" />
@@ -48,7 +48,7 @@
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
   "softwareVersion": "3.4.0",
-  "description": "AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)와 함께 일하는 개발자를 위한 로컬-우선 AI 프로젝트 매니저. 에이전트가 만든 변경을 자동으로 기록하고, 로컬 diff 로 즉시 검증하고, 쌓인 기록을 스탠드업으로 되돌려줍니다. Claude Code 플러그인 두 줄 설치 지원.",
+  "description": "AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요. 매일 AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)로 개발하는 사람을 위한 로컬-우선 AI 프로젝트 매니저 — 에이전트가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 이어받습니다. 로컬 diff 검증, 스탠드업. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
     "첫 기록 확인 — 일지가 한 건도 없는 프로젝트에 「첫 기록」 카드가 서서, 준비(Claude Code·플러그인·훅 연결) → 대화 진행 중 → 그 대화가 남긴 첫 일지 → 기록 없이 끝남 → 귀속 불명의 다섯 상태를 총 일지 수가 아니라 대화 id 로 판정합니다. 백필·옆 대화의 일지는 성공이 아니고, 기록이 남았다는 뜻이지 코드가 검증됐다는 뜻은 아니라고 말합니다",
@@ -144,6 +144,11 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "누구를 위한 앱인가요?",
+      "acceptedAnswer": { "@type": "Answer", "text": "매일 AI 코딩 에이전트로 개발하고, 다음 날 새 대화에 어제 맥락을 다시 설명하는 게 귀찮은 사람입니다. Claude Code 가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 이어받습니다. 어쩌다 한 번 쓰는 사람에게는 이 왕복이 필요 없을 수 있고, 그래도 괜찮습니다 — 앱은 무료이고 데이터는 프로젝트 폴더의 마크다운이라 언제든 그만둘 수 있습니다." }
+    },
     {
       "@type": "Question",
       "name": "다음 세션은 지난 작업을 어떻게 이어받나요?",
@@ -324,11 +329,11 @@
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
   <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v3.4.0 — 첫 기록 확인과 이어하기</a>
-  <h1 class="reveal on">에이전트는 코드를 쓰고,<br /><span class="g">당신은 기억을 갖습니다.</span></h1>
+  <h1 class="reveal on">AI와 어제 어디까지 작업했는지,<br /><span class="g">오늘 다시 설명하지 마세요.</span></h1>
   <p class="hero-sub reveal on">
-    Claude Code · Codex · Cursor 가 코드를 쓰는 동안, <b>Ocul-PM</b> 이 모든 작업을
-    자동으로 기록하고 — 변경을 로컬 diff 로 보여 주고 — 쌓인 기록을
-    스탠드업으로 되돌려줍니다. <b>로컬-우선.</b> 계정도, 서버도, 텔레메트리도 없습니다.
+    Claude Code 가 작업을 끝내면 <b>Ocul-PM</b> 에 일지가 남고, 다음 대화는 그 일지와
+    남은 계획을 시작 컨텍스트로 받아 <b>이어서 합니다.</b> 변경은 로컬 diff 로 보고,
+    쌓인 기록은 스탠드업이 됩니다. <b>로컬-우선.</b> 계정도, 서버도, 텔레메트리도 없습니다.
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
@@ -336,7 +341,7 @@
     </a>
     <a class="dl-btn ghost" href="/keynote">키노트로 보기 →</a>
   </div>
-  <p class="hero-fine">Claude Code 사용자는 <a href="/plugin">플러그인 두 줄</a>로도 시작할 수 있습니다</p>
+  <p class="hero-fine">매일 AI 로 개발하는 사람을 위한 앱입니다 · Claude Code 사용자는 <a href="/plugin">플러그인 두 줄</a>로도 시작할 수 있습니다</p>
   <p class="hero-ph reveal on">
     <a href="https://www.producthunt.com/products/ocul-pm?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ocul-pm" target="_blank" rel="noreferrer">
       <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1237239&amp;theme=dark" alt="Ocul-PM — Product Hunt 에서 보기" width="250" height="54" loading="lazy" />
@@ -344,9 +349,40 @@
   </p>
   <figure class="hero-shot reveal">
     <video src="demo.mp4" poster="demo-poster.jpg" width="1512" height="950" autoplay muted loop playsinline preload="metadata" aria-label="Ocul-PM 데모 — 에이전트에게 변경을 시키면 작업 일지가 저절로 쌓이는 28초"></video>
-    <figcaption><b>실제 화면.</b> 「delete 명령을 추가해」 한 줄 — 에이전트가 고치고, 일지가 저절로 쌓입니다. 서버 없음.</figcaption>
+    <figcaption><b>실제 화면.</b> 「delete 명령을 추가해」 한 줄 — 에이전트가 고치고, 일지가 저절로 쌓입니다. 아래 왕복의 1 → 2 단계입니다. 서버 없음.</figcaption>
   </figure>
 </header>
+
+<!-- ══════════ 한 왕복 ══════════ -->
+<section class="loop" id="loop">
+  <div class="sec-head">
+    <span class="eyebrow reveal">작업 · 첫 일지 · 이어하기</span>
+    <h2 class="reveal">기능 목록 대신,<br />왕복 하나.</h2>
+    <p class="reveal">평소 쓰는 프로젝트에서 그대로 해 보세요. 이 왕복이 되면 이 앱은 제 몫을 한 것입니다.</p>
+  </div>
+  <ol class="loop-steps">
+    <li class="loop-step reveal">
+      <span class="num">01 · 작업</span>
+      <h3>평소처럼 시킵니다.</h3>
+      <p>터미널의 Claude Code 에 평소 하던 대로. 프로젝트를 추가하면 <b>AGENTS.md</b> 가 심어지고,
+      플러그인 두 줄이면 훅과 기록 도구까지 붙습니다.</p>
+    </li>
+    <li class="loop-step reveal d1">
+      <span class="num">02 · 첫 일지</span>
+      <h3>일지가 앱에 섭니다.</h3>
+      <p>작업이 끝나면 에이전트가 일지를 남기고, 오늘 화면의 <b>「첫 기록」 카드</b>가 그 대화의 첫 일지를
+      확인해 줍니다 — 총 일지 수가 아니라 대화 id 로. 기록이 남았다는 뜻이지 코드가 검증됐다는 뜻은 아닙니다.</p>
+    </li>
+    <li class="loop-step reveal d2">
+      <span class="num">03 · 이어하기</span>
+      <h3>다음 대화가 이어받습니다.</h3>
+      <p>다음 날 새 대화를 열면 훅이 남은 계획과 마지막 일지 3건을 <b>시작 컨텍스트</b>에 싣습니다.
+      「이어하기」 카드가 무엇이 어느 대화에 실렸는지 보여 주고, 버튼 하나가 그 자료를 터미널에 넘깁니다.
+      어제를 다시 설명하지 않습니다.</p>
+    </li>
+  </ol>
+  <p class="loop-note reveal">확인한 경로는 <b>터미널의 Claude Code + oculpm 플러그인</b>입니다. Codex · Cursor · Gemini CLI 는 규칙 파일로 1 · 2 단계가 되고, 3 단계의 훅은 아직 Claude Code 뿐입니다.</p>
+</section>
 
 <!-- ══════════ 문제 제기 ══════════ -->
 <section class="gap">
@@ -356,7 +392,7 @@
     <span class="vs">vs</span>
     <span><span class="n dim">0</span><span class="lbl">당신이 설명할 수 있는 줄</span></span>
   </div>
-  <p class="reveal">코드는 그 어느 때보다 빨라졌는데, 이해는 그 어느 때보다 느려졌습니다.
+  <p class="reveal">코드는 그 어느 때보다 빨라졌는데, 오늘 아침 새 대화의 첫 10분은 어제를 다시 설명하는 데 씁니다.
   속도를 얻고 기억을 잃는 것 — 에이전트 시대의 트레이드오프를 Ocul-PM 이 끊습니다.</p>
 </section>
 
@@ -646,6 +682,7 @@
     <h2 class="reveal">자주 묻는 질문</h2>
   </div>
   <div class="faq-list reveal">
+    <details><summary>누구를 위한 앱인가요?</summary><p>매일 AI 코딩 에이전트로 개발하고, 다음 날 새 대화에 어제 맥락을 다시 설명하는 게 귀찮은 사람입니다. Claude Code 가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 이어받습니다 — 위 <a href="#loop">왕복 하나</a>가 그것입니다. 어쩌다 한 번 쓰는 사람에게는 이 왕복이 필요 없을 수 있고, 그래도 괜찮습니다 — 앱은 무료이고 데이터는 프로젝트 폴더의 마크다운이라 언제든 그만둘 수 있습니다.</p></details>
     <details><summary>VS Code 안에서도 쓸 수 있나요?</summary><p><b>v2.48.0</b> 부터 VS Code 확장 <code>oculpm.ocul-pm</code> 이 있습니다. 편집기는 <b>진짜 VS Code</b> 를 쓰고, 확장은 그 사이드바에 오늘 일지와 활성 플랜을 띄웁니다 — 에이전트가 일지를 쓰면 <b>1초 안에</b> 뜨고, 플랜 항목 체크박스를 누르면 <code>.md</code> 와 앱 플래너가 같이 바뀝니다. 파일은 확장이 직접 고치지 않고 앱에 든 <code>oculpm-mcp</code> 를 통해서만 써서 잠금·갱신 로그·동시 편집 보호가 그대로입니다. Copilot 에이전트 모드에는 <code>journal_write</code>·<code>plan_update</code> 도구가 그대로 보이고, 일지의 「편집기로 열기」는 VS Code 사이드바의 그 일지로, VS Code 의 「Ocul-PM 에서 열기」는 앱의 그 일지로 갑니다. VS Code 1.101 이상이면 되고 Cursor·VSCodium 은 <a href="https://open-vsx.org/extension/oculpm/ocul-pm">Open VSX</a> 에서 받습니다. 앱 없이 설치하면 읽기 전용으로 동작하며, 확장은 <b>네트워크를 쓰지 않습니다</b>.</p></details>
     <details><summary>설치할 때 macOS 경고가 뜨나요?</summary><p>v2.45.0 부터 뜨지 않습니다. Apple Developer ID 로 서명하고 공증(notarization)까지 마친 빌드라, <code>.dmg</code> 를 열어 Applications 로 끌어다 놓고 그냥 실행하면 됩니다. 그전 버전은 서명이 없어 macOS 가 「손상되었기 때문에 열 수 없습니다」로 막았고 — 실제 손상이 아니라 내려받은 파일에 붙는 격리 표시였습니다 — 터미널에서 <code>xattr -dr com.apple.quarantine</code> 을 직접 쳐야 했습니다. 옛 버전을 쓰고 계셨다면 이 버전으로 올라온 뒤 처음 열 때 키체인이 한 번 물어볼 수 있습니다: API 키는 맥의 키체인에 들어 있고 그 접근 권한이 앱의 서명에 묶여 있는데 서명 주체가 바뀌었기 때문입니다. 「항상 허용」을 누르면 그다음부터는 묻지 않고, 저장해 둔 키가 사라지지도 않습니다.</p></details>
     <details><summary>터미널을 여러 개 띄워 에이전트를 동시에 돌리면 앱이 구분하나요?</summary><p>v2.40.0 부터 구분합니다. 그전에는 터미널을 넷으로 쪼개 Claude Code 를 넷 띄워도 앱은 세션 하나로만 봤습니다 — 훅은 대화마다 다른 id 를 들고 오는데 그 값이 버려지고 화면에는 상수 라벨 하나만 남았기 때문입니다. 이제 작업 세션이 참여한 대화를 전부 기록하고(메뉴바 트레이가 「대화 4」처럼 그 수를 말하며 툴팁에 어느 대화들이었는지 답니다), 작업 일지 프론트매터에 그 일지를 쓴 대화의 id 가 함께 적힙니다(기록 도구가 Claude Code 의 자식 프로세스라 자기 대화를 알고 있습니다 — 모르는 자리에서는 줄 자체가 나가지 않습니다). 작업 세션 자체는 일부러 쪼개지 않았습니다: 파일 변경을 보는 워처는 누가 썼는지 모르므로 세션을 N개로 나누면 파일 수와 커밋 위치가 임의로 복제됩니다. 그릇은 하나로 두고 누가 붙어 있었는지를 기록하는 쪽이 정직합니다. 터미널 화면에서는 세션마다 색을 골라(카드 우클릭) 왼쪽 띠와 터미널 테두리로 구별하고, 카드가 「2/4 실행 중」처럼 그 탭에서 몇 개가 돌고 있는지 말하며 레일을 접어도 그 수가 아이콘에 남습니다. 누가 붙어 있고 누구와 묶여 있는지 전체를 보려면 「세션」 화면이 따로 있습니다.</p></details>

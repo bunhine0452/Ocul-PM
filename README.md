@@ -4,8 +4,10 @@
 
 <img src="landing/demo.gif" alt="Ocul-PM 데모 — 에이전트에게 변경을 시키면 작업 일지가 저절로 쌓입니다" width="100%" />
 
-<p><b>AI 코딩 에이전트가 코드를 쓰는 동안, 그 기록은 Ocul-PM 이 남깁니다.</b><br/>
-Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프로젝트 매니저</p>
+<h3>AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요.</h3>
+
+<p>Claude Code 가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지에서 시작합니다.<br/>
+Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프로젝트 매니저 — 서버도 계정도 없습니다.</p>
 
 [![CI](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml)
 [![Latest release](https://badgen.net/github/tag/bunhine0452/Ocul-PM?icon=github&label=download&color=12a06b)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
@@ -25,11 +27,21 @@ Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프
 
 ---
 
-에이전트한테 일을 시키는 날이 늘수록 이상한 비용이 하나 생깁니다. 지난주에 Claude Code 가 어떤 파일을 왜 건드렸는지, Cursor 가 고쳤다는 버그가 진짜 고쳐졌는지를 매번 git log 와 기억에 의존해 다시 캐내는 일입니다. 코드는 남는데 맥락은 남지 않기 때문입니다.
+매일 AI 로 개발하면 아침마다 같은 일을 합니다. 새 대화를 열고, 어제 어디까지 했는지, 왜 그 파일을 건드렸는지, 무엇이 남았는지를 처음부터 다시 설명하는 일입니다. 대화가 끝나면 맥락도 같이 끝나기 때문입니다 — 코드는 남는데 맥락은 남지 않습니다.
 
-Ocul-PM 은 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심는 것으로 시작합니다. 에이전트는 작업 하나를 끝낼 때마다 이 규칙대로 `.oculpm/journal/` 에 마크다운 일지를 남기고, 앱은 그것을 읽어 타임라인과 일일 브리프, 변경 diff 로 보여줍니다. 원본이 전부 마크다운 파일이라 코드와 함께 커밋할 수 있고, 앱이 없어도 그냥 읽힙니다.
+Ocul-PM 은 그 설명을 없앱니다. 프로젝트 폴더에 규칙 파일(`AGENTS.md`) 하나를 심으면 에이전트는 작업 하나를 끝낼 때마다 `.oculpm/journal/` 에 마크다운 일지를 남기고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 받아 이어서 합니다. 앱은 그 기록을 타임라인·일일 브리프·변경 diff 로 보여 줍니다. 원본이 전부 마크다운 파일이라 코드와 함께 커밋할 수 있고, 앱이 없어도 그냥 읽힙니다.
 
 서버는 없습니다. 데이터는 프로젝트의 `.oculpm/` 폴더와 로컬 SQLite 캐시에만 있고, 기기를 떠나는 것은 **여러분이 시작한 것뿐**입니다 — 직접 부른 LLM API 호출, 새 버전 확인, 그리고 켜야만 존재하는 것들(눌렀을 때의 GitHub 조회·테마 내려받기, 의미 검색 모델 최초 1회, Notion 연동). 세어 볼 수 있는 전체 목록은 [oculpm.com/privacy](https://oculpm.com/privacy) 에 있습니다. VS Code 확장(`oculpm.ocul-pm`)도 같은 약속을 따릅니다 — 네트워크를 쓰지 않고, 쓰기는 이 앱의 `oculpm-mcp` 를 통해서만 합니다.
+
+## 한 왕복 — 작업 · 첫 일지 · 이어하기
+
+기능 목록보다 이 왕복 하나가 이 앱의 전부입니다. 평소 쓰는 프로젝트에서 그대로 해 보세요.
+
+1. **작업** — 터미널의 Claude Code 에 평소처럼 시킵니다. 프로젝트를 추가하면 `AGENTS.md` 가 심어지고, [플러그인 두 줄](#claude-code-플러그인--앱-없이도-시작)이면 훅과 기록 도구까지 붙습니다.
+2. **첫 일지** — 작업이 끝나면 에이전트가 일지를 남기고, 오늘 화면의 「첫 기록」 카드가 **그 대화의** 첫 일지를 확인해 줍니다. 총 일지 수가 아니라 대화 id 로 판정하고, 기록이 남았다는 뜻이지 코드가 검증됐다는 뜻은 아니라고 카드가 말합니다.
+3. **이어하기** — 다음 날 새 대화를 열면 플러그인의 SessionStart 훅이 활성 계획의 미완 항목과 마지막 일지 3건을 시작 컨텍스트에 싣습니다. 오늘 화면의 「이어하기」 카드가 같은 자료와 「어느 대화에 포함됐는지」를 보여 주고, 「이 맥락으로 이어서 작업」 버튼이 그 자료를 터미널에 넘깁니다. 어제를 다시 설명하지 않습니다.
+
+이 왕복은 **터미널의 Claude Code + oculpm 플러그인** 경로에서 확인했습니다. 다른 에이전트(Codex · Cursor · Gemini CLI …)는 1·2 단계가 규칙 파일만으로 동작하고 3 단계의 훅은 없습니다 — 등급별 차이는 아래 [지원 에이전트](#지원-에이전트) 표에 있습니다. 위 데모 영상은 1 → 2 단계입니다.
 
 
 <img src="landing/shots/en/08-receipt.jpg" alt="Ocul-PM — 앱 안의 Claude Code 가 편집 diff 와 턴 영수증을 남긴 실제 화면" />

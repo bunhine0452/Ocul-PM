@@ -31,7 +31,7 @@ docs/product-direction-2026-09-21/REPORT.md 의 실행 플랜. 검증 경로 하
 - [x] P2-4 검색·읽기·전달의 관측 의미 구분 표시 — recall_touch 는 AI 패널 전용이라는 한계 명시 {#p2-observe}
 
 ## Phase 3~4 — 소개 정렬·소규모 관찰 (근거 생긴 뒤) {#p3}
-- [ ] P3 README·랜딩·시작 위키를 핵심 경험 중심으로 편집 + 실제 왕복 촬영 — 사용자 결정 후 {#p3-intro}
+- [~] P3 README·랜딩·시작 위키를 핵심 경험 중심으로 편집 + 실제 왕복 촬영 — 사용자 결정 후 {#p3-intro}
 - [ ] P4 소규모 사용자 관찰 준비·실행 — 사용자가 명시적으로 요청할 때만 {#p4-observe}
 
 <!-- oculpm:plan-log begin v1 -->
@@ -51,4 +51,5 @@ docs/product-direction-2026-09-21/REPORT.md 의 실행 플랜. 검증 경로 하
 | 2026-09-22T01:45:15+09:00 | #p2-preview | claude-code | ☐→x | .oculpm/journal/20260922/Features_to_add/0144_feature_resume-context-and-card.md | Today ResumeCard — 마지막 작업 3건(원문 열기)·다음 항목 3건·자료 복사(전달 아님). 실제 CSS 스크린샷으로 라이트/다크 확인 |
 | 2026-09-22T01:45:24+09:00 | #p2-deliver | claude-code | ☐→x | .oculpm/journal/20260922/Features_to_add/0144_feature_resume-context-and-card.md | plan-context.sh 가 SessionStart 컨텍스트에 마지막 일지 3건을 싣고 resume-delivered.jsonl 원장을 남긴다 (codex 사본 동기, cwd 폴백, resume_context 5건 실제 sh 테스트). 이 저장소·이 대화로 실제 왕복 확인 |
 | 2026-09-22T01:45:32+09:00 | #p2-observe | claude-code | ☐→x | .oculpm/journal/20260922/Features_to_add/0144_feature_resume-context-and-card.md | 전달 줄 세 갈래(포함됨/아직/훅 없음) — 원장은 "컨텍스트 포함"까지만 증명, 참조·도움은 모른다고 표시. 복사는 전달로 세지 않음. recall_touch 는 AI 패널 전용(PHASE0 관측표) |
+| 2026-09-22T19:44:39+09:00 | #p3-intro | claude-code | ☐→~ | .oculpm/journal/20260922/Chores/1944_chore_readme-landing-one-sentence-round-trip.md | README ko/en·랜딩 ko/en 을 한 문장+왕복 3단계로 편집. 남은 것: 시작 위키·실제 왕복 촬영·랜딩 배포 |
 <!-- oculpm:plan-log end -->

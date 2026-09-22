@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Ocul-PM — AI project manager for coding agents · local-first</title>
-<meta name="description" content="While AI coding agents like Claude Code, Codex, Cursor and Gemini CLI write your code, Ocul-PM records the work and hands it back as standups and branch reports. Automatic work journals, local diff review, code map, skill shop, ⌘K palette. UI in English or Korean. Local-first · no account · no telemetry." />
+<title>Ocul-PM — Stop re-explaining to your AI where you left off yesterday. · AI project manager for coding agents</title>
+<meta name="description" content="Stop re-explaining to your AI where you left off yesterday. When Claude Code finishes a unit of work, a journal entry lands in Ocul-PM and the next conversation starts from it. Codex, Cursor and Gemini CLI record through the rules file. Automatic work journals, local diff review, code map, skill shop, ⌘K palette. UI in English or Korean. Local-first · no account · no telemetry." />
 <meta name="keywords" content="AI PM, AI project manager, ai pm tool, Ocul-PM, coding agent, AI coding agent, coding agent manager, Claude Code, Codex CLI, Cursor, Gemini CLI, Windsurf, GitHub Copilot, aider, Cline, Zed, Antigravity, dev journal, agent work log, work journal, code change tracking, AI pair programming record, vibe coding management, Claude Code work log, Cursor change tracking, standup generator, Monaco editor, AI code editing, code map, dependency graph, Claude Code skills, skill shop, AI developer tools, local-first, semantic code search, macOS developer tools, developer productivity" />
 <meta name="author" content="Ocul-PM" />
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
@@ -20,8 +20,8 @@
 <meta property="og:locale" content="en_US" />
 <meta property="og:locale:alternate" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/en" />
-<meta property="og:title" content="Ocul-PM — AI project manager for coding agents" />
-<meta property="og:description" content="Your agents write the code. You keep the record, the review and the receipts. Automatic journals · local diff review · standups. Local-first · no account · no telemetry." />
+<meta property="og:title" content="Ocul-PM — Stop re-explaining to your AI where you left off yesterday." />
+<meta property="og:description" content="When Claude Code finishes a unit of work, a journal entry is left behind and the next conversation starts from it. Automatic journals · resume · local diff review. Local-first · no account · no telemetry." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="1200" />
@@ -29,8 +29,8 @@
 
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Ocul-PM — AI project manager for coding agents" />
-<meta name="twitter:description" content="Your agents write the code. You keep the record. Local-first · native macOS." />
+<meta name="twitter:title" content="Ocul-PM — Stop re-explaining to your AI where you left off yesterday." />
+<meta name="twitter:description" content="When Claude Code finishes a unit of work, a journal entry is left behind and the next conversation starts from it. Local-first · native macOS." />
 <meta name="twitter:image" content="https://oculpm.com/og.png" />
 
 <link rel="icon" href="/icon.svg" />
@@ -49,7 +49,7 @@
   "image": "https://oculpm.com/og.png",
   "softwareVersion": "3.4.0",
   "inLanguage": "en",
-  "description": "A local-first AI project manager for developers who work with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends). It records what the agents changed, lets you verify it against a local diff, and turns the pile of records back into standups and branch reports. Two-line install as a Claude Code plugin.",
+  "description": "Stop re-explaining to your AI where you left off yesterday. A local-first AI project manager for people who build with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends) every day — when the agent finishes a unit of work a journal entry is left behind, and the next conversation receives those entries and the remaining plan items as its starting context. Local diff review, standups. Two-line install as a Claude Code plugin.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
     "First record — a project with zero journal entries gets a First record card that moves through ready (Claude Code, plugin, hook link) → conversation in progress → that conversation's first entry → ended without one → unattributed, judged by the conversation id rather than the total entry count. Backfills and a neighbouring conversation's entries never count, and the card says recorded is not reviewed",
@@ -146,6 +146,11 @@
   "@type": "FAQPage",
   "inLanguage": "en",
   "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Who is this for?",
+      "acceptedAnswer": { "@type": "Answer", "text": "People who build with an AI coding agent every day and are tired of re-explaining yesterday's context to a fresh conversation. When Claude Code finishes a unit of work a journal entry is left behind, and the next conversation receives those entries and the remaining plan as its starting context. If you only use an agent now and then, you may not need this round trip — and that's fine: the app is free and the data is markdown in your project folder, so you can stop at any time." }
+    },
     {
       "@type": "Question",
       "name": "How does the next session pick up where the last one stopped?",
@@ -326,11 +331,11 @@
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
   <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v3.4.0 — first record and resume</a>
-  <h1 class="reveal on">Agents write the code.<br /><span class="g">You keep the memory.</span></h1>
+  <h1 class="reveal on">Stop re-explaining to your AI<br /><span class="g">where you left off yesterday.</span></h1>
   <p class="hero-sub reveal on">
-    While Claude Code · Codex · Cursor write your code, <b>Ocul-PM</b> records every unit of work —
-    shows you what actually changed as a local diff — and hands the pile back as standups, PR bodies
-    and branch reports. <b>Local-first.</b> No account, no server, no telemetry.
+    When Claude Code finishes a unit of work, a journal entry lands in <b>Ocul-PM</b> — and the next
+    conversation receives that entry and the remaining plan as its starting context and <b>carries on.</b>
+    Changes are reviewed as a local diff; the pile becomes standups. <b>Local-first.</b> No account, no server, no telemetry.
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
@@ -338,7 +343,7 @@
     </a>
     <a class="dl-btn ghost" href="/en/keynote">Watch the keynote →</a>
   </div>
-  <p class="hero-fine">On Claude Code? <a href="/en/plugin">Two lines in /plugin</a> is another way in</p>
+  <p class="hero-fine">Built for people who build with AI every day · On Claude Code? <a href="/en/plugin">Two lines in /plugin</a> is another way in</p>
   <p class="hero-ph reveal on">
     <a href="https://www.producthunt.com/products/ocul-pm?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ocul-pm" target="_blank" rel="noreferrer">
       <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1237239&amp;theme=dark" alt="Ocul-PM — find us on Product Hunt" width="250" height="54" loading="lazy" />
@@ -346,9 +351,40 @@
   </p>
   <figure class="hero-shot reveal">
     <video src="/demo.mp4" poster="/demo-poster.jpg" width="1512" height="950" autoplay muted loop playsinline preload="metadata" aria-label="Ocul-PM demo — ask the agent for a change and watch the work journal write itself, 28 seconds"></video>
-    <figcaption><b>A real screen.</b> One line — “add a delete command” — the agent does it and the journal fills itself. No server.</figcaption>
+    <figcaption><b>A real screen.</b> One line — “add a delete command” — the agent does it and the journal fills itself. Steps 1 → 2 of the round trip below. No server.</figcaption>
   </figure>
 </header>
+
+<!-- ══════════ one round trip ══════════ -->
+<section class="loop" id="loop">
+  <div class="sec-head">
+    <span class="eyebrow reveal">Work · first entry · resume</span>
+    <h2 class="reveal">Not a feature list.<br />One round trip.</h2>
+    <p class="reveal">Try it in the project you actually work in. If this round trip works, the app has done its job.</p>
+  </div>
+  <ol class="loop-steps">
+    <li class="loop-step reveal">
+      <span class="num">01 · Work</span>
+      <h3>Ask the way you always do.</h3>
+      <p>Claude Code in your terminal, nothing new to learn. Adding the project plants <b>AGENTS.md</b>;
+      two lines in <code>/plugin</code> add the hooks and the recording tools.</p>
+    </li>
+    <li class="loop-step reveal d1">
+      <span class="num">02 · First entry</span>
+      <h3>The entry shows up in the app.</h3>
+      <p>When the work is done the agent writes its entry, and Today's <b>“First record” card</b> confirms
+      the first entry of that conversation — judged by conversation id, not by entry count. A record is not a verification, and the card says so.</p>
+    </li>
+    <li class="loop-step reveal d2">
+      <span class="num">03 · Resume</span>
+      <h3>The next conversation picks it up.</h3>
+      <p>Open a new conversation the next day and the hook loads the remaining plan and the last three entries
+      into the <b>starting context</b>. The “Resume” card shows what went into which conversation, and one button hands it to the terminal.
+      You don't explain yesterday again.</p>
+    </li>
+  </ol>
+  <p class="loop-note reveal">Verified on the <b>terminal Claude Code + oculpm plugin</b> path. Codex · Cursor · Gemini CLI do steps 1 · 2 from the rules file; the step-3 hook exists for Claude Code only, so far.</p>
+</section>
 
 <!-- ══════════ the gap ══════════ -->
 <section class="gap">
@@ -358,7 +394,7 @@
     <span class="vs">vs</span>
     <span><span class="n dim">0</span><span class="lbl">lines you could explain</span></span>
   </div>
-  <p class="reveal">Code has never been faster. Understanding has never been slower.
+  <p class="reveal">Code has never been faster — and the first ten minutes of this morning's conversation went to explaining yesterday.
   Speed bought with memory — that is the trade of the agent era, and Ocul-PM is where it stops.</p>
 </section>
 
@@ -635,6 +671,7 @@
     <h2 class="reveal">Frequently asked</h2>
   </div>
   <div class="faq-list reveal">
+    <details><summary>Who is this for?</summary><p>People who build with an AI coding agent every day and are tired of re-explaining yesterday's context to a fresh conversation. When Claude Code finishes a unit of work a journal entry is left behind, and the next conversation receives those entries and the remaining plan as its starting context — that is the <a href="#loop">one round trip</a> above. If you only use an agent now and then, you may not need this round trip — and that's fine: the app is free and the data is markdown in your project folder, so you can stop at any time.</p></details>
     <details><summary>How does the next session pick up where the last one stopped?</summary><p>The Claude Code plugin's SessionStart hook carries the last three journal entries after the active plan items into the session-start context — no network, reading only the project's .oculpm/. What it delivered goes into a ledger, and Today's Resume card shows the same material and which conversation it was included in. Whether the model referenced it or was helped by it cannot be known, so the card does not claim it.</p></details>
     <details><summary>Can I use it inside VS Code?</summary><p>Since <b>v2.48.0</b> there is a VS Code extension, <code>oculpm.ocul-pm</code>. The editor is the <b>real VS Code</b>; the extension puts today's journal and the active plans in its sidebar — an agent's entry shows up <b>within a second</b>, and ticking a plan item's checkbox changes the <code>.md</code> and the app's planner together. The extension never edits files itself: writes go through the app's <code>oculpm-mcp</code>, so locking, the update log and concurrent-edit protection stay intact. Copilot agent mode sees the <code>journal_write</code> · <code>plan_update</code> tools as they are, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from VS Code lands on it in the app. VS Code 1.101 or newer is enough; Cursor and VSCodium get it from <a href="https://open-vsx.org/extension/oculpm/ocul-pm">Open VSX</a>. Installed without the app it runs read-only, and the extension <b>opens no network connection</b>.</p></details>
     <details><summary>Will macOS warn me when I install it?</summary><p>Not since v2.45.0. Builds are signed with an Apple Developer ID and notarized, so you open the <code>.dmg</code>, drag it into Applications and launch it. Earlier versions were unsigned, so macOS refused them with "is damaged and can't be opened" — not real damage, just the quarantine flag macOS puts on downloaded files — and you had to run <code>xattr -dr com.apple.quarantine</code> yourself. If you are coming from an older version, your keychain may ask once on the first launch of this one: API keys live in the macOS keychain and access to them is bound to the app's signature, which has changed. Click Always Allow and it stops asking; nothing you stored is lost.</p></details>

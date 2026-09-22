@@ -4,8 +4,10 @@
 
 <img src="landing/demo.gif" alt="Ocul-PM demo — ask the agent for a change and the work journal writes itself" width="100%" />
 
-<p><b>While AI coding agents write your code, Ocul-PM keeps the record.</b><br/>
-A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI</p>
+<h3>Stop re-explaining to your AI where you left off yesterday.</h3>
+
+<p>When Claude Code finishes a unit of work, a journal entry is left behind — and the next conversation starts from it.<br/>
+A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI — no server, no account.</p>
 
 [![CI](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml)
 [![Latest release](https://badgen.net/github/tag/bunhine0452/Ocul-PM?icon=github&label=download&color=12a06b)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
@@ -25,11 +27,21 @@ A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI</
 
 ---
 
-The more work you hand to agents, the more you pay a strange new tax: digging back through git log and your own memory to figure out which files Claude Code touched last week and why, or whether the bug Cursor claimed to fix actually stayed fixed. The code survives — the context doesn't.
+If you build with AI every day, every morning starts the same way: open a new conversation and explain, from scratch, how far you got yesterday, why you touched those files, and what is still left. When the conversation ends, the context ends with it — the code survives, the context doesn't.
 
-Ocul-PM starts by planting a single rules file (`AGENTS.md`) in your project folder. Every time an agent finishes a unit of work, it follows those rules and writes a markdown journal entry to `.oculpm/journal/`; the app reads those entries and turns them into a timeline, a daily brief and change diffs. Because the source of truth is plain markdown, it commits alongside your code and stays readable without the app.
+Ocul-PM removes that explanation. Plant a single rules file (`AGENTS.md`) in your project folder and the agent writes a markdown journal entry to `.oculpm/journal/` every time it finishes a unit of work; the next conversation receives those entries and the remaining plan items as its starting context and carries on. The app shows the same record as a timeline, a daily brief and change diffs. Because the source of truth is plain markdown, it commits alongside your code and stays readable without the app.
 
 There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache, and the only things that leave your machine are **the ones you start yourself** — the LLM API calls you make, update checks, and things that exist only once you turn them on (GitHub fetches and theme downloads when you click, a one-time embedding-model download, Notion). The full list, countable for yourself, is at [oculpm.com/privacy](https://oculpm.com/privacy). The VS Code extension (`oculpm.ocul-pm`) keeps the same promise — it opens no network connection and writes only through this app's `oculpm-mcp`.
+
+## One round trip — work · first entry · resume
+
+This one round trip matters more than any feature list. Try it in the project you actually work in.
+
+1. **Work** — ask Claude Code in your terminal for something, the way you always do. Adding the project plants `AGENTS.md`; [two lines in `/plugin`](#the-claude-code-plugin--start-without-the-app) add the hooks and the recording tools.
+2. **First entry** — when the work is done the agent writes its entry, and Today's "First record" card confirms the first entry **of that conversation**. It judges by conversation id, not by total entry count, and it says plainly that a record is not a verification.
+3. **Resume** — open a new conversation the next day and the plugin's SessionStart hook loads the open plan items and the last three entries into the starting context. Today's "Resume" card shows the same material and which conversation it was included in, and "Continue with this context" hands it to the terminal. You don't explain yesterday again.
+
+This round trip was verified on the **terminal Claude Code + oculpm plugin** path. Other agents (Codex · Cursor · Gemini CLI …) do steps 1–2 from the rules file alone and have no step-3 hook — the tier table under [Supported agents](#supported-agents) spells out the difference. The demo above shows steps 1 → 2.
 
 
 <img src="landing/shots/en/08-receipt.jpg" alt="Ocul-PM — Claude Code inside the app, with edit diffs and a turn receipt" />
