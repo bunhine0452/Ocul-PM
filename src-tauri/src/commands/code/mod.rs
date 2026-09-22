@@ -23,6 +23,8 @@ mod tree;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tree_tests;
 
 use std::path::PathBuf;
 

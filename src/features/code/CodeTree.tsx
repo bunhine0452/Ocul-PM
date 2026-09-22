@@ -7,7 +7,7 @@
 // 이름을 받는 인라인 입력칸까지 포함해서 (값은 제출 시점에 부모로 올라간다).
 // React.memo — 에디터 타이핑마다 화면이 리렌더돼도 prop 이 같으면 건너뛴다.
 import { memo, useEffect, useRef, useState } from "react";
-import type { CodeEntry } from "./treeUtils";
+import { isUnreachableLink, type CodeEntry } from "./treeUtils";
 import { ChevronRight } from "@/components/Icons";
 import { FileIcon } from "./FileIcon";
 import { t, useT } from "@/i18n";
@@ -133,6 +133,17 @@ export const CodeTree = memo(function CodeTree(props: CodeTreeProps) {
   );
 });
 
+/**
+ * 행의 툴팁 — 왜 흐린지. 링크 사유가 무시 사유보다 앞선다: 무시된 폴더 안의
+ * 깨진 링크는 「무시됨」이 아니라 「열 수 없음」이 사용자가 알아야 할 사실이다.
+ */
+function rowTitle(node: CodeEntry): string | undefined {
+  if (node.link === "outside") return t("code.tree.linkOutsideHint");
+  if (node.link === "dangling") return t("code.tree.linkDanglingHint");
+  if (node.ignored) return t("code.tree.ignoredHint");
+  return undefined;
+}
+
 function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: string; depth: number }) {
   const {
     childrenOf,
@@ -195,6 +206,9 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
         // 것은 보이되, 왜 검색·인덱싱에 안 걸리는지가 눈으로 설명된다.
         const dim =
           (node.ignored ? " ignored" : "") +
+          // 열 수 없는 링크(밖을 가리키거나 대상 없음) — 무시된 항목과 같은
+          // 흐림이지만 이유가 다르다. 툴팁이 그 이유를 말한다 (`rowTitle`).
+          (isUnreachableLink(node) ? " unreachable" : "") +
           (draggingPaths.has(node.relative_path) ? " dragging" : "") +
           // 잘라 둔 것 — 아직 아무 일도 안 일어났다는 뜻이라 사라지지 않고 흐려진다.
           (cutPaths.has(node.relative_path) ? " cut" : "") +
@@ -261,7 +275,7 @@ function TreeLevel({ dirPath, depth, ...props }: CodeTreeProps & { dirPath: stri
             }
             onClick={(e) => onClickRow(node.relative_path, false, e)}
             onDoubleClick={() => onPin(node.relative_path)}
-            title={node.ignored ? t("code.tree.ignoredHint") : undefined}
+            title={rowTitle(node)}
             {...dragProps}
             {...menuProps}
           >
@@ -318,7 +332,7 @@ function DirRow({
       className={"code-tree-row code-tree-dir" + dim + (dropTarget ? " dropover" : "")}
       tabIndex={focused ? 0 : -1}
       onClick={(e) => onClickRow(node.relative_path, true, e)}
-      title={node.ignored ? t("code.tree.ignoredHint") : undefined}
+      title={rowTitle(node)}
       {...dragProps}
       {...menuProps}
     >

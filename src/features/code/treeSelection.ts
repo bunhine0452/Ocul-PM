@@ -3,12 +3,17 @@
 // 화면이 들고 있는 것은 뽑힌 행들(`Marks`) 과 `anchor`(⇧ 범위의 시작) 둘뿐이고,
 // "이 클릭이 무슨 뜻인가" 부터 "그래서 무엇을 옮기고 지우는가" 까지의 판단은
 // 전부 여기 있다. 틀리면 파일이 엉뚱한 데로 가는 쪽이라 테스트로 못박는다.
-import type { CodeEntry } from "./treeUtils";
+import { isUnreachableLink, type CodeEntry } from "./treeUtils";
 
 /** 뽑힌 행 하나. 폴더 여부를 같이 들고 다니는 이유는 아래 [`Marks`] 참고. */
 export interface TreeMark {
   path: string;
   isDir: boolean;
+  /**
+   * 열 수 없는 링크(밖을 가리키거나 대상이 없음) — [`visibleEntries`] 만 채운다.
+   * 트리에서 열려는 시도(클릭·⏎·「옆에 열기」)가 이 표시를 보고 멈춘다.
+   */
+  unreachable?: boolean;
 }
 
 /**
@@ -49,7 +54,9 @@ export function visibleEntries(
   const out: TreeMark[] = [];
   const walk = (dir: string) => {
     for (const node of childrenOf(dir) ?? []) {
-      out.push({ path: node.relative_path, isDir: node.is_dir });
+      const mark: TreeMark = { path: node.relative_path, isDir: node.is_dir };
+      if (isUnreachableLink(node)) mark.unreachable = true;
+      out.push(mark);
       if (node.is_dir && expanded.has(node.relative_path)) walk(node.relative_path);
     }
   };

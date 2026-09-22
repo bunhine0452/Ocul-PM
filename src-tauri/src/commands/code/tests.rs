@@ -2,22 +2,21 @@
 //! 크기 래칫(`scripts/check-file-sizes.mjs`) 때문에 그대로 옮겼다. 순수 함수만
 //! 문다(휴지통·DB 는 부르지 않는다). 형제 모듈의 비공개 도우미는 `pub(super)`
 //! 로 열려 `mod.rs` 의 글롭을 타고 `super::*` 로 들어온다.
+//!
+//! 트리·디렉터리 한 단계(`code_tree`/`code_dir`)의 테스트는 같은 래칫 때문에
+//! `tree_tests.rs` 에 있다.
 
 use super::*;
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
 
-fn write(root: &Path, rel: &str, contents: &[u8]) {
+pub(super) fn write(root: &Path, rel: &str, contents: &[u8]) {
     let p = root.join(rel);
     if let Some(parent) = p.parent() {
         fs::create_dir_all(parent).unwrap();
     }
     fs::write(p, contents).unwrap();
-}
-
-fn names(nodes: &[CodeTreeNode]) -> Vec<String> {
-    nodes.iter().map(|n| n.name.clone()).collect()
 }
 
 /// 가져오기 목적지가 이미 그 이름을 쓰고 있으면 **덮어쓰지 않는다**.
@@ -145,155 +144,6 @@ fn import_skips_missing_sources_and_keeps_going() {
     .unwrap();
     assert_eq!(out.imported, vec!["ok.txt"]);
     assert_eq!(out.skipped, vec!["gone.txt"]);
-}
-
-#[test]
-fn tree_nests_and_respects_gitignore() {
-    let tmp = TempDir::new().unwrap();
-    let root = tmp.path();
-    // ignore 크레이트는 git 저장소일 때만 .gitignore 를 적용한다.
-    fs::create_dir_all(root.join(".git")).unwrap();
-    write(root, ".gitignore", b"node_modules/\ndist/\n");
-    write(root, "src/main.rs", b"fn main() {}");
-    write(root, "src/lib.rs", b"pub fn x() {}");
-    write(root, "README.md", b"# hi");
-    write(root, "node_modules/pkg/index.js", b"ignored");
-    write(root, "dist/out.js", b"ignored");
-
-    let tree = build_code_tree(root, MAX_TREE_FILES);
-    let top = names(&tree.nodes);
-    assert!(top.contains(&"src".to_string()), "{top:?}");
-    assert!(top.contains(&"README.md".to_string()), "{top:?}");
-    assert!(
-        !top.contains(&"node_modules".to_string()),
-        "gitignore: {top:?}"
-    );
-    assert!(!top.contains(&"dist".to_string()), "gitignore: {top:?}");
-    assert!(!tree.truncated);
-    // 폴더 우선 정렬 + 중첩 경로.
-    assert!(tree.nodes[0].is_dir, "dirs first: {top:?}");
-    let src = tree.nodes.iter().find(|n| n.name == "src").unwrap();
-    assert_eq!(src.relative_path, "src");
-    let lib = src.children.iter().find(|n| n.name == "lib.rs").unwrap();
-    assert_eq!(lib.relative_path, "src/lib.rs");
-    assert!(!lib.is_dir);
-}
-
-/// 숨김 파일은 보여 주되 `.git` 객체 DB 는 막는다 — 이 화면에서 실제로
-/// 편집하는 것이 대부분 점 파일(.oculpm·.claude·.env)이기 때문이다.
-#[test]
-fn tree_shows_hidden_files_but_never_dot_git() {
-    let tmp = TempDir::new().unwrap();
-    let root = tmp.path();
-    fs::create_dir_all(root.join(".git")).unwrap();
-    write(root, ".gitignore", b"secret-ignored/\n");
-    write(root, ".env", b"KEY=1");
-    write(root, ".oculpm/journal/20260823/note.md", b"# hi");
-    write(root, ".git/objects/ab/cdef", b"blob");
-    write(root, "nested/.git/objects/12/3456", b"blob");
-    write(root, "secret-ignored/.env", b"still ignored");
-
-    let tree = build_code_tree(root, MAX_TREE_FILES);
-    let top = names(&tree.nodes);
-    assert!(top.contains(&".env".to_string()), "hidden file: {top:?}");
-    assert!(
-        top.contains(&".gitignore".to_string()),
-        "hidden file: {top:?}"
-    );
-    assert!(top.contains(&".oculpm".to_string()), "hidden dir: {top:?}");
-    assert!(!top.contains(&".git".to_string()), "dot-git: {top:?}");
-    // 숨김을 켜도 gitignore 는 여전히 이긴다.
-    assert!(
-        !top.contains(&"secret-ignored".to_string()),
-        "gitignore: {top:?}"
-    );
-    // 중첩 저장소의 .git 도 깊이와 무관하게 막힌다.
-    let nested = tree.nodes.iter().find(|n| n.name == "nested");
-    assert!(nested.is_none(), "nested holds only .git: {top:?}");
-}
-
-/// 지연 로딩의 계약 — 무시된 것도 **보이되** `ignored` 로 표시된다.
-/// (한 번에 다 걷는 `code_tree` 는 이럴 수 없다: 무시를 끄면 상한에 걸린다.)
-#[test]
-fn dir_level_shows_ignored_entries_but_flags_them() {
-    let tmp = TempDir::new().unwrap();
-    let root = tmp.path();
-    fs::create_dir_all(root.join(".git")).unwrap();
-    write(root, ".gitignore", b"node_modules/\ntarget/\n*.log\n");
-    write(root, "src/main.rs", b"fn main() {}");
-    write(root, "node_modules/pkg/index.js", b"ignored");
-    write(root, "target/debug/bin", b"ignored");
-    write(root, "debug.log", b"ignored");
-    write(root, ".env", b"KEY=1");
-
-    let out = read_dir_level(root, root, MAX_DIR_ENTRIES);
-    let by_name: std::collections::HashMap<&str, &CodeDirEntry> =
-        out.entries.iter().map(|e| (e.name.as_str(), e)).collect();
-
-    assert!(!out.truncated);
-    assert!(
-        by_name.contains_key("node_modules"),
-        "ignored dir must be listed"
-    );
-    assert!(by_name["node_modules"].ignored, "and flagged");
-    assert!(by_name["target"].ignored);
-    assert!(by_name["debug.log"].ignored);
-    assert!(!by_name["src"].ignored, "tracked dir is not ignored");
-    assert!(!by_name[".gitignore"].ignored, "hidden but tracked");
-    assert!(!by_name[".env"].ignored, "hidden, not in this .gitignore");
-    assert!(
-        !by_name.contains_key(".git"),
-        "the object DB is never listed"
-    );
-    // 한 단계만 읽는다 — 손자는 안 나온다.
-    assert!(
-        !by_name.contains_key("index.js"),
-        "one level only: {:?}",
-        by_name.keys()
-    );
-}
-
-#[test]
-fn dir_level_reads_one_level_and_sorts_dirs_first() {
-    let tmp = TempDir::new().unwrap();
-    let root = tmp.path();
-    write(root, "b.txt", b"x");
-    write(root, "a.txt", b"x");
-    write(root, "zdir/inner.txt", b"x");
-    write(root, "adir/inner.txt", b"x");
-
-    let out = read_dir_level(root, root, MAX_DIR_ENTRIES);
-    let names: Vec<&str> = out.entries.iter().map(|e| e.name.as_str()).collect();
-    assert_eq!(names, vec!["adir", "zdir", "a.txt", "b.txt"]);
-    // 하위 디렉터리를 직접 물으면 그 단계가 나온다.
-    let sub = read_dir_level(root, &root.join("zdir"), MAX_DIR_ENTRIES);
-    let sub_names: Vec<&str> = sub.entries.iter().map(|e| e.name.as_str()).collect();
-    assert_eq!(sub_names, vec!["inner.txt"]);
-    assert_eq!(sub.entries[0].relative_path, "zdir/inner.txt");
-}
-
-#[test]
-fn dir_level_truncates_wide_directories() {
-    let tmp = TempDir::new().unwrap();
-    let root = tmp.path();
-    for i in 0..10 {
-        write(root, &format!("f{i}.txt"), b"x");
-    }
-    let out = read_dir_level(root, root, 4);
-    assert!(out.truncated);
-    assert_eq!(out.entries.len(), 4);
-}
-
-#[test]
-fn tree_truncates_at_cap() {
-    let tmp = TempDir::new().unwrap();
-    let root = tmp.path();
-    for i in 0..10 {
-        write(root, &format!("f{i}.txt"), b"x");
-    }
-    let tree = build_code_tree(root, 5);
-    assert!(tree.truncated);
-    assert_eq!(tree.file_count, 5);
 }
 
 #[test]

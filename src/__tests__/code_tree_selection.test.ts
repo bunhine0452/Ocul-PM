@@ -12,7 +12,7 @@ import {
 } from "@/features/code/treeSelection";
 
 function entry(name: string, path: string, isDir: boolean): CodeDirEntry {
-  return { name, relative_path: path, is_dir: isDir, ignored: false };
+  return { name, relative_path: path, is_dir: isDir, ignored: false, link: null };
 }
 
 const TREE = new Map<string, CodeDirEntry[]>([
@@ -41,6 +41,30 @@ describe("visibleEntries", () => {
   it("접힌 폴더의 자식은 없다 — 안 보이는 것을 범위에 넣으면 고른 적 없는 파일이 딸려 간다", () => {
     const order = visibleEntries(childrenOf, new Set()).map((e) => e.path);
     expect(order).toEqual(["src", "lib", "a.ts"]);
+  });
+
+  // 설치본 로그 2026-09-17/18: 프로젝트 밖을 가리키는 심링크(`acestep`)를
+  // 클릭하자 「Path escapes the project root」. 트리가 앞에서 표시하고, 열기는
+  // 그 표시를 보고 멈춘다 — 밖·깨짐만이고 안을 가리키는 링크는 평범하다.
+  it("열 수 없는 링크(밖·깨짐)만 unreachable 표시를 단다", () => {
+    const tree = new Map<string, CodeDirEntry[]>([
+      [
+        "",
+        [
+          { ...entry("acestep", "acestep", false), link: "outside" },
+          { ...entry("gone", "gone", false), link: "dangling" },
+          { ...entry("alias", "alias", true), link: "inside" },
+          entry("a.ts", "a.ts", false),
+        ],
+      ],
+    ]);
+    const order = visibleEntries((d) => tree.get(d), new Set());
+    expect(order.map((e) => [e.path, e.unreachable ?? false])).toEqual([
+      ["acestep", true],
+      ["gone", true],
+      ["alias", false],
+      ["a.ts", false],
+    ]);
   });
 });
 

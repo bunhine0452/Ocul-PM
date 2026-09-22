@@ -39,6 +39,77 @@ pub enum ServerNotice {
     Exited { code: Option<i32> },
 }
 
+/// 요청 하나의 실패 — JSON-RPC 오류 객체의 **코드를 문자열에 묻지 않고** 든다.
+///
+/// LSP 명세는 세 코드를 「오류가 아니라 다시 물으면 되는 신호」로 정한다:
+/// `RequestCancelled`(-32800) · `ContentModified`(-32801, 문서가 바뀌어 결과가
+/// 무효) · `ServerCancelled`(-32802). rust-analyzer 는 커서가 움직이는 동안의
+/// 호버에 -32801 을 흔히 낸다 — 이걸 ERROR 로 남기면(설치본 로그 2026-09-1x)
+/// 진짜 실패가 그 사이에 묻힌다. 호출자가 [`RpcError::is_stale`] 로 판별한다.
+///
+/// 전송 실패·시간 초과·서버 종료도 같은 타입으로 온다 (`code: None`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RpcError {
+    pub code: Option<i64>,
+    pub message: String,
+}
+
+impl RpcError {
+    pub const REQUEST_CANCELLED: i64 = -32800;
+    pub const CONTENT_MODIFIED: i64 = -32801;
+    pub const SERVER_CANCELLED: i64 = -32802;
+
+    /// 코드 없는 실패 (파이프·시간 초과·종료).
+    pub fn transport(message: impl Into<String>) -> Self {
+        Self {
+            code: None,
+            message: message.into(),
+        }
+    }
+
+    /// JSON-RPC 응답의 `error` 객체에서.
+    pub fn from_json(err: &Value) -> Self {
+        Self {
+            code: err.get("code").and_then(Value::as_i64),
+            message: err
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("알 수 없는 오류")
+                .to_string(),
+        }
+    }
+
+    /// 「지금 답은 없지만 오류도 아니다」 — 문서가 바뀌었거나 요청이 취소됐다.
+    /// 읽기 질의는 이걸 빈 결과로 접고, 사용자에게는 아무 말도 하지 않는다.
+    pub fn is_stale(&self) -> bool {
+        matches!(
+            self.code,
+            Some(Self::SERVER_CANCELLED..=Self::REQUEST_CANCELLED)
+        )
+    }
+}
+
+impl std::fmt::Display for RpcError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.code {
+            Some(code) => write!(f, "{} (code {code})", self.message),
+            None => f.write_str(&self.message),
+        }
+    }
+}
+
+impl std::error::Error for RpcError {}
+
+/// 커맨드 계약(`Result<_, String>`)으로 접는 다리 — `?` 한 글자로 지나간다.
+impl From<RpcError> for String {
+    fn from(e: RpcError) -> Self {
+        e.to_string()
+    }
+}
+
+/// 대기 중인 요청 하나에 답을 건네는 채널.
+type Pending = Arc<Mutex<HashMap<i64, oneshot::Sender<Result<Value, RpcError>>>>>;
+
 type NoticeSink = Arc<dyn Fn(ServerNotice) + Send + Sync>;
 
 pub struct LspClient {
@@ -47,7 +118,7 @@ pub struct LspClient {
     child: Mutex<Child>,
     stdin: Mutex<ChildStdin>,
     next_id: AtomicI64,
-    pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Result<Value, String>>>>>,
+    pending: Pending,
     /// 서버가 광고한 능력. 지원하지 않는 기능을 부르지 않기 위해 들고 있는다.
     capabilities: Value,
 }
@@ -119,8 +190,7 @@ impl LspClient {
             spawn_stderr_drain(spec.language_id, stderr, last_stderr.clone());
         }
 
-        let pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Result<Value, String>>>>> =
-            Arc::new(Mutex::new(HashMap::new()));
+        let pending: Pending = Arc::new(Mutex::new(HashMap::new()));
 
         let client = Arc::new(Self {
             spec,
@@ -140,7 +210,7 @@ impl LspClient {
             .await
         {
             Ok(v) => v,
-            Err(e) => return Err(with_stderr_hint(&e, &last_stderr).await),
+            Err(e) => return Err(with_stderr_hint(&e.to_string(), &last_stderr).await),
         };
         let capabilities = init.get("capabilities").cloned().unwrap_or(Value::Null);
         client.notify("initialized", json!({})).await?;
@@ -167,7 +237,9 @@ impl LspClient {
         }))
     }
 
-    pub async fn request(&self, method: &str, params: Value) -> Result<Value, String> {
+    /// 요청 하나. 서버의 JSON-RPC 오류는 코드를 보존한 [`RpcError`] 로 온다 —
+    /// 취소 부류(`is_stale`)를 호출자가 접을 수 있게.
+    pub async fn request(&self, method: &str, params: Value) -> Result<Value, RpcError> {
         self.request_with_timeout(method, params, REQUEST_TIMEOUT)
             .await
     }
@@ -177,7 +249,7 @@ impl LspClient {
         method: &str,
         params: Value,
         timeout: std::time::Duration,
-    ) -> Result<Value, String> {
+    ) -> Result<Value, RpcError> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = oneshot::channel();
         self.pending.lock().await.insert(id, tx);
@@ -185,17 +257,22 @@ impl LspClient {
         let msg = json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params });
         if let Err(e) = self.send(&msg).await {
             self.pending.lock().await.remove(&id);
-            return Err(e);
+            return Err(RpcError::transport(e));
         }
 
         match tokio::time::timeout(timeout, rx).await {
             Ok(Ok(result)) => result,
             // 읽기 루프가 끝났다 = 서버가 죽었다.
-            Ok(Err(_)) => Err(format!("{} 가 응답 전에 종료됐습니다", self.spec.command)),
+            Ok(Err(_)) => Err(RpcError::transport(format!(
+                "{} 가 응답 전에 종료됐습니다",
+                self.spec.command
+            ))),
             Err(_) => {
                 // 시간 초과 — 대기 항목을 걷어내야 맵이 새지 않는다.
                 self.pending.lock().await.remove(&id);
-                Err(format!("{method} 요청이 시간을 넘겼습니다"))
+                Err(RpcError::transport(format!(
+                    "{method} 요청이 시간을 넘겼습니다"
+                )))
             }
         }
     }
@@ -278,7 +355,7 @@ impl LspClient {
 /// stdout 읽기 루프 — 프레임을 떼어 응답은 대기자에게, 알림은 싱크로.
 fn spawn_read_loop(
     mut stdout: tokio::process::ChildStdout,
-    pending: Arc<Mutex<HashMap<i64, oneshot::Sender<Result<Value, String>>>>>,
+    pending: Pending,
     on_notice: NoticeSink,
 ) {
     tauri::async_runtime::spawn(async move {
@@ -313,23 +390,19 @@ fn spawn_read_loop(
         // 붙들려 있는다.
         let mut map = pending.lock().await;
         for (_, tx) in map.drain() {
-            let _ = tx.send(Err("언어 서버가 종료됐습니다".to_string()));
+            let _ = tx.send(Err(RpcError::transport("언어 서버가 종료됐습니다")));
         }
         on_notice(ServerNotice::Exited { code: None });
     });
 }
 
-async fn route_message(
-    msg: Value,
-    pending: &Arc<Mutex<HashMap<i64, oneshot::Sender<Result<Value, String>>>>>,
-    on_notice: &NoticeSink,
-) {
+async fn route_message(msg: Value, pending: &Pending, on_notice: &NoticeSink) {
     // 응답: id 가 있고 method 가 없다.
     if let Some(id) = msg.get("id").and_then(Value::as_i64) {
         if msg.get("method").is_none() {
             if let Some(tx) = pending.lock().await.remove(&id) {
                 let result = match msg.get("error") {
-                    Some(e) => Err(error_message(e)),
+                    Some(e) => Err(RpcError::from_json(e)),
                     None => Ok(msg.get("result").cloned().unwrap_or(Value::Null)),
                 };
                 let _ = tx.send(result);
@@ -379,18 +452,6 @@ pub fn progress_notice(params: &Value) -> Option<ServerNotice> {
         title,
         done: kind == "end",
     })
-}
-
-/// JSON-RPC 오류 객체를 사람이 읽는 한 줄로.
-fn error_message(err: &Value) -> String {
-    let msg = err
-        .get("message")
-        .and_then(Value::as_str)
-        .unwrap_or("알 수 없는 오류");
-    match err.get("code").and_then(Value::as_i64) {
-        Some(code) => format!("{msg} (code {code})"),
-        None => msg.to_string(),
-    }
 }
 
 /// 기동 실패 메시지에 서버가 stderr 로 한 말을 덧붙인다.
@@ -515,12 +576,40 @@ mod tests {
 
     #[test]
     fn error_objects_become_one_readable_line() {
+        let e = RpcError::from_json(&json!({ "code": -32601, "message": "method not found" }));
+        assert_eq!(e.to_string(), "method not found (code -32601)");
+        assert_eq!(e.code, Some(-32601));
         assert_eq!(
-            error_message(&json!({ "code": -32601, "message": "method not found" })),
-            "method not found (code -32601)"
+            RpcError::from_json(&json!({ "message": "boom" })).to_string(),
+            "boom"
         );
-        assert_eq!(error_message(&json!({ "message": "boom" })), "boom");
-        assert_eq!(error_message(&json!({})), "알 수 없는 오류");
+        assert_eq!(
+            RpcError::from_json(&json!({})).to_string(),
+            "알 수 없는 오류"
+        );
+        // 커맨드 계약(`Result<_, String>`)으로 `?` 가 접는 모양 그대로.
+        let s: String = e.into();
+        assert_eq!(s, "method not found (code -32601)");
+    }
+
+    /// LSP 명세의 취소 부류 셋만 「다시 물으면 된다」 — 그 밖의 코드(메서드
+    /// 없음·내부 오류·RequestFailed -32803)와 전송 실패는 진짜 실패다.
+    #[test]
+    fn stale_is_exactly_the_three_cancellation_codes() {
+        for code in [-32800, -32801, -32802] {
+            assert!(
+                RpcError::from_json(&json!({ "code": code, "message": "x" })).is_stale(),
+                "{code}"
+            );
+        }
+        for code in [-32803, -32601, -32603, -32001, 0, 1] {
+            assert!(
+                !RpcError::from_json(&json!({ "code": code, "message": "x" })).is_stale(),
+                "{code}"
+            );
+        }
+        assert!(!RpcError::from_json(&json!({ "message": "no code" })).is_stale());
+        assert!(!RpcError::transport("timeout").is_stale());
     }
 
     /// 핸드셰이크에서 안 알리면 서버는 시맨틱 토큰을 **아예 안 켠다** —

@@ -53,6 +53,7 @@ function dirEntries(dirPath: string): CodeDirEntry[] {
     relative_path: (prefix + name).replace(/\/$/, ""),
     is_dir: isDir,
     ignored: false,
+    link: null,
   }));
 }
 

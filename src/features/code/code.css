@@ -253,6 +253,22 @@
   font-weight: var(--fw-label);
 }
 
+/* 열 수 없는 링크 — 프로젝트 밖을 가리키거나 대상이 없다. 무시된 항목과 같은
+   흐림에 취소선을 더한다: "여기 있지만 여기서는 갈 수 없다". 누르면 토스트가,
+   올리면 툴팁이 이유를 말한다. */
+.code-tree-row.unreachable .code-tree-label,
+.code-tree-row.unreachable .code-tree-ico {
+  opacity: 0.45;
+}
+.code-tree-row.unreachable .code-tree-label {
+  text-decoration: line-through;
+  text-decoration-color: var(--sep-strong);
+}
+.code-tree-row.unreachable:hover .code-tree-label,
+.code-tree-row.unreachable:hover .code-tree-ico {
+  opacity: 0.7;
+}
+
 /* 지연 로딩 자리 표시 — "읽는 중"과 "빈 폴더"를 같은 자리에 그린다. */
 .code-tree-loading {
   display: flex;
