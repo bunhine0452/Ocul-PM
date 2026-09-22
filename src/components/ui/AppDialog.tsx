@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from "react";
+import { useRef, type KeyboardEvent, type ReactNode } from "react";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 
 /**
@@ -18,6 +18,8 @@ interface AppDialogProps {
   width?: number;
   /** 열릴 때 포커스할 요소 (기본: 내부 첫 포커서블). */
   initialFocusRef?: React.RefObject<HTMLElement | null>;
+  /** 패널 층의 키 — 포커스가 버튼이 아니라 패널 자체에 앉았을 때도 듣는다 (useConfirm 의 Enter). */
+  onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
   children: ReactNode;
 }
 
@@ -27,6 +29,7 @@ export function AppDialog({
   label,
   width = 560,
   initialFocusRef,
+  onKeyDown,
   children,
 }: AppDialogProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -47,6 +50,7 @@ export function AppDialog({
         aria-modal="true"
         aria-label={label}
         tabIndex={-1}
+        onKeyDown={onKeyDown}
         className="animate-in fade-in zoom-in-95 slide-in-from-bottom-1 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl outline-none duration-(--dur-2)"
         style={{ maxWidth: width }}
       >

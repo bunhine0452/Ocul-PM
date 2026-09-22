@@ -402,6 +402,53 @@
 }
 .sk-modal-foot { padding: var(--space-1) var(--space-7) var(--space-6); }
 
+/* 확인 대화상자(useConfirm) — 탭·터미널 닫기 경고, 삭제·초기화 확인 열일곱
+   곳이 이 한 벌이다. 2026-09-21 전까지는 제목 한 줄 + 맨글자 본문 + 테두리만
+   빨간 버튼이라 "실행 중: claude, pnpm" 이 그냥 문장 속에 묻혔다. 이제
+   ① 왼쪽에 표식(위험=삼각형/빨강 틴트, 그 외=원/액센트 틴트) ② 걸린 것들은
+   문장이 아니라 **목록** — 실행 중 점 + 고정폭 이름 ③ 확인 버튼은 단색
+   (outline 은 옆의 취소와 무게가 같아 무엇이 기본인지 안 보였다) ④ 버튼마다
+   키 힌트. 표식이 왼쪽 여백을 대신하므로 .sk-modal-head/-warn 의 패딩은
+   여기서 0 이다. */
+.cf-body {
+  display: flex; align-items: flex-start; gap: var(--space-5);
+  padding: var(--space-7) var(--space-7) var(--space-3);
+}
+.cf-mark {
+  flex: none; width: 36px; height: 36px; border-radius: var(--radius-m);
+  display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent-text);
+}
+.cf.danger .cf-mark { background: var(--danger-soft); color: var(--danger-text); }
+.cf-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-3); }
+.cf-text .cf-title { padding: 0; line-height: var(--lh-tight); }
+.cf-text .cf-msg { padding: 0; }
+.cf-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.cf-item {
+  display: flex; align-items: center; gap: var(--space-3); min-width: 0;
+  padding: var(--space-2) var(--space-4); border-radius: var(--radius-xs);
+  background: var(--bg-inset); color: var(--text); font-size: var(--fs-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cf-item::before {
+  content: ""; flex: none; width: 6px; height: 6px; border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+.cf.danger .cf-item::before { background: var(--danger); }
+.cf-item.mono { font-family: var(--mono); }
+.cf-foot { padding-top: var(--space-5); }
+.cf-foot .btn { gap: var(--space-3); }
+.cf .btn.cf-confirm.danger {
+  background: var(--danger); border-color: transparent; color: var(--on-danger);
+  box-shadow: 0 1px 2px var(--danger-soft);
+}
+.cf .btn.cf-confirm.danger:hover { filter: brightness(0.94); }
+.cf-key { font-weight: var(--fw-label); }
+.cf-confirm .cf-key {
+  background: transparent; border-color: currentColor; color: inherit; box-shadow: none;
+  opacity: var(--dim-disabled);
+}
+
 /* ⌘/ 단축키 치트시트 — 같은 이유로 전역. 좌우 여백은 모달 크롬(20px)에 맞춘다
    (screens.css 시절엔 0 이라 표가 패널 가장자리에 붙어 있었다). */
 .keys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 22px; padding: var(--space-1) var(--space-7) var(--space-6); }

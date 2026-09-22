@@ -9,6 +9,7 @@
 // 사용자가 터미널에 타이핑하다 ⌘W 를 누르면 터미널이 닫혀야지, 뒤에 있던
 // 화면의 탭이 닫히면 안 된다.
 
+import type { ConfirmItem } from "@/hooks/useConfirm";
 import { createIntentChain, type IntentHandler, type IntentScope } from "@/lib/intentChain";
 
 const chain = createIntentChain();
@@ -64,4 +65,23 @@ export async function runTabCloseGuard(tabId: number): Promise<TabRunningWork | 
 
 export function hasRunningWork(work: TabRunningWork | null): work is TabRunningWork {
   return work != null && (work.foreground.length > 0 || work.agents > 0);
+}
+
+/**
+ * 문지기가 알린 것을 확인 창의 **목록**으로 (2026-09-21). 예전엔 "터미널에서
+ * 실행 중: claude, pnpm" 한 문장이었다 — 명령 이름이 산문에 묻혀 무엇이 죽는지
+ * 한눈에 안 보였다. 이름은 낱개·고정폭으로, 넷을 넘으면 "외 n개" 로 접는다.
+ */
+export function runningWorkItems(
+  foreground: string[],
+  agents: number,
+  t: (key: "close.guard.more" | "close.guard.agents", vars?: { n: number }) => string,
+): ConfirmItem[] {
+  const shown = foreground.slice(0, 4).map((text) => ({ text, mono: true }));
+  const rest = foreground.length - shown.length;
+  return [
+    ...shown,
+    ...(rest > 0 ? [{ text: t("close.guard.more", { n: rest }) }] : []),
+    ...(agents > 0 ? [{ text: t("close.guard.agents", { n: agents }) }] : []),
+  ];
 }

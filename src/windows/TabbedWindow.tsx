@@ -30,7 +30,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 import { createUnlistenBag } from "@/lib/unlisten";
 import { useLlmBackgroundToast } from "@/hooks/useLlmBackgroundToast";
-import { hasRunningWork, runCloseIntent, runTabCloseGuard } from "@/lib/closeIntent";
+import { hasRunningWork, runCloseIntent, runTabCloseGuard, runningWorkItems } from "@/lib/closeIntent";
 import { runNewTabIntent } from "@/lib/newTabIntent";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
@@ -169,22 +169,10 @@ export default function TabbedWindow({
     async (id: number) => {
       const work = await runTabCloseGuard(id);
       if (hasRunningWork(work)) {
-        const lines = [
-          ...(work.foreground.length
-            ? [t("close.guard.terminals", { names: work.foreground.slice(0, 4).join(", ") })]
-            : []),
-          ...(work.agents > 0 ? [t("close.guard.agents", { n: work.agents })] : []),
-        ];
         const ok = await confirm({
           title: t("close.guard.title"),
-          message: (
-            <>
-              {lines.map((line) => (
-                <div key={line}>{line}</div>
-              ))}
-              <div style={{ marginTop: 6 }}>{t("close.guard.detail")}</div>
-            </>
-          ),
+          message: t("close.guard.detail"),
+          items: runningWorkItems(work.foreground, work.agents, t),
           confirmLabel: t("close.guard.confirm"),
           danger: true,
         });

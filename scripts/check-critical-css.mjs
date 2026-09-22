@@ -39,6 +39,7 @@ const REQUIRED = [
   ".sk-modal-head",
   ".sk-modal-warn",
   ".sk-modal-foot",
+  ".cf-body",
   ".keys-grid",
 ];
 

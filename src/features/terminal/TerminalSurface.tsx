@@ -25,6 +25,7 @@ import { deriveIntegrationStatus, summarizeShell, type IntegrationStatus } from 
 import { useAgentRuns } from "./useAgentRuns";
 import { foregroundCommands } from "@/windows/useTabRunningWork";
 import { useConfirm } from "@/hooks/useConfirm";
+import { runningWorkItems } from "@/lib/closeIntent";
 import { focusOfTab, panesOfTab } from "./activePane";
 import { clampTermDensity, termLineHeight, termPanePad } from "./density";
 import { TerminalRail } from "./TerminalRail";
@@ -251,7 +252,8 @@ export function TerminalSurface({
     if (running.length > 0) {
       const ok = await confirm({
         title: t("close.guard.title"),
-        message: t("close.guard.terminals", { names: running.slice(0, 4).join(", ") }),
+        message: t("close.guard.detailPane"),
+        items: runningWorkItems(running, 0, t),
         confirmLabel: t("close.guard.confirm"),
         danger: true,
       });
