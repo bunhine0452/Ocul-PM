@@ -1,6 +1,23 @@
 import type { Terminal } from "@xterm/xterm";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { attachImeBridge } from "@/features/terminal/imeBridge";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+
+// 자동 덤프(`[IME-DUMP …]`)가 나갔는지 보려고 로그만 가로챈다 — 브리지의
+// 이벤트별 trace 도 같은 함수를 타므로 메시지로 골라 본다.
+const logInfo = vi.fn();
+vi.mock("@/lib/oculpmLog", () => ({
+  oculpmLog: {
+    info: (...a: unknown[]) => logInfo(...a),
+    warn: () => {},
+    error: () => {},
+    flow: () => {},
+  },
+}));
+
+const { attachImeBridge } = await import("@/features/terminal/imeBridge");
+const { dumpImeTrace, resetImeTraceBudget } = await import("@/features/terminal/imeTrace");
+
+const autoDumps = () =>
+  logInfo.mock.calls.filter((c) => String(c[1]).startsWith("[IME-DUMP")).length;
 
 // 실제 WKWebView 트레이스(oculpm.log 2026-08-01)를 재현해 브리지 판정을 검증한다.
 // 조합 렌더링 자체는 실 IME 가 필요해 검증 불가 — 여기서는 "PTY 로 몇 번 나가는가"와
@@ -74,6 +91,11 @@ function fireInput(h: Harness, value: string, inputType = "insertText"): void {
   h.textarea.dispatchEvent(
     new InputEvent("input", { inputType, data: value, bubbles: true, composed: true }),
   );
+}
+
+/** 표준 조합 모델의 compositionstart/update/end. 브리지는 전파만 막고 기록한다. */
+function fireComposition(h: Harness, type: string, data: string): void {
+  h.textarea.dispatchEvent(new CompositionEvent(type, { data, bubbles: true, composed: true }));
 }
 
 /** keydown 을 핸들러에 통과시키고 "xterm 이 계속 처리해도 되는가"를 돌려준다. */
@@ -408,5 +430,108 @@ describe("imeBridge", () => {
     fireInput(h, "가");
     expect(fireKeydown(h, { key: "Escape", keyCode: 27 })).toBe(true); // xterm 이 ESC 전송
     expect(h.textarea.value).toBe("");
+  });
+
+  // ── 표준 조합 모델 — 확정은 삭제·삽입 한 쌍 (2026-09-22) ─────────────────
+  // 로그(oculpm.log 09-09~22)의 지배적 모델. 음절 하나가 확정될 때 IME 는
+  //   input deleteCompositionText  value=""     (조합 글자를 textarea 에서 뺀다)
+  //   input insertFromComposition  value="치"   (같은 글자를 확정 텍스트로 다시)
+  //   compositionend
+  // 를 쏜다. 삭제 쪽을 그대로 동기화하면 확정마다 DEL + 재전송 왕복이 나고,
+  // 첫 음절이면 echoed 가 "" 로 떨어져 잔여분 진단이 정상 타이핑에서 울렸다
+  // (post-commit-passthrough 덤프 — 09-12 예산이 덮었던 진짜 원인).
+
+  /** 음절 하나를 조합 모델로 친다: 낱자 → 완성형 → 확정 쌍 → compositionend. */
+  const composeSyllable = (prefix: string, jamo: string, syllable: string) => {
+    fireComposition(h, "compositionstart", "");
+    fireComposition(h, "compositionupdate", jamo);
+    fireInput(h, prefix + jamo, "insertCompositionText");
+    fireKeydown(h, { key: jamo, keyCode: 229 });
+    fireComposition(h, "compositionupdate", syllable);
+    fireInput(h, prefix + syllable, "insertCompositionText");
+    fireKeydown(h, { key: "\u314f", keyCode: 229 });
+    fireInput(h, prefix, "deleteCompositionText");
+    fireInput(h, prefix + syllable, "insertFromComposition");
+    fireComposition(h, "compositionend", syllable);
+  };
+
+  test("조합 모델: 확정 쌍(삭제→삽입)은 셸에 아무것도 더 보내지 않는다", () => {
+    composeSyllable("", "\u314a", "\ucce0"); // ㅊ → 치
+    // 낱자, DEL+완성형 — 그리고 확정에서는 **아무것도** 안 나간다.
+    expect(h.sent).toEqual(["\u314a", `${DEL}\ucce0`]);
+    expect(applyDel(h.stream)).toBe("\ucce0");
+    // 확정 텍스트는 textarea 에 남고 세션도 이어진다 — 다음 음절이 그 위에 붙는다.
+    expect(h.textarea.value).toBe("\ucce0");
+  });
+
+  test("조합 모델: 낱말 가운데의 확정도 지웠다 다시 쓰지 않는다 (진행해)", () => {
+    composeSyllable("", "\u3148", "\uc9c4"); // 진
+    composeSyllable("\uc9c4", "\u314e", "\ud589"); // 행
+    composeSyllable("\uc9c4\ud589", "\u314e", "\ud574"); // 해
+    expect(applyDel(h.stream)).toBe("\uc9c4\ud589\ud574");
+    // 확정 쌍이 낸 DEL 이 하나라도 있으면 음절마다 지웠다 다시 쓴 것이다.
+    const dels = h.sent.join("").split(DEL).length - 1;
+    expect(dels).toBe(3); // 낱자→완성형 교체 3번만
+    // Enter 는 종전대로 xterm 이 CR 을 보낸다 — 앞에 DEL 이 끼지 않는다.
+    expect(fireKeydown(h, { key: "Enter", keyCode: 13 })).toBe(true);
+  });
+
+  test("조합 모델: 첫 음절 확정이 잔여분 진단(자동 덤프)을 울리지 않는다", () => {
+    dumpImeTrace("reset");
+    resetImeTraceBudget();
+    logInfo.mockClear();
+    composeSyllable("", "\u3131", "\uadf8"); // ㄱ → 그
+    fireKeydownThroughXterm(h, { key: " ", keyCode: 32 });
+    fireInput(h, `\uadf8${NBSP}`);
+    expect(applyDel(h.stream)).toBe("\uadf8 ");
+    expect(autoDumps()).toBe(0);
+  });
+
+  test("잔여분 진단은 살아 있다 — 진짜 삭제 직후 완성형이 오면 여전히 덤프한다", () => {
+    dumpImeTrace("reset");
+    resetImeTraceBudget();
+    logInfo.mockClear();
+    fireInput(h, "\uac00");
+    fireInput(h, ""); // 지울 것이 있었던 진짜 삭제
+    fireInput(h, "\ub098"); // 낱자 없이 완성형이 첫 input 으로 — 놓친 경로일 수 있다
+    expect(autoDumps()).toBe(1);
+  });
+
+  test("조합 모델: 확정 뒤 이어지는 새 음절은 DEL 없이 덧붙는다 (치치)", () => {
+    composeSyllable("", "\u314a", "\ucce0"); // 치
+    // ㅊ 이 종성으로 붙었다가(칯) 다음 모음에서 새 음절로 갈라진다 — 확정 쌍 뒤
+    // 새 조합이 "치" 로 시작해 textarea 는 "치치".
+    fireComposition(h, "compositionstart", "");
+    fireComposition(h, "compositionupdate", "\ucce0");
+    fireInput(h, "\ucce0\ucce0", "insertCompositionText");
+    fireKeydown(h, { key: "\u3163", keyCode: 229 });
+    expect(h.sent[h.sent.length - 1]).toBe("\ucce0");
+    expect(applyDel(h.stream)).toBe("\ucce0\ucce0");
+  });
+
+  test("조합 모델: 삽입 없이 compositionend 가 오면(취소) 미뤄 둔 삭제를 지운다", () => {
+    fireComposition(h, "compositionstart", "");
+    fireInput(h, "\u314a", "insertCompositionText");
+    fireKeydown(h, { key: "\u314a", keyCode: 229 });
+    fireInput(h, "\ucce0", "insertCompositionText");
+    fireKeydown(h, { key: "\u3163", keyCode: 229 });
+    expect(applyDel(h.stream)).toBe("\ucce0");
+
+    fireInput(h, "", "deleteCompositionText");
+    expect(applyDel(h.stream)).toBe("\ucce0"); // 아직 — 삽입이 따라올 수 있다
+    fireComposition(h, "compositionend", "");
+    expect(applyDel(h.stream)).toBe(""); // 삽입이 없었다 → 이제 지운다
+    expect(h.textarea.value).toBe("");
+  });
+
+  test("조합 모델: 미뤄 둔 삭제 뒤 조합이 이어지면 다음 교체분이 알아서 맞춘다", () => {
+    fireInput(h, "\u314a", "insertCompositionText");
+    fireInput(h, "\ucce0", "insertCompositionText");
+    // IME 가 조합 글자를 삭제·삽입으로 갈아 끼우는 경우 — 삭제 뒤 삽입이
+    // insertFromComposition 이 아니라 insertCompositionText 로 올 수도 있다.
+    fireInput(h, "", "deleteCompositionText");
+    fireInput(h, "\ucce8", "insertCompositionText"); // 치 → 칠
+    expect(applyDel(h.stream)).toBe("\ucce8");
+    expect(h.sent[h.sent.length - 1]).toBe(`${DEL}\ucce8`); // DEL 하나로 교체 — 두 번 지우지 않는다
   });
 });

@@ -28,6 +28,7 @@ import {
 } from "./oscShell";
 import { createFileRefLinkProvider, type FileRefHit } from "./fileRefLinks";
 import { createLinkUnderline } from "./linkUnderline";
+import { createOscLinkHandler, createWebLinksOptions } from "./urlLinks";
 import { emptyPaneSignal, type PaneSignal } from "./agentMode";
 import {
   blockAt,
@@ -343,17 +344,15 @@ export default function TerminalInstanceImpl({
     // URL 클릭 → 시스템 브라우저 (opener 권한 우회: 백엔드 open_url 사용).
     // 밑줄은 파일 링크와 같은 오버레이를 쓴다 — 애드온이 만든 링크에는
     // 우리가 `decorations` 를 못 붙이지만, hover/leave 는 열려 있다.
-    term.loadAddon(
-      new WebLinksAddon(
-        (_event, uri) => {
-          void commands.openUrl(uri);
-        },
-        {
-          hover: (_event, _text, range) => underline.show(range),
-          leave: () => underline.hide(),
-        },
-      ),
-    );
+    const urlLinks = { openUrl: (uri: string) => void commands.openUrl(uri), underline };
+    const webLinks = createWebLinksOptions(urlLinks);
+    term.loadAddon(new WebLinksAddon(webLinks.handler, webLinks.options));
+    // OSC 8 하이퍼링크(`ls --hyperlink`, gh, Claude Code TUI)는 애드온이 아니라
+    // **이 옵션**을 탄다. 비워 두면 xterm 기본 처리기가 `confirm()`→`window.open()`
+    // 을 부르는데, Tauri 웹뷰에서는 둘 다 실패해 링크가 열리지 않고 에러만
+    // 남았다 (2026-09-22, 근거는 urlLinks.ts). 생성 옵션이 아니라 여기서 붙이는
+    // 이유도 그 파일에.
+    term.options.linkHandler = createOscLinkHandler(urlLinks);
     const search = new SearchAddon();
     searchRef.current = search;
     term.loadAddon(search);

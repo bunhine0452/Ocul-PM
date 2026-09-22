@@ -144,6 +144,32 @@ const SESSION_END_KEYS = new Set([
 // (2) **잔여분이 확정한 공백까지 끌고 오면** 꼬리가 " " 라 `isComposable` 검사에
 //     걸려 판별 자체를 시작하지 못했다 ("녕 " 형태). 끝의 공백은 떼고 본다.
 
+// ── 2026-09-22: 조합 이벤트를 **쏘는** 웹뷰 — 확정은 삭제·삽입 한 쌍으로 온다 ──
+// 위 머리말은 "이 웹뷰는 compositionstart/update/end 를 한 번도 쏘지 않는다" 고
+// 적었지만, 2026-09 의 로그(oculpm.log 09-09~22)는 **두 모델이 다 있다**고
+// 말한다. 하루 수천 건은 표준 조합 모델이고(`insertCompositionText` 4,190 vs
+// `insertReplacementText` 0, 09-12), 옛 모델(`insertText`/`insertReplacementText`,
+// isComposing=false)은 09-14 에 20건·09-16 에 25건만 남았다. 갈리는 원인은
+// 특정하지 못했다 — macOS 판(Darwin 27)이든 입력 소스든, 브리지는 **둘 다**
+// 받아야 한다.
+//
+// 표준 모델에서 음절 하나가 확정되는 실제 순서 (09-21 트레이스):
+//
+//   compositionupdate "치"
+//   input insertCompositionText   value="치"     → (교체분 동기: DEL+"치")
+//   input deleteCompositionText   value=""      ← 조합 글자를 textarea 에서 뺀다
+//   input insertFromComposition   value="치"    ← 같은 글자를 확정 텍스트로 다시 넣는다
+//   compositionend "치"
+//
+// 삭제와 삽입 사이의 textarea 는 "조합 글자가 빠진 상태" 다. 이걸 그대로
+// 동기화하면 **확정마다** 셸에 DEL 을 보내고 곧이어 같은 글자를 다시 보낸다 —
+// 결과는 맞지만 글자마다 지웠다 다시 쓰는 왕복이고, 첫 음절이면 echoed 가 ""
+// 로 떨어져 아래 잔여분 진단(post-commit-passthrough)이 **정상 확정마다**
+// 걸렸다. 09-12 의 덤프 예산은 이 증상을 덮은 것이었다 (그 라운드는 "분당 1회"
+// 를 셌지 왜 걸리는지는 보지 않았다). 삭제 쪽 동기를 **미룬다**: 다음 input 이
+// 오면 그 값과 echoed 를 비교하므로 되살아난 글자는 무접촉으로 지나가고, 삽입
+// 없이 compositionend 가 오면(조합 취소) 그때 지운다.
+
 /** 잔여 조합이 확정한 공백까지 끌고 올 때 떼어내는 꼬리 (NBSP 포함). */
 const TRAILING_SPACE = /\s+$/;
 
@@ -237,10 +263,18 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
   let lastCommitted = "";
   let lastCommittedAt = 0;
 
+  /**
+   * `deleteCompositionText` 를 동기화하지 않고 넘겼는가. 표준 조합 모델의 확정은
+   * 삭제·삽입 한 쌍이라 삽입이 곧 따라오지만, 조합 **취소**는 삭제 뒤 바로
+   * compositionend 다 — 그때는 밀어 둔 삭제를 실제로 지워야 한다.
+   */
+  let deferredCompositionDelete = false;
+
   /** 조합 세션을 끝낸다 — 버퍼를 비우고 다음 세션을 새로 시작하게 한다. */
   const endSession = () => {
     if (textarea) textarea.value = "";
     echoed = "";
+    deferredCompositionDelete = false;
   };
 
   /**
@@ -264,6 +298,24 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
     if (!tail || !isComposable(tail.slice(-1))) return false;
     if (inputType === "insertReplacementText") return true;
     return lastCommitted.trimEnd().endsWith(tail);
+  };
+
+  /** 셸 입력줄을 `value` 에 맞추고, 조합이 끝났으면 세션을 닫는다. */
+  const applyValue = (value: string) => {
+    const had = echoed;
+    syncEcho(value);
+    // 버퍼가 무한정 자라면 공통 접두사 비교가 길어지기만 한다. 조합이 끝나
+    // 더 바뀔 일이 없는 상태(꼬리가 조합 대상이 아님)면 세션을 끊는다.
+    if (!value || !isComposable(value.slice(-1))) {
+      // **빈 값으로는 확정 기록을 덮지 않는다.** 실어 나를 것이 없었던(had === "")
+      // 빈 input 은 아무 일도 아닌데, 그 한 건이 잔여분을 가려낼 근거를 지웠다
+      // (위 (1)). 지울 것이 있었던 빈 값은 진짜 삭제이므로 그대로 기록한다.
+      if (value || had) {
+        lastCommitted = value;
+        lastCommittedAt = Date.now();
+      }
+      endSession();
+    }
   };
 
   /**
@@ -290,6 +342,17 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
     const inputType = (event as InputEvent).inputType ?? "";
     trace("input", { inputType, data: (event as InputEvent).data, value });
 
+    // 표준 조합 모델의 확정 쌍 중 **삭제 쪽** — 곧이어 같은 글자가
+    // insertFromComposition 으로 되살아난다 (위 2026-09-22 주석). 여기서
+    // 동기화하면 DEL 과 재전송 왕복이 나고 잔여분 진단이 오탐한다. 미룬다 —
+    // 다음 input 이 echoed 와 비교해 알아서 맞추고, 삽입 없이 조합이 끝나면
+    // compositionend 가 지운다.
+    if (inputType === "deleteCompositionText") {
+      deferredCompositionDelete = true;
+      return;
+    }
+    deferredCompositionDelete = false;
+
     // 확정 직후 입력기가 비워진 버퍼에 다시 올린 잔여 조합 — 흘리면 앞 음절이
     // 스페이스 뒤에 재등장한다. 버퍼만 다시 비우고 버린다.
     if (isStaleCommitEcho(inputType, value)) {
@@ -312,28 +375,20 @@ export function attachImeBridge(term: Terminal, container: HTMLElement): ImeBrid
       dumpImeTraceAuto("post-commit-passthrough");
     }
 
-    const had = echoed;
-    syncEcho(value);
-    // 버퍼가 무한정 자라면 공통 접두사 비교가 길어지기만 한다. 조합이 끝나
-    // 더 바뀔 일이 없는 상태(꼬리가 조합 대상이 아님)면 세션을 끊는다.
-    if (!value || !isComposable(value.slice(-1))) {
-      // **빈 값으로는 확정 기록을 덮지 않는다.** 실어 나를 것이 없었던(had === "")
-      // 빈 input 은 아무 일도 아닌데, 그 한 건이 잔여분을 가려낼 근거를 지웠다
-      // (위 (1)). 지울 것이 있었던 빈 값은 진짜 삭제이므로 그대로 기록한다.
-      if (value || had) {
-        lastCommitted = value;
-        lastCommittedAt = Date.now();
-      }
-      endSession();
-    }
+    applyValue(value);
   };
 
-  // 조합 이벤트를 쏘는 엔진(Chromium 등)에서는 확정 문자열도 결국 textarea 에
-  // 반영되므로 onInput 과 같은 규칙으로 처리된다. 여기서는 xterm 의
-  // CompositionHelper 가 textarea 를 건드리지 못하게 막기만 한다.
+  // 조합 이벤트를 쏘는 엔진에서는 확정 문자열도 결국 textarea 에 반영되므로
+  // onInput 과 같은 규칙으로 처리된다. 여기서는 xterm 의 CompositionHelper 가
+  // textarea 를 건드리지 못하게 막고, 미뤄 둔 삭제(위)만 마무리한다.
   const stopComposition = (event: Event) => {
     event.stopPropagation();
     trace(event.type, { data: (event as CompositionEvent).data });
+    // 삭제만 오고 삽입이 안 왔다 — 조합이 취소됐다. 미뤄 둔 삭제를 이제 지운다.
+    if (event.type === "compositionend" && deferredCompositionDelete) {
+      deferredCompositionDelete = false;
+      applyValue((textarea?.value ?? "").replace(NBSP, " "));
+    }
   };
 
   // 조합이 남은 채 포커스를 잃으면 이미 셸에 흘려둔 상태이므로 세션만 정리한다.
