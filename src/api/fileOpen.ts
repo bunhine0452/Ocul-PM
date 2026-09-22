@@ -1,13 +1,20 @@
-// 프로젝트 파일을 **앱 밖에서** 여는 세 가지 (2026-09-07).
+// **앱 밖에서** 여는 것들 (2026-09-07).
 //
-// 터미널 출력의 `파일:줄` 을 ⌘클릭하면 뜨는 선택 팝오버가 쓴다. 셋 다 같은
-// 경로 가드를 지난다 — 터미널이 뱉은 문자열은 신뢰할 수 없으므로 백엔드가
-// `secure_join` 으로 프로젝트 루트 안쪽인지 다시 판정하고, 거절 사유가 그대로
-// `ApiError` 로 올라온다 (조용히 아무 일도 안 일어나면 왜 안 되는지 알 수 없다).
+// 프로젝트 파일 셋은 터미널 출력의 `파일:줄` 을 ⌘클릭하면 뜨는 선택 팝오버가
+// 쓴다. 셋 다 같은 경로 가드를 지난다 — 터미널이 뱉은 문자열은 신뢰할 수
+// 없으므로 백엔드가 `secure_join` 으로 프로젝트 루트 안쪽인지 다시 판정하고,
+// 거절 사유가 그대로 `ApiError` 로 올라온다 (조용히 아무 일도 안 일어나면 왜
+// 안 되는지 알 수 없다). URL 은 스킴 가드(http/https/mailto)를 백엔드가 본다.
 import { commands } from "@/lib/bindings";
 import { call } from "./invoke";
 
 export const fileOpenApi = {
+  /**
+   * URL 을 OS 기본 브라우저로 (2026-09-22). 웹뷰의 `window.open` 은 새 창
+   * 처리기가 없어 null 만 돌려주므로, 밖으로 나가는 링크는 전부 이 통로다.
+   */
+  url: (url: string): Promise<null> => call("open_url", commands.openUrl(url)),
+
   /** 외부 편집기 — 설정의 명령 템플릿(`%path`/`%line`)을 셸로 실행한다. */
   inExternalEditor: (
     projectRoot: string,
