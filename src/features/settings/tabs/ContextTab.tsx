@@ -12,7 +12,6 @@ import { Copy, Trash2 } from "@/components/Icons";
 import { contextApi } from "@/api/context";
 import { toAppError } from "@/api/invoke";
 import { useSettings } from "@/contexts/SettingsContext";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useT } from "@/i18n";
 import { blocked } from "@/lib/blocked";
@@ -23,12 +22,12 @@ import type { RecallStat } from "@/lib/bindings";
 import { buildManifest } from "@/features/chat/manifest";
 import { RECALL_BUDGET_TOKENS } from "@/features/chat/recallGate";
 import { useRecallUsage } from "@/features/chat/recallUsage";
-import { Section, Field } from "./ui";
+import { Section, Field, useSettingsProjectId } from "./ui";
 
 export function ContextTab() {
   const { t } = useT();
-  const { state } = useWorkspace();
-  const projectId = state.currentProjectId;
+  // 시작 탭에는 `WorkspaceProvider` 가 없다 — `useWorkspace()` 는 거기서 던진다.
+  const projectId = useSettingsProjectId();
   const { settings } = useSettings();
   const save = useSaveSetting();
   const { confirm, confirmDialog } = useConfirm();

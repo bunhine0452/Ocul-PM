@@ -82,6 +82,7 @@ pub async fn create_project(
 #[tauri::command]
 #[specta::specta]
 pub async fn delete_project(
+    app: tauri::AppHandle,
     db: State<'_, Db>,
     manager: State<'_, crate::oculpm::manager::OculpmManager>,
     project_id: u32,
@@ -95,6 +96,8 @@ pub async fn delete_project(
     // 놓지 않으면 자동화 허브가 사라진 프로젝트를 5초마다 두드리고, 아래의
     // `.oculpm` 삭제 뒤에도 살아 있는 세션 액터가 index 를 되살릴 수 있다.
     manager.forget_project(project_id).await;
+    // 창에서도 걷는다 — 왜 **행을 지우기 전**인지는 그 함수에 적어 두었다.
+    crate::commands::window::close_project_surfaces(&app, project_id).await;
     if delete_oculpm || delete_agents_md {
         // Capture the root BEFORE the DB row is gone. If the project lookup
         // fails we skip file cleanup (nothing reliable to point at) and still
@@ -120,10 +123,18 @@ pub async fn delete_project(
     db.delete_project(project_id)
         .await
         .map_err(|e| e.to_string())?;
-    // 프로젝트 하나의 파일·청크·임베딩이 통째로 빠졌다 — 페이지는 저절로
-    // 돌아오지 않으므로 여기서 VACUUM (완성도 라운드 Phase 3). 사용자가 직접
-    // 누른 삭제라 몇 초 멈춤이 허용된다.
-    db.compact().await.map_err(|e| e.to_string())
+    // 빠진 페이지는 저절로 안 돌아오므로 VACUUM (Phase 3). **기다리지 않는다**
+    // (2026-09-22): 수 초~수십 초인데 DB 연결이 하나라 그동안 모든 호출이 줄을
+    // 선다 — 2026-09-17 06:12 에 다른 탭의 init 이 3초 만에 실패한 이유다.
+    let app_handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        use tauri::Manager;
+        match app_handle.state::<Db>().compact().await {
+            Ok(()) => info!(project_id, "db compacted after project delete"),
+            Err(e) => tracing::warn!(project_id, error = %e, "db compact after delete failed"),
+        }
+    });
+    Ok(())
 }
 
 /// 카드·탭의 겉모습 — 아이콘 id 와 색 id. 둘 다 `None` 이면 기본값(이름에서

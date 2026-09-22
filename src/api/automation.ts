@@ -8,6 +8,7 @@
 
 import { call, type Envelope } from "@/api/invoke";
 import { commands, events } from "@/lib/bindings";
+import { createUnlistenBag } from "@/lib/unlisten";
 import type {
   AutomationDef,
   AutomationOverview,
@@ -69,22 +70,13 @@ export const automationApi = {
    * 실패는 삼키고 no-op 해제 함수를 돌려준다.
    */
   onRunChanged: (cb: (e: AutomationRunChanged) => void): (() => void) => {
-    let off: (() => void) | null = null;
-    let cancelled = false;
+    // `themesApi.onChanged` 와 같은 모양 — 자루가 "붙기 전에 떠난 구독" 을 맡는다.
+    const bag = createUnlistenBag();
     try {
-      void events.automationRunChanged
-        .listen((e) => cb(e.payload))
-        .then((fn) => {
-          if (cancelled) fn();
-          else off = fn;
-        })
-        .catch(() => {});
+      bag.add(events.automationRunChanged.listen((e) => cb(e.payload)));
     } catch {
       /* 이벤트 채널 없음 */
     }
-    return () => {
-      cancelled = true;
-      off?.();
-    };
+    return () => bag.dispose();
   },
 };

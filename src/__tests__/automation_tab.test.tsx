@@ -126,8 +126,10 @@ vi.mock("@/lib/toast", () => ({
   },
 }));
 
+// 설정 아래에서는 **선택적** 접근자만 쓴다 (`tabs/ui` 의 `useSettingsProjectId`)
+// — 시작 탭에는 `WorkspaceProvider` 가 없기 때문이다 (2026-09-22 C4).
 vi.mock("@/contexts/WorkspaceContext", () => ({
-  useWorkspace: () => ({ state: { currentProjectId: 1 } }),
+  useOptionalWorkspace: () => ({ state: { currentProjectId: 1 } }),
 }));
 
 vi.mock("@/contexts/SettingsContext", () => ({

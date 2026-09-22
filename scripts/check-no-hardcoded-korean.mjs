@@ -300,6 +300,10 @@ const TESTS = new Set([
   "__tests__/theme_gallery.test.tsx",
   "__tests__/theme_schema.test.ts",
   "__tests__/toast_timing.test.tsx",
+  // bug-hunt C1·C2 (2026-09-22) — Tauri 이벤트 해제 순서. 한국어 테스트 이름뿐이다.
+  "__tests__/transport_event_unlisten.test.ts",
+  // bug-hunt C4 (2026-09-22) — 시작 탭의 설정 오버레이. 한국어 테스트 이름뿐이다.
+  "__tests__/settings_without_workspace.test.tsx",
   "__tests__/today_activity.test.tsx",
   "__tests__/today_journal_missing.test.tsx",
   "__tests__/today_plugin_dismiss.test.tsx",

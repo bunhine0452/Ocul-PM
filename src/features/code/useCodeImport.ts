@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { commands } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
+import { safeUnlisten } from "@/lib/unlisten";
 import { t } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { destLabel, importDestDir, type TreeHit } from "./importTarget";
@@ -116,7 +117,7 @@ export function useCodeImport({
           if (!hit) return;
           void runImport(importDestDir(hit, null), payload.paths);
         });
-        if (disposed) off();
+        if (disposed) safeUnlisten(off);
         else unlisten = off;
       } catch {
         // 웹뷰 밖(테스트·브라우저) — 드롭만 없는 채로 산다.
@@ -124,7 +125,10 @@ export function useCodeImport({
     })();
     return () => {
       disposed = true;
-      unlisten?.();
+      // `onDragDropEvent` 의 해제는 원본 `_unlisten` 네 개를 프라미스를 버린 채
+      // 부른다 — 여기서 잡을 수 있는 것은 바깥 껍데기뿐이지만, 그것마저
+      // 맨손으로 부르면 동기 throw 가 정리 자체를 끊는다.
+      safeUnlisten(unlisten);
     };
   }, [isVisible, runImport]);
 

@@ -23,13 +23,12 @@ import { Button } from "@/components/ui/button";
 import { Download, Loader2 } from "@/components/Icons";
 import { importApi } from "@/api/import";
 import { toAppError } from "@/api/invoke";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useT, type I18nKey } from "@/i18n";
 import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { toast } from "@/lib/toast";
 import type { EntryType, ImportReport, ImportScan } from "@/lib/bindings";
-import { Section } from "../tabs/ui";
+import { Section, useSettingsProjectId } from "../tabs/ui";
 
 /** 한 번에 들여올 수 있는 최대 건수 — 백엔드 `MAX_PER_RUN` 과 같은 값. */
 const MAX_PER_RUN = 50;
@@ -49,10 +48,10 @@ export function formatWorkday(w: string): string {
 
 export function ConversationImportSection() {
   const { t } = useT();
-  const { state } = useWorkspace();
   // 임포트는 **프로젝트에 일지를 쓴다** — 열린 프로젝트가 없으면 성립하지
   // 않는다. 섹션을 숨기지는 않는다 (없어지면 기능이 사라진 줄 안다).
-  const projectId = state.currentProjectId;
+  // 시작 탭에는 `WorkspaceProvider` 자체가 없다 (tabs/ui `useSettingsProjectId`).
+  const projectId = useSettingsProjectId();
 
   const [path, setPath] = useState<string | null>(null);
   const [scan, setScan] = useState<ImportScan | null>(null);
