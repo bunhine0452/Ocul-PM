@@ -62,8 +62,9 @@ describe("IndexUsageSection", () => {
 
     fireEvent.click(getByText(t("settings.idxUsage.clearDiffs")));
     // 확인 대화상자의 확인 버튼 — 트리거 버튼과 라벨이 같으므로 danger 클래스로 가른다.
+    // 리디자인(2026-09-21) 뒤 라벨은 <span> 안이라 텍스트의 부모가 버튼이 아니다.
     const confirmBtn = await findByText(t("settings.idxUsage.clearDiffs"), {
-      selector: "button.danger",
+      selector: "button.danger span",
     });
     expect(clearDiffsMock).not.toHaveBeenCalled();
     fireEvent.click(confirmBtn);
