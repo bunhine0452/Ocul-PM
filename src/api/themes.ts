@@ -9,6 +9,7 @@
 import { call, type Envelope } from "@/api/invoke";
 import { commands, events } from "@/lib/bindings";
 import type { ThemeFile, ThemeImportOutcome, ThemesChanged } from "@/lib/bindings";
+import { createUnlistenBag } from "@/lib/unlisten";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
 
@@ -56,22 +57,16 @@ export const themesApi = {
    * 삼키고 no-op 해제 함수를 돌려준다.
    */
   onChanged: (cb: (e: ThemesChanged) => void): (() => void) => {
-    let off: (() => void) | null = null;
-    let cancelled = false;
+    // 자루에 맡긴다 (`createUnlistenBag`) — 손으로 `if (cancelled) fn()` 을 짜던
+    // 이전 모양이 로그의 `listeners[eventId].handlerId` TypeError 네 건 전부의
+    // 출처였다 (2026-09-09·09-15, 창 마운트 직후 StrictMode 정리). 자루는 붙기
+    // 전에 떠난 구독을 안전하게 떼고, 실패한 listen 은 삼킨다.
+    const bag = createUnlistenBag();
     try {
-      void events.themesChanged
-        .listen((e) => cb(e.payload))
-        .then((fn) => {
-          if (cancelled) fn();
-          else off = fn;
-        })
-        .catch(() => {});
+      bag.add(events.themesChanged.listen((e) => cb(e.payload)));
     } catch {
       /* 이벤트 채널 없음 */
     }
-    return () => {
-      cancelled = true;
-      off?.();
-    };
+    return () => bag.dispose();
   },
 };
