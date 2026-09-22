@@ -349,12 +349,22 @@ pub fn schedule_incremental_index(
                         target: "oculpm::watcher", project_id, path = %rel_path,
                         embeddings = emb, "auto-index: reindexed"
                     ),
-                    // 생성물(minified·tsbuildinfo)을 건너뛴 것은 정상 동작이다 —
-                    // WARN 으로 두면 진짜 실패(읽기·저장)가 그 사이에 묻힌다.
-                    Err(reason @ crate::indexer::ReindexSkipReason::Generated) => tracing::debug!(
-                        target: "oculpm::watcher", project_id, path = %rel_path,
-                        ?reason, "auto-index: reindex skipped"
-                    ),
+                    // 정상 동작인 건너뜀은 debug 로 — WARN 으로 두면 진짜
+                    // 실패(저장·임베딩)가 그 사이에 묻힌다. 두 갈래다:
+                    //  · 생성물(minified·tsbuildinfo·`.vscode-test` 아래 번들)
+                    //  · 파일이 그 사이 사라졌다 — fs 이벤트와 이 곁일 사이에
+                    //    지워지거나 이름이 바뀐 것(에디터의 원자적 저장이 만드는
+                    //    임시파일, 빌드 산출물의 churn, 브랜치 전환)은 경합이
+                    //    아니라 **일상**이다. `Delete` 로 다시 오면 행이 걷힌다.
+                    Err(reason)
+                        if matches!(reason, crate::indexer::ReindexSkipReason::Generated)
+                            || is_vanished(&reason) =>
+                    {
+                        tracing::debug!(
+                            target: "oculpm::watcher", project_id, path = %rel_path,
+                            ?reason, "auto-index: reindex skipped"
+                        )
+                    }
                     Err(reason) => tracing::warn!(
                         target: "oculpm::watcher", project_id, path = %rel_path,
                         ?reason, "auto-index: reindex skipped"
@@ -430,4 +440,52 @@ pub fn schedule_journal_index(
             ),
         }
     });
+}
+
+/// 「그 사이 파일이 사라졌다」 인가. fs 이벤트와 재색인 사이의 시간은 디바운스와
+/// 큐 대기만큼 벌어져 있어, 그동안 지워지거나 이름이 바뀌는 일은 흔하다 —
+/// 실패가 아니라 일상이라 로그 등급이 다르다.
+///
+/// `NotFound` 는 존재 확인에서, `ReadFailed` 는 그 확인과 읽기 **사이**에
+/// 사라진 경우다 (같은 사실의 두 시점).
+fn is_vanished(reason: &crate::indexer::ReindexSkipReason) -> bool {
+    use crate::indexer::ReindexSkipReason as R;
+    match reason {
+        R::NotFound => true,
+        R::ReadFailed { error } => {
+            error.contains("No such file or directory")
+                || error.contains("os error 2")
+                // 디렉터리가 파일 자리를 차지했다 = 그 사이 갈아치워졌다.
+                || error.contains("Is a directory")
+        }
+        R::Generated | R::UpsertFailed { .. } => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_vanished;
+    use crate::indexer::ReindexSkipReason as R;
+
+    /// 설치본 로그 2026-09-09~11 의 교훈: 정상 경로의 반복 WARN 은 로그 오염이자
+    /// 진짜 결함을 가린다. 「사라졌다」 만 debug 로 내리고 저장·임베딩 실패는
+    /// WARN 그대로 — 그쪽은 색인이 조용히 뒤처진다는 뜻이다.
+    #[test]
+    fn only_the_vanished_file_is_routine() {
+        assert!(is_vanished(&R::NotFound));
+        assert!(is_vanished(&R::ReadFailed {
+            error: "No such file or directory (os error 2)".into()
+        }));
+        assert!(is_vanished(&R::ReadFailed {
+            error: "Is a directory (os error 21)".into()
+        }));
+        // 진짜 실패들.
+        assert!(!is_vanished(&R::ReadFailed {
+            error: "Permission denied (os error 13)".into()
+        }));
+        assert!(!is_vanished(&R::UpsertFailed {
+            error: "database is locked".into()
+        }));
+        assert!(!is_vanished(&R::Generated));
+    }
 }

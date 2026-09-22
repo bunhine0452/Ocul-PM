@@ -226,6 +226,52 @@ fn concurrent_captures_of_one_file_neither_fail_nor_leave_tmp_files() {
     assert!(leftovers.is_empty(), "임시 파일이 남았다: {leftovers:?}");
 }
 
+/// 사라진 파일·사라진 루트의 캡처는 **오류가 아니라 건너뜀**이다.
+///
+/// fs 이벤트와 캡처 사이에 파일이 지워지거나(에디터의 원자적 저장 = 임시파일
+/// rename) 프로젝트 폴더가 휴지통으로 가는 일은 정상 경로다 — 그때마다 WARN 을
+/// 남기면(설치본 로그 2026-09-09~11, 하루 913줄) 진짜 실패가 그 사이에 묻힌다.
+/// 그리고 지운 루트를 `create_dir_all` 로 되살려서도 안 된다 (v3.2.1 과 같은
+/// 계약): 파일이 없으면 디렉터리를 만들기 **전에** 돌아 나온다.
+#[test]
+fn a_vanished_file_or_root_is_skipped_and_never_resurrected() {
+    let parent = tempfile::tempdir().unwrap();
+    let root = parent.path().join("project");
+    std::fs::create_dir_all(root.join("src")).unwrap();
+
+    // 파일만 사라진 경우.
+    let out = capture(
+        &root,
+        "src/gone.ts",
+        HistoryOp::Update,
+        HistorySource::User,
+        None,
+        50,
+        PROJECT_BUDGET_BYTES,
+    )
+    .expect("사라진 파일은 오류가 아니다");
+    assert_eq!(out, CaptureOutcome::Skipped);
+    assert!(
+        !history_root(&root).exists(),
+        "찍을 것이 없는데 히스토리 디렉터리를 만들었다"
+    );
+
+    // 루트째 사라진 경우 (Finder 휴지통 이동 = 이름 바꾸기).
+    std::fs::rename(&root, parent.path().join("project (trashed)")).unwrap();
+    let out = capture(
+        &root,
+        "src/a.ts",
+        HistoryOp::Update,
+        HistorySource::User,
+        None,
+        50,
+        PROJECT_BUDGET_BYTES,
+    )
+    .expect("사라진 루트도 오류가 아니다");
+    assert_eq!(out, CaptureOutcome::Skipped);
+    assert!(!root.exists(), "지운 루트가 되살아났다");
+}
+
 /// D1 — 예산 설정은 MB 문자열이고, 없거나 이상하면 기본값·범위 밖은 잘린다.
 #[test]
 fn budget_setting_parses_clamps_and_defaults() {
