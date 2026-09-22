@@ -1,6 +1,6 @@
 <!-- oculpm:begin v1 -->
 <!-- schema_version: 1 -->
-<!-- template_version: 12 -->
+<!-- template_version: 13 -->
 # ocul-pm 작업 기록 규칙
 
 당신은 ocul-pm 추적 프로젝트에서 작업 중입니다. **하나의 논리적 작업 단위**(버그 수정 / 기능 / 리팩토링 / 에러 사이클 / 잡일)를 끝낼 때마다 즉시 기록하세요 — 사용자에게 묻지 말 것.
@@ -13,7 +13,7 @@
 
 - 고칠 파일을 알면 `journal_search(file: "watcher.rs")` — 가장 정확한 필터이니 이것부터.
 - 증상·기능 이름이 있으면 `journal_search(query: "IME 조합", types: ["bug"])`.
-- 읽을 가치가 있는 것만 `journal_read(path: …)` 로 펼칩니다. 계획 맥락은 `plan_status`.
+- 읽을 가치가 있는 것만 `journal_read(path: …)` 로 펼칩니다 — 응답에 `rollups`(주간 요약)가 있으면 **그것부터**. 계획 맥락은 `plan_status`.
 
 찾은 것이 이어지면 새 일지의 `related` 에 그 경로를 넣으세요. 도구가 없으면 `.oculpm/journal/**` 를 grep.
 
@@ -49,7 +49,7 @@ frontmatter 필수: `schema_version: 1` · `type` · `slug` · `status`(planned|
 2. plan 하단 `<!-- oculpm:plan-log begin v1 -->` 표에 **한 줄 append** (기존 행 수정 금지):
    `| <ISO 시각+offset> | #항목id | <네 agent.id 그대로> | 이전→새 글리프 (신규 항목은 →☐) | <방금 쓴 일지 상대경로> | 짧은 메모 |`
 
-규칙: `{#id}` 와 managed block 경계는 **보존** · 항목은 한 줄 — `{#id}` 를 줄 *끝* 에 두고 줄바꿈 금지(둘째 줄의 `{#id}` 는 파서가 못 읽음) · 새 항목엔 안정적 영어 kebab id 부여 · 일지 내용을 플래너에 복붙 금지(일지 열로 참조만) · **frontmatter `status:` 가 `active` 가 아닌 plan(done/archived)은 절대 수정 금지** — 그럴 땐 새 plan 에서 진행 · 현재 상태는 본문 글리프가 정답(단, 하위를 가진 부모는 하위 롤업 파생값), 로그는 이력.
+규칙: `{#id}` 와 managed block 경계는 **보존** · 항목은 한 줄 — `{#id}` 를 줄 *끝* 에 두고 줄바꿈 금지(둘째 줄의 `{#id}` 는 파서가 못 읽음) · 새 항목엔 안정적 영어 kebab id 부여 · 일지 내용을 플래너에 복붙 금지(일지 열로 참조만) · **frontmatter `status:` 가 `active` 가 아닌 plan(done/archived)은 절대 수정 금지** — 그럴 땐 새 plan 에서 진행 · `<plan_id>.log.md`(앱이 넘친 로그를 옮긴 **이력 보관함**)와 `archived:` 마커 줄은 손대지 말 것 · 현재 상태는 본문 글리프가 정답(단, 하위를 가진 부모는 하위 롤업 파생값), 로그는 이력.
 
 항목은 **최대 1단계 중첩** 가능 — 하위 작업은 두 칸 들여쓴 `  - [ ] 하위 {#id}`. 하위가 있는 부모의 글리프는 하위 롤업으로 자동 계산되니 **부모를 직접 갱신하지 말 것** (하위만 갱신).
 

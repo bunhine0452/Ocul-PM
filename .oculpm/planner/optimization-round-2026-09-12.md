@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: optimization-round-2026-09-12
 title: "최적화 라운드 (2026-09-12) — 실측이 낸 확정 3건과 이월"
-status: active
+status: done
 created: 2026-09-12
-updated: 2026-09-12
+updated: 2026-09-21
 owner: claude-code
 ---
 
@@ -18,7 +18,7 @@ owner: claude-code
 
 ## 이월 — 추정이거나 측정이 막은 것 {#carry}
 - [x] 모델 로드 상주 ~640MB 의 정체 — drop 이 안 돌려주고 재로드가 +140MB 남긴다(M6). mmap 외부 데이터 · `use_device_allocator_for_initializers` 를 재 본 뒤에만 유휴 언로드를 다시 연다 {#embed-unload}
-- [!] 실기기: 설치본에서 진단 탭 「정리」 눌러 DB 크기·의미 검색 정상 확인, 그 뒤 전체 재색인으로 스냅샷 81+12MB 회수 확인 {#eyes-compact}
+- [x] 실기기: 설치본에서 진단 탭 「정리」 눌러 DB 크기·의미 검색 정상 확인, 그 뒤 전체 재색인으로 스냅샷 81+12MB 회수 확인 {#eyes-compact}
 - [-] (추정) `chunks.content` 97MB 는 파일 원문의 사본 — 줄 범위 디스크 재읽기로 대체할지, 의미 변화(삭제 파일)를 포함해 판단 {#chunks-content-dup}
 - [-] (추정) 워처 `FileIdMap` 이 Create 마다 자라고 Delete 에서만 준다 — `target/` 프로젝트에서 장기 실행 후 MALLOC_SMALL 을 재 볼 것 {#fileidmap-growth}
 
@@ -33,4 +33,5 @@ owner: claude-code
 | 2026-09-12T22:32:26+09:00 | #chunks-content-dup | claude-code | ☐→- | .oculpm/journal/20260912/Refactors/2232_refactor_embedder-idle-unload-malloc-cache.md | 기각 — 텍스트 검색(search_text LIKE)이 그 열을 훑는다. 원장 §3 |
 | 2026-09-12T22:32:32+09:00 | #fileidmap-growth | claude-code | ☐→- | .oculpm/journal/20260912/Refactors/2232_refactor_embedder-idle-unload-malloc-cache.md | 기각 — M7: 20,000 Create 에 +3.8MB. 원장 §3 |
 | 2026-09-12T22:32:38+09:00 | #eyes-compact | claude-code | ☐→! |  | 설치본이 이 코드가 아님 — 다음 릴리스 뒤. 추가 확인: `ps eww <pid> \| grep MallocLargeCache` 로 재실행 확인, 5분 뒤 로그 "embedding model unloaded" |
+| 2026-09-21T10:15:34.445224+00:00 | #eyes-compact | user | !→x |  |  |
 <!-- oculpm:plan-log end -->

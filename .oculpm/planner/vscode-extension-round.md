@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: vscode-extension-round
 title: "VS Code 확장 — 앱은 Tauri 그대로, 편집은 진짜 VS Code"
-status: active
+status: done
 created: 2026-09-11
-updated: 2026-09-11
+updated: 2026-09-21
 owner: claude-code
 ---
 

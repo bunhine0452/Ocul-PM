@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: monaco-editor-round
 title: "Monaco 이관 — 편집기를 VS Code 급으로"
-status: active
+status: done
 created: 2026-09-08
-updated: 2026-09-08
+updated: 2026-09-21
 owner: claude-code
 ---
 
@@ -57,7 +57,7 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 
 ## Phase 6 — 마감 {#finish}
 - [x] 육안 확인 격자 — 라이트/다크 × 프리셋 5종으로 문법 강조 · 선택색 · 커서 · 미니맵 · sticky · 진단 밑줄. v3-release `{#eyes-hljs}` 가 이미 같은 격자를 요구하고 있어 한 번에 갚는다 {#fin-eyes}
-- [!] 성능 재측정 — 대용량 파일(수천 줄) 열기 · 스크롤 · 타이핑 지연. Phase 0 의 숫자와 대조해 `03-performance.md` 에 남긴다 {#fin-perf}
+- [x] 성능 재측정 — 대용량 파일(수천 줄) 열기 · 스크롤 · 타이핑 지연. Phase 0 의 숫자와 대조해 `03-performance.md` 에 남긴다 {#fin-perf}
 - [x] 게이트 전부 exit 0 직접 확인 — typecheck · test · lint 6종 · build · cargo test. 파일 크기 래칫과 eslint 경고 한계(`--max-warnings`)에 여유가 없으니 함께 본다 {#fin-gates}
 - [x] 릴리스 5면 — 버전 6파일 · CHANGELOG · README ko/en · 랜딩 ko/en 각 6곳 + `build.mjs` 재빌드. **회고·문서 삭제(2026-09-08)의 미반영분도 이때 함께 간다** — 그 표면들은 아직 두 화면이 있는 v2.45.2 를 설명하고 있다 {#fin-release}
 
@@ -107,4 +107,7 @@ VS Code 대규모 포크(Cursor 방식)를 기각하고 CodeMirror → Monaco �
 | 2026-09-11T00:48:39+09:00 | #fin-eyes | claude-code | !→! | .oculpm/journal/20260911/Features_to_add/0048_feature_editor-ide-round.md | IDE 라운드가 격자에 넷 더 걸었다 — ⌘P 오버레이 · 트리/탭 git 배지(앰버/초록/빨강) · 심볼 브레드크럼 · 상태줄 줄바꿈 토글. 여전히 실기기 미확인 |
 | 2026-09-11T04:47:00.906100+00:00 | #eyes-hljs | user | !→x |  |  |
 | 2026-09-11T23:14:46+09:00 | #fin-perf | claude-code | !→! |  | 사용자 육안 원장에서 체감 pass(2026-09-11 21:33). 항목의 완료 기준은 03-performance.md 에 숫자를 남기는 것이라 그건 아직 — 체감은 됐고 측정만 남음. 3.0 블로커 아님 |
+| 2026-09-21T10:15:08.082790+00:00 | #fin-perf | user | !→☐ |  |  |
+| 2026-09-21T10:15:08.698543+00:00 | #fin-perf | user | ☐→~ |  |  |
+| 2026-09-21T10:15:09.308862+00:00 | #fin-perf | user | ~→x |  |  |
 <!-- oculpm:plan-log end -->

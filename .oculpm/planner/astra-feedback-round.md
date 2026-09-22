@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: astra-feedback-round
 title: "Astra 외부 리뷰 수용 라운드 — 코드로 확인된 결함 6건 + 검토 효력 해시"
-status: active
+status: done
 created: 2026-09-15
-updated: 2026-09-15
+updated: 2026-09-21
 owner: claude-code
 ---
 
@@ -30,7 +30,7 @@ docs/Astra feedback/ 의 10점 마스터보고서·백로그 48건을 검토해(
 ## Phase 5 — 합류·게이트·이월 {#p5-merge}
 - [x] 병렬 세션 브랜치를 feat/astra-feedback-round 로 합류 → typecheck·test·lint·build·cargo fmt/clippy/test 전부 exit 0 직접 확인 → PR → CI 초록이면 rebase 머지 {#merge-gates}
 - [x] improvement-round-2026-09-14 #verified-loop 를 #reviewed-hash 일지로 닫기 {#verified-loop-close}
-- [~] 실기기·다음 릴리스: gate 잡이 CI 를 기다렸다 통과하는지, codesign/spctl/stapler 검증 로그, draft→공개 전환, 설치본 자동 업데이트 정상 (릴리스 때 확인) {#eyes-release-gate}
+- [x] 실기기·다음 릴리스: gate 잡이 CI 를 기다렸다 통과하는지, codesign/spctl/stapler 검증 로그, draft→공개 전환, 설치본 자동 업데이트 정상 (릴리스 때 확인) {#eyes-release-gate}
 - [x] 랜딩 등급표 배포 — cd landing && vercel --prod (수동, 머지 뒤) {#landing-deploy}
 
 <!-- oculpm:plan-log begin v1 -->
@@ -57,4 +57,5 @@ docs/Astra feedback/ 의 10점 마스터보고서·백로그 48건을 검토해(
 | 2026-09-17T20:50:30+09:00 | #eyes-release-gate | claude-code | ~→~ | .oculpm/journal/20260917/Chores/2050_chore_release-3-2-1.md | v3.2.1 로 2회째 통과 — gate 가 CI 6분 대기 후 통과·draft→공개·latest.json 실자산. 남은 것: 설치본 3.2.0→3.2.1 자동 업데이트 육안 |
 | 2026-09-18T22:49:18+09:00 | #eyes-release-gate | claude-code | ~→~ | .oculpm/journal/20260918/Chores/2249_chore_release-3-2-2.md | v3.2.2 3회째 통과 — gate·검증·draft 해제 전부 success. 남은 것: 설치본 자동 업데이트 육안 |
 | 2026-09-20T03:51:02+09:00 | #eyes-release-gate | claude-code | ~→~ |  | v3.3.0 으로 4회째 통과 — gate→build→검증→공개(draft=false, 에셋 5). 남은 조각은 설치본 자동 업데이트 실기기 확인뿐 |
+| 2026-09-21T15:34:37.656674+00:00 | #eyes-release-gate | user | ~→x |  |  |
 <!-- oculpm:plan-log end -->
