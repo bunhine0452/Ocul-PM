@@ -108,7 +108,9 @@ fn payload(event: &str, session: &str, root: &Path) -> String {
     .to_string()
 }
 
-/// 추적 중인 프로젝트 + 활성 플랜 하나.
+/// 추적 중인 프로젝트 + 활성 플랜 하나 + 일지 하나. 일지는 plan-context 가
+/// `find`·`sort` 로 고른다 — Windows 에서 그 둘이 `System32` 판으로 풀리면
+/// 조용히 빈 목록이 되므로, 실제로 실리는지로 잰다.
 fn tracked_project() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("tempdir");
     let planner = dir.path().join(".oculpm").join("planner");
@@ -118,8 +120,17 @@ fn tracked_project() -> tempfile::TempDir {
         "---\nstatus: active\n---\n# 플랜\n\n- [ ] 첫 항목 {#first}\n",
     )
     .unwrap();
+    let day = dir.path().join(".oculpm/journal/20260924/Chores");
+    std::fs::create_dir_all(&day).unwrap();
+    std::fs::write(
+        day.join(JOURNAL_FILE),
+        "---\ntype: chore\n---\n[x] 세 OS 훅 점검\n",
+    )
+    .unwrap();
     dir
 }
+
+const JOURNAL_FILE: &str = "1200_chore_xplat.md";
 
 fn inbox_lines(root: &Path) -> Vec<Value> {
     let text =
@@ -179,6 +190,10 @@ fn exercise_bundle(hooks: &Value, root: &Path, run: &dyn Fn(&Value, &str) -> Out
     assert!(
         text.contains("[plan: p]") && text.contains("첫 항목"),
         "활성 플랜이 실리지 않았다: {text}"
+    );
+    assert!(
+        text.contains(&format!("20260924/Chores/{JOURNAL_FILE} · 세 OS 훅 점검")),
+        "마지막 일지가 실리지 않았다 (find·sort·awk): {text}"
     );
     let ledger = std::fs::read_to_string(hooks_dir.join("resume-delivered.jsonl")).unwrap();
     assert!(ledger.contains(sid), "전달 원장: {ledger}");
