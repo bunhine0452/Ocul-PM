@@ -131,9 +131,28 @@ pub fn bundled_claude(app_data: &Path) -> Option<PathBuf> {
     let path = install_dir(app_data)
         .join("node_modules")
         .join("@anthropic-ai")
-        .join(format!("claude-agent-sdk-{}-{arch}", std::env::consts::OS))
+        .join(format!(
+            "claude-agent-sdk-{}-{arch}",
+            npm_platform(std::env::consts::OS)
+        ))
         .join(format!("claude{ext}"));
     path.is_file().then_some(path)
+}
+
+/// Rust 의 OS 이름 → npm 플랫폼 패키지 이름의 OS 자리(Node `process.platform`).
+///
+/// Windows 는 `win32` 다 — `windows` 로 찾으면 딸려 온 `claude.exe` 를 못 보고
+/// 진단이 "Claude Code 를 설치하세요" 라고 거짓말을 한다. Linux 는 같은 이름.
+///
+/// **macOS 는 이 라운드에서 건드리지 않았다.** npm 이름은 `darwin` 인데 여기는
+/// `macos` 를 그대로 쓴다 — 즉 macOS 진단도 딸려 온 바이너리를 못 보고 PATH 의
+/// `claude` 로 물러선다. 고치면 macOS 동작이 바뀌므로(크로스플랫폼 D3) 따로
+/// 결정할 항목으로 보고했다.
+fn npm_platform(rust_os: &str) -> &str {
+    match rust_os {
+        "windows" => "win32",
+        other => other,
+    }
 }
 
 /// 설치된 버전. 미설치·손상은 `None`.
@@ -266,6 +285,34 @@ mod tests {
         std::fs::create_dir_all(pkg.join("dist")).unwrap();
         std::fs::write(pkg.join("dist/index.js"), "").unwrap();
         assert_eq!(installed_version(dir.path()), Some("0.67.0".to_string()));
+    }
+
+    /// Windows 의 딸려 온 CLI 는 `claude-agent-sdk-win32-x64\claude.exe` 다 —
+    /// npm 의 플랫폼 이름(`win32`)으로 찾아야 진단이 그것을 본다.
+    #[test]
+    fn bundled_claude_uses_npm_platform_names() {
+        assert_eq!(npm_platform("windows"), "win32");
+        assert_eq!(npm_platform("linux"), "linux");
+
+        let dir = tempfile::tempdir().unwrap();
+        let arch = match std::env::consts::ARCH {
+            "x86_64" => "x64",
+            "aarch64" => "arm64",
+            other => other,
+        };
+        let (os, exe) = if cfg!(windows) {
+            ("win32", "claude.exe")
+        } else {
+            (npm_platform(std::env::consts::OS), "claude")
+        };
+        let bin = dir
+            .path()
+            .join("acp/node_modules/@anthropic-ai")
+            .join(format!("claude-agent-sdk-{os}-{arch}"))
+            .join(exe);
+        std::fs::create_dir_all(bin.parent().unwrap()).unwrap();
+        std::fs::write(&bin, b"").unwrap();
+        assert_eq!(bundled_claude(dir.path()), Some(bin));
     }
 
     #[test]
