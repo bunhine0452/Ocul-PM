@@ -400,7 +400,7 @@ pub fn definition_from_json(result: &Value, project_root: &std::path::Path) -> O
     let rel = path
         .strip_prefix(project_root)
         .ok()
-        .map(|p| p.to_string_lossy().to_string());
+        .map(super::registry::rel_string);
     let display = rel.clone().unwrap_or_else(|| {
         path.file_name()
             .map(|f| f.to_string_lossy().to_string())

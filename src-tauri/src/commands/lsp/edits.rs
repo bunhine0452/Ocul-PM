@@ -266,11 +266,7 @@ fn apply_workspace_edit(
             .map_err(|e| format!("{} 를 쓰지 못했습니다: {e}", abs.display()))?;
         total_edits += count;
         files.push(crate::lsp::spec::LspRenamedFile {
-            path: abs
-                .strip_prefix(canon_root)
-                .unwrap_or(&abs)
-                .to_string_lossy()
-                .to_string(),
+            path: crate::lsp::registry::rel_string(abs.strip_prefix(canon_root).unwrap_or(&abs)),
             edit_count: count,
         });
     }

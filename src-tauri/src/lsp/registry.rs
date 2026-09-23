@@ -125,6 +125,23 @@ pub fn uri_to_path(uri: &str) -> Option<PathBuf> {
     Some(PathBuf::from(decoded))
 }
 
+/// 프로젝트 상대 경로 → 프런트가 쓰는 `/` 구분 문자열.
+///
+/// 프런트(탭·진단·정의로 이동)는 경로를 `/` 로 비교한다. Windows 의
+/// `strip_prefix` 결과를 그대로 문자열로 만들면 `src\main.rs` 가 되어 같은 파일을
+/// 못 알아본다. 다른 OS 에서는 그대로다 — 유닉스 파일 이름에는 `\` 가 들어갈 수
+/// 있으므로 바꾸지 않는다.
+pub fn rel_string(rel: &Path) -> String {
+    #[cfg(windows)]
+    {
+        rel.to_string_lossy().replace('\\', "/")
+    }
+    #[cfg(not(windows))]
+    {
+        rel.to_string_lossy().to_string()
+    }
+}
+
 /// `C:` · `c:` — 드라이브 문자 한 세그먼트.
 fn is_drive(seg: &str) -> bool {
     let b = seg.as_bytes();
@@ -317,6 +334,13 @@ mod tests {
                 "왕복 실패: {uri}"
             );
         }
+    }
+
+    /// 프로젝트 상대 경로 문자열은 어느 OS 에서든 `/` 구분이다.
+    #[test]
+    fn relative_paths_use_forward_slashes_on_every_os() {
+        let rel = Path::new("src").join("lsp").join("main.rs");
+        assert_eq!(rel_string(&rel), "src/lsp/main.rs");
     }
 
     /// Windows 경로 모양 — 순수 함수라 세 OS 러너 모두에서 돈다.

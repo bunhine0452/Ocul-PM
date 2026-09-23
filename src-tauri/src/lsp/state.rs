@@ -262,7 +262,7 @@ impl LspState {
                 continue;
             }
             out.push(LspFileDiagnostics {
-                path: rel.to_string_lossy().to_string(),
+                path: super::registry::rel_string(rel),
                 diagnostics,
             });
         }
@@ -344,7 +344,7 @@ impl LspState {
                     root: root
                         .strip_prefix(project_root)
                         .ok()
-                        .map(|p| p.to_string_lossy().to_string()),
+                        .map(super::registry::rel_string),
                     detail: s.detail.clone(),
                 });
             }
@@ -495,7 +495,7 @@ fn handle_notice(
             };
             let _ = LspDiagnosticsPublished {
                 project_id,
-                path: rel.to_string_lossy().to_string(),
+                path: super::registry::rel_string(rel),
                 diagnostics: diagnostics_from_json(&diagnostics),
             }
             .emit(app);
@@ -549,7 +549,7 @@ pub fn relative_path_of(uri: &str, project_root: &Path) -> Option<String> {
     let path = uri_to_path(uri)?;
     path.strip_prefix(project_root)
         .ok()
-        .map(|p| p.to_string_lossy().to_string())
+        .map(super::registry::rel_string)
 }
 
 /// LSP 위치 파라미터. **변환하지 않는다** — 프런트가 준 UTF-16 숫자를 그대로.
