@@ -606,4 +606,72 @@ mod hook_command_tests {
         // 비추적 프로젝트에서 stdin 을 소비해 EPIPE 를 막는다.
         assert!(c.contains("cat > /dev/null"), "{c}");
     }
+
+    /// Claude Code 가 셸 형 훅을 돌리는 셸 — macOS·Linux `sh -c`, Windows Git Bash
+    /// (<https://code.claude.com/docs/en/hooks> 「Shell Form」). Git 의 `bin\bash.exe` 는
+    /// Unix 도구를 `System32` 보다 앞에 두는 진입점이다.
+    #[allow(clippy::disallowed_methods)] // 테스트 픽스처 — 앱이 띄우는 프로세스가 아니다
+    fn hook_shell() -> std::path::PathBuf {
+        use std::path::PathBuf;
+        if !cfg!(windows) {
+            return PathBuf::from("/bin/sh");
+        }
+        let mut roots: Vec<PathBuf> = ["ProgramFiles", "ProgramW6432"]
+            .iter()
+            .filter_map(std::env::var_os)
+            .map(|p| PathBuf::from(p).join("Git"))
+            .collect();
+        if let Ok(out) = std::process::Command::new("git")
+            .arg("--exec-path")
+            .output()
+        {
+            // `<Git>/mingw64/libexec/git-core`
+            let exec = PathBuf::from(String::from_utf8_lossy(&out.stdout).trim());
+            roots.extend(exec.ancestors().nth(3).map(std::path::Path::to_path_buf));
+        }
+        roots
+            .into_iter()
+            .map(|r| r.join("bin").join("bash.exe"))
+            .find(|p| p.is_file())
+            .expect("Git Bash 를 못 찾았다 — Windows 에서 훅을 돌리는 셸이라 이 테스트의 전제다")
+    }
+
+    /// 앱 토글이 까는 한 줄이 **이 OS 의 훅 셸에서 실제로** 돈다 — Windows 에서는
+    /// Git Bash 가 Windows 표기 `CLAUDE_PROJECT_DIR` 을 받는다 (크로스플랫폼 `#integ-hooks`).
+    #[test]
+    #[allow(clippy::disallowed_methods)] // 테스트 픽스처 — 앱이 띄우는 프로세스가 아니다
+    fn the_installed_command_runs_under_the_platform_hook_shell() {
+        use std::io::Write;
+        use std::process::{Command, Stdio};
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join(".oculpm")).unwrap();
+        let mut child = Command::new(hook_shell())
+            .arg("-c")
+            .arg(hook_command())
+            .current_dir(dir.path())
+            .env("CLAUDE_PROJECT_DIR", dir.path())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("훅 셸을 띄우지 못했다");
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(br#"{"session_id":"s1","hook_event_name":"Stop"}"#)
+            .unwrap();
+        let out = child.wait_with_output().unwrap();
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let inbox = std::fs::read(dir.path().join(super::INBOX_REL)).expect("인박스가 없다");
+        let (events, consumed) = super::parse_inbox_slice(&inbox);
+        assert_eq!(events.len(), 1, "{}", String::from_utf8_lossy(&inbox));
+        assert_eq!(events[0].session_id, "s1");
+        assert_eq!(consumed as usize, inbox.len(), "개행으로 끝나야 한다");
+        assert!(String::from_utf8_lossy(&inbox).contains("\"oculpm_ts\":\""));
+    }
 }

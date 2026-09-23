@@ -247,16 +247,87 @@ fn claude_hooks_run_under_the_platform_hook_shell() {
     let root = project.path();
     let hooks = read_json(&claude_plugin().join("hooks/hooks.json"));
     exercise_bundle(&hooks, root, &|hook, stdin| {
-        let command = hook["command"].as_str().expect("command");
+        // Claude Code 는 자리표시자를 **글자 그대로** 바꿔 넣는다 — Windows 에서도
+        // `C:\…` 백슬래시 경로 그대로 (anthropics/claude-code#21878). 따옴표로 감싼
+        // 우리 명령은 bash 가 그 백슬래시를 먹지 않는다. 변수로도 싣는다(문서).
+        let command = hook["command"]
+            .as_str()
+            .expect("command")
+            .replace("${CLAUDE_PLUGIN_ROOT}", &claude_plugin().to_string_lossy());
         let mut cmd = Command::new(hook_shell());
-        cmd.arg("-c")
-            .arg(command)
-            .current_dir(root)
+        cmd.arg("-c");
+        push_arg_like_node(&mut cmd, &command);
+        cmd.current_dir(root)
             .env("CLAUDE_PROJECT_DIR", root)
             .env("CLAUDE_PLUGIN_ROOT", claude_plugin())
             .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"));
         spawn_with_stdin(cmd, stdin)
     });
+}
+
+/// 인자를 Claude Code(Node·Bun — libuv)가 싸는 모양으로 싣는다. Windows 에서만 뜻이
+/// 있다: Rust 는 공백 없는 인자를 따옴표로 싸지 않고 `\"` 만 붙이는데, Git Bash(MSYS)
+/// 의 argv 파서는 **따옴표 밖** `\"` 를 이스케이프로 읽지 않아 `"…/plan-context.sh"`
+/// 가 짝 없는 따옴표로 깨진다 (msys2-runtime `dcrt0.cc` `build_argv`·`quoted`).
+/// libuv(`quote_cmd_arg`)는 `"` 가 든 인자를 늘 따옴표로 싸 그 함정을 비켜 간다 —
+/// 실제 에이전트가 하는 것을 재야 하므로 그 규칙을 옮겨 온다.
+fn push_arg_like_node(cmd: &mut Command, arg: &str) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.raw_arg(libuv_quote(arg));
+    }
+    #[cfg(not(windows))]
+    {
+        cmd.arg(arg);
+    }
+}
+
+/// libuv `src/win/process.c` `quote_cmd_arg` 의 옮김.
+#[cfg(windows)]
+fn libuv_quote(arg: &str) -> String {
+    if arg.is_empty() {
+        return "\"\"".to_string();
+    }
+    if !arg.contains([' ', '\t', '"']) {
+        return arg.to_string();
+    }
+    if !arg.contains(['"', '\\']) {
+        return format!("\"{arg}\"");
+    }
+    // 뒤에서부터 쌓는다 — 따옴표 앞(또는 끝)의 백슬래시 줄만 두 배로.
+    let mut reversed = Vec::with_capacity(arg.len() * 2);
+    let mut quote_hit = true;
+    for c in arg.chars().rev() {
+        reversed.push(c);
+        if quote_hit && c == '\\' {
+            reversed.push('\\');
+        } else if c == '"' {
+            quote_hit = true;
+            reversed.push('\\');
+        } else {
+            quote_hit = false;
+        }
+    }
+    let body: String = reversed.into_iter().rev().collect();
+    format!("\"{body}\"")
+}
+
+#[cfg(windows)]
+#[test]
+fn libuv_quoting_matches_its_documented_table() {
+    // libuv quote_cmd_arg 주석의 기대 입출력 표.
+    for (input, output) in [
+        (r#"hello"world"#, r#""hello\"world""#),
+        (r#"hello""world"#, r#""hello\"\"world""#),
+        (r"hello\world", r"hello\world"),
+        (r"hello\\world", r"hello\\world"),
+        (r#"hello\"world"#, r#""hello\\\"world""#),
+        (r#"hello\\"world"#, r#""hello\\\\\"world""#),
+        (r"hello world\", r#""hello world\\""#),
+    ] {
+        assert_eq!(libuv_quote(input), output, "{input}");
+    }
 }
 
 /// Windows 의 Codex 가 하는 그대로 — `cmd.exe /d /c "<commandWindows>"`
@@ -358,7 +429,7 @@ fn without_git_bash_the_codex_shuttle_skips_loudly() {
     cmd.args(["/d", "/c"])
         .raw_arg(format!("\"call \"{}\" event-sink.sh\"", shuttle.display()))
         .current_dir(project.path())
-        .env("PATH", &system32)
+        .env("PATH", system32.as_os_str())
         .env("OCULPM_GIT_BASH", empty.path().join("nope.exe"))
         .env("ProgramFiles", empty.path())
         .env("ProgramW6432", empty.path())
@@ -386,9 +457,9 @@ fn the_windows_event_sink_writes_the_same_line_as_the_inline_one() {
         .unwrap();
 
     let mut cmd = Command::new(hook_shell());
-    cmd.arg("-c")
-        .arg(inline)
-        .current_dir(inline_root.path())
+    cmd.arg("-c");
+    push_arg_like_node(&mut cmd, inline);
+    cmd.current_dir(inline_root.path())
         .env("CLAUDE_PROJECT_DIR", inline_root.path());
     let body = |root: &Path| payload("SessionStart", "sink", root);
     assert_eq!(
@@ -575,14 +646,14 @@ fn the_shuttle_finds_the_linux_install_locations() {
     let xdg = tmp.path().join("xdg");
     place_sidecar(&xdg.join("ocul-pm/bin/oculpm-mcp"));
     assert_found(
-        &shuttle_version(&shuttle, &[("XDG_DATA_HOME", &xdg)]),
+        &shuttle_version(&shuttle, &[("XDG_DATA_HOME", xdg.as_path())]),
         "XDG_DATA_HOME",
     );
 
     let home = tmp.path().join("home");
     place_sidecar(&home.join(".local/share/ocul-pm/bin/oculpm-mcp"));
     assert_found(
-        &shuttle_version(&shuttle, &[("HOME", &home)]),
+        &shuttle_version(&shuttle, &[("HOME", home.as_path())]),
         "~/.local/share",
     );
 
@@ -609,7 +680,7 @@ fn the_shuttle_finds_the_windows_install_locations() {
     ] {
         let base = tmp.path().join(case);
         place_sidecar(&base.join(rel));
-        assert_found(&shuttle_version(&shuttle, &[(var, &base)]), case);
+        assert_found(&shuttle_version(&shuttle, &[(var, base.as_path())]), case);
     }
 }
 
@@ -622,7 +693,10 @@ fn the_shuttle_speaks_only_on_stderr_when_nothing_is_found() {
     let shuttle = isolated_shuttle(tmp.path());
     let home = tmp.path().join("empty-home");
     std::fs::create_dir_all(&home).unwrap();
-    let out = shuttle_version(&shuttle, &[("HOME", &home), ("LOCALAPPDATA", &home)]);
+    let out = shuttle_version(
+        &shuttle,
+        &[("HOME", home.as_path()), ("LOCALAPPDATA", home.as_path())],
+    );
     assert_eq!(out.status.code(), Some(1), "{}", describe(&out));
     assert!(out.stdout.is_empty(), "stdout 은 MCP 프로토콜 전용");
     assert!(String::from_utf8_lossy(&out.stderr).contains("OCULPM_MCP_BIN"));
