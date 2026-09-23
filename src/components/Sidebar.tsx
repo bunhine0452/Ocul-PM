@@ -19,6 +19,7 @@ import { NavRemapNotice } from "@/components/NavRemapNotice";
 import { tildePath } from "@/features/onboarding/home/homeModel";
 import { useT } from "@/i18n";
 import { dragRegion } from "@/lib/platform";
+import { kbd } from "@/lib/kbd";
 
 // Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
 // Ocul-PM1.0/src/shell.jsx). Rendered as <nav> + <button>s for a11y; the
@@ -498,13 +499,13 @@ export function Sidebar({
             className="nav-item nav-util"
             aria-pressed={terminalDockOpen}
             onClick={onToggleTerminalDock}
-            title={`${t("sidebar.terminalDock")} (⌘J)`}
+            title={`${t("sidebar.terminalDock")} (${kbd("⌘J")})`}
           >
             <span className="nav-ico">
               <PanelBottom size={15} />
             </span>
             <span>{t("sidebar.terminalDock")}</span>
-            <kbd className="nav-kbd">⌘J</kbd>
+            <kbd className="nav-kbd">{kbd("⌘J")}</kbd>
           </button>
         ) : null}
         <button

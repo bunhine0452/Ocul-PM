@@ -31,6 +31,7 @@ import { requestManualEntry } from "@/lib/journalCompose";
 import { requestCheatsheet } from "@/lib/projectActions";
 import { requestAgentContext } from "@/lib/agentContextNav";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
+import { kbd } from "@/lib/kbd";
 
 // MASTER-GUIDE §5.9 — cmdk 기반 Command Palette
 //
@@ -224,13 +225,13 @@ export function CommandPalette({
       ...(ws
         ? [
             { id: "switch-project", label: t("palette.switchProject"), alias: aliasOf("palette.switchProject"),
-              group: "actions" as const, icon: FolderGit2, shortcut: "⌘P",
+              group: "actions" as const, icon: FolderGit2, shortcut: kbd("⌘P"),
               onSelect: () => {
                 onOpenChange(false);
                 window.dispatchEvent(new CustomEvent(NAV_BUS.openProjectSwitcher));
               } },
             { id: "open-ai-panel", label: t("palette.openAiPanel"), alias: aliasOf("palette.openAiPanel"),
-              group: "actions" as const, icon: MessageSquareText, shortcut: "⌘\\",
+              group: "actions" as const, icon: MessageSquareText, shortcut: kbd("⌘\\"),
               onSelect: () => { ws.setUiV2View("ai"); onOpenChange(false); } },
           ]
         : []),
@@ -247,10 +248,10 @@ export function CommandPalette({
           ]
         : []),
       { id: "settings", label: t("palette.openSettings"), alias: aliasOf("palette.openSettings"),
-        group: "actions", icon: SettingsIcon, shortcut: "⌘,",
+        group: "actions", icon: SettingsIcon, shortcut: kbd("⌘,"),
         onSelect: () => { onOpenSettings(); onOpenChange(false); } },
       { id: "cheatsheet", label: t("palette.cheatsheet"), alias: aliasOf("palette.cheatsheet"),
-        group: "actions", icon: Keyboard, shortcut: "⌘/",
+        group: "actions", icon: Keyboard, shortcut: kbd("⌘/"),
         onSelect: () => { onOpenChange(false); requestCheatsheet(); } },
       ...(onReindex && currentProjectId !== null
         ? [{ id: "reindex", label: t("palette.reindex"), alias: aliasOf("palette.reindex"),

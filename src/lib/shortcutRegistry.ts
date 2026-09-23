@@ -1,5 +1,7 @@
 import type { I18nKey } from "@/i18n";
 import { NAV_ENTRIES, navShortcutLabel } from "@/lib/navRegistry";
+import { kbd } from "@/lib/kbd";
+import { isMac } from "@/lib/platform";
 
 // 키보드 단축키의 단일 목록 (완성도 라운드 Phase 2, 2026-08-30).
 //
@@ -10,11 +12,23 @@ import { NAV_ENTRIES, navShortcutLabel } from "@/lib/navRegistry";
 //
 // 앱 메뉴 가속키(⌘T·⇧⌘N·⌘W·⇧⌘W)는 Rust `menu.rs` 가 정본이다. 프런트에서
 // 읽을 수 없어 값을 옮겨 적었다.
+//
+// 키는 **맥 표기로 적는다** (크로스플랫폼 라운드 {#ui-labels}). Windows·Linux 는
+// `buildShortcutGroups` 가 `kbd()` 로 옮긴다 — 터미널 그룹은 터미널 가족
+// (⌘D → Ctrl+Shift+D, 셸이 Ctrl+글자를 갖는다). 그 OS 에 없는 키는 `nonMac`
+// 으로 다른 표기를 주거나 `null` 로 뺀다.
 
 export interface ShortcutRow {
-  /** 표시용 키 — `⌘K`, `⇧⌘F`, `⌃Tab`, `j / k`. */
+  /** 표시용 키 — `⌘K`, `⇧⌘F`, `⌃Tab`, `j / k`. 맥 표기가 정본이다. */
   keys: string;
   labelKey: I18nKey;
+  /**
+   * Windows·Linux 표기를 따로 줄 때. `null` 이면 그 OS 에서는 줄을 뺀다 — 앱이
+   * 그 키를 받을 길이 없다(메뉴 전용). 없으면 `keys` 를 `kbd()` 로 옮긴다.
+   */
+  nonMac?: string | null;
+  /** Windows·Linux 에서만 보이는 줄 — 맥에는 해당 없는 안내(터미널 복사·붙여넣기). */
+  nonMacOnly?: true;
 }
 
 export interface ShortcutGroup {
@@ -34,6 +48,8 @@ const GLOBAL: ShortcutGroup = {
     { keys: "⌘\\", labelKey: "keys.ai" },
     { keys: "⌘/", labelKey: "keys.cheatsheet" },
     { keys: "⌘[ / ⌘]", labelKey: "keys.navHistory" },
+    // 터미널 안에서 Ctrl+글자는 셸의 것이다 (lib/kbd.ts) — 그 자리의 앱 단축키.
+    { keys: "Ctrl+Shift+…", labelKey: "keys.inTerminal", nonMacOnly: true },
   ],
 };
 
@@ -42,9 +58,11 @@ const WINDOW: ShortcutGroup = {
   titleKey: "keys.g.window",
   rows: [
     { keys: "⌘T", labelKey: "keys.newTab" },
-    { keys: "⇧⌘N", labelKey: "keys.newWindow" },
+    // 새 창은 앱 메뉴에만 있다 — Windows·Linux 에서 프런트가 받을 길이 없다.
+    { keys: "⇧⌘N", labelKey: "keys.newWindow", nonMac: null },
     { keys: "⌘W", labelKey: "keys.closeTab" },
-    { keys: "⇧⌘W", labelKey: "keys.closeWindow" },
+    // Windows·Linux 는 네이티브 제목줄 — 창 닫기는 OS 의 키다.
+    { keys: "⇧⌘W", labelKey: "keys.closeWindow", nonMac: "Alt+F4" },
     { keys: "⌃Tab / ⌃⇧Tab", labelKey: "keys.cycleTabs" },
     { keys: "⌘⌥← / ⌘⌥→", labelKey: "keys.moveTabs" },
   ],
@@ -62,6 +80,10 @@ const TERMINAL: ShortcutGroup = {
     { keys: "⌘↑ / ⌘↓", labelKey: "keys.termBlocks" },
     { keys: "⌘= / ⌘−", labelKey: "keys.termFont" },
     { keys: "⇧⌘0", labelKey: "keys.termFontReset" },
+    // 맥의 ⌘W·⌘C·⌘V 는 메뉴가 받는다. Windows·Linux 터미널에서는 Ctrl+W·C·V 가
+    // 셸의 것이라(단어 지우기·인터럽트·문자 그대로) Shift 가족으로 받는다.
+    { keys: "⌘W", labelKey: "keys.termClosePane", nonMacOnly: true },
+    { keys: "Ctrl+Shift+C / Ctrl+Shift+V", labelKey: "keys.termCopyPaste", nonMacOnly: true },
   ],
 };
 
@@ -149,5 +171,22 @@ export function navShortcutGroup(): ShortcutGroup {
 
 /** 치트시트가 그리는 순서 — 전역과 화면 이동이 먼저, 화면별 로컬 키가 뒤. */
 export function buildShortcutGroups(): ShortcutGroup[] {
-  return [navShortcutGroup(), GLOBAL, WINDOW, TERMINAL, CODE, JOURNAL, SEARCH, DIFF, START];
+  const groups = [navShortcutGroup(), GLOBAL, WINDOW, TERMINAL, CODE, JOURNAL, SEARCH, DIFF, START];
+  return groups.map(isMac() ? forMac : forOtherOs);
+}
+
+/** macOS — 표기는 적힌 그대로. 맥에 해당 없는 안내 줄만 뺀다. */
+function forMac(g: ShortcutGroup): ShortcutGroup {
+  return { ...g, rows: g.rows.filter((r) => !r.nonMacOnly) };
+}
+
+/** Windows·Linux — 이 OS 의 표기로 옮기고, 그 OS 에 없는 키는 뺀다. */
+function forOtherOs(g: ShortcutGroup): ShortcutGroup {
+  const context = g.id === "terminal" ? "terminal" : "app";
+  const rows: ShortcutRow[] = [];
+  for (const r of g.rows) {
+    if (r.nonMac === null) continue;
+    rows.push({ keys: r.nonMac ?? kbd(r.keys, context), labelKey: r.labelKey });
+  }
+  return { ...g, rows };
 }
