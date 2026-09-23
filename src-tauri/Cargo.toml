@@ -103,7 +103,11 @@ agent-client-protocol = "2"
 # 코드 화면의 파일 삭제 — 영구 삭제 대신 OS 휴지통으로 보낸다. IDE 안에서
 # 되돌릴 수 없는 삭제는 만들지 않는다 (폴더 삭제는 재귀라 더더욱).
 # default-features off = chrono 를 끌어오는 휴지통 메타데이터 기능 제외.
-trash = { version = "5.2.6", default-features = false }
+# coinit_apartmentthreaded: 크레이트 기본값 그대로 되살린다 — default-features 를
+# 끄면 Windows 에서 COM 초기화 방식이 빠져 trash 가 **일부러** 컴파일 에러를 낸다
+# (trash src/windows.rs "Either the `coinit_multithreaded` or ..."). macOS·Linux
+# 에서는 아무 일도 하지 않는 feature 다 (크로스플랫폼 W1).
+trash = { version = "5.2.6", default-features = false, features = ["coinit_apartmentthreaded"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 tower-http = { version = "0.6", features = ["fs"] }
 if-addrs = "0.13"

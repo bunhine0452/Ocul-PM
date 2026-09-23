@@ -452,6 +452,8 @@ fn toggle_popover(app: &AppHandle, state: &Arc<TrayState>, click: tauri::Physica
 
 pub const SETTING_SHOW_ICON: &str = "tray.show_icon"; // 기본 on ("0" 일 때만 숨김)
 pub const SETTING_KEEP_RUNNING: &str = "tray.keep_running"; // 기본 off
+/// Dock 은 macOS 에만 있다 — 읽는 자리(`handle_last_window_closed`)가 mac 한정이다.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub const SETTING_HIDE_DOCK: &str = "tray.hide_dock"; // 기본 off
 pub const SETTING_NOTIFY_JOURNAL: &str = "tray.notify_journal"; // 기본 off
 /// 앱 안 에이전트(Claude Code · Codex)가 **승인을 기다리거나 턴을 끝냈는데** 창이

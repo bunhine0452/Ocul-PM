@@ -12,6 +12,8 @@
 //! string surfaces this.
 
 use std::path::PathBuf;
+// Quick Look(qlmanage) 한 곳만 쓴다 — 비-mac 에서는 미사용 import 가 된다.
+#[cfg(target_os = "macos")]
 use std::process::Stdio;
 
 /// 외부 편집기로 프로젝트 파일을 연다.

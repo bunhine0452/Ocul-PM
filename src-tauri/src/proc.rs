@@ -372,11 +372,41 @@ mod tests {
         assert!(!lines.contains(&"INJECTED"), "명령 주입이 실행됐다");
 
         // BatBadBut: 줄바꿈은 cmd 가 명령을 끊는 자리라 std 가 띄우기 전에 거부한다.
-        let err = std_cmd(&resolved)
+        let err = std_cmd(resolved)
             .arg("line\r\nbreak")
             .output()
             .expect_err("줄바꿈 인자는 거부돼야 한다");
         assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+    }
+
+    /// 끝에서 끝까지 — Node 가 까는 `npm` 은 `npm.cmd` 뿐이다(npm.exe 가 없다).
+    /// std 의 맨 이름 탐색은 `.exe` 만 붙여 이것을 못 찾는다 — 이 창구가 있는
+    /// 이유 그대로를 프로세스 PATH 로 돌린다. CI 러너(windows-latest)에는 Node 가
+    /// 깔려 있으므로 거기서는 건너뛰지 않는다.
+    #[cfg(windows)]
+    #[test]
+    fn windows_npm_cmd_shim_runs_by_bare_name() {
+        let path = std::env::var_os("PATH");
+        let pathext = std::env::var_os("PATHEXT");
+        if resolve::batch_on_path(OsStr::new("npm"), path.as_deref(), pathext.as_deref()).is_none()
+        {
+            assert!(
+                std::env::var_os("CI").is_none(),
+                "CI 러너에는 PATH 에 npm.cmd 가 있어야 한다"
+            );
+            eprintln!("skip: PATH 에 npm.cmd 가 없다 (Node 미설치 개발 PC)");
+            return;
+        }
+        let out = std_cmd("npm")
+            .arg("--version")
+            .output()
+            .expect("npm.cmd 실행");
+        assert!(out.status.success(), "{out:?}");
+        let version = String::from_utf8_lossy(&out.stdout);
+        assert!(
+            version.trim().starts_with(|c: char| c.is_ascii_digit()),
+            "{version}"
+        );
     }
 
     /// 못 찾은 맨 이름은 그대로 std 에 간다 — 예전과 같은 NotFound 가 난다.
