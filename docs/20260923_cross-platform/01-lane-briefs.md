@@ -12,13 +12,24 @@
 | L-PTY | `src-tauri/src/ptyhost/**` · `src-tauri/src/commands/terminal.rs` · `src-tauri/src/main.rs` 의 `--pty-host` 분기 · `src-tauri/tests/ptyhost_*.rs` |
 | L-SHELL | `src-tauri/src/oculpm/shell_integration/**` · `src-tauri/src/oculpm/shim.rs` · `src-tauri/src/acp/env.rs` · `src-tauri/tests/acp_login_shell.rs` |
 | L-INTEG | `src-tauri/src/oculpm/mcp/register.rs` · `oculpm/mcp/codex.rs` · `oculpm/claude_hooks.rs` · `oculpm/paths.rs` · `src-tauri/src/bin/oculpm_mcp.rs` · `src-tauri/src/commands/mcp.rs` · `src-tauri/build.rs` · `plugin/**` · `scripts/build-sidecar.mjs` · `src-tauri/tests/plugin_manifest.rs` · `src-tauri/tests/delivery_gate.rs` |
-| L-FS | `src-tauri/src/oculpm/atomic_io.rs` · `oculpm/lock.rs` · `oculpm/watcher/**` · `oculpm/index/**` · `oculpm/frontmatter/**` · `oculpm/markdown.rs` · `oculpm/entry_diffs.rs` · `src-tauri/src/journal_index.rs` · `src-tauri/src/git/**` · 테스트 `journal_create_two_process` · `plan_cas_two_process` · `plan_parallel_write` · `local_diff` · `nested_repo_paths` · `oculpm_lock_scope` · `watcher_backpressure` |
+| L-FS | `src-tauri/src/oculpm/atomic_io.rs` · `oculpm/lock.rs` · `oculpm/watcher/**` · `oculpm/index/**` · `oculpm/frontmatter/**` · `oculpm/markdown.rs` · `oculpm/entry_diffs.rs` · `src-tauri/src/journal_index.rs` · `src-tauri/src/git/**` · **(W1 뒤 추가)** `src-tauri/src/indexer.rs` · `oculpm/rule_scope.rs` · `oculpm/redact.rs` · `oculpm/verdict/markers.rs` · `oculpm/a2a/registry.rs`(pid 생사) · 새 파일 `src-tauri/src/pid.rs` · 테스트 `journal_create_two_process` · `plan_cas_two_process` · `plan_parallel_write` · `local_diff` · `nested_repo_paths` · `oculpm_lock_scope` · `watcher_backpressure` |
 | L-OS | 나머지 `src-tauri/**` (`lib.rs` · `deeplink.rs` · `tray.rs` · `menu.rs` · `secrets.rs` · `commands/window/**` · `commands/{themes,external_editor,open_native,greenfield,notion,skills}.rs` · `dap/**` · `lsp/**` · `acp/adapter.rs` · `mobile_bridge/**` · `plugins/**` · `Cargo.toml`) + 나머지 `src-tauri/tests/*` |
 | L-UI | `src/**` (단 `src/lib/bindings.ts` 제외) · `index.html` |
 
 공유 핫스팟: `src-tauri/src/lib.rs`(L-OS 소유지만 다른 레인이 한 줄 필요할 수 있다) ·
 `src-tauri/Cargo.toml`(L-OS) · `src/lib/bindings.ts`(생성물). **다른 레인은 여기를
 고치지 않고 보고서의 「합류 때 필요한 변경」 에 정확한 diff 를 적는다.**
+
+W1 뒤에 정해진 것:
+- **`src-tauri/src/proc.rs` 는 어느 레인 소유도 아니다** (W1 산출물). 고칠 일이 생기면 보고서에 diff.
+  Windows 에서 `creation_flags` 를 다시 부르면 **덮어쓴다** — 추가 플래그는 `proc::CREATE_NO_WINDOW` 와 OR 해서 넘긴다.
+  PATHEXT 해석은 **부모 프로세스 PATH** 기준이다 — `.env("PATH", …)` 로 자식 PATH 를 바꾸는 호출부는 전체 경로를 넘겨야 한다.
+- **`windows-sys` 0.61 은 이미 열려 있다** (Win32_Foundation · Security(+Authorization) · Storage_FileSystem ·
+  System_Console · Diagnostics_ToolHelp · JobObjects · Pipes · ProcessStatus · Threading). 더 필요한 feature 는 보고서에 적는다.
+- **pid 생사 판정은 L-FS 가 `src-tauri/src/pid.rs` 한 곳에** 만들고 `lock.rs`·`a2a/registry.rs` 가 쓴다
+  (Windows: `OpenProcess` + `GetExitCodeProcess`, `STILL_ACTIVE`). L-PTY 가 호스트 생사에 필요하면 합류 뒤 가져다 쓴다.
+- portability.yml 잡 API 의 단계 `conclusion` 은 continue-on-error 때문에 **늘 success** 다. 판정은 잡 로그의
+  「요약」 표(outcome)나 아티팩트로 한다.
 
 ---
 
@@ -124,6 +135,10 @@
   Toolhelp32 스냅숏 또는 `sysinfo` 로. 새 크레이트가 필요하면 보고서에 적는다(Cargo.toml 은 L-OS 소유).
 - 테스트(**windows 러너에서 실행**): 세션 열기 → `echo 한글-ok` → 출력에서 단언 → 리사이즈 →
   Kill 뒤 자식 프로세스 0 → 앱 측 클라이언트 재접속(`ptyhost_reattach` 의 Windows 판).
+- W1 이 남긴 스텁 6곳(`rg -n "PORT-STUB\(L-PTY\)" src-tauri`): `ptyhost/mod.rs` `UNSUPPORTED_OS` ·
+  `host/mod.rs` 비-unix `allow(dead_code)`·`signal_session` no-op·`serve` · `client.rs` `connect_transport`·`spawn_host_process`.
+  `spawn_if_missing=false` 경로는 Windows 에서 `Ok(None)`(호스트 없음)을 돌려준다.
+- 파일 머리가 `#![cfg(unix)]` 라 Windows 에서 0건인 `tests/ptyhost_reattach.rs` · `ptyhost_write_backpressure.rs` 를 Windows 에서도 돌게.
 
 ## W2 · L-SHELL — 셸 통합 · 심
 
@@ -141,6 +156,8 @@
 - 테스트: 스크립트 렌더·관리 블록 설치/제거·nonce 규칙이 windows·ubuntu 에서 실행.
   pwsh 는 windows 러너에 기본 설치돼 있다 — 실제 pwsh 에 스크립트를 로드해 OSC 133 이
   출력되는지 단언하는 통합 테스트를 하나 둔다.
+- W1 windows 실패(네 몫): `acp::env::tests::search_path_skips_missing_and_empty_segments` — PATH 를 `:` 로 나눠
+  `C:\…` 가 깨진다(`std::env::split_paths` 로).
 
 ## W2 · L-INTEG — 외부 도구 연동 경로
 
@@ -162,6 +179,10 @@
   가 생기는지 portability.yml 에서 확인(잡 추가가 필요하면 보고서에 diff).
 - 테스트: 경로 표를 OS별 단위 테스트(windows·ubuntu 러너), `tests/plugin_manifest.rs` 초록,
   `tests/delivery_gate.rs`(sh 훅 실행)가 Windows 에서 Git Bash 로 도는지 또는 명시적 skip + 사유.
+- W1 windows 실패(네 몫): `oculpm::mcp::register::tests::codex_register_collapses_legacy_pinned_entries` —
+  TOML 기본 문자열 안의 `\` 가 "invalid unicode escape". 픽스처만의 문제인지, **실제로 Windows 경로를 config.toml 에
+  쓰는 코드**가 같은 문제를 내는지(리터럴 문자열 `'…'` 또는 이스케이프) 둘 다 확인.
+- `tests/delivery_gate.rs` 는 파일 머리가 `#![cfg(unix)]` 라 Windows 에서 0건이다.
 
 ## W2 · L-FS — 경로 · 파일 의미론
 
@@ -181,6 +202,19 @@
 - git: `core.quotepath`(메모리 — 한국어 경로 8진수), 출력 경로 구분자, `core.autocrlf` 로 인한 가짜 diff.
 - W1 이 `PORT-TEST(L-FS)` 로 표시한 심링크 테스트의 Windows 판(정션/심링크 권한 없으면 skip 사유 명시).
 - 테스트는 전부 windows·ubuntu 러너에서 실행.
+- W1 windows 실패(네 몫, 12건):
+  - 구분자: `indexer::walk_tests::gitignore_is_honored_without_a_git_dir` · `vendor_dirs_are_denied_without_any_gitignore`
+    (`src\a.ts`), `oculpm::rule_scope::tests::walk_honors_gitignore_and_denies_vendor_dirs`,
+    `oculpm::redact::tests::forbidden_absolute_path_matches`(ignore 크레이트 "path is expected to be under the root" 패닉 — unix 절대경로 픽스처)
+  - watcher: `oculpm::watcher::tests::{agents_template_change_emits_without_panic, journal_change_emits_without_panic,
+    local_history_writes_never_re_trigger_the_watcher, rapid_writes_to_same_file_debounced_to_one}` —
+    `\` 가 섞여 emit 분류·자기 억제가 빗나가고 Create/Modify 병합 모양도 다름. `watcher_backpressure::prefilter_never_swallows_what_the_consumer_judges_first`
+  - git: `git::tests::nested_repo_below_root_is_diffable`(`diff_patch` 빈 결과)
+  - pid 생사: `oculpm::lock::tests::acquire_recovers_immediately_when_holder_pid_is_dead` + a2a 4건
+    (`a2a::leases::…a_dead_holder_releases_the_ground_before_its_deadline` · `a2a::registry::…a_dead_pid_is_dead_however_fresh_the_heartbeat` ·
+    `…a_live_pid_gone_quiet_for_ages_is_treated_as_recycled` · `mcp::tools::tests::a2a::reading_the_inbox_sweeps_the_dead_and_closes_the_overdue`)
+    — 전부 `pid.rs` 하나로 풀린다. `ledger-and-liveness-honesty` 의 "모르면 Unknown" 규칙은 유지(Windows 는 이제 **안다**).
+  - mtime: `oculpm::verdict::markers::tests::the_live_trace_is_refreshed_every_time`(`touch_live` 가 mtime 갱신 안 함)
 
 ## W2 · L-OS — 나머지 OS 분기
 
@@ -207,6 +241,12 @@
   `themes.rs` 의 `defaults`(비-mac 은 None — 이미 cfg 인지 확인), `external_editor.rs`·`greenfield.rs`
   Windows 후보 경로 검증, `acp/adapter.rs` 의 `npx`(`npx.cmd`)가 `proc.rs` 로 풀리는지.
 - 테스트: 딥링크 argv 파싱 순수 함수 + 단위 테스트, DAP/에디터 후보 경로 표 테스트 — windows·ubuntu 러너.
+- W1 windows 실패(네 몫): `acp::recording::tests::candidates_follow_the_shuttle_vocabulary` — `.app/Contents/MacOS` 경로 기대.
+- W1 이 찾은 원래부터의 조용한 폴백(D4): `commands/code/import.rs` 비-mac `clipboard_file_paths` 가 빈 Vec,
+  `lsp/client.rs` `kill_on_drop` 이 unix 한정(Windows 에서 LSP 자식이 안 정리될 수 있음).
+- 실행 확인 필요: `trash`(COM STA 모드)가 tokio 워커 스레드에서 Windows 휴지통 이동을 실제로 하는지 — windows 러너 통합 테스트.
+- PATHEXT 는 부모 PATH 기준 — `acp/adapter.rs`(npm/npx)·LSP·DAP 가 자식 PATH 를 바꿔 넘기며 맨 이름을 쓰면 `.cmd` 를 못 찾는다.
+- `#![cfg(unix)]` 라 Windows 0건인 통합 테스트 `acp_journal_gate` · `resume_context` · `session_verdict` — Windows 에서도 의미 있게.
 
 ## W2 · L-UI — 프런트엔드 플랫폼 추상화
 
