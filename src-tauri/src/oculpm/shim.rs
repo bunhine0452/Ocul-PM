@@ -585,21 +585,30 @@ mod tests {
     /// Windows 의 심은 심링크 → 하드 링크 → 복사본. 러너(관리자)는 심링크가
     /// 되므로, 권한 없는 사용자가 타는 하드 링크 길 — **실행 중인** 실행 파일에
     /// 거는 링크 — 을 따로 확인한다 (앱은 자기 자신에게 건다).
+    ///
+    /// 하드 링크는 **같은 볼륨**에서만 된다 — 러너는 작업 폴더(`D:`)와 `%TEMP%`
+    /// (`C:`)가 달라 첫 실행이 `CrossesDevices` 로 떨어졌다. 그래서 링크 자리를
+    /// 실행 파일 옆에 만들고, 볼륨이 다른 자리(`%TEMP%`)에서는 설치가 복사본까지
+    /// 물러나 끝내 심을 거는지를 따로 본다.
     #[cfg(windows)]
     #[test]
     fn windows_a_running_exe_can_be_hard_linked() {
-        let dir = TempDir::new().unwrap();
         let exe = std::env::current_exe().unwrap();
+        let dir = tempfile::Builder::new()
+            .prefix("oculpm-shim-")
+            .tempdir_in(exe.parent().unwrap())
+            .unwrap();
         let target = dir.path().join("oculpm.exe");
         std::fs::hard_link(&exe, &target).expect("실행 중인 exe 에 하드 링크");
         assert_eq!(
             std::fs::metadata(&target).unwrap().len(),
             std::fs::metadata(&exe).unwrap().len()
         );
+        // 다른 볼륨일 수 있는 %TEMP% — 심링크가 안 되면 하드 링크도 안 되고 복사본이다.
+        let elsewhere = TempDir::new().unwrap();
         let (shim, kind) =
-            install_pointing_at(dir.path(), "s-link", &token(), &exe).expect("심 설치");
-        eprintln!("windows 심 방식: {kind:?}");
-        assert!(shim.dir.join("oculpm.exe").is_file());
+            install_pointing_at(elsewhere.path(), "s-link", &token(), &exe).expect("심 설치");
+        assert!(shim.dir.join("oculpm.exe").is_file(), "{kind:?}");
         assert_ne!(kind, LinkKind::Existing);
     }
 
