@@ -1128,6 +1128,19 @@ pub fn run() {
             if swept > 0 {
                 tracing::info!("남은 세션 심 {swept}개를 정리했습니다");
             }
+            // Linux AppImage: oculpm-mcp 를 마운트 밖 안정 자리로 (D10 · #integ-sidecar).
+            // 다른 앱 설정이 그 사본을 가리키므로 업데이트 뒤 기동마다 새로 고친다 —
+            // 내용이 같으면 무접촉. 그 밖의 설치(macOS · Windows · deb)는 Ok(None).
+            #[cfg(target_os = "linux")]
+            std::thread::spawn(
+                || match crate::oculpm::mcp::register::refresh_stable_sidecar() {
+                    Ok(Some(path)) => {
+                        tracing::info!(path = %path.display(), "AppImage 사이드카 안정 사본 확인")
+                    }
+                    Ok(None) => {}
+                    Err(e) => tracing::warn!(error = %e, "AppImage 사이드카 안정 사본 실패"),
+                },
+            );
             let db_path = app_data.join("ocul-pm.db");
             let db =
                 tauri::async_runtime::block_on(Db::open(db_path)).expect("failed to open database");

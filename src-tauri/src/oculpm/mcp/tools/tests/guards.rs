@@ -58,6 +58,25 @@ fn project_init_converges_half_initialized_state() {
         .contains("oculpm"));
 }
 
+/// **실제 홈 폴더**에는 `.oculpm` 을 깔지 않는다 — `--root` 를 홈으로 잘못 고정한
+/// 설정 사고가 `~/.gitignore`·`~/AGENTS.md` 오염으로 번지지 않게. 예전 가드는 `HOME`
+/// 환경변수와 비교해 **Windows 에서는 꺼져 있었다** (크로스플랫폼 L-INTEG).
+/// 러너 한정 — 가드가 회귀하면 이 테스트가 진짜 홈에 쓰므로 개발 기기에서는 돌리지
+/// 않는다 (macOS·Linux 판정은 `paths::tool_config` 의 순수 테스트가 문다).
+#[cfg(windows)]
+#[test]
+fn project_init_refuses_the_real_home_directory() {
+    let home = crate::oculpm::paths::home_dir().expect("home");
+    let existed = home.join(".oculpm").exists();
+    let err = call_tool(&home, "project_init", &json!({"confirm": true})).unwrap_err();
+    assert!(err.contains("home directory"), "{err}");
+    assert_eq!(
+        home.join(".oculpm").exists(),
+        existed,
+        "홈에 아무것도 만들지 않는다"
+    );
+}
+
 #[test]
 fn project_init_rejects_symlinked_oculpm() {
     let tmp = TempDir::new().unwrap();

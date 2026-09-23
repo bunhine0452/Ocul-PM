@@ -13,6 +13,20 @@ pub fn home_dir() -> Option<PathBuf> {
     directories::BaseDirs::new().map(|b| b.home_dir().to_path_buf())
 }
 
+/// `path` 가 사용자 홈 **자체**인가 — 홈에 `.oculpm` 스캐폴드를 까는 설정 사고를
+/// 막는 가드(`project_init`)가 쓴다. 예전 가드는 `HOME` 환경변수와 비교해서
+/// **Windows 에서는 꺼져 있었다** (그 OS 에는 `HOME` 이 없다). 양쪽을 canonicalize
+/// 해서 잰다 — Windows 는 둘 다 verbatim(`\\?\`) 표기, 심볼릭 링크 홈도 같은 판정.
+pub fn is_home_dir(path: &Path) -> bool {
+    is_home_dir_of(path, home_dir().as_deref())
+}
+
+/// [`is_home_dir`] 의 판정 (순수 — 홈을 받는다).
+pub fn is_home_dir_of(path: &Path, home: Option<&Path>) -> bool {
+    let canon = |p: &Path| p.canonicalize().unwrap_or_else(|_| p.to_path_buf());
+    home.is_some_and(|home| canon(path) == canon(home))
+}
+
 /// Claude Code 설정 루트 `~/.claude` — 세 OS 공통 (Windows 도 `%USERPROFILE%\.claude`).
 pub fn claude_code_home() -> Option<PathBuf> {
     home_dir().map(|home| home.join(".claude"))
@@ -167,6 +181,32 @@ mod tests {
             claude_desktop_dir_windows(&shell.path().join("R"), &shell.path().join("Local")),
             shell.path().join("R").join("Claude")
         );
+    }
+
+    #[test]
+    fn the_home_itself_is_home_but_a_folder_under_it_is_not() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let home = tmp.path().join("kim");
+        let project = home.join("proj");
+        std::fs::create_dir_all(&project).unwrap();
+        assert!(is_home_dir_of(&home, Some(&home)));
+        // `proj/..` 처럼 돌아 들어와도 같은 자리다 (canonicalize).
+        assert!(is_home_dir_of(&project.join(".."), Some(&home)));
+        assert!(!is_home_dir_of(&project, Some(&home)));
+        assert!(
+            !is_home_dir_of(&home, None),
+            "홈을 모르면 가드는 막지 않는다"
+        );
+    }
+
+    /// macOS·Linux 의 홈 판정은 예전 가드가 보던 `HOME` 과 **같은 값**이다 — 가드를
+    /// `HOME` 비교에서 `home_dir()` 로 옮겨도 그 OS 들의 동작은 그대로다.
+    #[cfg(unix)]
+    #[test]
+    fn on_unix_home_dir_is_the_home_env() {
+        if let Some(env) = std::env::var_os("HOME").filter(|h| !h.is_empty()) {
+            assert_eq!(home_dir(), Some(PathBuf::from(env)));
+        }
     }
 
     /// macOS 는 이 라운드 전과 **같은 자리**여야 한다 (D3).

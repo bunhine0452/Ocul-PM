@@ -368,14 +368,13 @@ fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
             "The filesystem root cannot be initialized - check your --root setting.".to_string(),
         );
     }
-    if let Ok(home) = std::env::var("HOME") {
-        if !home.is_empty() && canonical == home {
-            return Err(
-                "The home directory cannot be initialized - retry from a project folder \
-                 (.mcp.json 의 --root 가 프로젝트 경로인지 확인)."
-                    .to_string(),
-            );
-        }
+    // 홈은 `HOME` 이 아니라 `paths::is_home_dir` — Windows 에는 `HOME` 이 없다.
+    if crate::oculpm::paths::is_home_dir(&canonical) {
+        return Err(
+            "The home directory cannot be initialized - retry from a project folder \
+             (.mcp.json 의 --root 가 프로젝트 경로인지 확인)."
+                .to_string(),
+        );
     }
 
     let oculpm_dir = root.join(".oculpm");

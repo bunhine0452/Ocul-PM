@@ -133,6 +133,10 @@ pub struct SearchRoots<'a> {
     pub local_app_data: Option<&'a Path>,
     /// Windows `%ProgramFiles%`.
     pub program_files: Option<&'a Path>,
+    /// Linux AppImage 가 사이드카를 복사해 두는 안정 자리
+    /// (`oculpm::paths::stable_sidecar_dir` — `$XDG_DATA_HOME` 존중). 없으면
+    /// `~/.local/share/ocul-pm/bin`.
+    pub stable_sidecar_dir: Option<&'a Path>,
 }
 
 /// 볼 자리를 순서대로 — 셔틀 스크립트와 **같은 순서, 같은 어휘**다.
@@ -145,7 +149,8 @@ pub struct SearchRoots<'a> {
 /// - Windows — NSIS 현재 사용자 설치 `%LOCALAPPDATA%\Ocul-PM`(셔틀 어휘의
 ///   `%LOCALAPPDATA%\Programs\Ocul-PM` 도), MSI·전체 사용자 설치 `%ProgramFiles%\Ocul-PM`.
 /// - Linux — deb 의 `/usr/bin`, AppImage 가 마운트 밖으로 복사해 두는 안정 자리
-///   `~/.local/share/ocul-pm/bin`(`#integ-sidecar`), 수동 설치 `~/.local/bin`.
+///   (`stable_sidecar_dir`, 기본 `~/.local/share/ocul-pm/bin` — `#integ-sidecar`),
+///   수동 설치 `~/.local/bin`.
 pub fn candidate_paths(os: HostOs, roots: &SearchRoots<'_>) -> Vec<PathBuf> {
     let name = os.binary_name();
     let mut out = Vec::new();
@@ -177,8 +182,12 @@ pub fn candidate_paths(os: HostOs, roots: &SearchRoots<'_>) -> Vec<PathBuf> {
         }
         HostOs::Linux => {
             out.push(PathBuf::from("/usr/bin").join(name));
-            if let Some(home) = roots.home {
+            if let Some(stable) = roots.stable_sidecar_dir {
+                out.push(stable.join(name));
+            } else if let Some(home) = roots.home {
                 out.push(home.join(".local/share/ocul-pm/bin").join(name));
+            }
+            if let Some(home) = roots.home {
                 out.push(home.join(".local/bin").join(name));
             }
         }
@@ -217,6 +226,7 @@ pub fn probe_mcp_binary() -> McpBinaryProbe {
     // 두 변수는 Windows 에만 있다 — 다른 OS 에서는 비어 후보에서 빠진다.
     let local_app_data = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
     let program_files = std::env::var_os("ProgramFiles").map(PathBuf::from);
+    let stable_sidecar_dir = crate::oculpm::paths::stable_sidecar_dir();
     probe_candidates(candidate_paths(
         HostOs::CURRENT,
         &SearchRoots {
@@ -225,6 +235,7 @@ pub fn probe_mcp_binary() -> McpBinaryProbe {
             home: home.as_deref(),
             local_app_data: local_app_data.as_deref(),
             program_files: program_files.as_deref(),
+            stable_sidecar_dir: stable_sidecar_dir.as_deref(),
         },
     ))
 }
