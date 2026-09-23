@@ -11,8 +11,10 @@
 //!
 //! 그래서 여기서는 스크립트를 진짜 실행하고 종료 코드를 본다.
 //!
-//! 유닉스 전용 — `/bin/sh` 와 git 이 있어야 하고, 훅 자체가 유닉스 셸이다.
-#![cfg(unix)]
+//! 훅을 돌리는 셸은 Claude Code 와 같다 — macOS·Linux `/bin/sh`, Windows 는
+//! **Git Bash** (<https://code.claude.com/docs/en/hooks> 「Shell Form」: Windows 는
+//! Git Bash, 없으면 PowerShell). 그래서 Windows 러너에서도 같은 스크립트가 같은
+//! 판정을 내는지 잰다 (크로스플랫폼 `#integ-hooks`).
 // 테스트 픽스처의 git·셸·자식 프로세스 — 앱이 띄우는 프로세스가 아니라 proc.rs
 // 창구 규칙(clippy.toml disallowed-methods) 밖이다.
 #![allow(clippy::disallowed_methods)]
@@ -32,6 +34,29 @@ fn gate_path() -> PathBuf {
     repo_root().join("plugin/oculpm/hooks/delivery-gate.sh")
 }
 
+/// Claude Code 가 셸 형 훅을 돌리는 셸 — macOS·Linux `sh`, Windows Git Bash
+/// (`bin\bash.exe` — Unix 도구를 `System32` 보다 앞에 두는 진입점).
+fn hook_shell() -> PathBuf {
+    if !cfg!(windows) {
+        return PathBuf::from("/bin/sh");
+    }
+    let mut roots: Vec<PathBuf> = ["ProgramFiles", "ProgramW6432"]
+        .iter()
+        .filter_map(std::env::var_os)
+        .map(|p| PathBuf::from(p).join("Git"))
+        .collect();
+    // `git --exec-path` = `<Git>/mingw64/libexec/git-core`.
+    if let Ok(out) = Command::new("git").arg("--exec-path").output() {
+        let exec = PathBuf::from(String::from_utf8_lossy(&out.stdout).trim());
+        roots.extend(exec.ancestors().nth(3).map(Path::to_path_buf));
+    }
+    roots
+        .into_iter()
+        .map(|r| r.join("bin").join("bash.exe"))
+        .find(|p| p.is_file())
+        .expect("Git Bash(bin\\bash.exe) 를 못 찾았다 — Windows 에서 훅을 돌리는 셸이라 이 테스트의 전제다")
+}
+
 /// 훅이 보는 stdin payload.
 fn payload(session: &str, stop_hook_active: bool) -> String {
     format!(
@@ -43,7 +68,7 @@ fn run_gate(root: &Path, payload: &str) -> Output {
     use std::io::Write;
     use std::process::Stdio;
 
-    let mut child = Command::new("/bin/sh")
+    let mut child = Command::new(hook_shell())
         .arg(gate_path())
         .env("CLAUDE_PROJECT_DIR", root)
         // 판정 진입점 — 셔틀(`plugin/oculpm/bin/oculpm-mcp`)이 이 변수를 가장
