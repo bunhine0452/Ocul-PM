@@ -76,13 +76,20 @@ function identityKindKey(kind: string): string | undefined {
 }
 
 /** 카드의 신원 줄 — 이름표 + 둘째 줄(상세 → 이메일 → 조직 순으로 있는 것). */
-function IdentityRow({ identity }: { identity: AcpAuthStatus }) {
+function IdentityRow({
+  identity,
+  provider,
+}: {
+  identity: AcpAuthStatus;
+  provider: "claude" | "codex";
+}) {
   const { t } = useT();
   const Icon = IDENTITY_ICON[identity.kind] ?? CircleUser;
   const loggedOut = identity.kind === "none";
   const kindKey = identityKindKey(identity.kind);
+  // 로그인하는 명령이 에이전트마다 다르다 — Codex 도 1.13.0 부터 신원을 밀어 준다.
   const second = loggedOut
-    ? t("acp.identity.loggedOutHint")
+    ? t(provider === "codex" ? "acp.identity.loggedOutHintCodex" : "acp.identity.loggedOutHint")
     : identity.detail || identity.email || identity.organization || null;
   return (
     <div className={"usage-identity" + (loggedOut ? " warn" : "")} data-testid="usage-identity">
@@ -304,7 +311,7 @@ export const AcpUsageMeter = memo(function AcpUsageMeter({
             </button>
           </header>
 
-          {identity ? <IdentityRow identity={identity} /> : null}
+          {identity ? <IdentityRow identity={identity} provider={provider} /> : null}
 
           <div className="usage-rows">
             {limits.map((limit) => {

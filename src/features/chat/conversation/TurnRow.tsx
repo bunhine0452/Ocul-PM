@@ -318,13 +318,8 @@ export const TurnRow = memo(function TurnRow({
                 declared: discrepancy.declared,
                 inferred: discrepancy.inferred,
               })
-            : discrepancy.kind === "partial"
-              ? discrepancy.uncertainty
-                ? t("acp.audit.partialWhy", {
-                    n: discrepancy.declared,
-                    why: discrepancy.uncertainty,
-                  })
-                : t("acp.audit.partial", { n: discrepancy.declared })
+            : discrepancy.kind === "truncated"
+              ? t("acp.audit.truncated", { n: discrepancy.declared })
               : t("acp.audit.missing", { reason: discrepancy.reason })}
         </div>
       ) : null}

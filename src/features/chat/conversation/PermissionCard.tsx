@@ -8,6 +8,16 @@ import { AcpDiffView } from "../AcpDiffView";
 import { clearsContext } from "./permissionOptions";
 import { TOOL_ICON, type PermissionState } from "./shared";
 
+/** 백엔드가 긴 입력 끝에 붙이는 표지 (`session.rs` 의 `clamp`). */
+const TRUNCATED_TAIL = "\n… (truncated)";
+
+/** 제목이 IN 블록과 같은 글인가. IN 은 길면 잘려 오므로 그때는 앞부분으로 본다. */
+function titleRepeatsInput(title: string, input: string | null): boolean {
+  if (!input) return false;
+  if (title.trim() === input.trim()) return true;
+  return input.endsWith(TRUNCATED_TAIL) && title.startsWith(input.slice(0, -TRUNCATED_TAIL.length));
+}
+
 /**
  * 승인 카드. 응답할 때까지 에이전트가 멈춰 있으므로 **닫기 버튼을 두지 않는다** —
  * 카드를 그냥 없애면 에이전트가 영영 기다린다. 나가는 길은 선택지뿐.
@@ -30,6 +40,13 @@ export function PermissionCard({
   const Icon = TOOL_ICON[request.tool_kind] ?? Code2;
   // 명령 실행·삭제는 편집보다 대가가 크다 — 카드의 낯빛이 달라야 손이 느려진다.
   const risky = request.tool_kind === "execute" || request.tool_kind === "delete";
+  // 어댑터 0.81.0 부터 셸 승인의 제목이 **명령 원문**이다(예전엔 Claude 가 붙인
+  // 한 줄 설명). 그 원문은 바로 아래 IN 블록에 그대로 있으므로, 여러 줄짜리
+  // 명령을 굵은 제목으로 한 번 더 그리지 않고 이름표로 바꾼다.
+  const title =
+    request.tool_kind === "execute" && titleRepeatsInput(request.title, request.input)
+      ? t("activity.kind.shell")
+      : request.title || t("acp.tool.untitled");
 
   return (
     <div
@@ -47,7 +64,7 @@ export function PermissionCard({
       </div>
       <div className="perm-what">
         <Icon size={15} style={{ color: "var(--text-3)", flex: "none" }} />
-        <span className="perm-title">{request.title || t("acp.tool.untitled")}</span>
+        <span className="perm-title">{title}</span>
         {request.locations.length ? (
           <span className="perm-path" title={request.locations.join("\n")}>
             {request.locations[0]}

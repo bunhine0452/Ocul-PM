@@ -646,8 +646,8 @@ describe("turnReceipt", () => {
 });
 
 // ── 파일 변경 감사 (어댑터 0.70.0) ──────────────────────────────────────────
-// 에이전트가 턴 끝에 직접 신고하는 목록. 도구 흔적으로 센 영수증과 출처가
-// 달라서, 어긋날 때가 정보다.
+// 어댑터가 턴 끝에 따로 신고하는 목록. 도구 흔적으로 센 영수증과 어긋날 때가
+// 정보다.
 
 const report = (over: Partial<Extract<AcpEvent, { kind: "file_change_report" }>> = {}): AcpEvent => ({
   kind: "file_change_report",
@@ -686,7 +686,7 @@ describe("file change audit", () => {
   });
 
   it("flags files the tool trace never showed", () => {
-    // 명령·자식 프로세스가 바꾼 파일은 편집 도구 호출로 안 잡힌다 — 이게 핵심 가치다.
+    // 신고가 도구 흔적보다 많으면 그 자체가 어긋남이다.
     const turn: AcpTurn = {
       role: "agent",
       text: "",
@@ -702,24 +702,39 @@ describe("file change audit", () => {
     expect(fileChangeDiscrepancy(turn)).toEqual({ kind: "extra", declared: 2, inferred: 0 });
   });
 
-  it("surfaces the agent's own uncertainty rather than hiding it", () => {
+  it("ignores complete=false — current adapters send it on every turn", () => {
+    // Claude 0.81.0·Codex 1.13.0 은 매 턴 complete=false 를 보내고, Codex 는
+    // 고정 uncertainty 문장까지 싣는다. 이걸 보면 모든 턴에 한 줄이 붙는다.
+    // 실측(스파이크, 2026-09-23): 대화만 한 턴도 reported + 빈 목록으로 온다.
+    const turn = (paths: string[], tools: AcpTurn["tools"]): AcpTurn => ({
+      role: "agent",
+      text: "",
+      closed: true,
+      tools,
+      fileChanges: {
+        requestId: "r",
+        paths,
+        complete: false,
+        truncated: false,
+        uncertainty: "Codex turn diffs may omit same-content renames and changes made outside apply_patch",
+      },
+    });
+    expect(fileChangeDiscrepancy(turn([], undefined))).toBeNull();
+    expect(
+      fileChangeDiscrepancy(
+        turn(["/w/a.ts"], [{ id: "1", title: "Edit", kind: "edit", status: "completed", locations: ["/w/a.ts"] }]),
+      ),
+    ).toBeNull();
+  });
+
+  it("flags a list the adapter cut at its limit", () => {
     const turn: AcpTurn = {
       role: "agent",
       text: "",
       closed: true,
-      fileChanges: {
-        requestId: "r",
-        paths: ["/w/a.ts"],
-        complete: false,
-        truncated: false,
-        uncertainty: "could not verify files created by the build",
-      },
+      fileChanges: { requestId: "r", paths: ["/w/a.ts"], complete: false, truncated: true },
     };
-    expect(fileChangeDiscrepancy(turn)).toEqual({
-      kind: "partial",
-      declared: 1,
-      uncertainty: "could not verify files created by the build",
-    });
+    expect(fileChangeDiscrepancy(turn)).toEqual({ kind: "truncated", declared: 1 });
   });
 
   it("distinguishes no report from a report that never arrived", () => {
