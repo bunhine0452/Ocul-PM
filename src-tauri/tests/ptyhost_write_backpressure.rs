@@ -47,6 +47,33 @@ async fn spawn_host(socket: &std::path::Path) {
     panic!("호스트가 소켓을 잡지 못했다");
 }
 
+/// 실패해도 세션을 끝낸다 — `ptyhost_reattach.rs` 의 같은 이름과 같은 이유(끝내지 않으면
+/// 호스트의 읽기 작업이 테스트 런타임을 붙잡아 바이너리가 매달린다).
+struct KillAllOnDrop(std::path::PathBuf);
+
+impl Drop for KillAllOnDrop {
+    fn drop(&mut self) {
+        let socket = self.0.clone();
+        let _ = std::thread::spawn(move || {
+            let Ok(rt) = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            else {
+                return;
+            };
+            rt.block_on(async {
+                let work = async {
+                    if let Ok(c) = PtyHostClient::connect(&socket, |_| {}).await {
+                        let _ = c.request(Request::KillExcept { keep: vec![] }).await;
+                    }
+                };
+                let _ = tokio::time::timeout(Duration::from_secs(5), work).await;
+            });
+        })
+        .join();
+    }
+}
+
 async fn connect(socket: &std::path::Path) -> (PtyHostClient, mpsc::UnboundedReceiver<Event>) {
     let (tx, rx) = mpsc::unbounded_channel();
     let client = PtyHostClient::connect(socket, move |ev| {
@@ -134,6 +161,7 @@ async fn a_wedged_session_does_not_stall_the_others() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("host.sock");
     spawn_host(&socket).await;
+    let _cleanup = KillAllOnDrop(socket.clone());
     let (client, _events) = connect(&socket).await;
 
     client.request(start_req("p1-wedged")).await.unwrap();
@@ -224,6 +252,7 @@ async fn queued_input_still_reaches_the_shell() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("host.sock");
     spawn_host(&socket).await;
+    let _cleanup = KillAllOnDrop(socket.clone());
     let (client, mut events) = connect(&socket).await;
 
     client.request(start_req("p1-echo")).await.unwrap();
@@ -262,6 +291,7 @@ async fn a_big_paste_into_a_busy_session_does_not_stall_the_others() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("host.sock");
     spawn_host(&socket).await;
+    let _cleanup = KillAllOnDrop(socket.clone());
     let (client, mut events) = connect(&socket).await;
 
     client.request(start_req("p1-busy")).await.unwrap();

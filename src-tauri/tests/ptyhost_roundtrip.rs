@@ -11,7 +11,10 @@
 //! **다른 프로세스**로 떠 앱(여기서는 테스트)이 붙었다 떨어졌다 해도 사는지가 이 기능의
 //! 존재 이유라, 같은 프로세스 안의 `serve` 로는 그 자리가 검증되지 않는다.
 
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use ocul_pm_lib::ptyhost::client::{connect_or_spawn, spawn_host_from, PtyHostClient};
@@ -40,17 +43,35 @@ async fn attach_app(socket: &Path) -> (PtyHostClient, mpsc::UnboundedReceiver<Ev
     }
 }
 
-/// `SID` 의 출력에서 `done` 이 참이 될 때까지 모은다.
+/// `SID` 의 출력에서 `done` 이 참이 될 때까지 모은다. 그동안 터미널 질의(커서 위치
+/// `ESC[6n` · 장치 속성 `ESC[c`)에는 xterm.js 대신 답한다 — 앱에서는 xterm.js 가 답하고,
+/// 답을 기다리는 셸·conhost 는 답이 없으면 입력을 받기 전에 멈춘다.
 async fn read_until(
+    app: &PtyHostClient,
     events: &mut mpsc::UnboundedReceiver<Event>,
     what: &str,
     mut done: impl FnMut(&str) -> bool,
 ) -> String {
+    const QUERIES: [(&str, &str); 3] = [
+        ("\x1b[6n", "\x1b[1;1R"),
+        ("\x1b[c", "\x1b[?1;0c"),
+        ("\x1b[0c", "\x1b[?1;0c"),
+    ];
     let mut seen = String::new();
     let outcome = tokio::time::timeout(Duration::from_secs(60), async {
         while let Some(ev) = events.recv().await {
             if let Event::Data { sid, text, .. } = ev {
                 if sid == SID {
+                    for (query, reply) in QUERIES {
+                        for _ in text.matches(query) {
+                            let _ = app
+                                .request(Request::Write {
+                                    sid: SID.into(),
+                                    data: reply.into(),
+                                })
+                                .await;
+                        }
+                    }
                     seen.push_str(&text);
                     if done(&seen) {
                         return;
@@ -62,6 +83,54 @@ async fn read_until(
     .await;
     assert!(outcome.is_ok(), "{what} — 받은 출력: {seen:?}");
     seen
+}
+
+/// 실패해도 호스트를 내린다. 분리 기동한 호스트는 이 테스트 프로세스보다 오래 살고, 세션을
+/// 쥔 채 남으면 3시간(고아 유예)을 버틴다 — CI 에서는 테스트 출력 파이프까지 물고 있어
+/// 단계 전체가 매달린다(Windows 의 `CreateProcess` 는 상속 가능한 핸들을 넘긴다).
+struct ShutdownOnDrop(PathBuf);
+
+impl Drop for ShutdownOnDrop {
+    fn drop(&mut self) {
+        let socket = self.0.clone();
+        let _ = std::thread::spawn(move || {
+            let Ok(rt) = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            else {
+                return;
+            };
+            rt.block_on(async {
+                let work = async {
+                    if let Ok(c) = PtyHostClient::connect(&socket, |_| {}).await {
+                        let _ = c.request(Request::Shutdown).await;
+                    }
+                };
+                let _ = tokio::time::timeout(Duration::from_secs(5), work).await;
+            });
+        })
+        .join();
+    }
+}
+
+/// 테스트 전체의 상한 — 동기 호출이 매달리면 여기서 끊는다(단계 시한 60분을 기다리지 않게).
+fn watchdog(limit: Duration) -> Arc<AtomicBool> {
+    let done = Arc::new(AtomicBool::new(false));
+    let flag = done.clone();
+    std::thread::spawn(move || {
+        let deadline = Instant::now() + limit;
+        while !flag.load(Ordering::SeqCst) {
+            if Instant::now() > deadline {
+                let _ = std::io::stderr().write_all(
+                    format!("\n[watchdog] ptyhost_roundtrip: {limit:?} 넘게 끝나지 않는다\n")
+                        .as_bytes(),
+                );
+                std::process::exit(101);
+            }
+            std::thread::sleep(Duration::from_millis(200));
+        }
+    });
+    done
 }
 
 /// `text` 안의 `key` 바로 뒤에 붙은 숫자. 에코된 입력(`PID=$PID`)은 숫자가 아니라 건너뛴다.
@@ -153,8 +222,11 @@ async fn a_detached_host_carries_a_session_through_the_whole_round_trip() {
     let socket: PathBuf = dir.path().join("ptyhost.sock");
     let script = script();
 
+    let done = watchdog(Duration::from_secs(300));
+
     // ── 분리 기동 + 첫 접속 ─────────────────────────────────────────────
     spawn_host_from(Path::new(APP), &socket).expect("호스트를 띄운다");
+    let _host = ShutdownOnDrop(socket.clone());
     let (app, mut events) = attach_app(&socket).await;
 
     let resp = app
@@ -171,7 +243,7 @@ async fn a_detached_host_carries_a_session_through_the_whole_round_trip() {
         .await
         .expect("start");
     assert!(matches!(resp, Response::Session { .. }), "{resp:?}");
-    read_until(&mut events, "프롬프트", |s| {
+    read_until(&app, &mut events, "프롬프트", |s| {
         s.contains('$') || s.contains('>')
     })
     .await;
@@ -179,7 +251,7 @@ async fn a_detached_host_carries_a_session_through_the_whole_round_trip() {
     // ── 한글 왕복 ──────────────────────────────────────────────────────
     let (line, expected) = script.hangul;
     write(&app, line).await;
-    read_until(&mut events, "한글 출력", |s| s.contains(expected)).await;
+    read_until(&app, &mut events, "한글 출력", |s| s.contains(expected)).await;
 
     // ── 리사이즈 → 셸이 새 폭을 본다 ───────────────────────────────────
     let resp = app
@@ -192,7 +264,7 @@ async fn a_detached_host_carries_a_session_through_the_whole_round_trip() {
         .expect("resize");
     assert!(matches!(resp, Response::Ok), "{resp:?}");
     write(&app, script.width).await;
-    read_until(&mut events, "새 폭", |s| {
+    read_until(&app, &mut events, "새 폭", |s| {
         number_after(s, "W=") == Some(123)
     })
     .await;
@@ -222,7 +294,7 @@ async fn a_detached_host_carries_a_session_through_the_whole_round_trip() {
 
     // ── Kill 뒤 셸·자식 0 ──────────────────────────────────────────────
     write(&app, script.pids).await;
-    let seen = read_until(&mut events, "PID·CHILD", |s| {
+    let seen = read_until(&app, &mut events, "PID·CHILD", |s| {
         number_after(s, "PID=").is_some() && number_after(s, "CHILD=").is_some()
     })
     .await;
@@ -286,4 +358,5 @@ async fn a_detached_host_carries_a_session_through_the_whole_round_trip() {
     }
     // 호스트가 유예(종료 스레드) 뒤 스스로 나가며 로그를 남긴다 — 임시 폴더를 지우기 전에.
     tokio::time::sleep(Duration::from_millis(2500)).await;
+    done.store(true, Ordering::SeqCst);
 }

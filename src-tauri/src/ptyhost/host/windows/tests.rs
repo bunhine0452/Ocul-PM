@@ -10,74 +10,250 @@ use tokio::sync::broadcast;
 use super::super::*;
 use super::*;
 
+/// 기다림 하나의 상한 — 넘으면 받은 출력과 함께 실패한다.
+const STEP_LIMIT: Duration = Duration::from_secs(30);
+
+/// 테스트 하나의 상한 — 넘으면 **동기 호출이 매달린 것**이다. 감시 스레드가 지금 단계와
+/// 받은 출력을 stderr 에 곧장 쓰고 프로세스를 끝낸다(cargo 는 다음 테스트 바이너리로 간다).
+const WATCHDOG: Duration = Duration::from_secs(150);
+
 /// 테스트 셸 — 러너의 `%COMSPEC%` (cmd.exe).
 fn cmd_exe() -> String {
     std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
 }
 
-fn start(state: &Arc<HostState>, sid: &str, shell: &str) {
-    let resp = start_session(
-        state,
-        sid.to_string(),
-        std::env::temp_dir().to_string_lossy().into_owned(),
-        24,
-        80,
-        shell.to_string(),
-        vec![],
-        "n".to_string(),
-        false,
-    )
-    .expect("셸이 뜬다");
-    assert!(matches!(resp, Response::Session { .. }), "{resp:?}");
+/// 출력의 끝부분 — 실패 메시지용(이스케이프까지 보이게 `{:?}` 로 찍는다).
+fn tail(text: &str) -> String {
+    let skip = text.chars().count().saturating_sub(800);
+    text.chars().skip(skip).collect()
 }
 
-fn write(state: &Arc<HostState>, sid: &str, data: &str) {
-    let resp = handle_request(
-        state,
-        Request::Write {
-            sid: sid.to_string(),
-            data: data.to_string(),
-        },
-    );
-    assert!(matches!(resp, Response::Ok), "{resp:?}");
+/// ConPTY 위의 셸 세션 하나를 다루는 틀. 세 가지를 한다.
+///
+/// 1. **출력을 모으고 터미널 질의에 답한다.** 앱에서는 xterm.js 가 커서 위치(`ESC[6n`)·
+///    장치 속성(`ESC[c`) 질의에 답한다. 테스트에는 답할 이가 없고, conhost·셸이 그 답을
+///    기다리면 입력을 받기 전에 멈춘다.
+/// 2. **실패해도 매달리지 않는다.** 세션을 안 끝낸 채 테스트가 끝나면 읽기 작업
+///    (`spawn_blocking`)이 의사 콘솔이 닫히기를 영영 기다려 tokio 런타임이 못 내려가고,
+///    테스트 바이너리 전체가 CI 단계 시한까지 매달린다 — 실패 메시지도 못 본다(첫 windows
+///    실행이 그랬다). Drop 이 세션을 끝낸다.
+/// 3. **동기 호출이 매달리면** [`WATCHDOG`] 이 끊는다.
+struct Harness {
+    state: Arc<HostState>,
+    sid: &'static str,
+    out: Arc<Mutex<String>>,
+    step: Arc<Mutex<String>>,
+    done: Arc<AtomicBool>,
+    pump: tokio::task::JoinHandle<()>,
 }
 
-/// `sid` 의 출력에서 `needle` 이 보일 때까지 모은다. 모은 전부를 돌려준다.
-async fn wait_for_output(
-    events: &mut broadcast::Receiver<Event>,
-    sid: &str,
-    needle: &str,
-    within: Duration,
-) -> String {
-    let mut seen = String::new();
-    let outcome = tokio::time::timeout(within, async {
-        loop {
-            match events.recv().await {
-                Ok(Event::Data { sid: s, text, .. }) if s == sid => {
-                    seen.push_str(&text);
-                    if seen.contains(needle) {
-                        return;
-                    }
-                }
-                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
-                Err(broadcast::error::RecvError::Closed) => return,
-            }
+impl Harness {
+    fn start(sid: &'static str, shell: &str) -> Harness {
+        let state = HostState::new(None);
+        let events = state.events.subscribe();
+        let resp = start_session(
+            &state,
+            sid.to_string(),
+            std::env::temp_dir().to_string_lossy().into_owned(),
+            24,
+            80,
+            shell.to_string(),
+            vec![],
+            "n".to_string(),
+            false,
+        )
+        .expect("셸이 뜬다");
+        assert!(matches!(resp, Response::Session { .. }), "{resp:?}");
+
+        let out = Arc::new(Mutex::new(String::new()));
+        let step = Arc::new(Mutex::new("셸 기동".to_string()));
+        let done = Arc::new(AtomicBool::new(false));
+        let pump = tokio::spawn(pump(state.clone(), sid, events, out.clone()));
+        watchdog(sid, done.clone(), step.clone(), out.clone());
+        Harness {
+            state,
+            sid,
+            out,
+            step,
+            done,
+            pump,
         }
-    })
-    .await;
-    assert!(
-        outcome.is_ok(),
-        "{needle:?} 가 안 보인다. 받은 출력: {seen:?}"
-    );
-    seen
+    }
+
+    fn mark(&self, what: &str) {
+        *self.step.lock().unwrap() = what.to_string();
+    }
+
+    /// 지금까지 받은 출력의 길이 — 이후의 출력만 보려고 기다림에 넘긴다.
+    fn len(&self) -> usize {
+        self.out.lock().unwrap().len()
+    }
+
+    fn write(&self, data: &str) {
+        let resp = handle_request(
+            &self.state,
+            Request::Write {
+                sid: self.sid.to_string(),
+                data: data.to_string(),
+            },
+        );
+        assert!(matches!(resp, Response::Ok), "{resp:?}");
+    }
+
+    /// `since` 이후의 출력이 `ok` 를 만족할 때까지. 만족한 그 출력을 돌려준다.
+    async fn wait_for(&self, what: &str, since: usize, ok: impl Fn(&str) -> bool) -> String {
+        self.mark(what);
+        let deadline = Instant::now() + STEP_LIMIT;
+        loop {
+            {
+                let out = self.out.lock().unwrap();
+                if ok(&out[since..]) {
+                    return out[since..].to_string();
+                }
+                assert!(
+                    Instant::now() < deadline,
+                    "{what} — {STEP_LIMIT:?} 안에 안 왔다. 받은 출력 끝: {:?}",
+                    tail(&out)
+                );
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    }
+
+    /// 출력이 아닌 조건을 기다린다. 실패 메시지에는 `probe` 의 마지막 값과 출력을 싣는다.
+    async fn until<T: std::fmt::Debug>(
+        &self,
+        what: &str,
+        mut probe: impl FnMut() -> T,
+        ok: impl Fn(&T) -> bool,
+    ) {
+        self.mark(what);
+        let deadline = Instant::now() + STEP_LIMIT;
+        loop {
+            let seen = probe();
+            if ok(&seen) {
+                return;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "{what} — {STEP_LIMIT:?} 안에 안 됐다. 마지막 값 {seen:?}, 받은 출력 끝: {:?}",
+                tail(&self.out.lock().unwrap())
+            );
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+
+    /// 프롬프트(`>`)까지.
+    async fn prompt(&self) {
+        self.wait_for("프롬프트", 0, |o| o.contains('>')).await;
+    }
+
+    fn shell_pid(&self) -> u32 {
+        self.state
+            .lock_sessions()
+            .get(self.sid)
+            .and_then(|s| s.child.process_id())
+            .expect("셸 pid")
+    }
+
+    fn foreground(&self) -> Option<String> {
+        match handle_request(
+            &self.state,
+            Request::Foreground {
+                sid: self.sid.into(),
+            },
+        ) {
+            Response::Foreground { command } => command,
+            other => panic!("Foreground 응답이 아니다: {other:?}"),
+        }
+    }
 }
 
-fn shell_pid(state: &Arc<HostState>, sid: &str) -> u32 {
-    state
-        .lock_sessions()
-        .get(sid)
-        .and_then(|s| s.child.process_id())
-        .expect("셸 pid")
+impl Drop for Harness {
+    fn drop(&mut self) {
+        self.done.store(true, Ordering::SeqCst);
+        self.pump.abort();
+        shutdown_sessions(&self.state);
+    }
+}
+
+/// 출력을 모으고, 터미널 질의에 xterm.js 대신 답한다.
+async fn pump(
+    state: Arc<HostState>,
+    sid: &'static str,
+    mut events: broadcast::Receiver<Event>,
+    out: Arc<Mutex<String>>,
+) {
+    const QUERIES: [(&[u8], &str); 3] = [
+        (b"\x1b[6n", "\x1b[1;1R"),
+        (b"\x1b[c", "\x1b[?1;0c"),
+        (b"\x1b[0c", "\x1b[?1;0c"),
+    ];
+    let mut scanned = 0usize;
+    loop {
+        match events.recv().await {
+            Ok(Event::Data { sid: s, text, .. }) if s == sid => {
+                let mut replies = Vec::new();
+                {
+                    let mut all = out.lock().unwrap();
+                    all.push_str(&text);
+                    let bytes = all.as_bytes();
+                    let mut next = scanned;
+                    for (query, reply) in QUERIES {
+                        let mut at = scanned;
+                        while let Some(i) = find(&bytes[at..], query) {
+                            replies.push(reply);
+                            at += i + query.len();
+                            next = next.max(at);
+                        }
+                    }
+                    // 질의가 청크 경계에 걸렸을 수 있다 — 끝 몇 바이트는 다음에 다시 본다.
+                    scanned = next.max(bytes.len().saturating_sub(4));
+                }
+                for reply in replies {
+                    let _ = handle_request(
+                        &state,
+                        Request::Write {
+                            sid: sid.to_string(),
+                            data: reply.to_string(),
+                        },
+                    );
+                }
+            }
+            Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+            Err(broadcast::error::RecvError::Closed) => return,
+        }
+    }
+}
+
+fn find(hay: &[u8], needle: &[u8]) -> Option<usize> {
+    hay.windows(needle.len()).position(|w| w == needle)
+}
+
+fn watchdog(
+    sid: &'static str,
+    done: Arc<AtomicBool>,
+    step: Arc<Mutex<String>>,
+    out: Arc<Mutex<String>>,
+) {
+    std::thread::spawn(move || {
+        let deadline = Instant::now() + WATCHDOG;
+        while !done.load(Ordering::SeqCst) {
+            if Instant::now() > deadline {
+                let step = step.lock().map(|s| s.clone()).unwrap_or_default();
+                let tail = out.lock().map(|o| tail(&o)).unwrap_or_default();
+                // 테스트 출력 가로채기를 거치지 않고 곧장 — 곧 프로세스를 끝낸다.
+                let _ = std::io::stderr().write_all(
+                    format!(
+                        "\n[watchdog] {sid}: {WATCHDOG:?} 넘게 끝나지 않는다 — 단계 {step:?}\n받은 출력 끝: {tail:?}\n"
+                    )
+                    .as_bytes(),
+                );
+                std::process::exit(101);
+            }
+            std::thread::sleep(Duration::from_millis(200));
+        }
+    });
 }
 
 fn alive(pid: u32) -> bool {
@@ -100,15 +276,6 @@ fn children_of(parent: u32) -> Vec<u32> {
     out
 }
 
-/// 조건이 설 때까지 기다린다.
-async fn eventually(what: &str, within: Duration, mut ok: impl FnMut() -> bool) {
-    let deadline = Instant::now() + within;
-    while !ok() {
-        assert!(Instant::now() < deadline, "시간 안에 안 된다: {what}");
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-}
-
 #[test]
 fn only_cmd_gets_the_utf8_code_page() {
     assert_eq!(
@@ -126,51 +293,38 @@ fn only_cmd_gets_the_utf8_code_page() {
 /// 에코된 입력이 아니라 **실행 결과**만 만들 수 있는 문자열(`%OS%` 치환)로 단언한다.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn hangul_round_trips_through_conpty() {
-    let state = HostState::new(None);
-    let mut events = state.events.subscribe();
-    let sid = "win-hangul";
-    start(&state, sid, &cmd_exe());
-    wait_for_output(&mut events, sid, ">", Duration::from_secs(20)).await;
-    write(&state, sid, "echo 한글-ok-%OS%\r");
-    wait_for_output(
-        &mut events,
-        sid,
-        "한글-ok-Windows_NT",
-        Duration::from_secs(20),
-    )
-    .await;
-    handle_request(&state, Request::Kill { sid: sid.into() });
+    let s = Harness::start("win-hangul", &cmd_exe());
+    s.prompt().await;
+    let since = s.len();
+    s.write("echo 한글-ok-%OS%\r");
+    s.wait_for("한글 출력", since, |o| o.contains("한글-ok-Windows_NT"))
+        .await;
 }
 
 /// 리사이즈가 콘솔까지 닿는다 — cmd 의 `mode con` 이 새 폭을 말한다.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn resize_reaches_the_console() {
-    let state = HostState::new(None);
-    let mut events = state.events.subscribe();
-    let sid = "win-resize";
-    start(&state, sid, &cmd_exe());
-    wait_for_output(&mut events, sid, ">", Duration::from_secs(20)).await;
+    let s = Harness::start("win-resize", &cmd_exe());
+    s.prompt().await;
+    s.mark("Resize 요청");
     let resp = handle_request(
-        &state,
+        &s.state,
         Request::Resize {
-            sid: sid.into(),
+            sid: s.sid.into(),
             rows: 33,
             cols: 123,
         },
     );
     assert!(matches!(resp, Response::Ok), "{resp:?}");
-    write(&state, sid, "mode con\r");
-    let out = wait_for_output(&mut events, sid, "123", Duration::from_secs(20)).await;
+    let since = s.len();
+    s.write("mode con\r");
     // ConPTY 는 줄 안의 공백을 커서 이동 시퀀스로 바꿔 그리기도 한다 — 줄 단위가 아니라
     // "Columns" 바로 뒤 몇 글자 안에 새 폭이 있는지로 본다.
-    let after_columns = out
-        .find("Columns")
-        .map(|i| out[i..].chars().take(48).collect::<String>());
-    assert!(
-        after_columns.as_deref().is_some_and(|s| s.contains("123")),
-        "mode con 이 새 폭을 말하지 않는다: {out:?}"
-    );
-    handle_request(&state, Request::Kill { sid: sid.into() });
+    s.wait_for("mode con 의 새 폭", since, |o| {
+        o.find("Columns")
+            .is_some_and(|i| o[i..].chars().take(48).collect::<String>().contains("123"))
+    })
+    .await;
 }
 
 /// **Kill 은 트리 전체를 끝낸다** — 셸, 콘솔에 붙은 포그라운드, 그리고 콘솔에 붙지
@@ -178,41 +332,35 @@ async fn resize_reaches_the_console() {
 /// Job 종료만이 닿는 자리다.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn kill_ends_the_whole_tree() {
-    let state = HostState::new(None);
-    let mut events = state.events.subscribe();
-    let sid = "win-kill";
-    start(&state, sid, &cmd_exe());
+    let s = Harness::start("win-kill", &cmd_exe());
     assert!(
-        state.lock_sessions().get(sid).unwrap().job.is_some(),
+        s.state.lock_sessions().get(s.sid).unwrap().job.is_some(),
         "셸이 Job 에 담겼다"
     );
-    wait_for_output(&mut events, sid, ">", Duration::from_secs(20)).await;
-    let shell = shell_pid(&state, sid);
+    s.prompt().await;
+    let shell = s.shell_pid();
 
-    write(&state, sid, "start \"\" /min ping -n 300 127.0.0.1\r");
-    eventually("새 콘솔의 ping", Duration::from_secs(20), || {
-        !children_of(shell).is_empty()
-    })
-    .await;
-    write(&state, sid, "ping -n 300 127.0.0.1\r");
-    eventually("포그라운드 ping", Duration::from_secs(20), || {
-        children_of(shell).len() >= 2
-    })
-    .await;
+    s.write("start \"\" /min ping -n 300 127.0.0.1\r");
+    s.until("새 콘솔의 ping", || children_of(shell), |c| !c.is_empty())
+        .await;
+    s.write("ping -n 300 127.0.0.1\r");
+    s.until("포그라운드 ping", || children_of(shell), |c| c.len() >= 2)
+        .await;
     let tree = children_of(shell);
 
+    s.mark("Kill");
     assert!(matches!(
-        handle_request(&state, Request::Kill { sid: sid.into() }),
+        handle_request(&s.state, Request::Kill { sid: s.sid.into() }),
         Response::Ok
     ));
     assert!(
-        state.lock_sessions().get(sid).is_none(),
+        s.state.lock_sessions().get(s.sid).is_none(),
         "맵에서 즉시 사라진다"
     );
-    eventually(
+    s.until(
         "셸과 자손 전부의 종료",
-        KILL_GRACE + Duration::from_secs(5),
-        || !alive(shell) && tree.iter().all(|pid| !alive(*pid)),
+        || (alive(shell), tree.iter().filter(|p| alive(**p)).count()),
+        |(shell_alive, alive_children)| !shell_alive && *alive_children == 0,
     )
     .await;
     assert!(children_of(shell).is_empty(), "살아 있는 자식이 0 이다");
@@ -220,92 +368,79 @@ async fn kill_ends_the_whole_tree() {
 
 /// 놀고 있는 셸은 포그라운드 명령이 아니고, 돌고 있는 명령은 그 이름으로 잡힌다.
 /// ^C 로 그 명령이 끝나면 다시 `None` 이다 (유닉스 판과 같은 계약).
+///
+/// ^C 가 닿는다는 것 자체도 이 테스트가 지킨다 — CI 러너는 단계를 새 프로세스 그룹으로
+/// 띄워 "Ctrl+C 무시" 가 켜진 채 물려 내려온다. 호스트도 같은 처지다(`prepare_shell`).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn idle_shell_has_no_foreground_command_but_a_running_one_does() {
-    let state = HostState::new(None);
-    let mut events = state.events.subscribe();
-    let sid = "win-fg";
-    start(&state, sid, &cmd_exe());
-    wait_for_output(&mut events, sid, ">", Duration::from_secs(20)).await;
-    let foreground = |state: &Arc<HostState>| match handle_request(
-        state,
-        Request::Foreground { sid: sid.into() },
-    ) {
-        Response::Foreground { command } => command,
-        other => panic!("Foreground 응답이 아니다: {other:?}"),
-    };
+    let s = Harness::start("win-fg", &cmd_exe());
+    s.prompt().await;
     // `/K chcp` 가 끝나기를 기다린다 — 그 찰나에는 chcp 가 자식이다.
-    eventually("놀고 있는 셸", Duration::from_secs(20), || {
-        foreground(&state).is_none()
-    })
-    .await;
+    s.until("놀고 있는 셸", || s.foreground(), Option::is_none)
+        .await;
 
-    write(&state, sid, "ping -n 300 127.0.0.1\r");
-    eventually("ping 이 포그라운드", Duration::from_secs(20), || {
-        foreground(&state).is_some_and(|c| c.to_ascii_lowercase().contains("ping"))
-    })
-    .await;
-
-    write(&state, sid, "\u{3}"); // ^C
-    eventually(
-        "^C 뒤 다시 놀고 있음",
-        Duration::from_secs(20),
-        || foreground(&state).is_none(),
+    s.write("ping -n 300 127.0.0.1\r");
+    s.until(
+        "ping 이 포그라운드",
+        || s.foreground(),
+        |c| {
+            c.as_deref()
+                .is_some_and(|c| c.to_ascii_lowercase().contains("ping"))
+        },
     )
     .await;
 
-    handle_request(&state, Request::Kill { sid: sid.into() });
+    s.write("\u{3}"); // ^C
+    s.until("^C 뒤 다시 놀고 있음", || s.foreground(), Option::is_none)
+        .await;
 }
 
 /// Hello 는 쥔 세션을 숨기지 않는다 — 0 으로 새면 앱이 사용자의 셸째 호스트를 내린다.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn hello_does_not_call_a_busy_host_empty() {
-    let state = HostState::new(None);
-    start(&state, "win-hello", &cmd_exe());
-    let Response::Proto { sessions, .. } = handle_request(&state, Request::Hello) else {
+    let s = Harness::start("win-hello", &cmd_exe());
+    let Response::Proto { sessions, .. } = handle_request(&s.state, Request::Hello) else {
         panic!("Hello 는 Proto 로 답한다");
     };
     assert_eq!(sessions, Some(1));
-    handle_request(
-        &state,
-        Request::Kill {
-            sid: "win-hello".into(),
-        },
-    );
 }
 
 /// **셸이 스스로 끝나면 `Exit` 가 온다 — 한 번만.** ConPTY 가 출력 파이프를 닫아
 /// 주든 아니든 같은 결과여야 한다(종료 감시와 EOF 중 먼저 온 쪽만 정리한다).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_shell_that_exits_by_itself_reports_exit_once() {
-    let state = HostState::new(None);
-    let mut events = state.events.subscribe();
-    let sid = "win-exit";
-    start(&state, sid, &cmd_exe());
-    wait_for_output(&mut events, sid, ">", Duration::from_secs(20)).await;
-    let shell = shell_pid(&state, sid);
-    write(&state, sid, "exit\r");
+    let s = Harness::start("win-exit", &cmd_exe());
+    s.prompt().await;
+    let shell = s.shell_pid();
+    let mut events = s.state.events.subscribe();
+    s.write("exit\r");
 
-    let mut exits = 0;
-    let deadline = Instant::now() + Duration::from_secs(20);
-    while exits == 0 {
-        let left = deadline.saturating_duration_since(Instant::now());
-        match tokio::time::timeout(left, events.recv()).await {
-            Ok(Ok(Event::Exit { sid: s })) if s == sid => exits += 1,
-            Ok(_) => {}
-            Err(_) => panic!("셸이 끝났는데 Exit 가 안 온다"),
+    s.mark("Exit 이벤트");
+    let first = tokio::time::timeout(STEP_LIMIT, async {
+        loop {
+            if let Ok(Event::Exit { sid }) = events.recv().await {
+                if sid == s.sid {
+                    return;
+                }
+            }
         }
-    }
+    })
+    .await;
     assert!(
-        state.lock_sessions().get(sid).is_none(),
+        first.is_ok(),
+        "셸이 끝났는데 Exit 가 안 온다. 받은 출력 끝: {:?}",
+        tail(&s.out.lock().unwrap())
+    );
+    assert!(
+        s.state.lock_sessions().get(s.sid).is_none(),
         "끝난 세션은 맵에서 빠진다"
     );
     assert!(!alive(shell), "셸이 끝났다");
     // 두 번째 Exit 는 없다.
     let extra = tokio::time::timeout(Duration::from_secs(2), async {
         loop {
-            if let Ok(Event::Exit { sid: s }) = events.recv().await {
-                if s == sid {
+            if let Ok(Event::Exit { sid }) = events.recv().await {
+                if sid == s.sid {
                     return;
                 }
             }
@@ -346,17 +481,18 @@ async fn vacating_releases_the_pipe_name() {
 
     // `vacate` 의 앞부분(자리 비우기)만 — 뒷부분은 process::exit 이다.
     state.socket.lock().unwrap().take();
-    eventually(
-        "파이프 이름이 사라짐",
-        Duration::from_secs(5),
-        || {
-            let me = pipe::Identity::current().unwrap();
-            tokio::net::windows::named_pipe::ClientOptions::new()
-                .open(me.pipe_name(&socket))
-                .is_err_and(|e| e.raw_os_error() == Some(2)) // ERROR_FILE_NOT_FOUND
-        },
-    )
-    .await;
+    let name = pipe::Identity::current().unwrap().pipe_name(&socket);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let gone = tokio::net::windows::named_pipe::ClientOptions::new()
+            .open(&name)
+            .is_err_and(|e| e.raw_os_error() == Some(2)); // ERROR_FILE_NOT_FOUND
+        if gone {
+            break;
+        }
+        assert!(Instant::now() < deadline, "파이프 이름이 사라지지 않는다");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
 }
 
 /// 같은 자리에 두 번째 호스트가 뜨면 **조용히 물러난다** — 먼저 뜬 쪽이 승자.

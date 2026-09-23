@@ -42,6 +42,34 @@ async fn serve_at(socket: &Path) {
     panic!("호스트가 자리를 잡지 못했다: {}", socket.display());
 }
 
+/// 실패해도 세션을 끝낸다. 끝내지 않으면 호스트의 읽기 작업(`spawn_blocking`)이 셸을
+/// 기다려 테스트 런타임이 못 내려가고 바이너리 전체가 매달린다 — Windows(ConPTY)에서
+/// 실제로 겪었다(실패 메시지도 못 봤다). 통과한 테스트에서는 할 일이 없다(`Count { n: 0 }`).
+struct KillAllOnDrop(std::path::PathBuf);
+
+impl Drop for KillAllOnDrop {
+    fn drop(&mut self) {
+        let socket = self.0.clone();
+        let _ = std::thread::spawn(move || {
+            let Ok(rt) = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            else {
+                return;
+            };
+            rt.block_on(async {
+                let work = async {
+                    if let Ok(c) = PtyHostClient::connect(&socket, |_| {}).await {
+                        let _ = c.request(Request::KillExcept { keep: vec![] }).await;
+                    }
+                };
+                let _ = timeout(Duration::from_secs(5), work).await;
+            });
+        })
+        .join();
+    }
+}
+
 #[cfg(unix)]
 fn test_shell() -> String {
     "/bin/sh".to_string()
@@ -81,6 +109,7 @@ async fn session_survives_client_reconnect() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("host.sock");
     serve_at(&socket).await;
+    let _cleanup = KillAllOnDrop(socket.clone());
 
     // ── 첫 클라이언트: 세션을 만들고 출력을 확인한다 ─────────────────────
     let (client_a, mut events_a) = connect(&socket).await;
@@ -187,6 +216,7 @@ async fn kill_prefix_only_touches_that_window() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("host.sock");
     serve_at(&socket).await;
+    let _cleanup = KillAllOnDrop(socket.clone());
 
     let (client, _events) = connect(&socket).await;
     client.request(start_req("p1-aaa", "n1")).await.unwrap();
@@ -226,6 +256,7 @@ async fn the_app_adopts_a_host_left_at_an_old_address() {
 
     // 업데이트 **전** 판이 띄운 호스트 — 옛 자리에 살아 세션을 쥐고 있다.
     serve_at(&legacy).await;
+    let _cleanup = KillAllOnDrop(legacy.clone());
     let (old_client, _events) = connect(&legacy).await;
     old_client
         .request(start_req("p1-live", "n1"))
