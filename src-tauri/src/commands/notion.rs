@@ -135,19 +135,25 @@ fn open_in_browser(url: &str) -> Result<(), String> {
     let status = crate::proc::std_cmd("open").arg(url).status();
     #[cfg(target_os = "linux")]
     let status = crate::proc::std_cmd("xdg-open").arg(url).status();
+    // Windows 는 셸을 거치지 않는다 — `cmd /C start "" <url>` 는 `&state=` 에서
+    // 끊겨 OAuth 가 state 없이 열렸다 (`open_native::shell_open`).
     #[cfg(target_os = "windows")]
-    let status = crate::proc::std_cmd("cmd")
-        .args(["/C", "start", "", url])
-        .status();
-    status
-        .map_err(|e| format!("Could not open the browser: {e}"))
-        .and_then(|s| {
-            if s.success() {
-                Ok(())
-            } else {
-                Err("Could not open the browser".into())
-            }
-        })
+    {
+        super::open_native::shell_open(std::ffi::OsStr::new(url))
+            .map_err(|e| format!("Could not open the browser: {e}"))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        status
+            .map_err(|e| format!("Could not open the browser: {e}"))
+            .and_then(|s| {
+                if s.success() {
+                    Ok(())
+                } else {
+                    Err("Could not open the browser".into())
+                }
+            })
+    }
 }
 
 /// 루프백에서 콜백 1건을 기다린다 (논블로킹 accept 폴링, 상한

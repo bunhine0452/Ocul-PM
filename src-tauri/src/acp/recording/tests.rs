@@ -35,33 +35,119 @@ fn env_of(servers: &[McpServer]) -> Vec<(String, String)> {
 
 /// 셔틀 스크립트(`plugin/oculpm/bin/oculpm-mcp`)와 **같은 순서·같은 자리**를 본다.
 /// 화면의 안내가 셔틀의 안내와 다른 곳을 가리키면 사용자는 두 번 헤맨다.
+///
+/// 경로는 문자열이 아니라 **구성 요소**로 비교한다 — 같은 후보를 Windows 러너가
+/// `…\MacOS\oculpm-mcp` 로 적어도 같은 자리다 (W1 인벤토리의 실패가 이것이었다).
 #[test]
 fn candidates_follow_the_shuttle_vocabulary() {
     let paths = candidate_paths(
-        Some(Path::new("/opt/manual/oculpm-mcp")),
-        Some(Path::new("/apps/ocul-pm.app/Contents/MacOS")),
-        Some(Path::new("/home/kim")),
+        HostOs::Mac,
+        &SearchRoots {
+            env_override: Some(Path::new("/opt/manual/oculpm-mcp")),
+            exe_dir: Some(Path::new("/apps/ocul-pm.app/Contents/MacOS")),
+            home: Some(Path::new("/home/kim")),
+            ..SearchRoots::default()
+        },
     );
-    let shown: Vec<String> = paths.iter().map(|p| p.display().to_string()).collect();
 
-    assert_eq!(shown[0], "/opt/manual/oculpm-mcp", "수동 지정이 1순위다");
-    assert!(shown[1].starts_with("/apps/ocul-pm.app/Contents/MacOS/"));
+    assert_eq!(
+        paths[0],
+        Path::new("/opt/manual/oculpm-mcp"),
+        "수동 지정이 1순위다"
+    );
+    assert_eq!(
+        paths[1],
+        Path::new("/apps/ocul-pm.app/Contents/MacOS").join("oculpm-mcp")
+    );
     assert!(
-        shown
+        paths
             .iter()
             .any(|p| p.starts_with("/Applications/ocul-pm.app")),
-        "시스템 Applications 를 본다: {shown:?}"
+        "시스템 Applications 를 본다: {paths:?}"
     );
     assert!(
-        shown
+        paths
             .iter()
-            .any(|p| p.starts_with("/home/kim/Applications/")),
-        "유저 Applications 를 본다: {shown:?}"
+            .any(|p| p.starts_with("/home/kim/Applications")),
+        "유저 Applications 를 본다: {paths:?}"
     );
     assert!(
-        shown.iter().any(|p| p.starts_with("/home/kim/.local/bin/")),
-        "수동 설치 자리를 본다: {shown:?}"
+        paths.iter().any(|p| p.starts_with("/home/kim/.local/bin")),
+        "수동 설치 자리를 본다: {paths:?}"
     );
+    assert!(paths.iter().all(|p| p.ends_with("oculpm-mcp")));
+}
+
+/// Windows 설치본 — 실행 파일 옆(설치 폴더)이 먼저, 다음이 NSIS·MSI 기본 자리.
+/// `.app` 경로는 한 줄도 없어야 한다 (없는 자리를 안내하면 사용자가 헤맨다).
+#[test]
+fn windows_candidates_use_install_dirs_and_the_exe_name() {
+    let local = Path::new(r"C:\Users\kim\AppData\Local");
+    let program_files = Path::new(r"C:\Program Files");
+    let exe_dir = local.join("Ocul-PM");
+    let paths = candidate_paths(
+        HostOs::Windows,
+        &SearchRoots {
+            env_override: None,
+            exe_dir: Some(&exe_dir),
+            home: Some(Path::new(r"C:\Users\kim")),
+            local_app_data: Some(local),
+            program_files: Some(program_files),
+        },
+    );
+    assert_eq!(
+        paths,
+        vec![
+            exe_dir.join("oculpm-mcp.exe"),
+            local
+                .join("Programs")
+                .join("Ocul-PM")
+                .join("oculpm-mcp.exe"),
+            program_files.join("Ocul-PM").join("oculpm-mcp.exe"),
+        ],
+        "실행 파일 옆과 NSIS 기본 자리가 같으면 한 번만 본다"
+    );
+}
+
+/// Linux 설치본 — deb 의 `/usr/bin`, AppImage 의 안정 복사본, 수동 설치.
+#[test]
+fn linux_candidates_cover_deb_and_the_appimage_copy() {
+    let home = Path::new("/home/kim");
+    let paths = candidate_paths(
+        HostOs::Linux,
+        &SearchRoots {
+            exe_dir: Some(Path::new("/tmp/.mount_OculPM/usr/bin")),
+            home: Some(home),
+            ..SearchRoots::default()
+        },
+    );
+    assert_eq!(
+        paths,
+        vec![
+            Path::new("/tmp/.mount_OculPM/usr/bin").join("oculpm-mcp"),
+            Path::new("/usr/bin").join("oculpm-mcp"),
+            home.join(".local/share/ocul-pm/bin").join("oculpm-mcp"),
+            home.join(".local/bin").join("oculpm-mcp"),
+        ]
+    );
+    assert!(!paths.iter().any(|p| p.to_string_lossy().contains(".app")));
+}
+
+/// 이 러너가 실제로 보는 목록 — 어느 OS 에서든 이 OS 의 실행 파일 이름으로 끝난다.
+#[test]
+fn the_live_probe_searches_with_this_os_binary_name() {
+    let probe = probe_mcp_binary();
+    let expected = if cfg!(windows) {
+        "oculpm-mcp.exe"
+    } else {
+        "oculpm-mcp"
+    };
+    assert!(!probe.searched.is_empty());
+    for p in &probe.searched {
+        if std::env::var_os(MCP_BIN_ENV).is_none() {
+            assert!(p.ends_with(expected), "{p:?}");
+        }
+    }
 }
 
 #[test]

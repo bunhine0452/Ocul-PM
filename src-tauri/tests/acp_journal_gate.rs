@@ -17,13 +17,16 @@
 //! 흔적이 없으면 게이트가 실제로 울린다는 것을 같은 자리에서 보인다. 대조군이
 //! 없으면 "원래 안 울리는 상황"을 고쳤다고 착각할 수 있다.
 //!
-//! 유닉스 전용 — 훅이 `/bin/sh` 이고 git 이 필요하다.
-#![cfg(unix)]
+//! 훅은 macOS·Linux 에서 `/bin/sh`, Windows 에서 Git Bash 로 돈다 — Claude Code 가
+//! Windows 에서 훅을 도는 셸이다 (`hook_sh`). git 이 필요하다.
 // 테스트 픽스처의 git·셸·자식 프로세스 — 앱이 띄우는 프로세스가 아니라 proc.rs
 // 창구 규칙(clippy.toml disallowed-methods) 밖이다.
 #![allow(clippy::disallowed_methods)]
 
 use std::path::{Path, PathBuf};
+
+// macOS·Linux 는 `/bin/sh`, Windows 는 Git Bash — 셋이 공유한다.
+mod hook_sh;
 use std::process::{Command, Output, Stdio};
 
 use ocul_pm_lib::acp::journal_gate::{self, AcpGateState};
@@ -77,9 +80,9 @@ fn run_delivery_gate(root: &Path, conversation: &str) -> Output {
     use std::io::Write;
     let payload = format!(
         r#"{{"session_id":"{conversation}","cwd":"{}","hook_event_name":"Stop","stop_hook_active":false}}"#,
-        root.display()
+        hook_sh::json_path(root)
     );
-    let mut child = Command::new("/bin/sh")
+    let mut child = Command::new(hook_sh::sh())
         .arg(repo_root().join("plugin/oculpm/hooks/delivery-gate.sh"))
         .env("CLAUDE_PROJECT_DIR", root)
         .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"))

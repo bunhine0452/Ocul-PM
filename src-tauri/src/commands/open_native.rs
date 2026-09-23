@@ -42,14 +42,18 @@ pub(super) fn open_native(path: &std::path::Path) -> std::io::Result<()> {
 
 #[cfg(target_os = "windows")]
 pub(super) fn open_native(path: &std::path::Path) -> std::io::Result<()> {
-    crate::proc::std_cmd("cmd")
-        .args(["/c", "start", "", &path.display().to_string()])
-        .status()
-        .and_then(|s| {
-            if s.success() {
-                Ok(())
-            } else {
-                Err(std::io::Error::other(format!("start exited with {s}")))
-            }
-        })
+    shell_open(path.as_os_str())
+}
+
+/// Windows — 셸(`cmd`)을 거치지 않고 ShellExecuteExW 로 연다 (opener 플러그인의
+/// 함수, 스코프 설정과 무관한 Rust 쪽 호출이다).
+///
+/// 예전엔 `cmd /c start "" <대상>` 이었다. cmd 는 따옴표 밖의 `&`·`|`·`^` 를
+/// 명령 구분자로 읽는다 — `vscode://…?entry=a&b` 나 `C:\Users\A&B\…` 는 거기서
+/// 끊기고 **뒤쪽이 명령으로 실행**됐다. std 는 공백이 없는 인자를 따옴표로
+/// 감싸지 않으므로 그 자리는 그대로 열려 있었다.
+#[cfg(target_os = "windows")]
+pub(crate) fn shell_open(target: &std::ffi::OsStr) -> std::io::Result<()> {
+    tauri_plugin_opener::open_url(target.to_string_lossy(), None::<&str>)
+        .map_err(|e| std::io::Error::other(e.to_string()))
 }

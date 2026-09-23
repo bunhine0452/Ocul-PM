@@ -667,15 +667,16 @@ mod tests {
 
     /// 회귀 (2026-09-07 감사) — `..` 를 막아도 **심링크**로는 나갈 수 있었다.
     /// 주석은 심링크를 거절한다고 적어 두었지만 구현은 어휘적 검사뿐이었다.
-    // PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
-    #[cfg(unix)]
+    /// Windows 는 심링크 또는 정션 (`crate::test_links`).
     #[test]
     fn a_destination_cannot_escape_through_a_symlink() {
         let root = tmp("symlink-escape");
         let outside = root.parent().unwrap().join("outside-symlink-target");
         std::fs::create_dir_all(&outside).unwrap();
         std::fs::create_dir_all(&root).unwrap();
-        std::os::unix::fs::symlink(&outside, root.join("link")).unwrap();
+        if !crate::test_links::dir(&outside, &root.join("link")) {
+            return;
+        }
 
         // 링크 자체도, 링크 너머도 거절이다.
         assert!(secure_join(&root, "link").is_none());

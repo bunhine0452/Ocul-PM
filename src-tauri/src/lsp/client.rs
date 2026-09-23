@@ -132,6 +132,12 @@ impl LspClient {
         self.spec.language_id
     }
 
+    /// 서버 프로세스 id — 이미 거둔 뒤면 `None`. 정리 계약(클라이언트가 사라지면
+    /// 서버도 죽는다)을 통합 테스트가 OS 프로세스 표로 확인할 때 쓴다.
+    pub async fn pid(&self) -> Option<u32> {
+        self.child.lock().await.id()
+    }
+
     /// 서버가 이 기능을 광고했는가 (`completionProvider` 등).
     pub fn supports(&self, capability: &str) -> bool {
         !matches!(
@@ -166,13 +172,13 @@ impl LspClient {
             .stdout(Stdio::piped())
             // stderr 를 버리지 않고 파이프로 잡되 읽어서 로그로 흘린다 —
             // 파이프를 열고 안 읽으면 서버가 stderr 를 채우다 블록된다.
-            .stderr(Stdio::piped());
-        #[cfg(unix)]
-        {
-            // 앱이 죽어도 언어 서버가 유령으로 남지 않게 새 프로세스 그룹에 두지
-            // **않는다** — 부모와 함께 정리되는 편이 안전하다.
-            cmd.kill_on_drop(true);
-        }
+            .stderr(Stdio::piped())
+            // 클라이언트가 사라지면(탭 닫기·실패한 핸드셰이크) 서버도 죽인다 —
+            // **모든 OS 에서.** 예전엔 `cfg(unix)` 안에 있어 Windows 에서는 언어
+            // 서버가 유령으로 남았다 (tokio 의 kill_on_drop 은 Windows 에서
+            // TerminateProcess 다). 새 프로세스 그룹에 두지 **않는** 것도 같은
+            // 이유 — 부모와 함께 정리되는 편이 안전하다.
+            .kill_on_drop(true);
 
         let mut child = cmd
             .spawn()

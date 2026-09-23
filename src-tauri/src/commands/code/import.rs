@@ -74,20 +74,40 @@ pub async fn code_import(
 /// 클립보드에 담긴 **파일 경로들**. 없으면 빈 목록 (오류가 아니다 — 글자를
 /// 복사해 둔 상태에서 ⌘V 를 누른 것도 정상이다).
 ///
-/// macOS 밖에서는 항상 비어 있다. 이 앱은 macOS 전용으로 배포되지만, 커맨드가
-/// 사라지면 프런트가 갈라져야 하므로 계약은 모든 플랫폼에서 유지한다.
+/// macOS 는 Finder 가, Windows 는 탐색기가 "복사" 로 올린 파일 목록을 읽는다.
+/// Linux 는 **읽지 못한다고 말한다** — 예전처럼 늘 빈 목록을 돌려주면 "복사한
+/// 파일이 없다" 와 구별되지 않는다 (크로스플랫폼 D4). 드래그는 어느 OS 에서나 된다.
 #[tauri::command]
 #[specta::specta]
 pub async fn code_clipboard_files() -> Result<Vec<String>, String> {
-    Ok(clipboard_file_paths()
+    Ok(clipboard_file_paths()?
         .into_iter()
         .map(|p| p.to_string_lossy().to_string())
         .collect())
 }
 
+/// 탐색기의 "복사" — `CF_HDROP` (`super::clipboard_windows`).
+#[cfg(windows)]
+fn clipboard_file_paths() -> Result<Vec<PathBuf>, String> {
+    super::clipboard_windows::file_paths()
+}
+
+/// Linux 데스크톱의 파일 복사는 `text/uri-list` 로 오는데, 그 클립보드는 GTK
+/// 메인 스레드에서만 읽힌다 — 아직 그 다리가 없다. 조용히 비우지 않고 이유와
+/// 대안을 돌려준다.
+#[cfg(all(not(target_os = "macos"), not(windows)))]
+fn clipboard_file_paths() -> Result<Vec<PathBuf>, String> {
+    Err(LINUX_CLIPBOARD_UNSUPPORTED.to_string())
+}
+
+/// Linux 의 붙여넣기 거절 문구 — 프런트 오류 사전이 이 문장으로 안내 키를 고른다.
+#[cfg_attr(any(target_os = "macos", windows), allow(dead_code))]
+pub(super) const LINUX_CLIPBOARD_UNSUPPORTED: &str =
+    "Pasting copied files is not available on Linux — drag the files into the tree instead.";
+
 /// pasteboard 의 `public.file-url` 항목들 → 경로. Finder 의 "복사"가 올리는 것이다.
 #[cfg(target_os = "macos")]
-fn clipboard_file_paths() -> Vec<PathBuf> {
+fn clipboard_file_paths() -> Result<Vec<PathBuf>, String> {
     use objc2_app_kit::{NSPasteboard, NSPasteboardTypeFileURL};
     use objc2_foundation::NSURL;
 
@@ -95,7 +115,7 @@ fn clipboard_file_paths() -> Vec<PathBuf> {
     unsafe {
         let pb = NSPasteboard::generalPasteboard();
         let Some(items) = pb.pasteboardItems() else {
-            return out;
+            return Ok(out);
         };
         for item in items.iter() {
             // URL 문자열을 직접 퍼센트 디코딩하지 않는다 — Foundation 이 이미
@@ -111,12 +131,7 @@ fn clipboard_file_paths() -> Vec<PathBuf> {
             }
         }
     }
-    out
-}
-
-#[cfg(not(target_os = "macos"))]
-fn clipboard_file_paths() -> Vec<PathBuf> {
-    Vec::new()
+    Ok(out)
 }
 
 /// 실제 복사. 순수 함수라 테스트가 직접 부른다.

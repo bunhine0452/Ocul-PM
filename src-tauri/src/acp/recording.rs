@@ -94,38 +94,94 @@ impl McpBinaryProbe {
     }
 }
 
-fn binary_name() -> &'static str {
-    if cfg!(windows) {
-        "oculpm-mcp.exe"
+/// 설치본이 사는 자리를 가르는 OS. [`candidate_paths`] 가 **값으로** 받는 이유는
+/// 테스트다 — 세 OS 의 어휘를 어느 러너에서든 한 번에 문다 (크로스플랫폼 W2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostOs {
+    Mac,
+    Windows,
+    Linux,
+}
+
+impl HostOs {
+    /// 이 빌드가 도는 OS.
+    pub const CURRENT: HostOs = if cfg!(target_os = "macos") {
+        HostOs::Mac
+    } else if cfg!(windows) {
+        HostOs::Windows
     } else {
-        "oculpm-mcp"
+        HostOs::Linux
+    };
+
+    fn binary_name(self) -> &'static str {
+        match self {
+            HostOs::Windows => "oculpm-mcp.exe",
+            HostOs::Mac | HostOs::Linux => "oculpm-mcp",
+        }
     }
+}
+
+/// 기계마다 다른 뿌리. 없는 것은 `None` — 그 자리는 후보에서 빠진다.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SearchRoots<'a> {
+    /// [`MCP_BIN_ENV`] 수동 지정.
+    pub env_override: Option<&'a Path>,
+    /// 앱 실행 파일의 폴더 — 설치본에서는 사이드카가 그 옆에 산다.
+    pub exe_dir: Option<&'a Path>,
+    pub home: Option<&'a Path>,
+    /// Windows `%LOCALAPPDATA%`.
+    pub local_app_data: Option<&'a Path>,
+    /// Windows `%ProgramFiles%`.
+    pub program_files: Option<&'a Path>,
 }
 
 /// 볼 자리를 순서대로 — 셔틀 스크립트와 **같은 순서, 같은 어휘**다.
 ///
 /// 셔틀의 마지막 두 후보(리포 `target/debug|release`)는 여기서 `exe_dir` 하나로
 /// 덮인다. 앱이 dev 로 돌 때 그 자리가 곧 실행 파일의 형제이기 때문이다.
-pub fn candidate_paths(
-    env_override: Option<&Path>,
-    exe_dir: Option<&Path>,
-    home: Option<&Path>,
-) -> Vec<PathBuf> {
-    let name = binary_name();
+///
+/// OS 별 설치 자리:
+/// - macOS — `.app` 번들(시스템·유저 Applications), 수동 설치 `~/.local/bin`.
+/// - Windows — NSIS 현재 사용자 설치 `%LOCALAPPDATA%\Ocul-PM`(셔틀 어휘의
+///   `%LOCALAPPDATA%\Programs\Ocul-PM` 도), MSI·전체 사용자 설치 `%ProgramFiles%\Ocul-PM`.
+/// - Linux — deb 의 `/usr/bin`, AppImage 가 마운트 밖으로 복사해 두는 안정 자리
+///   `~/.local/share/ocul-pm/bin`(`#integ-sidecar`), 수동 설치 `~/.local/bin`.
+pub fn candidate_paths(os: HostOs, roots: &SearchRoots<'_>) -> Vec<PathBuf> {
+    let name = os.binary_name();
     let mut out = Vec::new();
-    if let Some(explicit) = env_override {
+    if let Some(explicit) = roots.env_override {
         out.push(explicit.to_path_buf());
     }
-    if let Some(dir) = exe_dir {
+    if let Some(dir) = roots.exe_dir {
         out.push(dir.join(name));
     }
-    out.push(PathBuf::from("/Applications/ocul-pm.app/Contents/MacOS").join(name));
-    if let Some(home) = home {
-        out.push(
-            home.join("Applications/ocul-pm.app/Contents/MacOS")
-                .join(name),
-        );
-        out.push(home.join(".local/bin").join(name));
+    match os {
+        HostOs::Mac => {
+            out.push(PathBuf::from("/Applications/ocul-pm.app/Contents/MacOS").join(name));
+            if let Some(home) = roots.home {
+                out.push(
+                    home.join("Applications/ocul-pm.app/Contents/MacOS")
+                        .join(name),
+                );
+                out.push(home.join(".local/bin").join(name));
+            }
+        }
+        HostOs::Windows => {
+            if let Some(local) = roots.local_app_data {
+                out.push(local.join("Ocul-PM").join(name));
+                out.push(local.join("Programs").join("Ocul-PM").join(name));
+            }
+            if let Some(program_files) = roots.program_files {
+                out.push(program_files.join("Ocul-PM").join(name));
+            }
+        }
+        HostOs::Linux => {
+            out.push(PathBuf::from("/usr/bin").join(name));
+            if let Some(home) = roots.home {
+                out.push(home.join(".local/share/ocul-pm/bin").join(name));
+                out.push(home.join(".local/bin").join(name));
+            }
+        }
     }
     out.dedup();
     out
@@ -158,10 +214,18 @@ pub fn probe_mcp_binary() -> McpBinaryProbe {
     let exe = std::env::current_exe().ok();
     let exe_dir = exe.as_deref().and_then(Path::parent);
     let home = directories::BaseDirs::new().map(|b| b.home_dir().to_path_buf());
+    // 두 변수는 Windows 에만 있다 — 다른 OS 에서는 비어 후보에서 빠진다.
+    let local_app_data = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+    let program_files = std::env::var_os("ProgramFiles").map(PathBuf::from);
     probe_candidates(candidate_paths(
-        env_override.as_deref(),
-        exe_dir,
-        home.as_deref(),
+        HostOs::CURRENT,
+        &SearchRoots {
+            env_override: env_override.as_deref(),
+            exe_dir,
+            home: home.as_deref(),
+            local_app_data: local_app_data.as_deref(),
+            program_files: program_files.as_deref(),
+        },
     ))
 }
 

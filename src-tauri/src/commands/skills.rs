@@ -682,15 +682,20 @@ mod tests {
         assert!(secure_skill_path(tmp.path(), "../escape", true).is_err());
     }
 
-    // PORT-TEST(L-FS): 심링크 건너뛰기(밖 내용 복사 방지) — 링크 부분만 unix — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
     #[test]
     fn copy_dir_skips_symlinks_and_copies_tree() {
         let tmp = TempDir::new().unwrap();
         let src = tmp.path().join("src-skill");
         seed(&src, "SKILL.md", FM);
         seed(&src, "references/a.md", "a");
-        #[cfg(unix)]
-        std::os::unix::fs::symlink("/etc", src.join("evil-link")).unwrap();
+        // 스킬 밖의 폴더와 파일을 가리키는 링크 (Windows 폴더 링크는 정션일 수 있다).
+        let outside = tmp.path().join("outside");
+        seed(&outside, "secret.md", "s");
+        if !crate::test_links::dir(&outside, &src.join("evil-link"))
+            || !crate::test_links::file(&outside.join("secret.md"), &src.join("evil-file"))
+        {
+            return;
+        }
 
         let dst = tmp.path().join("dst-skill");
         copy_dir_recursive(&src, &dst).unwrap();
@@ -699,6 +704,10 @@ mod tests {
         assert!(
             !dst.join("evil-link").exists(),
             "심볼릭 링크는 복사하지 않는다"
+        );
+        assert!(
+            std::fs::symlink_metadata(dst.join("evil-file")).is_err(),
+            "파일 링크도 복사하지 않는다"
         );
     }
 }

@@ -407,4 +407,12 @@ mod tests {
         // 알 수 없는 코드·멀티컬러는 파랑 — 색이 사라지는 것보다 낫다.
         assert_eq!(accent_hex(99), "#007aff");
     }
+
+    /// 비-mac 은 `defaults` 가 없다 — 강조색을 **모른다고** 답하고(프런트가 앱
+    /// 기본색을 쓴다), 없는 명령을 띄우지 않는다.
+    #[cfg(not(target_os = "macos"))]
+    #[test]
+    fn system_accent_is_unknown_off_macos() {
+        assert_eq!(read_system_accent(), None);
+    }
 }

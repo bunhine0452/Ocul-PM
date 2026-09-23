@@ -173,6 +173,30 @@ fn parse_query(query: &str) -> Vec<(String, String)> {
         .collect()
 }
 
+/// 프로세스 인자에서 우리 링크를 고른다 (Windows·Linux).
+///
+/// 두 OS 는 `oculpm://…` 를 **새 프로세스의 인자**로 넘긴다 — 설치 관리자가
+/// 등록한 명령이 `"<exe>" "%1"`(Windows 레지스트리) / `Exec=<exe> %u`(Linux
+/// `.desktop`)이다. 앱이 이미 떠 있으면 그 새 프로세스는 single-instance 가
+/// 곧바로 끝내고 인자만 첫 인스턴스에 넘기므로, 링크는 여기서 건져야 한다.
+/// (macOS 는 인자가 아니라 Apple Event 로 온다 — 플러그인의 `on_open_url`.)
+///
+/// 첫 인자는 실행 파일 경로라 건너뛴다. 스킴은 대소문자를 가리지 않고 읽되
+/// 소문자로 고쳐 [`parse`] 에 넘긴다 — 확인 시트를 여는 것까지가 이 함수의 몫이
+/// 아니라, **거절도 [`parse`] 한 곳**이 한다. 순수 함수라 세 OS 에서 테스트한다.
+pub fn links_in_argv<S: AsRef<str>>(argv: &[S]) -> Vec<String> {
+    let prefix = format!("{SCHEME}://");
+    argv.iter()
+        .skip(1)
+        .map(|arg| arg.as_ref().trim())
+        .filter_map(|arg| {
+            let head = arg.get(..prefix.len())?;
+            head.eq_ignore_ascii_case(&prefix)
+                .then(|| format!("{prefix}{}", &arg[prefix.len()..]))
+        })
+        .collect()
+}
+
 /// 링크 하나를 프런트로 넘긴다. **여기서 무엇도 실행하지 않는다** — 창을
 /// 앞으로 불러오고 확인 시트를 띄우게 하는 것이 전부다.
 pub fn dispatch(app: &tauri::AppHandle, raw: &str) {
@@ -332,6 +356,72 @@ mod tests {
     fn open_needs_a_project_and_never_invents_one() {
         assert!(parse("oculpm://open?view=journal").is_err());
         assert!(parse("oculpm://open?project=").is_err());
+    }
+
+    /// Windows 레지스트리 명령 `"<exe>" "%1"` 과 Linux `Exec=<exe> %u` 가 만드는
+    /// 인자 — 두 번째 인스턴스가 첫 인스턴스에 넘기는 모양 그대로.
+    #[test]
+    fn links_are_picked_from_a_second_instance_argv() {
+        let windows = [
+            r"C:\Users\kim\AppData\Local\Ocul-PM\ocul-pm.exe",
+            "oculpm://open?project=C%3A%5Cwork%5Capp&view=journal",
+        ];
+        assert_eq!(
+            links_in_argv(&windows),
+            vec!["oculpm://open?project=C%3A%5Cwork%5Capp&view=journal".to_string()]
+        );
+        // 그 결과가 그대로 파서를 통과한다 — 경로는 퍼센트 디코딩된다.
+        assert_eq!(
+            parse(&links_in_argv(&windows)[0]).unwrap(),
+            DeepLink::Open {
+                project: r"C:\work\app".into(),
+                view: Some("journal".into()),
+                entry: None,
+            }
+        );
+
+        let linux = ["/usr/bin/ocul-pm", "oculpm://plugin/install?source=o/r"];
+        assert_eq!(
+            links_in_argv(&linux),
+            vec!["oculpm://plugin/install?source=o/r".to_string()]
+        );
+    }
+
+    #[test]
+    fn argv_without_a_link_yields_nothing() {
+        // 평범한 두 번째 실행 · 앱이 쓰는 플래그 · 다른 스킴 · 빈 인자.
+        for argv in [
+            vec!["/usr/bin/ocul-pm"],
+            vec!["ocul-pm.exe", "--pty-host"],
+            vec!["ocul-pm", "https://oculpm.com/x", "", "oculpm:/open"],
+            vec![],
+        ] {
+            assert!(links_in_argv(&argv).is_empty(), "{argv:?}");
+        }
+    }
+
+    /// 실행 파일 자리(첫 인자)는 링크처럼 생겨도 보지 않는다. 스킴 대소문자는
+    /// 풀어 주되, **판정은 여전히 `parse` 가** 한다 — 모르는 경로는 거절된다.
+    #[test]
+    fn argv_scheme_is_case_insensitive_and_parse_still_decides() {
+        let argv = [
+            "oculpm://open?project=exe-slot",
+            "OCULPM://open?project=%2Fp",
+            "  Oculpm://run/shell?cmd=rm  ",
+            "oculpm://한글",
+        ];
+        let links = links_in_argv(&argv);
+        assert_eq!(
+            links,
+            vec![
+                "oculpm://open?project=%2Fp".to_string(),
+                "oculpm://run/shell?cmd=rm".to_string(),
+                "oculpm://한글".to_string(),
+            ]
+        );
+        assert!(parse(&links[0]).is_ok());
+        assert!(matches!(parse(&links[1]), Err(LinkError::Route(_))));
+        assert!(parse(&links[2]).is_err());
     }
 
     #[test]

@@ -27,10 +27,15 @@ use ocul_pm_lib::lsp::spec::{
 /// 부족하다 — `~/.cargo/bin/rust-analyzer` 는 컴포넌트를 설치하지 않아도 rustup
 /// 프록시로 존재하고, 실행하면 "component not installed" 로 죽는다. 그러면
 /// 이 스위트는 "있다" 고 믿고 핸드셰이크에서 빨개졌다 (`{#ra-guard-hardening}`).
+///
+/// PATH 는 OS 규칙으로 가른다(`split_paths` — Windows 는 `;`, 드라이브의 `:` 를
+/// 자르지 않는다) — 예전엔 `:` 로 잘라 Windows 러너에서 이 스위트가 통째로
+/// "건너뜀" 이었다.
 fn rust_analyzer() -> Option<PathBuf> {
-    let path = std::env::var("PATH").ok()?;
-    path.split(':')
-        .map(|d| PathBuf::from(d).join("rust-analyzer"))
+    let path = std::env::var_os("PATH")?;
+    let name = format!("rust-analyzer{}", std::env::consts::EXE_SUFFIX);
+    std::env::split_paths(&path)
+        .map(|d| d.join(&name))
         .filter(|p| p.is_file())
         .find(|p| {
             std::process::Command::new(p)
@@ -426,6 +431,66 @@ async fn code_action_request_round_trips_and_indices_stay_consistent() {
     }
 
     let _ = tokio::time::timeout(Duration::from_secs(15), client.stop()).await;
+}
+
+/// 프로세스가 아직 있는가 — OS 프로세스 표로 본다. 좀비(`Z`)는 죽은 것이다
+/// (tokio 가 거두기 전의 잠깐).
+fn process_alive(pid: u32) -> bool {
+    #[cfg(windows)]
+    {
+        let out = std::process::Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
+            .output()
+            .expect("tasklist");
+        String::from_utf8_lossy(&out.stdout).contains(&format!("\"{pid}\""))
+    }
+    #[cfg(not(windows))]
+    {
+        let out = std::process::Command::new("ps")
+            .args(["-o", "stat=", "-p", &pid.to_string()])
+            .output()
+            .expect("ps");
+        let stat = String::from_utf8_lossy(&out.stdout);
+        let stat = stat.trim();
+        !stat.is_empty() && !stat.starts_with('Z')
+    }
+}
+
+/// `stop()` 을 부르지 않고 클라이언트를 버려도 서버가 남지 않는다 — **모든
+/// OS 에서.** `kill_on_drop` 이 `cfg(unix)` 안에 있던 동안 Windows 에서는 탭을
+/// 닫거나 핸드셰이크가 실패할 때마다 언어 서버가 유령으로 남았다.
+#[tokio::test(flavor = "multi_thread")]
+async fn dropping_the_client_kills_the_server() {
+    let Some(binary) = rust_analyzer() else {
+        eprintln!("rust-analyzer 가 PATH 에 없어 건너뜁니다");
+        return;
+    };
+    let tmp = tempfile::TempDir::new().unwrap();
+    let root = tmp.path().to_path_buf();
+    let main = seed_crate(&root, "fn main() {}\n");
+    let spec = spec_for_path(&main).unwrap();
+    let client = LspClient::start(
+        spec,
+        &binary,
+        root,
+        std::env::var("PATH").unwrap_or_default(),
+        Arc::new(|_| {}),
+    )
+    .await
+    .expect("initialize 실패");
+    let pid = client.pid().await.expect("살아 있는 서버의 pid");
+    assert!(process_alive(pid), "막 뜬 서버({pid})가 프로세스 표에 없다");
+
+    drop(client);
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while process_alive(pid) {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "클라이언트를 버린 뒤 10초가 지나도 서버({pid})가 살아 있다"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
 }
 
 /// 레지스트리가 광고하는 서버 목록이 실제 실행 파일 이름과 맞는지 — 오타 방지.

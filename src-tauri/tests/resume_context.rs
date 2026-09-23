@@ -10,13 +10,16 @@
 //! 깊이의 `.md`, `_`/`.` 시작 제외, 상대경로 바이트 내림차순 3건. 한쪽만 바뀌면
 //! 앱이 "시작 컨텍스트에 포함됨" 이라 말한 것과 실제로 실린 것이 갈라진다.
 //!
-//! 유닉스 전용 — 훅이 `/bin/sh` 다.
-#![cfg(unix)]
+//! 훅은 macOS·Linux 에서 `/bin/sh`, Windows 에서 Git Bash 로 돈다 — Claude Code 가
+//! Windows 에서 훅을 도는 셸이다 (`hook_sh`).
 // 테스트 픽스처의 git·셸·자식 프로세스 — 앱이 띄우는 프로세스가 아니라 proc.rs
 // 창구 규칙(clippy.toml disallowed-methods) 밖이다.
 #![allow(clippy::disallowed_methods)]
 
 use std::path::{Path, PathBuf};
+
+// macOS·Linux 는 `/bin/sh`, Windows 는 Git Bash — 셋이 공유한다.
+mod hook_sh;
 use std::process::{Command, Output, Stdio};
 
 fn repo_root() -> PathBuf {
@@ -28,7 +31,7 @@ fn repo_root() -> PathBuf {
 
 fn run_hook(root: &Path, payload: &str) -> Output {
     use std::io::Write;
-    let mut child = Command::new("/bin/sh")
+    let mut child = Command::new(hook_sh::sh())
         .arg(repo_root().join("plugin/oculpm/hooks/plan-context.sh"))
         .env("CLAUDE_PROJECT_DIR", root)
         .env_remove("CLAUDE_PLUGIN_ROOT")

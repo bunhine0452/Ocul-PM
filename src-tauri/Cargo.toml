@@ -131,18 +131,25 @@ tauri-plugin-deep-link = "2.4.10"
 # 각자 이 줄을 고치면 병합이 충돌한다. 쓰는 곳:
 #   L-PTY  네임드 파이프 보안 기술자 · Job Object(세션 프로세스 트리 종료) · 분리 기동
 #   L-FS   pid 생사(OpenProcess + GetExitCodeProcess) · 공유 위반 판정
+#   L-OS   탐색기 "복사" 붙여넣기(CF_HDROP: DataExchange · Ole · Shell · Memory) ·
+#          휴지통 COM 아파트 검증 테스트(Com)
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Security",
     "Win32_Security_Authorization",
     "Win32_Storage_FileSystem",
+    "Win32_System_Com",
     "Win32_System_Console",
+    "Win32_System_DataExchange",
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_System_JobObjects",
+    "Win32_System_Memory",
+    "Win32_System_Ole",
     "Win32_System_Pipes",
     "Win32_System_ProcessStatus",
     "Win32_System_Threading",
+    "Win32_UI_Shell",
 ] }
 
 [target.'cfg(target_os = "macos")'.dependencies]

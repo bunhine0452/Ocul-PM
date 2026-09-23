@@ -173,15 +173,15 @@ const RUST_SITES: &[Site] = &[
     },
     Site {
         path: "commands/external_editor.rs",
-        primitives: &["xdg-open"],
+        primitives: &["xdg-open", "tauri_plugin_opener"],
         control: Control::Guarded("open_url — http/https/mailto 스킴만"),
-        reason: "링크를 OS 기본 브라우저에 넘긴다. 앱이 보내는 것이 아니라 사용자의 브라우저가 연다 (위임).",
+        reason: "링크를 OS 기본 브라우저에 넘긴다. 앱이 보내는 것이 아니라 사용자의 브라우저가 연다 (위임). tauri_plugin_opener 는 Windows 의 \"탐색기에서 선택\"(reveal_item_in_dir) — 로컬 경로다.",
     },
     Site {
         path: "commands/open_native.rs",
-        primitives: &["xdg-open"],
+        primitives: &["xdg-open", "tauri_plugin_opener"],
         control: Control::LocalOnly,
-        reason: "로그 폴더·일지 파일을 OS 기본 앱으로 연다 — 로컬 경로, 그리고 앱이 스스로 조립하는 `vscode://oculpm.ocul-pm/open?entry=<로컬 경로>` 하나(설치된 VS Code 확장으로 위임 — vscode_ext.rs). 기기 밖으로 나가는 목적지가 아니다.",
+        reason: "로그 폴더·일지 파일을 OS 기본 앱으로 연다 — 로컬 경로, 그리고 앱이 스스로 조립하는 `vscode://oculpm.ocul-pm/open?entry=<로컬 경로>` 하나(설치된 VS Code 확장으로 위임 — vscode_ext.rs). 기기 밖으로 나가는 목적지가 아니다. Windows 는 `cmd start` 대신 opener 플러그인의 ShellExecute(`shell_open`) — open_url·Notion 브라우저 위임도 이 창구를 지난다.",
     },
     // ── 인바운드(듣는 쪽). 나가지는 않지만 경계는 경계다 ──
     Site {
