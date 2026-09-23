@@ -3,22 +3,23 @@
 import { EmptyState } from "@/components/EmptyState";
 import { t, useT } from "@/i18n";
 import { FileCode } from "@/components/Icons";
+import { kbd } from "@/lib/kbd";
 
 /** 빈 상태 — 화면(모든 탭 닫힘)과 창(파일 미선택)이 공유한다. */
 export function CodeEmptyState() {
   useT();
   const keys: Array<[string, string]> = [
-    ["⌘K", t("code.empty.kPalette")],
-    ["⌘P", t("code.empty.kQuickOpen")],
+    [kbd("⌘K"), t("code.empty.kPalette")],
+    [kbd("⌘P"), t("code.empty.kQuickOpen")],
     ["F12", t("code.empty.kDef")],
-    ["⇧F12", t("code.empty.kRefs")],
-    ["⇧⌥F", t("code.empty.kFormat")],
-    ["⌘N", t("code.empty.kNewFile")],
-    ["⌘W", t("code.empty.kClose")],
-    ["⇧⌘T", t("code.empty.kReopen")],
-    ["⌃Tab", t("code.empty.kCycle")],
-    ["⌘B", t("code.empty.kSidebar")],
-    ["⌥Z", t("code.empty.kWrap")],
+    [kbd("⇧F12"), t("code.empty.kRefs")],
+    [kbd("⇧⌥F"), t("code.empty.kFormat")],
+    [kbd("⌘N"), t("code.empty.kNewFile")],
+    [kbd("⌘W"), t("code.empty.kClose")],
+    [kbd("⇧⌘T"), t("code.empty.kReopen")],
+    [kbd("⌃Tab"), t("code.empty.kCycle")],
+    [kbd("⌘B"), t("code.empty.kSidebar")],
+    [kbd("⌥Z"), t("code.empty.kWrap")],
   ];
   // 바깥 .code-center-hint 는 남긴다 — flex:1 로 창을 채우는 건 이 자리의
   // 레이아웃이고, 안쪽 카드만 공용 EmptyState 로 옮겼다 (v3-surface).

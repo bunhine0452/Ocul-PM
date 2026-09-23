@@ -42,7 +42,7 @@ import { ProjectManager } from "@/features/projects/ProjectManager";
 import { useT, type I18nKey } from "@/i18n";
 import { isImeComposing } from "@/lib/ime";
 import { isMac as isMacPlatform } from "@/lib/platform";
-import { isModKey } from "@/lib/kbd";
+import { isModKey, kbd } from "@/lib/kbd";
 
 /** 시간대 묶음 헤더의 라벨 키. */
 const GROUP_LABEL: Record<RecencyGroup, I18nKey> = {
@@ -138,13 +138,13 @@ export function StartScreen(props: StartScreenProps) {
 
   const commandSpecs: CommandSpec[] = useMemo(
     () => [
-      { id: "cmd:add", label: t("home.cmdAdd"), hint: "⌘O", run: onAddProject },
-      { id: "cmd:new", label: t("home.cmdNew"), hint: "⌘N", run: onStartGreenfield },
+      { id: "cmd:add", label: t("home.cmdAdd"), hint: kbd("⌘O"), run: onAddProject },
+      { id: "cmd:new", label: t("home.cmdNew"), hint: kbd("⌘N"), run: onStartGreenfield },
       // 관리할 게 없으면 관리 명령도 없다 — 0개일 때 이 행은 막다른 길이다.
       ...(projects.length > 0
-        ? [{ id: "cmd:manage", label: t("home.manageProjects"), hint: "⌘⇧M", run: openManage }]
+        ? [{ id: "cmd:manage", label: t("home.manageProjects"), hint: kbd("⌘⇧M"), run: openManage }]
         : []),
-      { id: "cmd:settings", label: t("home.openSettings"), hint: "⌘,", run: onOpenSettings },
+      { id: "cmd:settings", label: t("home.openSettings"), hint: kbd("⌘,"), run: onOpenSettings },
     ],
     [t, projects.length, onAddProject, onStartGreenfield, openManage, onOpenSettings],
   );

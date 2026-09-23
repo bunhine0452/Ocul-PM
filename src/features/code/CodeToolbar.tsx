@@ -18,6 +18,7 @@ import {
 import { Toolbar } from "@/components/Toolbar";
 import { t, useT } from "@/i18n";
 import { blocked } from "@/lib/blocked";
+import { kbd } from "@/lib/kbd";
 
 interface CodeToolbarProps {
   /** 보고 있는 파일 (부제). null 이면 파일 단위 액션이 숨는다. */
@@ -97,7 +98,7 @@ export const CodeToolbar = memo(function CodeToolbar({
           type="button"
           className="code-tool-btn"
           onClick={onFormat}
-          title={t("code.format") + " (⇧⌥F)"}
+          title={t("code.format") + ` (${kbd("⇧⌥F")})`}
           aria-label={t("code.format")}
         >
           <AlignLeft size={15} />
@@ -109,7 +110,7 @@ export const CodeToolbar = memo(function CodeToolbar({
           className={"code-tool-btn code-save-btn" + (focusedDirty ? " on" : "")}
           onClick={onSave}
           aria-label={t("code.save")}
-          {...blocked(focusedDirty ? null : t("code.blockedNoChanges"), t("code.save") + " (⌘S)")}
+          {...blocked(focusedDirty ? null : t("code.blockedNoChanges"), t("code.save") + ` (${kbd("⌘S")})`)}
         >
           <Save size={15} />
         </button>
