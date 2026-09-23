@@ -356,7 +356,7 @@ fn start_session(
 
     let mut cmd = super::env::shell_command(&shell);
     #[cfg(windows)]
-    cmd.args(windows::utf8_console_args(&shell));
+    windows::prepare_shell(&mut cmd, &shell);
     for (k, v) in &env {
         cmd.env(k, v);
     }

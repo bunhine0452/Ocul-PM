@@ -23,6 +23,7 @@ use tokio::net::windows::named_pipe::NamedPipeServer;
 use windows_sys::Win32::Foundation::{
     CloseHandle, FILETIME, HANDLE, INVALID_HANDLE_VALUE, STILL_ACTIVE,
 };
+use windows_sys::Win32::System::Console::SetConsoleCtrlHandler;
 use windows_sys::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
 };
@@ -125,6 +126,20 @@ fn vacated(state: &HostState) -> bool {
 }
 
 // ─── 셸 시작 ─────────────────────────────────────────────────────────────────
+
+/// 셸을 띄우기 직전의 준비 둘 — 코드 페이지 인자([`utf8_console_args`])와 Ctrl+C 복원.
+///
+/// **Ctrl+C 가 무시된 채로 물려 내려가지 않게 한다.** "Ctrl+C 무시" 는 프로세스 속성이고
+/// 자식이 물려받는다. 그리고 `CREATE_NEW_PROCESS_GROUP` 으로 뜬 프로세스는 그 속성이 켜진
+/// 채로 태어난다 — 이 호스트가 바로 그렇게 뜬다(앱이 분리 기동한다). 그대로 두면 호스트가
+/// 띄우는 셸과 그 안의 모든 프로그램이 Ctrl+C 를 무시해, 사용자가 터미널에서 ^C 로 아무것도
+/// 멈출 수 없다(CI 러너도 단계를 새 프로세스 그룹으로 띄워 테스트 프로세스가 같은 상태다).
+/// 핸들러 없이 `FALSE` 로 부르면 정상 처리로 되돌리고, 이후의 자식이 그것을 물려받는다.
+pub(super) fn prepare_shell(cmd: &mut portable_pty::CommandBuilder, shell: &str) {
+    cmd.args(utf8_console_args(shell));
+    // SAFETY: 핸들러 없는 호출 — 이 프로세스의 "Ctrl+C 무시" 표시만 끈다.
+    unsafe { SetConsoleCtrlHandler(None, 0) };
+}
 
 /// 셸 명령 뒤에 붙일 인자 — cmd 의 콘솔 코드 페이지를 UTF-8(65001)로 (#pty-conpty).
 ///
