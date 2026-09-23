@@ -54,7 +54,8 @@ pub async fn open_in_editor(
 /// by the Today commit graph to jump to a commit on GitHub, and by the app-wide
 /// link guard (`src/lib/externalLinks.ts`) for any anchor an agent answer or a
 /// rendered document puts on screen. We shell out to the OS opener
-/// (`open` / `xdg-open` / `cmd start`) rather than the opener plugin so no
+/// (`open` / `xdg-open`; on Windows ShellExecute via the opener plugin's *Rust*
+/// function, not `cmd start`) rather than the plugin's JS command, so no
 /// path/url scope config is needed (mirrors `oculpm_open_entry_in_editor`).
 /// Only http/https/mailto is allowed — never a local path or arbitrary scheme.
 #[tauri::command]
@@ -79,16 +80,19 @@ pub async fn open_url(url: String) -> Result<(), String> {
         c.arg(trimmed);
         c
     };
+    // Windows 는 셸(cmd)을 거치지 않는다 — `cmd /C start "" <url>` 는 쿼리의
+    // `&` 에서 명령이 끊겨 뒤쪽이 **명령으로 실행**됐다 (`https://x/?a=1&calc`).
     #[cfg(target_os = "windows")]
-    let mut cmd = {
-        let mut c = crate::proc::std_cmd("cmd");
-        // empty title arg so a URL with spaces isn't treated as the window title
-        c.args(["/C", "start", "", trimmed]);
-        c
-    };
-    cmd.spawn()
-        .map(|_| ())
-        .map_err(|e| format!("Failed to open URL: {e}"))
+    {
+        super::open_native::shell_open(std::ffi::OsStr::new(trimmed))
+            .map_err(|e| format!("Failed to open URL: {e}"))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        cmd.spawn()
+            .map(|_| ())
+            .map_err(|e| format!("Failed to open URL: {e}"))
+    }
 }
 
 /// 프로젝트 파일을 **파일 탐색기에서 선택된 채로** 연다 (macOS: Finder).
@@ -115,15 +119,19 @@ pub async fn reveal_in_file_manager(project_root: String, rel_path: String) -> R
         c.arg(parent);
         c
     };
+    // Windows — 셸의 "폴더 열고 선택"(SHOpenFolderAndSelectItems). `explorer
+    // /select,<경로>` 는 공백·쉼표가 든 경로를 인자 인용과 다르게 읽는다.
     #[cfg(target_os = "windows")]
-    let mut cmd = {
-        let mut c = crate::proc::std_cmd("explorer");
-        c.arg(format!("/select,{}", abs.display()));
-        c
-    };
-    cmd.spawn()
-        .map(|_| ())
-        .map_err(|e| format!("Failed to reveal file: {e}"))
+    {
+        tauri_plugin_opener::reveal_item_in_dir(&abs)
+            .map_err(|e| format!("Failed to reveal file: {e}"))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        cmd.spawn()
+            .map(|_| ())
+            .map_err(|e| format!("Failed to reveal file: {e}"))
+    }
 }
 
 /// 프로젝트 파일을 **빠른 미리보기**로 띄운다 (macOS Quick Look).
@@ -269,21 +277,29 @@ fn substitute_bare_path(template: &str, quoted: &str) -> String {
 }
 
 fn spawn_detached(command: &str) -> std::io::Result<()> {
+    shell_command(command).spawn().map(|_| ())
+}
+
+/// 명령 한 줄을 이 OS 의 셸로 — `sh -c` / `cmd /S /C`.
+///
+/// Windows 는 **명령줄을 손으로** 만든다(`raw_arg`). std 의 인자 인용은 MSVCRT
+/// 규칙(`\"`)이라 `cmd` 가 읽지 못한다 — `code "C:\a b\x.rs"` 가
+/// `"code \"C:\a b\x.rs\""` 로 넘어가 인용이 통째로 깨졌다. `/S` 는 바깥
+/// 따옴표 한 쌍만 벗기고 안쪽은 그대로 두라는 뜻이다 — 안쪽 경로 인용
+/// (`cmd_quote`)이 살아 `&`·`|` 가 경로 밖으로 새지 않는다.
+fn shell_command(command: &str) -> std::process::Command {
     #[cfg(target_os = "windows")]
     {
-        crate::proc::std_cmd("cmd")
-            .arg("/C")
-            .arg(command)
-            .spawn()
-            .map(|_| ())
+        use std::os::windows::process::CommandExt;
+        let mut cmd = crate::proc::std_cmd("cmd");
+        cmd.raw_arg(format!("/S /C \"{command}\""));
+        cmd
     }
     #[cfg(not(target_os = "windows"))]
     {
-        crate::proc::std_cmd("sh")
-            .arg("-c")
-            .arg(command)
-            .spawn()
-            .map(|_| ())
+        let mut cmd = crate::proc::std_cmd("sh");
+        cmd.arg("-c").arg(command);
+        cmd
     }
 }
 
@@ -444,5 +460,59 @@ mod quoting {
     #[test]
     fn cmd_quoting_keeps_percent_signs() {
         assert_eq!(cmd_quote(r"C:\a\100%.md"), "\"C:\\a\\100%.md\"");
+    }
+}
+
+/// 편집기 명령이 **이 OS 의 셸을 실제로 지나** 경로가 한 덩어리로 도착하는가.
+/// 인용 규칙(`quoting`)이 옳아도 셸에 넘기는 방식이 틀리면 소용없다 — Windows 는
+/// std 의 인자 인용이 cmd 와 달라 인용이 통째로 깨졌었다.
+#[cfg(test)]
+mod shell {
+    use super::*;
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn cmd_receives_the_quoted_path_as_one_token() {
+        // `&` 는 cmd 의 명령 구분자다 — 인용이 새면 `calc` 가 명령으로 떨어진다.
+        // (ASCII 만 — cmd 의 echo 는 콘솔 코드페이지로 찍는다.)
+        let path = r"C:\work dir\a&calc\file.rs";
+        let command = substitute_path("echo %path", path, None);
+        let out = shell_command(&command).output().expect("cmd 실행");
+        assert!(out.status.success(), "{out:?}");
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        assert_eq!(stdout.trim_end(), format!("\"{path}\""), "{stdout}");
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn sh_receives_the_quoted_path_as_one_token() {
+        let path = "/tmp/work dir/a;$(id)/`x`/파일.rs";
+        let command = substitute_path("printf %s %path", path, None);
+        let out = shell_command(&command).output().expect("sh 실행");
+        assert!(out.status.success(), "{out:?}");
+        assert_eq!(String::from_utf8_lossy(&out.stdout), path);
+    }
+
+    /// 재발 가드 — Windows 에서 URL·경로를 `cmd /c start` 로 여는 자리가 다시
+    /// 생기면 안 된다 (따옴표 밖의 `&` 가 명령으로 실행된다). ShellExecute 로 여는
+    /// 창구는 `open_native::shell_open` 하나다.
+    #[test]
+    fn nothing_opens_urls_through_cmd_start() {
+        for (name, src) in [
+            ("external_editor.rs", include_str!("external_editor.rs")),
+            ("open_native.rs", include_str!("open_native.rs")),
+            ("notion.rs", include_str!("notion.rs")),
+        ] {
+            let code: String = src
+                .lines()
+                .filter(|l| !l.trim_start().starts_with("//"))
+                .collect::<Vec<_>>()
+                .join("\n")
+                .to_ascii_lowercase();
+            assert!(
+                !code.contains("\"start\","),
+                "{name} 이 `cmd start` 로 연다 — open_native::shell_open 을 쓸 것"
+            );
+        }
     }
 }

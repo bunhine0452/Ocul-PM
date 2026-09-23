@@ -185,5 +185,27 @@ pub(super) fn delete_to_trash(full: &Path) -> Result<(), String> {
     if full.symlink_metadata().is_err() {
         return Err("That path no longer exists".to_string());
     }
-    trash::delete(full).map_err(|e| format!("Failed to move to the Trash: {e}"))
+    move_to_trash(full).map_err(|e| format!("Failed to move to the Trash: {e}"))
+}
+
+#[cfg(not(windows))]
+fn move_to_trash(full: &Path) -> Result<(), String> {
+    trash::delete(full).map_err(|e| e.to_string())
+}
+
+/// Windows 휴지통은 셸의 COM(`IFileOperation`)이다. `trash` 는 부르는 스레드를
+/// STA 로 초기화하는데, 그 스레드가 **이미 MTA 로** 초기화돼 있으면
+/// `CoInitializeEx` 가 `RPC_E_CHANGED_MODE` 로 실패하고 `trash` 는 **패닉**한다.
+/// 커맨드가 도는 tokio blocking 풀 스레드는 다른 작업이 재사용한다 — 거기에
+/// 누가 COM 을 어떻게 남겼는지 알 수 없다. 그래서 새 스레드에서 돌린다: COM
+/// 상태가 늘 깨끗하고, 스레드가 끝날 때 `trash` 의 thread_local 이 COM 을 푼다.
+#[cfg(windows)]
+fn move_to_trash(full: &Path) -> Result<(), String> {
+    let path = full.to_path_buf();
+    std::thread::Builder::new()
+        .name("oculpm-trash".into())
+        .spawn(move || trash::delete(&path).map_err(|e| e.to_string()))
+        .map_err(|e| e.to_string())?
+        .join()
+        .map_err(|_| "the Recycle Bin call panicked".to_string())?
 }

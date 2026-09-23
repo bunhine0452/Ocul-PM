@@ -17,11 +17,16 @@ use std::path::PathBuf;
 pub enum Resolve {
     /// PATH 에서 이름으로 (LSP 와 같은 길).
     Path { command: &'static str },
-    /// Xcode 툴체인 — `xcrun -f <name>` 가 절대경로를 알려 준다.
+    /// PATH 에서 **먼저 찾히는** 이름 — 같은 어댑터가 판마다 이름이 다르다
+    /// (LLVM 18 이 `lldb-vscode` 를 `lldb-dap` 으로 바꿨고, 배포판은 `-18` 같은
+    /// 판 번호를 붙여 깐다).
+    FirstOnPath { commands: &'static [&'static str] },
+    /// Xcode 툴체인 — `xcrun -f <name>` 가 절대경로를 알려 준다 (macOS).
     Xcrun { name: &'static str },
-    /// 인터프리터의 모듈 — `python3 -m debugpy.adapter`.
+    /// 인터프리터의 모듈 — `python3 -m debugpy.adapter`. 인터프리터 이름은
+    /// 앞에서부터 먼저 찾히는 것.
     Module {
-        runner: &'static str,
+        runners: &'static [&'static str],
         module: &'static str,
     },
     /// 하위 명령 — `dlv dap`.
@@ -43,24 +48,65 @@ pub struct AdapterSpec {
     pub install_hint: &'static str,
 }
 
+// Rust 는 전용 어댑터가 없다 — LLVM 의 lldb-dap 이 표준 경로다 (codelldb 는
+// VS Code 확장 안에만 있어 조달이 불투명하다). macOS 는 Xcode 툴체인 안에 있고,
+// 다른 OS 는 LLVM 설치가 PATH 에 둔다 (크로스플랫폼 W2 `#os-tools`).
+#[cfg(target_os = "macos")]
+const RUST_RESOLVE: Resolve = Resolve::Xcrun { name: "lldb-dap" };
+#[cfg(not(target_os = "macos"))]
+const RUST_RESOLVE: Resolve = Resolve::FirstOnPath {
+    commands: LLDB_DAP_NAMES,
+};
+/// 비-mac 의 lldb-dap 이름들 — 판 번호 없는 것 먼저, 그다음 배포판의 판 번호
+/// 붙은 이름(새 판부터). `lldb-vscode` 는 LLVM 17 까지의 이름이다.
+#[cfg_attr(target_os = "macos", allow(dead_code))]
+pub const LLDB_DAP_NAMES: &[&str] = &[
+    "lldb-dap",
+    "lldb-vscode",
+    "lldb-dap-20",
+    "lldb-dap-19",
+    "lldb-dap-18",
+    "lldb-vscode-17",
+    "lldb-vscode-16",
+    "lldb-vscode-15",
+    "lldb-vscode-14",
+];
+#[cfg(target_os = "macos")]
+// macOS 문구는 예전 그대로 (D3 — 화면 문자열도 macOS 는 불변).
+const RUST_INSTALL_HINT: &str = "xcode-select --install (macOS) · apt install lldb (Linux)";
+#[cfg(all(unix, not(target_os = "macos")))]
+const RUST_INSTALL_HINT: &str = "apt install lldb-18 (lldb-dap) — 또는 PATH 에 lldb-dap";
+#[cfg(windows)]
+const RUST_INSTALL_HINT: &str =
+    "winget install LLVM.LLVM (lldb-dap.exe 가 PATH 나 Program Files\\LLVM\\bin 에 있어야 합니다)";
+
+// Windows 의 `python3` 는 흔히 **Microsoft Store 별칭**이다 — 파이썬이 없으면
+// 스토어 창을 띄운다. 설치본이 두는 런처(`py`)와 `python` 을 본다.
+#[cfg(not(windows))]
+const PYTHON_RUNNERS: &[&str] = &["python3"];
+#[cfg(windows)]
+const PYTHON_RUNNERS: &[&str] = &["py", "python"];
+#[cfg(not(windows))]
+const PYTHON_INSTALL_HINT: &str = "python3 -m pip install debugpy";
+#[cfg(windows)]
+const PYTHON_INSTALL_HINT: &str = "py -m pip install debugpy";
+
 /// 지원 어댑터. 설치 여부는 여기서 따지지 않는다 — [`resolve_adapter`] 가 답한다.
 pub const ADAPTERS: &[AdapterSpec] = &[
     AdapterSpec {
         language_id: "rust",
         adapter_id: "lldb",
-        // Rust 는 전용 어댑터가 없다 — LLVM 의 lldb-dap 이 표준 경로다
-        // (codelldb 는 VS Code 확장 안에만 있어 조달이 불투명하다).
-        resolve: Resolve::Xcrun { name: "lldb-dap" },
-        install_hint: "xcode-select --install (macOS) · apt install lldb (Linux)",
+        resolve: RUST_RESOLVE,
+        install_hint: RUST_INSTALL_HINT,
     },
     AdapterSpec {
         language_id: "python",
         adapter_id: "debugpy",
         resolve: Resolve::Module {
-            runner: "python3",
+            runners: PYTHON_RUNNERS,
             module: "debugpy.adapter",
         },
-        install_hint: "python3 -m pip install debugpy",
+        install_hint: PYTHON_INSTALL_HINT,
     },
     AdapterSpec {
         language_id: "go",
@@ -105,21 +151,28 @@ pub struct AdapterCommand {
 pub async fn resolve_adapter(spec: &AdapterSpec) -> Option<AdapterCommand> {
     match spec.resolve {
         Resolve::Path { command } => {
-            let (program, _) = crate::acp::env::resolve_binary(command).await?;
+            let program = find_program(command).await?;
+            Some(AdapterCommand {
+                program,
+                args: Vec::new(),
+            })
+        }
+        Resolve::FirstOnPath { commands } => {
+            let program = first_program(commands).await?;
             Some(AdapterCommand {
                 program,
                 args: Vec::new(),
             })
         }
         Resolve::Subcommand { command, sub } => {
-            let (program, _) = crate::acp::env::resolve_binary(command).await?;
+            let program = find_program(command).await?;
             Some(AdapterCommand {
                 program,
                 args: vec![sub.to_string()],
             })
         }
-        Resolve::Module { runner, module } => {
-            let (program, _) = crate::acp::env::resolve_binary(runner).await?;
+        Resolve::Module { runners, module } => {
+            let program = first_program(runners).await?;
             // 모듈이 실제로 있는지는 여기서 확인하지 않는다 — 띄워 보면
             // 즉시 죽고, 그 죽음이 설치 안내로 이어진다 (확인 한 번을 더
             // 돌리면 파이썬 기동 비용만 두 배가 된다).
@@ -133,6 +186,46 @@ pub async fn resolve_adapter(spec: &AdapterSpec) -> Option<AdapterCommand> {
             args: Vec::new(),
         }),
     }
+}
+
+/// 이름 하나를 PATH(프로세스 → 로그인 셸)에서 찾아 **절대경로**로.
+///
+/// 절대경로여야 하는 이유: 어댑터는 자식 PATH 를 바꿔(`.env("PATH", …)`) 띄우는데
+/// `proc` 창구의 PATHEXT 해석은 **부모** PATH 를 본다 — 맨 이름을 넘기면 Windows
+/// 에서 엉뚱한 자리를 뒤진다. Windows 는 `<이름>.exe` 를 먼저 본다: PATH 에는
+/// 확장자 없는 셸 스크립트(Git Bash·npm 이 까는 것)가 같은 이름으로 있을 수 있고,
+/// 그것은 CreateProcess 로 띄울 수 없다.
+async fn find_program(name: &str) -> Option<PathBuf> {
+    #[cfg(windows)]
+    if let Some((program, _)) = crate::acp::env::resolve_binary(&format!("{name}.exe")).await {
+        return Some(program);
+    }
+    crate::acp::env::resolve_binary(name)
+        .await
+        .map(|(program, _)| program)
+}
+
+/// 여러 이름 중 먼저 찾히는 것. Windows 는 PATH 에 없을 때 LLVM 설치 관리자의
+/// 기본 자리(`%ProgramFiles%\LLVM\bin`)도 본다 — 설치 관리자가 PATH 추가를
+/// 묻고, 기본값이 "추가 안 함" 이다.
+async fn first_program(names: &[&str]) -> Option<PathBuf> {
+    for name in names {
+        if let Some(program) = find_program(name).await {
+            return Some(program);
+        }
+    }
+    #[cfg(windows)]
+    if let Some(bin) =
+        std::env::var_os("ProgramFiles").map(|pf| PathBuf::from(pf).join("LLVM").join("bin"))
+    {
+        for name in names {
+            let candidate = bin.join(format!("{name}.exe"));
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
 }
 
 /// `xcrun -f <name>` — Xcode 툴체인 안의 절대경로. 툴체인이 없으면 실패한다.
@@ -196,12 +289,72 @@ mod tests {
         let spec = adapter_by_id("rust").unwrap();
         match resolve_adapter(spec).await {
             Some(cmd) => {
-                // PATH 가 아니라 툴체인 절대경로로 나와야 한다.
+                // 맨 이름이 아니라 절대경로로 나와야 한다 (자식 PATH 를 바꿔 띄운다).
                 assert!(cmd.program.is_absolute(), "{cmd:?}");
-                assert!(cmd.program.ends_with("lldb-dap"), "{cmd:?}");
+                let stem = cmd.program.file_stem().unwrap().to_string_lossy();
+                if cfg!(target_os = "macos") {
+                    assert!(cmd.program.ends_with("lldb-dap"), "{cmd:?}");
+                } else {
+                    assert!(LLDB_DAP_NAMES.contains(&stem.as_ref()), "{cmd:?}");
+                }
+                if cfg!(windows) {
+                    assert_eq!(cmd.program.extension().unwrap(), "exe", "{cmd:?}");
+                }
                 assert!(cmd.args.is_empty());
             }
             None => eprintln!("lldb-dap 없음 — 건너뜀"),
+        }
+    }
+
+    /// 비-mac 은 xcrun 이 없다 — 러스트 어댑터는 PATH 에서 lldb-dap 계열을 찾는다.
+    /// macOS 는 여전히 Xcode 툴체인이다 (동작 불변).
+    #[test]
+    fn rust_adapter_procurement_follows_the_os() {
+        let spec = adapter_by_id("rust").unwrap();
+        if cfg!(target_os = "macos") {
+            assert_eq!(spec.resolve, Resolve::Xcrun { name: "lldb-dap" });
+        } else {
+            assert_eq!(
+                spec.resolve,
+                Resolve::FirstOnPath {
+                    commands: LLDB_DAP_NAMES
+                }
+            );
+            assert_eq!(LLDB_DAP_NAMES[0], "lldb-dap", "새 이름이 먼저다");
+            assert!(
+                !spec.install_hint.contains("xcode"),
+                "{}",
+                spec.install_hint
+            );
+        }
+    }
+
+    /// Windows 에서 `python3` 를 부르면 파이썬이 없을 때 스토어 창이 뜬다.
+    #[test]
+    fn python_runner_avoids_the_windows_store_alias() {
+        let Resolve::Module { runners, module } = adapter_by_id("python").unwrap().resolve else {
+            panic!("python 은 모듈 어댑터다");
+        };
+        assert_eq!(module, "debugpy.adapter");
+        if cfg!(windows) {
+            assert_eq!(runners, &["py", "python"]);
+        } else {
+            assert_eq!(runners, &["python3"]);
+        }
+    }
+
+    /// PATH 에서 찾은 것은 절대경로다 — 러너마다 있는 `cargo` 로 확인한다
+    /// (Windows 는 `cargo.exe` 로 나와야 한다).
+    #[tokio::test]
+    async fn find_program_returns_an_absolute_path_with_the_platform_extension() {
+        let Some(cargo) = find_program("cargo").await else {
+            eprintln!("cargo 가 PATH 에 없음 — 건너뜀");
+            return;
+        };
+        assert!(cargo.is_absolute(), "{cargo:?}");
+        assert_eq!(cargo.file_stem().unwrap(), "cargo");
+        if cfg!(windows) {
+            assert_eq!(cargo.extension().unwrap(), "exe", "{cargo:?}");
         }
     }
 }

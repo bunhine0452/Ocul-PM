@@ -624,8 +624,6 @@ mod tests {
     }
 
     /// 심볼릭 링크로 프로젝트를 빠져나가는 경로 — `code_read` 와 같은 계약.
-    // PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
-    #[cfg(unix)]
     #[test]
     fn resolve_rejects_symlinks_pointing_outside() {
         let tmp = TempDir::new().unwrap();
@@ -634,7 +632,9 @@ mod tests {
         std::fs::write(outside.join("secret.rs"), "// secret").unwrap();
         let root = tmp.path().join("project");
         std::fs::create_dir_all(&root).unwrap();
-        std::os::unix::fs::symlink(outside.join("secret.rs"), root.join("link.rs")).unwrap();
+        if !crate::test_links::file(&outside.join("secret.rs"), &root.join("link.rs")) {
+            return;
+        }
 
         assert!(
             resolve_in_root(&root, "link.rs").is_err(),

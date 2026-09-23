@@ -53,7 +53,6 @@ fn import_dedupes_instead_of_overwriting() {
 
 /// 폴더는 재귀로, 심볼릭 링크는 빼고. 링크를 따라가면 프로젝트 밖 내용이
 /// 사본으로 들어온다 (트리·검색과 같은 정책).
-// PORT-TEST(L-FS): 심링크 건너뛰기(밖 내용 복사 방지) — 링크 부분만 unix — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
 #[test]
 fn import_copies_folders_and_skips_symlinks() {
     let tmp = TempDir::new().unwrap();
@@ -62,12 +61,17 @@ fn import_copies_folders_and_skips_symlinks() {
     write(outside.path(), "pack/a.txt", b"A");
     write(outside.path(), "pack/deep/b.txt", b"B");
     write(outside.path(), "secret.txt", b"S");
-    #[cfg(unix)]
-    std::os::unix::fs::symlink(
-        outside.path().join("secret.txt"),
-        outside.path().join("pack/link.txt"),
-    )
-    .unwrap();
+    write(outside.path(), "vault/key.txt", b"K");
+    // 파일 링크와 폴더 링크(Windows 는 정션일 수 있다) 둘 다 — 어느 쪽도 따라가지 않는다.
+    if !crate::test_links::file(
+        &outside.path().join("secret.txt"),
+        &outside.path().join("pack/link.txt"),
+    ) || !crate::test_links::dir(
+        &outside.path().join("vault"),
+        &outside.path().join("pack/linkdir"),
+    ) {
+        return;
+    }
 
     let src = outside.path().join("pack").to_string_lossy().to_string();
     let out = import_into(root, root, &[src]).unwrap();
@@ -81,6 +85,10 @@ fn import_copies_folders_and_skips_symlinks() {
     assert!(
         !root.join("pack/link.txt").exists(),
         "심볼릭 링크는 복사하지 않는다"
+    );
+    assert!(
+        fs::symlink_metadata(root.join("pack/linkdir")).is_err(),
+        "폴더 링크도 복사하지 않는다"
     );
 }
 
@@ -212,29 +220,29 @@ fn canonical_allows_regular_file_in_root() {
     assert!(p.ends_with("a.txt"));
 }
 
-// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
-#[cfg(unix)]
 #[test]
 fn canonical_rejects_symlink_escaping_root() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("proj");
     fs::create_dir_all(&root).unwrap();
     fs::write(tmp.path().join("secret.txt"), b"top secret").unwrap();
-    std::os::unix::fs::symlink(tmp.path().join("secret.txt"), root.join("leak.txt")).unwrap();
+    if !crate::test_links::file(&tmp.path().join("secret.txt"), &root.join("leak.txt")) {
+        return;
+    }
 
     let err = canonical_within_root(&root, &root.join("leak.txt")).unwrap_err();
     assert!(err.contains("escapes"), "{err}");
 }
 
-// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
-#[cfg(unix)]
 #[test]
 fn canonical_resolves_symlink_within_root() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("proj");
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("real.txt"), b"x").unwrap();
-    std::os::unix::fs::symlink(root.join("real.txt"), root.join("alias.txt")).unwrap();
+    if !crate::test_links::file(&root.join("real.txt"), &root.join("alias.txt")) {
+        return;
+    }
 
     // 루트 안 심링크는 허용 — 대상 경로로 해석돼 저장해도 링크가 안 깨진다.
     let p = canonical_within_root(&root, &root.join("alias.txt")).unwrap();
@@ -353,6 +361,57 @@ fn delete_reports_missing_path() {
     assert!(err.contains("no longer exists"), "{err}");
 }
 
+/// Windows 러너에서만 — **실제 휴지통**으로 간다. 커맨드가 도는 자리(tokio
+/// blocking 풀)에서, 그리고 그 스레드가 이미 COM 을 MTA 로 초기화해 둔 최악의
+/// 경우에도(`trash` 는 거기서 패닉했다) 파일·폴더가 휴지통에 들어가는지 본다.
+/// 넣은 것은 끝에 비운다.
+#[cfg(windows)]
+#[tokio::test(flavor = "multi_thread")]
+async fn delete_reaches_the_recycle_bin_from_a_blocking_worker() {
+    use windows_sys::Win32::System::Com::{CoInitializeEx, COINIT_MULTITHREADED};
+
+    let tmp = TempDir::new().unwrap();
+    let tag = uuid::Uuid::new_v4().simple().to_string();
+    let file = tmp.path().join(format!("oculpm-trash-{tag}.txt"));
+    let dir = tmp.path().join(format!("oculpm-trash-{tag}-dir"));
+    fs::write(&file, b"x").unwrap();
+    write(&dir, "inner.txt", b"y");
+
+    let f = file.clone();
+    tokio::task::spawn_blocking(move || delete_to_trash(&f))
+        .await
+        .unwrap()
+        .expect("풀 스레드에서 휴지통으로");
+    let d = dir.clone();
+    tokio::task::spawn_blocking(move || {
+        // SAFETY: 이 풀 스레드를 MTA 로 만든다 — 다른 라이브러리가 남긴 상태의 흉내.
+        unsafe { CoInitializeEx(std::ptr::null(), COINIT_MULTITHREADED as u32) };
+        delete_to_trash(&d)
+    })
+    .await
+    .unwrap()
+    .expect("MTA 로 초기화된 스레드에서도 휴지통으로");
+    assert!(!file.exists() && !dir.exists(), "원래 자리에서 사라졌다");
+
+    let ours: Vec<_> = trash::os_limited::list()
+        .expect("휴지통 목록")
+        .into_iter()
+        .filter(|item| item.name.to_string_lossy().contains(&tag))
+        .collect();
+    assert_eq!(ours.len(), 2, "휴지통에 둘 다 있어야 한다: {ours:?}");
+    trash::os_limited::purge_all(ours).expect("넣은 것 비우기");
+}
+
+/// Linux 는 복사한 파일을 클립보드에서 읽지 못한다 — 빈 목록("복사한 파일
+/// 없음")이 아니라 **이유를 말하는 오류**여야 한다 (D4).
+#[cfg(all(not(target_os = "macos"), not(windows)))]
+#[tokio::test]
+async fn clipboard_paste_says_it_is_unavailable_on_linux() {
+    let err = code_clipboard_files().await.unwrap_err();
+    assert_eq!(err, super::import::LINUX_CLIPBOARD_UNSUPPORTED);
+    assert!(err.contains("drag"), "대안을 알려야 한다: {err}");
+}
+
 #[test]
 fn resolve_for_mutation_accepts_paths_that_do_not_exist_yet() {
     let tmp = TempDir::new().unwrap();
@@ -363,15 +422,15 @@ fn resolve_for_mutation_accepts_paths_that_do_not_exist_yet() {
     assert_eq!(out, canon_root.join("brand/new/file.ts"));
 }
 
-// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
-#[cfg(unix)]
 #[test]
 fn resolve_for_mutation_rejects_escape_through_symlinked_parent() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("proj");
     fs::create_dir_all(&root).unwrap();
     fs::create_dir_all(tmp.path().join("outside")).unwrap();
-    std::os::unix::fs::symlink(tmp.path().join("outside"), root.join("link")).unwrap();
+    if !crate::test_links::dir(&tmp.path().join("outside"), &root.join("link")) {
+        return;
+    }
 
     let err = resolve_for_mutation(&root, &root.join("link/planted.txt")).unwrap_err();
     assert!(err.contains("escapes"), "{err}");
@@ -379,15 +438,15 @@ fn resolve_for_mutation_rejects_escape_through_symlinked_parent() {
 
 /// 대상이 심링크면 **링크 자체**를 다뤄야 한다. 경로 전체를 canonical 로
 /// 풀면 "루트 안의 링크를 지운다" 가 "루트 밖의 원본을 지운다" 가 된다.
-// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
-#[cfg(unix)]
 #[test]
 fn resolve_for_mutation_keeps_the_link_itself() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("proj");
     fs::create_dir_all(&root).unwrap();
     fs::write(tmp.path().join("secret.txt"), b"top secret").unwrap();
-    std::os::unix::fs::symlink(tmp.path().join("secret.txt"), root.join("leak.txt")).unwrap();
+    if !crate::test_links::file(&tmp.path().join("secret.txt"), &root.join("leak.txt")) {
+        return;
+    }
 
     let out = resolve_for_mutation(&root, &root.join("leak.txt")).unwrap();
     assert!(out.ends_with("leak.txt"), "{out:?}");
@@ -396,15 +455,15 @@ fn resolve_for_mutation_keeps_the_link_itself() {
 
 /// 깨진 심링크는 `exists()` 로 보면 "없음" 이라, 그 자리에 파일을 만들면
 /// 커널이 링크를 따라가 **루트 밖에** 쓴다. symlink_metadata 로 막는다.
-// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
-#[cfg(unix)]
 #[test]
 fn create_refuses_to_write_through_a_dangling_symlink() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("proj");
     fs::create_dir_all(&root).unwrap();
     let outside = tmp.path().join("outside.txt");
-    std::os::unix::fs::symlink(&outside, root.join("bait.txt")).unwrap();
+    if !crate::test_links::file(&outside, &root.join("bait.txt")) {
+        return;
+    }
     assert!(
         !root.join("bait.txt").exists(),
         "깨진 링크 — exists() 는 false"

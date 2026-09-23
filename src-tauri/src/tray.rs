@@ -28,9 +28,12 @@ use serde::{Deserialize, Serialize};
 use tauri::image::Image;
 use tauri::menu::{MenuBuilder, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{
-    AppHandle, Listener, LogicalPosition, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
-};
+use tauri::{AppHandle, Listener, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+
+// 비-mac 팝오버 자리 (작업 표시줄이 아래일 수 있다) — 순수 함수와 그 테스트.
+mod placement;
+#[cfg(not(target_os = "macos"))]
+use placement::place_near_tray;
 
 pub const TRAY_WINDOW: &str = "tray";
 const TRAY_ID: &str = "oculpm-tray";
@@ -156,6 +159,15 @@ fn sample_alpha(fx: f32, fy: f32, attention: bool) -> f32 {
     a
 }
 
+/// 글리프 색. macOS 는 템플릿 이미지(검정+알파)라 시스템이 메뉴바 색에 맞춰
+/// 다시 칠한다. **다른 OS 에는 템플릿이 없다** — 검정 그대로 Windows 11 의 어두운
+/// 작업 표시줄·GNOME 상단 바에 얹히면 아이콘이 사라진다. 그래서 밝은 바탕에도
+/// 어두운 바탕에도 읽히는 앱의 초록(`--ok`, #12a06b)으로 칠한다.
+#[cfg(target_os = "macos")]
+const GLYPH_RGB: [u8; 3] = [0, 0, 0];
+#[cfg(not(target_os = "macos"))]
+const GLYPH_RGB: [u8; 3] = [0x12, 0xa0, 0x6b];
+
 /// 아이콘을 그린다. 2×2 슈퍼샘플링 — 22pt 크기에서 호 가장자리가 또렷하게.
 /// 상태는 `attention` 하나뿐이다 (회전 애니메이션 제거 후).
 fn render_icon(attention: bool) -> Image<'static> {
@@ -168,9 +180,9 @@ fn render_icon(attention: bool) -> Image<'static> {
                 acc += sample_alpha(x as f32 + ox, y as f32 + oy, attention);
             }
             let px = (y * s + x) * 4;
-            buf[px] = 0;
-            buf[px + 1] = 0;
-            buf[px + 2] = 0;
+            buf[px] = GLYPH_RGB[0];
+            buf[px + 1] = GLYPH_RGB[1];
+            buf[px + 2] = GLYPH_RGB[2];
             buf[px + 3] = ((acc / 4.0).clamp(0.0, 1.0) * 255.0) as u8;
         }
     }
@@ -394,7 +406,11 @@ fn create_popover(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     .visible(false)
     // 라운드 코너는 CSS 가 그린다 — 창은 투명 캔버스(macOSPrivateApi)이고
     // 시스템 그림자는 사각 프레임을 다시 드러내므로 끈다.
-    .transparent(true)
+    //
+    // 비-mac 은 **불투명**이다. Linux 는 컴포지터가 없으면 투명 영역이 검게
+    // 칠해지고, 러너로는 그 차이를 볼 수 없다 — 어느 기계에서도 같은 모양이 나는
+    // 쪽을 고른다 (카드 둘레 12px 여백은 프런트가 비-mac 에서 걷는다, L-UI).
+    .transparent(cfg!(target_os = "macos"))
     .shadow(false)
     .build()?;
     let w = win.clone();
@@ -429,19 +445,24 @@ fn toggle_popover(app: &AppHandle, state: &Arc<TrayState>, click: tauri::Physica
         let _ = win.hide();
         return;
     }
-    // 배치: 클릭 x 를 중심으로 메뉴바 바로 아래. 실측 로그 (PR-MB0 스파이크).
-    let scale = win.scale_factor().unwrap_or(2.0);
-    tracing::debug!(target: "tray", ?click, scale, "tray click position");
-    let mut x = click.x / scale - POPOVER_W / 2.0;
-    // 메뉴바(~25pt) 아래에서 시작 — 시스템이 메뉴바 위 배치를 거부할 수
-    // 있으므로 겹치지 않게. 창 상단 12px 는 투명 여백이라 카드의 시각적
-    // 간격은 메뉴바로부터 ~17px.
-    let y = 30.0;
-    if let Ok(Some(monitor)) = win.primary_monitor() {
-        let mw = monitor.size().width as f64 / monitor.scale_factor();
-        x = x.clamp(8.0, (mw - POPOVER_W - 8.0).max(8.0));
+    #[cfg(target_os = "macos")]
+    {
+        // 배치: 클릭 x 를 중심으로 메뉴바 바로 아래. 실측 로그 (PR-MB0 스파이크).
+        let scale = win.scale_factor().unwrap_or(2.0);
+        tracing::debug!(target: "tray", ?click, scale, "tray click position");
+        let mut x = click.x / scale - POPOVER_W / 2.0;
+        // 메뉴바(~25pt) 아래에서 시작 — 시스템이 메뉴바 위 배치를 거부할 수
+        // 있으므로 겹치지 않게. 창 상단 12px 는 투명 여백이라 카드의 시각적
+        // 간격은 메뉴바로부터 ~17px.
+        let y = 30.0;
+        if let Ok(Some(monitor)) = win.primary_monitor() {
+            let mw = monitor.size().width as f64 / monitor.scale_factor();
+            x = x.clamp(8.0, (mw - POPOVER_W - 8.0).max(8.0));
+        }
+        let _ = win.set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
     }
-    let _ = win.set_position(tauri::Position::Logical(LogicalPosition { x, y }));
+    #[cfg(not(target_os = "macos"))]
+    place_near_tray(&win, click);
     let _ = win.show();
     let _ = win.set_focus();
     // 프런트 재조회 트리거 — 열릴 때만 데이터를 당긴다 (폴링 없음).
@@ -512,7 +533,9 @@ pub fn handle_last_window_closed(app: &AppHandle, label: &str) -> bool {
 /// 오른쪽 클릭 메뉴 — 붙이고, 띄우고, 뗀다. `show_menu` 는 메뉴 추적이 끝날
 /// 때까지 돌아오지 않으므로(중첩 이벤트 루프) 돌아온 순간 떼면 다음 왼쪽
 /// 클릭은 다시 우리 손에 온다. 트레이 이벤트 핸들러는 메인 스레드에서 돌아
-/// 세 호출 모두 제자리에서 실행된다.
+/// 세 호출 모두 제자리에서 실행된다. (macOS 27 우회 — 다른 OS 는 메뉴를 늘
+/// 붙여 두고 OS 기본 동작에 맡긴다, [`init`] 참고.)
+#[cfg(target_os = "macos")]
 fn show_context_menu(tray: &tauri::tray::TrayIcon, menu: &tauri::menu::Menu<tauri::Wry>) {
     if let Err(e) = tray.set_menu(Some(menu.clone())) {
         tracing::warn!(target: "tray", error = %e, "트레이 메뉴 부착 실패");
@@ -550,11 +573,19 @@ pub fn init(app: &tauri::App) -> tauri::Result<()> {
     // 뷰에는 아무 이벤트도 오지 않는다 — 아이콘을 눌러도 팝오버 대신 "열기/종료"
     // 메뉴가 뜨던 회귀(2026-09-17). 상류 수정은 tray-icon 0.25.1 (#365) 에만 있고
     // Tauri 2.11 은 ^0.24 에 묶여 있어 같은 수법을 앱 쪽에서 재현한다.
-    TrayIconBuilder::with_id(TRAY_ID)
+    //
+    // **그 우회는 macOS 에만 쓴다.** Windows 는 메뉴를 늘 붙여 둬야 오른쪽 클릭에
+    // OS 가 제 자리·제 시점(버튼을 뗄 때)에 띄운다. Linux(appindicator)는 클릭
+    // 이벤트를 아예 주지 않는다 — 붙여 둔 메뉴가 유일한 입구라, 안 붙이면 아이콘을
+    // 눌러도 아무 일도 안 일어난다.
+    let builder = TrayIconBuilder::with_id(TRAY_ID)
         .icon(render_icon(false))
         .icon_as_template(true)
         .tooltip("Ocul-PM")
-        .show_menu_on_left_click(false)
+        .show_menu_on_left_click(false);
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder.menu(&menu);
+    builder
         .on_menu_event(|app, event| match event.id().as_ref() {
             "tray-open" => show_main(app),
             "tray-quit" => app.exit(0),
@@ -569,6 +600,7 @@ pub fn init(app: &tauri::App) -> tauri::Result<()> {
                     position,
                     ..
                 } => toggle_popover(tray.app_handle(), &state, position),
+                #[cfg(target_os = "macos")]
                 TrayIconEvent::Click {
                     button: MouseButton::Right,
                     button_state: MouseButtonState::Down,
@@ -681,63 +713,4 @@ pub async fn notify_agent_attention(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn frames_are_template_black_with_alpha() {
-        {
-            for attention in [false, true] {
-                let img = render_icon(attention);
-                let rgba = img.rgba();
-                assert_eq!(rgba.len(), (SIZE * SIZE * 4) as usize);
-                let mut any_alpha = false;
-                let (pixels, _) = rgba.as_chunks::<4>();
-                for px in pixels {
-                    assert_eq!((px[0], px[1], px[2]), (0, 0, 0), "템플릿은 검정만");
-                    if px[3] > 0 {
-                        any_alpha = true;
-                    }
-                }
-                assert!(any_alpha, "빈 아이콘 방지");
-            }
-        }
-    }
-
-    #[test]
-    fn attention_dot_changes_top_right_region() {
-        let plain = render_icon(false);
-        let attn = render_icon(true);
-        assert_ne!(plain.rgba(), attn.rgba(), "주의 점이 실제로 그려져야 함");
-    }
-
-    #[test]
-    fn project_id_parses_from_active_key() {
-        // 세션 id 에도 '-' 와 숫자가 섞이지만 project_id 는 첫 ':' 앞 전부.
-        assert_eq!(project_id_of("7:20260730-001"), Some(7));
-        assert_eq!(project_id_of("12:20260730-042"), Some(12));
-        assert_eq!(project_id_of("nope:20260730-001"), None);
-        assert_eq!(project_id_of(""), None);
-    }
-
-    /// R1 — 창 하나를 닫았다고 작업 중인 다른 창이 죽으면 안 된다.
-    #[test]
-    fn exits_only_when_no_window_remains() {
-        // 남은 창이 없으면 옛 계약 그대로: 닫기 = 종료.
-        assert!(should_exit_on_last_window_close(0, false));
-        // 상주 설정 ON — 종료하지 않고 숨긴다 (기존 동작).
-        assert!(!should_exit_on_last_window_close(0, true));
-        // R1 — 창이 남아 있으면 무슨 일이 있어도 종료하지 않는다.
-        assert!(!should_exit_on_last_window_close(3, false));
-        assert!(!should_exit_on_last_window_close(3, true));
-        assert!(!should_exit_on_last_window_close(1, false));
-    }
-
-    /// 회전 애니메이션 제거 회귀 방지 — 아이콘은 **입력이 같으면 언제나 같다**.
-    /// 위상 인자가 다시 생기면 이 테스트가 컴파일부터 깨진다.
-    #[test]
-    fn icon_is_deterministic_and_static() {
-        assert_eq!(render_icon(false).rgba(), render_icon(false).rgba());
-        assert_eq!(render_icon(true).rgba(), render_icon(true).rgba());
-    }
-}
+mod tests;

@@ -58,13 +58,13 @@ fn project_init_converges_half_initialized_state() {
         .contains("oculpm"));
 }
 
-// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
-#[cfg(unix)]
 #[test]
 fn project_init_rejects_symlinked_oculpm() {
     let tmp = TempDir::new().unwrap();
     let outside = TempDir::new().unwrap();
-    std::os::unix::fs::symlink(outside.path(), tmp.path().join(".oculpm")).unwrap();
+    if !crate::test_links::dir(outside.path(), &tmp.path().join(".oculpm")) {
+        return;
+    }
     let err = call_tool(tmp.path(), "project_init", &json!({"confirm": true})).unwrap_err();
     assert!(err.contains("symlink"));
 }
@@ -99,13 +99,13 @@ fn tools_refuse_untracked_project_and_create_nothing() {
 
 /// A0b — `.oculpm` 이 심볼릭 링크면 가드가 거부하고 링크 대상에 아무것도
 /// 쓰지 않는다 (악의적 저장소의 프로젝트 밖 쓰기 탈출 차단).
-// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
-#[cfg(unix)]
 #[test]
 fn tools_refuse_symlinked_oculpm() {
     let dir = TempDir::new().unwrap();
     let target = TempDir::new().unwrap();
-    std::os::unix::fs::symlink(target.path(), dir.path().join(".oculpm")).unwrap();
+    if !crate::test_links::dir(target.path(), &dir.path().join(".oculpm")) {
+        return;
+    }
 
     let args = serde_json::json!({
         "type": "chore", "slug": "x", "title": "t", "body_markdown": "b"

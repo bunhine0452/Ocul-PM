@@ -5,13 +5,16 @@
 //! 테스트로 데인 적이 있다. 그래서 여기서도 문자열이 아니라 **행위**를 잰다:
 //! 진짜 훅을 실행하고, 진짜 원장 파일을 만들고, 진짜 리더로 읽는다.
 //!
-//! 유닉스 전용 — 훅이 `/bin/sh` 이고 git 이 필요하다.
-#![cfg(unix)]
+//! 훅은 macOS·Linux 에서 `/bin/sh`, Windows 에서 Git Bash 로 돈다 — Claude Code 가
+//! Windows 에서 훅을 도는 셸이다 (`hook_sh`). git 이 필요하다.
 // 테스트 픽스처의 git·셸·자식 프로세스 — 앱이 띄우는 프로세스가 아니라 proc.rs
 // 창구 규칙(clippy.toml disallowed-methods) 밖이다.
 #![allow(clippy::disallowed_methods)]
 
 use std::path::{Path, PathBuf};
+
+// macOS·Linux 는 `/bin/sh`, Windows 는 Git Bash — 셋이 공유한다.
+mod hook_sh;
 use std::process::{Command, Output, Stdio};
 
 use ocul_pm_lib::oculpm::claude_hooks::journal_missing_signals;
@@ -25,7 +28,7 @@ fn repo_root() -> PathBuf {
 
 fn run_hook(name: &str, root: &Path, payload: &str) -> Output {
     use std::io::Write;
-    let mut child = Command::new("/bin/sh")
+    let mut child = Command::new(hook_sh::sh())
         .arg(repo_root().join("plugin/oculpm/hooks").join(name))
         .env("CLAUDE_PROJECT_DIR", root)
         .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"))
@@ -176,7 +179,7 @@ fn without_the_verdict_binary_the_hooks_stay_silent() {
         ),
         ("session-end.sh", end_payload("c4")),
     ] {
-        let mut child = Command::new("/bin/sh")
+        let mut child = Command::new(hook_sh::sh())
             .arg(repo_root().join("plugin/oculpm/hooks").join(hook))
             .env("CLAUDE_PROJECT_DIR", dir.path())
             .env("CLAUDE_PLUGIN_ROOT", empty_plugin.path())
@@ -232,9 +235,9 @@ fn the_hooks_find_the_project_without_a_claude_project_dir() {
 
     let payload = format!(
         r#"{{"session_id":"codex-1","transcript_path":"/tmp/rollout.jsonl","cwd":"{}","hook_event_name":"SessionEnd","model":"gpt-5.6-terra","permission_mode":"default"}}"#,
-        root.display()
+        hook_sh::json_path(root)
     );
-    let mut child = Command::new("/bin/sh")
+    let mut child = Command::new(hook_sh::sh())
         .arg(repo_root().join("plugin/oculpm/hooks/session-end.sh"))
         .current_dir(elsewhere.path())
         .env_remove("CLAUDE_PROJECT_DIR")

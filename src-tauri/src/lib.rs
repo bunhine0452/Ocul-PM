@@ -51,6 +51,9 @@ pub mod text;
 pub mod themes;
 mod tray;
 pub mod vscode_ext;
+// 테스트 전용 링크 도우미 — 경로 탈출 가드 테스트가 Windows 에서도 돈다 (크로스플랫폼 W2).
+#[cfg(test)]
+mod test_links;
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -1078,8 +1081,16 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         // 제일 먼저 — 두 번째 인스턴스는 여기서 끝나고, 첫 인스턴스는 창을 앞으로.
-        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             crate::tray::show_main(app);
+            // Windows·Linux 의 딥링크는 **두 번째 인스턴스의 인자**로 온다 — 그
+            // 프로세스는 여기서 끝나므로 첫 인스턴스가 건진다 (macOS 는 Apple Event).
+            #[cfg(not(target_os = "macos"))]
+            for url in crate::deeplink::links_in_argv(&argv) {
+                crate::deeplink::dispatch(app, &url);
+            }
+            #[cfg(target_os = "macos")]
+            let _ = argv;
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -1185,6 +1196,28 @@ pub fn run() {
                         crate::deeplink::dispatch(&handle, url.as_str());
                     }
                 });
+                // Windows·Linux 에서 링크로 **처음** 뜬 경우 — 링크가 이 프로세스의
+                // 인자다. 플러그인은 그것을 이 리스너가 붙기 전(플러그인 초기화)에
+                // 흘려보내므로 여기서 다시 건진다.
+                #[cfg(not(target_os = "macos"))]
+                {
+                    let argv: Vec<String> = std::env::args().collect();
+                    for url in crate::deeplink::links_in_argv(&argv) {
+                        crate::deeplink::dispatch(app.handle(), &url);
+                    }
+                }
+                // AppImage 는 설치 관리자가 없어 스킴을 등록해 줄 이가 없다 — 앱이
+                // `~/.local/share/applications` 에 처리기를 적는다 (deb 는 패키지가 한다).
+                // `xdg-mime` 등을 기다리므로 기동 경로 밖에서.
+                #[cfg(target_os = "linux")]
+                if app.env().appimage.is_some() {
+                    let handle = app.handle().clone();
+                    std::thread::spawn(move || {
+                        if let Err(e) = handle.deep_link().register_all() {
+                            tracing::warn!(error = %e, "AppImage 딥링크 스킴 등록 실패");
+                        }
+                    });
+                }
             }
 
             // 업데이트로 우리가 끊은 재시작이라면 그때 열려 있던 창·탭을

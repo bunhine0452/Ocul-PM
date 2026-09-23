@@ -10,9 +10,21 @@
 //! ⚠️ 직접 구성하면 **표준 항목이 자동으로 붙지 않는다.** 특히 편집 메뉴
 //! (실행 취소·잘라내기·복사·붙여넣기·전체 선택)가 빠지면 웹뷰 안 텍스트
 //! 입력에서 `⌘C`/`⌘V` 가 통째로 죽는다. 아래 Edit 서브메뉴는 장식이 아니다.
+//!
+//! ## Windows·Linux 에는 메뉴를 달지 않는다 (`#os-no-menu`)
+//!
+//! 이 메뉴가 푸는 문제(메뉴 액셀러레이터가 웹뷰보다 먼저 키를 먹는다)는 macOS 의
+//! 것이다. 다른 OS 에 같은 메뉴를 달면 오히려 문제를 **만든다**: Linux(GTK)는 창
+//! 액셀러레이터가 웹뷰보다 먼저 받아 터미널의 `Ctrl+W` 가 페인을 닫고 `Ctrl+C` 가
+//! SIGINT 대신 복사가 된다. Windows(WebView2)는 반대로 웹뷰 포커스 중에는
+//! 액셀러레이터가 안 들린다. 그래서 비-mac 은 메뉴 없이 — 탭 키(`Ctrl+T`/`Ctrl+W`)는
+//! 프런트가 keydown 으로 받고(`useWindowTabKeys`), 편집 키는 웹뷰 기본이 처리한다.
+//! 메뉴 트리를 만드는 코드는 macOS 에서만 불린다 — 비-mac 빌드의 dead_code 허용은
+//! 그 때문이다.
+#![cfg_attr(not(target_os = "macos"), allow(dead_code))]
 
 use tauri::menu::{Menu, MenuBuilder, MenuItemBuilder, Submenu, SubmenuBuilder};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Runtime};
 
 pub const NEW_TAB: &str = "menu:new-tab";
 pub const NEW_WINDOW: &str = "menu:new-window";
@@ -108,10 +120,7 @@ fn labels(lang: &str) -> &'static Labels {
 /// 메뉴 트리를 만든다. 반환값에 **창 서브메뉴가 함께 오는 이유**는 macOS 가
 /// 그것을 따로 지정받아야 "이동 및 크기 조절"(창 분할 단축키)을 넣어 주기
 /// 때문이다 — `apply` 를 쓰면 그 단계까지 자동이다.
-pub fn build(
-    app: &AppHandle,
-    lang: &str,
-) -> tauri::Result<(Menu<tauri::Wry>, Submenu<tauri::Wry>)> {
+pub fn build<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<(Menu<R>, Submenu<R>)> {
     let l = labels(lang);
 
     // ① 앱 메뉴 — macOS 는 첫 서브메뉴를 앱 이름으로 대체한다.
@@ -182,21 +191,28 @@ pub fn build(
 ///
 /// 언어를 바꾸면 서브메뉴를 새로 만들므로 지정도 매번 다시 해야 한다. 그래서
 /// 빌드와 지정을 한 함수로 묶는다 — 호출처가 하나를 빼먹을 수 없게.
-pub fn apply(app: &AppHandle, lang: &str) -> tauri::Result<()> {
-    let (menu, window_menu) = build(app, lang)?;
-    app.set_menu(menu)?;
-    // 메인 메뉴에 붙인 **뒤에** 지정한다 — 순서가 뒤바뀌면 AppKit 이 아직
-    // 메뉴바에 없는 NSMenu 를 창 메뉴로 잡는다.
+///
+/// **macOS 에서만 메뉴를 붙인다.** 비-mac 은 아무것도 하지 않는다 — 모듈 머리의
+/// 「Windows·Linux 에는 메뉴를 달지 않는다」 참고. 호출처(기동·언어 변경)는 OS 를
+/// 가르지 않고 이 함수를 부르면 된다.
+pub fn apply<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<()> {
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (app, lang);
+        Ok(())
+    }
     #[cfg(target_os = "macos")]
     {
+        let (menu, window_menu) = build(app, lang)?;
+        app.set_menu(menu)?;
+        // 메인 메뉴에 붙인 **뒤에** 지정한다 — 순서가 뒤바뀌면 AppKit 이 아직
+        // 메뉴바에 없는 NSMenu 를 창 메뉴로 잡는다.
         // 지정 실패가 앱을 못 뜨게 할 이유는 없다 — 단축키 하나를 잃을 뿐이다.
         if let Err(e) = window_menu.set_as_windows_menu_for_nsapp() {
             tracing::warn!(target: "menu", error = %e, "창 메뉴 지정 실패 — ⌃⌥ 창 분할이 안 먹을 수 있다");
         }
+        Ok(())
     }
-    #[cfg(not(target_os = "macos"))]
-    let _ = window_menu;
-    Ok(())
 }
 
 /// 메뉴 이벤트 → 탭 커맨드. 메뉴에는 대상 창이 실려 오지 않으므로 여기서
@@ -345,6 +361,23 @@ mod tests {
                  (창 메뉴 지정이 빠지면 ⌃⌥ 창 분할 단축키가 죽습니다)"
             );
         }
+    }
+
+    /// `#os-no-menu` — Windows·Linux 에서는 기동 때도, 언어를 바꿀 때도 앱
+    /// 메뉴가 붙지 않는다. 붙으면 GTK 가 터미널의 `Ctrl+W`·`Ctrl+C` 를 웹뷰보다
+    /// 먼저 먹는다. (macOS 는 메뉴 생성이 메인 스레드 전용이라 여기서 만들 수
+    /// 없다 — 그쪽은 소스 가드 `set_menu_is_reached_only_through_apply` 가 문다.)
+    #[cfg(not(target_os = "macos"))]
+    #[test]
+    fn no_app_menu_is_attached_off_macos() {
+        let app = tauri::test::mock_app();
+        for lang in ["ko", "en", "system"] {
+            apply(app.handle(), lang).expect("비-mac 의 apply 는 실패하지 않는다");
+        }
+        assert!(
+            app.handle().menu().is_none(),
+            "비-mac 에 앱 메뉴가 붙었다 — 터미널 키를 GTK 액셀러레이터가 가로챈다"
+        );
     }
 
     #[test]

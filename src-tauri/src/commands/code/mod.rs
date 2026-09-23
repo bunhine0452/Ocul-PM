@@ -13,6 +13,9 @@
 //! 이름 바꾸기·휴지통) · `compare`(HEAD·일지 원본) · `search`(전역 검색·치환)
 //! · `guards`(경로 가드). 공개 경로는 여기서 다시 내보내 그대로다.
 
+// Windows 탐색기 "복사" 의 파일 목록 (`CF_HDROP`) — macOS 판은 `import` 안에 있다.
+#[cfg(windows)]
+mod clipboard_windows;
 mod compare;
 mod guards;
 mod import;

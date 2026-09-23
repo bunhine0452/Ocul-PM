@@ -91,13 +91,27 @@ pub fn find_root(spec: &ServerSpec, file: &Path, project_root: &Path) -> Option<
 }
 
 /// `file://` URI. LSP 는 경로가 아니라 URI 로 말한다.
+///
+/// Windows 는 경로 모양이 다르다 — `C:\a\b.rs` 는 `file:///C:/a/b.rs`, UNC
+/// `\\srv\share\a.rs` 는 `file://srv/share/a.rs` 여야 서버가 읽는다
+/// ([`windows_uri_path`]). 예전엔 구분자 `\` 까지 퍼센트 인코딩돼
+/// `file://C%3A%5Ca…` 가 나갔고, 언어 서버는 그 파일을 몰랐다.
 pub fn path_to_uri(path: &Path) -> String {
+    let raw = path.to_string_lossy();
+    #[cfg(windows)]
+    let raw = windows_uri_path(&raw);
     let mut out = String::from("file://");
-    for (i, seg) in path.to_string_lossy().split('/').enumerate() {
+    for (i, seg) in raw.split('/').enumerate() {
         if i > 0 {
             out.push('/');
         }
-        out.push_str(&encode_uri_segment(seg));
+        // 드라이브 문자(`C:`)의 콜론은 그대로 둔다 — `C%3A` 는 URL 표준상 드라이브로
+        // 읽히지 않아 서버에 따라 경로를 잃는다.
+        if cfg!(windows) && i == 1 && is_drive(seg) {
+            out.push_str(seg);
+        } else {
+            out.push_str(&encode_uri_segment(seg));
+        }
     }
     out
 }
@@ -105,7 +119,58 @@ pub fn path_to_uri(path: &Path) -> String {
 /// URI → 경로. 서버가 정의 위치로 돌려주는 값을 되돌린다.
 pub fn uri_to_path(uri: &str) -> Option<PathBuf> {
     let rest = uri.strip_prefix("file://")?;
-    Some(PathBuf::from(percent_decode(rest)))
+    let decoded = percent_decode(rest);
+    #[cfg(windows)]
+    let decoded = windows_path_of_uri(&decoded);
+    Some(PathBuf::from(decoded))
+}
+
+/// `C:` · `c:` — 드라이브 문자 한 세그먼트.
+fn is_drive(seg: &str) -> bool {
+    let b = seg.as_bytes();
+    b.len() == 2 && b[0].is_ascii_alphabetic() && b[1] == b':'
+}
+
+/// Windows 경로 문자열 → URI 경로 부분(`/` 구분). 순수 함수라 어느 OS 에서든
+/// 테스트한다.
+///
+/// - `C:\a\b` → `/C:/a/b`
+/// - `\\?\C:\a` (canonicalize 가 붙이는 긴 경로 접두) → `/C:/a`
+/// - `\\srv\share\a`, `\\?\UNC\srv\share\a` → `//srv/share/a` (호스트 자리)
+#[cfg_attr(not(windows), allow(dead_code))]
+fn windows_uri_path(raw: &str) -> String {
+    let s = raw.replace('\\', "/");
+    let s = if let Some(rest) = s.strip_prefix("//?/UNC/") {
+        format!("//{rest}")
+    } else if let Some(rest) = s.strip_prefix("//?/") {
+        rest.to_string()
+    } else {
+        s
+    };
+    if s.starts_with("//") {
+        s
+    } else if is_drive(s.get(..2).unwrap_or_default()) {
+        format!("/{s}")
+    } else {
+        s
+    }
+}
+
+/// [`windows_uri_path`] 의 역 — 퍼센트 디코딩이 끝난 `file://` 뒤쪽 → Windows
+/// 경로. 서버가 `c%3A`·소문자 드라이브로 돌려줘도 같은 경로가 된다.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn windows_path_of_uri(decoded: &str) -> String {
+    let b = decoded.as_bytes();
+    if b.first() == Some(&b'/') && is_drive(decoded.get(1..3).unwrap_or_default()) {
+        let mut out = decoded[1..].replace('/', "\\");
+        out[..1].make_ascii_uppercase();
+        out
+    } else if !decoded.is_empty() && !decoded.starts_with('/') {
+        // `file://srv/share/a` — 호스트가 있는 URI 는 UNC 다.
+        format!("\\\\{}", decoded.replace('/', "\\"))
+    } else {
+        decoded.to_string()
+    }
 }
 
 /// 경로 세그먼트의 퍼센트 인코딩. 공백·`#`·`?` 가 든 경로가 실제로 있고,
@@ -252,6 +317,49 @@ mod tests {
                 "왕복 실패: {uri}"
             );
         }
+    }
+
+    /// Windows 경로 모양 — 순수 함수라 세 OS 러너 모두에서 돈다.
+    #[test]
+    fn windows_paths_become_standard_file_uris() {
+        assert_eq!(windows_uri_path(r"C:\Users\kim\a.rs"), "/C:/Users/kim/a.rs");
+        assert_eq!(windows_uri_path(r"\\?\C:\Users\kim"), "/C:/Users/kim");
+        assert_eq!(windows_uri_path(r"\\srv\share\a.rs"), "//srv/share/a.rs");
+        assert_eq!(
+            windows_uri_path(r"\\?\UNC\srv\share\a.rs"),
+            "//srv/share/a.rs"
+        );
+        // 되돌리기 — 서버가 소문자 드라이브·인코딩된 콜론으로 돌려줘도 같은 경로.
+        assert_eq!(
+            windows_path_of_uri("/C:/Users/kim/a.rs"),
+            r"C:\Users\kim\a.rs"
+        );
+        assert_eq!(
+            windows_path_of_uri(&percent_decode("/c%3A/Users/kim/a.rs")),
+            r"C:\Users\kim\a.rs"
+        );
+        assert_eq!(windows_path_of_uri("srv/share/a.rs"), r"\\srv\share\a.rs");
+        // 드라이브 없는 루트 경로는 그대로 (왕복 테스트의 유닉스 모양).
+        assert_eq!(windows_path_of_uri("/tmp/a.rs"), "/tmp/a.rs");
+    }
+
+    /// 이 OS 의 실제 임시 폴더 경로가 URI 를 거쳐 같은 경로로 돌아온다 — Windows
+    /// 러너에서는 `C:\…` 가, 다른 러너에서는 `/…` 가 지난다.
+    #[test]
+    fn a_real_temp_path_round_trips_on_this_os() {
+        let tmp = TempDir::new().unwrap();
+        let file = tmp.path().join("한글 폴더").join("a b.rs");
+        let uri = path_to_uri(&file);
+        assert!(uri.starts_with("file:///"), "{uri}");
+        assert!(!uri.contains('\\'), "구분자가 URI 에 새었다: {uri}");
+        assert!(!uri.contains("%5C"), "구분자가 인코딩됐다: {uri}");
+        if cfg!(windows) {
+            assert!(
+                uri.as_bytes()[9] == b':',
+                "드라이브 콜론이 그대로여야 한다: {uri}"
+            );
+        }
+        assert_eq!(uri_to_path(&uri).unwrap(), file);
     }
 
     #[test]
