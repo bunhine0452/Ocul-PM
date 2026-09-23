@@ -1,11 +1,11 @@
 //! PTY 호스트 통합 테스트 (#pty-host) — 이 기능의 존재 이유인 계약을 검증한다:
 //! **클라이언트(앱)가 끊겼다 다시 붙어도 세션·스크롤백·nonce 가 그대로다.**
 //!
-//! 실제 유닉스 소켓 + 실제 /bin/sh PTY 를 쓴다 — 모킹하면 "재접속" 이라는
-//! 대상 자체가 사라진다.
+//! 실제 전송 + 실제 셸을 쓴다 — 모킹하면 "재접속" 이라는 대상 자체가 사라진다.
+//! 유닉스는 도메인 소켓 + /bin/sh PTY, Windows 는 같은 자리의 네임드 파이프 +
+//! ConPTY 위의 cmd.exe 다(자리 규칙은 하나라 시나리오도 하나다).
 
-#![cfg(unix)]
-
+use std::path::Path;
 use std::time::Duration;
 
 use ocul_pm_lib::ptyhost::client::{connect_or_spawn, socket_candidates, PtyHostClient};
@@ -25,13 +25,51 @@ async fn connect(socket: &std::path::Path) -> (PtyHostClient, mpsc::UnboundedRec
     (client, rx)
 }
 
+/// 호스트를 띄우고 **접속이 될 때까지** 기다린다. 소켓 파일의 존재로 기다리지 않는
+/// 이유: Windows 의 자리는 파일이 아니라 파이프다 — 붙어 보는 것이 두 OS 에 같은 신호다.
+async fn serve_at(socket: &Path) {
+    let state = HostState::new(None);
+    let serve_socket = socket.to_path_buf();
+    tokio::spawn(async move {
+        let _ = serve(state, &serve_socket).await;
+    });
+    for _ in 0..500 {
+        if PtyHostClient::connect(socket, |_| {}).await.is_ok() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    panic!("호스트가 자리를 잡지 못했다: {}", socket.display());
+}
+
+#[cfg(unix)]
+fn test_shell() -> String {
+    "/bin/sh".to_string()
+}
+
+#[cfg(windows)]
+fn test_shell() -> String {
+    std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
+}
+
+/// 에코가 아니라 **실행 결과**만 만들 수 있는 출력 — (입력 줄, 기대 출력).
+#[cfg(unix)]
+fn computed_echo() -> (&'static str, &'static str) {
+    ("echo HELLO_$((40+2))\r", "HELLO_42")
+}
+
+#[cfg(windows)]
+fn computed_echo() -> (&'static str, &'static str) {
+    ("echo HELLO_%OS%\r", "HELLO_Windows_NT")
+}
+
 fn start_req(sid: &str, nonce: &str) -> Request {
     Request::Start {
         sid: sid.to_string(),
         cwd: String::new(),
         rows: 24,
         cols: 80,
-        shell: "/bin/sh".to_string(),
+        shell: test_shell(),
         env: vec![("TERM".to_string(), "dumb".to_string())],
         nonce: nonce.to_string(),
         shell_integration: false,
@@ -42,18 +80,7 @@ fn start_req(sid: &str, nonce: &str) -> Request {
 async fn session_survives_client_reconnect() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("host.sock");
-    let state = HostState::new(None);
-    let serve_socket = socket.clone();
-    tokio::spawn(async move {
-        let _ = serve(state, &serve_socket).await;
-    });
-    // bind 가 끝나기를 기다린다.
-    for _ in 0..100 {
-        if socket.exists() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
+    serve_at(&socket).await;
 
     // ── 첫 클라이언트: 세션을 만들고 출력을 확인한다 ─────────────────────
     let (client_a, mut events_a) = connect(&socket).await;
@@ -67,19 +94,20 @@ async fn session_survives_client_reconnect() {
     assert_eq!(nonce, "nonce-one");
 
     // 에코가 아니라 **실행 결과**만 나올 수 있는 문자열을 만든다.
+    let (line, expected) = computed_echo();
     client_a
         .request(Request::Write {
             sid: "p1-test".into(),
-            data: "echo HELLO_$((40+2))\r".into(),
+            data: line.into(),
         })
         .await
         .unwrap();
     let mut seen = String::new();
-    timeout(Duration::from_secs(15), async {
+    timeout(Duration::from_secs(30), async {
         while let Some(ev) = events_a.recv().await {
             if let Event::Data { text, .. } = ev {
                 seen.push_str(&text);
-                if seen.contains("HELLO_42") {
+                if seen.contains(expected) {
                     break;
                 }
             }
@@ -116,7 +144,7 @@ async fn session_survives_client_reconnect() {
         panic!("session must survive the reconnect, got {resp:?}")
     };
     assert!(
-        attach.text.contains("HELLO_42"),
+        attach.text.contains(expected),
         "scrollback must replay: {:?}",
         attach.text
     );
@@ -158,17 +186,7 @@ async fn session_survives_client_reconnect() {
 async fn kill_prefix_only_touches_that_window() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("host.sock");
-    let state = HostState::new(None);
-    let serve_socket = socket.clone();
-    tokio::spawn(async move {
-        let _ = serve(state, &serve_socket).await;
-    });
-    for _ in 0..100 {
-        if socket.exists() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
+    serve_at(&socket).await;
 
     let (client, _events) = connect(&socket).await;
     client.request(start_req("p1-aaa", "n1")).await.unwrap();
@@ -207,17 +225,7 @@ async fn the_app_adopts_a_host_left_at_an_old_address() {
     let (canonical, legacy) = (candidates[0].clone(), candidates[1].clone());
 
     // 업데이트 **전** 판이 띄운 호스트 — 옛 자리에 살아 세션을 쥐고 있다.
-    let state = HostState::new(None);
-    let serve_socket = legacy.clone();
-    tokio::spawn(async move {
-        let _ = serve(state, &serve_socket).await;
-    });
-    for _ in 0..100 {
-        if legacy.exists() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
+    serve_at(&legacy).await;
     let (old_client, _events) = connect(&legacy).await;
     old_client
         .request(start_req("p1-live", "n1"))
@@ -259,7 +267,9 @@ async fn no_host_anywhere_is_not_an_error() {
 
 /// 시체 소켓 파일이 정식 자리를 막고 있어도 옛 자리를 계속 두드린다 —
 /// 업데이트 직후가 정확히 이 모양이다 (v2.33 이 남긴 `ptyhost.sock` 시체 +
-/// v2.34 가 쥐고 있는 `ptyhost-v2.sock`).
+/// v2.34 가 쥐고 있는 `ptyhost-v2.sock`). Windows 에는 시체가 없다(파이프 이름은
+/// 마지막 인스턴스와 함께 사라진다) — 거기서는 "그 경로에 파일이 있어도 자리와
+/// 무관하다" 를 확인한다.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_stale_socket_file_does_not_hide_the_live_host() {
     let dir = tempfile::tempdir().unwrap();
@@ -267,17 +277,7 @@ async fn a_stale_socket_file_does_not_hide_the_live_host() {
     std::fs::write(&candidates[0], b"").unwrap(); // 시체
 
     let legacy = candidates[1].clone();
-    let state = HostState::new(None);
-    let serve_socket = legacy.clone();
-    tokio::spawn(async move {
-        let _ = serve(state, &serve_socket).await;
-    });
-    for _ in 0..100 {
-        if legacy.exists() {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
+    serve_at(&legacy).await;
 
     let found = connect_or_spawn(&candidates, false, |_| {})
         .await

@@ -5,25 +5,26 @@
 //! **소유하는 별도 프로세스**만이 답이다.
 //!
 //! 모양: 같은 실행파일이 `--pty-host <socket>` 플래그로 GUI 없이 뜬다
-//! (`main.rs` 가 분기). 앱은 Unix 도메인 소켓(`<app_data>/ptyhost-v{PROTO}.sock`
+//! (`main.rs` 가 분기). 앱은 Unix 도메인 소켓(`<app_data>/ptyhost.sock`
 //! — 디버그 빌드는 `-dev` 접미사, [`client::socket_name`])으로
 //! 붙어 세션을 부리고, 출력 이벤트를 받아 tauri 이벤트로 재방출한다. 앱이
 //! 재시작하면 소켓에 다시 붙어 attach — 프런트엔드는 원래부터 attach→(miss 면)
 //! start 흐름이라 **아무 변경 없이** 세션을 이어받는다.
 //!
+//! Windows 에는 파일에 사는 소켓이 없어 같은 자리를 **네임드 파이프**로 옮긴다
+//! ([`pipe`]). 자리 규칙(정식 자리·옛 자리·빌드 격리·프로토콜을 이름에 담지 않기)은
+//! OS 와 무관하게 [`client`] 가 소유하고, 그 경로를 사용자별 파이프 이름으로
+//! 바꾸는 한 겹만 다르다.
+//!
 //! 별도 바이너리가 아닌 같은 실행파일인 이유: `current_exe()` 는 언제나
 //! 존재한다 — dev 빌드·패키징·업데이트 직후 어디서든 경로 문제로 스폰이
 //! 실패할 일이 없다 (Chrome 헬퍼 프로세스 방식).
 
-/// 전송(Unix 도메인 소켓)이 없는 OS 에서 호스트 연결·기동·listen 이 돌려주는
-/// 에러 (크로스플랫폼 D4 — 조용히 빈 결과를 내지 않고 명시적으로 실패한다).
-// PORT-STUB(L-PTY): Windows 전송(네임드 파이프)이 들어오면 이 상수와 그 쓰임이 사라진다.
-#[cfg(not(unix))]
-pub const UNSUPPORTED_OS: &str = "이 OS 에서는 아직 터미널을 지원하지 않아요";
-
 pub mod client;
 pub mod env;
 pub mod host;
+#[cfg(windows)]
+pub mod pipe;
 pub mod protocol;
 pub mod scrollback;
 pub mod writer;

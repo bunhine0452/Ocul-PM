@@ -11,8 +11,13 @@
 //!
 //! 모킹하지 않는 이유는 `ptyhost_reattach.rs` 와 같다 — 여기서 검증하려는 것이
 //! 실제 tty 의 흐름 제어라, 가짜 sink 로 바꾸면 대상이 사라진다.
-
-#![cfg(unix)]
+//!
+//! **Windows 는 tty 를 막을 수 없다.** ConPTY 는 입력 파이프를 conhost 가 계속 읽어
+//! 콘솔 입력 버퍼에 쌓으므로 `stty raw` 같은 "읽지 않는 포그라운드" 가 마스터 쪽
+//! 쓰기를 세우지 못한다. 그래서 막힘 재현(`a_wedged_session_does_not_stall_the_others`)은
+//! 유닉스 전용이고, Windows 는 같은 자리를 둘로 나눠 지킨다: 큐 자체의 계약(아래 PTY
+//! 없는 테스트 셋 — 두 OS 에서 돈다)과, 읽지 않는 포그라운드에 큰 붙여넣기를 부어도
+//! 다른 세션이 멀쩡한지(`a_big_paste_into_a_busy_session_does_not_stall_the_others`).
 
 use std::time::{Duration, Instant};
 
@@ -32,8 +37,9 @@ async fn spawn_host(socket: &std::path::Path) {
     tokio::spawn(async move {
         let _ = serve(state, &serve_socket).await;
     });
-    for _ in 0..200 {
-        if socket.exists() {
+    // 소켓 파일이 아니라 접속으로 기다린다 — Windows 의 자리는 파이프다.
+    for _ in 0..500 {
+        if PtyHostClient::connect(socket, |_| {}).await.is_ok() {
             return;
         }
         tokio::time::sleep(Duration::from_millis(10)).await;
@@ -57,16 +63,38 @@ fn start_req(sid: &str) -> Request {
         cwd: String::new(),
         rows: 24,
         cols: 80,
-        shell: "/bin/sh".to_string(),
+        shell: test_shell(),
         env: vec![("TERM".to_string(), "dumb".to_string())],
         nonce: "n".to_string(),
         shell_integration: false,
     }
 }
 
+#[cfg(unix)]
+fn test_shell() -> String {
+    "/bin/sh".to_string()
+}
+
+#[cfg(windows)]
+fn test_shell() -> String {
+    std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string())
+}
+
+/// 에코가 아니라 **실행 결과**만 만들 수 있는 출력 — (입력 줄, 기대 출력).
+#[cfg(unix)]
+fn computed_echo(tag: &str) -> (String, String) {
+    (format!("echo {tag}_$((40+2))\n"), format!("{tag}_42"))
+}
+
+#[cfg(windows)]
+fn computed_echo(tag: &str) -> (String, String) {
+    (format!("echo {tag}_%OS%\r"), format!("{tag}_Windows_NT"))
+}
+
 /// 이 세션의 tty 를 **입력을 읽지 않는 raw 모드**로 만든다 — 마스터 쪽 쓰기가
 /// 실제로 막히는 유일한 상태다. 포그라운드가 셸에서 `sleep` 으로 넘어간 것을
 /// 보고서야 돌아온다 (`Foreground` 는 놀고 있는 셸에는 `None` 이다).
+#[cfg(unix)]
 async fn wedge_the_tty(client: &PtyHostClient, sid: &str) {
     let resp = client
         .request(Request::Write {
@@ -100,6 +128,7 @@ async fn wedge_the_tty(client: &PtyHostClient, sid: &str) {
 
 /// **이 라운드의 핵심 단언.** 한 세션이 막혀 있는 동안 다른 세션의 요청이
 /// 그대로 오간다.
+#[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_wedged_session_does_not_stall_the_others() {
     let dir = tempfile::tempdir().unwrap();
@@ -198,20 +227,21 @@ async fn queued_input_still_reaches_the_shell() {
     let (client, mut events) = connect(&socket).await;
 
     client.request(start_req("p1-echo")).await.unwrap();
+    let (line, expected) = computed_echo("QUEUED");
     client
         .request(Request::Write {
             sid: "p1-echo".into(),
-            data: "echo QUEUED_$((40+2))\n".into(),
+            data: line,
         })
         .await
         .unwrap();
 
     let mut seen = String::new();
-    tokio::time::timeout(Duration::from_secs(15), async {
+    tokio::time::timeout(Duration::from_secs(30), async {
         while let Some(ev) = events.recv().await {
             if let Event::Data { text, .. } = ev {
                 seen.push_str(&text);
-                if seen.contains("QUEUED_42") {
+                if seen.contains(&expected) {
                     return;
                 }
             }
@@ -219,6 +249,109 @@ async fn queued_input_still_reaches_the_shell() {
     })
     .await
     .expect("큐를 지난 입력이 셸에 닿지 않았다");
+
+    let _ = client.request(Request::KillExcept { keep: vec![] }).await;
+}
+
+/// Windows 판 — 읽지 않는 포그라운드(`ping`)에 큰 붙여넣기를 부어도 요청은 즉시 답하고
+/// **다른 세션**의 attach·입력·출력이 그대로 오간다. ConPTY 는 tty 를 막히게 두지 않으므로
+/// "큐가 찼다" 는 증거는 여기서 요구하지 않는다 — 찼는지는 로그로만 남긴다(파일 머리 참고).
+#[cfg(windows)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_big_paste_into_a_busy_session_does_not_stall_the_others() {
+    let dir = tempfile::tempdir().unwrap();
+    let socket = dir.path().join("host.sock");
+    spawn_host(&socket).await;
+    let (client, mut events) = connect(&socket).await;
+
+    client.request(start_req("p1-busy")).await.unwrap();
+    client.request(start_req("p2-live")).await.unwrap();
+    client
+        .request(Request::Write {
+            sid: "p1-busy".into(),
+            data: "ping -n 60 127.0.0.1\r".into(),
+        })
+        .await
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        let resp = client
+            .request(Request::Foreground {
+                sid: "p1-busy".into(),
+            })
+            .await
+            .expect("foreground 조회");
+        if let Response::Foreground { command: Some(cmd) } = resp {
+            if cmd.to_ascii_lowercase().contains("ping") {
+                break;
+            }
+        }
+        assert!(Instant::now() < deadline, "ping 이 포그라운드가 안 된다");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+
+    let paste = "x".repeat(1024 * 1024);
+    let started = Instant::now();
+    let resp = tokio::time::timeout(
+        FAST,
+        client.request(Request::Write {
+            sid: "p1-busy".into(),
+            data: paste,
+        }),
+    )
+    .await
+    .expect("바쁜 세션이라도 요청은 즉시 답해야 한다")
+    .expect("전송 실패");
+    assert!(matches!(resp, Response::Ok), "got {resp:?}");
+
+    let resp = tokio::time::timeout(
+        FAST,
+        client.request(Request::Attach {
+            sid: "p2-live".into(),
+        }),
+    )
+    .await
+    .expect("바쁜 세션이 다른 세션의 attach 를 막고 있다")
+    .expect("전송 실패");
+    assert!(
+        matches!(resp, Response::Attach { attach: Some(_) }),
+        "got {resp:?}"
+    );
+
+    let (line, expected) = computed_echo("LIVE");
+    let resp = tokio::time::timeout(
+        FAST,
+        client.request(Request::Write {
+            sid: "p2-live".into(),
+            data: line,
+        }),
+    )
+    .await
+    .expect("살아있는 세션의 쓰기가 막혔다")
+    .expect("전송 실패");
+    assert!(matches!(resp, Response::Ok), "got {resp:?}");
+    assert!(
+        started.elapsed() < Duration::from_secs(6),
+        "세 요청이 {}ms 걸렸다 — 어딘가에서 서로를 기다리고 있다",
+        started.elapsed().as_millis()
+    );
+
+    // 살아있는 세션의 **출력**까지 — 붙여넣기에 막힌 것이 없다는 끝단 증거.
+    let mut seen = String::new();
+    tokio::time::timeout(Duration::from_secs(30), async {
+        while let Some(ev) = events.recv().await {
+            if let Event::Data { sid, text, .. } = ev {
+                if sid == "p2-live" {
+                    seen.push_str(&text);
+                    if seen.contains(&expected) {
+                        return;
+                    }
+                }
+            }
+        }
+    })
+    .await
+    .expect("바쁜 세션 옆의 살아있는 세션이 출력을 못 낸다");
 
     let _ = client.request(Request::KillExcept { keep: vec![] }).await;
 }

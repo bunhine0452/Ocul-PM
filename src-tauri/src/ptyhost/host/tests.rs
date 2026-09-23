@@ -364,15 +364,16 @@ fn kill_except_protects_only_the_listed_prefixes() {
     assert!(!is_protected("p1-abc", &[]));
 }
 
-/// `ps` 배관이 이 플랫폼에서 동작하는가.
-#[cfg(unix)]
+/// 명령줄 배관(유닉스 `ps` · Windows `NtQueryInformationProcess`)이 이 플랫폼에서
+/// 동작하는가. 테스트 실행 파일 자신의 명령줄에는 그 이름이 들어 있다.
 #[test]
 fn reads_own_command_line() {
-    let me = command_line_of(std::process::id() as i32);
-    assert!(me.is_some_and(|line| !line.trim().is_empty()));
+    let me = command_line_of(std::process::id() as i32).expect("자기 명령줄");
+    let exe = std::env::current_exe().unwrap();
+    let stem = exe.file_stem().unwrap().to_string_lossy();
+    assert!(me.contains(stem.as_ref()), "{me:?} 에 {stem:?} 가 없다");
 }
 
-#[cfg(unix)]
 #[test]
 fn unknown_pid_is_none() {
     assert!(command_line_of(i32::MAX).is_none());

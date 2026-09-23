@@ -2,8 +2,8 @@
 //!
 //! 같은 실행파일이 `--pty-host <socket>` 으로 뜨는 **GUI 없는 모드**다. PTY
 //! 세션·스크롤백·nonce 를 여기가 소유하므로, 앱이 업데이트로 재시작해도 셸
-//! (Claude Code 등)은 끊기지 않는다 — 앱은 Unix 소켓으로 다시 붙어 attach 만
-//! 하면 된다.
+//! (Claude Code 등)은 끊기지 않는다 — 앱은 Unix 소켓(Windows 는 네임드 파이프)으로
+//! 다시 붙어 attach 만 하면 된다.
 //!
 //! 원칙:
 //! - 세션 로직은 terminal.rs 에 있던 것을 **그대로 옮겼다** (SessionBuf ·
@@ -12,9 +12,8 @@
 //!   순서가 곧 계약이다.
 //! - 유휴(클라이언트 0 · 세션 0)가 이어지면 스스로 내린다 — 데몬을 영구
 //!   상주시키지 않는다 (필요할 때 앱이 다시 띄운다).
-
-// 전송 없는 OS 에서도 단위 테스트가 돌게 세션 기계를 남긴다. PORT-STUB(L-PTY): 전송이 오면 걷는다.
-#![cfg_attr(not(unix), allow(dead_code, unused_imports))]
+//! - OS 가 갈리는 것은 전송(`serve`)과 프로세스 다루기(종료·포그라운드)뿐이다 —
+//!   `unix.rs` · `windows.rs`. 세션 기계와 접속 처리는 여기서 하나다.
 
 use std::collections::HashMap;
 use std::io::Write as _;
@@ -23,9 +22,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use portable_pty::{MasterPty, NativePtySystem, PtySize, PtySystem};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-#[cfg(unix)]
-use tokio::net::{UnixListener, UnixStream};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::{broadcast, mpsc};
 
 use super::protocol::{ClientFrame, Event, HostFrame, Request, Response, APP_BUILD, PROTO_VERSION};
@@ -108,6 +105,9 @@ struct HostSession {
     buf: Arc<Mutex<SessionBuf>>,
     nonce: String,
     shell_integration: bool,
+    /// Windows: 셸과 그 자손 전체를 담은 Job — 종료는 이것을 끝낸다 (#pty-kill).
+    #[cfg(windows)]
+    job: Option<windows::Job>,
 }
 
 /// 셸 종료 유예 — SIGHUP 을 받은 셸이 자식에게 HUP 을 돌리고 내려올 시간.
@@ -118,7 +118,8 @@ const KILL_GRACE: std::time::Duration = std::time::Duration::from_millis(1500);
 /// 자식에게 가던 것은 writer drop 의 `\n`+^D 뿐이었다 — ^D 를 무시하는
 /// 포그라운드(vim·ssh·도구 호출 중인 claude)는 살아남았다. 이제:
 /// 포그라운드 프로세스 그룹과 셸에 SIGHUP → 유예 → SIGKILL → `wait` 로 회수.
-/// 블로킹이라 전용 스레드에서 돈다.
+/// 블로킹이라 전용 스레드에서 돈다. (Windows 판은 `windows.rs` — Job 종료.)
+#[cfg(unix)]
 fn terminate_session(state: Arc<HostState>, sid: String, session: HostSession) {
     use std::sync::atomic::Ordering as O;
     session.gone.store(true, O::SeqCst);
@@ -159,10 +160,16 @@ fn terminate_session(state: Arc<HostState>, sid: String, session: HostSession) {
 
 #[cfg(unix)]
 use libc::{SIGHUP as SIG_HANGUP, SIGKILL as SIG_KILL};
-#[cfg(not(unix))]
-mod unsupported;
-#[cfg(not(unix))]
-pub use unsupported::*;
+#[cfg(unix)]
+mod unix;
+#[cfg(unix)]
+pub use unix::serve;
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+pub use windows::serve;
+#[cfg(windows)]
+use windows::{command_line_of, process_group_leader_of, terminate_session};
 
 /// 포그라운드 프로세스 그룹(있으면) 과 셸 자체에 `sig` 를 보낸다. 셸은 세션
 /// 리더라 자기 그룹의 유일한 구성원인 경우가 많고, 포그라운드 작업은 잡 컨트롤로
@@ -348,6 +355,8 @@ fn start_session(
         .map_err(|e| format!("Failed to open PTY: {e}"))?;
 
     let mut cmd = super::env::shell_command(&shell);
+    #[cfg(windows)]
+    cmd.args(windows::utf8_console_args(&shell));
     for (k, v) in &env {
         cmd.env(k, v);
     }
@@ -359,6 +368,12 @@ fn start_session(
         .slave
         .spawn_command(cmd)
         .map_err(|e| format!("Failed to spawn shell: {e}"))?;
+    // Windows: 셸 트리를 Job 에 담고(#pty-kill), 셸이 스스로 끝나는 것을 따로 지켜본다.
+    #[cfg(windows)]
+    let (job, (exit_watch, reader_token)) = (
+        windows::contain(state, &sid, &*child),
+        windows::watch_exit(&*child),
+    );
     let reader = pair
         .master
         .try_clone_reader()
@@ -378,6 +393,8 @@ fn start_session(
         buf: buf.clone(),
         nonce: nonce.clone(),
         shell_integration,
+        #[cfg(windows)]
+        job,
     };
 
     {
@@ -396,7 +413,12 @@ fn start_session(
 
     // 읽기 루프 — blocking read 를 전용 스레드로.
     let st = state.clone();
+    #[cfg(windows)]
+    exit_watch.start(state.clone(), sid.clone(), gone.clone());
     tokio::task::spawn_blocking(move || {
+        // 이 스레드가 끝나면 놓인다 — 종료 감시가 남은 출력을 기다리는 신호.
+        #[cfg(windows)]
+        let _reader_token = reader_token;
         let mut reader = reader;
         let mut local_buf = [0u8; 8192];
         let mut pending: Vec<u8> = Vec::new();
@@ -637,10 +659,13 @@ fn command_line_of(pid: i32) -> Option<String> {
 }
 
 /// 접속 하나를 끝까지 상대한다 — 요청은 순서대로, 이벤트는 broadcast 구독으로.
-#[cfg(unix)]
-async fn serve_connection(state: Arc<HostState>, stream: UnixStream) {
+/// 전송(Unix 소켓·네임드 파이프)과 무관하게 읽기·쓰기 반쪽만 받는다.
+async fn serve_connection<R, W>(state: Arc<HostState>, mut read_half: R, mut write_half: W)
+where
+    R: AsyncRead + Unpin,
+    W: AsyncWrite + Unpin + Send + 'static,
+{
     state.clients.fetch_add(1, Ordering::SeqCst);
-    let (mut read_half, mut write_half) = stream.into_split();
 
     // 응답과 이벤트가 같은 소켓을 쓰므로 쓰기는 한 태스크로 직렬화한다.
     let (out_tx, mut out_rx) = mpsc::unbounded_channel::<Vec<u8>>();
@@ -715,34 +740,12 @@ async fn serve_connection(state: Arc<HostState>, stream: UnixStream) {
     state.clients.fetch_sub(1, Ordering::SeqCst);
 }
 
-/// 소켓을 점유하고 접속을 받는다 — 테스트가 임시 경로로 직접 부른다.
-///
-/// bind 경합: 이미 살아있는 호스트가 있으면 **조용히 물러난다** (먼저 뜬 쪽이
-/// 승자). 소켓 파일만 남은 시체(host 크래시)는 걷어내고 다시 bind 한다.
-#[cfg(unix)]
-pub async fn serve(state: Arc<HostState>, socket: &Path) -> Result<(), String> {
-    let listener = match UnixListener::bind(socket) {
-        Ok(l) => l,
-        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
-            if std::os::unix::net::UnixStream::connect(socket).is_ok() {
-                // 살아있는 호스트가 이미 있다 — 우리는 필요 없다.
-                return Ok(());
-            }
-            std::fs::remove_file(socket)
-                .map_err(|e| format!("failed to remove a stale socket: {e}"))?;
-            UnixListener::bind(socket).map_err(|e| format!("failed to bind: {e}"))?
-        }
-        Err(e) => return Err(format!("failed to bind: {e}")),
-    };
-    // 같은 사용자만 — 소켓으로 임의 셸을 띄울 수 있으므로 남에게 열지 않는다.
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(socket, std::fs::Permissions::from_mode(0o600));
-    }
+/// 자리를 잡은 직후의 공통 절차 — 전송(`unix.rs`·`windows.rs`의 `serve`)이 bind 에
+/// 성공하면 부른다: 점유한 자리를 기억하고, 로그를 남기고, 유휴·고아 감시를 띄운다.
+fn occupy(state: &Arc<HostState>, socket: &Path) {
     // 우리가 점유한 자리 — `Shutdown` 이 비켜 줄 때 이 경로를 지운다.
     *state.socket.lock().unwrap_or_else(|p| p.into_inner()) = Some(socket.to_path_buf());
-    log_line(&state, &format!("listening on {}", socket.display()));
+    log_line(state, &format!("listening on {}", socket.display()));
 
     // 유휴·고아 감시 — 빈 호스트는 두 틱, 세션을 쥔 채 버려진 호스트는
     // [`ORPHAN_TICKS`]. 세션을 쥔 호스트를 서둘러 내리는 길은 없다.
@@ -775,18 +778,6 @@ pub async fn serve(state: Arc<HostState>, socket: &Path) -> Result<(), String> {
             }
         }
     });
-
-    loop {
-        match listener.accept().await {
-            Ok((stream, _)) => {
-                tokio::spawn(serve_connection(state.clone(), stream));
-            }
-            Err(e) => {
-                log_line(&state, &format!("accept failed: {e}"));
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-            }
-        }
-    }
 }
 
 /// `--pty-host` 모드의 진입점 — main 이 GUI 대신 이것을 부른다.
