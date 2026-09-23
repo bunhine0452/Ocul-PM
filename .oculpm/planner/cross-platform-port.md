@@ -22,13 +22,13 @@ owner: claude-code
 - [x] windows·ubuntu 에서 cargo check --all-targets · clippy -D warnings 초록 — ptyhost 등은 명시적 에러 스텁(PORT-STUB, D4), cargo test 는 컴파일까지 + 실패 목록 레인 배정 {#w1-compile-green}
 
 ## W2 — 플랫폼 레인 6개 (병렬 세션, 파일 소유 분리) {#w2}
-- [ ] L-PTY 터미널 호스트 Windows {#l-pty}
-  - [ ] 전송 계층: Unix 소켓 ↔ 네임드 파이프(사용자별 이름·현재 사용자 전용 보안 기술자·옛 자리 이어받기) {#pty-transport}
-  - [ ] 호스트 분리 기동 DETACHED_PROCESS·CREATE_NO_WINDOW — 앱 종료·업데이트 뒤 생존 {#pty-detach}
-  - [ ] 세션 종료: SIGHUP/killpg → Job Object 로 프로세스 트리 종료 {#pty-kill}
-  - [ ] ConPTY 기본 셸 pwsh→powershell→COMSPEC, UTF-8 코드페이지(한글 출력), 리사이즈 {#pty-conpty}
-  - [ ] 호스트·포그라운드 판정의 ps 의존 제거 (Toolhelp32/sysinfo) {#pty-liveness}
-  - [ ] windows 러너 왕복 테스트: 열기→echo 한글-ok→단언→리사이즈→Kill 뒤 자식 0→재접속 {#pty-tests}
+- [x] L-PTY 터미널 호스트 Windows {#l-pty}
+  - [x] 전송 계층: Unix 소켓 ↔ 네임드 파이프(사용자별 이름·현재 사용자 전용 보안 기술자·옛 자리 이어받기) {#pty-transport}
+  - [x] 호스트 분리 기동 DETACHED_PROCESS·CREATE_NO_WINDOW — 앱 종료·업데이트 뒤 생존 {#pty-detach}
+  - [x] 세션 종료: SIGHUP/killpg → Job Object 로 프로세스 트리 종료 {#pty-kill}
+  - [x] ConPTY 기본 셸 pwsh→powershell→COMSPEC, UTF-8 코드페이지(한글 출력), 리사이즈 {#pty-conpty}
+  - [x] 호스트·포그라운드 판정의 ps 의존 제거 (Toolhelp32/sysinfo) {#pty-liveness}
+  - [x] windows 러너 왕복 테스트: 열기→echo 한글-ok→단언→리사이즈→Kill 뒤 자식 0→재접속 {#pty-tests}
 - [x] L-SHELL 셸 통합 · 심 {#l-shell}
   - [x] PowerShell OSC 133/7 스크립트 + $PROFILE 관리 블록 설치/제거 (nonce 규율 동일) {#shell-pwsh}
   - [x] SHELL 없을 때 기본값 /bin/zsh 의 macOS 전제 제거 (Linux=/bin/bash, Windows=pwsh) {#shell-linux}
@@ -78,6 +78,10 @@ owner: claude-code
 - [ ] 비-mac 새 창 키(Ctrl+Shift+N) — new_window 커맨드 + L-UI 바인딩, 앱 메뉴를 뗀 뒤 빈 자리 (L-OS 제안 diff 있음) {#os-new-window}
 - [ ] [사용자 결정] Windows 에서 Claude Code 플러그인의 MCP 서버가 안 뜬다 — Claude Code 는 stdio MCP 를 셸 없이 직접 실행하고 sh 셔틀은 실행 파일이 아니다(claude-code#58510), .mcp.json 은 OS 별로 못 가른다. 지금은 앱의 「MCP 등록」(절대경로 .exe) 안내. 대안 = Windows 전용 마켓플레이스 항목(「플러그인 1개」 원칙과 충돌) (L-INTEG 발견) {#integ-win-plugin-mcp}
 - [ ] Linux 세션 D-Bus 부재 시 single-instance 가 조용히 꺼져 앱이 두 번 뜰 수 있다 — 명시적 경고 또는 락 (L-OS 발견) {#os-single-instance-dbus}
+- [ ] PowerShell 세션의 네이티브 출력 인코딩 — 콘솔 코드 페이지(949/437)를 따른다. oculpm.ps1 의 OCULPM_TERM 가드 안에서 [Console]::InputEncoding/OutputEncoding 을 UTF-8 로 (L-PTY 제안) {#shell-pwsh-utf8}
+- [ ] Windows 분리 기동 호스트의 핸들 상속 — std spawn 은 bInheritHandles=TRUE 라 부모 파이프를 물 수 있다(dev·CI 에서만 실해). 근본은 CreateProcessW 직접 호출 (L-PTY 발견) {#pty-handle-inherit}
+- [ ] Windows 의 Job 종료가 셸에서 띄운 GUI 프로그램(예: 처음 띄운 `code .`)까지 함께 끝낸다 — macOS 와 다른 동작. GUI 서브시스템 자식은 breakaway 할지 결정 (L-PTY 발견) {#pty-job-gui-children}
+- [ ] [결정 필요] Windows 에서 CWD 가 프로젝트 루트인 오래 사는 자식(LSP 서버 lsp/client.rs · DAP · PTY 셸)이 도는 동안 사용자가 그 폴더를 옮기거나 지울 수 없다(ERROR_SHARING_VIOLATION 32). LSP 는 CWD 를 밖으로 옮길 여지가 있으나 서버의 설정 탐색이 바뀔 수 있다. PTY 셸은 모든 Windows 터미널의 공통 제약 (L-FS2 발견) {#os-child-cwd-lock}
 
 ## W3 — 패키징 · E2E (W2 합류 뒤, 병렬 2) {#w3}
 - [ ] tauri.windows.conf.json·tauri.linux.conf.json 분리 — tauri.conf.json(macOS) 불변 (D3) {#w3-conf}
@@ -86,7 +90,7 @@ owner: claude-code
 - [ ] 설치 스모크: NSIS /S 설치→실행→로그 기동 줄→제거 / deb 설치·AppImage 실행 {#w3-install-smoke}
 - [ ] WebView2 CDP Input.imeSetComposition 로 한글 조합 → 터미널 도착 단언 (D8) {#w3-ime-cdp}
 - [ ] 업데이터 N→N+1 스모크 (로컬 latest.json · 테스트 키) {#w3-updater-smoke}
-- [ ] Windows 업데이트 때 떠 있는 --pty-host 가 ocul-pm.exe 를 잡아 NSIS 가 못 덮는 경우 — 설치 스모크에 호스트 기동 상태를 포함 (L-SHELL 발견) {#w3-update-ptyhost-lock}
+- [ ] [결정 필요] Windows 업데이트 때 터미널 세션이 끊긴다 — Tauri NSIS 가 ocul-pm.exe 를 이름으로 끝내 같은 exe 로 도는 --pty-host 도 끝난다(macOS 는 업데이트를 건넌다). L-PTY 권고: 호스트를 설치 폴더 밖 판별 복사본(%APPDATA%\<id>\ptyhost\ocul-pm-ptyhost-<판>.exe)에서 — 대가 AppData 의 exe·판마다 수십 MB. NSIS 템플릿 실제 동작부터 확인 (L-SHELL·L-PTY 발견) {#w3-update-ptyhost-lock}
 
 ## W4 — 릴리스 파이프라인 (사용자 결정 포함) {#w4}
 - [ ] [사용자 결정] Windows 코드 서명 — Azure Trusted Signing(월 과금) vs 무서명 베타(SmartScreen 경고) {#w4-signing-decision}
@@ -98,19 +102,13 @@ owner: claude-code
 ## W5 — 베타 운영과 졸업 {#w5}
 - [ ] 플랫폼 버그 리포트 이슈 템플릿 + 진단 번들 내보내기(로그·버전·OS·WebView 버전) {#w5-report}
 - [ ] [사용자 액션] Windows·Linux 외부 테스터 모집 {#w5-testers}
-- [ ] CI 가 못 보는 것 원장 — Linux 실제 IME(fcitx/ibus)·Wayland 트레이·HiDPI 혼합·WebView2 버전 편차·WebKitGTK 의 navigator.platform 실제 값·Ctrl+Shift+V 클립보드 권한·Windows Ctrl+Shift+0 입력 언어 전환 충돌 (D8) {#w5-eyes}
+- [ ] CI 가 못 보는 것 원장 — Linux 실제 IME(fcitx/ibus)·Wayland 트레이·HiDPI 혼합·WebView2 버전 편차·WebKitGTK 의 navigator.platform 실제 값·Ctrl+Shift+V 클립보드 권한·Windows Ctrl+Shift+0 입력 언어 전환 충돌·Defender 실시간 보호가 켜진 PC 의 폴더 이동 막힘·감시 중 루트의 **상위 폴더는 이동 불가**(ReadDirectoryChangesW 본질, VS Code 동일 — 문서에 알림)·큰 프로젝트 첫 세션의 긴 막힘 (D8) {#w5-eyes}
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 2 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 8 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-23T23:09:25+09:00 | #ui-platform | claude-code | ☐→~ |  | L-UI 레인 조기 출발 — src/** 만 소유라 W1(src-tauri)과 겹치지 않음 (port/l-ui) |
-| 2026-09-23T23:34:46+09:00 | #w0-portability-ci | claude-code | ~→x | .oculpm/journal/20260923/Chores/2308_chore_cross-platform-plan-and-portability-ci.md | run 35871385421 세 잡 완주·아티팩트 확인. + .gitattributes(38c7dee3). main 합류는 W1 PR 과 함께 |
-| 2026-09-23T23:34:52+09:00 | #w0-inventory | claude-code | ☐→~ |  | 층 1 기록: win=trash coinit feature(의존성에서 멈춤), ubuntu=hidden_title 2+Stdio 경고, win 프런트 vitest 36(CRLF·\경로). 층 2 는 W1 push 뒤 |
-| 2026-09-24T00:18:23+09:00 | #ui-platform | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/0018_feature_port-frontend-platform-abstraction.md | platform.ts — platform 먼저·UA 다음·모르면 mac. 4곳 교체. PR #31 |
-| 2026-09-24T00:18:29+09:00 | #ui-shortcuts | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0018_feature_port-frontend-platform-abstraction.md | kbd.ts isModKey/readChord/yieldsToShell, 터미널 안 Ctrl+Shift 가족, AltGr 제외. mac 은 metaKey\|\|ctrlKey 유지(D3) |
-| 2026-09-24T00:18:34+09:00 | #ui-labels | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0018_feature_port-frontend-platform-abstraction.md | 사전은 맥 표기 정본 + t() 출구 변환, src 리터럴 0 AST 게이트. 맥 전용 문구는 #ui-mac-words 로 분리 |
 | 2026-09-24T00:18:40+09:00 | #ui-chrome | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0018_feature_port-frontend-platform-abstraction.md | 드래그 영역 mac 한정, data-platform 글꼴 폴백, 스크롤바 모서리. 실기기 셀 폭은 W3 스크린샷 |
 | 2026-09-24T00:18:45+09:00 | #ui-ime | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0018_feature_port-frontend-platform-abstraction.md | 브리지는 mac 만, 비-mac 은 xterm 기본 — Chromium 시퀀스로 onData "한글\r" 정확히 1회(win 러너). 실 IME 는 #w3-ime-cdp·#w5-eyes |
 | 2026-09-24T00:18:50+09:00 | #ui-tests | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0018_feature_port-frontend-platform-abstraction.md | 새 4파일 windows 러너 통과(run 35877998437) + PR #31 ci.yml lint 초록 |
@@ -145,5 +143,11 @@ owner: claude-code
 | 2026-09-24T04:27:42+09:00 | #shell-shim | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0427_feature_port-shell-integration-lshell.md | Windows oculpm.exe 인식·하드링크(같은 볼륨)·복사, .cmd 는 두지 않음, AppImage $APPIMAGE. 빌드된 앱 바이너리로 심 통합 테스트 |
 | 2026-09-24T04:27:48+09:00 | #shell-env | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0427_feature_port-shell-integration-lshell.md | split_paths + PATHEXT, Windows 로그인 셸 없음. resolve_binary(cargo)→절대경로 cargo.exe windows 확인 |
 | 2026-09-24T04:27:54+09:00 | #shell-tests | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0427_feature_port-shell-integration-lshell.md | 진짜 PTY 하네스(DSR 응답), windows pwsh/5.1 · ubuntu bash/pwsh 실행. 이 머지로 main windows test 완전 초록 |
-<!-- oculpm:plan-log archived: 2 rows → cross-platform-port.log.md -->
+| 2026-09-24T05:57:14+09:00 | #pty-transport | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | 네임드 파이프(사용자 SID DACL·High IL·first_pipe_instance·서버 SID 확인), 자리 규칙 공통. PR #37 |
+| 2026-09-24T05:57:19+09:00 | #pty-detach | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | NO_WINDOW\|DETACHED\|NEW_PROCESS_GROUP(OR). roundtrip 이 실제 앱 바이너리로 분리 기동·재접속. 업데이트 생존은 #w3-update-ptyhost-lock |
+| 2026-09-24T05:57:25+09:00 | #pty-kill | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | Job Object — 의사 콘솔 닫기 → 1.5s → TerminateJobObject. 새 콘솔 ping 까지 자식 0(windows) |
+| 2026-09-24T05:57:30+09:00 | #pty-conpty | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | 셸은 Start.shell 그대로, cmd 만 chcp 65001, ^C 무시 상속 결함을 SetConsoleCtrlHandler 로 복원. 한글 왕복·리사이즈 windows 초록 |
+| 2026-09-24T05:57:36+09:00 | #pty-liveness | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | 셸 종료 감시(Exit 한 번), 포그라운드 Toolhelp32+NtQueryInformationProcess, macOS 는 ps 그대로 |
+| 2026-09-24T05:57:45+09:00 | #pty-tests | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | reattach·backpressure cfg(unix) 해제 + ptyhost_roundtrip, 매달림 → 원인과 함께 실패(Drop 가드·DSR/DA·워치독). windows 1,956/0 |
+<!-- oculpm:plan-log archived: 8 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
