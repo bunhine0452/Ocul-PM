@@ -22,9 +22,21 @@
 //! iTerm2·Terminal.app·다른 앱의 셸에서 **아무 일도 하지 않는다**. 설치 실패의
 //! 최대 피해가 "통합이 안 켜짐" 으로 묶인다.
 //!
+//! PowerShell(Windows·Linux)도 같은 규율이다 — `$PROFILE.CurrentUserAllHosts` 에
+//! 같은 모양의 비활성 한 줄을 심고, 사용자 프로필을 대신 실행하지 않는다
+//! ([`powershell`] 모듈 문서). macOS 의 pwsh 는 예전처럼 "미지원" 이다(D3).
+//!
 //! 쓰기는 [`atomic_io::write_managed_block`] 을 쓰므로 멱등이고, 블록 밖 사용자
 //! 콘텐츠를 보존하며 [`uninstall`] 로 완전히 되돌릴 수 있다. `.gitignore` 관리
 //! 블록(`manager::init_project`)과 정확히 같은 기계장치다.
+
+mod default_shell;
+mod powershell;
+
+#[cfg(test)]
+mod live_tests;
+#[cfg(test)]
+mod tests;
 
 use std::path::{Path, PathBuf};
 
@@ -34,6 +46,8 @@ use crate::oculpm::atomic_io;
 use crate::oculpm::error::{OculpmError, OculpmResult};
 use crate::oculpm::spec::CommentStyle;
 
+pub use default_shell::{resolve_default_shell, HostOs, ShellFacts};
+
 /// 관리 블록 식별자 — `.gitignore`/`AGENTS.md` 와 같은 값을 쓴다.
 const BLOCK_ID: &str = "oculpm";
 
@@ -42,6 +56,7 @@ const SCRIPT_DIR: &str = "shell-integration";
 
 const ZSH_SCRIPT: &str = include_str!("templates/oculpm.zsh");
 const BASH_SCRIPT: &str = include_str!("templates/oculpm.bash");
+const PWSH_SCRIPT: &str = include_str!("templates/oculpm.ps1");
 
 /// 우리가 지원하는 셸. 그 외는 조용히 통합을 건너뛴다(터미널은 정상 동작).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
@@ -49,7 +64,10 @@ const BASH_SCRIPT: &str = include_str!("templates/oculpm.bash");
 pub enum ShellKind {
     Zsh,
     Bash,
-    /// fish·nu·pwsh 등 — 통합 미지원.
+    /// Windows PowerShell 5.1 · PowerShell 7+ (Windows·Linux). macOS 에서는 미지원.
+    #[serde(rename = "powershell")]
+    PowerShell,
+    /// fish·nu·cmd 등 — 통합 미지원.
     Unsupported,
 }
 
@@ -58,6 +76,7 @@ impl ShellKind {
         match self {
             ShellKind::Zsh => Some(ZSH_SCRIPT),
             ShellKind::Bash => Some(BASH_SCRIPT),
+            ShellKind::PowerShell => Some(PWSH_SCRIPT),
             ShellKind::Unsupported => None,
         }
     }
@@ -66,15 +85,7 @@ impl ShellKind {
         match self {
             ShellKind::Zsh => Some("oculpm.zsh"),
             ShellKind::Bash => Some("oculpm.bash"),
-            ShellKind::Unsupported => None,
-        }
-    }
-
-    /// 이 셸이 대화형 세션에서 읽는 rc 파일 (홈 기준 상대경로).
-    fn rc_rel(self) -> Option<&'static str> {
-        match self {
-            ShellKind::Zsh => Some(".zshrc"),
-            ShellKind::Bash => Some(".bashrc"),
+            ShellKind::PowerShell => Some("oculpm.ps1"),
             ShellKind::Unsupported => None,
         }
     }
@@ -82,22 +93,22 @@ impl ShellKind {
 
 /// PTY 를 띄울 때 쓰는 셸 경로. 설정 화면의 상태 표시와 실제 PTY 가 **같은**
 /// 값을 봐야 "설치됨"이 거짓말이 되지 않으므로, 두 곳이 이 함수를 공유한다.
+///
+/// 판정 규칙은 [`resolve_default_shell`] (순수 함수, OS 별 표).
 pub fn current_shell() -> String {
-    #[cfg(target_os = "windows")]
-    {
-        std::env::var("COMSPEC").unwrap_or_else(|_| "powershell.exe".to_string())
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string())
-    }
+    default_shell::system_default_shell()
 }
 
-/// `$SHELL` 경로에서 셸 종류를 판정한다. 순수 함수 — 테스트 대상.
+/// `$SHELL` 경로에서 셸 종류를 판정한다 — 이 빌드가 도는 OS 기준.
 ///
 /// basename 만 보고 판단하며, `-zsh` 같은 로그인 셸 argv0 표기와 버전 접미사
 /// (`bash-5.2`)도 받아준다.
 pub fn detect_shell_kind(shell_path: &str) -> ShellKind {
+    detect_shell_kind_for(HostOs::current(), shell_path)
+}
+
+/// [`detect_shell_kind`] 의 순수판 — OS 를 인자로 받는다.
+pub fn detect_shell_kind_for(os: HostOs, shell_path: &str) -> ShellKind {
     let base = shell_path
         .rsplit(['/', '\\'])
         .next()
@@ -107,12 +118,16 @@ pub fn detect_shell_kind(shell_path: &str) -> ShellKind {
     match stem {
         "zsh" => ShellKind::Zsh,
         "bash" | "sh" => ShellKind::Bash,
+        _ if os != HostOs::MacOs && powershell::is_powershell(shell_path) => ShellKind::PowerShell,
         _ => ShellKind::Unsupported,
     }
 }
 
-/// rc 에 심는 관리 블록 본문. 셸 종류와 무관하게 POSIX `.` 만 쓴다.
-fn rc_block_body() -> String {
+/// rc 에 심는 관리 블록 본문. zsh/bash 는 POSIX `.` 만 쓴다.
+fn rc_block_body(kind: ShellKind) -> String {
+    if kind == ShellKind::PowerShell {
+        return powershell::block_body();
+    }
     [
         "# ocul-pm 터미널 셸 통합 — 명령 경계·종료코드·작업 디렉터리를 앱에 알립니다.",
         "# OCULPM_SHELL_INTEGRATION 은 ocul-pm 이 띄운 터미널에서만 설정되므로,",
@@ -156,14 +171,72 @@ pub struct ShellIntegrationStatus {
     pub block_broken: bool,
 }
 
-fn rc_path_for(home: &Path, kind: ShellKind) -> Option<PathBuf> {
-    kind.rc_rel().map(|rel| home.join(rel))
+/// rc 파일이 사는 뿌리들. zsh/bash 는 홈, PowerShell 은 문서 폴더(Windows)나
+/// XDG 설정 폴더(Linux) — 테스트는 전부 임시 폴더로 바꿔 끼운다.
+#[derive(Debug, Clone)]
+pub(crate) struct RcLocations {
+    pub(crate) home: PathBuf,
+    /// Windows 의 알려진 폴더 "문서" (OneDrive 로 옮겨졌으면 그 자리).
+    pub(crate) documents: Option<PathBuf>,
+    /// `$XDG_CONFIG_HOME` 또는 `~/.config`.
+    pub(crate) config: Option<PathBuf>,
+}
+
+impl RcLocations {
+    /// 이 머신의 진짜 자리. macOS 는 홈만 쓴다 (PowerShell 미지원 — 예전 그대로).
+    pub(crate) fn system(home: &Path) -> Self {
+        if cfg!(target_os = "macos") {
+            return RcLocations {
+                home: home.to_path_buf(),
+                documents: None,
+                config: None,
+            };
+        }
+        RcLocations {
+            home: home.to_path_buf(),
+            documents: directories::UserDirs::new()
+                .and_then(|dirs| dirs.document_dir().map(Path::to_path_buf)),
+            config: directories::BaseDirs::new().map(|dirs| dirs.config_dir().to_path_buf()),
+        }
+    }
+}
+
+/// 이 셸의 rc(프로필) 절대경로.
+fn rc_path_for(
+    os: HostOs,
+    loc: &RcLocations,
+    kind: ShellKind,
+    shell_path: &str,
+) -> Option<PathBuf> {
+    match kind {
+        ShellKind::Zsh => Some(loc.home.join(".zshrc")),
+        ShellKind::Bash => Some(loc.home.join(".bashrc")),
+        ShellKind::PowerShell => {
+            powershell::profile_path(os, powershell::edition_of(os, shell_path), loc)
+        }
+        ShellKind::Unsupported => None,
+    }
 }
 
 /// 현재 설치 상태를 읽는다. 파일을 만들거나 고치지 않는다.
 pub fn status(home: &Path, app_data_dir: &Path, shell_path: &str) -> ShellIntegrationStatus {
-    let shell = detect_shell_kind(shell_path);
-    let rc = rc_path_for(home, shell);
+    status_in(
+        HostOs::current(),
+        &RcLocations::system(home),
+        app_data_dir,
+        shell_path,
+    )
+}
+
+/// [`status`] 의 본체 — OS 와 rc 자리를 인자로 받는다.
+pub(crate) fn status_in(
+    os: HostOs,
+    loc: &RcLocations,
+    app_data_dir: &Path,
+    shell_path: &str,
+) -> ShellIntegrationStatus {
+    let shell = detect_shell_kind_for(os, shell_path);
+    let rc = rc_path_for(os, loc, shell, shell_path);
     let script = shell
         .file_name()
         .map(|n| app_data_dir.join(SCRIPT_DIR).join(n));
@@ -190,194 +263,61 @@ pub fn status(home: &Path, app_data_dir: &Path, shell_path: &str) -> ShellIntegr
 
 /// rc 에 관리 블록을 심는다 (멱등). 지원하지 않는 셸이면 에러.
 pub fn install(home: &Path, app_data_dir: &Path, shell_path: &str) -> OculpmResult<()> {
-    let kind = detect_shell_kind(shell_path);
-    let rc = rc_path_for(home, kind).ok_or_else(|| {
+    install_in(
+        HostOs::current(),
+        &RcLocations::system(home),
+        app_data_dir,
+        shell_path,
+        &powershell::effective_execution_policy,
+    )
+}
+
+/// [`install`] 의 본체. `policy` 는 PowerShell 에게 실효 실행 정책을 묻는 함수
+/// (Windows 에서만 불린다 — 테스트는 가짜를 넘긴다).
+pub(crate) fn install_in(
+    os: HostOs,
+    loc: &RcLocations,
+    app_data_dir: &Path,
+    shell_path: &str,
+    policy: &dyn Fn(&str) -> Option<String>,
+) -> OculpmResult<()> {
+    let kind = detect_shell_kind_for(os, shell_path);
+    let unsupported = || {
         OculpmError::InvalidConfig(format!(
             "Shell integration does not support this shell: {shell_path}"
         ))
+    };
+    if kind == ShellKind::Unsupported {
+        return Err(unsupported());
+    }
+    let rc = rc_path_for(os, loc, kind, shell_path).ok_or_else(|| {
+        OculpmError::InvalidConfig(format!(
+            "Could not find where {shell_path} keeps its profile (the Documents or config folder is missing)."
+        ))
     })?;
+    if kind == ShellKind::PowerShell {
+        powershell::preflight(os, shell_path, &rc, policy)?;
+    }
     materialize_script(app_data_dir, kind)?;
-    atomic_io::write_managed_block(&rc, BLOCK_ID, &rc_block_body(), CommentStyle::Hash)?;
+    atomic_io::write_managed_block(&rc, BLOCK_ID, &rc_block_body(kind), CommentStyle::Hash)?;
     Ok(())
 }
 
 /// rc 에서 관리 블록을 걷어낸다 (없으면 no-op). 스크립트 파일은 다른 프로젝트가
 /// 공유할 수 있으므로 지우지 않는다.
 pub fn uninstall(home: &Path, shell_path: &str) -> OculpmResult<()> {
-    let kind = detect_shell_kind(shell_path);
-    let Some(rc) = rc_path_for(home, kind) else {
+    uninstall_in(HostOs::current(), &RcLocations::system(home), shell_path)
+}
+
+/// [`uninstall`] 의 본체.
+pub(crate) fn uninstall_in(os: HostOs, loc: &RcLocations, shell_path: &str) -> OculpmResult<()> {
+    let kind = detect_shell_kind_for(os, shell_path);
+    let Some(rc) = rc_path_for(os, loc, kind, shell_path) else {
         return Ok(());
     };
     atomic_io::remove_managed_block(&rc, BLOCK_ID, CommentStyle::Hash)?;
+    if kind == ShellKind::PowerShell {
+        powershell::remove_if_blank(&rc)?;
+    }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn detects_zsh_from_common_shell_paths() {
-        for path in ["/bin/zsh", "/usr/local/bin/zsh", "-zsh", "zsh"] {
-            assert_eq!(detect_shell_kind(path), ShellKind::Zsh, "{path}");
-        }
-    }
-
-    #[test]
-    fn detects_bash_including_versioned_and_sh() {
-        for path in [
-            "/bin/bash",
-            "/opt/homebrew/bin/bash-5.2",
-            "-bash",
-            "/bin/sh",
-        ] {
-            assert_eq!(detect_shell_kind(path), ShellKind::Bash, "{path}");
-        }
-    }
-
-    #[test]
-    fn unsupported_shells_are_skipped_not_guessed() {
-        for path in ["/opt/homebrew/bin/fish", "/usr/bin/nu", "pwsh.exe", ""] {
-            assert_eq!(detect_shell_kind(path), ShellKind::Unsupported, "{path}");
-        }
-    }
-
-    /// rc 에 심는 줄은 OCULPM_SHELL_INTEGRATION 이 없으면 아무 일도 하면 안 된다
-    /// — 사용자의 다른 터미널을 건드리지 않는다는 설계의 핵심.
-    #[test]
-    fn rc_block_is_inert_without_the_env_var() {
-        let body = rc_block_body();
-        assert!(body.contains("[ -n \"$OCULPM_SHELL_INTEGRATION\" ]"));
-        assert!(body.contains("[ -r \"$OCULPM_SHELL_INTEGRATION\" ]"));
-        // 가드 없이 무조건 실행되는 줄이 섞여 있으면 안 된다.
-        for line in body.lines().filter(|l| !l.trim_start().starts_with('#')) {
-            assert!(
-                line.contains("OCULPM_SHELL_INTEGRATION"),
-                "가드 없는 실행 줄: {line}"
-            );
-        }
-    }
-
-    #[test]
-    fn materialize_is_idempotent_and_skips_rewrite() {
-        let dir = tempfile::tempdir().unwrap();
-        let first = materialize_script(dir.path(), ShellKind::Zsh)
-            .unwrap()
-            .unwrap();
-        let mtime1 = std::fs::metadata(&first).unwrap().modified().unwrap();
-        let second = materialize_script(dir.path(), ShellKind::Zsh)
-            .unwrap()
-            .unwrap();
-        assert_eq!(first, second);
-        let mtime2 = std::fs::metadata(&second).unwrap().modified().unwrap();
-        assert_eq!(mtime1, mtime2, "내용이 같으면 다시 쓰지 않아야 한다");
-    }
-
-    #[test]
-    fn materialize_returns_none_for_unsupported_shell() {
-        let dir = tempfile::tempdir().unwrap();
-        assert!(materialize_script(dir.path(), ShellKind::Unsupported)
-            .unwrap()
-            .is_none());
-    }
-
-    #[test]
-    fn install_preserves_existing_rc_content_and_uninstall_restores_it() {
-        let home = tempfile::tempdir().unwrap();
-        let data = tempfile::tempdir().unwrap();
-        let rc = home.path().join(".zshrc");
-        let original = "export PATH=/my/bin:$PATH\nalias ll='ls -la'\n";
-        std::fs::write(&rc, original).unwrap();
-
-        install(home.path(), data.path(), "/bin/zsh").unwrap();
-        let after = std::fs::read_to_string(&rc).unwrap();
-        assert!(after.contains("export PATH=/my/bin:$PATH"));
-        assert!(after.contains("alias ll='ls -la'"));
-        assert!(after.contains("OCULPM_SHELL_INTEGRATION"));
-
-        // 두 번 설치해도 블록이 하나뿐이어야 한다.
-        install(home.path(), data.path(), "/bin/zsh").unwrap();
-        let twice = std::fs::read_to_string(&rc).unwrap();
-        assert_eq!(twice.matches("oculpm:begin").count(), 1);
-
-        uninstall(home.path(), "/bin/zsh").unwrap();
-        let restored = std::fs::read_to_string(&rc).unwrap();
-        assert!(!restored.contains("OCULPM_SHELL_INTEGRATION"));
-        assert!(restored.contains("alias ll='ls -la'"));
-    }
-
-    #[test]
-    fn status_reports_installed_state() {
-        let home = tempfile::tempdir().unwrap();
-        let data = tempfile::tempdir().unwrap();
-
-        let before = status(home.path(), data.path(), "/bin/zsh");
-        assert_eq!(before.shell, ShellKind::Zsh);
-        assert!(!before.installed);
-        assert!(before.rc_path.ends_with(".zshrc"));
-
-        install(home.path(), data.path(), "/bin/zsh").unwrap();
-        let after = status(home.path(), data.path(), "/bin/zsh");
-        assert!(after.installed);
-        assert!(!after.block_broken);
-    }
-
-    #[test]
-    fn status_flags_a_broken_block_instead_of_claiming_not_installed() {
-        let home = tempfile::tempdir().unwrap();
-        let data = tempfile::tempdir().unwrap();
-        // begin 만 있고 end 가 없는 상태 — 사용자가 손으로 지운 경우.
-        std::fs::write(home.path().join(".zshrc"), "# oculpm:begin v1\necho hi\n").unwrap();
-        let st = status(home.path(), data.path(), "/bin/zsh");
-        assert!(!st.installed);
-        assert!(st.block_broken);
-    }
-
-    #[test]
-    fn install_rejects_unsupported_shell() {
-        let home = tempfile::tempdir().unwrap();
-        let data = tempfile::tempdir().unwrap();
-        assert!(install(home.path(), data.path(), "/opt/homebrew/bin/fish").is_err());
-    }
-
-    /// 스크립트는 우리 PTY 밖에서 즉시 빠져나가야 하고, 4개 마커를 전부 쏴야 한다.
-    #[test]
-    fn scripts_guard_on_oculpm_term_and_emit_all_markers() {
-        for script in [ZSH_SCRIPT, BASH_SCRIPT] {
-            assert!(script.contains("OCULPM_TERM"));
-            for marker in ["133;A", "133;B", "133;C", "133;D"] {
-                assert!(script.contains(marker), "{marker} 누락");
-            }
-            assert!(script.contains("nonce"));
-            // tmux/screen 에서는 신호가 밖으로 나가지 못하므로 스스로 꺼야 한다.
-            assert!(script.contains("TMUX"));
-        }
-    }
-
-    /// 이름 없는 선언 빌트인(`typeset -g`, `declare`, …)은 문법상 멀쩡하지만
-    /// **셸의 전 파라미터를 프롬프트 위에 토해낸다**. 실제로 한 번 새어 나갔다
-    /// (편집이 `typeset -g __oculpm_nonce=...` 의 이름을 주석으로 덮었다).
-    /// `zsh -n` 은 이걸 잡지 못하므로 여기서 잡는다.
-    #[test]
-    fn scripts_never_declare_without_a_name() {
-        for (name, script) in [("zsh", ZSH_SCRIPT), ("bash", BASH_SCRIPT)] {
-            for (i, line) in script.lines().enumerate() {
-                let code = line.trim();
-                // 주석은 이름이 아니다 — `typeset -g # 설명` 이 바로 그 사고였다.
-                let mut words = code.split_whitespace().take_while(|w| !w.starts_with('#'));
-                let Some(head) = words.next() else { continue };
-                if !matches!(
-                    head,
-                    "typeset" | "declare" | "local" | "export" | "readonly"
-                ) {
-                    continue;
-                }
-                assert!(
-                    words.any(|w| !w.starts_with('-')),
-                    "{name}:{} 이름 없는 선언 — 파라미터 표를 통째로 출력한다: {code}",
-                    i + 1
-                );
-            }
-        }
-    }
 }
