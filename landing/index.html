@@ -47,10 +47,11 @@
   "operatingSystem": "macOS",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "3.4.0",
+  "softwareVersion": "3.5.0",
   "description": "AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요. 매일 AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)로 개발하는 사람을 위한 로컬-우선 AI 프로젝트 매니저 — 에이전트가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 이어받습니다. 로컬 diff 검증, 스탠드업. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
+    "밖으로 나가는 링크 한 통로 — 터미널의 OSC 8 하이퍼링크와 편집기 본문의 URL 을 ⌘클릭하면 웹뷰에서 막히는 브라우저 기본 동작(confirm·window.open)에 걸려 조용히 아무 일도 일어나지 않았습니다. 이제 둘 다 같은 통로로 모여 OS 기본 브라우저로 열리고, http/https 가 아닌 주소는 그대로 거절합니다",
     "첫 기록 확인 — 일지가 한 건도 없는 프로젝트에 「첫 기록」 카드가 서서, 준비(Claude Code·플러그인·훅 연결) → 대화 진행 중 → 그 대화가 남긴 첫 일지 → 기록 없이 끝남 → 귀속 불명의 다섯 상태를 총 일지 수가 아니라 대화 id 로 판정합니다. 백필·옆 대화의 일지는 성공이 아니고, 기록이 남았다는 뜻이지 코드가 검증됐다는 뜻은 아니라고 말합니다",
     "이어하기 — Claude Code 플러그인의 SessionStart 훅이 활성 계획의 미완 항목 뒤에 마지막 작업 일지 3건을 시작 컨텍스트에 싣고 무엇을 실었는지 원장에 남깁니다. 오늘 화면의 「이어하기」 카드가 같은 자료를 보여 주고 어느 대화의 시작 컨텍스트에 포함됐는지까지 적습니다 — 참조·도움 여부는 알 수 없다고 정직하게",
     "일지 700건의 찾기·잇기·묶기 — journal_search 가 SQLite 캐시와 관련도 랭킹(제목 > 태그 > 파일 > 본문, 최근 가산)으로 답하고(727건 132→25ms), 검색 화면에 「일지」 스코프, 관련 후보 제안과 1클릭 잇기, 태그 사전과 정리 시트, 주간 요약 층, 반복 수정 파일·작업 속도 카드, 미검토 대기함, 계획 로그 분리",
@@ -309,7 +310,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.4.0</span>
+    <span class="nav-ver" data-version>v3.5.0</span>
     <div class="nav-links">
       <a href="#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -328,7 +329,7 @@
 <!-- ══════════ 히어로 ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v3.4.0 — 첫 기록 확인과 이어하기</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v3.5.0 — 닿지 않던 링크와 지운 뒤의 잔해</a>
   <h1 class="reveal on">AI와 어제 어디까지 작업했는지,<br /><span class="g">오늘 다시 설명하지 마세요.</span></h1>
   <p class="hero-sub reveal on">
     Claude Code 가 작업을 끝내면 <b>Ocul-PM</b> 에 일지가 남고, 다음 대화는 그 일지와
@@ -337,7 +338,7 @@
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v3.4.0 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
+      <span class="lg">v3.5.0 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
     </a>
     <a class="dl-btn ghost" href="/keynote">키노트로 보기 →</a>
   </div>
@@ -489,6 +490,9 @@
     <h2 class="reveal">작업실에 필요한 나머지도<br />이미 들어 있습니다.</h2>
   </div>
   <div class="grid">
+    <div class="cell c-span2 reveal"><span class="cell-tag">링크</span><h3>누르면 이제 열립니다</h3><p>터미널 하이퍼링크와 편집기 URL 이 웹뷰의 막힌 기본 동작에 걸려 <b>조용히 죽던 것</b>. 밖으로 나가는 링크는 <b>한 통로</b>로 모읍니다.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">한글 입력</span><h3>지웠다 다시 쓰지 않습니다</h3><p>음절 확정마다 나던 <b>지움+재전송 왕복</b>을 없앴습니다. 트레이스 150건을 전수 집계해 <b>글자 유실은 없었다</b>고 먼저 확인했습니다.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">지운 뒤</span><h3>잔해를 남기지 않습니다</h3><p>지운 프로젝트의 <b>탭·터미널 창</b>을 행 삭제 전에 닫습니다. 재구축을 기다리느라 <b>앱이 몇 초 굳던 것</b>도 뒤로 뺐습니다.</p></div>
     <div class="cell c-span2 reveal"><span class="cell-tag">첫 기록</span><h3>그 대화가 남겼는지 봅니다</h3><p>총 일지 수가 아니라 <b>대화 id</b> 로 판정합니다. 준비 → 진행 중 → 첫 일지 → 기록 없이 끝남 → 귀속 불명. <b>기록 ≠ 검증</b>이라고 카드가 말합니다.</p></div>
     <div class="cell c-span2 reveal d1"><span class="cell-tag">이어하기</span><h3>다음 세션이 받아 듭니다</h3><p>SessionStart 훅이 계획 뒤에 <b>마지막 일지 3건</b>을 싣고 원장에 남깁니다. 카드는 <b>어느 대화에 포함됐는지</b>까지 — 참조 여부는 모른다고 적습니다.</p></div>
     <div class="cell c-span2 reveal d2"><span class="cell-tag">일지 700건</span><h3>찾고, 잇고, 묶습니다</h3><p><code>journal_search</code> 가 캐시와 관련도 랭킹으로 <b>132→25ms</b>. 관련 후보를 <b>1클릭으로 잇고</b>, 태그를 정리하고, 주간 요약 층을 먼저 봅니다.</p></div>
@@ -569,6 +573,7 @@
     <p class="reveal">이 앱은 자기 자신으로 개발됩니다 — 아래 이력 전부가 Ocul-PM 의 작업 일지에서 나왔습니다.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v3.5.0 — 닿지 않던 링크와 지운 뒤의 잔해</b> · <b>눌러도 아무 일이 없던 링크들.</b> 터미널의 하이퍼링크(<code>gh</code>·에이전트 TUI 가 내는 것)와 편집기 본문의 URL 을 ⌘클릭하면 브라우저가 열리는 대신 아무 일도 일어나지 않았습니다 — 웹뷰에서 막히는 브라우저 기본 동작에 걸려 있었고, 편집기 쪽은 로그조차 남지 않았습니다. 이제 밖으로 나가는 링크는 전부 한 통로로 모입니다. <b>한글을 칠 때마다 터미널이 지웠다 다시 쓰고 있었습니다</b> — 음절 확정마다 지움 문자와 같은 글자의 재전송이 났고, 그 왕복이 진단을 정상 입력마다 울려 로그를 주 4MB 채웠습니다(트레이스 150건 전수 집계로 글자 유실은 없음을 확인). <b>프로젝트를 지워도 흔적이 창에 남던 것</b> — 지운 프로젝트의 탭이 번호로 남아 누르면 실패했고, 삭제가 데이터베이스 재구축을 기다려 앱이 몇 초 굳었습니다. 그 밖에 확인 대화상자 리디자인(<b>Enter 가 곧 확인</b>), 시작 탭에서 연 설정 네 곳의 크래시, 프로젝트 밖을 가리키는 심볼릭 링크가 트리에서 평범한 파일로 보이던 것.</li>
     <li class="reveal"><b>v3.4.0 — 첫 기록 확인과 이어하기</b> · <b>첫 일지가 남았는지를 이제 그 대화 단위로 확인합니다.</b> 총 일지 수는 백필로도 옆 대화로도 오르는 숫자라 방금 돌린 에이전트가 기록했는지 말하지 못했습니다. 일지 0건 프로젝트에 「첫 기록」 카드가 서고 준비 → 진행 중 → 그 대화의 첫 일지 → 기록 없이 끝남 → 귀속 불명을 대화 id 로 판정합니다(기록 ≠ 검증이라고 스스로 말합니다). <b>다음 세션이 지난 작업을 이어받습니다</b> — 플러그인의 SessionStart 훅이 활성 계획 뒤에 마지막 작업 일지 3건을 시작 컨텍스트에 싣고 원장 한 줄을 남기며, 오늘 화면의 「이어하기」 카드가 같은 자료와 어느 대화에 포함됐는지를 보여 줍니다. <b>일지 700건의 찾기·잇기·묶기</b> — <code>journal_search</code> 가 SQLite 캐시와 관련도 랭킹으로(132→25ms), 검색 화면 「일지」 스코프, 관련 후보 제안과 1클릭 잇기, 태그 사전·정리 시트, 주간 요약 층, 핫스팟·속도 카드, 미검토 대기함, 계획 로그 분리. 그 밖에 숨은 프로젝트 탭으로 새던 터미널 ⌘D 와 새 일지 토스트의 「열기」.</li>
     <li class="reveal"><b>v3.3.0 — 감독관의 오탐과 닮은꼴 계획</b> · <b>앱을 두 개 띄운 순간 멀쩡한 감시가 끊겼다 되살아나기를 반복했습니다.</b> 락이 새 인스턴스로 넘어갈 때마다 감독관이 즉시 깨어나 방금 심은 프로브를 「먹통」으로 읽었습니다(로그에 2분간 52번). 인계 웨이크는 락을 놓는 일만 하고, 심은 지 20초가 안 된 프로브는 판정하지 않습니다. <b>계획이 라운드마다 하나씩 늘던 것</b> — <code>plan_create</code> 는 제목·id 가 겹치는 활성 계획이 있으면 만들지 않고 그 id·제목·hash 를 돌려줘 항목을 더하도록 권합니다(<code>allow_similar</code> 로 통과). 그 밖에 오늘 화면 머리글의 조사 공백, git 저장소가 아닌 프로젝트의 브랜치 화면이 오류 카드였던 것, 검색 빈 상태의 아이콘·제목.</li>
     <li class="reveal"><b>v3.2.2 — 한국어 파일명과 열일곱 가지 조용한 결함</b> · <b>한국어 파일명이 git 을 지나며 8진수 이스케이프로 깨졌습니다.</b> 백필 일지의 <code>files_touched</code>, 브랜치 화면의 파일 귀속, 일지 변경 diff 캡처(감싼 머리글을 못 알아봐 그 파일의 diff 가 빠졌습니다)가 전부 실제 파일명으로 돌아옵니다. <b>손으로 고친 <code>config.toml</code> 에 키 하나가 빠지면 프로젝트가 통째로 무효가 되던 것</b>은 빠진 값을 기본값으로 채워 넘어갑니다. 그 밖에 비밀 마스킹이 겹치는 매치의 꼬리를 남기던 것, 비ASCII 세션 id 에 색인이 멎던 것, 설정 화면이 열 때마다 config 를 되쓰던 것, 늦은 응답이 새 화면을 덮던 것, 메뉴바 팝오버의 부분 실패·정렬, 탭 × 두 번 누름 — 열일곱 건.</li>
@@ -720,12 +725,12 @@
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v3.4.0 — 지금 다운로드 · macOS (Apple Silicon)</span>
+  <span class="eyebrow reveal">v3.5.0 — 지금 다운로드 · macOS (Apple Silicon)</span>
   <h2 class="reveal">시작하는 데 필요한 것은,<br />없습니다.</h2>
   <p class="sub reveal">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v3.4.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
+      <span class="lg">v3.5.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
     </a>
     <a class="dl-btn ghost" href="/plugin">플러그인으로 시작 →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>

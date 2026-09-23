@@ -76,7 +76,14 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.4.0 — first record and resume
+## 🚀 v3.5.0 — links that went nowhere and what deletion left behind
+
+- **Links that did nothing when clicked** — terminal hyperlinks and URLs in the editor body fell through to browser defaults the webview blocks, so a ⌘click quietly did nothing. Outbound links now go through one path and open in your default browser.
+- **Typing Korean made the terminal erase and rewrite** — every committed syllable sent a delete plus the same character again, and that round trip tripped the "committed but no echo" diagnostic on normal input, filling the log (4 MB a week). All 150 collected traces were counted to confirm no characters were lost; the delete half of the commit pair is now deferred.
+- **What deleting a project left behind** — its tab stayed in the strip as a number and failed when clicked, and the delete itself waited on a database rebuild, freezing the app for seconds. Tabs and detached terminal windows now close before the row is removed, and the compaction runs behind it.
+- **The confirm dialog was redesigned** — it lists what is about to end, and Enter now confirms it. Four places in Settings crashed when opened from the Start tab, and symlinks pointing outside the project looked like ordinary files in the code tree; both are fixed.
+
+## v3.4.0 — first record and resume
 
 - **Whether the first entry landed is now judged per conversation** — a project with zero entries gets a "First record" card that moves through ready → in progress → that conversation's first entry → ended without one → unattributed, keyed by the conversation id. Backfills and a neighbouring conversation's entries never count as success, and the card says recorded is not reviewed. Nine first-five-minutes strings were aligned with what actually happens.
 - **The next session picks up where the last one stopped** — the plugin's SessionStart hook now carries the last three journal entries after the active plan items into the session-start context and writes one ledger line. Today's "Resume" card shows the same material and which conversation it was delivered to (and says it cannot know whether it was referenced or helped).
