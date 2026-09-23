@@ -258,12 +258,22 @@ async fn connect_transport(
     Ok(stream.into_split())
 }
 
-/// 전송이 없는 OS — 연결은 언제나 명시적으로 실패한다 (D4). 반환 타입은
-/// `connect` 의 나머지가 그대로 컴파일되게 하는 자리표시일 뿐, 만들어지지 않는다.
-// PORT-STUB(L-PTY): Windows 는 네임드 파이프(`tokio::net::windows::named_pipe`)로.
-#[cfg(not(unix))]
-async fn connect_transport(_socket: &Path) -> Result<(tokio::io::Empty, tokio::io::Sink), String> {
-    Err(super::UNSUPPORTED_OS.to_string())
+/// 호스트까지의 전송 — Windows 는 같은 자리의 네임드 파이프 ([`super::pipe`]).
+/// 서버가 우리 사용자의 프로세스인지까지 확인한 뒤에 돌려준다.
+#[cfg(windows)]
+async fn connect_transport(
+    socket: &Path,
+) -> Result<
+    (
+        tokio::io::ReadHalf<tokio::net::windows::named_pipe::NamedPipeClient>,
+        tokio::io::WriteHalf<tokio::net::windows::named_pipe::NamedPipeClient>,
+    ),
+    String,
+> {
+    let pipe = super::pipe::connect(socket)
+        .await
+        .map_err(|e| format!("pty-host connect failed: {e}"))?;
+    Ok(tokio::io::split(pipe))
 }
 
 /// 디버그 빌드의 접미사 — dev 로 띄운 앱과 설치본은 **다른 소켓**을 쓴다.
@@ -292,6 +302,10 @@ pub fn socket_name() -> String {
 }
 
 /// 정식 자리 — 새로 띄울 때는 언제나 여기다.
+///
+/// Windows 도 **같은 경로**를 쓴다. 그 OS 에는 파일 소켓이 없어 [`super::pipe`] 가
+/// 이 경로를 사용자별 네임드 파이프 이름으로 바꿀 뿐, 자리 규칙(이 파일의 전부)은
+/// 하나다 — 그래서 아래 테스트들이 두 OS 에서 같은 것을 지킨다.
 pub fn socket_path(app_data_dir: &Path) -> PathBuf {
     app_data_dir.join(socket_name())
 }
@@ -323,9 +337,15 @@ pub fn socket_candidates(app_data_dir: &Path) -> Vec<PathBuf> {
 
 /// 호스트를 detach 로 띄운다 — 앱이 죽어도(업데이트 재시작) 함께 죽지 않게
 /// 프로세스 그룹을 분리하고 stdio 를 끊는다. 시체 수거(wait)는 전용 스레드로.
-#[cfg(unix)]
 pub fn spawn_host_process(socket: &Path) -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| format!("current_exe failed: {e}"))?;
+    spawn_host_from(&exe, socket)
+}
+
+/// [`spawn_host_process`] 의 몸통 — 실행 파일을 받는다. 통합 테스트가 앱
+/// 바이너리(`CARGO_BIN_EXE_ocul-pm`)로 `main.rs` 의 `--pty-host` 분기까지 돈다
+/// (테스트 실행 파일 자신은 그 분기를 모른다).
+pub fn spawn_host_from(exe: &Path, socket: &Path) -> Result<(), String> {
     let mut cmd = crate::proc::std_cmd(exe);
     cmd.arg("--pty-host")
         .arg(socket)
@@ -339,6 +359,18 @@ pub fn spawn_host_process(socket: &Path) -> Result<(), String> {
         // 죽이지 않게. 앱 종료 자체는 자식에게 아무 신호도 보내지 않는다.
         cmd.process_group(0);
     }
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        use windows_sys::Win32::System::Threading::{CREATE_NEW_PROCESS_GROUP, DETACHED_PROCESS};
+        // 유닉스의 `process_group(0)` 자리. 콘솔에서 떼고(DETACHED_PROCESS — dev 빌드는
+        // 콘솔 서브시스템이라 이게 없으면 앱의 콘솔을 물려받는다) 새 프로세스 그룹으로 —
+        // 앱 쪽 콘솔의 Ctrl+C·Ctrl+Break 가 호스트에 닿지 않는다. `creation_flags` 는
+        // **덮어쓰므로** `proc` 이 넣은 CREATE_NO_WINDOW 를 함께 준다.
+        cmd.creation_flags(
+            crate::proc::CREATE_NO_WINDOW | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+        );
+    }
     let mut child = cmd
         .spawn()
         .map_err(|e| format!("failed to spawn the pty-host: {e}"))?;
@@ -346,13 +378,6 @@ pub fn spawn_host_process(socket: &Path) -> Result<(), String> {
         let _ = child.wait();
     });
     Ok(())
-}
-
-/// 전송이 없는 OS — 띄워 봐야 붙을 수 없으므로 띄우지 않고 실패한다 (D4).
-// PORT-STUB(L-PTY): Windows 는 DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP 로 분리 기동.
-#[cfg(not(unix))]
-pub fn spawn_host_process(_socket: &Path) -> Result<(), String> {
-    Err(super::UNSUPPORTED_OS.to_string())
 }
 
 /// 만난 호스트를 **조용히 갈아 치워도 되는가.**
@@ -417,6 +442,9 @@ pub async fn connect_or_spawn(
         if spawn_if_missing && c.is_replaceable() {
             retire(&c).await;
             drop(c);
+            // 파이프 이름은 옛 호스트가 받기를 멈춘 **뒤에** 빈다 (`pipe::wait_until_vacant`).
+            #[cfg(windows)]
+            super::pipe::wait_until_vacant(socket).await;
             break;
         }
         if i > 0 {
