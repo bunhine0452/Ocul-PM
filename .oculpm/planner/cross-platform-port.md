@@ -29,8 +29,8 @@ owner: claude-code
   - [ ] ConPTY 기본 셸 pwsh→powershell→COMSPEC, UTF-8 코드페이지(한글 출력), 리사이즈 {#pty-conpty}
   - [ ] 호스트·포그라운드 판정의 ps 의존 제거 (Toolhelp32/sysinfo) {#pty-liveness}
   - [ ] windows 러너 왕복 테스트: 열기→echo 한글-ok→단언→리사이즈→Kill 뒤 자식 0→재접속 {#pty-tests}
-- [ ] L-SHELL 셸 통합 · 심 {#l-shell}
-  - [ ] PowerShell OSC 133/7 스크립트 + $PROFILE 관리 블록 설치/제거 (nonce 규율 동일) {#shell-pwsh}
+- [~] L-SHELL 셸 통합 · 심 {#l-shell}
+  - [~] PowerShell OSC 133/7 스크립트 + $PROFILE 관리 블록 설치/제거 (nonce 규율 동일) {#shell-pwsh}
   - [ ] SHELL 없을 때 기본값 /bin/zsh 의 macOS 전제 제거 (Linux=/bin/bash, Windows=pwsh) {#shell-linux}
   - [ ] 심: Windows 복사본·.cmd 실검증, AppImage 는 current_exe 대신 $APPIMAGE {#shell-shim}
   - [ ] acp/env.rs 로그인 셸 환경 캡처 — Windows 프로세스 환경 / Linux $SHELL -lic 확인 {#shell-env}
@@ -73,9 +73,10 @@ owner: claude-code
 - [ ] 에이전트가 준 files_touched 경로를 쓰기 시점에 `/` 로 정규화 (MCP journal_write·manager) — Windows 에이전트의 `src\a.ts` 가 diff 사이드카 키를 어긋나게 한다 (L-FS 발견) {#fs-files-touched-norm}
 - [ ] planner·discussion·rollup 파서의 CRLF 내성 — `planner/parse.rs::fold_wrapped_items` 가 split('\n') 이라 autocrlf 체크아웃의 plan-log·{#id} 가 흔들릴 수 있다, 테스트 0건 (L-FS 발견) {#fs-crlf-parsers}
 - [ ] 워처 rename 쌍의 새 이름이 빠진다 — 디바운서 Name(Both)[from,to] 에서 paths.first() 만 처리 (양 OS 기존 결함, L-FS 발견) {#fs-rename-pair}
-- [ ] 간헐 실패 — watcher::removing_the_project_root_does_not_resurrect_it 가 Windows 에서 Access is denied(os 5)로 한 번 붉음(L-SHELL run 35893773736), 다른 run 은 초록. 감시 핸들이 루트 삭제를 막는 경합인지 — 사용자가 감시 중인 프로젝트 폴더를 지울 때도 같은 일이 나는지 확인 {#fs-watcher-flake}
+- [~] 간헐 실패 — watcher::removing_the_project_root_does_not_resurrect_it 가 Windows 에서 Access is denied(os 5)로 한 번 붉음(L-SHELL run 35893773736), 다른 run 은 초록. 감시 핸들이 루트 삭제를 막는 경합인지 — 사용자가 감시 중인 프로젝트 폴더를 지울 때도 같은 일이 나는지 확인 {#fs-watcher-flake}
 - [ ] [사용자 결정] macOS 기존 결함 — acp/adapter.rs npm_platform 이 "macos" 로 찾아 딸려 온 claude(claude-agent-sdk-darwin-arm64)를 못 보고 PATH claude 로 물러선다. 고치면 ACP 가 쓰는 claude 바이너리가 바뀐다 (L-OS 발견) {#mac-bundled-claude}
 - [ ] 비-mac 새 창 키(Ctrl+Shift+N) — new_window 커맨드 + L-UI 바인딩, 앱 메뉴를 뗀 뒤 빈 자리 (L-OS 제안 diff 있음) {#os-new-window}
+- [ ] [사용자 결정] Windows 에서 Claude Code 플러그인의 MCP 서버가 안 뜬다 — Claude Code 는 stdio MCP 를 셸 없이 직접 실행하고 sh 셔틀은 실행 파일이 아니다(claude-code#58510), .mcp.json 은 OS 별로 못 가른다. 지금은 앱의 「MCP 등록」(절대경로 .exe) 안내. 대안 = Windows 전용 마켓플레이스 항목(「플러그인 1개」 원칙과 충돌) (L-INTEG 발견) {#integ-win-plugin-mcp}
 - [ ] Linux 세션 D-Bus 부재 시 single-instance 가 조용히 꺼져 앱이 두 번 뜰 수 있다 — 명시적 경고 또는 락 (L-OS 발견) {#os-single-instance-dbus}
 
 ## W3 — 패키징 · E2E (W2 합류 뒤, 병렬 2) {#w3}
@@ -133,4 +134,6 @@ owner: claude-code
 | 2026-09-24T02:41:16+09:00 | #os-secrets | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | SecretError::Unavailable, 평문 저장 없음, ubuntu 러너가 '저장소 없음' 갈래를 반드시 지남. 프런트 문구는 #ui-followups |
 | 2026-09-24T02:41:22+09:00 | #os-tools | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | DAP·LSP·편집기·greenfield·themes·클립보드·휴지통 + cmd 명령 주입 두 곳(open_url/Notion·편집기) 수정. Windows DAP 실제 세션은 미확인 |
 | 2026-09-24T02:41:27+09:00 | #fs-symlink-tests | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | L-OS 가 처리 — test_links(심링크→정션) 12곳 windows 실링크 통과 + cfg(unix) 통합 테스트 17건 Git Bash |
+| 2026-09-24T03:44:59+09:00 | #fs-watcher-flake | claude-code | ☐→~ |  | 두 번째 재현(PR #35 run) — rename(루트) Access denied. 감시 중 폴더를 휴지통으로 보내는 제품 결함 후보. L-FS2 세션 출발(port/l-fs2) |
+| 2026-09-24T03:45:05+09:00 | #shell-pwsh | claude-code | ☐→~ |  | PR #35 보류 — 부하 러너에서 PowerShell 콜드 스타트 45s+ 로 정책 조회 시한 초과. 레지스트리/설정 우선 판정으로 전환 중 |
 <!-- oculpm:plan-log end -->
