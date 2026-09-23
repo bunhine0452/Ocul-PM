@@ -64,7 +64,7 @@ owner: claude-code
   - [x] 터미널 IME 브리지의 WKWebView 우회가 WebView2·WebKitGTK 에서 해가 없는지 — Chromium 조합 시퀀스 vitest {#ui-ime}
   - [x] 세 UA(mac/win/linux) 단축키·표기 테이블 vitest + pnpm lint 초록 {#ui-tests}
   - [ ] 맥 전용 문구 정리 — settings.tray.*·tray.*(메뉴바·Dock)·「Finder 에서 보기」·키체인·macOS 설정 안내의 비-mac 판 (L-UI 발견) {#ui-mac-words}
-- [ ] W2 종료 조건: rg PORT-STUB 0건 · portability.yml 전 잡 초록 · ci.yml(macOS) 초록 {#w2-no-stubs}
+- [x] W2 종료 조건: rg PORT-STUB 0건 · portability.yml 전 잡 초록 · ci.yml(macOS) 초록 {#w2-no-stubs}
 
 ## W2+ — 레인이 찾은 후속 (W2 합류 뒤, 한 세션씩) {#w2plus}
 
@@ -73,7 +73,7 @@ owner: claude-code
 - [ ] 에이전트가 준 files_touched 경로를 쓰기 시점에 `/` 로 정규화 (MCP journal_write·manager) — Windows 에이전트의 `src\a.ts` 가 diff 사이드카 키를 어긋나게 한다 (L-FS 발견) {#fs-files-touched-norm}
 - [ ] planner·discussion·rollup 파서의 CRLF 내성 — `planner/parse.rs::fold_wrapped_items` 가 split('\n') 이라 autocrlf 체크아웃의 plan-log·{#id} 가 흔들릴 수 있다, 테스트 0건 (L-FS 발견) {#fs-crlf-parsers}
 - [ ] 워처 rename 쌍의 새 이름이 빠진다 — 디바운서 Name(Both)[from,to] 에서 paths.first() 만 처리 (양 OS 기존 결함, L-FS 발견) {#fs-rename-pair}
-- [~] 간헐 실패 — watcher::removing_the_project_root_does_not_resurrect_it 가 Windows 에서 Access is denied(os 5)로 한 번 붉음(L-SHELL run 35893773736), 다른 run 은 초록. 감시 핸들이 루트 삭제를 막는 경합인지 — 사용자가 감시 중인 프로젝트 폴더를 지울 때도 같은 일이 나는지 확인 {#fs-watcher-flake}
+- [x] 간헐 실패 — watcher::removing_the_project_root_does_not_resurrect_it 가 Windows 에서 Access is denied(os 5)로 한 번 붉음(L-SHELL run 35893773736), 다른 run 은 초록. 감시 핸들이 루트 삭제를 막는 경합인지 — 사용자가 감시 중인 프로젝트 폴더를 지울 때도 같은 일이 나는지 확인 {#fs-watcher-flake}
 - [ ] [사용자 결정] macOS 기존 결함 — acp/adapter.rs npm_platform 이 "macos" 로 찾아 딸려 온 claude(claude-agent-sdk-darwin-arm64)를 못 보고 PATH claude 로 물러선다. 고치면 ACP 가 쓰는 claude 바이너리가 바뀐다 (L-OS 발견) {#mac-bundled-claude}
 - [ ] 비-mac 새 창 키(Ctrl+Shift+N) — new_window 커맨드 + L-UI 바인딩, 앱 메뉴를 뗀 뒤 빈 자리 (L-OS 제안 diff 있음) {#os-new-window}
 - [ ] [사용자 결정] Windows 에서 Claude Code 플러그인의 MCP 서버가 안 뜬다 — Claude Code 는 stdio MCP 를 셸 없이 직접 실행하고 sh 셔틀은 실행 파일이 아니다(claude-code#58510), .mcp.json 은 OS 별로 못 가른다. 지금은 앱의 「MCP 등록」(절대경로 .exe) 안내. 대안 = Windows 전용 마켓플레이스 항목(「플러그인 1개」 원칙과 충돌) (L-INTEG 발견) {#integ-win-plugin-mcp}
@@ -106,11 +106,9 @@ owner: claude-code
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 8 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 10 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-24T00:18:40+09:00 | #ui-chrome | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0018_feature_port-frontend-platform-abstraction.md | 드래그 영역 mac 한정, data-platform 글꼴 폴백, 스크롤바 모서리. 실기기 셀 폭은 W3 스크린샷 |
-| 2026-09-24T00:18:45+09:00 | #ui-ime | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0018_feature_port-frontend-platform-abstraction.md | 브리지는 mac 만, 비-mac 은 xterm 기본 — Chromium 시퀀스로 onData "한글\r" 정확히 1회(win 러너). 실 IME 는 #w3-ime-cdp·#w5-eyes |
 | 2026-09-24T00:18:50+09:00 | #ui-tests | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0018_feature_port-frontend-platform-abstraction.md | 새 4파일 windows 러너 통과(run 35877998437) + PR #31 ci.yml lint 초록 |
 | 2026-09-24T00:40:24+09:00 | #w0-inventory | claude-code | ~→x |  | 층 2 기록(W1 뒤): ubuntu 테스트 초록, windows 19 실패 → L-FS 12·L-SHELL 1·L-INTEG 1·L-OS 1(+cfg(unix) 0건 통합 테스트 6). 이후 층은 레인 보고로 |
 | 2026-09-24T00:40:29+09:00 | #fs-symlink-tests | claude-code | ☐→~ |  | L-OS 로 이관 — PORT-TEST 마커 12곳이 전부 L-OS 소유 파일이라 충돌 회피. W2 5레인 병렬 출발(port/l-pty·l-shell·l-integ·l-fs·l-os) |
@@ -149,5 +147,7 @@ owner: claude-code
 | 2026-09-24T05:57:30+09:00 | #pty-conpty | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | 셸은 Start.shell 그대로, cmd 만 chcp 65001, ^C 무시 상속 결함을 SetConsoleCtrlHandler 로 복원. 한글 왕복·리사이즈 windows 초록 |
 | 2026-09-24T05:57:36+09:00 | #pty-liveness | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | 셸 종료 감시(Exit 한 번), 포그라운드 Toolhelp32+NtQueryInformationProcess, macOS 는 ps 그대로 |
 | 2026-09-24T05:57:45+09:00 | #pty-tests | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | reattach·backpressure cfg(unix) 해제 + ptyhost_roundtrip, 매달림 → 원인과 함께 실패(Drop 가드·DSR/DA·워치독). windows 1,956/0 |
-<!-- oculpm:plan-log archived: 8 rows → cross-platform-port.log.md -->
+| 2026-09-24T06:26:15+09:00 | #fs-watcher-flake | claude-code | ~→x | .oculpm/journal/20260924/Bugs/0626_bug_port-watcher-root-rename-lfs2.md | 원인=첫 세션 시작과 겹친 짧은 창(핸들 누수 아님, 증거 8/30). git 4→2, 휴지통 테스트. PR #38 |
+| 2026-09-24T06:26:21+09:00 | #w2-no-stubs | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0626_bug_port-watcher-root-rename-lfs2.md | W2 종료: PORT-STUB 0 · portability(d39d5a0d 기준 PR #38 재시도) windows 1,959/0 · ubuntu 초록 · ci.yml 초록. 남은 CI 신뢰성: lsp 테스트 직렬화(port/lsp-flake) |
+<!-- oculpm:plan-log archived: 10 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
