@@ -9,14 +9,13 @@ use toml_edit::{value, Document, Item, Table};
 use crate::oculpm::atomic_io;
 use crate::oculpm::error::{OculpmError, OculpmResult};
 use crate::oculpm::mcp::register::BINARY_SIGNATURE;
+use crate::oculpm::paths;
 
 /// Codex 설정 파일. `CODEX_HOME`을 존중해 별도 프로필을 쓰는 사용자도 같은
-/// 설정을 보며, 없으면 Codex의 기본 위치를 사용한다.
+/// 설정을 보며, 없으면 Codex의 기본 위치를 사용한다 (OS 별 판정은
+/// [`paths::codex_home`] 한 곳).
 pub fn config_path() -> Option<PathBuf> {
-    std::env::var_os("CODEX_HOME")
-        .map(PathBuf::from)
-        .or_else(|| directories::BaseDirs::new().map(|b| b.home_dir().join(".codex")))
-        .map(|dir| dir.join("config.toml"))
+    paths::codex_home().map(|dir| dir.join("config.toml"))
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -279,4 +278,227 @@ fn newest_cached_version(codex_home: &Path, marketplace: &str) -> Option<String>
         .collect();
     versions.sort();
     versions.pop()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        plugin_status_at as codex_plugin_status_at, register_at as codex_register_at,
+        status_at as codex_status_at, unregister_at as codex_unregister_at,
+    };
+    use std::path::{Path, PathBuf};
+    use tempfile::TempDir;
+
+    fn fake_binary(dir: &Path) -> PathBuf {
+        let p = dir.join("oculpm-mcp");
+        std::fs::write(&p, "#!/bin/sh\n").unwrap();
+        p
+    }
+
+    /// TOML 기본 문자열로 이스케이프한 표기 (`"C:\\Users…"`).
+    fn toml_str(s: &str) -> String {
+        toml::Value::String(s.to_string()).to_string()
+    }
+
+    /// 등록은 **키 하나에 인자 없이** 쓴다 — `~/.codex/config.toml` 은 머신
+    /// 전역이라 `--root` 를 박으면 다른 프로젝트의 기록까지 그리로 간다.
+    #[test]
+    fn codex_register_writes_one_rootless_server_and_preserves_the_rest() {
+        let dir = TempDir::new().unwrap();
+        let binary = fake_binary(dir.path());
+        let config = dir.path().join(".codex").join("config.toml");
+        std::fs::create_dir(config.parent().unwrap()).unwrap();
+        std::fs::write(
+            &config,
+            "# Keep this user preference.\nmodel = \"gpt-5\"\n\n[mcp_servers.notion]\nurl = \"https://mcp.notion.com/mcp\"\n",
+        )
+        .unwrap();
+
+        let st = codex_register_at(&config, &binary).unwrap();
+        assert!(st.installed && st.registered && st.binary_found);
+        assert_eq!(st.server_key, "oculpm");
+        assert_eq!(st.pinned_root, None, "루트를 박지 않는다");
+        assert_eq!(st.foreign_servers, 1);
+
+        let written = std::fs::read_to_string(&config).unwrap();
+        assert!(written.contains("# Keep this user preference."));
+        assert!(written.contains("[mcp_servers.notion]"));
+        let parsed: toml::Value = toml::from_str(&written).unwrap();
+        let ours = &parsed["mcp_servers"]["oculpm"];
+        assert!(
+            ours.get("args").is_none(),
+            "args 가 있으면 루트가 박힌 것이다"
+        );
+        assert_eq!(
+            ours["command"].as_str(),
+            Some(binary.to_string_lossy().as_ref())
+        );
+
+        let st = codex_unregister_at(&config, Some(&binary)).unwrap();
+        assert!(!st.registered);
+        let after = std::fs::read_to_string(&config).unwrap();
+        assert!(after.contains("[mcp_servers.notion]"));
+        assert!(!after.contains("oculpm"));
+    }
+
+    /// v2.39.0 이 쓴 **프로젝트별·루트 박힌** 항목은 걷어내고 하나로 수렴한다.
+    /// 그대로 두면 유튜브 프로젝트의 Codex 가 이 저장소에 일지를 쓴다 (실제 사고).
+    #[test]
+    fn codex_register_collapses_legacy_pinned_entries() {
+        let dir = TempDir::new().unwrap();
+        let binary = fake_binary(dir.path());
+        let config = dir.path().join(".codex").join("config.toml");
+        std::fs::create_dir(config.parent().unwrap()).unwrap();
+        std::fs::write(
+            &config,
+            // 경로는 TOML 문자열로 **이스케이프해서** 싣는다 — 손으로 `"{경로}"` 를
+            // 조립하면 Windows 임시 폴더의 `\` 가 "invalid unicode escape" 로
+            // 픽스처부터 깨진다 (portability run 35881210465, windows 실패 1건).
+            format!(
+                "[mcp_servers.oculpm-ai-pm]\ncommand = {bin}\nargs = [\"--root\", \"/x/ai-pm\"]\n\n\
+                 [mcp_servers.oculpm-other]\ncommand = {bin}\nargs = [\"--root\", \"/x/other\"]\n",
+                bin = toml_str(&binary.to_string_lossy())
+            ),
+        )
+        .unwrap();
+
+        // 상태는 「박혀 있다」고 먼저 말해야 한다 — 화면이 다시 등록하라고 할 근거.
+        let before = codex_status_at(&config, Some(&binary)).unwrap();
+        assert!(before.registered);
+        assert!(before.pinned_root.is_some(), "레거시 고정 루트를 짚는다");
+
+        let st = codex_register_at(&config, &binary).unwrap();
+        assert_eq!(st.pinned_root, None);
+        let parsed: toml::Value =
+            toml::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
+        let servers = parsed["mcp_servers"].as_table().unwrap();
+        assert_eq!(servers.len(), 1, "우리 항목은 하나로 수렴한다");
+        assert!(servers.contains_key("oculpm"));
+    }
+
+    #[test]
+    fn codex_register_refuses_missing_config_directory_and_broken_toml() {
+        let dir = TempDir::new().unwrap();
+        let binary = fake_binary(dir.path());
+        let missing = dir.path().join("missing").join("config.toml");
+        assert!(!codex_status_at(&missing, Some(&binary)).unwrap().installed);
+        assert!(codex_register_at(&missing, &binary).is_err());
+        assert!(!missing.exists(), "Codex 설정 폴더를 창조하지 않는다");
+
+        let config = dir.path().join(".codex").join("config.toml");
+        std::fs::create_dir(config.parent().unwrap()).unwrap();
+        std::fs::write(&config, "[mcp_servers\ninvalid = true").unwrap();
+        assert!(codex_status_at(&config, Some(&binary)).is_err());
+        assert!(codex_register_at(&config, &binary).is_err());
+        assert!(codex_unregister_at(&config, Some(&binary)).is_err());
+        assert_eq!(
+            std::fs::read_to_string(&config).unwrap(),
+            "[mcp_servers\ninvalid = true"
+        );
+    }
+
+    // ─── Codex 플러그인 상태 (읽기 전용) ────────────────────────────────
+
+    fn codex_home_with(config: &str) -> TempDir {
+        let dir = TempDir::new().unwrap();
+        std::fs::write(dir.path().join("config.toml"), config).unwrap();
+        dir
+    }
+
+    #[test]
+    fn codex_plugin_is_not_claimed_without_a_config() {
+        let home = TempDir::new().unwrap();
+        let st = codex_plugin_status_at(&home.path().join("config.toml"), home.path());
+        assert!(st.codex_installed, "폴더는 있다");
+        assert!(!st.enabled);
+        assert_eq!(st.marketplace, None);
+        assert!(!st.marketplace_configured);
+    }
+
+    #[test]
+    fn codex_plugin_reports_marketplace_and_cached_version() {
+        let home = codex_home_with(
+            "[plugins.\"oculpm-codex@oculpm\"]\nenabled = true\n\n\
+             [marketplaces.oculpm]\nsource_type = \"local\"\nsource = \"/x/repo\"\n",
+        );
+        std::fs::create_dir_all(home.path().join("plugins/cache/oculpm/oculpm-codex/2.38.0"))
+            .unwrap();
+        let st = codex_plugin_status_at(&home.path().join("config.toml"), home.path());
+        assert!(st.enabled);
+        assert_eq!(st.marketplace.as_deref(), Some("oculpm"));
+        assert!(st.marketplace_configured);
+        assert_eq!(st.cached_version.as_deref(), Some("2.38.0"));
+    }
+
+    /// 항목만 있고 마켓플레이스가 없는 **고아** — Codex 첫 실행 임포트가
+    /// Claude 의 활성 플러그인만 옮겨 오면 이 꼴이 된다 (2026-09-03 실측).
+    /// 화면이 이 상태를 구분해 말할 수 있어야 한다.
+    #[test]
+    fn codex_plugin_flags_an_orphaned_entry() {
+        let home = codex_home_with("[plugins.\"oculpm-codex@oculpm\"]\nenabled = true\n");
+        let st = codex_plugin_status_at(&home.path().join("config.toml"), home.path());
+        assert!(st.enabled);
+        assert_eq!(st.marketplace.as_deref(), Some("oculpm"));
+        assert!(!st.marketplace_configured, "마켓플레이스가 없다 = 고아");
+        assert_eq!(st.cached_version, None);
+    }
+
+    // ─── Windows 경로 (크로스플랫폼 {#integ-paths}) ─────────────────────
+
+    /// 앱이 **실제로** 쓰는 경로는 toml_edit 가 값으로 쓴다 — 손으로 조립하는
+    /// 자리가 없어 `\` 가 알아서 이스케이프된다. 되읽어 **같은 문자열**인지로 잰다
+    /// (작은따옴표가 든 경로는 리터럴 문자열로 못 쓰는 경우까지).
+    #[test]
+    fn windows_binary_paths_are_written_as_valid_toml() {
+        for bin in [
+            r"C:\Users\Kim Hyunbin\AppData\Local\Ocul-PM\oculpm-mcp.exe",
+            r"C:\Users\O'Brien\AppData\Local\Ocul-PM\oculpm-mcp.exe",
+            r"C:\Users\u\x\oculpm-mcp.exe", // `\u` · `\x` — 기본 문자열이면 깨질 조합
+        ] {
+            let dir = TempDir::new().unwrap();
+            let config = dir.path().join("config.toml");
+            std::fs::write(&config, "# 사용자 주석\nmodel = \"gpt-5\"\n").unwrap();
+            let binary = PathBuf::from(bin);
+
+            let st = codex_register_at(&config, &binary).unwrap();
+            assert!(st.registered, "{bin}");
+            let written = std::fs::read_to_string(&config).unwrap();
+            assert!(written.contains("# 사용자 주석"), "주석 보존: {written}");
+            let parsed: toml::Value = toml::from_str(&written).unwrap_or_else(|e| {
+                panic!("{bin} 을 쓴 config.toml 이 TOML 이 아니다: {e}\n{written}")
+            });
+            assert_eq!(
+                parsed["mcp_servers"]["oculpm"]["command"].as_str(),
+                Some(bin)
+            );
+            // 다시 읽어도 우리 항목으로 알아본다 (다음 등록·해제의 전제).
+            assert!(codex_status_at(&config, Some(&binary)).unwrap().registered);
+            assert!(
+                !codex_unregister_at(&config, Some(&binary))
+                    .unwrap()
+                    .registered
+            );
+        }
+    }
+
+    /// 사람이 리터럴 문자열(`'…'`)로 적은 Windows 항목도 우리 것으로 알아보고 수렴시킨다.
+    #[test]
+    fn hand_written_literal_windows_entries_are_recognised() {
+        let dir = TempDir::new().unwrap();
+        let config = dir.path().join("config.toml");
+        std::fs::write(
+            &config,
+            "[mcp_servers.oculpm-proj]\ncommand = 'C:\\Ocul-PM\\oculpm-mcp.exe'\nargs = ['--root', 'C:\\p']\n",
+        )
+        .unwrap();
+        let before = codex_status_at(&config, None).unwrap();
+        assert!(before.registered);
+        assert_eq!(before.pinned_root.as_deref(), Some(r"C:\p"));
+        let binary = PathBuf::from(r"C:\Ocul-PM\oculpm-mcp.exe");
+        let st = codex_register_at(&config, &binary).unwrap();
+        assert_eq!(st.pinned_root, None);
+        let parsed: toml::Value =
+            toml::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
+        assert_eq!(parsed["mcp_servers"].as_table().unwrap().len(), 1);
+    }
 }
