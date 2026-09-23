@@ -6178,7 +6178,9 @@ export type ShellIntegrationStatus = {
 
 /**  우리가 지원하는 셸. 그 외는 조용히 통합을 건너뛴다(터미널은 정상 동작). */
 export type ShellKind = "zsh" | "bash" | 
-/**  fish·nu·pwsh 등 — 통합 미지원. */
+/**  Windows PowerShell 5.1 · PowerShell 7+ (Windows·Linux). macOS 에서는 미지원. */
+"powershell" | 
+/**  fish·nu·cmd 등 — 통합 미지원. */
 "unsupported";
 
 /**  결정적 스킬 후보 — 한 tag 의 반복 작업 클러스터. */
