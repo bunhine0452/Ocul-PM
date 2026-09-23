@@ -41,9 +41,11 @@ pub async fn open_terminal_window(app: AppHandle, project_id: u32) -> Result<(),
     };
 
     let url = format!("index.html?term={project_id}");
-    let window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
-        .title(title)
-        .hidden_title(true)
+    let builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into())).title(title);
+    // 제목 숨김은 macOS 전용 빌더 메서드다 (오버레이 타이틀바와 짝).
+    #[cfg(target_os = "macos")]
+    let builder = builder.hidden_title(true);
+    let window = builder
         .inner_size(TERM_WINDOW_W, TERM_WINDOW_H)
         .min_inner_size(TERM_WINDOW_MIN_W, TERM_WINDOW_MIN_H)
         .resizable(true)

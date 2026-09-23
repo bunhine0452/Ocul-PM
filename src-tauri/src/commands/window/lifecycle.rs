@@ -146,20 +146,24 @@ pub(super) async fn spawn_window(
     tearoff: bool,
     title: String,
 ) -> Result<(), String> {
-    let mut builder = WebviewWindowBuilder::new(
+    let builder = WebviewWindowBuilder::new(
         app,
         label,
         WebviewUrl::App(window_url(label, nav, tearoff).into()),
     )
-    .title(title)
-    .hidden_title(true)
-    .inner_size(WINDOW_W, WINDOW_H)
-    .min_inner_size(WINDOW_MIN_W, WINDOW_MIN_H)
-    .resizable(true)
-    // 손에 들려 있는 창은 포커스를 뺏지 않는다. 뺏으면 마우스 이벤트를 끌던
-    // 창에서 가로채 갈 위험이 있고(드래그가 그 자리에서 죽는다), 화면상으로도
-    // "아직 놓지 않았다" 가 안 읽힌다.
-    .focused(!tearoff);
+    .title(title);
+    // 제목 숨김은 macOS 전용 빌더 메서드다 (오버레이 타이틀바와 짝). 비-mac 의
+    // 창 크롬은 L-OS(#os-tray-menu)·L-UI(#ui-chrome) 가 정한다.
+    #[cfg(target_os = "macos")]
+    let builder = builder.hidden_title(true);
+    let mut builder = builder
+        .inner_size(WINDOW_W, WINDOW_H)
+        .min_inner_size(WINDOW_MIN_W, WINDOW_MIN_H)
+        .resizable(true)
+        // 손에 들려 있는 창은 포커스를 뺏지 않는다. 뺏으면 마우스 이벤트를 끌던
+        // 창에서 가로채 갈 위험이 있고(드래그가 그 자리에서 죽는다), 화면상으로도
+        // "아직 놓지 않았다" 가 안 읽힌다.
+        .focused(!tearoff);
     if let Some((x, y)) = position {
         // 이미 "창 좌상단" 으로 계산돼 온다 (`detached_origin`) — 여기서 다시
         // 보정하지 않는다.
