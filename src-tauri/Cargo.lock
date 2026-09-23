@@ -3982,6 +3982,7 @@ dependencies = [
  "tree-sitter-typescript",
  "uuid",
  "walkdir",
+ "windows-sys 0.61.2",
  "zip 5.1.1",
 ]
 
