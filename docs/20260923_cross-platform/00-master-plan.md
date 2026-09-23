@@ -158,3 +158,11 @@ App Sandbox 가 필수인데 이 앱의 핵심(내장 터미널이 띄우는 `cl
 - [`01-lane-briefs.md`](01-lane-briefs.md) — 파동·레인별 브리프(병렬 세션에 그대로 넘기는 지시문)와 파일 소유 표
 - [`02-error-inventory.md`](02-error-inventory.md) — 층별 오류 인벤토리(앞 층이 막으면 뒤 층이 안 보인다)와 레인 배정
 - [`03-mas-feasibility.md`](03-mas-feasibility.md) — Mac App Store 기능별 샌드박스 호환 표 (결정: 하지 않는다 — 근거 기록)
+
+## 구현 중 뒤집힌 결정
+
+- **합류 순서 — L-UI 를 W2 마지막이 아니라 맨 먼저** (2026-09-24). L-UI 는 `src/**` 만 소유해
+  W1(`src-tauri/**`)과 파일이 겹치지 않고 Rust 컴파일과도 무관했다. W1 을 기다리지 않고 출발시켜
+  W0 와 함께 PR #31 로 먼저 합류했다. "컴파일 영향이 큰 순" 규칙은 Rust 레인끼리에만 적용한다.
+- **`.gitattributes` 를 W1 이 아니라 W0 가 소유** — 모든 레인의 공통 기반이라 한 레인에 두면
+  다른 레인이 CRLF 실패를 제각각 "고치려" 든다(W0 첫 실행 vitest 36건).
