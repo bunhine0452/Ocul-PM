@@ -6,6 +6,7 @@
 import type { CodeMenuItem } from "./CodeContextMenu";
 import { parentDir } from "./fileOps";
 import { t } from "@/i18n";
+import { kbd } from "@/lib/kbd";
 
 /** 메뉴가 부를 수 있는 것들. 화면이 실제 동작을 쥔다. */
 export interface TreeMenuActions {
@@ -37,7 +38,7 @@ export function treeMenuItems(
   const items: CodeMenuItem[] = [
     {
       label: t("code.ops.newFile"),
-      hint: "⌘N",
+      hint: kbd("⌘N"),
       onSelect: () => actions.startCreate(parent, false),
     },
     { label: t("code.ops.newFolder"), onSelect: () => actions.startCreate(parent, true) },
@@ -47,7 +48,7 @@ export function treeMenuItems(
   if (paste) {
     items.push({
       label: t("code.ops.pasteHere"),
-      hint: "⌘V",
+      hint: kbd("⌘V"),
       onSelect: paste,
       separatorBefore: true,
     });
@@ -56,7 +57,7 @@ export function treeMenuItems(
   items.push(
     {
       label: t("code.ops.cut"),
-      hint: "⌘X",
+      hint: kbd("⌘X"),
       onSelect: () => actions.cut(entry.path, entry.isDir),
       separatorBefore: true,
     },

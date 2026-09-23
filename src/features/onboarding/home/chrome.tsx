@@ -6,6 +6,7 @@ import { Folder, Plus, Search, Settings } from "@/components/Icons";
 import { BriefFootnote } from "./atoms";
 import { useT } from "@/i18n";
 import { dragRegion } from "@/lib/platform";
+import { kbd } from "@/lib/kbd";
 
 // ── 상단 레일 ──────────────────────────────────────────────────────────
 
@@ -129,9 +130,9 @@ export function HomeKeyHints() {
   const items: Array<[string, string]> = [
     ["↑↓", t("home.kbdMove")],
     ["⏎", t("home.kbdOpen")],
-    ["⌘E", t("home.kbdRename")],
-    ["⌘⌫", t("home.kbdRemove")],
-    ["⌘K", t("home.kbdPalette")],
+    [kbd("⌘E"), t("home.kbdRename")],
+    [kbd("⌘⌫"), t("home.kbdRemove")],
+    [kbd("⌘K"), t("home.kbdPalette")],
   ];
   return (
     <span className="home-hints" aria-hidden="true">

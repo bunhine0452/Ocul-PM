@@ -7,6 +7,7 @@ import { FileIcon } from "./FileIcon";
 import { t, useT } from "@/i18n";
 
 import { CodeContextMenu } from "./CodeContextMenu";
+import { kbd } from "@/lib/kbd";
 
 /** 창 간 탭 드래그의 페이로드 형식. `pane:path` — path 에 `:` 가 있어도 안전하게 첫 `:` 로만 쪼갠다. */
 export const TAB_DND_MIME = "application/x-oculpm-code-tab";
@@ -174,7 +175,7 @@ export const CodeTabsBar = memo(function CodeTabsBar({
           label={t("code.tabs.aria")}
           onClose={() => setMenu(null)}
           items={[
-            { label: t("code.tabs.closeTab"), onSelect: () => onClose(menu.path), hint: "⌘W" },
+            { label: t("code.tabs.closeTab"), onSelect: () => onClose(menu.path), hint: kbd("⌘W") },
             {
               label: t("code.tabs.closeOthers"),
               onSelect: () => onCloseOthers(menu.path),
@@ -184,7 +185,7 @@ export const CodeTabsBar = memo(function CodeTabsBar({
               label: t("code.tabs.reopen"),
               onSelect: onReopenClosed,
               disabled: !canReopen,
-              hint: "⇧⌘T",
+              hint: kbd("⇧⌘T"),
             },
             {
               label: t("code.tabs.pin"),

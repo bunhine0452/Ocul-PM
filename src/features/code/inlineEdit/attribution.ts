@@ -16,6 +16,7 @@
 
 import { getContentLang, type Lang } from "@/i18n";
 import type { ManualEntryDraft } from "@/lib/bindings";
+import { modLabel } from "@/lib/kbd";
 
 /** 이 파일에서 받은 ⌘K 편집 하나. */
 export interface AiEdit {
@@ -93,8 +94,8 @@ const TEXT: Record<Lang, { title: string; summary: string; verify: string; ask: 
 function bodyLine(lang: Lang, path: string, tally: AiEditTally): string {
   const stat = `+${tally.added} −${tally.removed}`;
   return lang === "ko"
-    ? `\`${path}\` 의 ${tally.edits}곳을 편집기 안에서 ⌘K 로 고쳤습니다 (${stat}).`
-    : `Rewrote ${tally.edits} place(s) in \`${path}\` with ⌘K in the editor (${stat}).`;
+    ? `\`${path}\` 의 ${tally.edits}곳을 편집기 안에서 ${modLabel("K")} 로 고쳤습니다 (${stat}).`
+    : `Rewrote ${tally.edits} place(s) in \`${path}\` with ${modLabel("K")} in the editor (${stat}).`;
 }
 
 /**
