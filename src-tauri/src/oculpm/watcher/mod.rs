@@ -44,6 +44,8 @@ mod journal;
 mod repeat;
 #[cfg(test)]
 mod tests;
+#[cfg(all(test, windows))]
+mod tests_windows;
 
 pub(crate) use classify::{is_rules_path, is_self_suppressed};
 

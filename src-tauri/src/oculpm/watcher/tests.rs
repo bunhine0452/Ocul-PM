@@ -48,7 +48,7 @@ fn a2a_ledger_paths_are_classified_before_the_agents_cascade() {
 }
 
 /// Most tests use a 150ms debounce + 350ms wait to keep wall-clock short.
-fn fast_config() -> OculpmConfig {
+pub(super) fn fast_config() -> OculpmConfig {
     let mut cfg = OculpmConfig::default_for_new_project();
     cfg.watcher.debounce_ms = 150;
     // Make sure node_modules / .git are in the default ignore set.
@@ -105,8 +105,51 @@ async fn setup() -> Setup {
     setup_with_config(fast_config()).await
 }
 
-async fn settle() {
+pub(super) async fn settle() {
     sleep(Duration::from_millis(450)).await;
+}
+
+/// 세션이 **다 열릴 때까지** 기다린다. 액터는 명령을 차례로 처리하므로 `Some` 이
+/// 돌아왔다는 것은 세션 시작(스냅숏의 git 자식 · fsync 쓰기)이 끝났다는 뜻이다.
+///
+/// 윈도우는 어떤 프로세스의 현재 디렉터리인 폴더(`current_dir(root)` 로 띄운 git —
+/// `ERROR_SHARING_VIOLATION`)나 그 아래에 열린 핸들이 있는 폴더(`ERROR_ACCESS_DENIED`,
+/// `FILE_SHARE_DELETE` 로 열었어도)의 이름을 바꾸지 못한다. 고정 시간만 기다리던
+/// 동안 부하가 걸린 러너에서 세션 시작이 그 시간을 넘기면 루트 이동이 거부됐다
+/// (#fs-watcher-flake · 윈도우 러너에서 기다림 200~600ms 를 쓸어 54회 중 20회 재현 —
+/// 17회는 그 순간 git 자식이 살아 있었고, 우리 프로세스가 루트 **아래**에 쥔 핸들은
+/// 매번 0개였다. 세션 열림을 기다리면 두 차례 108회 중 0회).
+pub(super) async fn wait_for_open_session(actor: &SessionActor) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while actor.get_current_session().await.unwrap().is_none() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "세션이 10초 안에 열리지 않았다"
+        );
+        sleep(Duration::from_millis(20)).await;
+    }
+}
+
+/// 사용자가 탐색기·Finder 에서 폴더를 옮기거나 휴지통에 보내는 일 = 이름 바꾸기.
+///
+/// 윈도우는 위(`wait_for_open_session`)의 이유로 그 순간 누가 폴더 안을 잠깐 쥐고
+/// 있으면 거부하고, 탐색기는 「폴더 사용 중 — 다시 시도」를 띄운다. 그 「다시 시도」
+/// 만큼만 물러섰다 다시 한다: **1초 넘게** 막히면 누군가 영구히 쥔 것이므로(진짜
+/// 결함) 그대로 실패한다. 유닉스는 한 번 — 이름 바꾸기를 막는 일이 없다.
+fn move_like_the_user(from: &Path, to: &Path) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        let deadline = std::time::Instant::now() + Duration::from_secs(1);
+        loop {
+            let moved = std::fs::rename(from, to);
+            if moved.is_ok() || std::time::Instant::now() >= deadline {
+                return moved;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+    #[cfg(not(windows))]
+    std::fs::rename(from, to)
 }
 
 /// Case 1 — five distinct files modified → five ndjson events emitted.
@@ -619,6 +662,7 @@ async fn removing_the_project_root_does_not_resurrect_it() {
     // 살아 있는 동안의 활동 — 세션이 열리고 색인이 생긴다 (대조군).
     std::fs::write(root.join("src/a.rs"), "fn a() {}").unwrap();
     settle().await;
+    wait_for_open_session(&actor).await;
     assert!(
         root.join(".oculpm/index").is_dir(),
         "대조군: 살아 있는 루트에는 쓴다"
@@ -626,7 +670,7 @@ async fn removing_the_project_root_does_not_resurrect_it() {
 
     // Finder 의 삭제.
     let trashed = parent.path().join("project (trashed)");
-    std::fs::rename(&root, &trashed).unwrap();
+    move_like_the_user(&root, &trashed).unwrap();
     settle().await;
     settle().await;
 
