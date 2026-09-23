@@ -590,6 +590,58 @@ fn the_codex_plugin_ships_the_same_hook_bundle_as_the_claude_one() {
 
 // ─── 셔틀(`bin/oculpm-mcp`)의 설치 위치 (#integ-plugin-bin) ──────────────────
 
+/// **셔틀과 앱이 같은 자리를 같은 순서로 본다** — 앱(`acp::recording::candidate_paths`)
+/// 이 화면에 "여기를 찾아봤다"고 보여 주는 목록과 셔틀이 실제로 도는 목록이 갈라지면
+/// 사용자는 두 번 헤맨다. 셔틀의 후보 줄을 exec 대신 출력하도록 바꿔 이 OS 의 훅 셸로
+/// 돌리고, 세 OS 각각의 앱 목록이 그 안에 **같은 순서로** 들어 있는지 본다.
+#[test]
+fn the_shuttle_and_the_app_search_the_same_places() {
+    use ocul_pm_lib::acp::recording::{candidate_paths, HostOs, SearchRoots};
+
+    let script = std::fs::read_to_string(claude_plugin().join("bin/oculpm-mcp")).unwrap();
+    let exec = "if [ -n \"$cand\" ] && [ -x \"$cand\" ]; then\n    exec \"$cand\" \"$@\"\n  fi";
+    assert!(script.contains(exec), "셔틀의 후보 루프 모양이 바뀌었다");
+    let probe = script.replace(exec, "[ -n \"$cand\" ] && printf '%s\\n' \"$cand\"");
+    let tmp = tempfile::tempdir().unwrap();
+    let probe_path = tmp.path().join("probe.sh");
+    std::fs::write(&probe_path, probe).unwrap();
+
+    let mut cmd = Command::new(hook_shell());
+    cmd.arg(&probe_path)
+        .env("HOME", "/h")
+        .env("LOCALAPPDATA", "/lad")
+        .env("ProgramFiles", "/pf");
+    for var in ["OCULPM_MCP_BIN", "XDG_DATA_HOME", "ProgramW6432"] {
+        cmd.env_remove(var);
+    }
+    let out = spawn_with_stdin(cmd, "");
+    let shuttle: Vec<String> = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(str::to_string)
+        .collect();
+
+    for os in [HostOs::Mac, HostOs::Linux, HostOs::Windows] {
+        let roots = SearchRoots {
+            home: Some(Path::new("/h")),
+            local_app_data: Some(Path::new("/lad")),
+            program_files: Some(Path::new("/pf")),
+            ..SearchRoots::default()
+        };
+        let app: Vec<String> = candidate_paths(os, &roots)
+            .iter()
+            .map(|p| p.to_string_lossy().replace('\\', "/"))
+            .collect();
+        // 앱 목록이 셔틀 목록의 순서 있는 부분열인가.
+        let mut rest = shuttle.iter();
+        for want in &app {
+            assert!(
+                rest.any(|got| got == want),
+                "{os:?}: 앱이 보는 {want} 를 셔틀이 (그 순서로) 안 본다\n앱: {app:?}\n셔틀: {shuttle:?}"
+            );
+        }
+    }
+}
+
 /// 셔틀을 임시 플러그인 폴더에 복사한다 — 리포 안에서 돌리면 `target/debug` 개발
 /// 빌드 후보가 먼저 잡혀 설치 위치 탐색을 못 잰다.
 #[cfg(not(target_os = "macos"))]
