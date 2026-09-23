@@ -1201,7 +1201,10 @@ pub fn run() {
                 // 흘려보내므로 여기서 다시 건진다.
                 #[cfg(not(target_os = "macos"))]
                 {
-                    let argv: Vec<String> = std::env::args().collect();
+                    // `args()` 는 UTF-8 이 아닌 인자에서 패닉한다 — 기동 경로라 손실 변환으로.
+                    let argv: Vec<String> = std::env::args_os()
+                        .map(|a| a.to_string_lossy().into_owned())
+                        .collect();
                     for url in crate::deeplink::links_in_argv(&argv) {
                         crate::deeplink::dispatch(app.handle(), &url);
                     }
