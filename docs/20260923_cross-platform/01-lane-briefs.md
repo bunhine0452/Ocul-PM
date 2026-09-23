@@ -192,7 +192,15 @@
   `deeplink::dispatch`. `tauri-plugin-single-instance` 의 `deep-link` feature 검토.
   Linux·Windows 개발 빌드는 런타임 `register_all()` 필요 여부.
 - 트레이·메뉴·창: `tray.rs` 의 투명 팝오버(`macOSPrivateApi`)는 비-mac 에서 불투명·위치 규칙,
-  `menu.rs` 의 앱 메뉴는 비-mac 에서 없음(단축키는 웹뷰가 받는다), `TitleBarStyle::Overlay` 는 mac 한정 확인.
+  `TitleBarStyle::Overlay` 는 mac 한정 확인.
+- **`menu.rs` — 비-mac 에서 앱 메뉴를 달지 않는다 (L-UI 합류 뒤 필수, `#os-no-menu`).** 메뉴
+  액셀러레이터가 `CmdOrCtrl+W/T` 와 Edit 의 `Ctrl+C/V/X/Z/A` 다. Linux(GTK)는 창 액셀러레이터가
+  웹뷰보다 먼저 받아 **터미널의 Ctrl+W 가 페인을 닫고 Ctrl+C 가 SIGINT 대신 복사가 될** 공산이 크다.
+  Windows(WebView2)는 반대로 웹뷰 포커스 중 액셀러레이터가 안 들릴 공산이 크다. L-UI 가 이미
+  ⌘T/⌘W 를 비-mac 에서 keydown(`useWindowTabKeys`)으로 받고 편집 키는 웹뷰 기본이 처리한다.
+  L-UI 가 제안한 diff: `apply()` 첫머리에 `#[cfg(not(target_os = "macos"))] { let _ = (app, lang); return Ok(()); }`.
+  그러면 비-mac 의 새 창(⇧⌘N) 키가 없어진다 — 필요하면 `new_window` 커맨드(오케스트레이터 합류 때).
+  테스트: 비-mac 에서 메뉴가 붙지 않음을 단언하는 단위 테스트(windows·ubuntu 러너).
 - 비밀 저장(`secrets.rs`): Linux 에 Secret Service 가 없으면 **평문 저장 없이** 명확한 에러와
   설정 화면 안내 문구 키(프런트 문구는 L-UI 에 보고).
 - 외부 도구: `dap/registry.rs` 의 `xcrun`(mac 전용 → 비-mac 은 PATH 의 `lldb-dap`/`codelldb`),
