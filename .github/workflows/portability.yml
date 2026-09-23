@@ -209,3 +209,144 @@ jobs:
             echo "::error::Windows 프런트 실패 — 각 단계 로그를 볼 것"
             exit 1
           fi
+
+  # ── 사이드카 (크로스플랫폼 L-INTEG #integ-build-sidecar) ──────────────────────
+  # `scripts/build-sidecar.mjs` 가 그 OS 에서 `binaries/oculpm-mcp-<triple>[.exe]` 를
+  # **실제로 만드는지**, 만든 것이 실행되는지 본다. tauri 번들(W3)의 전제다. 릴리스
+  # 프로필(thin LTO · codegen-units=1)이라 한 OS 에 수십 분 걸려서, 사이드카에 닿는
+  # 파일이 바뀐 push 에서만 돈다. 외부 액션(paths-filter 등) 없이 `git diff` 로 판정 —
+  # job 수준 `if:` 는 식만 평가하므로 판정을 작은 잡 하나로 떼어 출력으로 넘긴다.
+  sidecar-changes:
+    name: 사이드카 — 바뀐 파일 판정
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: 판정
+        id: gate
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          run=false
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            run=true; why="수동 실행"
+          elif [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            run=true; why="브랜치 첫 push"
+          elif ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            # 강제 push(rebase) 뒤에는 이전 머리가 이 클론에 없다 — 모르면 돈다.
+            run=true; why="이전 머리 $BEFORE 를 못 찾음 (강제 push)"
+          else
+            changed=$(git diff --name-only "$BEFORE" "$AFTER" | grep -E '^(scripts/build-sidecar\.mjs|plugin/|\.claude-plugin/|src-tauri/src/bin/|src-tauri/build\.rs|\.github/workflows/portability\.yml)' || true)
+            if [ -n "$changed" ]; then
+              run=true; why=$(echo $changed)
+            else
+              why="사이드카에 닿는 변경 없음"
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "사이드카 잡: run=$run — $why" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  sidecar:
+    name: 사이드카 — ${{ matrix.os }}
+    needs: sidecar-changes
+    if: needs.sidecar-changes.outputs.run == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 툴체인 버전 읽기 (rust-toolchain.toml)
+        id: toolchain
+        run: |
+          channel=$(grep -m1 '^channel' rust-toolchain.toml | tr -d ' "\r' | cut -d= -f2)
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust ${{ steps.toolchain.outputs.channel }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+
+      - name: Linux 시스템 의존성
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+            libxdo-dev libssl-dev libdbus-1-dev build-essential pkg-config
+
+      - name: Rust cache (release)
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          key: sidecar-release
+          cache-on-failure: true
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: node scripts/build-sidecar.mjs
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          node scripts/build-sidecar.mjs 2>&1 | tee sidecar.log
+
+      # 이름은 tauri externalBin 이 찾는 `oculpm-mcp-<호스트 triple>[.exe]` 이어야 하고,
+      # 0바이트 자리표시자(build.rs)가 아니라 **실행되는** 바이너리여야 한다. 스크립트는
+      # 플러그인·마켓플레이스 버전만 스탬프하므로, 이미 맞춰 둔 파일은 바뀌면 안 된다.
+      - name: 산출물 — 이름 · 크기 · 실행 · 버전 파일 불변
+        id: verify
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          triple=$(rustc -vV | sed -n 's/^host: //p' | tr -d '\r')
+          ext=""; [ "$RUNNER_OS" = "Windows" ] && ext=".exe"
+          out="src-tauri/binaries/oculpm-mcp-${triple}${ext}"
+          ls -la src-tauri/binaries/ | tee -a sidecar.log
+          test -s "$out"
+          size=$(wc -c < "$out" | tr -d ' ')
+          echo "size=$size" | tee -a sidecar.log
+          [ "$size" -gt 1048576 ]
+          ver=$("$out" --version 2>&1)
+          echo "$ver" | tee -a sidecar.log
+          case "$ver" in "oculpm-mcp "*) ;; *) echo "::error::--version 응답이 이상하다: $ver"; exit 1 ;; esac
+          git diff --exit-code -- plugin .claude-plugin
+
+      - name: 로그 아티팩트
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portability-sidecar-${{ matrix.os }}
+          path: sidecar.log
+          if-no-files-found: ignore
+
+      - name: 요약
+        if: always()
+        run: |
+          {
+            echo "## sidecar — ${{ matrix.os }}"
+            echo "| 단계 | 결과 |"
+            echo "|---|---|"
+            echo "| build-sidecar.mjs | ${{ steps.build.outcome }} |"
+            echo "| 산출물 검증 | ${{ steps.verify.outcome }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.build.outcome }}" != "success" ] || \
+             [ "${{ steps.verify.outcome }}" != "success" ]; then
+            echo "::error::사이드카 빌드 실패 — 요약과 sidecar.log 를 볼 것"
+            exit 1
+          fi
