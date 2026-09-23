@@ -21,7 +21,9 @@ payload=$(cat 2>/dev/null || true)
 # CLAUDE_PLUGIN_ROOT 도 실어 주지만, CLAUDE_PROJECT_DIR 은 주지 않는다 — 그
 # 자리를 payload 의 cwd 가 대신한다. 없으면 예전처럼 현재 디렉터리.
 ROOT="${CLAUDE_PROJECT_DIR:-}"
-[ -n "$ROOT" ] || ROOT=$(printf '%s' "$payload" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+# Windows 경로는 JSON 안에서 `\\` 로 온다 — 한 번 푼다 (macOS·Linux 경로에는
+# 없는 글자라 그대로 지나간다).
+[ -n "$ROOT" ] || ROOT=$(printf '%s' "$payload" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -e 's/.*"\([^"]*\)"$/\1/' -e 's/\\\\/\\/g')
 [ -n "$ROOT" ] || ROOT="."
 [ -d "$ROOT/.oculpm" ] || exit 0
 mkdir -p "$ROOT/.oculpm/hooks" 2>/dev/null || exit 0
@@ -39,7 +41,7 @@ if [ -n "$sid" ]; then
     # --ledger 가 신호 원장 append 를 **바이너리 안에서** 한다: 회전(읽고-
     # 자르고-바꾸기)은 append 와 달리 원자적이지 않아 공용 파일 문지기가
     # 필요하고, 셸의 `>>` 는 개행 누락으로 깨진 줄을 남긴 전례가 있다.
-    tp=$(printf '%s' "$payload" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+    tp=$(printf '%s' "$payload" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1 | sed 's/\\\\/\\/g')
     "$bin" verdict --root "$ROOT" --conversation "$sid" --transcript "$tp" --ledger >/dev/null 2>&1
     rc=$?
   fi

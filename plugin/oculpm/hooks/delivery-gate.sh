@@ -21,7 +21,9 @@ payload=$(cat 2>/dev/null || true)
 # CLAUDE_PLUGIN_ROOT 도 실어 주지만, CLAUDE_PROJECT_DIR 은 주지 않는다 — 그
 # 자리를 payload 의 cwd 가 대신한다. 없으면 예전처럼 현재 디렉터리.
 ROOT="${CLAUDE_PROJECT_DIR:-}"
-[ -n "$ROOT" ] || ROOT=$(printf '%s' "$payload" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+# Windows 경로는 JSON 안에서 `\\` 로 온다 — 한 번 푼다 (macOS·Linux 경로에는
+# 없는 글자라 그대로 지나간다).
+[ -n "$ROOT" ] || ROOT=$(printf '%s' "$payload" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -e 's/.*"\([^"]*\)"$/\1/' -e 's/\\\\/\\/g')
 [ -n "$ROOT" ] || ROOT="."
 [ -d "$ROOT/.oculpm" ] || exit 0
 # 이 게이트의 차단으로 이어진 턴이면 절대 재차단하지 않는다.
@@ -55,7 +57,7 @@ bin="$plugin_root/bin/oculpm-mcp"
 # ({#gate-positive-attribution}). 여기에 이 대화가 부른 Edit/Write 가 들어 있어,
 # 옆 대화가 살아 있어도 우리 몫만 골라 붙잡을 수 있다. 못 뽑아도 무해하다
 # (예전처럼 옆 대화가 있으면 판정 불가).
-tp=$(printf '%s' "$payload" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+tp=$(printf '%s' "$payload" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1 | sed 's/\\\\/\\/g')
 msg=$("$bin" verdict --root "$ROOT" --conversation "$sid" --transcript "$tp" 2>/dev/null)
 rc=$?
 # 10 = 이의. 0(이의 없음) · 11(판정 불가) · 그 밖(오류)은 전부 침묵.

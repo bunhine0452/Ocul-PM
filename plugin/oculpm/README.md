@@ -23,8 +23,14 @@ ocul-pm 의 Claude Code 연동 두 가지를 **한 번에** 구성합니다 (수
 
 ## 요구 사항
 
-- **macOS** (플러그인 v1 — Windows/Linux 는 후속. `bin/oculpm-mcp` 가 POSIX sh 셔틀입니다)
-- **ocul-pm 앱 설치** (oculpm-mcp 바이너리가 .app 번들에 동봉됨) 또는 `OCULPM_MCP_BIN` 지정
+- **macOS** · **Linux** · **Windows** (Linux·Windows 는 베타). 훅과 `bin/oculpm-mcp` 는 POSIX sh 입니다.
+  - **Windows 는 Git for Windows(Git Bash)가 필요합니다** — Claude Code 는 셸 형 훅을
+    Git Bash 로 돌리고, 없으면 PowerShell 로 돌려 이 훅들이 동작하지 않습니다.
+  - **Windows 에서는 이 플러그인의 MCP 서버가 뜨지 않습니다.** Claude Code 는 stdio MCP
+    서버를 셸 없이 직접 실행하는데, Windows 는 sh 셔틀을 실행 파일로 열지 못합니다.
+    대신 앱의 **설정 → 통합 → MCP 등록**(프로젝트 `.mcp.json` 에 설치된
+    `oculpm-mcp.exe` 경로를 씁니다)을 쓰세요. 훅(기록 게이트·재개 컨텍스트)은 그대로 동작합니다.
+- **ocul-pm 앱 설치** (oculpm-mcp 바이너리가 앱에 동봉됨) 또는 `OCULPM_MCP_BIN` 지정
 - Claude Code **2.1.220 이상에서 검증** (`claude plugin validate` + `--plugin-dir` 실로드)
 
 ## 설치
@@ -52,9 +58,13 @@ claude --plugin-dir /path/to/ai-pm/plugin/oculpm
 실행하고, 셔틀이 순서대로 탐색합니다:
 
 1. `OCULPM_MCP_BIN` 환경변수
-2. `/Applications/ocul-pm.app` · `~/Applications/ocul-pm.app` 번들
+2. `/Applications/ocul-pm.app` · `~/Applications/ocul-pm.app` 번들 (macOS)
 3. `~/.local/bin/oculpm-mcp`
-4. 리포 개발 빌드 (`--plugin-dir` 로 리포에서 직접 로드할 때만)
+4. Linux — `/usr/bin/oculpm-mcp`(deb), `${XDG_DATA_HOME:-~/.local/share}/ocul-pm/bin/oculpm-mcp`
+   (AppImage — 앱이 기동 때 마운트 밖으로 복사해 둔 사본)
+5. Windows — `%LOCALAPPDATA%\Ocul-PM\oculpm-mcp.exe`(사용자 설치),
+   `%LOCALAPPDATA%\Programs\Ocul-PM\`, `%ProgramFiles%\Ocul-PM\`(시스템 설치)
+6. 리포 개발 빌드 (`--plugin-dir` 로 리포에서 직접 로드할 때만)
 
 못 찾으면 stderr 로 설치 안내를 내고 종료합니다.
 

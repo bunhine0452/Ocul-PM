@@ -708,65 +708,9 @@ fn the_codex_manifest_declares_no_hooks_because_validation_rejects_them() {
     );
 }
 
-/// **훅은 파일로 싣는다** (플랜 `v3-release` {#codex-hook-delivery}).
-///
-/// 바로 위 테스트가 못박는 것은 매니페스트 **필드**가 거부된다는 사실이다.
-/// 거기서 "그러니 Codex 에는 훅을 못 준다"로 넘어갔던 것이 잘못된 추론이었다 —
-/// Codex 는 플러그인 루트의 `hooks/hooks.json` 을 **관례로** 읽는다.
-///
-/// 실측 (Codex 0.153.4, 2026-09-07, 격리 `CODEX_HOME`):
-///
-/// 1. `hooks/hooks.json` 을 담은 플러그인이 마켓플레이스에서 **설치된다**
-///    (매니페스트에 `hooks` 필드는 없다). 훅 스크립트와 셔틀이 캐시로 복사되고
-///    실행 비트도 살아남는다.
-/// 2. 그 훅이 **실제로 돈다**. `.oculpm/` 이 있는 임시 프로젝트에서
-///    `codex exec` 한 번에 `SessionStart`·`SessionEnd` payload 두 줄이
-///    `.oculpm/hooks/claude-events.jsonl` 에 쌓였다.
-/// 3. 단, 훅에는 **신뢰**가 필요하다. 처음 한 번은 Codex 가 사용자에게 묻고,
-///    자동화에서는 `--dangerously-bypass-hook-trust` 로 넘긴다. 앞선 조사가
-///    "훅이 안 돈다"고 결론 낼 뻔한 이유가 이 문지기였다.
-///
-/// 그래서 두 플러그인의 훅 묶음은 **같은 파일**이어야 한다. 갈라지면 Codex
-/// 사용자만 조용히 옛 판을 쓰게 되고, 그건 아무도 못 본다.
-#[test]
-fn the_codex_plugin_ships_the_same_hook_bundle_as_the_claude_one() {
-    let claude = plugin_root();
-    let codex = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../plugin/oculpm-codex")
-        .canonicalize()
-        .expect("plugin/oculpm-codex");
-
-    for rel in [
-        "hooks/hooks.json",
-        "hooks/session-marker.sh",
-        "hooks/session-end.sh",
-        "hooks/delivery-gate.sh",
-        "hooks/plan-context.sh",
-        "bin/oculpm-mcp",
-    ] {
-        let mine = std::fs::read(codex.join(rel)).unwrap_or_else(|e| {
-            panic!("oculpm-codex 에 {rel} 이 없다 ({e}) — Codex 훅 배포가 끊긴다")
-        });
-        let theirs = std::fs::read(claude.join(rel)).expect("claude 판");
-        assert_eq!(
-            mine, theirs,
-            "{rel} 이 두 플러그인 사이에서 갈라졌다 — Codex 사용자만 옛 판을 쓴다"
-        );
-
-        #[cfg(unix)]
-        if rel.ends_with(".sh") || rel.ends_with("oculpm-mcp") {
-            use std::os::unix::fs::PermissionsExt;
-            let mode = std::fs::metadata(codex.join(rel))
-                .unwrap()
-                .permissions()
-                .mode();
-            assert!(
-                mode & 0o111 != 0,
-                "{rel} 실행 비트 유실 — 설치는 되고 훅만 조용히 죽는다"
-            );
-        }
-    }
-}
+// 두 플러그인의 훅 묶음 동일성 (`the_codex_plugin_ships_the_same_hook_bundle_as_the_claude_one`)
+// 은 `tests/plugin_xplat.rs` 로 옮겼다 — Codex 판만 Windows 변형(`commandWindows`)을
+// 더 싣게 되어, 그 예외와 Windows 에서의 실제 실행을 한 파일이 함께 문다.
 
 /// Codex 는 레포 마켓플레이스를 `<repo-root>/.agents/plugins/marketplace.json`
 /// **에서만** 찾는다. 이 파일이 없으면 플러그인은 디스크에 있어도 아무도

@@ -8,8 +8,9 @@
 # 호출되므로 극도로 저비용(grep 1회 이하), 모든 실패는 기본 출력으로 낙하.
 payload=$(cat 2>/dev/null || true)
 get() { printf '%s' "$payload" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1; }
-dir=$(get project_dir)
-[ -n "$dir" ] || dir=$(get current_dir)
+# 경로만 JSON 의 `\\` 를 푼다 (Windows 경로 — macOS·Linux 경로에는 없는 글자).
+dir=$(get project_dir | sed 's/\\\\/\\/g')
+[ -n "$dir" ] || dir=$(get current_dir | sed 's/\\\\/\\/g')
 model=$(get display_name)
 base="${model:-claude} · $(basename "${dir:-?}")"
 

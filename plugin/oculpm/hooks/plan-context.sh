@@ -37,7 +37,9 @@ payload=$(cat 2>/dev/null || true)
 # 주지 않으므로, 이 폴백이 없으면 세션 cwd 가 루트가 아닐 때 재개 컨텍스트가 조용히
 # 침묵한다 (2026-09-22 리뷰).
 ROOT="${CLAUDE_PROJECT_DIR:-}"
-[ -n "$ROOT" ] || ROOT=$(printf '%s' "$payload" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+# Windows 경로는 JSON 안에서 `\\` 로 온다 — 한 번 푼다 (macOS·Linux 경로에는
+# 없는 글자라 그대로 지나간다).
+[ -n "$ROOT" ] || ROOT=$(printf '%s' "$payload" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -e 's/.*"\([^"]*\)"$/\1/' -e 's/\\\\/\\/g')
 [ -n "$ROOT" ] || ROOT="."
 [ -d "$ROOT/.oculpm" ] || exit 0
 
