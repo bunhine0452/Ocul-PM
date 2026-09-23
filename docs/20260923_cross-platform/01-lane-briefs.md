@@ -61,6 +61,9 @@ W1 뒤에 정해진 것:
 완료 조건 (D1 — "컴파일된다" 는 완료가 아니다)
 1. 로컬(macOS): src-tauri 에서 cargo fmt --check · cargo clippy --all-targets --locked -- -D warnings ·
    cargo test --locked 초록. 프런트를 고쳤다면 pnpm typecheck · pnpm test · pnpm lint · pnpm build 초록.
+   **Rust 만 고쳤어도 저장소 루트에서 `node scripts/check-file-sizes.mjs`** — 800줄을 넘은 파일은 더
+   늘리면 안 되는 래칫이고, 이 게이트는 ci.yml 의 프런트 잡에서 돈다(W1 이 PR #32 에서 여기 걸렸다:
+   ptyhost/host/mod.rs 810→840). 늘어야 하면 새 파일로 뗀다.
 2. 브랜치(port/<레인>)를 push 하면 portability.yml(windows·ubuntu)이 돈다. 결과는
    `gh run view <id> --json jobs --jq '.jobs[]|{name,conclusion}'` 의 conclusion 과
    아티팩트 로그(`gh run download <id>`)로 확인. 네 소유 범위의 테스트가 windows·ubuntu 에서
