@@ -667,6 +667,7 @@ mod tests {
 
     /// 회귀 (2026-09-07 감사) — `..` 를 막아도 **심링크**로는 나갈 수 있었다.
     /// 주석은 심링크를 거절한다고 적어 두었지만 구현은 어휘적 검사뿐이었다.
+    // PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
     #[cfg(unix)]
     #[test]
     fn a_destination_cannot_escape_through_a_symlink() {

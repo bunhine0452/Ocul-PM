@@ -40,6 +40,10 @@
 //! - 진 쪽은 파일을 **한 바이트도** 건드리지 않는다.
 //! - 정직한 재시도를 붙이면 N 프로세스의 전이가 **전부** 살아남는다.
 
+// 테스트 픽스처의 git·셸·자식 프로세스 — 앱이 띄우는 프로세스가 아니라 proc.rs
+// 창구 규칙(clippy.toml disallowed-methods) 밖이다.
+#![allow(clippy::disallowed_methods)]
+
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};

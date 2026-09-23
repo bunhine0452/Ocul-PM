@@ -382,7 +382,7 @@ impl Drop for LockGuard {
 /// `None` → 호출부가 하트비트 기준으로 폴백.
 #[cfg(unix)]
 fn pid_alive(pid: u32) -> Option<bool> {
-    std::process::Command::new("ps")
+    crate::proc::std_cmd("ps")
         .args(["-p", &pid.to_string()])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -447,7 +447,7 @@ fn read_lock_pid(path: &Path) -> Option<u32> {
 /// 표시용 값이라, 실패는 전부 `None` 으로 삼킨다.
 #[cfg(unix)]
 fn exe_of(pid: u32) -> Option<String> {
-    let out = std::process::Command::new("ps")
+    let out = crate::proc::std_cmd("ps")
         .args(["-o", "comm=", "-p", &pid.to_string()])
         .output()
         .ok()?;

@@ -58,6 +58,7 @@ fn project_init_converges_half_initialized_state() {
         .contains("oculpm"));
 }
 
+// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
 #[cfg(unix)]
 #[test]
 fn project_init_rejects_symlinked_oculpm() {
@@ -98,6 +99,7 @@ fn tools_refuse_untracked_project_and_create_nothing() {
 
 /// A0b — `.oculpm` 이 심볼릭 링크면 가드가 거부하고 링크 대상에 아무것도
 /// 쓰지 않는다 (악의적 저장소의 프로젝트 밖 쓰기 탈출 차단).
+// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
 #[cfg(unix)]
 #[test]
 fn tools_refuse_symlinked_oculpm() {

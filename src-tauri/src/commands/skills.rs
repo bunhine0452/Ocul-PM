@@ -682,6 +682,7 @@ mod tests {
         assert!(secure_skill_path(tmp.path(), "../escape", true).is_err());
     }
 
+    // PORT-TEST(L-FS): 심링크 건너뛰기(밖 내용 복사 방지) — 링크 부분만 unix — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
     #[test]
     fn copy_dir_skips_symlinks_and_copies_tree() {
         let tmp = TempDir::new().unwrap();

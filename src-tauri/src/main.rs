@@ -95,7 +95,7 @@ fn reexec_with_malloc_tuning() {
     };
     // exec 는 성공하면 돌아오지 않는다. 실패하면 튜닝 없이 그냥 계속 — 앱이
     // 못 뜨는 것보다 600MB 더 쓰는 쪽이 낫다.
-    let err = std::process::Command::new(exe)
+    let err = ocul_pm_lib::proc::std_cmd(exe)
         .args(std::env::args_os().skip(1))
         .env(KEY, "0")
         .env("OCULPM_MALLOC_TUNED", "1")

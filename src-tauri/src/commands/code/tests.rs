@@ -53,6 +53,7 @@ fn import_dedupes_instead_of_overwriting() {
 
 /// 폴더는 재귀로, 심볼릭 링크는 빼고. 링크를 따라가면 프로젝트 밖 내용이
 /// 사본으로 들어온다 (트리·검색과 같은 정책).
+// PORT-TEST(L-FS): 심링크 건너뛰기(밖 내용 복사 방지) — 링크 부분만 unix — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
 #[test]
 fn import_copies_folders_and_skips_symlinks() {
     let tmp = TempDir::new().unwrap();
@@ -211,6 +212,7 @@ fn canonical_allows_regular_file_in_root() {
     assert!(p.ends_with("a.txt"));
 }
 
+// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
 #[cfg(unix)]
 #[test]
 fn canonical_rejects_symlink_escaping_root() {
@@ -224,6 +226,7 @@ fn canonical_rejects_symlink_escaping_root() {
     assert!(err.contains("escapes"), "{err}");
 }
 
+// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
 #[cfg(unix)]
 #[test]
 fn canonical_resolves_symlink_within_root() {
@@ -360,6 +363,7 @@ fn resolve_for_mutation_accepts_paths_that_do_not_exist_yet() {
     assert_eq!(out, canon_root.join("brand/new/file.ts"));
 }
 
+// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
 #[cfg(unix)]
 #[test]
 fn resolve_for_mutation_rejects_escape_through_symlinked_parent() {
@@ -375,6 +379,7 @@ fn resolve_for_mutation_rejects_escape_through_symlinked_parent() {
 
 /// 대상이 심링크면 **링크 자체**를 다뤄야 한다. 경로 전체를 canonical 로
 /// 풀면 "루트 안의 링크를 지운다" 가 "루트 밖의 원본을 지운다" 가 된다.
+// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
 #[cfg(unix)]
 #[test]
 fn resolve_for_mutation_keeps_the_link_itself() {
@@ -391,6 +396,7 @@ fn resolve_for_mutation_keeps_the_link_itself() {
 
 /// 깨진 심링크는 `exists()` 로 보면 "없음" 이라, 그 자리에 파일을 만들면
 /// 커널이 링크를 따라가 **루트 밖에** 쓴다. symlink_metadata 로 막는다.
+// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
 #[cfg(unix)]
 #[test]
 fn create_refuses_to_write_through_a_dangling_symlink() {

@@ -12,7 +12,7 @@
 //! string surfaces this.
 
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 /// 외부 편집기로 프로젝트 파일을 연다.
 ///
@@ -67,19 +67,19 @@ pub async fn open_url(url: String) -> Result<(), String> {
     }
     #[cfg(target_os = "macos")]
     let mut cmd = {
-        let mut c = Command::new("open");
+        let mut c = crate::proc::std_cmd("open");
         c.arg(trimmed);
         c
     };
     #[cfg(target_os = "linux")]
     let mut cmd = {
-        let mut c = Command::new("xdg-open");
+        let mut c = crate::proc::std_cmd("xdg-open");
         c.arg(trimmed);
         c
     };
     #[cfg(target_os = "windows")]
     let mut cmd = {
-        let mut c = Command::new("cmd");
+        let mut c = crate::proc::std_cmd("cmd");
         // empty title arg so a URL with spaces isn't treated as the window title
         c.args(["/C", "start", "", trimmed]);
         c
@@ -100,7 +100,7 @@ pub async fn reveal_in_file_manager(project_root: String, rel_path: String) -> R
     let abs = resolve_project_file(&project_root, &rel_path)?;
     #[cfg(target_os = "macos")]
     let mut cmd = {
-        let mut c = Command::new("open");
+        let mut c = crate::proc::std_cmd("open");
         c.arg("-R").arg(&abs);
         c
     };
@@ -109,13 +109,13 @@ pub async fn reveal_in_file_manager(project_root: String, rel_path: String) -> R
     #[cfg(target_os = "linux")]
     let mut cmd = {
         let parent = abs.parent().unwrap_or(&abs).to_path_buf();
-        let mut c = Command::new("xdg-open");
+        let mut c = crate::proc::std_cmd("xdg-open");
         c.arg(parent);
         c
     };
     #[cfg(target_os = "windows")]
     let mut cmd = {
-        let mut c = Command::new("explorer");
+        let mut c = crate::proc::std_cmd("explorer");
         c.arg(format!("/select,{}", abs.display()));
         c
     };
@@ -137,7 +137,7 @@ pub async fn quick_look_file(project_root: String, rel_path: String) -> Result<(
     {
         // stdout/stderr 를 버린다 — qlmanage 는 진단을 잔뜩 뱉고, 그 파이프를
         // 아무도 읽지 않으면 가득 찬 순간 자식이 멈춘다.
-        Command::new("qlmanage")
+        crate::proc::std_cmd("qlmanage")
             .arg("-p")
             .arg(&abs)
             .stdout(Stdio::null())
@@ -269,7 +269,7 @@ fn substitute_bare_path(template: &str, quoted: &str) -> String {
 fn spawn_detached(command: &str) -> std::io::Result<()> {
     #[cfg(target_os = "windows")]
     {
-        Command::new("cmd")
+        crate::proc::std_cmd("cmd")
             .arg("/C")
             .arg(command)
             .spawn()
@@ -277,7 +277,7 @@ fn spawn_detached(command: &str) -> std::io::Result<()> {
     }
     #[cfg(not(target_os = "windows"))]
     {
-        Command::new("sh")
+        crate::proc::std_cmd("sh")
             .arg("-c")
             .arg(command)
             .spawn()

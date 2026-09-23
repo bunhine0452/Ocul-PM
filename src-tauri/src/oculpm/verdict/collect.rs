@@ -168,7 +168,7 @@ fn mtime_of(path: &Path) -> Option<i64> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn git(root: &Path, args: &[&str]) -> Option<String> {
-    let out = std::process::Command::new("git")
+    let out = crate::proc::std_cmd("git")
         .args(args)
         .current_dir(root)
         .output()

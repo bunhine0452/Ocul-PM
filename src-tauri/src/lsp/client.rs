@@ -158,7 +158,7 @@ impl LspClient {
         path_env: String,
         on_notice: NoticeSink,
     ) -> Result<Arc<Self>, String> {
-        let mut cmd = tokio::process::Command::new(binary);
+        let mut cmd = crate::proc::tokio_cmd(binary);
         cmd.args(spec.args)
             .current_dir(&root)
             .env("PATH", path_env)

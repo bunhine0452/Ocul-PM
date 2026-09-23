@@ -70,7 +70,7 @@ async fn login_shell_path() -> Option<&'static str> {
 
     // `-i`(대화형)까지 주는 이유: fnm·nvm 은 `.zprofile` 이 아니라 `.zshrc` 에
     // 훅을 심는 경우가 많아 로그인 셸만으로는 shim 이 안 붙는다.
-    let spawned = tokio::process::Command::new(&shell)
+    let spawned = crate::proc::tokio_cmd(&shell)
         .args(["-lic", &script])
         .kill_on_drop(true)
         .output();
@@ -149,7 +149,7 @@ pub fn parse_node_major(version: &str) -> Option<u32> {
 
 /// `node --version` 을 실제로 실행한다. 실패는 `None`.
 pub async fn node_version(node: &Path) -> Option<String> {
-    let spawned = tokio::process::Command::new(node)
+    let spawned = crate::proc::tokio_cmd(node)
         .arg("--version")
         .kill_on_drop(true)
         .output();

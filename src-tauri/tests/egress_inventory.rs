@@ -530,6 +530,11 @@ fn files_calling(root: &Path, exts: &[&str], tokens: &[&str], skip: &[&str]) -> 
     out
 }
 
+/// 자식 프로세스를 띄우는 호출 모양 — `proc.rs` 창구 둘, 그리고 창구 이전의
+/// `Command::new(`. 뒤의 것은 이제 창구 안(변수 인자)과 통합 테스트에만 있지만,
+/// clippy 게이트가 `#[allow]` 로 뚫리는 날에도 이 원장이 따로 잡도록 남긴다.
+const SPAWN_SHAPES: &[&str] = &["std_cmd(", "tokio_cmd(", "Command::new("];
+
 fn ledger_paths(sites: &[Site]) -> BTreeSet<String> {
     sites.iter().map(|s| s.path.to_string()).collect()
 }
@@ -714,9 +719,18 @@ fn theme_host_allowlist_stays_closed() {
 /// 스캔이 알아서 데려온다. 원장을 손으로 든 곳(RUST_SITES)과 다른 선택인
 /// 이유는, 여기서 지키려는 것이 "누가 띄우는가" 가 아니라 "무엇을 띄우는가"
 /// 이기 때문이다 — 전자는 늘어나도 무해하고 후자는 하나만 늘어도 약속이 깨진다.
+///
+/// 앱의 프로세스 생성은 `proc.rs` 창구(`std_cmd`·`tokio_cmd`)를 지난다 (크로스플랫폼
+/// D5 — clippy `disallowed-methods` 가 그 밖의 `Command::new` 를 막는다). 그래서
+/// 띄우는 모양은 [`SPAWN_SHAPES`] 셋 전부를 본다.
 #[test]
 fn git_stays_local_only() {
-    let spawners = files_calling(&crate_src(), &["rs"], &["Command::new(\"git\")"], &[]);
+    let git_spawns: Vec<String> = SPAWN_SHAPES
+        .iter()
+        .map(|s| format!("{s}\"git\")"))
+        .collect();
+    let git_spawns: Vec<&str> = git_spawns.iter().map(String::as_str).collect();
+    let spawners = files_calling(&crate_src(), &["rs"], &git_spawns, &[]);
     assert!(
         spawners.len() >= 3,
         "git 을 띄우는 파일을 {}개밖에 못 찾았다 — 스캐너가 낡아 검사가 헛돌고 있다",
@@ -752,9 +766,12 @@ fn nothing_shells_out_to_curl_or_wget() {
             continue;
         };
         let text = strip_line_comments(&raw);
-        for banned in ["Command::new(\"curl\")", "Command::new(\"wget\")"] {
+        for banned in SPAWN_SHAPES
+            .iter()
+            .flat_map(|s| [format!("{s}\"curl\")"), format!("{s}\"wget\")")])
+        {
             assert!(
-                !text.contains(banned),
+                !text.contains(&banned),
                 "{}: {banned} — 하위 프로세스로 나가면 유출 원장을 우회한다",
                 path.display()
             );

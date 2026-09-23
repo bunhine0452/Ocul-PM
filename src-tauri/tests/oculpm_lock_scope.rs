@@ -11,6 +11,10 @@
 //! 않는다. 락을 짧게 잡는다는 것은 구조의 성질이고, 여기서는 그 구조가
 //! **상태를 망가뜨리지 않는지**만 본다.
 
+// 테스트 픽스처의 git·셸·자식 프로세스 — 앱이 띄우는 프로세스가 아니라 proc.rs
+// 창구 규칙(clippy.toml disallowed-methods) 밖이다.
+#![allow(clippy::disallowed_methods)]
+
 use std::path::Path;
 use std::sync::Arc;
 

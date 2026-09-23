@@ -531,7 +531,7 @@ mod tests {
     }
 
     fn git(root: &Path, args: &[&str]) -> Result<(), ()> {
-        std::process::Command::new("git")
+        crate::proc::std_cmd("git")
             .arg("-C")
             .arg(root)
             .args(args)

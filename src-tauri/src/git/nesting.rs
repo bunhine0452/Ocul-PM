@@ -73,7 +73,7 @@ impl HeadIndex {
 
 /// `git ls-tree -r --name-only -z HEAD` — 저장소 상대 경로 집합. unborn HEAD 면 `None`.
 fn head_tree_paths(repo: &Path) -> Option<std::collections::HashSet<String>> {
-    let out = std::process::Command::new("git")
+    let out = crate::proc::std_cmd("git")
         .arg("-C")
         .arg(repo)
         .args(["ls-tree", "-r", "--name-only", "-z", "HEAD"])

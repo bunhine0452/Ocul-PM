@@ -14,7 +14,7 @@ pub(super) fn open_native_url(url: &str) -> std::io::Result<()> {
 
 #[cfg(target_os = "macos")]
 pub(super) fn open_native(path: &std::path::Path) -> std::io::Result<()> {
-    std::process::Command::new("open")
+    crate::proc::std_cmd("open")
         .arg(path)
         .status()
         .and_then(|s| {
@@ -28,7 +28,7 @@ pub(super) fn open_native(path: &std::path::Path) -> std::io::Result<()> {
 
 #[cfg(target_os = "linux")]
 pub(super) fn open_native(path: &std::path::Path) -> std::io::Result<()> {
-    std::process::Command::new("xdg-open")
+    crate::proc::std_cmd("xdg-open")
         .arg(path)
         .status()
         .and_then(|s| {
@@ -42,7 +42,7 @@ pub(super) fn open_native(path: &std::path::Path) -> std::io::Result<()> {
 
 #[cfg(target_os = "windows")]
 pub(super) fn open_native(path: &std::path::Path) -> std::io::Result<()> {
-    std::process::Command::new("cmd")
+    crate::proc::std_cmd("cmd")
         .args(["/c", "start", "", &path.display().to_string()])
         .status()
         .and_then(|s| {

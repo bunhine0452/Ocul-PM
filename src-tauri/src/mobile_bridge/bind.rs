@@ -5,7 +5,6 @@
 //! (c) tailscale CLI 교차검증(있을 때만 — 불일치면 미기동).
 
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
-use std::process::Command;
 
 /// 탐지된 Tailscale 바인드 주소.
 ///
@@ -128,7 +127,7 @@ const TAILSCALE_CLI_CANDIDATES: &[&str] = &[
 /// CLI 부재·실패·빈 출력은 전부 `None`(= 교차검증 불가, (a)+(b)만으로 판정).
 fn query_tailscale_cli() -> Option<Vec<Ipv4Addr>> {
     for cli in TAILSCALE_CLI_CANDIDATES {
-        let Ok(out) = Command::new(cli).args(["ip", "-4"]).output() else {
+        let Ok(out) = crate::proc::std_cmd(cli).args(["ip", "-4"]).output() else {
             continue;
         };
         if !out.status.success() {

@@ -88,7 +88,7 @@ pub async fn check_cli_available(cli_name: String) -> Result<CliCheckResult, Str
 
     let cli = cli_name.clone();
     let resolved_path = tokio::task::spawn_blocking(move || {
-        let output = std::process::Command::new(which_cmd).arg(&cli).output();
+        let output = crate::proc::std_cmd(which_cmd).arg(&cli).output();
         match output {
             Ok(o) if o.status.success() => {
                 let stdout = String::from_utf8_lossy(&o.stdout);
@@ -164,10 +164,7 @@ fn dirs_home() -> Option<PathBuf> {
 }
 
 fn get_cli_version_sync(path: &str) -> Option<String> {
-    let output = std::process::Command::new(path)
-        .arg("--version")
-        .output()
-        .ok()?;
+    let output = crate::proc::std_cmd(path).arg("--version").output().ok()?;
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         Some(stdout.lines().next().unwrap_or("").trim().to_string())
@@ -284,7 +281,7 @@ async fn run_scaffold_cli(cmd: &str, args: &[&str], cwd: &Path) -> Result<String
         let start = Instant::now();
         let timeout = Duration::from_secs(60);
 
-        let child = std::process::Command::new(&cmd)
+        let child = crate::proc::std_cmd(&cmd)
             .args(&args)
             .current_dir(&cwd)
             .stdout(std::process::Stdio::piped())

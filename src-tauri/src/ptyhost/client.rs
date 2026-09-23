@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+#[cfg(unix)]
 use tokio::net::UnixStream;
 use tokio::sync::{mpsc, oneshot};
 
@@ -68,10 +69,7 @@ impl PtyHostClient {
         socket: &Path,
         on_event: impl Fn(Event) + Send + Sync + 'static,
     ) -> Result<Self, String> {
-        let stream = UnixStream::connect(socket)
-            .await
-            .map_err(|e| format!("pty-host connect failed: {e}"))?;
-        let (mut read_half, mut write_half) = stream.into_split();
+        let (mut read_half, mut write_half) = connect_transport(socket).await?;
 
         let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
         tokio::spawn(async move {
@@ -243,6 +241,31 @@ impl PtyHostClient {
     }
 }
 
+/// 호스트까지의 전송 — Unix 도메인 소켓을 읽기·쓰기 반쪽으로.
+#[cfg(unix)]
+async fn connect_transport(
+    socket: &Path,
+) -> Result<
+    (
+        tokio::net::unix::OwnedReadHalf,
+        tokio::net::unix::OwnedWriteHalf,
+    ),
+    String,
+> {
+    let stream = UnixStream::connect(socket)
+        .await
+        .map_err(|e| format!("pty-host connect failed: {e}"))?;
+    Ok(stream.into_split())
+}
+
+/// 전송이 없는 OS — 연결은 언제나 명시적으로 실패한다 (D4). 반환 타입은
+/// `connect` 의 나머지가 그대로 컴파일되게 하는 자리표시일 뿐, 만들어지지 않는다.
+// PORT-STUB(L-PTY): Windows 는 네임드 파이프(`tokio::net::windows::named_pipe`)로.
+#[cfg(not(unix))]
+async fn connect_transport(_socket: &Path) -> Result<(tokio::io::Empty, tokio::io::Sink), String> {
+    Err(super::UNSUPPORTED_OS.to_string())
+}
+
 /// 디버그 빌드의 접미사 — dev 로 띄운 앱과 설치본은 **다른 소켓**을 쓴다.
 #[cfg(debug_assertions)]
 const BUILD_SUFFIX: &str = "-dev";
@@ -300,9 +323,10 @@ pub fn socket_candidates(app_data_dir: &Path) -> Vec<PathBuf> {
 
 /// 호스트를 detach 로 띄운다 — 앱이 죽어도(업데이트 재시작) 함께 죽지 않게
 /// 프로세스 그룹을 분리하고 stdio 를 끊는다. 시체 수거(wait)는 전용 스레드로.
+#[cfg(unix)]
 pub fn spawn_host_process(socket: &Path) -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| format!("current_exe failed: {e}"))?;
-    let mut cmd = std::process::Command::new(exe);
+    let mut cmd = crate::proc::std_cmd(exe);
     cmd.arg("--pty-host")
         .arg(socket)
         .stdin(std::process::Stdio::null())
@@ -322,6 +346,13 @@ pub fn spawn_host_process(socket: &Path) -> Result<(), String> {
         let _ = child.wait();
     });
     Ok(())
+}
+
+/// 전송이 없는 OS — 띄워 봐야 붙을 수 없으므로 띄우지 않고 실패한다 (D4).
+// PORT-STUB(L-PTY): Windows 는 DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP 로 분리 기동.
+#[cfg(not(unix))]
+pub fn spawn_host_process(_socket: &Path) -> Result<(), String> {
+    Err(super::UNSUPPORTED_OS.to_string())
 }
 
 /// 만난 호스트를 **조용히 갈아 치워도 되는가.**

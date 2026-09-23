@@ -15,6 +15,12 @@
 //! 존재한다 — dev 빌드·패키징·업데이트 직후 어디서든 경로 문제로 스폰이
 //! 실패할 일이 없다 (Chrome 헬퍼 프로세스 방식).
 
+/// 전송(Unix 도메인 소켓)이 없는 OS 에서 호스트 연결·기동·listen 이 돌려주는
+/// 에러 (크로스플랫폼 D4 — 조용히 빈 결과를 내지 않고 명시적으로 실패한다).
+// PORT-STUB(L-PTY): Windows 전송(네임드 파이프)이 들어오면 이 상수와 그 쓰임이 사라진다.
+#[cfg(not(unix))]
+pub const UNSUPPORTED_OS: &str = "이 OS 에서는 아직 터미널을 지원하지 않아요";
+
 pub mod client;
 pub mod env;
 pub mod host;

@@ -331,7 +331,7 @@ pub async fn system_accent() -> Result<Option<String>, AppError> {
 
 #[cfg(target_os = "macos")]
 fn read_system_accent() -> Option<String> {
-    let out = std::process::Command::new("defaults")
+    let out = crate::proc::std_cmd("defaults")
         .args(["read", "-g", "AppleAccentColor"])
         .output()
         .ok()?;

@@ -68,7 +68,7 @@ impl DapClient {
         path_env: String,
         on_notice: NoticeSink,
     ) -> Result<Arc<Self>, String> {
-        let mut cmd = tokio::process::Command::new(&adapter.program);
+        let mut cmd = crate::proc::tokio_cmd(&adapter.program);
         cmd.args(&adapter.args)
             .current_dir(cwd)
             .env("PATH", path_env)

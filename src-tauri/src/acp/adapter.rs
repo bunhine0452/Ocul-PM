@@ -185,7 +185,7 @@ async fn install_package(
     std::fs::create_dir_all(&dir).map_err(|e| format!("설치 폴더를 만들 수 없습니다: {e}"))?;
 
     let spec = format!("{PKG_SCOPE}/{package_name}@{version}");
-    let spawned = tokio::process::Command::new(npm)
+    let spawned = crate::proc::tokio_cmd(npm)
         .args(["install", "--no-audit", "--no-fund", "--prefix"])
         .arg(&dir)
         .arg(&spec)
