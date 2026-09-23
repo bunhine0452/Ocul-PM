@@ -24,6 +24,19 @@ use std::path::{Path, PathBuf};
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::spec::CommentStyle;
 
+// 게시 세 갈래. 윈도우는 대상이 잠깐 잠긴 실패를 재시도하고, 물러서기 이동이 덮지
+// 않는다 (`atomic_io_win.rs` 모듈 문서). 그 밖의 OS 는 std 그대로 — 동작 불변.
+#[cfg(windows)]
+#[path = "atomic_io_win.rs"]
+mod win;
+#[cfg(not(windows))]
+use std::fs::{hard_link as publish_link, rename as publish_replace, rename as publish_fallback};
+#[cfg(windows)]
+use win::{
+    hard_link as publish_link, move_no_replace as publish_fallback,
+    rename_replace as publish_replace,
+};
+
 /// Cap a single ndjson line (without the trailing `\n`) at 4 KB. POSIX
 /// guarantees `write()` atomicity up to PIPE_BUF on regular files, so keeping
 /// each line under this bound means one line == one atomic write.
@@ -42,7 +55,7 @@ pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<(), OculpmError> {
     // `rename` is atomic on POSIX and on Windows via ReplaceFile semantics.
     // If this fails after the temp file has been written, we clean it up so
     // we don't leave litter behind.
-    if let Err(source) = std::fs::rename(&tmp, path) {
+    if let Err(source) = publish_replace(&tmp, path) {
         let _ = std::fs::remove_file(&tmp);
         return Err(OculpmError::Io {
             path: path.to_path_buf(),
@@ -73,14 +86,14 @@ pub fn write_atomic(path: &Path, contents: &[u8]) -> Result<(), OculpmError> {
 pub fn write_atomic_new(path: &Path, contents: &[u8]) -> Result<(), OculpmError> {
     let tmp = stage_tmp(path, contents)?;
 
-    let published = match std::fs::hard_link(&tmp, path) {
+    let published = match publish_link(&tmp, path) {
         Ok(()) => Ok(()),
         // 목적지가 있다 — 호출자가 다음 이름으로 넘어가는 신호. 그대로 올린다.
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Err(e),
         // `link(2)` 를 지원하지 않는 볼륨(EPERM/ENOTSUP 등). `write_atomic` 과
         // 같은 `rename` 게시로 물러선다 — 이 FS 에서만 exists→rename 창이 남는다
-        // (`file_guard::put_back` 도 같은 이유로 같은 모양이다).
-        Err(_) => std::fs::rename(&tmp, path),
+        // (`file_guard::put_back` 도 같은 이유로 같은 모양이다). 윈도우는 덮지 않는 이동.
+        Err(_) => publish_fallback(&tmp, path),
     };
     if let Err(source) = published {
         let _ = std::fs::remove_file(&tmp);
@@ -444,6 +457,15 @@ fn detect_eol(text: &str) -> &'static str {
 fn render_block(block_id: &str, content: &str, style: CommentStyle, eol: &str) -> String {
     let begin = render_begin_line(block_id, style, MANAGED_BLOCK_VERSION);
     let end = render_end_line(block_id, style);
+    // CRLF 파일인데 내용도 이미 CRLF 면(윈도우에서 저장된 템플릿) 아래 `\n` → eol 치환이
+    // `\r\r\n` 을 만든다 — 먼저 LF 로 편다. LF 파일(`eol == "\n"`)은 그대로다.
+    let crlf_free;
+    let content = if eol == "\r\n" && content.contains("\r\n") {
+        crlf_free = content.replace("\r\n", "\n");
+        crlf_free.as_str()
+    } else {
+        content
+    };
     let body = if content.is_empty() {
         String::new()
     } else if content.ends_with('\n') {
@@ -753,5 +775,21 @@ mod tests {
         assert!(after.contains("user line 2"));
         assert!(!after.contains("oculpm:begin"));
         assert!(!after.contains("oculpm:end"));
+    }
+
+    /// 윈도우 체크아웃(`core.autocrlf`): 파일도 CRLF, 템플릿 내용도 CRLF. `\r\r\n` 없이
+    /// 쓰고, 같은 내용을 다시 쓰면 파일을 건드리지 않는다 (캐스케이드 재쓰기 루프 방지).
+    #[test]
+    fn managed_block_with_crlf_content_in_a_crlf_file_never_doubles_the_cr() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("AGENTS.md");
+        std::fs::write(&path, "user\r\n").unwrap();
+        let content = "rule 1\r\nrule 2\r\n";
+        write_managed_block(&path, "oculpm", content, CommentStyle::Markdown).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(!text.contains("\r\r\n"), "{text:?}");
+        assert!(text.contains("rule 1\r\nrule 2\r\n"), "{text:?}");
+        let again = write_managed_block(&path, "oculpm", content, CommentStyle::Markdown).unwrap();
+        assert_eq!(again, ManagedBlockResult::Unchanged);
     }
 }

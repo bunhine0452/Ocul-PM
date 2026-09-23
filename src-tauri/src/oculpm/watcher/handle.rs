@@ -75,6 +75,9 @@ pub(super) struct WatcherInner {
     /// 루트가 사라진 것을 이미 한 번 남겼는가 — 폴더 하나를 지우면 이벤트가
     /// 수백 개 오므로, 같은 줄을 그 수만큼 찍지 않기 위한 래치.
     pub(super) root_gone_logged: AtomicBool,
+    /// 윈도우가 같은 쓰기를 두 번 알리는 것(Create + `Modify(Any)`)을 걷는 기억.
+    /// 켜는 것은 윈도우뿐이다 (`repeat::ENABLED`).
+    pub(super) repeats: super::repeat::RepeatFilter,
 }
 
 /// 큐가 넘쳐 이벤트를 버렸을 때, 소비자가 정착한 뒤 만회하는 쪽.
@@ -200,7 +203,9 @@ impl WatcherInner {
                 self.bump_ignored();
                 return;
             }
-            Ok(p) => p.to_string_lossy().to_string(),
+            // 아래 술어는 전부 `/` 를 전제한다 — 윈도우의 `\` 를 여기서 한 번 편다
+            // (`git::slash`, 유닉스는 그대로).
+            Ok(p) => crate::git::slash(p),
             // Outside our watched root — ignore quietly.
             Err(_) => {
                 self.bump_ignored();
@@ -383,6 +388,20 @@ impl WatcherInner {
             }
         };
 
+        // 7.1 윈도우 — 같은 쓰기의 재보고(새 파일 = Create + `Modify(Any)`)는 새
+        //     변경이 아니다. 내용이 같을 때만 걷는다 (`repeat` 모듈 문서).
+        if super::repeat::ENABLED
+            && self.repeats.is_repeat(
+                &change.path,
+                change.op,
+                change.hash_after.as_deref(),
+                std::time::Instant::now(),
+            )
+        {
+            self.bump_ignored();
+            return;
+        }
+
         // 7.5 — Incremental auto-index (PR-5). Keep the code-search index
         // (chunks / embeddings / symbols) current without a manual rebuild.
         // Forbidden paths are skipped here (they're never indexed), and the
@@ -482,7 +501,7 @@ impl WatcherInner {
         };
 
         let rel = abs_path.strip_prefix(&self.root).ok()?;
-        let rel_str = rel.to_string_lossy().to_string();
+        let rel_str = crate::git::slash(rel);
 
         // metadata + read + blake3 는 **런타임 워커 밖**에서 돈다
         // (`watcher_tasks::stat_and_hash`). 상한을 넘으면 hash 는 None —

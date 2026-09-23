@@ -96,6 +96,51 @@ fn diff_patch_returns_empty_string_when_working_tree_matches_head() {
     );
 }
 
+/// 윈도우 체크아웃(`core.autocrlf=true` — Git for Windows 의 기본값)에서 작업 트리가
+/// CRLF 로 풀려 있어도 **내용이 같으면 가짜 diff 가 없다.** git 이 비교 전에 CRLF→LF 로
+/// 정규화한다 — 우리 호출이 그 길을 막는 플래그를 달지 않았다는 확인이다. 진짜 변경은
+/// 여전히 보이고, 변경 목록(`uncommitted_changes`)도 EOL 만 다른 파일을 올리지 않는다.
+#[test]
+fn an_autocrlf_checkout_shows_no_fake_diff() {
+    let (dir, rel) = setup_repo();
+    let root = dir.path();
+    let lf = std::fs::read_to_string(root.join(&rel)).unwrap();
+    // 실제 체크아웃을 재현한다 — git 이 LF→CRLF 로 풀어 쓰고 인덱스에 그 크기를 적는다.
+    run_git_in(root, &["config", "core.autocrlf", "true"]);
+    std::fs::remove_file(root.join(&rel)).unwrap();
+    run_git_in(root, &["checkout", "--", &rel]);
+    let checked_out = std::fs::read_to_string(root.join(&rel)).unwrap();
+    assert_eq!(
+        checked_out,
+        lf.replace('\n', "\r\n"),
+        "전제: CRLF 로 풀렸다"
+    );
+
+    let patch = git::diff_patch(root, &rel, None, None, 65_536).expect("diff_patch ok");
+    assert!(
+        patch.trim().is_empty(),
+        "EOL 만 다른데 diff 가 나왔다: {patch:?}"
+    );
+    assert!(git::diff_patches(root, std::slice::from_ref(&rel), 65_536).is_empty());
+    assert!(
+        !git::uncommitted_changes(root).iter().any(|c| c.path == rel),
+        "EOL 만 다른 파일이 변경 목록에 올랐다"
+    );
+
+    std::fs::write(
+        root.join(&rel),
+        lf.replace("v1", "v2").replace('\n', "\r\n"),
+    )
+    .unwrap();
+    let patch = git::diff_patch(root, &rel, None, None, 65_536).expect("diff_patch ok");
+    assert!(patch.contains("+    println!(\"v2\");"), "{patch}");
+    let patches = git::diff_patches(root, std::slice::from_ref(&rel), 65_536);
+    assert!(
+        patches.get(&rel).is_some_and(|p| p.contains("v2")),
+        "{patches:?}"
+    );
+}
+
 #[test]
 fn diff_patch_truncates_oversized_output_with_suffix() {
     let (dir, rel) = setup_repo();

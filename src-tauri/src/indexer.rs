@@ -447,7 +447,7 @@ pub fn resolve_import(
                 let mapped = format!("{}{}", repl, suffix);
                 let target_abs = clean_path(&project_root.join(&mapped));
                 if let Ok(target_rel) = target_abs.strip_prefix(project_root) {
-                    let target_rel_str = target_rel.to_string_lossy().to_string();
+                    let target_rel_str = crate::git::slash(target_rel); // 색인 키는 `/` 구분
                     if let Some(id) = try_candidates(&target_rel_str, source_ext, project_files) {
                         return Some(id);
                     }
@@ -478,7 +478,7 @@ pub fn resolve_import(
             base_dir.join(rest.replace('.', "/"))
         };
         if let Ok(target_rel) = target_abs.strip_prefix(project_root) {
-            let target_rel_str = target_rel.to_string_lossy().to_string();
+            let target_rel_str = crate::git::slash(target_rel); // 색인 키는 `/` 구분
             if let Some(id) = try_candidates(&target_rel_str, "py", project_files) {
                 return Some(id);
             }
@@ -489,7 +489,7 @@ pub fn resolve_import(
     if import_str.starts_with('.') && (import_str.contains('/') || import_str.contains('\\')) {
         let target_abs = clean_path(&parent_dir.join(import_str));
         if let Ok(target_rel) = target_abs.strip_prefix(project_root) {
-            let target_rel_str = target_rel.to_string_lossy().to_string();
+            let target_rel_str = crate::git::slash(target_rel); // 색인 키는 `/` 구분
             if let Some(id) = try_candidates(&target_rel_str, source_ext, project_files) {
                 return Some(id);
             }
@@ -499,7 +499,7 @@ pub fn resolve_import(
     // Case 1c: Pure "./" or "." path (current dir)
     if (import_str == "." || import_str == "./") && source_ext != "py" {
         if let Ok(target_rel) = parent_dir.strip_prefix(project_root) {
-            let target_rel_str = target_rel.to_string_lossy().to_string();
+            let target_rel_str = crate::git::slash(target_rel); // 색인 키는 `/` 구분
             if let Some(id) = try_candidates(&target_rel_str, source_ext, project_files) {
                 return Some(id);
             }
@@ -545,7 +545,7 @@ pub fn resolve_import(
                 let full_target = base_dir.join(&sub_path);
 
                 if let Ok(rel_path) = full_target.strip_prefix(project_root) {
-                    let rel_str = rel_path.to_string_lossy().to_string();
+                    let rel_str = crate::git::slash(rel_path);
                     if let Some(id) = try_candidates(&rel_str, "rs", project_files) {
                         return Some(id);
                     }
@@ -947,7 +947,7 @@ mod walk_tests {
     fn rel_paths(root: &Path, config: &IndexConfig) -> Vec<String> {
         let mut v: Vec<String> = walk_text_files(root, config)
             .into_iter()
-            .map(|p| p.strip_prefix(root).unwrap().to_string_lossy().into_owned())
+            .map(|p| crate::git::slash(p.strip_prefix(root).unwrap()))
             .collect();
         v.sort();
         v

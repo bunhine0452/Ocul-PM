@@ -122,7 +122,7 @@ pub fn parse_frontmatter_and_body(markdown: &str) -> (ParsedFrontmatter, String)
 /// Keys are emitted in the order specified by `00-spec.md` §3.1 so successive
 /// rewrites produce stable diffs. Optional fields that are `None`/empty are
 /// omitted from the output (rather than written as `null`) to keep authored
-/// files clean — they round-trip back to the same default on re-read.
+/// files clean — they round-trip back to the same default on re-read. CRLF 본문(윈도우 `core.autocrlf` 체크아웃)이면 머리도 CRLF 로 쓴다 — 한 파일에 두 줄바꿈을 섞지 않는다.
 pub fn write_frontmatter_and_body(fm: &JournalFrontmatter, body: &str) -> String {
     let yaml = render_frontmatter_yaml(fm);
     let mut out = String::with_capacity(yaml.len() + body.len() + 16);
@@ -132,6 +132,9 @@ pub fn write_frontmatter_and_body(fm: &JournalFrontmatter, body: &str) -> String
         out.push('\n');
     }
     out.push_str("---\n");
+    if body.contains("\r\n") {
+        out = out.replace('\n', "\r\n");
+    }
     out.push_str(body);
     out
 }

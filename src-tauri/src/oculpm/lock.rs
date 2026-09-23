@@ -194,7 +194,7 @@ impl LockGuard {
                 // 비정상 종료는 graceful 락 해제를 못 타고, 재시작이 5분
                 // 하트비트 창 내내 read-only 로 밀렸다. 보유 PID 가 이 호스트에
                 // 확실히 없으면 하트비트 나이와 무관하게 즉시 회수한다.
-                // 판정 불가(비 unix·ps 실패)나 PID 재사용으로 "살아있음" 이면
+                // 판정 불가(`pid::State::Unknown`)나 PID 재사용으로 "살아있음" 이면
                 // 종전대로 하트비트 기준 폴백 — 회수를 미루는 쪽이 안전.
                 let holder_dead = pid_alive(existing.pid) == Some(false);
                 if !holder_dead && age <= STALE_THRESHOLD_SECS {
@@ -376,24 +376,11 @@ impl Drop for LockGuard {
     }
 }
 
-/// 같은 호스트에서 보유 PID 생존 여부를 최선-노력으로 판정한다. `ps -p` 는
-/// 소유자와 무관하게 프로세스 존재 시 exit 0 (macOS/Linux 공통) — `kill -0`
-/// 의 EPERM 오판(타 사용자 프로세스를 사망으로 봄)이 없다. 판정 불가면
-/// `None` → 호출부가 하트비트 기준으로 폴백.
-#[cfg(unix)]
+/// 같은 호스트에서 보유 PID 생존 여부 — 판정은 [`crate::pid`] 한 곳이 소유한다
+/// (유닉스 `kill(pid, 0)`: EPERM 은 "있다" 라 타 사용자 프로세스를 사망으로 보지
+/// 않는다 · 윈도우 `OpenProcess`). 판정 불가면 `None` → 호출부가 하트비트 기준으로 폴백.
 fn pid_alive(pid: u32) -> Option<bool> {
-    crate::proc::std_cmd("ps")
-        .args(["-p", &pid.to_string()])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .ok()
-        .map(|s| s.success())
-}
-
-#[cfg(not(unix))]
-fn pid_alive(_pid: u32) -> Option<bool> {
-    None
+    crate::pid::state(pid).known()
 }
 
 fn heartbeat_age_seconds(heartbeat_at: &str) -> Result<i64, OculpmError> {
@@ -443,24 +430,10 @@ fn read_lock_pid(path: &Path) -> Option<u32> {
     serde_json::from_str::<LockFile>(&text).ok().map(|l| l.pid)
 }
 
-/// pid → 실행 경로. 사용자에게 "누가 쥐고 있는지" 를 이름으로 말해 주기 위한
-/// 표시용 값이라, 실패는 전부 `None` 으로 삼킨다.
-#[cfg(unix)]
+/// pid → 실행 파일 이름. 사용자에게 "누가 쥐고 있는지" 를 이름으로 말해 주기
+/// 위한 표시용 값이라, 실패는 전부 `None` 이다 ([`crate::pid::exe_name`]).
 fn exe_of(pid: u32) -> Option<String> {
-    let out = crate::proc::std_cmd("ps")
-        .args(["-o", "comm=", "-p", &pid.to_string()])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let line = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    (!line.is_empty()).then_some(line)
-}
-
-#[cfg(not(unix))]
-fn exe_of(_pid: u32) -> Option<String> {
-    None
+    crate::pid::exe_name(pid)
 }
 
 fn detect_hostname() -> String {
@@ -520,10 +493,10 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join(".lock");
         let now = chrono::Utc::now().to_rfc3339();
-        // 살아있는 타 프로세스여야 한다 — pid 1(launchd/init)은 unix 에서 항상
-        // 생존. (죽은 pid 는 이제 하트비트가 신선해도 즉시 회수된다 — 아래
-        // dead-holder 케이스.)
-        let other_pid = 1u32;
+        // 살아있는 타 프로세스여야 한다 — pid 1(launchd/init)은 unix, 4(System)는
+        // 윈도우에서 항상 생존. (죽은 pid 는 이제 하트비트가 신선해도 즉시 회수된다
+        // — 아래 dead-holder 케이스. 윈도우에는 pid 1 이 없다.)
+        let other_pid: u32 = if cfg!(windows) { 4 } else { 1 };
         write_synthetic_lock(&path, other_pid, &now);
 
         let before = std::fs::read(&path).unwrap();

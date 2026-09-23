@@ -35,6 +35,7 @@ mod llm;
 pub mod lsp;
 mod notion;
 pub mod oculpm;
+pub mod pid;
 // PTY 호스트 — 터미널 세션을 앱 프로세스 밖으로 (#pty-host). pub 인 이유:
 // main.rs 의 `--pty-host` 분기와 통합 테스트가 직접 부른다.
 mod menu;

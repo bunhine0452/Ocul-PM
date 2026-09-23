@@ -166,6 +166,37 @@ fn parses_well_formed_frontmatter_with_no_warnings() {
     assert!(body.starts_with("[x] Changelog Export"));
 }
 
+/// 윈도우 체크아웃(`core.autocrlf=true`)의 일지 — 같은 픽스처를 CRLF 로 바꿔도 같은
+/// 필드로 읽히고, 다시 쓰면 **CRLF 그대로** 나온다 (LF 머리 + CRLF 본문으로 섞이면
+/// git 이 파일 전체를 바뀐 것으로 본다).
+#[test]
+fn a_crlf_checkout_parses_the_same_and_rewrites_as_crlf() {
+    let crlf = sample_yaml().replace("\r\n", "\n").replace('\n', "\r\n");
+    let (pf, body) = parse_frontmatter_and_body(&crlf);
+    assert!(pf.parse_warnings.is_empty(), "{:?}", pf.parse_warnings);
+    let fm = pf.parsed.expect("CRLF 머리도 읽혀야 한다");
+    assert_eq!(fm.slug, "changelog-export-param-mismatch");
+    assert_eq!(fm.files_touched[0].path, "src-tauri/src/db.rs");
+    assert!(body.starts_with("[x] Changelog Export"));
+    let parsed_body = crate::oculpm::markdown::parse_body(&body);
+    assert_eq!(parsed_body.title, "Changelog Export 파라미터 불일치");
+    assert_eq!(parsed_body.checkbox, Some(true));
+    assert_eq!(parsed_body.headers, ["발생 원인", "해결 방법"]);
+
+    let rewritten = write_frontmatter_and_body(&fm, &body);
+    assert_eq!(
+        rewritten.matches('\n').count(),
+        rewritten.matches("\r\n").count(),
+        "{rewritten:?}"
+    );
+    let (again, again_body) = parse_frontmatter_and_body(&rewritten);
+    assert_eq!(again.parsed.expect("다시 읽힌다").slug, fm.slug);
+    assert_eq!(again_body, body);
+    // LF 일지는 여전히 LF 로만 쓴다.
+    let lf = write_frontmatter_and_body(&fm, "body\n");
+    assert!(!lf.contains('\r'));
+}
+
 #[test]
 fn no_frontmatter_returns_full_body() {
     let input = "# Just a heading\n\nbody text\n";
