@@ -134,16 +134,27 @@ fn the_installed_shim_runs_the_cli_not_the_gui() {
 
 /// 개발자 모드가 아닌 사용자의 Windows 는 심링크가 안 된다 — 그때 타는 하드 링크와,
 /// 다른 볼륨일 때의 복사본도 같은 CLI 로 돈다.
+///
+/// 하드 링크는 같은 볼륨에서만 된다(러너는 작업 폴더 `D:` · `%TEMP%` `C:` 라 첫
+/// 실행이 `CrossesDevices` 였다) — 하드 링크 심은 앱 바이너리 옆 볼륨에, 복사본
+/// 심은 `%TEMP%` 에 둔다. 앱은 `%APPDATA%` 와 설치 폴더가 같은 볼륨이면 하드 링크,
+/// 다르면 복사본으로 물러난다.
 #[cfg(windows)]
 #[test]
 fn windows_hard_link_and_copy_shims_run_the_cli() {
-    let app_data = tempfile::tempdir().unwrap();
-    let project = tempfile::tempdir().unwrap();
     let exe = app_exe();
-    for (sid, how) in [("shim-hard", "hard link"), ("shim-copy", "copy")] {
-        let (installed, _) =
-            shim::install_pointing_at(app_data.path(), sid, &token(project.path()), &exe)
-                .expect("심 설치");
+    let same_volume = tempfile::Builder::new()
+        .prefix("oculpm-shim-")
+        .tempdir_in(exe.parent().unwrap())
+        .unwrap();
+    let other_volume = tempfile::tempdir().unwrap();
+    let project = tempfile::tempdir().unwrap();
+    for (sid, how, app_data) in [
+        ("shim-hard", "hard link", same_volume.path()),
+        ("shim-copy", "copy", other_volume.path()),
+    ] {
+        let (installed, _) = shim::install_pointing_at(app_data, sid, &token(project.path()), &exe)
+            .expect("심 설치");
         let program = installed.dir.join("oculpm.exe");
         std::fs::remove_file(&program).unwrap();
         if how == "hard link" {
