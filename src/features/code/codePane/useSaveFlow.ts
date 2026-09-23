@@ -15,6 +15,7 @@ import { bufferKey, getBuffer, putBuffer, restoreEol, type CodeBuffer } from "..
 import type { useCodeFormat } from "../useCodeFormat";
 import type { useCodeAi } from "../inlineEdit/useCodeAi";
 import type { DiffMode, FileView } from "./types";
+import { isModKey } from "@/lib/kbd";
 
 interface Args {
   projectId: number;
@@ -174,7 +175,7 @@ export function useSaveFlow({
       // 편집기 액션이 이미 처리한 ⌘S (preventDefault 됨) — 여기서 또 부르면
       // 같은 base_hash 로 저장이 두 번 나간다.
       if (e.defaultPrevented || !focusedRef.current) return;
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+      if (isModKey(e) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         e.stopPropagation();
         void saveRef.current();

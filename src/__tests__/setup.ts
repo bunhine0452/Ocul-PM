@@ -4,7 +4,21 @@ import "./storageShim";
 
 import "@testing-library/jest-dom/vitest";
 import { configure } from "@testing-library/react";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
+import { __setPlatformForTests } from "@/lib/platform";
+
+// OS 는 **맥으로 고정**한다 (크로스플랫폼 라운드 2026-09-23 {#ui-tests}).
+//
+// jsdom 의 `navigator.platform` 은 빈 문자열이고 UA 는 호스트 OS 를 담는다
+// (`Mozilla/5.0 (darwin) …` · `(win32)` · `(linux)`). 그대로 두면 같은 스위트가
+// macOS 에서는 ⌘K 를, Windows 러너에서는 Ctrl+K 를 보게 된다 — 기존 스위트는
+// 전부 맥 표기(⌘)와 맥 동작을 단언하고, 그게 출시된 유일한 판이다. Windows·Linux
+// 는 새 테스트가 `__setPlatformForTests("windows")` 로 **명시적으로** 바꿔 끼운다.
+// 매 테스트 전에 되돌려, 바꿔 끼운 테스트가 다음 테스트로 새지 않게 한다.
+__setPlatformForTests("mac");
+beforeEach(() => {
+  __setPlatformForTests("mac");
+});
 
 // `findBy*` · `waitFor` 의 대기 예산 — 기본 1000ms 는 **CI 러너에서 모자란다.**
 //

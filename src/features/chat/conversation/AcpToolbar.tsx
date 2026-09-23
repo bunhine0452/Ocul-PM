@@ -19,6 +19,7 @@ import { AcpSessionTabs } from "../AcpSessionTabs";
 import { AcpUsageMeter } from "../AcpUsageMeter";
 import { SessionIdChip } from "../SessionIdChip";
 import type { AcpTabItem } from "./useAcpTabs";
+import { dragRegion } from "@/lib/platform";
 
 export function AcpToolbar({
   projectId,
@@ -55,7 +56,7 @@ export function AcpToolbar({
     <Toolbar
       title={
         <>
-          <span className="acp-screen-name" data-tauri-drag-region>
+          <span className="acp-screen-name" {...dragRegion()}>
             {t(provider === "codex" ? "nav.codex" : "nav.claudecode")}
           </span>
           <AcpSessionTabs

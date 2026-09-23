@@ -18,6 +18,7 @@ import { NavRemapNotice } from "@/components/NavRemapNotice";
 // 다 쓰고 정작 프로젝트 이름이 잘리는** 유일한 자리였다.
 import { tildePath } from "@/features/onboarding/home/homeModel";
 import { useT } from "@/i18n";
+import { dragRegion } from "@/lib/platform";
 
 // Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
 // Ocul-PM1.0/src/shell.jsx). Rendered as <nav> + <button>s for a11y; the
@@ -319,9 +320,9 @@ export function Sidebar({
   return (
     <nav className="sidebar" aria-label={t("nav.aria.main")} onMouseLeave={onMouseLeave}>
       {macTopInset > 0 ? (
-        <div className="side-drag-strip" data-tauri-drag-region style={{ height: macTopInset }} />
+        <div className="side-drag-strip" {...dragRegion()} style={{ height: macTopInset }} />
       ) : null}
-      <div className="side-brand" data-tauri-drag-region>
+      <div className="side-brand" {...dragRegion()}>
         {onToggleCollapse ? (
           <button
             type="button"

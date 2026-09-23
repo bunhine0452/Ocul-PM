@@ -40,6 +40,7 @@ import type {
   GitLineChange,
 } from "@/lib/bindings";
 import { t } from "@/i18n";
+import { isModKey } from "@/lib/kbd";
 
 /** ⇧⌥F 선택 범위 — 0-based UTF-16 (다른 LSP 좌표와 같은 규약). */
 export interface FormatRange {
@@ -459,7 +460,7 @@ export function CodeEditor({
         editor.onMouseDown((e) => {
           const go = onGoToDefRef.current;
           const ev = e.event;
-          if (!go || !(ev.metaKey || ev.ctrlKey)) return;
+          if (!go || !isModKey(ev)) return;
           const pos = e.target.position;
           if (!pos) return;
           const { line, character } = toLspPosition(pos);

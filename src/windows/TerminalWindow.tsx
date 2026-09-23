@@ -20,11 +20,24 @@ import { runNewTabIntent } from "@/lib/newTabIntent";
 import { createUnlistenBag } from "@/lib/unlisten";
 import { terminalWindowLabel } from "@/lib/windowRoute";
 import { useT } from "@/i18n";
+import { isMac as isMacPlatform } from "@/lib/platform";
+import { runCloseIntent } from "@/lib/closeIntent";
+import { useWindowTabKeys } from "@/hooks/useWindowTabKeys";
 
 import "@/App.css";
 // 셸 CSS 는 ShellV2 의 lazy 청크에 실려 있다 — 그 셸을 마운트하지 않는 이 창은
 // 직접 가져와야 터미널 토큰(--term-*)과 크롬이 산다.
 import "@/styles/index.css";
+
+/** 이 창의 "새 탭" 은 셸 탭이다 (`ownsNewTab`). 모듈 함수라 정체가 고정된다. */
+function newShellTab(): void {
+  runNewTabIntent();
+}
+
+/** 이 창의 "닫기" 는 포커스된 페인이다 — 받는 쪽이 없으면 아무것도 하지 않는다. */
+function closeInnermost(): void {
+  runCloseIntent();
+}
 
 export interface TerminalWindowProps {
   projectId: number;
@@ -91,14 +104,19 @@ function TerminalWindowBody({ projectId }: TerminalWindowProps) {
     return () => bag.dispose();
   }, [projectId]);
 
+  // Windows·Linux 에는 메뉴 액셀러레이터 대신 키다운으로 — 창 전체가 터미널 면이라
+  // 터미널 가족(Ctrl+Shift+T 새 셸 탭 · Ctrl+Shift+W 페인 닫기)이다. macOS 는 무동작.
+  useWindowTabKeys({ onNewTab: newShellTab, onClose: closeInnermost });
+
   // macOS 는 titleBarStyle "Overlay" 라 신호등이 왼쪽 위에 떠 있다. 이 창엔
   // 탭 스트립이 없어 그 자리를 대신 져 줄 것이 없으므로 탭 줄이 직접 비운다.
-  const isMac =
-    typeof navigator !== "undefined" && navigator.platform.toUpperCase().includes("MAC");
+  // Windows·Linux 는 네이티브 제목줄이 있어 창을 끄는 자리도 거기다 — 머리띠를
+  // 드래그 영역으로 두지 않는다.
+  const isMac = isMacPlatform();
 
   return (
     <div className={"term-window" + (isMac ? " is-mac" : "")}>
-      {ready ? <TerminalSurface projectRoot={root} dragRegion ownsNewTab /> : null}
+      {ready ? <TerminalSurface projectRoot={root} dragRegion={isMac} ownsNewTab /> : null}
     </div>
   );
 }

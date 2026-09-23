@@ -5,6 +5,7 @@ import { Folder, Plus, Search, Settings } from "@/components/Icons";
 
 import { BriefFootnote } from "./atoms";
 import { useT } from "@/i18n";
+import { dragRegion } from "@/lib/platform";
 
 // ── 상단 레일 ──────────────────────────────────────────────────────────
 
@@ -34,11 +35,11 @@ export function HomeTopRail({
 }) {
   const { t } = useT();
   return (
-    <div className="home-rail" data-mac={isMac ? "1" : undefined} data-tauri-drag-region>
-      <h1 className="home-wordmark" data-tauri-drag-region>
+    <div className="home-rail" data-mac={isMac ? "1" : undefined} {...dragRegion()}>
+      <h1 className="home-wordmark" {...dragRegion()}>
         Ocul-PM
       </h1>
-      <p className="home-dateline" data-tauri-drag-region>
+      <p className="home-dateline" {...dragRegion()}>
         {dateline}
       </p>
 
