@@ -112,6 +112,31 @@ async fn windows_resolves_by_pathext_without_a_login_shell() {
         ),
     }
 
+    // DAP 의 `find_program` 은 Windows 에서 `<이름>.exe` 를 먼저 찾는다 — PATH 를
+    // `:` 로 자르던 때에는 이것이 늘 실패해 `dap::registry` 의 테스트가 조용히 건너뛰었다.
+    // 그 전제(러너 PATH 의 cargo 가 절대경로 `cargo.exe` 로 찾힌다)를 여기서 못박는다.
+    for name in ["cargo.exe", "cargo"] {
+        let found = env::resolve_binary(name).await;
+        use std::io::Write as _;
+        let _ = writeln!(std::io::stderr(), "[resolve_binary] {name} -> {found:?}");
+        match found {
+            Some((cargo, PathSource::Process)) => {
+                assert!(cargo.is_absolute(), "{cargo:?}");
+                assert!(
+                    cargo
+                        .to_string_lossy()
+                        .to_ascii_lowercase()
+                        .ends_with("cargo.exe"),
+                    "{cargo:?}"
+                );
+            }
+            other => assert!(
+                std::env::var_os("CI").is_none(),
+                "CI 러너 PATH 에는 cargo 가 있어야 한다 — {name}: {other:?}"
+            ),
+        }
+    }
+
     // 로그인 셸을 이어 붙이지 않는다 — 자식에게는 프로세스 PATH 그대로.
     assert_eq!(
         env::effective_path().await,
