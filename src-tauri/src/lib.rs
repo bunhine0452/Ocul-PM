@@ -23,6 +23,10 @@ mod error;
 pub mod framing;
 // `git::diff_patch` is exercised by the `local_diff` integration suite (PR11).
 pub mod git;
+// Linux(glibc) 링크 호환 — 사전 빌드 ONNX Runtime 이 glibc 2.38+ 의 `__isoc23_*`
+// 를 부른다. 릴리스 하한 ubuntu-22.04(glibc 2.35)에서 링크되게 (크로스플랫폼 W1).
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+mod glibc_compat;
 // 메인 화면 집계 — `home_brief` 통합 테스트가 `crate::home::collect` 를 직접 부른다.
 pub mod home;
 pub mod indexer;
