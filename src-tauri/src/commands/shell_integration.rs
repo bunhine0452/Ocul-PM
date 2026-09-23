@@ -38,7 +38,10 @@ pub fn shell_integration_status(app: tauri::AppHandle) -> Result<ShellIntegratio
 
 /// rc 에 관리 블록을 심는다 (멱등). 갱신된 상태를 그대로 돌려줘 UI 가 한 번 더
 /// 조회하지 않아도 되게 한다.
-#[tauri::command]
+// `async` — 메인 스레드에서 돌지 않게. PowerShell 은 설치 전에 실행 정책을 셸에
+// 물어보는데(보통 1초 안팎, 최악 시한 45초 × 재시도 1회), 동기 커맨드면 그동안
+// UI 가 멈춘다 (크로스플랫폼 L-SHELL). 메인 스레드 전용 API 는 쓰지 않는다.
+#[tauri::command(async)]
 #[specta::specta]
 pub fn shell_integration_install(app: tauri::AppHandle) -> Result<ShellIntegrationStatus, String> {
     let (home, data) = dirs(&app)?;
