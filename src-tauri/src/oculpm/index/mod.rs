@@ -213,6 +213,30 @@ impl IndexWriter {
         run_git(&self.root, &["rev-parse", "HEAD"])
     }
 
+    /// 그 날의 `snapshot_open.json` 이 없으면 찍는다. 찍었으면 그 스냅숏을 돌려준다
+    /// ([`Self::head_at_start`] 가 그 HEAD 를 다시 쓴다).
+    pub async fn ensure_open_snapshot(
+        &self,
+        workday: &str,
+    ) -> Result<Option<Snapshot>, OculpmError> {
+        if self.snapshot_exists(workday, SnapshotKind::Open) {
+            return Ok(None);
+        }
+        self.capture_snapshot(workday, SnapshotKind::Open)
+            .await
+            .map(Some)
+    }
+
+    /// 세션 시작의 HEAD. 방금 찍은 스냅숏이 있으면 그것이 이미 읽은 값을 쓴다 —
+    /// 같은 `git rev-parse HEAD` 를 또 띄우지 않는다 (값은 [`Self::current_git_head`]
+    /// 와 같다). git 을 줄이는 이유는 [`collect_git_info`] 참고.
+    pub fn head_at_start(&self, just_captured: Option<&Snapshot>) -> Option<String> {
+        match just_captured {
+            Some(s) => Some(s.git.head_sha.clone()).filter(|h| !h.is_empty()),
+            None => self.current_git_head(),
+        }
+    }
+
     /// Append one `FileChangeEvent` as a single ndjson line. The workday is
     /// derived from `ev.session_id`. Lines that would exceed `NDJSON_LINE_CAP`
     /// are rejected — callers (Watcher) shorten `path` first.
@@ -521,9 +545,19 @@ fn workday_from_id(id: &str) -> Result<&str, OculpmError> {
     Ok(&id[start..start + 8])
 }
 
+/// 스냅숏의 git 필드. **git 을 되도록 적게 띄운다** — 윈도우는 어떤 프로세스가 그
+/// 폴더를 현재 디렉터리로 쥐고 있으면(`current_dir(root)` 로 띄운 git) 그 폴더의 이름을
+/// 바꾸지 못한다(`ERROR_SHARING_VIOLATION` — 탐색기의 휴지통 보내기도 이름 바꾸기다).
+/// 그날 첫 세션의 시작은 git 을 네 번 띄웠고, 그동안 루트 이동이 거부됐다 (윈도우 러너
+/// 실측 — 플랜 `cross-platform-port` #fs-watcher-flake). 이제 둘(여기 둘 · 세션 시작
+/// HEAD 는 이 값을 다시 쓴다). HEAD 와 브랜치는 `rev-parse HEAD --abbrev-ref HEAD`
+/// 한 번이 두 줄로 낸다 — 따로 묻던 두 값과 같고, 둘 다 실패하던 경우(태어나지 않은
+/// HEAD·저장소 아님)에 둘 다 빈 값인 것도 같다.
 fn collect_git_info(root: &Path) -> SnapshotGit {
-    let head_sha = run_git(root, &["rev-parse", "HEAD"]).unwrap_or_default();
-    let branch = run_git(root, &["rev-parse", "--abbrev-ref", "HEAD"]).unwrap_or_default();
+    let heads = run_git(root, &["rev-parse", "HEAD", "--abbrev-ref", "HEAD"]).unwrap_or_default();
+    let mut heads = heads.lines().map(str::trim);
+    let head_sha = heads.next().unwrap_or_default().to_string();
+    let branch = heads.next().unwrap_or_default().to_string();
     let porcelain = run_git(root, &["status", "--porcelain"]).unwrap_or_default();
     let mut dirty_files = Vec::new();
     let mut untracked_files = Vec::new();

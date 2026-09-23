@@ -394,3 +394,75 @@ async fn writes_after_root_removal_do_not_resurrect_it() {
 
     assert!(!root.exists(), "지운 루트가 되살아났다");
 }
+
+/// 테스트 저장소에서 git 을 부른다 (사용자·서명 설정에 기대지 않게 `-c` 로 준다).
+fn git_in(root: &Path, args: &[&str]) -> String {
+    let out = crate::proc::std_cmd("git")
+        .args(["-c", "user.name=t", "-c", "user.email=t@t"])
+        .args(["-c", "commit.gpgsign=false"])
+        .args(args)
+        .current_dir(root)
+        .output()
+        .expect("git 을 띄운다");
+    assert!(out.status.success(), "git {args:?}: {out:?}");
+    String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
+/// 스냅숏의 HEAD·브랜치를 git 한 번(`rev-parse HEAD --abbrev-ref HEAD`)으로 읽게
+/// 바꿨다 (#fs-watcher-flake — 윈도우에서 세션 시작의 git 창을 줄인다). 값은 **따로
+/// 묻던 두 번**과 같아야 한다: 태어나지 않은 HEAD · 브랜치 · 분리된 HEAD 모두. 세션
+/// 시작 HEAD 도 방금 찍은 스냅숏의 값을 다시 쓰되 `current_git_head` 와 같아야 한다.
+#[tokio::test]
+async fn snapshot_git_heads_match_separate_rev_parse_calls() {
+    let dir = tempdir().unwrap();
+    let root = dir.path();
+    let w = make_writer(root);
+    let check = |label: &str| {
+        let one = |args: &[&str]| run_git(root, args).unwrap_or_default();
+        let separate = (
+            one(&["rev-parse", "HEAD"]),
+            one(&["rev-parse", "--abbrev-ref", "HEAD"]),
+        );
+        let git = collect_git_info(root);
+        assert_eq!((git.head_sha, git.branch), separate, "{label}");
+    };
+
+    check("임시 폴더 그대로");
+    git_in(root, &["init", "-q"]);
+    git_in(root, &["symbolic-ref", "HEAD", "refs/heads/main"]);
+    check("태어나지 않은 HEAD");
+    std::fs::write(root.join("a.txt"), "a").unwrap();
+    git_in(root, &["add", "a.txt"]);
+    git_in(root, &["commit", "-q", "-m", "one"]);
+    check("브랜치");
+    assert_eq!(collect_git_info(root).branch, "main");
+    let head = git_in(root, &["rev-parse", "HEAD"]);
+    git_in(root, &["checkout", "-q", "--detach"]);
+    check("분리된 HEAD");
+
+    let snap = w
+        .ensure_open_snapshot("20260924")
+        .await
+        .unwrap()
+        .expect("그 날 첫 스냅숏은 찍는다");
+    assert_eq!(snap.git.head_sha, head);
+    assert_eq!(w.head_at_start(Some(&snap)), Some(head));
+    assert_eq!(w.head_at_start(Some(&snap)), w.current_git_head());
+    assert!(
+        w.ensure_open_snapshot("20260924").await.unwrap().is_none(),
+        "이미 있으면 다시 찍지 않는다"
+    );
+}
+
+/// 빈 HEAD(저장소 아님)는 `None` 이 된다 — `current_git_head` 가 내던 값과 같다.
+#[tokio::test]
+async fn head_at_start_from_an_empty_snapshot_head_is_none() {
+    let dir = tempdir().unwrap();
+    let w = make_writer(dir.path());
+    let mut snap = w
+        .capture_snapshot("20260924", SnapshotKind::Open)
+        .await
+        .unwrap();
+    snap.git.head_sha = String::new();
+    assert_eq!(w.head_at_start(Some(&snap)), None);
+}
