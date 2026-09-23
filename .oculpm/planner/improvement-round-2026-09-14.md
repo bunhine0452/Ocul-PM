@@ -40,6 +40,8 @@ owner: claude-code
 - [x] plan_create 시 유사한 활성 계획이 있으면 재사용을 권한다 (← planner-scale-tidy #dedupe-on-create) {#dedupe-on-create}
 - [ ] tauri.conf.json csp: null — 정책 초안은 있고 실기기 확인이 막았다 (wasm 포매터·xterm webgl·CodeMirror·GitHub fetch) (← hardening-and-optimization #csp) {#csp}
 - [ ] Monaco 대용량 파일 성능 재측정 → 03-performance.md (← monaco-editor-round #fin-perf, 그 플랜은 활성이라 원본 유지) {#fin-perf-monaco}
+- [ ] 웹뷰의 bare window.confirm/alert/prompt 를 막는 린트 게이트 — dialog:default 에 allow-confirm 이 없어 항상 truthy Promise + ACL 에러가 된다. 서드파티 라이브러리가 부르는 것이 재발 지점 (bug-hunt 2026-09-22) {#no-bare-confirm-gate}
+- [ ] src-tauri/src/commands/project.rs 가 파일 크기 래칫 경계 800/800 에 붙었다 — 다음에 이 파일을 건드리는 작업이 쪼갠다 (bug-hunt 2026-09-22) {#project-rs-ratchet}
 
 ## Phase 5 — 이월: 기능 백로그 (착수 순서는 사용자 결정) {#carried-features}
 - [ ] 터미널 세션을 창 밖으로 떼어내기 · 다른 창 스트립에 드롭해 합치기 (← drag-and-drop-round #session-to-window, three-features-round #tab-merge) {#session-to-window}
@@ -60,6 +62,7 @@ owner: claude-code
 - [ ] Claude 연동 실기기 5건 — Claude Desktop 실연결·규칙 탭 CRUD/Cursor .mdc·회고 승격 루프·플러그인 게이트/EVALS/Notion 왕복·Codex 라이브 스모크 (← claude-integration #ci2 #ci3 #ci4 #phase-c-runtime-verify, plugin-round #a0-runtime-verify, codex-acp #protocol-fixture #codex-lifecycle #rust-tests #live-smoke) {#eyes-claude-integration}
 - [ ] 첫 실행 마법사 한 바퀴(onboarded 삭제) · 스킬 CRUD/토글 · 리스킨 체감(부트 모션·코드 맵 대형 저장소·프리셋) · Today 리플 언마운트 (← first-run-and-english-landing #wizard-eyes, skills-star-round #skills-verify #reskin-verify, today-ring-followup #ripple-manual-verify) {#eyes-first-run}
 - [ ] 영문 표면 — 키노트 /keynote · 플러그인 /plugin 영문판 (en-shots·en-deploy 는 3.0 에서 끝남) (← first-run-and-english-landing #en-keynote-plugin) {#eyes-en-surfaces}
+- [ ] 버그 헌팅 v3.5.0 육안 — 이벤트 해제 셤이 웹뷰의 모든 Tauri 구독을 지난다: 터미널 출력·재접속 · 테마 다창 반영 · 트레이 딥링크 · ACP 스트림 · 한글 입력 뒤 로그의 IME-DUMP 가 0 근처 · OSC 8/Monaco 링크가 기본 브라우저로 {#eyes-bug-hunt-0922}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
