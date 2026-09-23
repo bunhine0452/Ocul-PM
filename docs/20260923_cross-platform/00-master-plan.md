@@ -103,6 +103,15 @@ glibc 하한을 낮추려고 `ubuntu-22.04` 에서 빌드한다.
 `oculpm-mcp` 경로와 심 `oculpm` 은 **마운트 밖 안정 경로**로 복사해서 가리켜야
 한다(`#integ-sidecar`, `#shell-shim`). `current_exe()` 대신 `$APPIMAGE` 를 본다.
 
+### D11. Linux glibc 하한은 호환 심볼로 지킨다 (W1, 2026-09-24)
+
+사전 빌드 ONNX Runtime(ort-sys, pyke)이 glibc 2.38+ 전용 `__isoc23_strtol`·`strtoll`·`strtoull` 을
+불러 ubuntu-22.04(glibc 2.35)에서 링크가 안 됐다. 빌드 호스트를 24.04 로 올리면 풀리지만
+Ubuntu 22.04·Debian 12 사용자를 잃는다(D10 위반). `src-tauri/src/glibc_compat.rs`(linux-gnu 한정)가
+이 심볼을 옛 strtol 계열로 넘긴다 — C23 판과 다른 점은 기수 0·2 의 `0b` 접두 처리뿐이다.
+**릴리스 프로필(thin LTO)·`tauri build` 에서 링크되는지는 W3(`#w3-bundles`)가 확인한다.**
+ort 가 glibc 2.35 용 빌드를 내면 이 모듈은 걷어낸다.
+
 ## 파동 (waves)
 
 ```
