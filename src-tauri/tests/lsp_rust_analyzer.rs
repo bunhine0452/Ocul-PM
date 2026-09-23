@@ -47,6 +47,18 @@ fn rust_analyzer() -> Option<PathBuf> {
         })
 }
 
+/// rust-analyzer 는 **한 번에 하나만** 띄운다.
+///
+/// 이 파일의 테스트는 기본값대로 병렬로 돈다 — 서버 6개가 한꺼번에 sysroot 를 적재하면
+/// 4코어 러너(특히 Windows)에서 진단·편집이 60초 시한을 넘겨 간헐적으로 붉었다
+/// (PR #38 portability run 35919287710 — 같은 코드가 직전 run 들에선 7/7 초록).
+/// 앱은 프로젝트당 서버 하나라 이 경합은 테스트에만 있다. 테스트마다 런타임이 따로라
+/// 런타임에 묶이지 않는 `tokio::sync::Mutex` 를 쓴다.
+fn ra_slot() -> &'static tokio::sync::Mutex<()> {
+    static SLOT: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+    SLOT.get_or_init(|| tokio::sync::Mutex::new(()))
+}
+
 /// 진단이 있는 최소 크레이트. 의존성이 없어 오프라인에서도 뜬다.
 fn seed_crate(dir: &std::path::Path, body: &str) -> PathBuf {
     std::fs::create_dir_all(dir.join("src")).unwrap();
@@ -66,6 +78,7 @@ async fn rust_analyzer_handshakes_and_publishes_diagnostics() {
         eprintln!("실행되는 rust-analyzer 가 PATH 에 없어 건너뜁니다 (rustup component add rust-analyzer)");
         return;
     };
+    let _slot = ra_slot().lock().await;
 
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().to_path_buf();
@@ -141,6 +154,7 @@ async fn clean_file_yields_no_error_diagnostics() {
         eprintln!("rust-analyzer 가 PATH 에 없어 건너뜁니다");
         return;
     };
+    let _slot = ra_slot().lock().await;
 
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().to_path_buf();
@@ -195,6 +209,7 @@ async fn hover_and_definition_round_trip() {
         eprintln!("rust-analyzer 가 PATH 에 없어 건너뜁니다");
         return;
     };
+    let _slot = ra_slot().lock().await;
 
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().to_path_buf();
@@ -285,6 +300,7 @@ async fn rename_applies_a_real_workspace_edit() {
         eprintln!("rust-analyzer 가 PATH 에 없어 건너뜁니다");
         return;
     };
+    let _slot = ra_slot().lock().await;
 
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().to_path_buf();
@@ -371,6 +387,7 @@ async fn code_action_request_round_trips_and_indices_stay_consistent() {
         eprintln!("rust-analyzer 가 PATH 에 없어 건너뜁니다");
         return;
     };
+    let _slot = ra_slot().lock().await;
 
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().to_path_buf();
@@ -465,6 +482,7 @@ async fn dropping_the_client_kills_the_server() {
         eprintln!("rust-analyzer 가 PATH 에 없어 건너뜁니다");
         return;
     };
+    let _slot = ra_slot().lock().await;
     let tmp = tempfile::TempDir::new().unwrap();
     let root = tmp.path().to_path_buf();
     let main = seed_crate(&root, "fn main() {}\n");
