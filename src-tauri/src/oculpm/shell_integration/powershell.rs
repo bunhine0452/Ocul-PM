@@ -30,7 +30,6 @@
 //! 프로필은 읽고 쓸 수 없으므로 건드리지 않고 이유를 돌려준다.
 
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use super::default_shell::HostOs;
 use super::RcLocations;
@@ -38,9 +37,6 @@ use crate::oculpm::error::{OculpmError, OculpmResult};
 
 /// 프로필 파일명 — `CurrentUserAllHosts`.
 const PROFILE_FILE: &str = "profile.ps1";
-
-/// 실효 정책을 묻는 셸이 이보다 오래 걸리면 끊는다 (pwsh 콜드 스타트는 수 초).
-const POLICY_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// PowerShell 의 두 판.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -124,31 +120,50 @@ pub(super) fn policy_blocks_profiles(policy: &str) -> bool {
 
 /// 설치 전 확인 — 프로필 파일을 읽고 쓸 수 있고, 실행 정책이 그것을 실행한다.
 ///
-/// `policy` 는 셸에게 실효 정책을 묻는 함수다 (테스트는 가짜를 넘긴다).
-/// Windows 가 아닌 곳은 정책이 강제되지 않으므로 묻지 않는다.
+/// `policy` 는 셸에게 실효 정책을 묻는 함수다 ([`super::policy`] — 테스트는 가짜를
+/// 넘긴다). `Err` 는 왜 모르는지다. Windows 가 아닌 곳은 정책이 강제되지 않으므로
+/// 묻지 않는다.
+///
+/// 모르면 **쓰지 않는다** — Restricted 였다면 프로필이 창마다 오류를 찍게 된다.
+/// 대신 이유와 손으로 설치하는 법(확인할 명령·넣을 한 줄·파일 자리)을 돌려준다.
 pub(super) fn preflight(
     os: HostOs,
     shell_path: &str,
     profile: &Path,
-    policy: &dyn Fn(&str) -> Option<String>,
+    policy: &dyn Fn(&str) -> Result<String, String>,
 ) -> OculpmResult<()> {
     ensure_editable(profile)?;
     if os != HostOs::Windows {
         return Ok(());
     }
     match policy(shell_path) {
-        Some(p) if policy_blocks_profiles(&p) => Err(OculpmError::InvalidConfig(format!(
+        Ok(p) if policy_blocks_profiles(&p) => Err(OculpmError::InvalidConfig(format!(
             "PowerShell's execution policy is {}, so it will not run profile scripts. \
              Adding the integration would make every PowerShell window print an error at start, \
              so nothing was changed. Allow local scripts with \
              `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` and try again.",
             p.trim()
         ))),
-        Some(_) => Ok(()),
-        None => Err(OculpmError::InvalidConfig(format!(
-            "Could not ask {shell_path} for its execution policy, so the profile was left untouched."
+        Ok(_) => Ok(()),
+        Err(reason) => Err(OculpmError::InvalidConfig(format!(
+            "Could not determine PowerShell's execution policy ({shell_path}: {reason}), \
+             so {profile} was left untouched — under a Restricted policy the profile would make \
+             every PowerShell window print an error. To set it up by hand, check that \
+             `Get-ExecutionPolicy` prints RemoteSigned, Unrestricted or Bypass, then add this \
+             line to {profile}: {line}",
+            profile = profile.display(),
+            line = manual_line(),
         ))),
     }
+}
+
+/// 손으로 설치할 때 프로필에 넣을 한 줄 — 관리 블록의 실행 줄.
+pub(super) fn manual_line() -> String {
+    block_body()
+        .lines()
+        .rfind(|l| !l.trim_start().starts_with('#'))
+        .unwrap_or_default()
+        .to_string()
 }
 
 /// 프로필이 UTF-16 이거나 UTF-8 로 읽히지 않으면 손대지 않는다.
@@ -190,44 +205,6 @@ pub(super) fn remove_if_blank(profile: &Path) -> OculpmResult<()> {
         })?;
     }
     Ok(())
-}
-
-/// 셸에게 실효 실행 정책을 묻는다 (`Get-ExecutionPolicy`). 실패·시간 초과는 `None`.
-pub(super) fn effective_execution_policy(shell_path: &str) -> Option<String> {
-    use std::io::Read;
-    use std::process::Stdio;
-
-    let mut child = crate::proc::std_cmd(shell_path)
-        .args([
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "Get-ExecutionPolicy",
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
-    let deadline = Instant::now() + POLICY_TIMEOUT;
-    loop {
-        match child.try_wait() {
-            Ok(Some(status)) if status.success() => break,
-            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(50)),
-            _ => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return None;
-            }
-        }
-    }
-    let mut out = String::new();
-    child.stdout.take()?.read_to_string(&mut out).ok()?;
-    out.lines()
-        .map(str::trim)
-        .rfind(|l| !l.is_empty())
-        .map(str::to_string)
 }
 
 #[cfg(test)]
@@ -339,13 +316,20 @@ mod tests {
     fn preflight_refuses_a_blocking_policy_only_on_windows() {
         let dir = tempfile::tempdir().unwrap();
         let profile = dir.path().join("profile.ps1");
-        let restricted = |_: &str| Some("Restricted".to_string());
-        let unknown = |_: &str| None;
-        let remote = |_: &str| Some("RemoteSigned".to_string());
+        let restricted = |_: &str| Ok("Restricted".to_string());
+        let unknown = |_: &str| Err("timed out after 45.0s (stderr: \"\")".to_string());
+        let remote = |_: &str| Ok("RemoteSigned".to_string());
 
         let err = preflight(HostOs::Windows, "powershell.exe", &profile, &restricted).unwrap_err();
         assert!(err.to_string().contains("Restricted"), "{err}");
-        assert!(preflight(HostOs::Windows, "pwsh.exe", &profile, &unknown).is_err());
+        // 모르면 쓰지 않되, 왜 모르는지와 손으로 까는 법을 함께 돌려준다.
+        let err = preflight(HostOs::Windows, "pwsh.exe", &profile, &unknown)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("timed out after 45.0s"), "{err}");
+        assert!(err.contains(&manual_line()), "{err}");
+        assert!(err.contains("Get-ExecutionPolicy"), "{err}");
+        assert!(!profile.exists(), "모르는데 프로필을 만들었다");
         assert!(preflight(HostOs::Windows, "pwsh.exe", &profile, &remote).is_ok());
         // Linux 는 정책이 강제되지 않는다 — 묻지도 않는다.
         assert!(preflight(HostOs::Linux, "/usr/bin/pwsh", &profile, &restricted).is_ok());
@@ -355,7 +339,7 @@ mod tests {
     fn preflight_refuses_profiles_it_cannot_read_as_utf8() {
         let dir = tempfile::tempdir().unwrap();
         let profile = dir.path().join("profile.ps1");
-        let ok = |_: &str| Some("RemoteSigned".to_string());
+        let ok = |_: &str| Ok("RemoteSigned".to_string());
 
         // 5.1 의 `>` 가 만드는 UTF-16 LE.
         let utf16: Vec<u8> = [0xFF, 0xFE]

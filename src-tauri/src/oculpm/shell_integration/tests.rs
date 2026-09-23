@@ -12,8 +12,8 @@ fn temp_locations(root: &Path) -> RcLocations {
 }
 
 /// 테스트용 정책 조회 — 막지 않는 값.
-fn remote_signed(_: &str) -> Option<String> {
-    Some("RemoteSigned".to_string())
+fn remote_signed(_: &str) -> Result<String, String> {
+    Ok("RemoteSigned".to_string())
 }
 
 #[test]
@@ -259,7 +259,7 @@ fn powershell_install_refuses_a_restricted_policy_without_writing() {
     let root = tempfile::tempdir().unwrap();
     let data = tempfile::tempdir().unwrap();
     let loc = temp_locations(root.path());
-    let restricted = |_: &str| Some("Restricted".to_string());
+    let restricted = |_: &str| Ok("Restricted".to_string());
     let err = install_in(
         HostOs::Windows,
         &loc,
@@ -280,7 +280,8 @@ fn powershell_on_linux_uses_the_xdg_config_profile() {
     let root = tempfile::tempdir().unwrap();
     let data = tempfile::tempdir().unwrap();
     let loc = temp_locations(root.path());
-    let never = |_: &str| -> Option<String> { panic!("Linux 에서 실행 정책을 물었다") };
+    let never =
+        |_: &str| -> Result<String, String> { panic!("Linux 에서 실행 정책을 물었다") };
     install_in(HostOs::Linux, &loc, data.path(), "/usr/bin/pwsh", &never).unwrap();
     let profile = root
         .path()
