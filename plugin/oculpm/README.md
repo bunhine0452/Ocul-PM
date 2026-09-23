@@ -59,12 +59,15 @@ claude --plugin-dir /path/to/ai-pm/plugin/oculpm
 
 1. `OCULPM_MCP_BIN` 환경변수
 2. `/Applications/ocul-pm.app` · `~/Applications/ocul-pm.app` 번들 (macOS)
-3. `~/.local/bin/oculpm-mcp`
-4. Linux — `/usr/bin/oculpm-mcp`(deb), `${XDG_DATA_HOME:-~/.local/share}/ocul-pm/bin/oculpm-mcp`
+3. Linux — `/usr/bin/oculpm-mcp`(deb), `${XDG_DATA_HOME:-~/.local/share}/ocul-pm/bin/oculpm-mcp`
    (AppImage — 앱이 기동 때 마운트 밖으로 복사해 둔 사본)
+4. `~/.local/bin/oculpm-mcp` (수동 설치)
 5. Windows — `%LOCALAPPDATA%\Ocul-PM\oculpm-mcp.exe`(사용자 설치),
    `%LOCALAPPDATA%\Programs\Ocul-PM\`, `%ProgramFiles%\Ocul-PM\`(시스템 설치)
 6. 리포 개발 빌드 (`--plugin-dir` 로 리포에서 직접 로드할 때만)
+
+이 순서는 앱 설정 화면이 보여 주는 탐색 목록(`acp/recording.rs`)과 같다 —
+`src-tauri/tests/plugin_xplat.rs` 가 세 OS 에서 둘을 대조한다.
 
 못 찾으면 stderr 로 설치 안내를 내고 종료합니다.
 
