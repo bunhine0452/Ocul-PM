@@ -3,7 +3,7 @@
 //! 문다.
 //!
 //! `watcher_start_with` 는 이제 셋으로 나뉜다: 맵 락 안에서 스냅샷 → 맵 락 **밖**
-//! 에서 느린 일(락 파일 획득 = `ps` fork · OS 워치 등록) → 맵 락 재획득 + 세대 CAS.
+//! 에서 느린 일(락 파일 획득 = 남의 pid 생사·이름 조회 · OS 워치 등록) → 맵 락 재획득 + 세대 CAS.
 //! 1↔3 사이에 상태가 변할 수 있다는 것이 이 수정이 만들 수 있는 새 버그이고,
 //! 여기 있는 테스트는 전부 그 틈을 겨눈다.
 //!
@@ -27,7 +27,7 @@ fn lock_file(root: &Path) -> std::path::PathBuf {
 }
 
 /// 살아 있는 **남의** pid 가 쥔 락 파일을 손으로 깔아 둔다. 이걸 깔아야
-/// `watcher_start_with` 의 느린 가지(= `ps` fork 두 번 + 락 파일 재작성)가
+/// `watcher_start_with` 의 느린 가지(= 남의 pid 생사·이름 조회 + 락 파일 재작성)가
 /// 실제로 돈다 — 그 가지가 이번 수정으로 맵 락 **밖**으로 나간 자리다.
 fn plant_foreign_lock(root: &Path, pid: u32) {
     let dir = root.join(".oculpm");
@@ -218,7 +218,7 @@ async fn close_racing_start_leaves_no_orphan_lock_file() {
 /// 맵 락 밖으로 나간 뒤에도** 그 결과가 엔트리에 제대로 꽂히는가.
 ///
 /// 이 경로가 이번 수정에서 가장 크게 움직인 자리다: 예전엔 `LockGuard::acquire_with`
-/// (남의 pid 를 확인하느라 `ps` 를 두 번 fork 한다)가 전역 write 락 안에서 돌았고,
+/// (남의 pid 를 확인하느라 그때는 `ps` 를 두 번 fork 했다)가 전역 write 락 안에서 돌았고,
 /// 이제는 밖에서 돌고 3단계 CAS 로 설치된다.
 #[tokio::test(flavor = "multi_thread")]
 async fn takeover_from_a_live_foreign_holder_installs_lock_and_watcher() {
