@@ -21,6 +21,7 @@
  *    (`"nav.today"` 로 사전과 사용처가 함께 잡힌다).
  */
 import { useMemo, useSyncExternalStore } from "react";
+import { kbd } from "@/lib/kbd";
 
 // 사전은 **정적으로 가져오지 않는다** (완성도 라운드 Phase 3, 2026-08-30).
 // ko+en 이 진입 청크의 300KB 를 차지하고 있었다 — 한 사람은 한 언어만 읽는다.
@@ -240,7 +241,29 @@ export function t(key: I18nKey, vars?: TVars): string {
   // 대비해 ko → 키 문자열 순으로 폴백한다. 빈 문자열이나 undefined 를 렌더하지
   // 않는다.
   const raw = DICTS[currentLang]?.[key] ?? DICTS.ko?.[key] ?? key;
-  return interpolate(raw, vars);
+  return localizeShortcuts(key, interpolate(raw, vars));
+}
+
+/**
+ * 사전의 단축키 표기(⌘K · ⇧⌘D)를 이 OS 의 것으로 (크로스플랫폼 라운드 {#ui-labels}).
+ *
+ * 사전은 **맥 표기로 적는다** — 그것이 정본이고, macOS 에서 `kbd` 는 받은
+ * 문자열을 그대로 돌려준다(D3: 맥의 문구는 한 글자도 바뀌지 않는다). Windows·
+ * Linux 에서는 "Ctrl+K" · "Ctrl+Shift+D" 가 된다.
+ *
+ * 자리표시자(`{mod}K`)로 사전을 고치는 대신 여기서 바꾸는 이유: 조합 단위로
+ * 봐야 그 OS 의 순서(Ctrl+Shift+D — 맥은 ⇧⌘D)로 다시 세울 수 있고, 새 문구가
+ * ⌘ 를 그대로 적어도 저절로 따라온다.
+ *
+ * `term.*` 문구는 **터미널 가족**으로 읽는다 — 터미널 안에서 Ctrl+D 는 셸의
+ * EOF 라, 앱의 분할 키는 Ctrl+Shift+D 다 (`lib/kbd.ts`). 상태 막대가 "Ctrl+D 분할"
+ * 이라고 안내하면 그 말을 믿고 누른 사용자의 셸이 닫힌다.
+ *
+ * 산출물(`tc`)과 검색 색인(`tAll`)은 건드리지 않는다 — 디스크에 남는 글과 양 언어
+ * 키워드는 OS 와 무관해야 한다.
+ */
+function localizeShortcuts(key: I18nKey, text: string): string {
+  return kbd(text, key.startsWith("term.") ? "terminal" : "app");
 }
 
 /**

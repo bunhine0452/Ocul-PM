@@ -18,6 +18,7 @@ import { ClaudeMark } from "@/components/ClaudeMark";
 import { CodexMark } from "@/components/CodexMark";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import type { I18nKey } from "@/i18n";
+import { modLabel } from "@/lib/kbd";
 
 // v2 (docs/20260706_v2/01-ux-spec.md §1) — 내비게이션 단일 소스.
 // 사이드바·커맨드 팔레트·⌘번호 단축키가 전부 이 배열에서 파생된다.
@@ -157,9 +158,10 @@ export function navViewForKey(key: string): UiV2View | undefined {
   return idx >= 0 ? NAV_ENTRIES[idx]?.id : undefined;
 }
 
+/** 표시용 — macOS `⌘1`, Windows·Linux `Ctrl+1` (lib/kbd.ts). */
 export function navShortcutLabel(view: UiV2View): string | undefined {
   const idx = NAV_ENTRIES.findIndex((e) => e.id === view);
-  return idx >= 0 && idx < NAV_SHORTCUT_KEYS.length ? `⌘${NAV_SHORTCUT_KEYS[idx]}` : undefined;
+  return idx >= 0 && idx < NAV_SHORTCUT_KEYS.length ? modLabel(NAV_SHORTCUT_KEYS[idx]) : undefined;
 }
 
 /**
