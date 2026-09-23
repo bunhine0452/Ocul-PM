@@ -25,7 +25,7 @@
 | 폴더 | 무엇 |
 |---|---|
 | [`RELEASE.md`](RELEASE.md) | **릴리스 체크리스트.** 버전 6파일 · CHANGELOG · README ko/en · 랜딩 ko/en. 릴리스 전에 반드시 연다 |
-| [`20260923_cross-platform/`](20260923_cross-platform/) | **Windows · Linux 출시와 Mac App Store 판단.** CI 러너가 실기기(D1) · 파동 W0~W5 · 병렬 레인 브리프와 파일 소유 표 · MAS 기능별 샌드박스 표. 플랜 `cross-platform-port` · `mac-app-store` |
+| [`20260923_cross-platform/`](20260923_cross-platform/) | **Windows · Linux 출시.** CI 러너가 실기기(D1) · 파동 W0~W5 · 병렬 레인 브리프와 파일 소유 표. Mac App Store 는 **하지 않기로 결정**(2026-09-23) — 근거 표만 `03-mas-feasibility.md` 에. 플랜 `cross-platform-port` |
 | [`optimization/`](optimization/) | **최적화 원장.** 앞으로의 최적화는 라운드 폴더를 새로 파지 않고 여기 적는다 — 고친 것 · 확정했지만 안 고친 것 · 재 봤더니 아니었던 것 · 잔고 표 |
 | [`a2a/`](a2a/) | 다중 에이전트 원장 — 세션 묶기 · 구역 임대 · 작업 넘기기 · 신뢰 경계. D8 이 전용 「세션」 화면을 열었다 |
 | [`acp-panel/`](acp-panel/) | 앱 안 ACP 에이전트 패널(Claude Code · Codex)의 구조. "프로젝트당 1 세션" 비목표는 뒤집혔다 |
