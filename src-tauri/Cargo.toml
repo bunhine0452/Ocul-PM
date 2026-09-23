@@ -125,6 +125,26 @@ tauri-plugin-deep-link = "2.4.10"
 # 그대로 비용이 된다. pasteboard 의 `public.file-url` 을 직접 읽으면 드롭
 # (Tauri 가 절대경로를 준다)과 **같은 모양의 경로 목록**이 되어 창구가 하나로 모인다.
 # 세 크레이트 모두 이미 tao/wry 를 통해 의존 그래프에 있다 (새 다운로드 없음).
+# Windows API — 크로스플랫폼 W2 레인들이 함께 쓴다 (docs/20260923_cross-platform).
+# 버전은 Cargo.lock 에 이미 있는 0.61.2(tokio 등이 끌어온 것)에 맞춰 새 다운로드가
+# 없다. feature 는 레인 병렬 작업 전에 오케스트레이터가 한 번에 열어 둔다 — 레인이
+# 각자 이 줄을 고치면 병합이 충돌한다. 쓰는 곳:
+#   L-PTY  네임드 파이프 보안 기술자 · Job Object(세션 프로세스 트리 종료) · 분리 기동
+#   L-FS   pid 생사(OpenProcess + GetExitCodeProcess) · 공유 위반 판정
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Console",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_JobObjects",
+    "Win32_System_Pipes",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+] }
+
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem"] }
