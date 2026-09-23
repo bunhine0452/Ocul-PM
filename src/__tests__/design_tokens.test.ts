@@ -7,12 +7,15 @@ import { join } from "node:path";
 // 토큰은 CSS 라 타입 검사가 없다. 이 스위트가 "한 곳에서 정의되고, 화면은
 // fallback 없이 참조한다" 는 계약을 파일 수준에서 지킨다.
 
-const ROOT = join(__dirname, "..");
+// 경로는 `/` 로 정규화한다 — Windows 러너의 `\\` 가 예외 목록(`features/code/code.css`)과
+// 어긋나지 않게 (designFs.ts 와 같은 규칙).
+const posix = (p: string) => p.split("\\").join("/");
+const ROOT = posix(join(__dirname, ".."));
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
 function* walk(dir: string): Generator<string> {
   for (const name of readdirSync(dir)) {
-    const full = join(dir, name);
+    const full = posix(join(dir, name));
     if (name === "legacy" || name === "__tests__") continue;
     if (statSync(full).isDirectory()) yield* walk(full);
     else if (/\.(tsx?|css)$/.test(name)) yield full;
