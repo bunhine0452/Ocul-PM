@@ -91,6 +91,19 @@ jobs:
           set -o pipefail
           cargo clippy --all-targets --locked --message-format=short -- -D warnings 2>&1 | tee ../clippy.log
 
+      # check·clippy 로그를 테스트 **전에** 먼저 올린다. 테스트 단계(윈도우 10분+)가
+      # 끝나기를 기다리지 않고 컴파일 오류를 받아 다음 수정을 시작하려고 — 잡이 끝나야
+      # 로그를 볼 수 있어서 W1 반복마다 그만큼을 기다렸다.
+      - name: 빌드 로그 아티팩트 (check·clippy)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portability-rust-build-${{ matrix.os }}
+          path: |
+            check.log
+            clippy.log
+          if-no-files-found: ignore
+
       # 컴파일이 되는 만큼만 돈다. 실패 테스트 목록이 인벤토리의 절반이다.
       # 단계 시한: Windows 에서 테스트가 매달리면(PTY·소켓 대기) 잡 시한에 걸려
       # 로그 아티팩트까지 잃는다. 단계만 끊고 다음으로 넘어간다.
