@@ -156,5 +156,5 @@ App Sandbox 가 필수인데 이 앱의 핵심(내장 터미널이 띄우는 `cl
 ## 문서
 
 - [`01-lane-briefs.md`](01-lane-briefs.md) — 파동·레인별 브리프(병렬 세션에 그대로 넘기는 지시문)와 파일 소유 표
-- `02-error-inventory.md` — W0 산출물: windows·ubuntu 첫 실행의 오류 전수와 레인 배정
+- [`02-error-inventory.md`](02-error-inventory.md) — 층별 오류 인벤토리(앞 층이 막으면 뒤 층이 안 보인다)와 레인 배정
 - [`03-mas-feasibility.md`](03-mas-feasibility.md) — Mac App Store 기능별 샌드박스 호환 표 (결정: 하지 않는다 — 근거 기록)
