@@ -2,6 +2,7 @@ import { SquareTerminal } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { TERM_DENSITIES, TERM_DENSITY_LABEL, type TermDensity } from "./density";
 import { TERM_FONT_MIN as FONT_MIN, TERM_FONT_MAX as FONT_MAX } from "./fontSize";
+import { kbd } from "@/lib/kbd";
 
 // 하단 상태바 (TerminalSurface 에서 분리, 2026-09-11 리디자인 2차).
 //
@@ -44,10 +45,10 @@ export function TerminalStatusBar({
 }: TerminalStatusBarProps) {
   const { t } = useT();
   const keys: Array<[string, string]> = [
-    ["⌘D", t("term.kbd.split")],
-    ["⌘F", t("term.kbd.find")],
-    ["⇧⌘↩", t("term.kbd.zoom")],
-    ["⌘↑↓", t("term.kbd.blocks")],
+    [kbd("⌘D", "terminal"), t("term.kbd.split")],
+    [kbd("⌘F", "terminal"), t("term.kbd.find")],
+    [kbd("⇧⌘↩", "terminal"), t("term.kbd.zoom")],
+    [kbd("⌘↑↓", "terminal"), t("term.kbd.blocks")],
   ];
   return (
     <div className="term-status">

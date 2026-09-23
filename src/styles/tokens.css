@@ -354,6 +354,7 @@
   --font: "Pretendard Variable", -apple-system, BlinkMacSystemFont,
           "Apple SD Gothic Neo", "SF Pro Text", system-ui, sans-serif;
   --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Menlo", "Consolas", monospace;
+  /* Windows·Linux 스택은 파일 끝의 `:root[data-platform]` 블록 (크로스플랫폼 라운드). */
 
   /* 내장 터미널 팔레트 (2026-07-30) — 예전엔 xterm 테마가 TS 상수로 박힌 다크
      한 벌이라 라이트/프리셋 테마에서 터미널만 따로 놀았다. 이제 표면·커서·선택은
@@ -648,3 +649,24 @@
 [data-theme="dark"] [data-pc="rose"]   { --pc: #ef8ba1; --pc-soft: rgba(239,139,161,0.16); }
 [data-theme="dark"] [data-pc="teal"]   { --pc: #4ec7c6; --pc-soft: rgba(78,199,198,0.16); }
 [data-theme="dark"] [data-pc="orange"] { --pc: #ee9a66; --pc-soft: rgba(238,154,102,0.17); }
+
+/* ============================================================
+   OS 별 글꼴 폴백 (크로스플랫폼 라운드 2026-09-23 {#ui-chrome}).
+   `main.tsx` 가 Windows·Linux 에서만 <html data-platform> 을 단다 — macOS 는
+   속성이 없어 위 :root 스택 그대로다 (D3).
+
+   UI 본문은 번들 Pretendard 가 라틴·한글을 다 갖고 있어 어느 OS 든 같은 얼굴이다.
+   아래는 그 밖의 글리프(한자·기호)가 떨어지는 자리 — 맥 전용 이름(-apple-system,
+   Apple SD Gothic Neo, SF …)은 그 OS 에 없으므로 한국어 글꼴을 명시해 한자가
+   중국·일본 자형으로 새지 않게 한다. 고정폭은 그 OS 의 기본 코딩 글꼴 다음에
+   번들 D2Coding(한글)을 둔다.
+   ============================================================ */
+:root[data-platform="windows"] {
+  --font: "Pretendard Variable", "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+  --mono: "Cascadia Mono", Consolas, "D2Coding", monospace;
+}
+:root[data-platform="linux"] {
+  --font: "Pretendard Variable", "Noto Sans CJK KR", "Noto Sans KR", Cantarell, Ubuntu,
+          system-ui, sans-serif;
+  --mono: "DejaVu Sans Mono", "Noto Sans Mono", "Liberation Mono", "D2Coding", monospace;
+}

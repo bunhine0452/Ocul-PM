@@ -1,9 +1,11 @@
 import type { Terminal } from "@xterm/xterm";
 import { isMac } from "@/lib/platform";
+import { attachImeBridge, type ImeBridgeHandle } from "./imeBridge";
 
-// Windows·Linux 의 xterm 키 정책 (크로스플랫폼 라운드 2026-09-23 {#ui-shortcuts} {#ui-ime}).
+// 터미널의 OS 갈래 — 입력 경로·키 정책·글꼴 (크로스플랫폼 라운드 2026-09-23
+// {#ui-shortcuts} {#ui-ime} {#ui-chrome}).
 //
-// macOS 에서는 이 파일이 붙지 않는다 — 거기서 xterm 의 키 처리기는 한글 입력
+// 아래 키 정책은 macOS 에서 붙지 않는다 — 거기서 xterm 의 키 처리기는 한글 입력
 // 브리지(imeBridge.ts)의 것이고, 그 경로는 한 글자도 바뀌지 않는다 (D3).
 //
 // ── 왜 필요한가 ──────────────────────────────────────────────────────────
@@ -65,7 +67,7 @@ export function terminalKeyPolicy(e: KeyInit): TerminalKeyPolicy {
  */
 function copySelection(term: Terminal): void {
   if (!term.hasSelection()) return;
-  let done = false;
+  let done: boolean;
   try {
     done = document.execCommand("copy");
   } catch {
@@ -103,12 +105,12 @@ function pasteClipboard(term: Terminal): void {
   }, 0);
 }
 
-export interface TerminalKeysHandle {
+interface TerminalKeysHandle {
   dispose(): void;
 }
 
 /** Windows·Linux 전용 — xterm 의 키 처리기를 단다. macOS 에서는 부르지 않는다. */
-export function attachTerminalKeys(term: Terminal): TerminalKeysHandle {
+function attachTerminalKeys(term: Terminal): TerminalKeysHandle {
   term.attachCustomKeyEventHandler((event) => {
     switch (terminalKeyPolicy(event)) {
       case "copy":
@@ -135,6 +137,18 @@ export function attachTerminalKeys(term: Terminal): TerminalKeysHandle {
   };
 }
 
+/** 이 터미널의 입력 경로 — 맥은 한글 입력 브리지, 그 밖은 위의 키 정책. */
+export type TerminalInputHandle = ImeBridgeHandle;
+
+/**
+ * xterm 에 입력 경로를 단다 (`term.open()` 뒤). macOS 는 예전 그대로
+ * `attachImeBridge` — 한 글자도 바뀌지 않는다. Windows·Linux 는 xterm 기본 조합
+ * 처리 위에 셸 키 양보 정책만 얹는다.
+ */
+export function attachTerminalInput(term: Terminal, container: HTMLElement): TerminalInputHandle {
+  return usesImeBridge() ? attachImeBridge(term, container) : attachTerminalKeys(term);
+}
+
 /**
  * 한글 입력 브리지를 붙일 OS 인가 — **macOS(WKWebView)만**.
  *
@@ -148,4 +162,32 @@ export function attachTerminalKeys(term: Terminal): TerminalKeysHandle {
  */
 export function usesImeBridge(): boolean {
   return isMac();
+}
+
+// ── 글꼴 스택 ({#ui-chrome}) ─────────────────────────────────────────────
+//
+// 2026-08-01: 한글이 라틴·숫자보다 크게 보이던 문제 수정. 두 셀 폭을 맞추던
+// CSS size-adjust(120.4%)가 advance 와 함께 글리프까지 20.4% 확대하고 있었다.
+// 폰트 파일의 advance 를 Menlo 그리드로 재작성해(scripts/build-d2coding-subset.py)
+// size-adjust 없이 두 셀에 맞춘다 — 글리프는 원본 크기 그대로.
+//
+// 라틴·기호·박스문자(█ ▀ ● ✓ 포함)는 Menlo 가 전 범위를 0.6021em 로 커버한다.
+// 한글은 'D2Coding Term' 이 unicode-range 로만 끼어들어 정확히 두 셀을 채운다.
+// (D2Coding 을 선두에 두면 서브셋에 없는 글리프가 폴백으로 새면서 줄이 밀린다.)
+const MAC_TERM_FONT = 'Menlo, "D2Coding Term", "SF Mono", ui-monospace, monospace';
+
+// Windows·Linux 에는 Menlo 가 없다. 셀 폭은 스택에서 **처음 있는** 라틴 글꼴이
+// 정한다 — Linux 의 DejaVu Sans Mono 는 Menlo 의 조상(Bitstream Vera)이라 폭이
+// 0.602em 로 같고, Windows 11 의 Cascadia Mono 는 0.586em, Windows 10 의
+// Consolas 는 0.55em 다. D2Coding Term 한글은 1.204em advance 안에 원본 1.0em
+// 글리프가 가운데 놓여 있어(좌우 0.102em 여백) 두 셀이 1.1em 이상이면 잉크가
+// 넘치지 않는다 — 셋 다 그 위다. 번들 'D2Coding' 을 선두에 두지 않는 이유는 위
+// 맥 주석과 같고, 하나 더: 웹 글꼴이라 xterm 이 셀을 재는 순간 아직 안
+// 내려왔으면 폴백으로 잰 폭과 그려진 폭이 어긋난다. 시스템 글꼴은 그 경합이 없다.
+const OTHER_TERM_FONT =
+  '"Cascadia Mono", Consolas, "DejaVu Sans Mono", "D2Coding Term", "Noto Sans Mono", "Liberation Mono", monospace';
+
+/** xterm `fontFamily` — macOS 는 예전 스택 그대로 (D3). */
+export function terminalFontFamily(): string {
+  return isMac() ? MAC_TERM_FONT : OTHER_TERM_FONT;
 }

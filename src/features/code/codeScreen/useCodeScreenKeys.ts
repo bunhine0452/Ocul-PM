@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { cycleTab, focusedPath, type CodeTabsState } from "../codeTabs";
 import { parentDir } from "../fileOps";
 import type { TreeHit } from "../importTarget";
-import { isModKey, isTerminalTarget } from "@/lib/kbd";
+import { isModKey, isTerminalSurface } from "@/lib/kbd";
 import { isMac } from "@/lib/platform";
 
 interface UseCodeScreenKeysArgs {
@@ -53,10 +53,10 @@ export function useCodeScreenKeys({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || !isVisible()) return;
-      // Windows·Linux 에서 도크 터미널(xterm)에 포커스가 있으면 그 키는 셸·터미널
-      // 면의 것이다 — 뒤에 보이는 편집기가 ⌃Tab·Ctrl+Shift+T 를 함께 먹지 않게.
-      // macOS 는 예전 그대로 (D3).
-      if (!isMac() && isTerminalTarget(e.target)) return;
+      // Windows·Linux 에서 도크 터미널에 포커스가 있으면 그 키는 셸·터미널 면의
+      // 것이다 — 터미널 가족(Ctrl+Shift+T 새 셸 탭 · Ctrl+Shift+F 스크롤백 검색)을
+      // 뒤에 보이는 편집기가 함께 먹지 않게. macOS 는 예전 그대로 (D3).
+      if (!isMac() && isTerminalSurface(e.target)) return;
       if (e.ctrlKey && !e.metaKey && !e.altKey && e.key === "Tab") {
         e.preventDefault();
         setTabs((prev) => cycleTab(prev, e.shiftKey ? -1 : 1));
