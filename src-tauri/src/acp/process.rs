@@ -673,9 +673,9 @@ pub async fn start(
                     }
                     // 파일 변경 감사도 같은 봉투(`session_info_update`)로 온다.
                     if let Some(report) = file_change_report_of(&notification.update) {
-                        // 에이전트가 **스스로 신고한** 변경이라, 우리가 "누가
-                        // 썼는지"를 아는 유일한 자리다. 남의 구역을 밟았으면
-                        // 여기서만 잡을 수 있다 (A2A Phase 3).
+                        // 이 에이전트의 변경으로 **신고된** 목록이라 "누가 썼는지"를
+                        // 아는 유일한 자리다 — 남의 구역을 밟았으면 여기서만 잡는다
+                        // (A2A Phase 3). 셸 명령으로 쓴 것은 여기 안 온다.
                         if let AcpEvent::FileChangeReport { paths, .. } = &report {
                             warn_on_trespass(
                                 &notify_root,
@@ -767,9 +767,8 @@ pub async fn start(
                     "jetbrains".to_string(),
                     serde_json::json!({
                         // `agentFileChangeReport` 는 0.70.0 신규 — 이번 턴에
-                        // 바꾼 파일을 에이전트가 직접 신고한다. 우리는 파일
-                        // 변경을 watcher·git 으로 추론해 왔는데, 이건 1차
-                        // 출처이고 자식 프로세스가 바꾼 것까지 포함한다.
+                        // 바꾼 파일을 어댑터가 신고한다(watcher·git 추론과 다른
+                        // 출처, `session::AcpEvent::FileChangeReport` 참고).
                         // 광고하지 않으면 어댑터가 감사 자체를 켜지 않는다.
                         "air": {
                             "version": 1,

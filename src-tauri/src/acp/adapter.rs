@@ -73,8 +73,33 @@ pub const CODEX_PKG_NAME: &str = "codex-acp";
 ///
 /// `session/update` 종류·`_meta._claude/*` 자리는 불변. 우리 쪽 변경은 이
 /// 상수 한 줄뿐이다.
-pub const PINNED_VERSION: &str = "0.77.0";
-pub const CODEX_PINNED_VERSION: &str = "1.8.0";
+///
+/// 0.77.0 → 0.81.0 (2026-09-23): `dist/` 대조 + 스파이크 3 재실행. 번들 SDK
+/// `0.3.270` → `0.3.280`, 바이너리 경로 규칙은 그대로.
+/// - 새 `session/update` 셋(`notice`·`compaction_update`·
+///   `compaction_summary_chunk`)은 **`clientCapabilities.session.notices`/
+///   `.compaction` 을 광고해야만** 온다. 우리는 광고하지 않으므로 예전 모양
+///   (굵은 이름표 본문 줄, "Compact conversation" 도구 호출)으로 온다 — 크레이트는
+///   모르는 태그를 못 받으므로 이게 올릴 수 있는 전제다. 스파이크에서도 새 종류 0.
+/// - **파일 변경 감사가 갈아엎혔다.** 숨은 Stop 훅 continuation(턴마다 모델 호출
+///   하나 더)이 없어지고 SDK 체크포인트(`rewindFiles` dry-run, 2초 제한)로 목록을
+///   뽑는다. `declaredComplete` 는 늘 false, Bash 변경은 빠진다. 파일을 안 건드린
+///   턴도 `reported` + 빈 목록(실측). 그래서 프런트 `fileChangeDiscrepancy` 가
+///   `complete` 를 보지 않게 바꿨다.
+/// - **셸 승인의 제목이 명령 원문**이 됐다(예전엔 설명 한 줄). IN 블록과 겹치므로
+///   `PermissionCard` 가 같은 글이면 "명령" 이름표로 바꾼다.
+/// - 승인 `_meta.claudeCode.mcpServer`, diff 블록 `_meta.jetbrains.air.diffStats`,
+///   재개 세션 첫 턴 `model_usage` 보정은 새로 오지만 안 읽는다.
+/// - `usage-markdown`·`session-failure-extension`·`auth-status` 는 바이트 동일.
+pub const PINNED_VERSION: &str = "0.81.0";
+/// Codex 어댑터. 1.8.0 → 1.13.0 (2026-09-23, `@openai/codex` ^0.152 → ^0.155.1):
+/// - 새 `notice`·`compaction_update`·`async_task_*` 는 각각 `session.notices`·
+///   `session.compaction`·AIR `asyncTasks` 광고 뒤라 오지 않는다.
+/// - 파일 변경 감사가 별도 감사 턴에서 **턴 diff 파싱**으로 바뀌었다 —
+///   `complete` 늘 false 에 고정 영어 `uncertainty` 한 문장. (위 Claude 항목과 같은 조치)
+/// - Claude 어댑터처럼 `_auth/status_update` 로 신원을 민다 — 같은 모양이라
+///   `auth_status.rs` 가 그대로 받는다. 로그아웃 안내만 `codex login` 으로 갈랐다.
+pub const CODEX_PINNED_VERSION: &str = "1.13.0";
 
 /// 앱 데이터 디렉터리 하위 설치 경로.
 const INSTALL_SUBDIR: &str = "acp";

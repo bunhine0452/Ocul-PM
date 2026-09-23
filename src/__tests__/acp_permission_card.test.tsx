@@ -73,3 +73,45 @@ describe("PermissionCard — the option that clears the context", () => {
     expect(screen.getByRole("button", { name: "Yes" }).className).not.toContain("perm-destructive");
   });
 });
+
+// ── 셸 승인의 제목 (어댑터 0.81.0) ──────────────────────────────────────────
+//
+// 어댑터가 Bash 승인의 제목을 Claude 의 한 줄 설명에서 **명령 원문**으로 바꿨다.
+// 그 원문은 IN 블록에 이미 있으므로 제목에서 또 굵게 그리면 같은 글이 두 번이다.
+
+describe("PermissionCard — shell approval title", () => {
+  const OPTIONS: PermissionState["options"] = [
+    { id: "allow-once", name: "Yes", option_kind: "allow_once" },
+    { id: "reject", name: "No", option_kind: "reject_once" },
+  ];
+  const shell = (title: string, input: string | null): PermissionState => ({
+    ...permission(OPTIONS),
+    title,
+    tool_kind: "execute",
+    input,
+  });
+  const titleText = () => document.querySelector(".perm-title")?.textContent;
+
+  it("labels the card instead of repeating the command shown in IN", () => {
+    const command = "rm -rf dist &&\n  pnpm build";
+    render(<PermissionCard request={shell(command, command)} onDecide={() => {}} />);
+
+    expect(titleText()).toBe("명령"); // i18n-ignore -- 사전 문구 조회
+    expect(document.querySelector(".perm-payload pre")?.textContent).toBe(command);
+  });
+
+  it("treats a truncated IN as the same command", () => {
+    const command = "echo " + "x".repeat(40);
+    const clamped = command.slice(0, 20) + "\n… (truncated)";
+    render(<PermissionCard request={shell(command, clamped)} onDecide={() => {}} />);
+
+    expect(titleText()).toBe("명령"); // i18n-ignore -- 사전 문구 조회
+  });
+
+  it("keeps a title that says something the command does not", () => {
+    // 옛 어댑터(≤0.77.0)의 한 줄 설명은 그대로 제목이다.
+    render(<PermissionCard request={shell("Run the tests", "pnpm test")} onDecide={() => {}} />);
+
+    expect(titleText()).toBe("Run the tests");
+  });
+});

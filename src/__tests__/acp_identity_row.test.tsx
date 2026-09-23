@@ -28,8 +28,8 @@ const { AcpUsageMeter } = await import("@/features/chat/AcpUsageMeter");
 
 afterEach(cleanup);
 
-async function meter() {
-  render(<AcpUsageMeter projectId={1} />);
+async function meter(provider: "claude" | "codex" = "claude") {
+  render(<AcpUsageMeter projectId={1} provider={provider} />);
   return waitFor(() => {
     const found = document.querySelector(".usage-meter");
     if (!found) throw new Error("계기가 아직 안 떴다");
@@ -73,5 +73,22 @@ describe("사용량 카드의 신원 줄", () => {
     const row = screen.getByTestId("usage-identity");
     expect(row.classList.contains("warn")).toBe(true);
     expect(row.querySelector(".usage-identity-label")?.textContent).toContain("로그인되어 있지 않아요");
+    expect(row.querySelector(".usage-identity-detail")?.textContent).toContain("`claude`");
+  });
+
+  it("Codex 의 로그아웃은 Codex 로그인 명령을 안내한다 (codex-acp 1.13.0 부터 신원 push)", async () => {
+    current = {
+      used: 0,
+      size: 0,
+      cost_usd: null,
+      detail: null,
+      limits: [],
+      identity: { kind: "none", label: "Not logged in", detail: null, email: null, organization: null, plan: null },
+    };
+    fireEvent.click(await meter("codex"));
+    await waitFor(() => screen.getByRole("dialog"));
+    const detail = screen.getByTestId("usage-identity").querySelector(".usage-identity-detail");
+    expect(detail?.textContent).toContain("`codex login`");
+    expect(detail?.textContent).not.toContain("`claude`");
   });
 });

@@ -68,23 +68,27 @@ export type AcpBlock =
   | { kind: "failure"; id: string; category: string; severity: string; title: string; details?: string };
 
 /**
- * 이번 턴에 에이전트가 **자기 입으로 신고한** 파일 변경 (어댑터 0.70.0).
+ * 이번 턴에 에이전트 쪽이 **신고한** 파일 변경 (어댑터 0.70.0).
  *
- * 영수증의 "손댄 파일"과 출처가 다르다: 그쪽은 편집 도구 호출의 경로를
- * 세어 **추론**한 것이고, 이쪽은 턴이 끝나기 직전 에이전트가 직접 적어 낸
- * 목록이라 **명령·제너레이터·자식 프로세스가 바꾼 것까지** 들어간다.
- * 그래서 둘이 어긋나면 그 자체가 신호다.
+ * 영수증의 "손댄 파일"은 편집 도구 호출의 경로를 세어 **추론**한 것이다.
+ * 이쪽은 어댑터가 턴 끝에 따로 적어 내는 목록인데, 출처가 버전마다 달랐다 —
+ * 0.77.0 까지는 모델이 직접 적었고(명령이 바꾼 것까지), Claude 0.81.0 은 SDK
+ * 체크포인트, Codex 1.13.0 은 턴 diff 에서 뽑는다. 지금 둘 다 **편집 도구
+ * 기준**이라 셸 명령이 바꾼 것은 빠진다.
  */
 export interface AcpFileChanges {
   /** 우리가 프롬프트에 실어 보낸 요청 표. */
   requestId: string;
   /** 바뀐 파일들의 절대경로. */
   paths: string[];
-  /** 에이전트가 "이게 전부다"라고 선언했는가. */
+  /**
+   * "이게 전부다"라는 선언. Claude 0.81.0·Codex 1.13.0 은 **늘 false** 를
+   * 보낸다(도구 기준 목록이라 셸 변경을 보장 못 한다) — 판정에 쓰지 않는다.
+   */
   complete: boolean;
   /** 어댑터 한도(1024개·256KB)에 걸려 잘렸는가. */
   truncated: boolean;
-  /** 에이전트가 적어 준 불확실성 사유. */
+  /** 불확실성 사유. Codex 1.13.0 은 매번 같은 고정 문장을 싣는다. */
   uncertainty?: string;
   /** 보고를 못 받은 사유 (`timeout`·`notReported` …). 받았으면 없다. */
   unavailable?: string;
@@ -164,26 +168,23 @@ function lastAgentIndex(turns: readonly AcpTurn[]): number {
  *
  * 일치하면 아무것도 돌려주지 않는다 — 같은 수를 두 번 적으면 정보가 아니라
  * 소음이다. 드러낼 값어치가 있는 건 세 가지뿐이다:
- *   - `extra`   도구 흔적보다 더 많이 신고했다 (명령·자식 프로세스가 바꾼 것)
- *   - `partial` 에이전트가 스스로 "전부가 아니다"라고 했거나 목록이 잘렸다
- *   - `missing` 보고를 아예 못 받았다
+ *   - `extra`     도구 흔적보다 더 많이 신고했다
+ *   - `truncated` 어댑터가 한도에서 목록을 잘랐다
+ *   - `missing`   보고를 아예 못 받았다
+ *
+ * `complete: false` 와 `uncertainty` 는 보지 않는다. 지금 어댑터는 둘 다
+ * **매 턴** 같은 값을 보내서(false·고정 문장), 보면 모든 턴에 한 줄이 붙는다.
  */
 export type FileChangeDiscrepancy =
   | { kind: "extra"; declared: number; inferred: number }
-  | { kind: "partial"; declared: number; uncertainty?: string }
+  | { kind: "truncated"; declared: number }
   | { kind: "missing"; reason: string };
 
 export function fileChangeDiscrepancy(turn: AcpTurn): FileChangeDiscrepancy | null {
   const report = turn.fileChanges;
   if (!report) return null;
   if (report.unavailable) return { kind: "missing", reason: report.unavailable };
-  if (!report.complete || report.truncated) {
-    return {
-      kind: "partial",
-      declared: report.paths.length,
-      ...(report.uncertainty ? { uncertainty: report.uncertainty } : {}),
-    };
-  }
+  if (report.truncated) return { kind: "truncated", declared: report.paths.length };
   const inferred = turnReceipt(turn)?.files ?? 0;
   return report.paths.length > inferred
     ? { kind: "extra", declared: report.paths.length, inferred }
