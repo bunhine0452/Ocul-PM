@@ -639,14 +639,7 @@ impl ActorInner {
         let workday = self.resolver.workday_of(now);
 
         self.index_writer.ensure_workday_dirs(&workday).await?;
-        if !self
-            .index_writer
-            .snapshot_exists(&workday, SnapshotKind::Open)
-        {
-            self.index_writer
-                .capture_snapshot(&workday, SnapshotKind::Open)
-                .await?;
-        }
+        let snapshot = self.index_writer.ensure_open_snapshot(&workday).await?;
 
         let id = self.next_session_id(&workday).await?;
         let started_at = now
@@ -667,7 +660,7 @@ impl ActorInner {
             active_window_ms: 0,
             file_event_count,
             files_unique: files_unique.len() as u32,
-            git_head_at_start: self.index_writer.current_git_head(),
+            git_head_at_start: self.index_writer.head_at_start(snapshot.as_ref()),
             git_head_at_end: None,
             agent_label_guess: None,
             agent_sessions: Vec::new(),
