@@ -194,12 +194,13 @@ fn set_owner_only(_path: &Path, _dir: bool) -> io::Result<()> {
 /// 그것도 안 되면(다른 볼륨) **복사본**으로 물러난다. 그것도 안 되면 호출부가
 /// 심 없이 세션을 띄운다 — 심은 부가 기능이고, 이것 때문에 터미널이 안 뜨는
 /// 쪽이 훨씬 나쁘다.
-fn link_to(dir: &Path, exe: &Path) -> io::Result<(PathBuf, LinkKind)> {
+fn link_to(dir: &Path, exe: &dyn Fn() -> io::Result<PathBuf>) -> io::Result<(PathBuf, LinkKind)> {
     let target = dir.join(shim_file_name());
     if target.exists() {
         return Ok((target, LinkKind::Existing));
     }
-    let kind = link_or_copy(exe, &target)?;
+    // 실행 파일은 걸 때만 찾는다 — 이미 걸린 심에는 `current_exe` 가 필요 없다.
+    let kind = link_or_copy(&exe()?, &target)?;
     Ok((target, kind))
 }
 
@@ -221,7 +222,7 @@ fn link_or_copy(exe: &Path, target: &Path) -> io::Result<LinkKind> {
 
 /// 이 세션의 심을 깔고(멱등) 토큰을 적는다.
 pub fn install(app_data: &Path, session_id: &str, token: &SessionToken) -> io::Result<SessionShim> {
-    install_pointing_at(app_data, session_id, token, &system_shim_target()?).map(|(shim, _)| shim)
+    install_with(app_data, session_id, token, &system_shim_target).map(|(shim, _)| shim)
 }
 
 /// [`install`] 의 본체 — 심이 가리킬 실행 파일을 인자로 받는다. 통합 테스트가
@@ -232,6 +233,15 @@ pub fn install_pointing_at(
     session_id: &str,
     token: &SessionToken,
     exe: &Path,
+) -> io::Result<(SessionShim, LinkKind)> {
+    install_with(app_data, session_id, token, &|| Ok(exe.to_path_buf()))
+}
+
+fn install_with(
+    app_data: &Path,
+    session_id: &str,
+    token: &SessionToken,
+    exe: &dyn Fn() -> io::Result<PathBuf>,
 ) -> io::Result<(SessionShim, LinkKind)> {
     let dir = session_dir(app_data, session_id);
     std::fs::create_dir_all(&dir)?;
