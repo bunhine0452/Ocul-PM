@@ -50,10 +50,13 @@
 완료 조건 (D1 — "컴파일된다" 는 완료가 아니다)
 1. 로컬(macOS): src-tauri 에서 cargo fmt --check · cargo clippy --all-targets --locked -- -D warnings ·
    cargo test --locked 초록. 프런트를 고쳤다면 pnpm typecheck · pnpm test · pnpm lint · pnpm build 초록.
-2. 브랜치를 push 하고 portability.yml(windows·ubuntu)과 ci.yml(macOS) 결과를
-   `gh run view <id> --json jobs --jq '.jobs[]|{name,conclusion}'` 의 conclusion 으로 확인.
-   네 소유 범위의 잡·테스트가 windows·ubuntu 에서 **실행되어** success 여야 한다.
-   다른 레인 소유의 실패는 무시하되 보고서에 적는다.
+2. 브랜치(port/<레인>)를 push 하면 portability.yml(windows·ubuntu)이 돈다. 결과는
+   `gh run view <id> --json jobs --jq '.jobs[]|{name,conclusion}'` 의 conclusion 과
+   아티팩트 로그(`gh run download <id>`)로 확인. 네 소유 범위의 테스트가 windows·ubuntu 에서
+   **실행되어** 통과해야 한다. 다른 레인 소유의 실패는 무시하되 보고서에 적는다.
+   ci.yml(macOS)은 PR 에서만 돈다 — PR 은 오케스트레이터가 합류 때 연다. 레인은 1번의
+   로컬 macOS 게이트로 대신한다. Windows 콜드 빌드는 40분 이상 걸린다: 한 번에 여러 수정을
+   묶어 push 하고, 기다리는 동안 로컬에서 다음 것을 준비한다.
 3. 네가 고친 동작마다 그 OS 러너에서 실제로 도는 테스트가 있어야 한다
    (#[cfg(windows)] 테스트는 windows 러너에서 돈다 — 로그에서 테스트 이름이 보이는지 확인).
 4. 네 소유 범위에 PORT-STUB 이 남아 있으면 완료가 아니다.

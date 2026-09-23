@@ -1,7 +1,8 @@
-# 크로스플랫폼 — Windows · Linux 출시와 Mac App Store 판단
+# 크로스플랫폼 — Windows · Linux 출시 (Mac App Store 는 하지 않는다)
 
-2026-09-23 · 진행 상태는 여기 없다 — 플랜 `cross-platform-port`(Windows·Linux)와
-`mac-app-store` 가 갖는다. 이 문서는 "왜 이 모양인가" 만 갖는다.
+2026-09-23 · 진행 상태는 여기 없다 — 플랜 `cross-platform-port` 가 갖는다. 이 문서는
+"왜 이 모양인가" 만 갖는다. Mac App Store 는 같은 날 사용자가 **하지 않기로 결정**했다
+(플랜 `mac-app-store` 는 그 결정과 근거만 남기고 전 항목 종결).
 
 ## 출발점
 
@@ -105,10 +106,8 @@ glibc 하한을 낮추려고 `ubuntu-22.04` 에서 빌드한다.
 ## 파동 (waves)
 
 ```
-W0 이식성 CI ─┐
-              ├─► W1 컴파일 기준선 (단독) ─► W2 플랫폼 레인 6개 (병렬) ─► W3 패키징·E2E ─► W4 릴리스 ─► W5 베타 운영
-              │     proc.rs · 테스트 게이트 · PORT-STUB
-MAS M0 결정 게이트 (병렬 가능 — 문서만) ─────────────────────► (진행 결정 시) M1 Lite 빌드 — W2 합류 뒤
+W0 이식성 CI ─► W1 컴파일 기준선 (단독) ─► W2 플랫폼 레인 6개 (병렬) ─► W3 패키징·E2E ─► W4 릴리스 ─► W5 베타 운영
+                  proc.rs · 테스트 게이트 · PORT-STUB
 ```
 
 | 파동 | 세션 | 끝나는 조건 |
@@ -129,8 +128,9 @@ MAS M0 결정 게이트 (병렬 가능 — 문서만) ────────�
 - **레인은 일지·플랜을 쓰지 않는다** — MCP 서버가 메인 루트를 보고, 여러 세션의
   `plan_update` base_hash 가 서로 충돌한다. 레인은 보고서를 돌려주고, 오케스트레이터가
   합류 때 일지와 `plan_update` 를 쓴다.
-- 레인은 자기 브랜치를 push 해 `portability.yml` + `ci.yml` 결과를 **conclusion 필드로**
-  확인한다(`gh run watch --exit-status` 는 취소된 run 도 exit 0 — 메모리).
+- 레인은 자기 브랜치(`port/**`)를 push 해 `portability.yml` 결과를 **conclusion 필드로**
+  확인한다(`gh run watch --exit-status` 는 취소된 run 도 exit 0 — 메모리). `ci.yml`(macOS)은
+  PR 에서만 돌므로 레인은 로컬 macOS 게이트로 대신하고, PR 은 오케스트레이터가 합류 때 연다.
 - 합류 순서는 W2 안에서 **L-PTY → L-FS → L-INTEG → L-SHELL → L-OS → L-UI** (컴파일 영향이 큰
   순). 뒤 레인은 앞 레인 합류 후 rebase 하고 다시 초록을 확인한다.
 - 머지는 초록이면 묻지 않고 rebase 머지 + 브랜치 삭제, 사후 보고(메모리 `no-asking-before-merge`).
@@ -142,18 +142,19 @@ MAS M0 결정 게이트 (병렬 가능 — 문서만) ────────�
 | Windows 코드 서명 | W4 | Azure Trusted Signing(월 과금, SmartScreen 신뢰 누적) / 무서명 베타(설치 때 SmartScreen "알 수 없는 게시자" 경고) |
 | Linux 형식 확정 | W3 | AppImage+deb(권장, D10) / +rpm / +Flatpak |
 | 외부 테스터 모집 | W5 | GitHub 이슈·디스코드 등 — 사용자 액션 |
-| Mac App Store 진행 여부 | M1 | `03-mas-feasibility.md` 참조 — Lite SKU 진행 / 보류 |
+| ~~Mac App Store 진행 여부~~ | — | **결정됨 (2026-09-23): 하지 않는다** |
 
-## Mac App Store — 요약
+## Mac App Store — 하지 않는다 (2026-09-23 사용자 결정)
 
 App Sandbox 가 필수인데 이 앱의 핵심(내장 터미널이 띄우는 `claude`·`codex`, 다른
 도구의 설정 파일 쓰기, git·LSP·DAP·ACP 실행, 임의 프로젝트 폴더 감시, 자체 업데이터,
-`macOSPrivateApi`)이 샌드박스와 정면으로 부딪힌다. MAS 판은 **다른 제품(Lite)** 이
-된다. 그래서 구현 전에 결정 게이트를 둔다 — 자세한 기능별 표는
-[`03-mas-feasibility.md`](03-mas-feasibility.md).
+`macOSPrivateApi`)이 샌드박스와 정면으로 부딪힌다. MAS 판은 기록 루프가 빠진 **다른
+제품(Lite)** 이 된다. 사용자가 출시하지 않기로 했다. macOS 배포는 지금처럼 Developer ID
+서명·공증 + 자체 업데이터로 간다. 판단 근거(기능별 표)는
+[`03-mas-feasibility.md`](03-mas-feasibility.md) 에 남긴다 — 다시 논의가 열리면 여기서 출발한다.
 
 ## 문서
 
 - [`01-lane-briefs.md`](01-lane-briefs.md) — 파동·레인별 브리프(병렬 세션에 그대로 넘기는 지시문)와 파일 소유 표
 - `02-error-inventory.md` — W0 산출물: windows·ubuntu 첫 실행의 오류 전수와 레인 배정
-- [`03-mas-feasibility.md`](03-mas-feasibility.md) — Mac App Store 기능별 샌드박스 호환 표와 결정 게이트
+- [`03-mas-feasibility.md`](03-mas-feasibility.md) — Mac App Store 기능별 샌드박스 호환 표 (결정: 하지 않는다 — 근거 기록)
