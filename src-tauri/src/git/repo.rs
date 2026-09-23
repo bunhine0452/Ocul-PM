@@ -4,7 +4,6 @@
 //! 어디서 git 을 부르는지 한 자리에 모아 두는 것이 이 모듈이 따로인 이유다.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use walkdir::WalkDir;
 
@@ -72,7 +71,7 @@ pub(crate) fn unquote_git_path(raw: &str) -> String {
 }
 
 pub(super) fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
-    let mut cmd = Command::new("git");
+    let mut cmd = crate::proc::std_cmd("git");
     cmd.arg("-C").arg(root);
     cmd.args(QUOTEPATH_OFF);
     cmd.args(args);
@@ -94,7 +93,7 @@ pub(super) fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
 // (nested-aware). Kept as a focused predicate for the test fixtures.
 #[cfg(test)]
 pub(super) fn is_repo(root: &Path) -> bool {
-    Command::new("git")
+    crate::proc::std_cmd("git")
         .arg("-C")
         .arg(root)
         .args(["rev-parse", "--is-inside-work-tree"])

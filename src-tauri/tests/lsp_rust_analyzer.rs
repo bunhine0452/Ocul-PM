@@ -7,6 +7,10 @@
 //! `rust-analyzer` 가 PATH 에 없으면 **건너뛴다** — 이 도구가 없는 기기에서
 //! 전체 스위트가 빨개지면 안 된다 (건너뛸 때는 그 사실을 출력한다).
 
+// 테스트 픽스처의 git·셸·자식 프로세스 — 앱이 띄우는 프로세스가 아니라 proc.rs
+// 창구 규칙(clippy.toml disallowed-methods) 밖이다.
+#![allow(clippy::disallowed_methods)]
+
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

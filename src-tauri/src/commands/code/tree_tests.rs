@@ -152,6 +152,8 @@ fn dir_level_truncates_wide_directories() {
 /// 트리에 **파일처럼** 그려져, 클릭하면 「Path escapes the project root」가
 /// 떴다. 트리가 미리 판정해 싣는다 — 밖은 `Outside` + 파일 아님·폴더 아님,
 /// 안은 대상의 종류로, 깨진 것은 `Dangling`.
+// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
+#[cfg(unix)]
 #[test]
 fn dir_level_classifies_symlinks_by_target() {
     let tmp = TempDir::new().unwrap();
@@ -200,6 +202,8 @@ fn dir_level_classifies_symlinks_by_target() {
 /// 경로를 주면 트리는 `alias_dir` 아래에 `real/…` 을 그려 자리와 이름이
 /// 어긋나고, 조상 펼침·선택 강조가 전부 빗나간다. 루트 자체가 심링크 아래에
 /// 있어도(`/tmp` → `/private/tmp`) 같은 이유로 접두가 어긋나지 않아야 한다.
+// PORT-TEST(L-FS): 경로 탈출 가드 — Windows 판(심링크/정션, 권한 없으면 skip 사유)은 L-FS 가 쓴다.
+#[cfg(unix)]
 #[test]
 fn dir_level_builds_child_paths_from_the_requested_dir_not_the_canonical_one() {
     let tmp = TempDir::new().unwrap();

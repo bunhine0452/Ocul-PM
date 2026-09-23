@@ -137,7 +137,7 @@ pub async fn resolve_adapter(spec: &AdapterSpec) -> Option<AdapterCommand> {
 
 /// `xcrun -f <name>` — Xcode 툴체인 안의 절대경로. 툴체인이 없으면 실패한다.
 async fn xcrun_find(name: &str) -> Option<PathBuf> {
-    let out = tokio::process::Command::new("xcrun")
+    let out = crate::proc::tokio_cmd("xcrun")
         .arg("-f")
         .arg(name)
         .output()

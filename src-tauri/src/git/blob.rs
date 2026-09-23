@@ -3,7 +3,6 @@
 //! 질의라 `diff` 와 가른다. 셋 다 파일이 든 저장소를 스스로 푼다(중첩 저장소).
 
 use std::path::Path;
-use std::process::Command;
 
 use super::{repo_relative, repo_root_for, run_git};
 
@@ -31,7 +30,7 @@ pub fn show_file_bytes(
     let abs = root.join(file_path);
     let repo = repo_root_for(&abs)?;
     let rel = repo_relative(&repo, &abs)?;
-    let out = Command::new("git")
+    let out = crate::proc::std_cmd("git")
         .arg("-C")
         .arg(&repo)
         .args(["show", &format!("{rev}:{rel}")])

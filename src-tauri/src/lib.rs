@@ -36,6 +36,9 @@ pub mod oculpm;
 mod menu;
 mod mobile_bridge;
 pub mod plugins;
+// 프로세스 생성 단일 창구 (크로스플랫폼 D5) — pub 인 이유: main.rs 의 re-exec 도
+// 이 창구를 지난다 (clippy.toml 이 그 밖의 `Command::new` 를 막는다).
+pub mod proc;
 pub mod ptyhost;
 mod secrets;
 // 테마 파일화 (Osaurus 라운드 Phase 4) — 스키마·검증·앱데이터 저장소

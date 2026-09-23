@@ -166,7 +166,7 @@ impl MobileBridgeState {
             if guard.is_some() {
                 return;
             }
-            match std::process::Command::new("/usr/bin/caffeinate")
+            match crate::proc::std_cmd("/usr/bin/caffeinate")
                 .arg("-i")
                 .spawn()
             {

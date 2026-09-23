@@ -19,6 +19,9 @@
 //!
 //! 유닉스 전용 — 훅이 `/bin/sh` 이고 git 이 필요하다.
 #![cfg(unix)]
+// 테스트 픽스처의 git·셸·자식 프로세스 — 앱이 띄우는 프로세스가 아니라 proc.rs
+// 창구 규칙(clippy.toml disallowed-methods) 밖이다.
+#![allow(clippy::disallowed_methods)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};

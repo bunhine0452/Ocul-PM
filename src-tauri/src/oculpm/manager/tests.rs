@@ -1144,7 +1144,7 @@ mod journal_w3_pr3 {
         // commit, typed from the conventional-commit prefix, tagged
         // `git-backfill`, and a re-run adds nothing (idempotent).
         fn git(root: &std::path::Path, args: &[&str]) -> bool {
-            std::process::Command::new("git")
+            crate::proc::std_cmd("git")
                 .arg("-C")
                 .arg(root)
                 .args(args)

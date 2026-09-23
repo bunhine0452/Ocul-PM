@@ -33,6 +33,10 @@
 //! - 응답이 돌려준 경로가 전부 다르고 전부 존재한다.
 //! - `.tmp` 가 남지 않았다.
 
+// 테스트 픽스처의 git·셸·자식 프로세스 — 앱이 띄우는 프로세스가 아니라 proc.rs
+// 창구 규칙(clippy.toml disallowed-methods) 밖이다.
+#![allow(clippy::disallowed_methods)]
+
 use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};

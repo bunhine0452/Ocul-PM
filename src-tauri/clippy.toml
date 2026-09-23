@@ -1,0 +1,9 @@
+# 프로세스 생성 단일 창구 재발 게이트 (크로스플랫폼 라운드 D5 · 플랜
+# `cross-platform-port` #w1-proc-gate). 허용 자리는 `src/proc.rs` 하나뿐이다.
+#
+# 통합 테스트(`tests/*.rs`)의 테스트 픽스처는 이 규칙 밖이다 — 그 파일들은 머리에
+# `#![allow(clippy::disallowed_methods)]` 를 단다(앱이 띄우는 프로세스가 아니다).
+disallowed-methods = [
+    { path = "std::process::Command::new", reason = "crate::proc::std_cmd 를 쓸 것 — Windows 에서 CREATE_NO_WINDOW(콘솔 창 깜빡임)와 PATHEXT(.cmd) 해석을 한 곳이 소유한다 (docs/20260923_cross-platform D5)" },
+    { path = "tokio::process::Command::new", reason = "crate::proc::tokio_cmd 를 쓸 것 — Windows 에서 CREATE_NO_WINDOW(콘솔 창 깜빡임)와 PATHEXT(.cmd) 해석을 한 곳이 소유한다 (docs/20260923_cross-platform D5)" },
+]

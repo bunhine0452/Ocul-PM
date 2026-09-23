@@ -2,7 +2,6 @@
 //! 저장소 회귀. 예전 `git.rs` 의 `mod tests` 를 그대로 옮겼다.
 
 use std::path::Path;
-use std::process::Command;
 
 use super::changes::porcelain_op;
 use super::diff::split_multi_diff;
@@ -175,7 +174,7 @@ fn porcelain_op_maps_status_pairs() {
 }
 
 fn git(dir: &Path, args: &[&str]) -> Result<(), ()> {
-    Command::new("git")
+    crate::proc::std_cmd("git")
         .arg("-C")
         .arg(dir)
         .args(args)

@@ -20,7 +20,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
-use std::process::Command;
 
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
@@ -156,7 +155,7 @@ pub struct BranchStory {
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn run_git(repo: &Path, args: &[&str]) -> Result<String, String> {
-    let out = Command::new("git")
+    let out = crate::proc::std_cmd("git")
         .arg("-C")
         .arg(repo)
         .args(crate::git::QUOTEPATH_OFF)

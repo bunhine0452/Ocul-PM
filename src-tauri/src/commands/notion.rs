@@ -132,11 +132,11 @@ pub async fn notion_oauth_start() -> Result<String, String> {
 
 fn open_in_browser(url: &str) -> Result<(), String> {
     #[cfg(target_os = "macos")]
-    let status = std::process::Command::new("open").arg(url).status();
+    let status = crate::proc::std_cmd("open").arg(url).status();
     #[cfg(target_os = "linux")]
-    let status = std::process::Command::new("xdg-open").arg(url).status();
+    let status = crate::proc::std_cmd("xdg-open").arg(url).status();
     #[cfg(target_os = "windows")]
-    let status = std::process::Command::new("cmd")
+    let status = crate::proc::std_cmd("cmd")
         .args(["/C", "start", "", url])
         .status();
     status

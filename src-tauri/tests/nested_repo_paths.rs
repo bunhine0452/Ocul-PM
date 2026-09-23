@@ -7,6 +7,10 @@
 //! `/var/...` 그대로라, 펴지 않고 비교하면 두 경로가 남남이 되어 되맞춤이
 //! 조용히 통째로 건너뛰어진다. 그 함정은 픽스처가 진짜여야만 잡힌다.
 
+// 테스트 픽스처의 git·셸·자식 프로세스 — 앱이 띄우는 프로세스가 아니라 proc.rs
+// 창구 규칙(clippy.toml disallowed-methods) 밖이다.
+#![allow(clippy::disallowed_methods)]
+
 use std::path::Path;
 use std::process::Command;
 
