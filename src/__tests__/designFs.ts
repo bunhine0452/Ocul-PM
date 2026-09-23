@@ -11,13 +11,21 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-export const ROOT = join(__dirname, "..");
+/**
+ * 경로는 **`/` 로 정규화**한다 (크로스플랫폼 라운드 2026-09-23). Windows 러너에서
+ * `join` 은 `\` 를 만들어, `file.endsWith("lib/ime.ts")` 같은 비교와 예외 목록의
+ * `features/code/code.css` 키가 전부 빗나갔다. Node 의 fs 는 Windows 에서도 `/`
+ * 경로를 받는다.
+ */
+const posix = (p: string) => p.split("\\").join("/");
+
+export const ROOT = posix(join(__dirname, ".."));
 export const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
 /** `src/` 아래의 손으로 쓰는 소스. 테스트와 보존된 죽은 코드는 뺀다. */
 export function* walk(dir: string): Generator<string> {
   for (const name of readdirSync(dir)) {
-    const full = join(dir, name);
+    const full = posix(join(dir, name));
     if (name === "legacy" || name === "__tests__") continue;
     if (statSync(full).isDirectory()) yield* walk(full);
     else if (/\.(tsx?|css)$/.test(name)) yield full;
