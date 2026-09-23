@@ -11,15 +11,121 @@
 //! ```bash
 //! cargo test --test acp_login_shell -- --ignored --nocapture
 //! ```
+//!
+//! 무시되지 않는 테스트는 OS 별 실제 동작을 러너에서 본다 (크로스플랫폼 라운드
+//! `#shell-env`): 유닉스는 `-lic` 가 진짜 bash/zsh 의 rc 를 읽어 PATH 를 받아
+//! 오는지, Windows 는 셸을 띄우지 않고 `PATHEXT` 로 `.exe`·`.cmd` 를 찾는지.
 
 use ocul_pm_lib::acp::env::{self, PathSource};
 
 /// Finder 가 물려주는 것과 같은 최소 PATH.
 const BARE_PATH: &str = "/usr/bin:/bin:/usr/sbin:/sbin";
 
+/// 프로세스 전역 환경(PATH·HOME)을 만지는 테스트끼리 줄 세운다.
+static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// 유닉스 — 진짜 셸을 `-lic` 로 띄워 **rc 가 만든** PATH 를 받아 온다.
+///
+/// 임시 HOME 의 rc 가 PATH 앞에 표식 디렉터리를 붙이게 하고, 캡처한 PATH 에 그
+/// 표식이 있는지 본다. bash 는 로그인 셸이라 `.bash_profile` 을, zsh 는 `-i`
+/// 덕에 `.zshrc` 를 읽는다 — nvm·fnm 이 훅을 거는 자리가 거기다.
+#[cfg(unix)]
+#[tokio::test]
+async fn login_shell_capture_reads_the_real_rc_files() {
+    let _guard = ENV_LOCK.lock().await;
+    let home = tempfile::tempdir().unwrap();
+    std::fs::write(
+        home.path().join(".bash_profile"),
+        "export PATH=\"/oculpm-marker-bash-profile:$PATH\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        home.path().join(".zshrc"),
+        "export PATH=\"/oculpm-marker-zshrc:$PATH\"\n",
+    )
+    .unwrap();
+    let real_home = std::env::var_os("HOME");
+    std::env::set_var("HOME", home.path());
+
+    let mut checked = Vec::new();
+    for (shell, marker) in [
+        ("/bin/bash", "/oculpm-marker-bash-profile"),
+        ("/bin/zsh", "/oculpm-marker-zshrc"),
+        ("/usr/bin/zsh", "/oculpm-marker-zshrc"),
+    ] {
+        if !std::path::Path::new(shell).is_file() || checked.contains(&marker) {
+            continue;
+        }
+        let path = env::capture_login_path(shell).await;
+        let path = path.unwrap_or_else(|| panic!("{shell} -lic 로 PATH 를 못 받았다"));
+        assert!(
+            std::env::split_paths(&path).any(|p| p == std::path::Path::new(marker)),
+            "{shell}: rc 가 붙인 {marker} 가 없다 — {path}"
+        );
+        checked.push(marker);
+    }
+
+    match real_home {
+        Some(h) => std::env::set_var("HOME", h),
+        None => std::env::remove_var("HOME"),
+    }
+    assert!(
+        checked.contains(&"/oculpm-marker-bash-profile"),
+        "bash 가 없다"
+    );
+    if !checked.contains(&"/oculpm-marker-zshrc") {
+        eprintln!("skip: 이 러너에 zsh 가 없다 — bash 만 확인");
+    }
+}
+
+/// Windows — 셸을 띄우지 않는다(프로세스 PATH 가 곧 사용자 PATH). 이름 탐색은
+/// `PATHEXT` 를 따라 `cmd` → `cmd.exe`, npm 이 까는 `npm` → `npm.cmd` 를 찾는다.
+#[cfg(windows)]
+#[tokio::test]
+async fn windows_resolves_by_pathext_without_a_login_shell() {
+    let _guard = ENV_LOCK.lock().await;
+    assert_eq!(env::capture_login_path("powershell.exe").await, None);
+
+    let (cmd, source) = env::resolve_binary("cmd")
+        .await
+        .expect("cmd.exe 를 못 찾았다");
+    assert_eq!(source, PathSource::Process);
+    assert!(
+        cmd.to_string_lossy()
+            .to_ascii_lowercase()
+            .ends_with("cmd.exe"),
+        "{}",
+        cmd.display()
+    );
+
+    match env::resolve_binary("npm").await {
+        Some((npm, PathSource::Process)) => {
+            let lower = npm.to_string_lossy().to_ascii_lowercase();
+            assert!(
+                lower.ends_with("npm.cmd") || lower.ends_with("npm.exe"),
+                "{lower}"
+            );
+        }
+        other => assert!(
+            std::env::var_os("CI").is_none(),
+            "CI 러너에는 npm 이 있어야 한다 — {other:?}"
+        ),
+    }
+
+    // 로그인 셸을 이어 붙이지 않는다 — 자식에게는 프로세스 PATH 그대로.
+    assert_eq!(
+        env::effective_path().await,
+        std::env::var("PATH").unwrap_or_default()
+    );
+    assert!(env::resolve_binary("oculpm-surely-not-on-path-7f3a")
+        .await
+        .is_none());
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "외부 의존(로그인 셸·Node 설치) — 수동 실행 전용"]
 async fn login_shell_rescues_node_when_process_path_is_bare() {
+    let _guard = ENV_LOCK.lock().await;
     // 전제 확인: 이 머신엔 node 가 있고, 그게 시스템 경로 밖에 있다.
     // (시스템 node 를 쓰는 머신이라면 폴백을 검증할 수 없으므로 건너뛴다.)
     let Some((real, _)) = env::resolve_binary("node").await else {
