@@ -30,6 +30,11 @@ W1 뒤에 정해진 것:
   (Windows: `OpenProcess` + `GetExitCodeProcess`, `STILL_ACTIVE`). L-PTY 가 호스트 생사에 필요하면 합류 뒤 가져다 쓴다.
 - portability.yml 잡 API 의 단계 `conclusion` 은 continue-on-error 때문에 **늘 success** 다. 판정은 잡 로그의
   「요약」 표(outcome)나 아티팩트로 한다.
+- **Windows 전용 코드의 컴파일 피드백을 20초에** (L-FS2 고안): `rustup target add x86_64-pc-windows-msvc` 뒤
+  가짜 cc·ar·rc(빈 산출물만 만드는 python 스크립트)를 `CC_/CXX_/AR_/RC_x86_64_pc_windows_msvc` 로 넘기고 별도
+  `CARGO_TARGET_DIR` 에서 `cargo clippy --lib --tests --target x86_64-pc-windows-msvc -- -D warnings`. check 는 링크를
+  안 하므로 통과한다. **실행·링크 검증은 아니다** — push 전 오타·타입 오류를 거르는 용도. 레시피는 메모리
+  `windows-cargo-check-on-mac`.
 
 ---
 
