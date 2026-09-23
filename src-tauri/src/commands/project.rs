@@ -303,11 +303,7 @@ pub async fn index_project(
             files
                 .iter()
                 .filter_map(|p| {
-                    let rel = p
-                        .strip_prefix(&root)
-                        .unwrap_or(p)
-                        .to_string_lossy()
-                        .to_string();
+                    let rel = crate::git::slash(p.strip_prefix(&root).unwrap_or(p));
                     head.contains(&root, &rel).then_some(rel)
                 })
                 .collect()
@@ -331,7 +327,8 @@ pub async fn index_project(
 
     for (i, file_path) in files.iter().enumerate() {
         let rel = file_path.strip_prefix(&root).unwrap_or(file_path);
-        let rel_str = rel.to_string_lossy().to_string();
+        // 색인 키는 저장 모양(`/`) — 워처의 증분 색인(`change.path`)과 같은 행을 가리키게.
+        let rel_str = crate::git::slash(rel);
 
         let is_last = i + 1 == files.len();
         if is_last || last_progress.is_none_or(|t| t.elapsed() >= PROGRESS_INTERVAL) {
@@ -474,12 +471,7 @@ pub async fn index_project(
     let files_removed = {
         let mut walked: std::collections::HashSet<String> = files
             .iter()
-            .map(|p| {
-                p.strip_prefix(&root)
-                    .unwrap_or(p)
-                    .to_string_lossy()
-                    .to_string()
-            })
+            .map(|p| crate::git::slash(p.strip_prefix(&root).unwrap_or(p)))
             .collect();
         walked.extend(journal_files);
         let stale: Vec<String> = db
