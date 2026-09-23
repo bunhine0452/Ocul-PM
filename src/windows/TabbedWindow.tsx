@@ -34,6 +34,9 @@ import { hasRunningWork, runCloseIntent, runTabCloseGuard, runningWorkItems } fr
 import { runNewTabIntent } from "@/lib/newTabIntent";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
+import { isMac as isMacPlatform } from "@/lib/platform";
+import { isCmdKey } from "@/lib/kbd";
+import { useWindowTabKeys } from "@/hooks/useWindowTabKeys";
 
 import "@/App.css";
 // 탭 스트립·창 셸 CSS — **모든** 창에 필요하므로 ShellV2 의 lazy 청크가 아니라
@@ -81,8 +84,7 @@ export default function TabbedWindow({
     initialView || initialEntryPath ? { view: initialView, entry: initialEntryPath } : null,
   );
 
-  const isMac =
-    typeof navigator !== "undefined" && navigator.platform.toUpperCase().includes("MAC");
+  const isMac = isMacPlatform();
 
   /** 아직 손에 들려 있나 — 놓는 순간 `TearOffSettled` 가 false 로 바꾼다. */
   const [held, setHeld] = useState(tearingOff);
@@ -341,8 +343,9 @@ export default function TabbedWindow({
     const onKey = (e: KeyboardEvent) => {
       let step = 0;
       if (e.ctrlKey && e.key === "Tab") step = e.shiftKey ? -1 : 1;
-      else if (e.metaKey && e.altKey && e.key === "ArrowRight") step = 1;
-      else if (e.metaKey && e.altKey && e.key === "ArrowLeft") step = -1;
+      // ⌘⌥←→ — macOS 는 예전처럼 ⌘ 만, Windows·Linux 는 Ctrl+Alt (lib/kbd.ts).
+      else if (isCmdKey(e) && e.altKey && e.key === "ArrowRight") step = 1;
+      else if (isCmdKey(e) && e.altKey && e.key === "ArrowLeft") step = -1;
       if (step === 0) return;
 
       const list = tabsRef.current;
@@ -355,6 +358,19 @@ export default function TabbedWindow({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [activate, newTab]);
+
+  // ⌘T·⌘W 의 Windows·Linux 판 — 메뉴 이벤트(`newTabIntent`·`closeIntent`)와
+  // 같은 "안쪽부터" 사슬을 키다운에서 부른다. macOS 에서는 훅이 아무것도 안 한다.
+  const newTabFromKeys = useCallback(() => {
+    if (runNewTabIntent()) return;
+    newTab();
+  }, [newTab]);
+  const closeFromKeys = useCallback(() => {
+    if (runCloseIntent()) return;
+    const id = activeRef.current;
+    if (id != null) void closeTabGuarded(id);
+  }, [closeTabGuarded]);
+  useWindowTabKeys({ onNewTab: newTabFromKeys, onClose: closeFromKeys });
 
   // ── 창 간 탭 드래그 (다시 붙이기) ──────────────────────────────────────
   //

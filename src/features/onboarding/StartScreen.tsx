@@ -41,6 +41,8 @@ import { LeadBand } from "./home/LeadBand";
 import { ProjectManager } from "@/features/projects/ProjectManager";
 import { useT, type I18nKey } from "@/i18n";
 import { isImeComposing } from "@/lib/ime";
+import { isMac as isMacPlatform } from "@/lib/platform";
+import { isModKey } from "@/lib/kbd";
 
 /** 시간대 묶음 헤더의 라벨 키. */
 const GROUP_LABEL: Record<RecencyGroup, I18nKey> = {
@@ -110,8 +112,7 @@ export function StartScreen(props: StartScreenProps) {
   // 분 단위 상대시각("3시간 전")이 세션 내내 얼어붙지 않도록 — 공유 1분 시계.
   const now = useMinuteTick(true);
 
-  const isMac =
-    typeof navigator !== "undefined" && navigator.platform.toUpperCase().includes("MAC");
+  const isMac = isMacPlatform();
 
   useEffect(() => {
     void loadBlueprints();
@@ -193,7 +194,7 @@ export function StartScreen(props: StartScreenProps) {
       // IME 조합 중에는 키를 가로채지 않는다 — 조합 중 키다운은 확정 신호다 (lib/ime.ts).
       if (isImeComposing(e)) return;
 
-      const mod = e.metaKey || e.ctrlKey;
+      const mod = isModKey(e);
       const typing = isTyping(e.target);
 
       if (mod) {

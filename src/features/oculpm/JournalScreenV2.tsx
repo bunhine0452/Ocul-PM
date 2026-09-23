@@ -28,6 +28,7 @@ import {
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { useT, type I18nKey } from "@/i18n";
 import { blocked } from "@/lib/blocked";
+import { isModKey } from "@/lib/kbd";
 
 // Final UI Update (ui_v2) — 작업 일지 timeline (02-screen-specs §2). Frontend
 // aggregation over oculpm_list_journal_entries (Decision F). scope-chip 6 filters
@@ -240,7 +241,7 @@ export function JournalScreenV2({
   // 작업 일지 = ⌘N). j/k handled by the OS for now.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey)) return;
+      if (!isModKey(e)) return;
       const k = e.key.toLowerCase();
       if (k === "f") {
         e.preventDefault();

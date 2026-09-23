@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import type { PaneDir } from "@/lib/termPanes";
 import { registerCloseHandler } from "@/lib/closeIntent";
 import { registerNewTabHandler } from "@/lib/newTabIntent";
+import { readChord } from "@/lib/kbd";
 
 /** 본체가 매 렌더 새로 만들어 넘기는 핸들러 묶음 — 갱신값은 ref 가 본다. */
 export interface TerminalKeyActions {
@@ -98,18 +99,24 @@ export function useTerminalKeys(actions: TerminalKeyActions) {
       // 도크는 다른 화면 **위에 얹혀** 있다 — 포커스가 터미널 안에 없는데도
       // ⌘F 를 가로채면 일지를 읽던 사용자가 스크롤백 검색을 만나게 된다.
       if (a.keyboardScope === "focused" && !root.contains(document.activeElement)) return;
-      if ((e.metaKey || e.ctrlKey) && !e.altKey) {
-        const k = e.key.toLowerCase();
+      // 터미널 가족으로 읽는다 (lib/kbd.ts). macOS 는 예전 식 그대로
+      // (`metaKey || ctrlKey`). Windows·Linux 는 Ctrl+글자가 셸의 것이라 여기 키는
+      // 전부 Shift 를 하나 더 얹는다 — ⌘D → Ctrl+Shift+D, ⇧⌘D → Ctrl+Alt+Shift+D.
+      // 포커스가 xterm 밖(머리띠 버튼)이어도 같은 가족이다: 상태 막대의 안내가
+      // 포커스에 따라 거짓말이 되면 안 된다.
+      const c = readChord(e, "terminal");
+      if (c.mod && !c.alt) {
+        const k = c.key.toLowerCase();
         // ⌘T 는 여기 없다 — ⌘W 와 같이 앱 메뉴 액셀러레이터라 keydown 이 오지
         // 않는다. 아래 `registerNewTabHandler` 가 정본이다.
         if (k === "d") {
           e.preventDefault();
           e.stopPropagation();
-          a.splitFocused(e.shiftKey ? "col" : "row");
-        } else if (k === "f" && !e.shiftKey) {
+          a.splitFocused(c.shift ? "col" : "row");
+        } else if (k === "f" && !c.shift) {
           e.preventDefault();
           a.openSearch();
-        } else if (k === "l" && !e.shiftKey) {
+        } else if (k === "l" && !c.shift) {
           // ⌘K 는 전역 커맨드 팔레트가 선점하므로(useGlobalShortcuts) ⌘L 을 쓴다.
           // 셸 자체의 Ctrl+L 은 그대로 PTY 로 흘러가 함께 동작한다.
           e.preventDefault();
@@ -126,12 +133,12 @@ export function useTerminalKeys(actions: TerminalKeyActions) {
         } else if (e.key === "-") {
           e.preventDefault();
           a.fontDelta(-1);
-        } else if (e.key === "Enter" && e.shiftKey) {
+        } else if (e.key === "Enter" && c.shift) {
           // ⇧⌘↩ — 포커스된 페인만 크게 (tmux 의 zoom). 셸의 ↩ 은 수식어가 없다.
           e.preventDefault();
           e.stopPropagation();
           a.toggleZoom();
-        } else if (e.shiftKey && (e.key === "0" || e.key === ")")) {
+        } else if (c.shift && (e.key === "0" || e.key === ")")) {
           // ⌘0 은 전역 화면 이동(navRegistry 10번째)이 함께 잡아가 눌렀을 때
           // 글자 크기 초기화 + 화면 전환이 동시에 일어났다 → ⇧⌘0 으로 옮긴다.
           e.preventDefault();

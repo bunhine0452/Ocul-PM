@@ -35,6 +35,7 @@ import { splitFrontmatter, triggerHints } from "./skillsModel";
 import { shortWorkday } from "./firingModel";
 import { parseRulePaths, setRulePaths } from "./rulesModel";
 import { KIND_LABEL_KEY, type ContextItem, type DormantReason } from "./contextModel";
+import { isModKey } from "@/lib/kbd";
 
 interface ContextEditorProps {
   projectId: number;
@@ -471,7 +472,7 @@ function Editor({
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
-          if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+          if (isModKey(e) && e.key.toLowerCase() === "s") {
             e.preventDefault();
             onSave();
           }

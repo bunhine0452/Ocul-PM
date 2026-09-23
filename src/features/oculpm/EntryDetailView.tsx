@@ -23,6 +23,7 @@ import { useT } from "@/i18n";
 import { requestAgentContext } from "@/lib/agentContextNav";
 import { firstSlug, ruleGlobsFromPaths } from "@/lib/promoteSeed";
 import { blocked } from "@/lib/blocked";
+import { isModKey } from "@/lib/kbd";
 import "./entry.css";
 
 // 작업 일지 항목의 열람 — 원장의 한 장 (2026-09-11 리디자인; 처음은 Dogfooding
@@ -545,7 +546,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
                   spellCheck={false}
                   aria-label={t("entry.editAria")}
                   onKeyDown={(e) => {
-                    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void saveBody();
+                    if (isModKey(e) && e.key === "Enter") void saveBody();
                     if (e.key === "Escape") setEditing(false);
                   }}
                   autoFocus

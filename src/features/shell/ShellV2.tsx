@@ -32,6 +32,7 @@ import {
 import { KNOWN_VIEWS, useShellNav } from "./useShellNav";
 import { Skeleton, SkeletonList } from "@/components/ui/Skeleton";
 import { commands, events, type JournalEntrySummary } from "@/lib/bindings";
+import { isMac as isMacPlatform } from "@/lib/platform";
 
 // The 5 token/layer stylesheets. This static import is the token-isolation
 // mechanism (PR-UI 0 §0.6): App lazy-loads ShellV2 via React.lazy, so Vite
@@ -157,8 +158,7 @@ export default function ShellV2({
   // macOS uses titleBarStyle "Overlay" (src-tauri/src/lib.rs) — the native
   // traffic lights float over the top-left. With the legacy TitleBar gone in
   // ui_v2, the sidebar must reserve a top strip so the brand clears them.
-  const isMac =
-    typeof navigator !== "undefined" && navigator.platform.toUpperCase().includes("MAC");
+  const isMac = isMacPlatform();
 
   // Inline project quick-switch (Dogfooding 2026-06-14c): list projects for the
   // sidebar popover so the user can jump between projects in place, without

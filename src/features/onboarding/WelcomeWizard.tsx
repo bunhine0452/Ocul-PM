@@ -42,6 +42,7 @@ import { ACCENTS } from "@/features/theme/accents";
 import { normalizeLangSetting, useT, type I18nKey, type LangSetting } from "@/i18n";
 import type { Project } from "@/lib/bindings";
 import type { ColorTheme, Theme } from "@/lib/settings";
+import { dragRegion } from "@/lib/platform";
 
 import "./welcome.css";
 
@@ -164,7 +165,7 @@ export function WelcomeWizard({
   return (
     <div className="wz-scrim" role="dialog" aria-modal="true" aria-label={t("welcome.aria")}>
       {/* 창을 끌 자리 — 마법사가 탭 줄을 덮으므로 여기서 다시 내준다. */}
-      <div className="wz-drag" data-tauri-drag-region aria-hidden="true" />
+      <div className="wz-drag" {...dragRegion()} aria-hidden="true" />
 
       <div className="wz-card" ref={cardRef} tabIndex={-1} onKeyDown={onKeyDown}>
         <header className="wz-head">

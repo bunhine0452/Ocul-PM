@@ -22,6 +22,7 @@ import {
 } from "@/features/onboarding/home/projectAppearance";
 import { tabDropIndex, reorderTabs, isDetachGesture, DRAG_START_PX } from "./tabOrder";
 import { setDraggingCursor } from "@/lib/nativeDrag";
+import { dragRegion } from "@/lib/platform";
 
 /**
  * macOS 신호등이 차지하는 좌측 폭. `TitleBarStyle::Overlay` 라 신호등이
@@ -882,7 +883,7 @@ export function TabStrip({
           (tauri `src/window/scripts/drag.js`). 예전엔 여기에 "새 탭"을 걸어
           두어서 타이틀바를 더블클릭할 때마다 창 크기 조절과 **동시에** 탭이
           하나씩 늘어났다 — 새 탭은 `+` 버튼과 ⌘T 가 담당한다. */}
-      <div className="tabstrip-drag" data-tauri-drag-region aria-hidden="true" />
+      <div className="tabstrip-drag" {...dragRegion()} aria-hidden="true" />
     </div>
   );
 }

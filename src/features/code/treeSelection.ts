@@ -4,6 +4,7 @@
 // "이 클릭이 무슨 뜻인가" 부터 "그래서 무엇을 옮기고 지우는가" 까지의 판단은
 // 전부 여기 있다. 틀리면 파일이 엉뚱한 데로 가는 쪽이라 테스트로 못박는다.
 import { isUnreachableLink, type CodeEntry } from "./treeUtils";
+import { isModKey } from "@/lib/kbd";
 
 /** 뽑힌 행 하나. 폴더 여부를 같이 들고 다니는 이유는 아래 [`Marks`] 참고. */
 export interface TreeMark {
@@ -36,8 +37,8 @@ export function clickIntent(e: {
 }): ClickIntent {
   // ⇧ 가 ⌘ 보다 세다 — 둘 다 눌린 상태의 관례는 "범위" 다 (Finder·VS Code).
   if (e.shiftKey) return "range";
-  // macOS 는 ⌘, 그 밖은 Ctrl. 둘 다 받아 두면 어느 자판에서도 손이 안 헛돈다.
-  if (e.metaKey || e.ctrlKey) return "toggle";
+  // macOS 는 ⌘(예전처럼 ⌃ 도), 그 밖은 Ctrl — 판정은 lib/kbd 한 곳이 갖는다.
+  if (isModKey(e)) return "toggle";
   return "replace";
 }
 

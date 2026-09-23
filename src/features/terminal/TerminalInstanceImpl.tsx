@@ -13,6 +13,7 @@ import { oculpmLog } from "@/lib/oculpmLog";
 // 리렌더와 무관하다. 이미 쓰인 줄은 언어를 바꿔도 소급되지 않는 게 맞다.
 import { t } from "@/i18n";
 import { attachImeBridge, type ImeBridgeHandle } from "./imeBridge";
+import { attachTerminalKeys, usesImeBridge } from "./terminalKeys";
 import { nextRevealState, resyncViewport } from "./viewportResync";
 import { adoptedCols, createPtyResizeQueue, type AdoptedWidth } from "./ptyResize";
 import { replayInto, splitReplay } from "./scrollbackReplay";
@@ -276,7 +277,11 @@ export default function TerminalInstanceImpl({
     // React 가 TerminalInstanceImpl 을 통째로 언마운트해 입력이 죽는다.
     void loadWebglRenderer(term, webglRef);
     try {
-      imeRef.current = attachImeBridge(term, container);
+      // 한글 입력 브리지는 WKWebView(macOS) 의 우회라 맥에서만 단다. Windows·
+      // Linux 는 xterm 기본 조합 처리 + 셸 키 양보 정책(terminalKeys.ts).
+      imeRef.current = usesImeBridge()
+        ? attachImeBridge(term, container)
+        : attachTerminalKeys(term);
     } catch (err) {
       // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
       oculpmLog.error("terminal", `IME 브리지 연결 실패: ${String(err)}`);
