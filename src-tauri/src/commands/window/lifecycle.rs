@@ -152,8 +152,9 @@ pub(super) async fn spawn_window(
         WebviewUrl::App(window_url(label, nav, tearoff).into()),
     )
     .title(title);
-    // 제목 숨김은 macOS 전용 빌더 메서드다 (오버레이 타이틀바와 짝). 비-mac 의
-    // 창 크롬은 L-OS(#os-tray-menu)·L-UI(#ui-chrome) 가 정한다.
+    // 제목 숨김은 macOS 전용 빌더 메서드다 (오버레이 타이틀바와 짝). 비-mac 은
+    // OS 의 네이티브 제목줄 그대로 — 제목(프로젝트 이름)이 보이고, 오버레이·
+    // 트래픽라이트 여백은 없다 (프런트는 mac 에서만 그 여백을 둔다, L-UI #ui-chrome).
     #[cfg(target_os = "macos")]
     let builder = builder.hidden_title(true);
     let mut builder = builder
