@@ -12,8 +12,7 @@ import { oculpmLog } from "@/lib/oculpmLog";
 // 모듈 t() — 이 두 문구는 PTY 이벤트 시점에 터미널 버퍼로 **써 넣는** 것이라
 // 리렌더와 무관하다. 이미 쓰인 줄은 언어를 바꿔도 소급되지 않는 게 맞다.
 import { t } from "@/i18n";
-import { attachImeBridge, type ImeBridgeHandle } from "./imeBridge";
-import { attachTerminalKeys, usesImeBridge } from "./terminalKeys";
+import { attachTerminalInput, terminalFontFamily, type TerminalInputHandle } from "./terminalPlatform";
 import { nextRevealState, resyncViewport } from "./viewportResync";
 import { adoptedCols, createPtyResizeQueue, type AdoptedWidth } from "./ptyResize";
 import { replayInto, splitReplay } from "./scrollbackReplay";
@@ -60,15 +59,8 @@ import {
 //    unicode-range 로 한글에만 끼어드는 페이스).
 //  - 테마: TERM_THEME 상수 제거 — tokens.css 의 `--term-*` 에서 파생 (→ termTheme.ts).
 //
-// 2026-08-01: 한글이 라틴·숫자보다 크게 보이던 문제 수정. 두 셀 폭을 맞추던
-// CSS size-adjust(120.4%)가 advance 와 함께 글리프까지 20.4% 확대하고 있었다.
-// 폰트 파일의 advance 를 Menlo 그리드로 재작성해(scripts/build-d2coding-subset.py)
-// size-adjust 없이 두 셀에 맞춘다 — 글리프는 원본 크기 그대로.
-
-// 라틴·기호·박스문자(█ ▀ ● ✓ 포함)는 Menlo 가 전 범위를 0.6021em 로 커버한다.
-// 한글은 'D2Coding Term' 이 unicode-range 로만 끼어들어 정확히 두 셀을 채운다.
-// (D2Coding 을 선두에 두면 서브셋에 없는 글리프가 폴백으로 새면서 줄이 밀린다.)
-const TERM_FONT = 'Menlo, "D2Coding Term", "SF Mono", ui-monospace, monospace';
+// 2026-08-01: 한글이 라틴·숫자보다 크게 보이던 문제 수정 — 글꼴 스택과 그 이유는
+// terminalPlatform.ts 의 `terminalFontFamily` 로 옮겼다 (OS 마다 스택이 다르다).
 
 const SCROLLBACK_LINES = 20000;
 
@@ -190,7 +182,7 @@ export default function TerminalInstanceImpl({
   // `fit()` 을 직접 부르는 길이 하나라도 남으면 그 길만 판정을 건너뛴다.
   const applyFitRef = useRef<(deliberate?: boolean) => void>(() => {});
   const searchRef = useRef<SearchAddon | null>(null);
-  const imeRef = useRef<ImeBridgeHandle | null>(null);
+  const imeRef = useRef<TerminalInputHandle | null>(null);
   // WebGL 애드온 핸들 — 정리 시 코어보다 먼저, 가드하고 dispose 한다.
   const webglRef = useRef<{ dispose(): void } | null>(null);
   const openedRef = useRef(false);
@@ -277,11 +269,8 @@ export default function TerminalInstanceImpl({
     // React 가 TerminalInstanceImpl 을 통째로 언마운트해 입력이 죽는다.
     void loadWebglRenderer(term, webglRef);
     try {
-      // 한글 입력 브리지는 WKWebView(macOS) 의 우회라 맥에서만 단다. Windows·
-      // Linux 는 xterm 기본 조합 처리 + 셸 키 양보 정책(terminalKeys.ts).
-      imeRef.current = usesImeBridge()
-        ? attachImeBridge(term, container)
-        : attachTerminalKeys(term);
+      // macOS 는 한글 입력 브리지, Windows·Linux 는 셸 키 양보 정책 (terminalPlatform.ts).
+      imeRef.current = attachTerminalInput(term, container);
     } catch (err) {
       // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
       oculpmLog.error("terminal", `IME 브리지 연결 실패: ${String(err)}`);
@@ -312,7 +301,7 @@ export default function TerminalInstanceImpl({
       // 채워진 커서가 여러 개 깜빡이면 어디에 타이핑되는지 매번 확인해야 한다.
       cursorInactiveStyle: "outline",
       allowProposedApi: true,
-      fontFamily: TERM_FONT,
+      fontFamily: terminalFontFamily(),
       fontSize,
       fontWeightBold: "600",
       lineHeight,

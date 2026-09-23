@@ -69,20 +69,21 @@ export function isTerminalSurface(target: EventTarget | null | undefined): boole
  * mac 은 **예전 식 그대로** ⌃ 도 받는다 — 여러 핸들러가 `metaKey || ctrlKey` 로
  * 써 왔고, 그 동작을 바꾸지 않는다 (D3).
  *
- * Windows·Linux 에서 포커스가 **xterm 안이면 거짓**이다 — 거기서 Ctrl+글자는
- * 셸의 것이라(Ctrl+S 는 XOFF, Ctrl+F 는 한 글자 앞으로) 뒤에 떠 있는 화면(일지·
- * 편집기)이 가로채면 안 된다. 터미널 안에서도 동작해야 하는 전역·터미널 면
- * 단축키는 이 함수가 아니라 `readChord` 로 읽는다.
+ * Windows·Linux 에서 포커스가 **터미널 면(xterm·도크 머리띠) 안이면 거짓**이다 —
+ * xterm 안의 Ctrl+글자는 셸의 것이고(Ctrl+S 는 XOFF, Ctrl+F 는 한 글자 앞으로),
+ * 터미널 면의 키는 터미널 가족(Ctrl+Shift+F 검색 …)이라, 뒤에 떠 있는 화면(일지·
+ * 편집기)이 같은 키를 함께 먹으면 안 된다. 터미널 안에서도 동작해야 하는 전역·
+ * 터미널 면 단축키는 이 함수가 아니라 `readChord` 로 읽는다.
  */
 export function isModKey(e: ModifierState): boolean {
   if (isMac()) return e.metaKey || e.ctrlKey;
-  return ctrlHeld(e) && !isTerminalTarget(e.target);
+  return ctrlHeld(e) && !isTerminalSurface(e.target);
 }
 
-/** ⌘ 만 — 예전 코드가 `metaKey` 하나만 보던 자리(⌘⌥←→). 그 외 OS 는 Ctrl (xterm 밖). */
+/** ⌘ 만 — 예전 코드가 `metaKey` 하나만 보던 자리(⌘⌥←→). 그 외 OS 는 Ctrl (터미널 면 밖). */
 export function isCmdKey(e: ModifierState): boolean {
   if (isMac()) return e.metaKey;
-  return ctrlHeld(e) && !isTerminalTarget(e.target);
+  return ctrlHeld(e) && !isTerminalSurface(e.target);
 }
 
 /** 이벤트의 키 이름 — 비라틴 자판(한글 두벌식 등)에서는 `code` 로 라틴 글자를 되찾는다. */

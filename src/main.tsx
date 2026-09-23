@@ -5,6 +5,7 @@ import { Toaster } from "./components/ui/Toaster";
 import { parseWindowRoute } from "./lib/windowRoute";
 import { installExternalLinkGuard } from "./lib/externalLinks";
 import { installNativeDragGuard } from "./lib/nativeDrag";
+import { getPlatform, isMac } from "./lib/platform";
 import { bootI18n } from "./i18n";
 import { commands } from "./lib/bindings";
 
@@ -14,6 +15,9 @@ installExternalLinkGuard();
 // 네이티브 드래그도 같은 이유로 갈림길 위다 — 끌 수 있는 표면(탭·세션 레일·
 // 페인 손잡이)이 세 갈래에 흩어져 있어 창마다 걸면 반드시 한 군데가 샌다.
 installNativeDragGuard();
+// Windows·Linux 의 표시 갈래(글꼴 폴백)는 CSS 가 `:root[data-platform]` 으로 가른다
+// (tokens.css 끝). macOS 는 속성을 달지 않는다 — DOM 까지 예전 그대로 (D3).
+if (!isMac()) document.documentElement.dataset.platform = getPlatform();
 
 // 리로드 원인 캡처 (dev 전용 — 2026-07-20 "ai-pm 선택 직후 웹뷰 리로드" 수사).
 // Vite 클라이언트가 전체 리로드를 명령하는 순간과 사유(payload)를 콘솔로 남기면

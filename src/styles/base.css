@@ -140,3 +140,7 @@ p, li, dd { text-wrap: pretty; }
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-track { background: transparent; }
+/* 가로·세로 스크롤바가 만나는 모서리 — Chromium(WebView2)·WebKitGTK 는 칠하지
+   않으면 흰 사각형을 그린다(다크 테마에서 튄다). Windows·Linux 에만 (<html
+   data-platform> 은 그 OS 에서만 달린다 — macOS 는 예전 그대로). */
+:root[data-platform] ::-webkit-scrollbar-corner { background: transparent; }
