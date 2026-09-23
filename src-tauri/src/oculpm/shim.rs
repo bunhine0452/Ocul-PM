@@ -27,7 +27,22 @@
 //! 디렉터리는 앱 데이터 아래 세션 id 별로 산다. 세션이 끝나면 지우고, 앱이 뜰
 //! 때 남은 것을 걷는다 — 프로세스가 죽어 정리 경로를 못 지나간 경우가 있기
 //! 때문이다 (이 저장소의 고아 프로세스 일지들이 그 이야기다).
+//!
+//! ## OS 별 (크로스플랫폼 라운드 `#shell-shim`)
+//!
+//! - **Windows**: 심은 `oculpm.exe` 다. 심링크(개발자 모드) → **하드 링크**(권한
+//!   불필요, 같은 볼륨이면 즉시·공간 0) → 복사본 순. `oculpm.cmd` 는 두지 않는다 —
+//!   셸은 PATHEXT 로 `oculpm.exe` 를 바로 찾고, 배치 파일은 `%*` 로 넘긴 인자를
+//!   cmd 규칙으로 다시 해석해 에이전트가 넘기는 JSON(따옴표·`&`·`%`)을 망가뜨린다
+//!   (CVE-2024-24576 "BatBadBut" 의 그 자리). 셸이 넘기는 argv0 는 `…\oculpm.exe`
+//!   이거나(PowerShell·Git Bash) 친 그대로 `oculpm`(cmd)이라 둘 다 심으로 본다.
+//! - **Linux AppImage**: `current_exe()` 는 실행 중에만 있는 squashfs 마운트
+//!   (`/tmp/.mount_XXXX/usr/bin/…`) 안이다. 심은 마운트 밖의 `$APPIMAGE` 를
+//!   가리키고, 그 경로로 들어온 호출의 원래 argv0 는 AppImage 런타임이 `$ARGV0`
+//!   에 실어 준다 (D10).
+//! - PATH 목록 구분자는 OS 규칙(`;` / `:`)이다.
 
+use std::ffi::OsStr;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -87,8 +102,53 @@ impl SessionShim {
 
     /// 우리가 직접 띄우는 자식용 — 주어진 PATH 앞에 심을 붙인다.
     pub fn prepend_path(&self, base: &str) -> String {
-        format!("{}:{base}", self.dir.display())
+        let sep = if cfg!(windows) { ';' } else { ':' };
+        format!("{}{sep}{base}", self.dir.display())
     }
+}
+
+/// 심 파일 이름 — Windows 는 셸이 PATHEXT 로 찾도록 `.exe` 를 붙인다.
+fn shim_file_name() -> &'static str {
+    if cfg!(windows) {
+        "oculpm.exe"
+    } else {
+        SHIM_BIN
+    }
+}
+
+/// 심이 가리킬 실행 파일. 순수 함수 — AppImage 안이면 마운트 밖의 `$APPIMAGE`.
+///
+/// `appimage` 는 `$APPIMAGE` 값과 그 파일이 실제로 있는지다 (없는 경로를
+/// 가리키는 값은 무시하고 `current_exe` 로 — 모르는 것을 믿지 않는다).
+fn shim_target(current_exe: PathBuf, appimage: Option<(PathBuf, bool)>) -> PathBuf {
+    match appimage {
+        Some((path, true)) if cfg!(target_os = "linux") && path.is_absolute() => path,
+        _ => current_exe,
+    }
+}
+
+/// 이 프로세스의 [`shim_target`].
+fn system_shim_target() -> io::Result<PathBuf> {
+    let appimage = std::env::var_os("APPIMAGE")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+        .map(|p| {
+            let exists = p.is_file();
+            (p, exists)
+        });
+    Ok(shim_target(std::env::current_exe()?, appimage))
+}
+
+/// 심을 어떻게 걸었는가 — 로그와 테스트용.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinkKind {
+    /// 이미 있던 것을 그대로 썼다.
+    Existing,
+    Symlink,
+    /// Windows — 심링크 권한이 없을 때.
+    HardLink,
+    /// Windows — 다른 볼륨이라 하드 링크도 안 될 때.
+    Copy,
 }
 
 fn session_dir(app_data: &Path, session_id: &str) -> PathBuf {
@@ -128,50 +188,62 @@ fn set_owner_only(_path: &Path, _dir: bool) -> io::Result<()> {
     Ok(())
 }
 
-/// 자기 실행 파일로 `oculpm` 심링크를 건다.
+/// `exe` 로 `oculpm` 심을 건다 (이미 있으면 그대로).
 ///
-/// 윈도우는 심링크에 권한이 필요하므로(개발자 모드/관리자) 실패하면 **복사본**
-/// 으로 물러난다. 그것도 안 되면 심 없이 세션을 띄운다 — 심은 부가 기능이고,
-/// 이것 때문에 터미널이 안 뜨는 쪽이 훨씬 나쁘다.
-fn link_self(dir: &Path) -> io::Result<PathBuf> {
-    let target = dir.join(if cfg!(windows) {
-        "oculpm.exe"
-    } else {
-        SHIM_BIN
-    });
+/// 윈도우는 심링크에 권한이 필요하므로(개발자 모드/관리자) 실패하면 하드 링크,
+/// 그것도 안 되면(다른 볼륨) **복사본**으로 물러난다. 그것도 안 되면 호출부가
+/// 심 없이 세션을 띄운다 — 심은 부가 기능이고, 이것 때문에 터미널이 안 뜨는
+/// 쪽이 훨씬 나쁘다.
+fn link_to(dir: &Path, exe: &Path) -> io::Result<(PathBuf, LinkKind)> {
+    let target = dir.join(shim_file_name());
     if target.exists() {
-        return Ok(target);
+        return Ok((target, LinkKind::Existing));
     }
-    let exe = std::env::current_exe()?;
-    link_or_copy(&exe, &target)?;
-    Ok(target)
+    let kind = link_or_copy(exe, &target)?;
+    Ok((target, kind))
 }
 
 #[cfg(unix)]
-fn link_or_copy(exe: &Path, target: &Path) -> io::Result<()> {
-    std::os::unix::fs::symlink(exe, target)
+fn link_or_copy(exe: &Path, target: &Path) -> io::Result<LinkKind> {
+    std::os::unix::fs::symlink(exe, target).map(|()| LinkKind::Symlink)
 }
 
 #[cfg(windows)]
-fn link_or_copy(exe: &Path, target: &Path) -> io::Result<()> {
-    // 윈도우는 심링크에 권한이 필요하다(개발자 모드/관리자) — 안 되면 복사본.
-    std::os::windows::fs::symlink_file(exe, target)
-        .or_else(|_| std::fs::copy(exe, target).map(|_| ()))
+fn link_or_copy(exe: &Path, target: &Path) -> io::Result<LinkKind> {
+    if std::os::windows::fs::symlink_file(exe, target).is_ok() {
+        return Ok(LinkKind::Symlink);
+    }
+    if std::fs::hard_link(exe, target).is_ok() {
+        return Ok(LinkKind::HardLink);
+    }
+    std::fs::copy(exe, target).map(|_| LinkKind::Copy)
 }
 
 /// 이 세션의 심을 깔고(멱등) 토큰을 적는다.
 pub fn install(app_data: &Path, session_id: &str, token: &SessionToken) -> io::Result<SessionShim> {
+    install_pointing_at(app_data, session_id, token, &system_shim_target()?).map(|(shim, _)| shim)
+}
+
+/// [`install`] 의 본체 — 심이 가리킬 실행 파일을 인자로 받는다. 통합 테스트가
+/// 빌드된 앱 바이너리(`CARGO_BIN_EXE_ocul-pm`)로 진짜 심을 걸어 보는 자리.
+#[doc(hidden)]
+pub fn install_pointing_at(
+    app_data: &Path,
+    session_id: &str,
+    token: &SessionToken,
+    exe: &Path,
+) -> io::Result<(SessionShim, LinkKind)> {
     let dir = session_dir(app_data, session_id);
     std::fs::create_dir_all(&dir)?;
     set_owner_only(&dir, true)?;
-    link_self(&dir)?;
+    let (_, kind) = link_to(&dir, exe)?;
 
     let token_path = dir.join(TOKEN_FILE);
     let body = serde_json::to_vec_pretty(token).map_err(io::Error::other)?;
     write_atomic(&token_path, &body).map_err(|e| io::Error::other(e.to_string()))?;
     set_owner_only(&token_path, false)?;
 
-    Ok(SessionShim { dir, token_path })
+    Ok((SessionShim { dir, token_path }, kind))
 }
 
 /// 세션이 끝났다 — 심을 지운다.
@@ -209,7 +281,8 @@ pub fn sweep(app_data: &Path, live: &[String]) -> usize {
 /// 둘 다 없으면 `None` — 그때 CLI 는 자칭을 허용하되 `unverified` 로 남긴다.
 pub fn resolve_token(argv0: Option<&str>) -> Option<SessionToken> {
     let from_env = std::env::var_os(ENV_TOKEN).map(PathBuf::from);
-    resolve_token_from(from_env.as_deref(), argv0)
+    let argv0 = effective_argv0(argv0);
+    resolve_token_from(from_env.as_deref(), argv0.as_deref())
 }
 
 /// 환경변수를 **인자로** 받는 판정. `resolve_token` 은 프로세스 환경을 읽어
@@ -222,8 +295,19 @@ fn resolve_token_from(env_token: Option<&Path>, argv0: Option<&str>) -> Option<S
             return Some(token);
         }
     }
-    let beside = Path::new(argv0?).parent()?.join(TOKEN_FILE);
+    let beside = beside_dir(argv0?, cfg!(target_os = "macos"))?.join(TOKEN_FILE);
     read_token(&beside)
+}
+
+/// 심 옆 토큰을 찾을 디렉터리 — argv0 의 부모.
+///
+/// macOS 는 예전 그대로다(D3). 그 밖의 OS 에서는 **절대 경로의 부모만** 믿는다:
+/// 친 이름 그대로 넘어온 argv0(`oculpm` — cmd.exe·bash 가 그렇게 넘긴다)의
+/// "부모" 는 빈 경로, 곧 작업 폴더라서, 프로젝트에 놓인 `session.json` 하나가
+/// 신원이 되어 버린다.
+fn beside_dir(argv0: &str, trust_relative: bool) -> Option<PathBuf> {
+    let parent = Path::new(argv0).parent()?;
+    (trust_relative || parent.is_absolute()).then(|| parent.to_path_buf())
 }
 
 /// **심을 거쳐 들어왔는가** — argv0 의 파일명이 심 이름(`oculpm`)인가.
@@ -233,10 +317,48 @@ fn resolve_token_from(env_token: Option<&Path>, argv0: Option<&str>) -> Option<S
 /// **두 번째 앱 인스턴스**를 띄운다 — 2026-09-08 에 전역 훅에 남아 있던
 /// `oculpm hook pretooluse`(구현된 적 없는 낱말)가 편집마다 창을 띄우고
 /// 5초 훅 타임아웃에 죽었다. 사용자 눈에는 "창이 떴다가 알아서 꺼진다" 였다.
+///
+/// Windows 는 `oculpm.exe` 도(대소문자 무관) 심이다 — PowerShell·Git Bash 는
+/// 찾은 전체 경로(`…\oculpm.exe`)를 argv0 로 넘긴다. AppImage 안이면 원래
+/// argv0 는 `$ARGV0` 에 있다 (모듈 문서).
 pub fn invoked_as_shim(argv0: Option<&str>) -> bool {
-    Path::new(argv0.unwrap_or_default())
-        .file_name()
-        .is_some_and(|name| name == SHIM_BIN)
+    let argv0 = effective_argv0(argv0);
+    is_shim_name(argv0.as_deref().unwrap_or_default(), cfg!(windows))
+}
+
+/// argv0 가 심 이름인가. 순수 함수 — `windows` 로 두 규칙을 한 러너에서 본다.
+fn is_shim_name(argv0: &str, windows: bool) -> bool {
+    if !windows {
+        return Path::new(argv0)
+            .file_name()
+            .is_some_and(|name| name == SHIM_BIN);
+    }
+    let name = argv0
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(argv0)
+        .to_ascii_lowercase();
+    name == SHIM_BIN || name == "oculpm.exe"
+}
+
+/// 이 호출의 원래 argv0. Linux AppImage 안이면 런타임이 넘긴 `$ARGV0`.
+fn effective_argv0(argv0: Option<&str>) -> Option<String> {
+    if cfg!(target_os = "linux") {
+        let appimage = std::env::var_os("APPIMAGE");
+        let original = std::env::var_os("ARGV0");
+        if let Some(original) = appimage_argv0(appimage.as_deref(), original.as_deref()) {
+            return Some(original);
+        }
+    }
+    argv0.map(str::to_string)
+}
+
+/// AppImage 런타임이 실어 준 원래 argv0 — `$APPIMAGE` 와 `$ARGV0` 가 둘 다 있을 때만.
+fn appimage_argv0(appimage: Option<&OsStr>, argv0: Option<&OsStr>) -> Option<String> {
+    appimage.filter(|v| !v.is_empty())?;
+    argv0
+        .filter(|v| !v.is_empty())
+        .map(|v| v.to_string_lossy().into_owned())
 }
 
 /// 이 경로에서 위로 올라가며 **추적 중인 프로젝트 루트**를 찾는다.
@@ -292,7 +414,7 @@ mod tests {
         let again = install(app.path(), "sess-1", &token()).unwrap();
         assert_eq!(first.dir, again.dir);
         assert_eq!(read_token(&first.token_path), Some(token()));
-        assert!(first.dir.join(SHIM_BIN).exists() || cfg!(windows));
+        assert!(first.dir.join(shim_file_name()).exists());
     }
 
     /// **심 이름으로 들어왔는가**가 CLI 냐 GUI 냐를 가른다.
@@ -369,6 +491,106 @@ mod tests {
         let merged = shim.prepend_path("/usr/local/bin:/usr/bin");
         assert!(merged.starts_with(&shim.dir.display().to_string()));
         assert!(merged.ends_with("/usr/local/bin:/usr/bin"));
+        // OS 구분자로 이어 붙였다 — split_paths 의 첫 항목이 심 디렉터리다.
+        assert_eq!(
+            std::env::split_paths(&merged).next(),
+            Some(shim.dir.clone())
+        );
+    }
+
+    /// Windows 는 `oculpm.exe` 도 심이다 (PowerShell·Git Bash 가 넘기는 전체 경로).
+    /// 유닉스 규칙은 예전 그대로 — `oculpm` 한 이름뿐.
+    #[test]
+    fn shim_names_per_os() {
+        for argv0 in [
+            r"C:\Users\u\AppData\Roaming\x\shim\s1\oculpm.exe",
+            r"C:\x\OCULPM.EXE",
+            "oculpm",
+            "/c/Users/u/shim/s1/oculpm.exe",
+        ] {
+            assert!(is_shim_name(argv0, true), "{argv0}");
+        }
+        for argv0 in [
+            r"C:\Program Files\Ocul-PM\ocul-pm.exe",
+            r"C:\x\oculpm-mcp.exe",
+            r"C:\x\oculpm.cmd",
+            "",
+        ] {
+            assert!(!is_shim_name(argv0, true), "{argv0}");
+        }
+        assert!(is_shim_name("/x/shim/s1/oculpm", false));
+        assert!(!is_shim_name("/x/shim/s1/oculpm.exe", false));
+    }
+
+    /// AppImage 런타임의 `$ARGV0` 는 `$APPIMAGE` 와 함께일 때만 믿는다.
+    #[test]
+    fn appimage_argv0_needs_both_variables() {
+        let img = Some(OsStr::new("/home/u/Apps/Ocul-PM.AppImage"));
+        assert_eq!(
+            appimage_argv0(img, Some(OsStr::new("oculpm"))).as_deref(),
+            Some("oculpm")
+        );
+        assert_eq!(appimage_argv0(None, Some(OsStr::new("oculpm"))), None);
+        assert_eq!(
+            appimage_argv0(Some(OsStr::new("")), Some(OsStr::new("oculpm"))),
+            None
+        );
+        assert_eq!(appimage_argv0(img, None), None);
+    }
+
+    /// AppImage 안이면 심은 마운트 밖의 `$APPIMAGE` 를 가리킨다 (Linux 만).
+    #[test]
+    fn shim_target_prefers_an_existing_appimage_on_linux() {
+        let exe = PathBuf::from("/tmp/.mount_abc/usr/bin/ocul-pm");
+        let image = std::env::temp_dir().join("Ocul-PM.AppImage");
+        let picked = shim_target(exe.clone(), Some((image.clone(), true)));
+        if cfg!(target_os = "linux") {
+            assert_eq!(picked, image);
+        } else {
+            assert_eq!(picked, exe);
+        }
+        // 없는 파일·상대 경로는 믿지 않는다.
+        assert_eq!(shim_target(exe.clone(), Some((image, false))), exe);
+        assert_eq!(
+            shim_target(exe.clone(), Some((PathBuf::from("Ocul-PM.AppImage"), true))),
+            exe
+        );
+        assert_eq!(shim_target(exe.clone(), None), exe);
+    }
+
+    /// 친 이름 그대로의 argv0(`oculpm`)로는 작업 폴더의 `session.json` 을 줍지
+    /// 않는다 (macOS 는 예전 그대로).
+    #[test]
+    fn a_bare_argv0_does_not_read_a_token_from_the_working_directory() {
+        let dir = TempDir::new().unwrap();
+        let abs = dir.path().join("oculpm");
+        assert_eq!(
+            beside_dir(&abs.display().to_string(), false),
+            Some(dir.path().to_path_buf())
+        );
+        assert_eq!(beside_dir("oculpm", false), None);
+        assert_eq!(beside_dir("oculpm", true), Some(PathBuf::new()));
+    }
+
+    /// Windows 의 심은 심링크 → 하드 링크 → 복사본. 러너(관리자)는 심링크가
+    /// 되므로, 권한 없는 사용자가 타는 하드 링크 길 — **실행 중인** 실행 파일에
+    /// 거는 링크 — 을 따로 확인한다 (앱은 자기 자신에게 건다).
+    #[cfg(windows)]
+    #[test]
+    fn windows_a_running_exe_can_be_hard_linked() {
+        let dir = TempDir::new().unwrap();
+        let exe = std::env::current_exe().unwrap();
+        let target = dir.path().join("oculpm.exe");
+        std::fs::hard_link(&exe, &target).expect("실행 중인 exe 에 하드 링크");
+        assert_eq!(
+            std::fs::metadata(&target).unwrap().len(),
+            std::fs::metadata(&exe).unwrap().len()
+        );
+        let (shim, kind) =
+            install_pointing_at(dir.path(), "s-link", &token(), &exe).expect("심 설치");
+        eprintln!("windows 심 방식: {kind:?}");
+        assert!(shim.dir.join("oculpm.exe").is_file());
+        assert_ne!(kind, LinkKind::Existing);
     }
 
     /// 전역 설정에 박힌 root 는 남의 프로젝트에 쓴다 — 그 자리를 이름으로 짚는다.
