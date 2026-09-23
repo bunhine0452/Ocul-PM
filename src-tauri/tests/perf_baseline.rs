@@ -558,6 +558,10 @@ fn m6_embedding_arena_rss() {
 /// ```bash
 /// OCULPM_ORT_LEVEL=0|1|2|3 cargo test --release --test perf_baseline m6b -- --ignored --nocapture
 /// ```
+///
+/// macOS 전용 측정이다 — `vmmap`·`~/Library` 경로·libmalloc zone API 를 쓴다. 다른
+/// OS 에서는 그 심볼이 없어 테스트 바이너리 링크부터 실패했다 (Windows LNK2019).
+#[cfg(target_os = "macos")]
 #[test]
 #[ignore = "측정 전용 — 프로세스 하나에 단계 하나"]
 fn m6b_session_footprint_by_optimization_level() {
