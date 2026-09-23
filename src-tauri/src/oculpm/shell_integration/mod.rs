@@ -31,6 +31,7 @@
 //! 블록(`manager::init_project`)과 정확히 같은 기계장치다.
 
 mod default_shell;
+mod policy;
 mod powershell;
 
 #[cfg(test)]
@@ -268,18 +269,18 @@ pub fn install(home: &Path, app_data_dir: &Path, shell_path: &str) -> OculpmResu
         &RcLocations::system(home),
         app_data_dir,
         shell_path,
-        &powershell::effective_execution_policy,
+        &policy::effective_execution_policy,
     )
 }
 
 /// [`install`] 의 본체. `policy` 는 PowerShell 에게 실효 실행 정책을 묻는 함수
-/// (Windows 에서만 불린다 — 테스트는 가짜를 넘긴다).
+/// (Windows 에서만 불린다 — 테스트는 가짜를 넘긴다). `Err` 는 왜 모르는지.
 pub(crate) fn install_in(
     os: HostOs,
     loc: &RcLocations,
     app_data_dir: &Path,
     shell_path: &str,
-    policy: &dyn Fn(&str) -> Option<String>,
+    policy: &dyn Fn(&str) -> Result<String, String>,
 ) -> OculpmResult<()> {
     let kind = detect_shell_kind_for(os, shell_path);
     let unsupported = || {

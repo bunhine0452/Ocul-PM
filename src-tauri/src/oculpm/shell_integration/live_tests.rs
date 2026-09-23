@@ -395,7 +395,7 @@ fn base_command(program: &str, sb: &Sandbox, kind: ShellKind, nonce: &str) -> Co
 }
 
 fn install_for(os: HostOs, sb: &Sandbox, shell: &str) {
-    let allow = |_: &str| Some("RemoteSigned".to_string());
+    let allow = |_: &str| Ok("RemoteSigned".to_string());
     install_in(os, &sb.loc, &sb.data, shell, &allow).unwrap();
 }
 
@@ -651,11 +651,43 @@ fn computed_profile_path_matches_what_the_shell_reports() {
             Some(reported),
             "{shell}: 셸이 읽는 프로필과 우리가 쓰는 프로필이 다르다"
         );
-        if os == HostOs::Windows {
-            let policy = powershell::effective_execution_policy(&shell)
-                .unwrap_or_else(|| panic!("{shell}: 실행 정책을 못 읽었다"));
-            eprintln!("{shell}: 실효 실행 정책 = {policy}");
-        }
+    }
+}
+
+/// 실행 정책 조회가 run 35893773736 에서 한 번, 이유를 남기지 않고 실패했다
+/// (그때는 이유를 버리는 코드였다). **재시도 없는 한 번의 조회**를 순차 5회 +
+/// 동시 4회(테스트 병렬·느린 PC 흉내) 돌려 전부 답하는지 본다. 걸린 시간과 결과를
+/// 캡처되지 않는 stderr 로 남긴다 — 통과해도 CI 로그에서 분포를 읽을 수 있게.
+#[test]
+fn execution_policy_probe_is_reliable() {
+    if !cfg!(windows) && std::env::var_os("OCULPM_TEST_PWSH").is_none() {
+        eprintln!("skip: 실행 정책은 Windows 에서만 묻는다");
+        return;
+    }
+    fn timed(shell: String) -> (Duration, Result<String, String>) {
+        let started = Instant::now();
+        let result = policy::probe_once(&shell, policy::ATTEMPT_TIMEOUT);
+        (started.elapsed(), result)
+    }
+    for shell in powershells() {
+        let mut runs: Vec<_> = (0..5).map(|_| timed(shell.clone())).collect();
+        let concurrent: Vec<_> = (0..4)
+            .map(|_| {
+                let shell = shell.clone();
+                std::thread::spawn(move || timed(shell))
+            })
+            .collect();
+        runs.extend(concurrent.into_iter().map(|h| h.join().unwrap()));
+        let line = runs
+            .iter()
+            .map(|(took, result)| match result {
+                Ok(p) => format!("{:.1}s {p}", took.as_secs_f32()),
+                Err(e) => format!("{:.1}s ERR {e}", took.as_secs_f32()),
+            })
+            .collect::<Vec<_>>()
+            .join(" | ");
+        let _ = writeln!(std::io::stderr(), "[policy-probe] {shell}: {line}");
+        assert!(runs.iter().all(|(_, r)| r.is_ok()), "{shell}: {line}");
     }
 }
 
