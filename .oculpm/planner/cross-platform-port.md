@@ -41,21 +41,21 @@ owner: claude-code
   - [ ] plugin bin/oculpm-mcp 탐색 목록에 Windows·Linux 설치 경로 + 'macOS 전용' 문구 갱신 (Claude·Codex 판 둘 다) {#integ-plugin-bin}
   - [ ] 플러그인 훅 크로스플랫폼 — Claude Code(Git Bash)·Codex Windows 실행 셸 조사→호환 (← skill-catalog-round-2 #hooks-xplat) {#integ-hooks}
   - [ ] build-sidecar.mjs Windows triple·.exe 산출을 windows 러너에서 실확인 {#integ-build-sidecar}
-- [~] L-FS 경로 · 파일 의미론 {#l-fs}
+- [x] L-FS 경로 · 파일 의미론 {#l-fs}
   - [x] .oculpm 저장 상대경로는 항상 '/' — files_touched·인덱스·journal_ref·diff sidecar 전수 {#fs-separators}
   - [x] CRLF(core.autocrlf) — frontmatter·관리 블록·plan-log 파서 내성 + 기존 EOL 보존 {#fs-crlf}
   - [x] 원자적 쓰기: 대상이 열려 있을 때 rename 공유 위반 재시도·백오프, hard_link 경로 NTFS 확인 {#fs-atomic}
   - [x] notify ReadDirectoryChangesW 이벤트 모양·대소문자 무시 FS·긴 경로(\\?\) {#fs-watch}
   - [x] git quotepath·autocrlf 가짜 diff·출력 경로 구분자 {#fs-git}
   - [x] lock.rs 의 ps 프로세스 판정 Windows 대응 (OpenProcess/GetExitCodeProcess) {#fs-lock}
-  - [~] PORT-TEST(L-FS) 심링크·경로 탈출 가드 테스트의 Windows 판 {#fs-symlink-tests}
-- [ ] L-OS 나머지 OS 분기 {#l-os}
-  - [ ] 인벤토리 잔여 실패 중 L-OS 소유분 전부 {#os-compile}
-  - [ ] 딥링크: Windows·Linux 는 두 번째 인스턴스 argv 로 온다 — single-instance 콜백에서 dispatch + 런타임 등록 {#os-deeplink}
-  - [ ] 트레이 투명 팝오버·앱 메뉴·TitleBarStyle 의 비-mac 동작 {#os-tray-menu}
-  - [ ] Linux Secret Service 부재 시 평문 저장 없이 명확한 에러 + 안내 {#os-secrets}
-  - [ ] DAP xcrun·themes defaults·external_editor·greenfield·npx(.cmd) 비-mac 분기 검증 {#os-tools}
-  - [ ] menu.rs 비-mac 에서 앱 메뉴 미부착 — GTK 액셀러레이터가 터미널 Ctrl+W/C 를 가로챈다(L-UI 발견), 필요 시 new_window 커맨드 {#os-no-menu}
+  - [x] PORT-TEST(L-FS) 심링크·경로 탈출 가드 테스트의 Windows 판 {#fs-symlink-tests}
+- [x] L-OS 나머지 OS 분기 {#l-os}
+  - [x] 인벤토리 잔여 실패 중 L-OS 소유분 전부 {#os-compile}
+  - [x] 딥링크: Windows·Linux 는 두 번째 인스턴스 argv 로 온다 — single-instance 콜백에서 dispatch + 런타임 등록 {#os-deeplink}
+  - [x] 트레이 투명 팝오버·앱 메뉴·TitleBarStyle 의 비-mac 동작 {#os-tray-menu}
+  - [x] Linux Secret Service 부재 시 평문 저장 없이 명확한 에러 + 안내 {#os-secrets}
+  - [x] DAP xcrun·themes defaults·external_editor·greenfield·npx(.cmd) 비-mac 분기 검증 {#os-tools}
+  - [x] menu.rs 비-mac 에서 앱 메뉴 미부착 — GTK 액셀러레이터가 터미널 Ctrl+W/C 를 가로챈다(L-UI 발견), 필요 시 new_window 커맨드 {#os-no-menu}
 - [~] L-UI 프런트엔드 플랫폼 추상화 {#l-ui}
   - [x] src/lib/platform.ts OS 판정 단일 창구 — navigator.platform 4곳 교체 {#ui-platform}
   - [x] 단축키 매칭 mac=meta·그 외=ctrl + 터미널 포커스 시 셸 키(Ctrl+C/D/K/L/R/U/W/Z) 양보, 복사·붙여넣기 Ctrl+Shift+C/V {#ui-shortcuts}
@@ -73,6 +73,7 @@ owner: claude-code
 - [ ] 에이전트가 준 files_touched 경로를 쓰기 시점에 `/` 로 정규화 (MCP journal_write·manager) — Windows 에이전트의 `src\a.ts` 가 diff 사이드카 키를 어긋나게 한다 (L-FS 발견) {#fs-files-touched-norm}
 - [ ] planner·discussion·rollup 파서의 CRLF 내성 — `planner/parse.rs::fold_wrapped_items` 가 split('\n') 이라 autocrlf 체크아웃의 plan-log·{#id} 가 흔들릴 수 있다, 테스트 0건 (L-FS 발견) {#fs-crlf-parsers}
 - [ ] 워처 rename 쌍의 새 이름이 빠진다 — 디바운서 Name(Both)[from,to] 에서 paths.first() 만 처리 (양 OS 기존 결함, L-FS 발견) {#fs-rename-pair}
+- [ ] 간헐 실패 — watcher::removing_the_project_root_does_not_resurrect_it 가 Windows 에서 Access is denied(os 5)로 한 번 붉음(L-SHELL run 35893773736), 다른 run 은 초록. 감시 핸들이 루트 삭제를 막는 경합인지 — 사용자가 감시 중인 프로젝트 폴더를 지울 때도 같은 일이 나는지 확인 {#fs-watcher-flake}
 - [ ] [사용자 결정] macOS 기존 결함 — acp/adapter.rs npm_platform 이 "macos" 로 찾아 딸려 온 claude(claude-agent-sdk-darwin-arm64)를 못 보고 PATH claude 로 물러선다. 고치면 ACP 가 쓰는 claude 바이너리가 바뀐다 (L-OS 발견) {#mac-bundled-claude}
 - [ ] 비-mac 새 창 키(Ctrl+Shift+N) — new_window 커맨드 + L-UI 바인딩, 앱 메뉴를 뗀 뒤 빈 자리 (L-OS 제안 diff 있음) {#os-new-window}
 - [ ] Linux 세션 D-Bus 부재 시 single-instance 가 조용히 꺼져 앱이 두 번 뜰 수 있다 — 명시적 경고 또는 락 (L-OS 발견) {#os-single-instance-dbus}
@@ -125,4 +126,11 @@ owner: claude-code
 | 2026-09-24T02:30:59+09:00 | #fs-atomic | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | atomic_io_win.rs 재시도·백오프, 덮어쓰지 않는 MoveFileExW, 300자+ 경로 — windows 6테스트 |
 | 2026-09-24T02:31:05+09:00 | #fs-watch | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | watcher/repeat.rs(Windows Create+Modify 재보고), 깊은 경로 '/' 기록, markers mtime. rename 쌍 결함은 #fs-rename-pair |
 | 2026-09-24T02:31:10+09:00 | #fs-git | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | repo_relative canonicalize+\\?\ 제거(8.3 이름), autocrlf 가짜 diff 없음, quotepath 기존 테스트 windows 초록 |
+| 2026-09-24T02:40:54+09:00 | #os-compile | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | 사이드카 후보 OS 별(recording test windows 초록), PORT-STUB(L-OS)·PORT-TEST 0건. PR #34 |
+| 2026-09-24T02:41:00+09:00 | #os-deeplink | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | links_in_argv 순수 함수(세 OS), 두 번째 인스턴스·첫 기동 args_os, AppImage register_all. 실제 인계는 W3 E2E |
+| 2026-09-24T02:41:05+09:00 | #os-tray-menu | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | 비-mac 트레이 메뉴 상시·불투명·작업 영역 위치(tray/placement.rs), TitleBarStyle mac 한정 확인 |
+| 2026-09-24T02:41:10+09:00 | #os-no-menu | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | menu::apply 비-mac no-op, MockRuntime 테스트 windows·ubuntu. new_window 는 #os-new-window |
+| 2026-09-24T02:41:16+09:00 | #os-secrets | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | SecretError::Unavailable, 평문 저장 없음, ubuntu 러너가 '저장소 없음' 갈래를 반드시 지남. 프런트 문구는 #ui-followups |
+| 2026-09-24T02:41:22+09:00 | #os-tools | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | DAP·LSP·편집기·greenfield·themes·클립보드·휴지통 + cmd 명령 주입 두 곳(open_url/Notion·편집기) 수정. Windows DAP 실제 세션은 미확인 |
+| 2026-09-24T02:41:27+09:00 | #fs-symlink-tests | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | L-OS 가 처리 — test_links(심링크→정션) 12곳 windows 실링크 통과 + cfg(unix) 통합 테스트 17건 Git Bash |
 <!-- oculpm:plan-log end -->
