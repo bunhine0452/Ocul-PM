@@ -32,7 +32,8 @@ fn build_demo(dir: &Path) -> Option<(PathBuf, PathBuf)> {
          fn main() {\n    let 값 = add(2, 40);\n    println!(\"{}\", 값);\n}\n",
     )
     .ok()?;
-    let out = dir.join("demo");
+    // Windows 는 `.exe` 가 붙어야 실행 파일이다 (rustc 는 `-o` 이름을 그대로 쓴다).
+    let out = dir.join(format!("demo{}", std::env::consts::EXE_SUFFIX));
     let status = std::process::Command::new("rustc")
         .args(["-g", "-o"])
         .arg(&out)
@@ -43,7 +44,36 @@ fn build_demo(dir: &Path) -> Option<(PathBuf, PathBuf)> {
 }
 
 async fn adapter() -> Option<AdapterCommand> {
-    resolve_adapter(adapter_by_id("rust")?).await
+    let cmd = resolve_adapter(adapter_by_id("rust")?).await?;
+    // 비-mac 은 PATH·LLVM 설치 자리에서 찾는다 — **찾았다고 뜨는 것은 아니다.**
+    // Windows 의 LLVM 배포판 lldb-dap 은 자기가 링크한 Python DLL 이 없으면 기동
+    // 즉시 죽는다(0xC0000135 STATUS_DLL_NOT_FOUND) — 그 기계에서는 앱도
+    // "디버그 어댑터가 종료됐습니다" 를 보인다. 그 경우만 사유를 찍고 건너뛰고,
+    // 그 밖의 기동 실패는 모르는 결함이라 붉힌다.
+    if cfg!(not(target_os = "macos")) {
+        let probe = std::process::Command::new(&cmd.program)
+            .arg("--help")
+            .output()
+            .expect("lldb-dap 기동");
+        if !probe.status.success() {
+            const STATUS_DLL_NOT_FOUND: i32 = 0xC000_0135_u32 as i32;
+            if cfg!(windows) && probe.status.code() == Some(STATUS_DLL_NOT_FOUND) {
+                eprintln!(
+                    "{} 가 DLL(대개 Python)을 못 찾아 뜨지 못한다 — 건너뜁니다",
+                    cmd.program.display()
+                );
+                return None;
+            }
+            panic!(
+                "{} --help 가 실패했다: {:?}\nstdout: {}\nstderr: {}",
+                cmd.program.display(),
+                probe.status,
+                String::from_utf8_lossy(&probe.stdout),
+                String::from_utf8_lossy(&probe.stderr)
+            );
+        }
+    }
+    Some(cmd)
 }
 
 /// 이벤트를 모으는 싱크 + "그 이벤트가 왔나" 폴링.
