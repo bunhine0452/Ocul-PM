@@ -11,7 +11,7 @@
     {
       "name": "oculpm",
       "source": "./plugin/oculpm",
-      "description": "ocul-pm 훅 브리지(세션 신호) + oculpm-mcp(journal/plan 구조화 도구) + 스킬 5종(기록 규격·인셉션·self-audit·run-evals·tdd). .oculpm 추적 프로젝트에서만 동작하며, v1 은 macOS 전용입니다.",
+      "description": "ocul-pm 훅 브리지(세션 신호) + oculpm-mcp(journal/plan 구조화 도구) + 스킬 5종(기록 규격·인셉션·self-audit·run-evals·tdd). .oculpm 추적 프로젝트에서만 동작합니다. macOS · Linux · Windows(베타 — Windows 훅은 Git Bash 필요, Windows 의 MCP 는 앱의 MCP 등록으로).",
       "version": "3.5.0",
       "author": {
         "name": "ocul-pm",

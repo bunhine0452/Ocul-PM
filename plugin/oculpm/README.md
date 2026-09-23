@@ -26,10 +26,14 @@ ocul-pm 의 Claude Code 연동 두 가지를 **한 번에** 구성합니다 (수
 - **macOS** · **Linux** · **Windows** (Linux·Windows 는 베타). 훅과 `bin/oculpm-mcp` 는 POSIX sh 입니다.
   - **Windows 는 Git for Windows(Git Bash)가 필요합니다** — Claude Code 는 셸 형 훅을
     Git Bash 로 돌리고, 없으면 PowerShell 로 돌려 이 훅들이 동작하지 않습니다.
-  - **Windows 에서는 이 플러그인의 MCP 서버가 뜨지 않습니다.** Claude Code 는 stdio MCP
-    서버를 셸 없이 직접 실행하는데, Windows 는 sh 셔틀을 실행 파일로 열지 못합니다.
-    대신 앱의 **설정 → 통합 → MCP 등록**(프로젝트 `.mcp.json` 에 설치된
-    `oculpm-mcp.exe` 경로를 씁니다)을 쓰세요. 훅(기록 게이트·재개 컨텍스트)은 그대로 동작합니다.
+  - **Windows 에서는 이 플러그인의 MCP 서버가 뜨지 않습니다** (`/mcp` 에 실패로
+    보입니다). Claude Code 는 stdio MCP 서버를 셸 없이 직접 실행하는데, Windows 는 sh
+    셔틀을 실행 파일로 열지 못합니다. 대신 앱의 **설정 → ocul-pm → 연동 →
+    「이 프로젝트에만 적용」 → MCP 서버 → 등록**을 쓰세요 — 프로젝트 `.mcp.json` 에
+    설치된 `oculpm-mcp.exe` 경로를 적습니다. 그 카드의 **훅 연동은 켜지 마세요**
+    (훅은 플러그인이 이미 돌립니다). 앱이 플러그인과 겹친다고 안내해도(「여기서 또
+    등록할 필요가 없어요」·「둘 중 하나를 해제하세요」) Windows 에서는 플러그인의 MCP 가
+    뜨지 않으므로 도구가 두 벌이 되지 않습니다 — 앱의 MCP 등록을 해제하지 마세요.
 - **ocul-pm 앱 설치** (oculpm-mcp 바이너리가 앱에 동봉됨) 또는 `OCULPM_MCP_BIN` 지정
 - Claude Code **2.1.220 이상에서 검증** (`claude plugin validate` + `--plugin-dir` 실로드)
 

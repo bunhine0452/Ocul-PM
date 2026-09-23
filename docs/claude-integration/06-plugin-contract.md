@@ -45,7 +45,9 @@
   실을 수 없다: `plugin.json` 의 `hooks` 필드는 검증이 거부한다(실측 —
   `plugin.json field 'hooks' is not accepted by plugin validation`). 그래서
   `oculpm-codex` 는 스킬만 싣고, 훅을 원하는 Codex 사용자는 Claude 플러그인
-  (`plugin/oculpm`)을 그대로 쓴다.
+  (`plugin/oculpm`)을 그대로 쓴다. *(정정 2026-09-07 {#codex-hook-delivery}: 필드가
+  아니라 **파일**로는 싣는다 — `plugin/oculpm-codex/hooks/hooks.json` 을 Codex 가 관례로
+  읽는다. Windows 변형은 §4.)*
 - 세는 단위: **대화**(conversation, `CLAUDE_CODE_SESSION_ID`) ≠ **세그먼트**
   (마커 하나의 수명, resume 마다 새로 열림) ≠ **작업 세션**(`YYYYMMDD-NNN`).
   원장은 세그먼트마다 한 줄을 남기고, 앱은 대화 단위로 접어 센다.
@@ -80,8 +82,30 @@ MCP 도구 2벌 노출. 앱 설정 화면이 플러그인 설치를 감지해 �
 - 플러그인·마켓플레이스 버전은 앱 버전과 자동 동기(`build-sidecar` 스탬프 + 테스트 강제) —
   "플러그인 vX = 앱 vX 에서 빌드·검증됨" 이 유일한 버전 서사다.
 
-## 4. 지원 플랫폼 (v1)
+## 4. 지원 플랫폼
 
-macOS 전용 — `bin/oculpm-mcp` 는 POSIX sh 셔틀이고 바이너리는 .app 번들에서
-해석한다. Windows/Linux 는 후속 (oculpm-mcp 가 순수 Rust bin 이라 release
-파이프라인 3-platform 배포로 앱 포팅 없이 선행 가능 — 04 문서 잔여).
+macOS · Linux · Windows (Linux·Windows 는 베타 — 크로스플랫폼 라운드
+[`docs/20260923_cross-platform/`](../20260923_cross-platform/00-master-plan.md) L-INTEG).
+훅과 `bin/oculpm-mcp` 셔틀은 POSIX sh 한 벌이다.
+
+| | 훅을 도는 셸 | 셔틀이 찾는 바이너리 | 플러그인 MCP 서버 |
+|---|---|---|---|
+| macOS | `sh -c` | `/Applications`·`~/Applications` 의 `.app`, `~/.local/bin` | 셔틀 경유로 뜬다 |
+| Linux | `sh -c` | deb `/usr/bin`, AppImage 안정 사본 `${XDG_DATA_HOME:-~/.local/share}/ocul-pm/bin` (앱이 기동 때 마운트 밖으로 복사), `~/.local/bin` | 셔틀 경유로 뜬다 |
+| Windows | **Git Bash** (Claude Code 문서: 없으면 PowerShell 로 돌려 이 훅들이 동작하지 않는다) | `%LOCALAPPDATA%\Ocul-PM`, `…\Programs\Ocul-PM`, `%ProgramFiles%\Ocul-PM` | **뜨지 않는다** — 아래 |
+
+- **Windows 에서 플러그인 MCP 서버가 뜨지 않는 이유**: Claude Code 는 stdio MCP 서버를
+  셸 없이 직접 실행하는데 Windows 는 sh 셔틀을 실행 파일로 열지 못한다
+  (anthropics/claude-code#58510 — 같은 이유로 `npx` 도 막힌다). `.mcp.json` 은 OS 별로
+  가를 수 없다. 대안은 앱의 설정 → ocul-pm → 연동 → 「이 프로젝트에만 적용」 →
+  **MCP 서버 등록**(프로젝트 `.mcp.json` 에 설치된 `oculpm-mcp.exe` 절대경로)이다 — 같은
+  카드의 훅 연동은 끈 채로(훅은 플러그인이 돌린다). 훅은 그대로 동작한다. 해소 방안은
+  사용자 결정으로 플랜에 올라 있다. (앱의 「플러그인 하나만」 경고 `op.plugin.warn` 은
+  아직 OS 를 가리지 않는다 — Windows 에서는 MCP 등록이 맞는 선택이다.)
+- **Codex** 는 Windows 에서 훅을 `%COMSPEC% /C`(cmd.exe)로 돌린다(openai/codex
+  `codex-rs/hooks/src/engine/command_runner.rs`). 그래서 `plugin/oculpm-codex` 의
+  `hooks.json` 에만 훅마다 `commandWindows` 를 달아 `hooks/run-sh.cmd` → Git Bash →
+  같은 sh 를 돌린다 (Git Bash 가 없으면 stderr 로 알리고 건너뛴다). 신뢰 해시는
+  `commandWindows` 를 빼고 매기므로 macOS·Linux 사용자에게 재신뢰를 묻지 않는다.
+- 세 OS 에서 실제로 돈 증거는 `src-tauri/tests/plugin_xplat.rs`(훅 묶음을 각 OS 의 훅
+  셸로, Codex 판은 cmd 로 실행)와 `tests/delivery_gate.rs`(Windows 는 Git Bash)다.
