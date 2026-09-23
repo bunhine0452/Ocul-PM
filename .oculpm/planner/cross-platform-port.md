@@ -12,14 +12,14 @@ owner: claude-code
 
 ## W0 — 이식성 CI (오케스트레이터) {#w0}
 - [x] portability.yml — windows-latest·ubuntu-22.04 에서 cargo check/clippy/test + vitest. ci.yml(릴리스 게이트)과 분리해 붉어도 macOS 릴리스를 막지 않는다 (D2) {#w0-portability-ci}
-- [~] 첫 실행 오류 전수 → docs/20260923_cross-platform/02-error-inventory.md 에 레인별 배정 {#w0-inventory}
+- [x] 첫 실행 오류 전수 → docs/20260923_cross-platform/02-error-inventory.md 에 레인별 배정 {#w0-inventory}
 - [ ] 초록이 된 잡부터 required 로 승격, 전부 초록이면 ci.yml 에 합쳐 릴리스 게이트 편입 {#w0-promote}
 
 ## W1 — 컴파일 기준선 L-BASE (단독 세션, W2 전에) {#w1}
-- [ ] src-tauri/src/proc.rs 프로세스 생성 단일 창구 — Windows CREATE_NO_WINDOW(콘솔 깜빡임) + PATHEXT(.cmd/.exe) 해석, Command::new ~40곳 이전 (D5) {#w1-proc}
-- [ ] clippy.toml disallowed-methods 로 proc.rs 밖 Command::new 금지 — 재발 게이트 {#w1-proc-gate}
-- [ ] 유닉스 전용 테스트(std::os::unix ~25곳) cfg(unix) 게이트, Windows 판이 필요한 곳은 PORT-TEST(L-FS) 표시 {#w1-test-gates}
-- [~] windows·ubuntu 에서 cargo check --all-targets · clippy -D warnings 초록 — ptyhost 등은 명시적 에러 스텁(PORT-STUB, D4), cargo test 는 컴파일까지 + 실패 목록 레인 배정 {#w1-compile-green}
+- [x] src-tauri/src/proc.rs 프로세스 생성 단일 창구 — Windows CREATE_NO_WINDOW(콘솔 깜빡임) + PATHEXT(.cmd/.exe) 해석, Command::new ~40곳 이전 (D5) {#w1-proc}
+- [x] clippy.toml disallowed-methods 로 proc.rs 밖 Command::new 금지 — 재발 게이트 {#w1-proc-gate}
+- [x] 유닉스 전용 테스트(std::os::unix ~25곳) cfg(unix) 게이트, Windows 판이 필요한 곳은 PORT-TEST(L-FS) 표시 {#w1-test-gates}
+- [x] windows·ubuntu 에서 cargo check --all-targets · clippy -D warnings 초록 — ptyhost 등은 명시적 에러 스텁(PORT-STUB, D4), cargo test 는 컴파일까지 + 실패 목록 레인 배정 {#w1-compile-green}
 
 ## W2 — 플랫폼 레인 6개 (병렬 세션, 파일 소유 분리) {#w2}
 - [ ] L-PTY 터미널 호스트 Windows {#l-pty}
@@ -41,14 +41,14 @@ owner: claude-code
   - [ ] plugin bin/oculpm-mcp 탐색 목록에 Windows·Linux 설치 경로 + 'macOS 전용' 문구 갱신 (Claude·Codex 판 둘 다) {#integ-plugin-bin}
   - [ ] 플러그인 훅 크로스플랫폼 — Claude Code(Git Bash)·Codex Windows 실행 셸 조사→호환 (← skill-catalog-round-2 #hooks-xplat) {#integ-hooks}
   - [ ] build-sidecar.mjs Windows triple·.exe 산출을 windows 러너에서 실확인 {#integ-build-sidecar}
-- [ ] L-FS 경로 · 파일 의미론 {#l-fs}
+- [~] L-FS 경로 · 파일 의미론 {#l-fs}
   - [ ] .oculpm 저장 상대경로는 항상 '/' — files_touched·인덱스·journal_ref·diff sidecar 전수 {#fs-separators}
   - [ ] CRLF(core.autocrlf) — frontmatter·관리 블록·plan-log 파서 내성 + 기존 EOL 보존 {#fs-crlf}
   - [ ] 원자적 쓰기: 대상이 열려 있을 때 rename 공유 위반 재시도·백오프, hard_link 경로 NTFS 확인 {#fs-atomic}
   - [ ] notify ReadDirectoryChangesW 이벤트 모양·대소문자 무시 FS·긴 경로(\\?\) {#fs-watch}
   - [ ] git quotepath·autocrlf 가짜 diff·출력 경로 구분자 {#fs-git}
   - [ ] lock.rs 의 ps 프로세스 판정 Windows 대응 (OpenProcess/GetExitCodeProcess) {#fs-lock}
-  - [ ] PORT-TEST(L-FS) 심링크·경로 탈출 가드 테스트의 Windows 판 {#fs-symlink-tests}
+  - [~] PORT-TEST(L-FS) 심링크·경로 탈출 가드 테스트의 Windows 판 {#fs-symlink-tests}
 - [ ] L-OS 나머지 OS 분기 {#l-os}
   - [ ] 인벤토리 잔여 실패 중 L-OS 소유분 전부 {#os-compile}
   - [ ] 딥링크: Windows·Linux 는 두 번째 인스턴스 argv 로 온다 — single-instance 콜백에서 dispatch + 런타임 등록 {#os-deeplink}
@@ -101,4 +101,10 @@ owner: claude-code
 | 2026-09-24T00:18:40+09:00 | #ui-chrome | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0018_feature_port-frontend-platform-abstraction.md | 드래그 영역 mac 한정, data-platform 글꼴 폴백, 스크롤바 모서리. 실기기 셀 폭은 W3 스크린샷 |
 | 2026-09-24T00:18:45+09:00 | #ui-ime | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0018_feature_port-frontend-platform-abstraction.md | 브리지는 mac 만, 비-mac 은 xterm 기본 — Chromium 시퀀스로 onData "한글\r" 정확히 1회(win 러너). 실 IME 는 #w3-ime-cdp·#w5-eyes |
 | 2026-09-24T00:18:50+09:00 | #ui-tests | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0018_feature_port-frontend-platform-abstraction.md | 새 4파일 windows 러너 통과(run 35877998437) + PR #31 ci.yml lint 초록 |
+| 2026-09-24T00:40:24+09:00 | #w0-inventory | claude-code | ~→x |  | 층 2 기록(W1 뒤): ubuntu 테스트 초록, windows 19 실패 → L-FS 12·L-SHELL 1·L-INTEG 1·L-OS 1(+cfg(unix) 0건 통합 테스트 6). 이후 층은 레인 보고로 |
+| 2026-09-24T00:40:29+09:00 | #fs-symlink-tests | claude-code | ☐→~ |  | L-OS 로 이관 — PORT-TEST 마커 12곳이 전부 L-OS 소유 파일이라 충돌 회피. W2 5레인 병렬 출발(port/l-pty·l-shell·l-integ·l-fs·l-os) |
+| 2026-09-24T00:58:09+09:00 | #w1-proc | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0058_feature_port-compile-baseline-w1.md | proc.rs 42곳, 배치 인용은 std BatBadBut 방어에 맡김 — windows 러너 테스트 5개 통과. PR #32 |
+| 2026-09-24T00:58:13+09:00 | #w1-proc-gate | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0058_feature_port-compile-baseline-w1.md | clippy.toml disallowed-methods, 허용은 proc.rs 뿐(통합 테스트 12파일은 파일 머리 allow) |
+| 2026-09-24T00:58:19+09:00 | #w1-test-gates | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0058_feature_port-compile-baseline-w1.md | 게이트 없던 심링크 테스트 2개 cfg(unix), PORT-TEST 12곳 표시 → L-OS 가 Windows 판 |
+| 2026-09-24T00:58:24+09:00 | #w1-compile-green | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/0058_feature_port-compile-baseline-w1.md | windows·ubuntu check·clippy 초록, ubuntu test 초록, windows test 19 실패→W2. glibc_compat(D11)·MSVC 매니페스트. d7185e98 |
 <!-- oculpm:plan-log end -->
