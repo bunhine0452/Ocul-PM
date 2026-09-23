@@ -13,11 +13,7 @@
 //! - 유휴(클라이언트 0 · 세션 0)가 이어지면 스스로 내린다 — 데몬을 영구
 //!   상주시키지 않는다 (필요할 때 앱이 다시 띄운다).
 
-// 전송(Unix 소켓)이 없는 OS 에서는 [`serve`] 가 스텁이라 세션 기계 전체와
-// 접속 처리용 import 가 아무 데서도 쓰이지 않는다. 지우지 않고 컴파일해 두는
-// 이유: L-PTY 가 전송만 갈아 끼우면 되도록, 그리고 이 모듈의 단위 테스트가 그
-// OS 에서도 돌도록.
-// PORT-STUB(L-PTY): Windows 전송이 들어오면 이 허용을 걷는다.
+// 전송 없는 OS 에서도 단위 테스트가 돌게 세션 기계를 남긴다. PORT-STUB(L-PTY): 전송이 오면 걷는다.
 #![cfg_attr(not(unix), allow(dead_code, unused_imports))]
 
 use std::collections::HashMap;
@@ -162,14 +158,11 @@ fn terminate_session(state: Arc<HostState>, sid: String, session: HostSession) {
 }
 
 #[cfg(unix)]
-const SIG_HANGUP: i32 = libc::SIGHUP;
-#[cfg(unix)]
-const SIG_KILL: i32 = libc::SIGKILL;
-// Windows 의 libc 에는 SIGHUP·SIGKILL 이 없다. 값은 아래 스텁이 무시한다.
+use libc::{SIGHUP as SIG_HANGUP, SIGKILL as SIG_KILL};
 #[cfg(not(unix))]
-const SIG_HANGUP: i32 = 1;
+mod unsupported;
 #[cfg(not(unix))]
-const SIG_KILL: i32 = 9;
+pub use unsupported::*;
 
 /// 포그라운드 프로세스 그룹(있으면) 과 셸 자체에 `sig` 를 보낸다. 셸은 세션
 /// 리더라 자기 그룹의 유일한 구성원인 경우가 많고, 포그라운드 작업은 잡 컨트롤로
@@ -188,11 +181,6 @@ fn signal_session(foreground: Option<i32>, shell_pid: Option<i32>, sig: libc::c_
         }
     }
 }
-
-// PORT-STUB(L-PTY): Windows 는 셸마다 Job Object 에 넣고 Job 종료로 트리 전체를
-// 끝낸다 (#pty-kill). 지금은 [`serve`] 가 스텁이라 이 길에 닿지 않는다.
-#[cfg(not(unix))]
-fn signal_session(_foreground: Option<i32>, _shell_pid: Option<i32>, _sig: i32) {}
 
 pub struct HostState {
     sessions: Mutex<HashMap<String, HostSession>>,
@@ -630,11 +618,6 @@ fn foreground_of(session: &HostSession) -> Option<i32> {
     Some(leader)
 }
 
-#[cfg(not(unix))]
-fn process_group_leader_of(_session: &HostSession) -> Option<i32> {
-    None
-}
-
 /// pid → 명령줄. 의존성을 늘리지 않으려고 `ps` 를 쓴다. 실패는 전부 `None`.
 #[cfg(unix)]
 fn command_line_of(pid: i32) -> Option<String> {
@@ -651,11 +634,6 @@ fn command_line_of(pid: i32) -> Option<String> {
     } else {
         Some(line)
     }
-}
-
-#[cfg(not(unix))]
-fn command_line_of(_pid: i32) -> Option<String> {
-    None
 }
 
 /// 접속 하나를 끝까지 상대한다 — 요청은 순서대로, 이벤트는 broadcast 구독으로.
@@ -809,14 +787,6 @@ pub async fn serve(state: Arc<HostState>, socket: &Path) -> Result<(), String> {
             }
         }
     }
-}
-
-/// 전송이 없는 OS — listen 하지 않고 명시적으로 실패한다 (D4). `run_host` 는 이
-/// 에러를 찍고 코드 1 로 끝난다.
-// PORT-STUB(L-PTY): Windows 는 사용자 전용 네임드 파이프(`first_pipe_instance`)로.
-#[cfg(not(unix))]
-pub async fn serve(_state: Arc<HostState>, _socket: &Path) -> Result<(), String> {
-    Err(super::UNSUPPORTED_OS.to_string())
 }
 
 /// `--pty-host` 모드의 진입점 — main 이 GUI 대신 이것을 부른다.
