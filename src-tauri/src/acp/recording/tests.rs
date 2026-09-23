@@ -93,6 +93,7 @@ fn windows_candidates_use_install_dirs_and_the_exe_name() {
             home: Some(Path::new(r"C:\Users\kim")),
             local_app_data: Some(local),
             program_files: Some(program_files),
+            stable_sidecar_dir: None,
         },
     );
     assert_eq!(
@@ -131,6 +132,19 @@ fn linux_candidates_cover_deb_and_the_appimage_copy() {
         ]
     );
     assert!(!paths.iter().any(|p| p.to_string_lossy().contains(".app")));
+
+    // `$XDG_DATA_HOME` 을 쓰는 기기 — 앱이 실제로 복사하는 자리를 본다 (#integ-sidecar).
+    let xdg = Path::new("/data/kim/ocul-pm/bin");
+    let paths = candidate_paths(
+        HostOs::Linux,
+        &SearchRoots {
+            home: Some(home),
+            stable_sidecar_dir: Some(xdg),
+            ..SearchRoots::default()
+        },
+    );
+    assert_eq!(paths[1], xdg.join("oculpm-mcp"));
+    assert!(!paths.contains(&home.join(".local/share/ocul-pm/bin").join("oculpm-mcp")));
 }
 
 /// 이 러너가 실제로 보는 목록 — 어느 OS 에서든 이 OS 의 실행 파일 이름으로 끝난다.

@@ -148,9 +148,8 @@ pub async fn diagnose(app_data: &Path) -> AcpDiagnostics {
     let adapter_ok = adapter_version.as_deref() == Some(adapter::PINNED_VERSION);
     let codex_adapter_version = adapter::codex_installed_version(app_data);
     let codex_adapter_ok = codex_adapter_version.as_deref() == Some(adapter::CODEX_PINNED_VERSION);
-    let codex_home = std::env::var_os("CODEX_HOME")
-        .map(std::path::PathBuf::from)
-        .or_else(|| directories::BaseDirs::new().map(|base| base.home_dir().join(".codex")));
+    // OS 별 판정(`CODEX_HOME` → `~/.codex`)은 `paths` 한 곳 (크로스플랫폼 #integ-paths).
+    let codex_home = crate::oculpm::paths::codex_home();
     // 어댑터가 받는 키는 둘이다 — `CODEX_API_KEY` 를 빼면 그것만 넣어 둔
     // 사용자가 "인증 없음"으로 표시된다 (실제로는 잘 돈다).
     let api_key_present =

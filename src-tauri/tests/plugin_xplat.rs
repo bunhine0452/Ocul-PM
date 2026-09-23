@@ -610,8 +610,9 @@ fn the_shuttle_and_the_app_search_the_same_places() {
     cmd.arg(&probe_path)
         .env("HOME", "/h")
         .env("LOCALAPPDATA", "/lad")
-        .env("ProgramFiles", "/pf");
-    for var in ["OCULPM_MCP_BIN", "XDG_DATA_HOME", "ProgramW6432"] {
+        .env("ProgramFiles", "/pf")
+        .env("XDG_DATA_HOME", "/xdg");
+    for var in ["OCULPM_MCP_BIN", "ProgramW6432"] {
         cmd.env_remove(var);
     }
     let out = spawn_with_stdin(cmd, "");
@@ -625,6 +626,8 @@ fn the_shuttle_and_the_app_search_the_same_places() {
             home: Some(Path::new("/h")),
             local_app_data: Some(Path::new("/lad")),
             program_files: Some(Path::new("/pf")),
+            // 앱은 `paths::stable_sidecar_dir()` 로 채운다 — `$XDG_DATA_HOME/ocul-pm/bin`.
+            stable_sidecar_dir: Some(Path::new("/xdg/ocul-pm/bin")),
             ..SearchRoots::default()
         };
         let app: Vec<String> = candidate_paths(os, &roots)
