@@ -495,8 +495,9 @@ export const commands = {
 	 *  클립보드에 담긴 **파일 경로들**. 없으면 빈 목록 (오류가 아니다 — 글자를
 	 *  복사해 둔 상태에서 ⌘V 를 누른 것도 정상이다).
 	 * 
-	 *  macOS 밖에서는 항상 비어 있다. 이 앱은 macOS 전용으로 배포되지만, 커맨드가
-	 *  사라지면 프런트가 갈라져야 하므로 계약은 모든 플랫폼에서 유지한다.
+	 *  macOS 는 Finder 가, Windows 는 탐색기가 "복사" 로 올린 파일 목록을 읽는다.
+	 *  Linux 는 **읽지 못한다고 말한다** — 예전처럼 늘 빈 목록을 돌려주면 "복사한
+	 *  파일이 없다" 와 구별되지 않는다 (크로스플랫폼 D4). 드래그는 어느 OS 에서나 된다.
 	 */
 	codeClipboardFiles: () => typedError<string[], string>(__TAURI_INVOKE("code_clipboard_files")),
 	/**
@@ -1041,7 +1042,8 @@ export const commands = {
 	 *  by the Today commit graph to jump to a commit on GitHub, and by the app-wide
 	 *  link guard (`src/lib/externalLinks.ts`) for any anchor an agent answer or a
 	 *  rendered document puts on screen. We shell out to the OS opener
-	 *  (`open` / `xdg-open` / `cmd start`) rather than the opener plugin so no
+	 *  (`open` / `xdg-open`; on Windows ShellExecute via the opener plugin's *Rust*
+	 *  function, not `cmd start`) rather than the plugin's JS command, so no
 	 *  path/url scope config is needed (mirrors `oculpm_open_entry_in_editor`).
 	 *  Only http/https/mailto is allowed — never a local path or arbitrary scheme.
 	 */
