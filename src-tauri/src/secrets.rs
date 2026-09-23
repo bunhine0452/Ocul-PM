@@ -169,7 +169,17 @@ mod tests {
             let _ = tx.send(outcome);
         });
         match rx.recv_timeout(std::time::Duration::from_secs(20)) {
-            Ok(Ok(note)) => eprintln!("{note}"),
+            Ok(Ok(note)) => {
+                eprintln!("{note}");
+                // CI 러너(데스크톱 세션 없음)에서는 "저장소 없음" 갈래를 **실제로**
+                // 지나야 한다 — 저장소가 있는 갈래로 초록이 되면 검증이 안 된 것이다.
+                if std::env::var_os("CI").is_some() {
+                    assert!(
+                        note.starts_with("저장소 없음"),
+                        "CI 러너에 Secret Service 가 있다 — 없음 갈래가 검증되지 않았다: {note}"
+                    );
+                }
+            }
             Ok(Err(why)) => panic!("{why}"),
             Err(_) => panic!("Secret Service 가 20초 안에 답하지 않았다"),
         }
