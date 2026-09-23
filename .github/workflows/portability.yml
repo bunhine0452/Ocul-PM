@@ -1,0 +1,198 @@
+name: Portability
+
+# 크로스플랫폼 라운드 (플랜 `cross-platform-port` #w0-portability-ci ·
+# 설계 docs/20260923_cross-platform/00-master-plan.md D1·D2).
+#
+# 사용자는 Windows·Linux 를 직접 테스트할 수 없다 — **이 러너들이 실기기다.**
+# 그래서 "그 OS 에서 컴파일된다" 가 아니라 "그 OS 에서 테스트가 돌았다" 를 본다.
+#
+# ci.yml 과 분리한 이유 (D2): release.yml 의 gate 는 태그 커밋에서 **ci.yml** 이
+# 초록인지 본다. 처음부터 붉을 이 잡들을 ci.yml 에 넣으면 macOS 릴리스가 막힌다.
+# 잡이 초록이 되는 대로 required 로 올리고, 전부 초록이면 ci.yml 로 합친다
+# (#w0-promote). 그때까지 main push 에는 돌지 않는다 — main 을 붉게 칠하지 않는다.
+#
+# 각 단계는 continue-on-error 로 끝까지 돌고, 마지막 「요약」 단계가 결과를 모아
+# 붉힌다. 첫 실행의 목적이 **오류 전수(인벤토리)** 라서다 — check 가 깨졌다고
+# test 컴파일 오류를 못 보면 인벤토리가 반쪽이 된다. 로그는 아티팩트로 남는다.
+
+# pull_request 는 넣지 않았다 — 이 라운드와 무관한 PR 에 붉은 체크를 달지 않는다.
+# 승격(#w0-promote) 때 ci.yml 로 합치면서 PR·main 트리거를 얻는다.
+on:
+  push:
+    branches:
+      - 'port/**'
+  workflow_dispatch:
+
+concurrency:
+  group: portability-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust — ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-22.04: 릴리스 빌드와 같은 glibc 하한 (D10).
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    # Windows 콜드 빌드는 macOS(10분 31초)보다 훨씬 길다. 매달림만 끊는다.
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 툴체인 버전 읽기 (rust-toolchain.toml)
+        id: toolchain
+        run: |
+          channel=$(grep -m1 '^channel' rust-toolchain.toml | tr -d ' "\r' | cut -d= -f2)
+          if [ -z "$channel" ]; then
+            echo "::error file=rust-toolchain.toml::channel 을 못 읽었습니다."
+            exit 1
+          fi
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust ${{ steps.toolchain.outputs.channel }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          components: rust-analyzer, rustfmt, clippy
+
+      # Tauri 2 의 Linux 전제 + keyring(sync-secret-service)의 libdbus.
+      - name: Linux 시스템 의존성
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+            libxdo-dev libssl-dev libdbus-1-dev build-essential pkg-config file patchelf
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          cache-on-failure: true
+
+      - name: cargo check --all-targets
+        id: check
+        continue-on-error: true
+        working-directory: src-tauri
+        run: |
+          set -o pipefail
+          cargo check --all-targets --locked --message-format=short 2>&1 | tee ../check.log
+
+      - name: cargo clippy -D warnings
+        id: clippy
+        continue-on-error: true
+        working-directory: src-tauri
+        run: |
+          set -o pipefail
+          cargo clippy --all-targets --locked --message-format=short -- -D warnings 2>&1 | tee ../clippy.log
+
+      # 컴파일이 되는 만큼만 돈다. 실패 테스트 목록이 인벤토리의 절반이다.
+      # 단계 시한: Windows 에서 테스트가 매달리면(PTY·소켓 대기) 잡 시한에 걸려
+      # 로그 아티팩트까지 잃는다. 단계만 끊고 다음으로 넘어간다.
+      - name: cargo test --no-fail-fast
+        id: test
+        continue-on-error: true
+        timeout-minutes: 60
+        working-directory: src-tauri
+        run: |
+          set -o pipefail
+          cargo test --locked --no-fail-fast 2>&1 | tee ../test.log
+
+      - name: 로그 아티팩트
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portability-rust-${{ matrix.os }}
+          path: |
+            check.log
+            clippy.log
+            test.log
+          if-no-files-found: ignore
+
+      - name: 요약
+        if: always()
+        run: |
+          count() { if [ -f "$1" ]; then grep -cE "$2" "$1" || true; else echo 0; fi; }
+          {
+            echo "## ${{ matrix.os }}"
+            echo ""
+            echo "| 단계 | 결과 | 줄 수 |"
+            echo "|---|---|---|"
+            echo "| cargo check | ${{ steps.check.outcome }} | error $(count check.log '^(error|.*: error)') |"
+            echo "| cargo clippy | ${{ steps.clippy.outcome }} | error $(count clippy.log '^(error|.*: error)') |"
+            echo "| cargo test | ${{ steps.test.outcome }} | FAILED $(count test.log ' FAILED$') |"
+            echo ""
+            echo "실패 테스트:"
+            echo '```'
+            grep -E '^    [a-zA-Z0-9_:]+$' test.log 2>/dev/null | sort -u | head -200 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.check.outcome }}" != "success" ] || \
+             [ "${{ steps.clippy.outcome }}" != "success" ] || \
+             [ "${{ steps.test.outcome }}" != "success" ]; then
+            echo "::error::이식성 실패 — 요약과 아티팩트 로그를 볼 것"
+            exit 1
+          fi
+
+  # ubuntu 의 프런트 게이트는 ci.yml 이 이미 돈다. 여기선 Windows 만 — 경로 구분자·
+  # CRLF·셸 차이가 vitest 와 빌드 스크립트(check-critical-css 등)에 걸리는지 본다.
+  # `pnpm build` 는 tauri 의 beforeBuildCommand 라 Windows 번들의 전제다.
+  frontend-windows:
+    name: 프런트 — windows-latest
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        id: typecheck
+        continue-on-error: true
+        run: pnpm typecheck
+
+      - name: Test (vitest)
+        id: vitest
+        continue-on-error: true
+        run: pnpm test
+
+      - name: Build
+        id: build
+        continue-on-error: true
+        run: pnpm build
+
+      - name: 요약
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## frontend — windows-latest"
+            echo "| 단계 | 결과 |"
+            echo "|---|---|"
+            echo "| typecheck | ${{ steps.typecheck.outcome }} |"
+            echo "| vitest | ${{ steps.vitest.outcome }} |"
+            echo "| build | ${{ steps.build.outcome }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.typecheck.outcome }}" != "success" ] || \
+             [ "${{ steps.vitest.outcome }}" != "success" ] || \
+             [ "${{ steps.build.outcome }}" != "success" ]; then
+            echo "::error::Windows 프런트 실패 — 각 단계 로그를 볼 것"
+            exit 1
+          fi
