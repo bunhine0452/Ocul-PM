@@ -133,6 +133,7 @@ tauri-plugin-deep-link = "2.4.10"
 #   L-FS   pid 생사(OpenProcess + GetExitCodeProcess) · 공유 위반 판정
 #   L-OS   탐색기 "복사" 붙여넣기(CF_HDROP: DataExchange · Ole · Shell · Memory) ·
 #          휴지통 COM 아파트 검증 테스트(Com)
+#   L-SHELL PowerShell 실행 정책을 셸 없이 읽기(Registry — 오케스트레이터 승인)
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
@@ -148,6 +149,7 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_Ole",
     "Win32_System_Pipes",
     "Win32_System_ProcessStatus",
+    "Win32_System_Registry",
     "Win32_System_Threading",
     "Win32_UI_Shell",
 ] }

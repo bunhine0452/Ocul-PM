@@ -32,10 +32,15 @@
 
 mod default_shell;
 mod policy;
+#[cfg(windows)]
+mod policy_registry;
+mod policy_scopes;
 mod powershell;
 
 #[cfg(test)]
 mod live_tests;
+#[cfg(test)]
+mod policy_live_tests;
 #[cfg(test)]
 mod tests;
 

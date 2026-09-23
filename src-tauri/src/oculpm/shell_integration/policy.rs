@@ -19,6 +19,13 @@
 //! - 조회 프로세스는 업데이트 확인·원격 측정을 하지 않는다 (조회에 필요 없는 일).
 //!
 //! 그래도 모르면 **쓰지 않는다** — 호출부가 이유와 수동 설치 안내를 돌려준다.
+//!
+//! # 셸은 이제 물러서는 길이다 (PR #35)
+//!
+//! 넉넉한 시한도 모자랐다 — 부하 걸린 러너에서 Windows PowerShell 5.1 콜드 스타트가
+//! 45.1초에 끊겼고 다음 시도는 37.1초였다(`[policy-probe]`). 부팅 직후·Defender
+//! 검사 중인 사용자 PC 도 같을 수 있다. 그래서 먼저 저장된 설정을 읽어 확실하면
+//! 그 답을 쓰고([`super::policy_scopes`]), 확실하지 않을 때만 여기로 온다.
 
 use std::io::Read;
 use std::process::{ExitStatus, Stdio};
@@ -45,8 +52,38 @@ const EXCERPT: usize = 300;
 /// 자식이 끝난 뒤 출력 읽기를 기다리는 한도 ([`collect`]).
 const READER_GRACE: Duration = Duration::from_secs(2);
 
-/// 셸에게 실효 실행 정책을 묻는다 — 실패하면 한 번 더. `Err` 는 두 번의 이유.
+/// 실효 실행 정책. 저장된 설정(레지스트리·설정 파일)으로 **확실하면** 셸을 띄우지
+/// 않는다([`super::policy_scopes`]). 확실하지 않을 때만 셸에게 묻는다(한 번 더
+/// 재시도). `Err` 는 두 길 모두의 이유.
 pub(super) fn effective_execution_policy(shell_path: &str) -> Result<String, String> {
+    let stored = match read_without_shell(shell_path) {
+        Ok(policy) => return Ok(policy.to_string()),
+        Err(why) => why,
+    };
+    tracing::info!(shell = %shell_path, reason = %stored, "저장된 설정으로 실행 정책을 확정하지 못했다 — 셸에게 묻는다");
+    ask_the_shell(shell_path)
+        .map_err(|shell| format!("from stored settings: {stored}; asking the shell: {shell}"))
+}
+
+/// 저장된 설정만으로 판정한다 — 셸을 띄우지 않는다.
+#[cfg(windows)]
+pub(super) fn read_without_shell(shell_path: &str) -> Result<&'static str, String> {
+    use super::default_shell::HostOs;
+    let edition = super::powershell::edition_of(HostOs::Windows, shell_path);
+    let documents = directories::UserDirs::new()
+        .and_then(|dirs| dirs.document_dir().map(std::path::Path::to_path_buf));
+    let scopes = super::policy_registry::read_scopes(edition, shell_path, documents.as_deref());
+    super::policy_scopes::effective(&scopes).map(super::policy_scopes::Policy::name)
+}
+
+/// Windows 밖에서는 실행 정책이 강제되지도 저장되지도 않는다 (설치도 묻지 않는다).
+#[cfg(not(windows))]
+pub(super) fn read_without_shell(_shell_path: &str) -> Result<&'static str, String> {
+    Err("execution policies are only stored on Windows".to_string())
+}
+
+/// 셸에게 묻는다 — 실패하면 한 번 더. `Err` 는 두 번의 이유.
+pub(super) fn ask_the_shell(shell_path: &str) -> Result<String, String> {
     probe_once(shell_path, ATTEMPT_TIMEOUT).or_else(|first| {
         tracing::warn!(shell = %shell_path, reason = %first, "실행 정책 조회 실패 — 한 번 더 묻는다");
         probe_once(shell_path, ATTEMPT_TIMEOUT)
