@@ -246,6 +246,41 @@ async fn rapid_writes_to_same_file_debounced_to_one() {
     assert_eq!(hot.len(), 1, "expected debouncer to coalesce; got {hot:?}");
 }
 
+/// 크로스플랫폼 L-FS — 기록되는 경로는 **어느 OS 에서든 `/` 구분**이고, 260자를 넘는
+/// 깊은 경로도 빠지지 않는다 (윈도우: 워처 루트가 `canonicalize` 된 `\\?\` 모양이라
+/// MAX_PATH 를 넘어도 알림이 온다 — 그걸 러너에서 확인한다).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn deep_paths_are_recorded_in_slash_form() {
+    let s = setup().await;
+    let segs: Vec<String> = (0..7).map(|i| format!("{i}-{}", "d".repeat(40))).collect();
+    let mut dir = s.dir.path().to_path_buf();
+    for seg in &segs {
+        dir.push(seg);
+    }
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("deep.rs");
+    assert!(file.as_os_str().len() > 300, "{}", file.display());
+    // 디렉터리 만들기 이벤트가 먼저 지나가게 둔 뒤 쓴다.
+    sleep(Duration::from_millis(200)).await;
+    std::fs::write(&file, "fn deep() {}").unwrap();
+    settle().await;
+    s.watcher.stop().await.unwrap();
+    s.actor.shutdown().await.unwrap();
+
+    let want = format!("{}/deep.rs", segs.join("/"));
+    let events = s
+        .writer
+        .read_file_changes(&today_workday(&s.resolver), None)
+        .await
+        .unwrap();
+    assert!(
+        events.iter().any(|e| e.path == want),
+        "want {want}, got {:?}",
+        events.iter().map(|e| &e.path).collect::<Vec<_>>()
+    );
+    assert!(events.iter().all(|e| !e.path.contains('\\')), "{events:?}");
+}
+
 /// Case 5 — the session actor's own writes to `.oculpm/index/` must not
 /// boomerang back into ndjson via the watcher. After a single user-file
 /// write we expect exactly one event for that file (no `.oculpm/`-derived
@@ -487,12 +522,10 @@ fn local_history_writes_never_re_trigger_the_watcher() {
     // B5 의 저장 위치가 워처 자기 억제 안에 있다는 것이 그 설계의 전제다
     // (`entry_diffs` 와 같은 이유로 `.oculpm/index/` 아래를 골랐다).
     // 여기가 깨지면 캡처가 이벤트를 낳고 그 이벤트가 다시 캡처를 부른다.
+    // 소비자(`handle_event`)가 하는 그대로 저장 모양(`/`)으로 편 뒤 판정한다 —
+    // 윈도우의 `join` 은 `\` 를 끼운다.
     let dir = history::dir_for(Path::new("/p"), "src/main.rs");
-    let rel = dir
-        .strip_prefix("/p")
-        .unwrap()
-        .to_string_lossy()
-        .to_string();
+    let rel = crate::git::slash(dir.strip_prefix("/p").unwrap());
     assert!(is_self_suppressed(&rel));
     assert!(is_self_suppressed(&format!("{rel}/meta.json")));
 }

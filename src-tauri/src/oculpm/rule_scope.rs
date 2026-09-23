@@ -255,10 +255,7 @@ mod tests {
         seed(root, "node_modules/pkg/index.ts", "x\n");
         seed(root, "src/app.ts", "x\n");
         let files = walk_project_files(root);
-        let names: Vec<String> = files
-            .iter()
-            .map(|p| p.to_string_lossy().to_string())
-            .collect();
+        let names: Vec<String> = files.iter().map(|p| crate::git::slash(p)).collect();
         assert!(names.iter().any(|n| n.ends_with("src/app.ts")), "{names:?}");
         assert!(!names.iter().any(|n| n.contains("generated")), "{names:?}");
         assert!(

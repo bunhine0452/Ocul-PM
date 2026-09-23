@@ -140,11 +140,32 @@ pub fn build_forbidden_matcher(root: &Path, patterns: &[String]) -> Gitignore {
 /// back to the file's basename otherwise. The basename fallback is what
 /// makes `/elsewhere/.env` still trip `**/.env*` even though we can't anchor
 /// it against this project.
+///
+/// 윈도우 두 가지 (크로스플랫폼 L-FS):
+/// - 절대 경로는 **구분자를 바꾸기 전에** 네이티브 모양으로 루트를 벗긴다. 워처가
+///   주는 경로는 `canonicalize` 된 루트 위의 `\\?\C:\…` 인데, `/` 로 먼저 바꾸면
+///   `//?/C:/…`(UNC 로 읽힌다)가 되어 루트와 영영 안 맞고 basename 판정으로 떨어진다 —
+///   `secrets/**` 같은 디렉터리 패턴이 조용히 빠진다.
+/// - 드라이브 없이 루트만 있는 경로(`/Users/dev/.env` · `\x`)는 윈도우에서 절대 경로가
+///   아니다. 상대 경로로 넘기면 `ignore` 가 "path is expected to be under the root" 로
+///   패닉하므로 절대 경로와 같은 갈래(루트 벗기기 → basename)로 보낸다. 유닉스에서
+///   `has_root()` 는 `is_absolute()` 와 같다 — 동작 불변.
 pub fn is_forbidden_path(matcher: &Gitignore, path: &str) -> bool {
+    #[cfg(windows)]
+    {
+        let native = Path::new(path);
+        if native.is_absolute() {
+            if let Some(rel) = crate::git::relative_to(matcher.path(), native) {
+                return matcher
+                    .matched_path_or_any_parents(Path::new(&rel), false)
+                    .is_ignore();
+            }
+        }
+    }
     let normalized = path.replace('\\', "/");
     let p = Path::new(&normalized);
     let owned_basename;
-    let candidate: &Path = if p.is_absolute() {
+    let candidate: &Path = if p.is_absolute() || p.has_root() {
         match p.strip_prefix(matcher.path()) {
             Ok(rel) => rel,
             Err(_) => match p.file_name() {
@@ -437,6 +458,20 @@ mod tests {
         assert!(is_forbidden_path(&m, "/Users/dev/myrepo/.env"));
         assert!(is_forbidden_path(&m, "/Users/dev/myrepo/.env.production"));
         assert!(is_forbidden_path(&m, "/var/lib/app/credentials.json"));
+    }
+
+    /// 워처가 실제로 넘기는 모양 — **실경로로 편 루트 위의 네이티브 절대 경로**
+    /// (윈도우는 `\\?\C:\…`). 디렉터리 패턴(`secrets/`)은 루트를 벗겨야만 걸린다
+    /// — basename 판정으로 떨어지면 `aws.json` 이 조용히 빠진다.
+    #[test]
+    fn forbidden_native_absolute_path_under_the_canonical_root_is_anchored() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().canonicalize().unwrap();
+        let m = build_forbidden_matcher(&root, &["secrets/".to_string()]);
+        let hit = root.join("secrets").join("aws.json");
+        let miss = root.join("src").join("aws.json");
+        assert!(is_forbidden_path(&m, &hit.to_string_lossy()), "{hit:?}");
+        assert!(!is_forbidden_path(&m, &miss.to_string_lossy()), "{miss:?}");
     }
 
     /// Windows-style backslash separators are normalised before matching,

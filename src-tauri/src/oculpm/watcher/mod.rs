@@ -31,6 +31,7 @@
 //! - `adapters` — 어댑터 파일 캐스케이드 재동기화 + 드리프트 감지.
 //! - `emit` — Tauri 이벤트 방출 헬퍼.
 //! - `classify` — 경로·이벤트 종류를 가르는 순수 술어.
+//! - `repeat` — 윈도우가 같은 쓰기를 두 번 알리는 것을 걷는 기억 (윈도우만 켠다).
 //!
 //! See `docs/major_update/oculpm/W2/PR3-watcher-notify.md`.
 
@@ -40,6 +41,7 @@ mod emit;
 mod handle;
 mod hooks;
 mod journal;
+mod repeat;
 #[cfg(test)]
 mod tests;
 
@@ -157,6 +159,7 @@ impl ProjectWatcher {
             draft_lock: Arc::new(tokio::sync::Mutex::new(())),
             stats: stats.clone(),
             root_gone_logged: std::sync::atomic::AtomicBool::new(false),
+            repeats: repeat::RepeatFilter::default(),
         };
 
         // PR-CI0 — 앱이 꺼진 동안 큐잉된 훅 이벤트를 즉시 소비한다. 인박스는

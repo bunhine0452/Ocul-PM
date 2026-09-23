@@ -167,7 +167,20 @@ pub fn prune_stale(dir: &Path, now: SystemTime) {
 
 fn touch(path: &Path) {
     // 내용은 없다 — 이 파일들은 mtime 이 전부다. 이미 있으면 mtime 만 갱신한다.
-    let _ = std::fs::write(path, b"");
+    #[cfg(not(windows))]
+    {
+        // POSIX: O_TRUNC 로 연 기존 파일은 0바이트여도 mtime 이 갱신된다.
+        let _ = std::fs::write(path, b"");
+    }
+    // NTFS 는 빈 파일을 빈 내용으로 다시 열면(CREATE_ALWAYS + 0바이트 쓰기) 수정
+    // 시각을 **안** 바꾼다 — 생존 흔적이 첫 턴의 시각에 멈춰 옆 대화가 이 대화를
+    // 죽은 것으로 센다. 그래서 시각을 직접 찍는다.
+    #[cfg(windows)]
+    {
+        if let Ok(file) = std::fs::File::create(path) {
+            let _ = file.set_times(std::fs::FileTimes::new().set_modified(SystemTime::now()));
+        }
+    }
 }
 
 fn backdate(path: &Path) {

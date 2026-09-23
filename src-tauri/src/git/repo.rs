@@ -155,22 +155,28 @@ pub fn repo_root_for(path: &Path) -> Option<PathBuf> {
 /// to symlinked roots (e.g. macOS `/var` → `/private/var`, which `rev-parse
 /// --show-toplevel` canonicalizes but `root.join(path)` does not) and to deleted
 /// files (canonicalizes the parent dir, re-attaches the file name).
+///
+/// 윈도우: `rev-parse --show-toplevel` 은 `C:/Users/runneradmin/…`(긴 이름·`/`) 를,
+/// `canonicalize` 는 `\\?\C:\Users\runneradmin\…` 를 준다. 호출부의 `abs` 는 임시
+/// 디렉터리처럼 8.3 짧은 이름(`RUNNER~1`)일 수도 있다. 그래서 저장소 쪽도 실경로로
+/// 펴고, 비교는 `\\?\` 를 걷은 모양으로 한다 ([`super::relative_to`]). 결과는 git
+/// pathspec 이라 늘 `/` 구분이다 — `HEAD:<rel>` 은 `\` 를 받지 않는다.
 pub(super) fn repo_relative(repo: &Path, abs: &Path) -> Option<String> {
+    #[cfg(windows)]
+    let repo = &std::fs::canonicalize(repo).unwrap_or_else(|_| repo.to_path_buf());
     if let Ok(real) = std::fs::canonicalize(abs) {
-        if let Ok(rel) = real.strip_prefix(repo) {
-            return Some(rel.to_string_lossy().to_string());
+        if let Some(rel) = super::relative_to(repo, &real) {
+            return Some(rel);
         }
     }
     if let (Some(parent), Some(name)) = (abs.parent(), abs.file_name()) {
         if let Ok(preal) = std::fs::canonicalize(parent) {
-            if let Ok(rel) = preal.strip_prefix(repo) {
-                return Some(rel.join(name).to_string_lossy().to_string());
+            if let Some(rel) = super::relative_to(repo, &preal.join(name)) {
+                return Some(rel);
             }
         }
     }
-    abs.strip_prefix(repo)
-        .ok()
-        .map(|p| p.to_string_lossy().to_string())
+    super::relative_to(repo, abs)
 }
 
 /// Find the git work-tree root(s) relevant to a project at `root`. The common

@@ -117,7 +117,9 @@ impl PreFilter {
         let Ok(rel) = path.strip_prefix(&self.root) else {
             return true;
         };
-        let rel_str = rel.to_string_lossy();
+        // 소비자와 같은 저장 모양(`/`)으로 — 윈도우의 `\` 면 `.oculpm/` 판정이 빗나가
+        // 일지·계획 이벤트를 사용자의 gitignore 로 삼킨다.
+        let rel_str = crate::git::slash(rel);
         if rel_str.is_empty() || rel_str == ".oculpm" || rel_str.starts_with(".oculpm/") {
             return true;
         }

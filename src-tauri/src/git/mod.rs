@@ -18,6 +18,7 @@
 //! | `blob` | `<rev>:<path>` 객체 접근 — 크기·바이트·HEAD 존재 여부 |
 //! | `gutter` | 에디터 거터 — HEAD 블롭 대 현재 버퍼의 줄 변경 |
 //! | `nesting` | 프로젝트 루트와 저장소 루트의 상하 관계·경로 되맞춤 |
+//! | `path_form` | 경로의 저장 모양 — `/` 구분 상대 경로 · 윈도우 `\\?\` 접두 걷기 |
 
 mod blob;
 mod changelog;
@@ -26,6 +27,7 @@ mod diff;
 mod gutter;
 mod history;
 pub mod nesting; // 루트 관계와 경로 되맞춤 ({#rebase-other-direction})
+mod path_form;
 mod repo;
 mod status;
 
@@ -44,6 +46,7 @@ pub use gutter::{diff_line_changes, line_changes, GitLineChange, GitLineChangeKi
 pub use history::{
     commits_for_backfill, graph, log, BackfillCommit, BackfillFileChange, GitCommit, GitGraphCommit,
 };
+pub use path_form::{plain, relative_to, slash};
 pub(crate) use repo::EMPTY_TREE;
 pub use repo::{primary_repo, repo_root_for};
 pub(crate) use repo::{unquote_git_path, QUOTEPATH_OFF};

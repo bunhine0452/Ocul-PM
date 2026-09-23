@@ -22,9 +22,11 @@
 //! [`leases::expired`](super::leases) 가 읽으므로, **살아 있는 세션의 작업 구역을
 //! 뺏는** 길이 열려 있었다. 이제 걷는 것은 `Dead` 뿐이다.
 //!
-//! 모름이 나오는 자리는 셋이다: 윈도우(값싼 pid 확인 수단이 없다), 하트비트
-//! 시각을 파싱하지 못한 카드, `kill(2)` 가 `ESRCH`·`EPERM` 도 아닌 오류를 낸
-//! 경우. 셋 다 "아직 모른다"이지 "없다"가 아니다.
+//! 모름이 나오는 자리는 둘이다: 하트비트 시각을 파싱하지 못한 카드, 그리고
+//! pid 판정([`crate::pid`])이 답을 못 낸 경우 — 유닉스 `kill(2)` 가 `ESRCH`·`EPERM`
+//! 도 아닌 오류를 냈거나 윈도우 `OpenProcess` 가 권한·부재 밖의 이유로 실패했다.
+//! 둘 다 "아직 모른다"이지 "없다"가 아니다. (윈도우는 예전엔 늘 모름이었다 —
+//! 이제는 안다.)
 //!
 //! 그리고 이 판정은 **화면과 청소를 위한 가드이지 분산 락이 아니다.** 카드가
 //! 살아 있다고 해서 그 프로세스가 지금 무엇을 하는지 알 수 없고, 죽었다고 해서
@@ -197,7 +199,7 @@ pub fn list_live(root: &Path, now: DateTime<Utc>) -> Vec<AgentCard> {
 /// 죽은 카드를 지운다. 지운 개수를 돌려준다.
 ///
 /// **`Dead` 만 걷는다.** `!is_live` 로 쓰면 모름까지 지워져, 판정할 수 없는
-/// 세션(윈도우·시각이 깨진 카드)이 목록에서 사라지고 그 임대가 풀린다.
+/// 세션(pid 판정 불가·시각이 깨진 카드)이 목록에서 사라지고 그 임대가 풀린다.
 pub fn sweep(root: &Path, now: DateTime<Utc>) -> usize {
     read_all(root)
         .into_iter()
@@ -231,7 +233,7 @@ pub fn liveness(card: &AgentCard, now: DateTime<Utc>) -> Liveness {
                 // 시각을 못 읽어도 pid 는 살아 있다 — 그것만으로 충분한 근거다.
                 _ => Liveness::Live,
             },
-            // pid 를 못 물어본다(윈도우 등) — 하트비트가 새것이면 살아 있다고
+            // pid 를 못 물어본다(판정 불가) — 하트비트가 새것이면 살아 있다고
             // 보고, 아니면 **모른다.** 죽었다고 단정할 근거가 없다.
             Liveness::Unknown => match beat {
                 Some(beat) if now - beat < Duration::minutes(REMOTE_TTL_MINUTES) => Liveness::Live,
@@ -256,37 +258,18 @@ pub fn is_live(card: &AgentCard, now: DateTime<Utc>) -> bool {
     liveness(card, now) == Liveness::Live
 }
 
-/// 이 pid 로 도는 프로세스가 있는가.
+/// 이 pid 로 도는 프로세스가 있는가 — 판정은 [`crate::pid`] 한 곳이 소유한다.
 ///
-/// 유닉스는 `kill(pid, 0)` 이 정답이다 — 시그널을 보내지 않고 존재만 묻는다
-/// (권한이 없으면 `EPERM` 인데, 그것도 "있다"는 뜻이라 살아 있는 것으로 친다).
-/// 윈도우에는 값싼 대응물이 없어 **모른다 = 살아 있다**로 두고 하트비트에
-/// 맡긴다 — 죽은 것을 산 것으로 잠깐 보는 편이, 산 것을 죽었다고 지워
-/// 위임을 허공으로 보내는 것보다 낫다.
-#[cfg(unix)]
+/// 유닉스는 `kill(pid, 0)` (권한이 없어 `EPERM` 이어도 "있다"), 윈도우는
+/// `OpenProcess` + `GetExitCodeProcess` 다. 판정할 수 없으면 **모른다** — 그러면
+/// 위 [`liveness`] 가 하트비트에 맡긴다. 청소는 `Dead` 만 걷으므로 산 것을 지우지
+/// 않는다.
 fn pid_state(pid: u32) -> Liveness {
-    if pid == 0 {
-        return Liveness::Dead;
+    match crate::pid::state(pid) {
+        crate::pid::State::Alive => Liveness::Live,
+        crate::pid::State::Dead => Liveness::Dead,
+        crate::pid::State::Unknown => Liveness::Unknown,
     }
-    let rc = unsafe { libc::kill(pid as libc::pid_t, 0) };
-    if rc == 0 {
-        return Liveness::Live;
-    }
-    match std::io::Error::last_os_error().raw_os_error() {
-        // 남의 소유 프로세스 — 시그널은 못 보내지만 **있다.**
-        Some(libc::EPERM) => Liveness::Live,
-        Some(libc::ESRCH) => Liveness::Dead,
-        // EINVAL 같은 그 밖의 오류는 pid 의 생사를 말해 주지 않는다.
-        _ => Liveness::Unknown,
-    }
-}
-
-#[cfg(not(unix))]
-fn pid_state(_pid: u32) -> Liveness {
-    // 윈도우에는 값싼 대응물이 없다. 예전에는 여기서 `true`(살아 있음)를
-    // 돌려줬는데, 그건 모르는 것을 아는 척한 것이다. 모른다고 말하고 하트비트로
-    // 넘긴다 — 그래도 청소는 `Dead` 만 걷으므로 산 것을 지우지 않는다.
-    Liveness::Unknown
 }
 
 #[cfg(test)]
