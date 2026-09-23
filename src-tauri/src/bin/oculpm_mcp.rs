@@ -43,7 +43,7 @@ fn main() {
     let root = root
         .or_else(|| std::env::var("OCULPM_ROOT").ok().map(Into::into))
         .unwrap_or_else(|| std::env::current_dir().expect("cwd"));
-    let root = root.canonicalize().unwrap_or(root);
+    let root = canonical_root(root);
     if !root.is_dir() {
         eprintln!("oculpm-mcp: root is not a directory: {}", root.display());
         std::process::exit(2);
@@ -126,4 +126,64 @@ fn main() {
         }
     }
     eprintln!("oculpm-mcp: stdin closed — exiting");
+}
+
+/// 루트를 정규화한다. Windows 의 `canonicalize` 는 **verbatim** 표기
+/// (`\\?\C:\…`)를 돌려주는데, 그 표기는 git 의 `-C`·자식 프로세스의 작업 폴더·
+/// 다른 도구가 제대로 못 읽고 응답 문구로도 새어 나간다 — 일반 표기로 되돌린다
+/// (크로스플랫폼 {#integ-sidecar}). macOS·Linux 는 그대로다.
+fn canonical_root(root: std::path::PathBuf) -> std::path::PathBuf {
+    let canonical = root.canonicalize().unwrap_or(root);
+    if !cfg!(windows) {
+        return canonical;
+    }
+    match simplify_verbatim(&canonical.to_string_lossy()) {
+        Some(plain) => plain.into(),
+        None => canonical,
+    }
+}
+
+/// `\\?\C:\x` → `C:\x`, `\\?\UNC\srv\share\x` → `\\srv\share\x`. verbatim 이
+/// 아니거나, 일반 표기로는 못 여는 길이(MAX_PATH 260)면 `None` — 그대로 둔다.
+fn simplify_verbatim(path: &str) -> Option<String> {
+    let plain = if let Some(unc) = path.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{unc}")
+    } else {
+        let rest = path.strip_prefix(r"\\?\")?;
+        let bytes = rest.as_bytes();
+        let is_disk = bytes.len() >= 2
+            && bytes[0].is_ascii_alphabetic()
+            && bytes[1] == b':'
+            && (bytes.len() == 2 || bytes[2] == b'\\');
+        if !is_disk {
+            return None;
+        }
+        rest.to_string()
+    };
+    (plain.chars().count() < 260).then_some(plain)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::simplify_verbatim;
+
+    #[test]
+    fn verbatim_windows_paths_fold_back_to_the_plain_form() {
+        assert_eq!(
+            simplify_verbatim(r"\\?\C:\Users\kim\proj").as_deref(),
+            Some(r"C:\Users\kim\proj")
+        );
+        assert_eq!(simplify_verbatim(r"\\?\D:").as_deref(), Some("D:"));
+        assert_eq!(
+            simplify_verbatim(r"\\?\UNC\nas\work\proj").as_deref(),
+            Some(r"\\nas\work\proj")
+        );
+        // verbatim 이 아니거나 디스크가 아닌 장치 경로는 손대지 않는다.
+        assert_eq!(simplify_verbatim(r"C:\Users\kim"), None);
+        assert_eq!(simplify_verbatim("/Users/kim/proj"), None);
+        assert_eq!(simplify_verbatim(r"\\?\Volume{abc}\x"), None);
+        // 일반 표기로는 못 여는 긴 경로는 verbatim 그대로.
+        let long = format!(r"\\?\C:\{}", "a".repeat(300));
+        assert_eq!(simplify_verbatim(&long), None);
+    }
 }

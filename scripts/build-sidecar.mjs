@@ -8,7 +8,7 @@
 // 강제한다 (macos-latest 러너는 arm64 → 호스트 == CI 타깃).
 import { execSync } from "node:child_process";
 import { copyFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -64,8 +64,15 @@ execSync(`cargo build --release --bin oculpm-mcp --target ${triple}`, {
   stdio: "inherit",
 });
 
-const ext = process.platform === "win32" ? ".exe" : "";
-const built = join(srcTauri, "target", triple, "release", `oculpm-mcp${ext}`);
+// 확장자는 **타깃** triple 이 정한다 — build.rs 의 자리표시자 이름과 같은 규칙
+// (`x86_64-pc-windows-msvc` → `.exe`). tauri externalBin 이 찾는 이름이 이것이다.
+const ext = triple.includes("windows") ? ".exe" : "";
+// CARGO_TARGET_DIR 이 있으면 cargo 는 그리로 쓴다 (병렬 worktree 가 target 을
+// 공유할 때 — 상대경로면 cargo 를 돌린 src-tauri 기준).
+const targetDir = process.env.CARGO_TARGET_DIR
+  ? resolve(srcTauri, process.env.CARGO_TARGET_DIR)
+  : join(srcTauri, "target");
+const built = join(targetDir, triple, "release", `oculpm-mcp${ext}`);
 // build.rs 가 만든 0바이트 플레이스홀더가 번들로 출하되는 사고 방지 —
 // 실빌드 산출물만 통과시킨다.
 const size = statSync(built).size;

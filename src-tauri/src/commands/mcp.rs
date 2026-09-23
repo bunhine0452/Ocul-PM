@@ -2,13 +2,16 @@
 //!
 //! 설정 → Agents 의 "MCP 서버" 블록이 부른다. 로직은 `oculpm::mcp::register`
 //! 소유 — 여기는 루트 해석·바이너리 탐색·에러 문자열 변환만 (commands 는 얇게).
+//! 다른 도구의 설정 위치(OS 별)는 `oculpm::paths` 한 곳이 안다.
 
 use tauri::State;
 
 use crate::db::Db;
 use crate::oculpm::mcp::{
     codex::{self, CodexPluginStatus, CodexRegistrationStatus},
-    register::{self, resolve_binary_path, DesktopRegistrationStatus, McpRegistrationStatus},
+    register::{
+        self, locate_binary, resolve_binary_path, DesktopRegistrationStatus, McpRegistrationStatus,
+    },
 };
 
 fn desktop_config_path() -> Result<std::path::PathBuf, String> {
@@ -45,9 +48,7 @@ pub async fn mcp_register(
     project_id: u32,
 ) -> Result<McpRegistrationStatus, String> {
     let root = project_root(&db, project_id).await?;
-    let binary = resolve_binary_path().ok_or_else(|| {
-        "Could not find the oculpm-mcp binary - in dev, run `cargo build --bin oculpm-mcp` and retry".to_string()
-    })?;
+    let binary = locate_binary()?;
     register::register_with_binary(&root, &binary).map_err(|e| e.to_string())
 }
 
@@ -78,9 +79,7 @@ pub fn codex_mcp_status() -> Result<CodexRegistrationStatus, String> {
 #[tauri::command]
 #[specta::specta]
 pub fn codex_mcp_register() -> Result<CodexRegistrationStatus, String> {
-    let binary = resolve_binary_path().ok_or_else(|| {
-        "Could not find the oculpm-mcp binary - in dev, run `cargo build --bin oculpm-mcp` and retry".to_string()
-    })?;
+    let binary = locate_binary()?;
     codex::register_at(&codex_config_path()?, &binary).map_err(|e| e.to_string())
 }
 
@@ -121,9 +120,7 @@ pub async fn mcp_desktop_register(
     project_id: u32,
 ) -> Result<DesktopRegistrationStatus, String> {
     let root = project_root(&db, project_id).await?;
-    let binary = resolve_binary_path().ok_or_else(|| {
-        "Could not find the oculpm-mcp binary - in dev, run `cargo build --bin oculpm-mcp` and retry".to_string()
-    })?;
+    let binary = locate_binary()?;
     register::desktop_register_at(&desktop_config_path()?, &root, &binary)
         .map_err(|e| e.to_string())
 }
@@ -159,8 +156,7 @@ pub fn claude_plugin_status() -> ClaudePluginStatus {
         installed: false,
         path: None,
     };
-    let Some(base) =
-        directories::BaseDirs::new().map(|b| b.home_dir().join(".claude").join("plugins"))
+    let Some(base) = crate::oculpm::paths::claude_code_home().map(|home| home.join("plugins"))
     else {
         return none;
     };

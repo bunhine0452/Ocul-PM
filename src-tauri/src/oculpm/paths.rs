@@ -348,6 +348,12 @@ pub fn rollup_rel(week: &str) -> String {
     format!(".oculpm/rollups/{week}.md")
 }
 
+// 다른 도구(Claude Desktop · Claude Code · Codex)의 설정 위치와 사이드카 안정
+// 자리 — 크로스플랫폼 {#integ-paths}. 규칙표와 세 OS 테스트가 길어 옆 파일에
+// 두고, 호출자는 여기(`paths::…`)로 부른다.
+mod tool_config;
+pub use tool_config::*;
+
 #[cfg(test)]
 mod tests {
     use super::*;

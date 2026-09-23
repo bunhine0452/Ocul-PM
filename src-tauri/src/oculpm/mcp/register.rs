@@ -17,6 +17,7 @@ use serde_json::{json, Map, Value};
 
 use crate::oculpm::atomic_io;
 use crate::oculpm::error::{OculpmError, OculpmResult};
+use crate::oculpm::paths;
 
 pub const MCP_JSON_REL: &str = ".mcp.json";
 /// `.mcp.json` `mcpServers` 아래 우리 키.
@@ -38,18 +39,158 @@ pub struct McpRegistrationStatus {
     pub foreign_servers: u32,
 }
 
-/// 실행 파일 옆의 `oculpm-mcp` — dev(`target/debug/`)와 번들(.app 의
-/// `Contents/MacOS/`) 모두 메인 바이너리의 형제 경로다.
+/// 사이드카 파일 이름 — tauri externalBin 이 `-<triple>` 을 떼고 메인 실행 파일
+/// 옆에 이 이름으로 둔다.
+pub const SIDECAR_NAME: &str = if cfg!(windows) {
+    "oculpm-mcp.exe"
+} else {
+    "oculpm-mcp"
+};
+
+/// 사이드카를 못 찾았을 때 화면에 싣는 문구.
+pub const BINARY_NOT_FOUND: &str =
+    "Could not find the oculpm-mcp binary - in dev, run `cargo build --bin oculpm-mcp` and retry";
+
+/// 다른 앱 설정에 적을 사이드카 경로 — 상태 표시용(`None` = 못 찾음). 왜
+/// 못 찾았는지가 필요한 등록 경로는 [`locate_binary`] 를 쓴다.
 pub fn resolve_binary_path() -> Option<PathBuf> {
-    let exe = std::env::current_exe().ok()?;
-    let dir = exe.parent()?;
-    let name = if cfg!(windows) {
-        "oculpm-mcp.exe"
+    match locate_binary() {
+        Ok(path) => Some(path),
+        // 못 찾은 것은 상태가 말한다. 그 밖(AppImage 복사 실패)은 로그에도 남긴다.
+        Err(e) if e == BINARY_NOT_FOUND => None,
+        Err(e) => {
+            tracing::warn!(target: "oculpm::mcp", error = %e, "oculpm-mcp 사이드카 안정 사본 실패");
+            None
+        }
+    }
+}
+
+/// 다른 앱(Claude Code · Codex · Claude Desktop) 설정에 적을 사이드카 경로.
+///
+/// - macOS · Windows · deb: 메인 실행 파일의 **형제** — dev(`target/debug/`),
+///   `.app` 의 `Contents/MacOS/`, NSIS 설치 폴더(`%LOCALAPPDATA%\Ocul-PM\`),
+///   deb 의 `/usr/bin/`. 셋 다 앱이 꺼져도 남는 자리다.
+/// - Linux AppImage: 형제는 실행 중에만 있는 마운트(`/tmp/.mount_XXXX`) 안이다 —
+///   그 경로를 적으면 앱이 꺼지는 순간 죽는다(D10). 안정 자리
+///   ([`paths::stable_sidecar_dir`])로 복사한 사본을 준다.
+pub fn locate_binary() -> Result<PathBuf, String> {
+    let exe = std::env::current_exe()
+        .map_err(|e| format!("Could not resolve the app executable: {e}"))?;
+    let appdir = if cfg!(target_os = "linux") {
+        std::env::var_os("APPDIR").map(PathBuf::from)
     } else {
-        "oculpm-mcp"
+        None
     };
-    let candidate = dir.join(name);
-    candidate.is_file().then_some(candidate)
+    locate_binary_from(
+        &exe,
+        appdir.as_deref(),
+        paths::stable_sidecar_dir().as_deref(),
+    )
+}
+
+/// [`locate_binary`] 의 판정 — 입력을 받는 순수 함수라 세 OS 러너가 같은 표를 문다.
+pub fn locate_binary_from(
+    exe: &Path,
+    appdir: Option<&Path>,
+    stable_dir: Option<&Path>,
+) -> Result<PathBuf, String> {
+    let sibling = exe
+        .parent()
+        .map(|dir| dir.join(SIDECAR_NAME))
+        .filter(|p| p.is_file())
+        .ok_or_else(|| BINARY_NOT_FOUND.to_string())?;
+    if !runs_from_appimage(exe, appdir) {
+        return Ok(sibling);
+    }
+    let dir = stable_dir
+        .ok_or("Could not find the user data folder for the AppImage copy of oculpm-mcp")?;
+    let dst = dir.join(SIDECAR_NAME);
+    install_stable_copy(&sibling, &dst).map_err(|e| {
+        format!(
+            "Could not copy oculpm-mcp out of the AppImage to {}: {e}",
+            dst.display()
+        )
+    })?;
+    Ok(dst)
+}
+
+/// 이 실행 파일이 AppImage 마운트 안에서 도나. `APPDIR` 은 AppImage 런타임이
+/// 싣는 마운트 지점인데 **자식에게도 물려진다** — 앱 내장 터미널에서 띄운 deb
+/// 판처럼 변수만 있고 마운트 밖인 경우가 있어, 변수 존재가 아니라 경로 포함으로 본다.
+pub fn runs_from_appimage(exe: &Path, appdir: Option<&Path>) -> bool {
+    appdir.is_some_and(|dir| !dir.as_os_str().is_empty() && exe.starts_with(dir))
+}
+
+/// [`install_stable_copy`] 가 한 일.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StableCopy {
+    /// 내용이 같아 손대지 않았다 (mtime 도 그대로).
+    Unchanged,
+    /// 새로 썼다 (없었거나 내용이 달랐다 — AppImage 업데이트 뒤).
+    Written,
+}
+
+/// `src` 를 `dst` 로 복사하되 **내용이 같으면 손대지 않는다**. 다르면 옆 임시
+/// 파일에 복사한 뒤 `rename` 으로 바꾼다 — 그 경로로 떠 있는 MCP 서버를 제자리
+/// 덮어쓰면 `ETXTBSY` 지만, `rename` 은 되고 옛 프로세스는 옛 inode 를 계속 쓴다.
+pub fn install_stable_copy(src: &Path, dst: &Path) -> std::io::Result<StableCopy> {
+    if dst.is_file() && same_contents(src, dst)? {
+        return Ok(StableCopy::Unchanged);
+    }
+    let dir = dst.parent().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "destination has no parent",
+        )
+    })?;
+    std::fs::create_dir_all(dir)?;
+    let tmp = dir.join(format!(".{SIDECAR_NAME}.tmp-{}", std::process::id()));
+    let staged = std::fs::copy(src, &tmp)
+        .and_then(|_| mark_executable(&tmp))
+        .and_then(|()| std::fs::rename(&tmp, dst));
+    if staged.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    staged.map(|()| StableCopy::Written)
+}
+
+fn same_contents(a: &Path, b: &Path) -> std::io::Result<bool> {
+    if std::fs::metadata(a)?.len() != std::fs::metadata(b)?.len() {
+        return Ok(false);
+    }
+    let digest = |p: &Path| -> std::io::Result<blake3::Hash> {
+        let mut hasher = blake3::Hasher::new();
+        hasher.update_reader(std::fs::File::open(p)?)?;
+        Ok(hasher.finalize())
+    };
+    Ok(digest(a)? == digest(b)?)
+}
+
+#[cfg(unix)]
+fn mark_executable(path: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
+}
+
+#[cfg(not(unix))]
+fn mark_executable(_path: &Path) -> std::io::Result<()> {
+    Ok(())
+}
+
+/// 기동 때 부른다 — **Linux AppImage 에서만** 안정 사본을 새로 고친다(업데이트로
+/// 바뀐 사이드카가 옛 사본 뒤에 숨지 않게). 그 밖의 설치에서는 아무것도 하지 않고
+/// `Ok(None)`. 연결 자리는 `lib.rs` 의 setup (L-OS 합류 diff).
+pub fn refresh_stable_sidecar() -> Result<Option<PathBuf>, String> {
+    if !cfg!(target_os = "linux") {
+        return Ok(None);
+    }
+    let exe = std::env::current_exe()
+        .map_err(|e| format!("Could not resolve the app executable: {e}"))?;
+    let appdir = std::env::var_os("APPDIR").map(PathBuf::from);
+    if !runs_from_appimage(&exe, appdir.as_deref()) {
+        return Ok(None);
+    }
+    locate_binary().map(Some)
 }
 
 fn mcp_json_path(root: &Path) -> PathBuf {
@@ -143,15 +284,10 @@ pub struct DesktopRegistrationStatus {
     pub foreign_servers: u32,
 }
 
-/// Claude Desktop 설정 파일 경로. `directories::BaseDirs::config_dir()` 가
-/// macOS `~/Library/Application Support` / Windows Roaming AppData /
-/// Linux `~/.config` 를 모두 맞게 준다.
+/// Claude Desktop 설정 파일 경로 — OS 별 자리(Windows MSIX 판 포함)는
+/// [`paths::claude_desktop_config_path`] 한 곳이 안다.
 pub fn desktop_config_path() -> Option<PathBuf> {
-    directories::BaseDirs::new().map(|b| {
-        b.config_dir()
-            .join("Claude")
-            .join("claude_desktop_config.json")
-    })
+    paths::claude_desktop_config_path()
 }
 
 /// 이 프로젝트의 엔트리인가 — 서명 바이너리 + `--root` 인자가 같은 루트.
@@ -337,10 +473,6 @@ pub fn unregister_with_binary(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::oculpm::mcp::codex::{
-        plugin_status_at as codex_plugin_status_at, register_at as codex_register_at,
-        status_at as codex_status_at, unregister_at as codex_unregister_at,
-    };
     use tempfile::TempDir;
 
     fn fake_binary(dir: &Path) -> PathBuf {
@@ -542,143 +674,110 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&config).unwrap(), "{ broken !!");
     }
 
-    /// 등록은 **키 하나에 인자 없이** 쓴다 — `~/.codex/config.toml` 은 머신
-    /// 전역이라 `--root` 를 박으면 다른 프로젝트의 기록까지 그리로 간다.
+    /// Windows 경로(`\`)가 JSON 으로 오가도 루트 판정이 맞는다 — 문자열은
+    /// serde 가 이스케이프한다. 세 OS 러너가 같은 문자열로 돈다.
     #[test]
-    fn codex_register_writes_one_rootless_server_and_preserves_the_rest() {
+    fn desktop_register_roundtrips_windows_paths() {
         let dir = TempDir::new().unwrap();
-        let binary = fake_binary(dir.path());
-        let config = dir.path().join(".codex").join("config.toml");
+        let config = dir.path().join("Claude").join("claude_desktop_config.json");
         std::fs::create_dir(config.parent().unwrap()).unwrap();
-        std::fs::write(
-            &config,
-            "# Keep this user preference.\nmodel = \"gpt-5\"\n\n[mcp_servers.notion]\nurl = \"https://mcp.notion.com/mcp\"\n",
-        )
-        .unwrap();
+        let root = PathBuf::from(r"C:\Users\Kim Hyunbin\proj");
+        let binary = PathBuf::from(r"C:\Users\Kim Hyunbin\AppData\Local\Ocul-PM\oculpm-mcp.exe");
 
-        let st = codex_register_at(&config, &binary).unwrap();
-        assert!(st.installed && st.registered && st.binary_found);
-        assert_eq!(st.server_key, "oculpm");
-        assert_eq!(st.pinned_root, None, "루트를 박지 않는다");
-        assert_eq!(st.foreign_servers, 1);
+        let st = desktop_register_at(&config, &root, &binary).unwrap();
+        assert!(st.registered);
+        let v: Value = serde_json::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
+        let entry = &v["mcpServers"][&st.server_key];
+        assert_eq!(entry["command"].as_str(), binary.to_str());
+        assert_eq!(entry["args"][1].as_str(), root.to_str());
+        assert!(desktop_status_at(&config, &root).unwrap().registered);
+        assert!(!desktop_unregister_at(&config, &root).unwrap().registered);
+    }
 
-        let written = std::fs::read_to_string(&config).unwrap();
-        assert!(written.contains("# Keep this user preference."));
-        assert!(written.contains("[mcp_servers.notion]"));
-        let parsed: toml::Value = toml::from_str(&written).unwrap();
-        let ours = &parsed["mcp_servers"]["oculpm"];
-        assert!(
-            ours.get("args").is_none(),
-            "args 가 있으면 루트가 박힌 것이다"
-        );
+    // ─── 사이드카 자리 (#integ-sidecar) ─────────────────────────────────────
+
+    fn app_dir_with_sidecar(dir: &Path, body: &str) -> PathBuf {
+        std::fs::create_dir_all(dir).unwrap();
+        std::fs::write(dir.join(SIDECAR_NAME), body).unwrap();
+        dir.join("ocul-pm")
+    }
+
+    /// macOS `.app` · Windows 설치 폴더 · deb `/usr/bin` — 형제가 곧 안정 자리다.
+    #[test]
+    fn outside_an_appimage_the_sidecar_is_the_executables_sibling() {
+        let tmp = TempDir::new().unwrap();
+        let exe = app_dir_with_sidecar(&tmp.path().join("bin"), "x");
+        let stable = tmp.path().join("share");
+        let sibling = tmp.path().join("bin").join(SIDECAR_NAME);
         assert_eq!(
-            ours["command"].as_str(),
-            Some(binary.to_string_lossy().as_ref())
+            locate_binary_from(&exe, None, Some(&stable)),
+            Ok(sibling.clone())
         );
-
-        let st = codex_unregister_at(&config, Some(&binary)).unwrap();
-        assert!(!st.registered);
-        let after = std::fs::read_to_string(&config).unwrap();
-        assert!(after.contains("[mcp_servers.notion]"));
-        assert!(!after.contains("oculpm"));
-    }
-
-    /// v2.39.0 이 쓴 **프로젝트별·루트 박힌** 항목은 걷어내고 하나로 수렴한다.
-    /// 그대로 두면 유튜브 프로젝트의 Codex 가 이 저장소에 일지를 쓴다 (실제 사고).
-    #[test]
-    fn codex_register_collapses_legacy_pinned_entries() {
-        let dir = TempDir::new().unwrap();
-        let binary = fake_binary(dir.path());
-        let config = dir.path().join(".codex").join("config.toml");
-        std::fs::create_dir(config.parent().unwrap()).unwrap();
-        std::fs::write(
-            &config,
-            format!(
-                "[mcp_servers.oculpm-ai-pm]\ncommand = \"{bin}\"\nargs = [\"--root\", \"/x/ai-pm\"]\n\n\
-                 [mcp_servers.oculpm-other]\ncommand = \"{bin}\"\nargs = [\"--root\", \"/x/other\"]\n",
-                bin = binary.to_string_lossy()
-            ),
-        )
-        .unwrap();
-
-        // 상태는 「박혀 있다」고 먼저 말해야 한다 — 화면이 다시 등록하라고 할 근거.
-        let before = codex_status_at(&config, Some(&binary)).unwrap();
-        assert!(before.registered);
-        assert!(before.pinned_root.is_some(), "레거시 고정 루트를 짚는다");
-
-        let st = codex_register_at(&config, &binary).unwrap();
-        assert_eq!(st.pinned_root, None);
-        let parsed: toml::Value =
-            toml::from_str(&std::fs::read_to_string(&config).unwrap()).unwrap();
-        let servers = parsed["mcp_servers"].as_table().unwrap();
-        assert_eq!(servers.len(), 1, "우리 항목은 하나로 수렴한다");
-        assert!(servers.contains_key("oculpm"));
-    }
-
-    #[test]
-    fn codex_register_refuses_missing_config_directory_and_broken_toml() {
-        let dir = TempDir::new().unwrap();
-        let binary = fake_binary(dir.path());
-        let missing = dir.path().join("missing").join("config.toml");
-        assert!(!codex_status_at(&missing, Some(&binary)).unwrap().installed);
-        assert!(codex_register_at(&missing, &binary).is_err());
-        assert!(!missing.exists(), "Codex 설정 폴더를 창조하지 않는다");
-
-        let config = dir.path().join(".codex").join("config.toml");
-        std::fs::create_dir(config.parent().unwrap()).unwrap();
-        std::fs::write(&config, "[mcp_servers\ninvalid = true").unwrap();
-        assert!(codex_status_at(&config, Some(&binary)).is_err());
-        assert!(codex_register_at(&config, &binary).is_err());
-        assert!(codex_unregister_at(&config, Some(&binary)).is_err());
+        // `APPDIR` 이 물려받은 것일 뿐 마운트 밖이면 형제 그대로.
+        let foreign = tmp.path().join("mount");
         assert_eq!(
-            std::fs::read_to_string(&config).unwrap(),
-            "[mcp_servers\ninvalid = true"
+            locate_binary_from(&exe, Some(&foreign), Some(&stable)),
+            Ok(sibling)
+        );
+        assert!(!stable.exists(), "AppImage 가 아니면 사본을 만들지 않는다");
+
+        let bare = tmp.path().join("empty").join("ocul-pm");
+        assert_eq!(
+            locate_binary_from(&bare, None, Some(&stable)),
+            Err(BINARY_NOT_FOUND.to_string())
         );
     }
 
-    // ─── Codex 플러그인 상태 (읽기 전용) ────────────────────────────────
-
-    fn codex_home_with(config: &str) -> TempDir {
-        let dir = TempDir::new().unwrap();
-        std::fs::write(dir.path().join("config.toml"), config).unwrap();
-        dir
-    }
-
+    /// AppImage — 마운트 안의 형제를 안정 자리로 복사하고, 같은 내용이면 손대지
+    /// 않으며, 업데이트로 바뀌면 새로 쓴다 (D10).
     #[test]
-    fn codex_plugin_is_not_claimed_without_a_config() {
-        let home = TempDir::new().unwrap();
-        let st = codex_plugin_status_at(&home.path().join("config.toml"), home.path());
-        assert!(st.codex_installed, "폴더는 있다");
-        assert!(!st.enabled);
-        assert_eq!(st.marketplace, None);
-        assert!(!st.marketplace_configured);
-    }
+    fn inside_an_appimage_the_sidecar_is_copied_out_and_kept_fresh() {
+        let tmp = TempDir::new().unwrap();
+        let mount = tmp.path().join(".mount_ocul");
+        let exe = app_dir_with_sidecar(&mount.join("usr").join("bin"), "v1");
+        let stable = tmp.path().join("share").join("ocul-pm").join("bin");
+        let dst = stable.join(SIDECAR_NAME);
 
-    #[test]
-    fn codex_plugin_reports_marketplace_and_cached_version() {
-        let home = codex_home_with(
-            "[plugins.\"oculpm-codex@oculpm\"]\nenabled = true\n\n\
-             [marketplaces.oculpm]\nsource_type = \"local\"\nsource = \"/x/repo\"\n",
+        assert_eq!(
+            locate_binary_from(&exe, Some(&mount), Some(&stable)),
+            Ok(dst.clone())
         );
-        std::fs::create_dir_all(home.path().join("plugins/cache/oculpm/oculpm-codex/2.38.0"))
-            .unwrap();
-        let st = codex_plugin_status_at(&home.path().join("config.toml"), home.path());
-        assert!(st.enabled);
-        assert_eq!(st.marketplace.as_deref(), Some("oculpm"));
-        assert!(st.marketplace_configured);
-        assert_eq!(st.cached_version.as_deref(), Some("2.38.0"));
+        assert_eq!(std::fs::read_to_string(&dst).unwrap(), "v1");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&dst).unwrap().permissions().mode();
+            assert_eq!(mode & 0o777, 0o755, "다른 앱이 exec 할 수 있어야 한다");
+        }
+
+        let sibling = mount.join("usr").join("bin").join(SIDECAR_NAME);
+        assert_eq!(
+            install_stable_copy(&sibling, &dst).unwrap(),
+            StableCopy::Unchanged
+        );
+        std::fs::write(&sibling, "v2-updated").unwrap();
+        assert_eq!(
+            install_stable_copy(&sibling, &dst).unwrap(),
+            StableCopy::Written
+        );
+        assert_eq!(std::fs::read_to_string(&dst).unwrap(), "v2-updated");
+        let leftovers: Vec<_> = std::fs::read_dir(&stable).unwrap().flatten().collect();
+        assert_eq!(leftovers.len(), 1, "임시 파일이 남았다: {leftovers:?}");
+
+        // 안정 자리를 모르면 마운트 경로로 조용히 넘어가지 않고 실패한다.
+        assert!(locate_binary_from(&exe, Some(&mount), None).is_err());
     }
 
-    /// 항목만 있고 마켓플레이스가 없는 **고아** — Codex 첫 실행 임포트가
-    /// Claude 의 활성 플러그인만 옮겨 오면 이 꼴이 된다 (2026-09-03 실측).
-    /// 화면이 이 상태를 구분해 말할 수 있어야 한다.
     #[test]
-    fn codex_plugin_flags_an_orphaned_entry() {
-        let home = codex_home_with("[plugins.\"oculpm-codex@oculpm\"]\nenabled = true\n");
-        let st = codex_plugin_status_at(&home.path().join("config.toml"), home.path());
-        assert!(st.enabled);
-        assert_eq!(st.marketplace.as_deref(), Some("oculpm"));
-        assert!(!st.marketplace_configured, "마켓플레이스가 없다 = 고아");
-        assert_eq!(st.cached_version, None);
+    fn an_empty_appdir_is_not_an_appimage() {
+        assert!(!runs_from_appimage(
+            Path::new("/x/ocul-pm"),
+            Some(Path::new(""))
+        ));
+        assert!(!runs_from_appimage(Path::new("/x/ocul-pm"), None));
+        assert!(runs_from_appimage(
+            Path::new("/tmp/.mount_a/usr/bin/ocul-pm"),
+            Some(Path::new("/tmp/.mount_a"))
+        ));
     }
 }
