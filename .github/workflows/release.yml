@@ -1,14 +1,45 @@
 name: Release
 
 # Benchmarked from the uvws/PySpace release pipeline. Pushing a `v*` tag builds
-# signed bundles for macOS (Apple Silicon + Intel) and Windows, generates the
-# updater artifacts (.sig + latest.json), and publishes a GitHub Release.
-# The in-app updater then pulls `latest.json` from releases/latest/download.
+# signed bundles for macOS (Apple Silicon), Windows (x64 NSIS — unsigned beta) and
+# Linux (x64 AppImage + deb — beta), generates the updater artifacts (.sig +
+# latest.json), and publishes a GitHub Release. The in-app updater then pulls
+# `latest.json` from releases/latest/download.
+#
+# ── 플랫폼 격리 (크로스플랫폼 W4 · L-REL, 설계 docs/20260923_cross-platform D2·D7) ──
+#
+#   gate ─┬─ macos ──────────────────────────────┐
+#         └─ bundle(win·linux) ─┬─ smoke(win·linux) ─┼─ publish ─ (dryrun-cleanup)
+#                               └─ e2e(win·linux) ───┘
+#
+#   - macOS 잡의 빌드·서명·공증·업데이터 검증은 예전 그대로다. 달라진 것은 **draft 해제가
+#     맨 끝 publish 잡으로 옮겨 간 것** 하나 — 비-mac 항목을 draft 안에서 병합·검증한 뒤
+#     한 번에 공개하려고다(공개된 릴리스의 latest.json 을 나중에 갈아 끼우면 --clobber 의
+#     지웠다-올리는 틈에 업데이터가 404 를 맞고, 병합이 잘못되면 macOS 사용자가 곧바로 맞는다).
+#   - 비-mac 은 태그 커밋에서 **이 릴리스 안에서** 번들 → 깨끗한 러너에서 설치 스모크(L-PKG 의
+#     .github/scripts/install-smoke-*) · 설치본 E2E(e2e/run.mjs --app). 셋 다 통과하고 파일
+#     해시가 번들과 같은 플랫폼만 자산·latest.json 에 오른다. 떨어진 플랫폼은 자산에서도 빠지고
+#     릴리스 본문에 「이번 버전에는 X 빌드가 없다 — 어느 단계」 한 줄이 남는다(notes.mjs).
+#   - 비-mac 이 무엇으로 실패하든(빌드·스모크·E2E·매달림 → timeout) publish 는 macOS 결과만
+#     보고 돈다(`!cancelled() && needs.macos.result == 'success'`). 대가는 시간: macOS 공개가
+#     비-mac 잡이 끝날 때까지(보통 +1시간, 최악 timeout 합) 늦어진다. 막히지는 않는다.
+#   - latest.json 병합·검증 규칙은 .github/scripts/release/latest-json.mjs 한 곳에 있고
+#     픽스처 테스트(release.test.mjs)가 "비-mac 을 더하고 빼도 macOS 항목은 한 글자도 안
+#     바뀐다" 를 증명한다. meta 잡이 빌드 전에 그 테스트부터 돌린다.
+#
+# ── 드라이런 (workflow_dispatch) ──────────────────────────────────────────────
+#   태그 없이 전 과정을 가짜 버전 `0.0.<run_number>` 의 **draft** 로 돈다. 6 버전 파일은
+#   러너 안에서만 바꾸고(dryrun-version.mjs) 커밋하지 않는다. 공개·`--latest` 는 코드 경로에서
+#   막혀 있고(publish 의 draft 단언), 끝에서 draft 를 지운다(keep_draft 로 남길 수 있다).
+#   `fail` 입력으로 비-mac 한 단계를 일부러 실패시켜 macOS 가 멀쩡한지 볼 수 있다.
+#   gate 는 드라이런에서 보고만 한다(브랜치 커밋엔 ci.yml run 이 없다).
 #
 # Required repo secrets:
 #   TAURI_PRIVATE_KEY  — contents of src-tauri/updater.key (the minisign private
 #                        key). Set it once: gh secret set TAURI_PRIVATE_KEY < src-tauri/updater.key
 #   (The key was generated with an empty password, so no password secret is needed.)
+#   같은 키가 Windows(.exe.sig) · Linux(.AppImage.sig) 업데이터 서명도 한다. Windows 코드
+#   서명(Authenticode)은 없다 — 무서명 베타(사용자 결정 2026-09-24).
 #
 #   Apple Developer ID signing + notarization (docs/RELEASE.md 7장):
 #   APPLE_CERTIFICATE           — base64 of the exported Developer ID Application .p12
@@ -32,16 +63,118 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      fail:
+        description: '드라이런에서 일부러 실패시킬 비-mac 단계 (none = 정상 드라이런)'
+        type: choice
+        default: none
+        options:
+          - none
+          - windows-bundle
+          - linux-bundle
+          - windows-smoke
+          - linux-smoke
+          - windows-e2e
+          - linux-e2e
+      keep_draft:
+        description: '드라이런 draft 를 남긴다 (자산·latest.json 을 눈으로 볼 때 — 다 본 뒤 손으로 지운다)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
+  # ── 준비 ──────────────────────────────────────────────────────────────────
+  # 모드(태그 릴리스 / 드라이런) · 태그 · 버전을 한 곳에서 정하고, latest.json 병합 규칙의
+  # 픽스처 테스트를 빌드 **전에** 돌린다 — 병합 스크립트가 깨졌으면 한 시간 빌드를 태우기
+  # 전에 멈춘다.
+  meta:
+    name: 준비 — 모드 · 태그 · 릴리스 스크립트 시험
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      dry_run: ${{ steps.m.outputs.dry_run }}
+      tag: ${{ steps.m.outputs.tag }}
+      version: ${{ steps.m.outputs.version }}
+      fail: ${{ steps.m.outputs.fail }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: 모드 · 태그 · 버전
+        id: m
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          RUN_NUMBER: ${{ github.run_number }}
+          FAIL: ${{ inputs.fail }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            dry_run=true
+            version="0.0.$RUN_NUMBER"
+            tag="v$version"
+            fail="${FAIL:-none}"
+            # 0.0.N 은 드라이런 전용이다. 같은 이름의 태그·공개 릴리스가 있으면 멈춘다 —
+            # draft 는 태그를 만들지 않으므로 태그가 있다는 것부터 이상하다.
+            if gh api "repos/$GH_REPO/git/ref/tags/$tag" >/dev/null 2>&1; then
+              echo "::error::드라이런 태그 $tag 가 원격에 있다 — 지우고 다시 돌릴 것"
+              exit 1
+            fi
+            if state="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null)" && [ "$state" != "true" ]; then
+              echo "::error::$tag 가 공개 릴리스로 있다 — 드라이런은 draft 만 만든다"
+              exit 1
+            fi
+          else
+            dry_run=false
+            tag="$REF_NAME"
+            version="${tag#v}"
+            fail=none
+            if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::태그 $tag 가 vX.Y.Z 모양이 아니다"
+              exit 1
+            fi
+            if [[ "$version" =~ ^0\.0\. ]]; then
+              echo "::error::0.0.N 은 드라이런 전용 버전이다 — 진짜 릴리스 태그로 쓰지 않는다"
+              exit 1
+            fi
+            # latest.json 의 version 은 tauri.conf.json 에서 온다. 어긋나면 한 시간 빌드 뒤에야
+            # macOS 검증이 잡던 것을 여기서 먼저 잡는다 (docs/RELEASE.md §1).
+            conf="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+            if [ "$conf" != "$version" ]; then
+              echo "::error::tauri.conf.json 의 version($conf)이 태그($tag)와 다르다 — 6 버전 파일을 올리고 새로 태그할 것"
+              exit 1
+            fi
+          fi
+          {
+            echo "dry_run=$dry_run"
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "fail=$fail"
+          } >> "$GITHUB_OUTPUT"
+          echo "모드: $([ "$dry_run" = true ] && echo "드라이런 (fail=$fail)" || echo 릴리스) · 태그 $tag · 버전 $version" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: 릴리스 스크립트 시험 (latest.json 병합·검증 · 본문 — node --test)
+        run: node --test .github/scripts/release/release.test.mjs
+
   # 태그가 가리키는 **정확히 그 커밋**에서 ci.yml 이 초록으로 끝났는지 확인한 뒤에만
   # 빌드로 넘어간다 (플랜 astra-feedback-round {#release-ci-gate}). 이 게이트가 없던
   # 동안 v3.1.1 은 cargo-deny 잡이 붉은 커밋(5432b6e)에서 그대로 릴리스됐다 — release.yml
   # 은 테스트를 돌리지 않으니, "main 이 초록인지 보고 태그를 민다" 는 사람의 습관이
   # 유일한 방어였다.
+  #
+  # 이 게이트는 **ci.yml 만** 본다 (D2). portability.yml · e2e.yml 은 보지 않는다 — 비-mac
+  # 잡이 붉어도 macOS 릴리스는 나가야 하고, 비-mac 을 싣느냐는 아래 bundle·smoke·e2e 가
+  # 이 릴리스 안에서 따로 정한다.
   #
   # 폴링하는 이유: 태그는 보통 커밋을 민 지 몇 초 뒤에 밀리므로 그 순간 CI 는
   # queued/in_progress 다. 60초 간격으로 최대 45분(ci.yml Rust 잡의 timeout 40분보다
@@ -52,8 +185,11 @@ jobs:
   # 앞선 run 을 취소한다), 파이프로 이으면 종료 코드는 마지막 명령의 것이 된다. 그래서
   # watch 를 쓰지 않고 API 의 status/conclusion 을 직접 읽는다: success 만 통과,
   # failure · cancelled · timed_out · skipped 는 전부 차단.
+  #
+  # 드라이런은 태그가 없어 이 커밋(브랜치 머리)을 한 번만 보고 **보고만** 한다 — 막지 않는다.
   gate:
     name: 게이트 — 태그 커밋의 CI 통과 확인
+    needs: meta
     runs-on: ubuntu-latest
     # 45회 × 60초 폴링 + API 왕복. 이보다 오래 걸리면 매달린 것이다.
     timeout-minutes: 50
@@ -63,12 +199,13 @@ jobs:
       contents: read
       actions: read
     steps:
-      - name: CI conclusion 폴링 (${{ github.ref_name }} → ${{ github.sha }})
+      - name: CI conclusion 폴링 (${{ needs.meta.outputs.tag }} → ${{ github.sha }})
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 체크아웃이 없어 gh 가 저장소를 스스로 못 찾는다 — 명시한다.
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.meta.outputs.tag }}
+          DRY_RUN: ${{ needs.meta.outputs.dry_run }}
           EVENT_SHA: ${{ github.sha }}
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
           POLL_INTERVAL: '60'
@@ -76,16 +213,33 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 태그 → 커밋. 경량 태그면 ref 가 곧 커밋이고, 주석 태그면 태그 객체를 한 번 더
-          # 풀어야 커밋이 나온다. RELEASE.md 는 경량 태그(`git tag vX.Y.Z`)를 쓰지만
-          # 주석 태그를 밀어도 엉뚱한 sha 로 판정하지 않게 API 로 직접 해석한다.
-          ref="$(gh api "repos/$GH_REPO/git/ref/tags/$TAG")"
-          obj_type="$(jq -r '.object.type' <<<"$ref")"
-          sha="$(jq -r '.object.sha' <<<"$ref")"
-          if [ "$obj_type" = "tag" ]; then
-            sha="$(gh api "repos/$GH_REPO/git/tags/$sha" --jq '.object.sha')"
+          # 막는 자리는 전부 이 함수를 거친다 — 드라이런이면 경고만 남기고 통과시킨다.
+          block() {
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "::warning::(드라이런 — 막지 않는다) $*"
+              exit 0
+            fi
+            echo "::error::$*"
+            exit 1
+          }
+
+          if [ "$DRY_RUN" = "true" ]; then
+            # 드라이런엔 태그가 없다 — 이 run 의 커밋을 한 번만 본다.
+            sha="$EVENT_SHA"
+            POLL_MAX=1
+            echo "드라이런: 태그 없음 → 커밋 $sha 를 한 번만 본다 (보고만)"
+          else
+            # 태그 → 커밋. 경량 태그면 ref 가 곧 커밋이고, 주석 태그면 태그 객체를 한 번 더
+            # 풀어야 커밋이 나온다. RELEASE.md 는 경량 태그(`git tag vX.Y.Z`)를 쓰지만
+            # 주석 태그를 밀어도 엉뚱한 sha 로 판정하지 않게 API 로 직접 해석한다.
+            ref="$(gh api "repos/$GH_REPO/git/ref/tags/$TAG")"
+            obj_type="$(jq -r '.object.type' <<<"$ref")"
+            sha="$(jq -r '.object.sha' <<<"$ref")"
+            if [ "$obj_type" = "tag" ]; then
+              sha="$(gh api "repos/$GH_REPO/git/tags/$sha" --jq '.object.sha')"
+            fi
+            echo "태그 $TAG → 커밋 $sha (이벤트 sha: $EVENT_SHA, 태그 객체: $obj_type)"
           fi
-          echo "태그 $TAG → 커밋 $sha (이벤트 sha: $EVENT_SHA, 태그 객체: $obj_type)"
 
           # 이 커밋에서 돈 ci.yml 의 run 들. 이름("CI")이 아니라 **경로**로 고른다 —
           # 이름은 바뀔 수 있고, 지금 돌고 있는 이 Release 워크플로 자신도 같은 sha 에
@@ -119,14 +273,12 @@ jobs:
 
           total="$(jq 'length' <<<"$runs")"
           if [ "$total" -eq 0 ]; then
-            echo "::error::CI 가 이 커밋($sha)에서 돌지 않았다. 커밋이 main 에 푸시됐는지, 커밋 메시지에 [skip ci] 가 없는지 확인하고, CI 를 돌린 뒤 태그를 다시 미세요 (docs/RELEASE.md §0)."
-            exit 1
+            block "CI 가 이 커밋($sha)에서 돌지 않았다. 커밋이 main 에 푸시됐는지, 커밋 메시지에 [skip ci] 가 없는지 확인하고, CI 를 돌린 뒤 태그를 다시 미세요 (docs/RELEASE.md §0)."
           fi
           pending="$(jq '[.[] | select(.status != "completed")] | length' <<<"$runs")"
           if [ "$pending" -gt 0 ]; then
-            echo "::error::CI 가 $((POLL_MAX * POLL_INTERVAL / 60))분 안에 끝나지 않았다 — 끝난 뒤 이 워크플로를 re-run 하세요."
             jq -r '.[] | "  \(.status)\t\(.html_url)"' <<<"$runs"
-            exit 1
+            block "CI 가 $((POLL_MAX * POLL_INTERVAL / 60))분 안에 끝나지 않았다 — 끝난 뒤 이 워크플로를 re-run 하세요."
           fi
 
           # 같은 커밋에 run 이 여럿이면(PR 이벤트 + main 푸시 등) 가장 최근 것이 판정
@@ -138,8 +290,7 @@ jobs:
           echo "판정 대상 run: $run_url (attempt $(jq -r '.run_attempt' <<<"$run"), conclusion=$conclusion)"
 
           if [ "$conclusion" != "success" ]; then
-            echo "::error::이 커밋의 CI conclusion 이 '$conclusion' 이다 (success 만 통과). 취소된 run 이면 그 run 을 re-run 해 초록으로 만든 뒤 이 워크플로를 re-run 하세요: $run_url"
-            exit 1
+            block "이 커밋의 CI conclusion 이 '$conclusion' 이다 (success 만 통과). 취소된 run 이면 그 run 을 re-run 해 초록으로 만든 뒤 이 워크플로를 re-run 하세요: $run_url"
           fi
 
           # run 의 conclusion 이 success 여도 잡 단위로 한 번 더 본다 — `if:` 로 건너뛴
@@ -151,13 +302,14 @@ jobs:
           bad="$(jq '[.[] | select(.conclusion != "success")] | length' <<<"$jobs")"
           job_count="$(jq 'length' <<<"$jobs")"
           if [ "$job_count" -eq 0 ] || [ "$bad" -gt 0 ]; then
-            echo "::error::CI 잡 $job_count 개 중 $bad 개가 success 가 아니다 — $run_url"
-            exit 1
+            block "CI 잡 $job_count 개 중 $bad 개가 success 가 아니다 — $run_url"
           fi
           echo "게이트 통과 — CI 잡 $job_count 개 전부 success."
 
-  build:
-    needs: gate
+  # ── macOS — 빌드 · 서명 · 공증 · 업데이터 검증 (예전 build 잡 그대로, draft 해제만 publish 로) ──
+  macos:
+    name: macOS — 빌드 · 서명 · 검증
+    needs: [meta, gate]
     strategy:
       fail-fast: false
       matrix:
@@ -165,14 +317,13 @@ jobs:
           - platform: macos-latest
             args: '--target aarch64-apple-darwin'
             rust_target: aarch64-apple-darwin
-          # macOS Intel(x86_64) · Windows 는 추후 지원 예정.
-          # Intel 은 ort/ONNX Runtime 이 x86_64-apple-darwin prebuilt 바이너리를
-          # 제공하지 않아(소스 빌드 필요) 보류. 추가할 땐 아래 항목을 되살리세요:
-          #   - platform: windows-latest
-          #     args: ''
-          #     rust_target: ''
+          # macOS Intel(x86_64)은 보류 — ort/ONNX Runtime 이 x86_64-apple-darwin prebuilt
+          # 바이너리를 제공하지 않는다(소스 빌드 필요). Windows · Linux 는 아래 bundle 잡.
 
     runs-on: ${{ matrix.platform }}
+    env:
+      TAG: ${{ needs.meta.outputs.tag }}
+      DRY_RUN: ${{ needs.meta.outputs.dry_run }}
     steps:
       - uses: actions/checkout@v6
 
@@ -220,12 +371,22 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install
 
+      # 드라이런은 러너 안에서만 6 버전 파일을 0.0.N 으로 — dmg 이름 · latest.json version ·
+      # 사이드카 --version 이 전부 가짜 버전이 된다. 커밋하지 않는다.
+      - name: 드라이런 버전 (러너 안에서만)
+        if: env.DRY_RUN == 'true'
+        run: node .github/scripts/release/dryrun-version.mjs "${TAG#v}"
+
+      # CHANGELOG.md 가 「What's new」 의 유일한 원천이다 (docs/RELEASE.md §2). 제목이 태그와
+      # **정확히** 같아야 한다. 드라이런은 `## Unreleased` 절을 쓴다. 전체 본문(플랫폼 표 ·
+      # OS 별 설치)은 publish 잡이 올라간 자산을 보고 다시 쓴다 — 여기 본문은 latest.json 의
+      # notes(앱의 업데이트 배너가 「What's new」 절만 잘라 쓴다)로 남는다.
       - name: Extract release notes from CHANGELOG
         id: notes
-        shell: bash
         run: |
-          ver="${{ github.ref_name }}"
-          body="$(awk -v t="## ${ver}" '$0==t{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md)"
+          fallback=""
+          if [ "$DRY_RUN" = "true" ]; then fallback="--fallback-unreleased"; fi
+          body="$(node .github/scripts/release/notes.mjs section --changelog CHANGELOG.md --tag "$TAG" $fallback)"
           {
             echo "body<<__CHANGELOG_EOF__"
             echo "$body"
@@ -246,29 +407,18 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Ocul-PM ${{ github.ref_name }}'
+          tagName: ${{ needs.meta.outputs.tag }}
+          releaseName: ${{ needs.meta.outputs.dry_run == 'true' && format('[드라이런] Ocul-PM {0}', needs.meta.outputs.tag) || format('Ocul-PM {0}', needs.meta.outputs.tag) }}
+          # 드라이런의 draft 가 태그를 만들지는 않지만(공개 때 만든다) 가리키는 커밋은 이 run 의 것.
+          releaseCommitish: ${{ github.sha }}
           releaseBody: |
-            ## Ocul-PM ${{ github.ref_name }}
+            ## Ocul-PM ${{ needs.meta.outputs.tag }}
 
             ### ✨ What's new
             ${{ steps.notes.outputs.body }}
-
-            ### Downloads
-            | Platform | File |
-            |---|---|
-            | macOS (Apple Silicon) | `.dmg` (aarch64) |
-
-            > macOS Intel · Windows 는 추후 업데이트 예정입니다.
-
-            ### macOS 설치
-            Apple Developer ID 서명 + 공증(notarization)을 마친 빌드입니다 — `.dmg` 를 열고
-            `Applications` 로 끌어다 놓으면 끝입니다. `xattr` 같은 우회는 더 이상 필요 없습니다.
-
-            이후 버전부터는 앱 안에서 **자동 업데이트**됩니다.
-          # draft 로 만든다 — 아래 검증 단계가 전부 통과한 뒤 마지막 단계가 공개한다
+          # draft 로 만든다 — 아래 검증 단계와 publish 잡이 전부 통과한 뒤에만 공개된다
           # (플랜 astra-feedback-round {#release-sign-verify}). 검증이 하나라도 붉으면
-          # 그 뒤 단계는 건너뛰어져 draft 로 남고, draft 는 `releases/latest` 가 아니라
+          # publish 가 돌지 않아 draft 로 남고, draft 는 `releases/latest` 가 아니라
           # 앱 내 업데이터도 랜딩 링크도 그것을 보지 못한다. tauri-action(v0) 은 draft
           # 의 `untagged-…` 다운로드 URL 을 latest.json 에 넣기 전에 태그 URL 로 바꿔
           # 쓰므로(upload-version-json.ts) 공개 뒤에도 업데이터 URL 이 맞는다 — 아래
@@ -373,6 +523,10 @@ jobs:
       # `latest.json` 이 있어야 한다 — 하나라도 빠지면 이번 릴리스는 열리지만 **다음**
       # 릴리스로 못 올라간다(TAURI_PRIVATE_KEY 가 비면 번들러는 .sig 없이 조용히
       # 끝나고, tauri-action 은 .sig 가 없으면 latest.json 업로드를 건너뛴다).
+      # latest.json 의 내용 검증(version == 태그 · platforms 비지 않음 · URL 이 이 태그의 실제
+      # 자산 · signature)은 latest-json.mjs verify 한 곳이 한다 — publish 잡의 병합 뒤 검증과
+      # 같은 규칙이다. 비-mac 항목은 여기서 강제하지 않는다(re-run 이면 앞선 publish 가 실은
+      # 것이 남아 있을 수 있다 — 규칙대로인지만 본다).
       - name: 업데이터 산출물 검증 — .sig · latest.json · 다운로드 URL
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -395,7 +549,7 @@ jobs:
 
           # draft 릴리스의 자산. `gh release view <tag>` 는 공개 릴리스가 없으면 그 태그를
           # 기다리는 draft 로 넘어간다(FetchRelease → fetchDraftRelease).
-          release="$(gh release view "$GITHUB_REF_NAME" --json isDraft,assets)"
+          release="$(gh release view "$TAG" --json isDraft,assets)"
           echo "isDraft=$(jq -r '.isDraft' <<<"$release") — 자산:"
           jq -r '.assets[] | "  \(.size)\t\(.name)"' <<<"$release"
           names="$(jq -r '.assets[].name' <<<"$release")"
@@ -406,42 +560,13 @@ jobs:
             fi
           done
 
-          # latest.json 의 내용까지 본다: 버전이 태그와 같고, 다운로드 URL 이 이 태그의
-          # 자산을 가리켜야 한다. draft 에서 `untagged-…` URL 이 그대로 남으면 공개 뒤
-          # 업데이터가 404 를 맞는다.
           tmp="$(mktemp -d)"
-          gh release download "$GITHUB_REF_NAME" --pattern latest.json --dir "$tmp"
+          gh release download "$TAG" --pattern latest.json --dir "$tmp"
           echo "::group::latest.json"
           jq 'del(.notes)' "$tmp/latest.json"
           echo "::endgroup::"
-          version="$(jq -r '.version' "$tmp/latest.json")"
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::latest.json 의 version($version)이 태그($GITHUB_REF_NAME)와 다르다 — 6 버전 파일 중 tauri.conf.json 이 안 올라간 것."
-            exit 1
-          fi
-          platform_count="$(jq '.platforms | length' "$tmp/latest.json")"
-          if [ "$platform_count" -eq 0 ]; then
-            echo "::error::latest.json 에 platforms 가 비어 있다."
-            exit 1
-          fi
-          while IFS= read -r url; do
-            case "$url" in
-              *"/releases/download/$GITHUB_REF_NAME/"*) ;;
-              *)
-                echo "::error::latest.json 의 다운로드 URL 이 이 태그를 가리키지 않는다: $url"
-                exit 1
-                ;;
-            esac
-            if ! grep -qxF "$(basename "$url")" <<<"$names"; then
-              echo "::error::latest.json 이 가리키는 자산이 릴리스에 없다: $(basename "$url")"
-              exit 1
-            fi
-          done < <(jq -r '.platforms[].url' "$tmp/latest.json")
-          if jq -e '.platforms[] | select((.signature // "") == "")' "$tmp/latest.json" >/dev/null; then
-            echo "::error::latest.json 에 signature 가 빈 플랫폼이 있다."
-            exit 1
-          fi
-          echo "업데이터 산출물 검증 통과: 플랫폼 $platform_count 개, version=$version"
+          printf '%s\n' "$names" > "$tmp/assets.txt"
+          node .github/scripts/release/latest-json.mjs verify --file "$tmp/latest.json" --tag "$TAG" --assets "$tmp/assets.txt"
 
       # VS Code 확장 .vsix 를 같은 릴리스에 첨부 (플랜 vscode-extension-round
       # {#rel-ci-vsix}) — 마켓이 막힌 환경의 오프라인 설치용:
@@ -456,23 +581,733 @@ jobs:
           npx --yes @vscode/vsce@3 package --no-dependencies -o "ocul-pm-${ver}.vsix"
         working-directory: extension
 
-      # draft 에도 올라간다 — 공개(아래) 전에 첨부해야 공개 순간 자산이 완전하다.
+      # draft 에도 올라간다 — 공개(publish 잡) 전에 첨부해야 공개 순간 자산이 완전하다.
       - name: Attach .vsix to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${GITHUB_REF_NAME}" extension/ocul-pm-*.vsix --clobber
+        run: gh release upload "$TAG" extension/ocul-pm-*.vsix --clobber
 
-      # ── 공개 ───────────────────────────────────────────────────────────────
-      # 여기까지 왔다는 것은 위 검증이 전부 초록이라는 뜻이다(붉은 단계 뒤는 건너뛴다).
-      # `--latest` 를 명시해 공개와 동시에 `releases/latest` 가 되게 한다 — 업데이터
-      # 엔드포인트가 그 경로다. 이미 공개된 릴리스(re-run)면 둘 다 no-op.
-      - name: 검증 통과 — draft 해제 (공개)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # ── Windows · Linux — 번들 (태그 커밋에서, 이 릴리스 안에서) ──────────────────
+  # 설정은 portability.yml 의 번들 잡과 같다(tauri.conf.json + Tauri 가 스스로 병합하는
+  # tauri.windows.conf.json · tauri.linux.conf.json — D3). 다른 점은 **진짜 업데이터 키**
+  # (TAURI_PRIVATE_KEY)로 서명한다는 것 하나. 산출물은 워크플로 아티팩트로만 넘긴다 — 릴리스
+  # 자산에 올리는 것은 스모크·E2E 를 통과한 뒤 publish 잡이다.
+  #
+  # 이 잡이 붉어도(빌드 실패 · 산출물 이상 · timeout) macOS 는 그대로 공개되고, 이 플랫폼만
+  # 자산·latest.json 에서 빠진다.
+  bundle:
+    name: 번들 — ${{ matrix.platform }}
+    needs: [meta, gate]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            os: windows-latest
+            triple: x86_64-pc-windows-msvc
+          # ubuntu-22.04: glibc 하한 2.35 (D10 · D11).
+          - platform: linux
+            os: ubuntu-22.04
+            triple: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    # Windows 릴리스 프로필(thin LTO · codegen-units=1) 콜드 빌드가 한 시간 가까이 걸린다.
+    # 이 시한이 곧 "비-mac 이 매달려도 macOS 공개가 늦어지는 최대치" 의 대부분이다.
+    timeout-minutes: 150
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      TAG: ${{ needs.meta.outputs.tag }}
+      VERSION: ${{ needs.meta.outputs.version }}
+      DRY_RUN: ${{ needs.meta.outputs.dry_run }}
+      FAIL: ${{ needs.meta.outputs.fail }}
+    steps:
+      - name: 드라이런 — 일부러 실패 (${{ matrix.platform }}-bundle)
+        if: env.FAIL == format('{0}-bundle', matrix.platform)
         run: |
-          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
-          gh release view "$GITHUB_REF_NAME" --json isDraft,publishedAt,url \
+          echo "::error::드라이런 fail=$FAIL — 이 플랫폼의 번들을 일부러 실패시킨다 (macOS 공개와 다른 플랫폼이 멀쩡한지 보려고)"
+          exit 1
+
+      - uses: actions/checkout@v6
+
+      - name: 툴체인 버전 읽기 (rust-toolchain.toml)
+        id: toolchain
+        run: |
+          channel=$(grep -m1 '^channel' rust-toolchain.toml | tr -d ' "\r' | cut -d= -f2)
+          if [ -z "$channel" ]; then
+            echo "::error file=rust-toolchain.toml::channel 을 못 읽었습니다."
+            exit 1
+          fi
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust ${{ steps.toolchain.outputs.channel }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          targets: ${{ matrix.triple }}
+
+      # Tauri 문서의 Debian 전제 + keyring 의 libdbus. file·patchelf 는 AppImage 번들러가 쓴다.
+      - name: Linux 시스템 의존성
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+            libxdo-dev libssl-dev libdbus-1-dev build-essential pkg-config file patchelf
+
+      # 잡 id(bundle)와 key 가 portability.yml 번들 잡과 같다 — rust-cache 의 키가 같아져
+      # main 에서 구운 릴리스 프로필 캐시를 태그 run 이 이어받을 수 있다.
+      - name: Rust cache (release)
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          key: bundle-release
+          cache-on-failure: true
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 드라이런 버전 (러너 안에서만)
+        if: env.DRY_RUN == 'true'
+        run: node .github/scripts/release/dryrun-version.mjs "$VERSION"
+
+      # ── VC++ 재배포 (L-PKG 후속 #win-msvcp140 — 결정 2026-09-25: 설치 파일이 없을 때만 자동 설치) ──
+      # 릴리스 exe 는 MSVCP140.dll(C++ 런타임)을 가져온다. 러너에는 깔려 있어 스모크·E2E 가
+      # 못 잡는다. installer-hooks.nsh 가 src-tauri/windows/vcredist/vcredist.nsh 를 include 하고,
+      # 없으면 `!error` 로 NSIS 컴파일이 멈춘다 — 그래서 이 스텝이 tauri build **앞**에 있어야
+      # 한다(portability.yml 번들 잡과 같은 모양). 스크립트는 판 고정 URL · SHA-256 ·
+      # Authenticode(Microsoft Corporation) · 파일 버전 · 요구 빌드를 확인하고 틀리면 throw —
+      # 그러면 이 잡이 붉어져 Windows 만 이번 릴리스에서 빠진다(D7). 산출물은 커밋하지 않는다.
+      - name: VC++ 재배포 받기 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./.github/scripts/fetch-vcredist.ps1
+
+      # --target 을 호스트 triple 로 준다: beforeBuildCommand 의 build-sidecar.mjs 가
+      # `cargo build --release --target <호스트>` 로 사이드카를 구우므로 같은 target 폴더를
+      # 써야 의존성을 두 번 컴파일하지 않는다.
+      - name: pnpm tauri build --target ${{ matrix.triple }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+        run: |
+          set -o pipefail
+          pnpm tauri build --target ${{ matrix.triple }} 2>&1 | tee bundle.log
+
+      # 무엇을 올릴지 이 잡이 정한다 — 이름이 버전과 맞고, 업데이터 대상(setup.exe · AppImage)
+      # 옆에 .sig 가 있고, 플랫폼 설정이 병합됐고(msi·rpm 없음), 번들러가 실행 파일에 굽는
+      # 설치 형식 표식이 latest.json 키와 맞는지.
+      #
+      # 표식: tauri-utils platform.rs `__TAURI_BUNDLE_TYPE` — 번들러가 형식마다 실행 파일의
+      # 자리표시자를 바꿔 쓴다. 업데이터는 이 값으로 `linux-x86_64-appimage` 같은 키를 고른다
+      # (latest-json.mjs 머리 주석). AppImage 에 APP 표식이 없으면 latest.json 에 싣는
+      # linux-x86_64-appimage 를 아무도 못 찾아 **자동 업데이트가 조용히 죽는다** — 그래서
+      # AppImage 는 단언하고, Windows(맨 키로도 찾는다)와 deb(찾을 키가 없어야 맞다)는 기록만.
+      - name: 산출물 — 이름 · .sig · 플랫폼 설정 · 설치 형식 표식
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          b="src-tauri/target/${{ matrix.triple }}/release/bundle"
+          out=release-dist
+          mkdir -p "$out"
+          names() { local f; for f in "$1"/*; do printf '%s ' "${f##*/}"; done; }
+          echo "번들 폴더: $(names "$b")"
+          marker() { # 파일 형식이름 — 실행 파일 안의 표식이 있는가
+            if grep -aq "__TAURI_BUNDLE_TYPE_VAR_$2" "$1"; then echo "있음"; else echo "없음"; fi
+          }
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            if [ -d "$b/msi" ]; then echo "::error::msi 가 생겼다 — tauri.windows.conf.json 이 병합되지 않았다"; exit 1; fi
+            exe="$b/nsis/Ocul-PM_${VERSION}_x64-setup.exe"
+            [ -s "$exe" ] || { echo "::error::$exe 가 없다: $(names "$b/nsis")"; exit 1; }
+            [ -s "$exe.sig" ] || { echo "::error::$exe.sig 가 없다 — TAURI_PRIVATE_KEY 시크릿 확인"; exit 1; }
+            cp "$exe" "$exe.sig" "$out/"
+            main="src-tauri/target/${{ matrix.triple }}/release/ocul-pm.exe"
+            echo "설치 형식 표식 NSS(nsis) — $(marker "$main" NSS) (없으면 앱은 맨 windows-x86_64 로 찾는다)"
+          else
+            if [ -d "$b/rpm" ]; then echo "::error::rpm 이 생겼다 — tauri.linux.conf.json 이 병합되지 않았다"; exit 1; fi
+            appimage="$b/appimage/Ocul-PM_${VERSION}_amd64.AppImage"
+            deb="$b/deb/Ocul-PM_${VERSION}_amd64.deb"
+            [ -s "$appimage" ] || { echo "::error::$appimage 가 없다: $(names "$b/appimage")"; exit 1; }
+            [ -s "$appimage.sig" ] || { echo "::error::$appimage.sig 가 없다 — TAURI_PRIVATE_KEY 시크릿 확인"; exit 1; }
+            [ -s "$deb" ] || { echo "::error::$deb 가 없다: $(names "$b/deb")"; exit 1; }
+            # deb 는 자동 업데이트 대상이 아니다 — .deb.sig 가 생겨도 올리지 않는다.
+            if [ -e "$deb.sig" ]; then echo "참고: $deb.sig 가 생겼다 — 올리지 않는다 (deb 는 패키지 관리자로 업데이트)"; fi
+            cp "$appimage" "$appimage.sig" "$deb" "$out/"
+            x="$(mktemp -d)"
+            (cd "$x" && "$OLDPWD/$appimage" --appimage-extract usr/bin/ocul-pm >/dev/null)
+            dpkg-deb -x "$deb" "$x/deb"
+            app_marker="$(marker "$x/squashfs-root/usr/bin/ocul-pm" APP)"
+            echo "설치 형식 표식 — AppImage APP: $app_marker · deb DEB: $(marker "$x/deb/usr/bin/ocul-pm" DEB)"
+            if [ "$app_marker" != "있음" ]; then
+              echo "::error::AppImage 실행 파일에 __TAURI_BUNDLE_TYPE_VAR_APP 표식이 없다 — 업데이터가 linux-x86_64-appimage 를 못 찾아 자동 업데이트가 죽는다"
+              exit 1
+            fi
+          fi
+          (cd "$out" && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
+
+      - name: 번들 아티팩트
+        uses: actions/upload-artifact@v4
+        with:
+          # re-run(실패한 잡만 다시)에서 같은 이름이 앞 시도에 이미 있어도 덮는다.
+          overwrite: true
+          name: release-bundle-${{ matrix.platform }}
+          path: release-dist/
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
+
+      - name: 번들 로그 아티팩트
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          # re-run(실패한 잡만 다시)에서 같은 이름이 앞 시도에 이미 있어도 덮는다.
+          overwrite: true
+          name: release-bundle-log-${{ matrix.platform }}
+          path: bundle.log
+          if-no-files-found: ignore
+
+  # ── Windows · Linux — 설치 스모크 (깨끗한 러너) ──────────────────────────────
+  # L-PKG 의 스크립트를 portability.yml 과 같은 인자로 부른다 — 무엇을 보는지는 스크립트
+  # 머리 주석에 있다. 통과하면 **검증한 파일의 해시**를 표식 아티팩트로 남긴다. publish 는
+  # 이 표식이 있고 해시가 번들과 같은 플랫폼만 싣는다.
+  #
+  # `!cancelled()` — 다른 플랫폼의 번들이 붉어도 이 플랫폼은 돈다(matrix 잡의 needs 는
+  # 전체 결과라 기본 조건이면 한 쪽 실패가 양쪽 스모크를 건너뛰게 한다). 자기 번들이 없으면
+  # 받기에서 붉어진다.
+  smoke:
+    name: 설치 스모크 — ${{ matrix.platform }}
+    needs: [meta, gate, bundle]
+    if: ${{ !cancelled() && needs.gate.result == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            os: windows-latest
+          - platform: linux
+            os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    # Windows 는 servercore 컨테이너 이미지(수 GB)를 받는다.
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+      FAIL: ${{ needs.meta.outputs.fail }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 설치 파일 받기
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundle-${{ matrix.platform }}
+          path: bundle
+
+      - name: 해시 확인
+        shell: bash
+        run: cd bundle && sha256sum -c SHA256SUMS
+
+      - name: 드라이런 — 일부러 실패 (${{ matrix.platform }}-smoke)
+        if: env.FAIL == format('{0}-smoke', matrix.platform)
+        shell: bash
+        run: |
+          echo "::error::드라이런 fail=$FAIL — 번들은 있지만 스모크를 일부러 떨어뜨린다 (번들만 있고 검증 표식이 없는 플랫폼이 빠지는지 보려고)"
+          exit 1
+
+      - name: 설치 스모크 — Windows (NSIS)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path bundle -Filter '*-setup.exe' | Select-Object -First 1
+          if (-not $installer) { Write-Host '::error::설치 파일(*-setup.exe)이 없다'; exit 1 }
+          $global:LASTEXITCODE = 99
+          & ./.github/scripts/install-smoke-windows.ps1 -Installer $installer.FullName -Version $env:VERSION -OutDir smoke-out
+          exit $LASTEXITCODE
+
+      - name: 설치 스모크 — Linux (AppImage · deb)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: bash .github/scripts/install-smoke-linux.sh bundle "$VERSION" smoke-out
+
+      - name: 스모크 결과 아티팩트
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          # re-run(실패한 잡만 다시)에서 같은 이름이 앞 시도에 이미 있어도 덮는다.
+          overwrite: true
+          name: release-smoke-log-${{ matrix.platform }}
+          path: smoke-out/
+          if-no-files-found: ignore
+
+      - name: 통과 표식 — 검증한 파일의 해시
+        shell: bash
+        run: mkdir -p pass && cp bundle/SHA256SUMS pass/SHA256SUMS
+
+      - name: 통과 표식 아티팩트
+        uses: actions/upload-artifact@v4
+        with:
+          # re-run(실패한 잡만 다시)에서 같은 이름이 앞 시도에 이미 있어도 덮는다.
+          overwrite: true
+          name: release-pass-smoke-${{ matrix.platform }}
+          path: pass/
+          if-no-files-found: error
+
+  # ── Windows · Linux — 설치본 E2E ──────────────────────────────────────────
+  # e2e.yml 은 디버그 빌드로 돈다. 여기서는 **릴리스 설치 파일을 깐 실행 파일**로 같은
+  # 시나리오를 돌린다(e2e/run.mjs --app — 하네스가 원래 이 용도로 열어 둔 입구). tauri-driver
+  # 가 켜는 TAURI_WEBVIEW_AUTOMATION 은 릴리스 빌드에서도 먹는다(tauri-runtime-wry).
+  # Linux 는 deb 를 깔아 시스템 WebKitGTK 로 돈다 — WebKitWebDriver 가 같은 WebKitGTK 여야
+  # 해서다(AppImage 는 제 WebKit 을 싣는다). 실행 파일은 AppImage 와 같은 컴파일 산출물이고,
+  # AppImage 자체의 기동·창·프런트는 설치 스모크가 본다.
+  e2e:
+    name: E2E (설치본) — ${{ matrix.platform }}
+    needs: [meta, gate, bundle]
+    if: ${{ !cancelled() && needs.gate.result == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            os: windows-latest
+          - platform: linux
+            os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      FAIL: ${{ needs.meta.outputs.fail }}
+      OCULPM_E2E_OS: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 설치 파일 받기
+        uses: actions/download-artifact@v4
+        with:
+          name: release-bundle-${{ matrix.platform }}
+          path: bundle
+
+      - name: 해시 확인
+        run: cd bundle && sha256sum -c SHA256SUMS
+
+      - name: 드라이런 — 일부러 실패 (${{ matrix.platform }}-e2e)
+        if: env.FAIL == format('{0}-e2e', matrix.platform)
+        run: |
+          echo "::error::드라이런 fail=$FAIL — E2E 를 일부러 떨어뜨린다"
+          exit 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      # WebKitWebDriver(설치된 libwebkit2gtk 와 같은 소스 패키지) · Xvfb · xdotool(창 크기
+      # 폴백) · 세션 D-Bus · 한글 글꼴 — e2e.yml 과 같다. 앱은 deb 로 깔아 Depends 를 apt 가
+      # 끌어온다(개발 헤더 없이 — 사용자 PC 와 같은 모양).
+      - name: 설치 — Linux (deb) + 드라이버
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-driver xvfb xdotool dbus fonts-noto-cjk
+          sudo apt-get install -y ./bundle/Ocul-PM_*_amd64.deb
+          command -v WebKitWebDriver
+          echo "OCULPM_E2E_APP=/usr/bin/ocul-pm" >> "$GITHUB_ENV"
+
+      # currentUser 설치(관리자 권한 없음) → %LOCALAPPDATA%\Ocul-PM. 실행 파일 이름은 설치
+      # 파일이 레지스트리에 적은 MainBinaryName 을 읽는다(설치 스모크와 같은 방식).
+      - name: 설치 — Windows (NSIS /S)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path bundle -Filter '*-setup.exe' | Select-Object -First 1
+          $p = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -PassThru
+          $null = $p.Handle
+          $p.WaitForExit()
+          if ($p.ExitCode -ne 0) { Write-Host "::error::NSIS /S 종료 코드 $($p.ExitCode)"; exit 1 }
+          $key = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Ocul-PM'
+          $name = $key.MainBinaryName
+          if (-not $name) { Write-Host '::error::레지스트리 MainBinaryName 이 비었다'; exit 1 }
+          if (-not $name.EndsWith('.exe')) { $name = "$name.exe" }
+          $app = Join-Path (Join-Path $env:LOCALAPPDATA 'Ocul-PM') $name
+          if (-not (Test-Path $app)) { Write-Host "::error::설치된 실행 파일이 없다: $app"; exit 1 }
+          "OCULPM_E2E_APP=$app" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "설치됨: $app"
+
+      - name: tauri-driver
+        run: cargo install tauri-driver --locked --version 2.0.6
+
+      - name: msedgedriver (WebView2 런타임 버전에 맞춤)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./e2e/ci/msedgedriver.ps1
+
+      # 기본 1024×768 이면 1440 폭 창을 OS 가 화면 크기로 자른다.
+      - name: 화면 해상도 1920×1080
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        run: Set-DisplayResolution -Width 1920 -Height 1080 -Force
+
+      - name: E2E (설치본)
+        timeout-minutes: 40
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            dbus-run-session -- xvfb-run -a -s "-screen 0 1920x1200x24" node e2e/run.mjs --app "$OCULPM_E2E_APP"
+          else
+            node e2e/run.mjs --app "$OCULPM_E2E_APP"
+          fi
+
+      - name: 남은 프로세스 정리 (Windows)
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: Stop-Process -Name ocul-pm, oculpm-mcp, msedgedriver, tauri-driver -Force -ErrorAction SilentlyContinue
+
+      - name: 남은 프로세스 정리 (Linux)
+        if: always() && runner.os == 'Linux'
+        run: |
+          pkill -f /usr/bin/ocul-pm || true
+          pkill -f WebKitWebDriver || true
+          pkill -f tauri-driver || true
+
+      - name: E2E 요약
+        if: always()
+        run: |
+          summary="e2e/out/${OCULPM_E2E_OS}/summary.md"
+          if [ -f "$summary" ]; then cat "$summary" >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: E2E 결과 아티팩트 (스크린샷 · index.html · 로그)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          # re-run(실패한 잡만 다시)에서 같은 이름이 앞 시도에 이미 있어도 덮는다.
+          overwrite: true
+          name: release-e2e-log-${{ matrix.platform }}
+          path: e2e/out/
+          if-no-files-found: ignore
+
+      - name: 통과 표식 — 검증한 파일의 해시
+        run: mkdir -p pass && cp bundle/SHA256SUMS pass/SHA256SUMS
+
+      - name: 통과 표식 아티팩트
+        uses: actions/upload-artifact@v4
+        with:
+          # re-run(실패한 잡만 다시)에서 같은 이름이 앞 시도에 이미 있어도 덮는다.
+          overwrite: true
+          name: release-pass-e2e-${{ matrix.platform }}
+          path: pass/
+          if-no-files-found: error
+
+  # ── 공개 ─────────────────────────────────────────────────────────────────
+  # macOS 가 초록이면 **반드시** 돈다 — 비-mac 이 무엇으로 끝났든(실패 · timeout · 건너뜀).
+  # 순서가 뜻을 갖는다:
+  #   1. 판정: 번들 + 스모크 표식 + E2E 표식 + 해시 일치 = 통과. 아니면 떨어진 단계를 적는다.
+  #   2. macOS 가 올린 latest.json 을 baseline 으로 받아 먼저 검증(macOS 잡과 같은 규칙).
+  #   3. 통과한 플랫폼의 자산을 올린다(앞 시도에서 올라갔다 이번에 떨어진 것은 지운다).
+  #   4. 플랫폼을 하나씩 더해 병합 → 검증(정확한 집합 + macOS baseline). 병합에서 걸린
+  #      플랫폼은 그것만 떨어뜨린다 — 비-mac 문제로 macOS 가 막히지 않게.
+  #   5. latest.json 을 올리고 **다시 받아** 최종 검증. 여기서 붉으면 macOS 항목이 온전하다고
+  #      말할 수 없으므로 공개하지 않는다(draft 로 남는다 — 사람이 본다).
+  #   6. 본문을 올라간 자산으로 다시 쓰고, draft 를 해제한다(드라이런은 해제하지 않는다).
+  #   7. 떨어진 플랫폼이 있으면 마지막 단계를 붉힌다 — 공개는 끝났고 macOS 는 정상이다.
+  publish:
+    name: 공개 — 비-mac 병합 · latest.json 검증 · draft 해제
+    needs: [meta, macos, bundle, smoke, e2e]
+    if: ${{ !cancelled() && needs.macos.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.meta.outputs.tag }}
+      VERSION: ${{ needs.meta.outputs.version }}
+      DRY_RUN: ${{ needs.meta.outputs.dry_run }}
+      LJ: .github/scripts/release/latest-json.mjs
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: 안전 단언 — 드라이런은 v0.0.N 의 draft 만
+        run: |
+          set -euo pipefail
+          is_draft="$(gh release view "$TAG" --json isDraft --jq .isDraft)"
+          if [ "$DRY_RUN" = "true" ]; then
+            [[ "$TAG" =~ ^v0\.0\.[0-9]+$ ]] || { echo "::error::드라이런 태그가 v0.0.N 이 아니다: $TAG"; exit 1; }
+            [ "$is_draft" = "true" ] || { echo "::error::드라이런 릴리스 $TAG 가 draft 가 아니다 — 아무것도 하지 않는다"; exit 1; }
+          fi
+          echo "릴리스 $TAG — draft=$is_draft · 드라이런=$DRY_RUN"
+
+      # 이름으로 받는다(pattern). 떨어진 플랫폼의 아티팩트는 없다 — 하나도 없으면 이 단계가
+      # 실패하므로 continue-on-error: 없는 것은 판정 단계가 "빠짐" 으로 읽는다.
+      - name: 비-mac 아티팩트 받기 (번들 · 통과 표식)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-{bundle,pass-smoke,pass-e2e}-{windows,linux}
+          path: artifacts
+
+      - name: 판정 — 번들 + 스모크 + E2E + 해시 일치
+        id: judge
+        run: |
+          set -uo pipefail
+          included=()
+          excluded=()
+          for p in windows linux; do
+            b="artifacts/release-bundle-$p"
+            s="artifacts/release-pass-smoke-$p/SHA256SUMS"
+            e="artifacts/release-pass-e2e-$p/SHA256SUMS"
+            if [ ! -f "$b/SHA256SUMS" ]; then stage="번들"
+            elif [ ! -f "$s" ]; then stage="설치 스모크"
+            elif [ ! -f "$e" ]; then stage="E2E"
+            elif ! cmp -s "$s" "$b/SHA256SUMS" || ! cmp -s "$e" "$b/SHA256SUMS"; then stage="검증한 파일과 올릴 파일의 해시가 다름"
+            elif ! (cd "$b" && sha256sum -c --quiet SHA256SUMS); then stage="아티팩트 무결성"
+            else stage=""
+            fi
+            if [ -z "$stage" ]; then
+              included+=("$p")
+              echo "$p: 통과 — 싣는다"
+            else
+              excluded+=("$p=$stage")
+              echo "::warning::$p 는 이번 릴리스에서 빠진다 — 「$stage」 단계"
+            fi
+          done
+          echo "included=$(IFS=,; echo "${included[*]}")" >> "$GITHUB_OUTPUT"
+          echo "excluded=$(IFS=,; echo "${excluded[*]}")" >> "$GITHUB_OUTPUT"
+
+      - name: latest.json 병합 · 비-mac 자산 올리기 · 최종 검증
+        id: merge
+        env:
+          INCLUDED: ${{ steps.judge.outputs.included }}
+          EXCLUDED: ${{ steps.judge.outputs.excluded }}
+          DL: ${{ github.server_url }}/${{ github.repository }}/releases/download
+        run: |
+          set -euo pipefail
+          w=work
+          mkdir -p "$w/upload"
+
+          files_of() { # 플랫폼 → 올릴 파일들
+            local d="artifacts/release-bundle-$1"
+            case "$1" in
+              windows) echo "$d/Ocul-PM_${VERSION}_x64-setup.exe $d/Ocul-PM_${VERSION}_x64-setup.exe.sig" ;;
+              linux) echo "$d/Ocul-PM_${VERSION}_amd64.AppImage $d/Ocul-PM_${VERSION}_amd64.AppImage.sig $d/Ocul-PM_${VERSION}_amd64.deb" ;;
+            esac
+          }
+          updater_of() { # 플랫폼 → latest.json 이 가리킬 파일
+            case "$1" in
+              windows) echo "artifacts/release-bundle-windows/Ocul-PM_${VERSION}_x64-setup.exe" ;;
+              linux) echo "artifacts/release-bundle-linux/Ocul-PM_${VERSION}_amd64.AppImage" ;;
+            esac
+          }
+          pattern_of() { # 플랫폼 → 릴리스에 있으면 그 플랫폼 것인 자산
+            case "$1" in
+              windows) echo '_x64-setup\.exe(\.sig)?$' ;;
+              linux) echo '_amd64\.(AppImage|deb)(\.sig)?$' ;;
+            esac
+          }
+          asset_list() { gh release view "$TAG" --json assets --jq '.assets[].name' > "$w/assets.txt"; }
+          drop_assets() { # 이 플랫폼의 자산을 릴리스에서 지운다 (앞 시도의 잔재 포함)
+            asset_list
+            grep -E "$(pattern_of "$1")" "$w/assets.txt" | while read -r name; do
+              echo "자산 삭제: $name"
+              gh release delete-asset "$TAG" "$name" --yes
+            done || true
+          }
+
+          # 1) macOS baseline — macOS 잡이 올린 그대로. 같은 규칙으로 먼저 본다.
+          gh release download "$TAG" --pattern latest.json --dir "$w/base" --clobber
+          asset_list
+          node "$LJ" verify --file "$w/base/latest.json" --tag "$TAG" --assets "$w/assets.txt"
+          # re-run 이면 base 에 앞선 공개의 비-mac 키가 남아 있다 — baseline 은 macOS 키만 뜻한다
+          # (병합이 비-mac 을 전부 다시 쓴다).
+
+          # 2) 떨어진 플랫폼의 잔재 지우기 · 통과한 플랫폼 올리기
+          IFS=, read -r -a inc <<<"${INCLUDED}"
+          IFS=, read -r -a exc <<<"${EXCLUDED}"
+          for spec in "${exc[@]}"; do
+            if [ -n "$spec" ]; then drop_assets "${spec%%=*}"; fi
+          done
+          for p in "${inc[@]}"; do
+            [ -n "$p" ] || continue
+            # shellcheck disable=SC2046
+            gh release upload "$TAG" $(files_of "$p") --clobber
+            echo "올림: $p — $(files_of "$p" | xargs -n1 basename | tr '\n' ' ')"
+          done
+          asset_list
+
+          # 3) 하나씩 더하며 병합 → 검증. 걸린 플랫폼만 떨어진다.
+          accepted=()
+          merge_with() {
+            local args=() p
+            for p in "$@"; do args+=(--add "$p=$(updater_of "$p")"); done
+            node "$LJ" merge --base "$w/base/latest.json" --out "$w/merged.json" --tag "$TAG" --download-base "$DL" "${args[@]}"
+          }
+          for p in "${inc[@]}"; do
+            [ -n "$p" ] || continue
+            want="$(IFS=,; echo "${accepted[*]:+${accepted[*]},}$p")"
+            if merge_with "${accepted[@]}" "$p" && \
+               node "$LJ" verify --file "$w/merged.json" --tag "$TAG" --assets "$w/assets.txt" --expect "$want" --mac-baseline "$w/base/latest.json"; then
+              accepted+=("$p")
+            else
+              echo "::warning::$p 는 latest.json 병합 검증에 걸려 빠진다"
+              EXCLUDED="${EXCLUDED:+$EXCLUDED,}$p=latest.json 병합 검증"
+              drop_assets "$p"
+            fi
+          done
+          asset_list
+          merge_with "${accepted[@]}"
+          final_expect="$(IFS=,; echo "${accepted[*]:-none}")"
+          node "$LJ" verify --file "$w/merged.json" --tag "$TAG" --assets "$w/assets.txt" --expect "$final_expect" --mac-baseline "$w/base/latest.json"
+
+          # 4) 올리고, 다시 받아서 한 번 더 — 여기서 붉으면 공개하지 않는다.
+          cp "$w/merged.json" "$w/upload/latest.json"
+          gh release upload "$TAG" "$w/upload/latest.json" --clobber
+          gh release download "$TAG" --pattern latest.json --dir "$w/final" --clobber
+          asset_list
+          node "$LJ" verify --file "$w/final/latest.json" --tag "$TAG" --assets "$w/assets.txt" --expect "$final_expect" --mac-baseline "$w/base/latest.json"
+          # 떨어진 플랫폼의 파일이 자산에 남아 있지 않은지 (고아 자산 없음)
+          IFS=, read -r -a exc <<<"${EXCLUDED}"
+          for spec in "${exc[@]}"; do
+            [ -n "$spec" ] || continue
+            p="${spec%%=*}"
+            if grep -qE "$(pattern_of "$p")" "$w/assets.txt"; then
+              echo "::error::빠진 플랫폼 $p 의 자산이 릴리스에 남아 있다"
+              exit 1
+            fi
+          done
+          echo "::group::최종 latest.json (notes 제외)"
+          jq 'del(.notes) | .platforms |= with_entries(.value.signature |= .[0:24] + "…")' "$w/final/latest.json"
+          echo "::endgroup::"
+          echo "accepted=$(IFS=,; echo "${accepted[*]}")" >> "$GITHUB_OUTPUT"
+          echo "excluded=$EXCLUDED" >> "$GITHUB_OUTPUT"
+
+      - name: 릴리스 본문 — 올라간 자산으로 다시 쓰기
+        env:
+          EXCLUDED: ${{ steps.merge.outputs.excluded }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --json assets --jq '.assets[].name' > assets.txt
+          dry=()
+          if [ "$DRY_RUN" = "true" ]; then dry=(--dry-run --commit "$COMMIT"); fi
+          node .github/scripts/release/notes.mjs body --changelog CHANGELOG.md --tag "$TAG" --assets assets.txt --excluded "$EXCLUDED" "${dry[@]}" > body.md
+          gh release edit "$TAG" --notes-file body.md
+          echo "::group::본문"; cat body.md; echo "::endgroup::"
+
+      # 여기까지 왔다는 것은 macOS 검증 · 병합 검증 · 최종 검증이 전부 초록이라는 뜻이다.
+      # `--latest` 는 **처음 공개할 때, 이 버전이 지금 latest 보다 새로울 때만** 준다 —
+      # 옛 릴리스를 re-run 해도 releases/latest 가 뒤로 가지 않는다. 이미 공개된 릴리스(re-run)
+      # 는 draft·latest 를 건드리지 않는다.
+      - name: 검증 통과 — draft 해제 (공개)
+        run: |
+          set -euo pipefail
+          is_draft="$(gh release view "$TAG" --json isDraft --jq .isDraft)"
+          if [ "$DRY_RUN" = "true" ]; then
+            [ "$is_draft" = "true" ] || { echo "::error::드라이런 릴리스가 draft 가 아니다"; exit 1; }
+            echo "드라이런 — 공개하지 않는다 (draft 그대로, releases/latest 불변)"
+            exit 0
+          fi
+          if [ "$is_draft" != "true" ]; then
+            echo "이미 공개된 릴리스(re-run) — draft·latest 는 건드리지 않는다"
+            exit 0
+          fi
+          current="$(gh release view --json tagName --jq .tagName 2>/dev/null || echo v0.0.0)"
+          newest="$(printf '%s\n%s\n' "${current#v}" "$VERSION" | sort -V | tail -1)"
+          if [ "$newest" = "$VERSION" ] && [ "${current#v}" != "$VERSION" ]; then
+            gh release edit "$TAG" --draft=false --latest
+          else
+            echo "::warning::지금 releases/latest 가 $current 로 이 버전($VERSION)보다 새롭다 — 공개하되 latest 는 옮기지 않는다"
+            gh release edit "$TAG" --draft=false --latest=false
+          fi
+          gh release view "$TAG" --json isDraft,publishedAt,url \
             --jq '"공개됨: draft=\(.isDraft) publishedAt=\(.publishedAt) \(.url)"'
-          # 업데이터 엔드포인트가 실제로 이 버전을 가리키는지 — 참고용이라 실패해도
-          # 이미 공개된 릴리스를 붉게 만들지 않는다.
+          # 업데이터 엔드포인트가 실제로 이 버전을 가리키는지 — 참고용.
           gh release view --json tagName --jq '"releases/latest → \(.tagName)"' || true
+
+      - name: 요약
+        if: always()
+        env:
+          ACCEPTED: ${{ steps.merge.outputs.accepted }}
+          EXCLUDED: ${{ steps.merge.outputs.excluded || steps.judge.outputs.excluded }}
+        run: |
+          {
+            echo "## 릴리스 $TAG $([ "$DRY_RUN" = true ] && echo '(드라이런)')"
+            echo ""
+            echo "| 항목 | 값 |"
+            echo "|---|---|"
+            echo "| macOS | 실림 (macOS 잡 검증 통과) |"
+            echo "| 비-mac 실림 | ${ACCEPTED:-없음} |"
+            echo "| 비-mac 빠짐 | ${EXCLUDED:-없음} |"
+            echo "| draft | $(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null || echo '?') |"
+            echo ""
+            echo "자산:"
+            echo '```'
+            gh release view "$TAG" --json assets --jq '.assets[] | "\(.size)\t\(.name)"' 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # 공개는 끝났다 — 이 단계는 사람의 눈을 부르려고 run 을 붉힌다. macOS 는 정상이다.
+      - name: 비-mac 빠짐 알림 (공개와 무관 — macOS 정상)
+        env:
+          EXCLUDED: ${{ steps.merge.outputs.excluded }}
+        run: |
+          if [ -n "$EXCLUDED" ]; then
+            echo "::error::이번 릴리스에서 빠진 비-mac 플랫폼: $EXCLUDED — 복구는 docs/RELEASE.md §6-2"
+            exit 1
+          fi
+          echo "비-mac 빠짐 없음"
+
+  # ── 드라이런 정리 ─────────────────────────────────────────────────────────
+  # draft 를 지운다(keep_draft 가 아니면). 두 겹으로 막는다: v0.0.N 모양이고 draft 일 때만.
+  # draft 는 태그를 만들지 않지만, 혹시 생겼으면 같은 조건으로 지운다.
+  dryrun-cleanup:
+    name: 드라이런 정리 — draft 삭제
+    needs: [meta, macos, bundle, smoke, e2e, publish]
+    if: ${{ always() && needs.meta.outputs.dry_run == 'true' && !inputs.keep_draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.meta.outputs.tag }}
+    steps:
+      - name: draft 삭제 (v0.0.N · draft 일 때만)
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v0\.0\.[0-9]+$ ]] || { echo "::error::드라이런 태그 모양이 아니다: $TAG — 아무것도 지우지 않는다"; exit 1; }
+          if state="$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            if [ "$state" = "true" ]; then
+              gh release delete "$TAG" --yes
+              echo "draft $TAG 삭제"
+            else
+              echo "::error::$TAG 가 draft 가 아니다 — 지우지 않는다"
+              exit 1
+            fi
+          else
+            echo "draft $TAG 없음"
+          fi
+          if gh api "repos/$GH_REPO/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            gh api -X DELETE "repos/$GH_REPO/git/refs/tags/$TAG"
+            echo "태그 $TAG 삭제"
+          fi
