@@ -7,7 +7,7 @@
 //    인자가 WebView2 브라우저 프로세스에 닿지 않으면 `DevToolsActivePort file doesn't
 //    exist` 로 끝난다. 그때 하네스가 앱을 직접 띄워 CDP 포트를 열고 msedgedriver 를
 //    그 포트에 붙인다(`ms:edgeOptions.debuggerAddress`). 포트를 여는 수단을 차례로
-//    시도한다 — 환경변수, 그다음 WebView2 정책 레지스트리(HKCU, 앱 exe 이름 값).
+//    시도한다 — 환경변수, 그다음 WebView2 정책 레지스트리(HKCU·HKLM, 앱 exe 이름 값).
 //    각 시도마다 msedgewebview2 브라우저 프로세스의 명령줄을 증거로 남긴다.
 //    CDP 주소가 손에 남아 IME 흉내(#w3-ime-cdp)도 쓴다.
 
@@ -19,7 +19,12 @@ import { sleep } from "./page.mjs";
 
 /** wry 가 WebView2 에 기본으로 주는 인자 — 환경변수가 옵션을 대신할 때를 위해 되싣는다. */
 const WRY_DEFAULT_ARGS = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection";
-const POLICY_KEY = "HKCU\\Software\\Policies\\Microsoft\\Edge\\WebView2\\AdditionalBrowserArguments";
+// 사용자(HKCU)·기계(HKLM) 둘 다 — 러너는 관리자 권한으로 돈다. 권한 상승된 프로세스는
+// 사용자가 쓸 수 있는 곳(환경변수·HKCU)의 재정의를 믿지 않을 수 있어서 HKLM 까지 본다.
+const POLICY_KEYS = {
+  "registry-hkcu": "HKCU\\Software\\Policies\\Microsoft\\Edge\\WebView2\\AdditionalBrowserArguments",
+  "registry-hklm": "HKLM\\Software\\Policies\\Microsoft\\Edge\\WebView2\\AdditionalBrowserArguments",
+};
 const APP_EXE = "ocul-pm.exe";
 
 /** msedgedriver 를 자세한 로그와 함께 띄우는 .cmd 래퍼 — 붙기 실패의 원인을 남긴다. */
@@ -51,8 +56,8 @@ function webviewProcesses() {
 Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" |
   Where-Object { $_.CommandLine -notmatch '--type=' } |
   ForEach-Object {
-    $flags = [regex]::Matches($_.CommandLine, '--(remote-debugging-[a-z]+(=\\S+)?|user-data-dir=("[^"]+"|\\S+)|embedded-browser-webview=\\S+|webview-exe-name=\\S+)') | ForEach-Object { $_.Value }
-    "pid $($_.ProcessId) <- $($_.ParentProcessId): " + ($flags -join ' ')
+    $c = $_.CommandLine -replace '^"[^"]*"\\s*', ''
+    "pid $($_.ProcessId) <- $($_.ParentProcessId): " + $c.Substring(0, [Math]::Min(900, $c.Length))
   }`);
   return out ? out.split(/\r?\n/) : ["msedgewebview2 브라우저 프로세스 없음"];
 }
@@ -101,8 +106,9 @@ async function tryAttach({ wd, app, env, cwd, logFile, port, how, rec }) {
   const args = `${WRY_DEFAULT_ARGS} --remote-debugging-port=${port}`;
   const childEnv = { ...env };
   if (how === "env") childEnv.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = args;
-  if (how === "registry") {
-    execFileSync("reg", ["add", POLICY_KEY, "/v", APP_EXE, "/t", "REG_SZ", "/d", args, "/f"], { stdio: "pipe" });
+  const policyKey = POLICY_KEYS[how];
+  if (policyKey) {
+    execFileSync("reg", ["add", policyKey, "/v", APP_EXE, "/t", "REG_SZ", "/d", args, "/f"], { stdio: "pipe" });
   }
   const fd = openSync(logFile, "a");
   const child = spawn(app, [], { cwd, env: childEnv, stdio: ["ignore", fd, fd] });
@@ -110,8 +116,17 @@ async function tryAttach({ wd, app, env, cwd, logFile, port, how, rec }) {
   const address = `127.0.0.1:${port}`;
   const version = await waitPort(address, child, 45_000);
   rec.notes.push(`attach(${how}) 브라우저: ${webviewProcesses().join(" | ")}`);
+  const unset = () => {
+    if (!policyKey) return;
+    try {
+      execFileSync("reg", ["delete", policyKey, "/v", APP_EXE, "/f"], { stdio: "pipe" });
+    } catch {
+      /* 이미 없다 */
+    }
+  };
   if (!version) {
     rec.notes.push(`attach(${how}) — CDP 포트 ${port} 안 열림${child.exitCode != null ? ` (앱 exit ${child.exitCode})` : ""}`);
+    unset();
     return null;
   }
   rec.notes.push(`attach(${how}) — CDP 포트 열림: ${version.Browser ?? "?"}`);
@@ -121,13 +136,7 @@ async function tryAttach({ wd, app, env, cwd, logFile, port, how, rec }) {
     debuggerAddress: address,
     stop: () => {
       killAll();
-      if (how === "registry") {
-        try {
-          execFileSync("reg", ["delete", POLICY_KEY, "/v", APP_EXE, "/f"], { stdio: "pipe" });
-        } catch {
-          /* 이미 없다 */
-        }
-      }
+      unset();
     },
   };
 }
@@ -148,7 +157,7 @@ export async function connectApp({ wd, app, ws, outDir, rec }) {
     rec.notes.push(`Edge 정책: ${edgePolicies().join(" | ")}`);
   }
   const common = { wd, app, env: ws.env, cwd: ws.dirs.driverCwd, logFile: join(outDir, "app-stdout.log"), port: 9222, rec };
-  for (const how of ["env", "registry"]) {
+  for (const how of ["env", "registry-hkcu", "registry-hklm"]) {
     const s = await tryAttach({ ...common, how });
     if (s) {
       rec.notes.push(`세션: ${s.mode} (CDP ${s.debuggerAddress})`);
