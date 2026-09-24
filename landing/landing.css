@@ -232,6 +232,12 @@ b, strong { font-weight: 700; color: var(--ink); }
 .dl-btn.ghost:hover { border-color: var(--ink-faint); background: var(--stage-2); }
 .hero-fine { font-size: 12px; color: var(--ink-faint); }
 .hero-fine a { color: var(--ink-dim); }
+/* OS 별 받기 — Windows · Linux 베타. 링크는 페이지 끝 스크립트가 최신 릴리스의 실제 자산으로
+   바꾼다(그 버전에 그 OS 파일이 없으면 릴리스 목록으로). 스크립트가 없어도 릴리스 페이지로 간다. */
+.dl-os { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 14px; margin: -4px 0 14px; font-size: 13px; color: var(--ink-faint); }
+.dl-os a { color: var(--ink-dim); text-decoration: none; border-bottom: 1px solid var(--hairline-strong); }
+.dl-os a:hover { color: var(--ink); border-bottom-color: var(--ink-faint); }
+.dl-os .beta { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; padding: 1px 8px; border: 1px solid var(--hairline-strong); border-radius: 999px; color: var(--ink-dim); }
 
 /* Product Hunt 배지 — 무대 위에 얹으므로 dark 변형을 쓰고, 평소엔 한 톤 죽여 둔다. */
 .hero-ph { margin: 18px 0 0; line-height: 0; }
