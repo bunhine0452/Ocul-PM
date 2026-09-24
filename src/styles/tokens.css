@@ -659,14 +659,21 @@
    아래는 그 밖의 글리프(한자·기호)가 떨어지는 자리 — 맥 전용 이름(-apple-system,
    Apple SD Gothic Neo, SF …)은 그 OS 에 없으므로 한국어 글꼴을 명시해 한자가
    중국·일본 자형으로 새지 않게 한다. 고정폭은 그 OS 의 기본 코딩 글꼴 다음에
-   번들 D2Coding(한글)을 둔다.
+   번들 한글을 둔다 — **'Pretendard Hangul'**(App.css, 한글 범위에만 끼어드는 UI
+   서체)이지 D2Coding 이 아니다 ({#ui-mono-hangul}). 번들 D2Coding 은 xterm 격자에
+   맞춰 한글 advance 를 1.204em 로 늘려 둔 파일이라(App.css 'D2Coding Term'), 격자가
+   없는 Diff·오늘 카드·편집기에서는 한글 사이가 한 칸씩 벌어졌다(E2E 스크린샷).
+   터미널은 이 토큰을 쓰지 않는다 — xterm 스택은 terminalPlatform.ts 가 따로 갖는다.
+   macOS 는 한글이 시스템 폴백(Apple SD Gothic Neo)으로 가고, Pretendard 가 그
+   서체를 모델로 만든 것이라 세 OS 의 인상이 이어진다.
    ============================================================ */
 :root[data-platform="windows"] {
   --font: "Pretendard Variable", "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
-  --mono: "Cascadia Mono", Consolas, "D2Coding", monospace;
+  --mono: "Cascadia Mono", Consolas, "Pretendard Hangul", "Malgun Gothic", monospace;
 }
 :root[data-platform="linux"] {
   --font: "Pretendard Variable", "Noto Sans CJK KR", "Noto Sans KR", Cantarell, Ubuntu,
           system-ui, sans-serif;
-  --mono: "DejaVu Sans Mono", "Noto Sans Mono", "Liberation Mono", "D2Coding", monospace;
+  --mono: "DejaVu Sans Mono", "Noto Sans Mono", "Liberation Mono", "Pretendard Hangul",
+          "Noto Sans CJK KR", monospace;
 }
