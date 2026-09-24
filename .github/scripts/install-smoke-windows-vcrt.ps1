@@ -14,9 +14,9 @@
                       러너의 도구 폴더에 있는 사본을 못 줍게 한다,
                   그리고 설치가 실패하면(UAC 취소를 OCULPM_TEST_VCREDIST_EXIT=1602 로 흉내)
                       "설치 완료" 가 아니라 멈추는지(종료 코드 ≠ 0, 로그에 STOP).
-    요구 빌드    — 설치 파일의 OCULPM_VCRT_MIN_BLD 가 exe 에 링크된 C++ 코드(사전 빌드 ONNX
-                  Runtime)의 MSVC 도구 빌드를 덮는지 — PE Rich 헤더로(Microsoft 규칙: 재배포는
-                  앱 구성 요소가 쓴 가장 새 도구 이상).
+    도구 판      — exe 안 어떤 코드도 링크한 MSVC 보다 새 MSVC 로 컴파일되지 않았는지(PE Rich
+                  헤더). 요구 판(= 동봉 재배포, 링크 도구와 같은 계열)의 전제다 — Microsoft 규칙:
+                  재배포는 앱 구성 요소가 쓴 가장 새 도구 이상.
 
   기록은 %TEMP%\ocul-pm-setup.log (훅이 쓴다) — Invoke-Setup 이 설치마다 새로 붙은 줄을
   $script:LastSetupLog 에 남긴다.
@@ -108,7 +108,8 @@ function Get-LogLines([string] $Text, [string] $Pattern) {
 }
 
 # PE Rich 헤더 — link.exe 가 링크된 목적 파일마다 (도구 prodid, 빌드, 개수)를 XOR 로 적어 둔다.
-# prodid 0x0105 = C++ 컴파일러(Utc1900_CPP). 이 exe 의 C++ 코드는 사전 빌드 ONNX Runtime 뿐이다.
+# 첫 실측(windows-latest 2026-09): 링커 36257 · C 36257(cc-rs) · C++/C/MASM 35721(러너 MSVC 의
+# 정적 런타임 조각) · ONNX Runtime 35222. 그래서 "C++ = ONNX Runtime 뿐" 이 아니다.
 function Get-RichEntries([string] $Path) {
     $b = [System.IO.File]::ReadAllBytes($Path)
     $pe = [BitConverter]::ToInt32($b, 0x3C)
@@ -135,7 +136,7 @@ function Invoke-OsFloorProbes {
     Test-Gate "OS 하한 — 빌드 $($MinOsBuild - 1) 이면 설치를 막는다 (종료 코드 ≠ 0 · 아무것도 안 깔림 · 로그 STOP)" {
         $env:OCULPM_TEST_OS_BUILD = [string]($MinOsBuild - 1)
         try { $r = Invoke-Setup $Installer @('/S') -TimeoutSec 120 } finally { Remove-Item Env:OCULPM_TEST_OS_BUILD -ErrorAction SilentlyContinue }
-        $stop = Get-LogLines $script:LastSetupLog 'STOP: Ocul-PM requires Windows 10 version 2004'
+        $stop = @(Get-LogLines $script:LastSetupLog 'STOP: Ocul-PM requires Windows 10 version 2004')
         $installed = (Test-Path -LiteralPath $script:MainExe) -or (Test-Path -LiteralPath $UninstKey)
         $detail = "종료 코드 $($r.ExitCode) · 설치 흔적 " + $(if ($installed) { '있음' } else { '없음' }) + " · 로그: $((Get-LogLines $script:LastSetupLog '^\[ocul-pm') -join ' | ')"
         if ($r.TimedOut -or $r.ExitCode -eq 0 -or $installed -or -not $stop.Count) { throw $detail }
@@ -154,13 +155,13 @@ function Invoke-OsFloorProbes {
 # ── VC++ 런타임 — 첫 설치 뒤 ─────────────────────────────────────────────
 function Test-VcrtAfterFirstInstall {
     Test-Gate "OS 하한 — 빌드 $MinOsBuild 이면 통과 (주입값으로 설치 · 로그)" {
-        $os = Get-LogLines $script:FirstInstallLog "os: build $MinOsBuild \(from OCULPM_TEST_OS_BUILD\)"
-        $stop = Get-LogLines $script:FirstInstallLog 'STOP:'
+        $os = @(Get-LogLines $script:FirstInstallLog "os: build $MinOsBuild \(from OCULPM_TEST_OS_BUILD\)")
+        $stop = @(Get-LogLines $script:FirstInstallLog 'STOP:')
         if (-not $os.Count -or $stop.Count) { throw "로그: $((Get-LogLines $script:FirstInstallLog '^\[ocul-pm') -join ' | ')" }
         $os[0]
     }
     Test-Gate "VC++ 런타임 — 첫 설치 뒤 요구 빌드 $VcrtMinBld 이상 · 로그에 판정" {
-        $decision = Get-LogLines $script:FirstInstallLog '^\[ocul-pm .*\] vcredist:'
+        $decision = @(Get-LogLines $script:FirstInstallLog '^\[ocul-pm .*\] vcredist:')
         $s = Get-VcrtState
         if (-not $decision.Count -or -not $s.Ok) { throw "판정 로그: $($decision -join ' | ') · 지금: $(Format-VcrtState $s)" }
         "설치 전: $script:VcrtBefore · 판정 로그: $($decision -join ' | ') · 지금: $(Format-VcrtState $s)"
@@ -170,23 +171,30 @@ function Test-VcrtAfterFirstInstall {
 # 재설치 로그에서 (b) — 있으면 건너뛴다.
 function Test-VcrtSkippedOnReinstall {
     Test-Gate '(b) VC++ 런타임이 이미 있으면 vc_redist 를 건너뛴다 (재설치 로그)' {
-        $skip = Get-LogLines $script:ReinstallLog 'vcredist: present .* skipping'
-        $ran = Get-LogLines $script:ReinstallLog 'vcredist: (needed|/install)'
+        $skip = @(Get-LogLines $script:ReinstallLog 'vcredist: present .* skipping')
+        $ran = @(Get-LogLines $script:ReinstallLog 'vcredist: (needed|/install)')
         if (-not $skip.Count -or $ran.Count) { throw "재설치 로그: $((Get-LogLines $script:ReinstallLog '^\[ocul-pm') -join ' | ')" }
         $skip[0]
     }
 }
 
-# 요구 빌드가 exe 의 C++ 코드 도구 빌드를 덮는가 — Rich 헤더.
+# exe 안 어떤 코드도 링크한 MSVC 보다 새 MSVC 로 컴파일되지 않았는가 — Rich 헤더.
+# 재배포 요구 판은 "링크 도구 계열 = 동봉 재배포 계열" 로 정했다(fetch-vcredist.ps1 이 빌드 전에
+# 단언). 그 전제가 깨지는 길은 하나 — 사전 빌드 ONNX Runtime 이 러너보다 새 MSVC 로 구워지는 것.
+# prodid: 0x0102 링커 · 0x0103 MASM · 0x0104 C · 0x0105 C++ (ONNX Runtime lib 로 확인: C++ 909 · C 15 · MASM 37).
 function Test-VcrtMinCoversToolset {
-    Test-Gate "VC++ 요구 빌드 $VcrtMinBld ≥ exe 에 링크된 C++ 코드의 MSVC 도구 빌드 (Rich 헤더)" {
+    Test-Gate '링크 도구가 exe 안 모든 코드의 MSVC 보다 새것이다 (Rich 헤더 — 사전 빌드 ONNX Runtime 포함)' {
         $rows = @(Get-RichEntries $script:MainExe)
-        $cpp = @($rows | Where-Object ProdId -eq 0x0105)
-        if (-not $cpp.Count) { throw "prodid 0x0105(C++) 항목이 없다: $(($rows | ForEach-Object { '0x{0:x4}/{1}x{2}' -f $_.ProdId, $_.Build, $_.Count }) -join ' ')" }
-        $max = ($cpp | Measure-Object -Property Build -Maximum).Maximum
-        $all = ($rows | Sort-Object Build -Descending | Select-Object -First 8 | ForEach-Object { '0x{0:x4}/{1}×{2}' -f $_.ProdId, $_.Build, $_.Count }) -join ' '
-        if ($max -gt $VcrtMinBld) { throw "C++ 도구 빌드 최대 $max > 요구 $VcrtMinBld — installer-hooks.nsh 의 OCULPM_VCRT_MIN_BLD 를 올려야 한다 · $all" }
-        "C++(0x0105) 도구 빌드 최대 $max ≤ 요구 $VcrtMinBld · 상위 항목: $all"
+        $linker = @($rows | Where-Object ProdId -eq 0x0102)
+        if (-not $linker.Count) { throw 'Rich 헤더에 링커(0x0102) 항목이 없다' }
+        $linkBld = ($linker | Measure-Object -Property Build -Maximum).Maximum
+        $compiled = @($rows | Where-Object { $_.ProdId -in 0x0103, 0x0104, 0x0105 })
+        $newer = @($compiled | Where-Object Build -gt $linkBld)
+        $byTool = ($compiled | Group-Object ProdId | ForEach-Object {
+                '0x{0:x4}: {1}' -f [int]$_.Name, (($_.Group | Sort-Object Build -Descending | ForEach-Object { "$($_.Build)×$($_.Count)" }) -join ' ')
+            }) -join ' · '
+        if ($newer.Count) { throw "링커 $linkBld 보다 새 도구로 컴파일된 목적 파일: $(($newer | ForEach-Object { '0x{0:x4}/{1}×{2}' -f $_.ProdId, $_.Build, $_.Count }) -join ' ') · $byTool" }
+        "링커 빌드 $linkBld · 동봉 재배포 요구 ≥ $VcrtMinBld · 컴파일러별 빌드: $byTool"
     }
 }
 
@@ -206,7 +214,7 @@ function Invoke-NoRedistProbes {
         Test-Gate '재배포 설치 실패(UAC 취소 흉내 1602) → "설치 완료" 가 아니라 멈춘다 (종료 코드 ≠ 0 · 로그 STOP)' {
             $env:OCULPM_TEST_VCREDIST_EXIT = '1602'
             try { $r = Invoke-Setup $Installer @('/S') -TimeoutSec 180 } finally { Remove-Item Env:OCULPM_TEST_VCREDIST_EXIT -ErrorAction SilentlyContinue }
-            $stop = Get-LogLines $script:LastSetupLog 'STOP: Ocul-PM needs the Microsoft Visual C\+\+ Redistributable.*cancelled'
+            $stop = @(Get-LogLines $script:LastSetupLog 'STOP: Ocul-PM needs the Microsoft Visual C\+\+ Redistributable.*cancelled')
             $detail = "종료 코드 $($r.ExitCode) · 로그: $((Get-LogLines $script:LastSetupLog '^\[ocul-pm') -join ' | ')"
             if ($r.TimedOut -or $r.ExitCode -eq 0 -or -not $stop.Count) { throw $detail }
             $detail
