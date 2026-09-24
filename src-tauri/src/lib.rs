@@ -23,6 +23,8 @@ mod error;
 pub mod framing;
 // `git::diff_patch` is exercised by the `local_diff` integration suite (PR11).
 pub mod git;
+// AppHandle 없이 앱 데이터 폴더(Tauri app_data_dir 과 같은 규칙) — 로그·CLI·MCP 캐시.
+pub mod app_dirs;
 // Linux(glibc) 링크 호환 — 사전 빌드 ONNX Runtime 이 glibc 2.38+ 의 `__isoc23_*`
 // 를 부른다. 릴리스 하한 ubuntu-22.04(glibc 2.35)에서 링크되게 (크로스플랫폼 W1).
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
@@ -88,11 +90,9 @@ fn setup_logging() {
 
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into());
 
-    // Resolve `<app_data>/logs` via the same `directories` crate Tauri uses
-    // underneath app_data_dir(). On macOS this is
-    // `~/Library/Application Support/com.kimhyunbin.ai-pm/logs/`.
-    let log_dir = directories::ProjectDirs::from("com", "kimhyunbin", "ocul-pm")
-        .map(|p| p.data_dir().join("logs"));
+    // `<app_data>/logs` — Tauri `app_data_dir()` 과 같은 폴더(`app_dirs`). 예전
+    // `ProjectDirs` 는 Windows·Linux 에서 딴 폴더였다 (#paths-projectdirs-mismatch).
+    let log_dir = crate::app_dirs::app_data_dir().map(|d| d.join("logs"));
 
     // stdout 도 ANSI 를 끈다 — fmt 레이어는 스팬 필드를 **한 번만** 포맷해 스팬
     // 확장에 캐시하고(`FormattedFields`, 필드 포매터 타입별), 같은 포매터를 쓰는

@@ -3,10 +3,11 @@
 // ── 앱은 app-data 를 어디서 잡는가 (코드에서 확인, 2026-09-24) ─────────────
 //   1. Tauri `app.path().app_data_dir()` = `dirs::data_dir()/<identifier>`
 //      → DB(ocul-pm.db) · PTY 소켓 · 테마 · 셸 통합 스크립트 · 임베딩 캐시.
-//   2. `directories::ProjectDirs::from("com","kimhyunbin","ocul-pm").data_dir()`
-//      → 로그(`logs/oculpm.log.*`, lib.rs setup_logging) · `config` CLI · MCP 의
-//      journal_search 캐시. **macOS 에서만 1 과 같은 폴더다** — Linux 는
-//      `$XDG_DATA_HOME/ocul-pm`, Windows 는 `%APPDATA%\kimhyunbin\ocul-pm\data`.
+//   2. 로그(`logs/oculpm.log.*`) · `config` CLI · MCP 의 journal_search 캐시 —
+//      2026-09-24 부터 `app_dirs::app_data_dir()` 로 1 과 **같은 폴더**다
+//      (#paths-projectdirs-mismatch). 그 전엔 `ProjectDirs` 라 Linux 는
+//      `$XDG_DATA_HOME/ocul-pm`, Windows 는 `%APPDATA%\kimhyunbin\ocul-pm\data` 였다 —
+//      `dataRoots` 가 옛 자리도 찾는 것은 옛 빌드를 돌릴 때를 위해서다.
 //   3. `BaseDirs::home_dir()` → ~/.claude · ~/.codex · 전역 스킬.
 //   앱 자체에는 경로를 바꾸는 환경변수가 **없다**.
 //

@@ -32,9 +32,6 @@ use rusqlite::{params_from_iter, Connection, OpenFlags};
 
 use super::SearchRow;
 
-/// 앱이 쓰는 것과 **같은** 파일 (`config/cli.rs` 의 `open_db` 와 같은 자리).
-const APP_QUALIFIER: (&str, &str, &str) = ("com", "kimhyunbin", "ocul-pm");
-
 /// 앱이 쓰기 중일 수 있다. 여기서 오래 기다릴 이유는 없다 — 막히면 디스크로.
 const BUSY_TIMEOUT: Duration = Duration::from_millis(750);
 
@@ -60,9 +57,9 @@ pub struct CacheHandle {
 
 /// `<app_data>/ocul-pm.db` — 없으면 `None`.
 pub fn app_db_path() -> Option<PathBuf> {
-    let (q, o, a) = APP_QUALIFIER;
-    let dir = directories::ProjectDirs::from(q, o, a)?;
-    let path = dir.data_dir().join("ocul-pm.db");
+    // GUI 와 같은 폴더(`app_dirs`) — 예전 ProjectDirs 는 Windows·Linux 에서 딴 폴더라
+    // 캐시를 못 찾고 디스크 스캔으로 내려갔다 (#paths-projectdirs-mismatch).
+    let path = crate::app_dirs::app_data_dir()?.join("ocul-pm.db");
     path.is_file().then_some(path)
 }
 
