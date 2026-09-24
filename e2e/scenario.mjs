@@ -2,7 +2,7 @@
 // 터미널을 쓰고, 에이전트가 일지를 쓰는 것까지. 각 단계는 스크린샷을 남긴다.
 
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { IS_WIN } from "./lib/env.mjs";
 import { composeHangul, connectCdp } from "./lib/ime.mjs";
 import { connectApp } from "./lib/launch.mjs";
@@ -134,7 +134,7 @@ export async function runScenario(ctx) {
 
   const sized = async (label, w, h) => {
     await report.step(`창 크기 ${label} (${w}×${h})`, async (rec) => {
-      const r = await resizeViewport(wd, w, h);
+      const r = await resizeViewport(wd, w, h, { processName: basename(app).replace(/\.exe$/i, "") });
       rec.notes.push(...r.notes);
       if (!r.reached) rec.notes.push(`목표에 못 미침 — 실제 ${r.inner.join("×")} 로 찍는다`);
     });

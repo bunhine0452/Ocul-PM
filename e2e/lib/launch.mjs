@@ -17,7 +17,7 @@
 
 import { execFileSync, spawn } from "node:child_process";
 import { closeSync, openSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { IS_WIN } from "./env.mjs";
 import { sleep } from "./page.mjs";
 
@@ -29,7 +29,6 @@ const POLICY_KEYS = {
   "registry-hkcu": "HKCU\\Software\\Policies\\Microsoft\\Edge\\WebView2\\AdditionalBrowserArguments",
   "registry-hklm": "HKLM\\Software\\Policies\\Microsoft\\Edge\\WebView2\\AdditionalBrowserArguments",
 };
-const APP_EXE = "ocul-pm.exe";
 
 /** msedgedriver 를 자세한 로그와 함께 띄우는 .cmd 래퍼 — 붙기 실패의 원인을 남긴다. */
 export function verboseDriverWrapper(nativeDriver, dir, logPath) {
@@ -79,8 +78,9 @@ foreach ($root in 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Edge', 'HKCU:\\SOFTWARE
   return out ? out.split(/\r?\n/).filter(Boolean).slice(0, 20) : ["Edge 정책 없음"];
 }
 
-function killAll() {
-  for (const image of [APP_EXE, "msedgewebview2.exe"]) {
+/** 앱(설치본이면 그 실행 파일 이름)과 WebView2 브라우저 프로세스를 전부 내린다. */
+function killAll(appExe) {
+  for (const image of [appExe, "msedgewebview2.exe"]) {
     try {
       execFileSync("taskkill", ["/F", "/T", "/IM", image], { stdio: "pipe" });
     } catch {
@@ -105,14 +105,16 @@ async function waitPort(address, child, timeoutMs) {
 
 /** 한 가지 수단으로 앱을 띄워 CDP 포트가 열리는지 본다. 열리면 세션까지. */
 async function tryAttach({ wd, app, env, cwd, logFile, port, how, rec }) {
-  killAll(); // 단일 인스턴스·브라우저 프로세스 재사용 — 앞 시도의 잔재가 있으면 새 인자가 안 먹는다.
+  // 정책 값 이름·프로세스 이름은 실행 파일 이름 — 설치본(#w3-install-smoke)은 다를 수 있다.
+  const appExe = basename(app);
+  killAll(appExe); // 단일 인스턴스·브라우저 프로세스 재사용 — 앞 시도의 잔재가 있으면 새 인자가 안 먹는다.
   await sleep(1500);
   const args = `${WRY_DEFAULT_ARGS} --remote-debugging-port=${port}`;
   const childEnv = { ...env };
   if (how === "env") childEnv.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = args;
   const policyKey = POLICY_KEYS[how];
   if (policyKey) {
-    execFileSync("reg", ["add", policyKey, "/v", APP_EXE, "/t", "REG_SZ", "/d", args, "/f"], { stdio: "pipe" });
+    execFileSync("reg", ["add", policyKey, "/v", appExe, "/t", "REG_SZ", "/d", args, "/f"], { stdio: "pipe" });
   }
   const fd = openSync(logFile, "a");
   const child = spawn(app, [], { cwd, env: childEnv, stdio: ["ignore", fd, fd] });
@@ -123,7 +125,7 @@ async function tryAttach({ wd, app, env, cwd, logFile, port, how, rec }) {
   const unset = () => {
     if (!policyKey) return;
     try {
-      execFileSync("reg", ["delete", policyKey, "/v", APP_EXE, "/f"], { stdio: "pipe" });
+      execFileSync("reg", ["delete", policyKey, "/v", appExe, "/f"], { stdio: "pipe" });
     } catch {
       /* 이미 없다 */
     }
@@ -139,7 +141,7 @@ async function tryAttach({ wd, app, env, cwd, logFile, port, how, rec }) {
     mode: `attach-${how}`,
     debuggerAddress: address,
     stop: () => {
-      killAll();
+      killAll(appExe);
       unset();
     },
   };
@@ -168,6 +170,6 @@ export async function connectApp({ wd, app, ws, outDir, rec }) {
       return s;
     }
   }
-  killAll();
+  killAll(basename(app));
   throw new Error("WebView2 에 원격 디버깅을 켤 수단이 없었다 — 단계 비고의 브라우저 명령줄을 볼 것");
 }
