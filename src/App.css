@@ -92,6 +92,21 @@
                    U+FFE0-FFE6;
 }
 
+/* Pretendard Hangul — Windows·Linux UI 고정폭(--mono)의 한글 전담 (크로스플랫폼
+   {#ui-mono-hangul}). 파일은 위 'Pretendard Variable' 과 **같은 것**이라 새로 받지
+   않는다. 그 OS 의 코딩 글꼴(Cascadia Mono·DejaVu Sans Mono)에는 한글이 없어 다음
+   후보로 넘어오는데, 여기서 D2Coding 을 받으면 xterm 격자용 advance(1.204em) 때문에
+   한글 사이가 벌어진다. unicode-range 로 한글·CJK 구두점·전각에만 끼어들어 라틴은
+   늘 그 OS 의 고정폭이 그린다. macOS 스택은 이 이름을 부르지 않는다(D3). */
+@font-face {
+    font-family: 'Pretendard Hangul';
+    src: url('./assets/fonts/Pretendard-subset.woff2') format('woff2');
+    font-weight: 45 930;
+    font-style: normal;
+    font-display: swap;
+    unicode-range: U+1100-11FF, U+3000-303F, U+3130-318F, U+AC00-D7A3, U+FF00-FFEF;
+}
+
 @plugin "@tailwindcss/typography";
 
 /* PR-UI 8b — shadcn now themes through the ui_v2 data-theme attribute, not the
