@@ -71,7 +71,7 @@ owner: claude-code
 - [x] 프런트 후속 — errors.ts 규칙(`The system keyring is unavailable`·Linux 파일 붙여넣기 미지원), useCodeImport.pasteFiles 오류 토스트, 비-mac 트레이 팝오버의 투명 여백·그림자 제거, op.shell.desc2(iTerm2·Terminal.app) 비-mac 문구, **Windows 에서 틀린 MCP 권고 셋**(op.mcp.pluginCovers·op.mcp.pluginConflict·op.plugin.warn — 따르면 MCP 가 하나도 안 남는다, McpServerBlock·ClaudePluginBlock) (L-OS·L-SHELL·L-INTEG 발견) {#ui-followups}
 - [ ] Windows 릴리스 exe 는 GUI 서브시스템 — 사람이 콘솔에서 `oculpm` 을 치면 출력이 안 붙는다. CLI 진입 앞 AttachConsole(ATTACH_PARENT_PROCESS), 대기 문제는 콘솔 서브시스템 별도 바이너리 검토 (L-SHELL 발견) {#os-cli-console}
 - [ ] 에이전트가 준 files_touched 경로를 쓰기 시점에 `/` 로 정규화 (MCP journal_write·manager) — Windows 에이전트의 `src\a.ts` 가 diff 사이드카 키를 어긋나게 한다 (L-FS 발견) {#fs-files-touched-norm}
-- [ ] planner·discussion·rollup 파서의 CRLF 내성 — `planner/parse.rs::fold_wrapped_items` 가 split('\n') 이라 autocrlf 체크아웃의 plan-log·{#id} 가 흔들릴 수 있다, 테스트 0건 (L-FS 발견) {#fs-crlf-parsers}
+- [ ] planner·discussion·rollup 파서의 CRLF 내성 — `planner/parse.rs::fold_wrapped_items` 가 split('\n') 이라 autocrlf 체크아웃의 plan-log·항목 id 앵커가 흔들릴 수 있다, 테스트 0건 (L-FS 발견) {#fs-crlf-parsers}
 - [ ] 워처 rename 쌍의 새 이름이 빠진다 — 디바운서 Name(Both)[from,to] 에서 paths.first() 만 처리 (양 OS 기존 결함, L-FS 발견) {#fs-rename-pair}
 - [x] 간헐 실패 — watcher::removing_the_project_root_does_not_resurrect_it 가 Windows 에서 Access is denied(os 5)로 한 번 붉음(L-SHELL run 35893773736), 다른 run 은 초록. 감시 핸들이 루트 삭제를 막는 경합인지 — 사용자가 감시 중인 프로젝트 폴더를 지울 때도 같은 일이 나는지 확인 {#fs-watcher-flake}
 - [x] [사용자 결정] macOS 기존 결함 — acp/adapter.rs npm_platform 이 "macos" 로 찾아 딸려 온 claude(claude-agent-sdk-darwin-arm64)를 못 보고 PATH claude 로 물러선다. 고치면 ACP 가 쓰는 claude 바이너리가 바뀐다 (L-OS 발견) {#mac-bundled-claude}
@@ -95,10 +95,10 @@ owner: claude-code
 - [ ] Windows·Linux 에서 `directories::ProjectDirs` 경로가 Tauri `app_data_dir` 과 갈린다 — `ocul-pm config` CLI 가 GUI 와 **다른 DB** 를 열고 oculpm.log 가 ptyhost.log 와 다른 폴더에 쌓인다(lib.rs setup_logging · config/cli.rs open_db). macOS 는 같은 경로라 불변 (L-PTY2 발견) {#paths-projectdirs-mismatch}
 
 ## W3 — 패키징 · E2E (W2 합류 뒤, 병렬 2) {#w3}
-- [ ] tauri.windows.conf.json·tauri.linux.conf.json 분리 — tauri.conf.json(macOS) 불변 (D3) {#w3-conf}
-- [ ] Windows NSIS(currentUser·WebView2 embedBootstrapper) / Linux AppImage+deb, ubuntu-22.04 빌드(glibc 하한) {#w3-bundles}
+- [x] tauri.windows.conf.json·tauri.linux.conf.json 분리 — tauri.conf.json(macOS) 불변 (D3) {#w3-conf}
+- [x] Windows NSIS(currentUser·WebView2 embedBootstrapper) / Linux AppImage+deb, ubuntu-22.04 빌드(glibc 하한) {#w3-bundles}
 - [x] tauri-driver E2E: windows·ubuntu(xvfb) 기동→15화면 렌더→터미널 왕복→MCP 사이드카 일지→일지 화면 반영, 단계별 스크린샷 아티팩트 {#w3-e2e}
-- [ ] 설치 스모크: NSIS /S 설치→실행→로그 기동 줄→제거 / deb 설치·AppImage 실행 {#w3-install-smoke}
+- [x] 설치 스모크: NSIS /S 설치→실행→로그 기동 줄→제거 / deb 설치·AppImage 실행 {#w3-install-smoke}
 - [x] WebView2 CDP Input.imeSetComposition 로 한글 조합 → 터미널 도착 단언 (D8) {#w3-ime-cdp}
 - [ ] 업데이터 N→N+1 스모크 (로컬 latest.json · 테스트 키) {#w3-updater-smoke}
 - [x] [결정 필요] Windows 업데이트 때 터미널 세션이 끊긴다 — Tauri NSIS 가 ocul-pm.exe 를 이름으로 끝내 같은 exe 로 도는 --pty-host 도 끝난다(macOS 는 업데이트를 건넌다). L-PTY 권고: 호스트를 설치 폴더 밖 판별 복사본(%APPDATA%\<id>\ptyhost\ocul-pm-ptyhost-<판>.exe)에서 — 대가 AppData 의 exe·판마다 수십 MB. NSIS 템플릿 실제 동작부터 확인 (L-SHELL·L-PTY 발견) {#w3-update-ptyhost-lock}
@@ -117,12 +117,9 @@ owner: claude-code
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 25 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 28 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-24T02:41:05+09:00 | #os-tray-menu | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | 비-mac 트레이 메뉴 상시·불투명·작업 영역 위치(tray/placement.rs), TitleBarStyle mac 한정 확인 |
-| 2026-09-24T02:41:10+09:00 | #os-no-menu | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | menu::apply 비-mac no-op, MockRuntime 테스트 windows·ubuntu. new_window 는 #os-new-window |
-| 2026-09-24T02:41:16+09:00 | #os-secrets | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | SecretError::Unavailable, 평문 저장 없음, ubuntu 러너가 '저장소 없음' 갈래를 반드시 지남. 프런트 문구는 #ui-followups |
 | 2026-09-24T02:41:22+09:00 | #os-tools | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | DAP·LSP·편집기·greenfield·themes·클립보드·휴지통 + cmd 명령 주입 두 곳(open_url/Notion·편집기) 수정. Windows DAP 실제 세션은 미확인 |
 | 2026-09-24T02:41:27+09:00 | #fs-symlink-tests | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | L-OS 가 처리 — test_links(심링크→정션) 12곳 windows 실링크 통과 + cfg(unix) 통합 테스트 17건 Git Bash |
 | 2026-09-24T03:44:59+09:00 | #fs-watcher-flake | claude-code | ☐→~ |  | 두 번째 재현(PR #35 run) — rename(루트) Access denied. 감시 중 폴더를 휴지통으로 보내는 제품 결함 후보. L-FS2 세션 출발(port/l-fs2) |
@@ -160,5 +157,8 @@ owner: claude-code
 | 2026-09-25T02:44:09+09:00 | #ui-e2e-minor | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | 탭 라벨 실제 셸(bash/pwsh, macOS zsh 불변), 영어 전환 토스트 tIn 으로(모든 OS 결함) |
 | 2026-09-25T02:44:15+09:00 | #ui-mac-words | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | i18n 판 조회 __win/__linux/__pc 47개 두 언어, macOS 는 조회 안 함(원문 불변 테스트) |
 | 2026-09-25T02:44:24+09:00 | #ui-followups | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | errors.ts 3규칙·pasteFiles 토스트·트레이 팝오버 불투명·op.shell.desc2·Windows MCP 권고 셋 수정. 설정 실물은 vitest 로만 |
-<!-- oculpm:plan-log archived: 25 rows → cross-platform-port.log.md -->
+| 2026-09-25T03:05:17+09:00 | #w3-conf | claude-code | ☐→x | journal/20260925/Features_to_add/0305_feature_port-lpkg-bundles-install-smoke.md | PR #45 — 플랫폼 conf 2개 병합, macOS conf 불변 |
+| 2026-09-25T03:05:21+09:00 | #w3-bundles | claude-code | ☐→x | journal/20260925/Features_to_add/0305_feature_port-lpkg-bundles-install-smoke.md | PR #45 — NSIS·AppImage·deb 번들 잡 양 OS 초록 |
+| 2026-09-25T03:05:25+09:00 | #w3-install-smoke | claude-code | ☐→x | journal/20260925/Features_to_add/0305_feature_port-lpkg-bundles-install-smoke.md | PR #45 — 설치·실행·재설치·제거 스모크 양 OS 초록, 사이드카 잠금 NSIS 훅 포함 |
+<!-- oculpm:plan-log archived: 28 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
