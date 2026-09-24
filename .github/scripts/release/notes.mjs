@@ -10,8 +10,14 @@
  * `### ✨ What's new` 제목은 앱이 붙잡는 닻이다 — `src/lib/updater.ts` releaseHighlights 가
  * 그 절만 잘라 업데이트 배너에 싣는다. 이름을 바꾸지 말 것.
  *
- *   node notes.mjs section --changelog CHANGELOG.md --tag vX.Y.Z [--fallback-unreleased]
- *   node notes.mjs body    --changelog CHANGELOG.md --tag vX.Y.Z --assets <자산 이름 목록> \
+ * 비-mac 공개 스위치(`OCULPM_RELEASE_NONMAC`)가 꺼진 릴리스는 이 파일의 `composeMacOnlyBody` 가
+ * 본문을 **v3.5.0 까지와 같은 모양**으로 만든다(`fixtures/body-v3.5.0.md` 와 바이트 단위로 같다 —
+ * release.test.mjs). 그때 publish 는 본문을 다시 쓰지 않는다 — 빠진 플랫폼이 아니라 범위 밖이다.
+ *
+ *   node notes.mjs section      --changelog CHANGELOG.md --tag vX.Y.Z [--fallback-unreleased]
+ *   node notes.mjs release-body --changelog CHANGELOG.md --tag vX.Y.Z --mode mac-only|whats-new \
+ *        [--fallback-unreleased]      (macOS 잡이 tauri-action 에 넘기는 본문 = latest.json 의 notes)
+ *   node notes.mjs body         --changelog CHANGELOG.md --tag vX.Y.Z --assets <자산 이름 목록> \
  *        [--excluded windows=설치 스모크,linux=E2E] [--dry-run] [--commit <sha>]
  */
 import { readFileSync } from "node:fs";
@@ -38,6 +44,59 @@ export function changelogSection(md, tag, { fallbackUnreleased = false } = {}) {
   if (exact !== null) return exact;
   if (fallbackUnreleased) return pick("## Unreleased") ?? "";
   return "";
+}
+
+/**
+ * 예전 release.yml 의 awk 가 뽑던 **날 것**: 제목 다음 줄부터 다음 `## ` 전까지, 끝의 빈 줄만
+ * 떨군다(셸의 `$(...)` 가 하던 일). 앞의 빈 줄은 남는다 — v3.5.0 까지의 본문이 그 모양이다.
+ */
+export function changelogSectionRaw(md, tag, { fallbackUnreleased = false } = {}) {
+  const pick = (heading) => {
+    const lines = md.split(/\r?\n/);
+    const start = lines.findIndex((l) => l === heading);
+    if (start < 0) return null;
+    const body = [];
+    for (const line of lines.slice(start + 1)) {
+      if (line.startsWith("## ")) break;
+      body.push(line);
+    }
+    return body.join("\n").replace(/\n+$/, "");
+  };
+  const exact = pick(`## ${tag}`);
+  if (exact !== null) return exact;
+  if (fallbackUnreleased) return pick("## Unreleased") ?? "";
+  return "";
+}
+
+/**
+ * 비-mac 공개 스위치가 꺼졌을 때의 본문 — v3.5.0 까지의 release.yml `releaseBody` 템플릿 그대로
+ * (GitHub 가 끝의 개행을 떼어 저장한다). `section` 은 `changelogSectionRaw` 의 결과.
+ */
+export function composeMacOnlyBody({ tag, section }) {
+  return [
+    `## Ocul-PM ${tag}`,
+    "",
+    "### ✨ What's new",
+    section,
+    "",
+    "### Downloads",
+    "| Platform | File |",
+    "|---|---|",
+    "| macOS (Apple Silicon) | `.dmg` (aarch64) |",
+    "",
+    "> macOS Intel · Windows 는 추후 업데이트 예정입니다.",
+    "",
+    "### macOS 설치",
+    "Apple Developer ID 서명 + 공증(notarization)을 마친 빌드입니다 — `.dmg` 를 열고",
+    "`Applications` 로 끌어다 놓으면 끝입니다. `xattr` 같은 우회는 더 이상 필요 없습니다.",
+    "",
+    "이후 버전부터는 앱 안에서 **자동 업데이트**됩니다.",
+  ].join("\n");
+}
+
+/** 비-mac 을 싣는 릴리스의 macOS 잡 본문 — 「What's new」 만. 나머지는 publish 가 채운다. */
+export function composeWhatsNewBody({ tag, section }) {
+  return [`## Ocul-PM ${tag}`, "", "### ✨ What's new", section].join("\n");
 }
 
 /** 자산 이름 → 표의 한 줄. 순서가 곧 표 순서다. */
@@ -125,6 +184,7 @@ function main(argv) {
       assets: { type: "string" },
       excluded: { type: "string" },
       "fallback-unreleased": { type: "boolean" },
+      mode: { type: "string" },
       "dry-run": { type: "boolean" },
       commit: { type: "string" },
     },
@@ -135,6 +195,17 @@ function main(argv) {
     process.stdout.write(`${changelogSection(md, values.tag, { fallbackUnreleased: Boolean(values["fallback-unreleased"]) })}\n`);
     return 0;
   }
+  if (command === "release-body") {
+    const fallbackUnreleased = Boolean(values["fallback-unreleased"]);
+    if (values.mode === "mac-only") {
+      process.stdout.write(composeMacOnlyBody({ tag: values.tag, section: changelogSectionRaw(md, values.tag, { fallbackUnreleased }) }));
+    } else if (values.mode === "whats-new") {
+      process.stdout.write(composeWhatsNewBody({ tag: values.tag, section: changelogSection(md, values.tag, { fallbackUnreleased }) }));
+    } else {
+      throw new Error(`--mode 는 mac-only | whats-new: ${values.mode ?? "(없음)"}`);
+    }
+    return 0;
+  }
   if (command === "body") {
     const assets = readFileSync(values.assets, "utf8").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
     const whatsNew = changelogSection(md, values.tag, { fallbackUnreleased: dryRun });
@@ -143,7 +214,7 @@ function main(argv) {
     );
     return 0;
   }
-  throw new Error(`알 수 없는 명령: ${command ?? "(없음)"} — section | body`);
+  throw new Error(`알 수 없는 명령: ${command ?? "(없음)"} — section | release-body | body`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
