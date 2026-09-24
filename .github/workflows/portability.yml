@@ -350,3 +350,327 @@ jobs:
             echo "::error::사이드카 빌드 실패 — 요약과 sidecar.log 를 볼 것"
             exit 1
           fi
+
+  # ── 설치 파일 · 설치 스모크 (크로스플랫폼 W3 L-PKG #w3-conf #w3-bundles #w3-install-smoke) ──
+  # 릴리스와 **같은 설정**으로 설치 파일을 만든다. macOS 가 쓰는 tauri.conf.json 은 그대로
+  # 두고(D3), Tauri 가 스스로 병합하는 플랫폼 파일(JSON Merge Patch — tauri-utils
+  # config/parse.rs `read_from`)을 얹는다. macOS 빌드는 tauri.macos.conf.json 만 찾으므로
+  # 아래 두 파일을 읽지 않는다. 두 파일이 그 모양인 이유 (JSON 이라 주석을 못 단다):
+  #   tauri.windows.conf.json — NSIS 하나(targets "all" 이면 MSI 까지 만든다) · installMode
+  #     currentUser(관리자 권한 없이 %LOCALAPPDATA%\Ocul-PM, 업데이터가 UAC 없이 덮는다) ·
+  #     WebView2 embedBootstrapper(+1.8MB — 부트스트래퍼를 받으러 나가지 않는다. 런타임 설치는
+  #     여전히 인터넷이 필요하다: 완전 오프라인은 offlineInstaller +127MB) · 설치 언어
+  #     English·Korean(OS 언어를 따르고, 목록에 없는 언어면 첫 항목 English 로).
+  #   tauri.linux.conf.json — AppImage + deb (D10, rpm 은 보류). deb Depends 의
+  #     libwebkit2gtk-4.1-0 · libgtk-3-0 · libayatana-appindicator3-1 은 tauri-cli 가 스스로
+  #     넣는다(tray-icon 기능을 보고 — tauri-cli interface/rust.rs). 여기 또 적으면 두 번
+  #     들어간다. 실행 파일이 직접 링크하는 것만 더한다: libssl3(native-tls ← fastembed
+  #     hf-hub) — t64 전환 뒤 이름 libssl3t64 도 받는다 — 와 libdbus-1-3(keyring secret-service).
+  #
+  # 느리다(릴리스 프로필 · thin LTO · codegen-units=1, 사이드카와 앱 두 번 링크) — 번들에
+  # 닿는 파일이 바뀐 push 와 수동 실행에서만 돈다(판정은 사이드카 잡과 같은 방식).
+  # 스모크 스크립트만 바뀐 push 는 번들을 다시 굽지 않고 이 브랜치의 앞 run 번들을 쓴다.
+  bundle-changes:
+    name: 번들 — 바뀐 파일 판정
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      bundle: ${{ steps.gate.outputs.bundle }}
+      smoke: ${{ steps.gate.outputs.smoke }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      # 번들(수십 분)을 기다리기 전에 스모크 스크립트의 문법부터 — 오타 하나로 한 바퀴를
+      # 버리지 않는다. 우분투 러너에 pwsh·shellcheck 가 기본으로 있다.
+      - name: 스모크 스크립트 문법 (pwsh 파서 · bash -n · shellcheck)
+        run: |
+          pwsh -NoProfile -Command '
+            $errs = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path ".github/scripts/install-smoke-windows.ps1").Path, [ref]$null, [ref]$errs)
+            if ($errs) { $errs | ForEach-Object { Write-Host "::error file=.github/scripts/install-smoke-windows.ps1,line=$($_.Extent.StartLineNumber)::$($_.Message)" }; exit 1 }
+            Write-Host "install-smoke-windows.ps1: 파서 오류 0"'
+          bash -n .github/scripts/install-smoke-linux.sh
+          shellcheck -S warning .github/scripts/install-smoke-linux.sh
+          echo "install-smoke-linux.sh: bash -n · shellcheck(warning 이상) 통과"
+      - name: 판정
+        id: gate
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          bundle=false
+          smoke=false
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            bundle=true; why="수동 실행"
+          elif [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            bundle=true; why="브랜치 첫 push"
+          elif ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            bundle=true; why="이전 머리 $BEFORE 를 못 찾음 (강제 push)"
+          else
+            changed=$(git diff --name-only "$BEFORE" "$AFTER")
+            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|\.github/workflows/portability\.yml)' <<<"$changed" || true)
+            smoke_hit=$(grep -E '^\.github/scripts/install-smoke-' <<<"$changed" || true)
+            if [ -n "$hit" ]; then
+              bundle=true; why=$(echo $hit)
+            elif [ -n "$smoke_hit" ]; then
+              smoke=true; why="스모크 스크립트만 ($(echo $smoke_hit)) — 앞 run 의 번들로"
+            else
+              why="번들에 닿는 변경 없음"
+            fi
+          fi
+          if [ "$bundle" = true ]; then smoke=true; fi
+          echo "bundle=$bundle" >> "$GITHUB_OUTPUT"
+          echo "smoke=$smoke" >> "$GITHUB_OUTPUT"
+          echo "번들 잡: bundle=$bundle smoke=$smoke — $why" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  bundle:
+    name: 번들 — ${{ matrix.os }}
+    needs: bundle-changes
+    if: needs.bundle-changes.outputs.bundle == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            triple: x86_64-pc-windows-msvc
+          - os: ubuntu-22.04
+            triple: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 툴체인 버전 읽기 (rust-toolchain.toml)
+        id: toolchain
+        run: |
+          channel=$(grep -m1 '^channel' rust-toolchain.toml | tr -d ' "\r' | cut -d= -f2)
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust ${{ steps.toolchain.outputs.channel }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          targets: ${{ matrix.triple }}
+
+      # Tauri 문서의 Debian 전제 + keyring 의 libdbus. file·patchelf 는 AppImage 번들러가 쓴다.
+      - name: Linux 시스템 의존성
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+            libxdo-dev libssl-dev libdbus-1-dev build-essential pkg-config file patchelf
+
+      - name: Rust cache (release)
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          key: bundle-release
+          cache-on-failure: true
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # createUpdaterArtifacts: true 는 서명 키가 없으면 번들을 실패시킨다. 릴리스 키
+      # (secrets.TAURI_PRIVATE_KEY)는 여기서 쓰지 않는다 — 이 잡에서만 사는 일회용 키를
+      # 만들어 설정(tauri.conf.json)을 한 글자도 덮지 않고 릴리스와 같은 경로로 굽는다.
+      # 그 덕에 NSIS·AppImage 옆에 업데이터 .sig 가 실제로 생기는지도 본다(W4 전제).
+      # 이 키로 서명한 .sig 는 앱에 박힌 공개 키와 안 맞으므로 올리지 않는다.
+      - name: 업데이터 서명 키 — 이 잡 전용 일회용
+        run: |
+          pnpm tauri signer generate --ci -w "$RUNNER_TEMP/ci-updater.key" >/dev/null
+          echo "TAURI_SIGNING_PRIVATE_KEY=$RUNNER_TEMP/ci-updater.key" >> "$GITHUB_ENV"
+
+      # --target 을 호스트 triple 로 준다: beforeBuildCommand 의 build-sidecar.mjs 가
+      # `cargo build --release --target <호스트>` 로 사이드카를 구우므로 같은 target 폴더를
+      # 써야 의존성을 두 번 컴파일하지 않는다.
+      - name: pnpm tauri build --target ${{ matrix.triple }}
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          pnpm tauri build --target ${{ matrix.triple }} 2>&1 | tee bundle.log
+
+      # 설정 병합의 실증: tauri.conf.json 은 targets "all" 이다 — Windows 에 msi, Linux 에
+      # rpm 이 없으면 플랫폼 파일이 실제로 병합된 것이다.
+      - name: 산출물 — 모으기 · 크기 · 업데이터 .sig · 플랫폼 설정 병합
+        id: collect
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          b="src-tauri/target/${{ matrix.triple }}/release/bundle"
+          echo "번들 폴더: $(ls "$b" | tr '\n' ' ')" | tee bundle-files.txt
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            files=("$b"/nsis/*-setup.exe); want=1; signed=("${files[@]}")
+            if [ -d "$b/msi" ]; then echo "::error::msi 가 생겼다 — tauri.windows.conf.json 이 병합되지 않았다"; exit 1; fi
+          else
+            files=("$b"/appimage/*.AppImage "$b"/deb/*.deb); want=2; signed=("$b"/appimage/*.AppImage)
+            if [ -d "$b/rpm" ]; then echo "::error::rpm 이 생겼다 — tauri.linux.conf.json 이 병합되지 않았다"; exit 1; fi
+          fi
+          if [ "${#files[@]}" -ne "$want" ]; then
+            echo "::error::설치 파일이 ${want}개여야 하는데 ${#files[@]}개: ${files[*]:-없음}"
+            exit 1
+          fi
+          mkdir -p dist-bundle
+          for f in "${files[@]}"; do
+            cp "$f" dist-bundle/
+            printf '%s\t%s bytes\n' "$(basename "$f")" "$(wc -c <"$f" | tr -d ' ')" | tee -a bundle-files.txt
+          done
+          for f in "${signed[@]}"; do
+            if [ ! -s "$f.sig" ]; then echo "::error::업데이터 서명 $f.sig 가 없다"; exit 1; fi
+            echo "$(basename "$f").sig 있음 (일회용 키 — 올리지 않는다)" | tee -a bundle-files.txt
+          done
+          echo "commit=${{ github.sha }} run=${{ github.run_id }}" > dist-bundle/bundle-info.txt
+
+      - name: 설치 파일 아티팩트
+        if: steps.collect.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: portability-bundle-${{ matrix.os }}
+          path: dist-bundle/
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
+
+      - name: 번들 로그 아티팩트
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portability-bundle-log-${{ matrix.os }}
+          path: |
+            bundle.log
+            bundle-files.txt
+          if-no-files-found: ignore
+
+      - name: 요약
+        if: always()
+        run: |
+          {
+            echo "## bundle — ${{ matrix.os }}"
+            echo "| 단계 | 결과 |"
+            echo "|---|---|"
+            echo "| pnpm tauri build | ${{ steps.build.outcome }} |"
+            echo "| 산출물 · .sig · 설정 병합 | ${{ steps.collect.outcome }} |"
+            echo ""
+            echo '```'
+            cat bundle-files.txt 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.build.outcome }}" != "success" ] || \
+             [ "${{ steps.collect.outcome }}" != "success" ]; then
+            echo "::error::번들 실패 — 요약과 bundle.log 를 볼 것"
+            exit 1
+          fi
+
+  # 깨끗한 러너(빌드 러너와 다른 기계)에서 설치 → 실행 → 재설치 → 제거. 무엇을 보는지는
+  # .github/scripts/install-smoke-{windows.ps1,linux.sh} 머리 주석에 있다. gate 가 하나라도
+  # 붉으면 잡이 붉고, 관찰(observe) 항목은 기록만 한다 — 결과표는 잡 요약과 아티팩트
+  # summary.md 에.
+  install-smoke:
+    name: 설치 스모크 — ${{ matrix.os }}
+    needs: [bundle-changes, bundle]
+    if: ${{ !cancelled() && needs.bundle-changes.outputs.smoke == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    # 다른 run 의 아티팩트를 받으려면 actions: read 가 있어야 한다.
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 번들 출처 — 이 run, 번들을 건너뛴 push 면 이 브랜치의 앞 run
+        id: src
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: portability-bundle-${{ matrix.os }}
+          BUNDLE_RESULT: ${{ needs.bundle.result }}
+          RUN_ID: ${{ github.run_id }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          has() {
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$1/artifacts?name=$NAME" \
+              --jq '[.artifacts[] | select(.expired | not)] | length'
+          }
+          if [ "$(has "$RUN_ID")" -gt 0 ]; then
+            echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+            echo "이 run 의 번들"
+            exit 0
+          fi
+          if [ "$BUNDLE_RESULT" != "skipped" ]; then
+            echo "::error::이 run 에서 $NAME 이 만들어지지 않았다 (bundle 잡: $BUNDLE_RESULT)"
+            exit 1
+          fi
+          for id in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/portability.yml/runs?branch=$BRANCH&per_page=30" --jq '.workflow_runs[].id'); do
+            if [ "$id" != "$RUN_ID" ] && [ "$(has "$id")" -gt 0 ]; then
+              echo "run_id=$id" >> "$GITHUB_OUTPUT"
+              echo "번들을 건너뛴 push — 앞 run $id 의 번들을 쓴다" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          done
+          echo "::error::이 브랜치의 최근 run 에 $NAME 이 없다 — workflow_dispatch 로 번들부터 굽는다"
+          exit 1
+
+      - name: 설치 파일 받기
+        uses: actions/download-artifact@v4
+        with:
+          name: portability-bundle-${{ matrix.os }}
+          path: bundle
+          run-id: ${{ steps.src.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: 번들 정보 · 기대 버전
+        id: ver
+        shell: bash
+        run: |
+          ls -la bundle
+          cat bundle/bundle-info.txt || true
+          echo "version=$(node -p "require('./src-tauri/tauri.conf.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: 설치 스모크 — Windows (NSIS)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path bundle -Filter '*-setup.exe' | Select-Object -First 1
+          if (-not $installer) { Write-Host '::error::설치 파일(*-setup.exe)이 없다'; exit 1 }
+          $global:LASTEXITCODE = 99
+          & ./.github/scripts/install-smoke-windows.ps1 -Installer $installer.FullName -Version '${{ steps.ver.outputs.version }}' -OutDir smoke-out
+          exit $LASTEXITCODE
+
+      - name: 설치 스모크 — Linux (AppImage · deb)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: bash .github/scripts/install-smoke-linux.sh bundle '${{ steps.ver.outputs.version }}' smoke-out
+
+      - name: 스모크 결과 아티팩트 (로그 · 스크린샷 · 매니페스트 · summary.md)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portability-install-smoke-${{ matrix.os }}
+          path: smoke-out/
+          if-no-files-found: ignore
