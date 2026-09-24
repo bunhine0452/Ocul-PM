@@ -30,13 +30,18 @@
 
 ; Microsoft's rule (STL changelog, VS 2022 17.10 constexpr mutex; binary-compat-2015-2017):
 ; "the Redistributable version must be at least as new as the latest toolset used by any
-; app component". The only component that uses MSVCP140 is the prebuilt ONNX Runtime
-; (ort-sys 2.0.0-rc.12 -> pyke ms@1.24.2 x86_64-pc-windows-msvc onnxruntime.lib): every
-; one of its 962 objects carries @comp.id build 35222, i.e. MSVC 14.44.35222. The imports
-; include the mutex machinery (_Mtx_init_in_situ, _Mtx_lock, _Cnd_*). The install smoke
-; re-checks this against the Rich header of the shipped exe; raise this number when the
-; ONNX Runtime prebuilt moves to a newer toolset.
-!define OCULPM_VCRT_MIN_BLD 35222
+; app component". Two toolsets meet in ocul-pm.exe / oculpm-mcp.exe:
+;   - the prebuilt ONNX Runtime, the code that calls MSVCP140 (ort-sys 2.0.0-rc.12 -> pyke
+;     ms@1.24.2 onnxruntime.lib: all 962 objects carry @comp.id build 35222 = MSVC 14.44;
+;     the imports include the mutex machinery _Mtx_init_in_situ / _Mtx_lock / _Cnd_*), and
+;   - the build machine's MSVC that links it, together with msvcprt.lib (Rich header of the
+;     shipped exe: linker build 36257, i.e. the 14.51 family on windows-latest, 2026-09).
+; The latest one decides: the 14.51 family. So the floor is the redistributable we ship,
+; 14.51.36247 -- the newest 14.51 one (aka.ms/vc14). fetch-vcredist.ps1 refuses to build
+; when the build machine's toolset family is newer than the bundled redistributable, and
+; the install smoke refuses an exe whose code was compiled by a newer MSVC than its linker.
+; Raise this together with the pin in fetch-vcredist.ps1.
+!define OCULPM_VCRT_MIN_BLD 36247
 
 ; ----------------------------------------------------------------------------------------
 ; The redistributable itself -- written by .github/scripts/fetch-vcredist.ps1 (pinned URL,
@@ -86,7 +91,7 @@ Var OculpmMsg
     ${EndIf}
   ${EndIf}
   !insertmacro OCULPM_PICK "${KO}" "${EN}"
-  MessageBox MB_ICONSTOP|MB_OK "$OculpmMsg" /SD IDOK
+  MessageBox MB_ICONSTOP|MB_OK|MB_TOPMOST|MB_SETFOREGROUND "$OculpmMsg" /SD IDOK
   RMDir "$INSTDIR"
   Abort
 !macroend
@@ -209,7 +214,7 @@ Var OculpmMsg
       !insertmacro OCULPM_PICK \
         "Microsoft Visual C++ 재배포 패키지를 설치했지만 Windows 를 다시 시작해야 적용돼요. 다시 시작한 뒤 Ocul-PM 을 실행해 주세요." \
         "The Microsoft Visual C++ Redistributable was installed, but Windows has to restart to finish it. Please restart Windows before starting Ocul-PM."
-      MessageBox MB_ICONINFORMATION|MB_OK "$OculpmMsg" /SD IDOK
+      MessageBox MB_ICONINFORMATION|MB_OK|MB_TOPMOST|MB_SETFOREGROUND "$OculpmMsg" /SD IDOK
     ${ElseIf} $R8 == "1602"
       !insertmacro OCULPM_STOP \
         "Ocul-PM 에 필요한 Microsoft Visual C++ 재배포 패키지(x64, 빌드 ${OCULPM_VCRT_MIN_BLD} 이상)를 설치하지 못했어요 — 관리자 권한 확인(UAC)이 취소됐어요.$\r$\n이 구성 요소가 없으면 앱이 시작되지 않으므로 설치를 멈춥니다.$\r$\n$\r$\n설치를 다시 실행해 UAC 창에서 '예'를 누르거나, https://aka.ms/vc14/vc_redist.x64.exe 에서 직접 설치한 뒤 다시 시도해 주세요." \
