@@ -733,8 +733,9 @@ jobs:
             [ -s "$exe" ] || { echo "::error::$exe 가 없다: $(names "$b/nsis")"; exit 1; }
             [ -s "$exe.sig" ] || { echo "::error::$exe.sig 가 없다 — TAURI_PRIVATE_KEY 시크릿 확인"; exit 1; }
             cp "$exe" "$exe.sig" "$out/"
-            main="src-tauri/target/${{ matrix.triple }}/release/ocul-pm.exe"
-            echo "설치 형식 표식 NSS(nsis) — $(marker "$main" NSS) (없으면 앱은 맨 windows-x86_64 로 찾는다)"
+            # 번들러는 형식마다 실행 파일을 패치했다가 원본으로 **되돌린다**(tauri-bundler bundle.rs —
+            # 서명 체크섬 때문). 그래서 target/ 의 exe 에는 표식이 없는 것이 정상이고, NSIS 안의 것은
+            # E2E 잡이 깐 뒤 기록한다. latest.json 은 맨 windows-x86_64 도 싣으므로 표식과 무관하게 찾는다.
           else
             if [ -d "$b/rpm" ]; then echo "::error::rpm 이 생겼다 — tauri.linux.conf.json 이 병합되지 않았다"; exit 1; fi
             appimage="$b/appimage/Ocul-PM_${VERSION}_amd64.AppImage"
@@ -948,6 +949,9 @@ jobs:
           if (-not (Test-Path $app)) { Write-Host "::error::설치된 실행 파일이 없다: $app"; exit 1 }
           "OCULPM_E2E_APP=$app" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "설치됨: $app"
+          # 업데이터가 고를 키의 근거 — 설치된 exe 의 설치 형식 표식 (기록만: 맨 키로도 찾는다).
+          $marker = if (Select-String -Path $app -Pattern '__TAURI_BUNDLE_TYPE_VAR_NSS' -SimpleMatch -Quiet) { '있음' } else { '없음' }
+          Write-Host "설치 형식 표식 NSS: $marker"
 
       - name: tauri-driver
         run: cargo install tauri-driver --locked --version 2.0.6
