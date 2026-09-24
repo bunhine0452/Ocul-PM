@@ -19,8 +19,8 @@ use crate::framing::{encode_frame, parse_frame, Frame};
 
 /// 스폰 후 접속 재시도 — 50ms × 60 = 최대 3초. cargo 디버그 빌드의 느린
 /// 프로세스 기동까지 감안한 여유다.
-const CONNECT_RETRY_MS: u64 = 50;
-const CONNECT_RETRIES: u32 = 60;
+pub(super) const CONNECT_RETRY_MS: u64 = 50;
+pub(super) const CONNECT_RETRIES: u32 = 60;
 
 /// 요청 하나의 응답 상한. 정상 왕복은 밀리초 — 이걸 넘기는 호스트는 먹통이고,
 /// 상한이 없으면 그 먹통이 터미널 마운트(start/attach 대기)를 영원히 막는다.
@@ -337,6 +337,9 @@ pub fn socket_candidates(app_data_dir: &Path) -> Vec<PathBuf> {
 
 /// 호스트를 detach 로 띄운다 — 앱이 죽어도(업데이트 재시작) 함께 죽지 않게
 /// 프로세스 그룹을 분리하고 stdio 를 끊는다. 시체 수거(wait)는 전용 스레드로.
+///
+/// Windows 는 여기를 지나지 않는다 — 설치 폴더 밖의 복사본에서 띄운다 ([`super::launch`]).
+#[cfg(not(windows))]
 pub fn spawn_host_process(socket: &Path) -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| format!("current_exe failed: {e}"))?;
     spawn_host_from(&exe, socket)
@@ -346,12 +349,26 @@ pub fn spawn_host_process(socket: &Path) -> Result<(), String> {
 /// 바이너리(`CARGO_BIN_EXE_ocul-pm`)로 `main.rs` 의 `--pty-host` 분기까지 돈다
 /// (테스트 실행 파일 자신은 그 분기를 모른다).
 pub fn spawn_host_from(exe: &Path, socket: &Path) -> Result<(), String> {
+    reap(spawn_host_child(exe, socket, None)?);
+    Ok(())
+}
+
+/// 호스트 프로세스를 띄워 핸들을 돌려준다 — 부르는 쪽이 일찍 죽는지 지켜보다가
+/// [`reap`] 에 넘긴다. `cwd` 는 호스트의 작업 폴더(없으면 앱의 것을 물려받는다).
+pub(super) fn spawn_host_child(
+    exe: &Path,
+    socket: &Path,
+    cwd: Option<&Path>,
+) -> Result<std::process::Child, String> {
     let mut cmd = crate::proc::std_cmd(exe);
     cmd.arg("--pty-host")
         .arg(socket)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null());
+    if let Some(dir) = cwd {
+        cmd.current_dir(dir);
+    }
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
@@ -371,13 +388,15 @@ pub fn spawn_host_from(exe: &Path, socket: &Path) -> Result<(), String> {
             crate::proc::CREATE_NO_WINDOW | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
         );
     }
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| format!("failed to spawn the pty-host: {e}"))?;
+    cmd.spawn()
+        .map_err(|e| format!("failed to spawn the pty-host: {e}"))
+}
+
+/// 띄운 호스트의 시체 수거(wait)를 전용 스레드로 넘긴다.
+pub(super) fn reap(mut child: std::process::Child) {
     std::thread::spawn(move || {
         let _ = child.wait();
     });
-    Ok(())
 }
 
 /// 만난 호스트를 **조용히 갈아 치워도 되는가.**
@@ -462,15 +481,44 @@ pub async fn connect_or_spawn(
     let socket = candidates
         .first()
         .ok_or_else(|| "no pty-host socket candidates".to_string())?;
-    spawn_host_process(socket)?;
+    // Windows 는 설치 폴더 밖의 복사본에서 띄운다 — 업데이트 설치 파일이 `ocul-pm.exe`
+    // 를 이름으로 끝내도 호스트가 산다 ([`super::launch`]).
+    #[cfg(windows)]
+    {
+        super::launch::spawn_and_connect(socket, on_event)
+            .await
+            .map(Some)
+    }
+    #[cfg(not(windows))]
+    {
+        spawn_host_process(socket)?;
+        connect_spawned(socket, on_event, CONNECT_RETRIES, || None)
+            .await
+            .map(Some)
+    }
+}
+
+/// 방금 띄운 호스트에 붙는다 — [`CONNECT_RETRY_MS`] 간격으로 `tries` 번.
+///
+/// `gave_up` 이 이유를 돌려주면 남은 시도를 기다리지 않고 그 이유로 실패한다 — Windows 는
+/// 복사본 호스트가 일찍 죽었는지를 여기서 보고 곧장 원본으로 물러선다 ([`super::launch`]).
+pub(super) async fn connect_spawned(
+    socket: &Path,
+    on_event: impl Fn(Event) + Send + Sync + Clone + 'static,
+    tries: u32,
+    mut gave_up: impl FnMut() -> Option<String>,
+) -> Result<PtyHostClient, String> {
     let mut last = String::new();
-    for _ in 0..CONNECT_RETRIES {
+    for _ in 0..tries {
         tokio::time::sleep(std::time::Duration::from_millis(CONNECT_RETRY_MS)).await;
         match PtyHostClient::connect(socket, on_event.clone()).await {
-            Ok(c) => return Ok(Some(c)),
+            Ok(c) => return Ok(c),
             // 마지막 이유를 들고 나간다 — 재시도로 풀리지 않는 사정을
             // "시간 안에 안 떴다" 로 덮으면 진단이 사라진다.
             Err(e) => last = e,
+        }
+        if let Some(why) = gave_up() {
+            return Err(format!("{why}: {last}"));
         }
     }
     Err(format!("pty-host did not come up in time: {last}"))
@@ -547,6 +595,49 @@ mod tests {
         assert!(
             paths[1].to_string_lossy().contains("ptyhost-v2"),
             "{paths:?}"
+        );
+    }
+
+    /// 띄운 호스트가 일찍 죽었다는 이유가 서면 **남은 시도를 기다리지 않는다** — Windows 는
+    /// 이걸 보고 곧장 원본으로 물러선다(`launch`). 이유와 마지막 접속 실패가 함께 남는다.
+    #[tokio::test]
+    async fn a_reason_to_give_up_ends_the_wait_at_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("nobody.sock");
+        let started = std::time::Instant::now();
+        let err = connect_spawned(&socket, |_| {}, 1_000, || Some("exited early".into()))
+            .await
+            .err()
+            .expect("붙을 호스트가 없다");
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(5),
+            "1000번(50초)을 다 기다렸다"
+        );
+        assert!(err.starts_with("exited early: "), "{err}");
+    }
+
+    /// 이유가 없으면 시도를 다 쓰고 예전과 같은 말로 끝난다.
+    #[tokio::test]
+    async fn without_a_reason_it_waits_out_the_tries() {
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("nobody.sock");
+        let mut asked = 0;
+        let err = connect_spawned(
+            &socket,
+            |_| {},
+            3,
+            || {
+                asked += 1;
+                None
+            },
+        )
+        .await
+        .err()
+        .expect("붙을 호스트가 없다");
+        assert_eq!(asked, 3);
+        assert!(
+            err.starts_with("pty-host did not come up in time: "),
+            "{err}"
         );
     }
 }

@@ -19,12 +19,20 @@
 //! 별도 바이너리가 아닌 같은 실행파일인 이유: `current_exe()` 는 언제나
 //! 존재한다 — dev 빌드·패키징·업데이트 직후 어디서든 경로 문제로 스폰이
 //! 실패할 일이 없다 (Chrome 헬퍼 프로세스 방식).
+//!
+//! Windows 는 그 실행 파일의 **복사본**으로 띄운다 ([`stage`] · [`launch`]). 업데이트
+//! 설치 파일이 `ocul-pm.exe` 를 이름으로 끝내고 덮어쓰기 때문이다 — 설치 폴더 밖의 다른
+//! 이름이면 호스트가 업데이트를 건넌다. 복사본을 못 쓰면 원본으로 물러선다.
 
 pub mod client;
 pub mod env;
 pub mod host;
 #[cfg(windows)]
+pub mod launch;
+#[cfg(windows)]
 pub mod pipe;
 pub mod protocol;
 pub mod scrollback;
+#[cfg(any(windows, test))]
+pub mod stage;
 pub mod writer;
