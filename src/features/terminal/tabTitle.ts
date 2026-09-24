@@ -69,8 +69,13 @@ export function shellTitleToTabLabel(
     : `${base.slice(0, maxLength - 1)}…`;
 }
 
-/** `C:\…\pwsh.exe` → `pwsh`, `C:\…\cmd.exe - npm test` → `cmd - npm test`, `D:\a\proj` → `proj`. */
-function windowsTitle(title: string): string | null {
+/**
+ * `C:\…\pwsh.exe` → `pwsh`, `C:\…\cmd.exe - npm test` → `cmd - npm test`, `D:\a\proj` → `proj`.
+ * 관리자 권한 콘솔은 제목 앞에 `Administrator: `(한국어 Windows 는 `관리자: `)를 붙인다 —
+ * 그 머리는 떼고 본다(E2E 러너가 관리자 권한이라 탭이 `Administrator: C:\P…` 였다).
+ */
+function windowsTitle(raw: string): string | null {
+  const title = raw.replace(/^[^\\/:]{1,40}:\s+(?=[A-Za-z]:[\\/]|\\\\)/, "");
   if (!/^(?:[A-Za-z]:[\\/]|\\\\)/.test(title)) return null;
   const exe = /^(.*?\.exe)(?=$|\s)(.*)$/i.exec(title);
   if (exe) {

@@ -117,6 +117,10 @@ describe("shellTitleToTabLabel — Windows console titles", () => {
     expect(shellTitleToTabLabel("C:\\WINDOWS\\system32\\cmd.exe - npm test")).toBe("cmd - npm test");
     expect(shellTitleToTabLabel("D:\\a\\_temp\\fixture\\e2e-fixture")).toBe("e2e-fixture");
     expect(shellTitleToTabLabel("npm run dev")).toBe("npm run dev");
+    // 관리자 권한 콘솔의 머리 (영문·한국어 Windows).
+    expect(shellTitleToTabLabel("Administrator: C:\\Program Files\\PowerShell\\7\\pwsh.exe")).toBe("pwsh");
+    expect(shellTitleToTabLabel("\uAD00\uB9AC\uC790: C:\\WINDOWS\\system32\\cmd.exe")).toBe("cmd");
+    expect(shellTitleToTabLabel("Note: something")).toBe("Note: something");
   });
   it("mac is unchanged", () => {
     expect(shellTitleToTabLabel("kim@mac: ~/src/ai-pm")).toBe("ai-pm");
