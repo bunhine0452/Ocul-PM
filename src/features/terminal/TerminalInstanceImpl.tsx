@@ -7,6 +7,8 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import "@xterm/xterm/css/xterm.css";
 import { takeBootCommand } from "./terminalLaunch";
+import { createPtyInputGate } from "./ptyWrite";
+import { writePty } from "./dispatchTarget";
 import { commands } from "@/lib/bindings";
 import { oculpmLog } from "@/lib/oculpmLog";
 // 모듈 t() — 이 두 문구는 PTY 이벤트 시점에 터미널 버퍼로 **써 넣는** 것이라
@@ -70,13 +72,6 @@ const SCROLLBACK_LINES = 20000;
  * SIGWINCH 로 흘려보내면 화면이 깨진다 (→ `ptyResize.ts`).
  */
 const RESIZE_SETTLE_MS = 60;
-
-/**
- * PTY 가 서기 전에 받아 두는 입력의 상한 (청크 수). 셸이 끝내 안 뜨면 이 큐는
- * 영영 안 비워지므로 무한정 자라면 안 된다 — 사람 손으로 이만큼 치는 동안
- * 셸이 안 뜬다면 그건 이미 다른 문제다.
- */
-const PENDING_INPUT_MAX = 256;
 
 /**
  * 명령 블록 조작 — 마커·장식은 이 컴포넌트가 소유하고, 화면은 이 손잡이로만
@@ -351,27 +346,10 @@ export default function TerminalInstanceImpl({
     searchRef.current = search;
     term.loadAddon(search);
 
-    // ── 입력 배관 ──────────────────────────────────────────────────────────
-    //
-    // 등록은 **PTY 가 서기 전에** 해 둔다 (2026-09-02). 예전에는 attach/start
-    // 왕복이 끝난 뒤에 붙여서, 그 사이(수십~수백 ms)에 친 키가 아무 데도 가지
-    // 못하고 사라졌다 — 진짜 터미널이라면 tty 버퍼가 받아 주는 구간이다.
-    // 여기서는 이 큐가 그 역할을 한다.
-    let ptyReady = false;
-    const pendingInput: string[] = [];
-    const flushInput = () => {
-      ptyReady = true;
-      for (const data of pendingInput) void commands.writeToPty(sessionId, data);
-      pendingInput.length = 0;
-    };
-    term.onData((data) => {
-      if (ptyReady) {
-        void commands.writeToPty(sessionId, data);
-        return;
-      }
-      // 셸이 끝내 안 뜨는 경우(시작 실패·종료된 세션)에 무한정 쌓이면 안 된다.
-      if (pendingInput.length < PENDING_INPUT_MAX) pendingInput.push(data);
-    });
+    // ── 입력 배관 ── PTY 가 서기 전에 등록하고(그 사이 친 키는 문이 받아 둔다),
+    // 쓰기는 세션마다 한 줄로 간다 — 키마다 따로 쏘면 IPC 가 순서를 섞는다 (→ ptyWrite.ts).
+    const input = createPtyInputGate(sessionId, writePty);
+    term.onData((data) => input.push(data));
 
     term.onTitleChange((title) => {
       const trimmed = title.trim();
@@ -821,7 +799,7 @@ export default function TerminalInstanceImpl({
           // 셸이 사라졌다 — 이제 이 페인의 입력은 갈 곳이 없다. 계속 보내면
           // 백엔드의 "unknown pty session" 이 조용히 버려지고 사용자 눈에는
           // 그냥 먹통이다. 큐에 받아 두고, 화면에 사실을 알린다.
-          ptyReady = false;
+          input.close();
           onExitRef.current?.();
         });
         if (!isMounted) return exitOff();
@@ -864,14 +842,14 @@ export default function TerminalInstanceImpl({
           // 성공)에서는 건드리지 않는다 — 사용자는 셸을 이어 쓰려고 돌아온
           // 것이지 `claude` 를 또 띄우려는 것이 아니다.
           const boot = takeBootCommand(sessionId);
-          if (boot) void commands.writeToPty(sessionId, `${boot}\r`);
+          if (boot) void writePty(sessionId, `${boot}\r`);
         }
         attached = true;
         for (const chunk of queued) writeChunk(chunk);
         queued.length = 0;
 
         // 이제 보낼 곳이 생겼다 — 기다리던 키 입력부터 흘려보낸다.
-        flushInput();
+        input.open();
         // PTY 가 방금 바뀌었다 — 큐가 기억하는 "이미 보낸 크기" 는 남의 것이다.
         resizeQueue.reset();
         applyFit();

@@ -20,6 +20,8 @@ import {
 import { sessionColorStyle } from "@/lib/sessionColors";
 import { useSessionColorMenu } from "./useSessionColorMenu";
 import { TerminalInstance } from "./TerminalInstance";
+import { writePty } from "./dispatchTarget";
+import { relabelDefaultTabs, useShellName } from "./shellName";
 import { canAutoRename, shellTitleToTabLabel } from "./tabTitle";
 import { deriveIntegrationStatus, summarizeShell, type IntegrationStatus } from "./shellStatus";
 import { useAgentRuns } from "./useAgentRuns";
@@ -185,16 +187,23 @@ export function TerminalSurface({
   const activeTab = terminalTabs.find((tab) => tab.id === terminalActiveId) ?? null;
   dispatchSidRef.current = activeTab ? focusOfTab(activeTab) : null;
 
+  // 기본 라벨은 실제로 뜨는 셸의 이름 (macOS 는 늘 "zsh" — shellName.ts). 판정이 늦게
+  // 오면 이미 기본 라벨로 만든 탭의 이름만 고친다.
+  const shellName = useShellName();
+  useEffect(() => {
+    setSessions((prev) => ({ ...prev, terminalTabs: relabelDefaultTabs(prev.terminalTabs, shellName) }));
+  }, [shellName, setSessions]);
+
   // Ensure at least one tab exists.
   useEffect(() => {
     if (terminalTabs.length === 0) {
       const id = newId(runtime.currentProjectId);
-      const tab: TerminalTab = { id, label: "zsh", shell: "zsh", cwd: projectRoot ?? "" };
+      const tab: TerminalTab = { id, label: shellName, shell: shellName, cwd: projectRoot ?? "" };
       setSessions(() => ({ terminalTabs: [tab], terminalActiveId: id }));
     } else if (terminalActiveId == null || !terminalTabs.some((tab) => tab.id === terminalActiveId)) {
       setSessions((prev) => ({ ...prev, terminalActiveId: terminalTabs[0].id }));
     }
-  }, [terminalTabs, terminalActiveId, projectRoot, runtime.currentProjectId, setSessions]);
+  }, [terminalTabs, terminalActiveId, projectRoot, runtime.currentProjectId, setSessions, shellName]);
 
   // 닫힌 세션의 핸들 정리.
   useEffect(() => {
@@ -230,7 +239,7 @@ export function TerminalSurface({
   const addTab = () => {
     const id = newId(runtime.currentProjectId);
     const n = terminalTabs.length + 1;
-    const tab: TerminalTab = { id, label: `zsh ${n}`, shell: "zsh", cwd: projectRoot ?? "" };
+    const tab: TerminalTab = { id, label: `${shellName} ${n}`, shell: shellName, cwd: projectRoot ?? "" };
     setSessions((prev) => ({
       terminalTabs: [...prev.terminalTabs, tab],
       terminalActiveId: id,
@@ -727,7 +736,7 @@ export function TerminalSurface({
             // 개행 없이 그대로 쓴다 — 실행은 사람이 Enter 로 (디스패치 프리필과
             // 같은 규약). `writeDispatchTo` 는 안 쓴다: 저쪽은 전경 프로세스를
             // 보고 에이전트면 프롬프트로 붙여넣는 다른 계약이다.
-            void commands.writeToPty(sid, command).then((res) => {
+            void writePty(sid, command).then((res) => {
               if (res.status === "error") toast.destructive(res.error);
             });
           }}
