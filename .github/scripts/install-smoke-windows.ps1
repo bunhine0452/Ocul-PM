@@ -107,8 +107,13 @@ function Invoke-Setup([string] $Path, [string[]] $Arguments, [int] $TimeoutSec =
     $p = Start-Process -FilePath $Path -ArgumentList $Arguments -PassThru
     $null = $p.Handle # 이걸 잡아 둬야 끝난 뒤 ExitCode 가 채워진다 (Start-Process 의 알려진 버릇).
     if (-not $p.WaitForExit($TimeoutSec * 1000)) {
-        # 멈춘 화면을 남긴다 — 대화상자가 떠 있으면 그 문구가 증거다.
-        if ($ShotOnTimeout) { try { $null = Save-Screenshot $ShotOnTimeout } catch { } }
+        # 멈춘 화면을 남긴다 — 대화상자가 떠 있으면 그 문구가 증거다. 러너 데스크톱은 콘솔이
+        # 포커스를 쥐고 있어 설치 파일 창이 뒤에 깔릴 때가 있다(작업 표시줄 단추만 깜빡임) —
+        # 그 프로세스 창을 앞으로 불러낸 뒤 찍는다.
+        if ($ShotOnTimeout) {
+            try { $null = (New-Object -ComObject WScript.Shell).AppActivate($p.Id); Start-Sleep -Milliseconds 800 } catch { }
+            try { $null = Save-Screenshot $ShotOnTimeout } catch { }
+        }
         Stop-Tree $p.Id
         $script:LastSetupLog = Read-SetupLogSince $offset
         return [pscustomobject]@{ TimedOut = $true; ExitCode = $null }
