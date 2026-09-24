@@ -19,6 +19,7 @@ import {
   waitScreenReady,
 } from "./lib/page.mjs";
 import {
+  HUMAN_KEY_MS,
   focusTerminal,
   pasteText,
   recordInput,
@@ -154,13 +155,12 @@ export async function runScenario(ctx) {
       await recordInput(wd);
       // ASCII 는 WebDriver 키(실제 키 이벤트), 한글은 붙여넣기 — 키 합성은 입력기를
       // 거치지 않아 한글을 못 싣는다. 입력기 조합 경로는 다음 단계(Windows CDP)가 본다.
-      // 조각 사이는 사람 속도로 띄운다 — 순서가 어긋나면 그건 앱 결함이어야지 하네스의
-      // 비현실적 속도 탓이면 안 된다.
-      const how = await typeText(wd, el, "echo ");
-      await sleep(150);
+      // 사람 속도로 친다 — 이 단계가 보는 것은 한글 왕복이다. 빠른 연타의 순서
+      // 보존은 뒤의 단계가 따로 본다.
+      const how = await typeText(wd, el, "echo ", { paceMs: HUMAN_KEY_MS });
       const pasted = await pasteText(wd, "한글");
-      await sleep(150);
-      await typeText(wd, el, "-ok\uE007");
+      await sleep(HUMAN_KEY_MS);
+      await typeText(wd, el, "-ok\uE007", { paceMs: HUMAN_KEY_MS });
       rec.notes.push(`입력: 키=${how} · 한글=${pasted}`);
       try {
         const got = await waitLine(wd, "한글-ok", 30_000);
@@ -185,12 +185,12 @@ export async function runScenario(ctx) {
     let ok = false;
     try {
       const el = await focusTerminal(wd);
-      await typeText(wd, el, "echo ime-");
+      await typeText(wd, el, "echo ime-", { paceMs: HUMAN_KEY_MS });
       await recordInput(wd);
       const trace = await composeHangul(cdp);
       rec.notes.push(`CDP 조합 순서: ${trace.join(" → ")}`);
       rec.notes.push(`입력칸 이벤트: ${(await takeInput(wd)).slice(0, 1500)}`);
-      await typeText(wd, el, "-end\uE007");
+      await typeText(wd, el, "-end\uE007", { paceMs: HUMAN_KEY_MS });
       // 중복(한한글·한글글)·낱자 누출(ㅎ하한)이면 이 줄이 정확히 나오지 않는다 —
       // 실패 메시지에 버퍼 끝 줄들이 실린다.
       const got = await waitLine(wd, "ime-한글-end", 30_000);
@@ -199,6 +199,32 @@ export async function runScenario(ctx) {
     } finally {
       cdp.close();
       await report.shot(wd, { phase: "03 터미널", key: "terminal", screen: "ime-cdp", caption: "터미널 — CDP 한글 조합 (ime-한글-end)", ok });
+    }
+  });
+
+  await report.step("터미널 — 빠른 연타의 입력 순서 보존", async (rec) => {
+    let ok = false;
+    try {
+      const el = await focusTerminal(wd);
+      await recordInput(wd);
+      // 한 번의 Send Keys — 드라이버가 키를 몇 ms 간격으로 쏟아낸다(빠른 타자·키 반복과
+      // 같은 부류). 키마다 따로 가는 쓰기 IPC 가 순서를 지키는지 본다.
+      await typeText(wd, el, "echo order-0123456789\uE007");
+      try {
+        const got = await waitLine(wd, "order-0123456789", 20_000);
+        rec.notes.push(`버퍼 끝: ${got.lines.slice(-3).map((l) => JSON.stringify(l)).join(" / ")}`);
+        ok = true;
+      } finally {
+        rec.notes.push(`입력칸 이벤트(DOM 순서): ${(await takeInput(wd)).slice(0, 600)}`);
+      }
+    } finally {
+      await report.shot(wd, { phase: "03 터미널", key: "terminal", screen: "burst-order", caption: "터미널 — 빠른 연타 (echo order-0123456789)", ok });
+      // 순서가 깨졌으면 줄 끝이 다음 프롬프트로 샌다 — ^C 로 비워 둔다.
+      try {
+        await typeText(wd, await focusTerminal(wd), "\uE009c\uE000");
+      } catch {
+        /* 정리 실패는 이 단계의 판정과 무관하다 */
+      }
     }
   });
 

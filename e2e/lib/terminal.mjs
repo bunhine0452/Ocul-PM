@@ -70,10 +70,26 @@ export async function focusTerminal(wd) {
 }
 
 /**
- * 글자 입력. 먼저 W3C "Element Send Keys" — 안 되면(숨은 textarea 를 상호작용
- * 불가로 보는 드라이버) 초점을 둔 채 Actions 로 한 글자씩.
+ * 사람이 치는 속도. WebDriver 는 한 번의 호출로 키를 몇 ms 간격에 쏟아낸다 — 그
+ * 속도에서 입력 순서가 깨지는지는 따로 보는 단계(연타)가 있고, 나머지 단계는 사람
+ * 속도로 쳐서 "그 단계가 보려는 것"만 본다.
  */
-export async function typeText(wd, el, text) {
+export const HUMAN_KEY_MS = 120;
+
+/**
+ * 글자 입력. 먼저 W3C "Element Send Keys" — 안 되면(숨은 textarea 를 상호작용
+ * 불가로 보는 드라이버) 초점을 둔 채 Actions 로 한 글자씩. `paceMs` 를 주면 한
+ * 글자씩 그 간격으로 친다.
+ */
+export async function typeText(wd, el, text, { paceMs = 0 } = {}) {
+  if (paceMs > 0) {
+    let how = "";
+    for (const ch of text) {
+      how = await typeText(wd, el, ch);
+      await sleep(paceMs);
+    }
+    return `${how} · ${paceMs}ms 간격`;
+  }
   try {
     await wd.sendKeys(el, text);
     return "element-send-keys";

@@ -6,10 +6,14 @@
 //    `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=0` 을 싣는다. 그
 //    인자가 WebView2 브라우저 프로세스에 닿지 않으면 `DevToolsActivePort file doesn't
 //    exist` 로 끝난다. 그때 하네스가 앱을 직접 띄워 CDP 포트를 열고 msedgedriver 를
-//    그 포트에 붙인다(`ms:edgeOptions.debuggerAddress`). 포트를 여는 수단을 차례로
-//    시도한다 — 환경변수, 그다음 WebView2 정책 레지스트리(HKCU·HKLM, 앱 exe 이름 값).
-//    각 시도마다 msedgewebview2 브라우저 프로세스의 명령줄을 증거로 남긴다.
-//    CDP 주소가 손에 남아 IME 흉내(#w3-ime-cdp)도 쓴다.
+//    그 포트에 붙인다(`ms:edgeOptions.debuggerAddress`). CDP 주소가 손에 남아 IME
+//    흉내(#w3-ime-cdp)도 쓴다.
+//
+// 실측 (2026-09-24, windows-latest · WebView2 152, run 35986847991): 러너는 관리자
+// 권한으로 돈다. 그 프로세스의 WebView2 브라우저 명령줄에 **환경변수·HKCU 정책의
+// 인자는 실리지 않았고 HKLM 정책의 인자만 실렸다** — msedgedriver 의 launch 가 실패한
+// 까닭이 이것이다(그것도 환경변수로 싣는다). 그래서 HKLM 을 먼저 시도하고, 나머지는
+// 러너가 바뀌었을 때를 위한 대안으로 남긴다. 시도마다 브라우저 명령줄을 증거로 남긴다.
 
 import { execFileSync, spawn } from "node:child_process";
 import { closeSync, openSync, writeFileSync } from "node:fs";
@@ -114,7 +118,7 @@ async function tryAttach({ wd, app, env, cwd, logFile, port, how, rec }) {
   const child = spawn(app, [], { cwd, env: childEnv, stdio: ["ignore", fd, fd] });
   closeSync(fd);
   const address = `127.0.0.1:${port}`;
-  const version = await waitPort(address, child, 45_000);
+  const version = await waitPort(address, child, 40_000);
   rec.notes.push(`attach(${how}) 브라우저: ${webviewProcesses().join(" | ")}`);
   const unset = () => {
     if (!policyKey) return;
@@ -157,7 +161,7 @@ export async function connectApp({ wd, app, ws, outDir, rec }) {
     rec.notes.push(`Edge 정책: ${edgePolicies().join(" | ")}`);
   }
   const common = { wd, app, env: ws.env, cwd: ws.dirs.driverCwd, logFile: join(outDir, "app-stdout.log"), port: 9222, rec };
-  for (const how of ["env", "registry-hkcu", "registry-hklm"]) {
+  for (const how of ["registry-hklm", "env", "registry-hkcu"]) {
     const s = await tryAttach({ ...common, how });
     if (s) {
       rec.notes.push(`세션: ${s.mode} (CDP ${s.debuggerAddress})`);
