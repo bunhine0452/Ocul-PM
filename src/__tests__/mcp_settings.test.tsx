@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, fireEvent, waitFor } from "@testing-library/react";
+import { __setPlatformForTests } from "@/lib/platform";
 
 // ─── PR-CI2 — 설정 Agents 섹션의 MCP 서버 등록 블록 ─────────────────────────
 //
@@ -390,6 +391,37 @@ describe("플러그인 겹침 고지", () => {
     const r = render(<McpServerBlock projectId={12} pluginInstalled />);
     await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
     expect(r.getByText(/Claude Desktop 은 겹치지 않으니/)).toBeTruthy();
+  });
+
+  // Windows 는 플러그인의 MCP 서버가 뜨지 않는다(#integ-win-plugin-mcp) — 위 두 문구를
+  // 따르면 MCP 가 하나도 안 남는다. 권고가 뒤집히는지 본다 ({#ui-followups}).
+  it("Windows · MCP 미등록: 여기서 등록하라고 경고한다", async () => {
+    __setPlatformForTests("windows");
+    const r = render(<McpServerBlock projectId={14} pluginInstalled />);
+    await waitFor(() => expect(r.getByText("미등록")).toBeTruthy());
+    const warn = r.getByText(/여기서 등록해야 MCP 도구가 생겨요/);
+    expect(warn.className).toContain("text-(--warn-text)");
+    expect(r.queryByText(/또 등록할 필요가 없어요/)).toBeNull();
+  });
+
+  it("Windows · MCP 등록됨: 해제하라고 하지 않는다 (유일한 길)", async () => {
+    __setPlatformForTests("windows");
+    fx.status = status({ registered: true });
+    const r = render(<McpServerBlock projectId={15} pluginInstalled />);
+    await waitFor(() => expect(r.getByText("등록됨")).toBeTruthy());
+    const note = r.getByText(/유일한 길이에요/);
+    expect(note.className).not.toContain("text-(--warn-text)");
+    expect(r.queryByText(/해제하세요/)).toBeNull();
+  });
+
+  it("Windows · 플러그인 경고는 훅만 말리고 MCP 등록을 권한다", () => {
+    __setPlatformForTests("windows");
+    const r = render(
+      <ClaudePluginBlock plugin={{ installed: true, path: "C:\\Users\\u\\.claude\\plugins\\oculpm" }} />,
+    );
+    const warn = r.getByText(/이벤트가 이중 적재/);
+    expect(warn.textContent).toContain("MCP 서버");
+    expect(warn.textContent).not.toContain("플러그인 하나만");
   });
 
   it("플러그인 미설치면 고지가 아예 안 뜬다", async () => {

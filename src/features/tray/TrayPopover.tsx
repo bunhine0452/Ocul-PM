@@ -17,6 +17,7 @@ import { commands, events, type PlanItemDto } from "@/lib/bindings";
 import { loadProject, type ProjectSnapshot } from "./traySnapshot";
 import { useT, type I18nKey } from "@/i18n";
 import { blocked } from "@/lib/blocked";
+import { isMac } from "@/lib/platform";
 import { compareIsoDesc } from "@/lib/format";
 import { TraySessions } from "./TraySessions";
 import "./tray.css";
@@ -442,12 +443,8 @@ const TRAY_TOGGLES: Array<{
     hintKey: "tray.toggleKeepRunningHint",
     defaultOn: false,
   },
-  {
-    key: "tray.hide_dock",
-    labelKey: "tray.toggleHideDock",
-    hintKey: "tray.toggleHideDockHint",
-    defaultOn: false,
-  },
+  // Dock 은 macOS 에만 있다 — 다른 OS 에서는 이 행을 그리지 않는다 ({#ui-mac-words}).
+  { key: "tray.hide_dock", labelKey: "tray.toggleHideDock", hintKey: "tray.toggleHideDockHint", defaultOn: false },
   {
     key: "tray.notify_journal",
     labelKey: "tray.toggleNotify",
@@ -493,7 +490,7 @@ function TraySettings({ onBack, onOpenApp }: { onBack: () => void; onOpenApp: ()
         <span className="tp-settings-title">{t("tray.settingsTitle")}</span>
       </div>
       <div className="tp-settings-body">
-        {TRAY_TOGGLES.map((row) => {
+        {TRAY_TOGGLES.filter((row) => isMac() || row.key !== "tray.hide_dock").map((row) => {
           const disabled = !vals || (row.key === "tray.hide_dock" && dockDisabled);
           const on = !!vals?.[row.key] && !(row.key === "tray.hide_dock" && dockDisabled);
           return (

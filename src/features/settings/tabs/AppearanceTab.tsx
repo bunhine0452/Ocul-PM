@@ -17,6 +17,7 @@ import { themeOwnsAccent } from "@/features/theme/apply";
 import { useThemeState } from "@/features/theme/store";
 import { TERM_FONT_MIN, TERM_FONT_MAX, TERM_FONT_DEFAULT, clampTermFont } from "@/features/terminal/fontSize";
 import { terminalFontFamily } from "@/features/terminal/terminalPlatform";
+import { isMac } from "@/lib/platform";
 import {
   loadDict,
   normalizeLangSetting,
@@ -490,7 +491,7 @@ export function MenubarSection() {
   // 설정이 아직 안 왔으면 "진행 중"(곧 풀린다). 조건으로 막힌 행은 이유를
   // 문장으로 든다 — `blocked()` 가 포커스를 남겨 그 문장이 실제로 도달한다.
   const loading = vals == null;
-  const rows: Array<{ key: keyof typeof KEYS; label: string; hint: string; reason?: string | null }> = [
+  const allRows: Array<{ key: keyof typeof KEYS; label: string; hint: string; reason?: string | null }> = [
     {
       key: "show",
       label: t("settings.tray.showIcon"),
@@ -518,6 +519,9 @@ export function MenubarSection() {
       hint: t("settings.tray.notifyAgentHint"),
     },
   ];
+  // Dock 은 macOS 에만 있다 — 백엔드도 그 설정을 맥에서만 읽는다(tray.rs). 다른 OS 에
+  // 아무 일도 안 하는 스위치를 두지 않는다 ({#ui-mac-words}).
+  const rows = isMac() ? allRows : allRows.filter((r) => r.key !== "dock");
 
   return (
     <Section

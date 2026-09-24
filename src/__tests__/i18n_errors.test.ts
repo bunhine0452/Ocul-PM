@@ -47,6 +47,33 @@ describe("tError — 한국어 모드", () => {
   });
 });
 
+describe("tError — 크로스플랫폼 고정 문구 ({#ui-followups})", () => {
+  it("Linux 키링 부재 — 호출부가 앞에 문맥을 붙여도 문장 안에서 찾는다", () => {
+    setLangSetting("ko");
+    const raw =
+      "The system keyring is unavailable — install and unlock a Secret Service provider (GNOME Keyring or KWallet), then try again. Keys are never saved in plain text. (Platform secure storage failure: …)";
+    const guide = "시스템 키링을 쓸 수 없어요 — Secret Service 제공자(GNOME 키링이나 KWallet)를 설치하고 잠금을 푼 뒤 다시 시도하세요. 키는 평문으로 저장하지 않아요.";
+    expect(tError(raw)).toBe(guide);
+    expect(tError(`Could not save to the keychain: ${raw}`)).toBe(guide);
+  });
+
+  it("Linux 파일 붙여넣기 · Windows 클립보드 점유", () => {
+    setLangSetting("ko");
+    expect(
+      tError("Pasting copied files is not available on Linux — drag the files into the tree instead."),
+    ).toBe("Linux 에서는 복사한 파일을 붙여넣을 수 없어요 — 파일을 트리로 끌어다 놓으세요.");
+    expect(tError("The clipboard is busy in another app — try pasting again.")).toBe(
+      "다른 앱이 클립보드를 쓰고 있어요 — 다시 붙여넣어 보세요.",
+    );
+  });
+
+  it("macOS 키체인 원문(keyring 오류)은 건드리지 않는다", () => {
+    setLangSetting("ko");
+    const mac = "Platform secure storage failure: User canceled the operation.";
+    expect(tError(mac)).toBe(mac);
+  });
+});
+
 describe("tError — 영어 모드", () => {
   it("원문을 그대로 돌려준다 (이미 영어라 매칭할 이유가 없다)", () => {
     setLangSetting("en");

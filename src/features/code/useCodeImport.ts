@@ -135,8 +135,14 @@ export function useCodeImport({
   const pasteFiles = useCallback(() => {
     void (async () => {
       const res = await commands.codeClipboardFiles();
+      // 읽지 못했다고 백엔드가 **말한** 경우(Linux 미지원·Windows 클립보드 점유) — 조용히
+      // 지나가면 "복사한 파일이 없다" 와 구별되지 않는다 ({#ui-followups}). macOS 는 이 갈래가 없다.
+      if (res.status === "error") {
+        toast.warning(tError(res.error));
+        return;
+      }
       // 글자를 복사해 둔 상태의 ⌘V — 아무 일도 없는 것이 맞다.
-      if (res.status !== "ok" || !res.data.length) return;
+      if (!res.data.length) return;
       void runImport(importDestDir(null, selectedRef.current), res.data);
     })();
   }, [runImport]);
