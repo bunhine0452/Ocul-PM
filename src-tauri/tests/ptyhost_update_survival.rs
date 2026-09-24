@@ -513,23 +513,26 @@ async fn a_host_from_the_copy_survives_an_update_of_the_install_folder() {
     );
 
     // ── 업데이트 1: 이름으로 끝내기 (NSIS 의 KillProcess 흉내) ─────────────
+    // 종료 코드는 보지 않는다 — 앞 테스트 바이너리의 호스트가 마침 내려가는 중이면 그 하나를
+    // 못 끝냈다고 0 이 아닌 코드가 나온다. 증거는 아래의 대조군 사망이다.
     let out = ocul_pm_lib::proc::std_cmd("taskkill")
         .args(["/IM", "ocul-pm.exe", "/F"])
         .output()
         .expect("taskkill");
-    assert!(
-        out.status.success(),
-        "taskkill: {} {}",
+    let said = format!(
+        "{} {}",
         String::from_utf8_lossy(&out.stdout),
         String::from_utf8_lossy(&out.stderr)
     );
     // 대조군은 죽는다 — 흉내가 실제로 이름으로 끝낸다는 증거.
-    wait_until(
-        "대조군 호스트가 끝난다",
-        Duration::from_secs(20),
-        || !alive(control_pid),
-    )
-    .await;
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while alive(control_pid) {
+        assert!(
+            Instant::now() < deadline,
+            "이름으로 끝냈는데 대조군이 산다 — taskkill: {said}"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
     // 복사본 호스트는 산다 — 같은 자리를 여전히 같은 프로세스가 받는다.
     assert!(alive(host_pid), "복사본 호스트가 이름 끝내기에 죽었다");
     assert_eq!(server_pid(&socket).await, host_pid);
