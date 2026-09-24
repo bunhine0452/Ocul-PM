@@ -81,7 +81,7 @@ owner: claude-code
 - [ ] PowerShell 세션의 네이티브 출력 인코딩 — 콘솔 코드 페이지(949/437)를 따른다. oculpm.ps1 의 OCULPM_TERM 가드 안에서 [Console]::InputEncoding/OutputEncoding 을 UTF-8 로 (L-PTY 제안) {#shell-pwsh-utf8}
 - [ ] Windows 분리 기동 호스트의 핸들 상속 — std spawn 은 bInheritHandles=TRUE 라 부모 파이프를 물 수 있다(dev·CI 에서만 실해). 근본은 CreateProcessW 직접 호출 (L-PTY 발견) {#pty-handle-inherit}
 - [ ] Windows 의 Job 종료가 셸에서 띄운 GUI 프로그램(예: 처음 띄운 `code .`)까지 함께 끝낸다 — macOS 와 다른 동작. GUI 서브시스템 자식은 breakaway 할지 결정 (L-PTY 발견) {#pty-job-gui-children}
-- [ ] 간헐 실패 — windows 러너에서 ^C 뒤 ping 이 30초 동안 계속 돌았다(ptyhost::host::windows::tests::idle_shell…, PR #39 run). 테스트 경합인지 「가끔 ^C 가 안 먹는다」 제품 결함인지 판정 — L-PTY2 가 조사 {#pty-ctrlc-flake}
+- [x] 간헐 실패 — windows 러너에서 ^C 뒤 ping 이 30초 동안 계속 돌았다(ptyhost::host::windows::tests::idle_shell…, PR #39 run). 테스트 경합인지 「가끔 ^C 가 안 먹는다」 제품 결함인지 판정 — L-PTY2 가 조사 {#pty-ctrlc-flake}
 - [ ] [결정 필요] Windows 에서 CWD 가 프로젝트 루트인 오래 사는 자식(LSP 서버 lsp/client.rs · DAP · PTY 셸)이 도는 동안 사용자가 그 폴더를 옮기거나 지울 수 없다(ERROR_SHARING_VIOLATION 32). LSP 는 CWD 를 밖으로 옮길 여지가 있으나 서버의 설정 탐색이 바뀔 수 있다. PTY 셸은 모든 Windows 터미널의 공통 제약 (L-FS2 발견) {#os-child-cwd-lock}
 
 - [ ] E2E 발견 — Windows 에서 프로젝트 이름이 경로 전체(StartTab.tsx:217 · GreenfieldWizard.tsx:256 이 `/` 로만 자른다) {#ui-winpath-name}
@@ -90,6 +90,8 @@ owner: claude-code
 - [ ] E2E 발견 — Linux 터미널 기본 탭 라벨 "zsh" 하드코딩(TerminalSurface.tsx) · 영어 전환 직후 토스트가 한국어 {#ui-e2e-minor}
 - [ ] E2E 발견 — `.oculpm` 기본 workday 시간대가 Asia/Seoul 이라 다른 시간대 사용자의 Today·일지 날짜가 하루 어긋난다 — 시스템 시간대 기본값 검토(schema 영향 확인) {#oculpm-default-tz}
 - [ ] E2E 발견 — 프로젝트를 추가하면 색인이 두 번 동시에 돈다(로그 `index reconcile … removed=1`) {#index-double-run}
+- [ ] **출시 차단 후보** — Windows 릴리스 exe 가 `MSVCP140.dll`(C++ 런타임, ONNX Runtime 유래 추정)을 가져오면 VC++ 재배포 없는 PC 에서 앱이 안 뜬다. 러너엔 깔려 있어 설치 스모크가 못 잡는다 — L-PKG 가 dumpbin 으로 확인 중. 앱 옆 DLL 배포는 호스트 복사본을 깨므로 피할 것 (L-PTY2 발견) {#win-msvcp140}
+- [ ] Windows·Linux 에서 `directories::ProjectDirs` 경로가 Tauri `app_data_dir` 과 갈린다 — `ocul-pm config` CLI 가 GUI 와 **다른 DB** 를 열고 oculpm.log 가 ptyhost.log 와 다른 폴더에 쌓인다(lib.rs setup_logging · config/cli.rs open_db). macOS 는 같은 경로라 불변 (L-PTY2 발견) {#paths-projectdirs-mismatch}
 
 ## W3 — 패키징 · E2E (W2 합류 뒤, 병렬 2) {#w3}
 - [ ] tauri.windows.conf.json·tauri.linux.conf.json 분리 — tauri.conf.json(macOS) 불변 (D3) {#w3-conf}
@@ -98,7 +100,7 @@ owner: claude-code
 - [ ] 설치 스모크: NSIS /S 설치→실행→로그 기동 줄→제거 / deb 설치·AppImage 실행 {#w3-install-smoke}
 - [x] WebView2 CDP Input.imeSetComposition 로 한글 조합 → 터미널 도착 단언 (D8) {#w3-ime-cdp}
 - [ ] 업데이터 N→N+1 스모크 (로컬 latest.json · 테스트 키) {#w3-updater-smoke}
-- [~] [결정 필요] Windows 업데이트 때 터미널 세션이 끊긴다 — Tauri NSIS 가 ocul-pm.exe 를 이름으로 끝내 같은 exe 로 도는 --pty-host 도 끝난다(macOS 는 업데이트를 건넌다). L-PTY 권고: 호스트를 설치 폴더 밖 판별 복사본(%APPDATA%\<id>\ptyhost\ocul-pm-ptyhost-<판>.exe)에서 — 대가 AppData 의 exe·판마다 수십 MB. NSIS 템플릿 실제 동작부터 확인 (L-SHELL·L-PTY 발견) {#w3-update-ptyhost-lock}
+- [x] [결정 필요] Windows 업데이트 때 터미널 세션이 끊긴다 — Tauri NSIS 가 ocul-pm.exe 를 이름으로 끝내 같은 exe 로 도는 --pty-host 도 끝난다(macOS 는 업데이트를 건넌다). L-PTY 권고: 호스트를 설치 폴더 밖 판별 복사본(%APPDATA%\<id>\ptyhost\ocul-pm-ptyhost-<판>.exe)에서 — 대가 AppData 의 exe·판마다 수십 MB. NSIS 템플릿 실제 동작부터 확인 (L-SHELL·L-PTY 발견) {#w3-update-ptyhost-lock}
 
 ## W4 — 릴리스 파이프라인 (사용자 결정 포함) {#w4}
 - [x] [사용자 결정] Windows 코드 서명 — Azure Trusted Signing(월 과금) vs 무서명 베타(SmartScreen 경고) {#w4-signing-decision}
@@ -114,11 +116,9 @@ owner: claude-code
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 17 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 19 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-24T02:30:43+09:00 | #fs-lock | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | pid.rs 단일 창구, lock+a2a 5건 windows 초록. PR #33 |
-| 2026-09-24T02:30:48+09:00 | #fs-separators | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | git::slash/relative_to — 워처·indexer·rule_scope·redact·project.rs 색인 키. files_touched 쓰기 정규화는 #fs-files-touched-norm |
 | 2026-09-24T02:30:53+09:00 | #fs-crlf | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | 관리 블록 \r\r\n · frontmatter CRLF 머리 · autocrlf 가짜 diff 없음 테스트. planner 파서는 #fs-crlf-parsers |
 | 2026-09-24T02:30:59+09:00 | #fs-atomic | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | atomic_io_win.rs 재시도·백오프, 덮어쓰지 않는 MoveFileExW, 300자+ 경로 — windows 6테스트 |
 | 2026-09-24T02:31:05+09:00 | #fs-watch | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | watcher/repeat.rs(Windows Create+Modify 재보고), 깊은 경로 '/' 기록, markers mtime. rename 쌍 결함은 #fs-rename-pair |
@@ -157,5 +157,7 @@ owner: claude-code
 | 2026-09-24T19:43:40+09:00 | #mac-bundled-claude | claude-code | ~→x | .oculpm/journal/20260924/Bugs/1943_bug_acp-mac-bundled-claude-darwin.md | darwin 매핑 + 실제 폴더 이름 못박은 테스트. 진단만 바뀜(실행 claude 불변). 실기기: 릴리스 뒤 ACP 진단 경로 확인. PR #39 |
 | 2026-09-24T20:30:53+09:00 | #w3-e2e | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2030_feature_port-e2e-harness-le2e.md | 하네스 합류(PR #41). ubuntu 전 단계 초록, windows 는 앱 결함 2건(#ui-winpath-name · #ui-term-write-order)만 붉음 → L-UI2 |
 | 2026-09-24T20:31:01+09:00 | #w3-ime-cdp | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2030_feature_port-e2e-harness-le2e.md | WebView2 CDP 로 MS 한국어 IME 순서 재현 → 셸에 한글 정확히 한 번(3/3). 실제 IME 후보창은 #w5-eyes |
-<!-- oculpm:plan-log archived: 17 rows → cross-platform-port.log.md -->
+| 2026-09-24T21:05:04+09:00 | #w3-update-ptyhost-lock | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/2104_feature_port-ptyhost-update-survival-lpty2.md | 호스트 판별 복사본 — taskkill /IM + 설치 폴더 덮어쓰기에도 생존(windows 러너). 실제 NSIS 한 바퀴는 L-PKG 설치 스모크. PR #42 |
+| 2026-09-24T21:05:12+09:00 | #pty-ctrlc-flake | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2104_feature_port-ptyhost-update-survival-lpty2.md | 판정: 테스트 경합(콘솔 부착 전 몇 ms 의 ^C 는 cmd 가 받음), 제품 결함 아님. 틈 노림 4/30 → 수정 후 0/60 |
+<!-- oculpm:plan-log archived: 19 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
