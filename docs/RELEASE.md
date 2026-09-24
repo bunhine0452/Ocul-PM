@@ -166,7 +166,7 @@ meta ─ gate ─┬─ macos ────────────────�
      남지 않았는지), `signature` 가 base64 한 덩어리인지, macOS 키(`darwin-aarch64` ·
      `darwin-aarch64-app`)가 다 있는지 — 규칙은 `.github/scripts/release/latest-json.mjs verify` 한 곳
    - `.vsix` 패키징·첨부 (draft 에 올라갑니다)
-4. `bundle` — **같은 태그 커밋에서** Windows(`windows-latest`, NSIS) · Linux(`ubuntu-22.04`, AppImage + deb)
+4. `bundle` — (**비-mac 공개 스위치가 켜졌을 때만**, §5-1) **같은 태그 커밋에서** Windows(`windows-latest`, NSIS) · Linux(`ubuntu-22.04`, AppImage + deb)
    번들. Windows 는 `tauri build` 전에 VC++ 재배포를 받아 검증합니다(`.github/scripts/fetch-vcredist.ps1`).
    업데이터 서명은 macOS 와 같은 `TAURI_PRIVATE_KEY`. 산출물은 **워크플로 아티팩트로만** 넘깁니다 — 아직
    릴리스 자산이 아닙니다. 파일 이름·`.sig`·플랫폼 설정 병합(msi·rpm 없음)과, AppImage 실행 파일에
@@ -211,6 +211,41 @@ timeout 까지). 막히지는 않습니다.
 git fetch --tags --force --prune-tags origin
 ```
 
+### 5-1. Windows·Linux 공개 스위치 (`OCULPM_RELEASE_NONMAC`)
+
+위 4~5 단계(비-mac 번들·스모크·E2E)와 publish 의 비-mac 병합은 **저장소 Actions 변수
+`OCULPM_RELEASE_NONMAC` 이 `true` 일 때만** 돕니다. 변수가 없거나 다른 값이면 태그 릴리스는 **예전처럼
+macOS 만** 냅니다 — bundle·smoke·e2e 는 건너뛰고, publish 는 macOS latest.json 검증(비-mac 키·자산이
+없는지까지) → draft 해제만 합니다. 자산(5개) · latest.json(`darwin-aarch64` · `darwin-aarch64-app`) ·
+본문 모양이 v3.5.0 과 같습니다 — 본문은 `notes.mjs` 의 `composeMacOnlyBody` 가 만들고, 실제 v3.5.0
+본문과 바이트 단위로 같다는 것을 `release.test.mjs` 가 단언합니다. 「X 빌드가 없습니다」 줄도 없고
+run 도 붉지 않습니다 — 빠진 것이 아니라 범위 밖이기 때문입니다.
+
+이 스위치가 있는 이유: 파이프라인은 main 에 먼저 들어가지만, **첫 Windows·Linux 공개는 사용자가 따로
+정합니다.** 스위치 없이 다른 세션이 macOS 핫픽스 태그를 밀면 README·랜딩이 아직 모르는 Windows·Linux
+빌드가 같이 공개됩니다.
+
+**첫 Windows·Linux 릴리스 절차** (이 순서로):
+
+```bash
+gh variable set OCULPM_RELEASE_NONMAC --body true   # 1. 스위치 켜기 — 태그 전에
+gh variable list                                    #    OCULPM_RELEASE_NONMAC  true 확인
+# 2. port/l-rel-docs(README ko/en · 랜딩 ko/en · CHANGELOG Unreleased)를 main 에 합류
+# 3. CHANGELOG 의 `## Unreleased` → `## vX.Y.Z`, 그다음 §1~§5 평소대로 (버전 · README 하이라이트 · 랜딩 · 태그)
+# 4. release run 이 끝나 공개된 **뒤에** 랜딩 배포 — 랜딩의 OS 별 링크는 릴리스 자산이 있어야 살아난다
+```
+
+태그 전에 드라이런으로 세 플랫폼이 초록인지 먼저 보는 것을 권합니다(§8, `nonmac` 기본 true).
+
+**되돌리기** — Windows·Linux 를 다시 싣지 않으려면(예: 베타에 P0 가 나와 다음 몇 릴리스는 macOS 만):
+
+```bash
+gh variable set OCULPM_RELEASE_NONMAC --body false  # 또는: gh variable delete OCULPM_RELEASE_NONMAC
+```
+
+되돌린 뒤의 릴리스는 macOS 만 싣습니다. 이미 Windows·Linux 를 깐 사용자의 앱은 latest.json 에서 자기 키를
+못 찾아 업데이트를 건너뜁니다(「대상 없음」 — §6-2) — 되돌리는 동안 README·랜딩도 함께 되돌릴지 정합니다.
+
 ## 6. 확인
 
 ```bash
@@ -226,7 +261,7 @@ curl -s https://oculpm.com/changelog | grep -c 'id="v'   # 릴리스 수만큼 �
 git push origin :refs/tags/vX.Y.Z && git push origin refs/tags/vX.Y.Z
 ```
 
-릴리스 노트 본문이 비어 있지 않은지(`body` 길이 0 이면 §2 의 헤더가 태그와 어긋난 것), 에셋이 **10개**인지, 라이브 사이트 버전이 태그와 같은지까지 보고 마칩니다:
+릴리스 노트 본문이 비어 있지 않은지(`body` 길이 0 이면 §2 의 헤더가 태그와 어긋난 것), 에셋이 **10개**인지(§5-1 스위치가 꺼졌으면 macOS 의 **5개**), 라이브 사이트 버전이 태그와 같은지까지 보고 마칩니다:
 
 | 플랫폼 | 자산 |
 | --- | --- |
@@ -373,8 +408,11 @@ release.yml 을 고쳤거나 비-mac 경로를 태그 전에 미리 보려면:
 gh workflow run release.yml --ref <브랜치>                     # 정상
 gh workflow run release.yml --ref <브랜치> -f fail=linux-smoke # 비-mac 하나를 일부러 떨어뜨림
 gh workflow run release.yml --ref <브랜치> -f keep_draft=true  # draft 를 남겨 눈으로 본다
+gh workflow run release.yml --ref <브랜치> -f nonmac=false     # 공개 스위치가 꺼진 태그 릴리스와 같은 경로 (macOS 만)
 ```
 
+- 드라이런은 저장소 변수(§5-1) 대신 입력 `nonmac`(기본 true)을 따릅니다 — `false` 면 bundle·smoke·e2e 를
+  건너뛰고 macOS 만, 본문은 v3.5.0 모양, run 은 초록이어야 맞습니다.
 - 가짜 버전 `0.0.<run 번호>` · 태그 `v0.0.N` 의 **draft** 로 meta → gate → macOS(실제 서명·공증) ·
   비-mac 번들 → 스모크 · E2E → publish 를 전부 돕니다. 6 버전 파일은 러너 안에서만
   (`.github/scripts/release/dryrun-version.mjs`) 바꾸고 커밋하지 않습니다.
