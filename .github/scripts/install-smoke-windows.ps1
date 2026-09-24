@@ -18,10 +18,11 @@
       (tauri-bundler 2.9.x nsis/installer.nsi `StrCpy $INSTDIR "$LOCALAPPDATA\${PRODUCTNAME}"`).
     - 실행 파일 이름: 레지스트리 Uninstall 키의 `MainBinaryName` 을 그대로 읽는다(설치
       파일이 적는 값) — 이름을 추측하지 않는다.
-    - 앱 로그: src-tauri/src/lib.rs `setup_logging` —
-      `directories::ProjectDirs::from("com", "kimhyunbin", "ocul-pm").data_dir()/logs`,
-      파일 `oculpm.log.YYYY-MM-DD`, 기동 줄 `[FLOW] tracing initialised`.
     - 앱 데이터: Tauri `app_data_dir()` = `%APPDATA%\<identifier>`, DB 는 `ocul-pm.db`.
+    - 앱 로그: src-tauri/src/lib.rs `setup_logging` → `app_dirs::app_data_dir()/logs`
+      (src-tauri/src/app_dirs.rs — Tauri 와 같은 규칙, 곧 `%APPDATA%\<identifier>\logs`),
+      파일 `oculpm.log.YYYY-MM-DD`, 기동 줄 `[FLOW] tracing initialised`. PR #43 전에는
+      `%APPDATA%\kimhyunbin\ocul-pm\data\logs` 였다 — 제거 잔재 관찰에서 그 자리가 비어 있는지도 본다.
 #>
 [CmdletBinding()]
 param(
@@ -41,8 +42,9 @@ $SchemeKey = 'HKCU:\Software\Classes\oculpm'
 $ManuProductKey = "HKCU:\Software\kimhyunbin\$Product"
 $StartLnk = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\$Product.lnk"
 $DesktopLnk = Join-Path ([Environment]::GetFolderPath('Desktop')) "$Product.lnk"
-$LogDir = Join-Path $env:APPDATA 'kimhyunbin\ocul-pm\data\logs'
 $AppDataDir = Join-Path $env:APPDATA $Identifier
+$LogDir = Join-Path $AppDataDir 'logs'
+$LegacyLogRoot = Join-Path $env:APPDATA 'kimhyunbin\ocul-pm'
 $Db = Join-Path $AppDataDir 'ocul-pm.db'
 $TempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
 $ProbeRoot = Join-Path $TempRoot 'ocul-pm-probe'
@@ -630,7 +632,7 @@ Test-Observe '제거 잔재 — 설치 폴더' {
 }
 
 Test-Observe '제거 잔재 — 바탕화면 바로가기 · 제조사 키 · 사용자 데이터 (무음 제거는 앱 데이터 삭제 확인란이 꺼진 채)' {
-    $rows = foreach ($p in @($DesktopLnk, $ManuProductKey, $AppDataDir, (Join-Path $env:LOCALAPPDATA $Identifier), (Split-Path -Parent (Split-Path -Parent $LogDir)))) {
+    $rows = foreach ($p in @($DesktopLnk, $ManuProductKey, $AppDataDir, (Join-Path $env:LOCALAPPDATA $Identifier), $LegacyLogRoot)) {
         '{0}={1}' -f $p, $(if (Test-Path -LiteralPath $p) { '남음' } else { '없음' })
     }
     $rows

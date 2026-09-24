@@ -14,10 +14,11 @@
 # (ubuntu:22.04 · debian:12 · ubuntu:24.04)에서 ldd 로 본다.
 #
 # 경로의 근거:
-#   앱 로그  — src-tauri/src/lib.rs setup_logging:
-#              ProjectDirs::from("com","kimhyunbin","ocul-pm").data_dir()/logs
-#              = ~/.local/share/ocul-pm/logs/oculpm.log.YYYY-MM-DD, 기동 줄 `tracing initialised`
 #   앱 데이터 — Tauri app_data_dir() = ~/.local/share/<identifier>, DB ocul-pm.db
+#   앱 로그  — src-tauri/src/lib.rs setup_logging → app_dirs::app_data_dir()/logs
+#              (src-tauri/src/app_dirs.rs — Tauri 와 같은 규칙)
+#              = ~/.local/share/<identifier>/logs/oculpm.log.YYYY-MM-DD, 기동 줄 `tracing initialised`
+#              (PR #43 전에는 ~/.local/share/ocul-pm/logs 였다)
 #   AppImage 사이드카 안정 사본 — oculpm/paths/tool_config.rs stable_sidecar_dir()
 #              = ~/.local/share/ocul-pm/bin/oculpm-mcp (lib.rs 기동 로그 "AppImage 사이드카 안정 사본 확인")
 #
@@ -36,8 +37,8 @@ OUT_DIR=$(realpath "$OUT_DIR")
 
 IDENTIFIER=com.kimhyunbin.ocul-pm
 DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
-LOG_DIR=$DATA_HOME/ocul-pm/logs
 APP_DATA=$DATA_HOME/$IDENTIFIER
+LOG_DIR=$APP_DATA/logs
 DB=$APP_DATA/ocul-pm.db
 STABLE_MCP=$DATA_HOME/ocul-pm/bin/oculpm-mcp
 DISPLAY_NUM=:99
