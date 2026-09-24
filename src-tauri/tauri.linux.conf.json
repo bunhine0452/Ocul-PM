@@ -1,9 +1,12 @@
 {
   "bundle": {
     "targets": ["appimage", "deb"],
+    "category": "DeveloperTool",
+    "longDescription": "Ocul-PM records what coding agents (Claude Code, Codex, Cursor, Gemini CLI) do as human-readable markdown work journals and keeps a living plan next to them. Local-first: everything stays in each project's .oculpm/ folder.",
     "linux": {
       "deb": {
-        "depends": ["libssl3 | libssl3t64", "libdbus-1-3"]
+        "depends": ["libssl3 | libssl3t64", "libdbus-1-3"],
+        "desktopTemplate": "linux/ocul-pm.desktop"
       },
       "appimage": {
         "bundleMediaFramework": false

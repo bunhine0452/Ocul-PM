@@ -88,10 +88,12 @@ function Test-Running([System.Diagnostics.Process] $Process) {
 
 # 설치 파일·제거 프로그램을 돌리고 끝나기를 기다린다. 무음 설치가 숨은 대화상자에
 # 막히면 영영 안 끝난다 — 시한을 넘기면 트리째 끝내고 TimedOut 으로 돌려준다.
-function Invoke-Setup([string] $Path, [string[]] $Arguments, [int] $TimeoutSec = 300) {
+function Invoke-Setup([string] $Path, [string[]] $Arguments, [int] $TimeoutSec = 300, [string] $ShotOnTimeout = '') {
     $p = Start-Process -FilePath $Path -ArgumentList $Arguments -PassThru
     $null = $p.Handle # 이걸 잡아 둬야 끝난 뒤 ExitCode 가 채워진다 (Start-Process 의 알려진 버릇).
     if (-not $p.WaitForExit($TimeoutSec * 1000)) {
+        # 멈춘 화면을 남긴다 — 대화상자가 떠 있으면 그 문구가 증거다.
+        if ($ShotOnTimeout) { try { $null = Save-Screenshot $ShotOnTimeout } catch { } }
         Stop-Tree $p.Id
         return [pscustomobject]@{ TimedOut = $true; ExitCode = $null }
     }
@@ -249,16 +251,59 @@ Test-Observe '가져오기 — 메인 exe 가 COMCTL32!TaskDialogIndirect 를 �
     "COMCTL32.dll=$hasComctl TaskDialogIndirect=$hasTask"
 }
 
-Test-Observe 'DLL 의존 — VC++ 런타임(VCRUNTIME140.dll) 필요 여부 (dumpbin /dependents)' {
+$script:DllNames = [System.Collections.Generic.SortedSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+Test-Observe 'DLL 의존 — VC++ 런타임(VCRUNTIME140.dll · MSVCP140.dll) 필요 여부 (dumpbin /dependents)' {
     $dumpbin = Find-Dumpbin
     $rows = foreach ($exe in @($script:MainExe, $script:Mcp)) {
         $deps = & $dumpbin /nologo /dependents $exe 2>&1 | Out-String
         Set-Content -LiteralPath (Join-Path $OutDir ("{0}.dependents.txt" -f (Split-Path -Leaf $exe))) -Value $deps
         $names = [regex]::Matches($deps, '(?im)^\s+(\S+\.dll)\s*$') | ForEach-Object { $_.Groups[1].Value }
+        foreach ($n in $names) { [void]$script:DllNames.Add($n) }
         $vc = @($names | Where-Object { $_ -match '^(vcruntime|msvcp)\d+' })
         '{0}: VC 런타임={1} (DLL {2}개: {3})' -f (Split-Path -Leaf $exe), ($(if ($vc.Count) { $vc -join '+' } else { '없음(정적)' })), $names.Count, ($names -join ' ')
     }
     $rows
+}
+
+# 러너에는 Visual Studio 가 깔려 VC++ 재배포 DLL(MSVCP140 등)이 System32 에 있다 — 사용자
+# PC 에는 없을 수 있다. 재배포 패키지가 없는 Windows 를 servercore 컨테이너로 흉내 내어
+# (1) 의존 DLL 중 System32 에 없는 것, (2) 설치된 사이드카가 그대로 뜨는지, (3) VC++ DLL 을
+# exe 옆에 둔(app-local) 사본은 뜨는지 본다. 컨테이너 안은 Windows PowerShell 5.1 이라
+# 안쪽 스크립트는 ASCII 로만 쓴다. 0xC0000135(-1073741515) = STATUS_DLL_NOT_FOUND.
+Test-Observe '깨끗한 Windows(servercore 컨테이너, VC++ 재배포 없음) — 없는 DLL · 사이드카 실행 · app-local CRT' {
+    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw 'docker 가 없다' }
+    $build = [Environment]::OSVersion.Version.Build
+    $tag = switch ($build) { 26100 { 'ltsc2025' } 20348 { 'ltsc2022' } default { throw "호스트 빌드 $build 에 맞는 servercore 태그를 모른다" } }
+    $img = "mcr.microsoft.com/windows/servercore:$tag"
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    & docker pull -q $img 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "docker pull $img 실패" }
+    $pullSec = [int]$sw.Elapsed.TotalSeconds
+
+    $probe = Join-Path $ProbeRoot 'container'
+    $local = Join-Path $ProbeRoot 'container-app-local'
+    New-Item -ItemType Directory -Force -Path $probe, $local | Out-Null
+    Set-Content -LiteralPath (Join-Path $probe 'check.ps1') -Encoding ascii -Value @'
+param([string] $Exe, [string] $Names)
+$miss = $Names.Split(',') | Where-Object { $_ -and -not (Test-Path (Join-Path $env:windir ('System32\' + $_))) }
+'missing=' + ($miss -join ' ')
+$out = & $Exe --version 2>&1 | Out-String
+'out=' + $out.Trim()
+'exit=' + $LASTEXITCODE
+'@
+    Copy-Item -LiteralPath $script:Mcp -Destination $local -Force
+    $crt = @('msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')
+    foreach ($d in $crt) { Copy-Item -LiteralPath (Join-Path $env:windir "System32\$d") -Destination $local -Force }
+
+    $names = (@($script:DllNames) | Where-Object { $_ -notmatch '^api-ms-win-' }) -join ','
+    $run = {
+        param($AppDir, $Exe)
+        & docker run --rm -v "${AppDir}:C:\app" -v "${probe}:C:\probe" $img `
+            powershell -NoProfile -ExecutionPolicy Bypass -File C:\probe\check.ps1 -Exe $Exe -Names $names 2>&1 | Out-String
+    }
+    $installed = (& $run $InstDir 'C:\app\oculpm-mcp.exe').Trim() -replace "`r?`n", ' | '
+    $appLocal = (& $run $local 'C:\app\oculpm-mcp.exe').Trim() -replace "`r?`n", ' | '
+    "이미지 $img (pull ${pullSec}초) · 설치본: $installed · VC++ DLL 을 옆에 둔 사본: $appLocal"
 }
 
 # ── 3. 실행 ────────────────────────────────────────────────────────────────
@@ -310,6 +355,18 @@ Test-Gate 'WebView2 — 앱이 띄운 msedgewebview2.exe' {
     if (-not $ok) { throw '60초 안에 앱의 msedgewebview2.exe 가 없다' }
     $direct = @($script:WebViews | Where-Object ParentProcessId -eq $script:App.Id).Count
     "앱의 webview2 프로세스 $($script:WebViews.Count)개 (앱 직속 자식 $direct)"
+}
+
+# 프런트가 실제로 떴다는 증거 — src/windows/TabbedWindow.tsx 가 마운트 때
+# oculpmLog.flow("App window mounted") 를 IPC 로 보내 앱 로그에 적는다. 웹뷰가 번들 JS 를
+# 싣고, 스크립트가 돌고, IPC 가 왕복했다는 뜻이다(프로세스 생존·창 제목보다 강하다).
+Test-Gate '프런트 — 웹뷰가 번들을 싣고 IPC 로 [FLOW] App window mounted 를 보냈다' {
+    $ok = Wait-Until -TimeoutSec 60 -Condition {
+        $log = Get-AppLog
+        $null -ne $log -and (Select-String -LiteralPath $log.FullName -SimpleMatch 'App window mounted' -Quiet)
+    }
+    if (-not $ok) { throw '60초 안에 앱 로그에 App window mounted 가 없다 (웹뷰가 번들을 못 실었거나 IPC 가 안 돈다)' }
+    (Select-String -LiteralPath (Get-AppLog).FullName -SimpleMatch 'App window mounted' | Select-Object -First 1).Line.Trim()
 }
 
 Test-Gate '생존 — 기동 20초 뒤에도 살아 있다' {
@@ -413,8 +470,15 @@ foreach ($p in $script:Probes.Values) { if (Test-Running $p) { Stop-Tree $p.Id }
 # ── 5. 사이드카 잠금 프로브 — 도는 oculpm-mcp.exe 가 재설치를 막는가 ──────────
 # Claude Code·Codex 는 설치 폴더의 oculpm-mcp.exe 를 MCP 서버로 띄워 둔다. 업데이트
 # 순간에도 떠 있는 것이 보통이다. 이름이 달라 설치 파일은 이 프로세스를 끝내지 않는다.
+# 판정은 파일 **내용**으로 한다: 설치본 oculpm-mcp.exe 끝에 표식 바이트를 덧붙여(PE 뒤의
+# 덧붙은 데이터는 로더가 무시한다 — 그대로 뜬다) 해시를 바꿔 둔 채 띄우고 재설치한다.
+# 재설치 뒤 해시가 표식 그대로면 설치 파일이 교체하지 못한 것이다(옛 사이드카가 남는다).
+# NSIS `File` 은 원본 파일 시각을 그대로 쓰므로 LastWriteTime 으로는 가를 수 없다.
+$script:McpOrigHash = $null
 $script:McpProc = $null
-Test-Observe '사이드카 잠금 — 실행 중인 oculpm-mcp.exe 파일에 쓰기 열기' {
+
+function Start-LockedMcp {
+    Add-Content -LiteralPath $script:Mcp -Value 'OCULPM-LOCK-PROBE' -NoNewline -Encoding ascii
     $psi = [System.Diagnostics.ProcessStartInfo]::new($script:Mcp)
     $psi.UseShellExecute = $false
     $psi.RedirectStandardInput = $true
@@ -425,6 +489,28 @@ Test-Observe '사이드카 잠금 — 실행 중인 oculpm-mcp.exe 파일에 쓰
     $script:McpProc = [System.Diagnostics.Process]::Start($psi)
     Start-Sleep -Seconds 2
     if (-not (Test-Running $script:McpProc)) { throw "MCP 서버가 바로 끝났다: $($script:McpProc.StandardError.ReadToEnd())" }
+    return (Get-FileHash -LiteralPath $script:Mcp).Hash
+}
+
+function Stop-LockedMcp {
+    if (Test-Running $script:McpProc) {
+        try { $script:McpProc.StandardInput.Close() } catch { }
+        Start-Sleep -Seconds 1
+        if (Test-Running $script:McpProc) { Stop-Tree $script:McpProc.Id }
+    }
+    $script:McpProc = $null
+}
+
+function Get-McpVerdict([string] $Marked) {
+    $now = (Get-FileHash -LiteralPath $script:Mcp).Hash
+    if ($now -eq $Marked) { return '교체 안 됨 — 표식 붙은 옛 파일 그대로' }
+    if ($now -eq $script:McpOrigHash) { return '교체됨 — 설치 파일의 것' }
+    return "알 수 없는 내용 ($now)"
+}
+
+Test-Observe '사이드카 잠금 — 실행 중인 oculpm-mcp.exe 파일에 쓰기 열기' {
+    $script:McpOrigHash = (Get-FileHash -LiteralPath $script:Mcp).Hash
+    $script:McpMarked = Start-LockedMcp
     try {
         $fs = [System.IO.File]::Open($script:Mcp, 'Open', 'ReadWrite', 'None')
         $fs.Dispose()
@@ -434,29 +520,36 @@ Test-Observe '사이드카 잠금 — 실행 중인 oculpm-mcp.exe 파일에 쓰
     }
 }
 
-Test-Observe '사이드카 잠금 — 그 상태로 재설치 (/S)' {
+Test-Observe '사이드카 잠금 — 그 상태로 무음 재설치 (/S)' {
     if (-not (Test-Running $script:McpProc)) { throw 'MCP 서버가 안 떠 있다 — 프로브 무효' }
-    $before = (Get-Item -LiteralPath $script:Mcp).LastWriteTimeUtc
     $r = Invoke-Setup $Installer @('/S') -TimeoutSec 180
-    $alive = Test-Running $script:McpProc
-    $after = if (Test-Path -LiteralPath $script:Mcp) { (Get-Item -LiteralPath $script:Mcp).LastWriteTimeUtc } else { $null }
     $exit = if ($r.TimedOut) { '시한 초과(180초 — 숨은 대화상자에 멈춤)' } else { "종료 코드 $($r.ExitCode)" }
-    "$exit · MCP 서버 " + $(if ($alive) { '살아 있음' } else { '끝남' }) + " · oculpm-mcp.exe LastWriteTimeUtc $before → $after"
+    "$exit · MCP 서버 " + $(if (Test-Running $script:McpProc) { '살아 있음' } else { '끝남' }) + ' · oculpm-mcp.exe ' + (Get-McpVerdict $script:McpMarked)
 }
+Stop-LockedMcp
 
-if (Test-Running $script:McpProc) {
-    try { $script:McpProc.StandardInput.Close() } catch { }
-    Start-Sleep -Seconds 1
-    if (Test-Running $script:McpProc) { Stop-Tree $script:McpProc.Id }
+# 앱 안 업데이터가 실제로 쓰는 모양: tauri-plugin-updater 2.10 은 기본 installMode(passive)로
+# `setup.exe /P /R /UPDATE /ARGS …` 를 띄우고 앱은 곧장 process::exit(0) 한다. /R 은 끝난 뒤
+# 앱을 다시 띄우므로 뺀다. passive 는 무음이 아니다 — 대화상자가 뜨면 사람이 누를 때까지
+# 멈춘다. 60초 안에 안 끝나면 그 화면을 찍고 끝낸다.
+Test-Observe '사이드카 잠금 — 그 상태로 업데이터 모양 재설치 (/P /UPDATE)' {
+    $marked = Start-LockedMcp
+    $shot = Join-Path $OutDir 'passive-update-with-locked-sidecar.png'
+    $r = Invoke-Setup $Installer @('/P', '/UPDATE') -TimeoutSec 60 -ShotOnTimeout $shot
+    $exit = if ($r.TimedOut) { "60초 안에 안 끝남 — 대화상자에 멈춤(화면: $(Split-Path -Leaf $shot))" } else { "종료 코드 $($r.ExitCode)" }
+    "$exit · oculpm-mcp.exe " + (Get-McpVerdict $marked)
 }
+Stop-LockedMcp
 
-Test-Gate '정상 재설치 (/S) — 잠금 프로브 뒤 상태 복구' {
+Test-Gate '정상 재설치 (/S) — 잠금 프로브 뒤 상태 복구 (사이드카가 설치 파일의 것으로 돌아온다)' {
     $r = Invoke-Setup $Installer @('/S')
     if ($r.TimedOut) { throw '5분 안에 끝나지 않았다' }
     if ($r.ExitCode -ne 0) { throw "종료 코드 $($r.ExitCode)" }
     foreach ($f in @($script:MainExe, $script:Mcp)) { if (-not (Test-Path -LiteralPath $f)) { throw "없다: $f" } }
+    $hash = (Get-FileHash -LiteralPath $script:Mcp).Hash
+    if ($script:McpOrigHash -and $hash -ne $script:McpOrigHash) { throw "oculpm-mcp.exe 가 원래 내용으로 안 돌아왔다 ($hash)" }
     $out = (& $script:Mcp --version 2>&1 | Out-String).Trim()
-    "exit 0 · $out"
+    "exit 0 · $out · 해시 원래대로"
 }
 
 # ── 6. 제거 ────────────────────────────────────────────────────────────────
