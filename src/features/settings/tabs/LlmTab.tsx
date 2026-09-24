@@ -11,14 +11,18 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { coreModelTarget, DEFAULTS, PROVIDERS, providerModel, type Provider } from "@/lib/settings";
 import { useReachability } from "../useReachability";
 import { useT } from "@/i18n";
+import { tError } from "@/i18n/errors";
 import { blocked } from "@/lib/blocked";
 import { useSaveSetting } from "../saveSetting";
 import { useDeferredCommit } from "../useDeferredCommit";
 import { secretName, Section, Field, NumberSlider } from "./ui";
 import { ModelInput, resetModelListCache } from "./ModelInput";
 
-export function LlmTab({ onError }: { onError: (msg: string | null) => void }) {
+export function LlmTab({ onError: showError }: { onError: (msg: string | null) => void }) {
   const { t } = useT();
+  // 키 저장소 오류는 알려진 문구면 사전으로 — Linux 에 Secret Service 가 없을 때의 안내
+  // (`secrets.rs` 고정 문구, {#ui-followups}). 모르는 문구는 tError 가 원문 그대로 둔다.
+  const onError = (msg: string | null) => showError(msg && tError(msg));
   const { settings } = useSettings();
   const save = useSaveSetting();
   // 생성 파라미터 슬라이더 둘 — 라벨이 초안을 읽으므로 드래그 중에도 숫자가

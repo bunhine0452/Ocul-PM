@@ -63,6 +63,14 @@ const RULES: ReadonlyArray<readonly [RegExp, I18nKey]> = [
   [/^No parent page configured for export \(Settings → Data\)$/, "err.notionNoParent"],
   [/^Could not open the browser$/, "err.browserOpenFailed"],
   [/^CLI timed out \(60s\)$/, "err.cliTimeout"],
+  // ── 크로스플랫폼 라운드 ({#ui-followups}) — 백엔드가 **고정 문구**로 낸다. ──
+  // Linux 의 Secret Service 부재 (`secrets.rs` UNAVAILABLE_PREFIX). 호출부가 앞에 문맥을
+  // 덧붙이기도 해서(`Could not save to the keychain: …`) 문장 **안**에서 찾는다.
+  [/The system keyring is unavailable/, "err.keyringUnavailable"],
+  // Linux 의 파일 붙여넣기 (`code/import.rs` LINUX_CLIPBOARD_UNSUPPORTED).
+  [/^Pasting copied files is not available on Linux — drag the files into the tree instead\.$/, "err.linuxPasteFiles"],
+  // Windows 클립보드를 다른 앱이 쥐고 있다 (`code/clipboard_windows.rs`).
+  [/^The clipboard is busy in another app — try pasting again\.$/, "err.clipboardBusy"],
 ];
 
 /**

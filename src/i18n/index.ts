@@ -22,6 +22,7 @@
  */
 import { useMemo, useSyncExternalStore } from "react";
 import { kbd } from "@/lib/kbd";
+import { getPlatform } from "@/lib/platform";
 
 // 사전은 **정적으로 가져오지 않는다** (완성도 라운드 Phase 3, 2026-08-30).
 // ko+en 이 진입 청크의 300KB 를 차지하고 있었다 — 한 사람은 한 언어만 읽는다.
@@ -41,6 +42,30 @@ export type I18nKey = keyof typeof KoDict;
 export type Dict = Record<I18nKey, string>;
 
 const DICTS: Partial<Record<Lang, Dict>> = {};
+
+/**
+ * 맥 전용 낱말의 **다른 OS 판** (크로스플랫폼 라운드 {#ui-mac-words}).
+ *
+ * 사전은 맥 문구가 정본이다(메뉴바·Dock·Finder·키체인·macOS 알림). Windows·Linux
+ * 에서는 같은 키 옆에 `<키>__win` · `<키>__linux` · `<키>__pc`(둘 공통)가 있으면 그것을
+ * 쓴다 — 그 OS 에 없는 것을 가리키는 문장이 화면에 남지 않게. 단축키 표기를 `t()`
+ * 출구에서 바꾸는 것과 같은 자리라 부르는 쪽은 그대로 `t("settings.tray.title")` 다.
+ * **macOS 는 이 조회를 하지 않는다** — 맥의 문구는 구조로 한 글자도 바뀌지 않는다(D3).
+ * 접미사가 `[\w.-]` 안에 있어 용어집·해요체 게이트(i18n_glossary)가 판들도 본다.
+ */
+function lookup(dict: Dict | undefined, key: I18nKey): string | undefined {
+  if (!dict) return undefined;
+  const platform = getPlatform();
+  if (platform !== "mac") {
+    const all = dict as Record<string, string | undefined>;
+    const own = all[`${key}__${platform === "windows" ? "win" : "linux"}`];
+    if (own !== undefined) return own;
+    const pc = all[`${key}__pc`];
+    if (pc !== undefined) return pc;
+  }
+  return dict[key];
+}
+
 const LOADING: Partial<Record<Lang, Promise<void>>> = {};
 
 /** 사전을 스토어에 얹는다 — 동적 import 가 끝났을 때, 테스트 setup 이 정적으로. */
@@ -240,7 +265,7 @@ export function t(key: I18nKey, vars?: TVars): string {
   // en 은 타입상 모든 키를 갖지만, 런타임에 사전이 깨졌거나 아직 안 왔을 때를
   // 대비해 ko → 키 문자열 순으로 폴백한다. 빈 문자열이나 undefined 를 렌더하지
   // 않는다.
-  const raw = DICTS[currentLang]?.[key] ?? DICTS.ko?.[key] ?? key;
+  const raw = lookup(DICTS[currentLang], key) ?? lookup(DICTS.ko, key) ?? key;
   return localizeShortcuts(key, interpolate(raw, vars));
 }
 
@@ -252,7 +277,7 @@ export function t(key: I18nKey, vars?: TVars): string {
  * (부르기 전에 `loadDict(lang)` 을 기다릴 것). 화면 문구는 여전히 `t()` 다.
  */
 export function tIn(lang: Lang, key: I18nKey, vars?: TVars): string {
-  const raw = DICTS[lang]?.[key] ?? DICTS.ko?.[key] ?? key;
+  const raw = lookup(DICTS[lang], key) ?? lookup(DICTS.ko, key) ?? key;
   return localizeShortcuts(key, interpolate(raw, vars));
 }
 
@@ -292,7 +317,7 @@ export function tAll(key: I18nKey): string[] {
   // 아직 안 온 언어는 색인에서 빠진다 — 부팅이 한가할 때 받아 두므로 팔레트를
   // 여는 시점엔 보통 둘 다 있다.
   for (const lang of Object.keys(DICTS) as Lang[]) {
-    const v = DICTS[lang]?.[key];
+    const v = lookup(DICTS[lang], key);
     if (v) seen.add(v);
   }
   return [...seen];

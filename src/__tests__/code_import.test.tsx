@@ -16,8 +16,10 @@ type DropPayload =
 const fx: {
   imports: Array<{ destDir: string; sources: string[] }>;
   clipboard: string[];
+  /** 백엔드가 클립보드를 못 읽었다고 말하는 경우 (Linux·Windows, {#ui-followups}). */
+  clipboardError: string | null;
   emit: ((p: DropPayload) => void) | null;
-} = { imports: [], clipboard: [], emit: null };
+} = { imports: [], clipboard: [], clipboardError: null, emit: null };
 
 vi.mock("@/lib/bindings", () => ({
   commands: {
@@ -28,7 +30,12 @@ vi.mock("@/lib/bindings", () => ({
         data: { imported: sources.map((s) => s.split("/").pop() ?? s), skipped: [], truncated: false },
       });
     },
-    codeClipboardFiles: () => Promise.resolve({ status: "ok" as const, data: fx.clipboard }),
+    codeClipboardFiles: () =>
+      Promise.resolve(
+        fx.clipboardError
+          ? { status: "error" as const, error: fx.clipboardError }
+          : { status: "ok" as const, data: fx.clipboard },
+      ),
   },
 }));
 
@@ -44,6 +51,8 @@ vi.mock("@tauri-apps/api/webview", () => ({
 }));
 
 import { useCodeImport } from "@/features/code/useCodeImport";
+import { toast } from "@/lib/toast";
+import { __resetLangForTests, setLangSetting, t } from "@/i18n";
 import { TREE_DIR_ATTR, TREE_PATH_ATTR } from "@/features/code/treeDom";
 
 describe("importDestDir", () => {
@@ -91,6 +100,7 @@ describe("useCodeImport", () => {
   beforeEach(() => {
     fx.imports = [];
     fx.clipboard = [];
+    fx.clipboardError = null;
     // 좌표 아래에 놓일 트리 행. elementFromPoint 는 jsdom 이 레이아웃을 몰라
     // 항상 null 이라, 이 테스트에서 직접 답하게 한다.
     row = document.createElement("div");
@@ -156,6 +166,22 @@ describe("useCodeImport", () => {
       getByTestId("paste").click();
     });
     expect(fx.imports).toEqual([{ destDir: "assets", sources: ["/Users/me/shot.png"] }]);
+  });
+
+  it("⌘V says why when the backend cannot read copied files (Linux)", async () => {
+    setLangSetting("ko");
+    const warn = vi.spyOn(toast, "warning");
+    fx.clipboardError =
+      "Pasting copied files is not available on Linux — drag the files into the tree instead.";
+    const { getByTestId } = render(<Harness selected={null} />);
+    await act(async () => {});
+    await act(async () => {
+      getByTestId("paste").click();
+    });
+    expect(fx.imports).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(t("err.linuxPasteFiles"));
+    warn.mockRestore();
+    __resetLangForTests();
   });
 
   it("⌘V with only text on the clipboard does nothing", async () => {

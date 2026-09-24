@@ -12,6 +12,7 @@ import { Trash2, Copy, RefreshCw, Loader2 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
 import { useT, type I18nKey } from "@/i18n";
+import { tError } from "@/i18n/errors";
 import { blocked } from "@/lib/blocked";
 import { Section } from "./ui";
 import { DeclarativeConfigSection } from "../config/DeclarativeConfigSection";
@@ -59,7 +60,7 @@ export function NotionSection({ onError }: { onError: (msg: string | null) => vo
       }
       const s = await commands.secretSet("notion_api_key", trimmed);
       if (s.status === "error") {
-        onError(s.error);
+        onError(tError(s.error));
         return;
       }
       setBotName(v.data);

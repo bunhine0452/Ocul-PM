@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { blocked } from "@/lib/blocked";
+import { getPlatform } from "@/lib/platform";
 import { tError } from "@/i18n/errors";
 import { oculpmApi } from "@/api/oculpm";
 import { toAppError } from "@/api/invoke";
@@ -209,9 +210,13 @@ export function McpServerBlock({
         </p>
       )}
       {pluginInstalled && (
+        // Windows 는 플러그인의 MCP 서버가 뜨지 않아 권고가 뒤집힌다 — 등록이 **없을 때**가
+        // 할 일이다 (문구는 사전의 `__win` 판, {#ui-followups} · #integ-win-plugin-mcp).
         <p
           className={`text-fs-2 leading-relaxed ${
-            mcp?.registered ? "text-(--warn-text)" : "text-muted-foreground"
+            (getPlatform() === "windows" ? !mcp?.registered : mcp?.registered)
+              ? "text-(--warn-text)"
+              : "text-muted-foreground"
           }`}
         >
           {mcp?.registered ? t("op.mcp.pluginConflict") : t("op.mcp.pluginCovers")}

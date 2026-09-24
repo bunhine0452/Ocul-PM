@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, fireEvent, waitFor } from "@testing-library/react";
+import { __setPlatformForTests } from "@/lib/platform";
 
 // ─── v2.3.0 메뉴바 팝오버 (PR-MB2·3) ─────────────────────────────────────────
 //
@@ -330,5 +331,22 @@ describe("TrayPopover (v2.3.0 메뉴바)", () => {
     fireEvent.click(r.getByText(/앱에서 전체 설정 열기/));
     await waitFor(() => expect(fx.calls.openMain).toHaveLength(1));
     expect(fx.calls.openMain[0][0]).toMatchObject({ view: "settings" });
+    // macOS 는 Dock 행이 그대로 있다 (D3).
+    expect(r.getByText("상주 중 Dock 아이콘 숨김")).toBeTruthy();
   });
+
+  it.each(["windows", "linux"] as const)(
+    "%s — 트레이 낱말로 말하고, 아무 일도 안 하는 Dock 스위치는 그리지 않는다 ({#ui-mac-words})",
+    async (platform) => {
+      __setPlatformForTests(platform);
+      const r = render(<TrayPopover />);
+      await waitFor(() => expect(r.getByText(/세션 1 활성/)).toBeTruthy());
+      fireEvent.click(r.getByRole("button", { name: "설정" }));
+      await waitFor(() => expect(r.getByText("트레이 설정")).toBeTruthy());
+      expect(r.getByText("창 닫기(Ctrl+W) = 트레이로 최소화")).toBeTruthy();
+      expect(r.queryByText(/Dock/)).toBeNull();
+      expect(r.queryByText(/메뉴바|macOS/)).toBeNull();
+      expect(r.getByText(/트레이 메뉴의 종료는 항상 완전 종료/)).toBeTruthy();
+    },
+  );
 });
