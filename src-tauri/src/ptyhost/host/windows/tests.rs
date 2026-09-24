@@ -379,6 +379,7 @@ async fn idle_shell_has_no_foreground_command_but_a_running_one_does() {
     s.until("놀고 있는 셸", || s.foreground(), Option::is_none)
         .await;
 
+    let since = s.len();
     s.write("ping -n 300 127.0.0.1\r");
     s.until(
         "ping 이 포그라운드",
@@ -390,6 +391,19 @@ async fn idle_shell_has_no_foreground_command_but_a_running_one_does() {
     )
     .await;
 
+    // ^C 는 ping 이 **첫 줄을 쓴 뒤에** 보낸다 (2026-09-24, L-PTY2 — 이 테스트가 가끔 ^C
+    // 뒤에도 ping 이 돌아 붉었다). 콘솔의 Ctrl+C 는 그 순간 콘솔에 붙어 있는 프로세스에만
+    // 간다. 막 생긴 ping 이 아직 붙기 전이면(프로세스 초기화의 처음 몇 ms) ^C 는 자식을
+    // 기다리는 cmd 만 받아 삼키고 ping 은 계속 돈다 — 어느 Windows 터미널에서나 같은 콘솔
+    // 의미론이다. 포그라운드 판정은 프로세스가 **생기자마자** ping 을 보므로 그 틈에 걸릴 수
+    // 있었다. 러너에서 잰 값: 생긴 지 2~17ms 에 보낸 ^C 는 4/30 이 안 먹었고(전부 4ms 이하·
+    // 출력 전·ping 의 "Ctrl+C 무시" 표시는 꺼짐, 두 번째 ^C 는 4/4 먹음), 첫 줄 뒤에 보낸
+    // ^C 는 0/60 이었다. 첫 줄이 보였다 = 콘솔에 붙었다. 사람의 ^C 는 출력을 본 뒤라 이 틈에
+    // 걸리지 않는다. 로캘과 무관하게 — 에코된 명령 뒤에 주소가 한 번 더 나오면 그 줄이다.
+    s.wait_for("ping 의 첫 줄", since, |o| {
+        o.contains("Pinging") || o.contains("Reply") || o.matches("127.0.0.1").count() >= 2
+    })
+    .await;
     s.write("\u{3}"); // ^C
     s.until("^C 뒤 다시 놀고 있음", || s.foreground(), Option::is_none)
         .await;
