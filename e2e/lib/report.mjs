@@ -134,8 +134,12 @@ export class Report {
               `<code>${esc(s.file ?? "")}</code>${facts.map((f) => `<small>${esc(f)}</small>`).join("")}</figcaption></figure>`;
           })
           .join("");
-        return `<h2>${esc(phase)}</h2><div class="grid">${cards}</div>`;
+        return `<h2 id="p${phases.indexOf(phase)}">${esc(phase)}</h2><div class="grid">${cards}</div>`;
       })
+      .join("");
+    const badCount = (phase) => this.shots.filter((s) => s.phase === phase && !s.ok).length;
+    const toc = phases
+      .map((p, i) => `<a href="#p${i}">${esc(p)}${badCount(p) ? ` <b class="badn">✕${badCount(p)}</b>` : ""}</a>`)
       .join("");
     const crashes = extra.logCrashes?.length ? `<h2>앱 로그의 크래시 줄</h2><pre>${esc(extra.logCrashes.join("\n"))}</pre>` : "";
     const logs = (extra.logs ?? []).map((f) => `<li><a href="${esc(f)}">${esc(f)}</a></li>`).join("");
@@ -153,8 +157,11 @@ figure.bad{border-top-color:var(--bad)}figure img{display:block;width:100%;heigh
 figcaption{padding:8px 10px;display:flex;flex-direction:column;gap:3px}figcaption code{color:var(--mute);font-size:11px;overflow-wrap:anywhere}
 figcaption small{color:var(--mute);overflow-wrap:anywhere}figure.bad small{color:var(--bad)}.noimg{padding:40px;text-align:center;color:var(--mute)}
 pre{background:var(--card);border:1px solid var(--line);padding:10px;overflow:auto;font-size:12px}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}.toc a{padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--fg);text-decoration:none;font-size:13px}
+.badn{color:var(--bad)}
 </style></head><body><main>
 <h1>Ocul-PM E2E — ${esc(this.os)}</h1><p style="color:var(--mute)">실기기 대신 CI 러너에서 실제 앱을 띄워 찍은 화면. 초록 테두리 = 판정 통과, 빨강 = 문제.</p>
+<nav class="toc">${toc}</nav>
 <h2>환경</h2><table>${meta}</table><h2>단계</h2><table>${steps}</table>${sections}${crashes}
 <h2>로그</h2><ul>${logs}</ul></main></body></html>`;
   }

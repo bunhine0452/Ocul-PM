@@ -111,15 +111,16 @@ export function findDb(ws) {
 
 const FIXTURE_FILES = {
   "README.md": "# e2e-fixture\n\nOcul-PM 끝단 테스트용 픽스처 프로젝트.\n",
+  // 폴더를 건너는 import 하나 — 코드 맵(폴더 보기)이 빈 화면만 찍지 않게.
   "src/main.ts": [
-    'import { slugify } from "./util";',
+    'import { slugify } from "../lib/util";',
     "",
     "export function greet(name: string): string {",
     "  return `hello, ${slugify(name)}`;",
     "}",
     "",
   ].join("\n"),
-  "src/util.ts": [
+  "lib/util.ts": [
     "export function slugify(input: string): string {",
     '  return input.trim().toLowerCase().replace(/\\s+/g, "-");',
     "}",
