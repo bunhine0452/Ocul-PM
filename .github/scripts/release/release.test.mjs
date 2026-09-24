@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { MAC_KEYS, NONMAC, mergeLatest, pickUpdaterEntry, verifyLatest } from "./latest-json.mjs";
-import { changelogSection, composeBody, parseExcluded } from "./notes.mjs";
+import { changelogSection, changelogSectionRaw, composeBody, composeMacOnlyBody, composeWhatsNewBody, parseExcluded } from "./notes.mjs";
 import { DRYRUN_VERSION } from "./dryrun-version.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
@@ -274,6 +274,41 @@ describe("릴리스 본문", () => {
   test("parseExcluded", () => {
     assert.deepEqual(parseExcluded("windows=번들, linux=E2E"), { windows: "번들", linux: "E2E" });
     assert.deepEqual(parseExcluded(""), {});
+  });
+});
+
+describe("비-mac 공개 스위치 꺼짐 — 결과물이 v3.5.0 과 같다", () => {
+  // 실제 v3.5.0 릴리스 본문(GitHub 가 저장한 그대로)과 그때의 CHANGELOG 절.
+  const realBody = readFileSync(join(HERE, "fixtures", "body-v3.5.0.md"), "utf8");
+  const changelog = readFileSync(join(HERE, "fixtures", "changelog-v3.5.0.md"), "utf8");
+
+  test("macOS 잡이 넘기는 본문이 실제 v3.5.0 본문과 바이트 단위로 같다", () => {
+    assert.equal(composeMacOnlyBody({ tag: "v3.5.0", section: changelogSectionRaw(changelog, "v3.5.0") }), realBody);
+  });
+
+  test("CLI release-body --mode mac-only 도 같다 (release.yml 이 부르는 모양)", () => {
+    const out = execFileSync(
+      process.execPath,
+      [join(HERE, "notes.mjs"), "release-body", "--changelog", join(HERE, "fixtures", "changelog-v3.5.0.md"), "--tag", "v3.5.0", "--mode", "mac-only"],
+      { encoding: "utf8" },
+    );
+    assert.equal(out, realBody);
+  });
+
+  test("빠짐 줄 · 베타 · Windows/Linux 설치 절이 없다 — 빠진 것이 아니라 범위 밖", () => {
+    const body = composeMacOnlyBody({ tag: "v3.6.0", section: "본문" });
+    assert.doesNotMatch(body, /빌드가 없습니다|베타|Windows 설치|Linux 설치/);
+    assert.match(body, /^### ✨ What's new$/m, "앱의 releaseHighlights 가 붙잡는 제목");
+  });
+
+  test("날 것 절은 앞의 빈 줄을 남기고 끝의 빈 줄만 뗀다 (예전 awk + $(...))", () => {
+    assert.equal(changelogSectionRaw("## v1.0.0\n\n본문\n\n## v0.9.0\n", "v1.0.0"), "\n본문");
+    assert.equal(changelogSectionRaw("## Unreleased\n\n새 것\n", "v0.0.3", { fallbackUnreleased: true }), "\n새 것");
+    assert.equal(changelogSectionRaw("## v1.0.0\n본문\n", "v2.0.0"), "");
+  });
+
+  test("스위치 켜짐의 macOS 잡 본문은 What's new 만 — 나머지는 publish 가 채운다", () => {
+    assert.equal(composeWhatsNewBody({ tag: "v3.6.0", section: "본문" }), "## Ocul-PM v3.6.0\n\n### ✨ What's new\n본문");
   });
 });
 
