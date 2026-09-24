@@ -28,6 +28,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 // t() = 화면 문구, tc() = 디스크·에이전트로 나가는 산출물 (작성 언어 축).
 import { tc, useT, type I18nKey } from "@/i18n";
 import { blocked } from "@/lib/blocked";
+import { pathBaseName } from "@/lib/osPath";
 
 interface GreenfieldWizardProps {
   onClose: () => void;
@@ -253,7 +254,7 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
     const res = await commands.selectProjectFolder();
     if (res.status === "ok" && res.data) {
       const path = res.data;
-      const name = path.split("/").filter(Boolean).pop() ?? "project";
+      const name = pathBaseName(path) || "project";
       setWizState((prev) => ({
         ...prev,
         folderPath: path,

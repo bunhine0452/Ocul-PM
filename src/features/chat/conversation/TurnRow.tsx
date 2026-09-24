@@ -11,6 +11,7 @@ import { turnReceipt, fileChangeDiscrepancy, type AcpBlock, type AcpPlanEntry, t
 import { typedLength, wordDurationMs, wordKeyAt } from "../agentWords";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { ImageAttachment } from "./Attachments";
+import { pathBaseName } from "@/lib/osPath";
 import { ActivityStream } from "../activity/ActivityStream";
 
 /** 지시문을 몇 줄까지 접어 둘지 — 넘으면 "펼치기"가 붙는다. */
@@ -66,7 +67,7 @@ export function UserTurn({ turn }: { turn: AcpTurn }) {
             {turn.attachments?.map((path) => (
               <span key={path} className="user-file" title={path}>
                 <FileIcon size={13} />
-                <span className="user-file-name">{path.split("/").pop()}</span>
+                <span className="user-file-name">{pathBaseName(path) || path}</span>
               </span>
             ))}
           </div>

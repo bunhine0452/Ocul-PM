@@ -47,6 +47,7 @@ import { ProjectThemePicker } from "@/features/theme/ProjectThemePicker";
 import { themesApi } from "@/api/themes";
 import { toAppError } from "@/api/invoke";
 import { tError } from "@/i18n/errors";
+import { pathBaseName } from "@/lib/osPath";
 import {
   resolveProjectColor,
   resolveProjectIcon,
@@ -214,7 +215,7 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
     const folder = await commands.selectProjectFolder();
     if (folder.status !== "ok" || !folder.data) return null;
     const path = folder.data;
-    const name = path.split("/").filter(Boolean).pop() ?? "project";
+    const name = pathBaseName(path) || "project";
     const created = await commands.createProject(name, path);
     if (created.status !== "ok") {
       setError(created.error);

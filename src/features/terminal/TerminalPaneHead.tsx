@@ -3,6 +3,7 @@ import { GripVertical, Maximize2, Minimize2, X } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { deriveAgentState, emptyPaneSignal, type PaneSignal } from "./agentMode";
 import { formatCwdCrumb, formatElapsed } from "./railModel";
+import { lastSeparatorIndex } from "@/lib/osPath";
 import { summarizeShell } from "./shellStatus";
 import { useSecondTick } from "./useSecondTick";
 import type { ShellState } from "./oscShell";
@@ -72,9 +73,9 @@ export interface TerminalPaneHeadProps {
   };
 }
 
-/** `a/b/c` → 부모 `a/b/` 와 잎 `c`. 잎만 진하게 — 눈이 먼저 찾는 것은 잎이다. */
+/** `a/b/c` → 부모 `a/b/` 와 잎 `c`. 잎만 진하게 — 눈이 먼저 찾는 것은 잎이다 (Windows 는 `\` 도). */
 export function splitCrumb(crumb: string): { parent: string; leaf: string } {
-  const i = crumb.lastIndexOf("/");
+  const i = lastSeparatorIndex(crumb);
   if (i < 0) return { parent: "", leaf: crumb };
   return { parent: crumb.slice(0, i + 1), leaf: crumb.slice(i + 1) };
 }
