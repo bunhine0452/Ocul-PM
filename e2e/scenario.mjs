@@ -5,21 +5,28 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { IS_WIN } from "./lib/env.mjs";
 import { composeHangul, connectCdp } from "./lib/ime.mjs";
+import { connectApp } from "./lib/launch.mjs";
 import { callMcpTool } from "./lib/mcp.mjs";
 import {
   clickCss,
-  focusTerminal,
   installProbes,
   navigateTo,
-  readTerminal,
   screenState,
   sidebarLabels,
   sleep,
   stubFolderPicker,
-  typeText,
   waitFor,
   waitScreenReady,
 } from "./lib/page.mjs";
+import {
+  focusTerminal,
+  pasteText,
+  recordInput,
+  takeInput,
+  typeText,
+  waitBuffer,
+  waitLine,
+} from "./lib/terminal.mjs";
 import { resizeViewport } from "./lib/window.mjs";
 
 const pollFs = async (path, timeout) => {
@@ -31,37 +38,13 @@ const pollFs = async (path, timeout) => {
   return false;
 };
 
-/** 셸이 무엇이든 한 줄(프롬프트)을 그릴 때까지. */
-async function waitBuffer(wd, timeout) {
-  const deadline = Date.now() + timeout;
-  for (;;) {
-    const r = await readTerminal(wd);
-    if (r.lines.some((l) => l.trim())) return r;
-    if (Date.now() > deadline) throw new Error(`셸 프롬프트가 ${timeout / 1000}초 안에 안 떴다 (xterm ${r.count}개, 인스턴스 찾음=${r.found})`);
-    await sleep(400);
-  }
-}
-
-/** 버퍼에서 어떤 줄이 `want` 와 **정확히** 같아질 때까지 (앞뒤 공백 무시). */
-async function waitLine(wd, want, timeout) {
-  const deadline = Date.now() + timeout;
-  let last = { lines: [] };
-  while (Date.now() < deadline) {
-    last = await readTerminal(wd);
-    if (last.lines.some((l) => l.trim() === want)) return last;
-    await sleep(300);
-  }
-  const tail = last.lines.slice(-12).map((l) => JSON.stringify(l)).join(" / ");
-  throw new Error(`터미널에 "${want}" 줄이 ${timeout / 1000}초 안에 안 나왔다 — 마지막 줄들: ${tail}`);
-}
-
 export async function runScenario(ctx) {
-  const { wd, report, nav, ws, os, caps, dict, mcpBin } = ctx;
+  const { wd, report, nav, ws, os, app, dict, mcpBin } = ctx;
   const crashTitles = [dict.ko("crash.title"), dict.en("crash.title"), dict.ko("term.crashTitle"), dict.en("term.crashTitle")];
   const fixture = ws.dirs.fixture;
 
   await report.step("기동 — 세션 생성 · 첫 화면", async (rec) => {
-    await wd.newSession(caps);
+    ctx.session = await connectApp({ wd, app, ws, outDir: report.outDir, rec });
     await wd.setTimeouts({ script: 60_000, pageLoad: 120_000, implicit: 0 });
     // 메뉴바 팝오버(`?tray=1`)도 웹뷰다 — 드라이버가 그쪽을 잡았으면 본 창으로.
     const handles = await wd.req("GET", wd.s("/window/handles"));
@@ -168,9 +151,23 @@ export async function runScenario(ctx) {
       const prompt = await waitBuffer(wd, 45_000);
       rec.notes.push(`xterm ${prompt.count}개 · 프롬프트: ${JSON.stringify(prompt.lines.filter((l) => l.trim()).slice(-1)[0] ?? "")}`);
       const el = await focusTerminal(wd);
-      rec.notes.push(`입력 방법: ${await typeText(wd, el, "echo 한글-ok\uE007")}`);
-      const got = await waitLine(wd, "한글-ok", 30_000);
-      rec.notes.push(`버퍼 끝: ${got.lines.slice(-4).map((l) => JSON.stringify(l)).join(" / ")}`);
+      await recordInput(wd);
+      // ASCII 는 WebDriver 키(실제 키 이벤트), 한글은 붙여넣기 — 키 합성은 입력기를
+      // 거치지 않아 한글을 못 싣는다. 입력기 조합 경로는 다음 단계(Windows CDP)가 본다.
+      // 조각 사이는 사람 속도로 띄운다 — 순서가 어긋나면 그건 앱 결함이어야지 하네스의
+      // 비현실적 속도 탓이면 안 된다.
+      const how = await typeText(wd, el, "echo ");
+      await sleep(150);
+      const pasted = await pasteText(wd, "한글");
+      await sleep(150);
+      await typeText(wd, el, "-ok\uE007");
+      rec.notes.push(`입력: 키=${how} · 한글=${pasted}`);
+      try {
+        const got = await waitLine(wd, "한글-ok", 30_000);
+        rec.notes.push(`버퍼 끝: ${got.lines.slice(-4).map((l) => JSON.stringify(l)).join(" / ")}`);
+      } finally {
+        rec.notes.push(`입력칸 이벤트: ${(await takeInput(wd)).slice(0, 900)}`);
+      }
       ok = true;
     } finally {
       await report.shot(wd, { phase: "03 터미널", key: "terminal", screen: "echo-hangul", caption: "터미널 — echo 한글-ok", ok });
@@ -183,14 +180,16 @@ export async function runScenario(ctx) {
       rec.notes.push("WebKitGTK 에는 CDP 가 없다 — Linux 실제 입력기(fcitx·ibus)는 #w5-eyes 원장 몫 (D8)");
       return;
     }
-    const cdp = await connectCdp(wd);
+    const cdp = await connectCdp(wd, ctx.session?.debuggerAddress);
     rec.notes.push(`CDP 경로: ${cdp.via}`, ...cdp.tried.map((t) => `시도: ${t}`));
     let ok = false;
     try {
       const el = await focusTerminal(wd);
       await typeText(wd, el, "echo ime-");
+      await recordInput(wd);
       const trace = await composeHangul(cdp);
-      rec.notes.push(`조합 순서: ${trace.join(" → ")}`);
+      rec.notes.push(`CDP 조합 순서: ${trace.join(" → ")}`);
+      rec.notes.push(`입력칸 이벤트: ${(await takeInput(wd)).slice(0, 1500)}`);
       await typeText(wd, el, "-end\uE007");
       // 중복(한한글·한글글)·낱자 누출(ㅎ하한)이면 이 줄이 정확히 나오지 않는다 —
       // 실패 메시지에 버퍼 끝 줄들이 실린다.

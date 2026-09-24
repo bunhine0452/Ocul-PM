@@ -18,7 +18,7 @@
 //   OCULPM_E2E_ALLOW_REAL_PROFILE=1 (Windows 를 CI 밖에서 — env.mjs 참고).
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -26,6 +26,7 @@ import { IS_WIN, OS_NAME, checkLeak, collectAppLogs, createFixture, findDb, prep
 import { sleep } from "./lib/page.mjs";
 import { Report } from "./lib/report.mjs";
 import { loadDict, loadNav } from "./lib/source.mjs";
+import { verboseDriverWrapper } from "./lib/launch.mjs";
 import { startTauriDriver } from "./lib/webdriver.mjs";
 import { runScenario } from "./scenario.mjs";
 
@@ -41,6 +42,15 @@ for (const [what, path] of [["앱", app], ["사이드카", mcpBin]]) {
     console.error(`e2e: ${what} 실행 파일이 없다 — ${path}`);
     process.exit(2);
   }
+}
+
+/** 자세한 드라이버 로그는 스크린샷 base64 까지 싣는다 — 앞(세션 생성)과 끝만 남긴다. */
+function trimLog(path) {
+  if (!existsSync(path)) return;
+  const buf = readFileSync(path);
+  if (buf.length <= 3_000_000) return;
+  const cut = Buffer.from(`\n\n… (${buf.length} 바이트 중 가운데를 잘랐다) …\n\n`);
+  writeFileSync(path, Buffer.concat([buf.subarray(0, 2_000_000), cut, buf.subarray(buf.length - 500_000)]));
 }
 
 const gitSha = () => {
@@ -74,26 +84,20 @@ const nav = loadNav(REPO);
 const dict = { ko: loadDict(REPO, "ko"), en: loadDict(REPO, "en") };
 let driver = null;
 let failed;
+const ctx = { report, nav, ws, os: OS_NAME, dict, app, mcpBin, session: null };
+const driverLog = join(outDir, "msedgedriver.log");
 try {
   driver = await startTauriDriver({
     bin: process.env.OCULPM_E2E_TAURI_DRIVER ?? "tauri-driver",
     port: 4444,
     nativePort: 4445,
-    nativeDriver: process.env.OCULPM_E2E_NATIVE_DRIVER || null,
+    nativeDriver: verboseDriverWrapper(process.env.OCULPM_E2E_NATIVE_DRIVER || null, ws.dirs.root, driverLog),
     env: ws.env,
     cwd: ws.dirs.driverCwd,
     logFile: join(outDir, "tauri-driver.log"),
   });
-  await runScenario({
-    wd: driver.wd,
-    report,
-    nav,
-    ws,
-    os: OS_NAME,
-    dict,
-    mcpBin,
-    caps: { "tauri:options": { application: app } },
-  });
+  ctx.wd = driver.wd;
+  await runScenario(ctx);
 } catch (e) {
   await report.step(
     "하네스 예외",
@@ -111,7 +115,9 @@ try {
     }
     driver.stop();
   }
+  ctx.session?.stop();
   await sleep(2000); // 비차단 로그 작성기가 마저 쓰게
+  trimLog(driverLog);
   const logs = collectAppLogs(ws, outDir);
   const logCrashes = logs.flatMap((f) =>
     readFileSync(f, "utf8").split(/\r?\n/).filter((l) => /화면 크래시|터미널 페인 크래시|패닉:/.test(l)),

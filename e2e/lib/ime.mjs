@@ -6,10 +6,8 @@
 //   1. msedgedriver 의 벤더 확장 `POST /session/{id}/ms/cdp/execute`
 //      (tauri-driver 는 새 세션 외의 요청을 그대로 넘긴다 — tauri-driver 2.0.6 server.rs)
 //   2. Chromium 계열 이름 `goog/cdp/execute`
-//   3. 세션 capabilities 의 `debuggerAddress` 로 웹소켓 직접 연결
-//   (4. 브리프의 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port` 는
-//      msedgedriver 가 WebView2 를 붙잡는 데 같은 변수를 쓰므로 기본으로는 켜지
-//      않는다 — `OCULPM_E2E_CDP_PORT` 를 주면 그 포트로 3 을 시도한다.)
+//   3. 알려진 CDP 주소로 웹소켓 직접 연결 — attach 모드(launch.mjs)가 연 포트,
+//      세션 capabilities 의 `debuggerAddress`, `OCULPM_E2E_CDP_PORT` 순.
 
 import { sleep } from "./page.mjs";
 
@@ -48,7 +46,7 @@ async function viaWebSocket(address) {
 }
 
 /** CDP 연결 하나. 어느 길이 통했는지와 시도 기록을 함께 돌려준다. */
-export async function connectCdp(wd) {
+export async function connectCdp(wd, knownAddress = null) {
   const tried = [];
   for (const vendor of ["ms", "goog"]) {
     try {
@@ -58,6 +56,7 @@ export async function connectCdp(wd) {
     }
   }
   const addresses = [
+    knownAddress,
     wd.capabilities?.["ms:edgeOptions"]?.debuggerAddress,
     wd.capabilities?.["goog:chromeOptions"]?.debuggerAddress,
     process.env.OCULPM_E2E_CDP_PORT ? `127.0.0.1:${process.env.OCULPM_E2E_CDP_PORT}` : null,
