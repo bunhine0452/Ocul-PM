@@ -11,12 +11,21 @@ name: E2E
 # macOS 는 대상이 아니다: tauri-driver 는 WKWebView 드라이버가 없어 Windows·Linux 만
 # 지원한다. macOS 동작은 ci.yml 이 지킨다.
 #
-# portability.yml 과 같은 이유(D2)로 port/** push 와 수동 실행에서만 돈다 — 처음부터
-# 붉을 수 있는 잡을 PR·main 에 달지 않는다. 승격은 #w0-promote 가 정한다.
+# 트리거 (#w0-promote, 2026-09-25 — 이유는 portability.yml 의 같은 자리): port/** push ·
+# **main push** · 수동 실행. 문서·일지만 바뀐 push 는 건너뛴다. PR 에는 달지 않는다.
+# release.yml 의 gate 는 이 워크플로를 보지 않는다(D2) — 붉어도 macOS 릴리스를 막지 않고,
+# 릴리스에 Windows·Linux 를 싣느냐는 release.yml 이 **설치본으로** 같은 시나리오를 다시
+# 돌려 정한다. main 에서 이 run 은 「태그 전에 비-mac 이 초록인가」 를 미리 보는 창이다.
 on:
   push:
     branches:
+      - main
       - 'port/**'
+    paths-ignore:
+      - '.oculpm/**'
+      - 'docs/**'
+      - 'landing/**'
+      - '*.md'
   workflow_dispatch:
 
 concurrency:

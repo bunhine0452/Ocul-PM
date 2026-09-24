@@ -21,6 +21,17 @@ cd src-tauri && cargo test      # bindings.ts 재생성 포함
 (`[skip ci]`, main 에 없는 커밋)도 차단합니다. 이 게이트가 없던 v3.1.1 은 cargo-deny 잡이
 붉은 커밋에서 그대로 릴리스됐습니다.
 
+**Windows·Linux 는 이 게이트가 보지 않습니다** (크로스플랫폼 D2). `portability.yml`(Rust·프런트·사이드카·
+번들·설치 스모크)과 `e2e.yml`(실제 앱 E2E)은 main push 에서도 돌지만(문서·일지만 바뀐 push 는 건너뜀)
+**미리보기**입니다 — 붉어도 macOS 릴리스는 나갑니다. 태그 전에 그 커밋의 두 run 을 한 번 보세요: 붉으면
+이번 릴리스에서 그 플랫폼이 빠질 가능성이 높습니다(실제로 싣느냐는 release.yml 이 태그 커밋에서 다시
+돌려 정합니다 — §5).
+
+```bash
+gh run list --commit "$(git rev-parse HEAD)" --json workflowName,conclusion,url \
+  --jq '.[] | "\(.workflowName)\t\(.conclusion)\t\(.url)"'
+```
+
 게이트에 걸렸을 때: CI 가 실제로 붉으면 고쳐서 새 커밋 → 새 버전으로 다시 갑니다(태그를 옮기지
 않습니다). 같은 브랜치에 연속 푸시해 concurrency 로 **취소된** run 이면 그 run 을 `gh run rerun
 <id>` 로 다시 돌려 초록을 만든 뒤 Release run 을 re-run 합니다(`gh run rerun <release run id>` —
@@ -50,13 +61,11 @@ node scripts/bump-version.mjs 2.48.0 [--title-ko "…" --title-en "…"] [--dry-
 
 ## 2. CHANGELOG.md — 맨 위에 `## vX.Y.Z` 섹션
 
-**이것이 GitHub 릴리스 노트의 유일한 소스입니다.** `.github/workflows/release.yml` 이 태그와 같은 헤더의 본문만 뽑아 릴리스 본문에 넣습니다:
+**이것이 GitHub 릴리스 노트의 「What's new」 의 유일한 소스입니다.** `.github/workflows/release.yml` 이 태그와 같은 헤더의 본문만 뽑아(`.github/scripts/release/notes.mjs section` — 예전 awk 와 같은 규칙) 릴리스 본문에 넣고, publish 단계가 그 아래에 **실제로 올라간 자산**으로 Downloads 표 · OS 별 설치 안내 · 빠진 플랫폼 줄을 붙입니다(`notes.mjs body`).
 
-```bash
-body="$(awk -v t="## ${ver}" '$0==t{f=1;next} /^## /{if(f)exit} f' CHANGELOG.md)"
-```
+헤더가 태그와 정확히 일치해야 하고(`## v2.8.5` ↔ 태그 `v2.8.5`), 어긋나면 「What's new」 가 빈 채로 나갑니다.
 
-헤더가 태그와 정확히 일치해야 하고(`## v2.8.5` ↔ 태그 `v2.8.5`), 어긋나면 릴리스 본문이 빈 채로 나갑니다. 톤은 기존 항목을 표본으로 — 기능 나열이 아니라 **사용자가 겪던 증상 → 무엇이 바뀌었나** 를 굵게 시작하는 서술형으로, 내부 구현 용어 대신 화면에서 보이는 말로.
+**다음 릴리스에 실릴 것은 `## Unreleased` 절에 미리 모아 둘 수 있습니다** — 버전 번호 없이 맨 위에 둡니다. 릴리스 때 그 제목을 `## vX.Y.Z` 로 바꾸면 끝입니다. `Unreleased` 는 태그와 맞지 않아 진짜 릴리스 본문에는 들어가지 않고, 랜딩의 `/changelog` 생성(`splitReleases`)도 버전 제목만 읽어 건너뜁니다. 드라이런(§8)은 이 절을 본문으로 씁니다. 톤은 기존 항목을 표본으로 — 기능 나열이 아니라 **사용자가 겪던 증상 → 무엇이 바뀌었나** 를 굵게 시작하는 서술형으로, 내부 구현 용어 대신 화면에서 보이는 말로.
 
 ### 2-1. VS Code 확장 (`extension/`) — 릴리스 노트는 여기 한 곳
 
@@ -133,25 +142,62 @@ cd landing && vercel --prod --yes               # 랜딩은 git 연동이 없어
 태그를 밀면 release.yml 은 이 순서로 갑니다 — **릴리스는 draft 로 만들어졌다가 검증을 전부
 통과한 마지막 단계에서만 공개됩니다**:
 
-1. `gate` — 태그 커밋의 CI `conclusion == success` (§0)
-2. `build` — 핀된 툴체인(`rust-toolchain.toml`, ci.yml 과 같은 단계)으로 번들 → tauri-action 이
-   **draft** 릴리스에 `.dmg` · `.app.tar.gz` · `.sig` · `latest.json` 업로드
-3. 서명·공증 검증 — `.app` 에 `codesign --verify --deep --strict` · `codesign -dvv` 의 Authority 가
-   `Developer ID Application` · `spctl -a -t exec` 가 `accepted` + `source=Notarized Developer ID` ·
-   `xcrun stapler validate`. `.dmg` 는 서명(Developer ID)만 단언하고 공증·스테이플은 로그만 남깁니다 —
-   tauri-bundler 가 `.dmg` 는 공증하지 않기 때문입니다(v3.1.1 실측: `spctl -t open` 이
-   `Unnotarized Developer ID`). Gatekeeper 는 마운트한 `.app` 의 스테이플로 판정하므로 사용자에겐
-   문제없습니다.
-4. 업데이터 검증 — 디스크의 `.app.tar.gz` 옆에 `.sig` 가 있고, draft 자산에 `.dmg` · `.app.tar.gz` ·
-   `.sig` · `latest.json` 이 다 있으며, `latest.json` 의 `version` 이 태그와 같고 각 플랫폼 `url` 이
-   `releases/download/vX.Y.Z/` 아래의 **실제 자산**을 가리키는지(draft 의 `untagged-…` URL 이
-   남지 않았는지), `signature` 가 비지 않았는지
-5. `.vsix` 패키징·첨부 (draft 에 올라갑니다)
-6. `gh release edit vX.Y.Z --draft=false --latest` — 여기서 비로소 `releases/latest` 가 됩니다
+```
+meta ─ gate ─┬─ macos ───────────────────────────────────┐
+             └─ bundle(windows·linux) ─┬─ smoke(windows·linux) ─┼─ publish
+                                       └─ e2e(windows·linux) ───┘
+```
 
-3~4 중 하나라도 붉으면 **그 뒤 단계는 건너뛰고 릴리스는 draft 로 남습니다.** draft 는
+1. `meta` — 태그 모양(`vX.Y.Z`) · `tauri.conf.json` 의 version == 태그(§1 을 빼먹었으면 한 시간 빌드
+   전에 여기서 멈춥니다) · latest.json 병합 스크립트의 픽스처 테스트(`node --test
+   .github/scripts/release/release.test.mjs`)
+2. `gate` — 태그 커밋의 CI(ci.yml) `conclusion == success` (§0). Windows·Linux 워크플로는 보지 않습니다
+3. `macos` — 핀된 툴체인(`rust-toolchain.toml`, ci.yml 과 같은 단계)으로 번들 → tauri-action 이
+   **draft** 릴리스에 `.dmg` · `.app.tar.gz` · `.sig` · `latest.json` 업로드, 이어서
+   - 서명·공증 검증 — `.app` 에 `codesign --verify --deep --strict` · `codesign -dvv` 의 Authority 가
+     `Developer ID Application` · `spctl -a -t exec` 가 `accepted` + `source=Notarized Developer ID` ·
+     `xcrun stapler validate`. `.dmg` 는 서명(Developer ID)만 단언하고 공증·스테이플은 로그만 남깁니다 —
+     tauri-bundler 가 `.dmg` 는 공증하지 않기 때문입니다(v3.1.1 실측: `spctl -t open` 이
+     `Unnotarized Developer ID`). Gatekeeper 는 마운트한 `.app` 의 스테이플로 판정하므로 사용자에겐
+     문제없습니다.
+   - 업데이터 검증 — 디스크의 `.app.tar.gz` 옆에 `.sig` 가 있고, draft 자산에 `.dmg` · `.app.tar.gz` ·
+     `.sig` · `latest.json` 이 다 있으며, `latest.json` 의 `version` 이 태그와 같고 각 플랫폼 `url` 이
+     `releases/download/vX.Y.Z/` 아래의 **실제 자산**을 가리키는지(draft 의 `untagged-…` URL 이
+     남지 않았는지), `signature` 가 base64 한 덩어리인지, macOS 키(`darwin-aarch64` ·
+     `darwin-aarch64-app`)가 다 있는지 — 규칙은 `.github/scripts/release/latest-json.mjs verify` 한 곳
+   - `.vsix` 패키징·첨부 (draft 에 올라갑니다)
+4. `bundle` — **같은 태그 커밋에서** Windows(`windows-latest`, NSIS) · Linux(`ubuntu-22.04`, AppImage + deb)
+   번들. Windows 는 `tauri build` 전에 VC++ 재배포를 받아 검증합니다(`.github/scripts/fetch-vcredist.ps1`).
+   업데이터 서명은 macOS 와 같은 `TAURI_PRIVATE_KEY`. 산출물은 **워크플로 아티팩트로만** 넘깁니다 — 아직
+   릴리스 자산이 아닙니다. 파일 이름·`.sig`·플랫폼 설정 병합(msi·rpm 없음)과, AppImage 실행 파일에
+   번들러가 굽는 설치 형식 표식(`__TAURI_BUNDLE_TYPE_VAR_APP` — 업데이터가 이것으로 latest.json 키를
+   고릅니다)을 단언합니다
+5. `smoke` · `e2e` — 번들과 **다른 깨끗한 러너**에서: 설치 스모크(L-PKG 의 `.github/scripts/install-smoke-*`,
+   portability.yml 과 같은 인자)와 **설치본 E2E**(설치 파일을 깐 실행 파일로 `e2e/run.mjs --app`; Linux 는
+   deb 를 깔아 시스템 WebKitGTK 로). 통과하면 검증한 파일의 SHA-256 을 표식으로 남깁니다
+6. `publish` — **macOS 가 초록이면 반드시 돕니다**(비-mac 이 실패·timeout·건너뜀이어도):
+   - 판정: 번들 + 스모크 표식 + E2E 표식 + 해시 일치인 플랫폼만 「통과」
+   - macOS 가 올린 latest.json 을 baseline 으로 검증 → 통과한 플랫폼의 자산 업로드(앞 시도에서 올라갔다
+     이번에 떨어진 것은 삭제) → 플랫폼을 하나씩 더하며 병합·검증(병합에서 걸린 플랫폼만 떨어짐) →
+     latest.json 업로드 → **다시 받아** 최종 검증(비-mac 집합이 정확히 통과한 것 · macOS 항목이 baseline 과
+     한 글자도 같음 · 떨어진 플랫폼의 자산이 남지 않음)
+   - 본문을 **실제로 올라간 자산으로** 다시 씁니다(`notes.mjs` — 「What's new」 는 CHANGELOG, Downloads 표 ·
+     OS 별 설치 안내 · 빠진 플랫폼과 떨어진 단계)
+   - `gh release edit vX.Y.Z --draft=false --latest` — 여기서 비로소 `releases/latest` 가 됩니다.
+     `--latest` 는 처음 공개할 때, 이 버전이 지금 latest 보다 새로울 때만 줍니다
+   - 비-mac 이 하나라도 빠졌으면 마지막 단계(「비-mac 빠짐 알림」)가 run 을 붉힙니다 — 공개는 끝났고
+     macOS 는 정상입니다(§6-2)
+
+latest.json 에 싣는 키: `darwin-aarch64` · `darwin-aarch64-app`(tauri-action) · `windows-x86_64` ·
+`windows-x86_64-nsis` · `linux-x86_64-appimage`. **맨 `linux-x86_64` 와 deb 키는 싣지 않습니다** —
+업데이터(tauri-plugin-updater 2.10.1)는 `{os}-{arch}-{설치 형식}` 다음 `{os}-{arch}` 를 찾으므로, 맨 키가
+있으면 deb 로 깐 앱이 AppImage 를 받아 설치에서 거절됩니다. deb 는 패키지 관리자로 올립니다.
+
+macOS 단계(3)가 하나라도 붉으면 **publish 가 돌지 않고 릴리스는 draft 로 남습니다.** draft 는
 `releases/latest` 가 아니라 앱 내 업데이터도 랜딩의 다운로드 링크도 그것을 보지 못합니다 — 깨진
-빌드가 사용자에게 닿지 않는 것이 이 구조의 목적입니다.
+빌드가 사용자에게 닿지 않는 것이 이 구조의 목적입니다. 대가는 시간: macOS 공개가 비-mac 잡이 끝날
+때까지 기다립니다(Windows 콜드 빌드 때문에 보통 태그 뒤 1시간 반 안팎, 비-mac 이 매달리면 그 잡의
+timeout 까지). 막히지는 않습니다.
 
 **`--tags` 를 쓰지 않습니다.** 로컬에 원격과 어긋난 옛 태그가 하나라도 있으면 푸시가 **통째로** 거부되고, 그 안에 섞인 새 태그의 push 이벤트까지 함께 묻혀 **워크플로가 아예 돌지 않습니다** (v2.9.0 에서 겪음 — 태그는 원격에 올라갔는데 빌드는 시작되지 않았습니다). 태그를 하나만 밀면 옛 태그의 상태와 무관해집니다.
 
@@ -176,12 +222,26 @@ curl -s https://oculpm.com/changelog | grep -c 'id="v'   # 릴리스 수만큼 �
 git push origin :refs/tags/vX.Y.Z && git push origin refs/tags/vX.Y.Z
 ```
 
-릴리스 노트 본문이 비어 있지 않은지(`body` 길이 0 이면 §2 의 헤더가 태그와 어긋난 것), 에셋이 5개(`.dmg` · `.app.tar.gz` · `.sig` · `latest.json` · `.vsix`)인지, 라이브 사이트 버전이 태그와 같은지까지 보고 마칩니다.
+릴리스 노트 본문이 비어 있지 않은지(`body` 길이 0 이면 §2 의 헤더가 태그와 어긋난 것), 에셋이 **10개**인지, 라이브 사이트 버전이 태그와 같은지까지 보고 마칩니다:
+
+| 플랫폼 | 자산 |
+| --- | --- |
+| macOS | `.dmg` · `Ocul-PM_aarch64.app.tar.gz` · `.app.tar.gz.sig` · `latest.json` · `.vsix` (5) |
+| Windows (베타) | `Ocul-PM_X.Y.Z_x64-setup.exe` · `.exe.sig` (2) |
+| Linux (베타) | `Ocul-PM_X.Y.Z_amd64.AppImage` · `.AppImage.sig` · `Ocul-PM_X.Y.Z_amd64.deb` (3) |
+
+비-mac 이 빠진 릴리스는 그만큼 적고, 본문에 「이번 버전에는 X 빌드가 없습니다」 줄이 있습니다(§6-2).
+latest.json 의 키를 한 줄로 보려면:
+
+```bash
+gh release download vX.Y.Z --pattern latest.json --output - | jq -r '.platforms | keys[]'
+```
 
 ### 6-1. 검증에 걸려 draft 로 남았을 때
 
-Release run 이 붉은데 `gh release view vX.Y.Z --json isDraft` 가 `true` 면 §5 의 3~4 단계 중 하나가
-막은 것입니다. 붉은 단계의 로그에 `::error::` 한 줄로 원인이 적혀 있습니다:
+Release run 이 붉은데 `gh release view vX.Y.Z --json isDraft` 가 `true` 면 §5 의 macOS 단계(3) 중 하나나
+publish 의 최종 검증이 막은 것입니다(`false` 면 공개는 됐고 비-mac 이 빠진 것 — §6-2). 붉은 단계의 로그에
+`::error::` 한 줄로 원인이 적혀 있습니다:
 
 | 로그 | 뜻 | 조치 |
 | --- | --- | --- |
@@ -190,6 +250,8 @@ Release run 이 붉은데 `gh release view vX.Y.Z --json isDraft` 가 `true` 면
 | `stapler validate` 실패 | 공증은 됐는데 티켓이 안 박힘 | 대개 일시적 — re-run |
 | `.sig 가 없거나 비어 있다` | 업데이터 서명 키 없음 | `TAURI_PRIVATE_KEY` 시크릿 |
 | `릴리스 자산에 … 이 없다` / `latest.json …` | 업로드 누락·URL 불일치 | tauri-action 로그; `version` 불일치면 §1 의 `tauri.conf.json` |
+| `tauri.conf.json 의 version(…)이 태그(…)와 다르다` (meta) | §1 을 빠뜨리고 태그 | 빌드 전에 멈춘 것 — 버전을 올린 새 커밋 → 새 태그 |
+| publish 의 `latest.json — … macOS 항목이 병합 전과 다르다` | 병합이 macOS 항목을 건드렸다(버그) | 공개하지 않고 멈춘 것이 맞습니다. `node --test .github/scripts/release/release.test.mjs` 로 재현 → 스크립트 수정 |
 
 고친 뒤에는 **draft 를 지우고 run 을 다시 돌립니다** — 시크릿 문제라면 커밋을 바꿀 필요가 없으므로
 태그도 그대로입니다:
@@ -223,6 +285,40 @@ hdiutil detach -quiet /tmp/ocul-dmg
 
 `Signature=adhoc` · `TeamIdentifier=not set` 이 보이면 서명이 안 붙은 것이고, `spctl` 이 `source=Notarized Developer ID` 가 아니면 공증이 빠진 것입니다.
 
+### 6-2. 비-mac 이 빠졌을 때 (run 은 붉고, 릴리스는 공개됨)
+
+Release run 이 붉은데 `isDraft` 가 `false` 이고 본문에 「이번 버전에는 Windows(또는 Linux) 빌드가
+없습니다 — 「…」 단계」 가 있으면, **macOS 는 정상 공개됐고** 그 플랫폼만 검증에서 떨어져 자산과
+latest.json 에서 빠진 것입니다(설계 D7). publish 의 마지막 단계 「비-mac 빠짐 알림」 이 사람을 부르려고
+run 을 붉힌 것이지 공개가 실패한 것이 아닙니다.
+
+- **사용자에게 보이는 것**: 그 플랫폼의 옛 버전 앱은 이번 latest.json 에서 자기 키를 못 찾아 이번 버전을
+  건너뜁니다(업데이터는 「대상 없음」 으로 끝나고 아무것도 받지 않습니다). 다음 버전에서 이어집니다.
+  릴리스 페이지에는 그 플랫폼 파일이 없습니다 — 검증 안 된 설치 파일을 사람 손에 내보내지 않으려고
+  자산에서도 뺍니다.
+- **원인 보기**: 붉은 잡(`번들 — windows` · `설치 스모크 — linux` · `E2E (설치본) — …`)과 아티팩트
+  `release-bundle-log-<os>` · `release-smoke-log-<os>`(summary.md · 스크린샷) · `release-e2e-log-<os>`
+  (index.html). publish 의 요약 표에 떨어진 단계가 적혀 있습니다.
+
+고르는 길:
+
+1. **그대로 둔다** — 코드 결함이면 고쳐서 다음 버전에 싣습니다. 태그를 옮기지 않습니다.
+2. **일시적 실패(러너·네트워크·플레이크)면 실패한 잡만 다시**:
+   ```bash
+   gh run rerun <release run id> --failed
+   ```
+   떨어진 플랫폼의 bundle·smoke·e2e 와 publish 만 다시 돕니다(macOS 는 다시 굽지 않습니다 — 앞 시도의
+   번들 아티팩트를 그대로 씁니다). publish 는 이미 공개된 릴리스에서도 안전하게 다시 돕니다: 통과한
+   플랫폼을 병합해 자산·latest.json·본문을 갈아 끼우고, draft·`releases/latest` 는 건드리지 않습니다.
+   **주의** — latest.json 을 갈아 끼우는 몇 초(`--clobber` 는 지운 뒤 올립니다) 동안 업데이트를 확인한
+   앱은 404 를 보고 다음 확인 때 다시 봅니다. 그래서 공개된 릴리스의 re-run 은 **그 버전이 아직
+   latest 일 때 한 번만** 합니다.
+3. **코드를 고쳐야 하면 새 버전** — §6-1 과 같습니다.
+
+**손으로 설치 파일을 올리거나 latest.json 을 고치지 마세요.** macOS 항목이 온전하다는 것을 증명하는
+것은 publish 의 병합·검증뿐입니다 — 손으로 고친 latest.json 은 모든 macOS 사용자의 업데이트 경로를
+걸고 도박하는 것입니다.
+
 ## 7. 서명·공증 시크릿 (한 번만 설정)
 
 Apple Developer Program 계정의 **Developer ID Application** 인증서로 서명하고 공증합니다. 저장소 시크릿 6개가 있어야 `release.yml` 이 서명·공증을 수행합니다. 없으면 번들러는 조용히 무서명 번들을 내놓지만, §5 의 검증 단계가 그것을 잡아 릴리스를 draft 로 묶어 둡니다(§6-1) — 사용자에게 나가지는 않습니다.
@@ -249,3 +345,43 @@ gh secret list                                  # 6개가 다 있는지
 **인증서 만료: 2027-02-01.** 지금 쓰는 Developer ID Application 인증서의 `notAfter` 가 그날입니다 — Developer ID 는 보통 5년인데 발급 CA 자체의 만료에 맞춰 짧게 잘려 있습니다. 타임스탬프가 붙은 서명은 만료 뒤에도 계속 유효하므로 **이미 나간 빌드는 안전**하지만, 그날 이후 **새 빌드를 서명하려면 인증서를 갱신하고 `APPLE_CERTIFICATE` 를 다시 올려야** 합니다. 갱신 없이 태그를 밀면 서명 단계가 조용히 무서명으로 떨어지고, release.yml 의 서명·공증 검증이 그것을 잡아 draft 로 남깁니다(§6-1) — 인증서를 갱신해 시크릿을 올린 뒤 draft 를 지우고 run 을 re-run 하면 됩니다.
 
 **서명 주체가 바뀌는 첫 업데이트에서 키체인 프롬프트가 뜹니다.** API 키는 `keyring` 으로 OS 키체인에 들어 있고, 그 항목의 접근 권한은 만들 당시 앱의 코드 서명에 묶입니다. 애드혹 서명 빌드에서 Developer ID 빌드로 올라간 사용자는 처음 한 번 "Ocul-PM 이(가) 키체인의 정보를 사용하려 합니다" 를 보게 되고, **항상 허용**을 누르면 이후로는 조용합니다. 이 릴리스의 CHANGELOG 에 한 줄 적어 두세요.
+
+### 7-1. Windows · Linux
+
+- **업데이터 서명**(`.exe.sig` · `.AppImage.sig`)은 macOS 와 같은 `TAURI_PRIVATE_KEY` 로 합니다 — 시크릿이
+  더 필요하지 않습니다.
+- **Windows 코드 서명(Authenticode)은 없습니다** — 무서명 베타로 시작합니다(사용자 결정 2026-09-24).
+  처음 실행하면 SmartScreen 이 「Windows의 PC 보호」 를 띄우고, 사용자는 **추가 정보 → 실행** 을 눌러야
+  합니다(README·릴리스 본문이 안내합니다). 나중에 서명을 붙이면 `bundle` 잡의 `tauri build` 에 서명
+  설정을 주고, 산출물 단계에 `signtool verify /pa` 단언을 더합니다.
+- **Linux** — AppImage 는 업데이터 서명(`.sig`)만, deb 는 서명이 없습니다(apt 저장소가 아니라 직접
+  받는 파일).
+- **VC++ 재배포** — Windows 설치 파일은 Microsoft VC++ 재배포(x64)를 싣고, PC 에 없거나 낡았을 때만
+  설치합니다. `bundle` 잡이 `tauri build` 전에 `.github/scripts/fetch-vcredist.ps1` 로 판 고정 URL ·
+  SHA-256 · Authenticode 를 확인하며 받습니다. 판을 올리는 법은 그 스크립트 머리 주석에 있습니다.
+
+## 8. 드라이런 — 태그 없이 release.yml 전체를 (workflow_dispatch)
+
+release.yml 을 고쳤거나 비-mac 경로를 태그 전에 미리 보려면:
+
+```bash
+gh workflow run release.yml --ref <브랜치>                     # 정상
+gh workflow run release.yml --ref <브랜치> -f fail=linux-smoke # 비-mac 하나를 일부러 떨어뜨림
+gh workflow run release.yml --ref <브랜치> -f keep_draft=true  # draft 를 남겨 눈으로 본다
+```
+
+- 가짜 버전 `0.0.<run 번호>` · 태그 `v0.0.N` 의 **draft** 로 meta → gate → macOS(실제 서명·공증) ·
+  비-mac 번들 → 스모크 · E2E → publish 를 전부 돕니다. 6 버전 파일은 러너 안에서만
+  (`.github/scripts/release/dryrun-version.mjs`) 바꾸고 커밋하지 않습니다.
+- gate 는 **보고만** 합니다(브랜치 커밋엔 ci.yml run 이 없습니다). 본문의 「What's new」 는
+  `CHANGELOG.md` 의 `## Unreleased` 절입니다.
+- 공개·`--latest` 는 코드에서 막혀 있습니다 — publish 는 드라이런이면 `v0.0.N` 이고 draft 인지 단언한 뒤
+  해제하지 않고, meta 는 `0.0.N` 을 진짜 태그로 받지 않습니다. draft 는 git 태그를 만들지 않습니다(공개할
+  때 만들어집니다). `0.0.N` 은 어떤 공개 버전보다 낮아 설령 보여도 업데이터가 고르지 않습니다.
+- `fail` 은 `windows-bundle` · `linux-bundle` · `windows-smoke` · `linux-smoke` · `windows-e2e` ·
+  `linux-e2e` 중 하나 — macOS 와 다른 플랫폼이 멀쩡하고 그 플랫폼만 자산·latest.json 에서 빠지는지,
+  본문에 그 줄이 남는지 봅니다. run 은 붉게 끝나는 것이 맞습니다.
+- 끝에서 `dryrun-cleanup` 이 draft 를 지웁니다(`v0.0.N` 이고 draft 일 때만, 혹시 태그가 생겼으면 그것도).
+  `keep_draft=true` 로 남겼으면 다 본 뒤 `gh release delete v0.0.N --yes`.
+- 한 바퀴 1시간 반 안팎(Windows 릴리스 프로필 콜드 빌드). `workflow_dispatch` 는 기본 브랜치에
+  release.yml 이 있어야 뜨고, 실행은 `--ref` 브랜치의 파일 내용으로 합니다.
