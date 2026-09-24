@@ -11,7 +11,7 @@ import { sleep } from "./page.mjs";
 
 const inner = (wd) => wd.execute("return [window.innerWidth, window.innerHeight];");
 
-function osResize(width, height) {
+function osResize(width, height, processName) {
   if (IS_WIN) {
     const ps = `
 Add-Type @"
@@ -21,8 +21,8 @@ public static class E2eWin {
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
 }
 "@
-$p = Get-Process -Name ocul-pm -ErrorAction Stop | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-if (-not $p) { throw 'ocul-pm main window not found' }
+$p = Get-Process -Name '${processName}' -ErrorAction Stop | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+if (-not $p) { throw '${processName} main window not found' }
 [void][E2eWin]::ShowWindow($p.MainWindowHandle, 9)
 if (-not [E2eWin]::SetWindowPos($p.MainWindowHandle, [IntPtr]::Zero, 0, 0, ${width}, ${height}, 0x0014)) { throw 'SetWindowPos failed' }`;
     const encoded = Buffer.from(ps, "utf16le").toString("base64");
@@ -39,7 +39,7 @@ if (-not [E2eWin]::SetWindowPos($p.MainWindowHandle, [IntPtr]::Zero, 0, 0, ${wid
  * 웹뷰 안쪽이 `width`×`height` 쯤 되게 맞춘다. 실제로 얻은 크기와 쓴 방법을 돌려준다
  * — 러너 화면보다 큰 창은 OS 가 잘라낼 수 있으므로 결과를 **보고**하지 판정하지 않는다.
  */
-export async function resizeViewport(wd, width, height) {
+export async function resizeViewport(wd, width, height, { processName = "ocul-pm" } = {}) {
   const notes = [];
   const close = (got) => Math.abs(got[0] - width) <= 24 && Math.abs(got[1] - height) <= 60;
   let got = await inner(wd);
@@ -59,11 +59,11 @@ export async function resizeViewport(wd, width, height) {
   }
   if (!close(got)) {
     try {
-      const how = osResize(width, height);
+      const how = osResize(width, height, processName);
       await sleep(900);
       got = await inner(wd);
       if (!close(got)) {
-        osResize(width + (width - got[0]), height + (height - got[1]));
+        osResize(width + (width - got[0]), height + (height - got[1]), processName);
         await sleep(900);
         got = await inner(wd);
       }
