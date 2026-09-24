@@ -20,6 +20,7 @@ import {
   EffortControl,
 } from "./ConfigControls";
 import { ImageAttachment } from "./Attachments";
+import { pathBaseName } from "@/lib/osPath";
 
 /**
  * 아직 안 보낸 이미지 — 프로토콜 몫(`block`) + 화면 몫(이름·픽셀 크기).
@@ -201,7 +202,7 @@ export function Composer({
               title={t("acp.attach.remove")}
               onClick={() => setAttachments((prev) => prev.filter((p) => p !== path))}
             >
-              <span className="attach-chip-name">{path.split("/").pop()}</span>
+              <span className="attach-chip-name">{pathBaseName(path) || path}</span>
               <X size={11} />
             </button>
           ))}

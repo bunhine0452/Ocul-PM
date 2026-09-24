@@ -15,6 +15,7 @@ import type { ShellState } from "./oscShell";
 import type { AgentState } from "./agentMode";
 import { canAutoRename } from "./tabTitle";
 import { t } from "@/i18n";
+import { displaySeparator, pathBaseName, pathSegments, relativeUnder } from "@/lib/osPath";
 
 /**
  * 카드 좌측 점·테두리 색을 고르는 값. `off` = 셸 통합이 없는 세션.
@@ -93,10 +94,9 @@ export function formatElapsed(ms: number): string {
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
 }
 
-/** 경로에서 마지막 조각만 — 카드 둘째 줄의 자리는 한 단어가 한계다. */
+/** 경로에서 마지막 조각만 — 카드 둘째 줄의 자리는 한 단어가 한계다 (Windows 경로도, → `lib/osPath`). */
 function basename(path: string): string {
-  const parts = path.split("/").filter(Boolean);
-  return parts[parts.length - 1] ?? path;
+  return pathBaseName(path) || path;
 }
 
 /**
@@ -189,10 +189,12 @@ export function waitingItems(items: readonly RailItem[]): RailItem[] {
  */
 export function formatCwdCrumb(cwd: string | null, projectRoot: string | null): string {
   if (!cwd) return "";
-  if (projectRoot && (cwd === projectRoot || cwd.startsWith(projectRoot + "/"))) {
-    const rel = cwd.slice(projectRoot.length).replace(/^\//, "");
-    return rel ? `${basename(projectRoot)}/${rel}` : basename(projectRoot);
+  // 구분자는 OS 의 것 — Windows 셸은 `D:\a\proj\src` 로 알려 온다 (→ `lib/osPath`).
+  const sep = displaySeparator();
+  const rel = projectRoot ? relativeUnder(projectRoot, cwd) : null;
+  if (projectRoot && rel !== null) {
+    return rel ? `${basename(projectRoot)}${sep}${rel}` : basename(projectRoot);
   }
-  const parts = cwd.split("/").filter(Boolean);
-  return parts.length <= 2 ? cwd : `…/${parts.slice(-2).join("/")}`;
+  const parts = pathSegments(cwd);
+  return parts.length <= 2 ? cwd : `…${sep}${parts.slice(-2).join(sep)}`;
 }

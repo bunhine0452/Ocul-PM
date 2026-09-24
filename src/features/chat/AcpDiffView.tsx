@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react";
 import type { AcpToolDiff } from "@/lib/bindings";
 import { useT } from "@/i18n";
+import { pathBaseName } from "@/lib/osPath";
 import { diffLines, diffStats, focusWindow, type DiffLine } from "./lineDiff";
 
 // 편집 diff 뷰 — 도구 카드와 승인 카드가 함께 쓴다.
@@ -42,7 +43,7 @@ function DiffFile({ diff, compact }: { diff: AcpToolDiff; compact?: boolean }) {
     [lines, compact],
   );
 
-  const name = diff.path.split("/").pop() ?? diff.path;
+  const name = pathBaseName(diff.path) || diff.path;
 
   return (
     <section className="diffv-file">
