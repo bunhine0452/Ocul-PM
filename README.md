@@ -13,6 +13,8 @@ Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프
 [![Latest release](https://badgen.net/github/tag/bunhine0452/Ocul-PM?icon=github&label=download&color=12a06b)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/bunhine0452/Ocul-PM/total?color=12a06b&label=downloads&cacheSeconds=3600)](https://github.com/bunhine0452/Ocul-PM/releases)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-111?logo=apple)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
+[![Windows beta](https://img.shields.io/badge/Windows-x64%20%EB%B2%A0%ED%83%80-111?logo=windows)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
+[![Linux beta](https://img.shields.io/badge/Linux-x64%20%EB%B2%A0%ED%83%80-111?logo=linux&logoColor=white)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
 [![Built with Tauri 2](https://img.shields.io/badge/Tauri-2-24C8A0?logo=tauri&logoColor=white)](https://tauri.app)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-%ED%9B%84%EC%9B%90%ED%95%98%EA%B8%B0-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/beachcombers)
@@ -206,7 +208,7 @@ Ocul-PM 은 그 설명을 없앱니다. 프로젝트 폴더에 규칙 파일(`AG
 - `AGENTS.md` 는 프로젝트를 추가하면 항상 심어지고, 나머지 규칙 파일은 설정 → Agents 에서 켭니다(감지 버튼이 후보를 추려 줍니다). 1등급 에이전트라면 오늘 화면의 정직성 감사를 가끔 보세요 — 규칙을 잊고 고친 파일이 거기 뜹니다.
 - 내장 터미널에서 실행한 CLI(`claude` · `codex` · `gemini` · `cursor-agent` · `aider` …)는 셸 통합으로 **시작·종료만** 잡힙니다. 미기록 판정은 없으므로 3등급이 아닙니다.
 - 아직 실기기로 못 본 것: Claude Desktop 실연결 · Codex 의 도구 승인→파일 변경 한 흐름 · VS Code 확장이 Copilot 에이전트 모드와 Cursor(`.cursor/mcp.json`)에 MCP 도구를 노출하는 것. 셋 다 코드는 있지만 그 이유로 표의 등급을 올리지 않았습니다.
-- **플랫폼**: 공식 빌드는 macOS Apple Silicon 뿐입니다. Intel 맥은 임베딩 런타임(ONNX)의 x86_64 사전 빌드가 없어 보류, Windows 는 추후입니다. 위 표는 그 빌드에서의 이야기입니다.
+- **플랫폼**: 공식 빌드는 macOS Apple Silicon 과, **베타**인 Windows x64 · Linux x64 입니다(아래 [설치](#설치)). 위 표의 검증 근거는 macOS 빌드에서 나온 것입니다 — Windows·Linux 는 릴리스마다 CI 러너에서 설치 스모크와 실제 앱 E2E 를 통과한 빌드만 나가지만, 사용자 PC 에서의 확인은 아직 쌓이는 중이라 베타로 둡니다. Intel 맥은 임베딩 런타임(ONNX)의 x86_64 사전 빌드가 없어 보류입니다.
 
 git 백필 시에는 커밋 서명으로 에이전트를 구분합니다.
 
@@ -238,11 +240,24 @@ codex plugin add oculpm-codex@oculpm
 
 ## 설치
 
-[최신 릴리스](https://github.com/bunhine0452/Ocul-PM/releases/latest)에서 `Ocul-PM_x.y.z_aarch64.dmg` 를 받아 `Applications` 로 드래그하면 끝입니다. macOS(Apple Silicon)용이고, 한 번 설치하면 이후 버전은 앱 안에서 자동으로 업데이트됩니다.
+[최신 릴리스](https://github.com/bunhine0452/Ocul-PM/releases/latest)에서 OS 에 맞는 파일을 받습니다.
 
-Apple Developer ID 로 서명하고 공증(notarization)까지 마친 빌드라 내려받아 바로 열 수 있습니다 — `xattr` 로 격리를 벗기는 우회는 더 이상 필요 없습니다.
+| OS | 파일 | 요구 사항 | 업데이트 |
+| --- | --- | --- | --- |
+| **macOS** (Apple Silicon) | `Ocul-PM_x.y.z_aarch64.dmg` | — | 앱 안 자동 |
+| **Windows** x64 — 베타 | `Ocul-PM_x.y.z_x64-setup.exe` | Windows 10 2004(빌드 19041) 이상 · 11 | 앱 안 자동 |
+| **Linux** x64 — 베타 | `Ocul-PM_x.y.z_amd64.AppImage` | glibc 2.35+ (Ubuntu 22.04 · Debian 12 이후) · libEGL · libGLESv2 · FUSE 2 | 앱 안 자동 |
+| **Linux** x64 — 베타 (Debian·Ubuntu) | `Ocul-PM_x.y.z_amd64.deb` | 위와 같음 (FUSE 불필요) | 패키지 관리자 |
 
-다만 macOS 가 **파일·다른 앱 데이터 접근 권한**을 물을 수 있습니다. 공증과는 별개 관문이라 공증했다고 사라지지 않습니다. 특히 **내장 터미널**에서 돌린 명령이나 그 안의 에이전트가 파일을 읽으면 macOS 가 그 접근을 앱에 귀속시켜 `Ocul-PM.app` 이름으로 뜹니다 — 왜 그런지와 되돌리는 법은 [문제 해결](https://oculpm.com/wiki/troubleshooting)에 정리해 두었습니다.
+**macOS** — `.dmg` 를 열어 `Applications` 로 드래그하면 끝입니다. Apple Developer ID 로 서명하고 공증(notarization)까지 마친 빌드라 내려받아 바로 열 수 있습니다 — `xattr` 로 격리를 벗기는 우회는 더 이상 필요 없습니다.
+
+**Windows (베타)** — 설치 파일을 실행하면 관리자 권한 없이 사용자 폴더에 설치됩니다. 코드 서명이 없는 베타라 처음 실행할 때 SmartScreen 이 「Windows의 PC 보호」 창을 띄우는데, **추가 정보 → 실행** 을 누르면 이어집니다. Visual C++ 런타임이 없는 PC 에서는 설치 파일이 그것을 먼저 깝니다(그때만 확인 창이 한 번 뜹니다). Windows 10 2004 보다 낮은 버전에서는 설치 파일이 안내하고 멈춥니다.
+
+**Linux (베타)** — AppImage 는 `chmod +x Ocul-PM_*_amd64.AppImage` 뒤 실행하면 되고 앱 안에서 자동 업데이트됩니다. FUSE 2 가 필요합니다(Ubuntu 22.04 `sudo apt install libfuse2`, 24.04 는 `libfuse2t64`). deb 는 `sudo apt install ./Ocul-PM_*_amd64.deb` 로 설치하고, 업데이트도 새 `.deb` 를 같은 방법으로 설치합니다 — 앱 안 자동 업데이트 대상이 아닙니다.
+
+Windows·Linux 빌드는 릴리스마다 CI 러너에서 설치 → 실행 → 실제 앱 E2E 를 통과한 것만 올라갑니다. 통과하지 못한 버전에는 그 OS 파일이 없고, 릴리스 노트에 그 사실이 적힙니다. 실제 PC 에서 겪은 문제는 [이슈](https://github.com/bunhine0452/Ocul-PM/issues)로 알려 주세요 — 베타 졸업의 근거가 됩니다.
+
+macOS 는 **파일·다른 앱 데이터 접근 권한**을 물을 수 있습니다. 공증과는 별개 관문이라 공증했다고 사라지지 않습니다. 특히 **내장 터미널**에서 돌린 명령이나 그 안의 에이전트가 파일을 읽으면 macOS 가 그 접근을 앱에 귀속시켜 `Ocul-PM.app` 이름으로 뜹니다 — 왜 그런지와 되돌리는 법은 [문제 해결](https://oculpm.com/wiki/troubleshooting)에 정리해 두었습니다.
 
 첫 의미 검색 때 임베딩 모델(약 135MB)을 한 번 내려받습니다. 이후에는 오프라인으로 동작합니다.
 
@@ -275,14 +290,16 @@ git clone https://github.com/bunhine0452/Ocul-PM
 cd Ocul-PM
 pnpm install
 pnpm tauri dev      # 개발 실행
-pnpm tauri build    # .dmg / .app 번들
+pnpm tauri build    # 그 OS 의 번들 (.dmg · NSIS .exe · AppImage/.deb)
 ```
 
-Node 18+, pnpm, Rust stable 이 필요하고 macOS 는 Xcode Command Line Tools 도 있어야 합니다.
+Node 18+, pnpm, Rust stable 이 필요하고 macOS 는 Xcode Command Line Tools, Windows 는 MSVC 빌드 도구와 WebView2, Linux 는 [Tauri 의 시스템 의존성](https://v2.tauri.app/start/prerequisites/#linux)(`libwebkit2gtk-4.1-dev` 등)과 `libdbus-1-dev` 도 있어야 합니다.
 
 ## 로드맵
 
-- [ ] macOS (Intel) · Windows 빌드
+- [x] Windows · Linux x64 빌드 — 베타
+- [ ] Windows · Linux 베타 졸업 (연속 세 릴리스 E2E 초록 + 사용자 보고 P0 0건)
+- [ ] macOS (Intel) — 임베딩 런타임의 x86_64 사전 빌드를 기다리는 중
 - [ ] 팀 동기화 (옵트인)
 
 ## 그리고

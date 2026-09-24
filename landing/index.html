@@ -44,13 +44,14 @@
   "name": "Ocul-PM",
   "alternateName": ["Ocul-PM AI PM", "Ocul PM", "AI 프로젝트 매니저", "AI coding agent manager", "코딩 에이전트 작업 기록기"],
   "applicationCategory": "DeveloperApplication",
-  "operatingSystem": "macOS",
+  "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
   "softwareVersion": "3.5.0",
   "description": "AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요. 매일 AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)로 개발하는 사람을 위한 로컬-우선 AI 프로젝트 매니저 — 에이전트가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 이어받습니다. 로컬 diff 검증, 스탠드업. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
+    "Windows · Linux 베타 — Windows 10 2004 이상 · 11(x64 설치 파일)과 Linux x64(AppImage · deb, glibc 2.35+). 릴리스마다 CI 러너에서 설치 스모크와 실제 앱 E2E 를 통과한 OS 만 올라가고 앱 안 자동 업데이트에 실립니다",
     "밖으로 나가는 링크 한 통로 — 터미널의 OSC 8 하이퍼링크와 편집기 본문의 URL 을 ⌘클릭하면 웹뷰에서 막히는 브라우저 기본 동작(confirm·window.open)에 걸려 조용히 아무 일도 일어나지 않았습니다. 이제 둘 다 같은 통로로 모여 OS 기본 브라우저로 열리고, http/https 가 아닌 주소는 그대로 거절합니다",
     "첫 기록 확인 — 일지가 한 건도 없는 프로젝트에 「첫 기록」 카드가 서서, 준비(Claude Code·플러그인·훅 연결) → 대화 진행 중 → 그 대화가 남긴 첫 일지 → 기록 없이 끝남 → 귀속 불명의 다섯 상태를 총 일지 수가 아니라 대화 id 로 판정합니다. 백필·옆 대화의 일지는 성공이 아니고, 기록이 남았다는 뜻이지 코드가 검증됐다는 뜻은 아니라고 말합니다",
     "이어하기 — Claude Code 플러그인의 SessionStart 훅이 활성 계획의 미완 항목 뒤에 마지막 작업 일지 3건을 시작 컨텍스트에 싣고 무엇을 실었는지 원장에 남깁니다. 오늘 화면의 「이어하기」 카드가 같은 자료를 보여 주고 어느 대화의 시작 컨텍스트에 포함됐는지까지 적습니다 — 참조·도움 여부는 알 수 없다고 정직하게",
@@ -293,7 +294,12 @@
     {
       "@type": "Question",
       "name": "지금 다운로드할 수 있나요?",
-      "acceptedAnswer": { "@type": "Answer", "text": "네. macOS(Apple Silicon) 빌드를 GitHub Releases 에서 무료로 다운로드할 수 있습니다. Intel · Windows 는 추후 업데이트 예정이며, 이후 버전은 앱 안에서 자동으로 업데이트됩니다." }
+      "acceptedAnswer": { "@type": "Answer", "text": "네. GitHub Releases 에서 무료로 받을 수 있습니다 — macOS(Apple Silicon)와, 베타인 Windows(x64) · Linux(x64, AppImage · deb)입니다. 한 번 설치하면 이후 버전은 앱 안에서 자동으로 업데이트됩니다(Linux deb 는 패키지 관리자로). Intel 맥은 임베딩 런타임의 x86_64 사전 빌드가 없어 보류입니다." }
+    },
+    {
+      "@type": "Question",
+      "name": "Windows · Linux 에서도 쓸 수 있나요?",
+      "acceptedAnswer": { "@type": "Answer", "text": "네, 베타로 제공합니다. Windows 는 10 2004(빌드 19041) 이상 · 11 의 x64 설치 파일(.exe), Linux 는 x64 AppImage 와 deb 입니다. Linux 는 glibc 2.35 이상(Ubuntu 22.04 · Debian 12 이후)과 libEGL · libGLESv2 가 필요하고, AppImage 는 FUSE 2 가 있어야 합니다. Windows 빌드는 코드 서명이 없어 처음 실행할 때 SmartScreen 이 「Windows의 PC 보호」 를 띄웁니다 — 「추가 정보 → 실행」 을 누르면 됩니다. Visual C++ 런타임이 없는 PC 에서는 설치 파일이 먼저 깔아 줍니다. Windows 설치본과 AppImage 는 앱 안에서 자동 업데이트되고, deb 는 새 .deb 로 업데이트합니다. 매 릴리스 CI 러너에서 설치와 실제 앱 E2E 를 통과한 빌드만 올라가며, 통과하지 못한 버전에는 그 OS 파일이 없습니다. 실제 PC 에서의 확인이 쌓이면 베타를 뗍니다." }
     },
     {
       "@type": "Question",
@@ -342,6 +348,12 @@
     </a>
     <a class="dl-btn ghost" href="/keynote">키노트로 보기 →</a>
   </div>
+  <p class="dl-os reveal on" data-dl-os>
+    <span class="beta">베타</span>
+    <a data-asset="_x64-setup.exe" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Windows x64</a>
+    <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
+    <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
+  </p>
   <p class="hero-fine">매일 AI 로 개발하는 사람을 위한 앱입니다 · Claude Code 사용자는 <a href="/plugin">플러그인 두 줄</a>로도 시작할 수 있습니다</p>
   <p class="hero-ph reveal on">
     <a href="https://www.producthunt.com/products/ocul-pm?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ocul-pm" target="_blank" rel="noreferrer">
@@ -719,13 +731,14 @@
     <details><summary>앱 없이 Claude Code 플러그인만으로도 쓸 수 있나요?</summary><p>네. Claude Code 에서 /plugin marketplace add bunhine0452/Ocul-PM 후 /plugin install oculpm@oculpm 두 줄이면 훅 브리지·MCP 도구 7종·스킬 5종이 전 프로젝트에 구성됩니다. 일지와 계획은 .oculpm/ 마크다운으로 쌓이고, 앱은 나중에 설치해도 그 기록을 그대로 읽습니다.</p></details>
     <details><summary>팀·회사 도입이나 제휴(파트너십)를 문의할 수 있나요?</summary><p>네. Ocul-PM 은 로컬-우선이라 팀에 도입해도 코드와 기록이 밖으로 나가지 않습니다. 기업(Enterprise) 도입, 팀 단위 도입, 제휴·파트너십 제안은 <a href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">bunhine0452@gmail.com</a> 으로 보내 주세요 — 만든 사람이 직접 읽고 답합니다.</p></details>
     <details><summary>영어(English)도 지원하나요?</summary><p>네. v2.8.5 부터 설정 → 모양에서 화면 언어를 한국어 · English 중에 고르면 화면 전체와 오류 메시지가 함께 바뀝니다. AI 가 쓰는 작업 일지·논의·플래너 항목의 언어는 따로 지정할 수 있어 화면은 영어, 기록은 한국어로 남기는 것도 가능하고, 이미 기록된 문서는 다시 쓰지 않습니다.</p></details>
-    <details><summary>지금 다운로드할 수 있나요?</summary><p>네. macOS(Apple Silicon) 빌드를 GitHub Releases 에서 무료로 다운로드할 수 있습니다. Intel · Windows 는 추후 업데이트 예정이며, 이후 버전은 앱 안에서 자동으로 업데이트됩니다.</p></details>
+    <details><summary>지금 다운로드할 수 있나요?</summary><p>네. GitHub Releases 에서 무료로 받을 수 있습니다 — macOS(Apple Silicon)와, 베타인 Windows(x64) · Linux(x64, AppImage · deb)입니다. 한 번 설치하면 이후 버전은 앱 안에서 자동으로 업데이트됩니다(Linux deb 는 패키지 관리자로). Intel 맥은 임베딩 런타임의 x86_64 사전 빌드가 없어 보류입니다.</p></details>
+    <details><summary>Windows · Linux 에서도 쓸 수 있나요?</summary><p>네, 베타로 제공합니다. Windows 는 10 2004(빌드 19041) 이상 · 11 의 x64 설치 파일(<code>.exe</code>), Linux 는 x64 AppImage 와 deb 입니다. Linux 는 glibc 2.35 이상(Ubuntu 22.04 · Debian 12 이후)과 libEGL · libGLESv2 가 필요하고, AppImage 는 FUSE 2 가 있어야 합니다. Windows 빌드는 코드 서명이 없어 처음 실행할 때 SmartScreen 이 「Windows의 PC 보호」 를 띄웁니다 — 「추가 정보 → 실행」 을 누르면 됩니다. Visual C++ 런타임이 없는 PC 에서는 설치 파일이 먼저 깔아 줍니다. Windows 설치본과 AppImage 는 앱 안에서 자동 업데이트되고, deb 는 새 <code>.deb</code> 로 업데이트합니다. 매 릴리스 CI 러너에서 설치와 실제 앱 E2E 를 통과한 빌드만 올라가며, 통과하지 못한 버전에는 그 OS 파일이 없습니다. 실제 PC 에서의 확인이 쌓이면 베타를 뗍니다.</p></details>
   </div>
 </section>
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v3.5.0 — 지금 다운로드 · macOS (Apple Silicon)</span>
+  <span class="eyebrow reveal">v3.5.0 — 지금 다운로드 · macOS · Windows · Linux (베타)</span>
   <h2 class="reveal">시작하는 데 필요한 것은,<br />없습니다.</h2>
   <p class="sub reveal">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다.</p>
   <div class="hero-ctas reveal">
@@ -735,6 +748,12 @@
     <a class="dl-btn ghost" href="/plugin">플러그인으로 시작 →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>
   </div>
+  <p class="dl-os reveal" data-dl-os>
+    <span class="beta">베타</span>
+    <a data-asset="_x64-setup.exe" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Windows x64</a>
+    <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
+    <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
+  </p>
   <p class="fine reveal">빨리 가는 개발자는 많습니다. <b>기억하며 가는 개발자가, 멀리 갑니다.</b></p>
 </section>
 
@@ -783,6 +802,16 @@
           var tag = String(d.tag_name).replace(/^v?/, 'v');
           document.querySelectorAll('[data-version]').forEach(function (el) {
             el.textContent = tag;
+          });
+          // OS 별 링크 — 최신 릴리스에 그 파일이 있으면 바로 받기, 없으면(그 버전에서 검증을
+          // 통과하지 못해 빠졌다) 이전 버전을 고를 수 있는 릴리스 목록으로.
+          var assets = d.assets || [];
+          document.querySelectorAll('[data-asset]').forEach(function (a) {
+            var suffix = a.getAttribute('data-asset');
+            var hit = assets.filter(function (x) {
+              return x.name.slice(-suffix.length) === suffix;
+            })[0];
+            a.href = hit ? hit.browser_download_url : 'https://github.com/bunhine0452/Ocul-PM/releases';
           });
         })
         .catch(function () { /* keep the static fallback */ });

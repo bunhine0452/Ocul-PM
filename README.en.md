@@ -13,6 +13,8 @@ A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI �
 [![Latest release](https://badgen.net/github/tag/bunhine0452/Ocul-PM?icon=github&label=download&color=12a06b)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/bunhine0452/Ocul-PM/total?color=12a06b&label=downloads&cacheSeconds=3600)](https://github.com/bunhine0452/Ocul-PM/releases)
 [![Platform](https://img.shields.io/badge/macOS-Apple%20Silicon-111?logo=apple)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
+[![Windows beta](https://img.shields.io/badge/Windows-x64%20beta-111?logo=windows)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
+[![Linux beta](https://img.shields.io/badge/Linux-x64%20beta-111?logo=linux&logoColor=white)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
 [![Built with Tauri 2](https://img.shields.io/badge/Tauri-2-24C8A0?logo=tauri&logoColor=white)](https://tauri.app)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-support-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/beachcombers)
@@ -206,7 +208,7 @@ How to read it:
 - `AGENTS.md` is always planted when you add a project; the other rules files are switched on in Settings → Agents (the detect button suggests candidates). If you're on a tier-1 agent, glance at Today's honesty audit now and then — files edited without a journal show up there.
 - A CLI started in the built-in terminal (`claude` · `codex` · `gemini` · `cursor-agent` · `aider` …) is caught by shell integration for **start and stop only**. There is no missing-journal verdict, so that is not tier 3.
 - Not yet seen on a real machine: a live Claude Desktop connection · Codex's tool-approval → file-change flow end to end · the VS Code extension exposing MCP tools to Copilot agent mode and to Cursor (`.cursor/mcp.json`). All three exist in code, and for that reason none of them raised a tier in the table.
-- **Platform**: official builds are macOS Apple Silicon only. Intel Macs are on hold because the embedding runtime (ONNX) has no x86_64 prebuilt; Windows is later. The table describes that build.
+- **Platform**: official builds are macOS Apple Silicon plus Windows x64 and Linux x64 as a **beta** (see [Install](#install)). The evidence in the table comes from the macOS build — every Windows/Linux release has passed an install smoke test and a real-app E2E run on CI runners, but reports from real users' PCs are still accumulating, so they stay beta. Intel Macs are on hold because the embedding runtime (ONNX) has no x86_64 prebuilt.
 
 Git backfill tells agents apart by commit signatures.
 
@@ -232,9 +234,22 @@ One plugin configures, across all your projects: a **hooks bridge** (session sta
 
 ## Install
 
-Grab `Ocul-PM_x.y.z_aarch64.dmg` from the [latest release](https://github.com/bunhine0452/Ocul-PM/releases/latest) and drag it into `Applications`. It's built for macOS (Apple Silicon), and once installed it auto-updates in place.
+Grab the file for your OS from the [latest release](https://github.com/bunhine0452/Ocul-PM/releases/latest).
 
-The app is signed with an Apple Developer ID and notarized, so it opens straight from the download — no `xattr` quarantine workaround needed.
+| OS | File | Requirements | Updates |
+| --- | --- | --- | --- |
+| **macOS** (Apple Silicon) | `Ocul-PM_x.y.z_aarch64.dmg` | — | in-app, automatic |
+| **Windows** x64 — beta | `Ocul-PM_x.y.z_x64-setup.exe` | Windows 10 2004 (build 19041) or later · 11 | in-app, automatic |
+| **Linux** x64 — beta | `Ocul-PM_x.y.z_amd64.AppImage` | glibc 2.35+ (Ubuntu 22.04 · Debian 12 or later) · libEGL · libGLESv2 · FUSE 2 | in-app, automatic |
+| **Linux** x64 — beta (Debian · Ubuntu) | `Ocul-PM_x.y.z_amd64.deb` | same as above (no FUSE needed) | your package manager |
+
+**macOS** — open the `.dmg` and drag the app into `Applications`. It's signed with an Apple Developer ID and notarized, so it opens straight from the download — no `xattr` quarantine workaround needed.
+
+**Windows (beta)** — the installer puts the app in your user folder without admin rights. The beta isn't code-signed, so on first launch SmartScreen shows "Windows protected your PC" — click **More info → Run anyway**. If the Visual C++ runtime is missing, the installer installs it first (that's the only time a confirmation prompt appears). On Windows older than 10 2004 the installer explains why and stops.
+
+**Linux (beta)** — for the AppImage, `chmod +x Ocul-PM_*_amd64.AppImage` and run it; it auto-updates in-app. It needs FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04, `libfuse2t64` on 24.04). Install the deb with `sudo apt install ./Ocul-PM_*_amd64.deb` and update it the same way with the next `.deb` — it isn't updated in-app.
+
+Only Windows/Linux builds that pass install → launch → real-app E2E on CI runners are published for each release. A version that didn't pass has no file for that OS, and its release notes say so. Please report what you hit on a real PC as an [issue](https://github.com/bunhine0452/Ocul-PM/issues) — that's what graduates the beta.
 
 macOS may still ask for **access to files or to other apps' data**. That's a separate gate from notarization and doesn't go away because an app is notarized. In particular, when a command you run in the **built-in terminal** — or an agent running inside it — reads a file, macOS attributes that access to the app, so the prompt names `Ocul-PM.app`. [Troubleshooting](https://oculpm.com/wiki/en/troubleshooting) explains why and how to revoke it.
 
@@ -267,14 +282,16 @@ git clone https://github.com/bunhine0452/Ocul-PM
 cd Ocul-PM
 pnpm install
 pnpm tauri dev      # run in dev
-pnpm tauri build    # .dmg / .app bundle
+pnpm tauri build    # your OS's bundle (.dmg · NSIS .exe · AppImage/.deb)
 ```
 
-Requires Node 18+, pnpm, Rust stable, and Xcode Command Line Tools on macOS.
+Requires Node 18+, pnpm, Rust stable, plus Xcode Command Line Tools on macOS, the MSVC build tools and WebView2 on Windows, and [Tauri's system dependencies](https://v2.tauri.app/start/prerequisites/#linux) (`libwebkit2gtk-4.1-dev` etc.) and `libdbus-1-dev` on Linux.
 
 ## Roadmap
 
-- [ ] macOS (Intel) · Windows builds
+- [x] Windows · Linux x64 builds — beta
+- [ ] Graduate the Windows · Linux beta (E2E green for three releases in a row + zero P0 user reports)
+- [ ] macOS (Intel) — waiting on an x86_64 prebuilt of the embedding runtime
 - [ ] Team sync (opt-in)
 
 ## One more thing

@@ -44,7 +44,7 @@
   "name": "Ocul-PM",
   "alternateName": ["Ocul-PM AI PM", "Ocul PM", "AI project manager", "AI coding agent manager", "coding agent work recorder"],
   "applicationCategory": "DeveloperApplication",
-  "operatingSystem": "macOS",
+  "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/en",
   "image": "https://oculpm.com/og.png",
   "softwareVersion": "3.5.0",
@@ -52,6 +52,7 @@
   "description": "Stop re-explaining to your AI where you left off yesterday. A local-first AI project manager for people who build with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends) every day — when the agent finishes a unit of work a journal entry is left behind, and the next conversation receives those entries and the remaining plan items as its starting context. Local diff review, standups. Two-line install as a Claude Code plugin.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
+    "Windows · Linux beta — Windows 10 2004+ and 11 (x64 installer) and Linux x64 (AppImage · deb, glibc 2.35+). Each release only ships the OS builds that passed an install smoke test and a real-app E2E run on CI runners, and those join the in-app auto-update",
     "One path for outbound links — terminal OSC 8 hyperlinks and URLs in the editor body used to fall through to browser defaults (confirm, window.open) that this webview blocks, so a ⌘click quietly did nothing. Both now go through the same path and open in the OS default browser, while non-http(s) addresses are still refused",
     "First record — a project with zero journal entries gets a First record card that moves through ready (Claude Code, plugin, hook link) → conversation in progress → that conversation's first entry → ended without one → unattributed, judged by the conversation id rather than the total entry count. Backfills and a neighbouring conversation's entries never count, and the card says recorded is not reviewed",
     "Resume — the Claude Code plugin's SessionStart hook carries the last three journal entries after the active plan items into the session-start context and records what it delivered in a ledger. Today's Resume card shows the same material and which conversation's session-start context it was included in — and says honestly that whether it was referenced or helped is unknown",
@@ -295,7 +296,12 @@
     {
       "@type": "Question",
       "name": "Can I download it now?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The macOS (Apple Silicon) build is a free download from GitHub Releases. Intel and Windows builds are planned, and later versions update themselves from inside the app." }
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. It is a free download from GitHub Releases — macOS (Apple Silicon), plus Windows (x64) and Linux (x64, AppImage and deb) as a beta. Once installed, later versions update themselves from inside the app (the Linux deb updates through your package manager). Intel Macs are on hold because the embedding runtime has no x86_64 prebuilt." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it run on Windows or Linux?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, as a beta. Windows gets an x64 installer (.exe) for Windows 10 2004 (build 19041) or later and Windows 11; Linux gets an x64 AppImage and a deb. Linux needs glibc 2.35 or later (Ubuntu 22.04 · Debian 12 onward) plus libEGL and libGLESv2, and the AppImage needs FUSE 2. The Windows build is not code-signed, so on first launch SmartScreen shows \"Windows protected your PC\" — click \"More info → Run anyway\". If the Visual C++ runtime is missing, the installer installs it first. The Windows install and the AppImage auto-update in-app; the deb updates with the next .deb. Each release only ships the OS builds that passed an install test and a real-app E2E run on CI runners — a version that did not pass has no file for that OS. The beta label comes off once reports from real PCs accumulate." }
     },
     {
       "@type": "Question",
@@ -344,6 +350,12 @@
     </a>
     <a class="dl-btn ghost" href="/en/keynote">Watch the keynote →</a>
   </div>
+  <p class="dl-os reveal on" data-dl-os>
+    <span class="beta">beta</span>
+    <a data-asset="_x64-setup.exe" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Windows x64</a>
+    <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
+    <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
+  </p>
   <p class="hero-fine">Built for people who build with AI every day · On Claude Code? <a href="/en/plugin">Two lines in /plugin</a> is another way in</p>
   <p class="hero-ph reveal on">
     <a href="https://www.producthunt.com/products/ocul-pm?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ocul-pm" target="_blank" rel="noreferrer">
@@ -706,14 +718,15 @@
     <details><summary>Do terminal sessions survive an app update?</summary><p>They survive. Since v2.19.0 terminal sessions are held by a process detached from the app, so after an auto-update or a restart your terminal tabs come back with their scrollback and whatever was running (including Claude Code sessions). v2.34.0 and v2.34.1 were an exception: they renamed the socket where the app meets that process according to the version, so updating onto those builds cut the session loose once. v2.35.0 fixed it — the address no longer moves, the app adopts a process left at an older address, and every path that reaped a session-holding process within minutes is gone. Closing a terminal tab or a project tab yourself still cleans that session up as before. Since v2.35.0 a Claude Code conversation also shows its <b>session id</b>, so you can reopen the same conversation in a terminal with <code>claude --resume &lt;id&gt;</code>.</p></details>
     <details><summary>Can I use it without the app, just the Claude Code plugin?</summary><p>Yes. In Claude Code, run <code>/plugin marketplace add bunhine0452/Ocul-PM</code> and then <code>/plugin install oculpm@oculpm</code> — two lines that set up the hook bridge, 7 MCP tools and 5 skills across all your projects. Journals and plans accumulate as markdown under .oculpm/, and if you install the app later it reads those records exactly as they are.</p></details>
     <details><summary>Is the app available in English?</summary><p>Yes. Since v2.8.5, Settings → Appearance lets you pick English or 한국어 and every screen plus the error messages follow. The language the AI writes journals, discussions and planner items in is set separately, so an English UI with Korean records (or the reverse) is possible, and documents already written are never rewritten.</p></details>
-    <details><summary>Can I download it now?</summary><p>Yes. The macOS (Apple Silicon) build is a free download from GitHub Releases. Intel and Windows builds are planned, and later versions update themselves from inside the app.</p></details>
+    <details><summary>Can I download it now?</summary><p>Yes. It is a free download from GitHub Releases — macOS (Apple Silicon), plus Windows (x64) and Linux (x64, AppImage and deb) as a beta. Once installed, later versions update themselves from inside the app (the Linux deb updates through your package manager). Intel Macs are on hold because the embedding runtime has no x86_64 prebuilt.</p></details>
+    <details><summary>Does it run on Windows or Linux?</summary><p>Yes, as a beta. Windows gets an x64 installer (<code>.exe</code>) for Windows 10 2004 (build 19041) or later and Windows 11; Linux gets an x64 AppImage and a deb. Linux needs glibc 2.35 or later (Ubuntu 22.04 · Debian 12 onward) plus libEGL and libGLESv2, and the AppImage needs FUSE 2. The Windows build is not code-signed, so on first launch SmartScreen shows "Windows protected your PC" — click "More info → Run anyway". If the Visual C++ runtime is missing, the installer installs it first. The Windows install and the AppImage auto-update in-app; the deb updates with the next <code>.deb</code>. Each release only ships the OS builds that passed an install test and a real-app E2E run on CI runners — a version that did not pass has no file for that OS. The beta label comes off once reports from real PCs accumulate.</p></details>
     <details><summary>Can I ask about team, enterprise or partnership use?</summary><p>Yes. Because Ocul-PM is local-first, adopting it on a team does not move your code or your records anywhere. For enterprise rollouts, team adoption and partnership proposals, write to <a href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">bunhine0452@gmail.com</a> — the person who built it reads and answers.</p></details>
   </div>
 </section>
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v3.5.0 — download now · macOS (Apple Silicon)</span>
+  <span class="eyebrow reveal">v3.5.0 — download now · macOS · Windows · Linux (beta)</span>
   <h2 class="reveal">Nothing is required<br />to start.</h2>
   <p class="sub reveal">No sign-up, no setup, no fee. You download it, and that is the whole thing.</p>
   <div class="hero-ctas reveal">
@@ -723,6 +736,12 @@
     <a class="dl-btn ghost" href="/en/plugin">Start with the plugin →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Enterprise · partnerships</a>
   </div>
+  <p class="dl-os reveal" data-dl-os>
+    <span class="beta">beta</span>
+    <a data-asset="_x64-setup.exe" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Windows x64</a>
+    <a data-asset="_amd64.AppImage" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux AppImage</a>
+    <a data-asset="_amd64.deb" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">Linux .deb</a>
+  </p>
   <p class="fine reveal">Plenty of developers move fast. <b>The ones who remember go far.</b></p>
 </section>
 
@@ -771,6 +790,16 @@
           var tag = String(d.tag_name).replace(/^v?/, 'v');
           document.querySelectorAll('[data-version]').forEach(function (el) {
             el.textContent = tag;
+          });
+          // OS 별 링크 — 최신 릴리스에 그 파일이 있으면 바로 받기, 없으면(그 버전에서 검증을
+          // 통과하지 못해 빠졌다) 이전 버전을 고를 수 있는 릴리스 목록으로.
+          var assets = d.assets || [];
+          document.querySelectorAll('[data-asset]').forEach(function (a) {
+            var suffix = a.getAttribute('data-asset');
+            var hit = assets.filter(function (x) {
+              return x.name.slice(-suffix.length) === suffix;
+            })[0];
+            a.href = hit ? hit.browser_download_url : 'https://github.com/bunhine0452/Ocul-PM/releases';
           });
         })
         .catch(function () { /* keep the static fallback */ });
