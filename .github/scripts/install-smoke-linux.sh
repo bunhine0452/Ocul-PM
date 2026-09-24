@@ -116,12 +116,16 @@ check_glibc_floor() { # 설명 ELF...
 }
 
 # ── 0. 준비 ────────────────────────────────────────────────────────────────
+# gio(libglib2.0-bin)·xdg-mime(xdg-utils)·update-desktop-database(desktop-file-utils)는
+# 데스크톱이면 있는 것 — 딥링크 처리기 등록과 `gio open` 검사에 쓴다. desktop-file-utils 는
+# deb 설치 **전에** 있어야 dpkg 트리거가 mimeinfo.cache 를 고친다.
 prepare() {
   sudo apt-get update -qq >/dev/null &&
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xvfb x11-utils imagemagick binutils >/dev/null &&
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+      xvfb x11-utils imagemagick binutils libglib2.0-bin xdg-utils desktop-file-utils >/dev/null &&
     echo "xvfb $(dpkg-query -W -f='${Version}' xvfb) · webkit2gtk-4.1 설치 여부: $(dpkg-query -W -f='${Status}' libwebkit2gtk-4.1-0 2>/dev/null || echo '없음')"
 }
-gate "준비 — Xvfb · x11-utils · ImageMagick (WebKitGTK 는 설치하지 않는다)" prepare
+gate "준비 — Xvfb · x11-utils · ImageMagick · gio · xdg-utils (WebKitGTK 는 설치하지 않는다)" prepare
 
 check_inputs() {
   [ -n "$APPIMAGE_FILE" ] || { echo ".AppImage 가 없다: $(ls "$BUNDLE_DIR")"; return 1; }
@@ -181,10 +185,12 @@ gate "deb control — Package · Version · Depends (webkit·gtk·appindicator·
 deb_desktop() {
   local f="$WORK/deb-root/usr/share/applications/Ocul-PM.desktop"
   [ -f "$f" ] || { echo "없다: $f"; return 1; }
-  grep -E '^(Exec|MimeType|Icon)=' "$f" | tr '\n' ' '
+  grep -E '^(Exec|MimeType|Icon|Categories)=' "$f" | tr '\n' ' '
   grep -q '^MimeType=.*x-scheme-handler/oculpm' "$f" || { echo "(oculpm:// 스킴 처리기 없음)"; return 1; }
+  grep -q '^Exec=.* %u$' "$f" || { echo "(Exec 에 %u 가 없다 — 링크 URL 이 앱에 안 넘어간다)"; return 1; }
+  grep -q '^Categories=..*' "$f" || { echo "(Categories 가 비었다 — 메뉴 분류 없음)"; return 1; }
 }
-gate "deb .desktop — oculpm:// 스킴 처리기 (MimeType)" deb_desktop
+gate "deb .desktop — oculpm:// 처리기 (MimeType · Exec %u) · Categories" deb_desktop
 
 # ── 2. 깨끗한 컨테이너 — Depends 만으로 모든 공유 라이브러리가 풀리는가 ─────
 container_check() { # image
@@ -217,7 +223,11 @@ APP_LABEL=""
 # 첫 실행이 남긴 파일로 거짓 통과하지 않게). AppImage 안정 사본 자리는 건드리지 않는다.
 reset_state() { rm -rf "$LOG_DIR" "$APP_DATA"; }
 
-latest_log() { ls -t "$LOG_DIR"/oculpm.log* 2>/dev/null | head -1; }
+# find 로 — 스크립트가 nullglob 을 켜 두어 `ls 글롭*` 은 맞는 게 없으면 현재 폴더를 나열한다.
+latest_log() {
+  find "$LOG_DIR" -maxdepth 1 -type f -name 'oculpm.log*' -printf '%T@ %p\n' 2>/dev/null |
+    sort -rn | head -1 | cut -d' ' -f2-
+}
 
 log_has_boot() { local f; f=$(latest_log); [ -n "$f" ] && grep -q 'tracing initialised' "$f"; }
 
@@ -262,6 +272,15 @@ check_webkit() {
   return 1
 }
 
+# 프런트가 실제로 떴다는 증거 — src/windows/TabbedWindow.tsx 가 마운트 때
+# oculpmLog.flow("App window mounted") 를 IPC 로 보내 앱 로그에 적는다.
+log_has_mount() { local f; f=$(latest_log); [ -n "$f" ] && grep -q 'App window mounted' "$f"; }
+check_frontend_mounted() {
+  if wait_until 60 log_has_mount; then grep -m1 'App window mounted' "$(latest_log)"; return 0; fi
+  echo "60초 안에 앱 로그에 App window mounted 가 없다 (웹뷰가 번들을 못 실었거나 IPC 가 안 돈다) · 앱 출력 끝: $(tail -5 "$OUT_DIR/$APP_LABEL.stdout.log" 2>/dev/null)"
+  return 1
+}
+
 check_alive_20s() {
   sleep 20
   if app_alive; then echo "살아 있음 ($(pgrep -f 'usr/bin/ocul-pm' | tr '\n' ' '))"; return 0; fi
@@ -297,6 +316,7 @@ run_app_checks() { # label
   gate "$1 — 앱 데이터 ocul-pm.db 생성 (setup 이 DB 열기를 지났다)" check_db
   gate "$1 — 창 'Ocul-PM' (Xvfb X 트리)" check_window
   gate "$1 — WebKitGTK 웹 프로세스" check_webkit
+  gate "$1 — 프런트: 웹뷰가 번들을 싣고 IPC 로 [FLOW] App window mounted 를 보냈다" check_frontend_mounted
   gate "$1 — 기동 20초 뒤에도 살아 있다" check_alive_20s
   observe "$1 — 스크린샷" screenshot
   observe "$1 — 앱 로그 ERROR/WARN" log_errors
@@ -316,6 +336,31 @@ appimage_mode() {
 if out=$(appimage_mode); then APPIMAGE_ENV=(); else APPIMAGE_ENV=(env APPIMAGE_EXTRACT_AND_RUN=1); fi
 row observe 1 "AppImage — 실행 방식" "$out"
 
+# AppImage 는 linuxdeploy excludelist 의 라이브러리(libEGL·libGL·libgbm·libdrm·X11·fontconfig
+# ·harfbuzz… — 그래픽 데스크톱이면 늘 있는 것)를 싣지 않고 호스트에서 찾는다. 헤드리스
+# 러너에는 그중 일부가 없다(첫 실행: libEGL.so.1 없음 → 종료 코드 127). 무엇이 없었는지
+# 기록한 뒤, 데스크톱이면 있는 꾸러미만 깔아 사용자 PC 를 흉내 낸다 — WebKitGTK 는 여전히
+# 깔지 않는다(AppImage 가 자기 것을 쓰는지 보려는 것이므로).
+appimage_host_libs() {
+  local root="$WORK/squashfs-root" miss
+  miss=$(for b in "$root/usr/bin/ocul-pm" "$root"/usr/lib/libwebkit2gtk-4.1.so.0 "$root"/usr/lib/libgstgl-1.0.so.0; do
+    [ -e "$b" ] && LD_LIBRARY_PATH="$root/usr/lib" ldd "$b" 2>/dev/null | grep 'not found' | awk '{print $1}'
+  done | sort -u | tr '\n' ' ')
+  echo "이 러너에 없는 호스트 라이브러리: ${miss:-없음}"
+}
+observe "AppImage — 호스트에 기대는 라이브러리 중 러너에 없는 것 (ldd)" appimage_host_libs
+
+desktop_baseline() {
+  local left
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+    libegl1 libgl1 libgbm1 libdrm2 libx11-xcb1 libfribidi0 libharfbuzz0b libfontconfig1 libfreetype6 >/dev/null ||
+    return 1
+  left=$(appimage_host_libs)
+  echo "$left"
+  [[ "$left" == *": 없음" ]]
+}
+gate "데스크톱 기본 라이브러리 (libegl1 · libgl1 · libgbm1 … — WebKitGTK 제외)" desktop_baseline
+
 reset_state
 launch appimage "${APPIMAGE_ENV[@]}" "$APPIMAGE_FILE"
 row observe 1 "AppImage — 실행" "${APPIMAGE_ENV[*]} $APPIMAGE_FILE"
@@ -329,7 +374,21 @@ appimage_stable_mcp() {
   "$STABLE_MCP" --version
 }
 gate "AppImage — 사이드카 안정 사본 ~/.local/share/ocul-pm/bin/oculpm-mcp --version" appimage_stable_mcp
+
+# AppImage 는 설치 관리자가 없어 앱이 기동 때 스스로 oculpm:// 처리기를 적는다
+# (lib.rs → tauri-plugin-deep-link register_all: ~/.local/share/applications/<exe>-handler.desktop,
+# Exec="$APPIMAGE" %u, xdg-mime default).
+appimage_scheme_handler() {
+  local f="$DATA_HOME/applications/ocul-pm-handler.desktop"
+  wait_until 20 test -f "$f" || { echo "없다: $f · 기동 로그: $(grep -i 'deep\|딥링크' "$(latest_log)" 2>/dev/null | head -3)"; return 1; }
+  echo "$(grep -E '^(Exec|MimeType)=' "$f" | tr '\n' ' ') · xdg-mime default: $(xdg-mime query default x-scheme-handler/oculpm 2>&1)"
+  grep -q '^Exec=.*%u' "$f"
+}
+observe "AppImage — oculpm:// 처리기 자가 등록 (Exec … %u)" appimage_scheme_handler
 stop_app
+# 뒤의 deb 검사가 AppImage 처리기(사용자 수준 기본값이 시스템 .desktop 을 이긴다)를 줍지 않게 걷어낸다.
+rm -f "$DATA_HOME/applications/ocul-pm-handler.desktop"
+sed -i '/x-scheme-handler\/oculpm/d' "$HOME/.config/mimeapps.list" "$DATA_HOME/applications/mimeapps.list" 2>/dev/null
 
 # ── 5. deb (dpkg -i → apt-get -f install) ────────────────────────────────
 deb_install() {
@@ -359,6 +418,31 @@ launch deb /usr/bin/ocul-pm
 row observe 1 "deb — 실행" "/usr/bin/ocul-pm"
 run_app_checks "deb"
 stop_app
+
+# 딥링크 — 브라우저가 oculpm://… 를 열면 데스크톱이 .desktop 의 Exec 로 앱을 띄운다.
+# Exec 에 %u 가 없으면 GLib(gio)는 %f 로 치고, oculpm:// 는 로컬 경로가 없어 URL 이
+# 인자에서 빠진다 — 앱은 뜨지만 링크를 못 받는다. 실제로 gio open 으로 띄워 떠오른
+# 프로세스의 명령줄에 URL 이 실렸는지 본다(Exec 가 맨 이름이라 argv0 는 ocul-pm).
+deb_deeplink() {
+  local url='oculpm://smoke/deeplink-probe' handler pid cmd
+  command -v gio >/dev/null || { echo "gio 가 없다"; return 1; }
+  handler=$(xdg-mime query default x-scheme-handler/oculpm 2>&1)
+  reset_state
+  gio open "$url" >"$OUT_DIR/deeplink-gio.log" 2>&1 &
+  if ! wait_until 30 pgrep -x ocul-pm; then
+    echo "처리기=$handler · 30초 안에 앱이 안 떴다: $(cat "$OUT_DIR/deeplink-gio.log")"
+    return 1
+  fi
+  sleep 2
+  pid=$(pgrep -x ocul-pm | head -1)
+  cmd=$(tr '\0' ' ' <"/proc/$pid/cmdline")
+  pkill -TERM -x ocul-pm
+  sleep 3
+  pkill -KILL -x ocul-pm
+  echo "처리기=$handler · 떠오른 명령줄: $cmd"
+  [[ "$cmd" == *"$url"* ]]
+}
+gate "deb — gio open oculpm://… → 앱 명령줄에 URL 이 실린다 (.desktop Exec %u)" deb_deeplink
 
 deb_remove() {
   sudo DEBIAN_FRONTEND=noninteractive apt-get remove -y -qq ocul-pm >"$OUT_DIR/apt-remove.log" 2>&1 || { tail -20 "$OUT_DIR/apt-remove.log"; return 1; }

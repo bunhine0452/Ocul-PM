@@ -366,6 +366,11 @@ jobs:
   #     넣는다(tray-icon 기능을 보고 — tauri-cli interface/rust.rs). 여기 또 적으면 두 번
   #     들어간다. 실행 파일이 직접 링크하는 것만 더한다: libssl3(native-tls ← fastembed
   #     hf-hub) — t64 전환 뒤 이름 libssl3t64 도 받는다 — 와 libdbus-1-3(keyring secret-service).
+  #     .desktop 은 src-tauri/linux/ocul-pm.desktop 템플릿으로 굽는다 — 번들러 기본 템플릿은
+  #     `Exec=ocul-pm` 에 %u 가 없다 — GLib(gio)는 필드 코드가 없으면 %f 로 치고
+  #     (gdesktopappinfo.c "If there is no macro default to %f"), oculpm:// 는 로컬 경로가
+  #     없어 인자에서 빠진다: 앱은 뜨지만 링크를 못 받는다. category DeveloperTool →
+  #     Categories=Development; (기본은 빈 칸).
   #
   # 느리다(릴리스 프로필 · thin LTO · codegen-units=1, 사이드카와 앱 두 번 링크) — 번들에
   # 닿는 파일이 바뀐 push 와 수동 실행에서만 돈다(판정은 사이드카 잡과 같은 방식).
@@ -411,7 +416,7 @@ jobs:
             bundle=true; why="이전 머리 $BEFORE 를 못 찾음 (강제 push)"
           else
             changed=$(git diff --name-only "$BEFORE" "$AFTER")
-            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|\.github/workflows/portability\.yml)' <<<"$changed" || true)
+            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|src-tauri/linux/|\.github/workflows/portability\.yml)' <<<"$changed" || true)
             smoke_hit=$(grep -E '^\.github/scripts/install-smoke-' <<<"$changed" || true)
             if [ -n "$hit" ]; then
               bundle=true; why=$(echo $hit)
@@ -594,7 +599,8 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-22.04]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    # Windows 는 servercore 컨테이너 이미지(수 GB)를 받는다.
+    timeout-minutes: 60
     # 다른 run 의 아티팩트를 받으려면 actions: read 가 있어야 한다.
     permissions:
       contents: read
