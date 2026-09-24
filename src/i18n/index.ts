@@ -245,6 +245,18 @@ export function t(key: I18nKey, vars?: TVars): string {
 }
 
 /**
+ * **정해 준 언어로** 조회한다 — 화면 언어가 막 바뀌는 순간에 새 언어로 말해야 할 때만
+ * (크로스플랫폼 라운드 {#ui-e2e-minor}). 언어 설정의 저장은 설정 채널을 한 바퀴 돌아
+ * 스토어에 닿으므로 그 순간의 `t()` 는 아직 옛 언어다 — 영어로 바꾼 직후의 제안
+ * 토스트가 한국어로 떴다. 그 사전이 아직 안 왔으면 `t()` 처럼 ko → 키로 물러선다
+ * (부르기 전에 `loadDict(lang)` 을 기다릴 것). 화면 문구는 여전히 `t()` 다.
+ */
+export function tIn(lang: Lang, key: I18nKey, vars?: TVars): string {
+  const raw = DICTS[lang]?.[key] ?? DICTS.ko?.[key] ?? key;
+  return localizeShortcuts(key, interpolate(raw, vars));
+}
+
+/**
  * 사전의 단축키 표기(⌘K · ⇧⌘D)를 이 OS 의 것으로 (크로스플랫폼 라운드 {#ui-labels}).
  *
  * 사전은 **맥 표기로 적는다** — 그것이 정본이고, macOS 에서 `kbd` 는 받은

@@ -16,7 +16,17 @@ import { ThemeGallery } from "@/features/theme/ThemeGallery";
 import { themeOwnsAccent } from "@/features/theme/apply";
 import { useThemeState } from "@/features/theme/store";
 import { TERM_FONT_MIN, TERM_FONT_MAX, TERM_FONT_DEFAULT, clampTermFont } from "@/features/terminal/fontSize";
-import { normalizeLangSetting, resolveLang, useT, type LangSetting } from "@/i18n";
+import { terminalFontFamily } from "@/features/terminal/terminalPlatform";
+import {
+  loadDict,
+  normalizeLangSetting,
+  resolveLang,
+  tIn,
+  useT,
+  type I18nKey,
+  type LangSetting,
+  type TVars,
+} from "@/i18n";
 import { useSaveSetting } from "../saveSetting";
 import { useDeferredCommit } from "../useDeferredCommit";
 import { applyUiScale } from "../uiScale";
@@ -124,35 +134,39 @@ export function LanguageSection() {
   const uiLang = normalizeLangSetting(settings.language);
   const contentLang = normalizeLangSetting(settings.contentLanguage);
 
-  const langLabel = (v: LangSetting) =>
+  const langLabel = (v: LangSetting, tr: (key: I18nKey) => string = t) =>
     v === "ko"
-      ? t("settings.language.ko")
+      ? tr("settings.language.ko")
       : v === "en"
-        ? t("settings.language.en")
-        : t("settings.language.system");
+        ? tr("settings.language.en")
+        : tr("settings.language.system");
 
   const pickUiLang = (next: LangSetting) => {
     save("language", next);
     // 해석된 언어가 실제로 갈라질 때만 제안한다 — 둘 다 "system" 이면 이미
     // 같은 언어라 물어볼 게 없다.
     if (resolveLang(next) === resolveLang(contentLang)) return;
-    toast.warning(
-      t("settings.language.syncToastBody", { target: langLabel(next) }),
-      {
-        title: t("settings.language.syncToast", { current: langLabel(contentLang) }),
+    // 제안은 **방금 고른 화면 언어로** 한다. 저장이 설정 채널을 돌아 스토어에 닿기
+    // 전이라 여기의 `t` 는 아직 옛 언어다 — 영어로 바꾼 직후 한국어 토스트가 떴다
+    // (E2E, {#ui-e2e-minor}). 그 언어의 사전을 기다렸다가 그 언어로 짓는다.
+    const lang = resolveLang(next);
+    const tr = (key: I18nKey, vars?: TVars) => tIn(lang, key, vars);
+    const suggest = () =>
+      toast.warning(tr("settings.language.syncToastBody", { target: langLabel(next, tr) }), {
+        title: tr("settings.language.syncToast", { current: langLabel(contentLang, tr) }),
         dedupKey: "content-language-sync",
         durationMs: 15000,
         actions: [
           {
-            label: t("settings.language.syncAction", { target: langLabel(next) }),
+            label: tr("settings.language.syncAction", { target: langLabel(next, tr) }),
             onClick: () => {
               save("contentLanguage", next);
-              toast.info(t("settings.language.syncDone", { target: langLabel(next) }));
+              toast.info(tr("settings.language.syncDone", { target: langLabel(next, tr) }));
             },
           },
         ],
-      },
-    );
+      });
+    void loadDict(lang).then(suggest, suggest);
   };
 
   return (
@@ -402,7 +416,8 @@ export function TerminalFontSection() {
           style={{
             fontSize: px,
             lineHeight: 1.2,
-            fontFamily: 'Menlo, "D2Coding Term", "SF Mono", ui-monospace, monospace',
+            // 실제 터미널과 같은 스택 — Windows·Linux 에는 Menlo 가 없다 (macOS 는 그대로).
+            fontFamily: terminalFontFamily(),
           }}
         >
           {t("settings.termFont.preview")}
