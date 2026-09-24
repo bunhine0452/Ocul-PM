@@ -5,8 +5,8 @@
 //! 모드로 뜬다. 새 바이너리를 빌드·서명·배포하지 않는 것이 요점이다.
 //!
 //! GUI 가 없으므로 `AppHandle` 도 없다 — 앱 데이터 경로는 `setup_logging` 과
-//! 같은 `directories::ProjectDirs` 로 직접 구한다 (Tauri 의 `app_data_dir()`
-//! 가 내부에서 쓰는 그 크레이트다).
+//! 같은 `crate::app_dirs` 로 구한다 (Tauri `app_data_dir()` 과 같은 규칙 — 예전
+//! `ProjectDirs` 는 Windows·Linux 에서 GUI 와 다른 DB 를 가리켰다).
 //!
 //! 종료 코드: `0` 성공 · `1` 오류 · `2` 사용법 · `3` **일부만 적용됨**.
 //! 3 이 따로 있는 이유는 CI 가 "적용은 됐는데 다 되진 않았다" 를 초록으로
@@ -145,10 +145,7 @@ fn need_file(file: Option<PathBuf>) -> Result<PathBuf, String> {
 
 /// `<app_data>/ocul-pm.db` — GUI 가 여는 것과 **같은 파일**이다.
 async fn open_db() -> Result<Db, String> {
-    let dir = directories::ProjectDirs::from("com", "kimhyunbin", "ocul-pm")
-        .ok_or("cannot resolve the app data directory")?
-        .data_dir()
-        .to_path_buf();
+    let dir = crate::app_dirs::app_data_dir().ok_or("cannot resolve the app data directory")?;
     Db::open(dir.join("ocul-pm.db"))
         .await
         .map_err(|e| format!("cannot open the database: {e}"))
