@@ -35,7 +35,9 @@ export function prepareWorkspace() {
   if (IS_WIN && process.env.CI !== "true" && process.env.OCULPM_E2E_ALLOW_REAL_PROFILE !== "1") {
     throw new Error(
       "Windows 에서는 앱의 app-data(Known Folder)를 환경변수로 격리할 수 없다 — 이 PC 의 실제 " +
-        "Ocul-PM 데이터에 쓴다. CI 러너 밖에서 돌리려면 OCULPM_E2E_ALLOW_REAL_PROFILE=1 로 동의할 것.",
+        "Ocul-PM 데이터에 쓴다. 또 attach 폴백은 HKLM WebView2 정책을 잠시 쓰고 떠 있는 " +
+        "msedgewebview2 프로세스를 전부 내린다(launch.mjs). CI 러너 밖에서 돌리려면 " +
+        "OCULPM_E2E_ALLOW_REAL_PROFILE=1 로 동의할 것.",
     );
   }
   const root = mkdtempSync(join(process.env.RUNNER_TEMP || tmpdir(), "oculpm-e2e-"));
