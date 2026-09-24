@@ -2,7 +2,7 @@
 name = "ocul-pm"
 version = "3.5.0"
 description = "Ocul-PM — local-first AI project manager for external coding agents"
-authors = ["you"]
+authors = ["Kim Hyunbin"]
 edition = "2021"
 # 저장소 루트의 LICENSE(MIT)를 매니페스트에도 적는다. cargo-deny 는 설정을
 # 매니페스트 옆에서 찾으므로 루트 LICENSE 를 못 읽어 이 크레이트를
