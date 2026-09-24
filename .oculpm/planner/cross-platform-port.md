@@ -90,7 +90,7 @@ owner: claude-code
 - [x] E2E 발견 — Linux 터미널 기본 탭 라벨 "zsh" 하드코딩(TerminalSurface.tsx) · 영어 전환 직후 토스트가 한국어 {#ui-e2e-minor}
 - [ ] E2E 발견 — `.oculpm` 기본 workday 시간대가 Asia/Seoul 이라 다른 시간대 사용자의 Today·일지 날짜가 하루 어긋난다 — 시스템 시간대 기본값 검토(schema 영향 확인) {#oculpm-default-tz}
 - [ ] E2E 발견 — 프로젝트를 추가하면 색인이 두 번 동시에 돈다(로그 `index reconcile … removed=1`) {#index-double-run}
-- [ ] **출시 차단 (실측 확정)** — 결정 2026-09-25: 설치 파일이 없을 때만 VC++ 자동 설치 + Windows 10 2004 미만 차단(L-PKG 후속 구현 중). Windows 릴리스 exe 가 `MSVCP140.dll`(C++ 런타임, ONNX Runtime 유래 추정)을 가져오면 VC++ 재배포 없는 PC 에서 앱이 안 뜬다. 러너엔 깔려 있어 설치 스모크가 못 잡는다 — L-PKG 가 dumpbin 으로 확인 중. 앱 옆 DLL 배포는 호스트 복사본을 깨므로 피할 것 (L-PTY2 발견) {#win-msvcp140}
+- [x] **출시 차단 (실측 확정)** — 결정 2026-09-25: 설치 파일이 없을 때만 VC++ 자동 설치 + Windows 10 2004 미만 차단(L-PKG 후속 구현 중). Windows 릴리스 exe 가 `MSVCP140.dll`(C++ 런타임, ONNX Runtime 유래 추정)을 가져오면 VC++ 재배포 없는 PC 에서 앱이 안 뜬다. 러너엔 깔려 있어 설치 스모크가 못 잡는다 — L-PKG 가 dumpbin 으로 확인 중. 앱 옆 DLL 배포는 호스트 복사본을 깨므로 피할 것 (L-PTY2 발견) {#win-msvcp140}
 - [ ] Windows 경로 후속 둘 — deepLinkPlan.resolveRegisteredProject 가 끝의 `/` 만 떼서 `\`·대소문자가 다르면 등록 프로젝트를 못 찾는다, homeModel 의 `~` 줄임이 `C:\Users\x` 를 모른다 (L-UI2 발견) {#ui-winpath-followups}
 - [x] Windows·Linux 에서 `directories::ProjectDirs` 경로가 Tauri `app_data_dir` 과 갈린다 — `ocul-pm config` CLI 가 GUI 와 **다른 DB** 를 열고 oculpm.log 가 ptyhost.log 와 다른 폴더에 쌓인다(lib.rs setup_logging · config/cli.rs open_db). macOS 는 같은 경로라 불변 (L-PTY2 발견) {#paths-projectdirs-mismatch}
 
@@ -109,18 +109,20 @@ owner: claude-code
 - [ ] release.yml 매트릭스 windows·ubuntu-22.04 — 비-mac 실패가 macOS draft·검증을 막지 않게 분리 {#w4-release-matrix}
 - [ ] E2E·설치 스모크 통과 플랫폼만 latest.json 에 — macOS 업데이트 오염 금지 (D7) {#w4-latest-json}
 - [ ] 5면 반영: README ko/en 지원 표(베타)·랜딩 ko/en 다운로드·CHANGELOG·docs/RELEASE.md·버전 6파일 {#w4-surfaces}
+- [ ] 비-mac 공개 스위치 `OCULPM_RELEASE_NONMAC`(저장소 변수, 기본 꺼짐) — 파이프라인이 main 에 있어도 다른 세션의 macOS 핫픽스 태그가 README·랜딩 없이 Windows·Linux 를 공개하지 않게. 꺼짐 = v3.5.0 과 같은 결과물. 첫 비-mac 릴리스 때 사용자 결정으로 켠다 (오케스트레이터 검토 발견) {#w4-nonmac-switch}
+- [ ] 업데이터가 버전과 무관하게 자기 키부터 찾아 deb 설치본·이번 릴리스에서 빠진 OS 의 앱은 확인마다 「대상 없음」 오류 — 설정에서 직접 확인하면 보인다. D10 의 「deb 는 업데이트 버튼 대신 패키지 관리자 안내」 + 대상 없음은 오류가 아니라 「이 OS 빌드는 이번 버전에 없음」 으로 (L-REL 발견) {#upd-target-missing}
+- [ ] 간헐 실패 — Windows `db::tests::{healing_is_a_no_op_on_an_intact_schema, heals_a_column_a_reused_migration_number_skipped}` 가 "database is locked"(port/l-rel Portability run 36044878579, Rust 무변경 커밋). 테스트 DB 경로 공유인지 파일 잠금 해제 지연인지 (L-REL 발견) {#db-win-locked-flake}
 
 ## W5 — 베타 운영과 졸업 {#w5}
 - [ ] 플랫폼 버그 리포트 이슈 템플릿 + 진단 번들 내보내기(로그·버전·OS·WebView 버전) {#w5-report}
 - [ ] [사용자 액션] Windows·Linux 외부 테스터 모집 {#w5-testers}
-- [ ] CI 가 못 보는 것 원장 — Linux 실제 IME(fcitx/ibus)·Wayland 트레이·HiDPI 혼합·WebView2 버전 편차·WebKitGTK 의 navigator.platform 실제 값·Ctrl+Shift+V 클립보드 권한·Windows Ctrl+Shift+0 입력 언어 전환 충돌·Defender 실시간 보호가 켜진 PC 의 폴더 이동 막힘·감시 중 루트의 **상위 폴더는 이동 불가**(ReadDirectoryChangesW 본질, VS Code 동일 — 문서에 알림)·큰 프로젝트 첫 세션의 긴 막힘 (D8) {#w5-eyes}
+- [ ] CI 가 못 보는 것 원장 — Linux 실제 IME(fcitx/ibus)·Wayland 트레이·HiDPI 혼합·WebView2 버전 편차·WebKitGTK 의 navigator.platform 실제 값·Ctrl+Shift+V 클립보드 권한·Windows Ctrl+Shift+0 입력 언어 전환 충돌·Defender 실시간 보호가 켜진 PC 의 폴더 이동 막힘·감시 중 루트의 **상위 폴더는 이동 불가**(ReadDirectoryChangesW 본질, VS Code 동일 — 문서에 알림)·큰 프로젝트 첫 세션의 긴 막힘·**일반 사용자 권한 설치에서 VC++ 재배포 UAC 승격 경로**(러너는 관리자라 창이 안 뜬다 — 예·취소 둘 다, 취소=1602 멈춤 안내) (D8) {#w5-eyes}
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 29 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 30 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-24T02:41:27+09:00 | #fs-symlink-tests | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | L-OS 가 처리 — test_links(심링크→정션) 12곳 windows 실링크 통과 + cfg(unix) 통합 테스트 17건 Git Bash |
 | 2026-09-24T03:44:59+09:00 | #fs-watcher-flake | claude-code | ☐→~ |  | 두 번째 재현(PR #35 run) — rename(루트) Access denied. 감시 중 폴더를 휴지통으로 보내는 제품 결함 후보. L-FS2 세션 출발(port/l-fs2) |
 | 2026-09-24T03:45:05+09:00 | #shell-pwsh | claude-code | ☐→~ |  | PR #35 보류 — 부하 러너에서 PowerShell 콜드 스타트 45s+ 로 정책 조회 시한 초과. 레지스트리/설정 우선 판정으로 전환 중 |
 | 2026-09-24T04:01:08+09:00 | #integ-paths | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0401_bug_port-integ-paths-home-guard.md | tool_config.rs 한 곳(Claude Desktop MSIX 우선), Windows 홈 가드 결함 수정. PR #36 |
@@ -160,5 +162,6 @@ owner: claude-code
 | 2026-09-25T03:05:21+09:00 | #w3-bundles | claude-code | ☐→x | journal/20260925/Features_to_add/0305_feature_port-lpkg-bundles-install-smoke.md | PR #45 — NSIS·AppImage·deb 번들 잡 양 OS 초록 |
 | 2026-09-25T03:05:25+09:00 | #w3-install-smoke | claude-code | ☐→x | journal/20260925/Features_to_add/0305_feature_port-lpkg-bundles-install-smoke.md | PR #45 — 설치·실행·재설치·제거 스모크 양 OS 초록, 사이드카 잠금 NSIS 훅 포함 |
 | 2026-09-25T03:07:58+09:00 | #paths-projectdirs-mismatch | claude-code | ☐→x | journal/20260925/Bugs/0307_bug_port-app-dirs-projectdirs-mismatch.md | PR #43 — app_dirs.rs 단일 창구, 세 자리 교체, 양 OS CI 초록 |
-<!-- oculpm:plan-log archived: 29 rows → cross-platform-port.log.md -->
+| 2026-09-25T06:47:28+09:00 | #win-msvcp140 | claude-code | ☐→x | journal/20260925/Features_to_add/0647_feature_port-win-vcredist-os-floor.md | PR #46 — 없을 때만 VC++ 14.51.36247 설치 · 19041 미만 차단, 러너 실측(DLL 숨김→되살림→GUI) |
+<!-- oculpm:plan-log archived: 30 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
