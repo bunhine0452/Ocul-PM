@@ -336,30 +336,36 @@ appimage_mode() {
 if out=$(appimage_mode); then APPIMAGE_ENV=(); else APPIMAGE_ENV=(env APPIMAGE_EXTRACT_AND_RUN=1); fi
 row observe 1 "AppImage — 실행 방식" "$out"
 
-# AppImage 는 linuxdeploy excludelist 의 라이브러리(libEGL·libGL·libgbm·libdrm·X11·fontconfig
-# ·harfbuzz… — 그래픽 데스크톱이면 늘 있는 것)를 싣지 않고 호스트에서 찾는다. 헤드리스
-# 러너에는 그중 일부가 없다(첫 실행: libEGL.so.1 없음 → 종료 코드 127). 무엇이 없었는지
-# 기록한 뒤, 데스크톱이면 있는 꾸러미만 깔아 사용자 PC 를 흉내 낸다 — WebKitGTK 는 여전히
-# 깔지 않는다(AppImage 가 자기 것을 쓰는지 보려는 것이므로).
+# AppImage 는 linuxdeploy excludelist 의 라이브러리(libEGL·libGL·libGLESv2·libgbm·libdrm·X11·
+# fontconfig·harfbuzz… — 그래픽 드라이버에 딸려 데스크톱이면 늘 있는 것)를 싣지 않고 호스트에서
+# 찾는다. 헤드리스 러너에는 그중 일부가 없다 — 첫 실행: libEGL.so.1 없음(NEEDED) → 종료 코드 127,
+# 두 번째: libGLESv2.so.2 없음(libepoxy 가 dlopen — ldd 로는 안 보인다) → abort, 종료 코드 134.
+# 무엇이 없었는지 기록한 뒤 데스크톱이면 있는 꾸러미만 깔아 사용자 PC 를 흉내 낸다 —
+# WebKitGTK 는 여전히 깔지 않는다(AppImage 가 자기 것을 쓰는지 보려는 것이므로).
 appimage_host_libs() {
-  local root="$WORK/squashfs-root" miss
+  local root="$WORK/squashfs-root" miss dl so
   miss=$(for b in "$root/usr/bin/ocul-pm" "$root"/usr/lib/libwebkit2gtk-4.1.so.0 "$root"/usr/lib/libgstgl-1.0.so.0; do
     [ -e "$b" ] && LD_LIBRARY_PATH="$root/usr/lib" ldd "$b" 2>/dev/null | grep 'not found' | awk '{print $1}'
   done | sort -u | tr '\n' ' ')
-  echo "이 러너에 없는 호스트 라이브러리: ${miss:-없음}"
+  dl=""
+  for so in libEGL.so.1 libGLESv2.so.2 libGL.so.1; do
+    [ -e "$root/usr/lib/$so" ] && continue
+    ldconfig -p | grep -q "$so " || dl+="$so "
+  done
+  echo "ldd 로 못 찾는 것: ${miss:-없음} · dlopen 대상(libepoxy) 중 없는 것: ${dl:-없음}"
 }
-observe "AppImage — 호스트에 기대는 라이브러리 중 러너에 없는 것 (ldd)" appimage_host_libs
+observe "AppImage — 호스트에 기대는 라이브러리 중 러너에 없는 것 (ldd · dlopen)" appimage_host_libs
 
 desktop_baseline() {
   local left
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-    libegl1 libgl1 libgbm1 libdrm2 libx11-xcb1 libfribidi0 libharfbuzz0b libfontconfig1 libfreetype6 >/dev/null ||
+    libegl1 libgles2 libgl1 libgbm1 libdrm2 libx11-xcb1 libfribidi0 libharfbuzz0b libfontconfig1 libfreetype6 >/dev/null ||
     return 1
   left=$(appimage_host_libs)
   echo "$left"
-  [[ "$left" == *": 없음" ]]
+  [[ "$left" == "ldd 로 못 찾는 것: 없음 · dlopen 대상(libepoxy) 중 없는 것: 없음" ]]
 }
-gate "데스크톱 기본 라이브러리 (libegl1 · libgl1 · libgbm1 … — WebKitGTK 제외)" desktop_baseline
+gate "데스크톱 기본 라이브러리 (libegl1 · libgles2 · libgl1 · libgbm1 … — WebKitGTK 제외)" desktop_baseline
 
 reset_state
 launch appimage "${APPIMAGE_ENV[@]}" "$APPIMAGE_FILE"

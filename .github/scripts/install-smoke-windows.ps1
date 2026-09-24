@@ -248,7 +248,10 @@ Test-Observe '가져오기 — 메인 exe 가 COMCTL32!TaskDialogIndirect 를 �
     Set-Content -LiteralPath (Join-Path $OutDir 'main-exe.imports.txt') -Value $imports
     $hasComctl = $imports -match '(?im)^\s*COMCTL32\.dll\s*$'
     $hasTask = $imports -match 'TaskDialogIndirect'
-    "COMCTL32.dll=$hasComctl TaskDialogIndirect=$hasTask"
+    # ort(pyke 사전 빌드)는 Windows 에서 늘 DirectML 로 빌드돼 DirectML.dll 을 정적으로 가져온다.
+    # DMLCreateDevice1 은 DirectML 1.1.0 부터 — OS 내장은 Windows 10 2004(19041)부터다.
+    $dml = $imports -match 'DMLCreateDevice1'
+    "COMCTL32.dll=$hasComctl TaskDialogIndirect=$hasTask · DirectML.dll!DMLCreateDevice1=$dml · 이 러너 OS 빌드 $([Environment]::OSVersion.Version)"
 }
 
 $script:DllNames = [System.Collections.Generic.SortedSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -266,11 +269,13 @@ Test-Observe 'DLL 의존 — VC++ 런타임(VCRUNTIME140.dll · MSVCP140.dll) �
 }
 
 # 러너에는 Visual Studio 가 깔려 VC++ 재배포 DLL(MSVCP140 등)이 System32 에 있다 — 사용자
-# PC 에는 없을 수 있다. 재배포 패키지가 없는 Windows 를 servercore 컨테이너로 흉내 내어
-# (1) 의존 DLL 중 System32 에 없는 것, (2) 설치된 사이드카가 그대로 뜨는지, (3) VC++ DLL 을
-# exe 옆에 둔(app-local) 사본은 뜨는지 본다. 컨테이너 안은 Windows PowerShell 5.1 이라
-# 안쪽 스크립트는 ASCII 로만 쓴다. 0xC0000135(-1073741515) = STATUS_DLL_NOT_FOUND.
-Test-Observe '깨끗한 Windows(servercore 컨테이너, VC++ 재배포 없음) — 없는 DLL · 사이드카 실행 · app-local CRT' {
+# PC 에는 없을 수 있다. 재배포 패키지가 없는 Windows 를 servercore 컨테이너로 흉내 낸다.
+# servercore 에는 클라이언트 Windows 가 기본으로 싣는 DirectML.dll 도 없어서(첫 관찰), 세 벌로
+# 나눠 원인을 가른다: A 설치본 그대로 · B exe + DirectML.dll(클라이언트 흉내) · C B + VC++ DLL
+# 네 개(app-local). B 가 죽고 C 가 뜨면 VC++ 재배포가 단독 원인이다. 두 exe 다 본다 —
+# 사이드카 `--version`, 메인 exe 는 창 없이 도는 `config --help`. 컨테이너 안은 Windows
+# PowerShell 5.1 이라 안쪽 스크립트는 ASCII 로만. 0xC0000135(-1073741515) = STATUS_DLL_NOT_FOUND.
+Test-Observe '깨끗한 Windows(servercore 컨테이너, VC++ 재배포 없음) — A 설치본 · B +DirectML · C +DirectML+VC++ DLL' {
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw 'docker 가 없다' }
     $build = [Environment]::OSVersion.Version.Build
     $tag = switch ($build) { 26100 { 'ltsc2025' } 20348 { 'ltsc2022' } default { throw "호스트 빌드 $build 에 맞는 servercore 태그를 모른다" } }
@@ -281,29 +286,35 @@ Test-Observe '깨끗한 Windows(servercore 컨테이너, VC++ 재배포 없음) 
     $pullSec = [int]$sw.Elapsed.TotalSeconds
 
     $probe = Join-Path $ProbeRoot 'container'
-    $local = Join-Path $ProbeRoot 'container-app-local'
-    New-Item -ItemType Directory -Force -Path $probe, $local | Out-Null
+    $withDml = Join-Path $ProbeRoot 'container-b-directml'
+    $withCrt = Join-Path $ProbeRoot 'container-c-directml-crt'
+    New-Item -ItemType Directory -Force -Path $probe, $withDml, $withCrt | Out-Null
     Set-Content -LiteralPath (Join-Path $probe 'check.ps1') -Encoding ascii -Value @'
-param([string] $Exe, [string] $Names)
+param([string] $Names)
 $miss = $Names.Split(',') | Where-Object { $_ -and -not (Test-Path (Join-Path $env:windir ('System32\' + $_))) }
 'missing=' + ($miss -join ' ')
-$out = & $Exe --version 2>&1 | Out-String
-'out=' + $out.Trim()
-'exit=' + $LASTEXITCODE
+$null = & C:\app\oculpm-mcp.exe --version 2>&1 | Out-String
+'mcp=' + $LASTEXITCODE
+$null = & C:\app\ocul-pm.exe config --help 2>&1 | Out-String
+'main=' + $LASTEXITCODE
 '@
-    Copy-Item -LiteralPath $script:Mcp -Destination $local -Force
-    $crt = @('msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')
-    foreach ($d in $crt) { Copy-Item -LiteralPath (Join-Path $env:windir "System32\$d") -Destination $local -Force }
+    $dml = Join-Path $env:windir 'System32\DirectML.dll'
+    foreach ($dir in @($withDml, $withCrt)) {
+        Copy-Item -LiteralPath $script:Mcp, $script:MainExe -Destination $dir -Force
+        if (Test-Path -LiteralPath $dml) { Copy-Item -LiteralPath $dml -Destination $dir -Force }
+    }
+    foreach ($d in @('msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
+        Copy-Item -LiteralPath (Join-Path $env:windir "System32\$d") -Destination $withCrt -Force
+    }
 
     $names = (@($script:DllNames) | Where-Object { $_ -notmatch '^api-ms-win-' }) -join ','
     $run = {
-        param($AppDir, $Exe)
-        & docker run --rm -v "${AppDir}:C:\app" -v "${probe}:C:\probe" $img `
-            powershell -NoProfile -ExecutionPolicy Bypass -File C:\probe\check.ps1 -Exe $Exe -Names $names 2>&1 | Out-String
+        param($AppDir)
+        $o = & docker run --rm -v "${AppDir}:C:\app" -v "${probe}:C:\probe" $img `
+            powershell -NoProfile -ExecutionPolicy Bypass -File C:\probe\check.ps1 -Names $names 2>&1 | Out-String
+        $o.Trim() -replace "`r?`n", ' '
     }
-    $installed = (& $run $InstDir 'C:\app\oculpm-mcp.exe').Trim() -replace "`r?`n", ' | '
-    $appLocal = (& $run $local 'C:\app\oculpm-mcp.exe').Trim() -replace "`r?`n", ' | '
-    "이미지 $img (pull ${pullSec}초) · 설치본: $installed · VC++ DLL 을 옆에 둔 사본: $appLocal"
+    "이미지 $img (pull ${pullSec}초) · A 설치본 [$(& $run $InstDir)] · B +DirectML [$(& $run $withDml)] · C +DirectML+VC++ [$(& $run $withCrt)]"
 }
 
 # ── 3. 실행 ────────────────────────────────────────────────────────────────
@@ -440,6 +451,28 @@ Test-Gate '재설치 프로브 — 준비 (B·C·D 호스트가 떠 있다)' {
     'A=' + $script:App.Id + ' B=' + $script:Probes['B'].Id + ' C=' + $script:Probes['C'].Id + ' D=' + $script:Probes['D'].Id
 }
 
+# E: 트리째 끝내나? — 자식을 둔 부모를 앱 이미지 이름(ocul-pm.exe)으로 띄운다. cmd.exe 사본을
+# 그 이름으로 두고(메시지 리소스 .mui 도 이름을 맞춰 옆에) `ping` 을 자식으로 기다리게 한다.
+# nsis_tauri_utils 의 kill 은 OpenProcess + TerminateProcess(pid 하나)라 자식은 살아야 한다.
+$script:TreeParent = $null
+$script:TreeChild = $null
+Test-Observe '재설치 프로브 — 준비 E (이름이 ocul-pm.exe 인 부모 + 자식 ping)' {
+    $e = Join-Path $ProbeRoot 'copies-e'
+    New-Item -ItemType Directory -Force -Path (Join-Path $e 'en-US') | Out-Null
+    $parentExe = Join-Path $e 'ocul-pm.exe'
+    Copy-Item -LiteralPath (Join-Path $env:windir 'System32\cmd.exe') -Destination $parentExe -Force
+    $mui = Join-Path $env:windir 'System32\en-US\cmd.exe.mui'
+    if (Test-Path -LiteralPath $mui) { Copy-Item -LiteralPath $mui -Destination (Join-Path $e 'en-US\ocul-pm.exe.mui') -Force }
+    $script:TreeParent = Start-Process -FilePath $parentExe -ArgumentList @('/d', '/c', 'ping -n 600 127.0.0.1') -PassThru -WindowStyle Hidden
+    $ok = Wait-Until -TimeoutSec 15 -Condition {
+        $script:TreeChild = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($script:TreeParent.Id)" |
+            Where-Object Name -eq 'PING.EXE' | Select-Object -First 1
+        $null -ne $script:TreeChild
+    }
+    if (-not $ok) { throw "부모 pid=$($script:TreeParent.Id) 아래에 PING.EXE 가 안 보인다" }
+    "부모 ocul-pm.exe(cmd 사본) pid=$($script:TreeParent.Id) · 자식 PING.EXE pid=$($script:TreeChild.ProcessId)"
+}
+
 Test-Gate '재설치 (/S) — 실행 중인 앱이 있어도 종료 코드 0' {
     $r = Invoke-Setup $Installer @('/S')
     if ($r.TimedOut) { throw '5분 안에 끝나지 않았다' }
@@ -458,6 +491,15 @@ Test-Gate '재설치 프로브 — 이미지 이름이 같으면 끝나고(A·B�
     $summary = ($state.GetEnumerator() | ForEach-Object { "$($_.Key)=" + $(if ($_.Value) { '살아 있음' } else { '끝남' }) }) -join ' '
     if ($state.A -or $state.B -or $state.D -or -not $state.C) { throw "기대(A·B·D 끝남, C 살아 있음)와 다르다: $summary" }
     $summary
+}
+
+Test-Observe '재설치 프로브 E — 이름이 같은 부모만 끝나고 자식은 사나 (트리째 끝내지 않음)' {
+    if ($null -eq $script:TreeParent -or $null -eq $script:TreeChild) { throw '준비 E 가 실패해 판정 불가' }
+    $parent = if (Test-Running $script:TreeParent) { '살아 있음' } else { '끝남' }
+    $childAlive = $null -ne (Get-Process -Id $script:TreeChild.ProcessId -ErrorAction SilentlyContinue)
+    $child = if ($childAlive) { '살아 있음(고아)' } else { '끝남' }
+    if ($childAlive) { Stop-Tree $script:TreeChild.ProcessId }
+    "부모 ocul-pm.exe=$parent · 자식 PING.EXE=$child"
 }
 
 Test-Observe '재설치 뒤 남은 앱 이미지 프로세스' {
@@ -552,6 +594,98 @@ Test-Gate '정상 재설치 (/S) — 잠금 프로브 뒤 상태 복구 (사이�
     "exit 0 · $out · 해시 원래대로"
 }
 
+# ── 5b. VC++ 재배포가 없는 PC — 러너에서 실측 ────────────────────────────────
+# 러너에는 VS 가 깔아 둔 VC++ DLL 이 System32 에 있고, PATH 의 여러 도구 폴더에도 사본이
+# 있다. 그래서 (1) System32 의 VC++ DLL 네 개를 잠시 이름을 바꿔 숨기고 (2) 자식의 PATH 를
+# System32·Windows 로만 좁혀 재배포 패키지가 없는 사용자 PC 를 만든다. 그 상태에서
+# 설치본(사이드카 --version · 메인 exe 의 헤드리스 `config --help`)이 뜨는지, 그리고
+# VC++ DLL 네 개를 exe 옆에 둔(app-local) 설치본은 GUI 까지 뜨는지 본다. 끝나면 되돌린다.
+# 0xC0000135(-1073741515) = STATUS_DLL_NOT_FOUND. 로더 오류 대화상자가 떠서 멈추지 않게
+# SetErrorMode(SEM_FAILCRITICALERRORS) 를 켜 둔다(자식이 물려받는다).
+$VcDlls = @('msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')
+$script:HiddenVc = @()
+$CleanPath = "$env:windir\System32;$env:windir;$env:windir\System32\WindowsPowerShell\v1.0"
+
+function Hide-VcRuntime {
+    foreach ($d in $VcDlls) {
+        $p = Join-Path $env:windir "System32\$d"
+        if (-not (Test-Path -LiteralPath $p)) { continue }
+        & takeown.exe /F $p /A 2>&1 | Out-Null
+        & icacls.exe $p /grant '*S-1-5-32-544:F' 2>&1 | Out-Null
+        Rename-Item -LiteralPath $p -NewName "$d.oculpm-hidden"
+        $script:HiddenVc += $p
+    }
+}
+
+function Restore-VcRuntime {
+    foreach ($p in $script:HiddenVc) {
+        $h = "$p.oculpm-hidden"
+        if ((Test-Path -LiteralPath $h) -and -not (Test-Path -LiteralPath $p)) { Rename-Item -LiteralPath $h -NewName (Split-Path -Leaf $p) }
+    }
+    $script:HiddenVc = @()
+}
+
+# 좁힌 PATH 로 띄워 끝나기를 기다린다(시한 30초). 출력·종료 코드를 돌려준다.
+function Invoke-CleanEnv([string] $Exe, [string[]] $Arguments) {
+    $psi = [System.Diagnostics.ProcessStartInfo]::new($Exe)
+    foreach ($a in $Arguments) { $psi.ArgumentList.Add($a) }
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $psi.WorkingDirectory = $ProbeRoot
+    $psi.Environment['PATH'] = $CleanPath
+    $p = [System.Diagnostics.Process]::Start($psi)
+    if (-not $p.WaitForExit(30000)) { Stop-Tree $p.Id; return '시한 초과(30초)' }
+    $out = ($p.StandardOutput.ReadToEnd() + $p.StandardError.ReadToEnd()).Trim()
+    if ($out.Length -gt 160) { $out = $out.Substring(0, 160) + '…' }
+    return ('exit={0} (0x{1:X8}) {2}' -f $p.ExitCode, $p.ExitCode, ($out -replace "`r?`n", ' '))
+}
+
+Test-Observe 'VC++ 재배포 없는 PC(러너에서 System32 VC++ DLL 숨김 + PATH 좁힘) — 설치본 · app-local 설치본' {
+    Add-Type -Namespace OculPm -Name Native -MemberDefinition '[DllImport("kernel32.dll")] public static extern uint SetErrorMode(uint mode);' -ErrorAction SilentlyContinue
+    [void][OculPm.Native]::SetErrorMode(0x0001 -bor 0x0002 -bor 0x8000)
+    $copied = @()
+    $gui = $null
+    try {
+        Hide-VcRuntime
+        $hidden = ($script:HiddenVc | ForEach-Object { Split-Path -Leaf $_ }) -join ','
+        $mcpBare = Invoke-CleanEnv $script:Mcp @('--version')
+        $mainBare = Invoke-CleanEnv $script:MainExe @('config', '--help')
+
+        # app-local: 숨긴 원본을 설치 폴더(exe 옆)에 복사.
+        foreach ($p in $script:HiddenVc) {
+            $dst = Join-Path $InstDir (Split-Path -Leaf $p)
+            Copy-Item -LiteralPath "$p.oculpm-hidden" -Destination $dst -Force
+            $copied += $dst
+        }
+        $mcpLocal = Invoke-CleanEnv $script:Mcp @('--version')
+        $mainLocal = Invoke-CleanEnv $script:MainExe @('config', '--help')
+
+        # app-local 설치본의 GUI — 로그의 마운트 줄 수가 늘면 웹뷰까지 뜬 것이다.
+        $log = Get-AppLog
+        $before = if ($log) { @(Select-String -LiteralPath $log.FullName -SimpleMatch 'App window mounted').Count } else { 0 }
+        $psi = [System.Diagnostics.ProcessStartInfo]::new($script:MainExe)
+        $psi.UseShellExecute = $false
+        $psi.WorkingDirectory = $InstDir
+        $psi.Environment['PATH'] = $CleanPath
+        $gui = [System.Diagnostics.Process]::Start($psi)
+        $mounted = Wait-Until -TimeoutSec 60 -Condition {
+            $l = Get-AppLog
+            $null -ne $l -and @(Select-String -LiteralPath $l.FullName -SimpleMatch 'App window mounted').Count -gt $before
+        }
+        $guiState = if ($mounted) { 'GUI 뜸(App window mounted)' } elseif (Test-Running $gui) { 'GUI 프로세스는 살아 있으나 60초 안에 마운트 줄 없음' } else { "GUI 가 끝남 exit=$($gui.ExitCode)" }
+        if ($mounted) { try { $null = Save-Screenshot (Join-Path $OutDir 'windows-app-local-crt.png') } catch { } }
+
+        "숨긴 DLL: $hidden · 설치본 그대로: 사이드카 [$mcpBare] · 메인 [$mainBare] · VC++ DLL 을 exe 옆에 둔 설치본: 사이드카 [$mcpLocal] · 메인 [$mainLocal] · $guiState"
+    } finally {
+        if ($gui -and (Test-Running $gui)) { Stop-Tree $gui.Id }
+        Start-Sleep -Seconds 1
+        foreach ($f in $copied) { Remove-Item -LiteralPath $f -Force -ErrorAction SilentlyContinue }
+        Restore-VcRuntime
+    }
+}
+
 # ── 6. 제거 ────────────────────────────────────────────────────────────────
 Get-AppProcesses (Split-Path -Leaf $script:MainExe) | ForEach-Object { Stop-Tree $_.ProcessId }
 
@@ -596,6 +730,8 @@ Test-Observe '제거 뒤 남은 프로세스' {
 } catch {
     Add-Row 'gate' '스크립트 자체 오류 (여기서 멈춤)' $false ("$($_.Exception.Message) @ $($_.InvocationInfo.PositionMessage)")
 } finally {
+    # 숨긴 VC++ DLL 이 남아 있으면 되돌린다(5b 가 중간에 터졌을 때).
+    if (Get-Command Restore-VcRuntime -ErrorAction SilentlyContinue) { Restore-VcRuntime }
     # 남은 프로세스 정리 — 다음 단계(아티팩트 업로드)가 잠긴 파일에 걸리지 않게.
     foreach ($name in @('ocul-pm.exe', 'ocul-pm-ptyhost.exe', 'oculpm-mcp.exe')) {
         Get-AppProcesses $name | ForEach-Object { Stop-Tree $_.ProcessId }
