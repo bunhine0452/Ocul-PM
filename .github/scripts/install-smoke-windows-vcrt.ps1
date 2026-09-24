@@ -14,9 +14,9 @@
                       러너의 도구 폴더에 있는 사본을 못 줍게 한다,
                   그리고 설치가 실패하면(UAC 취소를 OCULPM_TEST_VCREDIST_EXIT=1602 로 흉내)
                       "설치 완료" 가 아니라 멈추는지(종료 코드 ≠ 0, 로그에 STOP).
-    도구 판      — exe 안 어떤 코드도 링크한 MSVC 보다 새 MSVC 로 컴파일되지 않았는지(PE Rich
-                  헤더). 요구 판(= 동봉 재배포, 링크 도구와 같은 계열)의 전제다 — Microsoft 규칙:
-                  재배포는 앱 구성 요소가 쓴 가장 새 도구 이상.
+    도구 판      — exe 안 C++ 코드(MSVCP140 을 부르는 유일한 코드)가 동봉 재배포보다 새 MSVC 로
+                  컴파일되지 않았는지(PE Rich 헤더). 요구 판(= 동봉 재배포)의 전제다 — Microsoft
+                  규칙: 재배포는 앱 구성 요소가 쓴 가장 새 도구 이상.
 
   기록은 %TEMP%\ocul-pm-setup.log (훅이 쓴다) — Invoke-Setup 이 설치마다 새로 붙은 줄을
   $script:LastSetupLog 에 남긴다.
@@ -178,23 +178,30 @@ function Test-VcrtSkippedOnReinstall {
     }
 }
 
-# exe 안 어떤 코드도 링크한 MSVC 보다 새 MSVC 로 컴파일되지 않았는가 — Rich 헤더.
-# 재배포 요구 판은 "링크 도구 계열 = 동봉 재배포 계열" 로 정했다(fetch-vcredist.ps1 이 빌드 전에
-# 단언). 그 전제가 깨지는 길은 하나 — 사전 빌드 ONNX Runtime 이 러너보다 새 MSVC 로 구워지는 것.
+# exe 안 C++ 코드가 동봉 재배포보다 새 MSVC 로 컴파일되지 않았는가 — Rich 헤더.
+# MSVCP140(판마다 내보내기가 늘어나는 STL DLL)을 부르는 것은 C++ 목적 파일(0x0105)뿐이다 — 지금은
+# 사전 빌드 ONNX Runtime(909개, 35222)과 정적 런타임 조각(35721). 이 gate 가 잡을 길은 하나,
+# ONNX Runtime 이 동봉 재배포보다 새 MSVC 로 구워지는 날이다(그러면 C++ 909개가 요구 판을 넘는다).
+# C(0x0104)·MASM(0x0103)은 vcruntime·ucrt 만 부르고 러너가 컴파일한 것 — 러너의 도구 계열은
+# fetch-vcredist.ps1 이 빌드 전에 재배포 계열 이하로 단언한다. 예전 gate("링커보다 새 목적 파일
+# 없음")는 이 둘을 섞어, 같은 14.51 계열 안에서 cl 36257 · link 36256 으로 한 칸 어긋난 러너
+# 이미지에서 붉었다(릴리스 드라이런 36063724821). 전체 분포는 참고로 남긴다.
 # prodid: 0x0102 링커 · 0x0103 MASM · 0x0104 C · 0x0105 C++ (ONNX Runtime lib 로 확인: C++ 909 · C 15 · MASM 37).
 function Test-VcrtMinCoversToolset {
-    Test-Gate '링크 도구가 exe 안 모든 코드의 MSVC 보다 새것이다 (Rich 헤더 — 사전 빌드 ONNX Runtime 포함)' {
+    Test-Gate 'exe 안 C++ 코드(MSVCP140 호출자)의 MSVC 빌드 ≤ 동봉 재배포 요구 판 (Rich 헤더 — 사전 빌드 ONNX Runtime 포함)' {
         $rows = @(Get-RichEntries $script:MainExe)
         $linker = @($rows | Where-Object ProdId -eq 0x0102)
         if (-not $linker.Count) { throw 'Rich 헤더에 링커(0x0102) 항목이 없다' }
         $linkBld = ($linker | Measure-Object -Property Build -Maximum).Maximum
+        $cpp = @($rows | Where-Object ProdId -eq 0x0105)
+        if (-not $cpp.Count) { throw 'Rich 헤더에 C++(0x0105) 항목이 없다 — ONNX Runtime 이 빠졌거나 prodid 해석이 틀렸다' }
         $compiled = @($rows | Where-Object { $_.ProdId -in 0x0103, 0x0104, 0x0105 })
-        $newer = @($compiled | Where-Object Build -gt $linkBld)
         $byTool = ($compiled | Group-Object ProdId | ForEach-Object {
                 '0x{0:x4}: {1}' -f [int]$_.Name, (($_.Group | Sort-Object Build -Descending | ForEach-Object { "$($_.Build)×$($_.Count)" }) -join ' ')
             }) -join ' · '
-        if ($newer.Count) { throw "링커 $linkBld 보다 새 도구로 컴파일된 목적 파일: $(($newer | ForEach-Object { '0x{0:x4}/{1}×{2}' -f $_.ProdId, $_.Build, $_.Count }) -join ' ') · $byTool" }
-        "링커 빌드 $linkBld · 동봉 재배포 요구 ≥ $VcrtMinBld · 컴파일러별 빌드: $byTool"
+        $newer = @($cpp | Where-Object Build -gt $VcrtMinBld)
+        if ($newer.Count) { throw "동봉 재배포 요구 $VcrtMinBld 보다 새 MSVC 로 컴파일된 C++ 목적 파일: $(($newer | ForEach-Object { "$($_.Build)×$($_.Count)" }) -join ' ') — 재배포 고정(fetch-vcredist.ps1)과 OCULPM_VCRT_MIN_BLD 를 올릴 것 · 링커 $linkBld · $byTool" }
+        "C++ 최대 $(($cpp | Measure-Object -Property Build -Maximum).Maximum) ≤ 요구 $VcrtMinBld · 링커 $linkBld · 컴파일러별 빌드: $byTool"
     }
 }
 

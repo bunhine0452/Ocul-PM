@@ -39,7 +39,8 @@
 ; The latest one decides: the 14.51 family. So the floor is the redistributable we ship,
 ; 14.51.36247 -- the newest 14.51 one (aka.ms/vc14). fetch-vcredist.ps1 refuses to build
 ; when the build machine's toolset family is newer than the bundled redistributable, and
-; the install smoke refuses an exe whose code was compiled by a newer MSVC than its linker.
+; the install smoke refuses an exe whose C++ code (the MSVCP140 callers) was compiled by a
+; newer MSVC than this floor.
 ; Raise this together with the pin in fetch-vcredist.ps1.
 !define OCULPM_VCRT_MIN_BLD 36247
 
