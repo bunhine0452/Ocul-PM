@@ -141,16 +141,18 @@ pub fn bundled_claude(app_data: &Path) -> Option<PathBuf> {
 
 /// Rust 의 OS 이름 → npm 플랫폼 패키지 이름의 OS 자리(Node `process.platform`).
 ///
-/// Windows 는 `win32` 다 — `windows` 로 찾으면 딸려 온 `claude.exe` 를 못 보고
-/// 진단이 "Claude Code 를 설치하세요" 라고 거짓말을 한다. Linux 는 같은 이름.
+/// Windows 는 `win32`, macOS 는 `darwin` 이다 — Rust 이름(`windows`·`macos`)으로
+/// 찾으면 딸려 온 `claude` 를 못 보고 진단이 "Claude Code 를 설치하세요" 라고
+/// 거짓말을 한다(어댑터 자신은 딸려 온 것으로 멀쩡히 돈다). Linux 는 같은 이름.
 ///
-/// **macOS 는 이 라운드에서 건드리지 않았다.** npm 이름은 `darwin` 인데 여기는
-/// `macos` 를 그대로 쓴다 — 즉 macOS 진단도 딸려 온 바이너리를 못 보고 PATH 의
-/// `claude` 로 물러선다. 고치면 macOS 동작이 바뀌므로(크로스플랫폼 D3) 따로
-/// 결정할 항목으로 보고했다.
+/// macOS 는 2026-09-24 사용자 결정으로 고쳤다(크로스플랫폼 #mac-bundled-claude —
+/// 그 전엔 `macos` 로 찾아 시스템 `claude` 가 없는 사용자의 진단이 "준비 안 됨" 이었다).
+/// 이 함수는 **진단**(`acp::diagnose`)만 먹인다 — 실제로 도는 claude 는 어댑터가
+/// 고르므로 바뀌지 않는다.
 fn npm_platform(rust_os: &str) -> &str {
     match rust_os {
         "windows" => "win32",
+        "macos" => "darwin",
         other => other,
     }
 }
@@ -292,6 +294,7 @@ mod tests {
     #[test]
     fn bundled_claude_uses_npm_platform_names() {
         assert_eq!(npm_platform("windows"), "win32");
+        assert_eq!(npm_platform("macos"), "darwin");
         assert_eq!(npm_platform("linux"), "linux");
 
         let dir = tempfile::tempdir().unwrap();
@@ -300,10 +303,14 @@ mod tests {
             "aarch64" => "arm64",
             other => other,
         };
+        // 실제 npm 패키지 폴더 이름을 **문자열로** 못박는다 — `npm_platform` 으로 다시
+        // 계산하면 그 함수가 틀려도 이 테스트가 통과한다(macOS 결함이 그렇게 숨었다).
         let (os, exe) = if cfg!(windows) {
             ("win32", "claude.exe")
+        } else if cfg!(target_os = "macos") {
+            ("darwin", "claude")
         } else {
-            (npm_platform(std::env::consts::OS), "claude")
+            ("linux", "claude")
         };
         let bin = dir
             .path()
