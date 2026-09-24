@@ -361,9 +361,10 @@ jobs:
   #     WebView2 embedBootstrapper(+1.8MB — 부트스트래퍼를 받으러 나가지 않는다. 런타임 설치는
   #     여전히 인터넷이 필요하다: 완전 오프라인은 offlineInstaller +127MB) · 설치 언어
   #     English·Korean(OS 언어를 따르고, 목록에 없는 언어면 첫 항목 English 로) ·
-  #     installerHooks src-tauri/windows/installer-hooks.nsh — Claude Code·Codex 가 띄워 둔
-  #     oculpm-mcp.exe 가 파일을 잠가 재설치·업데이트가 옛 사이드카를 남기거나(/S) 대화상자에
-  #     멈추던(/P) 것을, 실행 중인 파일을 먼저 비켜 두는 것으로 푼다(스모크가 실측).
+  #     installerHooks src-tauri/windows/installer-hooks.nsh — ① Windows 10 2004(19041) 미만은
+  #     막고 안내(DirectML!DMLCreateDevice1) ② VC++ 재배포를 없거나 낡았을 때만 설치(실패면
+  #     멈추고 안내) ③ Claude Code·Codex 가 띄워 둔 oculpm-mcp.exe 가 파일을 잠가 재설치·
+  #     업데이트가 옛 사이드카를 남기거나(/S) 대화상자에 멈추던(/P) 것을 먼저 비켜 두어 푼다.
   #   tauri.linux.conf.json — AppImage + deb (D10, rpm 은 보류). deb Depends 의
   #     libwebkit2gtk-4.1-0 · libgtk-3-0 · libayatana-appindicator3-1 은 tauri-cli 가 스스로
   #     넣는다(tray-icon 기능을 보고 — tauri-cli interface/rust.rs). 여기 또 적으면 두 번
@@ -394,11 +395,14 @@ jobs:
       - name: 스모크 스크립트 문법 (pwsh 파서 · bash -n · shellcheck)
         run: |
           pwsh -NoProfile -Command '
-            $errs = $null
-            [void][System.Management.Automation.Language.Parser]::ParseFile(
-              (Resolve-Path ".github/scripts/install-smoke-windows.ps1").Path, [ref]$null, [ref]$errs)
-            if ($errs) { $errs | ForEach-Object { Write-Host "::error file=.github/scripts/install-smoke-windows.ps1,line=$($_.Extent.StartLineNumber)::$($_.Message)" }; exit 1 }
-            Write-Host "install-smoke-windows.ps1: 파서 오류 0"'
+            $bad = 0
+            foreach ($f in Get-ChildItem ".github/scripts" -Filter "*.ps1") {
+              $errs = $null
+              [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errs)
+              foreach ($e in @($errs)) { Write-Host "::error file=.github/scripts/$($f.Name),line=$($e.Extent.StartLineNumber)::$($e.Message)"; $bad++ }
+              Write-Host "$($f.Name): 파서 오류 $(@($errs).Count)"
+            }
+            if ($bad) { exit 1 }'
           bash -n .github/scripts/install-smoke-linux.sh
           shellcheck -S warning .github/scripts/install-smoke-linux.sh
           echo "install-smoke-linux.sh: bash -n · shellcheck(warning 이상) 통과"
@@ -419,7 +423,7 @@ jobs:
             bundle=true; why="이전 머리 $BEFORE 를 못 찾음 (강제 push)"
           else
             changed=$(git diff --name-only "$BEFORE" "$AFTER")
-            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|src-tauri/linux/|src-tauri/windows/|\.github/workflows/portability\.yml)' <<<"$changed" || true)
+            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|src-tauri/linux/|src-tauri/windows/|\.github/scripts/fetch-vcredist\.|\.github/workflows/portability\.yml)' <<<"$changed" || true)
             smoke_hit=$(grep -E '^\.github/scripts/install-smoke-' <<<"$changed" || true)
             if [ -n "$hit" ]; then
               bundle=true; why=$(echo $hit)
@@ -501,6 +505,15 @@ jobs:
       # 만들어 설정(tauri.conf.json)을 한 글자도 덮지 않고 릴리스와 같은 경로로 굽는다.
       # 그 덕에 NSIS·AppImage 옆에 업데이터 .sig 가 실제로 생기는지도 본다(W4 전제).
       # 이 키로 서명한 .sig 는 앱에 박힌 공개 키와 안 맞으므로 올리지 않는다.
+      # Windows 설치 파일은 Microsoft VC++ 재배포(x64)를 싣는다 — 앱과 사이드카가 MSVCP140 을
+      # 가져오는데(사전 빌드 ONNX Runtime) 재배포가 없는 PC 에서는 아예 안 뜬다. 훅
+      # (src-tauri/windows/installer-hooks.nsh)이 없거나 낡았을 때만 설치한다. 판 고정 URL ·
+      # SHA-256 · Authenticode 를 확인하고 훅이 include 할 정의를 쓴다. release.yml 도 같은 스크립트.
+      - name: VC++ 재배포 받기 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./.github/scripts/fetch-vcredist.ps1
+
       - name: 업데이터 서명 키 — 이 잡 전용 일회용
         run: |
           pnpm tauri signer generate --ci -w "$RUNNER_TEMP/ci-updater.key" >/dev/null

@@ -1,0 +1,4 @@
+# .github/scripts/fetch-vcredist.ps1 가 받는 Microsoft VC++ 재배포 설치 파일(VC_redist.x64.exe)과
+# 그것을 가리키는 NSIS 정의(vcredist.nsh)가 여기에 생긴다 — 빌드 때마다 받으므로 커밋하지 않는다.
+*
+!.gitignore

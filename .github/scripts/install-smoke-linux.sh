@@ -167,20 +167,23 @@ appimage_libs_glibc() {
 }
 gate "D11 — AppImage 동봉 라이브러리의 GLIBC 요구 ≤ 2.35" appimage_libs_glibc
 
+# Maintainer 는 Cargo.toml 의 authors 에서 온다(번들러) — 자리표시자 "you" 가 새지 않게.
 deb_control() {
-  local pkg ver dep miss=()
+  local pkg ver dep mnt miss=()
   pkg=$(dpkg-deb -f "$DEB_FILE" Package)
   ver=$(dpkg-deb -f "$DEB_FILE" Version)
   dep=$(dpkg-deb -f "$DEB_FILE" Depends)
-  echo "Package=$pkg Version=$ver Depends=$dep"
+  mnt=$(dpkg-deb -f "$DEB_FILE" Maintainer)
+  echo "Package=$pkg Version=$ver Maintainer=$mnt Depends=$dep"
   [ "$pkg" = ocul-pm ] || { echo "Package 가 ocul-pm 이 아니다"; return 1; }
   [ "$ver" = "$VERSION" ] || { echo "Version 이 $VERSION 이 아니다"; return 1; }
+  [ "$mnt" = "Kim Hyunbin" ] || { echo "Maintainer 가 'Kim Hyunbin' 이 아니다"; return 1; }
   for want in libwebkit2gtk-4.1-0 libgtk-3-0 libayatana-appindicator3-1 libssl3 libdbus-1-3; do
     grep -q "$want" <<<"$dep" || miss+=("$want")
   done
   [ ${#miss[@]} -eq 0 ] || { echo "Depends 에 없다: ${miss[*]}"; return 1; }
 }
-gate "deb control — Package · Version · Depends (webkit·gtk·appindicator·ssl·dbus)" deb_control
+gate "deb control — Package · Version · Maintainer · Depends (webkit·gtk·appindicator·ssl·dbus)" deb_control
 
 deb_desktop() {
   local f="$WORK/deb-root/usr/share/applications/Ocul-PM.desktop"
