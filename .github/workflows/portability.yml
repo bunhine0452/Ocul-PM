@@ -8,19 +8,36 @@ name: Portability
 #
 # ci.yml 과 분리한 이유 (D2): release.yml 의 gate 는 태그 커밋에서 **ci.yml** 이
 # 초록인지 본다. 처음부터 붉을 이 잡들을 ci.yml 에 넣으면 macOS 릴리스가 막힌다.
-# 잡이 초록이 되는 대로 required 로 올리고, 전부 초록이면 ci.yml 로 합친다
-# (#w0-promote). 그때까지 main push 에는 돌지 않는다 — main 을 붉게 칠하지 않는다.
+# #w0-promote 의 결정(2026-09-25, 아래 트리거 주석): ci.yml 로 합치지 않고 main push 에서도
+# 돈다 — 릴리스 게이트는 계속 ci.yml 만 본다.
 #
 # 각 단계는 continue-on-error 로 끝까지 돌고, 마지막 「요약」 단계가 결과를 모아
 # 붉힌다. 첫 실행의 목적이 **오류 전수(인벤토리)** 라서다 — check 가 깨졌다고
 # test 컴파일 오류를 못 보면 인벤토리가 반쪽이 된다. 로그는 아티팩트로 남는다.
 
-# pull_request 는 넣지 않았다 — 이 라운드와 무관한 PR 에 붉은 체크를 달지 않는다.
-# 승격(#w0-promote) 때 ci.yml 로 합치면서 PR·main 트리거를 얻는다.
+# 트리거 (#w0-promote, 2026-09-25 결정):
+#   - main push 에서도 돈다 — 태그를 밀기 전에 그 커밋이 Windows·Linux 에서 초록인지 보는
+#     창이다(docs/RELEASE.md §0). 문서·일지만 바뀐 push(.oculpm · docs · landing · 루트 *.md)는
+#     건너뛴다 — main 에 가장 잦은 push 가 일지 커밋이다.
+#   - ci.yml 로 합치지 **않는다**(D2). release.yml 의 gate 는 ci.yml 만 보므로 이 잡들이 붉어도
+#     macOS 릴리스는 막히지 않는다. Windows·Linux 를 릴리스에 싣느냐는 release.yml 이 태그
+#     커밋에서 번들·설치 스모크·설치본 E2E 를 다시 돌려 정한다(D7) — 여기의 초록은 미리보기다.
+#   - required(브랜치 보호)로도 올리지 않는다 — main 은 보호 규칙이 없고, Windows 한 바퀴가
+#     40분을 넘어 머지 대기를 macOS CI(10분)의 네 배로 늘린다.
+#   - pull_request 는 아직 넣지 않았다: port/** 브랜치의 PR 은 push 와 PR 이벤트로 두 번 돌고
+#     (concurrency 그룹이 ref 로 갈린다), 아래 사이드카·번들 판정 잡은 PR 이벤트에
+#     github.event.before 가 없어 「첫 push」 로 읽어 PR 마다 릴리스 프로필 빌드를 두 벌 돈다.
+#     판정 잡이 PR 이면 base sha 와 비교하게 된 뒤에 넣는다.
 on:
   push:
     branches:
+      - main
       - 'port/**'
+    paths-ignore:
+      - '.oculpm/**'
+      - 'docs/**'
+      - 'landing/**'
+      - '*.md'
   workflow_dispatch:
 
 concurrency:
