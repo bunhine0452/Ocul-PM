@@ -283,7 +283,7 @@ check_frontend_mounted() {
 
 check_alive_20s() {
   sleep 20
-  if app_alive; then echo "살아 있음 ($(pgrep -f 'usr/bin/ocul-pm' | tr '\n' ' '))"; return 0; fi
+  if app_alive; then echo "살아 있음 (ocul-pm pid $(app_pids))"; return 0; fi
   echo "죽었다 (종료 코드 $(cat "$OUT_DIR/$APP_LABEL.exit")) · 출력 끝: $(tail -15 "$OUT_DIR/$APP_LABEL.stdout.log")"
   return 1
 }
@@ -299,13 +299,18 @@ log_errors() {
   echo "ERROR/WARN ${n}줄: $(grep -E '\b(ERROR|WARN)\b' "$f" | head -8 | tr '\n' '|')"
 }
 
-# 앱 실행 파일은 어느 방식이든 경로가 `…/usr/bin/ocul-pm` 이다(deb: /usr/bin, FUSE:
-# /tmp/.mount_*/usr/bin, 풀어서 실행: …/squashfs-root/usr/bin). AppImage 런타임은 파일 이름으로.
+# 앱 프로세스는 이름(comm)으로 잡는다 — 명령줄은 실행 방식마다 다르다: deb 는 /usr/bin/ocul-pm,
+# AppImage 는 AppRun(apprun-old)이 .desktop 의 Exec 로 띄워 argv0 가 맨 `ocul-pm` 이다(세 번째
+# 실행에서 `pkill -f usr/bin/ocul-pm` 이 AppImage 앱을 못 끝내 고아로 남았다). 런타임은 파일 이름으로.
+app_pids() { pgrep -x ocul-pm | tr '\n' ' '; }
 stop_app() {
   [ -n "$APP_PID" ] || return 0
-  pkill -TERM -f 'usr/bin/ocul-pm' 2>/dev/null
-  for _ in 1 2 3 4 5 6 7 8 9 10; do app_alive || break; sleep 1; done
-  pkill -KILL -f 'usr/bin/ocul-pm' 2>/dev/null
+  pkill -TERM -x ocul-pm 2>/dev/null
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if ! app_alive && [ -z "$(app_pids)" ]; then break; fi
+    sleep 1
+  done
+  pkill -KILL -x ocul-pm 2>/dev/null
   if [ -n "$APPIMAGE_FILE" ]; then pkill -KILL -f "$(basename "$APPIMAGE_FILE")" 2>/dev/null; fi
   wait "$APP_PID" 2>/dev/null
   APP_PID=""
@@ -392,9 +397,23 @@ appimage_scheme_handler() {
 }
 observe "AppImage — oculpm:// 처리기 자가 등록 (Exec … %u)" appimage_scheme_handler
 stop_app
-# 뒤의 deb 검사가 AppImage 처리기(사용자 수준 기본값이 시스템 .desktop 을 이긴다)를 줍지 않게 걷어낸다.
-rm -f "$DATA_HOME/applications/ocul-pm-handler.desktop"
-sed -i '/x-scheme-handler\/oculpm/d' "$HOME/.config/mimeapps.list" "$DATA_HOME/applications/mimeapps.list" 2>/dev/null
+
+# 뒤의 deb 검사가 AppImage 처리기를 줍지 않게 걷어낸다. 사용자 수준 등록(~/.config/mimeapps.list
+# 기본값 + ~/.local/share/applications 의 .desktop 과 mimeinfo.cache)은 시스템 .desktop 을 이긴다 —
+# 세 번째 실행에서 .desktop 만 지웠더니 xdg-mime 은 여전히 ocul-pm-handler.desktop 을 답했고
+# gio 가 띄운 앱에 URL 이 없었다. 그 상태를 먼저 기록하고(관찰) 전부 지운 뒤 확인한다.
+scheme_state() {
+  echo "xdg-mime: $(xdg-mime query default x-scheme-handler/oculpm 2>&1) · gio mime: $(gio mime x-scheme-handler/oculpm 2>&1 | tr '\n' ' ') · 사용자 applications: $(ls "$DATA_HOME/applications" 2>/dev/null | tr '\n' ' ')"
+}
+observe "AppImage 뒤 — oculpm:// 처리기 상태 (사용자 수준 등록이 남은 채)" scheme_state
+clear_user_scheme() {
+  rm -f "$DATA_HOME/applications/ocul-pm-handler.desktop" "$DATA_HOME/applications/mimeinfo.cache"
+  sed -i '/x-scheme-handler\/oculpm/d' "$HOME/.config/mimeapps.list" "$DATA_HOME/applications/mimeapps.list" 2>/dev/null
+  update-desktop-database "$DATA_HOME/applications" 2>/dev/null
+  scheme_state
+  ! xdg-mime query default x-scheme-handler/oculpm 2>/dev/null | grep -q 'ocul-pm-handler'
+}
+gate "AppImage 처리기 걷어내기 — 사용자 수준 등록 없음" clear_user_scheme
 
 # ── 5. deb (dpkg -i → apt-get -f install) ────────────────────────────────
 deb_install() {
@@ -433,6 +452,7 @@ deb_deeplink() {
   local url='oculpm://smoke/deeplink-probe' handler pid cmd
   command -v gio >/dev/null || { echo "gio 가 없다"; return 1; }
   handler=$(xdg-mime query default x-scheme-handler/oculpm 2>&1)
+  if [ -n "$(app_pids)" ]; then echo "앞 실행의 ocul-pm 이 남아 있다(pid $(app_pids)) — 판정 불가"; return 1; fi
   reset_state
   gio open "$url" >"$OUT_DIR/deeplink-gio.log" 2>&1 &
   if ! wait_until 30 pgrep -x ocul-pm; then
@@ -440,12 +460,11 @@ deb_deeplink() {
     return 1
   fi
   sleep 2
-  pid=$(pgrep -x ocul-pm | head -1)
-  cmd=$(tr '\0' ' ' <"/proc/$pid/cmdline")
+  cmd=$(for pid in $(pgrep -x ocul-pm); do tr '\0' ' ' <"/proc/$pid/cmdline"; echo -n '| '; done)
   pkill -TERM -x ocul-pm
   sleep 3
   pkill -KILL -x ocul-pm
-  echo "처리기=$handler · 떠오른 명령줄: $cmd"
+  echo "처리기=$handler · gio mime: $(gio mime x-scheme-handler/oculpm 2>&1 | tr '\n' ' ') · 떠오른 ocul-pm 명령줄: $cmd"
   [[ "$cmd" == *"$url"* ]]
 }
 gate "deb — gio open oculpm://… → 앱 명령줄에 URL 이 실린다 (.desktop Exec %u)" deb_deeplink

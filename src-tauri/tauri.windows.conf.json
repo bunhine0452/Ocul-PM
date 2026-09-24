@@ -9,7 +9,8 @@
       "nsis": {
         "installMode": "currentUser",
         "languages": ["English", "Korean"],
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "installerHooks": "windows/installer-hooks.nsh"
       }
     }
   }

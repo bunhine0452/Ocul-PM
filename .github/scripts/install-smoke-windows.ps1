@@ -562,11 +562,18 @@ Test-Observe '사이드카 잠금 — 실행 중인 oculpm-mcp.exe 파일에 쓰
     }
 }
 
-Test-Observe '사이드카 잠금 — 그 상태로 무음 재설치 (/S)' {
+# src-tauri/windows/installer-hooks.nsh 가 없던 때(run 35994548241)는 /S 가 조용히 옛 파일을
+# 남겼고(종료 코드 0), /P /UPDATE 는 "Error opening file for writing" 대화상자에 멈췄다.
+# 훅이 도는 파일을 `oculpm-mcp.exe.old-<틱>` 으로 비켜 둔 뒤 새 파일을 쓴다 — 그래서 gate 다.
+function Get-McpLeftovers { @(Get-ChildItem -LiteralPath $InstDir -Filter 'oculpm-mcp.exe.old-*' -File -ErrorAction SilentlyContinue | ForEach-Object Name) }
+
+Test-Gate '사이드카 잠금 — 그 상태로 무음 재설치 (/S) → 끝나고 사이드카가 새 것으로 바뀐다' {
     if (-not (Test-Running $script:McpProc)) { throw 'MCP 서버가 안 떠 있다 — 프로브 무효' }
     $r = Invoke-Setup $Installer @('/S') -TimeoutSec 180
-    $exit = if ($r.TimedOut) { '시한 초과(180초 — 숨은 대화상자에 멈춤)' } else { "종료 코드 $($r.ExitCode)" }
-    "$exit · MCP 서버 " + $(if (Test-Running $script:McpProc) { '살아 있음' } else { '끝남' }) + ' · oculpm-mcp.exe ' + (Get-McpVerdict $script:McpMarked)
+    $verdict = Get-McpVerdict $script:McpMarked
+    $detail = $(if ($r.TimedOut) { '시한 초과(180초)' } else { "종료 코드 $($r.ExitCode)" }) + " · MCP 서버 " + $(if (Test-Running $script:McpProc) { '살아 있음' } else { '끝남' }) + " · oculpm-mcp.exe $verdict · 비켜 둔 파일: $((Get-McpLeftovers) -join ', ')"
+    if ($r.TimedOut -or $r.ExitCode -ne 0 -or $verdict -notlike '교체됨*') { throw $detail }
+    $detail
 }
 Stop-LockedMcp
 
@@ -574,24 +581,28 @@ Stop-LockedMcp
 # `setup.exe /P /R /UPDATE /ARGS …` 를 띄우고 앱은 곧장 process::exit(0) 한다. /R 은 끝난 뒤
 # 앱을 다시 띄우므로 뺀다. passive 는 무음이 아니다 — 대화상자가 뜨면 사람이 누를 때까지
 # 멈춘다. 60초 안에 안 끝나면 그 화면을 찍고 끝낸다.
-Test-Observe '사이드카 잠금 — 그 상태로 업데이터 모양 재설치 (/P /UPDATE)' {
+Test-Gate '사이드카 잠금 — 그 상태로 업데이터 모양 재설치 (/P /UPDATE) → 대화상자 없이 끝나고 새 것으로 바뀐다' {
     $marked = Start-LockedMcp
     $shot = Join-Path $OutDir 'passive-update-with-locked-sidecar.png'
     $r = Invoke-Setup $Installer @('/P', '/UPDATE') -TimeoutSec 60 -ShotOnTimeout $shot
-    $exit = if ($r.TimedOut) { "60초 안에 안 끝남 — 대화상자에 멈춤(화면: $(Split-Path -Leaf $shot))" } else { "종료 코드 $($r.ExitCode)" }
-    "$exit · oculpm-mcp.exe " + (Get-McpVerdict $marked)
+    $verdict = Get-McpVerdict $marked
+    $detail = $(if ($r.TimedOut) { "60초 안에 안 끝남 — 대화상자에 멈춤(화면: $(Split-Path -Leaf $shot))" } else { "종료 코드 $($r.ExitCode)" }) + " · oculpm-mcp.exe $verdict"
+    if ($r.TimedOut -or $r.ExitCode -ne 0 -or $verdict -notlike '교체됨*') { throw $detail }
+    $detail
 }
 Stop-LockedMcp
 
-Test-Gate '정상 재설치 (/S) — 잠금 프로브 뒤 상태 복구 (사이드카가 설치 파일의 것으로 돌아온다)' {
+Test-Gate '정상 재설치 (/S) — 잠금 프로브 뒤: 사이드카가 설치 파일의 것 · 비켜 둔 파일 청소' {
     $r = Invoke-Setup $Installer @('/S')
     if ($r.TimedOut) { throw '5분 안에 끝나지 않았다' }
     if ($r.ExitCode -ne 0) { throw "종료 코드 $($r.ExitCode)" }
     foreach ($f in @($script:MainExe, $script:Mcp)) { if (-not (Test-Path -LiteralPath $f)) { throw "없다: $f" } }
     $hash = (Get-FileHash -LiteralPath $script:Mcp).Hash
     if ($script:McpOrigHash -and $hash -ne $script:McpOrigHash) { throw "oculpm-mcp.exe 가 원래 내용으로 안 돌아왔다 ($hash)" }
+    $left = Get-McpLeftovers
+    if ($left.Count) { throw "잡는 이가 없는데도 남았다: $($left -join ', ')" }
     $out = (& $script:Mcp --version 2>&1 | Out-String).Trim()
-    "exit 0 · $out · 해시 원래대로"
+    "exit 0 · $out · 해시 원래대로 · 비켜 둔 파일 0"
 }
 
 # ── 5b. VC++ 재배포가 없는 PC — 러너에서 실측 ────────────────────────────────
@@ -706,6 +717,7 @@ Test-Gate '제거 잔재 — 실행 파일 · 레지스트리 · 스킴 · 시�
         if (Test-Path -LiteralPath $f) { $left += $f }
     }
     foreach ($k in @($UninstKey, $SchemeKey)) { if (Test-Path -LiteralPath $k) { $left += $k } }
+    $left += Get-McpLeftovers
     if ($left.Count) { throw "남았다: $($left -join ', ')" }
     '없음'
 }

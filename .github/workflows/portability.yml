@@ -360,7 +360,10 @@ jobs:
   #     currentUser(관리자 권한 없이 %LOCALAPPDATA%\Ocul-PM, 업데이터가 UAC 없이 덮는다) ·
   #     WebView2 embedBootstrapper(+1.8MB — 부트스트래퍼를 받으러 나가지 않는다. 런타임 설치는
   #     여전히 인터넷이 필요하다: 완전 오프라인은 offlineInstaller +127MB) · 설치 언어
-  #     English·Korean(OS 언어를 따르고, 목록에 없는 언어면 첫 항목 English 로).
+  #     English·Korean(OS 언어를 따르고, 목록에 없는 언어면 첫 항목 English 로) ·
+  #     installerHooks src-tauri/windows/installer-hooks.nsh — Claude Code·Codex 가 띄워 둔
+  #     oculpm-mcp.exe 가 파일을 잠가 재설치·업데이트가 옛 사이드카를 남기거나(/S) 대화상자에
+  #     멈추던(/P) 것을, 실행 중인 파일을 먼저 비켜 두는 것으로 푼다(스모크가 실측).
   #   tauri.linux.conf.json — AppImage + deb (D10, rpm 은 보류). deb Depends 의
   #     libwebkit2gtk-4.1-0 · libgtk-3-0 · libayatana-appindicator3-1 은 tauri-cli 가 스스로
   #     넣는다(tray-icon 기능을 보고 — tauri-cli interface/rust.rs). 여기 또 적으면 두 번
@@ -416,7 +419,7 @@ jobs:
             bundle=true; why="이전 머리 $BEFORE 를 못 찾음 (강제 push)"
           else
             changed=$(git diff --name-only "$BEFORE" "$AFTER")
-            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|src-tauri/linux/|\.github/workflows/portability\.yml)' <<<"$changed" || true)
+            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|src-tauri/linux/|src-tauri/windows/|\.github/workflows/portability\.yml)' <<<"$changed" || true)
             smoke_hit=$(grep -E '^\.github/scripts/install-smoke-' <<<"$changed" || true)
             if [ -n "$hit" ]; then
               bundle=true; why=$(echo $hit)
