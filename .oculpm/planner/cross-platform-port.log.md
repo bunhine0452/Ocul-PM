@@ -25,4 +25,10 @@ plan: cross-platform-port
 | 2026-09-24T00:58:24+09:00 | #w1-compile-green | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/0058_feature_port-compile-baseline-w1.md | windows·ubuntu check·clippy 초록, ubuntu test 초록, windows test 19 실패→W2. glibc_compat(D11)·MSVC 매니페스트. d7185e98 |
 | 2026-09-24T02:30:43+09:00 | #fs-lock | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | pid.rs 단일 창구, lock+a2a 5건 windows 초록. PR #33 |
 | 2026-09-24T02:30:48+09:00 | #fs-separators | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | git::slash/relative_to — 워처·indexer·rule_scope·redact·project.rs 색인 키. files_touched 쓰기 정규화는 #fs-files-touched-norm |
+| 2026-09-24T02:30:53+09:00 | #fs-crlf | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | 관리 블록 \r\r\n · frontmatter CRLF 머리 · autocrlf 가짜 diff 없음 테스트. planner 파서는 #fs-crlf-parsers |
+| 2026-09-24T02:30:59+09:00 | #fs-atomic | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | atomic_io_win.rs 재시도·백오프, 덮어쓰지 않는 MoveFileExW, 300자+ 경로 — windows 6테스트 |
+| 2026-09-24T02:31:05+09:00 | #fs-watch | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | watcher/repeat.rs(Windows Create+Modify 재보고), 깊은 경로 '/' 기록, markers mtime. rename 쌍 결함은 #fs-rename-pair |
+| 2026-09-24T02:31:10+09:00 | #fs-git | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | repo_relative canonicalize+\\?\ 제거(8.3 이름), autocrlf 가짜 diff 없음, quotepath 기존 테스트 windows 초록 |
+| 2026-09-24T02:40:54+09:00 | #os-compile | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | 사이드카 후보 OS 별(recording test windows 초록), PORT-STUB(L-OS)·PORT-TEST 0건. PR #34 |
+| 2026-09-24T02:41:00+09:00 | #os-deeplink | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | links_in_argv 순수 함수(세 OS), 두 번째 인스턴스·첫 기동 args_os, AppImage register_all. 실제 인계는 W3 E2E |
 <!-- oculpm:plan-log end -->

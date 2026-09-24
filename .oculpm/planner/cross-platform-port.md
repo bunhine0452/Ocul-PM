@@ -56,19 +56,19 @@ owner: claude-code
   - [x] Linux Secret Service 부재 시 평문 저장 없이 명확한 에러 + 안내 {#os-secrets}
   - [x] DAP xcrun·themes defaults·external_editor·greenfield·npx(.cmd) 비-mac 분기 검증 {#os-tools}
   - [x] menu.rs 비-mac 에서 앱 메뉴 미부착 — GTK 액셀러레이터가 터미널 Ctrl+W/C 를 가로챈다(L-UI 발견), 필요 시 new_window 커맨드 {#os-no-menu}
-- [~] L-UI 프런트엔드 플랫폼 추상화 {#l-ui}
+- [x] L-UI 프런트엔드 플랫폼 추상화 {#l-ui}
   - [x] src/lib/platform.ts OS 판정 단일 창구 — navigator.platform 4곳 교체 {#ui-platform}
   - [x] 단축키 매칭 mac=meta·그 외=ctrl + 터미널 포커스 시 셸 키(Ctrl+C/D/K/L/R/U/W/Z) 양보, 복사·붙여넣기 Ctrl+Shift+C/V {#ui-shortcuts}
   - [x] ⌘ 리터럴 476곳 → modLabel() 표기 함수·i18n 치환 {#ui-labels}
   - [x] 비-mac 창 크롬: 트래픽라이트 여백·드래그 영역·WebView2 스크롤바·폰트 폴백 {#ui-chrome}
   - [x] 터미널 IME 브리지의 WKWebView 우회가 WebView2·WebKitGTK 에서 해가 없는지 — Chromium 조합 시퀀스 vitest {#ui-ime}
   - [x] 세 UA(mac/win/linux) 단축키·표기 테이블 vitest + pnpm lint 초록 {#ui-tests}
-  - [ ] 맥 전용 문구 정리 — settings.tray.*·tray.*(메뉴바·Dock)·「Finder 에서 보기」·키체인·macOS 설정 안내의 비-mac 판 (L-UI 발견) {#ui-mac-words}
+  - [x] 맥 전용 문구 정리 — settings.tray.*·tray.*(메뉴바·Dock)·「Finder 에서 보기」·키체인·macOS 설정 안내의 비-mac 판 (L-UI 발견) {#ui-mac-words}
 - [x] W2 종료 조건: rg PORT-STUB 0건 · portability.yml 전 잡 초록 · ci.yml(macOS) 초록 {#w2-no-stubs}
 
 ## W2+ — 레인이 찾은 후속 (W2 합류 뒤, 한 세션씩) {#w2plus}
 
-- [ ] 프런트 후속 — errors.ts 규칙(`The system keyring is unavailable`·Linux 파일 붙여넣기 미지원), useCodeImport.pasteFiles 오류 토스트, 비-mac 트레이 팝오버의 투명 여백·그림자 제거, op.shell.desc2(iTerm2·Terminal.app) 비-mac 문구, **Windows 에서 틀린 MCP 권고 셋**(op.mcp.pluginCovers·op.mcp.pluginConflict·op.plugin.warn — 따르면 MCP 가 하나도 안 남는다, McpServerBlock·ClaudePluginBlock) (L-OS·L-SHELL·L-INTEG 발견) {#ui-followups}
+- [x] 프런트 후속 — errors.ts 규칙(`The system keyring is unavailable`·Linux 파일 붙여넣기 미지원), useCodeImport.pasteFiles 오류 토스트, 비-mac 트레이 팝오버의 투명 여백·그림자 제거, op.shell.desc2(iTerm2·Terminal.app) 비-mac 문구, **Windows 에서 틀린 MCP 권고 셋**(op.mcp.pluginCovers·op.mcp.pluginConflict·op.plugin.warn — 따르면 MCP 가 하나도 안 남는다, McpServerBlock·ClaudePluginBlock) (L-OS·L-SHELL·L-INTEG 발견) {#ui-followups}
 - [ ] Windows 릴리스 exe 는 GUI 서브시스템 — 사람이 콘솔에서 `oculpm` 을 치면 출력이 안 붙는다. CLI 진입 앞 AttachConsole(ATTACH_PARENT_PROCESS), 대기 문제는 콘솔 서브시스템 별도 바이너리 검토 (L-SHELL 발견) {#os-cli-console}
 - [ ] 에이전트가 준 files_touched 경로를 쓰기 시점에 `/` 로 정규화 (MCP journal_write·manager) — Windows 에이전트의 `src\a.ts` 가 diff 사이드카 키를 어긋나게 한다 (L-FS 발견) {#fs-files-touched-norm}
 - [ ] planner·discussion·rollup 파서의 CRLF 내성 — `planner/parse.rs::fold_wrapped_items` 가 split('\n') 이라 autocrlf 체크아웃의 plan-log·{#id} 가 흔들릴 수 있다, 테스트 0건 (L-FS 발견) {#fs-crlf-parsers}
@@ -84,13 +84,14 @@ owner: claude-code
 - [x] 간헐 실패 — windows 러너에서 ^C 뒤 ping 이 30초 동안 계속 돌았다(ptyhost::host::windows::tests::idle_shell…, PR #39 run). 테스트 경합인지 「가끔 ^C 가 안 먹는다」 제품 결함인지 판정 — L-PTY2 가 조사 {#pty-ctrlc-flake}
 - [ ] [결정 필요] Windows 에서 CWD 가 프로젝트 루트인 오래 사는 자식(LSP 서버 lsp/client.rs · DAP · PTY 셸)이 도는 동안 사용자가 그 폴더를 옮기거나 지울 수 없다(ERROR_SHARING_VIOLATION 32). LSP 는 CWD 를 밖으로 옮길 여지가 있으나 서버의 설정 탐색이 바뀔 수 있다. PTY 셸은 모든 Windows 터미널의 공통 제약 (L-FS2 발견) {#os-child-cwd-lock}
 
-- [ ] E2E 발견 — Windows 에서 프로젝트 이름이 경로 전체(StartTab.tsx:217 · GreenfieldWizard.tsx:256 이 `/` 로만 자른다) {#ui-winpath-name}
-- [ ] E2E 발견 — Windows 터미널에 빠르게 친 키가 뒤섞인다(`echo order-0123456789` → `roder-0124356789`, 3/3 · Linux 0/5). 키마다 따로 가는 writeToPty 의 순서 무보장 — 세션별 쓰기 직렬화 {#ui-term-write-order}
-- [ ] E2E 발견 — 비-mac `--mono` 의 D2Coding Term(xterm 격자로 advance 재작성) 때문에 터미널 밖 고정폭 영역의 한글 자간이 벌어진다(tokens.css) {#ui-mono-hangul}
-- [ ] E2E 발견 — Linux 터미널 기본 탭 라벨 "zsh" 하드코딩(TerminalSurface.tsx) · 영어 전환 직후 토스트가 한국어 {#ui-e2e-minor}
+- [x] E2E 발견 — Windows 에서 프로젝트 이름이 경로 전체(StartTab.tsx:217 · GreenfieldWizard.tsx:256 이 `/` 로만 자른다) {#ui-winpath-name}
+- [x] E2E 발견 — Windows 터미널에 빠르게 친 키가 뒤섞인다(`echo order-0123456789` → `roder-0124356789`, 3/3 · Linux 0/5). 키마다 따로 가는 writeToPty 의 순서 무보장 — 세션별 쓰기 직렬화 {#ui-term-write-order}
+- [x] E2E 발견 — 비-mac `--mono` 의 D2Coding Term(xterm 격자로 advance 재작성) 때문에 터미널 밖 고정폭 영역의 한글 자간이 벌어진다(tokens.css) {#ui-mono-hangul}
+- [x] E2E 발견 — Linux 터미널 기본 탭 라벨 "zsh" 하드코딩(TerminalSurface.tsx) · 영어 전환 직후 토스트가 한국어 {#ui-e2e-minor}
 - [ ] E2E 발견 — `.oculpm` 기본 workday 시간대가 Asia/Seoul 이라 다른 시간대 사용자의 Today·일지 날짜가 하루 어긋난다 — 시스템 시간대 기본값 검토(schema 영향 확인) {#oculpm-default-tz}
 - [ ] E2E 발견 — 프로젝트를 추가하면 색인이 두 번 동시에 돈다(로그 `index reconcile … removed=1`) {#index-double-run}
 - [ ] **출시 차단 후보** — Windows 릴리스 exe 가 `MSVCP140.dll`(C++ 런타임, ONNX Runtime 유래 추정)을 가져오면 VC++ 재배포 없는 PC 에서 앱이 안 뜬다. 러너엔 깔려 있어 설치 스모크가 못 잡는다 — L-PKG 가 dumpbin 으로 확인 중. 앱 옆 DLL 배포는 호스트 복사본을 깨므로 피할 것 (L-PTY2 발견) {#win-msvcp140}
+- [ ] Windows 경로 후속 둘 — deepLinkPlan.resolveRegisteredProject 가 끝의 `/` 만 떼서 `\`·대소문자가 다르면 등록 프로젝트를 못 찾는다, homeModel 의 `~` 줄임이 `C:\Users\x` 를 모른다 (L-UI2 발견) {#ui-winpath-followups}
 - [ ] Windows·Linux 에서 `directories::ProjectDirs` 경로가 Tauri `app_data_dir` 과 갈린다 — `ocul-pm config` CLI 가 GUI 와 **다른 DB** 를 열고 oculpm.log 가 ptyhost.log 와 다른 폴더에 쌓인다(lib.rs setup_logging · config/cli.rs open_db). macOS 는 같은 경로라 불변 (L-PTY2 발견) {#paths-projectdirs-mismatch}
 
 ## W3 — 패키징 · E2E (W2 합류 뒤, 병렬 2) {#w3}
@@ -116,15 +117,9 @@ owner: claude-code
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 19 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 25 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-24T02:30:53+09:00 | #fs-crlf | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | 관리 블록 \r\r\n · frontmatter CRLF 머리 · autocrlf 가짜 diff 없음 테스트. planner 파서는 #fs-crlf-parsers |
-| 2026-09-24T02:30:59+09:00 | #fs-atomic | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | atomic_io_win.rs 재시도·백오프, 덮어쓰지 않는 MoveFileExW, 300자+ 경로 — windows 6테스트 |
-| 2026-09-24T02:31:05+09:00 | #fs-watch | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | watcher/repeat.rs(Windows Create+Modify 재보고), 깊은 경로 '/' 기록, markers mtime. rename 쌍 결함은 #fs-rename-pair |
-| 2026-09-24T02:31:10+09:00 | #fs-git | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0230_bug_port-fs-semantics-lfs.md | repo_relative canonicalize+\\?\ 제거(8.3 이름), autocrlf 가짜 diff 없음, quotepath 기존 테스트 windows 초록 |
-| 2026-09-24T02:40:54+09:00 | #os-compile | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | 사이드카 후보 OS 별(recording test windows 초록), PORT-STUB(L-OS)·PORT-TEST 0건. PR #34 |
-| 2026-09-24T02:41:00+09:00 | #os-deeplink | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | links_in_argv 순수 함수(세 OS), 두 번째 인스턴스·첫 기동 args_os, AppImage register_all. 실제 인계는 W3 E2E |
 | 2026-09-24T02:41:05+09:00 | #os-tray-menu | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | 비-mac 트레이 메뉴 상시·불투명·작업 영역 위치(tray/placement.rs), TitleBarStyle mac 한정 확인 |
 | 2026-09-24T02:41:10+09:00 | #os-no-menu | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | menu::apply 비-mac no-op, MockRuntime 테스트 windows·ubuntu. new_window 는 #os-new-window |
 | 2026-09-24T02:41:16+09:00 | #os-secrets | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0240_feature_port-os-branches-los.md | SecretError::Unavailable, 평문 저장 없음, ubuntu 러너가 '저장소 없음' 갈래를 반드시 지남. 프런트 문구는 #ui-followups |
@@ -159,5 +154,11 @@ owner: claude-code
 | 2026-09-24T20:31:01+09:00 | #w3-ime-cdp | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2030_feature_port-e2e-harness-le2e.md | WebView2 CDP 로 MS 한국어 IME 순서 재현 → 셸에 한글 정확히 한 번(3/3). 실제 IME 후보창은 #w5-eyes |
 | 2026-09-24T21:05:04+09:00 | #w3-update-ptyhost-lock | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/2104_feature_port-ptyhost-update-survival-lpty2.md | 호스트 판별 복사본 — taskkill /IM + 설치 폴더 덮어쓰기에도 생존(windows 러너). 실제 NSIS 한 바퀴는 L-PKG 설치 스모크. PR #42 |
 | 2026-09-24T21:05:12+09:00 | #pty-ctrlc-flake | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2104_feature_port-ptyhost-update-survival-lpty2.md | 판정: 테스트 경합(콘솔 부착 전 몇 ms 의 ^C 는 cmd 가 받음), 제품 결함 아님. 틈 노림 4/30 → 수정 후 0/60 |
-<!-- oculpm:plan-log archived: 19 rows → cross-platform-port.log.md -->
+| 2026-09-25T02:43:49+09:00 | #ui-winpath-name | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | osPath.ts, E2E windows "프로젝트 이름 = 폴더 이름" 초록. PR #44 |
+| 2026-09-25T02:43:55+09:00 | #ui-term-write-order | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | 세션별 쓰기 직렬화(ptyWrite.ts), 단일 창구 writePty. E2E windows 연타 순서 초록. macOS 도 잠복 결함 수리 |
+| 2026-09-25T02:44:01+09:00 | #ui-mono-hangul | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | UI 고정폭 한글 폴백을 Pretendard Hangul 로(터미널·macOS 불변), E2E 스크린샷으로 자간 정상 확인 |
+| 2026-09-25T02:44:09+09:00 | #ui-e2e-minor | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | 탭 라벨 실제 셸(bash/pwsh, macOS zsh 불변), 영어 전환 토스트 tIn 으로(모든 OS 결함) |
+| 2026-09-25T02:44:15+09:00 | #ui-mac-words | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | i18n 판 조회 __win/__linux/__pc 47개 두 언어, macOS 는 조회 안 함(원문 불변 테스트) |
+| 2026-09-25T02:44:24+09:00 | #ui-followups | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | errors.ts 3규칙·pasteFiles 토스트·트레이 팝오버 불투명·op.shell.desc2·Windows MCP 권고 셋 수정. 설정 실물은 vitest 로만 |
+<!-- oculpm:plan-log archived: 25 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
