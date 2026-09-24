@@ -95,7 +95,9 @@ export function relabelDefaultTabs(
  * 오면 다시 그려지고, 이미 만들어진 기본 라벨 탭은 부르는 쪽이 `relabelDefaultTabs` 로 고친다.
  */
 export function useShellName(): string {
-  const [name, setName] = useState(() => known ?? fallbackShellName());
+  const [name, setName] = useState(() =>
+    getPlatform() === "mac" ? fallbackShellName("mac") : (known ?? fallbackShellName()),
+  );
   useEffect(() => {
     if (getPlatform() === "mac") return;
     let alive = true;
