@@ -111,6 +111,7 @@ owner: claude-code
 - [ ] 5면 반영: README ko/en 지원 표(베타)·랜딩 ko/en 다운로드·CHANGELOG·docs/RELEASE.md·버전 6파일 {#w4-surfaces}
 - [ ] 비-mac 공개 스위치 `OCULPM_RELEASE_NONMAC`(저장소 변수, 기본 꺼짐) — 파이프라인이 main 에 있어도 다른 세션의 macOS 핫픽스 태그가 README·랜딩 없이 Windows·Linux 를 공개하지 않게. 꺼짐 = v3.5.0 과 같은 결과물. 첫 비-mac 릴리스 때 사용자 결정으로 켠다 (오케스트레이터 검토 발견) {#w4-nonmac-switch}
 - [ ] 업데이터가 버전과 무관하게 자기 키부터 찾아 deb 설치본·이번 릴리스에서 빠진 OS 의 앱은 확인마다 「대상 없음」 오류 — 설정에서 직접 확인하면 보인다. D10 의 「deb 는 업데이트 버튼 대신 패키지 관리자 안내」 + 대상 없음은 오류가 아니라 「이 OS 빌드는 이번 버전에 없음」 으로 (L-REL 발견) {#upd-target-missing}
+- [ ] 간헐 실패 — Windows E2E 기동에서 `session not created: DevToolsActivePort file doesn't exist` → attach 폴백은 CDP 를 잡았으나 첫 실행 마법사가 60초 안에 안 뜸(PR #47 E2E run 36063711206, 재실행 초록). 이 한 단계가 떨어지면 뒤 60단계가 전부 건너뛰어진다 — launch 재시도 1회 또는 attach 뒤 대기 연장 (오케스트레이터 발견) {#e2e-win-devtools-flake}
 - [ ] 간헐 실패 — Windows `db::tests::{healing_is_a_no_op_on_an_intact_schema, heals_a_column_a_reused_migration_number_skipped}` 가 "database is locked"(port/l-rel Portability run 36044878579, Rust 무변경 커밋). 테스트 DB 경로 공유인지 파일 잠금 해제 지연인지 (L-REL 발견) {#db-win-locked-flake}
 
 ## W5 — 베타 운영과 졸업 {#w5}
