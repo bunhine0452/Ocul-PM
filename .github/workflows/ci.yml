@@ -70,6 +70,11 @@ jobs:
       - name: Test (vitest)
         run: pnpm test
 
+      # release.yml 의 latest.json 병합·검증 · 릴리스 본문 스크립트(node:test, 의존성 0).
+      # release.yml 의 meta 잡도 태그 때 돌리지만, 그때 붉으면 릴리스가 멈춘다 — 여기서 먼저 잡는다.
+      - name: Test — 릴리스 스크립트 (node --test)
+        run: node --test .github/scripts/release/release.test.mjs
+
       # 게이트 7종: storage(localStorage 직접 접근 금지) · i18n(하드코딩 한국어) ·
       # bindings · design · filesize 래칫 · ESLint(react-hooks 중심, 경고 상한 래칫) ·
       # extension(확장 자체 tsc + eslint — 앞 넷은 `src/` 만 걷고, filesize 는
