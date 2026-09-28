@@ -676,7 +676,7 @@ mod tests {
     #[cfg(target_os = "linux")]
     fn run_child(mode: &str, address: Option<&str>, runtime_dir: &Path) -> (bool, String) {
         let data = tempfile::tempdir().unwrap();
-        let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
+        let mut cmd = crate::proc::std_cmd(std::env::current_exe().unwrap());
         cmd.args([SI_CHILD_TEST, "--exact", "--nocapture", "--test-threads=1"])
             .env(SI_CHILD_ENV, mode)
             .env("XDG_DATA_HOME", data.path())
