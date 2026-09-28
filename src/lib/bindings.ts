@@ -2084,6 +2084,7 @@ export const commands = {
 	mobileBridgeDevices: () => typedError<MobileDevice[], string>(__TAURI_INVOKE("mobile_bridge_devices")),
 	/**  기기 해제 — DB 와 인증 미들웨어의 메모리 집합 양쪽에서 제거 (즉시 실효). */
 	mobileBridgeRevokeDevice: (id: number) => typedError<MobileDevice[], string>(__TAURI_INVOKE("mobile_bridge_revoke_device", { id })),
+	newWindow: () => typedError<null, string>(__TAURI_INVOKE("new_window")),
 };
 
 /** Events */

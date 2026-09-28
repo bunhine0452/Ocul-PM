@@ -87,6 +87,71 @@ describe("useWindowTabKeys", () => {
   });
 });
 
+/**
+ * 새 창 ({#os-new-window}) — macOS 는 앱 메뉴의 ⇧⌘N, Windows·Linux 는 이 훅이
+ * Ctrl+Shift+N 을 **캡처 단계**에서 받는다. 화면의 ⌘N(새 일지·검색 지우기·새 프로젝트)
+ * 핸들러는 Shift 를 보지 않으므로, 먼저 받아 멈추지 않으면 그쪽이 같은 키를 먹는다.
+ */
+describe("useWindowTabKeys — new window", () => {
+  function mountWithNewWindow() {
+    const onNewTab = vi.fn();
+    const onClose = vi.fn();
+    const onNewWindow = vi.fn();
+    renderHook(() => useWindowTabKeys({ onNewTab, onClose, onNewWindow }));
+    return { onNewTab, onClose, onNewWindow };
+  }
+
+  it("mac: nothing — the menu accelerator owns ⇧⌘N (must not open two windows)", () => {
+    __setPlatformForTests("mac");
+    const k = mountWithNewWindow();
+    fireEvent.keyDown(el("journal"), { key: "N", code: "KeyN", metaKey: true, shiftKey: true });
+    fireEvent.keyDown(el("journal"), { key: "N", code: "KeyN", ctrlKey: true, shiftKey: true });
+    expect(k.onNewWindow).not.toHaveBeenCalled();
+  });
+
+  it.each(OTHERS)("%s: Ctrl+Shift+N on a screen, inside xterm and on the terminal chrome", (os) => {
+    __setPlatformForTests(os);
+    const k = mountWithNewWindow();
+    for (const cls of ["journal", "xterm", "term-wrap"]) {
+      fireEvent.keyDown(el(cls), { key: "N", code: "KeyN", ctrlKey: true, shiftKey: true });
+    }
+    expect(k.onNewWindow).toHaveBeenCalledTimes(3);
+    expect(k.onNewTab).not.toHaveBeenCalled();
+    expect(k.onClose).not.toHaveBeenCalled();
+  });
+
+  it.each(OTHERS)("%s: Ctrl+N and Ctrl+Alt+Shift+N are not it", (os) => {
+    __setPlatformForTests(os);
+    const k = mountWithNewWindow();
+    fireEvent.keyDown(el("journal"), { key: "n", code: "KeyN", ctrlKey: true });
+    fireEvent.keyDown(el("xterm"), { key: "n", code: "KeyN", ctrlKey: true });
+    fireEvent.keyDown(el("journal"), { key: "N", code: "KeyN", ctrlKey: true, altKey: true, shiftKey: true });
+    expect(k.onNewWindow).not.toHaveBeenCalled();
+  });
+
+  it.each(OTHERS)("%s: screen ⌘N handlers (bubble phase) never see it; a held key opens one window", (os) => {
+    __setPlatformForTests(os);
+    const k = mountWithNewWindow();
+    const screenKey = vi.fn();
+    const onScreen = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key.toLowerCase() === "n") screenKey();
+    };
+    window.addEventListener("keydown", onScreen);
+    try {
+      const target = el("journal");
+      fireEvent.keyDown(target, { key: "N", code: "KeyN", ctrlKey: true, shiftKey: true });
+      fireEvent.keyDown(target, { key: "N", code: "KeyN", ctrlKey: true, shiftKey: true, repeat: true });
+      expect(k.onNewWindow).toHaveBeenCalledTimes(1);
+      expect(screenKey).not.toHaveBeenCalled();
+      // plain Ctrl+N still reaches the screen.
+      fireEvent.keyDown(target, { key: "n", code: "KeyN", ctrlKey: true });
+      expect(screenKey).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener("keydown", onScreen);
+    }
+  });
+});
+
 function actions(): TerminalKeyActions {
   return {
     addTab: vi.fn(),

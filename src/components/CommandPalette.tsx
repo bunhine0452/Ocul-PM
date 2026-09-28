@@ -32,6 +32,8 @@ import { requestCheatsheet } from "@/lib/projectActions";
 import { requestAgentContext } from "@/lib/agentContextNav";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { kbd } from "@/lib/kbd";
+import { isMac } from "@/lib/platform";
+import { openNewWindow } from "@/hooks/useWindowTabKeys";
 
 // MASTER-GUIDE §5.9 — cmdk 기반 Command Palette
 //
@@ -253,6 +255,13 @@ export function CommandPalette({
       { id: "cheatsheet", label: t("palette.cheatsheet"), alias: aliasOf("palette.cheatsheet"),
         group: "actions", icon: Keyboard, shortcut: kbd("⌘/"),
         onSelect: () => { onOpenChange(false); requestCheatsheet(); } },
+      // 「새 창」 — Windows·Linux 만. 맥은 앱 메뉴(⇧⌘N)가 있고 팔레트는 그대로 둔다
+      // (D3). 창을 새로 만드는 일이라 런처 창에서도 뜬다 ({#os-new-window}).
+      ...(isMac()
+        ? []
+        : [{ id: "new-window", label: t("palette.newWindow"), alias: aliasOf("palette.newWindow"),
+            group: "actions" as const, icon: Plus, shortcut: kbd("⇧⌘N"),
+            onSelect: () => { onOpenChange(false); openNewWindow(); } }]),
       ...(onReindex && currentProjectId !== null
         ? [{ id: "reindex", label: t("palette.reindex"), alias: aliasOf("palette.reindex"),
             group: "actions" as const, icon: RefreshCw, onSelect: () => { onReindex(); onOpenChange(false); } }]

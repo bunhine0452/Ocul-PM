@@ -11,7 +11,7 @@
 import { describe, expect, it } from "vitest";
 
 import { __setPlatformForTests, detectPlatform, dragRegion, type Platform } from "@/lib/platform";
-import { isCmdKey, isModKey, isShellKey, kbd, modLabel, readChord, yieldsToShell } from "@/lib/kbd";
+import { isCmdKey, isModKey, isNewWindowChord, isShellKey, kbd, modLabel, readChord, yieldsToShell } from "@/lib/kbd";
 import { t, type I18nKey } from "@/i18n";
 import { ko } from "@/i18n/ko";
 import { en } from "@/i18n/en";
@@ -210,6 +210,43 @@ describe("readChord — the terminal family", () => {
   });
 });
 
+/**
+ * New window ({#os-new-window}) — mac ⇧⌘N is the app-menu accelerator (the webview never sees
+ * it); Windows·Linux have no menu, so the keydown hook matches Ctrl+Shift+N — **the same chord
+ * inside the terminal** (Windows Terminal / GNOME Terminal's own new-window key; the shell has
+ * no Ctrl+Shift chords, and ⌘N means nothing on the terminal surface).
+ */
+describe("isNewWindowChord — Ctrl+Shift+N off the mac, everywhere", () => {
+  const table: Array<[string, KeyInit, boolean]> = [
+    ["Ctrl+Shift+N", { key: "N", ctrlKey: true, shiftKey: true }, true],
+    ["Ctrl+Shift+N (caps lock: key n)", { key: "n", ctrlKey: true, shiftKey: true }, true],
+    // i18n-ignore-next-line -- 한글 자판의 key 값이 검사 재료다
+    ["Ctrl+Shift+N (Korean layout)", { key: "ㅜ", code: "KeyN", ctrlKey: true, shiftKey: true }, true],
+    ["Ctrl+N (screen ⌘N: new journal / new file)", { key: "n", ctrlKey: true }, false],
+    ["Ctrl+Alt+Shift+N", { key: "N", ctrlKey: true, altKey: true, shiftKey: true }, false],
+    ["AltGr+Shift+N", { key: "N", ctrlKey: true, altKey: true, shiftKey: true, altGraph: true }, false],
+    ["Win/Super+Shift+N", { key: "N", metaKey: true, shiftKey: true }, false],
+    ["Ctrl+Shift+Win+N", { key: "N", ctrlKey: true, metaKey: true, shiftKey: true }, false],
+    ["Ctrl+Shift+M", { key: "M", ctrlKey: true, shiftKey: true }, false],
+  ];
+
+  it.each(table)("mac: never (the menu owns ⇧⌘N) — %s", (_name, init) => {
+    __setPlatformForTests("mac");
+    expect(isNewWindowChord(key(init))).toBe(false);
+    expect(isNewWindowChord(key({ key: "N", metaKey: true, shiftKey: true }))).toBe(false);
+  });
+
+  it.each(table)("windows·linux: %s = %s (screens, xterm and terminal chrome alike)", (_name, init, want) => {
+    for (const os of OTHERS) {
+      __setPlatformForTests(os);
+      expect(isNewWindowChord(key(init)), `${os} screen`).toBe(want);
+      expect(isNewWindowChord(key(init, xtermTarget())), `${os} xterm`).toBe(want);
+      // the shell yield rule never claims a Shift chord — no conflict inside the terminal.
+      if (want) expect(yieldsToShell(key(init, xtermTarget())), `${os} yield`).toBe(false);
+    }
+  });
+});
+
 // ── labels ────────────────────────────────────────────────────────────────
 
 describe("kbd — label table", () => {
@@ -339,7 +376,8 @@ describe("cheatsheet and nav numbers — OS notation", () => {
     expect(byLabel.get("terminal:keys.termClosePane")).toBe("Ctrl+Shift+W");
     expect(byLabel.get("terminal:keys.termCopyPaste")).toBe("Ctrl+Shift+C / Ctrl+Shift+V");
     expect(byLabel.get("window:keys.closeWindow")).toBe("Alt+F4");
-    expect(byLabel.has("window:keys.newWindow")).toBe(false);
+    // new window is keydown-matched off the mac now ({#os-new-window}) — the row is back.
+    expect(byLabel.get("window:keys.newWindow")).toBe("Ctrl+Shift+N");
     // no duplicate chord inside a group (polish_phase2's rule, on this OS too).
     for (const g of groups) {
       const keys = g.rows.map((r) => r.keys);

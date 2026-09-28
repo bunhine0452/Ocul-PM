@@ -34,4 +34,10 @@ export const windowApi = {
    */
   openProjectTab: (projectId: number, window: string | null) =>
     call<null>("open_project_tab", commands.openProjectTab(projectId, window)),
+
+  /**
+   * 시작 탭 하나짜리 새 창 — macOS 앱 메뉴의 「새 창」과 같은 생성 함수다
+   * (`commands/new_window.rs`). Windows·Linux 의 Ctrl+Shift+N 이 부른다 ({#os-new-window}).
+   */
+  newWindow: () => call<null>("new_window", commands.newWindow()),
 };

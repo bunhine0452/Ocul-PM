@@ -555,6 +555,8 @@ use crate::commands::plugins::{plugin_import, plugin_list, plugin_pick_bundle, p
 use crate::commands::import::{
     conversation_import_run, conversation_import_scan, conversation_pick_export,
 };
+// 비-mac 의 「새 창」(Ctrl+Shift+N) — 메뉴의 새 창과 같은 생성 함수 (#os-new-window).
+use crate::commands::new_window::new_window;
 // v2.3.0 메뉴바 (docs/menubar/00-master-plan.md)
 use crate::db::Db;
 use crate::embedding::Embedder;
@@ -979,6 +981,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             mobile_bridge_pairing_begin,
             mobile_bridge_devices,
             mobile_bridge_revoke_device,
+            // 비-mac 「새 창」 (#os-new-window)
+            new_window,
         ])
         .events(collect_events![
             // .oculpm/ subsystem (W1-PR2)
