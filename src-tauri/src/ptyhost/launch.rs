@@ -99,8 +99,18 @@ pub async fn launch(
             Err(why) => why,
         },
     };
-    let client = start(exe, None, socket, on_event, timing.original).await?;
+    // 작업 폴더는 실행 파일이 있는 폴더(설치 폴더)로 — 물려받으면 앱의 작업 폴더를 쥔다.
+    // 프로젝트 폴더의 터미널에서 앱을 띄웠다면 그 폴더다. 호스트는 앱보다 오래 살고,
+    // Windows 는 어느 프로세스의 작업 폴더를 옮기거나 지우지 못한다 (#pty-host-fallback-cwd).
+    // 설치 폴더는 어차피 이 호스트가 실행 파일로 쥐고 있다 — 더 쥐는 것이 없다.
+    let client = start(exe, original_cwd(exe), socket, on_event, timing.original).await?;
     Ok((client, HostOrigin::Original { why }))
+}
+
+/// 원본으로 띄운 호스트의 작업 폴더 — 실행 파일이 있는 폴더. 부모가 없는 경로(맨이름)면
+/// `None`(물려받는다)이다 — 앱은 늘 절대경로(`current_exe`)를 넘긴다.
+pub fn original_cwd(exe: &Path) -> Option<&Path> {
+    exe.parent().filter(|dir| !dir.as_os_str().is_empty())
 }
 
 /// 복사본을 마련해 띄우고 붙는다. 붙은 뒤에 다른 판의 복사본을 치운다.
@@ -168,4 +178,21 @@ async fn start(
     .await;
     reap(child);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 원본 호스트는 설치 폴더에서 돈다 — 앱의 작업 폴더를 물려받지 않는다
+    /// (#pty-host-fallback-cwd). 실제 프로세스로 보는 것은 windows 러너의
+    /// `ptyhost_update_survival::when_the_copy_cannot_be_made_the_original_serves` 다.
+    #[test]
+    fn the_original_host_runs_in_the_executable_folder() {
+        let install = std::env::temp_dir().join("Ocul-PM");
+        let exe = install.join("ocul-pm.exe");
+        assert_eq!(original_cwd(&exe), Some(install.as_path()));
+        // 부모 없는 맨이름은 고를 폴더가 없다 — 물려받는다.
+        assert_eq!(original_cwd(Path::new("ocul-pm.exe")), None);
+    }
 }

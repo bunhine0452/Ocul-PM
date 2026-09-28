@@ -658,16 +658,31 @@ async fn when_the_copy_cannot_be_made_the_original_serves() {
     let appdata = root.path().join("roaming").join("com.test.ocul-pm");
     fs::create_dir_all(&appdata).unwrap();
     let socket = appdata.join("ptyhost-dev.sock");
+    // 사용자가 프로젝트 폴더의 터미널에서 앱을 띄웠다 — 앱의 작업 폴더가 그 폴더다
+    // (#pty-host-fallback-cwd). 이 파일의 테스트는 `SERIAL` 로 한 줄이고 전부 절대경로라
+    // 프로세스 작업 폴더를 잠깐 바꿔도 옆에 새지 않는다.
+    let project = root.path().join("project");
+    fs::create_dir_all(&project).unwrap();
+    let app_cwd = std::env::current_dir().unwrap();
+    std::env::set_current_dir(&project).unwrap();
 
-    let (app, origin) = launch(&exe, Some(&stage_dir), &socket, |_| {}, &PATIENT)
-        .await
-        .expect("원본으로라도 뜬다");
+    let launched = launch(&exe, Some(&stage_dir), &socket, |_| {}, &PATIENT).await;
+    std::env::set_current_dir(&app_cwd).unwrap();
+    let (app, origin) = launched.expect("원본으로라도 뜬다");
     let _host = ShutdownOnDrop(socket.clone());
     let HostOrigin::Original { why } = origin else {
         panic!("복사본을 만들 수 없는 자리인데 복사본이라고 한다: {origin:?}");
     };
     assert!(why.contains("failed to copy the executable"), "{why}");
     assert!(same_file(&server_image(&socket).await, &exe));
+    // 앱보다 오래 사는 호스트가 앱을 띄운 폴더를 쥐지 않는다 — Windows 는 어느 프로세스의
+    // 작업 폴더든 옮기거나 지우지 못한다(ERROR_SHARING_VIOLATION). 호스트의 작업 폴더는
+    // 실행 파일이 있는 설치 폴더다.
+    let moved = root.path().join("project-moved");
+    if let Err(e) = fs::rename(&project, &moved) {
+        panic!("원본 호스트가 앱의 작업 폴더를 쥐고 있다 — 프로젝트 폴더를 옮기지 못한다: {e}");
+    }
+    fs::remove_dir(&moved).expect("앱을 띄운 폴더를 지운다");
     // 원본 호스트도 제 할 일을 한다.
     let resp = app
         .request(Request::Attach { sid: SID.into() })
