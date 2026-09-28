@@ -1,0 +1,108 @@
+name: 플랫폼 버그 리포트 (Windows · Linux 베타)
+description: Windows·Linux 베타에서 생긴 문제를 알려 주세요. macOS 에서 생긴 버그도 여기로 받아요.
+title: "[버그] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        고마워요! 가장 빠른 길은 **앱의 설정 → 진단 → 「피드백 보내기」 → 「진단 정보 복사」** 결과를 아래 칸에 그대로 붙이는 거예요.
+        앱 버전·OS 판·아키텍처·WebView 판·시간대·로그 폴더 위치만 담기고, 경로 속 사용자 이름은 `~` 로 가려져요.
+        (Windows·Linux 에서 「버그 리포트」 버튼을 누르면 이 양식이 버전·진단 정보가 채워진 채로 열려요.)
+
+        _English is fine too._
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 운영체제 (OS)
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux — Ubuntu · Debian 계열
+        - Linux — Fedora · RHEL 계열
+        - Linux — Arch 계열
+        - Linux — 기타
+        - macOS
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: 설치 형식 (Install type)
+      description: 어떤 파일로 설치했나요? 진단 정보에 자동으로 들어가기 전까지는 직접 골라 주세요.
+      options:
+        - Windows 설치 프로그램 (.exe · NSIS)
+        - Linux AppImage
+        - Linux .deb
+        - macOS .dmg
+        - 소스에서 직접 빌드
+        - 모르겠어요
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 앱 버전 (App version)
+      description: 설정 → 업데이트, 또는 진단 정보의 `App` 줄.
+      placeholder: "3.6.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 진단 정보 (Diagnostics)
+      description: 설정 → 진단 → 「진단 정보 복사」 결과. OS 판·WebView 판(WebView2 / WebKitGTK)·데스크톱 세션(Wayland/X11)이 여기 들어가요.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 무슨 일이 있었나요? (What happened?)
+      description: 스크린샷을 끌어다 놓으면 첨부돼요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 재현 방법 (Steps to reproduce)
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대한 동작 (Expected behavior)
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 로그 (Logs)
+      description: |
+        문제가 난 날의 `oculpm.log.YYYY-MM-DD` 파일을 끌어다 놓아 첨부해 주세요. 폴더는 진단 정보의 `Logs` 줄에 있고, 프로젝트 안에서는 설정 → ocul-pm → 로그 → 「로그 폴더 열기」 로도 열려요.
+        - Windows: `%APPDATA%\com.kimhyunbin.ocul-pm\logs`
+        - Linux: `~/.local/share/com.kimhyunbin.ocul-pm/logs`
+        - macOS: `~/Library/Application Support/com.kimhyunbin.ocul-pm/logs`
+        로그에는 프로젝트 경로·파일 이름이 담길 수 있어요. 올리기 전에 한 번 훑어봐 주세요.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: secrets
+    attributes:
+      label: 확인 (Check)
+      options:
+        - label: 첨부한 글·로그·스크린샷에 API 키·토큰·비밀번호가 없어요. (No API keys, tokens or passwords in what I attached.)
+          required: true

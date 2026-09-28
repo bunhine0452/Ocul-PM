@@ -2086,6 +2086,7 @@ export const commands = {
 	/**  기기 해제 — DB 와 인증 미들웨어의 메모리 집합 양쪽에서 제거 (즉시 실효). */
 	mobileBridgeRevokeDevice: (id: number) => typedError<MobileDevice[], string>(__TAURI_INVOKE("mobile_bridge_revoke_device", { id })),
 	newWindow: () => typedError<null, string>(__TAURI_INVOKE("new_window")),
+	diagnosticsReport: () => typedError<DiagnosticsReport, string>(__TAURI_INVOKE("diagnostics_report")),
 };
 
 /** Events */
@@ -3931,6 +3932,29 @@ export type DetectConfidence =
 "likely" | 
 /**  No signal at all. */
 "unknown";
+
+/**
+ *  「진단 정보 복사」 한 벌 (#w5-report). 베타 버그 리포트에 그대로 붙는다 —
+ *  비밀·계정·호스트명은 싣지 않고, 경로 속 홈(사용자 이름)은 `~` 로 가린다.
+ *  설치 형식은 L-UPD 의 설치 형식 커맨드가 따로 준다 (프런트가 합친다).
+ */
+export type DiagnosticsReport = {
+	app_version: string,
+	/**  `macos` · `windows` · `linux` (`std::env::consts::OS`). */
+	os: string,
+	/**  사람이 읽는 OS 판 — 못 읽으면 `None`. */
+	os_version: string | null,
+	/**  `x86_64` · `aarch64`. */
+	arch: string,
+	/**  `WebView2 …` · `WebKitGTK …`. macOS 는 OS 에 딸린 WKWebView 라 `None`. */
+	webview: string | null,
+	/**  Linux 데스크톱 세션 (`wayland · GNOME`). */
+	session: string | null,
+	/**  시스템 시간대 — 새 `.oculpm` 설정의 workday 기본값과 같다. */
+	timezone: string,
+	/**  로그 폴더 (`~` 로 가림). 파일 로그가 꺼진 실행이면 `None`. */
+	log_dir: string | null,
+};
 
 export type DiffResult = {
 	path: string,
