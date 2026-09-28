@@ -253,9 +253,12 @@ codex plugin add oculpm-codex@oculpm
 
 **Windows (베타)** — 설치 파일을 실행하면 관리자 권한 없이 사용자 폴더에 설치됩니다. 코드 서명이 없는 베타라 처음 실행할 때 SmartScreen 이 「Windows의 PC 보호」 창을 띄우는데, **추가 정보 → 실행** 을 누르면 이어집니다. Visual C++ 런타임이 없는 PC 에서는 설치 파일이 그것을 먼저 깝니다(그때만 확인 창이 한 번 뜹니다). Windows 10 2004 보다 낮은 버전에서는 설치 파일이 안내하고 멈춥니다.
 
+- Windows 는 어떤 프로그램이 작업 폴더로 쓰고 있는 폴더를 옮기거나 지울 수 없습니다 — 앱의 터미널·언어 서버가 그 프로젝트에서 도는 동안 프로젝트 폴더를 옮기려면 터미널 탭을 닫거나 앱을 끄세요(VS Code 등 다른 편집기도 같습니다).
+- Claude Code 플러그인의 훅은 Windows 에서도 돌지만 **MCP 서버는 뜨지 않습니다** — 앱의 연동 설정(「이 프로젝트에만 적용」 카드)에서 「MCP 서버」 등록을 켜면 설치 폴더의 `oculpm-mcp.exe` 로 등록됩니다.
+
 **Linux (베타)** — AppImage 는 `chmod +x Ocul-PM_*_amd64.AppImage` 뒤 실행하면 되고 앱 안에서 자동 업데이트됩니다. FUSE 2 가 필요합니다(Ubuntu 22.04 `sudo apt install libfuse2`, 24.04 는 `libfuse2t64`). deb 는 `sudo apt install ./Ocul-PM_*_amd64.deb` 로 설치하고, 업데이트도 새 `.deb` 를 같은 방법으로 설치합니다 — 앱 안 자동 업데이트 대상이 아닙니다.
 
-Windows·Linux 빌드는 릴리스마다 CI 러너에서 설치 → 실행 → 실제 앱 E2E 를 통과한 것만 올라갑니다. 통과하지 못한 버전에는 그 OS 파일이 없고, 릴리스 노트에 그 사실이 적힙니다. 실제 PC 에서 겪은 문제는 [이슈](https://github.com/bunhine0452/Ocul-PM/issues)로 알려 주세요 — 베타 졸업의 근거가 됩니다.
+Windows·Linux 빌드는 릴리스마다 CI 러너에서 설치 → 실행 → 실제 앱 E2E 를 통과한 것만 올라갑니다. 통과하지 못한 버전에는 그 OS 파일이 없고, 릴리스 노트에 그 사실이 적힙니다. 실제 PC 에서 겪은 문제는 [이슈](https://github.com/bunhine0452/Ocul-PM/issues)로 알려 주세요 — 설정 → 진단의 「진단 정보 복사」가 OS·판·WebView 정보를 붙여 넣을 글로 만들어 주고, Windows·Linux 의 「버그 리포트」 는 그 양식을 채워서 엽니다. 베타 졸업의 근거가 됩니다.
 
 macOS 는 **파일·다른 앱 데이터 접근 권한**을 물을 수 있습니다. 공증과는 별개 관문이라 공증했다고 사라지지 않습니다. 특히 **내장 터미널**에서 돌린 명령이나 그 안의 에이전트가 파일을 읽으면 macOS 가 그 접근을 앱에 귀속시켜 `Ocul-PM.app` 이름으로 뜹니다 — 왜 그런지와 되돌리는 법은 [문제 해결](https://oculpm.com/wiki/troubleshooting)에 정리해 두었습니다.
 
