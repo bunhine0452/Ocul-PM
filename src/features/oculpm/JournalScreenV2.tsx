@@ -28,7 +28,7 @@ import {
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { useT, type I18nKey } from "@/i18n";
 import { blocked } from "@/lib/blocked";
-import { isModKey } from "@/lib/kbd";
+import { isModChord } from "@/lib/kbd";
 
 // Final UI Update (ui_v2) — 작업 일지 timeline (02-screen-specs §2). Frontend
 // aggregation over oculpm_list_journal_entries (Decision F). scope-chip 6 filters
@@ -238,10 +238,11 @@ export function JournalScreenV2({
 
   // Screen-local shortcuts (stop propagation so the global handler doesn't also
   // act). ⌘F → focus in-page search. ⌘N → 수동 일지 모달 (단축키 매트릭스 §1.2 —
-  // 작업 일지 = ⌘N). j/k handled by the OS for now.
+  // 작업 일지 = ⌘N). j/k handled by the OS for now. 수식키는 정확히 — 비-mac 의
+  // Ctrl+Shift+N(새 창)·Ctrl+Shift+F(전역 검색)는 이 화면의 키가 아니다.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!isModKey(e)) return;
+      if (!isModChord(e)) return;
       const k = e.key.toLowerCase();
       if (k === "f") {
         e.preventDefault();

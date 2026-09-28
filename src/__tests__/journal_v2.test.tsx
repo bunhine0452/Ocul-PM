@@ -6,6 +6,7 @@ import type { AxeResults, Result } from "axe-core";
 // 와 같은 관용구). {#journal-mock-drift} — 이게 없어 `bytes_added`/`bytes_removed`
 // (폐기된 이름) 를 쓰고 `files_touched` 가 빠진 채로 아무도 못 잡았었다.
 import type { WorkdayBrief } from "@/lib/bindings";
+import { __setPlatformForTests, type Platform } from "@/lib/platform";
 
 // ─── PR-UI 3 — 작업 일지 timeline ─────────────────────────────────────────
 //
@@ -778,5 +779,21 @@ describe("작업 일지 — 목록 감사 회귀", () => {
     await waitFor(() => expect(container.textContent).toContain("const fresh = 3;"), {
       timeout: 3000,
     });
+  });
+});
+
+// {#ui-shortcut-shift-exact} — ⌘N = 수동 일지. 비-mac 의 Ctrl+Shift+N 은 새 창이라 열지 않는다(mac 은 예전 그대로).
+describe("journal ⌘N — exact modifiers off the mac", () => {
+  const rows: Array<[Platform, object, boolean]> = [
+    ["mac", { metaKey: true }, true], ["mac", { metaKey: true, shiftKey: true }, true],
+    ["windows", { ctrlKey: true }, true], ["windows", { ctrlKey: true, shiftKey: true }, false],
+    ["linux", { ctrlKey: true }, true], ["linux", { ctrlKey: true, shiftKey: true }, false],
+  ];
+  it.each(rows)("%s %o → opens the manual entry: %s", async (os, mods, opens) => {
+    __setPlatformForTests(os);
+    const { findByText, queryByText } = renderJournal();
+    await findByText("새 일지");
+    fireEvent.keyDown(document.body, { key: "n", code: "KeyN", ...mods });
+    expect(queryByText("수동 일지 작성") !== null).toBe(opens);
   });
 });

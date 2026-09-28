@@ -80,6 +80,27 @@ export function isModKey(e: ModifierState): boolean {
   return ctrlHeld(e) && !isTerminalSurface(e.target);
 }
 
+/**
+ * 화면 단축키 하나를 **수식키까지 정확히** 맞춘다 — ⌘(mac)/Ctrl(그 외) 에 `want` 로 요구한
+ * ⇧·⌥ 만 ({#ui-shortcut-shift-exact}).
+ *
+ * Windows·Linux: 요구하지 않은 Shift·Alt 가 더 눌렸으면 거짓이다. Ctrl+N(새 일지)과
+ * Ctrl+Shift+N(새 창)은 다른 단축키다 — 화면 핸들러가 Shift 를 안 보면 새 창 키를 먹는다.
+ *
+ * macOS: 예전 식 그대로 — `isModKey` 에 **요구한** 수식키가 눌렸는지만 본다. 더 눌린
+ * ⇧·⌥ 는 보지 않는다 (D3). ⇧⌘N 은 앱 메뉴가 웹뷰보다 먼저 받는다.
+ */
+export function isModChord(
+  e: ModifierState,
+  want: { shift?: boolean; alt?: boolean } = {},
+): boolean {
+  if (!isModKey(e)) return false;
+  const shift = want.shift ?? false;
+  const alt = want.alt ?? false;
+  if (isMac()) return (!shift || e.shiftKey === true) && (!alt || e.altKey === true);
+  return (e.shiftKey === true) === shift && (e.altKey === true) === alt;
+}
+
 /** ⌘ 만 — 예전 코드가 `metaKey` 하나만 보던 자리(⌘⌥←→). 그 외 OS 는 Ctrl (터미널 면 밖). */
 export function isCmdKey(e: ModifierState): boolean {
   if (isMac()) return e.metaKey;

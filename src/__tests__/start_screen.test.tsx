@@ -40,6 +40,7 @@ vi.mock("@/lib/bindings", () => ({
 }));
 
 import { StartScreen, type StartScreenProps } from "@/features/onboarding/StartScreen";
+import { __setPlatformForTests, type Platform } from "@/lib/platform";
 
 function project(over: Partial<StartScreenProps["projects"][number]> = {}) {
   return {
@@ -350,5 +351,37 @@ describe("메인 화면 — 접근성 (axe 3상태)", () => {
     });
     fireEvent.change(getByLabelText("프로젝트 검색"), { target: { value: "led" } });
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
+  });
+});
+
+// {#ui-shortcut-shift-exact} — 시작 화면의 ⌘N(새 프로젝트)·⌘O(추가)·⌘⇧M(관리)은 수식키를
+// 정확히 맞춘다: 비-mac 의 Ctrl+Shift+N 은 새 창이라 새 프로젝트가 아니다. mac 은 예전 식 그대로.
+describe("start screen shortcuts — exact modifiers off the mac", () => {
+  const rows: Array<[Platform, string, object, "greenfield" | "add" | "none"]> = [
+    ["mac", "n", { metaKey: true }, "greenfield"],
+    ["mac", "n", { metaKey: true, shiftKey: true }, "greenfield"],
+    ["mac", "o", { metaKey: true, altKey: true }, "add"],
+    ["windows", "n", { ctrlKey: true }, "greenfield"],
+    ["windows", "n", { ctrlKey: true, shiftKey: true }, "none"],
+    ["windows", "o", { ctrlKey: true }, "add"],
+    ["windows", "o", { ctrlKey: true, altKey: true }, "none"],
+    ["linux", "n", { ctrlKey: true }, "greenfield"],
+    ["linux", "n", { ctrlKey: true, shiftKey: true }, "none"],
+  ];
+  it.each(rows)("%s %s %o → %s", (os, key, mods, want) => {
+    __setPlatformForTests(os);
+    const { props } = renderStart();
+    fireEvent.keyDown(document.body, { key, code: `Key${key.toUpperCase()}`, ...mods });
+    expect(props.onStartGreenfield).toHaveBeenCalledTimes(want === "greenfield" ? 1 : 0);
+    expect(props.onAddProject).toHaveBeenCalledTimes(want === "add" ? 1 : 0);
+  });
+
+  it.each(["mac", "windows", "linux"] as Platform[])("%s: ⌘⇧M / Ctrl+Shift+M still opens project management", (os) => {
+    __setPlatformForTests(os);
+    const { getByRole, queryByRole } = renderStart({ projects: [project()] });
+    expect(queryByRole("dialog")).toBeNull();
+    const mod = os === "mac" ? { metaKey: true } : { ctrlKey: true };
+    fireEvent.keyDown(document.body, { key: "M", code: "KeyM", shiftKey: true, ...mod });
+    expect(getByRole("dialog")).toBeInTheDocument();
   });
 });

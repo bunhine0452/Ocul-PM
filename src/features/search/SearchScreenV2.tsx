@@ -30,7 +30,7 @@ import { SemanticResults } from "./SemanticResults";
 import { splitMatch, trimAroundMatch } from "./searchUtils";
 import { t, useT, type I18nKey } from "@/i18n";
 import { tError } from "@/i18n/errors";
-import { isModKey } from "@/lib/kbd";
+import { isModChord } from "@/lib/kbd";
 
 // Final UI Update (ui_v2) — 코드 검색 화면 (02-screen-specs §5). PR-R1b (A2):
 // all three scopes are live — 의미(searchChunks, 임베딩) / 심볼(searchSymbols,
@@ -260,10 +260,11 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
   );
 
   // ⌘F focuses input, ⌘N clears (01-ia-and-shell §3). Screen-local; stop
-  // propagation so the global handler doesn't also act.
+  // propagation so the global handler doesn't also act. 수식키는 정확히 — 비-mac 의
+  // Ctrl+Shift+N(새 창)은 이 화면의 키가 아니다.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!isModKey(e)) return;
+      if (!isModChord(e)) return;
       if (e.key.toLowerCase() === "f") {
         e.preventDefault();
         e.stopPropagation();
