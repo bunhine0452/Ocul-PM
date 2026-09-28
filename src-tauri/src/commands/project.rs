@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
-use std::time::{Instant, UNIX_EPOCH};
+use std::time::Instant;
 
 use serde::Serialize;
 use tauri::ipc::Channel;
@@ -13,6 +13,10 @@ use crate::embedding::{vec_to_bytes, Embedder};
 use crate::indexer;
 
 use crate::indexer::EMBED_BATCH;
+
+mod index_flight;
+mod prepare;
+use prepare::prepare_file;
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct IndexProgress {
@@ -200,49 +204,7 @@ pub async fn clear_project_index(db: State<'_, Db>, project_id: u32) -> Result<(
 
 // ---------- Indexing ----------
 
-/// `index_project` 의 파일당 **CPU·블로킹 구간** 결과 (read + blake3 + metadata).
-///
-/// 이 심 전체가 오랫동안 `spawn_blocking` **밖**, 즉 tokio 런타임 워커 위에서
-/// 돌았다. 기준선 측정(`docs/20260904_v242-load-bearing/perf-baseline.md` §1 M2)
-/// 은 이 저장소(1,327 파일, 릴리스 프로필)에서 walk 204 ms + read·blake3·
-/// tree-sitter **6,207 ms** = 워커 하나를 **6,411 ms** 통째로 점유한다고 쟀다.
-/// 그 구간을 여기(그리고 `chunk_file` 호출)로 모아 blocking 풀로 넘긴다.
-struct PreparedFile {
-    content: String,
-    hash: String,
-    size: i64,
-    mtime: i64,
-    language: Option<String>,
-}
-
-/// `Ok(None)` = 이 파일은 건너뛴다 (읽기 실패 · minified/생성 파일).
-/// `Err` = 색인 전체를 중단할 만한 실패 (기존 `metadata` 의 `?` 와 같은 뜻).
-fn prepare_file(path: &std::path::Path) -> Result<Option<PreparedFile>, String> {
-    let Ok(content) = fs::read_to_string(path) else {
-        return Ok(None);
-    };
-    // minified/생성 파일은 행을 남기지 않고 건너뛴다 — 다음 색인 때 다시
-    // 판정되므로 규칙이 바뀌면 스스로 따라온다.
-    if !indexer::is_indexable_content(&content) {
-        return Ok(None);
-    }
-    let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
-    let metadata = fs::metadata(path).map_err(|e| e.to_string())?;
-    let mtime = metadata
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
-    Ok(Some(PreparedFile {
-        size: metadata.len() as i64,
-        mtime,
-        language: indexer::language_for(path).map(String::from),
-        content,
-        hash,
-    }))
-}
-
+/// 같은 프로젝트의 색인은 한 번에 하나 — 진행 중이면 합류한다 (#index-double-run).
 #[tauri::command]
 #[specta::specta]
 pub async fn index_project(
@@ -252,8 +214,22 @@ pub async fn index_project(
     project_id: u32,
     on_progress: Channel<IndexProgress>,
 ) -> Result<IndexResult, String> {
+    let sink = Box::new(move |p| drop(on_progress.send(p)));
+    index_flight::INDEX_FLIGHTS
+        .run(project_id, sink, |progress| {
+            run_index(&app, &db, &embedder, project_id, progress)
+        })
+        .await
+}
+
+async fn run_index(
+    app: &tauri::AppHandle,
+    db: &Db,
+    embedder: &Embedder,
+    project_id: u32,
+    on_progress: index_flight::IndexProgressTx,
+) -> Result<IndexResult, String> {
     use tauri::Manager;
-    let _ = &app; // silence unused-var if hook is later disabled
     let project = db
         .list_projects()
         .await
@@ -332,7 +308,7 @@ pub async fn index_project(
 
         let is_last = i + 1 == files.len();
         if is_last || last_progress.is_none_or(|t| t.elapsed() >= PROGRESS_INTERVAL) {
-            let _ = on_progress.send(IndexProgress {
+            on_progress.send(IndexProgress {
                 current: (i + 1) as u32,
                 total,
                 current_file: rel_str.clone(),
@@ -447,21 +423,15 @@ pub async fn index_project(
     // 일지·롤업 스윕. 옵션이 꺼져 있으면 `journal_todo` 가 비어 있고, 그러면
     // 바로 아래 화해가 남은 일지 행을 청소한다.
     let code_done = files.len() as u32;
-    let (journal_files, journal_chunks) = crate::journal_index::sweep(
-        &db,
-        &embedder,
-        project_id,
-        &root,
-        journal_todo,
-        |n, path| {
-            let _ = on_progress.send(IndexProgress {
+    let (journal_files, journal_chunks) =
+        crate::journal_index::sweep(db, embedder, project_id, &root, journal_todo, |n, path| {
+            on_progress.send(IndexProgress {
                 current: code_done + n,
                 total,
                 current_file: path.to_string(),
             });
-        },
-    )
-    .await?;
+        })
+        .await?;
     chunks_created += journal_chunks;
     files_processed += journal_files.len() as u32;
 
@@ -760,32 +730,3 @@ pub async fn read_file_range(
 
 // (G3 clarify/edit-prompt 커맨드는 감사 2026-07-16 에서 은퇴 — 유일 소비자였던
 //  ⌘\ AI 오버레이 Quick-Edit 이 제거되면서 함께 삭제. AI 패널이 정본이다.)
-
-#[cfg(test)]
-mod tests {
-    use super::prepare_file;
-
-    /// `index_project` 의 파일당 심을 `spawn_blocking` 으로 옮기면서 이 판정이
-    /// 함수 하나로 빠져나왔다 — 판정 자체는 예전과 **한 글자도 달라지면 안 된다**.
-    #[test]
-    fn prepare_file_keeps_the_old_skip_rules() {
-        let dir = tempfile::tempdir().unwrap();
-
-        // 정상 파일 — 해시·크기·언어가 채워진다.
-        let ok = dir.path().join("a.rs");
-        std::fs::write(&ok, "fn main() {}\n").unwrap();
-        let p = prepare_file(&ok).unwrap().expect("정상 파일은 Some");
-        assert_eq!(p.content, "fn main() {}\n");
-        assert_eq!(p.size, 13);
-        assert_eq!(p.language.as_deref(), Some("rust"));
-        assert_eq!(p.hash, blake3::hash(b"fn main() {}\n").to_hex().to_string());
-
-        // 없는 파일 — 읽기 실패는 **건너뜀**이지 색인 중단이 아니다.
-        assert!(prepare_file(&dir.path().join("nope.rs")).unwrap().is_none());
-
-        // minified/생성 파일 — 한 줄이 너무 길면 행을 남기지 않고 건너뛴다.
-        let min = dir.path().join("big.js");
-        std::fs::write(&min, "x".repeat(50_000)).unwrap();
-        assert!(prepare_file(&min).unwrap().is_none());
-    }
-}
