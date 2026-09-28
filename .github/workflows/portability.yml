@@ -645,6 +645,18 @@ jobs:
           cat "$RUNNER_TEMP/updater-smoke.conf.json"
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "new=$new" >> "$GITHUB_OUTPUT"
+          # N+1 과 그 .sig 를 **굽기 전에** 비켜 둔다 — 두 번째 tauri build 가 번들 폴더를 비운다
+          # (첫 실행: appimage/ 에 3.4.999 만 남고 3.5.0 AppImage 가 사라졌다).
+          b="src-tauri/target/${{ matrix.triple }}/release/bundle"
+          stash="$RUNNER_TEMP/updater-payload"
+          mkdir -p "$stash"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            payload="$b/nsis/Ocul-PM_${new}_x64-setup.exe"
+          else
+            payload="$b/appimage/Ocul-PM_${new}_amd64.AppImage"
+          fi
+          [ -s "$payload" ] && [ -s "$payload.sig" ] || { echo "::error::N+1 $payload(.sig) 가 없다"; exit 1; }
+          cp "$payload" "$payload.sig" "$stash/"
           pnpm tauri build --target ${{ matrix.triple }} --config "$RUNNER_TEMP/updater-smoke.conf.json" 2>&1 | tee bundle-updater.log
 
       - name: 업데이터 스모크 재료 — 모으기 · 다른 키의 서명
@@ -660,13 +672,16 @@ jobs:
           b="src-tauri/target/${{ matrix.triple }}/release/bundle"
           out=dist-updater
           mkdir -p "$out/base"
+          stash="$RUNNER_TEMP/updater-payload"
           if [ "$RUNNER_OS" = "Windows" ]; then
             base_files=("$b/nsis/Ocul-PM_${BASE}_x64-setup.exe")
-            payload="$b/nsis/Ocul-PM_${NEW}_x64-setup.exe"
+            payload="$stash/Ocul-PM_${NEW}_x64-setup.exe"
           else
             base_files=("$b/appimage/Ocul-PM_${BASE}_amd64.AppImage" "$b/deb/Ocul-PM_${BASE}_amd64.deb")
-            payload="$b/appimage/Ocul-PM_${NEW}_amd64.AppImage"
+            payload="$stash/Ocul-PM_${NEW}_amd64.AppImage"
           fi
+          # 비켜 둔 N+1 이 portability-bundle 아티팩트로 올라간 그 파일인지 — 스모크는 그 아티팩트를 받는다.
+          cmp -s "$payload" "dist-bundle/$(basename "$payload")" || { echo "::error::비켜 둔 N+1 이 dist-bundle 의 것과 다르다"; exit 1; }
           for f in "${base_files[@]}" "$payload"; do
             [ -s "$f" ] || { echo "::error::$f 가 없다 — 번들 폴더: $(find "$b" -maxdepth 2 -type f -printf '%P ')"; exit 1; }
           done
