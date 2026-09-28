@@ -91,6 +91,7 @@ import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
 import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
+import { __setPlatformForTests, type Platform } from "@/lib/platform";
 
 function wrap(node: React.ReactNode) {
   return (
@@ -482,5 +483,27 @@ describe("PR-UI 5 — Search", () => {
     await waitFor(async () =>
       expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]),
     );
+  });
+});
+
+// {#ui-shortcut-shift-exact} — 검색의 ⌘N 은 질의 지우기. 비-mac 의 Ctrl+Shift+N(새 창)은
+// 지우지 않는다. mac 은 예전 식 그대로(⌘⇧N 도 지운다 — 실제로는 메뉴가 먼저 받는다).
+describe("Search ⌘N — exact modifiers off the mac", () => {
+  const rows: Array<[Platform, object, boolean]> = [
+    ["mac", { metaKey: true }, true],
+    ["mac", { metaKey: true, shiftKey: true }, true],
+    ["windows", { ctrlKey: true }, true],
+    ["windows", { ctrlKey: true, shiftKey: true }, false],
+    ["windows", { ctrlKey: true, altKey: true }, false],
+    ["linux", { ctrlKey: true }, true],
+    ["linux", { ctrlKey: true, shiftKey: true }, false],
+  ];
+  it.each(rows)("%s %o → clears the query: %s", (os, mods, clears) => {
+    __setPlatformForTests(os);
+    const { getByLabelText } = render(wrap(<SearchScreenV2 projectId={1} projectRoot="/tmp/proj" />));
+    const input = getByLabelText("코드 검색") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "롤오버" } });
+    fireEvent.keyDown(document.body, { key: "n", code: "KeyN", ...mods });
+    expect(input.value).toBe(clears ? "" : "롤오버");
   });
 });

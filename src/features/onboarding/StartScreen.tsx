@@ -42,7 +42,7 @@ import { ProjectManager } from "@/features/projects/ProjectManager";
 import { useT, type I18nKey } from "@/i18n";
 import { isImeComposing } from "@/lib/ime";
 import { isMac as isMacPlatform } from "@/lib/platform";
-import { isModKey, kbd } from "@/lib/kbd";
+import { isModChord, isModKey, kbd } from "@/lib/kbd";
 
 /** 시간대 묶음 헤더의 라벨 키. */
 const GROUP_LABEL: Record<RecencyGroup, I18nKey> = {
@@ -199,6 +199,15 @@ export function StartScreen(props: StartScreenProps) {
 
       if (mod) {
         const k = e.key.toLowerCase();
+        // ⌘⇧M — 프로젝트 관리. ⌘M 은 macOS 의 창 최소화라 건드리지 않는다.
+        if (k === "m" && isModChord(e, { shift: true })) {
+          e.preventDefault();
+          openManage();
+          return;
+        }
+        // 나머지는 ⌘ 하나만 — 비-mac 에서 Shift·Alt 가 더 붙으면 다른 단축키다
+        // (Ctrl+Shift+N = 새 창). mac 은 예전 식 그대로다 (`isModChord`).
+        if (!isModChord(e)) return;
         if (k === "o") {
           e.preventDefault();
           onAddProject();
@@ -207,12 +216,6 @@ export function StartScreen(props: StartScreenProps) {
         if (k === "n") {
           e.preventDefault();
           onStartGreenfield();
-          return;
-        }
-        // ⌘⇧M — 프로젝트 관리. ⌘M 은 macOS 의 창 최소화라 건드리지 않는다.
-        if (k === "m" && e.shiftKey) {
-          e.preventDefault();
-          openManage();
           return;
         }
         // ⌘E / ⌘⌫ 는 **키보드로 포커스한 행**에만 적용한다. 커서는 마우스가

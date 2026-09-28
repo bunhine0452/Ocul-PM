@@ -11,7 +11,17 @@
 import { describe, expect, it } from "vitest";
 
 import { __setPlatformForTests, detectPlatform, dragRegion, type Platform } from "@/lib/platform";
-import { isCmdKey, isModKey, isNewWindowChord, isShellKey, kbd, modLabel, readChord, yieldsToShell } from "@/lib/kbd";
+import {
+  isCmdKey,
+  isModChord,
+  isModKey,
+  isNewWindowChord,
+  isShellKey,
+  kbd,
+  modLabel,
+  readChord,
+  yieldsToShell,
+} from "@/lib/kbd";
 import { t, type I18nKey } from "@/i18n";
 import { ko } from "@/i18n/ko";
 import { en } from "@/i18n/en";
@@ -244,6 +254,53 @@ describe("isNewWindowChord — Ctrl+Shift+N off the mac, everywhere", () => {
       // the shell yield rule never claims a Shift chord — no conflict inside the terminal.
       if (want) expect(yieldsToShell(key(init, xtermTarget())), `${os} yield`).toBe(false);
     }
+  });
+});
+
+/**
+ * Screen shortcuts match modifiers **exactly** off the mac ({#ui-shortcut-shift-exact}) — Ctrl+N
+ * (new journal · clear search · new project) is not Ctrl+Shift+N (new window). On the mac every row
+ * equals the old expression (`isModKey`, plus `shiftKey` where a ⇧ was asked for) — D3.
+ */
+describe("isModChord — exact modifiers off the mac, the old expression on it", () => {
+  // [name, event, want (no extra), want ({ shift: true })] on Windows·Linux.
+  const table: Array<[string, KeyInit, boolean, boolean]> = [
+    ["Ctrl+N", { key: "n", ctrlKey: true }, true, false],
+    ["Ctrl+Shift+N", { key: "N", ctrlKey: true, shiftKey: true }, false, true],
+    ["Ctrl+Alt+N", { key: "n", ctrlKey: true, altKey: true }, false, false],
+    ["Ctrl+Alt+Shift+N", { key: "N", ctrlKey: true, altKey: true, shiftKey: true }, false, false],
+    ["AltGr+N", { key: "n", ctrlKey: true, altKey: true, altGraph: true }, false, false],
+    ["Win/Super+N", { key: "n", metaKey: true }, false, false],
+    ["N", { key: "n" }, false, false],
+  ];
+
+  it.each(table)("windows·linux: %s", (_name, init, plain, shifted) => {
+    for (const os of OTHERS) {
+      __setPlatformForTests(os);
+      expect(isModChord(key(init)), `${os} plain`).toBe(plain);
+      expect(isModChord(key(init), { shift: true }), `${os} shift`).toBe(shifted);
+      // inside the terminal the shell owns Ctrl — never a screen shortcut.
+      expect(isModChord(key(init, xtermTarget())), `${os} xterm`).toBe(false);
+    }
+  });
+
+  const macRows: KeyInit[] = [
+    { key: "n", metaKey: true },
+    { key: "N", metaKey: true, shiftKey: true },
+    { key: "n", metaKey: true, altKey: true },
+    { key: "N", metaKey: true, altKey: true, shiftKey: true },
+    { key: "n", ctrlKey: true },
+    { key: "N", ctrlKey: true, shiftKey: true },
+    { key: "n" },
+    { key: "N", shiftKey: true },
+  ];
+
+  it.each(macRows)("mac: same as the old expression — %o", (init) => {
+    __setPlatformForTests("mac");
+    const ev = key(init);
+    expect(isModChord(ev)).toBe(isModKey(ev));
+    expect(isModChord(ev, { shift: true })).toBe(isModKey(ev) && ev.shiftKey);
+    expect(isModChord(key(init, xtermTarget()))).toBe(isModKey(ev));
   });
 });
 
