@@ -35,7 +35,9 @@ async fn heals_a_column_a_reused_migration_number_skipped() {
         MIGRATIONS.last().unwrap().0,
         "user_version 은 그대로여야 재현이 성립한다"
     );
-    drop(db);
+    // `drop` 이 아니라 닫힐 때까지 기다린다 — 안 그러면 아래 재열기가 닫는 중인
+    // 연결의 잠금과 부딪힌다 (#db-win-locked-flake).
+    db.close().await.unwrap();
 
     let db = Db::open(path).await.unwrap();
     let sums: (i64, i64) = db
@@ -63,7 +65,7 @@ async fn heals_a_column_a_reused_migration_number_skipped() {
 async fn healing_is_a_no_op_on_an_intact_schema() {
     let dir = tempdir().unwrap();
     let path = dir.path().join("ocul-pm.db");
-    drop(Db::open(path.clone()).await.unwrap());
+    Db::open(path.clone()).await.unwrap().close().await.unwrap();
     let db = Db::open(path).await.unwrap();
 
     let count: i64 = db

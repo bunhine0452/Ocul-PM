@@ -84,6 +84,19 @@ impl Db {
         Ok(db)
     }
 
+    /// 연결을 **닫고, 닫힐 때까지 기다린다.**
+    ///
+    /// `drop(db)` 은 닫기를 예약만 한다 — tokio-rusqlite 는 연결을 전용 스레드에
+    /// 두고, drop 은 그 스레드에 채널이 끊겼다고 알릴 뿐이다. 마지막 WAL 연결의
+    /// 닫기는 체크포인트 + `-wal`·`-shm` 정리라 그동안 파일 잠금을 쥔다. 바로 같은
+    /// 파일을 다시 열면 그 잠금과 부딪혀 `database is locked` 가 났다 — Windows
+    /// 러너에서만 간헐적으로 (#db-win-locked-flake, Portability run 36044878579).
+    /// 같은 경로를 다시 열 일이 있으면 이걸로 닫는다.
+    pub async fn close(self) -> Result<()> {
+        self.conn.close().await?;
+        Ok(())
+    }
+
     /// Borrow the underlying async sqlite connection. Used by sibling
     /// subsystems (e.g. `oculpm::cache`) that need to share the same db
     /// connection without duplicating the migration/open machinery, and by
