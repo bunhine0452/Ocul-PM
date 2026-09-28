@@ -2,7 +2,7 @@
 
 use super::*;
 
-/// 공유 픽스처 — VS Code 확장(`extension/src/oculpm/*.test.ts`)이 같은
+/// 공유 픽스처 — VS Code 확장(`extension/src/oculpm/reader.spec.ts`)이 같은
 /// 파일을 읽어 자기 파서를 판정한다. 규격이 바뀌면 양쪽이 같이 붉어진다.
 const SAMPLE: &str = include_str!("../../../tests/fixtures/plan_sample.md");
 
