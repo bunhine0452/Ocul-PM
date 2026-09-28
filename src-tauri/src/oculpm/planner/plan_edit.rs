@@ -6,8 +6,13 @@
 //! these with `atomic_io::write_atomic`. The plan-log managed block uses the
 //! same `<!-- oculpm:plan-log … -->` markers the parser reads, so a write →
 //! parse round-trip is lossless.
+//!
+//! 공개 함수는 전부 [`eol::keeping`] 을 지난다 — 아래 줄 수술은 LF 만 알고, 윈도우
+//! 체크아웃(`core.autocrlf`)의 CRLF 문서는 LF 로 편 채 고친 뒤 CRLF 로 되돌려
+//! 쓴다 (#fs-crlf-parsers). 항목 줄은 파서와 같은 앵커([`anchor_span`])로 찾는다.
 
-use crate::oculpm::planner::parse::ItemStatus;
+use crate::oculpm::planner::eol::{self, Relined};
+use crate::oculpm::planner::parse::{anchor_span, extract_brace_id, ItemStatus};
 
 const LOG_BEGIN: &str = "<!-- oculpm:plan-log begin v1 -->";
 const LOG_END: &str = "<!-- oculpm:plan-log end -->";
@@ -33,6 +38,10 @@ pub fn create_plan_skeleton(id: &str, title: &str, owner: &str, date: &str) -> S
 /// Set the plan-level frontmatter `title:` (and bump `updated:`), preserving
 /// everything else (PR — plan rename). The plan `id` / filename are unchanged.
 pub fn set_plan_title(md: &str, title: &str, date: &str) -> String {
+    eol::keeping(md, |md| set_plan_title_lf(md, title, date))
+}
+
+fn set_plan_title_lf(md: &str, title: &str, date: &str) -> String {
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     let start = match lines.iter().position(|l| l.trim() == "---") {
         Some(s) => s,
@@ -68,6 +77,15 @@ pub struct SetStatusResult {
     pub old_status: ItemStatus,
 }
 
+impl Relined for SetStatusResult {
+    fn relined(self) -> Self {
+        Self {
+            md: self.md.relined(),
+            ..self
+        }
+    }
+}
+
 /// Flip one item's status glyph in place. Errors if the `{#item_id}` line isn't
 /// found. Returns the rewritten markdown + the previous status (for the log).
 pub fn set_item_status(
@@ -75,11 +93,14 @@ pub fn set_item_status(
     item_id: &str,
     new: ItemStatus,
 ) -> Result<SetStatusResult, String> {
-    let needle = format!("{{#{item_id}}}");
+    eol::keeping(md, |md| set_item_status_lf(md, item_id, new))
+}
+
+fn set_item_status_lf(md: &str, item_id: &str, new: ItemStatus) -> Result<SetStatusResult, String> {
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     let idx = lines
         .iter()
-        .position(|l| is_item_line(l) && l.contains(&needle))
+        .position(|l| is_item_of(l, item_id))
         .ok_or_else(|| format!("item '{item_id}' not found in plan"))?;
 
     let line = lines[idx].clone();
@@ -108,6 +129,14 @@ pub fn set_item_status_rolled(
     item_id: &str,
     new: ItemStatus,
 ) -> Result<SetStatusResult, String> {
+    eol::keeping(md, |md| set_item_status_rolled_lf(md, item_id, new))
+}
+
+fn set_item_status_rolled_lf(
+    md: &str,
+    item_id: &str,
+    new: ItemStatus,
+) -> Result<SetStatusResult, String> {
     let parsed = crate::oculpm::planner::parse::parse_plan(md, "x");
     if parsed
         .items
@@ -124,10 +153,10 @@ pub fn set_item_status_rolled(
         .iter()
         .find(|i| i.item_id == item_id)
         .and_then(|i| i.parent_item.clone());
-    let result = set_item_status(md, item_id, new)?;
+    let result = set_item_status_lf(md, item_id, new)?;
     if let Some(parent_id) = parent_id {
         // 방어 — parent_id 는 *파싱된* id 라 dedup(`x`→`x-2`) 산물일 수 있고,
-        // 그 경우 needle 이 유일하게 맞는 줄이 원래 `{#x-2}` 를 달고 있던
+        // 그 경우 앵커가 유일하게 맞는 줄이 원래 `{#x-2}` 를 달고 있던
         // **방관자**일 수 있다. 원문에 중복 {#id} 가 하나라도 있으면 어느 줄이
         // 진짜 부모인지 원문만으로 확정할 수 없으니 정규화를 통째로 건너뛴다
         // (파생 상태는 파서가 계속 보장 — 파일 글리프만 잠시 낡는다).
@@ -138,11 +167,10 @@ pub fn set_item_status_rolled(
             .filter(|l| is_item_line(l))
             .filter_map(raw_brace_id)
             .any(|id| !seen_raw.insert(id.to_string()));
-        let needle = format!("{{#{parent_id}}}");
         let raw_hits = result
             .md
             .split('\n')
-            .filter(|l| is_item_line(l) && l.contains(&needle))
+            .filter(|l| is_item_of(l, &parent_id))
             .count();
         if has_dup || raw_hits != 1 {
             return Ok(result);
@@ -155,7 +183,7 @@ pub fn set_item_status_rolled(
             .map(|i| i.status)
             .collect();
         let roll = crate::oculpm::planner::parse::rollup_status(&siblings);
-        if let Ok(normalized) = set_item_status(&result.md, &parent_id, roll) {
+        if let Ok(normalized) = set_item_status_lf(&result.md, &parent_id, roll) {
             return Ok(SetStatusResult {
                 md: normalized.md,
                 old_status: result.old_status,
@@ -165,21 +193,30 @@ pub fn set_item_status_rolled(
     Ok(result)
 }
 
-/// 항목 줄의 원문 `{#id}` 를 뽑는다 (파서의 dedup 이전 값).
+/// 항목 줄의 원문 앵커 id 를 뽑는다 (파서의 dedup 이전 값). 앵커는 파서와 같은
+/// 자리 — 제목 본문의 `{#…}` 글자가 아니라 줄 끝의 것.
 fn raw_brace_id(line: &str) -> Option<&str> {
-    let s = line.rfind("{#")?;
-    let e = line[s..].find('}')? + s;
-    Some(&line[s + 2..e])
+    let (s, e) = anchor_span(line)?;
+    Some(line[s + 2..e].trim())
+}
+
+/// `{#item_id}` 를 **앵커로** 단 항목 줄인가. 부분 문자열로 찾던 동안에는 제목에
+/// `{#item_id}` 를 적은 다른 항목이 먼저 걸려 그 줄의 글리프가 뒤집혔다.
+fn is_item_of(line: &str, item_id: &str) -> bool {
+    is_item_line(line) && raw_brace_id(line) == Some(item_id)
 }
 
 /// Remove an item line (`{#item_id}`) entirely. Errors if not found. Other
 /// content (the plan-log rows referencing it) is left as historical record.
 pub fn remove_item(md: &str, item_id: &str) -> Result<String, String> {
-    let needle = format!("{{#{item_id}}}");
+    eol::keeping(md, |md| remove_item_lf(md, item_id))
+}
+
+fn remove_item_lf(md: &str, item_id: &str) -> Result<String, String> {
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     let idx = lines
         .iter()
-        .position(|l| is_item_line(l) && l.contains(&needle))
+        .position(|l| is_item_of(l, item_id))
         .ok_or_else(|| format!("item '{item_id}' not found in plan"))?;
     let was_toplevel = !lines[idx].starts_with(' ') && !lines[idx].starts_with('\t');
     lines.remove(idx);
@@ -216,11 +253,19 @@ pub fn move_item(
     phase: Option<&str>,
     before: Option<&str>,
 ) -> Result<String, String> {
-    let needle = format!("{{#{item_id}}}");
+    eol::keeping(md, |md| move_item_lf(md, item_id, phase, before))
+}
+
+fn move_item_lf(
+    md: &str,
+    item_id: &str,
+    phase: Option<&str>,
+    before: Option<&str>,
+) -> Result<String, String> {
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     let idx = lines
         .iter()
-        .position(|l| is_item_line(l) && l.contains(&needle))
+        .position(|l| is_item_of(l, item_id))
         .ok_or_else(|| format!("item '{item_id}' not found in plan"))?;
     let indent_of = |l: &str| l.len() - l.trim_start().len();
     let own_indent = indent_of(&lines[idx]);
@@ -233,13 +278,12 @@ pub fn move_item(
 
     let (at, target_indent) = match before {
         Some(b) => {
-            if b == item_id || block.iter().any(|l| l.contains(&format!("{{#{b}}}"))) {
+            if b == item_id || block.iter().any(|l| is_item_of(l, b)) {
                 return Err("cannot move an item before itself or its own child".to_string());
             }
-            let bn = format!("{{#{b}}}");
             let bi = lines
                 .iter()
-                .position(|l| is_item_line(l) && l.contains(&bn))
+                .position(|l| is_item_of(l, b))
                 .ok_or_else(|| format!("item '{b}' not found in plan"))?;
             (bi, indent_of(&lines[bi]))
         }
@@ -280,15 +324,19 @@ pub fn move_item(
 /// Rename an item's title text in place, preserving its status glyph and
 /// `{#item_id}` marker. Errors if the item isn't found.
 pub fn rename_item(md: &str, item_id: &str, new_title: &str) -> Result<String, String> {
-    let needle = format!("{{#{item_id}}}");
+    eol::keeping(md, |md| rename_item_lf(md, item_id, new_title))
+}
+
+fn rename_item_lf(md: &str, item_id: &str, new_title: &str) -> Result<String, String> {
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     let idx = lines
         .iter()
-        .position(|l| is_item_line(l) && l.contains(&needle))
+        .position(|l| is_item_of(l, item_id))
         .ok_or_else(|| format!("item '{item_id}' not found in plan"))?;
     let line = lines[idx].clone();
     let rb = line.find(']').ok_or("malformed item line: no ']'")?;
-    let marker = line.find("{#").ok_or("malformed item line: no marker")?;
+    // 제목 본문의 `{#…}` 글자가 아니라 앵커부터가 꼬리다.
+    let (marker, _) = anchor_span(&line).ok_or("malformed item line: no marker")?;
     // head = "<indent>- [x]", tail = "{#id}…"
     lines[idx] = format!("{} {} {}", &line[..=rb], new_title.trim(), &line[marker..]);
     Ok(lines.join("\n"))
@@ -301,11 +349,7 @@ pub fn rename_item(md: &str, item_id: &str, new_title: &str) -> Result<String, S
 fn phase_heading_name(line: &str) -> Option<String> {
     let rest = line.trim_start().strip_prefix("## ")?;
     let mut h = rest.trim().to_string();
-    if let Some(start) = h.find("{#") {
-        if let Some(end_rel) = h[start..].find('}') {
-            h.replace_range(start..=start + end_rel, "");
-        }
-    }
+    extract_brace_id(&mut h);
     Some(h.trim().to_string())
 }
 
@@ -313,9 +357,8 @@ fn phase_heading_name(line: &str) -> Option<String> {
 /// tracking id). Returns the bare `{#id}` token without the leading space.
 fn phase_heading_marker(line: &str) -> Option<String> {
     let rest = line.trim_start().strip_prefix("## ")?;
-    let start = rest.find("{#")?;
-    let end_rel = rest[start..].find('}')?;
-    Some(rest[start..=start + end_rel].to_string())
+    let (start, end) = anchor_span(rest)?;
+    Some(rest[start..=end].to_string())
 }
 
 /// A `## ` heading is a Decisions section header, not a phase (same heuristic
@@ -328,6 +371,10 @@ fn is_decisions_name(name: &str) -> bool {
 /// Rename a phase heading (`## <old>` → `## <new>`), preserving any `{#id}`
 /// marker and every item beneath it. Errors if the phase isn't found.
 pub fn rename_phase(md: &str, old: &str, new: &str) -> Result<String, String> {
+    eol::keeping(md, |md| rename_phase_lf(md, old, new))
+}
+
+fn rename_phase_lf(md: &str, old: &str, new: &str) -> Result<String, String> {
     let new = new.trim();
     if new.is_empty() {
         return Err("Enter a phase name.".to_string());
@@ -347,6 +394,10 @@ pub fn rename_phase(md: &str, old: &str, new: &str) -> Result<String, String> {
 /// Remove a phase heading and everything under it up to the next `## ` heading
 /// or the plan-log block (i.e. all of its items). Errors if not found.
 pub fn remove_phase(md: &str, phase: &str) -> Result<String, String> {
+    eol::keeping(md, |md| remove_phase_lf(md, phase))
+}
+
+fn remove_phase_lf(md: &str, phase: &str) -> Result<String, String> {
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     let start = lines
         .iter()
@@ -368,6 +419,10 @@ pub fn remove_phase(md: &str, phase: &str) -> Result<String, String> {
 /// Decisions section and the plan-log are not phases and never move; a swap at
 /// the first/last position is a no-op (returns the input unchanged).
 pub fn move_phase(md: &str, phase: &str, up: bool) -> Result<String, String> {
+    eol::keeping(md, |md| move_phase_lf(md, phase, up))
+}
+
+fn move_phase_lf(md: &str, phase: &str, up: bool) -> Result<String, String> {
     let lines: Vec<String> = md.split('\n').map(String::from).collect();
     // Phases live before the Decisions section and the plan-log block; bound the
     // reorder region so neither gets dragged along.
@@ -424,6 +479,16 @@ pub fn move_phase(md: &str, phase: &str, up: bool) -> Result<String, String> {
 /// Insert a new item under `phase` (creating the phase section if absent).
 /// Errors if `item_id` already exists.
 pub fn add_item(
+    md: &str,
+    phase: &str,
+    title: &str,
+    item_id: &str,
+    status: ItemStatus,
+) -> Result<String, String> {
+    eol::keeping(md, |md| add_item_lf(md, phase, title, item_id, status))
+}
+
+fn add_item_lf(
     md: &str,
     phase: &str,
     title: &str,
@@ -499,6 +564,10 @@ pub struct LogRow {
 /// Append a row to the plan-log managed block (creating the block + table
 /// header if missing). Append-only — never rewrites existing rows.
 pub fn append_log_row(md: &str, row: &LogRow) -> String {
+    eol::keeping(md, |md| append_log_row_lf(md, row))
+}
+
+fn append_log_row_lf(md: &str, row: &LogRow) -> String {
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     let begin = lines
         .iter()

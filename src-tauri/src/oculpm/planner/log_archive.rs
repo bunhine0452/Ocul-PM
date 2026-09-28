@@ -26,6 +26,7 @@ use std::path::{Path, PathBuf};
 use regex::Regex;
 
 use crate::oculpm::atomic_io::write_atomic;
+use crate::oculpm::planner::eol;
 use crate::oculpm::planner::parse::{parse_log_row, ParsedPlan, PlanItemUpdate};
 use crate::oculpm::redact::redact_text;
 
@@ -106,7 +107,34 @@ pub struct ArchiveSplit {
 /// `existing_archive` 는 현재 아카이브 문서 전문(없으면 빈 문자열). 행 순서는
 /// 문서 순서 그대로다 — plan-log 는 append-only 라 문서 순서가 곧 시간순이고,
 /// 시각 문자열로 다시 정렬하면 손으로 끼워 넣은 행의 자리가 바뀐다.
+///
+/// 줄바꿈은 문서마다 제 것을 지킨다 — 본문은 본문의, 아카이브는 있던 아카이브의
+/// (새로 만들 때는 옆 본문의) 줄바꿈으로 쓴다 (#fs-crlf-parsers).
 pub fn split_overflow(
+    body_md: &str,
+    plan_id: &str,
+    existing_archive: &str,
+    keep: usize,
+) -> Option<ArchiveSplit> {
+    let archive_crlf = if existing_archive.trim().is_empty() {
+        eol::is_crlf(body_md)
+    } else {
+        eol::is_crlf(existing_archive)
+    };
+    let split = split_overflow_lf(
+        &eol::to_lf(body_md),
+        plan_id,
+        &eol::to_lf(existing_archive),
+        keep,
+    )?;
+    Some(ArchiveSplit {
+        body: eol::with_eol(split.body, eol::is_crlf(body_md)),
+        archive: eol::with_eol(split.archive, archive_crlf),
+        ..split
+    })
+}
+
+fn split_overflow_lf(
     body_md: &str,
     plan_id: &str,
     existing_archive: &str,
@@ -464,5 +492,36 @@ mod tests {
         .unwrap();
         merge_archived_updates(root, &mut parsed, &[]);
         assert_eq!(parsed.updates.len(), 3);
+    }
+
+    /// 윈도우 체크아웃(CRLF) — 넘친 행을 갈라내도 본문은 CRLF 그대로, 새 아카이브는
+    /// 옆 본문을 따라 CRLF, 있던 LF 아카이브는 LF 그대로다. 보관함 파서(`is_archive_markdown`
+    /// · `merge_archived_updates`)는 CRLF 아카이브를 LF 판과 똑같이 읽는다 (#fs-crlf-parsers).
+    #[test]
+    fn a_crlf_plan_splits_without_mixing_line_endings() {
+        let lf = plan_with_rows(45);
+        let crlf = lf.replace('\n', "\r\n");
+        let want = split_overflow(&lf, "p", "", LOG_KEEP).unwrap();
+        let got = split_overflow(&crlf, "p", "", LOG_KEEP).unwrap();
+        assert_eq!(got.body, want.body.replace('\n', "\r\n"));
+        assert_eq!(got.archive, want.archive.replace('\n', "\r\n"));
+        assert_eq!((got.moved, got.archived_total), (5, 5));
+        // 있던 아카이브가 LF 면 LF 로 덧붙인다.
+        let again = split_overflow(&crlf, "p", &want.archive, LOG_KEEP).unwrap();
+        assert!(!again.archive.contains('\r'), "{:?}", again.archive);
+
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(archive_path(dir.path(), "p"), &got.archive).unwrap();
+        assert!(is_archive_markdown(&got.archive));
+        let mut parsed = parse_plan(&got.body, "p");
+        merge_archived_updates(dir.path(), &mut parsed, &[]);
+        let mut from_lf = parse_plan(&want.body, "p");
+        std::fs::write(archive_path(dir.path(), "p"), &want.archive).unwrap();
+        merge_archived_updates(dir.path(), &mut from_lf, &[]);
+        assert_eq!(
+            format!("{:?}", parsed.updates),
+            format!("{:?}", from_lf.updates)
+        );
+        assert_eq!(parsed.updates.len(), 45);
     }
 }

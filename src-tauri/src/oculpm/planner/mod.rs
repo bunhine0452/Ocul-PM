@@ -8,6 +8,8 @@
 
 pub mod ai;
 pub mod dispatch;
+/// 윈도우 체크아웃(CRLF) 문서의 줄바꿈 보존 — 플래너·논의·롤업이 같이 쓴다.
+pub(crate) mod eol;
 /// 플랜 레벨 status 전이의 유일한 문지기 (`{#done-transition-guard}`).
 pub mod lifecycle;
 /// plan-log 표의 이력 분리 — 넘친 행을 `<plan_id>.log.md` 로 (`{#plan-log-archive}`).

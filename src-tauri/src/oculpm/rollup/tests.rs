@@ -141,6 +141,37 @@ fn regenerating_a_week_replaces_it() {
     assert!(all[0].1.contains("새 판."));
 }
 
+/// 윈도우 체크아웃(`core.autocrlf=true`)의 롤업 — CRLF 로 풀린 판도 LF 판과 같게
+/// 읽힌다(안 펴면 `---\r\n` 에서 `None` 이라 목록에서 통째로 사라졌다). 그 주를 다시
+/// 만들면 있던 판의 CRLF 그대로, 새 주는 LF (#fs-crlf-parsers).
+#[test]
+fn a_crlf_rollup_is_read_like_lf_and_regenerated_as_crlf() {
+    let f = fm("2026-W38", "h");
+    let body = "# 2026-W38 주간 요약\n\n## 한 주 요약\n\n한 줄\n이어진 줄\n\n## 결정\n- x\n";
+    let lf = render(&f, body).unwrap();
+    let from_crlf = parse(&lf.replace('\n', "\r\n")).expect("CRLF 판도 롤업이다");
+    assert_eq!(Some(&from_crlf), parse(&lf).as_ref());
+    assert_eq!(summarize(&f, &from_crlf.1, None).summary, "한 줄 이어진 줄");
+
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let path = paths::rollup_path(root, "2026-W38");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(&path, lf.replace('\n', "\r\n")).unwrap();
+    write(root, &fm("2026-W38", "new"), "## 한 주 요약\n\n새 판.\n").unwrap();
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(
+        text.matches('\n').count(),
+        text.matches("\r\n").count(),
+        "{text:?}"
+    );
+    assert_eq!(read_one(root, "2026-W38").unwrap().0.entries_hash, "new");
+
+    write(root, &fm("2026-W39", "h39"), "## 한 주 요약\n\n39주.\n").unwrap();
+    let fresh = std::fs::read_to_string(paths::rollup_path(root, "2026-W39")).unwrap();
+    assert!(!fresh.contains('\r'), "새 판은 LF (macOS 동작 불변)");
+}
+
 /// **규칙이 가리키지 않는 층은 읽히지 않는다** (`{#rollup-first}`).
 ///
 /// 이 단언이 `agents/mod.rs` 의 템플릿 패리티 테스트 옆이 아니라 여기 있는
