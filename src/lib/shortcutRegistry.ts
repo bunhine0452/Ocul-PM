@@ -58,8 +58,9 @@ const WINDOW: ShortcutGroup = {
   titleKey: "keys.g.window",
   rows: [
     { keys: "⌘T", labelKey: "keys.newTab" },
-    // 새 창은 앱 메뉴에만 있다 — Windows·Linux 에서 프런트가 받을 길이 없다.
-    { keys: "⇧⌘N", labelKey: "keys.newWindow", nonMac: null },
+    // 맥은 앱 메뉴, Windows·Linux 는 `useWindowTabKeys` 가 키다운으로 받는다 —
+    // 터미널 안에서도 같은 Ctrl+Shift+N 이다 (`isNewWindowChord`, {#os-new-window}).
+    { keys: "⇧⌘N", labelKey: "keys.newWindow" },
     { keys: "⌘W", labelKey: "keys.closeTab" },
     // Windows·Linux 는 네이티브 제목줄 — 창 닫기는 OS 의 키다.
     { keys: "⇧⌘W", labelKey: "keys.closeWindow", nonMac: "Alt+F4" },

@@ -168,6 +168,21 @@ export function readChord(e: ChordEvent, family: "app" | "terminal" = "app"): Ch
   return { mod: true, shift: e.shiftKey, alt: e.altKey, key };
 }
 
+/**
+ * 「새 창」(맥 ⇧⌘N — 앱 메뉴)의 Windows·Linux 판 — **어느 면에서나 Ctrl+Shift+N**
+ * ({#os-new-window}). 비-mac 은 메뉴를 달지 않아 키다운으로 받는다.
+ *
+ * 터미널 가족 규칙대로라면 ⇧⌘N 은 터미널 안에서 Ctrl+Alt+Shift+N 이지만, 한 키로
+ * 둔다: Ctrl+Shift+N 은 Windows Terminal·GNOME 터미널의 「새 창」 키 그대로고, 셸은
+ * Ctrl+Shift 조합을 쓰지 않으며(`yieldsToShell` 은 Shift 가 붙으면 거짓), 터미널 면에는
+ * ⌘N(= 터미널의 Ctrl+Shift+N)이 없다. 맥은 언제나 거짓 — 메뉴 액셀러레이터가 받는다.
+ */
+export function isNewWindowChord(e: ChordEvent): boolean {
+  if (isMac()) return false;
+  if (!ctrlHeld(e) || !e.shiftKey || e.altKey || e.metaKey) return false;
+  return keyOf(e).toLowerCase() === "n";
+}
+
 // ── 표기 ──────────────────────────────────────────────────────────────────
 
 const MOD_GLYPHS = /[⌃⌥⇧⌘]+/;

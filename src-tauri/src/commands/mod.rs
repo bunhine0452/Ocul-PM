@@ -33,6 +33,7 @@ pub mod llm;
 pub mod lsp;
 pub mod mcp;
 pub mod mobile;
+pub mod new_window;
 pub mod notion;
 pub mod oculpm;
 mod open_native;
