@@ -5,7 +5,8 @@
 //! 유닉스와 달라지는 자리 넷:
 //! - **전송** — 소켓 파일 대신 사용자 전용 네임드 파이프 ([`crate::ptyhost::pipe`]).
 //! - **종료** — 신호가 없다. SIGHUP 자리는 의사 콘솔 닫기(콘솔에 붙은 프로세스가
-//!   `CTRL_CLOSE_EVENT` 를 받는다), SIGKILL 자리는 셸 트리 전체를 담은 Job 종료.
+//!   `CTRL_CLOSE_EVENT` 를 받는다), SIGKILL 자리는 셸 트리를 담은 Job 안의 콘솔 쪽
+//!   종료 — 셸에서 띄운 GUI 프로그램은 남긴다 ([`job`]).
 //! - **셸이 스스로 끝남** — ConPTY 는 셸이 끝나도 출력 파이프를 닫지 않을 수 있다.
 //!   셸 프로세스를 따로 기다린다.
 //! - **포그라운드** — `tcgetpgrp` 이 없다. 셸의 가장 최근 자식이 그 자리다.
@@ -20,19 +21,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use tokio::net::windows::named_pipe::NamedPipeServer;
-use windows_sys::Win32::Foundation::{
-    CloseHandle, FILETIME, HANDLE, INVALID_HANDLE_VALUE, STILL_ACTIVE,
-};
+use windows_sys::Win32::Foundation::{FILETIME, HANDLE, INVALID_HANDLE_VALUE, STILL_ACTIVE};
 use windows_sys::Win32::System::Console::SetConsoleCtrlHandler;
 use windows_sys::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
-};
-use windows_sys::Win32::System::JobObjects::{
-    AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicAccountingInformation,
-    JobObjectExtendedLimitInformation, QueryInformationJobObject, SetInformationJobObject,
-    TerminateJobObject, JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
-    JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_BREAKAWAY_OK,
-    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
 };
 use windows_sys::Win32::System::Threading::{
     GetExitCodeProcess, GetProcessTimes, OpenProcess, QueryFullProcessImageNameW,
@@ -42,6 +34,10 @@ use windows_sys::Win32::System::Threading::{
 use super::{log_line, occupy, serve_connection, HostSession, HostState, KILL_GRACE};
 use crate::ptyhost::pipe::{self, PipeSecurity};
 use crate::ptyhost::protocol::Event;
+
+mod job;
+pub(super) use job::Job;
+use job::Subsystems;
 
 /// 자리를 비웠는지(`Shutdown`·고아 종료) 받기 루프가 살피는 주기.
 const VACATE_POLL: Duration = Duration::from_millis(200);
@@ -170,81 +166,6 @@ pub(super) fn utf8_console_args(shell: &str) -> &'static [&'static str] {
 
 // ─── 종료 (#pty-kill) ────────────────────────────────────────────────────────
 
-/// 셸 트리를 담는 Job Object. 닫히면(호스트가 죽어도) 안의 프로세스가 전부
-/// 끝난다 — 유닉스에서 호스트가 죽으면 PTY 가 닫혀 세션이 SIGHUP 을 받는 것과 같은 자리.
-pub(super) struct Job(HANDLE);
-
-// SAFETY: 커널 객체 핸들이다 — 어느 스레드에서 써도 된다.
-unsafe impl Send for Job {}
-unsafe impl Sync for Job {}
-
-impl Job {
-    fn new() -> io::Result<Self> {
-        // SAFETY: 이름 없는 Job, 기본 보안 속성.
-        let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
-        if handle.is_null() {
-            return Err(io::Error::last_os_error());
-        }
-        let job = Job(handle);
-        // SAFETY: 모두 0 인 값은 이 C 구조체의 유효한 값이다.
-        let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { std::mem::zeroed() };
-        // BREAKAWAY_OK: 스스로 떨어져 나가겠다고 청한 프로세스(CREATE_BREAKAWAY_FROM_JOB)만
-        // 놓아 준다 — 유닉스에서 `nohup`·`setsid` 가 SIGHUP 을 피하는 자리.
-        limits.BasicLimitInformation.LimitFlags =
-            JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_BREAKAWAY_OK;
-        // SAFETY: 크기를 맞춘 지역 구조체를 넘긴다.
-        let ok = unsafe {
-            SetInformationJobObject(
-                job.0,
-                JobObjectExtendedLimitInformation,
-                &limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION as *const c_void,
-                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
-            )
-        };
-        if ok == 0 {
-            return Err(io::Error::last_os_error());
-        }
-        Ok(job)
-    }
-
-    fn assign(&self, process: HANDLE) -> io::Result<()> {
-        // SAFETY: 살아 있는 Job 과 프로세스 핸들.
-        if unsafe { AssignProcessToJobObject(self.0, process) } == 0 {
-            return Err(io::Error::last_os_error());
-        }
-        Ok(())
-    }
-
-    /// 안에서 살아 있는 프로세스 수. 묻지 못하면 `None`.
-    pub(super) fn active_processes(&self) -> Option<u32> {
-        // SAFETY: 모두 0 인 값은 이 C 구조체의 유효한 값이다.
-        let mut info: JOBOBJECT_BASIC_ACCOUNTING_INFORMATION = unsafe { std::mem::zeroed() };
-        // SAFETY: 크기를 맞춘 지역 구조체에 받는다.
-        let ok = unsafe {
-            QueryInformationJobObject(
-                self.0,
-                JobObjectBasicAccountingInformation,
-                &mut info as *mut JOBOBJECT_BASIC_ACCOUNTING_INFORMATION as *mut c_void,
-                std::mem::size_of::<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>() as u32,
-                std::ptr::null_mut(),
-            )
-        };
-        (ok != 0).then_some(info.ActiveProcesses)
-    }
-
-    fn terminate(&self) {
-        // SAFETY: 살아 있는 Job 핸들.
-        unsafe { TerminateJobObject(self.0, 1) };
-    }
-}
-
-impl Drop for Job {
-    fn drop(&mut self) {
-        // SAFETY: CreateJobObjectW 가 준 핸들을 한 번만 닫는다.
-        unsafe { CloseHandle(self.0) };
-    }
-}
-
 /// 방금 띄운 셸을 새 Job 에 담는다. 실패하면 `None` 이고 그 사실을 호스트 로그에
 /// 남긴다 — 그 세션의 종료는 셸 하나만 끝내는 길로 물러난다.
 ///
@@ -281,9 +202,11 @@ pub(super) fn contain(
 ///    포그라운드)는 `CTRL_CLOSE_EVENT` 를 받고 내려온다. `ClosePseudoConsole` 은
 ///    Windows 판에 따라 conhost 가 끝날 때까지 막히므로 요청 처리 스레드가 아니라
 ///    여기서 부른다(읽기 스레드가 출력을 비워 주므로 막힘은 풀린다).
-/// 2. 유예 — Job 안이 빌 때까지 [`KILL_GRACE`].
-/// 3. SIGKILL 자리 — Job 종료. 콘솔에 붙지 않은 자손(새 콘솔로 띄운 것·분리된
-///    것)까지 트리 전체가 끝난다.
+/// 2. 유예 — Job 안의 **콘솔 쪽**이 빌 때까지 [`KILL_GRACE`].
+/// 3. SIGKILL 자리 — 콘솔 쪽 전부를 끝낸다. 콘솔에 붙지 않은 자손(새 콘솔로 띄운 것·
+///    분리된 것)까지다. **GUI 쪽**(셸에서 띄운 창 프로그램과 그 아래 가지)은 남긴다 —
+///    macOS 에서 터미널을 닫아도 `code .` 로 띄운 VS Code 가 사는 것과 같다
+///    (#pty-job-gui-children, 판정은 [`crate::ptyhost::survivors`], 끝내기는 [`job`]).
 pub(super) fn terminate_session(state: Arc<HostState>, sid: String, session: HostSession) {
     session.gone.store(true, Ordering::SeqCst);
     let HostSession {
@@ -296,24 +219,44 @@ pub(super) fn terminate_session(state: Arc<HostState>, sid: String, session: Hos
     std::thread::spawn(move || {
         drop(writer);
         drop(master);
+        let mut subsystems = Subsystems::default();
         let deadline = Instant::now() + KILL_GRACE;
-        while Instant::now() < deadline && !tree_is_gone(job.as_ref(), child.as_mut()) {
+        while Instant::now() < deadline
+            && !console_side_is_gone(job.as_ref(), child.as_mut(), &mut subsystems)
+        {
             std::thread::sleep(Duration::from_millis(50));
         }
-        match &job {
-            Some(job) => job.terminate(),
+        let spared = match &job {
+            Some(job) => job.end_console_side(&mut subsystems),
             None => {
                 let _ = child.kill();
+                0
             }
-        }
+        };
         let _ = child.wait();
-        log_line(&state, &format!("session killed: {sid}"));
+        // 여기서 Job 핸들이 닫힌다 — 남은 것은 제한이 풀린 Job 안에서 계속 산다.
+        drop(job);
+        if spared > 0 {
+            log_line(
+                &state,
+                &format!("session killed: {sid} ({spared} GUI-side processes left running)"),
+            );
+        } else {
+            log_line(&state, &format!("session killed: {sid}"));
+        }
     });
 }
 
-fn tree_is_gone(job: Option<&Job>, child: &mut (dyn portable_pty::Child + Send + Sync)) -> bool {
+fn console_side_is_gone(
+    job: Option<&Job>,
+    child: &mut (dyn portable_pty::Child + Send + Sync),
+    subsystems: &mut Subsystems,
+) -> bool {
     match job {
-        Some(job) => job.active_processes() == Some(0),
+        Some(job) => {
+            job.active_processes() == Some(0)
+                || job.condemned(subsystems).is_some_and(|c| c.is_empty())
+        }
         None => matches!(child.try_wait(), Ok(Some(_))),
     }
 }
