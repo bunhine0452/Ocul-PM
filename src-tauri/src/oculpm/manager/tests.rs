@@ -117,7 +117,7 @@ async fn coerce_timestamps_writes_offset_to_disk_once() {
         .await
         .unwrap();
     let manager = OculpmManager::new();
-    manager.init_project(1, dir.path(), "ko").await.unwrap();
+    crate::oculpm::config::init_project_in_seoul(&manager, 1, dir.path()).await;
 
     // A journal entry whose created_at lacks a tz offset.
     let rel = "20260524/Bugs/0925_bug_notz.md";
@@ -794,7 +794,7 @@ mod journal_w3_pr3 {
         let manager = OculpmManager::new();
         let project_root = dir.path().join("project");
         std::fs::create_dir_all(&project_root).unwrap();
-        manager.init_project(7, &project_root, "ko").await.unwrap();
+        crate::oculpm::config::init_project_in_seoul(&manager, 7, &project_root).await;
         (manager, db, dir, project_root)
     }
 

@@ -6,6 +6,11 @@
 
 use std::path::Path;
 
+mod timezone;
+#[cfg(test)]
+pub(crate) use timezone::init_project_in_seoul;
+pub use timezone::{default_timezone, FALLBACK_TIMEZONE};
+
 use crate::oculpm::atomic_io::write_atomic;
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::paths::WorkdayResolver;
@@ -50,7 +55,9 @@ impl Default for OculpmConfig {
 impl Default for WorkdayConfig {
     fn default() -> Self {
         Self {
-            timezone: "Asia/Seoul".into(),
+            // 시스템 시간대, 못 구하면 Asia/Seoul (#oculpm-default-tz). 이미 파일에
+            // 적힌 값은 덧씌우기가 이긴다 — 기본값은 새 설정·빈 칸에만 쓰인다.
+            timezone: default_timezone(),
             day_starts_at: "00:00".into(),
         }
     }
