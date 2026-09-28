@@ -475,7 +475,11 @@ mod tests {
             other => panic!("잡혀 있어야 한다: {other:?}"),
         }
         drop(first);
-        held(try_acquire(dir.path(), Duration::ZERO));
+        // 놓은 뒤 다시 잡기는 **재시도 창**으로 — 같은 테스트 바이너리의 옆 스레드가 그 순간
+        // 자식을 띄우면(fork·posix_spawn) 자식이 exec 할 때까지 이 파일의 열린 설명을 물고
+        // 있어 flock 이 잠깐 더 잡혀 있다(`O_CLOEXEC` 은 exec 때 닫는다). 병렬 전체 실행에서
+        // 간헐로 여기서 떨어졌다. 제품 경로는 이미 `RETRY_FOR` 로 다시 본다.
+        held(try_acquire(dir.path(), RETRY_FOR));
     }
 
     /// 업데이터 재시작 — 옛 프로세스가 곧 놓으면 새 프로세스는 기다렸다가 잡는다.
