@@ -78,9 +78,9 @@ owner: claude-code
 - [ ] 비-mac 새 창 키(Ctrl+Shift+N) — new_window 커맨드 + L-UI 바인딩, 앱 메뉴를 뗀 뒤 빈 자리 (L-OS 제안 diff 있음) {#os-new-window}
 - [ ] [사용자 결정] Windows 에서 Claude Code 플러그인의 MCP 서버가 안 뜬다 — Claude Code 는 stdio MCP 를 셸 없이 직접 실행하고 sh 셔틀은 실행 파일이 아니다(claude-code#58510), .mcp.json 은 OS 별로 못 가른다. 지금은 앱의 「MCP 등록」(절대경로 .exe) 안내. 대안 = Windows 전용 마켓플레이스 항목(「플러그인 1개」 원칙과 충돌) (L-INTEG 발견) {#integ-win-plugin-mcp}
 - [ ] Linux 세션 D-Bus 부재 시 single-instance 가 조용히 꺼져 앱이 두 번 뜰 수 있다 — 명시적 경고 또는 락 (L-OS 발견) {#os-single-instance-dbus}
-- [ ] PowerShell 세션의 네이티브 출력 인코딩 — 콘솔 코드 페이지(949/437)를 따른다. oculpm.ps1 의 OCULPM_TERM 가드 안에서 [Console]::InputEncoding/OutputEncoding 을 UTF-8 로 (L-PTY 제안) {#shell-pwsh-utf8}
-- [ ] Windows 분리 기동 호스트의 핸들 상속 — std spawn 은 bInheritHandles=TRUE 라 부모 파이프를 물 수 있다(dev·CI 에서만 실해). 근본은 CreateProcessW 직접 호출 (L-PTY 발견) {#pty-handle-inherit}
-- [ ] Windows 의 Job 종료가 셸에서 띄운 GUI 프로그램(예: 처음 띄운 `code .`)까지 함께 끝낸다 — macOS 와 다른 동작. GUI 서브시스템 자식은 breakaway 할지 결정 (L-PTY 발견) {#pty-job-gui-children}
+- [x] PowerShell 세션의 네이티브 출력 인코딩 — 콘솔 코드 페이지(949/437)를 따른다. oculpm.ps1 의 OCULPM_TERM 가드 안에서 [Console]::InputEncoding/OutputEncoding 을 UTF-8 로 (L-PTY 제안) {#shell-pwsh-utf8}
+- [x] Windows 분리 기동 호스트의 핸들 상속 — std spawn 은 bInheritHandles=TRUE 라 부모 파이프를 물 수 있다(dev·CI 에서만 실해). 근본은 CreateProcessW 직접 호출 (L-PTY 발견) {#pty-handle-inherit}
+- [x] Windows 의 Job 종료가 셸에서 띄운 GUI 프로그램(예: 처음 띄운 `code .`)까지 함께 끝낸다 — macOS 와 다른 동작. GUI 서브시스템 자식은 breakaway 할지 결정 (L-PTY 발견) {#pty-job-gui-children}
 - [x] 간헐 실패 — windows 러너에서 ^C 뒤 ping 이 30초 동안 계속 돌았다(ptyhost::host::windows::tests::idle_shell…, PR #39 run). 테스트 경합인지 「가끔 ^C 가 안 먹는다」 제품 결함인지 판정 — L-PTY2 가 조사 {#pty-ctrlc-flake}
 - [ ] [결정 필요] Windows 에서 CWD 가 프로젝트 루트인 오래 사는 자식(LSP 서버 lsp/client.rs · DAP · PTY 셸)이 도는 동안 사용자가 그 폴더를 옮기거나 지울 수 없다(ERROR_SHARING_VIOLATION 32). LSP 는 CWD 를 밖으로 옮길 여지가 있으나 서버의 설정 탐색이 바뀔 수 있다. PTY 셸은 모든 Windows 터미널의 공통 제약 (L-FS2 발견) {#os-child-cwd-lock}
 
@@ -114,6 +114,7 @@ owner: claude-code
 - [x] 간헐 실패 — Windows E2E 기동에서 `session not created: DevToolsActivePort file doesn't exist` → attach 폴백은 CDP 를 잡았으나 첫 실행 마법사가 60초 안에 안 뜸(PR #47 E2E run 36063711206, 재실행 초록). 이 한 단계가 떨어지면 뒤 60단계가 전부 건너뛰어진다 — launch 재시도 1회 또는 attach 뒤 대기 연장 (오케스트레이터 발견) {#e2e-win-devtools-flake}
 - [ ] 간헐 실패 — Windows `db::tests::{healing_is_a_no_op_on_an_intact_schema, heals_a_column_a_reused_migration_number_skipped}` 가 "database is locked"(port/l-rel Portability run 36044878579, Rust 무변경 커밋). 테스트 DB 경로 공유인지 파일 잠금 해제 지연인지 (L-REL 발견) {#db-win-locked-flake}
 - [ ] Linux — `DBUS_SESSION_BUS_ADDRESS` 가 파싱 불가한 값이면 tauri-plugin-single-instance 2.4.4 가 `Builder::session().unwrap()` 에서 기동 중 패닉할 수 있다(코드 읽기 추정, 미재현). instance-lock 폴백으로는 못 막는다 — 등록 전에 주소를 검사해 이상하면 플러그인을 건너뛰고 잠금 파일만 쓰기 (L-OS3 발견) {#os-dbus-addr-panic}
+- [ ] Windows PTY 호스트가 판별 복사본을 못 써서 원본으로 물러서는 경로(`launch.rs` 의 `start(exe, None, …)`)는 앱의 작업 폴더를 물려받는다 — 사용자가 프로젝트 폴더 터미널에서 앱을 띄웠으면 앱보다 오래 사는 호스트가 그 폴더를 쥔다. 그 경로의 cwd 를 실행 파일 폴더로 (L-PTY3 발견, #os-child-cwd-lock 의 값싼 완화) {#pty-host-fallback-cwd}
 - [ ] 비-mac 에서 일지·검색·시작 화면의 ⌘N(=Ctrl+N) 핸들러가 Shift 를 보지 않는다 — Ctrl+Shift+N 은 캡처 단계에서 막았지만 Ctrl+Shift+<같은 글자> 계열의 다른 전역 키와 같은 모양의 충돌이 남을 수 있다. 화면 핸들러가 수식키를 정확히 맞추게 (L-OS3 발견) {#ui-shortcut-shift-exact}
 
 ## W5 — 베타 운영과 졸업 {#w5}
@@ -123,12 +124,9 @@ owner: claude-code
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 35 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 38 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-24T04:01:27+09:00 | #integ-hooks | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0401_bug_port-integ-paths-home-guard.md | Claude Code=Git Bash(불변), Codex=cmd.exe → commandWindows+run-sh.cmd. delivery_gate windows 9/9 |
-| 2026-09-24T04:01:33+09:00 | #integ-build-sidecar | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0401_bug_port-integ-paths-home-guard.md | portability 사이드카 잡: windows .exe 27.4MB·ubuntu release thin LTO 링크·--version 실행 초록 |
-| 2026-09-24T04:27:32+09:00 | #shell-pwsh | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/0427_feature_port-shell-integration-lshell.md | oculpm.ps1 + 실행 정책 저장 설정 우선(셸 없이 4ms). pwsh 7·5.1 ConPTY 실측 초록. PR #35 |
 | 2026-09-24T04:27:37+09:00 | #shell-linux | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0427_feature_port-shell-integration-lshell.md | default_shell.rs — macOS 불변, Linux passwd→/bin/bash, Windows pwsh→powershell→COMSPEC. 세 OS 표 테스트 |
 | 2026-09-24T04:27:42+09:00 | #shell-shim | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0427_feature_port-shell-integration-lshell.md | Windows oculpm.exe 인식·하드링크(같은 볼륨)·복사, .cmd 는 두지 않음, AppImage $APPIMAGE. 빌드된 앱 바이너리로 심 통합 테스트 |
 | 2026-09-24T04:27:48+09:00 | #shell-env | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0427_feature_port-shell-integration-lshell.md | split_paths + PATHEXT, Windows 로그인 셸 없음. resolve_binary(cargo)→절대경로 cargo.exe windows 확인 |
@@ -166,5 +164,8 @@ owner: claude-code
 | 2026-09-28T21:45:27+09:00 | #w4-latest-json | claude-code | ☐→x | journal/20260928/Features_to_add/2145_feature_port-release-pipeline-nonmac.md | PR #47 — latest-json.mjs 병합·검증, macOS baseline deepEqual, 맨 linux 키 없음 |
 | 2026-09-28T21:45:34+09:00 | #w4-nonmac-switch | claude-code | ☐→x | journal/20260928/Features_to_add/2145_feature_port-release-pipeline-nonmac.md | PR #47 — OCULPM_RELEASE_NONMAC 기본 꺼짐, 꺼짐 = v3.5.0 결과물(드라이런 36048116681) |
 | 2026-09-28T21:45:41+09:00 | #w0-promote | claude-code | ☐→x | journal/20260928/Features_to_add/2145_feature_port-release-pipeline-nonmac.md | 결정: required·ci.yml 합치기 대신 main push 미리보기 — 비-mac 싣기는 release.yml 이 태그 커밋에서 다시 판정(D2) |
-<!-- oculpm:plan-log archived: 35 rows → cross-platform-port.log.md -->
+| 2026-09-28T22:22:53+09:00 | #shell-pwsh-utf8 | claude-code | ☐→x | journal/20260928/Bugs/2222_bug_port-win-terminal-utf8-inherit-gui.md | PR #52 — pwsh 5.1·7 모두 65001, 네이티브 한글 왕복 러너 확인 |
+| 2026-09-28T22:23:00+09:00 | #pty-handle-inherit | claude-code | ☐→x | journal/20260928/Bugs/2222_bug_port-win-terminal-utf8-inherit-gui.md | PR #52 — proc::spawn_detached(CreateProcessW, 상속 끔), 대조군 포함 EOF 테스트 |
+| 2026-09-28T22:23:07+09:00 | #pty-job-gui-children | claude-code | ☐→x | journal/20260928/Bugs/2222_bug_port-win-terminal-utf8-inherit-gui.md | PR #52 — 위임 결정대로 GUI 자손 보존·콘솔만 종료, 러너에서 GUI 생존 단언 |
+<!-- oculpm:plan-log archived: 38 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
