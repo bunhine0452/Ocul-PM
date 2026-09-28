@@ -46,7 +46,7 @@ pub use gutter::{diff_line_changes, line_changes, GitLineChange, GitLineChangeKi
 pub use history::{
     commits_for_backfill, graph, log, BackfillCommit, BackfillFileChange, GitCommit, GitGraphCommit,
 };
-pub use path_form::{plain, relative_to, slash};
+pub use path_form::{plain, relative_to, slash, touched_path};
 pub(crate) use repo::EMPTY_TREE;
 pub use repo::{primary_repo, repo_root_for};
 pub(crate) use repo::{unquote_git_path, QUOTEPATH_OFF};

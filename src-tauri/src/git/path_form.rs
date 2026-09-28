@@ -66,6 +66,28 @@ pub fn relative_to(base: &Path, path: &Path) -> Option<String> {
     path.strip_prefix(&base).ok().map(slash)
 }
 
+/// 에이전트가 **글자로** 준 일지 `files_touched` 경로 → 저장 모양 (#fs-files-touched-norm).
+///
+/// 쓰는 순간(MCP `journal_write` · 수동 일지 작성)에 한 번 편다. 그대로 적으면 윈도우
+/// 에이전트의 `src\a.ts` 가 diff 사이드카·색인·git 이 말하는 `src/a.ts` 와 다른 파일이
+/// 된다. 구분자는 [`slash`] 규칙(윈도우에서만 `\` → `/`), 루트 안의 절대 경로는
+/// [`relative_to`] 로 상대 경로, 상대 경로의 `./`·겹친 `/` 는 걷는다. 루트 밖 절대 경로와
+/// `..` 는 뜻을 바꾸지 않도록 그대로 둔다 — 이미 저장 모양이면 한 글자도 안 바뀐다.
+pub fn touched_path(root: &Path, raw: &str) -> String {
+    let p = Path::new(raw.trim());
+    if p.is_absolute() {
+        return relative_to(root, p).unwrap_or_else(|| slash(p));
+    }
+    let s = slash(p);
+    // 드라이브 없는 윈도우 루트(`\src\a.ts`)는 절대가 아니지만 뿌리는 지킨다.
+    let lead = if s.starts_with('/') { "/" } else { "" };
+    let segs: Vec<&str> = s
+        .split('/')
+        .filter(|seg| !seg.is_empty() && *seg != ".")
+        .collect();
+    format!("{lead}{}", segs.join("/"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -87,6 +109,47 @@ mod tests {
     fn a_backslash_in_a_unix_file_name_is_kept() {
         assert_eq!(slash(Path::new(r"dir/a\b.txt")), r"dir/a\b.txt");
         assert_eq!(plain(Path::new(r"\\?\C:\x")), PathBuf::from(r"\\?\C:\x"));
+        assert_eq!(
+            touched_path(Path::new("/r"), r"dir/a\b.txt"),
+            r"dir/a\b.txt"
+        );
+    }
+
+    /// 일지 `files_touched` 는 쓰는 순간 저장 모양으로 — 이미 저장 모양이면 무변경,
+    /// `./`·겹친 `/`·앞뒤 공백은 걷고, 루트 안 절대 경로는 상대로, 밖이면 그대로
+    /// (#fs-files-touched-norm).
+    #[test]
+    fn touched_paths_are_stored_in_slash_form() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        for same in ["src/a.ts", "src-tauri/src/lib.rs", "../sibling/x.rs", "a"] {
+            assert_eq!(touched_path(root, same), same);
+        }
+        assert_eq!(touched_path(root, " ./src//a.ts "), "src/a.ts");
+        assert_eq!(touched_path(root, "src/./a.ts"), "src/a.ts");
+        let inside = root.join("src").join("a.ts");
+        assert_eq!(touched_path(root, &inside.to_string_lossy()), "src/a.ts");
+        let outside = dir.path().parent().unwrap().join("elsewhere.rs");
+        assert_eq!(
+            touched_path(root, &outside.to_string_lossy()),
+            slash(&outside)
+        );
+    }
+
+    /// 윈도우 에이전트의 `src\a.ts` 가 diff 사이드카 키(`src/a.ts`)와 같은 행이 된다.
+    #[cfg(windows)]
+    #[test]
+    fn windows_agent_paths_in_files_touched_become_slash_form() {
+        let root = Path::new(r"C:\Users\me\repo");
+        assert_eq!(touched_path(root, r"src\a.ts"), "src/a.ts");
+        assert_eq!(touched_path(root, r".\src\\a.ts"), "src/a.ts");
+        assert_eq!(touched_path(root, r"C:\Users\me\repo\src\a.ts"), "src/a.ts");
+        assert_eq!(
+            touched_path(root, r"\\?\C:\Users\me\repo\src\a.ts"),
+            "src/a.ts"
+        );
+        assert_eq!(touched_path(root, r"\src\a.ts"), "/src/a.ts");
+        assert_eq!(touched_path(root, "src/a.ts"), "src/a.ts");
     }
 
     #[cfg(windows)]

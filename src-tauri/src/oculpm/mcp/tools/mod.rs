@@ -609,14 +609,14 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     let workday = resolver.workday_of(now);
     let local = now.with_timezone(&resolver.tz);
 
-    // files_touched + forbidden 검사 (manager 의 create 경로와 동일 계약).
+    // files_touched(저장 모양 `/` 로 — #fs-files-touched-norm) + forbidden 검사 (manager 의 create 경로와 동일 계약).
     let files: Vec<FileTouched> = args
         .get("files_touched")
         .and_then(Value::as_array)
         .map(|arr| {
             arr.iter()
                 .filter_map(|f| {
-                    let path = f.get("path")?.as_str()?.trim().to_string();
+                    let path = crate::git::touched_path(root, f.get("path")?.as_str()?);
                     if path.is_empty() {
                         return None;
                     }
