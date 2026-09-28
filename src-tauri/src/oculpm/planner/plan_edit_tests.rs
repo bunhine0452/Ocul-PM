@@ -398,3 +398,45 @@ fn edits_target_the_anchor_not_a_mention_in_a_title() {
         "## 새 {#p1}\n- [ ] a {#a}\n"
     );
 }
+
+/// 앵커 달린 phase 에 항목을 더하면 그 섹션 **끝**에 들어간다 — 원문 헤딩
+/// (`P {#p}`)과 비교하던 동안 UI 가 넘기는 앵커 뗀 이름(`P`)이 안 맞아 `## P`
+/// 섹션이 하나 더 생겼다 (#plan-add-item-anchored-phase).
+#[test]
+fn add_item_to_an_anchored_phase_appends_to_that_section() {
+    let md = "## P {#p}\n- [ ] a {#a}\n\n## Q\n- [ ] q {#q}\n";
+    let out = add_item(md, "P", "b", "b", ItemStatus::Todo).unwrap();
+    assert_eq!(
+        out,
+        "## P {#p}\n- [ ] a {#a}\n- [ ] b {#b}\n\n## Q\n- [ ] q {#q}\n"
+    );
+    let p = parse_plan(&out, "x");
+    assert_eq!(p.phases.len(), 2, "섹션 수 불변: {out}");
+    let b = p.items.iter().find(|i| i.item_id == "b").unwrap();
+    assert_eq!(b.phase.as_deref(), Some("P"));
+    // 제목 본문에 `{#…}` 글자가 든 phase 도 파서의 이름으로 찾는다.
+    let md = "## 단계 `{#x}` {#p1}\n- [ ] a {#a}\n";
+    let out = add_item(md, "단계 `{#x}`", "c", "c", ItemStatus::Todo).unwrap();
+    assert_eq!(out, "## 단계 `{#x}` {#p1}\n- [ ] a {#a}\n- [ ] c {#c}\n");
+    // CRLF 문서에서도 같다.
+    let crlf = "## P {#p}\r\n- [ ] a {#a}\r\n";
+    let out = add_item(crlf, "P", "b", "b", ItemStatus::Todo).unwrap();
+    assert_eq!(out, "## P {#p}\r\n- [ ] a {#a}\r\n- [ ] b {#b}\r\n");
+}
+
+/// 결정 섹션 판정은 파서와 하나다 — 「결정」 이 **든** 보통 phase(「결정 반영」)는
+/// phase 라 `move_phase` 의 범위를 끊지 않는다 (#plan-decisions-heading-mismatch).
+#[test]
+fn move_phase_treats_a_phase_mentioning_decision_as_a_phase() {
+    let md = "## 결정 반영 {#p1}\n- [ ] a {#a}\n\n## Decision log 정리\n- [ ] b {#b}\n\n## 결정\n### D {#d}\n본문\n";
+    let p = parse_plan(md, "x");
+    assert_eq!(p.phases.len(), 2, "파서는 둘 다 phase 로 읽는다");
+    let out = move_phase(md, "Decision log 정리", true).unwrap();
+    assert_eq!(
+        out,
+        "## Decision log 정리\n- [ ] b {#b}\n\n## 결정 반영 {#p1}\n- [ ] a {#a}\n\n## 결정\n### D {#d}\n본문\n"
+    );
+    assert_eq!(move_phase(&out, "결정 반영", true).unwrap(), md);
+    // 진짜 결정 섹션은 범위 밖 — 마지막 phase 를 내려도 끌려가지 않는다.
+    assert_eq!(move_phase(md, "Decision log 정리", false).unwrap(), md);
+}

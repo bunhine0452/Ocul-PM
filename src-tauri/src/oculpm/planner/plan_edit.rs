@@ -12,7 +12,8 @@
 //! 쓴다 (#fs-crlf-parsers). 항목 줄은 파서와 같은 앵커([`anchor_span`])로 찾는다.
 
 use crate::oculpm::planner::eol::{self, Relined};
-use crate::oculpm::planner::parse::{anchor_span, extract_brace_id, ItemStatus};
+use crate::oculpm::planner::heading::{is_decisions_heading, split_phase_heading};
+use crate::oculpm::planner::parse::{anchor_span, ItemStatus};
 
 const LOG_BEGIN: &str = "<!-- oculpm:plan-log begin v1 -->";
 const LOG_END: &str = "<!-- oculpm:plan-log end -->";
@@ -344,13 +345,12 @@ fn rename_item_lf(md: &str, item_id: &str, new_title: &str) -> Result<String, St
 
 // ── phase (`## ` heading) structural ops ─────────────────────────────────────
 
-/// Derive a `## ` heading's display name the way the parser does (`{#id}`
-/// removed, trimmed). Returns `None` for non-`## ` lines.
+/// Derive a `## ` heading's display name with the parser's own function
+/// (`{#id}` anchor removed, trimmed). Returns `None` for non-`## ` lines. 모든
+/// phase 찾기(`add_item` 포함)가 이 이름으로 비교한다 — UI 가 넘기는 것이 이것이다.
 fn phase_heading_name(line: &str) -> Option<String> {
     let rest = line.trim_start().strip_prefix("## ")?;
-    let mut h = rest.trim().to_string();
-    extract_brace_id(&mut h);
-    Some(h.trim().to_string())
+    Some(split_phase_heading(rest).0)
 }
 
 /// The ` {#id}` marker of a `## ` heading, if any (so rename can keep a phase's
@@ -359,13 +359,6 @@ fn phase_heading_marker(line: &str) -> Option<String> {
     let rest = line.trim_start().strip_prefix("## ")?;
     let (start, end) = anchor_span(rest)?;
     Some(rest[start..=end].to_string())
-}
-
-/// A `## ` heading is a Decisions section header, not a phase (same heuristic
-/// the parser uses) — these are never renamed/removed/reordered as phases.
-fn is_decisions_name(name: &str) -> bool {
-    let lower = name.to_lowercase();
-    lower.contains("결정") || lower.contains("decision")
 }
 
 /// Rename a phase heading (`## <old>` → `## <new>`), preserving any `{#id}`
@@ -430,13 +423,11 @@ fn move_phase_lf(md: &str, phase: &str, up: bool) -> Result<String, String> {
         .iter()
         .position(|l| l.trim_start().starts_with("<!-- oculpm:plan-log begin"))
         .unwrap_or(lines.len());
+    // 결정 섹션은 파서와 같은 판정으로 — 부분 문자열로 찾던 동안 「결정 반영」
+    // 같은 보통 phase 에서 범위가 끊겼다.
     let dec_idx = lines
         .iter()
-        .position(|l| {
-            phase_heading_name(l)
-                .map(|n| is_decisions_name(&n))
-                .unwrap_or(false)
-        })
+        .position(|l| phase_heading_name(l).is_some_and(|n| is_decisions_heading(&n)))
         .unwrap_or(lines.len());
     let region_end = log_idx.min(dec_idx);
 
@@ -501,12 +492,11 @@ fn add_item_lf(
     let new_line = format!("- [{}] {} {{#{}}}", status.token(), title.trim(), item_id);
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
 
-    let phase_idx = lines.iter().position(|l| {
-        l.trim_start()
-            .strip_prefix("## ")
-            .map(|h| h.trim() == phase.trim())
-            .unwrap_or(false)
-    });
+    // 파서와 같은 이름(앵커를 뗀 것)으로 찾는다 — 원문 헤딩과 비교하던 동안
+    // `## P {#p}` 에 더하면 `## P` 섹션이 하나 더 생겼다.
+    let phase_idx = lines
+        .iter()
+        .position(|l| phase_heading_name(l).is_some_and(|n| n == phase.trim()));
 
     match phase_idx {
         Some(pi) => {
