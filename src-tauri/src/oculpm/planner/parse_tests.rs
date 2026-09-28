@@ -369,3 +369,34 @@ fn the_anchor_is_the_last_brace_id_not_a_mention_in_the_title() {
     assert_eq!(p.decisions[0].decision_id, "d-a");
     assert_eq!(p.decisions[0].title, "Decision A — `{#x}` 규격");
 }
+
+/// 대조 사례표 — VS Code 확장(`extension/src/oculpm/reader.spec.ts`)이 **같은 파일**을
+/// 읽어 자기 파서를 판정한다. 앵커·결정 헤딩 규칙이 한쪽만 바뀌면 다른 쪽이 붉어진다.
+#[test]
+fn parser_parity_cases_shared_with_the_vscode_extension() {
+    let cases: serde_json::Value =
+        serde_json::from_str(include_str!("parser_parity_cases.json")).unwrap();
+    let opt = |v: &serde_json::Value| v.as_str().map(str::to_string);
+    for c in cases["items"].as_array().unwrap() {
+        let line = c["line"].as_str().unwrap();
+        let p = parse_plan(&format!("## P\n{line}\n"), "x");
+        assert_eq!(p.items.len(), 1, "{line}");
+        let it = &p.items[0];
+        assert_eq!(Some(it.item_id.clone()), opt(&c["id"]), "id: {line}");
+        assert_eq!(Some(it.title.clone()), opt(&c["title"]), "title: {line}");
+        assert_eq!(it.note, opt(&c["note"]), "note: {line}");
+    }
+    for c in cases["headings"].as_array().unwrap() {
+        let heading = c["heading"].as_str().unwrap();
+        let p = parse_plan(&format!("{heading}\n- [ ] a {{#a}}\n"), "x");
+        match opt(&c["phase"]) {
+            None => assert!(p.phases.is_empty() && p.items.is_empty(), "결정: {heading}"),
+            Some(name) => {
+                assert_eq!(p.phases.len(), 1, "{heading}");
+                assert_eq!(p.phases[0].name, name, "{heading}");
+                assert_eq!(p.phases[0].id, opt(&c["id"]), "{heading}");
+                assert_eq!(p.items[0].phase.as_deref(), Some(name.as_str()));
+            }
+        }
+    }
+}
