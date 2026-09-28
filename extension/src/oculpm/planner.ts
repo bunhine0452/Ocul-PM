@@ -336,6 +336,9 @@ function dedupId(base: string, seen: Set<string>): string {
   }
 }
 
+/** 앵커 없는 항목의 생성 id. **Rust `slugify` 와 다르다** — 여기만 40자에서 자른다.
+ *  그래서 긴 제목의 앵커 없는 항목은 앱과 확장에서 id 가 갈릴 수 있고, 대조 사례표
+ *  (`parser_parity_cases.json`)에는 앵커 없는 줄을 넣지 않았다. 통일은 별도 작업. */
 function slugify(s: string): string {
   return s
     .toLowerCase()
