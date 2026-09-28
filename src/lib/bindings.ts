@@ -2394,29 +2394,26 @@ severity: string; title: string; details: string | null } |
  */
 { kind: "plan"; entries: AcpPlanEntry[] } | 
 /**
- *  이번 턴에 에이전트가 **자기 입으로 신고한** 파일 변경 목록
+ *  이번 턴에 에이전트 쪽이 **신고한** 파일 변경 목록
  *  (어댑터 0.70.0 의 `agentFileChangeReport`).
  * 
- *  watcher·git diff 로 *추론*하는 것과 출처가 다르다: 턴이 끝나기 직전
- *  어댑터가 숨은 continuation 으로 "이번 턴에 바꾼 워크스페이스 파일을
- *  전부 신고하라"를 시키고, 그 답이 이 이벤트다. 명령·제너레이터·자식
- *  프로세스가 바꾼 것까지 포함하라고 지시하므로 watcher 가 놓치거나 다른
- *  창의 작업과 뒤섞이던 것을 교차 검증할 수 있다.
- * 
- *  **믿되 검증한다** — 모델이 적어 주는 목록이라 틀릴 수 있다. 그래서
- *  `complete`/`uncertainty` 를 그대로 실어 보낸다(모델이 스스로 "불완전할
- *  수 있다"고 말한 것을 우리가 숨기면 안 된다).
+ *  watcher·git diff 로 *추론*하는 것과 출처가 다르고, 그 출처가 버전마다
+ *  바뀌었다. Claude ≤0.77.0·Codex ≤1.8.0 은 턴 끝에 숨은 모델 호출로 목록을
+ *  적게 했고(명령이 바꾼 것까지), Claude 0.81.0 은 SDK 체크포인트, Codex
+ *  1.13.0 은 턴 diff 에서 뽑는다 — 편집 도구 기준이라 셸 변경은 빠진다.
+ *  `complete` 는 둘 다 **늘 false**, 파일을 안 건드린 턴도 `reported` + 빈
+ *  목록으로 온다 (스파이크 3 실측, 2026-09-23).
  */
 { kind: "file_change_report"; 
 /**  우리가 프롬프트에 실어 보낸 요청 표 — 어느 턴의 보고인지 잇는다. */
 request_id: string; 
 /**  바뀐 파일들의 절대경로. `status != "reported"` 면 빈 목록이다. */
 paths: string[]; 
-/**  모델이 "이게 전부다"라고 선언했는가. */
+/**  "이게 전부다"라는 선언. 현재 어댑터는 늘 false. */
 complete: boolean; 
 /**  어댑터가 한도(1024개·256KB)로 잘랐는가. */
 truncated: boolean; 
-/**  모델이 적어 준 불확실성 사유. */
+/**  불확실성 사유 (Codex 1.13.0 은 고정 문장). */
 uncertainty: string | null; 
 /**
  *  보고를 못 받은 사유 — `cancelled`·`timeout`·`invalidOutput`·
