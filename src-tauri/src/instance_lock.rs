@@ -24,11 +24,20 @@
 //! 업데이터 재시작은 새 프로세스를 먼저 띄우고 옛 프로세스가 끝나므로, 잠금이 잡혀
 //! 있으면 [`RETRY_FOR`] 동안 다시 시도한다.
 //!
-//! 배선은 Linux 에서만 한다 (`lib.rs` 의 single-instance 자리). macOS·Windows 는 플러그인이
-//! OS 기본 수단(NSDistributedNotification · 이름 있는 뮤텍스)을 쓰므로 경로 불변이다.
-//! 잠금·주소 해석은 순수해서 세 OS 에서 모두 테스트한다.
+//! **주소를 못 읽으면 플러그인이 패닉한다** (`#os-dbus-addr-panic`). 같은 파일의 setup 은
+//! `zbus::blocking::connection::Builder::session().unwrap()` 으로 시작한다 — 연결 오류는
+//! 삼키지만 **주소 해석 오류는 `unwrap` 이 기동 중 패닉으로 바꾼다.** `DBUS_SESSION_BUS_ADDRESS`
+//! 가 zbus 가 못 읽는 값(빈 문자열 · 오타 · 모르는 전송)이거나, 그 변수가 없고
+//! `XDG_RUNTIME_DIR` 에 쉼표가 있으면 그렇다. 그래서 등록 전에 [`session_address_problem`]
+//! 으로 zbus 의 규칙을 미리 대 보고, 못 읽을 주소면 플러그인을 건너뛰고 잠금 파일만 쓴다.
+//!
+//! 배선은 [`register`] 한 곳이다 (`lib.rs` 의 single-instance 자리). 폴백 잠금과 주소 검사는
+//! Linux 에서만 한다 — macOS·Windows 는 플러그인이 OS 기본 수단(NSDistributedNotification ·
+//! 이름 있는 뮤텍스)을 쓰므로 경로 불변이다. 잠금·주소 해석은 순수해서 세 OS 에서 모두
+//! 테스트한다.
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
 
+use std::collections::HashMap;
 use std::fs::{File, OpenOptions, TryLockError};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -205,15 +214,177 @@ pub fn probe_targets(targets: &[BusTarget]) -> BusProbe {
     }
 }
 
-// ── 배선 (Linux) ──────────────────────────────────────────────────────────
+// ── zbus 가 이 주소를 읽는가 ──────────────────────────────────────────────
+
+/// 이 환경에서 `zbus::Address::session()` 이 **오류를 내는가** — 내면 그 이유. single-instance
+/// 2.4.4 는 그 결과를 `unwrap` 하므로 오류 = 기동 중 패닉이다 (`#os-dbus-addr-panic`).
+///
+/// zbus 5 의 규칙 그대로다 (5.15~5.19 `address/mod.rs` 의 `session`): 변수가 있으면(빈 문자열
+/// 이어도) 그 값을, 없으면(또는 UTF-8 이 아니면) `unix:path=$XDG_RUNTIME_DIR/bus` 를 읽는다.
+/// `XDG_RUNTIME_DIR` 도 없으면 `/run/user/<uid>/bus` 라 늘 읽힌다. 두 인자는
+/// `std::env::var(..).ok()` 모양이다.
+pub fn session_address_problem(
+    env_address: Option<&str>,
+    runtime_dir: Option<&str>,
+) -> Option<String> {
+    match (env_address, runtime_dir) {
+        (Some(address), _) => zbus_address_problem(address),
+        (None, Some(dir)) => zbus_address_problem(&format!("unix:path={dir}/bus")),
+        (None, None) => None,
+    }
+}
+
+/// 주소 하나를 zbus 5 의 `Address::from_str` 규칙으로 읽어 본다 (Linux 빌드 기준).
+///
+/// 문법은 그대로 옮겼다: `<전송>:<키>=<값>,…` — 전송은 첫 `:` 앞 한 글자 이상, 키는 ASCII
+/// 영숫자, 값은 쉼표 아닌 한 글자 이상. zbus 는 `;` 로 가르지 **않는다** — 여러 주소는 첫
+/// 값에 통째로 붙는다(읽히기는 한다).
+///
+/// 받는 전송은 **좁게** 잡는다 — `unix`(path·abstract·dir·tmpdir 중 정확히 하나)와
+/// `tcp`·`nonce-tcp` 만. zbus 가 받는 `unixexec`·`ibus`·`vsock` 도 여기서는 모름 = 문제로
+/// 친다. 틀리는 방향이 한쪽뿐이어야 한다: 받는 주소를 문제로 치면 두 번째 인스턴스의 인자
+/// 전달만 잃지만(잠금은 그대로), 못 받는 주소를 괜찮다고 하면 앱이 뜨지 않는다.
+pub fn zbus_address_problem(address: &str) -> Option<String> {
+    let Some((transport, options)) = address.split_once(':') else {
+        return Some(format!("no transport (missing ':') in {address:?}"));
+    };
+    if transport.is_empty() {
+        return Some(format!("empty transport in {address:?}"));
+    }
+    let mut opts = HashMap::new();
+    // `separated(0.., kv, ',')` 뒤 입력 끝 — 빈 옵션은 되고, 빈 조각(앞뒤·연속 쉼표)은 안 된다.
+    if !options.is_empty() {
+        for kv in options.split(',') {
+            let Some((key, value)) = kv.split_once('=') else {
+                return Some(format!("option {kv:?} is not key=value"));
+            };
+            if key.is_empty() || !key.bytes().all(|b| b.is_ascii_alphanumeric()) {
+                return Some(format!("option key {key:?} is not alphanumeric"));
+            }
+            if value.is_empty() {
+                return Some(format!("option {key:?} has an empty value"));
+            }
+            opts.insert(key, value);
+        }
+    }
+    // zbus 는 uuid 로 읽는다 — 버스가 실제로 내는 32자리 16진수만 받는다(uuid 의 부분집합).
+    if let Some(guid) = opts.get("guid") {
+        if guid.len() != 32 || !guid.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Some(format!("guid {guid:?} is not 32 hex digits"));
+        }
+    }
+    match transport {
+        "unix" => {
+            let sockets = ["path", "abstract", "dir", "tmpdir"]
+                .iter()
+                .filter(|key| opts.contains_key(*key))
+                .count();
+            (sockets != 1)
+                .then(|| "unix: needs exactly one of path/abstract/dir/tmpdir".to_string())
+        }
+        "tcp" | "nonce-tcp" => tcp_problem(&opts, transport == "nonce-tcp"),
+        other => Some(format!("transport {other:?} is not one this check accepts")),
+    }
+}
+
+/// zbus 5 `Tcp::from_options`.
+fn tcp_problem(opts: &HashMap<&str, &str>, nonce_required: bool) -> Option<String> {
+    if opts.contains_key("bind") {
+        return Some("tcp: `bind` is not supported".into());
+    }
+    if !opts.contains_key("host") {
+        return Some("tcp: missing `host`".into());
+    }
+    let Some(port) = opts.get("port") else {
+        return Some("tcp: missing `port`".into());
+    };
+    if port.parse::<u16>().is_err() {
+        return Some(format!("tcp: invalid `port` {port:?}"));
+    }
+    if let Some(family) = opts.get("family") {
+        if !matches!(*family, "ipv4" | "ipv6") {
+            return Some(format!("tcp: invalid `family` {family:?}"));
+        }
+    }
+    match opts.get("noncefile") {
+        Some(file) if !percent_encoding_ok(file) => {
+            Some(format!("tcp: `noncefile` {file:?} is not percent-encoded"))
+        }
+        None if nonce_required => Some("nonce-tcp: missing `noncefile`".into()),
+        _ => None,
+    }
+}
+
+/// zbus 5 `decode_percents` — 날 글자는 `-0-9A-Za-z_/.\*` 만, 나머지는 `%XX`.
+fn percent_encoding_ok(value: &str) -> bool {
+    let mut bytes = value.bytes();
+    while let Some(b) = bytes.next() {
+        let plain = b.is_ascii_alphanumeric() || b"-_/.\\*".contains(&b);
+        if plain {
+            continue;
+        }
+        if b != b'%' {
+            return false;
+        }
+        let hex = |b: Option<u8>| b.is_some_and(|b| b.is_ascii_hexdigit());
+        if !hex(bytes.next()) || !hex(bytes.next()) {
+            return false;
+        }
+    }
+    true
+}
+
+// ── 배선 ─────────────────────────────────────────────────────────────────
+
+/// single-instance 플러그인을 등록한다 — `lib.rs` 의 자리. 앱의 **첫** 플러그인이어야 한다
+/// (두 번째 인스턴스는 여기서 끝나고, 창을 만들기 전이다).
+///
+/// Linux 에서는 둘을 더 한다:
+/// - 세션 D-Bus 주소를 zbus 가 못 읽으면([`session_address_problem`]) 플러그인을 **건너뛴다**
+///   — 등록하면 setup 의 `unwrap` 이 기동 중 패닉한다. 경고 한 줄을 남긴다.
+/// - 그 바로 뒤에 잠금 파일 플러그인([`plugin`])을 단다. 건너뛴 경우에도 두 번째 인스턴스는
+///   거기서 막힌다.
+///
+/// macOS·Windows 는 예전 그대로 플러그인 하나다 (D3).
+pub fn register<R, F>(builder: tauri::Builder<R>, on_second_instance: F) -> tauri::Builder<R>
+where
+    R: tauri::Runtime,
+    F: FnMut(&tauri::AppHandle<R>, Vec<String>, String) + Send + Sync + 'static,
+{
+    #[cfg(target_os = "linux")]
+    {
+        let problem = session_address_problem(
+            std::env::var("DBUS_SESSION_BUS_ADDRESS").ok().as_deref(),
+            std::env::var("XDG_RUNTIME_DIR").ok().as_deref(),
+        );
+        let builder = match &problem {
+            Some(why) => {
+                tracing::warn!(
+                    target: "oculpm::boot",
+                    why = %why,
+                    "[FLOW] 세션 D-Bus 주소를 zbus 가 못 읽는다 — single-instance 플러그인을 \
+                     건너뛴다(등록하면 기동 중 패닉). 잠금 파일로 두 번째 인스턴스를 막는다 \
+                     (딥링크·창 앞으로 전달은 안 된다)"
+                );
+                builder
+            }
+            None => builder.plugin(tauri_plugin_single_instance::init(on_second_instance)),
+        };
+        builder.plugin(plugin())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        builder.plugin(tauri_plugin_single_instance::init(on_second_instance))
+    }
+}
 
 /// 잠금 파일 핸들 — 앱이 끝날 때까지 쥐고 있는다.
 #[cfg(target_os = "linux")]
 struct InstanceLock(#[allow(dead_code)] File);
 
-/// single-instance 플러그인 **바로 뒤에** 등록하는 플러그인. 플러그인 setup 은 등록
-/// 순서대로, 설정 파일의 창을 만들기 **전에** 돈다 — 두 번째 인스턴스가 창을 한 번
-/// 번쩍 띄우고 사라지지 않는다 (앱의 `.setup` 은 창을 만든 뒤라 늦다).
+/// single-instance 플러그인 **바로 뒤에** 등록하는 플러그인([`register`] 가 단다). 플러그인
+/// setup 은 등록 순서대로, 설정 파일의 창을 만들기 **전에** 돈다 — 두 번째 인스턴스가 창을
+/// 한 번 번쩍 띄우고 사라지지 않는다 (앱의 `.setup` 은 창을 만든 뒤라 늦다).
 #[cfg(target_os = "linux")]
 pub fn plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri::plugin::Builder::new("instance-lock")
@@ -254,10 +425,10 @@ fn enforce<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
                 bus = ?bus,
                 dropped_links = ?links,
                 "[FLOW] 이미 떠 있는 인스턴스가 잠금을 쥐고 있다 — 이 프로세스는 끝난다. \
-                 D-Bus 가 없어 인자(딥링크)를 첫 인스턴스에 넘기지 못했다"
+                 D-Bus 가 없거나 그 주소를 못 읽어 인자(딥링크)를 첫 인스턴스에 넘기지 못했다"
             );
             eprintln!(
-                "ocul-pm is already running (pid {}). Without a D-Bus session bus the second \
+                "ocul-pm is already running (pid {}). Without a usable D-Bus session bus the second \
                  instance cannot hand its arguments over — exiting.",
                 holder.map_or_else(|| "?".to_string(), |p| p.to_string())
             );
@@ -400,5 +571,205 @@ mod tests {
             probe_targets(&[BusTarget::Abstract(name)]),
             BusProbe::Unreachable(_)
         ));
+    }
+
+    /// zbus 5 `Address::from_str`(Linux) 의 표 — 받는 것, 못 받는 것, 받지만 여기서 모름으로
+    /// 치는 것 (#os-dbus-addr-panic). 실제 zbus 와 대 보는 것은 Linux 의 자식 프로세스 표다.
+    #[test]
+    fn zbus_address_rules_table() {
+        let accepted = [
+            "unix:path=/run/user/1000/bus",
+            "unix:path=/run/user/1000/bus,guid=0123456789abcdef0123456789ABCDEF",
+            "unix:abstract=/tmp/dbus-AbC",
+            "unix:dir=/tmp",
+            "unix:tmpdir=/tmp",
+            "unix:path=/a;unix:path=/b", // zbus 는 `;` 로 가르지 않는다 — 첫 path 값에 붙는다
+            "unix:path=/a=b,foo=bar",    // 값 안의 `=` · 모르는 키는 무시
+            "unix:path=/tmp/with%20space",
+            "tcp:host=127.0.0.1,port=4142",
+            "tcp:host=localhost,port=4142,family=ipv6",
+            "nonce-tcp:host=localhost,port=1,noncefile=/a/file%20x",
+        ];
+        for address in accepted {
+            assert_eq!(zbus_address_problem(address), None, "{address:?}");
+        }
+        let rejected = [
+            "",
+            "   ",
+            "garbage",
+            ":path=/x",
+            "unix:",
+            "unix:foo=bar",
+            "unix:path=/a,abstract=b",
+            "unix:path=/a,",
+            "unix:,path=/a",
+            "unix:path=",
+            "unix:pa-th=/a",
+            "unix:path=/a,guid=0123",
+            "tcp:host=localhost",
+            "tcp:host=localhost,port=32f",
+            "tcp:host=localhost,port=70000",
+            "tcp:host=localhost,port=1,family=ipv7",
+            "tcp:host=h,port=1,bind=x",
+            "nonce-tcp:host=h,port=1",
+            "nonce-tcp:host=h,port=1,noncefile=a b",
+            "foo:opt=1",
+            "launchd:env=X",
+            "autolaunch:",
+            // zbus 는 받지만 이 검사는 모름 = 문제로 친다 (잃는 것은 인자 전달뿐).
+            "ibus:",
+            "unixexec:path=/bin/true",
+            "vsock:cid=1,port=2",
+        ];
+        for address in rejected {
+            assert!(zbus_address_problem(address).is_some(), "{address:?}");
+        }
+    }
+
+    /// 변수 → 읽을 주소. 빈 변수는 **빈 주소**다(폴백하지 않는다) — 가장 흔한 패닉 입력.
+    #[test]
+    fn session_address_follows_zbus_fallback() {
+        assert_eq!(session_address_problem(None, None), None);
+        assert_eq!(session_address_problem(None, Some("/run/user/1000")), None);
+        assert_eq!(session_address_problem(None, Some("")), None);
+        assert!(session_address_problem(None, Some("/tmp/a,b")).is_some());
+        assert!(session_address_problem(Some(""), Some("/run/user/1000")).is_some());
+        assert_eq!(
+            session_address_problem(Some("unix:path=/x"), Some("/tmp/a,b")),
+            None
+        );
+    }
+
+    // ── 실제 플러그인으로 (Linux) ─────────────────────────────────────────
+
+    /// 자식 모드 스위치 — `raw`(플러그인 그대로) · `guarded`([`register`]).
+    #[cfg(target_os = "linux")]
+    const SI_CHILD_ENV: &str = "OCULPM_SINGLE_INSTANCE_CHILD";
+    #[cfg(target_os = "linux")]
+    const SI_CHILD_TEST: &str = "instance_lock::tests::single_instance_child";
+
+    /// **자식 프로세스 본체** — 평소에는 아무것도 안 하고 통과한다. 부모가 환경 변수를
+    /// 걸어 `--exact` 로 다시 띄우면 모의 앱을 single-instance 와 함께 짓는다. 환경은
+    /// 프로세스 전역이라 부모 안에서 바꾸지 않고 자식을 띄운다.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn single_instance_child() {
+        let Ok(mode) = std::env::var(SI_CHILD_ENV) else {
+            return;
+        };
+        let builder = tauri::test::mock_builder();
+        let builder = if mode == "raw" {
+            builder.plugin(tauri_plugin_single_instance::init(|_, _, _| {}))
+        } else {
+            register(builder, |_, _, _| {})
+        };
+        // 모의 설정의 식별자는 빈 문자열이라 버스 이름(`.SingleInstance`)이 틀린다 — 그러면
+        // 주소와 무관하게 `.name(..).unwrap()` 에서 패닉한다. 앱의 식별자를 쓴다.
+        let mut context = tauri::test::mock_context(tauri::test::noop_assets());
+        context.config_mut().identifier = crate::app_dirs::BUNDLE_IDENTIFIER.into();
+        let app = builder.build(context);
+        assert!(app.is_ok(), "모의 앱: {:?}", app.err());
+    }
+
+    /// 자식을 띄워 끝을 기다린다 — (성공했나, stderr). 세션 버스·데이터 폴더는 빈 임시
+    /// 폴더라 실제 버스에 닿지 않는다.
+    #[cfg(target_os = "linux")]
+    fn run_child(mode: &str, address: Option<&str>, runtime_dir: &Path) -> (bool, String) {
+        let data = tempfile::tempdir().unwrap();
+        let mut cmd = std::process::Command::new(std::env::current_exe().unwrap());
+        cmd.args([SI_CHILD_TEST, "--exact", "--nocapture", "--test-threads=1"])
+            .env(SI_CHILD_ENV, mode)
+            .env("XDG_DATA_HOME", data.path())
+            .env("XDG_RUNTIME_DIR", runtime_dir)
+            .env_remove("DBUS_SESSION_BUS_ADDRESS")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped());
+        if let Some(address) = address {
+            cmd.env("DBUS_SESSION_BUS_ADDRESS", address);
+        }
+        let mut child = cmd.spawn().expect("자식 테스트 프로세스");
+        let mut stderr = child.stderr.take().unwrap();
+        let reader = std::thread::spawn(move || {
+            let mut text = String::new();
+            let _ = stderr.read_to_string(&mut text);
+            text
+        });
+        let deadline = Instant::now() + Duration::from_secs(60);
+        let status = loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                break status;
+            }
+            if Instant::now() > deadline {
+                let _ = child.kill();
+                panic!("자식이 60초 안에 끝나지 않는다: {mode} {address:?}");
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        };
+        (status.success(), reader.join().unwrap())
+    }
+
+    /// 패닉 경로의 실측과 가드 (#os-dbus-addr-panic) — 같은 주소로 **실제 플러그인**을 짓는다.
+    /// - 검사가 괜찮다는 주소는 플러그인이 패닉하지 않는다 (검사가 zbus 보다 느슨하지 않다).
+    /// - zbus 가 못 읽는 주소는 플러그인이 `unwrap` 에서 **패닉한다** (L-OS3 의 추정이 사실).
+    /// - 같은 주소로 [`register`] 를 거치면 앱이 뜬다.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_bad_session_address_panics_the_plugin_but_not_register() {
+        let tmp = tempfile::tempdir().unwrap();
+        let nobus = tmp.path().join("nobus");
+        let (runtime, comma_runtime) = (tmp.path().join("runtime"), tmp.path().join("a,b"));
+        std::fs::create_dir_all(&runtime).unwrap();
+        std::fs::create_dir_all(&comma_runtime).unwrap();
+        let (runtime, comma_runtime) = (runtime.as_path(), comma_runtime.as_path());
+        let path = |p: &Path| format!("unix:path={}", p.display());
+        let good: Vec<(Option<String>, &Path)> = vec![
+            (Some(path(&nobus)), runtime),
+            (
+                Some(format!("{},guid={}", path(&nobus), "ab".repeat(16))),
+                runtime,
+            ),
+            (Some(format!("{};{}", path(&nobus), path(&nobus))), runtime),
+            (
+                Some(format!("unix:abstract=oculpm-nobus-{}", std::process::id())),
+                runtime,
+            ),
+            (Some("tcp:host=127.0.0.1,port=1".into()), runtime),
+            (None, runtime),
+        ];
+        for (address, dir) in &good {
+            let problem =
+                session_address_problem(address.as_deref(), Some(&dir.display().to_string()));
+            assert_eq!(problem, None, "{address:?}");
+            let (ok, err) = run_child("raw", address.as_deref(), dir);
+            assert!(
+                ok,
+                "읽히는 주소인데 플러그인이 실패했다 {address:?}:\n{err}"
+            );
+        }
+        let bad: Vec<(Option<&str>, &Path)> = vec![
+            (Some(""), runtime),
+            (Some("garbage"), runtime),
+            (Some("unix:"), runtime),
+            (Some("unix:foo=bar"), runtime),
+            (Some("unix:path=/a,"), runtime),
+            (Some("unix:path=/a,guid=0123"), runtime),
+            (Some("tcp:host=127.0.0.1,port=notaport"), runtime),
+            (Some("launchd:env=X"), runtime),
+            (None, comma_runtime), // 변수 없음 + XDG_RUNTIME_DIR 에 쉼표
+        ];
+        for (address, dir) in &bad {
+            let problem = session_address_problem(*address, Some(&dir.display().to_string()));
+            assert!(problem.is_some(), "{address:?} {}", dir.display());
+            // 패닉 자리가 플러그인의 주소 `unwrap` 이어야 한다 — 다른 이유의 실패가 아니다.
+            let (ok, err) = run_child("raw", *address, dir);
+            let at_address = err.contains("tauri-plugin-single-instance")
+                && (err.contains("Address(") || err.contains("InvalidGUID"));
+            assert!(
+                !ok && at_address,
+                "플러그인이 주소에서 패닉해야 한다 {address:?}:\n{err}"
+            );
+            let (ok, err) = run_child("guarded", *address, dir);
+            assert!(ok, "register 를 거치면 떠야 한다 {address:?}:\n{err}");
+        }
     }
 }
