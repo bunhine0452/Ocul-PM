@@ -66,4 +66,5 @@ plan: cross-platform-port
 | 2026-09-24T21:05:04+09:00 | #w3-update-ptyhost-lock | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/2104_feature_port-ptyhost-update-survival-lpty2.md | 호스트 판별 복사본 — taskkill /IM + 설치 폴더 덮어쓰기에도 생존(windows 러너). 실제 NSIS 한 바퀴는 L-PKG 설치 스모크. PR #42 |
 | 2026-09-24T21:05:12+09:00 | #pty-ctrlc-flake | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2104_feature_port-ptyhost-update-survival-lpty2.md | 판정: 테스트 경합(콘솔 부착 전 몇 ms 의 ^C 는 cmd 가 받음), 제품 결함 아님. 틈 노림 4/30 → 수정 후 0/60 |
 | 2026-09-25T02:43:49+09:00 | #ui-winpath-name | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | osPath.ts, E2E windows "프로젝트 이름 = 폴더 이름" 초록. PR #44 |
+| 2026-09-25T02:43:55+09:00 | #ui-term-write-order | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | 세션별 쓰기 직렬화(ptyWrite.ts), 단일 창구 writePty. E2E windows 연타 순서 초록. macOS 도 잠복 결함 수리 |
 <!-- oculpm:plan-log end -->

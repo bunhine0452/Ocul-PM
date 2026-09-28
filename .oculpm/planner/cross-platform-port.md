@@ -108,7 +108,7 @@ owner: claude-code
 - [x] [사용자 결정] Linux 형식 — AppImage+deb(권장, D10) / +rpm / +Flatpak {#w4-linux-formats}
 - [x] release.yml 매트릭스 windows·ubuntu-22.04 — 비-mac 실패가 macOS draft·검증을 막지 않게 분리 {#w4-release-matrix}
 - [x] E2E·설치 스모크 통과 플랫폼만 latest.json 에 — macOS 업데이트 오염 금지 (D7) {#w4-latest-json}
-- [ ] 5면 반영: README ko/en 지원 표(베타)·랜딩 ko/en 다운로드·CHANGELOG·docs/RELEASE.md·버전 6파일 {#w4-surfaces}
+- [x] 5면 반영: README ko/en 지원 표(베타)·랜딩 ko/en 다운로드·CHANGELOG·docs/RELEASE.md·버전 6파일 {#w4-surfaces}
 - [x] 비-mac 공개 스위치 `OCULPM_RELEASE_NONMAC`(저장소 변수, 기본 꺼짐) — 파이프라인이 main 에 있어도 다른 세션의 macOS 핫픽스 태그가 README·랜딩 없이 Windows·Linux 를 공개하지 않게. 꺼짐 = v3.5.0 과 같은 결과물. 첫 비-mac 릴리스 때 사용자 결정으로 켠다 (오케스트레이터 검토 발견) {#w4-nonmac-switch}
 - [x] 업데이터가 버전과 무관하게 자기 키부터 찾아 deb 설치본·이번 릴리스에서 빠진 OS 의 앱은 확인마다 「대상 없음」 오류 — 설정에서 직접 확인하면 보인다. D10 의 「deb 는 업데이트 버튼 대신 패키지 관리자 안내」 + 대상 없음은 오류가 아니라 「이 OS 빌드는 이번 버전에 없음」 으로 (L-REL 발견) {#upd-target-missing}
 - [x] 간헐 실패 — Windows E2E 기동에서 `session not created: DevToolsActivePort file doesn't exist` → attach 폴백은 CDP 를 잡았으나 첫 실행 마법사가 60초 안에 안 뜸(PR #47 E2E run 36063711206, 재실행 초록). 이 한 단계가 떨어지면 뒤 60단계가 전부 건너뛰어진다 — launch 재시도 1회 또는 attach 뒤 대기 연장 (오케스트레이터 발견) {#e2e-win-devtools-flake}
@@ -129,10 +129,9 @@ owner: claude-code
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 60 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 61 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-25T02:43:55+09:00 | #ui-term-write-order | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | 세션별 쓰기 직렬화(ptyWrite.ts), 단일 창구 writePty. E2E windows 연타 순서 초록. macOS 도 잠복 결함 수리 |
 | 2026-09-25T02:44:01+09:00 | #ui-mono-hangul | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | UI 고정폭 한글 폴백을 Pretendard Hangul 로(터미널·macOS 불변), E2E 스크린샷으로 자간 정상 확인 |
 | 2026-09-25T02:44:09+09:00 | #ui-e2e-minor | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | 탭 라벨 실제 셸(bash/pwsh, macOS zsh 불변), 영어 전환 토스트 tIn 으로(모든 OS 결함) |
 | 2026-09-25T02:44:15+09:00 | #ui-mac-words | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | i18n 판 조회 __win/__linux/__pc 47개 두 언어, macOS 는 조회 안 함(원문 불변 테스트) |
@@ -172,5 +171,6 @@ owner: claude-code
 | 2026-09-29T03:41:06+09:00 | #pty-host-fallback-cwd | claude-code | ☐→x | journal/20260929/Bugs/0340_bug_port-dbus-panic-shortcut-exact-pty-cwd.md | PR #59 — 원본 폴백 cwd = exe 폴더, windows 러너에서 project 폴더 이동·삭제 확인 |
 | 2026-09-29T03:41:13+09:00 | #os-child-cwd-lock | claude-code | ☐→x |  | 결정(2026-09-28 위임): 코드 불변·README 설치 절에 알림(v3.6.0 릴리스 커밋) · 값싼 완화 #pty-host-fallback-cwd 는 PR #59 |
 | 2026-09-29T03:41:19+09:00 | #integ-win-plugin-mcp | claude-code | ☐→x |  | 결정(2026-09-28 위임): 앱의 「MCP 서버」 등록(절대경로 .exe) 유지, 플러그인 1개 원칙 — 플러그인 저장소 무서명 exe 안은 공급망 위험으로 기각. README 설치 절·앱 안내 문구 일치 |
-<!-- oculpm:plan-log archived: 60 rows → cross-platform-port.log.md -->
+| 2026-09-29T06:05:55+09:00 | #w4-surfaces | claude-code | ☐→x | journal/20260929/Features_to_add/0605_feature_release-v3-6-0-windows-linux-beta.md | v3.6.0 공개(run 36477736356 전 잡 success) — 자산 10·키 5, 랜딩 oculpm.com v3.6.0 |
+<!-- oculpm:plan-log archived: 61 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
