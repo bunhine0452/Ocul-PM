@@ -290,6 +290,7 @@ fn move_item_lf(
         }
         None => {
             let ph = phase.ok_or("move_item needs a phase or a before-item")?;
+            reject_decisions_name(ph)?;
             let pi = lines
                 .iter()
                 .position(|l| phase_heading_name(l).is_some_and(|n| n == ph.trim()))
@@ -361,6 +362,21 @@ fn phase_heading_marker(line: &str) -> Option<String> {
     Some(rest[start..=end].to_string())
 }
 
+/// 결정 섹션 이름을 phase 로 쓰려는 편집을 거절한다 (#plan-edit-decisions-guard).
+/// 파서는 그 섹션의 체크박스를 항목으로 읽지 않으므로, 그대로 두면 `add_item` 은
+/// 보이지 않는 항목을 만들고 `rename_phase` 는 phase 를 결정 섹션으로 바꿔 항목을
+/// 감추고 `remove_phase` 는 결정 기록을 통째로 지웠다. 판정은 파서와 같은 함수.
+fn reject_decisions_name(name: &str) -> Result<(), String> {
+    let (name, _) = split_phase_heading(name);
+    if is_decisions_heading(&name) {
+        return Err(format!(
+            "'{name}' is the decisions section, not a phase - \
+             결정 섹션은 phase 가 아니에요 (결정은 결정 편집으로)"
+        ));
+    }
+    Ok(())
+}
+
 /// Rename a phase heading (`## <old>` → `## <new>`), preserving any `{#id}`
 /// marker and every item beneath it. Errors if the phase isn't found.
 pub fn rename_phase(md: &str, old: &str, new: &str) -> Result<String, String> {
@@ -372,6 +388,8 @@ fn rename_phase_lf(md: &str, old: &str, new: &str) -> Result<String, String> {
     if new.is_empty() {
         return Err("Enter a phase name.".to_string());
     }
+    reject_decisions_name(old)?;
+    reject_decisions_name(new)?;
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     let idx = lines
         .iter()
@@ -391,6 +409,7 @@ pub fn remove_phase(md: &str, phase: &str) -> Result<String, String> {
 }
 
 fn remove_phase_lf(md: &str, phase: &str) -> Result<String, String> {
+    reject_decisions_name(phase)?;
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     let start = lines
         .iter()
@@ -416,6 +435,7 @@ pub fn move_phase(md: &str, phase: &str, up: bool) -> Result<String, String> {
 }
 
 fn move_phase_lf(md: &str, phase: &str, up: bool) -> Result<String, String> {
+    reject_decisions_name(phase)?;
     let lines: Vec<String> = md.split('\n').map(String::from).collect();
     // Phases live before the Decisions section and the plan-log block; bound the
     // reorder region so neither gets dragged along.
@@ -486,7 +506,8 @@ fn add_item_lf(
     item_id: &str,
     status: ItemStatus,
 ) -> Result<String, String> {
-    if md.contains(&format!("{{#{item_id}}}")) {
+    reject_decisions_name(phase)?;
+    if id_is_anchored(md, item_id) {
         return Err(format!("item id '{item_id}' already exists"));
     }
     let new_line = format!("- [{}] {} {{#{}}}", status.token(), title.trim(), item_id);
@@ -610,6 +631,21 @@ fn append_log_row_lf(md: &str, row: &LogRow) -> String {
 fn is_item_line(line: &str) -> bool {
     let t = line.trim_start();
     t.starts_with("- [") || t.starts_with("* [")
+}
+
+/// `id` 를 **앵커로** 단 줄(항목·phase·결정 헤더)이 있는가 — 새 항목 id 의 중복
+/// 검사. 부분 문자열로 찾던 동안 다른 항목 제목에 `{#id}` 글자만 적혀 있어도 거절했다.
+/// 줄바꿈된 항목의 앵커(이어진 줄에 붙은 것)도 파서처럼 접은 뒤 센다. 헤더 id 도
+/// 세는 것은 파서가 항목·결정 id 를 한 이름공간에서 dedup(`x`→`x-2`)하고, plan-log
+/// 의 `#id` 가 둘 중 어느 것인지 갈라지지 않게 하려는 것이다.
+fn id_is_anchored(md: &str, id: &str) -> bool {
+    crate::oculpm::planner::parse::fold_wrapped_items(md)
+        .split('\n')
+        .any(|l| {
+            let t = l.trim_start();
+            (is_item_line(l) || t.starts_with("## ") || t.starts_with("### "))
+                && raw_brace_id(l) == Some(id)
+        })
 }
 
 fn render_row(r: &LogRow) -> String {

@@ -58,10 +58,14 @@ fn goal_status(g: &ImportGoal) -> ItemStatus {
 }
 
 /// A `## ` heading can't span lines; collapse whitespace, fall back to an index.
+/// 결정 섹션 이름(「결정」 등)인 목표는 앞에 「목표 — 」 를 붙인다 — `add_item` 이
+/// 그 이름을 거절하므로(#plan-edit-decisions-guard) 안 붙이면 하위가 조용히 빠진다.
 fn clean_phase(title: &str, idx: usize) -> String {
     let t = title.split_whitespace().collect::<Vec<_>>().join(" ");
     if t.is_empty() {
         format!("목표 {}", idx + 1)
+    } else if crate::oculpm::planner::heading::is_decisions_heading(&t) {
+        format!("목표 — {t}")
     } else {
         t
     }
@@ -128,5 +132,23 @@ mod tests {
         }];
         let p = parse_plan(&build_imported_md(&goals, "2026-06-07"), "_imported");
         assert_eq!(p.items[0].status, ItemStatus::Done);
+    }
+
+    /// 「결정」 이라는 목표도 phase 로 들어온다 — 결정 섹션 이름 그대로면
+    /// `add_item` 이 거절해 항목이 조용히 빠진다.
+    #[test]
+    fn a_goal_named_like_the_decisions_section_keeps_its_items() {
+        let goals = vec![ImportGoal {
+            title: "결정".into(),
+            status: "open".into(),
+            progress: 0.0,
+            subtasks: vec![ImportSubtask {
+                title: "하위".into(),
+                done: false,
+            }],
+        }];
+        let p = parse_plan(&build_imported_md(&goals, "2026-06-07"), "_imported");
+        assert_eq!(p.items.len(), 1);
+        assert_eq!(p.items[0].phase.as_deref(), Some("목표 — 결정"));
     }
 }
