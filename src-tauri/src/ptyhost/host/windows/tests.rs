@@ -366,6 +366,115 @@ async fn kill_ends_the_whole_tree() {
     assert!(children_of(shell).is_empty(), "살아 있는 자식이 0 이다");
 }
 
+/// **GUI 자손은 세션 Kill 뒤에도 산다 — 콘솔 자손은 끝난다** (#pty-job-gui-children).
+/// macOS 에서 터미널을 닫아도 `code .` 로 띄운 VS Code 가 사는 것과 같은 결과다. 콘솔 쪽은
+/// [`kill_ends_the_whole_tree`] 와 같은 둘(포그라운드·새 콘솔)을 함께 띄워 여전히 0 이 되는지 본다.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn kill_spares_gui_descendants_but_ends_console_ones() {
+    let s = Harness::start("win-gui", &cmd_exe());
+    s.prompt().await;
+    let shell = s.shell_pid();
+    let gui = launch_gui_child(&s, shell).await;
+    let _cleanup = EndOnDrop(gui);
+
+    s.write("start \"\" /min ping -n 300 127.0.0.1\r");
+    s.until(
+        "새 콘솔의 ping",
+        || children_of(shell).len(),
+        |n| *n >= 2, // GUI + ping
+    )
+    .await;
+    s.write("ping -n 300 127.0.0.1\r");
+    s.until("포그라운드 ping", || children_of(shell).len(), |n| *n >= 3)
+        .await;
+    let console: Vec<u32> = children_of(shell)
+        .into_iter()
+        .filter(|p| *p != gui)
+        .collect();
+
+    s.mark("Kill");
+    assert!(matches!(
+        handle_request(&s.state, Request::Kill { sid: s.sid.into() }),
+        Response::Ok
+    ));
+    s.until(
+        "셸과 콘솔 자손의 종료",
+        || (alive(shell), console.iter().filter(|p| alive(**p)).count()),
+        |(shell_alive, alive_console)| !shell_alive && *alive_console == 0,
+    )
+    .await;
+    // 종료 스레드가 Job 핸들을 닫을 때까지 — 제한을 못 풀었으면 그때 GUI 도 끝난다.
+    s.mark("Job 핸들이 닫힌 뒤");
+    tokio::time::sleep(KILL_GRACE + Duration::from_secs(2)).await;
+    assert!(
+        alive(gui),
+        "셸에서 띄운 GUI 프로그램이 세션 Kill 에 같이 끝났다"
+    );
+}
+
+/// 셸에서 GUI 프로그램 하나를 띄워 그 pid 를 돌려준다. 러너(Windows Server)의 notepad 는
+/// 고전 Win32 판이다. Windows 11 의 notepad 는 스토어 앱을 여는 껍데기라 셸의 자식으로
+/// 남지 않는다 — 그러면 다음 후보로.
+async fn launch_gui_child(s: &Harness, shell: u32) -> u32 {
+    let system = std::path::PathBuf::from(
+        std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into()),
+    )
+    .join("System32");
+    let candidates: Vec<_> = ["notepad.exe", "charmap.exe", "winver.exe"]
+        .into_iter()
+        .map(|n| system.join(n))
+        .filter(|p| {
+            crate::ptyhost::survivors::subsystem_of(p)
+                == Some(crate::ptyhost::survivors::SUBSYSTEM_WINDOWS_GUI)
+        })
+        .collect();
+    for exe in &candidates {
+        let name = exe
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_ascii_lowercase();
+        s.mark(&format!("GUI 프로그램 {name}"));
+        s.write(&format!("start \"\" \"{}\"\r", exe.display()));
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while Instant::now() < deadline {
+            let found = children_of(shell).into_iter().find(|&pid| {
+                open_limited(pid)
+                    .and_then(|p| image_path(&p))
+                    .is_some_and(|path| path.to_ascii_lowercase().ends_with(&name))
+            });
+            if let Some(pid) = found {
+                // 껍데기가 아니라 머무는 프로그램인지 — 잠깐 뒤에도 살아 있어야 한다.
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                if alive(pid) {
+                    return pid;
+                }
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    }
+    panic!("셸의 자식으로 머무는 GUI 프로그램을 띄우지 못했다 — 후보 {candidates:?}");
+}
+
+/// 테스트가 띄운 GUI 프로그램을 끝낸다 — 실패로 빠져나가도.
+struct EndOnDrop(u32);
+
+impl Drop for EndOnDrop {
+    fn drop(&mut self) {
+        use windows_sys::Win32::System::Threading::{TerminateProcess, PROCESS_TERMINATE};
+        // SAFETY: 실패하면 null. 연 핸들은 곧바로 닫힌다(OwnedHandle).
+        let raw = unsafe { OpenProcess(PROCESS_TERMINATE, 0, self.0) };
+        if raw.is_null() {
+            return;
+        }
+        // SAFETY: 방금 연 핸들의 소유권을 넘겨받는다.
+        let process = unsafe { OwnedHandle::from_raw_handle(raw as RawHandle) };
+        // SAFETY: 살아 있는 핸들.
+        unsafe { TerminateProcess(process.as_raw_handle() as HANDLE, 0) };
+    }
+}
+
 /// 놀고 있는 셸은 포그라운드 명령이 아니고, 돌고 있는 명령은 그 이름으로 잡힌다.
 /// ^C 로 그 명령이 끝나면 다시 `None` 이다 (유닉스 판과 같은 계약).
 ///

@@ -35,4 +35,6 @@ pub mod protocol;
 pub mod scrollback;
 #[cfg(any(windows, test))]
 pub mod stage;
+#[cfg(any(windows, test))]
+mod survivors;
 pub mod writer;
