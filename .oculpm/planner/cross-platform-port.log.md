@@ -55,4 +55,7 @@ plan: cross-platform-port
 | 2026-09-24T05:57:36+09:00 | #pty-liveness | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | 셸 종료 감시(Exit 한 번), 포그라운드 Toolhelp32+NtQueryInformationProcess, macOS 는 ps 그대로 |
 | 2026-09-24T05:57:45+09:00 | #pty-tests | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | reattach·backpressure cfg(unix) 해제 + ptyhost_roundtrip, 매달림 → 원인과 함께 실패(Drop 가드·DSR/DA·워치독). windows 1,956/0 |
 | 2026-09-24T06:26:15+09:00 | #fs-watcher-flake | claude-code | ~→x | .oculpm/journal/20260924/Bugs/0626_bug_port-watcher-root-rename-lfs2.md | 원인=첫 세션 시작과 겹친 짧은 창(핸들 누수 아님, 증거 8/30). git 4→2, 휴지통 테스트. PR #38 |
+| 2026-09-24T06:26:21+09:00 | #w2-no-stubs | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0626_bug_port-watcher-root-rename-lfs2.md | W2 종료: PORT-STUB 0 · portability(d39d5a0d 기준 PR #38 재시도) windows 1,959/0 · ubuntu 초록 · ci.yml 초록. 남은 CI 신뢰성: lsp 테스트 직렬화(port/lsp-flake) |
+| 2026-09-24T18:58:41+09:00 | #w4-linux-formats | claude-code | ☐→x |  | 사용자 결정 2026-09-24: AppImage + deb (D10 그대로). rpm 은 나중에 |
+| 2026-09-24T18:58:46+09:00 | #w4-signing-decision | claude-code | ☐→x |  | 사용자 결정 2026-09-24: 무서명 베타로 시작(SmartScreen '추가 정보 → 실행' 안내 필요). 서명은 나중에 붙일 수 있게 |
 <!-- oculpm:plan-log end -->
