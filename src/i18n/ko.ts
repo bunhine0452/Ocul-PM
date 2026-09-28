@@ -915,6 +915,14 @@ export const ko = {
   "settings.update.availSuffix": "을 사용할 수 있어요.",
   "settings.update.installing": "다운로드 후 설치 중… 완료되면 앱이 자동으로 재시작돼요.",
   "settings.update.checkFailed": "업데이트를 확인하지 못했어요 (오프라인이거나 릴리스를 찾을 수 없음): {message}",
+  // 크로스플랫폼 L-UPD — deb 설치본은 앱 안에서 업데이트하지 않고, 이 OS 의 빌드가 빠진
+  // 릴리스는 「최신이에요」 가 아니라 중립으로 말한다 (lib/updaterRoute.ts).
+  "settings.update.packageManaged":
+    ".{format} 패키지로 설치한 앱이에요. 앱 안에서는 업데이트하지 않고 패키지 관리자로 업데이트해요 — 새 .{format} 파일은 릴리스 페이지에서 받을 수 있어요.",
+  "settings.update.noBuild":
+    "최신 릴리스에 이 OS 용 빌드가 아직 없어요. 지금 버전이 최신인지는 여기서 알 수 없어요 — 다음 릴리스에서 다시 확인해요.",
+  "settings.update.openReleases": "릴리스 페이지",
+  "settings.update.openFailed": "릴리스 페이지를 열지 못했어요: {error}",
 
   // 설정 — 모바일 탭 (mobile-bridge #mb0-settings-ui)
   // 모바일 셸 (mobile-bridge #mb3)

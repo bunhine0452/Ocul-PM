@@ -42,6 +42,8 @@ export const ALLOWLIST = new Set([
   "api/notion.ts",
   // VS Code 확장 설치 상태 (vscode-extension-round {#app-settings}) — 설정 통합 행의 창구.
   "api/vscodeExt.ts",
+  // 설치 형식 (크로스플랫폼 L-UPD #upd-target-missing) — 업데이터의 deb 안내·대상 없음 판정.
+  "api/installKind.ts",
   // 플래너 읽기 (`{#api-facades}` 첫 조각, 2026-09-18) — 트레이 스냅숏이 첫 호출자.
   "api/plan.ts",
   "api/shellIntegration.ts",

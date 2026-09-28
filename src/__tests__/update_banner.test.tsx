@@ -7,23 +7,52 @@ import { act, cleanup, render, renderHook, waitFor } from "@testing-library/reac
 
 const fx = {
   update: null as null | { version: string; downloadAndInstall: () => Promise<void> },
+  /** 플러그인 check 가 거절할 문장 (IPC 는 오류를 문자열로 싣는다). */
+  checkError: null as string | null,
+  /** `install_kind` 커맨드의 응답 — null 이면 커맨드가 실패한 것으로 친다. */
+  install: null as null | { os: string; arch: string; bundle_type: string | null; updater_targets: string[] },
 };
 
 vi.mock("@tauri-apps/plugin-updater", () => ({
-  check: () => Promise.resolve(fx.update),
+  check: vi.fn(() => (fx.checkError != null ? Promise.reject(fx.checkError) : Promise.resolve(fx.update))),
 }));
+const openUrl = vi.fn((_url: string) => Promise.resolve({ status: "ok" as const, data: null }));
+vi.mock("@/lib/bindings", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("@/lib/bindings")>();
+  return {
+    ...orig,
+    commands: {
+      ...orig.commands,
+      installKind: () => (fx.install ? Promise.resolve(fx.install) : Promise.reject(new Error("no ipc"))),
+      appInfo: () =>
+        Promise.resolve({
+          status: "ok" as const,
+          data: { version: "3.5.0", db_path: "", app_data_dir: "", secrets_store: "" },
+        }),
+      openUrl: (url: string) => openUrl(url),
+      oculpmLog: () => Promise.resolve(null),
+    },
+  };
+});
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn(() => Promise.resolve()) }));
 // 업데이트 재시작은 창·탭 스냅숏을 먼저 남긴다 — 새 버전이 그것을 보고
 // 열어 두었던 프로젝트 창들을 되살린다.
 vi.mock("@/api/window", () => ({ windowApi: { saveSession: vi.fn(() => Promise.resolve(null)) } }));
 
+import { check as pluginCheck } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { windowApi } from "@/api/window";
 import { UpdateBanner, isNewerVersion } from "@/components/UpdateBanner";
+import { UpdateTab } from "@/features/settings/tabs/UpdateTab";
 import { releaseHighlights, useUpdater } from "@/lib/updater";
+import { RELEASES_PAGE } from "@/lib/updaterRoute";
 
 afterEach(() => {
   fx.update = null;
+  fx.checkError = null;
+  fx.install = null;
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   // 호출 기록만 지운다 (구현은 남긴다) — 재시작 테스트가 서로의 호출 수를
   // 물려받지 않게.
   vi.clearAllMocks();
@@ -149,5 +178,93 @@ describe("업데이트 재시작", () => {
     });
 
     expect(relaunch).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── 설치 형식 × 업데이터 (크로스플랫폼 L-UPD #upd-target-missing) ───────────
+const DEB = { os: "linux", arch: "x86_64", bundle_type: "deb", updater_targets: ["linux-x86_64-deb", "linux-x86_64"] };
+const APPIMAGE = {
+  os: "linux",
+  arch: "x86_64",
+  bundle_type: "appimage",
+  updater_targets: ["linux-x86_64-appimage", "linux-x86_64"],
+};
+/** tauri-plugin-updater 2.10.1 의 실제 문장. */
+const TARGETS_NOT_FOUND =
+  'None of the fallback platforms `["linux-x86_64-appimage", "linux-x86_64"]` were found in the response `platforms` object';
+
+/** 설정 탭은 GitHub 릴리스 목록도 읽는다 — 테스트에서는 밖으로 나가지 않게 막는다. */
+function stubReleasesFetch() {
+  vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: false, json: () => Promise.resolve(null) })));
+}
+
+describe("설치 형식 × 업데이터", () => {
+  it("deb 설치본은 업데이터에 묻지 않는다 — 패키지 관리자 안내", async () => {
+    fx.install = DEB;
+    const { result } = renderHook(() => useUpdater());
+    await act(async () => {
+      await result.current.check();
+    });
+    expect(pluginCheck).not.toHaveBeenCalled();
+    expect(result.current.status).toEqual({ kind: "packageManaged", format: "deb" });
+  });
+
+  it("대상 없음은 오류가 아니라 noBuild 다", async () => {
+    fx.install = APPIMAGE;
+    fx.checkError = TARGETS_NOT_FOUND;
+    const { result } = renderHook(() => useUpdater());
+    await act(async () => {
+      await result.current.check();
+    });
+    expect(result.current.status).toEqual({ kind: "noBuild", targets: APPIMAGE.updater_targets });
+  });
+
+  it("설치 형식을 몰라도(커맨드 실패) 예전처럼 확인한다", async () => {
+    fx.install = null;
+    fx.update = { version: "9.0.0", downloadAndInstall: vi.fn(() => Promise.resolve()) };
+    const { result } = renderHook(() => useUpdater());
+    await act(async () => {
+      await result.current.check();
+    });
+    expect(pluginCheck).toHaveBeenCalledTimes(1);
+    expect(result.current.status.kind).toBe("available");
+  });
+
+  it("시작 배너는 deb 와 대상 없음에서 조용하다", async () => {
+    fx.install = DEB;
+    const deb = render(<UpdateBanner />);
+    await act(async () => {});
+    expect(deb.container.querySelector(".update-banner")).toBeNull();
+    deb.unmount();
+
+    fx.install = APPIMAGE;
+    fx.checkError = TARGETS_NOT_FOUND;
+    const missing = render(<UpdateBanner />);
+    await act(async () => {});
+    expect(missing.container.querySelector(".update-banner")).toBeNull();
+  });
+
+  it("설정 — deb 는 확인 버튼 대신 릴리스 페이지를 연다", async () => {
+    stubReleasesFetch();
+    fx.install = DEB;
+    const view = render(<UpdateTab />);
+    expect(await view.findByText(/패키지 관리자로 업데이트해요/)).toBeInTheDocument();
+    expect(view.queryByText("업데이트 확인")).toBeNull();
+    await act(async () => {
+      view.getByRole("button", { name: "릴리스 페이지" }).click();
+    });
+    expect(openUrl).toHaveBeenCalledWith(RELEASES_PAGE);
+  });
+
+  it("설정 — 대상 없음은 오류 문장도 「최신」 도 아닌 중립 문장", async () => {
+    stubReleasesFetch();
+    fx.install = APPIMAGE;
+    fx.checkError = TARGETS_NOT_FOUND;
+    const view = render(<UpdateTab />);
+    expect(await view.findByText(/이 OS 용 빌드가 아직 없어요/)).toBeInTheDocument();
+    expect(view.queryByText(/최신 버전을 사용 중이에요/)).toBeNull();
+    expect(view.queryByText(/업데이트를 확인하지 못했어요/)).toBeNull();
+    // 다음 릴리스에서 다시 볼 수 있게 확인 버튼은 남는다.
+    expect(view.getByText("업데이트 확인")).toBeInTheDocument();
   });
 });
