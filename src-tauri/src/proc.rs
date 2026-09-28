@@ -28,6 +28,11 @@
 //!    않는다 — `&`·`|`·`%VAR%` 가 인용을 뚫고 나가는 바로 그 취약점이 된다.
 //!    인용 결과는 windows 러너에서 실제 배치 파일을 돌려 고정한다(아래 테스트).
 //!
+//! 그리고 하나 더 — **분리 기동**([`spawn_detached`], [`detached`] 모듈). 앱보다 오래 사는
+//! 자식(PTY 호스트)은 std 를 거치지 않고 `CreateProcessW(bInheritHandles = FALSE)` 로
+//! 띄운다. std 는 늘 TRUE 라 부모의 상속 가능한 핸들(dev·CI 에서 부모가 읽는 출력 파이프)을
+//! 자식이 물고 산다 (#pty-handle-inherit).
+//!
 //! ## 그 밖의 OS
 //!
 //! `Command::new(program)` 그대로다 (D3 — macOS 동작 불변). `tokio_cmd` 도
@@ -42,6 +47,11 @@
 //!   필요하면 [`CREATE_NO_WINDOW`] 와 OR 해서 넘길 것.
 
 use std::ffi::OsStr;
+
+#[cfg(any(windows, test))]
+mod detached;
+#[cfg(windows)]
+pub use detached::{spawn_detached, Detached};
 
 /// `CREATE_NO_WINDOW` (winbase.h). 콘솔은 만들되 창은 만들지 않는다.
 #[cfg(windows)]
