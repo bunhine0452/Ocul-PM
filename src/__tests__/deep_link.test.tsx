@@ -153,3 +153,76 @@ describe("openNavFor — open 링크의 view/entry 를 TrayNavigate 로", () => 
     expect(openNavFor({ project: "/p", view: null, entry: null }, 1, views).view).toBe("today");
   });
 });
+
+// {#ui-winpath-followups} — 등록 경로와 링크 경로의 **모양**이 OS 마다 다르다. Windows 는
+// 구분자·대소문자·`\\?\` 접두가 달라도 같은 폴더, macOS·Linux 는 예전 규칙 그대로(D3).
+describe("딥링크 경로 비교 — 세 OS", () => {
+  const winProjects = [
+    { id: 3, root_path: "C:\\Users\\Me\\Proj" },
+    { id: 4, root_path: "\\\\?\\D:\\work\\other" },
+    { id: 5, root_path: "\\\\?\\UNC\\server\\share\\team" },
+  ];
+
+  it.each([
+    ["C:\\Users\\Me\\Proj", 3],
+    ["c:\\users\\me\\proj", 3], // VS Code 는 드라이브 글자를 소문자로 준다
+    ["C:/Users/Me/Proj/", 3],
+    ["C:\\Users\\Me\\Proj\\\\", 3],
+    ["\\\\?\\C:\\Users\\Me\\Proj", 3],
+    ["D:\\Work\\Other", 4],
+    ["\\\\server\\share\\team", 5],
+    ["C:\\Users\\Me\\Proj2", null],
+    ["C:\\Users\\Me", null],
+  ] as const)("windows: %s → %s", (wanted, id) => {
+    expect(resolveRegisteredProject(winProjects, wanted, "windows")).toBe(id);
+  });
+
+  it.each(["mac", "linux"] as const)("%s: 끝의 / 만 무시하고 대소문자·\\ 는 가린다 (예전 그대로)", (os) => {
+    const projects = [{ id: 7, root_path: "/Users/me/Proj" }];
+    expect(resolveRegisteredProject(projects, "/Users/me/Proj//", os)).toBe(7);
+    expect(resolveRegisteredProject(projects, "/users/me/proj", os)).toBeNull();
+    expect(resolveRegisteredProject([{ id: 8, root_path: "/a\\b" }], "/a/b", os)).toBeNull();
+  });
+
+  it("windows: 일지 절대경로가 역슬래시·다른 대소문자여도 journal 로, 상대경로는 / · 원문 대소문자", () => {
+    const views = ["today", "journal"] as const;
+    const nav = openNavFor(
+      {
+        project: "c:\\users\\me\\proj",
+        view: null,
+        entry: "C:\\Users\\Me\\Proj\\.oculpm\\journal\\20260911\\Chores\\1403_chore_x.md",
+      },
+      3,
+      views,
+      "windows",
+    );
+    expect(nav).toEqual({ view: "journal", project_id: 3, entry_path: "20260911/Chores/1403_chore_x.md" });
+    // 다른 프로젝트 · 탈출은 여전히 버린다.
+    expect(
+      openNavFor(
+        { project: "C:\\p", view: "today", entry: "C:\\q\\.oculpm\\journal\\20260911\\Chores\\1_chore_x.md" },
+        1,
+        views,
+        "windows",
+      ).entry_path,
+    ).toBeNull();
+    expect(
+      openNavFor(
+        { project: "C:\\p", view: "today", entry: "C:\\p\\.oculpm\\journal\\..\\..\\x.md" },
+        1,
+        views,
+        "windows",
+      ).entry_path,
+    ).toBeNull();
+  });
+
+  it.each(["mac", "linux"] as const)("%s: 역슬래시 일지 경로는 받지 않는다 (예전 그대로)", (os) => {
+    const nav = openNavFor(
+      { project: "/p", view: null, entry: "/p\\.oculpm\\journal\\20260911\\Chores\\1403_chore_x.md" },
+      1,
+      ["today", "journal"],
+      os,
+    );
+    expect(nav.entry_path).toBeNull();
+  });
+});
