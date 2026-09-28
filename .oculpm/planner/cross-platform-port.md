@@ -100,7 +100,7 @@ owner: claude-code
 - [x] tauri-driver E2E: windows·ubuntu(xvfb) 기동→15화면 렌더→터미널 왕복→MCP 사이드카 일지→일지 화면 반영, 단계별 스크린샷 아티팩트 {#w3-e2e}
 - [x] 설치 스모크: NSIS /S 설치→실행→로그 기동 줄→제거 / deb 설치·AppImage 실행 {#w3-install-smoke}
 - [x] WebView2 CDP Input.imeSetComposition 로 한글 조합 → 터미널 도착 단언 (D8) {#w3-ime-cdp}
-- [ ] 업데이터 N→N+1 스모크 (로컬 latest.json · 테스트 키) {#w3-updater-smoke}
+- [x] 업데이터 N→N+1 스모크 (로컬 latest.json · 테스트 키) {#w3-updater-smoke}
 - [x] [결정 필요] Windows 업데이트 때 터미널 세션이 끊긴다 — Tauri NSIS 가 ocul-pm.exe 를 이름으로 끝내 같은 exe 로 도는 --pty-host 도 끝난다(macOS 는 업데이트를 건넌다). L-PTY 권고: 호스트를 설치 폴더 밖 판별 복사본(%APPDATA%\<id>\ptyhost\ocul-pm-ptyhost-<판>.exe)에서 — 대가 AppData 의 exe·판마다 수십 MB. NSIS 템플릿 실제 동작부터 확인 (L-SHELL·L-PTY 발견) {#w3-update-ptyhost-lock}
 
 ## W4 — 릴리스 파이프라인 (사용자 결정 포함) {#w4}
@@ -110,7 +110,7 @@ owner: claude-code
 - [x] E2E·설치 스모크 통과 플랫폼만 latest.json 에 — macOS 업데이트 오염 금지 (D7) {#w4-latest-json}
 - [ ] 5면 반영: README ko/en 지원 표(베타)·랜딩 ko/en 다운로드·CHANGELOG·docs/RELEASE.md·버전 6파일 {#w4-surfaces}
 - [x] 비-mac 공개 스위치 `OCULPM_RELEASE_NONMAC`(저장소 변수, 기본 꺼짐) — 파이프라인이 main 에 있어도 다른 세션의 macOS 핫픽스 태그가 README·랜딩 없이 Windows·Linux 를 공개하지 않게. 꺼짐 = v3.5.0 과 같은 결과물. 첫 비-mac 릴리스 때 사용자 결정으로 켠다 (오케스트레이터 검토 발견) {#w4-nonmac-switch}
-- [ ] 업데이터가 버전과 무관하게 자기 키부터 찾아 deb 설치본·이번 릴리스에서 빠진 OS 의 앱은 확인마다 「대상 없음」 오류 — 설정에서 직접 확인하면 보인다. D10 의 「deb 는 업데이트 버튼 대신 패키지 관리자 안내」 + 대상 없음은 오류가 아니라 「이 OS 빌드는 이번 버전에 없음」 으로 (L-REL 발견) {#upd-target-missing}
+- [x] 업데이터가 버전과 무관하게 자기 키부터 찾아 deb 설치본·이번 릴리스에서 빠진 OS 의 앱은 확인마다 「대상 없음」 오류 — 설정에서 직접 확인하면 보인다. D10 의 「deb 는 업데이트 버튼 대신 패키지 관리자 안내」 + 대상 없음은 오류가 아니라 「이 OS 빌드는 이번 버전에 없음」 으로 (L-REL 발견) {#upd-target-missing}
 - [x] 간헐 실패 — Windows E2E 기동에서 `session not created: DevToolsActivePort file doesn't exist` → attach 폴백은 CDP 를 잡았으나 첫 실행 마법사가 60초 안에 안 뜸(PR #47 E2E run 36063711206, 재실행 초록). 이 한 단계가 떨어지면 뒤 60단계가 전부 건너뛰어진다 — launch 재시도 1회 또는 attach 뒤 대기 연장 (오케스트레이터 발견) {#e2e-win-devtools-flake}
 - [x] 간헐 실패 — Windows `db::tests::{healing_is_a_no_op_on_an_intact_schema, heals_a_column_a_reused_migration_number_skipped}` 가 "database is locked"(port/l-rel Portability run 36044878579, Rust 무변경 커밋). 테스트 DB 경로 공유인지 파일 잠금 해제 지연인지 (L-REL 발견) {#db-win-locked-flake}
 - [ ] Linux — `DBUS_SESSION_BUS_ADDRESS` 가 파싱 불가한 값이면 tauri-plugin-single-instance 2.4.4 가 `Builder::session().unwrap()` 에서 기동 중 패닉할 수 있다(코드 읽기 추정, 미재현). instance-lock 폴백으로는 못 막는다 — 등록 전에 주소를 검사해 이상하면 플러그인을 건너뛰고 잠금 파일만 쓰기 (L-OS3 발견) {#os-dbus-addr-panic}
@@ -129,11 +129,9 @@ owner: claude-code
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 53 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 55 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-24T18:58:56+09:00 | #mac-bundled-claude | claude-code | ☐→~ |  | 사용자 결정 2026-09-24: 고친다 — npm_platform macos→darwin. 실기기(macOS) 확인 필요 |
-| 2026-09-24T19:43:40+09:00 | #mac-bundled-claude | claude-code | ~→x | .oculpm/journal/20260924/Bugs/1943_bug_acp-mac-bundled-claude-darwin.md | darwin 매핑 + 실제 폴더 이름 못박은 테스트. 진단만 바뀜(실행 claude 불변). 실기기: 릴리스 뒤 ACP 진단 경로 확인. PR #39 |
 | 2026-09-24T20:30:53+09:00 | #w3-e2e | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2030_feature_port-e2e-harness-le2e.md | 하네스 합류(PR #41). ubuntu 전 단계 초록, windows 는 앱 결함 2건(#ui-winpath-name · #ui-term-write-order)만 붉음 → L-UI2 |
 | 2026-09-24T20:31:01+09:00 | #w3-ime-cdp | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2030_feature_port-e2e-harness-le2e.md | WebView2 CDP 로 MS 한국어 IME 순서 재현 → 셸에 한글 정확히 한 번(3/3). 실제 IME 후보창은 #w5-eyes |
 | 2026-09-24T21:05:04+09:00 | #w3-update-ptyhost-lock | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/2104_feature_port-ptyhost-update-survival-lpty2.md | 호스트 판별 복사본 — taskkill /IM + 설치 폴더 덮어쓰기에도 생존(windows 러너). 실제 NSIS 한 바퀴는 L-PKG 설치 스모크. PR #42 |
@@ -172,5 +170,7 @@ owner: claude-code
 | 2026-09-29T00:35:19+09:00 | #plan-decisions-heading-mismatch | claude-code | ☐→x | journal/20260929/Bugs/0035_bug_planner-anchored-phase-decisions-ext.md | PR #56 — is_decisions_heading 하나로 통일 |
 | 2026-09-29T00:35:24+09:00 | #ext-anchor-rule | claude-code | ☐→x | journal/20260929/Bugs/0035_bug_planner-anchored-phase-decisions-ext.md | PR #56 — 확장 planner.ts 가 anchor_span·결정 헤딩·CRLF 를 Rust 와 같게, 공유 사례표 |
 | 2026-09-29T01:23:39+09:00 | #plan-edit-decisions-guard | claude-code | ☐→x | journal/20260929/Bugs/0123_bug_plan-create-decisions-guard.md | PR #56(plan_edit 5경로 거절·중복 id 앵커) + PR #58(MCP plan_create). slugify 40자 통일은 범위 밖 |
-<!-- oculpm:plan-log archived: 53 rows → cross-platform-port.log.md -->
+| 2026-09-29T03:35:25+09:00 | #upd-target-missing | claude-code | ☐→x | journal/20260929/Features_to_add/0335_feature_port-updater-install-kind-smoke.md | PR #57 — install_kind + updaterRoute: deb 패키지 관리자 안내·대상 없음 중립, 러너에서 noBuild 실전 확인 |
+| 2026-09-29T03:35:31+09:00 | #w3-updater-smoke | claude-code | ☐→x | journal/20260929/Features_to_add/0335_feature_port-updater-install-kind-smoke.md | PR #57 — N→N+1 Windows NSIS·Linux AppImage 설치·재시작, 서명 거절 둘, deb 안내 — 러너 success |
+<!-- oculpm:plan-log archived: 55 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
