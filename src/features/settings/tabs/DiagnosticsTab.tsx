@@ -41,6 +41,7 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
   const [loading, setLoading] = useState(false);
   const [compacting, setCompacting] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
+  const [diag, setDiag] = useState<string | null>(null);
 
   async function check() {
     setLoading(true);
@@ -78,6 +79,12 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
     void commands.appInfo().then((res) => {
       if (res.status === "ok") setVersion(res.data.version);
     });
+    // 진단 글은 미리 받아 둔다 — WebKit(WKWebView·WebKitGTK)은 클릭 처리기에서
+    // `await` 를 한 번 건넌 뒤의 클립보드 쓰기를 사용자 동작 밖으로 보고 거부한다.
+    // 못 받으면 누를 때 다시 청한다.
+    void diagnosticsText()
+      .then(setDiag)
+      .catch(() => setDiag(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -88,8 +95,8 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
   }
 
   async function copyDiagnostics() {
-    const text = await diagnosticsText();
     try {
+      const text = diag ?? (await diagnosticsText());
       if (text === null) throw new Error("diagnostics_report");
       await navigator.clipboard.writeText(text);
       toast.info(t("settings.feedback.diagCopied"));
@@ -107,9 +114,9 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
   // Windows·Linux 베타의 버그는 플랫폼 버그 양식으로 — 버전·진단 정보를 채워 연다.
   // macOS 는 예전 빈 이슈 그대로다 (진단을 못 읽어도 그쪽으로 물러난다).
   async function openBugReport() {
-    const diag = platformLabel() === "macOS" ? null : await diagnosticsText();
-    if (diag === null) return openIssue("bug");
-    openUrl(platformBugIssueUrl(FEEDBACK_REPO, t("settings.feedback.bugTitle"), version ?? "", diag));
+    const text = platformLabel() === "macOS" ? null : (diag ?? (await diagnosticsText()));
+    if (text === null) return openIssue("bug");
+    openUrl(platformBugIssueUrl(FEEDBACK_REPO, t("settings.feedback.bugTitle"), version ?? "", text));
   }
 
   function openIssue(kind: "bug" | "feature") {
