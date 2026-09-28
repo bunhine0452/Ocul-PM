@@ -9,17 +9,23 @@
  * 물었다(deb)」 를 판정한다.
  *
  *   node updater-smoke-http.mjs serve  --root <폴더> --port <n> --log <접근 로그>
- *   node updater-smoke-http.mjs latest --out <latest.json> --version <X.Y.Z> \
- *        --url <설치 파일 URL> --sig <.sig 파일> --keys <키,키>
+ *   node updater-smoke-http.mjs latest --out <latest.json> --platform windows|linux \
+ *        --version <X.Y.Z> --base-url http://127.0.0.1:<n> --sig <.sig 파일> [--root <폴더>]
  *
- * latest.json 모양은 릴리스(`.github/scripts/release/latest-json.mjs`)와 같다 —
- * `platforms.<키>.{url, signature}`, 서명은 `.sig` 파일 내용 그대로(base64 한 덩어리).
+ * latest.json 의 키·자산 이름은 릴리스가 쓰는 표(`release/latest-json.mjs` 의 NONMAC)에서
+ * 그대로 가져온다 — 스모크가 보는 모양이 릴리스가 내는 모양이다. `--root` 를 주면 그 자산이
+ * 서버 루트에 실제로 있는지, 그리고 그 키를 설치본(windows=nsis · linux=appimage)이 업데이터
+ * 규칙(`pickUpdaterEntry`)으로 찾는지까지 확인한다. 서명은 `.sig` 파일 내용 그대로.
  * 의존성 0, Node 18+.
  */
-import { createReadStream, appendFileSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, appendFileSync, existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { basename, join, resolve, sep } from "node:path";
 import { parseArgs } from "node:util";
+import { NONMAC, pickUpdaterEntry } from "./release/latest-json.mjs";
+
+/** 스모크가 까는 설치 형식 — 업데이터가 이 형식의 키를 먼저 찾는다. */
+const SMOKE_INSTALLER = { windows: "nsis", linux: "appimage" };
 
 const [cmd, ...rest] = process.argv.slice(2);
 
@@ -95,22 +101,31 @@ if (cmd === "serve") {
     args: rest,
     options: {
       out: { type: "string" },
+      platform: { type: "string" },
       version: { type: "string" },
-      url: { type: "string" },
+      "base-url": { type: "string" },
       sig: { type: "string" },
-      keys: { type: "string" },
+      root: { type: "string" },
       notes: { type: "string" },
     },
   });
-  for (const k of ["out", "version", "url", "sig", "keys"]) {
+  for (const k of ["out", "platform", "version", "base-url", "sig"]) {
     if (!values[k]) throw new Error(`--${k} 가 없다`);
   }
+  const spec = NONMAC[values.platform];
+  if (!spec) throw new Error(`--platform 은 ${Object.keys(NONMAC).join("|")} 중 하나: ${values.platform}`);
+  const asset = spec.asset(values.version);
+  const url = `${values["base-url"].replace(/\/+$/, "")}/${asset}`;
   const signature = readFileSync(values.sig, "utf8").trim();
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(signature)) throw new Error(`${values.sig} 는 base64 한 덩어리가 아니다`);
   const platforms = {};
-  for (const key of values.keys.split(",").map((s) => s.trim()).filter(Boolean)) {
-    platforms[key] = { signature, url: values.url };
+  for (const key of spec.keys) platforms[key] = { signature, url };
+  if (values.root && !existsSync(join(values.root, asset))) {
+    throw new Error(`서버 루트에 릴리스 이름의 자산이 없다: ${join(values.root, asset)}`);
   }
+  const [os, installer] = [values.platform, SMOKE_INSTALLER[values.platform]];
+  const picked = pickUpdaterEntry(platforms, { os, arch: "x86_64", installer });
+  if (!picked) throw new Error(`${os} ${installer} 설치본이 찾을 키가 없다: ${spec.keys.join(",")}`);
   const doc = {
     version: values.version,
     notes: values.notes ?? `updater smoke — ${basename(values.sig)}`,
@@ -118,7 +133,9 @@ if (cmd === "serve") {
     platforms,
   };
   writeFileSync(values.out, `${JSON.stringify(doc, null, 2)}\n`);
-  console.log(`updater-smoke-http: ${values.out} ← version ${values.version} · 서명 ${basename(values.sig)} · 키 ${Object.keys(platforms).join(",")}`);
+  console.log(
+    `updater-smoke-http: ${values.out} ← version ${values.version} · 키 ${spec.keys.join(",")} (${installer} 설치본은 ${picked.target}) · 자산 ${asset} · 서명 ${basename(values.sig)}`,
+  );
 } else {
   console.error("사용법: updater-smoke-http.mjs serve|latest …");
   process.exit(2);

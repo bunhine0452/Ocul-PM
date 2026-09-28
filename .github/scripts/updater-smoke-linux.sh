@@ -9,7 +9,7 @@
 #         (판은 N+1 보다 낮게), 프런트는 VITE_OCULPM_UPDATER_SMOKE=1 — 새 판을 찾으면 배너의
 #         「지금 업데이트」 와 같은 install() 을 스스로 부른다(components/UpdateBanner.tsx).
 #   N+1 = 릴리스와 같은 설정으로 구운 AppImage(같은 일회용 키로 서명한 .sig). 로컬 서버
-#         (updater-smoke-http.mjs)가 latest.json(키 linux-x86_64-appimage — 릴리스와 같다)과
+#         (updater-smoke-http.mjs)가 latest.json(키는 릴리스의 표 그대로 — linux-x86_64-appimage)과
 #         함께 내준다.
 #
 # 순서가 뜻을 갖는다 — 거절부터:
@@ -50,7 +50,6 @@ PORT=$(info port)
 IDENTIFIER=com.kimhyunbin.ocul-pm
 DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
 LOG_DIR=$DATA_HOME/$IDENTIFIER/logs
-KEY=linux-x86_64-appimage
 DISPLAY_NUM=:98
 WORK=$(mktemp -d)
 SERVE=$WORK/serve
@@ -64,7 +63,7 @@ PAYLOAD_SIG=$UPD_DIR/payload.sig
 FOREIGN_SIG=$UPD_DIR/foreign.sig
 # 사용자가 받아 둔 자리처럼 — 쓰기 가능한 폴더, 이름은 받은 그대로.
 APP_FILE=$WORK/apps/Ocul-PM_${BASE}_amd64.AppImage
-URL=http://127.0.0.1:$PORT/Ocul-PM_${NEW}_amd64.AppImage
+BASE_URL=http://127.0.0.1:$PORT
 
 # ── 판정 기록 (install-smoke-linux.sh 와 같은 모양) ─────────────────────────
 ROWS=()
@@ -161,8 +160,9 @@ stop_app() {
 }
 screenshot() { import -window root "$OUT_DIR/$1.png" && echo "$OUT_DIR/$1.png"; }
 
+# 키·자산 이름은 릴리스의 표(release/latest-json.mjs NONMAC.linux)에서 — linux-x86_64-appimage 하나.
 write_latest() { # sig notes
-  node "$HTTP" latest --out "$SERVE/latest.json" --version "$NEW" --url "$URL" --sig "$1" --keys "$KEY" --notes "$2"
+  node "$HTTP" latest --out "$SERVE/latest.json" --platform linux --version "$NEW" --base-url "$BASE_URL" --root "$SERVE" --sig "$1" --notes "$2"
 }
 
 # ── 0. 준비 ────────────────────────────────────────────────────────────────
@@ -177,7 +177,7 @@ check_inputs() {
   # 새 판의 .sig 는 재료와 같은 run 의 번들에 대한 것이다 — 다른 run 의 번들이 섞이면 설치
   # 시험이 「서명 불일치」 로 거짓 실패한다. 받은 번들이 그 파일인지 먼저 본다.
   [ "$(sha "$PAYLOAD")" = "$(info payload_sha256)" ] || { echo "받은 새 판이 재료의 것이 아니다: $(sha "$PAYLOAD") ≠ $(info payload_sha256)"; return 1; }
-  echo "N=$BASE → N+1=$NEW · 포트 $PORT · 키 $KEY · $(tr '\n' ' ' <"$UPD_DIR/updater-info.txt")"
+  echo "N=$BASE → N+1=$NEW · 포트 $PORT · $(tr '\n' ' ' <"$UPD_DIR/updater-info.txt")"
 }
 gate "입력 — 스모크 판(N) · 새 판(N+1) · 서명 셋 · updater-info.txt" check_inputs
 
