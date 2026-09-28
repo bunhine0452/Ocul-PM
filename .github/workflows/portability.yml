@@ -403,6 +403,7 @@ jobs:
     outputs:
       bundle: ${{ steps.gate.outputs.bundle }}
       smoke: ${{ steps.gate.outputs.smoke }}
+      updater: ${{ steps.gate.outputs.updater }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -423,6 +424,10 @@ jobs:
           bash -n .github/scripts/install-smoke-linux.sh
           shellcheck -S warning .github/scripts/install-smoke-linux.sh
           echo "install-smoke-linux.sh: bash -n · shellcheck(warning 이상) 통과"
+          bash -n .github/scripts/updater-smoke-linux.sh
+          shellcheck -S warning .github/scripts/updater-smoke-linux.sh
+          node --check .github/scripts/updater-smoke-http.mjs
+          echo "updater-smoke-linux.sh · updater-smoke-http.mjs: bash -n · shellcheck · node --check 통과"
       - name: 판정
         id: gate
         env:
@@ -432,6 +437,7 @@ jobs:
         run: |
           bundle=false
           smoke=false
+          updater=false
           if [ "$EVENT" = "workflow_dispatch" ]; then
             bundle=true; why="수동 실행"
           elif [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
@@ -440,20 +446,25 @@ jobs:
             bundle=true; why="이전 머리 $BEFORE 를 못 찾음 (강제 push)"
           else
             changed=$(git diff --name-only "$BEFORE" "$AFTER")
-            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|src-tauri/linux/|src-tauri/windows/|\.github/scripts/fetch-vcredist\.|\.github/workflows/portability\.yml)' <<<"$changed" || true)
+            # 업데이터가 굽는 판을 바꾸는 파일(L-UPD)도 번들을 다시 굽는다 — N·N+1 둘 다 그 코드다.
+            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|src-tauri/linux/|src-tauri/windows/|\.github/scripts/fetch-vcredist\.|\.github/workflows/portability\.yml|src/lib/updater(Route)?\.ts|src/components/UpdateBanner\.tsx|src-tauri/src/commands/install_kind\.rs)' <<<"$changed" || true)
             smoke_hit=$(grep -E '^\.github/scripts/install-smoke-' <<<"$changed" || true)
+            updater_hit=$(grep -E '^\.github/scripts/updater-smoke-' <<<"$changed" || true)
             if [ -n "$hit" ]; then
               bundle=true; why=$(echo $hit)
-            elif [ -n "$smoke_hit" ]; then
-              smoke=true; why="스모크 스크립트만 ($(echo $smoke_hit)) — 앞 run 의 번들로"
+            elif [ -n "$smoke_hit" ] || [ -n "$updater_hit" ]; then
+              if [ -n "$smoke_hit" ]; then smoke=true; fi
+              if [ -n "$updater_hit" ]; then updater=true; fi
+              why="스모크 스크립트만 ($(printf '%s %s' "$smoke_hit" "$updater_hit" | tr '\n' ' ')) — 앞 run 의 번들로"
             else
               why="번들에 닿는 변경 없음"
             fi
           fi
-          if [ "$bundle" = true ]; then smoke=true; fi
+          if [ "$bundle" = true ]; then smoke=true; updater=true; fi
           echo "bundle=$bundle" >> "$GITHUB_OUTPUT"
           echo "smoke=$smoke" >> "$GITHUB_OUTPUT"
-          echo "번들 잡: bundle=$bundle smoke=$smoke — $why" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "updater=$updater" >> "$GITHUB_OUTPUT"
+          echo "번들 잡: bundle=$bundle smoke=$smoke updater=$updater — $why" | tee -a "$GITHUB_STEP_SUMMARY"
 
   bundle:
     name: 번들 — ${{ matrix.os }}
@@ -589,6 +600,110 @@ jobs:
           compression-level: 0
           if-no-files-found: error
 
+      # ── 업데이터 스모크 재료 (크로스플랫폼 L-UPD #w3-updater-smoke) ──────────────
+      # 위 번들이 N+1 이다 — 릴리스와 같은 설정, 이 잡의 일회용 키로 서명한 .sig. 여기서 N 을
+      # 하나 더 굽는다: `--config` 병합(JSON Merge Patch)으로 판을 N+1 보다 낮게, 업데이터
+      # 엔드포인트를 http://127.0.0.1:<포트>/latest.json 으로(http 라서
+      # dangerousInsecureTransportProtocol — 이 판에만), 공개 키를 **같은 일회용 키**로. 그래서
+      # 위 번들의 .sig 가 그대로 N 이 믿는 서명이 된다 — 빌드는 두 번이지만 N+1 은 다시 굽지
+      # 않는다. 프런트는 VITE_OCULPM_UPDATER_SMOKE=1 — 새 판을 찾으면 배너의 install() 을
+      # 스스로 부른다(components/UpdateBanner.tsx). 사이드카는 위에서 구운 것을 그대로 쓴다
+      # (beforeBuildCommand 를 pnpm build 로). 설정이 바뀌어 앱 크레이트만 다시 컴파일한다
+      # (Windows 20분 · Linux 11분 안팎 — 2026-09-24 실측의 두 번째 컴파일).
+      # tauri.conf.json 은 한 글자도 안 바뀐다 — egress_inventory 의
+      # updater_endpoints_are_exactly_the_declared_one 이 지키는 릴리스 엔드포인트 그대로다.
+      # 이 단계들의 성패는 위 번들 판정에 섞지 않는다(L-PKG 의 신호를 흐리지 않게) — 재료가
+      # 없으면 updater-smoke 잡이 그 이유로 붉어진다.
+      - name: 업데이터 스모크 판(N) — 설정 · 굽기
+        id: updbuild
+        if: steps.collect.outcome == 'success'
+        continue-on-error: true
+        env:
+          VITE_OCULPM_UPDATER_SMOKE: '1'
+          UPD_PORT: '17654'
+        run: |
+          set -euo pipefail
+          new=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          # N 은 N+1 보다 낮은 판 — 3.5.0 → 3.4.999, 3.5.2 → 3.5.1.
+          base=$(NEW="$new" node -p 'const [a, b, c] = process.env.NEW.split(".").map(Number); (c > 0 ? [a, b, c - 1] : b > 0 ? [a, b - 1, 999] : [a - 1, 999, 999]).join(".")')
+          pub=$(tr -d '\r\n' < "$RUNNER_TEMP/ci-updater.key.pub")
+          [ -n "$pub" ] || { echo "::error::일회용 키의 공개 키($RUNNER_TEMP/ci-updater.key.pub)가 비었다"; exit 1; }
+          BASE="$base" PUB="$pub" node -e '
+            const conf = {
+              version: process.env.BASE,
+              build: { beforeBuildCommand: "pnpm build" },
+              plugins: {
+                updater: {
+                  endpoints: ["http://127.0.0.1:" + process.env.UPD_PORT + "/latest.json"],
+                  pubkey: process.env.PUB,
+                  dangerousInsecureTransportProtocol: true,
+                },
+              },
+            };
+            process.stdout.write(JSON.stringify(conf, null, 2));
+          ' > "$RUNNER_TEMP/updater-smoke.conf.json"
+          cat "$RUNNER_TEMP/updater-smoke.conf.json"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+          pnpm tauri build --target ${{ matrix.triple }} --config "$RUNNER_TEMP/updater-smoke.conf.json" 2>&1 | tee bundle-updater.log
+
+      - name: 업데이터 스모크 재료 — 모으기 · 다른 키의 서명
+        id: updcollect
+        if: steps.updbuild.outcome == 'success'
+        continue-on-error: true
+        env:
+          BASE: ${{ steps.updbuild.outputs.base }}
+          NEW: ${{ steps.updbuild.outputs.new }}
+          UPD_PORT: '17654'
+        run: |
+          set -euo pipefail
+          b="src-tauri/target/${{ matrix.triple }}/release/bundle"
+          out=dist-updater
+          mkdir -p "$out/base"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            base_files=("$b/nsis/Ocul-PM_${BASE}_x64-setup.exe")
+            payload="$b/nsis/Ocul-PM_${NEW}_x64-setup.exe"
+          else
+            base_files=("$b/appimage/Ocul-PM_${BASE}_amd64.AppImage" "$b/deb/Ocul-PM_${BASE}_amd64.deb")
+            payload="$b/appimage/Ocul-PM_${NEW}_amd64.AppImage"
+          fi
+          for f in "${base_files[@]}" "$payload"; do
+            [ -s "$f" ] || { echo "::error::$f 가 없다 — 번들 폴더: $(find "$b" -maxdepth 2 -type f -printf '%P ')"; exit 1; }
+          done
+          cp "${base_files[@]}" "$out/base/"
+          # N 의 .sig — 「키는 맞고 내용이 다른」 거절 시험의 재료. N+1 의 .sig — 설치 시험의 재료.
+          for f in "${base_files[0]}" "$payload"; do
+            [ -s "$f.sig" ] || { echo "::error::$f.sig 가 없다"; exit 1; }
+          done
+          cp "${base_files[0]}.sig" "$out/base/"
+          cp "$payload.sig" "$out/payload.sig"
+          # 「다른 키의」 서명 — 두 번째 일회용 키로 N+1 을 서명한다(키는 이 잡에서만 산다).
+          pnpm tauri signer generate --ci -w "$RUNNER_TEMP/ci-foreign.key" >/dev/null
+          cp "$payload" "$RUNNER_TEMP/foreign-payload"
+          env -u TAURI_SIGNING_PRIVATE_KEY pnpm tauri signer sign -f "$RUNNER_TEMP/ci-foreign.key" -p "" "$RUNNER_TEMP/foreign-payload" >/dev/null
+          cp "$RUNNER_TEMP/foreign-payload.sig" "$out/foreign.sig"
+          rm -f "$RUNNER_TEMP/foreign-payload"
+          {
+            echo "base_version=$BASE"
+            echo "payload_version=$NEW"
+            echo "port=$UPD_PORT"
+            echo "payload=$(basename "$payload")"
+            echo "payload_sha256=$(sha256sum "$payload" | cut -d' ' -f1)"
+            echo "commit=${{ github.sha }} run=${{ github.run_id }}"
+          } > "$out/updater-info.txt"
+          cat "$out/updater-info.txt"
+          find "$out" -type f -exec ls -la {} + | tee -a bundle-files.txt
+
+      - name: 업데이터 스모크 재료 아티팩트
+        if: steps.updcollect.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: portability-updater-${{ matrix.os }}
+          path: dist-updater/
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
+
       - name: 번들 로그 아티팩트
         if: always()
         uses: actions/upload-artifact@v4
@@ -596,6 +711,7 @@ jobs:
           name: portability-bundle-log-${{ matrix.os }}
           path: |
             bundle.log
+            bundle-updater.log
             bundle-files.txt
           if-no-files-found: ignore
 
@@ -608,6 +724,8 @@ jobs:
             echo "|---|---|"
             echo "| pnpm tauri build | ${{ steps.build.outcome }} |"
             echo "| 산출물 · .sig · 설정 병합 | ${{ steps.collect.outcome }} |"
+            echo "| 업데이터 스모크 판(N) 굽기 (판정 밖) | ${{ steps.updbuild.outcome }} |"
+            echo "| 업데이터 스모크 재료 (판정 밖) | ${{ steps.updcollect.outcome }} |"
             echo ""
             echo '```'
             cat bundle-files.txt 2>/dev/null || true
@@ -711,5 +829,116 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: portability-install-smoke-${{ matrix.os }}
+          path: smoke-out/
+          if-no-files-found: ignore
+
+  # ── 업데이터 스모크 (크로스플랫폼 L-UPD #w3-updater-smoke) ──────────────────────
+  # 앱 안 업데이터의 N→N+1 한 바퀴를 깨끗한 러너에서 실제로 돌린다 — 첫 공개 판의 업데이터가
+  # 깨져 있으면 사용자는 그 판에 갇힌다. N(스모크 판)과 N+1(릴리스 설정 번들)은 bundle 잡이
+  # 같은 일회용 키로 굽는다(그 잡의 「업데이터 스모크 재료」 주석). 로컬 서버가 latest.json 을
+  # 내주고, 거절 둘(내용이 다른 서명 · 다른 키의 서명) → 설치 → 재시작 순으로 본다. deb 는
+  # 업데이트 대상이 아니다 — 묻지 않고 패키지 관리자 안내가 뜨는지만(D10). 무엇을 보는지는
+  # .github/scripts/updater-smoke-{windows.ps1,linux.sh} 머리 주석에. 이 잡이 붉어도 macOS
+  # 릴리스는 막히지 않는다(D2 — release.yml 의 gate 는 ci.yml 만 본다).
+  updater-smoke:
+    name: 업데이터 스모크 — ${{ matrix.os }}
+    needs: [bundle-changes, bundle]
+    if: ${{ !cancelled() && needs.bundle-changes.outputs.updater == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      # N 재료와 N+1 번들은 **같은 run** 에서 받는다(같은 일회용 키). 재료가 있는 run 이면 번들도
+      # 있다 — 같은 잡이 올린다. 번들을 건너뛴 push 면 이 브랜치의 앞 run 에서(install-smoke 와 같다).
+      - name: 재료 출처 — 이 run, 번들을 건너뛴 push 면 이 브랜치의 앞 run
+        id: src
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: portability-updater-${{ matrix.os }}
+          BUNDLE_RESULT: ${{ needs.bundle.result }}
+          RUN_ID: ${{ github.run_id }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          has() {
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$1/artifacts?name=$NAME" \
+              --jq '[.artifacts[] | select(.expired | not)] | length'
+          }
+          if [ "$(has "$RUN_ID")" -gt 0 ]; then
+            echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+            echo "이 run 의 재료"
+            exit 0
+          fi
+          if [ "$BUNDLE_RESULT" != "skipped" ]; then
+            echo "::error::이 run 에서 $NAME 이 만들어지지 않았다 (bundle 잡: $BUNDLE_RESULT) — bundle 잡의 「업데이터 스모크 판(N)」 단계와 bundle-updater.log 를 볼 것"
+            exit 1
+          fi
+          for id in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/portability.yml/runs?branch=$BRANCH&per_page=30" --jq '.workflow_runs[].id'); do
+            if [ "$id" != "$RUN_ID" ] && [ "$(has "$id")" -gt 0 ]; then
+              echo "run_id=$id" >> "$GITHUB_OUTPUT"
+              echo "번들을 건너뛴 push — 앞 run $id 의 재료를 쓴다" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          done
+          echo "::error::이 브랜치의 최근 run 에 $NAME 이 없다 — workflow_dispatch 로 번들부터 굽는다"
+          exit 1
+
+      - name: N+1 번들 받기
+        uses: actions/download-artifact@v4
+        with:
+          name: portability-bundle-${{ matrix.os }}
+          path: bundle
+          run-id: ${{ steps.src.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: N 재료 받기
+        uses: actions/download-artifact@v4
+        with:
+          name: portability-updater-${{ matrix.os }}
+          path: updater
+          run-id: ${{ steps.src.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: 재료 목록
+        shell: bash
+        run: |
+          find bundle updater -type f -exec ls -la {} +
+          cat updater/updater-info.txt
+
+      - name: 업데이터 스모크 — Windows (NSIS)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $global:LASTEXITCODE = 99
+          & ./.github/scripts/updater-smoke-windows.ps1 -BundleDir bundle -UpdaterDir updater -OutDir smoke-out
+          exit $LASTEXITCODE
+
+      # 세션 D-Bus 하나를 스크립트 전체에 — 앱이 스스로 다시 뜰 때 옛 프로세스와 함께 버스가
+      # 사라지지 않게(한 번의 실행마다 dbus-run-session 으로 감싸면 그렇게 된다).
+      - name: 업데이터 스모크 — Linux (AppImage · deb)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          command -v dbus-run-session >/dev/null || sudo apt-get install -y -qq dbus
+          dbus-run-session -- bash .github/scripts/updater-smoke-linux.sh bundle updater smoke-out
+
+      - name: 결과 아티팩트 (앱 로그 · 접근 로그 · 설치 로그 · 스크린샷 · summary.md)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portability-updater-smoke-${{ matrix.os }}
           path: smoke-out/
           if-no-files-found: ignore
