@@ -614,6 +614,102 @@ fn windows_powershell_loads_the_integration_from_the_real_profile() {
     }
 }
 
+/// **네이티브 프로그램의 한글이 UTF-8 로 도착한다** (#shell-pwsh-utf8) — 5.1 과 7 둘 다.
+///
+/// 콘솔은 머신의 OEM 코드 페이지(러너는 437)로 시작하고, 세 길이 그것을 따른다. 셋을
+/// 다 본다 — 명령줄은 ASCII 뿐이라(한글은 `[char]` 로 만든다) 화면의 한글은 에코가 아니라
+/// 실행 결과다:
+/// 1. 콘솔에 **바이트로** 쓰는 프로그램 — `cmd /c type` 이 UTF-8 파일을 그대로 흘린다.
+/// 2. PowerShell 이 **받아 읽는** 네이티브 출력 — cmd 는 콘솔 코드 페이지로 인코딩해 파이프에
+///    쓰고 PowerShell 은 `[Console]::OutputEncoding` 으로 읽는다.
+/// 3. PowerShell 이 네이티브 프로그램에 **흘려 넣는** 문자열 — `$OutputEncoding`(5.1 기본은 ASCII).
+///
+/// 통합을 싣기 전의 코드 페이지는 로그에만 남긴다(러너 이미지가 바뀌어도 붉어지지 않게).
+#[cfg(windows)]
+#[test]
+fn powershell_native_programs_speak_utf8_once_the_integration_loads() {
+    use std::io::Write as _;
+
+    const HANGUL: &str = "([string][char]0xD55C + [char]0xAE00)";
+    for shell in powershells() {
+        let sb = sandbox();
+        let n = nonce();
+        install_for(HostOs::Windows, &sb, &shell);
+        std::fs::write(sb.cwd.join("u8.txt"), "\u{d55c}\u{ae00}-type\r\n").unwrap();
+        let profile = powershell::profile_path(
+            HostOs::Windows,
+            powershell::edition_of(HostOs::Windows, &shell),
+            &sb.loc,
+        )
+        .unwrap();
+        let pty = LivePty::spawn(pwsh_command(&shell, &sb, &n, true));
+        pty.wait_until(&format!("{shell}: 첫 프롬프트"), |t| t.contains("> "));
+
+        let code_pages = "[string][Console]::OutputEncoding.CodePage + '/' + [Console]::InputEncoding.CodePage + '/' + $OutputEncoding.CodePage";
+        pty.wait_quiet(Duration::from_millis(300));
+        pty.send(&format!("'cp' + 'before=' + {code_pages}"));
+        let text = pty.wait_until(&format!("{shell}: 싣기 전 코드 페이지"), |t| {
+            code_pages_after(t, "cpbefore=").is_some()
+        });
+        let before = code_pages_after(&text, "cpbefore=").unwrap_or_default();
+        // 테스트 출력 가로채기를 거치지 않고 곧장 — 통과한 실행의 로그에도 남게.
+        let _ = std::io::stderr().write_all(
+            format!("[pwsh-utf8] {shell}: 통합 전 코드 페이지(출력/입력/파이프) = {before}\n")
+                .as_bytes(),
+        );
+
+        pty.wait_quiet(Duration::from_millis(300));
+        pty.send(&format!(
+            ". '{}'",
+            profile.display().to_string().replace('\'', "''")
+        ));
+        pty.wait_until(&format!("{shell}: 통합의 133;A"), |t| {
+            markers(t).iter().any(|m| m.kind == "A")
+        });
+
+        let steps = [
+            (
+                format!("'cp' + 'after=' + {code_pages}"),
+                "cpafter=65001/65001/65001".to_string(),
+            ),
+            (
+                "cmd /c type u8.txt".to_string(),
+                "\u{d55c}\u{ae00}-type".to_string(),
+            ),
+            (
+                format!("$r = cmd /c echo ({HANGUL} + '-%OS%'); '[' + $r + ']'"),
+                "[\u{d55c}\u{ae00}-Windows_NT]".to_string(),
+            ),
+            (
+                format!("$p = ({HANGUL} + '-pipe') | findstr /V zzqq; '<' + $p + '>'"),
+                "<\u{d55c}\u{ae00}-pipe>".to_string(),
+            ),
+        ];
+        for (cmd, want) in steps {
+            pty.wait_ready(&format!("{shell}: 입력 준비"), "\x1b]133;B", false);
+            pty.send(&cmd);
+            pty.wait_until(&format!("{shell}: `{cmd}` → {want:?}"), |t| {
+                t.contains(&want)
+            });
+        }
+    }
+}
+
+/// `label` 바로 뒤의 `출력/입력/파이프` 코드 페이지 — 에코된 명령(`label'` 꼴)이 아니라 결과만.
+#[cfg(windows)]
+fn code_pages_after(text: &str, label: &str) -> Option<String> {
+    text.match_indices(label).find_map(|(i, _)| {
+        let rest = &text[i + label.len()..];
+        let value: String = rest
+            .chars()
+            .take_while(|c| c.is_ascii_digit() || *c == '/')
+            .collect();
+        // 값 뒤에 무엇이든 이어졌어야 한다 — 청크 경계에서 잘린 값을 읽지 않게.
+        let complete = rest.len() > value.len();
+        (complete && value.matches('/').count() == 2 && !value.ends_with('/')).then_some(value)
+    })
+}
+
 /// 우리가 계산한 프로필 자리가 셸 자신이 말하는 `$PROFILE.CurrentUserAllHosts`
 /// 와 같다 — OneDrive 로 옮겨진 문서 폴더·XDG 를 셸과 같은 규칙으로 읽는다는 증거.
 #[test]
