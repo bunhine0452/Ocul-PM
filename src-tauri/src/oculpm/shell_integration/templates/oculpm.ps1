@@ -1,4 +1,4 @@
-# shell_version: 1
+# shell_version: 2
 # ocul-pm shell integration (PowerShell 5.1 and 7+) -- reports command
 # boundaries, exit codes and the working directory to the app.
 #
@@ -36,6 +36,29 @@ if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') { return }
 if ($env:TMUX) { return }
 if ("$env:TERM" -match '^(screen|tmux)|^(dumb|linux)$') { return }
 $global:__oculpm_si_loaded = $true
+
+# UTF-8 for native programs (Windows only). The terminal speaks UTF-8, but the
+# console the shell runs in starts on the machine's OEM code page (437, 949,
+# ...) and three things follow it: bytes a native program writes straight to
+# the console (`cmd /c type`, printf), what PowerShell decodes when it captures
+# a native program's output (`$x = git log`), and what it encodes when it pipes
+# text into one (`'...' | findstr`, ASCII by default in 5.1). Anything outside
+# that code page -- Hangul on an English machine, or a byte sequence the page
+# reads differently -- arrives as '?' or mojibake. The [Console] encodings set
+# the console's input and output code pages, so programs started from here
+# inherit them; cmd gets the same fix from `chcp 65001` at launch. No BOM: 5.1
+# would send one ahead of everything it pipes. Elsewhere the locale already
+# decides, so nothing changes there.
+if ([System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT) {
+  & {
+    try {
+      $utf8 = [System.Text.UTF8Encoding]::new($false)
+      [Console]::InputEncoding = $utf8
+      [Console]::OutputEncoding = $utf8
+      $global:OutputEncoding = $utf8
+    } catch {}
+  }
+}
 
 # Session shim: the profile has built PATH by now; put only the shim dir in
 # front of it. Handing the terminal the app's own PATH would drop the user's.
