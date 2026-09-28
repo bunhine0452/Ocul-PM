@@ -61,4 +61,9 @@ plan: cross-platform-port
 | 2026-09-24T18:58:51+09:00 | #w3-update-ptyhost-lock | claude-code | ☐→~ |  | 사용자 결정 2026-09-24: 살린다 — 호스트를 설치 폴더 밖 판별 복사본에서. 구현 레인 출발 |
 | 2026-09-24T18:58:56+09:00 | #mac-bundled-claude | claude-code | ☐→~ |  | 사용자 결정 2026-09-24: 고친다 — npm_platform macos→darwin. 실기기(macOS) 확인 필요 |
 | 2026-09-24T19:43:40+09:00 | #mac-bundled-claude | claude-code | ~→x | .oculpm/journal/20260924/Bugs/1943_bug_acp-mac-bundled-claude-darwin.md | darwin 매핑 + 실제 폴더 이름 못박은 테스트. 진단만 바뀜(실행 claude 불변). 실기기: 릴리스 뒤 ACP 진단 경로 확인. PR #39 |
+| 2026-09-24T20:30:53+09:00 | #w3-e2e | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2030_feature_port-e2e-harness-le2e.md | 하네스 합류(PR #41). ubuntu 전 단계 초록, windows 는 앱 결함 2건(#ui-winpath-name · #ui-term-write-order)만 붉음 → L-UI2 |
+| 2026-09-24T20:31:01+09:00 | #w3-ime-cdp | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2030_feature_port-e2e-harness-le2e.md | WebView2 CDP 로 MS 한국어 IME 순서 재현 → 셸에 한글 정확히 한 번(3/3). 실제 IME 후보창은 #w5-eyes |
+| 2026-09-24T21:05:04+09:00 | #w3-update-ptyhost-lock | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/2104_feature_port-ptyhost-update-survival-lpty2.md | 호스트 판별 복사본 — taskkill /IM + 설치 폴더 덮어쓰기에도 생존(windows 러너). 실제 NSIS 한 바퀴는 L-PKG 설치 스모크. PR #42 |
+| 2026-09-24T21:05:12+09:00 | #pty-ctrlc-flake | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2104_feature_port-ptyhost-update-survival-lpty2.md | 판정: 테스트 경합(콘솔 부착 전 몇 ms 의 ^C 는 cmd 가 받음), 제품 결함 아님. 틈 노림 4/30 → 수정 후 0/60 |
+| 2026-09-25T02:43:49+09:00 | #ui-winpath-name | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | osPath.ts, E2E windows "프로젝트 이름 = 폴더 이름" 초록. PR #44 |
 <!-- oculpm:plan-log end -->
