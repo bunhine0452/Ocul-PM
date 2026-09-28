@@ -42,7 +42,8 @@ mkdir -p "$OUT_DIR"
 OUT_DIR=$(realpath "$OUT_DIR")
 HTTP=$(dirname "$(realpath "$0")")/updater-smoke-http.mjs
 
-info() { grep -m1 "^$1=" "$UPD_DIR/updater-info.txt" 2>/dev/null | cut -d= -f2- | tr -d '\r'; }
+# 값 앞의 `\` 는 sha256sum 이 역슬래시 든 경로에 붙이는 이스케이프 표시다(Windows 재료) — 뗀다.
+info() { grep -m1 "^$1=" "$UPD_DIR/updater-info.txt" 2>/dev/null | cut -d= -f2- | tr -d '\r' | sed 's/^\\//'; }
 BASE=$(info base_version)
 NEW=$(info payload_version)
 PORT=$(info port)
@@ -176,6 +177,7 @@ check_inputs() {
   [ "$(printf '%s\n%s\n' "$BASE" "$NEW" | sort -V | tail -1)" = "$NEW" ] && [ "$BASE" != "$NEW" ] || { echo "스모크 판 $BASE 가 새 판 $NEW 보다 낮지 않다"; return 1; }
   # 새 판의 .sig 는 재료와 같은 run 의 번들에 대한 것이다 — 다른 run 의 번들이 섞이면 설치
   # 시험이 「서명 불일치」 로 거짓 실패한다. 받은 번들이 그 파일인지 먼저 본다.
+  [ -n "$(info payload_sha256)" ] || { echo "updater-info.txt 에 payload_sha256 이 없다"; return 1; }
   [ "$(sha "$PAYLOAD")" = "$(info payload_sha256)" ] || { echo "받은 새 판이 재료의 것이 아니다: $(sha "$PAYLOAD") ≠ $(info payload_sha256)"; return 1; }
   echo "N=$BASE → N+1=$NEW · 포트 $PORT · $(tr '\n' ' ' <"$UPD_DIR/updater-info.txt")"
 }
