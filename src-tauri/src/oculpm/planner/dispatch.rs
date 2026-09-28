@@ -6,6 +6,7 @@
 
 use std::path::Path;
 
+use crate::oculpm::planner::eol;
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus, ParsedPlan};
 use regex::Regex;
 
@@ -184,10 +185,14 @@ fn read_journal_excerpt(root: &Path, journal_ref: &str) -> Option<String> {
         root.join(".oculpm").join(rel)
     };
     let raw = std::fs::read_to_string(path).ok()?;
+    // 윈도우 체크아웃(CRLF)은 LF 로 편 뒤 자른다 — 아니면 닫는 울타리 뒤의 `\r` 이
+    // 남아 발췌가 `\r\n` 으로 시작하고 프롬프트에 줄바꿈이 섞인다 (#fs-crlf-parsers).
+    let raw = eol::to_lf(&raw);
+    let raw: &str = &raw;
     // frontmatter 는 건너뛰고 본문만.
     let body = match raw.strip_prefix("---") {
-        Some(rest) => rest.split_once("\n---").map(|(_, b)| b).unwrap_or(&raw),
-        None => raw.as_str(),
+        Some(rest) => rest.split_once("\n---").map(|(_, b)| b).unwrap_or(raw),
+        None => raw,
     };
     let trimmed: String = body
         .trim_start_matches('\n')
@@ -273,6 +278,26 @@ mod tests {
             ContentLang::Unset
         )
         .is_err());
+    }
+
+    /// CRLF 일지(윈도우 체크아웃)의 발췌는 LF 일지의 것과 같다 — 앞에 `\r\n` 이
+    /// 남지 않고, 본문 줄바꿈도 LF 다.
+    #[test]
+    fn a_crlf_journal_excerpt_matches_the_lf_one() {
+        let dir = TempDir::new().unwrap();
+        let jdir = dir.path().join(".oculpm/journal/20260731/Bugs");
+        std::fs::create_dir_all(&jdir).unwrap();
+        let lf = "---\nschema_version: 1\n---\n\n[x] 지난 수정\n\n## 발생 원인\n원인\n";
+        std::fs::write(jdir.join("0100_bug_lf.md"), lf).unwrap();
+        std::fs::write(jdir.join("0101_bug_crlf.md"), lf.replace('\n', "\r\n")).unwrap();
+
+        let want =
+            read_journal_excerpt(dir.path(), "journal/20260731/Bugs/0100_bug_lf.md").unwrap();
+        assert_eq!(want, "[x] 지난 수정\n\n## 발생 원인\n원인\n");
+        let got =
+            read_journal_excerpt(dir.path(), ".oculpm/journal/20260731/Bugs/0101_bug_crlf.md")
+                .unwrap();
+        assert_eq!(got, want);
     }
 
     #[test]
