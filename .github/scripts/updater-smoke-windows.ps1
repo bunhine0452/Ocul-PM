@@ -12,8 +12,8 @@
           N+1 보다 낮게), 프런트는 VITE_OCULPM_UPDATER_SMOKE=1 — 새 판을 찾으면 배너의
           「지금 업데이트」 와 같은 install() 을 스스로 부른다(components/UpdateBanner.tsx).
     N+1 = 릴리스와 같은 설정으로 구운 setup.exe(같은 일회용 키로 서명한 .sig). 로컬 서버
-          (updater-smoke-http.mjs)가 latest.json(windows-x86_64 · windows-x86_64-nsis —
-          릴리스와 같은 키)과 함께 내준다.
+          (updater-smoke-http.mjs)가 latest.json(키는 릴리스의 표 그대로 — windows-x86_64 ·
+          windows-x86_64-nsis)과 함께 내준다.
 
   순서가 뜻을 갖는다 — 거절부터:
     1. 서명이 다른 파일의 것(키는 맞고 내용이 다름) → 받은 뒤 검증에서 거절, 설치 파일은 안 돈다
@@ -47,7 +47,6 @@ $UninstKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$Product
 $LogDir = Join-Path (Join-Path $env:APPDATA $Identifier) 'logs'
 $SetupLog = Join-Path $env:TEMP 'ocul-pm-setup.log'
 $Http = Join-Path $PSScriptRoot 'updater-smoke-http.mjs'
-$Keys = 'windows-x86_64,windows-x86_64-nsis'
 $TempRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }
 $Serve = Join-Path $TempRoot 'ocul-pm-updater-serve'
 
@@ -73,7 +72,8 @@ $Payload = Join-Path $BundleDir "Ocul-PM_${New}_x64-setup.exe"
 $PayloadName = Split-Path -Leaf $Payload
 $PayloadSig = Join-Path $UpdaterDir 'payload.sig'
 $ForeignSig = Join-Path $UpdaterDir 'foreign.sig'
-$Url = "http://127.0.0.1:$Port/$PayloadName"
+$BaseUrl = "http://127.0.0.1:$Port"
+$Url = "$BaseUrl/$PayloadName"
 
 # ── 판정 기록 (install-smoke-windows.ps1 과 같은 모양) ─────────────────────
 $script:Rows = [System.Collections.Generic.List[object]]::new()
@@ -172,8 +172,10 @@ function Get-Access([string] $Path) {
 }
 function Clear-Access { Set-Content -LiteralPath $Access -Value $null -NoNewline }
 
+# 키·자산 이름은 릴리스의 표(release/latest-json.mjs NONMAC.windows)에서 — windows-x86_64 ·
+# windows-x86_64-nsis, 자산 Ocul-PM_<판>_x64-setup.exe(서버 루트에 그 이름으로 있어야 한다).
 function Write-Latest([string] $Sig, [string] $Notes) {
-    $out = & node $Http latest --out (Join-Path $Serve 'latest.json') --version $New --url $Url --sig $Sig --keys $Keys --notes $Notes 2>&1 | Out-String
+    $out = & node $Http latest --out (Join-Path $Serve 'latest.json') --platform windows --version $New --base-url $BaseUrl --root $Serve --sig $Sig --notes $Notes 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) { throw "latest.json 을 못 썼다: $out" }
     return $out.Trim()
 }
@@ -223,7 +225,7 @@ Test-Gate '입력 — 스모크 판(N) · 새 판(N+1) · 서명 셋 · updater-
     # 시험이 「서명 불일치」 로 거짓 실패한다. 받은 번들이 그 파일인지 먼저 본다.
     $hash = (Get-FileHash -LiteralPath $Payload -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($hash -ne $Info['payload_sha256']) { throw "받은 새 판이 재료의 것이 아니다: $hash ≠ $($Info['payload_sha256'])" }
-    "N=$Base → N+1=$New · 포트 $Port · 키 $Keys"
+    "N=$Base → N+1=$New · 포트 $Port"
 }
 
 Test-Gate "설치 — 스모크 판 N ($Base) 무음 설치 (/S)" {
