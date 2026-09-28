@@ -116,9 +116,9 @@ owner: claude-code
 - [ ] Linux — `DBUS_SESSION_BUS_ADDRESS` 가 파싱 불가한 값이면 tauri-plugin-single-instance 2.4.4 가 `Builder::session().unwrap()` 에서 기동 중 패닉할 수 있다(코드 읽기 추정, 미재현). instance-lock 폴백으로는 못 막는다 — 등록 전에 주소를 검사해 이상하면 플러그인을 건너뛰고 잠금 파일만 쓰기 (L-OS3 발견) {#os-dbus-addr-panic}
 - [ ] Windows PTY 호스트가 판별 복사본을 못 써서 원본으로 물러서는 경로(`launch.rs` 의 `start(exe, None, …)`)는 앱의 작업 폴더를 물려받는다 — 사용자가 프로젝트 폴더 터미널에서 앱을 띄웠으면 앱보다 오래 사는 호스트가 그 폴더를 쥔다. 그 경로의 cwd 를 실행 파일 폴더로 (L-PTY3 발견, #os-child-cwd-lock 의 값싼 완화) {#pty-host-fallback-cwd}
 - [ ] 비-mac 에서 일지·검색·시작 화면의 ⌘N(=Ctrl+N) 핸들러가 Shift 를 보지 않는다 — Ctrl+Shift+N 은 캡처 단계에서 막았지만 Ctrl+Shift+<같은 글자> 계열의 다른 전역 키와 같은 모양의 충돌이 남을 수 있다. 화면 핸들러가 수식키를 정확히 맞추게 (L-OS3 발견) {#ui-shortcut-shift-exact}
-- [ ] VS Code 확장의 플래너 파서(`extension/src/oculpm/planner.ts`)가 아직 「첫 `{#…}` 가 이긴다」 — `reader.spec.ts` 가 그 동작을 박아 둠. Rust `anchor_span`(메모 앞 마지막 → 줄 끝)과 갈라졌으니 맞추기 (L-FS3 발견) {#ext-anchor-rule}
-- [ ] `plan_edit::add_item` 이 phase 를 원문 헤딩으로 비교해 `## P {#p}` 인 phase 에 항목을 더하면 `## P` 섹션이 하나 더 생긴다 — UI 는 앵커를 뗀 이름을 넘기므로 양 OS 실제 결함 (L-FS3 발견) {#plan-add-item-anchored-phase}
-- [ ] 결정 섹션 판정 불일치 — `plan_edit::is_decisions_name` 은 부분 문자열, 파서의 `is_decisions_heading` 은 이름 전체. `move_phase` 가 「결정」 이 든 phase 를 결정 섹션으로 보고 이동 범위를 끊는다 (L-FS3 발견) {#plan-decisions-heading-mismatch}
+- [x] VS Code 확장의 플래너 파서(`extension/src/oculpm/planner.ts`)가 아직 「첫 `{#…}` 가 이긴다」 — `reader.spec.ts` 가 그 동작을 박아 둠. Rust `anchor_span`(메모 앞 마지막 → 줄 끝)과 갈라졌으니 맞추기 (L-FS3 발견) {#ext-anchor-rule}
+- [x] `plan_edit::add_item` 이 phase 를 원문 헤딩으로 비교해 `## P {#p}` 인 phase 에 항목을 더하면 `## P` 섹션이 하나 더 생긴다 — UI 는 앵커를 뗀 이름을 넘기므로 양 OS 실제 결함 (L-FS3 발견) {#plan-add-item-anchored-phase}
+- [x] 결정 섹션 판정 불일치 — `plan_edit::is_decisions_name` 은 부분 문자열, 파서의 `is_decisions_heading` 은 이름 전체. `move_phase` 가 「결정」 이 든 phase 를 결정 섹션으로 보고 이동 범위를 끊는다 (L-FS3 발견) {#plan-decisions-heading-mismatch}
 - [ ] plan_edit 의 phase 조회가 결정 섹션 이름(「결정」 등)을 거절하지 않는다 — `add_item` 은 결정 섹션에 항목을 넣어 파서가 못 보게 만들고, **`remove_phase("결정")` 은 결정 섹션 전체를 지운다**(데이터 손실), `rename_phase`·`move_item` 도 이름으로 닿는다. phase 조회에서 결정 이름을 거절 · 겸해서 `add_item` 중복 id 검사가 부분 문자열(`contains("{#id}")`) · 확장 `slugify` 는 40자 절단이라 Rust 와 자동 id 가 다를 수 있음 (L-PLAN2 발견) {#plan-edit-decisions-guard}
 - [ ] macOS 이름 바꾸기에서 옛 이름 삭제가 사라진다 — FSEvents 가 옛 이름에도 Created 를 달아 디바운서가 한 판으로 접는다, ndjson·일지 캐시에 옛 이름 행이 남음(기존 동작) · 겸해서 `planner/dispatch.rs::read_journal_excerpt` 가 CRLF 일지 발췌 앞에 `\r\n` 을 남김(보기만) (L-FS3 발견) {#fs-mac-rename-old-name}
 
@@ -129,12 +129,9 @@ owner: claude-code
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 49 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 52 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-24T06:26:21+09:00 | #w2-no-stubs | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0626_bug_port-watcher-root-rename-lfs2.md | W2 종료: PORT-STUB 0 · portability(d39d5a0d 기준 PR #38 재시도) windows 1,959/0 · ubuntu 초록 · ci.yml 초록. 남은 CI 신뢰성: lsp 테스트 직렬화(port/lsp-flake) |
-| 2026-09-24T18:58:41+09:00 | #w4-linux-formats | claude-code | ☐→x |  | 사용자 결정 2026-09-24: AppImage + deb (D10 그대로). rpm 은 나중에 |
-| 2026-09-24T18:58:46+09:00 | #w4-signing-decision | claude-code | ☐→x |  | 사용자 결정 2026-09-24: 무서명 베타로 시작(SmartScreen '추가 정보 → 실행' 안내 필요). 서명은 나중에 붙일 수 있게 |
 | 2026-09-24T18:58:51+09:00 | #w3-update-ptyhost-lock | claude-code | ☐→~ |  | 사용자 결정 2026-09-24: 살린다 — 호스트를 설치 폴더 밖 판별 복사본에서. 구현 레인 출발 |
 | 2026-09-24T18:58:56+09:00 | #mac-bundled-claude | claude-code | ☐→~ |  | 사용자 결정 2026-09-24: 고친다 — npm_platform macos→darwin. 실기기(macOS) 확인 필요 |
 | 2026-09-24T19:43:40+09:00 | #mac-bundled-claude | claude-code | ~→x | .oculpm/journal/20260924/Bugs/1943_bug_acp-mac-bundled-claude-darwin.md | darwin 매핑 + 실제 폴더 이름 못박은 테스트. 진단만 바뀜(실행 claude 불변). 실기기: 릴리스 뒤 ACP 진단 경로 확인. PR #39 |
@@ -172,5 +169,8 @@ owner: claude-code
 | 2026-09-29T00:12:12+09:00 | #index-double-run | claude-code | ☐→x | journal/20260929/Bugs/0012_bug_port-tz-index-dblock-bugreport.md | PR #53 — index_project 프로젝트별 단일 비행, E2E 로그 start 1·joined·done 1 |
 | 2026-09-29T00:12:17+09:00 | #db-win-locked-flake | claude-code | ☐→x | journal/20260929/Bugs/0012_bug_port-tz-index-dblock-bugreport.md | PR #53 — Db::close() 로 닫힘 대기 뒤 재열기 (결정적 수정, 재현은 못 함 — 누적 초록으로 판정) |
 | 2026-09-29T00:12:22+09:00 | #w5-report | claude-code | ☐→x | journal/20260929/Bugs/0012_bug_port-tz-index-dblock-bugreport.md | PR #53 — platform-bug.yml + diagnostics_report 「진단 정보 복사」 (설치 형식은 L-UPD install_kind 합류 뒤) |
-<!-- oculpm:plan-log archived: 49 rows → cross-platform-port.log.md -->
+| 2026-09-29T00:35:14+09:00 | #plan-add-item-anchored-phase | claude-code | ☐→x | journal/20260929/Bugs/0035_bug_planner-anchored-phase-decisions-ext.md | PR #56 — heading::split_phase_heading 공유 |
+| 2026-09-29T00:35:19+09:00 | #plan-decisions-heading-mismatch | claude-code | ☐→x | journal/20260929/Bugs/0035_bug_planner-anchored-phase-decisions-ext.md | PR #56 — is_decisions_heading 하나로 통일 |
+| 2026-09-29T00:35:24+09:00 | #ext-anchor-rule | claude-code | ☐→x | journal/20260929/Bugs/0035_bug_planner-anchored-phase-decisions-ext.md | PR #56 — 확장 planner.ts 가 anchor_span·결정 헤딩·CRLF 를 Rust 와 같게, 공유 사례표 |
+<!-- oculpm:plan-log archived: 52 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
