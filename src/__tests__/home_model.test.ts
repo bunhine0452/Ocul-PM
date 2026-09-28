@@ -89,6 +89,26 @@ describe("tildePath", () => {
   it("홈 밖 경로는 그대로 둔다", () => {
     expect(tildePath("/opt/work/x")).toBe("/opt/work/x");
   });
+
+  // {#ui-winpath-followups} — 홈의 모양은 OS 가 정한다.
+  it.each([
+    ["C:\\Users\\kim\\Desktop\\proj", "~\\Desktop\\proj"],
+    ["c:\\users\\kim\\proj", "~\\proj"],
+    ["D:/Users/kim/git/x", "~/git/x"],
+    ["\\\\?\\C:\\Users\\kim\\proj", "~\\proj"],
+    ["C:\\Users\\kim", "~"],
+    ["C:\\work\\proj", "C:\\work\\proj"],
+    ["C:\\Program Files\\Users\\x", "C:\\Program Files\\Users\\x"],
+    ["/home/kim/x", "/home/kim/x"],
+  ] as const)("windows: %s → %s", (path, want) => {
+    expect(tildePath(path, "windows")).toBe(want);
+  });
+
+  it.each(["mac", "linux"] as const)("%s: /Users·/home 규칙 그대로, 드라이브 경로는 모른다", (os) => {
+    expect(tildePath("/Users/kim/Desktop/proj", os)).toBe("~/Desktop/proj");
+    expect(tildePath("/home/kim/lab/x", os)).toBe("~/lab/x");
+    expect(tildePath("C:\\Users\\kim\\proj", os)).toBe("C:\\Users\\kim\\proj");
+  });
 });
 
 describe("initials", () => {

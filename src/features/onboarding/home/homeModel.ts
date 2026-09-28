@@ -24,6 +24,7 @@ import { bestScore } from "./homeMatch";
 // 순수 모듈 — 훅을 쓸 수 없으므로 모듈 t()/getLang().
 import { getLang, t, type I18nKey } from "@/i18n";
 import { relativeTime as formatRelativeTime } from "@/lib/format";
+import { getPlatform, type Platform } from "@/lib/platform";
 
 // ── 상수 (매직넘버 금지) ─────────────────────────────────────────────────
 /** 이 일수 이상 활동이 없으면 격자 뒤쪽으로 밀리고 흐리게 그려진다. */
@@ -170,10 +171,15 @@ export function dayLabel(workday: string, today: string): string | null {
 
 /**
  * 홈 디렉터리를 `~` 로 접는다. 웹뷰에는 $HOME 이 없으므로 경로 모양으로
- * 판정한다 (macOS `/Users/<u>/`, Linux `/home/<u>/`).
+ * 판정한다 — OS 마다 홈의 모양이 다르다 ({#ui-winpath-followups}):
+ *
+ *   macOS·Linux  `/Users/<u>` · `/home/<u>`   → `~/…` (예전 규칙 그대로, D3)
+ *   Windows      `C:\Users\<u>` (드라이브 글자·대소문자·`/` 구분자·`\\?\` 접두 무관)
+ *                → `~\…` — 나머지 구분자는 원문 그대로 둔다
  */
-export function tildePath(p: string): string {
-  return p.replace(/^\/(?:Users|home)\/[^/]+/, "~");
+export function tildePath(p: string, platform: Platform = getPlatform()): string {
+  if (platform !== "windows") return p.replace(/^\/(?:Users|home)\/[^/]+/, "~");
+  return p.replace(/^(?:\\\\\?\\)?[A-Za-z]:[\\/]users[\\/][^\\/]+/i, "~");
 }
 
 /** 프로젝트 마크용 이니셜 — 최대 2글자. */
