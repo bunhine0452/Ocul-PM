@@ -5,9 +5,11 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { commands } from "@/lib/bindings";
-import { RefreshCw, Download } from "@/components/Icons";
+import { RefreshCw, Download, ExternalLink } from "@/components/Icons";
 import { useT } from "@/i18n";
+import { toast } from "@/lib/toast";
 import { useUpdater, releaseHighlights, RELEASES_API } from "@/lib/updater";
+import { RELEASES_PAGE } from "@/lib/updaterRoute";
 import { Markdown } from "@/components/Markdown";
 import { Section } from "./ui";
 
@@ -28,6 +30,12 @@ export function UpdateTab() {
   const [releases, setReleases] = useState<ReleaseNote[] | null>(null);
   const [open, setOpen] = useState<Set<string>>(() => new Set());
   const [notesLoading, setNotesLoading] = useState(true);
+
+  // deb·rpm 설치본과 이 OS 의 빌드가 빠진 릴리스 — 새 설치 파일은 릴리스 페이지에서 받는다.
+  const openReleases = () =>
+    void commands.openUrl(RELEASES_PAGE).then((res) => {
+      if (res.status === "error") toast.destructive(t("settings.update.openFailed", { error: res.error }));
+    });
 
   const toggleRelease = (tag: string) =>
     setOpen((prev) => {
@@ -77,7 +85,13 @@ export function UpdateTab() {
             {t("settings.update.current")}{" "}
             <span className="font-mono text-foreground">v{version ?? "—"}</span>
           </div>
-          {updater.kind === "available" ? (
+          {updater.kind === "packageManaged" ? (
+            // 패키지 관리자가 주인이다 — 확인 버튼 대신 새 파일을 받을 곳을 연다.
+            <Button variant="outline" onClick={openReleases}>
+              <ExternalLink className="mr-2" size={15} />
+              {t("settings.update.openReleases")}
+            </Button>
+          ) : updater.kind === "available" ? (
             <Button
               onClick={() => void installUpdate()}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
@@ -117,6 +131,19 @@ export function UpdateTab() {
         {updater.kind === "error" && (
           <p className="text-fs-2 text-destructive">
             {t("settings.update.checkFailed", { message: updater.message ?? "" })}
+          </p>
+        )}
+        {updater.kind === "packageManaged" && (
+          <p className="text-fs-2 text-muted-foreground">
+            {t("settings.update.packageManaged", { format: updater.format })}
+          </p>
+        )}
+        {updater.kind === "noBuild" && (
+          <p className="text-fs-2 text-muted-foreground">
+            {t("settings.update.noBuild")}{" "}
+            <button type="button" className="underline underline-offset-2" onClick={openReleases}>
+              {t("settings.update.openReleases")}
+            </button>
           </p>
         )}
       </Section>

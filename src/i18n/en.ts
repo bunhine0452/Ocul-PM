@@ -918,6 +918,12 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.update.availSuffix": "is available.",
   "settings.update.installing": "Downloading and installing… the app restarts automatically when it's done.",
   "settings.update.checkFailed": "Couldn't check for updates (offline, or no release found): {message}",
+  "settings.update.packageManaged":
+    "Installed from a .{format} package. The app doesn't update itself — update it with your package manager. The new .{format} file is on the releases page.",
+  "settings.update.noBuild":
+    "The latest release has no build for this OS yet, so the app can't tell whether you're up to date. Check again with the next release.",
+  "settings.update.openReleases": "Releases page",
+  "settings.update.openFailed": "Couldn't open the releases page: {error}",
 
   // Settings — mobile tab (mobile-bridge #mb0-settings-ui)
   // Mobile shell (mobile-bridge #mb3)

@@ -316,6 +316,7 @@ const TESTS = new Set([
   "__tests__/tray_popover.test.tsx",
   "__tests__/uiv2view_route_safety.test.ts",
   "__tests__/update_banner.test.tsx",
+  "__tests__/updater_route.test.ts",
   "__tests__/welcome_wizard.test.tsx",
   "__tests__/workday_rollover.test.tsx",
   "__tests__/workspace_slice_consumers.test.tsx",

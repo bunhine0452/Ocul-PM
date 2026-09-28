@@ -323,6 +323,8 @@ use crate::commands::{
     // 메인 화면(프로젝트 선택) 단일 집계 — IPC 1회 · SQL 6문
     home_brief,
     index_project,
+    // 설치 형식 — 업데이터 키 선택과 deb 안내 (크로스플랫폼 L-UPD #upd-target-missing)
+    install_kind,
     // H3b — 플러그인 SessionEnd 의 "일지 없이 끝난 세션" 신호 소비 (Today 카드)
     journal_missing_signals,
     kill_pty_session,
@@ -986,6 +988,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             new_window,
             // 베타 버그 리포트 — 「진단 정보 복사」 (#w5-report)
             diagnostics_report,
+            // 설치 형식 (크로스플랫폼 L-UPD #upd-target-missing)
+            install_kind,
         ])
         .events(collect_events![
             // .oculpm/ subsystem (W1-PR2)
@@ -1123,6 +1127,8 @@ pub fn run() {
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);
+            // 판·설치 형식 한 줄 — 업데이트 뒤 새 판이 떴는지는 이 줄로만 읽힌다.
+            crate::commands::install_kind::log_install_kind_at_boot(&app.package_info().version);
 
             // --- macOS: titleBarStyle Overlay + hidden title (MASTER-GUIDE §6.2) ---
             #[cfg(target_os = "macos")]

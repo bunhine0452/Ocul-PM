@@ -2087,6 +2087,8 @@ export const commands = {
 	mobileBridgeRevokeDevice: (id: number) => typedError<MobileDevice[], string>(__TAURI_INVOKE("mobile_bridge_revoke_device", { id })),
 	newWindow: () => typedError<null, string>(__TAURI_INVOKE("new_window")),
 	diagnosticsReport: () => typedError<DiagnosticsReport, string>(__TAURI_INVOKE("diagnostics_report")),
+	/**  이 실행 파일의 설치 형식 (업데이터의 키 선택과 같은 규칙). */
+	installKind: () => __TAURI_INVOKE<InstallKind>("install_kind"),
 };
 
 /** Events */
@@ -4649,6 +4651,24 @@ export type IndexUsage = {
 	diffs_files: number,
 	other_bytes: number | null,
 	total_bytes: number | null,
+};
+
+/**  이 실행 파일의 설치 형식과, 업데이터가 latest.json 에서 찾을 키. */
+export type InstallKind = {
+	/**
+	 *  업데이터가 latest.json 키에 쓰는 OS 이름 — `darwin` · `windows` · `linux`.
+	 *  그 밖의 OS 는 `null` (업데이터가 UnsupportedOs 로 끝난다).
+	 */
+	os: string | null,
+	/**  업데이터가 쓰는 아키텍처 이름 — `x86_64` · `aarch64` · `i686` · `armv7` · `riscv64`. */
+	arch: string | null,
+	/**
+	 *  설치 형식 — `nsis` · `msi` · `appimage` · `deb` · `rpm` · `app`. 번들 밖에서 도는
+	 *  실행 파일(`cargo run` · E2E 디버그 빌드)은 macOS 말고는 `null`.
+	 */
+	bundle_type: string | null,
+	/**  업데이터가 latest.json `platforms` 에서 찾는 키, 찾는 순서대로. */
+	updater_targets: string[],
 };
 
 export type InstallReport = {
