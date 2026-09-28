@@ -76,13 +76,13 @@ owner: claude-code
 - [x] 간헐 실패 — watcher::removing_the_project_root_does_not_resurrect_it 가 Windows 에서 Access is denied(os 5)로 한 번 붉음(L-SHELL run 35893773736), 다른 run 은 초록. 감시 핸들이 루트 삭제를 막는 경합인지 — 사용자가 감시 중인 프로젝트 폴더를 지울 때도 같은 일이 나는지 확인 {#fs-watcher-flake}
 - [x] [사용자 결정] macOS 기존 결함 — acp/adapter.rs npm_platform 이 "macos" 로 찾아 딸려 온 claude(claude-agent-sdk-darwin-arm64)를 못 보고 PATH claude 로 물러선다. 고치면 ACP 가 쓰는 claude 바이너리가 바뀐다 (L-OS 발견) {#mac-bundled-claude}
 - [x] 비-mac 새 창 키(Ctrl+Shift+N) — new_window 커맨드 + L-UI 바인딩, 앱 메뉴를 뗀 뒤 빈 자리 (L-OS 제안 diff 있음) {#os-new-window}
-- [ ] [사용자 결정] Windows 에서 Claude Code 플러그인의 MCP 서버가 안 뜬다 — Claude Code 는 stdio MCP 를 셸 없이 직접 실행하고 sh 셔틀은 실행 파일이 아니다(claude-code#58510), .mcp.json 은 OS 별로 못 가른다. 지금은 앱의 「MCP 등록」(절대경로 .exe) 안내. 대안 = Windows 전용 마켓플레이스 항목(「플러그인 1개」 원칙과 충돌) (L-INTEG 발견) {#integ-win-plugin-mcp}
+- [x] [사용자 결정] Windows 에서 Claude Code 플러그인의 MCP 서버가 안 뜬다 — Claude Code 는 stdio MCP 를 셸 없이 직접 실행하고 sh 셔틀은 실행 파일이 아니다(claude-code#58510), .mcp.json 은 OS 별로 못 가른다. 지금은 앱의 「MCP 등록」(절대경로 .exe) 안내. 대안 = Windows 전용 마켓플레이스 항목(「플러그인 1개」 원칙과 충돌) (L-INTEG 발견) {#integ-win-plugin-mcp}
 - [x] Linux 세션 D-Bus 부재 시 single-instance 가 조용히 꺼져 앱이 두 번 뜰 수 있다 — 명시적 경고 또는 락 (L-OS 발견) {#os-single-instance-dbus}
 - [x] PowerShell 세션의 네이티브 출력 인코딩 — 콘솔 코드 페이지(949/437)를 따른다. oculpm.ps1 의 OCULPM_TERM 가드 안에서 [Console]::InputEncoding/OutputEncoding 을 UTF-8 로 (L-PTY 제안) {#shell-pwsh-utf8}
 - [x] Windows 분리 기동 호스트의 핸들 상속 — std spawn 은 bInheritHandles=TRUE 라 부모 파이프를 물 수 있다(dev·CI 에서만 실해). 근본은 CreateProcessW 직접 호출 (L-PTY 발견) {#pty-handle-inherit}
 - [x] Windows 의 Job 종료가 셸에서 띄운 GUI 프로그램(예: 처음 띄운 `code .`)까지 함께 끝낸다 — macOS 와 다른 동작. GUI 서브시스템 자식은 breakaway 할지 결정 (L-PTY 발견) {#pty-job-gui-children}
 - [x] 간헐 실패 — windows 러너에서 ^C 뒤 ping 이 30초 동안 계속 돌았다(ptyhost::host::windows::tests::idle_shell…, PR #39 run). 테스트 경합인지 「가끔 ^C 가 안 먹는다」 제품 결함인지 판정 — L-PTY2 가 조사 {#pty-ctrlc-flake}
-- [ ] [결정 필요] Windows 에서 CWD 가 프로젝트 루트인 오래 사는 자식(LSP 서버 lsp/client.rs · DAP · PTY 셸)이 도는 동안 사용자가 그 폴더를 옮기거나 지울 수 없다(ERROR_SHARING_VIOLATION 32). LSP 는 CWD 를 밖으로 옮길 여지가 있으나 서버의 설정 탐색이 바뀔 수 있다. PTY 셸은 모든 Windows 터미널의 공통 제약 (L-FS2 발견) {#os-child-cwd-lock}
+- [x] [결정 필요] Windows 에서 CWD 가 프로젝트 루트인 오래 사는 자식(LSP 서버 lsp/client.rs · DAP · PTY 셸)이 도는 동안 사용자가 그 폴더를 옮기거나 지울 수 없다(ERROR_SHARING_VIOLATION 32). LSP 는 CWD 를 밖으로 옮길 여지가 있으나 서버의 설정 탐색이 바뀔 수 있다. PTY 셸은 모든 Windows 터미널의 공통 제약 (L-FS2 발견) {#os-child-cwd-lock}
 
 - [x] E2E 발견 — Windows 에서 프로젝트 이름이 경로 전체(StartTab.tsx:217 · GreenfieldWizard.tsx:256 이 `/` 로만 자른다) {#ui-winpath-name}
 - [x] E2E 발견 — Windows 터미널에 빠르게 친 키가 뒤섞인다(`echo order-0123456789` → `roder-0124356789`, 3/3 · Linux 0/5). 키마다 따로 가는 writeToPty 의 순서 무보장 — 세션별 쓰기 직렬화 {#ui-term-write-order}
@@ -113,9 +113,9 @@ owner: claude-code
 - [x] 업데이터가 버전과 무관하게 자기 키부터 찾아 deb 설치본·이번 릴리스에서 빠진 OS 의 앱은 확인마다 「대상 없음」 오류 — 설정에서 직접 확인하면 보인다. D10 의 「deb 는 업데이트 버튼 대신 패키지 관리자 안내」 + 대상 없음은 오류가 아니라 「이 OS 빌드는 이번 버전에 없음」 으로 (L-REL 발견) {#upd-target-missing}
 - [x] 간헐 실패 — Windows E2E 기동에서 `session not created: DevToolsActivePort file doesn't exist` → attach 폴백은 CDP 를 잡았으나 첫 실행 마법사가 60초 안에 안 뜸(PR #47 E2E run 36063711206, 재실행 초록). 이 한 단계가 떨어지면 뒤 60단계가 전부 건너뛰어진다 — launch 재시도 1회 또는 attach 뒤 대기 연장 (오케스트레이터 발견) {#e2e-win-devtools-flake}
 - [x] 간헐 실패 — Windows `db::tests::{healing_is_a_no_op_on_an_intact_schema, heals_a_column_a_reused_migration_number_skipped}` 가 "database is locked"(port/l-rel Portability run 36044878579, Rust 무변경 커밋). 테스트 DB 경로 공유인지 파일 잠금 해제 지연인지 (L-REL 발견) {#db-win-locked-flake}
-- [ ] Linux — `DBUS_SESSION_BUS_ADDRESS` 가 파싱 불가한 값이면 tauri-plugin-single-instance 2.4.4 가 `Builder::session().unwrap()` 에서 기동 중 패닉할 수 있다(코드 읽기 추정, 미재현). instance-lock 폴백으로는 못 막는다 — 등록 전에 주소를 검사해 이상하면 플러그인을 건너뛰고 잠금 파일만 쓰기 (L-OS3 발견) {#os-dbus-addr-panic}
-- [ ] Windows PTY 호스트가 판별 복사본을 못 써서 원본으로 물러서는 경로(`launch.rs` 의 `start(exe, None, …)`)는 앱의 작업 폴더를 물려받는다 — 사용자가 프로젝트 폴더 터미널에서 앱을 띄웠으면 앱보다 오래 사는 호스트가 그 폴더를 쥔다. 그 경로의 cwd 를 실행 파일 폴더로 (L-PTY3 발견, #os-child-cwd-lock 의 값싼 완화) {#pty-host-fallback-cwd}
-- [ ] 비-mac 에서 일지·검색·시작 화면의 ⌘N(=Ctrl+N) 핸들러가 Shift 를 보지 않는다 — Ctrl+Shift+N 은 캡처 단계에서 막았지만 Ctrl+Shift+<같은 글자> 계열의 다른 전역 키와 같은 모양의 충돌이 남을 수 있다. 화면 핸들러가 수식키를 정확히 맞추게 (L-OS3 발견) {#ui-shortcut-shift-exact}
+- [x] Linux — `DBUS_SESSION_BUS_ADDRESS` 가 파싱 불가한 값이면 tauri-plugin-single-instance 2.4.4 가 `Builder::session().unwrap()` 에서 기동 중 패닉할 수 있다(코드 읽기 추정, 미재현). instance-lock 폴백으로는 못 막는다 — 등록 전에 주소를 검사해 이상하면 플러그인을 건너뛰고 잠금 파일만 쓰기 (L-OS3 발견) {#os-dbus-addr-panic}
+- [x] Windows PTY 호스트가 판별 복사본을 못 써서 원본으로 물러서는 경로(`launch.rs` 의 `start(exe, None, …)`)는 앱의 작업 폴더를 물려받는다 — 사용자가 프로젝트 폴더 터미널에서 앱을 띄웠으면 앱보다 오래 사는 호스트가 그 폴더를 쥔다. 그 경로의 cwd 를 실행 파일 폴더로 (L-PTY3 발견, #os-child-cwd-lock 의 값싼 완화) {#pty-host-fallback-cwd}
+- [x] 비-mac 에서 일지·검색·시작 화면의 ⌘N(=Ctrl+N) 핸들러가 Shift 를 보지 않는다 — Ctrl+Shift+N 은 캡처 단계에서 막았지만 Ctrl+Shift+<같은 글자> 계열의 다른 전역 키와 같은 모양의 충돌이 남을 수 있다. 화면 핸들러가 수식키를 정확히 맞추게 (L-OS3 발견) {#ui-shortcut-shift-exact}
 - [x] VS Code 확장의 플래너 파서(`extension/src/oculpm/planner.ts`)가 아직 「첫 `{#…}` 가 이긴다」 — `reader.spec.ts` 가 그 동작을 박아 둠. Rust `anchor_span`(메모 앞 마지막 → 줄 끝)과 갈라졌으니 맞추기 (L-FS3 발견) {#ext-anchor-rule}
 - [x] `plan_edit::add_item` 이 phase 를 원문 헤딩으로 비교해 `## P {#p}` 인 phase 에 항목을 더하면 `## P` 섹션이 하나 더 생긴다 — UI 는 앵커를 뗀 이름을 넘기므로 양 OS 실제 결함 (L-FS3 발견) {#plan-add-item-anchored-phase}
 - [x] 결정 섹션 판정 불일치 — `plan_edit::is_decisions_name` 은 부분 문자열, 파서의 `is_decisions_heading` 은 이름 전체. `move_phase` 가 「결정」 이 든 phase 를 결정 섹션으로 보고 이동 범위를 끊는다 (L-FS3 발견) {#plan-decisions-heading-mismatch}
@@ -129,14 +129,9 @@ owner: claude-code
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 55 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 60 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-24T20:30:53+09:00 | #w3-e2e | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2030_feature_port-e2e-harness-le2e.md | 하네스 합류(PR #41). ubuntu 전 단계 초록, windows 는 앱 결함 2건(#ui-winpath-name · #ui-term-write-order)만 붉음 → L-UI2 |
-| 2026-09-24T20:31:01+09:00 | #w3-ime-cdp | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2030_feature_port-e2e-harness-le2e.md | WebView2 CDP 로 MS 한국어 IME 순서 재현 → 셸에 한글 정확히 한 번(3/3). 실제 IME 후보창은 #w5-eyes |
-| 2026-09-24T21:05:04+09:00 | #w3-update-ptyhost-lock | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/2104_feature_port-ptyhost-update-survival-lpty2.md | 호스트 판별 복사본 — taskkill /IM + 설치 폴더 덮어쓰기에도 생존(windows 러너). 실제 NSIS 한 바퀴는 L-PKG 설치 스모크. PR #42 |
-| 2026-09-24T21:05:12+09:00 | #pty-ctrlc-flake | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/2104_feature_port-ptyhost-update-survival-lpty2.md | 판정: 테스트 경합(콘솔 부착 전 몇 ms 의 ^C 는 cmd 가 받음), 제품 결함 아님. 틈 노림 4/30 → 수정 후 0/60 |
-| 2026-09-25T02:43:49+09:00 | #ui-winpath-name | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | osPath.ts, E2E windows "프로젝트 이름 = 폴더 이름" 초록. PR #44 |
 | 2026-09-25T02:43:55+09:00 | #ui-term-write-order | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | 세션별 쓰기 직렬화(ptyWrite.ts), 단일 창구 writePty. E2E windows 연타 순서 초록. macOS 도 잠복 결함 수리 |
 | 2026-09-25T02:44:01+09:00 | #ui-mono-hangul | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | UI 고정폭 한글 폴백을 Pretendard Hangul 로(터미널·macOS 불변), E2E 스크린샷으로 자간 정상 확인 |
 | 2026-09-25T02:44:09+09:00 | #ui-e2e-minor | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | 탭 라벨 실제 셸(bash/pwsh, macOS zsh 불변), 영어 전환 토스트 tIn 으로(모든 OS 결함) |
@@ -172,5 +167,10 @@ owner: claude-code
 | 2026-09-29T01:23:39+09:00 | #plan-edit-decisions-guard | claude-code | ☐→x | journal/20260929/Bugs/0123_bug_plan-create-decisions-guard.md | PR #56(plan_edit 5경로 거절·중복 id 앵커) + PR #58(MCP plan_create). slugify 40자 통일은 범위 밖 |
 | 2026-09-29T03:35:25+09:00 | #upd-target-missing | claude-code | ☐→x | journal/20260929/Features_to_add/0335_feature_port-updater-install-kind-smoke.md | PR #57 — install_kind + updaterRoute: deb 패키지 관리자 안내·대상 없음 중립, 러너에서 noBuild 실전 확인 |
 | 2026-09-29T03:35:31+09:00 | #w3-updater-smoke | claude-code | ☐→x | journal/20260929/Features_to_add/0335_feature_port-updater-install-kind-smoke.md | PR #57 — N→N+1 Windows NSIS·Linux AppImage 설치·재시작, 서명 거절 둘, deb 안내 — 러너 success |
-<!-- oculpm:plan-log archived: 55 rows → cross-platform-port.log.md -->
+| 2026-09-29T03:40:55+09:00 | #os-dbus-addr-panic | claude-code | ☐→x | journal/20260929/Bugs/0340_bug_port-dbus-panic-shortcut-exact-pty-cwd.md | PR #59 — 패닉 실측(나쁜 주소 9/9) · register 가 zbus 규칙으로 먼저 검사 |
+| 2026-09-29T03:41:00+09:00 | #ui-shortcut-shift-exact | claude-code | ☐→x | journal/20260929/Bugs/0340_bug_port-dbus-panic-shortcut-exact-pty-cwd.md | PR #59 — isModChord, 세 화면 통일, mac 옛 식과 대조 |
+| 2026-09-29T03:41:06+09:00 | #pty-host-fallback-cwd | claude-code | ☐→x | journal/20260929/Bugs/0340_bug_port-dbus-panic-shortcut-exact-pty-cwd.md | PR #59 — 원본 폴백 cwd = exe 폴더, windows 러너에서 project 폴더 이동·삭제 확인 |
+| 2026-09-29T03:41:13+09:00 | #os-child-cwd-lock | claude-code | ☐→x |  | 결정(2026-09-28 위임): 코드 불변·README 설치 절에 알림(v3.6.0 릴리스 커밋) · 값싼 완화 #pty-host-fallback-cwd 는 PR #59 |
+| 2026-09-29T03:41:19+09:00 | #integ-win-plugin-mcp | claude-code | ☐→x |  | 결정(2026-09-28 위임): 앱의 「MCP 서버」 등록(절대경로 .exe) 유지, 플러그인 1개 원칙 — 플러그인 저장소 무서명 exe 안은 공급망 위험으로 기각. README 설치 절·앱 안내 문구 일치 |
+<!-- oculpm:plan-log archived: 60 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
