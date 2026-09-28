@@ -13,7 +13,7 @@ owner: claude-code
 ## W0 — 이식성 CI (오케스트레이터) {#w0}
 - [x] portability.yml — windows-latest·ubuntu-22.04 에서 cargo check/clippy/test + vitest. ci.yml(릴리스 게이트)과 분리해 붉어도 macOS 릴리스를 막지 않는다 (D2) {#w0-portability-ci}
 - [x] 첫 실행 오류 전수 → docs/20260923_cross-platform/02-error-inventory.md 에 레인별 배정 {#w0-inventory}
-- [ ] 초록이 된 잡부터 required 로 승격, 전부 초록이면 ci.yml 에 합쳐 릴리스 게이트 편입 {#w0-promote}
+- [x] 초록이 된 잡부터 required 로 승격, 전부 초록이면 ci.yml 에 합쳐 릴리스 게이트 편입 {#w0-promote}
 
 ## W1 — 컴파일 기준선 L-BASE (단독 세션, W2 전에) {#w1}
 - [x] src-tauri/src/proc.rs 프로세스 생성 단일 창구 — Windows CREATE_NO_WINDOW(콘솔 깜빡임) + PATHEXT(.cmd/.exe) 해석, Command::new ~40곳 이전 (D5) {#w1-proc}
@@ -106,28 +106,26 @@ owner: claude-code
 ## W4 — 릴리스 파이프라인 (사용자 결정 포함) {#w4}
 - [x] [사용자 결정] Windows 코드 서명 — Azure Trusted Signing(월 과금) vs 무서명 베타(SmartScreen 경고) {#w4-signing-decision}
 - [x] [사용자 결정] Linux 형식 — AppImage+deb(권장, D10) / +rpm / +Flatpak {#w4-linux-formats}
-- [ ] release.yml 매트릭스 windows·ubuntu-22.04 — 비-mac 실패가 macOS draft·검증을 막지 않게 분리 {#w4-release-matrix}
-- [ ] E2E·설치 스모크 통과 플랫폼만 latest.json 에 — macOS 업데이트 오염 금지 (D7) {#w4-latest-json}
+- [x] release.yml 매트릭스 windows·ubuntu-22.04 — 비-mac 실패가 macOS draft·검증을 막지 않게 분리 {#w4-release-matrix}
+- [x] E2E·설치 스모크 통과 플랫폼만 latest.json 에 — macOS 업데이트 오염 금지 (D7) {#w4-latest-json}
 - [ ] 5면 반영: README ko/en 지원 표(베타)·랜딩 ko/en 다운로드·CHANGELOG·docs/RELEASE.md·버전 6파일 {#w4-surfaces}
-- [ ] 비-mac 공개 스위치 `OCULPM_RELEASE_NONMAC`(저장소 변수, 기본 꺼짐) — 파이프라인이 main 에 있어도 다른 세션의 macOS 핫픽스 태그가 README·랜딩 없이 Windows·Linux 를 공개하지 않게. 꺼짐 = v3.5.0 과 같은 결과물. 첫 비-mac 릴리스 때 사용자 결정으로 켠다 (오케스트레이터 검토 발견) {#w4-nonmac-switch}
+- [x] 비-mac 공개 스위치 `OCULPM_RELEASE_NONMAC`(저장소 변수, 기본 꺼짐) — 파이프라인이 main 에 있어도 다른 세션의 macOS 핫픽스 태그가 README·랜딩 없이 Windows·Linux 를 공개하지 않게. 꺼짐 = v3.5.0 과 같은 결과물. 첫 비-mac 릴리스 때 사용자 결정으로 켠다 (오케스트레이터 검토 발견) {#w4-nonmac-switch}
 - [ ] 업데이터가 버전과 무관하게 자기 키부터 찾아 deb 설치본·이번 릴리스에서 빠진 OS 의 앱은 확인마다 「대상 없음」 오류 — 설정에서 직접 확인하면 보인다. D10 의 「deb 는 업데이트 버튼 대신 패키지 관리자 안내」 + 대상 없음은 오류가 아니라 「이 OS 빌드는 이번 버전에 없음」 으로 (L-REL 발견) {#upd-target-missing}
 - [x] 간헐 실패 — Windows E2E 기동에서 `session not created: DevToolsActivePort file doesn't exist` → attach 폴백은 CDP 를 잡았으나 첫 실행 마법사가 60초 안에 안 뜸(PR #47 E2E run 36063711206, 재실행 초록). 이 한 단계가 떨어지면 뒤 60단계가 전부 건너뛰어진다 — launch 재시도 1회 또는 attach 뒤 대기 연장 (오케스트레이터 발견) {#e2e-win-devtools-flake}
 - [ ] 간헐 실패 — Windows `db::tests::{healing_is_a_no_op_on_an_intact_schema, heals_a_column_a_reused_migration_number_skipped}` 가 "database is locked"(port/l-rel Portability run 36044878579, Rust 무변경 커밋). 테스트 DB 경로 공유인지 파일 잠금 해제 지연인지 (L-REL 발견) {#db-win-locked-flake}
+- [ ] Linux — `DBUS_SESSION_BUS_ADDRESS` 가 파싱 불가한 값이면 tauri-plugin-single-instance 2.4.4 가 `Builder::session().unwrap()` 에서 기동 중 패닉할 수 있다(코드 읽기 추정, 미재현). instance-lock 폴백으로는 못 막는다 — 등록 전에 주소를 검사해 이상하면 플러그인을 건너뛰고 잠금 파일만 쓰기 (L-OS3 발견) {#os-dbus-addr-panic}
+- [ ] 비-mac 에서 일지·검색·시작 화면의 ⌘N(=Ctrl+N) 핸들러가 Shift 를 보지 않는다 — Ctrl+Shift+N 은 캡처 단계에서 막았지만 Ctrl+Shift+<같은 글자> 계열의 다른 전역 키와 같은 모양의 충돌이 남을 수 있다. 화면 핸들러가 수식키를 정확히 맞추게 (L-OS3 발견) {#ui-shortcut-shift-exact}
 
 ## W5 — 베타 운영과 졸업 {#w5}
 - [ ] 플랫폼 버그 리포트 이슈 템플릿 + 진단 번들 내보내기(로그·버전·OS·WebView 버전) {#w5-report}
 - [ ] [사용자 액션] Windows·Linux 외부 테스터 모집 {#w5-testers}
-- [ ] CI 가 못 보는 것 원장 — Linux 실제 IME(fcitx/ibus)·Wayland 트레이·HiDPI 혼합·WebView2 버전 편차·WebKitGTK 의 navigator.platform 실제 값·Ctrl+Shift+V 클립보드 권한·Windows Ctrl+Shift+0 입력 언어 전환 충돌·Defender 실시간 보호가 켜진 PC 의 폴더 이동 막힘·감시 중 루트의 **상위 폴더는 이동 불가**(ReadDirectoryChangesW 본질, VS Code 동일 — 문서에 알림)·큰 프로젝트 첫 세션의 긴 막힘·**일반 사용자 권한 설치에서 VC++ 재배포 UAC 승격 경로**(러너는 관리자라 창이 안 뜬다 — 예·취소 둘 다, 취소=1602 멈춤 안내) (D8) {#w5-eyes}
+- [ ] CI 가 못 보는 것 원장 — Linux 실제 IME(fcitx/ibus)·Wayland 트레이·HiDPI 혼합·WebView2 버전 편차·WebKitGTK 의 navigator.platform 실제 값·Ctrl+Shift+V 클립보드 권한·Windows Ctrl+Shift+0 입력 언어 전환 충돌·Defender 실시간 보호가 켜진 PC 의 폴더 이동 막힘·감시 중 루트의 **상위 폴더는 이동 불가**(ReadDirectoryChangesW 본질, VS Code 동일 — 문서에 알림)·큰 프로젝트 첫 세션의 긴 막힘·**일반 사용자 권한 설치에서 VC++ 재배포 UAC 승격 경로**(러너는 관리자라 창이 안 뜬다 — 예·취소 둘 다, 취소=1602 멈춤 안내)·사람이 cmd·PowerShell 에서 친 GUI 서브시스템 릴리스 exe 의 CLI 출력 모습(프롬프트 뒤에 찍힘)·세션 D-Bus 없는 실제 Linux 데스크톱에서 두 번 실행·실제 창에서 Ctrl+Shift+N (D8) {#w5-eyes}
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 31 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 35 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-24T03:45:05+09:00 | #shell-pwsh | claude-code | ☐→~ |  | PR #35 보류 — 부하 러너에서 PowerShell 콜드 스타트 45s+ 로 정책 조회 시한 초과. 레지스트리/설정 우선 판정으로 전환 중 |
-| 2026-09-24T04:01:08+09:00 | #integ-paths | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0401_bug_port-integ-paths-home-guard.md | tool_config.rs 한 곳(Claude Desktop MSIX 우선), Windows 홈 가드 결함 수정. PR #36 |
-| 2026-09-24T04:01:13+09:00 | #integ-sidecar | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0401_bug_port-integ-paths-home-guard.md | AppImage 마운트 밖 해시 비교 복사 + 기동 훅, verbatim 경로 정리. 실제 AppImage 는 W3 |
-| 2026-09-24T04:01:21+09:00 | #integ-plugin-bin | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0401_bug_port-integ-paths-home-guard.md | 셔틀 탐색 Windows·Linux(앱 recording.rs 와 대조 테스트), macOS 전용 문구 갱신. Windows 플러그인 MCP 는 #integ-win-plugin-mcp |
 | 2026-09-24T04:01:27+09:00 | #integ-hooks | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0401_bug_port-integ-paths-home-guard.md | Claude Code=Git Bash(불변), Codex=cmd.exe → commandWindows+run-sh.cmd. delivery_gate windows 9/9 |
 | 2026-09-24T04:01:33+09:00 | #integ-build-sidecar | claude-code | ☐→x | .oculpm/journal/20260924/Bugs/0401_bug_port-integ-paths-home-guard.md | portability 사이드카 잡: windows .exe 27.4MB·ubuntu release thin LTO 링크·--version 실행 초록 |
 | 2026-09-24T04:27:32+09:00 | #shell-pwsh | claude-code | ~→x | .oculpm/journal/20260924/Features_to_add/0427_feature_port-shell-integration-lshell.md | oculpm.ps1 + 실행 정책 저장 설정 우선(셸 없이 4ms). pwsh 7·5.1 ConPTY 실측 초록. PR #35 |
@@ -164,5 +162,9 @@ owner: claude-code
 | 2026-09-25T03:07:58+09:00 | #paths-projectdirs-mismatch | claude-code | ☐→x | journal/20260925/Bugs/0307_bug_port-app-dirs-projectdirs-mismatch.md | PR #43 — app_dirs.rs 단일 창구, 세 자리 교체, 양 OS CI 초록 |
 | 2026-09-25T06:47:28+09:00 | #win-msvcp140 | claude-code | ☐→x | journal/20260925/Features_to_add/0647_feature_port-win-vcredist-os-floor.md | PR #46 — 없을 때만 VC++ 14.51.36247 설치 · 19041 미만 차단, 러너 실측(DLL 숨김→되살림→GUI) |
 | 2026-09-28T20:40:59+09:00 | #e2e-win-devtools-flake | claude-code | ☐→x | journal/20260928/Bugs/2040_bug_port-e2e-window-pick.md | PR #50 — 본 창 선택 재시도 · 비고에 창 기록, 수정본 4/4 초록(경합 재현은 없었음 — 재발 시 로그로 판별) |
-<!-- oculpm:plan-log archived: 31 rows → cross-platform-port.log.md -->
+| 2026-09-28T21:45:20+09:00 | #w4-release-matrix | claude-code | ☐→x | journal/20260928/Features_to_add/2145_feature_port-release-pipeline-nonmac.md | PR #47 — 비-mac 번들·스모크·E2E 격리, macOS 는 publish 만 기다림 |
+| 2026-09-28T21:45:27+09:00 | #w4-latest-json | claude-code | ☐→x | journal/20260928/Features_to_add/2145_feature_port-release-pipeline-nonmac.md | PR #47 — latest-json.mjs 병합·검증, macOS baseline deepEqual, 맨 linux 키 없음 |
+| 2026-09-28T21:45:34+09:00 | #w4-nonmac-switch | claude-code | ☐→x | journal/20260928/Features_to_add/2145_feature_port-release-pipeline-nonmac.md | PR #47 — OCULPM_RELEASE_NONMAC 기본 꺼짐, 꺼짐 = v3.5.0 결과물(드라이런 36048116681) |
+| 2026-09-28T21:45:41+09:00 | #w0-promote | claude-code | ☐→x | journal/20260928/Features_to_add/2145_feature_port-release-pipeline-nonmac.md | 결정: required·ci.yml 합치기 대신 main push 미리보기 — 비-mac 싣기는 release.yml 이 태그 커밋에서 다시 판정(D2) |
+<!-- oculpm:plan-log archived: 35 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
