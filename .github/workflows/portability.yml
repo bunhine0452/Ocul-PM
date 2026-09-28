@@ -703,7 +703,8 @@ jobs:
             echo "payload_version=$NEW"
             echo "port=$UPD_PORT"
             echo "payload=$(basename "$payload")"
-            echo "payload_sha256=$(sha256sum "$payload" | cut -d' ' -f1)"
+            # 표준 입력으로 — Windows 에서 파일 이름을 주면 역슬래시 든 경로 때문에 줄 앞에 `\` 가 붙는다.
+            echo "payload_sha256=$(sha256sum < "$payload" | cut -d' ' -f1)"
             echo "commit=${{ github.sha }} run=${{ github.run_id }}"
           } > "$out/updater-info.txt"
           cat "$out/updater-info.txt"
