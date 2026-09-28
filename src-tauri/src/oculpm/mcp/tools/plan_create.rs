@@ -198,6 +198,14 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .ok_or_else(|| format!("phases[{pi}].title is required"))?;
+        // 「결정」·「Decisions」 같은 제목은 파서가 결정 섹션으로 읽어 그 아래 항목이 플랜에서
+        // 사라진다 — plan_edit 의 phase 편집과 같은 가드(#plan-edit-decisions-guard).
+        if crate::oculpm::planner::heading::is_decisions_heading(ptitle_raw) {
+            return Err(format!(
+                "phases[{pi}].title '{ptitle_raw}' is the decisions section heading, not a phase - \
+                 give the phase another title (decisions are recorded under the plan's decisions section)"
+            ));
+        }
         let pid = match phase.get("id").and_then(Value::as_str).map(str::trim) {
             Some(s) if !s.is_empty() => {
                 if !valid_kebab(s) {

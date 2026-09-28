@@ -762,3 +762,32 @@ fn a_locked_plan_keeps_its_whole_log() {
     assert_eq!(log_rows(&body), 102, "잠긴 플랜은 무접촉");
     assert!(!archive_path(&planner_dir(root), "frozen").exists());
 }
+
+/// plan_create — phase 제목이 결정 섹션 이름(「결정」·「Decisions」 …)이면 거절한다. 그대로 쓰면
+/// 파서가 그 아래 항목을 결정 섹션으로 읽어 플랜에서 사라진다. 「결정 반영」 은 보통 phase 다.
+#[test]
+fn plan_create_refuses_a_decisions_heading_as_a_phase_title() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+    for title in ["결정", "Decisions", "결정 (Decisions)", "Decision log:"] {
+        let args = serde_json::json!({
+            "plan_id": "dec-guard",
+            "title": "결정 가드",
+            "phases": [{ "title": title, "items": [{ "text": "사라지면 안 되는 항목" }] }]
+        });
+        let err = call_tool(root, "plan_create", &args).unwrap_err();
+        assert!(err.contains("decisions section"), "{title}: {err}");
+        assert!(
+            !root.join(".oculpm/planner/dec-guard.md").exists(),
+            "{title}"
+        );
+    }
+    let args = serde_json::json!({
+        "plan_id": "dec-guard",
+        "title": "결정 가드",
+        "phases": [{ "title": "결정 반영", "items": [{ "text": "보이는 항목" }] }]
+    });
+    let out = call_tool(root, "plan_create", &args).unwrap();
+    assert_eq!(out["items"], 1);
+}
