@@ -247,9 +247,12 @@ Grab the file for your OS from the [latest release](https://github.com/bunhine04
 
 **Windows (beta)** — the installer puts the app in your user folder without admin rights. The beta isn't code-signed, so on first launch SmartScreen shows "Windows protected your PC" — click **More info → Run anyway**. If the Visual C++ runtime is missing, the installer installs it first (that's the only time a confirmation prompt appears). On Windows older than 10 2004 the installer explains why and stops.
 
+- Windows won't move or delete a folder that a running program uses as its working folder — to move a project folder while the app's terminal or language server runs in it, close those terminal tabs or quit the app first (VS Code and other editors behave the same).
+- The Claude Code plugin's hooks run on Windows, but **its MCP server does not start** — turn on the "MCP server" registration in the app's integration settings (the "Applies to this project only" card) to register the installed `oculpm-mcp.exe`.
+
 **Linux (beta)** — for the AppImage, `chmod +x Ocul-PM_*_amd64.AppImage` and run it; it auto-updates in-app. It needs FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04, `libfuse2t64` on 24.04). Install the deb with `sudo apt install ./Ocul-PM_*_amd64.deb` and update it the same way with the next `.deb` — it isn't updated in-app.
 
-Only Windows/Linux builds that pass install → launch → real-app E2E on CI runners are published for each release. A version that didn't pass has no file for that OS, and its release notes say so. Please report what you hit on a real PC as an [issue](https://github.com/bunhine0452/Ocul-PM/issues) — that's what graduates the beta.
+Only Windows/Linux builds that pass install → launch → real-app E2E on CI runners are published for each release. A version that didn't pass has no file for that OS, and its release notes say so. Please report what you hit on a real PC as an [issue](https://github.com/bunhine0452/Ocul-PM/issues) — Settings → Diagnostics → "Copy diagnostics" builds the OS / version / WebView details to paste, and on Windows and Linux "Report a bug" opens the form pre-filled. That's what graduates the beta.
 
 macOS may still ask for **access to files or to other apps' data**. That's a separate gate from notarization and doesn't go away because an app is notarized. In particular, when a command you run in the **built-in terminal** — or an agent running inside it — reads a file, macOS attributes that access to the app, so the prompt names `Ocul-PM.app`. [Troubleshooting](https://oculpm.com/wiki/en/troubleshooting) explains why and how to revoke it.
 
