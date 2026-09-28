@@ -21,6 +21,7 @@ fn main() {
         // 선언적 설정 CLI (#config-cli) — 같은 실행 파일, GUI 없음. PTY 호스트와
         // 같은 이유로 tauri 빌더보다 먼저 갈라진다 (창·플러그인을 만들지 않는다).
         if a == "config" {
+            attach_console_for_cli();
             ocul_pm_lib::config::cli::run(args.collect());
         }
         // 에이전트 CLI (플랜 `session-shim-cli`) — 앱 이름으로 들어온 호출에서만
@@ -30,6 +31,7 @@ fn main() {
         // 흘려보낸다 — 낱말부터 자르면 그 앞의 `--project <path>` 가 함께
         // 잘려나가 **엉뚱한 프로젝트에 조용히 기록된다.**
         if !as_shim && ocul_pm_lib::oculpm::agent_cli::is_cli_verb(&a) {
+            attach_console_for_cli();
             let mut argv = vec![a];
             argv.extend(args);
             ocul_pm_lib::oculpm::agent_cli::run(argv);
@@ -42,11 +44,113 @@ fn main() {
     // 앱 바이너리 이름(`ocul-pm`)으로 들어온 호출은 그대로 GUI 로 간다 —
     // Finder 가 붙이는 `-psn_…` 이 앱을 헤드리스로 만들면 안 되기 때문이다.
     if as_shim {
+        attach_console_for_cli();
         ocul_pm_lib::oculpm::agent_cli::run(std::env::args().skip(1).collect());
     }
     #[cfg(target_os = "macos")]
     reexec_with_malloc_tuning();
     ocul_pm_lib::run()
+}
+
+/// CLI 로 갈라지는 자리에서만 부른다 — GUI 로 뜰 때는 부르지 않는다 (#os-cli-console).
+///
+/// Windows 릴리스 exe 는 GUI 서브시스템(`windows_subsystem = "windows"`)이라
+/// cmd·PowerShell 이 띄워도 콘솔을 받지 못한다. 표준 핸들이 비어 있고 Rust 는 빈
+/// 핸들로의 쓰기를 **조용히 성공**으로 삼키므로, 사람이 `ocul-pm config --help` 를
+/// 치면 아무것도 안 나온다. 그래서 CLI 분기 직전에 부모(셸)의 콘솔에 붙는다.
+/// macOS·Linux 에서는 아무것도 하지 않는다.
+fn attach_console_for_cli() {
+    #[cfg(windows)]
+    win_console::attach_parent_console();
+}
+
+/// 부모 콘솔에 붙기 — [`attach_console_for_cli`] 의 Windows 몸통.
+///
+/// **한계:** 셸은 GUI 서브시스템 exe 를 기다리지 않는다. cmd·PowerShell 은 곧장
+/// 프롬프트를 돌려주고, 출력은 그 **뒤에** 찍힌다(프롬프트 아래로 흘러나온다).
+/// 종료 코드도 셸의 `%ERRORLEVEL%`·`$LASTEXITCODE` 에 실리지 않는다. 기다리게
+/// 하려면 `start /wait ocul-pm …`(cmd) · `Start-Process -Wait`(PowerShell), 또는
+/// 출력을 파이프로 받는다(`… | more`) — 파이프면 표준 핸들이 이미 있어 여기서
+/// 붙지 않고, 셸은 파이프가 닫힐 때까지 기다린다. 이것을 없애려면 콘솔 서브시스템
+/// 바이너리를 따로 싣는 수밖에 없다 (플랜 {#os-cli-console} 의 후속 검토).
+///
+/// 표준 핸들을 **넘겨받은** 호출(에이전트 훅 · 스크립트의 파이프·파일 리다이렉트)은
+/// 건드리지 않는다 — stdout·stderr 가 둘 다 살아 있으면 붙지도 않는다. 하나만
+/// 리다이렉트됐으면(`> out.toml`) 그 핸들은 그대로 두고 빈 쪽만 콘솔로 연다.
+/// stdin 은 언제나 원래 값으로 둔다 — 콘솔 입력을 열면 셸과 같은 키 입력을 두고
+/// 다투고, 훅처럼 stdin 을 읽는 명령이 사람 앞에서 멈춘다(예전처럼 EOF 가 낫다).
+#[cfg(windows)]
+mod win_console {
+    use windows_sys::Win32::Foundation::{
+        GENERIC_READ, GENERIC_WRITE, HANDLE, INVALID_HANDLE_VALUE,
+    };
+    use windows_sys::Win32::Storage::FileSystem::{
+        CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+    };
+    use windows_sys::Win32::System::Console::{
+        AttachConsole, GetStdHandle, SetStdHandle, ATTACH_PARENT_PROCESS, STD_ERROR_HANDLE,
+        STD_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
+    };
+
+    fn usable(h: HANDLE) -> bool {
+        !h.is_null() && h != INVALID_HANDLE_VALUE
+    }
+
+    fn std_handle(which: STD_HANDLE) -> HANDLE {
+        // SAFETY: 인자만 읽는 조회다. 실패하면 null·INVALID 를 돌려줄 뿐이다.
+        unsafe { GetStdHandle(which) }
+    }
+
+    pub fn attach_parent_console() {
+        let stdin = std_handle(STD_INPUT_HANDLE);
+        let stdout = std_handle(STD_OUTPUT_HANDLE);
+        let stderr = std_handle(STD_ERROR_HANDLE);
+        if usable(stdout) && usable(stderr) {
+            return;
+        }
+        // 부모에게 콘솔이 없으면(탐색기 · 작업 스케줄러 · 이미 콘솔이 있는 디버그
+        // 빌드) 실패한다 — 그때는 예전 그대로 둔다.
+        // SAFETY: 인자 하나짜리 시스템 호출. 실패는 반환값으로만 알린다.
+        if unsafe { AttachConsole(ATTACH_PARENT_PROCESS) } == 0 {
+            return;
+        }
+        // AttachConsole 이 표준 핸들을 채우는지는 Windows 판마다 다르다 — 채웠든
+        // 안 채웠든 같은 끝 상태가 되게 명시적으로 맞춘다.
+        // SAFETY: 이 프로세스 자신의 표준 핸들 표를 바꾼다. 아직 다른 스레드가 없다.
+        unsafe { SetStdHandle(STD_INPUT_HANDLE, stdin) };
+        point_at_console(STD_OUTPUT_HANDLE, stdout);
+        point_at_console(STD_ERROR_HANDLE, stderr);
+    }
+
+    /// 원래 살아 있던 핸들은 되돌려 두고, 비어 있던 것만 콘솔 화면 버퍼로 연다.
+    fn point_at_console(which: STD_HANDLE, before: HANDLE) {
+        if usable(before) {
+            // SAFETY: 원래 값을 되돌린다 (위와 같음).
+            unsafe { SetStdHandle(which, before) };
+            return;
+        }
+        if usable(std_handle(which)) {
+            return;
+        }
+        let name: Vec<u16> = "CONOUT$".encode_utf16().chain(Some(0)).collect();
+        // SAFETY: NUL 로 끝나는 UTF-16 이름, 보안 기술자·템플릿 없음. 실패하면
+        // INVALID_HANDLE_VALUE 가 돌아오고 아래에서 걸러진다.
+        let handle = unsafe {
+            CreateFileW(
+                name.as_ptr(),
+                GENERIC_READ | GENERIC_WRITE,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                std::ptr::null(),
+                OPEN_EXISTING,
+                0,
+                std::ptr::null_mut(),
+            )
+        };
+        if usable(handle) {
+            // SAFETY: 방금 연 콘솔 핸들을 표준 핸들로 건다 — 프로세스가 끝날 때까지 쓴다.
+            unsafe { SetStdHandle(which, handle) };
+        }
+    }
 }
 
 /// GUI 프로세스만 `MallocLargeCache=0` 으로 자기 자신을 다시 exec 한다
