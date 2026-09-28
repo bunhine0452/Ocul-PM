@@ -54,6 +54,7 @@
 //! 기록이고, 강제 플래그는 정확히 그 기록을 지우는 장치다.
 
 use crate::app_error::AppError;
+use crate::oculpm::planner::eol;
 use crate::oculpm::planner::parse::{parse_plan, ItemStatus, ParsedPlan};
 
 /// 닫기를 막는 미완 항목 하나.
@@ -180,7 +181,8 @@ pub fn set_plan_status(md: &str, status: &str, date: &str) -> Result<String, Pla
             });
         }
     }
-    Ok(write_status_line(md, status, date))
+    // 윈도우 체크아웃(CRLF)은 CRLF 그대로 되돌려 쓴다 (#fs-crlf-parsers).
+    Ok(eol::keeping(md, |md| write_status_line(md, status, date)))
 }
 
 /// 프론트매터 `status:` 한 줄을 갈아 끼우는 순수 수술 (옛 `plan_edit` 구현
@@ -348,6 +350,18 @@ mod tests {
         let detail = AppError::from(refusal).detail.unwrap();
         assert!(detail.contains("12 unfinished"), "{detail}");
         assert!(detail.contains("and 4 more"), "{detail}");
+    }
+
+    /// 윈도우 체크아웃(CRLF) 플랜을 닫아도 CRLF 그대로 — 문지기도 CRLF 를 똑같이 읽는다.
+    #[test]
+    fn a_crlf_plan_is_judged_and_closed_as_crlf() {
+        let open = plan(&[("x", "a"), (" ", "b")]).replace('\n', "\r\n");
+        let refusal = set_plan_status(&open, "done", "2026-09-28").unwrap_err();
+        assert_eq!(refusal.open.len(), 1);
+        let lf = plan(&[("x", "a")]);
+        let out = set_plan_status(&lf.replace('\n', "\r\n"), "done", "2026-09-28").unwrap();
+        let want = set_plan_status(&lf, "done", "2026-09-28").unwrap();
+        assert_eq!(out, want.replace('\n', "\r\n"));
     }
 
     /// 긴 제목은 문자 경계에서 잘린다 (한글이 반 토막 나면 패닉이다).

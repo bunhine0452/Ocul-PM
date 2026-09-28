@@ -329,3 +329,43 @@ fn fuzz_random_bytes_never_panic() {
         let _ = parse_plan(&s, "fuzz");
     }
 }
+
+/// 윈도우 체크아웃(`core.autocrlf=true`)의 플랜 — 같은 문서를 CRLF 로 풀어도 파싱
+/// 결과가 LF 판과 **한 글자도** 같다 (#fs-crlf-parsers). 줄 접기가 `split('\n')` 이라
+/// 접힌 항목 제목 가운데에 `\r` 이 박히던 자리까지 포함한다.
+#[test]
+fn a_crlf_checkout_parses_exactly_like_lf() {
+    let wrapped = "\n## Phase C {#pc}\n- [ ] 긴 항목이\n  둘째 줄로 넘어가면 {#wrapped} ⟶ 메모\n";
+    let lf = format!("{SAMPLE}{wrapped}");
+    let crlf = lf.replace('\n', "\r\n");
+    let (a, b) = (parse_plan(&lf, "f"), parse_plan(&crlf, "f"));
+    assert_eq!(format!("{a:?}"), format!("{b:?}"));
+    assert!(!format!("{b:?}").contains("\\r"), "{b:?}");
+    let w = b.items.iter().find(|i| i.item_id == "wrapped").unwrap();
+    assert_eq!(w.title, "긴 항목이 둘째 줄로 넘어가면");
+    assert_eq!(b.updates.len(), 2);
+    assert_eq!(b.decisions[0].affects, vec!["abs-cache", "seed-verify"]);
+}
+
+/// 앵커는 줄 **끝**의 `{#…}` 다 — 제목 본문에 `{#id}` 같은 글자가 먼저 와도 항목 id 를
+/// 가로채지 않는다 (실제로 `{#fs-crlf-parsers}` 항목이 id `id` 로 잡혔다). 메모 뒤의
+/// `{#…}` 는 메모의 것이고, 메모 앞에 앵커가 없을 때만 줄 끝의 것을 읽는다. phase·결정
+/// 헤더도 같은 규칙이다.
+#[test]
+fn the_anchor_is_the_last_brace_id_not_a_mention_in_the_title() {
+    let md = "---\nid: x\n---\n## Phase `{#x}` 설명 {#ph}\n\
+              - [ ] 본문에 `{#id}` 앵커 글자가 있다 {#real}\n\
+              - [!] 막힘 {#blk} ⟶ `{#real}` 을 기다린다\n\
+              - [ ] 메모가 먼저 ⟶ 늦은 앵커 {#late}\n\
+              ## 결정\n### Decision A — `{#x}` 규격 {#d-a}\n- 잠금 2026-09-28 · claude-code\n";
+    let p = parse_plan(md, "x");
+    let ids: Vec<&str> = p.items.iter().map(|i| i.item_id.as_str()).collect();
+    assert_eq!(ids, ["real", "blk", "late"]);
+    assert_eq!(p.items[0].title, "본문에 `{#id}` 앵커 글자가 있다");
+    assert_eq!(p.items[1].note.as_deref(), Some("`{#real}` 을 기다린다"));
+    assert_eq!(p.items[2].title, "메모가 먼저");
+    assert_eq!(p.phases[0].id.as_deref(), Some("ph"));
+    assert_eq!(p.phases[0].name, "Phase `{#x}` 설명");
+    assert_eq!(p.decisions[0].decision_id, "d-a");
+    assert_eq!(p.decisions[0].title, "Decision A — `{#x}` 규격");
+}

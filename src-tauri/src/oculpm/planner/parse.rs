@@ -15,6 +15,7 @@ use std::collections::{HashMap, HashSet};
 use serde_yaml::Value as YamlValue;
 
 use crate::oculpm::frontmatter::parse_frontmatter_and_body;
+use crate::oculpm::planner::eol;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Status enums
@@ -266,9 +267,12 @@ impl ParsedPlan {
 pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
     let mut warnings: Vec<String> = Vec::new();
 
+    // 윈도우 체크아웃(`core.autocrlf`)의 CRLF 도 LF 로 편 뒤 읽는다 — 아래 줄
+    // 수술(`fold_wrapped_items`)은 `\n` 만 안다 (#fs-crlf-parsers).
+    let markdown = eol::to_lf(markdown);
     // Reuse the journal frontmatter fence-splitter (generic). We ignore its
     // journal-shaped `parsed`/warnings and re-parse the raw YAML as a plan.
-    let (pf, body) = parse_frontmatter_and_body(markdown);
+    let (pf, body) = parse_frontmatter_and_body(&markdown);
     // Agents often wrap a long item across lines (the `{#id}` ending up on the
     // continuation). Fold those back into one line before parsing.
     let body = fold_wrapped_items(&body);
@@ -491,8 +495,9 @@ fn is_decisions_heading(h: &str) -> bool {
 /// Merge a wrapped item's continuation lines back into the item line, so a
 /// `{#id}` that landed on the second line is still found. A continuation is an
 /// indented, plain-text line directly under an item (not a new list item,
-/// heading, table row, comment, or blockquote).
-fn fold_wrapped_items(body: &str) -> String {
+/// heading, table row, comment, or blockquote). LF 입력을 가정한다 — 호출자가
+/// [`eol::to_lf`] 로 편다. 논의 파서(`discussion::parse`)도 같은 것을 쓴다.
+pub(crate) fn fold_wrapped_items(body: &str) -> String {
     let mut out: Vec<String> = Vec::new();
     let mut prev_was_item = false;
     for line in body.split('\n') {
@@ -844,10 +849,9 @@ fn canon_status(s: &str) -> Option<String> {
 // ── small string helpers ────────────────────────────────────────────────────
 
 /// Extract `{#id}` from `s` (removing it in place). Returns the id without `#`.
-fn extract_brace_id(s: &mut String) -> Option<String> {
-    let start = s.find("{#")?;
-    let end_rel = s[start..].find('}')?;
-    let end = start + end_rel;
+/// 어느 `{#…}` 가 앵커인지는 [`anchor_span`] 이 정한다 — 나머지는 제목에 남는다.
+pub(crate) fn extract_brace_id(s: &mut String) -> Option<String> {
+    let (start, end) = anchor_span(s)?;
     let id = s[start + 2..end].trim().to_string();
     s.replace_range(start..=end, "");
     if id.is_empty() {
@@ -857,14 +861,41 @@ fn extract_brace_id(s: &mut String) -> Option<String> {
     }
 }
 
+/// 줄(또는 헤딩)의 `{#id}` 앵커 자리 — `{` 부터 `}` 까지의 바이트 범위(양끝 포함).
+///
+/// 규격상 앵커는 줄 **끝**이다(AGENTS.md — 뒤에는 `⟶ 메모`·`@귀속` 만 온다). 그래서
+/// 메모 앞의 **마지막** `{#…}` 를 앵커로 읽고, 메모 앞에 없으면(`제목 ⟶ 메모 {#id}`)
+/// 줄 전체의 마지막을 읽는다. 첫 것을 읽던 동안 제목 본문의 `` `{#id}` `` 같은 글자가
+/// 항목 id 를 가로챘다 — 실제로 `{#fs-crlf-parsers}` 항목이 id `id` 로 잡혔다.
+/// 편집기(`plan_edit`)도 같은 자리로 줄을 찾는다.
+pub(crate) fn anchor_span(s: &str) -> Option<(usize, usize)> {
+    let head = note_marker(s).map_or(s, |(i, _)| &s[..i]);
+    last_brace(head).or_else(|| last_brace(s))
+}
+
+/// `s` 안의 마지막 닫힌 `{#…}`.
+fn last_brace(s: &str) -> Option<(usize, usize)> {
+    let mut hay = s;
+    while let Some(start) = hay.rfind("{#") {
+        if let Some(rel) = s[start..].find('}') {
+            return Some((start, start + rel));
+        }
+        hay = &hay[..start];
+    }
+    None
+}
+
+/// 메모 표시(`⟶`, 없으면 `->`)의 자리와 길이.
+fn note_marker(s: &str) -> Option<(usize, usize)> {
+    match s.find('⟶') {
+        Some(i) => Some((i, '⟶'.len_utf8())),
+        None => s.find("->").map(|i| (i, 2)),
+    }
+}
+
 /// Extract a `⟶ reason` / `-> reason` note (removing it in place).
 fn extract_note(s: &mut String) -> Option<String> {
-    let marker = if let Some(i) = s.find('⟶') {
-        Some((i, '⟶'.len_utf8()))
-    } else {
-        s.find("->").map(|i| (i, 2))
-    };
-    let (idx, len) = marker?;
+    let (idx, len) = note_marker(s)?;
     let note = s[idx + len..].trim().to_string();
     s.truncate(idx);
     non_empty(&note)

@@ -61,6 +61,7 @@ use crate::oculpm::cache::RollupSourceEntry;
 use crate::oculpm::cas::acquire_doc_guard;
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::paths;
+use crate::oculpm::planner::eol;
 
 /// frontmatter 의 `oculpm_rollup` 값. 모양이 바뀌면 여기가 올라간다.
 pub const ROLLUP_SCHEMA: &str = "v1";
@@ -146,7 +147,10 @@ pub fn render(fm: &RollupFrontmatter, body: &str) -> Result<String, OculpmError>
 }
 
 /// 파일 내용 → (frontmatter, 본문). frontmatter 가 없거나 모양이 아니면 `None`.
+/// 윈도우 체크아웃(CRLF)도 LF 로 편 뒤 읽는다 — 안 펴면 `---\r\n` 에서 `None` 이라
+/// 롤업이 통째로 안 보였다 (#fs-crlf-parsers). 돌려주는 본문은 LF 다.
 pub fn parse(text: &str) -> Option<(RollupFrontmatter, String)> {
+    let text = eol::to_lf(text);
     let rest = text.strip_prefix("---\n")?;
     let end = rest.find("\n---")?;
     let (yaml, after) = rest.split_at(end);
@@ -191,7 +195,10 @@ pub fn write(root: &Path, fm: &RollupFrontmatter, body: &str) -> Result<(), Ocul
     let _guard = acquire_doc_guard(&path)
         .map_err(|e| OculpmError::InvalidConfig(format!("롤업 파일을 잠그지 못했어요: {e}")))?;
     let text = render(fm, body)?;
-    write_atomic(&path, text.as_bytes())
+    // 같은 주를 다시 만들 때는 있던 판의 줄바꿈으로 — 윈도우 체크아웃(CRLF)에 LF 판을
+    // 덮으면 파일 하나의 줄바꿈이 판마다 바뀐다 (#fs-crlf-parsers).
+    let crlf = std::fs::read_to_string(&path).is_ok_and(|old| eol::is_crlf(&old));
+    write_atomic(&path, eol::with_eol(text, crlf).as_bytes())
 }
 
 /// 디스크의 롤업 전부 — 주 내림차순(최신 먼저). 깨진 파일은 조용히 건너뛴다

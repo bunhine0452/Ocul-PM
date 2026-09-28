@@ -7,6 +7,11 @@
 //! ops), a discussion is prose-heavy, so `write_body` swaps the whole body while
 //! the frontmatter (id/title/status/created/owner/tags/resolution_ref) stays
 //! app-managed.
+//!
+//! 공개 수술은 [`eol::keeping`] 을 지난다 — 윈도우 체크아웃(CRLF) 문서는 CRLF 로
+//! 되돌려 쓴다 (#fs-crlf-parsers, 플래너 `plan_edit` 과 같은 규칙).
+
+use crate::oculpm::planner::eol;
 
 const LOG_BEGIN: &str = "<!-- oculpm:discussion-log begin v1 -->";
 const LOG_END: &str = "<!-- oculpm:discussion-log end -->";
@@ -34,6 +39,10 @@ pub fn create_discussion_skeleton(id: &str, title: &str, owner: &str, date: &str
 /// no frontmatter fence → `new_body` is returned (fail-soft; the app always
 /// writes a fenced skeleton, so this only guards malformed input).
 pub fn write_body(md: &str, new_body: &str, date: &str) -> String {
+    eol::keeping(md, |md| write_body_lf(md, &eol::to_lf(new_body), date))
+}
+
+fn write_body_lf(md: &str, new_body: &str, date: &str) -> String {
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     let Some(start) = lines.iter().position(|l| l.trim() == "---") else {
         return ensure_trailing_newline(new_body);
@@ -62,6 +71,10 @@ pub fn write_body(md: &str, new_body: &str, date: &str) -> String {
 /// Set the frontmatter `status:` (and bump `updated:`), preserving everything
 /// else. A document with no frontmatter fence is returned unchanged.
 pub fn set_status(md: &str, status: &str, date: &str) -> String {
+    eol::keeping(md, |md| set_status_lf(md, status, date))
+}
+
+fn set_status_lf(md: &str, status: &str, date: &str) -> String {
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     if !set_fm_field(&mut lines, "status", status, &["title", "id"]) {
         return md.to_string();
@@ -78,6 +91,10 @@ pub fn set_status(md: &str, status: &str, date: &str) -> String {
 /// Set the frontmatter `title:` (and bump `updated:`). The `id` / folder are
 /// unchanged so references keep working.
 pub fn set_title(md: &str, title: &str, date: &str) -> String {
+    eol::keeping(md, |md| set_title_lf(md, title, date))
+}
+
+fn set_title_lf(md: &str, title: &str, date: &str) -> String {
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     let value = format!("\"{}\"", escape_yaml(title));
     if !set_fm_field(&mut lines, "title", &value, &["id"]) {
@@ -97,6 +114,10 @@ pub fn set_title(md: &str, title: &str, date: &str) -> String {
 /// mapping (`plan_id` + `decided_at`) into the frontmatter (replacing any prior
 /// one). Body is untouched. Returned unchanged if there's no frontmatter fence.
 pub fn set_resolution(md: &str, plan_id: &str, decided_at: &str, date: &str) -> String {
+    eol::keeping(md, |md| set_resolution_lf(md, plan_id, decided_at, date))
+}
+
+fn set_resolution_lf(md: &str, plan_id: &str, decided_at: &str, date: &str) -> String {
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
     if !set_fm_field(&mut lines, "status", "resolved", &["title", "id"]) {
         return md.to_string();
@@ -318,5 +339,29 @@ mod tests {
         assert_eq!(d.frontmatter.resolution_plan_id.as_deref(), Some("plan-b"));
         // exactly one resolution_ref block (no duplicate keys left behind)
         assert_eq!(twice.matches("resolution_ref:").count(), 1);
+    }
+
+    /// 윈도우 체크아웃(CRLF) 논의를 고쳐도 CRLF 그대로 — 각 수술의 결과가 LF 판 결과의
+    /// `\n`→`\r\n` 과 같다. 본문 교체는 새 본문(LF)도 문서의 줄바꿈을 따른다 (#fs-crlf-parsers).
+    #[test]
+    fn every_edit_keeps_a_crlf_discussion_crlf() {
+        let lf = create_discussion_skeleton("t", "제목", "user", "2026-06-01");
+        let crlf = lf.replace('\n', "\r\n");
+        let edits: [(&str, fn(&str) -> String); 4] = [
+            ("body", |m| {
+                write_body(m, "## 문제 정의\n새 문제\n", "2026-09-28")
+            }),
+            ("status", |m| set_status(m, "archived", "2026-09-28")),
+            ("title", |m| set_title(m, "새 제목", "2026-09-28")),
+            ("resolution", |m| {
+                set_resolution(m, "p", "2026-09-28T10:00:00+09:00", "2026-09-28")
+            }),
+        ];
+        for (name, edit) in edits {
+            let got = edit(&crlf);
+            assert_eq!(got, edit(&lf).replace('\n', "\r\n"), "{name}");
+            assert!(!got.contains("\r\r"), "{name}: {got:?}");
+            assert!(!edit(&lf).contains('\r'), "{name}: LF 문서는 LF 그대로");
+        }
     }
 }

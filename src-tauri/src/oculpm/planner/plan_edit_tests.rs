@@ -323,3 +323,78 @@ fn rolled_set_rejects_parent_with_children() {
     let ok = set_item_status_rolled(&flat, "parent", ItemStatus::Done).unwrap();
     assert!(ok.md.contains("- [x] 부모 {#parent}"));
 }
+
+/// 윈도우 체크아웃(CRLF) 플랜을 고쳐도 **CRLF 그대로**다 — 모든 편집의 결과가 LF 판
+/// 결과의 `\n`→`\r\n` 과 바이트까지 같다. 새로 끼운 줄(항목·로그 행·머리)만 LF 로
+/// 섞이던 것 (#fs-crlf-parsers).
+#[test]
+fn every_edit_keeps_a_crlf_plan_crlf() {
+    let lf = NESTED.replace(
+        "\n\n<!-- oculpm:plan-log begin",
+        "\n\n## Q {#q}\n- [ ] 단독 {#solo}\n\n<!-- oculpm:plan-log begin",
+    );
+    let crlf = lf.replace('\n', "\r\n");
+    let row = LogRow {
+        ts: "2026-09-28T10:00:00+09:00".into(),
+        item_id: "c1".into(),
+        agent_id: "claude-code".into(),
+        from: Some(ItemStatus::Todo),
+        to: Some(ItemStatus::Done),
+        journal_ref: None,
+        note: Some("메모".into()),
+    };
+    type Edit = Box<dyn Fn(&str) -> Result<String, String>>;
+    let edits: Vec<(&str, Edit)> = vec![
+        (
+            "title",
+            Box::new(|m| Ok(set_plan_title(m, "새 제목", "2026-09-28"))),
+        ),
+        (
+            "rolled",
+            Box::new(|m| set_item_status_rolled(m, "c1", ItemStatus::Done).map(|r| r.md)),
+        ),
+        (
+            "add",
+            Box::new(|m| add_item(m, "Z", "새 항목", "new", ItemStatus::Todo)),
+        ),
+        ("log", Box::new(move |m| Ok(append_log_row(m, &row)))),
+        ("rename", Box::new(|m| rename_item(m, "solo", "바뀐 단독"))),
+        ("rename_phase", Box::new(|m| rename_phase(m, "Q", "큐"))),
+        ("move", Box::new(|m| move_item(m, "solo", Some("P"), None))),
+        ("remove", Box::new(|m| remove_item(m, "parent"))),
+        ("remove_phase", Box::new(|m| remove_phase(m, "Q"))),
+        ("move_phase", Box::new(|m| move_phase(m, "Q", true))),
+    ];
+    for (name, edit) in edits {
+        let want = edit(&lf).unwrap().replace('\n', "\r\n");
+        let got = edit(&crlf).unwrap();
+        assert_eq!(got, want, "{name}");
+        assert!(!got.contains("\r\r"), "{name}: {got:?}");
+    }
+    // LF 플랜은 LF 그대로 (macOS 동작 불변).
+    assert!(!add_item(&lf, "Z", "새", "new", ItemStatus::Todo)
+        .unwrap()
+        .contains('\r'));
+}
+
+/// 편집기도 파서와 같은 앵커로 줄을 찾는다 — 제목에 `{#b}` 를 적은 항목이 앞에
+/// 있어도 `b` 의 글리프를 바꾸면 **진짜 b** 가 바뀐다. 이름 바꾸기는 앵커부터가 꼬리.
+#[test]
+fn edits_target_the_anchor_not_a_mention_in_a_title() {
+    let md = "## P\n- [ ] `{#b}` 앵커 버그 {#a}\n- [ ] 진짜 b {#b}\n";
+    let out = set_item_status(md, "b", ItemStatus::Done).unwrap().md;
+    assert_eq!(
+        out,
+        "## P\n- [ ] `{#b}` 앵커 버그 {#a}\n- [x] 진짜 b {#b}\n"
+    );
+    let out = rename_item(md, "a", "새 제목").unwrap();
+    assert_eq!(out, "## P\n- [ ] 새 제목 {#a}\n- [ ] 진짜 b {#b}\n");
+    let out = remove_item(md, "b").unwrap();
+    assert_eq!(out, "## P\n- [ ] `{#b}` 앵커 버그 {#a}\n");
+    // phase 이름도 파서처럼 **앵커만** 뗀다.
+    let ph = "## 단계 `{#x}` {#p1}\n- [ ] a {#a}\n";
+    assert_eq!(
+        rename_phase(ph, "단계 `{#x}`", "새").unwrap(),
+        "## 새 {#p1}\n- [ ] a {#a}\n"
+    );
+}

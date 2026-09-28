@@ -14,6 +14,9 @@ use std::collections::HashSet;
 use serde_yaml::Value as YamlValue;
 
 use crate::oculpm::frontmatter::parse_frontmatter_and_body;
+use crate::oculpm::planner::eol;
+// 줄 접기·`{#id}` 앵커는 플래너와 **같은 규격**이라 같은 구현을 쓴다 (앵커 = 줄 끝의 것).
+use crate::oculpm::planner::parse::{extract_brace_id, fold_wrapped_items};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Status
@@ -111,7 +114,9 @@ pub struct ParsedDiscussion {
 pub fn parse_discussion(markdown: &str, fallback_id: &str) -> ParsedDiscussion {
     let mut warnings: Vec<String> = Vec::new();
 
-    let (pf, body) = parse_frontmatter_and_body(markdown);
+    // 윈도우 체크아웃(CRLF)도 LF 로 편 뒤 읽는다 (#fs-crlf-parsers).
+    let markdown = eol::to_lf(markdown);
+    let (pf, body) = parse_frontmatter_and_body(&markdown);
     // Agents often wrap a long next-step across lines (the `{#id}` ending up on
     // the continuation). Fold those back into one line before parsing.
     let body = fold_wrapped_items(&body);
@@ -468,54 +473,9 @@ fn parse_discussion_frontmatter(
 
 // ── small string helpers (shared shape with planner::parse) ───────────────────
 
-/// Merge a wrapped item's continuation lines back into the item line, so a
-/// `{#id}` that landed on the second line is still found.
-fn fold_wrapped_items(body: &str) -> String {
-    let mut out: Vec<String> = Vec::new();
-    let mut prev_was_item = false;
-    for line in body.split('\n') {
-        let trimmed = line.trim_start();
-        let is_item = trimmed.starts_with("- [") || trimmed.starts_with("* [");
-        let indented = line.starts_with(' ') || line.starts_with('\t');
-        let is_continuation = prev_was_item
-            && indented
-            && !trimmed.is_empty()
-            && !trimmed.starts_with("- ")
-            && !trimmed.starts_with("* ")
-            && !trimmed.starts_with('#')
-            && !trimmed.starts_with('|')
-            && !trimmed.starts_with("<!--")
-            && !trimmed.starts_with('>');
-        if is_continuation {
-            if let Some(last) = out.last_mut() {
-                last.push(' ');
-                last.push_str(trimmed);
-            }
-        } else {
-            out.push(line.to_string());
-            prev_was_item = is_item;
-        }
-    }
-    out.join("\n")
-}
-
 /// Join section lines, trimming leading/trailing blank lines.
 fn join_trimmed(lines: &[String]) -> String {
     lines.join("\n").trim().to_string()
-}
-
-/// Extract `{#id}` from `s` (removing it in place). Returns the id without `#`.
-fn extract_brace_id(s: &mut String) -> Option<String> {
-    let start = s.find("{#")?;
-    let end_rel = s[start..].find('}')?;
-    let end = start + end_rel;
-    let id = s[start + 2..end].trim().to_string();
-    s.replace_range(start..=end, "");
-    if id.is_empty() {
-        None
-    } else {
-        Some(id)
-    }
 }
 
 fn dedup_id(base: String, seen: &mut HashSet<String>) -> String {
@@ -742,5 +702,20 @@ tags: ["fastembed", "packaging"]
             let s = String::from_utf8_lossy(&buf);
             let _ = parse_discussion(&s, "fuzz");
         }
+    }
+
+    /// 윈도우 체크아웃(CRLF) 논의 — 파싱 결과가 LF 판과 한 글자도 같다. 접힌 다음 단계
+    /// 제목 가운데에 `\r` 이 박히지 않고, 앵커는 줄 끝의 것이다 (#fs-crlf-parsers).
+    #[test]
+    fn a_crlf_checkout_parses_exactly_like_lf() {
+        let extra = "- [ ] 긴 단계가\n      둘째 줄로 `{#x}` 넘어간다 {#wrap}\n";
+        let lf = format!("{SAMPLE}{extra}");
+        let crlf = lf.replace('\n', "\r\n");
+        let (a, b) = (parse_discussion(&lf, "f"), parse_discussion(&crlf, "f"));
+        assert_eq!(format!("{a:?}"), format!("{b:?}"));
+        assert!(!format!("{b:?}").contains("\\r"), "{b:?}");
+        let w = b.next_steps.iter().find(|s| s.step_id == "wrap").unwrap();
+        assert_eq!(w.title, "긴 단계가 둘째 줄로 `{#x}` 넘어간다");
+        assert_eq!(b.log.len(), 2);
     }
 }
