@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { commands, type DbHealth } from "@/lib/bindings";
-import { RefreshCw, Bug, MessageSquare } from "@/components/Icons";
+import { RefreshCw, Bug, MessageSquare, Copy } from "@/components/Icons";
 import { formatBytes } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
@@ -15,6 +15,7 @@ import { DoctorSection } from "./DoctorSection";
 import { FiringInsights } from "./FiringInsights";
 import { IndexUsageSection } from "./IndexUsageSection";
 import { AutomationTroubleshooting } from "../automation/AutomationTroubleshooting";
+import { formatDiagnostics, platformBugIssueUrl } from "./diagnosticsReport";
 
 /** 크기 지표는 f64 라 바인딩이 `number | null` 로 낸다 — 숫자일 때만 표기. */
 function fmtBytes(n: number | null | undefined): string | undefined {
@@ -80,6 +81,37 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 진단 글 — 설치 형식은 L-UPD 의 설치 형식 커맨드가 생기면 두 번째 인자로 넘긴다.
+  async function diagnosticsText(): Promise<string | null> {
+    const res = await commands.diagnosticsReport();
+    return res.status === "ok" ? formatDiagnostics(res.data, null) : null;
+  }
+
+  async function copyDiagnostics() {
+    const text = await diagnosticsText();
+    try {
+      if (text === null) throw new Error("diagnostics_report");
+      await navigator.clipboard.writeText(text);
+      toast.info(t("settings.feedback.diagCopied"));
+    } catch (e) {
+      toast.destructive(t("settings.feedback.diagFailed", { error: String(e) }));
+    }
+  }
+
+  function openUrl(url: string) {
+    void commands.openUrl(url).then((res) => {
+      if (res.status === "error") toast.destructive(t("settings.feedback.openFailed", { error: res.error }));
+    });
+  }
+
+  // Windows·Linux 베타의 버그는 플랫폼 버그 양식으로 — 버전·진단 정보를 채워 연다.
+  // macOS 는 예전 빈 이슈 그대로다 (진단을 못 읽어도 그쪽으로 물러난다).
+  async function openBugReport() {
+    const diag = platformLabel() === "macOS" ? null : await diagnosticsText();
+    if (diag === null) return openIssue("bug");
+    openUrl(platformBugIssueUrl(FEEDBACK_REPO, t("settings.feedback.bugTitle"), version ?? "", diag));
+  }
+
   function openIssue(kind: "bug" | "feature") {
     const isBug = kind === "bug";
     const title = isBug ? t("settings.feedback.bugTitle") : t("settings.feedback.featureTitle");
@@ -98,9 +130,7 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
       `https://github.com/${FEEDBACK_REPO}/issues/new` +
       `?labels=${encodeURIComponent(isBug ? "bug" : "enhancement")}` +
       `&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
-    void commands.openUrl(url).then((res) => {
-      if (res.status === "error") toast.destructive(t("settings.feedback.openFailed", { error: res.error }));
-    });
+    openUrl(url);
   }
 
   return (
@@ -169,7 +199,7 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
         description={t("settings.feedback.desc")}
       >
         <div className="flex gap-2 flex-wrap">
-          <Button onClick={() => openIssue("bug")} variant="outline" size="sm">
+          <Button onClick={() => void openBugReport()} variant="outline" size="sm">
             <Bug  className="mr-1.5" size={15} />
             {t("settings.feedback.bug")}
           </Button>
@@ -177,9 +207,16 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
             <MessageSquare  className="mr-1.5" size={15} />
             {t("settings.feedback.feature")}
           </Button>
+          <Button onClick={() => void copyDiagnostics()} variant="outline" size="sm">
+            <Copy className="mr-1.5" size={15} />
+            {t("settings.feedback.copyDiag")}
+          </Button>
         </div>
         <div className="text-fs-2 text-muted-foreground">
           {t("settings.feedback.note")}
+        </div>
+        <div className="text-fs-2 text-muted-foreground">
+          {t("settings.feedback.diagNote")}
         </div>
       </Section>
     </>

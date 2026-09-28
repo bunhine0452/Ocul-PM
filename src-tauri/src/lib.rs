@@ -284,6 +284,7 @@ use crate::commands::{
     detach_tab,
     // C2 — 스킬 카탈로그: 결정적 스택 감지 (LLM 0 · 네트워크 0)
     detect_stack,
+    diagnostics_report,
     diff_binary_preview,
     discussion_asset,
     discussion_attach_via_dialog,
@@ -983,6 +984,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             mobile_bridge_revoke_device,
             // 비-mac 「새 창」 (#os-new-window)
             new_window,
+            // 베타 버그 리포트 — 「진단 정보 복사」 (#w5-report)
+            diagnostics_report,
         ])
         .events(collect_events![
             // .oculpm/ subsystem (W1-PR2)
