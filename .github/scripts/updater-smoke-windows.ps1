@@ -60,7 +60,8 @@ $Info = @{}
 $infoFile = Join-Path $UpdaterDir 'updater-info.txt'
 if (Test-Path -LiteralPath $infoFile) {
     foreach ($line in Get-Content -LiteralPath $infoFile) {
-        if ($line -match '^([a-z_]+)=(.*)$') { $Info[$Matches[1]] = $Matches[2].Trim() }
+        # 키에 숫자가 든다(payload_sha256) — 첫 실행은 [a-z_] 라서 그 줄을 못 읽고 빈 값과 비교했다.
+        if ($line -match '^([a-z0-9_]+)=(.*)$') { $Info[$Matches[1]] = $Matches[2].Trim() }
     }
 }
 $Base = $Info['base_version']
@@ -223,8 +224,12 @@ Test-Gate '입력 — 스모크 판(N) · 새 판(N+1) · 서명 셋 · updater-
     if (-not ([version]$Base -lt [version]$New)) { throw "스모크 판 $Base 가 새 판 $New 보다 낮지 않다" }
     # 새 판의 .sig 는 재료와 같은 run 의 번들에 대한 것이다 — 다른 run 의 번들이 섞이면 설치
     # 시험이 「서명 불일치」 로 거짓 실패한다. 받은 번들이 그 파일인지 먼저 본다.
+    # Windows 러너의 sha256sum(coreutils)은 파일 경로에 역슬래시가 있으면(D:\a\_temp\…) 줄 앞에
+    # `\` 를 붙인다(이스케이프 표시) — 해시 자체가 아니므로 떼고 비교한다.
+    $want = "$($Info['payload_sha256'])".TrimStart('\').ToLowerInvariant()
+    if (-not $want) { throw 'updater-info.txt 에 payload_sha256 이 없다' }
     $hash = (Get-FileHash -LiteralPath $Payload -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($hash -ne $Info['payload_sha256']) { throw "받은 새 판이 재료의 것이 아니다: $hash ≠ $($Info['payload_sha256'])" }
+    if ($hash -ne $want) { throw "받은 새 판이 재료의 것이 아니다: $hash ≠ $want" }
     "N=$Base → N+1=$New · 포트 $Port"
 }
 
