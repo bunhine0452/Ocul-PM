@@ -78,7 +78,14 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.5.0 — links that went nowhere and what deletion left behind
+## 🚀 v3.6.0 — Windows · Linux beta
+
+- **Now on Windows and Linux (beta)** — a Windows 10 2004+ / 11 (x64) installer and Linux x64 AppImage · deb. With no such machines on hand, every release has CI runners install → launch → walk fifteen screens · Korean terminal input · journaling · **the in-app update (older build → new build → relaunch, bad signatures refused)**, and only OSes that pass ship. macOS updates stay separate from all of it. Install notes are under [Install](#install).
+- **Windows is an unsigned beta** — SmartScreen "More info → Run anyway"; the installer adds the VC++ runtime first if it is missing and stops with an explanation below Windows 10 2004. Updates keep your terminal sessions, and closing a session leaves window programs you launched from the shell running (as on the Mac).
+- **Plan edits that touched the wrong line — every OS** — a `{#…}` inside a title stealing the item id, adding to an anchored phase creating a duplicate phase, and a phase named "Decisions" being able to delete the decisions section or hide its items. Plans and rollups checked out with CRLF are read and written with their line endings intact.
+- **Claude Code · Codex adapters 0.81.0 · 1.13.0** — the "may not be complete" line that sat under every turn now appears only on a real mismatch, and the shell approval card no longer shows the command twice. Also: new projects default to the system time zone, adding a project no longer indexes twice, and fast terminal keystrokes keep their order.
+
+## v3.5.0 — links that went nowhere and what deletion left behind
 
 - **Links that did nothing when clicked** — terminal hyperlinks and URLs in the editor body fell through to browser defaults the webview blocks, so a ⌘click quietly did nothing. Outbound links now go through one path and open in your default browser.
 - **Typing Korean made the terminal erase and rewrite** — every committed syllable sent a delete plus the same character again, and that round trip tripped the "committed but no echo" diagnostic on normal input, filling the log (4 MB a week). All 150 collected traces were counted to confirm no characters were lost; the delete half of the commit pair is now deferred.

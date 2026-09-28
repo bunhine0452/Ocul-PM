@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.5.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 112개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.6.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 113개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.5.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 112개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.6.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 113개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.5.0</span>
+    <span class="nav-ver" data-version>v3.6.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>112개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>113개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-6-0">v3.6.0</a>
       <a href="#v3-5-0">v3.5.0</a>
       <a href="#v3-4-0">v3.4.0</a>
       <a href="#v3-3-0">v3.3.0</a>
@@ -61,10 +62,20 @@
       <a href="#v3-0-1">v3.0.1</a>
       <a href="#v3-0-0">v3.0.0</a>
       <a href="#v2-48-0">v2.48.0</a>
-      <a href="#v2-47-0">v2.47.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-6-0"><a href="#v3-6-0">v3.6.0</a></h2>
+      <div class="cl-body">
+<p><b>Windows 와 Linux 에서도 씁니다 — 베타.</b> 지금까지 공식 빌드는 Apple Silicon 맥뿐이었습니다. 이제 Windows 10 2004 이상 · 11(x64)은 설치 파일(<code>Ocul-PM_x.y.z_x64-setup.exe</code>)로, Linux x64 는 AppImage 와 deb 로 받습니다 — Linux 는 glibc 2.35 이상(Ubuntu 22.04 · Debian 12 이후)이면 됩니다. Windows 설치본과 AppImage 는 macOS 처럼 앱 안에서 자동 업데이트되고, deb 는 패키지 관리자로 새 버전을 깝니다. 만드는 사람에게 Windows · Linux 기기가 없어서, 릴리스마다 CI 러너가 설치 → 실행 → 실제 앱으로 열다섯 화면 · 터미널 한글 입력 · 일지 기록까지 돌려 보고 <b>통과한 OS 만</b> 싣습니다. 통과하지 못한 버전에는 그 OS 파일이 없고 릴리스 노트에 그 사실이 남습니다. macOS 업데이트는 이 과정과 떨어져 있어, Windows · Linux 빌드가 실패해도 맥 사용자는 영향을 받지 않습니다.</p>
+<ul><li><b>Windows 는 코드 서명이 없는 베타입니다</b> — 처음 실행하면 SmartScreen 이 「Windows의 PC 보호」 를 띄웁니다. <b>추가 정보 → 실행</b> 을 누르면 이어집니다. 관리자 권한 없이 사용자 폴더에 설치되고, Visual C++ 런타임이 없는 PC 에서는 설치 파일이 그것을 먼저 깝니다(그때만 확인 창이 한 번 뜹니다). Windows 10 2004 보다 낮은 버전에서는 설치 파일이 이유를 말하고 멈춥니다.</li><li><b>앱 안 업데이트를 공개 전에 실제로 돌려 봤습니다</b> — 한 판 낮은 설치본을 깔고, 로컬 서버가 내준 새 판으로 올라가 다시 뜨기까지를 Windows·Linux 러너에서 매번 확인합니다. 서명이 틀린 파일은 끝까지 받고도 설치하지 않습니다. deb 로 깐 앱은 업데이트를 확인하는 대신 「패키지 관리자로 업데이트해요」 를 알려 주고, 어떤 판에 그 OS 빌드가 빠졌으면 오류 대신 「이 OS 용 빌드가 아직 없어요」 라고 말합니다.</li><li><b>Windows 에서도 업데이트가 터미널 세션을 끊지 않습니다</b> — macOS 에서처럼 업데이트 뒤에도 열어 둔 터미널 탭과 그 안에서 돌던 것이 그대로 돌아옵니다. 세션을 닫을 때 그 셸에서 띄운 VS Code 같은 창 프로그램은 살아남고, 콘솔 프로그램만 끝납니다(맥과 같게). PowerShell 에서 한글이 깨지던 것도 고쳤습니다.</li><li><b>Windows 에서 알아 둘 것</b> — 어떤 프로그램이 작업 폴더로 쓰는 폴더는 옮기거나 지울 수 없어서, 앱의 터미널·언어 서버가 도는 프로젝트 폴더를 옮기려면 그 탭을 닫거나 앱을 끄세요(다른 편집기도 같습니다). Claude Code 플러그인의 훅은 돌지만 MCP 서버는 뜨지 않으니, 연동 설정의 「MCP 서버」 등록을 켜세요. 새 창은 Ctrl+Shift+N 입니다.</li><li><b>Linux AppImage 는 FUSE 2 가 필요합니다</b> (Ubuntu 22.04 <code>libfuse2</code> · 24.04 <code>libfuse2t64</code>). deb 는 필요 없습니다. 세션 D-Bus 가 없는 환경에서도 앱이 두 번 뜨지 않습니다.</li><li><b>문제를 알려 주는 길</b> — 설정 → 진단의 「진단 정보 복사」 가 앱·OS·WebView 판과 설치 형식을 붙여 넣을 글로 만들고, Windows·Linux 의 「버그 리포트」 는 그 내용을 채운 양식을 엽니다. 아직 실제 PC 에서 보지 못한 것 — Linux 한글 입력기(fcitx · ibus)의 후보창, Wayland 에서의 트레이 위치, 배율이 다른 모니터, 일반 사용자 계정에서의 권한 확인 창 — 은 <a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">이슈</a>로 알려 주세요. 베타를 떼는 근거가 됩니다.</li></ul>
+<p><b>Claude Code · Codex 어댑터를 올렸습니다</b> (Claude Code ACP 0.77.0 → 0.81.0, Codex ACP 1.8.0 → 1.13.0). 두 어댑터가 턴마다 알려 주는 파일 변경 목록이 도구 기록에서 나오도록 바뀌어 늘 「전부가 아닐 수 있다」 는 표시가 붙어 오는데, 그대로 두면 모든 턴 아래 「전부가 아닐 수 있어요」 줄이 달렸습니다. 이제 목록이 잘렸거나 실제 변경과 어긋날 때만 알립니다. 셸 승인 카드의 제목이 명령 원문이 되어 같은 명령이 두 번 보이던 것은 「명령」 이름표로 묶고, Codex 의 로그아웃 안내는 <code>codex login</code> 으로 이어 줍니다.</p>
+<p><b>계획 문서 편집이 엉뚱한 줄을 건드리던 결함들 — 모든 OS.</b></p>
+<ul><li>항목 제목 본문에 <code>{#…}</code> 글자가 들어 있으면 그것이 항목 id 를 가로챘습니다. 이제 줄 끝의 앵커만 id 이고, 같은 이유로 체크가 앞 항목에 표시되던 것도 사라졌습니다. VS Code 확장도 같은 규칙으로 읽습니다.</li><li><code>## 단계 {#p}</code> 처럼 앵커가 달린 단계에 항목을 더하면 같은 이름의 단계가 하나 더 생겼습니다.</li><li>이름에 「결정」 이 든 단계(「결정 반영」 등)를 결정 섹션으로 오인해 단계 이동이 실패했습니다. 반대로 <b>단계 이름으로 「결정」 을 주면 결정 섹션 전체가 지워지거나 항목이 계획에서 사라질 수 있던 길</b>(화면 편집 · 에이전트의 계획 만들기 둘 다)은 이제 거절합니다.</li><li>Windows 의 Git 기본 설정으로 받아 줄바꿈이 CRLF 인 계획·논의·주간 요약을 읽고 쓸 때 원래 줄바꿈을 지킵니다 — 주간 요약은 목록에서 통째로 사라지고 있었습니다.</li></ul>
+<ul><li><b>새 프로젝트의 하루 시간대</b>가 서울로 고정돼 다른 시간대에서는 오늘·일지 날짜가 하루 어긋났습니다 — 이제 시스템 시간대가 기본이고, 이미 적힌 값은 그대로입니다.</li><li>프로젝트를 추가하면 색인이 두 번 동시에 돌던 것, 터미널에 빠르게 친 키가 순서를 잃을 수 있던 것, 일지 기록의 파일 경로가 Windows 에이전트에서 <code>\</code> 로 들어오던 것, 파일 이름을 바꾸면 새 이름을 놓치던 것(Linux · Windows).</li><li>macOS 에서 진단이 앱에 딸려 온 claude 를 찾지 못하고 PATH 의 claude 를 가리키던 것.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-5-0"><a href="#v3-5-0">v3.5.0</a></h2>
       <div class="cl-body">
