@@ -1,7 +1,9 @@
 // 플랜 파일 파서 — `src-tauri/src/oculpm/planner/parse.rs` 의 `parse_plan` 을
-// 읽기 전용으로 옮긴 것. 글리프 6종·`{#id}`(첫 등장)·⟶/-> 메모·끝의 `@…` 귀속·
-// 2칸(또는 탭) 들여쓰기 = 하위·줄바꿈된 항목 접기·부모 롤업·plan-log 블록
-// 파싱만 하고 **아무것도 쓰지 않는다**(쓰기는 oculpm-mcp 의 plan_update).
+// 읽기 전용으로 옮긴 것. 글리프 6종·`{#id}` 앵커(`anchor_span` — 메모 앞의 마지막)·
+// ⟶/-> 메모·끝의 `@…` 귀속·2칸(또는 탭) 들여쓰기 = 하위·줄바꿈된 항목 접기·
+// 부모 롤업·plan-log 블록 파싱만 하고 **아무것도 쓰지 않는다**(쓰기는 oculpm-mcp
+// 의 plan_update). 앵커·결정 헤딩 규칙은 Rust 와 같은 사례표
+// (`src-tauri/src/oculpm/planner/parser_parity_cases.json`)로 대조된다.
 import { scalar, splitFrontmatter } from "./frontmatter";
 
 export type PlanStatus = "active" | "done" | "archived";
@@ -65,7 +67,9 @@ const DECISIONS_HEADINGS = new Set([
 
 export function parsePlan(markdown: string, fallbackId: string): ParsedPlan {
   const warnings: string[] = [];
-  const { parsed, body: rawBody } = splitFrontmatter(markdown);
+  // 윈도우 체크아웃(`core.autocrlf`)의 CRLF 도 LF 로 편 뒤 읽는다 — Rust
+  // `eol::to_lf`. 안 펴면 접힌 항목 제목 가운데에 `\r` 이 박힌다.
+  const { parsed, body: rawBody } = splitFrontmatter(markdown.replace(/\r\n/g, "\n"));
   const body = foldWrappedItems(rawBody);
   const fm = parsed ?? {};
   const status = scalar(fm.status);
@@ -244,31 +248,63 @@ function parseItemLine(
   };
 }
 
-/** 첫 `{#…}` 를 떼어낸다 — Rust `extract_brace_id` 와 같이 첫 등장이 이긴다. */
+/** 앵커 `{#…}` 를 떼어낸다 — Rust `extract_brace_id`. 어느 것이 앵커인지는
+ *  {@link anchorSpan} 이 정하고, 나머지 `{#…}` 글자는 제목에 남는다. */
 export function extractBraceId(s: string): { text: string; id?: string } {
-  const start = s.indexOf("{#");
-  if (start < 0) {
+  const span = anchorSpan(s);
+  if (span === undefined) {
     return { text: s };
   }
-  const end = s.indexOf("}", start);
-  if (end < 0) {
-    return { text: s };
-  }
+  const [start, end] = span;
   const id = s.slice(start + 2, end).trim();
   const text = s.slice(0, start) + s.slice(end + 1);
   return id === "" ? { text } : { text, id };
 }
 
-function extractNote(s: string): { text: string; note?: string } {
-  let idx = s.indexOf("⟶");
-  let len = 1;
-  if (idx < 0) {
-    idx = s.indexOf("->");
-    len = 2;
+/**
+ * 앵커 자리 `[{ 의 위치, } 의 위치]` — Rust `anchor_span`. 규격상 앵커는 줄 **끝**
+ * (뒤에는 `⟶ 메모`·`@귀속` 만 온다)이라 메모 앞의 **마지막** `{#…}` 를 읽고, 메모
+ * 앞에 없으면(`제목 ⟶ 메모 {#id}`) 줄 전체의 마지막을 읽는다. 첫 것을 읽던 동안
+ * 제목 본문의 `` `{#id}` `` 같은 글자가 항목 id 를 가로챘다.
+ */
+function anchorSpan(s: string): [number, number] | undefined {
+  const marker = noteMarker(s);
+  const head = marker === undefined ? s : s.slice(0, marker[0]);
+  return lastBrace(head) ?? lastBrace(s);
+}
+
+/** `s` 안의 마지막 닫힌 `{#…}` — 닫는 `}` 도 `s` 안에 있어야 한다. */
+function lastBrace(s: string): [number, number] | undefined {
+  let hay = s;
+  for (;;) {
+    const start = hay.lastIndexOf("{#");
+    if (start < 0) {
+      return undefined;
+    }
+    const end = s.indexOf("}", start);
+    if (end >= 0) {
+      return [start, end];
+    }
+    hay = hay.slice(0, start);
   }
-  if (idx < 0) {
+}
+
+/** 메모 표시(`⟶`, 없으면 `->`)의 자리와 길이 — Rust `note_marker`. */
+function noteMarker(s: string): [number, number] | undefined {
+  const arrow = s.indexOf("⟶");
+  if (arrow >= 0) {
+    return [arrow, "⟶".length];
+  }
+  const ascii = s.indexOf("->");
+  return ascii >= 0 ? [ascii, 2] : undefined;
+}
+
+function extractNote(s: string): { text: string; note?: string } {
+  const marker = noteMarker(s);
+  if (marker === undefined) {
     return { text: s };
   }
+  const [idx, len] = marker;
   const note = s.slice(idx + len).trim();
   return { text: s.slice(0, idx), note: note === "" ? undefined : note };
 }
@@ -308,9 +344,18 @@ function slugify(s: string): string {
     .slice(0, 40);
 }
 
+/** 결정 섹션 헤딩(이름 **전체**) — Rust `heading::is_decisions_heading`: 끝의 괄호
+ *  주석(`(…)`·`（…）`)을 떼고, 끝의 `: . · — -` 를 다듬은 뒤 표와 비교한다. */
 function isDecisionsHeading(h: string): boolean {
-  const norm = h.toLowerCase().replace(/\s*\(.*\)\s*$/, "").trim();
-  return DECISIONS_HEADINGS.has(norm) || DECISIONS_HEADINGS.has(h.toLowerCase().trim());
+  let s = h.trim();
+  if (s.endsWith(")") || s.endsWith("）")) {
+    const open = Math.max(s.lastIndexOf("("), s.lastIndexOf("（"));
+    if (open >= 0) {
+      s = s.slice(0, open).trimEnd();
+    }
+  }
+  const norm = s.replace(/[:.·—-]+$/u, "").trim().toLowerCase();
+  return DECISIONS_HEADINGS.has(norm);
 }
 
 function stripPlanPrefix(h1: string): string {

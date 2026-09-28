@@ -1,0 +1,28 @@
+{
+  "_doc": "플랜 파서 대조 사례표 — Rust `planner/parse_tests.rs` (include_str!) 와 VS Code 확장 `extension/src/oculpm/reader.spec.ts` 가 같은 입력을 읽어 같은 답을 내야 한다. items 는 `## P` 아래 한 줄, headings 는 `## ` 헤딩 한 줄. phase=null 은 결정 섹션(항목이 보이지 않는다). 앵커 규칙 = `planner/parse.rs::anchor_span`.",
+  "items": [
+    { "line": "- [ ] 단순 {#a}", "id": "a", "title": "단순", "note": null },
+    { "line": "- [ ] 본문에 `{#id}` 앵커 글자가 있다 {#real}", "id": "real", "title": "본문에 `{#id}` 앵커 글자가 있다", "note": null },
+    { "line": "- [ ] 둘 {#first} {#second}", "id": "second", "title": "둘 {#first}", "note": null },
+    { "line": "- [!] 막힘 {#blk} ⟶ `{#real}` 을 기다린다", "id": "blk", "title": "막힘", "note": "`{#real}` 을 기다린다" },
+    { "line": "- [ ] 메모가 먼저 ⟶ 늦은 앵커 {#late}", "id": "late", "title": "메모가 먼저", "note": "늦은 앵커" },
+    { "line": "- [>] 화살표 {#arrow} -> `{#x}` 이월", "id": "arrow", "title": "화살표", "note": "`{#x}` 이월" },
+    { "line": "- [ ] 화살표가 먼저 -> 메모 {#arrow-late}", "id": "arrow-late", "title": "화살표가 먼저", "note": "메모" },
+    { "line": "- [x] 귀속 꼬리 {#attr} @claude-code·2026-09-28", "id": "attr", "title": "귀속 꼬리", "note": null },
+    { "line": "- [ ] 앞 {#open 뒤 {#ok}", "id": "ok", "title": "앞 {#open 뒤", "note": null },
+    { "line": "- [ ] 닫힌 앞 {#a1} 닫히지 않은 뒤 {#tail", "id": "a1", "title": "닫힌 앞  닫히지 않은 뒤 {#tail", "note": null }
+  ],
+  "headings": [
+    { "heading": "## P {#p}", "phase": "P", "id": "p" },
+    { "heading": "## Phase `{#x}` 설명 {#ph}", "phase": "Phase `{#x}` 설명", "id": "ph" },
+    { "heading": "## 결정 반영 {#p1}", "phase": "결정 반영", "id": "p1" },
+    { "heading": "## Phase A — 기록의 결정론화 {#phase-a}", "phase": "Phase A — 기록의 결정론화", "id": "phase-a" },
+    { "heading": "## Decision log 정리", "phase": "Decision log 정리", "id": null },
+    { "heading": "## 결정", "phase": null, "id": null },
+    { "heading": "## 결정 (Decisions)", "phase": null, "id": null },
+    { "heading": "## 결정 （Decisions）", "phase": null, "id": null },
+    { "heading": "## 결정:", "phase": null, "id": null },
+    { "heading": "## 주요 결정 —", "phase": null, "id": null },
+    { "heading": "## Decisions {#dec}", "phase": null, "id": null }
+  ]
+}

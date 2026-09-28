@@ -80,17 +80,17 @@ describe("plan_sample.md (Rust parse.rs 테스트와 공유)", () => {
     expect(p.log[1]).toMatchObject({ itemId: "seed-verify", agentId: "user", journal: "" });
   });
 
-  it("글리프 6종·첫 {#id} 우선·줄바꿈 접기·롤업", () => {
+  it("글리프 6종·줄 끝 앵커 우선·줄바꿈 접기·롤업", () => {
     const md = [
       "---", "oculpm_plan: v1", "id: g", "title: \"g\"", "status: active", "---",
       "## P", "- [ ] a {#a}", "- [~] b {#b}", "- [x] c {#c}", "- [!] d {#d}", "- [>] e {#e}", "- [-] f {#f}",
-      "- [ ] 본문에 `{#inner}` 가 먼저 오면 그게 id 다 {#outer}",
+      "- [ ] 본문에 `{#inner}` 가 먼저 와도 앵커는 끝의 것 {#outer}",
       "- [ ] 긴 항목이", "  둘째 줄로 넘어가면 {#wrapped}",
       "- [?] 모르는 글리프 {#unk}",
     ].join("\n");
     const p = parsePlan(md, "g");
     expect(p.items.map((i) => i.status).slice(0, 6)).toEqual(["todo", "in_progress", "done", "blocked", "deferred", "dropped"]);
-    expect(p.items[6].itemId).toBe("inner");
+    expect(p.items[6]).toMatchObject({ itemId: "outer", title: "본문에 `{#inner}` 가 먼저 와도 앵커는 끝의 것" });
     expect(p.items[7]).toMatchObject({ itemId: "wrapped", title: "긴 항목이 둘째 줄로 넘어가면" });
     expect(p.items[8].status).toBe("todo");
     expect(p.warnings).toEqual(["unknown item glyph '[?]'; defaulting to todo"]);
@@ -104,6 +104,53 @@ describe("plan_sample.md (Rust parse.rs 테스트와 공유)", () => {
   it("frontmatter 없는 플랜은 # H1 을 제목으로, done/archived 는 그대로", () => {
     expect(parsePlan("# Plan — 제목\n- [ ] x {#x}", "fid")).toMatchObject({ id: "fid", title: "제목", status: "active" });
     expect(parsePlan("---\nid: z\nstatus: done\n---\n", "z").status).toBe("done");
+  });
+
+  it("CRLF 체크아웃도 LF 와 똑같이 읽는다 (a_crlf_checkout_parses_exactly_like_lf)", async () => {
+    const lf = `${await read("plan_sample.md")}\n## Phase C {#pc}\n- [ ] 긴 항목이\n  둘째 줄로 넘어가면 {#wrapped} ⟶ 메모\n`;
+    const crlf = lf.replace(/\n/g, "\r\n");
+    const [a, b] = [parsePlan(lf, "f"), parsePlan(crlf, "f")];
+    expect(b).toEqual(a);
+    expect(JSON.stringify(b)).not.toContain("\\r");
+    expect(b.items.find((i) => i.itemId === "wrapped")?.title).toBe("긴 항목이 둘째 줄로 넘어가면");
+  });
+});
+
+// Rust `parse_tests.rs::parser_parity_cases_shared_with_the_vscode_extension` 와
+// **같은 사례표**를 읽는다 — 앵커(`anchor_span`)·결정 헤딩 규칙이 한쪽만 바뀌면
+// 다른 쪽이 붉어진다.
+describe("parser_parity_cases.json (Rust parse_tests.rs 와 공유)", () => {
+  interface ItemCase { line: string; id: string; title: string; note: string | null }
+  interface HeadingCase { heading: string; phase: string | null; id: string | null }
+  const loadCases = async () =>
+    JSON.parse(
+      await fs.readFile(path.join(REPO, "src-tauri/src/oculpm/planner/parser_parity_cases.json"), "utf8"),
+    ) as { items: ItemCase[]; headings: HeadingCase[] };
+
+  it("항목 줄 — 앵커는 메모 앞의 마지막 {#…}, 나머지는 제목에 남는다", async () => {
+    const { items } = await loadCases();
+    expect(items.length).toBeGreaterThan(0);
+    for (const c of items) {
+      const p = parsePlan(`## P\n${c.line}\n`, "x");
+      expect(p.items, c.line).toHaveLength(1);
+      expect({ id: p.items[0].itemId, title: p.items[0].title, note: p.items[0].note ?? null }, c.line)
+        .toEqual({ id: c.id, title: c.title, note: c.note });
+    }
+  });
+
+  it("## 헤딩 — phase 이름·{#id}, 결정 섹션은 이름 전체로", async () => {
+    const { headings } = await loadCases();
+    expect(headings.length).toBeGreaterThan(0);
+    for (const c of headings) {
+      const p = parsePlan(`${c.heading}\n- [ ] a {#a}\n`, "x");
+      if (c.phase === null) {
+        expect({ phases: p.phases, items: p.items }, c.heading).toEqual({ phases: [], items: [] });
+        continue;
+      }
+      expect(p.phases, c.heading).toHaveLength(1);
+      expect({ name: p.phases[0].name, id: p.phases[0].id ?? null }, c.heading).toEqual({ name: c.phase, id: c.id });
+      expect(p.items[0].phase, c.heading).toBe(c.phase);
+    }
   });
 });
 
