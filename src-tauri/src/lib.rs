@@ -32,7 +32,8 @@ mod glibc_compat;
 // 메인 화면 집계 — `home_brief` 통합 테스트가 `crate::home::collect` 를 직접 부른다.
 pub mod home;
 pub mod indexer;
-// Linux: D-Bus 가 없어 single-instance 가 꺼졌을 때의 폴백 잠금 (#os-single-instance-dbus).
+// single-instance 등록 + Linux 폴백 잠금 — D-Bus 가 없거나 주소를 못 읽을 때
+// (#os-single-instance-dbus · #os-dbus-addr-panic).
 mod instance_lock;
 pub mod journal_index;
 mod llm;
@@ -1085,9 +1086,12 @@ pub fn run() {
         );
     }
 
-    let tauri_builder = tauri::Builder::default()
-        // 제일 먼저 — 두 번째 인스턴스는 여기서 끝나고, 첫 인스턴스는 창을 앞으로.
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+    // 제일 먼저 — 두 번째 인스턴스는 여기서 끝나고, 첫 인스턴스는 창을 앞으로.
+    // Linux 는 플러그인이 세션 D-Bus 에 기댄다 — 버스가 없으면 조용히 꺼지고, 주소를
+    // 못 읽으면 기동 중 패닉한다. `register` 가 주소를 먼저 대 보고(못 읽으면 건너뛴다)
+    // 바로 뒤에 잠금 파일로 두 번째 인스턴스를 막는다 (`instance_lock`).
+    let tauri_builder =
+        crate::instance_lock::register(tauri::Builder::default(), |app, argv, _cwd| {
             crate::tray::show_main(app);
             // Windows·Linux 의 딥링크는 **두 번째 인스턴스의 인자**로 온다 — 그
             // 프로세스는 여기서 끝나므로 첫 인스턴스가 건진다 (macOS 는 Apple Event).
@@ -1097,11 +1101,7 @@ pub fn run() {
             }
             #[cfg(target_os = "macos")]
             let _ = argv;
-        }));
-    // Linux 는 위 플러그인이 세션 D-Bus 에 기대는데, 버스가 없으면 조용히 꺼진다 —
-    // 바로 뒤에서 잠금 파일로 두 번째 인스턴스를 막는다 (`instance_lock`).
-    #[cfg(target_os = "linux")]
-    let tauri_builder = tauri_builder.plugin(crate::instance_lock::plugin());
+        });
     let app = tauri_builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
