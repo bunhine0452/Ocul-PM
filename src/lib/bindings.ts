@@ -163,6 +163,7 @@ export const commands = {
 	 *  프로젝트 수와 무관하게 SQL 6문 — 자세한 근거는 `crate::home` 모듈 주석 참고.
 	 */
 	homeBrief: (days: number) => typedError<HomeBrief, string>(__TAURI_INVOKE("home_brief", { days })),
+	/**  같은 프로젝트의 색인은 한 번에 하나 — 진행 중이면 합류한다 (#index-double-run). */
 	indexProject: (projectId: number, onProgress: Channel<IndexProgress>) => typedError<IndexResult, string>(__TAURI_INVOKE("index_project", { projectId, onProgress })),
 	searchChunks: (projectId: number, query: string, limit: number, includeDocs: boolean, includeJournal: boolean) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_chunks", { projectId, query, limit, includeDocs, includeJournal })),
 	searchText: (projectId: number, query: string, limit: number) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_text", { projectId, query, limit })),
