@@ -32,6 +32,8 @@ mod glibc_compat;
 // 메인 화면 집계 — `home_brief` 통합 테스트가 `crate::home::collect` 를 직접 부른다.
 pub mod home;
 pub mod indexer;
+// Linux: D-Bus 가 없어 single-instance 가 꺼졌을 때의 폴백 잠금 (#os-single-instance-dbus).
+mod instance_lock;
 pub mod journal_index;
 mod llm;
 pub mod lsp;
@@ -1079,7 +1081,7 @@ pub fn run() {
         );
     }
 
-    let app = tauri::Builder::default()
+    let tauri_builder = tauri::Builder::default()
         // 제일 먼저 — 두 번째 인스턴스는 여기서 끝나고, 첫 인스턴스는 창을 앞으로.
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             crate::tray::show_main(app);
@@ -1091,7 +1093,12 @@ pub fn run() {
             }
             #[cfg(target_os = "macos")]
             let _ = argv;
-        }))
+        }));
+    // Linux 는 위 플러그인이 세션 D-Bus 에 기대는데, 버스가 없으면 조용히 꺼진다 —
+    // 바로 뒤에서 잠금 파일로 두 번째 인스턴스를 막는다 (`instance_lock`).
+    #[cfg(target_os = "linux")]
+    let tauri_builder = tauri_builder.plugin(crate::instance_lock::plugin());
+    let app = tauri_builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         // `oculpm://` — 웹에서 앱으로 오는 유일한 길. 플러그인은 URL 을
