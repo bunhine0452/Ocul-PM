@@ -353,47 +353,56 @@ pub fn spawn_host_from(exe: &Path, socket: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// 띄운 호스트 프로세스 — 유닉스는 std 의 자식, Windows 는 핸들을 하나도 물려주지 않는
+/// 분리 기동 자식([`crate::proc::spawn_detached`]). 쓰는 몫(`try_wait`·`wait`)은 같다.
+#[cfg(not(windows))]
+pub(super) type HostChild = std::process::Child;
+#[cfg(windows)]
+pub(super) type HostChild = crate::proc::Detached;
+
 /// 호스트 프로세스를 띄워 핸들을 돌려준다 — 부르는 쪽이 일찍 죽는지 지켜보다가
 /// [`reap`] 에 넘긴다. `cwd` 는 호스트의 작업 폴더(없으면 앱의 것을 물려받는다).
 pub(super) fn spawn_host_child(
     exe: &Path,
     socket: &Path,
     cwd: Option<&Path>,
-) -> Result<std::process::Child, String> {
-    let mut cmd = crate::proc::std_cmd(exe);
-    cmd.arg("--pty-host")
-        .arg(socket)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null());
-    if let Some(dir) = cwd {
-        cmd.current_dir(dir);
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        // 새 프로세스 그룹 — 개발 중 터미널의 Ctrl+C(SIGINT to pgrp)가 호스트까지
-        // 죽이지 않게. 앱 종료 자체는 자식에게 아무 신호도 보내지 않는다.
-        cmd.process_group(0);
-    }
+) -> Result<HostChild, String> {
+    // Windows: 콘솔에서 떼고(DETACHED_PROCESS — dev 빌드는 콘솔 서브시스템이라 이게 없으면
+    // 앱의 콘솔을 물려받는다) 새 프로세스 그룹으로 — 앱 쪽 콘솔의 Ctrl+C·Ctrl+Break 가
+    // 호스트에 닿지 않는다. 그리고 std 를 거치지 않는다: std 의 spawn 은 부모의 상속 가능한
+    // 핸들을 전부 넘겨, dev·CI 에서 부모가 읽는 출력 파이프를 앱보다 오래 사는 호스트가 문다
+    // (#pty-handle-inherit). 표준 입출력은 예전(`Stdio::null`)처럼 없다.
     #[cfg(windows)]
     {
-        use std::os::windows::process::CommandExt;
-        use windows_sys::Win32::System::Threading::{CREATE_NEW_PROCESS_GROUP, DETACHED_PROCESS};
-        // 유닉스의 `process_group(0)` 자리. 콘솔에서 떼고(DETACHED_PROCESS — dev 빌드는
-        // 콘솔 서브시스템이라 이게 없으면 앱의 콘솔을 물려받는다) 새 프로세스 그룹으로 —
-        // 앱 쪽 콘솔의 Ctrl+C·Ctrl+Break 가 호스트에 닿지 않는다. `creation_flags` 는
-        // **덮어쓰므로** `proc` 이 넣은 CREATE_NO_WINDOW 를 함께 준다.
-        cmd.creation_flags(
-            crate::proc::CREATE_NO_WINDOW | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
-        );
+        let args = [std::ffi::OsStr::new("--pty-host"), socket.as_os_str()];
+        crate::proc::spawn_detached(exe, &args, cwd)
+            .map_err(|e| format!("failed to spawn the pty-host: {e}"))
     }
-    cmd.spawn()
-        .map_err(|e| format!("failed to spawn the pty-host: {e}"))
+    #[cfg(not(windows))]
+    {
+        let mut cmd = crate::proc::std_cmd(exe);
+        cmd.arg("--pty-host")
+            .arg(socket)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        if let Some(dir) = cwd {
+            cmd.current_dir(dir);
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            // 새 프로세스 그룹 — 개발 중 터미널의 Ctrl+C(SIGINT to pgrp)가 호스트까지
+            // 죽이지 않게. 앱 종료 자체는 자식에게 아무 신호도 보내지 않는다.
+            cmd.process_group(0);
+        }
+        cmd.spawn()
+            .map_err(|e| format!("failed to spawn the pty-host: {e}"))
+    }
 }
 
 /// 띄운 호스트의 시체 수거(wait)를 전용 스레드로 넘긴다.
-pub(super) fn reap(mut child: std::process::Child) {
+pub(super) fn reap(mut child: HostChild) {
     std::thread::spawn(move || {
         let _ = child.wait();
     });
