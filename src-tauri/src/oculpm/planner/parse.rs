@@ -16,6 +16,7 @@ use serde_yaml::Value as YamlValue;
 
 use crate::oculpm::frontmatter::parse_frontmatter_and_body;
 use crate::oculpm::planner::eol;
+use crate::oculpm::planner::heading::{is_decisions_heading, split_phase_heading};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Status enums
@@ -319,9 +320,8 @@ pub fn parse_plan(markdown: &str, fallback_id: &str) -> ParsedPlan {
             flush_decision(&mut cur_decision, &mut decision_lines, &mut decisions);
             // Phase headings may carry their own {#id} (agents track phases too).
             // Keep the id (so plan-log refs resolve), drop it from the name.
-            let mut h = h.trim().to_string();
-            let phase_id = extract_brace_id(&mut h);
-            let h = h.trim();
+            let (h, phase_id) = split_phase_heading(h);
+            let h = h.as_str();
             if is_decisions_heading(h) {
                 section = Section::Decisions;
                 cur_phase = None;
@@ -450,46 +450,6 @@ pub fn rollup_status(children: &[ItemStatus]) -> ItemStatus {
 enum Section {
     Phases,
     Decisions,
-}
-
-/// Headings that open the `## 결정` section, matched as a **whole label**.
-///
-/// This used to be a substring test (`contains("결정") || contains("decision")`),
-/// which swallowed any phase whose title merely mentioned the word: the real
-/// plan heading `## Phase A — 기록의 결정론화 {#phase-a}` was classified as the
-/// decisions section, so all 7 checklist items under it vanished from both the
-/// Planner UI and the MCP `plan_status` (20 items on disk → 13 reported).
-///
-/// Anchoring the match inverts the failure mode. An unrecognised decisions
-/// label now renders as a phase — visible, and the user can rename it —
-/// instead of a phase silently eating its own items, which no UI can reveal.
-const DECISIONS_HEADINGS: &[&str] = &[
-    "결정",
-    "결정사항",
-    "결정 사항",
-    "주요 결정",
-    "결정 기록",
-    "결정 로그",
-    "decision",
-    "decisions",
-    "decision log",
-    "decision records",
-];
-
-fn is_decisions_heading(h: &str) -> bool {
-    // `## 결정 (Decisions)` is the form AGENTS.md §7 documents, so a trailing
-    // parenthetical gloss is stripped before matching.
-    let mut s = h.trim();
-    if s.ends_with(')') || s.ends_with('）') {
-        if let Some(open) = s.rfind(['(', '（']) {
-            s = s[..open].trim_end();
-        }
-    }
-    let norm = s
-        .trim_end_matches([':', '.', '·', '—', '-'])
-        .trim()
-        .to_lowercase();
-    DECISIONS_HEADINGS.contains(&norm.as_str())
 }
 
 /// Merge a wrapped item's continuation lines back into the item line, so a
