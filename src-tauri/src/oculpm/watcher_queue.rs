@@ -143,10 +143,10 @@ impl PreFilter {
 
     fn keeps_event(&self, ev: &DebouncedEvent) -> bool {
         // 경로 없는 이벤트는 소비자도 첫 줄에서 버린다 (계수도 하지 않는다).
-        match ev.event.paths.first() {
-            Some(p) => self.keeps(p),
-            None => false,
-        }
+        // 이름 바꾸기 쌍(`[from, to]`)은 **어느 한쪽**이라도 살아야 한다 — 무시되는
+        // 임시 이름에서 추적하는 이름으로 옮기는 편집기 저장이 첫 경로만 보면
+        // 통째로 버려진다 (#fs-rename-pair). 소비자가 경로마다 다시 거른다.
+        ev.event.paths.iter().any(|p| self.keeps(p))
     }
 }
 

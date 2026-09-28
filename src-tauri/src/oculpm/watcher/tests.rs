@@ -685,3 +685,69 @@ async fn removing_the_project_root_does_not_resurrect_it() {
         std::fs::read_dir(&root).map(|d| d.flatten().map(|e| e.path()).collect::<Vec<_>>())
     );
 }
+
+/// 이름 바꾸기 — 디바운서가 From·To 를 `Modify(Name(Both))` `[from, to]` 한 판으로
+/// 준다(리눅스는 inotify cookie, 윈도우는 파일 id 로 짝짓는다). 옛 이름은 삭제로, 새
+/// 이름은 생성으로 **둘 다** 기록된다 (#fs-rename-pair — 첫 경로만 보던 동안 새 이름이
+/// 통째로 빠졌다). 실제 rename 으로 문다.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_rename_records_both_the_old_and_the_new_name() {
+    let s = setup().await;
+    let old = s.dir.path().join("old_name.rs");
+    std::fs::write(&old, "fn renamed() {}").unwrap();
+    // 만든 창이 지나간 뒤에 옮긴다 — 같은 창이면 디바운서가 "새 이름에 생성" 한 판으로
+    // 접어 쌍이 생기지 않는다.
+    settle().await;
+    wait_for_open_session(&s.actor).await;
+    move_like_the_user(&old, &s.dir.path().join("new_name.rs")).unwrap();
+    settle().await;
+    s.watcher.stop().await.unwrap();
+    s.actor.shutdown().await.unwrap();
+
+    let events = s
+        .writer
+        .read_file_changes(&today_workday(&s.resolver), None)
+        .await
+        .unwrap();
+    let ops = |p: &str| -> Vec<FileOp> {
+        events
+            .iter()
+            .filter(|e| e.path == p)
+            .map(|e| e.op)
+            .collect()
+    };
+    assert!(
+        ops("new_name.rs").contains(&FileOp::Create),
+        "새 이름이 빠졌다: {events:?}"
+    );
+    // macOS 는 쌍이 오지 않는다 — FSEvents 가 옮긴 파일의 옛 이름에도 「만들어짐」
+    // 깃발을 다시 달아, 디바운서가 둘을 "새 이름에 생성" 한 판으로 접고 옛 이름을
+    // 버린다 (이 수정 전부터의 동작 · 로컬 확인 2026-09-28). 쌍이 오는 OS 에서만 문다.
+    #[cfg(not(target_os = "macos"))]
+    assert!(ops("old_name.rs").contains(&FileOp::Delete), "{events:?}");
+}
+
+/// 사전 필터도 쌍의 **어느 한쪽**이라도 추적 대상이면 통과시킨다 — 무시되는 임시
+/// 이름(`*.tmp`)에서 추적하는 이름으로 옮기는 편집기 저장이 첫 경로만 보면 큐에
+/// 들어오기도 전에 사라졌다 (#fs-rename-pair). 양쪽 다 무시되면 여전히 버린다.
+#[test]
+fn the_prefilter_keeps_a_rename_whose_new_name_is_tracked() {
+    use crate::oculpm::watcher_queue::{
+        build_gitignore_from_lines, channel_with_filter, PreFilter,
+    };
+    use notify::event::{EventKind, ModifyKind, RenameMode};
+    use notify_debouncer_full::DebouncedEvent;
+
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    let ignore = build_gitignore_from_lines(&root, &["*.tmp".to_string()]);
+    let (tx, rx) = channel_with_filter(16, Some(PreFilter::new(root.clone(), ignore, None)));
+    let both = |from: &str, to: &str| {
+        let ev = notify::Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Both)))
+            .add_path(root.join(from))
+            .add_path(root.join(to));
+        DebouncedEvent::new(ev, std::time::Instant::now())
+    };
+    tx.push_batch(vec![both("a.rs.tmp", "a.rs"), both("b.tmp", "c.tmp")]);
+    assert_eq!(rx.len(), 1, "새 이름이 추적 대상인 쌍만 남아야 한다");
+}

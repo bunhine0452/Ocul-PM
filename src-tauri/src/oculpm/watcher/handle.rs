@@ -164,14 +164,19 @@ impl WatcherInner {
     }
 
     async fn handle_event(&self, ev: DebouncedEvent) {
-        // notify emits one event per path-change; for renames the debouncer
-        // batches Modify(Name(From)) + Modify(Name(To)) but we process them
-        // one path at a time and let "file exists?" decide Create vs Delete.
-        let path = match ev.event.paths.first() {
-            Some(p) => p.clone(),
-            None => return,
-        };
+        // 이름 바꾸기는 디바운서가 From·To 를 한 판으로 꿰매 `Modify(Name(Both))`
+        // `[from, to]` 로 준다 (세 OS 모두 — macOS 는 파일 id, 리눅스는 cookie,
+        // 윈도우는 파일 id 로 짝짓는다). 경로마다 같은 파이프라인을 태우고
+        // `classify` 가 디스크를 보고 from=삭제 · to=생성으로 가른다. 첫 경로만
+        // 보던 동안 **새 이름이 통째로 빠졌다** — ndjson·일지 캐시·색인·화면 신호
+        // 전부 (#fs-rename-pair).
+        for path in &ev.event.paths {
+            self.handle_path(&ev, path).await;
+        }
+    }
 
+    /// 이벤트의 경로 하나를 1~10 단계에 태운다.
+    async fn handle_path(&self, ev: &DebouncedEvent, path: &Path) {
         self.bump_seen();
 
         // 0. 루트가 사라졌다 — 사용자가 Finder 에서 프로젝트 폴더를 지우거나
@@ -374,13 +379,13 @@ impl WatcherInner {
         }
 
         // 6. ignore / gitignore filters.
-        if !self.should_track(&path) {
+        if !self.should_track(path) {
             self.bump_ignored();
             return;
         }
 
         // 7. Classify + hash.
-        let mut change = match self.classify(&path, &ev.event.kind).await {
+        let mut change = match self.classify(path, &ev.event.kind).await {
             Some(c) => c,
             None => {
                 self.bump_ignored();
@@ -407,7 +412,7 @@ impl WatcherInner {
         // Forbidden paths are skipped here (they're never indexed), and the
         // work is fire-and-forget so the embedding model never stalls the
         // watcher loop. Uses the real relative path before step-8 masking.
-        if !self.is_forbidden(&path) {
+        if !self.is_forbidden(path) {
             self.schedule_incremental_index(
                 change.path.clone(),
                 change.op,
@@ -420,7 +425,7 @@ impl WatcherInner {
         // 통과했고, 디렉터리가 아니고, 해시가 이미 있고(중복 캡처를 공짜로
         // 거른다), 무엇보다 **사람이 쓰든 에이전트가 쓰든 여기를 지난다**.
         // `code_write` 에는 걸지 않는다 — 이중 캡처가 된다.
-        if !self.is_forbidden(&path) {
+        if !self.is_forbidden(path) {
             self.schedule_history_capture(&change);
         }
 
@@ -430,7 +435,7 @@ impl WatcherInner {
         // 안 된다. 원인 제외(일지·플랜·정의·색인)는 위 2~3.5 단계에서 이미
         // 돌아갔고, 트래커도 한 번 더 막는다.
         if let Some(handle) = &self.app_handle {
-            if !self.is_forbidden(&path) {
+            if !self.is_forbidden(path) {
                 crate::oculpm::automation::watchers::note_event(
                     handle,
                     self.project_id,
@@ -441,7 +446,7 @@ impl WatcherInner {
         }
 
         // 8. Forbidden-path masking.
-        if self.is_forbidden(&path) {
+        if self.is_forbidden(path) {
             change.path = format!("**redacted/sensitive**:{}", short_hash_of(&change.path));
             change.hash_before = None;
             change.hash_after = None;
