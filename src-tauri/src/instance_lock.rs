@@ -289,12 +289,18 @@ mod tests {
     }
 
     /// 두 번째 인스턴스 — 첫 번째가 쥔 동안은 잡지 못하고, 쥔 쪽의 pid 를 읽는다.
+    /// pid 읽기는 유닉스(flock = 권고 잠금)에서만 — Windows 의 `try_lock` 은 LockFileEx
+    /// 강제 잠금이라 다른 핸들이 잠긴 파일을 못 읽는다(`None`). 이 플러그인은 Linux 전용이다.
     #[test]
     fn second_acquire_is_busy_while_the_first_holds() {
         let dir = tempfile::tempdir().unwrap();
         let first = held(try_acquire(dir.path(), Duration::ZERO));
         match try_acquire(dir.path(), Duration::ZERO) {
-            Acquire::Busy { holder } => assert_eq!(holder, Some(std::process::id())),
+            Acquire::Busy { holder } => {
+                if cfg!(unix) {
+                    assert_eq!(holder, Some(std::process::id()));
+                }
+            }
             other => panic!("잡혀 있어야 한다: {other:?}"),
         }
         drop(first);
