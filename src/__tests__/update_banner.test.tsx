@@ -268,3 +268,24 @@ describe("설치 형식 × 업데이터", () => {
     expect(view.getByText("업데이트 확인")).toBeInTheDocument();
   });
 });
+
+describe("업데이터 스모크 빌드 표식 (VITE_OCULPM_UPDATER_SMOKE)", () => {
+  it("표식이 없으면(릴리스 빌드) 새 버전을 찾아도 스스로 깔지 않는다", async () => {
+    const downloadAndInstall = vi.fn(() => Promise.resolve());
+    fx.update = { version: "9.0.0", downloadAndInstall };
+    const { findByText } = render(<UpdateBanner />);
+    expect(await findByText(/v9\.0\.0/)).toBeInTheDocument();
+    expect(downloadAndInstall).not.toHaveBeenCalled();
+  });
+
+  it("표식이 있으면 배너의 install() 을 바로 부른다 — 서명 검증·설치 경로는 같다", async () => {
+    vi.stubEnv("VITE_OCULPM_UPDATER_SMOKE", "1");
+    vi.resetModules();
+    const { UpdateBanner: SmokeBanner, SMOKE_AUTO_INSTALL } = await import("@/components/UpdateBanner");
+    expect(SMOKE_AUTO_INSTALL).toBe(true);
+    const downloadAndInstall = vi.fn(() => Promise.resolve());
+    fx.update = { version: "9.0.0", downloadAndInstall };
+    render(<SmokeBanner />);
+    await waitFor(() => expect(downloadAndInstall).toHaveBeenCalledTimes(1));
+  });
+});

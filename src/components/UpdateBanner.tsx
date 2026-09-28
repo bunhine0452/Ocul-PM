@@ -27,6 +27,15 @@ export function isNewerVersion(latest: string, current: string): boolean {
   return false;
 }
 
+/**
+ * 업데이터 스모크 빌드 표식 (portability.yml `updater-smoke`, 크로스플랫폼 L-UPD
+ * `#w3-updater-smoke`). 그 잡이 굽는 **스모크 전용 판**만 `VITE_OCULPM_UPDATER_SMOKE=1`
+ * 로 빌드한다 — 새 버전을 찾으면 배너의 「지금 업데이트」 를 누른 것과 같은 `install()`
+ * 을 바로 부른다(CI 에는 누를 사람이 없고, Linux AppImage 는 WebDriver 로 붙을 수 없다).
+ * 릴리스·개발 빌드에는 이 값이 없어 늘 false 다 — 서명 검증·설치 경로는 그대로다.
+ */
+export const SMOKE_AUTO_INSTALL = import.meta.env.VITE_OCULPM_UPDATER_SMOKE === "1";
+
 /** 주기 확인 간격 — 하루. */
 const PERIODIC_MS = 24 * 60 * 60 * 1000;
 /** 깨어날 때 다시 묻는 최소 간격 — 6시간. */
@@ -70,6 +79,10 @@ export function UpdateBanner() {
   useEffect(() => {
     if (status.kind === "available") setVersion(status.version);
   }, [status]);
+
+  useEffect(() => {
+    if (SMOKE_AUTO_INSTALL && status.kind === "available") void install();
+  }, [status.kind, install]);
 
   // 닫은 배너는 **그 버전**에 대해서만 닫힌 것이다 — 나중에 더 새 버전이
   // 오면 다시 뜬다.
