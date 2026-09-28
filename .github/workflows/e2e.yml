@@ -32,6 +32,14 @@ concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
 
+# ONNX Runtime 사전 빌드(ort-sys 가 받는 onnxruntime 정적 라이브러리)의 자리를 작업 폴더 안 고정 경로로
+# 두고 rust-cache 가 target 과 함께 저장하게 한다. 기본 자리(러너의 사용자 캐시 폴더)는 캐시에 안 들어가,
+# target 만 복원되면 ort-sys 빌드 스크립트가 다시 돌지 않은 채 없는 폴더를 링크 경로로 가리킨다 —
+# "could not find native static library `onnxruntime`" (v3.6.0 main push 의 portability 사이드카 windows).
+# ORT_CACHE_DIR 은 ort-sys 의 rerun-if-env-changed 대상이 아니라서 옛 캐시는 prefix-key 를 올려 버린다.
+env:
+  ORT_CACHE_DIR: ${{ github.workspace }}/.ort-cache
+
 jobs:
   e2e:
     name: E2E — ${{ matrix.os }}
@@ -86,6 +94,8 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
+          prefix-key: v1-rust-ort
+          cache-directories: ${{ github.workspace }}/.ort-cache
           key: e2e-debug
           cache-on-failure: true
 
