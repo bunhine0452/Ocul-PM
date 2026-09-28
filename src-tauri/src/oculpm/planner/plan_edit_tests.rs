@@ -440,3 +440,93 @@ fn move_phase_treats_a_phase_mentioning_decision_as_a_phase() {
     // 진짜 결정 섹션은 범위 밖 — 마지막 phase 를 내려도 끌려가지 않는다.
     assert_eq!(move_phase(md, "Decision log 정리", false).unwrap(), md);
 }
+
+// ─── 결정 섹션 가드 (#plan-edit-decisions-guard) ───────────────────────────
+
+const WITH_DECISIONS: &str = "## Phase A {#pa}\n- [ ] a {#a}\n\n## 결정 (Decisions)\n### Decision A — 잠금 {#d-a}\n- 잠금 2026-09-28 · claude-code\n\n<!-- oculpm:plan-log begin v1 -->\n<!-- oculpm:plan-log end -->\n";
+
+fn assert_decisions_rejected(r: Result<String, String>, what: &str) {
+    let err = r.expect_err(what);
+    assert!(
+        err.contains("결정 섹션은 phase 가 아니에요"),
+        "{what}: {err}"
+    );
+}
+
+/// `remove_phase("결정")` 은 결정 섹션(과 그 아래 결정 기록 전부)을 지우던 경로다.
+#[test]
+fn remove_phase_refuses_the_decisions_section() {
+    for name in ["결정", "결정 (Decisions)", "Decisions", "decision log"] {
+        assert_decisions_rejected(remove_phase(WITH_DECISIONS, name), name);
+    }
+    // 보통 phase 삭제는 그대로 되고, 결정 기록은 남는다.
+    let out = remove_phase(WITH_DECISIONS, "Phase A").unwrap();
+    assert!(out.contains("### Decision A — 잠금 {#d-a}"), "{out}");
+    assert_eq!(parse_plan(&out, "x").decisions.len(), 1);
+}
+
+/// `add_item` 이 결정 이름으로 새 `## 결정` 을 만들거나 결정 섹션에 항목을 넣지 않는다
+/// — 파서가 그 섹션의 체크박스를 항목으로 읽지 않아 항목이 보이지 않게 된다.
+#[test]
+fn add_item_refuses_a_decisions_name_as_the_phase() {
+    // 결정 섹션이 이미 있을 때 — 그 안에 넣지 않는다.
+    assert_decisions_rejected(
+        add_item(
+            WITH_DECISIONS,
+            "결정 (Decisions)",
+            "t",
+            "n1",
+            ItemStatus::Todo,
+        ),
+        "existing",
+    );
+    // 없을 때 — `## 결정` 을 새로 만들지 않는다.
+    let bare = create_plan_skeleton("p", "t", "user", "2026-09-28");
+    for name in ["결정", "Decisions", "결정 {#dec}"] {
+        assert_decisions_rejected(add_item(&bare, name, "t", "n1", ItemStatus::Todo), name);
+    }
+    // 「결정」 이 든 보통 phase 는 phase 다.
+    let out = add_item(&bare, "결정 반영", "t", "n1", ItemStatus::Todo).unwrap();
+    let p = parse_plan(&out, "p");
+    assert_eq!(p.items[0].phase.as_deref(), Some("결정 반영"));
+}
+
+/// 이름으로 phase 를 찾는 나머지 편집도 결정 이름을 거절한다 — 특히 rename 의 **새**
+/// 이름: 보통 phase 를 「결정」 으로 바꾸면 그 항목이 전부 보이지 않게 된다.
+#[test]
+fn phase_edits_refuse_decisions_names() {
+    assert_decisions_rejected(
+        rename_phase(WITH_DECISIONS, "결정 (Decisions)", "x"),
+        "rename from",
+    );
+    assert_decisions_rejected(rename_phase(WITH_DECISIONS, "Phase A", "결정"), "rename to");
+    assert_decisions_rejected(
+        move_phase(WITH_DECISIONS, "결정 (Decisions)", true),
+        "move_phase",
+    );
+    assert_decisions_rejected(
+        move_item(WITH_DECISIONS, "a", Some("결정 (Decisions)"), None),
+        "move_item",
+    );
+    // CRLF 문서도 같은 판정.
+    let crlf = WITH_DECISIONS.replace('\n', "\r\n");
+    assert_decisions_rejected(remove_phase(&crlf, "결정"), "crlf");
+}
+
+/// 중복 id 는 **앵커**로만 센다 — 다른 항목 제목에 `{#b}` 글자가 있어도 `b` 는 새 id 다.
+/// 항목·phase·결정 헤더의 앵커와 줄바꿈된 항목의 앵커는 중복이다.
+#[test]
+fn add_item_duplicate_check_follows_the_anchor_rule() {
+    let md = "## P {#p}\n- [ ] `{#b}` 를 언급 {#a}\n- [ ] 긴 항목이\n  둘째 줄로 {#wrapped}\n\n## 결정\n### D {#d-x}\n";
+    let out = add_item(md, "P", "진짜 b", "b", ItemStatus::Todo).unwrap();
+    let ids: Vec<String> = parse_plan(&out, "x")
+        .items
+        .into_iter()
+        .map(|i| i.item_id)
+        .collect();
+    assert_eq!(ids, ["a", "wrapped", "b"]);
+    for dup in ["a", "wrapped", "p", "d-x"] {
+        let err = add_item(md, "P", "t", dup, ItemStatus::Todo).unwrap_err();
+        assert!(err.contains("already exists"), "{dup}: {err}");
+    }
+}
