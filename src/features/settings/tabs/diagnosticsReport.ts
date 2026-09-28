@@ -16,9 +16,9 @@ const OS_NAMES: Record<string, string> = {
 };
 
 /**
- * 복사할 글. `installKind` 는 설치 형식(NSIS·AppImage·deb·dmg) — L-UPD 의 설치
- * 형식 커맨드가 들어오면 그 값을 여기로 넘긴다. 그 전까지는 `null` 이고 이슈
- * 양식의 「설치 형식」 드롭다운을 사람이 고른다.
+ * 복사할 글. `installKind` 는 설치 형식(`install_kind` 의 bundle_type — nsis·appimage·
+ * deb·app …). 번들 밖이거나 모르면 `null` 이고, 이슈 양식의 「설치 형식」 드롭다운을
+ * 사람이 고른다.
  */
 export function formatDiagnostics(r: DiagnosticsReport, installKind: string | null): string {
   const os = r.os_version ?? OS_NAMES[r.os] ?? r.os;

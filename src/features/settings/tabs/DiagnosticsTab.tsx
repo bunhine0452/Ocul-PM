@@ -16,6 +16,7 @@ import { FiringInsights } from "./FiringInsights";
 import { IndexUsageSection } from "./IndexUsageSection";
 import { AutomationTroubleshooting } from "../automation/AutomationTroubleshooting";
 import { formatDiagnostics, platformBugIssueUrl } from "./diagnosticsReport";
+import { installKindApi } from "@/api/installKind";
 
 /** 크기 지표는 f64 라 바인딩이 `number | null` 로 낸다 — 숫자일 때만 표기. */
 function fmtBytes(n: number | null | undefined): string | undefined {
@@ -88,10 +89,11 @@ export function DiagnosticsTab({ onError }: { onError: (msg: string | null) => v
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 진단 글 — 설치 형식은 L-UPD 의 설치 형식 커맨드가 생기면 두 번째 인자로 넘긴다.
+  // 진단 글 — 설치 형식은 번들러가 실행 파일에 굽는 표식(`install_kind`, L-UPD). 번들 밖
+  // (개발 빌드)이거나 못 읽으면 null → 「unknown」.
   async function diagnosticsText(): Promise<string | null> {
-    const res = await commands.diagnosticsReport();
-    return res.status === "ok" ? formatDiagnostics(res.data, null) : null;
+    const [res, kind] = await Promise.all([commands.diagnosticsReport(), installKindApi.get()]);
+    return res.status === "ok" ? formatDiagnostics(res.data, kind?.bundle_type ?? null) : null;
   }
 
   async function copyDiagnostics() {

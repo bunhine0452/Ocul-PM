@@ -29,6 +29,15 @@ vi.mock("@/lib/bindings", () => {
                 log_dir: "~/.local/share/com.kimhyunbin.ocul-pm/logs",
               });
             };
+          // install_kind 는 봉투 없이 값을 그대로 돌려준다 (installKindApi).
+          if (prop === "installKind")
+            return () =>
+              Promise.resolve({
+                os: "linux",
+                arch: "x86_64",
+                bundle_type: "appimage",
+                updater_targets: ["linux-x86_64-appimage", "linux-x86_64"],
+              });
           if (prop === "openUrl")
             return (url: string) => {
               calls.openUrl.push(url);
@@ -76,6 +85,8 @@ describe("DiagnosticsTab feedback (#w5-report)", () => {
     expect(text.startsWith("Ocul-PM diagnostics\n")).toBe(true);
     expect(text).toContain("- WebView: WebKitGTK 2.44.3");
     expect(text).toContain("- Session: wayland · GNOME");
+    // 설치 형식은 install_kind 의 bundle_type (L-UPD).
+    expect(text).toContain("- Install: appimage");
   });
 
   it("opens the platform bug form off macOS", async () => {
