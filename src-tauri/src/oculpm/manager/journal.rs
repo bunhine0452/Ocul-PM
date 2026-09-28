@@ -585,7 +585,7 @@ impl OculpmManager {
         &self,
         db: &Db,
         project_id: u32,
-        draft: ManualEntryDraft,
+        mut draft: ManualEntryDraft,
     ) -> Result<JournalEntry, OculpmError> {
         validate_slug(&draft.slug)?;
 
@@ -604,6 +604,11 @@ impl OculpmManager {
                 entry.config.git.auto_redact_patterns.clone(),
             )
         };
+        // 저장 모양(`/`)으로 — 윈도우의 `src\a.ts` 가 diff 사이드카 키와 어긋나지 않게
+        // (#fs-files-touched-norm). MCP `journal_write` 와 같은 규칙.
+        for ft in &mut draft.files_touched {
+            ft.path = crate::git::touched_path(&root, &ft.path);
+        }
 
         // W4-PR3 — reject the whole entry if any declared file_touched path is
         // in `git.forbid_journal_for_paths`. We check before any disk write so

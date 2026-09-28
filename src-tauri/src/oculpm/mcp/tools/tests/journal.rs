@@ -412,3 +412,37 @@ fn an_explicit_related_or_a_non_defect_type_is_left_alone() {
     assert!(chore["auto_related"].as_array().unwrap().is_empty());
     assert_eq!(chore["related"], 0);
 }
+
+/// 에이전트가 준 `files_touched` 는 **쓰는 순간** 저장 모양(`/`)이 된다 — 윈도우
+/// 에이전트의 `src\a.ts`·루트 안 절대 경로·`./` 가 diff 사이드카 키(`src/a.ts`)와
+/// 어긋나지 않게. 이미 저장 모양이면 그대로 (#fs-files-touched-norm).
+#[test]
+fn journal_write_stores_files_touched_in_slash_form() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+    let abs = root.join("src").join("abs.rs");
+    let mut given = vec![
+        serde_json::json!({ "path": "src/a.ts" }),
+        serde_json::json!({ "path": "./src//b.ts" }),
+        serde_json::json!({ "path": abs.to_string_lossy() }),
+    ];
+    let mut want = vec!["src/a.ts", "src/b.ts", "src/abs.rs"];
+    if cfg!(windows) {
+        given.push(serde_json::json!({ "path": r"src\win\c.ts" }));
+        want.push("src/win/c.ts");
+    }
+    let out = call_tool(
+        root,
+        "journal_write",
+        &serde_json::json!({
+            "type": "chore", "slug": "paths", "title": "경로", "body_markdown": "본문",
+            "files_touched": given,
+        }),
+    )
+    .unwrap();
+    let raw = std::fs::read_to_string(root.join(out["path"].as_str().unwrap())).unwrap();
+    let fm = parse_frontmatter_and_body(&raw).0.parsed.unwrap();
+    let got: Vec<&str> = fm.files_touched.iter().map(|f| f.path.as_str()).collect();
+    assert_eq!(got, want);
+}
