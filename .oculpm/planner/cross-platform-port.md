@@ -70,9 +70,9 @@ owner: claude-code
 
 - [x] 프런트 후속 — errors.ts 규칙(`The system keyring is unavailable`·Linux 파일 붙여넣기 미지원), useCodeImport.pasteFiles 오류 토스트, 비-mac 트레이 팝오버의 투명 여백·그림자 제거, op.shell.desc2(iTerm2·Terminal.app) 비-mac 문구, **Windows 에서 틀린 MCP 권고 셋**(op.mcp.pluginCovers·op.mcp.pluginConflict·op.plugin.warn — 따르면 MCP 가 하나도 안 남는다, McpServerBlock·ClaudePluginBlock) (L-OS·L-SHELL·L-INTEG 발견) {#ui-followups}
 - [ ] Windows 릴리스 exe 는 GUI 서브시스템 — 사람이 콘솔에서 `oculpm` 을 치면 출력이 안 붙는다. CLI 진입 앞 AttachConsole(ATTACH_PARENT_PROCESS), 대기 문제는 콘솔 서브시스템 별도 바이너리 검토 (L-SHELL 발견) {#os-cli-console}
-- [ ] 에이전트가 준 files_touched 경로를 쓰기 시점에 `/` 로 정규화 (MCP journal_write·manager) — Windows 에이전트의 `src\a.ts` 가 diff 사이드카 키를 어긋나게 한다 (L-FS 발견) {#fs-files-touched-norm}
-- [ ] planner·discussion·rollup 파서의 CRLF 내성 — `planner/parse.rs::fold_wrapped_items` 가 split('\n') 이라 autocrlf 체크아웃의 plan-log·항목 id 앵커가 흔들릴 수 있다, 테스트 0건 (L-FS 발견) {#fs-crlf-parsers}
-- [ ] 워처 rename 쌍의 새 이름이 빠진다 — 디바운서 Name(Both)[from,to] 에서 paths.first() 만 처리 (양 OS 기존 결함, L-FS 발견) {#fs-rename-pair}
+- [x] 에이전트가 준 files_touched 경로를 쓰기 시점에 `/` 로 정규화 (MCP journal_write·manager) — Windows 에이전트의 `src\a.ts` 가 diff 사이드카 키를 어긋나게 한다 (L-FS 발견) {#fs-files-touched-norm}
+- [x] planner·discussion·rollup 파서의 CRLF 내성 — `planner/parse.rs::fold_wrapped_items` 가 split('\n') 이라 autocrlf 체크아웃의 plan-log·항목 id 앵커가 흔들릴 수 있다, 테스트 0건 (L-FS 발견) {#fs-crlf-parsers}
+- [x] 워처 rename 쌍의 새 이름이 빠진다 — 디바운서 Name(Both)[from,to] 에서 paths.first() 만 처리 (양 OS 기존 결함, L-FS 발견) {#fs-rename-pair}
 - [x] 간헐 실패 — watcher::removing_the_project_root_does_not_resurrect_it 가 Windows 에서 Access is denied(os 5)로 한 번 붉음(L-SHELL run 35893773736), 다른 run 은 초록. 감시 핸들이 루트 삭제를 막는 경합인지 — 사용자가 감시 중인 프로젝트 폴더를 지울 때도 같은 일이 나는지 확인 {#fs-watcher-flake}
 - [x] [사용자 결정] macOS 기존 결함 — acp/adapter.rs npm_platform 이 "macos" 로 찾아 딸려 온 claude(claude-agent-sdk-darwin-arm64)를 못 보고 PATH claude 로 물러선다. 고치면 ACP 가 쓰는 claude 바이너리가 바뀐다 (L-OS 발견) {#mac-bundled-claude}
 - [ ] 비-mac 새 창 키(Ctrl+Shift+N) — new_window 커맨드 + L-UI 바인딩, 앱 메뉴를 뗀 뒤 빈 자리 (L-OS 제안 diff 있음) {#os-new-window}
@@ -116,6 +116,10 @@ owner: claude-code
 - [ ] Linux — `DBUS_SESSION_BUS_ADDRESS` 가 파싱 불가한 값이면 tauri-plugin-single-instance 2.4.4 가 `Builder::session().unwrap()` 에서 기동 중 패닉할 수 있다(코드 읽기 추정, 미재현). instance-lock 폴백으로는 못 막는다 — 등록 전에 주소를 검사해 이상하면 플러그인을 건너뛰고 잠금 파일만 쓰기 (L-OS3 발견) {#os-dbus-addr-panic}
 - [ ] Windows PTY 호스트가 판별 복사본을 못 써서 원본으로 물러서는 경로(`launch.rs` 의 `start(exe, None, …)`)는 앱의 작업 폴더를 물려받는다 — 사용자가 프로젝트 폴더 터미널에서 앱을 띄웠으면 앱보다 오래 사는 호스트가 그 폴더를 쥔다. 그 경로의 cwd 를 실행 파일 폴더로 (L-PTY3 발견, #os-child-cwd-lock 의 값싼 완화) {#pty-host-fallback-cwd}
 - [ ] 비-mac 에서 일지·검색·시작 화면의 ⌘N(=Ctrl+N) 핸들러가 Shift 를 보지 않는다 — Ctrl+Shift+N 은 캡처 단계에서 막았지만 Ctrl+Shift+<같은 글자> 계열의 다른 전역 키와 같은 모양의 충돌이 남을 수 있다. 화면 핸들러가 수식키를 정확히 맞추게 (L-OS3 발견) {#ui-shortcut-shift-exact}
+- [ ] VS Code 확장의 플래너 파서(`extension/src/oculpm/planner.ts`)가 아직 「첫 `{#…}` 가 이긴다」 — `reader.spec.ts` 가 그 동작을 박아 둠. Rust `anchor_span`(메모 앞 마지막 → 줄 끝)과 갈라졌으니 맞추기 (L-FS3 발견) {#ext-anchor-rule}
+- [ ] `plan_edit::add_item` 이 phase 를 원문 헤딩으로 비교해 `## P {#p}` 인 phase 에 항목을 더하면 `## P` 섹션이 하나 더 생긴다 — UI 는 앵커를 뗀 이름을 넘기므로 양 OS 실제 결함 (L-FS3 발견) {#plan-add-item-anchored-phase}
+- [ ] 결정 섹션 판정 불일치 — `plan_edit::is_decisions_name` 은 부분 문자열, 파서의 `is_decisions_heading` 은 이름 전체. `move_phase` 가 「결정」 이 든 phase 를 결정 섹션으로 보고 이동 범위를 끊는다 (L-FS3 발견) {#plan-decisions-heading-mismatch}
+- [ ] macOS 이름 바꾸기에서 옛 이름 삭제가 사라진다 — FSEvents 가 옛 이름에도 Created 를 달아 디바운서가 한 판으로 접는다, ndjson·일지 캐시에 옛 이름 행이 남음(기존 동작) · 겸해서 `planner/dispatch.rs::read_journal_excerpt` 가 CRLF 일지 발췌 앞에 `\r\n` 을 남김(보기만) (L-FS3 발견) {#fs-mac-rename-old-name}
 
 ## W5 — 베타 운영과 졸업 {#w5}
 - [ ] 플랫폼 버그 리포트 이슈 템플릿 + 진단 번들 내보내기(로그·버전·OS·WebView 버전) {#w5-report}
@@ -124,12 +128,9 @@ owner: claude-code
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 38 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 41 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-24T04:27:37+09:00 | #shell-linux | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0427_feature_port-shell-integration-lshell.md | default_shell.rs — macOS 불변, Linux passwd→/bin/bash, Windows pwsh→powershell→COMSPEC. 세 OS 표 테스트 |
-| 2026-09-24T04:27:42+09:00 | #shell-shim | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0427_feature_port-shell-integration-lshell.md | Windows oculpm.exe 인식·하드링크(같은 볼륨)·복사, .cmd 는 두지 않음, AppImage $APPIMAGE. 빌드된 앱 바이너리로 심 통합 테스트 |
-| 2026-09-24T04:27:48+09:00 | #shell-env | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0427_feature_port-shell-integration-lshell.md | split_paths + PATHEXT, Windows 로그인 셸 없음. resolve_binary(cargo)→절대경로 cargo.exe windows 확인 |
 | 2026-09-24T04:27:54+09:00 | #shell-tests | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0427_feature_port-shell-integration-lshell.md | 진짜 PTY 하네스(DSR 응답), windows pwsh/5.1 · ubuntu bash/pwsh 실행. 이 머지로 main windows test 완전 초록 |
 | 2026-09-24T05:57:14+09:00 | #pty-transport | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | 네임드 파이프(사용자 SID DACL·High IL·first_pipe_instance·서버 SID 확인), 자리 규칙 공통. PR #37 |
 | 2026-09-24T05:57:19+09:00 | #pty-detach | claude-code | ☐→x | .oculpm/journal/20260924/Features_to_add/0557_feature_port-ptyhost-windows-lpty.md | NO_WINDOW\|DETACHED\|NEW_PROCESS_GROUP(OR). roundtrip 이 실제 앱 바이너리로 분리 기동·재접속. 업데이트 생존은 #w3-update-ptyhost-lock |
@@ -167,5 +168,8 @@ owner: claude-code
 | 2026-09-28T22:22:53+09:00 | #shell-pwsh-utf8 | claude-code | ☐→x | journal/20260928/Bugs/2222_bug_port-win-terminal-utf8-inherit-gui.md | PR #52 — pwsh 5.1·7 모두 65001, 네이티브 한글 왕복 러너 확인 |
 | 2026-09-28T22:23:00+09:00 | #pty-handle-inherit | claude-code | ☐→x | journal/20260928/Bugs/2222_bug_port-win-terminal-utf8-inherit-gui.md | PR #52 — proc::spawn_detached(CreateProcessW, 상속 끔), 대조군 포함 EOF 테스트 |
 | 2026-09-28T22:23:07+09:00 | #pty-job-gui-children | claude-code | ☐→x | journal/20260928/Bugs/2222_bug_port-win-terminal-utf8-inherit-gui.md | PR #52 — 위임 결정대로 GUI 자손 보존·콘솔만 종료, 러너에서 GUI 생존 단언 |
-<!-- oculpm:plan-log archived: 38 rows → cross-platform-port.log.md -->
+| 2026-09-28T22:49:59+09:00 | #fs-crlf-parsers | claude-code | ☐→x | journal/20260928/Bugs/2249_bug_port-crlf-anchor-rename-paths.md | PR #55 — eol.rs 읽기 LF·쓰기 보존, 롤업 CRLF 누락 결함 포함 · 앵커는 줄 끝 |
+| 2026-09-28T22:50:06+09:00 | #fs-files-touched-norm | claude-code | ☐→x | journal/20260928/Bugs/2249_bug_port-crlf-anchor-rename-paths.md | PR #55 — git::touched_path, MCP journal_write·수동 일지 둘 다 |
+| 2026-09-28T22:50:12+09:00 | #fs-rename-pair | claude-code | ☐→x | journal/20260928/Bugs/2249_bug_port-crlf-anchor-rename-paths.md | PR #55 — 이벤트의 모든 경로 처리 + 사전 필터 양쪽, Linux·Windows (macOS 는 #fs-mac-rename-old-name) |
+<!-- oculpm:plan-log archived: 41 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
