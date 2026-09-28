@@ -3928,6 +3928,7 @@ dependencies = [
  "directories",
  "fastembed",
  "futures",
+ "iana-time-zone",
  "if-addrs",
  "ignore",
  "keyring",

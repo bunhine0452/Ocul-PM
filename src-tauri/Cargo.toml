@@ -92,6 +92,9 @@ serde_yaml = "0.9"
 pulldown-cmark = { version = "0.10", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.8"
+# 시스템 IANA 시간대 — `.oculpm` workday 기본값 (#oculpm-default-tz). chrono 의
+# `clock` 기능이 이미 끌어오는 크레이트라 의존성 그래프는 그대로다.
+iana-time-zone = "0.1"
 toml = "0.8"
 toml_edit = "0.20"
 uuid = { version = "1", features = ["v4"] }
