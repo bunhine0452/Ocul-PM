@@ -243,6 +243,8 @@ const TESTS = new Set([
   "__tests__/monaco_semantic_theme.test.ts",
   "__tests__/monaco_prose.test.ts",
   "__tests__/multi_window.test.tsx",
+  // bare 대화상자 가드 ({#no-bare-confirm-gate}) — 한국어 테스트 이름.
+  "__tests__/native_dialogs.test.ts",
   "__tests__/nav_registry.test.ts",
   "__tests__/new_tab_intent.test.ts",
   "__tests__/notion_export_v2.test.tsx",

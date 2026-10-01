@@ -44,6 +44,10 @@ import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
+const BARE_DIALOGS = ["confirm", "alert", "prompt"];
+const DIALOG_HINT =
+  "웹뷰의 bare 대화상자는 묻지 않고 지나간다 — hooks/useConfirm.tsx 를 쓸 것 (lib/nativeDialogs.ts 참고).";
+
 export default tseslint.config(
   {
     // 이 항목은 `ignores` 만 가져 **전역** 무시가 된다 (flat config 규약).
@@ -91,6 +95,18 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
       // 남은 `any` 를 지금 전부 지우게 하지 않는다 — 래칫 대상.
       "@typescript-eslint/no-explicit-any": "warn",
+
+      // bare 브라우저 대화상자 금지 (`{#no-bare-confirm-gate}`). 웹뷰에서
+      // `confirm()` 은 dialog 플러그인이 async 로 덮어써 **truthy Promise** 를
+      // 돌려준다 — 묻지도 않고 "예" 가 된다(`lib/nativeDialogs.ts`). 지역 바인딩
+      // (`const confirm = useConfirm()`)은 전역이 아니라 걸리지 않는다.
+      "no-restricted-globals": ["error", ...BARE_DIALOGS.map((name) => ({ name, message: DIALOG_HINT }))],
+      "no-restricted-properties": [
+        "error",
+        ...["window", "globalThis", "self"].flatMap((object) =>
+          BARE_DIALOGS.map((property) => ({ object, property, message: DIALOG_HINT })),
+        ),
+      ],
     },
   },
 
@@ -103,6 +119,9 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "off",
       // 훅 규칙은 테스트 헬퍼(`renderHook` 콜백 등)에서 오탐이 잦다.
       "react-hooks/exhaustive-deps": "off",
+      // 가드 자체를 시험하려면 `window.confirm` 을 불러야 한다.
+      "no-restricted-globals": "off",
+      "no-restricted-properties": "off",
     },
   },
 
