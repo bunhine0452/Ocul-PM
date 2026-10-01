@@ -3,7 +3,9 @@
 import { useCallback, useState } from "react";
 import type React from "react";
 
-import { commands, type FileJournalEntry } from "@/lib/bindings";
+import type { FileJournalEntry } from "@/lib/bindings";
+import { codeApi } from "@/api/code";
+import { oculpmApi } from "@/api/oculpm";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { toast } from "@/lib/toast";
 import { t } from "@/i18n";
@@ -59,13 +61,13 @@ export function useDiffModes({
     const path = pathRef.current;
     const buf = bufferRef.current;
     if (!path || !buf) return;
-    const res = await commands.codeHeadContent(projectId, path);
+    const head = await codeApi.headContent(projectId, path).catch(() => null);
     if (pathRef.current !== path) return;
-    if (res.status !== "ok" || res.data == null) {
+    if (head == null) {
       toast.info(t("code.diff.noHead"));
       return;
     }
-    setDiffOriginal(normalizeEol(res.data));
+    setDiffOriginal(normalizeEol(head));
     setDiffMode({ kind: "head" });
     setPendingJump({ line: cursorRef.current.line });
     setEditorEpoch((n) => n + 1);
@@ -76,10 +78,9 @@ export function useDiffModes({
       const path = pathRef.current;
       const buf = bufferRef.current;
       if (!path || !buf) return;
-      const res = await commands.oculpmGetEntryDiffs(projectId, entry.journal_path);
+      const diffs = await oculpmApi.getEntryDiffs(projectId, entry.journal_path).catch(() => null);
       if (pathRef.current !== path) return;
-      const filePatch =
-        res.status === "ok" ? res.data.find((d) => d.path === path)?.patch : undefined;
+      const filePatch = diffs?.find((d) => d.path === path)?.patch;
       const before = filePatch ? reverseApplyPatch(buf.text, filePatch) : null;
       if (before == null) {
         // 파일이 그 일지 이후로 더 바뀌어 문맥이 안 맞는다 — 거짓 비교 대신

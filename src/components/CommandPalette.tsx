@@ -19,12 +19,8 @@ import {
 import { useOptionalWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_DESTINATIONS, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
 import { tAll, useT, type I18nKey } from "@/i18n";
-import {
-  commands,
-  type EntityHit,
-  type LspWorkspaceSymbol,
-  type Project,
-} from "@/lib/bindings";
+import type { EntityHit, LspWorkspaceSymbol, Project } from "@/lib/bindings";
+import { lspApi } from "@/api/lsp";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { requestManualEntry } from "@/lib/journalCompose";
@@ -149,14 +145,18 @@ export function CommandPalette({
     // 정리 함수에서 낡은 응답을 버린다.
     let stale = false;
     const timer = window.setTimeout(() => {
-      void commands.oculpmSearchEntities(pid, q, 8).then((res) => {
-        if (stale) return;
-        setEntityHits(res.status === "ok" ? res.data : []);
-      });
-      void commands.lspWorkspaceSymbols(pid, q).then((res) => {
-        if (stale) return;
-        setSymbolHits(res.status === "ok" ? res.data.slice(0, 8) : []);
-      });
+      void oculpmApi
+        .searchEntities(pid, q, 8)
+        .catch((): EntityHit[] => [])
+        .then((hits) => {
+          if (!stale) setEntityHits(hits);
+        });
+      void lspApi
+        .workspaceSymbols(pid, q)
+        .catch((): LspWorkspaceSymbol[] => [])
+        .then((hits) => {
+          if (!stale) setSymbolHits(hits.slice(0, 8));
+        });
     }, 120);
     return () => {
       stale = true;

@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { commands } from "@/lib/bindings";
+import { ptyApi } from "@/api/terminal";
 import { toast } from "@/lib/toast";
 import { requestManualEntry } from "@/lib/journalCompose";
 import { useT } from "@/i18n";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useSaveSetting } from "@/features/settings/saveSetting";
-import { reportFailure, reportRejection } from "@/lib/reportFailure";
+import { reportRejection } from "@/lib/reportFailure";
 import { useTerminalFont } from "./useTerminalFont";
 import { useProjectRuntime, useTerminalSessions, type TerminalTab } from "@/contexts/WorkspaceContext";
 import {
@@ -270,7 +270,7 @@ export function TerminalSurface({
     }
     // 여기가 조용히 실패하면 화면에서는 탭이 사라졌는데 뒤에서 프로세스가
     // 계속 돈다 — 사용자가 알 길이 전혀 없는 결말이다 ({#floating-promises}).
-    for (const sid of sids) reportFailure("kill_pty_session", commands.killPtySession(sid), "term.killFailed");
+    for (const sid of sids) reportRejection(ptyApi.kill(sid), "term.killFailed");
     return true;
   };
 

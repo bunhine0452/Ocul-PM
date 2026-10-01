@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { safeUnlisten } from "@/lib/unlisten";
 import { oculpmApi } from "@/api/oculpm";
-import { commands, events, type GitCommit } from "@/lib/bindings";
+import { gitApi } from "@/api/git";
+import type { GitCommit } from "@/lib/bindings";
 import { useJournalEvents } from "@/features/oculpm/useOculpmLive";
 
 // Today monitoring extras — surfaces data the backend already exposes but Today
@@ -54,10 +55,10 @@ export function useTodayMonitor(
     // Defensive: a failed read degrades the row to "—" placeholders rather than
     // escaping as an unhandled rejection (refresh is called via `void`).
     try {
-      const [sessions, headRes, logRes] = await Promise.all([
+      const [sessions, head, commits] = await Promise.all([
         oculpmApi.listSessions(projectId, workday ?? undefined).catch(() => []),
-        commands.gitHeadStatusBrief(projectId),
-        commands.gitLog(projectId, 50),
+        gitApi.headStatusBrief(projectId).catch(() => null),
+        gitApi.log(projectId, 50).catch((): GitCommit[] => []),
       ]);
 
       // The open session (ended_at == null) carries active_window_ms == 0 until
@@ -75,8 +76,6 @@ export function useTodayMonitor(
           activeMs += x.active_window_ms ?? 0;
         }
       }
-      const head = headRes.status === "ok" ? headRes.data : null;
-      const commits = logRes.status === "ok" ? logRes.data : [];
       const since = startOfTodaySeconds();
 
       setMonitor({
@@ -113,27 +112,16 @@ export function useTodayMonitor(
     if (!enabled) return;
     let active = true;
     const offs: Array<() => void> = [];
-    const sub = (ev: {
-      listen: (
-        cb: (e: { payload: { project_id: number } }) => void,
-      ) => Promise<() => void>;
-    }) => {
-      try {
-        void ev
-          .listen((e) => {
-            if (e.payload.project_id === projectId) void refresh();
-          })
-          .then((off) => {
-            if (active) offs.push(off);
-            else safeUnlisten(off);
-          })
-          .catch(() => {});
-      } catch {
-        /* event channel unavailable */
-      }
+    const onSession = (payload: { project_id: number }) => {
+      if (payload.project_id === projectId) void refresh();
     };
-    sub(events.oculpmSessionStarted);
-    sub(events.oculpmSessionEnded);
+    // 채널이 없는 자리(jsdom)에서는 래퍼가 빈 해제 함수를 준다.
+    for (const pending of [oculpmApi.onSessionStarted(onSession), oculpmApi.onSessionEnded(onSession)]) {
+      void pending.then((off) => {
+        if (active) offs.push(off);
+        else safeUnlisten(off);
+      });
+    }
     return () => {
       active = false;
       offs.forEach(safeUnlisten);

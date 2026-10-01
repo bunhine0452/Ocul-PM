@@ -6,15 +6,16 @@
 // 멈춰 있거나 돌고 있고, 그 사이에 물을 것이 없다.
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  commands,
-  events,
-  type DapBreakpoint,
-  type DapFrame,
-  type DapOutput,
-  type DapSessionInfo,
-  type DapVariable,
+import type {
+  DapBreakpoint,
+  DapFrame,
+  DapLaunchRequest,
+  DapOutput,
+  DapSessionInfo,
+  DapVariable,
 } from "@/lib/bindings";
+import { dapApi, type DapControlAction } from "@/api/dap";
+import { errorDetail } from "@/api/invoke";
 import { safeUnlisten } from "@/lib/unlisten";
 import { oculpmLog } from "@/lib/oculpmLog";
 
@@ -36,9 +37,9 @@ export interface UseDebugResult {
   /** 어댑터가 못 건다고 답한 줄 (파일별). */
   unverifiedFor: (path: string) => number[];
   toggleBreakpoint: (path: string, line: number) => void;
-  start: (request: Parameters<typeof commands.dapStart>[1]) => Promise<string | null>;
+  start: (request: DapLaunchRequest) => Promise<string | null>;
   stop: () => void;
-  control: (action: "continue" | "next" | "step_in" | "step_out" | "pause") => void;
+  control: (action: DapControlAction) => void;
   /** 변수 한 겹 — 트리가 펼칠 때마다 부른다. */
   variables: (reference: number) => Promise<DapVariable[]>;
   /** 최상위 스코프의 변수 (선택 프레임 기준). */
@@ -60,14 +61,20 @@ export function useDebug(projectId: number): UseDebugResult {
   // ── 초기 상태 ───────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
-    void commands.dapSession(projectId).then((res) => {
-      if (!cancelled && res.status === "ok") setSession(res.data);
-    });
-    void commands.dapAllBreakpoints(projectId).then((res) => {
-      // 배열 가드 — 비-Tauri 환경(테스트 목)은 알 수 없는 커맨드에 null 을 준다.
-      if (cancelled || res.status !== "ok" || !Array.isArray(res.data)) return;
-      setBreakpoints(new Map(res.data.map((f) => [f.path, f.lines])));
-    });
+    dapApi.session(projectId).then(
+      (current) => {
+        if (!cancelled) setSession(current);
+      },
+      () => {},
+    );
+    dapApi.allBreakpoints(projectId).then(
+      (files) => {
+        // 배열 가드 — 비-Tauri 환경(테스트 목)은 알 수 없는 커맨드에 null 을 준다.
+        if (cancelled || !Array.isArray(files)) return;
+        setBreakpoints(new Map(files.map((f) => [f.path, f.lines])));
+      },
+      () => {},
+    );
     return () => {
       cancelled = true;
     };
@@ -78,34 +85,28 @@ export function useDebug(projectId: number): UseDebugResult {
     const offs: Array<() => void> = [];
     let active = true;
     const keep = (off: () => void) => (active ? offs.push(off) : safeUnlisten(off));
-    try {
-      void events.dapSessionChanged
-        .listen((e) => {
-          if (e.payload.project_id !== projectId) return;
-          setSession(e.payload.session);
-        })
-        .then(keep)
-        .catch(() => {});
-      void events.dapOutputEmitted
-        .listen((e) => {
-          if (e.payload.project_id !== projectId) return;
-          setOutput((prev) => {
-            const next = [...prev, e.payload.output];
-            return next.length > OUTPUT_CAP ? next.slice(next.length - OUTPUT_CAP) : next;
-          });
-        })
-        .then(keep)
-        .catch(() => {});
-      void events.dapBreakpointsChanged
-        .listen((e) => {
-          if (e.payload.project_id !== projectId) return;
-          applyConfirmed(e.payload.breakpoints, setBreakpoints, setUnverified);
-        })
-        .then(keep)
-        .catch(() => {});
-    } catch {
-      /* jsdom / 비-Tauri — 라이브 갱신만 없다 */
-    }
+    // jsdom / 비-Tauri 에서는 래퍼가 빈 해제 함수를 준다 — 라이브 갱신만 없다.
+    void dapApi
+      .onSessionChanged((payload) => {
+        if (payload.project_id !== projectId) return;
+        setSession(payload.session);
+      })
+      .then(keep);
+    void dapApi
+      .onOutput((payload) => {
+        if (payload.project_id !== projectId) return;
+        setOutput((prev) => {
+          const next = [...prev, payload.output];
+          return next.length > OUTPUT_CAP ? next.slice(next.length - OUTPUT_CAP) : next;
+        });
+      })
+      .then(keep);
+    void dapApi
+      .onBreakpointsChanged((payload) => {
+        if (payload.project_id !== projectId) return;
+        applyConfirmed(payload.breakpoints, setBreakpoints, setUnverified);
+      })
+      .then(keep);
     return () => {
       active = false;
       offs.forEach(safeUnlisten);
@@ -122,13 +123,16 @@ export function useDebug(projectId: number): UseDebugResult {
       return;
     }
     let cancelled = false;
-    void commands.dapStack(projectId).then((res) => {
-      if (cancelled || res.status !== "ok") return;
-      setFrames(res.data);
-      // 멈추면 **맨 위 프레임**을 자동으로 고른다 — 사용자가 매번 누르게 하면
-      // 스텝마다 손이 한 번씩 더 간다.
-      setSelectedFrameId(res.data[0]?.id ?? null);
-    });
+    dapApi.stack(projectId).then(
+      (stack) => {
+        if (cancelled) return;
+        setFrames(stack);
+        // 멈추면 **맨 위 프레임**을 자동으로 고른다 — 사용자가 매번 누르게 하면
+        // 스텝마다 손이 한 번씩 더 간다.
+        setSelectedFrameId(stack[0]?.id ?? null);
+      },
+      () => {},
+    );
     return () => {
       cancelled = true;
     };
@@ -141,19 +145,22 @@ export function useDebug(projectId: number): UseDebugResult {
       return;
     }
     let cancelled = false;
-    void commands.dapScopes(projectId, selectedFrameId).then((res) => {
-      if (cancelled || res.status !== "ok") return;
-      setScopeRoots(
-        res.data.map((s) => ({
+    dapApi.scopes(projectId, selectedFrameId).then(
+      (scopes) => {
+        if (cancelled) return;
+        setScopeRoots(
+          scopes.map((s) => ({
           name: s.name,
           // specta 는 `f64` 를 `number | null` 로 내보낸다 (NaN·Infinity 가
           // JSON 에 없어서). 우리 값은 정수를 캐스팅한 것이라 null 이 될 수
           // 없지만, 타입을 좁혀 두어야 아래 전부가 깨끗해진다.
           reference: s.variables_reference ?? 0,
           expensive: s.expensive,
-        })),
-      );
-    });
+          })),
+        );
+      },
+      () => {},
+    );
     return () => {
       cancelled = true;
     };
@@ -162,27 +169,30 @@ export function useDebug(projectId: number): UseDebugResult {
   // ── 조작 ────────────────────────────────────────────────────────────────
   const toggleBreakpoint = useCallback(
     (path: string, line: number) => {
-      void commands.dapToggleBreakpoint(projectId, path, line).then((res) => {
-        if (res.status !== "ok") {
-          oculpmLog.error("dap", `toggleBreakpoint failed: ${res.error}`, { path, line });
-          return;
-        }
-        setBreakpoints((prev) => new Map(prev).set(path, res.data));
-        // 껐다 켠 줄의 "못 건다" 표시는 확정 응답이 다시 정한다.
-        setUnverified((prev) => {
-          const kept = (prev.get(path) ?? []).filter((l) => res.data.includes(l));
-          return new Map(prev).set(path, kept);
-        });
-      });
+      dapApi.toggleBreakpoint(projectId, path, line).then(
+        (lines) => {
+          setBreakpoints((prev) => new Map(prev).set(path, lines));
+          // 껐다 켠 줄의 "못 건다" 표시는 확정 응답이 다시 정한다.
+          setUnverified((prev) => {
+            const kept = (prev.get(path) ?? []).filter((l) => lines.includes(l));
+            return new Map(prev).set(path, kept);
+          });
+        },
+        (e: unknown) => oculpmLog.error("dap", `toggleBreakpoint failed: ${errorDetail(e)}`, { path, line }),
+      );
     },
     [projectId],
   );
 
   const start = useCallback(
-    async (request: Parameters<typeof commands.dapStart>[1]) => {
-      const res = await commands.dapStart(projectId, request);
-      if (res.status === "error") return res.error;
-      setSession(res.data);
+    async (request: DapLaunchRequest) => {
+      let started: DapSessionInfo;
+      try {
+        started = await dapApi.start(projectId, request);
+      } catch (e) {
+        return errorDetail(e);
+      }
+      setSession(started);
       setOutput([]);
       return null;
     },
@@ -190,22 +200,24 @@ export function useDebug(projectId: number): UseDebugResult {
   );
 
   const stop = useCallback(() => {
-    void commands.dapStop(projectId).then(() => setSession(null));
+    void dapApi
+      .stop(projectId)
+      .catch(() => null)
+      .then(() => setSession(null));
   }, [projectId]);
 
   const control = useCallback(
-    (action: "continue" | "next" | "step_in" | "step_out" | "pause") => {
-      void commands.dapControl(projectId, action).then((res) => {
-        if (res.status === "error") oculpmLog.error("dap", `dapControl failed: ${res.error}`, { action });
-      });
+    (action: DapControlAction) => {
+      dapApi
+        .control(projectId, action)
+        .catch((e: unknown) => oculpmLog.error("dap", `dapControl failed: ${errorDetail(e)}`, { action }));
     },
     [projectId],
   );
 
   const variables = useCallback(
     async (reference: number) => {
-      const res = await commands.dapVariables(projectId, reference);
-      return res.status === "ok" ? res.data : [];
+      return dapApi.variables(projectId, reference).catch(() => []);
     },
     [projectId],
   );

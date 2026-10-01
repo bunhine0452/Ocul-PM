@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Clipboard, NotebookPen, Puzzle, Target, Terminal } from "@/components/Icons";
-import { commands, type PlanPhaseDto, type PlanSummary } from "@/lib/bindings";
+import type { PlanPhaseDto, PlanSummary } from "@/lib/bindings";
+import { errorDetail } from "@/api/invoke";
+import { planApi } from "@/api/plan";
 import { toast } from "@/lib/toast";
 import { requestManualEntry } from "@/lib/journalCompose";
 import { requestAgentContext } from "@/lib/agentContextNav";
@@ -108,14 +110,13 @@ export function TerminalBlockMenu({
     if (projectId == null) return;
     setView("plans");
     if (plans) return;
-    void commands.planList(projectId).then((res) => {
-      if (res.status === "error") {
-        toast.destructive(t("term.block.planLoadFailed", { error: res.error }));
+    planApi.list(projectId).then(
+      (found) => setPlans(found.filter((candidate) => candidate.status === "active")),
+      (e: unknown) => {
+        toast.destructive(t("term.block.planLoadFailed", { error: errorDetail(e) }));
         onClose();
-        return;
-      }
-      setPlans(res.data.filter((candidate) => candidate.status === "active"));
-    });
+      },
+    );
   };
 
   const openPhases = (chosen: PlanSummary) => {
@@ -123,30 +124,32 @@ export function TerminalBlockMenu({
     setPlan(chosen);
     setPhases(null);
     setView("phases");
-    void commands.planGet(projectId, chosen.plan_id).then((res) => {
-      if (res.status === "error" || !res.data) {
-        toast.destructive(t("term.block.planLoadFailed", { error: String(res.status) }));
+    planApi
+      .get(projectId, chosen.plan_id)
+      .then((detail) => {
+        if (!detail) throw new Error("not found");
+        setPhases(detail.phases);
+      })
+      .catch((e: unknown) => {
+        toast.destructive(t("term.block.planLoadFailed", { error: errorDetail(e) }));
         onClose();
-        return;
-      }
-      setPhases(res.data.phases);
-    });
+      });
   };
 
   const attach = (phase: PlanPhaseDto) => {
     if (projectId == null || !plan || busy) return;
     setBusy(true);
-    void commands
-      .planApplyEdit(
+    void planApi
+      .applyEdit(
         projectId,
         plan.plan_id,
         { kind: "add_item", phase: phase.name, title: blockTitle(block.command), item_id: null, status: null },
         "claude-code",
       )
-      .then((res) => {
-        if (res.status === "error") toast.destructive(t("term.block.attachFailed", { error: res.error }));
-        else toast.info(t("term.block.attached", { plan: plan.title, phase: phase.name }));
-      })
+      .then(
+        () => toast.info(t("term.block.attached", { plan: plan.title, phase: phase.name })),
+        (e: unknown) => toast.destructive(t("term.block.attachFailed", { error: errorDetail(e) })),
+      )
       .finally(() => {
         setBusy(false);
         onClose();

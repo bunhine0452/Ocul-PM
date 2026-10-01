@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { commands } from "@/lib/bindings";
+import { oculpmApi } from "@/api/oculpm";
+import { errorDetail } from "@/api/invoke";
 import { toast } from "@/lib/toast";
 import { oculpmLog } from "@/lib/oculpmLog";
 import { requestManualEntry } from "@/lib/journalCompose";
@@ -82,11 +83,9 @@ export function useAgentRuns(
     const signal = (started: boolean, agent: AgentRun) => {
       const pid = projectIdRef.current;
       if (pid == null) return;
-      void commands.oculpmAgentRunSignal(pid, started, agent.id).then((res) => {
-        if (res.status === "error") {
-          // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
-          oculpmLog.error("terminal", `에이전트 세션 신호 실패: ${res.error.detail ?? res.error.code}`);
-        }
+      oculpmApi.agentRunSignal(pid, started, agent.id).catch((e: unknown) => {
+        // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
+        oculpmLog.error("terminal", `에이전트 세션 신호 실패: ${errorDetail(e)}`);
       });
     };
 

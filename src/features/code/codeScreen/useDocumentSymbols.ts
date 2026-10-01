@@ -3,7 +3,8 @@
 // `CodeScreenV2` 에서 그대로 들어냈다 (optimization-round-2 {#split-codescreen}) — 동작 불변.
 import { useEffect, useState } from "react";
 
-import { commands, type LspSymbol } from "@/lib/bindings";
+import type { LspSymbol } from "@/lib/bindings";
+import { lspApi } from "@/api/lsp";
 
 interface UseDocumentSymbolsArgs {
   projectId: number;
@@ -26,11 +27,14 @@ export function useDocumentSymbols({ projectId, selected, wanted }: UseDocumentS
     }
     let cancelled = false;
     setSymbolsLoading(true);
-    void commands.lspDocumentSymbols(projectId, selected).then((res) => {
-      if (cancelled) return;
-      setSymbolsLoading(false);
-      setSymbols(res.status === "ok" ? res.data : []);
-    });
+    void lspApi
+      .documentSymbols(projectId, selected)
+      .catch(() => [])
+      .then((found) => {
+        if (cancelled) return;
+        setSymbolsLoading(false);
+        setSymbols(found);
+      });
     return () => {
       cancelled = true;
     };

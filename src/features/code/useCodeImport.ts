@@ -8,7 +8,8 @@
 // 그 뒤는 `code_import` 하나로 합류한다.
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { commands } from "@/lib/bindings";
+import { codeApi } from "@/api/code";
+import { toAppError } from "@/api/invoke";
 import { toast } from "@/lib/toast";
 import { safeUnlisten } from "@/lib/unlisten";
 import { t } from "@/i18n";
@@ -58,12 +59,12 @@ export function useCodeImport({
       if (!sources.length || busyRef.current) return;
       busyRef.current = true;
       try {
-        const res = await commands.codeImport(projectId, destDir, sources);
-        if (res.status === "error") {
-          toast.destructive(t("code.import.failed", { error: tError(res.error) }));
-          return;
-        }
-        const { imported, skipped, truncated } = res.data;
+        const result = await codeApi.import(projectId, destDir, sources).catch((e: unknown) => {
+          toast.destructive(t("code.import.failed", { error: tError(toAppError(e)) }));
+          return null;
+        });
+        if (!result) return;
+        const { imported, skipped, truncated } = result;
         if (imported.length) {
           toast.info(
             t("code.import.done", {
@@ -134,16 +135,15 @@ export function useCodeImport({
 
   const pasteFiles = useCallback(() => {
     void (async () => {
-      const res = await commands.codeClipboardFiles();
       // 읽지 못했다고 백엔드가 **말한** 경우(Linux 미지원·Windows 클립보드 점유) — 조용히
       // 지나가면 "복사한 파일이 없다" 와 구별되지 않는다 ({#ui-followups}). macOS 는 이 갈래가 없다.
-      if (res.status === "error") {
-        toast.warning(tError(res.error));
-        return;
-      }
+      const files = await codeApi.clipboardFiles().catch((e: unknown) => {
+        toast.warning(tError(toAppError(e)));
+        return null;
+      });
       // 글자를 복사해 둔 상태의 ⌘V — 아무 일도 없는 것이 맞다.
-      if (!res.data.length) return;
-      void runImport(importDestDir(null, selectedRef.current), res.data);
+      if (!files?.length) return;
+      void runImport(importDestDir(null, selectedRef.current), files);
     })();
   }, [runImport]);
 

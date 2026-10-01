@@ -1,6 +1,8 @@
 import { useConfirm } from "@/hooks/useConfirm";
 import { useCallback, useEffect, useState } from "react";
-import { commands, type Conversation } from "@/lib/bindings";
+import type { Conversation } from "@/lib/bindings";
+import { conversationsApi } from "@/api/conversations";
+import { errorDetail } from "@/api/invoke";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { Plus, Trash2, MessageSquare } from "@/components/Icons";
 import { EmptyState } from "@/components/EmptyState";
@@ -53,17 +55,17 @@ export function ConversationHistoryModal({
   const [convs, setConvs] = useState<Conversation[] | null>(null);
 
   const load = useCallback(async () => {
-    const res = await commands.conversationList(projectId);
-    if (res.status === "ok") {
-      const sorted = [...res.data].sort(
+    try {
+      const found = await conversationsApi.list(projectId);
+      const sorted = [...found].sort(
         (a, b) =>
           (b.last_message_at ?? b.updated_at ?? b.created_at) -
           (a.last_message_at ?? a.updated_at ?? a.created_at),
       );
       setConvs(sorted);
-    } else {
+    } catch (e) {
       setConvs([]);
-      toast.destructive(t("chat.listFailed", { error: res.error }));
+      toast.destructive(t("chat.listFailed", { error: errorDetail(e) }));
     }
   }, [projectId, t]);
 
@@ -76,14 +78,15 @@ export function ConversationHistoryModal({
   const remove = async (id: number) => {
     // 대화 삭제는 되돌릴 수 없는데 확인 없이 지워졌다 (2026-08-30 감사).
     if (!(await confirm({ title: t("chat.deleteConfirm"), danger: true }))) return;
-    const res = await commands.conversationDelete(id);
-    if (res.status === "ok") {
-      toast.info(t("chat.deleted"));
-      await load();
-      if (id === activeId) onActiveDeleted();
-    } else {
-      toast.destructive(t("chat.deleteFailed", { error: res.error }));
+    try {
+      await conversationsApi.delete(id);
+    } catch (e) {
+      toast.destructive(t("chat.deleteFailed", { error: errorDetail(e) }));
+      return;
     }
+    toast.info(t("chat.deleted"));
+    await load();
+    if (id === activeId) onActiveDeleted();
   };
 
   return (

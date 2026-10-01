@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { commands, type GitGraphCommit } from "@/lib/bindings";
+import type { GitGraphCommit } from "@/lib/bindings";
+import { fileOpenApi } from "@/api/fileOpen";
+import { gitApi } from "@/api/git";
 import { EmptyState } from "@/components/EmptyState";
 import { GitBranch, RefreshCw, Tag, TriangleAlert } from "@/components/Icons";
 import { computeGitGraph, type GraphRow } from "./gitGraph";
@@ -59,24 +61,15 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
   const refresh = useCallback(async () => {
     if (!enabled) return;
     setLoading(true);
-    const [graphRes, statusRes] = await Promise.all([
-      commands.gitGraph(projectId, GRAPH_LIMIT),
-      commands.gitStatus(projectId),
+    const [graph, status] = await Promise.all([
+      gitApi.graph(projectId, GRAPH_LIMIT).catch(() => null),
+      gitApi.status(projectId).catch(() => null),
     ]);
-    if (graphRes.status === "ok") {
-      setCommits(graphRes.data);
-      setIsRepo(true);
-    } else {
-      setCommits([]);
-      setIsRepo(false);
-    }
+    setCommits(graph ?? []);
+    setIsRepo(graph != null);
     // Find a GitHub remote so commits can be opened on the web.
-    if (statusRes.status === "ok") {
-      const gh = statusRes.data.remotes.find((r) => r.host === "github.com" && r.owner && r.repo);
-      setGhBase(gh ? `https://github.com/${gh.owner}/${gh.repo}` : null);
-    } else {
-      setGhBase(null);
-    }
+    const gh = status?.remotes.find((r) => r.host === "github.com" && r.owner && r.repo);
+    setGhBase(gh ? `https://github.com/${gh.owner}/${gh.repo}` : null);
     setLoading(false);
   }, [projectId, enabled]);
 
@@ -86,7 +79,7 @@ export function TodayGitGraph({ projectId, enabled }: { projectId: number; enabl
 
   const openCommit = (sha: string) => {
     if (!ghBase) return;
-    void commands.openUrl(`${ghBase}/commit/${sha}`);
+    void fileOpenApi.url(`${ghBase}/commit/${sha}`).catch(() => {});
   };
 
   // Not a git repo → tell the user why the graph is empty (rather than silently

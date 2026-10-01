@@ -3,7 +3,9 @@
 // `CodeScreenV2` 에서 그대로 들어냈다 (optimization-round-2 {#split-codescreen}) — 동작 불변.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { commands, type CodeTree as CodeTreeData } from "@/lib/bindings";
+import type { CodeTree as CodeTreeData } from "@/lib/bindings";
+import { codeApi } from "@/api/code";
+import { toAppError } from "@/api/invoke";
 import { toast } from "@/lib/toast";
 import { t } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -60,21 +62,25 @@ export function useCodeTree({ projectId, tabsRef, setTabs, selected, refreshDirt
         next.add(dirPath);
         return next;
       });
-      void commands.codeDir(projectId, dirPath).then((res) => {
+      const settle = () =>
         setLoadingDirs((prev) => {
           const next = new Set(prev);
           next.delete(dirPath);
           return next;
         });
-        if (res.status === "ok") {
-          setDirCache((prev) => new Map(prev).set(dirPath, res.data.entries));
-          if (res.data.truncated) toast.warning(t("code.tree.dirTruncated", { dir: dirPath || "/" }));
-        } else {
+      codeApi.dir(projectId, dirPath).then(
+        (listing) => {
+          settle();
+          setDirCache((prev) => new Map(prev).set(dirPath, listing.entries));
+          if (listing.truncated) toast.warning(t("code.tree.dirTruncated", { dir: dirPath || "/" }));
+        },
+        (e: unknown) => {
+          settle();
           // 조용히 빈 폴더로 보이게 두지 않는다 — 읽기 실패는 말한다.
-          toast.destructive(t("code.tree.dirFailed", { error: tError(res.error) }));
+          toast.destructive(t("code.tree.dirFailed", { error: tError(toAppError(e)) }));
           setDirCache((prev) => new Map(prev).set(dirPath, []));
-        }
-      });
+        },
+      );
     },
     [projectId],
   );
@@ -92,15 +98,17 @@ export function useCodeTree({ projectId, tabsRef, setTabs, selected, refreshDirt
         setTreeStatus("loading");
         setTreeError(null);
       }
-      void commands.codeTree(projectId).then((res) => {
-        if (res.status === "ok") {
-          setTree(res.data);
+      codeApi.tree(projectId).then(
+        (tree) => {
+          setTree(tree);
           setTreeStatus("ready");
-        } else if (!silent) {
-          setTreeError(tError(res.error));
+        },
+        (e: unknown) => {
+          if (silent) return;
+          setTreeError(tError(toAppError(e)));
           setTreeStatus("error");
-        }
-      });
+        },
+      );
     },
     [projectId],
   );
@@ -133,8 +141,11 @@ export function useCodeTree({ projectId, tabsRef, setTabs, selected, refreshDirt
     if (suspects.length === 0) return;
     void (async () => {
       for (const path of suspects) {
-        const res = await commands.codeRead(projectId, path);
-        if (res.status === "error") setTabs((prev) => closeOpenPath(prev, path, false));
+        const gone = await codeApi.read(projectId, path).then(
+          () => false,
+          () => true,
+        );
+        if (gone) setTabs((prev) => closeOpenPath(prev, path, false));
       }
     })();
     // `tabsRef`·`setTabs` 는 정체가 고정된 ref·setter — 적혀 있어도 재실행 조건은 그대로다.

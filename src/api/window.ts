@@ -9,8 +9,8 @@
  * 그 파일들을 손볼 때다.
  */
 
-import { call } from "@/api/invoke";
-import { commands } from "@/lib/bindings";
+import { call, subscribe } from "@/api/invoke";
+import { commands, events, type NewTabIntent } from "@/lib/bindings";
 
 export const windowApi = {
   /**
@@ -40,4 +40,10 @@ export const windowApi = {
    * (`commands/new_window.rs`). Windows·Linux 의 Ctrl+Shift+N 이 부른다 ({#os-new-window}).
    */
   newWindow: () => call<null>("new_window", commands.newWindow()),
+
+  /**
+   * 메뉴의 「새 탭」(⌘T) — 페이로드의 `window` 가 자기 창 라벨일 때만 반응한다.
+   * 구독 해제 함수를 돌려준다.
+   */
+  onNewTabIntent: (cb: (payload: NewTabIntent) => void) => subscribe(events.newTabIntent, cb),
 };

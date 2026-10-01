@@ -1,5 +1,5 @@
 import { SquareTerminal } from "@/components/Icons";
-import { commands } from "@/lib/bindings";
+import { terminalWindowApi } from "@/api/terminal";
 import { useT } from "@/i18n";
 
 // 터미널이 분리 창에 나가 있을 때 앱 안에 남는 자리표시자 (2026-08-15).
@@ -20,7 +20,7 @@ export function TerminalAway({ projectId }: TerminalAwayProps) {
       <SquareTerminal size={22} color="var(--text-3)" />
       <p>{t("term.dock.awayTitle")}</p>
       <span>{t("term.dock.awayHint")}</span>
-      <button type="button" className="btn" onClick={() => void commands.closeTerminalWindow(projectId)}>
+      <button type="button" className="btn" onClick={() => void terminalWindowApi.close(projectId).catch(() => {})}>
         {t("term.dock.reattach")}
       </button>
     </div>

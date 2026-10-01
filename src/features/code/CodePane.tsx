@@ -21,7 +21,10 @@ import {
   useState,
 } from "react";
 
-import { commands, type FileJournalEntry, type LspSymbol } from "@/lib/bindings";
+import type { FileJournalEntry, LspSymbol } from "@/lib/bindings";
+import { codeApi } from "@/api/code";
+import { fileOpenApi } from "@/api/fileOpen";
+import { errorDetail, toAppError } from "@/api/invoke";
 import { useSettings } from "@/contexts/SettingsContext";
 import { clampStickyMax } from "@/lib/settings";
 import { toast } from "@/lib/toast";
@@ -306,13 +309,14 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
         showUneditable({ kind: "preview", preview });
         return;
       }
-      const res = await commands.codeRead(projectId, path);
-      if (pathRef.current !== path) return; // 그 사이 다른 파일로 이동
-      if (res.status === "error") {
-        setFileView({ kind: "error", message: tError(res.error) });
+      let data;
+      try {
+        data = await codeApi.read(projectId, path);
+      } catch (e) {
+        if (pathRef.current === path) setFileView({ kind: "error", message: tError(toAppError(e)) });
         return;
       }
-      const data = res.data;
+      if (pathRef.current !== path) return; // 그 사이 다른 파일로 이동
       if (data.too_large) {
         showUneditable({ kind: "tooLarge", bytes: data.bytes });
         return;
@@ -395,10 +399,13 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     }
     void loadFile(activePath);
     // 이 파일을 만진 일지들 — 실패는 빈 목록으로 접는다 (칩이 안 뜰 뿐).
-    void commands.codeFileEntries(projectId, activePath).then((res) => {
-      if (pathRef.current !== activePath) return;
-      setFileEntries(res.status === "ok" && Array.isArray(res.data) ? res.data : []);
-    });
+    void codeApi
+      .fileEntries(projectId, activePath)
+      .catch(() => [])
+      .then((entries) => {
+        if (pathRef.current !== activePath) return;
+        setFileEntries(Array.isArray(entries) ? entries : []);
+      });
   }, [activePath, loadFile, projectId, setDiffMode, setDiffOriginal, setGitChanges]);
 
   /**
@@ -538,13 +545,9 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   const openExternal = useCallback(async () => {
     const path = pathRef.current;
     if (!projectRoot || !path) return;
-    const res = await commands.openInEditor(
-      projectRoot,
-      path,
-      settings.externalEditorCommand,
-      cursorRef.current.line,
-    );
-    if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
+    await fileOpenApi
+      .inExternalEditor(projectRoot, path, settings.externalEditorCommand, cursorRef.current.line)
+      .catch((e: unknown) => toast.destructive(t("diff.editorFailed", { error: errorDetail(e) })));
   }, [projectRoot, settings.externalEditorCommand]);
   externalRef.current = () => void openExternal();
 

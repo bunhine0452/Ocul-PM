@@ -8,14 +8,8 @@ import { memo, useCallback, useEffect, useState } from "react";
 import { X, Play, Square, ArrowDown, ArrowRight, ArrowUp, ChevronRight } from "@/components/Icons";
 import { t, useT } from "@/i18n";
 import { blocked } from "@/lib/blocked";
-import {
-  commands,
-  type DapAdapterInfo,
-  type DapFrame,
-  type DapOutput,
-  type DapSessionInfo,
-  type DapVariable,
-} from "@/lib/bindings";
+import type { DapAdapterInfo, DapFrame, DapOutput, DapSessionInfo, DapVariable } from "@/lib/bindings";
+import { dapApi } from "@/api/dap";
 
 interface CodeDebugPanelProps {
   session: DapSessionInfo | null;
@@ -58,14 +52,14 @@ export const CodeDebugPanel = memo(function CodeDebugPanel({
   useEffect(() => {
     if (live) return;
     let alive = true;
-    void commands
-      .dapAdapters()
-      .then((res) => {
-        if (alive && res.status === "ok") setAdapters(res.data);
-      })
-      .catch(() => {
+    dapApi.adapters().then(
+      (found) => {
+        if (alive) setAdapters(found);
+      },
+      () => {
         /* 보조 정보 — 실패해도 패널은 그대로 */
-      });
+      },
+    );
     return () => {
       alive = false;
     };

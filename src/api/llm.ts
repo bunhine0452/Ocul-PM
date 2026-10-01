@@ -1,14 +1,14 @@
 /**
- * `llmApi` — 프로바이더 도달성 + **한 번짜리** 채팅.
+ * `llmApi` — 프로바이더 도달성 + 채팅 (한 번짜리·스트리밍).
  *
- * 스트리밍 채팅(`commands.chatStream`)은 여전히 직접 호출이다: Channel 이 봉투
- * 밖으로 나가므로 `call` 래퍼의 모양과 맞지 않는다. 반대로 한 번짜리 `chat` 은
- * 봉투 그대로라 여기 산다 (⌘K 인라인 편집이 쓴다).
+ * 스트리밍도 `call` 을 지난다 (2026-10-01 `{#api-facades}`): 조각은 인자로 넘긴
+ * Channel 로 흘러오고, 반환 봉투는 "다 보냈다/실패했다" 하나뿐이라 모양이 같다.
  */
 
 import { call, type Envelope } from "@/api/invoke";
 import { commands, events } from "@/lib/bindings";
 import type {
+  ChatEvent,
   ChatOptions,
   ChatResponse,
   LlmBackgroundFailed,
@@ -17,6 +17,7 @@ import type {
   ProviderModel,
   ProviderReach,
 } from "@/lib/bindings";
+import type { Channel } from "@tauri-apps/api/core";
 import type { Provider } from "@/lib/settings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -70,4 +71,17 @@ export const llmApi = {
     fallbacks: ProviderModel[],
   ): Promise<ChatResponse> =>
     unwrap<ChatResponse>("chat", commands.chat(provider, messages, options, fallbacks)),
+
+  /**
+   * 스트리밍 채팅 — 조각은 `onEvent` 로 오고, 풀리는 순간은 백엔드가 다 보낸 때다.
+   * 실패(키 없음·폴백 소진·전송 실패)는 `ApiError` 하나로 던진다.
+   */
+  stream: (
+    provider: string,
+    messages: Message[],
+    options: ChatOptions,
+    fallbacks: ProviderModel[],
+    onEvent: Channel<ChatEvent>,
+  ): Promise<null> =>
+    unwrap<null>("chat_stream", commands.chatStream(provider, messages, options, fallbacks, onEvent)),
 };
