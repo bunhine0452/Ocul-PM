@@ -5,6 +5,7 @@ import { Toaster } from "./components/ui/Toaster";
 import { parseWindowRoute } from "./lib/windowRoute";
 import { installExternalLinkGuard } from "./lib/externalLinks";
 import { installNativeDragGuard } from "./lib/nativeDrag";
+import { installNativeDialogGuard } from "./lib/nativeDialogs";
 import { getPlatform, isMac } from "./lib/platform";
 import { bootI18n } from "./i18n";
 import { commands } from "./lib/bindings";
@@ -54,6 +55,11 @@ if (import.meta.env.DEV) {
 // 탈출구 (#mb2-smoke). SettingsProvider 는 올리지 않는다 — settings_get_all 이
 // 모바일 화이트리스트 밖이라 401/404 소음만 낸다.
 const isWebview = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+// bare `confirm()` 는 웹뷰에서 묻지도 않고 "예" 가 된다 — dialog 플러그인이 async 로
+// 덮어써 truthy Promise 를 돌려준다(nativeDialogs.ts). 브라우저(모바일)의 진짜
+// 동기 대화상자는 건드리지 않는다.
+if (isWebview) installNativeDialogGuard();
 
 // 언어 사전은 동적 청크다 (완성도 라운드 Phase 3) — 설정의 언어를 읽어 그 사전
 // 하나를 받은 뒤 그린다. 웹뷰 밖(모바일)에선 설정 IPC 가 없으니 OS 로케일.
