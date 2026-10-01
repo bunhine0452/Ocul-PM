@@ -2,7 +2,7 @@
 // `CodeScreenV2` 에서 그대로 들어냈다 (optimization-round-2 {#split-codescreen}) — 동작 불변.
 import { useEffect } from "react";
 
-import { commands, events } from "@/lib/bindings";
+import { lspApi } from "@/api/lsp";
 import { safeUnlisten } from "@/lib/unlisten";
 
 import { problemsStore } from "../problemsStore";
@@ -17,21 +17,20 @@ export function useProblemsFeed(projectId: number): void {
     const offs: Array<() => void> = [];
     let active = true;
     const keep = (off: () => void) => (active ? offs.push(off) : safeUnlisten(off));
-    try {
-      void events.lspDiagnosticsPublished
-        .listen((e) => {
-          if (e.payload.project_id !== projectId) return;
-          problemsStore.applyPublished(e.payload);
-        })
-        .then(keep)
-        .catch(() => {});
-    } catch {
-      /* jsdom / 비-Tauri — 라이브 갱신만 없다 */
-    }
-    void commands.lspDiagnosticsSnapshot(projectId).then((res) => {
-      if (!active || res.status !== "ok" || !Array.isArray(res.data)) return;
-      problemsStore.seed(projectId, res.data);
-    });
+    // jsdom / 비-Tauri 에서는 래퍼가 빈 해제 함수를 준다 — 라이브 갱신만 없다.
+    void lspApi
+      .onDiagnostics((payload) => {
+        if (payload.project_id !== projectId) return;
+        problemsStore.applyPublished(payload);
+      })
+      .then(keep);
+    lspApi.diagnosticsSnapshot(projectId).then(
+      (snapshot) => {
+        if (!active || !Array.isArray(snapshot)) return;
+        problemsStore.seed(projectId, snapshot);
+      },
+      () => {},
+    );
     return () => {
       active = false;
       for (const off of offs) safeUnlisten(off);

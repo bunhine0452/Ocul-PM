@@ -14,7 +14,9 @@ import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import type { ChangeGroup, ImpactReport } from "@/lib/bindings";
-import { commands } from "@/lib/bindings";
+import { toAppError } from "@/api/invoke";
+import { diffApi } from "@/api/diff";
+import { gitApi } from "@/api/git";
 import { useRecentChanges, type RecentChange } from "@/lib/recentChangesStore";
 import { toast } from "@/lib/toast";
 import { autoBaseline, mergeChanges, toBaselineChanges, type DiffBaseline } from "./changeList";
@@ -91,17 +93,17 @@ export function useDiffChanges(projectId: number): DiffChanges {
   useEffect(() => {
     let cancelled = false;
     setListLoading(true);
-    commands
-      .gitUncommittedChanges(projectId)
-      .then((res) => {
+    gitApi
+      .uncommittedChanges(projectId)
+      .then((data) => {
         if (cancelled) return;
-        setGitChanges(res.status === "ok" ? toBaselineChanges(res.data) : []);
-        setListError(res.status === "ok" ? null : tError(res.error));
+        setGitChanges(toBaselineChanges(data));
+        setListError(null);
       })
       .catch((e) => {
         if (cancelled) return;
         setGitChanges([]);
-        setListError(String(e));
+        setListError(tError(toAppError(e)));
       })
       .finally(() => !cancelled && setListLoading(false));
     return () => {
@@ -114,18 +116,16 @@ export function useDiffChanges(projectId: number): DiffChanges {
 
   useEffect(() => {
     let cancelled = false;
-    commands
-      .gitLastCommitChanges(projectId)
-      .then((res) => {
-        if (cancelled) return;
-        setLastCommit(res.status === "ok" ? res.data : null);
-        // git status 가 이미 말한 실패를 덮지 않는다 — 먼저 온 사유가 더 가깝다.
-        if (res.status !== "ok") setListError((prev) => prev ?? tError(res.error));
+    gitApi
+      .lastCommitChanges(projectId)
+      .then((data) => {
+        if (!cancelled) setLastCommit(data);
       })
       .catch((e) => {
         if (cancelled) return;
         setLastCommit(null);
-        setListError((prev) => prev ?? String(e));
+        // git status 가 이미 말한 실패를 덮지 않는다 — 먼저 온 사유가 더 가깝다.
+        setListError((prev) => prev ?? tError(toAppError(e)));
       });
     return () => {
       cancelled = true;
@@ -174,17 +174,15 @@ export function useDiffChanges(projectId: number): DiffChanges {
     let cancelled = false;
     setEnrichError(null);
     const paths = changesRef.current.map((c) => c.path);
-    commands
-      .oculpmGroupChanges(projectId, paths)
-      .then((res) => {
-        if (cancelled) return;
-        setGroups(res.status === "ok" ? res.data : null);
-        if (res.status !== "ok") setEnrichError(tError(res.error));
+    diffApi
+      .groupChanges(projectId, paths)
+      .then((data) => {
+        if (!cancelled) setGroups(data);
       })
       .catch((e) => {
         if (cancelled) return;
         setGroups(null);
-        setEnrichError(String(e));
+        setEnrichError(tError(toAppError(e)));
       });
     return () => {
       cancelled = true;
@@ -198,17 +196,15 @@ export function useDiffChanges(projectId: number): DiffChanges {
     }
     let cancelled = false;
     const paths = changesRef.current.map((c) => c.path);
-    commands
-      .getChangeImpact(projectId, paths)
-      .then((res) => {
-        if (cancelled) return;
-        setImpact(res.status === "ok" ? res.data : null);
-        if (res.status !== "ok") setEnrichError((prev) => prev ?? tError(res.error));
+    diffApi
+      .changeImpact(projectId, paths)
+      .then((data) => {
+        if (!cancelled) setImpact(data);
       })
       .catch((e) => {
         if (cancelled) return;
         setImpact(null);
-        setEnrichError((prev) => prev ?? String(e));
+        setEnrichError((prev) => prev ?? tError(toAppError(e)));
       });
     return () => {
       cancelled = true;

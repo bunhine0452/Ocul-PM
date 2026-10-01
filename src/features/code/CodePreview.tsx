@@ -9,7 +9,8 @@
 // 짜리 **문자열**이 되어 DOM 속성에 그대로 박힌다.
 import { useEffect, useRef, useState } from "react";
 
-import { commands } from "@/lib/bindings";
+import { codeApi } from "@/api/code";
+import { toAppError } from "@/api/invoke";
 import { t, useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
 import { ExternalLink, ImageFileIcon, Maximize2, Minimize2 } from "@/components/Icons";
@@ -65,18 +66,18 @@ export function CodePreview({
     let alive = true;
     setLoad({ kind: "loading" });
     setNatural(null);
-    void commands.codeAsset(projectId, path).then((res) => {
-      if (!alive) return;
-      if (res.status === "error") {
-        setLoad({ kind: "error", message: tError(res.error) });
-        return;
-      }
-      const { mime, base64, bytes } = res.data;
-      const url = URL.createObjectURL(toBlob(base64, mime));
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-      urlRef.current = url;
-      setLoad({ kind: "ready", asset: { url, mime, bytes } });
-    });
+    codeApi.asset(projectId, path).then(
+      ({ mime, base64, bytes }) => {
+        if (!alive) return;
+        const url = URL.createObjectURL(toBlob(base64, mime));
+        if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+        urlRef.current = url;
+        setLoad({ kind: "ready", asset: { url, mime, bytes } });
+      },
+      (e: unknown) => {
+        if (alive) setLoad({ kind: "error", message: tError(toAppError(e)) });
+      },
+    );
     return () => {
       alive = false;
     };

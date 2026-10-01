@@ -29,6 +29,7 @@ import type {
   AgentSyncReport,
   BackfillReport,
   BulkVerifyReport,
+  EntityHit,
   EntryFileDiff,
   EntryFilters,
   FileHotspot,
@@ -523,6 +524,20 @@ export const oculpmApi = {
     unwrap<ReleaseNotesDraft>(
       "oculpm_release_notes_draft",
       commands.oculpmReleaseNotesDraft(projectId, fromRef, toRef, useLlm),
+    ),
+
+  /** ⌘K 팔레트의 엔티티 검색 — 일지·플랜·논의를 제목으로 `limit` 개. */
+  searchEntities: (projectId: number, query: string, limit: number) =>
+    unwrap<EntityHit[]>("oculpm_search_entities", commands.oculpmSearchEntities(projectId, query, limit)),
+
+  /**
+   * 내장 터미널에서 에이전트(claude·codex …)가 뜨고 끝난 신호 — 세션 원장이
+   * 훅 없이도 그 구간을 안다. 받아들였으면 `true`.
+   */
+  agentRunSignal: (projectId: number, started: boolean, agentLabel: string) =>
+    unwrap<boolean>(
+      "oculpm_agent_run_signal",
+      commands.oculpmAgentRunSignal(projectId, started, agentLabel),
     ),
 
   /**

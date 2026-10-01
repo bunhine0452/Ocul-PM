@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { commands, type BinaryPreview, type BinarySide } from "@/lib/bindings";
+import type { BinaryPreview, BinarySide } from "@/lib/bindings";
+import { diffApi } from "@/api/diff";
 import { File as FileIcon, ImageFileIcon } from "@/components/Icons";
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
@@ -39,14 +40,14 @@ export function BinaryFileView({
     if (!isImage) return;
     let cancelled = false;
     setPreview("loading");
-    commands
-      .diffBinaryPreview(projectId, path, baseline === "last_commit" ? "last_commit" : null)
-      .then((res) => {
-        if (!cancelled) setPreview(res.status === "ok" ? res.data : "error");
-      })
-      .catch(() => {
+    diffApi.binaryPreview(projectId, path, baseline === "last_commit" ? "last_commit" : null).then(
+      (found) => {
+        if (!cancelled) setPreview(found);
+      },
+      () => {
         if (!cancelled) setPreview("error");
-      });
+      },
+    );
     return () => {
       cancelled = true;
     };

@@ -2,7 +2,7 @@
 // `CodeScreenV2` 에서 그대로 들어냈다 (optimization-round-2 {#split-codescreen}) — 동작 불변.
 import { useCallback, useEffect, useRef } from "react";
 
-import { commands } from "@/lib/bindings";
+import { codeApi } from "@/api/code";
 import { registerCloseHandler } from "@/lib/closeIntent";
 import { toast } from "@/lib/toast";
 import { t } from "@/i18n";
@@ -59,13 +59,10 @@ export function useClosedTabs({ projectId, tabsRef, setTabs, openPath, isVisible
     if (path === undefined) return;
     const target = path;
     // 닫은 사이 디스크에서 사라졌을 수 있다 — 깨진 탭을 열어 두는 대신 말한다.
-    void commands.codeRead(projectId, target).then((res) => {
-      if (res.status === "error") {
-        toast.warning(t("code.fileGone", { path: target }));
-        return;
-      }
-      openPath(target, null);
-    });
+    codeApi.read(projectId, target).then(
+      () => openPath(target, null),
+      () => toast.warning(t("code.fileGone", { path: target })),
+    );
   }, [projectId, openPath, tabsRef]);
 
   // ⌘W — 코드 탭을 **먼저** 닫는다.

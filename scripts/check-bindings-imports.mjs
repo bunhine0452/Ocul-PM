@@ -19,7 +19,6 @@ const ROOT = new URL("../src", import.meta.url).pathname;
 export const ALLOWLIST = new Set([
   // 래퍼 — 여기만 정본이다.
   "api/oculpm.ts",
-  "api/invoke.ts",
   "api/automation.ts",
   "api/themes.ts",
   "api/context.ts",
@@ -47,55 +46,28 @@ export const ALLOWLIST = new Set([
   // 플래너 읽기 (`{#api-facades}` 첫 조각, 2026-09-18) — 트레이 스냅숏이 첫 호출자.
   "api/plan.ts",
   "api/shellIntegration.ts",
-  // 아직 옮기지 않은 직접 호출자 (2026-08-30 기준, 87개). 새로 늘리지 말 것 —
-  // 옮기면 여기서 빼고, 목록이 비면 이 주석도 지운다.
-  "components/CommandPalette.tsx",
+  // `{#api-facades}` 2026-10-01 — 코드·LSP·DAP·터미널·git·diff·LLM 화면이 쓰던
+  // 직접 호출 39파일(⌘K 팔레트 포함)을 여기로 옮겼다.
+  "api/conversations.ts",
+  "api/dap.ts",
+  "api/diff.ts",
+  "api/lsp.ts",
+  "api/projects.ts",
+  "api/search.ts",
+  "api/secrets.ts",
+  "api/settings.ts",
+  "api/terminal.ts",
+  // 아직 옮기지 않은 직접 호출자 (2026-08-30 기준 87개 → 2026-10-01 52개). 새로
+  // 늘리지 말 것 — 옮기면 여기서 빼고, 목록이 비면 이 주석도 지운다.
   "contexts/SettingsContext.tsx",
   "contexts/WorkspaceContext.tsx",
   "features/chat/AcpConversation.tsx",
   "features/chat/AcpUsageMeter.tsx",
-  "features/chat/AiPanelScreenV2.tsx",
-  "features/chat/ConversationHistoryModal.tsx",
-  "features/chat/aiActions.tsx",
-  "features/chat/aiContext.ts",
-  "features/code/CodeDebugPanel.tsx",
-  "features/code/CodePane.tsx",
-  // optimization-round-2 {#split-codepane} (2026-09-15) — 창을 책임별 훅으로
-  // 쪼개며 갈라 나온 조각들. 위 `{#planner-diff-split}` 과 같은 사정이다:
-  // 직접 호출이 늘어난 것이 아니라 `CodePane` 이 들고 있던 것이 그대로
-  // 따라왔다 (순수 이동이라 `call` 래퍼로 바꾸지 않았다). 옮길 때는 다섯을
-  // 창과 함께 보낸다.
-  "features/code/codePane/useDiffModes.ts",
-  "features/code/codePane/useExternalChanges.ts",
-  "features/code/codePane/useGitGutter.ts",
-  "features/code/codePane/useLspActions.ts",
-  "features/code/codePane/useSaveFlow.ts",
-  "features/code/CodePreview.tsx",
-  "features/code/CodeSearchPanel.tsx",
-  // optimization-round-2 {#split-codescreen} — `CodeScreenV2` 를 쪼개며 갈라 나온
-  // 조각들. 위 `{#planner-diff-split}` 과 같은 사정이다: 직접 호출이 늘어난 것이
-  // 아니라 화면 파일이 들고 있던 것이 그대로 따라왔다 (화면 자체는 목록에서
-  // 빠졌다). 옮길 때는 넷을 함께 보낸다.
-  "features/code/codeScreen/useCodeTree.ts",
-  "features/code/codeScreen/useClosedTabs.ts",
-  "features/code/codeScreen/useDocumentSymbols.ts",
-  "features/code/codeScreen/useProblemsFeed.ts",
-  "features/code/useCodeImport.ts",
-  "features/code/useDebug.ts",
-  "features/code/useLsp.ts",
-  "features/diff/BinaryFileView.tsx",
-  "features/diff/DiffScreenV2.tsx",
-  // v3-release {#planner-diff-split} — 화면을 쪼개며 갈라 나온 조각들.
-  // 위 `{#acp-split}` 과 같은 사정이다: 직접 호출이 늘어난 것이 아니라
-  // 화면 파일이 들고 있던 것이 그대로 따라왔다. 옮길 때는 셋을 함께 보낸다.
-  "features/diff/useDiffChanges.ts",
-  "features/diff/useDiffFile.ts",
   "features/discussion/DiscussionScreenV2.tsx",
   "features/discussion/DiscussionView.tsx",
   // 논의 CAS 라운드 (2026-09-08) — 저장·충돌 조정을 화면에서 갈라 낸 조각.
-  // 위 `{#planner-diff-split}` 과 같은 사정이다: 직접 호출이 늘어난 것이
-  // 아니라 `DiscussionScreenV2` 가 들고 있던 것이 그대로 따라왔다.
-  // 옮길 때는 화면과 함께 보낸다.
+  // 직접 호출이 늘어난 것이 아니라 `DiscussionScreenV2` 가 들고 있던 것이
+  // 그대로 따라왔다. 옮길 때는 화면과 함께 보낸다.
   "features/discussion/useDiscussionSave.ts",
   "features/graph/GraphInspector.tsx",
   "features/graph/GraphScreenV2.tsx",
@@ -105,11 +77,11 @@ export const ALLOWLIST = new Set([
   "features/onboarding/StartScreen.tsx",
   "features/onboarding/home/useHomeBrief.ts",
   "features/planner/PlannerScreenV2.tsx",
-  // v3-release {#planner-diff-split} — 위 diff 조각들과 한 짝이다.
+  // v3-release {#planner-diff-split} — 플래너 화면에서 갈라 나온 조각. 직접 호출이
+  // 늘어난 것이 아니라 화면이 들고 있던 것이 따라왔다. 옮길 때는 화면과 함께.
   "features/planner/usePlanDocument.ts",
   "features/projects/ProjectManager.tsx",
   "features/search/SearchScreenV2.tsx",
-  "features/settings/CodeSettings.tsx",
   "features/settings/MobileSettings.tsx",
   "features/settings/OculpmSettings.tsx",
   "features/settings/tabs/AppearanceTab.tsx",
@@ -117,7 +89,6 @@ export const ALLOWLIST = new Set([
   "features/settings/tabs/DiagnosticsTab.tsx",
   "features/settings/tabs/DoctorSection.tsx",
   "features/settings/tabs/IndexingTab.tsx",
-  "features/settings/tabs/LlmTab.tsx",
   "features/settings/tabs/UpdateTab.tsx",
   "features/shell/ShellV2.tsx",
   "features/skills/RuleCandidates.tsx",
@@ -125,24 +96,14 @@ export const ALLOWLIST = new Set([
   "features/skills/SkillCandidates.tsx",
   "features/skills/SkillShopTab.tsx",
   "features/skills/useFiringLedger.ts",
-  "features/terminal/TerminalAway.tsx",
-  "features/terminal/TerminalBlockMenu.tsx",
-  "features/terminal/TerminalDock.tsx",
-  "features/terminal/TerminalInstanceImpl.tsx",
-  "features/terminal/TerminalSurface.tsx",
-  "features/terminal/dispatchTarget.ts",
-  "features/terminal/useAgentRuns.ts",
   "features/today/DiscussionPending.tsx",
   "features/today/JournalMissingCard.tsx",
   "features/today/PlanUpdates.tsx",
-  "features/today/TodayGitGraph.tsx",
   "features/today/TodayScreenV2.tsx",
   "features/today/WhatsNewCard.tsx",
   "features/today/useTodayBrief.ts",
-  "features/today/useTodayMonitor.ts",
   "features/tray/TrayPopover.tsx",
   "lib/externalLinks.ts",
-  "lib/llmTarget.ts",
   "lib/oculpmLog.ts",
   "mobile/EntryDetail.tsx",
   "mobile/MobileApp.tsx",
@@ -155,8 +116,6 @@ export const ALLOWLIST = new Set([
   "windows/ProjectTab.tsx",
   "windows/StartTab.tsx",
   "windows/TabbedWindow.tsx",
-  "windows/TerminalWindow.tsx",
-  "windows/useTabRunningWork.ts",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);

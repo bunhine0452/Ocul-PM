@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { PanelBottom, PanelLeftDock, PanelRight, SquareArrowOutUpRight, X } from "@/components/Icons";
-import { commands } from "@/lib/bindings";
+import { errorDetail } from "@/api/invoke";
+import { terminalWindowApi } from "@/api/terminal";
 import { toast } from "@/lib/toast";
 import { useT, type I18nKey } from "@/i18n";
 import {
@@ -69,9 +70,9 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
   const cyclePos = () => setPrefs((prev) => ({ terminalDockPos: nextDockPos(prev.terminalDockPos) }));
 
   const detach = () => {
-    void commands.openTerminalWindow(projectId).then((r) => {
-      if (r.status === "error") toast.destructive(t("term.dock.detachFailed", { error: r.error }));
-    });
+    terminalWindowApi
+      .open(projectId)
+      .catch((e: unknown) => toast.destructive(t("term.dock.detachFailed", { error: errorDetail(e) })));
   };
   /**
    * 드래그 리사이즈. 크기는 도크가 놓인 부모(콘텐츠 시트) 기준으로 재고, 남는

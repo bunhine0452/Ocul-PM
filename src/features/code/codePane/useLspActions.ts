@@ -3,7 +3,9 @@
 import { useCallback, useRef, useState } from "react";
 import type React from "react";
 
-import { commands, type LspCodeAction } from "@/lib/bindings";
+import type { LspCodeAction, LspRenameResult } from "@/lib/bindings";
+import { toAppError } from "@/api/invoke";
+import { lspApi } from "@/api/lsp";
 import { toast } from "@/lib/toast";
 import { t } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -90,16 +92,17 @@ export function useLspActions({
     if (!at || !next || !path || renaming) return;
     setRenaming(true);
     void (async () => {
-      const res = await commands.lspRename(projectId, path, at.line, at.character, next);
-      setRenaming(false);
-      if (res.status === "error") {
-        toast.destructive(tError(res.error));
+      let result: LspRenameResult;
+      try {
+        result = await lspApi.rename(projectId, path, at.line, at.character, next);
+      } catch (e) {
+        setRenaming(false);
+        toast.destructive(tError(toAppError(e)));
         return;
       }
+      setRenaming(false);
       setRenameAt(null);
-      toast.info(
-        t("code.lsp.renameDone", { files: res.data.files.length, edits: res.data.total_edits }),
-      );
+      toast.info(t("code.lsp.renameDone", { files: result.files.length, edits: result.total_edits }));
       // 열려 있는 파일도 디스크에서 바뀌었다 — 버퍼를 버리고 다시 읽는다.
       void loadFile(path, { discardBuffer: true });
       setEditorEpoch((n) => n + 1);

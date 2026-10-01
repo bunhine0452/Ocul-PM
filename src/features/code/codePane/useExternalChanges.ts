@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react";
 import type React from "react";
 
-import { commands, events } from "@/lib/bindings";
+import { codeApi } from "@/api/code";
+import { oculpmApi } from "@/api/oculpm";
 import { safeUnlistenPromise } from "@/lib/unlisten";
 import { toast } from "@/lib/toast";
 import { t } from "@/i18n";
@@ -46,7 +47,7 @@ export function useExternalChanges({
 
   // ── 열린 파일의 외부 변경 감지 (watcher) ───────────────────────────────
   useEffect(() => {
-    const un = events.oculpmFileChanged.listen(({ payload }) => {
+    const un = oculpmApi.onFileChanged((payload) => {
       if (payload.project_id !== projectId) return;
       const path = pathRef.current;
       if (!path || payload.event.path !== path) return;
@@ -60,9 +61,9 @@ export function useExternalChanges({
           setPreviewEpoch((n) => n + 1);
           return;
         }
-        const res = await commands.codeRead(projectId, path);
+        const file = await codeApi.read(projectId, path).catch(() => null);
         if (pathRef.current !== path) return;
-        if (res.status !== "ok") {
+        if (file == null) {
           // 외부에서 파일이 지워지거나 이동됐다 — 조용히 삼키면 사용자는
           // 저장 실패에서야 알게 된다. 같은 파일에 한 번만 알린다.
           if (goneNotifiedRef.current !== path) {
@@ -73,19 +74,19 @@ export function useExternalChanges({
         }
         goneNotifiedRef.current = null;
         const buf = bufferRef.current;
-        if (!buf || res.data.binary || res.data.too_large) return;
-        if (res.data.hash === buf.baseHash) return; // 자기 저장의 에코
+        if (!buf || file.binary || file.too_large) return;
+        if (file.hash === buf.baseHash) return; // 자기 저장의 에코
         if (buf.text === buf.baseText) {
           // 깨끗한 버퍼 — 조용히 최신화하되 읽던 줄은 유지한다.
-          const eol = detectEol(res.data.content);
-          const text = normalizeEol(res.data.content);
-          const fresh: CodeBuffer = { text, baseText: text, baseHash: res.data.hash, eol };
+          const eol = detectEol(file.content);
+          const text = normalizeEol(file.content);
+          const fresh: CodeBuffer = { text, baseText: text, baseHash: file.hash, eol };
           bufferRef.current = fresh;
           putBuffer(bufferKey(projectId, path), fresh);
           setPendingJump({ line: cursorRef.current.line });
           setEditorEpoch((n) => n + 1);
         } else {
-          setConflict({ diskHash: res.data.hash });
+          setConflict({ diskHash: file.hash });
         }
       })();
     });

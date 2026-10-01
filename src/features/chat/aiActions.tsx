@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { commands } from "@/lib/bindings";
+import { conversationsApi } from "@/api/conversations";
+import { planApi } from "@/api/plan";
 import { Button } from "@/components/ui/button";
 import { tc, useT, type I18nKey } from "@/i18n";
 
@@ -133,10 +134,9 @@ export function ActionProposalCard({
     // 버리는 게 맞다 — 이미 적용된 제안인지 조용히 확인해 뱃지만 올리는 일이다.
     // 못 읽으면 "idle" 로 남고, 그건 이 카드의 안전한 기본 상태다.
     void (async () => {
-      const res = await commands.listConversationActions(conversationId);
-      if (cancelled) return;
-      if (res.status !== "ok") return;
-      const match = res.data.find(
+      const recorded = await conversationsApi.actions(conversationId).catch(() => null);
+      if (cancelled || !recorded) return;
+      const match = recorded.find(
         (r) => r.message_index === messageIndex && r.status === "applied",
       );
       if (match) setStatus("applied");
@@ -154,21 +154,16 @@ export function ActionProposalCard({
       if (projectId == null) throw new Error(t("ai.actionNoProject"));
       const agent = "assistant";
       const addItem = async (planId: string, phase: string, title: string) => {
-        const r = await commands.planApplyEdit(
+        await planApi.applyEdit(
           projectId,
           planId,
           { kind: "add_item", phase, title, item_id: null, status: null },
           agent,
         );
-        if (r.status === "error") throw new Error(r.error);
       };
       if (action.type === "create_plan") {
-        const created = await commands.planCreate(
-          projectId,
-          action.plan_title ?? defaultPlanTitle(),
-        );
-        if (created.status === "error") throw new Error(created.error);
-        const planId = created.data.plan_id;
+        const created = await planApi.create(projectId, action.plan_title ?? defaultPlanTitle());
+        const planId = created.plan_id;
         for (const title of action.titles ?? [])
           await addItem(planId, action.phase ?? defaultPhase(), title);
       } else if (action.type === "add_items") {
@@ -179,41 +174,33 @@ export function ActionProposalCard({
       } else if (action.type === "set_status") {
         if (!action.plan_id || !action.item_id || !action.status)
           throw new Error(t("ai.actionNeedStatus"));
-        const r = await commands.planApplyEdit(
+        await planApi.applyEdit(
           projectId,
           action.plan_id,
           { kind: "set_status", item_id: action.item_id, status: action.status },
           agent,
         );
-        if (r.status === "error") throw new Error(r.error);
       } else if (action.type === "rename_item") {
         if (!action.plan_id || !action.item_id || !action.title)
           throw new Error(t("ai.actionNeedTitle"));
-        const r = await commands.planApplyEdit(
+        await planApi.applyEdit(
           projectId,
           action.plan_id,
           { kind: "rename_item", item_id: action.item_id, title: action.title },
           agent,
         );
-        if (r.status === "error") throw new Error(r.error);
       } else if (action.type === "remove_item") {
         if (!action.plan_id || !action.item_id)
           throw new Error(t("ai.actionNeedItem"));
-        const r = await commands.planApplyEdit(
+        await planApi.applyEdit(
           projectId,
           action.plan_id,
           { kind: "remove_item", item_id: action.item_id },
           agent,
         );
-        if (r.status === "error") throw new Error(r.error);
       }
 
-      const rec = await commands.recordConversationAction(
-        conversationId,
-        messageIndex,
-        "applied",
-      );
-      if (rec.status === "error") throw new Error(rec.error);
+      await conversationsApi.recordAction(conversationId, messageIndex, "applied");
       setStatus("applied");
       onApplied();
     } catch (err) {

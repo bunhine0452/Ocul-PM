@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import {
-  commands,
-  events,
-  type LspCompletionItem,
-  type LspFormatRange,
-  type LspDiagnostic,
-  type LspCodeAction,
-  type LspHover,
-  type LspLocation,
-  type LspReferenceFile,
-  type LspRenameResult,
-  type LspSemanticLegend,
-  type LspSignatureHelp,
-  type LspSymbol,
-  type LspServerState,
+import { errorDetail } from "@/api/invoke";
+import { lspApi } from "@/api/lsp";
+import type {
+  LspCompletionItem,
+  LspFormatRange,
+  LspDiagnostic,
+  LspCodeAction,
+  LspHover,
+  LspLocation,
+  LspReferenceFile,
+  LspRenameResult,
+  LspSemanticLegend,
+  LspSignatureHelp,
+  LspSymbol,
+  LspServerState,
 } from "@/lib/bindings";
 import { safeUnlisten } from "@/lib/unlisten";
 import { oculpmLog } from "@/lib/oculpmLog";
@@ -142,15 +142,19 @@ export function useLsp(
     let cancelled = false;
 
     void (async () => {
-      const res = await commands.lspOpen(projectId, path, initialText);
-      if (cancelled) return;
-      if (res.status === "error") {
+      let attached: boolean;
+      try {
+        attached = await lspApi.open(projectId, path, initialText);
+      } catch (e) {
+        if (cancelled) return;
         // 오류를 삼키지 않되 토스트로 방해하지도 않는다 — 상태줄이 말한다.
-        oculpmLog.error("lsp", `lspOpen failed: ${res.error}`, { path });
-        setStatus({ state: "failed", detail: res.error });
+        const error = errorDetail(e);
+        oculpmLog.error("lsp", `lspOpen failed: ${error}`, { path });
+        setStatus({ state: "failed", detail: error });
         return;
       }
-      attachedRef.current = res.data;
+      if (cancelled) return;
+      attachedRef.current = attached;
     })();
 
     return () => {
@@ -161,8 +165,8 @@ export function useLsp(
       }
       // 닫기는 실패해도 사용자를 막지 않는다 (백엔드가 이미 지워진 파일을
       // 허용한다) — 그래도 조용히 흘리면 서버에 문서가 남은 것을 알 길이 없다.
-      void commands.lspClose(projectId, path).then((r) => {
-        if (r.status === "error") oculpmLog.error("lsp", `lspClose failed: ${r.error}`, { path });
+      lspApi.close(projectId, path).catch((e: unknown) => {
+        oculpmLog.error("lsp", `lspClose failed: ${errorDetail(e)}`, { path });
       });
     };
     // initialText 는 열 때의 값만 필요하다 — 이후 편집은 pushText 가 나른다.
@@ -178,9 +182,7 @@ export function useLsp(
       if (timerRef.current != null) window.clearTimeout(timerRef.current);
       timerRef.current = window.setTimeout(() => {
         timerRef.current = null;
-        void commands.lspChange(projectId, p, text).then((r) => {
-          if (r.status === "error") noteFailure("lspChange", r.error);
-        });
+        lspApi.change(projectId, p, text).catch((e: unknown) => noteFailure("lspChange", errorDetail(e)));
       }, PUSH_DEBOUNCE_MS);
     },
     [projectId, noteFailure],
@@ -194,9 +196,8 @@ export function useLsp(
         window.clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      const r = await commands.lspChange(projectId, p, text);
       // 포맷팅이 이걸 기다린다 — 실패를 흘리면 뒤처진 문서에 편집을 건다.
-      if (r.status === "error") noteFailure("lspChange", r.error);
+      await lspApi.change(projectId, p, text).catch((e: unknown) => noteFailure("lspChange", errorDetail(e)));
     },
     [projectId, noteFailure],
   );
@@ -207,26 +208,21 @@ export function useLsp(
     let active = true;
     const keep = (off: () => void) => (active ? offs.push(off) : safeUnlisten(off));
 
-    try {
-      void events.lspDiagnosticsPublished
-        .listen((e) => {
-          if (e.payload.project_id !== projectId) return;
-          // 지금 보고 있는 파일의 것만 — 서버는 워크스페이스 전체를 진단한다.
-          if (e.payload.path !== pathRef.current) return;
-          setDiagnostics(e.payload.diagnostics);
-        })
-        .then(keep)
-        .catch(() => {});
-      void events.lspServerStateChanged
-        .listen((e) => {
-          if (e.payload.project_id !== projectId) return;
-          setStatus({ state: e.payload.state, detail: e.payload.detail });
-        })
-        .then(keep)
-        .catch(() => {});
-    } catch {
-      /* jsdom / 비-Tauri — 라이브 갱신만 없다 */
-    }
+    // jsdom / 비-Tauri 에서는 래퍼가 빈 해제 함수를 준다 — 라이브 갱신만 없다.
+    void lspApi
+      .onDiagnostics((payload) => {
+        if (payload.project_id !== projectId) return;
+        // 지금 보고 있는 파일의 것만 — 서버는 워크스페이스 전체를 진단한다.
+        if (payload.path !== pathRef.current) return;
+        setDiagnostics(payload.diagnostics);
+      })
+      .then(keep);
+    void lspApi
+      .onServerState((payload) => {
+        if (payload.project_id !== projectId) return;
+        setStatus({ state: payload.state, detail: payload.detail });
+      })
+      .then(keep);
     return () => {
       active = false;
       offs.forEach(safeUnlisten);
@@ -237,12 +233,10 @@ export function useLsp(
     async (line: number, character: number) => {
       const p = pathRef.current;
       if (!p || !attachedRef.current) return [];
-      const res = await commands.lspCompletion(projectId, p, line, character);
-      if (res.status === "error") {
-        oculpmLog.error("lsp", `lspCompletion failed: ${res.error}`, { path: p });
+      return lspApi.completion(projectId, p, line, character).catch((e: unknown) => {
+        oculpmLog.error("lsp", `lspCompletion failed: ${errorDetail(e)}`, { path: p });
         return [];
-      }
-      return res.data;
+      });
     },
     [projectId],
   );
@@ -250,60 +244,53 @@ export function useLsp(
   // 호버·정의는 모양이 같다 — 붙은 파일에서만 묻고, 실패는 로그로만 남긴다
   // (커서를 올릴 때마다 오류 토스트가 뜨면 편집이 불가능하다).
   const ask = useCallback(
-    async <T,>(
-      what: string,
-      call: (p: string) => Promise<{ status: "ok"; data: T } | { status: "error"; error: string }>,
-    ): Promise<T | null> => {
+    async <T,>(what: string, request: (p: string) => Promise<T>): Promise<T | null> => {
       const p = pathRef.current;
       if (!p || !attachedRef.current) return null;
-      const res = await call(p);
-      if (res.status === "error") {
-        oculpmLog.error("lsp", `${what} failed: ${res.error}`, { path: p });
+      return request(p).catch((e: unknown) => {
+        oculpmLog.error("lsp", `${what} failed: ${errorDetail(e)}`, { path: p });
         return null;
-      }
-      return res.data;
+      });
     },
     [],
   );
 
   const hover = useCallback(
     (line: number, character: number) =>
-      ask("lspHover", (p) => commands.lspHover(projectId, p, line, character)),
+      ask("lspHover", (p) => lspApi.hover(projectId, p, line, character)),
     [ask, projectId],
   );
 
   const definition = useCallback(
     (line: number, character: number) =>
-      ask("lspDefinition", (p) => commands.lspDefinition(projectId, p, line, character)),
+      ask("lspDefinition", (p) => lspApi.definition(projectId, p, line, character)),
     [ask, projectId],
   );
 
   const references = useCallback(
     async (line: number, character: number) =>
-      (await ask("lspReferences", (p) =>
-        commands.lspReferences(projectId, p, line, character),
-      )) ?? [],
+      (await ask("lspReferences", (p) => lspApi.references(projectId, p, line, character))) ?? [],
     [ask, projectId],
   );
 
   const documentSymbols = useCallback(
-    async () => (await ask("lspDocumentSymbols", (p) => commands.lspDocumentSymbols(projectId, p))) ?? [],
+    async () => (await ask("lspDocumentSymbols", (p) => lspApi.documentSymbols(projectId, p))) ?? [],
     [ask, projectId],
   );
 
   const signatureHelp = useCallback(
     (line: number, character: number) =>
-      ask("lspSignatureHelp", (p) => commands.lspSignatureHelp(projectId, p, line, character)),
+      ask("lspSignatureHelp", (p) => lspApi.signatureHelp(projectId, p, line, character)),
     [ask, projectId],
   );
 
   const semanticLegend = useCallback(
-    () => ask("lspSemanticLegend", (p) => commands.lspSemanticLegend(projectId, p)),
+    () => ask("lspSemanticLegend", (p) => lspApi.semanticLegend(projectId, p)),
     [ask, projectId],
   );
 
   const semanticTokens = useCallback(
-    async () => (await ask("lspSemanticTokens", (p) => commands.lspSemanticTokens(projectId, p))) ?? [],
+    async () => (await ask("lspSemanticTokens", (p) => lspApi.semanticTokens(projectId, p))) ?? [],
     [ask, projectId],
   );
 
@@ -319,18 +306,14 @@ export function useLsp(
       const p = pathRef.current;
       if (!p || !attachedRef.current) return null;
       await flushText(text);
-      const res = await commands.lspFormat(projectId, p, text, tabSize, insertSpaces, range ?? null);
-      if (res.status === "error") throw new Error(res.error);
-      return res.data;
+      return lspApi.format(projectId, p, text, tabSize, insertSpaces, range ?? null);
     },
     [projectId, flushText],
   );
 
   const codeActions = useCallback(
     async (sl: number, sc: number, el: number, ec: number) =>
-      (await ask("lspCodeActions", (p) =>
-        commands.lspCodeActions(projectId, p, sl, sc, el, ec),
-      )) ?? [],
+      (await ask("lspCodeActions", (p) => lspApi.codeActions(projectId, p, sl, sc, el, ec))) ?? [],
     [ask, projectId],
   );
 
@@ -340,9 +323,7 @@ export function useLsp(
     async (index: number) => {
       const p = pathRef.current;
       if (!p) return null;
-      const res = await commands.lspApplyCodeAction(projectId, p, index);
-      if (res.status === "error") throw new Error(res.error);
-      return res.data;
+      return lspApi.applyCodeAction(projectId, p, index);
     },
     [projectId],
   );

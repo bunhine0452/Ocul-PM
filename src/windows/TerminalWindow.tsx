@@ -11,7 +11,8 @@
  * (앱 안 도크로 되돌아간다), 아무도 없으면 그때 정리한다.
  */
 import { useEffect, useState } from "react";
-import { commands, events } from "@/lib/bindings";
+import { projectsApi } from "@/api/projects";
+import { windowApi } from "@/api/window";
 import { WorkspaceProvider, useWorkspace } from "@/contexts/WorkspaceContext";
 import { TerminalSurface } from "@/features/terminal/TerminalSurface";
 import { setThemeOverride } from "@/features/theme/store";
@@ -67,10 +68,12 @@ function TerminalWindowBody({ projectId }: TerminalWindowProps) {
 
   useEffect(() => {
     let alive = true;
-    void commands.listProjects().then((res) => {
-      if (!alive) return;
-      if (res.status === "ok") {
-        const me = res.data.find((p) => p.id === projectId);
+    void projectsApi
+      .list()
+      .catch(() => null)
+      .then((projects) => {
+        if (!alive) return;
+        const me = projects?.find((p) => p.id === projectId);
         if (me) {
           setRoot(me.root_path);
           setProjectMeta(me.name, me.root_path);
@@ -79,9 +82,8 @@ function TerminalWindowBody({ projectId }: TerminalWindowProps) {
           setThemeOverride(me.theme_id ?? null);
           document.title = t("term.window.title", { project: me.name });
         }
-      }
-      setReady(true);
-    });
+        setReady(true);
+      });
     return () => {
       alive = false;
     };
@@ -96,7 +98,7 @@ function TerminalWindowBody({ projectId }: TerminalWindowProps) {
     const label = terminalWindowLabel(projectId);
     const bag = createUnlistenBag();
     bag.add(
-      events.newTabIntent.listen(({ payload }) => {
+      windowApi.onNewTabIntent((payload) => {
         if (payload.window !== label) return;
         runNewTabIntent();
       }),

@@ -86,7 +86,9 @@ describe("⌘T 는 keydown 이 아니라 인텐트로 온다", () => {
 
   it("분리 터미널 창도 인텐트를 듣는다 (그 창엔 프로젝트 탭이 없다)", () => {
     const src = read("windows/TerminalWindow.tsx");
-    expect(src).toContain("events.newTabIntent");
+    // 구독은 창 래퍼를 지난다 (`{#api-facades}`) — 래퍼가 같은 이벤트를 듣는지까지 본다.
+    expect(src).toContain("windowApi.onNewTabIntent");
+    expect(read("api/window.ts")).toContain("events.newTabIntent");
     expect(src).toContain("ownsNewTab");
   });
 });

@@ -5,7 +5,8 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { commands } from "@/lib/bindings";
+import { errorDetail } from "@/api/invoke";
+import { secretsApi } from "@/api/secrets";
 import { KeyRound } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
 import { coreModelTarget, DEFAULTS, PROVIDERS, providerModel, type Provider } from "@/lib/settings";
@@ -45,12 +46,12 @@ export function LlmTab({ onError: showError }: { onError: (msg: string | null) =
 
   // Cached presence check — does NOT unlock the keychain.
   const refreshKeyStatus = async (p: Provider) => {
-    const res = await commands.secretHas(secretName(p));
-    if (res.status === "ok") {
-      setHasKey((prev) => ({ ...prev, [p]: res.data }));
+    try {
+      const present = await secretsApi.has(secretName(p));
+      setHasKey((prev) => ({ ...prev, [p]: present }));
       onError(null);
-    } else {
-      onError(res.error);
+    } catch (e) {
+      onError(errorDetail(e));
     }
   };
 
@@ -62,24 +63,26 @@ export function LlmTab({ onError: showError }: { onError: (msg: string | null) =
 
   const saveKey = async () => {
     if (!apiKey) return;
-    const res = await commands.secretSet(secretName(provider), apiKey);
-    if (res.status === "ok") {
-      setApiKey("");
-      // 새 키는 다른 목록을 볼 수 있다 — 모델 datalist 를 다시 받게 한다.
-      resetModelListCache(provider);
-      await refreshKeyStatus(provider);
-    } else {
-      onError(res.error);
+    try {
+      await secretsApi.set(secretName(provider), apiKey);
+    } catch (e) {
+      onError(errorDetail(e));
+      return;
     }
+    setApiKey("");
+    // 새 키는 다른 목록을 볼 수 있다 — 모델 datalist 를 다시 받게 한다.
+    resetModelListCache(provider);
+    await refreshKeyStatus(provider);
   };
 
   const clearKey = async () => {
-    const res = await commands.secretDelete(secretName(provider));
-    if (res.status === "ok") {
-      await refreshKeyStatus(provider);
-    } else {
-      onError(res.error);
+    try {
+      await secretsApi.delete(secretName(provider));
+    } catch (e) {
+      onError(errorDetail(e));
+      return;
     }
+    await refreshKeyStatus(provider);
   };
 
   // Force a real keychain read for every provider — prompts the user once.
@@ -87,11 +90,11 @@ export function LlmTab({ onError: showError }: { onError: (msg: string | null) =
     setVerifying(true);
     try {
       for (const p of PROVIDERS) {
-        const res = await commands.secretVerify(secretName(p));
-        if (res.status === "ok") {
-          setHasKey((prev) => ({ ...prev, [p]: res.data }));
-        } else {
-          onError(res.error);
+        try {
+          const present = await secretsApi.verify(secretName(p));
+          setHasKey((prev) => ({ ...prev, [p]: present }));
+        } catch (e) {
+          onError(errorDetail(e));
         }
       }
     } finally {

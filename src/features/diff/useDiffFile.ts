@@ -10,7 +10,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { tError } from "@/i18n/errors";
-import { commands, type DiffResult } from "@/lib/bindings";
+import { diffApi } from "@/api/diff";
+import { codeApi } from "@/api/code";
+import { toAppError } from "@/api/invoke";
+import type { DiffResult } from "@/lib/bindings";
 import { recentChangesStore, type RecentChange } from "@/lib/recentChangesStore";
 import type { DiffBaseline } from "./changeList";
 import { countPatchStats } from "./diffParse";
@@ -96,44 +99,37 @@ export function useDiffFile(
     setError(null);
     setNewFilePatch(null);
     setNewFileError(null);
-    commands
-      .computeDiff(projectId, selected, DIFF_MAX_BYTES, baseline === "last_commit" ? "last_commit" : null)
-      .then(async (res) => {
+    diffApi
+      .compute(projectId, selected, DIFF_MAX_BYTES, baseline === "last_commit" ? "last_commit" : null)
+      .then(async (data) => {
         if (cancelled) return;
-        if (res.status !== "ok") {
-          setDiff(null);
-          setError(tError(res.error));
-          return;
-        }
-        setDiff(res.data);
+        setDiff(data);
         // No git/snapshot baseline (untracked or never-indexed file). Read the
         // file and show its whole content as additions, so the change is
         // visible right away instead of the "no baseline" prompt. A *deleted*
         // file has no disk content to read (and no baseline) — skip the read so
         // we don't trip "Failed to read … No such file"; DiffBody renders a
         // deleted-file notice instead.
-        if (res.data.source.source === "snapshots_unavailable") {
+        if (data.source.source === "snapshots_unavailable") {
           const op = changesRef.current.find((c) => c.path === selected)?.op;
           if (op === "D") {
             setNewFilePatch(null);
           } else {
-            const fileRes = await commands.readProjectFile(projectId, selected);
-            if (cancelled) return;
-            if (fileRes.status === "ok") {
-              setNewFilePatch(
-                fileRes.data.split("\n").map((l) => "+" + l).join("\n"),
-              );
-            } else {
-              // 읽기 실패를 상태로 남겨 "읽는 중…" 무한 대기 대신 안내를 띄운다.
-              setNewFileError(tError(fileRes.error));
-            }
+            // 읽기 실패는 바깥 catch(= diff 실패)로 새지 않게 여기서 받는다 —
+            // 상태로 남겨 "읽는 중…" 무한 대기 대신 안내를 띄운다.
+            const text = await codeApi.readProjectFile(projectId, selected).catch((e: unknown) => {
+              if (!cancelled) setNewFileError(tError(toAppError(e)));
+              return null;
+            });
+            if (cancelled || text == null) return;
+            setNewFilePatch(text.split("\n").map((l) => "+" + l).join("\n"));
           }
         }
       })
       .catch((e) => {
         if (!cancelled) {
           setDiff(null);
-          setError(String(e));
+          setError(tError(toAppError(e)));
         }
       })
       .finally(() => {

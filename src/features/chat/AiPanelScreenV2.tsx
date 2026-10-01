@@ -14,13 +14,10 @@ import {
   SquarePen,
 } from "@/components/Icons";
 import { Markdown } from "@/components/Markdown";
-import {
-  commands,
-  type ChatEvent,
-  type ChatOptions,
-  type Message,
-  type Role,
-} from "@/lib/bindings";
+import type { ChatEvent, ChatMessage, ChatOptions, Message, Role } from "@/lib/bindings";
+import { conversationsApi } from "@/api/conversations";
+import { toAppError } from "@/api/invoke";
+import { llmApi } from "@/api/llm";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { PROVIDERS, providerModel, parseFallbacks, type Provider } from "@/lib/settings";
@@ -91,6 +88,15 @@ type ChatMsg = {
 
 type EstimateRow = { label: string; tokens: number };
 type Estimate = { total: number; rows: EstimateRow[]; ragPending: boolean };
+
+/** 저장된 대화 행 → 패널의 메시지 모양. */
+function toPanelMessages(rows: ChatMessage[]): ChatMsg[] {
+  return rows.map((m) => ({
+    role: m.role as Role,
+    content: m.content,
+    provider: (m.provider as Provider | null) ?? undefined,
+  }));
+}
 
 /**
  * 예시 질문 칩의 사전 키.
@@ -264,32 +270,25 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const listRes = await commands.conversationList(projectId);
+      const convs = await conversationsApi.list(projectId).catch(() => []);
       if (cancelled) return;
-      const convs = listRes.status === "ok" ? listRes.data : [];
       let id = threadRef.current;
       if (id == null || !convs.some((c) => c.id === id)) {
         id = convs[0]?.id ?? null;
       }
       if (id == null) {
-        const created = await commands.conversationCreate(tNow("ai.threadTitle"), provider, null, projectId);
+        const created = await conversationsApi
+          .create(tNow("ai.threadTitle"), provider, null, projectId)
+          .catch(() => null);
         if (cancelled) return;
-        if (created.status === "ok") id = created.data.id;
+        id = created?.id ?? null;
       }
       if (id != null) {
         threadRef.current = id;
         setState((prev) => ({ ...prev, aiThreadId: String(id) }));
-        const msgs = await commands.chatMessageList(id);
+        const msgs = await conversationsApi.messages(id).catch(() => null);
         if (cancelled) return;
-        if (msgs.status === "ok") {
-          setMessages(
-            msgs.data.map((m) => ({
-              role: m.role as Role,
-              content: m.content,
-              provider: (m.provider as Provider | null) ?? undefined,
-            })),
-          );
-        }
+        if (msgs) setMessages(toPanelMessages(msgs));
       }
     })();
     return () => {
@@ -529,9 +528,9 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
       const id = threadRef.current;
       if (id == null || persisted) return;
       persisted = true;
-      void commands.chatMessageAppend(id, "user", trimmed, provider, model);
+      void conversationsApi.appendMessage(id, "user", trimmed, provider, model).catch(() => {});
       if (assistantText) {
-        void commands.chatMessageAppend(id, "assistant", assistantText, provider, model);
+        void conversationsApi.appendMessage(id, "assistant", assistantText, provider, model).catch(() => {});
       }
     };
 
@@ -609,9 +608,8 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
         }
       };
 
-      let res;
       try {
-        res = await commands.chatStream(provider, llmHistory, chatOptions, parseFallbacks(settings), channel);
+        await llmApi.stream(provider, llmHistory, chatOptions, parseFallbacks(settings), channel);
       } catch (err) {
         if (aborted) return false;
         receiving = false;
@@ -619,7 +617,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
           cancelAnimationFrame(rafRef.current);
           rafRef.current = 0;
         }
-        setError(String(err));
+        setError(tError(toAppError(err)));
         setStreaming(false);
         abortRef.current = null;
         setMessages((prev) => prev.slice(0, -1));
@@ -627,17 +625,6 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
       }
       if (aborted) return false;
       receiving = false; // backend done sending — let the typewriter drain the rest
-      if (res.status === "error") {
-        if (rafRef.current) {
-          cancelAnimationFrame(rafRef.current);
-          rafRef.current = 0;
-        }
-        setError(tError(res.error));
-        setMessages((prev) => prev.slice(0, -1));
-        setStreaming(false);
-        abortRef.current = null;
-        return false;
-      }
       return true;
     };
 
@@ -687,16 +674,8 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
       threadRef.current = id;
       setState((prev) => ({ ...prev, aiThreadId: String(id) }));
       setError(null);
-      const msgs = await commands.chatMessageList(id);
-      setMessages(
-        msgs.status === "ok"
-          ? msgs.data.map((m) => ({
-              role: m.role as Role,
-              content: m.content,
-              provider: (m.provider as Provider | null) ?? undefined,
-            }))
-          : [],
-      );
+      const msgs = await conversationsApi.messages(id).catch(() => []);
+      setMessages(toPanelMessages(msgs));
     },
     [setState],
   );
@@ -710,24 +689,22 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
   );
 
   const handleNewThread = useCallback(async () => {
-    const res = await commands.conversationCreate(
-      tNow("ai.newThread"),
-      provider,
-      null,
-      projectId,
-    );
-    if (res.status === "ok") await loadThread(res.data.id);
+    const created = await conversationsApi
+      .create(tNow("ai.newThread"), provider, null, projectId)
+      .catch(() => null);
+    if (created) await loadThread(created.id);
     setHistoryOpen(false);
   }, [provider, projectId, loadThread]);
 
   // The active conversation was deleted — fall back to the most recent or a new one.
   const handleActiveDeleted = useCallback(async () => {
-    const listRes = await commands.conversationList(projectId);
-    const convs = listRes.status === "ok" ? listRes.data : [];
-    let id = convs[0]?.id ?? null;
+    const convs = await conversationsApi.list(projectId).catch(() => []);
+    let id: number | null = convs[0]?.id ?? null;
     if (id == null) {
-      const created = await commands.conversationCreate(tNow("ai.threadTitle"), provider, null, projectId);
-      if (created.status === "ok") id = created.data.id;
+      const created = await conversationsApi
+        .create(tNow("ai.threadTitle"), provider, null, projectId)
+        .catch(() => null);
+      id = created?.id ?? null;
     }
     if (id != null) await loadThread(id);
     else {

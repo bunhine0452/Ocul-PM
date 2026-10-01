@@ -4,7 +4,8 @@ import { SkeletonList } from "@/components/ui/Skeleton";
 import { useCallback } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import { FileCode2, ExternalLinkIcon, GitBranchIcon, CheckMark, Loader, ShieldCheck } from "@/components/Icons";
-import { commands } from "@/lib/bindings";
+import { fileOpenApi } from "@/api/fileOpen";
+import { errorDetail } from "@/api/invoke";
 import { useWorkspace, type DiffMode } from "@/contexts/WorkspaceContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { toast } from "@/lib/toast";
@@ -21,10 +22,10 @@ import { blocked } from "@/lib/blocked";
 
 // Final UI Update (ui_v2) — 변경 diff 전용 화면 (02-screen-specs §3). Wraps the
 // EXISTING diff pipeline: file list = git uncommitted changes (persistent,
-// commands.gitUncommittedChanges) merged with WorkspaceContext.recentChanges
+// gitApi.uncommittedChanges) merged with WorkspaceContext.recentChanges
 // (the live Watcher buffer) — Bug 1 fix so the list survives app restarts /
 // project switches instead of depending on the session-only watcher. body =
-// commands.computeDiff, rendering = PatchView (which owns the markup over
+// diffApi.compute, rendering = PatchView (which owns the markup over
 // diffParse's pure classifyDiffLines/groupIntoHunks/pairDiffLines, so the
 // Lite-W6 PR6.x safety-net tests keep covering the parsers). The mockup
 // .diff-screen 2-pane shell replaces the side-panel layout. flag-off
@@ -36,7 +37,7 @@ import { blocked } from "@/lib/blocked";
 
 interface DiffScreenV2Props {
   projectId: number;
-  /** Absolute project root — required by commands.openInEditor. */
+  /** Absolute project root — required by fileOpenApi.inExternalEditor. */
   projectRoot: string | null;
   branch: string | null;
   /** Jump to a journal entry (path relative to the journal root). Dogfooding #3. */
@@ -81,15 +82,17 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
 
   const onOpenEditor = useCallback(async () => {
     if (!selected || !projectRoot) return;
-    const res = await commands.openInEditor(projectRoot, selected, settings.externalEditorCommand, null);
-    if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
+    await fileOpenApi
+      .inExternalEditor(projectRoot, selected, settings.externalEditorCommand, null)
+      .catch((e: unknown) => toast.destructive(t("diff.editorFailed", { error: errorDetail(e) })));
   }, [projectRoot, selected, settings.externalEditorCommand, t]);
 
   const onOpenAffected = useCallback(
     async (path: string) => {
       if (!projectRoot) return;
-      const res = await commands.openInEditor(projectRoot, path, settings.externalEditorCommand, null);
-      if (res.status === "error") toast.destructive(t("diff.editorFailed", { error: res.error }));
+      await fileOpenApi
+        .inExternalEditor(projectRoot, path, settings.externalEditorCommand, null)
+        .catch((e: unknown) => toast.destructive(t("diff.editorFailed", { error: errorDetail(e) })));
     },
     [projectRoot, settings.externalEditorCommand, t],
   );

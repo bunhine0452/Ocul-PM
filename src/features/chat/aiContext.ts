@@ -7,7 +7,10 @@
 // the interactive planner-action protocol); `assembleAiContext` is the
 // one-call helper the simpler panels use.
 
-import { commands, type ChunkSearchResult } from "@/lib/bindings";
+import type { ChunkSearchResult } from "@/lib/bindings";
+import { gitApi } from "@/api/git";
+import { planApi } from "@/api/plan";
+import { searchApi } from "@/api/search";
 import { escapeUntrusted, trustedSection, untrustedSection } from "@/lib/framing";
 // 모듈 t() — 순수 조립 함수라 훅을 쓸 수 없다. 여기서 t() 를 쓰는 건 UI 에
 // 보이는 파트 라벨뿐이고, 모델에게 가는 본문은 §4.5 대로 한국어로 남는다.
@@ -60,13 +63,12 @@ export async function buildGitSystemContext(
   limit = 15,
 ): Promise<string> {
   if (projectId == null) return "";
-  const statusRes = await commands.gitStatus(projectId);
-  if (statusRes.status !== "ok" || !statusRes.data.is_git_repo) return "";
+  const status = await gitApi.status(projectId).catch(() => null);
+  if (!status?.is_git_repo) return "";
 
   // 브랜치명·리모트 URL·커밋 제목·작성자는 **저장소에 커밋한 누구든** 쓸 수 있는
   // 문자열이다 — 이 블록에서 제일 바깥에서 온 데이터다. 잎을 이스케이프하고
   // 컨테이너로 감싼다 (플랜 `untrusted-text-framing`).
-  const status = statusRes.data;
   let markdown = "";
   if (status.head_branch) {
     markdown += `- Current branch: \`${escapeUntrusted(status.head_branch)}\`\n`;
@@ -78,10 +80,10 @@ export async function buildGitSystemContext(
     markdown += `- Remote: \`${escapeUntrusted(status.remotes[0].url)}\`\n`;
   }
 
-  const logRes = await commands.gitLog(projectId, limit);
-  if (logRes.status === "ok" && logRes.data.length > 0) {
+  const commits = await gitApi.log(projectId, limit).catch(() => []);
+  if (commits.length > 0) {
     markdown += `\nRecent commits (newest first):\n`;
-    for (const c of logRes.data) {
+    for (const c of commits) {
       const when = new Date(c.timestamp * 1000).toISOString().slice(0, 10);
       const who = escapeUntrusted(c.author_name);
       markdown += `- \`${c.short_sha}\` ${when} (${who}) — ${escapeUntrusted(c.subject)}\n`;
@@ -116,11 +118,11 @@ export async function buildPlannerSystemContext(projectId: number | null): Promi
   // 종료된 항목(done/dropped)은 개수만 남긴다 — 완료 사실은 다음 할 일 판단에
   // 쓰이지만 phase·item_id 까지 실을 이유가 없다.
   if (projectId == null) return "";
-  const pl = await commands.planList(projectId);
-  if (pl.status === "error" || !pl.data.length) {
+  const plans = await planApi.list(projectId).catch(() => []);
+  if (!plans.length) {
     return "";
   }
-  const active = pl.data.filter((p) => p.status === "active");
+  const active = plans.filter((p) => p.status === "active");
   const shown = active.slice(0, MAX_CTX_PLANS);
   if (!shown.length) return "";
 
@@ -131,15 +133,17 @@ export async function buildPlannerSystemContext(projectId: number | null): Promi
   // 해서 계획 수만큼 IPC 왕복이 직렬로 깔렸다 — 이 블록은 매 메시지마다
   // 재조립되므로 그 지연이 전송 버튼과 첫 토큰 사이에 그대로 쌓였다. 순서는
   // `shown` 이 정하고 `Promise.all` 이 그 순서를 보존한다.
-  const details = await Promise.all(shown.map((p) => commands.planGet(projectId, p.plan_id)));
+  const details = await Promise.all(
+    shown.map((p) => planApi.get(projectId, p.plan_id).catch(() => null)),
+  );
 
   let markdown = "Current workspace plans (file-based SSOT, active only):\n";
   for (const [i, p] of shown.entries()) {
     markdown += `- **Plan (plan_id: ${p.plan_id})**: ${escapeUntrusted(p.title)} | Status: ${p.status} | ${p.done_count}/${p.item_count} done\n`;
-    const dr = details[i];
-    if (dr.status !== "ok" || !dr.data) continue;
+    const detail = details[i];
+    if (!detail) continue;
 
-    const items = dr.data.items ?? [];
+    const items = detail.items ?? [];
     const open = items.filter((it) => !TERMINAL_ITEM_STATUS.has(it.status));
     const closed = items.length - open.length;
     for (const it of open) {
@@ -231,12 +235,12 @@ export async function buildOculpmSystemContext(
     // 롤업을 그 옆에서 받는다 — 롤업을 `await` 한 뒤에 목록을 부르면 IPC 왕복이
     // 직렬로 깔려 첫 토큰이 그만큼 늦는다 (2026-09-07 감사가 같은 파일에서
     // 잡았던 회귀이고, `ai_context_parts` 테스트가 그 병렬성을 물고 있다).
-    const listPromise = commands.oculpmListJournalEntries(projectId, null, null);
+    const listPromise = oculpmApi.listJournalEntries(projectId).catch(() => null);
     sections.push(...(await buildRollupSections(projectId)));
 
-    const listRes = await listPromise;
-    if (listRes.status === "ok" && listRes.data.length > 0) {
-      const recent = listRes.data.slice(0, maxEntries);
+    const listed = await listPromise;
+    if (listed && listed.length > 0) {
+      const recent = listed.slice(0, maxEntries);
       // LLM 프롬프트 본문 (03-i18n.md §4.5 — 본문은 한국어 유지, 출력 언어만 지시)
       // 제목도 본문도 **다른 에이전트가 쓴 것**이다 — 이 프로젝트에서 도는
       // 세션이 우리 것 하나라는 보장이 없다. 잎을 이스케이프하고 컨테이너로
@@ -256,13 +260,15 @@ export async function buildOculpmSystemContext(
       // 위 계획 블록과 같은 이유로 병렬이다 (2026-09-07 감사) — 3건이 직렬로
       // 왕복하면 그만큼 첫 토큰이 늦는다.
       const detailed = await Promise.all(
-        recent.slice(0, 3).map((e) => commands.oculpmGetJournalEntry(projectId, e.relative_path)),
+        recent
+          .slice(0, 3)
+          .map((e) => oculpmApi.getJournalEntry(projectId, e.relative_path).catch(() => null)),
       );
       const bodies: string[] = [];
-      for (const detRes of detailed) {
-        if (detRes.status === "ok" && detRes.data) {
-          const title = escapeUntrusted(detRes.data.title);
-          const body = escapeUntrusted(clampText(detRes.data.body_markdown.trim(), 1200));
+      for (const entry of detailed) {
+        if (entry) {
+          const title = escapeUntrusted(entry.title);
+          const body = escapeUntrusted(clampText(entry.body_markdown.trim(), 1200));
           bodies.push(`#### ${title}\n${body}`);
         }
       }
@@ -406,9 +412,9 @@ export async function assembleAiContext(opts: AiContextOptions): Promise<AiConte
     // 일지는 빼고 코드만 (`includeJournal: false`). 이 블록의 라벨이
     // 「관련 코드 N개」 고, 일지 맥락은 `includeOculpmContext` 가 최근 일지를
     // 따로 싣는다 — 같은 글을 두 경로로 넣으면 topK 를 서로 잡아먹는다.
-    const res = await commands.searchChunks(projectId, query, settings.ragTopK, false, false);
-    if (res.status === "ok" && res.data.length > 0) {
-      chunks = res.data;
+    const found = await searchApi.chunks(projectId, query, settings.ragTopK, false, false).catch(() => []);
+    if (found.length > 0) {
+      chunks = found;
       const ragLabel = t("ai.partCode", { n: chunks.length });
       parts.push({ key: "rag", label: ragLabel, text: buildContextSystem(chunks) });
       attached.push(ragLabel);

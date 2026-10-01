@@ -15,7 +15,9 @@ import {
   WholeWord,
   X,
 } from "@/components/Icons";
-import { commands, type CodeSearchHit, type CodeSearchResult } from "@/lib/bindings";
+import type { CodeSearchHit, CodeSearchResult } from "@/lib/bindings";
+import { codeApi, type CodeReplaceTarget } from "@/api/code";
+import { errorDetail } from "@/api/invoke";
 import { AppDialog } from "@/components/ui/AppDialog";
 import { toast } from "@/lib/toast";
 import { t, useT } from "@/i18n";
@@ -84,18 +86,21 @@ export const CodeSearchPanel = memo(function CodeSearchPanel({
         return;
       }
       setSearching(true);
-      void commands.codeSearch(projectId, q, o.caseSensitive, o.wholeWord, o.regex).then((res) => {
-        if (seq !== seqRef.current) return;
-        setSearching(false);
-        if (res.status === "error") {
+      codeApi.search(projectId, q, o.caseSensitive, o.wholeWord, o.regex).then(
+        (found) => {
+          if (seq !== seqRef.current) return;
+          setSearching(false);
+          setError(null);
+          setResult(found);
+          setCollapsed(new Set());
+        },
+        (e: unknown) => {
+          if (seq !== seqRef.current) return;
+          setSearching(false);
           setResult(null);
-          setError(res.error);
-          return;
-        }
-        setError(null);
-        setResult(res.data);
-        setCollapsed(new Set());
-      });
+          setError(errorDetail(e));
+        },
+      );
     },
     [projectId],
   );
@@ -117,25 +122,26 @@ export const CodeSearchPanel = memo(function CodeSearchPanel({
   // 다시 검색한다 — 디스크가 진실이고, 지역적으로 목록을 고치는 것보다
   // "치환 후 실제로 남은 매치" 를 보여주는 쪽이 정직하다.
   const applyReplace = useCallback(
-    async (paths: string[], target: { path: string; line: number; col: number } | null) => {
+    async (paths: string[], target: CodeReplaceTarget | null) => {
       if (replacing) return;
       setReplacing(true);
       try {
-        const res = await commands.codeSearchReplace(
-          projectId,
-          query,
-          replacement,
-          opts.caseSensitive,
-          opts.wholeWord,
-          opts.regex,
-          paths,
-          target,
-        );
-        if (res.status === "error") {
-          toast.destructive(t("code.search.failed", { error: res.error }));
-          return;
-        }
-        const out = res.data;
+        const out = await codeApi
+          .searchReplace(
+            projectId,
+            query,
+            replacement,
+            opts.caseSensitive,
+            opts.wholeWord,
+            opts.regex,
+            paths,
+            target,
+          )
+          .catch((e: unknown) => {
+            toast.destructive(t("code.search.failed", { error: errorDetail(e) }));
+            return null;
+          });
+        if (!out) return;
         if (out.errors.length > 0) {
           toast.destructive(
             t("code.search.replaceErrors", { count: out.errors.length, first: out.errors[0] }),

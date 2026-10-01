@@ -15,7 +15,7 @@
 // 있으면 프롬프트 본문을 붙여넣고, 셸이 놀고 있으면 종전처럼 한 줄 명령을 쓴다.
 // 어느 쪽이든 **실행(Enter)은 사용자가 한다** — 이 계약은 그대로다.
 
-import { commands } from "@/lib/bindings";
+import { ptyApi } from "@/api/terminal";
 import { createPtyWriter } from "./ptyWrite";
 import { detectAgent, type AgentRun } from "./agentDetect";
 import { activeSid } from "./activePane";
@@ -26,9 +26,8 @@ import type { TerminalTab } from "@/contexts/WorkspaceContext";
  * 터미널 → PTY 쓰기의 **단일 창구** — 세션 id 가 같으면 어느 모듈에서 불러도 같은
  * 줄에 서서 친 순서대로 도착한다 ({#ui-term-write-order}, 근거는 `ptyWrite.ts`).
  * 키 입력(TerminalInstanceImpl)·블록 메뉴(TerminalSurface)·아래 디스패치가 함께 쓴다.
- * 생성 바인딩을 부를 수 있는 파일이라 여기 산다 (`check-bindings-imports`).
  */
-export const writePty = createPtyWriter((sessionId, data) => commands.writeToPty(sessionId, data));
+export const writePty = createPtyWriter(ptyApi.send);
 
 export type HandoffResult =
   /** 돌고 있던 에이전트에 프롬프트 본문을 붙여넣었다. */
@@ -106,9 +105,13 @@ export async function writeDispatchTo(
   sid: string,
   pending: PendingDispatch,
 ): Promise<HandoffResult | null> {
-  const fg = await commands.ptyForegroundCommand(sid);
-  if (fg.status !== "ok") return null;
-  const { data, agent } = choosePayload(pending, fg.data);
+  let foreground: string | null;
+  try {
+    foreground = await ptyApi.foregroundCommand(sid);
+  } catch {
+    return null;
+  }
+  const { data, agent } = choosePayload(pending, foreground);
   const written = await writePty(sid, data);
   if (written.status !== "ok") return null;
   return agent ? { kind: "pasted", agent: agent.label } : { kind: "typed" };

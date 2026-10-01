@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 
-import { commands } from "@/lib/bindings";
+import { codeApi } from "@/api/code";
+import { toAppError } from "@/api/invoke";
+import type { CodeWriteOutcome } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
 import { t } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -118,29 +120,31 @@ export function useSaveFlow({
         if (tidied !== buf.text) replaceBufferText(tidied);
         const target = bufferRef.current;
         if (!target) return;
-        const res = await commands.codeWrite(
-          projectId,
-          path,
-          restoreEol(target.text, target.eol),
-          opts?.baseHash ?? target.baseHash,
-          // ⌘K 가 쓴 문장이 이 판에 들어 있으면 로컬 히스토리에 **에이전트**로
-          // 적힌다. 저장을 누른 손이 아니라 글자를 쓴 손이 기준이다.
-          codeAiRef.current.takeAgentAuthored(path),
-        );
-        if (res.status === "error") {
+        let outcome: CodeWriteOutcome;
+        try {
+          outcome = await codeApi.write(
+            projectId,
+            path,
+            restoreEol(target.text, target.eol),
+            opts?.baseHash ?? target.baseHash,
+            // ⌘K 가 쓴 문장이 이 판에 들어 있으면 로컬 히스토리에 **에이전트**로
+            // 적힌다. 저장을 누른 손이 아니라 글자를 쓴 손이 기준이다.
+            codeAiRef.current.takeAgentAuthored(path),
+          );
+        } catch (e) {
           // 자동 저장의 쓰기 실패(권한 등)는 경로당 한 번만 알린다.
           if (auto && autoFailedRef.current.has(path)) return;
           if (auto) autoFailedRef.current.add(path);
-          toast.destructive(t("code.saveFailed", { error: tError(res.error) }));
+          toast.destructive(t("code.saveFailed", { error: tError(toAppError(e)) }));
           return;
         }
         autoFailedRef.current.delete(path);
-        if (res.data.kind === "saved") {
-          applySaved(path, res.data.hash);
+        if (outcome.kind === "saved") {
+          applySaved(path, outcome.hash);
         } else {
           // 충돌은 배너만 — 자동 저장이 토스트를 쏘지 않는다 (D7: 남의 작업을
           // 덮는 경로는 없고, 사용자는 배너에서 고르면 된다).
-          setConflict({ diskHash: res.data.disk_hash });
+          setConflict({ diskHash: outcome.disk_hash });
         }
       } finally {
         savingRef.current = false;
@@ -201,18 +205,14 @@ export function useSaveFlow({
       // 떠난 파일에는 커서가 없다 — 보호할 줄도 없다.
       const text = applyHygiene(buf.text, hygieneForPath(path, hygieneRef.current));
       void (async () => {
-        const res = await commands.codeWrite(
-          projectId,
-          path,
-          restoreEol(text, buf.eol),
-          buf.baseHash,
-          codeAiRef.current.takeAgentAuthored(path),
-        );
-        if (res.status !== "ok" || res.data.kind !== "saved") return;
+        const outcome = await codeApi
+          .write(projectId, path, restoreEol(text, buf.eol), buf.baseHash, codeAiRef.current.takeAgentAuthored(path))
+          .catch(() => null);
+        if (outcome?.kind !== "saved") return;
         // 쓰는 사이에 그 버퍼가 또 바뀌었으면(다시 열어 고쳤다) 덮지 않는다.
         const latest = getBuffer(key);
         if (!latest || latest.text !== buf.text) return;
-        putBuffer(key, { ...latest, text, baseText: text, baseHash: res.data.hash });
+        putBuffer(key, { ...latest, text, baseText: text, baseHash: outcome.hash });
         onBuffersChanged();
       })();
     },

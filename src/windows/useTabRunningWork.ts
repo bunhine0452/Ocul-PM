@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { commands } from "@/lib/bindings";
+import { ptyApi } from "@/api/terminal";
 import { useTerminalSessions } from "@/contexts/WorkspaceContext";
 import { registerTabCloseGuard, type TabRunningWork } from "@/lib/closeIntent";
 import { collectSids } from "@/lib/termPanes";
@@ -31,10 +31,7 @@ import { countAcpWorkingFor } from "@/features/chat/acpBusyBus";
 export async function foregroundCommands(sids: string[]): Promise<string[]> {
   const names = await Promise.all(
     sids.map((sid) =>
-      commands
-        .ptyForegroundCommand(sid)
-        .then((r) => (r.status === "ok" ? r.data : null))
-        .catch(() => null),
+      ptyApi.foregroundCommand(sid).catch(() => null),
     ),
   );
   return names.filter((n): n is string => typeof n === "string" && n.length > 0);

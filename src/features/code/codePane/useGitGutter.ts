@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type React from "react";
 
-import { commands, type GitLineChange } from "@/lib/bindings";
+import type { GitLineChange } from "@/lib/bindings";
+import { gitApi } from "@/api/git";
 
 /** 거터 갱신 디바운스. 타자마다 `git show` 를 부를 수는 없다. */
 const GUTTER_DEBOUNCE_MS = 500;
@@ -20,12 +21,15 @@ export function useGitGutter(projectId: number, pathRef: React.RefObject<string 
       if (gutterTimerRef.current != null) window.clearTimeout(gutterTimerRef.current);
       const run = () => {
         gutterTimerRef.current = null;
-        void commands.gitLineChanges(projectId, path, text).then((res) => {
-          // 그 사이 다른 파일로 옮겼으면 버린다 — 늦게 온 응답이 남의 파일
-          // 거터를 그리면 줄이 통째로 어긋나 보인다.
-          if (pathRef.current !== path) return;
-          setGitChanges(res.status === "ok" ? res.data : []);
-        });
+        void gitApi
+          .lineChanges(projectId, path, text)
+          .catch((): GitLineChange[] => [])
+          .then((changes) => {
+            // 그 사이 다른 파일로 옮겼으면 버린다 — 늦게 온 응답이 남의 파일
+            // 거터를 그리면 줄이 통째로 어긋나 보인다.
+            if (pathRef.current !== path) return;
+            setGitChanges(changes);
+          });
       };
       if (immediate) run();
       else gutterTimerRef.current = window.setTimeout(run, GUTTER_DEBOUNCE_MS);

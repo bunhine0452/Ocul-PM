@@ -9,7 +9,9 @@ import "@xterm/xterm/css/xterm.css";
 import { takeBootCommand } from "./terminalLaunch";
 import { createPtyInputGate } from "./ptyWrite";
 import { writePty } from "./dispatchTarget";
-import { commands } from "@/lib/bindings";
+import { fileOpenApi } from "@/api/fileOpen";
+import { errorDetail } from "@/api/invoke";
+import { ptyApi } from "@/api/terminal";
 import { oculpmLog } from "@/lib/oculpmLog";
 // 모듈 t() — 이 두 문구는 PTY 이벤트 시점에 터미널 버퍼로 **써 넣는** 것이라
 // 리렌더와 무관하다. 이미 쓰인 줄은 언어를 바꿔도 소급되지 않는 게 맞다.
@@ -320,10 +322,9 @@ export default function TerminalInstanceImpl({
     // 큐는 **거부된 프라미스**를 실패로 읽는다 (그래야 "보낸 크기" 기억을 지우고
     // 같은 크기를 다시 시도한다). 생성된 커맨드는 실패해도 봉투로 resolve 하므로
     // 여기서 풀어 던져 주지 않으면 모든 실패가 성공으로 기록된다 — PTY 가 옛
-    // 폭에 굳고 화면이 깨진 채로 남는 길이다.
+    // 폭에 굳고 화면이 깨진 채로 남는 길이다. (`ptyApi` 가 봉투를 풀어 던진다.)
     const resizeQueue = createPtyResizeQueue(async (rows, cols) => {
-      const res = await commands.resizePty(sessionId, rows, cols);
-      if (res.status === "error") throw new Error(res.error);
+      await ptyApi.resize(sessionId, rows, cols);
     });
     // 한글/이모지 셀 폭 정확도 — Unicode 11 폭 테이블 활성화.
     term.loadAddon(new Unicode11Addon());
@@ -333,7 +334,7 @@ export default function TerminalInstanceImpl({
     // URL 클릭 → 시스템 브라우저 (opener 권한 우회: 백엔드 open_url 사용).
     // 밑줄은 파일 링크와 같은 오버레이를 쓴다 — 애드온이 만든 링크에는
     // 우리가 `decorations` 를 못 붙이지만, hover/leave 는 열려 있다.
-    const urlLinks = { openUrl: (uri: string) => void commands.openUrl(uri), underline };
+    const urlLinks = { openUrl: (uri: string) => void fileOpenApi.url(uri).catch(() => {}), underline };
     const webLinks = createWebLinksOptions(urlLinks);
     term.loadAddon(new WebLinksAddon(webLinks.handler, webLinks.options));
     // OSC 8 하이퍼링크(`ls --hyperlink`, gh, Claude Code TUI)는 애드온이 아니라
@@ -805,20 +806,20 @@ export default function TerminalInstanceImpl({
         if (!isMounted) return exitOff();
         unlistenExit = exitOff;
 
-        const at = await commands.attachPtySession(sessionId);
+        const at = await ptyApi.attach(sessionId).catch(() => null);
         if (!isMounted) return;
-        if (at.status === "ok" && at.data) {
+        if (at) {
           // 살아있는 세션 재접속 — 스크롤백 리플레이. 통합 플래그는 호스트가 안다 (먼저 적는다).
           // nonce 를 write 보다 **먼저** — 리플레이 안의 OSC 133 이 순서가 뒤바뀌면 통합이 꺼진 것처럼 보인다.
-          nonceRef.current = at.data.nonce;
-          lastSeq = at.data.seq;
-          publishShellState({ ...shellStateRef.current, provisioned: at.data.shell_integration });
+          nonceRef.current = at.nonce;
+          lastSeq = at.seq;
+          publishShellState({ ...shellStateRef.current, provisioned: at.shell_integration });
           // 구간마다 **찍힐 당시의 크기**로 xterm 을 맞춘 뒤 쓴다. 현재 폭으로
           // 통째로 흘리면 옛 폭의 커서 이동이 새 폭에서 줄을 겹치게 만들었다 —
           // 도크↔화면을 오갈 때 옛 대화가 찌부러지던 그 경로다 (scrollbackReplay.ts).
           replaying = true;
           try {
-            await replayInto(term, splitReplay(at.data.text, at.data.sizes ?? []));
+            await replayInto(term, splitReplay(at.text, at.sizes ?? []));
           } finally {
             replaying = false;
           }
@@ -826,18 +827,17 @@ export default function TerminalInstanceImpl({
           // 도크와 터미널 화면은 크롬이 달라 열 수가 몇 칸 어긋난다. 그 몇 칸이
           // 매번 대화를 한 번씩 접고, 접힌 줄은 되돌릴 수 없다 — 자리가 있으면
           // 세션이 쓰던 폭을 그대로 이어받는다 (`adoptedCols`).
-          if (at.data.cols > 0 && container) {
-            adopt = { cols: at.data.cols, atWidth: container.clientWidth };
+          if (at.cols > 0 && container) {
+            adopt = { cols: at.cols, atWidth: container.clientWidth };
           }
         } else {
-          const res = await commands.startPtySession(sessionId, cwdRef.current, term.rows, term.cols);
-          if (!isMounted) return;
-          if (res.status === "error") {
-            term.write(`\r\n\x1b[1;31m[${t("term.ptyStartFailed", { error: res.error })}]\x1b[0m\r\n`);
-            return;
-          }
-          nonceRef.current = res.data.nonce;
-          publishShellState({ ...shellStateRef.current, provisioned: res.data.shell_integration });
+          const started = await ptyApi.start(sessionId, cwdRef.current, term.rows, term.cols).catch((e: unknown) => {
+            if (isMounted) term.write(`\r\n\x1b[1;31m[${t("term.ptyStartFailed", { error: errorDetail(e) })}]\x1b[0m\r\n`);
+            return null;
+          });
+          if (!isMounted || !started) return;
+          nonceRef.current = started.nonce;
+          publishShellState({ ...shellStateRef.current, provisioned: started.shell_integration });
           // **갓 뜬 셸에만** 첫 명령을 친다. 재접속 갈래(위 `attachPtySession`
           // 성공)에서는 건드리지 않는다 — 사용자는 셸을 이어 쓰려고 돌아온
           // 것이지 `claude` 를 또 띄우려는 것이 아니다.
@@ -891,7 +891,7 @@ export default function TerminalInstanceImpl({
       imeRef.current?.dispose();
       imeRef.current = null;
       // persistent 세션은 백엔드에 남긴다 — 탭/페인 닫기가 명시적으로 kill.
-      if (!persistentRef.current) void commands.killPtySession(sessionId);
+      if (!persistentRef.current) void ptyApi.kill(sessionId).catch(() => {});
       // A0d 근본 원인 — 정리에서 throw 금지: addon-webgl 0.19 가 xterm 5.5
       // 코어에 없는 내부(_core._store)를 dispose 에서 만져 언마운트 커밋을
       // 통째로 무너뜨렸다(앱 전체 빈 화면). 버전은 0.18 로 정합했고, 여기는

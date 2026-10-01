@@ -10,7 +10,9 @@
 // SettingsPanel 에 직접 넣지 않은 이유는 그 파일이 이미 1,800줄이 넘기 때문이다.
 import { useCallback, useEffect, useState } from "react";
 
-import { commands, type LspServerInfo, type LspServerState } from "@/lib/bindings";
+import type { LspServerInfo, LspServerState } from "@/lib/bindings";
+import { lspApi } from "@/api/lsp";
+import { settingsApi } from "@/api/settings";
 import {
   AUTO_SAVE_MODES,
   clampStickyMax,
@@ -125,22 +127,18 @@ export function CodeSettings({
       setRows([]);
       return;
     }
-    const res = await commands.lspStatus(projectId);
-    if (res.status !== "ok") {
+    const servers = await lspApi.status(projectId).catch(() => null);
+    if (!servers) {
       setRows([]);
       return;
     }
     const next = await Promise.all(
-      res.data.map(async (info) => {
+      servers.map(async (info) => {
         const [off, cmd] = await Promise.all([
-          commands.settingsGet(disabledKey(info.language_id)),
-          commands.settingsGet(commandKey(info.language_id)),
+          settingsApi.get(disabledKey(info.language_id)).catch(() => null),
+          settingsApi.get(commandKey(info.language_id)).catch(() => null),
         ]);
-        return {
-          info,
-          disabled: off.status === "ok" && off.data === "true",
-          command: cmd.status === "ok" ? (cmd.data ?? "") : "",
-        };
+        return { info, disabled: off === "true", command: cmd ?? "" };
       }),
     );
     setRows(next);
@@ -156,12 +154,13 @@ export function CodeSettings({
    */
   const writeAndRestart = useCallback(
     async (key: string, value: string) => {
-      const res = await commands.settingsSet(key, value);
-      if (res.status === "error") {
-        toast.destructive(tError(res.error));
+      try {
+        await settingsApi.set(key, value);
+      } catch (e) {
+        toast.destructive(tError(toAppError(e)));
         return;
       }
-      if (projectId != null) await commands.lspStop(projectId);
+      if (projectId != null) await lspApi.stop(projectId).catch(() => null);
       await load();
     },
     [projectId, load],
