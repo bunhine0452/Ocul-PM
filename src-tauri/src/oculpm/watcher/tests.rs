@@ -720,11 +720,51 @@ async fn a_rename_records_both_the_old_and_the_new_name() {
         ops("new_name.rs").contains(&FileOp::Create),
         "새 이름이 빠졌다: {events:?}"
     );
-    // macOS 는 쌍이 오지 않는다 — FSEvents 가 옮긴 파일의 옛 이름에도 「만들어짐」
-    // 깃발을 다시 달아, 디바운서가 둘을 "새 이름에 생성" 한 판으로 접고 옛 이름을
-    // 버린다 (이 수정 전부터의 동작 · 로컬 확인 2026-09-28). 쌍이 오는 OS 에서만 문다.
-    #[cfg(not(target_os = "macos"))]
-    assert!(ops("old_name.rs").contains(&FileOp::Delete), "{events:?}");
+    // macOS 도 문다 (#fs-mac-rename-old-name) — FSEvents 가 옮긴 파일의 옛 이름에도
+    // 「만들어짐」 깃발을 다시 달아, 디바운서가 둘을 "새 이름에 생성" 한 판으로 접고
+    // 옛 이름을 버리던 것을 `fsevents::StaleFlagFilter` 가 디바운서 앞에서 걷는다.
+    assert!(
+        ops("old_name.rs").contains(&FileOp::Delete),
+        "옛 이름의 삭제가 빠졌다: {events:?}"
+    );
+}
+
+/// 지우기 — 세션 안에서 만든 파일을 지우면 **삭제**로 기록된다. macOS 는 FSEvents 가
+/// 지운 파일에도 「만들어짐」 깃발을 다시 달아, 디바운서가 만들기+지우기를 "없던 일"
+/// 로 접고 뒤따르는 속성·내용 깃발만 남겼다 — ndjson 에 없는 파일의 **수정**으로
+/// 찍혔다 (#fs-mac-rename-old-name 과 같은 뿌리, 프로브 확인 2026-10-01).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn deleting_a_file_records_a_delete() {
+    let s = setup().await;
+    let doomed = s.dir.path().join("doomed.rs");
+    std::fs::write(&doomed, "fn doomed() {}").unwrap();
+    settle().await;
+    wait_for_open_session(&s.actor).await;
+    std::fs::remove_file(&doomed).unwrap();
+    settle().await;
+    s.watcher.stop().await.unwrap();
+    s.actor.shutdown().await.unwrap();
+
+    let events = s
+        .writer
+        .read_file_changes(&today_workday(&s.resolver), None)
+        .await
+        .unwrap();
+    let ops: Vec<FileOp> = events
+        .iter()
+        .filter(|e| e.path == "doomed.rs")
+        .map(|e| e.op)
+        .collect();
+    assert_eq!(
+        ops.first(),
+        Some(&FileOp::Create),
+        "대조군 — 만들기: {events:?}"
+    );
+    assert_eq!(
+        ops.last(),
+        Some(&FileOp::Delete),
+        "지우기가 삭제로 남지 않았다: {events:?}"
+    );
 }
 
 /// 사전 필터도 쌍의 **어느 한쪽**이라도 추적 대상이면 통과시킨다 — 무시되는 임시
