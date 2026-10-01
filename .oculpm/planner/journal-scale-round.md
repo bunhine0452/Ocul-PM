@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: journal-scale-round
 title: "일지 700건 시대 — 찾기·잇기·묶기 (규모 라운드)"
-status: active
+status: done
 created: 2026-09-21
-updated: 2026-09-21
+updated: 2026-09-24
 owner: claude-code
 ---
 
