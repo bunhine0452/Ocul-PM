@@ -120,7 +120,7 @@ owner: claude-code
 - [x] `plan_edit::add_item` 이 phase 를 원문 헤딩으로 비교해 `## P {#p}` 인 phase 에 항목을 더하면 `## P` 섹션이 하나 더 생긴다 — UI 는 앵커를 뗀 이름을 넘기므로 양 OS 실제 결함 (L-FS3 발견) {#plan-add-item-anchored-phase}
 - [x] 결정 섹션 판정 불일치 — `plan_edit::is_decisions_name` 은 부분 문자열, 파서의 `is_decisions_heading` 은 이름 전체. `move_phase` 가 「결정」 이 든 phase 를 결정 섹션으로 보고 이동 범위를 끊는다 (L-FS3 발견) {#plan-decisions-heading-mismatch}
 - [x] plan_edit 의 phase 조회가 결정 섹션 이름(「결정」 등)을 거절하지 않는다 — `add_item` 은 결정 섹션에 항목을 넣어 파서가 못 보게 만들고, **`remove_phase("결정")` 은 결정 섹션 전체를 지운다**(데이터 손실), `rename_phase`·`move_item` 도 이름으로 닿는다. phase 조회에서 결정 이름을 거절 · 겸해서 `add_item` 중복 id 검사가 부분 문자열(`contains("{#id}")`) · 확장 `slugify` 는 40자 절단이라 Rust 와 자동 id 가 다를 수 있음 (L-PLAN2 발견) {#plan-edit-decisions-guard}
-- [ ] macOS 이름 바꾸기에서 옛 이름 삭제가 사라진다 — FSEvents 가 옛 이름에도 Created 를 달아 디바운서가 한 판으로 접는다, ndjson·일지 캐시에 옛 이름 행이 남음(기존 동작) · 겸해서 `planner/dispatch.rs::read_journal_excerpt` 가 CRLF 일지 발췌 앞에 `\r\n` 을 남김(보기만) (L-FS3 발견) {#fs-mac-rename-old-name}
+- [x] macOS 이름 바꾸기에서 옛 이름 삭제가 사라진다 — FSEvents 가 옛 이름에도 Created 를 달아 디바운서가 한 판으로 접는다, ndjson·일지 캐시에 옛 이름 행이 남음(기존 동작) · 겸해서 `planner/dispatch.rs::read_journal_excerpt` 가 CRLF 일지 발췌 앞에 `\r\n` 을 남김(보기만) (L-FS3 발견) {#fs-mac-rename-old-name}
 
 ## W5 — 베타 운영과 졸업 {#w5}
 - [x] 플랫폼 버그 리포트 이슈 템플릿 + 진단 번들 내보내기(로그·버전·OS·WebView 버전) {#w5-report}
@@ -129,10 +129,9 @@ owner: claude-code
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 61 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 62 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-25T02:44:01+09:00 | #ui-mono-hangul | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | UI 고정폭 한글 폴백을 Pretendard Hangul 로(터미널·macOS 불변), E2E 스크린샷으로 자간 정상 확인 |
 | 2026-09-25T02:44:09+09:00 | #ui-e2e-minor | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | 탭 라벨 실제 셸(bash/pwsh, macOS zsh 불변), 영어 전환 토스트 tIn 으로(모든 OS 결함) |
 | 2026-09-25T02:44:15+09:00 | #ui-mac-words | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | i18n 판 조회 __win/__linux/__pc 47개 두 언어, macOS 는 조회 안 함(원문 불변 테스트) |
 | 2026-09-25T02:44:24+09:00 | #ui-followups | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | errors.ts 3규칙·pasteFiles 토스트·트레이 팝오버 불투명·op.shell.desc2·Windows MCP 권고 셋 수정. 설정 실물은 vitest 로만 |
@@ -172,5 +171,6 @@ owner: claude-code
 | 2026-09-29T03:41:13+09:00 | #os-child-cwd-lock | claude-code | ☐→x |  | 결정(2026-09-28 위임): 코드 불변·README 설치 절에 알림(v3.6.0 릴리스 커밋) · 값싼 완화 #pty-host-fallback-cwd 는 PR #59 |
 | 2026-09-29T03:41:19+09:00 | #integ-win-plugin-mcp | claude-code | ☐→x |  | 결정(2026-09-28 위임): 앱의 「MCP 서버」 등록(절대경로 .exe) 유지, 플러그인 1개 원칙 — 플러그인 저장소 무서명 exe 안은 공급망 위험으로 기각. README 설치 절·앱 안내 문구 일치 |
 | 2026-09-29T06:05:55+09:00 | #w4-surfaces | claude-code | ☐→x | journal/20260929/Features_to_add/0605_feature_release-v3-6-0-windows-linux-beta.md | v3.6.0 공개(run 36477736356 전 잡 success) — 자산 10·키 5, 랜딩 oculpm.com v3.6.0 |
-<!-- oculpm:plan-log archived: 61 rows → cross-platform-port.log.md -->
+| 2026-10-01T18:27:21+09:00 | #fs-mac-rename-old-name | claude-code | ☐→x | .oculpm/journal/20261001/Bugs/1827_bug_fsevents-sticky-created-flag.md | StaleFlagFilter(macOS 만) — 사라진 경로의 Create·내용 Modify 를 디바운서 앞에서 버림. 지우기도 Update 로 찍히던 것 함께. CRLF 발췌는 9c8d9280 이 이미 고침 |
+<!-- oculpm:plan-log archived: 62 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->

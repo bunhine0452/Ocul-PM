@@ -33,15 +33,15 @@ owner: claude-code
 - [x] 라인 링 k=400 이면 매일 상한에 붙는다 — 실데이터로 재측정 뒤 결정 (← today-ring-followup #churn-k-value) {#churn-k-value}
 - [x] Today 라인 증감 표시를 검증하는 테스트가 없다 (← today-ring-followup #lines-display-coverage) {#lines-display-coverage}
 - [x] tests/lsp_rust_analyzer.rs 스킵 가드가 rustup shim 에 속는다 — --version 기동 확인으로 (← ci-and-module-boundaries #ra-guard-hardening) {#ra-guard-hardening}
-- [~] src/api/oculpm.ts 파사드 패턴을 code·terminal·git·llm 으로 확장 (← ci-and-module-boundaries #api-facades) {#api-facades}
-- [ ] i18n 마감 — 나머지 화면 묶음8, 영어 모드 12화면 오버플로 순회, check-no-hardcoded-korean allowlist 빈 배열 게이트 (← three-features-round #i18n-rest #i18n-overflow #i18n-gate) {#i18n-finish}
+- [x] src/api/oculpm.ts 파사드 패턴을 code·terminal·git·llm 으로 확장 (← ci-and-module-boundaries #api-facades) {#api-facades}
+- [x] i18n 마감 — 나머지 화면 묶음8, 영어 모드 12화면 오버플로 순회, check-no-hardcoded-korean allowlist 빈 배열 게이트 (← three-features-round #i18n-rest #i18n-overflow #i18n-gate) {#i18n-finish}
 - [-] A2A 앱 쪽 쓰기 경로(수락·거절·메시지)가 멤버십을 검사한다 (← a2a-session-grouping #enforce-app) {#a2a-enforce-app}
-- [ ] ACP 턴 종료 → 일지 초안 + UUID↔session_id 매핑 (← acp-agent-panel #acp5-journal #acp2-sid) {#acp-journal-draft}
+- [-] ACP 턴 종료 → 일지 초안 + UUID↔session_id 매핑 (← acp-agent-panel #acp5-journal #acp2-sid) {#acp-journal-draft}
 - [x] plan_create 시 유사한 활성 계획이 있으면 재사용을 권한다 (← planner-scale-tidy #dedupe-on-create) {#dedupe-on-create}
 - [ ] tauri.conf.json csp: null — 정책 초안은 있고 실기기 확인이 막았다 (wasm 포매터·xterm webgl·CodeMirror·GitHub fetch) (← hardening-and-optimization #csp) {#csp}
 - [ ] Monaco 대용량 파일 성능 재측정 → 03-performance.md (← monaco-editor-round #fin-perf, 그 플랜은 활성이라 원본 유지) {#fin-perf-monaco}
-- [ ] 웹뷰의 bare window.confirm/alert/prompt 를 막는 린트 게이트 — dialog:default 에 allow-confirm 이 없어 항상 truthy Promise + ACL 에러가 된다. 서드파티 라이브러리가 부르는 것이 재발 지점 (bug-hunt 2026-09-22) {#no-bare-confirm-gate}
-- [ ] src-tauri/src/commands/project.rs 가 파일 크기 래칫 경계 800/800 에 붙었다 — 다음에 이 파일을 건드리는 작업이 쪼갠다 (bug-hunt 2026-09-22) {#project-rs-ratchet}
+- [x] 웹뷰의 bare window.confirm/alert/prompt 를 막는 린트 게이트 — dialog:default 에 allow-confirm 이 없어 항상 truthy Promise + ACL 에러가 된다. 서드파티 라이브러리가 부르는 것이 재발 지점 (bug-hunt 2026-09-22) {#no-bare-confirm-gate}
+- [x] src-tauri/src/commands/project.rs 가 파일 크기 래칫 경계 800/800 에 붙었다 — 다음에 이 파일을 건드리는 작업이 쪼갠다 (bug-hunt 2026-09-22) {#project-rs-ratchet}
 
 ## Phase 5 — 이월: 기능 백로그 (착수 순서는 사용자 결정) {#carried-features}
 - [ ] 터미널 세션을 창 밖으로 떼어내기 · 다른 창 스트립에 드롭해 합치기 (← drag-and-drop-round #session-to-window, three-features-round #tab-merge) {#session-to-window}
@@ -91,4 +91,9 @@ owner: claude-code
 | 2026-09-20T01:33:49+09:00 | #a2a-enforce-app | claude-code | ☐→- |  | 이월이 잘못됐다 — 원본 a2a-session-grouping #enforce-app 은 2026-09-03 에 이미 폐기(검사할 자리가 없다: 앱 쪽 쓰기는 수락·거절뿐이고 그건 받은 쪽 당사자의 결정이라 그룹을 묻지 않는다 D7, 앱에는 메시지 보내기 경로 자체가 없다). 코드 재확인(commands/a2a.rs: a2a_decide_task·a2a_release_lease 뿐) 결과 동일. 같은 사유로 닫는다 |
 | 2026-09-20T01:45:06+09:00 | #dedupe-on-create | claude-code | ☐→x |  | plan_create 가 제목·id 토큰 자카드 ≥0.5 인 활성 플랜을 찾으면 만들지 않고 id·제목·hash 후보를 돌려준다. allow_similar 가 문, 잠긴 플랜은 제외. plan_create.rs 로 분리. 09244a6a |
 | 2026-09-20T01:45:12+09:00 | #ra-guard-hardening | claude-code | ☐→x |  | rust_analyzer() 가 PATH 후보마다 --version 기동 성공을 요구한다 — rustup 프록시는 여기서 걸러진다. 09244a6a |
+| 2026-10-01T18:25:42+09:00 | #api-facades | claude-code | ~→x | .oculpm/journal/20261001/Refactors/1825_refactor_api-facades-code-terminal-git-llm.md | code·LSP·DAP·terminal·git·diff·llm 39파일 이전, 새 파사드 9. 남은 직접 호출자 52(탭 스트립·설정·논의·플래너·모바일)는 lint:bindings 래칫이 줄인다 |
+| 2026-10-01T18:25:46+09:00 | #no-bare-confirm-gate | claude-code | ☐→x | .oculpm/journal/20261001/Bugs/1825_bug_bare-dialog-gate.md | ESLint no-restricted-globals/properties + 런타임 가드(confirm→false·prompt→null·alert 위임, 스택 WARN). 실기기 로그 확인은 다음 설치본 |
+| 2026-10-01T18:25:52+09:00 | #i18n-finish | claude-code | ☐→x | .oculpm/journal/20261001/Chores/1825_chore_i18n-gate-close-pending.md | rest·overflow 는 9/11 f390ee4 로 이미 끝. 게이트는 PENDING 집합+시딩 스크립트 제거로 닫음 |
+| 2026-10-01T18:25:56+09:00 | #project-rs-ratchet | claude-code | ☐→x |  | 이미 끝 — e78754b8(L-MISC, 09-28)이 prepare_file 을 commands/project/prepare.rs 로 옮겨 732줄. 코드 변경 없음 |
+| 2026-10-01T18:27:16+09:00 | #acp-journal-draft | claude-code | ☐→- |  | 대체됨 — UUID↔session_id 는 v3-record-integrity #acp-sid-map(09-05), 턴 종료는 #gate-beyond-cc 배달 게이트(에이전트가 MCP 로 직접 기록+누락 배너). 앱 초안은 이중 기록이라 안 만든다 |
 <!-- oculpm:plan-log end -->

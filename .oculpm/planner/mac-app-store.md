@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: mac-app-store
 title: "Mac App Store 출시 판단 — 샌드박스와 핵심 기능의 충돌 (결정 게이트 먼저)"
-status: active
+status: done
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-09-24
 owner: claude-code
 ---
 
