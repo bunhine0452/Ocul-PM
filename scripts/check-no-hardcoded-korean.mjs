@@ -15,12 +15,16 @@
  *  - Phase 2 진척도가 PENDING 길이로 정확히 측정된다 (Phase 0 시딩 시점 130 → 0)
  *  - 이미 끝낸 파일의 회귀가 즉시 잡힌다
  *
- * Phase 2 완료 기준 = **PENDING 이 빈 상태** (2026-08-12 달성). 남은 세 집합은
- * 전부 번역 대상이 아닌 파일이다 — PERMANENT(i18n 기계 자신) · DISK_CONTENT
- * (디스크 산출물의 내용) · TESTS(한글이 검사 재료인 테스트).
+ * Phase 2 완료 기준 = **PENDING 이 빈 상태** (2026-08-12 달성). 2026-10-01 에
+ * PENDING 집합과 그 시딩 스크립트(`gen-i18n-allowlist.mjs`)를 지웠다
+ * (`{#i18n-finish}`) — 시딩 스크립트를 다시 돌리면 미번역 목록이 되살아나
+ * 게이트가 조용히 뚫리는 길이었다. 남은 세 집합은 전부 번역 대상이 아닌
+ * 파일이다 — PERMANENT(i18n 기계 자신) · DISK_CONTENT(디스크 산출물의 내용) ·
+ * TESTS(한글이 검사 재료인 테스트).
  *
- * 이제 이 게이트의 역할은 "진척 측정" 에서 **"회귀 방지"** 로 바뀐다 — 새
- * 파일이나 되살아난 한글은 세 집합 어디에도 없으므로 즉시 걸린다.
+ * 이제 이 게이트의 역할은 "진척 측정" 이 아니라 **"회귀 방지"** 다 — 새
+ * 파일이나 되살아난 한글은 세 집합 어디에도 없으므로 즉시 걸린다. 미번역
+ * 화면을 "나중에 번역" 으로 받아 둘 자리는 더 없다.
  *
  * ## 탐지 방식
  *
@@ -96,15 +100,6 @@ const DISK_CONTENT = new Set([
   // ⌘K 편집이 만드는 일지 초안의 본문. `.oculpm/journal/**` 에 그대로 기록되고
   // 축도 작성 언어(`getContentLang()`)라 위 셋과 같은 부류다.
   "features/code/inlineEdit/attribution.ts",
-]);
-
-/**
- * Phase 2 에서 하나씩 제거할 미번역 파일. **추가 금지** — 새 파일은 처음부터
- * `t()` 로 쓴다. 줄이는 방향으로만 편집한다.
- */
-const PENDING = new Set([
-  // @PENDING_START (scripts/gen-i18n-allowlist.mjs 가 생성)
-  // @PENDING_END
 ]);
 
 /**
@@ -323,7 +318,7 @@ const TESTS = new Set([
   "__tests__/write_conflict_contract.test.ts",
 ]);
 
-const ALLOWLIST = new Set([...PERMANENT, ...DISK_CONTENT, ...TESTS, ...PENDING]);
+const ALLOWLIST = new Set([...PERMANENT, ...DISK_CONTENT, ...TESTS]);
 
 const EXT = new Set([".ts", ".tsx"]);
 const HANGUL = /[가-힣]/;
@@ -508,7 +503,7 @@ async function main() {
 
   if (offenders.length === 0) {
     console.log(
-      `✓ no hardcoded Korean outside the allowlist (남은 미번역 ${PENDING.size}개)`,
+      "✓ no hardcoded Korean outside the allowlist",
     );
     process.exit(0);
   }
