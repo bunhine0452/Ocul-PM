@@ -95,11 +95,17 @@ async fn archived_rows_stay_in_the_item_history_and_never_become_a_plan() {
     );
 
     // 본문에는 최신 40행만 남아 있다 — 파일을 직접 읽는 에이전트가 무는 자리.
+    // 로그 행은 시각 칸으로 센다. 방금 쓴 행은 **오늘** 날짜라 씨앗의 월 접두로
+    // 세면 달이 바뀌는 날 하나가 빠진다 (2026-10-01 에 39 로 붉었다).
     let body = std::fs::read_to_string(planner_dir(root).join(format!("{PLAN_ID}.md"))).unwrap();
-    assert_eq!(
-        body.lines()
-            .filter(|l| l.trim_start().starts_with("| 2026-09-"))
-            .count(),
-        LOG_KEEP
-    );
+    assert_eq!(body.lines().filter(|l| is_log_row(l)).count(), LOG_KEEP);
+}
+
+/// `| 2026-09-01T00:00:00+09:00 | …` — 시각으로 시작하는 plan-log 표의 행.
+fn is_log_row(line: &str) -> bool {
+    let Some(rest) = line.trim_start().strip_prefix("| ") else {
+        return false;
+    };
+    let b = rest.as_bytes();
+    b.len() > 10 && b[..4].iter().all(u8::is_ascii_digit) && b[4] == b'-' && b[10] == b'T'
 }
