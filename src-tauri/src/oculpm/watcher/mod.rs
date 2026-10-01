@@ -38,6 +38,8 @@
 mod adapters;
 mod classify;
 mod emit;
+#[cfg(any(target_os = "macos", test))]
+mod fsevents;
 mod handle;
 mod hooks;
 mod journal;
@@ -57,7 +59,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
 use notify::{RecursiveMode, Watcher};
-use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, FileIdMap};
+use notify_debouncer_full::{new_debouncer_opt, DebounceEventResult, Debouncer, FileIdMap};
 use tokio::task::JoinHandle;
 
 use crate::oculpm::error::OculpmError;
@@ -69,6 +71,13 @@ use crate::oculpm::{watcher_queue, watcher_tasks};
 
 use handle::WatcherInner;
 
+/// OS 워처. macOS 만 FSEvents 의 누적 깃발을 디바운서 앞에서 걷는다 — 옛 이름의
+/// 삭제·지운 파일의 삭제가 디바운서에서 접혀 사라지던 것 (`fsevents` 모듈 문서).
+#[cfg(target_os = "macos")]
+type OsWatcher = fsevents::StaleFlagWatcher;
+#[cfg(not(target_os = "macos"))]
+type OsWatcher = notify::RecommendedWatcher;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public surface
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,7 +87,7 @@ use handle::WatcherInner;
 pub struct ProjectWatcher {
     project_id: u32,
     /// `Option` so `stop` can `take()` and drop ahead of awaiting the task.
-    debouncer: Option<Debouncer<notify::RecommendedWatcher, FileIdMap>>,
+    debouncer: Option<Debouncer<OsWatcher, FileIdMap>>,
     join_handle: JoinHandle<()>,
     stats: Arc<RwLock<WatcherStatsInner>>,
     debounce_ms: u32,
@@ -180,7 +189,7 @@ impl ProjectWatcher {
         // 쪽이든 `balanced`(1s)로 잘린다: 긴 디바운스는 OS 워처가 이벤트를 들고
         // 있게 만들어 메모리·유실 위험이다. 긴 기다림은 러너 쪽 정착 타이머의 몫.
         let debounce_ms = crate::oculpm::automation::tiers::os_debounce_ms(&config.watcher);
-        let mut debouncer = new_debouncer(
+        let mut debouncer = new_debouncer_opt::<_, OsWatcher, FileIdMap>(
             Duration::from_millis(u64::from(debounce_ms)),
             None,
             move |result: DebounceEventResult| {
@@ -201,6 +210,8 @@ impl ProjectWatcher {
                     ),
                 }
             },
+            FileIdMap::new(),
+            notify::Config::default(),
         )
         .map_err(|e| OculpmError::Io {
             path: root.clone(),
