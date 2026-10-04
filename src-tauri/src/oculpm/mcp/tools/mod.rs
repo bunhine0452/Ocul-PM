@@ -294,8 +294,8 @@ pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String>
             .unwrap_or(false);
         return Err(if is_symlink {
             format!(
-                "The .oculpm in {} is a symlink - for safety a linked .oculpm is \
-                 기록하지 않습니다 (실제 디렉터리만 지원).",
+                "{} 의 .oculpm 이 심볼릭 링크(symlink)입니다 — 안전을 위해 링크된 \
+                 .oculpm 에는 기록하지 않습니다 (실제 디렉터리만 지원).",
                 root.display()
             )
         } else {
