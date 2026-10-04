@@ -112,7 +112,7 @@ describe("ClaudeHooksBlock (PR-CI0)", () => {
   it("드리프트(partial): 경고 배지 + 재설치 버튼이 install 을 다시 부른다", async () => {
     fx.status = status({ partial: true });
     const r = render(<ClaudeHooksBlock projectId={1} />);
-    await waitFor(() => expect(r.getByText("드리프트 — 재설치 필요")).toBeTruthy());
+    await waitFor(() => expect(r.getByText("설치본과 달라짐 — 재설치 필요")).toBeTruthy());
 
     fireEvent.click(r.getByRole("button", { name: "재설치" }));
     await waitFor(() => expect(fx.calls.install).toHaveLength(1));
