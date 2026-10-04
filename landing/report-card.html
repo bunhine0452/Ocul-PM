@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="description" content="AI 에이전트에게 앱 개발을 4개월 맡기고, 작업 일지 791건을 실제 diff·커밋·Claude Code 대화 기록과 대조한 결과입니다." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0a0f0c" />
+<link rel="canonical" href="https://oculpm.com/report-card" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="Ocul-PM" />
+<meta property="og:locale" content="ko_KR" />
+<meta property="og:url" content="https://oculpm.com/report-card" />
+<meta property="og:title" content="에이전트 성적표 — Ocul-PM" />
+<meta property="og:description" content="완료 일지의 84%는 검증 근거를 남겼고, 고친 파일의 25%는 일지에 없었고, 버그의 54%는 일주일 안에 기능 작업이 바꾼 파일을 다시 고쳤습니다." />
+<meta property="og:image" content="https://oculpm.com/og.png" />
+<link rel="icon" href="/icon.svg" />
+<title>에이전트 성적표 — Ocul-PM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+/* 레이아웃: 랜딩의 "무대" 위에 판독지 한 장 — 큰 숫자 넷, 그 근거, 방법. 단일 다크 테마(프로젝트 랜딩과 같은 조명). */
+:root {
+  --stage: #0a0f0c;
+  --sheet: #101812;
+  --ink: #f2efe6;
+  --ink-dim: #9aa69c;
+  --ink-faint: #5f6a61;
+  --green: #1db981;
+  --green-soft: rgba(29, 185, 129, 0.14);
+  --amber: #e0a24a;
+  --amber-soft: rgba(224, 162, 74, 0.16);
+  --rule: rgba(242, 239, 230, 0.1);
+  --rule-strong: rgba(242, 239, 230, 0.2);
+  --sans: "Apple SD Gothic Neo", "Pretendard Variable", Pretendard, "Noto Sans KR", -apple-system, sans-serif;
+  --mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--stage);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 880px; margin: 0 auto; padding-inline: 20px; padding-block: 48px 72px; display: grid; gap: 56px; }
+a { color: var(--green); }
+a:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.mono { font-family: var(--mono); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* 머리 */
+header { display: grid; gap: 14px; }
+.eyebrow { font-size: 13px; font-weight: 500; color: var(--ink-dim); }
+.eyebrow b { font-family: var(--mono); font-weight: 600; color: var(--green); letter-spacing: 0.02em; }
+h1 { margin: 0; font-size: clamp(34px, 6vw, 52px); line-height: 1.15; font-weight: 900; letter-spacing: -0.02em; text-wrap: balance; }
+.lede { margin: 0; max-width: 60ch; color: var(--ink-dim); font-size: 16px; }
+.lede b { color: var(--ink); font-weight: 700; }
+.period { display: flex; flex-wrap: wrap; gap: 8px 20px; font-family: var(--mono); font-size: 13px; color: var(--ink-dim); border-top: 1px dashed var(--rule-strong); border-bottom: 1px dashed var(--rule-strong); padding-block: 10px; }
+.period span b { color: var(--ink); font-weight: 600; }
+
+/* 큰 숫자 넷 */
+.figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.fig { background: var(--sheet); padding: 22px 22px 20px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.fig .big { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: clamp(40px, 8vw, 60px); font-weight: 700; line-height: 1; letter-spacing: -0.03em; }
+.fig .big small { font-size: 0.42em; font-weight: 600; letter-spacing: 0; margin-left: 2px; }
+.fig.good .big { color: var(--green); }
+.fig.warn .big { color: var(--amber); }
+.fig .what { font-weight: 700; font-size: 15px; }
+.fig .how { color: var(--ink-dim); font-size: 13px; line-height: 1.6; }
+.fig .how .num { color: var(--ink); }
+
+/* 절 */
+section { display: grid; gap: 18px; }
+h2 { margin: 0; font-size: 22px; font-weight: 900; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { margin: 0; color: var(--ink-dim); max-width: 64ch; }
+.sub b { color: var(--ink); }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+.two > * { min-width: 0; }
+.label { font-size: 13px; font-weight: 500; color: var(--ink-faint); margin: 0 0 10px; }
+
+/* 영수증 줄: 라벨 ····· 값 */
+.ledger { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.ledger li { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ledger .k { flex: 0 1 auto; min-width: 0; }
+.ledger .dots { flex: 1 1 24px; border-bottom: 1px dotted var(--rule-strong); transform: translateY(-4px); min-width: 16px; }
+.ledger .v { flex: 0 0 auto; font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+.ledger .v.good { color: var(--green); }
+.ledger .v.warn { color: var(--amber); }
+
+/* 가로 막대 */
+.bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.bars li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: baseline; }
+.bars .name { font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+.bars .name em { font-family: var(--sans); font-style: normal; color: var(--ink-dim); font-size: 12px; margin-left: 6px; }
+.bars .n { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-dim); font-size: 13px; }
+.bars .track { grid-column: 1 / -1; height: 6px; background: var(--rule); border-radius: 3px; overflow: hidden; }
+.bars .fill { height: 100%; background: var(--amber); border-radius: 3px; }
+.bars.green .fill { background: var(--green); }
+
+/* 세로 막대 (월·시간) */
+.cols { display: grid; align-items: end; gap: 4px; height: 132px; padding-top: 18px; border-bottom: 1px solid var(--rule-strong); }
+.cols .c { position: relative; background: var(--green); border-radius: 2px 2px 0 0; min-height: 2px; }
+.cols .c.dim { background: var(--rule-strong); }
+.cols .c b { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--ink-dim); padding-bottom: 3px; white-space: nowrap; }
+.axis { display: grid; gap: 4px; font-family: var(--mono); font-size: 11px; color: var(--ink-faint); text-align: center; padding-top: 6px; }
+.hours { grid-template-columns: repeat(24, minmax(0, 1fr)); }
+.months { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-dim); margin-top: 10px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: var(--green); }
+.legend i.dim { background: var(--rule-strong); }
+
+/* 자백 상자 */
+.confession { border: 1px solid var(--amber-soft); background: linear-gradient(var(--amber-soft), var(--amber-soft)), var(--sheet); border-radius: 6px; padding: 20px 22px; display: grid; gap: 10px; }
+.confession h2 { font-size: 18px; }
+.confession p { margin: 0; max-width: 66ch; }
+.confession code { font-family: var(--mono); font-size: 13px; background: var(--stage); border: 1px solid var(--rule); border-radius: 4px; padding: 1px 6px; overflow-wrap: anywhere; }
+
+/* 방법 */
+.method { display: grid; gap: 14px; }
+.method dl { margin: 0; display: grid; grid-template-columns: minmax(0, 180px) minmax(0, 1fr); gap: 10px 20px; font-size: 14px; }
+.method dt { font-weight: 700; }
+.method dd { margin: 0; color: var(--ink-dim); }
+.method dd .mono { font-size: 12.5px; color: var(--ink); overflow-wrap: anywhere; }
+
+footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 20px; border-top: 1px dashed var(--rule-strong); padding-top: 16px; font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+
+@media (max-width: 640px) {
+  .figures, .two { grid-template-columns: minmax(0, 1fr); }
+  .method dl { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
+  .method dd { margin-bottom: 10px; }
+  .hours { gap: 2px; }
+  .cols .c b { display: none; }
+  .cols .c.peak b { display: block; }
+}
+</style>
+
+</head>
+<body>
+<main class="page">
+  <header>
+    <div class="eyebrow"><b>Ocul-PM</b> · 판독 결과 · 2026년 10월 4일</div>
+    <h1>에이전트 성적표</h1>
+    <p class="lede">이 앱은 거의 전부를 AI 에이전트(주로 Claude Code)에게 맡겨 만들었습니다. 그 에이전트들이 남긴 작업 일지 <b>791건</b>을 실제 diff와 커밋, Claude Code 대화 기록에 대조했습니다. 에이전트가 <b>말한 것</b>과 <b>실제로 한 것</b> 사이에 무엇이 남는지 보려고요.</p>
+    <div class="period">
+      <span>저장소 <b>bunhine0452/Ocul-PM</b></span>
+      <span>일지 기간 <b>2026-05-31 → 10-04</b> (127일 중 64일 작업)</span>
+      <span>대화 대조 <b>09-04 → 10-04</b></span>
+    </div>
+  </header>
+
+  <div class="figures" role="list">
+    <div class="fig good" role="listitem">
+      <div class="big">84<small>%</small></div>
+      <div class="what">검증 근거를 남긴 완료 일지</div>
+      <div class="how">"완료" 일지 <span class="num">789</span>건 중 <span class="num">664</span>건이 검증 칸에 실행한 명령과 결과를 적었습니다.</div>
+    </div>
+    <div class="fig warn" role="listitem">
+      <div class="big">25<small>%</small></div>
+      <div class="what">고쳤지만 일지에 없는 파일</div>
+      <div class="how">에이전트가 대화에서 고친 파일 <span class="num">718</span>개 중 <span class="num">180</span>개가 그 대화의 일지 어디에도 없습니다.</div>
+    </div>
+    <div class="fig warn" role="listitem">
+      <div class="big">54<small>%</small></div>
+      <div class="what">일주일 안에 다시 고친 버그</div>
+      <div class="how">버그 일지 <span class="num">189</span>건 중 <span class="num">103</span>건이 7일 안에 기능 작업이 바꾼 파일을 다시 고쳤습니다.</div>
+    </div>
+    <div class="fig good" role="listitem">
+      <div class="big">28<small>/28</small></div>
+      <div class="what">일지를 남긴 작업 대화</div>
+      <div class="how">파일을 고친 Claude Code 대화 <span class="num">28</span>개가 모두 일지를 하나 이상 남겼습니다.</div>
+    </div>
+  </div>
+
+  <section>
+    <h2>기록은 빠짐없이 남았고, 내용은 덜 적혔습니다</h2>
+    <p class="sub">대화 단위로 보면 기록률은 100%입니다. 그런데 한 대화가 고친 파일을 그 대화의 일지와 맞춰 보면 넷 중 하나가 빠져 있습니다. 가장 잘 빠지는 건 <b>테스트</b>입니다(119개 중 52개, 44%). <b>소스 코드</b>도 다섯 개 중 하나가 빠졌습니다(493개 중 98개).</p>
+    <div class="two">
+      <div>
+        <p class="label">완료 일지 789건의 검증 칸</p>
+        <ul class="ledger">
+          <li><span class="k">검증 칸이 있음</span><span class="dots"></span><span class="v">786</span></li>
+          <li><span class="k">실행한 명령·결과를 적음</span><span class="dots"></span><span class="v good">664</span></li>
+          <li><span class="k">스스로 "미확인"이라고 적음</span><span class="dots"></span><span class="v warn">48</span></li>
+          <li><span class="k">사람이 확인 버튼을 누름</span><span class="dots"></span><span class="v">8</span></li>
+        </ul>
+      </div>
+      <div>
+        <p class="label">작업 대화 28개가 고친 파일 718개</p>
+        <ul class="ledger">
+          <li><span class="k">그 대화의 일지에 적힘</span><span class="dots"></span><span class="v good">538</span></li>
+          <li><span class="k">에이전트가 적지 않음</span><span class="dots"></span><span class="v warn">172</span></li>
+          <li><span class="k">적었는데 기록 도구가 버림</span><span class="dots"></span><span class="v warn">8</span></li>
+          <li><span class="k">Bash로 고친 파일</span><span class="dots"></span><span class="v" style="font-family:var(--sans)">못 셈</span></li>
+        </ul>
+      </div>
+    </div>
+    <p class="sub">"미확인" 48건은 거의 모두 화면 확인입니다. 테스트는 통과했지만 실제 앱에서 한글 입력이나 탭 잘림을 눈으로 보지 못했다고 일지에 직접 적어 둔 경우입니다.</p>
+  </section>
+
+  <section>
+    <h2>가장 많이 다시 고친 곳</h2>
+    <p class="sub">버그 일지가 몰린 파일입니다. 1위는 터미널의 <b>한글 입력(IME) 처리</b>입니다. 그다음은 백그라운드 터미널 호스트(PTY)와 사용량 표시입니다.</p>
+    <div class="two">
+      <div>
+        <p class="label">버그 일지 수 · 파일별 (테스트·공용 파일 제외)</p>
+        <ul class="bars">
+          <li><span class="name">imeBridge.ts<em>한글 입력</em></span><span class="n">9</span><div class="track"><div class="fill" style="width:100%"></div></div></li>
+          <li><span class="name">AcpUsageMeter.tsx<em>사용량 표시</em></span><span class="n">8</span><div class="track"><div class="fill" style="width:88.9%"></div></div></li>
+          <li><span class="name">ptyhost/host.rs<em>터미널 호스트</em></span><span class="n">7</span><div class="track"><div class="fill" style="width:77.8%"></div></div></li>
+          <li><span class="name">ptyhost/client.rs<em>터미널 호스트</em></span><span class="n">7</span><div class="track"><div class="fill" style="width:77.8%"></div></div></li>
+          <li><span class="name">commands/terminal.rs<em>터미널</em></span><span class="n">7</span><div class="track"><div class="fill" style="width:77.8%"></div></div></li>
+          <li><span class="name">TrayPopover.tsx<em>메뉴바</em></span><span class="n">6</span><div class="track"><div class="fill" style="width:66.7%"></div></div></li>
+        </ul>
+      </div>
+      <div>
+        <p class="label">월별 일지 중 버그 비중</p>
+        <div class="cols months" aria-label="월별 버그 비중: 6월 14%, 7월 20%, 8월 27%, 9월 24%">
+          <div class="c" style="height:51.9%; background:var(--amber)"><b>14%</b></div>
+          <div class="c" style="height:74.1%; background:var(--amber)"><b>20%</b></div>
+          <div class="c" style="height:100%; background:var(--amber)"><b>27%</b></div>
+          <div class="c" style="height:88.9%; background:var(--amber)"><b>24%</b></div>
+        </div>
+        <div class="axis months"><span>6월</span><span>7월</span><span>8월</span><span>9월</span></div>
+        <p class="sub" style="margin-top:12px; font-size:13px">작업량이 늘면서 버그 비중도 같이 올랐습니다. 5월(4건)과 10월(7건)은 표본이 작아 뺐습니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>언제, 얼마나</h2>
+    <div class="two">
+      <div>
+        <p class="label">월별 일지 수</p>
+        <div class="cols months" aria-label="월별 일지: 6월 43, 7월 122, 8월 282, 9월 332">
+          <div class="c" style="height:13%"><b>43</b></div>
+          <div class="c" style="height:36.7%"><b>122</b></div>
+          <div class="c" style="height:84.9%"><b>282</b></div>
+          <div class="c" style="height:100%"><b>332</b></div>
+        </div>
+        <div class="axis months"><span>6월</span><span>7월</span><span>8월</span><span>9월</span></div>
+        <ul class="ledger" style="margin-top:16px">
+          <li><span class="k">파일 변경 (일지 기준)</span><span class="dots"></span><span class="v">6,396</span></li>
+          <li><span class="k">커밋 중 Claude 공동 작성</span><span class="dots"></span><span class="v">1,115 / 1,185</span></li>
+          <li><span class="k">최장 연속 작업</span><span class="dots"></span><span class="v">19일</span></li>
+          <li><span class="k">하루 최다 (07-31)</span><span class="dots"></span><span class="v">46건</span></li>
+        </ul>
+      </div>
+      <div>
+        <p class="label">시간대별 일지 수 (한국 시간)</p>
+        <div class="cols hours" aria-label="시간대별 일지 수, 21시 65건이 최다, 0시부터 5시까지가 전체의 19%">
+          <div class="c dim" style="height:63.1%"></div>
+          <div class="c dim" style="height:46.2%"></div>
+          <div class="c dim" style="height:26.2%"></div>
+          <div class="c dim" style="height:24.6%"></div>
+          <div class="c dim" style="height:40%"></div>
+          <div class="c dim" style="height:35.4%"></div>
+          <div class="c" style="height:26.2%"></div>
+          <div class="c" style="height:23.1%"></div>
+          <div class="c" style="height:18.5%"></div>
+          <div class="c" style="height:13.8%"></div>
+          <div class="c" style="height:29.2%"></div>
+          <div class="c" style="height:36.9%"></div>
+          <div class="c" style="height:35.4%"></div>
+          <div class="c" style="height:41.5%"></div>
+          <div class="c" style="height:30.8%"></div>
+          <div class="c" style="height:78.5%"></div>
+          <div class="c" style="height:44.6%"></div>
+          <div class="c" style="height:67.7%"></div>
+          <div class="c" style="height:93.8%"></div>
+          <div class="c" style="height:67.7%"></div>
+          <div class="c" style="height:98.5%"></div>
+          <div class="c peak" style="height:100%"><b>65</b></div>
+          <div class="c" style="height:86.2%"></div>
+          <div class="c" style="height:89.2%"></div>
+        </div>
+        <div class="axis hours"><span>0</span><span></span><span></span><span>3</span><span></span><span></span><span>6</span><span></span><span></span><span>9</span><span></span><span></span><span>12</span><span></span><span></span><span>15</span><span></span><span></span><span>18</span><span></span><span></span><span>21</span><span></span><span></span></div>
+        <div class="legend"><span><i class="dim"></i>0~5시: 전체의 19%</span><span><i></i>나머지 시간</span></div>
+        <p class="label" style="margin-top:22px">일지를 쓴 모델</p>
+        <ul class="bars green">
+          <li><span class="name">Opus 5</span><span class="n">467</span><div class="track"><div class="fill" style="width:100%"></div></div></li>
+          <li><span class="name">Fable 5 · 5.1</span><span class="n">190</span><div class="track"><div class="fill" style="width:40.7%"></div></div></li>
+          <li><span class="name">Opus 4.8</span><span class="n">51</span><div class="track"><div class="fill" style="width:10.9%"></div></div></li>
+          <li><span class="name">Opus 5.5</span><span class="n">38</span><div class="track"><div class="fill" style="width:8.1%"></div></div></li>
+          <li><span class="name">Codex (GPT)</span><span class="n">5</span><div class="track"><div class="fill" style="width:1.1%"></div></div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <aside class="confession">
+    <h2>판독하다가 기록 도구의 버그도 찾아서 고쳤습니다</h2>
+    <p>Ocul-PM의 일지 도구(<code>journal_write</code>)는 고친 파일 목록을 <code>{"path": …}</code> 모양으로 받습니다. 에이전트가 이 목록을 문자열 배열로 넘기면, 도구는 경고 없이 빈 목록으로 저장하고 있었습니다. 9월 4일 이후 호출 <span class="num">250</span>번 중 <span class="num">4</span>번, 파일 경로 <span class="num">59</span>개가 이렇게 사라졌습니다. 이제는 경로 문자열도 받고, 그래도 읽지 못한 항목은 응답에 경고로 알립니다. 에이전트를 감시하는 도구도 같은 방식으로 감시해야 했습니다.</p>
+  </aside>
+
+  <section class="method">
+    <h2>어떻게 셌나</h2>
+    <dl>
+      <dt>일지</dt>
+      <dd><span class="mono">.oculpm/journal/**/*.md</span>의 frontmatter와 본문 791건, 전 기간입니다.</dd>
+      <dt>검증 근거</dt>
+      <dd>본문의 "검증" 칸 안에서만 셉니다. 실행한 명령(<span class="mono">cargo test</span>, <span class="mono">pnpm test</span>, <span class="mono">tsc</span> 등)이나 통과·exit 0 같은 결과가 있으면 근거로 봅니다. "미확인", "육안 대기", "확인 못" 같은 표현이 있으면 스스로 미확인이라고 적은 것으로 봅니다.</dd>
+      <dt>대화 대조</dt>
+      <dd>Claude Code가 남긴 대화 기록(보존 30일, 대화 77개, 서브에이전트 포함)에서 성공한 Edit·Write·MultiEdit 호출만 셉니다. 일지는 일지의 대화 id와, 일지 도구가 돌려준 저장 경로 둘 다로 대화에 연결합니다. <span class="mono">.oculpm/</span> 아래 파일은 기록 자체라서 뺐습니다.</dd>
+      <dt>다시 고친 버그</dt>
+      <dd>버그 일지가 고친 파일 중 하나를, 7일(또는 14일) 안의 기능·리팩토링 일지도 바꿨으면 셉니다. 일지 23건 이상에 등장하는 공용 파일 45개(i18n 문자열, <span class="mono">lib.rs</span>, 생성된 바인딩, 화면 셸처럼 거의 모든 작업이 건드리는 파일)는 겹침에서 뺐기 때문에 낮게 잡힌 숫자입니다. 14일 기준으로는 <span class="num">137</span>건(72%)입니다. 같은 파일을 다시 고쳤다는 뜻이고, 그 기능 작업이 버그의 원인이라는 증명은 아닙니다.</dd>
+      <dt>세지 못한 것</dt>
+      <dd>Bash(sed, 스크립트)로 고친 파일, 30일보다 오래된 대화, Codex 대화. 사람이 직접 고친 파일과 에이전트가 고친 파일도 구분하지 않았습니다. 이 성적표는 한 사람의 한 저장소 기록이고, 모든 에이전트에 대한 일반론이 아닙니다.</dd>
+    </dl>
+  </section>
+
+  <footer>
+    <span><a href="https://oculpm.com">oculpm.com</a> · <a href="https://github.com/bunhine0452/Ocul-PM">github.com/bunhine0452/Ocul-PM</a></span>
+    <span>집계 2026-10-04 · <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/docs/launch">집계 스크립트와 지표 정의</a></span>
+  </footer>
+</main>
+
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
