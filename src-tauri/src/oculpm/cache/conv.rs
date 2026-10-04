@@ -1,29 +1,9 @@
-//! 순수 변환 헬퍼 — 작업일·타임스탬프 파싱, enum↔문자열, SQLite 오류 매핑.
+//! 순수 변환 헬퍼 — 타임스탬프 보정, enum↔문자열, SQLite 오류 매핑.
 //!
 //! `cache/mod.rs` 에서 갈라 나왔다. `pub(super)` 는 `cache` 와 그 자손에서만
 //! 보이므로, 분할 전 `cache` 에 private 이던 가시 범위와 정확히 같다.
 
 use super::*;
-
-/// Parse "YYYYMMDD" → NaiveDate.
-pub(super) fn parse_workday(s: &str) -> Option<chrono::NaiveDate> {
-    if s.len() != 8 || !s.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    let year = s[0..4].parse::<i32>().ok()?;
-    let month = s[4..6].parse::<u32>().ok()?;
-    let day = s[6..8].parse::<u32>().ok()?;
-    chrono::NaiveDate::from_ymd_opt(year, month, day)
-}
-
-pub(super) fn format_workday(d: chrono::NaiveDate) -> String {
-    use chrono::Datelike;
-    format!("{:04}{:02}{:02}", d.year(), d.month(), d.day())
-}
-
-pub(super) fn today_fallback() -> chrono::NaiveDate {
-    chrono::Utc::now().date_naive()
-}
 
 /// Coerce one timestamp field for the cache projection (F7a-B). With a project
 /// `tz`, backfill a missing offset (DST-correct) and record what changed; with
