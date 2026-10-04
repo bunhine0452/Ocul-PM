@@ -26,7 +26,8 @@
 
 **2026-10-05 스파이크 결과: 두 CLI 모두 자기 공식 클라이언트에 쓰는 통로에 Rust
 앱이 직접 붙을 수 있다.** Codex 는 승인 대기 중 프로세스가 죽어도 이어서 끝났고,
-헤드리스 Claude 는 `remote_control` 제어 요청에 세션 URL 을 그대로 돌려줬다 (§2).
+헤드리스 Claude 는 `remote_control` 제어 요청에 세션 URL 을 그대로 돌려줬고, 폰에서 보낸
+메시지가 그 프로세스에서 턴으로 돌았다 (§2).
 
 제안: Claude · Codex 는 **네이티브 드라이버**로 옮기고, ACP 는 자체 프로토콜이
 없는 에이전트를 위한 드라이버로 남긴다. 화면(프런트 약 7.6k 줄)은 이벤트 계약을
@@ -81,7 +82,9 @@ ACP 를 거쳐서 생기는 비용 (전부 이 저장소에서 확인한 것):
 | CLI→클라이언트 요청 (SDK 소스) | `can_use_tool`(권한 — `--permission-prompt-tool stdio` 필요) · `hook_callback` · `mcp_message` | `can_use_tool` 응답 `{behavior:"allow"\|"deny", …}` |
 | `initialize` 응답 | `commands` · `agents` · `models` · `account` · `current_permission_mode` · `remote_control_available` · `remote_control_auto_enable` · `session_state` · `capabilities` … | |
 | **`remote_control` (비공개)** | `{"subtype":"remote_control","enabled":true,"name":"…"}` → **`session_url`** · `connect_url` · `bridge_session_id` · `bridge_epoch` 응답, 이어서 `system/bridge_state` ready → connected. `enabled:false` 로 정상 해제, 종료 0 | **SDK 공개 타입에 없다.** 바이너리 strings 에서 찾았다(헤드리스 `initReplBridge`). VS Code 확장의 `/rc` 경로로 추정 |
-| 원격 → 로컬 왕복 | **미검증** — 두 번 열었다(5분 · 15분). 두 번 다 켜기 → connected → 끄기 → 종료 0 은 재현됐지만 그 사이 원격 입력이 없었다. 브라우저 자동화로 보내려던 시도는 claude.ai 재로그인 화면에 막혀 중단 (§6 R7) | P3 `rc-roundtrip` 의 완료 조건 |
+| **원격 → 로컬 왕복** | **된다** (세 번째 창, 사용자가 폰에서 "안녕" 전송). `command_lifecycle` queued → started → `system/init` → `assistant` → `rate_limit_event` → `system/post_turn_summary` → `result/success` → `command_lifecycle` completed. **CLI 가 원격 턴을 스스로 돌리고 결과만 흘려준다** — 클라이언트에게 처리를 넘기지 않는다 | 우리가 시작하지 않은 턴을 그려야 한다 (D4) |
+| 원격 발화의 본문 | **stdout 에 안 나온다** (`type:"user"` 0건). 트랜스크립트(`~/.claude/projects/<cwd>/<session>.jsonl`)에는 `origin:{kind:"human"}` · `entrypoint:"sdk-cli"` 로 남는다 | 트랜스크립트 리더로 채운다. `--replay-user-messages` 로 나오는지는 P3 에서 확인 |
+| 사용량 · 한도 | `rate_limit_event{rate_limit_info:{status, rateLimitType, unifiedWindows:{five_hour, seven_day}}}` · `result.total_cost_usd` · `result.usage` | ACP 의 `_meta._claude/rateLimit` 대체재 |
 | claude.ai 쪽 흔적 | 켤 때마다 claude.ai/code 세션 목록에 이름이 남는다 (스파이크가 "ocul-pm spike" · "ocul-pm spike 2" 를 만들었다) | 이름 규칙 + 끄기 보장 필요 (R5) |
 
 ### 2.3 같은 날 확인한 문서 사실
@@ -160,6 +163,7 @@ ACP 크레이트에 묶인 것은 `session.rs`(22곳) · `process.rs`(8) · `aut
 - 권한: `can_use_tool` → `AcpEvent::Permission`. 모드 · 모델: `set_permission_mode` · `set_model`.
 - 세션 목록 · 재생: **이미 있는 트랜스크립트 리더**(`oculpm/transcript.rs` · `transcript_sessions.rs`)를 쓴다. 새 파서를 만들지 않는다.
 - `/rc`: `remote_control` 제어 요청 → `session_url` 을 대화에 링크 · QR 로. **실패하거나 필드가 없으면 지금처럼 터미널로** (기능 감지 후 폴백).
+- **원격에서 시작된 턴**: CLI 가 스스로 돌리고 결과만 흘린다(§2.2). 드라이버는 `command_lifecycle` queued 를 "내가 보내지 않은 턴의 시작"으로 읽고, 발화 본문은 stdout 에 없으므로 트랜스크립트 꼬리에서 채운다. 원격 턴의 권한 요청이 `can_use_tool` 로 우리에게 오는지 폰으로 가는지는 P3 에서 실측.
 - 와이어 형식의 참조 구현은 Python Agent SDK 소스다. 그 저장소의 변경을 계약 테스트로 따라간다.
 
 ### D5 — 바이너리는 사용자 PATH 의 것을 먼저 {#d5-binary}
@@ -216,7 +220,7 @@ CI 에는 로그인이 없으므로 `remote_control` 처럼 계정이 필요한 
 | **P1** | `CodexAppServer` 드라이버 — 스키마 생성 타입 · 승인 3종 · 목록/재생 · 사용량/한도 | 앱에서 Codex 대화 · 승인 · 재시작 후 재개. 계약 테스트 CI |
 | **P1b** | Codex 고유 능력을 화면에 — `review/start` · `thread/fork` · `turn/diff/updated` | 이벤트 추가만, 기존 변형 불변 |
 | **P2** | `ClaudeStreamJson` 드라이버 — `can_use_tool` · 모드/모델 · 트랜스크립트 재생 · `--resume` | 앱에서 Claude 대화 · 승인 · 재개. **Claude 재개 후 재시도 실측** (D6 의 미검증분) |
-| **P3** | `/rc` — `remote_control` 요청 · URL/QR 표시 · 끄기 · 실패 시 터미널 폴백 | **원격 → 로컬 왕복 실측** (R7) |
+| **P3** | `/rc` — `remote_control` 요청 · URL/QR 표시 · 끄기 · 실패 시 터미널 폴백 · 원격에서 시작된 턴 그리기 | 앱 화면에서 폰 발화와 답이 보인다 · 원격 턴의 권한 요청 경로 실측 |
 | **P4** | 승인 대기 영속 (D6) + 자동화 러너의 "에이전트 실행" 스텝 + 위험 등급 정책(읽기 자동 · 쓰기 대기 · 외부 거부) | 무인 실행 중 앱 재시작 → 승인 → 완료, 일지에 결정 기록 |
 | **P5** | 기본값 전환 · ACP 되돌림 스위치 1릴리스 · `Acp*` → `Agent*` 이름 정리 · Node 의존 제거 판단 | 한 릴리스 회귀 0 |
 
@@ -235,7 +239,7 @@ P1 을 P2 보다 먼저 하는 이유: Codex 쪽은 **문서와 생성 스키마
 | **R4** | 사용자 PATH 바이너리 버전이 제각각 | 최소 버전 게이트 + 진단 표시. 낮으면 ACP 로 |
 | **R5** | `/rc` 를 켤 때마다 claude.ai 세션 목록에 흔적이 남는다 | 이름 규칙(프로젝트명) · 대화 종료 시 확실히 끄기 · 사용자가 명시적으로 켤 때만 |
 | **R6** | Windows — stdio 는 같지만 Codex 샌드박스 구현이 다르다 (`windowsSandbox/*`) | portability CI 에 드라이버 계약 테스트 동승 |
-| **R7** | **원격 → 로컬 메시지 왕복 미검증** (§2.2) | P3 의 완료 조건. 안 되면 `/rc` 는 "URL 표시 + 터미널에서 이어받기"로 축소 |
+| **R7** | ~~원격 → 로컬 메시지 왕복 미검증~~ — **2026-10-05 검증됨** (§2.2). 남은 것: 원격 발화 본문이 stdout 에 없다 · 원격 턴의 권한 요청 경로 미확인 | 트랜스크립트로 본문 채우기 · P3 에서 권한 경로 실측 |
 | **R8** | `--permission-prompt-tool stdio` 와 사용자 설정의 권한 규칙 · 훅이 겹치는 순서 | P2 에서 실측해 이 문서 §2 에 추가 |
 
 ---

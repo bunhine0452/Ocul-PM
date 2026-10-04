@@ -31,7 +31,7 @@ Claude Code·Codex 를 ACP 어댑터 대신 각 CLI 의 네이티브 통로로 �
 - [ ] 승인 대기 중 끊긴 대화를 --resume 후 재시도로 끝내는지 실측 (D6 미검증분) {#claude-resume-verify}
 
 ## P3 — 앱 안 /rc {#p3-rc}
-- [ ] 원격(폰·브라우저) → 헤드리스 프로세스 메시지 왕복 실측 (R7) — 안 되면 URL 표시 + 터미널 이어받기로 축소 {#rc-roundtrip}
+- [x] 원격(폰·브라우저) → 헤드리스 프로세스 메시지 왕복 실측 (R7) — 안 되면 URL 표시 + 터미널 이어받기로 축소 {#rc-roundtrip}
 - [ ] remote_control 요청 → session_url 링크·QR · 끄기 보장 · 기능 감지 실패 시 터미널 폴백 · 명령으로만 켬 (결정 3) {#rc-ui}
 
 ## P4 — 승인 대기 영속 + 무인 실행 {#p4-durable}
@@ -47,4 +47,5 @@ Claude Code·Codex 를 ACP 어댑터 대신 각 CLI 의 네이티브 통로로 �
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
+| 2026-10-05T02:21:24+09:00 | #rc-roundtrip | claude-code | ☐→x | .oculpm/journal/20261005/Chores/0221_chore_rc-remote-roundtrip-verified.md | 폰 발화 → 헤드리스 턴 실행 확인. 본문은 stdout 에 없고 트랜스크립트에. 원격 턴 권한 경로는 rc-ui 에서 |
 <!-- oculpm:plan-log end -->
