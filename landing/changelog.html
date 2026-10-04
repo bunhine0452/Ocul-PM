@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.6.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 113개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.7.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 114개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.6.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 113개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.7.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 114개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.6.0</span>
+    <span class="nav-ver" data-version>v3.7.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>113개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>114개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-7-0">v3.7.0</a>
       <a href="#v3-6-0">v3.6.0</a>
       <a href="#v3-5-0">v3.5.0</a>
       <a href="#v3-4-0">v3.4.0</a>
@@ -61,10 +62,20 @@
       <a href="#v3-1-0">v3.1.0</a>
       <a href="#v3-0-1">v3.0.1</a>
       <a href="#v3-0-0">v3.0.0</a>
-      <a href="#v2-48-0">v2.48.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-7-0"><a href="#v3-7-0">v3.7.0</a></h2>
+      <div class="cl-body">
+<p><b>「세션」 화면을 걷어냈습니다.</b> 한 프로젝트에 붙은 에이전트끼리 서로를 보고, 묶고, 일을 넘기던 에이전트 간 협업(A2A)은 쓰임에 비해 표면이 컸습니다 — 화면 하나, 설정의 외부 HTTP 문, 에이전트용 도구 일곱 개, 그리고 모든 프로젝트의 AGENTS.md 에 실리는 규칙 한 절. 이번에 전부 걷었습니다.</p>
+<ul><li>사이드바의 「에이전트」 줄은 이제 Claude Code · Codex 두 갈래입니다. 세션 화면에 머물러 있던 프로젝트는 다음에 열 때 오늘 현황으로 갑니다.</li><li>에이전트가 쓰는 <code>oculpm</code> MCP 도구는 일곱 개(일지 쓰기·찾기·읽기, 계획 상태·갱신·만들기, 추적 시작)로 줄었습니다. 플러그인을 이 판으로 올리면 <code>agent_register</code> · <code>claim_paths</code> 같은 협업 도구가 목록에서 빠집니다.</li><li>추적 중인 프로젝트의 AGENTS.md 규칙에서 「여럿이 함께 일할 때」 절이 빠집니다 — 없는 도구를 부르라는 규칙이 에이전트에게 남지 않게. 다음 동기화 때 자동으로 바뀝니다.</li><li>업데이트 전의 플러그인이 아직 <code>.oculpm/agents/</code> 아래 옛 자리에 쓰더라도 앱은 그것을 무시합니다. 남은 폴더는 지워도 됩니다.</li></ul>
+<p><b>연결만 안 돼 있던 기능 둘.</b></p>
+<ul><li><b>편집기에서 파일·폴더 이름을 바꾸면 찍어 둔 중단점이 사라졌습니다.</b> 중단점을 새 경로로 옮기는 장치는 있었는데 아무도 부르지 않았습니다 — 그래서 이름을 바꾼 파일의 중단점이 거터에서 사라지고, 다음 디버그 세션은 없는 경로로 중단점을 보냈습니다. 이제 이름을 바꾸거나 트리에서 끌어 옮기면 중단점이 따라갑니다(폴더면 그 안 전부).</li><li><b>일지 기록 파일이 손상돼 앱이 고쳤을 때 알려 주는 알림이 한 번도 뜰 수 없었습니다.</b> 앱은 손상된 꼬리를 잘라 백업해 두면서도 그 사실을 로그에만 남기고 있었습니다.</li></ul>
+<p><b>프로젝트를 지워도 그 기록이 데이터베이스에 남았습니다.</b> 일지·계획·논의의 캐시는 프로젝트 행과 묶여 있지 않아, 프로젝트를 지워도 따라 지워지지 않았습니다 — 만드는 사람의 기기에서 지운 프로젝트 일곱 개의 행이 약 1만 개 남아 있었습니다. 이제 프로젝트와 함께 지우고, 이미 남은 것은 이번 업데이트가 한 번 걷습니다(원본인 <code>.oculpm/</code> 파일은 건드리지 않습니다).</p>
+<ul><li><b>로그 파일에 앱의 경고·오류가 두 줄씩 적히던 것</b>, 프로젝트 안의 PDF 가 바뀔 때마다 색인 경고가 쌓이던 것.</li><li><b>화면에 새던 내부 작업명</b> — 설정의 「(W4 dogfooding fix)」 같은 메모와 「Inactivity timeout」 · 「Resume grace」 · 「drift」 같은 반쪽 영어를 사람의 말로 바꿨습니다. 브랜치 화면의 릴리스 노트 초안이 Ocul-PM 자신의 릴리스 체크리스트를 모든 프로젝트에 보여 주던 것도 고쳤습니다.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-6-0"><a href="#v3-6-0">v3.6.0</a></h2>
       <div class="cl-body">

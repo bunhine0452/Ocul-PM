@@ -78,7 +78,13 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.6.0 — Windows · Linux beta
+## 🚀 v3.7.0 — Sessions retired, loose wires connected
+
+- **The Sessions (agent-to-agent) screen is gone** — its surface outgrew its use. The sidebar's Agents row now has two branches, Claude Code and Codex; the agent-facing MCP tools shrink to seven (journal · plan · start tracking), and tracked projects' AGENTS.md drops that section too.
+- **Two features that were never wired up** — breakpoints vanished from a file you renamed or moved in the editor, and the notice for a repaired journal record file could never appear.
+- **Removed projects left their records in the database** — they are now deleted with the project, and this update sweeps the roughly ten thousand rows already left behind. Warnings written twice to the log, an index warning on every PDF change, and internal work notes and half-English labels leaking into Settings are fixed as well.
+
+## v3.6.0 — Windows · Linux beta
 
 - **Now on Windows and Linux (beta)** — a Windows 10 2004+ / 11 (x64) installer and Linux x64 AppImage · deb. With no such machines on hand, every release has CI runners install → launch → walk fifteen screens · Korean terminal input · journaling · **the in-app update (older build → new build → relaunch, bad signatures refused)**, and only OSes that pass ship. macOS updates stay separate from all of it. Install notes are under [Install](#install).
 - **Windows is an unsigned beta** — SmartScreen "More info → Run anyway"; the installer adds the VC++ runtime first if it is missing and stops with an explanation below Windows 10 2004. Updates keep your terminal sessions, and closing a session leaves window programs you launched from the shell running (as on the Mac).
