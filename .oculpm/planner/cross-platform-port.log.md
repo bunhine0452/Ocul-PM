@@ -68,4 +68,5 @@ plan: cross-platform-port
 | 2026-09-25T02:43:49+09:00 | #ui-winpath-name | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | osPath.ts, E2E windows "프로젝트 이름 = 폴더 이름" 초록. PR #44 |
 | 2026-09-25T02:43:55+09:00 | #ui-term-write-order | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | 세션별 쓰기 직렬화(ptyWrite.ts), 단일 창구 writePty. E2E windows 연타 순서 초록. macOS 도 잠복 결함 수리 |
 | 2026-09-25T02:44:01+09:00 | #ui-mono-hangul | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | UI 고정폭 한글 폴백을 Pretendard Hangul 로(터미널·macOS 불변), E2E 스크린샷으로 자간 정상 확인 |
+| 2026-09-25T02:44:09+09:00 | #ui-e2e-minor | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | 탭 라벨 실제 셸(bash/pwsh, macOS zsh 불변), 영어 전환 토스트 tIn 으로(모든 OS 결함) |
 <!-- oculpm:plan-log end -->

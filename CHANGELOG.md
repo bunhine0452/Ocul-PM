@@ -7,6 +7,10 @@
 > (기능이 늘었으면 JSON-LD·FAQ·벤토 셀까지)도 함께 최신화해야 합니다 — 전체 순서는
 > [docs/RELEASE.md](docs/RELEASE.md).
 
+## Unreleased
+
+**Linux AppImage 를 다른 사용자나 샌드박스로 띄우면 창이 뜨지 않던 것.** AppImage 안의 실행 파일 하나가 만든 사람만 실행할 수 있게 실려 있어서, `firejail --appimage` 처럼 root 가 열고 다른 사용자가 띄우는 경로에서는 `Permission denied` 로 끝났습니다. 앱 아이콘(`.DirIcon`)도 빌드 기계의 경로를 가리키고 있어 AppImage 관리 도구에서 아이콘이 비었습니다 — AppImage 카탈로그(appimage.github.io) 등록 테스트도 이 둘로 거절했습니다. 둘 다 고쳤고, 이제 릴리스마다 AppImage 안을 검사해 같은 결함이 다시 생기면 그 판의 Linux 빌드는 공개하지 않습니다.
+
 ## v3.6.0
 
 **Windows 와 Linux 에서도 씁니다 — 베타.** 지금까지 공식 빌드는 Apple Silicon 맥뿐이었습니다. 이제 Windows 10 2004 이상 · 11(x64)은 설치 파일(`Ocul-PM_x.y.z_x64-setup.exe`)로, Linux x64 는 AppImage 와 deb 로 받습니다 — Linux 는 glibc 2.35 이상(Ubuntu 22.04 · Debian 12 이후)이면 됩니다. Windows 설치본과 AppImage 는 macOS 처럼 앱 안에서 자동 업데이트되고, deb 는 패키지 관리자로 새 버전을 깝니다. 만드는 사람에게 Windows · Linux 기기가 없어서, 릴리스마다 CI 러너가 설치 → 실행 → 실제 앱으로 열다섯 화면 · 터미널 한글 입력 · 일지 기록까지 돌려 보고 **통과한 OS 만** 싣습니다. 통과하지 못한 버전에는 그 OS 파일이 없고 릴리스 노트에 그 사실이 남습니다. macOS 업데이트는 이 과정과 떨어져 있어, Windows · Linux 빌드가 실패해도 맥 사용자는 영향을 받지 않습니다.
