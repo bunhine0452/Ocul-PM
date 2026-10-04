@@ -575,29 +575,6 @@ impl Db {
         Ok(count as u32)
     }
 
-    /// Refresh the indexed hash for a single file (project_id, path → hash).
-    /// Called after a changelog commit so `detect_file_changes` does not pick
-    /// the same file up again on the next scan. No-op if the file row does not
-    /// yet exist in `files` — the next full reindex will pick it up.
-    pub async fn refresh_file_hash(
-        &self,
-        project_id: u32,
-        path: String,
-        new_hash: String,
-    ) -> Result<()> {
-        self.conn
-            .call(move |c| {
-                c.execute(
-                    "UPDATE files SET hash = ?1, indexed_at = unixepoch()
-                     WHERE project_id = ?2 AND path = ?3",
-                    params![&new_hash, project_id as i64, &path],
-                )?;
-                Ok(())
-            })
-            .await?;
-        Ok(())
-    }
-
     /// Returns the stored hash for a file by project_id and path.
     pub async fn get_file_hash(
         &self,

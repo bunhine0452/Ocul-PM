@@ -276,10 +276,6 @@ impl AutomationRunner {
         self.cancel.store(true, Ordering::SeqCst);
     }
 
-    pub fn is_running(&self) -> bool {
-        self.slot.try_lock().is_err()
-    }
-
     /// 잡 하나를 집행한다. 모듈 문서의 파이프라인 그대로.
     pub async fn run(&self, ctx: &JobContext<'_>, job: Job) -> JobOutcome {
         // ── 1. 동시 1건. 밀린 것은 드롭하되 이유를 원장에 남긴다 ──

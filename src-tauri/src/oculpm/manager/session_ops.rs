@@ -220,25 +220,4 @@ impl OculpmManager {
             None => events,
         })
     }
-
-    /// Read a snapshot (open or close) for a given workday.
-    pub async fn get_index_snapshot(
-        &self,
-        project_id: u32,
-        workday: String,
-        kind: SnapshotKind,
-    ) -> Result<Snapshot, OculpmError> {
-        let writer = {
-            let projects = self.projects.read().await;
-            let entry = projects
-                .get(&project_id)
-                .ok_or(OculpmError::NotInitialized(project_id))?;
-            entry.index_writer.clone()
-        };
-        writer.read_snapshot(&workday, kind).await?.ok_or_else(|| {
-            OculpmError::InvalidConfig(format!(
-                "snapshot not captured for workday={workday}, kind={kind:?}"
-            ))
-        })
-    }
 }

@@ -21,7 +21,7 @@
 
 // and by PR4 (drift) / PR5 (compare) / PR7 (settings).
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::oculpm::atomic_io::{
     read_managed_block, remove_managed_block, write_atomic, write_managed_block, ManagedBlockResult,
@@ -644,13 +644,6 @@ fn adjacent_marker_for(adapter_id: &str, root: &Path) -> bool {
 }
 
 // ─── helpers exposed for tests ───────────────────────────────────────────────
-
-pub fn _absolute_for_test(root: &Path, adapter_id: &str) -> Option<PathBuf> {
-    known_adapters()
-        .iter()
-        .find(|a| a.id == adapter_id)
-        .map(|a| root.join(a.adapter_path))
-}
 
 // ─── tests ───────────────────────────────────────────────────────────────────
 
