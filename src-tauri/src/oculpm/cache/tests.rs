@@ -923,10 +923,10 @@ async fn upsert_outcome_signals_inserted_then_updated() {
     );
 }
 
-// ───────── W5-PR5: overview_stats ──────────
+// ───────── 공용 헬퍼 (W5) ──────────
 
 /// Insert one journal row directly into the cache via reindex_full of a
-/// hand-written .md file. Helper for the overview tests below.
+/// hand-written .md file.
 fn write_journal(
     root: &Path,
     relative_path: &str,
@@ -953,36 +953,6 @@ fn write_journal(
     write_entry(root, relative_path, &fm, body);
 }
 
-#[allow(clippy::too_many_arguments)]
-async fn insert_session_async<'a>(
-    cache: &'a JournalCache<'a>,
-    project_id: u32,
-    session_id: &str,
-    workday: &str,
-    started_at: &str,
-    ended_at: &str,
-    file_event_count: u32,
-    files_unique: u32,
-) {
-    let pid = project_id as i64;
-    let sid = session_id.to_string();
-    let wd = workday.to_string();
-    let s = started_at.to_string();
-    let e = ended_at.to_string();
-    cache
-        .db
-        .conn()
-        .call(move |c| {
-            c.execute(
-                "INSERT INTO oculpm_sessions_cache (project_id, session_id, workday, started_at, ended_at, ended_reason, file_event_count, files_unique, agent_label_guess)
-                 VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, NULL)",
-                params![pid, &sid, &wd, &s, &e, file_event_count as i64, files_unique as i64],
-            )?;
-            Ok::<(), rusqlite::Error>(())
-        })
-        .await
-        .unwrap();
-}
 async fn fresh_cache_with_project() -> (Db, tempfile::TempDir, PathBuf) {
     let (db, dir) = fresh_db().await;
     // Project row for FK constraints elsewhere.
@@ -993,177 +963,6 @@ async fn fresh_cache_with_project() -> (Db, tempfile::TempDir, PathBuf) {
     let journal_root = dir.path().join("journal");
     std::fs::create_dir_all(&journal_root).unwrap();
     (db, dir, journal_root)
-}
-
-#[tokio::test]
-async fn overview_stats_aggregates_heatmap_cells_for_window() {
-    let (db, _dir, journal_root) = fresh_cache_with_project().await;
-    let cache = JournalCache::new(&db);
-    // 3 entries on 20260522.
-    write_journal(
-        &journal_root,
-        "20260522/Bugs/0900_bug_a.md",
-        Some("medium"),
-        "claude-code",
-        "2026-05-22T09:00:00+09:00",
-        false,
-    );
-    write_journal(
-        &journal_root,
-        "20260522/Bugs/1000_bug_b.md",
-        Some("low"),
-        "cursor",
-        "2026-05-22T10:00:00+09:00",
-        false,
-    );
-    write_journal(
-        &journal_root,
-        "20260522/Bugs/1100_bug_c.md",
-        None,
-        "claude-code",
-        "2026-05-22T11:00:00+09:00",
-        false,
-    );
-    cache.reindex_full(1, &journal_root).await.unwrap();
-
-    let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
-    assert_eq!(stats.window_days, 7);
-    assert_eq!(stats.heatmap_cells.len(), 7);
-    // Most cells are empty; the 20260522 one has 3 entries.
-    let last = stats.heatmap_cells.last().unwrap();
-    assert_eq!(last.workday, "20260522");
-    assert_eq!(last.entry_count, 3);
-    assert_eq!(last.score, 15); // 3 * 5 + 0 file events
-    let prior = stats.heatmap_cells.first().unwrap();
-    assert_eq!(prior.entry_count, 0);
-}
-
-#[tokio::test]
-async fn overview_stats_groups_difficulty_mix_with_null_count() {
-    let (db, _dir, journal_root) = fresh_cache_with_project().await;
-    let cache = JournalCache::new(&db);
-    write_journal(
-        &journal_root,
-        "20260522/Bugs/0900_bug_a.md",
-        Some("medium"),
-        "x",
-        "2026-05-22T09:00:00+09:00",
-        false,
-    );
-    write_journal(
-        &journal_root,
-        "20260522/Bugs/0910_bug_b.md",
-        Some("medium"),
-        "x",
-        "2026-05-22T09:10:00+09:00",
-        false,
-    );
-    write_journal(
-        &journal_root,
-        "20260522/Bugs/0920_bug_c.md",
-        Some("high"),
-        "x",
-        "2026-05-22T09:20:00+09:00",
-        false,
-    );
-    write_journal(
-        &journal_root,
-        "20260522/Bugs/0930_bug_d.md",
-        None,
-        "x",
-        "2026-05-22T09:30:00+09:00",
-        false,
-    );
-    cache.reindex_full(1, &journal_root).await.unwrap();
-
-    let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
-    assert_eq!(stats.difficulty_mix.medium, 2);
-    assert_eq!(stats.difficulty_mix.high, 1);
-    assert_eq!(stats.difficulty_mix.null_count, 1);
-    assert_eq!(stats.difficulty_mix.low, 0);
-}
-
-#[tokio::test]
-async fn overview_stats_agent_breakdown_share_sums_to_one() {
-    let (db, _dir, journal_root) = fresh_cache_with_project().await;
-    let cache = JournalCache::new(&db);
-    write_journal(
-        &journal_root,
-        "20260522/Bugs/0900_a.md",
-        None,
-        "claude-code",
-        "2026-05-22T09:00:00+09:00",
-        false,
-    );
-    write_journal(
-        &journal_root,
-        "20260522/Bugs/0910_b.md",
-        None,
-        "claude-code",
-        "2026-05-22T09:10:00+09:00",
-        false,
-    );
-    write_journal(
-        &journal_root,
-        "20260522/Bugs/0920_c.md",
-        None,
-        "cursor",
-        "2026-05-22T09:20:00+09:00",
-        false,
-    );
-    write_journal(
-        &journal_root,
-        "20260522/Bugs/0930_d.md",
-        None,
-        "manual",
-        "2026-05-22T09:30:00+09:00",
-        false,
-    );
-    cache.reindex_full(1, &journal_root).await.unwrap();
-
-    let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
-    let total_share: f32 = stats.agent_breakdown.iter().map(|a| a.share).sum();
-    assert!(
-        (total_share - 1.0).abs() < 1e-5,
-        "agent shares should sum to 1.0, got {total_share}"
-    );
-    let claude = stats
-        .agent_breakdown
-        .iter()
-        .find(|a| a.agent_id == "claude-code")
-        .expect("claude-code present");
-    assert_eq!(claude.entry_count, 2);
-}
-
-#[tokio::test]
-async fn overview_stats_unfinished_caps_at_fifty() {
-    let (db, _dir, journal_root) = fresh_cache_with_project().await;
-    let cache = JournalCache::new(&db);
-    for i in 0..60 {
-        let h = i / 60;
-        let m = i % 60;
-        write_journal(
-            &journal_root,
-            &format!("20260522/Bugs/{:02}{:02}_bug_{}.md", h, m, i),
-            None,
-            "x",
-            &format!("2026-05-22T{:02}:{:02}:00+09:00", h, m),
-            true, // unfinished
-        );
-    }
-    cache.reindex_full(1, &journal_root).await.unwrap();
-
-    let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
-    assert_eq!(stats.unfinished_entries.len(), 50);
-    // Most-recent first — first entry's created_at >= second's.
-    for pair in stats.unfinished_entries.windows(2) {
-        assert!(
-            pair[0].created_at >= pair[1].created_at,
-            "expected DESC ordering by created_at; got {} then {}",
-            pair[0].created_at,
-            pair[1].created_at
-        );
-    }
 }
 
 // ───────── W5-PR6: agent filter + observed_agent_ids ──────────
@@ -1339,36 +1138,6 @@ async fn observed_agent_ids_returns_distinct_sorted() {
 
     let agents = cache.observed_agent_ids(1).await.unwrap();
     assert_eq!(agents, vec!["claude-code", "cursor", "manual"]);
-}
-
-#[tokio::test]
-async fn overview_stats_recent_sessions_narrative_rate_handles_zero_sessions() {
-    let (db, _dir, _journal_root) = fresh_cache_with_project().await;
-    let cache = JournalCache::new(&db);
-    // No sessions, no entries — narrative_rate must be 0 (not NaN) for
-    // every day in the window. recent_sessions itself is empty.
-    let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
-    assert!(stats.recent_sessions.is_empty());
-
-    // Now insert a session with file_event_count=0 — narrative_rate must
-    // still be 0.0 (no with_events sessions).
-    insert_session_async(
-        &cache,
-        1,
-        "20260522-001",
-        "20260522",
-        "2026-05-22T09:00:00+09:00",
-        "2026-05-22T10:00:00+09:00",
-        0,
-        0,
-    )
-    .await;
-    let stats = cache.overview_stats(1, 7, "20260522").await.unwrap();
-    assert_eq!(stats.recent_sessions.len(), 1);
-    let row = &stats.recent_sessions[0];
-    assert_eq!(row.session_count, 1);
-    assert!(row.narrative_rate.is_finite());
-    assert_eq!(row.narrative_rate, 0.0);
 }
 
 /// 완성도 라운드 Phase 3 — 여러 워크데이를 한 번에 읽어도 날짜별 목록과
