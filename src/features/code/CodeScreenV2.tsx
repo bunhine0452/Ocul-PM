@@ -362,6 +362,7 @@ export function CodeScreenV2({
     loadDir,
     openPath,
     clearMarks,
+    onRenamed: debug.renamePath,
   });
   const { draft, startCreate, startRename, askDelete, pendingDelete, deleting } = ops;
 

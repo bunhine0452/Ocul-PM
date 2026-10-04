@@ -55,6 +55,8 @@ export interface UseFileOpsArgs {
   openPath: (path: string, line: number | null, pane?: number) => void;
   /** 조작이 끝나면 트리 다중 선택을 비운다 — 사라진 경로가 남아 있으면 안 된다. */
   clearMarks: () => void;
+  /** 경로가 바뀐 것을 경로 키 상태(중단점 등)에 알린다. */
+  onRenamed?: (from: string, to: string, isDir: boolean) => void;
 }
 
 export function useFileOps({
@@ -68,6 +70,7 @@ export function useFileOps({
   loadDir,
   openPath,
   clearMarks,
+  onRenamed,
 }: UseFileOpsArgs) {
   const [draft, setDraft] = useState<TreeDraft | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -94,6 +97,7 @@ export function useFileOps({
     (from: string, to: string, isDir: boolean) => {
       renameBufferPath(projectId, from, to, isDir);
       setTabs((prev) => renameOpenPath(prev, from, to, isDir));
+      onRenamed?.(from, to, isDir);
       if (isDir) {
         setExpanded((prev) => {
           const next = new Set<string>();
@@ -108,7 +112,7 @@ export function useFileOps({
       refreshDirtyPaths();
       reloadAfterOp(parentDir(from), parentDir(to));
     },
-    [projectId, refreshDirtyPaths, reloadAfterOp, setTabs, setExpanded],
+    [projectId, refreshDirtyPaths, reloadAfterOp, setTabs, setExpanded, onRenamed],
   );
 
   /**

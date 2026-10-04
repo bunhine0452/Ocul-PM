@@ -79,6 +79,7 @@ pub async fn code_mkdir(
 #[specta::specta]
 pub async fn code_rename(
     db: State<'_, Db>,
+    dap: State<'_, crate::dap::state::DapState>,
     project_id: u32,
     from_rel: String,
     to_rel: String,
@@ -88,7 +89,8 @@ pub async fn code_rename(
     let to = normalize_rel(&to_rel)?;
     let from_full = secure_join(&root, &from)?;
     let to_full = secure_join(&root, &to)?;
-    tauri::async_runtime::spawn_blocking(move || {
+    let from_key = from.clone();
+    let moved = tauri::async_runtime::spawn_blocking(move || {
         let from_full = resolve_for_mutation(&root, &from_full)?;
         let to_full = resolve_for_mutation(&root, &to_full)?;
         let is_dir = rename_path(&from_full, &to_full)?;
@@ -99,13 +101,19 @@ pub async fn code_rename(
         if let Err(e) = crate::oculpm::history::rename(&root, &from, &to) {
             tracing::warn!(from = %from, to = %to, error = %e, "local history: rename failed");
         }
-        Ok(CodePathResult {
+        Ok::<_, String>(CodePathResult {
             relative_path: to,
             is_dir,
         })
     })
     .await
-    .map_err(|e| format!("Failed to rename: {e}"))?
+    .map_err(|e| format!("Failed to rename: {e}"))??;
+    // 찍어 둔 중단점도 새 경로를 따라간다 — 히스토리와 같은 이유로 여기가 유일한
+    // 다리다. 안 하면 이름을 바꾼 파일의 중단점이 거터에서 사라지고, 다음 디버그
+    // 세션은 없는 경로로 중단점을 보낸다.
+    dap.rename_breakpoint_path(project_id, &from_key, &moved.relative_path, moved.is_dir)
+        .await;
+    Ok(moved)
 }
 
 /// 삭제 — **OS 휴지통으로 보낸다**, 영구 삭제가 아니다.
