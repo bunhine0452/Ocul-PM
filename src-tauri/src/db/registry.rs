@@ -106,6 +106,10 @@ pub(super) const MIGRATIONS: &[(i64, &str)] = &[
         39,
         include_str!("../../migrations/039_oculpm_verified_stale.sql"),
     ),
+    (
+        40,
+        include_str!("../../migrations/040_purge_orphan_project_cache.sql"),
+    ),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —
