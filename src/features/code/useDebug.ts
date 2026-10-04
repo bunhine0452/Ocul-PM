@@ -18,6 +18,7 @@ import { dapApi, type DapControlAction } from "@/api/dap";
 import { errorDetail } from "@/api/invoke";
 import { safeUnlisten } from "@/lib/unlisten";
 import { oculpmLog } from "@/lib/oculpmLog";
+import { remapPathKeys } from "./fileOps";
 
 /** 콘솔에 쌓아 두는 최대 줄 수 — 무한정 자라면 멈춘 순간 앱이 굳는다. */
 const OUTPUT_CAP = 500;
@@ -37,6 +38,8 @@ export interface UseDebugResult {
   /** 어댑터가 못 건다고 답한 줄 (파일별). */
   unverifiedFor: (path: string) => number[];
   toggleBreakpoint: (path: string, line: number) => void;
+  /** 파일·폴더 이름이 바뀌었다 — 중단점이 새 경로를 따라간다 (저장소는 `code_rename` 이 옮긴다). */
+  renamePath: (from: string, to: string, isDir: boolean) => void;
   start: (request: DapLaunchRequest) => Promise<string | null>;
   stop: () => void;
   control: (action: DapControlAction) => void;
@@ -227,6 +230,10 @@ export function useDebug(projectId: number): UseDebugResult {
     [breakpoints],
   );
   const unverifiedFor = useCallback((path: string) => unverified.get(path) ?? [], [unverified]);
+  const renamePath = useCallback((from: string, to: string, isDir: boolean) => {
+    setBreakpoints((prev) => remapPathKeys(prev, from, to, isDir));
+    setUnverified((prev) => remapPathKeys(prev, from, to, isDir));
+  }, []);
 
   return {
     session,
@@ -238,6 +245,7 @@ export function useDebug(projectId: number): UseDebugResult {
     breakpointsFor,
     unverifiedFor,
     toggleBreakpoint,
+    renamePath,
     start,
     stop,
     control,

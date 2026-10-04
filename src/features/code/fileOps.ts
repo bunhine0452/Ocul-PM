@@ -63,3 +63,16 @@ export function moveTarget(
   if (parentDir(from) === toDir) return { ok: false, reason: "sameDir" };
   return { ok: true, to: joinPath(toDir, baseName(from)) };
 }
+
+/**
+ * 경로를 키로 쓰는 지도를 이름 바꾸기·이동에 맞춰 다시 키잉한다 (중단점 등).
+ * 백엔드 `BreakpointStore::rename_path` 와 같은 규칙 — 폴더면 그 아래 전부.
+ * 바뀔 키가 없으면 **같은 지도**를 돌려줘 상태 갱신이 렌더를 깨우지 않게 한다.
+ */
+export function remapPathKeys<T>(map: Map<string, T>, from: string, to: string, isDir: boolean): Map<string, T> {
+  const hit = (key: string) => key === from || (isDir && key.startsWith(`${from}/`));
+  if (![...map.keys()].some(hit)) return map;
+  const next = new Map<string, T>();
+  for (const [key, value] of map) next.set(hit(key) ? to + key.slice(from.length) : key, value);
+  return next;
+}
