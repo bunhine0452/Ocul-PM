@@ -209,17 +209,17 @@ fn is_skipped_name(path: &Path) -> bool {
     SKIP_SUFFIXES.iter().any(|s| name.ends_with(s))
 }
 
-/// Heuristic: a file is treated as binary if its first KB contains a NUL byte.
+/// Heuristic: binary if the first KB has a NUL byte **or isn't UTF-8** — PDFs open with
+/// ASCII (`%PDF-`) then a high-byte line, and EUC-KR text can't be read as `String` either.
+/// A multibyte char cut by the probe's end (`error_len() == None`) is not evidence.
 fn looks_binary(path: &Path) -> bool {
     use std::io::Read;
-    let Ok(mut f) = std::fs::File::open(path) else {
-        return true;
-    };
     let mut buf = [0u8; MAX_BINARY_PROBE];
-    let Ok(n) = f.read(&mut buf) else {
+    let Ok(n) = std::fs::File::open(path).and_then(|mut f| f.read(&mut buf)) else {
         return true;
     };
-    buf[..n].contains(&0)
+    let head = &buf[..n];
+    head.contains(&0) || std::str::from_utf8(head).is_err_and(|e| e.error_len().is_some())
 }
 
 #[derive(Debug)]

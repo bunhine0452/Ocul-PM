@@ -457,6 +457,9 @@ fn is_vanished(reason: &crate::indexer::ReindexSkipReason) -> bool {
                 || error.contains("os error 2")
                 // 디렉터리가 파일 자리를 차지했다 = 그 사이 갈아치워졌다.
                 || error.contains("Is a directory")
+                // 머리 1KB 는 UTF-8 인데 뒤가 아니다 (탐침 `looks_binary` 를 지난
+                // 비텍스트). 고칠 것이 없는 일상이라 같은 등급으로 둔다.
+                || error.contains("did not contain valid UTF-8")
         }
         R::Generated | R::UpsertFailed { .. } => false,
     }
@@ -479,6 +482,9 @@ mod tests {
         assert!(is_vanished(&R::ReadFailed {
             error: "Is a directory (os error 21)".into()
         }));
+        assert!(is_vanished(&R::ReadFailed {
+            error: "stream did not contain valid UTF-8".into()
+        }));
         // 진짜 실패들.
         assert!(!is_vanished(&R::ReadFailed {
             error: "Permission denied (os error 13)".into()
@@ -487,5 +493,29 @@ mod tests {
             error: "database is locked".into()
         }));
         assert!(!is_vanished(&R::Generated));
+    }
+
+    /// 설치본 로그 2026-09-30: PDF 가 NUL 탐침을 지나 `read_to_string` 에서 WARN 으로
+    /// 터졌다. 머리가 ASCII 인 바이너리와 비 UTF-8 텍스트는 경로 판정에서 걸러진다.
+    #[test]
+    fn non_utf8_heads_are_not_indexable() {
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = crate::indexer::IndexConfig::default();
+        let pdf = dir.path().join("a.pdf");
+        std::fs::write(
+            &pdf,
+            b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\n",
+        )
+        .unwrap();
+        assert!(!crate::indexer::is_indexable_path(&pdf, &cfg));
+        let euc_kr = dir.path().join("memo.txt");
+        std::fs::write(&euc_kr, b"\xc7\xd1\xb1\xdb \xb8\xde\xb8\xf0\n").unwrap();
+        assert!(!crate::indexer::is_indexable_path(&euc_kr, &cfg));
+        // 탐침 경계에서 잘린 한글 한 글자는 텍스트다.
+        let mut ko = vec![b'a'; 1023];
+        ko.extend_from_slice("가".as_bytes());
+        let cut = dir.path().join("cut.md");
+        std::fs::write(&cut, &ko).unwrap();
+        assert!(crate::indexer::is_indexable_path(&cut, &cfg));
     }
 }
