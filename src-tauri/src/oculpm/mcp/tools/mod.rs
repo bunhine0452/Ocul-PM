@@ -107,8 +107,7 @@ use crate::oculpm::redact::{
 };
 use crate::oculpm::session::resolve_session_for_timestamp;
 use crate::oculpm::spec::{
-    AgentRef, Difficulty, EntryStatus, EntryType, FileOp, FileTouched, JournalFrontmatter,
-    OculpmConfig,
+    AgentRef, Difficulty, EntryStatus, EntryType, JournalFrontmatter, OculpmConfig,
 };
 
 /// MCP `tools/list` 응답의 도구 정의. 스키마는 에이전트가 읽는 계약서다 —
@@ -532,16 +531,6 @@ fn entry_status_token(s: EntryStatus) -> &'static str {
     }
 }
 
-fn parse_file_op(s: &str) -> FileOp {
-    match s {
-        "create" => FileOp::Create,
-        "delete" => FileOp::Delete,
-        "rename" => FileOp::Rename,
-        "correct" => FileOp::Correct,
-        _ => FileOp::Update,
-    }
-}
-
 /// slug 를 ASCII kebab 으로 강제 (journal_draft::sanitize_slug 와 동일 규칙을
 /// 여기서 재사용하기엔 의존 방향이 어색해 로컬 구현 — 규칙은 스키마에 명시).
 fn sanitize_slug(raw: &str) -> Result<String, String> {
@@ -610,27 +599,9 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     let local = now.with_timezone(&resolver.tz);
 
     // files_touched(저장 모양 `/` 로 — #fs-files-touched-norm) + forbidden 검사 (manager 의 create 경로와 동일 계약).
-    let files: Vec<FileTouched> = args
-        .get("files_touched")
-        .and_then(Value::as_array)
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|f| {
-                    let path = crate::git::touched_path(root, f.get("path")?.as_str()?);
-                    if path.is_empty() {
-                        return None;
-                    }
-                    Some(FileTouched {
-                        path,
-                        op: parse_file_op(f.get("op").and_then(Value::as_str).unwrap_or("update")),
-                        bytes_added: None,
-                        bytes_removed: None,
-                        rename_from: None,
-                    })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    // 못 읽은 원소는 조용히 버리지 않고 warnings 로 알린다 (files_touched.rs).
+    let mut warnings: Vec<String> = Vec::new();
+    let files = self::files_touched::parse_files_touched(root, args, &mut warnings);
     if !cfg.git.forbid_journal_for_paths.is_empty() && !files.is_empty() {
         let matcher = build_forbidden_matcher(root, &cfg.git.forbid_journal_for_paths);
         let hits: Vec<String> = files
@@ -661,7 +632,6 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     // related — 인자 파싱도 자동 연결도 `related.rs` 가 소유한다. 자동 연결은
     // related 를 **안 준** bug/error 일지에만 붙고, 붙었으면 응답이 말한다
     // ({#related-auto}).
-    let mut warnings: Vec<String> = Vec::new();
     let mut related = self::related::parse_related_arg(root, args, &mut warnings);
     let auto_related = self::related::auto_relate(root, entry_type, &files, &mut related);
     if redacted > 0 {
@@ -775,6 +745,10 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
 
 mod search;
 pub(crate) use search::*;
+
+// ─── journal_write 의 files_touched → files_touched.rs ───────────────────────
+
+mod files_touched;
 
 // ─── journal_write 의 related → related.rs ──────────────────────────────────
 
