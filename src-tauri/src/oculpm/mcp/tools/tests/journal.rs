@@ -2,6 +2,7 @@
 
 use crate::oculpm::frontmatter::parse_frontmatter_and_body;
 use crate::oculpm::mcp::tools::*;
+use crate::oculpm::spec::FileOp;
 use tempfile::TempDir;
 
 #[test]
@@ -445,4 +446,64 @@ fn journal_write_stores_files_touched_in_slash_form() {
     let fm = parse_frontmatter_and_body(&raw).0.parsed.unwrap();
     let got: Vec<&str> = fm.files_touched.iter().map(|f| f.path.as_str()).collect();
     assert_eq!(got, want);
+}
+
+/// 경로 문자열 배열도 받는다 — 예전엔 `f.get("path")?` 가 문자열 원소에서 None 이
+/// 되어 `files_touched: []` 로 **경고 없이** 저장됐다 (2026-09 실측 250번 중 4번).
+#[test]
+fn journal_write_accepts_string_paths_in_files_touched() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+    let out = call_tool(
+        root,
+        "journal_write",
+        &serde_json::json!({
+            "type": "bug", "slug": "strings", "title": "문자열", "body_markdown": "본문",
+            "files_touched": ["src/a.ts", { "path": "src/b.rs", "op": "create" }],
+        }),
+    )
+    .unwrap();
+    let raw = std::fs::read_to_string(root.join(out["path"].as_str().unwrap())).unwrap();
+    let fm = parse_frontmatter_and_body(&raw).0.parsed.unwrap();
+    let got: Vec<(&str, FileOp)> = fm
+        .files_touched
+        .iter()
+        .map(|f| (f.path.as_str(), f.op))
+        .collect();
+    assert_eq!(
+        got,
+        vec![("src/a.ts", FileOp::Update), ("src/b.rs", FileOp::Create)]
+    );
+    assert!(out["warnings"].as_array().unwrap().is_empty());
+}
+
+/// 그래도 못 읽는 원소가 있으면 버리되 **말한다** — 일지와 diff 를 대조하는 앱이
+/// 에이전트의 말을 몰래 버리면 대조가 거짓이 된다.
+#[test]
+fn journal_write_warns_on_unreadable_files_touched() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+    let write = |files: serde_json::Value| {
+        call_tool(
+            root,
+            "journal_write",
+            &serde_json::json!({
+                "type": "chore", "slug": "bad-files", "title": "잡일", "body_markdown": "본문",
+                "files_touched": files,
+            }),
+        )
+        .unwrap()
+    };
+    let mixed = write(serde_json::json!(["src/ok.ts", 42, { "op": "update" }]));
+    let warnings = mixed["warnings"].as_array().unwrap();
+    assert_eq!(warnings.len(), 1);
+    assert!(warnings[0].as_str().unwrap().contains("2개"));
+    let raw = std::fs::read_to_string(root.join(mixed["path"].as_str().unwrap())).unwrap();
+    let fm = parse_frontmatter_and_body(&raw).0.parsed.unwrap();
+    assert_eq!(fm.files_touched.len(), 1);
+
+    let not_array = write(serde_json::json!("src/a.ts, src/b.ts"));
+    assert!(not_array["warnings"][0].as_str().unwrap().contains("배열"));
 }
