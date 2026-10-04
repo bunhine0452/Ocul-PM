@@ -52,4 +52,5 @@ docs/product-direction-2026-09-21/REPORT.md 의 실행 플랜. 검증 경로 하
 | 2026-09-22T01:45:24+09:00 | #p2-deliver | claude-code | ☐→x | .oculpm/journal/20260922/Features_to_add/0144_feature_resume-context-and-card.md | plan-context.sh 가 SessionStart 컨텍스트에 마지막 일지 3건을 싣고 resume-delivered.jsonl 원장을 남긴다 (codex 사본 동기, cwd 폴백, resume_context 5건 실제 sh 테스트). 이 저장소·이 대화로 실제 왕복 확인 |
 | 2026-09-22T01:45:32+09:00 | #p2-observe | claude-code | ☐→x | .oculpm/journal/20260922/Features_to_add/0144_feature_resume-context-and-card.md | 전달 줄 세 갈래(포함됨/아직/훅 없음) — 원장은 "컨텍스트 포함"까지만 증명, 참조·도움은 모른다고 표시. 복사는 전달로 세지 않음. recall_touch 는 AI 패널 전용(PHASE0 관측표) |
 | 2026-09-22T19:44:39+09:00 | #p3-intro | claude-code | ☐→~ | .oculpm/journal/20260922/Chores/1944_chore_readme-landing-one-sentence-round-trip.md | README ko/en·랜딩 ko/en 을 한 문장+왕복 3단계로 편집. 남은 것: 시작 위키·실제 왕복 촬영·랜딩 배포 |
+| 2026-10-04T18:37:29+09:00 | #p3-intro | claude-code | ~→~ | .oculpm/journal/20261004/Features_to_add/1837_feature_agent-report-card-first-draft.md | 소개 문구 결정 대기 — "기억" 은 claude-mem 자리. 대안 실험으로 에이전트 성적표 초안(docs/launch/agent-report-card.md) 작성, GeekNews 반응 후 P3 문구 결정 |
 <!-- oculpm:plan-log end -->
