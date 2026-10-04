@@ -488,6 +488,11 @@ impl OculpmManager {
                 app_handle.clone(),
             ),
         };
+        if let Some(handle) = &app_handle {
+            snapshot
+                .index_writer
+                .attach_emit_ctx(project_id, handle.clone());
+        }
         let started = ProjectWatcher::start(
             project_id,
             snapshot.root.clone(),
