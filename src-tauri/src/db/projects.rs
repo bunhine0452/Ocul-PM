@@ -5,6 +5,29 @@
 
 use super::*;
 
+/// `projects` 에 FK 로 매달리지 않은 프로젝트 범위 표 — 프로젝트 행을 지워도
+/// 따라 지워지지 않는다. 전부 `.oculpm/` 디스크에서 다시 만드는 파생 캐시라
+/// [`Db::delete_project`] 가 같은 트랜잭션에서 함께 지운다.
+///
+/// `tests/project_delete_cache.rs` 가 스키마와 이 목록을 대조한다 — 새 캐시 표를
+/// 만들면 거기서 먼저 걸린다 (2026-10-04: 지운 프로젝트 7개의 행 1만 개가 고아였다).
+pub const PROJECT_CACHE_TABLES: &[&str] = &[
+    "oculpm_agent_state",
+    "oculpm_discussion_attachments",
+    "oculpm_discussion_log",
+    "oculpm_discussions",
+    "oculpm_journal",
+    "oculpm_journal_files",
+    "oculpm_journal_tags",
+    "oculpm_plan_decisions",
+    "oculpm_plan_item_updates",
+    "oculpm_plan_items",
+    "oculpm_plans",
+    "oculpm_sessions_cache",
+    "oculpm_settings",
+    "recall_stats",
+];
+
 impl Db {
     // ---------- Projects ----------
 
@@ -79,7 +102,15 @@ impl Db {
     pub async fn delete_project(&self, id: u32) -> Result<()> {
         self.conn
             .call(move |c| {
-                c.execute("DELETE FROM projects WHERE id = ?", [id as i64])?;
+                let tx = c.transaction()?;
+                for table in PROJECT_CACHE_TABLES {
+                    tx.execute(
+                        &format!("DELETE FROM {table} WHERE project_id = ?1"),
+                        [id as i64],
+                    )?;
+                }
+                tx.execute("DELETE FROM projects WHERE id = ?1", [id as i64])?;
+                tx.commit()?;
                 Ok(())
             })
             .await?;

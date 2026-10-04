@@ -35,6 +35,7 @@ mod graph;
 pub mod hotspot;
 mod planning;
 mod projects;
+pub use projects::PROJECT_CACHE_TABLES;
 pub mod recall;
 mod settings;
 pub mod velocity;
