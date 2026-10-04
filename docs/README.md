@@ -29,6 +29,7 @@
 | [`optimization/`](optimization/) | **최적화 원장.** 앞으로의 최적화는 라운드 폴더를 새로 파지 않고 여기 적는다 — 고친 것 · 확정했지만 안 고친 것 · 재 봤더니 아니었던 것 · 잔고 표 |
 | [`a2a/`](a2a/) | 다중 에이전트 원장 — 세션 묶기 · 구역 임대 · 작업 넘기기 · 신뢰 경계. D8 이 전용 「세션」 화면을 열었다 |
 | [`acp-panel/`](acp-panel/) | 앱 안 ACP 에이전트 패널(Claude Code · Codex)의 구조. "프로젝트당 1 세션" 비목표는 뒤집혔다 |
+| [`20261005_native-agent-drivers/`](20261005_native-agent-drivers/) | **설계 · 미구현.** Claude Code · Codex 를 ACP 어댑터 대신 각 CLI 의 네이티브 통로(stream-json 제어 프로토콜 · `codex app-server`)로. `acp-panel/` §1 의 C 안 기각 사유를 다시 연다. 스파이크 실측 · D1~D8(버전은 고정 대신 감시) · P0~P5 · 플랜 `native-agent-drivers` |
 | [`agent-discipline/`](agent-discipline/) | 스킬·규칙·훅 허브 화면의 재설계 (발동 원장 · 예산 바 · 자기정리 제안) |
 | [`claude-integration/`](claude-integration/) | 훅 · MCP 도구 · 플러그인 패키징 (PR-CI0~8). `06-plugin-contract.md` 가 플러그인 표면의 계약 |
 | [`code-editor/`](code-editor/) | 코드 화면(인앱 에디터). **"v1 스코프 밖" 목록은 전부 출시됐다** — 그 절의 정정 주석을 볼 것 |
