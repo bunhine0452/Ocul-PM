@@ -483,7 +483,7 @@ fn landing_plugin_docs_page_lists_every_command_and_tool() {
             "landing/plugin.html 에 {cmd} 문서 누락 — 커맨드를 추가했으면 문서도 갱신하라"
         );
     }
-    // MCP 도구 14종 — tools/list 계약(protocol 테스트)과 같은 목록.
+    // MCP 도구 7종 — tools/list 계약(protocol 테스트)과 같은 목록.
     for tool in [
         "journal_write",
         "journal_search",
@@ -492,17 +492,18 @@ fn landing_plugin_docs_page_lists_every_command_and_tool() {
         "plan_update",
         "plan_create",
         "project_init",
-        "agent_register",
-        "agent_list",
-        "agent_inbox",
-        "agent_send",
-        "task_create",
-        "task_update",
-        "claim_paths",
     ] {
         assert!(
             page.contains(tool),
             "landing/plugin.html 에 MCP 도구 {tool} 문서 누락"
+        );
+    }
+    // 걷어낸 A2A 도구 (2026-10-04) — 문서가 없는 도구를 광고하면 에이전트와
+    // 사람 모두 부를 수 없는 것을 찾아 헤맨다.
+    for gone in ["agent_register", "agent_inbox", "agent_send", "claim_paths"] {
+        assert!(
+            !page.contains(gone),
+            "landing/plugin.html 이 걷어낸 MCP 도구 {gone} 를 아직 문서화한다"
         );
     }
     // 스킬 5종 — 갤러리/매니페스트와 같은 목록.

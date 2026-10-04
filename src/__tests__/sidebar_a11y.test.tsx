@@ -100,7 +100,7 @@ describe("PR-UI 1 — Sidebar navigation", () => {
   });
 
   // 접힌 행을 눌러도 기본 갈래로 간다 — 행이 하나가 됐다고 갈 곳이 사라지면
-  // 안 된다. 형제(Codex·세션)는 그 면에 들어가야 펼쳐진다.
+  // 안 된다. 형제(Codex)는 그 면에 들어가야 펼쳐진다.
   it("에이전트 행은 기본 갈래로 가고, 그 면 안에서만 형제가 펼쳐진다", () => {
     const closed = renderSidebar();
     fireEvent.click(closed.getByText("에이전트"));
@@ -109,9 +109,9 @@ describe("PR-UI 1 — Sidebar navigation", () => {
 
     const open = renderSidebar({ view: "codex" });
     expect(open.getByText("Codex")).toBeInTheDocument();
-    expect(open.getByText("세션")).toBeInTheDocument();
-    fireEvent.click(open.getByText("세션"));
-    expect(open.calls).toEqual(["sessions"]);
+    expect(open.queryByText("세션")).toBeNull();
+    fireEvent.click(open.getByText("Claude Code"));
+    expect(open.calls).toEqual(["claudecode"]);
   });
 
   it("marks the active slot with aria-current", () => {

@@ -26,7 +26,6 @@ import {
   Terminal,
   Trash2,
   TriangleAlert,
-  Waypoints,
   type IconComponent,
 } from "@/components/Icons";
 import { useT, type I18nKey } from "@/i18n";
@@ -212,12 +211,6 @@ export const PRESENTERS = {
   "oculpm-plan": {
     Icon: ListChecks,
     labelKey: "activity.kind.plan",
-    runKey: "activity.run.generic",
-    Row: LedgerActivity,
-  },
-  "oculpm-a2a": {
-    Icon: Waypoints,
-    labelKey: "activity.kind.a2a",
     runKey: "activity.run.generic",
     Row: LedgerActivity,
   },

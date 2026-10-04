@@ -1,5 +1,6 @@
-//! 비추적·심링크·모르는 도구 — **아무것도 만들지 않고** 거절하는지.
+//! 비추적·심링크·모르는 도구·옛 `base_hash` — **아무것도 만들지 않고** 거절하는지.
 
+use super::seed_plan;
 use crate::oculpm::mcp::tools::*;
 use tempfile::TempDir;
 
@@ -145,4 +146,58 @@ fn unknown_tool_and_missing_args_error_cleanly() {
     assert!(call_tool(dir.path(), "nope", &serde_json::json!({})).is_err());
     let err = call_tool(dir.path(), "journal_write", &serde_json::json!({})).unwrap_err();
     assert!(err.contains("'type'"));
+}
+
+/// **병렬 세션이 같은 항목을 밟지 못한다** (플랜 `session-shim-cli` CAS).
+///
+/// 메모리에 기록된 사고가 이것이다 — 두 세션이 순서 없이 같은 파일을 고쳐
+/// 그 사이 변경이 사라졌다. `base_hash` 를 준 호출은 그 사이 파일이 바뀌면
+/// **쓰지 않고** 전용 표지를 단 오류로 돌아온다 (CLI 는 그것을 exit 5 로).
+#[test]
+fn a_stale_base_hash_refuses_to_overwrite() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path();
+    std::fs::create_dir_all(root.join(".oculpm")).unwrap();
+    seed_plan(root);
+    let plan_path = planner_dir(root).join("test-plan.md");
+    let stale = blake3::hash(std::fs::read_to_string(&plan_path).unwrap().as_bytes())
+        .to_hex()
+        .to_string();
+
+    // 첫 갱신은 통과하고, 응답이 **다음 CAS 의 재료**를 준다.
+    let ok = call_tool(
+        root,
+        "plan_update",
+        &json!({ "plan_id": "test-plan", "item_id": "first", "status": "done", "base_hash": stale }),
+    )
+    .unwrap();
+    let fresh = ok["hash"].as_str().unwrap().to_string();
+    assert_ne!(fresh, stale, "쓰고 나면 해시가 바뀐다");
+
+    // 남이 그 사이 고친 상황 — 옛 해시로 오면 거부한다.
+    let err = call_tool(
+        root,
+        "plan_update",
+        &json!({ "plan_id": "test-plan", "item_id": "second", "status": "done", "base_hash": stale }),
+    )
+    .expect_err("옛 해시는 거부되어야 한다");
+    assert!(
+        err.starts_with(crate::oculpm::agent_cli::WRITE_CONFLICT_PREFIX),
+        "종료 코드를 가를 표지가 없다: {err}"
+    );
+    // 거부됐으면 **아무것도 안 쓴다.**
+    let after = std::fs::read_to_string(&plan_path).unwrap();
+    assert_eq!(
+        blake3::hash(after.as_bytes()).to_hex().to_string(),
+        fresh,
+        "거부된 호출이 파일을 건드렸다"
+    );
+
+    // 새 해시로는 통과한다.
+    call_tool(
+        root,
+        "plan_update",
+        &json!({ "plan_id": "test-plan", "item_id": "second", "status": "done", "base_hash": fresh }),
+    )
+    .unwrap();
 }

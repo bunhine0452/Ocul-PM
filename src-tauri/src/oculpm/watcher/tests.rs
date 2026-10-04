@@ -10,7 +10,6 @@ use chrono::Utc;
 use tempfile::TempDir;
 use tokio::time::sleep;
 
-use crate::oculpm::a2a::A2aChangeKind;
 use crate::oculpm::cache::PathChangeKind;
 use crate::oculpm::history;
 use crate::oculpm::index::IndexWriter;
@@ -19,32 +18,31 @@ use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{FileOp, OculpmConfig, OculpmDataArea, WatcherStateView};
 
 use super::classify::{
-    a2a_change_kind, data_area_for_path, is_agent_state_path, is_journal_entry_path,
+    data_area_for_path, is_agent_state_path, is_agents_noise, is_journal_entry_path,
     is_self_suppressed, resolve_path_change_kind,
 };
 use super::ProjectWatcher;
 
-/// A2A 원장 세 갈래를 가려내고, **그 밖의 `agents/` 는 건드리지 않는다.**
+/// 걷어낸 A2A 원장의 옛 자리는 **캐스케이드를 타지 않는다.**
 ///
-/// 이 분류가 캐스케이드보다 먼저 도는 것이 요점이다 — 순서가 뒤집히면
-/// 메시지 한 통마다 모든 어댑터의 AGENTS.md 가 다시 쓰인다.
+/// 업데이트 전 플러그인이 아직 하트비트를 쓸 수 있다 — 그것이 캐스케이드를
+/// 타면 한 줄마다 모든 어댑터의 AGENTS.md 가 다시 쓰인다.
 #[test]
-fn a2a_ledger_paths_are_classified_before_the_agents_cascade() {
-    assert_eq!(
-        a2a_change_kind(".oculpm/agents/live/codex-app.json"),
-        Some(A2aChangeKind::Participants)
-    );
-    assert_eq!(
-        a2a_change_kind(".oculpm/agents/inbox/codex-app/2026.json"),
-        Some(A2aChangeKind::Message)
-    );
-    assert_eq!(
-        a2a_change_kind(".oculpm/agents/tasks/2026-abc.ndjson"),
-        Some(A2aChangeKind::Task)
-    );
-    // 마스터 템플릿·어댑터는 예전 길(캐스케이드)로 계속 가야 한다.
-    assert_eq!(a2a_change_kind(".oculpm/agents/_template.md"), None);
-    assert_eq!(a2a_change_kind(".oculpm/journal/x.md"), None);
+fn legacy_a2a_ledger_paths_are_noise_not_cascade() {
+    for p in [
+        ".oculpm/agents/live/codex-app.json",
+        ".oculpm/agents/inbox/codex-app/2026.json",
+        ".oculpm/agents/tasks/2026-abc.ndjson",
+        ".oculpm/agents/leases/x.json",
+        ".oculpm/agents/groups/g.json",
+        ".oculpm/agents/audit/a2a.ndjson",
+    ] {
+        assert!(is_agents_noise(p), "{p}");
+    }
+    // 마스터 템플릿·어댑터 오버라이드는 예전 길(캐스케이드)로 계속 가야 한다.
+    assert!(!is_agents_noise(".oculpm/agents/_template.md"));
+    assert!(!is_agents_noise(".oculpm/agents/per-agent/cursor.md"));
+    assert!(!is_agents_noise(".oculpm/journal/x.md"));
 }
 
 /// Most tests use a 150ms debounce + 350ms wait to keep wall-clock short.

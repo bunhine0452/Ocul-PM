@@ -10,7 +10,6 @@ import {
   MessageSquareText,
   Puzzle,
   FileCode,
-  Waypoints,
   Bot,
   GitBranchIcon,
 } from "@/components/Icons";
@@ -55,12 +54,12 @@ export interface NavEntry {
   /**
    * 이 행이 대표하는 **갈래들** (2026-09-06 IA 재편).
    *
-   * 에이전트 한 행이 Claude Code · Codex · 세션 셋을 대표한다. 행의 `id` 는
+   * 에이전트 한 행이 Claude Code · Codex 둘을 대표한다. 행의 `id` 는
    * 눌렀을 때 가는 기본 갈래이고, 갈래 중 어느 것이 열려 있어도 이 행이
    * 활성으로 보이며 배지는 **합산**된다. 사이드바는 갈래가 열려 있을 때만
-   * 하위 목록을 펼친다 — 안 쓰는 사람에게 세 줄을 늘 보이지 않는다.
+   * 하위 목록을 펼친다 — 안 쓰는 사람에게 두 줄을 늘 보이지 않는다.
    *
-   * 화면 자체는 하나도 없애지 않았다: `uiV2View` 값 셋이 그대로 살아 있고,
+   * 화면 자체는 하나도 없애지 않았다: `uiV2View` 값 둘이 그대로 살아 있고,
    * ⌘K 팔레트는 갈래를 **각각** 목적지로 싣는다 (목적을 갖고 가는 곳은
    * 목적지여야 한다).
    */
@@ -68,18 +67,15 @@ export interface NavEntry {
 }
 
 /**
- * 에이전트 행의 세 갈래. 사이드바에서는 부모가 활성일 때만 펼쳐지고, ⌘K
+ * 에이전트 행의 두 갈래. 사이드바에서는 부모가 활성일 때만 펼쳐지고, ⌘K
  * 팔레트에서는 늘 각각 찾을 수 있다.
  *
- * 셋 다 별칭에 "에이전트" 를 넣어 둔다 — 사이드바에서 사라진 이름으로
+ * 둘 다 별칭에 "에이전트" 를 넣어 둔다 — 사이드바에서 사라진 이름으로
  * 검색하는 사람과, 합쳐진 이름으로 검색하는 사람이 둘 다 도착해야 한다.
  */
 const AGENT_BRANCHES: NavEntry[] = [
   { id: "claudecode", labelKey: "nav.claudecode", aliasKey: "nav.claudecode.alias", icon: ClaudeMark, group: "ai" },
   { id: "codex", labelKey: "nav.codex", aliasKey: "nav.codex.alias", icon: CodexMark, group: "ai" },
-  // 세션은 혼자 쓰면 영구 빈 화면인 행이었다 (붙어 있는 에이전트가 하나뿐이면
-  // 묶을 것이 없다). 화면은 남기고 **행만** 접었다.
-  { id: "sessions", labelKey: "nav.sessions", aliasKey: "nav.sessions.alias", icon: Waypoints, group: "ai" },
 ];
 
 /**
@@ -87,8 +83,8 @@ const AGENT_BRANCHES: NavEntry[] = [
  *
  * 무엇이 바뀌었나:
  *
- * - **Claude Code · Codex · 세션 → 「에이전트」 한 행.** 셋 다 "에이전트에게
- *   시키는 곳"인데 사이드바에서 세 줄을 먹었다. 화면은 셋 다 살아 있고
+ * - **Claude Code · Codex → 「에이전트」 한 행.** 둘 다 "에이전트에게
+ *   시키는 곳"인데 사이드바에서 두 줄을 먹었다. 화면은 둘 다 살아 있고
  *   (`children`), 컴포넌트도 두 벌 keep-alive 그대로다 — 행만 하나다.
  * - **논의를 `ref`(참고) 로 강등하고 ⌘번호를 회수했다.** 이 저장소 실측으로
  *   논의 4건 vs 일지 537건이다. 매일 쓰는 것이 번호를 갖는다.
@@ -138,9 +134,9 @@ export const NAV_ENTRIES: NavEntry[] = [
 /**
  * ⌘K 팔레트가 싣는 목적지 전체 — 갈래가 있는 행은 **갈래로 펼쳐서** 싣는다.
  *
- * 사이드바에서 행이 사라졌다고 갈 곳이 사라지면 안 된다. Codex 와 세션은
- * 여기서 여전히 각각 이름으로 찾힌다. 부모(「에이전트」) 자체는 목적지가
- * 아니다 — 누를 수 있는 것은 늘 셋 중 하나이므로, 합친 이름은 세 갈래의
+ * 사이드바에서 행이 사라졌다고 갈 곳이 사라지면 안 된다. Codex 는
+ * 여기서 여전히 제 이름으로 찾힌다. 부모(「에이전트」) 자체는 목적지가
+ * 아니다 — 누를 수 있는 것은 늘 둘 중 하나이므로, 합친 이름은 두 갈래의
  * **별칭**에 들어간다 (`nav.*.alias` 에 "에이전트").
  */
 export const NAV_DESTINATIONS: NavEntry[] = NAV_ENTRIES.flatMap((e) => e.children ?? [e]);

@@ -1,6 +1,6 @@
 //! Tauri 이벤트 방출 헬퍼 — 앱 핸들이 없으면(단위 테스트) 전부 no-op.
-//! 화면 갱신 신호(`file_changed` · `data_changed` · `journal_path_changed` ·
-//! A2A 원장)와 무결성 경고 토스트를 한자리에 모아 둔다.
+//! 화면 갱신 신호(`file_changed` · `data_changed` · `journal_path_changed`)와
+//! 무결성 경고 토스트를 한자리에 모아 둔다.
 
 use crate::oculpm::spec::{
     FileChangeEvent, FileOp, IntegrityWarning, OculpmDataArea, OculpmDataChanged,
@@ -29,18 +29,6 @@ impl WatcherInner {
                 area,
                 relative_path: relative_path.to_string(),
                 op,
-            }
-            .emit(handle);
-        }
-    }
-
-    /// A2A 원장 변경을 화면에 알린다. 앱 밖 프로세스가 쓴 것이라 워처만이 안다.
-    pub(super) fn emit_a2a_changed(&self, kind: crate::oculpm::a2a::A2aChangeKind) {
-        if let Some(handle) = &self.app_handle {
-            use tauri_specta::Event;
-            let _ = crate::oculpm::a2a::OculpmA2aChanged {
-                project_id: self.project_id,
-                kind,
             }
             .emit(handle);
         }

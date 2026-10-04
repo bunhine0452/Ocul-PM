@@ -50,10 +50,6 @@ export const SettingsPanel = lazy(() =>
 export const CodeScreenV2 = lazy(() =>
   import("@/features/code/CodeScreenV2").then((m) => ({ default: m.CodeScreenV2 })),
 );
-// 세션 화면 (2026-09-04) — 협업하는 프로젝트에서만 여는 곳이라 지연 청크다.
-export const SessionsScreenV2 = lazy(() =>
-  import("@/features/sessions/SessionsScreenV2").then((m) => ({ default: m.SessionsScreenV2 })),
-);
 // 브랜치의 이야기 (v3-surface {#branch-story-view}) — 다른 축으로 다시 읽는
 // 곳이라 코어 루프와 달리 지연 청크다.
 export const BranchScreenV2 = lazy(() =>

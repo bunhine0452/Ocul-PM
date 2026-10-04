@@ -11,7 +11,6 @@ import {
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navRowViews, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
 import { useAcpAttentionCount, useAcpWorkingCount } from "@/features/chat/acpBusyBus";
-import { useSessionAttention } from "@/features/sessions/sessionAttention";
 import { NavRemapNotice } from "@/components/NavRemapNotice";
 // 경로 표기는 앱에서 한 형태다 — 시작 화면 카드·프로젝트 관리가 이미 이걸 쓴다.
 // 사이드바만 원시 경로를 그려서 `/Users/kimhyunbin/De…` 처럼 **집 경로로 폭을
@@ -271,8 +270,6 @@ export function Sidebar({
   const acpAttention = useAcpAttentionCount(currentProjectId ?? null, "claude");
   const codexWorking = useAcpWorkingCount(currentProjectId ?? null, "codex");
   const codexAttention = useAcpAttentionCount(currentProjectId ?? null, "codex");
-  /** 세션 화면에서 **사람이 눌러야** 풀리는 것 — 넘어온 작업의 승인 대기. */
-  const sessionAttention = useSessionAttention(currentProjectId ?? null);
 
   /**
    * 화면 하나의 배지 수. 갈래를 합산하는 자리(에이전트 행)와 갈래 자신을 그리는
@@ -280,14 +277,7 @@ export function Sidebar({
    */
   const counts = (id: UiV2View) => ({
     working: id === "claudecode" ? acpWorking : id === "codex" ? codexWorking : 0,
-    attention:
-      id === "claudecode"
-        ? acpAttention
-        : id === "codex"
-          ? codexAttention
-          : id === "sessions"
-            ? sessionAttention
-            : 0,
+    attention: id === "claudecode" ? acpAttention : id === "codex" ? codexAttention : 0,
   });
 
   // ⌘P (useGlobalShortcuts) / 팔레트 "프로젝트 전환" → 팝오버 열기 (v2 U1).

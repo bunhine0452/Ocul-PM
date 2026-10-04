@@ -1663,34 +1663,6 @@ export const commands = {
 	 *  걸린 것)은 빠지므로, 빈 목록이 "발동 0회" 를 뜻하지 않는다.
 	 */
 	firingQuotes: (projectId: number, kind: string, key: string, days: number, limit: number) => typedError<FiringQuote[], string>(__TAURI_INVOKE("firing_quotes", { projectId, kind, key, days, limit })),
-	/**  지금 이 프로젝트의 협업 상태 (읽기 전용). */
-	a2aOverview: (projectId: number) => typedError<A2aOverview, AppError>(__TAURI_INVOKE("a2a_overview", { projectId })),
-	/**
-	 *  넘어온 작업을 **사용자가** 수락하거나 거절한다.
-	 * 
-	 *  자동 수락은 없다 (D5). 사람 없는 루프에서 두 에이전트가 같은 저장소를
-	 *  고치는 것을 막는 유일한 지점이 여기다.
-	 */
-	a2aDecideTask: (projectId: number, taskId: string, accept: boolean) => typedError<Task, AppError>(__TAURI_INVOKE("a2a_decide_task", { projectId, taskId, accept })),
-	/**  붙잡힌 구역을 사용자가 놓아 준다 (주인이 사라졌는데 기한이 남았을 때). */
-	a2aReleaseLease: (projectId: number, leaseId: string) => typedError<boolean, AppError>(__TAURI_INVOKE("a2a_release_lease", { projectId, leaseId })),
-	/**  지금 문이 열려 있는가 (읽기 전용). */
-	a2aEndpointStatus: () => typedError<A2aServerStatus, AppError>(__TAURI_INVOKE("a2a_endpoint_status")),
-	/**
-	 *  문을 연다. **사용자가 눌러야 열린다** — 자동 기동은 없다.
-	 * 
-	 *  응답에 이번 기동의 토큰이 실려 온다. 디스크에 남기지 않으므로 화면이
-	 *  보여 주는 그 순간이 유일한 전달 경로다.
-	 */
-	a2aEndpointStart: (projectId: number) => typedError<A2aServerStatus, AppError>(__TAURI_INVOKE("a2a_endpoint_start", { projectId })),
-	/**  닫는다 (멱등). */
-	a2aEndpointStop: () => typedError<A2aServerStatus, AppError>(__TAURI_INVOKE("a2a_endpoint_stop")),
-	/**  고른 세션들을 한 팀으로 묶는다. **사용자가 화면에서 하는 일**이다. */
-	a2aBindGroup: (projectId: number, title: string, members: string[]) => typedError<Group, AppError>(__TAURI_INVOKE("a2a_bind_group", { projectId, title, members })),
-	/**  멤버를 갈아 끼운다 (둘 미만으로 줄이는 것은 해체이지 갱신이 아니다). */
-	a2aSetGroupMembers: (projectId: number, groupId: string, members: string[]) => typedError<Group, AppError>(__TAURI_INVOKE("a2a_set_group_members", { projectId, groupId, members })),
-	/**  팀을 푼다. */
-	a2aDissolveGroup: (projectId: number, groupId: string) => typedError<boolean, AppError>(__TAURI_INVOKE("a2a_dissolve_group", { projectId, groupId })),
 	/**
 	 *  원장을 비우고 처음부터 다시 센다 — 이중 집계·낡은 재개점을 되돌리는 유일한
 	 *  길. 예산 라운드를 여기서 이어 붙여 한 번의 호출로 끝낸다 (상한 20 라운드 —
@@ -2104,8 +2076,6 @@ export const events = {
 	lspDiagnosticsPublished: makeEvent<LspDiagnosticsPublished>("lsp-diagnostics-published"),
 	lspServerStateChanged: makeEvent<LspServerStateChanged>("lsp-server-state-changed"),
 	newTabIntent: makeEvent<NewTabIntent>("new-tab-intent"),
-	oculpmA2aChanged: makeEvent<OculpmA2aChanged>("oculpm-a2a-changed"),
-	oculpmA2aTrespass: makeEvent<OculpmA2aTrespass>("oculpm-a2a-trespass"),
 	oculpmAgentDrift: makeEvent<OculpmAgentDrift>("oculpm-agent-drift"),
 	oculpmDataChanged: makeEvent<OculpmDataChanged>("oculpm-data-changed"),
 	oculpmFileChanged: makeEvent<OculpmFileChanged>("oculpm-file-changed"),
@@ -2130,40 +2100,6 @@ export const events = {
 };
 
 /* Types */
-export type A2aChangeKind = 
-/**  참여자 카드 (`agents/live/`). */
-"participants" | 
-/**  우편함 (`agents/inbox/`). */
-"message" | 
-/**  태스크 원장 (`agents/tasks/`). */
-"task";
-
-export type A2aOverview = {
-	/**  살아 있는 것 + **판정 불가**. 죽은 것만 빠진다. */
-	participants: Participant[],
-	/**  손을 탄 흔적이 있는 태스크 원장 (없으면 빈 목록). */
-	integrity: LedgerIntegrity[],
-	/**
-	 *  사용자가 묶은 팀들. **묶이지 않은 세션은 참여자 목록에만 있다** —
-	 *  보이는 것과 말을 걸 수 있는 것은 다르다.
-	 */
-	groups: Group[],
-	leases: Lease[],
-	/**  아직 안 끝난 태스크 전부 (누가 누구에게 넘겼든). */
-	open_tasks: Task[],
-};
-
-/**  화면에 주는 상태. */
-export type A2aServerStatus = {
-	running: boolean,
-	/**  `http://127.0.0.1:8737` — 도는 동안만. */
-	url: string | null,
-	/**  이 문이 열려 있는 프로젝트. */
-	project_id: number | null,
-	/**  **한 번 켜는 동안만 유효한 토큰.** 디스크에 남지 않는다. */
-	token: string | null,
-};
-
 /**  핸드셰이크로 확인한 상대편 정보. 프런트가 "무엇에 붙었는지" 보여준다. */
 export type AcpAgentInfo = {
 	name: string,
@@ -2602,43 +2538,6 @@ export type AcpUsage = {
 	identity: AcpAuthStatus | null,
 };
 
-/**
- *  A2A Agent Card + 우리 확장.
- * 
- *  표준 필드(`name`·`description`·`version`·`skills`)를 그대로 두는 이유는
- *  Phase 6 에서 이 구조체가 `/.well-known/agent-card.json` 의 본문이 되기
- *  때문이다 — 그때 이름을 바꾸지 않으려고 지금부터 표준을 따른다.
- */
-export type AgentCard = {
-	/**  주소이자 파일명. `claude-app` · `codex-app` · `claude-term-a1b2c3d4`. */
-	agent_id: string,
-	/**  사람이 읽는 이름 (ACP 핸드셰이크가 준 것 그대로). */
-	name: string,
-	description: string | null,
-	version: string,
-	/**  이 에이전트가 할 수 있다고 광고하는 것. v1 은 비워 둔다. */
-	skills?: string[],
-	/**  기록에 남는 이름 (`.oculpm` 일지의 `agent.id`) — `claude-code` · `codex`. */
-	provider: string,
-	surface: AgentSurface,
-	/**  ocul-pm 세션 id (있으면). 일지 귀속과 이어 붙일 때 쓴다. */
-	session_id: string | null,
-	/**  로컬 프로세스면 그 pid. 살아 있음 판정의 1차 신호다. */
-	pid: number | null,
-	project_root: string,
-	/**  마지막으로 살아 있다고 말한 시각 (RFC3339). */
-	heartbeat_at: string,
-	/**
-	 *  **이 신원을 우리가 준 것인가** (플랜 `session-shim-cli`).
-	 * 
-	 *  앱이 띄운 세션은 심 디렉터리의 토큰으로 자기를 증명한다. 토큰 없이
-	 *  등록한 세션은 이름이 **자칭**이다 — 막지는 않고(앱 밖 세션도 참여해야
-	 *  한다) 화면이 그 차이를 말한다. 옛 카드에는 이 필드가 없으므로 기본은
-	 *  `false`: 모르는 것을 검증됨으로 올리지 않는다.
-	 */
-	verified?: boolean,
-};
-
 export type AgentCount = {
 	agent_id: string,
 	count: number,
@@ -2668,15 +2567,6 @@ export type AgentRef = {
 	 */
 	session?: string | null,
 };
-
-/**  카드가 어디서 도는가. */
-export type AgentSurface = 
-/**  앱 안의 ACP 패널. 앱이 대신 등록하고 앱이 지운다. */
-"app" | 
-/**  앱 안팎의 터미널에서 도는 CLI 세션. 스스로 등록한다. */
-"terminal" | 
-/**  로컬 프로세스가 아니다 (Phase 6 의 HTTP 문으로 들어온다). */
-"remote";
 
 /**  `agent_surface_list` 응답. */
 export type AgentSurfaceOverview = {
@@ -3131,14 +3021,6 @@ export type BranchStory = {
 	repo_subpath: string | null,
 };
 
-export type BreakReason = 
-/**  줄 내용이 자기 digest 와 안 맞는다 — 내용이 고쳐졌다. */
-"content_changed" | 
-/**  앞 줄과의 연결이 끊겼다 — 사이의 줄이 지워졌거나 순서가 바뀌었다. */
-"link_broken" | 
-/**  앞선 줄에서 갈라졌다 — 동시 쓰기의 흔적이지 변조가 아니다. */
-"forked";
-
 /**
  *  Result of `oculpm_set_journal_verified_bulk` — sequential per-path
  *  `set_journal_verified` calls (same write-through guard each), so a single
@@ -3195,47 +3077,6 @@ export type BundleSourceKind =
 "github" | 
 /**  로컬 `.zip` 파일 경로. */
 "file";
-
-/**
- *  끊긴 지점. `bool` 이 아니라 이것을 돌려주는 이유는 **어디서** 끊겼는지가
- *  사람이 판단할 유일한 재료이기 때문이다.
- */
-export type ChainBreak = {
-	/**  1부터 세는 줄 번호 (편집기가 보여주는 번호와 같게). */
-	line: number,
-	reason: BreakReason,
-	/**
-	 *  [`BreakReason::Forked`] 일 때 갈라져 나온 줄 번호.
-	 * 
-	 *  사유 안에 담지 않고 밖으로 낸 이유는 JSON 이 평평해야 하기 때문이다 —
-	 *  `ChainStatus` 가 이미 `kind` 로 태그를 쓰고 있어서, 사유가 또 태그된
-	 *  객체이면 한 오브젝트에 같은 키가 두 번 나거나 한 겹 더 중첩된다.
-	 * 
-	 *  `skip_serializing_if` 를 **일부러 안 붙인다.** 붙이면 직렬화와
-	 *  역직렬화의 모양이 갈려 specta 가 타입을 둘로 쪼개고, 프런트가 받는
-	 *  타입이 외부 태그 형태로 바뀐다. 없을 땐 `null` 을 그대로 낸다.
-	 */
-	forked_from_line: number | null,
-	/**  우리가 계산한 값. */
-	expected: string,
-	/**  파일에 적혀 있던 값. */
-	found: string,
-};
-
-/**  원장 한 파일의 검증 결과. */
-export type ChainStatus = 
-/**  줄 `lines` 개가 이어져 있다. */
-({ kind: "intact"; lines: number }) & { line?: never } | 
-/**
- *  해시가 없는 줄이 있다 — 이 기능 이전에 쓰인 원장이다. **판정하지 않는다.**
- * 
- *  없는 것을 깨진 것으로 부르지 않는다. 모르는 것은 모른다고 한다.
- */
-({ kind: "unverifiable"; line: number }) & { lines?: never } | 
-/**  사슬이 끊겼다. */
-{
-	kind: "broken",
-} & ChainBreak;
 
 /**
  *  A group of changed files attributed to one journal entry (Dogfooding #3).
@@ -4458,16 +4299,6 @@ export type GreenfieldResult = {
 	scaffold_output: string | null,
 };
 
-/**  사용자가 묶은 한 팀. */
-export type Group = {
-	id: string,
-	title: string,
-	/**  멤버의 `agent_id`. 순서는 사용자가 묶은 순서다. */
-	members: string[],
-	created_at: string,
-	updated_at: string,
-};
-
 /**
  *  그 판이 만들어진 이유. `create` 는 **우리가 처음 본 판**이라는 뜻이다 —
  *  히스토리를 켜기 전부터 있던 파일의 첫 판은 워처가 준 op 를 그대로 믿는다.
@@ -4888,38 +4719,6 @@ export type LastCommitChanges = {
 	changes: GitChange[],
 };
 
-/**  잡아 둔 구역 하나. */
-export type Lease = {
-	id: string,
-	/**  주인의 `agent_id`. */
-	holder: string,
-	/**  잡은 glob 들 (프로젝트 상대). */
-	patterns: string[],
-	note: string | null,
-	created_at: string,
-	expires_at: string,
-};
-
-/**
- *  원장 하나의 무결성 — **깨진 것만** 싣는다.
- * 
- *  멀쩡한 원장까지 실으면 화면이 "정상 47건"을 그리게 되는데, 그건 아무도 안
- *  읽는 초록불이다. 할 말이 있을 때만 자리를 차지한다.
- */
-export type LedgerIntegrity = {
-	task_id: string,
-	status: ChainStatus,
-};
-
-/**  참여자가 살아 있는가 — **모름이 셋째 상태다** (모듈 문서 참조). */
-export type Liveness = 
-/**  근거를 갖고 살아 있다. */
-"live" | 
-/**  근거를 갖고 죽었다. **이것만 걷는다.** */
-"dead" | 
-/**  판정할 수 없다. 오프라인이 아니다. */
-"unknown";
-
 /**
  *  백그라운드 LLM 작업이 실패했다 — 화면이 토스트로 알린다 (2026-09-14 감사 7번).
  * 
@@ -5335,36 +5134,6 @@ export type NotionStatus = {
 	parent_page_id: string | null,
 };
 
-/**
- *  A2A 원장이 디스크에서 바뀌었다 — 화면이 다시 읽으라는 신호.
- * 
- *  폴링을 두지 않기 위한 것이다: 참여자·우편함·태스크는 **앱 밖 프로세스가**
- *  쓰는 자리라 앱이 스스로는 알 수 없고, 워처만이 그것을 본다.
- */
-export type OculpmA2aChanged = {
-	project_id: number,
-	kind: A2aChangeKind,
-};
-
-/**
- *  **남의 구역을 밟았다.** 에이전트가 스스로 신고한 파일 변경이 다른
- *  에이전트의 임대에 걸렸을 때 (마스터플랜 §7).
- * 
- *  막지는 않는다 — 변경은 이미 일어난 뒤에 신고가 오고, 되돌리는 것은 사용자의
- *  판단이다. 우리가 하는 일은 **보이게** 하는 것이다.
- */
-export type OculpmA2aTrespass = {
-	project_id: number,
-	/**  밟은 쪽. */
-	actor: string,
-	/**  프로젝트 상대 경로. */
-	path: string,
-	/**  그 구역의 주인. */
-	holder: string,
-	/**  주인의 임대가 언제까지인가. */
-	until: string,
-};
-
 export type OculpmAgentDrift = {
 	project_id: number,
 	agent_id: string,
@@ -5559,23 +5328,6 @@ export type PairingInfo = {
 	code: string,
 	url: string,
 	expires_in_secs: number,
-};
-
-/**
- *  화면 한 벌 — 한 번의 왕복으로 그린다.
- * 
- *  셋을 따로 부르면 서로 다른 순간의 사실이 한 화면에 섞인다("A 가 쥐고 있다"
- *  옆에 "A 는 없다"). 같은 시각으로 한 번에 읽는다.
- *  참여자 한 명 — **카드와 판정을 함께** 준다.
- * 
- *  카드만 주면 화면이 "여기 있다"밖에 못 말한다. 판정할 수 없는 세션(윈도우·
- *  하트비트 시각이 깨진 카드)을 목록에서 빼 버리면 오프라인과 구별되지 않고,
- *  그것이 이 라운드가 고치는 바로 그 거짓말이다 (플랜
- *  `ledger-and-liveness-honesty`).
- */
-export type Participant = {
-	card: AgentCard,
-	liveness: Liveness,
 };
 
 /**
@@ -6507,27 +6259,6 @@ export type TagStat = {
 	/**  사전의 어느 말로 모을 만한가. 근거를 못 대면 `None` 이다. */
 	suggest_into: string | null,
 };
-
-/**  원장을 접어 만든 지금 상태. */
-export type Task = {
-	id: string,
-	/**  넘긴 쪽. */
-	from: string,
-	/**  받은 쪽. */
-	to: string,
-	title: string,
-	state: TaskState,
-	/**  마지막 전이에 달린 메모. */
-	note: string | null,
-	/**  경로 참조만 (본문 복사 금지). */
-	artifacts: string[],
-	created_at: string,
-	updated_at: string,
-	deadline_at: string,
-};
-
-/**  A2A Task 상태. */
-export type TaskState = "submitted" | "working" | "input_required" | "completed" | "failed" | "canceled";
 
 /**
  *  손에 들려 있던 창을 **놓았다** — 이제 평범한 창이다.

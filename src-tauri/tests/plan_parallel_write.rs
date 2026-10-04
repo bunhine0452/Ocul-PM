@@ -10,7 +10,7 @@
 //! 3. `plan_status` 가 준 해시로 갱신이 **성공한다** (CAS 가 실제로 가능해졌나)
 //! 4. `base_hash` 를 빠뜨리면 오류가 **다음 행동을 지시한다**
 //!
-//! 단위 테스트(`tools::tests::a2a::a_stale_base_hash_refuses_to_overwrite`)는
+//! 단위 테스트(`tools::tests::guards::a_stale_base_hash_refuses_to_overwrite`)는
 //! 순차 CAS 한 갈래만 본다. 이 파일은 락과 임계구역 — 즉 프로세스/스레드가
 //! 겹쳤을 때의 행동 — 을 본다.
 

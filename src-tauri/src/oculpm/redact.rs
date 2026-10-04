@@ -24,8 +24,8 @@
 //!   2. journal writers — manual entries, body edits, indexing
 //!      ([`manager`]) and the per-entry diff sidecars
 //!      ([`entry_diffs`][super::entry_diffs]) at capture time;
-//!   3. the agent-facing MCP surface — `mcp::tools` and `mcp::a2a_tools`
-//!      (titles, bodies, notes, journal refs an agent hands us);
+//!   3. the agent-facing MCP surface — `mcp::tools` (titles, bodies, notes,
+//!      journal refs an agent hands us);
 //!   4. model output — [`journal_draft`][super::journal_draft],
 //!      `automation::{runner, scheduler}`, `import::journalize`;
 //!   5. the planner / discussion projections and dispatch prompts;
@@ -85,7 +85,7 @@ use crate::oculpm::spec::OculpmConfig;
 /// 아니라 **디스크 원문**을 읽는다. 청크 텍스트가 SQLite 에 남고 검색 결과로
 /// 화면에 뜨므로, 자르기 직전에 한 번 지난다
 /// (journal-scale-round `{#search-semantic-journal}`).
-pub const CALL_SITE_FILES: usize = 28;
+pub const CALL_SITE_FILES: usize = 27;
 
 /// Prompt-building sites that reach a model **without** redaction — neither
 /// directly nor through the masked cache projection.

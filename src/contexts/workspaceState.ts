@@ -224,18 +224,6 @@ export interface WorkspaceState {
   acpNames: Record<string, string>;
   codexAcpNames: Record<string, string>;
   /**
-   * 사용자가 세션에 붙인 별명 (`agent_id` → 이름).
-   *
-   * 같은 프로젝트에 Claude Code 터미널 세션이 넷 붙으면 카드가 전부
-   * `claude-code-term-<pid>` 라 **사람이 구별할 수가 없다.** 등록할 때 이름을
-   * 준 세션은 그 이름을 쓰지만(`agent_register` 의 `name`), 대부분은 안 준다.
-   *
-   * 이름표는 `acpNames` 와 같은 성격이다 — 이 컴퓨터 안에서만 유효하고 원장에
-   * 쓰지 않는다. 카드는 프로세스가 죽으면 사라지는 휘발성 사실이고, 거기에
-   * 사용자의 말을 섞으면 지워도 되는지 아무도 모르게 된다.
-   */
-  sessionAliases: Record<string, string>;
-  /**
    * 마지막으로 보고 있던 대화의 id.
    *
    * 앱을 다시 띄우면(업데이트 재시작 포함) 어댑터는 새 프로세스라 대화가 없다 —

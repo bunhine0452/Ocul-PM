@@ -464,13 +464,11 @@ function loadFromStorage(projectId: number): WorkspaceState {
       // (sidePanelOpen was dropped above — PR-UI 7.)
       parsed.sidePanelWidth = migrateSidePanelWidth(parsed.sidePanelWidth);
       parsed.sidePanelMode = migrateSidePanelMode(parsed.sidePanelMode);
-      // AI 오버레이 은퇴 (감사 2026-07-16): 오버레이 관련 영속 키는 전부
-      // 일방향 삭제 — ⌘\ 는 이제 AI 패널 화면으로 이동한다.
-      // 터미널 글자 크기는 앱 전역 설정으로 나갔다 (2026-08-15) — 일방향.
-      delete parsed.terminalFontSize;
-      delete parsed.aiWorkbenchOpen;
-      delete parsed.aiOverlayOpen;
-      delete parsed.aiWorkbenchMode;
+      // 은퇴한 영속 키 — 전부 일방향 삭제. AI 오버레이 (감사 2026-07-16, ⌘\ 는 AI
+      // 패널 화면으로) · 터미널 글자 크기 (2026-08-15, 앱 전역 설정으로) · 세션 별명
+      // (2026-10-04, 세션 화면과 함께 — 그 화면의 `uiV2View` 는 위에서 today 로 접힌다).
+      const retired = ["aiWorkbenchOpen", "aiOverlayOpen", "aiWorkbenchMode", "terminalFontSize", "sessionAliases"];
+      for (const key of retired) delete parsed[key];
       // Merge with defaults to handle new fields added in future versions
       const merged = {
         ...DEFAULT_STATE,

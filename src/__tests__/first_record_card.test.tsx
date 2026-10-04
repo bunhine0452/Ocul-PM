@@ -53,7 +53,6 @@ vi.mock("@/api/claudeSurface", () => ({
 vi.mock("@/api/oculpm", () => ({
   OculpmApiError: class extends Error {},
   oculpmApi: {
-    onA2aChanged: () => Promise.resolve(() => {}),
     onSessionStarted: () => Promise.resolve(() => {}),
     onSessionEnded: () => Promise.resolve(() => {}),
   },

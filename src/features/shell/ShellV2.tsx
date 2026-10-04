@@ -23,7 +23,6 @@ import {
   DiscussionScreenV2,
   GraphScreenV2,
   SearchScreenV2,
-  SessionsScreenV2,
   SettingsPanel,
   SkillsScreenV2,
   TerminalDock,
@@ -460,8 +459,6 @@ export default function ShellV2({
           />
         ) : view === "skills" ? (
           <SkillsScreenV2 projectId={projectId} active={active} />
-        ) : view === "sessions" ? (
-          <SessionsScreenV2 projectId={projectId} />
         ) : view === "branch" ? (
           <BranchScreenV2
             projectId={projectId}

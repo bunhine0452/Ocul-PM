@@ -321,6 +321,7 @@ const STATIC_URLS = [
   // lastmod 는 CHANGELOG.md 의 마지막 커밋 날짜라 손으로 관리하지 않는다.
   { loc: "/changelog", lastmod: changelog.lastmod, changefreq: "daily", priority: "0.8" },
   { loc: "/themes", lastmod: "2026-09-02", changefreq: "weekly", priority: "0.7" },
+  { loc: "/report-card", lastmod: "2026-10-04", changefreq: "monthly", priority: "0.6" },
   { loc: "/privacy", lastmod: "2026-09-02", changefreq: "monthly", priority: "0.6" },
 ];
 

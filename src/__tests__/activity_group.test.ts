@@ -76,7 +76,7 @@ describe("개입 지점 불변 규칙", () => {
   });
 
   it("어휘가 자라도 묶음 안에는 절대 이 셋이 안 들어간다", () => {
-    // 15낱말을 통째로 한 줄에 늘어놓고 묶어도 결과는 같다.
+    // 14낱말을 통째로 한 줄에 늘어놓고 묶어도 결과는 같다.
     const nodes = groupActivities(ACTIVITY_KINDS.flatMap((kind) => [item(kind), item(kind), item(kind)]));
     for (const node of nodes) {
       if (node.node !== "run") continue;
@@ -85,8 +85,8 @@ describe("개입 지점 불변 규칙", () => {
     }
   });
 
-  it("어휘는 15낱말이고 우리 값어치는 그중 셋이다", () => {
-    expect(ACTIVITY_KINDS).toHaveLength(15);
-    expect([...OCULPM_KINDS].sort()).toEqual(["oculpm-a2a", "oculpm-journal", "oculpm-plan"]);
+  it("어휘는 14낱말이고 우리 값어치는 그중 둘이다", () => {
+    expect(ACTIVITY_KINDS).toHaveLength(14);
+    expect([...OCULPM_KINDS].sort()).toEqual(["oculpm-journal", "oculpm-plan"]);
   });
 });

@@ -19,7 +19,8 @@ describe("oculpm CLI 알아보기", () => {
       kind: "oculpm-journal",
     });
     expect(parseOculpmCliCommand("oculpm plan_update '{}'")?.kind).toBe("oculpm-plan");
-    expect(parseOculpmCliCommand("oculpm claim_paths '{}'")?.kind).toBe("oculpm-a2a");
+    // 걷어낸 A2A 도구는 이제 **모르는 것**이다 — 엉뚱한 어휘로 그리지 않는다.
+    expect(parseOculpmCliCommand("oculpm claim_paths '{}'")).toBeNull();
   });
 
   it("환경변수 접두는 건너뛴다", () => {
