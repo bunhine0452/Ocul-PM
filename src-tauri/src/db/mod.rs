@@ -576,18 +576,6 @@ pub struct ChatMessage {
 }
 
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct DashboardStats {
-    pub total: u32,
-    pub open: u32,
-    pub in_progress: u32,
-    pub done: u32,
-    pub cancelled: u32,
-    pub overdue: u32,
-    pub due_today: u32,
-    pub avg_progress: f64,
-}
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
 pub struct DependencyNode {
     pub file_id: u32,
     pub path: String,
@@ -679,18 +667,6 @@ pub struct FileSnapshot {
     pub content: Vec<u8>,
     pub hash: String,
     pub captured_at: u32,
-}
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct FileChange {
-    pub id: u32,
-    pub project_id: u32,
-    pub file_path: String,
-    pub change_type: String,
-    pub old_hash: Option<String>,
-    pub new_hash: Option<String>,
-    pub detected_at: u32,
-    pub summary: Option<String>,
 }
 
 // (G3 Clarify/EditPrompt 타입은 감사 2026-07-16 에서 커맨드와 함께 은퇴.)

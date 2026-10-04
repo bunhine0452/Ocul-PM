@@ -61,13 +61,6 @@ pub fn settings_writes(plan: &ConfigPlan) -> Vec<(String, String)> {
         .collect()
 }
 
-/// 계획이 `.oculpm/config.toml` 을 건드리는가.
-pub fn touches_oculpm(plan: &ConfigPlan) -> bool {
-    plan.items.iter().any(|i| {
-        i.surface == ConfigSurface::OculpmConfig && matches!(i.op, ConfigOp::Add | ConfigOp::Change)
-    })
-}
-
 /// `.oculpm/config.toml` 에 문서의 `project.oculpm` 절을 병합해 쓴다.
 ///
 /// 부분 지정을 현재 값 **위에** 덮으므로 문서가 말하지 않은 필드는 그대로다.

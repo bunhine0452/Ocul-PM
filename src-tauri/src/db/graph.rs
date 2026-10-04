@@ -580,17 +580,4 @@ impl Db {
             .await?;
         Ok(calls)
     }
-
-    pub async fn clear_project_dependencies(&self, project_id: u32) -> Result<()> {
-        self.conn
-            .call(move |c| {
-                c.execute(
-                    "DELETE FROM file_dependencies WHERE project_id = ?",
-                    [project_id as i64],
-                )?;
-                Ok(())
-            })
-            .await?;
-        Ok(())
-    }
 }
