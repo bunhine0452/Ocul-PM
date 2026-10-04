@@ -733,6 +733,13 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/fetch-vcredist.ps1
 
+      # 번들러가 AppRun 을 0770 으로 받아 실으면 다른 사용자로 띄우는 경로(firejail · AppImage
+      # 카탈로그 테스트)에서 안 뜬다 — 0755 사본을 캐시에 먼저 놓는다(스크립트 머리 주석,
+      # tauri-apps/tauri#16155). portability.yml 번들 잡도 같은 스크립트.
+      - name: AppImage 런처 0755 미리 놓기 (Linux)
+        if: runner.os == 'Linux'
+        run: bash .github/scripts/seed-appimage-apprun.sh
+
       # --target 을 호스트 triple 로 준다: beforeBuildCommand 의 build-sidecar.mjs 가
       # `cargo build --release --target <호스트>` 로 사이드카를 구우므로 같은 target 폴더를
       # 써야 의존성을 두 번 컴파일하지 않는다.
@@ -792,6 +799,9 @@ jobs:
               echo "::error::AppImage 실행 파일에 __TAURI_BUNDLE_TYPE_VAR_APP 표식이 없다 — 업데이터가 linux-x86_64-appimage 를 못 찾아 자동 업데이트가 죽는다"
               exit 1
             fi
+            # 마운트 지점에서 끊기는 심링크 · 소유자 전용 권한 — v3.6.0 이 AppImage 카탈로그에서
+            # 거절된 두 결함(appimage.github.io#9061). 스모크는 같은 사용자로 띄워서 못 잡는다.
+            bash .github/scripts/appimage-lint.sh "$appimage"
           fi
           (cd "$out" && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
 

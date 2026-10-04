@@ -440,6 +440,11 @@ jobs:
           shellcheck -S warning .github/scripts/updater-smoke-linux.sh
           node --check .github/scripts/updater-smoke-http.mjs
           echo "updater-smoke-linux.sh · updater-smoke-http.mjs: bash -n · shellcheck · node --check 통과"
+          for f in seed-appimage-apprun appimage-lint; do
+            bash -n ".github/scripts/$f.sh"
+            shellcheck -S warning ".github/scripts/$f.sh"
+          done
+          echo "seed-appimage-apprun.sh · appimage-lint.sh: bash -n · shellcheck 통과"
       - name: 판정
         id: gate
         env:
@@ -459,7 +464,7 @@ jobs:
           else
             changed=$(git diff --name-only "$BEFORE" "$AFTER")
             # 업데이터가 굽는 판을 바꾸는 파일(L-UPD)도 번들을 다시 굽는다 — N·N+1 둘 다 그 코드다.
-            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|src-tauri/linux/|src-tauri/windows/|\.github/scripts/fetch-vcredist\.|\.github/workflows/portability\.yml|src/lib/updater(Route)?\.ts|src/components/UpdateBanner\.tsx|src-tauri/src/commands/install_kind\.rs)' <<<"$changed" || true)
+            hit=$(grep -E '^(src-tauri/tauri(\.[a-z]+)?\.conf\.json|src-tauri/build\.rs|src-tauri/Cargo\.toml|package\.json|src-tauri/icons/|src-tauri/linux/|src-tauri/windows/|\.github/scripts/fetch-vcredist\.|\.github/scripts/(seed-appimage-apprun|appimage-lint)\.sh|\.github/workflows/portability\.yml|src/lib/updater(Route)?\.ts|src/components/UpdateBanner\.tsx|src-tauri/src/commands/install_kind\.rs)' <<<"$changed" || true)
             smoke_hit=$(grep -E '^\.github/scripts/install-smoke-' <<<"$changed" || true)
             updater_hit=$(grep -E '^\.github/scripts/updater-smoke-' <<<"$changed" || true)
             if [ -n "$hit" ]; then
@@ -561,6 +566,13 @@ jobs:
           pnpm tauri signer generate --ci -w "$RUNNER_TEMP/ci-updater.key" >/dev/null
           echo "TAURI_SIGNING_PRIVATE_KEY=$RUNNER_TEMP/ci-updater.key" >> "$GITHUB_ENV"
 
+      # 번들러가 AppRun 을 0770 으로 받아 실으면 다른 사용자로 띄우는 경로(firejail · AppImage
+      # 카탈로그 테스트)에서 안 뜬다 — 0755 사본을 캐시에 먼저 놓는다. 아래 업데이터 스모크 판(N)
+      # 굽기도 같은 캐시를 쓴다. release.yml 도 같은 스크립트.
+      - name: AppImage 런처 0755 미리 놓기 (Linux)
+        if: runner.os == 'Linux'
+        run: bash .github/scripts/seed-appimage-apprun.sh
+
       # --target 을 호스트 triple 로 준다: beforeBuildCommand 의 build-sidecar.mjs 가
       # `cargo build --release --target <호스트>` 로 사이드카를 구우므로 같은 target 폴더를
       # 써야 의존성을 두 번 컴파일하지 않는다.
@@ -602,6 +614,11 @@ jobs:
             if [ ! -s "$f.sig" ]; then echo "::error::업데이터 서명 $f.sig 가 없다"; exit 1; fi
             echo "$(basename "$f").sig 있음 (일회용 키 — 올리지 않는다)" | tee -a bundle-files.txt
           done
+          # 마운트 지점에서 끊기는 심링크 · 소유자 전용 권한 — 아래 스모크는 같은 사용자로 띄워서
+          # 못 잡는다(v3.6.0 이 AppImage 카탈로그에서 거절된 두 결함, appimage.github.io#9061).
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            bash .github/scripts/appimage-lint.sh "$b"/appimage/*.AppImage | tee -a bundle-files.txt
+          fi
           echo "commit=${{ github.sha }} run=${{ github.run_id }}" > dist-bundle/bundle-info.txt
 
       - name: 설치 파일 아티팩트

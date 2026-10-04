@@ -127,12 +127,13 @@ owner: claude-code
 - [ ] [사용자 액션] Windows·Linux 외부 테스터 모집 {#w5-testers}
 - [ ] CI 가 못 보는 것 원장 — Linux 실제 IME(fcitx/ibus)·Wayland 트레이·HiDPI 혼합·WebView2 버전 편차·WebKitGTK 의 navigator.platform 실제 값·Ctrl+Shift+V 클립보드 권한·Windows Ctrl+Shift+0 입력 언어 전환 충돌·Defender 실시간 보호가 켜진 PC 의 폴더 이동 막힘·감시 중 루트의 **상위 폴더는 이동 불가**(ReadDirectoryChangesW 본질, VS Code 동일 — 문서에 알림)·큰 프로젝트 첫 세션의 긴 막힘·**일반 사용자 권한 설치에서 VC++ 재배포 UAC 승격 경로**(러너는 관리자라 창이 안 뜬다 — 예·취소 둘 다, 취소=1602 멈춤 안내)·사람이 cmd·PowerShell 에서 친 GUI 서브시스템 릴리스 exe 의 CLI 출력 모습(프롬프트 뒤에 찍힘)·세션 D-Bus 없는 실제 Linux 데스크톱에서 두 번 실행·실제 창에서 Ctrl+Shift+N (D8) {#w5-eyes}
 - [ ] 졸업: 연속 3릴리스 E2E 초록 + 테스터 P0 0건 → '베타' 표기 제거 {#w5-graduate}
+- [~] AppImage 카탈로그 등재(appimage.github.io#9061) — .DirIcon 절대 심링크 · AppRun.wrapped 0770 을 고친 판을 릴리스한 뒤 그 PR 에 `/retest` 코멘트 → 린트·firejail 실행·스크린샷까지 초록 확인 {#w5-appimage-catalog}
+- [ ] `@tauri-apps/cli` 2.12 올리기 평가(지금 `~2.11.5` 고정) — NSIS restart manager 종료(tauri#14479)가 Windows PTY 호스트 업데이트 생존을 깨는지 · AppImage 의 GDK_BACKEND=x11 강제 해제(Wayland 네이티브) · xdg-open 미번들을 러너에서 확인. 올리면 seed-appimage-apprun.sh 와 두 워크플로 호출 제거(린트는 유지) {#w5-tauri-cli-212}
 
 <!-- oculpm:plan-log begin v1 -->
-<!-- oculpm:plan-log archived: 62 rows → cross-platform-port.log.md -->
+<!-- oculpm:plan-log archived: 63 rows → cross-platform-port.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-25T02:44:09+09:00 | #ui-e2e-minor | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | 탭 라벨 실제 셸(bash/pwsh, macOS zsh 불변), 영어 전환 토스트 tIn 으로(모든 OS 결함) |
 | 2026-09-25T02:44:15+09:00 | #ui-mac-words | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | i18n 판 조회 __win/__linux/__pc 47개 두 언어, macOS 는 조회 안 함(원문 불변 테스트) |
 | 2026-09-25T02:44:24+09:00 | #ui-followups | claude-code | ☐→x | .oculpm/journal/20260925/Bugs/0243_bug_port-e2e-frontend-defects-lui2.md | errors.ts 3규칙·pasteFiles 토스트·트레이 팝오버 불투명·op.shell.desc2·Windows MCP 권고 셋 수정. 설정 실물은 vitest 로만 |
 | 2026-09-25T03:05:17+09:00 | #w3-conf | claude-code | ☐→x | journal/20260925/Features_to_add/0305_feature_port-lpkg-bundles-install-smoke.md | PR #45 — 플랫폼 conf 2개 병합, macOS conf 불변 |
@@ -172,5 +173,6 @@ owner: claude-code
 | 2026-09-29T03:41:19+09:00 | #integ-win-plugin-mcp | claude-code | ☐→x |  | 결정(2026-09-28 위임): 앱의 「MCP 서버」 등록(절대경로 .exe) 유지, 플러그인 1개 원칙 — 플러그인 저장소 무서명 exe 안은 공급망 위험으로 기각. README 설치 절·앱 안내 문구 일치 |
 | 2026-09-29T06:05:55+09:00 | #w4-surfaces | claude-code | ☐→x | journal/20260929/Features_to_add/0605_feature_release-v3-6-0-windows-linux-beta.md | v3.6.0 공개(run 36477736356 전 잡 success) — 자산 10·키 5, 랜딩 oculpm.com v3.6.0 |
 | 2026-10-01T18:27:21+09:00 | #fs-mac-rename-old-name | claude-code | ☐→x | .oculpm/journal/20261001/Bugs/1827_bug_fsevents-sticky-created-flag.md | StaleFlagFilter(macOS 만) — 사라진 경로의 Create·내용 Modify 를 디바운서 앞에서 버림. 지우기도 Update 로 찍히던 것 함께. CRLF 발췌는 9c8d9280 이 이미 고침 |
-<!-- oculpm:plan-log archived: 62 rows → cross-platform-port.log.md -->
+| 2026-10-04T16:11:25+09:00 | #w5-appimage-catalog | claude-code | ☐→~ | .oculpm/journal/20261004/Bugs/1611_bug_appimage-diricon-apprun-mode.md | 결함 둘 확정(squashfs 전수) — CLI ~2.11.5 · AppRun 0755 선배치 · appimage-lint 게이트. 남은 것: 릴리스 → /retest |
+<!-- oculpm:plan-log archived: 63 rows → cross-platform-port.log.md -->
 <!-- oculpm:plan-log end -->
