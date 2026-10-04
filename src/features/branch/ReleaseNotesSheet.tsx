@@ -148,7 +148,7 @@ export function ReleaseNotesSheet({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
-        {/* 다섯 면 규율은 접히지 않는다 — 복사 버튼 옆에 늘 서 있게 둔다. */}
+        {/* 초안이라는 말은 접히지 않는다 — 복사 버튼 옆에 늘 서 있게 둔다. */}
         <span className="flex-1 text-fs-2 text-muted-foreground">
           {t("branch.relnotes.discipline")}
         </span>

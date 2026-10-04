@@ -399,7 +399,7 @@ describe("PR-UI 4 — Diff screen", () => {
     const { findByText } = renderDiff();
     // readProjectFile content shows as additions + the new-file footer, instead
     // of the old "no baseline" dead-end prompt (dogfood fix).
-    expect(await findByText(/아직 baseline 이 없는 새 파일/)).toBeInTheDocument();
+    expect(await findByText(/아직 비교할 기준본이 없는 새 파일/)).toBeInTheDocument();
     expect(await findByText(/새 파일 첫 줄/)).toBeInTheDocument();
   });
 
