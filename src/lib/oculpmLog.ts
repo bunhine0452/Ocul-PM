@@ -40,6 +40,17 @@ function format(message: string, ctx?: Record<string, unknown>): string {
   }
 }
 
+/**
+ * DevTools 거울 — 브리지가 깔리기 **전의** console 원본을 부른다.
+ *
+ * 패치된 `console.warn` 을 부르면 브리지가 같은 줄을 파일에 한 번 더 싣는다
+ * (설치본 로그 2026-10-01: 앱이 남긴 모든 경고·오류가 두 줄씩이었다).
+ */
+const mirror = {
+  warn: (...args: unknown[]) => console.warn(...args),
+  error: (...args: unknown[]) => console.error(...args),
+};
+
 export const oculpmLog = {
   /** Named happy-path step. Always prefixed `[FLOW]` so a single grep filters
    *  the log to the 3-step pipeline. */
@@ -53,11 +64,11 @@ export const oculpmLog = {
   },
   warn(target: string, message: string, ctx?: Record<string, unknown>) {
     send("warn", target, format(message, ctx));
-    console.warn(`[oculpm][${target}] ${format(message, ctx)}`);
+    mirror.warn(`[oculpm][${target}] ${format(message, ctx)}`);
   },
   error(target: string, message: string, ctx?: Record<string, unknown>) {
     send("error", target, format(message, ctx));
-    console.error(`[oculpm][${target}] ${format(message, ctx)}`);
+    mirror.error(`[oculpm][${target}] ${format(message, ctx)}`);
   },
 };
 
@@ -106,6 +117,8 @@ export function installConsoleBridge() {
   });
   const origWarn = console.warn.bind(console);
   const origError = console.error.bind(console);
+  mirror.warn = origWarn;
+  mirror.error = origError;
   console.warn = (...args: unknown[]) => {
     origWarn(...args);
     try {
