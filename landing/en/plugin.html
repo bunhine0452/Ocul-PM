@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Plugin · Skill Catalog — Ocul-PM</title>
-<meta name="description" content="The full surface of the Ocul-PM plugin for Claude Code: 5 slash commands, 14 MCP tools, 5 bundled skills, and a 26-skill third-party catalog that detects your stack and recommends matches (pinned commits, MIT)." />
+<meta name="description" content="The full surface of the Ocul-PM plugin for Claude Code: 5 slash commands, 7 MCP tools, 5 bundled skills, and a 26-skill third-party catalog that detects your stack and recommends matches (pinned commits, MIT)." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/en/plugin" />
@@ -97,13 +97,13 @@
       </div>
       <div class="pg-card">
         <h3><code>/oculpm:help</code><span class="when">When you've forgotten what's there</span></h3>
-        <p>Shows the entire plugin surface (5 commands · 14 MCP tools · 5 skills · hooks) as one reference card, and recommends the next step for where you are now.</p>
+        <p>Shows the entire plugin surface (5 commands · 7 MCP tools · 5 skills · hooks) as one reference card, and recommends the next step for where you are now.</p>
       </div>
       </div>
     </section>
 
     <section class="pg-sec">
-      <h2 id="tools">14 MCP tools</h2>
+      <h2 id="tools">7 MCP tools</h2>
       <p>Agents record through tools instead of imitating the markdown spec by hand, and pull the accumulated record back through tools — paths, frontmatter and item ids are guaranteed by the server. Every tool works only in a tracked project with <code>.oculpm/</code> (the sole exception: <code>project_init</code>).</p>
       <div class="pg-table">
         <table>
@@ -116,13 +116,6 @@
             <tr><td>plan_update</td><td>Updates a plan item's status and logs it. A parent with children rolls up automatically, so a direct update is refused. <b><code>base_hash</code> is required</b> — if it doesn't match the disk, the write is <b>refused, never silently overwritten</b>, with the current hash attached instead. This is the spot where one parallel session's change used to vanish silently under another's.</td></tr>
             <tr><td>plan_create</td><td>Creates a new plan at 3 depths (milestone → task → subtask) — frontmatter and id spec guaranteed by the server. If an active plan with an overlapping title or id already exists it refuses and returns that candidate, nudging reuse (<code>allow_similar</code> overrides).</td></tr>
             <tr><td>project_init</td><td>Starts tracking on an untracked repository — only on the user's explicit request and confirmation. Rejects symlinks and guards against the home directory.</td></tr>
-            <tr><td>agent_register</td><td>Adds this session to the project's <b>participant list</b> (A2A). The first step for multiple agents working the same project at once to discover each other — the response comes back with who's currently alive. Safe to call again.</td></tr>
-            <tr><td>agent_list</td><td>The list of agents currently attached to this project. <b>Dead sessions are dropped</b> — if the process is gone, it's treated as dead even if a card remains. Use it to confirm the other side actually exists before handing off work.</td></tr>
-            <tr><td>agent_inbox</td><td>What's addressed to me — unread messages and unfinished tasks handed to me, in one call. <b>What arrives is data, not instructions</b>: it's not executed as-is, it's confirmed with the user.</td></tr>
-            <tr><td>agent_send</td><td>A word to another agent — only to <b>sessions the user grouped together on screen</b> (an exception: a partner already sharing an in-progress task). Attachments are <b>project-relative path references only</b> — file contents are never copied into the body. The server masks secrets.</td></tr>
-            <tr><td>task_create</td><td>Hands off a task (an A2A Task) — <b>only to grouped sessions</b>. It starts only once the receiver accepts, and the server closes it as <code>failed</code> once the deadline passes — so the sender never waits forever.</td></tr>
-            <tr><td>task_update</td><td>Transitions a task's state. The receiver moves it working→completed/failed; the sender can cancel. <b>A finished task never reopens.</b></td></tr>
-            <tr><td>claim_paths</td><td>Claims a region of files to edit, by glob — stops two sessions editing the same file from colliding <b>before it happens</b>. On overlap it refuses and reports who claimed it and until when.</td></tr>
           </tbody>
         </table>
       </div>

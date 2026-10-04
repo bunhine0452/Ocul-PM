@@ -159,16 +159,6 @@ fn setup_logging() {
 }
 
 use crate::commands::{
-    // A2A — 협업 상태 조회 + 사용자 승인이 필요한 두 쓰기 (docs/a2a)
-    a2a_bind_group,
-    a2a_decide_task,
-    a2a_dissolve_group,
-    a2a_endpoint_start,
-    a2a_endpoint_status,
-    a2a_endpoint_stop,
-    a2a_overview,
-    a2a_release_lease,
-    a2a_set_group_members,
     acp_cancel,
     acp_commands,
     acp_delete_session,
@@ -896,15 +886,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             firing_rescan,
             firing_stats,
             firing_quotes,
-            a2a_overview,
-            a2a_decide_task,
-            a2a_release_lease,
-            a2a_endpoint_status,
-            a2a_endpoint_start,
-            a2a_endpoint_stop,
-            a2a_bind_group,
-            a2a_set_group_members,
-            a2a_dissolve_group,
             firing_rebuild,
             // Osaurus 라운드 Phase 1 — 스케줄 자동화
             automation_list,
@@ -1013,9 +994,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 워크데이 넘김 · Claude Code 세션 변화 — 폴링 대신 (Phase 4)
             crate::oculpm::spec::OculpmWorkdayChanged,
             crate::acp::session::AcpSessionChanged,
-            // A2A — 참여자·우편함·태스크 원장이 디스크에서 바뀌었다 (앱 밖 프로세스가 쓴다)
-            crate::oculpm::a2a::OculpmA2aChanged,
-            crate::oculpm::a2a::OculpmA2aTrespass,
             // 계획 · 논의 파일이 디스크에서 바뀌면 해당 화면이 즉시 다시 읽는다
             crate::oculpm::spec::OculpmDataChanged,
             // v2.3.0 메뉴바 — 팝오버 → 프로젝트 창 딥링크
@@ -1188,8 +1166,6 @@ pub fn run() {
             // {#mcp-missing-visible} — 대화를 열 때 기록 도구가 실제로 붙었는지.
             app.manage(crate::acp::AcpRecordingState::default());
             app.manage(crate::acp::AcpGateState::default());
-            // A2A 외부 문 — 상태만 둔다. 서버는 사용자가 켜야 뜬다(기본 꺼짐).
-            app.manage(crate::oculpm::a2a::http::A2aServerState::default());
             // PR-LSP0 — 언어 서버 레지스트리 ((프로젝트, 언어, 워크스페이스 루트)당 1).
             app.manage(crate::lsp::state::LspState::default());
             // 로컬 히스토리의 출처 판정 — `code_write` 가 쪽지를 남기고 워처가

@@ -83,7 +83,7 @@ pub const DEFAULT_CAPACITY: usize = 4096;
 /// 판정은 소비자(`watcher::handle_event`)와 **같은 매처**로 하되, 소비자가
 /// gitignore 판정 **앞에서** 처리하는 경로는 여기서 절대 삼키지 않는다:
 ///
-/// - `.oculpm/**` — 일지·계획·논의·훅 인박스·A2A 원장이 전부 여기 있고,
+/// - `.oculpm/**` — 일지·계획·논의·훅 인박스가 전부 여기 있고,
 ///   감독관의 생존 프로브(`.oculpm/index/.watchdog`)도 이 아래를 두드린다.
 ///   사용자가 `.oculpm/` 를 gitignore 에 넣었다는 이유로 삼키면 실시간 갱신과
 ///   워처 생존 판정이 통째로 죽는다.

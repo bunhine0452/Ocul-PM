@@ -9,8 +9,8 @@ import { safeUnlisten, type MaybeAsyncUnlisten } from "@/lib/unlisten";
 /**
  * 첫 기록 원장의 자료 한 벌 (플랜 `first-record-loop` {#p1-card}).
  *
- * 원장이 바뀌는 신호는 셋이다 — 일지가 생기거나 바뀜(워처 이벤트), 작업
- * 세션이 열리거나 닫힘(훅 인박스 소비의 산물), A2A 원장 변경(agent_register).
+ * 원장이 바뀌는 신호는 둘이다 — 일지가 생기거나 바뀜(워처 이벤트), 작업
+ * 세션이 열리거나 닫힘(훅 인박스 소비의 산물).
  * 그런데 **마커 파일**(`.session-live-*`)은 훅이 직접 찍고 워처는 그 폴더에
  * 이벤트를 내지 않는다 — 「실행 중」이 되는 순간을 이벤트만으로는 못 본다.
  * 그래서 카드가 살아 있는 동안 분 단위 틱 하나를 둔다. IPC 한 번/분이고,
@@ -86,7 +86,6 @@ export function useFirstRecord(projectId: number, enabled: boolean): FirstRecord
     try {
       keep(oculpmApi.onSessionStarted(onProject));
       keep(oculpmApi.onSessionEnded(onProject));
-      keep(oculpmApi.onA2aChanged(onProject));
     } catch {
       /* event channel unavailable (tests) — 분 단위 틱이 그 자리를 메운다 */
     }

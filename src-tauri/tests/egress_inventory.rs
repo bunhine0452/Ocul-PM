@@ -190,12 +190,6 @@ const RUST_SITES: &[Site] = &[
         control: Control::LocalOnly,
         reason: "폰 웹앱용 LAN 바인드 — 사용자가 켤 때만 뜨고, 나가는 것이 아니라 **듣는다**. 페어링 토큰이 문을 지킨다.",
     },
-    Site {
-        path: "oculpm/a2a/http.rs",
-        primitives: &["TcpListener"],
-        control: Control::LocalOnly,
-        reason: "멀티에이전트 원장의 로컬 HTTP 문 — 127.0.0.1 에만 바인드한다 (기기 밖에서 닿지 않는다).",
-    },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -224,7 +218,6 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     // (404) 링크 자체를 내지 않는다 (commands/mcp.rs marketplace_url = None). 발행하면 링크와 함께 되살린다.
     ("open-vsx.org", "확장의 Open VSX 링크 (Cursor·VSCodium 사용자용, commands/mcp.rs vscode_extension_status) — 설정 화면 앵커, 사용자 클릭 시 open_url 로 브라우저 위임. 앱은 보내지 않는다."),
     // ── 목적지가 아닌 것 ──
-    ("127.0.0.1:8737", "루프백 — a2a 로컬 HTTP 문의 기본 주소. 기기 밖에서 닿지 않는다."),
     ("mcp.notion.com", "앱이 부르지 않는다 — 에이전트 CLI 설정 파일(.mcp.json/config.toml)에 **적히는 값**이고, 그 파서의 테스트 픽스처다."),
     ("www.w3.org", "SVG 네임스페이스 URI — 네트워크 요청이 아니다 (xmlns 속성)."),
     // ── 테스트 픽스처 ──

@@ -17,14 +17,8 @@
 import { commands, events } from "@/lib/bindings";
 import { ApiError, call, toAppError, type Envelope } from "@/api/invoke";
 import type {
-  A2aOverview,
   BranchRef,
   BranchStory,
-  Group,
-  A2aServerStatus,
-  OculpmA2aChanged,
-  OculpmA2aTrespass,
-  Task,
   AgentDetection,
   AgentSyncReport,
   BackfillReport,
@@ -132,31 +126,6 @@ export const oculpmApi = {
   /** Codex 플러그인 설치 상태 (머신 스코프, 읽기 전용 — 설치는 `codex plugin` CLI). */
   codexPluginStatus: () =>
     unwrap<CodexPluginStatus>("codex_plugin_status", commands.codexPluginStatus()),
-
-  // ─── A2A — 협업 상태 (docs/a2a/00-master-plan.md §9) ──────────────────
-  /** 참여자·잡힌 구역·미완 태스크를 **한 시각으로** 한 번에. */
-  a2aOverview: (projectId: number) =>
-    unwrap<A2aOverview>("a2a_overview", commands.a2aOverview(projectId)),
-
-  /** 고른 세션들을 한 팀으로 묶는다 — 묶여야 서로 말할 수 있다. */
-  a2aBindGroup: (projectId: number, title: string, members: string[]) =>
-    unwrap<Group>("a2a_bind_group", commands.a2aBindGroup(projectId, title, members)),
-
-  /** 팀의 멤버를 갈아 끼운다 (둘 미만은 해체이지 갱신이 아니다). */
-  a2aSetGroupMembers: (projectId: number, groupId: string, members: string[]) =>
-    unwrap<Group>("a2a_set_group_members", commands.a2aSetGroupMembers(projectId, groupId, members)),
-
-  /** 팀을 푼다. */
-  a2aDissolveGroup: (projectId: number, groupId: string) =>
-    unwrap<boolean>("a2a_dissolve_group", commands.a2aDissolveGroup(projectId, groupId)),
-
-  /** 넘어온 작업을 사람이 수락/거절한다 — 자동 수락은 없다(D5). */
-  a2aDecideTask: (projectId: number, taskId: string, accept: boolean) =>
-    unwrap<Task>("a2a_decide_task", commands.a2aDecideTask(projectId, taskId, accept)),
-
-  /** 주인이 사라졌는데 기한이 남은 구역을 사용자가 놓아 준다. */
-  a2aReleaseLease: (projectId: number, leaseId: string) =>
-    unwrap<boolean>("a2a_release_lease", commands.a2aReleaseLease(projectId, leaseId)),
 
   init: (projectId: number) =>
     unwrap<OculpmInitReport>("oculpm_init", commands.oculpmInit(projectId)),
@@ -460,35 +429,6 @@ export const oculpmApi = {
       "oculpm_backfill_from_git",
       commands.oculpmBackfillFromGit(projectId, maxCommits),
     ),
-
-  /** 외부 A2A 문의 상태 (기본 꺼짐). */
-  a2aEndpointStatus: () =>
-    unwrap<A2aServerStatus>("a2a_endpoint_status", commands.a2aEndpointStatus()),
-
-  /** 문을 연다 — 응답의 토큰은 **이번 기동 동안만** 유효하고 디스크에 안 남는다. */
-  a2aEndpointStart: (projectId: number) =>
-    unwrap<A2aServerStatus>("a2a_endpoint_start", commands.a2aEndpointStart(projectId)),
-
-  a2aEndpointStop: () =>
-    unwrap<A2aServerStatus>("a2a_endpoint_stop", commands.a2aEndpointStop()),
-
-  /** A2A 원장(참여자·우편함·태스크)이 바뀌었다. 구독 해제 함수를 돌려준다. */
-  onA2aChanged: (cb: (payload: OculpmA2aChanged) => void): Promise<() => void> => {
-    try {
-      return events.oculpmA2aChanged.listen(({ payload }) => cb(payload)).catch(() => () => {});
-    } catch {
-      return Promise.resolve(() => {});
-    }
-  },
-
-  /** 남의 구역을 밟았다는 경고. */
-  onA2aTrespass: (cb: (payload: OculpmA2aTrespass) => void): Promise<() => void> => {
-    try {
-      return events.oculpmA2aTrespass.listen(({ payload }) => cb(payload)).catch(() => () => {});
-    } catch {
-      return Promise.resolve(() => {});
-    }
-  },
 
   // ─── 브랜치 축 (v3-surface) — 전부 로컬 git + 캐시 읽기, 네트워크 0 ───
 

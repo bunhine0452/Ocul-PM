@@ -166,7 +166,6 @@ pub async fn acp_start(
         AcpProvider::Codex => acp::adapter::codex_entry_path(&dir),
     };
     let path_env = acp::env::effective_path().await;
-    // 참여자 카드가 이 프로젝트의 `.oculpm/` 에 놓인다 (A2A Phase 1).
     let root = project_root(&db, project_id).await?;
 
     let agent = acp::process::start(

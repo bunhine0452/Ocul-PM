@@ -6,10 +6,8 @@
 //! 앱 안에서만 유효하고, 병렬 세션 사고(같은 플랜을 동시에 고쳐 한쪽 변경이
 //! 사라진 그 사고)의 실제 현장인 MCP↔MCP·MCP↔CLI 조합에는 아무 힘이 없다.
 //!
-//! 관용구는 새로 만들지 않았다. [`a2a::leases`](crate::oculpm::a2a::leases) 가
-//! 확인-후-쓰기 구간을 지키려고 이미 쓰던 것 — `OpenOptions::create_new` 는
-//! 파일이 이미 있으면 실패하고, 그 판정은 OS 가 원자적으로 한다 — 을 여기로
-//! **끌어올려** 두 자리(임대 문지기·플랜 CAS)가 같은 구현을 쓰게 했다.
+//! 관용구는 `OpenOptions::create_new` 하나다 — 파일이 이미 있으면 실패하고,
+//! 그 판정은 OS 가 원자적으로 한다.
 //!
 //! ## 죽은 프로세스가 남긴 락
 //!
@@ -262,7 +260,7 @@ fn read_nonce(path: &Path) -> std::io::Result<Option<String>> {
 /// 이 락 파일이 걷어낼 만큼 오래됐는가.
 ///
 /// 읽을 수 없거나 시각이 미래면 **오래되지 않았다**고 답한다 — 판정할 수 없는
-/// 주인의 자리는 뺏지 않는다 (`a2a` 의 생사 판정과 같은 원칙).
+/// 주인의 자리는 뺏지 않는다 (`pid` 의 "모름은 죽음이 아니다" 와 같은 원칙).
 fn is_stale(path: &Path, now: DateTime<Utc>, stale_after_seconds: i64) -> bool {
     std::fs::metadata(path)
         .and_then(|m| m.modified())

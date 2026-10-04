@@ -484,7 +484,7 @@ fn prefilter_never_swallows_what_the_consumer_judges_first() {
     std::fs::write(root.join(".gitignore"), "*\n.oculpm/\n.claude/\n.cursor/\n").unwrap();
     let f = prefilter_at(&root, &["*", ".oculpm/"]);
 
-    // 실시간 갱신의 심장 — 일지·계획·논의·훅 인박스·A2A 원장.
+    // 실시간 갱신의 심장 — 일지·계획·논의·훅 인박스.
     assert!(f.keeps(&root.join(".oculpm/journal/20260907/Feature/x.md")));
     assert!(f.keeps(&root.join(".oculpm/planner/v3-release.md")));
     assert!(f.keeps(&root.join(".oculpm/discussion/x.md")));

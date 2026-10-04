@@ -26,7 +26,7 @@ use crate::oculpm::watcher_queue::WatcherSink;
 use crate::oculpm::watcher_tasks::{self, WatcherTasks};
 
 use super::classify::{
-    a2a_change_kind, classify_journal_op, data_area_for_path, is_agent_state_path, is_agents_noise,
+    classify_journal_op, data_area_for_path, is_agent_state_path, is_agents_noise,
     is_directory_event, short_hash_of,
 };
 use super::{is_rules_path, is_self_suppressed, WatcherStatsInner};
@@ -232,15 +232,9 @@ impl WatcherInner {
             return;
         }
 
-        // 1.6 A2A 원장 (`docs/a2a/00-master-plan.md` §4~§6). **아래 2번보다
-        //     먼저 걸러야 한다** — `.oculpm/agents/` 로 시작하므로 순서가 뒤집히면
-        //     카드 한 장 쓸 때마다 모든 어댑터의 AGENTS.md 재동기화가 돈다.
-        //     하트비트까지 그 길을 타면 증폭 루프가 된다 (osaurus R1 과 같은 부류).
-        //     우편함·태스크 원장도 같은 이유로 여기서 끊고 이벤트만 낸다.
-        if let Some(kind) = a2a_change_kind(&rel_str) {
-            self.emit_a2a_changed(kind);
-            return;
-        }
+        // 1.6 옛 A2A 원장 자리 — **아래 2번보다 먼저 걸러야 한다.**
+        //     `.oculpm/agents/` 로 시작하므로 순서가 뒤집히면 옛 플러그인이 쓰는
+        //     하트비트 한 줄마다 모든 어댑터의 AGENTS.md 재동기화가 돈다.
         if is_agents_noise(&rel_str) {
             self.bump_ignored();
             return;

@@ -546,10 +546,6 @@ pub async fn start(
         return Ok(existing);
     }
     let epoch = state.next_epoch.fetch_add(1, Ordering::Relaxed);
-    // 백그라운드 태스크가 등록·해제에 쓸 사본 (클로저는 'static 이라 빌릴 수 없다).
-    let card_root = project_root.to_path_buf();
-    let gone_root = project_root.to_path_buf();
-    let notify_root = project_root.to_path_buf();
 
     // 세션 심 (플랜 `session-shim-cli`) — 어댑터 너머의 CLI 가 `oculpm` 을 손에
     // 쥔다. 터미널과 달리 여기서는 **PATH 를 우리가 만든다** (이미 로그인 셸에서
@@ -673,18 +669,6 @@ pub async fn start(
                     }
                     // 파일 변경 감사도 같은 봉투(`session_info_update`)로 온다.
                     if let Some(report) = file_change_report_of(&notification.update) {
-                        // 이 에이전트의 변경으로 **신고된** 목록이라 "누가 썼는지"를
-                        // 아는 유일한 자리다 — 남의 구역을 밟았으면 여기서만 잡는다
-                        // (A2A Phase 3). 셸 명령으로 쓴 것은 여기 안 온다.
-                        if let AcpEvent::FileChangeReport { paths, .. } = &report {
-                            warn_on_trespass(
-                                &notify_root,
-                                provider,
-                                project_id,
-                                paths,
-                                &notify_app,
-                            );
-                        }
                         state.emit(target_id, &from, report);
                     }
                     state.emit(target_id, &from, map_update(&notification.update));
@@ -799,7 +783,6 @@ pub async fn start(
                     supports_image: init.agent_capabilities.prompt_capabilities.image,
                 };
 
-                identity::publish_card(&card_root, provider, &info);
                 register_app.state::<AcpState>().insert(
                     target_id,
                     Running {
@@ -832,7 +815,6 @@ pub async fn start(
         let state = task_app.state::<AcpState>();
         if state.remove_if(target_id, epoch) {
             tracing::info!(target_id, epoch, "ACP 어댑터 연결 종료");
-            identity::withdraw_card(&gone_root, provider);
             emit_session_changed(
                 &task_app,
                 project_id,
@@ -867,50 +849,6 @@ pub async fn start(
         Ok(Ok(info)) => Ok(info),
         Ok(Err(_)) => Err("어댑터 핸드셰이크에 실패했습니다 (로그를 확인하세요)".to_string()),
         Err(_) => Err("어댑터가 응답하지 않습니다 (핸드셰이크 시간 초과)".to_string()),
-    }
-}
-
-/// 신고된 변경 중 **남의 임대에 걸린 것**을 화면에 알린다.
-///
-/// 막지 않는다 — 신고는 변경이 끝난 뒤에 오고, 되돌릴지는 사용자의 판단이다.
-/// 우리 몫은 그것을 보이게 하는 것이다. 임대 조회 실패·경로 해석 실패는
-/// 조용히 지나간다: 경고 기능 때문에 대화가 끊기면 안 된다.
-fn warn_on_trespass(
-    project_root: &Path,
-    provider: AcpProvider,
-    project_id: u32,
-    absolute_paths: &[String],
-    app: &tauri::AppHandle,
-) {
-    use crate::oculpm::a2a::{leases, OculpmA2aTrespass};
-    use tauri_specta::Event;
-
-    if absolute_paths.is_empty() {
-        return;
-    }
-    // 신고는 절대경로로 온다 — 임대는 프로젝트 상대다.
-    let relative: Vec<String> = absolute_paths
-        .iter()
-        .filter_map(|p| {
-            Path::new(p)
-                .strip_prefix(project_root)
-                .ok()
-                .map(|rel| rel.to_string_lossy().to_string())
-        })
-        .collect();
-    if relative.is_empty() {
-        return;
-    }
-    let actor = format!("{}-app", provider.agent_id());
-    for (path, lease) in leases::trespasses(project_root, &actor, &relative, chrono::Utc::now()) {
-        let _ = OculpmA2aTrespass {
-            project_id,
-            actor: actor.clone(),
-            path,
-            holder: lease.holder,
-            until: lease.expires_at,
-        }
-        .emit(app);
     }
 }
 

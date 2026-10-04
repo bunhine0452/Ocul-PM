@@ -144,7 +144,6 @@ import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
 import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
 import { DiscussionScreenV2 } from "@/features/discussion/DiscussionScreenV2";
 import { SkillsScreenV2 } from "@/features/skills/SkillsScreenV2";
-import { SessionsScreenV2 } from "@/features/sessions/SessionsScreenV2";
 import { BranchScreenV2 } from "@/features/branch/BranchScreenV2";
 import { AiPanelScreenV2 } from "@/features/chat/AiPanelScreenV2";
 import { GraphScreenV2 } from "@/features/graph/GraphScreenV2";
@@ -303,15 +302,6 @@ describe("영어 모드 전 화면 순회 — 한글이 남지 않는다", () =>
       </Wrap>,
     );
     await expectEnglish(container, "Skills");
-  });
-
-  it("세션", async () => {
-    const { container } = render(
-      <Wrap>
-        <SessionsScreenV2 projectId={1} />
-      </Wrap>,
-    );
-    await expectEnglish(container, "Sessions");
   });
 
   it("브랜치", async () => {

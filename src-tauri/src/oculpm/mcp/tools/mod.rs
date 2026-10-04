@@ -114,7 +114,7 @@ use crate::oculpm::spec::{
 /// AGENTS.md §2~§4 의 규칙을 여기 옮겨 담아 "규칙 문서를 안 읽은 에이전트"도
 /// 규격 기록을 남기게 한다.
 pub fn tool_definitions() -> Value {
-    let mut tools = json!([
+    json!([
         {
             "name": "journal_write",
             "description": "ocul-pm 작업 일지 1건을 기록한다. 하나의 논리적 작업 단위(버그 수정/기능/리팩토링/에러 사이클/잡일)를 끝냈을 때 호출. 경로·파일명·frontmatter 규격은 서버가 보장하므로 파일을 직접 만들지 말 것.",
@@ -265,17 +265,7 @@ pub fn tool_definitions() -> Value {
                 "required": ["confirm"]
             }
         }
-    ]);
-    // **배열을 나눠 두는 이유**는 `json!` 이 중첩 깊이로 매크로 재귀 한도를
-    // 먹기 때문이다. 도구가 하나 늘 때마다 크레이트 전역 `recursion_limit` 을
-    // 올리는 것보다, 갈래별로 나눠 이어 붙이는 편이 싸다.
-    if let (Some(list), Some(extra)) = (
-        tools.as_array_mut(),
-        super::a2a_tools::definitions().as_array(),
-    ) {
-        list.extend(extra.iter().cloned());
-    }
-    tools
+    ])
 }
 
 pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String> {
@@ -324,13 +314,6 @@ pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String>
         "plan_status" => plan_status(root, args),
         "plan_update" => plan_update(root, args),
         "plan_create" => plan_create(root, args),
-        "agent_register" => super::a2a_tools::agent_register(root, args),
-        "agent_list" => super::a2a_tools::agent_list(root),
-        "agent_inbox" => super::a2a_tools::agent_inbox(root, args),
-        "agent_send" => super::a2a_tools::agent_send(root, args),
-        "task_create" => super::a2a_tools::task_create(root, args),
-        "task_update" => super::a2a_tools::task_update(root, args),
-        "claim_paths" => super::a2a_tools::claim_paths(root, args),
         other => Err(format!("unknown tool: {other}")),
     }
 }

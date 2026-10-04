@@ -1,5 +1,5 @@
 //! 경로·이벤트 종류를 가르는 순수 술어 — 자기 억제, 에이전트 내부 상태,
-//! 데이터 영역(계획·논의·자동화), 규칙 파일, A2A 원장, 디렉터리 이벤트.
+//! 데이터 영역(계획·논의·자동화), 규칙 파일, 옛 A2A 원장 자리, 디렉터리 이벤트.
 //! I/O 도 상태도 없어 소비자와 `watcher_queue::PreFilter` 가 같은 판정을 나눠 쓴다.
 
 use notify::EventKind;
@@ -186,29 +186,15 @@ pub(super) fn short_hash_of(input: &str) -> String {
     full[..8].to_string()
 }
 
-/// `.oculpm/agents/` 아래 어느 원장이 바뀌었나 (아니면 `None`).
-///
-/// 순서가 중요하다 — 이 셋은 전부 `.oculpm/agents/` 로 시작하므로, 어댑터
-/// 재동기화 캐스케이드보다 **먼저** 걸러야 한다. 카드 한 장·메시지 한 통마다
-/// 모든 AGENTS.md 를 다시 쓰는 증폭 루프가 그 반대 순서의 대가다.
-pub(super) fn a2a_change_kind(rel_str: &str) -> Option<crate::oculpm::a2a::A2aChangeKind> {
-    use crate::oculpm::a2a::A2aChangeKind;
-    if rel_str.starts_with(".oculpm/agents/live/") {
-        return Some(A2aChangeKind::Participants);
-    }
-    if rel_str.starts_with(".oculpm/agents/inbox/") {
-        return Some(A2aChangeKind::Message);
-    }
-    if rel_str.starts_with(".oculpm/agents/tasks/") {
-        return Some(A2aChangeKind::Task);
-    }
-    None
-}
-
 /// 화면이 볼 것이 없지만 **캐스케이드도 타면 안 되는** 경로.
 ///
-/// 지금은 A2A 감사 로그 하나뿐이다 — 외부 문이 열려 있는 동안 호출마다
-/// 덧붙는데, 그 한 줄마다 모든 어댑터의 AGENTS.md 를 다시 쓸 이유가 없다.
+/// 지금은 걷어낸 A2A 원장의 옛 자리들이다 (참여자 카드·우편함·태스크·임대·
+/// 그룹·감사 로그). 기능은 없어졌지만 업데이트 전의 플러그인 MCP 서버가 아직
+/// 여기에 쓸 수 있다 — 하트비트 한 줄마다 모든 어댑터의 AGENTS.md 를 다시
+/// 쓰는 증폭 루프가 그 대가라, 캐스케이드보다 **먼저** 걸러 버린다.
 pub(super) fn is_agents_noise(rel_str: &str) -> bool {
-    rel_str.starts_with(".oculpm/agents/audit/")
+    const LEGACY_LEDGER: [&str; 6] = ["live/", "inbox/", "tasks/", "leases/", "groups/", "audit/"];
+    rel_str
+        .strip_prefix(".oculpm/agents/")
+        .is_some_and(|rest| LEGACY_LEDGER.iter().any(|dir| rest.starts_with(dir)))
 }

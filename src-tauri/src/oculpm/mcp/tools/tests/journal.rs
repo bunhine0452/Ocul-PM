@@ -507,3 +507,17 @@ fn journal_write_warns_on_unreadable_files_touched() {
     let not_array = write(serde_json::json!("src/a.ts, src/b.ts"));
     assert!(not_array["warnings"][0].as_str().unwrap().contains("배열"));
 }
+
+/// 인자로 `agent_id` 를 안 줬을 때 **누구의 일지가 되는가.**
+///
+/// 앱이 어댑터를 띄우며 `OCULPM_AGENT_ID` 를 넘긴다 (Codex 세션이면 `codex`).
+/// 이게 없던 동안 Codex 가 쓴 일지가 전부 `claude-code` 로 기록됐다 —
+/// 자기 자신을 추적하는 앱에서 귀속이 틀리면 기록이 거짓이 된다.
+#[test]
+fn default_agent_id_follows_the_session_that_launched_us() {
+    assert_eq!(agent_id_or_default(None), "claude-code");
+    assert_eq!(agent_id_or_default(Some(String::new())), "claude-code");
+    assert_eq!(agent_id_or_default(Some("  ".to_string())), "claude-code");
+    assert_eq!(agent_id_or_default(Some("codex".to_string())), "codex");
+    assert_eq!(agent_id_or_default(Some(" codex ".to_string())), "codex");
+}

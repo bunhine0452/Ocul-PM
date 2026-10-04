@@ -36,13 +36,6 @@ const OCULPM_TOOL_KIND: Readonly<Record<string, ActivityKind>> = {
   plan_status: "oculpm-plan",
   plan_update: "oculpm-plan",
   plan_create: "oculpm-plan",
-  agent_register: "oculpm-a2a",
-  agent_list: "oculpm-a2a",
-  agent_inbox: "oculpm-a2a",
-  agent_send: "oculpm-a2a",
-  task_create: "oculpm-a2a",
-  task_update: "oculpm-a2a",
-  claim_paths: "oculpm-a2a",
 };
 
 /** 이 낱말이 우리 도구인가. 아니면 `null` (모르는 것은 우리 것이 아니다). */

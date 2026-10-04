@@ -13,9 +13,9 @@ import {
   X,
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
-import { agoText } from "@/features/sessions/sessionModel";
 import { useMinuteTick } from "@/hooks/useSecondTick";
 import { useT, type I18nKey } from "@/i18n";
+import { relativeTime } from "@/lib/format";
 import { deriveFirstRecord, probe3, shortConversation, type Probe3 } from "./firstRecordModel";
 import { useFirstRecord } from "./useFirstRecord";
 
@@ -141,7 +141,7 @@ export function FirstRecordCard({
 
   if (view.kind === "running") {
     const id = shortConversation(view.conversation.conversation);
-    const since = view.conversation.started_at ? agoText(view.conversation.started_at, now) : null;
+    const since = relativeTime(view.conversation.started_at, now) || null;
     return (
       <div className="card card-pad" role="status" data-first-record="running">
         <div className="stat-top">

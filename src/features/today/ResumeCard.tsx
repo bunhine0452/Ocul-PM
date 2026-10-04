@@ -2,9 +2,9 @@ import { ErrorCard } from "@/components/ErrorCard";
 import { ArrowRight, Copy, History, ListTodo, NotebookText, Terminal } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { agentLabel } from "@/features/today/agentColor";
-import { agoText } from "@/features/sessions/sessionModel";
 import { useMinuteTick } from "@/hooks/useSecondTick";
 import { useT } from "@/i18n";
+import { relativeTime } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { shortConversation } from "./firstRecordModel";
 import { useResumeDigest } from "./useResumeDigest";
@@ -62,7 +62,7 @@ export function ResumeCard({
   const deliveryLine = delivery
     ? t("today.resume.delivered", {
         id: shortConversation(delivery.conversation),
-        ago: agoText(delivery.ts, now) ?? delivery.ts,
+        ago: relativeTime(delivery.ts, now, { fallback: delivery.ts }),
         n: delivery.journals.length,
         m: delivery.plan_items,
       })
@@ -102,7 +102,7 @@ export function ResumeCard({
                   <div className="next-goal">
                     {[
                       j.agent_id ? agentLabel(j.agent_id) : null,
-                      j.created_at ? agoText(j.created_at, now) : null,
+                      relativeTime(j.created_at, now) || null,
                     ]
                       .filter(Boolean)
                       .join(" · ")}

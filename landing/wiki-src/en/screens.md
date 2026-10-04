@@ -33,7 +33,6 @@ Journal and Planner are the two pillars — see [Work Journal](/wiki/en/journal)
 | **Agents** | `⌘9` | Claude Code and Codex running inside the app ([integration](/wiki/en/claude-code)) |
 | **AI panel** | `⌘0` | Chat with several LLM providers, including planner action proposals |
 | **Skills & Rules** | — | Everything injected into agents, in one place |
-| **Sessions** | — | The agents attached to this project, and the teams you grouped |
 
 :::tip
 `⌘J` pops the **terminal dock** over whatever screen you're on. No need to navigate to Terminal (`⌘7`) — handy for typing commands while reading an entry.

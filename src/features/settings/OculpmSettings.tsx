@@ -54,7 +54,6 @@ import {
 import { useT, type I18nKey } from "@/i18n";
 import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
-import { A2aEndpointBlock } from "./A2aEndpointBlock";
 import { ClaudePluginBlock } from "./ClaudePluginBlock";
 import { ShellIntegrationBlock } from "./ShellIntegrationBlock";
 import { McpServerBlock } from "./McpServerBlock";
@@ -580,8 +579,6 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
         </Section>
         {/* 플러그인 번들 임포트 (Phase 6) — 프로젝트 스코프: 놓이는 자리가 전부 `<project>/.claude/` 와 `.mcp.json` 이다. */}
         <PluginBundlesBlock projectId={projectId} />
-        {/* 외부 A2A 문 — 카드 하나가 프로젝트 하나를 가리키므로 프로젝트 스코프다. */}
-        <A2aEndpointBlock projectId={projectId} />
         <Section
           title={t("op.scope.machineTitle")}
           description={t("op.scope.machineDesc")}

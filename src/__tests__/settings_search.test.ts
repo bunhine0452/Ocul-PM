@@ -30,7 +30,6 @@ const FILE_TAB: Array<[string, string]> = [
   ["ClaudePluginBlock.tsx", "oculpm"],
   ["CodexPluginBlock.tsx", "oculpm"],
   ["CodexMcpServerBlock.tsx", "oculpm"],
-  ["A2aEndpointBlock.tsx", "oculpm"],
   ["plugins/PluginBundlesBlock.tsx", "oculpm"],
   ["plugins/NotHonoredNotice.tsx", "oculpm"],
   ["tabs/ContextTab.tsx", "context"],

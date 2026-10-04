@@ -92,24 +92,24 @@ describe("navRegistry — 에이전트 행의 갈래", () => {
     expect(agent?.id).toBe("claudecode");
   });
 
-  it("세 갈래가 다 살아 있다 — 화면을 없앤 게 아니라 행을 접었다", () => {
-    expect(agent && navRowViews(agent)).toEqual(["claudecode", "codex", "sessions"]);
+  it("두 갈래가 다 살아 있다 — 화면을 없앤 게 아니라 행을 접었다", () => {
+    expect(agent && navRowViews(agent)).toEqual(["claudecode", "codex"]);
   });
 
   /**
    * 사이드바에서 행이 사라진 화면도 ⌘K 로는 **각각** 갈 수 있어야 한다.
-   * 접기가 곧 숨기기가 되면 세션 화면은 도달 불가능해진다.
+   * 접기가 곧 숨기기가 되면 Codex 화면은 도달 불가능해진다.
    */
   it("팔레트 목적지는 갈래로 펼쳐진다 (부모는 목적지가 아니다)", () => {
     const ids = NAV_DESTINATIONS.map((e) => e.id);
     expect(ids).toContain("codex");
-    expect(ids).toContain("sessions");
+    expect(ids).not.toContain("sessions");
     expect(new Set(ids).size).toBe(ids.length);
-    expect(NAV_DESTINATIONS).toHaveLength(15);
+    expect(NAV_DESTINATIONS).toHaveLength(14);
   });
 
-  it("팔레트 목적지에 「에이전트」 별칭이 셋 다 붙어 있다", () => {
-    for (const id of ["claudecode", "codex", "sessions"]) {
+  it("팔레트 목적지에 「에이전트」 별칭이 둘 다 붙어 있다", () => {
+    for (const id of ["claudecode", "codex"]) {
       const hit = NAV_DESTINATIONS.find((e) => e.id === id);
       expect(hit?.aliasKey).toBeTruthy();
     }

@@ -56,9 +56,7 @@ const USAGE: &str = "\
 usage: oculpm <tool> [json|-]
 
   <tool>   an oculpm MCP tool name (journal_write, plan_status, plan_update,
-           plan_create, journal_search, journal_read, agent_register,
-           agent_list, agent_inbox, agent_send, task_create, task_update,
-           claim_paths, project_init)
+           plan_create, journal_search, journal_read, project_init)
   json     tool arguments as JSON; `-` reads them from stdin (default: {})
 
   oculpm tools            print the tool definitions (same JSON the MCP
@@ -310,14 +308,14 @@ mod tests {
     fn tools_prints_the_same_definitions_the_mcp_server_serves() {
         let out = dispatch(vec!["tools".into()]).unwrap();
         assert!(out.contains("journal_write"));
-        assert!(out.contains("claim_paths"));
+        assert!(out.contains("project_init"));
     }
 
     /// 앱이 **인자 하나 때문에** 헤드리스로 뜨면 안 된다.
     #[test]
     fn only_exact_tool_names_enter_the_cli() {
         assert!(is_cli_verb("journal_write"));
-        assert!(is_cli_verb("claim_paths"));
+        assert!(is_cli_verb("project_init"));
         assert!(is_cli_verb("whoami"));
         assert!(!is_cli_verb("-psn_0_1234"));
         assert!(!is_cli_verb("journal"));

@@ -1,4 +1,3 @@
-pub mod a2a;
 pub mod acp;
 pub mod acp_files;
 pub mod acp_gate;
@@ -58,7 +57,6 @@ pub mod themes;
 pub mod velocity;
 pub mod window;
 
-pub use a2a::*;
 pub use acp::*;
 pub use acp_files::*;
 pub use acp_gate::*;
