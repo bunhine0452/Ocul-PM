@@ -41,9 +41,9 @@ pub struct IndexWriter {
     root: PathBuf,
     resolver: WorkdayResolver,
     /// (project_id, AppHandle) — when set, integrity warnings (ndjson corruption,
-    /// etc.) are emitted as `oculpm:integrity_warning` Tauri events. `None` in
-    /// unit tests and pre-init callers.
-    emit_ctx: Option<(u32, tauri::AppHandle)>,
+    /// etc.) are emitted as `oculpm:integrity_warning` Tauri events. Empty in
+    /// unit tests and until the watcher attaches it ([`Self::attach_emit_ctx`]).
+    emit_ctx: std::sync::OnceLock<(u32, tauri::AppHandle)>,
 }
 
 // Manual Debug because `tauri::AppHandle` doesn't implement Debug.
@@ -52,7 +52,7 @@ impl std::fmt::Debug for IndexWriter {
         f.debug_struct("IndexWriter")
             .field("root", &self.root)
             .field("resolver", &self.resolver)
-            .field("emit_ctx", &self.emit_ctx.as_ref().map(|(id, _)| id))
+            .field("emit_ctx", &self.emit_ctx.get().map(|(id, _)| id))
             .finish()
     }
 }
@@ -70,15 +70,17 @@ impl IndexWriter {
         Self {
             root,
             resolver,
-            emit_ctx: None,
+            emit_ctx: std::sync::OnceLock::new(),
         }
     }
 
-    /// Attach an emit context so integrity warnings are emitted as Tauri events.
-    /// Returns `self` for builder chaining.
-    pub fn with_emit_ctx(mut self, project_id: u32, app_handle: tauri::AppHandle) -> Self {
-        self.emit_ctx = Some((project_id, app_handle));
-        self
+    /// Attach an emit context so integrity warnings reach the UI as Tauri events.
+    ///
+    /// The writer is built at `init_project` (no app handle there) and shared by
+    /// `Arc`, so the watcher attaches it when it starts. Until 2026-10-04 nobody
+    /// attached it and the ndjson-corruption toast could never fire. First call wins.
+    pub fn attach_emit_ctx(&self, project_id: u32, app_handle: tauri::AppHandle) {
+        let _ = self.emit_ctx.set((project_id, app_handle));
     }
 
     /// 프로젝트 루트가 아직 있는가. 사용자가 Finder 에서 폴더를 지우거나 옮기면
@@ -452,7 +454,7 @@ impl IndexWriter {
     // ─── emit helpers ───────────────────────────────────────────────────────
 
     fn emit_integrity_warning(&self, warning: IntegrityWarning) {
-        if let Some((project_id, handle)) = &self.emit_ctx {
+        if let Some((project_id, handle)) = self.emit_ctx.get() {
             use tauri_specta::Event;
             let _ = OculpmIntegrityWarning {
                 project_id: *project_id,
