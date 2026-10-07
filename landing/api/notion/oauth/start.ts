@@ -14,6 +14,10 @@ export default function handler(
 ) {
   const port = Number(req.query.port);
   const state = String(req.query.state ?? "");
+  // 새 앱은 `flow=code` 를 붙인다 — 콜백이 토큰 대신 code 만 루프백으로 넘기고, 앱이
+  // `exchange` 로 POST 해 토큰을 응답 본문으로 받는다 (토큰이 브라우저 기록에 안 남는다).
+  // 붙이지 않은 옛 앱은 예전 흐름 그대로다.
+  const flow = req.query.flow === "code" ? "code" : undefined;
   if (!Number.isInteger(port) || port < 1024 || port > 65535 || !/^[0-9a-f]{16,64}$/.test(state)) {
     res.status(400).send("invalid port/state");
     return;
@@ -34,6 +38,9 @@ export default function handler(
   u.searchParams.set("owner", "user");
   u.searchParams.set("redirect_uri", "https://oculpm.com/api/notion/oauth/callback");
   // 루프백 좌표를 state 에 실어 왕복한다 (서버는 무상태).
-  u.searchParams.set("state", Buffer.from(JSON.stringify({ p: port, s: state })).toString("base64url"));
+  u.searchParams.set(
+    "state",
+    Buffer.from(JSON.stringify({ p: port, s: state, ...(flow ? { f: flow } : {}) })).toString("base64url"),
+  );
   res.redirect(302, u.toString());
 }
