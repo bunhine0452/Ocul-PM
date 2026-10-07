@@ -500,7 +500,7 @@ export function buildPrivacy(root) {
     slug: "/privacy",
     active: null,
     title: "무엇이 나가고, 무엇이 절대 나가지 않는가 — Ocul-PM",
-    desc: "Ocul-PM 은 계정도 서버도 텔레메트리도 없습니다. 앱에서 나가는 통신 다섯 가지와, 절대 나가지 않는 것들을 목록으로 못박습니다.",
+    desc: "Ocul-PM 은 계정도 서버도 텔레메트리도 없습니다. 앱에서 나가는 통신 여섯 가지와, 절대 나가지 않는 것들을 목록으로 못박습니다.",
     hero: hero(
       "Privacy",
       "무엇이 나가고,<br />무엇이 절대 나가지 않는가.",
@@ -508,13 +508,14 @@ export function buildPrivacy(root) {
     ),
     body: `    <section class="pg-sec">
       <h2 id="ledger">나가는 것 · 안 나가는 것</h2>
-      <p>왼쪽이 전부입니다. 하나는 항상(업데이트 확인), 나머지 넷은 <b>당신이 그 기능을 쓸 때만</b> 열립니다.</p>
+      <p>왼쪽이 전부입니다. 하나는 항상(업데이트 확인), 나머지 다섯은 <b>당신이 그 기능을 쓸 때만</b> 열립니다.</p>
       <div class="pv-split">
         <div class="pv-col out">
-          <h3>나가는 것 — 다섯</h3>
-          <p>이 다섯 말고는 없습니다.</p>
+          <h3>나가는 것 — 여섯</h3>
+          <p>이 여섯 말고는 없습니다.</p>
           <ul>
             <li><b>LLM 요청</b> — AI 패널에 묻거나 자동화가 돌 때. <b>당신이 고른 프로바이더</b>로만 갑니다 (Anthropic · OpenAI · Google · OpenRouter · NVIDIA NIM …). 우리를 거치지 않습니다 — 중계 서버가 없습니다.</li>
+            <li><b>앱 안 Claude Code · Codex</b> — 그 화면에서 대화할 때 그 에이전트가 <b>당신의 구독 자격으로</b> 자기 프로바이더(Anthropic · OpenAI)와 하는 통신. 처음 쓸 때 한 번, 어댑터를 <code>registry.npmjs.org</code> 에서 받습니다 — 버전과 해시가 고정된 목록대로만 받고, 하나라도 다르면 설치를 멈춥니다.</li>
             <li><b>업데이트 확인</b> — 앱 시작과 수동 확인 시 <code>github.com</code> 의 릴리스 파일 한 장. 보내는 것은 요청 그 자체뿐입니다.</li>
             <li><b>GitHub 조회</b> — 과거 패치노트(<code>api.github.com</code>), 플러그인·스킬 번들 내려받기(<code>codeload.github.com</code>), 테마 파일(<code>raw.githubusercontent.com</code>). 눌렀을 때만.</li>
             <li><b>임베딩 모델 최초 1회</b> — 의미 검색을 처음 켤 때 <code>huggingface.co</code> 에서 모델 파일을 받아 <b>기기에 저장</b>합니다. 그 뒤로는 검색이 전부 오프라인이고, 코드가 모델에 <b>올라가지 않습니다</b> — 모델이 내려옵니다.</li>
@@ -572,8 +573,8 @@ export function buildPrivacy(root) {
 
     <section class="pg-sec">
       <h2 id="english">English summary</h2>
-      <p>Ocul-PM is local-first: no account, no server of ours, <b>no telemetry and no crash reporting</b>. Exactly five outbound connections exist: (1) LLM requests, sent directly to <b>the provider you chose</b> — never through us; (2) update checks against GitHub releases; (3) GitHub fetches for patch notes, plugin bundles and theme files, only when you click; (4) a one-time embedding-model download from <code>huggingface.co</code> the first time you enable semantic search — the model comes down, your code never goes up; (5) Notion, only if you opt in.</p>
-      <p>Never leaves the machine: your journal entries (except what you explicitly ask the AI about), everything under <code>.oculpm/</code>, your source code (except snippets you send with a question), API keys (OS keychain only), usage statistics and crash reports (<b>not collected at all</b>). Background automation is off by default, requires its own model slot so it cannot bill you silently, and logs every firing. The core is MIT-licensed — count the outbound calls yourself with <code>rg -n 'https://' src-tauri/src</code>.</p>
+      <p>Ocul-PM is local-first: no account, no server of ours, <b>no telemetry and no crash reporting</b>. Exactly six outbound connections exist: (1) LLM requests, sent directly to <b>the provider you chose</b> — never through us; (2) Claude Code and Codex inside the app — their own provider traffic under your subscription, plus a one-time adapter download from <code>registry.npmjs.org</code> from a version- and hash-pinned list; (3) update checks against GitHub releases; (4) GitHub fetches for patch notes, plugin bundles and theme files, only when you click; (5) a one-time embedding-model download from <code>huggingface.co</code> the first time you enable semantic search — the model comes down, your code never goes up; (6) Notion, only if you opt in.</p>
+      <p>Never leaves the machine: your journal entries (except what you explicitly ask the AI about), everything under <code>.oculpm/</code>, your source code (except snippets you send with a question), API keys (OS keychain only), usage statistics and crash reports (<b>not collected at all</b>). Background automation is off by default, runs only once this device allows it (a repository's settings alone never turn it on), requires its own model slot so it cannot bill you silently, and logs every firing. The core is MIT-licensed — count the outbound calls yourself with <code>rg -n 'https://' src-tauri/src</code>.</p>
     </section>`,
   });
 

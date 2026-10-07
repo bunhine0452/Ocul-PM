@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.7.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 114개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.8.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 115개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.7.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 114개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.8.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 115개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.7.0</span>
+    <span class="nav-ver" data-version>v3.8.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>114개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>115개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-8-0">v3.8.0</a>
       <a href="#v3-7-0">v3.7.0</a>
       <a href="#v3-6-0">v3.6.0</a>
       <a href="#v3-5-0">v3.5.0</a>
@@ -61,10 +62,19 @@
       <a href="#v3-1-1">v3.1.1</a>
       <a href="#v3-1-0">v3.1.0</a>
       <a href="#v3-0-1">v3.0.1</a>
-      <a href="#v3-0-0">v3.0.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-8-0"><a href="#v3-8-0">v3.8.0</a></h2>
+      <div class="cl-body">
+<p><b>남이 만든 저장소를 열 때의 위험을 닫았습니다.</b> 외부 보안 리뷰가 짚은 것을 코드에서 하나씩 다시 확인하고, 맞는 것을 고쳤습니다. 대부분에 공통점이 하나 있습니다 — <code>.oculpm/</code> 폴더와 그 안의 설정은 저장소에 함께 실려 오므로, 그 안의 것은 저장소를 만든 사람이 정한 것입니다.</p>
+<ul><li><b>저장소 설정만으로는 배경 AI 작업이 돌지 않습니다.</b> 자동 화해 · 일지 자동 초안 · 스케줄 · 파일 감시는 <code>.oculpm/config.toml</code> 의 스위치라서, 남의 저장소를 추가하면 그 사람이 켜 둔 것이 <b>내 API 키로, 내 Claude Code 대화를 들고</b> 돌았습니다. 배경 모델을 고르지 않았으면 대화 모델을 그 자리에 자동으로 채우기까지 했습니다. 이제는 이 기기에서 허락해야 돕니다 — 설정에서 스위치를 직접 켜면 그것이 곧 허락이고, 저장소가 켜 둔 것은 오늘 화면의 「이 저장소의 설정이 배경 AI 작업을 켜 두었어요」 카드가 묻습니다. <b>전에 켜 두었던 프로젝트도 업데이트 뒤 이 카드에서 한 번 눌러야 다시 돕니다.</b> 「지금 실행」처럼 직접 누른 실행은 그대로입니다.</li><li><b>비밀 마스킹이 넓어졌고, 설정으로 끌 수 없습니다.</b> 기본 패턴이 AWS 액세스 키 · <code>sk-</code> · <code>ghp_</code> · Slack 넷뿐이었고, 그마저 설정 파일의 값이라 저장소가 <code>auto_redact_patterns = []</code> 한 줄로 끌 수 있었습니다. 이제 GitHub(fine-grained · OAuth 계열) · GitLab · Stripe · Google · npm · PyPI · Hugging Face 토큰, JWT, PEM 개인키, AWS 시크릿 키, <code>Bearer</code> 토큰, 접속 문자열의 <code>user:pass@</code>, <code>.env</code> 꼴의 <code>PASSWORD=</code> 같은 줄을 <b>언제나</b> 가립니다. 설정의 목록은 이제 더 가릴 것을 적는 곳입니다. 그리고 일지 자동 초안 · 대화 가져오기 · 자동화가 <b>모델에 보내기 전에도</b> 가립니다 — 전에는 돌아온 답만 가려서, 대화에 붙여 넣은 키가 배경 모델 공급자에게 먼저 건너갔습니다.</li><li><b>저장소에 심어 둔 심볼릭 링크가 쓰기를 프로젝트 밖으로 돌리지 못합니다.</b> 편집기의 저장(전역 바꾸기 · 로컬 히스토리 되돌리기 포함)이 이름이 정해진 임시 파일을 거쳐서, 그 이름의 링크를 미리 넣어 둔 저장소에서는 저장한 내용이 링크가 가리키는 곳 — 예를 들어 홈의 설정 파일 — 에 써졌습니다. 일지 경로 중간의 폴더 링크, 기록 파일 링크, 플러그인 훅의 쓰기도 같은 길이었습니다. 이제 <code>.oculpm/</code> 안에 링크가 있는 프로젝트는 열지 않고 이유를 말합니다.</li><li><b>파일시스템 루트나 홈 폴더 자체는 프로젝트로 추가되지 않습니다.</b> 들이면 그 자리에 <code>.oculpm/</code> 과 규칙 파일이 깔리고 감시가 디스크 전체를 걸었습니다.</li></ul>
+<p><b>앱 화면에 콘텐츠 보안 정책(CSP)을 켰습니다.</b> 앱 화면이 부를 수 있는 기능에는 터미널처럼 명령을 실행하는 것이 있어서, 화면에 스크립트를 끼워 넣는 결함이 하나라도 생기면 곧 컴퓨터를 조작당하는 것이 됐습니다. 이제 앱 화면은 앱에 든 파일만 실행하고, 원격 이미지도 불러오지 않습니다 — 에이전트가 일지에 적은 <code>![](https://…)</code> 이미지가 화면을 여는 순간 바깥에 요청을 보내던 길도 함께 닫혔습니다(그런 이미지는 이제 비어 보입니다). Windows · Linux 실제 앱으로 모든 화면을 돌며 정책 위반이 0건인지, 정책이 실제로 걸려 있는지를 릴리스마다 확인합니다.</p>
+<p><b>그 밖에</b></p>
+<ul><li><b>Claude Code 어댑터를 고정된 목록대로만 설치합니다.</b> Claude Code 화면을 처음 열 때 깔리는 어댑터가 딸린 패키지를 설치하는 순간의 최신으로 받았습니다. 이제 모든 패키지의 버전과 해시가 고정된 목록대로만 깔고, 하나라도 다르면 설치를 멈추며, 설치 스크립트도 돌리지 않습니다. Codex 어댑터는 자기 폴더로 옮겨 갔습니다(이미 깔린 것은 그대로 씁니다).</li><li><b>승인 없이 파일을 고치고 명령을 실행하는 권한 모드</b>(<code>bypassPermissions</code> · <code>dontAsk</code>, Codex 의 <code>full-access</code>)를 메뉴에서 고를 때 한 번 더 묻습니다. ⇧Tab 은 원래부터 이 모드들을 건너뜁니다.</li><li><b>플러그인 설치 미리보기가 MCP 서버가 실행할 명령을 보여 줍니다.</b> 번들의 훅과 실행 파일은 원래 설치하지 않지만, MCP 서버 정의는 Claude Code 가 그 프로젝트에서 실행할 명령입니다 — 이제 설치를 누르기 전에 그 명령줄이 보입니다.</li><li><b>Notion 연결이 브라우저 기록에 토큰을 남기지 않습니다.</b> 승인을 마치고 앱으로 돌아오는 주소에 접근 토큰이 실려 있었습니다. 이제 한 번만 쓰이는 코드만 실리고, 앱이 그것을 토큰으로 바꿉니다.</li><li><b>Windows 에서 관리자 권한으로 띄운 앱</b>이 같은 사용자의 일반 프로세스가 먼저 만든 터미널 통로에 붙을 수 있던 것을 막았습니다.</li><li>개인정보 안내의 「밖으로 나가는 것」 목록에 <b>앱 안 Claude Code · Codex 를 쓸 때의 통신과 어댑터 설치</b>를 더했습니다 — 목록이 그것을 빼먹고 있었습니다.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-7-0"><a href="#v3-7-0">v3.7.0</a></h2>
       <div class="cl-body">

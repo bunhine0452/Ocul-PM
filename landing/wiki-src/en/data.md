@@ -52,4 +52,4 @@ Adding a project also appends a managed block to `.gitignore` that excludes the 
 
 ## What leaves the machine
 
-Three things: ① LLM calls you configured yourself, ② the new-version check, ③ Anthropic traffic when you use in-app Claude Code (on your subscription). There is no telemetry, no analytics, no account server. Embeddings for code search are computed locally too.
+Six things, and you start every one: ① LLM calls you configured yourself, ② the new-version check, ③ provider traffic when you use Claude Code or Codex in the app (on your subscription) — including a one-time adapter download from npm, version- and hash-pinned, ④ GitHub fetches when you click (release notes, plugin/skill bundles, theme files), ⑤ the one-time embedding-model download from huggingface.co (the model comes down, your code never goes up, and everything is offline afterwards), ⑥ the Notion integration once you enable it — **only its OAuth exchange goes through oculpm.com**, your documents go straight to Notion. There is no telemetry, no analytics, no account server. Embeddings for code search are computed locally too.

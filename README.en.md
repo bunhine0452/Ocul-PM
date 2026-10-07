@@ -78,7 +78,13 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.7.0 — Sessions retired, loose wires connected
+## 🚀 v3.8.0 — Safe to open someone else's repository
+
+- **A repository's settings alone no longer run background AI work** — auto-reconcile, journal auto-drafts, schedules and watchers run only once this device allows them (turn the switch on in Settings, or allow it from the card on Today). Projects where you had them on need one click after updating.
+- **Secret masking is broader and can't be switched off by config** — GitHub, GitLab, Stripe, Google and npm tokens, JWTs, private keys, connection strings and `.env`-style secret lines are always masked, and masked **before** anything goes to a background model. A symbolic link planted in a repository can no longer redirect a save outside the project, and the filesystem root or home folder can't be added as a project.
+- **A Content Security Policy for the app window** — the window runs only the app's own files and loads no remote images (zero violations on every screen, checked in the real Windows and Linux apps each release). The agent adapter installs only from a version- and hash-pinned list, dangerous permission modes ask once more, and connecting Notion no longer leaves a token in your browser history.
+
+## v3.7.0 — Sessions retired, loose wires connected
 
 - **The Sessions (agent-to-agent) screen is gone** — its surface outgrew its use. The sidebar's Agents row now has two branches, Claude Code and Codex; the agent-facing MCP tools shrink to seven (journal · plan · start tracking), and tracked projects' AGENTS.md drops that section too.
 - **Two features that were never wired up** — breakpoints vanished from a file you renamed or moved in the editor, and the notice for a repaired journal record file could never appear.
