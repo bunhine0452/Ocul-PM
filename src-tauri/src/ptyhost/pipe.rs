@@ -298,6 +298,11 @@ fn server_is_ours(pipe: HANDLE, me: &Identity) -> io::Result<()> {
         ));
     }
     let owner = token_user(process);
+    // 승격된 앱은 **승격된** 서버에만 붙는다. 이름은 승격을 따로 세지만(`-admin`)
+    // 같은 사용자의 보통 권한 프로세스도 그 이름을 먼저 만들 수 있고, SID 가 같아
+    // 아래 검사로는 못 가른다 — 붙으면 관리자 터미널에 치는 입력이 보통 권한
+    // 프로세스로 간다 (2026-10-07 외부 보안 피드백 #7).
+    let elevated = me.elevated.then(|| token_elevated(process));
     // SAFETY: 위에서 연 핸들을 한 번만 닫는다.
     unsafe { CloseHandle(process) };
     let owner = owner?;
@@ -307,6 +312,16 @@ fn server_is_ours(pipe: HANDLE, me: &Identity) -> io::Result<()> {
             io::ErrorKind::PermissionDenied,
             format!("the pty-host pipe is served by another user's process (pid {pid})"),
         ));
+    }
+    if let Some(elevated) = elevated {
+        if !elevated? {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                format!(
+                    "the elevated pty-host pipe is served by a non-elevated process (pid {pid})"
+                ),
+            ));
+        }
     }
     Ok(())
 }
