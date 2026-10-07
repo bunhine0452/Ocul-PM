@@ -152,35 +152,54 @@ impl OculpmManager {
         //    raises `ManagedBlockMismatch`, which we surface to the caller —
         //    the rest of init has already succeeded but the lock-acquire side
         //    effects (file + heartbeat) need to be undone before we return.
-        let gitignore_path = root.join(".gitignore");
-        // Union-merge with whatever the block already holds (A0a) — see
-        // `merged_gitignore_body`. A newer-versioned block is additionally
-        // left untouched by `write_managed_block`'s downgrade guard.
-        let gitignore_body = match read_managed_block(&gitignore_path, "oculpm", CommentStyle::Hash)
-        {
-            Ok(existing) => merged_gitignore_body(existing.as_ref().map(|b| b.content.as_str())),
-            Err(e) => {
-                drop(guard);
-                return Err(e);
+        //    A `.gitignore` that is a symbolic link is left alone (with a
+        //    warning, init goes on): the block is read-merge-write, so following
+        //    the link copies its target — say `~/.aws/credentials` — into the
+        //    project's `.gitignore` (`path_guard::secure_join_managed`).
+        let gitignore_path = match crate::path_guard::secure_join_managed(root, ".gitignore") {
+            Ok(path) => Some(path),
+            Err(reason) => {
+                tracing::warn!(
+                    target: "oculpm::manager",
+                    project_id,
+                    reason = %reason,
+                    "leaving .gitignore alone — not writing the managed block"
+                );
+                None
             }
         };
-        match write_managed_block(
-            &gitignore_path,
-            "oculpm",
-            &gitignore_body,
-            CommentStyle::Hash,
-        ) {
-            Ok(result) => {
-                report.wrote_gitignore = matches!(
-                    result,
-                    ManagedBlockResult::Inserted | ManagedBlockResult::Updated
-                );
-            }
-            Err(e) => {
-                // Drop the just-acquired guard so the on-disk `.lock` file and
-                // heartbeat task don't outlive a failed init.
-                drop(guard);
-                return Err(e);
+        if let Some(gitignore_path) = gitignore_path {
+            // Union-merge with whatever the block already holds (A0a) — see
+            // `merged_gitignore_body`. A newer-versioned block is additionally
+            // left untouched by `write_managed_block`'s downgrade guard.
+            let gitignore_body =
+                match read_managed_block(&gitignore_path, "oculpm", CommentStyle::Hash) {
+                    Ok(existing) => {
+                        merged_gitignore_body(existing.as_ref().map(|b| b.content.as_str()))
+                    }
+                    Err(e) => {
+                        drop(guard);
+                        return Err(e);
+                    }
+                };
+            match write_managed_block(
+                &gitignore_path,
+                "oculpm",
+                &gitignore_body,
+                CommentStyle::Hash,
+            ) {
+                Ok(result) => {
+                    report.wrote_gitignore = matches!(
+                        result,
+                        ManagedBlockResult::Inserted | ManagedBlockResult::Updated
+                    );
+                }
+                Err(e) => {
+                    // Drop the just-acquired guard so the on-disk `.lock` file and
+                    // heartbeat task don't outlive a failed init.
+                    drop(guard);
+                    return Err(e);
+                }
             }
         }
 

@@ -250,15 +250,13 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
     setSyncStatus({ kind: "pending" });
     try {
       const report = await oculpmApi.syncAgents(projectId);
-      const updated = report.results.filter(
-        (r) => r.action === "inserted" || r.action === "updated",
-      ).length;
-      setSyncStatus({ kind: "ok", updated });
+      const updated = report.results.filter((r) => r.action === "inserted" || r.action === "updated");
+      // 멈춘 어댑터(심볼릭 링크 등)는 사유째 보인다 — 전에는 고친 개수만 셌다.
+      const failed = report.results.filter((r) => r.action === "error");
+      const message = failed.map((r) => `${r.id}: ${tError(r.error)}`).join(" · ");
+      setSyncStatus(failed.length ? { kind: "error", message } : { kind: "ok", updated: updated.length });
     } catch (e) {
-      setSyncStatus({
-        kind: "error",
-        message: e instanceof OculpmApiError ? e.message : String(e),
-      });
+      setSyncStatus({ kind: "error", message: e instanceof OculpmApiError ? e.message : String(e) });
     }
   }, [projectId]);
 

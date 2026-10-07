@@ -202,6 +202,9 @@ pub fn unplace(project_root: &Path, bundle_id: &str, dest_rel: &str) -> Placemen
 
 /// 프로젝트 루트 안에 가둔 경로. `..`·절대경로·심링크 탈출을 전부 거절한다.
 ///
+/// `crate::path_guard` 보다 엄격하다 — 안쪽을 가리키는 링크도 받지 않는다.
+/// 번들이 놓는 경로에는 링크를 따라갈 이유가 없다.
+///
 /// 어휘적 검사만으로는 부족하다 — `..` 를 막아도 `root/link/x` 는 통과하고,
 /// `link` 가 밖을 가리키면 **번들이 프로젝트 밖에 쓴다.** 2026-09-07 감사
 /// 이전의 이 함수가 정확히 그랬다(주석은 심링크를 막는다고 적고 있었다).
@@ -350,7 +353,11 @@ pub fn merge_mcp(
         return out;
     };
 
-    let path = project_root.join(".mcp.json");
+    // 링크면 읽지도 쓰지도 않는다 — 따라가면 그 대상이 프로젝트로 복사된다.
+    let Ok(path) = crate::path_guard::secure_join_managed(project_root, ".mcp.json") else {
+        out.unreadable = true;
+        return out;
+    };
     let mut current = match std::fs::read_to_string(&path) {
         Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
             Ok(v) => v,
@@ -433,7 +440,9 @@ pub fn unmerge_mcp(project_root: &Path, keys: &[String]) -> bool {
     if keys.is_empty() {
         return false;
     }
-    let path = project_root.join(".mcp.json");
+    let Ok(path) = crate::path_guard::secure_join_managed(project_root, ".mcp.json") else {
+        return false;
+    };
     let Ok(text) = std::fs::read_to_string(&path) else {
         return false;
     };

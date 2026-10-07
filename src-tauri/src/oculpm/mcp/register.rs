@@ -220,12 +220,18 @@ fn write_json_config(path: &Path, value: &Value) -> OculpmResult<()> {
     atomic_io::write_atomic(path, pretty.as_bytes())
 }
 
+/// 읽고 합쳐 쓰는 자리 — 링크면 손대지 않는다. 따라가면 `.mcp.json -> ~/.claude.json`
+/// 같은 링크의 대상이 프로젝트 파일로 복사된다 (`path_guard::secure_join_managed`).
+fn guarded_mcp_json(root: &Path) -> OculpmResult<PathBuf> {
+    crate::path_guard::secure_join_managed(root, MCP_JSON_REL).map_err(OculpmError::InvalidConfig)
+}
+
 fn read_mcp_json(root: &Path) -> OculpmResult<Value> {
-    read_json_config(&mcp_json_path(root))
+    read_json_config(&guarded_mcp_json(root)?)
 }
 
 fn write_mcp_json(root: &Path, value: &Value) -> OculpmResult<()> {
-    write_json_config(&mcp_json_path(root), value)
+    write_json_config(&guarded_mcp_json(root)?, value)
 }
 
 fn entry_is_ours(entry: &Value) -> bool {

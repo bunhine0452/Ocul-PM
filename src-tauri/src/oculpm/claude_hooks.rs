@@ -87,10 +87,17 @@ fn settings_path(root: &Path) -> PathBuf {
     root.join(SETTINGS_REL)
 }
 
+/// 읽고 쓰는 자리 — 그 파일이나 `.claude` 폴더가 링크면 손대지 않는다. 따라가면
+/// `.claude -> ~/.claude` 에서 훅이 **전역** 설정에 들어가고, 파일 링크는 그
+/// 대상을 프로젝트로 복사한다 (`path_guard::secure_join_managed`).
+fn guarded_settings_path(root: &Path) -> OculpmResult<PathBuf> {
+    crate::path_guard::secure_join_managed(root, SETTINGS_REL).map_err(OculpmError::InvalidConfig)
+}
+
 /// 파일 읽기 → JSON Value. 없으면 빈 오브젝트. **파싱 실패는 에러** — 사용자
 /// 파일을 덮어쓰지 않기 위해 설치/제거를 중단시킨다.
 fn read_settings(root: &Path) -> OculpmResult<Value> {
-    let path = settings_path(root);
+    let path = guarded_settings_path(root)?;
     if !path.exists() {
         return Ok(Value::Object(Map::new()));
     }
@@ -227,7 +234,7 @@ pub fn uninstall(root: &Path) -> OculpmResult<ClaudeHooksStatus> {
 }
 
 fn write_settings(root: &Path, settings: &Value) -> OculpmResult<()> {
-    let path = settings_path(root);
+    let path = guarded_settings_path(root)?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| OculpmError::Io {
             path: parent.to_path_buf(),
