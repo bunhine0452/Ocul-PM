@@ -283,7 +283,7 @@ your-project/
     └── index/         # app-managed cache · diff archive
 ```
 
-SQLite is only a derived cache for fast rendering — it can always be rebuilt from the files. API keys and tokens that accidentally land in journals or diffs are masked before saving (`[REDACTED]`).
+SQLite is only a derived cache for fast rendering — it can always be rebuilt from the files. API keys, tokens, private keys and connection strings that accidentally land in journals or diffs are masked before saving and before anything is sent to a background model (`[REDACTED]`). Only known shapes are caught, so this is not a guarantee for every secret — you can add patterns in the project settings.
 
 ## Tech
 

@@ -18,8 +18,10 @@
 //! - **규격은 코드가 보장.** LLM 은 내용만 채우고, 타입별 강제 헤더·frontmatter
 //!   조립은 `manager::create_manual_journal_entry` + 여기의 결정적 composer 가
 //!   맡는다 → frontmatter 파서 경고 0 을 구조적으로 담보.
-//! - **redact 이중 방어.** LLM 이 돌려준 본문에 transcript 의 시크릿이 섞일 수
-//!   있으므로 쓰기 전에 프로젝트 redact 패턴을 한 번 더 통과시킨다.
+//! - **redact 이중 방어.** 보내기 전에 transcript 발췌를 가리고([`masked_user_prompt`]),
+//!   LLM 이 돌려준 본문도 쓰기 전에 한 번 더 통과시킨다. 예전엔 응답만 가려서
+//!   대화에 붙여 넣은 키가 배경 모델 공급자에게 먼저 건너갔다 (2026-10-07 외부
+//!   보안 피드백 #2 — 원장 문구는 "양쪽" 이라고 적고 있었다).
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -355,6 +357,16 @@ pub fn build_user_prompt(digest: &TranscriptDigest, files: &[FileTouched]) -> St
     out
 }
 
+/// 모델에게 실제로 가는 사용자 메시지 — [`build_user_prompt`] 를 프로젝트 패턴
+/// (내장 바닥 포함)으로 가린 것. 대화 원문에는 사용자가 붙여 넣은 키가 그대로 있다.
+pub fn masked_user_prompt(
+    digest: &TranscriptDigest,
+    files: &[FileTouched],
+    patterns: &[Regex],
+) -> String {
+    redact_text(&build_user_prompt(digest, files), patterns).0
+}
+
 /// ndjson 세션 이벤트 → files_touched (경로당 마지막 op, 마스킹된 경로 제외).
 pub fn files_from_events(
     events: &[crate::oculpm::spec::FileChangeEvent],
@@ -524,7 +536,7 @@ pub async fn draft_for_session(
                 },
                 llm::Message {
                     role: llm::Role::User,
-                    content: build_user_prompt(&digest, &files),
+                    content: masked_user_prompt(&digest, &files, &redact_patterns),
                 },
             ],
             llm::ChatOptions {

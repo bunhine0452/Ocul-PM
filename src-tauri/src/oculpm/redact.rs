@@ -191,14 +191,76 @@ pub fn is_forbidden_path(matcher: &Gitignore, path: &str) -> bool {
 // Content redaction
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Compile each regex source string. Malformed entries are dropped with a
-/// `warn!` rather than failing the whole config — Settings (W4-PR7) will
-/// surface compile errors inline so users can fix them.
+/// 내장 바닥 — 프로젝트 설정과 **상관없이** 언제나 가리는 패턴.
+///
+/// 예전에는 이 넷(AWS 액세스 키·`sk-`·`ghp_`·Slack)이 `auto_redact_patterns` 의
+/// 기본값이었다. 그래서 두 가지가 샜다 (2026-10-07 외부 보안 피드백 #1·#3):
+/// (1) `config.toml` 은 저장소에 실려 오므로 남의 저장소가 `auto_redact_patterns
+/// = []` 한 줄로 마스킹을 끌 수 있었고, (2) 기존 프로젝트는 init 때 적힌 넷을
+/// 파일에 들고 있어 기본값을 늘려도 아무도 받지 못했다. 이제 설정의 목록은
+/// **이 위에 더하는** 패턴이다.
+///
+/// 오탐보다 미탐이 비싸지만, 이 목록은 일지·diff 본문 전체에 걸리므로 모양이
+/// 분명한 것만 둔다 — 접두가 있는 토큰, 맥락(키 이름·`user:pass@`)이 붙은 값.
+/// `.env` 꼴 할당은 **대문자 키 + 공백 없는 `=`**(그 파일의 관례)만 보고, 숫자뿐인
+/// 값(`MAX_TOKENS=4096`)은 건너뛴다.
+pub const BUILTIN_PATTERNS: &[&str] = &[
+    // ── 예전 기본값 넷 (문자열 그대로 — 옛 config 의 같은 줄과 중복 제거된다)
+    r"AKIA[0-9A-Z]{16}",         // AWS Access Key
+    r"sk-[A-Za-z0-9_-]{20,}",    // OpenAI / Anthropic / OpenRouter
+    r"ghp_[A-Za-z0-9]{36}",      // GitHub PAT (classic)
+    r"xox[baprs]-[A-Za-z0-9-]+", // Slack
+    // ── 접두가 있는 토큰
+    r"ASIA[0-9A-Z]{16}",                           // AWS 임시(STS) 액세스 키
+    r"gh[ousr]_[A-Za-z0-9]{36}",                   // GitHub OAuth·사용자·서버·갱신 토큰
+    r"github_pat_[A-Za-z0-9_]{22,}",               // GitHub fine-grained PAT
+    r"glpat-[A-Za-z0-9_-]{20,}",                   // GitLab PAT
+    r"\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}", // Stripe 비밀·제한 키
+    r"AIza[0-9A-Za-z_-]{35}",                      // Google API 키
+    r"GOCSPX-[A-Za-z0-9_-]{28}",                   // Google OAuth 클라이언트 시크릿
+    r"\bnpm_[A-Za-z0-9]{36}\b",                    // npm 토큰
+    r"pypi-AgEIcHlwaS5vcmc[A-Za-z0-9_-]{50,}",     // PyPI 토큰
+    r"\bhf_[A-Za-z0-9]{34,}\b",                    // Hugging Face 토큰
+    r"https://hooks\.slack\.com/services/[A-Za-z0-9/_-]+", // Slack 웹훅
+    // ── 모양으로 알 수 있는 것
+    r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}", // JWT
+    r"(?s)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----", // PEM 개인키
+    r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----(?:\s*[A-Za-z0-9+/=]{16,})+", // 잘린 PEM 개인키
+    // ── 맥락이 붙은 값
+    r#"(?i)aws_?secret_?access_?key["']?\s*[:=]\s*["']?[A-Za-z0-9/+=]{40}"#, // AWS 시크릿 키
+    r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{20,}", // Authorization: Bearer …
+    // 접속 문자열의 `user:pass@` (DB·큐·http 기본 인증)
+    r"\b(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?|rediss?|amqps?|mssql|sqlserver|https?|ftp)://[^\s:@/]+:[^\s@/]+@",
+    // `.env` 꼴 비밀 할당 — 대문자 키 + 공백 없는 `=` + 숫자만은 아닌 값. 줄 머리에
+    // 묶지 않는다: `DB_PASSWORD=… ./run.sh` 처럼 명령 앞에 붙는 꼴이 대화에 흔하다.
+    r"\b[A-Z0-9_]*(?:PASSWORD|PASSWD|SECRET|TOKEN|API_?KEY|PRIVATE_?KEY|ACCESS_?KEY|CREDENTIALS?)[A-Z0-9_]*=[^\s#]*[^\s#0-9][^\s#]*",
+];
+
+/// [`BUILTIN_PATTERNS`] 를 한 번만 컴파일한다 — 호출 자리가 서른 곳 가까이 되고
+/// 일부는 일지마다 부른다.
+fn builtin_regexes() -> &'static [Regex] {
+    static COMPILED: std::sync::OnceLock<Vec<Regex>> = std::sync::OnceLock::new();
+    COMPILED.get_or_init(|| {
+        BUILTIN_PATTERNS
+            .iter()
+            .map(|p| Regex::new(p).expect("내장 redact 패턴은 컴파일돼야 한다"))
+            .collect()
+    })
+}
+
+/// 프로젝트의 마스킹 패턴 = [`BUILTIN_PATTERNS`] + 사용자가 더한 `patterns`.
+/// 바닥은 설정으로 끌 수 없다 — 빈 목록을 넘겨도 바닥은 남는다. 같은 문자열은
+/// 한 번만 싣는다. Malformed user entries are dropped with a `warn!` rather
+/// than failing the whole config — Settings (W4-PR7) surfaces compile errors
+/// inline so users can fix them.
 pub fn compile_redact_patterns(patterns: &[String]) -> Vec<Regex> {
-    patterns
-        .iter()
-        .filter_map(|p| match Regex::new(p) {
-            Ok(r) => Some(r),
+    let mut out: Vec<Regex> = builtin_regexes().to_vec();
+    for p in patterns {
+        if BUILTIN_PATTERNS.contains(&p.as_str()) || out.iter().any(|r| r.as_str() == p) {
+            continue;
+        }
+        match Regex::new(p) {
+            Ok(r) => out.push(r),
             Err(e) => {
                 tracing::warn!(
                     target: "oculpm::redact",
@@ -206,10 +268,10 @@ pub fn compile_redact_patterns(patterns: &[String]) -> Vec<Regex> {
                     error = %e,
                     "skipping malformed redact regex"
                 );
-                None
             }
-        })
-        .collect()
+        }
+    }
+    out
 }
 
 /// Load + compile a project's `auto_redact_patterns` from its
@@ -396,6 +458,78 @@ mod tests {
         );
         assert!(!out2.contains(xox));
         assert_eq!(hits2.len(), 1);
+    }
+
+    /// 바닥은 설정으로 끌 수 없다 — 저장소의 `auto_redact_patterns = []` 는
+    /// "추가 패턴 없음" 이지 "마스킹 끔" 이 아니다 (외부 보안 피드백 #1).
+    #[test]
+    fn an_empty_project_list_keeps_the_builtin_floor() {
+        let cfg = OculpmConfig::from_toml_str("[git]\nauto_redact_patterns = []\n").unwrap();
+        let regs = compile_redact_patterns(&cfg.git.auto_redact_patterns);
+        let (out, _) = redact_text("key AKIAABCDEFGHIJKLMNOP", &regs);
+        assert_eq!(out, "key [REDACTED]");
+        // 옛 config 가 들고 있는 예전 기본값 넷은 중복 없이 같은 결과다.
+        let old: Vec<String> = BUILTIN_PATTERNS[..4]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        assert_eq!(compile_redact_patterns(&old).len(), BUILTIN_PATTERNS.len());
+    }
+
+    /// 기본 패턴 확장 (외부 보안 피드백 #3) — 리뷰가 짚은 꼴 전부. 토큰 모양은
+    /// 실행 중에 조립한다: 소스에 그럴듯한 키 문자열을 남기지 않는다.
+    #[test]
+    fn the_floor_masks_the_reported_shapes() {
+        let regs = compile_redact_patterns(&[]);
+        let a = |n: usize| "a1B2".repeat(n / 4 + 1)[..n].to_string();
+        let cases = [
+            format!("github_pat_{}", a(82)),
+            format!("{}_{}_{}", "sk", "live", a(24)),
+            format!("AIza{}", a(35)),
+            format!("eyJ{}.eyJ{}.{}", a(20), a(30), a(43)),
+            format!(
+                "-----BEGIN RSA {k}-----\n{}\n{}\n-----END RSA {k}-----",
+                a(64),
+                a(40),
+                k = "PRIVATE KEY"
+            ),
+            format!("aws_secret_access_key = {}", a(40)),
+            format!("postgres://app:{}@db.internal:5432/main", a(12)),
+            format!("DB_PASSWORD={}", "hunter2"),
+            format!("export GITHUB_TOKEN={}", a(20)),
+            format!("Authorization: Bearer {}", a(32)),
+            format!("{}-{}", "glpat", a(20)),
+            format!("{}_{}", "npm", a(36)),
+        ];
+        for secret in &cases {
+            let (out, hits) = redact_text(&format!("앞 {secret} 뒤"), &regs);
+            assert!(!hits.is_empty(), "가려지지 않았다: {secret}");
+            assert!(out.starts_with("앞 ") && out.ends_with(" 뒤"), "{out:?}");
+            assert!(!out.contains(&a(12)), "값이 새어 나왔다: {out:?}");
+        }
+        // 잘린 개인키(끝 줄이 없는 발췌)도.
+        let cut = format!("-----BEGIN {}-----\n{}", "PRIVATE KEY", a(64));
+        assert!(!redact_text(&cut, &regs).1.is_empty(), "잘린 개인키");
+    }
+
+    /// 바닥은 일지·diff 본문 전체에 걸리므로 흔한 모양을 건드리면 안 된다.
+    #[test]
+    fn the_floor_leaves_ordinary_text_alone() {
+        let regs = compile_redact_patterns(&[]);
+        for text in [
+            "MAX_TOKENS=4096",
+            "commit 3f2a9c0b7d1e4f5a6b8c9d0e1f2a3b4c5d6e7f80",
+            "API_KEY = os.environ[\"API_KEY\"]",
+            "let sk_initialize_module_v1_token = compute();",
+            "a bearer token goes in the header",
+            "git@github.com:owner/repo.git",
+            "https://github.com/owner/repo/pull/12",
+            "-----BEGIN PRIVATE KEY----- 블록은 붙여 넣지 마세요",
+            "token=abcd123456;",
+        ] {
+            let (out, hits) = redact_text(text, &regs);
+            assert!(hits.is_empty(), "오탐: {text:?} → {out:?}");
+        }
     }
 
     #[test]
