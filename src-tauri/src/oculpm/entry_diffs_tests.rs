@@ -1,0 +1,554 @@
+//! `entry_diffs.rs` 의 테스트 — 본문 파일 800줄 래칫 때문에 옆으로 나왔다
+//! (`history_tests.rs` 와 같은 모양).
+
+use super::*;
+
+#[test]
+fn count_patch_lines_counts_content_not_headers() {
+    let patch = "--- a/src/x.rs\n+++ b/src/x.rs\n@@ -1,3 +1,4 @@\n ctx\n-gone\n+new one\n+new two\n\\ No newline at end of file\n";
+    assert_eq!(count_patch_lines(patch), (2, 1));
+}
+
+#[test]
+fn count_patch_lines_is_zero_for_an_empty_patch() {
+    assert_eq!(count_patch_lines(""), (0, 0));
+}
+
+#[test]
+fn sidecar_path_flattens_and_rejects_traversal() {
+    let root = Path::new("/proj");
+    let p = sidecar_path(root, "20260604/Bugs/0925_bug_a.md").unwrap();
+    assert!(p.ends_with(".oculpm/index/diffs/20260604__Bugs__0925_bug_a.json"));
+    // not a markdown entry / traversal / absolute → None.
+    assert!(sidecar_path(root, "20260604/Bugs/0925_bug_a.txt").is_none());
+    assert!(sidecar_path(root, "../../etc/passwd.md").is_none());
+    assert!(sidecar_path(root, "/abs/x.md").is_none());
+}
+
+#[test]
+fn persist_then_read_roundtrips() {
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    let entry = "20260604/Features_to_add/1000_feature_x.md";
+    let files = vec![
+        EntryFileDiff {
+            path: "src/a.ts".into(),
+            patch: "@@ -1 +1 @@\n-old\n+new\n".into(),
+        },
+        EntryFileDiff {
+            path: "src/b.ts".into(),
+            patch: "@@ -0,0 +1 @@\n+added\n".into(),
+        },
+    ];
+    let out = sidecar_path(&tmp, entry).unwrap();
+    persist(&out, entry, files.clone()).unwrap();
+
+    let got = read_entry_diffs(&tmp, entry);
+    assert_eq!(got, files);
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// 빈 결과도 마커를 남긴다 — 없으면 `backfill_entry_diffs` 가 프로젝트를 열
+/// 때마다 같은 항목에 git 을 다시 돌린다. 단, 마커는 "현행" 이 아니라서
+/// 지연 복원(모달) 은 한 번 더 시도할 수 있다.
+#[test]
+fn empty_set_writes_marker_that_backfill_skips_but_reconstruct_retries() {
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-empty-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    let entry = "20260604/Chores/0800_chore.md";
+    let out = sidecar_path(&tmp, entry).unwrap();
+    persist(&out, entry, Vec::new()).unwrap();
+    assert!(out.exists(), "empty marker must be written");
+    assert!(
+        sidecar_exists(&tmp, entry),
+        "backfill treats the marker as done"
+    );
+    assert!(
+        !sidecar_is_current(&out),
+        "but lazy reconstruct may try again"
+    );
+    assert!(read_entry_diffs(&tmp, entry).is_empty());
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn capture_on_non_git_root_records_nothing() {
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-nogit-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let entry = "20260604/Bugs/0925_bug_a.md";
+    let touched = vec![FileTouched {
+        path: "src/a.ts".into(),
+        op: crate::oculpm::spec::FileOp::Update,
+        bytes_added: Some(10),
+        bytes_removed: Some(2),
+        rename_from: None,
+    }];
+    // No git repo + no snapshot baseline → nothing recorded.
+    capture_entry_diffs(&tmp, entry, &touched, &HashMap::new(), &[]).unwrap();
+    assert!(read_entry_diffs(&tmp, entry).is_empty());
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn snapshot_fallback_records_diff_on_non_git_root() {
+    // PR-R3: non-git project (or committed file) → git patch empty, but a
+    // last-indexed snapshot baseline that differs from disk yields a diff.
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-snap-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    let entry = "20260604/Bugs/0930_bug_b.md";
+    let rel = "src/a.ts";
+    // Current disk content (post-edit).
+    std::fs::write(tmp.join(rel), "const neo = 2;\n").unwrap();
+    let touched = vec![FileTouched {
+        path: rel.into(),
+        op: crate::oculpm::spec::FileOp::Update,
+        bytes_added: Some(10),
+        bytes_removed: Some(2),
+        rename_from: None,
+    }];
+    // Baseline (pre-edit) snapshot the indexer would have captured.
+    let mut snapshots = HashMap::new();
+    snapshots.insert(rel.to_string(), b"const old = 1;\n".to_vec());
+
+    capture_entry_diffs(&tmp, entry, &touched, &snapshots, &[]).unwrap();
+
+    let got = read_entry_diffs(&tmp, entry);
+    assert_eq!(got.len(), 1, "snapshot fallback should record one file");
+    assert_eq!(got[0].path, rel);
+    assert!(got[0].patch.contains("const neo = 2;"));
+    assert!(got[0].patch.contains("const old = 1;"));
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn snapshot_fallback_skips_when_unchanged() {
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-snapsame-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    let entry = "20260604/Bugs/0931_bug_c.md";
+    let rel = "src/a.ts";
+    std::fs::write(tmp.join(rel), "same\n").unwrap();
+    let touched = vec![FileTouched {
+        path: rel.into(),
+        op: crate::oculpm::spec::FileOp::Update,
+        bytes_added: None,
+        bytes_removed: None,
+        rename_from: None,
+    }];
+    let mut snapshots = HashMap::new();
+    snapshots.insert(rel.to_string(), b"same\n".to_vec()); // identical → no diff
+    capture_entry_diffs(&tmp, entry, &touched, &snapshots, &[]).unwrap();
+    assert!(read_entry_diffs(&tmp, entry).is_empty());
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn entry_unix_time_parses_and_rejects() {
+    assert!(entry_unix_time("20260604/Bugs/2101_bug_x.md").is_some());
+    // non-numeric workday / HHMM → None (history fallback simply skipped).
+    assert!(entry_unix_time("notaday0/Bugs/2101_x.md").is_none());
+    assert!(entry_unix_time("20260604/Bugs/xx01_x.md").is_none());
+    assert!(entry_unix_time("2026060/Bugs/2101_x.md").is_none());
+}
+
+fn git(root: &Path, args: &[&str]) -> Result<(), ()> {
+    crate::proc::std_cmd("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|_| ())
+        .ok_or(())
+}
+
+#[test]
+fn history_fallback_records_committed_diff() {
+    // tier 3: the file is already committed (working tree clean → `git diff
+    // HEAD` empty) and there's no snapshot baseline, but the commit nearest
+    // the entry timestamp is found and its diff recorded.
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-hist-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    // Skip cleanly if git is unavailable in the test environment.
+    if git(&tmp, &["init", "-q"]).is_err() {
+        return;
+    }
+    git(&tmp, &["config", "user.email", "t@t.dev"]).unwrap();
+    git(&tmp, &["config", "user.name", "t"]).unwrap();
+    let rel = "src/a.ts";
+    std::fs::write(tmp.join(rel), "const old = 1;\n").unwrap();
+    git(&tmp, &["add", "."]).unwrap();
+    git(&tmp, &["commit", "-qm", "base"]).unwrap();
+    std::fs::write(tmp.join(rel), "const neo = 2;\n").unwrap();
+    git(&tmp, &["add", "."]).unwrap();
+    git(&tmp, &["commit", "-qm", "change"]).unwrap();
+
+    // Entry dated late today → nearest (most recent) commit = the change.
+    let workday = chrono::Local::now().format("%Y%m%d").to_string();
+    let entry = format!("{workday}/Bugs/2359_bug_hist.md");
+    let touched = vec![FileTouched {
+        path: rel.into(),
+        op: crate::oculpm::spec::FileOp::Update,
+        bytes_added: None,
+        bytes_removed: None,
+        rename_from: None,
+    }];
+
+    capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new(), &[]).unwrap();
+    let got = read_entry_diffs(&tmp, &entry);
+    assert_eq!(got.len(), 1, "history fallback should record one file");
+    assert!(
+        got[0].patch.contains("const neo = 2;"),
+        "expected the change commit's diff, got: {}",
+        got[0].patch
+    );
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn history_fallback_records_when_filename_has_no_hhmm() {
+    // Regression (2026-06-14): an externally-authored journal whose filename
+    // has no `HHMM_` prefix → entry_unix_time() is None. Tier 3 must STILL
+    // recover the committed diff (previously it was skipped entirely, so the
+    // UI showed "기록된 변경 없음"). Falls back to the newest commit.
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-nohhmm-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    if git(&tmp, &["init", "-q"]).is_err() {
+        return;
+    }
+    git(&tmp, &["config", "user.email", "t@t.dev"]).unwrap();
+    git(&tmp, &["config", "user.name", "t"]).unwrap();
+    let rel = "src/page.tsx";
+    std::fs::write(tmp.join(rel), "const a = 1;\n").unwrap();
+    git(&tmp, &["add", "."]).unwrap();
+    git(&tmp, &["commit", "-qm", "base"]).unwrap();
+    std::fs::write(tmp.join(rel), "const a = 2;\n").unwrap();
+    git(&tmp, &["add", "."]).unwrap();
+    git(&tmp, &["commit", "-qm", "change"]).unwrap();
+
+    let workday = chrono::Local::now().format("%Y%m%d").to_string();
+    let entry = format!("{workday}/Bugs/intl-en-saju.md"); // no HHMM prefix
+    assert!(
+        entry_unix_time(&entry).is_none(),
+        "fixture must have an unparseable timestamp"
+    );
+    let touched = vec![FileTouched {
+        path: rel.into(),
+        op: crate::oculpm::spec::FileOp::Update,
+        bytes_added: None,
+        bytes_removed: None,
+        rename_from: None,
+    }];
+
+    capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new(), &[]).unwrap();
+    let got = read_entry_diffs(&tmp, &entry);
+    assert_eq!(
+        got.len(),
+        1,
+        "no-HHMM entry should still recover via newest commit"
+    );
+    assert!(
+        got[0].patch.contains("const a = 2;"),
+        "expected the newest commit's diff, got: {}",
+        got[0].patch
+    );
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn new_file_patch_renders_additions_and_guards() {
+    // Tier 4 in isolation (non-git branch): a `create` op renders the whole
+    // file as additions; an `update` op is NOT treated as new (would risk
+    // mis-rendering an unchanged file); a missing file yields nothing.
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-tier4-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    std::fs::write(
+        tmp.join("src/new.ts"),
+        "export const a = 1;\nconst b = 2;\n",
+    )
+    .unwrap();
+
+    let created = new_file_patch(&tmp, "src/new.ts", FileOp::Create)
+        .expect("create op on a real file records a patch");
+    assert!(created.contains("export const a = 1;"));
+    assert!(created.contains("const b = 2;"));
+
+    // Non-git + non-create op → not treated as new.
+    assert!(new_file_patch(&tmp, "src/new.ts", FileOp::Update).is_none());
+    // Missing / deleted path → nothing to synthesise.
+    assert!(new_file_patch(&tmp, "src/missing.ts", FileOp::Create).is_none());
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn capture_records_newly_created_file_via_tier4() {
+    // The bug: a journal entry that touches a brand-new file (op=create)
+    // showed no diff because git diff HEAD can't see the untracked file and
+    // there's no snapshot/history. Tier 4 must record it. Non-git root keeps
+    // the test hermetic (no `git` dependency); tier 4's non-git branch fires
+    // on op=create.
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-create-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    let entry = "20260619/Features_to_add/1924_feature_docs.md";
+    let rel = "src/features/docs/DocsScreenV2.tsx";
+    std::fs::create_dir_all(tmp.join("src/features/docs")).unwrap();
+    std::fs::write(tmp.join(rel), "export function DocsScreenV2() {}\n").unwrap();
+    let touched = vec![FileTouched {
+        path: rel.into(),
+        op: FileOp::Create,
+        bytes_added: Some(40),
+        bytes_removed: Some(0),
+        rename_from: None,
+    }];
+
+    capture_entry_diffs(&tmp, entry, &touched, &HashMap::new(), &[]).unwrap();
+
+    let got = read_entry_diffs(&tmp, entry);
+    assert_eq!(got.len(), 1, "newly created file must record a diff");
+    assert_eq!(got[0].path, rel);
+    assert!(got[0].patch.contains("export function DocsScreenV2()"));
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn stale_v1_sidecar_is_upgraded_to_include_missed_new_file() {
+    // Self-heal: an entry captured under v1 recorded only the modified file A
+    // and missed the newly created file B (tier 4 didn't exist). On the next
+    // read, the v1 sidecar reads as empty (schema mismatch) and the lazy
+    // reconstruct re-runs capture, which now overwrites with v2 carrying both.
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-upgrade-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    let entry = "20260619/Bugs/1000_bug_x.md";
+    // A — modified (recovered via snapshot baseline); B — newly created (tier 4).
+    std::fs::write(tmp.join("src/a.ts"), "const a = 2;\n").unwrap();
+    std::fs::write(tmp.join("src/b.ts"), "const b = 1;\n").unwrap();
+
+    // Hand-write a stale v1 sidecar that only knows about A.
+    let out = sidecar_path(&tmp, entry).unwrap();
+    std::fs::create_dir_all(out.parent().unwrap()).unwrap();
+    std::fs::write(
+        &out,
+        br#"{"schema_version":1,"captured_at":"x","entry":"20260619/Bugs/1000_bug_x.md","files":[{"path":"src/a.ts","patch":"old"}]}"#,
+    )
+    .unwrap();
+    // v1 sidecar reads back as empty (rejected schema) → triggers reconstruct.
+    assert!(read_entry_diffs(&tmp, entry).is_empty());
+
+    let touched = vec![
+        FileTouched {
+            path: "src/a.ts".into(),
+            op: FileOp::Update,
+            bytes_added: None,
+            bytes_removed: None,
+            rename_from: None,
+        },
+        FileTouched {
+            path: "src/b.ts".into(),
+            op: FileOp::Create,
+            bytes_added: None,
+            bytes_removed: None,
+            rename_from: None,
+        },
+    ];
+    let mut snapshots = HashMap::new();
+    snapshots.insert("src/a.ts".to_string(), b"const a = 1;\n".to_vec());
+
+    capture_entry_diffs(&tmp, entry, &touched, &snapshots, &[]).unwrap();
+
+    let got = read_entry_diffs(&tmp, entry);
+    let paths: Vec<&str> = got.iter().map(|d| d.path.as_str()).collect();
+    assert!(paths.contains(&"src/a.ts"), "modified file kept: {paths:?}");
+    assert!(
+        paths.contains(&"src/b.ts"),
+        "newly created file added: {paths:?}"
+    );
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn capture_records_untracked_new_file_in_git_repo() {
+    // The exact dogfooding shape: inside a real git repo with commits, a file
+    // is created but NOT yet `git add`ed when the journal is written. tier 1
+    // (`git diff HEAD`) can't see the untracked path, there's no snapshot or
+    // history — tier 4 (via `git::path_in_head` → not in HEAD) must record it,
+    // even when the entry mislabels the op as `update`.
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-utnew-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    if git(&tmp, &["init", "-q"]).is_err() {
+        return; // git unavailable → skip cleanly
+    }
+    git(&tmp, &["config", "user.email", "t@t.dev"]).unwrap();
+    git(&tmp, &["config", "user.name", "t"]).unwrap();
+    // Establish HEAD with an unrelated committed file.
+    std::fs::write(tmp.join("src/base.ts"), "const base = 0;\n").unwrap();
+    git(&tmp, &["add", "."]).unwrap();
+    git(&tmp, &["commit", "-qm", "base"]).unwrap();
+
+    // Brand-new, still-untracked file (no `git add`).
+    let rel = "src/brand_new.tsx";
+    std::fs::write(tmp.join(rel), "export const fresh = 1;\n").unwrap();
+    assert_eq!(
+        crate::git::path_in_head(&tmp, rel),
+        Some(false),
+        "untracked file must read as not-in-HEAD"
+    );
+
+    let workday = chrono::Local::now().format("%Y%m%d").to_string();
+    let entry = format!("{workday}/Features_to_add/1200_feature_new.md");
+    let touched = vec![FileTouched {
+        path: rel.into(),
+        op: FileOp::Update, // mislabelled — git truth (not in HEAD) wins
+        bytes_added: None,
+        bytes_removed: None,
+        rename_from: None,
+    }];
+
+    capture_entry_diffs(&tmp, &entry, &touched, &HashMap::new(), &[]).unwrap();
+    let got = read_entry_diffs(&tmp, &entry);
+    assert_eq!(got.len(), 1, "untracked new file must record a diff");
+    assert!(got[0].patch.contains("export const fresh = 1;"));
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn capture_redacts_secret_in_patch() {
+    // R1: a brand-new file whose content carries an AWS-style key. Tier 4
+    // synthesises the all-additions patch; redaction must mask the key in
+    // the persisted sidecar and report exactly one redacted span.
+    let regs = crate::oculpm::redact::compile_redact_patterns(
+        &crate::oculpm::spec::OculpmConfig::default_for_new_project()
+            .git
+            .auto_redact_patterns,
+    );
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-redact-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    let entry = "20260622/Bugs/1000_bug_secret.md";
+    let rel = "src/config.ts";
+    std::fs::write(
+        tmp.join(rel),
+        "export const KEY = \"AKIAABCDEFGHIJKLMNOP\";\n",
+    )
+    .unwrap();
+    let touched = vec![FileTouched {
+        path: rel.into(),
+        op: FileOp::Create,
+        bytes_added: Some(40),
+        bytes_removed: Some(0),
+        rename_from: None,
+    }];
+
+    let spans = capture_entry_diffs(&tmp, entry, &touched, &HashMap::new(), &regs).unwrap();
+    assert_eq!(spans, 1, "exactly one secret should be masked");
+
+    let got = read_entry_diffs(&tmp, entry);
+    assert_eq!(got.len(), 1, "the file's diff is still recorded");
+    assert!(
+        got[0].patch.contains("[REDACTED]"),
+        "patch should be masked: {}",
+        got[0].patch
+    );
+    assert!(
+        !got[0].patch.contains("AKIAABCDEFGHIJKLMNOP"),
+        "plaintext key must not survive in the sidecar"
+    );
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn stale_v2_sidecar_self_heals_to_masked_v3() {
+    // R1: the SCHEMA_VERSION 2→3 bump is the mechanism that retroactively
+    // scrubs a sidecar captured *before* redaction. A stale v2 sidecar
+    // holding a plaintext key must read as empty (schema mismatch) and, on
+    // re-capture with patterns, be overwritten with a masked v3.
+    let regs = crate::oculpm::redact::compile_redact_patterns(
+        &crate::oculpm::spec::OculpmConfig::default_for_new_project()
+            .git
+            .auto_redact_patterns,
+    );
+    let tmp = std::env::temp_dir().join(format!("ocul-entrydiff-selfheal-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(tmp.join("src")).unwrap();
+    let entry = "20260622/Bugs/1100_bug_heal.md";
+    let rel = "src/config.ts";
+    // Current disk content carries the secret (new file → tier 4 yields a patch).
+    std::fs::write(tmp.join(rel), "const KEY = \"AKIAABCDEFGHIJKLMNOP\";\n").unwrap();
+
+    // Hand-write a stale v2 sidecar whose patch holds the plaintext key.
+    let out = sidecar_path(&tmp, entry).unwrap();
+    std::fs::create_dir_all(out.parent().unwrap()).unwrap();
+    std::fs::write(
+        &out,
+        br#"{"schema_version":2,"captured_at":"x","entry":"20260622/Bugs/1100_bug_heal.md","files":[{"path":"src/config.ts","patch":"@@ -0,0 +1 @@\n+const KEY = \"AKIAABCDEFGHIJKLMNOP\";\n"}]}"#,
+    )
+    .unwrap();
+    // v2 reads back as empty (rejected schema) → would trigger reconstruct.
+    assert!(read_entry_diffs(&tmp, entry).is_empty());
+
+    let touched = vec![FileTouched {
+        path: rel.into(),
+        op: FileOp::Create,
+        bytes_added: Some(30),
+        bytes_removed: Some(0),
+        rename_from: None,
+    }];
+    let spans = capture_entry_diffs(&tmp, entry, &touched, &HashMap::new(), &regs).unwrap();
+    assert_eq!(spans, 1, "re-capture masks the one key");
+
+    let got = read_entry_diffs(&tmp, entry); // now current (v3) → readable
+    assert_eq!(got.len(), 1);
+    assert!(got[0].patch.contains("[REDACTED]"));
+    assert!(
+        !got[0].patch.contains("AKIAABCDEFGHIJKLMNOP"),
+        "stale v2 plaintext must be scrubbed on self-heal"
+    );
+    let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// 보안 피드백 2차 — `files_touched` 는 저장소에 실려 오는 글이다. 절대경로·
+/// `..`·밖을 가리키는 폴더 링크를 적어 두면 tier 4(새 파일)가 그 파일을 통째로
+/// 읽어 사이드카에 담았다. 이제 어느 갈래로도 읽지 않는다.
+#[test]
+fn files_touched_outside_the_project_are_never_read() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("proj");
+    let outside = tmp.path().join("outside");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::create_dir_all(&outside).unwrap();
+    let secret = outside.join("secret.txt");
+    std::fs::write(&secret, "TOP SECRET VALUE\n").unwrap();
+    let mut paths = vec![
+        secret.to_string_lossy().into_owned(),
+        "../outside/secret.txt".to_string(),
+    ];
+    if crate::test_links::dir(&outside, &root.join("docs")) {
+        paths.push("docs/secret.txt".to_string());
+    }
+    let touched: Vec<FileTouched> = paths
+        .iter()
+        .map(|p| FileTouched {
+            path: p.clone(),
+            op: FileOp::Create,
+            bytes_added: None,
+            bytes_removed: None,
+            rename_from: None,
+        })
+        .collect();
+    let entry = "20261007/Bugs/1200_bug_planted.md";
+    // 비 git 루트 + op=create 는 tier 4 가 디스크를 읽는 바로 그 모양이다.
+    capture_entry_diffs(&root, entry, &touched, &HashMap::new(), &[]).unwrap();
+
+    assert!(read_entry_diffs(&root, entry).is_empty(), "{paths:?}");
+    let sidecar = sidecar_path(&root, entry).unwrap();
+    let raw = std::fs::read_to_string(sidecar).unwrap();
+    assert!(!raw.contains("TOP SECRET"), "{raw}");
+}
