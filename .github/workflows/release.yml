@@ -482,8 +482,14 @@ jobs:
         with:
           tagName: ${{ needs.meta.outputs.tag }}
           releaseName: ${{ needs.meta.outputs.dry_run == 'true' && format('[드라이런] Ocul-PM {0}', needs.meta.outputs.tag) || format('Ocul-PM {0}', needs.meta.outputs.tag) }}
-          # 드라이런의 draft 가 태그를 만들지는 않지만(공개 때 만든다) 가리키는 커밋은 이 run 의 것.
-          releaseCommitish: ${{ github.sha }}
+          # 기본 브랜치를 준다 — 이 run 의 커밋이 아니다. GitHub 릴리스 API 는 target_commitish
+          # 가 가리키는 커밋의 `.github/workflows/` 가 기본 브랜치와 다르면 `workflows` 권한을
+          # 요구하고, GITHUB_TOKEN 은 그 권한을 받을 수 없다. v3.9.0 은 태그를 민 뒤 main 에
+          # 워크플로 PR 이 머지되자 draft 생성이 403(Resource not accessible by integration)으로
+          # 막혔다. 태그는 이미 있으므로 이 값이 태그를 옮기지 않는다 — 공개되는 코드는 태그가
+          # 가리키는 커밋 그대로다. 드라이런도 같은 이유다: 워크플로를 고친 브랜치를 드라이런하면
+          # 그 커밋은 늘 기본 브랜치와 다르다(드라이런 draft 는 공개되지 않는다).
+          releaseCommitish: ${{ github.event.repository.default_branch }}
           releaseBody: ${{ steps.notes.outputs.body }}
           # draft 로 만든다 — 아래 검증 단계와 publish 잡이 전부 통과한 뒤에만 공개된다
           # (플랜 astra-feedback-round {#release-sign-verify}). 검증이 하나라도 붉으면
