@@ -218,7 +218,9 @@
 }
 .proj-meta { flex: 1; min-width: 0; }
 .proj-name {
-  font-weight: var(--fw-bold); font-size: var(--fs-7); letter-spacing: var(--track-tight); line-height: var(--lh-tight);
+  /* 17 bold → 15 semibold (2026-10-07 {#compact-chrome}) — 툴바 제목(14)과 한
+     줄에 서는 머리라, 그보다 한 단 위면 된다. 17 bold 는 사이드바가 화면보다 컸다. */
+  font-weight: var(--fw-strong); font-size: var(--fs-6); letter-spacing: var(--track-tight); line-height: var(--lh-tight);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .proj-path {
@@ -460,7 +462,10 @@
   position: relative;
   z-index: 1;
   border: 1px solid var(--border-card);
-  border-radius: var(--radius-xl);
+  /* xl(20) → l(12) (2026-10-07 {#compact-chrome}) — 20px 둥글기는 시트를 앱의
+     판이 아니라 떠 있는 카드로 보이게 했다. 안의 카드(.card = l)와 같은 단이라
+     바깥이 안쪽보다 덜 둥근 뒤집힘도 없다. */
+  border-radius: var(--radius-l);
   box-shadow: var(--shadow-sheet);
   overflow: hidden;
   animation: sheetIn 0.5s var(--ease-out) backwards;
@@ -487,7 +492,7 @@
 .toolbar {
   height: var(--toolbar-h); flex: none;
   display: flex; align-items: center; gap: var(--space-5);
-  padding: 0 22px;
+  padding: 0 var(--space-6);
   border-bottom: 1px solid var(--sep);
   /* 불투명 (2026-09-02). 반투명 + blur(18px) 유리 툴바는 매 프레임 아래를 다시
      그리고, 앱의 다른 크롬(사이드바·카드)은 전부 불투명이라 재료가 어긋났다. */
@@ -496,11 +501,13 @@
 /* 좁은 창 방어 (2026-07-20): 제목은 절대 내부 줄바꿈하지 않고(CJK 가 한 글자씩
    세로로 꺾이던 버그), 부제는 넘치면 말줄임으로 양보한다. 액션 묶음은
    .toolbar-actions 가 가로 스크롤로 흡수 (스크롤바는 숨김 — 트랙패드/휠). */
-/* 15px → 17px (2026-09-09 {#hierarchy-by-weight-only}). 실측에서 글자 크기
-   사용의 94%가 9~13px 한 뭉치였고 그 위는 전부 합쳐 6% 였다 — 위계를 크기가
-   아니라 무게 혼자 지고 있었다. 화면 제목은 16개 화면이 저마다 "여기가
-   어디인지" 를 말하는 자리라, 본문(13px)에서 한 단이 아니라 **두 단** 위에 선다. */
-.toolbar-title { font-size: var(--fs-7); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); white-space: nowrap; flex: none; }
+/* 17px → 14px (2026-10-07 {#compact-chrome}). 2026-09-09 {#hierarchy-by-weight-only}
+   가 15 → 17 로 올렸는데, 그 판단의 근거(위계를 무게 혼자 진다)는 **본문**의
+   것이었다. 툴바 제목은 문서의 제목이 아니라 크롬의 이름표다 — macOS 창 제목이
+   13pt semibold, VS Code·Linear 의 머리가 13~14px 다. 본문(13px)에서 한 단
+   위·semibold 면 "여기가 어디인지" 는 자리(왼쪽 끝)가 말한다. 큰 제목이 필요한
+   것은 화면 안의 문서(플랜·일지 제목)이고 그것들은 그대로 크다. */
+.toolbar-title { font-size: var(--fs-5); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); white-space: nowrap; flex: none; }
 /* 부제는 화면이 지금 무엇을 보고 있는지 말하는 **문장**이다 — 타임스탬프가
    아니므로 --text-2 (2026-09-04 {#text3-promotion}). */
 .toolbar-sub {

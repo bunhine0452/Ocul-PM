@@ -589,12 +589,13 @@
   gap: var(--space-4);
   min-width: 0;
 }
-/* 이름이 이 화면에서 가장 큰 활자다 — 램프 꼭대기(fs-9). 자간을 조여 큰
-   글자가 헐거워지지 않게 한다. */
+/* 이름이 이 화면에서 가장 큰 활자다. 램프 꼭대기(fs-9, 26px)였던 것을 한 단
+   내렸다 (2026-10-07 {#compact-chrome}) — 시작 탭의 머리는 랜딩의 헤드라인이 아니라
+   런처의 이름표다. 자간을 조여 큰 글자가 헐거워지지 않게 한다. */
 .hl-lead-name {
   min-width: 0;
   font-family: var(--font);
-  font-size: var(--fs-9);
+  font-size: var(--fs-8);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-snug);
   line-height: var(--lh-tight);

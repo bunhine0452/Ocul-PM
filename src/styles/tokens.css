@@ -252,8 +252,12 @@
   --radius-xs: 5px;
   --radius-s: 7px;
   --radius-m: 10px;
-  --radius-l: 14px;
-  --radius-xl: 20px;
+  /* l 14 → 12 · xl 20 → 14 (2026-10-07 {#compact-chrome}) — 위쪽 두 단이 앱을
+     부드러운 카드 더미로 보이게 했다. 작업 도구의 판·카드는 8~12px 에 선다
+     (Linear·GitHub·Raycast). 아래 단(컨트롤 s·메뉴 m)은 이미 그 자리라 그대로다.
+     램프가 3·5·7·10·12·14 로 고르게 이어진다. */
+  --radius-l: 12px;
+  --radius-xl: 14px;
   --radius-pill: 999px;
 
   /* 글자 무게 램프 — 4단 (3.0 {#weight-ramp}). Pretendard Variable 이 45~930 을
@@ -345,8 +349,12 @@
 
   /* 시트 상단 줄의 키 (2026-08-21) — 화면 툴바와 세로 도크(왼쪽·오른쪽)의 탭
      줄이 나란히 서므로 둘의 아랫선이 한 줄로 이어져야 한다. 한쪽만 고치면
-     다시 어긋나기 때문에 값을 여기 한 곳에 둔다. */
-  --toolbar-h: 52px;
+     다시 어긋나기 때문에 값을 여기 한 곳에 둔다.
+     52 → 44 (2026-10-07 {#compact-chrome}): 화면 머리가 화면을 위한 크롬이 아니라
+     페이지 머리처럼 읽혔다(사용자 판정 「너무 커서 전문적이지 않다」). macOS
+     툴바가 일반 52pt·컴팩트 38pt 이고 그 안 컨트롤이 28pt 다 — 이 앱의 툴바
+     컨트롤은 30px(`.btn`·`.search-box` 기본 단)이라 위아래 7px 이 남는 44 에 선다. */
+  --toolbar-h: 44px;
 
   /* Pretendard Variable 은 App.css 가 로컬 @font-face 로 전역 번들 —
      대시보드(Tailwind font-sans)와 셸 타이포를 한 서체로 통일한다

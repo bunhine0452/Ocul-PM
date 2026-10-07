@@ -132,7 +132,9 @@
 .cfg-head { margin-bottom: var(--space-6); }
 .cfg-head h2 {
   margin: 0;
-  font-size: var(--fs-8);
+  /* 20 → 17 (2026-10-07 {#compact-chrome}) — 바로 위 툴바 「설정」 아래에서 두 번째
+     머리가 첫째보다 크게 서던 것. 섹션 이름은 문서 제목이 아니다. */
+  font-size: var(--fs-7);
   font-weight: var(--fw-bold);
   letter-spacing: var(--track-snug);
   line-height: var(--lh-tight);
