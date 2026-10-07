@@ -192,6 +192,8 @@ use crate::commands::{
     attach_pty_session,
     // Osaurus 라운드 Phase 1 — 스케줄 자동화 (정의 CRUD·기록·지금 실행)
     automation_cancel,
+    automation_consent_grant,
+    automation_consent_status,
     automation_create_seed,
     automation_delete,
     automation_list,
@@ -889,6 +891,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             firing_rebuild,
             // Osaurus 라운드 Phase 1 — 스케줄 자동화
             automation_list,
+            automation_consent_grant,
+            automation_consent_status,
             automation_overview,
             automation_runs,
             automation_seeds,

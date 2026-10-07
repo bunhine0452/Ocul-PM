@@ -1111,6 +1111,10 @@ export const commands = {
 	 *  Validate + persist a new `OculpmConfig` (atomic write) and refresh the
 	 *  in-memory `WorkdayResolver`. Rejects invalid tz / HH:MM without touching
 	 *  disk.
+	 * 
+	 *  꺼져 있던 배경 스위치를 여기서 **새로 켜면** 그 순간을 이 기기의 동의로
+	 *  기록한다 — 사람이 설정 화면에서 직접 눌렀다. (`commands/oculpm.rs` 에서
+	 *  옮겨 왔다 — 동의 기록이 붙으며 그 파일의 크기 래칫을 넘었다.)
 	 */
 	oculpmSetConfig: (projectId: number, newConfig: OculpmConfig) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_set_config", { projectId, newConfig })),
 	/**  Manually start a session. Idempotent — returns existing if already active. */
@@ -1671,6 +1675,13 @@ export const commands = {
 	firingRebuild: (projectId: number) => typedError<FiringScanReport, string>(__TAURI_INVOKE("firing_rebuild", { projectId })),
 	/**  이 프로젝트의 모든 자동화 정의 + 상태. 스케줄 먼저, 그 안에서 id 순. */
 	automationList: (projectId: number) => typedError<AutomationSummary[], AppError>(__TAURI_INVOKE("automation_list", { projectId })),
+	/**
+	 *  확인 카드의 「이 기기에서 켜기」. 예전에는 프로젝트를 열 때 하던 배경 모델
+	 *  1회 시드(D2)도 이 순간으로 옮겨 온다 — 동의 전에는 시드하지 않는다.
+	 */
+	automationConsentGrant: (projectId: number) => typedError<AutomationConsent, AppError>(__TAURI_INVOKE("automation_consent_grant", { projectId })),
+	/**  이 프로젝트의 배경 스위치가 확인을 기다리는가. */
+	automationConsentStatus: (projectId: number) => typedError<AutomationConsent, AppError>(__TAURI_INVOKE("automation_consent_status", { projectId })),
 	/**
 	 *  닥터·자동화 탭이 한 번에 읽는 요약. 정의는 파일, 예산은 원장, 실행 중
 	 *  여부는 러너에서 온다.
@@ -2726,6 +2737,14 @@ export type AutomationConfig = {
 	 *  `0` = 전면 정지. 드롭·스킵은 과금되지 않았으므로 세지 않는다.
 	 */
 	daily_run_budget?: number,
+};
+
+/**  확인 카드가 그리는 것. */
+export type AutomationConsent = {
+	/**  디스크 설정이 켜 둔 배경 스위치 (`agents.auto_reconcile` 꼴). */
+	requested: string[],
+	/**  이 기기가 허락했는가. */
+	granted: boolean,
 };
 
 /**

@@ -449,6 +449,9 @@ async fn tick_project(
             Err(e) => return Err(TickError::Other(e.to_string())),
         }
     };
+    // 저장소 설정만으로는 발동하지 않는다 — 이 기기의 동의가 있어야 스위치가 산다.
+    let config =
+        crate::oculpm::automation::consent::effective(&app.state::<Db>(), project_id, config).await;
     let root = match project_root(app, project_id).await {
         Ok(root) => root,
         Err(ProjectRootError::Missing) => return Err(TickError::MissingProject),
@@ -584,6 +587,9 @@ pub async fn on_journal_inserted(
             .await
             .map_err(|e| e.to_string())?
     };
+    // 레거시 `auto_reconcile` 도 같은 문을 지난다 — 동의가 없으면 규칙이 없다.
+    let config =
+        crate::oculpm::automation::consent::effective(&app.state::<Db>(), project_id, config).await;
     let root = project_root(app, project_id).await.map_err(|e| match e {
         ProjectRootError::Missing => format!("project {project_id} not found"),
         ProjectRootError::Other(e) => e,

@@ -10,6 +10,7 @@ import { call, type Envelope } from "@/api/invoke";
 import { commands, events } from "@/lib/bindings";
 import { createUnlistenBag } from "@/lib/unlisten";
 import type {
+  AutomationConsent,
   AutomationDef,
   AutomationOverview,
   AutomationRunChanged,
@@ -26,6 +27,17 @@ export const automationApi = {
 
   overview: (projectId: number) =>
     unwrap<AutomationOverview>("automation_overview", commands.automationOverview(projectId)),
+
+  /** 저장소 config 가 켠 배경 스위치가 이 기기의 허락을 기다리는가. */
+  consentStatus: (projectId: number) =>
+    unwrap<AutomationConsent>(
+      "automation_consent_status",
+      commands.automationConsentStatus(projectId),
+    ),
+
+  /** 「이 기기에서 켜기」 — 동의를 기록하고 갱신된 상태를 돌려준다. */
+  consentGrant: (projectId: number) =>
+    unwrap<AutomationConsent>("automation_consent_grant", commands.automationConsentGrant(projectId)),
 
   runs: (projectId: number, automationId: string | null, limit: number) =>
     unwrap<AutomationRunDto[]>(

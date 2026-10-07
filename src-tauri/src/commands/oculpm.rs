@@ -161,15 +161,14 @@ pub async fn oculpm_init(
     }
 
     // 2.8 — Osaurus 라운드 D2 의 다리. 이 프로젝트가 이미 배경 자동화를 켜 뒀는데
-    // 배경 모델 슬롯이 비어 있으면 대화 모델을 1회 복사한다. **동작 변화 0** —
-    // 강제만 하면 잘 되던 자동 화해·일지 초안이 업데이트 순간 말없이 멈춘다.
-    // 판정 재료(config.toml)는 프로젝트별이고 슬롯(settings)은 전역이라 여기가
-    // 유일한 합류점이다. 실패는 warn-only — init 자체는 성공했다.
-    let automation_on = manager
-        .get_config(project_id)
-        .await
-        .map(|c| c.agents.auto_reconcile || c.agents.auto_journal_draft)
-        .unwrap_or(false);
+    // 배경 모델 슬롯이 비어 있으면 대화 모델을 1회 복사한다 — 단 **이 기기가 그
+    // 자동화를 허락했을 때만** (`consent::seed_wanted`). 저장소 config 만으로
+    // 시드하면 남의 저장소가 내 대화 모델로 배경 호출을 켠다 (보안 피드백 #1).
+    // 실패는 warn-only — init 자체는 성공했다.
+    let automation_on = match manager.get_config(project_id).await {
+        Ok(c) => crate::oculpm::automation::consent::seed_wanted(&db, project_id, &c).await,
+        Err(_) => false,
+    };
     match crate::oculpm::automation::core_model::seed_if_automation_enabled(&db, automation_on)
         .await
     {
@@ -302,18 +301,8 @@ pub async fn oculpm_get_config(
     Ok(manager.get_config(project_id).await?)
 }
 
-/// Validate + persist a new `OculpmConfig` (atomic write) and refresh the
-/// in-memory `WorkdayResolver`. Rejects invalid tz / HH:MM without touching
-/// disk.
-#[tauri::command]
-#[specta::specta]
-pub async fn oculpm_set_config(
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    new_config: OculpmConfig,
-) -> Result<(), AppError> {
-    Ok(manager.set_config(project_id, new_config).await?)
-}
+// `oculpm_set_config` 는 `commands/automation_consent.rs` 로 옮겼다 — 배경 스위치를
+// 켜는 저장이 곧 이 기기의 동의라, 그 기록과 한 자리에 있어야 한다.
 
 // ─── W2-PR6 commands ────────────────────────────────────────────────────────
 
