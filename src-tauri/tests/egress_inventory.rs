@@ -211,6 +211,7 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     ("codeload.github.com", "사용자가 명시적으로 요청한 플러그인 번들 zip 다운로드."),
     ("oculpm.com", "셋을 겸한다 — 테마 화이트리스트 호스트, Notion OAuth 교환 브로커(벤더 서버), OpenRouter 어트리뷰션 헤더 값. **약속 문구가 OAuth 브로커를 아직 안 적고 있다.**"),
     ("raw.githubusercontent.com", "테마 설치 화이트리스트의 두 번째 호스트 (deeplink::THEME_HOSTS)."),
+    ("registry.npmjs.org", "ACP 어댑터 설치 — Claude Code·Codex 화면이 어댑터를 처음 깔 때 npm 하위 프로세스가 고정 lockfile(acp-lock/, sha512)의 패키지를 받는다. 앱 코드는 이 호스트를 직접 부르지 않는다 — 소스의 이 문자열은 lockfile 계약 테스트(acp/adapter.rs)의 단언이다. **원장의 자리 스캔(A)은 하위 프로세스 송출을 세지 못한다** — 이 줄이 그 공백을 적어 둔다."),
     // ── 브라우저에 넘기는 링크 (앱이 보내지 않는다) ──
     ("github.com", "저장소·이슈·릴리스 링크 — open_url 로 OS 브라우저에 위임한다. plugins/source.rs 의 테스트 픽스처이기도 하다."),
     ("www.notion.so", "사용자의 Notion 페이지 링크 — 브라우저 위임. notion.rs 에서는 URL 파서의 테스트 픽스처다."),

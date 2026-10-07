@@ -1,0 +1,7 @@
+{
+  "name": "ocul-pm-acp-codex",
+  "private": true,
+  "dependencies": {
+    "@agentclientprotocol/codex-acp": "1.13.0"
+  }
+}
