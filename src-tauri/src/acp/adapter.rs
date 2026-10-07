@@ -101,36 +101,85 @@ pub const PINNED_VERSION: &str = "0.81.0";
 ///   `auth_status.rs` 가 그대로 받는다. 로그아웃 안내만 `codex login` 으로 갈랐다.
 pub const CODEX_PINNED_VERSION: &str = "1.13.0";
 
-/// 앱 데이터 디렉터리 하위 설치 경로.
+/// 앱 데이터 디렉터리 하위 설치 경로 (Claude 어댑터).
 const INSTALL_SUBDIR: &str = "acp";
+
+/// Codex 어댑터의 설치 자리 — Claude 와 **나란히** 둔다. `npm ci` 는 prefix 의
+/// `node_modules` 를 통째로 지우고 다시 깔므로, 한 prefix 에 둘을 두면 하나를 깔 때
+/// 다른 하나가 사라진다. 형제 폴더라 Node 의 상위 탐색이 서로의 트리를 보지도 않는다.
+const CODEX_INSTALL_SUBDIR: &str = "acp-codex";
 
 /// npm 설치는 네트워크에 달려 있다 — 무한 대기 대신 실패로 끊는다.
 const INSTALL_TIMEOUT: Duration = Duration::from_secs(300);
+
+/// 고정 의존성 트리 — 어댑터 버전만이 아니라 **딸린 패키지 전부**를 버전과 sha512
+/// 로 묶는다 (2026-10-07 외부 보안 피드백 #5). 예전엔 `npm install pkg@ver` 만 해서
+/// 범위(`^`)로 적힌 하위 의존성은 설치하는 순간의 최신이 들어왔다 — 그중 하나가
+/// 탈취되면 그대로 받아 실행했다. `npm ci` 는 이 lockfile 그대로만 깔고 무결성이
+/// 어긋나면 실패한다(EINTEGRITY). 설치 스크립트는 `--ignore-scripts` 로 끈다 —
+/// 트리에 하나도 없고(`prepare` 는 레지스트리 의존성에 돌지 않는다), 그 사실은
+/// `the_locked_trees_pin_every_package` 가 지킨다.
+///
+/// **버전을 올릴 때**: `acp-lock/<claude|codex>/package.json` 의 버전을 고치고 그
+/// 폴더에서 `npm install --package-lock-only --ignore-scripts` 로 lockfile 을 다시
+/// 만든다. 상수(`PINNED_VERSION`·`CODEX_PINNED_VERSION`)와 어긋나면 테스트가 막는다.
+struct LockedTree {
+    package_json: &'static str,
+    package_lock: &'static str,
+}
+
+const CLAUDE_TREE: LockedTree = LockedTree {
+    package_json: include_str!("../../acp-lock/claude/package.json"),
+    package_lock: include_str!("../../acp-lock/claude/package-lock.json"),
+};
+
+const CODEX_TREE: LockedTree = LockedTree {
+    package_json: include_str!("../../acp-lock/codex/package.json"),
+    package_lock: include_str!("../../acp-lock/codex/package-lock.json"),
+};
 
 pub fn install_dir(app_data: &Path) -> PathBuf {
     app_data.join(INSTALL_SUBDIR)
 }
 
-fn package_dir(app_data: &Path) -> PathBuf {
-    package_dir_for(app_data, PKG_NAME)
+fn codex_install_dir(app_data: &Path) -> PathBuf {
+    app_data.join(CODEX_INSTALL_SUBDIR)
 }
 
-fn package_dir_for(app_data: &Path, package_name: &str) -> PathBuf {
-    install_dir(app_data)
+fn package_dir_in(prefix: &Path, package_name: &str) -> PathBuf {
+    prefix
         .join("node_modules")
         .join(PKG_SCOPE)
         .join(package_name)
 }
 
+fn entry_in(prefix: &Path, package_name: &str) -> PathBuf {
+    package_dir_in(prefix, package_name)
+        .join("dist")
+        .join("index.js")
+}
+
+/// Codex 가 실제로 깔린 prefix. 옛 판은 Claude 와 같은 `acp/` 에 깔았다 — 새 자리에
+/// 없고 옛 자리에 있으면 그것을 그대로 쓴다 (업데이트가 쓰던 설치를 끊지 않게).
+/// 둘 다 없으면 새 자리다. 다음 Codex 설치·갱신은 언제나 새 자리로 간다.
+fn codex_prefix(app_data: &Path) -> PathBuf {
+    let current = codex_install_dir(app_data);
+    if !entry_in(&current, CODEX_PKG_NAME).is_file() {
+        let legacy = install_dir(app_data);
+        if entry_in(&legacy, CODEX_PKG_NAME).is_file() {
+            return legacy;
+        }
+    }
+    current
+}
+
 /// 어댑터 진입점(node 로 실행할 JS). 존재 여부는 확인하지 않는다.
 pub fn entry_path(app_data: &Path) -> PathBuf {
-    package_dir(app_data).join("dist").join("index.js")
+    entry_in(&install_dir(app_data), PKG_NAME)
 }
 
 pub fn codex_entry_path(app_data: &Path) -> PathBuf {
-    package_dir_for(app_data, CODEX_PKG_NAME)
-        .join("dist")
-        .join("index.js")
+    entry_in(&codex_prefix(app_data), CODEX_PKG_NAME)
 }
 
 /// 어댑터가 **함께 들고 오는** Claude Code CLI.
@@ -184,18 +233,18 @@ fn npm_platform(rust_os: &str) -> &str {
 
 /// 설치된 버전. 미설치·손상은 `None`.
 pub fn installed_version(app_data: &Path) -> Option<String> {
-    installed_version_for(app_data, PKG_NAME, &entry_path(app_data))
+    installed_version_in(&install_dir(app_data), PKG_NAME)
 }
 
 pub fn codex_installed_version(app_data: &Path) -> Option<String> {
-    installed_version_for(app_data, CODEX_PKG_NAME, &codex_entry_path(app_data))
+    installed_version_in(&codex_prefix(app_data), CODEX_PKG_NAME)
 }
 
-fn installed_version_for(app_data: &Path, package_name: &str, entry: &Path) -> Option<String> {
-    if !entry.is_file() {
+fn installed_version_in(prefix: &Path, package_name: &str) -> Option<String> {
+    if !entry_in(prefix, package_name).is_file() {
         return None;
     }
-    let manifest = package_dir_for(app_data, package_name).join("package.json");
+    let manifest = package_dir_in(prefix, package_name).join("package.json");
     let raw = std::fs::read_to_string(manifest).ok()?;
     let parsed: serde_json::Value = serde_json::from_str(&raw).ok()?;
     parsed
@@ -204,37 +253,55 @@ fn installed_version_for(app_data: &Path, package_name: &str, entry: &Path) -> O
         .map(std::string::ToString::to_string)
 }
 
-/// 고정 버전을 설치한다(멱등 — 이미 맞으면 npm 이 알아서 no-op).
+/// 고정 트리를 설치한다(멱등 — 이미 맞으면 npm 이 같은 트리를 다시 놓을 뿐이다).
 pub async fn install(app_data: &Path, npm: &Path, path_env: &str) -> Result<String, String> {
-    install_package(app_data, npm, path_env, PKG_NAME, PINNED_VERSION).await
-}
-
-pub async fn install_codex(app_data: &Path, npm: &Path, path_env: &str) -> Result<String, String> {
-    install_package(
-        app_data,
+    install_tree(
+        &install_dir(app_data),
         npm,
         path_env,
-        CODEX_PKG_NAME,
-        CODEX_PINNED_VERSION,
+        PKG_NAME,
+        &CLAUDE_TREE,
     )
     .await
 }
 
-async fn install_package(
-    app_data: &Path,
+pub async fn install_codex(app_data: &Path, npm: &Path, path_env: &str) -> Result<String, String> {
+    install_tree(
+        &codex_install_dir(app_data),
+        npm,
+        path_env,
+        CODEX_PKG_NAME,
+        &CODEX_TREE,
+    )
+    .await
+}
+
+async fn install_tree(
+    prefix: &Path,
     npm: &Path,
     path_env: &str,
     package_name: &str,
-    version: &str,
+    tree: &LockedTree,
 ) -> Result<String, String> {
-    let dir = install_dir(app_data);
-    std::fs::create_dir_all(&dir).map_err(|e| format!("설치 폴더를 만들 수 없습니다: {e}"))?;
+    std::fs::create_dir_all(prefix).map_err(|e| format!("설치 폴더를 만들 수 없습니다: {e}"))?;
+    // 우리 트리를 그 자리에 놓는다 — 옛 판의 `npm install` 이 써 둔 것을 덮는다.
+    for (name, body) in [
+        ("package.json", tree.package_json),
+        ("package-lock.json", tree.package_lock),
+    ] {
+        std::fs::write(prefix.join(name), body)
+            .map_err(|e| format!("설치 목록을 쓸 수 없습니다 ({name}): {e}"))?;
+    }
 
-    let spec = format!("{PKG_SCOPE}/{package_name}@{version}");
     let spawned = crate::proc::tokio_cmd(npm)
-        .args(["install", "--no-audit", "--no-fund", "--prefix"])
-        .arg(&dir)
-        .arg(&spec)
+        .args([
+            "ci",
+            "--ignore-scripts",
+            "--no-audit",
+            "--no-fund",
+            "--prefix",
+        ])
+        .arg(prefix)
         // npm 은 내부적으로 node 를 다시 찾는다 — 우리가 해석한 PATH 를 물려준다.
         .env("PATH", path_env)
         .kill_on_drop(true)
@@ -251,12 +318,7 @@ async fn install_package(
         return Err(format!("npm 설치 실패: {}", tail(&stderr)));
     }
 
-    let entry = if package_name == CODEX_PKG_NAME {
-        codex_entry_path(app_data)
-    } else {
-        entry_path(app_data)
-    };
-    installed_version_for(app_data, package_name, &entry)
+    installed_version_in(prefix, package_name)
         .ok_or_else(|| "설치는 끝났지만 어댑터 진입점을 찾을 수 없습니다".to_string())
 }
 
@@ -347,10 +409,95 @@ mod tests {
         assert_eq!(bundled_claude(dir.path()), Some(bin));
     }
 
+    /// Codex 는 Claude 와 나란한 자기 prefix 에 깔린다 — `npm ci` 가 prefix 의
+    /// `node_modules` 를 통째로 갈아엎으므로 한 자리에 두면 서로를 지운다.
     #[test]
-    fn codex_entry_uses_its_own_package() {
+    fn codex_entry_uses_its_own_prefix() {
         assert!(codex_entry_path(Path::new("/data"))
-            .ends_with("acp/node_modules/@agentclientprotocol/codex-acp/dist/index.js"));
+            .ends_with("acp-codex/node_modules/@agentclientprotocol/codex-acp/dist/index.js"));
+    }
+
+    /// 옛 판이 `acp/` 에 깔아 둔 Codex 는 새 자리가 비어 있는 동안 그대로 쓴다 —
+    /// 업데이트가 쓰던 설치를 끊지 않는다. 새 자리에 깔리면 그쪽이 이긴다.
+    #[test]
+    fn a_legacy_codex_install_keeps_working_until_reinstalled() {
+        let dir = tempfile::tempdir().unwrap();
+        let place = |prefix: &str, version: &str| {
+            let pkg = dir
+                .path()
+                .join(prefix)
+                .join("node_modules")
+                .join(PKG_SCOPE)
+                .join(CODEX_PKG_NAME);
+            std::fs::create_dir_all(pkg.join("dist")).unwrap();
+            std::fs::write(pkg.join("dist/index.js"), "").unwrap();
+            std::fs::write(
+                pkg.join("package.json"),
+                format!(r#"{{"version":"{version}"}}"#),
+            )
+            .unwrap();
+        };
+        assert_eq!(codex_installed_version(dir.path()), None);
+        place("acp", "1.8.0");
+        assert_eq!(
+            codex_installed_version(dir.path()).as_deref(),
+            Some("1.8.0")
+        );
+        assert!(codex_entry_path(dir.path()).starts_with(dir.path().join("acp")));
+        place("acp-codex", CODEX_PINNED_VERSION);
+        assert_eq!(
+            codex_installed_version(dir.path()).as_deref(),
+            Some(CODEX_PINNED_VERSION)
+        );
+        assert!(codex_entry_path(dir.path()).starts_with(dir.path().join("acp-codex")));
+    }
+
+    /// 고정 트리의 계약 (보안 피드백 #5): 어댑터 버전이 상수와 같고, 딸린 패키지
+    /// **전부**가 레지스트리 URL 과 sha512 무결성으로 묶여 있으며, 설치 스크립트가
+    /// 있는 패키지가 없다 (`--ignore-scripts` 로 깨질 것이 없다). 상수만 올리고
+    /// lockfile 을 다시 만들지 않으면 여기서 걸린다.
+    #[test]
+    fn the_locked_trees_pin_every_package() {
+        for (tree, name, version) in [
+            (&CLAUDE_TREE, PKG_NAME, PINNED_VERSION),
+            (&CODEX_TREE, CODEX_PKG_NAME, CODEX_PINNED_VERSION),
+        ] {
+            let spec = format!("{PKG_SCOPE}/{name}");
+            let manifest: serde_json::Value = serde_json::from_str(tree.package_json).unwrap();
+            assert_eq!(
+                manifest["dependencies"][&spec], version,
+                "{spec} package.json"
+            );
+
+            let lock: serde_json::Value = serde_json::from_str(tree.package_lock).unwrap();
+            assert_eq!(lock["lockfileVersion"], 3, "{spec}");
+            let packages = lock["packages"].as_object().unwrap();
+            assert_eq!(
+                packages[""]["dependencies"][&spec], version,
+                "{spec} lock root"
+            );
+            assert_eq!(
+                packages[&format!("node_modules/{spec}")]["version"],
+                version,
+                "{spec} lock entry"
+            );
+            for (path, entry) in packages.iter().filter(|(p, _)| !p.is_empty()) {
+                let integrity = entry["integrity"].as_str().unwrap_or_default();
+                let resolved = entry["resolved"].as_str().unwrap_or_default();
+                assert!(
+                    integrity.starts_with("sha512-"),
+                    "{path}: integrity {integrity:?}"
+                );
+                assert!(
+                    resolved.starts_with("https://registry.npmjs.org/"),
+                    "{path}: resolved {resolved:?}"
+                );
+                assert!(
+                    entry.get("hasInstallScript").is_none(),
+                    "{path}: 설치 스크립트가 있다 — --ignore-scripts 로 깨질 수 있다"
+                );
+            }
+        }
     }
 
     #[test]
