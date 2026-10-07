@@ -36,6 +36,10 @@ jobs:
     name: 패키징 (dry-run) — test · bundle · vsce package
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      # 「중복 실행 막기」 — 태그 게시일 때만 쓴다 (release.yml 의 meta 와 같은 규칙).
+      actions: write
     outputs:
       vsix: ${{ steps.pack.outputs.vsix }}
     steps:
@@ -52,6 +56,33 @@ jobs:
           node-version: 22
           cache: pnpm
           cache-dependency-path: extension/pnpm-lock.yaml
+
+      # 같은 ext-v* 태그 push 가 두 번 전달되면 마켓 게시가 두 번 돈다 — 뒤에 뜬 run 이 스스로
+      # 물러난다. 규칙은 앱 릴리스와 같다(.github/scripts/release/dedupe.mjs).
+      - name: 중복 실행 막기 — 같은 태그의 앞선 run 이 있으면 이 run 을 취소
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/ext-v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          SHA: ${{ github.sha }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          wf="$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID" --jq .workflow_id)"
+          gh api "repos/$GH_REPO/actions/runs?event=push&head_sha=$SHA&per_page=100" \
+            --jq "[.workflow_runs[] | select(.workflow_id == $wf) | {id, event, head_branch, status, conclusion, html_url}]" \
+            > "$RUNNER_TEMP/runs.json"
+          blocker="$(node .github/scripts/release/dedupe.mjs --self "$RUN_ID" --tag "$TAG" < "$RUNNER_TEMP/runs.json")"
+          if [ -z "$blocker" ]; then
+            echo "중복 아님 — 이 태그($TAG)의 앞선 run 이 없다"
+            exit 0
+          fi
+          echo "::notice::이 태그($TAG)의 앞선 run 이 있다 — $blocker. 이 run 은 중복이라 스스로 취소한다."
+          gh run cancel "$RUN_ID"
+          sleep 120
+          echo "::error::취소가 걸리지 않았다 — 중복 run 을 실패로 끝낸다"
+          exit 1
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

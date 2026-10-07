@@ -213,6 +213,8 @@ timeout 까지). 막히지는 않습니다.
 git fetch --tags --force --prune-tags origin
 ```
 
+**같은 태그로 Release run 이 둘 뜨면 뒤의 것이 스스로 물러납니다.** GitHub 가 태그 push 이벤트를 두 번 전달하는 일이 있습니다 — v3.9.0 은 태그 하나에 run 이 같은 초에 둘 떴습니다. 둘이 나란히 가면 같은 draft 의 자산과 latest.json 을 서로 덮으므로, `meta` 의 「중복 실행 막기」 가 같은 워크플로 · 같은 커밋 · 같은 태그에 **id 가 더 작은 run 이 아직 돌고 있거나 성공했으면** 이 run 을 취소합니다(규칙: `.github/scripts/release/dedupe.mjs`, 시험: `dedupe.test.mjs`). 앞선 run 이 실패·취소로 끝났다면 막지 않으므로 §6 의 「태그를 지웠다 다시 밀기」 와 같은 run 의 re-run 은 그대로 됩니다. 확장 게시(`ext-v*`)도 같은 규칙입니다. 동시성 그룹(`concurrency`)을 쓰지 않는 이유는 그 스크립트 머리 주석에 있습니다 — 진행 중인 run 을 끊으면 공개 도중의 run 이 잘릴 수 있습니다.
+
 ### 5-1. Windows·Linux 공개 스위치 (`OCULPM_RELEASE_NONMAC`)
 
 위 4~5 단계(비-mac 번들·스모크·E2E)와 publish 의 비-mac 병합은 **저장소 Actions 변수
