@@ -161,14 +161,14 @@ fn load_all_plans(planner_root: &Path) -> Vec<LoadedPlan> {
     };
     // Secret masking: a plan that accidentally contains a key gets redacted on
     // the projection (read) side, so the SQLite cache, DTOs, and UI never show
-    // it. Patterns come from the project's `.oculpm/config.toml`; empty/missing
-    // config → no-op.
+    // it. Patterns come from the project's `.oculpm/config.toml`; a missing or
+    // broken config still masks with the builtin floor.
     let redact_patterns = planner_root
         .parent()
         .map(|oculpm_dir| oculpm_dir.join("config.toml"))
         .and_then(|p| OculpmConfig::load(&p).ok())
         .map(|cfg| compile_redact_patterns(&cfg.git.auto_redact_patterns))
-        .unwrap_or_default();
+        .unwrap_or_else(|| compile_redact_patterns(&[]));
     for entry in entries.flatten() {
         let path = entry.path();
         if !archive::is_plan_path(&path) {

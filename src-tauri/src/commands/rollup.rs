@@ -7,12 +7,12 @@
 //!
 //! # 새 아웃바운드 자리를 만들지 않는다
 //!
-//! LLM 판은 `summary::call_llm` 을 그대로 지난다. 유출 경계 원장
-//! (`tests/egress_inventory.rs`)은 `llm::create` 를 **부르는 파일**을 세므로,
-//! 여기서 직접 클라이언트를 만들면 원장에 새 줄이 필요해진다. 같은 프롬프트
-//! 조립 규약(리댁션은 마스킹된 캐시 투영이 진다)을 쓰면서 자리만 늘릴 이유가
-//! 없다 — `commands/summary.rs` 의 `Redaction::ViaProjection` 사유가 이 경로에
-//! 그대로 적용된다 (`rollup_source_entries` 도 같은 캐시를 읽는다).
+//! LLM 판은 `summary::call_llm` 을 그대로 지난다 — 같은 프롬프트 조립 규약
+//! (리댁션은 마스킹된 캐시 투영이 진다)을 쓰면서 클라이언트를 늘릴 이유가 없다.
+//! 래퍼를 지나도 원장 밖은 아니다: 프롬프트 원장(`tests/llm_prompt_ledger.rs`)은
+//! `call_llm` 을 부르는 이 파일을 따로 세고, `ViaProjection` 으로 적는다
+//! (`rollup_source_entries` 도 같은 캐시를 읽는다). 2026-10-07 전의 원장은
+//! `llm::create` 를 글자 그대로 부르는 파일만 세어 이 자리를 보지 못했다.
 
 use chrono::Local;
 use tauri::State;

@@ -40,8 +40,11 @@
 //! Redaction is a boundary, not a blanket — and a boundary has an outside.
 //! [`EXEMPT_LLM_PROMPT_SITES`] prompt-building sites reach a model without
 //! passing through this module or the masked cache projection. They are
-//! enumerated with a reason each in `tests/egress_inventory.rs`
-//! (`LLM_PROMPT_SITES`), which fails when a new one appears undeclared. The
+//! enumerated with a reason each in `tests/llm_prompt_ledger.rs`
+//! (`LLM_PROMPT_SITES`), which fails when a new one appears undeclared — and,
+//! since 2026-10-07, also when a call goes through a wrapper (`call_llm`,
+//! `ChatBackend`, …) the ledger has not classified. Before that the scan only
+//! saw files that spelled out `llm::create`, so four sites sat outside it. The
 //! short version: the AI panel and the mobile bridge relay what the *user*
 //! typed (the promise's own exception), and the project overview reads README
 //! and manifest files straight off disk. Nothing agent-authored reaches a model
@@ -85,13 +88,18 @@ use crate::oculpm::spec::OculpmConfig;
 /// 아니라 **디스크 원문**을 읽는다. 청크 텍스트가 SQLite 에 남고 검색 결과로
 /// 화면에 뜨므로, 자르기 직전에 한 번 지난다
 /// (journal-scale-round `{#search-semantic-journal}`).
-pub const CALL_SITE_FILES: usize = 27;
+///
+/// 27 → 28 (보안 피드백 2차, 2026-10-07): `commands/release_notes.rs` — 릴리스
+/// 노트 초안이 디스크에서 바로 읽은 `CHANGELOG.md` 문체 표본을 모델에 보내기
+/// 전에 가린다. 그 전에는 프롬프트 원장이 래퍼(`map_reduce_blocks`)를 지나는 이
+/// 자리를 보지 못해 표본이 가려지지 않은 채 나갔다.
+pub const CALL_SITE_FILES: usize = 28;
 
 /// Prompt-building sites that reach a model **without** redaction — neither
 /// directly nor through the masked cache projection.
 ///
 /// See the module doc's "What is not covered" and `LLM_PROMPT_SITES` in
-/// `tests/egress_inventory.rs`, which owns the per-site reasons.
+/// `tests/llm_prompt_ledger.rs`, which owns the per-site reasons.
 pub const EXEMPT_LLM_PROMPT_SITES: usize = 3;
 
 /// One match recorded by [`redact_text`]. Byte offsets reference the
@@ -275,8 +283,10 @@ pub fn compile_redact_patterns(patterns: &[String]) -> Vec<Regex> {
 }
 
 /// Load + compile a project's `auto_redact_patterns` from its
-/// `.oculpm/config.toml`. Returns an empty vec when the config is missing or
-/// unreadable (→ redaction is a no-op). Centralises the load+compile dance the
+/// `.oculpm/config.toml`. When the config is missing or unreadable this is the
+/// builtin floor alone — never empty: a repo that ships a broken `config.toml`
+/// must not switch masking off (the floor's whole point; it used to return an
+/// empty vec here). Centralises the load+compile dance the
 /// journal/diff write paths share so each call site doesn't re-implement it
 /// (and so paths that run for a project not registered in `OculpmManager`, like
 /// the lazy diff reconstruct, can still mask). Used by [`manager`] and
@@ -285,7 +295,7 @@ pub fn patterns_for_project(project_root: &Path) -> Vec<Regex> {
     let cfg_path = project_root.join(".oculpm").join("config.toml");
     OculpmConfig::load(&cfg_path)
         .map(|cfg| compile_redact_patterns(&cfg.git.auto_redact_patterns))
-        .unwrap_or_default()
+        .unwrap_or_else(|_| compile_redact_patterns(&[]))
 }
 
 /// Replace every match of `patterns` in `text` with [`REDACTED_PLACEHOLDER`].
@@ -474,6 +484,20 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
         assert_eq!(compile_redact_patterns(&old).len(), BUILTIN_PATTERNS.len());
+    }
+
+    /// 설정을 못 읽어도 바닥은 선다 (보안 피드백 2차). 깨진 `config.toml` 을
+    /// 실은 저장소에서 `patterns_for_project` 가 빈 목록을 돌려줘, 그 길을
+    /// 지나는 일지 색인·승격·Notion 내보내기가 아무것도 가리지 않았다.
+    #[test]
+    fn a_missing_or_broken_config_still_masks_with_the_floor() {
+        let tmp = tempfile::tempdir().unwrap();
+        let key = format!("AKIA{}", "ABCDEFGHIJKLMNOP");
+        let masked = |root: &Path| redact_text(&key, &patterns_for_project(root)).0;
+        assert_eq!(masked(tmp.path()), REDACTED_PLACEHOLDER, "config 없음");
+        std::fs::create_dir_all(tmp.path().join(".oculpm")).unwrap();
+        std::fs::write(tmp.path().join(".oculpm/config.toml"), "[git\nbroken =").unwrap();
+        assert_eq!(masked(tmp.path()), REDACTED_PLACEHOLDER, "깨진 config");
     }
 
     /// 기본 패턴 확장 (외부 보안 피드백 #3) — 리뷰가 짚은 꼴 전부. 토큰 모양은

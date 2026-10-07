@@ -25,10 +25,12 @@
 //!
 //! # 새 아웃바운드 자리를 만들지 않는다
 //!
-//! LLM 판은 `summary::call_llm` 을 그대로 지난다 (`commands/rollup.rs` 와 같은
-//! 이유 — 유출 경계 원장은 `llm::create` 를 **부르는 파일**을 센다). 재료도
-//! 같은 캐시 투영(`rollup_source_entries`)이라 `Redaction::ViaProjection` 사유가
-//! 그대로 적용된다.
+//! LLM 판은 `summary::chunking::map_reduce_blocks` 를 지난다 — 새 클라이언트를
+//! 만들지 않는다. 그렇다고 원장 밖은 아니다: 프롬프트 원장
+//! (`tests/llm_prompt_ledger.rs`)은 래퍼를 지나는 호출도 세고, 이 파일을 Direct 로
+//! 적는다 — 일지 재료는 캐시 투영이지만 `CHANGELOG.md` 문체 표본은 디스크에서
+//! 읽으므로 여기서 직접 가린다. (2026-10-07 전까지 원장은 래퍼를 보지 못했고,
+//! 이 문단은 그 빈틈을 근거로 "원장에 새 줄이 필요 없다" 고 적었다.)
 
 use std::collections::HashSet;
 
@@ -513,6 +515,12 @@ async fn narrate(
         .flatten()
         .map(|f| style_samples(&f.content, STYLE_SAMPLES))
         .unwrap_or_default();
+    // 문체 표본은 디스크에서 바로 읽은 저장소 글이라 캐시 투영을 지나지 않는다 —
+    // 보내기 전에 가린다 (`tests/llm_prompt_ledger.rs` 의 이 자리는 Direct).
+    let (samples, _) = crate::oculpm::redact::redact_text(
+        &samples,
+        &crate::oculpm::redact::patterns_for_project(root),
+    );
 
     let header = format!(
         "[기계가 만든 초안 — 이 사실만 쓸 것]\n{}\n\n[일지 {}건]",

@@ -92,7 +92,7 @@ pub async fn notion_export(
     // 통과시킨다 (rule_promotion 의 LLM 전송 경로와 동일 규율).
     let patterns = match db.get_project(project_id).await {
         Ok(p) => crate::oculpm::redact::patterns_for_project(std::path::Path::new(&p.root_path)),
-        Err(_) => Vec::new(),
+        Err(_) => crate::oculpm::redact::compile_redact_patterns(&[]),
     };
     let (title, _) = crate::oculpm::redact::redact_text(&title, &patterns);
     let (markdown, _) = crate::oculpm::redact::redact_text(&markdown, &patterns);

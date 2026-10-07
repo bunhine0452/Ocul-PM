@@ -282,13 +282,14 @@ pub(super) fn system_prompt(style: SummaryStyle) -> &'static str {
     }
 }
 
-/// 모델 호출 한 번.
+/// 모델 호출 한 번 — 요약·롤업·릴리스 노트가 함께 지나는 **관문**이다.
 ///
-/// **이 크레이트에서 `llm::create` 를 부르는 자리는 여기 하나로 묶여 있다** —
-/// 주간 롤업(`commands/rollup.rs`)도 이 함수를 지난다. 유출 경계 원장
-/// (`tests/egress_inventory.rs` 의 `LLM_PROMPT_SITES`)이 파일 단위로 세므로,
-/// 새 기능마다 새 호출 자리를 만들면 원장이 그만큼 늘어난다. 시스템 프롬프트를
-/// 인자로 받는 이유가 그것이다 (예전엔 `SummaryStyle` 을 받아 안에서 골랐다).
+/// 시스템 프롬프트를 인자로 받는다 (예전엔 `SummaryStyle` 을 받아 안에서
+/// 골랐다). 관문이라 리댁션은 이 함수가 아니라 부르는 쪽이 진다: 프롬프트 원장
+/// (`tests/llm_prompt_ledger.rs`)의 `LLM_GATEWAYS` 에 이 함수가 있고, 그래서 이
+/// 함수를 부르는 파일은 전부 원장에 자기 줄을 갖는다. 2026-10-07 전의 원장은
+/// `llm::create` 를 글자 그대로 부르는 파일만 세었고, 여기를 지나는 자리를
+/// 보지 못했다.
 pub(crate) async fn call_llm(
     provider: &str,
     model: &str,
