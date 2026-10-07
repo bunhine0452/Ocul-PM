@@ -281,3 +281,70 @@ fn budget_setting_parses_clamps_and_defaults() {
     assert_eq!(budget_from_setting(Some("1")), 64 * 1024 * 1024);
     assert_eq!(budget_from_setting(Some("999999")), 8192 * 1024 * 1024);
 }
+
+/// 보안 피드백 2차 — `meta.json` 은 디스크의 파일이고 저장소에 실려 올 수 있다.
+/// 해시에 한글이 들어 있으면 `hash[..8]` 이 문자 한가운데를 잘라 패닉했다
+/// ("가나다" 는 9바이트, 8번째 바이트는 「다」 의 중간). 이제 그런 판은 읽는
+/// 순간 버려지고, 이름을 만드는 쪽도 문자 단위로 자른다.
+#[test]
+fn a_planted_meta_with_a_multibyte_hash_neither_panics_nor_survives() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    let rel = "src/a.txt";
+    let dir = dir_for(root, rel);
+    std::fs::create_dir_all(&dir).unwrap();
+    let good = blake3::hash(b"x").to_hex().to_string();
+    let meta = serde_json::json!({
+        "schema_version": SCHEMA_VERSION,
+        "path": rel,
+        "entries": [
+            { "ts_ms": 1, "hash": "가나다", "bytes": 1, "source": "user", "op": "update" },
+            { "ts_ms": 2, "hash": "../../x", "bytes": 1, "source": "user", "op": "update" },
+            { "ts_ms": 3, "hash": good, "bytes": 1, "source": "user", "op": "update" },
+        ],
+    });
+    std::fs::write(dir.join("meta.json"), meta.to_string()).unwrap();
+
+    let listed: Vec<i64> = list(root, rel).iter().map(|e| e.ts_ms).collect();
+    assert_eq!(listed, vec![3], "우리 모양이 아닌 해시의 판은 버린다");
+    assert_eq!(read_snapshot(root, rel, 1), None);
+    assert_eq!(read_snapshot(root, rel, 2), None);
+    // 예산 정리도 같은 meta 를 걷는다 — 패닉 없이 끝나야 한다.
+    let _ = enforce_budget(root, 0);
+    // 이름 짓기 자체도 바이트로 자르지 않는다.
+    assert_eq!(
+        snap_name(&entry(7, "가나다라마", HistorySource::User)),
+        "7-가나다라마.snap"
+    );
+}
+
+/// 링크는 판을 남기지 않는다 — 밖을 가리키면 그 내용이 히스토리로 복사된다.
+#[test]
+fn a_link_out_of_the_project_is_never_captured() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("proj");
+    let outside = tmp.path().join("outside");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::create_dir_all(&outside).unwrap();
+    std::fs::write(outside.join("secret.txt"), "TOP SECRET").unwrap();
+    if !crate::test_links::file(&outside.join("secret.txt"), &root.join("leak.txt")) {
+        return;
+    }
+    if !crate::test_links::dir(&outside, &root.join("docs")) {
+        return;
+    }
+    for rel in ["leak.txt", "docs/secret.txt"] {
+        let outcome = capture(
+            &root,
+            rel,
+            HistoryOp::Update,
+            HistorySource::User,
+            None,
+            50,
+            u64::MAX,
+        )
+        .unwrap();
+        assert_eq!(outcome, CaptureOutcome::Skipped, "{rel}");
+        assert!(list(&root, rel).is_empty(), "{rel}");
+    }
+}

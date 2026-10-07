@@ -146,9 +146,20 @@ pub fn dir_for(root: &Path, rel_path: &str) -> PathBuf {
 
 /// 스냅샷 파일 이름. `ts_ms` 로 정렬이 되고 해시 앞 8자로 같은 밀리초의 충돌을
 /// 가른다 (같은 해시는 애초에 두 번 안 남는다).
+///
+/// 해시는 [`read_meta`] 가 거른 blake3 hex 뿐이지만, 이 함수도 바이트로 자르지
+/// 않는다 — `meta.json` 은 디스크의 파일이고 저장소에 실려 올 수 있다. 한글이 든
+/// 해시를 바이트 8에서 자르면 문자 한가운데라 패닉했다 (보안 피드백 2차).
 fn snap_name(entry: &HistoryEntry) -> String {
-    let short = &entry.hash[..entry.hash.len().min(8)];
+    let short: String = entry.hash.chars().take(8).collect();
     format!("{}-{}.snap", entry.ts_ms, short)
+}
+
+/// 우리가 쓴 판인가 — blake3 hex 64자. 아니면 [`read_meta`] 가 버린다. 해시가
+/// 파일 이름의 일부(`snap_name`)라 `/`·`..` 가 섞인 값은 스냅샷을 엉뚱한 자리에서
+/// 읽고 지우게 한다.
+fn is_well_formed(entry: &HistoryEntry) -> bool {
+    entry.hash.len() == 64 && entry.hash.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
 /// 선두 8KB 에 NUL 이 있으면 바이너리로 본다 (인덱서와 같은 휴리스틱).
@@ -340,10 +351,18 @@ fn read_meta(dir: &Path, rel_path: &str) -> HistoryMeta {
     let Ok(bytes) = std::fs::read(dir.join("meta.json")) else {
         return HistoryMeta::empty(rel_path);
     };
-    match serde_json::from_slice::<HistoryMeta>(&bytes) {
-        Ok(m) if m.schema_version == SCHEMA_VERSION => m,
-        _ => HistoryMeta::empty(rel_path),
+    parse_meta(&bytes).unwrap_or_else(|| HistoryMeta::empty(rel_path))
+}
+
+/// `meta.json` 해석 — 모르는 판(스키마)이면 `None`, 해시가 우리 모양이 아닌 판은
+/// 버린다 ([`is_well_formed`]).
+fn parse_meta(bytes: &[u8]) -> Option<HistoryMeta> {
+    let mut meta = serde_json::from_slice::<HistoryMeta>(bytes).ok()?;
+    if meta.schema_version != SCHEMA_VERSION {
+        return None;
     }
+    meta.entries.retain(is_well_formed);
+    Some(meta)
 }
 
 /// tmp → rename 통째 교체. 작아서 비용이 없고, 보존 정책 적용이 곧 이 파일의
@@ -426,8 +445,14 @@ pub fn capture(
         }
     }
 
-    let full = root.join(rel_path);
-    let Ok(file_meta) = std::fs::metadata(&full) else {
+    // 루트 밖으로 풀리는 경로(링크 폴더 아래)와 링크 자체는 판을 남기지 않는다 —
+    // 남기면 저장소에 심은 `x -> ~/.ssh/id_rsa` 의 내용이 `.oculpm/index/history`
+    // 로 복사된다. 안쪽을 가리키는 링크는 대상이 제 자리에서 따로 남는다.
+    // `symlink_metadata` 의 `is_file()` 은 링크에서 거짓이다.
+    let Ok(full) = crate::path_guard::secure_join(root, rel_path) else {
+        return Ok(CaptureOutcome::Skipped);
+    };
+    let Ok(file_meta) = std::fs::symlink_metadata(&full) else {
         return Ok(CaptureOutcome::Skipped);
     };
     if !file_meta.is_file() || file_meta.len() > MAX_SNAPSHOT_BYTES {
@@ -650,9 +675,8 @@ fn walk_history(root: &Path) -> Vec<(PathBuf, HistoryMeta)> {
             let Ok(bytes) = std::fs::read(dir.join("meta.json")) else {
                 continue;
             };
-            match serde_json::from_slice::<HistoryMeta>(&bytes) {
-                Ok(m) if m.schema_version == SCHEMA_VERSION => out.push((dir, m)),
-                _ => {}
+            if let Some(m) = parse_meta(&bytes) {
+                out.push((dir, m));
             }
         }
     }
