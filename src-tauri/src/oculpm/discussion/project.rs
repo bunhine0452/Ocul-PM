@@ -191,7 +191,7 @@ fn load_all_discussions(discussion_root: &Path) -> Vec<LoadedDiscussion> {
         .map(|oculpm_dir| oculpm_dir.join("config.toml"))
         .and_then(|p| OculpmConfig::load(&p).ok())
         .map(|cfg| compile_redact_patterns(&cfg.git.auto_redact_patterns))
-        .unwrap_or_default();
+        .unwrap_or_else(|| compile_redact_patterns(&[]));
 
     collect_into(discussion_root, discussion_root, &redact_patterns, &mut out);
     collect_into(

@@ -235,15 +235,15 @@ impl OculpmManager {
     }
 
     /// Compile this project's `auto_redact_patterns` from its in-memory config
-    /// for the cache-projection paths (reindex / cache-miss disk read). Empty
-    /// when the project isn't registered (no config in memory) — callers then
-    /// project without masking; the disk-rooted paths use
+    /// for the cache-projection paths (reindex / cache-miss disk read). The
+    /// builtin floor alone when the project isn't registered (no config in
+    /// memory) — never empty, so nothing projects unmasked; the disk-rooted paths use
     /// [`redact::patterns_for_project`][crate::oculpm::redact::patterns_for_project]
     /// instead so they still mask for unregistered projects.
     async fn redact_patterns(&self, project_id: u32) -> Vec<Regex> {
         match self.get_config(project_id).await {
             Ok(cfg) => compile_redact_patterns(&cfg.git.auto_redact_patterns),
-            Err(_) => Vec::new(),
+            Err(_) => compile_redact_patterns(&[]),
         }
     }
 

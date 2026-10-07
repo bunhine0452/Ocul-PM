@@ -225,11 +225,11 @@ async fn storage_workday(manager: &OculpmManager, project_id: u32, created_at: &
         .unwrap_or_else(|_| fallback())
 }
 
-/// 프로젝트의 마스킹 패턴. 설정을 못 읽어도 임포트를 막지 않는다 —
-/// 마스킹은 이중 방어의 한 겹이고, 모델 응답 쪽 겹은 그대로 선다.
+/// 프로젝트의 마스킹 패턴. 설정을 못 읽어도 임포트를 막지 않는다 — 그때도
+/// 내장 바닥은 선다 (빈 목록이면 대화 원문이 가려지지 않고 모델로 갔다).
 async fn redact_patterns(manager: &OculpmManager, project_id: u32) -> Vec<regex::Regex> {
     match manager.get_config(project_id).await {
         Ok(cfg) => crate::oculpm::redact::compile_redact_patterns(&cfg.git.auto_redact_patterns),
-        Err(_) => Vec::new(),
+        Err(_) => crate::oculpm::redact::compile_redact_patterns(&[]),
     }
 }

@@ -40,9 +40,10 @@
 //!
 //! # 곁들여 세는 것 ({#redact-doc-truth})
 //!
-//! 같은 관용구로 두 가지를 더 센다: 리댁션을 지나는 파일 수와, 모델에게 가는
-//! 프롬프트 중 **리댁션을 안 지나는** 자리. `oculpm::redact` 의 모듈 문서가
-//! 그 숫자를 주장하고, 여기가 실측과 대조한다.
+//! 같은 관용구로 리댁션을 지나는 파일 수를 센다 — `oculpm::redact` 의 모듈
+//! 문서가 그 숫자를 주장하고, 여기가 실측과 대조한다. 모델에게 가는 프롬프트의
+//! 원장(리댁션을 안 지나는 자리 포함)은 `llm_prompt_ledger.rs` 로 옮겼다 —
+//! 래퍼를 지나는 호출까지 보려면 함수 본문을 읽는 스캐너가 필요했다.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -279,92 +280,8 @@ const WEB_SITES: &[Site] = &[
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 원장 — 모델에게 가는 프롬프트 ({#redact-doc-truth})
+// 리댁션 호출 ({#redact-doc-truth}) — 프롬프트 원장은 `llm_prompt_ledger.rs`
 // ─────────────────────────────────────────────────────────────────────────────
-
-/// 프롬프트가 리댁션을 어떻게 지나는가.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Redaction {
-    /// 이 파일이 `redact_text`/`patterns_for_project` 를 직접 부른다.
-    Direct,
-    /// 마스킹된 캐시 투영이나 리댁션을 지난 모듈에서 재료를 받는다.
-    ViaProjection,
-    /// 지나지 않는다 — **면제**. 사유가 근거다.
-    None,
-}
-
-struct PromptSite {
-    path: &'static str,
-    redaction: Redaction,
-    reason: &'static str,
-}
-
-/// 모델 호출을 조립하는 자리 전부. 스캔 결과와 정확히 같아야 한다.
-const LLM_PROMPT_SITES: &[PromptSite] = &[
-    PromptSite {
-        path: "commands/llm.rs",
-        redaction: Redaction::None,
-        reason: "면제 — AI 패널의 사용자 작성 대화. 사용자가 직접 만든 호출이 약속의 예외 ① 이고, 자기가 친 글을 자기에게서 가릴 이유가 없다.",
-    },
-    PromptSite {
-        path: "mobile_bridge/server.rs",
-        redaction: Redaction::None,
-        reason: "면제 — 폰이 보낸 대화를 그대로 중계한다 (commands/llm.rs 와 같은 성격).",
-    },
-    PromptSite {
-        path: "commands/overview.rs",
-        redaction: Redaction::None,
-        reason: "면제 — README·매니페스트·디렉터리 구조를 디스크에서 **직접** 읽어 보낸다. 에이전트가 쓴 글이 아니라 저장소 파일이라 캐시 투영을 지나지 않는다.",
-    },
-    PromptSite {
-        path: "commands/summary.rs",
-        redaction: Redaction::ViaProjection,
-        reason: "`range_entries` 만 읽는다 — 캐시는 투영 시점에 마스킹된다 (모듈 문서 §원칙).",
-    },
-    PromptSite {
-        path: "oculpm/reconcile.rs",
-        redaction: Redaction::ViaProjection,
-        reason: "`JournalCache::with_redaction` 으로 일지를 읽어 화해 프롬프트를 만든다.",
-    },
-    PromptSite {
-        path: "commands/plan.rs",
-        redaction: Redaction::ViaProjection,
-        reason: "`project_redact_patterns` → `planner::dispatch` 가 프롬프트를 마스킹해 조립한다.",
-    },
-    PromptSite {
-        path: "commands/rule_promotion.rs",
-        redaction: Redaction::ViaProjection,
-        reason: "규칙 승격의 증거 발췌를 `oculpm::rule_promotion` 이 리댁션을 지나 만들어 넘긴다.",
-    },
-    PromptSite {
-        path: "commands/skill_promotion.rs",
-        redaction: Redaction::ViaProjection,
-        reason: "스킬 승격의 증거 발췌를 `oculpm::skill_promotion` 이 리댁션을 지나 만들어 넘긴다.",
-    },
-    PromptSite {
-        path: "commands/skills.rs",
-        redaction: Redaction::Direct,
-        reason: "스킬 초안·카탈로그 재료(일지 발췌)를 보내기 전에 직접 마스킹한다.",
-    },
-    PromptSite {
-        path: "oculpm/journal_draft/mod.rs",
-        redaction: Redaction::Direct,
-        reason: "일지 초안의 입력(`masked_user_prompt`)과 모델 응답 양쪽을 마스킹한다 (이중 방어). 2026-10-07 전까지 이 줄은 거짓이었다 — 응답만 가렸다.",
-    },
-    PromptSite {
-        path: "oculpm/automation/runner/mod.rs",
-        redaction: Redaction::Direct,
-        reason: "보내기 전에 지시문을 가리고(대화 임포트의 원문도 같은 백엔드를 지난다 — import/journalize.rs 가 직접 가린다), 응답에 섞여 돌아온 시크릿도 일지에 닿기 전에 가린다.",
-    },
-];
-
-/// 모델 호출을 실제로 여는 토큰.
-const LLM_CALL_TOKENS: &[&str] = &[
-    "llm::create",
-    "commands::llm::chat",
-    "commands::llm::chat_detailed",
-    "commands::llm::run_chat_stream",
-];
 
 /// 리댁션 진입점 — `oculpm::redact` 를 부르는 토큰.
 const REDACT_TOKENS: &[&str] = &[
@@ -800,13 +717,6 @@ fn every_ledger_entry_carries_a_reason() {
             );
         }
     }
-    for site in LLM_PROMPT_SITES {
-        assert!(
-            site.reason.trim().chars().count() >= 20,
-            "{}: 프롬프트 자리의 사유가 없다",
-            site.path
-        );
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -826,42 +736,6 @@ fn the_redaction_doc_count_matches_the_tree() {
         "리댁션 호출 파일 수가 모듈 문서의 주장과 다르다.\n  실측 {}개: {files:#?}\n\
          → `redact::CALL_SITE_FILES` 를 같은 커밋에서 고쳐라.",
         files.len()
-    );
-}
-
-/// 모델에게 프롬프트를 보내는 자리 전부가 원장에 있고, 그중 **리댁션을 안
-/// 지나는 면제의 수**가 모듈 문서의 주장과 같다.
-///
-/// 새 LLM 호출을 붙이면 여기서 걸린다 — 그때 답해야 하는 질문은 하나다:
-/// "이 프롬프트에 에이전트가 쓴 글이 섞이는가?"
-#[test]
-fn every_llm_prompt_site_declares_how_it_meets_redaction() {
-    let found = files_calling(&crate_src(), &["rs"], LLM_CALL_TOKENS, &[]);
-    let declared: BTreeSet<String> = LLM_PROMPT_SITES
-        .iter()
-        .map(|s| s.path.to_string())
-        .collect();
-
-    let added: Vec<_> = found.difference(&declared).collect();
-    assert!(
-        added.is_empty(),
-        "원장에 없는 모델 호출 자리가 생겼다: {added:?}\n\
-         → LLM_PROMPT_SITES 에 등록하고 리댁션을 어떻게 지나는지 적어라."
-    );
-    let gone: Vec<_> = declared.difference(&found).collect();
-    assert!(
-        gone.is_empty(),
-        "원장에 있는데 소스에 없는 모델 호출: {gone:?}"
-    );
-
-    let exempt = LLM_PROMPT_SITES
-        .iter()
-        .filter(|s| s.redaction == Redaction::None)
-        .count();
-    assert_eq!(
-        exempt,
-        ocul_pm_lib::oculpm::redact::EXEMPT_LLM_PROMPT_SITES,
-        "리댁션 면제 자리의 수가 모듈 문서의 주장과 다르다"
     );
 }
 
