@@ -33,3 +33,15 @@ async fn init_refuses_a_symlink_inside_oculpm() {
         "밖은 그대로"
     );
 }
+
+/// 폭발 반경 가드 — 파일시스템 루트에는 아무것도 깔지 않는다 (홈도 같은 판정).
+#[cfg(unix)]
+#[tokio::test]
+async fn init_refuses_the_filesystem_root() {
+    let manager = OculpmManager::new();
+    let err = manager
+        .init_project(1, std::path::Path::new("/"), "ko")
+        .await
+        .unwrap_err();
+    assert!(matches!(err, OculpmError::UnsafeProjectRoot(_)), "{err:?}");
+}

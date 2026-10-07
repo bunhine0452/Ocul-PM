@@ -3698,6 +3698,7 @@ export const ko = {
   "err.code.invalid_session_id": "세션 id 형식이 올바르지 않아요: {detail}",
   "err.code.session_not_found": "세션을 찾지 못했어요: {detail}",
   "err.code.forbidden_journal_path": "금지된 경로가 들어 있어 일지를 쓰지 않았어요: {detail}",
+  "err.code.unsafe_project_root": "파일시스템 루트나 홈 폴더 자체는 프로젝트로 쓸 수 없어요 — 그 안의 프로젝트 폴더를 고르세요.",
   "err.code.oculpm_symlink":
     ".oculpm/ 안에 심볼릭 링크가 있어 이 프로젝트를 열지 않았어요. 앱은 이 폴더의 링크를 따라가지 않아요 — 링크를 지운 뒤 다시 여세요: {detail}",
   "err.code.invalid_path": "잘못된 경로예요: {detail}",

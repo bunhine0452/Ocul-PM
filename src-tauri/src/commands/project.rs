@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use serde::Serialize;
@@ -78,6 +78,11 @@ pub async fn create_project(
     name: String,
     root_path: String,
 ) -> Result<u32, String> {
+    // 웹뷰가 넘기는 경로를 그대로 받던 자리 — 루트·홈을 들이면 거기 `.oculpm/` 이
+    // 깔리고 워처가 디스크 전체를 걷는다. 코드는 프런트가 문장으로 옮긴다(StartTab).
+    if crate::oculpm::paths::is_unsafe_project_root(Path::new(&root_path)) {
+        return Err("unsafe_project_root".to_string());
+    }
     db.create_project(name, root_path)
         .await
         .map_err(|e| e.to_string())
