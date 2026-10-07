@@ -26,7 +26,7 @@ owner: claude-code
 - [x] Windows 승격 앱은 파이프 서버도 승격됐는지 확인 {#elevated-pipe-check}
 
 ## 웹뷰 {#webview}
-- [~] CSP 켜기 — 인라인 스크립트·eval 차단, 필요한 출처만 {#csp}
+- [x] CSP 켜기 — 인라인 스크립트·eval 차단, 필요한 출처만 {#csp}
 - [x] create_project 의 파일시스템 루트·홈 거부, 그린필드 스캐폴더 허용 목록 {#ipc-narrowing}
 
 ## Notion {#notion}
@@ -37,7 +37,7 @@ owner: claude-code
 - [x] 설치 미리보기가 MCP 서버가 실행할 명령을 보여 준다 (hooks/·bin/ 은 원래 안 놓는다) {#plugin-mcp-preview}
 
 ## 이월 {#carry}
-- [ ] egress 원장의 자리 스캔이 하위 프로세스 송출(npm 어댑터 설치)을 못 센다 + CLAUDE.md 송출 목록에 어댑터 다운로드가 없다 {#egress-subprocess}
+- [~] egress 원장의 자리 스캔이 하위 프로세스 송출(npm 어댑터 설치)을 못 센다 + CLAUDE.md 송출 목록에 어댑터 다운로드가 없다 {#egress-subprocess}
 - [ ] CSP 로 막힌 원격 이미지(일지·답의 ![](https://…))를 깨진 아이콘 대신 링크로 그리기 {#remote-image-placeholder}
 
 ## 확인 {#eyes}
@@ -71,4 +71,8 @@ owner: claude-code
 | 2026-10-07T11:05:21+09:00 | #plugin-mcp-preview | claude-code | →x | .oculpm/journal/20261007/Bugs/1103_bug_plugin-preview-mcp-launches.md | 신규·완료 — McpMerge.launches |
 | 2026-10-07T11:05:21+09:00 | #egress-subprocess | claude-code | →☐ | .oculpm/journal/20261007/Bugs/1027_bug_acp-adapter-locked-install.md | 신규 — 원장 공백 |
 | 2026-10-07T11:05:21+09:00 | #remote-image-placeholder | claude-code | →☐ | .oculpm/journal/20261007/Bugs/1048_bug_webview-csp-enabled.md | 신규 — CSP 후속 UX |
+| 2026-10-07T11:28:34+09:00 | #notion-token-url | claude-code | ~→~ | .oculpm/journal/20261007/Chores/1128_chore_landing-deploy-notion-relay.md | 랜딩 배포됨(exchange 405/400/no-store·state f=code 실측). 남은 것: 새 앱 릴리스 뒤 실제 Notion 왕복 |
+| 2026-10-07T11:47:38+09:00 | #csp | claude-code | ~→x | .oculpm/journal/20261007/Bugs/1048_bug_webview-csp-enabled.md | e2e 두 OS 위반 0 + 강제 탐침 통과(run 37560126223). macOS 육안은 #eyes-security-round |
+| 2026-10-07T11:47:45+09:00 | #egress-subprocess | claude-code | ☐→~ |  | 6d2af80b — CLAUDE.md·개인정보·랜딩 FAQ·위키 송출 목록을 여섯(어댑터 설치 포함)으로 맞춤. 남은 것: 원장 자리 스캔의 하위 프로세스 공백 |
+| 2026-10-07T12:43:43+09:00 | #notion-token-url | claude-code | ~→~ | .oculpm/journal/20261007/Chores/1243_chore_release-v3-8-0.md | v3.8.0 공개 — 설치본을 3.8.0 으로 올린 뒤 실제 Notion 연결 1회로 브라우저 기록에 token= 이 없는지 확인하면 닫는다 |
 <!-- oculpm:plan-log end -->
