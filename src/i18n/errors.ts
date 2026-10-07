@@ -57,6 +57,10 @@ const RULES: ReadonlyArray<readonly [RegExp, I18nKey]> = [
   [/^Rule files must be \.md$/, "err.ruleMustBeMd"],
   [/^File already exists: (?<path>.+)$/, "err.fileExists"],
   [/^Access denied: path is outside the (?<area>.+)$/, "err.accessDenied"],
+  // 경로 가드(`src-tauri/src/path_guard.rs`) — 링크를 풀었더니 밖이거나, 앱이 쓰는 파일이 링크다.
+  [/^Path escapes the project root$/, "err.pathEscapesRoot"],
+  [/^Access denied: path traversal detected$/, "err.pathTraversal"],
+  [/Refusing to write through a symbolic link: (?<path>.+)$/, "err.symlinkRefused"],
   [/^This discussion was already promoted to the planner\.$/, "err.alreadyPromoted"],
   [/^There are no legacy goals to import\.$/, "err.nothingToImport"],
   [/^No Notion token configured \(Settings → Data\)$/, "err.notionNoToken"],

@@ -13,8 +13,8 @@ use super::guards::canonical_within_root;
 use super::project_root;
 use super::read_write::{looks_binary, write_with_lock, CodeWriteOutcome, MAX_EDIT_BYTES};
 use crate::commands::fsutil::natural_cmp;
-use crate::commands::project::secure_join;
 use crate::db::Db;
+use crate::path_guard::secure_join;
 
 /// 전역 검색의 총 매치 상한. 이보다 많으면 `truncated` — 그 크기의 결과 목록은
 /// 훑는 물건이 아니라 좁히라는 신호다 (VS Code 도 같은 이유로 잘라 알린다).

@@ -13,9 +13,9 @@ use tauri::State;
 
 use super::guards::canonical_within_root;
 use super::project_root;
-use crate::commands::project::secure_join;
 use crate::db::Db;
 use crate::oculpm::history::HistoryState;
+use crate::path_guard::secure_join;
 
 /// 에디터로 여는 파일의 상한. 이보다 크면 `too_large` — 뷰어가 아니라 로그/
 /// 데이터 파일이라 외부 에디터로 보낸다 (base64 왕복·CM 하이라이트 비용 방어).

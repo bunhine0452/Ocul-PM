@@ -13,8 +13,8 @@ use tauri::State;
 use super::guards::canonical_within_root;
 use super::project_root;
 use crate::commands::fsutil::natural_cmp;
-use crate::commands::project::secure_join;
 use crate::db::Db;
+use crate::path_guard::secure_join;
 
 /// 트리 상한 — 이 이상은 `truncated` 로 알리고 자른다. gitignore 를 존중한
 /// 걸음에서 소스 파일이 2만을 넘는 저장소는 트리 UI 자체가 무의미해지는

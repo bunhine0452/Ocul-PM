@@ -42,7 +42,7 @@ pub async fn open_in_editor(
     let abs = if rel_path.is_empty() {
         root.clone()
     } else {
-        crate::commands::project::secure_join(&root, &rel_path)?
+        crate::path_guard::secure_join(&root, &rel_path)?
     };
     let abs_str = abs.to_string_lossy().to_string();
     let cmd_str = substitute_path(&editor_cmd, &abs_str, line);
@@ -173,7 +173,7 @@ fn resolve_project_file(project_root: &str, rel_path: &str) -> Result<PathBuf, S
     if !root.exists() {
         return Err(format!("project root does not exist: {}", root.display()));
     }
-    let abs = crate::commands::project::secure_join(&root, rel_path)?;
+    let abs = crate::path_guard::secure_join(&root, rel_path)?;
     if !abs.exists() {
         return Err(format!("file does not exist: {rel_path}"));
     }
