@@ -3704,7 +3704,7 @@ export const en: Record<keyof typeof ko, string> = {
   "err.code.invalid_session_id": "Malformed session id: {detail}",
   "err.code.session_not_found": "Session not found: {detail}",
   "err.code.forbidden_journal_path": "The entry names a forbidden path, so it wasn't written: {detail}",
-  "err.code.unsafe_project_root": "The filesystem root or your home folder itself can't be a project — pick a project folder inside it.",
+  "err.code.unsafe_project_root": "The filesystem root, your home folder and the folders above it (like /Users), and system folders (like /etc) can't be a project — pick a project folder inside them.",
   "err.code.oculpm_symlink":
     "This project wasn't opened because .oculpm/ contains a symbolic link. The app never follows links in that folder — remove the link and open it again: {detail}",
   "err.code.invalid_path": "Invalid path: {detail}",
