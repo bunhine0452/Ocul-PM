@@ -78,7 +78,13 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.8.0 — Safe to open someone else's repository
+## 🚀 v3.9.0 — A sealed project boundary and slimmer headers
+
+- **A symbolic link planted in a repository can no longer reach outside the project — anywhere in it.** v3.8.0 only closed this inside `.oculpm/` and for editor saves. Now the rule files the app syncs on every open (`AGENTS.md`, `.claude/CLAUDE.md`) and the `.gitignore` block are left alone when they are links (before, the link target's contents were copied into the project, or written into your global Claude instructions in your home folder), and the external editor, previews, the Changes screen, indexing and local history all resolve links to the end before touching a file.
+- **Two ways secret masking could switch off are closed** — the built-in patterns now apply even when a project's config can't be read, and the `CHANGELOG.md` that release-notes drafts read for style is masked before it is sent. A journal's recorded changes no longer read files outside the project, and opening local history no longer hangs on a malformed record.
+- **Slimmer screen headers** — height 52 → 44 px, title 17 → 14 px, content sheet corners 20 → 12 px. The editor's right-click menu and autocomplete no longer render larger than the code beside them.
+
+## v3.8.0 — Safe to open someone else's repository
 
 - **A repository's settings alone no longer run background AI work** — auto-reconcile, journal auto-drafts, schedules and watchers run only once this device allows them (turn the switch on in Settings, or allow it from the card on Today). Projects where you had them on need one click after updating.
 - **Secret masking is broader and can't be switched off by config** — GitHub, GitLab, Stripe, Google and npm tokens, JWTs, private keys, connection strings and `.env`-style secret lines are always masked, and masked **before** anything goes to a background model. A symbolic link planted in a repository can no longer redirect a save outside the project, and the filesystem root or home folder can't be added as a project.

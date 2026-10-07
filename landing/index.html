@@ -47,7 +47,7 @@
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "3.8.0",
+  "softwareVersion": "3.9.0",
   "description": "AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요. 매일 AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)로 개발하는 사람을 위한 로컬-우선 AI 프로젝트 매니저 — 에이전트가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 이어받습니다. 로컬 diff 검증, 스탠드업. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -304,7 +304,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.8.0</span>
+    <span class="nav-ver" data-version>v3.9.0</span>
     <div class="nav-links">
       <a href="#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -323,7 +323,7 @@
 <!-- ══════════ 히어로 ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v3.8.0 — 남의 저장소를 열어도 안전하게</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v3.9.0 — 프로젝트 경계를 끝까지, 화면 머리는 작게</a>
   <h1 class="reveal on">AI와 어제 어디까지 작업했는지,<br /><span class="g">오늘 다시 설명하지 마세요.</span></h1>
   <p class="hero-sub reveal on">
     Claude Code 가 작업을 끝내면 <b>Ocul-PM</b> 에 일지가 남고, 다음 대화는 그 일지와
@@ -332,7 +332,7 @@
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v3.8.0 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
+      <span class="lg">v3.9.0 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
     </a>
     <a class="dl-btn ghost" href="/keynote">키노트로 보기 →</a>
   </div>
@@ -567,6 +567,7 @@
     <p class="reveal">이 앱은 자기 자신으로 개발됩니다 — 아래 이력 전부가 Ocul-PM 의 작업 일지에서 나왔습니다.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v3.9.0 — 프로젝트 경계를 끝까지, 화면 머리는 작게</b> · v3.8.0 이 막은 링크는 <code>.oculpm/</code> 안과 편집기 저장뿐이었습니다. 두 번째 외부 리뷰가 그 빈자리를 짚었고, 다시 훑자 더 큰 자리가 나왔습니다 — <b>프로젝트를 열 때마다 맞춰 쓰는 규칙 파일과 <code>.gitignore</code></b> 가 링크면 그 대상의 내용이 프로젝트로 복사되거나(<code>AGENTS.md → ~/.zshrc</code>) 홈의 전역 Claude 지침에 써졌습니다(<code>.claude → ~/.claude</code>). 이제 링크인 자리는 건드리지 않고 이유를 보여 주며, 외부 편집기 · 미리보기 · 변경 화면 · 색인 · 로컬 히스토리도 링크를 끝까지 풀어 확인합니다. <b>마스킹이 꺼지던 길 둘</b>(깨진 설정 파일 · 릴리스 노트 초안의 CHANGELOG 표본)도 막았습니다. 그리고 <b>화면 머리가 작아졌습니다</b> — 높이 52 → 44px, 제목 17 → 14px, 판 모서리 20 → 12px. 편집기 우클릭 메뉴 · 자동완성이 편집면보다 크게 뜨던 것도 바로잡았습니다.</li>
     <li class="reveal"><b>v3.8.0 — 남의 저장소를 열어도 안전하게</b> · 외부 보안 리뷰가 짚은 것을 코드에서 하나씩 다시 확인하고 고쳤습니다. <b>저장소 설정만으로는 배경 AI 작업이 돌지 않습니다</b> — 자동 화해·일지 초안·스케줄·감시는 저장소에 실려 오는 설정이라, 남의 저장소를 추가하면 그 사람이 켜 둔 것이 내 키로 돌았습니다. 이제 이 기기에서 허락해야 돕니다(설정에서 직접 켜거나 오늘 화면의 카드에서). <b>비밀 마스킹이 넓어지고 설정으로 끌 수 없습니다</b> — 토큰·JWT·개인키·접속 문자열·<code>.env</code> 꼴 비밀 줄을 늘 가리고, 배경 모델에 보내기 전에도 가립니다. 저장소에 심어 둔 <b>심볼릭 링크</b>가 저장을 프로젝트 밖으로 돌리던 길도 막았습니다. <b>앱 화면에 CSP</b>를 켰습니다 — 앱에 든 파일만 실행하고 원격 이미지를 불러오지 않으며, 릴리스마다 Windows·Linux 실제 앱으로 모든 화면의 위반 0건과 정책이 걸려 있는지를 확인합니다. 그 밖에 어댑터는 버전·해시가 고정된 목록대로만 설치하고, 위험한 권한 모드는 한 번 더 묻고, 플러그인 미리보기가 MCP 서버가 실행할 명령을 보여 주고, Notion 연결이 브라우저 기록에 토큰을 남기지 않습니다.</li>
     <li class="reveal"><b>v3.7.0 — 세션 화면을 걷고, 끊긴 곳을 잇다</b> · <b>「세션」(에이전트 간 협업) 화면을 걷었습니다</b> — 화면 하나, 설정의 외부 HTTP 문, 에이전트용 도구 일곱 개, 모든 프로젝트의 AGENTS.md 에 실리던 규칙 한 절이 쓰임에 비해 컸습니다. 사이드바 「에이전트」 는 Claude Code · Codex 두 갈래, MCP 도구는 일곱 개로 줄었습니다. <b>연결만 안 돼 있던 기능 둘</b> — 편집기에서 이름을 바꾸거나 옮긴 파일의 중단점이 사라지던 것(옮기는 장치는 있었는데 아무도 부르지 않았습니다), 일지 기록 파일을 고쳐 놓고도 알림이 뜰 수 없던 것. <b>지운 프로젝트의 기록이 데이터베이스에 남던 것</b>도 이제 함께 지우고, 이미 남은 약 1만 행은 업데이트가 걷습니다. 로그에 경고가 두 줄씩 적히던 것, 설정에 새던 내부 작업명(「W4 dogfooding fix」)과 반쪽 영어까지.</li>
     <li class="reveal"><b>v3.6.0 — Windows · Linux 베타</b> · <b>Windows 10 2004+ · 11(x64)과 Linux x64(AppImage · deb)에서도 씁니다.</b> 만드는 사람에게 두 OS 기기가 없어서, 릴리스마다 CI 러너가 설치 → 실행 → 열다섯 화면 · 터미널 한글 · 일지 기록 · <b>앱 안 업데이트(한 판 낮은 설치본 → 새 판 → 재시작, 서명이 틀리면 거절)</b>까지 돌려 보고 통과한 OS 만 싣습니다 — macOS 업데이트는 이 과정과 떨어져 있습니다. Windows 는 무서명 베타(SmartScreen 「추가 정보 → 실행」)이고 VC++ 런타임이 없으면 설치 파일이 먼저 깝니다. 업데이트가 터미널 세션을 끊지 않는 것도 맥과 같습니다. 모든 OS 에서: <b>계획 문서 편집이 엉뚱한 줄을 건드리던 결함</b>(제목 속 <code>{#…}</code> 가 id 를 가로챔 · 앵커 단계에 항목을 더하면 단계가 하나 더 생김 · 단계 이름 「결정」 으로 결정 섹션이 지워질 수 있던 길)을 고쳤고, Claude Code · Codex 어댑터를 올렸습니다(0.81.0 · 1.13.0).</li>
@@ -721,12 +722,12 @@
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v3.8.0 — 지금 다운로드 · macOS · Windows · Linux (베타)</span>
+  <span class="eyebrow reveal">v3.9.0 — 지금 다운로드 · macOS · Windows · Linux (베타)</span>
   <h2 class="reveal">시작하는 데 필요한 것은,<br />없습니다.</h2>
   <p class="sub reveal">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v3.8.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
+      <span class="lg">v3.9.0 받기</span><span class="sub">무료 · 자동 업데이트</span>
     </a>
     <a class="dl-btn ghost" href="/plugin">플러그인으로 시작 →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>

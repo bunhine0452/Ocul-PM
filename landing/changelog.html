@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.8.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 115개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.9.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 116개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.8.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 115개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.9.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 116개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.8.0</span>
+    <span class="nav-ver" data-version>v3.9.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>115개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>116개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-9-0">v3.9.0</a>
       <a href="#v3-8-0">v3.8.0</a>
       <a href="#v3-7-0">v3.7.0</a>
       <a href="#v3-6-0">v3.6.0</a>
@@ -61,10 +62,19 @@
       <a href="#v3-2-0">v3.2.0</a>
       <a href="#v3-1-1">v3.1.1</a>
       <a href="#v3-1-0">v3.1.0</a>
-      <a href="#v3-0-1">v3.0.1</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-9-0"><a href="#v3-9-0">v3.9.0</a></h2>
+      <div class="cl-body">
+<p><b>저장소에 심은 링크가 프로젝트 밖에 닿지 못합니다 — 이번에는 프로젝트 전체에서.</b> v3.8.0 노트에 「심볼릭 링크가 쓰기를 프로젝트 밖으로 돌리지 못합니다」 라고 적었지만, 그때 막은 것은 <code>.oculpm/</code> 폴더 안과 편집기 저장뿐이었습니다. 두 번째 외부 리뷰가 그 빈자리를 짚었고, 코드를 다시 훑으니 리뷰가 말하지 않은 더 큰 자리가 나왔습니다.</p>
+<ul><li><b>프로젝트를 열 때마다 하는 쓰기가 링크를 따라갔습니다.</b> 앱은 프로젝트를 열 때마다 <code>AGENTS.md</code> · <code>.claude/CLAUDE.md</code> 같은 규칙 파일과 <code>.gitignore</code> 에 자기 블록을 맞춰 넣습니다. 그 자리가 링크면 — 예를 들어 <code>AGENTS.md</code> 가 <code>~/.zshrc</code> 를 가리키면 — 링크 대상의 내용이 프로젝트 파일로 복사됐고, <code>.claude</code> 폴더가 홈의 <code>~/.claude</code> 를 가리키면 블록이 모든 프로젝트에 실리는 <b>전역</b> Claude 지침에 써졌습니다. 이제 링크인 자리는 건드리지 않고, 설정 → ocul-pm → 에이전트의 「지금 동기화」 가 어느 파일을 왜 건너뛰었는지 보여 줍니다. MCP 서버 등록(<code>.mcp.json</code>), Claude 훅 설정, Cursor 규칙 미러, 규칙·스킬 화면의 프로젝트 범위도 같은 규칙을 따릅니다.</li><li><b>편집기 밖의 창구들.</b> 외부 편집기로 열기 · 심볼 펼쳐 보기 · 이미지 미리보기 · 변경 화면은 경로를 글자로만 확인해서, <code>docs → ~/.config</code> 같은 폴더 링크를 그대로 따라갔습니다(편집기 자신의 읽기·저장·만들기·지우기·이름 바꾸기는 이미 막혀 있었습니다). 이제 모든 창구가 링크를 끝까지 풀어 프로젝트 안인지 확인합니다. 자동 색인과 로컬 히스토리도 링크로 이어진 파일을 담지 않습니다.</li><li><b>일지의 변경 기록이 프로젝트 밖 파일을 읽던 것.</b> 일지에 적힌 파일 경로가 절대경로이거나 <code>..</code> 를 지나면, 그 파일을 새 파일처럼 통째로 읽어 변경 기록에 담았습니다.</li><li><b>로컬 히스토리를 열다 멈추던 것.</b> 히스토리 기록 파일에 한글이 섞인 값이 있으면 그 파일의 판 목록을 여는 순간 멈췄습니다.</li></ul>
+<p><b>비밀 마스킹이 꺼지던 길 둘.</b> 프로젝트의 설정 파일이 깨져 있으면 마스킹이 내장 패턴까지 통째로 꺼졌습니다 — 이제 설정을 읽지 못해도 내장 패턴은 늘 적용됩니다. 릴리스 노트 초안이 문체 표본으로 읽는 <code>CHANGELOG.md</code> 도 이제 모델에 보내기 전에 가립니다. 모델에 가는 자리를 세는 테스트가 중간 함수를 거치는 호출을 보지 못해 생긴 빈틈이어서, 그 테스트를 새로 짰습니다.</p>
+<p><b>화면 머리가 작아졌습니다.</b> 화면마다 맨 위에 서 있는 머리(제목과 경로 줄)가 화면을 위한 틀이라기보다 페이지 제목처럼 컸습니다. 높이를 52 → 44px, 제목을 17 → 14px 로 줄이고, 콘텐츠 판의 모서리도 덜 둥글게(20 → 12px) 했습니다. 사이드바의 프로젝트 이름, 설정의 섹션 제목, 시작 탭의 「이어서 일하기」 이름도 한 단씩 내렸습니다.</p>
+<ul><li>편집기의 <b>우클릭 메뉴 · 자동완성 · 이름 바꾸기 칸</b>이 편집면 글자(13px)보다 큰 14~17px 로 뜨던 것도 고쳤습니다. 글자 크기 체계를 바꾼 직후 옛 번호로 들어온 자리였습니다.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-8-0"><a href="#v3-8-0">v3.8.0</a></h2>
       <div class="cl-body">
