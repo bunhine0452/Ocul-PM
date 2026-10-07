@@ -110,6 +110,7 @@ impl From<OculpmError> for AppError {
             OculpmError::ActorClosed => "actor_closed",
             OculpmError::Sqlite(_) => "sqlite",
             OculpmError::ForbiddenJournalPath { .. } => "forbidden_journal_path",
+            OculpmError::SymlinkInOculpm(_) => "oculpm_symlink",
             OculpmError::NotImplemented => "not_implemented",
         };
         Self::new(code, e.to_string())

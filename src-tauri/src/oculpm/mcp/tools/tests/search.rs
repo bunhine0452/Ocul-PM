@@ -411,6 +411,33 @@ fn journal_read_returns_body_and_rejects_escapes() {
     .is_err());
 }
 
+/// 중간 폴더(`<날짜>/`)가 링크면 마지막 구간 검사만으로는 밖의 `.md` 가 읽힌다.
+/// 링크가 하나라도 있는 `.oculpm` 에서는 도구가 아예 움직이지 않는다.
+#[test]
+fn journal_read_refuses_a_linked_workday_folder() {
+    let dir = TempDir::new().unwrap();
+    let root = dir.path().join("proj");
+    std::fs::create_dir_all(&root).unwrap();
+    seed_corpus(&root);
+    let outside = dir.path().join("outside/Bugs");
+    std::fs::create_dir_all(&outside).unwrap();
+    std::fs::write(outside.join("0900_bug_x.md"), "# 밖의 글\n").unwrap();
+    if !crate::test_links::dir(
+        &dir.path().join("outside"),
+        &root.join(".oculpm/journal/20261008"),
+    ) {
+        return;
+    }
+
+    let err = call_tool(
+        &root,
+        "journal_read",
+        &serde_json::json!({ "path": "20261008/Bugs/0900_bug_x.md" }),
+    )
+    .unwrap_err();
+    assert!(err.contains("심볼릭 링크"), "{err}");
+}
+
 #[test]
 fn journal_search_masks_secrets_in_snippets() {
     let dir = TempDir::new().unwrap();

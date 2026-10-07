@@ -87,6 +87,12 @@ pub enum OculpmError {
     )]
     ForbiddenJournalPath { paths: Vec<String> },
 
+    /// `.oculpm/` 자신이나 그 안에 심볼릭 링크가 있다. 이 폴더는 저장소에 실려
+    /// 오므로 그 링크는 남이 만든 것이고, 따라가면 읽기·쓰기가 프로젝트 밖으로
+    /// 나간다 — 열기를 거부한다. 값은 `.oculpm` 기준 상대경로(자신이면 빈 문자열).
+    #[error("refusing to open the project: .oculpm/{0} is a symbolic link")]
+    SymlinkInOculpm(String),
+
     /// Placeholder used by stub modules. Real variants land in later phases.
     #[error("not yet implemented")]
     NotImplemented,

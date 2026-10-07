@@ -29,6 +29,15 @@ pub(crate) fn resolve_entry_path(
     if !abs.starts_with(journal_root) {
         return Err(OculpmError::InvalidPath(relative_path.to_string()));
     }
+    // 어휘 검사는 경로 **중간**의 링크를 못 본다 — `journal/<날짜>` 가 저장소에
+    // 심어 둔 링크면 위를 통과한 경로가 밖의 `.md` 를 읽고 덮어쓴다. 실재하는
+    // 경로는 끝까지 풀어 다시 본다. 아직 없는 경로는 호출부가 "없음" 으로 다룬다
+    // (여기 오는 호출은 전부 기존 항목의 읽기·고치기다).
+    if std::fs::symlink_metadata(&abs).is_ok()
+        && !crate::oculpm::paths::resolves_within(journal_root, &abs)
+    {
+        return Err(OculpmError::InvalidPath(relative_path.to_string()));
+    }
     Ok(abs)
 }
 

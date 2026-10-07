@@ -491,6 +491,42 @@ fn write_preserves_permissions() {
     assert_eq!(mode, 0o755, "실행 비트가 저장 후에도 유지돼야 한다");
 }
 
+/// 저장 임시 파일의 이름이 고정이던 때(`.{name}.oculpm-save-tmp`)는 저장소가 그
+/// 이름의 링크를 심어 두면 저장이 링크를 따라 루트 밖에 썼고, `rename` 이 원본
+/// 자리에 그 링크를 앉혔다. 이름이 매번 새로 지어지고 `create_new` 로 열리므로
+/// 심어 둔 링크는 그냥 남는다 — 밖의 파일도, 원본의 종류도 그대로다.
+#[test]
+fn save_ignores_a_planted_temp_name_link() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path().join("proj");
+    write(&root, "a.txt", b"before");
+    let outside = tmp.path().join("outside.txt");
+    fs::write(&outside, b"untouched").unwrap();
+    if !crate::test_links::file(&outside, &root.join(".a.txt.oculpm-save-tmp")) {
+        return;
+    }
+    let base = blake3::hash(b"before").to_hex().to_string();
+
+    let out = write_with_lock(&root.join("a.txt"), "after", &base).unwrap();
+    assert!(matches!(out, CodeWriteOutcome::Saved { .. }), "{out:?}");
+    assert_eq!(
+        fs::read(&outside).unwrap(),
+        b"untouched",
+        "루트 밖은 그대로"
+    );
+    let meta = fs::symlink_metadata(root.join("a.txt")).unwrap();
+    assert!(meta.file_type().is_file(), "원본은 여전히 일반 파일이다");
+    assert_eq!(fs::read_to_string(root.join("a.txt")).unwrap(), "after");
+
+    // 남는 것은 원본과 심어 둔 링크뿐 — 임시 파일이 흘리지 않는다.
+    let mut names: Vec<String> = fs::read_dir(&root)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(names, vec![".a.txt.oculpm-save-tmp", "a.txt"]);
+}
+
 // ─── 전역 검색 · 치환 ──────────────────────────────────────────────────
 
 fn re(query: &str, case: bool, word: bool, regex: bool) -> regex::Regex {

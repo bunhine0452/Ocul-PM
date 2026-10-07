@@ -580,6 +580,8 @@ mod tests;
 #[cfg(test)]
 mod tests_bulk_verify;
 #[cfg(test)]
+mod tests_link_guard;
+#[cfg(test)]
 mod tests_related;
 #[cfg(test)]
 mod tests_tags;

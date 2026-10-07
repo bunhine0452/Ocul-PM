@@ -265,6 +265,62 @@ fn claude_hooks_run_under_the_platform_hook_shell() {
     });
 }
 
+/// 저장소가 `.oculpm/hooks/claude-events.jsonl` 을 밖을 가리키는 링크로 실어 와도
+/// 훅은 그 링크를 따라 쓰지 않는다 — 인라인 싱크도, 스크립트 훅도. 실패는 무해
+/// (exit 0) 계약이라 조용히 비킨다.
+#[cfg(unix)]
+#[test]
+fn hooks_do_not_write_through_a_planted_link() {
+    let project = tracked_project();
+    let root = project.path();
+    let hooks_dir = root.join(".oculpm/hooks");
+    std::fs::create_dir_all(&hooks_dir).unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let target = outside.path().join("outside.txt");
+    std::fs::write(&target, b"keep\n").unwrap();
+    std::os::unix::fs::symlink(&target, hooks_dir.join("claude-events.jsonl")).unwrap();
+
+    let hooks = read_json(&claude_plugin().join("hooks/hooks.json"));
+    let run = |hook: &Value, stdin: &str| {
+        let command = hook["command"]
+            .as_str()
+            .expect("command")
+            .replace("${CLAUDE_PLUGIN_ROOT}", &claude_plugin().to_string_lossy());
+        let mut cmd = Command::new(hook_shell());
+        cmd.arg("-c")
+            .arg(&command)
+            .current_dir(root)
+            .env("CLAUDE_PROJECT_DIR", root)
+            .env("CLAUDE_PLUGIN_ROOT", claude_plugin())
+            .env("OCULPM_MCP_BIN", env!("CARGO_BIN_EXE_oculpm-mcp"));
+        spawn_with_stdin(cmd, stdin)
+    };
+    let at = |event: &str, i: usize| hooks["hooks"][event][0]["hooks"][i].clone();
+    for (event, i) in [
+        ("SessionStart", 0),
+        ("SessionStart", 1),
+        ("Stop", 0),
+        ("SessionEnd", 0),
+    ] {
+        let out = run(&at(event, i), &payload(event, "link-1", root));
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{event}#{i}: {}",
+            describe(&out)
+        );
+    }
+    assert_eq!(
+        std::fs::read(&target).unwrap(),
+        b"keep\n",
+        "링크 대상은 그대로"
+    );
+    assert!(
+        !hooks_dir.join("resume-delivered.jsonl").exists(),
+        "링크가 있는 프로젝트에서는 원장도 쓰지 않는다"
+    );
+}
+
 /// 인자를 Claude Code(Node·Bun — libuv)가 싸는 모양으로 싣는다. Windows 에서만 뜻이
 /// 있다: Rust 는 공백 없는 인자를 따옴표로 싸지 않고 `\"` 만 붙이는데, Git Bash(MSYS)
 /// 의 argv 파서는 **따옴표 밖** `\"` 를 이스케이프로 읽지 않아 `"…/plan-context.sh"`

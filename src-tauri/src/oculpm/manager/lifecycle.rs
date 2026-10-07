@@ -39,6 +39,22 @@ impl OculpmManager {
             }
         }
 
+        // 0. `.oculpm/` 의 링크 가드. 이 폴더는 저장소에 실려 오고 앱은 그 안에
+        //    링크를 만들지 않는다 — 있으면 남의 것이고, 따라가면 일지·기록·색인
+        //    쓰기가 프로젝트 밖으로 나간다. 아무것도 읽거나 쓰기 전에 거부한다.
+        //    전수 검사지만 항목 종류만 보므로 싸다 (`paths::first_symlink_under`).
+        if let Some(link) = crate::oculpm::paths::first_symlink_under(&root.join(".oculpm"), &[]) {
+            tracing::warn!(
+                target: "oculpm::manager",
+                project_id,
+                link = %link.display(),
+                "refusing to init — symbolic link inside .oculpm/"
+            );
+            return Err(OculpmError::SymlinkInOculpm(
+                link.to_string_lossy().replace('\\', "/"),
+            ));
+        }
+
         // First-time init for this session.
         let mut report = OculpmInitReport {
             created_dirs: Vec::new(),

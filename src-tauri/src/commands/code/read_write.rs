@@ -216,17 +216,41 @@ pub(crate) fn write_with_lock(
         .file_name()
         .and_then(|n| n.to_str())
         .ok_or_else(|| "Invalid file name".to_string())?;
-    let tmp = parent.join(format!(".{file_name}.oculpm-save-tmp"));
+    // 임시 이름은 저장마다 새로 짓고 `create_new`(O_CREAT|O_EXCL)로 연다. 이름이
+    // `.{name}.oculpm-save-tmp` 로 고정이던 때는 저장소가 그 이름의 심볼릭 링크를
+    // 미리 넣어 두면 `fs::write` 가 링크를 따라 루트 밖 파일에 썼고, 이어진
+    // `rename` 은 원본 자리에 그 링크를 앉혔다 — 경로 가드는 대상(`full`)만 보고
+    // 임시 파일은 보지 않았다. `create_new` 는 그 자리에 무엇이든(깨진 링크까지)
+    // 있으면 거부한다.
+    let tmp = parent.join(format!(
+        ".{file_name}.{}.oculpm-save-tmp",
+        uuid::Uuid::new_v4().simple()
+    ));
 
-    std::fs::write(&tmp, content.as_bytes()).map_err(|e| format!("Failed to save file: {e}"))?;
-    // rename 은 inode 를 갈아끼우므로 원본 권한(실행 비트 등)을 임시 파일에
-    // 먼저 옮겨 둬야 저장 후에도 유지된다.
-    if let Ok(meta) = std::fs::metadata(full) {
-        // 실패해도 저장은 계속하지만(내용 보존이 우선), 실행 비트가 조용히
-        // 사라지는 종류의 회귀라 진단 가능하게 남긴다.
-        if let Err(e) = std::fs::set_permissions(&tmp, meta.permissions()) {
-            tracing::warn!(path = %full.display(), error = %e, "failed to preserve permissions on save");
+    let staged = (|| -> std::io::Result<()> {
+        use std::io::Write;
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp)?;
+        f.write_all(content.as_bytes())?;
+        // rename 은 inode 를 갈아끼우므로 원본 권한(실행 비트 등)을 임시 파일에
+        // 먼저 옮겨 둬야 저장 후에도 유지된다. 경로가 아니라 **연 핸들에** 건다.
+        if let Ok(meta) = std::fs::metadata(full) {
+            // 실패해도 저장은 계속하지만(내용 보존이 우선), 실행 비트가 조용히
+            // 사라지는 종류의 회귀라 진단 가능하게 남긴다.
+            if let Err(e) = f.set_permissions(meta.permissions()) {
+                tracing::warn!(path = %full.display(), error = %e, "failed to preserve permissions on save");
+            }
         }
+        Ok(())
+    })();
+    if let Err(e) = staged {
+        // `create_new` 가 거부한 경우 그 자리는 우리 것이 아니다 — 지우지 않는다.
+        if e.kind() != std::io::ErrorKind::AlreadyExists {
+            let _ = std::fs::remove_file(&tmp);
+        }
+        return Err(format!("Failed to save file: {e}"));
     }
     if let Err(e) = std::fs::rename(&tmp, full) {
         let _ = std::fs::remove_file(&tmp);

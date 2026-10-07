@@ -3680,6 +3680,8 @@ export const ko = {
   "err.code.invalid_session_id": "세션 id 형식이 올바르지 않아요: {detail}",
   "err.code.session_not_found": "세션을 찾지 못했어요: {detail}",
   "err.code.forbidden_journal_path": "금지된 경로가 들어 있어 일지를 쓰지 않았어요: {detail}",
+  "err.code.oculpm_symlink":
+    ".oculpm/ 안에 심볼릭 링크가 있어 이 프로젝트를 열지 않았어요. 앱은 이 폴더의 링크를 따라가지 않아요 — 링크를 지운 뒤 다시 여세요: {detail}",
   "err.code.invalid_path": "잘못된 경로예요: {detail}",
   "err.code.invalid_config": "config.toml 이 올바르지 않아요: {detail}",
   "err.code.config_parse": "config.toml 을 읽지 못했어요: {detail}",
