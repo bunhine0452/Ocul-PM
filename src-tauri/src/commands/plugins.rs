@@ -169,6 +169,7 @@ pub async fn plugin_import(
         .map(|f| install::merge_mcp(&root, &f.bytes, &owned_keys, dry || blocked_by_confirmation))
         .unwrap_or(McpMerge {
             added: Vec::new(),
+            launches: Vec::new(),
             conflicts: Vec::new(),
             unreadable: false,
         });

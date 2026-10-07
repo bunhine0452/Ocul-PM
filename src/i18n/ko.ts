@@ -707,6 +707,7 @@ export const ko = {
   "plugins.summary": "놓을 것 {wrote} · 이미 같음 {unchanged} · 충돌 {conflicts}",
   "plugins.conflictNote":
     "충돌한 파일은 이미 그 자리에 있던 당신의 파일이에요 — 건드리지 않아요.",
+  "plugins.mcpLaunches": "이 번들은 아래 명령을 MCP 서버로 등록해요 — 이 프로젝트에서 Claude Code 가 실행해요. 출처를 믿을 수 있을 때만 설치하세요.",
   "plugins.mcpConflict": "이미 쓰이는 MCP 서버 키라 건너뛰어요 — {keys}",
   "plugins.mcpUnreadable": ".mcp.json 을 읽을 수 없어 병합하지 않았어요.",
   "plugins.skipped": "아카이브에서 받아들이지 않은 항목 {count}건",

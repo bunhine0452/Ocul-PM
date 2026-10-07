@@ -709,6 +709,7 @@ export const en: Record<keyof typeof ko, string> = {
   "plugins.summary": "{wrote} to write · {unchanged} already identical · {conflicts} conflicts",
   "plugins.conflictNote":
     "A conflicting file is one of yours that was already there — we leave it alone.",
+  "plugins.mcpLaunches": "This bundle registers the commands below as MCP servers — Claude Code runs them in this project. Install only if you trust the source.",
   "plugins.mcpConflict": "MCP server key already in use, skipped — {keys}",
   "plugins.mcpUnreadable": "Couldn't read .mcp.json, so nothing was merged.",
   "plugins.skipped": "{count} archive entries were not accepted",

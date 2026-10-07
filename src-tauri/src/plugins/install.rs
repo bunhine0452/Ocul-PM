@@ -298,11 +298,25 @@ pub fn install(
     (report, installed)
 }
 
+/// 병합하면 Claude Code 가 이 프로젝트에서 **실행하게 될** 것 하나.
+///
+/// 번들의 `hooks/`·`bin/` 은 놓지 않지만(`manifest::NOT_HONORED`) MCP 서버 정의는
+/// 곧 실행할 명령이다. 미리보기가 이름만 보여 주면 무엇을 들이는지 모른 채 설치를
+/// 누르게 된다 (2026-10-07 외부 보안 피드백). `env` 값은 싣지 않는다 — 키가 들어 있을 수 있다.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct McpLaunch {
+    pub key: String,
+    /// stdio 서버의 명령줄(`command args…`) 또는 원격 서버의 URL.
+    pub launch: String,
+}
+
 /// `.mcp.json` 병합 결과.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct McpMerge {
     /// 우리가 넣은 서버 키 (원장에 남아 제거 때 이 키만 뺀다).
     pub added: Vec<String>,
+    /// `added` 각각이 실행할 것 — 같은 순서.
+    pub launches: Vec<McpLaunch>,
     /// 이미 남이 쓰고 있어 건드리지 않은 키.
     pub conflicts: Vec<String>,
     /// 프로젝트 `.mcp.json` 을 읽을 수 없었다 — **덮어쓰지 않고 포기**했다.
@@ -324,6 +338,7 @@ pub fn merge_mcp(
 ) -> McpMerge {
     let mut out = McpMerge {
         added: Vec::new(),
+        launches: Vec::new(),
         conflicts: Vec::new(),
         unreadable: false,
     };
@@ -369,6 +384,10 @@ pub fn merge_mcp(
             continue;
         }
         out.added.push(key.clone());
+        out.launches.push(McpLaunch {
+            key: key.clone(),
+            launch: launch_line(value),
+        });
         if !dry {
             current
                 .as_object_mut()
@@ -387,6 +406,26 @@ pub fn merge_mcp(
         }
     }
     out
+}
+
+/// MCP 서버 정의 → 사람이 읽는 실행 한 줄. 모르는 꼴은 원문 JSON 을 그대로 보인다 —
+/// 요약하다 무엇을 숨기는 것보다 낫다.
+fn launch_line(def: &serde_json::Value) -> String {
+    if let Some(command) = def.get("command").and_then(|v| v.as_str()) {
+        let args: Vec<&str> = def
+            .get("args")
+            .and_then(|v| v.as_array())
+            .map(|a| a.iter().filter_map(|x| x.as_str()).collect())
+            .unwrap_or_default();
+        return std::iter::once(command)
+            .chain(args)
+            .collect::<Vec<_>>()
+            .join(" ");
+    }
+    if let Some(url) = def.get("url").and_then(|v| v.as_str()) {
+        return url.to_string();
+    }
+    def.to_string()
 }
 
 /// 원장이 지목한 서버 키를 `.mcp.json` 에서 뺀다. 남의 키는 건드리지 않는다.
@@ -637,6 +676,37 @@ mod tests {
             back["mcpServers"].get("theirs").is_some(),
             "removal never takes theirs"
         );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    /// 미리보기(dry)가 **실행될 명령**을 그대로 보여 준다 — 이름만으로는 무엇을
+    /// 들이는지 모른다. env 값은 싣지 않는다 (키가 들어 있을 수 있다).
+    #[test]
+    fn the_preview_names_what_each_mcp_server_will_run() {
+        let root = tmp("mcplaunch");
+        let incoming = br#"{"mcpServers":{
+            "kit":{"command":"npx","args":["-y","kit-mcp@1.2.3"],"env":{"KIT_TOKEN":"do-not-show"}},
+            "remote":{"type":"http","url":"https://mcp.example.com/v1"},
+            "odd":{"transport":"weird"}}}"#;
+        let merge = merge_mcp(&root, incoming, &[], true);
+        let lines: Vec<(&str, &str)> = merge
+            .launches
+            .iter()
+            .map(|l| (l.key.as_str(), l.launch.as_str()))
+            .collect();
+        assert_eq!(
+            lines,
+            vec![
+                ("kit", "npx -y kit-mcp@1.2.3"),
+                ("remote", "https://mcp.example.com/v1"),
+                ("odd", r#"{"transport":"weird"}"#),
+            ]
+        );
+        assert!(!merge
+            .launches
+            .iter()
+            .any(|l| l.launch.contains("do-not-show")));
+        assert!(!root.join(".mcp.json").exists(), "dry 는 쓰지 않는다");
         std::fs::remove_dir_all(&root).ok();
     }
 

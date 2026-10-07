@@ -5032,10 +5032,25 @@ export type MasterUpgrade = {
 	to_version: number,
 };
 
+/**
+ *  병합하면 Claude Code 가 이 프로젝트에서 **실행하게 될** 것 하나.
+ * 
+ *  번들의 `hooks/`·`bin/` 은 놓지 않지만(`manifest::NOT_HONORED`) MCP 서버 정의는
+ *  곧 실행할 명령이다. 미리보기가 이름만 보여 주면 무엇을 들이는지 모른 채 설치를
+ *  누르게 된다 (2026-10-07 외부 보안 피드백). `env` 값은 싣지 않는다 — 키가 들어 있을 수 있다.
+ */
+export type McpLaunch = {
+	key: string,
+	/**  stdio 서버의 명령줄(`command args…`) 또는 원격 서버의 URL. */
+	launch: string,
+};
+
 /**  `.mcp.json` 병합 결과. */
 export type McpMerge = {
 	/**  우리가 넣은 서버 키 (원장에 남아 제거 때 이 키만 뺀다). */
 	added: string[],
+	/**  `added` 각각이 실행할 것 — 같은 순서. */
+	launches: McpLaunch[],
 	/**  이미 남이 쓰고 있어 건드리지 않은 키. */
 	conflicts: string[],
 	/**  프로젝트 `.mcp.json` 을 읽을 수 없었다 — **덮어쓰지 않고 포기**했다. */
