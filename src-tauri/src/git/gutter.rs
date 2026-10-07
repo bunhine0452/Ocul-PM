@@ -37,7 +37,12 @@ pub enum GitLineChangeKind {
 /// HEAD 에 없는 파일(새 파일)은 전부 `added` 다. 저장소 밖이면 빈 목록 —
 /// 오류가 아니다(추적되지 않는 폴더를 열어도 편집기는 동작해야 한다).
 pub fn line_changes(root: &Path, file_path: &str, current: &str) -> Vec<GitLineChange> {
-    if repo_root_for(&root.join(file_path)).is_none() {
+    // 루트 밖 경로는 "저장소 밖" 과 같이 빈 목록 — 아래 `show_file_bytes` 도 거르지만
+    // 그쪽의 `None` 은 "새 파일(전부 추가)" 로 읽히므로 여기서 먼저 끊는다.
+    let Some(abs) = super::blob::in_root(root, file_path) else {
+        return Vec::new();
+    };
+    if repo_root_for(&abs).is_none() {
         return Vec::new();
     }
     // `show_file_bytes` 가 중첩 저장소 해석까지 안에서 한다 — 여기서 미리 풀면

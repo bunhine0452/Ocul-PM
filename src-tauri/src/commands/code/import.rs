@@ -222,15 +222,20 @@ pub(super) fn copy_one(src: &Path, dest: &Path, budget: &mut Budget) -> Result<P
         if !budget.take(meta.len()) {
             return Err("Import limit reached".to_string());
         }
-        std::fs::copy(src, &target).map_err(|e| format!("Could not copy: {e}"))?;
+        copy_file_new(src, &target)?;
     }
     Ok(target)
 }
 
 /// 겹치지 않는 이름을 고른다 — `a.txt` 가 있으면 `a-2.txt`, 그것도 있으면 `a-3.txt`.
 /// (`.gitignore` 처럼 점으로 시작하는 이름은 확장자가 아니라 이름 전체로 본다.)
+///
+/// "있다" 는 `symlink_metadata` 로 잰다. `exists()` 는 링크를 따라가서 **깨진 링크를
+/// 빈 자리로** 본다 — 저장소에 `a.txt -> ~/어딘가` 를 심어 두면 `a.txt` 를 끌어다
+/// 놓는 순간 그 링크를 따라 프로젝트 밖에 파일이 생겼다 (보안 피드백 3차, 2026-10-08).
 fn dedupe_target(dest: &Path, name: &str) -> PathBuf {
-    if !dest.join(name).exists() {
+    let taken = |p: &Path| p.symlink_metadata().is_ok();
+    if !taken(&dest.join(name)) {
         return dest.join(name);
     }
     let (stem, ext) = match name.rfind('.') {
@@ -240,17 +245,36 @@ fn dedupe_target(dest: &Path, name: &str) -> PathBuf {
     let mut n = 2;
     loop {
         let candidate = dest.join(format!("{stem}-{n}{ext}"));
-        if !candidate.exists() {
+        if !taken(&candidate) {
             return candidate;
         }
         n += 1;
     }
 }
 
+/// `target` 을 **새로 만들어** 복사한다 — 그 자리에 무엇이 있으면(깨진 링크 포함)
+/// 실패한다. `fs::copy` 는 대상이 링크면 따라가 쓰므로 이름을 고른 뒤 그 자리에
+/// 링크가 생기면 같은 탈출이 난다. `create_new` 는 `O_EXCL` 이라 링크를 따라가지
+/// 않는다. 권한(실행 비트)은 `fs::copy` 처럼 원본을 따른다.
+pub(super) fn copy_file_new(src: &Path, target: &Path) -> Result<(), String> {
+    let copy = || -> std::io::Result<()> {
+        let mut from = std::fs::File::open(src)?;
+        let mut to = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(target)?;
+        std::io::copy(&mut from, &mut to)?;
+        to.set_permissions(from.metadata()?.permissions())
+    };
+    copy().map_err(|e| format!("Could not copy: {e}"))
+}
+
 /// 폴더 재귀 복사. 예산이 다하면 **거기까지 복사된 채로** 멈춘다 — 되돌리면
 /// 오래 걸린 복사가 통째로 사라져 더 나쁘다 (UI 가 잘렸음을 알린다).
 fn copy_dir_recursive(src: &Path, dest: &Path, budget: &mut Budget) -> Result<(), String> {
-    std::fs::create_dir_all(dest).map_err(|e| format!("Could not create folder: {e}"))?;
+    // `create_dir` — 부모는 이미 있다(가져올 자리, 또는 방금 만든 폴더). 이름이 이미
+    // 차 있으면 링크든 무엇이든 실패한다 (`copy_file_new` 와 같은 이유).
+    std::fs::create_dir(dest).map_err(|e| format!("Could not create folder: {e}"))?;
     let entries = std::fs::read_dir(src).map_err(|e| format!("Could not read folder: {e}"))?;
     for entry in entries.flatten() {
         if budget.truncated {
@@ -272,7 +296,7 @@ fn copy_dir_recursive(src: &Path, dest: &Path, budget: &mut Budget) -> Result<()
             if !budget.take(len) {
                 return Ok(());
             }
-            std::fs::copy(&child, &target).map_err(|e| format!("Could not copy: {e}"))?;
+            copy_file_new(&child, &target)?;
         }
     }
     Ok(())

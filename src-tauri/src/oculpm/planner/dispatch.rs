@@ -177,13 +177,24 @@ fn linked_journal_refs(
 
 /// 일지 파일 발췌 — 제목 줄 + 본문 앞부분. ref 는 `.oculpm/…` 와 `journal/…`
 /// 두 표기가 모두 쓰인다 (plan-log 관례가 혼재).
+///
+/// 플랜 로그는 저장소에 실려 오는 파일이라 그 칸의 경로는 남이 쓴 것일 수 있다.
+/// 그래서 **일지 폴더 안의 `.md` 만** 읽는다 — `../../.ssh/config`·절대경로·밖을
+/// 가리키는 링크를 그대로 열면 프로젝트 밖 파일이 ▶실행 프롬프트에 실렸다
+/// (보안 피드백 3차, 2026-10-08).
 fn read_journal_excerpt(root: &Path, journal_ref: &str) -> Option<String> {
     let rel = journal_ref.trim().trim_start_matches("./");
-    let path = if rel.starts_with(".oculpm/") {
-        root.join(rel)
-    } else {
-        root.join(".oculpm").join(rel)
-    };
+    let rel = rel.strip_prefix(".oculpm/").unwrap_or(rel);
+    let in_journal = rel.strip_prefix("journal/").is_some_and(|rest| {
+        rest.ends_with(".md")
+            && Path::new(rest)
+                .components()
+                .all(|c| matches!(c, std::path::Component::Normal(_)))
+    });
+    if !in_journal {
+        return None;
+    }
+    let path = crate::path_guard::secure_join(root, &format!(".oculpm/{rel}")).ok()?;
     let raw = std::fs::read_to_string(path).ok()?;
     // 윈도우 체크아웃(CRLF)은 LF 로 편 뒤 자른다 — 아니면 닫는 울타리 뒤의 `\r` 이
     // 남아 발췌가 `\r\n` 으로 시작하고 프롬프트에 줄바꿈이 섞인다 (#fs-crlf-parsers).
@@ -298,6 +309,37 @@ mod tests {
             read_journal_excerpt(dir.path(), ".oculpm/journal/20260731/Bugs/0101_bug_crlf.md")
                 .unwrap();
         assert_eq!(got, want);
+    }
+
+    /// 플랜 로그의 일지 칸은 저장소가 쓴다 — 일지 폴더 밖은 발췌하지 않는다.
+    #[test]
+    fn journal_refs_outside_the_journal_folder_are_not_read() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("proj");
+        let jdir = root.join(".oculpm/journal/20260731/Bugs");
+        std::fs::create_dir_all(&jdir).unwrap();
+        std::fs::write(jdir.join("0100_bug_x.md"), "본문\n").unwrap();
+        std::fs::write(root.join("README.md"), "프로젝트 문서\n").unwrap();
+        let secret = tmp.path().join("secret.md");
+        std::fs::write(&secret, "밖의 비밀\n").unwrap();
+
+        assert!(read_journal_excerpt(&root, "journal/20260731/Bugs/0100_bug_x.md").is_some());
+        for bad in [
+            "../../secret.md".to_string(),
+            "journal/../../../secret.md".to_string(),
+            ".oculpm/journal/../../README.md".to_string(),
+            secret.to_string_lossy().into_owned(),
+            "journal/20260731/Bugs/0100_bug_x.txt".to_string(),
+        ] {
+            assert_eq!(read_journal_excerpt(&root, &bad), None, "{bad}");
+        }
+        if crate::test_links::file(&secret, &jdir.join("0200_bug_link.md")) {
+            assert_eq!(
+                read_journal_excerpt(&root, "journal/20260731/Bugs/0200_bug_link.md"),
+                None,
+                "밖을 가리키는 링크"
+            );
+        }
     }
 
     #[test]
