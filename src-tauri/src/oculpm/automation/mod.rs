@@ -8,6 +8,7 @@
 //! |---|---|
 //! | [`store`] | `.oculpm/automation/{schedules,watchers}/<id>.md` 정의의 파서·writer (Decision 1 — 온디스크가 SSOT) |
 //! | [`conditions`] | 스텝 실행 조건 — 닫힌 어휘, 안 맞으면 건너뛰고 사유를 남긴다 ({#automation-step-if}) |
+//! | [`consent`] | 기기 동의 — 저장소 설정이 켠 스위치는 이 기기가 허락해야 돈다 |
 //! | [`egress`] | 배경 모델 호출이 기기를 벗어나는가 · 어디로 ({#automation-egress-badge}) |
 //! | [`core_model`] | 배경 작업 전용 모델 슬롯 해석 + failover 체인 + 1회 시드 (Decision 2) |
 //! | [`runner`] | 모든 자동화를 집행하는 잡 러너 — 동시 1건·취소·redact·강등하되 소실 없음 |
@@ -39,6 +40,7 @@
 //! 집행 규약만 얹고 그 모듈을 부른다 (CAS·`plan_write_lock` 을 두 벌 들지 않게).
 
 pub mod conditions;
+pub mod consent;
 pub mod core_model;
 pub mod draft_claim;
 pub mod egress;

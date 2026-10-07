@@ -105,6 +105,8 @@ async fn tick_project(
         .get_config(project_id)
         .await
         .map_err(|e| e.to_string())?;
+    // 저장소 설정만으로는 발동하지 않는다 — 이 기기의 동의가 있어야 스위치가 산다.
+    let config = crate::oculpm::automation::consent::effective(&db, project_id, config).await;
     // 전역 스위치가 꺼져 있으면 정의를 읽지도 않는다 (D4 — 즉시 전면 정지).
     if !config.automation.schedules {
         return Ok(());

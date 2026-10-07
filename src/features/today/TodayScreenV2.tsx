@@ -20,6 +20,7 @@ import { type UiV2View, useOptionalWorkspace } from "@/contexts/WorkspaceContext
 import { agentLabel } from "./agentColor";
 import { requestOculpmActivate } from "@/lib/projectActions";
 import { FirstRunCard } from "./FirstRunCard";
+import { AutomationConsentNotice } from "@/features/settings/automation/AutomationConsentNotice";
 import { FirstRecordCard } from "./FirstRecordCard";
 import { ResumeCard } from "./ResumeCard";
 import { hooksApi } from "@/api/claudeSurface";
@@ -337,6 +338,9 @@ export function TodayScreenV2({
           />
 
           <WhatsNewCard />
+          {/* 저장소 config 가 켠 배경 자동화는 이 기기가 허락해야 돈다 — 멈춰 있는
+              동안 그 사실을 여기서 말한다 (보안 피드백 라운드 #automation-consent). */}
+          {oculpmReady ? <AutomationConsentNotice projectId={projectId} variant="card" /> : null}
           <CoreModelSeededCard />
           {initCard ? (
             <FirstRunCard info={initCard} onDismiss={dismissInitCard} onNavigate={onNavigate} />

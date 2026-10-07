@@ -276,6 +276,16 @@ pub fn plan(state: &ConfigState, desired: &ConfigDoc, project_root: Option<&Path
             ));
             continue;
         }
+        if schema::is_device_consent_key(key) {
+            items.push(blocked(
+                ConfigSurface::Settings,
+                key,
+                None,
+                Some(want.clone()),
+                "device_consent",
+            ));
+            continue;
+        }
         let have = state.settings.get(key);
         items.push(ConfigPlanItem {
             surface: ConfigSurface::Settings,
@@ -529,6 +539,24 @@ mod tests {
             "export must never carry a secret"
         );
         assert!(!text.contains("last_seen_version"));
+    }
+
+    /// 배경 자동화의 기기 동의는 문서로 옮기지도, 문서가 쓰지도 못한다 — 쓸 수
+    /// 있으면 남의 문서 한 장이 동의를 위조한다 (`automation::consent`).
+    #[test]
+    fn device_consent_is_neither_exported_nor_applied() {
+        let state = state_with(&[("theme", "nord"), ("automation_consent.7", "2026-10-07")]);
+        let doc = export(&state);
+        assert!(!doc.settings.contains_key("automation_consent.7"));
+
+        let forged = schema::parse_doc(
+            "oculpm_config: v1\nsettings:\n  automation_consent.9: \"2026-10-07\"\n",
+        )
+        .unwrap();
+        let p = plan(&state, &forged, None);
+        assert_eq!(p.blocked, 1);
+        assert!(!p.has_writes(), "동의 키는 쓰기 계획에 오르지 않는다");
+        assert_eq!(p.items[0].reason.as_deref(), Some("device_consent"));
     }
 
     #[test]

@@ -50,6 +50,8 @@ pub const LOCAL_ONLY_KEYS: &[&str] = &[
     "plugin_card_dismissed",
     // 프로젝트 id 로 키가 매겨진다 — id 는 머신마다 다르다.
     "project_instructions.",
+    // 배경 자동화의 기기 동의 — 이 기기에서 사람이 누른 것만 뜻이 있다.
+    crate::oculpm::automation::consent::KEY_PREFIX,
 ];
 
 /// 설정 키가 시크릿일 수 있는가.
@@ -71,6 +73,12 @@ pub fn is_local_only_key(key: &str) -> bool {
             key == *pattern
         }
     })
+}
+
+/// 배경 자동화의 기기 동의 키인가. 문서가 **쓰지도** 못한다 — 쓸 수 있으면
+/// 남의 문서 한 장이 동의를 위조한다 (`planner::plan` 이 막는다).
+pub fn is_device_consent_key(key: &str) -> bool {
+    key.starts_with(crate::oculpm::automation::consent::KEY_PREFIX)
 }
 
 /// 문서가 나를 수 있는 설정 키인가 (시크릿도 머신 상태도 아니다).

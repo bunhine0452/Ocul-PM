@@ -41,6 +41,7 @@ import {
 } from "./automationModel";
 import { EgressBadge } from "./EgressBadge";
 import { AutomationTroubleshooting } from "./AutomationTroubleshooting";
+import { AutomationConsentNotice } from "./AutomationConsentNotice";
 
 /**
  * `[automation]` 이 없는 옛 `config.toml` 은 이 값으로 파싱된다 (백엔드
@@ -227,6 +228,10 @@ export function AutomationTab() {
 
   return (
     <>
+      {/* 기기 동의 — 저장소 config 가 켠 스위치는 이 기기가 허락해야 돈다. 아래
+          스위치가 켜져 보여도 허락 전에는 멈춰 있다는 것을 맨 위에서 말한다. */}
+      <AutomationConsentNotice projectId={projectId} variant="inline" onGranted={() => void refresh()} />
+
       {/* Core Model 게이트 (D2) — 배경 모델이 없으면 자동화는 조용히 건너뛴다.
           그 사실을 화면 맨 위에서 말하고, 고치러 갈 문을 붙인다. */}
       {!coreModel && (

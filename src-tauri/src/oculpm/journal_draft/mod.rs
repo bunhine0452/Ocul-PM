@@ -416,6 +416,13 @@ pub async fn draft_for_session(
     else {
         return Ok(DraftOutcome::Skipped("malformed session id"));
     };
+    // 0.5 기기 동의 — `auto_journal_draft` 는 저장소 config 의 스위치라, 그것만으로
+    //     대화 원문을 배경 모델에 보내지 않는다 (`automation::consent`).
+    if !crate::oculpm::automation::consent::granted(&app.state::<Db>(), project_id).await {
+        return Ok(DraftOutcome::Skipped(
+            "background automation not approved on this device",
+        ));
+    }
     // 산출물 언어 (설정 `content_language`). 조회 실패는 Unset — 기존 동작 유지.
     let content_lang = {
         use tauri::Manager;
