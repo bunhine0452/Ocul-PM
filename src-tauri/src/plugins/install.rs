@@ -686,7 +686,7 @@ mod tests {
         let root = tmp("mcplaunch");
         let incoming = br#"{"mcpServers":{
             "kit":{"command":"npx","args":["-y","kit-mcp@1.2.3"],"env":{"KIT_TOKEN":"do-not-show"}},
-            "remote":{"type":"http","url":"https://mcp.example.com/v1"},
+            "remote":{"type":"http","url":"https://example.com/mcp/v1"},
             "odd":{"transport":"weird"}}}"#;
         let merge = merge_mcp(&root, incoming, &[], true);
         let lines: Vec<(&str, &str)> = merge
@@ -698,7 +698,7 @@ mod tests {
             lines,
             vec![
                 ("kit", "npx -y kit-mcp@1.2.3"),
-                ("remote", "https://mcp.example.com/v1"),
+                ("remote", "https://example.com/mcp/v1"),
                 ("odd", r#"{"transport":"weird"}"#),
             ]
         );
