@@ -240,6 +240,10 @@ pub async fn create_greenfield_project(
     init_oculpm: bool,
 ) -> Result<GreenfieldResult, String> {
     let target = PathBuf::from(&root_path);
+    // `create_project` 와 같은 관문 — 마법사가 이미 있는 폴더(`/Users` 등)를 고를 수 있다.
+    if crate::oculpm::paths::is_unsafe_project_root(&target) {
+        return Err("unsafe_project_root".to_string());
+    }
 
     // 1. Create directory
     if !target.exists() {

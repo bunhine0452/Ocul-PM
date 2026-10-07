@@ -385,7 +385,9 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
 
         onComplete(projectId);
       } else {
-        setCreateError(res.error);
+        setCreateError(
+          res.error === "unsafe_project_root" ? t("err.code.unsafe_project_root") : res.error,
+        );
       }
     } catch (e) {
       setCreateError(String(e));

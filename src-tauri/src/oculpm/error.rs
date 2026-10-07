@@ -93,8 +93,11 @@ pub enum OculpmError {
     #[error("refusing to open the project: .oculpm/{0} is a symbolic link")]
     SymlinkInOculpm(String),
 
-    /// 프로젝트 루트가 파일시스템 루트나 사용자 홈 자체다 (`paths::is_unsafe_project_root`).
-    #[error("refusing to use {0} as a project root (filesystem root or home folder)")]
+    /// 프로젝트 루트가 파일시스템 루트·사용자 홈과 그 위·최상위 시스템 폴더다
+    /// (`paths::is_unsafe_project_root`).
+    #[error(
+        "refusing to use {0} as a project root (filesystem root, home folder or a system folder)"
+    )]
     UnsafeProjectRoot(String),
 
     /// Placeholder used by stub modules. Real variants land in later phases.

@@ -27,15 +27,79 @@ pub fn is_home_dir_of(path: &Path, home: Option<&Path>) -> bool {
     home.is_some_and(|home| canon(path) == canon(home))
 }
 
-/// 프로젝트 루트로 받으면 안 되는 자리 — 파일시스템 루트와 사용자 홈 **자체**.
+/// 프로젝트 루트로 받으면 안 되는 자리 — 파일시스템 루트, 사용자 홈 자체와 그
+/// **위**(`/Users`·`/home`·`C:\Users`), OS 의 최상위 시스템 폴더(`/etc`·`/usr`·
+/// `C:\Windows` …, [`SYSTEM_DIRS`]).
 ///
-/// 여기를 프로젝트로 들이면 `.oculpm/`·`AGENTS.md`·`.gitignore` 블록이 홈에 깔리고
-/// (`core.excludesFile` 관행의 `~/.gitignore` 오염) 워처·색인이 디스크 전체를 걷는다.
-/// MCP `project_init` 이 먼저 막고 있었고, 앱의 `create_project`·`init_project` 가
-/// 같은 판정을 쓴다 (2026-10-07 외부 보안 피드백 — 웹뷰가 넘기는 경로를 그대로 받았다).
+/// 여기를 프로젝트로 들이면 `.oculpm/`·`AGENTS.md`·`.gitignore` 블록이 그 자리에
+/// 깔리고(`core.excludesFile` 관행의 `~/.gitignore` 오염) 워처·색인이 디스크 전체나
+/// 다른 사용자의 홈까지 걷는다. MCP `project_init` 이 먼저 막고 있었고, 앱의
+/// `create_project`·`init_project`·새 프로젝트 마법사가 같은 판정을 쓴다 (2026-10-07
+/// 외부 보안 피드백 — 루트·홈만 막았더니 3차 피드백이 `/Users`·`/etc` 를 짚었다).
+///
+/// 시스템 폴더는 **그 폴더 자체만** 막는다 — `/etc/nixos`·`/usr/local/src/앱`·
+/// `/opt/work` 처럼 그 아래에서 일하는 사람은 실제로 있다.
 pub fn is_unsafe_project_root(path: &Path) -> bool {
     let canon = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-    canon.parent().is_none() || is_home_dir(&canon)
+    let home = home_dir().map(|h| h.canonicalize().unwrap_or(h));
+    is_unsafe_project_root_of(&canon, home.as_deref())
+}
+
+/// 이름만으로 막는 최상위 시스템 폴더 (소문자, `/` 구분, Windows 는 드라이브 문자를
+/// 뗀 모양). macOS 의 `/etc`·`/var`·`/tmp` 는 `canonicalize` 가 `/private/…` 로 펴므로
+/// 그 모양도 둔다.
+pub const SYSTEM_DIRS: &[&str] = &[
+    "/applications",
+    "/bin",
+    "/boot",
+    "/cores",
+    "/dev",
+    "/etc",
+    "/lib",
+    "/lib32",
+    "/lib64",
+    "/library",
+    "/media",
+    "/mnt",
+    "/nix",
+    "/opt",
+    "/opt/homebrew",
+    "/private",
+    "/private/etc",
+    "/private/tmp",
+    "/private/var",
+    "/proc",
+    "/root",
+    "/run",
+    "/sbin",
+    "/snap",
+    "/srv",
+    "/sys",
+    "/system",
+    "/tmp",
+    "/usr",
+    "/usr/local",
+    "/var",
+    "/volumes",
+    "/program files",
+    "/program files (x86)",
+    "/programdata",
+    "/windows",
+];
+
+/// [`is_unsafe_project_root`] 의 판정 (순수 — 정규화한 경로와 홈을 받는다).
+pub fn is_unsafe_project_root_of(canon: &Path, home: Option<&Path>) -> bool {
+    if canon.parent().is_none() || home.is_some_and(|home| home.starts_with(canon)) {
+        return true;
+    }
+    let shape = canon.to_string_lossy().replace('\\', "/").to_lowercase();
+    let shape = shape.strip_prefix("//?/").unwrap_or(&shape);
+    // Windows 드라이브 문자(`c:`)를 뗀다 — 시스템 폴더는 어느 드라이브에 있든 같은 이름이다.
+    let shape = match shape.as_bytes() {
+        [d, b':', ..] if d.is_ascii_alphabetic() => &shape[2..],
+        _ => shape,
+    };
+    SYSTEM_DIRS.contains(&shape.trim_end_matches('/'))
 }
 
 /// Claude Code 설정 루트 `~/.claude` — 세 OS 공통 (Windows 도 `%USERPROFILE%\.claude`).
@@ -286,6 +350,50 @@ mod tests {
         assert!(!is_unsafe_project_root(&project));
         if let Some(home) = home_dir() {
             assert!(is_unsafe_project_root(&home));
+            // 홈의 위(`/Users`·`/home`·`C:\Users`)도 — 다른 사용자의 홈까지 걷는다.
+            if let Some(parent) = home.parent() {
+                assert!(is_unsafe_project_root(parent));
+            }
+        }
+    }
+
+    /// 상위 시스템 폴더는 그 자체만 막고, 그 아래의 작업 폴더는 받는다 (3차 피드백).
+    #[test]
+    fn top_level_system_folders_are_refused_but_not_what_is_inside_them() {
+        let home = Path::new("/Users/me");
+        for bad in [
+            "/Users",
+            "/etc",
+            "/private/etc",
+            "/usr",
+            "/usr/local",
+            "/System",
+            "/Library",
+            "/opt/homebrew",
+            "/var/",
+            "C:\\Windows",
+            "\\\\?\\C:\\Program Files",
+            "D:\\ProgramData",
+        ] {
+            assert!(
+                is_unsafe_project_root_of(Path::new(bad), Some(home)),
+                "{bad}"
+            );
+        }
+        for ok in [
+            "/Users/me/code/app",
+            "/etc/nixos",
+            "/usr/local/src/app",
+            "/opt/work",
+            "/workspace",
+            "/Users/me/Library/Mobile Documents/proj",
+            "D:\\projects",
+            "C:\\Users\\me\\app",
+        ] {
+            assert!(
+                !is_unsafe_project_root_of(Path::new(ok), Some(home)),
+                "{ok}"
+            );
         }
     }
 }

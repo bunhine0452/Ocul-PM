@@ -218,7 +218,7 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
     const name = pathBaseName(path) || "project";
     const created = await commands.createProject(name, path);
     if (created.status !== "ok") {
-      // 루트·홈 거부는 코드로 온다 (commands/project.rs) — 사람 말로 옮긴다.
+      // 루트·홈·시스템 폴더 거부는 코드로 온다 (commands/project.rs) — 사람 말로 옮긴다.
       setError(
         created.error === "unsafe_project_root" ? t("err.code.unsafe_project_root") : created.error,
       );
