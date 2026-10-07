@@ -72,6 +72,32 @@ export const oculpmLog = {
   },
 };
 
+/**
+ * CSP 위반 — 앱 시작부터 모은다 (보안 피드백 라운드 `#csp`).
+ *
+ * 웹뷰 CSP 를 켜면 막힌 것은 콘솔에만 나고 화면은 조용히 비어 있다. 그래서 위반
+ * 한 줄마다 `oculpm.log` 에 `csp` 타깃으로 남기고, 끝단 테스트(e2e)가 화면마다
+ * 떼어 볼 수 있게 `window.__oculpmCsp` 에도 쌓는다. 콘솔 브리지보다 **먼저**
+ * (`main.tsx` 머리) 건다 — 첫 화면의 위반을 놓치지 않게.
+ */
+let cspWatching = false;
+export function watchCspViolations() {
+  if (cspWatching || typeof window === "undefined") return;
+  cspWatching = true;
+  const seen: string[] = [];
+  (window as unknown as { __oculpmCsp: string[] }).__oculpmCsp = seen;
+  window.addEventListener("securitypolicyviolation", (e) => {
+    try {
+      const where = e.sourceFile ? ` @ ${e.sourceFile}:${e.lineNumber}` : "";
+      const line = `${e.effectiveDirective} blocked ${e.blockedURI || "inline"}${where}`;
+      if (seen.length < 200) seen.push(line);
+      send("warn", "csp", line);
+    } catch {
+      // swallow — 로깅이 앱을 넘어뜨리면 안 된다
+    }
+  });
+}
+
 let installed = false;
 
 /**

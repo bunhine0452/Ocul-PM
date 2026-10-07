@@ -119,7 +119,9 @@ export async function runScenario(ctx) {
     rec.notes.push(".oculpm/ 생성 확인");
     await sleep(1500);
     const state = await screenState(wd, crashTitles);
-    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "project-opened", caption: "프로젝트를 연 직후 (오늘 현황)", state, ok: state.crashes.length === 0 });
+    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "project-opened", caption: "프로젝트를 연 직후 (오늘 현황)", state, ok: state.crashes.length === 0 && state.csp.length === 0 });
+    // 웹뷰 CSP 위반은 화면이 조용히 비는 것으로만 보인다 — 여기서 이름을 붙여 떨어뜨린다.
+    if (state.csp.length) throw new Error(`CSP 위반: ${state.csp.join(" | ")}`);
   }, { critical: true });
 
   await report.step("프로젝트 이름 = 폴더 이름 (e2e-fixture)", async (rec) => {
@@ -149,11 +151,12 @@ export async function runScenario(ctx) {
         }
         await sleep(1200); // 진입 애니메이션·지연 데이터가 가라앉게
         const state = await screenState(wd, crashTitles);
-        const ok = !readyErr && state.crashes.length === 0;
+        const ok = !readyErr && state.crashes.length === 0 && state.csp.length === 0;
         await report.shot(wd, { phase, key, screen: `${n}-${dest.id}`, caption: `${t(dest.labelKey)} (${dest.id})`, state, ok });
         if (state.toasts.length) rec.notes.push(`토스트: ${state.toasts.join(" | ")}`);
         if (state.errors.length) rec.notes.push(`페이지 오류: ${state.errors.join(" | ")}`);
         if (state.crashes.length) throw new Error(`에러 경계: ${state.crashes.join(" | ")}`);
+        if (state.csp.length) throw new Error(`CSP 위반: ${state.csp.join(" | ")}`);
         if (readyErr) throw new Error(readyErr);
       });
     }
@@ -288,7 +291,8 @@ export async function runScenario(ctx) {
       ok = true;
     } finally {
       const state = await screenState(wd, crashTitles);
-      await report.shot(wd, { phase: "04 일지", key: "journal", screen: "journal-mcp", caption: "사이드카가 쓴 일지가 일지 화면에", state, ok });
+      if (state.csp.length) rec.notes.push(`CSP 위반: ${state.csp.join(" | ")}`);
+      await report.shot(wd, { phase: "04 일지", key: "journal", screen: "journal-mcp", caption: "사이드카가 쓴 일지가 일지 화면에", state, ok: ok && state.csp.length === 0 });
     }
   });
 
@@ -307,4 +311,12 @@ export async function runScenario(ctx) {
   await tour("06 화면 · English 1440", "en-1440", dict.en);
   await sized("영어 좁은 폭(최소 폭)", 960, 700);
   await tour("07 화면 · English 960", "en-960", dict.en);
+
+  // 화면 순회 밖(터미널·일지 단계)에서 난 위반까지 — 남은 것을 마지막에 턴다.
+  await report.step("웹뷰 CSP 위반 없음 (남은 것)", async (rec) => {
+    const left = await wd.execute("return window.__oculpmCsp ? window.__oculpmCsp.splice(0) : null;");
+    if (left === null) throw new Error("CSP 감시가 설치되지 않았다 (window.__oculpmCsp 없음)");
+    rec.notes.push(`남은 위반 ${left.length}건`);
+    if (left.length) throw new Error(`CSP 위반: ${left.join(" | ")}`);
+  });
 }

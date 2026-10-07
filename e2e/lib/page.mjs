@@ -137,11 +137,14 @@ export function screenState(wd, crashTitles) {
      const toasts = [...document.querySelectorAll('.z-top [role="alert"] > *, .z-top [role="status"] > *')]
        .map((el) => (el.innerText || '').replace(/\\s+/g, ' ').trim()).filter(Boolean);
      const errors = window.__e2e ? window.__e2e.errors.splice(0) : [];
+     // 앱이 시작부터 모은 CSP 위반 (src/lib/oculpmLog.ts watchCspViolations).
+     const csp = window.__oculpmCsp ? window.__oculpmCsp.splice(0) : [];
      return {
        skeleton,
        crashes,
        toasts,
        errors,
+       csp,
        textLen: main ? (main.innerText || '').trim().length : -1,
        inner: [window.innerWidth, window.innerHeight],
      };`,

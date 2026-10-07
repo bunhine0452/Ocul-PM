@@ -9,6 +9,11 @@ import { installNativeDialogGuard } from "./lib/nativeDialogs";
 import { getPlatform, isMac } from "./lib/platform";
 import { bootI18n } from "./i18n";
 import { commands } from "./lib/bindings";
+import { watchCspViolations } from "./lib/oculpmLog";
+
+// 웹뷰 CSP 위반을 맨 먼저 듣는다 — 막힌 것은 화면이 조용히 비는 것으로만 보인다
+// (oculpmLog.ts `watchCspViolations`). 첫 화면의 위반까지 잡으려면 다른 무엇보다 앞이다.
+if ("__TAURI_INTERNALS__" in window) watchCspViolations();
 
 // 바깥 링크 → 기본 브라우저. 세 갈래 창 어디서 눌러도 같아야 하므로 갈림길
 // **위**에서 한 번 건다 (externalLinks.ts 참고).
