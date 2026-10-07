@@ -307,6 +307,18 @@ pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String>
             )
         });
     }
+    // `.oculpm` 이 실디렉터리여도 그 **안**의 링크(`journal → 밖`)가 같은 탈출을
+    // 연다. 앱은 이 폴더에 링크를 만들지 않으므로 하나라도 있으면 저장소에 실려 온
+    // 것이다. `index/` 는 이 서버가 만지지 않고 가장 크므로 안을 걷지 않는다.
+    if let Some(link) = crate::oculpm::paths::first_symlink_under(&root.join(".oculpm"), &["index"])
+    {
+        return Err(format!(
+            "{} 의 .oculpm/{} 이 심볼릭 링크(symlink)입니다 — 안전을 위해 링크가 있는 \
+             .oculpm 에는 기록하지 않습니다. 링크를 지운 뒤 다시 시도하세요.",
+            root.display(),
+            link.display()
+        ));
+    }
     match name {
         "journal_write" => journal_write(root, args),
         "journal_search" => journal_search(root, args),

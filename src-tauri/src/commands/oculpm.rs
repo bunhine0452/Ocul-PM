@@ -68,7 +68,7 @@ pub async fn oculpm_init(
                 error = %e,
                 "[FLOW] step 1 FAILED — init_project errored"
             );
-            e.to_string()
+            AppError::from(e) // 문자열로 접으면 코드(`oculpm_symlink` 등)를 잃는다
         })?;
     tracing::info!(
         target: "oculpm::commands",

@@ -19,6 +19,13 @@ ROOT="${CLAUDE_PROJECT_DIR:-}"
 [ -n "$ROOT" ] || ROOT=$(printf '%s' "$payload" | grep -o '"cwd"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed -e 's/.*"\([^"]*\)"$/\1/' -e 's/\\\\/\\/g')
 [ -n "$ROOT" ] || ROOT="."
 [ -d "$ROOT/.oculpm" ] || exit 0
+# 링크를 따라 쓰지 않는다 — .oculpm 은 저장소에 실려 오고, 그 안의 링크는 아래의
+# 쓰기를 프로젝트 밖으로 돌린다 (앱도 같은 이유로 그런 프로젝트를 열지 않는다).
+for _link in .oculpm .oculpm/hooks .oculpm/hooks/claude-events.jsonl \
+  .oculpm/hooks/resume-delivered.jsonl .oculpm/hooks/journal-missing.jsonl \
+  .oculpm/hooks/.statusline-nudged; do
+  if [ -L "$ROOT/$_link" ]; then exit 0; fi
+done
 sid=$(printf '%s' "$payload" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9._-]*\)".*/\1/p' | head -1)
 [ -n "$sid" ] || exit 0
 mkdir -p "$ROOT/.oculpm/hooks" 2>/dev/null || exit 0

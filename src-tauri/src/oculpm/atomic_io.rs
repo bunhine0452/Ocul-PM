@@ -151,64 +151,10 @@ fn stage_tmp(path: &Path, contents: &[u8]) -> Result<PathBuf, OculpmError> {
     Ok(tmp)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// append_ndjson
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Append one ndjson record to `path`. `line` must:
-/// - be ≤ `NDJSON_LINE_CAP` bytes (caller fits within this cap, e.g. by
-///   truncating long paths);
-/// - contain no embedded newline character.
-///
-/// Each call writes `line + "\n"` and fsyncs. A truncated tail on crash will
-/// always be at a newline boundary, so the file remains valid ndjson minus
-/// (at most) the final line.
-pub fn append_ndjson(path: &Path, line: &str) -> Result<(), OculpmError> {
-    if line.len() > NDJSON_LINE_CAP {
-        return Err(OculpmError::NdjsonLineTooLarge(line.len(), NDJSON_LINE_CAP));
-    }
-    if line.contains('\n') {
-        return Err(OculpmError::NdjsonLineHasNewline);
-    }
-
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent).map_err(|source| OculpmError::Io {
-                path: parent.to_path_buf(),
-                source,
-            })?;
-        }
-    }
-
-    // Build the full payload (`line + \n`) before writing so the kernel sees
-    // a single `write(2)` syscall. Under O_APPEND, writes ≤ PIPE_BUF (4 KB on
-    // Linux/macOS) are atomic with respect to other appenders, which is what
-    // makes concurrent producers safe. Splitting into two write_all calls
-    // (line, then '\n') breaks that guarantee — discovered in W2-PR1's
-    // `concurrent_append_does_not_lose_lines` test.
-    let mut buf = Vec::with_capacity(line.len() + 1);
-    buf.extend_from_slice(line.as_bytes());
-    buf.push(b'\n');
-
-    use std::io::Write;
-    let mut f = std::fs::OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(path)
-        .map_err(|source| OculpmError::Io {
-            path: path.to_path_buf(),
-            source,
-        })?;
-    f.write_all(&buf).map_err(|source| OculpmError::Io {
-        path: path.to_path_buf(),
-        source,
-    })?;
-    f.sync_data().map_err(|source| OculpmError::Io {
-        path: path.to_path_buf(),
-        source,
-    })?;
-    Ok(())
-}
+// append_ndjson 은 옆 파일에 산다 (`atomic_io_ndjson.rs` — 파일 크기 래칫).
+#[path = "atomic_io_ndjson.rs"]
+mod ndjson;
+pub use ndjson::append_ndjson;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // managed_block
@@ -643,41 +589,6 @@ mod tests {
         let path = dir.path().join("nested/deeper/n.txt");
         write_atomic_new(&path, b"ok").unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"ok");
-    }
-
-    // ─── append_ndjson ──────────────────────────────────────────────────────
-
-    /// Case 4 — append several lines, verify ordering preserved.
-    #[test]
-    fn append_ndjson_appends_lines() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("events.ndjson");
-        append_ndjson(&path, r#"{"i":1}"#).unwrap();
-        append_ndjson(&path, r#"{"i":2}"#).unwrap();
-        append_ndjson(&path, r#"{"i":3}"#).unwrap();
-        let text = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(text, "{\"i\":1}\n{\"i\":2}\n{\"i\":3}\n");
-    }
-
-    /// Case 5 — reject lines larger than the 4 KB cap.
-    #[test]
-    fn append_ndjson_rejects_oversized() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("events.ndjson");
-        let huge = "x".repeat(NDJSON_LINE_CAP + 1);
-        let err = append_ndjson(&path, &huge).unwrap_err();
-        assert!(matches!(err, OculpmError::NdjsonLineTooLarge(_, _)));
-        // File must not be created.
-        assert!(!path.exists());
-    }
-
-    /// Case 6 — reject embedded newline.
-    #[test]
-    fn append_ndjson_rejects_newline() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("events.ndjson");
-        let err = append_ndjson(&path, "a\nb").unwrap_err();
-        assert!(matches!(err, OculpmError::NdjsonLineHasNewline));
     }
 
     // ─── managed_block ──────────────────────────────────────────────────────

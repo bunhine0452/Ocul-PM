@@ -353,12 +353,15 @@ pub(crate) fn journal_read(root: &Path, args: &Value) -> Result<Value, String> {
     if is_rollup_rel(&rel) {
         return rollup_read(root, &rel);
     }
-    let abs = root.join(".oculpm").join("journal").join(&rel);
+    let journal_root = root.join(".oculpm").join("journal");
+    let abs = journal_root.join(&rel);
     // 실파일만 인정한다 — `.oculpm` 가드와 같은 이유로 심볼릭 링크는 거부
     // (일지 트리 안의 링크가 프로젝트 밖 파일을 읽어 오는 경로를 막는다).
+    // 마지막 구간만 보면 `<날짜>/` 같은 중간 폴더 링크가 빠지므로 끝까지 풀어 본다.
     let is_real_file = std::fs::symlink_metadata(&abs)
         .map(|m| m.file_type().is_file())
-        .unwrap_or(false);
+        .unwrap_or(false)
+        && crate::oculpm::paths::resolves_within(&journal_root, &abs);
     if !is_real_file {
         return Err(format!("일지를 찾을 수 없습니다: {rel}"));
     }

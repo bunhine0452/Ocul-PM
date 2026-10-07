@@ -3682,6 +3682,8 @@ export const en: Record<keyof typeof ko, string> = {
   "err.code.invalid_session_id": "Malformed session id: {detail}",
   "err.code.session_not_found": "Session not found: {detail}",
   "err.code.forbidden_journal_path": "The entry names a forbidden path, so it wasn't written: {detail}",
+  "err.code.oculpm_symlink":
+    "This project wasn't opened because .oculpm/ contains a symbolic link. The app never follows links in that folder — remove the link and open it again: {detail}",
   "err.code.invalid_path": "Invalid path: {detail}",
   "err.code.invalid_config": "config.toml is invalid: {detail}",
   "err.code.config_parse": "Couldn't read config.toml: {detail}",

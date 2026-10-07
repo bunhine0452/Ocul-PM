@@ -348,6 +348,65 @@ pub fn rollup_rel(week: &str) -> String {
     format!(".oculpm/rollups/{week}.md")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 링크 가드 — `.oculpm/` 는 저장소에 실려 온다
+//
+// 남이 만든 저장소를 열면 `.oculpm/` 안의 것도 그 사람이 만든 것이다. 그 안의
+// 심볼릭 링크 하나가 우리의 읽기·쓰기를 프로젝트 밖으로 돌린다 — 어휘 검사
+// (`..` 거부)는 경로 **중간**의 링크를 보지 못한다. 앱이 이 폴더에 링크를 만드는
+// 일은 없으므로 링크는 전부 남의 것이다.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 실재하는 `path` 가 링크를 끝까지 풀어도 `base` 안에 있는가. 마지막 구간이
+/// 링크여도 거짓이다(그 링크가 안을 가리켜도 — 일지 한 건을 링크로 둘 이유가
+/// 없다). 둘 중 하나라도 풀지 못하면 거짓이다.
+pub fn resolves_within(base: &Path, path: &Path) -> bool {
+    if std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink()) {
+        return false;
+    }
+    match (std::fs::canonicalize(base), std::fs::canonicalize(path)) {
+        (Ok(base), Ok(real)) => real.starts_with(base),
+        _ => false,
+    }
+}
+
+/// `dir` 자신이나 그 아래 어딘가가 심볼릭 링크면 그 첫 경로(`dir` 기준 상대)를
+/// 돌려준다. 링크를 따라 내려가지 않는다 — 판정은 디렉터리 항목의 종류로만 하므로
+/// 파일마다 stat 을 더 부르지 않는다 (이 저장소의 1만 6천 항목에 40ms 남짓).
+/// `dir` 이 없으면 `None` 이다.
+///
+/// `skip_contents_of` 에 적힌 바로 아래 폴더는 **그 폴더 자신만** 보고 안으로
+/// 내려가지 않는다 — 그 안을 만지지 않는 호출자(MCP 서버와 `index/`)가 큰
+/// 트리를 매번 걷지 않게.
+pub fn first_symlink_under(dir: &Path, skip_contents_of: &[&str]) -> Option<PathBuf> {
+    if std::fs::symlink_metadata(dir).is_ok_and(|m| m.file_type().is_symlink()) {
+        return Some(PathBuf::new());
+    }
+    let mut walk = walkdir::WalkDir::new(dir).follow_links(false).into_iter();
+    while let Some(entry) = walk.next() {
+        let Ok(entry) = entry else { continue };
+        if entry.path_is_symlink() {
+            return Some(
+                entry
+                    .path()
+                    .strip_prefix(dir)
+                    .map(Path::to_path_buf)
+                    .unwrap_or_else(|_| entry.path().to_path_buf()),
+            );
+        }
+        if entry.depth() == 1
+            && entry.file_type().is_dir()
+            && entry
+                .file_name()
+                .to_str()
+                .is_some_and(|n| skip_contents_of.contains(&n))
+        {
+            walk.skip_current_dir();
+        }
+    }
+    None
+}
+
 // 다른 도구(Claude Desktop · Claude Code · Codex)의 설정 위치와 사이드카 안정
 // 자리 — 크로스플랫폼 {#integ-paths}. 규칙표와 세 OS 테스트가 길어 옆 파일에
 // 두고, 호출자는 여기(`paths::…`)로 부른다.
@@ -612,5 +671,84 @@ mod tests {
         assert!(!is_macos_sandbox_temp("src/sb-utils.ts"));
         assert!(!is_macos_sandbox_temp("docs/a.sb-notes.md")); // no `-<suffix>`
         assert!(!is_macos_sandbox_temp("docs/a.sb-zzzz-Ab12")); // non-hex body
+    }
+
+    /// 중간 폴더가 링크면 어휘 검사(`..` 거부)를 통과해도 밖으로 나간다 —
+    /// `resolves_within` 은 그 경로를 끝까지 풀어 본다.
+    #[test]
+    fn resolves_within_sees_a_linked_middle_folder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let base = tmp.path().join("journal");
+        std::fs::create_dir_all(base.join("20261007/Bugs")).unwrap();
+        std::fs::write(base.join("20261007/Bugs/a.md"), "ok").unwrap();
+        let outside = tmp.path().join("elsewhere");
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(outside.join("b.md"), "outside").unwrap();
+
+        assert!(resolves_within(&base, &base.join("20261007/Bugs/a.md")));
+        if !crate::test_links::dir(&outside, &base.join("20261008")) {
+            return;
+        }
+        assert!(!resolves_within(&base, &base.join("20261008/b.md")));
+        // 마지막 구간이 링크인 것도 — 안을 가리켜도 — 거부한다.
+        if !crate::test_links::file(&base.join("20261007/Bugs/a.md"), &base.join("x.md")) {
+            return;
+        }
+        assert!(!resolves_within(&base, &base.join("x.md")));
+    }
+
+    #[test]
+    fn first_symlink_under_finds_links_at_any_depth() {
+        let tmp = tempfile::tempdir().unwrap();
+        let oculpm = tmp.path().join(".oculpm");
+        std::fs::create_dir_all(oculpm.join("journal/20261007")).unwrap();
+        std::fs::write(oculpm.join("config.toml"), "").unwrap();
+        assert_eq!(first_symlink_under(&oculpm, &[]), None);
+        assert_eq!(first_symlink_under(&tmp.path().join("missing"), &[]), None);
+
+        let outside = tmp.path().join("outside");
+        std::fs::create_dir_all(&outside).unwrap();
+        if !crate::test_links::dir(&outside, &oculpm.join("journal/20261007/Bugs")) {
+            return;
+        }
+        assert_eq!(
+            first_symlink_under(&oculpm, &[]),
+            Some(PathBuf::from("journal/20261007/Bugs"))
+        );
+
+        // `.oculpm` 자신이 링크인 경우 — 빈 상대경로로 알린다.
+        let linked = tmp.path().join("linked");
+        if !crate::test_links::dir(&oculpm, &linked) {
+            return;
+        }
+        assert_eq!(first_symlink_under(&linked, &[]), Some(PathBuf::new()));
+    }
+
+    /// 건너뛰는 폴더는 **안만** 건너뛴다 — 그 폴더 자신이 링크면 여전히 걸린다.
+    #[test]
+    fn first_symlink_under_skips_only_the_contents() {
+        let tmp = tempfile::tempdir().unwrap();
+        let oculpm = tmp.path().join(".oculpm");
+        std::fs::create_dir_all(oculpm.join("index/history")).unwrap();
+        let outside = tmp.path().join("outside");
+        std::fs::create_dir_all(&outside).unwrap();
+        if !crate::test_links::dir(&outside, &oculpm.join("index/history/ab")) {
+            return;
+        }
+        assert_eq!(first_symlink_under(&oculpm, &["index"]), None);
+        assert_eq!(
+            first_symlink_under(&oculpm, &[]),
+            Some(PathBuf::from("index/history/ab"))
+        );
+
+        let other = tmp.path().join(".oculpm2");
+        std::fs::create_dir_all(&other).unwrap();
+        if !crate::test_links::dir(&outside, &other.join("index")) {
+            return;
+        }
+        assert_eq!(
+            first_symlink_under(&other, &["index"]),
+            Some(PathBuf::from("index"))
+        );
     }
 }
