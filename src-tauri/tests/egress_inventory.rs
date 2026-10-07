@@ -584,7 +584,7 @@ fn every_webview_outbound_site_is_in_the_ledger() {
     assert!(
         added.is_empty(),
         "원장에 없는 웹뷰 아웃바운드 자리가 생겼다: {added:?}\n\
-         → WEB_SITES 에 사유와 함께 등록하라. CSP 가 null 이라 웹뷰는 아무 데나 갈 수 있다."
+         → WEB_SITES 에 사유와 함께 등록하라. 웹뷰 CSP(tauri.conf.json connect-src)도 함께 넓혀야 그 호출이 실제로 나간다."
     );
     let gone: Vec<_> = declared.difference(&found_paths).collect();
     assert!(gone.is_empty(), "원장에 있는데 소스에 없는 자리: {gone:?}");
