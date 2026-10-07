@@ -449,14 +449,26 @@ async fn tick_project(
             Err(e) => return Err(TickError::Other(e.to_string())),
         }
     };
-    // 저장소 설정만으로는 발동하지 않는다 — 이 기기의 동의가 있어야 스위치가 산다.
-    let config =
-        crate::oculpm::automation::consent::effective(&app.state::<Db>(), project_id, config).await;
     let root = match project_root(app, project_id).await {
         Ok(root) => root,
         Err(ProjectRootError::Missing) => return Err(TickError::MissingProject),
         Err(ProjectRootError::Other(e)) => return Err(TickError::Other(e)),
     };
+    // 저장소 설정만으로는 발동하지 않는다 — 이 기기의 동의가 지금 디스크의 스위치와
+    // 정의를 덮어야 산다. 덮지 못하면 **이번 틱에** 규칙을 비운다: 규칙은 30초
+    // 캐시인데 발동은 디스크의 정의를 새로 읽으므로, 캐시가 살아 있는 동안 바뀐
+    // 지시문이 그대로 나갈 수 있다.
+    let config = crate::oculpm::automation::consent::effective(
+        &app.state::<Db>(),
+        project_id,
+        config,
+        &root,
+    )
+    .await;
+    if !config.automation.watchers {
+        hub.set_rules(project_id, Vec::new(), now);
+        return Ok(());
+    }
 
     if hub.needs_rules(project_id, now) {
         let defs = load_watcher_defs(&root);
@@ -587,13 +599,18 @@ pub async fn on_journal_inserted(
             .await
             .map_err(|e| e.to_string())?
     };
-    // 레거시 `auto_reconcile` 도 같은 문을 지난다 — 동의가 없으면 규칙이 없다.
-    let config =
-        crate::oculpm::automation::consent::effective(&app.state::<Db>(), project_id, config).await;
     let root = project_root(app, project_id).await.map_err(|e| match e {
         ProjectRootError::Missing => format!("project {project_id} not found"),
         ProjectRootError::Other(e) => e,
     })?;
+    // 레거시 `auto_reconcile` 도 같은 문을 지난다 — 동의가 없으면 규칙이 없다.
+    let config = crate::oculpm::automation::consent::effective(
+        &app.state::<Db>(),
+        project_id,
+        config,
+        &root,
+    )
+    .await;
     let defs = load_watcher_defs(&root);
     let Some(rule) = plan_rule(&config, &defs) else {
         return Ok(());

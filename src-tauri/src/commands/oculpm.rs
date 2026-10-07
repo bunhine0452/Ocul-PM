@@ -166,7 +166,7 @@ pub async fn oculpm_init(
     // 시드하면 남의 저장소가 내 대화 모델로 배경 호출을 켠다 (보안 피드백 #1).
     // 실패는 warn-only — init 자체는 성공했다.
     let automation_on = match manager.get_config(project_id).await {
-        Ok(c) => crate::oculpm::automation::consent::seed_wanted(&db, project_id, &c).await,
+        Ok(c) => crate::oculpm::automation::consent::seed_wanted(&db, project_id, &c, &root).await,
         Err(_) => false,
     };
     match crate::oculpm::automation::core_model::seed_if_automation_enabled(&db, automation_on)

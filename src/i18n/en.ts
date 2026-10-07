@@ -412,6 +412,11 @@ export const en: Record<keyof typeof ko, string> = {
   "automation.consent.grant": "Allow on this device",
   "automation.consent.dismiss": "Leave it off",
   "automation.consent.granted": "Background automation is now allowed for this project on this device.",
+  "automation.consent.changed": "Turned on or changed since you allowed it: {names}",
+  "automation.consent.allowed":
+    "Background work is allowed on this device. If the repository turns on a switch or changes instructions, you'll be asked again.",
+  "automation.consent.revoke": "Revoke",
+  "automation.consent.revoked": "Background automation permission revoked. Nothing runs until you allow it again.",
   "automation.consent.switch.reconcile": "Auto-reconcile",
   "automation.consent.switch.draft": "Journal auto-draft",
   "automation.consent.switch.schedules": "Schedules",

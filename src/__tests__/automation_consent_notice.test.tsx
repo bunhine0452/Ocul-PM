@@ -12,11 +12,14 @@ import type { AutomationConsent } from "@/lib/bindings";
 //  2. 「이 기기에서 켜기」는 동의를 기록하고, 그 뒤로는 사라진다.
 //  3. 오늘 카드는 이번 실행 동안 접을 수 있다 — 설정 안내는 접히지 않는다.
 //  4. 상태를 못 읽으면 아무것도 그리지 않는다 (토스트로 쏟지 않는다).
+//  5. 허락 뒤에 바뀐 지시문은 이름으로 말한다. 허락한 상태의 설정 안내는 한 줄과
+//     「허락 거두기」다 (3차 피드백 — 한 번 허락하면 영구였다).
 
 const status = vi.hoisted(() => ({
-  current: { requested: [] as string[], granted: false } as AutomationConsent,
+  current: { requested: [] as string[], granted: false, changed: [] } as AutomationConsent,
 }));
 const grants = vi.hoisted(() => ({ current: 0 }));
+const revokes = vi.hoisted(() => ({ current: 0 }));
 const failRead = vi.hoisted(() => ({ current: false }));
 
 vi.mock("@/api/automation", () => ({
@@ -28,6 +31,11 @@ vi.mock("@/api/automation", () => ({
       status.current = { ...status.current, granted: true };
       return Promise.resolve(status.current);
     },
+    consentRevoke: () => {
+      revokes.current += 1;
+      status.current = { ...status.current, granted: false };
+      return Promise.resolve(status.current);
+    },
   },
 }));
 vi.mock("@/lib/toast", () => ({
@@ -35,8 +43,9 @@ vi.mock("@/lib/toast", () => ({
 }));
 
 beforeEach(() => {
-  status.current = { requested: [], granted: false };
+  status.current = { requested: [], granted: false, changed: [] };
   grants.current = 0;
+  revokes.current = 0;
   failRead.current = false;
 });
 afterEach(cleanup);
@@ -46,35 +55,56 @@ describe("AutomationConsentNotice", () => {
     status.current = {
       requested: ["agents.auto_reconcile", "automation.schedules"],
       granted: false,
+      changed: [],
     };
-    const onGranted = vi.fn();
-    render(<AutomationConsentNotice projectId={1} variant="inline" onGranted={onGranted} />);
+    const onChange = vi.fn();
+    render(<AutomationConsentNotice projectId={1} variant="card" onChange={onChange} />);
 
     const notice = await screen.findByRole("status");
     expect(notice.textContent).toContain(t("automation.consent.switch.reconcile"));
     expect(notice.textContent).toContain(t("automation.consent.switch.schedules"));
     expect(notice.textContent).toContain(".oculpm/config.toml");
-    // 설정 안내는 접을 수 없다.
-    expect(screen.queryByRole("button", { name: t("automation.consent.dismiss") })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: t("automation.consent.grant") }));
     await waitFor(() => expect(screen.queryByRole("status")).toBeNull());
     expect(grants.current).toBe(1);
-    expect(onGranted).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("names the instructions that changed since consent, and the settings notice cannot be put away", async () => {
+    status.current = {
+      requested: ["automation.schedules"],
+      granted: false,
+      changed: ["Pulled-in schedule"],
+    };
+    render(<AutomationConsentNotice projectId={6} variant="inline" />);
+    const notice = await screen.findByRole("status");
+    expect(notice.textContent).toContain("Pulled-in schedule");
+    expect(screen.queryByRole("button", { name: t("automation.consent.dismiss") })).toBeNull();
+  });
+
+  it("offers revoking in settings once allowed — and asks again after", async () => {
+    status.current = { requested: ["automation.schedules"], granted: true, changed: [] };
+    const onChange = vi.fn();
+    render(<AutomationConsentNotice projectId={7} variant="inline" onChange={onChange} />);
+    fireEvent.click(await screen.findByRole("button", { name: t("automation.consent.revoke") }));
+    await screen.findByRole("button", { name: t("automation.consent.grant") });
+    expect(revokes.current).toBe(1);
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 
   it("draws nothing when nothing is pending", async () => {
-    status.current = { requested: ["agents.auto_reconcile"], granted: true };
+    status.current = { requested: ["agents.auto_reconcile"], granted: true, changed: [] };
     const { container } = render(<AutomationConsentNotice projectId={2} variant="card" />);
     await waitFor(() => expect(container.innerHTML).toBe(""));
 
-    status.current = { requested: [], granted: false };
+    status.current = { requested: [], granted: false, changed: [] };
     const again = render(<AutomationConsentNotice projectId={3} variant="card" />);
     await waitFor(() => expect(again.container.innerHTML).toBe(""));
   });
 
   it("lets the Today card be put away for this run only", async () => {
-    status.current = { requested: ["automation.watchers"], granted: false };
+    status.current = { requested: ["automation.watchers"], granted: false, changed: [] };
     render(<AutomationConsentNotice projectId={4} variant="card" />);
     fireEvent.click(await screen.findByRole("button", { name: t("automation.consent.dismiss") }));
     await waitFor(() => expect(screen.queryByRole("status")).toBeNull());

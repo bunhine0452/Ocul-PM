@@ -409,6 +409,11 @@ export const ko = {
   "automation.consent.grant": "이 기기에서 켜기",
   "automation.consent.dismiss": "그대로 두기",
   "automation.consent.granted": "이 프로젝트의 배경 자동화를 이 기기에서 켰어요.",
+  "automation.consent.changed": "허락한 뒤 새로 켜지거나 바뀐 지시문: {names}",
+  "automation.consent.allowed":
+    "이 기기에서 허락한 배경 작업이에요. 저장소에서 스위치나 지시문이 바뀌면 다시 물어요.",
+  "automation.consent.revoke": "허락 거두기",
+  "automation.consent.revoked": "배경 자동화 허락을 거뒀어요. 다시 허락하기 전까지 돌지 않아요.",
   "automation.consent.switch.reconcile": "자동 화해",
   "automation.consent.switch.draft": "일지 자동 초안",
   "automation.consent.switch.schedules": "스케줄",
