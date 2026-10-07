@@ -318,5 +318,21 @@ export async function runScenario(ctx) {
     if (left === null) throw new Error("CSP 감시가 설치되지 않았다 (window.__oculpmCsp 없음)");
     rec.notes.push(`남은 위반 ${left.length}건`);
     if (left.length) throw new Error(`CSP 위반: ${left.join(" | ")}`);
+    // 위반 0건은 "정책이 아예 안 실렸다" 와도 같은 모양이다 — 막혀야 할 것을 하나 일부러
+    // 넣어 정책이 실제로 걸려 있는지 본다. `.invalid` 는 예약 TLD 라 막히지 않아도 어디에도
+    // 닿지 않는다.
+    await wd.execute(`const img = document.createElement('img');
+      img.id = 'csp-probe'; img.src = 'https://csp-probe.invalid/p.png';
+      document.body.appendChild(img); return true;`);
+    let probe = [];
+    for (let i = 0; i < 20 && probe.length === 0; i += 1) {
+      await sleep(150);
+      probe = await wd.execute(
+        "const all = window.__oculpmCsp ? window.__oculpmCsp.splice(0) : []; return all.filter((l) => l.includes('csp-probe.invalid'));",
+      );
+    }
+    await wd.execute("const p = document.getElementById('csp-probe'); if (p) p.remove(); return true;");
+    rec.notes.push(`탐침: ${probe.join(" | ") || "위반 없음"}`);
+    if (!probe.length) throw new Error("CSP 가 걸려 있지 않다 — 원격 이미지 탐침이 막히지 않았다");
   });
 }
