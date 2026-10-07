@@ -116,13 +116,22 @@ pub async fn notion_oauth_start() -> Result<String, String> {
     .await
     .map_err(|e| e.to_string())??;
 
-    let url = format!("{}?port={port}&state={nonce}", notion::OAUTH_START_URL);
+    // `flow=code` — 서버가 토큰 대신 code 만 루프백으로 넘긴다 (토큰이 브라우저 기록에
+    // 남지 않게). 그 플래그를 모르는 서버는 예전처럼 토큰을 보낸다 — 둘 다 받는다.
+    let url = format!(
+        "{}?port={port}&state={nonce}&flow=code",
+        notion::OAUTH_START_URL
+    );
     open_in_browser(&url)?;
 
     let expect = nonce.clone();
-    let token = tokio::task::spawn_blocking(move || wait_for_oauth_callback(listener, &expect))
+    let callback = tokio::task::spawn_blocking(move || wait_for_oauth_callback(listener, &expect))
         .await
         .map_err(|e| e.to_string())??;
+    let token = match callback {
+        notion::OAuthCallback::Code(code) => notion::exchange_code(&code).await?,
+        notion::OAuthCallback::Token(token) => token,
+    };
 
     let workspace = notion::verify_token(token.trim()).await?;
     crate::secrets::set(notion::NOTION_TOKEN_SECRET, token.trim())
@@ -162,7 +171,7 @@ fn open_in_browser(url: &str) -> Result<(), String> {
 fn wait_for_oauth_callback(
     listener: std::net::TcpListener,
     expect_state: &str,
-) -> Result<String, String> {
+) -> Result<notion::OAuthCallback, String> {
     use std::io::{Read, Write};
     let deadline =
         std::time::Instant::now() + std::time::Duration::from_secs(notion::OAUTH_TIMEOUT_SECS);
@@ -181,13 +190,13 @@ fn wait_for_oauth_callback(
                 let text = String::from_utf8_lossy(&buf[..n]);
                 let first = text.lines().next().unwrap_or("");
                 match notion::parse_oauth_callback(first) {
-                    Some((token, state)) if state == expect_state && !token.is_empty() => {
+                    Some((value, state)) if state == expect_state => {
                         let _ = stream.write_all(
                             b"HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n\
                               <html><body style=\"font-family:sans-serif;text-align:center;padding-top:80px\">\
                               <h2>Notion \xec\x97\xb0\xea\xb2\xb0 \xec\x99\x84\xeb\xa3\x8c</h2><p>ocul-pm \xec\x95\xb1\xec\x9c\xbc\xeb\xa1\x9c \xeb\x8f\x8c\xec\x95\x84\xea\xb0\x80\xec\x84\xb8\xec\x9a\x94.</p></body></html>",
                         );
-                        return Ok(token);
+                        return Ok(value);
                     }
                     _ => {
                         let _ = stream.write_all(b"HTTP/1.1 404 Not Found\r\n\r\n");
