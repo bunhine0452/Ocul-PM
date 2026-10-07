@@ -23,7 +23,7 @@ use crate::oculpm::automation::runner::{AutomationRunner, Job, JobOutcome};
 use crate::oculpm::automation::settle::watch_error;
 use crate::oculpm::automation::store::{AutomationDef, AutomationKind};
 use crate::oculpm::automation::tiers::responsiveness_error;
-use crate::oculpm::automation::{core_model, scheduler, seeds, store};
+use crate::oculpm::automation::{consent, core_model, scheduler, seeds, store};
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::spec::OculpmConfig;
 
@@ -399,6 +399,10 @@ pub async fn automation_save(
         def.created = def.updated.clone();
     }
     store::write_automation(&root, &def).map_err(AppError::from)?;
+    // 앱에서 사람이 저장한 지시문은 이 기기의 허락이다 (`consent::approve_def`).
+    consent::approve_def(&db, project_id, &root, def.kind, &def.id)
+        .await
+        .map_err(AppError::unknown)?;
     // 정의가 바뀌면 다음 시각을 다시 계산해야 한다 — 상태 행을 지워 집행 루프가
     // 새로 잡게 한다 (상태는 파생 캐시라 지워도 무해하다).
     clear_next_run(&db, project_id, &def.id).await?;
@@ -448,6 +452,10 @@ pub async fn automation_set_enabled(
     def.enabled = enabled;
     def.updated = today();
     store::write_automation(&root, &def).map_err(AppError::from)?;
+    // 재개도 사람이 누른 것이다 — 그 정의의 지금 지문을 허락한다.
+    consent::approve_def(&db, project_id, &root, kind, &def.id)
+        .await
+        .map_err(AppError::unknown)?;
     clear_next_run(&db, project_id, &def.id).await?;
     summary_of(&db, project_id, &root, kind, &def.id).await
 }

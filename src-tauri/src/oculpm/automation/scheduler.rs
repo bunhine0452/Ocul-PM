@@ -105,8 +105,6 @@ async fn tick_project(
         .get_config(project_id)
         .await
         .map_err(|e| e.to_string())?;
-    // 저장소 설정만으로는 발동하지 않는다 — 이 기기의 동의가 있어야 스위치가 산다.
-    let config = crate::oculpm::automation::consent::effective(&db, project_id, config).await;
     // 전역 스위치가 꺼져 있으면 정의를 읽지도 않는다 (D4 — 즉시 전면 정지).
     if !config.automation.schedules {
         return Ok(());
@@ -117,6 +115,13 @@ async fn tick_project(
             .map_err(|e| e.to_string())?
             .root_path,
     );
+    // 저장소 설정만으로는 발동하지 않는다 — 이 기기의 동의가 지금 디스크의 스위치와
+    // 정의를 덮어야 산다 (`consent` — 허락 뒤에 실려 온 정의는 다시 묻는다).
+    let config =
+        crate::oculpm::automation::consent::effective(&db, project_id, config, &root).await;
+    if !config.automation.schedules {
+        return Ok(());
+    }
     let tz: Tz = config.workday.timezone.parse().unwrap_or(chrono_tz::UTC);
 
     let defs =

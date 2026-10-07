@@ -7,6 +7,10 @@
 //
 // 두 자리에서 쓴다: 오늘 화면의 카드(`variant="card"`, 이번 실행 동안 접을 수 있다)와
 // 설정 → 자동화 탭 머리의 안내(`variant="inline"`).
+//
+// 동의는 그때 본 스위치와 지시문에 묶인다 (3차 피드백 2026-10-08) — 허락한 뒤 저장소가
+// 정의를 새로 켜거나 바꾸면 다시 묻고, 그때는 무엇이 바뀌었는지(`changed`)를 말한다.
+// 허락한 상태의 설정 안내는 한 줄로 줄고 「허락 거두기」를 단다.
 
 import { useEffect, useState } from "react";
 
@@ -34,12 +38,12 @@ const SWITCH_LABEL: Readonly<Record<string, I18nKey>> = {
 export function AutomationConsentNotice({
   projectId,
   variant,
-  onGranted,
+  onChange,
 }: {
   projectId: number;
   variant: "card" | "inline";
-  /** 허락한 뒤 — 부르는 화면이 상태를 다시 읽을 때. */
-  onGranted?: () => void;
+  /** 허락하거나 거둔 뒤 — 부르는 화면이 상태를 다시 읽을 때. */
+  onChange?: () => void;
 }) {
   const { t } = useT();
   const [consent, setConsent] = useState<AutomationConsent | null>(null);
@@ -60,6 +64,31 @@ export function AutomationConsentNotice({
   }, [projectId]);
 
   const pending = consent != null && consent.requested.length > 0 && !consent.granted;
+  const allowed = consent != null && consent.requested.length > 0 && consent.granted;
+
+  const revoke = async () => {
+    setBusy(true);
+    try {
+      setConsent(await automationApi.consentRevoke(projectId));
+      toast.info(t("automation.consent.revoked"));
+      onChange?.();
+    } catch (e) {
+      toast.destructive(tError(toAppError(e)));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (allowed && variant === "inline") {
+    return (
+      <div className="first-run-sub mb-4 flex items-center gap-2">
+        <span>{t("automation.consent.allowed")}</span>
+        <button className="btn sm" disabled={busy} onClick={() => void revoke()}>
+          {t("automation.consent.revoke")}
+        </button>
+      </div>
+    );
+  }
   if (!pending || (variant === "card" && hidden)) return null;
 
   const switches = consent.requested
@@ -71,7 +100,7 @@ export function AutomationConsentNotice({
     try {
       setConsent(await automationApi.consentGrant(projectId));
       toast.info(t("automation.consent.granted"));
-      onGranted?.();
+      onChange?.();
     } catch (e) {
       toast.destructive(tError(toAppError(e)));
     } finally {
@@ -86,6 +115,11 @@ export function AutomationConsentNotice({
         <strong>{t("automation.consent.title")}</strong>
       </div>
       <div className="first-run-sub">{t("automation.consent.body", { switches })}</div>
+      {consent.changed.length > 0 && (
+        <div className="first-run-sub">
+          {t("automation.consent.changed", { names: consent.changed.join(" · ") })}
+        </div>
+      )}
       <div className="first-run-sub">{t("automation.consent.review")}</div>
       <div className="first-run-actions">
         <button className="btn primary sm" disabled={busy} onClick={() => void grant()}>

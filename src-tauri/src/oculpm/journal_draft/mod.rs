@@ -418,7 +418,23 @@ pub async fn draft_for_session(
     };
     // 0.5 기기 동의 — `auto_journal_draft` 는 저장소 config 의 스위치라, 그것만으로
     //     대화 원문을 배경 모델에 보내지 않는다 (`automation::consent`).
-    if !crate::oculpm::automation::consent::granted(&app.state::<Db>(), project_id).await {
+    let consented = match app
+        .state::<crate::oculpm::manager::OculpmManager>()
+        .get_config(project_id)
+        .await
+    {
+        Ok(config) => {
+            crate::oculpm::automation::consent::granted(
+                &app.state::<Db>(),
+                project_id,
+                &config,
+                &root,
+            )
+            .await
+        }
+        Err(_) => false,
+    };
+    if !consented {
         return Ok(DraftOutcome::Skipped(
             "background automation not approved on this device",
         ));

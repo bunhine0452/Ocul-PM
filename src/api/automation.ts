@@ -39,6 +39,10 @@ export const automationApi = {
   consentGrant: (projectId: number) =>
     unwrap<AutomationConsent>("automation_consent_grant", commands.automationConsentGrant(projectId)),
 
+  /** 「허락 거두기」 — 기록을 지우고 갱신된 상태를 돌려준다. */
+  consentRevoke: (projectId: number) =>
+    unwrap<AutomationConsent>("automation_consent_revoke", commands.automationConsentRevoke(projectId)),
+
   runs: (projectId: number, automationId: string | null, limit: number) =>
     unwrap<AutomationRunDto[]>(
       "automation_runs",

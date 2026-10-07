@@ -1112,9 +1112,10 @@ export const commands = {
 	 *  in-memory `WorkdayResolver`. Rejects invalid tz / HH:MM without touching
 	 *  disk.
 	 * 
-	 *  꺼져 있던 배경 스위치를 여기서 **새로 켜면** 그 순간을 이 기기의 동의로
-	 *  기록한다 — 사람이 설정 화면에서 직접 눌렀다. (`commands/oculpm.rs` 에서
-	 *  옮겨 왔다 — 동의 기록이 붙으며 그 파일의 크기 래칫을 넘었다.)
+	 *  여기서 **새로 켠** 배경 스위치(와 그 아래에서 새로 돌게 된 정의)는 이 기기의
+	 *  동의로 기록한다 — 사람이 설정 화면에서 직접 눌렀다. 이미 확인 대기이던 것은
+	 *  그대로 둔다 (`consent::approve_changes`). (`commands/oculpm.rs` 에서 옮겨 왔다 —
+	 *  동의 기록이 붙으며 그 파일의 크기 래칫을 넘었다.)
 	 */
 	oculpmSetConfig: (projectId: number, newConfig: OculpmConfig) => typedError<null, AppError>(__TAURI_INVOKE("oculpm_set_config", { projectId, newConfig })),
 	/**  Manually start a session. Idempotent — returns existing if already active. */
@@ -1680,6 +1681,11 @@ export const commands = {
 	 *  1회 시드(D2)도 이 순간으로 옮겨 온다 — 동의 전에는 시드하지 않는다.
 	 */
 	automationConsentGrant: (projectId: number) => typedError<AutomationConsent, AppError>(__TAURI_INVOKE("automation_consent_grant", { projectId })),
+	/**
+	 *  「이 기기의 허락 거두기」 — 기록을 지우고 워처 규칙 캐시를 비운다. 다음 틱부터
+	 *  디스크의 스위치는 다시 확인 대기다.
+	 */
+	automationConsentRevoke: (projectId: number) => typedError<AutomationConsent, AppError>(__TAURI_INVOKE("automation_consent_revoke", { projectId })),
 	/**  이 프로젝트의 배경 스위치가 확인을 기다리는가. */
 	automationConsentStatus: (projectId: number) => typedError<AutomationConsent, AppError>(__TAURI_INVOKE("automation_consent_status", { projectId })),
 	/**
@@ -2743,8 +2749,10 @@ export type AutomationConfig = {
 export type AutomationConsent = {
 	/**  디스크 설정이 켜 둔 배경 스위치 (`agents.auto_reconcile` 꼴). */
 	requested: string[],
-	/**  이 기기가 허락했는가. */
+	/**  이 기기의 동의가 지금 디스크의 표면을 덮는가. */
 	granted: boolean,
+	/**  동의 뒤에 새로 켜지거나 바뀐 정의의 제목 — 카드가 "무엇이 바뀌었나" 를 말한다. */
+	changed: string[],
 };
 
 /**
