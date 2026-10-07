@@ -1460,7 +1460,8 @@ export const ko = {
   "op.session.resumeHint": "활동이 없어 세션이 닫힌 직후 이 시간 안에 파일이 다시 바뀌면, 새 세션을 만들지 않고 직전 세션을 다시 열어요. 0 으로 두면 꺼져요.",
   "op.git.desc": "일지에 적을 수 없는 민감 경로와 마스킹할 비밀 패턴.",
   "op.git.forbiddenHint": "이 패턴과 매치되는 경로는 작업 서술 작성이 거부돼요.",
-  "op.git.redactHint": "매치된 부분을 `[REDACTED]` 로 바꿔 적어요.",
+  "op.git.redactHint":
+    "매치된 부분을 `[REDACTED]` 로 바꿔 적어요. 키·토큰·개인키·접속 문자열 같은 기본 패턴은 이 목록과 상관없이 늘 적용돼요 — 여기에는 더 가릴 패턴만 적으세요.",
   "op.watcher.desc": "파일 변경을 어떻게 감시할지 정해요.",
   "op.watcher.ignore": "감시에서 뺄 경로 (gitignore 문법)",
   "op.watcher.gitignore": "프로젝트 .gitignore 존중",

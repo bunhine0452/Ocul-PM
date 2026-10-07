@@ -422,6 +422,8 @@ pub struct GitConfig {
     // `journal_committed` 는 2026-08-30 에 뺐다 — git commit 을 부르는 코드가 없는
     // 죽은 플래그였다.
     pub forbid_journal_for_paths: Vec<String>,
+    /// **추가** 마스킹 패턴(정규식). 기본 패턴(`redact::BUILTIN_PATTERNS`)은 이
+    /// 목록과 상관없이 늘 걸린다 — 빈 목록이 "마스킹 끔" 이 아니다.
     pub auto_redact_patterns: Vec<String>,
 }
 

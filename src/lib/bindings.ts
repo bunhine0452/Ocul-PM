@@ -4191,6 +4191,10 @@ export type GitCommit = {
 
 export type GitConfig = {
 	forbid_journal_for_paths: string[],
+	/**
+	 *  **추가** 마스킹 패턴(정규식). 기본 패턴(`redact::BUILTIN_PATTERNS`)은 이
+	 *  목록과 상관없이 늘 걸린다 — 빈 목록이 "마스킹 끔" 이 아니다.
+	 */
 	auto_redact_patterns: string[],
 };
 

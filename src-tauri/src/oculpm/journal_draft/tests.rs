@@ -203,3 +203,23 @@ fn korean_path_is_byte_identical_to_before() {
         assert!(!body.contains("Root cause"), "{lang:?}: {body}");
     }
 }
+
+/// 보내기 전에 가린다 — 응답만 가리던 때는 대화에 붙여 넣은 키가 배경 모델
+/// 공급자에게 먼저 건너갔다. 설정 목록이 비어도 내장 바닥이 건다.
+#[test]
+fn the_prompt_is_masked_before_it_leaves() {
+    let key = format!("AKIA{}", "Q".repeat(16));
+    let digest = TranscriptDigest {
+        user_prompts: vec![format!("이 키로 배포해 줘 {key}")],
+        assistant_texts: vec!["배포했어요".to_string()],
+        parsed_messages: 2,
+        ..TranscriptDigest::default()
+    };
+    let patterns = crate::oculpm::redact::compile_redact_patterns(&[]);
+    let prompt = masked_user_prompt(&digest, &[], &patterns);
+    assert!(!prompt.contains(&key), "{prompt}");
+    assert!(
+        prompt.contains("[REDACTED]") && prompt.contains("배포했어요"),
+        "{prompt}"
+    );
+}

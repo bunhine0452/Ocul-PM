@@ -1451,7 +1451,8 @@ export const en: Record<keyof typeof ko, string> = {
   "op.session.resumeHint": "If a file changes within this window right after a session closed for inactivity, the previous session reopens instead of a new one starting. 0 turns it off.",
   "op.git.desc": "Sensitive paths journals may not mention, and secret patterns to mask.",
   "op.git.forbiddenHint": "Paths matching these patterns are refused for narrative writes.",
-  "op.git.redactHint": "Matches are written as `[REDACTED]`.",
+  "op.git.redactHint":
+    "Matches are written as `[REDACTED]`. Built-in patterns for keys, tokens, private keys and connection strings always apply regardless of this list — add only the extra patterns you want masked.",
   "op.watcher.desc": "How file changes are watched.",
   "op.watcher.ignore": "Paths to leave unwatched (gitignore syntax)",
   "op.watcher.gitignore": "Respect the project's .gitignore",

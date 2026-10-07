@@ -348,12 +348,12 @@ const LLM_PROMPT_SITES: &[PromptSite] = &[
     PromptSite {
         path: "oculpm/journal_draft/mod.rs",
         redaction: Redaction::Direct,
-        reason: "일지 초안의 입력과 모델 응답 양쪽을 마스킹한다 (이중 방어).",
+        reason: "일지 초안의 입력(`masked_user_prompt`)과 모델 응답 양쪽을 마스킹한다 (이중 방어). 2026-10-07 전까지 이 줄은 거짓이었다 — 응답만 가렸다.",
     },
     PromptSite {
         path: "oculpm/automation/runner/mod.rs",
         redaction: Redaction::Direct,
-        reason: "자동화 산출물에 이중 방어 — 응답에 섞여 돌아온 시크릿까지 일지에 닿기 전에 가린다.",
+        reason: "보내기 전에 지시문을 가리고(대화 임포트의 원문도 같은 백엔드를 지난다 — import/journalize.rs 가 직접 가린다), 응답에 섞여 돌아온 시크릿도 일지에 닿기 전에 가린다.",
     },
 ];
 

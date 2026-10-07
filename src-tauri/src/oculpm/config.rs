@@ -330,16 +330,12 @@ fn default_forbid_paths() -> Vec<String> {
     .collect()
 }
 
+/// 새 프로젝트의 **추가** 패턴 — 비어 있다. 키·토큰·개인키·접속 문자열 같은
+/// 기본 패턴은 `redact::BUILTIN_PATTERNS` 가 설정과 상관없이 언제나 건다
+/// (`compile_redact_patterns`). 예전 기본값 넷은 그 바닥의 첫 줄들이라, 옛
+/// config 에 적혀 있어도 중복 없이 같은 결과다.
 fn default_redact_patterns() -> Vec<String> {
-    [
-        r"AKIA[0-9A-Z]{16}",         // AWS Access Key
-        r"sk-[A-Za-z0-9_-]{20,}",    // OpenAI / Anthropic-like
-        r"ghp_[A-Za-z0-9]{36}",      // GitHub PAT
-        r"xox[baprs]-[A-Za-z0-9-]+", // Slack
-    ]
-    .iter()
-    .map(|&s| s.to_string())
-    .collect()
+    Vec::new()
 }
 
 fn default_watcher_ignore() -> Vec<String> {

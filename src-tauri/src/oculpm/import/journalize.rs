@@ -5,7 +5,8 @@
 //! - **Core Model 로만** 돈다 (D2). 미설정이면 성립 불가 — 조용히 스킵이 아니라
 //!   호출부가 "배경 모델을 먼저 고르세요" 로 잠근다.
 //! - frontmatter 는 **결정적으로 조립**한다. 모델은 본문만 채운다.
-//! - `redact` 이중 방어 — 모델 응답에 시크릿이 섞여 돌아올 수 있다.
+//! - `redact` 이중 방어 — 보내기 전에 대화 원문을 가리고, 모델 응답도 한 번 더
+//!   가린다 (응답만 가리던 때는 원문의 키가 공급자에게 먼저 건너갔다).
 //! - 산출물은 `verified_by_user: false`.
 //!
 //! # 중복은 슬러그가 가른다
@@ -77,7 +78,7 @@ pub async fn journalize_one(
                 },
                 Message {
                     role: Role::User,
-                    content: build_prompt(conv),
+                    content: redact_text(&build_prompt(conv), redact).0,
                 },
             ],
             ChatOptions {

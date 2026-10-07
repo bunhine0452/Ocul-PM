@@ -388,7 +388,8 @@ impl AutomationRunner {
                     },
                     Message {
                         role: Role::User,
-                        content: build_user_prompt(&job),
+                        // 지시문은 사람이나 플러그인이 쓴 글이다 — 보내기 전에도 가린다.
+                        content: redact_text(&build_user_prompt(&job), &ctx.redact).0,
                     },
                 ],
                 ChatOptions {
