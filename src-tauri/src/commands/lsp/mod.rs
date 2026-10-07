@@ -58,7 +58,7 @@ pub(super) fn resolve_in_root(root: &Path, relative: &str) -> Result<PathBuf, St
         std::fs::canonicalize(root).map_err(|e| format!("Failed to resolve project root: {e}"))?;
     let canon = std::fs::canonicalize(&full).map_err(|e| format!("Failed to read file: {e}"))?;
     if !canon.starts_with(&canon_root) {
-        return Err("Path escapes the project root".to_string());
+        return Err(crate::path_guard::ESCAPES_ROOT.to_string());
     }
     Ok(canon)
 }

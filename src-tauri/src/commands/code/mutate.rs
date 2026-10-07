@@ -2,7 +2,8 @@
 //! (`code_rename`)·휴지통 삭제(`code_delete`).
 //!
 //! 읽기·저장과 달리 **링크 자체**를 다뤄야 하고 아직 없는 경로도 받아야 해서
-//! 가드가 다르다(`guards::resolve_for_mutation`). 덮어쓰기·영구 삭제는 없다.
+//! 가드가 다르다 — 첫 관문은 부모까지만 푸는 `path_guard::secure_join_entry`,
+//! 둘째는 `guards::resolve_for_mutation`. 덮어쓰기·영구 삭제는 없다.
 
 use std::path::Path;
 
@@ -11,8 +12,8 @@ use tauri::State;
 
 use super::guards::{normalize_rel, resolve_for_mutation};
 use super::project_root;
-use crate::commands::project::secure_join;
 use crate::db::Db;
+use crate::path_guard::secure_join_entry;
 
 /// 파일/폴더를 만들거나 옮긴 결과. 프런트가 그대로 열거나 탭 경로를 갈아끼운다.
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -33,7 +34,7 @@ pub async fn code_create(
 ) -> Result<CodePathResult, String> {
     let root = project_root(&db, project_id).await?;
     let rel = normalize_rel(&rel_path)?;
-    let full = secure_join(&root, &rel)?;
+    let full = secure_join_entry(&root, &rel)?;
     tauri::async_runtime::spawn_blocking(move || {
         let full = resolve_for_mutation(&root, &full)?;
         create_file(&full)?;
@@ -57,7 +58,7 @@ pub async fn code_mkdir(
 ) -> Result<CodePathResult, String> {
     let root = project_root(&db, project_id).await?;
     let rel = normalize_rel(&rel_path)?;
-    let full = secure_join(&root, &rel)?;
+    let full = secure_join_entry(&root, &rel)?;
     tauri::async_runtime::spawn_blocking(move || {
         let full = resolve_for_mutation(&root, &full)?;
         create_dir(&full)?;
@@ -87,8 +88,8 @@ pub async fn code_rename(
     let root = project_root(&db, project_id).await?;
     let from = normalize_rel(&from_rel)?;
     let to = normalize_rel(&to_rel)?;
-    let from_full = secure_join(&root, &from)?;
-    let to_full = secure_join(&root, &to)?;
+    let from_full = secure_join_entry(&root, &from)?;
+    let to_full = secure_join_entry(&root, &to)?;
     let from_key = from.clone();
     let moved = tauri::async_runtime::spawn_blocking(move || {
         let from_full = resolve_for_mutation(&root, &from_full)?;
@@ -130,7 +131,7 @@ pub async fn code_delete(
 ) -> Result<(), String> {
     let root = project_root(&db, project_id).await?;
     let rel = normalize_rel(&rel_path)?;
-    let full = secure_join(&root, &rel)?;
+    let full = secure_join_entry(&root, &rel)?;
     tauri::async_runtime::spawn_blocking(move || {
         let full = resolve_for_mutation(&root, &full)?;
         delete_to_trash(&full)

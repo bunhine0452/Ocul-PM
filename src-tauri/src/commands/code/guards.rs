@@ -1,16 +1,22 @@
-//! 경로 가드 — `secure_join` 의 어휘적 검사 뒤에 서는 두 번째 방어선.
+//! 경로 가드 — `path_guard` 의 첫 관문 뒤에 서는 두 번째 방어선.
 //!
 //! 읽기·저장은 [`canonical_within_root`](심링크를 끝까지 풀어 루트 안인지),
 //! 생성·이름 바꾸기·삭제는 [`resolve_for_mutation`](링크 자체를 다루고 아직
 //! 없는 경로도 받는다)을 지난다. 모든 창구가 같은 가드를 쓰도록 한곳에 둔다.
+//!
+//! 첫 관문(`crate::path_guard`)도 2026-10-07 부터 링크를 푼다. 그 전에는 어휘
+//! 검사뿐이라, 이 둘째 관문이 없는 창구(외부 편집기로 열기·심볼 펼침·이미지
+//! 미리보기)는 `docs -> ~/.config` 같은 폴더 링크를 그대로 따라갔다. 이 모듈의
+//! 두 함수는 정규화한 경로를 **돌려준다**는 쓸모로 남는다 (저장이 링크 대상에
+//! 쓰고, 조작이 정규화한 부모 아래에서 일어나게).
 
 use std::path::{Path, PathBuf};
 
-/// [`secure_join`](crate::commands::project::secure_join) 은 어휘적 검사만 한다 — 경로에 심링크가 끼어 있으면 루트
-/// 밖 파일이 열린다 (예: 프로젝트 안 `leak → ~/.ssh/id_rsa`. 트리 걸음은
-/// 심링크를 안 따라가지만 `rel_path` 는 임의의 IPC 인자다). 실존 경로로
-/// 해석해 루트 안인지 다시 확인하고, 해석된 경로를 돌려준다 — 루트 안을
-/// 가리키는 심링크는 그 대상으로 저장되므로 링크 자체도 깨지지 않는다.
+/// 실존 경로로 해석해 루트 안인지 확인하고, **해석된 경로를 돌려준다** — 루트
+/// 안을 가리키는 심링크는 그 대상으로 저장되므로 링크 자체도 깨지지 않는다.
+/// (예: 프로젝트 안 `leak → ~/.ssh/id_rsa` 는 거부. 트리 걸음은 심링크를 안
+/// 따라가지만 `rel_path` 는 임의의 IPC 인자다.) 판정은
+/// [`secure_join`](crate::path_guard::secure_join) 과 겹친다 — 그쪽이 첫 관문이다.
 pub(crate) fn canonical_within_root(root: &Path, full: &Path) -> Result<PathBuf, String> {
     let canon_root =
         std::fs::canonicalize(root).map_err(|e| format!("Failed to resolve project root: {e}"))?;
@@ -18,14 +24,14 @@ pub(crate) fn canonical_within_root(root: &Path, full: &Path) -> Result<PathBuf,
     if canon.starts_with(&canon_root) {
         Ok(canon)
     } else {
-        Err("Path escapes the project root".to_string())
+        Err(crate::path_guard::ESCAPES_ROOT.to_string())
     }
 }
 
 /// 조작 대상 상대 경로 정리 — 앞뒤 공백·중복 슬래시·양끝 슬래시를 없애고
 /// 사람이 실수로 넣기 쉬운 것들을 여기서 잘라 낸다.
 ///
-/// [`secure_join`](crate::commands::project::secure_join) 의 어휘적 검사는 `..` 탈출만 본다. 그 앞에서 **빈 경로**(=
+/// [`secure_join`](crate::path_guard::secure_join) 은 빈 경로를 루트 자신으로 받는다. 그 앞에서 **빈 경로**(=
 /// 프로젝트 루트 자신)와 구간 하나짜리 `.` / `..` 을 막아, 루트를 지우거나
 /// 이름을 바꾸는 요청이 애초에 만들어지지 않게 한다.
 pub(crate) fn normalize_rel(rel: &str) -> Result<String, String> {
@@ -77,19 +83,19 @@ pub(super) fn resolve_for_mutation(root: &Path, full: &Path) -> Result<PathBuf, 
     while existing.symlink_metadata().is_err() {
         let name = existing
             .file_name()
-            .ok_or_else(|| "Path escapes the project root".to_string())?
+            .ok_or_else(|| crate::path_guard::ESCAPES_ROOT.to_string())?
             .to_os_string();
         missing.push(name);
         existing = existing
             .parent()
-            .ok_or_else(|| "Path escapes the project root".to_string())?
+            .ok_or_else(|| crate::path_guard::ESCAPES_ROOT.to_string())?
             .to_path_buf();
     }
 
     let canon =
         std::fs::canonicalize(&existing).map_err(|e| format!("Failed to resolve path: {e}"))?;
     if !canon.starts_with(&canon_root) {
-        return Err("Path escapes the project root".to_string());
+        return Err(crate::path_guard::ESCAPES_ROOT.to_string());
     }
     let mut out = canon;
     for seg in missing.iter().rev() {

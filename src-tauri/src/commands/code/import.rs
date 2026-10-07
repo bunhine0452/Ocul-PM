@@ -11,8 +11,8 @@ use tauri::State;
 
 use super::guards::canonical_within_root;
 use super::project_root;
-use crate::commands::project::secure_join;
 use crate::db::Db;
+use crate::path_guard::secure_join;
 
 /// 한 번에 가져오는 파일 수 상한. 폴더는 재귀라 `node_modules` 하나를 잘못
 /// 끌어놓으면 수만 개가 된다 — 막고 **알리는** 편이 멎는 것보다 낫다.

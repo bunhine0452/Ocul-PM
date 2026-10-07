@@ -68,6 +68,10 @@ pub async fn compute_diff(
         .ok_or_else(|| format!("project {project_id} not found"))?;
 
     let root = PathBuf::from(&project.root_path);
+    // 경로는 IPC 인자다 — 변경 목록(git·워처)에서도, 일지의 `files_touched` 에서도
+    // 온다. 루트 밖으로 풀리는 경로는 어느 갈래로도 다루지 않는다. 마지막 구간의
+    // 링크는 git 갈래가 링크 글자로 보여 주고, 디스크를 읽는 갈래가 따라가며 다시 본다.
+    crate::path_guard::secure_join_entry(&root, &path)?;
     let max_bytes = max_bytes as usize;
     let is_last_commit = baseline.as_deref() == Some("last_commit");
 
@@ -142,8 +146,9 @@ async fn binary_source(
                 .flatten()
                 .map(|s| s.content.len() as u64),
         };
-        let new = fs::metadata(root.join(path))
+        let new = crate::path_guard::secure_join(root, path)
             .ok()
+            .and_then(|abs| fs::metadata(abs).ok())
             .filter(|m| m.is_file())
             .map(|m| m.len());
         (old, new)
@@ -282,7 +287,7 @@ pub async fn diff_binary_preview(
                 .filter(|c| c.len() <= MAX_PREVIEW_BYTES),
         };
         // 경로는 신뢰 경계 밖(watcher/git 출력)에서 온다 — 루트 밖 접근 차단.
-        let abs = crate::commands::project::secure_join(&root, &path)?;
+        let abs = crate::path_guard::secure_join(&root, &path)?;
         let new = fs::read(&abs).ok().filter(|b| b.len() <= MAX_PREVIEW_BYTES);
         (old, new)
     };
@@ -363,7 +368,7 @@ async fn snapshot_diff(
     path: String,
     max_bytes: usize,
 ) -> Result<DiffResult, String> {
-    let abs = root.join(&path);
+    let abs = crate::path_guard::secure_join(root, &path)?;
     let Some(snapshot) = db
         .get_file_snapshot(project_id, path.clone())
         .await

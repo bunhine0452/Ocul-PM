@@ -1,7 +1,7 @@
 //! 코드 화면 백엔드 — 프로젝트 파일 트리 + 읽기/쓰기 (docs/code-editor/00-master-plan.md).
 //!
 //! SSOT 는 디스크다 — 캐시를 두지 않는다. 모든 경로는
-//! project.rs 의 [`secure_join`](crate::commands::project::secure_join) 을 거쳐 프로젝트 루트 밖으로 못 나간다.
+//! [`crate::path_guard`] 를 거쳐 프로젝트 루트 밖으로 못 나간다 (어휘 + 링크).
 //!
 //! 쓰기는 낙관적 잠금이다: 프런트가 읽을 때 받은 blake3 해시를 저장 시 되돌려
 //! 보내고, 디스크가 그 사이 바뀌었으면 덮어쓰지 않고 `Conflict` 를 돌려준다

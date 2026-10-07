@@ -11,9 +11,9 @@ use tauri::State;
 use crate::commands::code::{
     canonical_within_root, normalize_rel, project_root, write_with_lock, CodeWriteOutcome,
 };
-use crate::commands::project::secure_join;
 use crate::db::Db;
 use crate::oculpm::history::{self, HistoryEntry, HistoryOp, HistorySource, HistoryState};
+use crate::path_guard::secure_join;
 
 /// 프런트로 건너가는 판 하나.
 ///
