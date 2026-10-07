@@ -51,6 +51,33 @@ fn import_dedupes_instead_of_overwriting() {
     assert_eq!(out.imported, vec!["dest/note-3.txt"]);
 }
 
+/// 목적지에 심어 둔 **깨진 링크**는 빈 자리가 아니다 — 그 이름으로 가져오면
+/// 링크를 따라 프로젝트 밖에 파일이 생겼다 (보안 피드백 3차, 2026-10-08).
+#[test]
+fn import_never_writes_through_a_planted_link() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path().join("proj");
+    fs::create_dir_all(&root).unwrap();
+    let outside = TempDir::new().unwrap();
+    write(outside.path(), "note.txt", b"new");
+    let escaped = tmp.path().join("escaped.txt");
+    if !crate::test_links::file(&escaped, &root.join("note.txt")) {
+        return;
+    }
+    let src = outside
+        .path()
+        .join("note.txt")
+        .to_string_lossy()
+        .to_string();
+
+    let out = import_into(&root, &root, &[src]).unwrap();
+    assert_eq!(out.imported, vec!["note-2.txt"]);
+    assert!(!escaped.exists(), "링크 대상에 쓰면 안 된다");
+    // 이름을 고른 뒤에 링크가 생겨도 쓰기 자체가 거절한다.
+    assert!(copy_file_new(&outside.path().join("note.txt"), &root.join("note.txt")).is_err());
+    assert!(!escaped.exists());
+}
+
 /// 폴더는 재귀로, 심볼릭 링크는 빼고. 링크를 따라가면 프로젝트 밖 내용이
 /// 사본으로 들어온다 (트리·검색과 같은 정책).
 #[test]

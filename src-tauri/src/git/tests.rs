@@ -360,3 +360,42 @@ fn a_tag_range_yields_only_the_commits_after_it_with_their_files() {
 
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// 보안 피드백 3차 (2026-10-08): 블롭 질의는 저장소를 **경로에서** 푼다. 프로젝트
+/// 옆의 다른 저장소를 `../`·절대경로·밖을 가리키는 링크로 가리키면, 그 저장소에
+/// 커밋된 내용이 나왔다 (`code_head_content`·이미지 미리보기 "이전"·거터).
+#[test]
+fn blob_queries_stay_inside_the_project_root() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (proj, other) = (tmp.path().join("proj"), tmp.path().join("other"));
+    for repo in [&proj, &other] {
+        std::fs::create_dir_all(repo).unwrap();
+        if git(repo, &["init", "-q"]).is_err() {
+            return; // git unavailable
+        }
+        git(repo, &["config", "user.email", "t@t.dev"]).unwrap();
+        git(repo, &["config", "user.name", "t"]).unwrap();
+    }
+    std::fs::write(proj.join("mine.txt"), "mine\n").unwrap();
+    std::fs::write(other.join("secret.txt"), "theirs\n").unwrap();
+    for repo in [&proj, &other] {
+        git(repo, &["add", "."]).unwrap();
+        git(repo, &["commit", "-qm", "base"]).unwrap();
+    }
+
+    assert_eq!(
+        show_file_bytes(&proj, "mine.txt", "HEAD", 1024).as_deref(),
+        Some(&b"mine\n"[..])
+    );
+    let absolute = other.join("secret.txt").to_string_lossy().into_owned();
+    let mut escapes = vec!["../other/secret.txt".to_string(), absolute];
+    if crate::test_links::dir(&other, &proj.join("link")) {
+        escapes.push("link/secret.txt".to_string());
+    }
+    for rel in &escapes {
+        assert_eq!(show_file_bytes(&proj, rel, "HEAD", 1024), None, "{rel}");
+        assert_eq!(blob_size(&proj, rel, "HEAD"), None, "{rel}");
+        assert_eq!(path_in_head(&proj, rel), None, "{rel}");
+        assert!(line_changes(&proj, rel, "x\n").is_empty(), "{rel}");
+    }
+}
