@@ -3008,6 +3008,10 @@ export const ko = {
   "acp.image.view": "크게 보기",
   "acp.image.close": "닫기",
   "acp.image.remove": "이미지 빼기",
+  "acp.mode.dangerTitle": "{mode} 모드로 바꿀까요?",
+  "acp.mode.dangerBody":
+    "이 모드에서는 에이전트가 파일 수정과 명령 실행을 묻지 않고 해요. 프로젝트 밖 파일이나 되돌릴 수 없는 명령도 승인 없이 돌 수 있어요 — 믿을 수 있는 작업에서만 쓰세요.",
+  "acp.mode.dangerConfirm": "이 모드로 바꾸기",
   "acp.modeCycleHint": "⇧Tab 으로 전환",
   "acp.ultracodeNeedsModel": "Opus 이상 모델에서만 켜져요",
   "acp.limit.shortSession": "오늘",

@@ -3017,6 +3017,10 @@ export const en: Record<keyof typeof ko, string> = {
   "acp.image.view": "View full size",
   "acp.image.close": "Close",
   "acp.image.remove": "Remove image",
+  "acp.mode.dangerTitle": "Switch to {mode}?",
+  "acp.mode.dangerBody":
+    "In this mode the agent edits files and runs commands without asking. Files outside the project and irreversible commands can run without approval — use it only for work you trust.",
+  "acp.mode.dangerConfirm": "Switch mode",
   "acp.modeCycleHint": "⇧Tab to switch",
   "acp.ultracodeNeedsModel": "Available on Opus and above",
   "acp.limit.shortSession": "Today",

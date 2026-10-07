@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Code2, ClipboardCheck, Cpu, Gauge, Lock, Play, Rocket, Settings, type IconComponent } from "@/components/Icons";
 import { type AcpConfigOption } from "@/lib/bindings";
 import { useT } from "@/i18n";
+import { useConfirm } from "@/hooks/useConfirm";
 import { blocked } from "@/lib/blocked";
 import { nextIndex } from "../ultracode";
 import { useDismiss } from "../useDismiss";
@@ -91,6 +92,16 @@ export const MODE_COLOR: Readonly<Record<string, string>> = {
  */
 export const CYCLE_MODES = ["default", "acceptEdits", "plan", "auto"] as const;
 
+/**
+ * 메뉴에서 고를 때 **한 번 더 묻는** 모드 (2026-10-07 외부 보안 피드백 #6).
+ *
+ * ⇧Tab 은 이미 이것들을 건너뛰지만(`CYCLE_MODES`) 메뉴에서는 클릭 한 번이었다.
+ * 승인 없이 셸·편집을 하는 모드로 들어가는 문이 클릭 한 번이면, 메뉴를 훑다
+ * 잘못 누른 것과 고른 것이 구별되지 않는다 — Claude Code CLI 도 bypass 는 따로
+ * 확인을 받는다. `full-access` 는 Codex 어댑터의 같은 자리(샌드박스·승인 없음)다.
+ */
+export const DANGEROUS_MODES: readonly string[] = ["dontAsk", "bypassPermissions", "full-access"];
+
 export function choicesOf(option: AcpConfigOption) {
   return option.is_boolean
     ? [
@@ -118,12 +129,34 @@ export function ConfigControl({
   compact?: boolean;
 }) {
   const { t } = useT();
+  const { confirm, confirmDialog } = useConfirm();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   useDismiss(open, wrapRef, useCallback(() => setOpen(false), []));
 
   const choices = choicesOf(option);
   if (!choices.length) return null;
+
+  const choose = async (choice: (typeof choices)[number]) => {
+    setOpen(false);
+    const risky =
+      option.id === "mode" &&
+      DANGEROUS_MODES.includes(choice.value) &&
+      choice.value !== option.current;
+    if (
+      risky &&
+      !(await confirm({
+        title: t("acp.mode.dangerTitle", { mode: choice.name }),
+        message: t("acp.mode.dangerBody"),
+        items: choice.description ? [{ text: choice.description }] : undefined,
+        confirmLabel: t("acp.mode.dangerConfirm"),
+        danger: true,
+      }))
+    ) {
+      return;
+    }
+    onChange(option.id, choice.value);
+  };
 
   const current = choices.find((c) => c.value === option.current);
   // 모드는 **고른 값**이 아이콘을 정한다. 항목 id 로 정하면 Auto 를 골라도
@@ -178,10 +211,7 @@ export function ConfigControl({
                 role="menuitemradio"
                 aria-checked={choice.value === option.current}
                 className={"settings-row" + (choice.value === option.current ? " active" : "")}
-                onClick={() => {
-                  setOpen(false);
-                  onChange(option.id, choice.value);
-                }}
+                onClick={() => void choose(choice)}
               >
                 <span
                   className="settings-row-icon"
@@ -203,6 +233,7 @@ export function ConfigControl({
           })}
         </div>
       ) : null}
+      {confirmDialog}
     </div>
   );
 }
