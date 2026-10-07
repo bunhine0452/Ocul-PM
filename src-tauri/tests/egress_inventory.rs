@@ -225,7 +225,7 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     ("OCULPM.com:443", "deeplink 테스트 — 대소문자·포트가 붙어도 같은 판정을 받는지."),
     ("evil.test", "deeplink 테스트 — 화이트리스트 밖 호스트가 거부되는지."),
     ("oculpm.com@evil.test", "deeplink 테스트 — `@` 자격증명 트릭으로 화이트리스트를 속일 수 없는지."),
-    ("example.com", "lsp/discussion 파서 픽스처 — URI 를 파일 경로로 오인하지 않는지."),
+    ("example.com", "lsp/discussion 파서 픽스처 — URI 를 파일 경로로 오인하지 않는지. plugins/install.rs 의 MCP 원격 서버 미리보기 픽스처이기도 하다."),
     ("rubygems.org", "stack_detect 픽스처 — Gemfile 내용 샘플."),
 ];
 
