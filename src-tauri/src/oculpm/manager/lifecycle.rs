@@ -39,7 +39,11 @@ impl OculpmManager {
             }
         }
 
-        // 0. `.oculpm/` 의 링크 가드. 이 폴더는 저장소에 실려 오고 앱은 그 안에
+        // 0. 폭발 반경 가드 — 파일시스템 루트·홈 자체에는 아무것도 깔지 않는다.
+        if crate::oculpm::paths::is_unsafe_project_root(root) {
+            return Err(OculpmError::UnsafeProjectRoot(root.display().to_string()));
+        }
+        // 0.1 `.oculpm/` 의 링크 가드. 이 폴더는 저장소에 실려 오고 앱은 그 안에
         //    링크를 만들지 않는다 — 있으면 남의 것이고, 따라가면 일지·기록·색인
         //    쓰기가 프로젝트 밖으로 나간다. 아무것도 읽거나 쓰기 전에 거부한다.
         //    전수 검사지만 항목 종류만 보므로 싸다 (`paths::first_symlink_under`).

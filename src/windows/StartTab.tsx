@@ -218,7 +218,10 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
     const name = pathBaseName(path) || "project";
     const created = await commands.createProject(name, path);
     if (created.status !== "ok") {
-      setError(created.error);
+      // 루트·홈 거부는 코드로 온다 (commands/project.rs) — 사람 말로 옮긴다.
+      setError(
+        created.error === "unsafe_project_root" ? t("err.code.unsafe_project_root") : created.error,
+      );
       return null;
     }
     const list = await commands.listProjects();
@@ -233,7 +236,7 @@ export default function StartTab({ tabId, active, openProjects }: StartTabProps)
     return list.status === "ok"
       ? (list.data.find((p) => p.id === created.data) ?? null)
       : null;
-  }, [startIndex]);
+  }, [startIndex, t]);
 
   function handleAddProject() {
     void addProjectFromFolder();

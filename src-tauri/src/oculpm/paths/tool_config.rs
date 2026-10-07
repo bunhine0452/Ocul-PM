@@ -27,6 +27,17 @@ pub fn is_home_dir_of(path: &Path, home: Option<&Path>) -> bool {
     home.is_some_and(|home| canon(path) == canon(home))
 }
 
+/// 프로젝트 루트로 받으면 안 되는 자리 — 파일시스템 루트와 사용자 홈 **자체**.
+///
+/// 여기를 프로젝트로 들이면 `.oculpm/`·`AGENTS.md`·`.gitignore` 블록이 홈에 깔리고
+/// (`core.excludesFile` 관행의 `~/.gitignore` 오염) 워처·색인이 디스크 전체를 걷는다.
+/// MCP `project_init` 이 먼저 막고 있었고, 앱의 `create_project`·`init_project` 가
+/// 같은 판정을 쓴다 (2026-10-07 외부 보안 피드백 — 웹뷰가 넘기는 경로를 그대로 받았다).
+pub fn is_unsafe_project_root(path: &Path) -> bool {
+    let canon = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    canon.parent().is_none() || is_home_dir(&canon)
+}
+
 /// Claude Code 설정 루트 `~/.claude` — 세 OS 공통 (Windows 도 `%USERPROFILE%\.claude`).
 pub fn claude_code_home() -> Option<PathBuf> {
     home_dir().map(|home| home.join(".claude"))
@@ -260,5 +271,21 @@ mod tests {
             "{}",
             desktop.display()
         );
+    }
+
+    /// 파일시스템 루트는 어느 OS 에서나 프로젝트가 될 수 없다. 보통 폴더는 된다.
+    #[test]
+    fn the_filesystem_root_is_never_a_project_root() {
+        #[cfg(unix)]
+        assert!(is_unsafe_project_root(Path::new("/")));
+        #[cfg(windows)]
+        assert!(is_unsafe_project_root(Path::new("C:\\")));
+        let tmp = tempfile::tempdir().unwrap();
+        let project = tmp.path().join("proj");
+        std::fs::create_dir_all(&project).unwrap();
+        assert!(!is_unsafe_project_root(&project));
+        if let Some(home) = home_dir() {
+            assert!(is_unsafe_project_root(&home));
+        }
     }
 }
