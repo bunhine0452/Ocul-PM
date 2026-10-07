@@ -295,6 +295,7 @@ publish 의 최종 검증이 막은 것입니다(`false` 면 공개는 됐고 �
 | `릴리스 자산에 … 이 없다` / `latest.json …` | 업로드 누락·URL 불일치 | tauri-action 로그; `version` 불일치면 §1 의 `tauri.conf.json` |
 | `tauri.conf.json 의 version(…)이 태그(…)와 다르다` (meta) | §1 을 빠뜨리고 태그 | 빌드 전에 멈춘 것 — 버전을 올린 새 커밋 → 새 태그 |
 | publish 의 `latest.json — … macOS 항목이 병합 전과 다르다` | 병합이 macOS 항목을 건드렸다(버그) | 공개하지 않고 멈춘 것이 맞습니다. `node --test .github/scripts/release/release.test.mjs` 로 재현 → 스크립트 수정 |
+| `Resource not accessible by integration` — `create-a-release` (macOS 의 Build Tauri app) | 릴리스 대상 커밋의 `.github/workflows/` 가 기본 브랜치와 다르다 — GitHub 는 그때 `workflows` 권한을 요구하고 GITHUB_TOKEN 은 그것을 못 받는다. v3.9.0 에서 태그를 민 뒤 main 에 워크플로 PR 이 머지되자 났다 | v3.9.0 뒤로는 `releaseCommitish` 가 기본 브랜치라 나지 않습니다. 옛 태그의 run 을 살릴 땐 아래 「대상 커밋을 main 으로 둔 draft」 |
 
 고친 뒤에는 **draft 를 지우고 run 을 다시 돌립니다** — 시크릿 문제라면 커밋을 바꿀 필요가 없으므로
 태그도 그대로입니다:
@@ -309,6 +310,15 @@ gh run rerun <release run id>                    # 같은 태그로 다시: gate
 말고 새 커밋 → 새 버전으로 갑니다. 그 경우도 남아 있는 draft 는 지웁니다 — 같은 태그의 draft 가
 있으면 다음 run 의 tauri-action 이 그 draft 를 찾아 자산을 덮어쓰기 때문에 지우지 않아도 동작은
 하지만, 옛 시도의 자산이 섞여 남을 수 있습니다.
+
+**대상 커밋을 main 으로 둔 draft** — `releaseCommitish` 가 태그 커밋이던 판(v3.9.0 태그까지)의 run 이 위 403 으로 멈췄을 때. tauri-action 은 같은 태그의 draft 가 있으면 고치지 않고 거기에 자산을 올리므로, 대상을 기본 브랜치로 둔 draft 를 먼저 만들고 실패한 잡만 다시 돌립니다. 태그는 이미 있어 대상 값이 태그를 옮기지 않습니다:
+
+```bash
+node .github/scripts/release/notes.mjs release-body --changelog CHANGELOG.md --tag vX.Y.Z --mode whats-new > body.md
+gh api repos/<owner>/<repo>/releases -X POST -f tag_name=vX.Y.Z -f target_commitish=main \
+  -f name="Ocul-PM vX.Y.Z" -F draft=true -F prerelease=false -f body="$(cat body.md)"
+gh run rerun <release run id> --failed
+```
 
 **손으로 `--draft=false` 를 누르지 마세요.** 검증을 건너뛰고 공개하는 유일한 경로가 그것이고, 그
 순간 업데이터가 무서명 빌드를 모든 사용자에게 밀어 넣습니다.
