@@ -8,6 +8,7 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 //   2. 이행하지 않는 아티팩트가 사유와 함께 화면에 남는다 (조용한 무시 금지)
 //   3. 이미 설치된 번들은 **명시적 확인** 없이 교체되지 않는다
 
+import { t } from "@/i18n";
 import { unusedFieldsFor } from "@/features/settings/automation/automationModel";
 import { notHonoredReasonKey } from "@/features/settings/plugins/NotHonoredNotice";
 import type { AutomationDef, BundleImportResult } from "@/lib/bindings";
@@ -57,7 +58,7 @@ function result(over: Partial<BundleImportResult> = {}): BundleImportResult {
       ],
       skipped: [],
     },
-    mcp: { added: [], conflicts: [], unreadable: false },
+    mcp: { added: [], launches: [], conflicts: [], unreadable: false },
     automations: [],
     already_installed: null,
     ...over,
@@ -139,6 +140,22 @@ describe("PluginBundlesBlock", () => {
     expect(r.getByText(/감지했지만 실행하지 않아요/)).toBeTruthy();
     expect(r.getByText("hooks")).toBeTruthy();
     expect(r.getByText(/셸 스크립트를 실행해요/)).toBeTruthy();
+  });
+
+  // MCP 서버 정의는 곧 실행할 명령이다 — 미리보기가 그 명령줄을 그대로 보여 준다.
+  it("MCP 서버가 실행할 명령을 미리보기에 그대로 적는다", async () => {
+    fx.preview = result({
+      mcp: {
+        added: ["kit"],
+        launches: [{ key: "kit", launch: "npx -y kit-mcp@1.2.3" }],
+        conflicts: [],
+        unreadable: false,
+      },
+    });
+    const r = render(<PluginBundlesBlock projectId={1} />);
+    await openPreview(r);
+    expect(r.getByText(t("plugins.mcpLaunches"))).toBeTruthy();
+    expect(r.getByText(/npx -y kit-mcp@1\.2\.3/)).toBeTruthy();
   });
 
   it("놓을 자리를 그대로 보여 준다 — Claude Code 가 읽는 경로", async () => {

@@ -223,6 +223,20 @@ function BundleDetail({
       {report.conflicts > 0 && (
         <p className="text-xs text-destructive">{t("plugins.conflictNote")}</p>
       )}
+      {/* MCP 서버 정의는 곧 실행할 명령이다 — 이름만 보여 주면 무엇을 들이는지
+          모른 채 설치를 누르게 된다 (보안 피드백 라운드). env 값은 백엔드가 뺐다. */}
+      {mcp.launches.length > 0 && (
+        <div className="text-xs">
+          <p className="text-foreground">{t("plugins.mcpLaunches")}</p>
+          <ul className="mt-1 space-y-0.5">
+            {mcp.launches.map((l) => (
+              <li key={l.key} className="font-mono text-muted-foreground break-all">
+                <span className="text-foreground">{l.key}</span> · {l.launch}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {mcp.conflicts.length > 0 && (
         <p className="text-xs text-destructive">
           {t("plugins.mcpConflict", { keys: mcp.conflicts.join(", ") })}
