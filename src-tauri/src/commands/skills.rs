@@ -317,7 +317,10 @@ fn home_dir() -> Result<PathBuf, String> {
 }
 
 async fn scope_dirs(db: &Db, project_id: u32) -> Result<(PathBuf, PathBuf), String> {
-    let project = project_root(db, project_id).await?.join(SKILLS_SUBDIR);
+    // 프로젝트 쪽은 저장소에 실려 온다 — `.claude -> ~/.claude` 면 「프로젝트 스킬」
+    // 의 저장·삭제가 전역 스킬에 떨어진다. 링크까지 풀어 안인지 본다 (`path_guard`).
+    let project =
+        crate::path_guard::secure_join(&project_root(db, project_id).await?, SKILLS_SUBDIR)?;
     let global = home_dir()?.join(SKILLS_SUBDIR);
     Ok((project, global))
 }
@@ -379,11 +382,19 @@ fn secure_skill_path(root: &Path, dir_name: &str, enabled: bool) -> Result<PathB
     }
 }
 
+fn is_link(p: &Path) -> bool {
+    p.symlink_metadata()
+        .is_ok_and(|m| m.file_type().is_symlink())
+}
+
 /// 활성 → 비활성 순서로 실제 폴더를 찾는다. `SKILL.md` 가 있어야 스킬로 인정.
 fn locate_skill(root: &Path, dir_name: &str) -> Result<(PathBuf, bool), String> {
     for enabled in [true, false] {
         let dir = secure_skill_path(root, dir_name, enabled)?;
-        if dir.join(SKILL_FILENAME).is_file() {
+        let skill_md = dir.join(SKILL_FILENAME);
+        // 목록(`collect_dir`)과 같은 규칙 — 링크인 폴더·SKILL.md 는 스킬로 치지 않는다.
+        // 따라가면 읽기(그리고 트리거 교정의 모델 입력)와 저장이 링크 대상에 닿는다.
+        if !is_link(&dir) && !is_link(&skill_md) && skill_md.is_file() {
             return Ok((dir, enabled));
         }
     }
@@ -462,6 +473,9 @@ fn collect_dir(
             continue;
         }
         let skill_md = entry.path().join(SKILL_FILENAME);
+        if is_link(&skill_md) {
+            continue;
+        }
         let Ok(content) = std::fs::read_to_string(&skill_md) else {
             continue;
         };
