@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 // @ts-expect-error — 빌드 대상이 아닌 zero-dep 릴리스 스크립트 (.mjs, 타입 없음).
-import { bumpLanding, bumpVersionFile, LANDINGS, leftoverLines, VERSION_FILES } from "../../scripts/bump-version.mjs";
+import { bumpLanding, bumpVersionFile, LANDINGS, leftoverLines, reviewGap, stampPendingReviews, VERSION_FILES } from "../../scripts/bump-version.mjs";
 
 // 감사 라운드 2026-09-11 F3 — 릴리스 버전 6파일 + 랜딩 ko/en 각 6곳을 한 번에.
 // 계약: 자리 수가 어긋나면 throw(반만 고치지 않는다), 변경 이력·FAQ 는 건드리지
@@ -40,5 +40,37 @@ describe("bump-version", () => {
     expect(() => bumpLanding(html, "0.0.1", "9.9.9", "ko")).toThrow(/expected 1 site/);
     const out = bumpLanding(html, pkgVersion, "9.9.9", "ko", "new title");
     expect(out).toContain(`<span class="ap-new">NEW</span>&nbsp; v9.9.9 — new title</a>`);
+  });
+});
+
+// 외부 리뷰 2026-10-08 — 리뷰를 사건이 아니라 주기로 (docs/RELEASE.md §0-1).
+// 계약: 「반영」 칸만 읽는다, 표를 못 읽으면 null 로 알린다, 「다음 릴리스」 는 이번 버전이 된다.
+describe("bump-version — external review cadence", () => {
+  const table = [
+    "| 날짜 | 리뷰 | 반영 |",
+    "|---|---|---|",
+    "| 2026-09-15 | 첫 리뷰 | v3.2.0 |",
+    "| 2026-10-07 | v3.8.0 이 막지 못한 자리 — 리뷰 칸의 v9.0.0 은 무시 | v3.9.0 |",
+    "| 2026-10-08 | 아직 안 나간 수정 | 다음 릴리스 |",
+    "| 2026-10-08 | 버전 없는 반영 | 범위 동결 |",
+  ].join("\n");
+
+  it("reads the highest version from the 반영 column only", () => {
+    expect(reviewGap(table, "3.13.0")).toEqual({ last: "3.9.0", minors: 4 });
+    expect(reviewGap(table, "3.14.0")).toEqual({ last: "3.9.0", minors: 5 });
+    expect(reviewGap(table, "4.0.0").minors).toBe(Infinity);
+  });
+
+  it("stamps pending rows with the release being cut, and nothing else", () => {
+    const out: string = stampPendingReviews(table, "3.10.0");
+    expect(out).toContain("| 2026-10-08 | 아직 안 나간 수정 | v3.10.0 |");
+    expect(out.split("\n").filter((l, i) => l !== table.split("\n")[i])).toHaveLength(1);
+    expect(reviewGap(out, "3.10.0")).toEqual({ last: "3.10.0", minors: 0 });
+  });
+
+  it("says so when the table is gone, and reads the real SECURITY.md", () => {
+    expect(reviewGap("# no table here", "3.10.0")).toEqual({ last: null, minors: null });
+    const real = readFileSync(resolve(ROOT, "SECURITY.md"), "utf8");
+    expect(reviewGap(real, pkgVersion).last).not.toBeNull();
   });
 });

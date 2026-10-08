@@ -132,6 +132,8 @@ const TESTS = new Set([
   // 첫 기록 카드 — 상태 이름·픽스처 제목이 한국어 검사 재료다 (first-record-loop).
   "__tests__/first_record_card.test.tsx",
   "__tests__/first_record_model.test.ts",
+  // SECURITY.md 「외부 리뷰 이력」 표 픽스처 — 「반영」·「다음 릴리스」 는 파서가 읽는 한국어 문서 형식이다.
+  "__tests__/bump_version.test.ts",
   "__tests__/journal_toast_gate.test.ts",
   "__tests__/resume_card.test.tsx",
   "__tests__/greenfield_empty_draft.test.tsx",
