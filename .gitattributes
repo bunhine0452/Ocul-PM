@@ -21,3 +21,13 @@
 *.onnx binary
 *.zip binary
 *.wasm binary
+
+# 생성물 — GitHub PR diff 에서 기본으로 접힌다 (외부 리뷰 2026-10-08: 6천 줄
+# bindings.ts 가 리뷰 diff 를 흐린다). 로컬 `git diff` 는 그대로 보인다 — 고치는
+# 법은 손이 아니라 생성기다. 잠금 파일(Cargo.lock · pnpm-lock.yaml)은 linguist 가
+# 이미 생성물로 안다.
+src/lib/bindings.ts linguist-generated=true
+landing/wiki/** linguist-generated=true
+landing/changelog.html linguist-generated=true
+landing/themes.html linguist-generated=true
+landing/sitemap.xml linguist-generated=true
