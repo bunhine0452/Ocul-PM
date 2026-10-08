@@ -613,15 +613,28 @@ pub async fn search_chunks(
         .next()
         .ok_or_else(|| "embed returned no result".to_string())?;
 
-    db.search_chunks(
-        project_id,
-        vec_to_bytes(&query_emb),
-        limit.max(1),
-        include_docs,
-        include_journal,
-    )
-    .await
-    .map_err(|e| e.to_string())
+    let mut hits = db
+        .search_chunks(
+            project_id,
+            vec_to_bytes(&query_emb),
+            limit.max(1),
+            include_docs,
+            include_journal,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    // 꺼낸 청크는 AI 패널 프롬프트(RAG, `aiContext.ts`)와 모바일로 기기 밖에 나간다.
+    // 저장소 파일이라 「사용자가 친 글」 이 아니므로 프로젝트 패턴으로 가린다
+    // (2026-10-08 검토 — notion_export 와 같은 규율). 화면의 의미 검색도 같은 결과를
+    // 본다. 정확 문자열 검색(`search_text`)은 가리지 않는다 — 그 문자열을 찾는 중이다.
+    let patterns = match db.get_project(project_id).await {
+        Ok(p) => crate::oculpm::redact::patterns_for_project(std::path::Path::new(&p.root_path)),
+        Err(_) => crate::oculpm::redact::compile_redact_patterns(&[]),
+    };
+    for hit in &mut hits {
+        hit.content = crate::oculpm::redact::redact_text(&hit.content, &patterns).0;
+    }
+    Ok(hits)
 }
 
 // PR-R1b (A2) — exact substring search over indexed chunk text (no embedding).
