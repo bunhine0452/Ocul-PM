@@ -457,3 +457,13 @@
 .keys-row { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-3); }
 .keys-row dt { flex: 1; min-width: 0; color: var(--text-2); }
 .keys-row dd { margin: 0; display: flex; gap: var(--space-1); flex: none; }
+
+/* 창을 보고 있지 않으면 무한 반복 애니메이션을 멈춘다 (`lib/idleMotion.ts` 가 속성을 단다).
+   보는 사람이 없는데 숨쉬기·펄스가 화면 갱신을 계속 깨웠다 — 2026-10-08 검토. 색과
+   모양은 그대로라 상태는 읽힌다. 컴포넌트 규칙의 `animation` 단축 속성이 재생 상태를
+   running 으로 되돌리므로 !important 다. */
+:root[data-app-inactive] *,
+:root[data-app-inactive] *::before,
+:root[data-app-inactive] *::after {
+  animation-play-state: paused !important;
+}
