@@ -27,6 +27,7 @@ export const ALLOWLIST = new Set([
   "api/deeplink.ts",
   "api/declarativeConfig.ts",
   "api/plugins.ts",
+  "api/session.ts",
   "api/import.ts",
   "api/llm.ts",
   "api/codeHistory.ts",

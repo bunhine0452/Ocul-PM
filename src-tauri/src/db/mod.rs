@@ -38,6 +38,8 @@ mod projects;
 pub use projects::PROJECT_CACHE_TABLES;
 pub mod recall;
 mod settings;
+/// 기동 때 열기 — 실패하면 크래시 대신 대화상자 (`open_or_ask`).
+pub mod startup;
 pub mod velocity;
 
 impl Db {
@@ -126,6 +128,26 @@ impl Db {
     }
 
     async fn migrate(&self) -> Result<()> {
+        let current: i64 = self
+            .conn
+            .call(|c| -> rusqlite::Result<i64> {
+                c.query_row("PRAGMA user_version", [], |r| r.get(0))
+            })
+            .await?;
+        let latest = MIGRATIONS.last().map_or(0, |(v, _)| *v);
+        // 새 버전이 쌓은 DB 를 옛 앱이 열면 모르는 스키마 위에서 돈다 — 열지 않는다.
+        // 기동 대화상자(`db::startup`)가 이유를 보이고 「옮겨 두고 새로 시작」 을 준다.
+        if current > latest {
+            return Err(crate::error::Error::Other(format!(
+                "database schema v{current} is newer than this app (v{latest}) — update Ocul-PM"
+            )));
+        }
+        let destructive = MIGRATIONS
+            .iter()
+            .any(|(v, sql)| *v > current && is_destructive(sql));
+        if current > 0 && destructive {
+            self.backup_before_migration(current).await;
+        }
         self.conn
             .call(|c| {
                 let current: i64 = c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
@@ -143,6 +165,37 @@ impl Db {
             .await?;
         self.heal_columns().await?;
         Ok(())
+    }
+
+    /// 파괴적 마이그레이션 직전 사본 — `<db>.bak-v<지금 버전>` (`VACUUM INTO`, WAL 이어도
+    /// 일관된 한 장). **하나만** 남긴다: DB 가 수백 MB 라 버전마다 쌓으면 디스크를 먹는다.
+    /// 실패는 기동을 막지 않는다 — DB 의 대부분은 디스크 마크다운에서 다시 짓는 캐시다.
+    pub(crate) async fn backup_before_migration(&self, current: i64) {
+        let Some(name) = self
+            .path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+        else {
+            return;
+        };
+        let dest = self.path.with_file_name(format!("{name}.bak-v{current}"));
+        if let Some(dir) = self.path.parent() {
+            let prefix = format!("{name}.bak-v");
+            for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+                if entry.file_name().to_string_lossy().starts_with(&prefix) {
+                    let _ = std::fs::remove_file(entry.path());
+                }
+            }
+        }
+        let target = dest.to_string_lossy().into_owned();
+        let done = self
+            .conn
+            .call(move |c| -> rusqlite::Result<usize> { c.execute("VACUUM INTO ?1", [target]) })
+            .await;
+        match done {
+            Ok(_) => info!(backup = %dest.display(), "마이그레이션 전 DB 사본"),
+            Err(e) => warn!(error = %e, "마이그레이션 전 DB 사본 실패 — 그대로 진행"),
+        }
     }
 
     /// [`ADDITIVE_COLUMNS`] 중 실제 스키마에 없는 것을 다시 더한다 — 러너가
@@ -711,6 +764,15 @@ pub struct ProjectBlueprint {
     pub wizard_step: u32,
     pub created_at: u32,
     pub updated_at: u32,
+}
+
+/// 행이나 구조를 지우는 마이그레이션인가 — 그 앞에서만 사본을 뜬다.
+/// (`ON DELETE CASCADE`·트리거의 `AFTER DELETE` 는 지우는 문장이 아니다.)
+fn is_destructive(sql: &str) -> bool {
+    let upper = sql.to_ascii_uppercase();
+    ["DROP TABLE", "DROP COLUMN", "DELETE FROM"]
+        .iter()
+        .any(|kw| upper.contains(kw))
 }
 
 #[cfg(test)]

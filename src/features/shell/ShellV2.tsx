@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useState } from "react";
-import { createUnlistenBag, safeUnlistenPromise } from "@/lib/unlisten";
+import { safeUnlistenPromise } from "@/lib/unlisten";
+import { useSeededEvent } from "@/hooks/useSeededEvent";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
@@ -177,15 +178,23 @@ export default function ShellV2({
   }, [projectId]);
 
   // 다른 프로젝트가 어디든 열려 있는지 — 팝오버의 "열림" 표시.
+  // 구독 먼저, 물음은 그다음 — 먼저 물으면 늦게 온 답이 그 사이의 새 목록을 덮는다.
   const [openWindows, setOpenWindows] = useState<number[]>([]);
-  useEffect(() => {
-    void commands.listOpenProjectIds().then((res) => {
-      if (res.status === "ok") setOpenWindows(res.data);
-    });
-    const bag = createUnlistenBag();
-    bag.add(events.projectWindowsChanged.listen(({ payload }) => setOpenWindows(payload.open)));
-    return () => bag.dispose();
-  }, []);
+  useSeededEvent<number[] | null>(
+    {
+      seed: () => commands.listOpenProjectIds().then((r) => (r.status === "ok" ? r.data : null)),
+      subscribe: (touch) => [
+        events.projectWindowsChanged.listen(({ payload }) => {
+          touch();
+          setOpenWindows(payload.open);
+        }),
+      ],
+      onSeed: (open, touched) => {
+        if (open && !touched()) setOpenWindows(open);
+      },
+    },
+    [],
+  );
 
   // I3 — "프로젝트 전환"은 제자리 교체가 아니라 **그 프로젝트의 탭을 열거나
   // 활성화**하는 것이다. 이 탭의 프로젝트는 끝까지 바뀌지 않는다.
@@ -195,20 +204,22 @@ export default function ShellV2({
 
   // 분리 터미널 창이 이 프로젝트에 떠 있는가 — 창의 존재 여부가 진실이고
   // 백엔드가 알려 준다. 사용자가 그 창을 OS 버튼으로 닫아도 여기로 돌아온다.
-  useEffect(() => {
-    void commands.listTerminalWindows().then((res) => {
-      if (res.status === "ok" && projectId != null) {
-        setTerminalDetached(res.data.includes(projectId));
-      }
-    });
-    const bag = createUnlistenBag();
-    bag.add(
-      events.terminalWindowsChanged.listen(({ payload }) => {
-        if (projectId != null) setTerminalDetached(payload.open.includes(projectId));
-      }),
-    );
-    return () => bag.dispose();
-  }, [projectId, setTerminalDetached]);
+  useSeededEvent<number[] | null>(
+    {
+      seed: () => commands.listTerminalWindows().then((r) => (r.status === "ok" ? r.data : null)),
+      subscribe: (touch) => [
+        events.terminalWindowsChanged.listen(({ payload }) => {
+          if (projectId == null) return;
+          touch();
+          setTerminalDetached(payload.open.includes(projectId));
+        }),
+      ],
+      onSeed: (open, touched) => {
+        if (open && projectId != null && !touched()) setTerminalDetached(open.includes(projectId));
+      },
+    },
+    [projectId, setTerminalDetached],
+  );
 
   // v2.3.0 메뉴바 팝오버 딥링크 (docs/menubar/00-master-plan.md D5) — 트레이
   // 창이 tray_open_main 으로 쏜 TrayNavigate 를 받아 화면·프로젝트·일지로

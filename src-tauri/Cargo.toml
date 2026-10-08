@@ -53,6 +53,9 @@ keyring = { version = "3.6", default-features = false, features = ["apple-native
 reqwest = { version = "0.13.3", default-features = false, features = ["json", "rustls", "stream", "http2"] }
 # 테마 URL 판정 — reqwest 가 접속에 쓰는 것과 같은 파서 (deeplink::validate_theme_url).
 url = "2.5"
+# DB 를 못 열 때의 기동 대화상자 (startup_db) — dialog 플러그인과 같은 rfd·같은 기능.
+# 셋업은 메인 스레드라 플러그인의 blocking_show 는 교착한다.
+rfd = { version = "0.16", default-features = false, features = ["common-controls-v6"] }
 async-trait = "0.1.89"
 futures = "0.3.32"
 fastembed = "5.13.4"

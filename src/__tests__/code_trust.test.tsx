@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 
 import { CodeStatusBar, type CodeStatusBarProps } from "@/features/code/CodeStatusBar";
 import { codeTrustKey } from "@/features/code/codeTrust";
@@ -18,7 +18,7 @@ const lsp = vi.hoisted(() => ({
   change: vi.fn(async () => undefined),
   status: vi.fn(),
   onDiagnostics: vi.fn(async () => () => {}),
-  onServerState: vi.fn(async () => () => {}),
+  onServerState: vi.fn(async (_cb: (p: unknown) => void) => () => {}),
 }));
 vi.mock("@/api/lsp", () => ({ lspApi: lsp }));
 
@@ -84,6 +84,8 @@ describe("code trust — the chip shows even when the state event is missed (v3.
   beforeEach(() => {
     lsp.open.mockReset();
     lsp.status.mockReset();
+    lsp.onServerState.mockReset();
+    lsp.onServerState.mockImplementation(async () => () => {});
   });
   afterEach(cleanup);
 
@@ -104,11 +106,44 @@ describe("code trust — the chip shows even when the state event is missed (v3.
     expect(lsp.status).not.toHaveBeenCalled();
   });
 
-  it("does not ask when attached — start-up events carry the state", async () => {
+  // review-2026-10-09 — 예전엔 붙으면 묻지 않았다. 그러면 다른 파일을 열 때 지나간
+  // 「인덱싱 중」·「준비됨」 을 이 편집기가 못 본다.
+  it("asks when attached too, and shows the server's current state", async () => {
     lsp.open.mockResolvedValue(true);
-    renderHook(() => useLsp(1, "src/main.rs", "fn main() {}", 1));
-    await waitFor(() => expect(lsp.open).toHaveBeenCalled());
-    expect(lsp.status).not.toHaveBeenCalled();
+    lsp.status.mockResolvedValue([server("indexing")]);
+    const { result } = renderHook(() => useLsp(1, "src/main.rs", "fn main() {}", 1));
+    await waitFor(() => expect(result.current.status.state).toBe("indexing"));
+  });
+
+  it("ignores state events from another language's server", async () => {
+    let push: (p: unknown) => void = () => {};
+    lsp.onServerState.mockImplementation(async (cb) => {
+      push = cb;
+      return () => {};
+    });
+    lsp.open.mockResolvedValue(true);
+    lsp.status.mockResolvedValue([server("ready")]);
+    const { result } = renderHook(() => useLsp(1, "src/main.rs", "fn main() {}", 1));
+    await waitFor(() => expect(result.current.status.state).toBe("ready"));
+    act(() => push({ project_id: 1, language_id: "python", state: "failed", detail: "pyright exited" }));
+    expect(result.current.status.state).toBe("ready");
+  });
+
+  it("drops the status answer when a newer state event arrived meanwhile", async () => {
+    let push: (p: unknown) => void = () => {};
+    lsp.onServerState.mockImplementation(async (cb) => {
+      push = cb;
+      return () => {};
+    });
+    let answer: (v: unknown) => void = () => {};
+    lsp.open.mockResolvedValue(true);
+    lsp.status.mockImplementation(() => new Promise((r) => (answer = r)));
+    const { result } = renderHook(() => useLsp(1, "src/main.rs", "fn main() {}", 1));
+    await waitFor(() => expect(lsp.status).toHaveBeenCalled());
+    await waitFor(() => expect(lsp.onServerState).toHaveBeenCalled());
+    act(() => push({ project_id: 1, language_id: "rust", state: "ready", detail: null }));
+    await act(async () => answer([server("indexing")])); // 이벤트보다 먼저 만든 답
+    expect(result.current.status.state).toBe("ready");
   });
 
   it("maps paths to the same language ids as the backend registry", () => {

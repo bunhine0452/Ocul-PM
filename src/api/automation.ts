@@ -6,9 +6,8 @@
  * `tError(toAppError(e))`). 새 파일은 `bindings.ts` 를 직접 부르지 않는다.
  */
 
-import { call, type Envelope } from "@/api/invoke";
+import { call, subscribe, type Envelope } from "@/api/invoke";
 import { commands, events } from "@/lib/bindings";
-import { createUnlistenBag } from "@/lib/unlisten";
 import type {
   AutomationConsent,
   AutomationDef,
@@ -85,14 +84,7 @@ export const automationApi = {
    * 이벤트 채널이 없는 환경(테스트 · 웹뷰 밖)에서도 화면이 살아야 하므로
    * 실패는 삼키고 no-op 해제 함수를 돌려준다.
    */
-  onRunChanged: (cb: (e: AutomationRunChanged) => void): (() => void) => {
-    // `themesApi.onChanged` 와 같은 모양 — 자루가 "붙기 전에 떠난 구독" 을 맡는다.
-    const bag = createUnlistenBag();
-    try {
-      bag.add(events.automationRunChanged.listen((e) => cb(e.payload)));
-    } catch {
-      /* 이벤트 채널 없음 */
-    }
-    return () => bag.dispose();
-  },
+  /** 실행 시작·종료. 붙으면 풀리는 Promise — 붙은 뒤에 물으려는 화면(`useSeededEvent`)용. */
+  onRunChanged: (cb: (e: AutomationRunChanged) => void): Promise<() => void> =>
+    subscribe(events.automationRunChanged, cb),
 };

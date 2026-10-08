@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use serde::Serialize;
 use tauri::State;
 
+use super::blocking;
 use crate::db::Db;
 use crate::git::{self, render_unified_diff};
 
@@ -82,8 +83,10 @@ pub async fn compute_diff(
         return Ok(DiffResult { path, source });
     }
 
+    // git·디스크는 전부 blocking 풀에서 — DB 조회(스냅샷)만 여기서 기다린다.
     if is_last_commit {
-        let result = committed_diff(&root, path, max_bytes)?;
+        let r = root.clone();
+        let result = blocking(move || committed_diff(&r, path, max_bytes)).await?;
         if let DiffSource::Git { patch } = &result.source {
             if patch_reports_binary(patch) {
                 let source = binary_source(&db, project_id, &root, &result.path, false, true).await;
@@ -96,7 +99,9 @@ pub async fn compute_diff(
         return Ok(result);
     }
 
-    match git::diff_patch(&root, &path, None, None, max_bytes) {
+    let (r, p) = (root.clone(), path.clone());
+    let patch = blocking(move || Ok(git::diff_patch(&r, &p, None, None, max_bytes))).await?;
+    match patch {
         // git 이 직접 바이너리라고 판정한 경우 (tracked 바이너리의 수정/삭제/스테이지된 추가).
         Ok(patch) if patch_reports_binary(&patch) => {
             let source = binary_source(&db, project_id, &root, &path, false, false).await;
@@ -131,27 +136,33 @@ async fn binary_source(
     is_image: bool,
     last_commit: bool,
 ) -> DiffSource {
-    let (old_size, new_size) = if last_commit {
-        (
-            git::blob_size(root, path, "HEAD~1"),
-            git::blob_size(root, path, "HEAD"),
-        )
-    } else {
-        let old = match git::blob_size(root, path, "HEAD") {
-            Some(s) => Some(s),
-            None => db
-                .get_file_snapshot(project_id, path.to_string())
-                .await
+    let (r, p) = (root.to_path_buf(), path.to_string());
+    let (git_old, new_size) = blocking(move || {
+        Ok(if last_commit {
+            (
+                git::blob_size(&r, &p, "HEAD~1"),
+                git::blob_size(&r, &p, "HEAD"),
+            )
+        } else {
+            let disk = crate::path_guard::secure_join(&r, &p)
                 .ok()
-                .flatten()
-                .map(|s| s.content.len() as u64),
-        };
-        let new = crate::path_guard::secure_join(root, path)
+                .and_then(|abs| fs::metadata(abs).ok())
+                .filter(|m| m.is_file())
+                .map(|m| m.len());
+            (git::blob_size(&r, &p, "HEAD"), disk)
+        })
+    })
+    .await
+    .unwrap_or((None, None));
+    let old_size = match git_old {
+        Some(s) => Some(s),
+        None if !last_commit => db
+            .get_file_snapshot(project_id, path.to_string())
+            .await
             .ok()
-            .and_then(|abs| fs::metadata(abs).ok())
-            .filter(|m| m.is_file())
-            .map(|m| m.len());
-        (old, new)
+            .flatten()
+            .map(|s| s.content.len() as u64),
+        None => None,
     };
     DiffSource::Binary {
         is_image,
@@ -203,7 +214,7 @@ pub async fn git_last_commit_changes(
         .find(|p| p.id == project_id)
         .ok_or_else(|| format!("project {project_id} not found"))?;
     let root = PathBuf::from(&project.root_path);
-    Ok(git::last_commit_changes(&root))
+    blocking(move || Ok(git::last_commit_changes(&root))).await
 }
 
 /// Persistent uncommitted-change list for the 변경 diff 화면. Backed by
@@ -224,7 +235,7 @@ pub async fn git_uncommitted_changes(
         .find(|p| p.id == project_id)
         .ok_or_else(|| format!("project {project_id} not found"))?;
     let root = PathBuf::from(&project.root_path);
-    Ok(git::uncommitted_changes(&root))
+    blocking(move || Ok(git::uncommitted_changes(&root))).await
 }
 
 /// 바이너리 diff 프리뷰의 한 쪽(이전/현재). 프론트가 `data:{mime};base64,…`
@@ -270,26 +281,35 @@ pub async fn diff_binary_preview(
     let root = PathBuf::from(&project.root_path);
     let mime = image_mime(&path).unwrap_or("application/octet-stream");
 
-    let (old_bytes, new_bytes) = if baseline.as_deref() == Some("last_commit") {
-        (
-            git::show_file_bytes(&root, &path, "HEAD~1", MAX_PREVIEW_BYTES),
-            git::show_file_bytes(&root, &path, "HEAD", MAX_PREVIEW_BYTES),
-        )
-    } else {
-        let old = match git::show_file_bytes(&root, &path, "HEAD", MAX_PREVIEW_BYTES) {
-            Some(b) => Some(b),
-            None => db
-                .get_file_snapshot(project_id, path.clone())
-                .await
-                .ok()
-                .flatten()
-                .map(|s| s.content)
-                .filter(|c| c.len() <= MAX_PREVIEW_BYTES),
-        };
-        // 경로는 신뢰 경계 밖(watcher/git 출력)에서 온다 — 루트 밖 접근 차단.
-        let abs = crate::path_guard::secure_join(&root, &path)?;
-        let new = fs::read(&abs).ok().filter(|b| b.len() <= MAX_PREVIEW_BYTES);
-        (old, new)
+    let last_commit = baseline.as_deref() == Some("last_commit");
+    let (r, p) = (root.clone(), path.clone());
+    // 블롭·디스크 모두 최대 16MB — blocking 풀에서 읽는다.
+    let (git_old, new_bytes) = blocking(move || {
+        Ok(if last_commit {
+            (
+                git::show_file_bytes(&r, &p, "HEAD~1", MAX_PREVIEW_BYTES),
+                git::show_file_bytes(&r, &p, "HEAD", MAX_PREVIEW_BYTES),
+            )
+        } else {
+            // 경로는 신뢰 경계 밖(watcher/git 출력)에서 온다 — 루트 밖 접근 차단.
+            let abs = crate::path_guard::secure_join(&r, &p)?;
+            (
+                git::show_file_bytes(&r, &p, "HEAD", MAX_PREVIEW_BYTES),
+                fs::read(&abs).ok().filter(|b| b.len() <= MAX_PREVIEW_BYTES),
+            )
+        })
+    })
+    .await?;
+    let old_bytes = match git_old {
+        Some(b) => Some(b),
+        None if !last_commit => db
+            .get_file_snapshot(project_id, path.clone())
+            .await
+            .ok()
+            .flatten()
+            .map(|s| s.content)
+            .filter(|c| c.len() <= MAX_PREVIEW_BYTES),
+        None => None,
     };
 
     Ok(BinaryPreview {
@@ -369,16 +389,28 @@ async fn snapshot_diff(
     max_bytes: usize,
 ) -> Result<DiffResult, String> {
     let abs = crate::path_guard::secure_join(root, &path)?;
-    let Some(snapshot) = db
+    let snapshot = db
         .get_file_snapshot(project_id, path.clone())
         .await
         .map_err(|e| e.to_string())?
-    else {
+        .map(|s| s.content);
+    // 디스크 읽기·diff 렌더는 blocking 풀에서.
+    blocking(move || Ok(diff_against_snapshot(&abs, path, snapshot, max_bytes))).await?
+}
+
+/// [`snapshot_diff`] 의 동기 몸통 — 스냅샷(없으면 `None`) 대 디스크.
+fn diff_against_snapshot(
+    abs: &std::path::Path,
+    path: String,
+    snapshot: Option<Vec<u8>>,
+    max_bytes: usize,
+) -> Result<DiffResult, String> {
+    let Some(snapshot) = snapshot else {
         // 스냅샷도 git baseline 도 없는 신규 파일. 바이너리면 프론트가 통짜
         // additions 로 읽으려다 실패(read_project_file 은 UTF-8 전용)하고
         // "읽는 중…" 에 갇히므로, 여기서 파일 카드로 강등한다.
-        if is_binary_on_disk(&abs) {
-            let new_size = fs::metadata(&abs)
+        if is_binary_on_disk(abs) {
+            let new_size = fs::metadata(abs)
                 .ok()
                 .filter(|m| m.is_file())
                 .map(|m| m.len());
@@ -401,7 +433,7 @@ async fn snapshot_diff(
     // all-deletions diff against the snapshot baseline so the 변경 diff 화면 /
     // EntryDiffModal show "삭제됨" instead of surfacing
     // `No such file or directory (os error 2)`. Other IO errors still propagate.
-    let disk_content = match fs::read(&abs) {
+    let disk_content = match fs::read(abs) {
         Ok(c) => Some(c),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
         Err(e) => return Err(format!("Failed to read {}: {}", path, e)),
@@ -409,19 +441,19 @@ async fn snapshot_diff(
 
     // 어느 한쪽이라도 바이너리면 lossy 텍스트 diff(깨진 문자 나열) 대신 파일
     // 카드로. 삭제된 파일(disk `None`)은 new_size = None 으로 내려간다.
-    if is_binary_bytes(&snapshot.content) || disk_content.as_deref().is_some_and(is_binary_bytes) {
+    if is_binary_bytes(&snapshot) || disk_content.as_deref().is_some_and(is_binary_bytes) {
         return Ok(DiffResult {
             path,
             source: DiffSource::Binary {
                 is_image: false,
-                old_size: Some(clamp_u32(snapshot.content.len() as u64)),
+                old_size: Some(clamp_u32(snapshot.len() as u64)),
                 new_size: disk_content.map(|c| clamp_u32(c.len() as u64)),
             },
         });
     }
 
     let disk_content = disk_content.unwrap_or_default();
-    if disk_content == snapshot.content {
+    if disk_content == snapshot {
         return Ok(DiffResult {
             path,
             source: DiffSource::Snapshot {
@@ -430,7 +462,7 @@ async fn snapshot_diff(
         });
     }
 
-    let prev_text = String::from_utf8_lossy(&snapshot.content);
+    let prev_text = String::from_utf8_lossy(&snapshot);
     let next_text = String::from_utf8_lossy(&disk_content);
     let patch = render_unified_diff(&path, &prev_text, &next_text, max_bytes);
 

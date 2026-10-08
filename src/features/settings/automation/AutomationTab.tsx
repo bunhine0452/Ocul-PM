@@ -6,7 +6,7 @@
 // 화면이 답해야 하는 것 넷: (1) 지금 돌게 되어 있는가 (2) 언제 돌고 마지막엔
 // 어땠는가 (3) 왜 안 돌았는가 (4) 무엇을 시킬 수 있는가(씨앗).
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Clock, MoreHorizontal, Play, Square, Trash2 } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -14,6 +14,7 @@ import { toAppError } from "@/api/invoke";
 import { automationApi } from "@/api/automation";
 import { oculpmApi } from "@/api/oculpm";
 import { useConfirm } from "@/hooks/useConfirm";
+import { useSeededEvent } from "@/hooks/useSeededEvent";
 import { useSettings } from "@/contexts/SettingsContext";
 import { coreModelTarget } from "@/lib/settings";
 import { openSettings } from "@/lib/settingsNav";
@@ -88,8 +89,12 @@ export function AutomationTab() {
 
   const coreModel = coreModelTarget(settings);
 
+  // 실행 이벤트 순번 — 늦게 돌아온 refresh 가 그 사이 온 시작/종료를 덮지 않게.
+  const runSeq = useRef(0);
+
   const refresh = useCallback(async () => {
     if (projectId == null) return;
+    const seq = runSeq.current;
     try {
       const [list, seedList, cfg, overview] = await Promise.all([
         automationApi.list(projectId),
@@ -102,9 +107,7 @@ export function AutomationTab() {
       setConfig(cfg);
       // 러너는 전역 1건이라 다른 프로젝트의 잡일 수 있다 — 그때 이 화면에
       // 「실행 중」을 켜면 거짓말이 된다.
-      setRunningId(
-        overview.running_project_id === projectId ? overview.running_automation_id : null,
-      );
+      if (runSeq.current === seq) setRunningId(runningIn(overview, projectId));
       setEgress(overview.model_egress);
     } catch (e) {
       toast.destructive(tError(toAppError(e)));
@@ -118,15 +121,26 @@ export function AutomationTab() {
   }, [refresh]);
 
   // 시작/종료를 이벤트로 받는다 — 폴링하지 않는다. 끝나면 카드의 「마지막 실행」
-  // 도 같이 낡으므로 한 번 다시 읽는다.
-  useEffect(() => {
-    if (projectId == null) return;
-    return automationApi.onRunChanged((e) => {
-      if (e.project_id !== projectId) return;
-      setRunningId(e.running ? e.automation_id : null);
-      if (!e.running) void refresh();
-    });
-  }, [projectId, refresh]);
+  // 도 같이 낡으므로 한 번 다시 읽는다. 구독이 붙은 뒤 실행 상태를 한 번 더 묻는다 —
+  // 첫 refresh 는 구독보다 먼저 나가서, 그 사이 끝난 실행이 「실행 중」 으로 남았다.
+  useSeededEvent(
+    {
+      seed: projectId == null ? null : () => automationApi.overview(projectId),
+      subscribe: (touch) => [
+        automationApi.onRunChanged((e) => {
+          if (e.project_id !== projectId) return;
+          runSeq.current += 1;
+          touch();
+          setRunningId(e.running ? e.automation_id : null);
+          if (!e.running) void refresh();
+        }),
+      ],
+      onSeed: (overview, touched) => {
+        if (projectId != null && !touched()) setRunningId(runningIn(overview, projectId));
+      },
+    },
+    [projectId, refresh],
+  );
 
   useEffect(() => {
     if (pane.kind !== "history" || projectId == null) return;
@@ -450,4 +464,9 @@ export function AutomationTab() {
       {confirmDialog}
     </>
   );
+}
+
+/** 러너는 전역 1건이라 다른 프로젝트의 잡일 수 있다 — 그때 이 화면에 「실행 중」 을 켜면 거짓말이 된다. */
+function runningIn(overview: AutomationOverview, projectId: number): string | null {
+  return overview.running_project_id === projectId ? overview.running_automation_id : null;
 }
