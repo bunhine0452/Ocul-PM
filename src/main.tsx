@@ -5,6 +5,7 @@ import { Toaster } from "./components/ui/Toaster";
 import { parseWindowRoute } from "./lib/windowRoute";
 import { installExternalLinkGuard } from "./lib/externalLinks";
 import { installNativeDragGuard } from "./lib/nativeDrag";
+import { installIdleMotionPause } from "./lib/idleMotion";
 import { installNativeDialogGuard } from "./lib/nativeDialogs";
 import { getPlatform, isMac } from "./lib/platform";
 import { bootI18n } from "./i18n";
@@ -21,6 +22,8 @@ installExternalLinkGuard();
 // 네이티브 드래그도 같은 이유로 갈림길 위다 — 끌 수 있는 표면(탭·세션 레일·
 // 페인 손잡이)이 세 갈래에 흩어져 있어 창마다 걸면 반드시 한 군데가 샌다.
 installNativeDragGuard();
+// 창을 보고 있지 않으면 무한 반복 애니메이션을 멈춘다 — 같은 이유로 갈림길 위 (idleMotion.ts).
+installIdleMotionPause();
 // Windows·Linux 의 표시 갈래(글꼴 폴백)는 CSS 가 `:root[data-platform]` 으로 가른다
 // (tokens.css 끝). macOS 는 속성을 달지 않는다 — DOM 까지 예전 그대로 (D3).
 if (!isMac()) document.documentElement.dataset.platform = getPlatform();
