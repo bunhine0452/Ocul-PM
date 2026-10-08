@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { errorDetail } from "@/api/invoke";
 import { lspApi } from "@/api/lsp";
+import { settingsApi } from "@/api/settings";
 import type {
   LspCompletionItem,
   LspFormatRange,
@@ -17,6 +18,7 @@ import type {
   LspServerState,
 } from "@/lib/bindings";
 import { safeUnlisten } from "@/lib/unlisten";
+import { codeTrustKey } from "./codeTrust";
 import { oculpmLog } from "@/lib/oculpmLog";
 
 // 코드 화면 ↔ 언어 서버. 백엔드가 프로세스·프로토콜을 다 맡으므로 여기서는
@@ -84,6 +86,12 @@ export interface UseLspResult {
     insertSpaces: boolean,
     range?: LspFormatRange | null,
   ) => Promise<string | null>;
+  /**
+   * 이 프로젝트를 이 기기에서 신뢰하고 언어 서버를 붙인다 (`status.state ===
+   * "untrusted"` 일 때 상태줄이 부른다). 언어 서버는 저장소의 빌드 스크립트·툴체인
+   * 설정을 실행하므로 사람이 누른 이 한 번이 그 허락이다. 거두기는 설정 › 코드.
+   */
+  trust: () => Promise<void>;
 }
 
 /**
@@ -103,6 +111,8 @@ export function useLsp(
 ): UseLspResult {
   const [diagnostics, setDiagnostics] = useState<LspDiagnostic[]>([]);
   const [status, setStatus] = useState<LspStatus>({ state: null, detail: null });
+  // 신뢰한 직후 같은 파일을 다시 열게 하는 신호 — 열기 effect 의 의존성이다.
+  const [trustEpoch, setTrustEpoch] = useState(0);
 
   // 이벤트 핸들러가 최신 path 를 봐야 하는데, 구독은 한 번만 건다.
   const pathRef = useRef(path);
@@ -172,7 +182,7 @@ export function useLsp(
     // initialText 는 열 때의 값만 필요하다 — 이후 편집은 pushText 가 나른다.
     // 의존성에 넣으면 타자마다 파일을 다시 연다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, path, epoch]);
+  }, [projectId, path, epoch, trustEpoch]);
 
   // ── 편집 밀어넣기 (디바운스) ─────────────────────────────────────────────
   const pushText = useCallback(
@@ -328,6 +338,17 @@ export function useLsp(
     [projectId],
   );
 
+  // 실패는 상태줄로 말한다 — 이 훅의 다른 실패와 같은 창구 (`noteFailure`).
+  const trust = useCallback(async () => {
+    try {
+      await settingsApi.set(codeTrustKey(projectId), "true");
+    } catch (e) {
+      noteFailure("codeTrust", errorDetail(e));
+      return;
+    }
+    setTrustEpoch((n) => n + 1);
+  }, [projectId, noteFailure]);
+
   return useMemo(
     () => ({
       diagnostics,
@@ -345,6 +366,7 @@ export function useLsp(
       semanticLegend,
       semanticTokens,
       format,
+      trust,
     }),
     [
       diagnostics,
@@ -362,6 +384,7 @@ export function useLsp(
       semanticLegend,
       semanticTokens,
       format,
+      trust,
     ],
   );
 }

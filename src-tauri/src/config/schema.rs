@@ -50,8 +50,7 @@ pub const LOCAL_ONLY_KEYS: &[&str] = &[
     "plugin_card_dismissed",
     // 프로젝트 id 로 키가 매겨진다 — id 는 머신마다 다르다.
     "project_instructions.",
-    // 배경 자동화의 기기 동의 — 이 기기에서 사람이 누른 것만 뜻이 있다.
-    crate::oculpm::automation::consent::KEY_PREFIX,
+    // 기기 동의 · 코드 신뢰 · 언어 서버 명령은 `DEVICE_ONLY_PREFIXES` 가 맡는다.
 ];
 
 /// 설정 키가 시크릿일 수 있는가.
@@ -60,8 +59,25 @@ pub fn is_secret_key(key: &str) -> bool {
     SECRET_KEY_MARKERS.iter().any(|m| lower.contains(m))
 }
 
+/// 이 기기에서 사람이 정한 것만 뜻이 있는 키의 접두 — 문서가 옮기지도 쓰지도 못한다.
+///
+/// - 배경 자동화의 기기 동의 (`automation::consent`).
+/// - 언어 서버를 띄워도 되는가 (`lsp::trust`) — 위조되면 파일을 여는 것만으로
+///   저장소의 빌드 스크립트가 돈다.
+/// - 언어 서버 실행 명령 오버라이드 (`code_lsp_cmd_<언어>`) — 값이 곧 실행할
+///   명령이다. 남의 문서 한 장이 코드 화면을 열 때 띄울 프로그램을 고르면 안 된다
+///   (2026-10-08 검토).
+pub const DEVICE_ONLY_PREFIXES: &[&str] = &[
+    crate::oculpm::automation::consent::KEY_PREFIX,
+    crate::lsp::trust::KEY_PREFIX,
+    "code_lsp_cmd_",
+];
+
 /// 설정 키가 이 머신에만 뜻이 있는가.
 pub fn is_local_only_key(key: &str) -> bool {
+    if is_device_consent_key(key) {
+        return true;
+    }
     LOCAL_ONLY_KEYS.iter().any(|pattern| {
         // `.` 로 끝나면 접두 규칙 (`project_instructions.` → 그 아래 전부),
         // 아니면 완전 일치. 접두를 완전 일치로 오인하면 이웃 키까지 지운다.
@@ -75,10 +91,11 @@ pub fn is_local_only_key(key: &str) -> bool {
     })
 }
 
-/// 배경 자동화의 기기 동의 키인가. 문서가 **쓰지도** 못한다 — 쓸 수 있으면
-/// 남의 문서 한 장이 동의를 위조한다 (`planner::plan` 이 막는다).
+/// 이 기기의 사람만 정할 수 있는 키인가 ([`DEVICE_ONLY_PREFIXES`]). 문서가 **쓰지도**
+/// 못한다 — 쓸 수 있으면 남의 문서 한 장이 동의·신뢰를 위조한다 (`planner::plan`
+/// 이 막는다).
 pub fn is_device_consent_key(key: &str) -> bool {
-    key.starts_with(crate::oculpm::automation::consent::KEY_PREFIX)
+    DEVICE_ONLY_PREFIXES.iter().any(|p| key.starts_with(p))
 }
 
 /// 문서가 나를 수 있는 설정 키인가 (시크릿도 머신 상태도 아니다).

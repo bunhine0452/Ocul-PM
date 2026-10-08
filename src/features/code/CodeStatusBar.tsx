@@ -24,6 +24,8 @@ export interface CodeStatusBarProps {
   lspState: string | null;
   lspLabel: string | null;
   lspDetail: string | null;
+  /** 언어 서버가 신뢰 전(`untrusted`)일 때 칩이 버튼이 되어 부른다. */
+  onTrustLsp: () => void;
   eolLabel: string;
   langLabel: string;
   bytesLabel: string;
@@ -45,6 +47,7 @@ export function CodeStatusBar({
   lspState,
   lspLabel,
   lspDetail,
+  onTrustLsp,
   eolLabel,
   langLabel,
   bytesLabel,
@@ -104,7 +107,18 @@ export function CodeStatusBar({
           <TriangleAlert size={11} aria-hidden />
           <span>{problemTotals.warning}</span>
         </button>
-        {lspLabel ? (
+        {lspState === "untrusted" && lspLabel ? (
+          // 신뢰 전 — 고장이 아니라 사람이 정할 것. 무엇을 허락하는지 title 이 말한다.
+          <button
+            type="button"
+            className="code-status-item code-status-btn code-status-lsp untrusted"
+            onClick={onTrustLsp}
+            title={t("code.lsp.trustHint")}
+          >
+            <span className="code-status-led" aria-hidden />
+            {lspLabel} · {t("code.lsp.trustAction")}
+          </button>
+        ) : lspLabel ? (
           <span className={"code-status-item code-status-lsp " + (lspState ?? "")} title={lspDetail ?? undefined}>
             {/* 상태를 색점으로 — 낱말을 읽기 전에 색이 먼저 답한다. */}
             <span className="code-status-led" aria-hidden />

@@ -34,6 +34,7 @@ import { codeHistoryApi } from "@/api/codeHistory";
 import { formatBytes } from "@/lib/format";
 import { useConfirm } from "@/hooks/useConfirm";
 import { Input } from "@/components/ui/input";
+import { codeTrustKey } from "@/features/code/codeTrust";
 
 /**
  * 파일당 판 수의 입력 상한. 캡 자체는 백엔드가 강제하고(파일당 50이 기본),
@@ -84,6 +85,8 @@ export function CodeSettings({
   const projectId = useOptionalWorkspace()?.state.currentProjectId ?? null;
 
   const [rows, setRows] = useState<Row[] | null>(null);
+  // 이 기기에서 이 프로젝트의 언어 서버를 띄워도 되는가 (`lsp::trust`).
+  const [trusted, setTrusted] = useState(false);
   // 로컬 히스토리가 지금 먹는 용량 (`null` = 아직 안 셈).
   const [usage, setUsage] = useState<number | null>(null);
   const { confirm, confirmDialog } = useConfirm();
@@ -127,7 +130,11 @@ export function CodeSettings({
       setRows([]);
       return;
     }
-    const servers = await lspApi.status(projectId).catch(() => null);
+    const [servers, trust] = await Promise.all([
+      lspApi.status(projectId).catch(() => null),
+      settingsApi.get(codeTrustKey(projectId)).catch(() => null),
+    ]);
+    setTrusted(trust === "true");
     if (!servers) {
       setRows([]);
       return;
@@ -376,6 +383,20 @@ export function CodeSettings({
           <p className="text-xs text-muted-foreground">{t("common.loading")}</p>
         ) : (
           <div className="space-y-3">
+            {/* 신뢰 — 언어 서버는 저장소의 빌드 스크립트·툴체인 설정을 실행한다. 거두면
+                떠 있던 서버를 정리하고, 다음에 파일을 열 때 상태줄이 다시 묻는다. */}
+            <div className="flex items-center gap-2">
+              <p className="flex-1 text-xs text-muted-foreground">
+                {t(trusted ? "settings.code.trustOn" : "settings.code.trustOff")}
+              </p>
+              <button
+                type="button"
+                onClick={() => void writeAndRestart(codeTrustKey(projectId), trusted ? "false" : "true")}
+                className="text-xs px-2 py-1 rounded-md border border-border hover:bg-accent/30 cursor-pointer"
+              >
+                {t(trusted ? "settings.code.trustRevoke" : "settings.code.trustGrant")}
+              </button>
+            </div>
             {rows.map((row) => (
               <ServerRow
                 key={row.info.language_id}
@@ -480,6 +501,8 @@ function StateBadge({ state, disabled }: { state: LspServerState; disabled: bool
       return <Badge tone="warn">{t("code.lsp.missing")}</Badge>;
     case "failed":
       return <Badge tone="warn">{t("code.lsp.failed")}</Badge>;
+    case "untrusted":
+      return <Badge tone="muted">{t("code.lsp.untrusted")}</Badge>;
     default:
       return <Badge tone="muted">{t("settings.code.stateIdle")}</Badge>;
   }

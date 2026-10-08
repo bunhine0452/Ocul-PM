@@ -105,6 +105,18 @@ impl LspState {
         if is_language_disabled(db, spec.language_id).await {
             return Ok(None);
         }
+        // 이 기기에서 신뢰하기 전엔 띄우지 않는다 — 언어 서버는 저장소가 고른 것을
+        // 실행한다 (`lsp::trust`). 왜 안 붙었는지는 상태줄이 말하고, 거기서 신뢰한다.
+        if !super::trust::is_trusted(db, project_id).await {
+            emit_state(
+                app,
+                project_id,
+                spec.language_id,
+                LspServerState::Untrusted,
+                None,
+            );
+            return Ok(None);
+        }
         let Some(root) = find_root(spec, file, project_root) else {
             // 루트를 모르면 안 띄운다 — 엉뚱한 루트로 뜬 서버는 조용히 빈
             // 진단을 내며 고장처럼 보인다. 왜 안 붙었는지 말해 준다.
@@ -298,7 +310,15 @@ impl LspState {
     /// 그 함수는 PATH 에 없으면 `login_shell_path()` 로 **로그인 셸을 띄운다**
     /// (macOS 에서 무거운 `.zshrc` 면 수백 ms). 그동안 이 프로젝트뿐 아니라
     /// 다른 창·다른 프로젝트의 모든 LSP 접근이 같은 맵 락에서 멎었다.
-    pub async fn status(&self, project_id: u32, project_root: &Path) -> Vec<LspServerInfo> {
+    ///
+    /// `trusted` — 이 기기에서 프로젝트를 신뢰했는가 (`lsp::trust`). 신뢰 전이면 설치된
+    /// 서버도 `Stopped` 가 아니라 `Untrusted` 로 말한다 — 「왜 안 뜨지」 의 답이다.
+    pub async fn status(
+        &self,
+        project_id: u32,
+        project_root: &Path,
+        trusted: bool,
+    ) -> Vec<LspServerInfo> {
         // 스펙 순서를 그대로 유지한 채, 스펙별로 (루트, 슬롯 Arc) 만 복사한다.
         let per_spec: Vec<Vec<(PathBuf, Arc<Mutex<Slot>>)>> = {
             let map = self.servers.lock().await;
@@ -325,10 +345,10 @@ impl LspState {
                 out.push(LspServerInfo {
                     language_id: spec.language_id.to_string(),
                     command: spec.command.to_string(),
-                    state: if installed {
-                        LspServerState::Stopped
-                    } else {
-                        LspServerState::Missing
+                    state: match (installed, trusted) {
+                        (false, _) => LspServerState::Missing,
+                        (true, false) => LspServerState::Untrusted,
+                        (true, true) => LspServerState::Stopped,
                     },
                     root: None,
                     detail: (!installed).then(|| format!("{} 가 PATH 에 없습니다", spec.command)),

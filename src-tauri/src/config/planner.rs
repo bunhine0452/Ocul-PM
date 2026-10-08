@@ -559,6 +559,32 @@ mod tests {
         assert_eq!(p.items[0].reason.as_deref(), Some("device_consent"));
     }
 
+    /// 코드 신뢰와 언어 서버 명령도 같은 문이다 — 문서가 신뢰를 위조하거나 코드
+    /// 화면이 띄울 프로그램을 고르면 파일을 여는 것만으로 남의 것이 돈다
+    /// (`lsp::trust`, 2026-10-08 검토).
+    #[test]
+    fn code_trust_and_lsp_command_are_device_only() {
+        let state = state_with(&[("code_trust.7", "true"), ("code_lsp_cmd_rust", "/opt/ra")]);
+        let doc = export(&state);
+        assert!(
+            doc.settings.is_empty(),
+            "기기 키는 내보내지 않는다: {:?}",
+            doc.settings
+        );
+
+        let forged = schema::parse_doc(
+            "oculpm_config: v1\nsettings:\n  code_trust.9: \"true\"\n  code_lsp_cmd_python: \"./evil\"\n",
+        )
+        .unwrap();
+        let p = plan(&state, &forged, None);
+        assert_eq!(p.blocked, 2);
+        assert!(!p.has_writes());
+        assert!(p
+            .items
+            .iter()
+            .all(|i| i.reason.as_deref() == Some("device_consent")));
+    }
+
     #[test]
     fn export_then_plan_is_empty() {
         let state = state_with(&[("theme", "nord"), ("core_model", "haiku")]);

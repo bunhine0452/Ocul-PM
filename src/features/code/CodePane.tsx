@@ -763,6 +763,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
             lspState={lsp.status.state ?? null}
             lspLabel={lspLabel}
             lspDetail={lsp.status.detail ?? null}
+            onTrustLsp={() => void lsp.trust()}
             eolLabel={buf.eol === "\r\n" ? "CRLF" : "LF"}
             langLabel={langLabel(langId)}
             bytesLabel={formatBytes(fileView.bytes)}
