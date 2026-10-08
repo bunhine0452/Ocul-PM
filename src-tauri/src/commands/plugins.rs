@@ -8,7 +8,7 @@
 //! 미리보기와 설치는 **같은 함수**를 `dry` 만 바꿔 부른다 — 미리 본 것과
 //! 일어난 것이 갈라질 길을 코드 수준에서 없앤다.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -47,14 +47,8 @@ pub struct BundleImportResult {
     pub automations: Vec<String>,
     /// 같은 id 의 번들이 이미 설치돼 있다 — `replace` 없이는 쓰지 않았다.
     pub already_installed: Option<InstalledBundle>,
-}
-
-async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, AppError> {
-    let project = db
-        .get_project(project_id)
-        .await
-        .map_err(|e| AppError::new("project_not_found", e.to_string()))?;
-    Ok(PathBuf::from(project.root_path))
+    /// 받은 바이트의 blake3 — 설치 호출이 `expect_hash` 로 되돌려준다.
+    pub content_hash: String,
 }
 
 fn today() -> String {
@@ -118,6 +112,11 @@ async fn fetch_bytes(kind: BundleSourceKind, src: &str) -> Result<Vec<u8>, AppEr
 ///
 /// `replace` 는 같은 id 가 이미 설치돼 있을 때만 뜻이 있다 — 없으면
 /// `already_installed` 를 채워 돌려주고 아무것도 쓰지 않는다 (명시적 교체 확인).
+///
+/// 설치(`dry == false`)는 `expect_hash` 를 요구한다 — 미리보기가 돌려준
+/// `content_hash` 그대로. 미리보기와 설치는 따로 내려받으므로, 그 사이 작성자가
+/// 브랜치를 바꾸면 본 것과 다른 `.mcp.json` 명령이 깔린다 (2026-10-09 리포트).
+/// 바이트가 다르면 아무것도 쓰지 않고 `bundle_changed` 로 돌려보낸다.
 #[tauri::command]
 #[specta::specta]
 pub async fn plugin_import(
@@ -127,9 +126,17 @@ pub async fn plugin_import(
     src: String,
     dry: bool,
     replace: bool,
+    expect_hash: Option<String>,
 ) -> Result<BundleImportResult, AppError> {
-    let root = project_root(&db, project_id).await?;
+    let root = db.project_root(project_id).await?;
     let bytes = fetch_bytes(kind, &src).await?;
+    let content_hash = blake3::hash(&bytes).to_hex().to_string();
+    if !dry && !same_bytes(expect_hash.as_deref(), &content_hash) {
+        return Err(AppError::new(
+            "bundle_changed",
+            "the bundle differs from the one previewed — preview it again",
+        ));
+    }
     let read = archive::read_zip(bytes).map_err(|e| AppError::new(e.code(), e.detail()))?;
 
     let fallback = match kind {
@@ -192,7 +199,13 @@ pub async fn plugin_import(
         mcp,
         automations,
         already_installed: blocked_by_confirmation.then_some(existing).flatten(),
+        content_hash,
     })
+}
+
+/// 설치가 미리 본 바이트 그대로인가. 미리보기 없이 온 설치(`None`)도 거부한다.
+fn same_bytes(expected: Option<&str>, actual: &str) -> bool {
+    expected.is_some_and(|e| e == actual)
 }
 
 /// 에이전트 정의가 만들 자동화 id 목록 (쓰지 않고 이름만).
@@ -256,7 +269,7 @@ pub async fn plugin_list(
     db: State<'_, Db>,
     project_id: u32,
 ) -> Result<Vec<InstalledBundle>, AppError> {
-    Ok(store::list(&project_root(&db, project_id).await?))
+    Ok(store::list(&db.project_root(project_id).await?))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -277,7 +290,7 @@ pub async fn plugin_remove(
     project_id: u32,
     bundle_id: String,
 ) -> Result<BundleRemoveReport, AppError> {
-    let root = project_root(&db, project_id).await?;
+    let root = db.project_root(project_id).await?;
     let Some(bundle) = store::read(&root, &bundle_id).map_err(AppError::from)? else {
         return Err(AppError::new("bundle_not_installed", bundle_id));
     };
@@ -312,4 +325,16 @@ pub async fn plugin_remove(
         mcp_removed,
         automations_removed,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::same_bytes;
+
+    #[test]
+    fn install_needs_the_exact_previewed_bytes() {
+        assert!(same_bytes(Some("ab12"), "ab12"));
+        assert!(!same_bytes(Some("ab12"), "cd34"), "미리본 뒤 바뀐 번들");
+        assert!(!same_bytes(None, "ab12"), "미리보기 없이 온 설치");
+    }
 }

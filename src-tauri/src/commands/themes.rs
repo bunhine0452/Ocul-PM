@@ -220,8 +220,20 @@ pub async fn theme_import_url(
 ///
 /// `Content-Length` 를 믿지 않는다 — 없거나 거짓일 수 있으므로 읽으면서 센다.
 async fn fetch_theme(url: &str) -> Result<PathBuf, AppError> {
+    // 리다이렉트는 허용 호스트로 가는 것만 따른다 — 기본(10번까지 아무 데나)이면
+    // 화이트리스트 호스트 하나가 어디로든 보낼 수 있다. oculpm.com → www 이동은 산다.
+    let policy = reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() < 5
+            && crate::deeplink::validate_theme_url(attempt.url().as_str()).is_ok()
+        {
+            attempt.follow()
+        } else {
+            attempt.stop()
+        }
+    });
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(20))
+        .redirect(policy)
         .build()
         .map_err(|e| AppError::new("theme_fetch", e.to_string()))?;
     let res = client

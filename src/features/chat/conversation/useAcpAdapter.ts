@@ -8,7 +8,9 @@ import type React from "react";
 
 import type { AcpSession, AppError } from "@/lib/bindings";
 import { acpApi } from "@/api/acp";
+import { settingsApi } from "@/api/settings";
 import { toAppError } from "@/api/invoke";
+import { codeTrustKey } from "@/features/code/codeTrust";
 import { tError } from "@/i18n/errors";
 
 export interface AcpAdapterArgs {
@@ -27,6 +29,12 @@ export function useAcpAdapter({ projectId, provider, setSession, setError }: Acp
    * 같은 곳에서 같은 이유로 막힌다). 코드로 갈라 안내를 바꾼다.
    */
   const [needsInstall, setNeedsInstall] = useState(false);
+  /**
+   * 이 기기에서 프로젝트를 신뢰하기 전이라 띄우지 않았다 (`project_untrusted`).
+   * 값 = 저장소에 있는 실행 가능한 설정 파일 목록 — 화면이 「무엇이 돌 수 있는지」
+   * 를 보여 주고 신뢰 버튼을 띄운다. `null` = 신뢰 문제가 아니다.
+   */
+  const [trustFiles, setTrustFiles] = useState<string[] | null>(null);
   /** 어댑터 프로세스가 죽은 것을 감지했다 — 배너와 다시 연결 버튼의 근거. */
   const [agentGone, setAgentGone] = useState(false);
   /** 살아 있는 것을 한 번이라도 봤는가 — "죽었다"는 살아 있던 것만 말할 수 있다. */
@@ -35,7 +43,10 @@ export function useAcpAdapter({ projectId, provider, setSession, setError }: Acp
   const failStart = useCallback(
     (err: AppError) => {
       setNeedsInstall(err.code === "acp_codex_adapter_missing");
-      setError(tError(err));
+      const untrusted = err.code === "project_untrusted";
+      setTrustFiles(untrusted ? (err.detail ?? "").split("\n").filter(Boolean) : null);
+      // 신뢰 안내는 패널이 문장으로 한다 — 같은 말을 오류 줄로 또 띄우지 않는다.
+      setError(untrusted ? null : tError(err));
     },
     [setError],
   );
@@ -47,6 +58,7 @@ export function useAcpAdapter({ projectId, provider, setSession, setError }: Acp
     setSession(null);
     setError(null);
     setNeedsInstall(false);
+    setTrustFiles(null);
     setStarting(true);
     void acpApi
       .start(projectId, provider)
@@ -105,6 +117,21 @@ export function useAcpAdapter({ projectId, provider, setSession, setError }: Acp
     await retry();
   }, [provider, retry, setError]);
 
+  /**
+   * 신뢰하고 붙는다 — 언어 서버와 같은 키다 (`crate::trust`: 프로젝트에 신뢰 하나).
+   * 설정 › 코드에서 거둘 수 있다.
+   */
+  const trustAndStart = useCallback(async () => {
+    try {
+      await settingsApi.set(codeTrustKey(projectId), "true");
+    } catch (e) {
+      setError(tError(toAppError(e)));
+      return;
+    }
+    setTrustFiles(null);
+    await retry();
+  }, [projectId, retry, setError]);
+
   /** 모델·Effort·권한 모드를 바꾼다. 실패하면 화면이 옛 값을 그대로 든다. */
   const setOption = useCallback(
     async (configId: string, value: string) => {
@@ -122,6 +149,8 @@ export function useAcpAdapter({ projectId, provider, setSession, setError }: Acp
     starting,
     setStarting,
     needsInstall,
+    trustFiles,
+    trustAndStart,
     agentGone,
     setAgentGone,
     aliveRef,

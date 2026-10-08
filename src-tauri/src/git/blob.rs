@@ -35,12 +35,11 @@ pub fn show_file_bytes(
     let abs = in_root(root, file_path)?;
     let repo = repo_root_for(&abs)?;
     let rel = repo_relative(&repo, &abs)?;
-    let out = crate::proc::std_cmd("git")
-        .arg("-C")
-        .arg(&repo)
-        .args(["show", &format!("{rev}:{rel}")])
-        .output()
-        .ok()?;
+    let out = super::safe::output(&mut super::safe::cmd(
+        &repo,
+        &["show", &format!("{rev}:{rel}")],
+    ))
+    .ok()?;
     if !out.status.success() || out.stdout.len() > max_bytes {
         return None;
     }

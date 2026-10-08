@@ -24,7 +24,7 @@ import { useT, type I18nKey } from "@/i18n";
 import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { toast } from "@/lib/toast";
-import type { BundleImportResult, InstalledBundle } from "@/lib/bindings";
+import type { BundleImportResult, BundleSourceKind, InstalledBundle } from "@/lib/bindings";
 import { Section } from "../tabs/ui";
 import { NotHonoredNotice } from "./NotHonoredNotice";
 
@@ -34,6 +34,11 @@ export function PluginBundlesBlock({ projectId }: { projectId: number }) {
   const [slug, setSlug] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<BundleImportResult | null>(null);
+  // 설치는 **미리본 그 출처·그 바이트**로 한다 — 입력창은 미리보기 뒤에도 바뀔 수
+  // 있고, 같은 출처도 그 사이 내용이 바뀔 수 있다 (백엔드가 해시로 막는다).
+  const [previewed, setPreviewed] = useState<{ kind: BundleSourceKind; src: string } | null>(
+    null,
+  );
   const [installed, setInstalled] = useState<InstalledBundle[]>([]);
 
   const reload = useCallback(async () => {
@@ -64,6 +69,7 @@ export function PluginBundlesBlock({ projectId }: { projectId: number }) {
       const trimmed = slug.trim();
       if (!trimmed) return;
       setPreview(await pluginsApi.import(projectId, "github", trimmed, true, false));
+      setPreviewed({ kind: "github", src: trimmed });
     });
 
   const previewFile = () =>
@@ -72,20 +78,22 @@ export function PluginBundlesBlock({ projectId }: { projectId: number }) {
       if (!path) return;
       setSlug(path);
       setPreview(await pluginsApi.import(projectId, "file", path, true, false));
+      setPreviewed({ kind: "file", src: path });
     });
 
   const install = () =>
     run(async () => {
-      if (!preview) return;
-      const kind = slug.trim().endsWith(".zip") ? "file" : "github";
-      let result = await pluginsApi.import(projectId, kind, slug.trim(), false, false);
+      if (!preview || !previewed) return;
+      const { kind, src } = previewed;
+      const hash = preview.content_hash;
+      let result = await pluginsApi.import(projectId, kind, src, false, false, hash);
       // 이미 설치돼 있으면 아무것도 쓰지 않고 돌아온다 — 여기서 명시적으로 묻는다.
       if (result.already_installed) {
         const ok = await confirm({
           title: t("plugins.replace.confirm", { name: result.already_installed.name }),
         });
         if (!ok) return;
-        result = await pluginsApi.import(projectId, kind, slug.trim(), false, true);
+        result = await pluginsApi.import(projectId, kind, src, false, true, hash);
       }
       setPreview(result);
       await reload();

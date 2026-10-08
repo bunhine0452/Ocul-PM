@@ -155,12 +155,7 @@ pub struct BranchStory {
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn run_git(repo: &Path, args: &[&str]) -> Result<String, String> {
-    let out = crate::proc::std_cmd("git")
-        .arg("-C")
-        .arg(repo)
-        .args(crate::git::QUOTEPATH_OFF)
-        .args(args)
-        .output()
+    let out = crate::git::safe::output(&mut crate::git::safe::cmd(repo, args))
         .map_err(|e| format!("Failed to run git ({}): {e}", args.join(" ")))?;
     if !out.status.success() {
         let err = String::from_utf8_lossy(&out.stderr).trim().to_string();

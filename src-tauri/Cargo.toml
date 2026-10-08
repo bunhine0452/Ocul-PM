@@ -51,6 +51,8 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing-appender = "0.2"
 keyring = { version = "3.6", default-features = false, features = ["apple-native", "windows-native", "sync-secret-service"] }
 reqwest = { version = "0.13.3", default-features = false, features = ["json", "rustls", "stream", "http2"] }
+# 테마 URL 판정 — reqwest 가 접속에 쓰는 것과 같은 파서 (deeplink::validate_theme_url).
+url = "2.5"
 async-trait = "0.1.89"
 futures = "0.3.32"
 fastembed = "5.13.4"

@@ -130,26 +130,28 @@ pub fn validate_theme_url(raw: &str) -> Result<String, LinkError> {
     if raw.len() > MAX_URL_BYTES {
         return Err(LinkError::Value("url too long".into()));
     }
-    let rest = raw
-        .strip_prefix("https://")
-        .ok_or(LinkError::Value("theme url must be https".into()))?;
-    let host = rest
-        .split('/')
-        .next()
-        .unwrap_or_default()
-        .split('@')
-        .next_back()
-        .unwrap_or_default();
-    // 포트·대문자 변종까지 같은 판정을 받게 정규화한다.
-    let host = host
-        .split(':')
-        .next()
-        .unwrap_or_default()
-        .to_ascii_lowercase();
+    // 문자열을 `/`·`@` 로 잘라 호스트를 고르던 예전 판정은 `https://evil.test?@oculpm.com/x`
+    // 를 oculpm.com 으로 읽었다 — reqwest 는 evil.test 로 접속한다 (2026-10-09 리포트).
+    // 접속할 클라이언트와 **같은 파서**로 읽어야 판정과 접속이 갈라지지 않는다.
+    let url = url::Url::parse(raw).map_err(|e| LinkError::Value(format!("bad url: {e}")))?;
+    if url.scheme() != "https" {
+        return Err(LinkError::Value("theme url must be https".into()));
+    }
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err(LinkError::Value(
+            "theme url must not carry credentials".into(),
+        ));
+    }
+    if url.port().is_some_and(|p| p != 443) {
+        return Err(LinkError::Value(
+            "theme url must use the default port".into(),
+        ));
+    }
+    let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
     if !THEME_HOSTS.contains(&host.as_str()) {
         return Err(LinkError::Value(format!("host not allowed: {host}")));
     }
-    Ok(raw.to_string())
+    Ok(url.to_string())
 }
 
 /// 경로·구분자·제어문자가 없는 단순 이름인가.
@@ -311,6 +313,24 @@ mod tests {
         assert!(validate_theme_url("https://evil.test/ink.json").is_err());
         assert!(validate_theme_url("https://oculpm.com@evil.test/ink.json").is_err());
         assert!(validate_theme_url(&format!("https://oculpm.com/{}", "a".repeat(4096))).is_err());
+    }
+
+    /// 판정과 접속이 같은 호스트를 본다 — 쿼리·조각 뒤의 `@` 는 호스트가 아니다.
+    #[test]
+    fn theme_url_host_is_the_host_reqwest_connects_to() {
+        for raw in [
+            "https://evil.test?@oculpm.com/x.json",
+            "https://evil.test#@oculpm.com/x.json",
+            "https://evil.test\\@oculpm.com/x.json",
+            "https://user:pw@oculpm.com/x.json",
+            "https://oculpm.com:8443/x.json",
+        ] {
+            assert!(validate_theme_url(raw).is_err(), "{raw} 를 통과시켰다");
+        }
+        assert_eq!(
+            validate_theme_url("https://OCULPM.com:443/themes/ink.json").unwrap(),
+            "https://oculpm.com/themes/ink.json"
+        );
     }
 
     #[test]

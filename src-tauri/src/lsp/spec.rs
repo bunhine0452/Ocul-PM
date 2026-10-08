@@ -69,7 +69,7 @@ pub enum LspServerState {
     Missing,
     Failed,
     Stopped,
-    Untrusted, // 이 기기에서 신뢰하기 전이라 띄우지 않았다 — `lsp::trust` 가 이유를 적는다.
+    Untrusted, // 이 기기에서 신뢰하기 전이라 띄우지 않았다 — `crate::trust` 가 이유를 적는다.
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

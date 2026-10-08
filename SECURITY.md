@@ -14,7 +14,7 @@
 ## 무엇이 보안 문제인가
 
 이 앱은 남이 만든 저장소를 열고, 그 안에서 에이전트를 돌리고, 기록을 씁니다. 그래서 경계는
-넷입니다.
+다섯입니다.
 
 | 경계 | 깨졌다는 것 | 지키는 자리 |
 |---|---|---|
@@ -22,6 +22,17 @@
 | 기기 밖 송출 | 사용자가 시작하지 않은 네트워크 송출이 있다 | `src-tauri/tests/egress_inventory.rs` (새 송출은 원장에 사유 없이 못 들어온다) |
 | 비밀 | API 키 · 토큰이 일지 · diff · 로그 · DB 에 남는다 | `secrets.rs`(OS 키체인) · `oculpm/redact.rs`(끌 수 없는 마스킹 바닥) |
 | 기기 동의 | 저장소가 켜 둔 배경 AI 작업이 이 기기의 허락 없이 내 키로 돈다 | `oculpm/automation/consent.rs` |
+| 코드 실행 | 저장소가 고른 프로그램이 사람이 신뢰하기 전에 내 권한으로 돈다 | 아래 표 |
+
+저장소가 실행 파일을 고를 수 있는 자리와 그 문:
+
+| 자리 | 저장소가 고르는 것 | 문 |
+|---|---|---|
+| 언어 서버 | `build.rs` · proc-macro · 툴체인 파일 · venv · `node_modules` 의 서버 | 프로젝트 신뢰 (`src-tauri/src/trust.rs`) — 신뢰 전엔 안 띄운다 |
+| 앱 안 에이전트 (Claude Code · Codex) | `.claude/settings.json` 훅 · `.mcp.json` 서버 | 같은 프로젝트 신뢰 — 신뢰 전엔 어댑터를 안 띄운다 |
+| 자동 git 호출 (Today · 변경 화면) | `.git/config` 의 fsmonitor · 필터 · 외부 diff · `.git/hooks` | 신뢰 없이 늘 끈다 (`src-tauri/src/git/safe.rs` — git 을 띄우는 유일한 자리) |
+| 플러그인 번들 | 번들의 `.mcp.json` 명령 | 미리본 바이트와 같을 때만 설치 (`commands/plugins.rs`) |
+| 배경 AI 작업 | 자동화 정의 | 기기 동의 (위 표) |
 
 네트워크에서 듣는 자리는 둘입니다 — 모바일 브리지(켰을 때만, Tailscale 인터페이스에만
 바인드 — `src-tauri/src/mobile_bridge/bind.rs`)와 Notion 연결의 OAuth 콜백(누른 뒤 최대
@@ -44,6 +55,7 @@
 | 2026-10-07 | 외부 보안 리뷰 2차 — v3.8.0 이 막지 못한 링크 자리를 프로젝트 전체에서 | v3.9.0 |
 | 2026-10-08 | 외부 보안 리뷰 3차 — 경로 3건 · 상위 폴더 · 자동화 동의 범위 (PR #74) | v3.10.0 |
 | 2026-10-08 | 외부 코드 리뷰 — 범위 · 리뷰어 부족 · 버스 팩터 · 생성물 diff | 범위 동결(`CLAUDE.md`) · 이 문서 |
+| 2026-10-09 | 보완점 리포트 (v3.10.1 기준 19건) — 코드 실행 경로 · 공급망 · 이벤트 경합 | 다음 릴리스 |
 
 ---
 
@@ -56,5 +68,6 @@ This project has a single maintainer, so there is no response-time promise; conf
 fixed in the **latest release only** (the app auto-updates) and described plainly in
 `CHANGELOG.md`. In scope: anything a cloned repository can use to read or write outside the
 project (files, symlinks, `.oculpm/` settings), any outbound traffic the user did not start, secrets
-persisting into journals/diffs/logs/the DB, and background AI work running without this device's
-consent. The external review history above is kept so that outside reviews happen on a cadence.
+persisting into journals/diffs/logs/the DB, background AI work running without this device's
+consent, and any program a repository picks (language-server build scripts, agent hooks and MCP
+servers, git fsmonitor/filters/hooks, plugin commands) running before you trust the project. The external review history above is kept so that outside reviews happen on a cadence.

@@ -19,6 +19,7 @@
 //! | `gutter` | 에디터 거터 — HEAD 블롭 대 현재 버퍼의 줄 변경 |
 //! | `nesting` | 프로젝트 루트와 저장소 루트의 상하 관계·경로 되맞춤 |
 //! | `path_form` | 경로의 저장 모양 — `/` 구분 상대 경로 · 윈도우 `\\?\` 접두 걷기 |
+//! | `safe` | git 프로세스 생성 — 저장소 설정이 고른 명령(fsmonitor·훅·필터·외부 diff) 끄기 · 시간 제한 |
 
 mod blob;
 mod changelog;
@@ -29,6 +30,7 @@ mod history;
 pub mod nesting; // 루트 관계와 경로 되맞춤 ({#rebase-other-direction})
 mod path_form;
 mod repo;
+pub mod safe; // git 을 띄우는 유일한 창구 — 저장소 설정이 고른 명령을 끈다
 mod status;
 
 #[cfg(test)]

@@ -22,7 +22,8 @@ export const pluginsApi = {
 
   /**
    * 미리보기(`dry`)와 설치가 같은 문이다 — 미리 본 것과 일어난 것이
-   * 갈라질 길을 없앤다.
+   * 갈라질 길을 없앤다. 설치는 미리보기의 `content_hash` 를 `expectHash` 로
+   * 되돌려야 한다 (바이트가 다르면 `bundle_changed`).
    */
   import: (
     projectId: number,
@@ -30,10 +31,11 @@ export const pluginsApi = {
     src: string,
     dry: boolean,
     replace: boolean,
+    expectHash: string | null = null,
   ) =>
     unwrap<BundleImportResult>(
       "plugin_import",
-      commands.pluginImport(projectId, kind, src, dry, replace),
+      commands.pluginImport(projectId, kind, src, dry, replace, expectHash),
     ),
 
   list: (projectId: number) =>

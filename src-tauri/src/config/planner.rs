@@ -561,7 +561,7 @@ mod tests {
 
     /// 코드 신뢰와 언어 서버 명령도 같은 문이다 — 문서가 신뢰를 위조하거나 코드
     /// 화면이 띄울 프로그램을 고르면 파일을 여는 것만으로 남의 것이 돈다
-    /// (`lsp::trust`, 2026-10-08 검토).
+    /// (`crate::trust`, 2026-10-08 검토).
     #[test]
     fn code_trust_and_lsp_command_are_device_only() {
         let state = state_with(&[("code_trust.7", "true"), ("code_lsp_cmd_rust", "/opt/ra")]);

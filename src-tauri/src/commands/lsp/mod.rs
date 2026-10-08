@@ -97,7 +97,7 @@ pub async fn lsp_status(
     project_id: u32,
 ) -> Result<Vec<LspServerInfo>, String> {
     let root = project_root(&db, project_id).await?;
-    let trusted = crate::lsp::trust::is_trusted(&db, project_id).await;
+    let trusted = crate::trust::is_trusted(&db, project_id).await;
     Ok(lsp.status(project_id, &root, trusted).await)
 }
 

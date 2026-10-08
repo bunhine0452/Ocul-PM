@@ -85,7 +85,7 @@ export function CodeSettings({
   const projectId = useOptionalWorkspace()?.state.currentProjectId ?? null;
 
   const [rows, setRows] = useState<Row[] | null>(null);
-  // 이 기기에서 이 프로젝트의 언어 서버를 띄워도 되는가 (`lsp::trust`).
+  // 이 기기에서 이 프로젝트의 언어 서버·앱 안 에이전트를 띄워도 되는가 (`crate::trust`).
   const [trusted, setTrusted] = useState(false);
   // 로컬 히스토리가 지금 먹는 용량 (`null` = 아직 안 셈).
   const [usage, setUsage] = useState<number | null>(null);

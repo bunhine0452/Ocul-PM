@@ -585,12 +585,7 @@ fn collect_git_info(root: &Path) -> SnapshotGit {
 }
 
 fn run_git(root: &Path, args: &[&str]) -> Option<String> {
-    let out = crate::proc::std_cmd("git")
-        .args(crate::git::QUOTEPATH_OFF)
-        .args(args)
-        .current_dir(root)
-        .output()
-        .ok()?;
+    let out = crate::git::safe::output(&mut crate::git::safe::cmd(root, args)).ok()?;
     if !out.status.success() {
         return None;
     }
