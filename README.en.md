@@ -78,7 +78,13 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.10.1 — The trust prompt now shows up
+## 🚀 v3.11.0 — Repository code runs only after you trust it
+
+- **In-app Claude Code · Codex now start only in projects you trust** — the in-app agent runs the repository's `.claude/settings.json` hooks and `.mcp.json` servers as-is, and unlike the CLI it never asked whether you trust the folder. It now asks "Trust this project?" first and lists the settings files that can run code. It is the same trust as language servers, so projects you already trusted in v3.10 start as before.
+- **Three more ways a repository could pick commands before you trust it are closed** — automatic git on the Today and Changes screens following `.git/config` fsmonitor · filters · external diff and `.git/hooks`, plugin installs fetching a different bundle than the one previewed, and a theme link shape that slipped past the host check. A paired phone can no longer read `.env` or key files either.
+- **New windows no longer miss what already happened** — a running work session, a tab's busy dot, an automation's "running" state and language-server status showed wrong in a freshly opened window. Closing a tab or quitting now stops language servers and debuggers, and a database that won't open shows the reason and offers "Start fresh" instead of quitting silently.
+
+## v3.10.1 — The trust prompt now shows up
 
 - **The Code screen's "Language server off · Trust and turn on" chip never appeared** — opening a file didn't show it, so autocomplete and diagnostics looked switched off for no reason. Opening a file now puts the chip in the status bar; one click turns the language servers on (also in Settings → Code).
 
