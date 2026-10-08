@@ -93,6 +93,32 @@ ACP 를 거쳐서 생기는 비용 (전부 이 저장소에서 확인한 것):
 - Remote Control 은 **모바일 푸시**("Push when actions required")로 권한 요청을 폰에 보낸다 — 승인 전달 통로를 우리가 만들 필요가 없을 수 있다. ([remote-control](https://code.claude.com/docs/en/remote-control))
 - Codex 훅: v0.114 부터 `PreToolUse` · `PermissionRequest` 가 Claude 와 같은 모양으로 있다 (서드파티 가이드 기준 — 공식 config reference 로 P1 에서 재확인). 스파이크에서는 `hook/started|completed` 이벤트로 훅 실행 자체만 확인했다.
 
+### 2.4 기다리지 않는 무인 실행 — 2단계(막히면 멈춤 → 별도 프로세스로 재개) {#facts-two-phase}
+
+dots 류 백그라운드 실행을 **실시간 승인 대기 없이** 만들 수 있는지. 재현:
+[`spike/two_phase_headless_spike.py`](spike/two_phase_headless_spike.py). 각본: git worktree 에서
+"notes.txt 에 한 줄 추가 → `git commit`", 막히면 기다리지 말고 `NEEDS: …` 한 줄로 끝내라.
+1단계는 커밋이 막힌 상태, 2단계는 **별도 프로세스**로 같은 세션을 재개하며 커밋 권한만 추가.
+**공식 문서화된 헤드리스 모드만** 쓴다 (experimental · 비공개 없음).
+
+| | Claude Code 2.1.289 | Codex 0.155.1 |
+|---|---|---|
+| 1단계 명령 | `claude -p --output-format stream-json --verbose --permission-mode dontAsk --allowedTools=Read,Edit,Write` | `codex exec --json -s workspace-write -c sandbox_workspace_write.exclude_slash_tmp=true -c sandbox_workspace_write.exclude_tmpdir_env_var=true -C <worktree>` |
+| 1단계 결과 | 커밋 거부 → `NEEDS: …` 로 종료. **`result.permission_denials` 에 막힌 도구와 입력이 구조화돼 온다** | 편집은 됨, 커밋은 샌드박스에 막힘(`.git/worktrees/<wt>/index.lock: Operation not permitted`, exit 128) → `NEEDS: …` 로 종료. 거부는 **실패한 명령**으로 올 뿐 구조화된 거부 목록은 없다 |
+| 2단계 명령 | `claude -p … --resume <session_id> --allowedTools=Read,Edit,Write,Bash(git commit:*)` | `codex exec --json -c sandbox_mode="workspace-write" … -c sandbox_workspace_write.writable_roots=["<본 저장소>/.git"] resume <thread_id> "<지시>"` |
+| 2단계 결과 | 같은 세션에서 편집 + 커밋 완료, worktree 깨끗 | 같은 스레드에서 커밋 완료, worktree 깨끗. **권한은 `.git` 하나만 더한 최소 승격**으로 충분했다 |
+| 한 단계 소요 | 15~20초 | 11~12초 |
+
+시험하며 밟은 함정 (구현 때 그대로 재발한다):
+
+- **`--allowedTools` 는 가변 인자**라 뒤에 오는 프롬프트까지 도구 이름으로 삼킨다 → `--allowedTools=값` 형태로.
+- **`/tmp` 아래 저장소는 Codex 샌드박스를 우회한다** — `workspace-write` 가 기본으로 `/tmp` 쓰기를 허용하므로 worktree 밖의 `.git` 에도 쓸 수 있었다. 시험은 `exclude_slash_tmp` · `exclude_tmpdir_env_var` 로 실제 환경을 흉내 냈다.
+- 지시문 끝 마침표(`... "bg: hello" .`)를 Codex 가 명령 인자로 읽었다 — 명령은 백틱으로 감싸고 "그대로" 를 명시.
+- 두 CLI 모두 stdin 이 열려 있으면 기다리거나 경고한다 → stdin 을 `/dev/null` 로.
+- 헤드리스 Claude 의 `system/init.tools` 에 ocul-pm MCP 도구가 보이지 않았다 — 지연 로딩 때문인지 미로딩인지 **미확인**. 에이전트가 일지를 직접 쓰게 할지는 이걸 확인한 뒤 정한다.
+
+**결론**: 승인 대기 상태가 프로세스 안에 없다. 남는 것은 worktree · 세션 id · 막힌 것 목록뿐이고 전부 디스크에 있다 — 앱 재시작 · Mac 잠자기와 무관하다. D6(승인 대기 SQLite 영속 + 실시간 재개)보다 단순하고, 쓰는 표면이 전부 공식 문서화돼 있다.
+
 ---
 
 ## 3. 목표 / 비목표 {#goals}
@@ -204,6 +230,11 @@ CI 에는 로그인이 없으므로 `remote_control` 처럼 계정이 필요한 
 - 앱이 꺼지거나 드라이버가 죽으면 그 줄은 `interrupted` 로 남는다. 재시작 시 「승인을 기다리던 대화」로 보여 주고, 승인하면 **재개 + "승인됨, 진행" 턴**.
 - 이 줄이 자동화 러너의 "에이전트 실행" 스텝(P4)이 기다리는 자리다. 러너는 승인을 기다리며 슬롯을 붙잡지 않는다 — 기록하고 비운다.
 - Claude 쪽 재개(`--resume`)로 같은 동작이 되는지는 P2 에서 검증한다 (Codex 만 실측됨).
+
+> **2026-10-05 추가 — 더 단순한 대안이 실측됐다 (§2.4).** 무인 실행은 실시간 승인을 기다리지
+> 않고 "막히면 `NEEDS:` 로 끝냄 → 승인 → 별도 프로세스로 재개 + 그 권한만 추가" 로 만들 수 있다.
+> 두 CLI 모두 공식 헤드리스 모드로 됐다. 이 경로는 P0~P3(채팅 화면 전환)에 의존하지 않으므로
+> P4 를 이 방식으로 바꾸고 앞당길지는 사용자 결정 대기.
 
 ### D7 — ACP 는 드라이버 하나로 남고, 한 릴리스 동안 되돌림 스위치 {#d7-acp-stays}
 
