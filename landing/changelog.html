@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.9.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 116개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.10.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 117개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.9.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 116개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.10.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 117개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.9.0</span>
+    <span class="nav-ver" data-version>v3.10.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>116개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>117개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-10-0">v3.10.0</a>
       <a href="#v3-9-0">v3.9.0</a>
       <a href="#v3-8-0">v3.8.0</a>
       <a href="#v3-7-0">v3.7.0</a>
@@ -61,10 +62,19 @@
       <a href="#v3-2-1">v3.2.1</a>
       <a href="#v3-2-0">v3.2.0</a>
       <a href="#v3-1-1">v3.1.1</a>
-      <a href="#v3-1-0">v3.1.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-10-0"><a href="#v3-10-0">v3.10.0</a></h2>
+      <div class="cl-body">
+<p><b>편집기에서 파일을 여는 것만으로 저장소의 코드가 돌던 길을 막았습니다.</b> 코드 화면의 언어 서버(자동완성 · 진단을 맡는 Rust · TypeScript · Python · Go 서버)는 읽기 도구가 아닙니다 — rust-analyzer 는 그 저장소의 <code>build.rs</code> 와 매크로를 실행하고, 그보다 먼저 저장소가 고른 툴체인과 컴파일러 설정을 따릅니다. 남이 만든 저장소에서 <code>.rs</code> 파일 하나를 열면 그 코드가 내 권한으로 돌 수 있었습니다. 이제 언어 서버는 <b>이 기기에서 프로젝트를 신뢰한 뒤에만</b> 뜹니다 — 편집기 상태줄의 「언어 서버 꺼짐 · 신뢰하고 켜기」 를 한 번 누르면 되고, 설정 → 코드에서 거둘 수 있습니다. <b>이미 쓰던 프로젝트도 업데이트 뒤 한 번 눌러 주세요.</b> 설정 문서(<code>config apply</code>)로 신뢰를 켜거나 언어 서버 실행 명령을 바꾸는 길도 막았습니다.</p>
+<ul><li><b>AI 패널이 근거로 싣는 코드 조각에서도 비밀을 가립니다.</b> 패널은 질문과 관련된 코드를 의미 검색으로 찾아 함께 보내는데, 그 조각은 마스킹을 지나지 않았습니다 — 코드에 박힌 키나 <code>.gitignore</code> 에서 빠진 <code>.env</code> 가 모델 제공자에게 그대로 갈 수 있었습니다. 이제 꺼내는 순간 가립니다.</li><li><b><code>.env</code> · 키 · 자격 증명 파일은 <code>.gitignore</code> 와 상관없이 색인하지 않습니다</b> (<code>.env.*</code> · <code>.npmrc</code> · <code>.netrc</code> · <code>id_rsa</code> 류 · <code>*.pem</code> 등). 로컬 히스토리와 같은 목록입니다.</li><li><b>지운 파일이 검색에 계속 떠오르던 것.</b> 앱이 꺼져 있을 때 지운 파일은 재색인을 누르기 전까지 색인에 남았습니다 — 재 보니 색인의 11% 가 디스크에 없는 파일이었습니다. 이제 앱을 켤 때 프로젝트마다 디스크와 맞춥니다(파일이 있는지만 보므로 빠릅니다).</li><li><b>허락한 배경 작업이 나중에 바뀌면 다시 묻습니다.</b> 자동 화해 · 일지 초안 · 스케줄 · 감시의 허락이 그때 본 스위치와 지시문에 묶입니다 — 허락 뒤에 <code>git pull</code> 이 새 스케줄을 켜거나 지시문을 바꾸면 다시 확인 대기로 돌아가고, 설정 → 자동화에서 허락을 거둘 수 있습니다. 켜진 자동화가 있는 프로젝트는 업데이트 뒤 한 번 더 묻습니다.</li><li><b>프로젝트 밖에 닿던 길 셋과 너무 넓은 폴더.</b> 이미지 미리보기의 「이전」 · 편집기 줄 표시가 <code>../옆-저장소</code> 경로로 다른 저장소의 커밋을 읽던 것, 플랜 ▶실행이 <code>.oculpm/journal/</code> 밖 파일을 프롬프트에 싣던 것, 파일 가져오기가 깨진 링크를 따라 밖에 파일을 만들던 것을 막았습니다. <code>/Users</code> 나 <code>/etc</code> 같은 홈의 위 · 최상위 시스템 폴더도 프로젝트로 받지 않습니다.</li><li><b>창을 보고 있지 않으면 움직임을 멈춥니다.</b> 터미널의 「실행 중」 숨쉬기처럼 계속 도는 애니메이션이 다른 앱을 쓰는 동안에도 화면을 깨우고 있었습니다.</li></ul>
+<p><b>논의 편집기를 다시 만들었습니다.</b></p>
+<ul><li><b>쓰는 동안 자동완성이 뜨지 않습니다.</b> 문서에 있는 단어를 타자마다 제안하던 창을 껐습니다.</li><li><b>넓은 창에서 문장 가운데가 잘려 보이던 것.</b> 원문 모드에서 화면은 78자에서 자르고 줄은 창 끝에서 바뀌어, 일부가 보이지 않은 채 편집됐습니다.</li><li><b>편집하다 다른 화면에 다녀오면 초안이 사라지던 것.</b> 이제 돌아오면 이어서 열립니다(앱을 끄기 전까지).</li><li>화면이 단정해졌습니다 — 머리 줄이 셋에서 둘로 줄고, 원고는 본문 글꼴로 가운데 한 칼럼에 씁니다. 왼쪽 <b>개요</b>가 지금 쓰는 섹션을 짚고 누르면 그리로 가며, 읽기 화면이 모르는 제목을 표시합니다. 아래 상태줄에 섹션 · 글자 수 · 단축키가 있고, 나란히 보기는 섹션 단위로 스크롤이 맞습니다. 미리보기에 <code>{#id}</code> 와 로그 경계 주석이 찍히지 않습니다.</li></ul>
+<p>보안 문제는 이제 GitHub 의 비공개 신고로 받습니다 — 창구와 외부 리뷰 이력은 저장소의 <code>SECURITY.md</code> 에 있습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-9-0"><a href="#v3-9-0">v3.9.0</a></h2>
       <div class="cl-body">
