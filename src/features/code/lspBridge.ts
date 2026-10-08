@@ -35,11 +35,23 @@ export const LSP_EXTENSIONS: readonly string[] = [
 
 /** 이 경로에 언어 서버가 붙는가. */
 export function hasLanguageServer(path: string): boolean {
-  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  return lspLanguageIdFor(path) !== null;
+}
+
+/**
+ * 이 경로를 맡는 언어 서버의 언어 id (`lsp_status` 의 `language_id`). 대상이 아니면 null.
+ * `registry.rs::spec_for_path` 의 확장자 → 언어 표와 같은 모양이다.
+ */
+export function lspLanguageIdFor(path: string): string | null {
   // 확장자가 없는 파일(`Makefile`)은 `pop()` 이 파일명 전체를 준다 — `.` 이
   // 없으면 대상이 아니다.
-  if (!path.includes(".")) return false;
-  return LSP_EXTENSIONS.includes(ext);
+  if (!path.includes(".")) return null;
+  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  if (!LSP_EXTENSIONS.includes(ext)) return null;
+  if (ext === "rs") return "rust";
+  if (ext === "py" || ext === "pyi") return "python";
+  if (ext === "go") return "go";
+  return "typescript";
 }
 
 export type HoverSegment =
