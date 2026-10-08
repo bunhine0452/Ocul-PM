@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.10.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 117개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.10.1)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 118개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.10.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 117개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.10.1)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 118개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.10.0</span>
+    <span class="nav-ver" data-version>v3.10.1</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>117개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>118개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-10-1">v3.10.1</a>
       <a href="#v3-10-0">v3.10.0</a>
       <a href="#v3-9-0">v3.9.0</a>
       <a href="#v3-8-0">v3.8.0</a>
@@ -61,10 +62,15 @@
       <a href="#v3-2-2">v3.2.2</a>
       <a href="#v3-2-1">v3.2.1</a>
       <a href="#v3-2-0">v3.2.0</a>
-      <a href="#v3-1-1">v3.1.1</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-10-1"><a href="#v3-10-1">v3.10.1</a></h2>
+      <div class="cl-body">
+<p><b>코드 화면에서 「언어 서버 꺼짐 · 신뢰하고 켜기」 가 뜨지 않던 것을 고쳤습니다.</b> v3.10.0 부터 언어 서버는 이 기기에서 프로젝트를 신뢰한 뒤에만 뜨는데, 그 사실을 알리는 상태줄 칩이 편집기를 막 열었을 때 나타나지 않았습니다 — 그래서 자동완성 · 진단이 이유 없이 꺼진 것처럼 보였습니다. 이제 <code>.rs</code> · <code>.ts</code> · <code>.py</code> · <code>.go</code> 파일을 열면 편집기 아래 상태줄 오른쪽에 칩이 서고, 한 번 누르면 그 프로젝트의 언어 서버가 켜집니다. 설정 → 코드 → 언어 서버의 「신뢰하기」 로도 켜고 거둘 수 있습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-10-0"><a href="#v3-10-0">v3.10.0</a></h2>
       <div class="cl-body">

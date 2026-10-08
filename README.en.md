@@ -78,7 +78,11 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.10.0 — Language servers wait for your trust, a rebuilt discussion editor
+## 🚀 v3.10.1 — The trust prompt now shows up
+
+- **The Code screen's "Language server off · Trust and turn on" chip never appeared** — opening a file didn't show it, so autocomplete and diagnostics looked switched off for no reason. Opening a file now puts the chip in the status bar; one click turns the language servers on (also in Settings → Code).
+
+## v3.10.0 — Language servers wait for your trust, a rebuilt discussion editor
 
 - **Opening a file no longer runs the repository's code** — language servers (rust-analyzer and friends) execute a repository's build scripts, macros and toolchain settings. They now start **only after you trust the project on this device** (the status bar's "Trust and turn on"; revoke in Settings → Code). Projects you already use need that one click after updating.
 - **Two leaks and the remains of deleted files** — code snippets the AI panel attaches as context are masked before they leave, and `.env`, keys and credential files are never indexed, whatever `.gitignore` says. Files deleted while the app was closed (11% of the index) are swept against the disk at launch. Consent for background automation is tied to the switches and instructions you saw, so later changes ask again — and you can revoke it.
