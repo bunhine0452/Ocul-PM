@@ -44,12 +44,12 @@ owner: claude-code
 - [x] src-tauri/src/commands/project.rs 가 파일 크기 래칫 경계 800/800 에 붙었다 — 다음에 이 파일을 건드리는 작업이 쪼갠다 (bug-hunt 2026-09-22) {#project-rs-ratchet}
 
 ## Phase 5 — 이월: 기능 백로그 (착수 순서는 사용자 결정) {#carried-features}
-- [ ] 터미널 세션을 창 밖으로 떼어내기 · 다른 창 스트립에 드롭해 합치기 (← drag-and-drop-round #session-to-window, three-features-round #tab-merge) {#session-to-window}
+- [>] 터미널 세션을 창 밖으로 떼어내기 · 다른 창 스트립에 드롭해 합치기 (← drag-and-drop-round #session-to-window, three-features-round #tab-merge) {#session-to-window}
 - [ ] Notion OAuth 계정 연동 버튼 — oculpm.com 코드 교환 + 딥링크 + 키체인 (← plugin-round #notion-oauth) {#notion-oauth}
-- [ ] 플러그인 마켓플레이스 공개 — 택일 UX·훅 계약 문서·버전 스큐 매트릭스·커뮤니티 제출 (← plugin-round #a3-marketplace) {#plugin-marketplace}
-- [ ] DAP — attach·launch.json 격 영속, debugpy·dlv 왕복 검증, 무시된 파일 이름 검색 (← ide-completion #dap-config #dap-more-adapters #tree-filter) {#dap-more}
-- [ ] LSP 설정 화면 — 언어별 켜기/끄기·서버 경로·미설치 안내 (← lsp-code-intelligence #lsp-settings) {#lsp-settings}
-- [ ] 스킬 카탈로그 2차 B1~B8 — 훅 Windows·일지 스키마 2(실패 원장·ADR)·회고 승격 루프·플래너 승인 게이트·비용 텔레메트리·카탈로그 3차·스킬 출처·잡동사니 (← skill-catalog-round-2 #hooks-xplat #journal-schema-2 #evolve-loop #plan-canvas #cost-telemetry #catalog-3rd #skill-provenance #misc-backlog) {#skill-catalog-b}
+- [>] 플러그인 마켓플레이스 공개 — 택일 UX·훅 계약 문서·버전 스큐 매트릭스·커뮤니티 제출 (← plugin-round #a3-marketplace) {#plugin-marketplace}
+- [>] DAP — attach·launch.json 격 영속, debugpy·dlv 왕복 검증, 무시된 파일 이름 검색 (← ide-completion #dap-config #dap-more-adapters #tree-filter) {#dap-more}
+- [>] LSP 설정 화면 — 언어별 켜기/끄기·서버 경로·미설치 안내 (← lsp-code-intelligence #lsp-settings) {#lsp-settings}
+- [>] 스킬 카탈로그 2차 B1~B8 — 훅 Windows·일지 스키마 2(실패 원장·ADR)·회고 승격 루프·플래너 승인 게이트·비용 텔레메트리·카탈로그 3차·스킬 출처·잡동사니 (← skill-catalog-round-2 #hooks-xplat #journal-schema-2 #evolve-loop #plan-canvas #cost-telemetry #catalog-3rd #skill-provenance #misc-backlog) {#skill-catalog-b}
 - [ ] 모바일 브리지 — 데스크톱 브라우저 스모크·폰 E2E·1주 회고 (← mobile-bridge #mb2-smoke #mb3-verify #mb4-retro) {#mobile-bridge-rest}
 - [ ] 저장소 topics·Show HN/awesome 런칭 — 사용자 액션 (← skills-star-round #star-outreach) {#star-outreach}
 - [x] 런타임 스케줄링 계측 (← v3-release #scheduling-telemetry, 활성 플랜이라 원본 유지) {#scheduling-telemetry}
@@ -96,4 +96,9 @@ owner: claude-code
 | 2026-10-01T18:25:52+09:00 | #i18n-finish | claude-code | ☐→x | .oculpm/journal/20261001/Chores/1825_chore_i18n-gate-close-pending.md | rest·overflow 는 9/11 f390ee4 로 이미 끝. 게이트는 PENDING 집합+시딩 스크립트 제거로 닫음 |
 | 2026-10-01T18:25:56+09:00 | #project-rs-ratchet | claude-code | ☐→x |  | 이미 끝 — e78754b8(L-MISC, 09-28)이 prepare_file 을 commands/project/prepare.rs 로 옮겨 732줄. 코드 변경 없음 |
 | 2026-10-01T18:27:16+09:00 | #acp-journal-draft | claude-code | ☐→- |  | 대체됨 — UUID↔session_id 는 v3-record-integrity #acp-sid-map(09-05), 턴 종료는 #gate-beyond-cc 배달 게이트(에이전트가 MCP 로 직접 기록+누락 배너). 앱 초안은 이중 기록이라 안 만든다 |
+| 2026-10-08T17:47:43+09:00 | #dap-more | claude-code | ☐→> |  | 범위 동결(2026-10-08, CLAUDE.md) — DAP 는 걷기 후보(external-review-2026-10-08 #remove-dap). 결정 뒤 재개 여부 |
+| 2026-10-08T17:47:47+09:00 | #lsp-settings | claude-code | ☐→> |  | 범위 동결(2026-10-08, CLAUDE.md) — 주변 기능 확장, 새 설정 화면 |
+| 2026-10-08T17:47:50+09:00 | #plugin-marketplace | claude-code | ☐→> |  | 범위 동결(2026-10-08, CLAUDE.md) — 새 배포 표면 |
+| 2026-10-08T17:47:54+09:00 | #session-to-window | claude-code | ☐→> |  | 범위 동결(2026-10-08, CLAUDE.md) — 터미널은 60일 fix 33건으로 주변 중 최다, 확장보다 안정화 |
+| 2026-10-08T17:47:57+09:00 | #skill-catalog-b | claude-code | ☐→> |  | 범위 동결(2026-10-08, CLAUDE.md) — 8갈래 확장 묶음 |
 <!-- oculpm:plan-log end -->
