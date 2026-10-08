@@ -1,12 +1,26 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 
 import { CodeStatusBar, type CodeStatusBarProps } from "@/features/code/CodeStatusBar";
 import { codeTrustKey } from "@/features/code/codeTrust";
 import { lspLabelFor } from "@/features/code/codePane/lspLabel";
 import { t } from "@/i18n";
+import { lspLanguageIdFor } from "@/features/code/lspBridge";
+import { useLsp } from "@/features/code/useLsp";
+
+// useLsp 가 부르는 언어 서버 창구. jsdom 에선 Tauri 이벤트가 오지 않는다 — 막 마운트된
+// 편집기가 「신뢰 전」 이벤트를 놓친 상황(v3.10.0 첫 배포의 결함)이 그대로 재현된다.
+const lsp = vi.hoisted(() => ({
+  open: vi.fn(),
+  close: vi.fn(async () => undefined),
+  change: vi.fn(async () => undefined),
+  status: vi.fn(),
+  onDiagnostics: vi.fn(async () => () => {}),
+  onServerState: vi.fn(async () => () => {}),
+}));
+vi.mock("@/api/lsp", () => ({ lspApi: lsp }));
 
 // 코드 실행 신뢰 (2026-10-08 검토) — 언어 서버는 파일을 여는 것만으로 저장소의
 // 빌드 스크립트·툴체인 설정을 실행하므로, 이 기기에서 신뢰하기 전엔 띄우지 않는다.
@@ -63,5 +77,47 @@ describe("code trust", () => {
     const rust = readFileSync(resolve(__dirname, "../../src-tauri/src/lsp/trust.rs"), "utf8");
     expect(rust).toContain('pub const KEY_PREFIX: &str = "code_trust.";');
     expect(codeTrustKey(7)).toBe("code_trust.7");
+  });
+});
+
+describe("code trust — the chip shows even when the state event is missed (v3.10.0 regression)", () => {
+  beforeEach(() => {
+    lsp.open.mockReset();
+    lsp.status.mockReset();
+  });
+  afterEach(cleanup);
+
+  const server = (state: string) => ({ language_id: "rust", command: "rust-analyzer", state, root: null, detail: null });
+
+  it("asks for the state when a language file did not attach, and shows untrusted", async () => {
+    lsp.open.mockResolvedValue(false);
+    lsp.status.mockResolvedValue([server("untrusted")]);
+    const { result } = renderHook(() => useLsp(1, "src/main.rs", "fn main() {}", 1));
+    await waitFor(() => expect(result.current.status.state).toBe("untrusted"));
+    expect(lsp.status).toHaveBeenCalledWith(1);
+  });
+
+  it("does not ask for files without a language server", async () => {
+    lsp.open.mockResolvedValue(false);
+    renderHook(() => useLsp(1, "README.md", "# hi", 1));
+    await waitFor(() => expect(lsp.open).toHaveBeenCalled());
+    expect(lsp.status).not.toHaveBeenCalled();
+  });
+
+  it("does not ask when attached — start-up events carry the state", async () => {
+    lsp.open.mockResolvedValue(true);
+    renderHook(() => useLsp(1, "src/main.rs", "fn main() {}", 1));
+    await waitFor(() => expect(lsp.open).toHaveBeenCalled());
+    expect(lsp.status).not.toHaveBeenCalled();
+  });
+
+  it("maps paths to the same language ids as the backend registry", () => {
+    expect(lspLanguageIdFor("a/b.rs")).toBe("rust");
+    expect(lspLanguageIdFor("x.tsx")).toBe("typescript");
+    expect(lspLanguageIdFor("x.mjs")).toBe("typescript");
+    expect(lspLanguageIdFor("x.pyi")).toBe("python");
+    expect(lspLanguageIdFor("main.go")).toBe("go");
+    expect(lspLanguageIdFor("README.md")).toBeNull();
+    expect(lspLanguageIdFor("Makefile")).toBeNull();
   });
 });

@@ -19,6 +19,7 @@ import type {
 } from "@/lib/bindings";
 import { safeUnlisten } from "@/lib/unlisten";
 import { codeTrustKey } from "./codeTrust";
+import { lspLanguageIdFor } from "./lspBridge";
 import { oculpmLog } from "@/lib/oculpmLog";
 
 // 코드 화면 ↔ 언어 서버. 백엔드가 프로세스·프로토콜을 다 맡으므로 여기서는
@@ -165,6 +166,19 @@ export function useLsp(
       }
       if (cancelled) return;
       attachedRef.current = attached;
+      if (attached) return;
+      // 붙지 못한 언어 파일이면 왜인지 **직접 묻는다** — 이벤트만 믿으면 안 된다.
+      // 신뢰 전(`untrusted`)은 서버를 띄우지 않고 즉시 답하므로, 막 마운트된
+      // 편집기에선 구독(아래 effect, 비동기)이 붙기 전에 그 이벤트가 지나간다.
+      // v3.10.0 첫 배포에서 「신뢰하고 켜기」 칩이 그래서 안 떴다 (2026-10-08 사용자 보고).
+      const lang = lspLanguageIdFor(path);
+      if (!lang) return;
+      const servers = await lspApi.status(projectId).catch(() => null);
+      if (cancelled) return;
+      const info = servers?.find((s) => s.language_id === lang);
+      if (info?.state === "untrusted" || info?.state === "missing") {
+        setStatus({ state: info.state, detail: info.detail });
+      }
     })();
 
     return () => {
