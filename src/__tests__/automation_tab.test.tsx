@@ -99,11 +99,12 @@ vi.mock("@/api/automation", () => ({
     },
     // Phase 3 — 실행 중 표시는 마운트 시 overview 가, 그 뒤로는 이벤트가 준다.
     overview: () => Promise.resolve(overviewData.current),
+    // 실제 래퍼처럼 붙으면 풀리는 Promise 를 돌려준다 (`useSeededEvent` 가 붙은 뒤에 묻는다).
     onRunChanged: (cb: (e: RunChanged) => void) => {
       runListeners.current.push(cb);
-      return () => {
+      return Promise.resolve(() => {
         runListeners.current = runListeners.current.filter((fn) => fn !== cb);
-      };
+      });
     },
   },
 }));

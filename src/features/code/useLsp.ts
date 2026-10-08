@@ -121,6 +121,8 @@ export function useLsp(
   // 서버가 붙은 파일인지 — 안 붙었으면 change 를 보내지 않는다.
   const attachedRef = useRef(false);
   const timerRef = useRef<number | null>(null);
+  // 서버 상태 이벤트 순번 — 열기 뒤의 상태 물음이 그 사이 온 이벤트를 덮지 않게.
+  const stateSeqRef = useRef(0);
 
   /**
    * 이 훅이 실패를 말하는 유일한 방식 (v2.42.0 `{#floating-promises}`).
@@ -166,17 +168,19 @@ export function useLsp(
       }
       if (cancelled) return;
       attachedRef.current = attached;
-      if (attached) return;
-      // 붙지 못한 언어 파일이면 왜인지 **직접 묻는다** — 이벤트만 믿으면 안 된다.
-      // 신뢰 전(`untrusted`)은 서버를 띄우지 않고 즉시 답하므로, 막 마운트된
-      // 편집기에선 구독(아래 effect, 비동기)이 붙기 전에 그 이벤트가 지나간다.
-      // v3.10.0 첫 배포에서 「신뢰하고 켜기」 칩이 그래서 안 떴다 (2026-10-08 사용자 보고).
+      // 열고 나면 상태를 **직접 묻는다** — 이벤트만 믿으면 안 된다. 신뢰 전
+      // (`untrusted`)은 서버를 띄우지 않고 즉시 답하므로, 막 마운트된 편집기에선
+      // 구독(아래 effect, 비동기)이 붙기 전에 그 이벤트가 지나간다 — v3.10.0 첫 배포의
+      // 「신뢰하고 켜기」 칩 (2026-10-08). 이미 붙은 서버도 마찬가지다: 다른 파일을 열 때
+      // 지나간 「인덱싱 중」·「준비됨」 은 이 편집기가 못 봤다 (2026-10-09 리포트).
       const lang = lspLanguageIdFor(path);
       if (!lang) return;
+      const seq = stateSeqRef.current;
       const servers = await lspApi.status(projectId).catch(() => null);
-      if (cancelled) return;
+      if (cancelled || stateSeqRef.current !== seq) return;
       const info = servers?.find((s) => s.language_id === lang);
-      if (info?.state === "untrusted" || info?.state === "missing") {
+      if (!info) return;
+      if (attached || info.state === "untrusted" || info.state === "missing") {
         setStatus({ state: info.state, detail: info.detail });
       }
     })();
@@ -244,6 +248,10 @@ export function useLsp(
     void lspApi
       .onServerState((payload) => {
         if (payload.project_id !== projectId) return;
+        // 이 편집기 파일의 언어 것만 — 아니면 Python 서버의 상태가 `.ts` 칩을 덮는다.
+        const p = pathRef.current;
+        if (!p || payload.language_id !== lspLanguageIdFor(p)) return;
+        stateSeqRef.current += 1;
         setStatus({ state: payload.state, detail: payload.detail });
       })
       .then(keep);

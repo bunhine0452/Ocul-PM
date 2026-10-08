@@ -269,7 +269,7 @@ fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
     crate::tray::handle_last_window_closed(app, label)
 }
 
-/// 탭이 사라질 때의 프로젝트 단위 정리 — **PTY 종료만** 한다.
+/// 탭이 사라질 때의 프로젝트 단위 정리 — PTY 와 언어 서버·디버거를 내린다.
 ///
 /// 예전에는 watcher 도 함께 멈췄다. 하지만 감시 범위가 "열린 탭" 에서 "추적
 /// 중인 모든 프로젝트" 로 바뀌면서(2026-08-12), watcher 의 수명은 탭이 아니라
@@ -285,15 +285,60 @@ pub(super) async fn release_project(app: &AppHandle, project_id: u32) {
         return;
     }
     crate::commands::terminal::kill_ptys_with_prefix(app, &pty_prefix_for(project_id)).await;
+    stop_code_servers(app, project_id).await;
 }
 
 /// 같은 정리를 창 이벤트 훅(메인 스레드·동기)에서. 여기서는 기다려야 한다 —
 /// 마지막 창 닫힘 직후 앱이 종료될 수 있어 spawn 은 종료와 경주한다.
+///
+/// 언어 서버·디버거는 예외로 spawn 한다 — 정상 종료가 서버마다 몇 초라 메인
+/// 스레드를 붙들 수 없고, 그 경주에서 지더라도 앱 종료(`ExitRequested`)가 전부 내린다.
 fn release_project_blocking(app: &AppHandle, project_id: u32) {
     if !releasable(app, project_id) {
         return;
     }
     crate::commands::terminal::kill_ptys_with_prefix_blocking(app, &pty_prefix_for(project_id));
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move { stop_code_servers(&app, project_id).await });
+}
+
+/// 이 프로젝트의 언어 서버·디버거를 내린다. 예전엔 설정 화면의 명령만 불러서,
+/// 탭을 닫거나 프로젝트를 지워도 rust-analyzer 가 계속 돌았다 (2026-10-09 리포트).
+pub(crate) async fn stop_code_servers(app: &AppHandle, project_id: u32) {
+    if let Some(lsp) = app.try_state::<crate::lsp::state::LspState>() {
+        lsp.stop_project(project_id).await;
+    }
+    if let Some(dap) = app.try_state::<crate::dap::state::DapState>() {
+        dap.stop_project(project_id).await;
+    }
+}
+
+/// 앱 종료(`ExitRequested`, 메인 스레드) — 모든 프로젝트의 언어 서버·디버거를 동시에,
+/// 최대 2초. 이미 런타임 위라면(테스트) `block_on` 이 패닉하므로 건너뛴다.
+pub(crate) fn stop_code_servers_blocking(app: &AppHandle) {
+    let lsp = app.try_state::<crate::lsp::state::LspState>();
+    let dap = app.try_state::<crate::dap::state::DapState>();
+    if tokio::runtime::Handle::try_current().is_ok() {
+        return;
+    }
+    let all = async {
+        if let Some(lsp) = &lsp {
+            lsp.stop_all(std::time::Duration::from_millis(1500)).await;
+        }
+    };
+    let dbg = async {
+        if let Some(dap) = &dap {
+            dap.stop_all().await;
+        }
+    };
+    let both = async { futures::join!(all, dbg) };
+    let timed = tauri::async_runtime::block_on(tokio::time::timeout(
+        std::time::Duration::from_secs(2),
+        both,
+    ));
+    if timed.is_err() {
+        tracing::warn!("종료: 언어 서버·디버거 정리가 2초 안에 안 끝났다");
+    }
 }
 
 /// 이 프로젝트의 셸을 정리해도 되는가.

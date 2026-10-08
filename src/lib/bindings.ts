@@ -1160,6 +1160,39 @@ export const commands = {
 	 *  터미널 사용이 감시를 켜는 부작용을 내면 안 된다.
 	 */
 	oculpmAgentRunSignal: (projectId: number, started: boolean, agentLabel: string) => typedError<boolean, AppError>(__TAURI_INVOKE("oculpm_agent_run_signal", { projectId, started, agentLabel })),
+	/**
+	 *  지금 열려 있는 세션 (없으면 `None`).
+	 * 
+	 *  창이 열릴 때 「현재 세션」 을 이 물음으로 세운다 — 이미 돌던 세션의
+	 *  `OculpmSessionStarted` 는 그 창이 생기기 전에 지나갔다 (2026-10-09 리포트:
+	 *  명령 팔레트의 「세션 끝내기」 가 「활성 세션 없음」 이라고 답하던 것).
+	 */
+	oculpmCurrentSession: (projectId: number) => typedError<{
+	/**  `YYYYMMDD-NNN`. */
+	id: string,
+	started_at: string,
+	ended_at: string | null,
+	ended_reason: EndedReason | null,
+	/**
+	 *  u32 — caps at ~49 days of continuous active time. A single session
+	 *  will never approach this.
+	 */
+	active_window_ms: number,
+	file_event_count: number,
+	files_unique: number,
+	git_head_at_start: string | null,
+	git_head_at_end: string | null,
+	agent_label_guess: string | null,
+	/**
+	 *  이 작업 세션에 붙어 있던 **에이전트 대화 id 전부** (훅의 `session_id`).
+	 *  정렬·중복 제거된다. `agent_label_guess` 는 상수 하나라 몇 개가 붙어
+	 *  있었는지 말하지 못했다 — 4분할 터미널이 세션 하나로 보이던 이유다.
+	 *  파일 이벤트는 여기 쪼개 담지 않는다 (워처는 누가 썼는지 모른다).
+	 */
+	agent_sessions?: string[],
+	/**  Paths relative to `.oculpm/journal/<workday>/`. */
+	linked_journal_entries: string[],
+} | null, AppError>(__TAURI_INVOKE("oculpm_current_session", { projectId })),
 	/**  List sessions for a workday. `workday = None` → today. */
 	oculpmListSessions: (projectId: number, workday: string | null) => typedError<Session[], AppError>(__TAURI_INVOKE("oculpm_list_sessions", { projectId, workday })),
 	/**  Get file change events for a workday, optionally filtered by session_id. */

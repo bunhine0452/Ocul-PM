@@ -11,6 +11,7 @@ pub mod code_history;
 pub mod config;
 pub mod context;
 pub mod conversation;
+pub mod current_session;
 pub mod dap;
 pub mod declarative_config;
 pub mod diagnostics;
@@ -96,6 +97,7 @@ pub use notion::*;
 pub use oculpm::*;
 // `overview` 는 커맨드를 내놓지 않는다 — 색인 후 훅이 `overview::run_generation`
 // 을 경로로 부른다 (v3 「죽은 표면 정리」).
+pub use current_session::*;
 pub use plan::*;
 pub use project::*;
 pub use related::*;
@@ -113,3 +115,14 @@ pub use terminal::*;
 pub use themes::*;
 pub use velocity::*;
 pub use window::*;
+
+/// 동기 호출(git 서브프로세스 · 큰 파일 읽기 · diff 렌더)을 blocking 풀에서 돌린다.
+/// 예전엔 `async fn` 안에서 `Command::output()` 을 그대로 불러 워커 스레드가 5~80ms 씩
+/// 멈췄다 — `git.rs` 만 감싸고 `diff.rs` 는 그대로였다 (2026-10-09 리포트).
+pub(crate) async fn blocking<T: Send + 'static>(
+    f: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| format!("blocking task failed: {e}"))?
+}

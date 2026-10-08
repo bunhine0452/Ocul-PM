@@ -411,6 +411,21 @@ impl LspState {
             guard.state = LspServerState::Stopped;
         }
     }
+
+    /// 앱 종료 — 모든 서버를 **동시에** 내린다. 서버마다 `grace` 만큼 예의를 차리고
+    /// 넘으면 죽인다. `process::exit` 에서는 `kill_on_drop` 이 돌지 않아, 여기서
+    /// 안 내리면 rust-analyzer(흔히 1GB 넘게)가 고아로 남는다 (2026-10-09 리포트).
+    pub async fn stop_all(&self, grace: std::time::Duration) {
+        let slots: Vec<_> = self.servers.lock().await.drain().map(|(_, s)| s).collect();
+        futures::future::join_all(slots.into_iter().map(|slot| async move {
+            let mut guard = slot.lock().await;
+            if let Some(client) = guard.client.take() {
+                client.stop_within(grace).await;
+            }
+            guard.state = LspServerState::Stopped;
+        }))
+        .await;
+    }
 }
 
 /// 언어별 끄기 설정 키 (`code_lsp_off_rust` 등).

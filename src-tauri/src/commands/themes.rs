@@ -338,7 +338,11 @@ fn sanitize_file_stem(name: &str) -> String {
 #[tauri::command]
 #[specta::specta]
 pub async fn system_accent() -> Result<Option<String>, AppError> {
-    Ok(read_system_accent())
+    // `defaults` 는 서브프로세스 — 런타임 워커를 붙잡지 않게.
+    Ok(tauri::async_runtime::spawn_blocking(read_system_accent)
+        .await
+        .ok()
+        .flatten())
 }
 
 #[cfg(target_os = "macos")]

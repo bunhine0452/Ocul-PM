@@ -341,15 +341,17 @@ impl LspClient {
     /// `shutdown` → `exit` 순서를 지킨다. 바로 kill 하면 서버가 캐시를 저장하지
     /// 못해 다음 기동의 인덱싱이 처음부터 다시 돈다.
     pub async fn stop(&self) {
-        let _ = tokio::time::timeout(
-            std::time::Duration::from_secs(3),
-            self.request("shutdown", json!(null)),
-        )
-        .await;
+        self.stop_within(std::time::Duration::from_secs(3)).await;
+    }
+
+    /// `shutdown`·`exit` 에 각각 `grace` 만큼 기다리고, 그래도 안 죽으면 죽인다.
+    /// 앱 종료는 짧은 유예로 부른다 (`LspState::stop_all`).
+    pub async fn stop_within(&self, grace: std::time::Duration) {
+        let _ = tokio::time::timeout(grace, self.request("shutdown", json!(null))).await;
         let _ = self.notify("exit", json!(null)).await;
         let mut child = self.child.lock().await;
         // 예의를 갖춘 종료를 기다리되, 안 죽으면 죽인다.
-        match tokio::time::timeout(std::time::Duration::from_secs(3), child.wait()).await {
+        match tokio::time::timeout(grace, child.wait()).await {
             Ok(_) => {}
             Err(_) => {
                 let _ = child.kill().await;

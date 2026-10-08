@@ -743,3 +743,49 @@ async fn journal_chunks_ride_outside_the_doc_filter_and_obey_include_journal() {
         .unwrap();
     assert!(hits.iter().any(|h| h.kind == "journal"));
 }
+
+/// 새 버전이 쌓은 DB(더 높은 `user_version`)는 열지 않는다 — 모르는 스키마 위에서
+/// 도는 대신 기동 대화상자가 이유를 보인다.
+#[tokio::test]
+async fn refuses_a_database_from_a_newer_app() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("ocul-pm.db");
+    let db = Db::open(path.clone()).await.unwrap();
+    let latest = registry::MIGRATIONS.last().unwrap().0;
+    db.conn()
+        .call(move |c| -> Result<()> {
+            c.pragma_update(None, "user_version", latest + 1)?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    db.close().await.unwrap();
+
+    let err = Db::open(path).await.err().expect("더 새 스키마를 열었다");
+    assert!(err.to_string().contains("newer than this app"), "{err}");
+}
+
+/// 사본은 하나만 남는다 — 버전마다 수백 MB 를 쌓지 않는다.
+#[tokio::test]
+async fn keeps_only_the_latest_pre_migration_backup() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("ocul-pm.db");
+    let db = Db::open(path.clone()).await.unwrap();
+    db.backup_before_migration(30).await;
+    assert!(dir.path().join("ocul-pm.db.bak-v30").is_file());
+    db.backup_before_migration(31).await;
+    assert!(dir.path().join("ocul-pm.db.bak-v31").is_file());
+    assert!(!dir.path().join("ocul-pm.db.bak-v30").exists());
+}
+
+#[test]
+fn only_statements_that_remove_data_count_as_destructive() {
+    assert!(is_destructive("DROP TABLE retro_insights;"));
+    assert!(is_destructive("delete from chunks where 1;"));
+    assert!(!is_destructive(
+        "CREATE TABLE a (id INTEGER REFERENCES b(id) ON DELETE CASCADE);"
+    ));
+    assert!(!is_destructive(
+        "CREATE TRIGGER t AFTER DELETE ON chunks BEGIN SELECT 1; END;"
+    ));
+}

@@ -29,15 +29,7 @@ pub async fn git_log(
     blocking(move || git::log(&root, limit)).await
 }
 
-/// 동기 git 호출을 blocking 풀에서 돌린다. 예전엔 `async fn` 안에서
-/// `Command::output()` 을 그대로 불러 워커 스레드가 5~80ms 씩 멈췄다.
-async fn blocking<T: Send + 'static>(
-    f: impl FnOnce() -> Result<T, String> + Send + 'static,
-) -> Result<T, String> {
-    tauri::async_runtime::spawn_blocking(f)
-        .await
-        .map_err(|e| format!("git task failed: {e}"))?
-}
+use super::blocking;
 
 #[tauri::command]
 #[specta::specta]

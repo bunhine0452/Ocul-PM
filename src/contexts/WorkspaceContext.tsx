@@ -15,6 +15,7 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from "react";
 import { createUnlistenBag } from "@/lib/unlisten";
+import { useCurrentSession } from "./useCurrentSession";
 import { oculpmLog } from "@/lib/oculpmLog";
 
 import { commands, events, type FileOp, type OculpmStatus, type Session } from "@/lib/bindings";
@@ -852,8 +853,12 @@ export function WorkspaceProvider({
   }, []);
 
   const setCurrentSession = useCallback((session: Session | null) => {
-    setState((prev) => ({ ...prev, currentSession: session }));
+    // 같은 값이면 커밋하지 않는다 — 열 때 묻는 답(`null`)이 빈 상태를 다시 그리지 않게.
+    setState((prev) => (prev.currentSession === session ? prev : { ...prev, currentSession: session }));
   }, []);
+
+  // 현재 세션은 열 때 묻고 이벤트로 바꾼다 (`useCurrentSession`).
+  useCurrentSession(state.currentProjectId, state.oculpmEnabled, setCurrentSession);
 
   // ── Tauri event listeners ───────────────────────────────────────────────
   // Mount once. Each handler filters by `project_id === currentProjectId`
@@ -864,20 +869,6 @@ export function WorkspaceProvider({
     // 도착한 리스너가 영구 등록되고, 그 핸들러는 수동적이지 않다 (`durationMs: 0`
     // 인 「인계」 sticky 토스트를 닫은 탭이 계속 띄운다). 자루가 그 창을 닫는다.
     const bag = createUnlistenBag();
-
-    bag.add(events.oculpmSessionStarted.listen((evt) => {
-      if (evt.payload.project_id === currentProjectId()) {
-        setCurrentSession(evt.payload.session);
-      }
-    }));
-
-    bag.add(events.oculpmSessionEnded.listen((evt) => {
-      if (evt.payload.project_id === currentProjectId()) {
-        // Surface the just-ended session for one render so consumers can
-        // animate it out, then clear.
-        setCurrentSession(null);
-      }
-    }));
 
     bag.add(events.oculpmIntegrityWarning.listen((evt) => {
       if (evt.payload.project_id !== currentProjectId()) return;

@@ -9,7 +9,7 @@
  * watcher·PTY·AI 응답이 계속 돈다. 탭 집합의 SSOT 는 백엔드 레지스트리다
  * (전역 유일성·PTY 정리·떼어내기를 창을 가로질러 심판해야 하므로).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { commands, events, type Project, type TabInfo } from "@/lib/bindings";
 
 import { BootSplash } from "@/components/BootSplash";
@@ -29,6 +29,8 @@ import { pruneWorkspaceRecords } from "@/contexts/workspacePrune";
 import { useSettings } from "@/contexts/SettingsContext";
 import { installConsoleBridge, oculpmLog } from "@/lib/oculpmLog";
 import { createUnlistenBag } from "@/lib/unlisten";
+import { useSeededEvent } from "@/hooks/useSeededEvent";
+import { sessionApi } from "@/api/session";
 import { useLlmBackgroundToast } from "@/hooks/useLlmBackgroundToast";
 import { hasRunningWork, runCloseIntent, runTabCloseGuard, runningWorkItems } from "@/lib/closeIntent";
 import { runNewTabIntent } from "@/lib/newTabIntent";
@@ -234,21 +236,44 @@ export default function TabbedWindow({
   useLlmBackgroundToast();
 
   // 세션 활동 점 — 백그라운드 탭에서 에이전트가 돌고 있다는 유일한 신호다
-  // (탭이 숨어 있으면 화면으로는 알 수 없다).
-  useEffect(() => {
-    const bag = createUnlistenBag();
-    const mark = (projectId: number, on: boolean) =>
-      setBusyProjects((prev) => {
-        if (prev.has(projectId) === on) return prev;
-        const next = new Set(prev);
-        if (on) next.add(projectId);
-        else next.delete(projectId);
-        return next;
-      });
-    bag.add(events.oculpmSessionStarted.listen(({ payload }) => mark(payload.project_id, true)));
-    bag.add(events.oculpmSessionEnded.listen(({ payload }) => mark(payload.project_id, false)));
-    return () => bag.dispose();
-  }, []);
+  // (탭이 숨어 있으면 화면으로는 알 수 없다). 탭의 프로젝트마다 열 때 묻고 이벤트로
+  // 바꾼다 — 이벤트로만 세우면 새 창·새로고침한 창에서 이미 도는 에이전트의 점이
+  // 안 보였다 (review-2026-10-09 {#seeded-event}).
+  const tabProjectKey = useMemo(
+    () => [...new Set(tabs.flatMap((tb) => (tb.project_id == null ? [] : [tb.project_id])))].sort().join(","),
+    [tabs],
+  );
+  useSeededEvent<Set<number>>(
+    {
+      seed: () => {
+        const ids = tabProjectKey ? tabProjectKey.split(",").map(Number) : [];
+        return Promise.all(
+          ids.map((id) =>
+            sessionApi
+              .current(id)
+              .then((s) => (s ? id : null))
+              .catch(() => null),
+          ),
+        ).then((busy) => new Set(busy.filter((id): id is number => id != null)));
+      },
+      subscribe: (touch) => [
+        sessionApi.onStarted((payload) => {
+          touch(payload.project_id);
+          markBusy(setBusyProjects, payload.project_id, true);
+        }),
+        sessionApi.onEnded((payload) => {
+          touch(payload.project_id);
+          markBusy(setBusyProjects, payload.project_id, false);
+        }),
+      ],
+      onSeed: (busy, touched) => {
+        for (const id of tabProjectKey ? tabProjectKey.split(",").map(Number) : []) {
+          if (!touched(id)) markBusy(setBusyProjects, id, busy.has(id));
+        }
+      },
+    },
+    [tabProjectKey],
+  );
 
   // 창 제목 = 활성 탭 이름 (macOS 창 전환기·Mission Control 구분용).
   useEffect(() => {
@@ -602,4 +627,19 @@ export default function TabbedWindow({
       {confirmDialog}
     </div>
   );
+}
+
+/** 바쁜 점 하나를 켜거나 끈다 — 이미 그 상태면 같은 Set 을 돌려 다시 그리지 않는다. */
+function markBusy(
+  set: Dispatch<SetStateAction<Set<number>>>,
+  projectId: number,
+  on: boolean,
+) {
+  set((prev) => {
+    if (prev.has(projectId) === on) return prev;
+    const next = new Set(prev);
+    if (on) next.add(projectId);
+    else next.delete(projectId);
+    return next;
+  });
 }

@@ -34,11 +34,17 @@ impl DapState {
         self.sessions.lock().await.remove(&project_id)
     }
 
-    /// 프로젝트를 닫거나 앱이 끝날 때.
+    /// 프로젝트를 닫거나 지울 때.
     pub async fn stop_project(&self, project_id: u32) {
         if let Some(session) = self.take(project_id).await {
             session.stop().await;
         }
+    }
+
+    /// 앱 종료 — 모든 세션을 동시에. 디버거와 디버기가 고아로 남지 않게 한다.
+    pub async fn stop_all(&self) {
+        let sessions: Vec<_> = self.sessions.lock().await.drain().map(|(_, s)| s).collect();
+        futures::future::join_all(sessions.iter().map(|s| s.stop())).await;
     }
 
     // ── 중단점 ──────────────────────────────────────────────────────────────

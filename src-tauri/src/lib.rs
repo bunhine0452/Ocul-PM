@@ -391,6 +391,7 @@ use crate::commands::{
     oculpm_coerce_entry_on_disk,
     oculpm_compare_workday,
     oculpm_create_manual_entry,
+    oculpm_current_session,
     oculpm_end_session_manual,
     oculpm_export_digest,
     // journal-scale-round {#hotspot-query} — 파일별 bug/error 재발 신호
@@ -559,7 +560,6 @@ use crate::commands::import::{
 // 비-mac 의 「새 창」(Ctrl+Shift+N) — 메뉴의 새 창과 같은 생성 함수 (#os-new-window).
 use crate::commands::new_window::new_window;
 // v2.3.0 메뉴바 (docs/menubar/00-master-plan.md)
-use crate::db::Db;
 use crate::embedding::Embedder;
 use crate::tray::{notify_agent_attention, tray_apply_settings, tray_hide_popover, tray_open_main};
 
@@ -807,6 +807,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_start_session_manual,
             oculpm_end_session_manual,
             oculpm_agent_run_signal,
+            oculpm_current_session,
             oculpm_list_sessions,
             oculpm_get_file_changes,
             oculpm_watcher_start,
@@ -1149,9 +1150,8 @@ pub fn run() {
                     Err(e) => tracing::warn!(error = %e, "AppImage 사이드카 안정 사본 실패"),
                 },
             );
-            let db_path = app_data.join("ocul-pm.db");
-            let db =
-                tauri::async_runtime::block_on(Db::open(db_path)).expect("failed to open database");
+            // 못 열면 크래시 대신 이유를 보이고 「새로 시작 / 종료」 를 묻는다.
+            let db = crate::db::startup::open_or_ask(&app_data);
             app.manage(db);
             // Pin the embedding model cache to an absolute, writable dir. The
             // packaged .app runs with CWD `/`, so fastembed's relative default
@@ -1299,6 +1299,9 @@ pub fn run() {
                 if let Some(acp) = app_handle.try_state::<crate::acp::AcpState>() {
                     acp.stop_all_blocking();
                 }
+                // 언어 서버·디버거 — 같은 이유로 고아가 된다(`kill_on_drop` 은
+                // `process::exit` 에서 안 돈다). 전부 동시에, 최대 2초.
+                crate::commands::window::stop_code_servers_blocking(app_handle);
                 // 모바일 브리지 — oneshot 만 보내면 axum 이 graceful 로 내려간다.
                 if let Some(bridge) =
                     app_handle.try_state::<crate::mobile_bridge::server::MobileBridgeState>()

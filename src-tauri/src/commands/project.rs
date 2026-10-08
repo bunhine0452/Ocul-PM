@@ -109,6 +109,8 @@ pub async fn delete_project(
     manager.forget_project(project_id).await;
     // 창에서도 걷는다 — 왜 **행을 지우기 전**인지는 그 함수에 적어 두었다.
     crate::commands::window::close_project_surfaces(&app, project_id).await;
+    // 탭이 없던 프로젝트도 서버가 떠 있을 수 있다 (닫힌 뒤 경주에서 진 spawn 등).
+    crate::commands::window::stop_code_servers(&app, project_id).await;
     if delete_oculpm || delete_agents_md {
         // Capture the root BEFORE the DB row is gone. If the project lookup
         // fails we skip file cleanup (nothing reliable to point at) and still
@@ -719,7 +721,24 @@ pub async fn read_file_range(
     end_line: u32,
 ) -> Result<String, String> {
     let root = get_project_root(&db, project_id).await?;
-    let full_path = secure_join(&root, &rel_path)?;
+    read_lines(&root, &rel_path, start_line, end_line).await
+}
+
+/// `root` 안 `rel_path` 의 `[start_line, end_line]` (1부터). 명령과 테스트가 같은 길을 탄다.
+async fn read_lines(
+    root: &std::path::Path,
+    rel_path: &str,
+    start_line: u32,
+    end_line: u32,
+) -> Result<String, String> {
+    let full_path = secure_join(root, rel_path)?;
+    // 색인이 빼는 비밀 파일(`.env`·키 파일 …)은 여기서도 안 읽는다. 데스크톱 호출부는
+    // 색인에서 온 경로라 걸릴 일이 없지만, 모바일 브리지는 아무 경로나 보낼 수 있다 —
+    // 페어링된 폰이 `.env` 를 읽던 자리 (2026-10-09 리포트).
+    let name = full_path.file_name().map(|n| n.to_string_lossy());
+    if name.is_some_and(|n| crate::oculpm::redact::is_secret_file_name(&n)) {
+        return Err(format!("{rel_path}: secret files are not readable here"));
+    }
     let content = tokio::fs::read_to_string(&full_path)
         .await
         .map_err(|e| format!("Failed to read file: {e}"))?;
@@ -734,3 +753,28 @@ pub async fn read_file_range(
 
 // (G3 clarify/edit-prompt 커맨드는 감사 2026-07-16 에서 은퇴 — 유일 소비자였던
 //  ⌘\ AI 오버레이 Quick-Edit 이 제거되면서 함께 삭제. AI 패널이 정본이다.)
+
+#[cfg(test)]
+mod tests {
+    use super::read_lines;
+
+    /// 색인이 빼는 비밀 파일은 범위 읽기로도 안 나온다 — 모바일 브리지가 아무 경로나
+    /// 보낼 수 있는 창구다. 평범한 파일은 그대로 읽힌다 (대조군).
+    #[tokio::test]
+    async fn secret_files_stay_unreadable_through_line_ranges() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join(".env"), "API_KEY=x\n").unwrap();
+        std::fs::create_dir(dir.path().join("keys")).unwrap();
+        std::fs::write(dir.path().join("keys/deploy.pem"), "-----\n").unwrap();
+        std::fs::write(dir.path().join("main.rs"), "fn a() {}\nfn b() {}\n").unwrap();
+
+        assert!(read_lines(dir.path(), ".env", 1, 5).await.is_err());
+        assert!(read_lines(dir.path(), "keys/deploy.pem", 1, 5)
+            .await
+            .is_err());
+        assert_eq!(
+            read_lines(dir.path(), "main.rs", 2, 2).await.unwrap(),
+            "fn b() {}"
+        );
+    }
+}
