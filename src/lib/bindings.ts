@@ -4928,13 +4928,10 @@ export type LspServerInfo = {
 export type LspServerState = 
 /**  프로세스는 떴고 initialize 진행 중. */
 "starting" | 
-/**
- *  인덱싱 중 — 진단이 아직 안 올 수 있다. 이 상태를 밝히지 않으면
- *  사용자가 "고장" 으로 읽는다.
- */
+/**  인덱싱 중 — 진단이 아직 안 올 수 있다. 안 밝히면 사용자가 "고장" 으로 읽는다. */
 "indexing" | "ready" | 
 /**  바이너리가 PATH 에 없다. 조용히 실패하지 않고 이 사실을 말한다. */
-"missing" | "failed" | "stopped";
+"missing" | "failed" | "stopped" | "untrusted";
 
 /**
  *  서버 상태가 바뀌었다. 상태줄이 이걸 읽는다 — "인덱싱 중" 을 밝히지 않으면

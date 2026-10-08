@@ -422,6 +422,10 @@
 .code-status-lsp.missing .code-status-led {
   background: var(--danger);
 }
+/* 신뢰 전 — 고장이 아니라 사람이 정할 것이 남은 상태. 칩을 누르면 신뢰하고 켠다. */
+.code-status-lsp.untrusted .code-status-led {
+  background: var(--warn);
+}
 @keyframes code-led-pulse {
   50% {
     opacity: 0.35;
@@ -470,9 +474,14 @@
   color: var(--text-2);
 }
 .code-status-lsp.missing,
-.code-status-lsp.failed {
+.code-status-lsp.failed,
+.code-status-lsp.untrusted {
   color: var(--warn-text);
   cursor: help;
+}
+/* 신뢰 전 칩은 누르는 것이다 (위의 help 커서를 덮는다). */
+.code-status-btn.code-status-lsp {
+  cursor: pointer;
 }
 
 /* ── 문제 패널 (#p5-problems) ─────────────────────────────────────────────

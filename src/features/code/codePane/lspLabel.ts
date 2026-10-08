@@ -17,6 +17,8 @@ export function lspLabelFor(state: LspServerState | null): string | null {
       return t("code.lsp.missing");
     case "failed":
       return t("code.lsp.failed");
+    case "untrusted":
+      return t("code.lsp.untrusted");
     default:
       return null;
   }

@@ -15,3 +15,4 @@ pub mod registry;
 pub mod semantic;
 pub mod spec;
 pub mod state;
+pub mod trust;

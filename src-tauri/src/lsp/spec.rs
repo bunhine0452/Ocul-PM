@@ -62,14 +62,14 @@ pub struct LspCompletionItem {
 pub enum LspServerState {
     /// 프로세스는 떴고 initialize 진행 중.
     Starting,
-    /// 인덱싱 중 — 진단이 아직 안 올 수 있다. 이 상태를 밝히지 않으면
-    /// 사용자가 "고장" 으로 읽는다.
+    /// 인덱싱 중 — 진단이 아직 안 올 수 있다. 안 밝히면 사용자가 "고장" 으로 읽는다.
     Indexing,
     Ready,
     /// 바이너리가 PATH 에 없다. 조용히 실패하지 않고 이 사실을 말한다.
     Missing,
     Failed,
     Stopped,
+    Untrusted, // 이 기기에서 신뢰하기 전이라 띄우지 않았다 — `lsp::trust` 가 이유를 적는다.
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]

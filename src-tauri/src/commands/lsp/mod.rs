@@ -97,7 +97,8 @@ pub async fn lsp_status(
     project_id: u32,
 ) -> Result<Vec<LspServerInfo>, String> {
     let root = project_root(&db, project_id).await?;
-    Ok(lsp.status(project_id, &root).await)
+    let trusted = crate::lsp::trust::is_trusted(&db, project_id).await;
+    Ok(lsp.status(project_id, &root, trusted).await)
 }
 
 /// 파일을 열었다고 알린다 (필요하면 서버를 띄운다).
