@@ -21,11 +21,11 @@ export const PROSE_LANGUAGE_ID = "markdown-prose";
 
 const CONF: MonacoNs.languages.LanguageConfiguration = {
   comments: { blockComment: ["<!--", "-->"] },
-  brackets: [
-    ["{", "}"],
-    ["[", "]"],
-    ["(", ")"],
-  ],
+  // 괄호 쌍은 비워 둔다 — Monaco 는 이 목록으로 괄호 쌍을 **색칠**하는데, 산문의
+  // `(그런데)` 와 `{#opt-a}` 가 코드처럼 파랗게 떴다(2026-10-08). 편집기 옵션으로는
+  // 못 끈다(독립판이 그 키를 설정으로 등록하지 않아 모델에 닿지 않는다). 감싸기·자동
+  // 닫기는 아래 두 목록이 맡으므로 잃는 것은 괄호 짝 강조뿐이고, 그건 이미 꺼 뒀다.
+  brackets: [],
   autoClosingPairs: [
     { open: "{", close: "}" },
     { open: "[", close: "]" },
