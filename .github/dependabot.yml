@@ -1,0 +1,15 @@
+# GitHub Actions 는 전부 커밋 SHA 로 고정돼 있다 (review-2026-10-09 #actions-sha).
+# 태그(`@v6`)·브랜치(`@master`)는 움직인다 — 서명 잡은 Apple 인증서와 업데이터
+# 개인키를 든 채로 그 코드를 실행한다. 고정한 SHA 를 올리는 일은 여기에 맡긴다:
+# 한 달에 한 번, 한 PR 로 묶어서 (혼자 유지하는 저장소에 PR 소음을 줄이려고).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
