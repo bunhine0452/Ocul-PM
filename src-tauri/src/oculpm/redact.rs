@@ -256,6 +256,33 @@ fn builtin_regexes() -> &'static [Regex] {
     })
 }
 
+/// 이름만으로 비밀이 사는 파일 — `.gitignore` 와 무관하게 **원문을 남기지 않는다.**
+///
+/// 색인한 청크는 SQLite 에 평문으로 남고 의미 검색 결과로 AI 패널 프롬프트에 실려
+/// 나가며(2026-10-08 검토), 로컬 히스토리 스냅샷은 되돌리기용 원문이라 마스킹을 걸
+/// 수 없다. 둘 다 이 판정 하나를 지난다 (`indexer::is_skipped_name` ·
+/// `history::should_capture`) — 목록이 둘이면 하나는 반드시 뒤처진다. `.env.*` 는
+/// `.env.example` 까지 막는다: 예시 파일에 진짜 값을 적는 일이 흔하다.
+pub fn is_secret_file_name(name: &str) -> bool {
+    const NAMES: &[&str] = &[
+        ".env",
+        ".npmrc",
+        ".pypirc",
+        ".netrc",
+        ".git-credentials",
+        "credentials.json",
+        "id_rsa",
+        "id_dsa",
+        "id_ecdsa",
+        "id_ed25519",
+    ];
+    const SUFFIXES: &[&str] = &[".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"];
+    let lower = name.to_ascii_lowercase();
+    NAMES.contains(&lower.as_str())
+        || lower.starts_with(".env.")
+        || SUFFIXES.iter().any(|s| lower.ends_with(s))
+}
+
 /// 프로젝트의 마스킹 패턴 = [`BUILTIN_PATTERNS`] + 사용자가 더한 `patterns`.
 /// 바닥은 설정으로 끌 수 없다 — 빈 목록을 넘겨도 바닥은 남는다. 같은 문자열은
 /// 한 번만 싣는다. Malformed user entries are dropped with a `warn!` rather
@@ -350,6 +377,33 @@ pub fn redact_text(text: &str, patterns: &[Regex]) -> (String, Vec<RedactHit>) {
 
 #[cfg(test)]
 mod tests {
+    use super::is_secret_file_name;
+
+    #[test]
+    fn secret_file_names_are_recognised_by_name_alone() {
+        for n in [
+            ".env",
+            ".env.local",
+            ".env.example",
+            ".npmrc",
+            "id_ed25519",
+            "server.PEM",
+            "cert.p12",
+        ] {
+            assert!(is_secret_file_name(n), "{n}");
+        }
+        for n in [
+            "env.rs",
+            "README.md",
+            "keys.rs",
+            "monkey.ts",
+            "Cargo.toml",
+            "environment.ts",
+        ] {
+            assert!(!is_secret_file_name(n), "{n}");
+        }
+    }
+
     use super::*;
     use crate::oculpm::spec::OculpmConfig;
 
