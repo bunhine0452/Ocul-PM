@@ -44,6 +44,10 @@ concurrency:
   group: portability-${{ github.ref }}
   cancel-in-progress: true
 
+# 잡이 따로 적지 않으면 읽기만 — 토큰이 필요한 잡(아티팩트 조회)은 잡 단위로 더 받는다.
+permissions:
+  contents: read
+
 # ONNX Runtime 사전 빌드(ort-sys 가 받는 onnxruntime 정적 라이브러리)의 자리를 작업 폴더 안 고정 경로로
 # 두고 rust-cache 가 target 과 함께 저장하게 한다. 기본 자리(러너의 사용자 캐시 폴더)는 캐시에 안 들어가,
 # target 만 복원되면 ort-sys 빌드 스크립트가 다시 돌지 않은 채 없는 폴더를 링크 경로로 가리킨다 —
@@ -67,7 +71,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: 툴체인 버전 읽기 (rust-toolchain.toml)
         id: toolchain
@@ -80,7 +84,7 @@ jobs:
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
 
       - name: Install Rust ${{ steps.toolchain.outputs.channel }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
         with:
           toolchain: ${{ steps.toolchain.outputs.channel }}
           components: rust-analyzer, rustfmt, clippy
@@ -95,7 +99,7 @@ jobs:
             libxdo-dev libssl-dev libdbus-1-dev build-essential pkg-config file patchelf
 
       - name: Rust cache
-        uses: swatinem/rust-cache@v2
+        uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: './src-tauri -> target'
           prefix-key: v1-rust-ort
@@ -123,7 +127,7 @@ jobs:
       # 로그를 볼 수 있어서 W1 반복마다 그만큼을 기다렸다.
       - name: 빌드 로그 아티팩트 (check·clippy)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: portability-rust-build-${{ matrix.os }}
           path: |
@@ -145,7 +149,7 @@ jobs:
 
       - name: 로그 아티팩트
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: portability-rust-${{ matrix.os }}
           path: |
@@ -187,15 +191,15 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
           cache: pnpm
@@ -250,7 +254,7 @@ jobs:
     outputs:
       run: ${{ steps.gate.outputs.run }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
       - name: 판정
@@ -293,7 +297,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: 툴체인 버전 읽기 (rust-toolchain.toml)
         id: toolchain
@@ -302,7 +306,7 @@ jobs:
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
 
       - name: Install Rust ${{ steps.toolchain.outputs.channel }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
         with:
           toolchain: ${{ steps.toolchain.outputs.channel }}
 
@@ -315,7 +319,7 @@ jobs:
             libxdo-dev libssl-dev libdbus-1-dev build-essential pkg-config
 
       - name: Rust cache (release)
-        uses: swatinem/rust-cache@v2
+        uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: './src-tauri -> target'
           prefix-key: v1-rust-ort
@@ -323,7 +327,7 @@ jobs:
           key: sidecar-release
           cache-on-failure: true
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
 
@@ -358,7 +362,7 @@ jobs:
 
       - name: 로그 아티팩트
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: portability-sidecar-${{ matrix.os }}
           path: sidecar.log
@@ -417,7 +421,7 @@ jobs:
       smoke: ${{ steps.gate.outputs.smoke }}
       updater: ${{ steps.gate.outputs.updater }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
       # 번들(수십 분)을 기다리기 전에 스모크 스크립트의 문법부터 — 오타 하나로 한 바퀴를
@@ -496,7 +500,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: 툴체인 버전 읽기 (rust-toolchain.toml)
         id: toolchain
@@ -505,7 +509,7 @@ jobs:
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
 
       - name: Install Rust ${{ steps.toolchain.outputs.channel }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
         with:
           toolchain: ${{ steps.toolchain.outputs.channel }}
           targets: ${{ matrix.triple }}
@@ -520,7 +524,7 @@ jobs:
             libxdo-dev libssl-dev libdbus-1-dev build-essential pkg-config file patchelf
 
       - name: Rust cache (release)
-        uses: swatinem/rust-cache@v2
+        uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: './src-tauri -> target'
           prefix-key: v1-rust-ort
@@ -529,12 +533,12 @@ jobs:
           cache-on-failure: true
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
           cache: pnpm
@@ -606,7 +610,7 @@ jobs:
 
       - name: 설치 파일 아티팩트
         if: steps.collect.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: portability-bundle-${{ matrix.os }}
           path: dist-bundle/
@@ -726,7 +730,7 @@ jobs:
 
       - name: 업데이터 스모크 재료 아티팩트
         if: steps.updcollect.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: portability-updater-${{ matrix.os }}
           path: dist-updater/
@@ -736,7 +740,7 @@ jobs:
 
       - name: 번들 로그 아티팩트
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: portability-bundle-log-${{ matrix.os }}
           path: |
@@ -787,7 +791,7 @@ jobs:
       contents: read
       actions: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: 번들 출처 — 이 run, 번들을 건너뛴 push 면 이 브랜치의 앞 run
         id: src
@@ -824,7 +828,7 @@ jobs:
           exit 1
 
       - name: 설치 파일 받기
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: portability-bundle-${{ matrix.os }}
           path: bundle
@@ -856,7 +860,7 @@ jobs:
 
       - name: 스모크 결과 아티팩트 (로그 · 스크린샷 · 매니페스트 · summary.md)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: portability-install-smoke-${{ matrix.os }}
           path: smoke-out/
@@ -884,9 +888,9 @@ jobs:
       contents: read
       actions: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
 
@@ -927,7 +931,7 @@ jobs:
           exit 1
 
       - name: N+1 번들 받기
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: portability-bundle-${{ matrix.os }}
           path: bundle
@@ -935,7 +939,7 @@ jobs:
           github-token: ${{ github.token }}
 
       - name: N 재료 받기
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: portability-updater-${{ matrix.os }}
           path: updater
@@ -967,7 +971,7 @@ jobs:
 
       - name: 결과 아티팩트 (앱 로그 · 접근 로그 · 설치 로그 · 스크린샷 · summary.md)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: portability-updater-smoke-${{ matrix.os }}
           path: smoke-out/

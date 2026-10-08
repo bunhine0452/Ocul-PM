@@ -13,17 +13,17 @@
 # `[licenses] copyleft/unlicensed/default` 같은 v1 키는 **에러**가 된다.
 
 [graph]
-# 실제로 배포하는 타깃만 본다. release.yml 은 지금 `aarch64-apple-darwin` 하나만
-# 굽는다(윈도우 매트릭스는 주석 처리되어 있다). 타깃을 좁히면 리눅스 전용
-# gtk/glib 계열의 "unmaintained" 소음이 통째로 사라진다 — 우리가 컴파일하지 않는
-# 코드의 공지는 우리 PR 을 붉힐 이유가 없다.
+# 실제로 배포하는 타깃만 본다 — 우리가 컴파일하지 않는 코드의 공지는 우리 PR 을
+# 붉힐 이유가 없다. 반대로 배포하는 타깃이 여기 빠지면 그 OS 에서만 링크되는
+# 크레이트가 이 게이트에 안 보인 채로 배포된다.
 #
-# release.yml 에서 윈도우 매트릭스를 다시 켠다면 여기에도
-# "x86_64-pc-windows-msvc" 를 **함께** 추가해야 한다. 안 그러면 윈도우에서만
-# 링크되는 크레이트가 이 게이트에 안 보인 채로 배포된다.
+# v3.6.0 부터 release.yml 이 Windows·Linux 도 굽는다. 2026-10-09 까지 이 목록은
+# macOS 둘뿐이었다 (리포트가 짚음) — 배포 매트릭스를 바꾸면 여기도 같이 바꿀 것.
 targets = [
   { triple = "aarch64-apple-darwin" },
   { triple = "x86_64-apple-darwin" },
+  { triple = "x86_64-pc-windows-msvc" },
+  { triple = "x86_64-unknown-linux-gnu" },
 ]
 all-features = false
 
@@ -116,6 +116,10 @@ exceptions = [
   # notify 6.1.1 은 CC0-1.0 **단독**이다(퍼블릭 도메인 헌정). `.oculpm/` 파일
   # 워처의 핵심 의존성. notify 7.x 는 MIT 로 바뀌었으니 올릴 때 이 줄을 지운다.
   { crate = "notify", allow = ["CC0-1.0"] },
+  # tiny-keccak 2.0.2 도 CC0-1.0 단독. Windows·Linux 에서만 링크된다 —
+  # tauri-plugin-deep-link → rust-ini → const-random(빌드 시 매크로). 대상에
+  # 두 OS 를 넣은 2026-10-09 에야 이 게이트에 보였다.
+  { crate = "tiny-keccak", allow = ["CC0-1.0"] },
 
   # libfuzzer-sys 는 `(MIT OR Apache-2.0) AND NCSA` 라 NCSA 도 함께 만족해야
   # 한다. NCSA 는 MIT/BSD 급 허용 라이선스(LLVM 이 쓰던 것)다.

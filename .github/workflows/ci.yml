@@ -38,18 +38,18 @@ jobs:
     steps:
       # `lint:filesize` 래칫이 직전 커밋(`HEAD^1`)의 파일을 꺼내 봅니다 —
       # 기본 depth 1 로는 그 커밋이 없어 게이트가 스택트레이스로 죽습니다.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 2
 
       # pnpm 을 setup-node 보다 **먼저** 깔아야 `cache: pnpm` 이 스토어를 찾습니다.
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
           cache: pnpm
@@ -90,6 +90,12 @@ jobs:
       - name: Lint (storage · i18n · bindings · design · filesize · eslint · extension)
         run: pnpm lint
 
+      # 번들에 실리는 의존성의 알려진 취약점 — high 이상이면 막는다. `--prod` 라
+      # 빌드 도구(shadcn CLI 등 devDependencies)의 알림은 여기서 소음이 되지 않는다.
+      # 2026-10-09 이전엔 shadcn 이 dependencies 에 있어 68건 중 63건이 소음이었다.
+      - name: Audit (production dependencies)
+        run: pnpm audit --prod --audit-level=high
+
       # tsc && vite build && check-critical-css. dist 는 산출물만 확인하고 버립니다.
       - name: Build
         run: pnpm build
@@ -103,7 +109,7 @@ jobs:
     # 콜드 빌드 실측 10분31초 — 그 세 배를 넘기면 매달린 것이다.
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       # 버전의 주인은 `rust-toolchain.toml` 입니다 (#toolchain-pin). dtolnay 액션은
       # 그 파일을 **읽지 않으므로** 여기서 꺼내 넘깁니다 — `@stable` 로 두면 핀을
@@ -125,7 +131,7 @@ jobs:
       # 'rust-analyzer' in official toolchain" 으로 죽습니다. 픽스처가 의존성 없는
       # 최소 크레이트라 컴포넌트만 있으면 몇 초에 진짜로 돕니다(스킵보다 낫습니다).
       - name: Install Rust ${{ steps.toolchain.outputs.channel }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
         with:
           toolchain: ${{ steps.toolchain.outputs.channel }}
           components: rust-analyzer, rustfmt, clippy
@@ -141,7 +147,7 @@ jobs:
       # 깨진 실행은 캐시를 안 남겨, 고치고 다시 밀 때도 콜드 빌드를 또 합니다
       # (실측: 첫 실행 실패 → 두 번째도 콜드 10분31초).
       - name: Rust cache
-        uses: swatinem/rust-cache@v2
+        uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: './src-tauri -> target'
           prefix-key: v1-rust-ort
@@ -182,7 +188,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       # 설정은 저장소 루트의 `deny.toml` 이지만 매니페스트는 `src-tauri/` 에 있다.
       # cargo-deny 는 설정을 **매니페스트 옆**에서 찾으므로 명시적으로 넘긴다.
@@ -204,7 +210,7 @@ jobs:
       # `deny.toml` 의 ignore 로. 로컬 재현: `cargo-deny --manifest-path
       # src-tauri/Cargo.toml --config deny.toml check`
       - name: cargo-deny — 취약점 · 금지 · 출처 · 라이선스
-        uses: EmbarkStudios/cargo-deny-action@v2
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
         with:
           manifest-path: src-tauri/Cargo.toml
           command: check advisories bans sources licenses

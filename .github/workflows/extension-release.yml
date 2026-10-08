@@ -43,15 +43,15 @@ jobs:
     outputs:
       vsix: ${{ steps.pack.outputs.vsix }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 22
           cache: pnpm
@@ -122,7 +122,7 @@ jobs:
           echo "vsix=$file" >> "$GITHUB_OUTPUT"
         working-directory: extension
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: vsix
           path: extension/${{ steps.pack.outputs.vsix }}
@@ -140,7 +140,7 @@ jobs:
       OPEN_VSX_TOKEN: ${{ secrets.OPEN_VSX_TOKEN }}
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: vsix
           path: .
@@ -161,7 +161,7 @@ jobs:
       # GitHub 릴리스만 낼 수 있게. 토큰을 넣은 뒤 이 run 을 re-run 하면 게시된다.
       - name: Publish to Open VSX
         if: env.OPEN_VSX_TOKEN != ''
-        uses: HaaLeo/publish-vscode-extension@v2
+        uses: HaaLeo/publish-vscode-extension@1b8df468b849f76a143b8c18bf0ffa2075398d12 # v2.1.0
         with:
           pat: ${{ secrets.OPEN_VSX_TOKEN }}
           registryUrl: https://open-vsx.org
@@ -171,7 +171,7 @@ jobs:
       - name: Publish to VS Marketplace
         # Open VSX 가 실패해도 마켓은 시도한다 — 두 레지스트리는 독립이다.
         if: always() && env.VSCE_PAT != ''
-        uses: HaaLeo/publish-vscode-extension@v2
+        uses: HaaLeo/publish-vscode-extension@1b8df468b849f76a143b8c18bf0ffa2075398d12 # v2.1.0
         with:
           pat: ${{ secrets.VSCE_PAT }}
           registryUrl: https://marketplace.visualstudio.com
