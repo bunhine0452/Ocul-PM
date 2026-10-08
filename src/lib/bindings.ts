@@ -110,8 +110,13 @@ export const commands = {
 	 * 
 	 *  `replace` 는 같은 id 가 이미 설치돼 있을 때만 뜻이 있다 — 없으면
 	 *  `already_installed` 를 채워 돌려주고 아무것도 쓰지 않는다 (명시적 교체 확인).
+	 * 
+	 *  설치(`dry == false`)는 `expect_hash` 를 요구한다 — 미리보기가 돌려준
+	 *  `content_hash` 그대로. 미리보기와 설치는 따로 내려받으므로, 그 사이 작성자가
+	 *  브랜치를 바꾸면 본 것과 다른 `.mcp.json` 명령이 깔린다 (2026-10-09 리포트).
+	 *  바이트가 다르면 아무것도 쓰지 않고 `bundle_changed` 로 돌려보낸다.
 	 */
-	pluginImport: (projectId: number, kind: BundleSourceKind, src: string, dry: boolean, replace: boolean) => typedError<BundleImportResult, AppError>(__TAURI_INVOKE("plugin_import", { projectId, kind, src, dry, replace })),
+	pluginImport: (projectId: number, kind: BundleSourceKind, src: string, dry: boolean, replace: boolean, expectHash: string | null) => typedError<BundleImportResult, AppError>(__TAURI_INVOKE("plugin_import", { projectId, kind, src, dry, replace, expectHash })),
 	/**  설치된 번들 목록. */
 	pluginList: (projectId: number) => typedError<InstalledBundle[], AppError>(__TAURI_INVOKE("plugin_list", { projectId })),
 	/**  번들이 놓은 것만 지운다. 사용자가 이어받은 파일은 남긴다. */
@@ -3076,6 +3081,8 @@ export type BundleImportResult = {
 	automations: string[],
 	/**  같은 id 의 번들이 이미 설치돼 있다 — `replace` 없이는 쓰지 않았다. */
 	already_installed: InstalledBundle | null,
+	/**  받은 바이트의 blake3 — 설치 호출이 `expect_hash` 로 되돌려준다. */
+	content_hash: string,
 };
 
 export type BundleManifest = {

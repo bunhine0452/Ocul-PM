@@ -24,7 +24,7 @@ vi.mock("@/api/lsp", () => ({ lspApi: lsp }));
 
 // 코드 실행 신뢰 (2026-10-08 검토) — 언어 서버는 파일을 여는 것만으로 저장소의
 // 빌드 스크립트·툴체인 설정을 실행하므로, 이 기기에서 신뢰하기 전엔 띄우지 않는다.
-// 백엔드(`lsp::trust`)가 문을 닫고, 화면은 그 사실을 말하고 여는 손잡이를 준다.
+// 백엔드(`crate::trust`)가 문을 닫고, 화면은 그 사실을 말하고 여는 손잡이를 준다.
 
 function bar(over: Partial<CodeStatusBarProps>) {
   const props: CodeStatusBarProps = {
@@ -74,7 +74,7 @@ describe("code trust", () => {
   });
 
   it("uses the same settings key shape as the backend", () => {
-    const rust = readFileSync(resolve(__dirname, "../../src-tauri/src/lsp/trust.rs"), "utf8");
+    const rust = readFileSync(resolve(__dirname, "../../src-tauri/src/trust.rs"), "utf8");
     expect(rust).toContain('pub const KEY_PREFIX: &str = "code_trust.";');
     expect(codeTrustKey(7)).toBe("code_trust.7");
   });

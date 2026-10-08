@@ -20,14 +20,6 @@ use crate::acp::{self, AcpAgentInfo, AcpDiagnostics, AcpEvent, AcpProvider, AcpS
 use crate::app_error::AppError;
 use crate::db::Db;
 
-pub(crate) async fn project_root(db: &Db, project_id: u32) -> Result<PathBuf, AppError> {
-    let project = db
-        .get_project(project_id)
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(PathBuf::from(project.root_path))
-}
-
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, AppError> {
     app.path()
         .app_data_dir()
@@ -109,6 +101,7 @@ pub async fn acp_start(
 ) -> Result<AcpSession, AppError> {
     let provider = selected_provider(provider);
     let target = target_id(project_id, provider);
+    crate::trust::require_for_agent(&db, project_id).await?; // 신뢰 전엔 안 띄운다 — 설치보다 먼저
     let dir = app_data_dir(&app)?;
     let mut diagnostics = acp::diagnose(&dir).await;
 
@@ -166,7 +159,7 @@ pub async fn acp_start(
         AcpProvider::Codex => acp::adapter::codex_entry_path(&dir),
     };
     let path_env = acp::env::effective_path().await;
-    let root = project_root(&db, project_id).await?;
+    let root = db.project_root(project_id).await?;
 
     let agent = acp::process::start(
         app.clone(),
@@ -249,7 +242,7 @@ async fn ensure_session(
     let connection = state
         .connection(target)
         .ok_or_else(|| AppError::code("acp_not_running"))?;
-    let cwd = project_root(db, project_id).await?;
+    let cwd = db.project_root(project_id).await?;
 
     let auth_advertised = state.info(target).is_some_and(|info| info.auth_required);
     // 신원을 **먼저** 발급한다 — 환경은 요청에 실려 나가고 대화 id 는 응답에
@@ -298,7 +291,7 @@ pub async fn acp_stop(
     let target = target_id(project_id, selected_provider(provider));
     if let (Some(session), Ok(root)) = (
         app.state::<AcpState>().session(target),
-        project_root(&db, project_id).await,
+        db.project_root(project_id).await,
     ) {
         note_closed(&app, root, session.0.to_string()).await;
     }
@@ -374,7 +367,7 @@ pub async fn acp_prompt(
     if !attachments.is_empty() {
         // `@` 멘션은 상대경로로, 파일 대화상자는 절대경로로 온다 — 여기서 한
         // 모양으로 맞춘다. ACP 는 모든 경로가 절대여야 한다고 못 박는다.
-        let root = project_root(&db, project_id).await?;
+        let root = db.project_root(project_id).await?;
         for path in &attachments {
             let absolute = {
                 let candidate = std::path::Path::new(path);
@@ -448,7 +441,7 @@ pub async fn acp_prompt(
     // **반환 전**이어야 한다. 화면의 배너는 이 커맨드가 반환한 뒤에 판정을
     // 물으므로(`RecordingNotice.tsx` 의 `turnKey={busy}`), 여기서 기다리지 않으면
     // 배너가 늘 한 턴 늦게 뜬다.
-    if let Ok(root) = project_root(&db, project_id).await {
+    if let Ok(root) = db.project_root(project_id).await {
         note_turn_ended(&app, root, session.0.to_string()).await;
     }
     result
@@ -608,7 +601,7 @@ pub async fn acp_list_sessions(
         .state::<AcpState>()
         .connection(target)
         .ok_or_else(|| AppError::code("acp_not_running"))?;
-    let cwd = project_root(&db, project_id).await?;
+    let cwd = db.project_root(project_id).await?;
 
     let mut request = ListSessionsRequest::new();
     request.cwd = Some(cwd.clone());
@@ -716,7 +709,7 @@ pub async fn acp_delete_session(
         .map_err(|e| AppError::new("acp_session_delete_failed", e.to_string()))?;
     // 세그먼트를 먼저 닫는다 — 매핑을 거두고 나면 이 대화의 기록 신원을 되찾을
     // 길이 없어져, 판정도 마커 청소도 할 수 없다 (순서가 곧 계약이다).
-    if let Ok(root) = project_root(&db, project_id).await {
+    if let Ok(root) = db.project_root(project_id).await {
         note_closed(&app, root, session_id.clone()).await;
     }
     // 대화가 사라졌으니 매핑도 거둔다 — 원장은 라우팅 표지 역사가 아니다.
@@ -765,7 +758,7 @@ pub async fn acp_load_session(
     // 다시 읽는 그 대화의 승인 카드만 무효가 된다 — 재생이 지난 상태를
     // 덮어쓰기 때문이다. 옆 대화 것은 그대로 둔다.
     state.cancel_pending_permissions(target, Some(&session_id));
-    let cwd = project_root(&db, project_id).await?;
+    let cwd = db.project_root(project_id).await?;
 
     app.state::<AcpState>()
         .set_sink(target, session_id.clone(), on_event);
@@ -874,7 +867,7 @@ pub async fn acp_refresh_usage(
     let scratch = match state.scratch(target) {
         Some(existing) => existing,
         None => {
-            let cwd = project_root(&db, project_id).await?;
+            let cwd = db.project_root(project_id).await?;
             // MCP 서버는 안 물린다 — 이 대화는 `/usage` 한 줄을 묻고 마는
             // 일회용이다. 서버를 띄우면 그만큼 느려지고, 쓸 일도 없다.
             let created = connection

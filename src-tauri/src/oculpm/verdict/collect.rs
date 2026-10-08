@@ -168,11 +168,7 @@ fn mtime_of(path: &Path) -> Option<i64> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn git(root: &Path, args: &[&str]) -> Option<String> {
-    let out = crate::proc::std_cmd("git")
-        .args(args)
-        .current_dir(root)
-        .output()
-        .ok()?;
+    let out = crate::git::safe::output(&mut crate::git::safe::cmd(root, args)).ok()?;
     out.status
         .success()
         .then(|| String::from_utf8_lossy(&out.stdout).to_string())

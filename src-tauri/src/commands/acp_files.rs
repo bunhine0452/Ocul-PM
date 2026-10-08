@@ -7,7 +7,6 @@
 
 use tauri::{AppHandle, State};
 
-use super::acp::project_root;
 use crate::app_error::AppError;
 use crate::db::Db;
 
@@ -21,7 +20,7 @@ pub async fn acp_pick_files(
 ) -> Result<Vec<String>, AppError> {
     use tauri_plugin_dialog::{DialogExt, FilePath};
 
-    let root = project_root(&db, project_id).await?;
+    let root = db.project_root(project_id).await?;
     let (tx, rx) = tokio::sync::oneshot::channel::<Option<Vec<FilePath>>>();
     app.dialog()
         .file()
@@ -54,7 +53,7 @@ pub async fn acp_list_files(
     query: String,
     limit: u32,
 ) -> Result<Vec<String>, AppError> {
-    let root = project_root(&db, project_id).await?;
+    let root = db.project_root(project_id).await?;
     let needle = query.to_lowercase();
     let cap = limit.clamp(1, 200) as usize;
 

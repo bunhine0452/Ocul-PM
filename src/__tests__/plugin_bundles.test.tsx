@@ -61,6 +61,7 @@ function result(over: Partial<BundleImportResult> = {}): BundleImportResult {
     mcp: { added: [], launches: [], conflicts: [], unreadable: false },
     automations: [],
     already_installed: null,
+    content_hash: "hash-previewed",
     ...over,
   };
 }
@@ -69,6 +70,7 @@ const fx = {
   preview: result(),
   install: result({ report: { ...result().report, dry: false } }),
   calls: [] as Array<{ dry: boolean; replace: boolean }>,
+  installs: [] as Array<{ src: string; expectHash: string | null }>,
   confirmed: true,
 };
 
@@ -84,11 +86,13 @@ vi.mock("@/lib/bindings", () => {
               return (
                 _p: number,
                 _k: string,
-                _s: string,
+                src: string,
                 dry: boolean,
                 replace: boolean,
+                expectHash: string | null,
               ) => {
                 fx.calls.push({ dry, replace });
+                if (!dry) fx.installs.push({ src, expectHash });
                 return ok(dry ? fx.preview : fx.install);
               };
             case "pluginList":
@@ -116,6 +120,7 @@ beforeEach(() => {
   fx.preview = result();
   fx.install = result({ report: { ...result().report, dry: false } });
   fx.calls = [];
+  fx.installs = [];
   fx.confirmed = true;
 });
 
@@ -128,6 +133,17 @@ async function openPreview(r: ReturnType<typeof render>) {
 }
 
 describe("PluginBundlesBlock", () => {
+  // review-2026-10-09 {#plugin-sha} — 미리보기와 설치는 따로 내려받는다. 설치는
+  // 미리본 출처와 그 바이트의 해시를 되돌려, 그 사이 바뀐 번들을 백엔드가 거부하게 한다.
+  it("설치는 입력창이 아니라 미리본 출처와 해시로 한다", async () => {
+    const r = render(<PluginBundlesBlock projectId={1} />);
+    await openPreview(r);
+    fireEvent.change(r.getByLabelText(/번들 출처/), { target: { value: "other/repo" } });
+    fireEvent.click(r.getByRole("button", { name: "설치" }));
+    await waitFor(() => expect(fx.installs).toHaveLength(1));
+    expect(fx.installs[0]).toEqual({ src: "owner/repo", expectHash: "hash-previewed" });
+  });
+
   it("미리보기는 dry 로 부르고 설치하지 않는다", async () => {
     const r = render(<PluginBundlesBlock projectId={1} />);
     await openPreview(r);

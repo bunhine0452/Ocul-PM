@@ -106,8 +106,8 @@ impl LspState {
             return Ok(None);
         }
         // 이 기기에서 신뢰하기 전엔 띄우지 않는다 — 언어 서버는 저장소가 고른 것을
-        // 실행한다 (`lsp::trust`). 왜 안 붙었는지는 상태줄이 말하고, 거기서 신뢰한다.
-        if !super::trust::is_trusted(db, project_id).await {
+        // 실행한다 (`crate::trust`). 왜 안 붙었는지는 상태줄이 말하고, 거기서 신뢰한다.
+        if !crate::trust::is_trusted(db, project_id).await {
             emit_state(
                 app,
                 project_id,
@@ -311,7 +311,7 @@ impl LspState {
     /// (macOS 에서 무거운 `.zshrc` 면 수백 ms). 그동안 이 프로젝트뿐 아니라
     /// 다른 창·다른 프로젝트의 모든 LSP 접근이 같은 맵 락에서 멎었다.
     ///
-    /// `trusted` — 이 기기에서 프로젝트를 신뢰했는가 (`lsp::trust`). 신뢰 전이면 설치된
+    /// `trusted` — 이 기기에서 프로젝트를 신뢰했는가 (`crate::trust`). 신뢰 전이면 설치된
     /// 서버도 `Stopped` 가 아니라 `Untrusted` 로 말한다 — 「왜 안 뜨지」 의 답이다.
     pub async fn status(
         &self,

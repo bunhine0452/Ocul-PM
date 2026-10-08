@@ -99,6 +99,20 @@ impl Db {
         Ok(project)
     }
 
+    /// 프로젝트 루트 경로 — 없으면 `project_not_found`.
+    ///
+    /// 명령마다 `get_project` 를 감싸는 `project_root` 가 18벌이었고 반환 타입도
+    /// `String`·`AppError` 로 갈렸다 (2026-10-09 리포트). 새 명령은 이것을 쓴다.
+    pub async fn project_root(
+        &self,
+        project_id: u32,
+    ) -> std::result::Result<std::path::PathBuf, crate::app_error::AppError> {
+        self.get_project(project_id)
+            .await
+            .map(|p| std::path::PathBuf::from(p.root_path))
+            .map_err(|e| crate::app_error::AppError::new("project_not_found", e.to_string()))
+    }
+
     pub async fn delete_project(&self, id: u32) -> Result<()> {
         self.conn
             .call(move |c| {

@@ -23,23 +23,32 @@ function Mark({ codex }: { codex: boolean }) {
  *
  * 오류 문구만 두면 사용자가 할 수 있는 일이 "다시 시도" 뿐이다(눌러도 같은
  * 곳에서 같은 이유로 막힌다). 그래서 설치·재시도·설정 세 갈래를 준다.
+ *
+ * 신뢰 전(`trustFiles` 가 배열)이면 그 셋 대신 신뢰를 묻는다 — 다시 시도는 같은
+ * 자리에서 같은 이유로 막힌다. 저장소에 실행 가능한 설정 파일이 있으면 이름을
+ * 보여 준다: 「무엇을 믿는지」 모르고 누르는 신뢰는 문이 아니다.
  */
 export function AcpOffPanel({
   codex,
   starting,
   needsInstall,
+  trustFiles,
   error,
+  onTrust,
   onInstall,
   onRetry,
 }: {
   codex: boolean;
   starting: boolean;
   needsInstall: boolean;
+  trustFiles: string[] | null;
   error: string | null;
+  onTrust: () => void;
   onInstall: () => void;
   onRetry: () => void;
 }) {
   const { t } = useT();
+  const untrusted = trustFiles !== null && !starting;
   return (
     <div className="ai-wrap">
       <div className="ai-thread">
@@ -47,14 +56,37 @@ export function AcpOffPanel({
           <div className="ai-start">
             <div className="ai-start-title">
               <Mark codex={codex} />
-              {starting ? t(codex ? "acp.codex.preparing" : "acp.preparing") : t("acp.offTitle")}
+              {starting
+                ? t(codex ? "acp.codex.preparing" : "acp.preparing")
+                : untrusted
+                  ? t("acp.trustTitle")
+                  : t("acp.offTitle")}
             </div>
             <div className="ai-start-sub">
-              {needsInstall
-                ? t("acp.installAdapterSub")
-                : t(codex ? "acp.codex.offSub" : "acp.offSub")}
+              {untrusted
+                ? t("acp.trustSub")
+                : needsInstall
+                  ? t("acp.installAdapterSub")
+                  : t(codex ? "acp.codex.offSub" : "acp.offSub")}
             </div>
-            {starting ? null : (
+            {untrusted && trustFiles.length > 0 && (
+              <div className="ai-start-sub">
+                {t("acp.trustFiles")}{" "}
+                {trustFiles.map((f, i) => (
+                  <span key={f}>
+                    {i > 0 && ", "}
+                    <code>{f}</code>
+                  </span>
+                ))}
+              </div>
+            )}
+            {starting ? null : untrusted ? (
+              <div className="ai-start-actions">
+                <button className="btn sm primary" onClick={onTrust}>
+                  {t("acp.trustAction")}
+                </button>
+              </div>
+            ) : (
               <div className="ai-start-actions">
                 {needsInstall ? (
                   <button className="btn sm primary" onClick={onInstall}>

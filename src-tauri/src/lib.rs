@@ -57,6 +57,8 @@ mod secrets;
 pub mod text;
 pub mod themes;
 mod tray;
+// 코드 실행 신뢰 — 언어 서버·앱 안 에이전트가 같은 문을 쓴다 (review-2026-10-09).
+pub mod trust;
 pub mod vscode_ext;
 // 테스트 전용 링크 도우미 — 경로 탈출 가드 테스트가 Windows 에서도 돈다 (크로스플랫폼 W2).
 #[cfg(test)]

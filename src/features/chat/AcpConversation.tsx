@@ -160,6 +160,8 @@ export function AcpConversation({
     starting,
     setStarting,
     needsInstall,
+    trustFiles,
+    trustAndStart,
     agentGone,
     setAgentGone,
     aliveRef,
@@ -572,7 +574,9 @@ export function AcpConversation({
           codex={codex}
           starting={starting}
           needsInstall={needsInstall}
+          trustFiles={trustFiles}
           error={error}
+          onTrust={() => void trustAndStart()}
           onInstall={() => void installAdapter()}
           onRetry={() => void retry()}
         />

@@ -62,14 +62,14 @@ pub fn is_secret_key(key: &str) -> bool {
 /// 이 기기에서 사람이 정한 것만 뜻이 있는 키의 접두 — 문서가 옮기지도 쓰지도 못한다.
 ///
 /// - 배경 자동화의 기기 동의 (`automation::consent`).
-/// - 언어 서버를 띄워도 되는가 (`lsp::trust`) — 위조되면 파일을 여는 것만으로
+/// - 언어 서버를 띄워도 되는가 (`crate::trust`) — 위조되면 파일을 여는 것만으로
 ///   저장소의 빌드 스크립트가 돈다.
 /// - 언어 서버 실행 명령 오버라이드 (`code_lsp_cmd_<언어>`) — 값이 곧 실행할
 ///   명령이다. 남의 문서 한 장이 코드 화면을 열 때 띄울 프로그램을 고르면 안 된다
 ///   (2026-10-08 검토).
 pub const DEVICE_ONLY_PREFIXES: &[&str] = &[
     crate::oculpm::automation::consent::KEY_PREFIX,
-    crate::lsp::trust::KEY_PREFIX,
+    crate::trust::KEY_PREFIX,
     "code_lsp_cmd_",
 ];
 
