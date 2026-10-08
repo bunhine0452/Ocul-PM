@@ -38,18 +38,18 @@ jobs:
     steps:
       # `lint:filesize` 래칫이 직전 커밋(`HEAD^1`)의 파일을 꺼내 봅니다 —
       # 기본 depth 1 로는 그 커밋이 없어 게이트가 스택트레이스로 죽습니다.
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2
 
       # pnpm 을 setup-node 보다 **먼저** 깔아야 `cache: pnpm` 이 스토어를 찾습니다.
       - name: Install pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
@@ -109,7 +109,7 @@ jobs:
     # 콜드 빌드 실측 10분31초 — 그 세 배를 넘기면 매달린 것이다.
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # 버전의 주인은 `rust-toolchain.toml` 입니다 (#toolchain-pin). dtolnay 액션은
       # 그 파일을 **읽지 않으므로** 여기서 꺼내 넘깁니다 — `@stable` 로 두면 핀을
@@ -188,7 +188,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # 설정은 저장소 루트의 `deny.toml` 이지만 매니페스트는 `src-tauri/` 에 있다.
       # cargo-deny 는 설정을 **매니페스트 옆**에서 찾으므로 명시적으로 넘긴다.
