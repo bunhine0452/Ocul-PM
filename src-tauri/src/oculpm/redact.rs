@@ -93,7 +93,11 @@ use crate::oculpm::spec::OculpmConfig;
 /// 노트 초안이 디스크에서 바로 읽은 `CHANGELOG.md` 문체 표본을 모델에 보내기
 /// 전에 가린다. 그 전에는 프롬프트 원장이 래퍼(`map_reduce_blocks`)를 지나는 이
 /// 자리를 보지 못해 표본이 가려지지 않은 채 나갔다.
-pub const CALL_SITE_FILES: usize = 28;
+///
+/// 28 → 29 (2026-10-08 검토): `commands/project.rs` — `search_chunks` 가 꺼낸 청크를
+/// 가린다. AI 패널이 그 청크를 RAG 로 프롬프트에 싣는데, 원장은 패널 전체를 「사용자
+/// 작성」 으로 면제하고 있어 저장소 파일 원문이 그대로 나갔다.
+pub const CALL_SITE_FILES: usize = 29;
 
 /// Prompt-building sites that reach a model **without** redaction — neither
 /// directly nor through the masked cache projection.
