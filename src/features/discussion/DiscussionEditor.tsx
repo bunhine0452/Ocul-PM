@@ -10,12 +10,15 @@ import { useConfirm } from "@/hooks/useConfirm";
  *
  * 마운트 후엔 언컨트롤드다 (`CodeEditor.tsx` 와 같은 원칙): 부모는 초깃값만
  * 주고, 문서를 바꿔 끼울 땐 `key` 로 재마운트한다.
+ *
+ * 화면 (2026-10-08 개편): 한 줄 툴바(서식 · 삽입 · 보기 · 저장) → 개요 · 원고 ·
+ * 미리보기 → 상태줄(현재 섹션 · 분량 · 경로 · 단축키). 원고는 본문 글꼴로, 판
+ * 가운데의 한 칼럼에 쓴다(`proseEditor.ts`). 자동 제안은 전부 꺼져 있다.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type * as MonacoNs from "monaco-editor/editor/editor.api";
 import monaco from "@/features/code/monaco/setup";
-import { PROSE_LANGUAGE_ID } from "@/features/code/monaco/langProse";
 import {
   defineCodeTheme,
   isDarkTheme,
@@ -28,6 +31,7 @@ import { Markdown } from "@/components/Markdown";
 import {
   AlertTriangle,
   Bold,
+  ChevronDown,
   Code2,
   Columns2,
   Eye,
@@ -37,7 +41,6 @@ import {
   List,
   ListTodo,
   Pencil,
-  Plus,
   Quote,
   Save,
 } from "@/components/Icons";
@@ -56,6 +59,10 @@ import {
   type EditOp,
 } from "./mdEdit";
 import { logColumns, placeholders, sectionHeadings } from "./discussionTemplates";
+import { DiscussionOutline } from "./DiscussionOutline";
+import { outlineIndexAt, parseOutline, previewText, textStats, type OutlineItem } from "./outline";
+import { keepProseCentered, PROSE_OPTIONS } from "./proseEditor";
+import "./discussion-editor.css";
 
 /** 프리뷰 재렌더 지연 — 타이핑 중 마크다운 파싱이 키 입력을 붙잡지 않게. */
 const PREVIEW_DEBOUNCE_MS = 180;
@@ -63,91 +70,67 @@ const PREVIEW_DEBOUNCE_MS = 180;
 export type EditorMode = "write" | "split" | "preview";
 
 interface Props {
-  /** 마운트 시점의 원문 (이후 외부 변경은 `key` 재마운트로). */
+  /** 마운트 시점에 편집기에 넣을 글 — 디스크 본문이거나, 붙들어 둔 초안이다. */
   initialText: string;
+  /** 편집기를 열 때 디스크에 있던 본문. 「저장 안 됨」 은 이것과 비교한다. */
+  baseText: string;
+  /** 상태줄에 보이는 문서 경로. */
+  filePath: string;
   mode: EditorMode;
   onModeChange: (m: EditorMode) => void;
   onSave: (text: string) => void;
   onCancel: () => void;
+  /** 글이 바뀔 때마다 — 화면이 초안을 붙든다 (`draftStore`). */
+  onTextChange?: (text: string) => void;
   busy: boolean;
   /** 토의 로그에 찍힐 작성자 (= 사용자 자신). */
   author: string;
 }
 
-/**
- * 편집기 옵션 — 코드 화면과 **다른 물건**이다.
- *
- * 여기는 산문이라 줄 번호 · 미니맵 · 거터 · 접기가 전부 소음이고, 대신 줄바꿈이
- * 켜져 있어야 한다(코드는 가로 스크롤이 맞지만 문단은 아니다). 문법도 코드용
- * `markdown` 이 아니라 `markdown-prose` 다 — 제목 단계와 `{#id}` 를 갈라 칠한다.
- *
- * 색은 `monaco/theme.ts` 의 한 테마가 준다. Monaco 의 테마는 **전역**이라 두
- * 편집기가 서로 다른 테마를 동시에 쓸 수 없고(코드 화면과 이 화면이 다른 창
- * 탭에서 함께 살아 있을 수 있다), 그래서 규칙을 `.md-prose` 접미사로 갈랐다.
- */
-const PROSE_OPTIONS: MonacoNs.editor.IStandaloneEditorConstructionOptions = {
-  theme: THEME_NAME,
-  language: PROSE_LANGUAGE_ID,
-  automaticLayout: true,
-  fontSize: 13.5,
-  fontFamily: "var(--mono)",
-  lineHeight: 1.75,
-  wordWrap: "on",
-  lineNumbers: "off",
-  glyphMargin: false,
-  folding: false,
-  minimap: { enabled: false },
-  renderLineHighlight: "none",
-  lineDecorationsWidth: 0,
-  lineNumbersMinChars: 0,
-  overviewRulerLanes: 0,
-  scrollBeyondLastLine: false,
-  // 문단 끝에서도 화면 가운데로 올려 쓸 수 있게.
-  padding: { top: 18, bottom: 400 },
-  fixedOverflowWidgets: true,
-  scrollbar: { useShadows: false, vertical: "auto", horizontal: "hidden" },
-  // 산문에서 자동 괄호 닫기는 방해가 더 크다(`(그런데` 를 치면 닫는 괄호가 따라온다).
-  // 대신 **선택 감싸기**는 남긴다 — 서식 단축키와 같은 손놀림이다.
-  autoClosingBrackets: "never",
-  autoClosingQuotes: "never",
-  autoSurround: "languageDefined",
-  matchBrackets: "never",
-  occurrencesHighlight: "off",
-  selectionHighlight: true,
-  bracketPairColorization: { enabled: false },
-  guides: { indentation: false, bracketPairs: false },
-  // 다중 커서는 산문에서도 쓸모가 있다 (표의 같은 열을 한꺼번에 고친다).
-  multiCursorModifier: "alt",
-  contextmenu: false,
-  tabSize: 2,
-  insertSpaces: true,
-  detectIndentation: false,
-};
+/** 미리보기 안의 제목들 — 개요(`parseOutline`)와 같은 순서다. */
+const PREVIEW_HEADINGS = ".disc-doc-prose h2, .disc-doc-prose h3";
 
 export function DiscussionEditor({
   initialText,
+  baseText,
+  filePath,
   mode,
   onModeChange,
   onSave,
   onCancel,
+  onTextChange,
   busy,
   author,
 }: Props) {
   const { t } = useT();
   const { confirm, confirmDialog } = useConfirm();
   const hostRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<MonacoNs.editor.IStandaloneCodeEditor | null>(null);
   const [text, setText] = useState(initialText);
   const [preview, setPreview] = useState(initialText);
+  const [cursorLine, setCursorLine] = useState(1);
   const [insertOpen, setInsertOpen] = useState(false);
   const insertRef = useRef<HTMLDivElement>(null);
 
   // 편집기 배선은 마운트 1회라 최신 콜백은 ref 로 읽는다.
   const onSaveRef = useRef(onSave);
   onSaveRef.current = onSave;
+  const onTextChangeRef = useRef(onTextChange);
+  onTextChangeRef.current = onTextChange;
 
-  const dirty = text !== initialText;
+  const dirty = text !== baseText;
   const unknown = useMemo(() => unknownSections(preview), [preview]);
+  // 개요·현재 섹션·분량은 같은 판독(`outline.ts`) — 왼쪽 목차와 상태줄이 어긋나지 않게.
+  const items = useMemo(() => parseOutline(text), [text]);
+  const itemsRef = useRef<OutlineItem[]>(items);
+  itemsRef.current = items;
+  // 미리보기만 보일 땐 커서가 움직이지 않는다 — 그때의 「현재」 는 스크롤 위치다.
+  const [previewIndex, setPreviewIndex] = useState(-1);
+  /** 개요에서 막 고른 항목 — 그 이동이 낳은 스크롤 한 번은 위치 대신 이 값을 쓴다. */
+  const pinnedRef = useRef<number | null>(null);
+  const current = mode === "preview" ? previewIndex : outlineIndexAt(items, cursorLine);
+  const stats = useMemo(() => textStats(preview), [preview]);
 
   /**
    * 순수 모듈이 계산한 교체를 **한 번의 편집**으로 반영하고 포커스를 돌려준다.
@@ -209,7 +192,13 @@ export function DiscussionEditor({
     editor.focus();
 
     const subs: MonacoNs.IDisposable[] = [
-      editor.onDidChangeModelContent(() => setText(editor.getValue())),
+      keepProseCentered(editor, monaco),
+      editor.onDidChangeModelContent(() => {
+        const value = editor.getValue();
+        setText(value);
+        onTextChangeRef.current?.(value);
+      }),
+      editor.onDidChangeCursorPosition((e) => setCursorLine(e.position.lineNumber)),
       // ⌘S — Monaco 액션은 기본 동작을 삼키므로 화면 레벨 ⌘S 까지 버블돼
       // 저장이 두 번 나가지 않는다 (CodeMirror 의 `stopPropagation` 자리).
       editor.addAction({
@@ -281,6 +270,84 @@ export function DiscussionEditor({
       document.removeEventListener("keydown", onKey);
     };
   }, [insertOpen]);
+
+  /**
+   * 나란히 보기의 스크롤 맞춤 — 원문이 움직이면 미리보기가 따라온다.
+   *
+   * 비율(스크롤 위치 ÷ 전체 높이)로만 맞추면 표·목록이 긴 섹션에서 두 판이 크게
+   * 어긋난다. 그래서 **섹션을 닻으로** 삼는다: 원문 맨 윗줄이 속한 제목을 찾고, 그
+   * 제목 사이에서 얼마나 내려왔는지를 미리보기의 같은 두 제목 사이에 옮긴다. 제목
+   * 수가 아직 안 맞으면(미리보기는 한 박자 늦다) 비율로 떨어진다.
+   */
+  useEffect(() => {
+    const editor = viewRef.current;
+    const pane = previewRef.current;
+    if (!editor || !pane || mode !== "split") return;
+    const sync = () => {
+      const top = editor.getVisibleRanges()[0]?.startLineNumber ?? 1;
+      const list = itemsRef.current;
+      const heads = pane.querySelectorAll<HTMLElement>(PREVIEW_HEADINGS);
+      const max = pane.scrollHeight - pane.clientHeight;
+      const idx = outlineIndexAt(list, top);
+      if (idx < 0 || heads.length !== list.length) {
+        const room = editor.getScrollHeight() - editor.getLayoutInfo().height;
+        pane.scrollTop = room > 0 ? (editor.getScrollTop() / room) * max : 0;
+        return;
+      }
+      const from = list[idx].line;
+      const to = list[idx + 1]?.line ?? (editor.getModel()?.getLineCount() ?? from) + 1;
+      const frac = Math.min(1, Math.max(0, (top - from) / Math.max(1, to - from)));
+      const a = heads[idx].offsetTop;
+      const b = heads[idx + 1]?.offsetTop ?? pane.scrollHeight;
+      pane.scrollTop = Math.min(max, Math.max(0, a + frac * (b - a) - 16));
+    };
+    const sub = editor.onDidScrollChange((e) => {
+      if (e.scrollTopChanged) sync();
+    });
+    sync();
+    return () => sub.dispose();
+  }, [mode]);
+
+  useEffect(() => {
+    const pane = previewRef.current;
+    if (!pane || mode !== "preview") return;
+    const onScroll = () => {
+      if (pinnedRef.current !== null) {
+        setPreviewIndex(pinnedRef.current);
+        pinnedRef.current = null;
+        return;
+      }
+      const heads = pane.querySelectorAll<HTMLElement>(PREVIEW_HEADINGS);
+      // 끝까지 내렸으면 마지막 섹션들은 맨 위로 올라올 수 없다 — 그때는 보이는 마지막 제목.
+      const atEnd = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 2;
+      const line = atEnd ? pane.scrollTop + pane.clientHeight - 48 : pane.scrollTop + 24;
+      let idx = -1;
+      heads.forEach((h, i) => {
+        if (h.offsetTop <= line) idx = i;
+      });
+      setPreviewIndex(idx);
+    };
+    onScroll();
+    pane.addEventListener("scroll", onScroll, { passive: true });
+    return () => pane.removeEventListener("scroll", onScroll);
+  }, [mode, preview]);
+
+  /** 개요에서 고른 제목으로 간다 — 미리보기만 보일 땐 미리보기를, 아니면 원문을 옮긴다. */
+  const jumpTo = (index: number) => {
+    const item = items[index];
+    if (!item) return;
+    if (mode === "preview") {
+      pinnedRef.current = index;
+      setPreviewIndex(index);
+      previewRef.current?.querySelectorAll<HTMLElement>(PREVIEW_HEADINGS)[index]?.scrollIntoView({ block: "start" });
+      return;
+    }
+    const editor = viewRef.current;
+    if (!editor) return;
+    editor.revealLineNearTop(item.line);
+    editor.setPosition({ lineNumber: item.line, column: 1 });
+    editor.focus();
+  };
 
   const insertOption = () => {
     const ph = placeholders();
@@ -367,16 +434,18 @@ export function DiscussionEditor({
     { key: "preview", label: t("disc.editor.modePreview"), icon: <Eye size={13} /> },
   ];
 
+  const fmtNumber = (n: number) => n.toLocaleString();
+
   return (
     <div className="disc-edit">
       {confirmDialog}
       <div className="disc-edit-bar">
-        <div className="disc-tool-group">
+        <div className="disc-tool-group" role="toolbar" aria-label={t("disc.editor.toolbarAria")}>
           {fmt.map((b) => (
             <button
               key={b.key}
               type="button"
-              className="disc-tool"
+              className="iconbtn sm"
               title={b.label}
               aria-label={b.label}
               onClick={b.run}
@@ -389,12 +458,12 @@ export function DiscussionEditor({
         <div className="disc-tool-group" ref={insertRef}>
           <button
             type="button"
-            className="disc-tool wide"
+            className="btn ghost sm disc-insert"
             aria-haspopup="menu"
             aria-expanded={insertOpen}
             onClick={() => setInsertOpen((o) => !o)}
           >
-            <Plus size={15} /> {t("disc.editor.insert")}
+            {t("disc.editor.insert")} <ChevronDown size={13} aria-hidden />
           </button>
           {insertOpen ? (
             <div className="disc-menu" role="menu" aria-label={t("disc.editor.insert")}>
@@ -416,29 +485,30 @@ export function DiscussionEditor({
           ) : null}
         </div>
 
-        <div className="disc-seg" role="group" aria-label={t("disc.editor.modeAria")}>
+        <div className="seg disc-modes" role="tablist" aria-label={t("disc.editor.modeAria")}>
           {modes.map((m) => (
             <button
               key={m.key}
               type="button"
-              className={`disc-seg-btn${mode === m.key ? " on" : ""}`}
-              aria-pressed={mode === m.key}
+              role="tab"
+              className="seg-item"
+              aria-selected={mode === m.key}
               title={m.label}
               onClick={() => onModeChange(m.key)}
             >
               {m.icon}
-              <span>{m.label}</span>
+              <span className="disc-mode-label">{m.label}</span>
             </button>
           ))}
         </div>
 
         <div className="disc-edit-right">
-          <span className={`disc-dirty${dirty ? " on" : ""}`}>
+          <span className={`disc-dirty${dirty ? " on" : ""}`} aria-live="polite">
             {dirty ? t("disc.editor.unsaved") : t("disc.editor.savedState")}
           </span>
           <button
             type="button"
-            className="btn"
+            className="btn sm"
             disabled={busy}
             onClick={() => {
               // 저장 안 한 편집을 조용히 버리지 않는다.
@@ -459,7 +529,8 @@ export function DiscussionEditor({
           </button>
           <button
             type="button"
-            className="btn primary"
+            // 바뀐 것이 있을 때만 강조색 — 늘 초록이면 「누를 일이 있다」 는 신호가 사라진다.
+            className={`btn sm${dirty ? " primary" : ""}`}
             {...blocked(dirty ? null : t("disc.blockedNoChanges"))}
             disabled={busy}
             onClick={() => onSave(viewRef.current?.getValue() ?? text)}
@@ -476,15 +547,30 @@ export function DiscussionEditor({
         </div>
       ) : null}
 
-      <div className={`disc-edit-panes ${mode}`}>
+      <div className={`disc-edit-body ${mode}`}>
+        {/* 나란히 보기에선 두 판이 폭을 나눠 쓴다 — 개요는 쓰기·미리보기에서만. */}
+        {mode === "split" ? null : <DiscussionOutline items={items} current={current} onJump={jumpTo} />}
         <div className="disc-edit-cm" ref={hostRef} />
         {mode === "write" ? null : (
-          <div className="disc-edit-preview">
+          <div className="disc-edit-preview" ref={previewRef}>
             <div className="disc-doc-prose">
-              <Markdown>{preview || t("disc.preview")}</Markdown>
+              {/* `{#id}`·로그 경계 주석은 파서가 읽는 뼈대라 원문엔 두고, 읽는 판에선 걷는다. */}
+              <Markdown>{previewText(preview) || t("disc.preview")}</Markdown>
             </div>
           </div>
         )}
+      </div>
+
+      <div className="disc-edit-status">
+        <span className="disc-edit-status-section">
+          {current >= 0 ? items[current].title : t("disc.editor.noSection")}
+        </span>
+        <span>{t("disc.editor.chars", { n: fmtNumber(stats.chars) })}</span>
+        <span>{t("disc.editor.words", { n: fmtNumber(stats.words) })}</span>
+        <span className="disc-edit-status-path" title={filePath}>
+          {filePath}
+        </span>
+        <span className="disc-edit-status-keys">{t("disc.editor.shortcuts")}</span>
       </div>
     </div>
   );

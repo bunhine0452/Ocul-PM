@@ -1,0 +1,257 @@
+/* 논의 편집기 (2026-10-08 개편) — 편집기 청크와 함께 내려온다.
+
+   예전엔 화면 툴바 · 제목/경로 머리 · 서식 바 세 줄이 본문 위 135px 를 먹었다.
+   이제 한 줄 툴바(서식 · 삽입 · 보기 · 저장) 아래 바로 원고가 오고, 제목은 화면
+   툴바의 부제가 맡는다. 원고는 본문 글꼴로 판 가운데의 한 칼럼에 쓴다 — 칼럼 폭은
+   CSS 가 아니라 Monaco 가 안다(`proseEditor.ts keepProseCentered`). CSS 로 줄을
+   78ch 에 묶던 예전 규칙은 줄바꿈과 어긋나 넓은 창에서 문장 가운데를 잘랐다. */
+
+.disc-edit {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* 좁은 창에서 라벨·개요·단축키를 접는 기준은 창이 아니라 이 편집기의 폭이다. */
+  container-type: inline-size;
+}
+
+/* ── 툴바 ─────────────────────────────────────────────────────────────── */
+.disc-edit-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-6);
+  border-bottom: 1px solid var(--sep);
+}
+.disc-tool-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.disc-tool-group + .disc-tool-group::before {
+  content: "";
+  width: 1px;
+  height: 16px;
+  margin-right: var(--space-2);
+  background: var(--sep);
+}
+.disc-insert {
+  gap: var(--space-1);
+}
+.disc-modes {
+  margin-left: auto;
+}
+.disc-modes .seg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.disc-edit-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.disc-dirty {
+  font-size: var(--fs-3);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+/* 저장 안 됨 — 점 하나가 먼저 말한다. 버튼의 강조색과 같은 신호다. */
+.disc-dirty.on {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--accent-text);
+  font-weight: var(--fw-strong);
+}
+.disc-dirty.on::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+/* 파서가 모르는 제목 경고 — 저장 후 사라질 본문을 미리 알린다. */
+.disc-edit-warn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-6);
+  font-size: var(--fs-3);
+  color: var(--warn-text);
+  background: var(--warn-soft);
+  border-bottom: 1px solid var(--sep);
+}
+
+/* ── 본문: 개요 · 원고 · 미리보기 ───────────────────────────────────────── */
+.disc-edit-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+.disc-edit-cm {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.disc-edit-body.preview .disc-edit-cm {
+  display: none;
+}
+/* 바탕은 투명 — 뒤의 판이 그린다. 문법 색은 `monaco/theme.ts` 의 `.md-prose`. */
+.disc-edit-cm .monaco-editor,
+.disc-edit-cm .monaco-editor .overflow-guard,
+.disc-edit-cm .monaco-editor-background {
+  background: transparent;
+}
+/* 캐럿은 강조색 두 배 굵기 — 산문에서 1px 캐럿은 글자 사이에서 잃어버린다. */
+.disc-edit-cm .monaco-editor .cursor {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  width: 2px !important;
+}
+.disc-edit-cm .monaco-editor .editorPlaceholder {
+  color: var(--text-3);
+}
+
+/* 개요 — 조용한 왼쪽 레일. 활성은 틴트가 아니라 표시자와 글자색. */
+.disc-outline {
+  flex: none;
+  width: 208px;
+  overflow-y: auto;
+  padding: var(--space-6) var(--space-3);
+  border-right: 1px solid var(--sep);
+}
+.disc-outline-head {
+  padding: 0 var(--space-3) var(--space-3);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-strong);
+  color: var(--text-3);
+}
+.disc-outline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.disc-outline-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-radius: var(--radius-s);
+  background: none;
+  font: inherit;
+  font-size: var(--fs-4);
+  line-height: var(--lh-snug);
+  color: var(--text-2);
+  text-align: left;
+  cursor: pointer;
+}
+.disc-outline-item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.disc-outline-item.l3 {
+  padding-left: calc(var(--space-3) + 12px);
+  font-size: var(--fs-3);
+  color: var(--text-3);
+}
+.disc-outline-item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.disc-outline-item.on {
+  color: var(--text);
+  font-weight: var(--fw-strong);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.disc-outline-item.unknown {
+  color: var(--warn-text);
+}
+.disc-outline-empty {
+  margin: 0;
+  padding: 0 var(--space-3);
+  font-size: var(--fs-3);
+  line-height: var(--lh-body);
+  color: var(--text-3);
+}
+
+/* 미리보기 — 읽는 판이라 카드 바탕. `position` 은 제목 offsetTop 의 기준이다
+   (나란히 보기의 섹션 닻 스크롤). */
+.disc-edit-preview {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 28px var(--space-8) 40vh;
+  border-left: 1px solid var(--sep);
+  background: var(--bg-card);
+}
+.disc-edit-body.preview .disc-edit-preview {
+  border-left: none;
+}
+.disc-doc-prose {
+  max-width: var(--read-narrow);
+  margin: 0 auto;
+}
+/* 체크박스 목록은 체크박스가 글머리다 — 점까지 찍히면 표시가 둘이 된다. */
+.disc-doc-prose .contains-task-list {
+  list-style: none;
+  padding-left: var(--space-2);
+}
+
+/* ── 상태줄 — 코드 편집기 상태줄과 같은 규격 ───────────────────────────── */
+.disc-edit-status {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-1) var(--space-6);
+  border-top: 1px solid var(--sep);
+  font-size: var(--fs-2);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.disc-edit-status-section {
+  max-width: 32ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-2);
+  font-weight: var(--fw-strong);
+}
+.disc-edit-status-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--mono);
+}
+.disc-edit-status-keys {
+  margin-left: auto;
+}
+
+/* 좁은 편집기 — 모드 라벨 · 개요 · 단축키 · 경로 순으로 접는다(기능은 남는다). */
+@container (max-width: 940px) {
+  .disc-outline {
+    display: none;
+  }
+}
+@container (max-width: 760px) {
+  .disc-mode-label,
+  .disc-edit-status-keys,
+  .disc-edit-status-path {
+    display: none;
+  }
+}

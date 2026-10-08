@@ -201,6 +201,8 @@ const TESTS = new Set([
   "__tests__/diff_v2.test.tsx",
   "__tests__/discussion_edit.test.ts",
   "__tests__/discussion_editor.test.tsx",
+  // 논의 문서 픽스처(제목·섹션 이름)는 파서가 읽는 한국어 문서 형식이다.
+  "__tests__/discussion_outline.test.ts",
   "__tests__/discussion_v2.test.tsx",
   "__tests__/dispatch_handoff.test.ts",
   // 닥터 「워처 계측」 행 — 한국어 문장에 여섯 숫자가 실리는지가 검사 재료다.

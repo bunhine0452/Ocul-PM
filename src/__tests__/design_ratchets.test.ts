@@ -151,6 +151,7 @@ describe("검색칸", () => {
 // · `.composer` · `.sk-shop` → --read-narrow, `.pln-doc` · `.search-results` →
 // --read-wide. 남은 여섯은 접으면 20~120px 씩 움직여 눈으로 보고 정할 일이라
 // 여기서 동결한다 — {#ramp-space} 와 같은 형태의 이월이다.
+// 2026-10-08: `.disc-doc-prose`(780) → --read-narrow (논의 편집기 개편) — 6 → 5.
 describe("읽기 열 폭", () => {
   it("두 단이 토큰으로 있다", () => {
     const tokens = read("styles/tokens.css");
@@ -179,7 +180,7 @@ describe("읽기 열 폭", () => {
       }
     }
     // 줄이면 이 숫자를 내려 적을 것. 새 읽기 열은 리터럴이 아니라 두 단 중 하나다.
-    expect(offenders.length, `램프 밖 읽기 폭 ${offenders.length}곳 — ${offenders.join(" · ")}`).toBeLessThanOrEqual(6);
+    expect(offenders.length, `램프 밖 읽기 폭 ${offenders.length}곳 — ${offenders.join(" · ")}`).toBeLessThanOrEqual(5);
   });
 });
 

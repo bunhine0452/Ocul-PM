@@ -14,6 +14,8 @@ import { useOculpmDataEvents } from "@/features/oculpm/useOculpmLive";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { commands, type DiscussionSummary, type DiscussionDetail } from "@/lib/bindings";
 import { useT, type I18nKey } from "@/i18n";
+import { MoreMenu } from "./DiscussionMoreMenu";
+import { dropDraft, keepDraft, peekDraft } from "./draftStore";
 import { blocked } from "@/lib/blocked";
 import "./discussion.css";
 import { tError } from "@/i18n/errors";
@@ -34,7 +36,7 @@ interface Props {
 const SELF_AUTHOR = "user";
 
 /**
- * 편집기는 CodeMirror 를 끌고 온다 — 읽기만 하러 들어온 사람이 그 값을 치르지
+ * 편집기는 Monaco 를 끌고 온다 — 읽기만 하러 들어온 사람이 그 값을 치르지
  * 않게 [편집] 을 누르는 순간 내려받는다 (`Markdown` 과 같은 처리, v2 U6).
  */
 const DiscussionEditor = lazy(() =>
@@ -75,6 +77,8 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
    * 이제 이 값을 대조하고, 어긋나면 **아무것도 쓰지 않고** 돌려보낸다.
    */
   const [draftHash, setDraftHash] = useState("");
+  /** 편집기를 열 때 디스크에 있던 본문 — 붙들어 둔 초안으로 다시 열어도 「저장 안 됨」 의 기준. */
+  const [draftBase, setDraftBase] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -157,9 +161,21 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
 
   const startEdit = useCallback(
     async (id: string) => {
+      // 화면을 옮겼다 돌아왔다 — 붙들어 둔 초안으로 이어서 연다. 그 사이 디스크가
+      // 바뀌었으면 저장이 CAS 충돌로 돌아와 고르게 한다 (`useDiscussionSave`).
+      const kept = peekDraft(projectId, id);
+      if (kept) {
+        setDraft(kept.text);
+        setDraftBase(kept.baseText);
+        setDraftHash(kept.baseHash);
+        setEditing(true);
+        toast.info(t("disc.draftResumed"));
+        return;
+      }
       const res = await commands.discussionReadRaw(projectId, id);
       if (res.status === "ok") {
         setDraft(res.data.body);
+        setDraftBase(res.data.body);
         setDraftHash(res.data.hash);
         setEditing(true);
       } else toast.destructive(t("disc.editorFailed", { error: res.error }));
@@ -176,11 +192,11 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
       return;
     }
     void loadDetail(selectedId);
-    if (pendingEditRef.current === selectedId) {
+    if (pendingEditRef.current === selectedId || peekDraft(projectId, selectedId)) {
       pendingEditRef.current = null;
       void startEdit(selectedId);
     }
-  }, [selectedId, loadDetail, startEdit]);
+  }, [selectedId, loadDetail, startEdit, projectId]);
 
   // 에이전트(또는 다른 창)가 `.oculpm/discussion/**` 을 건드리면 즉시 다시 읽는다.
   //
@@ -240,11 +256,16 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     projectId,
     // 저장이 디스크에 닿았다 — 편집기를 닫고 목록을 다시 읽는다.
     onSaved: (saved) => {
+      if (selectedId) dropDraft(projectId, selectedId);
       setEditing(false);
       setDetail(saved);
       void loadList();
     },
-    onReload: (id) => void startEdit(id),
+    // 「다시 읽기」 는 초안을 버리는 쪽이다 — 붙든 것을 놓아야 디스크 본문으로 열린다.
+    onReload: (id) => {
+      dropDraft(projectId, id);
+      void startEdit(id);
+    },
     onBusy: setBusy,
   });
 
@@ -411,7 +432,8 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
       {confirmDialog}
       <Toolbar
         title={t("nav.discussion")}
-        sub={list ? t("disc.toolbarSub", { n: active.length, open: openCount }) : undefined}
+        // 편집 중엔 지금 쓰는 문서의 제목 — 편집기 위에 제목 줄을 따로 두지 않는다.
+        sub={editing && detail ? detail.discussion.title : list ? t("disc.toolbarSub", { n: active.length, open: openCount }) : undefined}
       >
         <button type="button" className="btn primary" onClick={openCreate}>
           <Plus size={15} /> {t("disc.new")}
@@ -475,10 +497,6 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
               <EmptyState>{t("disc.docFailed")}</EmptyState>
             ) : editing ? (
               <div className="disc-edit-shell">
-                <div className="disc-edit-head">
-                  <span className="disc-edit-title">{detail.discussion.title}</span>
-                  <span className="disc-edit-path">{detail.discussion.file_path}</span>
-                </div>
                 <Suspense
                   fallback={
                     <div className="grid place-items-center py-20">
@@ -489,10 +507,16 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                   <DiscussionEditor
                     key={selectedId}
                     initialText={draft}
+                    baseText={draftBase}
+                    filePath={detail.discussion.file_path}
                     mode={editorMode}
                     onModeChange={setEditorMode}
                     onSave={(text) => void saveBody(selectedId, text, draftHash)}
-                    onCancel={() => setEditing(false)}
+                    onTextChange={(text) => keepDraft(projectId, selectedId, { text, baseText: draftBase, baseHash: draftHash })}
+                    onCancel={() => {
+                      dropDraft(projectId, selectedId);
+                      setEditing(false);
+                    }}
                     busy={busy}
                     author={SELF_AUTHOR}
                   />
@@ -726,72 +750,5 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
         </div>
       ) : null}
     </>
-  );
-}
-
-// ── 넘침 메뉴 ─────────────────────────────────────────────────────────────────
-
-interface MenuItem {
-  key: string;
-  label: string;
-  danger?: boolean;
-  run: () => void;
-}
-
-/**
- * 부차 동작(첨부·이름 변경·닫기·보관·삭제)을 접어 두는 작은 메뉴. 헤더에
- * 회색 버튼 일곱 개가 늘어서 있으면 정작 자주 쓰는 세 개가 안 보인다.
- */
-function MoreMenu({ label, items }: { label: string; items: MenuItem[] }) {
-  const [open, setOpen] = useState(false);
-  const hostRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (!hostRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  return (
-    <div className="disc-more" ref={hostRef}>
-      <button
-        type="button"
-        className="btn"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={label}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span aria-hidden="true">···</span>
-      </button>
-      {open ? (
-        <div className="disc-menu right" role="menu" aria-label={label}>
-          {items.map((it) => (
-            <button
-              key={it.key}
-              type="button"
-              role="menuitem"
-              className={`disc-menu-item${it.danger ? " danger" : ""}`}
-              onClick={() => {
-                setOpen(false);
-                it.run();
-              }}
-            >
-              {it.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
   );
 }
