@@ -20,7 +20,7 @@ owner: claude-code
 - [x] [높음] 편집기에서 파일만 열어도 저장소 코드 실행 — rust-analyzer 를 initializationOptions 없이 기동(기본 build.rs·proc-macro 실행, 저장소 .cargo/config.toml 준수), 신뢰 관문 없음 → 기기 신뢰 전까지 buildScripts·procMacro·checkOnSave 끄기, TS 는 번들 tsserver {#lsp-trust}
 - [x] [중간] 비밀 파일·하드코딩 키가 색인·스냅샷에 들고 RAG 로 LLM 에 마스킹 없이 나갈 수 있다 — indexer 가 .env 를 .gitignore 에만 기대(history::should_capture 미경유), aiContext 가 청크 자동 주입, 프롬프트 원장은 AI 패널을 '사용자 작성'으로 면제 → 색인 비밀파일 차단 + 청크 마스킹 + 원장 사유 정정 {#secret-files-index-rag}
 - [ ] [낮음] fastembed→hf-hub ApiBuilder::new() 가 ~/.cache/huggingface/token 을 로드마다 읽고 다운로드에 Bearer 로 붙인다(공개 모델이라 불필요, 캐시 있으면 네트워크 없음) → HF_HOME 앱 캐시로 또는 로컬 파일 직접 로드 {#hf-token}
-- [ ] [낮음] git 호출에 core.fsmonitor 하드닝 없음 — .git/config 를 공격자가 쥬 경우(압축으로 받은 저장소)만 → 공통 인자에 -c core.fsmonitor=false {#git-fsmonitor}
+- [x] [낮음] git 호출에 core.fsmonitor 하드닝 없음 — .git/config 를 공격자가 쥬 경우(압축으로 받은 저장소)만 → 공통 인자에 -c core.fsmonitor=false {#git-fsmonitor}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -29,4 +29,5 @@ owner: claude-code
 | 2026-10-08T19:06:46+09:00 | #idx-reconcile-on-open | claude-code | ☐→x | .oculpm/journal/20261008/Bugs/1906_bug_index-boot-reconcile-secret-files.md | 36b282ce — 열 때가 아니라 기동 시 워처 인수 직전(전 프로젝트), stat 전용. 설치본 로그 「기동 화해」 확인 남음 |
 | 2026-10-08T19:06:50+09:00 | #secret-files-index-rag | claude-code | ☐→x | .oculpm/journal/20261008/Bugs/1906_bug_rag-chunks-redacted.md | 36b282ce 비밀 파일 판정 공유(색인·히스토리) + 5de4551f search_chunks 마스킹·원장 사유 정정·CALL_SITE_FILES 29 |
 | 2026-10-08T19:06:54+09:00 | #idle-cpu-animations | claude-code | ☐→~ | .oculpm/journal/20261008/Features_to_add/1906_feature_pause-animations-when-inactive.md | 57a8ad77 비활성 창 애니메이션 정지 구현됨. 남은 것: 다음 설치본에서 top 으로 WebContent·UI·GPU 유휴 CPU 전후 측정 |
+| 2026-10-09T04:08:06+09:00 | #git-fsmonitor | claude-code | ☐→x | .oculpm/journal/20261009/Bugs/0407_bug_code-exec-boundary-acp-git-plugin.md | [낮음] 판정은 과소 — 필터·훅까지 review-2026-10-09 #git-builder 가 git::safe 로 닫음 |
 <!-- oculpm:plan-log end -->
