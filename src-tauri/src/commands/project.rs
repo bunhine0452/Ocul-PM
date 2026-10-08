@@ -17,6 +17,7 @@ use crate::indexer::EMBED_BATCH;
 
 mod index_flight;
 mod prepare;
+pub(crate) mod reconcile;
 use prepare::prepare_file;
 
 #[derive(Debug, Clone, Serialize, specta::Type)]

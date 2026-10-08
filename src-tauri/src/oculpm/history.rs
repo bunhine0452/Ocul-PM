@@ -171,8 +171,8 @@ pub fn looks_binary(bytes: &[u8]) -> bool {
 /// 이 경로를 히스토리에 남길 것인가 (순수).
 ///
 /// `.oculpm/` 은 우리 인프라라 자기 자신을 찍지 않고, `.git/` 은 이미 판을
-/// 갖고 있다. `.env*` 는 보통 gitignore 라 워처를 못 지나지만 지나는 경우가
-/// 있어 **여기서 한 번 더 막는다** — 스냅샷은 되돌리기용이라 원문이어야 하므로
+/// 갖고 있다. 비밀 파일(`.env*` · 키 · 자격 증명 — [`crate::oculpm::redact::is_secret_file_name`])
+/// 은 보통 gitignore 라 워처를 못 지나지만 지나는 경우가 있어 **여기서 한 번 더 막는다** — 스냅샷은 되돌리기용이라 원문이어야 하므로
 /// [`crate::oculpm::redact`] 를 적용할 수 없고, 그러면 남기지 않는 것이 답이다.
 pub fn should_capture(rel_path: &str) -> bool {
     if rel_path.is_empty() || rel_path.contains("..") || rel_path.starts_with('/') {
@@ -182,10 +182,7 @@ pub fn should_capture(rel_path: &str) -> bool {
         return false;
     }
     let name = rel_path.rsplit('/').next().unwrap_or(rel_path);
-    if name == ".env" || name.starts_with(".env.") {
-        return false;
-    }
-    true
+    !crate::oculpm::redact::is_secret_file_name(name)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

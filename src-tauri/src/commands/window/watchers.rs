@@ -66,6 +66,24 @@ pub fn start_background_watchers(app: &AppHandle) {
             //
             // 재시도(감독관)는 이 정책을 쓰지 않는다 — 두 인스턴스가 60초마다
             // 서로를 쫓아내며 무한히 주고받는다.
+            // 앱이 꺼진 사이 지워진 파일은 워처의 Delete 를 못 받는다 — 감시를 넘겨받기
+            // 전에 색인을 디스크와 맞춘다 (stat 만, 재임베딩 없음 · 2026-10-08 검토).
+            {
+                let db = handle.state::<crate::db::Db>();
+                match crate::commands::project::reconcile::prune_stale_index(&db, project.id, &root)
+                    .await
+                {
+                    Ok(0) => {}
+                    Ok(n) => tracing::info!(
+                        target: "oculpm::bootstrap",
+                        project_id = project.id, removed = n, "기동 화해: 디스크에 없는 색인 행을 걷었다"
+                    ),
+                    Err(e) => tracing::warn!(
+                        target: "oculpm::bootstrap",
+                        project_id = project.id, error = %e, "기동 화해 실패"
+                    ),
+                }
+            }
             if let Err(e) = manager
                 .watcher_start_with(
                     project.id,

@@ -200,18 +200,18 @@ fn is_denied_dir_name(path: &Path) -> bool {
 
 /// 경로 구성 요소 중 하나라도 [`DENY_DIR_NAMES`] 에 있으면 true — 워처처럼
 /// 걷기를 거치지 않고 경로 하나를 판정할 때 쓴다.
-fn has_denied_component(path: &Path) -> bool {
+pub(crate) fn has_denied_component(path: &Path) -> bool {
     path.components().any(|c| {
         matches!(c, Component::Normal(name)
             if name.to_str().is_some_and(|n| DENY_DIR_NAMES.contains(&n)))
     })
 }
 
-fn is_skipped_name(path: &Path) -> bool {
+pub(crate) fn is_skipped_name(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
         return false;
     };
-    if SKIP_FILENAMES.contains(&name) {
+    if SKIP_FILENAMES.contains(&name) || crate::oculpm::redact::is_secret_file_name(name) {
         return true;
     }
     SKIP_SUFFIXES.iter().any(|s| name.ends_with(s))
