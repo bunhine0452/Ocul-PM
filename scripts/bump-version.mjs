@@ -15,6 +15,10 @@
  *     .claude-plugin/marketplace.json(plugins[0])
  *   랜딩 ko·en 각 6 — JSON-LD softwareVersion · nav-ver · ap-new 줄 · 다운로드 버튼 2 · CTA eyebrow
  *
+ *   SECURITY.md — 「외부 리뷰 이력」 의 「반영: 다음 릴리스」 를 이 버전으로 (있을 때만)
+ *
+ * 알리는 것: 마지막 외부 리뷰 반영에서 마이너 5개째면 경고 — 막지 않는다 (RELEASE.md §0-1).
+ *
  * 고치지 **않는** 곳: 변경 이력 `<li>` 와 FAQ 의 "vX.Y.Z 부터는" — 역사다.
  * `--title-*` 을 주면 ap-new 줄의 제목도 바꾼다(안 주면 버전만). Cargo.lock 은
  * `cargo test` 가 갱신한다 — 그 뒤 둘 다 커밋한다.
@@ -84,6 +88,40 @@ export function leftoverLines(html, from) {
     .filter((n) => n !== null);
 }
 
+/** 외부 리뷰 주기 (docs/RELEASE.md §0-1) — 이만큼 마이너가 쌓이면 알린다. 막지는 않는다. */
+export const REVIEW_EVERY_MINORS = 5;
+
+/** SECURITY.md 「외부 리뷰 이력」 표의 행 — 날짜로 시작하는 줄. 마지막 칸이 「반영」. */
+const REVIEW_ROW = /^\|\s*\d{4}-\d{2}-\d{2}\s*\|/;
+
+/**
+ * 「반영」 칸이 `다음 릴리스` 인 행에 이번 버전을 채운다. 고친 것이 main 에 합류한 뒤
+ * 그렇게 적어 두는 규약이라, 버전을 올리는 이 순간이 곧 그 릴리스다.
+ */
+export function stampPendingReviews(securityMd, to) {
+  return securityMd
+    .split("\n")
+    .map((line) => (REVIEW_ROW.test(line) ? line.replace(/\|\s*다음 릴리스\s*\|\s*$/, `| v${to} |`) : line))
+    .join("\n");
+}
+
+/**
+ * 「반영」 칸에서 가장 높은 버전과, `to` 가 그보다 마이너 몇 개 앞섰는지. 메이저가 바뀌었으면
+ * Infinity. 표를 못 읽으면 `last: null` — 표 모양이 바뀌어 경고가 조용히 죽지 않게 한다.
+ * 리뷰 칸은 보지 않는다 — 「v3.8.0 이 막지 못한…」 같은 글이 반영 버전으로 읽히면 안 된다.
+ */
+export function reviewGap(securityMd, to) {
+  const versions = securityMd
+    .split("\n")
+    .filter((line) => REVIEW_ROW.test(line))
+    .map((line) => line.trim().replace(/\|$/, "").split("|").pop())
+    .flatMap((cell) => [...cell.matchAll(/v(\d+)\.(\d+)\.(\d+)/g)].map((m) => m.slice(1, 4).map(Number)));
+  if (versions.length === 0) return { last: null, minors: null };
+  const last = versions.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]).at(-1);
+  const [major, minor] = to.split(".").map(Number);
+  return { last: last.join("."), minors: major === last[0] ? minor - last[1] : Infinity };
+}
+
 export const VERSION_FILES = [
   "package.json",
   "src-tauri/tauri.conf.json",
@@ -134,6 +172,9 @@ function main(argv) {
     writes.push([path, out]);
     leftovers.push([path, leftoverLines(out, from)]);
   }
+  const security = readFileSync(ROOT + "SECURITY.md", "utf8");
+  const stamped = stampPendingReviews(security, to);
+  if (stamped !== security) writes.push(["SECURITY.md", stamped]);
 
   for (const [rel, out] of writes) {
     if (!dry) writeFileSync(ROOT + rel, out);
@@ -141,6 +182,12 @@ function main(argv) {
   }
   for (const [path, lines] of leftovers) {
     console.log(`${path}: v${from} still on lines ${lines.join(", ") || "(none)"} — 변경 이력·FAQ 면 정상`);
+  }
+  const { last, minors } = reviewGap(stamped, to);
+  if (last === null) {
+    console.warn(`\n⚠ SECURITY.md 「외부 리뷰 이력」 표를 읽지 못했습니다 — 리뷰 주기를 판정할 수 없습니다 (docs/RELEASE.md §0-1)`);
+  } else if (minors >= REVIEW_EVERY_MINORS) {
+    console.warn(`\n⚠ 마지막 외부 리뷰 반영은 v${last} — v${to} 는 그 뒤 마이너 ${minors === Infinity ? "메이저 변경" : `${minors}개째`}입니다. 다음 리뷰를 청할 때입니다 (docs/RELEASE.md §0-1). 릴리스는 막지 않습니다.`);
   }
   console.log(`\n${from} → ${to}. 다음: CHANGELOG.md 에 "## v${to}" · README ko/en · 랜딩 <li>/bento/FAQ · cargo test(Cargo.lock) · node landing/wiki-src/build.mjs`);
 }
