@@ -1798,6 +1798,53 @@ mark.s-hit {
 .tbm-back:hover { color: var(--text); }
 .tbm-empty { padding: var(--space-4) var(--space-3); color: var(--text-2); font-size: var(--fs-3); text-align: center; }
 
+/* 터미널 이미지 링크 미리보기 (2026-10-09, TerminalImagePeek). 카드는 마우스를
+   가로채지 않는다 — 가로채면 xterm 이 곧바로 leave 를 쏘아 카드가 깜빡인다.
+   그림 바탕은 들어간 면: 투명 PNG 의 빈 곳이 카드 면과 섞여 경계가 사라지지 않게. */
+.term-image-peek {
+  position: fixed; z-index: var(--z-popover); pointer-events: none;
+  display: flex; flex-direction: column; gap: var(--space-2);
+  max-width: 380px; padding: var(--space-2);
+  background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-m);
+  box-shadow: var(--shadow-pop); font-family: var(--font);
+}
+.term-image-peek img {
+  display: block; max-width: 364px; max-height: 260px; object-fit: contain;
+  background: var(--bg-inset); border-radius: var(--radius-s);
+}
+.term-image-peek .tip-skel { width: 240px; height: 150px; }
+.term-image-peek .tip-error,
+.term-image-full .tip-error { margin: 0; padding: var(--space-2) var(--space-3); color: var(--text-2); font-size: var(--fs-3); }
+.term-image-peek .tip-cap,
+.term-image-full figcaption {
+  display: flex; align-items: center; gap: var(--space-3); min-width: 0;
+  padding: 0 var(--space-1); color: var(--text-3); font-size: var(--fs-2);
+}
+.term-image-peek .tip-name,
+.term-image-full .tip-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); color: var(--text-2);
+}
+.term-image-peek .tip-facts,
+.term-image-full .tip-facts { flex: none; font-variant-numeric: tabular-nums; }
+.term-image-peek .tip-hint { flex: none; margin-left: auto; }
+/* 고정 — 스크림 위에 크게. 바깥(스크림)을 누르면 닫힌다. */
+.term-image-scrim {
+  z-index: var(--z-modal);
+  display: flex; align-items: center; justify-content: center; padding: var(--space-6);
+}
+.term-image-full {
+  display: flex; flex-direction: column; gap: var(--space-2); max-width: 100%; max-height: 100%; margin: 0;
+  padding: var(--space-2); background: var(--bg-card); border: 1px solid var(--border-card);
+  border-radius: var(--radius-m); box-shadow: var(--shadow-sheet); font-family: var(--font);
+}
+.term-image-full img {
+  display: block; min-height: 0; max-width: 92vw; max-height: 84vh; object-fit: contain;
+  background: var(--bg-inset); border-radius: var(--radius-s);
+}
+.term-image-full .tip-skel { width: 360px; height: 240px; }
+.term-image-full figcaption .ts-btn { margin-left: auto; }
+
 /* 링크 호버 밑줄 (2026-09-07). xterm 의 기본 밑줄은 DOM 렌더러 전용이라
    WebGL 에서는 아무것도 안 그려진다 — 장식 오버레이로 직접 긋는다
    (근거는 src/features/terminal/linkUnderline.ts).

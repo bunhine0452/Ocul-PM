@@ -38,6 +38,7 @@ import { PIP_COUNT } from "./TerminalPaneHead";
 import { blockTone } from "./commandBlocks";
 import { TerminalBlockMenu } from "./TerminalBlockMenu";
 import { TerminalFileMenu } from "./TerminalFileMenu";
+import { useTerminalFileLinks } from "./useTerminalFileLinks";
 import type { BlockActivation } from "./TerminalInstanceImpl";
 import type { FileRefHit } from "./fileRefLinks";
 import { formatCwdCrumb } from "./railModel";
@@ -430,6 +431,8 @@ export function TerminalSurface({
   // 출력 안의 `src/foo.ts:42` ⌘클릭 → 무엇으로 열지 고르는 팝오버
   // (`TerminalFileMenu`). 경로 검증은 여는 순간 백엔드가 한다.
   const [fileMenu, setFileMenu] = useState<FileRefHit | null>(null);
+  // OSC 8 `file://` — 이미지는 올리면 미리보기, 나머지는 위 파일 메뉴로 (→ useTerminalFileLinks).
+  const fileLinks = useTerminalFileLinks(projectRoot, setFileMenu);
 
   // 포커스된 페인의 셸 통합 상태 — 상태바의 cwd 와 툴바 부제가 여기서 나온다.
   // 페인별 "지금 무슨 일" 문구·시계는 `TerminalPaneHead` 가 스스로 만든다.
@@ -563,6 +566,7 @@ export function TerminalSurface({
               setEnded((prev) => (prev[node.sid] ? prev : { ...prev, [node.sid]: true }))
             }
             onFileRef={projectRoot ? setFileMenu : undefined}
+            onFileLink={fileLinks.onFileLink}
           />
           {/* 끝난 셸 — 출력은 그대로 둔다 (읽고 복사할 수 있어야 한다). 아래에
               사실과 손잡이만 얹는다. */}
@@ -724,6 +728,7 @@ export function TerminalSurface({
           onClose={() => setFileMenu(null)}
         />
       ) : null}
+      {fileLinks.peek}
 
       {blockMenu ? (
         <TerminalBlockMenu

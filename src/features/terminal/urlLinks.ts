@@ -23,15 +23,28 @@
  *
  * # 스킴
  *
- * `allowNonHttpProtocols` 는 켜지 않는다 — xterm 이 http/https 밖(`file:`,
- * `javascript:` …)을 프로바이더 단계에서 걸러 우리에게 오지도 않는다. 그래도
- * `activate` 에서 한 번 더 본다: 옵션이 나중에 켜지더라도 `javascript:` 가
- * 백엔드까지 가지 않게 하는 마지막 방어선이다. 백엔드(`open_url`)는 그 위에
- * `mailto:` 도 받지만, 터미널이 하이퍼링크로 쏜 `mailto:` 는 xterm 이 먼저
- * 걸러 실제로는 오지 않는다.
+ * 밖으로 내보내는 것은 http/https 뿐이다 (`activateUrl`). `javascript:` 같은
+ * 나머지는 백엔드까지 가지 않는다.
+ *
+ * # `file://` (2026-10-09)
+ *
+ * `allowNonHttpProtocols` 를 **켰다** — 그 전에는 xterm 이 http/https 밖을
+ * 프로바이더 단계에서 걸러 `file://` 링크가 아예 없었다. 앱이 PTY 에
+ * `FORCE_HYPERLINK=1` 을 실으면서(`commands/terminal.rs`) Claude Code 가 파일
+ * 경로를 `file://` 절대경로로 감싸 보내고, 그 링크가 이제 두 갈래로 간다:
+ *  - **이미지** → 올리면 미리보기, 누르면 크게 (`useTerminalFileLinks`)
+ *  - 그 밖의 파일 → `src/foo.ts:42` 와 같은 파일 메뉴 (프로젝트 안일 때만)
+ *
+ * 두 번째 갈래는 선택이 아니다. 같은 칸에 OSC 링크와 우리 `파일:줄` 프로바이더가
+ * 함께 걸리면 xterm 은 **먼저 등록된 쪽**(코어의 OSC 프로바이더)을 고른다 —
+ * 이 갈래가 없으면 Claude Code 가 찍은 `src/foo.ts` 를 눌러도 아무 일이 없다.
+ *
+ * 열 수 없는 스킴(`javascript:`·`vscode:` …)은 xterm 이 손 모양 커서는 그대로
+ * 그리지만 밑줄은 긋지 않고, 눌러도 아무 데도 가지 않는다.
  */
 import type { IBufferRange, ILinkHandler } from "@xterm/xterm";
 
+import { previewKindFor } from "@/features/code/previewKind";
 import type { LinkUnderline } from "./linkUnderline";
 
 /** 밖으로 내보내는 스킴 — `src/lib/externalLinks.ts` 와 같은 판정이다. */
@@ -41,10 +54,44 @@ export function isOpenableUrl(uri: string): boolean {
   return OPENABLE.test(uri.trim());
 }
 
+/** OSC 8 `file://` 링크에서 일어난 일 — 무엇을 할지는 화면이 정한다. */
+export type FileLinkEvent =
+  | { kind: "hover" | "open"; path: string; image: boolean; x: number; y: number }
+  | { kind: "leave" };
+
 export interface UrlLinkDeps {
   /** OS 기본 브라우저로 연다 (백엔드 `open_url`). 스킴 검사는 이쪽이 끝낸 뒤다. */
   openUrl: (uri: string) => void;
   underline: LinkUnderline;
+  /**
+   * `file://` 링크를 받을 곳 — 링크를 만질 때마다 묻는다(화면이 나중에 붙이거나
+   * 뗄 수 있다). 없으면 밑줄도 반응도 없다: 눌러도 아무 일 없는 밑줄은 거짓말이다.
+   */
+  getFileLink?: () => ((event: FileLinkEvent) => void) | undefined;
+}
+
+/**
+ * `file:///private/tmp/a%20b.png` → `/private/tmp/a b.png`. 다른 호스트를
+ * 가리키는 `file://host/…` 와 깨진 퍼센트 인코딩은 `null`.
+ * Windows 의 `file:///C:/x.png` 는 `C:/x.png` 로 편다.
+ */
+export function fileUriToPath(uri: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(uri.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "file:") return null;
+  if (url.hostname !== "" && url.hostname !== "localhost") return null;
+  let path: string;
+  try {
+    path = decodeURIComponent(url.pathname);
+  } catch {
+    return null;
+  }
+  if (/^\/[A-Za-z]:\//.test(path)) return path.slice(1);
+  return path.startsWith("/") ? path : null;
 }
 
 /** 스킴이 허용되면 열고, 아니면 조용히 무시한다 (열린 것처럼 보이지 않게). */
@@ -61,13 +108,37 @@ export function activateUrl(deps: UrlLinkDeps, uri: string): void {
  * 만들 수 있고, xterm 은 이 옵션을 링크를 만들 때마다 다시 읽는다.
  */
 export function createOscLinkHandler(deps: UrlLinkDeps): ILinkHandler {
+  const fileEvent = (kind: "hover" | "open", event: MouseEvent, path: string): FileLinkEvent => ({
+    kind,
+    path,
+    image: previewKindFor(path) === "image",
+    x: event.clientX,
+    y: event.clientY,
+  });
   return {
-    activate: (_event, uri) => activateUrl(deps, uri),
-    hover: (_event, _uri, range: IBufferRange) => deps.underline.show(range),
-    leave: () => deps.underline.hide(),
-    // 명시적으로 끈다 — 기본값도 꺼져 있지만, 위 설명의 방어선이 왜 있는지
-    // 읽는 사람이 여기서 바로 보게.
-    allowNonHttpProtocols: false,
+    activate: (event, uri) => {
+      const path = fileUriToPath(uri);
+      if (path === null) return activateUrl(deps, uri);
+      deps.underline.hide();
+      deps.getFileLink?.()?.(fileEvent("open", event, path));
+    },
+    hover: (event, uri, range: IBufferRange) => {
+      const path = fileUriToPath(uri);
+      if (path === null) {
+        if (isOpenableUrl(uri)) deps.underline.show(range);
+        return;
+      }
+      const onFileLink = deps.getFileLink?.();
+      if (!onFileLink) return;
+      deps.underline.show(range);
+      onFileLink(fileEvent("hover", event, path));
+    },
+    leave: () => {
+      deps.underline.hide();
+      deps.getFileLink?.()?.({ kind: "leave" });
+    },
+    // `file://` 를 받으려면 켜야 한다 — 그 밖의 스킴을 막는 일은 위 두 함수가 한다.
+    allowNonHttpProtocols: true,
   };
 }
 

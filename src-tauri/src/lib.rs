@@ -538,6 +538,7 @@ use crate::commands::{
     tab_drag_end,
     tab_drag_over,
     tab_drop_hint,
+    terminal_image_preview,
     theme_delete,
     theme_export,
     theme_import,
@@ -769,6 +770,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             pty_foreground_command,
             resize_pty,
             kill_pty_session,
+            terminal_image_preview,
             // 터미널 셸 통합 (OSC 133/7)
             shell_integration_status,
             shell_integration_install,

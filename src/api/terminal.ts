@@ -2,7 +2,7 @@
 //
 // PTY 는 호스트 프로세스(`--pty-host`)가 소유한다 — 앱이 업데이트로 재시작해도
 // 셸이 산다. 여기서는 세션 하나를 열고·붙고·크기를 바꾸고·죽이는 것까지.
-import { commands, type PtySessionInfo } from "@/lib/bindings";
+import { commands, type CodeAsset, type PtySessionInfo } from "@/lib/bindings";
 import { call } from "./invoke";
 
 export const ptyApi = {
@@ -28,6 +28,13 @@ export const ptyApi = {
   /** 지금 전경에서 도는 명령 이름 (셸 자신이면 `null`). */
   foregroundCommand: (sessionId: string): Promise<string | null> =>
     call("pty_foreground_command", commands.ptyForegroundCommand(sessionId)),
+
+  /**
+   * 출력에 찍힌 이미지 경로(절대)의 바이트 — 미리보기용. 그림이 아니면(시그니처
+   * 불일치·16MB 초과·폴더) 거절된다. 프로젝트 밖도 읽는 이유는 백엔드 문서에.
+   */
+  imagePreview: (path: string): Promise<CodeAsset> =>
+    call("terminal_image_preview", commands.terminalImagePreview(path)),
 };
 
 export const terminalWindowApi = {

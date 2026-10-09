@@ -17,6 +17,8 @@ use serde::Serialize;
 use tauri::{Emitter, Manager, State};
 use uuid::Uuid;
 
+use super::code::CodeAsset;
+use super::fsutil::{mime_for, sniff_image_mime};
 use crate::oculpm::shell_integration;
 use crate::oculpm::shim;
 use crate::ptyhost::client::{connect_or_spawn, socket_candidates, PtyHostClient};
@@ -249,6 +251,12 @@ pub async fn start_pty_session(
         ("TERM".into(), "xterm-256color".into()),
         // xterm.js 5.x 는 트루컬러를 지원한다 — CLI 들이 24bit 팔레트를 쓰도록.
         ("COLORTERM".into(), "truecolor".into()),
+        // OSC 8 하이퍼링크도 그린다 — 그런데 Claude Code 는 TERM_PROGRAM 목록에
+        // 없는 터미널을 미지원으로 보고 파일 경로를 맨 글자로 찍는다. 좁은 폭에서
+        // 줄을 넘긴 경로는 글자만으로는 다시 이을 수 없다. 이 신호가 있으면
+        // `file://` 절대경로로 감싸 보내고, 프런트가 그 링크로 이미지를 미리
+        // 보여 준다 (`urlLinks.ts`). rc 의 `FORCE_HYPERLINK=0` 이 나중에 돌아 이긴다.
+        ("FORCE_HYPERLINK".into(), "1".into()),
     ];
     // 한국어 입력 fix (2026-07-16): Finder 로 실행된 .app 은 LANG 이 비어 셸이
     // C 로케일로 뜬다 — 기존 값은 존중하고 없을 때만 UTF-8 보장. (호스트는 이
@@ -516,9 +524,106 @@ pub async fn kill_pty_session(
     Ok(())
 }
 
+/// 미리보기 상한 — 코드 화면 미리보기(`code_asset`)와 같은 16MB.
+const MAX_IMAGE_PREVIEW_BYTES: u64 = 16 * 1024 * 1024;
+
+/// 터미널 출력의 이미지 경로 미리보기 (2026-10-09). OSC 8 `file://` 링크에
+/// 마우스를 올리면 프런트가 부른다 (`features/terminal/urlLinks.ts`).
+///
+/// # 왜 프로젝트 루트 밖도 읽는가
+///
+/// 에이전트가 그림을 만드는 자리는 대개 프로젝트 밖이다 — Claude Code 의
+/// 스크래치패드(`/private/tmp/claude-…`), `~/Downloads`. `secure_join` 을 걸면
+/// 정작 보여 주려던 그림만 못 연다. 대신 **그림 말고는 돌려줄 수 없게** 좁힌다:
+/// 절대경로 · 심링크를 푼 실제 파일의 확장자가 이미지 · 정규 파일 · 16MB 이하 ·
+/// 선두 바이트가 이미지 시그니처. 확장자만 `.png` 로 바꾼 키 파일은 마지막에서
+/// 걸린다. 바이트는 웹뷰의 `<img>` 로만 간다 — 밖으로 나가는 통신은 없다.
+#[tauri::command]
+#[specta::specta]
+pub async fn terminal_image_preview(path: String) -> Result<CodeAsset, String> {
+    super::blocking(move || read_image_preview(Path::new(&path))).await
+}
+
+fn read_image_preview(path: &Path) -> Result<CodeAsset, String> {
+    use base64::Engine;
+    use std::io::Read;
+
+    if !path.is_absolute() {
+        return Err("Not an absolute path".to_string());
+    }
+    let real = std::fs::canonicalize(path).map_err(|e| format!("Failed to read file: {e}"))?;
+    if !mime_for(&real).starts_with("image/") {
+        return Err("Not an image file".to_string());
+    }
+    // 여는 것보다 먼저 본다 — `x.png` 라는 이름의 FIFO 는 열기에서 영영 멈춘다.
+    let meta = std::fs::metadata(&real).map_err(|e| format!("Failed to read file: {e}"))?;
+    if !meta.is_file() {
+        return Err("Not a file".to_string());
+    }
+    let too_large = || "File is too large to preview (over 16MB)".to_string();
+    if meta.len() > MAX_IMAGE_PREVIEW_BYTES {
+        return Err(too_large());
+    }
+    let file = std::fs::File::open(&real).map_err(|e| format!("Failed to read file: {e}"))?;
+    // 크기를 본 뒤에 자랄 수 있으니 읽기 자체도 상한+1 에서 끊는다.
+    let mut bytes = Vec::new();
+    file.take(MAX_IMAGE_PREVIEW_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| format!("Failed to read file: {e}"))?;
+    if bytes.len() as u64 > MAX_IMAGE_PREVIEW_BYTES {
+        return Err(too_large());
+    }
+    let mime = sniff_image_mime(&bytes).ok_or_else(|| "Not an image file".to_string())?;
+    Ok(CodeAsset {
+        mime: mime.to_string(),
+        bytes: bytes.len() as u32,
+        base64: base64::engine::general_purpose::STANDARD.encode(&bytes),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const PNG_1X1: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\x01\0\0\0\x01\x08\x06\0\0\0";
+
+    #[test]
+    fn image_preview_reads_a_real_image_outside_any_project() {
+        let dir = tempfile::tempdir().unwrap();
+        let png = dir.path().join("lineup.png");
+        std::fs::write(&png, PNG_1X1).unwrap();
+        let asset = read_image_preview(&png).unwrap();
+        assert_eq!(asset.mime, "image/png");
+        assert_eq!(asset.bytes as usize, PNG_1X1.len());
+    }
+
+    /// 그림이 아닌 것은 이름·경로 모양과 무관하게 거절한다.
+    #[test]
+    fn image_preview_refuses_anything_that_is_not_an_image() {
+        let dir = tempfile::tempdir().unwrap();
+        // 확장자만 그림인 키 파일.
+        let fake = dir.path().join("id_rsa.png");
+        std::fs::write(&fake, b"-----BEGIN OPENSSH PRIVATE KEY-----").unwrap();
+        assert_eq!(read_image_preview(&fake).unwrap_err(), "Not an image file");
+        // 그림 이름의 심링크가 가리키는 텍스트 — 실제 파일의 확장자로 본다.
+        let secret = dir.path().join("secret.txt");
+        std::fs::write(&secret, PNG_1X1).unwrap();
+        #[cfg(unix)]
+        {
+            let link = dir.path().join("shot.png");
+            std::os::unix::fs::symlink(&secret, &link).unwrap();
+            assert_eq!(read_image_preview(&link).unwrap_err(), "Not an image file");
+        }
+        // 디렉터리·상대경로·없는 파일.
+        let folder = dir.path().join("pics.png");
+        std::fs::create_dir(&folder).unwrap();
+        assert!(read_image_preview(&folder).is_err());
+        assert_eq!(
+            read_image_preview(Path::new("assets/a.png")).unwrap_err(),
+            "Not an absolute path"
+        );
+        assert!(read_image_preview(&dir.path().join("gone.png")).is_err());
+    }
 
     /// 옛 호스트가 돌려주는 `-zsh` 를 "돌고 있는 일" 로 읽지 않는다.
     #[test]

@@ -3370,6 +3370,11 @@ export const en: Record<keyof typeof ko, string> = {
   "term.fileRef.reveal__linux": "Show in file manager",
   "term.fileRef.external": "Open in external editor",
   "term.fileRef.failed": "Could not open: {error}",
+  "term.fileLink.outside": "Files outside the project can't be opened here",
+  "term.imagePeek.loading": "Loading image",
+  "term.imagePeek.failed": "Can't preview: {error}",
+  "term.imagePeek.hint": "Click to enlarge",
+  "term.imagePeek.close": "Close",
   "term.shellOn":
     "Shell integration on — command boundaries, exit codes, and working directory are tracked",
   "term.shellOff":
