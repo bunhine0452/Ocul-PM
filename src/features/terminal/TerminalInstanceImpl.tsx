@@ -32,7 +32,7 @@ import {
 } from "./oscShell";
 import { createFileRefLinkProvider, type FileRefHit } from "./fileRefLinks";
 import { createLinkUnderline } from "./linkUnderline";
-import { createOscLinkHandler, createWebLinksOptions } from "./urlLinks";
+import { createOscLinkHandler, createWebLinksOptions, type FileLinkEvent } from "./urlLinks";
 import { emptyPaneSignal, type PaneSignal } from "./agentMode";
 import {
   blockAt,
@@ -148,9 +148,10 @@ interface TerminalInstanceProps {
   /**
    * 출력 안의 `파일:줄` 을 ⌘클릭했을 때. 넘기지 않으면 링크를 만들지 않는다
    * (프로젝트가 없는 세션에서 열 곳이 없으므로). 여는 방법은 화면이 고른다 —
-   * 여기는 **무엇을 어디서 눌렀는지**만 넘긴다.
+   * 여기는 **무엇을 어디서 눌렀는지**만 넘긴다. OSC 8 `file://` 링크는 `onFileLink` 로.
    */
   onFileRef?: (hit: FileRefHit) => void;
+  onFileLink?: (event: FileLinkEvent) => void;
 }
 
 export default function TerminalInstanceImpl({
@@ -169,6 +170,7 @@ export default function TerminalInstanceImpl({
   onBlockActivate,
   onExit,
   onFileRef,
+  onFileLink,
 }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // 경계 포착용 — 비동기(setTimeout) 지점의 치명 오류를 렌더로 승격한다.
@@ -197,6 +199,7 @@ export default function TerminalInstanceImpl({
   // 스크롤·명령마다 페인 트리가 재렌더된다.
   const blockApiRef = useRef<BlockApi | null>(null);
   const onFileRefRef = useRef(onFileRef);
+  const onFileLinkRef = useRef(onFileLink);
   // 세션 nonce — 이 값이 실린 OSC 133 만 신뢰한다. 응답 전엔 빈 문자열이라 전부 거른다(기본값 = 불신).
   const nonceRef = useRef("");
   const shellStateRef = useRef<ShellState>(initialShellState);
@@ -216,6 +219,7 @@ export default function TerminalInstanceImpl({
     onBlockActivateRef.current = onBlockActivate;
     onExitRef.current = onExit;
     onFileRefRef.current = onFileRef;
+    onFileLinkRef.current = onFileLink;
   }, [
     cwd,
     persistent,
@@ -228,6 +232,7 @@ export default function TerminalInstanceImpl({
     onBlockActivate,
     onExit,
     onFileRef,
+    onFileLink,
   ]);
 
   /**
@@ -331,17 +336,12 @@ export default function TerminalInstanceImpl({
     term.unicode.activeVersion = "11";
     // 링크 호버 밑줄. GPU 렌더러일 때만 우리가 긋는다 (근거는 linkUnderline.ts).
     const underline = createLinkUnderline(term, () => webglRef.current !== null);
-    // URL 클릭 → 시스템 브라우저 (opener 권한 우회: 백엔드 open_url 사용).
-    // 밑줄은 파일 링크와 같은 오버레이를 쓴다 — 애드온이 만든 링크에는
-    // 우리가 `decorations` 를 못 붙이지만, hover/leave 는 열려 있다.
-    const urlLinks = { openUrl: (uri: string) => void fileOpenApi.url(uri).catch(() => {}), underline };
+    // URL → 시스템 브라우저(백엔드 open_url), `file://` → 화면(이미지 미리보기·파일 메뉴).
+    const openUrl = (uri: string) => void fileOpenApi.url(uri).catch(() => {});
+    const urlLinks = { openUrl, underline, getFileLink: () => onFileLinkRef.current };
     const webLinks = createWebLinksOptions(urlLinks);
     term.loadAddon(new WebLinksAddon(webLinks.handler, webLinks.options));
-    // OSC 8 하이퍼링크(`ls --hyperlink`, gh, Claude Code TUI)는 애드온이 아니라
-    // **이 옵션**을 탄다. 비워 두면 xterm 기본 처리기가 `confirm()`→`window.open()`
-    // 을 부르는데, Tauri 웹뷰에서는 둘 다 실패해 링크가 열리지 않고 에러만
-    // 남았다 (2026-09-22, 근거는 urlLinks.ts). 생성 옵션이 아니라 여기서 붙이는
-    // 이유도 그 파일에.
+    // OSC 8 은 애드온이 아니라 **이 옵션**을 탄다 — 비우면 기본 처리기가 웹뷰에서 실패한다 (urlLinks.ts).
     term.options.linkHandler = createOscLinkHandler(urlLinks);
     const search = new SearchAddon();
     searchRef.current = search;

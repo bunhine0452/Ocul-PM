@@ -4,6 +4,7 @@ import type { BlockActivation, TerminalHandles } from "./TerminalInstanceImpl";
 import type { FileRefHit } from "./fileRefLinks";
 import type { ShellState } from "./oscShell";
 import type { PaneSignal } from "./agentMode";
+import type { FileLinkEvent } from "./urlLinks";
 import { TerminalErrorBoundary } from "./TerminalErrorBoundary";
 
 // v2 U6 — xterm(+addons, css) 은 TerminalInstanceImpl 로 분리해 lazy 로드.
@@ -40,6 +41,8 @@ interface TerminalInstanceProps {
   onExit?: () => void;
   /** 출력 안의 `파일:줄` ⌘클릭. 없으면 링크를 만들지 않는다. */
   onFileRef?: (hit: FileRefHit) => void;
+  /** OSC 8 `file://` 링크 — 이미지 미리보기·파일 메뉴. 없으면 반응하지 않는다. */
+  onFileLink?: (event: FileLinkEvent) => void;
 }
 
 export type { TerminalHandles, ShellState, PaneSignal, BlockActivation, FileRefHit };

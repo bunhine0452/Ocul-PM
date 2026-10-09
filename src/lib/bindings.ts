@@ -967,6 +967,20 @@ export const commands = {
 	ptyForegroundCommand: (sessionId: string) => typedError<string | null, string>(__TAURI_INVOKE("pty_foreground_command", { sessionId })),
 	resizePty: (sessionId: string, rows: number, cols: number) => typedError<null, string>(__TAURI_INVOKE("resize_pty", { sessionId, rows, cols })),
 	killPtySession: (sessionId: string) => typedError<null, string>(__TAURI_INVOKE("kill_pty_session", { sessionId })),
+	/**
+	 *  터미널 출력의 이미지 경로 미리보기 (2026-10-09). OSC 8 `file://` 링크에
+	 *  마우스를 올리면 프런트가 부른다 (`features/terminal/urlLinks.ts`).
+	 * 
+	 *  # 왜 프로젝트 루트 밖도 읽는가
+	 * 
+	 *  에이전트가 그림을 만드는 자리는 대개 프로젝트 밖이다 — Claude Code 의
+	 *  스크래치패드(`/private/tmp/claude-…`), `~/Downloads`. `secure_join` 을 걸면
+	 *  정작 보여 주려던 그림만 못 연다. 대신 **그림 말고는 돌려줄 수 없게** 좁힌다:
+	 *  절대경로 · 심링크를 푼 실제 파일의 확장자가 이미지 · 정규 파일 · 16MB 이하 ·
+	 *  선두 바이트가 이미지 시그니처. 확장자만 `.png` 로 바꾼 키 파일은 마지막에서
+	 *  걸린다. 바이트는 웹뷰의 `<img>` 로만 간다 — 밖으로 나가는 통신은 없다.
+	 */
+	terminalImagePreview: (path: string) => typedError<CodeAsset, string>(__TAURI_INVOKE("terminal_image_preview", { path })),
 	/**  현재 설치 상태를 읽는다. 파일을 만들거나 고치지 않는다. */
 	shellIntegrationStatus: () => typedError<ShellIntegrationStatus, string>(__TAURI_INVOKE("shell_integration_status")),
 	/**

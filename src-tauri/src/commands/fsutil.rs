@@ -78,6 +78,38 @@ pub(crate) fn mime_for(path: &Path) -> String {
     .to_string()
 }
 
+/// 선두 바이트로 본 래스터 이미지 MIME — 시그니처가 없으면 `None`.
+///
+/// 확장자는 이름일 뿐이라 `.png` 로 바꾼 아무 파일이나 통과한다. 프로젝트 루트
+/// 밖을 읽는 터미널 미리보기(`terminal_image_preview`)가 "그림 말고는 돌려줄 수
+/// 없다" 를 이 판정 하나로 지킨다. svg 는 텍스트라 여기 없다.
+pub(crate) fn sniff_image_mime(b: &[u8]) -> Option<&'static str> {
+    if b.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Some("image/png");
+    }
+    if b.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        return Some("image/jpeg");
+    }
+    if b.starts_with(b"GIF87a") || b.starts_with(b"GIF89a") {
+        return Some("image/gif");
+    }
+    if b.len() >= 12 && &b[..4] == b"RIFF" && &b[8..12] == b"WEBP" {
+        return Some("image/webp");
+    }
+    // ISO-BMFF — 크기(4) + "ftyp" + 주 브랜드(4).
+    if b.len() >= 12 && &b[4..8] == b"ftyp" && matches!(&b[8..12], b"avif" | b"avis") {
+        return Some("image/avif");
+    }
+    // 두 글자 "BM" 은 약하다 — 헤더(14) + 정보 헤더 크기 필드까지 있어야 본다.
+    if b.len() >= 26 && b.starts_with(b"BM") {
+        return Some("image/bmp");
+    }
+    if b.len() >= 6 && b.starts_with(&[0, 0, 1, 0]) && b[4..6] != [0, 0] {
+        return Some("image/x-icon");
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -103,5 +135,39 @@ mod tests {
             mime_for(Path::new("a/b.unknown")),
             "application/octet-stream"
         );
+    }
+
+    #[test]
+    fn sniff_reads_signatures_not_names() {
+        assert_eq!(
+            sniff_image_mime(b"\x89PNG\r\n\x1a\n\0\0"),
+            Some("image/png")
+        );
+        assert_eq!(
+            sniff_image_mime(&[0xFF, 0xD8, 0xFF, 0xE0]),
+            Some("image/jpeg")
+        );
+        assert_eq!(sniff_image_mime(b"GIF89a.."), Some("image/gif"));
+        assert_eq!(
+            sniff_image_mime(b"RIFF\0\0\0\0WEBPVP8 "),
+            Some("image/webp")
+        );
+        assert_eq!(
+            sniff_image_mime(b"\0\0\0\x1cftypavif\0\0"),
+            Some("image/avif")
+        );
+        // 이미지 이름을 한 텍스트 — 키 파일·셸 스크립트·svg 는 그림이 아니다.
+        assert_eq!(
+            sniff_image_mime(b"-----BEGIN OPENSSH PRIVATE KEY-----"),
+            None
+        );
+        assert_eq!(sniff_image_mime(b"#!/bin/sh\necho hi\n"), None);
+        assert_eq!(
+            sniff_image_mime(b"<svg xmlns='http://www.w3.org/2000/svg'/>"),
+            None
+        );
+        // "BM" 으로 시작하는 짧은 글은 비트맵이 아니다.
+        assert_eq!(sniff_image_mime(b"BMW notes"), None);
+        assert_eq!(sniff_image_mime(b""), None);
     }
 }
