@@ -101,4 +101,5 @@ owner: claude-code
 | 2026-10-08T17:47:50+09:00 | #plugin-marketplace | claude-code | ☐→> |  | 범위 동결(2026-10-08, CLAUDE.md) — 새 배포 표면 |
 | 2026-10-08T17:47:54+09:00 | #session-to-window | claude-code | ☐→> |  | 범위 동결(2026-10-08, CLAUDE.md) — 터미널은 60일 fix 33건으로 주변 중 최다, 확장보다 안정화 |
 | 2026-10-08T17:47:57+09:00 | #skill-catalog-b | claude-code | ☐→> |  | 범위 동결(2026-10-08, CLAUDE.md) — 8갈래 확장 묶음 |
+| 2026-10-10T00:17:22+09:00 | #eyes-terminal | claude-code | ☐→☐ | .oculpm/journal/20261010/Features_to_add/0017_feature_terminal-image-link-peek.md | +1건: 새 셸에서 Claude Code 이미지 경로 호버 미리보기·클릭 확대·src 경로 클릭→파일 메뉴 (FORCE_HYPERLINK) |
 <!-- oculpm:plan-log end -->
