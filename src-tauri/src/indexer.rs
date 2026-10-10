@@ -9,6 +9,7 @@ use crate::embedding::{vec_to_bytes, Embedder};
 use std::path::{Component, Path, PathBuf};
 
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
+pub(crate) mod low_value;
 
 pub const DEFAULT_MAX_FILE_BYTES: u64 = 500_000; // 500 KB
 pub const DEFAULT_CHUNK_LINES: usize = 30;
@@ -30,9 +31,11 @@ pub const MAX_CHUNK_BYTES: usize = 16_384;
 /// `.gitignore` 와 무관하게 절대 걷지 않는 디렉터리 이름 — 벤더·캐시·빌드
 /// 산출물. `.gitignore` 자체가 없는 프로젝트를 위한 마지막 그물이다. `dist`·
 /// `build`·`out` 은 일부러 뺐다: 소스 폴더로 쓰는 프로젝트가 있고, 산출물이면
-/// `.gitignore` 가 이미 막는다.
+/// `.gitignore` 가 이미 막는다. `vendor`·`.dart_tool` 은 `{#idx-low-value}`(2026-10-10).
 const DENY_DIR_NAMES: &[&str] = &[
     "node_modules",
+    "vendor",
+    ".dart_tool",
     ".git",
     "target",
     ".venv",
@@ -152,7 +155,7 @@ pub fn walk_text_files(root: &Path, config: &IndexConfig) -> Vec<PathBuf> {
         let Ok(metadata) = entry.metadata() else {
             continue;
         };
-        if metadata.len() == 0 || metadata.len() > config.max_file_bytes {
+        if !low_value::size_ok(path, metadata.len(), config) {
             continue;
         }
         if looks_binary(path) {
@@ -179,10 +182,7 @@ pub fn is_indexable_path(path: &Path, config: &IndexConfig) -> bool {
     let Ok(metadata) = std::fs::metadata(path) else {
         return false;
     };
-    if metadata.len() == 0 || metadata.len() > config.max_file_bytes {
-        return false;
-    }
-    !looks_binary(path)
+    low_value::size_ok(path, metadata.len(), config) && !looks_binary(path)
 }
 
 /// 읽은 내용이 색인할 가치가 있는가 — minified/생성 파일 판정. 경로·크기
