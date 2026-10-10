@@ -84,7 +84,7 @@ const RUST_PRIMITIVES: &[&str] = &[
     "tauri_plugin_updater",
     "UpdaterExt",
     "tauri_plugin_opener",
-    "TextEmbedding::try_new",
+    "ApiBuilder::from_cache",
     "xdg-open",
 ];
 
@@ -168,9 +168,9 @@ const RUST_SITES: &[Site] = &[
     },
     Site {
         path: "embedding.rs",
-        primitives: &["TextEmbedding::try_new"],
+        primitives: &["ApiBuilder::from_cache"],
         control: Control::Exempt,
-        reason: "fastembed 가 첫 실행에 ONNX 모델(~135MB)을 HuggingFace 에서 내려받는다 — **내려받기만** 하고 프로젝트 내용은 보내지 않는다. 그 뒤로는 전부 온디바이스다.",
+        reason: "첫 실행에 ONNX 모델(~135MB)을 hf-hub 로 HuggingFace 에서 내려받는다 — **내려받기만** 하고 프로젝트 내용은 보내지 않는다. 토큰 없는 빌더(with_token(None))라 사용자의 HF 토큰은 읽지도 보내지도 않는다. 캐시가 있으면 허브 클라이언트를 거치지 않고 로컬 파일로 로드한다.",
     },
     Site {
         path: "commands/external_editor.rs",

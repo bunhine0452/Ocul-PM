@@ -15,7 +15,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+use fastembed::{
+    EmbeddingModel, InitOptionsUserDefined, TextEmbedding, TokenizerFiles,
+    UserDefinedEmbeddingModel,
+};
+use hf_hub::api::sync::ApiBuilder;
+use hf_hub::{Cache, Repo};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{Mutex as AsyncMutex, Semaphore};
@@ -180,12 +185,7 @@ impl Embedder {
             // hf-hub populates this on first run; create it so the download has
             // a writable target even on a brand-new install.
             let _ = std::fs::create_dir_all(&cache_dir);
-            TextEmbedding::try_new(
-                InitOptions::new(MODEL)
-                    .with_cache_dir(cache_dir)
-                    .with_max_length(MAX_TOKENS)
-                    .with_show_download_progress(true),
-            )
+            load_model(&cache_dir)
         })
         .await;
 
@@ -265,6 +265,88 @@ impl Embedder {
         .await
         .map_err(|e| e.to_string())?
     }
+}
+
+/// 토크나이저 파일 넷 — fastembed 의 `load_tokenizer_hf_hub` 가 읽는 것과 같다.
+const TOKENIZER_FILES: [&str; 4] = [
+    "tokenizer.json",
+    "config.json",
+    "special_tokens_map.json",
+    "tokenizer_config.json",
+];
+
+/// 활성 모델이 로드에 쓰는 허브 파일 이름 전부 (onnx · 부속 · 토크나이저).
+fn required_files() -> Result<(String, Vec<String>), String> {
+    let info = TextEmbedding::get_model_info(&MODEL).map_err(|e| e.to_string())?;
+    let mut files = vec![info.model_file.clone()];
+    files.extend(info.additional_files.iter().cloned());
+    files.extend(TOKENIZER_FILES.iter().map(|s| s.to_string()));
+    Ok((info.model_code.clone(), files))
+}
+
+/// 캐시에서 `files` 를 전부 찾으면 로컬 경로를 돌려준다. 네트워크·토큰 무접촉.
+fn resolve_cached(cache_dir: &Path, model_code: &str, files: &[String]) -> Option<Vec<PathBuf>> {
+    let repo = Cache::new(cache_dir.to_path_buf()).repo(Repo::model(model_code.to_string()));
+    files.iter().map(|f| repo.get(f)).collect()
+}
+
+/// 캐시에 없는 파일만 내려받는다 (`{#hf-token}`). fastembed 의 `try_new` 는
+/// `ApiBuilder::new()` 라 `~/.cache/huggingface/token` 을 읽어 모든 요청에 Bearer 로
+/// 붙였다. 공개 모델이라 토큰은 필요 없으니 `with_token(None)` 으로 명시한다 — 기본
+/// 캐시 경로의 토큰 파일은 읽히지도 않는다 (`from_cache` 는 **넘긴** 캐시의 token 만
+/// 본다). 엔드포인트 미러(`HF_ENDPOINT`)는 fastembed 가 그랬듯 존중한다.
+fn download_missing(cache_dir: &Path, model_code: &str, files: &[String]) -> Result<(), String> {
+    let mut builder = ApiBuilder::from_cache(Cache::new(cache_dir.to_path_buf()))
+        .with_token(None)
+        .with_progress(false);
+    if let Ok(endpoint) = std::env::var("HF_ENDPOINT") {
+        builder = builder.with_endpoint(endpoint);
+    }
+    let repo = builder
+        .build()
+        .map_err(|e| e.to_string())?
+        .model(model_code.to_string());
+    for f in files {
+        repo.get(f)
+            .map_err(|e| format!("Failed to retrieve {f}: {e}"))?;
+    }
+    Ok(())
+}
+
+/// 캐시가 온전하면 허브 클라이언트 없이 로컬 바이트로 로드하고, 아니면 토큰 없이
+/// 받아 온 뒤 같은 길로 로드한다. 세션 옵션은 fastembed `try_new` 와 같다
+/// (Level3 · 전체 코어 — `try_new_from_user_defined` 도 동일하게 만든다).
+fn load_model(cache_dir: &Path) -> Result<TextEmbedding, String> {
+    let (code, files) = required_files()?;
+    let paths = match resolve_cached(cache_dir, &code, &files) {
+        Some(p) => p,
+        None => {
+            download_missing(cache_dir, &code, &files)?;
+            resolve_cached(cache_dir, &code, &files)
+                .ok_or_else(|| "model cache incomplete after download".to_string())?
+        }
+    };
+    let read = |i: usize| std::fs::read(&paths[i]).map_err(|e| format!("{}: {e}", files[i]));
+    let info = TextEmbedding::get_model_info(&MODEL).map_err(|e| e.to_string())?;
+    let n_extra = info.additional_files.len();
+    let t = 1 + n_extra;
+    let tokenizer_files = TokenizerFiles {
+        tokenizer_file: read(t)?,
+        config_file: read(t + 1)?,
+        special_tokens_map_file: read(t + 2)?,
+        tokenizer_config_file: read(t + 3)?,
+    };
+    let mut model = UserDefinedEmbeddingModel::new(read(0)?, tokenizer_files)
+        .with_quantization(TextEmbedding::get_quantization_mode(&MODEL));
+    if let Some(pooling) = TextEmbedding::get_default_pooling_method(&MODEL) {
+        model = model.with_pooling(pooling);
+    }
+    model.output_key = info.output_key.clone();
+    TextEmbedding::try_new_from_user_defined(
+        model,
+        InitOptionsUserDefined::new().with_max_length(MAX_TOKENS),
+    )
+    .map_err(|e| e.to_string())
 }
 
 fn elapsed_ms(since: Instant) -> u64 {
@@ -396,5 +478,55 @@ mod tests {
             .path()
             .join("models--intfloat--multilingual-e5-small")
             .exists());
+    }
+
+    /// `{#hf-token}` — 로드에 쓰는 파일 집합: onnx + 부속 + 토크나이저 넷.
+    #[test]
+    fn required_files_cover_onnx_and_tokenizer() {
+        let (code, files) = required_files().unwrap();
+        assert_eq!(
+            code,
+            TextEmbedding::get_model_info(&MODEL).unwrap().model_code
+        );
+        assert!(files[0].ends_with(".onnx"));
+        for t in TOKENIZER_FILES {
+            assert!(files.iter().any(|f| f == t), "{t}");
+        }
+    }
+
+    /// 캐시 해석은 파일시스템만 본다 — 하나라도 없으면 None(=토큰 없는 다운로드로 넘어감),
+    /// 다 있으면 로컬 경로. 임시 HF 레이아웃(refs/main + snapshots)으로 확인.
+    #[test]
+    fn resolve_cached_is_all_or_nothing_and_offline() {
+        let dir = tempfile::tempdir().unwrap();
+        // 같은 임시 폴더에 토큰 파일이 있어도 이 경로는 읽지 않는다 (읽는 코드가 없다).
+        std::fs::write(dir.path().join("token"), "hf_secret").unwrap();
+        let (code, files) = required_files().unwrap();
+        assert!(resolve_cached(dir.path(), &code, &files).is_none());
+        let root = dir.path().join(hf_dir_name(&code));
+        std::fs::create_dir_all(root.join("refs")).unwrap();
+        std::fs::write(root.join("refs/main"), "abc123").unwrap();
+        let snap = root.join("snapshots/abc123");
+        for f in &files {
+            let p = snap.join(f);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            if f != &files[files.len() - 1] {
+                std::fs::write(&p, b"x").unwrap();
+            }
+        }
+        assert!(resolve_cached(dir.path(), &code, &files).is_none());
+        std::fs::write(snap.join(&files[files.len() - 1]), b"x").unwrap();
+        let got = resolve_cached(dir.path(), &code, &files).unwrap();
+        assert_eq!(got.len(), files.len());
+    }
+
+    /// 실모델 오프라인 로드 — `OCULPM_TEST_MODEL_CACHE` 가 가리키는 **복사본**으로만.
+    #[test]
+    #[ignore]
+    fn loads_from_local_cache_without_hub() {
+        let dir = std::env::var("OCULPM_TEST_MODEL_CACHE").expect("set OCULPM_TEST_MODEL_CACHE");
+        let mut m = load_model(Path::new(&dir)).unwrap();
+        let v = m.embed(vec!["안녕하세요".to_string()], None).unwrap();
+        assert_eq!(v[0].len(), EMBEDDING_DIM);
     }
 }
