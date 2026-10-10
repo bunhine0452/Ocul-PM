@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.11.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 119개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.12.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 120개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.11.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 119개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.12.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 120개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.11.0</span>
+    <span class="nav-ver" data-version>v3.12.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>119개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>120개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-12-0">v3.12.0</a>
       <a href="#v3-11-0">v3.11.0</a>
       <a href="#v3-10-1">v3.10.1</a>
       <a href="#v3-10-0">v3.10.0</a>
@@ -61,10 +62,16 @@
       <a href="#v3-4-0">v3.4.0</a>
       <a href="#v3-3-0">v3.3.0</a>
       <a href="#v3-2-2">v3.2.2</a>
-      <a href="#v3-2-1">v3.2.1</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-12-0"><a href="#v3-12-0">v3.12.0</a></h2>
+      <div class="cl-body">
+<p><b>터미널에 찍힌 그림 경로에 마우스를 올리면 그 자리에서 그림이 보입니다.</b> 내장 터미널의 Claude Code 가 그림을 만들고 <code>› [image] /private/tmp/…/lineup.png (1.9MB)</code> 처럼 경로만 남기면, 그 그림을 보려고 Finder 로 나가 숨은 임시 폴더를 찾아 들어가야 했습니다. 이제 경로에 잠깐 올리면 그림 · 파일 이름 · 크기가 카드로 뜨고, 누르면 크게 열립니다(Esc · 바깥 클릭으로 닫기). 터미널 폭이 좁아 경로가 두 줄로 갈라져 찍혀도 어느 줄에 올리든 같은 그림이 뜹니다.</p>
+<ul><li>그림을 고르는 곳은 프로젝트 밖(에이전트의 임시 폴더 · 다운로드)이어도 되지만, <b>진짜 그림 파일만</b> 엽니다 — 이름만 <code>.png</code> 로 바꾼 다른 파일, 폴더, 16MB 넘는 파일은 열지 않고 이유를 보여 줍니다. 그림은 앱 안에서만 그려지고 어디로도 보내지 않습니다.</li><li>Claude Code 가 찍은 프로젝트 파일 경로(<code>src/…</code>)를 누르면 지금처럼 「이 파일로 할 일」 메뉴가 뜹니다. 프로젝트 밖 파일은 열 수 없다고 알려 줍니다.</li><li><b>새로 연 터미널부터 적용됩니다</b> — 업데이트 전부터 떠 있던 셸에서는 탭을 새로 열어 주세요. 앱이 터미널에 「하이퍼링크를 그릴 수 있다」(<code>FORCE_HYPERLINK=1</code>)고 알려서 Claude Code 가 경로를 정확한 링크로 감싸 보내게 했습니다. 다른 CLI 의 출력에도 링크가 실릴 수 있고, 셸 설정에 <code>FORCE_HYPERLINK=0</code> 을 두면 끌 수 있습니다.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-11-0"><a href="#v3-11-0">v3.11.0</a></h2>
       <div class="cl-body">

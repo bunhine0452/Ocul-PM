@@ -78,7 +78,12 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.11.0 — Repository code runs only after you trust it
+## 🚀 v3.12.0 — See terminal image paths on hover
+
+- **Hover an image path that Claude Code printed and the picture appears right there** — before, a line like `› [image] /private/tmp/…/x.png (1.9MB)` meant digging through a hidden temp folder in Finder. Now a card shows the image, its name and size, and a click opens it large. If a narrow terminal splits the path across two lines, either line shows the same image.
+- **Only real images open** — the file may live outside the project (an agent's temp folder), but a renamed non-image, a folder, or anything over 16MB is refused with the reason. The image is drawn inside the app only. Applies to terminals opened after the update.
+
+## v3.11.0 — Repository code runs only after you trust it
 
 - **In-app Claude Code · Codex now start only in projects you trust** — the in-app agent runs the repository's `.claude/settings.json` hooks and `.mcp.json` servers as-is, and unlike the CLI it never asked whether you trust the folder. It now asks "Trust this project?" first and lists the settings files that can run code. It is the same trust as language servers, so projects you already trusted in v3.10 start as before.
 - **Three more ways a repository could pick commands before you trust it are closed** — automatic git on the Today and Changes screens following `.git/config` fsmonitor · filters · external diff and `.git/hooks`, plugin installs fetching a different bundle than the one previewed, and a theme link shape that slipped past the host check. A paired phone can no longer read `.env` or key files either.
