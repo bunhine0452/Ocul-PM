@@ -117,7 +117,7 @@ pub async fn notion_oauth_start() -> Result<String, String> {
     .map_err(|e| e.to_string())??;
 
     // `flow=code` — 서버가 토큰 대신 code 만 루프백으로 넘긴다 (토큰이 브라우저 기록에
-    // 남지 않게). 그 플래그를 모르는 서버는 예전처럼 토큰을 보낸다 — 둘 다 받는다.
+    // 남지 않게). 서버는 이 플래그가 없는 시작(3.8.0 미만 앱)을 거절한다.
     let url = format!(
         "{}?port={port}&state={nonce}&flow=code",
         notion::OAUTH_START_URL
@@ -128,10 +128,7 @@ pub async fn notion_oauth_start() -> Result<String, String> {
     let callback = tokio::task::spawn_blocking(move || wait_for_oauth_callback(listener, &expect))
         .await
         .map_err(|e| e.to_string())??;
-    let token = match callback {
-        notion::OAuthCallback::Code(code) => notion::exchange_code(&code).await?,
-        notion::OAuthCallback::Token(token) => token,
-    };
+    let token = notion::exchange_code(&callback).await?;
 
     let workspace = notion::verify_token(token.trim()).await?;
     crate::secrets::set(notion::NOTION_TOKEN_SECRET, token.trim())
@@ -166,12 +163,12 @@ fn open_in_browser(url: &str) -> Result<(), String> {
 }
 
 /// 루프백에서 콜백 1건을 기다린다 (논블로킹 accept 폴링, 상한
-/// [`notion::OAUTH_TIMEOUT_SECS`]). state 불일치는 토큰을 버리고 계속 대기
+/// [`notion::OAUTH_TIMEOUT_SECS`]). state 불일치는 값을 버리고 계속 대기
 /// (다른 로컬 프로세스의 우연/악의 요청 방어).
 fn wait_for_oauth_callback(
     listener: std::net::TcpListener,
     expect_state: &str,
-) -> Result<notion::OAuthCallback, String> {
+) -> Result<String, String> {
     use std::io::{Read, Write};
     let deadline =
         std::time::Instant::now() + std::time::Duration::from_secs(notion::OAUTH_TIMEOUT_SECS);
