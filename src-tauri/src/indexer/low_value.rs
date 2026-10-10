@@ -176,9 +176,16 @@ mod tests {
             .map(|p| crate::git::slash(p.strip_prefix(root).unwrap()))
             .collect();
         assert_eq!(walked, vec!["src/a.go"]);
-        assert!(is_indexable_path(&root.join("src/a.go"), &cfg));
+        assert!(is_indexable_path(
+            root,
+            std::path::Path::new("src/a.go"),
+            &cfg
+        ));
         for rel in skipped {
-            assert!(!is_indexable_path(&root.join(rel), &cfg), "{rel}");
+            assert!(
+                !is_indexable_path(root, std::path::Path::new(rel), &cfg),
+                "{rel}"
+            );
         }
     }
 }
