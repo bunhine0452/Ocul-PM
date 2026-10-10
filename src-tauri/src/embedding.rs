@@ -520,6 +520,19 @@ mod tests {
         assert_eq!(got.len(), files.len());
     }
 
+    /// [`load_model`] 은 onnx 바이트만 넘기고 부속 파일(외부 초기화 데이터)은 넘기지 않는다.
+    /// 부속 파일이 있는 모델로 바꾸면 여기서 먼저 깨진다 — 그때 `external_initializers` 를
+    /// 잇는다 (`try_new` 는 같은 폴더에서 알아서 찾았다).
+    #[test]
+    fn active_model_has_no_additional_files() {
+        let info = TextEmbedding::get_model_info(&MODEL).unwrap();
+        assert!(
+            info.additional_files.is_empty(),
+            "{:?}",
+            info.additional_files
+        );
+    }
+
     /// 실모델 오프라인 로드 — `OCULPM_TEST_MODEL_CACHE` 가 가리키는 **복사본**으로만.
     #[test]
     #[ignore]
