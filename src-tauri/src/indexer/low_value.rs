@@ -188,4 +188,29 @@ mod tests {
             );
         }
     }
+
+    /// 루트의 **조상**에 벤더·캐시 이름이 있어도 워처 판정은 루트 아래만 본다 —
+    /// 예전엔 `~/.cache/proj` 같은 프로젝트의 증분 색인이 통째로 꺼졌다.
+    #[test]
+    fn denied_names_above_the_root_do_not_count() {
+        use crate::indexer::{is_indexable_path, IndexConfig};
+        use std::path::Path;
+        let dir = tempfile::tempdir().unwrap();
+        for parent in ["vendor", ".cache", "target"] {
+            let root = dir.path().join(parent).join("proj");
+            for rel in ["src/a.ts", "vendor/x.ts"] {
+                std::fs::create_dir_all(root.join(rel).parent().unwrap()).unwrap();
+                std::fs::write(root.join(rel), "export const a = 1;\n").unwrap();
+            }
+            let cfg = IndexConfig::default();
+            assert!(
+                is_indexable_path(&root, Path::new("src/a.ts"), &cfg),
+                "{parent}"
+            );
+            assert!(
+                !is_indexable_path(&root, Path::new("vendor/x.ts"), &cfg),
+                "{parent}"
+            );
+        }
+    }
 }
