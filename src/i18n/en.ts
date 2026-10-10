@@ -118,6 +118,7 @@ export const en: Record<keyof typeof ko, string> = {
 
   // ── Markdown ────────────────────────────────────────────────────────────
   "markdown.copyCode": "Copy code",
+  "markdown.remoteImage": "Remote image. Click to open in your browser — {url}",
 
   // ── ⌘K command palette ──────────────────────────────────────────────────
   "palette.aria": "Command palette",
