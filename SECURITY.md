@@ -30,7 +30,7 @@
 |---|---|---|
 | 언어 서버 | `build.rs` · proc-macro · 툴체인 파일 · venv · `node_modules` 의 서버 | 프로젝트 신뢰 (`src-tauri/src/trust.rs`) — 신뢰 전엔 안 띄운다 |
 | 앱 안 에이전트 (Claude Code · Codex) | `.claude/settings.json` 훅 · `.mcp.json` 서버 | 같은 프로젝트 신뢰 — 신뢰 전엔 어댑터를 안 띄운다 |
-| 자동 git 호출 (Today · 변경 화면) | `.git/config` 의 fsmonitor · 필터 · 외부 diff · `.git/hooks` | 신뢰 없이 늘 끈다 (`src-tauri/src/git/safe.rs` — git 을 띄우는 유일한 자리) |
+| 자동 git 호출 (Today · 변경 화면) | `.git/config` 의 fsmonitor · 필터 · 외부 diff · `.git/hooks` · 부분 클론의 지연 fetch(`uploadpack` 등, git 2.44+) | 신뢰 없이 늘 끈다 (`src-tauri/src/git/safe.rs` — git 을 띄우는 유일한 자리) |
 | 플러그인 번들 | 번들의 `.mcp.json` 명령 | 미리본 바이트와 같을 때만 설치 (`commands/plugins.rs`) |
 | 배경 AI 작업 | 자동화 정의 | 기기 동의 (위 표) |
 

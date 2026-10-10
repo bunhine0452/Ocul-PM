@@ -9,7 +9,7 @@ use super::{Fixtures, Launch, Reach};
 // 원장 — 출시 코드 (D1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GIT_LOCAL: &str = "git 로컬 하위 명령만 — 네트워크 하위 명령(push·fetch·pull·clone·ls-remote·submodule)은 egress_spawn_ledger.rs 의 git_stays_local_only 가 git 에 닿는 파일 전부에서 막는다. 부분 클론(promisor)이면 git 이 빠진 객체를 원격에서 지연으로 받을 수 있다 — 저장소 설정의 동작이다.";
+const GIT_LOCAL: &str = "git 로컬 하위 명령만 — 네트워크 하위 명령(push·fetch·pull·clone·ls-remote·submodule)은 egress_spawn_ledger.rs 의 git_stays_local_only 가 git 에 닿는 파일 전부에서 막는다. 부분 클론(promisor)의 지연 fetch 는 git::safe 가 GIT_NO_LAZY_FETCH=1 로 끈다(2.44 미만 git 은 이 변수를 모른다).";
 
 pub(super) const APP_LAUNCHES: &[Launch] = &[
     // ── 송출 가능 ──

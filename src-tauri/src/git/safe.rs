@@ -10,9 +10,16 @@
 //! | `.git/hooks/post-index-change` | `status` 가 인덱스를 다시 쓸 때 | `GIT_OPTIONAL_LOCKS=0` + 없는 `core.hooksPath` |
 //! | `filter.<이름>.clean`·`process` | `diff` (`--no-ext-diff` 로 **안** 막힌다) | 저장소 설정에서 이름을 읽어 빈 값 + `required=false` |
 //! | `diff.external` · `diff.<드라이버>.command`·`textconv` | `diff`·`show`·`log -p` | `--no-ext-diff --no-textconv` |
+//! | 부분 클론의 지연 fetch — `remote.<이름>.uploadpack` · `core.sshCommand` · 자격 증명 도우미 | 아직 안 받은 객체를 읽는 `diff`·`show`·`log` | `GIT_NO_LAZY_FETCH=1` (git 2.44+) |
 //!
 //! 막는 법이 둘로 갈린 이유: 필터는 플래그로 끌 수 없고, 드라이버는 빈 값으로 덮으면
 //! git 이 빈 프로그램을 실행하려다 diff 전체가 실패한다 (둘 다 재현으로 확인).
+//!
+//! 지연 fetch 는 `-c remote.<이름>.uploadpack=…` 로 덮어도, `promisor`·`partialClone`
+//! 을 비워도 돌았다 — 끄는 길은 환경 변수(= `--no-lazy-fetch`) 하나다 (2026-10-10 재현).
+//! 대가: 부분 클론에서 아직 안 받은 옛 객체의 diff 는 실패로 보인다. 사용자의 git 이
+//! 받아 두면 다시 보인다. 2.44 미만 git 은 이 변수를 모른다 — 그 git 에서는 `.git` 째
+//! 받은 부분 클론에 이 문이 남는다.
 //!
 //! 막는 것은 **저장소 범위(local·worktree)** 설정뿐이다. 사용자 전역 설정(예: 전역
 //! git-lfs 필터)은 사용자가 고른 것이라 그대로 둔다 — 덮으면 LFS 파일이 전부
@@ -67,6 +74,9 @@ pub fn cmd(dir: &Path, args: &[&str]) -> Command {
     // `status` 가 기회 삼아 인덱스를 다시 쓰지 않게 한다 — 그 쓰기가 훅을 부르고,
     // 사용자의 git 과 `index.lock` 을 다투기도 한다 (VS Code 와 같은 설정).
     cmd.env("GIT_OPTIONAL_LOCKS", "0");
+    // 부분 클론의 빠진 객체를 원격에서 받지 않는다 — 그 fetch 가 저장소 설정의
+    // `remote.<이름>.uploadpack` 을 우리 권한으로 띄운다 (위 표).
+    cmd.env("GIT_NO_LAZY_FETCH", "1");
     if let Some((sub, rest)) = args.split_first() {
         cmd.arg(sub);
         if DIFF_FAMILY.contains(sub) {
@@ -320,6 +330,75 @@ mod tests {
             !ran().is_empty(),
             "대조군이 아무것도 안 돌렸다 — 재현이 깨졌다"
         );
+    }
+
+    /// 부분 클론의 지연 fetch 가 저장소 설정의 `uploadpack` 을 띄우지 않는다. 대조군:
+    /// 평범한 git 은 같은 `show` 에서 그것을 띄운다 (2026-10-10 재현, git 2.53).
+    #[cfg(unix)]
+    #[test]
+    fn partial_clone_lazy_fetch_cannot_run_repo_uploadpack() {
+        let version = crate::proc::std_cmd("git")
+            .arg("--version")
+            .output()
+            .unwrap();
+        let version = String::from_utf8_lossy(&version.stdout).into_owned();
+        let mut nums = version
+            .split_whitespace()
+            .nth(2)
+            .unwrap_or("0.0")
+            .split('.')
+            .map(|n| n.parse::<u32>().unwrap_or(0));
+        if (nums.next().unwrap_or(0), nums.next().unwrap_or(0)) < (2, 44) {
+            eprintln!("git {version} 은 GIT_NO_LAZY_FETCH 를 모른다 — 건너뜀");
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let origin = dir.path().join("origin");
+        let clone = dir.path().join("clone");
+        let marks = dir.path().join("marks");
+        std::fs::create_dir_all(&origin).unwrap();
+        std::fs::create_dir_all(&marks).unwrap();
+        git(&origin, &["init", "-q"]);
+        git(&origin, &["config", "uploadpack.allowFilter", "true"]);
+        git(
+            &origin,
+            &["config", "uploadpack.allowAnySHA1InWant", "true"],
+        );
+        std::fs::write(origin.join("f.txt"), "a\n").unwrap();
+        git(&origin, &["add", "f.txt"]);
+        git(&origin, &["commit", "-qm", "1"]);
+        std::fs::write(origin.join("f.txt"), "b\n").unwrap();
+        git(&origin, &["commit", "-qam", "2"]);
+        let url = format!("file://{}", origin.display());
+        git(
+            dir.path(),
+            &[
+                "clone",
+                "-q",
+                "--filter=blob:none",
+                "--no-local",
+                &url,
+                "clone",
+            ],
+        );
+        let evil = format!(
+            "sh -c 'touch {}/uploadpack; exec git-upload-pack \"$@\"' --",
+            marks.display()
+        );
+        git(&clone, &["config", "remote.origin.uploadpack", &evil]);
+        let ran = || std::fs::read_dir(&marks).unwrap().count();
+
+        let out = output(&mut cmd(&clone, &["show", "HEAD~1:f.txt"])).unwrap();
+        assert!(!out.status.success(), "빠진 객체를 받아 왔다");
+        assert_eq!(ran(), 0, "저장소 설정의 uploadpack 이 돌았다");
+
+        // 대조군 — 덮지 않은 git 은 지연 fetch 로 uploadpack 을 띄운다.
+        let _ = crate::proc::std_cmd("git")
+            .arg("-C")
+            .arg(&clone)
+            .args(["show", "HEAD~1:f.txt"])
+            .output();
+        assert!(ran() > 0, "대조군이 아무것도 안 돌렸다 — 재현이 깨졌다");
     }
 
     #[test]
