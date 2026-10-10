@@ -4,12 +4,12 @@ use std::collections::HashSet;
 use std::fs;
 use std::time::UNIX_EPOCH;
 
-use crate::db::{ChunkInsert, Db};
-use crate::embedding::{vec_to_bytes, Embedder};
+use crate::db::Db;
 use std::path::{Component, Path, PathBuf};
 
 use ignore::{overrides::OverrideBuilder, WalkBuilder};
 pub(crate) mod low_value;
+pub mod store;
 
 pub const DEFAULT_MAX_FILE_BYTES: u64 = 500_000; // 500 KB
 pub const DEFAULT_CHUNK_LINES: usize = 30;
@@ -946,15 +946,14 @@ pub enum ReindexSkipReason {
 }
 
 /// Reindex one file: upsert + diff snapshot + AST symbols + chunk embeddings.
-/// Shared by the `reindex_paths` command and the watcher's incremental
-/// auto-index (PR-5). Returns `(embeddings_updated, ast_updated)` or a
-/// structured skip reason — unlike the old inline loop, an embed/insert
-/// failure on one file is reported as a skip instead of aborting the batch.
-/// The file is reindexed unconditionally (no hash short-circuit): callers
-/// reach here only for paths they already know changed.
+/// Used by the watcher's incremental auto-index (PR-5). Returns
+/// `(chunks_written, ast_updated)` or a structured skip reason — an
+/// embed/insert failure on one file is reported as a skip instead of aborting.
+/// `upsert_file` 이 안 바뀌었다고 하면 `(0, 0)` — 같은 파일의 증분 둘이 겹칠 때
+/// 뒤의 것이 청크·심볼을 덧붙이던 자리다 (`store` 모듈 주석).
 pub async fn reindex_single_file(
     db: &Db,
-    embedder: &Embedder,
+    embedder: &impl store::EmbedTexts,
     project_id: u32,
     root: &std::path::Path,
     index_config: &IndexConfig,
@@ -986,7 +985,7 @@ pub async fn reindex_single_file(
         .unwrap_or(0);
     let language = language_for(&abs_path).map(String::from);
 
-    let (file_id, _changed) = db
+    let (file_id, changed) = db
         .upsert_file(
             project_id,
             rel_str.to_string(),
@@ -999,6 +998,9 @@ pub async fn reindex_single_file(
         .map_err(|e| ReindexSkipReason::UpsertFailed {
             error: e.to_string(),
         })?;
+    if !changed {
+        return Ok((0, 0));
+    }
 
     // PR6.6 diff 기준선 — HEAD 가 서빙하면 안 찍고 지운다 (`{#snapshot-git-dup}`).
     let in_head = {
@@ -1013,7 +1015,6 @@ pub async fn reindex_single_file(
             error: e.to_string(),
         })?;
 
-    let mut embeddings_updated: u32 = 0;
     let mut ast_updated: u32 = 0;
     let (chunks, analysis) = chunk_file(&abs_path, &content, index_config);
     if let Some(ref ana) = analysis {
@@ -1024,32 +1025,9 @@ pub async fn reindex_single_file(
                 error: e.to_string(),
             })? as u32;
     }
-    if !chunks.is_empty() {
-        for batch in chunks.chunks(EMBED_BATCH) {
-            let texts: Vec<String> = batch.iter().map(|c| c.content.clone()).collect();
-            let embeddings = embedder
-                .embed(texts)
-                .await
-                .map_err(|e| ReindexSkipReason::UpsertFailed { error: e })?;
-            let rows: Vec<ChunkInsert> = batch
-                .iter()
-                .zip(embeddings.iter())
-                .map(|(chunk, embedding)| ChunkInsert {
-                    kind: chunk.kind.to_string(),
-                    start_line: chunk.start_line,
-                    end_line: chunk.end_line,
-                    content: chunk.content.clone(),
-                    embedding: vec_to_bytes(embedding),
-                })
-                .collect();
-            embeddings_updated += db
-                .insert_chunks_with_embeddings(project_id, file_id, rows)
-                .await
-                .map_err(|e| ReindexSkipReason::UpsertFailed {
-                    error: e.to_string(),
-                })? as u32;
-        }
-    }
-
-    Ok((embeddings_updated, ast_updated))
+    let pending = chunks.into_iter().map(Into::into).collect();
+    let stored = store::store_file_chunks(db, embedder, project_id, file_id, &hash, pending)
+        .await
+        .map_err(|error| ReindexSkipReason::UpsertFailed { error })?;
+    Ok((stored.inserted, ast_updated))
 }

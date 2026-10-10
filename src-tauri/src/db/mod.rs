@@ -16,7 +16,7 @@ pub struct Db {
     path: PathBuf,
 }
 
-/// `insert_chunks_with_embeddings` 한 행. 인덱서가 만든 청크와 그 임베딩을
+/// `replace_file_chunks` 한 행. 인덱서가 만든 청크와 그 임베딩을
 /// 배치로 넘기기 위한 그릇이다 (임베딩은 vec0 가 받는 f32 리틀엔디언 바이트).
 pub struct ChunkInsert {
     pub kind: String,
@@ -29,6 +29,7 @@ pub struct ChunkInsert {
 pub mod automation;
 mod changes;
 mod chat;
+mod chunk_store;
 mod code_index;
 pub mod firings;
 mod graph;
