@@ -2,6 +2,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { useState, useCallback, type ReactNode } from "react";
+import { ImageOff } from "lucide-react";
 import { Copy, Check } from "./Icons";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/i18n";
@@ -9,6 +10,46 @@ import { useT } from "@/i18n";
 // v2 U6 — react-markdown + remark-gfm + rehype-highlight(≈141KB) 를 lazy 경계
 // 뒤로 보내기 위해 렌더 구현을 이 파일로 분리했다. 소비처는 계속
 // `@/components/Markdown` 을 임포트한다 (래퍼가 Suspense 를 소유).
+
+/** 원격(http/https/프로토콜 상대) 이미지 URL 인가 — data:/blob:/상대 경로는 아니다. */
+export function isRemoteImageSrc(src: string): boolean {
+  return /^(?:https?:)?\/\//i.test(src.trim());
+}
+
+/** 링크로 열 절대 URL (`//host/x` 는 https 로). */
+function remoteHref(src: string): string {
+  const s = src.trim();
+  return s.startsWith("//") ? `https:${s}` : s;
+}
+
+function hostOf(href: string): string {
+  try {
+    return new URL(href).hostname;
+  } catch {
+    return href;
+  }
+}
+
+/**
+ * 웹뷰 CSP(`img-src 'self' data: blob:`)가 원격 이미지를 막는다 — 로드는 추적 픽셀
+ * 송출이라 풀지 않는다. 깨진 아이콘 대신 "원격 이미지" 자리표시 + 링크로 그린다.
+ * 클릭은 문서 레벨 가드(lib/externalLinks)가 기본 브라우저로 보낸다.
+ */
+function RemoteImageLink({ src, alt }: { src: string; alt?: string }) {
+  const { t } = useT();
+  const href = remoteHref(src);
+  const label = alt?.trim() || hostOf(href);
+  return (
+    <a
+      href={href}
+      title={t("markdown.remoteImage", { url: href })}
+      className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-1.5 py-0.5 text-fs-1 text-muted-foreground no-underline hover:text-foreground"
+    >
+      <ImageOff size={13} aria-hidden="true" />
+      <span>{label}</span>
+    </a>
+  );
+}
 
 /** Code block wrapper with a copy button overlay */
 function CodeBlockWrapper({ children, className }: { children: ReactNode; className?: string }) {
@@ -94,6 +135,12 @@ export default function MarkdownImpl({
         rehypePlugins={[rehypeHighlight]}
         urlTransform={urlTransform}
         components={{
+          img: ({ src, alt }) =>
+            typeof src === "string" && isRemoteImageSrc(src) ? (
+              <RemoteImageLink src={src} alt={alt} />
+            ) : (
+              <img src={src} alt={alt} />
+            ),
           pre: ({ children, className }) => (
             <CodeBlockWrapper className={className}>
               {children}
