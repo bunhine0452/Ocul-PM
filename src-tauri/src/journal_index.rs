@@ -27,9 +27,10 @@ use std::path::Path;
 
 use regex::Regex;
 
-use crate::db::{ChunkInsert, Db};
-use crate::embedding::{vec_to_bytes, Embedder};
-use crate::indexer::{chunk_lines_with_offset, IndexConfig, EMBED_BATCH, MAX_CHUNK_BYTES};
+use crate::db::Db;
+use crate::embedding::Embedder;
+use crate::indexer::store::{store_file_chunks, PendingChunk};
+use crate::indexer::{chunk_lines_with_offset, IndexConfig, MAX_CHUNK_BYTES};
 use crate::oculpm::frontmatter::parse_frontmatter_and_body;
 use crate::oculpm::markdown::parse_body;
 use crate::oculpm::paths;
@@ -289,7 +290,7 @@ pub async fn reindex_journal_file(
         .upsert_file(
             project_id,
             rel.to_string(),
-            hash,
+            hash.clone(),
             meta.len() as i64,
             mtime,
             Some("markdown".to_string()),
@@ -300,28 +301,17 @@ pub async fn reindex_journal_file(
         return Ok((false, 0));
     }
 
-    let chunks = chunk_journal(rel, &content, redact);
-    let mut created = 0u32;
-    for batch in chunks.chunks(EMBED_BATCH) {
-        let texts: Vec<String> = batch.iter().map(|c| c.content.clone()).collect();
-        let embeddings = embedder.embed(texts).await?;
-        let rows: Vec<ChunkInsert> = batch
-            .iter()
-            .zip(embeddings.iter())
-            .map(|(c, emb)| ChunkInsert {
-                kind: CHUNK_KIND.to_string(),
-                start_line: c.start_line,
-                end_line: c.end_line,
-                content: c.content.clone(),
-                embedding: vec_to_bytes(emb),
-            })
-            .collect();
-        created += db
-            .insert_chunks_with_embeddings(project_id, file_id, rows)
-            .await
-            .map_err(|e| e.to_string())? as u32;
-    }
-    Ok((true, created))
+    let pending = chunk_journal(rel, &content, redact)
+        .into_iter()
+        .map(|c| PendingChunk {
+            kind: CHUNK_KIND.to_string(),
+            start_line: c.start_line,
+            end_line: c.end_line,
+            content: c.content,
+        })
+        .collect();
+    let stored = store_file_chunks(db, embedder, project_id, file_id, &hash, pending).await?;
+    Ok((true, stored.inserted))
 }
 
 /// 설정을 읽어 이번 색인의 일지 대상 목록을 걷는다 — 꺼져 있으면 빈 목록.

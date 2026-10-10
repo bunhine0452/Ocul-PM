@@ -7,23 +7,31 @@
 //! 근거로 계속 떠오른다.
 //!
 //! 여기서는 걷지 않는다 — 색인된 경로마다 stat 만 하고, 지금 규칙으로는 색인하지
-//! 않을 자리(벤더·캐시 폴더 · 잠금 파일 · 비밀 파일)도 함께 걷어 낸다. 재임베딩은
-//! 없다. `.gitignore` 는 보지 않는다: 그 판정은 걷기의 몫이고, 여기서 틀리면 멀쩡한
-//! 행을 지운다.
+//! 않을 자리(벤더·캐시 폴더 · 잠금 파일 · 비밀 파일 · 데이터 파일)도 함께 걷어
+//! 낸다. 재임베딩은 없다. `.gitignore` 는 보지 않는다: 그 판정은 걷기의 몫이고,
+//! 여기서 틀리면 멀쩡한 행을 지운다.
 
 use std::path::Path;
 
 use crate::db::Db;
 
 /// 색인에는 있는데 더는 색인할 수 없는 경로 (순수 — stat 만).
+///
+/// 데이터 파일(`indexer::low_value`)도 여기서 걷는다 — 판정이 경로 + 크기라 같은
+/// stat 하나로 끝난다. 설정의 최대 크기는 보지 않는다: 설정을 읽지 않는 자리라,
+/// 기본값으로 재면 상한을 올려 둔 사람의 큰 파일을 지운다.
 pub(crate) fn stale_paths(root: &Path, indexed: Vec<String>) -> Vec<String> {
     indexed
         .into_iter()
         .filter(|rel| {
             let p = Path::new(rel);
-            crate::indexer::is_skipped_name(p)
-                || crate::indexer::has_denied_component(p)
-                || !root.join(rel).is_file()
+            if crate::indexer::is_skipped_name(p) || crate::indexer::has_denied_component(p) {
+                return true;
+            }
+            match std::fs::metadata(root.join(rel)) {
+                Ok(m) if m.is_file() => crate::indexer::low_value::is_data_file(p, m.len()),
+                _ => true,
+            }
         })
         .collect()
 }
@@ -67,6 +75,12 @@ mod tests {
         std::fs::write(root.join(".env.example"), "KEY=1\n").unwrap();
         std::fs::create_dir_all(root.join("node_modules/x")).unwrap();
         std::fs::write(root.join("node_modules/x/index.js"), "1\n").unwrap();
+        // 데이터 파일 — 표는 크기와 무관하게, JSON 은 클 때만. 매니페스트는 커도 남는다.
+        std::fs::write(root.join("words.tsv"), "a\tb\n").unwrap();
+        std::fs::write(root.join("small.json"), "{}\n").unwrap();
+        let big = format!("[{}0]\n", "0,".repeat(10_000));
+        std::fs::write(root.join("results.json"), &big).unwrap();
+        std::fs::write(root.join("package.json"), &big).unwrap();
 
         let stale = stale_paths(
             root,
@@ -76,6 +90,10 @@ mod tests {
                 "removed-dir/a.ts".into(),
                 ".env.example".into(),
                 "node_modules/x/index.js".into(),
+                "words.tsv".into(),
+                "small.json".into(),
+                "results.json".into(),
+                "package.json".into(),
             ],
         );
         assert_eq!(
@@ -85,6 +103,8 @@ mod tests {
                 "removed-dir/a.ts".to_string(),
                 ".env.example".to_string(),
                 "node_modules/x/index.js".to_string(),
+                "words.tsv".to_string(),
+                "results.json".to_string(),
             ]
         );
     }

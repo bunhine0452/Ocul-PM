@@ -13,8 +13,6 @@ use crate::embedding::{vec_to_bytes, Embedder};
 use crate::indexer;
 use crate::path_guard::secure_join;
 
-use crate::indexer::EMBED_BATCH;
-
 mod index_flight;
 mod prepare;
 pub(crate) mod reconcile;
@@ -303,7 +301,7 @@ async fn run_index(
     let start = Instant::now();
     let mut files_processed = 0u32;
     let mut files_changed = 0u32;
-    let mut chunks_created = 0u32;
+    let (mut chunks_created, mut chunks_embedded) = (0u32, 0u32);
     let mut import_resolver_queue = Vec::new();
     // 진행률은 파일마다가 아니라 100ms 에 한 번 (완성도 라운드 Phase 3). 파일
     // 수천 개짜리 저장소에서 IPC 수천 건이 웹뷰 렌더를 밀어내던 것 — 첫 파일과
@@ -403,30 +401,19 @@ async fn run_index(
                 .map_err(|e| e.to_string())?;
         }
 
-        if chunks.is_empty() {
-            continue;
-        }
-
-        for batch in chunks.chunks(EMBED_BATCH) {
-            let texts: Vec<String> = batch.iter().map(|c| c.content.clone()).collect();
-            let embeddings = embedder.embed(texts).await?;
-
-            let rows: Vec<crate::db::ChunkInsert> = batch
-                .iter()
-                .zip(embeddings.iter())
-                .map(|(chunk, embedding)| crate::db::ChunkInsert {
-                    kind: chunk.kind.to_string(),
-                    start_line: chunk.start_line,
-                    end_line: chunk.end_line,
-                    content: chunk.content.clone(),
-                    embedding: vec_to_bytes(embedding),
-                })
-                .collect();
-            chunks_created += db
-                .insert_chunks_with_embeddings(project_id, file_id, rows)
-                .await
-                .map_err(|e| e.to_string())? as u32;
-        }
+        // 같은 내용의 벡터는 다시 임베딩하지 않는다 — 옛 청크 · 통째 사본 (`indexer::store`).
+        let pending = chunks.into_iter().map(Into::into).collect();
+        let stored = indexer::store::store_file_chunks(
+            db,
+            embedder,
+            project_id,
+            file_id,
+            &prepared.hash,
+            pending,
+        )
+        .await?;
+        chunks_created += stored.inserted;
+        chunks_embedded += stored.embedded;
     }
 
     // 일지·롤업 스윕. 옵션이 꺼져 있으면 `journal_todo` 가 비어 있고, 그러면
@@ -527,7 +514,7 @@ async fn run_index(
     let took_ms = start.elapsed().as_millis().min(u32::MAX as u128) as u32;
     info!(
         files_processed,
-        files_changed, chunks_created, took_ms, "indexing done"
+        files_changed, chunks_created, chunks_embedded, took_ms, "indexing done"
     );
 
     // G2 hook: refresh the project overview in the background. We resolve the

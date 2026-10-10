@@ -341,7 +341,7 @@ pub fn schedule_incremental_index(
                 }
                 let embedder = handle.state::<Embedder>();
                 match crate::indexer::reindex_single_file(
-                    &db, &embedder, project_id, &root, &cfg, &rel_path,
+                    &db, &*embedder, project_id, &root, &cfg, &rel_path,
                 )
                 .await
                 {
