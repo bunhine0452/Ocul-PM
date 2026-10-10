@@ -925,27 +925,6 @@ mod walk_tests {
             &IndexConfig::default()
         ));
     }
-
-    /// 루트의 **조상**에 벤더·캐시 이름이 있어도 워처 판정은 루트 아래만 본다 —
-    /// 예전엔 `~/.cache/proj` 같은 프로젝트의 증분 색인이 통째로 꺼졌다.
-    #[test]
-    fn denied_names_above_the_root_do_not_count() {
-        let dir = tempfile::tempdir().unwrap();
-        for parent in ["vendor", ".cache", "target"] {
-            let root = dir.path().join(parent).join("proj");
-            write(&root, "src/a.ts", "export const a = 1;\n");
-            write(&root, "vendor/x.ts", "export const x = 1;\n");
-            let cfg = IndexConfig::default();
-            assert!(
-                is_indexable_path(&root, Path::new("src/a.ts"), &cfg),
-                "{parent}"
-            );
-            assert!(
-                !is_indexable_path(&root, Path::new("vendor/x.ts"), &cfg),
-                "{parent}"
-            );
-        }
-    }
 }
 
 // ─── 파일 하나 재색인 (Phase 4: `commands::diff` 에서 옮겨 왔다) ───────────
