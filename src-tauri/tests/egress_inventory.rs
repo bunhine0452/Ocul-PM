@@ -22,8 +22,12 @@
 //! | A | 소스 스캔으로 찾은 **자리**의 집합 == 원장의 자리 집합 | 새 파일이 네트워크 프리미티브를 들면 실패. 원장의 자리가 사라져도 실패(죽은 항목이 남아 "가드가 있다"는 착시를 만든다) |
 //! | B | 소스 전체의 절대 URL **호스트** 인구조사 == 원장의 선언 | 어디에 적히든 새 목적지가 생기면 실패. 파일 단위로 묶지 않는 이유는 실제 코드가 그렇지 않기 때문이다 — `RELEASES_API` 는 `lib/updater.ts` 에 있고 그걸 `fetch` 하는 자리는 다른 파일 둘이다 |
 //! | C | 모든 원장 항목에 **사유 한 줄** | 사유 없는 면제는 면제가 아니라 방치다 |
+//! | D | 소스의 **프로세스 기동 자리** `(파일, 함수, 띄우는 것)` 집합 == 기동 원장 — 송출 가능(그 문) / 로컬 / 창구로 분류 (`egress_spawn_ledger.rs`) | 하위 프로세스로 나가는 길. A 의 프리미티브는 `npm ci`·`npx create-next-app`·터미널 셸을 못 본다 — `std_cmd(…)` 이기 때문이다. 새 `std_cmd("rsync")` 한 줄이 분류 없이는 못 들어온다 |
 //!
 //! 즉 `Site` 표에 손을 대지 않고는 아웃바운드를 **늘릴 수도 줄일 수도** 없다.
+//! D 는 함수 본문과 `#[cfg(test)]` 범위를 읽어야 해서 프롬프트 원장처럼 따로 산다
+//! (렉서는 `tests/source_scan/` 공용). 하위 프로세스의 금지선 — `curl`·`wget` 기동,
+//! git 의 네트워크 하위 명령 — 도 거기 있다.
 //!
 //! # 스캔의 규율
 //!
@@ -212,7 +216,7 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     ("codeload.github.com", "사용자가 명시적으로 요청한 플러그인 번들 zip 다운로드."),
     ("oculpm.com", "셋을 겸한다 — 테마 화이트리스트 호스트, Notion OAuth 교환 브로커(벤더 서버), OpenRouter 어트리뷰션 헤더 값. **약속 문구가 OAuth 브로커를 아직 안 적고 있다.**"),
     ("raw.githubusercontent.com", "테마 설치 화이트리스트의 두 번째 호스트 (deeplink::THEME_HOSTS)."),
-    ("registry.npmjs.org", "ACP 어댑터 설치 — Claude Code·Codex 화면이 어댑터를 처음 깔 때 npm 하위 프로세스가 고정 lockfile(acp-lock/, sha512)의 패키지를 받는다. 앱 코드는 이 호스트를 직접 부르지 않는다 — 소스의 이 문자열은 lockfile 계약 테스트(acp/adapter.rs)의 단언이다. **원장의 자리 스캔(A)은 하위 프로세스 송출을 세지 못한다** — 이 줄이 그 공백을 적어 둔다."),
+    ("registry.npmjs.org", "ACP 어댑터 설치 — Claude Code·Codex 화면이 어댑터를 처음 깔 때 npm 하위 프로세스가 고정 lockfile(acp-lock/, sha512)의 패키지를 받는다. 앱 코드는 이 호스트를 직접 부르지 않는다 — 소스의 이 문자열은 lockfile 계약 테스트(acp/adapter.rs)의 단언이다. 그 하위 프로세스 자리(`install_tree` 의 `tokio_cmd(npm)`)는 판정 D(egress_spawn_ledger.rs)가 송출 가능으로 센다."),
     // ── 브라우저에 넘기는 링크 (앱이 보내지 않는다) ──
     ("github.com", "저장소·이슈·릴리스 링크 — open_url 로 OS 브라우저에 위임한다. plugins/source.rs 의 테스트 픽스처이기도 하다."),
     ("www.notion.so", "사용자의 Notion 페이지 링크 — 브라우저 위임. notion.rs 에서는 URL 파서의 테스트 픽스처다."),
@@ -443,11 +447,6 @@ fn files_calling(root: &Path, exts: &[&str], tokens: &[&str], skip: &[&str]) -> 
     out
 }
 
-/// 자식 프로세스를 띄우는 호출 모양 — `proc.rs` 창구 둘, 그리고 창구 이전의
-/// `Command::new(`. 뒤의 것은 이제 창구 안(변수 인자)과 통합 테스트에만 있지만,
-/// clippy 게이트가 `#[allow]` 로 뚫리는 날에도 이 원장이 따로 잡도록 남긴다.
-const SPAWN_SHAPES: &[&str] = &["std_cmd(", "tokio_cmd(", "Command::new("];
-
 fn ledger_paths(sites: &[Site]) -> BTreeSet<String> {
     sites.iter().map(|s| s.path.to_string()).collect()
 }
@@ -621,76 +620,9 @@ fn theme_host_allowlist_stays_closed() {
     assert!(deeplink::validate_theme_url("https://oculpm.com@evil.test/t.json").is_err());
 }
 
-/// git 은 로컬 전용이라는 주장(`git.rs` — "no token, no network")을 실제로
-/// 잡는다.
-///
-/// **git 을 실제로 띄우는 파일만** 본다. 소스 전체에서 `"push"` 를 찾으면
-/// LSP 자동완성 픽스처의 `{"label": "push"}` 가 걸린다 — 오탐이 한 번 나면
-/// 다음 사람이 게이트를 느슨하게 만들고, 그때 진짜가 새어 나간다.
-///
-/// 자리 목록을 **손으로 들지 않는다**: 새 파일이 git 을 띄우기 시작하면
-/// 스캔이 알아서 데려온다. 원장을 손으로 든 곳(RUST_SITES)과 다른 선택인
-/// 이유는, 여기서 지키려는 것이 "누가 띄우는가" 가 아니라 "무엇을 띄우는가"
-/// 이기 때문이다 — 전자는 늘어나도 무해하고 후자는 하나만 늘어도 약속이 깨진다.
-///
-/// 앱의 프로세스 생성은 `proc.rs` 창구(`std_cmd`·`tokio_cmd`)를 지난다 (크로스플랫폼
-/// D5 — clippy `disallowed-methods` 가 그 밖의 `Command::new` 를 막는다). 그래서
-/// 띄우는 모양은 [`SPAWN_SHAPES`] 셋 전부를 본다.
-#[test]
-fn git_stays_local_only() {
-    let git_spawns: Vec<String> = SPAWN_SHAPES
-        .iter()
-        .map(|s| format!("{s}\"git\")"))
-        .collect();
-    let git_spawns: Vec<&str> = git_spawns.iter().map(String::as_str).collect();
-    let spawners = files_calling(&crate_src(), &["rs"], &git_spawns, &[]);
-    assert!(
-        spawners.len() >= 3,
-        "git 을 띄우는 파일을 {}개밖에 못 찾았다 — 스캐너가 낡아 검사가 헛돌고 있다",
-        spawners.len()
-    );
-
-    for rel in &spawners {
-        let text = strip_line_comments(&std::fs::read_to_string(crate_src().join(rel)).unwrap());
-        // 인자로 넘어가는 형태만 본다 (`&["push", …]` · `.arg("push")`).
-        for banned in ["push", "clone", "fetch", "pull"] {
-            for shape in [
-                format!("\"{banned}\","),
-                format!("\"{banned}\"]"),
-                format!("arg(\"{banned}\")"),
-            ] {
-                assert!(
-                    !text.contains(&shape),
-                    "{rel}: git 네트워크 서브커맨드 `{banned}` — git 은 로컬 전용 계약이다 \
-                     (토큰도 없고 원격도 안 건드린다는 것이 README 의 주장이다)"
-                );
-            }
-        }
-    }
-}
-
-/// 원장을 우회하는 고전적인 두 경로 — 하위 프로세스로 `curl`/`wget` 을 띄우기.
-#[test]
-fn nothing_shells_out_to_curl_or_wget() {
-    let mut files = Vec::new();
-    walk(&crate_src(), &["rs"], &mut files);
-    for path in files {
-        let Ok(raw) = std::fs::read_to_string(&path) else {
-            continue;
-        };
-        let text = strip_line_comments(&raw);
-        for banned in SPAWN_SHAPES
-            .iter()
-            .flat_map(|s| [format!("{s}\"curl\")"), format!("{s}\"wget\")")])
-        {
-            assert!(
-                !text.contains(&banned),
-                "{}: {banned} — 하위 프로세스로 나가면 유출 원장을 우회한다",
-                path.display()
-            );
-        }
-    }
-}
+// 하위 프로세스의 금지선 — `curl`·`wget` 기동과 git 의 네트워크 하위 명령 — 은
+// 판정 D 와 함께 `egress_spawn_ledger.rs` 로 옮겼다. 기동 자리를 다 아는 스캐너가
+// 거기 있어서, 같은 검사가 그 위에서 더 넓게 본다 (2026-10-10).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // C. 사유 필수
