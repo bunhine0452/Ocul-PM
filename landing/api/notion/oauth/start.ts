@@ -14,12 +14,18 @@ export default function handler(
 ) {
   const port = Number(req.query.port);
   const state = String(req.query.state ?? "");
-  // 새 앱은 `flow=code` 를 붙인다 — 콜백이 토큰 대신 code 만 루프백으로 넘기고, 앱이
-  // `exchange` 로 POST 해 토큰을 응답 본문으로 받는다 (토큰이 브라우저 기록에 안 남는다).
-  // 붙이지 않은 옛 앱은 예전 흐름 그대로다.
-  const flow = req.query.flow === "code" ? "code" : undefined;
   if (!Number.isInteger(port) || port < 1024 || port > 65535 || !/^[0-9a-f]{16,64}$/.test(state)) {
     res.status(400).send("invalid port/state");
+    return;
+  }
+  // `flow=code` 가 없는 시작은 옛 앱(3.8.0 미만)이다 — 토큰을 `?token=` 에 실어 보내던
+  // 흐름은 지웠다. 앱 업데이트를 안내한다.
+  if (req.query.flow !== "code") {
+    res
+      .status(400)
+      .send(
+        `<html><body style="font-family:sans-serif;text-align:center;padding-top:80px"><h2>앱을 업데이트해 주세요</h2><p>이 버전의 ocul-pm 은 Notion 연결 방식이 오래되었습니다.</p><p>ocul-pm 을 최신 버전으로 업데이트한 뒤 다시 시도해 주세요.</p></body></html>`,
+      );
     return;
   }
   const clientId = process.env.NOTION_OAUTH_CLIENT_ID;
@@ -40,7 +46,7 @@ export default function handler(
   // 루프백 좌표를 state 에 실어 왕복한다 (서버는 무상태).
   u.searchParams.set(
     "state",
-    Buffer.from(JSON.stringify({ p: port, s: state, ...(flow ? { f: flow } : {}) })).toString("base64url"),
+    Buffer.from(JSON.stringify({ p: port, s: state })).toString("base64url"),
   );
   res.redirect(302, u.toString());
 }

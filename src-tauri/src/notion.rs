@@ -372,7 +372,7 @@ mod tests {
 // 예전에는 callback 이 교환까지 하고 토큰을 `?token=` 에 실어 리다이렉트했다 — 그 URL
 // 이 브라우저 기록(과 동기화)에 남았다 (2026-10-07 외부 보안 피드백). code 는 한 번
 // 쓰면 끝이고 client secret 없이는 바꿀 수 없으므로 기록에 남아도 쓸모가 없다.
-// 아직 배포되지 않은 서버(flow 를 모른다)는 예전처럼 토큰을 보내므로 그 꼴도 받는다.
+// 옛 `?token=` 흐름은 v3.8.0 이후 다섯 릴리스를 지나 앱·서버 양쪽에서 지웠다.
 //
 // state nonce 는 CSRF/혼선 방지 — 검증 실패 시 값을 버린다.
 
@@ -383,41 +383,26 @@ pub const OAUTH_EXCHANGE_URL: &str = "https://oculpm.com/api/notion/oauth/exchan
 /// 루프백 콜백 대기 상한.
 pub const OAUTH_TIMEOUT_SECS: u64 = 180;
 
-/// 루프백으로 돌아온 값 — 새 흐름은 code, 옛 서버는 토큰.
-#[derive(Debug, PartialEq, Eq)]
-pub enum OAuthCallback {
-    Code(String),
-    /// 옛 흐름 — 서버가 아직 `flow=code` 를 모른다. 받되 새로 만들지 않는다.
-    // oculpm-defer: 랜딩의 exchange 배포가 한 릴리스 이상 지나면 이 갈래를 지운다.
-    Token(String),
-}
-
-/// 루프백으로 돌아온 요청 라인에서 (값, state) 를 뽑는다. code 가 있으면 code 다.
-/// 형식: `GET /oculpm/notion?code=…&state=… HTTP/1.1` (옛: `?token=…`)
-pub fn parse_oauth_callback(request_line: &str) -> Option<(OAuthCallback, String)> {
+/// 루프백으로 돌아온 요청 라인에서 (code, state) 를 뽑는다.
+/// 형식: `GET /oculpm/notion?code=…&state=… HTTP/1.1`
+pub fn parse_oauth_callback(request_line: &str) -> Option<(String, String)> {
     let path = request_line
         .strip_prefix("GET ")?
         .split_whitespace()
         .next()?;
     let query = path.split_once('?')?.1;
     let mut code = None;
-    let mut token = None;
     let mut state = None;
     for pair in query.split('&') {
         let (k, v) = pair.split_once('=')?;
         match k {
             "code" => code = Some(percent_decode(v)),
-            "token" => token = Some(percent_decode(v)),
             "state" => state = Some(percent_decode(v)),
             _ => {}
         }
     }
-    let value = match (code, token) {
-        (Some(c), _) if !c.is_empty() => OAuthCallback::Code(c),
-        (_, Some(t)) if !t.is_empty() => OAuthCallback::Token(t),
-        _ => return None,
-    };
-    Some((value, state?))
+    let code = code.filter(|c| !c.is_empty())?;
+    Some((code, state?))
 }
 
 /// code → 토큰. 서버리스 교환 함수에 POST 하고 응답 본문에서 토큰을 꺼낸다.
@@ -450,7 +435,7 @@ pub async fn exchange_code(code: &str) -> Result<String, String> {
 /// 브루트포스가 빠르니 "해시했으니 안전" 이 성립하지 않는다.
 ///
 /// 뚫리면 무슨 일이 나는가: 로컬 프로세스가 nonce 와 포트를 맞혀 180초 창 안에
-/// `127.0.0.1:{port}/oculpm/notion?token=…&state={nonce}` 를 쏘면 **공격자의
+/// `127.0.0.1:{port}/oculpm/notion?code=…&state={nonce}` 를 쏘면 **공격자의
 /// Notion 토큰이 사용자 키체인에 저장된다** — 이후 내보내기가 공격자
 /// 워크스페이스로 간다.
 ///
@@ -466,30 +451,26 @@ mod oauth_tests {
 
     #[test]
     fn parses_callback_and_rejects_garbage() {
-        // 새 흐름 — code 가 온다 (토큰은 URL 에 실리지 않는다).
         let (v, s) =
             parse_oauth_callback("GET /oculpm/notion?code=abc-123&state=deadbeef HTTP/1.1")
                 .unwrap();
-        assert_eq!(v, OAuthCallback::Code("abc-123".into()));
+        assert_eq!(v, "abc-123");
         assert_eq!(s, "deadbeef");
-        // 옛 서버 — 토큰이 온다. 아직 받는다.
-        let (t, _) =
-            parse_oauth_callback("GET /oculpm/notion?token=ntn_abc123&state=deadbeef HTTP/1.1")
-                .unwrap();
-        assert_eq!(t, OAuthCallback::Token("ntn_abc123".into()));
-        // 둘 다 있으면 code 가 이긴다. 비어 있으면 없는 것이다.
-        let (both, _) = parse_oauth_callback("GET /cb?token=t&code=c&state=s HTTP/1.1").unwrap();
-        assert_eq!(both, OAuthCallback::Code("c".into()));
+        // 옛 `?token=` 꼴은 더 받지 않는다. code 가 비어 있으면 없는 것이다.
+        assert!(parse_oauth_callback(
+            "GET /oculpm/notion?token=ntn_abc123&state=deadbeef HTTP/1.1"
+        )
+        .is_none());
         assert!(parse_oauth_callback("GET /cb?code=&state=s HTTP/1.1").is_none());
         assert!(parse_oauth_callback("GET /favicon.ico HTTP/1.1").is_none());
-        assert!(parse_oauth_callback("POST /x?token=a&state=b HTTP/1.1").is_none());
+        assert!(parse_oauth_callback("POST /x?code=a&state=b HTTP/1.1").is_none());
         assert!(
             parse_oauth_callback("GET /x?code=a HTTP/1.1").is_none(),
             "state 필수"
         );
         // 퍼센트 인코딩 방어.
-        let (t2, _) = parse_oauth_callback("GET /cb?token=a%2Bb&state=s HTTP/1.1").unwrap();
-        assert_eq!(t2, OAuthCallback::Token("a+b".into()));
+        let (c2, _) = parse_oauth_callback("GET /cb?code=a%2Bb&state=s HTTP/1.1").unwrap();
+        assert_eq!(c2, "a+b");
     }
 
     #[test]
