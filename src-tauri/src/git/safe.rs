@@ -334,6 +334,8 @@ mod tests {
 
     /// 부분 클론의 지연 fetch 가 저장소 설정의 `uploadpack` 을 띄우지 않는다. 대조군:
     /// 평범한 git 은 같은 `show` 에서 그것을 띄운다 (2026-10-10 재현, git 2.53).
+    /// 부분 클론은 네트워크 하위 명령 없이 만든다 — 옛 블롭을 지우고 promisor 를 단다
+    /// (기동 원장 `git_stays_local_only` 가 이 파일에서 그 글자를 금한다).
     #[cfg(unix)]
     #[test]
     fn partial_clone_lazy_fetch_cannot_run_repo_uploadpack() {
@@ -353,49 +355,52 @@ mod tests {
             return;
         }
         let dir = tempfile::tempdir().unwrap();
-        let origin = dir.path().join("origin");
-        let clone = dir.path().join("clone");
-        let marks = dir.path().join("marks");
-        std::fs::create_dir_all(&origin).unwrap();
+        let (origin, root, marks) = (
+            dir.path().join("origin"),
+            dir.path().join("repo"),
+            dir.path().join("marks"),
+        );
+        for (d, contents) in [(&origin, &["a\n"][..]), (&root, &["a\n", "b\n"][..])] {
+            std::fs::create_dir_all(d).unwrap();
+            git(d, &["init", "-q"]);
+            for (i, body) in contents.iter().enumerate() {
+                std::fs::write(d.join("f.txt"), body).unwrap();
+                git(d, &["add", "f.txt"]);
+                git(d, &["commit", "-qm", &i.to_string()]);
+            }
+        }
         std::fs::create_dir_all(&marks).unwrap();
-        git(&origin, &["init", "-q"]);
-        git(&origin, &["config", "uploadpack.allowFilter", "true"]);
-        git(
-            &origin,
-            &["config", "uploadpack.allowAnySHA1InWant", "true"],
-        );
-        std::fs::write(origin.join("f.txt"), "a\n").unwrap();
-        git(&origin, &["add", "f.txt"]);
-        git(&origin, &["commit", "-qm", "1"]);
-        std::fs::write(origin.join("f.txt"), "b\n").unwrap();
-        git(&origin, &["commit", "-qam", "2"]);
-        let url = format!("file://{}", origin.display());
-        git(
-            dir.path(),
-            &[
-                "clone",
-                "-q",
-                "--filter=blob:none",
-                "--no-local",
-                &url,
-                "clone",
-            ],
-        );
+        let old = crate::proc::std_cmd("git")
+            .arg("-C")
+            .arg(&root)
+            .args(["rev-parse", "HEAD~1:f.txt"])
+            .output()
+            .unwrap();
+        let old = String::from_utf8_lossy(&old.stdout).trim().to_string();
+        std::fs::remove_file(root.join(".git/objects").join(&old[..2]).join(&old[2..])).unwrap();
         let evil = format!(
             "sh -c 'touch {}/uploadpack; exec git-upload-pack \"$@\"' --",
             marks.display()
         );
-        git(&clone, &["config", "remote.origin.uploadpack", &evil]);
+        for (k, v) in [
+            ("core.repositoryformatversion", "1"),
+            ("extensions.partialClone", "origin"),
+            ("remote.origin.url", &origin.display().to_string()),
+            ("remote.origin.promisor", "true"),
+            ("remote.origin.uploadpack", &evil),
+        ] {
+            git(&root, &["config", k, v]);
+        }
         let ran = || std::fs::read_dir(&marks).unwrap().count();
 
-        let out = output(&mut cmd(&clone, &["show", "HEAD~1:f.txt"])).unwrap();
+        let out = output(&mut cmd(&root, &["show", "HEAD~1:f.txt"])).unwrap();
         assert!(!out.status.success(), "빠진 객체를 받아 왔다");
         assert_eq!(ran(), 0, "저장소 설정의 uploadpack 이 돌았다");
 
         // 대조군 — 덮지 않은 git 은 지연 fetch 로 uploadpack 을 띄운다.
         let _ = crate::proc::std_cmd("git")
             .arg("-C")
-            .arg(&clone)
+            .arg(&root)
             .args(["show", "HEAD~1:f.txt"])
             .output();
         assert!(ran() > 0, "대조군이 아무것도 안 돌렸다 — 재현이 깨졌다");
