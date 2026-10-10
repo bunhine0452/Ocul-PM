@@ -59,6 +59,10 @@ rfd = { version = "0.16", default-features = false, features = ["common-controls
 async-trait = "0.1.89"
 futures = "0.3.32"
 fastembed = "5.13.4"
+# {#hf-token} fastembed 의 try_new 는 ApiBuilder::new() 로 ~/.cache/huggingface/token 을 읽어
+# 다운로드에 Bearer 로 붙인다. 토큰 없는 빌더를 직접 쓰려고 같은 버전·같은 기능을 직접 선언
+# (fastembed 의 hf-hub-native-tls 와 동일 — 피처 통합으로 새 의존성 0).
+hf-hub = { version = "0.5.0", default-features = false, features = ["ureq", "native-tls"] }
 ignore = "0.4.25"
 walkdir = "2.5.0"
 blake3 = "1.8.5"
