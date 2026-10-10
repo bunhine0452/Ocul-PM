@@ -327,10 +327,11 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
 pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
     (
         "git/safe.rs",
-        "임시 저장소에서 로컬 git — 저장소 설정이 명령을 못 돌리는지, 기한을 넘긴 자식을 죽이는지(ping·sleep).",
+        "임시 저장소에서 로컬 git — 저장소 설정이 명령을 못 돌리는지, 기한을 넘긴 자식을 죽이는지(ping·sleep). 부분 클론 시험의 원격은 같은 임시 폴더의 다른 저장소다(대조군만 거기에 닿는다).",
         &[
             ("git", "std_cmd(\"git\")"),
             ("output_kills_a_command_past_its_deadline", "std_cmd(if cfg!(windows) { \"ping\" } else { \"sleep\" })"),
+            ("partial_clone_lazy_fetch_cannot_run_repo_uploadpack", "std_cmd(\"git\")"),
             ("repo_config_cannot_run_commands_through_status_or_diff", "std_cmd(\"git\")"),
         ],
     ),
