@@ -10,7 +10,11 @@ impl Db {
 
     /// Insert or update a file. Returns `(file_id, changed)` where `changed`
     /// is true if the hash changed (or the file is new) — in that case
-    /// callers should re-chunk and re-embed.
+    /// callers should re-chunk and hand the chunks to `indexer::store`.
+    ///
+    /// 청크는 여기서 지우지 않는다 (2026-10-10 `{#idx-low-value}`): 옛 청크는
+    /// 재사용할 벡터의 원천이고, 교체는 `replace_file_chunks` 가 해시 CAS 와 함께
+    /// 한 트랜잭션에서 한다.
     pub async fn upsert_file(
         &self,
         project_id: u32,
@@ -40,7 +44,6 @@ impl Db {
                            indexed_at = unixepoch() WHERE id = ?",
                         params![&hash, size, mtime, &language, id],
                     )?;
-                    c.execute("DELETE FROM chunks WHERE file_id = ?", [id])?;
                     c.execute("DELETE FROM symbol_definitions WHERE file_id = ?", [id])?;
                     c.execute(
                         "DELETE FROM file_dependencies WHERE source_file_id = ?",
@@ -69,7 +72,7 @@ impl Db {
     /// 되어 첫 인덱싱의 실질적인 병목이었다. 임베딩은 이미 EMBED_BATCH 단위로
     /// 묶여 있으니 적재도 같은 단위로 묶는다.
     ///
-    /// `prepare_cached` 는 같은 SQL 을 배치 안에서 재사용해 파싱을 한 번만 한다.
+    /// 덧붙이기만 한다 — 색인 경로는 `replace_file_chunks`(교체 + CAS)를 쓴다.
     pub async fn insert_chunks_with_embeddings(
         &self,
         project_id: u32,
@@ -83,35 +86,7 @@ impl Db {
             .conn
             .call(move |c| {
                 let tx = c.transaction()?;
-                {
-                    // 준비된 문장은 tx 를 빌리므로 commit(자기 소유 소비) 전에
-                    // 반드시 스코프를 닫아 드롭시켜야 한다.
-                    let mut insert_chunk = tx.prepare_cached(
-                        "INSERT INTO chunks (file_id, kind, start_line, end_line, content)
-                         VALUES (?, ?, ?, ?, ?)",
-                    )?;
-                    // project_id 는 vec0 partition key (032) — KNN 이 이 프로젝트
-                    // 파티션만 돈다.
-                    let mut insert_embedding = tx.prepare_cached(
-                        "INSERT INTO chunk_embeddings (chunk_id, project_id, embedding)
-                         VALUES (?, ?, ?)",
-                    )?;
-                    for row in &rows {
-                        insert_chunk.execute(params![
-                            file_id as i64,
-                            &row.kind,
-                            row.start_line as i64,
-                            row.end_line as i64,
-                            &row.content,
-                        ])?;
-                        let chunk_id = tx.last_insert_rowid();
-                        insert_embedding.execute(params![
-                            chunk_id,
-                            project_id as i64,
-                            &row.embedding
-                        ])?;
-                    }
-                }
+                super::chunk_store::insert_chunk_rows(&tx, project_id, file_id, &rows)?;
                 tx.commit()?;
                 Ok(rows.len())
             })
