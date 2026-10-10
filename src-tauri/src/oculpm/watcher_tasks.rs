@@ -335,8 +335,7 @@ pub fn schedule_incremental_index(
                         Err(_) => return,
                     };
                 let cfg = crate::indexer::config_from_settings(|k| settings_map.get(k).cloned());
-                let abs = root.join(&rel_path);
-                if !crate::indexer::is_indexable_path(&abs, &cfg) {
+                if !crate::indexer::is_indexable_path(&root, Path::new(&rel_path), &cfg) {
                     return;
                 }
                 let embedder = handle.state::<Embedder>();
@@ -507,15 +506,27 @@ mod tests {
             b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\n",
         )
         .unwrap();
-        assert!(!crate::indexer::is_indexable_path(&pdf, &cfg));
+        assert!(!crate::indexer::is_indexable_path(
+            dir.path(),
+            std::path::Path::new("a.pdf"),
+            &cfg
+        ));
         let euc_kr = dir.path().join("memo.txt");
         std::fs::write(&euc_kr, b"\xc7\xd1\xb1\xdb \xb8\xde\xb8\xf0\n").unwrap();
-        assert!(!crate::indexer::is_indexable_path(&euc_kr, &cfg));
+        assert!(!crate::indexer::is_indexable_path(
+            dir.path(),
+            std::path::Path::new("memo.txt"),
+            &cfg
+        ));
         // 탐침 경계에서 잘린 한글 한 글자는 텍스트다.
         let mut ko = vec![b'a'; 1023];
         ko.extend_from_slice("가".as_bytes());
         let cut = dir.path().join("cut.md");
         std::fs::write(&cut, &ko).unwrap();
-        assert!(crate::indexer::is_indexable_path(&cut, &cfg));
+        assert!(crate::indexer::is_indexable_path(
+            dir.path(),
+            std::path::Path::new("cut.md"),
+            &cfg
+        ));
     }
 }

@@ -171,10 +171,14 @@ pub fn walk_text_files(root: &Path, config: &IndexConfig) -> Vec<PathBuf> {
 /// walk + gitignore (the watcher already applies gitignore before calling).
 /// Used by the watcher's incremental reindex so a lock file or binary blob
 /// touched on disk doesn't get embedded.
-pub fn is_indexable_path(path: &Path, config: &IndexConfig) -> bool {
-    if is_skipped_name(path) || has_denied_component(path) {
+///
+/// 이름·폴더 판정은 **루트 아래**(`rel`)만 본다 — 루트가 `~/.cache/…` 나
+/// `…/vendor/…` 아래에 있어도 그 프로젝트의 파일은 색인한다 (걷기도 루트 아래만 본다).
+pub fn is_indexable_path(root: &Path, rel: &Path, config: &IndexConfig) -> bool {
+    if is_skipped_name(rel) || has_denied_component(rel) {
         return false;
     }
+    let path = &root.join(rel);
     // 걷기([`walk_text_files`])와 같은 규칙 — 링크는 색인하지 않는다.
     if std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink()) {
         return false;
@@ -888,7 +892,8 @@ mod walk_tests {
         }
         assert_eq!(rel_paths(&root, &IndexConfig::default()), vec!["src/a.ts"]);
         assert!(!is_indexable_path(
-            &root.join("notes.txt"),
+            &root,
+            Path::new("notes.txt"),
             &IndexConfig::default()
         ));
     }
@@ -910,13 +915,36 @@ mod walk_tests {
         assert_eq!(rel_paths(root, &IndexConfig::default()), vec!["src/a.ts"]);
         // 워처 경로 판정도 같은 그물을 쓴다.
         assert!(!is_indexable_path(
-            &root.join("node_modules/pkg/index.js"),
+            root,
+            Path::new("node_modules/pkg/index.js"),
             &IndexConfig::default()
         ));
         assert!(is_indexable_path(
-            &root.join("src/a.ts"),
+            root,
+            Path::new("src/a.ts"),
             &IndexConfig::default()
         ));
+    }
+
+    /// 루트의 **조상**에 벤더·캐시 이름이 있어도 워처 판정은 루트 아래만 본다 —
+    /// 예전엔 `~/.cache/proj` 같은 프로젝트의 증분 색인이 통째로 꺼졌다.
+    #[test]
+    fn denied_names_above_the_root_do_not_count() {
+        let dir = tempfile::tempdir().unwrap();
+        for parent in ["vendor", ".cache", "target"] {
+            let root = dir.path().join(parent).join("proj");
+            write(&root, "src/a.ts", "export const a = 1;\n");
+            write(&root, "vendor/x.ts", "export const x = 1;\n");
+            let cfg = IndexConfig::default();
+            assert!(
+                is_indexable_path(&root, Path::new("src/a.ts"), &cfg),
+                "{parent}"
+            );
+            assert!(
+                !is_indexable_path(&root, Path::new("vendor/x.ts"), &cfg),
+                "{parent}"
+            );
+        }
     }
 }
 
