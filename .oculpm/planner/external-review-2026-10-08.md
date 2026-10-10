@@ -26,7 +26,8 @@ owner: claude-code
 - [x] SECURITY.md — 비공개 신고 창구 · 경계 넷(프로젝트·송출·비밀·기기 동의) · 외부 리뷰 이력 표 {#security-md}
 - [x] GitHub 비공개 취약점 신고 켜기 (repos/…/private-vulnerability-reporting) {#pvr-on}
 - [x] RELEASE.md §0-1 + bump-version — 마지막 리뷰 반영에서 마이너 5개째 경고(막지 않음) · 「다음 릴리스」 자동 채움 {#cadence-nudge}
-- [ ] [사용자 액션] 다음 외부 리뷰 청하기 — 범위 v3.9.0 이후(PR #74 · 이 라운드), 리뷰 반영 뒤 SECURITY.md 표에 한 줄 {#next-review}
+- [x] [사용자 액션] 다음 외부 리뷰 청하기 — 범위 v3.9.0 이후(PR #74 · 이 라운드), 리뷰 반영 뒤 SECURITY.md 표에 한 줄 {#next-review}
+- [ ] [사용자 액션] release 환경 보호 — 환경은 있으나 보호 규칙 0 · 환경 비밀 0(2026-10-10 확인). 필수 승인자 + 배포 정책(태그 v*, dry-run 을 쓰면 main 도) → 서명 비밀 7개(APPLE_* 6 · TAURI_PRIVATE_KEY — release.yml 의 macos·bundle 잡만 씀)를 환경 비밀로 다시 넣고 저장소 비밀에서 삭제. 비밀을 옮기지 않으면 승인자는 막는 것이 없다(태그 커밋의 워크플로가 environment 줄을 빼면 그만). 키 재발급 금지 (← review-2026-10-09 #release-env) {#release-env}
 
 ## 생성물 diff {#generated-diff}
 - [x] .gitattributes linguist-generated — bindings.ts · landing/wiki/** · changelog.html · themes.html · sitemap.xml {#linguist-generated}
@@ -44,4 +45,6 @@ owner: claude-code
 | 2026-10-08T17:57:33+09:00 | #cadence-nudge | claude-code | ☐→x | .oculpm/journal/20261008/Chores/1757_chore_external-review-scope-freeze.md | 3f693aca — 테스트 3건, dry-run 확인 |
 | 2026-10-08T17:57:37+09:00 | #linguist-generated | claude-code | ☐→x | .oculpm/journal/20261008/Chores/1757_chore_external-review-scope-freeze.md | 1c64b0d4 — git check-attr 로 대상만 걸리는 것 확인 |
 | 2026-10-08T17:57:41+09:00 | #pr-merge | claude-code | ☐→x | .oculpm/journal/20261008/Chores/1757_chore_external-review-scope-freeze.md | PR #75 CI 3잡 SUCCESS → rebase 머지 680ef167, 브랜치·워크트리 삭제 |
+| 2026-10-11T00:01:35+09:00 | #next-review | claude-code | ☐→x | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 2026-10-09 보완점 리포트(v3.10.1 기준 외부 19건)가 v3.9.0 이후 범위의 다음 리뷰였다 — SECURITY.md 이력에 v3.11.0 반영. 다음은 v3.16.0 무렵(bump-version 경고) |
+| 2026-10-11T00:01:49+09:00 | #release-env | claude-code | ☐→☐ | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 신규 — review-2026-10-09 #release-env 이월 (사용자 액션) |
 <!-- oculpm:plan-log end -->

@@ -38,8 +38,9 @@ owner: claude-code
 - [-] A2A 앱 쪽 쓰기 경로(수락·거절·메시지)가 멤버십을 검사한다 (← a2a-session-grouping #enforce-app) {#a2a-enforce-app}
 - [-] ACP 턴 종료 → 일지 초안 + UUID↔session_id 매핑 (← acp-agent-panel #acp5-journal #acp2-sid) {#acp-journal-draft}
 - [x] plan_create 시 유사한 활성 계획이 있으면 재사용을 권한다 (← planner-scale-tidy #dedupe-on-create) {#dedupe-on-create}
-- [ ] tauri.conf.json csp: null — 정책 초안은 있고 실기기 확인이 막았다 (wasm 포매터·xterm webgl·CodeMirror·GitHub fetch) (← hardening-and-optimization #csp) {#csp}
+- [x] tauri.conf.json csp: null — 정책 초안은 있고 실기기 확인이 막았다 (wasm 포매터·xterm webgl·CodeMirror·GitHub fetch) (← hardening-and-optimization #csp) {#csp}
 - [ ] Monaco 대용량 파일 성능 재측정 → 03-performance.md (← monaco-editor-round #fin-perf, 그 플랜은 활성이라 원본 유지) {#fin-perf-monaco}
+- [ ] 메모리 귀속 — 2026-10-10 설치본 3.12.0(가동 1시간) UI footprint 604MB(peak 949MB · Malloc Small 511M · Large 328M · 할당 835MB/144만 개). 심볼 없는 릴리스라 귀속 불가 → 설치본이 꺼진 때 심볼 빌드 + MallocStackLogging 실행으로 상위 할당 지점을 잡는다 (← perf-security-audit-2026-10-08 #footprint-attribution) {#footprint-attribution}
 - [x] 웹뷰의 bare window.confirm/alert/prompt 를 막는 린트 게이트 — dialog:default 에 allow-confirm 이 없어 항상 truthy Promise + ACL 에러가 된다. 서드파티 라이브러리가 부르는 것이 재발 지점 (bug-hunt 2026-09-22) {#no-bare-confirm-gate}
 - [x] src-tauri/src/commands/project.rs 가 파일 크기 래칫 경계 800/800 에 붙었다 — 다음에 이 파일을 건드리는 작업이 쪼갠다 (bug-hunt 2026-09-22) {#project-rs-ratchet}
 
@@ -63,6 +64,7 @@ owner: claude-code
 - [ ] 첫 실행 마법사 한 바퀴(onboarded 삭제) · 스킬 CRUD/토글 · 리스킨 체감(부트 모션·코드 맵 대형 저장소·프리셋) · Today 리플 언마운트 (← first-run-and-english-landing #wizard-eyes, skills-star-round #skills-verify #reskin-verify, today-ring-followup #ripple-manual-verify) {#eyes-first-run}
 - [ ] 영문 표면 — 키노트 /keynote · 플러그인 /plugin 영문판 (en-shots·en-deploy 는 3.0 에서 끝남) (← first-run-and-english-landing #en-keynote-plugin) {#eyes-en-surfaces}
 - [ ] 버그 헌팅 v3.5.0 육안 — 이벤트 해제 셤이 웹뷰의 모든 Tauri 구독을 지난다: 터미널 출력·재접속 · 테마 다창 반영 · 트레이 딥링크 · ACP 스트림 · 한글 입력 뒤 로그의 IME-DUMP 가 0 근처 · OSC 8/Monaco 링크가 기본 브라우저로 {#eyes-bug-hunt-0922}
+- [ ] 보안 라운드 1~3차 실기기 — CSP 전 화면(wasm 포매터·xterm webgl·CodeMirror)·위험 모드 확인·자동화 동의 안내/오늘 카드의 바뀐 정의 이름/설정 「허락 거두기」·Notion 실제 연결 1회(브라우저 기록에 token= 없음)·링크 든 저장소 열기(어댑터·.gitignore 건너뜀 로그)·설정 「지금 동기화」 실패 사유 문구·코드 트리의 밖 링크·/Users 추가 거부 문구 (← security-feedback-round #eyes-security-round #notion-token-url, security-feedback-round-2 #eyes-round2, security-feedback-round-3 #eyes-round3) {#eyes-security}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -102,4 +104,7 @@ owner: claude-code
 | 2026-10-08T17:47:54+09:00 | #session-to-window | claude-code | ☐→> |  | 범위 동결(2026-10-08, CLAUDE.md) — 터미널은 60일 fix 33건으로 주변 중 최다, 확장보다 안정화 |
 | 2026-10-08T17:47:57+09:00 | #skill-catalog-b | claude-code | ☐→> |  | 범위 동결(2026-10-08, CLAUDE.md) — 8갈래 확장 묶음 |
 | 2026-10-10T00:17:22+09:00 | #eyes-terminal | claude-code | ☐→☐ | .oculpm/journal/20261010/Features_to_add/0017_feature_terminal-image-link-peek.md | +1건: 새 셸에서 Claude Code 이미지 경로 호버 미리보기·클릭 확대·src 경로 클릭→파일 메뉴 (FORCE_HYPERLINK) |
+| 2026-10-11T00:01:35+09:00 | #csp | claude-code | ☐→x | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 낡은 이월 — v3.8.0 에서 CSP 켬(security-feedback-round #csp, e2e 위반 0 게이트). 육안은 #eyes-security |
+| 2026-10-11T00:01:49+09:00 | #eyes-security | claude-code | ☐→☐ | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 신규 — 보안 라운드 1~3차 실기기 3건 + Notion 왕복 이월. 다음 릴리스 설치본에서 원격 이미지 칩·041 기동도 함께 |
+| 2026-10-11T00:01:58+09:00 | #footprint-attribution | claude-code | ☐→☐ | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 신규 — perf-security-audit-2026-10-08 #footprint-attribution 이월 (설치본이 꺼진 때) |
 <!-- oculpm:plan-log end -->

@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: security-feedback-round-2
 title: "보안 피드백 2차 (2026-10-07)"
-status: active
+status: done
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-11
 owner: claude-code
 ---
 
@@ -26,7 +26,7 @@ v3.8.0 뒤 남은 지적 4건(일반 파일 링크·diff 캡처 경로·히스�
 ## 합류·알림 {#ship}
 - [x] PR 머지 (CI 초록 확인 뒤) {#merge}
 - [x] 다음 릴리스 노트에 v3.8.0 링크 문단의 과장 정정 — 그때 막은 것은 .oculpm 안뿐이었다 {#changelog-correction}
-- [ ] 실기기 확인 — 링크 든 저장소 열기(어댑터·.gitignore 건너뜀 로그), 설정 「지금 동기화」 실패 사유 문구, 코드 트리의 밖 링크 {#eyes-round2}
+- [-] 실기기 확인 — 링크 든 저장소 열기(어댑터·.gitignore 건너뜀 로그), 설정 「지금 동기화」 실패 사유 문구, 코드 트리의 밖 링크 {#eyes-round2}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -40,4 +40,5 @@ v3.8.0 뒤 남은 지적 4건(일반 파일 링크·diff 캡처 경로·히스�
 | 2026-10-07T20:27:26+09:00 | #redact-floor-fallback | claude-code | ☐→x | .oculpm/journal/20261007/Bugs/2026_bug_prompt-ledger-sees-wrappers.md | PR #70 — 여섯 폴백 + 릴리스 노트 표본, CALL_SITE_FILES 28 |
 | 2026-10-07T20:41:12+09:00 | #merge | claude-code | ☐→x |  | PR #70 rebase 머지 973a55b7 — CI 3잡 conclusion success |
 | 2026-10-08T00:05:42+09:00 | #changelog-correction | claude-code | ☐→x | .oculpm/journal/20261008/Chores/0005_chore_release-v3-9-0.md | v3.9.0 CHANGELOG 첫 문단에 정정 — 공개 2026-10-07T15:02Z |
+| 2026-10-11T00:01:35+09:00 | #eyes-round2 | claude-code | ☐→- | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 이월 → improvement-round-2026-09-14 #eyes-security (실기기 원장 하나로 합침). 플랜 잠금 |
 <!-- oculpm:plan-log end -->

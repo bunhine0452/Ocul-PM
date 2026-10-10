@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: security-feedback-round
 title: "보안 피드백 라운드 (2026-10-07)"
-status: active
+status: done
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-11
 owner: claude-code
 ---
 
@@ -30,18 +30,18 @@ owner: claude-code
 - [x] create_project 의 파일시스템 루트·홈 거부, 그린필드 스캐폴더 허용 목록 {#ipc-narrowing}
 
 ## Notion {#notion}
-- [~] OAuth 토큰을 리다이렉트 URL 에 싣지 않기 (code 중계 + 하위 호환) {#notion-token-url}
-- [ ] 랜딩 exchange 배포 뒤 한 릴리스가 지나면 옛 ?token= 흐름 지우기 (앱 OAuthCallback::Token · callback.ts 교환 분기) {#notion-legacy-token-removal}
+- [x] OAuth 토큰을 리다이렉트 URL 에 싣지 않기 (code 중계 + 하위 호환) {#notion-token-url}
+- [x] 랜딩 exchange 배포 뒤 한 릴리스가 지나면 옛 ?token= 흐름 지우기 (앱 OAuthCallback::Token · callback.ts 교환 분기) {#notion-legacy-token-removal}
 
 ## 플러그인 {#plugins}
 - [x] 설치 미리보기가 MCP 서버가 실행할 명령을 보여 준다 (hooks/·bin/ 은 원래 안 놓는다) {#plugin-mcp-preview}
 
 ## 이월 {#carry}
-- [~] egress 원장의 자리 스캔이 하위 프로세스 송출(npm 어댑터 설치)을 못 센다 + CLAUDE.md 송출 목록에 어댑터 다운로드가 없다 {#egress-subprocess}
-- [ ] CSP 로 막힌 원격 이미지(일지·답의 ![](https://…))를 깨진 아이콘 대신 링크로 그리기 {#remote-image-placeholder}
+- [x] egress 원장의 자리 스캔이 하위 프로세스 송출(npm 어댑터 설치)을 못 센다 + CLAUDE.md 송출 목록에 어댑터 다운로드가 없다 {#egress-subprocess}
+- [x] CSP 로 막힌 원격 이미지(일지·답의 ![](https://…))를 깨진 아이콘 대신 링크로 그리기 {#remote-image-placeholder}
 
 ## 확인 {#eyes}
-- [ ] 실기기 확인 — CSP 전 화면·위험 모드 확인·자동화 동의 안내·Notion 연결·링크 거부 문구 {#eyes-security-round}
+- [-] 실기기 확인 — CSP 전 화면·위험 모드 확인·자동화 동의 안내·Notion 연결·링크 거부 문구 {#eyes-security-round}
 
 ## 결정
 
@@ -75,4 +75,9 @@ owner: claude-code
 | 2026-10-07T11:47:38+09:00 | #csp | claude-code | ~→x | .oculpm/journal/20261007/Bugs/1048_bug_webview-csp-enabled.md | e2e 두 OS 위반 0 + 강제 탐침 통과(run 37560126223). macOS 육안은 #eyes-security-round |
 | 2026-10-07T11:47:45+09:00 | #egress-subprocess | claude-code | ☐→~ |  | 6d2af80b — CLAUDE.md·개인정보·랜딩 FAQ·위키 송출 목록을 여섯(어댑터 설치 포함)으로 맞춤. 남은 것: 원장 자리 스캔의 하위 프로세스 공백 |
 | 2026-10-07T12:43:43+09:00 | #notion-token-url | claude-code | ~→~ | .oculpm/journal/20261007/Chores/1243_chore_release-v3-8-0.md | v3.8.0 공개 — 설치본을 3.8.0 으로 올린 뒤 실제 Notion 연결 1회로 브라우저 기록에 token= 이 없는지 확인하면 닫는다 |
+| 2026-10-11T00:01:35+09:00 | #notion-token-url | claude-code | ~→x | .oculpm/journal/20261010/Chores/2359_chore_notion-legacy-token-flow-removed.md | code 중계만 남음(옛 갈래 제거·랜딩 배포, callback 302 ?code= 실측). 실제 Notion 왕복은 improvement-round-2026-09-14 #eyes-security 로 이월 |
+| 2026-10-11T00:01:49+09:00 | #notion-legacy-token-removal | claude-code | ☐→x | .oculpm/journal/20261010/Chores/2359_chore_notion-legacy-token-flow-removed.md | PR #83 + 랜딩 배포 — 앱 Token 갈래·callback 서버 교환 제거, flow 없는 start 는 400 업데이트 안내(실측) |
+| 2026-10-11T00:01:58+09:00 | #egress-subprocess | claude-code | ~→x | .oculpm/journal/20261011/Bugs/0000_bug_egress-spawn-ledger.md | PR #83 — egress_spawn_ledger.rs 판정 D(기동 43곳 송출 12/로컬 26/창구 5), git 검사 공백 메움, 개인정보 페이지 「앱이 대신 띄우는 도구」 |
+| 2026-10-11T00:02:04+09:00 | #remote-image-placeholder | claude-code | ☐→x | .oculpm/journal/20261011/Bugs/0000_bug_remote-image-link-placeholder.md | PR #83 — 공용 MarkdownImpl 의 img 렌더러, 원격은 링크 칩·data/blob 은 그대로. 육안은 #eyes-security |
+| 2026-10-11T00:02:08+09:00 | #eyes-security-round | claude-code | ☐→- | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 이월 → improvement-round-2026-09-14 #eyes-security (2·3차 실기기·Notion 왕복과 합침). 플랜 잠금 |
 <!-- oculpm:plan-log end -->
