@@ -19,7 +19,7 @@
 | 경계 | 깨졌다는 것 | 지키는 자리 |
 |---|---|---|
 | 프로젝트 경계 | 저장소에 실려 온 파일 · 심볼릭 링크 · `.oculpm/` 설정이 프로젝트 **밖**을 읽거나 쓴다 | `src-tauri/src/path_guard.rs` |
-| 기기 밖 송출 | 사용자가 시작하지 않은 네트워크 송출이 있다 | `src-tauri/tests/egress_inventory.rs` (새 송출은 원장에 사유 없이 못 들어온다) |
+| 기기 밖 송출 | 사용자가 시작하지 않은 네트워크 송출이 있다 | `src-tauri/tests/egress_inventory.rs` (새 송출은 원장에 사유 없이 못 들어온다) · `egress_spawn_ledger.rs` (하위 프로세스 — 기동 자리마다 송출 가능/로컬 분류) |
 | 비밀 | API 키 · 토큰이 일지 · diff · 로그 · DB 에 남는다 | `secrets.rs`(OS 키체인) · `oculpm/redact.rs`(끌 수 없는 마스킹 바닥) |
 | 기기 동의 | 저장소가 켜 둔 배경 AI 작업이 이 기기의 허락 없이 내 키로 돈다 | `oculpm/automation/consent.rs` |
 | 코드 실행 | 저장소가 고른 프로그램이 사람이 신뢰하기 전에 내 권한으로 돈다 | 아래 표 |
