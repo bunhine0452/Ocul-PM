@@ -128,9 +128,9 @@ jobs:
       fail: ${{ steps.m.outputs.fail }}
       nonmac: ${{ steps.m.outputs.nonmac }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
 
@@ -400,15 +400,15 @@ jobs:
       DRY_RUN: ${{ needs.meta.outputs.dry_run }}
       NONMAC: ${{ needs.meta.outputs.nonmac }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
 
       - name: Install pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 10
 
@@ -474,7 +474,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
@@ -716,7 +716,7 @@ jobs:
           echo "::error::드라이런 fail=$FAIL — 이 플랫폼의 번들을 일부러 실패시킨다 (macOS 공개와 다른 플랫폼이 멀쩡한지 보려고)"
           exit 1
 
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: 툴체인 버전 읽기 (rust-toolchain.toml)
         id: toolchain
@@ -755,12 +755,12 @@ jobs:
           cache-on-failure: true
 
       - name: Install pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
@@ -847,7 +847,7 @@ jobs:
           (cd "$out" && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
 
       - name: 번들 아티팩트
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # re-run(실패한 잡만 다시)에서 같은 이름이 앞 시도에 이미 있어도 덮는다.
           overwrite: true
@@ -859,7 +859,7 @@ jobs:
 
       - name: 번들 로그 아티팩트
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # re-run(실패한 잡만 다시)에서 같은 이름이 앞 시도에 이미 있어도 덮는다.
           overwrite: true
@@ -896,10 +896,10 @@ jobs:
       VERSION: ${{ needs.meta.outputs.version }}
       FAIL: ${{ needs.meta.outputs.fail }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: 설치 파일 받기
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-bundle-${{ matrix.platform }}
           path: bundle
@@ -932,7 +932,7 @@ jobs:
 
       - name: 스모크 결과 아티팩트
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # re-run(실패한 잡만 다시)에서 같은 이름이 앞 시도에 이미 있어도 덮는다.
           overwrite: true
@@ -945,7 +945,7 @@ jobs:
         run: mkdir -p pass && cp bundle/SHA256SUMS pass/SHA256SUMS
 
       - name: 통과 표식 아티팩트
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # re-run(실패한 잡만 다시)에서 같은 이름이 앞 시도에 이미 있어도 덮는다.
           overwrite: true
@@ -983,10 +983,10 @@ jobs:
       FAIL: ${{ needs.meta.outputs.fail }}
       OCULPM_E2E_OS: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: 설치 파일 받기
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-bundle-${{ matrix.platform }}
           path: bundle
@@ -1001,7 +1001,7 @@ jobs:
           exit 1
 
       - name: Setup Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
 
@@ -1085,7 +1085,7 @@ jobs:
 
       - name: E2E 결과 아티팩트 (스크린샷 · index.html · 로그)
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # re-run(실패한 잡만 다시)에서 같은 이름이 앞 시도에 이미 있어도 덮는다.
           overwrite: true
@@ -1097,7 +1097,7 @@ jobs:
         run: mkdir -p pass && cp bundle/SHA256SUMS pass/SHA256SUMS
 
       - name: 통과 표식 아티팩트
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # re-run(실패한 잡만 다시)에서 같은 이름이 앞 시도에 이미 있어도 덮는다.
           overwrite: true
@@ -1134,9 +1134,9 @@ jobs:
       NONMAC: ${{ needs.meta.outputs.nonmac }}
       LJ: .github/scripts/release/latest-json.mjs
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
 
@@ -1175,7 +1175,7 @@ jobs:
       - name: 비-mac 아티팩트 받기 (번들 · 통과 표식)
         if: env.NONMAC == 'true'
         continue-on-error: true
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: release-{bundle,pass-smoke,pass-e2e}-{windows,linux}
           path: artifacts
