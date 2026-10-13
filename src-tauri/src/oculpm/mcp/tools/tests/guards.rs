@@ -201,3 +201,26 @@ fn a_stale_base_hash_refuses_to_overwrite() {
     )
     .unwrap();
 }
+
+/// plan_status 는 손으로 쓴 플랜의 문구를 가린 뒤 싣는다 — 그 응답이
+/// `/oculpm:board` 를 거쳐 claude.ai 아티팩트로 나간다.
+#[test]
+fn plan_status_masks_secrets_in_plan_text() {
+    let tmp = TempDir::new().unwrap();
+    let key = format!("AKIA{}", "ABCDEFGHIJKLMNOP");
+    let dir = planner_dir(tmp.path());
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("leak.md"),
+        format!(
+            "---\noculpm_plan: v1\nid: leak\ntitle: \"키 {key}\"\nstatus: active\n\
+             created: 2026-10-14\nupdated: 2026-10-14\nowner: claude-code\n---\n\n\
+             - [ ] 키는 {key} {{#k}}\n"
+        ),
+    )
+    .unwrap();
+    let out = call_tool(tmp.path(), "plan_status", &json!({})).unwrap();
+    let text = out.to_string();
+    assert!(!text.contains(&key), "원문 키가 응답에 남았다: {text}");
+    assert!(text.contains(crate::oculpm::redact::REDACTED_PLACEHOLDER));
+}

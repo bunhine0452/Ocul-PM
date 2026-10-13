@@ -13,6 +13,7 @@ pub mod agent_surface;
 pub mod agents;
 pub mod atomic_io;
 pub mod automation;
+pub mod board;
 pub mod cache;
 pub mod cas;
 pub mod chain;
