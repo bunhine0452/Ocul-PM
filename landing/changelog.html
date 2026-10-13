@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.12.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 120개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.13.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 121개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.12.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 120개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.13.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 121개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.12.0</span>
+    <span class="nav-ver" data-version>v3.13.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>120개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>121개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-13-0">v3.13.0</a>
       <a href="#v3-12-0">v3.12.0</a>
       <a href="#v3-11-0">v3.11.0</a>
       <a href="#v3-10-1">v3.10.1</a>
@@ -61,10 +62,20 @@
       <a href="#v3-5-0">v3.5.0</a>
       <a href="#v3-4-0">v3.4.0</a>
       <a href="#v3-3-0">v3.3.0</a>
-      <a href="#v3-2-2">v3.2.2</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-13-0"><a href="#v3-13-0">v3.13.0</a></h2>
+      <div class="cl-body">
+<p><b>계획을 폰이나 다른 기기에서 보려면 이제 Claude Code 에서 <code>/oculpm:board</code> 한 줄이면 됩니다.</b> 활성 플랜과 항목 상태가 claude.ai 의 <b>비공개</b> 보드 한 장으로 올라가고, 다시 부르면 그 보드가 갱신됩니다. 보드는 읽기 전용이고 원본은 지금처럼 프로젝트의 <code>.oculpm/planner/</code> 입니다. 올릴 내용은 앱이 직접 만들어 넘기므로 에이전트가 항목을 옮겨 적다 문구가 바뀌는 일이 없고, <b>시크릿처럼 보이는 문구는 가린 뒤</b> 올립니다. 누구에게 보일지는 보드의 Share 메뉴에서 직접 정합니다. Claude Code 를 claude.ai 계정으로 쓸 때 동작합니다.</p>
+<ul><li><b>플랜 조회도 시크릿을 가립니다.</b> 에이전트가 계획을 읽을 때(<code>plan_status</code>) 손으로 쓴 플랜 문구에 키·토큰이 들어 있으면 원문 그대로 건네졌습니다. 이제 일지와 같은 마스킹을 지난 뒤 건넵니다.</li></ul>
+<p><b>Notion 연동을 걷었습니다.</b> 설정 → 데이터의 Notion 섹션과 일지 상세의 「Notion 으로」 버튼이 사라졌습니다. 밖에서 계획을 보는 일은 위 보드가 맡습니다. 연결해 두었던 기기에서는 업데이트 뒤 처음 켤 때 키체인에 남은 Notion 토큰과 부모 페이지 설정을 한 번 지웁니다. 앱 밖으로 나가는 연결은 이제 <b>다섯 갈래</b>이고, 연결 승인을 받던 <code>127.0.0.1</code> 리스너와 oculpm.com 의 인증 교환 서버도 함께 사라졌습니다.</p>
+<p><b>코드 검색이 데이터 파일에 묻히지 않습니다.</b> 표·레코드 파일(<code>.csv</code> · <code>.tsv</code> · <code>.jsonl</code> · <code>.log</code> 등)과 8KB 넘는 <code>.json</code> · <code>.txt</code>, <code>vendor/</code> · <code>.dart_tool/</code> 을 색인하지 않고, 앱을 켤 때 이미 들어 있던 것을 걷습니다. 설정 파일·README·LICENSE 는 크기와 무관하게 남깁니다.</p>
+<ul><li><b>같은 파일의 청크가 겹쳐 쌓이던 것을 고쳤습니다.</b> 저장할 때마다 내용이 같아도 다시 들어가, 실측 DB 의 청크 17.8% 가 사본이었습니다. 남은 사본은 업데이트 뒤 한 번 정리되고, 내용이 그대로면 다시 임베딩하지 않습니다.</li><li><code>~/.cache/…</code> 나 <code>…/target/…</code> 아래에 있는 프로젝트는 파일을 저장해도 검색 색인이 갱신되지 않던 것을 고쳤습니다.</li></ul>
+<p><b>보이지 않는 곳</b>: <code>.git</code> 째 받은 부분 클론에서 앱의 <code>git show</code> 가 저장소 설정이 고른 명령(<code>uploadpack</code>)을 띄울 수 있던 길을 막았습니다. 의미 검색 모델을 받을 때 <code>~/.cache/huggingface/token</code> 을 읽어 붙이지 않습니다. 화면 정책(CSP)에 막힌 원격 이미지는 빈칸 대신 링크 자리표시로 보입니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-12-0"><a href="#v3-12-0">v3.12.0</a></h2>
       <div class="cl-body">
