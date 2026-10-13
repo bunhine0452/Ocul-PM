@@ -1,200 +1,17 @@
 import { useConfirm } from "@/hooks/useConfirm";
-// 데이터 탭 — 내보내기·Notion 연동·초기화.
+// 데이터 탭 — 내보내기·초기화.
 //
 // SettingsPanel.tsx 에서 갈라 나온 조각이다 — 순수 이동이며 동작 변경은 없다.
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { commands, type NotionStatus } from "@/lib/bindings";
+import { commands } from "@/lib/bindings";
 import { Trash2, Copy, RefreshCw, Loader2 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
-import { toast } from "@/lib/toast";
 import { useT, type I18nKey } from "@/i18n";
-import { tError } from "@/i18n/errors";
-import { blocked } from "@/lib/blocked";
 import { Section } from "./ui";
 import { DeclarativeConfigSection } from "../config/DeclarativeConfigSection";
 import { ConversationImportSection } from "../import/ConversationImportSection";
-
-/**
- * PR-CI7 (docs/claude-integration/00-master-plan.md D6) — Notion 내보내기 설정.
- * internal integration token 은 검증(users/me) 성공 후에만 기존 secret_set 으로
- * OS 키체인에 저장한다 (DB/localStorage 금지 규율 유지). 부모 페이지는 URL 을
- * 붙여넣으면 백엔드가 id 로 정규화해 SQLite settings 에 둔다. 내보내기 버튼
- * 자체는 회고 화면에 있고, 토큰이 없으면 그 버튼이 아예 노출되지 않는다.
- *
- * (export 는 테스트 전용 — notion_export_v2.test.tsx 가 SettingsContext 부트
- * 스트랩 없이 이 섹션만 단독 렌더한다.)
- */
-export function NotionSection({ onError }: { onError: (msg: string | null) => void }) {
-  const { t } = useT();
-  const { confirm, confirmDialog } = useConfirm();
-  const [status, setStatus] = useState<NotionStatus | null>(null);
-  const [token, setToken] = useState("");
-  const [parent, setParent] = useState("");
-  const [botName, setBotName] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const refresh = () => {
-    void commands.notionStatus().then((res) => {
-      if (res.status === "ok") {
-        setStatus(res.data);
-        setParent(res.data.parent_page_id ?? "");
-      }
-    });
-  };
-  useEffect(refresh, []);
-
-  const saveToken = async () => {
-    // `t` 는 번역 함수 이름이라 지역 변수로 쓰지 않는다 (섀도잉).
-    const trimmed = token.trim();
-    if (busy || !trimmed) return;
-    setBusy(true);
-    try {
-      const v = await commands.notionVerifyToken(trimmed);
-      if (v.status === "error") {
-        onError(t("settings.notion.tokenFailed", { error: v.error }));
-        return;
-      }
-      const s = await commands.secretSet("notion_api_key", trimmed);
-      if (s.status === "error") {
-        onError(tError(s.error));
-        return;
-      }
-      setBotName(v.data);
-      setToken("");
-      onError(null);
-      toast.info(t("settings.notion.linked", { name: v.data }));
-      refresh();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // #notion-oauth — "계정으로 연결": 브라우저 승인 → 서버리스 교환 → 루프백
-  // 수신 → 키체인 저장까지 백엔드 한 커맨드. 최대 3분 대기.
-  const connectOauth = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const res = await commands.notionOauthStart();
-      if (res.status === "ok") {
-        setBotName(res.data);
-        onError(null);
-        toast.info(t("settings.notion.linked", { name: res.data }));
-        refresh();
-      } else {
-        onError(t("settings.notion.linkFailed", { error: res.error }));
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const removeToken = async () => {
-    if (busy) return;
-    if (!(await confirm({ title: t("settings.notion.disconnectConfirm"), danger: true }))) return;
-    setBusy(true);
-    const res = await commands.secretDelete("notion_api_key");
-    setBusy(false);
-    if (res.status === "error") {
-      onError(res.error);
-    } else {
-      setBotName(null);
-      toast.info(t("settings.notion.unlinked"));
-      refresh();
-    }
-  };
-
-  const saveParent = async () => {
-    if (busy) return;
-    setBusy(true);
-    const res = await commands.notionSetParent(parent);
-    setBusy(false);
-    if (res.status === "error") {
-      onError(res.error);
-    } else {
-      setParent(res.data ?? "");
-      onError(null);
-      toast.info(res.data ? t("settings.notion.parentSet") : t("settings.notion.parentCleared"));
-      refresh();
-    }
-  };
-
-  return (
-    <>
-    {confirmDialog}
-    <Section
-      title={t("settings.notion.title")}
-      description={t("settings.notion.desc")}
-    >
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Button size="sm" disabled={busy} onClick={() => void connectOauth()}>
-            {busy ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
-            {t("settings.notion.connect")}
-          </Button>
-          <span className="text-fs-3 text-muted-foreground">
-            {t("settings.notion.connectHint")}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Label className="text-xs text-muted-foreground">{t("settings.notion.status")}</Label>
-          {status?.has_token ? (
-            <span className="rounded-full border border-(--ok)/40 bg-(--ok-soft) px-2 py-0.5 text-fs-1 text-(--ok-text)">
-              {t("settings.notion.connected")}{botName ? ` · ${botName}` : ""}
-            </span>
-          ) : (
-            <span className="rounded-full border border-border bg-muted/30 px-2 py-0.5 text-fs-1 text-muted-foreground">
-              {t("settings.notion.disconnected")}
-            </span>
-          )}
-          {status?.has_token && (
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => void removeToken()}>
-              {t("settings.notion.disconnect")}
-            </Button>
-          )}
-        </div>
-
-        {!status?.has_token && (
-          <div className="flex gap-2">
-            <Input
-              type="password"
-              placeholder="ntn_… (Notion internal integration token)"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              autoComplete="off"
-            />
-            <Button size="sm" {...blocked(token.trim() ? null : t("settings.notion.blockedNoToken"))} disabled={busy} onClick={() => void saveToken()}>
-              {busy ? t("settings.notion.verifying") : t("settings.notion.verifySave")}
-            </Button>
-          </div>
-        )}
-
-        <div>
-          <Label className="mb-1 block text-xs text-muted-foreground">
-            {t("settings.notion.parent")}
-          </Label>
-          <div className="flex gap-2">
-            <Input
-              placeholder="https://www.notion.so/…"
-              value={parent}
-              onChange={(e) => setParent(e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-            />
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => void saveParent()}>
-              {t("common.save")}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </Section>
-    </>
-  );
-}
 
 export function DataTab({ onError }: { onError: (msg: string | null) => void }) {
   const { t } = useT();
@@ -290,8 +107,6 @@ export function DataTab({ onError }: { onError: (msg: string | null) => void }) 
           <span className="text-xs text-muted-foreground">{t("common.loading")}</span>
         )}
       </Section>
-
-      <NotionSection onError={onError} />
 
       {/* 선언적 설정 (Phase 6) — 설정을 YAML 한 장으로 내보내고 들여온다.
           내보내기·초기화와 같은 계열이라 데이터 탭에 산다. */}

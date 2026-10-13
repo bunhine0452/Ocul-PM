@@ -1,6 +1,6 @@
 ---
 title: Settings
-desc: Themes and presets, text size, API keys and fallback chains, indexing and RAG, graph, Notion, diagnostics and updates.
+desc: Themes and presets, text size, API keys and fallback chains, indexing and RAG, graph, diagnostics and updates.
 order: 13
 updated: 2026-08-21
 ---
@@ -102,10 +102,6 @@ Scan setting changes take effect **at the next reindex**. Rebuild the index to a
 Defaults for the code map — whether isolated files show by default, and the **auto-group threshold** (directories with at least this many files become collapsible groups).
 
 In a big repo, lower the threshold when the map is too dense; raise it when everything is lumped together.
-
-## Notion export
-
-Exports entries and artifacts as new pages under a parent page you choose. Connect through the browser with your account, or paste an internal token. **That token also lives only in the OS keychain.**
 
 ## Diagnostics · Updates
 

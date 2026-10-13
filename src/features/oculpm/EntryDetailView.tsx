@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { EmptyState } from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { Toolbar } from "@/components/Toolbar";
-import { AlertTriangle, ArrowLeft, Check, ExternalLink, GitCompareArrows, PenLine, RotateCcw, Send, ShieldCheck } from "@/components/Icons";
+import { AlertTriangle, ArrowLeft, Check, ExternalLink, GitCompareArrows, PenLine, RotateCcw, ShieldCheck } from "@/components/Icons";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -12,7 +12,6 @@ import { Markdown } from "@/components/Markdown";
 import { useJournalEvents } from "./useOculpmLive";
 import { TRIGGER_META } from "./triggerMeta";
 import { EntryMasthead } from "./EntryMasthead";
-import { useNotionExport } from "./useNotionExport";
 import { EntryFileList, type FileRow } from "./EntryFileList";
 import { EntryFileBar } from "./EntryFileBar";
 import { RelatedSuggestCard } from "./RelatedSuggestCard";
@@ -140,15 +139,6 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
       setOpening(false);
     }
   }, [opening, projectId, entry.relative_path, t]);
-
-  // Notion 으로 — 토큰이 없으면 버튼이 없다 (C1). 본문은 캐시의 마크다운이고
-  // 커맨드가 프로젝트 redact 패턴을 한 번 더 지난다.
-  const notion = useNotionExport(projectId);
-  const sendToNotion = useCallback(() => {
-    if (!detail) return;
-    const head = `> ${entry.workday} · ${entry.type} · ${entry.agent_id}\n\n`;
-    void notion.send(entry.title || entry.slug, head + detail.body_markdown);
-  }, [detail, entry, notion]);
 
   // 본문 인라인 편집 (C2). frontmatter 는 백엔드가 그대로 두고 본문만 바꾼다.
   // 저장이 돌아오면 디스크 워처 이벤트가 `reload` 를 부르지만, 돌려받은
@@ -447,18 +437,6 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
             <ShieldCheck size={13} /> {t("ctx.promote.rule")}
           </button>
         ) : null}
-        {notion.ready ? (
-          <button
-            type="button"
-            className="btn sm"
-            onClick={sendToNotion}
-            {...blocked(detail ? null : t("notion.blockedLoading"))}
-            disabled={notion.busy}
-            title={t("notion.sendTitle")}
-          >
-            <Send size={13} /> {t("notion.send")}
-          </button>
-        ) : null}
         {editing ? (
           <>
             <button type="button" className="btn sm" onClick={() => setEditing(false)} disabled={savingBody}>
@@ -473,7 +451,7 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
             type="button"
             className="btn sm"
             onClick={startEdit}
-            {...blocked(detail ? null : t("notion.blockedLoading"), t("entry.editTitle"))}
+            {...blocked(detail ? null : t("entry.blockedLoading"), t("entry.editTitle"))}
           >
             <PenLine size={13} /> {t("entry.edit")}
           </button>

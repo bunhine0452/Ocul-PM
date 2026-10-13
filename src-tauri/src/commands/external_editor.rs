@@ -501,7 +501,6 @@ mod shell {
         for (name, src) in [
             ("external_editor.rs", include_str!("external_editor.rs")),
             ("open_native.rs", include_str!("open_native.rs")),
-            ("notion.rs", include_str!("notion.rs")),
         ] {
             let code: String = src
                 .lines()

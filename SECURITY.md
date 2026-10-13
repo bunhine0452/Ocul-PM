@@ -34,9 +34,9 @@
 | 플러그인 번들 | 번들의 `.mcp.json` 명령 | 미리본 바이트와 같을 때만 설치 (`commands/plugins.rs`) |
 | 배경 AI 작업 | 자동화 정의 | 기기 동의 (위 표) |
 
-네트워크에서 듣는 자리는 둘입니다 — 모바일 브리지(켰을 때만, Tailscale 인터페이스에만
-바인드 — `src-tauri/src/mobile_bridge/bind.rs`)와 Notion 연결의 OAuth 콜백(누른 뒤 최대
-3분, `127.0.0.1` 에서만). 업데이트는 서명을 검증한 뒤에만 설치됩니다.
+네트워크에서 듣는 자리는 하나입니다 — 모바일 브리지(켰을 때만, Tailscale 인터페이스에만
+바인드 — `src-tauri/src/mobile_bridge/bind.rs`). Notion 연결의 OAuth 콜백 리스너는
+2026-10-14 에 연동과 함께 걷었습니다. 업데이트는 서명을 검증한 뒤에만 설치됩니다.
 
 ## 외부 리뷰 이력
 

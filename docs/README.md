@@ -45,7 +45,6 @@
 | [`20260902_vscode-borrows/`](20260902_vscode-borrows/) | 코드 화면 v2.34.0 — 저장 위생 · 미리보기 탭 · 스티키 스크롤 · 문제 패널 · 로컬 히스토리. 말미에 "구현 중 뒤집힌 결정" 절이 있다(본받을 형식) |
 | [`20260904_ux-candidates/`](20260904_ux-candidates/) | 최근 UX 후보 조사 — 근거가 전부 이 저장소의 현재 코드다 |
 | [`major_update/oculpm/00-spec.md`](major_update/oculpm/00-spec.md) | **`.oculpm/` 온디스크 명세** — 디렉터리 구조 · frontmatter 스키마 · 락 프로토콜. `src-tauri/src/oculpm/` 이 조항 번호로 인용한다. 바꾸려면 `schema_version` 을 올린다. (같은 폴더의 나머지는 역사) |
-| [`notion-oauth-setup.md`](notion-oauth-setup.md) | Notion 퍼블릭 연동(OAuth) 등록 절차 — 운영 체크리스트 |
 | [`launch/`](launch/) | 출시 채널 조사와 발사 글 초안 |
 | [`vibe coding/`](<vibe coding/>) | 배경 리서치 — `claude-integration/` 라운드의 근거 보고서 |
 | [`Astra feedback/`](<Astra feedback/>) | **외부 리뷰** (2026-09-15 · 기준 커밋 `ebbeb1b`). 살아 있는 **백로그의 출처**다 — 수용한 항목은 플랜 `astra-feedback-round` 가 갖는다. 나머지는 채택하지 않았다: B06 · B09 · B15 보류, B21 · B43 · B47 기각 |

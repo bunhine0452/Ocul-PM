@@ -38,7 +38,6 @@ mod instance_lock;
 pub mod journal_index;
 mod llm;
 pub mod lsp;
-mod notion;
 pub mod oculpm;
 // 신뢰할 수 없는 상대 경로의 관문 — 어휘 + 링크 (보안 피드백 2차).
 mod path_guard;
@@ -371,12 +370,6 @@ use crate::commands::{
     mobile_bridge_stop,
     move_tab_to_window,
     new_start_tab,
-    notion_export,
-    notion_oauth_start,
-    notion_set_parent,
-    // PR-CI7 — Notion 내보내기 (키체인 토큰 + REST 페이지 생성)
-    notion_status,
-    notion_verify_token,
     // {#related-ui} — 후보를 원본 frontmatter 에 잇는다
     oculpm_add_related,
     oculpm_agent_run_signal,
@@ -961,12 +954,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             vscode_extension_status,
             mcp_desktop_register,
             mcp_desktop_unregister,
-            // PR-CI7 — Notion 내보내기
-            notion_status,
-            notion_oauth_start,
-            notion_verify_token,
-            notion_set_parent,
-            notion_export,
             // v2.3.0 메뉴바
             tray_open_main,
             tray_hide_popover,
@@ -1155,6 +1142,12 @@ pub fn run() {
             // 못 열면 크래시 대신 이유를 보이고 「새로 시작 / 종료」 를 묻는다.
             let db = crate::db::startup::open_or_ask(&app_data);
             app.manage(db);
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    crate::secrets::retire_notion(&handle.state::<crate::db::Db>()).await;
+                });
+            }
             // Pin the embedding model cache to an absolute, writable dir. The
             // packaged .app runs with CWD `/`, so fastembed's relative default
             // would fail to retrieve `onnx/model.onnx`.

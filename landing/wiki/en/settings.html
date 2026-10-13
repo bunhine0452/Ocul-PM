@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Settings — Ocul-PM Wiki</title>
-<meta name="description" content="Themes and presets, text size, API keys and fallback chains, indexing and RAG, graph, Notion, diagnostics and updates." />
+<meta name="description" content="Themes and presets, text size, API keys and fallback chains, indexing and RAG, graph, diagnostics and updates." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/en/settings" />
@@ -14,7 +14,7 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="en_US" />
 <meta property="og:title" content="Settings — Ocul-PM Wiki" />
-<meta property="og:description" content="Themes and presets, text size, API keys and fallback chains, indexing and RAG, graph, Notion, diagnostics and updates." />
+<meta property="og:description" content="Themes and presets, text size, API keys and fallback chains, indexing and RAG, graph, diagnostics and updates." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -66,7 +66,7 @@
     <article class="wk-article">
       <h1>Settings</h1>
       <p class="wk-updated">Last updated 2026-08-21</p>
-      <nav class="wk-toc"><span>On this page</span><a href="#appearance">Appearance</a><a href="#llm">LLM</a><a href="#indexing-rag">Indexing &amp; RAG</a><a href="#graph">Graph</a><a href="#notion-export">Notion export</a><a href="#diagnostics-updates">Diagnostics · Updates</a><a href="#ocul-pm">ocul-pm</a><a href="#next-steps">Next steps</a></nav>
+      <nav class="wk-toc"><span>On this page</span><a href="#appearance">Appearance</a><a href="#llm">LLM</a><a href="#indexing-rag">Indexing &amp; RAG</a><a href="#graph">Graph</a><a href="#diagnostics-updates">Diagnostics · Updates</a><a href="#ocul-pm">ocul-pm</a><a href="#next-steps">Next steps</a></nav>
       <p><code>⌘,</code> opens it. Eight tabs, mixing things you set once with things you may never open.</p>
 <div class="wk-table"><table><thead><tr><th>Tab</th><th>When to open it</th></tr></thead><tbody><tr><td><b>Appearance</b></td><td>Once — theme, text size, menu bar</td></tr><tr><td><b>LLM</b></td><td>Only for AI features — keys, models, fallbacks</td></tr><tr><td><b>ocul-pm</b></td><td>Managing agent rules, plugin install instructions</td></tr><tr><td><b>Indexing &amp; RAG</b></td><td>When search isn't behaving as expected</td></tr><tr><td><b>Graph</b></td><td>When the code map is too dense or too sparse</td></tr><tr><td><b>Data</b></td><td>Export and cleanup</td></tr><tr><td><b>Diagnostics</b></td><td>When reporting a problem</td></tr><tr><td><b>Updates</b></td><td>Manual check, past release notes</td></tr></tbody></table></div>
 <h2 id="appearance">Appearance</h2>
@@ -104,8 +104,6 @@ openrouter:openai/gpt-4o</code></pre>
 <h2 id="graph">Graph</h2>
 <p>Defaults for the code map — whether isolated files show by default, and the <b>auto-group threshold</b> (directories with at least this many files become collapsible groups).</p>
 <p>In a big repo, lower the threshold when the map is too dense; raise it when everything is lumped together.</p>
-<h2 id="notion-export">Notion export</h2>
-<p>Exports entries and artifacts as new pages under a parent page you choose. Connect through the browser with your account, or paste an internal token. <b>That token also lives only in the OS keychain.</b></p>
 <h2 id="diagnostics-updates">Diagnostics · Updates</h2>
 <ul><li><b>Diagnostics</b> — the information to attach when reporting a problem. DevTools opens from here too</li><li><b>Updates</b> — manual check and past release notes (GitHub releases). Normally the app updates itself</li></ul>
 <div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>An update restart relaunches the Claude Code adapter along with the app. That's why restarts are deferred while an answer is streaming — the conversation is on disk and comes back, but the answer in flight at that moment is lost.</p></div></div>
