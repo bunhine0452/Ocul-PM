@@ -46,7 +46,7 @@ owner: claude-code
 
 ## Phase 5 — 이월: 기능 백로그 (착수 순서는 사용자 결정) {#carried-features}
 - [>] 터미널 세션을 창 밖으로 떼어내기 · 다른 창 스트립에 드롭해 합치기 (← drag-and-drop-round #session-to-window, three-features-round #tab-merge) {#session-to-window}
-- [ ] Notion OAuth 계정 연동 버튼 — oculpm.com 코드 교환 + 딥링크 + 키체인 (← plugin-round #notion-oauth) {#notion-oauth}
+- [-] Notion OAuth 계정 연동 버튼 — oculpm.com 코드 교환 + 딥링크 + 키체인 (← plugin-round #notion-oauth) {#notion-oauth}
 - [>] 플러그인 마켓플레이스 공개 — 택일 UX·훅 계약 문서·버전 스큐 매트릭스·커뮤니티 제출 (← plugin-round #a3-marketplace) {#plugin-marketplace}
 - [>] DAP — attach·launch.json 격 영속, debugpy·dlv 왕복 검증, 무시된 파일 이름 검색 (← ide-completion #dap-config #dap-more-adapters #tree-filter) {#dap-more}
 - [>] LSP 설정 화면 — 언어별 켜기/끄기·서버 경로·미설치 안내 (← lsp-code-intelligence #lsp-settings) {#lsp-settings}
@@ -107,4 +107,5 @@ owner: claude-code
 | 2026-10-11T00:01:35+09:00 | #csp | claude-code | ☐→x | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 낡은 이월 — v3.8.0 에서 CSP 켬(security-feedback-round #csp, e2e 위반 0 게이트). 육안은 #eyes-security |
 | 2026-10-11T00:01:49+09:00 | #eyes-security | claude-code | ☐→☐ | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 신규 — 보안 라운드 1~3차 실기기 3건 + Notion 왕복 이월. 다음 릴리스 설치본에서 원격 이미지 칩·041 기동도 함께 |
 | 2026-10-11T00:01:58+09:00 | #footprint-attribution | claude-code | ☐→☐ | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 신규 — perf-security-audit-2026-10-08 #footprint-attribution 이월 (설치본이 꺼진 때) |
+| 2026-10-14T05:59:10+09:00 | #notion-oauth | claude-code | ☐→- | .oculpm/journal/20261014/Refactors/0558_refactor_remove-notion-integration.md | Notion 연동 자체를 걷음 (2026-10-14) |
 <!-- oculpm:plan-log end -->

@@ -14,10 +14,10 @@ owner: claude-code
 - [x] CLAUDE.md 범위 동결 규칙 — 새 화면·외부 연동·상주 리스너 금지, 교체는 옛 경로 제거로 끝낸다 (근거: 60일 fix 211건 중 주변 95 · 핵심 80) {#freeze-rule}
 - [x] improvement-round-2026-09-14 Phase 5 의 확장 백로그 보류 — dap-more · lsp-settings · plugin-marketplace · session-to-window · skill-catalog-b {#freeze-backlog}
 - [ ] [사용자 결정] native-agent-drivers 의 새 능력 P3(앱 안 /rc)·P4(승인 영속·무인 실행)가 동결 대상인지 — P0~P2·P5 는 ACP 교체라 허용 {#decide-native-new}
-- [ ] [사용자 결정] 걷기 후보 — 줄 수 · 전체 fix · 60일 fix {#decide-removal}
+- [~] [사용자 결정] 걷기 후보 — 줄 수 · 전체 fix · 60일 fix {#decide-removal}
   - [ ] 모바일 브리지 — 3.5k줄 · fix 2 · Tailscale 상주 리스너 · 폰 E2E 미검증(improvement-round #mobile-bridge-rest) {#remove-mobile}
   - [ ] DAP 디버거 — 3.1k줄 · fix 2 · 디버거 프로세스 기동 · debugpy·dlv 왕복 미검증 {#remove-dap}
-  - [ ] Notion — 0.9k줄 + oculpm.com 교환 서버 의존 · 루프백 리스너 · 보안 라운드 미완 2건(security-feedback-round #notion-token-url #notion-legacy-token-removal) {#remove-notion}
+  - [x] Notion — 0.9k줄 + oculpm.com 교환 서버 의존 · 루프백 리스너 · 보안 라운드 미완 2건(security-feedback-round #notion-token-url #notion-legacy-token-removal) {#remove-notion}
   - [ ] 코드 그래프 — 3.7k줄 · fix 2 · 전체 커밋 38 {#remove-graph}
   - [ ] VS Code 확장 — 2.7k줄(src) · 배포 채널 2곳(마켓·Open VSX) · 별도 릴리스 워크플로 {#remove-vscode}
   - [ ] 테마 원격 갤러리 — 테마 2.5k줄 중 GitHub 받기 부분 · 송출 1자리 {#remove-theme-gallery}
@@ -47,4 +47,5 @@ owner: claude-code
 | 2026-10-08T17:57:41+09:00 | #pr-merge | claude-code | ☐→x | .oculpm/journal/20261008/Chores/1757_chore_external-review-scope-freeze.md | PR #75 CI 3잡 SUCCESS → rebase 머지 680ef167, 브랜치·워크트리 삭제 |
 | 2026-10-11T00:01:35+09:00 | #next-review | claude-code | ☐→x | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 2026-10-09 보완점 리포트(v3.10.1 기준 외부 19건)가 v3.9.0 이후 범위의 다음 리뷰였다 — SECURITY.md 이력에 v3.11.0 반영. 다음은 v3.16.0 무렵(bump-version 경고) |
 | 2026-10-11T00:01:49+09:00 | #release-env | claude-code | ☐→☐ | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 신규 — review-2026-10-09 #release-env 이월 (사용자 액션) |
+| 2026-10-14T05:59:05+09:00 | #remove-notion | claude-code | ☐→x | .oculpm/journal/20261014/Refactors/0558_refactor_remove-notion-integration.md | 사용자 결정(안 쓰는 기능) — 대체는 /oculpm:board. 미릴리스·랜딩 미배포 |
 <!-- oculpm:plan-log end -->
