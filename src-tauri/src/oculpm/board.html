@@ -1,0 +1,223 @@
+<title>__PROJECT__ 플랜 보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* 레이아웃: 한 열 원장 — 머리띠(프로젝트·동기 시각) → 플랜마다 진척 막대 + 항목 목록. 크롬은 작게. */
+:root {
+  --bg: #f6f8f7;
+  --surface: #ffffff;
+  --fg: #17201c;
+  --muted: #5d6a64;
+  --line: #dde4e0;
+  --accent: #12a06b;
+  --accent-soft: #dff3ea;
+  --warn: #b7791f;
+  --crit: #c2412d;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111614; --surface: #171d1a; --fg: #e3ebe7; --muted: #92a19a; --line: #2a332f;
+    --accent: #3cc48d; --accent-soft: #173a2c; --warn: #d9a441; --crit: #e0705c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111614; --surface: #171d1a; --fg: #e3ebe7; --muted: #92a19a; --line: #2a332f;
+  --accent: #3cc48d; --accent-soft: #173a2c; --warn: #d9a441; --crit: #e0705c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 14px/1.55 var(--font-body); }
+.wrap { max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+h1 { font-size: 15px; font-weight: 600; margin: 0; text-wrap: balance; }
+h1 .proj { font-family: var(--font-mono); font-weight: 500; color: var(--accent); }
+.meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.summary { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.summary b { color: var(--fg); font-weight: 600; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { font: 500 12px var(--font-body); color: var(--muted); background: var(--surface); border: 0; padding: 4px 10px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { color: var(--fg); background: var(--accent-soft); }
+.seg button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.plans { display: grid; gap: 12px; }
+details.plan { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+details.plan > summary { list-style: none; cursor: pointer; padding: 12px 14px; display: grid; gap: 8px; }
+details.plan > summary::-webkit-details-marker { display: none; }
+.ptop { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ptitle { font-weight: 600; font-size: 14px; min-width: 0; }
+.pid { font: 400 11px var(--font-mono); color: var(--muted); margin-left: 6px; }
+.pcount { font: 500 12px var(--font-mono); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.track { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.track i { display: block; height: 100%; background: var(--accent); }
+ul.items { list-style: none; margin: 0; padding: 0 14px 12px; display: grid; gap: 2px; }
+li.phase { font-size: 11px; letter-spacing: .04em; color: var(--muted); padding: 8px 0 2px; }
+li.item { display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: start; padding: 3px 0; }
+li.item.child { padding-left: 18px; }
+.t { min-width: 0; overflow-wrap: anywhere; }
+.iid { font: 400 11px var(--font-mono); color: var(--muted); }
+.mark { width: 12px; height: 12px; margin-top: 4px; border-radius: 3px; border: 1.5px solid var(--muted); position: relative; }
+.st-todo .mark { border-color: var(--muted); }
+.st-doing .mark { border-color: var(--accent); background: linear-gradient(90deg, var(--accent) 50%, transparent 50%); }
+.st-done .mark { border-color: var(--accent); background: var(--accent); }
+.st-blocked .mark { border-color: var(--crit); background: var(--crit); border-radius: 50%; }
+.st-deferred .mark { border-color: var(--warn); border-style: dashed; }
+.st-dropped .mark { border-color: var(--line); }
+.st-done .t, .st-dropped .t { color: var(--muted); }
+.st-dropped .t { text-decoration: line-through; }
+.chip { font-size: 11px; padding: 0 6px; border-radius: 4px; white-space: nowrap; }
+.st-blocked .chip { color: var(--crit); border: 1px solid var(--crit); }
+.st-doing .chip { color: var(--accent); border: 1px solid var(--accent); }
+.empty { background: var(--surface); border: 1px dashed var(--line); border-radius: 8px; padding: 20px 16px; color: var(--muted); display: grid; gap: 6px; }
+.empty b { color: var(--fg); font-weight: 600; }
+code { font-family: var(--font-mono); font-size: 12.5px; }
+footer { font-size: 12px; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .track i { transition: width .3s ease; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>플랜 보드 · <span class="proj" id="proj">—</span></h1>
+    <span class="meta" id="synced">아직 동기화하지 않았어요</span>
+  </header>
+
+  <div class="bar">
+    <span class="summary" id="summary">활성 플랜을 기다리는 중</span>
+    <div class="seg" role="group" aria-label="보기">
+      <button type="button" id="v-open" aria-pressed="true">남은 항목</button>
+      <button type="button" id="v-all" aria-pressed="false">전부</button>
+    </div>
+  </div>
+
+  <section class="plans" id="plans">
+    <div class="empty" id="empty">
+      <b>아직 실린 플랜이 없어요.</b>
+      <span>이 프로젝트의 Claude Code 에서 <code>/oculpm:board</code> 를 실행하면 활성 플랜과 항목 상태가 여기에 채워져요. 이 보드는 읽기 전용이고, 기록의 원본은 프로젝트의 <code>.oculpm/planner/</code> 예요.</span>
+    </div>
+  </section>
+
+  <footer>Ocul-PM 이 기록한 계획을 그대로 비춥니다. 시크릿처럼 보이는 문구는 내보내기 전에 가려져요.</footer>
+</div>
+
+<script>
+(function () {
+  // 디스크 글리프 어휘 그대로: ' ' 할 일 · '~' 진행 · 'x' 완료 · '!' 막힘 · '>' 미룸 · '-' 버림
+  var ST = {
+    " ": ["todo", ""], "~": ["doing", "진행 중"], "x": ["done", ""],
+    "!": ["blocked", "막힘"], ">": ["deferred", "미룸"], "-": ["dropped", ""]
+  };
+  var OPEN = { " ": 1, "~": 1, "!": 1 };
+  var state = { meta: null, plans: [], view: "open" };
+  try { if (localStorage.getItem("board.view") === "all") state.view = "all"; } catch (e) {}
+
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function fmt(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return "";
+    return d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function render() {
+    $("v-open").setAttribute("aria-pressed", String(state.view === "open"));
+    $("v-all").setAttribute("aria-pressed", String(state.view === "all"));
+    if (state.meta) {
+      $("proj").textContent = state.meta.project || "—";
+      if (state.meta.synced_at) $("synced").textContent = "마지막 동기화 " + fmt(state.meta.synced_at);
+    }
+    var host = $("plans");
+    host.querySelectorAll("details.plan").forEach(function (n) { n.remove(); });
+    $("empty").hidden = state.plans.length > 0;
+
+    var openTotal = 0, blocked = 0;
+    state.plans.forEach(function (p) {
+      var items = Array.isArray(p.items) ? p.items : [];
+      var parents = {};
+      items.forEach(function (i) { if (i.parent) parents[i.parent] = 1; });
+      items.forEach(function (i) {
+        if (parents[i.id]) return;
+        if (OPEN[i.st]) openTotal++;
+        if (i.st === "!") blocked++;
+      });
+
+      var d = el("details", "plan");
+      d.open = true;
+      var s = el("summary");
+      var top = el("div", "ptop");
+      var t = el("span", "ptitle", p.title || p.id);
+      t.appendChild(el("span", "pid", p.id));
+      top.appendChild(t);
+      top.appendChild(el("span", "pcount", (p.done || 0) + " / " + (p.total || 0)));
+      s.appendChild(top);
+      var track = el("div", "track");
+      var fill = el("i");
+      fill.style.width = (p.total ? Math.round(100 * p.done / p.total) : 0) + "%";
+      track.appendChild(fill);
+      s.appendChild(track);
+      d.appendChild(s);
+
+      var ul = el("ul", "items");
+      var phase = null, shown = 0;
+      items.forEach(function (i) {
+        if (state.view === "open" && !OPEN[i.st]) return;
+        if (i.phase && i.phase !== phase) { phase = i.phase; ul.appendChild(el("li", "phase", phase)); }
+        var meta = ST[i.st] || ST[" "];
+        var li = el("li", "item st-" + meta[0] + (i.parent ? " child" : ""));
+        li.appendChild(el("span", "mark"));
+        var body = el("span", "t", i.title + " ");
+        body.appendChild(el("span", "iid", "#" + i.id));
+        li.appendChild(body);
+        li.appendChild(meta[1] ? el("span", "chip", meta[1]) : el("span"));
+        ul.appendChild(li);
+        shown++;
+      });
+      if (!shown) ul.appendChild(el("li", "phase", state.view === "open" ? "남은 항목이 없어요" : "항목이 없어요"));
+      d.appendChild(ul);
+      host.appendChild(d);
+    });
+
+    $("summary").innerHTML = "";
+    if (state.plans.length) {
+      var sm = $("summary");
+      sm.append("활성 플랜 ");
+      sm.appendChild(el("b", null, String(state.plans.length)));
+      sm.append(" · 남은 항목 ");
+      sm.appendChild(el("b", null, String(openTotal)));
+      if (blocked) { sm.append(" · 막힘 "); sm.appendChild(el("b", null, String(blocked))); }
+    } else {
+      $("summary").textContent = "활성 플랜을 기다리는 중";
+    }
+  }
+
+  function setView(v) {
+    state.view = v;
+    try { localStorage.setItem("board.view", v); } catch (e) {}
+    render();
+  }
+  $("v-open").addEventListener("click", function () { setView("open"); });
+  $("v-all").addEventListener("click", function () { setView("all"); });
+  render();
+
+  if (!window.claude || !window.claude.use) return;
+  window.claude.use("db").then(function (db) {
+    if (!db) return;
+    db.doc("meta/board").onSnapshot(function (snap) {
+      state.meta = snap.exists ? snap.data() : null;
+      render();
+    }, function () {});
+    db.collection("plans").onSnapshot(function (snap) {
+      state.plans = snap.docs.map(function (d) {
+        var v = d.data() || {};
+        return Object.assign({ id: d.id }, v);
+      });
+      render();
+    }, function () {});
+  });
+})();
+</script>

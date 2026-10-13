@@ -436,13 +436,14 @@ fn bundled_skills_and_commands_stay_within_budget() {
     assert_eq!(
         cmd_names,
         [
+            "board.md",
             "help.md",
             "inception.md",
             "next.md",
             "project_init.md",
             "standup.md"
         ],
-        "동봉 커맨드 5종 고정 — 추가하려면 토큰 예산부터 재계산 (+ landing/plugin.html 문서화)"
+        "동봉 커맨드 6종 고정 — 추가하려면 토큰 예산부터 재계산 (+ landing/plugin.html 문서화)"
     );
     for name in &cmd_names {
         let cmd = std::fs::read_to_string(plugin_root().join("commands").join(name)).unwrap();

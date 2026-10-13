@@ -91,6 +91,11 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
         _ => None,
     };
 
+    // 항목 문구는 손으로 쓴 플랜에서 그대로 오므로 응답에 싣기 전에 가린다 —
+    // 이 응답은 `/oculpm:board` 가 claude.ai 아티팩트로 내보내는 재료이기도 하다.
+    let patterns = crate::oculpm::redact::patterns_for_project(root);
+    let mask = |s: &str| redact_text(s, &patterns).0;
+
     let planner_root = planner_dir(root);
     let entries = match std::fs::read_dir(&planner_root) {
         Ok(e) => e,
@@ -149,7 +154,7 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
                             plan_status.clone(),
                             i.item_id,
                             i.status.token(),
-                            i.title,
+                            mask(&i.title),
                         ));
                     }
                 }
@@ -172,7 +177,7 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
             .count();
         plans.push(json!({
             "id": plan_id,
-            "title": parsed.frontmatter.title,
+            "title": mask(&parsed.frontmatter.title),
             "progress": { "done": done, "total": total },
             // **CAS 의 재료를 여기서 발급한다** ({#plan-status-hash}). 이전에는
             // `base_hash` 의 유일한 출처가 직전 `plan_update` 응답이라, 세션의
@@ -196,7 +201,7 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
                     i.item_id.clone(),
                     i.status.token(),
                     i.phase.clone().unwrap_or_default(),
-                    i.title.clone(),
+                    mask(&i.title),
                     i.parent_item.clone().unwrap_or_default(),
                 ));
             }

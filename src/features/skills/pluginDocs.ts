@@ -68,10 +68,18 @@ export const PLUGIN_COMMANDS: readonly PluginCommandDoc[] = [
     example: "/oculpm:standup",
   },
   {
+    slug: "board",
+    cmd: "/oculpm:board",
+    description: "활성 플랜을 claude.ai 비공개 아티팩트 보드로 발행·동기화 — 폰·다른 기기에서 진행 보기",
+    detail:
+      "활성 플랜과 항목 상태를 claude.ai 의 비공개 보드 한 장으로 올리고, 다시 부르면 갱신합니다. 시크릿처럼 보이는 문구는 가린 뒤 올립니다.",
+    example: "/oculpm:board",
+  },
+  {
     slug: "help",
     cmd: "/oculpm:help",
     description: "ocul-pm 플러그인 표면 전체 레퍼런스 카드 — 커맨드·MCP 도구·스킬·훅 한눈에",
-    detail: "커맨드 5종·MCP 도구 5종·스킬 5종·훅 동작을 한 카드로 보여주고 다음 한 걸음을 추천합니다.",
+    detail: "커맨드 6종·MCP 도구 5종·스킬 5종·훅 동작을 한 카드로 보여주고 다음 한 걸음을 추천합니다.",
     example: "/oculpm:help",
   },
 ];

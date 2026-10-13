@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>플러그인 · 스킬 카탈로그 — Ocul-PM</title>
-<meta name="description" content="Claude Code 용 Ocul-PM 플러그인의 전체 표면: 슬래시 커맨드 5종, MCP 도구 7종, 동봉 스킬 5종, 그리고 스택을 감지해 추천하는 제3자 스킬 카탈로그 26종(커밋 고정·MIT)." />
+<meta name="description" content="Claude Code 용 Ocul-PM 플러그인의 전체 표면: 슬래시 커맨드 6종, MCP 도구 7종, 동봉 스킬 5종, 그리고 스택을 감지해 추천하는 제3자 스킬 카탈로그 26종(커밋 고정·MIT)." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/plugin" />
@@ -75,7 +75,7 @@
     </section>
 
     <section class="pg-sec">
-      <h2 id="commands">슬래시 커맨드 5종</h2>
+      <h2 id="commands">슬래시 커맨드 6종</h2>
       <p>타이핑 한 줄로 부르는 것.</p>
       <div class="pg-cards">
       <div class="pg-card">
@@ -95,8 +95,12 @@
         <p>오늘 일지와 플랜 진행을 모아 스탠드업 요약(한 일 / 진행 중·막힘 / 다음)을 만듭니다.</p>
       </div>
       <div class="pg-card">
+        <h3><code>/oculpm:board</code><span class="when">진행을 다른 기기에서 볼 때</span></h3>
+        <p>활성 플랜과 항목 상태를 claude.ai 의 <b>비공개 아티팩트 보드</b> 한 장으로 발행하고, 다시 부르면 그 보드를 갱신합니다. 보드는 읽기 전용이고 원본은 <code>.oculpm/planner/</code> 입니다. 문서는 앱이 만들고 <b>시크릿처럼 보이는 문구는 가린 뒤</b> 올립니다. 공유는 보드의 Share 메뉴에서 직접 정합니다. Claude Code 를 claude.ai 계정으로 쓸 때만 동작합니다.</p>
+      </div>
+      <div class="pg-card">
         <h3><code>/oculpm:help</code><span class="when">뭐가 있는지 잊었을 때</span></h3>
-        <p>플러그인 표면 전체(커맨드 5 · MCP 도구 14 · 스킬 5 · 훅)를 레퍼런스 카드 한 장으로 보여주고, 지금 상황에 맞는 다음 한 걸음을 추천합니다.</p>
+        <p>플러그인 표면 전체(커맨드 6 · MCP 도구 7 · 스킬 5 · 훅)를 레퍼런스 카드 한 장으로 보여주고, 지금 상황에 맞는 다음 한 걸음을 추천합니다.</p>
       </div>
       </div>
     </section>
