@@ -29,8 +29,8 @@
 //!   4. model output — [`journal_draft`][super::journal_draft],
 //!      `automation::{runner, scheduler}`, `import::journalize`;
 //!   5. the planner / discussion projections and dispatch prompts;
-//!   6. anything leaving the machine or the journal — `commands::notion`,
-//!      `commands::skills` and rule/skill promotion.
+//!   6. anything leaving the journal — `commands::skills` and rule/skill
+//!      promotion.
 //!
 //!   Use [`patterns_for_project`] to load+compile a project's
 //!   `auto_redact_patterns` from disk in one call.
@@ -97,7 +97,9 @@ use crate::oculpm::spec::OculpmConfig;
 /// 28 → 29 (2026-10-08 검토): `commands/project.rs` — `search_chunks` 가 꺼낸 청크를
 /// 가린다. AI 패널이 그 청크를 RAG 로 프롬프트에 싣는데, 원장은 패널 전체를 「사용자
 /// 작성」 으로 면제하고 있어 저장소 파일 원문이 그대로 나갔다.
-pub const CALL_SITE_FILES: usize = 29;
+///
+/// 29 → 28 (2026-10-14): `commands/notion.rs` — Notion 연동을 걷으며 함께 사라졌다.
+pub const CALL_SITE_FILES: usize = 28;
 
 /// Prompt-building sites that reach a model **without** redaction — neither
 /// directly nor through the masked cache projection.

@@ -63,8 +63,6 @@ const RULES: ReadonlyArray<readonly [RegExp, I18nKey]> = [
   [/Refusing to write through a symbolic link: (?<path>.+)$/, "err.symlinkRefused"],
   [/^This discussion was already promoted to the planner\.$/, "err.alreadyPromoted"],
   [/^There are no legacy goals to import\.$/, "err.nothingToImport"],
-  [/^No Notion token configured \(Settings → Data\)$/, "err.notionNoToken"],
-  [/^No parent page configured for export \(Settings → Data\)$/, "err.notionNoParent"],
   [/^Could not open the browser$/, "err.browserOpenFailed"],
   [/^CLI timed out \(60s\)$/, "err.cliTimeout"],
   // ── 크로스플랫폼 라운드 ({#ui-followups}) — 백엔드가 **고정 문구**로 낸다. ──

@@ -108,7 +108,7 @@ const LAUNCHERS: &[&str] = &[
     // 분리 기동 — `proc/detached.rs`(Windows `CreateProcessW`)와 편집기 셸 위임.
     "spawn_detached(",
     "CreateProcessW(",
-    // Windows 의 OS 기본 처리기 위임 — open_url·Notion·open_native 가 지난다.
+    // Windows 의 OS 기본 처리기 위임 — open_url·open_native 가 지난다.
     "shell_open(",
     // 크레이트가 대신 띄우는 것.
     "CommandBuilder::new(",

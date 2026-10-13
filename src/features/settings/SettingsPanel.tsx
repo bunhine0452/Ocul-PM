@@ -27,7 +27,6 @@ import { DataTab } from "./tabs/DataTab";
 import { ContextTab } from "./tabs/ContextTab";
 import { DiagnosticsTab } from "./tabs/DiagnosticsTab";
 import { UpdateTab } from "./tabs/UpdateTab";
-export { NotionSection } from "./tabs/DataTab";
 // 상수·클램프만 있는 모듈이다 — TerminalSurface 에서 가져오면 설정 청크가
 // xterm 을 통째로 끌고 온다.
 import { useT, type I18nKey } from "@/i18n";

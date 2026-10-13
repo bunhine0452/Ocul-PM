@@ -90,6 +90,33 @@ pub fn delete(name: &str) -> Result<(), SecretError> {
     }
 }
 
+/// Notion 연동 은퇴 (2026-10-14) — 그 연동이 남긴 키체인 토큰과 부모 페이지
+/// 설정을 기동 때 한 번 치운다. 코드가 사라진 뒤에도 토큰이 키체인에 살아
+/// 있으면, 쓰는 곳 없는 쓰기 권한 자격 증명이 기기에 남는다.
+///
+/// 표식(`notion_retired`)은 키체인을 지운 **뒤에만** 적는다 — 지우기가 실패하면
+/// 다음 기동이 다시 시도한다. 저장소가 없는 Linux(`Unavailable`)에는 토큰이 있을
+/// 수 없으니 성공으로 친다.
+pub async fn retire_notion(db: &crate::db::Db) {
+    const MARK: &str = "notion_retired";
+    if matches!(db.settings_get(MARK.to_string()).await, Ok(Some(_))) {
+        return;
+    }
+    let gone = tokio::task::spawn_blocking(|| delete("notion_api_key")).await;
+    match gone {
+        Ok(Ok(())) | Ok(Err(SecretError::Unavailable(_))) => {}
+        Ok(Err(e)) => {
+            tracing::warn!(error = %e, "옛 Notion 토큰 삭제 실패 — 다음 기동에 다시");
+            return;
+        }
+        Err(_) => return,
+    }
+    let _ = db
+        .settings_delete("notion_parent_page_id".to_string())
+        .await;
+    let _ = db.settings_set(MARK.to_string(), "1".to_string()).await;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

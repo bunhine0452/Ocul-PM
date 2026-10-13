@@ -255,7 +255,6 @@ const TESTS = new Set([
   "__tests__/native_dialogs.test.ts",
   "__tests__/nav_registry.test.ts",
   "__tests__/new_tab_intent.test.ts",
-  "__tests__/notion_export_v2.test.tsx",
   "__tests__/oculpm_live.test.tsx",
   "__tests__/oculpm_settings_subtabs.test.tsx",
   "__tests__/osc_shell.test.ts",

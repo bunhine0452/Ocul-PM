@@ -76,27 +76,6 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         reach: Reach::Network("open_url 의 스킴 가드 — http/https/mailto 만, OS 브라우저가 연다"),
         reason: "Windows — cmd 를 거치지 않고 ShellExecute(opener) 로. `cmd /C start` 는 쿼리의 `&` 뒤를 명령으로 실행했었다.",
     },
-    Launch {
-        path: "commands/notion.rs",
-        func: "open_in_browser",
-        call: "std_cmd(\"open\")",
-        reach: Reach::Network("사용자가 Notion 연결을 켤 때 — OAuth 동의 페이지를 OS 브라우저로"),
-        reason: "macOS — notion.rs 가 조립한 동의 URL 을 브라우저에 넘긴다. 콜백은 127.0.0.1 루프백이 받는다.",
-    },
-    Launch {
-        path: "commands/notion.rs",
-        func: "open_in_browser",
-        call: "std_cmd(\"xdg-open\")",
-        reach: Reach::Network("사용자가 Notion 연결을 켤 때 — OAuth 동의 페이지를 OS 브라우저로"),
-        reason: "Linux — 위와 같다.",
-    },
-    Launch {
-        path: "commands/notion.rs",
-        func: "open_in_browser",
-        call: "shell_open(std::ffi::OsStr::new(url))",
-        reach: Reach::Network("사용자가 Notion 연결을 켤 때 — OAuth 동의 페이지를 OS 브라우저로"),
-        reason: "Windows — ShellExecute(opener). `cmd /C start` 는 `&state=` 에서 끊겨 state 없이 열렸었다.",
-    },
     // ── 창구 ──
     Launch {
         path: "proc.rs",
@@ -131,7 +110,7 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         func: "shell_open",
         call: "tauri_plugin_opener::open_url(target.to_string_lossy(), …)",
         reach: Reach::Relay,
-        reason: "Windows 의 OS 기본 처리기 위임(ShellExecuteExW) — URL 이든 로컬 경로든 부르는 쪽(open_url·Notion·open_native)이 정하고, 각자 이 원장에 있다.",
+        reason: "Windows 의 OS 기본 처리기 위임(ShellExecuteExW) — URL 이든 로컬 경로든 부르는 쪽(open_url·open_native)이 정하고, 각자 이 원장에 있다.",
     },
     // ── 로컬 ──
     Launch {

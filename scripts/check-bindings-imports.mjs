@@ -38,8 +38,6 @@ export const ALLOWLIST = new Set([
   "api/code.ts",
   "api/acp.ts",
   "api/fileOpen.ts",
-  // Notion 상태·내보내기 (감사 라운드 2026-09-11 C1) — 일지 상세의 「Notion 으로」.
-  "api/notion.ts",
   // VS Code 확장 설치 상태 (vscode-extension-round {#app-settings}) — 설정 통합 행의 창구.
   "api/vscodeExt.ts",
   // 설치 형식 (크로스플랫폼 L-UPD #upd-target-missing) — 업데이터의 deb 안내·대상 없음 판정.

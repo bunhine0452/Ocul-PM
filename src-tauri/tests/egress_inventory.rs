@@ -147,18 +147,6 @@ const RUST_SITES: &[Site] = &[
     },
     // ── 약속에 적혀 있지 않은 자리 (이 라운드의 발견) ──
     Site {
-        path: "notion.rs",
-        primitives: &["reqwest::"],
-        control: Control::Exempt,
-        reason: "사용자가 Notion 연결을 켠 뒤의 아웃바운드. oculpm.com 은 OAuth 교환 브로커(벤더 서버)이고 www.notion.so 는 테스트 픽스처 URL이다 — **약속 문구가 이 예외를 아직 안 적고 있다** (후속으로 남긴다).",
-    },
-    Site {
-        path: "commands/notion.rs",
-        primitives: &["TcpListener", "xdg-open"],
-        control: Control::LocalOnly,
-        reason: "OAuth 콜백용 127.0.0.1 루프백 리스너 + 브라우저 위임. 자기 목적지가 없다 (URL 은 notion.rs 상수).",
-    },
-    Site {
         path: "plugins/source.rs",
         primitives: &["reqwest::"],
         control: Control::Guarded("GithubSource::zip_url — owner/repo 만 조립, 호스트 상수"),
@@ -186,7 +174,7 @@ const RUST_SITES: &[Site] = &[
         path: "commands/open_native.rs",
         primitives: &["xdg-open", "tauri_plugin_opener"],
         control: Control::LocalOnly,
-        reason: "로그 폴더·일지 파일을 OS 기본 앱으로 연다 — 로컬 경로, 그리고 앱이 스스로 조립하는 `vscode://oculpm.ocul-pm/open?entry=<로컬 경로>` 하나(설치된 VS Code 확장으로 위임 — vscode_ext.rs). 기기 밖으로 나가는 목적지가 아니다. Windows 는 `cmd start` 대신 opener 플러그인의 ShellExecute(`shell_open`) — open_url·Notion 브라우저 위임도 이 창구를 지난다.",
+        reason: "로그 폴더·일지 파일을 OS 기본 앱으로 연다 — 로컬 경로, 그리고 앱이 스스로 조립하는 `vscode://oculpm.ocul-pm/open?entry=<로컬 경로>` 하나(설치된 VS Code 확장으로 위임 — vscode_ext.rs). 기기 밖으로 나가는 목적지가 아니다. Windows 는 `cmd start` 대신 opener 플러그인의 ShellExecute(`shell_open`) — open_url 의 브라우저 위임도 이 창구를 지난다.",
     },
     // ── 인바운드(듣는 쪽). 나가지는 않지만 경계는 경계다 ──
     Site {
@@ -212,14 +200,12 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     ("generativelanguage.googleapis.com", "약속의 예외 ① — Gemini LLM 엔드포인트."),
     ("integrate.api.nvidia.com", "약속의 예외 ① — NVIDIA NIM LLM 엔드포인트."),
     ("api.github.com", "약속의 예외 ② — 릴리스 목록 읽기. `src/lib/updater.ts` 의 RELEASES_API 가 소유하고 Today 카드·설정 업데이트 탭이 부른다."),
-    ("api.notion.com", "사용자가 Notion 연동을 켠 뒤의 아웃바운드 (notion.rs)."),
     ("codeload.github.com", "사용자가 명시적으로 요청한 플러그인 번들 zip 다운로드."),
-    ("oculpm.com", "셋을 겸한다 — 테마 화이트리스트 호스트, Notion OAuth 교환 브로커(벤더 서버), OpenRouter 어트리뷰션 헤더 값. **약속 문구가 OAuth 브로커를 아직 안 적고 있다.**"),
+    ("oculpm.com", "둘을 겸한다 — 테마 화이트리스트 호스트, OpenRouter 어트리뷰션 헤더 값. (Notion OAuth 교환 브로커는 2026-10-14 Notion 연동과 함께 걷었다.)"),
     ("raw.githubusercontent.com", "테마 설치 화이트리스트의 두 번째 호스트 (deeplink::THEME_HOSTS)."),
     ("registry.npmjs.org", "ACP 어댑터 설치 — Claude Code·Codex 화면이 어댑터를 처음 깔 때 npm 하위 프로세스가 고정 lockfile(acp-lock/, sha512)의 패키지를 받는다. 앱 코드는 이 호스트를 직접 부르지 않는다 — 소스의 이 문자열은 lockfile 계약 테스트(acp/adapter.rs)의 단언이다. 그 하위 프로세스 자리(`install_tree` 의 `tokio_cmd(npm)`)는 판정 D(egress_spawn_ledger.rs)가 송출 가능으로 센다."),
     // ── 브라우저에 넘기는 링크 (앱이 보내지 않는다) ──
     ("github.com", "저장소·이슈·릴리스 링크 — open_url 로 OS 브라우저에 위임한다. plugins/source.rs 의 테스트 픽스처이기도 하다."),
-    ("www.notion.so", "사용자의 Notion 페이지 링크 — 브라우저 위임. notion.rs 에서는 URL 파서의 테스트 픽스처다."),
     // marketplace.visualstudio.com 은 2026-09-14 에 표에서 뺐다 — 확장이 아직 거기 발행되지 않아
     // (404) 링크 자체를 내지 않는다 (commands/mcp.rs marketplace_url = None). 발행하면 링크와 함께 되살린다.
     ("open-vsx.org", "확장의 Open VSX 링크 (Cursor·VSCodium 사용자용, commands/mcp.rs vscode_extension_status) — 설정 화면 앵커, 사용자 클릭 시 open_url 로 브라우저 위임. 앱은 보내지 않는다."),

@@ -125,7 +125,6 @@ export const SETTINGS_INDEX: readonly SettingsEntry[] = [
   { tab: "graph", key: "settings.graph.threshold", section: "settings.graph.title" },
 
   // ── data
-  { tab: "data", key: "settings.notion.title" },
   { tab: "data", key: "settings.storage.title" },
   { tab: "data", key: "settings.diag.title" },
   { tab: "data", key: "settings.reset.title" },

@@ -36,7 +36,6 @@ pub mod lsp;
 pub mod mcp;
 pub mod mobile;
 pub mod new_window;
-pub mod notion;
 pub mod oculpm;
 mod open_native;
 pub mod overview;
@@ -92,7 +91,6 @@ pub use llm::*;
 pub use lsp::*;
 pub use mcp::*;
 pub use mobile::*;
-pub use notion::*;
 #[allow(unused_imports)] // Re-exported for W1-PR6 commands; stub for now.
 pub use oculpm::*;
 // `overview` 는 커맨드를 내놓지 않는다 — 색인 후 훅이 `overview::run_generation`
