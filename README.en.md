@@ -78,7 +78,13 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.12.0 — See terminal image paths on hover
+## 🚀 v3.13.0 — Your plans on a Claude board; Notion retired
+
+- **One `/oculpm:board` puts your active plans on a private claude.ai board** — run it again to refresh, and follow progress from your phone or another machine. The board is read-only; the source stays in `.oculpm/planner/`. The app builds what gets uploaded and masks anything that looks like a secret first. Agents reading plans (`plan_status`) now get the same masking.
+- **The Notion integration is gone** — the board covers viewing plans from elsewhere. On first launch after the update the leftover Notion token is removed from the keychain, and the app now has five kinds of outbound connection.
+- **Code search no longer drowns in data files** — tables, record files, large `.json` · `.txt` and `vendor/` are no longer indexed, and duplicate chunks of the same file (17.8% of a real database) no longer pile up.
+
+## v3.12.0 — See terminal image paths on hover
 
 - **Hover an image path that Claude Code printed and the picture appears right there** — before, a line like `› [image] /private/tmp/…/x.png (1.9MB)` meant digging through a hidden temp folder in Finder. Now a card shows the image, its name and size, and a click opens it large. If a narrow terminal splits the path across two lines, either line shows the same image.
 - **Only real images open** — the file may live outside the project (an agent's temp folder), but a renamed non-image, a folder, or anything over 16MB is refused with the reason. The image is drawn inside the app only. Applies to terminals opened after the update.
