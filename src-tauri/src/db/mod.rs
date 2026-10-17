@@ -36,6 +36,7 @@ mod graph;
 pub mod hotspot;
 mod planning;
 mod projects;
+mod vec_repack;
 pub use projects::PROJECT_CACHE_TABLES;
 pub mod recall;
 mod settings;
