@@ -14,13 +14,13 @@ describe("localIsoDate", () => {
     else process.env.TZ = prevTz;
   });
 
-  it("새벽(UTC 로는 전날)에도 로컬 달력 날짜를 낸다", () => {
+  it("returns the local calendar date even when UTC is still the previous day", () => {
     const earlyMorningKst = new Date("2026-10-17T16:30:00Z"); // 10-18 01:30 KST
     expect(earlyMorningKst.toISOString().slice(0, 10)).toBe("2026-10-17");
     expect(localIsoDate(earlyMorningKst)).toBe("2026-10-18");
   });
 
-  it("월말·연말을 넘긴다", () => {
+  it("rolls over month and year ends", () => {
     expect(localIsoDate(new Date("2026-12-31T15:00:00Z"))).toBe("2027-01-01");
   });
 });
