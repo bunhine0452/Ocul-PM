@@ -318,16 +318,18 @@ pub fn schedule_incremental_index(
         }
 
         match op {
-            FileOp::Delete => match db.delete_file_by_path(project_id, rel_path.clone()).await {
-                Ok(()) => tracing::debug!(
-                    target: "oculpm::watcher", project_id, path = %rel_path,
-                    "auto-index: removed deleted file"
-                ),
-                Err(e) => tracing::warn!(
-                    target: "oculpm::watcher", project_id, path = %rel_path, error = %e,
-                    "auto-index: delete failed"
-                ),
-            },
+            FileOp::Delete => {
+                match remove_deleted_from_index(&db, project_id, &root, &rel_path).await {
+                    Ok(()) => tracing::debug!(
+                        target: "oculpm::watcher", project_id, path = %rel_path,
+                        "auto-index: removed deleted file"
+                    ),
+                    Err(e) => tracing::warn!(
+                        target: "oculpm::watcher", project_id, path = %rel_path, error = %e,
+                        "auto-index: delete failed"
+                    ),
+                }
+            }
             _ => {
                 let settings_map: std::collections::HashMap<String, String> =
                     match db.settings_get_all().await {
@@ -372,6 +374,25 @@ pub fn schedule_incremental_index(
             }
         }
     });
+}
+
+/// 지워진 경로의 색인 행을 걷는다. 경로가 디스크에 아예 없으면 **그 아래도** 걷는다 —
+/// 폴더를 통째로 옮기거나 지우면 안의 파일마다 Remove 가 온다는 보장이 없다
+/// (`Db::delete_files_under`). 있으면(지우고 곧바로 다시 만든 경우) 그 행만.
+pub(crate) async fn remove_deleted_from_index(
+    db: &Db,
+    project_id: u32,
+    root: &Path,
+    rel_path: &str,
+) -> crate::error::Result<()> {
+    if root.join(rel_path).exists() {
+        db.delete_file_by_path(project_id, rel_path.to_string())
+            .await
+    } else {
+        db.delete_files_under(project_id, rel_path.to_string())
+            .await
+            .map(|_| ())
+    }
 }
 
 /// 일지·롤업 한 편의 증분 의미 색인 (journal-scale-round
@@ -528,5 +549,57 @@ mod tests {
             std::path::Path::new("cut.md"),
             &cfg
         ));
+    }
+
+    /// 실측 2026-10-18: 통째로 사라진 폴더 아래 파일이 색인에 유령으로 남았다 —
+    /// 폴더를 옮기거나 지우면 파일마다 Remove 가 온다는 보장이 없다.
+    #[tokio::test]
+    async fn deleting_a_vanished_folder_drops_every_row_under_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("proj");
+        std::fs::create_dir_all(root.join("keep")).unwrap();
+        std::fs::write(root.join("keep/a.rs"), "fn a() {}\n").unwrap();
+        std::fs::write(root.join("work-sibling.rs"), "fn b() {}\n").unwrap();
+        let db = crate::db::Db::open(dir.path().join("t.db")).await.unwrap();
+        let pid = db
+            .create_project("proj".into(), root.to_string_lossy().into_owned())
+            .await
+            .unwrap();
+        for path in [
+            "keep/a.rs",
+            "work-sibling.rs",
+            "작업/.work/x.txt",
+            "작업/.work/sub/y.txt",
+        ] {
+            db.upsert_file(pid, path.into(), "h".into(), 1, 0, None)
+                .await
+                .unwrap();
+        }
+        // `작업/` 폴더가 통째로 사라졌다 — 이벤트는 폴더 하나뿐.
+        super::remove_deleted_from_index(&db, pid, &root, "작업")
+            .await
+            .unwrap();
+        // 같은 접두어의 형제(`work-sibling.rs` ↔ `work`)는 건드리지 않는다.
+        super::remove_deleted_from_index(&db, pid, &root, "work")
+            .await
+            .unwrap();
+        let mut left: Vec<String> = db
+            .list_project_files(pid)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|(_, p)| p)
+            .collect();
+        left.sort();
+        assert_eq!(
+            left,
+            vec!["keep/a.rs".to_string(), "work-sibling.rs".to_string()]
+        );
+
+        // 경로가 아직 있으면(지우고 곧바로 다시 만든 폴더) 그 아래는 남긴다.
+        super::remove_deleted_from_index(&db, pid, &root, "keep")
+            .await
+            .unwrap();
+        assert_eq!(db.list_project_files(pid).await.unwrap().len(), 2);
     }
 }
