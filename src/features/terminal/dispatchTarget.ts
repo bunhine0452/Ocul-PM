@@ -16,6 +16,10 @@
 // 어느 쪽이든 **실행(Enter)은 사용자가 한다** — 이 계약은 그대로다.
 
 import { ptyApi } from "@/api/terminal";
+// 모듈 t() — 키 입력 실패 보고는 훅 밖(입력 문)에서 불린다.
+import { t } from "@/i18n";
+import { oculpmLog } from "@/lib/oculpmLog";
+import { toast } from "@/lib/toast";
 import { createPtyWriter } from "./ptyWrite";
 import { detectAgent, type AgentRun } from "./agentDetect";
 import { activeSid } from "./activePane";
@@ -28,6 +32,16 @@ import type { TerminalTab } from "@/contexts/WorkspaceContext";
  * 키 입력(TerminalInstanceImpl)·블록 메뉴(TerminalSurface)·아래 디스패치가 함께 쓴다.
  */
 export const writePty = createPtyWriter(ptyApi.send);
+
+/**
+ * 페인의 키가 PTY 에 닿지 못했다 — 로그에 남기고 사람에게도 말한다 (`createPtyInputGate`
+ * 의 `onError`). 같은 페인의 연타가 토스트를 쌓지 않게 페인 단위로 묶는다.
+ */
+export function reportPtyInputFailure(sessionId: string, error: string): void {
+  // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
+  oculpmLog.warn("terminal", `PTY 입력 거절 sid=${sessionId}: ${error}`);
+  toast.destructive(t("term.inputFailed", { error }), { dedupKey: `pty-input-${sessionId}` });
+}
 
 export type HandoffResult =
   /** 돌고 있던 에이전트에 프롬프트 본문을 붙여넣었다. */

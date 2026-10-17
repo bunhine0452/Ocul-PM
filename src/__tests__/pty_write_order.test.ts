@@ -187,4 +187,23 @@ describe("input gate — keys before the shell is up and after it is gone", () =
     gate.open();
     expect(sent.length).toBe(1 + PENDING_INPUT_MAX);
   });
+
+  // 호스트가 거절한 키(큐 가득 참·사라진 세션)가 아무 말 없이 증발하던 것 (2026-10-18).
+  test("a rejected write is reported, a delivered one is not", async () => {
+    const errors: string[] = [];
+    const gate = createPtyInputGate(
+      "s1",
+      async (_sid, data) =>
+        data === "x" ? { status: "error", error: "PTY input queue is full" } : OK,
+      PENDING_INPUT_MAX,
+      (error) => errors.push(error),
+    );
+    gate.push("held"); // 문이 닫힌 동안 받아 둔 것도 열릴 때 같은 규칙을 탄다
+    gate.open();
+    gate.push("ok");
+    gate.push("x");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(errors).toEqual(["PTY input queue is full"]);
+  });
 });
