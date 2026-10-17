@@ -126,10 +126,38 @@ pub async fn store_file_chunks(
         .replace_file_chunks(project_id, file_id, file_hash.to_string(), rows)
         .await
         .map_err(|e| e.to_string())?;
+    if written.is_some() && repack_due(project_id) {
+        // 다지기는 적재의 곁일 — 실패해도 이번 적재는 성공이다 (`db::vec_repack`).
+        if let Err(e) = db.repack_vec0_if_sparse(project_id).await {
+            tracing::warn!(project_id, error = %e, "vec0 repack failed");
+        }
+    }
     Ok(Stored {
         inserted: written.unwrap_or(0) as u32,
         embedded: todo.len() as u32,
     })
+}
+
+/// 파티션 판정은 프로젝트당 1분에 한 번만 — 판정 자체는 싸지만(0.6ms) 전체 색인은
+/// 파일 수천 개를 연달아 적재한다. 구멍은 하루 수천 칸 단위로 쌓이므로 충분하다.
+fn repack_due(project_id: u32) -> bool {
+    use std::sync::Mutex;
+    use std::time::{Duration, Instant};
+    static LAST: Mutex<Option<HashMap<u32, Instant>>> = Mutex::new(None);
+    const EVERY: Duration = Duration::from_secs(60);
+    let Ok(mut last) = LAST.lock() else {
+        return false;
+    };
+    let map = last.get_or_insert_with(HashMap::new);
+    let now = Instant::now();
+    if map
+        .get(&project_id)
+        .is_some_and(|t| now.duration_since(*t) < EVERY)
+    {
+        return false;
+    }
+    map.insert(project_id, now);
+    true
 }
 
 #[cfg(test)]
