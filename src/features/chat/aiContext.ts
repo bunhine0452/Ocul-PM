@@ -9,6 +9,7 @@
 
 import type { ChunkSearchResult } from "@/lib/bindings";
 import { gitApi } from "@/api/git";
+import { localIsoDate } from "@/lib/workday";
 import { planApi } from "@/api/plan";
 import { searchApi } from "@/api/search";
 import { escapeUntrusted, trustedSection, untrustedSection } from "@/lib/framing";
@@ -84,7 +85,7 @@ export async function buildGitSystemContext(
   if (commits.length > 0) {
     markdown += `\nRecent commits (newest first):\n`;
     for (const c of commits) {
-      const when = new Date(c.timestamp * 1000).toISOString().slice(0, 10);
+      const when = localIsoDate(new Date(c.timestamp * 1000));
       const who = escapeUntrusted(c.author_name);
       markdown += `- \`${c.short_sha}\` ${when} (${who}) — ${escapeUntrusted(c.subject)}\n`;
     }

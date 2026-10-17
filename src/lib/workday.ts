@@ -16,6 +16,15 @@ export function localWorkdayKey(date = new Date()): string {
   return `${yy}${mm}${dd}`;
 }
 
+/**
+ * `Date` → 로컬 달력의 `YYYY-MM-DD`. `toISOString().slice(0, 10)` 은 **UTC** 날짜라
+ * 한국 시간 09시 전에는 어제가 된다 — 사람에게 보이거나 디스크에 남는 날짜는 이것으로.
+ */
+export function localIsoDate(date = new Date()): string {
+  const k = localWorkdayKey(date);
+  return `${k.slice(0, 4)}-${k.slice(4, 6)}-${k.slice(6, 8)}`;
+}
+
 /** 키를 `delta` 일만큼 옮긴다 — 월말·윤년은 `Date` 가 넘긴다. */
 export function shiftWorkday(workday: string, delta: number): string {
   const y = Number(workday.slice(0, 4));
