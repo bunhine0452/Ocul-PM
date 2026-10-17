@@ -53,16 +53,16 @@ pub(super) fn fast_config() -> OculpmConfig {
     cfg
 }
 
-fn today_workday(resolver: &WorkdayResolver) -> String {
+pub(super) fn today_workday(resolver: &WorkdayResolver) -> String {
     resolver.workday_of(Utc::now())
 }
 
-struct Setup {
-    dir: TempDir,
-    resolver: WorkdayResolver,
-    writer: Arc<IndexWriter>,
-    actor: SessionActor,
-    watcher: ProjectWatcher,
+pub(super) struct Setup {
+    pub(super) dir: TempDir,
+    pub(super) resolver: WorkdayResolver,
+    pub(super) writer: Arc<IndexWriter>,
+    pub(super) actor: SessionActor,
+    pub(super) watcher: ProjectWatcher,
 }
 
 async fn setup_with_config(cfg: OculpmConfig) -> Setup {
@@ -99,7 +99,7 @@ async fn setup_with_config(cfg: OculpmConfig) -> Setup {
     }
 }
 
-async fn setup() -> Setup {
+pub(super) async fn setup() -> Setup {
     setup_with_config(fast_config()).await
 }
 
@@ -779,7 +779,14 @@ fn the_prefilter_keeps_a_rename_whose_new_name_is_tracked() {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().canonicalize().unwrap();
     let ignore = build_gitignore_from_lines(&root, &["*.tmp".to_string()]);
-    let (tx, rx) = channel_with_filter(16, Some(PreFilter::new(root.clone(), ignore, None)));
+    let (tx, rx) = channel_with_filter(
+        16,
+        Some(PreFilter::new(
+            root.clone(),
+            ignore,
+            crate::oculpm::watcher_queue::ProjectGitignore::none(),
+        )),
+    );
     let both = |from: &str, to: &str| {
         let ev = notify::Event::new(EventKind::Modify(ModifyKind::Name(RenameMode::Both)))
             .add_path(root.join(from))

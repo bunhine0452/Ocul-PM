@@ -5,6 +5,7 @@
 //! 붙은 것은 재사용 권고(`similar_active_plans`, `{#dedupe-on-create}`)다.
 
 use super::*;
+use crate::oculpm::planner::plan_edit::{strip_own_anchor, trailing_anchor};
 
 // ─── plan_create ─────────────────────────────────────────────────────────────
 
@@ -215,7 +216,11 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
             }
             _ => claim_unique_id(&mut used_ids, format!("p{}", pi + 1)),
         };
-        body.push_str(&format!("\n## {} {{#{pid}}}\n", one_line(ptitle_raw)));
+        let ptitle = one_line(ptitle_raw);
+        body.push_str(&format!(
+            "\n## {} {{#{pid}}}\n",
+            strip_own_anchor(&ptitle, &pid)
+        ));
 
         let items = phase
             .get("items")
@@ -240,6 +245,11 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
                     }
                     claim_unique_id(&mut used_ids, s.to_string())
                 }
+                // 제목 끝에 앵커를 붙여 왔으면 그것이 의도한 id 다.
+                _ if trailing_anchor(&text).is_some_and(|(_, id)| valid_kebab(id)) => {
+                    let (_, id) = trailing_anchor(&text).expect("checked");
+                    claim_unique_id(&mut used_ids, id.to_string())
+                }
                 _ => {
                     // 텍스트에서 유도 — 한글뿐이면 빈 slug 가 되므로 위치 기반 폴백.
                     let derived = sanitize_slug(&text)
@@ -253,6 +263,7 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
                     )
                 }
             };
+            let text = strip_own_anchor(&text, &iid);
             body.push_str(&format!("- [ ] {text} {{#{iid}}}\n"));
 
             // 3-depth — 하위 작업 (두 칸 들여쓰기, 최대 1단계).
@@ -286,6 +297,11 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
                         }
                         claim_unique_id(&mut used_ids, s.to_string())
                     }
+                    // 제목 끝에 앵커를 붙여 왔으면 그것이 의도한 id 다.
+                    _ if trailing_anchor(&ctext).is_some_and(|(_, id)| valid_kebab(id)) => {
+                        let (_, id) = trailing_anchor(&ctext).expect("checked");
+                        claim_unique_id(&mut used_ids, id.to_string())
+                    }
                     _ => {
                         let derived = sanitize_slug(&ctext)
                             .ok()
@@ -298,6 +314,7 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
                         )
                     }
                 };
+                let ctext = strip_own_anchor(&ctext, &cid);
                 body.push_str(&format!("  - [ ] {ctext} {{#{cid}}}\n"));
             }
         }
