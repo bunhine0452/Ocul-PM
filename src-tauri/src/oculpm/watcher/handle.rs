@@ -368,6 +368,12 @@ impl WatcherInner {
         // Deleting a directory also emits a Remove per file inside it, so
         // dropping the folder event loses no per-file history.
         if path.is_dir() || is_directory_event(&ev.event.kind) {
+            // 다만 사라진 폴더는 색인에서 그 아래를 걷는다 — 파일마다 Remove 가
+            // 온다는 보장은 없다 (휴지통 이동·FSEvents 접기, `delete_files_under`).
+            // 일지·ndjson 에는 여전히 아무것도 남기지 않는다.
+            if !path.exists() && !self.is_forbidden(path) {
+                self.schedule_incremental_index(rel_str.to_string(), FileOp::Delete, None);
+            }
             self.bump_ignored();
             return;
         }
