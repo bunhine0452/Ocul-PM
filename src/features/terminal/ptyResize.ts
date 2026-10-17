@@ -176,3 +176,82 @@ export function adoptedCols(
   if (fitted - adopt.cols > slack) return null;
   return adopt.cols;
 }
+
+// ── 극소 크기 바닥 (2026-10-18) ───────────────────────────────────────────
+//
+// ── 증상 ──────────────────────────────────────────────────────────────────
+// 터미널을 작게 줄였다가 다시 키우면 글자가 뭉개진다 — 줄이 잘게 쪼개진 채
+// 남고, 위쪽 기록이 사라져 있다.
+//
+// ── 원인 ──────────────────────────────────────────────────────────────────
+// 오른쪽 도크의 최소 폭(120px)은 안에 든 레일(168px)보다 좁고, 아래 도크의
+// 최소 높이(120px)는 머리·상태 줄을 빼면 한두 줄이다. 그 근처까지 끌면 캔버스
+// 자리가 수십 px 로 떨어지는데, `FitAddon` 은 0 이 아닌 한 하한값
+// **cols 2 · rows 1** 을 내놓는다. 그러면
+//   · xterm 이 스크롤백 2만 줄을 2칸으로 다시 접는다(리플로). 줄 수 한도는
+//     접힌 뒤의 행으로 세므로 넘친 위쪽 기록은 **잘려 나가 돌아오지 않는다**.
+//   · PTY 도 2칸을 받는다. 셸 프롬프트와 claude code 는 그 폭으로 **진짜
+//     개행**을 넣어 다시 그리므로, 다시 넓혀도 어떤 리플로도 펴지 못한다.
+// 0 폭만 막던 가드(`clientWidth === 0`)로는 안 걸린다 — 여백만 남은 수십 px 는 0 이 아니다.
+//
+// ── 규칙 ──────────────────────────────────────────────────────────────────
+// 바닥 아래로 떨어진 **축은 지금 크기를 유지**한다. 그 정도 자리에서는 어차피
+// 읽을 수 없고 캔버스는 `overflow: hidden` 으로 잘려 보일 뿐이다 — 대신 다시
+// 키웠을 때 아무것도 망가져 있지 않다. 축마다 따로 본다: 높이만 극소면 폭은
+// 계속 맞춘다.
+
+/** 이보다 좁으면 폭을 맞추지 않는다 (열). */
+export const MIN_FIT_COLS = 20;
+/** 이보다 낮으면 높이를 맞추지 않는다 (행). */
+export const MIN_FIT_ROWS = 4;
+
+/**
+ * fit 이 제안한 크기에서 극소 축을 걸러 낸다. 순수 함수.
+ *
+ * @param proposed `FitAddon.proposeDimensions()` 의 결과
+ * @param current  지금 xterm 크기
+ * @returns 실제로 맞출 크기 — 바닥 아래 축은 `current` 값 그대로
+ */
+export function holdTinyAxes(
+  proposed: PtySize,
+  current: PtySize,
+  min: PtySize = { cols: MIN_FIT_COLS, rows: MIN_FIT_ROWS },
+): PtySize {
+  return {
+    cols: proposed.cols >= min.cols ? proposed.cols : current.cols,
+    rows: proposed.rows >= min.rows ? proposed.rows : current.rows,
+  };
+}
+
+/** `planFit` 의 결론 — 맞출 크기와, 이어받기를 계속 들고 있을지. */
+export interface FitPlan extends PtySize {
+  /** 다음 판정에 넘길 이어받기 상태 (`null` 이면 놓았다). */
+  adopt: AdoptedWidth | null;
+  /** 제안 그대로다 — 호출측은 `fit.fit()` 을 그대로 부르면 된다. */
+  exact: boolean;
+}
+
+/**
+ * fit 한 번의 결론을 낸다 — 극소 축 걸러내기(`holdTinyAxes`)와 폭 이어받기
+ * (`adoptedCols`)를 **한 판정**으로 묶어, 크기를 바꾸는 호출이 한 번만 나가게
+ * 한다 (맞춘 뒤 이어받은 폭으로 또 바꾸면 리플로가 두 번 돈다). 순수 함수.
+ *
+ * @returns 의미 없는 제안(없음·NaN)이면 `null` — 아무것도 바꾸지 않는다.
+ */
+export function planFit(
+  proposed: PtySize | undefined,
+  current: PtySize,
+  adopt: AdoptedWidth | null,
+  width: number,
+): FitPlan | null {
+  if (!proposed || !Number.isFinite(proposed.cols) || !Number.isFinite(proposed.rows)) return null;
+  const target = holdTinyAxes(proposed, current);
+  const keep = adoptedCols(adopt, target.cols, width);
+  const cols = keep ?? target.cols;
+  return {
+    cols,
+    rows: target.rows,
+    adopt: keep === null ? null : adopt,
+    exact: cols === proposed.cols && target.rows === proposed.rows,
+  };
+}
