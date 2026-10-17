@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { TerminalTab } from "@/contexts/WorkspaceContext";
 import { clampRatio, setRatio, type PaneDir } from "@/lib/termPanes";
 import { panesOfTab } from "../activePane";
+import { beginResizeGesture } from "../resizeGesture";
 
 export function useSplitDrag(patchTab: (id: string, fn: (tab: TerminalTab) => TerminalTab) => void) {
   // 드래그 중 비율은 로컬 오버레이로만 그리고 pointerup 에 컨텍스트로 커밋
@@ -27,11 +28,14 @@ export function useSplitDrag(patchTab: (id: string, fn: (tab: TerminalTab) => Te
           : (ev.clientY - rect.top) / Math.max(1, rect.height),
       );
     const move = (ev: PointerEvent) => setDrag({ tabId, path, ratio: calc(ev) });
+    // 끄는 동안 PTY 크기 통보는 미룬다 — 손을 떼면 한 번 (resizeGesture.ts).
+    const endGesture = beginResizeGesture();
     const detach = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", cancel);
       setDrag(null);
+      endGesture();
     };
     const up = (ev: PointerEvent) => {
       detach();

@@ -13,6 +13,7 @@ import {
 } from "@/contexts/WorkspaceContext";
 import { TerminalSurface } from "./TerminalSurface";
 import { TerminalAway } from "./TerminalAway";
+import { beginResizeGesture } from "./resizeGesture";
 
 // 터미널 도크 (2026-08-15) — 어느 화면에서나 ⌘J 로 여는 터미널 패널.
 //
@@ -94,12 +95,15 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
       const next = calc(ev);
       setPrefs(() => (pos === "bottom" ? { terminalDockHeight: next } : { terminalDockWidth: next }));
     };
+    // 끄는 동안 PTY 크기 통보는 미룬다 — 손을 떼면 한 번 (resizeGesture.ts).
+    const endGesture = beginResizeGesture();
     // 취소(pointercancel)도 끝이다 — 안 들으면 손을 뗀 뒤에도 도크가 마우스를
     // 따라 늘었다 줄었다 했다 (분할 손잡이와 같은 결함, 2026-10-18).
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
+      endGesture();
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
