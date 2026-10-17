@@ -453,7 +453,7 @@ async fn stat_and_hash_keeps_the_old_answers() {
 fn prefilter_at(root: &std::path::Path, ignore_lines: &[&str]) -> PreFilter {
     let lines: Vec<String> = ignore_lines.iter().map(|s| s.to_string()).collect();
     let user_ignore = watcher_queue::build_gitignore_from_lines(root, &lines);
-    let project_gitignore = watcher_queue::load_project_gitignore(root);
+    let project_gitignore = watcher_queue::ProjectGitignore::load(root, true);
     PreFilter::new(root.to_path_buf(), user_ignore, project_gitignore)
 }
 
