@@ -78,7 +78,13 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.13.0 — Your plans on a Claude board; Notion retired
+## 🚀 v3.13.1 — Resizing the terminal does less damage
+
+- **Dragging the dock to its minimum no longer folds the terminal to two columns** — when it did, the scrollback was cut and the lines Claude Code reprinted at that width stayed broken after widening. Below 20 columns · 4 rows the size now stays put. While you drag the dock or split handle the shell is not told the new size; it hears once, when you let go (lines Claude Code prints while you keep it narrow are broken by Claude Code itself and stay that way).
+- **Terminals you can't see release their graphics memory after 15 seconds** and come back when shown. The error on every quit that could leave language servers running is fixed.
+- **Semantic search is faster** — vector slots that piled up empty on every save are packed during indexing (128ms → 13ms on a real copy). Files from deleted folders no longer linger in search, and a `.gitignore` created after launch takes effect without a restart.
+
+## v3.13.0 — Your plans on a Claude board; Notion retired
 
 - **One `/oculpm:board` puts your active plans on a private claude.ai board** — run it again to refresh, and follow progress from your phone or another machine. The board is read-only; the source stays in `.oculpm/planner/`. The app builds what gets uploaded and masks anything that looks like a secret first. Agents reading plans (`plan_status`) now get the same masking.
 - **The Notion integration is gone** — the board covers viewing plans from elsewhere. On first launch after the update the leftover Notion token is removed from the keychain, and the app now has five kinds of outbound connection.

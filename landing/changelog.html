@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.13.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 121개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.13.1)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 122개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.13.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 121개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.13.1)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 122개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.13.0</span>
+    <span class="nav-ver" data-version>v3.13.1</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>121개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>122개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-13-1">v3.13.1</a>
       <a href="#v3-13-0">v3.13.0</a>
       <a href="#v3-12-0">v3.12.0</a>
       <a href="#v3-11-0">v3.11.0</a>
@@ -61,10 +62,20 @@
       <a href="#v3-6-0">v3.6.0</a>
       <a href="#v3-5-0">v3.5.0</a>
       <a href="#v3-4-0">v3.4.0</a>
-      <a href="#v3-3-0">v3.3.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-13-1"><a href="#v3-13-1">v3.13.1</a></h2>
+      <div class="cl-body">
+<p><b>터미널을 줄였다 키워도 덜 망가집니다.</b> 도크를 최소 크기 가까이 끌면 터미널이 두 칸 폭까지 접혔습니다. 그 순간 스크롤백 위쪽이 잘려 나가고, 셸과 Claude Code 가 두 칸 폭으로 다시 찍은 줄은 넓혀도 펴지지 않았습니다. 이제 20칸 · 4줄보다 작아지면 크기를 그대로 두고, 좁은 동안은 잘린 채로 보입니다.</p>
+<ul><li><b>도크 · 분할 손잡이를 끄는 동안에는 셸에 크기를 알리지 않습니다.</b> 손을 뗄 때 한 번만 알립니다. 예전에는 끄는 도중 손이 잠깐만 멈춰도 Claude Code 가 그 폭으로 대화를 다시 찍었고, 그 줄들이 스크롤백에 좁은 채로 남았습니다. 다만 <b>좁힌 채로 쓰는 동안</b> Claude Code 가 찍은 줄은 넓혀도 펴지지 않습니다. Claude Code 가 그 폭에 맞춰 줄을 직접 끊기 때문이고, 다른 터미널에서도 같습니다.</li><li><b>안 보이는 터미널은 그래픽 메모리를 놓습니다.</b> 다른 탭, 확대 중 가려진 페인, 다른 프로젝트 탭의 터미널이 15초 넘게 안 보이면 GPU 렌더러를 반납하고, 다시 보이면 되살립니다.</li><li>셸이 키 입력을 받지 못하면 조용히 사라지는 대신 알림을 띄웁니다.</li><li>분할 화면에서 옆 페인의 「채우기」 가 누른 그 페인에 들어갑니다. 옆 페인을 닫아도 타이핑하던 페인의 포커스는 그대로입니다. 손잡이를 끄는 도중 시스템이 끊어도 손잡이가 마우스를 따라다니지 않습니다.</li></ul>
+<p><b>앱을 끌 때마다 나던 오류를 고쳤습니다.</b> 종료 중 언어 서버와 디버거를 내리는 단계가 오류로 멈춰, rust-analyzer 같은 서버가 앱 밖에 남을 수 있었습니다.</p>
+<p><b>의미 검색이 빨라지고 데이터베이스가 덜 불어납니다.</b> 파일을 저장할 때마다 지운 벡터 자리가 재사용되지 않고 비어 쌓였습니다. 실측 데이터베이스는 칸의 26% 만 쓰고 있었습니다. 이제 색인할 때 성긴 곳을 조금씩 다져, 실측 사본에서 검색이 128ms 에서 13ms 로 빨라졌습니다. 이미 커진 파일은 설정 → 진단 → 「압축 (VACUUM)」 을 한 번 누르면 줄어듭니다.</p>
+<p><b>검색 색인이 실제 폴더와 어긋나지 않습니다.</b> 폴더째 지우거나 옮긴 파일이 의미 검색에 남던 것을 고쳤습니다. 앱이 켜진 뒤 만들거나 고친 <code>.gitignore</code> 가 앱을 다시 켤 때까지 무시되던 것도 고쳤습니다.</p>
+<p><b>보이지 않는 곳</b>: 에이전트가 항목 글 끝에 <code>{#id}</code> 를 붙여 보내면 플랜에 두 번 쓰이던 것, 새 자동화의 생성 날짜가 한국 시간 오전 9시 전엔 어제로 찍히던 것을 고쳤습니다. 새로 공개된 보안 공지에 맞춰 rustls 와 zip 을 올렸습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-13-0"><a href="#v3-13-0">v3.13.0</a></h2>
       <div class="cl-body">
