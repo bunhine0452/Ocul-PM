@@ -124,11 +124,8 @@ impl ProjectWatcher {
         let root = root.canonicalize().unwrap_or(root);
 
         let user_ignore = watcher_queue::build_gitignore_from_lines(&root, &config.watcher.ignore);
-        let project_gitignore = if config.watcher.respect_gitignore {
-            watcher_queue::load_project_gitignore(&root)
-        } else {
-            None
-        };
+        let project_gitignore =
+            watcher_queue::ProjectGitignore::load(&root, config.watcher.respect_gitignore);
         // 같은 매처를 **채널 앞**에도 세운다 (`{#watcher-prefilter}`) — `target/`
         // 55,663 파일이 큐를 한 바퀴 돌지 않게. 판정 규칙은 `PreFilter` 참고.
         let prefilter = watcher_queue::PreFilter::new(

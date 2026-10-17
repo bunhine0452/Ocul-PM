@@ -93,15 +93,11 @@ pub const DEFAULT_CAPACITY: usize = 4096;
 pub struct PreFilter {
     root: PathBuf,
     user_ignore: Gitignore,
-    project_gitignore: Option<Gitignore>,
+    project_gitignore: ProjectGitignore,
 }
 
 impl PreFilter {
-    pub fn new(
-        root: PathBuf,
-        user_ignore: Gitignore,
-        project_gitignore: Option<Gitignore>,
-    ) -> Self {
+    pub fn new(root: PathBuf, user_ignore: Gitignore, project_gitignore: ProjectGitignore) -> Self {
         Self {
             root,
             user_ignore,
@@ -133,10 +129,8 @@ impl PreFilter {
         {
             return false;
         }
-        if let Some(gi) = &self.project_gitignore {
-            if gi.matched_path_or_any_parents(path, false).is_ignore() {
-                return false;
-            }
+        if self.project_gitignore.is_ignored(path) {
+            return false;
         }
         true
     }
@@ -158,6 +152,58 @@ pub fn build_gitignore_from_lines(root: &Path, lines: &[String]) -> Gitignore {
         let _ = builder.add_line(None, line);
     }
     builder.build().unwrap_or_else(|_| Gitignore::empty())
+}
+
+/// 워처와 사전 필터가 **함께 쥐는** 프로젝트 `.gitignore` 매처.
+///
+/// 예전엔 워처를 켤 때 한 번 읽고 끝이었다 — 워처가 도는 동안 `.gitignore` 를 새로
+/// 만들거나 고치면 앱을 다시 켤 때까지 그 규칙이 안 먹었다 (2026-10-18 실측: 워처가
+/// 켜진 뒤 생긴 `.gitignore` 의 `.work/` 아래 119개 파일이 색인에 들어가 있었다).
+/// 루트 `.gitignore` 의 이벤트가 오면 [`Self::reload`] 로 다시 읽는다.
+#[derive(Clone)]
+pub struct ProjectGitignore {
+    /// `watcher.respect_gitignore` — 꺼져 있으면 다시 읽지도 않는다.
+    enabled: bool,
+    slot: Arc<std::sync::RwLock<Option<Gitignore>>>,
+}
+
+impl ProjectGitignore {
+    pub fn load(root: &Path, enabled: bool) -> Self {
+        let gi = if enabled {
+            load_project_gitignore(root)
+        } else {
+            None
+        };
+        Self {
+            enabled,
+            slot: Arc::new(std::sync::RwLock::new(gi)),
+        }
+    }
+
+    /// 규칙 없음 (테스트·`respect_gitignore = false`).
+    pub fn none() -> Self {
+        Self::load(Path::new(""), false)
+    }
+
+    pub fn is_ignored(&self, abs_path: &Path) -> bool {
+        match self.slot.read() {
+            Ok(g) => g
+                .as_ref()
+                .is_some_and(|gi| gi.matched_path_or_any_parents(abs_path, false).is_ignore()),
+            Err(_) => false,
+        }
+    }
+
+    /// 루트 `.gitignore` 가 바뀌었다 — 디스크에서 다시 읽는다 (지워졌으면 규칙 없음).
+    pub fn reload(&self, root: &Path) {
+        if !self.enabled {
+            return;
+        }
+        let fresh = load_project_gitignore(root);
+        if let Ok(mut g) = self.slot.write() {
+            *g = fresh;
+        }
+    }
 }
 
 /// 프로젝트의 `.gitignore` (없으면 `None`).
