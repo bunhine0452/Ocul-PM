@@ -310,7 +310,7 @@ export default function TerminalInstanceImpl({
       letterSpacing: 0,
       theme: readTerminalTheme(),
       scrollback: SCROLLBACK_LINES,
-      macOptionIsMeta: true,
+      macOptionIsMeta: true, macOptionClickForcesSelection: true, // ⌥+드래그 = 마우스를 가져간 TUI 위에서도 선택
       drawBoldTextInBrightColors: true,
       minimumContrastRatio: 1.5,
       smoothScrollDuration: 80,
