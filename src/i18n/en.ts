@@ -3408,6 +3408,7 @@ export const en: Record<keyof typeof ko, string> = {
   "term.dock.detachHint": "Detach the terminal into its own window — the shell keeps running",
   "term.dock.detachFailed": "Couldn't open the terminal window: {error}",
   "term.killFailed": "Couldn't end that terminal session: {error}",
+  "term.inputFailed": "Your input didn't reach the terminal: {error}",
   "term.closeFailed": "Couldn't close that terminal: {error}",
   "term.dock.close": "Close dock",
   "term.dock.closeHint": "Close the dock (⌘J) — the shell keeps running",

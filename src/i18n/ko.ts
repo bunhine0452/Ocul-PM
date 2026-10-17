@@ -3406,6 +3406,7 @@ export const ko = {
   // 세션을 끝내는 두 갈래가 조용히 실패하던 자리 (v2.42.0 `{#floating-promises}`).
   // 화면에서는 탭이 사라졌는데 뒤에서 프로세스가 계속 도는 것이 가장 나쁜 결말이다.
   "term.killFailed": "터미널 세션을 끝내지 못했어요: {error}",
+  "term.inputFailed": "입력이 터미널에 닿지 못했어요: {error}",
   "term.closeFailed": "터미널을 닫지 못했어요: {error}",
   "term.dock.close": "도크 닫기",
   "term.dock.closeHint": "도크를 닫아요 (⌘J) — 셸은 계속 살아 있어요",

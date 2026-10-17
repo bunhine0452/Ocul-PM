@@ -8,7 +8,7 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import "@xterm/xterm/css/xterm.css";
 import { takeBootCommand } from "./terminalLaunch";
 import { createPtyInputGate } from "./ptyWrite";
-import { writePty } from "./dispatchTarget";
+import { reportPtyInputFailure, writePty } from "./dispatchTarget";
 import { fileOpenApi } from "@/api/fileOpen";
 import { errorDetail } from "@/api/invoke";
 import { ptyApi } from "@/api/terminal";
@@ -349,7 +349,7 @@ export default function TerminalInstanceImpl({
 
     // ── 입력 배관 ── PTY 가 서기 전에 등록하고(그 사이 친 키는 문이 받아 둔다),
     // 쓰기는 세션마다 한 줄로 간다 — 키마다 따로 쏘면 IPC 가 순서를 섞는다 (→ ptyWrite.ts).
-    const input = createPtyInputGate(sessionId, writePty);
+    const input = createPtyInputGate(sessionId, writePty, undefined, (error) => reportPtyInputFailure(sessionId, error));
     term.onData((data) => input.push(data));
 
     term.onTitleChange((title) => {

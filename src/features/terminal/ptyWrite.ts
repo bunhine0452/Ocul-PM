@@ -98,20 +98,33 @@ export function createPtyInputGate(
   sessionId: string,
   write: (sessionId: string, data: string) => Promise<PtyWriteResult>,
   max: number = PENDING_INPUT_MAX,
+  /**
+   * 보낸 키가 PTY 에 닿지 못했다 (2026-10-18). 예전에는 결과를 `void` 로 버려서,
+   * 호스트가 거절한 입력(`PTY input queue is full` · `unknown pty session` ·
+   * 쓰기 실패)이 **사용자 눈에는 아무 일도 없는 먹통**이었다 — 호스트의 쓰기 큐
+   * (`ptyhost/writer.rs`)는 "조용히 버리지 않고 오류로 말한다" 를 지키는데 그
+   * 말을 들을 귀가 여기 없었다. 무엇을 보여 줄지는 부르는 쪽이 정한다.
+   */
+  onError?: (error: string) => void,
 ): PtyInputGate {
   let ready = false;
   const pending: string[] = [];
+  const send = (data: string) => {
+    void write(sessionId, data).then((result) => {
+      if (result.status === "error") onError?.(result.error);
+    });
+  };
   return {
     push(data) {
       if (ready) {
-        void write(sessionId, data);
+        send(data);
         return;
       }
       if (pending.length < max) pending.push(data);
     },
     open() {
       ready = true;
-      for (const data of pending) void write(sessionId, data);
+      for (const data of pending) send(data);
       pending.length = 0;
     },
     close() {
