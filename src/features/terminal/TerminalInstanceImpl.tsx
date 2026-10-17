@@ -330,7 +330,7 @@ export default function TerminalInstanceImpl({
     // 폭에 굳고 화면이 깨진 채로 남는 길이다. (`ptyApi` 가 봉투를 풀어 던진다.)
     const resizeQueue = createPtyResizeQueue(async (rows, cols) => {
       await ptyApi.resize(sessionId, rows, cols);
-    });
+    }, () => applyFitRef.current()); // 손잡이를 끄는 동안은 쥐고, 놓으면 한 번 (resizeGesture.ts)
     // 한글/이모지 셀 폭 정확도 — Unicode 11 폭 테이블 활성화.
     term.loadAddon(new Unicode11Addon());
     term.unicode.activeVersion = "11";

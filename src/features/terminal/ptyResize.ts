@@ -26,6 +26,8 @@
 // (합치기). 그러면 중간 크기는 건너뛰거나 곧바로 최종 크기로 덮이고, 마지막에
 // 도착하는 것은 언제나 사용자가 손을 뗀 그 크기다.
 
+import { isResizeGestureActive, onResizeGestureEnd } from "./resizeGesture";
+
 /** 실제 전송 — 실패는 거부된 프라미스로 알린다 (`commands.resizePty` 그대로). */
 export type ResizeSender = (rows: number, cols: number) => Promise<unknown>;
 
@@ -60,14 +62,24 @@ export interface PtyResizeQueue {
  *   한 번 더 시도한다 (여기서 스스로 재시도 루프를 돌지는 않는다 — 죽은
  *   호스트를 상대로 무한히 두드릴 이유가 없다).
  */
-export function createPtyResizeQueue(send: ResizeSender): PtyResizeQueue {
+/**
+ * @param refit 손잡이를 놓았을 때(`resizeGesture.ts`) 지금 크기로 다시 맞추는
+ *   콜백. 끄는 동안의 `push` 는 보내지 않고 쥐고만 있다가, 놓는 순간 `refit` 이
+ *   최종 크기를 밀어 넣는다 — 없으면 쥐고 있던 마지막 것을 보낸다.
+ */
+export function createPtyResizeQueue(send: ResizeSender, refit?: () => void): PtyResizeQueue {
   let desired: PtySize | null = null;
   let sent: PtySize | null = null;
   let inFlight = false;
   let disposed = false;
+  const offGestureEnd = onResizeGestureEnd(() => {
+    if (disposed) return;
+    refit?.();
+    pump();
+  });
 
   const pump = (): void => {
-    if (inFlight || disposed) return;
+    if (inFlight || disposed || isResizeGestureActive()) return;
     const next = desired;
     desired = null;
     if (!next) return;
@@ -110,6 +122,7 @@ export function createPtyResizeQueue(send: ResizeSender): PtyResizeQueue {
     dispose() {
       disposed = true;
       desired = null;
+      offGestureEnd();
     },
     get lastSent() {
       return sent;
