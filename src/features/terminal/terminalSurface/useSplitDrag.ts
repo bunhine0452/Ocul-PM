@@ -27,15 +27,23 @@ export function useSplitDrag(patchTab: (id: string, fn: (tab: TerminalTab) => Te
           : (ev.clientY - rect.top) / Math.max(1, rect.height),
       );
     const move = (ev: PointerEvent) => setDrag({ tabId, path, ratio: calc(ev) });
-    const up = (ev: PointerEvent) => {
+    const detach = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
       setDrag(null);
+    };
+    const up = (ev: PointerEvent) => {
+      detach();
       const ratio = calc(ev);
       patchTab(tabId, (tab) => ({ ...tab, panes: setRatio(panesOfTab(tab), path, ratio) }));
     };
+    // 시스템이 포인터를 가져갔다 — 커밋하지 않고 끝낸다. 듣지 않으면 리스너가
+    // 남아 **다음 클릭**이 그 자리를 비율로 커밋했다 (2026-10-18).
+    const cancel = () => detach();
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
   };
 
   return { drag, startDrag };
