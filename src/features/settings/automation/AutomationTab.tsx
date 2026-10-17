@@ -6,7 +6,7 @@
 // 화면이 답해야 하는 것 넷: (1) 지금 돌게 되어 있는가 (2) 언제 돌고 마지막엔
 // 어땠는가 (3) 왜 안 돌았는가 (4) 무엇을 시킬 수 있는가(씨앗).
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Clock, MoreHorizontal, Play, Square, Trash2 } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { tError } from "@/i18n/errors";
@@ -18,6 +18,7 @@ import { useSeededEvent } from "@/hooks/useSeededEvent";
 import { useSettings } from "@/contexts/SettingsContext";
 import { coreModelTarget } from "@/lib/settings";
 import { openSettings } from "@/lib/settingsNav";
+import { localIsoDate } from "@/lib/workday";
 import { toast } from "@/lib/toast";
 import type {
   AutomationConfig,
@@ -234,8 +235,6 @@ export function AutomationTab() {
     if (created) void refresh();
   };
 
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-
   if (projectId == null) {
     return <EmptyState>{t("automation.noProject")}</EmptyState>;
   }
@@ -289,14 +288,14 @@ export function AutomationTab() {
           <button
             className="btn ghost sm"
             onClick={() =>
-              setPane({ kind: "edit", def: blankDefinition(today, "watcher"), isNew: true })
+              setPane({ kind: "edit", def: blankDefinition(localIsoDate(), "watcher"), isNew: true })
             }
           >
             {t("automation.list.newWatcher")}
           </button>
           <button
             className="btn sm"
-            onClick={() => setPane({ kind: "edit", def: blankDefinition(today), isNew: true })}
+            onClick={() => setPane({ kind: "edit", def: blankDefinition(localIsoDate()), isNew: true })}
           >
             {t("automation.list.new")}
           </button>

@@ -488,6 +488,37 @@ impl Db {
         Ok(())
     }
 
+    /// 사라진 경로 하나와 **그 아래의 모든 행**을 지운다 (diff 기준선 포함).
+    ///
+    /// 폴더를 휴지통으로 옮기거나(`mv`) FSEvents 가 폴더 하나로 접어 보고하면 안의
+    /// 파일마다 Remove 가 오지 않는다 — 정확히 그 경로만 지우던 동안 그 폴더의 파일은
+    /// 앱을 다시 켤 때까지 의미 검색에 유령으로 남았다 (2026-10-18 실측: 한 프로젝트
+    /// 64행 중 50행이 통째로 사라진 폴더 아래). 호출자는 경로가 디스크에 **없을 때만**
+    /// 부른다 — 없는 경로 아래에는 아무것도 없다.
+    pub async fn delete_files_under(&self, project_id: u32, path: String) -> Result<u32> {
+        let removed = self
+            .conn
+            .call(move |c| {
+                let prefix = format!("{}/", path.trim_end_matches('/'));
+                let plen = prefix.chars().count() as i64;
+                let tx = c.transaction()?;
+                let n = tx.execute(
+                    "DELETE FROM files WHERE project_id = ?1
+                       AND (path = ?2 OR substr(path, 1, ?4) = ?3)",
+                    params![project_id as i64, &path, &prefix, plen],
+                )? as u32;
+                tx.execute(
+                    "DELETE FROM file_snapshots WHERE project_id = ?1
+                       AND (path = ?2 OR substr(path, 1, ?4) = ?3)",
+                    params![project_id as i64, &path, &prefix, plen],
+                )?;
+                tx.commit()?;
+                Ok(n)
+            })
+            .await?;
+        Ok(removed)
+    }
+
     /// 색인에 있지만 이번 walk 에 없는 파일들을 한 트랜잭션으로 지운다 — 청크·
     /// 임베딩·심볼은 FK cascade 로, diff 기준선(`file_snapshots`)은 여기서 함께.
     /// (감사 라운드 2026-09-11 A2: 전체 색인이 upsert 만 하고 화해를 안 해 이

@@ -8,6 +8,7 @@
 mod guards;
 mod journal;
 mod plan;
+mod plan_anchor;
 mod search;
 mod tags;
 

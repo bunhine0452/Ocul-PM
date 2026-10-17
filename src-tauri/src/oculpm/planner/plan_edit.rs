@@ -323,6 +323,38 @@ fn move_item_lf(
     Ok(lines.join("\n"))
 }
 
+/// 제목 끝의 `{#…}` 앵커 하나 — `(앞부분, id)`. 에이전트가 제목에 앵커를 붙여서
+/// 넘기는 일이 흔하다 (AGENTS.md 의 줄 모양을 그대로 따라 쓴다).
+pub(crate) fn trailing_anchor(title: &str) -> Option<(&str, &str)> {
+    let t = title.trim_end();
+    let inner = t.strip_suffix('}')?;
+    let start = inner.rfind("{#")?;
+    let id = &inner[start + 2..];
+    if id.is_empty()
+        || id
+            .chars()
+            .any(|c| c.is_whitespace() || c == '{' || c == '}')
+    {
+        return None;
+    }
+    Some((t[..start].trim_end(), id))
+}
+
+/// 제목 끝에 붙어 온 **이 항목 자신의** 앵커(`{#id}`, 여러 번이어도)를 뗀다. 떼지
+/// 않으면 서버가 붙이는 앵커와 겹쳐 `… {#x} {#x}` 가 되고, 파서는 마지막 것만
+/// 앵커로 읽으니 앞의 `{#x}` 가 제목 글자로 화면에 남는다 (실측 2026-10-18: 35항목).
+/// 다른 id 의 앵커는 본문의 참조일 수 있어 남긴다.
+pub(crate) fn strip_own_anchor<'a>(title: &'a str, id: &str) -> &'a str {
+    let mut t = title.trim();
+    while let Some((head, found)) = trailing_anchor(t) {
+        if found != id {
+            break;
+        }
+        t = head;
+    }
+    t
+}
+
 /// Rename an item's title text in place, preserving its status glyph and
 /// `{#item_id}` marker. Errors if the item isn't found.
 pub fn rename_item(md: &str, item_id: &str, new_title: &str) -> Result<String, String> {
@@ -340,7 +372,12 @@ fn rename_item_lf(md: &str, item_id: &str, new_title: &str) -> Result<String, St
     // 제목 본문의 `{#…}` 글자가 아니라 앵커부터가 꼬리다.
     let (marker, _) = anchor_span(&line).ok_or("malformed item line: no marker")?;
     // head = "<indent>- [x]", tail = "{#id}…"
-    lines[idx] = format!("{} {} {}", &line[..=rb], new_title.trim(), &line[marker..]);
+    lines[idx] = format!(
+        "{} {} {}",
+        &line[..=rb],
+        strip_own_anchor(new_title, item_id),
+        &line[marker..]
+    );
     Ok(lines.join("\n"))
 }
 
@@ -510,7 +547,12 @@ fn add_item_lf(
     if id_is_anchored(md, item_id) {
         return Err(format!("item id '{item_id}' already exists"));
     }
-    let new_line = format!("- [{}] {} {{#{}}}", status.token(), title.trim(), item_id);
+    let new_line = format!(
+        "- [{}] {} {{#{}}}",
+        status.token(),
+        strip_own_anchor(title, item_id),
+        item_id
+    );
     let mut lines: Vec<String> = md.split('\n').map(String::from).collect();
 
     // 파서와 같은 이름(앵커를 뗀 것)으로 찾는다 — 원문 헤딩과 비교하던 동안

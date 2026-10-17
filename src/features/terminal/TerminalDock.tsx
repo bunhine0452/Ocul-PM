@@ -94,12 +94,16 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
       const next = calc(ev);
       setPrefs(() => (pos === "bottom" ? { terminalDockHeight: next } : { terminalDockWidth: next }));
     };
+    // 취소(pointercancel)도 끝이다 — 안 들으면 손을 뗀 뒤에도 도크가 마우스를
+    // 따라 늘었다 줄었다 했다 (분할 손잡이와 같은 결함, 2026-10-18).
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   };
 
   // 버튼은 **다음** 자리를 가리킨다 (아이콘·문구 모두) — 지금 자리를 그리면

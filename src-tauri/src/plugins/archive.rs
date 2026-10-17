@@ -116,7 +116,14 @@ pub fn read_zip_with(bytes: Vec<u8>, lim: Limits) -> Result<ArchiveReadOutcome, 
         let mut entry = zip
             .by_index(i)
             .map_err(|e| ArchiveError::Open(e.to_string()))?;
-        let raw = entry.name().to_string();
+        // zip 9 부터 이름 디코딩 실패가 `Err` 로 온다 — 그런 항목은 건너뛴다.
+        let raw = match entry.name() {
+            Ok(name) => name.into_owned(),
+            Err(_) => {
+                skipped.push((format!("#{i}"), "invalid_name".into()));
+                continue;
+            }
+        };
         if entry.is_dir() {
             continue;
         }

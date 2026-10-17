@@ -4,6 +4,23 @@ use super::*;
 
 use crate::oculpm::planner::parse::parse_plan;
 
+/// 실측 2026-10-18: 제목에 자기 앵커를 붙여 넘기면 `… {#x} {#x}` 가 되어 앞의 것이
+/// 제목 글자로 화면에 남았다 (35항목). 자기 앵커만 떼고 다른 id 참조는 남긴다.
+#[test]
+fn a_title_carrying_its_own_anchor_is_not_doubled() {
+    let md = create_plan_skeleton("p", "P", "user", "2026-10-18");
+    let md = add_item(&md, "A", "배지 {#badge}", "badge", ItemStatus::Todo).unwrap();
+    assert!(md.contains("- [ ] 배지 {#badge}\n"), "{md}");
+    let md = rename_item(&md, "badge", "새 배지 {#badge} {#badge}").unwrap();
+    assert!(md.contains("- [ ] 새 배지 {#badge}"), "{md}");
+    assert!(!md.contains("{#badge} {#badge}"), "{md}");
+    let md = add_item(&md, "A", "보류된 {#opt-g} 재개", "resume", ItemStatus::Todo).unwrap();
+    assert!(md.contains("- [ ] 보류된 {#opt-g} 재개 {#resume}"), "{md}");
+    let p = parse_plan(&md, "p");
+    let titles: Vec<&str> = p.items.iter().map(|i| i.title.as_str()).collect();
+    assert_eq!(titles, vec!["새 배지", "보류된 {#opt-g} 재개"]);
+}
+
 #[test]
 fn skeleton_parses_clean() {
     let md = create_plan_skeleton("my-plan", "내 계획", "user", "2026-06-07");
