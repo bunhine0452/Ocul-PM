@@ -78,7 +78,11 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.13.1 — Resizing the terminal does less damage
+## 🚀 v3.13.2 — Replies from a narrow terminal widen with it
+
+- **Claude Code replies you got in the narrow terminal beside the journal no longer stay narrow on the terminal screen** — the built-in terminal now starts Claude Code in its fullscreen mode, which redraws the conversation at the current width whenever it changes. Nothing is cut off beside the journal, and everything is wide when you come back. Scroll with the wheel · `PgUp`, search with `Ctrl+O`, select terminal text with `⌥`+drag. Applies to newly opened terminals (run `/tui fullscreen` in a running session); `CLAUDE_CODE_NO_FLICKER=0` in your shell config turns it off.
+
+## v3.13.1 — Resizing the terminal does less damage
 
 - **Dragging the dock to its minimum no longer folds the terminal to two columns** — when it did, the scrollback was cut and the lines Claude Code reprinted at that width stayed broken after widening. Below 20 columns · 4 rows the size now stays put. While you drag the dock or split handle the shell is not told the new size; it hears once, when you let go (lines Claude Code prints while you keep it narrow are broken by Claude Code itself and stay that way).
 - **Terminals you can't see release their graphics memory after 15 seconds** and come back when shown. The error on every quit that could leave language servers running is fixed.

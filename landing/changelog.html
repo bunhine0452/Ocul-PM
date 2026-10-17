@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.13.1)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 122개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.13.2)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 123개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.13.1)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 122개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.13.2)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 123개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.13.1</span>
+    <span class="nav-ver" data-version>v3.13.2</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>122개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>123개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-13-2">v3.13.2</a>
       <a href="#v3-13-1">v3.13.1</a>
       <a href="#v3-13-0">v3.13.0</a>
       <a href="#v3-12-0">v3.12.0</a>
@@ -61,10 +62,16 @@
       <a href="#v3-7-0">v3.7.0</a>
       <a href="#v3-6-0">v3.6.0</a>
       <a href="#v3-5-0">v3.5.0</a>
-      <a href="#v3-4-0">v3.4.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-13-2"><a href="#v3-13-2">v3.13.2</a></h2>
+      <div class="cl-body">
+<p><b>작업일지 옆 좁은 터미널에서 받은 Claude Code 의 답이, 터미널 화면으로 돌아오면 넓게 보입니다.</b> 예전에는 작업일지를 보는 동안 옆 터미널에서 나온 답이 그 좁은 폭으로 줄바꿈돼 기록에 남았습니다. 그래서 터미널 화면에서 위로 올리면 같은 글이 좁게 한 번, 넓게 한 번 보였습니다. Claude Code 가 새 글을 그 순간의 폭에 맞춰 직접 끊기 때문이라 어떤 터미널도 나중에 펴지 못했습니다. 이제 내장 터미널은 Claude Code 를 <b>fullscreen 모드</b>로 띄웁니다. 이 모드에서는 Claude Code 가 대화를 직접 들고 있다가, 폭이 바뀔 때마다 지금 폭으로 다시 그립니다. 옆 터미널에서는 그 폭에 맞춰 잘리지 않고, 터미널 화면으로 돌아오면 좁을 때 받은 답까지 넓게 보입니다.</p>
+<ul><li>대화는 마우스 휠과 <code>PgUp</code> · <code>PgDn</code> 으로 스크롤하고, 지난 대화 검색은 <code>Ctrl+O</code> 에서 <code>/</code> 로 합니다. 입력창은 화면 맨 아래에 고정됩니다.</li><li>글자를 터미널 방식으로 직접 고르려면 <code>⌥</code> 를 누른 채 드래그하세요.</li><li><b>새로 연 터미널부터 적용됩니다.</b> 이미 떠 있는 Claude Code 에서는 <code>/tui fullscreen</code> 을 한 번 치면 대화를 유지한 채 바뀝니다. 예전 방식이 좋으면 셸 설정에 <code>export CLAUDE_CODE_NO_FLICKER=0</code> 을 두세요.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-13-1"><a href="#v3-13-1">v3.13.1</a></h2>
       <div class="cl-body">
