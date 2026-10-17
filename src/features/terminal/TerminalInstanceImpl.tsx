@@ -18,7 +18,7 @@ import { oculpmLog } from "@/lib/oculpmLog";
 import { t } from "@/i18n";
 import { attachTerminalInput, terminalFontFamily, type TerminalInputHandle } from "./terminalPlatform";
 import { nextRevealState, resyncViewport } from "./viewportResync";
-import { adoptedCols, createPtyResizeQueue, type AdoptedWidth } from "./ptyResize";
+import { createPtyResizeQueue, planFit, type AdoptedWidth } from "./ptyResize";
 import { replayInto, splitReplay } from "./scrollbackReplay";
 import { loadWebglRenderer } from "./webglRenderer";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
@@ -678,7 +678,7 @@ export default function TerminalInstanceImpl({
     // Refit whenever the container changes size — including the 0→N jump when
     // the tab goes display:none → block. No-op until opened + sized.
     const container = containerRef.current;
-    // 재접속 직후 이어받는 중인 폭 (근거·규칙은 ptyResize.ts 의 `adoptedCols`).
+    // 재접속 직후 이어받는 중인 폭 — 극소 축 유지와 함께 `planFit` 이 판정한다 (ptyResize.ts).
     let adopt: AdoptedWidth | null = null;
     // 스크롤백을 찍힌 크기대로 재생하는 동안은 **아무도 크기를 못 만진다**
     // (`scrollbackReplay.ts`). 그 사이 `ResizeObserver` 가 깨어나 fit 을 하면
@@ -696,10 +696,10 @@ export default function TerminalInstanceImpl({
       if (!container) return;
       if (container.clientWidth === 0 || container.clientHeight === 0) return;
       try {
-        fit.fit();
-        const keep = adoptedCols(adopt, term.cols, container.clientWidth);
-        if (keep === null) adopt = null;
-        else if (keep !== term.cols) term.resize(keep, term.rows);
+        const plan = planFit(fit.proposeDimensions(), { cols: term.cols, rows: term.rows }, adopt, container.clientWidth);
+        if (!plan) return;
+        adopt = plan.adopt;
+        if (plan.exact) fit.fit(); else term.resize(plan.cols, plan.rows); // 같은 치수면 xterm 이 즉시 반환
         resizeQueue.push(term.rows, term.cols);
       } catch {
         /* renderer not ready — ignore */

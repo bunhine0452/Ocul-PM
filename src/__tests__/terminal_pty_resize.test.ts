@@ -14,8 +14,12 @@ import { describe, it, expect, vi } from "vitest";
 
 import {
   ADOPT_SLACK_COLS,
+  MIN_FIT_COLS,
+  MIN_FIT_ROWS,
   adoptedCols,
   createPtyResizeQueue,
+  holdTinyAxes,
+  planFit,
 } from "@/features/terminal/ptyResize";
 
 /** 응답 시점을 테스트가 쥐는 sender. */
@@ -190,3 +194,79 @@ describe("adoptedCols", () => {
   });
 });
 
+
+/**
+ * 극소 크기 바닥 (2026-10-18).
+ *
+ * 도크를 레일 폭 근처까지 좁히거나(오른쪽 도크 최소 120px < 레일 168px) 아래
+ * 도크를 최소 높이로 내리면 캔버스 자리가 수십 px 로 떨어지고, FitAddon 은 그때
+ * 하한값 cols 2 · rows 1 을 내놓는다. 그 크기로 xterm 이 스크롤백 2만 줄을
+ * 2칸으로 접으면(리플로) 한도를 넘친 위쪽 기록이 잘려 나가고, PTY 도 2칸을 받아
+ * 셸·claude code 가 진짜 개행으로 다시 그린다 — 다시 넓혀도 펴지지 않는다.
+ * 그래서 바닥 아래로 떨어진 축은 **지금 크기를 유지**한다 (캔버스는 잘려 보일 뿐).
+ */
+describe("holdTinyAxes", () => {
+  const cur = { cols: 120, rows: 30 };
+
+  it("바닥 이상이면 제안 그대로 따른다", () => {
+    expect(holdTinyAxes({ cols: 90, rows: 20 }, cur)).toEqual({ cols: 90, rows: 20 });
+    expect(holdTinyAxes({ cols: MIN_FIT_COLS, rows: MIN_FIT_ROWS }, cur)).toEqual({
+      cols: MIN_FIT_COLS,
+      rows: MIN_FIT_ROWS,
+    });
+  });
+
+  it("FitAddon 하한(2×1)까지 떨어지면 두 축 모두 지금 크기를 지킨다", () => {
+    expect(holdTinyAxes({ cols: 2, rows: 1 }, cur)).toEqual(cur);
+  });
+
+  it("축마다 따로 판정한다 — 높이만 극소면 폭은 계속 맞춘다", () => {
+    expect(holdTinyAxes({ cols: 100, rows: 2 }, cur)).toEqual({ cols: 100, rows: 30 });
+    expect(holdTinyAxes({ cols: 5, rows: 25 }, cur)).toEqual({ cols: 120, rows: 25 });
+  });
+
+  it("줄였다 키우면 줄이기 전 크기로 곧장 돌아온다 — 중간에 극소 크기를 거치지 않는다", () => {
+    const seen: { cols: number; rows: number }[] = [];
+    let size = cur;
+    for (const p of [
+      { cols: 60, rows: 30 },
+      { cols: 2, rows: 30 },
+      { cols: 2, rows: 1 },
+      { cols: 118, rows: 30 },
+    ]) {
+      size = holdTinyAxes(p, size);
+      seen.push(size);
+    }
+    expect(seen.every((s) => s.cols >= MIN_FIT_COLS && s.rows >= MIN_FIT_ROWS)).toBe(true);
+    expect(size).toEqual({ cols: 118, rows: 30 });
+  });
+});
+
+describe("planFit", () => {
+  const cur = { cols: 120, rows: 30 };
+
+  it("의미 없는 제안이면 아무것도 바꾸지 않는다", () => {
+    expect(planFit(undefined, cur, null, 800)).toBeNull();
+    expect(planFit({ cols: NaN, rows: 30 }, cur, null, 800)).toBeNull();
+  });
+
+  it("평소에는 제안 그대로 — fit() 을 그대로 부른다", () => {
+    expect(planFit({ cols: 100, rows: 25 }, cur, null, 800)).toEqual({
+      cols: 100,
+      rows: 25,
+      adopt: null,
+      exact: true,
+    });
+  });
+
+  it("극소 축은 지금 크기로 — fit() 대신 직접 resize 한다", () => {
+    expect(planFit({ cols: 2, rows: 1 }, cur, null, 40)).toEqual({ cols: 120, rows: 30, adopt: null, exact: false });
+  });
+
+  it("이어받기는 한 판정 안에서 — 크기를 바꾸는 호출이 한 번만 나간다", () => {
+    const adopt = { cols: 114, atWidth: 800 };
+    expect(planFit({ cols: 120, rows: 30 }, cur, adopt, 800)).toEqual({ cols: 114, rows: 30, adopt, exact: false });
+    // 폭이 바뀌면 놓는다.
+    expect(planFit({ cols: 100, rows: 30 }, cur, adopt, 640)?.adopt).toBeNull();
+  });
+});
