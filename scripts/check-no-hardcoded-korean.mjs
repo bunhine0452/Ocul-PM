@@ -302,6 +302,7 @@ const TESTS = new Set([
   // 터미널 OSC 8 링크 처리기 — 한국어 테스트 이름이 서술 언어다.
   "__tests__/terminal_url_links.test.ts",
   "__tests__/terminal_viewport_resync.test.ts",
+  "__tests__/terminal_webgl_slot.test.ts",
   "__tests__/theme_gallery.test.tsx",
   "__tests__/theme_schema.test.ts",
   "__tests__/toast_timing.test.tsx",

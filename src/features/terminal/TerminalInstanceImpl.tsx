@@ -20,7 +20,7 @@ import { attachTerminalInput, terminalFontFamily, type TerminalInputHandle } fro
 import { nextRevealState, resyncViewport } from "./viewportResync";
 import { createPtyResizeQueue, planFit, type AdoptedWidth } from "./ptyResize";
 import { replayInto, splitReplay } from "./scrollbackReplay";
-import { loadWebglRenderer } from "./webglRenderer";
+import { WebglSlot } from "./webglRenderer";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
 import {
   initialShellState,
@@ -182,8 +182,8 @@ export default function TerminalInstanceImpl({
   const applyFitRef = useRef<(deliberate?: boolean) => void>(() => {});
   const searchRef = useRef<SearchAddon | null>(null);
   const imeRef = useRef<TerminalInputHandle | null>(null);
-  // WebGL 애드온 핸들 — 정리 시 코어보다 먼저, 가드하고 dispose 한다.
-  const webglRef = useRef<{ dispose(): void } | null>(null);
+  // WebGL 애드온 자리 — 숨은 동안 컨텍스트를 반납하고, 정리 시 코어보다 먼저 놓는다 (webglRenderer.ts).
+  const [gpu] = useState(() => new WebglSlot());
   const openedRef = useRef(false);
   const cwdRef = useRef(cwd);
   const persistentRef = useRef(persistent);
@@ -269,7 +269,7 @@ export default function TerminalInstanceImpl({
     // open() 이후 부가 기능(GPU 렌더러·IME 브리지·화면 핸들 등록)은 하나가
     // 실패해도 터미널 자체는 살아 있어야 한다. 예외가 그대로 올라가면
     // React 가 TerminalInstanceImpl 을 통째로 언마운트해 입력이 죽는다.
-    void loadWebglRenderer(term, webglRef);
+    gpu.show(term);
     try {
       // macOS 는 한글 입력 브리지, Windows·Linux 는 셸 키 양보 정책 (terminalPlatform.ts).
       imeRef.current = attachTerminalInput(term, container);
@@ -335,7 +335,7 @@ export default function TerminalInstanceImpl({
     term.loadAddon(new Unicode11Addon());
     term.unicode.activeVersion = "11";
     // 링크 호버 밑줄. GPU 렌더러일 때만 우리가 긋는다 (근거는 linkUnderline.ts).
-    const underline = createLinkUnderline(term, () => webglRef.current !== null);
+    const underline = createLinkUnderline(term, () => gpu.active);
     // URL → 시스템 브라우저(백엔드 open_url), `file://` → 화면(이미지 미리보기·파일 메뉴).
     const openUrl = (uri: string) => void fileOpenApi.url(uri).catch(() => {});
     const urlLinks = { openUrl, underline, getFileLink: () => onFileLinkRef.current };
@@ -737,9 +737,11 @@ export default function TerminalInstanceImpl({
         if (!last) return;
         const { visible, revealed } = nextRevealState(wasVisible, last);
         wasVisible = visible;
+        if (!visible) gpu.hide(); // 숨은 동안은 WebGL 컨텍스트를 반납한다 (webglRenderer.ts)
         if (!revealed) return;
         // 다시 보이게 된 김에, 아직 안 열렸으면 연다 (위 `applyFit` 과 같은 이유).
         if (!openedRef.current && !openRef.current()) return;
+        gpu.show(term);
         // 자리를 비운 사이 창이 커졌을 수도 있으니 먼저 맞춰 보고,
         // 크기가 그대로여도 어긋난 스크롤 기하는 반드시 되맞춘다.
         applyFit();
@@ -892,17 +894,7 @@ export default function TerminalInstanceImpl({
       imeRef.current = null;
       // persistent 세션은 백엔드에 남긴다 — 탭/페인 닫기가 명시적으로 kill.
       if (!persistentRef.current) void ptyApi.kill(sessionId).catch(() => {});
-      // A0d 근본 원인 — 정리에서 throw 금지: addon-webgl 0.19 가 xterm 5.5
-      // 코어에 없는 내부(_core._store)를 dispose 에서 만져 언마운트 커밋을
-      // 통째로 무너뜨렸다(앱 전체 빈 화면). 버전은 0.18 로 정합했고, 여기는
-      // 미래의 어떤 dispose 예외도 앱을 죽이지 못하게 가드한다.
-      try {
-        webglRef.current?.dispose();
-      } catch (err) {
-        // i18n-ignore-next-line -- 진단 로그(oculpm.log)는 한 언어로 남긴다
-        oculpmLog.error("terminal", `webgl dispose 실패 (무시): ${String(err)}`);
-      }
-      webglRef.current = null;
+      gpu.dispose(); // 코어보다 먼저 — dispose 예외는 슬롯이 삼킨다 (A0d, webglRenderer.ts)
       try {
         term.dispose();
       } catch (err) {
