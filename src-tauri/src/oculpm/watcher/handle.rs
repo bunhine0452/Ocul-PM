@@ -48,7 +48,8 @@ pub(super) struct WatcherInner {
     /// 곁일 게이트 — 증분 색인·히스토리 캡처의 동시 상한과 수명 (watcher_tasks).
     pub(super) tasks: WatcherTasks,
     pub(super) user_ignore: Gitignore,
-    pub(super) project_gitignore: Option<Gitignore>,
+    /// 루트 `.gitignore` 매처 — 사전 필터와 같은 칸을 쥔다 (바뀌면 다시 읽는다).
+    pub(super) project_gitignore: crate::oculpm::watcher_queue::ProjectGitignore,
     pub(super) forbidden: Gitignore,
     /// Compiled `auto_redact_patterns`. Empty → masking is a no-op. Used to
     /// build a redacting [`JournalCache`] for journal upserts and threaded into
@@ -217,6 +218,12 @@ impl WatcherInner {
                 return;
             }
         };
+
+        // 0.5 루트 `.gitignore` 가 바뀌었다 — 아래 판정(과 사전 필터)이 새 규칙을
+        //     쓰도록 다시 읽는다. 이 이벤트 자체는 평소대로 흘려보낸다 (사용자 파일).
+        if rel_str == ".gitignore" {
+            self.project_gitignore.reload(&self.root);
+        }
 
         // 1. Self-suppress.
         if is_self_suppressed(&rel_str) {
@@ -472,12 +479,7 @@ impl WatcherInner {
         {
             return false;
         }
-        if let Some(gi) = &self.project_gitignore {
-            if gi.matched_path_or_any_parents(abs_path, false).is_ignore() {
-                return false;
-            }
-        }
-        true
+        !self.project_gitignore.is_ignored(abs_path)
     }
 
     fn is_forbidden(&self, abs_path: &Path) -> bool {
