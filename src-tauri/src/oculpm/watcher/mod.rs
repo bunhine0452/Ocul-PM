@@ -46,6 +46,8 @@ mod journal;
 mod repeat;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_gitignore;
 #[cfg(all(test, windows))]
 mod tests_windows;
 
