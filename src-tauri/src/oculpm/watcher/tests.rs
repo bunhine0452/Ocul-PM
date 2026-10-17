@@ -53,16 +53,16 @@ pub(super) fn fast_config() -> OculpmConfig {
     cfg
 }
 
-fn today_workday(resolver: &WorkdayResolver) -> String {
+pub(super) fn today_workday(resolver: &WorkdayResolver) -> String {
     resolver.workday_of(Utc::now())
 }
 
-struct Setup {
-    dir: TempDir,
-    resolver: WorkdayResolver,
-    writer: Arc<IndexWriter>,
-    actor: SessionActor,
-    watcher: ProjectWatcher,
+pub(super) struct Setup {
+    pub(super) dir: TempDir,
+    pub(super) resolver: WorkdayResolver,
+    pub(super) writer: Arc<IndexWriter>,
+    pub(super) actor: SessionActor,
+    pub(super) watcher: ProjectWatcher,
 }
 
 async fn setup_with_config(cfg: OculpmConfig) -> Setup {
@@ -99,7 +99,7 @@ async fn setup_with_config(cfg: OculpmConfig) -> Setup {
     }
 }
 
-async fn setup() -> Setup {
+pub(super) async fn setup() -> Setup {
     setup_with_config(fast_config()).await
 }
 
@@ -228,38 +228,6 @@ async fn gitignored_paths_are_ignored() {
     assert!(
         in_node_modules.is_empty(),
         "node_modules events leaked: {in_node_modules:?}"
-    );
-}
-
-/// 워처가 켜진 **뒤에** 생긴 `.gitignore` 도 먹어야 한다. 예전엔 기동 때 한 번
-/// 읽고 끝이라 앱을 다시 켤 때까지 무시 규칙이 안 걸렸다 (2026-10-18 실측: 그 사이
-/// `.work/` 아래 119개 파일이 색인에 들어갔다).
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_gitignore_created_after_start_takes_effect() {
-    let s = setup().await;
-    std::fs::create_dir_all(s.dir.path().join(".work")).unwrap();
-    std::fs::write(s.dir.path().join(".gitignore"), ".work/\n").unwrap();
-    settle().await;
-
-    std::fs::write(s.dir.path().join(".work/scratch.txt"), "data").unwrap();
-    std::fs::write(s.dir.path().join("kept.rs"), "fn k() {}").unwrap();
-    settle().await;
-    s.watcher.stop().await.unwrap();
-    s.actor.shutdown().await.unwrap();
-
-    let events = s
-        .writer
-        .read_file_changes(&today_workday(&s.resolver), None)
-        .await
-        .unwrap();
-    let leaked: Vec<_> = events
-        .iter()
-        .filter(|e| e.path.starts_with(".work/"))
-        .collect();
-    assert!(leaked.is_empty(), "ignored events leaked: {leaked:?}");
-    assert!(
-        events.iter().any(|e| e.path == "kept.rs"),
-        "tracked file must still be recorded: {events:?}"
     );
 }
 
