@@ -317,7 +317,10 @@ export function TerminalSurface({
       reportRejection(closeTab(activeTab.id), "term.closeFailed");
       return;
     }
-    const nextFocus = siblingSid(panes, sid);
+    // 포커스가 없는 페인을 닫으면 포커스는 제자리다 — 형제로 옮기면 타이핑하던
+    // 페인에서 커서를 빼앗는다 (2026-10-18).
+    const focused = focusOfTab(activeTab);
+    const nextFocus = sid === focused ? siblingSid(panes, sid) : focused;
     if (!(await killPanes([sid]))) return;
     patchTab(activeTab.id, (tab) => {
       const next = removePane(panesOfTab(tab), sid);

@@ -1,12 +1,17 @@
 /**
- * 명령 블록 「채우기」가 **누른 페인**이 아니라 포커스된 페인에 쓰던 것 (2026-10-18).
+ * 분할 페인의 「과녁」 두 가지 (2026-10-18).
+ *
+ * ① 명령 블록 「채우기」가 **누른 페인**이 아니라 포커스된 페인에 쓰던 것 (2026-10-18).
  *
  * 거터 캡슐은 mousedown 을 삼킨다(캔버스로 흘러가면 선택이 시작된다) — 그래서
  * 분할된 옆 페인의 캡슐을 눌러도 포커스는 옮겨 가지 않는다. 그런데 「채우기」는
  * 「활성 탭의 포커스 페인」에 썼다: B 의 명령을 골랐는데 A 의 프롬프트에 채워졌다.
+ *
+ * ② 포커스가 **없는** 페인을 × 로 닫아도 포커스가 그 페인의 형제로 옮겨 갔다 —
+ *    타이핑하던 페인에서 커서를 빼앗았다.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 const writes: Array<{ sid: string; data: string }> = [];
 
@@ -79,5 +84,31 @@ describe("block menu fill", () => {
     fireEvent.click(await screen.findByText(t("term.block.fill")));
 
     await waitFor(() => expect(writes).toEqual([{ sid: first, data: "pnpm test" }]));
+  });
+
+  it("closing a pane that is not focused leaves the focus where it was", async () => {
+    const { container } = render(
+      <SettingsProvider>
+        <WorkspaceProvider projectId={5302}>
+          <TerminalSurface projectRoot="/tmp" />
+        </WorkspaceProvider>
+      </SettingsProvider>,
+    );
+    await waitFor(() => expect(container.querySelectorAll('[data-testid="pane"]').length).toBe(1));
+    const first = container.querySelector('[data-testid="pane"]')!.getAttribute("data-sid")!;
+    fireEvent.click(screen.getByLabelText(t("term.splitRow")));
+    await waitFor(() => expect(container.querySelectorAll('[data-testid="pane"]').length).toBe(2));
+    fireEvent.click(screen.getByLabelText(t("term.splitRow")));
+    await waitFor(() => expect(container.querySelectorAll('[data-testid="pane"]').length).toBe(3));
+    const focusedSid = () => container.querySelector<HTMLElement>(".term-pane.focused")?.dataset.sid;
+    const typingIn = focusedSid();
+    expect(typingIn).toBeDefined();
+    expect(typingIn).not.toBe(first);
+
+    const firstPane = container.querySelector<HTMLElement>(`.term-pane[data-sid="${first}"]`)!;
+    fireEvent.click(within(firstPane).getByLabelText(t("term.closePane")));
+
+    await waitFor(() => expect(container.querySelectorAll('[data-testid="pane"]').length).toBe(2));
+    expect(focusedSid()).toBe(typingIn);
   });
 });
