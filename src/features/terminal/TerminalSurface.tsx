@@ -171,8 +171,10 @@ export function TerminalSurface({
     setRestartNonce,
     restartPane,
   } = usePaneStates();
-  // 거터 캡슐을 눌러 연 블록 액션 팝오버. 한 번에 하나만 뜬다.
-  const [blockMenu, setBlockMenu] = useState<BlockActivation | null>(null);
+  // 거터 캡슐을 눌러 연 블록 액션 팝오버. 한 번에 하나만 뜬다. `sid` 는 캡슐이
+  // 있던 페인 — 캡슐은 mousedown 을 삼켜 포커스를 옮기지 않으므로, 포커스 페인이
+  // 아니라 이 값이 「채우기」의 과녁이다 (2026-10-18).
+  const [blockMenu, setBlockMenu] = useState<(BlockActivation & { sid: string }) | null>(null);
 
   // IN2 — 디스패치 프리필 펌프 (→ terminalSurface/useDispatchPrefill). 활성 페인
   // sid 는 아래에서 매 렌더 ref 에 써 넣는다.
@@ -315,7 +317,10 @@ export function TerminalSurface({
       reportRejection(closeTab(activeTab.id), "term.closeFailed");
       return;
     }
-    const nextFocus = siblingSid(panes, sid);
+    // 포커스가 없는 페인을 닫으면 포커스는 제자리다 — 형제로 옮기면 타이핑하던
+    // 페인에서 커서를 빼앗는다 (2026-10-18).
+    const focused = focusOfTab(activeTab);
+    const nextFocus = sid === focused ? siblingSid(panes, sid) : focused;
     if (!(await killPanes([sid]))) return;
     patchTab(activeTab.id, (tab) => {
       const next = removePane(panesOfTab(tab), sid);
@@ -561,7 +566,7 @@ export function TerminalSurface({
                 prev[node.sid] === signal ? prev : { ...prev, [node.sid]: signal },
               )
             }
-            onBlockActivate={setBlockMenu}
+            onBlockActivate={(activation) => setBlockMenu({ ...activation, sid: node.sid })}
             onExit={() =>
               setEnded((prev) => (prev[node.sid] ? prev : { ...prev, [node.sid]: true }))
             }
@@ -736,8 +741,7 @@ export function TerminalSurface({
           projectId={runtime.currentProjectId}
           onClose={() => setBlockMenu(null)}
           onFill={(command) => {
-            const sid = activeTab ? focusOfTab(activeTab) : null;
-            if (!sid) return;
+            const sid = blockMenu.sid;
             // 개행 없이 그대로 쓴다 — 실행은 사람이 Enter 로 (디스패치 프리필과
             // 같은 규약). `writeDispatchTo` 는 안 쓴다: 저쪽은 전경 프로세스를
             // 보고 에이전트면 프롬프트로 붙여넣는 다른 계약이다.

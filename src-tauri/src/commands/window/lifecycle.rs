@@ -332,13 +332,23 @@ pub(crate) fn stop_code_servers_blocking(app: &AppHandle) {
         }
     };
     let both = async { futures::join!(all, dbg) };
-    let timed = tauri::async_runtime::block_on(tokio::time::timeout(
-        std::time::Duration::from_secs(2),
-        both,
-    ));
-    if timed.is_err() {
+    if block_on_within(std::time::Duration::from_secs(2), both).is_none() {
         tracing::warn!("종료: 언어 서버·디버거 정리가 2초 안에 안 끝났다");
     }
+}
+
+/// 런타임 **밖**(메인 스레드)에서 `fut` 를 `limit` 까지만 기다린다. 넘기면 `None`.
+///
+/// `tokio::time::timeout` 은 **만드는 순간** 타이머를 런타임에 등록한다. 그래서
+/// `block_on(timeout(..))` 처럼 인자 자리에서 만들면 아직 런타임 밖이라 "there is
+/// no reactor running" 으로 패닉한다 — 앱 종료(`ExitRequested`)마다 이 자리에서
+/// 패닉해 언어 서버·디버거가 고아로 남고 뒤따르는 모바일 브리지 정리도 건너뛰었다
+/// (oculpm.log 2026-10-10·10-14, `lifecycle.rs:335`). 타이머는 `block_on` 안에서 만든다.
+fn block_on_within<F: std::future::Future>(
+    limit: std::time::Duration,
+    fut: F,
+) -> Option<F::Output> {
+    tauri::async_runtime::block_on(async move { tokio::time::timeout(limit, fut).await.ok() })
 }
 
 /// 이 프로젝트의 셸을 정리해도 되는가.
@@ -348,4 +358,35 @@ pub(crate) fn stop_code_servers_blocking(app: &AppHandle) {
 /// 셸이 전부 사라진다 (창은 살아 있는데 내용만 죽는 셈).
 fn releasable(app: &AppHandle, project_id: u32) -> bool {
     !app.state::<WindowTabs>().lock().project_in_use(project_id)
+}
+
+#[cfg(test)]
+mod block_on_within_tests {
+    use super::block_on_within;
+    use std::time::Duration;
+
+    /// 테스트 스레드는 런타임 밖이다 — 앱 종료 훅(메인 스레드)과 같은 자리.
+    #[test]
+    fn waits_from_outside_the_runtime_without_panicking() {
+        assert_eq!(
+            block_on_within(Duration::from_millis(500), async { 7 }),
+            Some(7)
+        );
+    }
+
+    /// 고치기 전의 모양 — 인자 자리에서 만든 타이머는 런타임 밖이라 패닉한다.
+    /// 이 전제가 깨지는 날(tokio 가 지연 등록으로 바뀌면) 도우미를 걷어도 된다.
+    #[test]
+    fn a_timeout_built_outside_the_runtime_panics() {
+        let built_outside = std::panic::catch_unwind(|| {
+            tauri::async_runtime::block_on(tokio::time::timeout(Duration::from_millis(10), async {}))
+        });
+        assert!(built_outside.is_err());
+    }
+
+    #[test]
+    fn gives_up_after_the_limit() {
+        let never = std::future::pending::<()>();
+        assert_eq!(block_on_within(Duration::from_millis(20), never), None);
+    }
 }
