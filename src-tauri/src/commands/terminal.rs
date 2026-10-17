@@ -220,6 +220,32 @@ fn blocking_kill(app: &tauri::AppHandle, req: Request) {
     tauri::async_runtime::block_on(work);
 }
 
+/// 내장 터미널의 모든 셸이 받는 고정 환경 변수. 전부 사용자 rc 보다 **먼저**
+/// 실리므로, rc 에서 같은 이름을 다시 내보내면 그쪽이 이긴다 (끄는 길).
+fn base_terminal_env() -> Vec<(String, String)> {
+    vec![
+        ("TERM".into(), "xterm-256color".into()),
+        // xterm.js 5.x 는 트루컬러를 지원한다 — CLI 들이 24bit 팔레트를 쓰도록.
+        ("COLORTERM".into(), "truecolor".into()),
+        // OSC 8 하이퍼링크도 그린다 — 그런데 Claude Code 는 TERM_PROGRAM 목록에
+        // 없는 터미널을 미지원으로 보고 파일 경로를 맨 글자로 찍는다. 좁은 폭에서
+        // 줄을 넘긴 경로는 글자만으로는 다시 이을 수 없다. 이 신호가 있으면
+        // `file://` 절대경로로 감싸 보내고, 프런트가 그 링크로 이미지를 미리
+        // 보여 준다 (`urlLinks.ts`). rc 의 `FORCE_HYPERLINK=0` 이 나중에 돌아 이긴다.
+        ("FORCE_HYPERLINK".into(), "1".into()),
+        // Claude Code 를 fullscreen 렌더러(alternate screen)로 띄운다 (2026-10-18).
+        // 일반 렌더러는 새 글을 **그때의 폭**으로 직접 줄바꿈해 터미널 기록에 흘려
+        // 보낸다 — 작업일지 옆 좁은 터미널에서 받은 답은 터미널 화면으로 돌아와도
+        // 좁은 채로 남고, 폭이 바뀔 때마다 보이는 화면만 다시 찍어 기록에 사본이
+        // 쌓인다 (pty 실측). fullscreen 은 대화를 자기가 들고 있다가 폭이 바뀌면
+        // 지우고 지금 폭으로 다시 그린다 — 좁을 때 받은 답도 넓히면 넓게 보인다
+        // (같은 실측: 50칸에서 받은 문단이 140칸 창에서 136칸으로). 스크롤은
+        // 휠·PgUp 으로 Claude Code 안에서, 검색은 Ctrl+O. 끄려면 rc 에서
+        // `CLAUDE_CODE_NO_FLICKER=0` (공식 문서: code.claude.com/docs/en/fullscreen).
+        ("CLAUDE_CODE_NO_FLICKER".into(), "1".into()),
+    ]
+}
+
 /// 지금 이 스레드가 async 런타임 위인가 — `block_on` 이 패닉하는 조건.
 fn inside_async_runtime() -> bool {
     tokio::runtime::Handle::try_current().is_ok()
@@ -247,17 +273,7 @@ pub async fn start_pty_session(
 ) -> Result<PtySessionInfo, String> {
     let shell = shell_integration::current_shell();
 
-    let mut env: Vec<(String, String)> = vec![
-        ("TERM".into(), "xterm-256color".into()),
-        // xterm.js 5.x 는 트루컬러를 지원한다 — CLI 들이 24bit 팔레트를 쓰도록.
-        ("COLORTERM".into(), "truecolor".into()),
-        // OSC 8 하이퍼링크도 그린다 — 그런데 Claude Code 는 TERM_PROGRAM 목록에
-        // 없는 터미널을 미지원으로 보고 파일 경로를 맨 글자로 찍는다. 좁은 폭에서
-        // 줄을 넘긴 경로는 글자만으로는 다시 이을 수 없다. 이 신호가 있으면
-        // `file://` 절대경로로 감싸 보내고, 프런트가 그 링크로 이미지를 미리
-        // 보여 준다 (`urlLinks.ts`). rc 의 `FORCE_HYPERLINK=0` 이 나중에 돌아 이긴다.
-        ("FORCE_HYPERLINK".into(), "1".into()),
-    ];
+    let mut env = base_terminal_env();
     // 한국어 입력 fix (2026-07-16): Finder 로 실행된 .app 은 LANG 이 비어 셸이
     // C 로케일로 뜬다 — 기존 값은 존중하고 없을 때만 UTF-8 보장. (호스트는 이
     // 앱이 띄우므로 같은 env 를 물려받지만, 판정은 계약대로 앱 쪽에서 한다.)
@@ -583,6 +599,17 @@ fn read_image_preview(path: &Path) -> Result<CodeAsset, String> {
 
 #[cfg(test)]
 mod tests {
+    /// 내장 터미널의 Claude Code 는 fullscreen 렌더러로 뜬다 — 좁은 옆 터미널에서
+    /// 받은 답이 넓은 화면에서 좁은 채로 남지 않게 (2026-10-18).
+    #[test]
+    fn claude_code_starts_in_fullscreen_renderer() {
+        let env = super::base_terminal_env();
+        assert!(env
+            .iter()
+            .any(|(k, v)| k == "CLAUDE_CODE_NO_FLICKER" && v == "1"));
+        assert!(env.iter().any(|(k, v)| k == "FORCE_HYPERLINK" && v == "1"));
+    }
+
     use super::*;
 
     const PNG_1X1: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\x01\0\0\0\x01\x08\x06\0\0\0";
