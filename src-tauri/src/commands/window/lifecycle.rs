@@ -332,13 +332,23 @@ pub(crate) fn stop_code_servers_blocking(app: &AppHandle) {
         }
     };
     let both = async { futures::join!(all, dbg) };
-    let timed = tauri::async_runtime::block_on(tokio::time::timeout(
-        std::time::Duration::from_secs(2),
-        both,
-    ));
-    if timed.is_err() {
+    if block_on_with_timeout(std::time::Duration::from_secs(2), both).is_err() {
         tracing::warn!("종료: 언어 서버·디버거 정리가 2초 안에 안 끝났다");
     }
+}
+
+/// 런타임 밖(메인 스레드)에서 `fut` 를 최대 `dur` 기다린다.
+///
+/// `tokio::time::timeout(..)` 은 **만드는 순간** 타이머를 현재 런타임에 등록한다 —
+/// `block_on` 의 인자로 바로 넘기면 런타임에 들어가기 전에 만들어져 "there is no
+/// reactor running" 으로 패닉한다(2026-10-10·10-14 종료 로그). 그러면 뒤의 모바일
+/// 브리지 정지까지 건너뛰고 언어 서버·디버거가 고아로 남는다. 그래서 타이머도
+/// `block_on` 안의 async 블록에서 만든다.
+fn block_on_with_timeout<F: std::future::Future>(
+    dur: std::time::Duration,
+    fut: F,
+) -> Result<F::Output, tokio::time::error::Elapsed> {
+    tauri::async_runtime::block_on(async move { tokio::time::timeout(dur, fut).await })
 }
 
 /// 이 프로젝트의 셸을 정리해도 되는가.
@@ -348,4 +358,23 @@ pub(crate) fn stop_code_servers_blocking(app: &AppHandle) {
 /// 셸이 전부 사라진다 (창은 살아 있는데 내용만 죽는 셈).
 fn releasable(app: &AppHandle, project_id: u32) -> bool {
     !app.state::<WindowTabs>().lock().project_in_use(project_id)
+}
+
+#[cfg(test)]
+mod blocking_timeout_tests {
+    use super::block_on_with_timeout;
+    use std::time::Duration;
+
+    /// 런타임 밖(종료 훅과 같은 조건)에서 불러도 패닉하지 않아야 한다.
+    #[test]
+    fn works_outside_a_runtime() {
+        assert!(tokio::runtime::Handle::try_current().is_err());
+        assert_eq!(
+            block_on_with_timeout(Duration::from_millis(200), async { 7 }).ok(),
+            Some(7)
+        );
+        assert!(
+            block_on_with_timeout(Duration::from_millis(10), std::future::pending::<()>()).is_err()
+        );
+    }
 }
