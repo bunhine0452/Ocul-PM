@@ -175,6 +175,14 @@ objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem"] }
 objc2-foundation = { version = "0.3", features = ["NSString", "NSArray", "NSURL"] }
 
+# 쓰지 않는 직접 의존 — **판 고정만** 한다 (2026-10-24). tauri-plugin-deep-link 2.6.2 의
+# Linux 코드가 `ini::ParseOption { enabled_quote, enabled_escape }` 두 필드로만 만드는데
+# rust-ini 0.21.2 부터 필드가 넷이라(패치 판에서 semver 를 깸) Linux 빌드가 E0063 으로
+# 멈췄다 — macOS 에서는 그 코드가 컴파일되지 않아 로컬·CI(macOS) 게이트가 못 잡았고
+# E2E(ubuntu) 가 잡았다. deep-link 가 고쳐지면(..Default::default()) 이 줄을 지운다.
+[target.'cfg(target_os = "linux")'.dependencies]
+rust-ini = "=0.21.1"
+
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
 # Test-only helpers for the .oculpm/ subsystem (W1-PR4 onwards).
