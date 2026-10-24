@@ -78,7 +78,11 @@ Ocul-PM 은 그 설명을 없앱니다. 프로젝트 폴더에 규칙 파일(`AG
 
 「VS Code 급 편집기」를 앱 안에 또 만드는 대신, 확장 **`oculpm.ocul-pm`** 이 VS Code 사이드바에 **오늘 일지와 활성 플랜**을 띄웁니다. 에이전트가 일지를 쓰면 1초 안에 거기 뜨고, 플랜 항목 체크박스를 누르면 `.md` 와 앱 플래너가 같이 바뀝니다 — 쓰기는 이 앱의 `oculpm-mcp` 를 통해서만(앱이 없으면 읽기 전용). Copilot 에이전트 모드에는 `journal_write`·`plan_update` 도구가 그대로 보이고, 일지의 「편집기로 열기」는 VS Code 사이드바의 그 일지로, VS Code 의 「Ocul-PM 에서 열기」는 앱의 그 일지로 갑니다. [VS Code 마켓플레이스](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm)(Cursor · VSCodium). 확장은 네트워크를 쓰지 않습니다.
 
-## 🚀 v3.13.2 — 좁은 터미널에서 받은 답도 넓게 보입니다
+## 🚀 v3.13.3 — 터미널 맨 아랫줄이 잘리지 않습니다
+
+- **Claude Code 입력창 아래가 살짝 잘리던 것을 고쳤습니다** — 터미널이 가장자리 여백까지 높이로 세어 한 줄쯤 더 잡고, 그 마지막 줄이 잘렸습니다. 이제 여백 안쪽만 셉니다(폭도 몇 칸 좁게 맞춰질 수 있습니다).
+
+## v3.13.2 — 좁은 터미널에서 받은 답도 넓게 보입니다
 
 - **작업일지 옆 좁은 터미널에서 받은 Claude Code 의 답이 터미널 화면에서 좁게 남지 않습니다** — 내장 터미널이 Claude Code 를 fullscreen 모드로 띄워, 폭이 바뀔 때마다 대화를 지금 폭으로 다시 그립니다. 옆에서는 잘리지 않고, 돌아오면 넓게 보입니다. 스크롤은 휠 · `PgUp`, 검색은 `Ctrl+O`, 터미널 선택은 `⌥`+드래그. 새로 연 터미널부터 적용되고(떠 있는 세션은 `/tui fullscreen`), 셸 설정의 `CLAUDE_CODE_NO_FLICKER=0` 으로 끌 수 있습니다.
 
