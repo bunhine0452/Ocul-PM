@@ -239,6 +239,8 @@ fn subsection<'a>(key: &'a str, section: &str, vars: &[&str]) -> Option<&'a str>
 mod tests {
     use super::*;
 
+    // 부르는 테스트 둘이 `#[cfg(unix)]` 다 — 없으면 Windows clippy 가 dead_code 로 붉힌다.
+    #[cfg(unix)]
     fn git(dir: &Path, args: &[&str]) {
         let ok = crate::proc::std_cmd("git")
             .arg("-C")
