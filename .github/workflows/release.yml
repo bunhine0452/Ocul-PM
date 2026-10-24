@@ -650,25 +650,6 @@ jobs:
           printf '%s\n' "$names" > "$tmp/assets.txt"
           node .github/scripts/release/latest-json.mjs verify --file "$tmp/latest.json" --tag "$TAG" --assets "$tmp/assets.txt"
 
-      # VS Code 확장 .vsix 를 같은 릴리스에 첨부 (플랜 vscode-extension-round
-      # {#rel-ci-vsix}) — 마켓이 막힌 환경의 오프라인 설치용:
-      #   code --install-extension ocul-pm-<ver>.vsix
-      # 마켓 게시 자체는 extension-release.yml(태그 ext-v*)이 한다. 확장 버전은
-      # 앱 버전과 별개라 파일명은 확장 package.json 의 것을 쓴다.
-      - name: Package VS Code extension
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm package
-          ver="$(node -p "require('./package.json').version")"
-          npx --yes @vscode/vsce@3 package --no-dependencies -o "ocul-pm-${ver}.vsix"
-        working-directory: extension
-
-      # draft 에도 올라간다 — 공개(publish 잡) 전에 첨부해야 공개 순간 자산이 완전하다.
-      - name: Attach .vsix to the release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "$TAG" extension/ocul-pm-*.vsix --clobber
-
   # ── Windows · Linux — 번들 (태그 커밋에서, 이 릴리스 안에서) ──────────────────
   # 설정은 portability.yml 의 번들 잡과 같다(tauri.conf.json + Tauri 가 스스로 병합하는
   # tauri.windows.conf.json · tauri.linux.conf.json — D3). 다른 점은 **진짜 업데이터 키**
