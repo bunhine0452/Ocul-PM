@@ -173,6 +173,8 @@ export default function TerminalInstanceImpl({
   onFileLink,
 }: TerminalInstanceProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // xterm 은 `.term-screen` 여백 안쪽에 연다 — 이유는 screens.css `.term-xterm`.
+  const xtermHostRef = useRef<HTMLDivElement | null>(null);
   // 경계 포착용 — 비동기(setTimeout) 지점의 치명 오류를 렌더로 승격한다.
   const [fatal, setFatal] = useState<Error | null>(null);
   if (fatal) throw fatal;
@@ -251,10 +253,10 @@ export default function TerminalInstanceImpl({
     if (!visible) return false;
     const container = containerRef.current;
     const term = termRef.current;
-    if (!container || !term) return false;
+    if (!container || !xtermHostRef.current || !term) return false;
     if (container.clientWidth === 0 || container.clientHeight === 0) return false;
     try {
-      term.open(container);
+      term.open(xtermHostRef.current);
     } catch (err) {
       // 렌더러가 테마 색을 파싱하는 지점이라 잘못된 토큰 하나가 여기서 터진다.
       // 비동기(타이머·옵저버) 안이라 여기서 rethrow 하면 에러 경계가 원리적으로
@@ -940,10 +942,8 @@ export default function TerminalInstanceImpl({
   }, [visible, sessionId]);
 
   return (
-    <div
-      className="term-screen"
-      style={{ display: visible ? "block" : "none" }}
-      ref={containerRef}
-    />
+    <div className="term-screen" style={{ display: visible ? "block" : "none" }} ref={containerRef}>
+      <div className="term-xterm" ref={xtermHostRef} />
+    </div>
   );
 }

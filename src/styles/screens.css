@@ -1720,6 +1720,13 @@ mark.s-hit {
   padding: var(--term-pane-pad) var(--term-pane-pad) var(--term-pane-pad)
     calc(var(--term-pane-pad) + 7px);
 }
+/* xterm 은 여백 안쪽의 이 칸에 연다 (TerminalInstanceImpl `xtermHostRef`).
+   addon-fit 은 부모의 computed `height` 에서 `.xterm` 자신의 padding 만 빼는데,
+   전역 `box-sizing: border-box` 아래에서는 그 값에 부모의 padding 이 들어 있다.
+   `.term-screen` 에 바로 열면 위아래 여백(페인 18px·도크 16px)만큼 행을 한 줄쯤
+   더 잡아 맨 아랫줄이 잘렸다 — 입력창을 맨 아래 줄에 그리는 Claude Code
+   fullscreen 렌더러(v3.13.2)에서 드러났다 (2026-10-24). 오른쪽도 몇 칸 넘쳤다. */
+.term-xterm { width: 100%; height: 100%; }
 
 /* ── 명령 블록 (2026-08-28 Phase 3) ────────────────────────────────────── */
 
