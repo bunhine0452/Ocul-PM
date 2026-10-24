@@ -51,7 +51,6 @@ thiserror = "2.0.18"
 tracing = "0.1.44"
 directories = "6.0.0"
 tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros", "time", "process", "net", "io-util", "sync"] }
-tokio-stream = { version = "0.1", features = ["sync"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing-appender = "0.2"
 keyring = { version = "3.6", default-features = false, features = ["apple-native", "windows-native", "sync-secret-service"] }
@@ -171,7 +170,6 @@ windows-sys = { version = "0.61", features = [
 ] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6"
 objc2-app-kit = { version = "0.3", features = ["NSPasteboard", "NSPasteboardItem"] }
 objc2-foundation = { version = "0.3", features = ["NSString", "NSArray", "NSURL"] }
 
