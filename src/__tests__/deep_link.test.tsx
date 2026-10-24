@@ -37,7 +37,7 @@ describe("deepLinkPlan (순수 함수)", () => {
       { action: "plugin_install", source: "o/r" },
       { action: "skill_install", source: "o/r", name: "run-evals" },
       { action: "theme_install", url: "https://oculpm.com/t.json" },
-      { action: "open", project: "/p", view: null, entry: null },
+      { action: "open", project: "/p", view: null },
     ];
     for (const link of links) {
       const plan = planFor(link);
@@ -49,7 +49,7 @@ describe("deepLinkPlan (순수 함수)", () => {
   });
 
   it("여는 것은 쓰기가 아니고, 설치는 쓰기다", () => {
-    expect(planFor({ action: "open", project: "/p", view: null, entry: null }).writes).toBe(false);
+    expect(planFor({ action: "open", project: "/p", view: null }).writes).toBe(false);
     expect(planFor({ action: "plugin_install", source: "o/r" }).writes).toBe(true);
   });
 
@@ -136,21 +136,12 @@ describe("themeInstallIntent", () => {
   });
 });
 
-describe("openNavFor — open 링크의 view/entry 를 TrayNavigate 로", () => {
+describe("openNavFor — open 링크의 view 를 TrayNavigate 로", () => {
   const views = ["today", "journal", "planner"] as const;
-  it("프로젝트 안의 규격 일지 절대경로만 상대경로로 받고 journal 로 간다", () => {
-    const nav = openNavFor(
-      { project: "/Users/me/proj/", view: null, entry: "/Users/me/proj/.oculpm/journal/20260911/Chores/1403_chore_x.md" },
-      7,
-      views,
-    );
-    expect(nav).toEqual({ view: "journal", project_id: 7, entry_path: "20260911/Chores/1403_chore_x.md" });
-  });
-  it("다른 프로젝트·탈출·규격 밖 entry 는 버리고 view 만 — 모르는 view 는 today", () => {
-    expect(openNavFor({ project: "/p", view: "planner", entry: "/q/.oculpm/journal/20260911/Chores/1_chore_x.md" }, 1, views).entry_path).toBeNull();
-    expect(openNavFor({ project: "/p", view: "planner", entry: "/p/.oculpm/journal/../../x.md" }, 1, views)).toEqual({ view: "planner", project_id: 1, entry_path: null });
-    expect(openNavFor({ project: "/p", view: "nope", entry: null }, 1, views).view).toBe("today");
-    expect(openNavFor({ project: "/p", view: null, entry: null }, 1, views).view).toBe("today");
+  it("알려진 화면이면 그 화면, 모르는 view 는 today", () => {
+    expect(openNavFor({ view: "planner" }, 1, views)).toEqual({ view: "planner", project_id: 1, entry_path: null });
+    expect(openNavFor({ view: "nope" }, 1, views).view).toBe("today");
+    expect(openNavFor({ view: null }, 1, views).view).toBe("today");
   });
 });
 
@@ -165,7 +156,7 @@ describe("딥링크 경로 비교 — 세 OS", () => {
 
   it.each([
     ["C:\\Users\\Me\\Proj", 3],
-    ["c:\\users\\me\\proj", 3], // VS Code 는 드라이브 글자를 소문자로 준다
+    ["c:\\users\\me\\proj", 3], // 드라이브 글자를 소문자로 주는 쪽도 있다
     ["C:/Users/Me/Proj/", 3],
     ["C:\\Users\\Me\\Proj\\\\", 3],
     ["\\\\?\\C:\\Users\\Me\\Proj", 3],
@@ -182,47 +173,5 @@ describe("딥링크 경로 비교 — 세 OS", () => {
     expect(resolveRegisteredProject(projects, "/Users/me/Proj//", os)).toBe(7);
     expect(resolveRegisteredProject(projects, "/users/me/proj", os)).toBeNull();
     expect(resolveRegisteredProject([{ id: 8, root_path: "/a\\b" }], "/a/b", os)).toBeNull();
-  });
-
-  it("windows: 일지 절대경로가 역슬래시·다른 대소문자여도 journal 로, 상대경로는 / · 원문 대소문자", () => {
-    const views = ["today", "journal"] as const;
-    const nav = openNavFor(
-      {
-        project: "c:\\users\\me\\proj",
-        view: null,
-        entry: "C:\\Users\\Me\\Proj\\.oculpm\\journal\\20260911\\Chores\\1403_chore_x.md",
-      },
-      3,
-      views,
-      "windows",
-    );
-    expect(nav).toEqual({ view: "journal", project_id: 3, entry_path: "20260911/Chores/1403_chore_x.md" });
-    // 다른 프로젝트 · 탈출은 여전히 버린다.
-    expect(
-      openNavFor(
-        { project: "C:\\p", view: "today", entry: "C:\\q\\.oculpm\\journal\\20260911\\Chores\\1_chore_x.md" },
-        1,
-        views,
-        "windows",
-      ).entry_path,
-    ).toBeNull();
-    expect(
-      openNavFor(
-        { project: "C:\\p", view: "today", entry: "C:\\p\\.oculpm\\journal\\..\\..\\x.md" },
-        1,
-        views,
-        "windows",
-      ).entry_path,
-    ).toBeNull();
-  });
-
-  it.each(["mac", "linux"] as const)("%s: 역슬래시 일지 경로는 받지 않는다 (예전 그대로)", (os) => {
-    const nav = openNavFor(
-      { project: "/p", view: null, entry: "/p\\.oculpm\\journal\\20260911\\Chores\\1403_chore_x.md" },
-      1,
-      ["today", "journal"],
-      os,
-    );
-    expect(nav.entry_path).toBeNull();
   });
 });

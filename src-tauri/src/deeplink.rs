@@ -9,7 +9,7 @@
 //! oculpm://skill/install?source=<owner/repo>&name=<skill>
 //! oculpm://theme/install?url=<https…json>
 //! oculpm://plugin/install?source=<owner/repo>
-//! oculpm://open?project=<path>&view=journal&entry=<path>
+//! oculpm://open?project=<path>&view=journal
 //! ```
 //!
 //! 이 모듈은 **파싱만** 한다. 파싱이 순수 함수라 "어떤 링크가 통과하는가" 를
@@ -47,7 +47,6 @@ pub enum DeepLink {
     Open {
         project: String,
         view: Option<String>,
-        entry: Option<String>,
     },
 }
 
@@ -101,7 +100,6 @@ pub fn parse(raw: &str) -> Result<DeepLink, LinkError> {
             Ok(DeepLink::Open {
                 project,
                 view: get("view").filter(|v| is_plain_name(v)),
-                entry: get("entry"),
             })
         }
         other => Err(LinkError::Route(other.to_string())),
@@ -250,8 +248,7 @@ mod tests {
             link,
             DeepLink::Open {
                 project: "/tmp/p".into(),
-                view: None,
-                entry: None
+                view: None
             }
         );
     }
@@ -282,7 +279,6 @@ mod tests {
             DeepLink::Open {
                 project: "/Users/me/proj".into(),
                 view: Some("journal".into()),
-                entry: None,
             }
         );
     }
@@ -396,7 +392,6 @@ mod tests {
             DeepLink::Open {
                 project: r"C:\work\app".into(),
                 view: Some("journal".into()),
-                entry: None,
             }
         );
 

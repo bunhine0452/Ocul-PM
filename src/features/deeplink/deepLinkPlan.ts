@@ -64,9 +64,9 @@ export function planFor(link: DeepLink): DeepLinkPlan {
 
 /**
  * Windows 경로를 비교 가능한 모양으로 — `\\?\` 접두를 떼고 구분자를 `/` 로, 끝의
- * 구분자를 뗀다. 대소문자는 **두고** 돌려준다(일지 상대경로는 원문 대소문자여야 한다).
- * 백엔드의 canonicalize 는 확장 길이 접두를 붙이고, VS Code 는 드라이브 글자를
- * 소문자로(`c:\…`) 준다 — 셋 다 같은 폴더다.
+ * 구분자를 뗀다(대소문자는 비교하는 쪽이 접는다).
+ * 백엔드의 canonicalize 는 확장 길이 접두를 붙이고, 링크를 만드는 쪽은 드라이브
+ * 글자를 소문자로(`c:\…`) 줄 수 있다 — 셋 다 같은 폴더다.
  */
 function windowsForm(p: string): string {
   let body = p;
@@ -87,7 +87,7 @@ function sameFolder(a: string, b: string, platform: Platform): boolean {
  * 되는 길을 막는다.
  *
  * Windows 는 구분자(`\`·`/`)·대소문자·`\\?\` 접두가 달라도 같은 폴더로 본다
- * ({#ui-winpath-followups}) — 확장이 보내는 경로와 등록 때 저장된 경로의 모양이 다르다.
+ * ({#ui-winpath-followups}) — 링크가 실어 오는 경로와 등록 때 저장된 경로의 모양이 다를 수 있다.
  */
 export function resolveRegisteredProject(
   projects: Array<{ id: number; root_path: string }>,
@@ -98,37 +98,14 @@ export function resolveRegisteredProject(
 }
 
 /**
- * `open` 의 목적지 — `view`/`entry` 를 `TrayNavigate` 로 옮긴다 (플랜
- * `vscode-extension-round` {#app-deeplink-entry}). `entry` 는 VS Code 확장이
- * 보내는 **일지 절대경로**인데 앱 안의 일지 주소는 `.oculpm/journal/` 기준
- * 상대경로다 — 그 프로젝트 안의 규격 경로일 때만 받는다(다른 프로젝트·`..`·
- * 임의 파일은 버리고 화면만 연다). `view` 는 알려진 화면 이름이 아니면 today.
- *
- * Windows 는 `resolveRegisteredProject` 와 같은 규칙으로 프로젝트 부분을 비교하고,
- * 돌려주는 상대경로는 `/` 구분자·원문 대소문자다.
+ * `open` 의 목적지 — `view` 를 `TrayNavigate` 로 옮긴다. 알려진 화면 이름이
+ * 아니면 today.
  */
 export function openNavFor(
-  link: { project: string; view: string | null; entry: string | null },
+  link: { view: string | null },
   projectId: number,
   knownViews: readonly string[],
-  platform: Platform = getPlatform(),
-): { view: string; project_id: number; entry_path: string | null } {
-  const win = platform === "windows";
-  const root = win ? windowsForm(link.project) : link.project.replace(/\/+$/, "");
-  const prefix = `${root}/.oculpm/journal/`;
-  const entry = link.entry && win ? windowsForm(link.entry) : link.entry;
-  const under = entry
-    ? win
-      ? entry.toLowerCase().startsWith(prefix.toLowerCase())
-      : entry.startsWith(prefix)
-    : false;
-  let entryPath: string | null = null;
-  if (entry && under) {
-    const rel = entry.slice(prefix.length);
-    if (/^\d{8}\/(Bugs|Features_to_add|Errors|Refactors|Chores)\/\d{4}_(bug|feature|error|refactor|chore)_[A-Za-z0-9-]+\.md$/.test(rel)) {
-      entryPath = rel;
-    }
-  }
-  const view = entryPath ? "journal" : link.view && knownViews.includes(link.view) ? link.view : "today";
-  return { view, project_id: projectId, entry_path: entryPath };
+): { view: string; project_id: number; entry_path: null } {
+  const view = link.view && knownViews.includes(link.view) ? link.view : "today";
+  return { view, project_id: projectId, entry_path: null };
 }

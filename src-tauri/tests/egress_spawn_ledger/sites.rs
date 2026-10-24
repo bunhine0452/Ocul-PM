@@ -216,7 +216,7 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         func: "open_native",
         call: "std_cmd(\"open\")",
         reach: Reach::Local,
-        reason: "로그 폴더·일지 파일을 OS 기본 앱으로, 그리고 앱이 조립하는 `vscode://oculpm.ocul-pm/open?entry=<로컬 경로>` (설치된 VS Code 확장으로 위임).",
+        reason: "로그 폴더·일지 파일을 OS 기본 앱으로 — 로컬 경로.",
     },
     Launch {
         path: "commands/open_native.rs",
