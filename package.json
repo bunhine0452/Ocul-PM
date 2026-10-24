@@ -1,7 +1,7 @@
 {
   "name": "ocul-pm",
   "private": true,
-  "version": "3.13.3",
+  "version": "3.13.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -87,7 +87,7 @@
   },
   "pnpm": {
     "overrides": {
-      "dompurify": "^3.4.16"
+      "dompurify": "^3.4.17"
     }
   }
 }
