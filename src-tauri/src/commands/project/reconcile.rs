@@ -20,12 +20,19 @@ use crate::db::Db;
 /// 데이터 파일(`indexer::low_value`)도 여기서 걷는다 — 판정이 경로 + 크기라 같은
 /// stat 하나로 끝난다. 설정의 최대 크기는 보지 않는다: 설정을 읽지 않는 자리라,
 /// 기본값으로 재면 상한을 올려 둔 사람의 큰 파일을 지운다.
+///
+/// 루트 아래 연결된 git worktree 안의 행도 걷는다 (`indexer::worktree`) — 폴더마다
+/// 한 번만 묻는다.
 pub(crate) fn stale_paths(root: &Path, indexed: Vec<String>) -> Vec<String> {
+    let mut worktrees = crate::indexer::worktree::WorktreeProbe::new(root);
     indexed
         .into_iter()
         .filter(|rel| {
             let p = Path::new(rel);
-            if crate::indexer::is_skipped_name(p) || crate::indexer::has_denied_component(p) {
+            if crate::indexer::is_skipped_name(p)
+                || crate::indexer::has_denied_component(p)
+                || worktrees.contains(p)
+            {
                 return true;
             }
             match std::fs::metadata(root.join(rel)) {
@@ -81,6 +88,14 @@ mod tests {
         let big = format!("[{}0]\n", "0,".repeat(10_000));
         std::fs::write(root.join("results.json"), &big).unwrap();
         std::fs::write(root.join("package.json"), &big).unwrap();
+        // 루트 아래 연결된 worktree 의 사본 (`{#idx-nested-worktree}`).
+        std::fs::create_dir_all(root.join("wt/feat")).unwrap();
+        std::fs::write(
+            root.join("wt/feat/.git"),
+            "gitdir: /r/.git/worktrees/feat\n",
+        )
+        .unwrap();
+        std::fs::write(root.join("wt/feat/main.rs"), "fn main() {}\n").unwrap();
 
         let stale = stale_paths(
             root,
@@ -94,6 +109,7 @@ mod tests {
                 "small.json".into(),
                 "results.json".into(),
                 "package.json".into(),
+                "wt/feat/main.rs".into(),
             ],
         );
         assert_eq!(
@@ -105,6 +121,7 @@ mod tests {
                 "node_modules/x/index.js".to_string(),
                 "words.tsv".to_string(),
                 "results.json".to_string(),
+                "wt/feat/main.rs".to_string(),
             ]
         );
     }
@@ -134,5 +151,56 @@ mod tests {
             .map(|(_, p)| p)
             .collect();
         assert_eq!(left, vec!["kept.rs".to_string()]);
+    }
+
+    /// 라이브 DB **사본**에서 화해가 몇 행·몇 청크를 걷는지 (읽기 전용 — 지우지 않는다).
+    ///
+    /// ```text
+    /// OCULPM_DB_SNAPSHOT=<사본> cargo test --lib reconcile_on_snapshot -- --ignored --nocapture
+    /// ```
+    #[test]
+    #[ignore = "측정 전용 — 라이브 DB 사본이 필요하다"]
+    fn reconcile_on_snapshot() {
+        let Ok(path) = std::env::var("OCULPM_DB_SNAPSHOT") else {
+            return;
+        };
+        let conn =
+            rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .unwrap();
+        let projects: Vec<(i64, String)> = conn
+            .prepare("SELECT id, root_path FROM projects")
+            .unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        let (mut files, mut stale_n, mut in_wt, mut chunks, mut stale_chunks) = (0, 0, 0, 0, 0);
+        for (pid, root) in projects {
+            let root = std::path::PathBuf::from(root);
+            let rows: Vec<(String, i64)> = conn
+                .prepare(
+                    "SELECT f.path, (SELECT COUNT(*) FROM chunks c WHERE c.file_id = f.id)
+                     FROM files f WHERE f.project_id = ?1",
+                )
+                .unwrap()
+                .query_map([pid], |r| Ok((r.get(0)?, r.get(1)?)))
+                .unwrap()
+                .collect::<Result<_, _>>()
+                .unwrap();
+            let per: std::collections::HashMap<String, i64> = rows.iter().cloned().collect();
+            let stale = stale_paths(&root, rows.iter().map(|(p, _)| p.clone()).collect());
+            let mut probe = crate::indexer::worktree::WorktreeProbe::new(&root);
+            files += rows.len();
+            chunks += rows.iter().map(|(_, c)| c).sum::<i64>();
+            stale_n += stale.len();
+            stale_chunks += stale.iter().map(|p| per[p]).sum::<i64>();
+            in_wt += stale
+                .iter()
+                .filter(|p| probe.contains(Path::new(p.as_str())))
+                .count();
+        }
+        println!(
+            "\n== 기동 화해 (사본) == 파일 {files} 중 {stale_n} 행 · 청크 {chunks} 중 {stale_chunks} — 그중 지금 있는 worktree 안 {in_wt} 행"
+        );
     }
 }

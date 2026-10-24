@@ -201,6 +201,11 @@ pub fn schedule_history_capture(
     if !history::should_capture(&change.path) {
         return;
     }
+    // 루트 아래 worktree 사본의 판은 그 worktree 의 git 이 이미 갖는다 — 한 프로젝트의
+    // 히스토리 302MB 중 236MB 가 그 사본이었다 (`indexer::worktree`).
+    if crate::indexer::worktree::under_linked_worktree(root, Path::new(&change.path)) {
+        return;
+    }
     let handle = handle.clone();
     let root = root.to_path_buf();
     let rel_path = change.path.clone();
@@ -280,6 +285,13 @@ pub fn schedule_incremental_index(
     op: FileOp,
     hash_after: Option<String>,
 ) {
+    // 경로만으로 색인 밖인 것(벤더 폴더 · 잠금 파일 · worktree 사본)은 곁일을 띄우지
+    // 않는다 — 띄우면 퍼밋 2개 줄에 서서 DB 를 네 번 물은 뒤에야 버려진다. 지우기는
+    // 예전에 든 행을 걷어야 하므로 그대로 보낸다.
+    if !matches!(op, FileOp::Delete) && !crate::indexer::in_index_scope(root, Path::new(&rel_path))
+    {
+        return;
+    }
     let handle = handle.clone();
     let root = root.to_path_buf();
     tasks.spawn(Lane::Index, async move {
