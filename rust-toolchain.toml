@@ -28,8 +28,8 @@
 #   rustup target add x86_64-pc-windows-gnu --toolchain 1.98.0
 
 [toolchain]
-# 2026-09-04 기준 개발 머신의 stable (`rustc 1.98.0 (88d9e12ae 2026-08-18)`).
-channel = "1.98.0"
+# 2026-10-24 갱신 — 그날의 stable (`rustc 1.99.1 (58cf8f9c3 2026-10-13)`, static.rust-lang.org 확인).
+channel = "1.99.1"
 # rust-analyzer: tests/lsp_rust_analyzer.rs 가 그 바이너리를 부른다. 빠지면
 # 개발 머신에서 5건이 "Unknown binary 'rust-analyzer'" 로 떨어진다
 # (CI 는 ci.yml 에서 따로 넣어 초록이라 로컬에서만 터진다).

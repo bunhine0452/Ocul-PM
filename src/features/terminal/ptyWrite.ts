@@ -132,3 +132,29 @@ export function createPtyInputGate(
     },
   };
 }
+
+/**
+ * 거절 사유가 "그 세션이 이제 없다" 인가 (2026-10-24).
+ *
+ * 셸이 스스로 끝나면 `pty-exit` 이 와서 페인이 「세션 끝남 · 다시 시작」 으로 바뀐다.
+ * 그런데 **호스트째** 사라지면(종료·충돌·옛 판 호스트를 손으로 내림) 그 알림이 오지
+ * 않는다. 페인은 살아 있는 줄 알고 키를 보내고, 새 호스트는 그 세션을 모르니 매번
+ * 거절한다 — 실측 하루 31건, 사용자 눈에는 토스트만 쌓이는 먹통이었다. 이 거절을
+ * 종료와 같은 신호로 읽는다.
+ */
+export function isSessionGone(error: string): boolean {
+  return error.includes("unknown pty session");
+}
+
+/**
+ * 셸·호스트가 사라졌을 때의 처리를 **한 번만** 하게 감싼다 — `pty-exit` 과 거절이
+ * 겹치거나, 쌓여 있던 키 여러 개가 연달아 거절돼도 배너·콜백은 하나다.
+ */
+export function onceSessionEnded(end: () => void): () => void {
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    end();
+  };
+}

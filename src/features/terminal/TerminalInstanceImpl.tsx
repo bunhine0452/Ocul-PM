@@ -7,7 +7,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import "@xterm/xterm/css/xterm.css";
 import { takeBootCommand } from "./terminalLaunch";
-import { createPtyInputGate } from "./ptyWrite";
+import { createPtyInputGate, isSessionGone, onceSessionEnded } from "./ptyWrite";
 import { reportPtyInputFailure, writePty } from "./dispatchTarget";
 import { fileOpenApi } from "@/api/fileOpen";
 import { errorDetail } from "@/api/invoke";
@@ -351,7 +351,9 @@ export default function TerminalInstanceImpl({
 
     // ── 입력 배관 ── PTY 가 서기 전에 등록하고(그 사이 친 키는 문이 받아 둔다),
     // 쓰기는 세션마다 한 줄로 간다 — 키마다 따로 쏘면 IPC 가 순서를 섞는다 (→ ptyWrite.ts).
-    const input = createPtyInputGate(sessionId, writePty, undefined, (error) => reportPtyInputFailure(sessionId, error));
+    // 셸이 끝났든(pty-exit) 호스트째 사라졌든(그 세션을 모른다는 거절) 입력은 갈 곳이 없다 — 사실을 찍고 「다시 시작」 으로 (ptyWrite.ts).
+    const sessionGone = onceSessionEnded(() => { term.write(`\r\n\x1b[1;31m[${t("term.processEnded")}]\x1b[0m\r\n`); input.close(); onExitRef.current?.(); });
+    const input = createPtyInputGate(sessionId, writePty, undefined, (e) => (isSessionGone(e) ? sessionGone() : reportPtyInputFailure(sessionId, e)));
     term.onData((data) => input.push(data));
 
     term.onTitleChange((title) => {
@@ -800,12 +802,7 @@ export default function TerminalInstanceImpl({
         unlistenData = dataOff;
         const exitOff = await listen<void>(`pty-exit-${sessionId}`, () => {
           if (!isMounted) return;
-          term.write(`\r\n\x1b[1;31m[${t("term.processEnded")}]\x1b[0m\r\n`);
-          // 셸이 사라졌다 — 이제 이 페인의 입력은 갈 곳이 없다. 계속 보내면
-          // 백엔드의 "unknown pty session" 이 조용히 버려지고 사용자 눈에는
-          // 그냥 먹통이다. 큐에 받아 두고, 화면에 사실을 알린다.
-          input.close();
-          onExitRef.current?.();
+          sessionGone();
         });
         if (!isMounted) return exitOff();
         unlistenExit = exitOff;
