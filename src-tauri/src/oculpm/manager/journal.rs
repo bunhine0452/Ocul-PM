@@ -8,10 +8,9 @@ use super::*;
 /// 일지 상대경로 → 절대경로. 절대경로·`..`·빈 경로를 거부하고 결과가
 /// `journal_root` 아래인지 한 번 더 확인한다.
 ///
-/// 이 경로는 모바일 브리지(`mobile_bridge/dispatch.rs`)가 페어링된 기기에 그대로
-/// 노출하는 인자다 — `Path::join` 은 절대경로를 받으면 base 를 통째로 버리므로
-/// 가드 없이는 `.oculpm/journal` 밖의 `.md` 를 읽고 덮어쓸 수 있었다
-/// (2026-08-30 감사). `entry_diffs::sidecar_path` 와 같은 규칙이다.
+/// 이 경로는 프런트가 넘기는 인자 그대로다 — `Path::join` 은 절대경로를 받으면
+/// base 를 통째로 버리므로 가드 없이는 `.oculpm/journal` 밖의 `.md` 를 읽고
+/// 덮어쓸 수 있었다 (2026-08-30 감사). `entry_diffs::sidecar_path` 와 같은 규칙이다.
 pub(crate) fn resolve_entry_path(
     journal_root: &Path,
     relative_path: &str,

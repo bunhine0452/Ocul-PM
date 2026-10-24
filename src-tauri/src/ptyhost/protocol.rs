@@ -1,6 +1,6 @@
 //! 앱 ↔ PTY 호스트 wire 프로토콜 (#pty-host).
 //!
-//! 전송은 [`crate::framing`](Content-Length) + JSON 본문. LSP/DAP 와 같은
+//! 전송은 [`crate::framing`](Content-Length) + JSON 본문. LSP 와 같은
 //! 프레이밍을 쓰는 이유는 하나 — 이미 검증된 파서가 크레이트에 있다.
 //!
 //! **버전 규율**: 업데이트 직후에는 *구버전* 호스트가 살아서 세션을 쥐고 있고,

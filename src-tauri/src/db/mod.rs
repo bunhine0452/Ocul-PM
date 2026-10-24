@@ -431,15 +431,6 @@ fn project_overview_from_row(r: &rusqlite::Row) -> rusqlite::Result<ProjectOverv
 
 // ---------- Types ----------
 
-/// 페어링된 모바일 기기 (설정 '모바일' 탭 목록).
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct MobileDevice {
-    pub id: u32,
-    pub name: String,
-    pub created_at: String,
-    pub last_seen_at: Option<String>,
-}
-
 #[derive(Debug, serde::Serialize, specta::Type)]
 pub struct DbHealth {
     pub sqlite_version: String,

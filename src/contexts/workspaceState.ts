@@ -256,8 +256,8 @@ export interface WorkspaceState {
    */
   codeTabs: CodeTabsState | null;
   /**
-   * 코드 화면 하단 패널(참조·디버그)의 높이 px (#panel-resize). 두 패널이
-   * 같은 자리를 쓰므로 높이도 하나다 — 패널마다 따로 기억하면 참조에서 디버그로
+   * 코드 화면 하단 패널(참조·문제)의 높이 px (#panel-resize). 두 패널이
+   * 같은 자리를 쓰므로 높이도 하나다 — 패널마다 따로 기억하면 참조에서 문제로
    * 넘어갈 때마다 바닥이 널뛴다.
    */
   codePanelHeight: number;

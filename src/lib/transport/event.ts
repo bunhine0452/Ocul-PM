@@ -1,9 +1,9 @@
-// `@tauri-apps/api/event` 치환 셤 (#mb2-shim ↔ 백엔드 #mb2-sse).
+// `@tauri-apps/api/event` 치환 셤.
 //
-// bindings.ts 의 makeEvent 가 쓰는 listen/once/emit 만 갈아끼운다.
-// 브라우저에서 listen 은 SSE 구독이고, emit 은 폰→앱 방향이 없어 no-op 경고다.
+// bindings.ts 의 makeEvent 가 쓰는 listen/once 만 갈아끼운다. 나머지(emit·emitTo·
+// 타입)는 원본 그대로 통과한다.
 //
-// 웹뷰에서도 원본을 그대로 쓰지 않는다 (2026-09-22, `bug-hunt` C1·C2). 원본
+// 원본을 그대로 쓰지 않는 이유 (2026-09-22, `bug-hunt` C1·C2). 원본
 // `_unlisten` 은 이렇게 생겼다:
 //
 //     window.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener(event, eventId)  // ① JS 콜백을 지금 지운다
@@ -27,7 +27,7 @@
 //    더 나쁜 것은 ②가 **영영 실행되지 않아** Rust 리스너와 JS 콜백이 둘 다 남는
 //    것이다 (죽은 컴포넌트의 핸들러가 계속 돈다).
 //
-// 그래서 웹뷰 경로는 여기서 다시 짠다: 핸들러 앞에 `dead` 가드를 두고, 해제는
+// 그래서 여기서 다시 짠다: 핸들러 앞에 `dead` 가드를 두고, 해제는
 // **Rust 부터** 끊은 뒤 콜백을 한참 뒤에 지운다. 큐에 남아 있던 eval 은 살아
 // 있는 콜백을 만나 가드에서 조용히 버려지고, `listeners[eventId]` 는 만지지
 // 않으니 던질 것도 없다. 해제는 멱등이다 (두 번 불러도 한 번 끊는다).
@@ -40,35 +40,10 @@
 import * as real from "@tauri-apps/api/event";
 import { invoke, transformCallback } from "@tauri-apps/api/core";
 
-import { isTauri } from "./http";
-import { sseListen } from "./sse";
-
 export * from "@tauri-apps/api/event";
 
 type ListenFn = typeof real.listen;
 type OnceFn = typeof real.once;
-
-const browserListen: ListenFn = (event, handler, _options?) => {
-  const off = sseListen(event as string, (e) => {
-    handler({ event: e.event, id: e.id, payload: e.payload as never });
-  });
-  return Promise.resolve(off);
-};
-
-const browserOnce: OnceFn = (event, handler, _options?) => {
-  let done = false;
-  const p = Promise.resolve(
-    sseListen(event as string, (e) => {
-      if (done) return;
-      done = true;
-      void p.then((off) => off());
-      handler({ event: e.event, id: e.id, payload: e.payload as never });
-    }),
-  );
-  return p;
-};
-
-// ─── 웹뷰 경로 ────────────────────────────────────────────────────────────────
 
 /**
  * Rust 가 해제를 확인한 뒤 JS 콜백을 지우기까지의 여유. 그 사이에 도착하는
@@ -142,17 +117,5 @@ const tauriOnce: OnceFn = (event, handler, options) => {
   return pending;
 };
 
-export const listen: ListenFn = isTauri() ? tauriListen : browserListen;
-export const once: OnceFn = isTauri() ? tauriOnce : browserOnce;
-
-export const emit: typeof real.emit = isTauri()
-  ? real.emit
-  : async () => {
-      console.warn("[transport] emit is a no-op in the browser");
-    };
-
-export const emitTo: typeof real.emitTo = isTauri()
-  ? real.emitTo
-  : async () => {
-      console.warn("[transport] emitTo is a no-op in the browser");
-    };
+export const listen: ListenFn = tauriListen;
+export const once: OnceFn = tauriOnce;

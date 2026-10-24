@@ -170,13 +170,6 @@ const RUST_SITES: &[Site] = &[
         control: Control::LocalOnly,
         reason: "로그 폴더·일지 파일을 OS 기본 앱으로 연다 — 로컬 경로다. 기기 밖으로 나가는 목적지가 아니다. Windows 는 `cmd start` 대신 opener 플러그인의 ShellExecute(`shell_open`) — open_url 의 브라우저 위임도 이 창구를 지난다.",
     },
-    // ── 인바운드(듣는 쪽). 나가지는 않지만 경계는 경계다 ──
-    Site {
-        path: "mobile_bridge/server.rs",
-        primitives: &["TcpListener"],
-        control: Control::LocalOnly,
-        reason: "폰 웹앱용 LAN 바인드 — 사용자가 켤 때만 뜨고, 나가는 것이 아니라 **듣는다**. 페어링 토큰이 문을 지킨다.",
-    },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -224,36 +217,6 @@ const WEB_SITES: &[Site] = &[
         primitives: &["fetch("],
         control: Control::Exempt,
         reason: "약속의 예외 ② — 같은 릴리스 목록을 설정 업데이트 탭에서.",
-    },
-    Site {
-        path: "lib/transport/http.ts",
-        primitives: &["fetch("],
-        control: Control::LocalOnly,
-        reason: "모바일 웹앱이 로컬 브리지에 커맨드를 부른다 — 상대 경로(`/api/invoke/…`)라 같은 출처, 즉 이 기기다.",
-    },
-    Site {
-        path: "lib/transport/sse.ts",
-        primitives: &["fetch("],
-        control: Control::LocalOnly,
-        reason: "같은 브리지의 이벤트 스트림(`/api/events`). EventSource 는 Authorization 헤더를 못 실어 fetch 스트리밍으로 읽는다. 상대 경로.",
-    },
-    Site {
-        path: "mobile/MobileApp.tsx",
-        primitives: &["fetch("],
-        control: Control::LocalOnly,
-        reason: "브리지 헬스 체크(`/api/ping`). 상대 경로.",
-    },
-    Site {
-        path: "mobile/PairScreen.tsx",
-        primitives: &["fetch("],
-        control: Control::LocalOnly,
-        reason: "브리지 페어링(`/pair`). 상대 경로.",
-    },
-    Site {
-        path: "mobile/tabs/AiTab.tsx",
-        primitives: &["fetch("],
-        control: Control::LocalOnly,
-        reason: "브리지 경유 채팅(`/api/chat`) — 실제 프로바이더 호출은 Rust 쪽 llm/ 이 한다. 상대 경로.",
     },
 ];
 

@@ -1,6 +1,6 @@
 // ⇧⌥F 포맷팅 — `CodePane` 에서 떼어 낸 한 조각.
 //
-// 이 폴더의 다른 훅들(`useLsp` · `useFileOps` · `useFileHistory` · `useDebug` ·
+// 이 폴더의 다른 훅들(`useLsp` · `useFileOps` · `useFileHistory` ·
 // `useCodeImport`)과 같은 자리다. 창(pane)이 들고 있던 마지막 인라인 훅이었다.
 //
 // 이름 바꾸기·코드 액션과 정반대다: 그것들은 디스크를 고치므로 미저장을

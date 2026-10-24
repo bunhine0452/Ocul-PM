@@ -12,7 +12,6 @@ import { baseEditorOptions, diffEditorOptions, minimapOptions } from "@/features
 const opts = (over: Partial<Parameters<typeof baseEditorOptions>[0]> = {}) =>
   baseEditorOptions({
     theme: "oculpm",
-    glyphMargin: false,
     stickyMaxLines: 0,
     tabSize: 2,
     insertSpaces: true,

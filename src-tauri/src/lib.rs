@@ -13,13 +13,12 @@ pub mod config;
 // W5-PR8 — `db` and `oculpm` are made public so `src-tauri/tests/`
 // integration tests can drive the manager directly with a temp DB. None
 // of the other modules are needed at the integration layer.
-pub mod dap;
-// `oculpm://` 딥링크 — 파싱만 한다 (무확인 실행 0, Phase 6).
 pub mod db;
+// `oculpm://` 딥링크 — 파싱만 한다 (무확인 실행 0, Phase 6).
 pub mod deeplink;
 mod embedding;
 mod error;
-// LSP·DAP 공용 Content-Length 프레이밍 (docs/dap/00-master-plan.md #framing-shared).
+// LSP·PTY 호스트 공용 Content-Length 프레이밍.
 pub mod framing;
 // `git::diff_patch` is exercised by the `local_diff` integration suite (PR11).
 pub mod git;
@@ -45,7 +44,6 @@ pub mod pid;
 // PTY 호스트 — 터미널 세션을 앱 프로세스 밖으로 (#pty-host). pub 인 이유:
 // main.rs 의 `--pty-host` 분기와 통합 테스트가 직접 부른다.
 mod menu;
-mod mobile_bridge;
 pub mod plugins;
 // 프로세스 생성 단일 창구 (크로스플랫폼 D5) — pub 인 이유: main.rs 의 re-exec 도
 // 이 창구를 지난다 (clippy.toml 이 그 밖의 `Command::new` 를 막는다).
@@ -262,17 +260,6 @@ use crate::commands::{
     conversation_list,
     create_greenfield_project,
     create_project,
-    // 디버거 (DAP) — docs/dap/00-master-plan.md
-    dap_adapters,
-    dap_all_breakpoints,
-    dap_control,
-    dap_scopes,
-    dap_session,
-    dap_stack,
-    dap_start,
-    dap_stop,
-    dap_toggle_breakpoint,
-    dap_variables,
     db_compact,
     db_health,
     delete_blueprint,
@@ -357,13 +344,6 @@ use crate::commands::{
     // PR-CI2 — oculpm-mcp 서버 등록 (.mcp.json / Claude Desktop 원클릭)
     mcp_status,
     mcp_unregister,
-    mobile_bridge_devices,
-    mobile_bridge_pairing_begin,
-    mobile_bridge_revoke_device,
-    // 모바일 브리지 (.oculpm/planner/mobile-bridge.md #mb0-axum)
-    mobile_bridge_start,
-    mobile_bridge_status,
-    mobile_bridge_stop,
     move_tab_to_window,
     new_start_tab,
     // {#related-ui} — 후보를 원본 frontmatter 에 잇는다
@@ -722,16 +702,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             lsp_workspace_symbols,
             lsp_signature_help,
             lsp_format,
-            dap_adapters,
-            dap_session,
-            dap_start,
-            dap_stop,
-            dap_control,
-            dap_toggle_breakpoint,
-            dap_all_breakpoints,
-            dap_stack,
-            dap_scopes,
-            dap_variables,
             lsp_stop,
             // 문제 해결(Discussion) — PR-DISC 0/1/2/4
             discussion_list,
@@ -948,13 +918,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             tray_hide_popover,
             tray_apply_settings,
             notify_agent_attention,
-            // 모바일 브리지 (#mb0-axum)
-            mobile_bridge_start,
-            mobile_bridge_stop,
-            mobile_bridge_status,
-            mobile_bridge_pairing_begin,
-            mobile_bridge_devices,
-            mobile_bridge_revoke_device,
             // 비-mac 「새 창」 (#os-new-window)
             new_window,
             // 베타 버그 리포트 — 「진단 정보 복사」 (#w5-report)
@@ -964,10 +927,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
         ])
         .events(collect_events![
             // .oculpm/ subsystem (W1-PR2)
-            // 디버거 (DAP)
-            crate::commands::dap::DapSessionChanged,
-            crate::commands::dap::DapOutputEmitted,
-            crate::commands::dap::DapBreakpointsChanged,
             crate::oculpm::spec::OculpmSessionStarted,
             crate::oculpm::spec::OculpmSessionEnded,
             crate::oculpm::spec::OculpmFileChanged,
@@ -1165,7 +1124,6 @@ pub fn run() {
             // 로컬 히스토리의 출처 판정 — `code_write` 가 쪽지를 남기고 워처가
             // 소비한다 (사람이 저장했나, 에이전트가 썼나).
             app.manage(crate::oculpm::history::HistoryState::default());
-            app.manage(crate::dap::state::DapState::default());
             // 크롬식 탭 — 창 → 프로젝트 탭 집합 레지스트리 (전역 유일성 심판)
             app.manage(crate::commands::window::WindowTabs::default());
             // .oculpm/ subsystem (W1-PR6)
@@ -1177,7 +1135,6 @@ pub fn run() {
             // (Phase 2). 워처는 매 fs 이벤트마다 이 상태를 두드리므로 러너와
             // 마찬가지로 프로세스에 하나다.
             app.manage(crate::oculpm::automation::watchers::WatcherAutomationHub::new());
-            app.manage(crate::mobile_bridge::server::MobileBridgeState::default());
 
             // v2.3.0 메뉴바 — 트레이 아이콘 + 팝오버 (Db manage 이후여야 함:
             // 설정 조회가 Db state 를 쓴다).
@@ -1283,15 +1240,9 @@ pub fn run() {
                 if let Some(acp) = app_handle.try_state::<crate::acp::AcpState>() {
                     acp.stop_all_blocking();
                 }
-                // 언어 서버·디버거 — 같은 이유로 고아가 된다(`kill_on_drop` 은
+                // 언어 서버 — 같은 이유로 고아가 된다(`kill_on_drop` 은
                 // `process::exit` 에서 안 돈다). 전부 동시에, 최대 2초.
                 crate::commands::window::stop_code_servers_blocking(app_handle);
-                // 모바일 브리지 — oneshot 만 보내면 axum 이 graceful 로 내려간다.
-                if let Some(bridge) =
-                    app_handle.try_state::<crate::mobile_bridge::server::MobileBridgeState>()
-                {
-                    bridge.stop();
-                }
             }
             // macOS: Dock 아이콘 클릭 / "모두 앞으로 가져오기".
             //

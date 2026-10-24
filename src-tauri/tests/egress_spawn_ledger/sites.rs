@@ -42,13 +42,6 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         reason: "lsp/registry.rs 표의 서버(rust-analyzer·typescript-language-server·pyright·gopls)를 PATH 에서 찾아 띄운다. 서버 자신이 cargo metadata·go list·타입 자동 받기로 레지스트리에 닿을 수 있다 — 앱이 시키는 것은 분석뿐.",
     },
     Launch {
-        path: "dap/client.rs",
-        func: "start",
-        call: "tokio_cmd(&adapter.program)",
-        reach: Reach::Network("사용자가 디버그를 시작할 때 — 디버그 대상은 사용자의 프로그램"),
-        reason: "dap/registry.rs 가 찾은 어댑터(lldb-dap·debugpy·dlv)를 띄우고, 어댑터가 사용자의 프로그램을 실행한다. 그 프로그램이 무엇을 보내는지는 사용자의 코드다.",
-    },
-    Launch {
         path: "ptyhost/env.rs",
         func: "shell_command",
         call: "CommandBuilder::new(shell)",
@@ -240,32 +233,11 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         reason: "`defaults read -g AppleAccentColor` — macOS 강조색.",
     },
     Launch {
-        path: "dap/registry.rs",
-        func: "xcrun_find",
-        call: "tokio_cmd(\"xcrun\")",
-        reach: Reach::Local,
-        reason: "`xcrun --find lldb-dap` — Xcode 도구의 위치만 묻는다.",
-    },
-    Launch {
         path: "main.rs",
         func: "reexec_with_malloc_tuning",
         call: "std_cmd(exe)",
         reach: Reach::Local,
         reason: "macOS — 자기 자신을 MallocLargeCache=0 으로 다시 exec 한다.",
-    },
-    Launch {
-        path: "mobile_bridge/bind.rs",
-        func: "query_tailscale_cli",
-        call: "std_cmd(cli)",
-        reach: Reach::Local,
-        reason: "`tailscale ip -4` — 로컬 데몬에 이 기기의 tailnet 주소를 묻는다. 후보는 같은 파일의 TAILSCALE_CLI_CANDIDATES 상수.",
-    },
-    Launch {
-        path: "mobile_bridge/server.rs",
-        func: "start_caffeinate",
-        call: "std_cmd(\"/usr/bin/caffeinate\")",
-        reach: Reach::Local,
-        reason: "폰 브리지가 켜져 있는 동안 Mac 이 잠들지 않게.",
     },
     Launch {
         path: "oculpm/shell_integration/policy.rs",

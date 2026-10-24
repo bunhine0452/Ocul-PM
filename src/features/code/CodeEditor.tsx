@@ -23,7 +23,7 @@ import {
   wordAt,
   type LspHandlers,
 } from "./monaco/lsp";
-import { breakpointDecorations, gitDecorations, wireBreakpointClicks } from "./monaco/decorations";
+import { gitDecorations } from "./monaco/decorations";
 import { registerSymbolProvider } from "./monaco/symbols";
 import { baseEditorOptions, diffEditorOptions, minimapOptions } from "./monaco/options";
 import { useInlineEdit, type RunInlineEdit } from "./inlineEdit/useInlineEdit";
@@ -147,12 +147,6 @@ interface CodeEditorProps {
    * 되돌리기 버튼이 붙는다. **마운트 시점에만** 읽는다 (모드 전환 = 재마운트).
    */
   diffOriginal?: string | null;
-  /** 이 파일의 중단점 줄들 (**1-based** — DAP·편집기 공통 규약). */
-  breakpoints?: readonly number[];
-  /** 어댑터가 못 건다고 답한 줄들 — 다르게 그린다. */
-  unverifiedBreakpoints?: readonly number[];
-  /** 거터를 눌렀다. 없으면 중단점 거터를 아예 안 단다 (디버그 불가 언어). */
-  onToggleBreakpoint?: (line: number) => void;
 }
 
 export function CodeEditor({
@@ -185,15 +179,10 @@ export function CodeEditor({
   onInlineEditAccepted,
   gitChanges,
   diffOriginal,
-  breakpoints,
-  unverifiedBreakpoints,
-  onToggleBreakpoint,
 }: CodeEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<MonacoNs.editor.IStandaloneCodeEditor | null>(null);
-  // git 과 중단점은 **따로** 모아 둔다 — 한 컬렉션이면 한쪽 갱신이 다른 쪽을 지운다.
   const gitDecoRef = useRef<MonacoNs.editor.IEditorDecorationsCollection | null>(null);
-  const bpDecoRef = useRef<MonacoNs.editor.IEditorDecorationsCollection | null>(null);
 
   // 콜백은 ref 로 — 편집기 배선은 마운트 시 1회 구성되므로 최신 클로저를 참조한다.
   const onChangeRef = useRef(onChange);
@@ -214,8 +203,6 @@ export function CodeEditor({
   onReferencesRef.current = onReferences;
   const onFormatRef = useRef(onFormat);
   onFormatRef.current = onFormat;
-  const onToggleBpRef = useRef(onToggleBreakpoint);
-  onToggleBpRef.current = onToggleBreakpoint;
   const onGoToSymbolRef = useRef(onGoToSymbol);
   onGoToSymbolRef.current = onGoToSymbol;
   // 심볼 공급자는 등록/해제로만 다시 물어보게 되므로 값 자체도 ref 로 든다.
@@ -228,7 +215,6 @@ export function CodeEditor({
   // 무엇을 달지는 **마운트 시점**에 정한다 (CodeMirror 판과 같은 규칙) — 도중에
   // 켜고 끄면 재구성이 필요하고, 그러면 커서가 튄다. 파일마다 재마운트되므로
   // 그 파일의 사정과 일치한다.
-  const hasBreakpointsRef = useRef(onToggleBreakpoint != null);
   const diffOriginalRef = useRef(diffOriginal);
   const hasLspRef = useRef(onComplete != null && hasLanguageServer(path));
   // 시맨틱 토큰의 두 창구. 등록은 legend 가 온 뒤 1회, 호출은 최신 것을 읽는다.
@@ -257,7 +243,6 @@ export function CodeEditor({
 
     const options = baseEditorOptions({
       theme: THEME_NAME,
-      glyphMargin: hasBreakpointsRef.current,
       stickyMaxLines: stickyMaxRef.current,
       tabSize,
       insertSpaces,
@@ -301,7 +286,6 @@ export function CodeEditor({
 
     editorRef.current = editor;
     gitDecoRef.current = editor.createDecorationsCollection([]);
-    bpDecoRef.current = editor.createDecorationsCollection([]);
 
     subs.push(
       editor.onDidChangeModelContent(() => {
@@ -472,14 +456,6 @@ export function CodeEditor({
       );
     }
 
-    if (hasBreakpointsRef.current) {
-      subs.push({
-        dispose: wireBreakpointClicks(monaco, editor, () => (line) =>
-          onToggleBpRef.current?.(line),
-        ),
-      });
-    }
-
     const stopThemeWatch = watchThemeChanges(() => {
       defineCodeTheme(monaco, readCodeTokens(host), isDarkTheme());
       // 같은 이름으로 다시 정의하면 그 이름을 쓰는 편집기가 즉시 다시 칠해진다.
@@ -493,7 +469,6 @@ export function CodeEditor({
       inlineRef.current.close();
       for (const s of subs) s.dispose();
       gitDecoRef.current = null;
-      bpDecoRef.current = null;
       // diff 모드에서는 diffEditor 가 subs 로 해제된다 — 여기서 편집기를 또
       // dispose 하면 이미 죽은 것을 두 번 죽인다. 그리고 그쪽 모델 둘은
       // 우리가 만들었으므로(diff 편집기는 안 갖는다) 우리가 푼다. 평범한
@@ -514,21 +489,6 @@ export function CodeEditor({
     if (!editor || !model || !hasLspRef.current) return;
     monaco.editor.setModelMarkers(model, "lsp", toMarkers(monaco, model, diagnostics ?? []));
   }, [diagnostics]);
-
-  // 중단점 반영 — 진단과 같은 이유로 데코레이션 교체다.
-  useEffect(() => {
-    const editor = editorRef.current;
-    const model = editor?.getModel();
-    if (!editor || !model || !hasBreakpointsRef.current) return;
-    bpDecoRef.current?.set(
-      breakpointDecorations(
-        monaco,
-        breakpoints ?? [],
-        unverifiedBreakpoints ?? [],
-        model.getLineCount(),
-      ),
-    );
-  }, [breakpoints, unverifiedBreakpoints]);
 
   // git 거터 반영 — 편집 도중에도 갱신된다.
   useEffect(() => {

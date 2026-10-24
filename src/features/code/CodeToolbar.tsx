@@ -1,17 +1,16 @@
-// 코드 화면의 툴바 액션 — 파일 트리 접기 · 외부에서 열기 · 디버그 · 실행 ·
-// 포맷 · 저장 · 새로고침.
+// 코드 화면의 툴바 액션 — 파일 트리 접기 · 외부에서 열기 · 포맷 · 저장 ·
+// 새로고침.
 //
-// 2026-09-11 IDE 라운드에서 `CodeScreenV2` 에서 떼어냈다. 버튼 일곱 개는 상태를
+// 2026-09-11 IDE 라운드에서 `CodeScreenV2` 에서 떼어냈다. 버튼 다섯 개는 상태를
 // 하나도 갖지 않는 그리기라, 화면이 판단(무엇이 눌릴 수 있는가)만 넘기면 된다.
+// (디버그·실행 버튼은 2026-10-24 디버거와 함께 걷었다.)
 import { memo } from "react";
 
 import {
   AlignLeft,
-  Bug,
   ExternalLink,
   PanelLeftClose,
   PanelLeftOpen,
-  Play,
   RefreshCw,
   Save,
 } from "@/components/Icons";
@@ -27,11 +26,8 @@ interface CodeToolbarProps {
   /** 프로젝트 루트가 없으면 외부에서 열 수 없다. */
   canOpenExternal: boolean;
   sidebarHidden: boolean;
-  debugOpen: boolean;
   onToggleSidebar: () => void;
   onOpenExternal: () => void;
-  onToggleDebug: () => void;
-  onRun: () => void;
   onFormat: () => void;
   onSave: () => void;
   onRefresh: () => void;
@@ -42,11 +38,8 @@ export const CodeToolbar = memo(function CodeToolbar({
   focusedDirty,
   canOpenExternal,
   sidebarHidden,
-  debugOpen,
   onToggleSidebar,
   onOpenExternal,
-  onToggleDebug,
-  onRun,
   onFormat,
   onSave,
   onRefresh,
@@ -75,24 +68,6 @@ export const CodeToolbar = memo(function CodeToolbar({
           <ExternalLink size={15} />
         </button>
       ) : null}
-      <button
-        type="button"
-        className={"code-tool-btn" + (debugOpen ? " on" : "")}
-        onClick={onToggleDebug}
-        title={t("code.debug.open")}
-        aria-label={t("code.debug.open")}
-      >
-        <Bug size={15} />
-      </button>
-      <button
-        type="button"
-        className="code-tool-btn"
-        onClick={onRun}
-        title={t("code.debug.run")}
-        aria-label={t("code.debug.run")}
-      >
-        <Play size={15} />
-      </button>
       {selected ? (
         <button
           type="button"

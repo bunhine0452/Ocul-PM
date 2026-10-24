@@ -92,7 +92,8 @@ code.css           스타일 (ui_v2 토큰만)
 > - **LSP** — `src-tauri/src/lsp/` · v2.15.0 (자동완성·진단·호버·정의·이름 바꾸기·
 >   코드 액션). 설계는 [`../lsp/00-master-plan.md`](../lsp/00-master-plan.md).
 >   그 문서가 다시 "하지 않는 것" 으로 잡았던 **디버거(DAP)** 도 뒤집혀
->   [`../dap/00-master-plan.md`](../dap/00-master-plan.md) 로 출시됐다.
+>   [`../dap/00-master-plan.md`](../dap/00-master-plan.md) 로 출시됐다. **2026-10-24 에
+>   다시 걷었다** (범위 동결) — 지금 코드 화면에 디버거는 없다.
 > - **파일 생성·삭제·이름변경** — `code_create` / `code_mkdir` / `code_rename` /
 >   `code_delete` (`commands/code.rs`) · v2.16.0. 드래그 이동은 v2.34.0.
 > - **멀티탭·좌우 분할** — v2.16.0 (`code_screen_tabs.test.tsx`), 미리보기 탭은 v2.34.0.

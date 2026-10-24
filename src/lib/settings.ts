@@ -10,7 +10,7 @@ export type Theme =
   | "dark"
   | "system"
   // Full preset palettes. Each layers a named palette (`data-preset`) over a
-  // light/dark base family (`data-theme`) — see PRESET_FAMILY in SettingsContext.
+  // light/dark base family (`data-theme`) — the theme file's `family` (features/theme/apply.ts).
   | "solarized"
   | "nord"
   | "dracula"

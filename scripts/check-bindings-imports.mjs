@@ -43,10 +43,9 @@ export const ALLOWLIST = new Set([
   // 플래너 읽기 (`{#api-facades}` 첫 조각, 2026-09-18) — 트레이 스냅숏이 첫 호출자.
   "api/plan.ts",
   "api/shellIntegration.ts",
-  // `{#api-facades}` 2026-10-01 — 코드·LSP·DAP·터미널·git·diff·LLM 화면이 쓰던
+  // `{#api-facades}` 2026-10-01 — 코드·LSP·터미널·git·diff·LLM 화면이 쓰던
   // 직접 호출 39파일(⌘K 팔레트 포함)을 여기로 옮겼다.
   "api/conversations.ts",
-  "api/dap.ts",
   "api/diff.ts",
   "api/lsp.ts",
   "api/projects.ts",
@@ -77,7 +76,6 @@ export const ALLOWLIST = new Set([
   "features/planner/usePlanDocument.ts",
   "features/projects/ProjectManager.tsx",
   "features/search/SearchScreenV2.tsx",
-  "features/settings/MobileSettings.tsx",
   "features/settings/OculpmSettings.tsx",
   "features/settings/tabs/AppearanceTab.tsx",
   "features/settings/tabs/DataTab.tsx",
@@ -100,14 +98,6 @@ export const ALLOWLIST = new Set([
   "features/tray/TrayPopover.tsx",
   "lib/externalLinks.ts",
   "lib/oculpmLog.ts",
-  "mobile/EntryDetail.tsx",
-  "mobile/MobileApp.tsx",
-  "mobile/tabs/AiTab.tsx",
-  "mobile/tabs/DiscussionTab.tsx",
-  "mobile/tabs/JournalTab.tsx",
-  "mobile/tabs/PlannerTab.tsx",
-  "mobile/tabs/TodayTab.tsx",
-  "mobile/theme.ts",
   "windows/ProjectTab.tsx",
   "windows/StartTab.tsx",
   "windows/TabbedWindow.tsx",

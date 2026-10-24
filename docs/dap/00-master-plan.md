@@ -1,5 +1,9 @@
 # DAP — 인앱 디버거 (설계 SSOT)
 
+> **아카이브 (2026-10-24).** 디버거는 범위 동결(루트 `CLAUDE.md` 「Scope freeze」)에 따라
+> 걷었다 — `src-tauri/src/dap/` · `commands/dap.rs` · 코드 화면의 디버그 패널·중단점 거터가
+> 함께 사라졌다. 아래는 그 설계의 기록으로만 읽을 것.
+
 작성 2026-08-23 · 상태: **구현 완료 · v2.16.0 로 출시** (Rust·Python·Go) · 플랜 [ide-completion #p3-dap](../../.oculpm/planner/ide-completion.md) 은 `archived`, 37항목 중 36 완료 — 남은 하나는 `#dap-more-adapters` (debugpy·dlv 실기 왕복 검증). 2026-09-04 확인 (원문은 "PR-DAP0 착수").
 
 ## 왜 이제 와서

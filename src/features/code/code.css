@@ -1227,230 +1227,6 @@ body.code-dragging {
   font-size: var(--fs-4);
 }
 
-/* ── 디버그 패널 (#dap-control) ───────────────────────────────
-   참조 패널과 같은 자리·같은 높이 규칙. 둘은 배타적으로 뜬다. */
-.code-debug {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  border-top: 1px solid var(--sep);
-  background: var(--bg-inset);
-}
-.code-debug-head {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-5);
-  border-bottom: 1px solid var(--sep);
-}
-.code-debug-title {
-  font-size: var(--fs-3);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--caps-track);
-  text-transform: var(--caps-transform);
-  color: var(--text-2);
-}
-.code-debug-chip {
-  font-size: var(--fs-2);
-  padding: 1px var(--space-3);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--sep);
-  color: var(--text-3);
-}
-.code-debug-chip.running {
-  color: var(--accent-text);
-  border-color: var(--accent-ring);
-  background: var(--accent-soft);
-}
-.code-debug-chip.stopped {
-  color: var(--destructive);
-  border-color: color-mix(in srgb, var(--destructive) 40%, transparent);
-}
-.code-debug-controls {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: auto;
-}
-.code-debug-ctl {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 22px;
-  border: 1px solid var(--sep);
-  border-radius: var(--radius-s);
-  background: none;
-  color: var(--text-2);
-  cursor: pointer;
-}
-.code-debug-ctl:hover:not(:is(:disabled, [aria-disabled="true"])) {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-.code-debug-ctl:is(:disabled, [aria-disabled="true"]) {
-  opacity: var(--dim-disabled);
-  cursor: default;
-}
-.code-debug-ctl.danger:not(:is(:disabled, [aria-disabled="true"])) {
-  color: var(--destructive);
-}
-.code-debug-detail {
-  flex: none;
-  padding: var(--space-2) var(--space-5);
-  font-size: var(--fs-3);
-  color: var(--text-3);
-  border-bottom: 1px solid var(--sep);
-}
-.code-debug-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: stretch;
-}
-.code-debug-col {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--sep);
-}
-.code-debug-col.wide {
-  flex: 1.4 1 0;
-}
-.code-debug-col:last-child {
-  border-right: none;
-}
-.code-debug-colhead {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--fs-2);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--caps-track);
-  text-transform: var(--caps-transform);
-  color: var(--text-3);
-  border-bottom: 1px solid var(--sep);
-}
-.code-debug-clear {
-  margin-left: auto;
-  font-size: var(--fs-2);
-  color: var(--text-3);
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-transform: none;
-  letter-spacing: 0;
-}
-.code-debug-clear:hover {
-  color: var(--text);
-}
-.code-debug-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: var(--space-1) 0 var(--space-3);
-}
-.code-debug-hint {
-  margin: 0;
-  padding: var(--space-4) var(--space-5);
-  font-size: var(--fs-3);
-  color: var(--text-3);
-  line-height: var(--lh-body);
-}
-.code-debug-frame {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  width: 100%;
-  padding: var(--space-1) var(--space-5);
-  text-align: left;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-.code-debug-frame:hover {
-  background: var(--bg-hover);
-}
-.code-debug-frame.on {
-  background: var(--accent-soft);
-}
-/* 프로젝트 밖(표준 라이브러리·런타임)은 지우지 않고 흐리게 — 스택의 깊이
-   자체가 정보다 (코드 트리가 gitignore 항목을 다루는 방식과 같다). */
-.code-debug-frame.outside {
-  opacity: 0.5;
-}
-.code-debug-frame-name {
-  font-family: var(--mono);
-  font-size: var(--fs-3);
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.code-debug-frame-loc {
-  font-size: var(--fs-2);
-  color: var(--text-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.code-debug-var {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  padding: 2px var(--space-4) 2px 0;
-  font-family: var(--mono);
-  font-size: var(--fs-3);
-}
-.code-debug-var-caret {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 13px;
-  height: 13px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--text-3);
-  cursor: pointer;
-}
-.code-debug-var-name {
-  color: var(--code-prop);
-  flex: none;
-}
-.code-debug-var-value {
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.code-debug-var-type {
-  margin-left: auto;
-  flex: none;
-  font-size: var(--fs-2);
-  color: var(--text-3);
-}
-.code-debug-console {
-  font-family: var(--mono);
-  font-size: var(--fs-3);
-}
-.code-debug-out {
-  padding: 0 var(--space-5);
-  white-space: pre-wrap;
-  word-break: break-all;
-  color: var(--text-2);
-}
-.code-debug-out.stderr {
-  color: var(--destructive);
-}
-
 /* ── 프로덕션 다듬기 (2026-08-23) ────────────────────────────── */
 
 /* 필터 지우기 — 입력이 있을 때만 뜬다. */
@@ -1521,13 +1297,12 @@ body.code-dragging {
   color: var(--destructive);
 }
 
-/* 가는 스크롤바 — 트리·패널·콘솔. 콘텐츠 위에 얹히는 느낌으로. */
+/* 가는 스크롤바 — 트리·패널. 콘텐츠 위에 얹히는 느낌으로. */
 .code-sidebar .code-tree::-webkit-scrollbar,
 .code-sidebar .code-tree-empty::-webkit-scrollbar,
 .code-outline-body::-webkit-scrollbar,
 .code-goto-list::-webkit-scrollbar,
-.code-refs-body::-webkit-scrollbar,
-.code-debug-scroll::-webkit-scrollbar {
+.code-refs-body::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
@@ -1535,8 +1310,7 @@ body.code-dragging {
 .code-sidebar .code-tree-empty::-webkit-scrollbar-thumb,
 .code-outline-body::-webkit-scrollbar-thumb,
 .code-goto-list::-webkit-scrollbar-thumb,
-.code-refs-body::-webkit-scrollbar-thumb,
-.code-debug-scroll::-webkit-scrollbar-thumb {
+.code-refs-body::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--text-3) 30%, transparent);
   border-radius: var(--radius-pill);
   border: 3px solid transparent;
@@ -1544,15 +1318,13 @@ body.code-dragging {
 }
 .code-sidebar .code-tree::-webkit-scrollbar-thumb:hover,
 .code-outline-body::-webkit-scrollbar-thumb:hover,
-.code-refs-body::-webkit-scrollbar-thumb:hover,
-.code-debug-scroll::-webkit-scrollbar-thumb:hover {
+.code-refs-body::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--text-3) 50%, transparent);
   background-clip: padding-box;
 }
 .code-sidebar .code-tree::-webkit-scrollbar-track,
 .code-outline-body::-webkit-scrollbar-track,
-.code-refs-body::-webkit-scrollbar-track,
-.code-debug-scroll::-webkit-scrollbar-track {
+.code-refs-body::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -2323,34 +2095,4 @@ body.code-dragging {
   border-top: 5px solid var(--diff-del-text);
   height: 0;
   align-self: flex-end;
-}
-
-/* 중단점 — glyph margin. git 거터와 달리 사람이 겨눠 눌러야 하므로 넓다. */
-.code-editor-host .mo-bp {
-  cursor: pointer;
-}
-.code-editor-host .mo-bp::after {
-  content: "";
-  display: block;
-  width: 10px;
-  height: 10px;
-  margin: 3px auto 0;
-  border-radius: 50%;
-  background: var(--destructive);
-}
-/* 어댑터가 "이 줄엔 못 건다" 고 답한 것 — 속을 비워 구별한다. 찍었는데 안
-   걸리는 이유를 눈으로 알 수 없으면 사용자는 고장으로 읽는다. */
-.code-editor-host .mo-bp-unverified::after {
-  background: none;
-  border: 1.5px solid var(--text-3);
-}
-/* 거터에 커서를 올리면 찍을 수 있다는 것을 보여 준다 (VS Code 와 같다). */
-.code-editor-host .monaco-editor .margin-view-overlays .cgmr:hover::after {
-  content: "";
-  display: block;
-  width: 10px;
-  height: 10px;
-  margin: 3px auto 0;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--destructive) 32%, transparent);
 }

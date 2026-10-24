@@ -9,7 +9,6 @@
  *  1. Sparkles(✨) 아이콘 — "AI 기능이면 반짝이". 아이콘은 그 자리의 동작을 말한다
  *     (포맷=AlignLeft · 초안=PenLine · 갱신=RefreshCw · 새 프로젝트=FolderPlus · 모델=Cpu).
  *  2. 유리(backdrop-filter / backdrop-blur) — 스크림은 `.scrim`(어둡게만), 패널은 불투명.
- *     예외: src/mobile/mobile.css (폰 웹뷰의 sticky 헤더 — iOS 네이티브 관용구).
  *  3. Tailwind 팔레트 색(text-emerald-500 · bg-amber-500/10 …) — 테마 5종·액센트 6종을
  *     무시한다. 상태색은 토큰으로: text-(--ok-text) · bg-(--warn-soft) · border-(--danger)/40.
  *  4. 광택 그라데이션(linear-gradient(180deg, rgba(255,255,255,…))) 과 앰비언트
@@ -151,7 +150,7 @@ const SKIP_DIRS = new Set(["legacy", "__tests__"]);
 
 /** 규칙별 예외 파일 (src 기준 상대 경로). 늘리지 말고 줄이는 방향으로만. */
 const ALLOW = {
-  glass: new Set(["mobile/mobile.css"]),
+  glass: new Set(),
 };
 
 /**
@@ -189,7 +188,7 @@ const CTL_RAMP = new Set([18, 22, 26, 30, 34]);
  * 늘리는 건 새 칩을 만들 때뿐이고, 그때도 곡률은 두 값 중 하나다.
  */
 const CHIP_CLASSES = [
-  "chip", "attach-chip", "usage-chip", "sk-chip", "sk-path-chip", "code-debug-chip",
+  "chip", "attach-chip", "usage-chip", "sk-chip", "sk-path-chip",
   "scope-chip", "file-pill", "queue-chip", "hg-lead-chip",
   "agent-chip", "gr-chip", "tbadge",
 ];
