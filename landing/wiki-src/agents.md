@@ -91,7 +91,7 @@ Claude Code·Codex CLI·Gemini CLI 를 비롯한 다수의 에이전트가 이 �
 **검증** 열은 저장소의 `CHANGELOG.md` 와 작업 일지에 그 등급이 **실제로 돌았다**고 적힌 마지막 근거(앱 버전 · 날짜)입니다. `—` 는 코드는 있지만 실측 기록이 없다는 뜻이고, 괄호의 「출시」는 CHANGELOG 에 실린 버전입니다.
 
 :::note
-내장 터미널에서 실행한 CLI(`claude` · `codex` · `gemini` · `cursor-agent` · `aider` …)는 셸 통합으로 **시작·종료만** 잡힙니다. 미기록 판정은 없으므로 3등급이 아닙니다. 아직 실기기로 못 본 것 — Claude Desktop 실연결, Codex 의 도구 승인→파일 변경 한 흐름, VS Code 확장이 Copilot 에이전트 모드와 Cursor 에 MCP 도구를 노출하는 것 — 은 코드가 있어도 등급을 올리지 않았습니다. 공식 빌드는 macOS Apple Silicon 뿐입니다.
+내장 터미널에서 실행한 CLI(`claude` · `codex` · `gemini` · `cursor-agent` · `aider` …)는 셸 통합으로 **시작·종료만** 잡힙니다. 미기록 판정은 없으므로 3등급이 아닙니다. 아직 실기기로 못 본 것 — Claude Desktop 실연결, Codex 의 도구 승인→파일 변경 한 흐름 — 은 코드가 있어도 등급을 올리지 않았습니다. 공식 빌드는 macOS Apple Silicon 뿐입니다.
 :::
 
 1등급이라면 **오늘 현황의 [정직성 감사](/wiki/journal)** 를 가끔 확인하세요. 빠뜨린 변경이 있으면 거기 뜹니다.

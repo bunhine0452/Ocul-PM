@@ -10,7 +10,7 @@ UI language is **Korean** — match it in UI strings, journals, and commit messa
 
 ## Scope freeze (since 2026-10-08)
 
-The periphery (code editor · LSP · DAP · terminal/PTY host · ACP chat · mobile bridge · Notion · VS Code extension · themes · code graph) is now as large as the core (journal · planner · Today), and of the 211 `fix` commits in the 60 days to 2026-10-08, 95 touched the periphery against 80 for the core. One maintainer cannot keep both honest — an external review said so, and the numbers agree.
+The periphery (code editor · LSP · DAP · terminal/PTY host · ACP chat · mobile bridge · Notion · themes · code graph) is now as large as the core (journal · planner · Today), and of the 211 `fix` commits in the 60 days to 2026-10-08, 95 touched the periphery against 80 for the core. One maintainer cannot keep both honest — an external review said so, and the numbers agree.
 
 - **Don't build** a new screen, a new external integration, or a new long-lived process or network listener. Proposing one is fine; building it needs the user's explicit go-ahead *and* a named existing surface it retires.
 - **Do** fix, shrink, or replace what exists. A replacement ends by removing the old path, not by keeping both (cf. `native-agent-drivers` `{#drop-node}`).
