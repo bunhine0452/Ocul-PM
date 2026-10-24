@@ -91,7 +91,7 @@ App updates can raise the rules spec. **Resend rules** in Settings → ocul-pm �
 **Verified** is the latest evidence in the repository's `CHANGELOG.md` and work journals that the tier **actually ran** (app version · date). `—` means the code exists but there is no on-device record; "shipped" in parentheses is the version the CHANGELOG lists the feature under.
 
 :::note
-A CLI started in the built-in terminal (`claude` · `codex` · `gemini` · `cursor-agent` · `aider` …) is caught by shell integration for **start and stop only**. There is no missing-journal verdict, so that is not tier 3. Not yet seen on a real machine — a live Claude Desktop connection, Codex's tool-approval → file-change flow end to end, and the VS Code extension exposing MCP tools to Copilot agent mode and Cursor — did not raise a tier even though the code exists. Official builds are macOS Apple Silicon only.
+A CLI started in the built-in terminal (`claude` · `codex` · `gemini` · `cursor-agent` · `aider` …) is caught by shell integration for **start and stop only**. There is no missing-journal verdict, so that is not tier 3. Not yet seen on a real machine — a live Claude Desktop connection and Codex's tool-approval → file-change flow end to end — did not raise a tier even though the code exists. Official builds are macOS Apple Silicon only.
 :::
 
 On tier 1, check the **[honesty audit](/wiki/en/journal)** on Today now and then. Anything missed shows up there.

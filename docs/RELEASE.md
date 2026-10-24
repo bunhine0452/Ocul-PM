@@ -12,7 +12,7 @@ cd src-tauri && cargo test      # bindings.ts 재생성 포함
 네 개 모두 exit 0 인지 **직접 확인**합니다 (통과했겠거니 하지 않기).
 
 이 게이트는 `.github/workflows/ci.yml` 이 PR 과 main 푸시에서도 자동으로 돌립니다
-(프런트 잡 = typecheck·test·lint·build·확장 vitest / Rust 잡 = `cargo test --locked` + bindings 신선도 / 의존성 잡 = cargo-deny).
+(프런트 잡 = typecheck·test·lint·build / Rust 잡 = `cargo test --locked` + bindings 신선도 / 의존성 잡 = cargo-deny).
 **태그를 밀기 전에 그 커밋의 CI 가 그린인지 확인하세요** — release.yml 은 테스트를 돌리지
 않고 번들만 굽습니다. 다만 사람이 잊어도 이제 기계가 막습니다: release.yml 의 첫 잡 `gate` 가
 **태그가 가리키는 정확히 그 커밋**의 CI run 을 API 로 찾아 `conclusion == success` 일 때만
@@ -80,27 +80,6 @@ node scripts/bump-version.mjs 2.48.0 [--title-ko "…" --title-en "…"] [--dry-
 헤더가 태그와 정확히 일치해야 하고(`## v2.8.5` ↔ 태그 `v2.8.5`), 어긋나면 「What's new」 가 빈 채로 나갑니다.
 
 **다음 릴리스에 실릴 것은 `## Unreleased` 절에 미리 모아 둘 수 있습니다** — 버전 번호 없이 맨 위에 둡니다. 릴리스 때 그 제목을 `## vX.Y.Z` 로 바꾸면 끝입니다. `Unreleased` 는 태그와 맞지 않아 진짜 릴리스 본문에는 들어가지 않고, 랜딩의 `/changelog` 생성(`splitReleases`)도 버전 제목만 읽어 건너뜁니다. 드라이런(§8)은 이 절을 본문으로 씁니다. 톤은 기존 항목을 표본으로 — 기능 나열이 아니라 **사용자가 겪던 증상 → 무엇이 바뀌었나** 를 굵게 시작하는 서술형으로, 내부 구현 용어 대신 화면에서 보이는 말로.
-
-### 2-1. VS Code 확장 (`extension/`) — 릴리스 노트는 여기 한 곳
-
-확장은 **별도 CHANGELOG 를 갖지 않습니다.** `extension/CHANGELOG.md` 는 이 파일을 가리키는 한 줄뿐이고, `extension/LICENSE` 는 루트 `LICENSE` 의 복사본(마켓 리스팅이 패키지 안의 파일을 요구해서)입니다. 확장에 사용자가 보는 변경이 있으면 그 릴리스의 `## vX.Y.Z` 섹션 **안에 `### 확장` 소절**을 두고 거기에 적습니다 — 앱과 확장이 같은 `.oculpm` 규격을 공유하므로 같은 커밋·같은 노트로 움직입니다. `extension/README.md` 는 마켓 리스팅 본문(영어)이라 기능이 늘면 그 파일도 같이 고칩니다. #### 확장 게시 절차 (태그 `ext-v*`)
-
-확장은 앱과 **별도 태그**로 나갑니다 — `extension/package.json` 의 `version` 을 올리고 `ext-v<그 버전>` 태그를 밀면 `.github/workflows/extension-release.yml` 이 패키징(dry-run 과 같은 잡) → **GitHub Release 에 .vsix 첨부(항상)** → Open VSX → VS Marketplace 순으로 갑니다. 마켓 토큰이 없으면 마켓 단계는 **건너뛰고**(실패 아님) GitHub Release 만 납니다 — 토큰을 넣은 뒤 그 run 을 re-run 하면 게시됩니다. 태그와 `package.json` 버전이 다르면 잡이 멈춥니다(마켓은 같은 버전 재게시를 막아 되돌릴 수 없기 때문). 앱 릴리스(`v*`)는 `.vsix` 를 릴리스 자산에도 첨부합니다 — 마켓이 막힌 환경은 `code --install-extension ocul-pm-<ver>.vsix`.
-
-```bash
-cd extension && npm version 0.1.0 --no-git-tag-version   # package.json 만
-git add extension/package.json && git commit -m "release(extension): v0.1.0"
-git tag ext-v0.1.0 && git push origin main ext-v0.1.0
-```
-
-**한 번만 하는 수동 단계** (토큰은 GitHub secret 으로 — 저장소에 적지 않습니다):
-
-- [ ] **Open VSX** — [open-vsx.org](https://open-vsx.org) 에 GitHub 로 로그인 → Publisher Agreement 서명 → Settings → Access Tokens 에서 토큰 생성 → 네임스페이스 `oculpm` 을 **먼저** 만든다: `npx ovsx create-namespace oculpm -p <token>` (네임스페이스가 없으면 첫 게시가 실패한다). 토큰을 `gh secret set OPEN_VSX_TOKEN`.
-- [ ] **VS Marketplace** — [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage) 에서 publisher `oculpm` 생성(Microsoft 계정) → [dev.azure.com](https://dev.azure.com) 에서 PAT 생성: Organization = **All accessible organizations**, Scopes = **Marketplace → Manage**. 토큰을 `gh secret set VSCE_PAT`. 만료(최대 1년)를 캘린더에.
-- [ ] 두 토큰이 들어간 뒤 `workflow_dispatch` 로 `Extension` 워크플로를 한 번 돌려 패키징 잡이 초록인지 본다(게시는 태그에서만).
-- [ ] 첫 게시 뒤 마켓 두 곳의 리스팅(README·아이콘·`repository` 링크)을 눈으로 확인한다.
-
-Open VSX 는 Cursor·VSCodium·code-server 가 쓰는 레지스트리라 **둘 다** 올려야 "VS Code 계열 전부"가 됩니다. MS 마켓은 MS 제품 밖 사용을 ToS 로 막으므로 포크 사용자는 Open VSX 판만 받습니다.
 
 ## 3. README.md · README.en.md — **양쪽 다**
 
@@ -179,7 +158,6 @@ meta ─ gate ─┬─ macos ────────────────�
      `releases/download/vX.Y.Z/` 아래의 **실제 자산**을 가리키는지(draft 의 `untagged-…` URL 이
      남지 않았는지), `signature` 가 base64 한 덩어리인지, macOS 키(`darwin-aarch64` ·
      `darwin-aarch64-app`)가 다 있는지 — 규칙은 `.github/scripts/release/latest-json.mjs verify` 한 곳
-   - `.vsix` 패키징·첨부 (draft 에 올라갑니다)
 4. `bundle` — (**비-mac 공개 스위치가 켜졌을 때만**, §5-1) **같은 태그 커밋에서** Windows(`windows-latest`, NSIS) · Linux(`ubuntu-22.04`, AppImage + deb)
    번들. Windows 는 `tauri build` 전에 VC++ 재배포를 받아 검증합니다(`.github/scripts/fetch-vcredist.ps1`).
    업데이터 서명은 macOS 와 같은 `TAURI_PRIVATE_KEY`. 산출물은 **워크플로 아티팩트로만** 넘깁니다 — 아직
@@ -227,15 +205,15 @@ timeout 까지). 막히지는 않습니다.
 git fetch --tags --force --prune-tags origin
 ```
 
-**같은 태그로 Release run 이 둘 뜨면 뒤의 것이 스스로 물러납니다.** GitHub 가 태그 push 이벤트를 두 번 전달하는 일이 있습니다 — v3.9.0 은 태그 하나에 run 이 같은 초에 둘 떴습니다. 둘이 나란히 가면 같은 draft 의 자산과 latest.json 을 서로 덮으므로, `meta` 의 「중복 실행 막기」 가 같은 워크플로 · 같은 커밋 · 같은 태그에 **id 가 더 작은 run 이 아직 돌고 있거나 성공했으면** 이 run 을 취소합니다(규칙: `.github/scripts/release/dedupe.mjs`, 시험: `dedupe.test.mjs`). 앞선 run 이 실패·취소로 끝났다면 막지 않으므로 §6 의 「태그를 지웠다 다시 밀기」 와 같은 run 의 re-run 은 그대로 됩니다. 확장 게시(`ext-v*`)도 같은 규칙입니다. 동시성 그룹(`concurrency`)을 쓰지 않는 이유는 그 스크립트 머리 주석에 있습니다 — 진행 중인 run 을 끊으면 공개 도중의 run 이 잘릴 수 있습니다.
+**같은 태그로 Release run 이 둘 뜨면 뒤의 것이 스스로 물러납니다.** GitHub 가 태그 push 이벤트를 두 번 전달하는 일이 있습니다 — v3.9.0 은 태그 하나에 run 이 같은 초에 둘 떴습니다. 둘이 나란히 가면 같은 draft 의 자산과 latest.json 을 서로 덮으므로, `meta` 의 「중복 실행 막기」 가 같은 워크플로 · 같은 커밋 · 같은 태그에 **id 가 더 작은 run 이 아직 돌고 있거나 성공했으면** 이 run 을 취소합니다(규칙: `.github/scripts/release/dedupe.mjs`, 시험: `dedupe.test.mjs`). 앞선 run 이 실패·취소로 끝났다면 막지 않으므로 §6 의 「태그를 지웠다 다시 밀기」 와 같은 run 의 re-run 은 그대로 됩니다. 동시성 그룹(`concurrency`)을 쓰지 않는 이유는 그 스크립트 머리 주석에 있습니다 — 진행 중인 run 을 끊으면 공개 도중의 run 이 잘릴 수 있습니다.
 
 ### 5-1. Windows·Linux 공개 스위치 (`OCULPM_RELEASE_NONMAC`)
 
 위 4~5 단계(비-mac 번들·스모크·E2E)와 publish 의 비-mac 병합은 **저장소 Actions 변수
 `OCULPM_RELEASE_NONMAC` 이 `true` 일 때만** 돕니다. 변수가 없거나 다른 값이면 태그 릴리스는 **예전처럼
 macOS 만** 냅니다 — bundle·smoke·e2e 는 건너뛰고, publish 는 macOS latest.json 검증(비-mac 키·자산이
-없는지까지) → draft 해제만 합니다. 자산(5개) · latest.json(`darwin-aarch64` · `darwin-aarch64-app`) ·
-본문 모양이 v3.5.0 과 같습니다 — 본문은 `notes.mjs` 의 `composeMacOnlyBody` 가 만들고, 실제 v3.5.0
+없는지까지) → draft 해제만 합니다. 자산(4개 — v3.5.0 에 같이 붙던 `.vsix` 는 VS Code 확장과 함께 걷었습니다) ·
+latest.json(`darwin-aarch64` · `darwin-aarch64-app`) · 본문 모양이 v3.5.0 과 같습니다 — 본문은 `notes.mjs` 의 `composeMacOnlyBody` 가 만들고, 실제 v3.5.0
 본문과 바이트 단위로 같다는 것을 `release.test.mjs` 가 단언합니다. 「X 빌드가 없습니다」 줄도 없고
 run 도 붉지 않습니다 — 빠진 것이 아니라 범위 밖이기 때문입니다.
 
@@ -279,11 +257,11 @@ curl -s https://oculpm.com/changelog | grep -c 'id="v'   # 릴리스 수만큼 �
 git push origin :refs/tags/vX.Y.Z && git push origin refs/tags/vX.Y.Z
 ```
 
-릴리스 노트 본문이 비어 있지 않은지(`body` 길이 0 이면 §2 의 헤더가 태그와 어긋난 것), 에셋이 **10개**인지(§5-1 스위치가 꺼졌으면 macOS 의 **5개**), 라이브 사이트 버전이 태그와 같은지까지 보고 마칩니다:
+릴리스 노트 본문이 비어 있지 않은지(`body` 길이 0 이면 §2 의 헤더가 태그와 어긋난 것), 에셋이 **9개**인지(§5-1 스위치가 꺼졌으면 macOS 의 **4개**), 라이브 사이트 버전이 태그와 같은지까지 보고 마칩니다:
 
 | 플랫폼 | 자산 |
 | --- | --- |
-| macOS | `.dmg` · `Ocul-PM_aarch64.app.tar.gz` · `.app.tar.gz.sig` · `latest.json` · `.vsix` (5) |
+| macOS | `.dmg` · `Ocul-PM_aarch64.app.tar.gz` · `.app.tar.gz.sig` · `latest.json` (4) |
 | Windows (베타) | `Ocul-PM_X.Y.Z_x64-setup.exe` · `.exe.sig` (2) |
 | Linux (베타) | `Ocul-PM_X.Y.Z_amd64.AppImage` · `.AppImage.sig` · `Ocul-PM_X.Y.Z_amd64.deb` (3) |
 
