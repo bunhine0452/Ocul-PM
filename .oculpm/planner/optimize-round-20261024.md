@@ -31,6 +31,17 @@ PR #90 (main 6e42ea61). 병렬 레인 5개 합류. 아래는 실기기 확인과
 - [ ] 남은 빈 테이블 mobile_devices · graph_nodes · graph_edges · symbol_relations — 다음 마이그레이션 라운드에서 DROP 판단 {#carry-dead-tables}
 - [ ] [사용자 액션] VS Marketplace·Open VSX 의 oculpm.ocul-pm 지원 중단/게시 취소 · 저장소 시크릿 OPEN_VSX_TOKEN·VSCE_PAT 삭제 {#carry-vscode-market}
 
+## 다음 후보 (2026-10-24 조사 — 근거 있음, 사용자 결정 대기) {#next}
+- [ ] 죽은 PTY 세션에 입력하는 페인 — 오늘 옛 호스트 kill 뒤 `PTY 입력 거절 unknown pty session` 31건. write 가 그 오류를 받으면 페인이 「세션 끝남 · 다시 시작」으로 바뀌어야 (bug-opt-round #carry-ptyhost-death-silent 의 실증) {#next-dead-pane}
+- [ ] 일지 변경 한 번에 화면들이 한꺼번에 다시 불러옴 — `task queue exceeded allotted deadline` 22건(최대 +81ms)이 Stop 훅·일지 fs 이벤트 직후에 몰림. 무효화 합치기(디바운스) {#next-refetch-storm}
+- [ ] 고아 의존성 — `tokio-stream`(모바일과 함께 들어옴, 이제 미사용) · 직접 의존 `objc2`(코드는 objc2-app-kit/foundation 만 씀) 걷기 {#next-orphan-deps}
+- [ ] Rust 1.98.0 → 1.99.1 (2026-10-13 안정판) — rust-toolchain.toml 핀, 새 clippy lint 정리 {#next-rust-199}
+- [ ] Vite 8 + @vitejs/plugin-react 6 + vitest 5 (rolldown) — 빌드 속도. 툴체인 통째 교체라 중간 위험 {#next-vite8}
+- [ ] agent-client-protocol 2.2 → 3.5 — claude 어댑터 0.94+ 가 ACP SDK 2.0(프로토콜 v2). 지금은 v1 협상으로 0.93 에 머묾, 어댑터가 v1 을 버리기 전에 {#next-acp-v2}
+- [ ] fastembed 5.17 → 7.5 (+ ort·hf-hub 짝) — 메이저 둘, 변경 내용·메모리 실측부터 {#next-fastembed7}
+- [ ] Linux E2E 「사이드카 일지 → 일지 화면 60초」 간헐 실패 1회(재실행 통과) — 감시 변경 뒤 처음, 다시 나면 inotify 경로 타이밍 조사 {#next-e2e-linux-flake}
+- [ ] 보류 유지(근거): TypeScript 7 — typescript-eslint 8.72 의 peer 가 `<6.1.0` · xterm 6.1 아직 beta · notify 9 rc · specta rc.27 · keyring 4 기존 키 호환 불명 {#next-hold}
+
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
