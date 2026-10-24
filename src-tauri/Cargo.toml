@@ -100,12 +100,22 @@ tauri-plugin-notification = "2"
 tauri-plugin-single-instance = "2"
 
 # .oculpm/ subsystem (W1-PR1)
+# 올릴 때 함정 (2026-10-24 소스 확인): debouncer-full 0.4+ 는 `.watcher()` 가 `()` 를
+# 돌려주는 폐기 함수가 되고, 대신 쓰는 `Debouncer::watch` 가 FileIdMap 을 루트부터
+# `WalkDir(follow_links)` 로 **전부** 훑어 채운다 — node_modules·target 까지. 지금은
+# `.watcher().watch()` 라 캐시가 비어서 시작한다 (perf_baseline m7 참고). 캐시 전략
+# (NoCache / 루트 스캔을 건너뛰는 FileIdCache) 을 정하고 m7 로 재야 올릴 수 있다.
 notify = "6.1"
 notify-debouncer-full = "0.3"
 serde_yaml = "0.9"
-pulldown-cmark = { version = "0.10", default-features = false }
+# 일지 본문의 제목 추출(oculpm/markdown.rs). 0.13.5 가 기본 옵션에서도 걸리는
+# `*a_` 줄의 이차 시간 파싱(#1155)과 HTML 주석 O(n²)(0.12.1)를 고쳤다 — 일지는
+# 에이전트가 쓰는 입력이다.
+pulldown-cmark = { version = "0.13.5", default-features = false }
 chrono = { version = "0.4", features = ["serde"] }
-chrono-tz = "0.8"
+# IANA tzdata 를 크레이트에 굽는다 — 0.8.6 은 2024a, 0.10.x 는 2025b (파라과이 상시
+# -03 등). 0.10 의 깨지는 변경(`OffsetName::abbreviation` → Option)은 우리가 안 쓴다.
+chrono-tz = "0.10"
 # 시스템 IANA 시간대 — `.oculpm` workday 기본값 (#oculpm-default-tz). chrono 의
 # `clock` 기능이 이미 끌어오는 크레이트라 의존성 그래프는 그대로다.
 iana-time-zone = "0.1"
