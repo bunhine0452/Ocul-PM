@@ -1,4 +1,4 @@
-import { createLogger, defineConfig } from "vite";
+import { createLogger, defineConfig, type Plugin } from "vite";
 import path from "node:path";
 import { createRequire } from "node:module";
 import fs from "node:fs";
@@ -50,9 +50,33 @@ const buildHash = (() => {
   }
 })();
 
+// 이벤트 셤 (bug-hunt C1·C2 — src/lib/transport/event.ts 머리말): 앱·플러그인의
+// `@tauri-apps/api/event` 임포트를 src/lib/transport/event.ts 로 돌린다. 셤 자신
+// (transport/ 안)의 임포트만 진짜 모듈로 — 그래야 셤이 원본 위에 설 수 있다.
+// Vite 8 에서 `resolve.alias[].customResolver` 가 폐기 예정이라 공식 안내대로
+// `enforce: "pre"` 의 `resolveId` 플러그인으로 옮겼다 (2026-10-24). vitest 는
+// vitest.config.ts(별도)라 테스트에는 영향이 없다.
+function tauriEventShim(): Plugin {
+  const shim = path.resolve(__dirname, "./src/lib/transport/event.ts");
+  const transportDir = path.resolve(__dirname, "./src/lib/transport");
+  const real = createRequire(import.meta.url).resolve("@tauri-apps/api/event");
+  return {
+    name: "oculpm:tauri-event-shim",
+    enforce: "pre",
+    resolveId(source, importer) {
+      if (source !== "@tauri-apps/api/event") return null;
+      return importer?.startsWith(transportDir) ? real : shim;
+    },
+  };
+}
+
+// Vite 8 의 기본 빌드 타깃은 Safari 16.4 다. 최소 macOS 13.0 의 초기 WKWebView 는
+// Safari 16.1 대라, Vite 7 의 기본값(baseline-widely-available)을 그대로 적어 둔다.
+const BUILD_TARGET = ["chrome107", "edge107", "firefox104", "safari16"];
+
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react(), tailwindcss()],
+  plugins: [tauriEventShim(), react(), tailwindcss()],
 
   customLogger: fileTeeLogger,
 
@@ -66,27 +90,14 @@ export default defineConfig(async () => ({
     // 돌린다. 셤 자신(transport/ 안)의 임포트만 진짜 모듈로 — 그래야 셤이
     // 원본 위에 설 수 있다. vitest 는 vitest.config.ts(별도, alias 없음)라
     // 테스트에는 영향이 없다.
-    alias: [
-      { find: "@", replacement: path.resolve(__dirname, "./src") },
-      ...(["event"] as const).map((mod) => {
-        const shim = path.resolve(__dirname, `./src/lib/transport/${mod}.ts`);
-        const real = createRequire(import.meta.url).resolve(`@tauri-apps/api/${mod}`);
-        const transportDir = path.resolve(__dirname, "./src/lib/transport");
-        return {
-          find: new RegExp(`^@tauri-apps/api/${mod}$`),
-          replacement: shim,
-          customResolver(_source: string, importer: string | undefined) {
-            return importer?.startsWith(transportDir) ? real : shim;
-          },
-        };
-      }),
-    ],
+    alias: [{ find: "@", replacement: path.resolve(__dirname, "./src") }],
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
+  build: { target: BUILD_TARGET },
   // 설정(lazy 청크)만 쓰는 tauri 플러그인들을 서버 시작 시 미리 번들한다.
   // 안 하면 설정 첫 진입 때 Vite 가 온디맨드 최적화를 돌며
   // "optimized dependencies changed. reloading" 전체 페이지 리로드가 난다

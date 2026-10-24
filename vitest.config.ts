@@ -15,6 +15,9 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     exclude: ["node_modules/**", "src-tauri/**", "dist/**", "src/legacy/**"],
     css: false,
+    // Vitest 5 는 clearMocks 기본값을 true 로 바꿨다 — v4 의 동작(테스트 사이에 mock 기록을
+    // 지우지 않음)을 그대로 둔다. 바꾸려면 테스트들이 기대하는 바를 먼저 훑어야 한다.
+    clearMocks: false,
     // 테스트 하나의 천장 (vitest 기본값 5s). CI 러너에서만 죽던 플레이크를
     // 2026-08-31 에 두 번째로 만나 올렸다 — 첫 번째(dab12ce)는 개별 테스트의
     // 대기 예산을 1s→5s 로 올렸는데, 이번엔 **테스트 자체의 5s 천장**에 닿았다.
