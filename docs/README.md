@@ -34,13 +34,12 @@
 | [`claude-integration/`](claude-integration/) | 훅 · MCP 도구 · 플러그인 패키징 (PR-CI0~8). `06-plugin-contract.md` 가 플러그인 표면의 계약 |
 | [`code-editor/`](code-editor/) | 코드 화면(인앱 에디터). **"v1 스코프 밖" 목록은 전부 출시됐다** — 그 절의 정정 주석을 볼 것 |
 | [`lsp/`](lsp/) | 코드 인텔리전스 (자동완성 · 진단 · 정의 · 이름 바꾸기). v2.15.0 출시 |
-| [`dap/`](dap/) | 인앱 디버거 (Rust · Python · Go). v2.16.0 출시 — `lsp/` 가 "하지 않는 것" 으로 잡았던 결정을 다시 연 문서 |
 | [`discussion-feature/`](discussion-feature/) | 「문제 해결」(토의) 화면 — 데이터 모델 · 마크다운 규격 · 계획 승격 |
 | [`planner-upgrade/`](planner-upgrade/) | 플래너 — `.oculpm/planner/*.md` 파일 SSOT · 항목별 AI 귀속 · 자동 화해 |
 | [`graph-upgrade/`](graph-upgrade/) | 코드 맵 — 관계 추출(호출·상속·구현) · 변경 영향 역BFS. **코드 맵 화면·관계 추출은 2026-10-24 에 걷었다** — 남은 것은 변경 화면의 변경 영향(`db/dependencies.rs`)뿐 |
 | [`menubar/`](menubar/) | 메뉴바 트레이 상주 창 |
 | [`20260706_v2/`](20260706_v2/) | v2 라운드 — 내비게이션 단일 소스(`navRegistry`) · 성능. **단 U11 FTS5 는 등록된 적 없이 폐기됐다** (`db/mod.rs`) |
-| [`20260811_three-features/`](20260811_three-features/) | 멀티 창 · 모바일(Tailscale) · 영어화. **1번 결정("메인 창 = 런처 전용")은 크롬식 탭으로 뒤집혔다** |
+| [`20260811_three-features/`](20260811_three-features/) | 멀티 창 · 모바일(Tailscale) · 영어화. **1번 결정("메인 창 = 런처 전용")은 크롬식 탭으로 뒤집혔다.** **2번 모바일은 2026-10-24 에 걷었다** — `02-mobile-tailscale.md` 는 역사 |
 | [`20260831_osaurus-bench/`](20260831_osaurus-bench/) | 자동화 · 프로버넌스 · 테마 파일 · 컨텍스트 경제학 · 플러그인/임포트 |
 | [`20260902_vscode-borrows/`](20260902_vscode-borrows/) | 코드 화면 v2.34.0 — 저장 위생 · 미리보기 탭 · 스티키 스크롤 · 문제 패널 · 로컬 히스토리. 말미에 "구현 중 뒤집힌 결정" 절이 있다(본받을 형식) |
 | [`20260904_ux-candidates/`](20260904_ux-candidates/) | 최근 UX 후보 조사 — 근거가 전부 이 저장소의 현재 코드다 |
@@ -63,6 +62,7 @@
 | [`20260606_refactor/`](20260606_refactor/) | 2026-06-06 · 배포-실용성 리팩토링 | "시각 SSOT (불변)" 은 불변이 아니었다 |
 | [`20260607_dogfooding/`](20260607_dogfooding/) | 2026-06-07 · 첫 도그푸딩 라운드 (구현 완료) | 그 시점의 화면 구성 |
 | [`20260622_dev-report/`](20260622_dev-report/) | 2026-06-22 · v1.11.0 코드 정리 보고서 | 대부분 실행됨. `03-next-features.md` 만 아직 백로그로 읽을 값이 있다 |
+| [`dap/`](dap/) | 2026-08-23 · 인앱 디버거 (Rust · Python · Go, v2.16.0 출시) | **2026-10-24 에 걷었다** (범위 동결 — 주변부 축소). `src-tauri/src/dap/` 는 없다 |
 
 ---
 

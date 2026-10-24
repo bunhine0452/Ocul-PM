@@ -67,7 +67,7 @@ use sites::{APP_LAUNCHES, TEST_LAUNCHES, WEB_LAUNCHES};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Reach {
     /// 네트워크에 닿을 수 있다 — 앱이 시키는 일 자체가 송출이거나(설치·제공자 호출),
-    /// 무엇을 할지 앱이 정하지 않는 코드를 돌린다(터미널·언어 서버·디버그 대상).
+    /// 무엇을 할지 앱이 정하지 않는 코드를 돌린다(터미널·언어 서버).
     /// 괄호 안은 **그 문** — 누가 언제 여는가.
     Network(&'static str),
     /// 앱이 시키는 일이 기기 안에서 끝난다. 그 도구가 제 판단으로 하는 일(셸 rc

@@ -36,9 +36,6 @@ import { CodePane, CodeEmptyState } from "./CodePane";
 import { CodeContextMenu, type CodeMenuItem } from "./CodeContextMenu";
 import { CodeGoto } from "./CodeGoto";
 import { countLines } from "./gotoModel";
-import { CodeDebugPanel } from "./CodeDebugPanel";
-import { useDebug } from "./useDebug";
-import { adapterLanguageFor, defaultProgramFor } from "./debugConfig";
 import { CodeReferences, type ReferencesQuery } from "./CodeReferences";
 import { CodeProblems } from "./CodeProblems";
 import { useProblems } from "./problemsStore";
@@ -65,7 +62,6 @@ import { useCodeScreenKeys } from "./codeScreen/useCodeScreenKeys";
 import { useTreeInteraction } from "./codeScreen/useTreeInteraction";
 import { usePanelResize } from "./codeScreen/usePanelResize";
 import { CodeSidebar } from "./codeScreen/CodeSidebar";
-import { DebugLaunchDialog, type LaunchForm } from "./codeScreen/DebugLaunchDialog";
 import { DeleteConfirmDialog } from "./codeScreen/DeleteConfirmDialog";
 import "./code.css";
 import "./code-frame.css";
@@ -126,18 +122,6 @@ export function CodeScreenV2({
   // git 상태 장식 — 저장·워처·파일 조작 뒤에 다시 읽는다 (`gitDecor` 가 디바운스).
   const gitDecor = useGitMarks(projectId);
   const refreshGitMarks = gitDecor.refresh;
-  // 디버그 — 참조 패널과 같은 자리를 쓴다 (둘이 동시에 뜨면 편집 영역이 없어진다).
-  const [debugOpen, setDebugOpen] = useState(false);
-  const [launchOpen, setLaunchOpen] = useState(false);
-  const debug = useDebug(projectId);
-  // 실행 구성 — 영속하지 않는다. v1 은 "이번에 무엇을 띄울지" 만 묻고, 다음
-  // 실행에는 다시 그럴듯한 기본값을 채워 준다 (구성 파일은 Phase 3 밖).
-  const [launchForm, setLaunchForm] = useState<LaunchForm>({
-    language: "rust",
-    program: "",
-    args: "",
-    stopOnEntry: false,
-  });
   /**
    * 파일 안에서 이동 (#p3-goto). 열려 있는 동안만 값이 있고, 그 안에 **열던
    * 순간**의 커서 줄과 줄 수를 담는다 — Esc 되돌리기와 줄 번호 상한은 그때의
@@ -362,7 +346,6 @@ export function CodeScreenV2({
     loadDir,
     openPath,
     clearMarks,
-    onRenamed: debug.renamePath,
   });
   const { draft, startCreate, startRename, askDelete, pendingDelete, deleting } = ops;
 
@@ -545,21 +528,8 @@ export function CodeScreenV2({
         focusedDirty={focusedDirty}
         canOpenExternal={projectRoot != null}
         sidebarHidden={sidebarHidden}
-        debugOpen={debugOpen}
         onToggleSidebar={toggleSidebar}
         onOpenExternal={() => paneRefs[tabs.focused]?.current?.openExternal()}
-        onToggleDebug={() => setDebugOpen((v) => !v)}
-        onRun={() => {
-          // 지금 파일에서 그럴듯한 첫 값을 채운다 — 대개 그대로 눌러서 되고,
-          // 아니면 고치면 된다 (자동 빌드는 하지 않기로 했다).
-          const language = adapterLanguageFor(selected) ?? launchForm.language;
-          setLaunchForm((prev) => ({
-            ...prev,
-            language,
-            program: prev.program || defaultProgramFor(language, selected, state.currentProjectName),
-          }));
-          setLaunchOpen(true);
-        }}
         onFormat={() => paneRefs[tabs.focused]?.current?.format()}
         onSave={() => paneRefs[tabs.focused]?.current?.save()}
         onRefresh={loadTree}
@@ -648,17 +618,14 @@ export function CodeScreenV2({
                 gitMarks={gitDecor.marks}
                 problemMarks={problemMarks}
                 onOpenProblems={openProblems}
-                breakpointsFor={debug.breakpointsFor}
-                unverifiedFor={debug.unverifiedFor}
-                onToggleBreakpoint={debug.toggleBreakpoint}
                 onRevealDir={revealDir}
               />
             ))}
               {tabs.panes.length === 0 ? <CodeEmptyState /> : null}
             </div>
-            {/* 참조와 디버그는 같은 자리를 쓴다 — 둘 다 띄우면 편집 영역이
-                남지 않는다. 디버그가 이긴다 (멈춰 있는 동안이 더 급하다). */}
-            {debugOpen || problemsOpen || references ? (
+            {/* 참조와 문제는 같은 자리를 쓴다 — 둘 다 띄우면 편집 영역이
+                남지 않는다. */}
+            {problemsOpen || references ? (
               <div
                 className="code-panel-resizer"
                 role="separator"
@@ -676,24 +643,7 @@ export function CodeScreenV2({
                 }}
               />
             ) : null}
-            {debugOpen ? (
-              <div className="code-panel-slot" style={{ height: panelHeight }}>
-                <CodeDebugPanel
-                  session={debug.session}
-                  frames={debug.frames}
-                  selectedFrameId={debug.selectedFrameId}
-                  scopeRoots={debug.scopeRoots}
-                  output={debug.output}
-                  onSelectFrame={debug.selectFrame}
-                  onControl={debug.control}
-                  onStop={debug.stop}
-                  onClose={() => setDebugOpen(false)}
-                  onClearOutput={debug.clearOutput}
-                  onOpenFrame={(path, line) => openPath(path, line)}
-                  loadVariables={debug.variables}
-                />
-              </div>
-            ) : problemsOpen ? (
+            {problemsOpen ? (
               <div className="code-panel-slot" style={{ height: panelHeight }}>
                 <CodeProblems
                   problems={problems}
@@ -756,18 +706,6 @@ export function CodeScreenV2({
           onClose={() => setMenu(null)}
         />
       ) : null}
-
-      <DebugLaunchDialog
-        open={launchOpen}
-        onClose={() => setLaunchOpen(false)}
-        form={launchForm}
-        setForm={setLaunchForm}
-        start={debug.start}
-        onStarted={() => {
-          setLaunchOpen(false);
-          setDebugOpen(true);
-        }}
-      />
 
       <DeleteConfirmDialog
         pendingDelete={pendingDelete}

@@ -58,19 +58,17 @@ if (import.meta.env.DEV) {
   void import("./lib/perfProbe").then((m) => m.installPerfProbe(route.kind));
 }
 
-// 모바일 브리지 (#mb3-tabs): 웹뷰가 아니면(= 폰/브라우저가 axum 정적 서빙으로
-// 로드) 데스크톱 셸 대신 모바일 셸. ?desktop=1 은 데스크톱-브라우저 스모크용
-// 탈출구 (#mb2-smoke). SettingsProvider 는 올리지 않는다 — settings_get_all 이
-// 모바일 화이트리스트 밖이라 401/404 소음만 낸다.
+// 웹뷰 밖(`pnpm dev` 를 브라우저로 연 경우)에는 IPC 가 없다 — 셸은 그대로 그리되
+// 설정 조회는 건너뛰고 OS 로케일로 시작한다.
 const isWebview = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 // bare `confirm()` 는 웹뷰에서 묻지도 않고 "예" 가 된다 — dialog 플러그인이 async 로
-// 덮어써 truthy Promise 를 돌려준다(nativeDialogs.ts). 브라우저(모바일)의 진짜
-// 동기 대화상자는 건드리지 않는다.
+// 덮어써 truthy Promise 를 돌려준다(nativeDialogs.ts). 브라우저의 진짜 동기
+// 대화상자는 건드리지 않는다.
 if (isWebview) installNativeDialogGuard();
 
 // 언어 사전은 동적 청크다 (완성도 라운드 Phase 3) — 설정의 언어를 읽어 그 사전
-// 하나를 받은 뒤 그린다. 웹뷰 밖(모바일)에선 설정 IPC 가 없으니 OS 로케일.
+// 하나를 받은 뒤 그린다. 웹뷰 밖에선 설정 IPC 가 없으니 OS 로케일.
 void bootI18n(async () => {
   if (!isWebview) return null;
   const res = await commands.settingsGetAll();
@@ -79,16 +77,7 @@ void bootI18n(async () => {
 }).then(renderApp);
 
 function renderApp() {
-if (!isWebview && !window.location.search.includes("desktop=1")) {
-  const MobileApp = React.lazy(() => import("./mobile/MobileApp"));
-  root.render(
-    <React.StrictMode>
-      <React.Suspense fallback={null}>
-        <MobileApp />
-      </React.Suspense>
-    </React.StrictMode>,
-  );
-} else if (route.kind === "terminal") {
+if (route.kind === "terminal") {
   // 분리 터미널 창 — 셸 하나만 사는 경량 진입점. 설정(테마·편집기 명령)은
   // 필요하므로 SettingsProvider 는 그대로 두른다.
   const TerminalWindow = React.lazy(() => import("./windows/TerminalWindow"));

@@ -1,4 +1,4 @@
-// 하단 패널(참조·문제·디버그) 높이 (#panel-resize) — 드래그 중에는 로컬 값으로만 그리고,
+// 하단 패널(참조·문제) 높이 (#panel-resize) — 드래그 중에는 로컬 값으로만 그리고,
 // 놓는 순간 워크스페이스에 영속한다.
 // `CodeScreenV2` 에서 그대로 들어냈다 (optimization-round-2 {#split-codescreen}) — 동작 불변.
 import { useCallback, useRef, useState } from "react";

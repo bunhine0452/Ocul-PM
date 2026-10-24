@@ -3,7 +3,7 @@
 // 왜 떼어냈나: 이 라운드가 켠 기본기(폴딩 · 괄호 매칭 · 자동 괄호 닫기 · 선택
 // 일치 강조 · 입력 시 들여쓰기 · 다중 커서)는 **옵션 몇 줄**이 전부라, 누가
 // 리팩터링하다 한 줄을 지워도 아무 테스트도 안 깨지고 화면만 조용히 옛날로
-// 돌아간다. CodeMirror 판이 정확히 그 상태였다 — 지붕(LSP 17커맨드 · DAP)은
+// 돌아간다. CodeMirror 판이 정확히 그 상태였다 — 지붕(LSP 17커맨드)은
 // 올렸는데 `foldGutter` · `bracketMatching` · `closeBrackets` ·
 // `indentOnInput` · `multipleSelections` 가 전부 0이었다.
 //
@@ -17,8 +17,6 @@ import type * as MonacoNs from "monaco-editor/editor/editor.api";
 export interface EditorOptionsInput {
   /** `monaco/theme.ts` 의 테마 이름. */
   theme: string;
-  /** 중단점 거터를 다는가 — 디버그 불가 파일에서 빈 칸이 남으면 누를 수 있는 자리처럼 보인다. */
-  glyphMargin: boolean;
   /** 겹쳐 고정할 줄 수. `0` 이면 스티키를 끈다. */
   stickyMaxLines: number;
   /** 설정 `codeTabSize`. */
@@ -65,7 +63,8 @@ export function baseEditorOptions(
     tabSize: input.tabSize,
     insertSpaces: input.insertSpaces,
     detectIndentation: false,
-    glyphMargin: input.glyphMargin,
+    // 넓은 거터 칸은 쓰는 이가 없다 — 빈 칸이 남으면 누를 수 있는 자리처럼 보인다.
+    glyphMargin: false,
     // `outlineModel` 은 **사슬**이다 — 심볼 공급자가 있으면 그것으로, 없거나
     // 빈 답이면 폴딩 → 들여쓰기로 스스로 떨어진다(`stickyScrollModelProvider`
     // 의 fall-through). 그래서 언어 서버가 없는 파일에서도 CodeMirror 판의

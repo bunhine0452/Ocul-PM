@@ -1,5 +1,9 @@
 # 02 — Tailscale 모바일 연동 (읽기 전용)
 
+> **아카이브 (2026-10-24).** 모바일 브리지는 범위 동결(루트 `CLAUDE.md` 「Scope freeze」)에
+> 따라 걷었다 — `src-tauri/src/mobile_bridge/` · `src/mobile/` · 설정의 「모바일」 탭이 함께
+> 사라졌다. DB 표 `mobile_devices`(마이그레이션 029)만 쓰이지 않은 채 남는다.
+
 > [00-master-plan.md](00-master-plan.md) Phase 3 · 예상 ~7일 · 목표 릴리스 v2.11.0
 
 ## 1. 무엇을 만드는가

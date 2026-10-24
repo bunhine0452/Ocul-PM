@@ -27,7 +27,6 @@ export type SettingsTab =
   | "oculpm"
   | "context"
   | "automation"
-  | "mobile"
   | "diagnostics"
   | "update";
 
@@ -180,11 +179,6 @@ export const SETTINGS_INDEX: readonly SettingsEntry[] = [
   { tab: "automation", key: "automation.cond.title" },
   { tab: "automation", key: "automation.cond.journal_count_gte", section: "automation.cond.title" },
   { tab: "automation", key: "automation.editor.instructions", section: "automation.cond.title" },
-
-  // ── mobile
-  { tab: "mobile", key: "settings.mobile.serverTitle" },
-  { tab: "mobile", key: "settings.mobile.pairTitle" },
-  { tab: "mobile", key: "settings.mobile.devicesTitle" },
 
   // ── diagnostics
   { tab: "diagnostics", key: "settings.db.title" },

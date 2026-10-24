@@ -81,11 +81,6 @@ const LLM_PROMPT_SITES: &[PromptSite] = &[
         reason: "면제 — AI 패널의 사용자 작성 대화. 사용자가 직접 만든 호출이 약속의 예외 ① 이고, 자기가 친 글을 자기에게서 가릴 이유가 없다. 같은 파일의 `chat`·`chat_detailed`·`run_chat_stream` 은 관문이라 그것을 부르는 자리는 각자 아래에 있다. 단 패널이 자동으로 싣는 RAG 청크는 사용자 작성이 아니다 — 저장소 파일이라 `search_chunks` 가 꺼낼 때 프로젝트 패턴으로 가린다 (2026-10-08 검토; 그 전엔 이 사유가 청크까지 면제로 덮고 있었다).",
     },
     PromptSite {
-        path: "mobile_bridge/server.rs",
-        redaction: Redaction::None,
-        reason: "면제 — 폰이 보낸 대화를 그대로 중계한다 (commands/llm.rs 와 같은 성격).",
-    },
-    PromptSite {
         path: "commands/overview.rs",
         redaction: Redaction::None,
         reason: "면제 — README·매니페스트·디렉터리 구조를 디스크에서 **직접** 읽어 보낸다. 에이전트가 쓴 글이 아니라 저장소 파일이라 캐시 투영을 지나지 않는다.",

@@ -147,8 +147,8 @@ pub async fn llm_reachability() -> Result<Vec<llm::reach::ProviderReach>, String
     Ok(llm::reach::snapshot())
 }
 
-/// 스트리밍 본체 — 싱크가 mpsc 라 IPC Channel(데스크톱)과 SSE(모바일 브리지
-/// #mb4-chat-sse)가 같은 폴백·부분응답 로직을 공유한다. 계약은 기존 그대로:
+/// 스트리밍 본체 — 싱크가 mpsc 라 전송(IPC Channel)과 폴백·부분응답 로직이
+/// 갈라져 있다. 계약은 기존 그대로:
 /// Delta 가 한 번이라도 나가면 폴백하지 않고, 종료는 Done 또는 Error 정확히 1회.
 ///
 /// Phase 7 (#offline-fallback) 이 여기에 더한 것은 **고지 하나**다. 1순위가 아닌

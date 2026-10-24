@@ -5,7 +5,6 @@ import {
   Sun,
   Cpu,
   Database,
-  Smartphone,
   Settings as SettingsIcon,
   FileCode,
   Code2,
@@ -31,7 +30,6 @@ import { useT, type I18nKey } from "@/i18n";
 import { OculpmSettings } from "./OculpmSettings";
 import { AutomationTab } from "./automation/AutomationTab";
 import { CodeSettings } from "./CodeSettings";
-import { MobileSettings } from "./MobileSettings";
 import { SettingsSearchResults } from "./SettingsSearch";
 import { searchSettings } from "./settingsIndex";
 import type { SettingsTab } from "./settingsIndex";
@@ -50,7 +48,7 @@ interface TabDef {
 }
 
 /**
- * 열두 탭을 다섯 묶음으로 (2026-09-09 재설계).
+ * 열 탭을 다섯 묶음으로 (2026-09-09 재설계 · 모바일·그래프 탭은 2026-10-24 제거).
  *
  * 예전엔 그룹 없이 한 줄에 섰다 — 「그래프」와 「모바일」과 「진단」이 같은
  * 위계로 읽혔고, 좁은 창에서는 그 줄이 가로 스크롤로 도망가 대여섯만 보였다.
@@ -96,8 +94,6 @@ const GROUPS: Array<{ labelKey: I18nKey; tabs: TabDef[] }> = [
     labelKey: "settings.group.system",
     tabs: [
       { id: "data", labelKey: "settings.tab.data", descKey: "settings.tabDesc.data", icon: Database },
-      // 모바일 브리지 — Tailscale 폰 접근 (mobile-bridge #mb0-settings-ui).
-      { id: "mobile", labelKey: "settings.tab.mobile", descKey: "settings.tabDesc.mobile", icon: Smartphone },
       // Diagnostics absorbed from the old separate sidebar tab (MASTER-GUIDE §5.1).
       { id: "diagnostics", labelKey: "settings.tab.diagnostics", descKey: "settings.tabDesc.diagnostics", icon: SettingsIcon },
     ],
@@ -156,8 +152,6 @@ export function SettingsPanel() {
         return <ContextTab />;
       case "automation":
         return <AutomationTab />;
-      case "mobile":
-        return <MobileSettings Section={Section} Field={Field} />;
       case "diagnostics":
         return <DiagnosticsTab onError={setError} />;
       case "update":

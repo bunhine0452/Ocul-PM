@@ -739,56 +739,6 @@ export const commands = {
 	end_line: number,
 	end_character: number,
 } | null) => typedError<string | null, string>(__TAURI_INVOKE("lsp_format", { projectId, path, text, tabSize, insertSpaces, range })),
-	/**  어댑터 일람 — 어느 언어를 디버그할 수 있는지, 없으면 어떻게 까는지. */
-	dapAdapters: () => typedError<DapAdapterInfo[], string>(__TAURI_INVOKE("dap_adapters")),
-	/**  지금 세션 (없으면 `None`). */
-	dapSession: (projectId: number) => typedError<{
-	state: DapState,
-	/**  `rust` · `python` … 어떤 어댑터인지. */
-	language_id: string,
-	/**  디버그 중인 프로그램 (프로젝트 상대면 상대로). */
-	program: string,
-	/**  멈춘 이유 (`breakpoint` · `step` · `exception` …). Stopped 일 때만. */
-	stopped_reason: string | null,
-	/**
-	 *  멈춘 스레드. 스택·변수 조회의 기준.
-	 * 
-	 *  **핸들은 `f64` 로 내보낸다.** DAP 의 id 는 JSON 숫자(=JS number)라 이쪽이
-	 *  오히려 원본에 충실하고, specta 는 `i64` 를 IPC 로 내보내는 것을 막는다
-	 *  (정밀도 손실 우려). 어댑터로 되돌릴 때만 정수로 캐스팅한다 — 실수로
-	 *  직렬화하면 `682093.0` 이 되어 정수를 기대하는 어댑터가 거절한다.
-	 */
-	thread_id: number | null,
-	/**  사람이 읽을 부가 설명 (미설치 안내·오류 사유). */
-	detail: string | null,
-} | null, string>(__TAURI_INVOKE("dap_session", { projectId })),
-	/**
-	 *  디버그 시작. 어댑터를 띄우고 `initialize` → `launch` → 중단점 →
-	 *  `configurationDone` 까지 간다 (순서는 상태 기계가 맡는다 — #no-order).
-	 */
-	dapStart: (projectId: number, request: DapLaunchRequest) => typedError<DapSessionInfo, string>(__TAURI_INVOKE("dap_start", { projectId, request })),
-	/**  디버그 종료 (사용자가 멈춤 버튼). */
-	dapStop: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("dap_stop", { projectId })),
-	/**
-	 *  실행 제어. 다섯 동작을 하나로 받는다 — 전부 "스레드 하나에 명령을 보낸다"
-	 *  는 같은 모양이라, 커맨드를 다섯 개로 늘리면 배선만 늘고 읽기는 나빠진다.
-	 */
-	dapControl: (projectId: number, action: string) => typedError<null, string>(__TAURI_INVOKE("dap_control", { projectId, action })),
-	/**
-	 *  중단점 토글. 세션이 살아 있으면 어댑터에도 바로 밀어 넣는다 — 멈춰 있는
-	 *  동안 찍은 중단점이 다음 실행에야 걸리면 쓸모가 없다.
-	 */
-	dapToggleBreakpoint: (projectId: number, relPath: string, line: number) => typedError<number[], string>(__TAURI_INVOKE("dap_toggle_breakpoint", { projectId, relPath, line })),
-	/**  프로젝트 전체 중단점 (디버그 패널의 목록). */
-	dapAllBreakpoints: (projectId: number) => typedError<DapFileBreakpoints[], string>(__TAURI_INVOKE("dap_all_breakpoints", { projectId })),
-	/**  호출 스택. **멈춰 있을 때만** 의미가 있다 — 아니면 빈 목록이다(오류가 아니라). */
-	dapStack: (projectId: number) => typedError<DapFrame[], string>(__TAURI_INVOKE("dap_stack", { projectId })),
-	dapScopes: (projectId: number, frameId: number | null) => typedError<DapScope[], string>(__TAURI_INVOKE("dap_scopes", { projectId, frameId })),
-	/**
-	 *  변수 한 겹. 트리는 **펼칠 때** 읽는다 — 큰 구조체를 한 번에 다 읽으면
-	 *  멈춘 순간 앱이 굳는다 (코드 트리의 지연 로딩과 같은 원칙).
-	 */
-	dapVariables: (projectId: number, variablesReference: number | null) => typedError<DapVariable[], string>(__TAURI_INVOKE("dap_variables", { projectId, variablesReference })),
 	/**  이 프로젝트의 언어 서버를 전부 정리한다. */
 	lspStop: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("lsp_stop", { projectId })),
 	/**
@@ -2081,17 +2031,6 @@ export const commands = {
 	 *  둘 다 "알림 폭주" 를 막는 한 예산이다.
 	 */
 	notifyAgentAttention: (kind: string, project: string, detail: string) => typedError<null, string>(__TAURI_INVOKE("notify_agent_attention", { kind, project, detail })),
-	/**  서버 기동 (멱등). 실패 사유(Tailscale 미탐지 등)는 설정 화면에 그대로 노출된다. */
-	mobileBridgeStart: () => typedError<MobileBridgeStatus, string>(__TAURI_INVOKE("mobile_bridge_start")),
-	/**  graceful 중지 (멱등). */
-	mobileBridgeStop: () => typedError<MobileBridgeStatus, string>(__TAURI_INVOKE("mobile_bridge_stop")),
-	mobileBridgeStatus: () => typedError<MobileBridgeStatus, string>(__TAURI_INVOKE("mobile_bridge_status")),
-	/**  페어링 세션 시작 — 6자리 코드·TTL 5분·1회용. 기존 세션은 대체된다. */
-	mobileBridgePairingBegin: () => typedError<PairingInfo, string>(__TAURI_INVOKE("mobile_bridge_pairing_begin")),
-	/**  페어링된 기기 목록 (설정 '모바일' 탭). */
-	mobileBridgeDevices: () => typedError<MobileDevice[], string>(__TAURI_INVOKE("mobile_bridge_devices")),
-	/**  기기 해제 — DB 와 인증 미들웨어의 메모리 집합 양쪽에서 제거 (즉시 실효). */
-	mobileBridgeRevokeDevice: (id: number) => typedError<MobileDevice[], string>(__TAURI_INVOKE("mobile_bridge_revoke_device", { id })),
 	newWindow: () => typedError<null, string>(__TAURI_INVOKE("new_window")),
 	diagnosticsReport: () => typedError<DiagnosticsReport, string>(__TAURI_INVOKE("diagnostics_report")),
 	/**  이 실행 파일의 설치 형식 (업데이터의 키 선택과 같은 규칙). */
@@ -2103,9 +2042,6 @@ export const events = {
 	acpSessionChanged: makeEvent<AcpSessionChanged>("acp-session-changed"),
 	automationRunChanged: makeEvent<AutomationRunChanged>("automation-run-changed"),
 	closeIntent: makeEvent<CloseIntent>("close-intent"),
-	dapBreakpointsChanged: makeEvent<DapBreakpointsChanged>("dap-breakpoints-changed"),
-	dapOutputEmitted: makeEvent<DapOutputEmitted>("dap-output-emitted"),
-	dapSessionChanged: makeEvent<DapSessionChanged>("dap-session-changed"),
 	deepLinkReceived: makeEvent<DeepLinkReceived>("deep-link-received"),
 	llmBackgroundFailed: makeEvent<LlmBackgroundFailed>("llm-background-failed"),
 	lspDiagnosticsPublished: makeEvent<LspDiagnosticsPublished>("lsp-diagnostics-published"),
@@ -3601,145 +3537,6 @@ export type ConversationTrace = {
 	missing_signal: boolean,
 };
 
-/**  이 기계에서 쓸 수 있는 디버그 어댑터 한 줄 (안내용). */
-export type DapAdapterInfo = {
-	language_id: string,
-	/**  찾았다면 그 절대경로. 못 찾았으면 `None`. */
-	resolved: string | null,
-	/**  미설치일 때 그대로 보여 줄 설치 방법 (자동 설치는 하지 않는다). */
-	install_hint: string,
-};
-
-/**  중단점 하나의 확정 상태. */
-export type DapBreakpoint = {
-	/**  프로젝트 상대 경로. */
-	path: string,
-	/**  **1-based**. 어댑터가 다른 줄로 옮겼으면 옮긴 줄이 온다. */
-	line: number,
-	/**
-	 *  어댑터가 실제로 걸 수 있다고 확인했나. `false` 면 그 줄에 코드가 없다는
-	 *  뜻이라 **거터에 그 사실을 그린다** — 찍었는데 안 걸리는 이유를 모르면
-	 *  사용자는 고장으로 읽는다.
-	 */
-	verified: boolean,
-	/**  왜 못 거는지 (어댑터가 줄 때만). */
-	message: string | null,
-};
-
-/**  어댑터가 확정한 중단점 상태 (옮겨졌거나 못 걸었거나). */
-export type DapBreakpointsChanged = {
-	project_id: number,
-	breakpoints: DapBreakpoint[],
-};
-
-/**  한 파일의 중단점 줄들 (1-based). */
-export type DapFileBreakpoints = {
-	path: string,
-	lines: number[],
-};
-
-/**  호출 스택 한 칸. */
-export type DapFrame = {
-	/**  어댑터가 준 프레임 id — `scopes` 요청의 키. `f64` 인 이유는 위와 같다. */
-	id: number | null,
-	name: string,
-	/**
-	 *  프로젝트 상대 경로. 밖(표준 라이브러리·런타임)이면 `None` — 지우지 않고
-	 *  흐리게 그린다 (코드 트리가 gitignore 항목을 다루는 방식과 같다).
-	 */
-	path: string | null,
-	/**  소스가 아예 없는 프레임(최적화·인라인)도 있다. */
-	display_source: string | null,
-	/**  **1-based**. */
-	line: number,
-	column: number,
-};
-
-/**  실행 구성 — 프런트가 그대로 채워 보낸다. */
-export type DapLaunchRequest = {
-	language_id: string,
-	program: string,
-	args: string[],
-	stop_on_entry: boolean,
-	cwd: string | null,
-};
-
-/**  디버그 콘솔 한 줄. */
-export type DapOutput = {
-	/**  `stdout` · `stderr` · `console` · `important`. */
-	category: string,
-	text: string,
-};
-
-/**  디버기의 표준 출력·오류 한 줄. */
-export type DapOutputEmitted = {
-	project_id: number,
-	output: DapOutput,
-};
-
-/**  스코프(Locals · Globals · Registers …) 한 칸. */
-export type DapScope = {
-	name: string,
-	variables_reference: number | null,
-	/**  어댑터가 "읽는 데 비싸다" 고 표시한 것 (Registers 등) — 자동으로 펼치지 않는다. */
-	expensive: boolean,
-};
-
-/**  세션 상태가 바뀌었다. 디버그 패널의 버튼 활성화가 전부 이걸로 파생된다. */
-export type DapSessionChanged = {
-	project_id: number,
-	session: DapSessionInfo,
-};
-
-/**  세션 한 건의 겉모습 — 화면이 폴링 없이 이벤트로 받는다. */
-export type DapSessionInfo = {
-	state: DapState,
-	/**  `rust` · `python` … 어떤 어댑터인지. */
-	language_id: string,
-	/**  디버그 중인 프로그램 (프로젝트 상대면 상대로). */
-	program: string,
-	/**  멈춘 이유 (`breakpoint` · `step` · `exception` …). Stopped 일 때만. */
-	stopped_reason: string | null,
-	/**
-	 *  멈춘 스레드. 스택·변수 조회의 기준.
-	 * 
-	 *  **핸들은 `f64` 로 내보낸다.** DAP 의 id 는 JSON 숫자(=JS number)라 이쪽이
-	 *  오히려 원본에 충실하고, specta 는 `i64` 를 IPC 로 내보내는 것을 막는다
-	 *  (정밀도 손실 우려). 어댑터로 되돌릴 때만 정수로 캐스팅한다 — 실수로
-	 *  직렬화하면 `682093.0` 이 되어 정수를 기대하는 어댑터가 거절한다.
-	 */
-	thread_id: number | null,
-	/**  사람이 읽을 부가 설명 (미설치 안내·오류 사유). */
-	detail: string | null,
-};
-
-/**  디버그 세션의 상태. 화면의 버튼 활성화가 전부 여기서 파생된다. */
-export type DapState = 
-/**  세션 없음. */
-"idle" | 
-/**  어댑터를 띄우고 initialize 협상 중. */
-"starting" | 
-/**  `initialized` 를 받아 중단점을 밀어 넣는 중. */
-"configuring" | 
-/**  프로그램이 돌고 있다. */
-"running" | 
-/**  중단점·스텝으로 멈췄다. 스택과 변수를 볼 수 있는 유일한 상태. */
-"stopped" | 
-/**  끝났다 (정상 종료·크래시·사용자 중단 모두). */
-"ended";
-
-/**
- *  변수 하나. 트리는 펼칠 때 읽는다 — 큰 구조체를 한 번에 다 읽으면 멈춘 순간
- *  앱이 굳는다 (코드 트리의 지연 로딩과 같은 원칙).
- */
-export type DapVariable = {
-	name: string,
-	value: string,
-	type_name: string | null,
-	/**  0 이 아니면 펼칠 수 있다 — 그 값으로 자식을 묻는다. */
-	variables_reference: number | null,
-};
-
 export type DbHealth = {
 	sqlite_version: string,
 	vec_version: string,
@@ -5086,21 +4883,6 @@ export type MirrorWriteResult = {
 	mirror_rel: string,
 };
 
-/**  프런트에 주는 상태 스냅샷 (설정 '모바일' 탭이 소비). */
-export type MobileBridgeStatus = {
-	running: boolean,
-	/**  "100.x.y.z:port" — running 일 때만. */
-	addr: string | null,
-};
-
-/**  페어링된 모바일 기기 (설정 '모바일' 탭 목록). */
-export type MobileDevice = {
-	id: number,
-	name: string,
-	created_at: string,
-	last_seen_at: string | null,
-};
-
 /**  배경 모델 호출의 도착지. 프런트가 배지 문구를 이걸로 고른다. */
 export type ModelEgress = {
 	/**
@@ -5339,13 +5121,6 @@ export type OpenPlanItem = {
 	phase: string | null,
 	/**  todo | in_progress | blocked */
 	status: string,
-};
-
-/**  `mobile_bridge_pairing_begin` 응답 — 설정 화면이 코드·QR 을 그린다. */
-export type PairingInfo = {
-	code: string,
-	url: string,
-	expires_in_secs: number,
 };
 
 /**

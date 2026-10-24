@@ -48,7 +48,6 @@ import { useLsp } from "./useLsp";
 import { langIdForPath, langLabel } from "./codeLang";
 import { useCodeAi } from "./inlineEdit/useCodeAi";
 import { useCodeFormat } from "./useCodeFormat";
-import { adapterLanguageFor } from "./debugConfig";
 import { baseName } from "./fileOps";
 import { formatBytes } from "./treeUtils";
 import {
@@ -148,12 +147,6 @@ export interface CodePaneProps {
   onGoToSymbol: () => void;
   /** 상태줄의 문제 뱃지를 눌렀다 — 화면이 패널을 연다. */
   onOpenProblems: () => void;
-  /** 이 파일의 중단점 줄들 (1-based). */
-  breakpointsFor: (path: string) => number[];
-  /** 어댑터가 못 건다고 답한 줄들. */
-  unverifiedFor: (path: string) => number[];
-  /** 거터 클릭 — 디버그 가능한 파일에만 거터가 붙는다. */
-  onToggleBreakpoint: (path: string, line: number) => void;
   /** 브레드크럼의 폴더 조각 클릭 — 트리에서 그 폴더를 펼쳐 보여 준다. */
   onRevealDir: (dir: string) => void;
   /** 상태줄의 커서 조각 클릭 — ⌃G 와 같은 줄 이동 위젯. */
@@ -197,9 +190,6 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     stickySymbols,
     onGoToSymbol,
     onOpenProblems,
-    breakpointsFor,
-    unverifiedFor,
-    onToggleBreakpoint,
     onRevealDir,
     onGoToLine,
     wordWrap,
@@ -552,8 +542,6 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   externalRef.current = () => void openExternal();
 
   const langId = activePath ? langIdForPath(activePath) : null;
-  // 디버그 어댑터가 있는 언어인가 — 중단점 거터를 달지 정한다.
-  const debuggable = adapterLanguageFor(activePath) != null;
   const buf = bufferRef.current;
 
   // 서버 상태를 한 낱말로 (`codePane/lspLabel.ts`).
@@ -735,13 +723,6 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               wordWrap={wordWrap}
               gitChanges={gitChanges}
               diffOriginal={diffOriginal}
-              breakpoints={activePath ? breakpointsFor(activePath) : undefined}
-              unverifiedBreakpoints={activePath ? unverifiedFor(activePath) : undefined}
-              // 디버그 못 하는 파일에는 거터를 아예 안 단다 — 눌러도 안 찍히는
-              // 이유를 그 자리에서 설명할 수 없다 (CodeEditor 가 prop 유무로 판단).
-              onToggleBreakpoint={
-                debuggable ? (line) => onToggleBreakpoint(activePath ?? "", line) : undefined
-              }
               jump={pendingJump}
               onJumpConsumed={() => setPendingJump(null)}
             />

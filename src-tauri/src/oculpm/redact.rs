@@ -45,8 +45,8 @@
 //! since 2026-10-07, also when a call goes through a wrapper (`call_llm`,
 //! `ChatBackend`, …) the ledger has not classified. Before that the scan only
 //! saw files that spelled out `llm::create`, so four sites sat outside it. The
-//! short version: the AI panel and the mobile bridge relay what the *user*
-//! typed (the promise's own exception), and the project overview reads README
+//! short version: the AI panel relays what the *user* typed (the promise's
+//! own exception), and the project overview reads README
 //! and manifest files straight off disk. Nothing agent-authored reaches a model
 //! unmasked. (The greenfield seed-goal prompt was a fourth such site until v3
 //! removed it — the wizard seeds the file-based Planner instead.)
@@ -106,7 +106,10 @@ pub const CALL_SITE_FILES: usize = 28;
 ///
 /// See the module doc's "What is not covered" and `LLM_PROMPT_SITES` in
 /// `tests/llm_prompt_ledger.rs`, which owns the per-site reasons.
-pub const EXEMPT_LLM_PROMPT_SITES: usize = 3;
+///
+/// 3 → 2 (2026-10-24): `mobile_bridge/server.rs` — 폰이 보낸 대화를 중계하던
+/// 자리가 모바일 브리지와 함께 사라졌다.
+pub const EXEMPT_LLM_PROMPT_SITES: usize = 2;
 
 /// One match recorded by [`redact_text`]. Byte offsets reference the
 /// **original** input string (pre-redaction); they are at char boundaries

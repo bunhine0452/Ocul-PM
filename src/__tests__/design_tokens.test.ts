@@ -510,7 +510,7 @@ function resolve(chain: string[]): Record<string, string> {
 }
 
 const DARK = '[data-theme="dark"]';
-/** 프리셋 → 바탕 가족. `SettingsContext.PRESET_FAMILY` 와 같은 표. */
+/** 프리셋 → 바탕 가족. 내장 테마 파일의 `family` 와 같은 표. */
 const PRESET_FAMILY: Record<string, "light" | "dark"> = {
   solarized: "light",
   sepia: "light",

@@ -13,7 +13,6 @@ import {
   serialize,
 } from "@/lib/settings";
 import { applyThemeAttrs, resolveThemeAttrs } from "@/features/theme/apply";
-import { BUILTIN_THEMES } from "@/features/theme/builtins";
 import { initThemeStore, useThemeState } from "@/features/theme/store";
 
 interface SettingsContextValue {
@@ -25,19 +24,6 @@ interface SettingsContextValue {
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
-
-// Preset themes (Solarized / Nord / …) are full palettes that layer on top of a
-// light or dark *base family*. `data-theme` carries the family — so every
-// existing `[data-theme="dark"]` rule (code editor, hljs, scrollbars, glass)
-// keeps working — while `data-preset` repaints the surfaces + accent on top
-// (tokens.css / App.css). Plain light/dark/system set no `data-preset`.
-//
-// Phase 4 부터 이 표는 **내장 테마 파일에서 유도**한다 — 프리셋이 JSON 이 되어
-// `family` 를 스스로 말하므로, 손으로 적은 사본을 하나 더 두면 갈라진다.
-// (모바일 셸 `mobile/theme.ts` 가 이 표를 그대로 쓴다.)
-export const PRESET_FAMILY: Record<string, "light" | "dark"> = Object.fromEntries(
-  BUILTIN_THEMES.map((t) => [t.metadata.id, t.family === "dark" ? "dark" : "light"]),
-);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);

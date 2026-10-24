@@ -24,7 +24,6 @@ const TAB_LABEL: Record<SettingsTab, I18nKey> = {
   oculpm: "settings.tab.oculpm",
   context: "settings.tab.context",
   automation: "settings.tab.automation",
-  mobile: "settings.tab.mobile",
   diagnostics: "settings.tab.diagnostics",
   update: "settings.tab.update",
 };
