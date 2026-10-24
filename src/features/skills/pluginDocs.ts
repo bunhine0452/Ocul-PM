@@ -1,12 +1,12 @@
 // 플러그인 탭(인앱 문서)의 데이터 — plugin/oculpm/ 이 SSOT 다.
 //
-// `description` 은 각 commands/<slug>.md 의 frontmatter description 과
+// `description` 은 각 skills/<slug>/SKILL.md 의 frontmatter description 과
 // **문자 단위로 동일**해야 한다 — plugin_docs_sync.test.ts 가 강제한다
 // (커맨드를 추가/수정하고 여기를 빼먹으면 게이트가 깨진다). `detail` 만
 // 앱 전용 부연이다. 도구 이름 목록도 같은 테스트가 MCP 서버 소스와 대조한다.
 
 export type PluginCommandDoc = {
-  /** commands/<slug>.md 의 파일명(slug). */
+  /** skills/<slug>/ 의 폴더 이름(slug) — 2026-10-24 까지 commands/<slug>.md. */
   slug: string;
   /** 사용자가 입력하는 커맨드 (복사 대상). */
   cmd: string;

@@ -1,4 +1,5 @@
 ---
+disable-model-invocation: true
 description: 이 프로젝트를 ocul-pm 추적 대상으로 초기화 (.oculpm/ + 기록 규칙 생성) — 사용자가 직접 실행하는 명시적 시작
 ---
 

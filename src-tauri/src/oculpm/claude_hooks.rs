@@ -340,7 +340,9 @@ pub enum HookSignal {
 
 pub fn apply_event(open: &mut BTreeSet<String>, ev: &HookEvent) -> HookSignal {
     match ev.hook_event_name.as_str() {
-        "SessionStart" | "Stop" => {
+        // StopFailure — 턴이 API 오류로 끝났다 (플러그인 훅, 2026-10-24). 세션은 살아
+        // 있으므로 Stop 과 같은 활동 신호다.
+        "SessionStart" | "Stop" | "StopFailure" => {
             if !ev.session_id.is_empty() {
                 open.insert(ev.session_id.clone());
             }
@@ -486,6 +488,12 @@ mod tests {
             apply_event(&mut open, &ev("SessionEnd", "ghost")),
             HookSignal::AgentEnded
         );
+        // API 오류로 끝난 턴(StopFailure)도 세션을 연다 — Stop 과 같은 활동 신호.
+        assert_eq!(
+            apply_event(&mut open, &ev("StopFailure", "s3")),
+            HookSignal::AgentActive
+        );
+        assert!(open.contains("s3"));
     }
 
     // ─── 설치/제거/드리프트 ─────────────────────────────────────────────────

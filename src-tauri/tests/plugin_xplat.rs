@@ -591,8 +591,13 @@ fn every_codex_hook_has_a_windows_variant_calling_the_same_script() {
 /// **두 플러그인의 훅 묶음은 같은 파일이다** (플랜 `v3-release`
 /// {#codex-hook-delivery} — `plugin_manifest.rs` 에서 옮겨 왔다). Codex 는 플러그인
 /// 루트의 `hooks/hooks.json` 을 관례로 읽고 그 훅이 실제로 돈다(0.153.4 실측). 갈라지면
-/// Codex 사용자만 조용히 옛 판을 쓴다. **예외 하나** — Codex 판 `hooks.json` 은
-/// Windows 변형(`commandWindows`)을 더 싣는다. 그것을 걷어내면 같아야 한다.
+/// Codex 사용자만 조용히 옛 판을 쓴다. **예외 둘** — Codex 판 `hooks.json` 은
+/// Windows 변형(`commandWindows`)을 더 싣고, Claude 판은 Codex 에 없는 이벤트
+/// ([`CLAUDE_ONLY_EVENTS`])를 더 싣는다. 그것들을 걷어내면 같아야 한다.
+/// Claude Code 에만 있는 훅 이벤트 — Codex 의 이벤트 표(developers.openai.com/codex/hooks)에
+/// 없다. `StopFailure`: 턴이 API 오류로 끝날 때 Stop 대신 온다 (2026-10-24).
+const CLAUDE_ONLY_EVENTS: &[&str] = &["StopFailure"];
+
 #[test]
 fn the_codex_plugin_ships_the_same_hook_bundle_as_the_claude_one() {
     let (claude, codex) = (claude_plugin(), codex_plugin());
@@ -604,10 +609,21 @@ fn the_codex_plugin_ships_the_same_hook_bundle_as_the_claude_one() {
             }
         }
     }
+    let mut claude_hooks = read_json(&claude.join("hooks/hooks.json"));
+    let claude_map = claude_hooks["hooks"].as_object_mut().unwrap();
+    for ev in CLAUDE_ONLY_EVENTS {
+        assert!(
+            claude_map.remove(*ev).is_some(),
+            "{ev}: Claude 판에 있어야 한다"
+        );
+        assert!(
+            codex_hooks["hooks"].get(*ev).is_none(),
+            "{ev}: Codex 에 없는 이벤트다 — 모르는 키로 훅 설정이 거부될 수 있다"
+        );
+    }
     assert_eq!(
-        codex_hooks,
-        read_json(&claude.join("hooks/hooks.json")),
-        "hooks.json 이 commandWindows 말고도 갈라졌다"
+        codex_hooks, claude_hooks,
+        "hooks.json 이 commandWindows · Claude 전용 이벤트 말고도 갈라졌다"
     );
 
     for rel in [

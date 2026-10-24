@@ -27,6 +27,6 @@ description: ocul-pm 플러그인 표면 전체 레퍼런스 카드 — 커맨�
 
 ## 훅 (자동)
 
-세션 시작/종료 이벤트 기록 · 활성 플랜 요약 주입(세션·서브에이전트) · 일지 미작성 세션 감지 + 배달 게이트(코드 변경에 일지가 없으면 세션당 1회 안내) · statusline 배지(옵인: `/statusline` 에서 `hooks/oculpm-statusline.sh` 지정)
+세션 시작/종료 이벤트 기록(API 오류로 끝난 턴 포함) · 활성 플랜 요약 주입(세션·서브에이전트) · 일지 미작성 세션 감지 + 배달 게이트(코드 변경에 일지가 없으면 세션당 1회 안내) · statusline 배지(옵인: `/statusline` 에서 `hooks/oculpm-statusline.sh` 지정)
 
 전체 문서: oculpm.com/plugin

@@ -62,7 +62,7 @@ AI 기능(AI 패널 대화, ⌘K 인라인 편집)을 쓸 때만 필요합니다
 
 기본 프로바이더를 고르고, 원하면 프로바이더별 모델을 덮어씁니다. 비우면 내장 기본값을 씁니다.
 
-- **OpenRouter** — 수백 개 모델을 OpenAI 호환으로. 모델 id 예: `openai/gpt-4o`
+- **OpenRouter** — 수백 개 모델을 OpenAI 호환으로. 모델 id 예: `openai/gpt-6-luna`
 - **NIM** — `integrate.api.nvidia.com` 의 OpenAI 호환 엔드포인트
 
 ### 폴백 체인
@@ -70,9 +70,9 @@ AI 기능(AI 패널 대화, ⌘K 인라인 편집)을 쓸 때만 필요합니다
 기본 모델 호출이 실패하면 위에서부터 차례로 재시도합니다. 한 줄에 하나씩 `provider:model` 형식입니다.
 
 ```
-openai:gpt-4o-mini
-anthropic:claude-3.5-haiku-latest
-openrouter:openai/gpt-4o
+openai:gpt-6-luna
+anthropic:claude-haiku-5-5
+openrouter:google/gemini-3.8-flash
 ```
 
 :::tip

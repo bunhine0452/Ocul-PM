@@ -36,6 +36,7 @@ owner: claude-code
 - [ ] ocul-pm.db.bak-v40 734MB 보존 정책 (며칠 뒤 정리할지) — 사용자 결정 {#carry-bak-v40}
 - [ ] shell_integration::policy 테스트 2건이 부하 중 cargo test 에서 간헐 실패 (단독·64스레드 재현 안 됨, ETXTBSY 의심) {#carry-policy-test-flake}
 - [x] 업데이트를 건너온 옛 판 PTY 호스트(실측 v3.6.0, 세션 10개)는 실행 파일이 지워져 macOS 가 데스크탑·문서 폴더 접근을 거부 — 새 터미널이 getcwd EPERM. 세션을 쥔 호스트는 교체 안 됨(`client.rs` is_replaceable). 새 세션을 현재 판 호스트로 보내는 이중 호스트 설계 필요 {#carry-ptyhost-stale-tcc}
+- [>] Codex 플러그인에 MCP 를 직접 싣기 — codex 0.162.1 실측: `.mcp.json` 은 읽지만 절대 경로일 때만 기동(`./bin/…`·`${PLUGIN_ROOT}`·`${CLAUDE_PLUGIN_ROOT}` 전부 실패). Codex 가 플러그인 상대 경로를 풀게 되면 다시 보고, 앱 설정 등록과 같은 이름 중복은 그때 정리 {#carry-codex-plugin-mcp}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -47,4 +48,5 @@ owner: claude-code
 | 2026-10-18T01:15:04+09:00 | #lane-d-vec0-repack | claude-code | ☐→x | .oculpm/journal/20261018/Refactors/0114_refactor_perf-vec0-partition-repack.md | 1953ec2c · 설치본 재측정 필요 |
 | 2026-10-24T10:24:23+09:00 | #carry-ptyhost-stale-tcc | claude-code | ☐→☐ | .oculpm/journal/20261024/Bugs/1024_bug_terminal-fit-bottom-row-clipped.md | 10-24 재현(호스트 소켓 진단 셸 ~/Desktop EPERM) · 우회: 호스트 kill |
 | 2026-10-24T10:48:09+09:00 | #carry-ptyhost-stale-tcc | claude-code | ☐→x | .oculpm/journal/20261024/Bugs/1047_bug_ptyhost-stale-exe-tcc-bundle-clone.md | 묶음 복제본+disclaim, 빈 옛 호스트 즉시 교체 · 실기기는 #eyes-ptyhost-clone |
+| 2026-10-24T12:24:34+09:00 | #carry-codex-plugin-mcp | claude-code | ☐→> | .oculpm/journal/20261024/Features_to_add/1220_feature_plugin-skills-models-refresh.md | Codex 가 플러그인 상대 경로를 못 풂 — 대기 |
 <!-- oculpm:plan-log end -->

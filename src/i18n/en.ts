@@ -572,7 +572,7 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.fallback.title": "Failover chain",
   "settings.fallback.desc": "If the primary model call fails, these are retried top to bottom. One `provider:model` per line.",
   "settings.fallback.field": "Retry in order",
-  "settings.fallback.hint": "e.g. openai:gpt-4o-mini · anthropic:claude-haiku-4-5 · openrouter:openai/gpt-4o",
+  "settings.fallback.hint": "e.g. openai:gpt-6-luna · anthropic:claude-haiku-5-5 · openrouter:google/gemini-3.8-flash",
   "settings.models.listLoading": "Loading the models this key can use…",
   "settings.models.listReady": "{n} models — pick one as you type.",
   "settings.models.listFailed": "Couldn't fetch the model list: {error}",
