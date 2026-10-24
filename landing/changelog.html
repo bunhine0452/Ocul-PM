@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.13.5)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 125개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.13.6)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 126개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.13.5)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 125개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.13.6)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 126개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.13.5</span>
+    <span class="nav-ver" data-version>v3.13.6</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -42,13 +42,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>125개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>126개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-13-6">v3.13.6</a>
       <a href="#v3-13-5">v3.13.5</a>
       <a href="#v3-13-4">v3.13.4</a>
       <a href="#v3-13-2">v3.13.2</a>
@@ -60,10 +61,22 @@
       <a href="#v3-10-0">v3.10.0</a>
       <a href="#v3-9-0">v3.9.0</a>
       <a href="#v3-8-0">v3.8.0</a>
-      <a href="#v3-7-0">v3.7.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-13-6"><a href="#v3-13-6">v3.13.6</a></h2>
+      <div class="cl-body">
+<p><b>기본 AI 모델을 지금 세대로 바꿨습니다.</b> 모델을 따로 고르지 않았다면 이제 Anthropic 은 Claude Sonnet 5.5, OpenAI 는 GPT-6 Luna, Gemini 는 3.8 Flash, OpenRouter 는 GPT-6 Luna 를 씁니다. GPT-6 Luna 는 예전 기본값(GPT-4o mini)보다 쌉니다. GPT-6 계열은 GPT-5 처럼 온도 값을 받지 않는데, 앱이 이를 몰라 GPT-6 를 고르면 대화가 거절될 수 있었던 것도 함께 고쳤습니다.</p>
+<p><b>Claude Code 플러그인을 최신 규격으로 맞췄습니다.</b></p>
+<ul><li>슬래시 커맨드 6개를 스킬 형식으로 옮겼습니다. Claude Code 문서가 새 플러그인에 권하는 형식이고, <code>/oculpm:next</code> 같은 이름은 그대로입니다. <code>/oculpm:project_init</code> 은 사용자만 실행할 수 있게 해, Claude 가 스스로 추적을 시작하지 않습니다.</li><li>턴이 API 오류로 끝나도 그 끝을 기록합니다(<code>StopFailure</code> 훅). 예전에는 그런 턴의 끝이 기록에서 빠졌습니다.</li><li>플러그인 목록에 아이콘과 「Ocul-PM」 이름이 나옵니다.</li></ul>
+<p><b>코드 맵 화면과 원격 테마 갤러리를 걷었습니다.</b> 변경 화면의 「영향 받는 파일」은 그대로입니다. 코드 맵이 빠지면서 ⌘6 부터 한 칸씩 당겨집니다 — 터미널 ⌘6, 편집기 ⌘7, 에이전트 ⌘8, AI 패널 ⌘9, 스킬 ⌘0(바뀐 번호는 한 번 안내합니다). 테마는 내장 테마·전환·파일로 가져오기와 내보내기가 그대로이고, GitHub·oculpm.com 에서 받아 오는 길만 없어졌습니다.</p>
+<p><b>오래 켜 둔 앱이 덜 바쁩니다.</b> 파일을 지울 때마다 감시가 기억해 둔 파일 목록 전체를 처음부터 훑었습니다. 큰 프로젝트에서는 감시가 한 번에 10초 넘게 멈춰 끊기기도 했습니다. 이제 지운 경로 아래만 봅니다(실측 16초 → 8ms). 프로젝트 폴더 안에 둔 git worktree 사본은 의미 검색 색인·AI 근거·로컬 히스토리에 넣지 않습니다. 실측 DB 에서 색인의 절반 남짓이 worktree 사본이나 이미 지운 worktree 의 흔적이었고, 다음 기동 때 정리됩니다.</p>
+<p><b>의존성을 올렸습니다.</b> Tauri 2.12 와 자동 업데이터 2.14(설치가 실패해도 앱이 반쯤 바뀐 채 남지 않도록 교체를 원자적으로 하고, 설치 직전에 다시 검증합니다), WAL 모드 DB 손상 버그가 고쳐진 SQLite 3.53, 특정 입력에서 극단적으로 느려지던 마크다운 파서 수정, 시간대 데이터 2025b. Claude Code·Codex 화면의 어댑터도 보안 경고가 닫힌 판(Claude 0.93 · Codex 1.13.1)으로 올렸고, 이미 설치한 어댑터도 다음 실행 때 새 판으로 맞춰집니다.</p>
+<p><b>VS Code 확장(<code>oculpm.ocul-pm</code>)을 걷었습니다.</b> 앱 바깥 표면을 줄이는 정리의 하나입니다. 설정 &gt; 통합의 「VS Code 확장」 행이 없어지고, 일지의 「편집기로 열기」는 확장이 깔려 있어도 늘 OS 기본 앱으로 엽니다. <code>oculpm://open</code> 링크는 프로젝트와 화면만 받고 일지 경로(<code>entry</code>)는 더 이상 쓰지 않습니다. 릴리스에 <code>.vsix</code> 도 붙지 않습니다. 이미 설치한 확장은 더 이상 갱신되지 않으니 VS Code 에서 지우셔도 됩니다.</p>
+<p><b>모바일 연동(베타)과 코드 화면의 디버거를 걷었습니다.</b> 둘 다 쓰임에 비해 표면이 컸습니다. 설정의 「모바일」 탭과 Tailscale 폰 서버, 코드 화면 툴바의 디버그·실행 버튼과 중단점 거터가 사라집니다. 밖에서 진행을 보려면 <code>/oculpm:board</code> 의 claude.ai 보드를 쓰세요. 이제 앱은 네트워크에서 아무것도 듣지 않습니다.</p>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-13-5"><a href="#v3-13-5">v3.13.5</a></h2>
       <div class="cl-body">

@@ -71,7 +71,13 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 <img src="landing/shots/en/05-terminal.jpg" alt="⌘J terminal dock — a terminal on any screen" />
 
-## 🚀 v3.13.5 — Desktop folders still open in the terminal after an update
+## 🚀 v3.13.6 — Lighter — five side features retired
+
+- **Five little-used side features are gone** — the mobile bridge (beta), the Code-screen debugger, the Code Map screen, the remote theme gallery and the VS Code extension. The app no longer listens on the network at all, and with Code Map gone the ⌘-numbers from ⌘6 shift by one (Terminal ⌘6 … Skills ⌘0). The Diff screen's "affected files", built-in themes and theme files stay.
+- **A long-running app is quieter** — deleting files no longer makes the watcher rescan its whole cache (measured 16 s → 8 ms), and git worktree copies inside a project stay out of semantic search and local history.
+- **Current-generation default models** (Sonnet 5.5 · GPT-6 Luna · Gemini 3.8 Flash), plugin commands as skills, Tauri 2.12 · updater 2.14 · SQLite 3.53 · security releases of the Claude Code and Codex adapters.
+
+## v3.13.5 — Desktop folders still open in the terminal after an update
 
 - **Fixed `getcwd: Operation not permitted` in the built-in terminal after an update** — the helper process that keeps your shells alive across updates outlived its own executable, and macOS then blocked its access to Desktop and Documents. It now runs from a copy of the app in the app-data folder (same signature, an APFS clone), so the permission stays. If you are seeing this now, close every open terminal and open a new one.
 

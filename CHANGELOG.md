@@ -7,7 +7,7 @@
 > (기능이 늘었으면 JSON-LD·FAQ·벤토 셀까지)도 함께 최신화해야 합니다 — 전체 순서는
 > [docs/RELEASE.md](docs/RELEASE.md).
 
-## Unreleased
+## v3.13.6
 
 **기본 AI 모델을 지금 세대로 바꿨습니다.** 모델을 따로 고르지 않았다면 이제 Anthropic 은 Claude Sonnet 5.5, OpenAI 는 GPT-6 Luna, Gemini 는 3.8 Flash, OpenRouter 는 GPT-6 Luna 를 씁니다. GPT-6 Luna 는 예전 기본값(GPT-4o mini)보다 쌉니다. GPT-6 계열은 GPT-5 처럼 온도 값을 받지 않는데, 앱이 이를 몰라 GPT-6 를 고르면 대화가 거절될 수 있었던 것도 함께 고쳤습니다.
 

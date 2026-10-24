@@ -3957,7 +3957,7 @@ dependencies = [
 
 [[package]]
 name = "ocul-pm"
-version = "3.13.5"
+version = "3.13.6"
 dependencies = [
  "agent-client-protocol",
  "async-trait",
