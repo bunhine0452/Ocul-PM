@@ -171,6 +171,60 @@ cargo test --release --test perf_baseline m5 -- --ignored --nocapture`.
 막힌 횟수는 다음 덤프 머리에 `(+N suppressed)`. 사람이 부르는 ⌃⌥⇧I 는 예산 밖.
 재현: `grep -c IME-DUMP <앱데이터>/logs/oculpm.log.<날짜>`.
 
+### 1.7 디바운서 파일 id 캐시의 Remove 가 캐시 전체를 훑는다 `{#fileid-remove-scan}`
+
+2026-10-24 · `src-tauri/src/oculpm/watcher/file_id_cache.rs`
+
+설치본(가동 4일 19시간, CPU 누계 565분 = 평균 한 코어의 8%)을 `sample 10초`로 봤다.
+바쁜 스레드 하나가 FSEvents 콜백이었고, 그 시간이 전부 `notify-debouncer-full` 의
+`retain(|p| !p.starts_with(path))` 두 개(`FileIdMap::remove_path` 104 샘플 ·
+`queues.retain` 26 샘플) 안이었다 — **Remove 이벤트 하나마다 캐시 전체를 훑는다.**
+캐시는 사전 필터 **앞**이라 Create 된 모든 경로가 쌓인다(§3 M7: 엔트리 ~190B 라
+메모리는 싸다 — 비싼 것은 지울 때다). 그 스레드는 디바운서 뮤텍스를 쥐고 있어
+이벤트가 안 나갔고, 중첩 worktree 가 있는 프로젝트의 워처를 감독관이 10-22·10-23
+두 번 "응답 없음" 으로 끊었다 (`handle_max_ms` 6,080 · 13,706).
+
+`PathBuf` 순서는 성분 단위 사전순이라 자손이 그 경로 바로 뒤에 붙는다 —
+`BTreeMap` 으로 그 구간만 걷는다. 넣기·찾기·재스캔은 `FileIdMap` 과 같고, 단위
+테스트가 같은 넣기·빼기 순서에 `FileIdMap` 과 같은 답인지 대조한다.
+
+| 캐시 크기 · 하나씩 Remove 한 수 | `FileIdMap` | 정렬 캐시 |
+|---|---|---|
+| 30,000 · 3,000 | 16,106 ms | **8.1 ms** |
+| 60,000 · 3,000 | 38,862 ms | **8.7 ms** |
+
+디버그 빌드 값이다(이 라운드는 릴리스 빌드를 만들지 않았다). `Path::starts_with` 는
+미리 최적화된 std 안이라 비율의 방향은 같다. 재현: `OCULPM_FID_N=30000 OCULPM_FID_K=3000
+cargo test --lib fileid_remove_cost -- --ignored --nocapture`.
+
+### 1.8 프로젝트 안의 연결된 git worktree 사본이 색인·히스토리에 한 벌씩 `{#idx-nested-worktree}`
+
+2026-10-24 · `src-tauri/src/indexer/worktree.rs` · `commands/project/reconcile.rs` · `oculpm/watcher_tasks.rs`
+
+라이브 DB 사본(836MB · 파일 30,476 · 청크 191,884)을 디스크와 대조했다.
+
+| 분류 | 파일 | 청크 | 본문 · 벡터 |
+|---|---|---|---|
+| 디스크에 없는 유령 | 13,026 | 64,911 (33.8%) | 54MB · ~100MB |
+| **지금 있는 worktree 6개 안** | 5,529 | 35,161 (18.3%) | 33MB · ~54MB |
+| 나머지 | 11,921 | 91,812 | 75MB · ~141MB |
+
+유령은 거의 전부 지워진 worktree(`wt/<이름>` 37개) 아래였다 — 앱이 4일 넘게 떠
+있어 기동 화해가 돌 기회가 없었고, 워처가 §1.7 로 끊길 때 그 사이 Remove 가
+사라졌다. 같은 프로젝트의 활동 줄은 ~90% 가 worktree 사본(10-22: 15,479 중 13,963),
+로컬 히스토리 302MB 중 236MB 가 그 사본의 판, sample 시각(13:30~13:39)의 이벤트는
+worktree 955 · 본 트리 179 였고 같은 10초에 ORT 작업 스레드 11개가 돌고 있었다.
+숨김 폴더(`.claude/worktrees`)는 걷기가 이미 건너뛰어 이 저장소에서는 안 보였다.
+
+판정: 폴더의 `.git` 이 **파일**이고 `gitdir:` 이 `…/worktrees/<이름>`. 서브모듈
+(`…/modules/…`)·중첩 저장소(`.git` 폴더)는 그대로, 루트 자신이 worktree 면 그 파일은
+색인한다. 걷기·워처 증분(`in_index_scope` — 경로로 색인 밖이면 곁일을 띄우지 않는다,
+예전엔 퍼밋 줄에서 DB 를 네 번 물은 뒤 버려졌다)·기동 화해·로컬 히스토리가 같은 답.
+
+기동 화해가 사본에서 걷는 양: 예전 규칙 13,026 행 · 64,911 청크 → **18,555 행 ·
+100,072 청크** (0.39s 디버그). 재현: `OCULPM_DB_SNAPSHOT=<사본> cargo test --lib
+reconcile_on_snapshot -- --ignored --nocapture`.
+
 ---
 
 ## 2. 확정 — 아직 안 고쳤다
@@ -278,6 +332,16 @@ drop 해도 남고 재로드는 +140MB 를 더 남긴다. 최적화 단계 0/1/3
 - `Pretendard-subset.woff2` 1.7MB — 모바일 브리지에서만 체감.
 - (`chunks.content`·`FileIdMap` 은 같은 날 재서 §3 으로 갔다.)
 
+### 2.6 2026-10-24 에 보고 남긴 것
+
+- **worktree 사본의 옛 히스토리 판 236MB** (`{#idx-nested-worktree}` 의 그 프로젝트).
+  새 판은 안 쌓이지만 이미 있는 판은 프로젝트 예산(512MB)이 넘칠 때 오래된 것부터
+  정리될 뿐이다. 경로가 디스크에서 사라진 판을 걷는 정리는 없다.
+- **라이브 풋프린트 1.0G 중 Malloc Small 511MB**(dirty 211 + swapped 300, 405 regions).
+  SQLite 캐시(연결 1개 · 64MB)로는 설명이 안 된다. 심볼이 벗겨진 릴리스라 누가
+  잡았는지는 `MallocStackLogging` 실행에서 다시 본다. Malloc Large 517MB 는 그 시각
+  임베더가 올라와 있던 것(02:41 로드 뒤 언로드 없음)과 맞다.
+
 ---
 
 ## 3. 기각 — 재 봤더니 아니었다
@@ -294,7 +358,11 @@ drop 해도 남고 재로드는 +140MB 를 더 남긴다. 최적화 단계 0/1/3
 | 프런트 폴링 | **기각** | `setInterval` 8곳 전부 가시성 게이트 또는 유한 재시도 |
 | `acp/` 518MB | **기각** | codex·claude-agent-sdk 어댑터 바이너리 — 정당 |
 | `chunks.content` 97MB 를 디스크 재읽기로 대체 | **기각** | 텍스트 검색이 그 열의 `LIKE` 풀스캔이다 (`search_text`, 2026-08-30 결정). 열을 빼면 검색이 없어진다 |
-| 워처 `FileIdMap` 성장 (2026-09-12, M7) | **기각** | 파일 20,000 개 Create 에 NoCache 대비 **+3.8MB** (엔트리 ~190B). `target/` 55k 가 전부 쌓여도 ~10MB. `OCULPM_WATCH_CACHE=fileid\|none cargo test --release --test perf_baseline m7 -- --ignored --nocapture` |
+| 워처 `FileIdMap` 성장 (2026-09-12, M7) | **기각** | 파일 20,000 개 Create 에 NoCache 대비 **+3.8MB** (엔트리 ~190B). `target/` 55k 가 전부 쌓여도 ~10MB. (메모리만 기각 — **지울 때의 CPU** 는 따로였다, §1.7) `OCULPM_WATCH_CACHE=fileid\|none cargo test --release --test perf_baseline m7 -- --ignored --nocapture` |
+| 임베더 로드·언로드 반복 (2026-10-24) | **기각** | 하루 4~30회. 세션 빌드 ~100ms(M6) 라 하루 3초 남짓 — 언로드가 돌려주는 ~600MB 가 더 크다. 반복의 원인 쪽(worktree 사본 증분 색인)을 §1.8 이 걷었다 |
+| 워처 사전 필터에 벤더 폴더 목록이 없다 (2026-10-24) | **기각** | 기본 `watcher.ignore` 가 `.git/`·`node_modules/`·`target/`·`dist/`·`.next/`·`build/` 를 어느 깊이에서나 막는다. ndjson 에 `.git/`·`node_modules` 경로 0 (두 프로젝트 · 4일치) |
+| 진입·셸 청크 (2026-10-24 재측정) | **유지** | 소스맵 조성: 진입 279KB 중 react-dom 181KB · bindings 26KB. 프로젝트 창의 정적 폐포 747KB(gzip 237KB) = 진입 + TabbedWindow 224KB + ShellV2 244KB(즉시 화면 4개 + 사이드바). monaco·xterm·prettier 는 정적 폐포 밖 |
+| 일지 캐시 질의 (2026-10-24) | **기각** | 프로젝트당 일지 ≤ 866행, `(project_id, workday/session_id/type)` 인덱스가 다 있다. 일지 목록은 날짜당 25개씩 그린다 |
 | `t` 누락 exhaustive-deps 18건 | **기각(무해)** | `useT()` 의 `t` 는 모듈 레벨 `t()` 에 위임하고 그쪽이 호출 시점에 언어를 읽는다. 스테일 클로저여도 현재 언어가 나온다 — 다만 **이 노이즈가 진짜 2건을 덮고 있었다** (§1.2) |
 
 ---
@@ -303,20 +371,22 @@ drop 해도 남고 재로드는 +140MB 를 더 남긴다. 최적화 단계 0/1/3
 
 이 표만 라운드마다 갱신하면 추세가 보인다.
 
-| 지표 | 2026-09-07 | 2026-09-12 | 2026-09-15 | 목표 |
-|---|---|---|---|
-| 진입 청크 (gzip) | 207 KB | **85 KB** | — | 유지 (react-dom 이 바닥) |
-| 임베딩 뒤 백엔드 풋프린트 (M6, 256청크) | — | 2.2G → **806M** (`MallocLargeCache=0`) | — | — |
-| 유휴 시 임베더 풋프린트 (M6 drop 뒤) | — | 645M → **38M** | — | 5분 유휴 언로드 |
-| DB 파일 (라이브) | — | 553MB → **434MB** (정리 후) | 673MB (dbstat: vec0 343 · chunks 154 · file_snapshots 101 — 아직 「정리」 안 누름, `#eyes-compact`) | 다음 전체 색인 뒤 ~340MB |
-| vec0 슬롯 점유율 | — | 53% → **92%** | — | 정리 시 재구축 |
-| IME 자동 덤프 / 일 | — | 최대 1,264 → **≤ 3 + 6/시간** | — | — |
-| eslint 경고 | 50 (`--max-warnings=50`) | 4 (`--max-warnings=4`) | 4 | 잔고와 상한을 붙여 뒀다 — 늘리려면 상한을 먼저 올려야 한다 |
-| clippy 경고 | 0 | 0 | 0 | 0 유지 |
-| 800줄 초과 파일 | 37 | 래칫 기준 유지 | **26** (상위 7 분할) | 늘지 않기 (래칫) |
-| 800줄 초과 줄 합 | 17,923 | — | **7,924** | 감소 |
-| AI 컨텍스트 직렬 왕복 | 4 | 4 | **2** (`{#ai-context-callsite}`) | 2 — 달성 |
-| 워처 드레인 중 `handle_event` 실제 처리 (M2c) | — | — | **32 ms / 정착 3,625 ms** · 큐 최대 577 · 버림 0 (`{#scheduling-telemetry}`) | 드레인 시간의 정체(디바운스·정착 대기)를 다음 라운드가 잰다 |
+| 지표 | 2026-09-07 | 2026-09-12 | 2026-09-15 | 2026-10-24 | 목표 |
+|---|---|---|---|---|---|
+| 진입 청크 (gzip) | 207 KB | **85 KB** | — | 88 KB (279KB 중 react-dom 181) | 유지 (react-dom 이 바닥) |
+| 임베딩 뒤 백엔드 풋프린트 (M6, 256청크) | — | 2.2G → **806M** (`MallocLargeCache=0`) | — | — | — |
+| 유휴 시 임베더 풋프린트 (M6 drop 뒤) | — | 645M → **38M** | — | — | 5분 유휴 언로드 |
+| DB 파일 (라이브) | — | 553MB → **434MB** (정리 후) | 673MB (dbstat: vec0 343 · chunks 154 · file_snapshots 101 — 아직 「정리」 안 누름, `#eyes-compact`) | 836MB (vec0 398 · chunks 243 · file_snapshots 59) — 유령 33.8% · worktree 사본 18.3% (§1.8) | 다음 전체 색인 뒤 ~340MB |
+| vec0 슬롯 점유율 | — | 53% → **92%** | — | 71% (191,884 / 271,360) | 정리 시 재구축 |
+| IME 자동 덤프 / 일 | — | 최대 1,264 → **≤ 3 + 6/시간** | — | — | — |
+| eslint 경고 | 50 (`--max-warnings=50`) | 4 (`--max-warnings=4`) | 4 | 4 | 잔고와 상한을 붙여 뒀다 — 늘리려면 상한을 먼저 올려야 한다 |
+| clippy 경고 | 0 | 0 | 0 | 0 | 0 유지 |
+| 800줄 초과 파일 | 37 | 래칫 기준 유지 | **26** (상위 7 분할) | — | 늘지 않기 (래칫) |
+| 800줄 초과 줄 합 | 17,923 | — | **7,924** | — | 감소 |
+| AI 컨텍스트 직렬 왕복 | 4 | 4 | **2** (`{#ai-context-callsite}`) | — | 2 — 달성 |
+| 워처 드레인 중 `handle_event` 실제 처리 (M2c) | — | — | **32 ms / 정착 3,625 ms** · 큐 최대 577 · 버림 0 (`{#scheduling-telemetry}`) | — | 드레인 시간의 정체(디바운스·정착 대기)를 다음 라운드가 잰다 |
+| 디바운서 캐시 Remove (캐시 3만 중 3천, 디버그) | — | — | — | 16,106 ms → **8.1 ms** (`{#fileid-remove-scan}`) | 캐시 크기와 무관 |
+| 색인 청크 중 프로젝트 안 worktree 사본 | — | — | — | 18.3% (+ 지워진 사본의 유령 33.8%) → 다음 기동 화해 뒤 **0** (`{#idx-nested-worktree}`) | 0 유지 |
 
 ---
 
