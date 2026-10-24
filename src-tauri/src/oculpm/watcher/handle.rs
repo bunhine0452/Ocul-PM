@@ -29,6 +29,7 @@ use super::classify::{
     classify_journal_op, data_area_for_path, is_agent_state_path, is_agents_noise,
     is_directory_event, short_hash_of,
 };
+use super::new_dir::{backfills_new_dirs, files_in_new_dir, NEW_DIR_BACKFILL_CAP};
 use super::{is_rules_path, is_self_suppressed, WatcherStatsInner};
 
 /// Files ≤ this byte cap get a blake3 hash; larger files leave `hash_after`
@@ -173,6 +174,24 @@ impl WatcherInner {
         // 전부 (#fs-rename-pair).
         for path in &ev.event.paths {
             self.handle_path(&ev, path).await;
+            // 리눅스: 새 폴더에 감시가 걸리기 전에 안에서 생긴 파일은 이벤트가 없다
+            // (`new_dir`). 그 파일들을 생성으로 같은 파이프라인에 태운다 — 같은 파일의
+            // 진짜 이벤트가 따로 와도 일지 캐시·색인은 같은 결과로 수렴한다.
+            if backfills_new_dirs()
+                && matches!(ev.event.kind, EventKind::Create(_))
+                && path.is_dir()
+            {
+                for file in files_in_new_dir(path, NEW_DIR_BACKFILL_CAP) {
+                    let synth = DebouncedEvent {
+                        event: notify::Event::new(EventKind::Create(
+                            notify::event::CreateKind::File,
+                        ))
+                        .add_path(file.clone()),
+                        time: ev.time,
+                    };
+                    self.handle_path(&synth, &file).await;
+                }
+            }
         }
     }
 

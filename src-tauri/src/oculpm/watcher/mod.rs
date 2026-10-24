@@ -32,6 +32,7 @@
 //! - `emit` — Tauri 이벤트 방출 헬퍼.
 //! - `classify` — 경로·이벤트 종류를 가르는 순수 술어.
 //! - `repeat` — 윈도우가 같은 쓰기를 두 번 알리는 것을 걷는 기억 (윈도우만 켠다).
+//! - `new_dir` — 리눅스에서 이벤트 없이 채워진 새 폴더의 파일을 따라잡는다.
 //! - `file_id_cache` — 디바운서의 파일 id 캐시. `FileIdMap` 과 같은 답을 내되
 //!   Remove 가 캐시 전체를 훑지 않는다.
 //!
@@ -46,11 +47,14 @@ mod fsevents;
 mod handle;
 mod hooks;
 mod journal;
+mod new_dir;
 mod repeat;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_gitignore;
+#[cfg(test)]
+mod tests_new_dir;
 #[cfg(all(test, windows))]
 mod tests_windows;
 

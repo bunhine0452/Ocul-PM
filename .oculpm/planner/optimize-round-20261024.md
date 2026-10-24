@@ -39,11 +39,12 @@ PR #90 (main 6e42ea61). 병렬 레인 5개 합류. 아래는 실기기 확인과
 - [ ] Vite 8 + @vitejs/plugin-react 6 + vitest 5 (rolldown) — 빌드 속도. 툴체인 통째 교체라 중간 위험 {#next-vite8}
 - [ ] agent-client-protocol 2.2 → 3.5 — claude 어댑터 0.94+ 가 ACP SDK 2.0(프로토콜 v2). 지금은 v1 협상으로 0.93 에 머묾, 어댑터가 v1 을 버리기 전에 {#next-acp-v2}
 - [ ] fastembed 5.17 → 7.5 (+ ort·hf-hub 짝) — 메이저 둘, 변경 내용·메모리 실측부터 {#next-fastembed7}
-- [ ] Linux E2E 「사이드카 일지 → 일지 화면 60초」 간헐 실패 1회(재실행 통과) — 감시 변경 뒤 처음, 다시 나면 inotify 경로 타이밍 조사 {#next-e2e-linux-flake}
+- [x] Linux E2E 「사이드카 일지 → 일지 화면 60초」 간헐 실패 1회(재실행 통과) — 감시 변경 뒤 처음, 다시 나면 inotify 경로 타이밍 조사 {#next-e2e-linux-flake}
 - [ ] 보류 유지(근거): TypeScript 7 — typescript-eslint 8.72 의 peer 가 `<6.1.0` · xterm 6.1 아직 beta · notify 9 rc · specta rc.27 · keyring 4 기존 키 호환 불명 {#next-hold}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
 | 2026-10-24T19:00:43+09:00 | #lanes-merged | claude-code | ☐→x | .oculpm/journal/20261024/Refactors/1900_refactor_remove-periphery-four-features.md | PR #90 → 6e42ea61 |
+| 2026-10-24T22:48:51+09:00 | #next-e2e-linux-flake | claude-code | ☐→x | .oculpm/journal/20261024/Bugs/2248_bug_linux-inotify-new-dir-backfill.md | 간헐이 아니라 inotify 새 폴더 경합 — 컨테이너 재현 70~87%→0, 새 폴더 따라잡기 |
 <!-- oculpm:plan-log end -->
