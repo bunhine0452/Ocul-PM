@@ -39,8 +39,13 @@ serde_json = "1"
 tauri-specta = { version = "2.0.0-rc.25", features = ["derive", "typescript"] }
 specta = { version = "2.0.0-rc.25", features = ["derive"] }
 specta-typescript = "0.0.12"
-rusqlite = { version = "0.37", features = ["bundled"] }
-tokio-rusqlite = "0.7"
+# 0.40 = 번들 SQLite 3.53.x — 3.50.2(0.37) 이후 WAL 리셋 DB 손상 버그(3.51.3·3.53.0)와
+# 초기화 안 된 변수 두 곳(3.50.4)이 고쳐졌다. 이 DB 는 WAL 이다(db/mod.rs).
+# fallible_uint: 0.38 부터 u64·usize 의 ToSql/FromSql 이 기본에서 빠졌다 — PRAGMA
+# page_count 등을 u64 로 읽는 자리가 있어 0.37 과 같은 동작(범위 밖이면 에러)을 켠다.
+rusqlite = { version = "0.40", features = ["bundled", "fallible_uint"] }
+# rusqlite 와 짝 — tokio-rusqlite 0.8 이 rusqlite ^0.40.1 을 문다.
+tokio-rusqlite = "0.8"
 sqlite-vec = "0.1.9"
 thiserror = "2.0.18"
 tracing = "0.1.44"
