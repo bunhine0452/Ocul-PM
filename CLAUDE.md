@@ -15,7 +15,7 @@ The periphery (code editor · LSP · DAP · terminal/PTY host · ACP chat · mob
 - **Don't build** a new screen, a new external integration, or a new long-lived process or network listener. Proposing one is fine; building it needs the user's explicit go-ahead *and* a named existing surface it retires.
 - **Do** fix, shrink, or replace what exists. A replacement ends by removing the old path, not by keeping both (cf. `native-agent-drivers` `{#drop-node}`).
 - Removal candidates and the numbers behind them: plan `external-review-2026-10-08`.
-- **Already removed:** the mobile bridge (Tailscale phone web app) and the DAP debugger (2026-10-24). Their DB table `mobile_devices` (migration 029) stays as an unused leftover — don't reuse the name.
+- **Already removed (2026-10-24):** the mobile bridge (Tailscale phone web app), the DAP debugger, the Code Map screen, the remote theme gallery (GitHub/oculpm.com theme downloads) and the VS Code extension; Notion went 2026-10-14. Leftover unused DB tables stay — `mobile_devices` (migration 029), `graph_nodes` · `graph_edges` · `symbol_relations` — don't reuse those names.
 
 ## Commands
 
