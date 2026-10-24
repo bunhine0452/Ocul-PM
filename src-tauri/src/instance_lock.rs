@@ -764,13 +764,15 @@ mod tests {
         for (address, dir) in &bad {
             let problem = session_address_problem(*address, Some(&dir.display().to_string()));
             assert!(problem.is_some(), "{address:?} {}", dir.display());
-            // 패닉 자리가 플러그인의 주소 `unwrap` 이어야 한다 — 다른 이유의 실패가 아니다.
+            // 플러그인이 맨몸으로 실패한다면 그 자리는 주소 `unwrap` 이어야 한다 — 다른 이유의
+            // 실패가 아니다. 상류가 고쳐 이제 떠도 된다(2026-10-24: single-instance 2.x 최신판이
+            // 빈 주소를 패닉 없이 넘긴다) — 이 테스트가 지키는 것은 아래 guarded 쪽이다.
             let (ok, err) = run_child("raw", *address, dir);
             let at_address = err.contains("tauri-plugin-single-instance")
                 && (err.contains("Address(") || err.contains("InvalidGUID"));
             assert!(
-                !ok && at_address,
-                "플러그인이 주소에서 패닉해야 한다 {address:?}:\n{err}"
+                ok || at_address,
+                "플러그인이 주소가 아닌 다른 이유로 실패했다 {address:?}:\n{err}"
             );
             let (ok, err) = run_child("guarded", *address, dir);
             assert!(ok, "register 를 거치면 떠야 한다 {address:?}:\n{err}");

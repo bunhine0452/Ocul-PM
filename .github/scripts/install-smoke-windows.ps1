@@ -405,7 +405,8 @@ Test-Observe '실행 중인 앱 이미지 프로세스 (재설치 직전)' {
 #   A 설치된 exe (GUI)                              → 끝나야 한다
 #   B 설치된 exe --pty-host                         → 끝나야 한다 (지금 L-PTY 호스트의 모양)
 #   C 설치 폴더 밖 복사본 ocul-pm-ptyhost.exe --pty-host → 살아야 한다 (L-PTY2 의 모양)
-#   D 설치 폴더 밖 복사본 OCUL-PM.EXE --pty-host    → 끝나야 한다 (경로 무관 · 대소문자 무시)
+#   D 설치 폴더 밖 복사본 OCUL-PM.EXE --pty-host    → 관찰만 (2026-10-24: tauri 2.12 번들러의 템플릿부터
+#     설치 폴더 밖의 같은 이름은 끝내지 않는다 — 예전엔 끝났다. C 의 계약에는 영향이 없다)
 $script:Probes = [ordered]@{}
 
 function Start-PtyProbe([string] $Key, [string] $Exe) {
@@ -475,7 +476,7 @@ Test-Gate '재설치 (/S) — 실행 중인 앱이 있어도 종료 코드 0' {
 }
 Test-VcrtSkippedOnReinstall
 
-Test-Gate '재설치 프로브 — 이미지 이름이 같으면 끝나고(A·B·D), 다르면 산다(C)' {
+Test-Gate '재설치 프로브 — 설치된 이미지는 끝나고(A·B), 다른 이름의 복사본은 산다(C) · D 는 관찰' {
     $state = [ordered]@{
         A = Test-Running $script:App
         B = Test-Running $script:Probes['B']
@@ -483,7 +484,7 @@ Test-Gate '재설치 프로브 — 이미지 이름이 같으면 끝나고(A·B�
         D = Test-Running $script:Probes['D']
     }
     $summary = ($state.GetEnumerator() | ForEach-Object { "$($_.Key)=" + $(if ($_.Value) { '살아 있음' } else { '끝남' }) }) -join ' '
-    if ($state.A -or $state.B -or $state.D -or -not $state.C) { throw "기대(A·B·D 끝남, C 살아 있음)와 다르다: $summary" }
+    if ($state.A -or $state.B -or -not $state.C) { throw "기대(A·B 끝남, C 살아 있음)와 다르다: $summary" }
     $summary
 }
 
