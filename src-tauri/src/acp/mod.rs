@@ -130,6 +130,20 @@ pub struct AcpDiagnostics {
     pub codex_ready: bool,
 }
 
+impl AcpDiagnostics {
+    /// 제공자의 어댑터가 `(고정 판과 맞는가, 무슨 판이든 깔려 있는가)`.
+    ///
+    /// 둘을 가르는 이유는 Codex 다 — 처음 설치(수백 MB)는 묻고, 이미 깐 것을 새 고정
+    /// 판으로 맞추는 것은 묻지 않는다. 설치 판정이 버전 비교라 lockfile 만 바꾼 보안
+    /// 갱신은 판을 올려야 기존 사용자에게 닿는다 (2026-10-24 zod, `adapter.rs`).
+    pub fn adapter_state(&self, provider: AcpProvider) -> (bool, bool) {
+        match provider {
+            AcpProvider::Claude => (self.adapter_ok, self.adapter_version.is_some()),
+            AcpProvider::Codex => (self.codex_adapter_ok, self.codex_adapter_version.is_some()),
+        }
+    }
+}
+
 /// 현재 머신 상태를 있는 그대로 읽는다. 쓰기 없음.
 pub async fn diagnose(app_data: &Path) -> AcpDiagnostics {
     let node = env::resolve_binary("node").await;

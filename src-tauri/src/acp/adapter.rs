@@ -91,7 +91,25 @@ pub const CODEX_PKG_NAME: &str = "codex-acp";
 /// - 승인 `_meta.claudeCode.mcpServer`, diff 블록 `_meta.jetbrains.air.diffStats`,
 ///   재개 세션 첫 턴 `model_usage` 보정은 새로 오지만 안 읽는다.
 /// - `usage-markdown`·`session-failure-extension`·`auth-status` 는 바이트 동일.
-pub const PINNED_VERSION: &str = "0.81.0";
+///
+/// 0.81.0 → 0.93.0 (2026-10-24, 보안): 옛 lockfile 에 high 둘 — 어댑터가 정확히 고정한
+/// `zod` 4.6.5(<4.6.6, 커다란 컬렉션 검증 시 메모리 소진)와 MCP SDK 아래 `body-parser`
+/// 2.3.0. zod 를 고친 첫 판이 0.90.0 이고, ACP SDK 1.x 위의 마지막 판인 0.93.0 을 골랐다
+/// (0.94.0 이 ACP SDK 2.0 메이저, 0.95.0 은 하루 된 판). 번들 SDK `0.3.280` → `0.3.300`,
+/// 새 lockfile `npm audit` 0건. 네트워크를 막고 빈 HOME 으로 띄운 `initialize`·
+/// `session/new` 실측(`docs/acp-panel/spike/acp_handshake_smoke.mjs`)과 `dist/` 대조:
+/// - `initialize` 는 `_meta` 와 `sessionCapabilities.systemPrompt.mode` 만 늘었다.
+///   `session/new` 는 모드·설정 선택지의 `_meta.kind` 가 `_meta.jetbrains.air.kind` 로
+///   옮겼고(안 읽는다) 모델 목록이 새 세대로 바뀌었다(Sonnet 5.5 · Haiku 5.5).
+/// - **0.82 의 "AIR 도구 호출 계약"** 부터 AIR 클라이언트(`_meta.jetbrains.air` 를 싣는
+///   우리)에게만 다르게 오는 것이 생겼다. 우리에게 닿는 것은 압축 메타 자리 하나 —
+///   `_meta.jetbrains.air.contextCompaction` 으로 옮겼다(`tool_meta::compaction_meta`
+///   가 두 자리를 다 본다). `tool_call_update` 의 `_meta` 는 바뀐 키만 오지만 프런트
+///   `patchTool` 이 안 온 필드를 지키므로 그대로다.
+/// - 새 `session/update` 7종(`plan_update`·`subagent_update`·`session_message`·
+///   `state_update`·`user_message`·`terminal_*`)은 `plan`·`subagents` 능력 광고 또는
+///   ACP v2 협상 뒤라 오지 않는다. 우리는 v1 을 보낸다.
+pub const PINNED_VERSION: &str = "0.93.0";
 /// Codex 어댑터. 1.8.0 → 1.13.0 (2026-09-23, `@openai/codex` ^0.152 → ^0.155.1):
 /// - 새 `notice`·`compaction_update`·`async_task_*` 는 각각 `session.notices`·
 ///   `session.compaction`·AIR `asyncTasks` 광고 뒤라 오지 않는다.
@@ -99,7 +117,13 @@ pub const PINNED_VERSION: &str = "0.81.0";
 ///   `complete` 늘 false 에 고정 영어 `uncertainty` 한 문장. (위 Claude 항목과 같은 조치)
 /// - Claude 어댑터처럼 `_auth/status_update` 로 신원을 민다 — 같은 모양이라
 ///   `auth_status.rs` 가 그대로 받는다. 로그아웃 안내만 `codex login` 으로 갈랐다.
-pub const CODEX_PINNED_VERSION: &str = "1.13.0";
+///
+/// 1.13.0 → 1.13.1 (2026-10-24, 보안): 옛 lockfile 의 `zod` 4.6.5(high)를 4.6.7 로.
+/// 판을 올린 이유는 lockfile 만 고치면 이미 깐 사용자가 재설치되지 않아서다(설치 판정이
+/// 버전 비교다). `dist/` 차이는 `@openai/codex` ^0.156.1 과 이미지 입력 형식 처리뿐,
+/// `initialize` 응답은 버전 문자열 말고 같다. 2.x 는 "AIR tool call contract" 를
+/// **깨지는 변경**으로 적은 메이저라(우리는 AIR 클라이언트다) 건너뛰었다.
+pub const CODEX_PINNED_VERSION: &str = "1.13.1";
 
 /// 앱 데이터 디렉터리 하위 설치 경로 (Claude 어댑터).
 const INSTALL_SUBDIR: &str = "acp";
@@ -274,6 +298,19 @@ pub async fn install_codex(app_data: &Path, npm: &Path, path_env: &str) -> Resul
         &CODEX_TREE,
     )
     .await
+}
+
+/// 고른 제공자의 고정 트리를 설치한다 (설정의 설치 버튼 · `acp_start` 의 자동 맞춤).
+pub async fn install_for(
+    provider: super::AcpProvider,
+    app_data: &Path,
+    npm: &Path,
+    path_env: &str,
+) -> Result<String, String> {
+    match provider {
+        super::AcpProvider::Claude => install(app_data, npm, path_env).await,
+        super::AcpProvider::Codex => install_codex(app_data, npm, path_env).await,
+    }
 }
 
 async fn install_tree(
@@ -497,6 +534,40 @@ mod tests {
                     "{path}: 설치 스크립트가 있다 — --ignore-scripts 로 깨질 수 있다"
                 );
             }
+        }
+    }
+
+    /// 고정 판이 **실제로** 돌려준 `initialize`·`session/new` 응답이 우리 크레이트
+    /// 타입으로 풀린다 (`fixtures/`, `docs/acp-panel/spike/acp_handshake_smoke.mjs`
+    /// 로 네트워크를 막고 빈 HOME 으로 받은 것. Codex 는 인증 없이 `session/new` 가
+    /// "Authentication required" 라 `initialize` 만). 모르는 태그 하나에 핸드셰이크가
+    /// 통째로 실패하는 것을 판을 올리는 커밋에서 잡는다 — 판 단언이 먼저 깨져 다시
+    /// 받게 한다.
+    #[test]
+    fn the_pinned_adapters_handshake_parses_with_our_crate() {
+        use agent_client_protocol::schema::v1::{InitializeResponse, NewSessionResponse};
+        use agent_client_protocol::schema::ProtocolVersion;
+
+        let parse = |raw: &str| -> serde_json::Value { serde_json::from_str(raw).unwrap() };
+        let claude = parse(include_str!("fixtures/claude-agent-acp.json"));
+        let codex = parse(include_str!("fixtures/codex-acp.json"));
+        for (fixture, version) in [(&claude, PINNED_VERSION), (&codex, CODEX_PINNED_VERSION)] {
+            let init: InitializeResponse =
+                serde_json::from_value(fixture["initialize"].clone()).expect("initialize");
+            assert_eq!(init.protocol_version, ProtocolVersion::V1);
+            assert_eq!(init.agent_info.expect("agentInfo").version, version);
+        }
+
+        let session: NewSessionResponse =
+            serde_json::from_value(claude["sessionNew"].clone()).expect("session/new");
+        let options = crate::acp::session::map_config_options(
+            session.config_options.as_deref().unwrap_or_default(),
+        );
+        for id in ["mode", "model"] {
+            assert!(
+                options.iter().any(|o| o.id == id && !o.choices.is_empty()),
+                "{id} 셀렉터가 비었다: {options:?}"
+            );
         }
     }
 

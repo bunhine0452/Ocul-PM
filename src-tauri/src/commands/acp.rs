@@ -54,11 +54,7 @@ pub async fn acp_install_adapter(
         .await
         .ok_or_else(|| AppError::code("acp_npm_missing"))?;
     let path_env = acp::env::effective_path().await;
-
-    match selected_provider(provider) {
-        AcpProvider::Claude => acp::adapter::install(&dir, &npm, &path_env).await?,
-        AcpProvider::Codex => acp::adapter::install_codex(&dir, &npm, &path_env).await?,
-    };
+    acp::adapter::install_for(selected_provider(provider), &dir, &npm, &path_env).await?;
     Ok(acp::diagnose(&dir).await)
 }
 
@@ -130,21 +126,21 @@ pub async fn acp_start(
     // 그때 받는 것은 어댑터만이 아니라 `@openai/codex` 의 플랫폼 바이너리까지다.
     // 클릭 한 번에 수백 MB 를 말없이 내려받는 것은 물어보고 할 일이라,
     // 화면이 설치 버튼을 띄우도록 전용 코드로 돌려보낸다.
-    let adapter_ok = match provider {
-        AcpProvider::Claude => diagnostics.adapter_ok,
-        AcpProvider::Codex => diagnostics.codex_adapter_ok,
-    };
-    if !adapter_ok && provider == AcpProvider::Codex {
+    //
+    // 다만 묻는 것은 **처음** 깔 때뿐이다 — 이미 깐 사람이 앱 업데이트로 고정 판이
+    // 바뀌면 Claude 처럼 말없이 맞춘다 (`AcpDiagnostics::adapter_state`).
+    let (adapter_ok, installed) = diagnostics.adapter_state(provider);
+    if !adapter_ok && !installed && provider == AcpProvider::Codex {
         return Err(AppError::code("acp_codex_adapter_missing"));
     }
     if !adapter_ok {
         let (npm, _) = acp::env::resolve_binary("npm")
             .await
             .ok_or_else(|| AppError::code("acp_npm_missing"))?;
-        // 여기 오는 것은 Claude 뿐이다 (Codex 는 위에서 돌아갔다).
-        acp::adapter::install(&dir, &npm, &acp::env::effective_path().await).await?;
+        let path_env = acp::env::effective_path().await;
+        acp::adapter::install_for(provider, &dir, &npm, &path_env).await?;
         diagnostics = acp::diagnose(&dir).await;
-        if !diagnostics.adapter_ok {
+        if !diagnostics.adapter_state(provider).0 {
             return Err(AppError::code("acp_adapter_install_failed"));
         }
     }
