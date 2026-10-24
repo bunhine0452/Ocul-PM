@@ -436,7 +436,7 @@ fn m5_compact_reclaims_on_live_snapshot() {
 #[test]
 #[ignore = "측정 전용 — 프로세스 하나에 설정 하나"]
 fn m6_embedding_arena_rss() {
-    use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+    use fastembed::{EmbeddingModel, TextEmbedding, TextInitOptions};
     let env_usize = |k: &str, d: usize| {
         std::env::var(k)
             .ok()
@@ -493,7 +493,7 @@ fn m6_embedding_arena_rss() {
     let cache2 = cache.clone();
     let base = rss_mb();
     let mut model = TextEmbedding::try_new(
-        InitOptions::new(EmbeddingModel::ParaphraseMLMiniLML12V2Q)
+        TextInitOptions::new(EmbeddingModel::ParaphraseMLMiniLML12V2Q)
             .with_cache_dir(cache)
             .with_max_length(max_len)
             .with_show_download_progress(false),
@@ -526,7 +526,7 @@ fn m6_embedding_arena_rss() {
     let relieved = String::from("-");
     // 두 번째 사이클 — 누수(두 배로 늚)인지 재사용(그대로)인지 가른다.
     let mut model2 = TextEmbedding::try_new(
-        InitOptions::new(EmbeddingModel::ParaphraseMLMiniLML12V2Q)
+        TextInitOptions::new(EmbeddingModel::ParaphraseMLMiniLML12V2Q)
             .with_cache_dir(cache2)
             .with_max_length(max_len)
             .with_show_download_progress(false),
@@ -615,7 +615,9 @@ fn m6b_session_footprint_by_optimization_level() {
     let has = |k: &str| opts.split(',').any(|o| o == k);
     let base = footprint();
     let t0 = Instant::now();
-    let mut b = Session::builder()
+    // ort rc.15 부터 세션은 환경을 받는다 — fastembed 7 의 `default_environment` 와 같은 모양.
+    let env = ort::init().build().unwrap();
+    let mut b = Session::builder(&env)
         .unwrap()
         .with_optimization_level(opt)
         .unwrap();

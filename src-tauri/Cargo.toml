@@ -61,7 +61,7 @@ reqwest = { version = "0.13.3", default-features = false, features = ["json", "r
 rfd = { version = "0.16", default-features = false, features = ["common-controls-v6"] }
 async-trait = "0.1.89"
 futures = "0.3.32"
-fastembed = "5.13.4"
+fastembed = "7.5.0"
 # {#hf-token} fastembed 의 try_new 는 ApiBuilder::new() 로 ~/.cache/huggingface/token 을 읽어
 # 다운로드에 Bearer 로 붙인다. 토큰 없는 빌더를 직접 쓰려고 같은 버전·같은 기능을 직접 선언
 # (fastembed 의 hf-hub-native-tls 와 동일 — 피처 통합으로 새 의존성 0).
@@ -190,7 +190,7 @@ tempfile = "3.10"
 tokio = { version = "1.52.3", features = ["test-util"] }
 # perf_baseline M6 — fastembed 가 고정한 Level3 세션과 다른 최적화 단계의 상주
 # 메모리를 비교하기 위해 세션을 직접 만든다. fastembed 의 것과 같은 버전.
-ort = { version = "=2.0.0-rc.12", default-features = false, features = ["ndarray"] }
+ort = { version = "=2.0.0-rc.15", default-features = false, features = ["ndarray"] }
 
 # 빌드 프로파일 (2026-08-11). 이전에는 프로파일 지정이 아예 없어 카고 기본값으로
 # 나갔다 — tree-sitter 5종 + fastembed/ort + tauri 를 링크하는 규모에서는 기본값이
