@@ -42,11 +42,19 @@ pub struct AcpCompaction {
     pub error: Option<String>,
 }
 
-/// `_meta.contextCompaction` 이 있으면 읽는다. 없으면 `None` — 이 메타가 없는
-/// `think` 호출은 진짜 생각이다.
+/// 압축 메타가 있으면 읽는다. 없으면 `None` — 이 메타가 없는 `think` 호출은 진짜
+/// 생각이다.
+///
+/// 자리가 둘이다. 어댑터 0.81.0 까지는 `_meta.contextCompaction` 이었고, 그 뒤
+/// (0.90.0 에서 확인, 2026-10-24 tarball 대조) AIR 클라이언트 — `initialize` 에
+/// `_meta.jetbrains.air` 를 싣는 우리 — 에게는 `_meta.jetbrains.air.contextCompaction`
+/// 으로만 오고 `claudeCode.toolName: "compact"` 도 빠진다. 옛 자리를 남기는 것은
+/// 이미 깔린 옛 어댑터가 재설치 전까지 돌 수 있어서다.
 pub(super) fn compaction_meta<T: Serialize>(meta: Option<&T>) -> Option<AcpCompaction> {
     let value = serde_json::to_value(meta?).ok()?;
-    let record = value.get("contextCompaction")?;
+    let record = value
+        .pointer("/jetbrains/air/contextCompaction")
+        .or_else(|| value.get("contextCompaction"))?;
     let int = |key: &str| record.get(key).and_then(|v| v.as_u64()).map(saturate);
     Some(AcpCompaction {
         trigger: record
@@ -124,6 +132,28 @@ mod tests {
                 duration_ms: Some(2_310),
                 error: None,
             })
+        );
+
+        // 어댑터 0.90+ 가 AIR 클라이언트에게 주는 자리 — `claudeCode` 없이 AIR 네임스페이스만.
+        let mut air =
+            ToolCallUpdate::new(ToolCallId::new("compact-2"), ToolCallUpdateFields::new());
+        air.fields.status = Some(ToolCallStatus::Completed);
+        air.meta = serde_json::from_value(serde_json::json!({
+            "jetbrains": { "air": { "version": 1, "contextCompaction": {
+                "version": 1, "trigger": "manual", "preTokens": 90_000, "postTokens": 12_000
+            } } }
+        }))
+        .expect("meta");
+        let AcpEvent::ToolUpdate { compaction, .. } =
+            map_update(&SessionUpdate::ToolCallUpdate(air))
+        else {
+            panic!("ToolUpdate 이벤트여야 한다");
+        };
+        let air = compaction.expect("AIR 자리의 압축 메타");
+        assert_eq!(air.trigger.as_deref(), Some("manual"));
+        assert_eq!(
+            (air.pre_tokens, air.post_tokens),
+            (Some(90_000), Some(12_000))
         );
 
         // 메타 없는 think 는 압축이 아니다.

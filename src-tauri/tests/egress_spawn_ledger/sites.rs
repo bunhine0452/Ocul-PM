@@ -17,7 +17,7 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         path: "acp/adapter.rs",
         func: "install_tree",
         call: "tokio_cmd(npm)",
-        reach: Reach::Network("사용자가 Claude Code·Codex 화면에서 어댑터를 처음 설치할 때 — registry.npmjs.org"),
+        reach: Reach::Network("사용자가 Claude Code·Codex 화면에서 어댑터를 처음 설치할 때, 그리고 앱 업데이트로 고정 판이 바뀐 뒤 그 화면을 처음 열 때(이미 깐 어댑터를 새 판으로 맞춘다) — registry.npmjs.org"),
         reason: "`npm ci --ignore-scripts` 가 고정 lockfile(acp-lock/, sha512 무결성)의 패키지만 받는다. 설치 스크립트는 돌지 않고 트리 밖 버전은 lockfile 이 거부한다. npm 은 resolve_binary 가 PATH 에서 찾은 사용자의 것.",
     },
     Launch {
