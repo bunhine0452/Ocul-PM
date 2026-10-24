@@ -100,11 +100,6 @@ tauri-plugin-notification = "2"
 tauri-plugin-single-instance = "2"
 
 # .oculpm/ subsystem (W1-PR1)
-# 올릴 때 함정 (2026-10-24 소스 확인): debouncer-full 0.4+ 는 `.watcher()` 가 `()` 를
-# 돌려주는 폐기 함수가 되고, 대신 쓰는 `Debouncer::watch` 가 FileIdMap 을 루트부터
-# `WalkDir(follow_links)` 로 **전부** 훑어 채운다 — node_modules·target 까지. 지금은
-# `.watcher().watch()` 라 캐시가 비어서 시작한다 (perf_baseline m7 참고). 캐시 전략
-# (NoCache / 루트 스캔을 건너뛰는 FileIdCache) 을 정하고 m7 로 재야 올릴 수 있다.
 notify = "6.1"
 notify-debouncer-full = "0.3"
 serde_yaml = "0.9"
