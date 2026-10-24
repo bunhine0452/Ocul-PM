@@ -18,9 +18,8 @@
     "lint:design": "node scripts/check-design-discipline.mjs",
     "lint:filesize": "node scripts/check-file-sizes.mjs",
     "lint:js": "eslint . --max-warnings=4",
-    "lint:extension": "pnpm -C extension check-types && pnpm -C extension lint",
     "clean:target": "node scripts/clean-target.mjs",
-    "lint": "pnpm lint:storage && pnpm lint:i18n && pnpm lint:bindings && pnpm lint:design && pnpm lint:filesize && pnpm lint:js && pnpm lint:extension"
+    "lint": "pnpm lint:storage && pnpm lint:i18n && pnpm lint:bindings && pnpm lint:design && pnpm lint:filesize && pnpm lint:js"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",

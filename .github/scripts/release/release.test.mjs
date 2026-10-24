@@ -26,7 +26,7 @@ const SIG_WIN = Buffer.from("untrusted comment: signature from tauri secret key\
 const SIG_LINUX = Buffer.from("untrusted comment: signature from tauri secret key\nLINUX").toString("base64");
 const WIN = { platform: "windows", assetName: "Ocul-PM_3.5.0_x64-setup.exe", signature: SIG_WIN };
 const LINUX = { platform: "linux", assetName: "Ocul-PM_3.5.0_amd64.AppImage", signature: SIG_LINUX };
-const MAC_ASSETS = ["latest.json", "Ocul-PM_3.5.0_aarch64.dmg", "Ocul-PM_aarch64.app.tar.gz", "Ocul-PM_aarch64.app.tar.gz.sig", "ocul-pm-0.1.0.vsix"];
+const MAC_ASSETS = ["latest.json", "Ocul-PM_3.5.0_aarch64.dmg", "Ocul-PM_aarch64.app.tar.gz", "Ocul-PM_aarch64.app.tar.gz.sig"];
 const ALL_ASSETS = [
   ...MAC_ASSETS,
   "Ocul-PM_3.5.0_x64-setup.exe",

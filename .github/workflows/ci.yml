@@ -57,21 +57,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # VS Code 확장(`extension/`)은 별도 패키지·별도 락파일이다 — 워크스페이스로
-      # 묶지 않은 이유는 루트 락파일·호이스팅을 건드려 `tauri dev` 경로에 위험을
-      # 들이지 않기 위해서. `lint:extension` 이 이 설치를 전제한다.
-      - name: Install extension dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: extension
-
-      # 확장의 순수 함수 테스트(`src/**/*.spec.ts`, vitest) — `pnpm lint` 는 확장의
-      # tsc·eslint 만 걷고 테스트는 안 돌렸다 (플랜 astra-feedback-round {#ci-ext-unit}).
-      # 몇 초에 끝난다. `vscode-test`(mocha, `src/test/**`) 는 VS Code 를 내려받아
-      # 실제 호스트에서 돌아 디스플레이(xvfb)가 필요해 넣지 않았다 — 후속.
-      - name: Test — 확장 (vitest)
-        run: pnpm test:unit
-        working-directory: extension
-
       - name: Typecheck
         run: pnpm typecheck
 
@@ -83,11 +68,9 @@ jobs:
       - name: Test — 릴리스 스크립트 (node --test)
         run: node --test .github/scripts/release/release.test.mjs .github/scripts/release/dedupe.test.mjs
 
-      # 게이트 7종: storage(localStorage 직접 접근 금지) · i18n(하드코딩 한국어) ·
-      # bindings · design · filesize 래칫 · ESLint(react-hooks 중심, 경고 상한 래칫) ·
-      # extension(확장 자체 tsc + eslint — 앞 넷은 `src/` 만 걷고, filesize 는
-      # `git ls-files` 라 확장 소스를 이미 본다).
-      - name: Lint (storage · i18n · bindings · design · filesize · eslint · extension)
+      # 게이트 6종: storage(localStorage 직접 접근 금지) · i18n(하드코딩 한국어) ·
+      # bindings · design · filesize 래칫 · ESLint(react-hooks 중심, 경고 상한 래칫).
+      - name: Lint (storage · i18n · bindings · design · filesize · eslint)
         run: pnpm lint
 
       # 번들에 실리는 의존성의 알려진 취약점 — high 이상이면 막는다. `--prod` 라
