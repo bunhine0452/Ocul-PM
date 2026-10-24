@@ -52,34 +52,19 @@ yanked = "warn"
 #   ]
 #
 # 2026-09-04 첫 실행에서 공지 4건이 잡혔다. 셋은 `cargo update` 로 닫았다
-# (crossbeam-epoch 0.9.18→0.9.20, h2 0.4.14→0.4.19). 남은 둘은 같은 크레이트이고
-# **우리가 올릴 수 없다** — 아래.
+# (crossbeam-epoch 0.9.18→0.9.20, h2 0.4.14→0.4.19). 남은 둘(quick-xml 0.39.4,
+# RUSTSEC-2026-0194/0195)은 plist 가 ^0.39 를 물어 못 올렸는데, 2026-10-24
+# `cargo update` 로 tauri 2.12.5 → plist 1.10.3 → quick-xml 0.42.0 이 되어 닫고
+# ignore 를 지웠다.
 ignore = [
-  # RUSTSEC-2026-0194 / RUSTSEC-2026-0195 — quick-xml 0.39.4.
-  # 둘 다 공격자가 준 XML 을 파싱할 때의 DoS 다(중복 속성 O(N²), 네임스페이스
-  # 선언 무제한 할당).
-  #
-  # 우리에게 닿지 않는 이유: 이 크레이트는 우리 코드가 부르지 않는다.
-  # `cargo tree -i quick-xml` = plist 1.9.0 ← tauri 2.11.2 이고, plist 는 번들
-  # 자신의 Info.plist 를 읽는 데만 쓰인다. 우리가 파싱하는 XML 중 밖에서 온
-  # 것은 없다(LLM 응답은 JSON/SSE, .oculpm 은 마크다운, git 은 텍스트).
-  #
-  # 우리가 못 올리는 이유: 수정본은 >=0.41.0 인데 plist 1.9.0 이 ^0.39 를
-  # 요구한다 — semver 비호환이라 `cargo update` 로는 안 넘어간다.
-  #
-  # 해제 조건: plist 가 quick-xml >=0.41 을 쓰는 버전을 내고 tauri 가 그것을
-  # 물면 `cargo update -p quick-xml` 로 올리고 이 두 줄을 지운다.
-  # 확인: cargo tree -i quick-xml
-  { id = "RUSTSEC-2026-0194", reason = "quick-xml <- plist <- tauri. 외부 XML 을 파싱하지 않는다. plist 가 quick-xml 0.41 을 물면 해제" },
-  { id = "RUSTSEC-2026-0195", reason = "위와 동일 크레이트·동일 경로. plist 가 quick-xml 0.41 을 물면 해제" },
-
   # RUSTSEC-2026-0367 / 0368 / 0369 — zip 4.6.1 (2026-10-18 추가).
   # 셋 다 `ZipArchive::extract` / `ZipStreamReader::extract` 가 공격자가 만든
   # 아카이브를 풀 때 SUID 비트·심링크 대상·심링크 너머 권한을 가두지 않는 문제다.
   #
   # 우리 직접 의존은 zip 9 로 올렸다(`src-tauri/Cargo.toml`). 남은 4.6.1 은
-  # `cargo tree -i zip@4.6.1 --target all` = tauri-plugin-updater 2.10.1 의
-  # **Windows 전용** 의존이고, 그 `extract` 는 `download()` 가 서명을
+  # `cargo tree -i zip@4.6.1 --target all` = tauri-plugin-updater 의
+  # **Windows 전용** 의존이고(2.14.0 도 여전히 `zip = "^4"`, 2026-10-24 crates.io
+  # 확인), 그 `extract` 는 `download()` 가 서명을
   # 검증한(updater.rs `verify_signature`) 업데이트 묶음에만 돈다 — 악성
   # 아카이브를 먹이려면 우리 서명키가 필요하다.
   #
