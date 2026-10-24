@@ -108,6 +108,9 @@ const LAUNCHERS: &[&str] = &[
     // 분리 기동 — `proc/detached.rs`(Windows `CreateProcessW`)와 편집기 셸 위임.
     "spawn_detached(",
     "CreateProcessW(",
+    // macOS 책임 분리 기동 — `proc/disclaim.rs`(posix_spawn + responsibility disclaim).
+    "spawn_disclaimed(",
+    "posix_spawn(",
     // Windows 의 OS 기본 처리기 위임 — open_url·open_native 가 지난다.
     "shell_open(",
     // 크레이트가 대신 띄우는 것.

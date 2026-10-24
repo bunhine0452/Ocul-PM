@@ -35,6 +35,8 @@ pub struct PtyHostClient {
     host_proto: AtomicU32,
     /// 이 호스트를 **조용히 갈아 치워도 되는가** — Hello 가 판단해 세운다.
     replaceable: AtomicBool,
+    /// 호스트가 **다른 판**이라고 말했다 — [`Self::emptied_since_connect`] 가 다시 물을 근거.
+    other_build: AtomicBool,
     /// 읽기 루프. 버릴 때 **여기서 소켓을 놓아야** 호스트가 EOF 를 본다.
     reader: tokio::task::JoinHandle<()>,
 }
@@ -138,6 +140,7 @@ impl PtyHostClient {
             alive,
             host_proto: AtomicU32::new(PROTO_VERSION),
             replaceable: AtomicBool::new(false),
+            other_build: AtomicBool::new(false),
             reader,
         };
 
@@ -158,6 +161,10 @@ impl PtyHostClient {
                 sessions,
             } => {
                 client.host_proto.store(proto, Ordering::SeqCst);
+                client.other_build.store(
+                    build.as_deref().is_some_and(|b| b != APP_BUILD),
+                    Ordering::SeqCst,
+                );
                 if proto != PROTO_VERSION {
                     tracing::info!(
                         target: "terminal",
@@ -197,6 +204,22 @@ impl PtyHostClient {
     /// 이 호스트를 내리고 새로 띄워도 **잃을 것이 없는가** ([`is_replaceable`]).
     pub fn is_replaceable(&self) -> bool {
         self.replaceable.load(Ordering::SeqCst)
+    }
+
+    /// 붙은 뒤에 **비어 버린** 옛 판 호스트인가 — 새 세션을 띄우기 직전에 묻는다.
+    ///
+    /// 접속 때의 판정([`Self::is_replaceable`])은 앱을 켤 때 한 번뿐이라, 앱이 켜진 채
+    /// 터미널을 다 닫아도 옛 호스트가 그대로 남아 새 세션까지 받았다. 업데이트를 건너온
+    /// 옛 호스트는 macOS 에서 보호 폴더 접근을 잃었을 수 있으므로(`stage_mac`) 빈 틈에
+    /// 갈아 치운다. 같은 판이면 묻지도 않는다(왕복 없음).
+    pub async fn emptied_since_connect(&self) -> bool {
+        if !self.other_build.load(Ordering::SeqCst) {
+            return false;
+        }
+        matches!(
+            self.request(Request::Hello).await,
+            Ok(Response::Proto { build, sessions, .. }) if is_replaceable(build.as_deref(), sessions)
+        )
     }
 
     pub async fn request(&self, req: Request) -> Result<Response, String> {
@@ -339,10 +362,65 @@ pub fn socket_candidates(app_data_dir: &Path) -> Vec<PathBuf> {
 /// 프로세스 그룹을 분리하고 stdio 를 끊는다. 시체 수거(wait)는 전용 스레드로.
 ///
 /// Windows 는 여기를 지나지 않는다 — 설치 폴더 밖의 복사본에서 띄운다 ([`super::launch`]).
+/// macOS 는 앱 묶음 복제본에서 먼저 띄운다 ([`spawn_staged_host`]). 돌려주는 값은
+/// 복제본에서 띄웠는가 — 그 호스트가 안 뜨면 부르는 쪽이 원본으로 물러선다.
 #[cfg(not(windows))]
-pub fn spawn_host_process(socket: &Path) -> Result<(), String> {
+pub fn spawn_host_process(socket: &Path) -> Result<bool, String> {
     let exe = std::env::current_exe().map_err(|e| format!("current_exe failed: {e}"))?;
-    spawn_host_from(&exe, socket)
+    #[cfg(target_os = "macos")]
+    if !STAGE_GAVE_UP.load(Ordering::SeqCst) && spawn_staged_host(&exe, socket).is_some() {
+        return Ok(true);
+    }
+    spawn_host_from(&exe, socket)?;
+    Ok(false)
+}
+
+/// 한 번 복제본에서 물러선 앱 프로세스는 다시 시도하지 않는다 — 같은 원인으로 매번
+/// 시한을 기다리게 하지 않으려고 (Windows `launch::COPY_GAVE_UP` 과 같은 규칙).
+#[cfg(target_os = "macos")]
+static STAGE_GAVE_UP: AtomicBool = AtomicBool::new(false);
+
+/// macOS — 호스트를 **앱 묶음 복제본에서, 스스로 TCC 책임 프로세스로** 띄운다.
+///
+/// 업데이트가 `/Applications` 의 묶음을 갈아 끼우면 거기서 뜬 호스트의 실행 파일이
+/// 사라지고, macOS 는 그 호스트(와 그 안의 셸)의 데스크탑·문서 폴더 접근을 거부한다
+/// (실측 2026-10-24, [`super::stage_mac`]). 복제본은 업데이트가 모르는 자리라 호스트가
+/// 사는 동안 남고, 책임을 넘기지 않으므로 판정 대상이 사라질 앱 프로세스가 아니라 그
+/// 복제본이 된다 ([`crate::proc::spawn_disclaimed`]).
+///
+/// 묶음 밖(dev·테스트)이거나 복제·기동이 실패하면 `None` — 원본으로 띄운다.
+#[cfg(target_os = "macos")]
+fn spawn_staged_host(exe: &Path, socket: &Path) -> Option<()> {
+    use super::stage_mac;
+    stage_mac::bundle_of(exe)?;
+    let dir = stage_mac::stage_dir_for(socket)?;
+    let staged = match stage_mac::stage(exe, &dir) {
+        Ok(path) => path,
+        Err(e) => {
+            tracing::warn!(target: "terminal", error = %e, "앱 묶음을 복제하지 못해 PTY 호스트를 원본으로 띄운다 — 업데이트 뒤 보호 폴더 접근이 막힐 수 있다");
+            return None;
+        }
+    };
+    let args = [std::ffi::OsStr::new("--pty-host"), socket.as_os_str()];
+    let mut child = match crate::proc::spawn_disclaimed(&staged, &args, None) {
+        Ok(child) => child,
+        Err(e) => {
+            tracing::warn!(target: "terminal", error = %e, path = %staged.display(), "복제본에서 PTY 호스트를 띄우지 못했다");
+            return None;
+        }
+    };
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    tracing::info!(target: "terminal", path = %staged.display(), "PTY 호스트를 앱 묶음 복제본에서 띄웠다 — 업데이트 뒤에도 보호 폴더 권한이 남는다");
+    let pruned = stage_mac::prune(&dir, &staged, &stage_mac::running_paths());
+    for path in &pruned.removed {
+        tracing::info!(target: "terminal", path = %path.display(), "옛 PTY 호스트 복제본을 지웠다");
+    }
+    for (path, e) in &pruned.failed {
+        tracing::warn!(target: "terminal", path = %path.display(), error = %e, "옛 PTY 호스트 복제본을 지우지 못했다");
+    }
+    Some(())
 }
 
 /// [`spawn_host_process`] 의 몸통 — 실행 파일을 받는다. 통합 테스트가 앱
@@ -439,7 +517,7 @@ fn is_replaceable(host_build: Option<&str>, sessions: Option<u32>) -> bool {
 /// 실패해도 그냥 간다. 자리를 못 비웠다면 뒤이어 뜬 호스트가 "이미 있다"고
 /// 조용히 물러나고 우리는 재시도에서 옛 호스트를 다시 만날 뿐 — 교체 이전과
 /// 같은 상태지, 더 나쁘지 않다.
-async fn retire(client: &PtyHostClient) {
+pub(crate) async fn retire(client: &PtyHostClient) {
     if let Err(e) = client.request(Request::Shutdown).await {
         tracing::warn!(target: "terminal", error = %e, "빈 옛 PTY 호스트를 내리지 못했다");
     }
@@ -498,12 +576,30 @@ pub async fn connect_or_spawn(
             .await
             .map(Some)
     }
+    // macOS 는 앱 묶음 복제본에서 — 실행 파일 해시·복제가 있어 블로킹 풀에서 띄운다.
     #[cfg(not(windows))]
     {
-        spawn_host_process(socket)?;
-        connect_spawned(socket, on_event, CONNECT_RETRIES, || None)
+        let at = socket.clone();
+        let staged = tokio::task::spawn_blocking(move || spawn_host_process(&at))
             .await
-            .map(Some)
+            .map_err(|e| format!("spawning the pty-host panicked: {e}"))??;
+        match connect_spawned(socket, on_event.clone(), CONNECT_RETRIES, || None).await {
+            Ok(c) => Ok(Some(c)),
+            Err(e) if staged => {
+                // 복제본 호스트가 시한 안에 안 떴다 — 세션이 아예 안 뜨는 것보다 업데이트
+                // 뒤 권한만 잃는 편이 낫다. 원본으로 한 번 더.
+                #[cfg(target_os = "macos")]
+                STAGE_GAVE_UP.store(true, Ordering::SeqCst);
+                tracing::warn!(target: "terminal", error = %e, "복제본 PTY 호스트가 뜨지 않아 원본으로 띄운다");
+                let exe =
+                    std::env::current_exe().map_err(|e| format!("current_exe failed: {e}"))?;
+                spawn_host_from(&exe, socket)?;
+                connect_spawned(socket, on_event, CONNECT_RETRIES, || None)
+                    .await
+                    .map(Some)
+            }
+            Err(e) => Err(e),
+        }
     }
 }
 

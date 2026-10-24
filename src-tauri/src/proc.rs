@@ -52,6 +52,10 @@ use std::ffi::OsStr;
 mod detached;
 #[cfg(windows)]
 pub use detached::{spawn_detached, Detached};
+#[cfg(target_os = "macos")]
+mod disclaim;
+#[cfg(target_os = "macos")]
+pub use disclaim::{spawn_disclaimed, Disclaimed};
 
 /// `CREATE_NO_WINDOW` (winbase.h). 콘솔은 만들되 창은 만들지 않는다.
 #[cfg(windows)]
