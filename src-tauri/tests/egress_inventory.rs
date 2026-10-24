@@ -153,12 +153,6 @@ const RUST_SITES: &[Site] = &[
         reason: "사용자가 명시적으로 요청한 플러그인 번들 내려받기. 호스트는 코드 상수라 임의 서버로 못 간다 (github.com 은 테스트 픽스처).",
     },
     Site {
-        path: "commands/themes.rs",
-        primitives: &["reqwest::"],
-        control: Control::Guarded("deeplink::validate_theme_url — https + 호스트 화이트리스트"),
-        reason: "테마 설치 내려받기. URL 은 사용자/딥링크가 주지만 THEME_HOSTS 화이트리스트를 지나야 한다 (theme_host_allowlist_stays_closed 이 잠근다).",
-    },
-    Site {
         path: "embedding.rs",
         primitives: &["ApiBuilder::from_cache"],
         control: Control::Exempt,
@@ -201,8 +195,7 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     ("integrate.api.nvidia.com", "약속의 예외 ① — NVIDIA NIM LLM 엔드포인트."),
     ("api.github.com", "약속의 예외 ② — 릴리스 목록 읽기. `src/lib/updater.ts` 의 RELEASES_API 가 소유하고 Today 카드·설정 업데이트 탭이 부른다."),
     ("codeload.github.com", "사용자가 명시적으로 요청한 플러그인 번들 zip 다운로드."),
-    ("oculpm.com", "둘을 겸한다 — 테마 화이트리스트 호스트, OpenRouter 어트리뷰션 헤더 값. (Notion OAuth 교환 브로커는 2026-10-14 Notion 연동과 함께 걷었다.)"),
-    ("raw.githubusercontent.com", "테마 설치 화이트리스트의 두 번째 호스트 (deeplink::THEME_HOSTS)."),
+    ("oculpm.com", "OpenRouter 어트리뷰션 헤더 값 — 앱이 부르는 목적지가 아니다. deeplink 테스트 픽스처이기도 하다 (걷은 `theme/install` 링크가 거절되는지). (테마 화이트리스트 호스트는 2026-10-24 원격 테마 설치와 함께, Notion OAuth 교환 브로커는 2026-10-14 Notion 연동과 함께 걷었다.)"),
     ("registry.npmjs.org", "ACP 어댑터 설치 — Claude Code·Codex 화면이 어댑터를 처음 깔 때 npm 하위 프로세스가 고정 lockfile(acp-lock/, sha512)의 패키지를 받는다. 앱 코드는 이 호스트를 직접 부르지 않는다 — 소스의 이 문자열은 lockfile 계약 테스트(acp/adapter.rs)의 단언이다. 그 하위 프로세스 자리(`install_tree` 의 `tokio_cmd(npm)`)는 판정 D(egress_spawn_ledger.rs)가 송출 가능으로 센다."),
     // ── 브라우저에 넘기는 링크 (앱이 보내지 않는다) ──
     ("github.com", "저장소·이슈·릴리스 링크 — open_url 로 OS 브라우저에 위임한다. plugins/source.rs 의 테스트 픽스처이기도 하다."),
@@ -210,11 +203,7 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     ("mcp.notion.com", "앱이 부르지 않는다 — 에이전트 CLI 설정 파일(.mcp.json/config.toml)에 **적히는 값**이고, 그 파서의 테스트 픽스처다."),
     ("www.w3.org", "SVG 네임스페이스 URI — 네트워크 요청이 아니다 (xmlns 속성)."),
     // ── 테스트 픽스처 ──
-    ("OCULPM.com:443", "deeplink 테스트 — 대소문자·포트가 붙어도 같은 판정을 받는지."),
-    ("evil.test", "deeplink 테스트 — 화이트리스트 밖 호스트가 거부되는지."),
-    ("oculpm.com@evil.test", "deeplink 테스트 — `@` 자격증명 트릭으로 화이트리스트를 속일 수 없는지."),
-    ("user:pw@oculpm.com", "deeplink 테스트 — 허용 호스트라도 자격증명을 실은 테마 URL 은 거부되는지."),
-    ("oculpm.com:8443", "deeplink 테스트 — 허용 호스트라도 기본이 아닌 포트는 거부되는지."),
+    ("evil.test", "deeplink 테스트 — owner/repo 자리에 임의 URL 을 넣은 링크가 거부되는지."),
     ("example.com", "lsp/discussion 파서 픽스처 — URI 를 파일 경로로 오인하지 않는지. plugins/install.rs 의 MCP 원격 서버 미리보기 픽스처이기도 하다."),
     ("rubygems.org", "stack_detect 픽스처 — Gemfile 내용 샘플."),
 ];
@@ -586,21 +575,6 @@ fn updater_endpoints_are_exactly_the_declared_one() {
             .is_some_and(|k| !k.is_empty()),
         "서명 검증 없는 업데이터는 임의 코드 실행 경로다"
     );
-}
-
-/// 테마 설치의 호스트 화이트리스트는 닫혀 있다 — `commands/themes.rs` 의
-/// 유일한 가드라서, 여기가 열리면 그 자리는 "임의 서버 다운로더" 가 된다.
-#[test]
-fn theme_host_allowlist_stays_closed() {
-    use ocul_pm_lib::deeplink;
-    assert_eq!(
-        deeplink::THEME_HOSTS,
-        &["oculpm.com", "www.oculpm.com", "raw.githubusercontent.com"],
-        "테마 호스트 화이트리스트가 넓어졌다"
-    );
-    assert!(deeplink::validate_theme_url("https://evil.test/t.json").is_err());
-    assert!(deeplink::validate_theme_url("http://oculpm.com/t.json").is_err());
-    assert!(deeplink::validate_theme_url("https://oculpm.com@evil.test/t.json").is_err());
 }
 
 // 하위 프로세스의 금지선 — `curl`·`wget` 기동과 git 의 네트워크 하위 명령 — 은

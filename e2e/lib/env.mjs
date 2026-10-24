@@ -114,7 +114,7 @@ export function findDb(ws) {
 
 const FIXTURE_FILES = {
   "README.md": "# e2e-fixture\n\nOcul-PM 끝단 테스트용 픽스처 프로젝트.\n",
-  // 폴더를 건너는 import 하나 — 코드 맵(폴더 보기)이 빈 화면만 찍지 않게.
+  // 폴더를 건너는 import 하나 — import 해석(변경 영향)이 빈 결과만 내지 않게.
   "src/main.ts": [
     'import { slugify } from "../lib/util";',
     "",

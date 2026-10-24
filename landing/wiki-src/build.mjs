@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // ============================================================
-// Ocul-PM 랜딩 빌더 — 위키 · 변경 이력 · 테마 갤러리 · sitemap.xml
+// Ocul-PM 랜딩 빌더 — 위키 · 변경 이력 · 개인정보 · sitemap.xml
 //
 //   landing/wiki-src/*.md                        → landing/wiki/*.html
 //   CHANGELOG.md                                 → landing/changelog.html
-//   builtin/*.json + landing/themes/*.json       → landing/themes.html
+//   (privacy 원장 · pages.mjs)                   → landing/privacy.html
 //   위 전부 + 손으로 쓴 페이지                    → landing/sitemap.xml
 //
 // 의존성 0. 문서를 고치는 사람이 알아야 하는 것은 세 걸음뿐이다:
@@ -24,7 +24,7 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CALLOUT_LABELS, esc, parseFrontmatter, render, validate } from "./md.mjs";
-import { buildChangelog, buildPrivacy, buildThemes } from "./pages.mjs";
+import { buildChangelog, buildPrivacy } from "./pages.mjs";
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const OUT = join(SRC, "..", "wiki");
@@ -238,14 +238,12 @@ for (const loc of LOCALES) {
 console.log(`${total} pages → landing/wiki/`);
 
 // ── 문서 페이지 (위키 밖) ──────────────────────────────────
-// 변경 이력과 테마 갤러리는 소스가 위키가 아니다 (CHANGELOG.md · 테마 JSON).
+// 변경 이력과 개인정보는 소스가 위키가 아니다 (CHANGELOG.md · pages.mjs).
 // 그래도 **여기서** 굽는다 — sitemap 을 쓰는 곳이 하나여야 셋이 어긋나지 않는다.
 const changelog = buildChangelog(ROOT);
 console.log(
   `built changelog.html (릴리스 ${changelog.count}개, 최신 ${changelog.latest}, lastmod ${changelog.lastmod})`,
 );
-const themes = buildThemes(ROOT);
-console.log(`built themes.html (내장 ${themes.builtins} + 배포 ${themes.community})`);
 buildPrivacy(ROOT);
 console.log("built privacy.html");
 
@@ -320,7 +318,6 @@ const STATIC_URLS = [
   // 릴리스마다 갱신되는 유일한 면 — `changefreq: daily` 는 여기 하나뿐이다.
   // lastmod 는 CHANGELOG.md 의 마지막 커밋 날짜라 손으로 관리하지 않는다.
   { loc: "/changelog", lastmod: changelog.lastmod, changefreq: "daily", priority: "0.8" },
-  { loc: "/themes", lastmod: "2026-09-02", changefreq: "weekly", priority: "0.7" },
   { loc: "/report-card", lastmod: "2026-10-04", changefreq: "monthly", priority: "0.6" },
   { loc: "/privacy", lastmod: "2026-09-02", changefreq: "monthly", priority: "0.6" },
 ];

@@ -2,17 +2,17 @@
 // 랜딩 문서 페이지 생성기 (Osaurus 라운드 Phase 8)
 //
 //   CHANGELOG.md                    → landing/changelog.html
-//   src/features/theme/builtin/*.json + landing/themes/*.json
-//                                   → landing/themes.html
+//   (privacy 원장)                   → landing/privacy.html
 //
 // 손으로 쓰는 페이지(`privacy.html` · `plugin.html`)와 **같은 셸**을 쓴다 —
 // nav/footer 가 페이지마다 다르면 사이트가 아니라 문서 뭉치가 된다.
 //
-// 왜 생성하는가: 변경 이력은 릴리스마다 바뀌고 테마는 PR 로 늘어난다. 손으로
-// 옮겨 적으면 반드시 어긋나고, 어긋난 쪽은 언제나 웹이다.
+// 왜 생성하는가: 변경 이력은 릴리스마다 바뀐다. 손으로 옮겨 적으면 반드시
+// 어긋나고, 어긋난 쪽은 언제나 웹이다. (테마 갤러리 `/themes` 는 2026-10-24
+// 원격 테마 설치와 함께 걷었다 — vercel.json 이 옛 주소를 위키로 보낸다.)
 // ============================================================
 
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { esc, render } from "./md.mjs";
@@ -35,7 +35,6 @@ const NAV_LINKS = [
   ["/keynote", "키노트"],
   ["/wiki", "위키"],
   ["/changelog", "변경 이력"],
-  ["/themes", "테마"],
   ["/plugin", "플러그인"],
 ];
 
@@ -44,7 +43,6 @@ const FOOTER_LINKS = [
   ["/wiki", "위키"],
   ["/plugin", "플러그인"],
   ["/changelog", "변경 이력"],
-  ["/themes", "테마"],
   ["/privacy", "개인정보"],
 ];
 
@@ -241,251 +239,6 @@ ${body}`,
   return { count: releases.length, latest: releases[0].version, lastmod: changelogDate(root) };
 }
 
-// ── /themes ────────────────────────────────────────────────
-/** `[data-preset]` 밖의 가족 기본값 — 부분 지정 테마의 나머지 색. */
-export function familyDefaults(css) {
-  const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "");
-  const block = (selector) => {
-    const head = `${selector} {`;
-    const start = css.indexOf(head);
-    if (start < 0) throw new Error(`tokens.css 에 ${selector} 블록이 없습니다`);
-    const end = css.indexOf("}", start);
-    const out = {};
-    for (const decl of strip(css.slice(start + head.length, end)).split(";")) {
-      const idx = decl.indexOf(":");
-      if (idx < 0) continue;
-      const key = decl.slice(0, idx).trim();
-      const value = decl.slice(idx + 1).trim();
-      if (key.startsWith("--") && value) out[key] = value;
-    }
-    return out;
-  };
-  return { light: block(":root"), dark: block('[data-theme="dark"]') };
-}
-
-const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
-
-/** WCAG 상대 휘도. 불투명 hex 만 — 반투명은 배경에 얹혀야 정해진다. */
-function luminance(color) {
-  const hex = String(color).trim().match(/^#([0-9a-fA-F]{6})$/);
-  if (!hex) return null;
-  const n = parseInt(hex[1], 16);
-  const lin = (c) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
-}
-
-/** 카드에 찍는 본문 대비. 테스트가 4.5:1 을 막지만, **숫자를 보여 주면** 고르는
- *  쪽이 스스로 판단한다 — 눈이 아픈 테마를 받아 놓고 이유를 모르는 일이 없게. */
-function contrastRatio(fg, bg) {
-  const a = luminance(fg);
-  const b = luminance(bg);
-  if (a === null || b === null) return null;
-  const [hi, lo] = a > b ? [a, b] : [b, a];
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-const swatch = (token, value) =>
-  `<span title="${esc(token)} · ${esc(value)}" style="background:${value}"></span>`;
-
-/** 미리보기가 쓰는 CSS 변수 — 인라인 스타일 한 줄로 카드 전체를 칠한다. */
-const PREVIEW_VARS = [
-  ["win", "--bg-window"],
-  ["side", "--bg-sidebar"],
-  ["content", "--bg-content"],
-  ["card", "--bg-card"],
-  ["inset", "--bg-inset"],
-  ["t", "--text"],
-  ["t2", "--text-2"],
-  ["t3", "--text-3"],
-  ["a", "--accent"],
-  ["a-soft", "--accent-soft"],
-  ["oa", "--text-on-accent"],
-  ["bd", "--border-card"],
-  ["sep", "--sep-strong"],
-  ["ok", "--ok"],
-  ["warn", "--warn"],
-  ["danger", "--danger"],
-];
-
-/** 스와치 줄 — 배경·글자·강조·상태색을 한 줄에. */
-const SWATCH_TOKENS = [
-  "--bg-window",
-  "--bg-card",
-  "--text",
-  "--text-2",
-  "--accent",
-  "--ok",
-  "--warn",
-  "--danger",
-];
-
-/**
- * 갤러리 카드 하나. `install` 이 있으면 딥링크 버튼이 붙는다.
- *
- * 미리보기는 **색 견본이 아니라 앱의 축소판**이다 — 창틀·사이드바·일지 카드·
- * diff 줄·강조 버튼까지, 실제 화면이 그 색을 쓰는 자리에 그대로 얹는다. 색을
- * 고를 때 궁금한 것은 "이 초록이 예쁜가" 가 아니라 "내 화면이 이래도 되는가"다.
- */
-function themeCard(theme, defaults, install) {
-  const fam = theme.family === "light" ? defaults.light : defaults.dark;
-  const tok = (name) => theme.tokens?.[name] ?? fam[name] ?? "#000";
-  const vars = PREVIEW_VARS.map(([k, t]) => `--th-${k}:${tok(t)}`).join(";");
-  const swatches = SWATCH_TOKENS.map((n) => swatch(n, tok(n))).join("");
-  const author = theme.metadata.author || "익명";
-  const count = Object.keys(theme.tokens ?? {}).length;
-  const ratio = contrastRatio(tok("--text"), tok("--bg-content"));
-  const famLabel = theme.family === "light" ? "라이트" : "다크";
-  const badge = install ? "" : `<span class="th-tagline">앱 내장</span>`;
-  const facts = [
-    esc(author),
-    `${count}색 지정`,
-    ratio ? `<span class="ratio" title="--text / --bg-content 대비 (WCAG AA 는 4.5:1)">본문 대비 ${ratio.toFixed(1)}:1</span>` : null,
-  ]
-    .filter(Boolean)
-    .join('<span class="dot">·</span>');
-  const foot = install
-    ? `        <div class="pg-actions">
-          <a class="pg-btn primary" href="oculpm://theme/install?url=${encodeURIComponent(install.url)}">앱에서 가져오기</a>
-          <a class="pg-btn ghost" href="${install.href}" download>.json 내려받기</a>
-        </div>`
-    : `        <p class="th-note">설치하면 이미 있습니다 — <b>설정 → 모양</b>에서 고르세요.</p>`;
-  return `      <article class="th-card" data-family="${theme.family}">
-        <div class="th-prev" style="${vars}">
-          <div class="th-win">
-            <div class="th-top"><i class="d1"></i><i class="d2"></i><i class="d3"></i><span class="th-crumb"></span></div>
-            <div class="th-body">
-              <div class="th-side">
-                <span class="th-nav on"></span>
-                <span class="th-nav"></span>
-                <span class="th-nav"></span>
-                <span class="th-nav sm"></span>
-              </div>
-              <div class="th-main">
-                <div class="th-hd"><span class="th-h1"></span><span class="th-chip"></span></div>
-                <div class="th-entry">
-                  <span class="th-tag"></span>
-                  <span class="th-l l1"></span>
-                  <span class="th-l l2"></span>
-                </div>
-                <div class="th-rows"><span class="th-row add"></span><span class="th-row del"></span></div>
-                <div class="th-cta"><span class="th-btn"></span><span class="th-ghost"></span></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="th-meta">
-          <div class="th-head">
-            <h3>${esc(theme.metadata.name)}</h3>
-            <span class="th-fam" data-fam="${theme.family}">${famLabel}</span>
-            ${badge}
-          </div>
-          <p class="th-facts">${facts}</p>
-          <div class="th-sw">${swatches}</div>
-        </div>
-${foot}
-      </article>`;
-}
-
-/** 라이트/다크 필터. 테마가 늘면 갤러리는 목록이 아니라 **고르는 자리**가 된다. */
-function filterBar(list) {
-  const dark = list.filter((t) => t.family === "dark").length;
-  const light = list.length - dark;
-  const btn = (key, label, n, on) =>
-    `<button type="button" class="th-f${on ? " on" : ""}" data-filter="${key}" aria-pressed="${on}">${label}<span>${n}</span></button>`;
-  return `    <div class="th-filter">
-      ${btn("all", "전체", list.length, true)}
-      ${btn("dark", "다크", dark, false)}
-      ${btn("light", "라이트", light, false)}
-    </div>`;
-}
-
-const THEME_FILTER_JS = `  // 라이트/다크 필터 — 갤러리마다 독립이라 버튼이 속한 섹션만 건드린다.
-  document.querySelectorAll('.th-filter').forEach(function (bar) {
-    var grid = bar.parentElement.querySelector('.th-grid');
-    if (!grid) return;
-    bar.addEventListener('click', function (e) {
-      var btn = e.target.closest('.th-f');
-      if (!btn) return;
-      var want = btn.getAttribute('data-filter');
-      bar.querySelectorAll('.th-f').forEach(function (b) {
-        var on = b === btn;
-        b.classList.toggle('on', on);
-        b.setAttribute('aria-pressed', String(on));
-      });
-      grid.querySelectorAll('.th-card').forEach(function (card) {
-        card.hidden = want !== 'all' && card.getAttribute('data-family') !== want;
-      });
-    });
-  });`;
-
-export function buildThemes(root) {
-  const version = appVersion(root);
-  const css = readFileSync(join(root, "src/styles/tokens.css"), "utf8");
-  const defaults = familyDefaults(css);
-
-  const builtinDir = join(root, "src/features/theme/builtin");
-  const builtins = readdirSync(builtinDir)
-    .filter((f) => f.endsWith(".json"))
-    .map((f) => readJson(join(builtinDir, f)))
-    .sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
-
-  const communityDir = join(root, "landing/themes");
-  const community = readdirSync(communityDir)
-    .filter((f) => f.endsWith(".json"))
-    .map((f) => ({ file: f, theme: readJson(join(communityDir, f)) }))
-    .sort((a, b) => a.theme.metadata.name.localeCompare(b.theme.metadata.name));
-
-  const cards = (list) => `    <div class="th-grid">
-${list.join("\n")}
-    </div>`;
-
-  const page = shell({
-    version,
-    slug: "/themes",
-    active: "/themes",
-    title: "테마 갤러리 — Ocul-PM",
-    desc: `Ocul-PM 의 색을 고르고 만듭니다. 배포 테마 ${community.length}종과 내장 ${builtins.length}종을 실제 화면 축소판으로 미리 보고, 링크 한 번으로 앱에 가져옵니다. 테마는 JSON 한 장이라 PR 로 기여할 수 있습니다.`,
-    hero: hero(
-      "Themes",
-      "색은 파일입니다.",
-      `테마는 CSS 변수 이름을 그대로 쓰는 <b>JSON 한 장</b>입니다 — 내장 ${builtins.length}종도 같은 형식이라 <b>내장이 곧 예제</b>입니다. 만들고, 내보내고, 주고받고, PR 로 여기에 실을 수 있습니다.`,
-    ),
-    script: THEME_FILTER_JS,
-    body: `    <section class="pg-sec">
-      <h2 id="community">배포 테마 <span class="th-count">${community.length}</span></h2>
-      <p>앱에 들어 있지 않은 테마입니다. <b>가져오기</b>를 누르면 앱이 열리고 <b>확인 창</b>이 뜹니다 — 승인하기 전에는 아무것도 바뀌지 않고, 가져와도 <b>지금 쓰는 테마는 그대로</b>입니다 (갤러리에 한 장 늘어날 뿐입니다). 앱이 없다면 <code>.json</code> 을 내려받아 두었다가 <b>설정 → 모양 → 가져오기</b> 로 열어도 같습니다.</p>
-${filterBar(community.map(({ theme }) => theme))}
-${cards(community.map(({ file, theme }) => themeCard(theme, defaults, { url: `https://oculpm.com/themes/${file}`, href: `/themes/${file}` })))}
-      <div class="pg-quiet">
-        <b>기여하기</b> — 테마 파일 한 장을 <code>landing/themes/</code> 에 올리는 PR 을 보내 주세요.
-        앱의 <b>설정 → 모양</b>에서 테마를 만들고 <b>내보내기</b> 하면 그대로 쓸 수 있는 파일이 나옵니다.
-        저장소 테스트가 <b>스키마·색 값·본문 대비</b>를 자동으로 검사하므로, 통과하면 다음 배포 때 이 페이지에 실립니다 —
-        <a href="https://github.com/bunhine0452/Ocul-PM/tree/main/landing/themes" target="_blank" rel="noreferrer">landing/themes/</a> ·
-        <a href="/wiki/settings">테마 만들기 문서 →</a>
-      </div>
-    </section>
-
-    <section class="pg-sec">
-      <h2 id="builtin">앱 내장 <span class="th-count">${builtins.length}</span></h2>
-      <p>설치하면 바로 있는 테마입니다. 가져올 것이 없습니다 — <b>설정 → 모양</b>에서 고르거나, <b>복제해서 편집</b>으로 자기 테마의 출발점으로 씁니다.</p>
-${cards(builtins.map((t) => themeCard(t, defaults, null)))}
-    </section>
-
-    <section class="pg-sec">
-      <h2 id="format">형식</h2>
-      <p>테마가 칠할 수 있는 것은 <b>정해진 색 토큰 목록</b>뿐입니다. 파일에 다른 무엇이 적혀 있어도 화면에 새지 않고, 값은 <code>#hex</code> · <code>rgb()</code> · <code>rgba()</code> · <code>hsl()</code> 만 받습니다. <b>적지 않은 색은 건드리지 않습니다</b> — 배경만 다섯 줄 적은 테마도 온전한 테마이고 나머지는 밝게/어둡게 기본값을 물려받습니다.</p>
-      <p>강조 계열(<code>--accent*</code>)을 <b>하나도</b> 적지 않으면 사용자가 고른 강조색이 그대로 남습니다. 색 하나 바꾸려다 강조색을 잃지 않도록 한 규칙입니다.</p>
-      <p>카드에 적힌 <b>본문 대비</b>는 <code>--text</code> 와 <code>--bg-content</code> 의 WCAG 대비율입니다. 저장소 테스트가 <b>4.5:1 미만인 테마를 막으므로</b>, 여기 실린 테마는 전부 본문을 읽을 수 있습니다.</p>
-    </section>`,
-  });
-
-  writeFileSync(join(root, "landing", "themes.html"), page);
-  return { builtins: builtins.length, community: community.length };
-}
-
 // ── /privacy ───────────────────────────────────────────────
 // D6: 텔레메트리를 도입하지 않는다. 대신 **무엇이 나가고 무엇이 절대 나가지
 // 않는지**를 목록으로 못박는다 — 자동화가 배경에서 LLM 을 부르게 된 이상
@@ -517,7 +270,7 @@ export function buildPrivacy(root) {
             <li><b>LLM 요청</b> — AI 패널에 묻거나 자동화가 돌 때. <b>당신이 고른 프로바이더</b>로만 갑니다 (Anthropic · OpenAI · Google · OpenRouter · NVIDIA NIM …). 우리를 거치지 않습니다 — 중계 서버가 없습니다.</li>
             <li><b>앱 안 Claude Code · Codex</b> — 그 화면에서 대화할 때 그 에이전트가 <b>당신의 구독 자격으로</b> 자기 프로바이더(Anthropic · OpenAI)와 하는 통신. 처음 쓸 때 한 번, 어댑터를 <code>registry.npmjs.org</code> 에서 받습니다 — 버전과 해시가 고정된 목록대로만 받고, 하나라도 다르면 설치를 멈춥니다.</li>
             <li><b>업데이트 확인</b> — 앱 시작과 수동 확인 시 <code>github.com</code> 의 릴리스 파일 한 장. 보내는 것은 요청 그 자체뿐입니다.</li>
-            <li><b>GitHub 조회 · 테마</b> — 과거 패치노트(<code>api.github.com</code>), 플러그인·스킬 번들 내려받기(<code>codeload.github.com</code>), 테마 파일(<code>raw.githubusercontent.com</code> 또는 테마 갤러리 <code>oculpm.com</code>). 눌렀을 때만.</li>
+            <li><b>GitHub 조회</b> — 과거 패치노트(<code>api.github.com</code>), 플러그인·스킬 번들 내려받기(<code>codeload.github.com</code>). 눌렀을 때만. (테마는 받아오지 않습니다 — 파일로 가져오기만 합니다.)</li>
             <li><b>임베딩 모델 최초 1회</b> — 의미 검색을 처음 켤 때 <code>huggingface.co</code> 에서 모델 파일을 받아 <b>기기에 저장</b>합니다. 그 뒤로는 검색이 전부 오프라인이고, 코드가 모델에 <b>올라가지 않습니다</b> — 모델이 내려옵니다.</li>
           </ul>
           <p>여기에 더해, <b>앱이 당신 대신 띄우는 도구</b>는 그 도구 자신의 통신을 합니다 — 터미널에서 친 명령, 새 프로젝트 마법사의 템플릿 생성기(<code>pnpm create vite</code> · <code>npx create-next-app</code> 이 npm 에서 받습니다), 신뢰한 프로젝트의 언어 서버, 디버그하는 프로그램. 앱이 띄우는 하위 프로세스는 자리마다 「송출 가능 / 로컬」로 분류해 원장에 묶어 두었습니다.</p>
@@ -573,7 +326,7 @@ export function buildPrivacy(root) {
 
     <section class="pg-sec">
       <h2 id="english">English summary</h2>
-      <p>Ocul-PM is local-first: no account, no server of ours, <b>no telemetry and no crash reporting</b>. Exactly five kinds of outbound connection exist: (1) LLM requests, sent directly to <b>the provider you chose</b> — never through us; (2) Claude Code and Codex inside the app — their own provider traffic under your subscription, plus a one-time adapter download from <code>registry.npmjs.org</code> from a version- and hash-pinned list; (3) update checks against GitHub releases; (4) GitHub fetches for patch notes and plugin bundles, and theme files from GitHub or the <code>oculpm.com</code> gallery, only when you click; (5) a one-time embedding-model download from <code>huggingface.co</code> the first time you enable semantic search — the model comes down, your code never goes up. Tools the app launches for you do their own networking: commands you type in the terminal, the new-project wizard's template generators (<code>pnpm create vite</code> · <code>npx create-next-app</code> fetch from npm), language servers in a project you trusted, and the program you debug.</p>
+      <p>Ocul-PM is local-first: no account, no server of ours, <b>no telemetry and no crash reporting</b>. Exactly five kinds of outbound connection exist: (1) LLM requests, sent directly to <b>the provider you chose</b> — never through us; (2) Claude Code and Codex inside the app — their own provider traffic under your subscription, plus a one-time adapter download from <code>registry.npmjs.org</code> from a version- and hash-pinned list; (3) update checks against GitHub releases; (4) GitHub fetches for patch notes and plugin bundles, only when you click; (5) a one-time embedding-model download from <code>huggingface.co</code> the first time you enable semantic search — the model comes down, your code never goes up. Tools the app launches for you do their own networking: commands you type in the terminal, the new-project wizard's template generators (<code>pnpm create vite</code> · <code>npx create-next-app</code> fetch from npm), language servers in a project you trusted, and the program you debug.</p>
       <p>Never leaves the machine: your journal entries (except what you explicitly ask the AI about), everything under <code>.oculpm/</code>, your source code (except snippets you send with a question), API keys (OS keychain only), usage statistics and crash reports (<b>not collected at all</b>). Background automation is off by default, runs only once this device allows it (a repository's settings alone never turn it on), requires its own model slot so it cannot bill you silently, and logs every firing. The core is MIT-licensed — count the outbound calls yourself with <code>rg -n 'https://' src-tauri/src</code>.</p>
     </section>`,
   });

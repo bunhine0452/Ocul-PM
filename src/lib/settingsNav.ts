@@ -15,7 +15,6 @@ export type SettingsTabId =
   | "llm"
   | "code"
   | "indexing"
-  | "graph"
   | "data"
   | "oculpm"
   | "automation"

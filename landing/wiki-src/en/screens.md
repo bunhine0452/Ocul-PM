@@ -2,7 +2,7 @@
 title: Screen Tour
 desc: What each screen in the sidebar does — from Today to the code editor, on one page.
 order: 3
-updated: 2026-08-21
+updated: 2026-10-24
 ---
 
 Ocul-PM looks like a lot of screens, but it's really **two groups**. The upper "record" group is where what agents did piles up; the lower "tools" group is for digging through code alongside those records.
@@ -27,15 +27,14 @@ Journal and Planner are the two pillars — see [Work Journal](/wiki/en/journal)
 | Screen | Key | What it does |
 |---|---|---|
 | **Search** | `⌘5` | Semantic · Symbols · Exact match — three modes |
-| **Code Map** | `⌘6` | File and symbol dependency graph. How far a change reaches |
-| **Terminal** | `⌘7` | A real shell rooted in the project |
-| **Editor** | `⌘8` | The in-app editor (Monaco — VS Code's own editor) |
-| **Agents** | `⌘9` | Claude Code and Codex running inside the app ([integration](/wiki/en/claude-code)) |
-| **AI panel** | `⌘0` | Chat with several LLM providers, including planner action proposals |
-| **Skills & Rules** | — | Everything injected into agents, in one place |
+| **Terminal** | `⌘6` | A real shell rooted in the project |
+| **Editor** | `⌘7` | The in-app editor (Monaco — VS Code's own editor) |
+| **Agents** | `⌘8` | Claude Code and Codex running inside the app ([integration](/wiki/en/claude-code)) |
+| **AI panel** | `⌘9` | Chat with several LLM providers, including planner action proposals |
+| **Skills & Rules** | `⌘0` | Everything injected into agents, in one place |
 
 :::tip
-`⌘J` pops the **terminal dock** over whatever screen you're on. No need to navigate to Terminal (`⌘7`) — handy for typing commands while reading an entry.
+`⌘J` pops the **terminal dock** over whatever screen you're on. No need to navigate to Terminal (`⌘6`) — handy for typing commands while reading an entry.
 :::
 
 ## Code Search — the three modes
@@ -47,14 +46,6 @@ Journal and Planner are the two pillars — see [Work Journal](/wiki/en/journal)
 | **Exact match** | Chasing a typo, constant, or string | The literal string |
 
 Semantic indexing is **entirely local** — code never leaves the machine. A project is indexed once when first opened, then only changed files are refreshed. By default it scans code only; turn on **Include docs** to pull `.md` and `.txt` into results.
-
-## Code Map — what it's for
-
-A graph of what calls what, across files and symbols. Three uses:
-
-- **Understanding an unfamiliar repo** — modules cluster automatically
-- **Tracing calls** — which functions a file actually calls, at symbol granularity
-- **Blast radius** — walk backwards from a file you just changed to see what might wobble
 
 ## Discussions
 

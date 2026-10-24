@@ -304,9 +304,6 @@ use crate::commands::{
     // first-record-loop — 대화별 첫 일지 귀속 원장 (Today 첫 기록 카드)
     first_record_ledger,
     get_change_impact,
-    get_code_graph,
-    get_file_calls,
-    get_file_symbols,
     // G2 — Project Overview + Daily Brief
     get_window_tabs,
     git_graph,
@@ -534,7 +531,6 @@ use crate::commands::{
     theme_delete,
     theme_export,
     theme_import,
-    theme_import_url,
     theme_list,
     theme_save,
     write_to_pty,
@@ -587,7 +583,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             theme_save,
             theme_delete,
             theme_import,
-            theme_import_url,
             theme_export,
             system_accent,
             set_project_theme,
@@ -625,10 +620,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             search_chunks,
             search_text,
             search_symbols,
-            get_file_symbols,
-            get_code_graph,
             get_change_impact,
-            get_file_calls,
             clear_project_index,
             // Planner Upgrade (PR-PLN 0/1) — file-based Plan read + write
             plan_list,

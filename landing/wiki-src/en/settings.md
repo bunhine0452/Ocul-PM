@@ -1,11 +1,11 @@
 ---
 title: Settings
-desc: Themes and presets, text size, API keys and fallback chains, indexing and RAG, graph, diagnostics and updates.
+desc: Themes and presets, text size, API keys and fallback chains, indexing and RAG, diagnostics and updates.
 order: 13
-updated: 2026-08-21
+updated: 2026-10-24
 ---
 
-`⌘,` opens it. Eight tabs, mixing things you set once with things you may never open.
+`⌘,` opens it. Seven tabs, mixing things you set once with things you may never open.
 
 | Tab | When to open it |
 |---|---|
@@ -13,7 +13,6 @@ updated: 2026-08-21
 | **LLM** | Only for AI features — keys, models, fallbacks |
 | **ocul-pm** | Managing agent rules, plugin install instructions |
 | **Indexing & RAG** | When search isn't behaving as expected |
-| **Graph** | When the code map is too dense or too sparse |
 | **Data** | Export and cleanup |
 | **Diagnostics** | When reporting a problem |
 | **Updates** | Manual check, past release notes |
@@ -96,12 +95,6 @@ The tab to open when code search isn't behaving.
 :::warn
 Scan setting changes take effect **at the next reindex**. Rebuild the index to apply them now.
 :::
-
-## Graph
-
-Defaults for the code map — whether isolated files show by default, and the **auto-group threshold** (directories with at least this many files become collapsible groups).
-
-In a big repo, lower the threshold when the map is too dense; raise it when everything is lumped together.
 
 ## Diagnostics · Updates
 

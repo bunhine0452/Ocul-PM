@@ -2,7 +2,7 @@
 title: Troubleshooting
 desc: Nothing is being recorded, in-app Claude Code acting up, and the rest of the common friction.
 order: 14
-updated: 2026-09-08
+updated: 2026-10-24
 ---
 
 ## Nothing is being recorded
@@ -42,7 +42,7 @@ An update restart relaunches the adapter process along with the app. **The conve
 
 Rarely the adapter exits and a banner appears (v2.11). **Reconnect** relaunches it and restores the conversation you were looking at.
 
-## Code search and code map are slow at first
+## Code search is slow at first
 
 The first run downloads a local embedding model and indexes the project. After that only changes are refreshed, so it's fast. It's all local computation — your code doesn't leave the machine.
 

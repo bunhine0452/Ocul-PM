@@ -2,7 +2,7 @@
 title: Data & File Layout
 desc: The structure of the .oculpm folder, backup and moving, and what local-first actually means.
 order: 15
-updated: 2026-08-21
+updated: 2026-10-24
 ---
 
 ## The principle — files are the truth
@@ -52,4 +52,4 @@ Adding a project also appends a managed block to `.gitignore` that excludes the 
 
 ## What leaves the machine
 
-Five things, and you start every one: ① LLM calls you configured yourself, ② the new-version check, ③ provider traffic when you use Claude Code or Codex in the app (on your subscription) — including a one-time adapter download from npm, version- and hash-pinned, ④ GitHub fetches when you click (release notes, plugin/skill bundles, theme files), ⑤ the one-time embedding-model download from huggingface.co (the model comes down, your code never goes up, and everything is offline afterwards). There is no telemetry, no analytics, no account server. Embeddings for code search are computed locally too.
+Five things, and you start every one: ① LLM calls you configured yourself, ② the new-version check, ③ provider traffic when you use Claude Code or Codex in the app (on your subscription) — including a one-time adapter download from npm, version- and hash-pinned, ④ GitHub fetches when you click (release notes, plugin/skill bundles), ⑤ the one-time embedding-model download from huggingface.co (the model comes down, your code never goes up, and everything is offline afterwards). There is no telemetry, no analytics, no account server. Embeddings for code search are computed locally too.

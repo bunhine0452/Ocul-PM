@@ -4,7 +4,7 @@ import { cleanup, render, waitFor } from "@testing-library/react";
 // 영어 모드 **전 화면 순회** (v3-release {#i18n-rest}, 03-i18n.md §8 의 확장).
 //
 // `i18n_english_render.test.tsx` 는 모달·패널 일곱을 본다. 이 스위트는 나머지 —
-// 사이드바와 16화면의 본체·툴바 — 를 영어로 실제로 그려서 한글이 남는지 본다.
+// 사이드바와 15화면의 본체·툴바 — 를 영어로 실제로 그려서 한글이 남는지 본다.
 // 정적 스캐너가 못 잡는 것(상수 표의 한글 · 모듈 `t()` 를 쓰는 memo · 옛
 // 문자열을 계속 쓰는 소비처)을 화면 단위로 막는 마지막 그물이다.
 //
@@ -71,7 +71,6 @@ vi.mock("@/lib/bindings", () => {
               });
           if (prop === "chatMessageList") return () => ok([]);
           if (prop === "codeTree") return () => ok({ nodes: [], file_count: 0, truncated: false });
-          if (prop === "getCodeGraph") return () => ok({ nodes: [], edges: [] });
           if (prop === "oculpmWorkdayBrief")
             return () =>
               ok({ days: [], lines_added: 0, lines_removed: 0, files_touched: 0, open_plan_items: [], total_entries: 0 });
@@ -146,7 +145,6 @@ import { DiscussionScreenV2 } from "@/features/discussion/DiscussionScreenV2";
 import { SkillsScreenV2 } from "@/features/skills/SkillsScreenV2";
 import { BranchScreenV2 } from "@/features/branch/BranchScreenV2";
 import { AiPanelScreenV2 } from "@/features/chat/AiPanelScreenV2";
-import { GraphScreenV2 } from "@/features/graph/GraphScreenV2";
 import { CodeScreenV2 } from "@/features/code/CodeScreenV2";
 import { ClaudeCodeScreenV2 } from "@/features/chat/ClaudeCodeScreenV2";
 import { CodexScreenV2 } from "@/features/chat/CodexScreenV2";
@@ -311,15 +309,6 @@ describe("영어 모드 전 화면 순회 — 한글이 남지 않는다", () =>
       </Wrap>,
     );
     await expectEnglish(container, "Branch");
-  });
-
-  it("코드 맵", async () => {
-    const { container } = render(
-      <Wrap>
-        <GraphScreenV2 projectId={1} projectRoot="/repo" onOpenInCode={noop} />
-      </Wrap>,
-    );
-    await expectEnglish(container, "Code Map");
   });
 
   it("코드", async () => {

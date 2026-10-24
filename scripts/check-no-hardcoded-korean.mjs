@@ -239,7 +239,6 @@ const TESTS = new Set([
   // {#tag-merge} — 「태그 정리」 시트의 확인 단계를 한국어 렌더로 단언한다.
   "__tests__/tag_tidy_sheet.test.tsx",
   "__tests__/landing_pages.test.ts",
-  "__tests__/landing_themes.test.ts",
   "__tests__/llm_reachability.test.tsx",
   "__tests__/lsp_bridge.test.ts",
   "__tests__/mcp_settings.test.tsx",

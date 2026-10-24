@@ -18,15 +18,16 @@ describe("navRegistry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("main 5 + tools 4 + ai 3 + ref 1 = 13행 (2026-09-08 회고·문서 삭제 반영)", () => {
+  it("main 5 + tools 3 + ai 3 + ref 1 = 12행 (2026-10-24 코드 맵 삭제 반영)", () => {
     // main 의 다섯 번째는 「브랜치의 이야기」 — 배열 맨 끝이라 번호는 없다.
     expect(NAV_ENTRIES.filter((e) => e.group === "main")).toHaveLength(5);
-    expect(NAV_ENTRIES.filter((e) => e.group === "tools")).toHaveLength(4);
+    // 검색 · 터미널 · 편집기 — 코드 맵은 2026-10-24 에 사라졌다.
+    expect(NAV_ENTRIES.filter((e) => e.group === "tools")).toHaveLength(3);
     // Claude Code · Codex · 세션이 「에이전트」 한 행으로 접혔다.
     expect(NAV_ENTRIES.filter((e) => e.group === "ai")).toHaveLength(3);
     // 참고에 남은 것은 논의 하나 — 문서 화면은 2026-09-08 에 사라졌다.
     expect(NAV_ENTRIES.filter((e) => e.group === "ref")).toHaveLength(1);
-    expect(NAV_ENTRIES).toHaveLength(13);
+    expect(NAV_ENTRIES).toHaveLength(12);
   });
 
   it("⌘번호는 배열(=사이드바 표시) 순서를 그대로 따른다", () => {
@@ -50,11 +51,11 @@ describe("navRegistry", () => {
       "diff",
       "planner",
       "search",
-      "graph",
       "terminal",
       "code",
       "claudecode",
       "ai",
+      "skills",
     ]);
   });
 
@@ -70,12 +71,13 @@ describe("navRegistry", () => {
     expect(navShortcutLabel("branch")).toBeUndefined();
   });
 
-  it("11번째 이후 항목은 번호가 없다", () => {
-    expect(navShortcutLabel("skills")).toBeUndefined();
-    // 회고·문서가 빠지며 뒤쪽 번호가 한 칸씩 당겨졌다.
-    expect(navShortcutLabel("code")).toBe("⌘8");
-    expect(navShortcutLabel("claudecode")).toBe("⌘9");
-    expect(navShortcutLabel("ai")).toBe("⌘0");
+  it("코드 맵이 빠지며 ⌘6 부터 한 칸씩 당겨졌다 — 스킬이 ⌘0 을 받는다", () => {
+    expect(navShortcutLabel("search")).toBe("⌘5");
+    expect(navShortcutLabel("terminal")).toBe("⌘6");
+    expect(navShortcutLabel("code")).toBe("⌘7");
+    expect(navShortcutLabel("claudecode")).toBe("⌘8");
+    expect(navShortcutLabel("ai")).toBe("⌘9");
+    expect(navShortcutLabel("skills")).toBe("⌘0");
   });
 
   it("번호 없는 키 입력은 undefined (⌘\\ 등 다른 핸들러로 폴스루)", () => {
@@ -105,7 +107,7 @@ describe("navRegistry — 에이전트 행의 갈래", () => {
     expect(ids).toContain("codex");
     expect(ids).not.toContain("sessions");
     expect(new Set(ids).size).toBe(ids.length);
-    expect(NAV_DESTINATIONS).toHaveLength(14);
+    expect(NAV_DESTINATIONS).toHaveLength(13);
   });
 
   it("팔레트 목적지에 「에이전트」 별칭이 둘 다 붙어 있다", () => {

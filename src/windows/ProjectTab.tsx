@@ -27,7 +27,6 @@ import { useTabRunningWork } from "@/windows/useTabRunningWork";
 import { DeepLinkSheet } from "@/features/deeplink/DeepLinkSheet";
 import { openNavFor, resolveRegisteredProject } from "@/features/deeplink/deepLinkPlan";
 import { UI_V2_VIEWS } from "@/contexts/uiV2View";
-import { requestThemeInstall } from "@/features/theme/themeInstallIntent";
 import { openSettings } from "@/lib/settingsNav";
 
 const ShellV2 = lazy(() => import("@/features/shell/ShellV2"));
@@ -330,13 +329,6 @@ export default function ProjectTab({
               case "plugin_install":
               case "skill_install":
                 openSettings("oculpm");
-                return;
-              // 테마는 승인 즉시 실제로 받아온다 (Phase 8 `#landing-themes`).
-              // 시트가 「받아 갤러리에 추가합니다」라고 말한 그대로 —
-              // 갤러리를 열어 놓고 아무 일도 하지 않으면 그 문장이 거짓이 된다.
-              case "theme_install":
-                requestThemeInstall(link.url);
-                openSettings("appearance");
                 return;
             }
           }}

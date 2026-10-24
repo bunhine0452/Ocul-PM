@@ -5,7 +5,6 @@ import {
   TargetIcon,
   GitCompareArrows,
   SearchIcon,
-  Network,
   SquareTerminal,
   MessageSquareText,
   Puzzle,
@@ -79,7 +78,8 @@ const AGENT_BRANCHES: NavEntry[] = [
 ];
 
 /**
- * 사이드바 행 13개 (2026-09-06 IA 재편 이후, 2026-09-08 회고·문서 삭제 반영).
+ * 사이드바 행 12개 (2026-09-06 IA 재편 이후, 2026-09-08 회고·문서 삭제,
+ * 2026-10-24 코드 맵 삭제 반영).
  *
  * 무엇이 바뀌었나:
  *
@@ -94,10 +94,13 @@ const AGENT_BRANCHES: NavEntry[] = [
  *   것이라는 계약 그대로다.
  * - **재명명** — 코드 검색 → 검색 · 코드 → 편집기 · Diff → 변경. 옛 이름은
  *   ⌘K 별칭에 남긴다 (v2.17.0 선례).
+ * - **코드 맵을 없앴다 (2026-10-24).** 범위 동결의 주변부 걷기다. 여섯 번째
+ *   칸이 비면서 뒤가 한 칸씩 당겨진다 — 터미널 ⌘6 · 편집기 ⌘7 · 에이전트 ⌘8 ·
+ *   AI 패널 ⌘9 · 스킬 ⌘0. ⌘1~⌘5 는 그대로다.
  *
- * ⌘번호는 여전히 **배열 앞 10개**에 자동 부여된다. ⌘1·⌘2·⌘4 는 뜻이 그대로고
- * (오늘·일지·플래너), 나머지 일곱은 바뀐다 — 사이드바가 한 번 안내한다
- * (`NavRemapNotice`).
+ * ⌘번호는 여전히 **배열 앞 10개**에 자동 부여된다. 번호의 뜻이 바뀔 때마다
+ * 사이드바가 한 번 안내한다 (`NavRemapNotice` — 바뀔 때마다 설정 키를 새로
+ * 받아 이미 닫은 사람에게도 다시 뜬다).
  */
 export const NAV_ENTRIES: NavEntry[] = [
   // ── 코어 루프: 오늘 무슨 일이 있었나 → 뭐라고 적혔나 → 코드가 어떻게
@@ -108,11 +111,11 @@ export const NAV_ENTRIES: NavEntry[] = [
   { id: "planner", labelKey: "nav.planner", aliasKey: "nav.planner.alias", icon: TargetIcon, group: "main" },
   // ── 코드 작업면.
   { id: "search", labelKey: "nav.search", aliasKey: "nav.search.alias", icon: SearchIcon, group: "tools" },
-  { id: "graph", labelKey: "nav.graph", aliasKey: "nav.graph.alias", icon: Network, group: "tools" },
   { id: "terminal", labelKey: "nav.terminal", aliasKey: "nav.terminal.alias", icon: SquareTerminal, group: "tools" },
   { id: "code", labelKey: "nav.code", aliasKey: "nav.code.alias", icon: FileCode, group: "tools" },
-  // ── AI 면. 「에이전트」가 아홉 번째 칸(⌘9), 「AI 패널」이 열 번째(⌘0)다 —
-  //    매일 쓰는 면이 번호를 갖는다는 규칙의 결과다. 두 번호는
+  // ── AI 면. 「에이전트」가 여덟 번째 칸(⌘8), 「AI 패널」이 아홉 번째(⌘9),
+  //    「스킬」이 열 번째(⌘0)다 —
+  //    매일 쓰는 면이 번호를 갖는다는 규칙의 결과다. 이 번호들은
   //    `nav_registry.test.ts` 가 못박고 있으므로, 여기 적힌 숫자가 그 테스트와
   //    어긋나면 **틀린 쪽은 이 주석**이다 (2026-09-09 에 한 번 그랬다).
   { id: "claudecode", labelKey: "nav.agent", aliasKey: "nav.agent.alias", icon: Bot, group: "ai", children: AGENT_BRANCHES },

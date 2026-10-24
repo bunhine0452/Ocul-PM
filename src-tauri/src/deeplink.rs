@@ -3,11 +3,10 @@
 //! 웹에서 앱으로 오는 유일한 길이다 — 그래서 **가장 좁은 문**이어야 한다.
 //! 규약 하나로 요약된다: **무확인 실행 0.** 딥링크는 무엇도 실행하지 않고,
 //! 앱을 포커스한 뒤 확인 시트를 띄우는 것까지만 한다. 실제 설치는 사용자가
-//! 누른 뒤 기존 커맨드(`plugin_import`·`theme_import`·…)가 한다.
+//! 누른 뒤 기존 커맨드(`plugin_import`·…)가 한다.
 //!
 //! ```text
 //! oculpm://skill/install?source=<owner/repo>&name=<skill>
-//! oculpm://theme/install?url=<https…json>
 //! oculpm://plugin/install?source=<owner/repo>
 //! oculpm://open?project=<path>&view=journal
 //! ```
@@ -22,9 +21,6 @@ use tauri::Emitter;
 use crate::text::percent_decode;
 
 pub const SCHEME: &str = "oculpm";
-/// 테마 파일을 받아올 수 있는 호스트. https 인 것만으로는 부족하다 —
-/// 임의 서버가 우리 앱에 파일을 밀어 넣는 길을 열어 두지 않는다.
-pub const THEME_HOSTS: &[&str] = &["oculpm.com", "www.oculpm.com", "raw.githubusercontent.com"];
 /// URL 전체 길이 상한 (터무니없는 입력 가드).
 const MAX_URL_BYTES: usize = 2_048;
 
@@ -36,9 +32,6 @@ pub enum DeepLink {
     SkillInstall {
         source: String,
         name: Option<String>,
-    },
-    ThemeInstall {
-        url: String,
     },
     PluginInstall {
         source: String,
@@ -89,9 +82,6 @@ pub fn parse(raw: &str) -> Result<DeepLink, LinkError> {
         "plugin/install" => Ok(DeepLink::PluginInstall {
             source: github_source(get("source"))?,
         }),
-        "theme/install" => Ok(DeepLink::ThemeInstall {
-            url: theme_url(get("url"))?,
-        }),
         "open" => {
             let project = get("project").ok_or(LinkError::Value("project is required".into()))?;
             if project.is_empty() {
@@ -113,43 +103,6 @@ fn github_source(raw: Option<String>) -> Result<String, LinkError> {
     crate::plugins::source::parse_github(&raw)
         .map(|s| s.slug())
         .ok_or(LinkError::Value(format!("expected owner/repo, got: {raw}")))
-}
-
-fn theme_url(raw: Option<String>) -> Result<String, LinkError> {
-    let raw = raw.ok_or(LinkError::Value("url is required".into()))?;
-    validate_theme_url(&raw)
-}
-
-/// https + 호스트 화이트리스트. 스킴만 보면 임의 서버가 통과한다.
-///
-/// 딥링크와 `theme_import_url` 이 **같은 문**을 지난다 (Phase 8
-/// `#landing-themes`) — 검사가 둘이면 하나는 반드시 뒤처진다.
-pub fn validate_theme_url(raw: &str) -> Result<String, LinkError> {
-    if raw.len() > MAX_URL_BYTES {
-        return Err(LinkError::Value("url too long".into()));
-    }
-    // 문자열을 `/`·`@` 로 잘라 호스트를 고르던 예전 판정은 `https://evil.test?@oculpm.com/x`
-    // 를 oculpm.com 으로 읽었다 — reqwest 는 evil.test 로 접속한다 (2026-10-09 리포트).
-    // 접속할 클라이언트와 **같은 파서**로 읽어야 판정과 접속이 갈라지지 않는다.
-    let url = url::Url::parse(raw).map_err(|e| LinkError::Value(format!("bad url: {e}")))?;
-    if url.scheme() != "https" {
-        return Err(LinkError::Value("theme url must be https".into()));
-    }
-    if !url.username().is_empty() || url.password().is_some() {
-        return Err(LinkError::Value(
-            "theme url must not carry credentials".into(),
-        ));
-    }
-    if url.port().is_some_and(|p| p != 443) {
-        return Err(LinkError::Value(
-            "theme url must use the default port".into(),
-        ));
-    }
-    let host = url.host_str().unwrap_or_default().to_ascii_lowercase();
-    if !THEME_HOSTS.contains(&host.as_str()) {
-        return Err(LinkError::Value(format!("host not allowed: {host}")));
-    }
-    Ok(url.to_string())
 }
 
 /// 경로·구분자·제어문자가 없는 단순 이름인가.
@@ -237,7 +190,6 @@ mod tests {
             "oculpm://open?project=%한x&view=journal",
             "oculpm://open?project=ok&entry=%🙂",
             "oculpm://skill/install?source=%한/repo",
-            "oculpm://theme/install?url=%",
             "oculpm://open?%한=%한",
         ] {
             let _ = parse(raw);
@@ -254,7 +206,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_the_four_documented_routes() {
+    fn parses_the_three_documented_routes() {
         assert_eq!(
             parse("oculpm://plugin/install?source=owner/repo").unwrap(),
             DeepLink::PluginInstall {
@@ -266,12 +218,6 @@ mod tests {
             DeepLink::SkillInstall {
                 source: "o/r".into(),
                 name: Some("run-evals".into())
-            }
-        );
-        assert_eq!(
-            parse("oculpm://theme/install?url=https://oculpm.com/themes/nord.json").unwrap(),
-            DeepLink::ThemeInstall {
-                url: "https://oculpm.com/themes/nord.json".into()
             }
         );
         assert_eq!(
@@ -299,50 +245,6 @@ mod tests {
         }
     }
 
-    /// `theme_import_url` 은 딥링크를 지나지 않고도 불릴 수 있는 커맨드다
-    /// (프런트가 승인 뒤에만 부르지만, 그건 규율이지 구조가 아니다).
-    /// 그래서 **같은 검사기**를 커맨드 쪽에서도 다시 지난다 (Phase 8).
-    #[test]
-    fn validate_theme_url_is_the_same_gate_the_deep_link_uses() {
-        assert!(validate_theme_url("https://oculpm.com/themes/ink.json").is_ok());
-        assert!(validate_theme_url("http://oculpm.com/themes/ink.json").is_err());
-        assert!(validate_theme_url("https://evil.test/ink.json").is_err());
-        assert!(validate_theme_url("https://oculpm.com@evil.test/ink.json").is_err());
-        assert!(validate_theme_url(&format!("https://oculpm.com/{}", "a".repeat(4096))).is_err());
-    }
-
-    /// 판정과 접속이 같은 호스트를 본다 — 쿼리·조각 뒤의 `@` 는 호스트가 아니다.
-    #[test]
-    fn theme_url_host_is_the_host_reqwest_connects_to() {
-        for raw in [
-            "https://evil.test?@oculpm.com/x.json",
-            "https://evil.test#@oculpm.com/x.json",
-            "https://evil.test\\@oculpm.com/x.json",
-            "https://user:pw@oculpm.com/x.json",
-            "https://oculpm.com:8443/x.json",
-        ] {
-            assert!(validate_theme_url(raw).is_err(), "{raw} 를 통과시켰다");
-        }
-        assert_eq!(
-            validate_theme_url("https://OCULPM.com:443/themes/ink.json").unwrap(),
-            "https://oculpm.com/themes/ink.json"
-        );
-    }
-
-    #[test]
-    fn theme_urls_must_be_https_and_on_the_allowlist() {
-        assert!(parse("oculpm://theme/install?url=http://oculpm.com/a.json").is_err());
-        assert!(parse("oculpm://theme/install?url=https://evil.test/a.json").is_err());
-        assert!(parse("oculpm://theme/install?url=file:///etc/passwd").is_err());
-        // 자격증명 트릭 — `@` 앞은 사용자 정보이고 진짜 호스트는 그 뒤다.
-        assert!(parse("oculpm://theme/install?url=https://oculpm.com@evil.test/a.json").is_err());
-        assert!(parse("oculpm://theme/install?url=https://OCULPM.com:443/a.json").is_ok());
-        assert!(parse(
-            "oculpm://theme/install?url=https://raw.githubusercontent.com/o/r/main/t.json"
-        )
-        .is_ok());
-    }
-
     #[test]
     fn refuses_a_foreign_scheme_and_an_unknown_route() {
         assert_eq!(
@@ -351,6 +253,12 @@ mod tests {
         );
         assert!(matches!(
             parse("oculpm://run/shell?cmd=rm").unwrap_err(),
+            LinkError::Route(_)
+        ));
+        // 원격 테마 설치(`theme/install`)는 2026-10-24 에 걷었다 — 옛 랜딩의
+        // 링크가 와도 모르는 경로로 거절되고 아무것도 받아오지 않는다.
+        assert!(matches!(
+            parse("oculpm://theme/install?url=https://oculpm.com/themes/ink.json").unwrap_err(),
             LinkError::Route(_)
         ));
     }

@@ -65,7 +65,7 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>FAQ</h1>
-      <p class="wk-updated">Last updated 2026-08-21</p>
+      <p class="wk-updated">Last updated 2026-10-24</p>
       <nav class="wk-toc"><span>On this page</span><a href="#what-does-this-do">What does this do</a><a href="#money-and-privacy">Money and privacy</a><a href="#git-and-teams">Git and teams</a><a href="#concepts-i-find-confusing">Concepts I find confusing</a><a href="#as-you-use-it">As you use it</a><a href="#not-answered-here">Not answered here?</a></nav>
       <p>The questions that actually come up in the first few days. The confusing parts and the scary parts first.</p>
 <h2 id="what-does-this-do">What does this do</h2>
@@ -82,12 +82,12 @@
 <h3 id="does-it-cost-anything">Does it cost anything?</h3>
 <p>The app is free, and <b>journaling itself needs no API key</b>. It watches file changes and reads markdown that agents wrote — that costs nothing.</p>
 <p>The only thing that costs money is <b>AI writing new prose</b>:</p>
-<div class="wk-table"><table><thead><tr><th>Feature</th><th>Cost</th></tr></thead><tbody><tr><td>Journal and planner records, search, code map, code editing</td><td><b>Free</b> — all local</td></tr><tr><td>AI panel chat, ⌘K inline editing</td><td>Your API key, your billing</td></tr><tr><td>Claude Code inside the app</td><td>Your Claude subscription (no extra charge)</td></tr></tbody></table></div>
+<div class="wk-table"><table><thead><tr><th>Feature</th><th>Cost</th></tr></thead><tbody><tr><td>Journal and planner records, search, code editing</td><td><b>Free</b> — all local</td></tr><tr><td>AI panel chat, ⌘K inline editing</td><td>Your API key, your billing</td></tr><tr><td>Claude Code inside the app</td><td>Your Claude subscription (no extra charge)</td></tr></tbody></table></div>
 <div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>The in-app <b>Claude Code and Codex screens</b> run on the same footing as a terminal session — on your subscription, with no API key, so there is no extra cost.</p></div></div>
 <h3 id="where-does-my-code-go">Where does my code go?</h3>
-<p>By default, <b>nowhere</b>. Code-search embeddings are computed on your machine (only the model is downloaded, once). Five things leave, and you start every one: LLM calls you configured, the update check, provider traffic when you use Claude Code or Codex in the app (including the one-time adapter download), GitHub fetches when you click (release notes, bundles, themes), the one-time embedding-model download. No account server, no telemetry. (<a href="/wiki/en/data">Details</a>)</p>
+<p>By default, <b>nowhere</b>. Code-search embeddings are computed on your machine (only the model is downloaded, once). Five things leave, and you start every one: LLM calls you configured, the update check, provider traffic when you use Claude Code or Codex in the app (including the one-time adapter download), GitHub fetches when you click (release notes, bundles), the one-time embedding-model download. No account server, no telemetry. (<a href="/wiki/en/data">Details</a>)</p>
 <h3 id="does-it-work-offline">Does it work offline?</h3>
-<p>Yes. Records, timeline, change diffs, code search, code map and code editing are all local. Only AI calls and the update check need the network.</p>
+<p>Yes. Records, timeline, change diffs, code search and code editing are all local. Only AI calls and the update check need the network.</p>
 <h3 id="what-about-windows-linux">What about Windows / Linux?</h3>
 <p>Right now it's <b>macOS (Apple Silicon) only</b>.</p>
 <div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>That said, <code>.oculpm/</code> records are plain markdown and read fine anywhere. If you have Windows teammates, they can read committed entries without trouble.</p></div></div>

@@ -388,17 +388,6 @@ async fn run_index(
             if !ana.imports.is_empty() {
                 import_resolver_queue.push((file_id, rel_str.clone(), ana.imports.clone()));
             }
-            // PR-GR2: persist raw relations (resolved into calls/inherits edges
-            // by rebuild_code_graph). Replace so re-index doesn't duplicate; an
-            // empty vec clears stale rows for this file.
-            let rels: Vec<(String, Option<String>, String)> = ana
-                .relations
-                .iter()
-                .map(|r| (r.kind.clone(), r.from_symbol.clone(), r.name.clone()))
-                .collect();
-            db.replace_symbol_relations(file_id, rels)
-                .await
-                .map_err(|e| e.to_string())?;
         }
 
         // 같은 내용의 벡터는 다시 임베딩하지 않는다 — 옛 청크 · 통째 사본 (`indexer::store`).
@@ -504,13 +493,6 @@ async fn run_index(
         }
     }
 
-    // PR-GR1: rebuild the code graph (graph_nodes/graph_edges) from the freshly
-    // indexed files / symbols / dependencies. Deterministic + LLM-free; best
-    // effort (a failure here must not fail the whole index).
-    if let Err(e) = db.rebuild_code_graph(project_id).await {
-        tracing::warn!(project_id, error = %e, "code graph rebuild failed");
-    }
-
     let took_ms = start.elapsed().as_millis().min(u32::MAX as u128) as u32;
     info!(
         files_processed,
@@ -562,17 +544,6 @@ async fn run_index(
         files_removed,
         took_ms,
     })
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn get_file_symbols(
-    db: State<'_, Db>,
-    file_id: u32,
-) -> Result<Vec<crate::ast::SymbolDef>, String> {
-    db.get_file_symbols(file_id)
-        .await
-        .map_err(|e| e.to_string())
 }
 
 // ---------- Search ----------

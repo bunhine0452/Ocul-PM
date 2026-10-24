@@ -2,7 +2,7 @@
 title: Shortcuts
 desc: Navigation, tabs and windows, the terminal dock, and Claude Code screen keys.
 order: 16
-updated: 2026-08-21
+updated: 2026-10-24
 ---
 
 `⌘` numbers come from the sidebar order automatically — what each screen does is in the [Screen Tour](/wiki/en/screens).
@@ -12,7 +12,7 @@ updated: 2026-08-21
 | Key | Action |
 |---|---|
 | `⌘K` | Command palette — navigate, plus search entry, plan, discussion, and doc titles |
-| `⌘1`–`⌘9`, `⌘0` | Jump to a screen, in sidebar order (`⌘1` Today … `⌘9` Agents, `⌘0` AI panel) |
+| `⌘1`–`⌘9`, `⌘0` | Jump to a screen, in sidebar order (`⌘1` Today … `⌘8` Agents, `⌘9` AI panel, `⌘0` Skills & Rules) |
 | `⌘[` / `⌘]` | Screen back / forward — like a browser, back to what you were just reading |
 | `⌘P` | Switch project |
 | `⌘J` | Toggle the terminal dock — from any screen |

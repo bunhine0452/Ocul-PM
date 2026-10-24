@@ -107,10 +107,6 @@ export const KEYS = {
   includeOculpmContext: "include_oculpm_context",
   oculpmContextEntries: "oculpm_context_entries",
 
-  // --- Dependency graph ---
-  graphShowIsolated: "graph_show_isolated",
-  graphGroupThreshold: "graph_group_threshold",
-
   // --- External editor (Lite-W6 PR8 Part 2) ---
   externalEditorCommand: "external_editor_command",
 
@@ -143,8 +139,10 @@ export const KEYS = {
   // 마지막으로 What's-new 카드를 본 앱 버전. 앱 버전이 이보다 새로우면 Today 가
   // 한 번 릴리스 노트를 보여 준다. 빈 문자열 = 아직 한 번도 기록 안 함(첫 설치).
   lastSeenVersion: "last_seen_version",
-  // 2026-09-06 IA 재편 — ⌘번호 재배정 안내를 봤는가. 한 번 보면 다시 안 뜬다.
-  navRemapSeen: "nav_remap_seen",
+  // ⌘번호 재배정 안내를 봤는가. 한 번 보면 다시 안 뜬다. **번호가 다시 바뀌면
+  // 키를 새로 받는다** — 2026-09-06 IA 재편의 `nav_remap_seen` 을 닫은 사람에게도
+  // 2026-10-24 코드 맵 삭제(⌘6~⌘0 당겨짐) 안내가 떠야 한다. 옛 키는 DB 에 남는다.
+  navRemapSeen: "nav_remap_seen_2",
   // Today 플러그인 안내 카드를 사용자가 닫았는가 (v3-release
   // {#plugin-card-dismiss}). 카드의 표시 조건은 이미 좁지만(일지 0건 + Claude
   // Code 설치됨 + 플러그인 못 찾음) "안 깔 것"을 고른 사람에게는 그 셋이 다
@@ -226,9 +224,6 @@ export interface Settings {
   includeOculpmContext: boolean;
   /** How many recent journal entries to summarise into that block. */
   oculpmContextEntries: number;
-
-  graphShowIsolated: boolean;
-  graphGroupThreshold: number;
 
   /**
    * Shell command template launched by `commands.openInEditor`. `%path` is
@@ -371,9 +366,6 @@ export const DEFAULTS: Settings = {
   includeOculpmContext: true,
   oculpmContextEntries: 5,
 
-  graphShowIsolated: false,
-  graphGroupThreshold: 3,
-
   externalEditorCommand: 'code "%path"',
 
   codeFormatOnSave: false,
@@ -431,8 +423,6 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.searchIncludeJournal]: "searchIncludeJournal",
   [KEYS.includeOculpmContext]: "includeOculpmContext",
   [KEYS.oculpmContextEntries]: "oculpmContextEntries",
-  [KEYS.graphShowIsolated]: "graphShowIsolated",
-  [KEYS.graphGroupThreshold]: "graphGroupThreshold",
   [KEYS.externalEditorCommand]: "externalEditorCommand",
   [KEYS.codeFormatOnSave]: "codeFormatOnSave",
   [KEYS.codeTabSize]: "codeTabSize",

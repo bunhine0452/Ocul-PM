@@ -65,7 +65,7 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>Data &amp; File Layout</h1>
-      <p class="wk-updated">Last updated 2026-08-21</p>
+      <p class="wk-updated">Last updated 2026-10-24</p>
       <nav class="wk-toc"><span>On this page</span><a href="#the-principle-files-are-the-truth">The principle — files are the truth</a><a href="#oculpm-structure">`.oculpm/` structure</a><a href="#backup-and-moving">Backup and moving</a><a href="#what-lives-where">What lives where</a><a href="#what-leaves-the-machine">What leaves the machine</a></nav>
       <h2 id="the-principle-files-are-the-truth">The principle — files are the truth</h2>
 <p>Every record Ocul-PM keeps is a <b>markdown file inside your project</b>. The app's database (SQLite) is only a <b>cache</b> for drawing screens quickly, and can be rebuilt from the files at any time. Which means:</p>
@@ -88,7 +88,7 @@
 <h2 id="what-lives-where">What lives where</h2>
 <div class="wk-table"><table><thead><tr><th>Data</th><th>Location</th><th>Nature</th></tr></thead><tbody><tr><td>Entries, plans, discussions</td><td>Project <code>.oculpm/</code></td><td>Source of truth (markdown)</td></tr><tr><td>AGENTS.md journaling rules</td><td>Project root</td><td>Source of truth</td></tr><tr><td>Screen cache, search index</td><td>App data folder (SQLite)</td><td>Derived — rebuildable</td></tr><tr><td>LLM API keys</td><td>macOS keychain</td><td>Never in the app DB or files</td></tr><tr><td>App settings</td><td>App data folder</td><td>—</td></tr></tbody></table></div>
 <h2 id="what-leaves-the-machine">What leaves the machine</h2>
-<p>Five things, and you start every one: ① LLM calls you configured yourself, ② the new-version check, ③ provider traffic when you use Claude Code or Codex in the app (on your subscription) — including a one-time adapter download from npm, version- and hash-pinned, ④ GitHub fetches when you click (release notes, plugin/skill bundles, theme files), ⑤ the one-time embedding-model download from huggingface.co (the model comes down, your code never goes up, and everything is offline afterwards). There is no telemetry, no analytics, no account server. Embeddings for code search are computed locally too.</p>
+<p>Five things, and you start every one: ① LLM calls you configured yourself, ② the new-version check, ③ provider traffic when you use Claude Code or Codex in the app (on your subscription) — including a one-time adapter download from npm, version- and hash-pinned, ④ GitHub fetches when you click (release notes, plugin/skill bundles), ⑤ the one-time embedding-model download from huggingface.co (the model comes down, your code never goes up, and everything is offline afterwards). There is no telemetry, no analytics, no account server. Embeddings for code search are computed locally too.</p>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/troubleshooting"><span>← Previous</span><b>Troubleshooting</b></a>
 <a class="wk-pg next" href="/wiki/en/shortcuts"><span>Next →</span><b>Shortcuts</b></a></footer>
