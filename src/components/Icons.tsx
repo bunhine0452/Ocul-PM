@@ -216,17 +216,6 @@ export const MessageSquare = (props: IconProps) => (
   </IconWrapper>
 );
 
-export const Network = (props: IconProps) => (
-  <IconWrapper {...props}>
-    <rect x="16" y="16" width="6" height="6" rx="1" />
-    <rect x="2" y="16" width="6" height="6" rx="1" />
-    <rect x="9" y="2" width="6" height="6" rx="1" />
-    <path d="M12 8v4" />
-    <path d="M12 12H5v4" />
-    <path d="M12 12h7v4" />
-  </IconWrapper>
-);
-
 export const Calendar = (props: IconProps) => (
   <IconWrapper {...props}>
     <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />

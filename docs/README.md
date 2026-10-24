@@ -37,7 +37,7 @@
 | [`dap/`](dap/) | 인앱 디버거 (Rust · Python · Go). v2.16.0 출시 — `lsp/` 가 "하지 않는 것" 으로 잡았던 결정을 다시 연 문서 |
 | [`discussion-feature/`](discussion-feature/) | 「문제 해결」(토의) 화면 — 데이터 모델 · 마크다운 규격 · 계획 승격 |
 | [`planner-upgrade/`](planner-upgrade/) | 플래너 — `.oculpm/planner/*.md` 파일 SSOT · 항목별 AI 귀속 · 자동 화해 |
-| [`graph-upgrade/`](graph-upgrade/) | 코드 맵 — 관계 추출(호출·상속·구현) · 변경 영향 역BFS |
+| [`graph-upgrade/`](graph-upgrade/) | 코드 맵 — 관계 추출(호출·상속·구현) · 변경 영향 역BFS. **코드 맵 화면·관계 추출은 2026-10-24 에 걷었다** — 남은 것은 변경 화면의 변경 영향(`db/dependencies.rs`)뿐 |
 | [`menubar/`](menubar/) | 메뉴바 트레이 상주 창 |
 | [`20260706_v2/`](20260706_v2/) | v2 라운드 — 내비게이션 단일 소스(`navRegistry`) · 성능. **단 U11 FTS5 는 등록된 적 없이 폐기됐다** (`db/mod.rs`) |
 | [`20260811_three-features/`](20260811_three-features/) | 멀티 창 · 모바일(Tailscale) · 영어화. **1번 결정("메인 창 = 런처 전용")은 크롬식 탭으로 뒤집혔다** |

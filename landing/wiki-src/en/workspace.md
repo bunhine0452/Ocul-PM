@@ -2,7 +2,7 @@
 title: Windows, Tabs, Terminal, Code
 desc: Running several projects at once, the terminal dock and splits, the in-app code viewer and editor.
 order: 12
-updated: 2026-08-21
+updated: 2026-10-24
 ---
 
 *What* the screens show is in the [Screen Tour](/wiki/en/screens). This page is about **how you arrange and drive them**.
@@ -43,7 +43,7 @@ The app has to be alive to keep observing. "Minimize to the menu bar" is the com
 
 A **real shell** rooted in the project folder. Two shapes:
 
-- **Full screen** — `⌘0`
+- **Full screen** — `⌘6` (the Terminal screen)
 - **Dock** — `⌘J`, overlaid on any screen. Good for typing commands while reading an entry
 
 The dock cycles position **bottom → left → right** (the reposition button), and the **detach button** turns it into a separate window containing only the terminal — with the shell intact.
@@ -79,7 +79,7 @@ It's set in px, **independently** of the app-wide scale (Settings → Appearance
 
 Where you **view and edit** files inside the app. Open a file from the tree on the left, edit on the right, save.
 
-- **Jump in** — "Open in Code" from code search or code map results brings you straight here
+- **Jump in** — "Open in Code" from code search results brings you straight here
 - **Filter** — narrow the tree by filename from the input above it
 - **Unsaved marker** — edited files are marked **Modified**
 - **Open in external editor** — hand serious editing to your usual editor

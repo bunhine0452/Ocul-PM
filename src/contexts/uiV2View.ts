@@ -29,7 +29,6 @@ export const UI_V2_VIEWS = [
   "search",
   "terminal",
   "ai",
-  "graph",
   "skills",
   // PR-ACP6 — Claude Code 구동면. "ai"(프로바이더 채팅)와 성격이 달라 화면을
   // 나눴다: 저쪽은 물어보는 곳, 이쪽은 시키는 곳이다.

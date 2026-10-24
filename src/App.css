@@ -120,7 +120,7 @@
        공유한다. unlayered 인 tokens.css 가 캐스케이드에서 이기므로, Tailwind
        유틸리티(ease-out)도 같은 곡선을 쓰도록 여기서 못박는다.
        값을 바꿀 때는 반드시 src/styles/tokens.css 의 --ease-out 과 함께.
-       (리네임 대안 기각: src/features/graph/graph.css 등 CSS 7파일 35곳이
+       (리네임 대안 기각: 화면 CSS 여러 파일 수십 곳이
         --ease-out 을 참조해 일괄 치환이 조용히 새는 곳을 만든다.) */
     --ease-out: cubic-bezier(0.16, 0.84, 0.24, 1);
 

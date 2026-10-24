@@ -1,7 +1,6 @@
 // Osaurus 라운드 Phase 8 — 랜딩 생성물이 소스와 어긋나지 않는지.
 //
-// `/changelog` 는 CHANGELOG.md 에서, `/themes` 는 테마 JSON 에서 생성된다
-// (`node landing/wiki-src/build.mjs`). 릴리스에서 재생성을 잊으면 웹만 옛
+// `/changelog` 는 CHANGELOG.md 에서 생성된다 (`node landing/wiki-src/build.mjs`). 릴리스에서 재생성을 잊으면 웹만 옛
 // 버전에 멈춘다 — v2.8.1~2.8.3 에서 실제로 겪은 실패라 리마인더가 아니라
 // 테스트로 막는다.
 import { readFileSync } from "node:fs";
@@ -48,7 +47,6 @@ describe("landing/changelog.html", () => {
 describe("landing/sitemap.xml", () => {
   test.each([
     ["/changelog", "daily"],
-    ["/themes", "weekly"],
     ["/privacy", "monthly"],
     ["/plugin", "monthly"],
   ])("%s 가 changefreq %s 로 등재됐다", (loc, freq) => {

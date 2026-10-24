@@ -42,14 +42,6 @@ export function planFor(link: DeepLink): DeepLinkPlan {
         actionKey: "deeplink.skill.action",
         writes: true,
       };
-    case "theme_install":
-      return {
-        titleKey: "deeplink.theme.title",
-        origin: link.url,
-        effectKey: "deeplink.theme.effect",
-        actionKey: "deeplink.theme.action",
-        writes: true,
-      };
     case "open":
       return {
         titleKey: "deeplink.open.title",

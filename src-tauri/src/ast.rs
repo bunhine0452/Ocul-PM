@@ -1,8 +1,7 @@
-use serde::Serialize;
 use std::path::Path;
 use tree_sitter::{Parser, Query, QueryCursor};
 
-#[derive(Debug, Clone, Serialize, specta::Type)]
+#[derive(Debug, Clone)]
 pub struct SymbolDef {
     pub name: String,
     pub kind: String,
@@ -12,24 +11,10 @@ pub struct SymbolDef {
     pub end_byte: u32,
 }
 
-/// A raw, unresolved code relation (PR-GR2): a call site or a class
-/// extends/implements reference. `name` is the callee/parent identifier; the
-/// graph builder resolves it to a defining file. Only tree-sitter languages
-/// emit these; line-based parsers leave `relations` empty.
-#[derive(Debug, Clone)]
-pub struct RawRelation {
-    pub kind: String, // "calls" | "inherits" | "implements"
-    /// Enclosing symbol the reference occurs in (the *caller* function/class),
-    /// resolved from byte ranges. None = file top-level. (PR-GR3)
-    pub from_symbol: Option<String>,
-    pub name: String,
-}
-
 #[derive(Debug, Clone)]
 pub struct AstAnalysis {
     pub symbols: Vec<SymbolDef>,
     pub imports: Vec<String>,
-    pub relations: Vec<RawRelation>,
 }
 
 /// Analyze source code file and extract high-level symbol definitions and imports.
@@ -199,112 +184,7 @@ pub fn analyze_file(path: &Path, content: &str) -> Option<AstAnalysis> {
         }
     }
 
-    let relations = extract_relations(&lang, &tree, content, extension.as_str(), &symbols);
-
-    Some(AstAnalysis {
-        symbols,
-        imports,
-        relations,
-    })
-}
-
-// --- Relation extraction (PR-GR2) ----------------------------------------
-//
-// Run as a SEPARATE query per language, compiled independently of the symbol
-// query: if a relation query fails to compile (grammar node-name drift), we
-// return no relations rather than breaking symbol extraction. Captures are
-// @calls / @inherits / @implements; the captured text is the callee/parent
-// identifier, resolved to a defining file by the graph builder.
-
-const RUST_REL_QUERY: &str = r#"
-    (call_expression function: (identifier) @calls)
-    (call_expression function: (scoped_identifier name: (identifier) @calls))
-    (call_expression function: (field_expression field: (field_identifier) @calls))
-    (impl_item trait: (type_identifier) @implements)
-"#;
-const PY_REL_QUERY: &str = r#"
-    (call function: (identifier) @calls)
-    (call function: (attribute attribute: (identifier) @calls))
-    (class_definition superclasses: (argument_list (identifier) @inherits))
-"#;
-const JS_REL_QUERY: &str = r#"
-    (call_expression function: (identifier) @calls)
-    (call_expression function: (member_expression property: (property_identifier) @calls))
-    (class_heritage (identifier) @inherits)
-"#;
-const TS_REL_QUERY: &str = r#"
-    (call_expression function: (identifier) @calls)
-    (call_expression function: (member_expression property: (property_identifier) @calls))
-    (extends_clause value: (identifier) @inherits)
-    (implements_clause (type_identifier) @implements)
-"#;
-const GO_REL_QUERY: &str = r#"
-    (call_expression function: (identifier) @calls)
-    (call_expression function: (selector_expression field: (field_identifier) @calls))
-"#;
-
-/// Innermost symbol whose byte range contains `byte` (the *caller*). (PR-GR3)
-fn enclosing_symbol(symbols: &[SymbolDef], byte: usize) -> Option<String> {
-    symbols
-        .iter()
-        .filter(|s| (s.start_byte as usize) <= byte && byte < (s.end_byte as usize))
-        .max_by_key(|s| s.start_byte)
-        .map(|s| s.name.clone())
-}
-
-fn extract_relations(
-    lang: &tree_sitter::Language,
-    tree: &tree_sitter::Tree,
-    content: &str,
-    ext: &str,
-    symbols: &[SymbolDef],
-) -> Vec<RawRelation> {
-    let query_str = match ext {
-        "rs" => RUST_REL_QUERY,
-        "py" => PY_REL_QUERY,
-        "js" | "jsx" | "mjs" | "cjs" => JS_REL_QUERY,
-        "ts" | "tsx" => TS_REL_QUERY,
-        "go" => GO_REL_QUERY,
-        _ => return Vec::new(),
-    };
-    // Failure-safe: a bad query must not break symbol extraction.
-    let query = match Query::new(lang, query_str) {
-        Ok(q) => q,
-        Err(_) => return Vec::new(),
-    };
-    let names = query.capture_names();
-    let mut cursor = QueryCursor::new();
-    let matches = cursor.matches(&query, tree.root_node(), content.as_bytes());
-
-    // De-dupe (kind, from_symbol, name) within the file so symbol_relations
-    // stays compact while keeping the caller granularity (PR-GR3).
-    let mut seen = std::collections::HashSet::new();
-    let mut out = Vec::new();
-    for m in matches {
-        for cap in m.captures {
-            let kind = match names[cap.index as usize] {
-                "calls" => "calls",
-                "inherits" => "inherits",
-                "implements" => "implements",
-                _ => continue,
-            };
-            if let Ok(text) = cap.node.utf8_text(content.as_bytes()) {
-                let name = text.trim().to_string();
-                if name.is_empty() || name.len() > 128 {
-                    continue;
-                }
-                let from_symbol = enclosing_symbol(symbols, cap.node.start_byte());
-                if seen.insert((kind, from_symbol.clone(), name.clone())) {
-                    out.push(RawRelation {
-                        kind: kind.to_string(),
-                        from_symbol,
-                        name,
-                    });
-                }
-            }
-        }
-    }
-    out
+    Some(AstAnalysis { symbols, imports })
 }
 
 // --- Line-based parsers --------------------------------------------------
@@ -378,11 +258,7 @@ fn analyze_java(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis {
-        symbols,
-        imports,
-        relations: Vec::new(),
-    }
+    AstAnalysis { symbols, imports }
 }
 
 fn analyze_kotlin(content: &str) -> AstAnalysis {
@@ -432,11 +308,7 @@ fn analyze_kotlin(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis {
-        symbols,
-        imports,
-        relations: Vec::new(),
-    }
+    AstAnalysis { symbols, imports }
 }
 
 fn analyze_c_family(content: &str) -> AstAnalysis {
@@ -489,11 +361,7 @@ fn analyze_c_family(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis {
-        symbols,
-        imports,
-        relations: Vec::new(),
-    }
+    AstAnalysis { symbols, imports }
 }
 
 fn analyze_ruby(content: &str) -> AstAnalysis {
@@ -551,11 +419,7 @@ fn analyze_ruby(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis {
-        symbols,
-        imports,
-        relations: Vec::new(),
-    }
+    AstAnalysis { symbols, imports }
 }
 
 fn analyze_php(content: &str) -> AstAnalysis {
@@ -625,11 +489,7 @@ fn analyze_php(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis {
-        symbols,
-        imports,
-        relations: Vec::new(),
-    }
+    AstAnalysis { symbols, imports }
 }
 
 fn analyze_csharp(content: &str) -> AstAnalysis {
@@ -677,11 +537,7 @@ fn analyze_csharp(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis {
-        symbols,
-        imports,
-        relations: Vec::new(),
-    }
+    AstAnalysis { symbols, imports }
 }
 
 fn analyze_swift(content: &str) -> AstAnalysis {
@@ -735,70 +591,5 @@ fn analyze_swift(content: &str) -> AstAnalysis {
         }
     }
 
-    AstAnalysis {
-        symbols,
-        imports,
-        relations: Vec::new(),
-    }
-}
-
-// PR-GR2 — validate that each language's relation query compiles AND captures on
-// real code. Catches tree-sitter node-name drift at test time instead of failing
-// silently (returning no relations) at runtime.
-#[cfg(test)]
-mod relation_tests {
-    use super::*;
-    use std::path::Path;
-
-    fn rels(name: &str, src: &str) -> Vec<RawRelation> {
-        analyze_file(Path::new(name), src)
-            .map(|a| a.relations)
-            .unwrap_or_default()
-    }
-    fn has(r: &[RawRelation], kind: &str, name: &str) -> bool {
-        r.iter().any(|x| x.kind == kind && x.name == name)
-    }
-
-    #[test]
-    fn rust_calls_and_impl() {
-        let r = rels(
-            "t.rs",
-            "trait T {}\nstruct S;\nimpl T for S {}\nfn a() { b(); }\n",
-        );
-        assert!(has(&r, "calls", "b"), "{r:?}");
-        assert!(has(&r, "implements", "T"), "{r:?}");
-        // caller granularity (PR-GR3): b() is called inside fn a
-        assert!(
-            r.iter()
-                .any(|x| x.name == "b" && x.from_symbol.as_deref() == Some("a")),
-            "from_symbol: {r:?}",
-        );
-    }
-    #[test]
-    fn python_calls_and_inherit() {
-        let r = rels("t.py", "class A(Base):\n    def m(self):\n        foo()\n");
-        assert!(has(&r, "calls", "foo"), "{r:?}");
-        assert!(has(&r, "inherits", "Base"), "{r:?}");
-    }
-    #[test]
-    fn js_calls_and_extends() {
-        let r = rels("t.js", "class A extends B { m(){ foo(); this.bar(); } }");
-        assert!(has(&r, "calls", "foo"), "{r:?}");
-        assert!(has(&r, "inherits", "B"), "{r:?}");
-    }
-    #[test]
-    fn ts_calls_and_heritage() {
-        let r = rels(
-            "t.ts",
-            "class A extends B implements C { m(){ foo(); this.bar(); } }",
-        );
-        assert!(has(&r, "calls", "foo"), "{r:?}");
-        assert!(has(&r, "inherits", "B"), "{r:?}");
-        assert!(has(&r, "implements", "C"), "{r:?}");
-    }
-    #[test]
-    fn go_calls() {
-        let r = rels("t.go", "package p\nfunc a() { b() }\n");
-        assert!(has(&r, "calls", "b"), "{r:?}");
-    }
+    AstAnalysis { symbols, imports }
 }

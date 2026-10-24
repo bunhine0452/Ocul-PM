@@ -2,7 +2,7 @@
 title: FAQ
 desc: Where first-time users actually get stuck — who writes the entries, does it cost money, should I commit .oculpm, what is a workday.
 order: 2
-updated: 2026-08-21
+updated: 2026-10-24
 ---
 
 The questions that actually come up in the first few days. The confusing parts and the scary parts first.
@@ -39,7 +39,7 @@ The only thing that costs money is **AI writing new prose**:
 
 | Feature | Cost |
 |---|---|
-| Journal and planner records, search, code map, code editing | **Free** — all local |
+| Journal and planner records, search, code editing | **Free** — all local |
 | AI panel chat, ⌘K inline editing | Your API key, your billing |
 | Claude Code inside the app | Your Claude subscription (no extra charge) |
 
@@ -49,11 +49,11 @@ The in-app **Claude Code and Codex screens** run on the same footing as a termin
 
 ### Where does my code go?
 
-By default, **nowhere**. Code-search embeddings are computed on your machine (only the model is downloaded, once). Five things leave, and you start every one: LLM calls you configured, the update check, provider traffic when you use Claude Code or Codex in the app (including the one-time adapter download), GitHub fetches when you click (release notes, bundles, themes), the one-time embedding-model download. No account server, no telemetry. ([Details](/wiki/en/data))
+By default, **nowhere**. Code-search embeddings are computed on your machine (only the model is downloaded, once). Five things leave, and you start every one: LLM calls you configured, the update check, provider traffic when you use Claude Code or Codex in the app (including the one-time adapter download), GitHub fetches when you click (release notes, bundles), the one-time embedding-model download. No account server, no telemetry. ([Details](/wiki/en/data))
 
 ### Does it work offline?
 
-Yes. Records, timeline, change diffs, code search, code map and code editing are all local. Only AI calls and the update check need the network.
+Yes. Records, timeline, change diffs, code search and code editing are all local. Only AI calls and the update check need the network.
 
 ### What about Windows / Linux?
 

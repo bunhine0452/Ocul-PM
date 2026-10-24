@@ -6,7 +6,6 @@ import {
   Cpu,
   Database,
   Smartphone,
-  GitBranch,
   Settings as SettingsIcon,
   FileCode,
   Code2,
@@ -22,7 +21,6 @@ import { Section, Field, Toggle } from "./tabs/ui";
 import { AppearanceTab } from "./tabs/AppearanceTab";
 import { LlmTab } from "./tabs/LlmTab";
 import { IndexingTab } from "./tabs/IndexingTab";
-import { GraphTab } from "./tabs/GraphTab";
 import { DataTab } from "./tabs/DataTab";
 import { ContextTab } from "./tabs/ContextTab";
 import { DiagnosticsTab } from "./tabs/DiagnosticsTab";
@@ -92,7 +90,6 @@ const GROUPS: Array<{ labelKey: I18nKey; tabs: TabDef[] }> = [
       // 코드 화면 — 편집기 동작 + 언어 서버 (ide-completion #lsp-settings-screen).
       { id: "code", labelKey: "settings.tab.code", descKey: "settings.tabDesc.code", icon: Code2 },
       { id: "indexing", labelKey: "settings.tab.indexing", descKey: "settings.tabDesc.indexing", icon: FileCode },
-      { id: "graph", labelKey: "settings.tab.graph", descKey: "settings.tabDesc.graph", icon: GitBranch },
     ],
   },
   {
@@ -151,8 +148,6 @@ export function SettingsPanel() {
         return <CodeSettings Section={Section} Field={Field} Toggle={Toggle} />;
       case "indexing":
         return <IndexingTab />;
-      case "graph":
-        return <GraphTab />;
       case "data":
         return <DataTab onError={setError} />;
       case "oculpm":

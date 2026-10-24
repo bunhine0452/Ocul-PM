@@ -20,7 +20,6 @@ const TAB_LABEL: Record<SettingsTab, I18nKey> = {
   llm: "settings.tab.llm",
   code: "settings.tab.code",
   indexing: "settings.tab.indexing",
-  graph: "settings.tab.graph",
   data: "settings.tab.data",
   oculpm: "settings.tab.oculpm",
   context: "settings.tab.context",

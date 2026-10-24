@@ -22,7 +22,6 @@ const FILE_TAB: Array<[string, string]> = [
   ["tabs/LlmTab.tsx", "llm"],
   ["CodeSettings.tsx", "code"],
   ["tabs/IndexingTab.tsx", "indexing"],
-  ["tabs/GraphTab.tsx", "graph"],
   ["tabs/DataTab.tsx", "data"],
   ["config/DeclarativeConfigSection.tsx", "data"],
   ["import/ConversationImportSection.tsx", "data"],
@@ -97,7 +96,7 @@ describe("설정 색인은 원본을 따라간다", () => {
     }
   });
 
-  it("12탭이 하나도 빠지지 않는다 — 검색이 못 닿는 탭이 생기면 검색이 거짓말이 된다", () => {
+  it("11탭이 하나도 빠지지 않는다 — 검색이 못 닿는 탭이 생기면 검색이 거짓말이 된다", () => {
     const tabs = new Set(SETTINGS_INDEX.map((e) => e.tab));
     expect([...tabs].sort()).toEqual(
       [
@@ -107,7 +106,6 @@ describe("설정 색인은 원본을 따라간다", () => {
         "context",
         "data",
         "diagnostics",
-        "graph",
         "indexing",
         "llm",
         "mobile",

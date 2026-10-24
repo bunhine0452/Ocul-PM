@@ -66,8 +66,6 @@ export const ALLOWLIST = new Set([
   // 직접 호출이 늘어난 것이 아니라 `DiscussionScreenV2` 가 들고 있던 것이
   // 그대로 따라왔다. 옮길 때는 화면과 함께 보낸다.
   "features/discussion/useDiscussionSave.ts",
-  "features/graph/GraphInspector.tsx",
-  "features/graph/GraphScreenV2.tsx",
   "features/oculpm/useJournalDays.ts",
   "features/oculpm/useOculpmLive.ts",
   "features/onboarding/GreenfieldWizard.tsx",

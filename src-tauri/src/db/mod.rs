@@ -31,8 +31,8 @@ mod changes;
 mod chat;
 mod chunk_store;
 mod code_index;
+mod dependencies;
 pub mod firings;
-mod graph;
 pub mod hotspot;
 mod planning;
 mod projects;
@@ -631,58 +631,6 @@ pub struct ChatMessage {
     pub created_at: u32,
 }
 
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct DependencyNode {
-    pub file_id: u32,
-    pub path: String,
-    pub language: Option<String>,
-    pub size: u32,
-}
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct DependencyEdge {
-    pub source_file_id: u32,
-    pub target_file_id: u32,
-}
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct DependencyGraph {
-    pub nodes: Vec<DependencyNode>,
-    pub edges: Vec<DependencyEdge>,
-}
-
-// Code graph (PR-GR1) — multi-relation, file + symbol level. Returned by
-// `get_code_graph`; built by `rebuild_code_graph`. See docs/graph-upgrade/.
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct GraphNodeDto {
-    pub id: u32,
-    pub kind: String, // "file" | "symbol"
-    pub label: String,
-    pub sub_kind: Option<String>,
-    pub language: Option<String>,
-    pub file_id: u32,
-    pub file_path: String,
-    pub start_line: Option<u32>,
-    pub end_line: Option<u32>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct GraphEdgeDto {
-    pub id: u32,
-    pub edge_type: String, // imports | contains | calls | inherits | implements | similar_to
-    pub source: u32,
-    pub target: u32,
-    pub weight: f32,
-    pub direction: String,
-    pub estimated: bool,
-}
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct CodeGraph {
-    pub nodes: Vec<GraphNodeDto>,
-    pub edges: Vec<GraphEdgeDto>,
-}
-
 // Change-impact (PR-GR4) — reverse-dependency BFS from a set of changed files.
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]
 pub struct ImpactNode {
@@ -697,18 +645,6 @@ pub struct ImpactReport {
     pub changed: Vec<String>,
     /// Files that (transitively) import a changed file, nearest first.
     pub affected: Vec<ImpactNode>,
-}
-
-// Symbol-level call (PR-GR3) — "which function calls/uses which".
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct SymbolCall {
-    /// Caller symbol in this file (None = file top-level).
-    pub from_symbol: Option<String>,
-    pub kind: String, // calls | inherits | implements
-    pub callee: String,
-    /// Resolved defining file path (None = external / unresolved).
-    pub target_path: Option<String>,
-    pub estimated: bool,
 }
 
 /// PR6.6 — `file_snapshots` row. `content` is raw bytes (1.0 ships

@@ -22,7 +22,6 @@ import {
   CodeScreenV2,
   CodexScreenV2,
   DiscussionScreenV2,
-  GraphScreenV2,
   SearchScreenV2,
   SettingsPanel,
   SkillsScreenV2,
@@ -461,12 +460,6 @@ export default function ShellV2({
             key={`discussion-${jumpNonce}`}
             projectId={projectId}
             onNavigate={setUiV2View}
-          />
-        ) : view === "graph" ? (
-          <GraphScreenV2
-            projectId={projectId}
-            projectRoot={projectRoot}
-            onOpenInCode={openInCode}
           />
         ) : view === "skills" ? (
           <SkillsScreenV2 projectId={projectId} active={active} />

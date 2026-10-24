@@ -23,7 +23,6 @@ export type SettingsTab =
   | "llm"
   | "code"
   | "indexing"
-  | "graph"
   | "data"
   | "oculpm"
   | "context"
@@ -118,11 +117,6 @@ export const SETTINGS_INDEX: readonly SettingsEntry[] = [
   { tab: "indexing", key: "settings.scan.title" },
   { tab: "indexing", key: "settings.scan.maxSize", section: "settings.scan.title" },
   { tab: "indexing", key: "settings.scan.exclude", section: "settings.scan.title" },
-
-  // ── graph
-  { tab: "graph", key: "settings.graph.title" },
-  { tab: "graph", key: "settings.graph.showIsolated", section: "settings.graph.title" },
-  { tab: "graph", key: "settings.graph.threshold", section: "settings.graph.title" },
 
   // ── data
   { tab: "data", key: "settings.storage.title" },

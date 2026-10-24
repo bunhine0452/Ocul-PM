@@ -190,7 +190,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   // App-wide UI scale: native webview zoom (like browser ⌘+/−). Unlike CSS
   // `zoom`, this reflows the page natively, so pixel-measuring components
-  // (xterm terminal, React Flow graph, charts) stay correct instead of breaking.
+  // (xterm terminal, charts) stay correct instead of breaking.
   // Webview zoom resets on reload, so we re-apply on mount + whenever it changes.
   // Clamped so a bad value can't lock the user out. No-op outside Tauri.
   //

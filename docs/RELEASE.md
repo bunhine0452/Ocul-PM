@@ -91,7 +91,7 @@ node scripts/bump-version.mjs 2.48.0 [--title-ko "…" --title-en "…"] [--dry-
 
 버전 문자열: `softwareVersion`(JSON-LD) · `nav-ver` 배지 · `ap-new` NEW 배지 · **다운로드 버튼 2곳**(히어로와 CTA — 둘 다 `vX.Y.Z 받기`) · CTA `eyebrow`. 변경사항 `<li>` 는 새로 **추가**하는 것이라 이 수에 들지 않습니다 (v2.15.0 에서 이 문서가 5곳이라고 적어 둔 탓에 버튼 하나를 놓칠 뻔했습니다 — 아래 grep 이 실제 심판입니다).
 
-**영문 랜딩(`landing/en/index.html`)도 같은 6곳을 갖습니다.** 이 문서가 오래 `landing/index.html` 만 적어 두어, 영문 페이지가 옛 버전에 멈출 뻔했습니다 (v2.40.0 에서 확인). `build.mjs` 는 위키·changelog·themes·privacy 만 굽고 **en/index.html 은 손으로 고치는 면**입니다.
+**영문 랜딩(`landing/en/index.html`)도 같은 6곳을 갖습니다.** 이 문서가 오래 `landing/index.html` 만 적어 두어, 영문 페이지가 옛 버전에 멈출 뻔했습니다 (v2.40.0 에서 확인). `build.mjs` 는 위키·changelog·privacy 만 굽고 **en/index.html 은 손으로 고치는 면**입니다.
 
 ```bash
 # 이전 버전 문자열이 남지 않았는지 전수 확인 — 변경 이력 <li> 만 남는 것이 정상
@@ -106,7 +106,7 @@ grep -n "2\.8\.5" landing/index.html landing/en/index.html landing/plugin.html l
 node landing/wiki-src/build.mjs
 ```
 
-이 한 줄이 위키(`wiki/**`) · **변경 이력**(`changelog.html`) · **테마 갤러리**(`themes.html`) · **개인정보**(`privacy.html`) · `sitemap.xml` 을 전부 다시 굽습니다. `CHANGELOG.md` 를 §2 에서 고쳤으므로 **이 단계는 매 릴리스 필수**입니다 — 빼먹으면 웹의 변경 이력만 옛 버전에 멈춥니다. `src/__tests__/landing_pages.test.ts` 가 「CHANGELOG 맨 위 섹션 == `package.json` 버전」과 「모든 릴리스가 changelog.html 에 앵커로 있는가」를 함께 재므로, 잊으면 §0 게이트에서 붉게 납니다.
+이 한 줄이 위키(`wiki/**`) · **변경 이력**(`changelog.html`) · **개인정보**(`privacy.html`) · `sitemap.xml` 을 전부 다시 굽습니다. `CHANGELOG.md` 를 §2 에서 고쳤으므로 **이 단계는 매 릴리스 필수**입니다 — 빼먹으면 웹의 변경 이력만 옛 버전에 멈춥니다. `src/__tests__/landing_pages.test.ts` 가 「CHANGELOG 맨 위 섹션 == `package.json` 버전」과 「모든 릴리스가 changelog.html 에 앵커로 있는가」를 함께 재므로, 잊으면 §0 게이트에서 붉게 납니다.
 
 ### 4-2. 손으로 고치는 면
 
@@ -116,7 +116,6 @@ node landing/wiki-src/build.mjs
 - 눈에 띄는 기능이면 FAQ 항목 (SEO 표면)
 - 벤토 그리드 셀 — 그리드는 6칸이므로 `c-span2` 3개 = 한 줄로 맞춰 넣습니다
 - 플러그인 커맨드·MCP 도구·스킬이 바뀌었으면 `landing/plugin.html` 도. **버전 배지**(`v2.30.0`)가 그 페이지에 있고 `cargo test --test plugin_manifest` 가 앱 버전과의 동기를 강제합니다 (제3자 스킬 카탈로그·핀 SHA 는 `plugin_docs_sync.test.ts`)
-- 테마를 `landing/themes/` 에 더했다면 4-1 재빌드로 갤러리에 실립니다 (`landing_themes.test.ts` 가 스키마·색 값·본문 대비를 검사합니다)
 - 영문 랜딩(`landing/en/index.html`)의 대응 항목 — 한국어만 고치고 두고 오기 쉽습니다
 - **기존 FAQ 가 거짓이 되지 않는지** 확인합니다. 새 항목을 더하는 것보다 이쪽이 먼저입니다 — v2.15.0 에서 「자동완성이 필요하면 외부 에디터로」라고 적힌 답변이 바로 그 자동완성을 넣는 릴리스와 충돌했습니다. 같은 문장이 JSON-LD 와 `<details>` **두 곳**에 있으니 둘 다 고칩니다
 

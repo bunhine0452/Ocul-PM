@@ -65,7 +65,7 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>데이터와 파일 구조</h1>
-      <p class="wk-updated">마지막 수정 2026-08-16</p>
+      <p class="wk-updated">마지막 수정 2026-10-24</p>
       <nav class="wk-toc"><span>이 페이지에서</span><a href="#원칙-파일이-진실입니다">원칙 — 파일이 진실입니다</a><a href="#oculpm-구조">`.oculpm/` 구조</a><a href="#백업과-이동">백업과 이동</a><a href="#무엇이-어디에-있나">무엇이 어디에 있나</a><a href="#밖으로-나가는-것">밖으로 나가는 것</a></nav>
       <h2 id="원칙-파일이-진실입니다">원칙 — 파일이 진실입니다</h2>
 <p>Ocul-PM 의 모든 기록은 <b>프로젝트 안의 마크다운 파일</b>입니다. 앱의 데이터베이스(SQLite)는 화면을 빠르게 그리기 위한 <b>캐시</b>일 뿐이고, 언제든 파일에서 다시 만들어집니다. 그래서:</p>
@@ -87,7 +87,7 @@
 <h2 id="무엇이-어디에-있나">무엇이 어디에 있나</h2>
 <div class="wk-table"><table><thead><tr><th>데이터</th><th>위치</th><th>성격</th></tr></thead><tbody><tr><td>일지·계획·토의</td><td>프로젝트 <code>.oculpm/</code></td><td>원본 (마크다운)</td></tr><tr><td>AGENTS.md 기록 규칙</td><td>프로젝트 루트</td><td>원본</td></tr><tr><td>화면용 캐시·검색 인덱스</td><td>앱 데이터 폴더 (SQLite)</td><td>파생 — 재생성 가능</td></tr><tr><td>LLM API 키</td><td>macOS 키체인</td><td>앱 DB·파일에 저장하지 않음</td></tr><tr><td>앱 설정</td><td>앱 데이터 폴더</td><td>—</td></tr></tbody></table></div>
 <h2 id="밖으로-나가는-것">밖으로 나가는 것</h2>
-<p>다섯뿐이고 전부 여러분이 시작합니다: ① 직접 설정한 LLM API 호출, ② 새 버전 확인(업데이트 체크), ③ 앱 안 Claude Code·Codex 를 쓸 때의 그 프로바이더 통신 (여러분의 구독 자격으로) — 처음 쓸 때 npm 에서 받는 어댑터 한 번 포함(버전·해시 고정), ④ 눌렀을 때의 GitHub 조회 — 패치노트·플러그인/스킬 번들·테마 파일, ⑤ 의미 검색을 처음 켤 때 huggingface.co 에서 받는 임베딩 모델 <b>한 번</b> (모델이 내려오는 것이고 코드는 올라가지 않으며 그 뒤로는 전부 오프라인). 그 외 텔레메트리·분석·계정 서버는 없습니다.</p>
+<p>다섯뿐이고 전부 여러분이 시작합니다: ① 직접 설정한 LLM API 호출, ② 새 버전 확인(업데이트 체크), ③ 앱 안 Claude Code·Codex 를 쓸 때의 그 프로바이더 통신 (여러분의 구독 자격으로) — 처음 쓸 때 npm 에서 받는 어댑터 한 번 포함(버전·해시 고정), ④ 눌렀을 때의 GitHub 조회 — 패치노트·플러그인/스킬 번들, ⑤ 의미 검색을 처음 켤 때 huggingface.co 에서 받는 임베딩 모델 <b>한 번</b> (모델이 내려오는 것이고 코드는 올라가지 않으며 그 뒤로는 전부 오프라인). 그 외 텔레메트리·분석·계정 서버는 없습니다.</p>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/troubleshooting"><span>← 이전</span><b>문제 해결</b></a>
 <a class="wk-pg next" href="/wiki/shortcuts"><span>다음 →</span><b>단축키</b></a></footer>

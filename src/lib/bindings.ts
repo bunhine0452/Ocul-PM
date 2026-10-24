@@ -59,20 +59,6 @@ export const commands = {
 	 */
 	themeImport: (path: string | null, onConflict: string | null) => typedError<ThemeImportOutcome, AppError>(__TAURI_INVOKE("theme_import", { path, onConflict })),
 	/**
-	 *  링크로 받은 테마를 가져온다 (Osaurus 라운드 Phase 8 `#landing-themes`).
-	 * 
-	 *  oculpm.com/themes 의 「앱에서 가져오기」가 이 길이다. 딥링크 확인 시트를
-	 *  지난 **뒤에만** 불린다 — 시트를 지나지 않는 호출 경로가 프런트에 없다.
-	 * 
-	 *  받아온 뒤는 파일 임포트와 **같은 문**을 지난다: 임시 파일에 쓰고
-	 *  `theme_import` 에 넘긴다. 그래서 검증·id 재발급·이름 충돌 질의가 한 벌뿐이고,
-	 *  충돌 뒤 재시도도 `source_path` 로 그대로 돌아온다 (파일을 다시 받지 않는다).
-	 * 
-	 *  문은 셋이다: **https + 호스트 화이트리스트**(딥링크와 같은 파서) ·
-	 *  **응답 크기 상한**(헤더를 믿지 않고 읽으면서 센다) · **타임아웃**.
-	 */
-	themeImportUrl: (url: string, onConflict: string | null) => typedError<ThemeImportOutcome, AppError>(__TAURI_INVOKE("theme_import_url", { url, onConflict })),
-	/**
 	 *  테마 하나를 `.json` 으로 저장한다. `is_built_in` 은 항상 false 로 기록해
 	 *  남에게 건넨 파일이 그쪽 갤러리에서 "내장" 으로 앉지 않게 한다.
 	 */
@@ -173,10 +159,11 @@ export const commands = {
 	searchChunks: (projectId: number, query: string, limit: number, includeDocs: boolean, includeJournal: boolean) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_chunks", { projectId, query, limit, includeDocs, includeJournal })),
 	searchText: (projectId: number, query: string, limit: number) => typedError<ChunkSearchResult[], string>(__TAURI_INVOKE("search_text", { projectId, query, limit })),
 	searchSymbols: (projectId: number, query: string, limit: number) => typedError<SymbolSearchResult[], string>(__TAURI_INVOKE("search_symbols", { projectId, query, limit })),
-	getFileSymbols: (fileId: number) => typedError<SymbolDef[], string>(__TAURI_INVOKE("get_file_symbols", { fileId })),
-	getCodeGraph: (projectId: number, opts: GraphOpts) => typedError<CodeGraph, string>(__TAURI_INVOKE("get_code_graph", { projectId, opts })),
+	/**
+	 *  변경 영향 — 바뀐 파일을 (전이적으로) import 하는 파일들. 변경 화면의
+	 *  파일 목록 위 「영향」 줄이 쓴다 (PR-GR4; 코드 맵이 사라진 뒤 남은 유일한 소비처).
+	 */
 	getChangeImpact: (projectId: number, changedPaths: string[]) => typedError<ImpactReport, string>(__TAURI_INVOKE("get_change_impact", { projectId, changedPaths })),
-	getFileCalls: (fileId: number) => typedError<SymbolCall[], string>(__TAURI_INVOKE("get_file_calls", { fileId })),
 	clearProjectIndex: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("clear_project_index", { projectId })),
 	/**  List the project's plans (summary + progress + done counts). */
 	planList: (projectId: number) => typedError<PlanSummary[], string>(__TAURI_INVOKE("plan_list", { projectId })),
@@ -3326,11 +3313,6 @@ export type CodeFileContent = {
 	too_large: boolean,
 };
 
-export type CodeGraph = {
-	nodes: GraphNodeDto[],
-	edges: GraphEdgeDto[],
-};
-
 /**
  *  프런트로 건너가는 판 하나.
  * 
@@ -3784,7 +3766,7 @@ export type DbTableSize = {
 /**  확인 시트가 받는 요청. **실행이 아니라 제안**이다. */
 export type DeepLink = 
 /**  번들에서 스킬 하나만 (`name` 이 없으면 번들 전체와 같다). */
-{ action: "skill_install"; source: string; name: string | null } | { action: "theme_install"; url: string } | { action: "plugin_install"; source: string } | 
+{ action: "skill_install"; source: string; name: string | null } | { action: "plugin_install"; source: string } | 
 /**  이미 **등록된** 프로젝트를 연다. 경로로 새 프로젝트를 추가하지 않는다. */
 { action: "open"; project: string; view: string | null };
 
@@ -4326,36 +4308,6 @@ export type GlobMatch = {
 	files: number,
 	/**  glob 을 해석하지 못했다 — 판정 불가라 dead 로 부르지 않는다. */
 	unparsed: boolean,
-};
-
-export type GraphEdgeDto = {
-	id: number,
-	edge_type: string,
-	source: number,
-	target: number,
-	weight: number | null,
-	direction: string,
-	estimated: boolean,
-};
-
-export type GraphNodeDto = {
-	id: number,
-	kind: string,
-	label: string,
-	sub_kind: string | null,
-	language: string | null,
-	file_id: number,
-	file_path: string,
-	start_line: number | null,
-	end_line: number | null,
-};
-
-export type GraphOpts = {
-	/**
-	 *  Include symbol nodes + `contains` (file→symbol) edges. `false` = only
-	 *  file nodes + `imports` edges (lighter payload for large projects).
-	 */
-	symbol_level: boolean,
 };
 
 export type GreenfieldResult = {
@@ -6191,25 +6143,6 @@ export type SurfaceKind = "agent" | "command" |
  *  저 둘은 광고(name+description)만 실리지만 이건 파일 전체가 실린다.
  */
 "memory";
-
-export type SymbolCall = {
-	/**  Caller symbol in this file (None = file top-level). */
-	from_symbol: string | null,
-	kind: string,
-	callee: string,
-	/**  Resolved defining file path (None = external / unresolved). */
-	target_path: string | null,
-	estimated: boolean,
-};
-
-export type SymbolDef = {
-	name: string,
-	kind: string,
-	start_line: number,
-	end_line: number,
-	start_byte: number,
-	end_byte: number,
-};
 
 /**
  *  PR-R1b (A2) — a symbol hit from `search_symbols` (name LIKE over the AST
