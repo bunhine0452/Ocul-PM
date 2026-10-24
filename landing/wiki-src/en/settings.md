@@ -62,7 +62,7 @@ Needed only for AI features (AI panel chat, ⌘K inline editing). **Journaling i
 
 Pick a default provider, and optionally override the model per provider. Leave it blank to use the built-in default.
 
-- **OpenRouter** — hundreds of models over an OpenAI-compatible API. Model id example: `openai/gpt-4o`
+- **OpenRouter** — hundreds of models over an OpenAI-compatible API. Model id example: `openai/gpt-6-luna`
 - **NIM** — the OpenAI-compatible endpoint at `integrate.api.nvidia.com`
 
 ### Fallback chain
@@ -70,9 +70,9 @@ Pick a default provider, and optionally override the model per provider. Leave i
 When the default model call fails, these are retried top to bottom. One `provider:model` per line.
 
 ```
-openai:gpt-4o-mini
-anthropic:claude-3.5-haiku-latest
-openrouter:openai/gpt-4o
+openai:gpt-6-luna
+anthropic:claude-haiku-5-5
+openrouter:google/gemini-3.8-flash
 ```
 
 :::tip

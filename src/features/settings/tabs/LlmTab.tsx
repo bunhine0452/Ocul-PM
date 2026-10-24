@@ -242,7 +242,7 @@ export function LlmTab({ onError: showError }: { onError: (msg: string | null) =
         </Field>
         <Field label={t("settings.models.fallbackDefault")}>
           <Input
-            placeholder="claude-opus-5"
+            placeholder="claude-opus-5-5"
             value={settings.defaultModel}
             onChange={(e) => save("defaultModel", e.currentTarget.value)}
           />
@@ -300,7 +300,7 @@ export function LlmTab({ onError: showError }: { onError: (msg: string | null) =
           <textarea
             value={settings.fallbackModels}
             onChange={(e) => save("fallbackModels", e.currentTarget.value)}
-            placeholder={"openai:gpt-4o-mini\nanthropic:claude-haiku-4-5"}
+            placeholder={"openai:gpt-6-luna\nanthropic:claude-haiku-5-5"}
             rows={3}
             spellCheck={false}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y font-mono"

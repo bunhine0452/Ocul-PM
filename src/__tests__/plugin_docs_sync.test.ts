@@ -8,7 +8,10 @@ import { describe, expect, test } from "vitest";
 import { PLUGIN_COMMANDS, PLUGIN_FLOW, PLUGIN_TOOLS } from "@/features/skills/pluginDocs";
 import { CATALOG_PINS, CATALOG_SKILLS } from "@/features/skills/skillsCatalog";
 
-const commandsDir = join(process.cwd(), "plugin", "oculpm", "commands");
+// 커맨드는 2026-10-24 에 `commands/` 에서 `skills/<이름>/SKILL.md` 로 옮겼다 (Claude Code
+// 문서: commands/ 는 구형). 지식 스킬 5종을 뺀 나머지가 슬래시 커맨드다.
+const skillsDir = join(process.cwd(), "plugin", "oculpm", "skills");
+const KNOWLEDGE_SKILLS = ["oculpm-journal", "project-inception", "run-evals", "self-audit", "tdd-workflow"];
 // 도구 정의는 **두 파일**에 산다. 한쪽만 읽으면 이 게이트가 조용히 반쪽이 된다.
 const toolSources = [
   // 2026-09-04 에 `tools.rs` 가 `tools/mod.rs` + `tools/tests.rs` 로 갈라졌다
@@ -27,9 +30,9 @@ function frontmatterDescription(md: string): string {
 }
 
 describe("plugin docs sync (플러그인이 SSOT)", () => {
-  const onDisk = readdirSync(commandsDir)
-    .filter((f) => f.endsWith(".md"))
-    .map((f) => f.replace(/\.md$/, ""))
+  const onDisk = readdirSync(skillsDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && !KNOWLEDGE_SKILLS.includes(d.name))
+    .map((d) => d.name)
     .sort();
 
   test("커맨드 목록이 양방향으로 일치한다", () => {
@@ -41,7 +44,7 @@ describe("plugin docs sync (플러그인이 SSOT)", () => {
     "%s — cmd 형식과 frontmatter description 일치",
     (slug, doc) => {
       expect(doc.cmd).toBe(`/oculpm:${slug}`);
-      const md = readFileSync(join(commandsDir, `${slug}.md`), "utf8");
+      const md = readFileSync(join(skillsDir, slug, "SKILL.md"), "utf8");
       expect(doc.description).toBe(frontmatterDescription(md));
     },
   );

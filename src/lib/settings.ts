@@ -339,14 +339,17 @@ export const DEFAULTS: Settings = {
 
   defaultProvider: "anthropic",
   defaultModel: "",
-  // Sonnet 5 — 4.6 보다 새롭고 더 싸다 ($2/$10 vs $3/$15 per MTok, 2026-09).
-  modelAnthropic: "claude-sonnet-5",
-  modelOpenai: "gpt-4o-mini",
-  modelGemini: "gemini-2.5-flash",
+  // 2026-10-24 갱신 — 제공자 목록 실측(OpenRouter /api/v1/models). Sonnet 5.5 는
+  // Sonnet 5 와 같은 값($2/$10)에 새 판. GPT-6 Luna 는 4o-mini 보다 싸다($0.10/$0.50
+  // vs $0.15/$0.60) — 샘플링을 거절하는 추론 계열이라 openai.rs `is_reasoning_model`
+  // 이 온도를 뺀다. Gemini 는 Google 이 새 프로젝트에 권하는 3.8 Flash.
+  modelAnthropic: "claude-sonnet-5-5",
+  modelOpenai: "gpt-6-luna",
+  modelGemini: "gemini-3.8-flash",
   // NVIDIA NIM default — generally-available, competitive open-weights model.
   // Users override per-project in Settings → LLM.
   modelNim: "meta/llama-3.3-70b-instruct",
-  modelOpenrouter: "openai/gpt-4o-mini",
+  modelOpenrouter: "openai/gpt-6-luna",
   fallbackModels: "",
   // 미설정이 기본 — 신규 사용자에게는 게이트다 (D2). 기존 사용자는 프로젝트를
   // 열 때 백엔드가 대화 모델을 1회 시드한다.

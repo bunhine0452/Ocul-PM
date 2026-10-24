@@ -50,7 +50,7 @@ fn plugin_json_is_minimal_and_version_synced() {
     );
 }
 
-/// 훅은 3이벤트, 전부 `.oculpm` 추적 가드 + 비추적에서도 stdin 소비
+/// 훅은 싱크 4이벤트 + 주입 1, 전부 `.oculpm` 추적 가드 + 비추적에서도 stdin 소비
 /// (가드 실패 시 cat 미실행으로 세션당 3회 EPIPE 가 나던 문제의 재발 방지).
 #[test]
 fn hooks_json_guards_and_consumes_stdin() {
@@ -58,11 +58,13 @@ fn hooks_json_guards_and_consumes_stdin() {
     let map = hooks["hooks"].as_object().expect("hooks 맵");
     assert_eq!(
         map.len(),
-        4,
-        "구독 이벤트는 SessionStart/Stop/SessionEnd(싱크) + SubagentStart(주입) 4종"
+        5,
+        "구독 이벤트는 SessionStart/Stop/StopFailure/SessionEnd(싱크) + SubagentStart(주입) 5종"
     );
-    // 인라인 이벤트 싱크 2종 — 가드·stdin 소비·네트워크 금지 계약 (D1).
-    for ev in ["SessionStart", "Stop"] {
+    // 인라인 이벤트 싱크 3종 — 가드·stdin 소비·네트워크 금지 계약 (D1).
+    // StopFailure(2026-10-24): 턴이 API 오류로 끝나면 Stop 대신 이것만 온다 —
+    // 없으면 그 턴의 끝이 원장에서 빠진다. 막을 수 없는 이벤트라 배달 게이트는 안 붙인다.
+    for ev in ["SessionStart", "Stop", "StopFailure"] {
         let cmd = map[ev][0]["hooks"][0]["command"]
             .as_str()
             .unwrap_or_else(|| panic!("{ev} command"));
@@ -83,7 +85,7 @@ fn hooks_json_guards_and_consumes_stdin() {
     // (같은 플러그인의 session-end.sh 는 처음부터 `printf '%s\n'` 을 썼다).
     // 소비자(`claude_hooks::parse_inbox_slice`)가 깨진 줄을 건너뛰긴 하지만,
     // 건너뛴 줄은 곧 잃은 이벤트다 — 붙는 쪽을 고치는 것이 원칙이다.
-    for ev in ["SessionStart", "Stop"] {
+    for ev in ["SessionStart", "Stop", "StopFailure"] {
         let cmd = map[ev][0]["hooks"][0]["command"].as_str().unwrap();
         assert!(
             !cmd.contains("cat >> "),
@@ -403,16 +405,21 @@ fn bundled_skills_and_commands_stay_within_budget() {
         .map(|e| e.file_name().to_string_lossy().to_string())
         .collect();
     names.sort();
+    let mut expected: Vec<&str> = KNOWLEDGE_SKILLS
+        .iter()
+        .chain(COMMAND_SKILLS)
+        .copied()
+        .collect();
+    expected.sort();
     assert_eq!(
-        names,
-        [
-            "oculpm-journal",
-            "project-inception",
-            "run-evals",
-            "self-audit",
-            "tdd-workflow"
-        ],
-        "동봉 스킬은 5종 고정 — 추가하려면 토큰 예산부터 재계산"
+        names, expected,
+        "동봉 스킬은 지식 5종 + 커맨드 6종 고정 — 추가하려면 토큰 예산부터 재계산 (+ landing/plugin.html 문서화)"
+    );
+    // 커맨드는 `skills/` 로 옮겼다 (2026-10-24, Claude Code 문서: commands/ 는 구형).
+    // 옛 자리가 되살아나면 같은 이름이 두 번 뜬다.
+    assert!(
+        !plugin_root().join("commands").exists(),
+        "commands/ 는 걷었다 — 커맨드는 skills/<이름>/SKILL.md 로"
     );
 
     let mut desc_chars = 0usize;
@@ -423,42 +430,42 @@ fn bundled_skills_and_commands_stay_within_budget() {
             .lines()
             .find_map(|l| l.strip_prefix("description: "))
             .unwrap_or_else(|| panic!("{name}: description 필수 (트리거 문장)"));
-        desc_chars += desc.chars().count();
+        // 모델 호출을 끈 스킬은 설명이 상시 컨텍스트에 실리지 않는다.
+        if !text.lines().any(|l| l == "disable-model-invocation: true") {
+            desc_chars += desc.chars().count();
+        }
     }
-    // 커맨드는 전수 스캔 — 새 커맨드가 예산 계산에서 빠지지 않게.
-    let mut cmd_names: Vec<String> = std::fs::read_dir(plugin_root().join("commands"))
-        .expect("commands/ 존재")
-        .filter_map(|e| e.ok())
-        .map(|e| e.file_name().to_string_lossy().to_string())
-        .filter(|n| n.ends_with(".md"))
-        .collect();
-    cmd_names.sort();
-    assert_eq!(
-        cmd_names,
-        [
-            "board.md",
-            "help.md",
-            "inception.md",
-            "next.md",
-            "project_init.md",
-            "standup.md"
-        ],
-        "동봉 커맨드 6종 고정 — 추가하려면 토큰 예산부터 재계산 (+ landing/plugin.html 문서화)"
+    // 사용자가 직접 실행하는 시작 — 모델이 스스로 부르면 안 된다 (MCP project_init 도 같은 규칙).
+    let init = std::fs::read_to_string(skills_dir.join("project_init/SKILL.md")).unwrap();
+    assert!(
+        init.lines().any(|l| l == "disable-model-invocation: true"),
+        "project_init 은 사용자만 실행한다 — disable-model-invocation 필수"
     );
-    for name in &cmd_names {
-        let cmd = std::fs::read_to_string(plugin_root().join("commands").join(name)).unwrap();
-        let cmd_desc = cmd
-            .lines()
-            .find_map(|l| l.strip_prefix("description: "))
-            .unwrap_or_else(|| panic!("{name}: description 필수"));
-        desc_chars += cmd_desc.chars().count();
-    }
     // 한글 혼합 기준 보수적으로 1 tok ≈ 2 chars — 1,400 chars ≈ ~700 tok 상한.
     assert!(
         desc_chars <= 1_400,
         "상시 노출 description 합계 {desc_chars} chars — 예산(1,400) 초과. 트리거를 압축하라"
     );
 }
+
+/// 지식 스킬 — 모델이 상황을 보고 고른다.
+const KNOWLEDGE_SKILLS: &[&str] = &[
+    "oculpm-journal",
+    "project-inception",
+    "run-evals",
+    "self-audit",
+    "tdd-workflow",
+];
+
+/// 예전 `commands/` 의 슬래시 커맨드 — 이름(`/oculpm:<이름>`)은 그대로다.
+const COMMAND_SKILLS: &[&str] = &[
+    "board",
+    "help",
+    "inception",
+    "next",
+    "project_init",
+    "standup",
+];
 
 /// oculpm.com/plugin 문서 페이지가 플러그인의 실제 표면과 동기 —
 /// 새 커맨드/도구를 추가하고 문서를 빼먹으면 여기서 게이트가 실패한다
@@ -473,11 +480,7 @@ fn landing_plugin_docs_page_lists_every_command_and_tool() {
         )
     });
 
-    for entry in std::fs::read_dir(plugin_root().join("commands")).unwrap() {
-        let name = entry.unwrap().file_name().to_string_lossy().to_string();
-        let Some(base) = name.strip_suffix(".md") else {
-            continue;
-        };
+    for base in COMMAND_SKILLS {
         let cmd = format!("/oculpm:{base}");
         assert!(
             page.contains(&cmd),
@@ -508,13 +511,7 @@ fn landing_plugin_docs_page_lists_every_command_and_tool() {
         );
     }
     // 스킬 5종 — 갤러리/매니페스트와 같은 목록.
-    for skill in [
-        "oculpm-journal",
-        "project-inception",
-        "run-evals",
-        "self-audit",
-        "tdd-workflow",
-    ] {
+    for skill in KNOWLEDGE_SKILLS {
         assert!(
             page.contains(skill),
             "landing/plugin.html 에 스킬 {skill} 문서 누락"

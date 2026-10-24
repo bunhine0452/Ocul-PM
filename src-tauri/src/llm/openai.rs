@@ -96,11 +96,25 @@ impl OpenAi {
 }
 
 /// OpenAI 의 추론 모델인가 — 샘플링 파라미터를 받지 않는 계열.
+///
+/// `gpt-<N>` 은 **5 이상이면 전부** 추론 계열로 본다 (2026-10-24). GPT-6(`gpt-6-luna` ·
+/// `gpt-6.1-sol`)도 GPT-5 처럼 `temperature` 를 거절하는데(OpenRouter 의
+/// `supported_parameters` 실측), 접두 목록에 `gpt-5` 만 있어 기본값을 GPT-6 로 바꾸는
+/// 순간 채팅이 400 이 될 뻔했다. 다음 세대도 같은 규칙일 가능성이 높고, 안 보내서
+/// 깨지는 모델은 없다.
 fn is_reasoning_model(model: &str) -> bool {
     let m = model.trim().to_ascii_lowercase();
-    ["o1", "o3", "o4", "gpt-5"]
+    let o_series = ["o1", "o3", "o4"]
         .iter()
-        .any(|p| m == *p || m.starts_with(&format!("{p}-")) || m.starts_with(&format!("{p}.")))
+        .any(|p| m == *p || m.starts_with(&format!("{p}-")) || m.starts_with(&format!("{p}.")));
+    let gpt_major = m
+        .strip_prefix("gpt-")
+        .and_then(|rest| {
+            let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+            digits.parse::<u32>().ok()
+        })
+        .is_some_and(|major| major >= 5);
+    o_series || gpt_major
 }
 
 #[derive(Serialize)]
@@ -287,6 +301,11 @@ mod tests {
         assert!(is_reasoning_model("o3-mini"));
         assert!(is_reasoning_model("gpt-5.1"));
         assert!(is_reasoning_model("GPT-5-mini"));
+        assert!(is_reasoning_model("gpt-6-luna"));
+        assert!(is_reasoning_model("gpt-6.1-sol"));
+        assert!(is_reasoning_model("gpt-10"));
+        assert!(!is_reasoning_model("gpt-4o-mini"));
+        assert!(!is_reasoning_model("gpt-image-1"));
         assert!(!is_reasoning_model("gpt-4o"));
         assert!(!is_reasoning_model("gpt-4.1"));
     }
