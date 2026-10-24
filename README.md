@@ -78,7 +78,11 @@ Ocul-PM 은 그 설명을 없앱니다. 프로젝트 폴더에 규칙 파일(`AG
 
 「VS Code 급 편집기」를 앱 안에 또 만드는 대신, 확장 **`oculpm.ocul-pm`** 이 VS Code 사이드바에 **오늘 일지와 활성 플랜**을 띄웁니다. 에이전트가 일지를 쓰면 1초 안에 거기 뜨고, 플랜 항목 체크박스를 누르면 `.md` 와 앱 플래너가 같이 바뀝니다 — 쓰기는 이 앱의 `oculpm-mcp` 를 통해서만(앱이 없으면 읽기 전용). Copilot 에이전트 모드에는 `journal_write`·`plan_update` 도구가 그대로 보이고, 일지의 「편집기로 열기」는 VS Code 사이드바의 그 일지로, VS Code 의 「Ocul-PM 에서 열기」는 앱의 그 일지로 갑니다. [VS Code 마켓플레이스](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm)(Cursor · VSCodium). 확장은 네트워크를 쓰지 않습니다.
 
-## 🚀 v3.13.4 — 터미널 맨 아랫줄이 잘리지 않습니다
+## 🚀 v3.13.5 — 업데이트 뒤에도 터미널에서 데스크탑 폴더가 열립니다
+
+- **업데이트한 뒤 내장 터미널에서 `getcwd: Operation not permitted` 가 뜨던 것을 고쳤습니다** — 셸을 붙든 보조 프로세스가 업데이트를 건너 살아남는 동안 실행 파일이 지워져, macOS 가 데스크탑·문서 폴더 접근을 막았습니다. 이제 앱 데이터에 복제해 둔 앱(같은 서명, APFS 복제)에서 떠서 권한이 남습니다. 이미 겪고 있다면 열린 터미널을 모두 닫고 새로 여세요.
+
+## v3.13.4 — 터미널 맨 아랫줄이 잘리지 않습니다
 
 - **Claude Code 입력창 아래가 살짝 잘리던 것을 고쳤습니다** — 터미널이 가장자리 여백까지 높이로 세어 한 줄쯤 더 잡고, 그 마지막 줄이 잘렸습니다. 이제 여백 안쪽만 셉니다(폭도 몇 칸 좁게 맞춰질 수 있습니다).
 

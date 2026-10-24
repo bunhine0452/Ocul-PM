@@ -78,7 +78,11 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 Instead of building "a VS Code-grade editor" inside the app, the **`oculpm.ocul-pm`** extension puts **today's journal and the active plans** in the VS Code sidebar. When an agent writes an entry it shows up there within a second; ticking a plan item's checkbox changes the `.md` and the app's planner with it — writes go only through this app's `oculpm-mcp` (read-only without the app). Copilot agent mode sees `journal_write` · `plan_update` as tools, "Open in editor" on a journal entry lands on that entry in the VS Code sidebar, and "Open in Ocul-PM" from the VS Code tree lands on it in the app. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=oculpm.ocul-pm) · [Open VSX](https://open-vsx.org/extension/oculpm/ocul-pm) (Cursor · VSCodium). The extension opens no network connection.
 
-## 🚀 v3.13.4 — The terminal's bottom line is no longer cut off
+## 🚀 v3.13.5 — Desktop folders still open in the terminal after an update
+
+- **Fixed `getcwd: Operation not permitted` in the built-in terminal after an update** — the helper process that keeps your shells alive across updates outlived its own executable, and macOS then blocked its access to Desktop and Documents. It now runs from a copy of the app in the app-data folder (same signature, an APFS clone), so the permission stays. If you are seeing this now, close every open terminal and open a new one.
+
+## v3.13.4 — The terminal's bottom line is no longer cut off
 
 - **The bottom of Claude Code's input box is no longer clipped** — the terminal counted its edge padding as usable height, took about one row too many, and that last row was cut off. It now counts only the space inside the padding (the width may come out a few columns narrower too).
 

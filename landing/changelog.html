@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.13.4)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 124개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.13.5)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 125개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.13.4)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 124개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.13.5)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 125개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.13.4</span>
+    <span class="nav-ver" data-version>v3.13.5</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -43,13 +43,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>124개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>125개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-13-5">v3.13.5</a>
       <a href="#v3-13-4">v3.13.4</a>
       <a href="#v3-13-2">v3.13.2</a>
       <a href="#v3-13-1">v3.13.1</a>
@@ -61,10 +62,16 @@
       <a href="#v3-9-0">v3.9.0</a>
       <a href="#v3-8-0">v3.8.0</a>
       <a href="#v3-7-0">v3.7.0</a>
-      <a href="#v3-6-0">v3.6.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-13-5"><a href="#v3-13-5">v3.13.5</a></h2>
+      <div class="cl-body">
+<p><b>업데이트한 뒤에도 내장 터미널에서 데스크탑·문서 폴더가 열립니다.</b> 내장 터미널은 앱을 업데이트해도 셸이 끊기지 않도록, 셸을 붙든 보조 프로세스를 앱보다 오래 살려 둡니다. 그런데 업데이트가 앱을 갈아 끼우면 그 프로세스의 실행 파일이 디스크에서 사라지고, macOS 는 그 뒤로 이 터미널을 Ocul-PM 으로 알아보지 못해 데스크탑·문서 폴더 접근을 막았습니다. 그래서 새 터미널을 열 때마다 <code>getcwd: Operation not permitted</code> 가 떴고, 셸 설정에 fnm 이 있으면 fnm 이 멈췄습니다. 이제 이 보조 프로세스는 앱 데이터 폴더에 복제해 둔 앱(같은 서명, APFS 복제라 디스크를 더 쓰지 않음)에서 뜹니다. 업데이트가 그 복제본은 지우지 않으므로, 업데이트 뒤에도 권한이 그대로 남습니다.</p>
+<ul><li><b>이미 이 문제를 겪고 있다면</b> 열린 내장 터미널을 모두 닫은 뒤 새로 여세요. 옛 보조 프로세스가 비는 순간 새 판으로 바뀝니다. 예전에는 앱을 다시 켤 때만 바뀌었습니다.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-13-4"><a href="#v3-13-4">v3.13.4</a></h2>
       <div class="cl-body">
