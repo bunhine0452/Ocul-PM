@@ -32,12 +32,15 @@
 //! - `emit` — Tauri 이벤트 방출 헬퍼.
 //! - `classify` — 경로·이벤트 종류를 가르는 순수 술어.
 //! - `repeat` — 윈도우가 같은 쓰기를 두 번 알리는 것을 걷는 기억 (윈도우만 켠다).
+//! - `file_id_cache` — 디바운서의 파일 id 캐시. `FileIdMap` 과 같은 답을 내되
+//!   Remove 가 캐시 전체를 훑지 않는다.
 //!
 //! See `docs/major_update/oculpm/W2/PR3-watcher-notify.md`.
 
 mod adapters;
 mod classify;
 mod emit;
+mod file_id_cache;
 #[cfg(any(target_os = "macos", test))]
 mod fsevents;
 mod handle;
@@ -61,7 +64,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
 use notify::{RecursiveMode, Watcher};
-use notify_debouncer_full::{new_debouncer_opt, DebounceEventResult, Debouncer, FileIdMap};
+use notify_debouncer_full::{new_debouncer_opt, DebounceEventResult, Debouncer};
 use tokio::task::JoinHandle;
 
 use crate::oculpm::error::OculpmError;
@@ -71,6 +74,7 @@ use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{OculpmConfig, WatcherSchedStats, WatcherStateView, WatcherStatus};
 use crate::oculpm::{watcher_queue, watcher_tasks};
 
+use file_id_cache::OrderedFileIdCache;
 use handle::WatcherInner;
 
 /// OS 워처. macOS 만 FSEvents 의 누적 깃발을 디바운서 앞에서 걷는다 — 옛 이름의
@@ -89,7 +93,7 @@ type OsWatcher = notify::RecommendedWatcher;
 pub struct ProjectWatcher {
     project_id: u32,
     /// `Option` so `stop` can `take()` and drop ahead of awaiting the task.
-    debouncer: Option<Debouncer<OsWatcher, FileIdMap>>,
+    debouncer: Option<Debouncer<OsWatcher, OrderedFileIdCache>>,
     join_handle: JoinHandle<()>,
     stats: Arc<RwLock<WatcherStatsInner>>,
     debounce_ms: u32,
@@ -188,7 +192,7 @@ impl ProjectWatcher {
         // 쪽이든 `balanced`(1s)로 잘린다: 긴 디바운스는 OS 워처가 이벤트를 들고
         // 있게 만들어 메모리·유실 위험이다. 긴 기다림은 러너 쪽 정착 타이머의 몫.
         let debounce_ms = crate::oculpm::automation::tiers::os_debounce_ms(&config.watcher);
-        let mut debouncer = new_debouncer_opt::<_, OsWatcher, FileIdMap>(
+        let mut debouncer = new_debouncer_opt::<_, OsWatcher, OrderedFileIdCache>(
             Duration::from_millis(u64::from(debounce_ms)),
             None,
             move |result: DebounceEventResult| {
@@ -209,7 +213,8 @@ impl ProjectWatcher {
                     ),
                 }
             },
-            FileIdMap::new(),
+            // `FileIdMap` 과 같은 답, Remove 가 캐시 전체를 훑지 않는다 (`file_id_cache`).
+            OrderedFileIdCache::new(),
             notify::Config::default(),
         )
         .map_err(|e| OculpmError::Io {
