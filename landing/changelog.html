@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.13.6)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 126개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.13.7)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 127개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.13.6)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 126개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.13.7)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 127개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.13.6</span>
+    <span class="nav-ver" data-version>v3.13.7</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -42,13 +42,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>126개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>127개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-13-7">v3.13.7</a>
       <a href="#v3-13-6">v3.13.6</a>
       <a href="#v3-13-5">v3.13.5</a>
       <a href="#v3-13-4">v3.13.4</a>
@@ -60,10 +61,18 @@
       <a href="#v3-10-1">v3.10.1</a>
       <a href="#v3-10-0">v3.10.0</a>
       <a href="#v3-9-0">v3.9.0</a>
-      <a href="#v3-8-0">v3.8.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-13-7"><a href="#v3-13-7">v3.13.7</a></h2>
+      <div class="cl-body">
+<p>이번 판에는 리눅스 판이 다시 실립니다(v3.13.6 은 macOS · Windows 만).</p>
+<p><b>리눅스에서 에이전트가 쓴 일지가 화면에 바로 뜹니다.</b> 리눅스의 파일 감시는 새 폴더마다 감시를 따로 거는데, 폴더가 생기고 감시가 걸리기 전 그 사이에 만들어진 파일은 알려지지 않았습니다. 에이전트가 오늘 첫 일지를 쓰면 날짜 폴더와 종류 폴더가 새로 생기면서 그 안의 일지를 놓쳐, 다시 불러오기 전까지 일지 화면에 없었습니다. 새로 만든 폴더 안 코드 파일이 변경 기록과 검색에서 빠지는 일도 같은 이유였습니다. 이제 새 폴더가 보이면 그 안을 직접 훑습니다(같은 조건 실측: 200건 중 70~87% 놓침 → 0). 이 문제로 v3.13.6 은 리눅스 판이 빠졌습니다.</p>
+<p><b>셸을 쥔 프로세스가 사라져도 터미널이 먹통으로 남지 않습니다.</b> 셸이 스스로 끝나면 「세션 끝남 · 다시 시작」이 떴지만, 셸을 쥔 보조 프로세스가 통째로 사라지면(종료·충돌, 옛 판을 손으로 내린 경우) 그 알림이 오지 않았습니다. 페인은 살아 있는 줄 알고 입력을 보냈고, 매번 「입력 거절」만 쌓였습니다. 이제 그 거절을 종료로 알아보고 같은 자리에서 다시 시작할 수 있게 합니다.</p>
+<ul><li>앱 빌드 도구를 Vite 8 로 올려 화면 묶음이 조금 작아졌고(첫 화면 스크립트 gzip 88 → 78KB), Claude Code · Codex 화면의 프로토콜 라이브러리와 Rust 컴파일러(1.99)도 지금 판으로 올렸습니다.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-13-6"><a href="#v3-13-6">v3.13.6</a></h2>
       <div class="cl-body">

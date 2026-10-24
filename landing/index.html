@@ -47,7 +47,7 @@
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "3.13.6",
+  "softwareVersion": "3.13.7",
   "description": "AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요. 매일 AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)로 개발하는 사람을 위한 로컬-우선 AI 프로젝트 매니저 — 에이전트가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 이어받습니다. 로컬 diff 검증, 스탠드업. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
@@ -296,7 +296,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.13.6</span>
+    <span class="nav-ver" data-version>v3.13.7</span>
     <div class="nav-links">
       <a href="#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -314,7 +314,7 @@
 <!-- ══════════ 히어로 ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v3.13.6 — 덜어내고 가벼워졌습니다</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v3.13.7 — 리눅스 판이 돌아왔습니다</a>
   <h1 class="reveal on">AI와 어제 어디까지 작업했는지,<br /><span class="g">오늘 다시 설명하지 마세요.</span></h1>
   <p class="hero-sub reveal on">
     Claude Code 가 작업을 끝내면 <b>Ocul-PM</b> 에 일지가 남고, 다음 대화는 그 일지와
@@ -323,7 +323,7 @@
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v3.13.6 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
+      <span class="lg">v3.13.7 받기</span><span class="sub">무료 · macOS (Apple Silicon)</span>
     </a>
     <a class="dl-btn ghost" href="/keynote">키노트로 보기 →</a>
   </div>
@@ -551,6 +551,7 @@
     <p class="reveal">이 앱은 자기 자신으로 개발됩니다 — 아래 이력 전부가 Ocul-PM 의 작업 일지에서 나왔습니다.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v3.13.7 — 리눅스 판이 돌아왔습니다</b> · 리눅스 파일 감시가 새 폴더 안에서 곧바로 생긴 파일을 놓쳐(실측 200건 중 70~87%), 에이전트의 오늘 첫 일지가 화면에 안 떴습니다 — v3.13.6 이 리눅스 판 없이 나간 이유입니다. 이제 새 폴더를 직접 훑습니다. 셸을 쥔 프로세스가 사라진 터미널도 먹통 대신 「다시 시작」을 띄웁니다.</li>
     <li class="reveal"><b>v3.13.6 — 덜어내고 가벼워졌습니다</b> · 쓰임에 비해 표면이 컸던 주변 기능 다섯 — 모바일 연동(베타)·코드 화면 디버거·코드 맵·원격 테마 갤러리·VS Code 확장 — 을 걷었습니다. 앱은 이제 네트워크에서 아무것도 듣지 않습니다. 파일을 지울 때마다 감시가 목록 전체를 훑던 것을 고쳤고(실측 16초 → 8ms), 기본 모델·Tauri·SQLite·어댑터를 지금 판으로 올렸습니다.</li>
     <li class="reveal"><b>v3.13.5 — 업데이트 뒤에도 터미널에서 데스크탑 폴더가 열립니다</b> · 셸을 붙든 보조 프로세스가 업데이트를 건너 살아남는 동안 실행 파일이 지워져, macOS 가 데스크탑·문서 폴더 접근을 막았습니다 — 새 터미널마다 <code>getcwd: Operation not permitted</code>. 이제 앱 데이터에 복제해 둔 앱(같은 서명, APFS 복제라 디스크를 더 쓰지 않음)에서 떠서 업데이트 뒤에도 권한이 남습니다.</li>
     <li class="reveal"><b>v3.13.4 — 터미널 맨 아랫줄이 잘리지 않습니다</b> · 터미널이 가장자리 여백까지 쓸 수 있는 높이로 세어 <b>한 줄쯤 더</b> 잡았고, 그 마지막 줄이 잘렸습니다. v3.13.2 부터 Claude Code 가 입력창을 맨 아래 줄에 그리면서 입력창 아래가 살짝 잘려 보였습니다. 이제 여백 안쪽만 세어 마지막 줄까지 보입니다.</li>
@@ -715,12 +716,12 @@
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v3.13.6 — 지금 다운로드 · macOS · Windows · Linux (베타)</span>
+  <span class="eyebrow reveal">v3.13.7 — 지금 다운로드 · macOS · Windows · Linux (베타)</span>
   <h2 class="reveal">시작하는 데 필요한 것은,<br />없습니다.</h2>
   <p class="sub reveal">가입도, 설정도, 비용도 없습니다. 내려받으면 그게 전부입니다.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">v3.13.6 받기</span><span class="sub">무료 · 자동 업데이트</span>
+      <span class="lg">v3.13.7 받기</span><span class="sub">무료 · 자동 업데이트</span>
     </a>
     <a class="dl-btn ghost" href="/plugin">플러그인으로 시작 →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">기업 도입 · 제휴 문의</a>

@@ -71,7 +71,12 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 <img src="landing/shots/en/05-terminal.jpg" alt="⌘J terminal dock — a terminal on any screen" />
 
-## 🚀 v3.13.6 — Lighter — five side features retired
+## 🚀 v3.13.7 — Linux builds are back
+
+- **On Linux, journals written by an agent show up right away** — the Linux file watcher missed files created straight away inside brand-new folders (70–87% of 200 in a matching test), so today's first journal stayed hidden until a reload. The app now scans new folders itself. This is why v3.13.6 shipped without Linux builds.
+- **A terminal no longer goes dead when the process holding its shell disappears** — panes that only piled up "input rejected" now show "session ended · restart".
+
+## v3.13.6 — Lighter — five side features retired
 
 - **Five little-used side features are gone** — the mobile bridge (beta), the Code-screen debugger, the Code Map screen, the remote theme gallery and the VS Code extension. The app no longer listens on the network at all, and with Code Map gone the ⌘-numbers from ⌘6 shift by one (Terminal ⌘6 … Skills ⌘0). The Diff screen's "affected files", built-in themes and theme files stay.
 - **A long-running app is quieter** — deleting files no longer makes the watcher rescan its whole cache (measured 16 s → 8 ms), and git worktree copies inside a project stay out of semantic search and local history.
