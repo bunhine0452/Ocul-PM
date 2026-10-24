@@ -174,7 +174,7 @@ const RUST_SITES: &[Site] = &[
         path: "commands/open_native.rs",
         primitives: &["xdg-open", "tauri_plugin_opener"],
         control: Control::LocalOnly,
-        reason: "로그 폴더·일지 파일을 OS 기본 앱으로 연다 — 로컬 경로, 그리고 앱이 스스로 조립하는 `vscode://oculpm.ocul-pm/open?entry=<로컬 경로>` 하나(설치된 VS Code 확장으로 위임 — vscode_ext.rs). 기기 밖으로 나가는 목적지가 아니다. Windows 는 `cmd start` 대신 opener 플러그인의 ShellExecute(`shell_open`) — open_url 의 브라우저 위임도 이 창구를 지난다.",
+        reason: "로그 폴더·일지 파일을 OS 기본 앱으로 연다 — 로컬 경로다. 기기 밖으로 나가는 목적지가 아니다. Windows 는 `cmd start` 대신 opener 플러그인의 ShellExecute(`shell_open`) — open_url 의 브라우저 위임도 이 창구를 지난다.",
     },
     // ── 인바운드(듣는 쪽). 나가지는 않지만 경계는 경계다 ──
     Site {
@@ -206,9 +206,6 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     ("registry.npmjs.org", "ACP 어댑터 설치 — Claude Code·Codex 화면이 어댑터를 처음 깔 때 npm 하위 프로세스가 고정 lockfile(acp-lock/, sha512)의 패키지를 받는다. 앱 코드는 이 호스트를 직접 부르지 않는다 — 소스의 이 문자열은 lockfile 계약 테스트(acp/adapter.rs)의 단언이다. 그 하위 프로세스 자리(`install_tree` 의 `tokio_cmd(npm)`)는 판정 D(egress_spawn_ledger.rs)가 송출 가능으로 센다."),
     // ── 브라우저에 넘기는 링크 (앱이 보내지 않는다) ──
     ("github.com", "저장소·이슈·릴리스 링크 — open_url 로 OS 브라우저에 위임한다. plugins/source.rs 의 테스트 픽스처이기도 하다."),
-    // marketplace.visualstudio.com 은 2026-09-14 에 표에서 뺐다 — 확장이 아직 거기 발행되지 않아
-    // (404) 링크 자체를 내지 않는다 (commands/mcp.rs marketplace_url = None). 발행하면 링크와 함께 되살린다.
-    ("open-vsx.org", "확장의 Open VSX 링크 (Cursor·VSCodium 사용자용, commands/mcp.rs vscode_extension_status) — 설정 화면 앵커, 사용자 클릭 시 open_url 로 브라우저 위임. 앱은 보내지 않는다."),
     // ── 목적지가 아닌 것 ──
     ("mcp.notion.com", "앱이 부르지 않는다 — 에이전트 CLI 설정 파일(.mcp.json/config.toml)에 **적히는 값**이고, 그 파서의 테스트 픽스처다."),
     ("www.w3.org", "SVG 네임스페이스 URI — 네트워크 요청이 아니다 (xmlns 속성)."),

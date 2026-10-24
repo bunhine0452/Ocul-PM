@@ -320,9 +320,8 @@ export default function ProjectTab({
                   toast.warning(t("deeplink.open.notRegistered"));
                   return;
                 }
-                // view/entry 까지 싣는다 — 탭을 열거나 활성화한 뒤 그 창에만
+                // view 까지 싣는다 — 탭을 열거나 활성화한 뒤 그 창에만
                 // TrayNavigate 를 쏘는 경로(tray_open_main)를 그대로 탄다.
-                // VS Code 확장의 'Ocul-PM 에서 열기'가 이 자리로 들어온다.
                 void commands.trayOpenMain(openNavFor(link, id, UI_V2_VIEWS));
                 return;
               }

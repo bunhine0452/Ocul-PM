@@ -2076,7 +2076,6 @@ export const commands = {
 	 *  놓쳐도 무해(안내가 안 뜰 뿐), 오탐만 없으면 된다.
 	 */
 	claudePluginStatus: () => __TAURI_INVOKE<ClaudePluginStatus>("claude_plugin_status"),
-	vscodeExtensionStatus: () => __TAURI_INVOKE<VscodeExtensionStatus>("vscode_extension_status"),
 	mcpDesktopRegister: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_register", { projectId })),
 	mcpDesktopUnregister: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_unregister", { projectId })),
 	trayOpenMain: (nav: {
@@ -3787,7 +3786,7 @@ export type DeepLink =
 /**  번들에서 스킬 하나만 (`name` 이 없으면 번들 전체와 같다). */
 { action: "skill_install"; source: string; name: string | null } | { action: "theme_install"; url: string } | { action: "plugin_install"; source: string } | 
 /**  이미 **등록된** 프로젝트를 연다. 경로로 새 프로젝트를 추가하지 않는다. */
-{ action: "open"; project: string; view: string | null; entry: string | null };
+{ action: "open"; project: string; view: string | null };
 
 /**  프런트가 받는 이벤트. 앱이 이미 떠 있으면 기존 창으로 라우팅된다. */
 export type DeepLinkReceived = DeepLink;
@@ -6425,22 +6424,6 @@ export type Velocity = {
 	/**  오래된 주 → 최신 주(오늘이 속한 주) 순, `WeekChart` 와 같은 방향. */
 	weeks: WeekBucket[],
 	plan: PlanVelocity,
-};
-
-/**
- *  설정 > 통합 'VS Code 확장' 행 (플랜 `vscode-extension-round`
- *  {#app-settings}). 판정은 `vscode_ext::detect` — 확장 폴더만 읽는다.
- */
-export type VscodeExtensionStatus = {
-	installed: boolean,
-	/**  어느 편집기에서 찾았나 — `vscode` | `vscode-insiders`. */
-	editor: string | null,
-	/**
-	 *  VS Code 마켓플레이스 — **아직 발행 전**이라 `None` (2026-09-14 실측 404).
-	 *  발행 뒤 `Some` 으로 돌리면 행에 링크가 다시 선다.
-	 */
-	marketplace_url: string | null,
-	open_vsx_url: string,
 };
 
 export type WatcherConfig = {

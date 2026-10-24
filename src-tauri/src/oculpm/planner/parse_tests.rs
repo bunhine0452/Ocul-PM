@@ -2,8 +2,7 @@
 
 use super::*;
 
-/// 공유 픽스처 — VS Code 확장(`extension/src/oculpm/reader.spec.ts`)이 같은
-/// 파일을 읽어 자기 파서를 판정한다. 규격이 바뀌면 양쪽이 같이 붉어진다.
+/// 규격 견본 플랜 — 전체 파싱 결과를 이 한 파일로 판정한다.
 const SAMPLE: &str = include_str!("../../../tests/fixtures/plan_sample.md");
 
 #[test]
@@ -370,12 +369,10 @@ fn the_anchor_is_the_last_brace_id_not_a_mention_in_the_title() {
     assert_eq!(p.decisions[0].title, "Decision A — `{#x}` 규격");
 }
 
-/// 대조 사례표 — VS Code 확장(`extension/src/oculpm/reader.spec.ts`)이 **같은 파일**을
-/// 읽어 자기 파서를 판정한다. 앵커·결정 헤딩 규칙이 한쪽만 바뀌면 다른 쪽이 붉어진다.
+/// 사례표 — 앵커·메모·결정 헤딩 규칙을 한 줄 입력 → 기대값 표로 판정한다.
 #[test]
-fn parser_parity_cases_shared_with_the_vscode_extension() {
-    let cases: serde_json::Value =
-        serde_json::from_str(include_str!("parser_parity_cases.json")).unwrap();
+fn parser_cases_table() {
+    let cases: serde_json::Value = serde_json::from_str(include_str!("parser_cases.json")).unwrap();
     let opt = |v: &serde_json::Value| v.as_str().map(str::to_string);
     for c in cases["items"].as_array().unwrap() {
         let line = c["line"].as_str().unwrap();

@@ -59,7 +59,6 @@ import { ShellIntegrationBlock } from "./ShellIntegrationBlock";
 import { McpServerBlock } from "./McpServerBlock";
 import { CodexMcpServerBlock } from "./CodexMcpServerBlock";
 import { CodexPluginBlock } from "./CodexPluginBlock";
-import { VscodeExtensionBlock } from "./VscodeExtensionBlock";
 import { PluginBundlesBlock } from "./plugins/PluginBundlesBlock";
 const DEBOUNCE_MS = 500;
 
@@ -584,7 +583,6 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
           <ClaudePluginBlock plugin={plugin} />
           <CodexMcpServerBlock />
           <CodexPluginBlock />
-          <VscodeExtensionBlock />
           <AcpRuntimeBlock />
           <ShellIntegrationBlock />
         </Section>
