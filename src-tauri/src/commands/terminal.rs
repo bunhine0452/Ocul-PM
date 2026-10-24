@@ -21,7 +21,7 @@ use super::code::CodeAsset;
 use super::fsutil::{mime_for, sniff_image_mime};
 use crate::oculpm::shell_integration;
 use crate::oculpm::shim;
-use crate::ptyhost::client::{connect_or_spawn, socket_candidates, PtyHostClient};
+use crate::ptyhost::client::{connect_or_spawn, retire, socket_candidates, PtyHostClient};
 use crate::ptyhost::protocol::{Event, Request, Response};
 
 /// `start_pty_session` 반환값 — 프런트가 OSC 신호를 검증하는 데 필요한 정보.
@@ -72,9 +72,37 @@ pub struct PtyChunk {
 #[derive(Default)]
 pub struct PtyState {
     client: tokio::sync::Mutex<Option<Arc<PtyHostClient>>>,
+    /// 새 세션 띄우기를 한 줄로 — 빈 옛 호스트를 내리는 판정과 Start 사이에 다른
+    /// Start 가 끼어 그 호스트에 세션을 만들면 내리면서 그 세션을 죽인다.
+    starting: tokio::sync::Mutex<()>,
 }
 
 impl PtyState {
+    /// 새 세션을 띄울 클라이언트 — 붙어 있는 것이 **그새 비어 버린 옛 판 호스트**면
+    /// 내리고 지금 판으로 새로 띄운다 ([`PtyHostClient::emptied_since_connect`]).
+    /// 부르는 쪽은 `starting` 을 쥐고 있어야 한다.
+    async fn client_for_new_session(
+        &self,
+        app: &tauri::AppHandle,
+    ) -> Result<Option<Arc<PtyHostClient>>, String> {
+        let Some(c) = self.client(app, true).await? else {
+            return Ok(None);
+        };
+        if !c.emptied_since_connect().await {
+            return Ok(Some(c));
+        }
+        tracing::info!(target: "terminal", "비어 버린 옛 판 PTY 호스트 — 새 세션 전에 지금 판으로 갈아 치운다");
+        retire(&c).await;
+        *self.client.lock().await = None;
+        drop(c);
+        // 파이프 이름은 옛 호스트가 받기를 멈춘 뒤에 빈다 (`connect_or_spawn` 과 같은 이유).
+        #[cfg(windows)]
+        if let Some(socket) = socket_candidates_for(app)?.first() {
+            crate::ptyhost::pipe::wait_until_vacant(socket).await;
+        }
+        self.client(app, true).await
+    }
+
     /// 살아있는 클라이언트를 얻는다 — 없으면 접속하고, `spawn` 이면 호스트를
     /// 띄운다. `Ok(None)` = 호스트가 없다 (= 세션도 없다).
     async fn client(
@@ -309,8 +337,9 @@ pub async fn start_pty_session(
         env.extend(shim.env_pairs());
     }
 
+    let _one_at_a_time = state.starting.lock().await;
     let client = state
-        .client(&app, true)
+        .client_for_new_session(&app)
         .await?
         .ok_or_else(|| "pty-host unavailable".to_string())?;
     match client

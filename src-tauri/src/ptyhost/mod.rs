@@ -23,6 +23,9 @@
 //! Windows 는 그 실행 파일의 **복사본**으로 띄운다 ([`stage`] · [`launch`]). 업데이트
 //! 설치 파일이 `ocul-pm.exe` 를 이름으로 끝내고 덮어쓰기 때문이다 — 설치 폴더 밖의 다른
 //! 이름이면 호스트가 업데이트를 건넌다. 복사본을 못 쓰면 원본으로 물러선다.
+//!
+//! macOS 는 **앱 묶음 복제본**에서, TCC 책임을 넘기지 않고 띄운다 ([`stage_mac`]).
+//! 원본으로 뜬 호스트는 업데이트가 묶음을 지운 뒤 데스크탑·문서 폴더 접근을 잃는다.
 
 pub mod client;
 pub mod env;
@@ -35,6 +38,8 @@ pub mod protocol;
 pub mod scrollback;
 #[cfg(any(windows, test))]
 pub mod stage;
+#[cfg(target_os = "macos")]
+pub mod stage_mac;
 #[cfg(any(windows, test))]
 mod survivors;
 pub mod writer;

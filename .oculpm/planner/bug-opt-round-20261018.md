@@ -24,6 +24,7 @@ owner: claude-code
 - [ ] 앱이 도는 중 폴더 삭제 → 의미검색에서 빠짐 · .gitignore 편집 → 새로 무시된 경로 미색인 {#eyes-ghost-gitignore}
 - [ ] 로그 vec0 partition repacked 확인 · 진단 탭 compact 로 DB 813→~370MB · 다지기 중 탭 init 안 막힘 {#eyes-vec0}
 - [ ] 터미널 화면·도크에서 Claude Code 입력창 아래 테두리·상태줄이 잘리지 않고 다 보인다 (v3.13.3) {#eyes-fit-bottom-row}
+- [ ] 옛 호스트를 한 번 비운 뒤(터미널 전부 닫기) 다음 업데이트를 건너도 새 터미널에서 데스크탑 프로젝트가 열린다 · `ptyhost.noindex/` 에 복제본, 옛 복제본은 호스트가 없으면 지워짐 {#eyes-ptyhost-clone}
 
 ## 보류한 의심 (근거 있음, 미확정) {#carry}
 - [ ] ptyhost 가 죽으면 열린 페인이 모르는 채 먹통 — client.rs 읽기 루프 종료가 프런트에 신호 안 냄 (새 신호 = 범위 동결 판단 필요) {#carry-ptyhost-death-silent}
@@ -34,7 +35,7 @@ owner: claude-code
 - [ ] 외부 에이전트 일지 parse_ok=0 12건 — 템플릿 files_touched 예시가 [ ] , { } 경로 인용을 안 알림 (template_version 올려야) {#carry-journal-yaml-quote}
 - [ ] ocul-pm.db.bak-v40 734MB 보존 정책 (며칠 뒤 정리할지) — 사용자 결정 {#carry-bak-v40}
 - [ ] shell_integration::policy 테스트 2건이 부하 중 cargo test 에서 간헐 실패 (단독·64스레드 재현 안 됨, ETXTBSY 의심) {#carry-policy-test-flake}
-- [ ] 업데이트를 건너온 옛 판 PTY 호스트(실측 v3.6.0, 세션 10개)는 실행 파일이 지워져 macOS 가 데스크탑·문서 폴더 접근을 거부 — 새 터미널이 getcwd EPERM. 세션을 쥔 호스트는 교체 안 됨(`client.rs` is_replaceable). 새 세션을 현재 판 호스트로 보내는 이중 호스트 설계 필요 {#carry-ptyhost-stale-tcc}
+- [x] 업데이트를 건너온 옛 판 PTY 호스트(실측 v3.6.0, 세션 10개)는 실행 파일이 지워져 macOS 가 데스크탑·문서 폴더 접근을 거부 — 새 터미널이 getcwd EPERM. 세션을 쥔 호스트는 교체 안 됨(`client.rs` is_replaceable). 새 세션을 현재 판 호스트로 보내는 이중 호스트 설계 필요 {#carry-ptyhost-stale-tcc}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -45,4 +46,5 @@ owner: claude-code
 | 2026-10-18T01:14:59+09:00 | #lane-c-app-four | claude-code | ☐→x | .oculpm/journal/20261018/Bugs/0114_bug_app-bug-hunt-ghost-index-gitignore.md | fedc42c6..b603ad9c · 종료 패닉은 B 쪽 채택 |
 | 2026-10-18T01:15:04+09:00 | #lane-d-vec0-repack | claude-code | ☐→x | .oculpm/journal/20261018/Refactors/0114_refactor_perf-vec0-partition-repack.md | 1953ec2c · 설치본 재측정 필요 |
 | 2026-10-24T10:24:23+09:00 | #carry-ptyhost-stale-tcc | claude-code | ☐→☐ | .oculpm/journal/20261024/Bugs/1024_bug_terminal-fit-bottom-row-clipped.md | 10-24 재현(호스트 소켓 진단 셸 ~/Desktop EPERM) · 우회: 호스트 kill |
+| 2026-10-24T10:48:09+09:00 | #carry-ptyhost-stale-tcc | claude-code | ☐→x | .oculpm/journal/20261024/Bugs/1047_bug_ptyhost-stale-exe-tcc-bundle-clone.md | 묶음 복제본+disclaim, 빈 옛 호스트 즉시 교체 · 실기기는 #eyes-ptyhost-clone |
 <!-- oculpm:plan-log end -->

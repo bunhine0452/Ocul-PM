@@ -106,6 +106,13 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         reason: "Windows 분리 기동(bInheritHandles = FALSE) — 부르는 쪽(PTY 호스트 기동)이 이 원장에 있다.",
     },
     Launch {
+        path: "proc/disclaim.rs",
+        func: "spawn_disclaimed",
+        call: "posix_spawn(&mut pid, …)",
+        reach: Reach::Relay,
+        reason: "macOS 책임 분리 기동(TCC 책임을 넘기지 않음 · fd 상속 없음) — 부르는 쪽(PTY 호스트 기동)이 이 원장에 있다.",
+    },
+    Launch {
         path: "commands/open_native.rs",
         func: "shell_open",
         call: "tauri_plugin_opener::open_url(target.to_string_lossy(), …)",
@@ -289,6 +296,13 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         reason: "그 밖의 OS — 같은 실행 파일을 `--pty-host` 로. 업데이트에도 살아남는 터미널 호스트다.",
     },
     Launch {
+        path: "ptyhost/client.rs",
+        func: "spawn_staged_host",
+        call: "spawn_disclaimed(&staged, …)",
+        reach: Reach::Local,
+        reason: "macOS — 같은 앱의 묶음 복제본(ptyhost/stage_mac.rs)을 `--pty-host` 로. 업데이트가 원본 묶음을 지워도 보호 폴더 권한이 남는다. 셸은 그 안에서 뜬다(ptyhost/env.rs).",
+    },
+    Launch {
         path: "ptyhost/host/mod.rs",
         func: "command_line_of",
         call: "std_cmd(\"ps\")",
@@ -304,6 +318,14 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
 /// 테스트 범위의 기동 자리 — 파일별 사유 하나에 `(함수, 띄우는 것)` 전부.
 /// 출시되는 앱에서 돌지 않는다는 것은 이 표의 주장이 아니라 스캐너의 판정이다.
 pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
+    (
+        "proc/disclaim.rs",
+        "macOS 책임 분리 기동의 왕복 — /bin/sh 로 종료 코드를 거두고, 없는 경로는 오류로 돌아오는지.",
+        &[
+            ("a_missing_program_is_an_error_not_a_child", "spawn_disclaimed(Path::new(\"/nonexistent/ocul-pm\"), …)"),
+            ("spawns_and_reaps_with_the_exit_code", "spawn_disclaimed(Path::new(\"/bin/sh\"), …)"),
+        ],
+    ),
     (
         "git/safe.rs",
         "임시 저장소에서 로컬 git — 저장소 설정이 명령을 못 돌리는지, 기한을 넘긴 자식을 죽이는지(ping·sleep). 부분 클론 시험의 원격은 같은 임시 폴더의 다른 저장소다(대조군만 거기에 닿는다).",
