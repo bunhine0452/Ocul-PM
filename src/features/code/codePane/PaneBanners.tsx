@@ -53,6 +53,8 @@ interface ConflictBannerProps {
   /** 지금 디스크 판과 겹쳐 보는 중인가 — 그때는 「비교」 대신 비교 띠가 나가는 길을 준다. */
   comparing: boolean;
   compareWithDisk: () => void;
+  /** 비교를 닫는다 — 고르는 순간 디스크 비교는 뜻을 잃는다. */
+  exitCompare: () => void;
   reloadFromDisk: () => void;
   overwriteDisk: () => void;
   saving: boolean;
@@ -69,10 +71,16 @@ export function ConflictBanner({
   gone,
   comparing,
   compareWithDisk,
+  exitCompare,
   reloadFromDisk,
   overwriteDisk,
   saving,
 }: ConflictBannerProps) {
+  /** 고른 쪽으로 간다 — 비교 중이었으면 비교를 먼저 닫는다. */
+  const choose = (go: () => void) => () => {
+    if (comparing) exitCompare();
+    go();
+  };
   return (
     <div className="code-conflict" role="alert">
       <AlertTriangle size={15} className="code-conflict-ico" />
@@ -87,7 +95,7 @@ export function ConflictBanner({
               <GitCompareArrows size={13} /> {t("code.conflict.compare")}
             </button>
           )}
-          <button type="button" className="btn ghost sm" onClick={reloadFromDisk}>
+          <button type="button" className="btn ghost sm" onClick={choose(reloadFromDisk)}>
             {t("code.conflict.reload")}
           </button>
         </>
@@ -95,7 +103,7 @@ export function ConflictBanner({
       <button
         type="button"
         className="btn sm code-conflict-overwrite"
-        onClick={overwriteDisk}
+        onClick={choose(overwriteDisk)}
         disabled={saving}
       >
         {t(gone ? "code.conflict.recreate" : "code.conflict.overwrite")}

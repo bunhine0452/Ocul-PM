@@ -6,6 +6,7 @@ import "@testing-library/jest-dom/vitest";
 import { configure } from "@testing-library/react";
 import { beforeEach, vi } from "vitest";
 import { __setPlatformForTests } from "@/lib/platform";
+import { __setRichByDefaultForTests } from "@/features/code/codePane/markdownView";
 
 // OS 는 **맥으로 고정**한다 (크로스플랫폼 라운드 2026-09-23 {#ui-tests}).
 //
@@ -18,6 +19,9 @@ import { __setPlatformForTests } from "@/lib/platform";
 __setPlatformForTests("mac");
 beforeEach(() => {
   __setPlatformForTests("mac");
+  // 코드 화면 스위트들은 .md 픽스처로 Monaco 경로(탭·저장·비교)를 본다 — 원문으로 연다.
+  // 리치 경로를 보는 테스트가 `__setRichByDefaultForTests(true)` 로 켠다 (2026-10-25).
+  __setRichByDefaultForTests(false);
 });
 
 // `findBy*` · `waitFor` 의 대기 예산 — 기본 1000ms 는 **CI 러너에서 모자란다.**

@@ -60,7 +60,8 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
   const { t } = useT();
   const { state, setState } = useWorkspace();
   const selectedId = state.discussionActiveId;
-  const editorMode = state.discussionEditorMode;
+  // 옛 판이 저장한 `split`·`preview` 는 리치로 읽는다 (그 둘은 2026-10-25 에 걷혔다).
+  const editorMode: EditorMode = state.discussionEditorMode === "write" ? "write" : "rich";
 
   const [list, setList] = useState<DiscussionSummary[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);

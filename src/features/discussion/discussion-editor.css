@@ -99,7 +99,7 @@
   min-width: 0;
   overflow: hidden;
 }
-.disc-edit-body.preview .disc-edit-cm {
+.disc-edit-body.rich .disc-edit-cm {
   display: none;
 }
 /* 바탕은 투명 — 뒤의 판이 그린다. 문법 색은 `monaco/theme.ts` 의 `.md-prose`. */
@@ -187,28 +187,11 @@
   color: var(--text-3);
 }
 
-/* 미리보기 — 읽는 판이라 카드 바탕. `position` 은 제목 offsetTop 의 기준이다
-   (나란히 보기의 섹션 닻 스크롤). */
-.disc-edit-preview {
-  position: relative;
+/* 리치 판 — 개요 오른쪽을 다 쓴다. 판의 폭·여백은 `rich-markdown.css` 가 정한다. */
+.disc-edit-rich {
   flex: 1;
   min-width: 0;
-  overflow-y: auto;
-  padding: 28px var(--space-8) 40vh;
-  border-left: 1px solid var(--sep);
-  background: var(--bg-card);
-}
-.disc-edit-body.preview .disc-edit-preview {
-  border-left: none;
-}
-.disc-doc-prose {
-  max-width: var(--read-narrow);
-  margin: 0 auto;
-}
-/* 체크박스 목록은 체크박스가 글머리다 — 점까지 찍히면 표시가 둘이 된다. */
-.disc-doc-prose .contains-task-list {
-  list-style: none;
-  padding-left: var(--space-2);
+  display: flex;
 }
 
 /* ── 상태줄 — 코드 편집기 상태줄과 같은 규격 ───────────────────────────── */

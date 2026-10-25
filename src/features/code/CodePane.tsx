@@ -68,6 +68,7 @@ import { useLspActions } from "./codePane/useLspActions";
 import { useBufferEdits } from "./codePane/useBufferEdits";
 import { useSaveFlow } from "./codePane/useSaveFlow";
 import { GONE_HASH, useExternalChanges } from "./codePane/useExternalChanges";
+import { RichOrCode, useMarkdownView } from "./codePane/markdownView";
 import { CodeEmptyState } from "./codePane/CodeEmptyState";
 import { CrumbActions } from "./codePane/CrumbActions";
 import { JournalEntriesPop } from "./codePane/JournalEntriesPop";
@@ -519,6 +520,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     [formatRef, saveRef],
   );
 
+  const mdView = useMarkdownView(projectId, activePath); // .md 의 리치 · 원문
   // ── 열린 파일의 외부 변경 감지 (watcher) ───────────────────────────────
   const reloaded = useExternalChanges({
     projectId,
@@ -602,6 +604,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
               diffMode={diffMode}
               exitDiff={exitDiff}
               enterHeadDiff={enterHeadDiff}
+              markdown={mdView.isMarkdown && fileView.kind === "editor" && !diffMode ? mdView : undefined}
             />
           }
         />
@@ -643,15 +646,9 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
           gone={conflict.diskHash === GONE_HASH}
           comparing={diffMode?.kind === "disk"}
           compareWithDisk={() => void enterDiskDiff()}
-          // 고르는 순간 디스크 비교는 뜻을 잃는다 — 비교를 닫고 고른 쪽으로 간다.
-          reloadFromDisk={() => {
-            if (diffMode?.kind === "disk") exitDiff();
-            reloadFromDisk();
-          }}
-          overwriteDisk={() => {
-            if (diffMode?.kind === "disk") exitDiff();
-            overwriteDisk();
-          }}
+          exitCompare={exitDiff}
+          reloadFromDisk={reloadFromDisk}
+          overwriteDisk={overwriteDisk}
           saving={saving}
         />
       ) : null}
@@ -688,59 +685,62 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
             className={"code-editor-wrap" + (svgOpen ? " with-svg" : "")}
             onBlur={autoSave.onEditorBlur}
           >
-            <CodeEditor
-              // 스티키 설정이 key 에 있는 이유: 편집기 배선은 마운트 시점에
-              // 정해지므로 켜고 끈 것이 그 자리에서 보이려면 재마운트해야 한다.
-              // 본문은 버퍼가 들고 있어 미저장 편집은 살아남는다 (실행 취소
-              // 이력만 잃는다 — 파일을 바꿀 때와 같은 대가).
-              key={`${activePath}:${editorEpoch}:${stickyMax}`}
-              initialText={buf.text}
-              path={activePath ?? ""}
-              onChange={handleChange}
-              diagnostics={lsp.diagnostics}
-              onComplete={lsp.complete}
-              onHover={lsp.hover}
-              onGoToDefinition={goToDefinition}
-              onRename={startRename}
-              onCodeActions={openCodeActions}
-              onReferences={findReferences}
-              onFormat={(range) => void formatRef.current(false, range)}
-              // 서버가 안 붙은 창에는 공급자를 아예 안 단다 (CodeEditor 가 prop
-              // 유무로 판단하므로 undefined 여야 한다).
-              onSignatureHelp={lspEnabled ? lsp.signatureHelp : undefined}
-              // 시맨틱 강조 — 서버 문서를 **먼저 맞춘 뒤** 묻는다. 편집은
-              // 디바운스로 밀려 들어가는데 Monaco 는 타자 직후에 토큰을
-              // 물어서, 안 맞추면 옛 문서 좌표로 칠해져 색이 한 칸씩 밀린다
-              // (포맷팅이 flushText 를 먼저 부르는 것과 같은 이유).
-              onSemanticLegend={lspEnabled ? lsp.semanticLegend : undefined}
-              onSemanticTokens={
-                lspEnabled
-                  ? async () => {
-                      await lsp.flushText(bufferRef.current?.text ?? "");
-                      return lsp.semanticTokens();
-                    }
-                  : undefined
-              }
-              stickyMaxLines={stickyMax}
-              stickySymbols={stickySymbols}
-              onGoToSymbol={onGoToSymbol}
-              tabSize={settings.codeTabSize}
-              insertSpaces={settings.codeInsertSpaces}
-              minimap={settings.codeMinimap}
-              onInlineEdit={codeAi.run}
-              onInlineEditAccepted={(info) => codeAi.onAccepted(activePath, info)}
-              onSave={() => void saveRef.current()}
-              onCursor={(line, col, sel) => {
-                setCursor({ line, col });
-                setSelection(sel ?? null);
-                onCursorLine(line);
-              }}
-              wordWrap={wordWrap}
-              gitChanges={gitChanges}
-              diffOriginal={diffOriginal}
-              jump={pendingJump}
-              onJumpConsumed={() => setPendingJump(null)}
-            />
+            {/* .md 를 리치로 볼 땐 리치 편집기가 이 자리를 갖는다 (비교 중엔 원문뿐). */}
+            <RichOrCode rich={mdView.rich && !diffMode} editorKey={`${activePath}:${editorEpoch}`} text={buf.text} onChange={handleChange}>
+              <CodeEditor
+                // 스티키 설정이 key 에 있는 이유: 편집기 배선은 마운트 시점에
+                // 정해지므로 켜고 끈 것이 그 자리에서 보이려면 재마운트해야 한다.
+                // 본문은 버퍼가 들고 있어 미저장 편집은 살아남는다 (실행 취소
+                // 이력만 잃는다 — 파일을 바꿀 때와 같은 대가).
+                key={`${activePath}:${editorEpoch}:${stickyMax}`}
+                initialText={buf.text}
+                path={activePath ?? ""}
+                onChange={handleChange}
+                diagnostics={lsp.diagnostics}
+                onComplete={lsp.complete}
+                onHover={lsp.hover}
+                onGoToDefinition={goToDefinition}
+                onRename={startRename}
+                onCodeActions={openCodeActions}
+                onReferences={findReferences}
+                onFormat={(range) => void formatRef.current(false, range)}
+                // 서버가 안 붙은 창에는 공급자를 아예 안 단다 (CodeEditor 가 prop
+                // 유무로 판단하므로 undefined 여야 한다).
+                onSignatureHelp={lspEnabled ? lsp.signatureHelp : undefined}
+                // 시맨틱 강조 — 서버 문서를 **먼저 맞춘 뒤** 묻는다. 편집은
+                // 디바운스로 밀려 들어가는데 Monaco 는 타자 직후에 토큰을
+                // 물어서, 안 맞추면 옛 문서 좌표로 칠해져 색이 한 칸씩 밀린다
+                // (포맷팅이 flushText 를 먼저 부르는 것과 같은 이유).
+                onSemanticLegend={lspEnabled ? lsp.semanticLegend : undefined}
+                onSemanticTokens={
+                  lspEnabled
+                    ? async () => {
+                        await lsp.flushText(bufferRef.current?.text ?? "");
+                        return lsp.semanticTokens();
+                      }
+                    : undefined
+                }
+                stickyMaxLines={stickyMax}
+                stickySymbols={stickySymbols}
+                onGoToSymbol={onGoToSymbol}
+                tabSize={settings.codeTabSize}
+                insertSpaces={settings.codeInsertSpaces}
+                minimap={settings.codeMinimap}
+                onInlineEdit={codeAi.run}
+                onInlineEditAccepted={(info) => codeAi.onAccepted(activePath, info)}
+                onSave={() => void saveRef.current()}
+                onCursor={(line, col, sel) => {
+                  setCursor({ line, col });
+                  setSelection(sel ?? null);
+                  onCursorLine(line);
+                }}
+                wordWrap={wordWrap}
+                gitChanges={gitChanges}
+                diffOriginal={diffOriginal}
+                jump={pendingJump}
+                onJumpConsumed={() => setPendingJump(null)}
+              />
+            </RichOrCode>
             {svgOpen ? (
               <SvgPreview
                 text={svgText}

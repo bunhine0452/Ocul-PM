@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 import type {
@@ -133,6 +133,7 @@ vi.mock("@/features/code/CodeEditor", () => ({
 
 import { CodeScreenV2 } from "@/features/code/CodeScreenV2";
 import { _resetBuffers } from "@/features/code/codeBuffers";
+import { __setRichByDefaultForTests } from "@/features/code/codePane/markdownView";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { t } from "@/i18n";
@@ -416,6 +417,17 @@ describe("CodeScreenV2", () => {
     fireEvent.click(await findByText(t("code.conflict.recreate")));
     await findByText(t("code.savedState"));
     expect(fx.writeCalls[fx.writeCalls.length - 1]).toMatchObject({ relPath: "README.md", baseHash: "" });
+  });
+
+  it("opens markdown in the rich editor by default and switches to source from the crumb", async () => {
+    __setRichByDefaultForTests(true);
+    const { findByText, findByTestId, container, getByRole } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("README.md"));
+    await waitFor(() => expect(container.querySelector(".rich-md-doc h1")?.textContent).toBe("hello"));
+    expect(container.querySelector('[data-testid="editor"]')).toBeNull();
+    fireEvent.click(getByRole("button", { name: t("code.mdView.source") }));
+    await findByTestId("editor");
+    expect(container.querySelector(".rich-md-doc")).toBeNull();
   });
 
   // ── 저장 위생 · 자동 저장 (vscode-borrows Phase 1) ─────────────────────
