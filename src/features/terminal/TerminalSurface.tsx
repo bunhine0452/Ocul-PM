@@ -23,7 +23,9 @@ import { TerminalInstance } from "./TerminalInstance";
 import { writePty } from "./dispatchTarget";
 import { relabelDefaultTabs, useShellName } from "./shellName";
 import { canAutoRename, shellTitleToTabLabel } from "./tabTitle";
-import { deriveIntegrationStatus, summarizeShell, type IntegrationStatus } from "./shellStatus";
+import { deriveIntegrationStatus, summarizeShell } from "./shellStatus";
+import { useShellInstalled } from "./useShellInstalled";
+import { openSettings } from "@/lib/settingsNav";
 import { useAgentRuns } from "./useAgentRuns";
 import { foregroundCommands } from "@/windows/useTabRunningWork";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -34,6 +36,7 @@ import { TerminalRail } from "./TerminalRail";
 import { TerminalPaneHead } from "./TerminalPaneHead";
 import { TerminalHeadBar } from "./TerminalHeadBar";
 import { TerminalStatusBar } from "./TerminalStatusBar";
+import { TerminalViewMenu } from "./TerminalViewMenu";
 import { PIP_COUNT } from "./TerminalPaneHead";
 import { blockTone } from "./commandBlocks";
 import { TerminalBlockMenu } from "./TerminalBlockMenu";
@@ -41,7 +44,6 @@ import { TerminalFileMenu } from "./TerminalFileMenu";
 import { useTerminalFileLinks } from "./useTerminalFileLinks";
 import type { BlockActivation } from "./TerminalInstanceImpl";
 import type { FileRefHit } from "./fileRefLinks";
-import { formatCwdCrumb } from "./railModel";
 // 2026-09-15 분할 — 책임별로 갈라 나간 훅·하위 컴포넌트 (terminalSurface/).
 import { newId } from "./terminalSurface/sessionId";
 import { useDispatchPrefill } from "./terminalSurface/useDispatchPrefill";
@@ -97,11 +99,13 @@ export interface TerminalSurfaceProps {
    *    스크롤백 검색을 연다.
    */
   keyboardScope?: "always" | "focused";
-  /** 탭 줄 오른쪽 끝에 덧붙이는 버튼들 (도크의 자리 바꾸기·분리·닫기). */
+  /** 머리줄 오른쪽 끝에 덧붙이는 버튼들 (화면: 도크로 · 도크: 자리 바꾸기·분리·닫기). */
   headerActions?: React.ReactNode;
-  /** 포커스된 페인의 셸 통합이 켜져 있는지 — 화면 툴바 부제에 쓴다. */
-  /** 포커스된 페인의 셸 통합 상태 세 갈래 — 툴바 부제가 쓴다 (shellStatus.ts). */
-  onShellStatusChange?: (status: IntegrationStatus) => void;
+  /**
+   * 화면 제목 — 주면 머리줄이 화면 툴바로 그려진다 (터미널 화면, 시안 A).
+   * 도크·분리 창은 주지 않는다: 그쪽엔 화면 툴바가 없다.
+   */
+  screenTitle?: string;
   /**
    * 탭 줄의 빈 자리를 **창 드래그 영역**으로 쓴다 (분리 터미널 창 전용).
    *
@@ -127,7 +131,7 @@ export function TerminalSurface({
   compact = false,
   keyboardScope = "always",
   headerActions,
-  onShellStatusChange,
+  screenTitle,
   dragRegion = false,
   ownsNewTab = false,
 }: TerminalSurfaceProps) {
@@ -141,8 +145,8 @@ export function TerminalSurface({
   const setSetting = useSaveSetting();
   // 글자 크기는 전용 훅이 소유한다 (`useTerminalFont`) — 값·초안·클램프·커밋이
   // 한 덩어리라 흩어 두면 세 자리를 따로 고치게 된다.
-  const { fontSize, fontDraft, setFontDraft, setFont, fontDelta, fontReset, commitFontDraft } =
-    useTerminalFont();
+  const font = useTerminalFont();
+  const { fontSize, fontDelta, fontReset } = font;
   // 밀도도 같은 이유로 앱 전역 설정이다 — 도크·터미널 화면·분리 창이 같은
   // 값을 봐야 창을 옮길 때 줄 간격이 튀지 않는다.
   const density = clampTermDensity(settings.terminalDensity);
@@ -439,14 +443,10 @@ export function TerminalSurface({
   // OSC 8 `file://` — 이미지는 올리면 미리보기, 나머지는 위 파일 메뉴로 (→ useTerminalFileLinks).
   const fileLinks = useTerminalFileLinks(projectRoot, setFileMenu);
 
-  // 포커스된 페인의 셸 통합 상태 — 상태바의 cwd 와 툴바 부제가 여기서 나온다.
-  // 페인별 "지금 무슨 일" 문구·시계는 `TerminalPaneHead` 가 스스로 만든다.
+  // 포커스된 페인의 셸 통합 상태 — 상태바가 세 갈래로 말한다 (shellStatus.ts).
+  // 페인별 작업 폴더·"지금 무슨 일" 문구·시계는 `TerminalPaneHead` 가 스스로 만든다.
   const focusedShell = activeTab ? shellStates[focusOfTab(activeTab)] : undefined;
-  // 설치 여부는 화면(TerminalScreenV2)이 안다 — 여기서는 페인이 말하는 것만 올린다.
-  const shellStatus = deriveIntegrationStatus(focusedShell, null);
-  useEffect(() => {
-    onShellStatusChange?.(shellStatus);
-  }, [shellStatus, onShellStatusChange]);
+  const shellStatus = deriveIntegrationStatus(focusedShell, useShellInstalled());
 
   // 감사 fix (2026-07-16): 실제 워처 상태(oculpmStatus.watcher_state) 그대로.
   const watcher = runtime.oculpmStatus?.watcher_state ?? null;
@@ -456,8 +456,7 @@ export function TerminalSurface({
       : watcher === "error"
         ? t("term.watchError")
         : t("term.watchOff");
-  const watchColor =
-    watcher === "running" ? "#57c98a" : watcher === "error" ? "var(--t-bug)" : "var(--text-3)";
+  const watchTone = watcher === "running" ? "on" : watcher === "error" ? "error" : "off";
 
   // 끝난 실행은 sid 로 오고 레일은 탭 단위로 그린다 — 여기서 옮긴다.
   // 탭 수가 한 자리라 매 렌더 다시 만드는 비용은 무시할 만하다.
@@ -631,6 +630,14 @@ export function TerminalSurface({
         }
         onUnzoom={() => setZoomSid(null)}
         dragRegion={dragRegion}
+        screenTitle={screenTitle}
+        viewMenu={
+          <TerminalViewMenu
+            font={font}
+            density={density}
+            onDensity={(d) => setSetting("terminalDensity", clampTermDensity(d))}
+          />
+        }
       >
         {headerActions}
       </TerminalHeadBar>
@@ -754,17 +761,12 @@ export function TerminalSurface({
 
       <TerminalStatusBar
         compact={compact}
-        crumb={formatCwdCrumb(focusedShell?.cwd ?? null, projectRoot) || activeTab?.label || "—"}
-        crumbTitle={focusedShell?.cwd ?? undefined}
-        density={density}
-        onDensity={(d) => setSetting("terminalDensity", clampTermDensity(d))}
+        shellStatus={shellStatus}
+        // 셸 통합은 설정 → ocul-pm 탭에서 켠다.
+        onEnableShell={() => openSettings("oculpm")}
         fontSize={fontSize}
-        fontDraft={fontDraft}
-        setFontDraft={setFontDraft}
-        setFont={setFont}
-        fontDelta={fontDelta}
-        commitFontDraft={commitFontDraft}
-        watchColor={watchColor}
+        density={density}
+        watchTone={watchTone}
         watchLabel={watchLabel}
       />
       {/* 손에 들린 것 (→ terminalSurface/TerminalGhost). */}

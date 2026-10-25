@@ -1,133 +1,76 @@
-import { SquareTerminal } from "@/components/Icons";
 import { useT } from "@/i18n";
-import { TERM_DENSITIES, TERM_DENSITY_LABEL, type TermDensity } from "./density";
-import { TERM_FONT_MIN as FONT_MIN, TERM_FONT_MAX as FONT_MAX } from "./fontSize";
-import { kbd } from "@/lib/kbd";
+import { requestCheatsheet } from "@/lib/projectActions";
+import { TERM_DENSITY_LABEL, type TermDensity } from "./density";
+import type { IntegrationStatus } from "./shellStatus";
 
 // 하단 상태바 (TerminalSurface 에서 분리, 2026-09-11 리디자인 2차).
 //
-// 왼쪽은 **어디에 있는가**(포커스 페인의 작업 폴더), 가운데는 손이 가장 자주
-// 가는 네 단축키를 키캡으로, 오른쪽은 밀도(세그먼트)·글자 크기(스테퍼)·
-// .oculpm 감시 상태다. 예전에는 단축키 일곱 개를 한 문장으로 적어 두었는데,
-// 줄이 좁아지면 그 문장부터 잘려 아무것도 읽히지 않았다. 전체 목록은 키캡
-// 묶음의 툴팁에 남긴다.
+// 2026-10-25 시안 A — **상태만** 남긴 얇은 줄이다. 예전에는 작업 폴더·단축키
+// 키캡 넷·밀도 세그먼트·글자 크기 스테퍼·감시 상태가 한 줄에 다 있었다.
+//   · 작업 폴더는 페인 머리띠가 페인마다 말한다 (포커스 하나만 말하던 것보다 낫다).
+//   · 글자 크기·밀도는 머리줄의 `Aa` 메뉴로 갔다. 여기엔 지금 값만 글로 남긴다.
+//   · 단축키는 `?` 하나 — 누르면 ⌘/ 단축키 표가 열린다. 전체 목록은 툴팁에도.
+// 남은 것은 곁눈질로 읽어야 하는 두 가지, 셸 통합과 일지 감시다.
 
 interface TerminalStatusBarProps {
   compact: boolean;
-  crumb: string;
-  crumbTitle: string | undefined;
-  density: TermDensity;
-  onDensity: (d: TermDensity) => void;
+  shellStatus: IntegrationStatus;
+  /** 셸 통합이 꺼져 있을 때만 — 켜는 곳(설정)으로 데려간다. */
+  onEnableShell: () => void;
   fontSize: number;
-  fontDraft: string | null;
-  setFontDraft: (v: string | null) => void;
-  setFont: (px: number) => void;
-  fontDelta: (d: number) => void;
-  commitFontDraft: () => void;
-  watchColor: string;
+  density: TermDensity;
+  watchTone: "on" | "error" | "off";
   watchLabel: string;
 }
 
 export function TerminalStatusBar({
   compact,
-  crumb,
-  crumbTitle,
-  density,
-  onDensity,
+  shellStatus,
+  onEnableShell,
   fontSize,
-  fontDraft,
-  setFontDraft,
-  setFont,
-  fontDelta,
-  commitFontDraft,
-  watchColor,
+  density,
+  watchTone,
   watchLabel,
 }: TerminalStatusBarProps) {
   const { t } = useT();
-  const keys: Array<[string, string]> = [
-    [kbd("⌘D", "terminal"), t("term.kbd.split")],
-    [kbd("⌘F", "terminal"), t("term.kbd.find")],
-    [kbd("⇧⌘↩", "terminal"), t("term.kbd.zoom")],
-    [kbd("⌘↑↓", "terminal"), t("term.kbd.blocks")],
-  ];
+  const shellLabel =
+    shellStatus === "active"
+      ? t("term.status.shellOn")
+      : shellStatus === "pending"
+        ? t("term.status.shellPending")
+        : t("term.status.shellOff");
+  const shellHint =
+    shellStatus === "active" ? t("term.shellOn") : shellStatus === "pending" ? t("term.shellPending") : t("term.shellOff");
   return (
     <div className="term-status">
-      <span className="ts-seg ts-crumb" title={crumbTitle}>
-        <SquareTerminal size={13} />
-        <span className="ts-crumb-text">{crumb}</span>
-      </span>
-      {/* 좁은 도크에서는 키캡이 다른 정보를 밀어낸다 — 넓을 때만. */}
-      {compact ? null : (
-        <span className="ts-keys" title={`${t("term.kbd.all")}: ${t("term.shortcuts")}`}>
-          {keys.map(([cap, label]) => (
-            <span className="ts-key" key={cap}>
-              <kbd className="kbd">{cap}</kbd>
-              <span className="ts-key-label">{label}</span>
-            </span>
-          ))}
-        </span>
-      )}
-      <span style={{ flex: 1 }} />
-      <span className="seg ts-density" role="group" aria-label={t("term.density.label")} title={t("term.density.hint")}>
-        {TERM_DENSITIES.map((preset) => (
-          <button
-            key={preset}
-            type="button"
-            className="seg-item"
-            aria-selected={preset === density}
-            onClick={() => onDensity(preset)}
-          >
-            {t(TERM_DENSITY_LABEL[preset])}
+      <span className="ts-seg" title={shellHint}>
+        <span className="ts-dot" data-tone={shellStatus === "active" ? "on" : shellStatus === "pending" ? "wait" : "off"} />
+        {shellLabel}
+        {shellStatus === "off" ? (
+          <button type="button" className="ts-link" onClick={onEnableShell}>
+            {t("term.status.enable")}
           </button>
-        ))}
+        ) : null}
       </span>
-      <span className="ts-seg ts-fontctl">
-        <button type="button" className="ts-btn" onClick={() => fontDelta(-1)} aria-label={t("term.fontSmaller")}>
-          A−
-        </button>
-        <span className="ts-font">
-          <input
-            type="number"
-            className="ts-font-input"
-            min={FONT_MIN}
-            max={FONT_MAX}
-            step={1}
-            value={fontDraft ?? String(fontSize)}
-            aria-label={t("term.fontSizeInput")}
-            title={t("term.fontSizeHint", { min: FONT_MIN, max: FONT_MAX })}
-            onChange={(e) => {
-              const raw = e.target.value;
-              setFontDraft(raw);
-              // 범위 안 값만 즉시 반영 — "1"(→18 을 치는 중)이 9 로 튀지 않게
-              // 클램프 없이 통과시킨다. 범위 밖·빈 값은 blur 에서 정리.
-              const parsed = Number.parseInt(raw, 10);
-              if (parsed >= FONT_MIN && parsed <= FONT_MAX) setFont(parsed);
-            }}
-            onBlur={commitFontDraft}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                commitFontDraft();
-                e.currentTarget.blur();
-              } else if (e.key === "Escape") {
-                e.preventDefault();
-                setFontDraft(null);
-                e.currentTarget.blur();
-              }
-            }}
-          />
-          px
-        </span>
-        <button type="button" className="ts-btn" onClick={() => fontDelta(1)} aria-label={t("term.fontLarger")}>
-          A+
-        </button>
+      <span className="ts-seg">
+        <span className="ts-dot" data-tone={watchTone === "on" ? "on" : watchTone === "error" ? "err" : "off"} />
+        {watchLabel}
       </span>
+      <span className="ts-fill" />
       {compact ? null : (
-        <span className="ts-seg ts-watch">
-          <span className="ts-dot" style={{ background: watchColor }} />
-          {watchLabel}
+        <span className="ts-seg ts-view">
+          {fontSize}px · {t(TERM_DENSITY_LABEL[density])}
         </span>
       )}
+      <button
+        type="button"
+        className="ts-help"
+        onClick={() => requestCheatsheet()}
+        aria-label={t("term.kbd.all")}
+        title={`${t("term.kbd.all")}: ${t("term.shortcuts")}`}
+      >
+        ?
+      </button>
     </div>
   );
 }

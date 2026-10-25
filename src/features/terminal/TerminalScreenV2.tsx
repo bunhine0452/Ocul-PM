@@ -1,19 +1,17 @@
-import { shellIntegrationApi } from "@/api/shellIntegration";
-import type { IntegrationStatus } from "./shellStatus";
-import { openSettings } from "@/lib/settingsNav";
-import { useCallback, useEffect, useState } from "react";
-import { Toolbar } from "@/components/Toolbar";
 import { PanelBottom } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { TerminalSurface } from "./TerminalSurface";
 
-// 터미널 화면 (⌘10) — 툴바 + 터미널 본체.
+// 터미널 화면 (⌘10) — 터미널 본체에 화면 제목과 「도크로」만 얹는다.
 //
 // 2026-08-15: 본체는 `TerminalSurface` 로 나갔다. 같은 세션을 도크와 분리 창도
-// 그리기 때문이다 (셋이 `terminalTabs` 를 공유). 예전에 툴바에 있던 검색·분할
-// 버튼도 본체의 탭 줄로 옮겼다 — 도크에는 툴바가 없어서, 툴바에 두면 도크에서만
-// 못 쓰는 조작이 생긴다.
+// 그리기 때문이다 (셋이 `terminalTabs` 를 공유).
+//
+// 2026-10-25 시안 A: 화면 툴바를 따로 그리지 않는다. 본체의 머리줄이 `screenTitle`
+// 을 받아 화면 툴바(`Toolbar`)로 그려지고, 레일 토글·세션 이름·검색·분할·보기 메뉴가
+// 그 한 줄에 모인다. 셸 통합 부제는 상태바의 점으로 갔다 — 세 갈래 판정
+// (`deriveIntegrationStatus`)과 설치 여부 조회(`useShellInstalled`)도 함께 갔다.
 
 interface TerminalScreenV2Props {
   projectRoot: string | null;
@@ -22,61 +20,20 @@ interface TerminalScreenV2Props {
 export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
   const { t } = useT();
   const { setState } = useWorkspace();
-  // 2026-07-16 정직성 수정: 예전 문구는 "에이전트 실행을 감지해 자동으로 일지를
-  // 작성합니다" 였는데, PTY 쪽에 감지 코드가 한 줄도 없었다. 이제 셸 통합이
-  // 실제로 켜져 있을 때만 그렇게 말한다.
-  //
-  // 2026-09-22 정직성 수정 둘째: 「신호가 아직 없다」와 「꺼져 있다」는 다르다. 설정은
-  // 켜짐인데 재접속한 페인이 첫 프롬프트를 못 찍었다고 이 부제가 「꺼져 있어요 ·
-  // 켜기」라고 말했다. 페인 상태(`provisioned`·`active`)와 설정의 설치 여부를 합쳐
-  // 세 갈래로 말한다 (shellStatus.deriveIntegrationStatus).
-  const [paneStatus, setPaneStatus] = useState<IntegrationStatus>("off");
-  const onShellStatusChange = useCallback((status: IntegrationStatus) => setPaneStatus(status), []);
-  const [installed, setInstalled] = useState<boolean | null>(null);
-  useEffect(() => {
-    let alive = true;
-    // 읽기 전용 — 파일을 만들거나 고치지 않는다. 실패는 「모름」으로 남긴다.
-    void shellIntegrationApi
-      .status()
-      .then((st) => {
-        if (alive) setInstalled(st.installed);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
-  const shellStatus: IntegrationStatus =
-    paneStatus === "active" ? "active" : paneStatus === "pending" || installed ? "pending" : "off";
 
   /** 이 화면의 터미널을 그대로 도크로 내린다 — 세션은 같은 것이 이어진다. */
   const moveToDock = () =>
     setState((prev) => ({ ...prev, terminalDockOpen: true, uiV2View: "today" }));
 
   return (
-    <>
-      <Toolbar
-        title={t("term.title")}
-        sub={
-          shellStatus === "active"
-            ? t("term.shellOn")
-            : shellStatus === "pending"
-              ? t("term.shellPending")
-              : t("term.shellOff")
-        }
-      >
-        {shellStatus !== "off" ? null : (
-          // 안내 문구가 존재하지 않는 "설정 → 터미널" 을 가리키던 것을 버튼으로 —
-          // 셸 통합은 설정 → ocul-pm 탭에서 켠다.
-          <button className="btn" onClick={() => openSettings("oculpm")}>
-            {t("term.shellEnable")}
-          </button>
-        )}
+    <TerminalSurface
+      projectRoot={projectRoot}
+      screenTitle={t("term.title")}
+      headerActions={
         <button className="btn" onClick={moveToDock} title={t("term.dock.moveHint")}>
           <PanelBottom size={15} /> {t("term.dock.move")}
         </button>
-      </Toolbar>
-      <TerminalSurface projectRoot={projectRoot} onShellStatusChange={onShellStatusChange} />
-    </>
+      }
+    />
   );
 }
