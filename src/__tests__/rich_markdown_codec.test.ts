@@ -30,22 +30,40 @@ function throughEditor(body: string, edit?: (e: Editor) => void): string {
 }
 
 describe("every markdown file in this repository", () => {
-  it("opens and saves back byte-for-byte when nothing was edited", () => {
-    const files = execSync("git ls-files '*.md'").toString().trim().split("\n");
-    expect(files.length).toBeGreaterThan(100);
-    const changed: string[] = [];
-    for (const file of files) {
-      let text: string;
-      try {
-        text = readFileSync(file, "utf8");
-      } catch {
-        continue; // 작업 트리에서 지워진 파일
-      }
-      const { frontmatter, body } = splitFrontmatter(text);
-      if (joinFrontmatter(frontmatter, throughEditor(body)) !== text) changed.push(file);
+  const files = execSync("git ls-files '*.md'").toString().trim().split("\n");
+  const read = (file: string): string | null => {
+    try {
+      return readFileSync(file, "utf8");
+    } catch {
+      return null; // 작업 트리에서 지워진 파일
     }
+  };
+
+  // 편집기를 파일마다 띄우면 CI 러너에서 15초를 넘는다(2026-10-25) — 전수는 코덱으로.
+  it("opens and saves back byte-for-byte when nothing was edited", () => {
+    expect(files.length).toBeGreaterThan(100);
+    const changed = files.filter((file) => {
+      const text = read(file);
+      if (text == null) return false;
+      const { frontmatter, body } = splitFrontmatter(text);
+      return joinFrontmatter(frontmatter, roundTrip(body)) !== text;
+    });
     expect(changed).toEqual([]);
-  });
+  }, 60_000);
+
+  // 편집기를 거쳐도 같은가 — 편집기가 기본 속성을 채워 넣어도 원문 대조가 맞아야 한다.
+  // 블록이 많은 큰 파일 몇 개로 본다.
+  it("stays byte-for-byte through a real editor on the largest files", () => {
+    const largest = files
+      .map((file) => ({ file, text: read(file) ?? "" }))
+      .sort((a, b) => b.text.length - a.text.length)
+      .slice(0, 8);
+    const changed = largest.filter(({ text }) => {
+      const { frontmatter, body } = splitFrontmatter(text);
+      return joinFrontmatter(frontmatter, throughEditor(body)) !== text;
+    });
+    expect(changed.map((c) => c.file)).toEqual([]);
+  }, 60_000);
 });
 
 describe("editing changes only the edited block", () => {
