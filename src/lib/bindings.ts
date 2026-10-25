@@ -471,6 +471,12 @@ export const commands = {
 	/**
 	 *  파일 저장 (낙관적 잠금). **기존 파일만** — 신규 생성은 v1 스코프 밖이라
 	 *  트리와 어긋난 유령 경로 생성을 막는다.
+	 * 
+	 *  예외 하나 (2026-10-25): 열어 둔 파일이 바깥에서 **지워졌으면** 오류 대신
+	 *  `Conflict { disk_hash: "" }` 를 돌려준다. 예전엔 "Failed to read file" 오류만
+	 *  떠서 편집기에 남은 본문을 저장할 길이 없었다. 사용자가 그 배너에서 「다시
+	 *  만들기」를 고르면 프런트가 `base_hash = ""` 로 다시 부르고, 그때만 같은 자리에
+	 *  만든다 — 부모 폴더가 루트 안에 아직 있을 때만이고, 조용히 만들어지는 경로는 없다.
 	 */
 	codeWrite: (projectId: number, relPath: string, content: string, baseHash: string, byAgent: boolean | null) => typedError<CodeWriteOutcome, string>(__TAURI_INVOKE("code_write", { projectId, relPath, content, baseHash, byAgent })),
 	/**
@@ -3361,6 +3367,9 @@ export type CodeTreeNode = {
 /**
  *  `code_write` 결과 — 충돌은 오류가 아니라 정상 분기라 Err 로 보내지 않는다
  *  (프런트가 배너로 병합 선택지를 그려야 한다).
+ * 
+ *  `disk_hash` 가 **빈 문자열**이면 디스크에 파일이 없다는 뜻이다 ([`GONE_HASH`]) —
+ *  열어 둔 사이 바깥에서 지워졌다. 빈 파일의 해시(blake3 of b"")와 겹치지 않는다.
  */
 export type CodeWriteOutcome = { kind: "saved"; hash: string } | { kind: "conflict"; disk_hash: string };
 
