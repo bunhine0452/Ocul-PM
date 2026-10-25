@@ -73,6 +73,18 @@ export function useDiffModes({
     setEditorEpoch((n) => n + 1);
   }, [projectId, pathRef, bufferRef, cursorRef, setPendingJump, setEditorEpoch]);
 
+  /** 디스크 판과 비교하기 — 충돌 띠에서 「내 것 / 바깥에서 바뀐 것」을 겹쳐 본다. */
+  const enterDiskDiff = useCallback(async () => {
+    const path = pathRef.current;
+    if (!path || !bufferRef.current) return;
+    const file = await codeApi.read(projectId, path).catch(() => null);
+    if (pathRef.current !== path || file == null || file.binary || file.too_large) return;
+    setDiffOriginal(normalizeEol(file.content));
+    setDiffMode({ kind: "disk" });
+    setPendingJump({ line: cursorRef.current.line });
+    setEditorEpoch((n) => n + 1);
+  }, [projectId, pathRef, bufferRef, cursorRef, setPendingJump, setEditorEpoch]);
+
   const enterEntryDiff = useCallback(
     async (entry: FileJournalEntry) => {
       const path = pathRef.current;
@@ -195,6 +207,7 @@ export function useDiffModes({
     diffOriginal,
     setDiffOriginal,
     enterHeadDiff,
+    enterDiskDiff,
     enterEntryDiff,
     enterHistoryDiff,
     restoreVersion,

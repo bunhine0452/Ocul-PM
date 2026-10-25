@@ -24,5 +24,7 @@ export interface PendingJump {
 /** 인라인 비교의 원본이 무엇인가 — HEAD · 특정 일지 · 로컬 히스토리의 한 판. */
 export type DiffMode =
   | { kind: "head" }
+  /** 바깥에서 바뀐 디스크 판 — 충돌 띠의 「바뀐 곳 비교」 (2026-10-25). */
+  | { kind: "disk" }
   | { kind: "entry"; title: string; journalPath: string }
   | { kind: "history"; ts: string; label: string };

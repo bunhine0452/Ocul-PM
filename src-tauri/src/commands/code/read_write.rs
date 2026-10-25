@@ -53,6 +53,9 @@ pub struct CodeAsset {
 
 /// `code_write` 결과 — 충돌은 오류가 아니라 정상 분기라 Err 로 보내지 않는다
 /// (프런트가 배너로 병합 선택지를 그려야 한다).
+///
+/// `disk_hash` 가 **빈 문자열**이면 디스크에 파일이 없다는 뜻이다 ([`GONE_HASH`]) —
+/// 열어 둔 사이 바깥에서 지워졌다. 빈 파일의 해시(blake3 of b"")와 겹치지 않는다.
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(tag = "kind")]
 pub enum CodeWriteOutcome {
@@ -156,8 +159,17 @@ pub async fn code_asset(
     })
 }
 
+/// 「디스크에 없음」의 해시 자리 — [`CodeWriteOutcome::Conflict`] 와 `base_hash` 양쪽에서.
+pub const GONE_HASH: &str = "";
+
 /// 파일 저장 (낙관적 잠금). **기존 파일만** — 신규 생성은 v1 스코프 밖이라
 /// 트리와 어긋난 유령 경로 생성을 막는다.
+///
+/// 예외 하나 (2026-10-25): 열어 둔 파일이 바깥에서 **지워졌으면** 오류 대신
+/// `Conflict { disk_hash: "" }` 를 돌려준다. 예전엔 "Failed to read file" 오류만
+/// 떠서 편집기에 남은 본문을 저장할 길이 없었다. 사용자가 그 배너에서 「다시
+/// 만들기」를 고르면 프런트가 `base_hash = ""` 로 다시 부르고, 그때만 같은 자리에
+/// 만든다 — 부모 폴더가 루트 안에 아직 있을 때만이고, 조용히 만들어지는 경로는 없다.
 #[tauri::command]
 #[specta::specta]
 pub async fn code_write(
@@ -172,7 +184,7 @@ pub async fn code_write(
     let root = project_root(&db, project_id).await?;
     let full = secure_join(&root, &rel_path)?;
     let outcome = tauri::async_runtime::spawn_blocking(move || {
-        let full = canonical_within_root(&root, &full)?;
+        let full = resolve_save_target(&root, &full)?;
         write_with_lock(&full, &content, &base_hash)
     })
     .await
@@ -184,6 +196,22 @@ pub async fn code_write(
         hist.note_self_write(project_id, &rel_path, hash, by_agent.unwrap_or(false));
     }
     Ok(outcome)
+}
+
+/// 저장할 자리 — 있는 파일은 그대로 정규화하고, 지워진 파일은 **부모**를 루트 안에서
+/// 정규화한 뒤 이름을 붙인다 (`canonicalize` 는 없는 경로를 못 푼다). 부모까지
+/// 사라졌으면 오류다 — 폴더째 지운 것을 되살리는 것은 저장이 아니다.
+pub(crate) fn resolve_save_target(root: &Path, full: &Path) -> Result<std::path::PathBuf, String> {
+    if full.symlink_metadata().is_ok() {
+        return canonical_within_root(root, full);
+    }
+    let parent = full
+        .parent()
+        .ok_or_else(|| "Invalid file path".to_string())?;
+    let name = full
+        .file_name()
+        .ok_or_else(|| "Invalid file name".to_string())?;
+    Ok(canonical_within_root(root, parent)?.join(name))
 }
 
 pub(super) fn looks_binary(bytes: &[u8]) -> bool {
@@ -203,8 +231,13 @@ pub(crate) fn write_with_lock(
     base_hash: &str,
 ) -> Result<CodeWriteOutcome, String> {
     let _guard = WRITE_LOCK.lock().unwrap_or_else(|p| p.into_inner());
-    let disk = std::fs::read(full).map_err(|e| format!("Failed to read file before save: {e}"))?;
-    let disk_hash = blake3::hash(&disk).to_hex().to_string();
+    let disk_hash = match std::fs::read(full) {
+        Ok(disk) => blake3::hash(&disk).to_hex().to_string(),
+        // 지워진 파일 — 「없음」도 디스크의 한 상태다. `base_hash` 가 그것을 보고 왔을
+        // 때(다시 만들기)만 아래로 내려가 같은 자리에 쓴다.
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => GONE_HASH.to_string(),
+        Err(e) => return Err(format!("Failed to read file before save: {e}")),
+    };
     if disk_hash != base_hash {
         return Ok(CodeWriteOutcome::Conflict { disk_hash });
     }
