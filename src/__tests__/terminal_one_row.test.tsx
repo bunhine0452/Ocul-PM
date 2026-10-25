@@ -16,6 +16,7 @@ import { TerminalViewMenu } from "@/features/terminal/TerminalViewMenu";
 import { canAutoRename, shellTitleToTabLabel } from "@/features/terminal/tabTitle";
 import type { TerminalFont } from "@/features/terminal/useTerminalFont";
 import type { TerminalTab } from "@/contexts/WorkspaceContext";
+import { t } from "@/i18n";
 
 afterEach(cleanup);
 
@@ -35,32 +36,32 @@ function headBar(extra: Partial<React.ComponentProps<typeof TerminalHeadBar>> = 
       viewMenu={<button type="button">Aa</button>}
       {...extra}
     >
-      <button type="button">도크로</button>
+      <button type="button">{t("term.dock.move")}</button>
     </TerminalHeadBar>,
   );
 }
 
-describe("머리줄 — 화면에서는 화면 툴바 한 줄", () => {
-  it("screenTitle 이 있으면 툴바 하나에 「터미널 / 세션」과 도구가 다 들어간다", () => {
-    const { container } = headBar({ screenTitle: "터미널" });
+describe("head bar — one toolbar row on the screen", () => {
+  it("with screenTitle, one toolbar carries title / session and every tool", () => {
+    const { container } = headBar({ screenTitle: t("term.title") });
     const toolbars = container.querySelectorAll(".toolbar");
     expect(toolbars).toHaveLength(1);
     expect(container.querySelector(".term-head")).toBeNull();
     const bar = toolbars[0]!;
-    expect(bar.textContent).toContain("터미널");
+    expect(bar.textContent).toContain(t("term.title"));
     expect(bar.textContent).toContain("ai-pm");
     expect(bar.textContent).toContain("Aa");
-    expect(bar.textContent).toContain("도크로");
+    expect(bar.textContent).toContain(t("term.dock.move"));
   });
 
-  it("도크·분리 창(screenTitle 없음)은 예전처럼 얇은 머리줄이다", () => {
+  it("dock and detached window (no screenTitle) keep the thin head bar", () => {
     const { container } = headBar();
     expect(container.querySelector(".toolbar")).toBeNull();
     expect(container.querySelector(".term-head")?.textContent).toContain("ai-pm");
   });
 });
 
-describe("보기 메뉴 Aa", () => {
+describe("view menu Aa", () => {
   const font = (): TerminalFont => ({
     fontSize: 12,
     fontDraft: null,
@@ -71,25 +72,25 @@ describe("보기 메뉴 Aa", () => {
     commitFontDraft: vi.fn(),
   });
 
-  it("누르면 글자 크기와 줄 간격이 열리고, Escape 로 닫힌다", () => {
+  it("opens font size and density, closes on Escape", () => {
     const f = font();
     const onDensity = vi.fn();
     render(<TerminalViewMenu font={f} density="standard" onDensity={onDensity} />);
-    const btn = screen.getByRole("button", { name: /보기/ });
+    const btn = screen.getByRole("button", { name: t("term.view.label") });
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(btn);
     expect(btn.getAttribute("aria-expanded")).toBe("true");
-    fireEvent.click(screen.getByRole("button", { name: /글자 크게/ }));
+    fireEvent.click(screen.getByRole("button", { name: t("term.fontLarger") }));
     expect(f.fontDelta).toHaveBeenCalledWith(1);
-    fireEvent.click(screen.getByRole("button", { name: "조밀" }));
+    fireEvent.click(screen.getByRole("button", { name: t("term.density.compact") }));
     expect(onDensity).toHaveBeenCalledWith("compact");
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
 
-describe("상태바 — 상태만", () => {
-  it("키캡·스테퍼·밀도 세그먼트가 없고, 셸 통합이 꺼졌을 때만 켜기 링크가 있다", () => {
+describe("status bar — status only", () => {
+  it("has no keycaps, stepper or density segment; offers enable only when shell integration is off", () => {
     const onEnable = vi.fn();
     const { container, rerender } = render(
       <TerminalStatusBar
@@ -99,13 +100,13 @@ describe("상태바 — 상태만", () => {
         fontSize={12}
         density="standard"
         watchTone="off"
-        watchLabel="감시 꺼짐"
+        watchLabel={t("term.watchOff")}
       />,
     );
     expect(container.querySelector("kbd")).toBeNull();
     expect(container.querySelector("input")).toBeNull();
-    expect(container.textContent).toContain("12px · 표준");
-    fireEvent.click(screen.getByRole("button", { name: "켜기" }));
+    expect(container.textContent).toContain(`12px · ${t("term.density.standard")}`);
+    fireEvent.click(screen.getByRole("button", { name: t("term.status.enable") }));
     expect(onEnable).toHaveBeenCalled();
 
     rerender(
@@ -116,25 +117,25 @@ describe("상태바 — 상태만", () => {
         fontSize={12}
         density="standard"
         watchTone="on"
-        watchLabel=".oculpm 감시중"
+        watchLabel={t("term.watchRunning")}
       />,
     );
-    expect(screen.queryByRole("button", { name: "켜기" })).toBeNull();
+    expect(screen.queryByRole("button", { name: t("term.status.enable") })).toBeNull();
     expect(container.textContent).not.toContain("12px");
   });
 });
 
-describe("세션 이름 — 기호뿐인 셸 제목은 이름이 아니다", () => {
-  it("`.` 같은 제목은 버리고, 회전 기호는 떼어 낸다", () => {
+describe("session name — a symbol-only shell title is not a name", () => {
+  it("drops titles like `.` and strips the spinner glyph", () => {
     expect(shellTitleToTabLabel(".")).toBeNull();
     expect(shellTitleToTabLabel("✳")).toBeNull();
     expect(shellTitleToTabLabel("✳ Claude Code")).toBe("Claude Code");
-    expect(shellTitleToTabLabel("⠂ 저장 흐름 보강")).toBe("저장 흐름 보강");
+    expect(shellTitleToTabLabel("⠂ Saving flow")).toBe("Saving flow");
     // 홈·루트는 기호뿐이어도 자리 이름이다.
     expect(shellTitleToTabLabel("~")).toBe("~");
   });
 
-  it("이미 `.` 로 굳은 탭은 다음 제목에서 낫는다", () => {
+  it("a tab already stuck on `.` heals on the next title", () => {
     expect(canAutoRename(".")).toBe(true);
     expect(canAutoRename("my build")).toBe(false);
   });
