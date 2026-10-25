@@ -7,6 +7,7 @@ import { GitCompareArrows, History, ImageFileIcon, NotebookText } from "@/compon
 
 import { isSvgPath } from "../previewKind";
 import type { DiffMode } from "./types";
+import type { MarkdownView } from "./markdownView";
 
 interface Props {
   activePath: string;
@@ -24,6 +25,8 @@ interface Props {
   diffMode: DiffMode | null;
   exitDiff: () => void;
   enterHeadDiff: () => Promise<void>;
+  /** 마크다운 보기 전환 — .md 를 편집기로 볼 때만 준다 (비교 중엔 원문뿐이라 안 준다). */
+  markdown?: MarkdownView;
 }
 
 export function CrumbActions({
@@ -41,9 +44,32 @@ export function CrumbActions({
   diffMode,
   exitDiff,
   enterHeadDiff,
+  markdown,
 }: Props) {
   return (
     <>
+      {/* 리치 · 원문 — 리치는 노션식 편집, 원문은 Monaco. 고친 블록만 저장에 바뀐다. */}
+      {markdown ? (
+        <span className="seg code-md-view" role="group" aria-label={t("code.mdView.label")}>
+          <button
+            type="button"
+            className="seg-item"
+            aria-selected={markdown.rich}
+            onClick={() => markdown.setRich(true)}
+            title={t("code.mdView.richHint")}
+          >
+            {t("code.mdView.rich")}
+          </button>
+          <button
+            type="button"
+            className="seg-item"
+            aria-selected={!markdown.rich}
+            onClick={() => markdown.setRich(false)}
+          >
+            {t("code.mdView.source")}
+          </button>
+        </span>
+      ) : null}
       {/* 이 파일을 만진 일지 — 에이전트가 여기에 무슨 일을 했는지. */}
       {entriesCount > 0 ? (
         <button

@@ -79,6 +79,6 @@ export const DEFAULT_STATE: WorkspaceState = {
   codeWordWrap: "auto",
   codeSidebarHidden: false,
   discussionActiveId: null,
-  discussionEditorMode: "split",
+  discussionEditorMode: "rich",
   sidebarCollapsed: false,
 };

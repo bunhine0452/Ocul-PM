@@ -1,12 +1,18 @@
 import { useConfirm } from "@/hooks/useConfirm";
 /**
- * 문제 해결 문서 편집기 — Monaco 마크다운 + 라이브 프리뷰.
+ * 문제 해결 문서 편집기 — 리치(노션식) 편집 + Monaco 원문.
  *
- * 왜 WYSIWYG 이 아닌가: 이 문서의 SSOT 는 디스크의 `.md` 이고 **외부
- * 에이전트가 같은 파일을 동시에 고친다**. 리치 에디터는 왕복마다 서식을
- * 잃거나 재배열해 남의 편집을 조용히 지운다. 그래서 원문을 그대로 두되,
- * 규격(안정 id·managed block·인식되는 섹션 제목)을 **삽입 메뉴와 경고**로
- * 대신 맡는다 — 손으로 `{#opt-c}` 를 세지 않아도 되게.
+ * 2026-10-25: 리치 편집이 기본이다. 예전 판은 "리치 에디터는 왕복마다 서식을 잃거나
+ * 재배열해 남의 편집을 조용히 지운다" 며 WYSIWYG 을 거절했다 — 이 문서의 SSOT 는
+ * 디스크의 `.md` 이고 외부 에이전트가 같은 파일을 고친다. 그 걱정은 코덱이 진다
+ * (`features/code/richMarkdown/codec.ts`): 고치지 않은 블록은 원문 그대로 나가고,
+ * 토의 로그 같은 관리 블록은 고칠 수 없는 원문 블록이다. 저장소의 .md 전부가 열고
+ * 닫아도 바이트 단위로 같다는 것을 테스트가 지킨다. 「나란히」·「미리보기」 모드는
+ * 리치 모드가 대신해 걷어냈다; 원문(Monaco)은 규격을 손으로 만질 때를 위해 남긴다.
+ *
+ * 규격(안정 id·managed block·인식되는 섹션 제목)은 여전히 **삽입 메뉴와 경고**가
+ * 맡는다 — 손으로 `{#opt-c}` 를 세지 않아도 되게. 토의 메모는 관리 블록 안이라
+ * 리치에서는 고칠 수 없어, 넣으면 원문 모드의 그 칸으로 데려간다.
  *
  * 마운트 후엔 언컨트롤드다 (`CodeEditor.tsx` 와 같은 원칙): 부모는 초깃값만
  * 주고, 문서를 바꿔 끼울 땐 `key` 로 재마운트한다.
@@ -27,20 +33,19 @@ import {
   watchThemeChanges,
 } from "@/features/code/monaco/theme";
 
-import { Markdown } from "@/components/Markdown";
+import type { Editor } from "@tiptap/core";
+import { RichMarkdownEditor } from "@/features/code/richMarkdown/RichMarkdownEditor";
 import {
   AlertTriangle,
   Bold,
   ChevronDown,
   Code2,
-  Columns2,
-  Eye,
+  FileText,
   Heading2,
   Italic,
   Link2,
   List,
   ListTodo,
-  Pencil,
   Quote,
   Save,
 } from "@/components/Icons";
@@ -60,14 +65,15 @@ import {
 } from "./mdEdit";
 import { logColumns, placeholders, sectionHeadings } from "./discussionTemplates";
 import { DiscussionOutline } from "./DiscussionOutline";
-import { outlineIndexAt, parseOutline, previewText, textStats, type OutlineItem } from "./outline";
+import { outlineIndexAt, parseOutline, textStats, type OutlineItem } from "./outline";
 import { keepProseCentered, PROSE_OPTIONS } from "./proseEditor";
 import "./discussion-editor.css";
 
-/** 프리뷰 재렌더 지연 — 타이핑 중 마크다운 파싱이 키 입력을 붙잡지 않게. */
+/** 경고·분량 재계산 지연 — 타이핑 중 문서 판독이 키 입력을 붙잡지 않게. */
 const PREVIEW_DEBOUNCE_MS = 180;
 
-export type EditorMode = "write" | "split" | "preview";
+/** 리치(기본) · 원문. 예전 판의 `split`·`preview` 는 부모가 리치로 읽는다. */
+export type EditorMode = "write" | "rich";
 
 interface Props {
   /** 마운트 시점에 편집기에 넣을 글 — 디스크 본문이거나, 붙들어 둔 초안이다. */
@@ -87,8 +93,8 @@ interface Props {
   author: string;
 }
 
-/** 미리보기 안의 제목들 — 개요(`parseOutline`)와 같은 순서다. */
-const PREVIEW_HEADINGS = ".disc-doc-prose h2, .disc-doc-prose h3";
+/** 리치 판 안의 제목들 — 개요(`parseOutline`)와 같은 순서다. */
+const RICH_HEADINGS = ".rich-md-doc h2, .rich-md-doc h3";
 
 export function DiscussionEditor({
   initialText,
@@ -105,9 +111,16 @@ export function DiscussionEditor({
   const { t } = useT();
   const { confirm, confirmDialog } = useConfirm();
   const hostRef = useRef<HTMLDivElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
+  const richHostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<MonacoNs.editor.IStandaloneCodeEditor | null>(null);
+  const richRef = useRef<Editor | null>(null);
+  // 삽입 메뉴가 글을 바꾸면 리치 판을 그 글로 다시 연다 (원문 지도도 새로).
+  const [richKey, setRichKey] = useState(0);
+  // 원문 모드로 넘어가며 고를 자리 — 토의 메모의 본문 칸.
+  const pendingSelRef = useRef<{ from: number; to: number } | null>(null);
   const [text, setText] = useState(initialText);
+  const textRef = useRef(text);
+  textRef.current = text;
   const [preview, setPreview] = useState(initialText);
   const [cursorLine, setCursorLine] = useState(1);
   const [insertOpen, setInsertOpen] = useState(false);
@@ -125,11 +138,11 @@ export function DiscussionEditor({
   const items = useMemo(() => parseOutline(text), [text]);
   const itemsRef = useRef<OutlineItem[]>(items);
   itemsRef.current = items;
-  // 미리보기만 보일 땐 커서가 움직이지 않는다 — 그때의 「현재」 는 스크롤 위치다.
-  const [previewIndex, setPreviewIndex] = useState(-1);
+  // 리치 판에서는 원문 줄 커서가 없다 — 그때의 「현재」 는 스크롤 위치다.
+  const [richIndex, setRichIndex] = useState(-1);
   /** 개요에서 막 고른 항목 — 그 이동이 낳은 스크롤 한 번은 위치 대신 이 값을 쓴다. */
   const pinnedRef = useRef<number | null>(null);
-  const current = mode === "preview" ? previewIndex : outlineIndexAt(items, cursorLine);
+  const current = mode === "rich" ? richIndex : outlineIndexAt(items, cursorLine);
   const stats = useMemo(() => textStats(preview), [preview]);
 
   /**
@@ -189,7 +202,7 @@ export function DiscussionEditor({
       placeholder: t("disc.editor.placeholder"),
     });
     viewRef.current = editor;
-    editor.focus();
+    if (mode === "write") editor.focus();
 
     const subs: MonacoNs.IDisposable[] = [
       keepProseCentered(editor, monaco),
@@ -271,75 +284,71 @@ export function DiscussionEditor({
     };
   }, [insertOpen]);
 
-  /**
-   * 나란히 보기의 스크롤 맞춤 — 원문이 움직이면 미리보기가 따라온다.
-   *
-   * 비율(스크롤 위치 ÷ 전체 높이)로만 맞추면 표·목록이 긴 섹션에서 두 판이 크게
-   * 어긋난다. 그래서 **섹션을 닻으로** 삼는다: 원문 맨 윗줄이 속한 제목을 찾고, 그
-   * 제목 사이에서 얼마나 내려왔는지를 미리보기의 같은 두 제목 사이에 옮긴다. 제목
-   * 수가 아직 안 맞으면(미리보기는 한 박자 늦다) 비율로 떨어진다.
-   */
+  // 리치 판의 「현재 섹션」 — 스크롤 위치에서 읽는다.
   useEffect(() => {
-    const editor = viewRef.current;
-    const pane = previewRef.current;
-    if (!editor || !pane || mode !== "split") return;
-    const sync = () => {
-      const top = editor.getVisibleRanges()[0]?.startLineNumber ?? 1;
-      const list = itemsRef.current;
-      const heads = pane.querySelectorAll<HTMLElement>(PREVIEW_HEADINGS);
-      const max = pane.scrollHeight - pane.clientHeight;
-      const idx = outlineIndexAt(list, top);
-      if (idx < 0 || heads.length !== list.length) {
-        const room = editor.getScrollHeight() - editor.getLayoutInfo().height;
-        pane.scrollTop = room > 0 ? (editor.getScrollTop() / room) * max : 0;
-        return;
-      }
-      const from = list[idx].line;
-      const to = list[idx + 1]?.line ?? (editor.getModel()?.getLineCount() ?? from) + 1;
-      const frac = Math.min(1, Math.max(0, (top - from) / Math.max(1, to - from)));
-      const a = heads[idx].offsetTop;
-      const b = heads[idx + 1]?.offsetTop ?? pane.scrollHeight;
-      pane.scrollTop = Math.min(max, Math.max(0, a + frac * (b - a) - 16));
-    };
-    const sub = editor.onDidScrollChange((e) => {
-      if (e.scrollTopChanged) sync();
-    });
-    sync();
-    return () => sub.dispose();
-  }, [mode]);
-
-  useEffect(() => {
-    const pane = previewRef.current;
-    if (!pane || mode !== "preview") return;
+    const pane = richHostRef.current?.querySelector<HTMLElement>(".rich-md");
+    if (!pane || mode !== "rich") return;
     const onScroll = () => {
       if (pinnedRef.current !== null) {
-        setPreviewIndex(pinnedRef.current);
+        setRichIndex(pinnedRef.current);
         pinnedRef.current = null;
         return;
       }
-      const heads = pane.querySelectorAll<HTMLElement>(PREVIEW_HEADINGS);
+      const heads = pane.querySelectorAll<HTMLElement>(RICH_HEADINGS);
+      const base = pane.getBoundingClientRect().top;
       // 끝까지 내렸으면 마지막 섹션들은 맨 위로 올라올 수 없다 — 그때는 보이는 마지막 제목.
       const atEnd = pane.scrollTop + pane.clientHeight >= pane.scrollHeight - 2;
-      const line = atEnd ? pane.scrollTop + pane.clientHeight - 48 : pane.scrollTop + 24;
+      const line = atEnd ? pane.clientHeight - 48 : 24;
       let idx = -1;
       heads.forEach((h, i) => {
-        if (h.offsetTop <= line) idx = i;
+        if (h.getBoundingClientRect().top - base <= line) idx = i;
       });
-      setPreviewIndex(idx);
+      setRichIndex(idx);
     };
     onScroll();
     pane.addEventListener("scroll", onScroll, { passive: true });
     return () => pane.removeEventListener("scroll", onScroll);
-  }, [mode, preview]);
+  }, [mode, richKey]);
 
-  /** 개요에서 고른 제목으로 간다 — 미리보기만 보일 땐 미리보기를, 아니면 원문을 옮긴다. */
+  // 원문 모드로 들어올 때 — Monaco 는 리치에서 고친 글을 모른다. 맞추고, 고를 자리가
+  // 있으면(토의 메모) 거기로 간다.
+  useEffect(() => {
+    const editor = viewRef.current;
+    const model = editor?.getModel();
+    if (mode !== "write" || !editor || !model) return;
+    if (model.getValue() !== textRef.current) editor.setValue(textRef.current);
+    const sel = pendingSelRef.current;
+    pendingSelRef.current = null;
+    if (sel) {
+      const range = monaco.Range.fromPositions(model.getPositionAt(sel.from), model.getPositionAt(sel.to));
+      editor.setSelection(range);
+      editor.revealRangeInCenterIfOutsideViewport(range);
+    }
+    editor.focus();
+  }, [mode]);
+
+  /**
+   * 리치 판에서의 삽입 — 순수 모듈의 교체를 글에 바로 적용하고 판을 다시 연다.
+   * 리치에는 원문 오프셋 커서가 없으므로 섹션 기준 삽입(옵션·단계·메모)만 이 길을 탄다.
+   */
+  const applyToText = (make: (doc: string, from: number, to: number) => EditOp): EditOp => {
+    const doc = textRef.current;
+    const op = make(doc, doc.length, doc.length);
+    const next = doc.slice(0, op.from) + op.insert + doc.slice(op.to);
+    textRef.current = next;
+    setText(next);
+    onTextChangeRef.current?.(next);
+    return op;
+  };
+
+  /** 개요에서 고른 제목으로 간다 — 리치면 리치 판을, 아니면 원문을 옮긴다. */
   const jumpTo = (index: number) => {
     const item = items[index];
     if (!item) return;
-    if (mode === "preview") {
+    if (mode === "rich") {
       pinnedRef.current = index;
-      setPreviewIndex(index);
-      previewRef.current?.querySelectorAll<HTMLElement>(PREVIEW_HEADINGS)[index]?.scrollIntoView({ block: "start" });
+      setRichIndex(index);
+      richHostRef.current?.querySelectorAll<HTMLElement>(RICH_HEADINGS)[index]?.scrollIntoView({ block: "start" });
       return;
     }
     const editor = viewRef.current;
@@ -349,9 +358,16 @@ export function DiscussionEditor({
     editor.focus();
   };
 
+  /** 섹션 기준 삽입 — 원문이면 Monaco 에, 리치면 글에 바로 넣고 판을 다시 연다. */
+  const insertBySection = (make: (doc: string, from: number, to: number) => EditOp) => {
+    if (mode === "write") return apply(make);
+    applyToText(make);
+    setRichKey((k) => k + 1);
+  };
+
   const insertOption = () => {
     const ph = placeholders();
-    apply((doc) =>
+    insertBySection((doc) =>
       insertInSectionOp(
         doc,
         "options",
@@ -363,7 +379,7 @@ export function DiscussionEditor({
 
   const insertStep = () => {
     const ph = placeholders();
-    apply((doc) =>
+    insertBySection((doc) =>
       insertInSectionOp(doc, "next", `- [ ] ${ph.step} {#${nextStepId(doc)}}`, {
         heading: sectionHeadings().next,
         selectText: ph.step,
@@ -372,18 +388,25 @@ export function DiscussionEditor({
   };
 
   const insertNote = () => {
-    apply((doc) =>
+    const make = (doc: string) =>
       appendLogRowOp(doc, {
         author,
         ts: localIsoWithOffset(new Date()),
         body: "",
         heading: sectionHeadings().log,
         columns: logColumns(),
-      }),
-    );
+      });
+    if (mode === "write") return apply(make);
+    // 토의 로그는 관리 블록이라 리치에서 고칠 수 없다 — 줄을 넣고 원문의 그 칸으로 간다.
+    const op = applyToText(make);
+    pendingSelRef.current = { from: op.selFrom, to: op.selTo };
+    onModeChange("write");
   };
 
-  const insertCodeBlock = () => apply((doc, from, to) => wrapOp(doc, from, to, "```\n", "\n```"));
+  const insertCodeBlock = () =>
+    mode === "rich"
+      ? richRef.current?.chain().focus().toggleCodeBlock().run()
+      : apply((doc, from, to) => wrapOp(doc, from, to, "```\n", "\n```"));
 
   const menuItems: { key: string; label: string; run: () => void }[] = [
     { key: "opt", label: t("disc.editor.insertOption"), run: insertOption },
@@ -392,47 +415,77 @@ export function DiscussionEditor({
     { key: "code", label: t("disc.editor.insertCode"), run: insertCodeBlock },
   ];
 
+  /** 리치 판의 명령 — 편집기가 아직 없으면 아무것도 안 한다. */
+  const rich = (run: (chain: ReturnType<Editor["chain"]>) => ReturnType<Editor["chain"]>) => () => {
+    const editor = richRef.current;
+    if (editor) run(editor.chain().focus()).run();
+  };
+  /** 링크 — 원문과 같은 자리표 주소를 건다. 선택이 없으면 자리표 글을 링크로 넣는다. */
+  const richLink = () => {
+    const editor = richRef.current;
+    if (!editor) return;
+    const href = placeholders().url;
+    if (editor.state.selection.empty) {
+      editor.chain().focus().insertContent({ type: "text", text: href, marks: [{ type: "link", attrs: { href } }] }).run();
+    } else {
+      editor.chain().focus().setLink({ href }).run();
+    }
+  };
+  const byMode = (onRich: () => void, onWrite: () => void) => () => (mode === "rich" ? onRich() : onWrite());
+
   const fmt: { key: string; label: string; icon: React.ReactNode; run: () => void }[] = [
-    { key: "b", label: t("disc.editor.bold"), icon: <Bold size={15} />, run: () => applyRef.current("**") },
-    { key: "i", label: t("disc.editor.italic"), icon: <Italic size={15} />, run: () => applyRef.current("_") },
+    { key: "b", label: t("disc.editor.bold"), icon: <Bold size={15} />, run: byMode(rich((c) => c.toggleBold()), () => applyRef.current("**")) },
+    { key: "i", label: t("disc.editor.italic"), icon: <Italic size={15} />, run: byMode(rich((c) => c.toggleItalic()), () => applyRef.current("_")) },
     {
       key: "code",
       label: t("disc.editor.code"),
       icon: <Code2 size={15} />,
-      run: () => apply((doc, from, to) => wrapOp(doc, from, to, "`")),
+      run: byMode(rich((c) => c.toggleCode()), () => apply((doc, from, to) => wrapOp(doc, from, to, "`"))),
     },
-    { key: "link", label: t("disc.editor.link"), icon: <Link2 size={15} />, run: () => applyRef.current("link") },
+    { key: "link", label: t("disc.editor.link"), icon: <Link2 size={15} />, run: byMode(richLink, () => applyRef.current("link")) },
     {
       key: "h",
       label: t("disc.editor.heading"),
       icon: <Heading2 size={15} />,
-      run: () => apply((doc, from, to) => linePrefixOp(doc, from, to, "#### ")),
+      run: byMode(rich((c) => c.toggleHeading({ level: 4 })), () => apply((doc, from, to) => linePrefixOp(doc, from, to, "#### "))),
     },
     {
       key: "quote",
       label: t("disc.editor.quote"),
       icon: <Quote size={15} />,
-      run: () => apply((doc, from, to) => linePrefixOp(doc, from, to, "> ")),
+      run: byMode(rich((c) => c.toggleBlockquote()), () => apply((doc, from, to) => linePrefixOp(doc, from, to, "> "))),
     },
     {
       key: "ul",
       label: t("disc.editor.bullet"),
       icon: <List size={15} />,
-      run: () => apply((doc, from, to) => linePrefixOp(doc, from, to, "- ")),
+      run: byMode(rich((c) => c.toggleBulletList()), () => apply((doc, from, to) => linePrefixOp(doc, from, to, "- "))),
     },
     {
       key: "task",
       label: t("disc.editor.task"),
       icon: <ListTodo size={15} />,
-      run: () => apply((doc, from, to) => linePrefixOp(doc, from, to, "- [ ] ")),
+      run: byMode(rich((c) => c.toggleTaskList()), () => apply((doc, from, to) => linePrefixOp(doc, from, to, "- [ ] "))),
     },
   ];
 
   const modes: { key: EditorMode; label: string; icon: React.ReactNode }[] = [
-    { key: "write", label: t("disc.editor.modeWrite"), icon: <Pencil size={13} /> },
-    { key: "split", label: t("disc.editor.modeSplit"), icon: <Columns2 size={13} /> },
-    { key: "preview", label: t("disc.editor.modePreview"), icon: <Eye size={13} /> },
+    { key: "rich", label: t("disc.editor.modeRich"), icon: <FileText size={13} /> },
+    { key: "write", label: t("disc.editor.modeWrite"), icon: <Code2 size={13} /> },
   ];
+
+  /** 리치 판의 저장·링크 단축키 — 원문은 Monaco 액션이 잡는다. */
+  const onRichKeyDown = (e: React.KeyboardEvent) => {
+    if (mode !== "rich" || !(e.metaKey || e.ctrlKey)) return;
+    const key = e.key.toLowerCase();
+    if (key === "s") {
+      e.preventDefault();
+      onSaveRef.current(textRef.current);
+    } else if (key === "k") {
+      e.preventDefault();
+      richLink();
+    }
+  };
 
   const fmtNumber = (n: number) => n.toLocaleString();
 
@@ -533,7 +586,7 @@ export function DiscussionEditor({
             className={`btn sm${dirty ? " primary" : ""}`}
             {...blocked(dirty ? null : t("disc.blockedNoChanges"))}
             disabled={busy}
-            onClick={() => onSave(viewRef.current?.getValue() ?? text)}
+            onClick={() => onSave(mode === "write" ? (viewRef.current?.getValue() ?? text) : text)}
           >
             <Save size={15} /> {t("common.save")}
           </button>
@@ -547,18 +600,28 @@ export function DiscussionEditor({
         </div>
       ) : null}
 
-      <div className={`disc-edit-body ${mode}`}>
-        {/* 나란히 보기에선 두 판이 폭을 나눠 쓴다 — 개요는 쓰기·미리보기에서만. */}
-        {mode === "split" ? null : <DiscussionOutline items={items} current={current} onJump={jumpTo} />}
+      <div className={`disc-edit-body ${mode}`} onKeyDown={onRichKeyDown}>
+        <DiscussionOutline items={items} current={current} onJump={jumpTo} />
+        {/* Monaco 는 리치 모드 동안 숨어서 산다 — 원문으로 돌아오면 리치에서 고친 글로 맞춘다. */}
         <div className="disc-edit-cm" ref={hostRef} />
-        {mode === "write" ? null : (
-          <div className="disc-edit-preview" ref={previewRef}>
-            <div className="disc-doc-prose">
-              {/* `{#id}`·로그 경계 주석은 파서가 읽는 뼈대라 원문엔 두고, 읽는 판에선 걷는다. */}
-              <Markdown>{previewText(preview) || t("disc.preview")}</Markdown>
-            </div>
+        {mode === "rich" ? (
+          <div className="disc-edit-rich" ref={richHostRef}>
+            <RichMarkdownEditor
+              key={richKey}
+              initialText={text}
+              placeholder={t("disc.editor.placeholder")}
+              autoFocus
+              onReady={(editor) => {
+                richRef.current = editor;
+              }}
+              onChange={(value) => {
+                textRef.current = value;
+                setText(value);
+                onTextChangeRef.current?.(value);
+              }}
+            />
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="disc-edit-status">

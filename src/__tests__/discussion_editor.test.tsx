@@ -116,8 +116,35 @@ describe("DiscussionEditor", () => {
     await waitFor(() => expect(section()).toBe("다음 단계"));
   });
 
-  it("나란히 보기에선 개요를 접는다 — 두 판이 폭을 나눠 쓴다", () => {
-    const { queryByRole } = mount({ mode: "split" });
-    expect(queryByRole("navigation", { name: "개요" })).toBeNull();
+  // ── 2026-10-25 리치 모드 (나란히·미리보기를 대신한다) ─────────────────────
+
+  it("리치 모드는 문서를 편집기로 그리고, 열기만 해서는 글이 바뀌지 않는다", () => {
+    const onTextChange = vi.fn();
+    const { container, getByRole } = mount({ mode: "rich", onTextChange });
+    const heads = [...container.querySelectorAll(".rich-md-doc h2")].map((h) => h.textContent);
+    expect(heads).toEqual(["문제 정의", "후보 해결 방안", "다음 단계"]);
+    expect(onTextChange).not.toHaveBeenCalled();
+    expect(getByRole("button", { name: /저장/ })).toHaveAttribute("aria-disabled", "true");
+    // 개요는 리치에서도 왼쪽에 선다.
+    expect(getByRole("navigation", { name: "개요" })).toBeTruthy();
+  });
+
+  it("리치에서 ‘후보 방안’ 을 넣으면 글에 바로 들어가고 판이 그 글로 다시 열린다", async () => {
+    const { getByRole, getByText, container, onSave } = mount({ mode: "rich" });
+    fireEvent.click(getByRole("button", { name: /삽입/ }));
+    fireEvent.click(getByText("후보 방안 (id 자동)"));
+    await waitFor(() => expect(container.querySelectorAll(".rich-md-doc h3")).toHaveLength(2));
+    fireEvent.click(getByRole("button", { name: /저장/ }));
+    const text = onSave.mock.calls[0][0] as string;
+    expect(text.indexOf("{#opt-b}")).toBeGreaterThan(0);
+    expect(text.indexOf("{#opt-b}")).toBeLessThan(text.indexOf("## 다음 단계"));
+  });
+
+  it("리치에서 토의 메모를 넣으면 원문 모드의 그 칸으로 넘어간다 — 로그는 리치에서 못 고친다", () => {
+    const onModeChange = vi.fn();
+    const { getByRole, getByText } = mount({ mode: "rich", onModeChange });
+    fireEvent.click(getByRole("button", { name: /삽입/ }));
+    fireEvent.click(getByText(/토의 메모/));
+    expect(onModeChange).toHaveBeenCalledWith("write");
   });
 });

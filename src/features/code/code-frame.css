@@ -343,6 +343,9 @@
   background: var(--bg-hover);
   color: var(--text);
 }
+/* 마크다운 보기 전환 — 크럼 줄(18px)에 맞춘 작은 세그먼트. */
+.code-md-view { padding: 1px; gap: 1px; margin-right: var(--space-2); border-radius: calc(var(--radius-xs) + 1px); }
+.code-md-view .seg-item { height: var(--ctl-1); padding: 0 var(--space-3); font-size: var(--fs-1); border-radius: var(--radius-xs); }
 .code-crumb-act.on {
   color: var(--accent-text);
   background: var(--accent-soft);

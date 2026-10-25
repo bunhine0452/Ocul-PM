@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import { dropDraft, keepDraft, peekDraft } from "@/features/discussion/draftStore";
-import { outlineIndexAt, parseOutline, previewText, textStats } from "@/features/discussion/outline";
+import { outlineIndexAt, parseOutline, textStats } from "@/features/discussion/outline";
 import { PROSE_MEASURE_PX, PROSE_MIN_GUTTER_PX, PROSE_OPTIONS, proseLayout } from "@/features/discussion/proseEditor";
 
 // 논의 편집기 개편 (2026-10-08) — 편집기가 기대는 순수 판독들.
@@ -39,12 +39,6 @@ describe("parseOutline", () => {
 });
 
 describe("미리보기·분량", () => {
-  it("줄 끝의 안정 id 와 혼자 선 주석 줄만 걷는다", () => {
-    expect(
-      previewText("### 방안 A {#opt-a}\n<!-- oculpm:discussion-log begin v1 -->\n- [ ] 할 일 {#next-1}\n{#x} 가운데 <!-- 꼬리 -->"),
-    ).toBe("### 방안 A\n- [ ] 할 일\n{#x} 가운데 <!-- 꼬리 -->");
-  });
-
   it("글자 수는 공백을 빼고, 로그 경계 주석은 세지 않는다", () => {
     expect(textStats("가나 다\n<!-- oculpm:discussion-log begin v1 -->\nab cd")).toEqual({ chars: 7, words: 4 });
   });

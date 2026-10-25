@@ -347,6 +347,8 @@
   min-height: 0;
   overflow: hidden;
 }
+/* 리치 마크다운 판 — 편집면 높이를 다 쓰고 스스로 스크롤한다. */
+.code-editor-wrap > .rich-md { height: 100%; }
 /* svg 미리보기가 붙은 상태 — 에디터와 그림을 나란히. 세로로 쌓지 않는 이유는
    코드 쪽이 세로를 다 쓰기 때문이다(줄 수). 좁은 창에서는 그림이 먼저 줄어든다. */
 .code-editor-wrap.with-svg {

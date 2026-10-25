@@ -70,7 +70,7 @@ export type JournalFilter = "all" | "feature" | "bugfix" | "refactor" | "error" 
 export type DiffMode = "unified" | "split";
 export type SearchScope = "semantic" | "symbol" | "text" | "journal";
 /** 문제 해결 편집기의 보기 모드 — 원문만 / 나란히 / 미리보기만. */
-export type DiscussionEditorMode = "write" | "split" | "preview";
+export type DiscussionEditorMode = "write" | "rich"; // 옛 split·preview 는 DiscussionScreenV2 가 리치로 읽는다
 export interface TerminalTab {
   id: string;
   label: string;

@@ -56,20 +56,6 @@ export function outlineIndexAt(items: readonly OutlineItem[], line: number): num
 }
 
 /**
- * 미리보기용 원문 — 파서가 읽는 뼈대를 읽는 판에서 걷는다. 원문은 그대로다.
- * - 줄 끝의 `{#id}`.
- * - 혼자 선 HTML 주석 줄(토의 로그 경계 `<!-- oculpm:discussion-log … -->`) —
- *   렌더러가 원시 HTML 을 받지 않아(XSS 문) 주석이 글자로 찍혔다.
- */
-export function previewText(md: string): string {
-  return md
-    .split("\n")
-    .filter((line) => !/^\s*<!--.*-->\s*$/.test(line))
-    .map((line) => line.replace(STABLE_ID, ""))
-    .join("\n");
-}
-
-/**
  * 상태줄의 분량. 글자 수는 공백을 뺀 수(원고지 관례), 단어는 공백으로 가른 덩어리다.
  * 토의 로그 경계 주석은 사람이 쓴 글이 아니라 뺀다.
  */
