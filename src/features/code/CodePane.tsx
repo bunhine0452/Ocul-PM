@@ -67,7 +67,7 @@ import { useDiffModes } from "./codePane/useDiffModes";
 import { useLspActions } from "./codePane/useLspActions";
 import { useBufferEdits } from "./codePane/useBufferEdits";
 import { useSaveFlow } from "./codePane/useSaveFlow";
-import { useExternalChanges } from "./codePane/useExternalChanges";
+import { GONE_HASH, useExternalChanges } from "./codePane/useExternalChanges";
 import { CodeEmptyState } from "./codePane/CodeEmptyState";
 import { CrumbActions } from "./codePane/CrumbActions";
 import { JournalEntriesPop } from "./codePane/JournalEntriesPop";
@@ -349,6 +349,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
     diffOriginal,
     setDiffOriginal,
     enterHeadDiff,
+    enterDiskDiff,
     enterEntryDiff,
     enterHistoryDiff,
     restoreVersion,
@@ -519,7 +520,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
   );
 
   // ── 열린 파일의 외부 변경 감지 (watcher) ───────────────────────────────
-  useExternalChanges({
+  const reloaded = useExternalChanges({
     projectId,
     pathRef,
     bufferRef,
@@ -638,7 +639,21 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
       ) : null}
 
       {conflict ? (
-        <ConflictBanner reloadFromDisk={reloadFromDisk} overwriteDisk={overwriteDisk} saving={saving} />
+        <ConflictBanner
+          gone={conflict.diskHash === GONE_HASH}
+          comparing={diffMode?.kind === "disk"}
+          compareWithDisk={() => void enterDiskDiff()}
+          // 고르는 순간 디스크 비교는 뜻을 잃는다 — 비교를 닫고 고른 쪽으로 간다.
+          reloadFromDisk={() => {
+            if (diffMode?.kind === "disk") exitDiff();
+            reloadFromDisk();
+          }}
+          overwriteDisk={() => {
+            if (diffMode?.kind === "disk") exitDiff();
+            overwriteDisk();
+          }}
+          saving={saving}
+        />
       ) : null}
 
       {fileView.kind === "idle" ? (
@@ -736,6 +751,7 @@ export const CodePane = forwardRef<CodePaneHandle, CodePaneProps>(function CodeP
           </div>
           <CodeStatusBar
             dirty={dirty}
+            reloaded={reloaded}
             saving={saving}
             autoSaveOn={autoSaveOn}
             cursor={cursor}

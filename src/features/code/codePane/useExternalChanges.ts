@@ -1,6 +1,7 @@
-// 열린 파일의 외부 변경 감지 (watcher) — 깨끗한 버퍼는 조용히 최신화, 미저장이면 충돌,
-// 미리보기는 자산 재독, 사라진 파일은 한 번만 알린다. `CodePane.tsx` 에서 그대로 들어냈다.
-import { useEffect, useRef } from "react";
+// 열린 파일의 외부 변경 감지 (watcher) — 깨끗한 버퍼는 조용히 최신화(상태바에 잠깐
+// 「다시 불러옴」), 미저장이면 충돌, 미리보기는 자산 재독, 사라진 파일은 「지워짐」 띠.
+// `CodePane.tsx` 에서 그대로 들어냈다.
+import { useEffect, useRef, useState } from "react";
 import type React from "react";
 
 import { codeApi } from "@/api/code";
@@ -18,6 +19,12 @@ import {
   type CodeBuffer,
 } from "../codeBuffers";
 import type { PendingJump } from "./types";
+
+/** `code_write` 가 「디스크에 없음」을 말하는 해시 자리 (`read_write.rs` `GONE_HASH`). */
+export const GONE_HASH = "";
+
+/** 「다시 불러옴」 알림이 상태바에 머무는 시간. */
+const RELOADED_NOTICE_MS = 4000;
 
 interface Args {
   projectId: number;
@@ -42,8 +49,16 @@ export function useExternalChanges({
   setEditorEpoch,
   setConflict,
 }: Args) {
-  // watcher 가 "파일이 사라졌다" 토스트를 같은 파일에 반복하지 않기 위한 부기.
+  // watcher 가 "파일이 사라졌다" 를 같은 파일에 반복하지 않기 위한 부기.
   const goneNotifiedRef = useRef<string | null>(null);
+  // 깨끗한 버퍼를 바깥 판으로 갈아 끼운 순간 — 상태바가 몇 초 동안 말한다. 조용히만
+  // 바꾸면 읽던 글이 눈앞에서 바뀌어도 왜 바뀌었는지 알 길이 없다 (2026-10-25).
+  const [reloaded, setReloaded] = useState(0);
+  useEffect(() => {
+    if (!reloaded) return;
+    const id = window.setTimeout(() => setReloaded(0), RELOADED_NOTICE_MS);
+    return () => window.clearTimeout(id);
+  }, [reloaded]);
 
   // ── 열린 파일의 외부 변경 감지 (watcher) ───────────────────────────────
   useEffect(() => {
@@ -65,10 +80,12 @@ export function useExternalChanges({
         if (pathRef.current !== path) return;
         if (file == null) {
           // 외부에서 파일이 지워지거나 이동됐다 — 조용히 삼키면 사용자는
-          // 저장 실패에서야 알게 된다. 같은 파일에 한 번만 알린다.
+          // 저장 실패에서야 알게 된다. 같은 파일에 한 번만 알린다. 편집기에 본문이
+          // 남아 있으면 「지워짐」 띠(다시 만들기)로, 아니면 토스트로.
           if (goneNotifiedRef.current !== path) {
             goneNotifiedRef.current = path;
-            toast.warning(t("code.fileGone", { path }));
+            if (bufferRef.current) setConflict({ diskHash: GONE_HASH });
+            else toast.warning(t("code.fileGone", { path }));
           }
           return;
         }
@@ -85,6 +102,7 @@ export function useExternalChanges({
           putBuffer(bufferKey(projectId, path), fresh);
           setPendingJump({ line: cursorRef.current.line });
           setEditorEpoch((n) => n + 1);
+          setReloaded(Date.now());
         } else {
           setConflict({ diskHash: file.hash });
         }
@@ -102,4 +120,5 @@ export function useExternalChanges({
     setEditorEpoch,
     setConflict,
   ]);
+  return reloaded !== 0;
 }

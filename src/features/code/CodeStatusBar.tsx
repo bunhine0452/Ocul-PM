@@ -14,6 +14,8 @@ import type { SeverityCounts } from "./problemsModel";
 
 export interface CodeStatusBarProps {
   dirty: boolean;
+  /** 바깥 변경을 방금 조용히 다시 불러왔다 — 몇 초 동안만 참이다 (`useExternalChanges`). */
+  reloaded?: boolean;
   saving: boolean;
   autoSaveOn: boolean;
   cursor: { line: number; col: number };
@@ -39,6 +41,7 @@ export interface CodeStatusBarProps {
 
 export function CodeStatusBar({
   dirty,
+  reloaded = false,
   saving,
   autoSaveOn,
   cursor,
@@ -69,7 +72,9 @@ export function CodeStatusBar({
             ? t("code.savingState")
             : dirty
               ? t("code.dirty")
-              : autoSaveOn
+              : reloaded
+                ? t("code.reloadedFromDisk")
+                : autoSaveOn
                 ? t("code.autoSaveOn")
                 : t("code.savedState")}
         </span>

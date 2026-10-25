@@ -232,10 +232,46 @@ fn write_conflicts_on_stale_hash() {
 }
 
 #[test]
-fn write_rejects_missing_file() {
+fn write_reports_a_deleted_file_as_gone_and_never_creates_it_silently() {
     let tmp = TempDir::new().unwrap();
-    let out = write_with_lock(&tmp.path().join("nope.txt"), "x", "hash");
-    assert!(out.is_err(), "새 파일 생성은 v1 스코프 밖");
+    let path = tmp.path().join("gone.txt");
+    match write_with_lock(&path, "x", "some-hash").unwrap() {
+        CodeWriteOutcome::Conflict { disk_hash } => assert_eq!(disk_hash, GONE_HASH),
+        other => panic!("expected Conflict, got {other:?}"),
+    }
+    assert!(
+        !path.exists(),
+        "읽고 온 판이 있는 저장은 지워진 파일을 되살리지 않는다"
+    );
+}
+
+#[test]
+fn write_recreates_a_deleted_file_only_when_asked_with_the_gone_hash() {
+    let tmp = TempDir::new().unwrap();
+    let path = tmp.path().join("gone.txt");
+    match write_with_lock(&path, "back", GONE_HASH).unwrap() {
+        CodeWriteOutcome::Saved { hash } => {
+            assert_eq!(hash, blake3::hash(b"back").to_hex().to_string())
+        }
+        other => panic!("expected Saved, got {other:?}"),
+    }
+    assert_eq!(fs::read_to_string(&path).unwrap(), "back");
+    // 이제 파일이 있으므로 같은 「없음」 해시로는 덮지 못한다.
+    assert!(matches!(
+        write_with_lock(&path, "again", GONE_HASH).unwrap(),
+        CodeWriteOutcome::Conflict { .. }
+    ));
+}
+
+#[test]
+fn save_target_resolves_a_deleted_file_through_its_parent_only() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path();
+    fs::create_dir_all(root.join("src")).unwrap();
+    let target = resolve_save_target(root, &root.join("src/gone.ts")).unwrap();
+    assert!(target.ends_with("src/gone.ts"));
+    // 폴더째 사라졌으면 저장 자리가 아니다.
+    assert!(resolve_save_target(root, &root.join("nodir/gone.ts")).is_err());
 }
 
 #[test]

@@ -390,6 +390,34 @@ describe("CodeScreenV2", () => {
     await findByText(t("code.conflict.overwrite"));
   });
 
+  it("lets the conflict banner compare with the disk version before choosing", async () => {
+    fx.writeResult = { kind: "conflict", disk_hash: "other" };
+    const { findByText, findByTestId, queryByText } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("README.md"));
+    fireEvent.click(await findByTestId("mutate"));
+    fireEvent.click(await findByTestId("dosave"));
+    fireEvent.click(await findByText(t("code.conflict.compare")));
+    await findByText(t("code.diff.banner.disk"));
+    // 비교 중에는 같은 버튼을 또 내밀지 않는다 — 나가는 길은 비교 띠의 ×.
+    expect(queryByText(t("code.conflict.compare"))).toBeNull();
+  });
+
+  it("a file deleted outside the editor can be recreated from the buffer", async () => {
+    // 백엔드는 지워진 파일을 빈 disk_hash 의 충돌로 말한다 (read_write.rs GONE_HASH).
+    fx.writeResult = { kind: "conflict", disk_hash: "" };
+    const { findByText, findByTestId, queryByText } = render(wrap(screenEl()));
+    fireEvent.click(await findByText("README.md"));
+    fireEvent.click(await findByTestId("mutate"));
+    fireEvent.click(await findByTestId("dosave"));
+    await findByText(t("code.conflict.goneTitle"));
+    expect(queryByText(t("code.conflict.compare"))).toBeNull();
+    expect(queryByText(t("code.conflict.reload"))).toBeNull();
+    fx.writeResult = { kind: "saved", hash: "h3" };
+    fireEvent.click(await findByText(t("code.conflict.recreate")));
+    await findByText(t("code.savedState"));
+    expect(fx.writeCalls[fx.writeCalls.length - 1]).toMatchObject({ relPath: "README.md", baseHash: "" });
+  });
+
   // ── 저장 위생 · 자동 저장 (vscode-borrows Phase 1) ─────────────────────
 
   it("tidies the buffer before writing when save hygiene is on", async () => {

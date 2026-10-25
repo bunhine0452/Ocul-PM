@@ -94,7 +94,9 @@ export function useSaveFlow({
       const path = pathRef.current;
       const auto = opts?.auto === true;
       if (!bufferRef.current || !path || savingRef.current) return;
-      if (bufferRef.current.text === bufferRef.current.baseText && !opts?.baseHash) return; // no-op
+      // no-op — 단, 충돌 띠에서 고른 덮어쓰기·다시 만들기는 깨끗한 버퍼여도 쓴다
+      // (다시 만들기의 base_hash 는 빈 문자열이라 진릿값으로 물으면 안 된다).
+      if (bufferRef.current.text === bufferRef.current.baseText && opts?.baseHash === undefined) return;
       savingRef.current = true;
       setSaving(true);
       try {
