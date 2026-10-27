@@ -17,8 +17,9 @@
 //! 취소는 **두 겹**이다: 세마포어를 `close()` 하면 아직 시작 못 한 것이 즉시
 //! 포기하고, `watch` 신호는 이미 `await` 중인 것을 다음 폴에서 끊는다.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use tokio::sync::{watch, Semaphore};
 
@@ -53,6 +54,13 @@ pub struct WatcherTasks {
     index: Arc<Semaphore>,
     history: Arc<Semaphore>,
     cancel: watch::Receiver<bool>,
+    /// 경로별 직렬화 — 같은 `(프로젝트, 경로)` 의 곁일은 한 번에 하나만 돈다.
+    ///
+    /// 퍼밋이 2개라 같은 파일의 Update 와 Delete 가 **동시에** 돌 수 있었다: Update 가
+    /// 내용을 읽어 임베딩하는 사이 Delete 가 행을 걷고, 그 뒤 Update 의 upsert 가
+    /// 행을 되살린다 — 디스크에 없는 파일이 의미 검색에 남는 유령 색인(실측
+    /// 2026-10-18, 14행)의 남은 경로다. 열쇠는 일이 끝나면 지워 표가 자라지 않는다.
+    keys: Arc<Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
 }
 
 /// 워처 본체(`ProjectWatcher`)가 쥐는 종료 손잡이. 드롭만 해도 곁일이 끊긴다.
@@ -96,6 +104,7 @@ pub fn gate() -> (WatcherTasks, WatcherTasksShutdown) {
             index: index.clone(),
             history: history.clone(),
             cancel,
+            keys: Arc::new(Mutex::new(HashMap::new())),
         },
         WatcherTasksShutdown { tx, index, history },
     )
@@ -107,6 +116,15 @@ impl WatcherTasks {
     where
         F: std::future::Future<Output = ()> + Send + 'static,
     {
+        self.spawn_keyed(lane, None, fut)
+    }
+
+    /// `spawn` 에 열쇠를 더한 것 — 같은 열쇠의 곁일은 퍼밋을 받은 뒤에도 앞선 것이
+    /// 끝나기를 기다린다. 열쇠는 `"<project_id>:<rel_path>"` 를 쓴다.
+    pub fn spawn_keyed<F>(&self, lane: Lane, key: Option<String>, fut: F)
+    where
+        F: std::future::Future<Output = ()> + Send + 'static,
+    {
         if *self.cancel.borrow() {
             return;
         }
@@ -115,6 +133,7 @@ impl WatcherTasks {
             Lane::History => self.history.clone(),
         };
         let mut cancel = self.cancel.clone();
+        let keys = self.keys.clone();
         tauri::async_runtime::spawn(async move {
             // 세마포어가 닫혔다 = 워처가 내려갔다. 시작조차 하지 않는다.
             let Ok(_permit) = sem.acquire_owned().await else {
@@ -124,15 +143,40 @@ impl WatcherTasks {
                 );
                 return;
             };
-            tokio::select! {
-                biased;
-                _ = cancel.changed() => tracing::debug!(
-                    target: "oculpm::watcher", ?lane,
-                    "곁일 취소 — 워처가 내려갔다"
-                ),
-                () = fut => {}
+            let lock = key.as_ref().map(|k| {
+                let mut map = keys.lock().unwrap_or_else(|e| e.into_inner());
+                map.entry(k.clone()).or_default().clone()
+            });
+            {
+                // 퍼밋을 쥔 채 기다린다 — 같은 경로의 앞선 곁일은 짧고(파일 하나),
+                // 그 사이 다른 경로가 둘째 퍼밋으로 진행한다.
+                let _serial = match lock.as_ref() {
+                    Some(m) => Some(m.lock().await),
+                    None => None,
+                };
+                tokio::select! {
+                    biased;
+                    _ = cancel.changed() => tracing::debug!(
+                        target: "oculpm::watcher", ?lane,
+                        "곁일 취소 — 워처가 내려갔다"
+                    ),
+                    () = fut => {}
+                }
+            }
+            if let (Some(k), Some(m)) = (key, lock) {
+                let mut map = keys.lock().unwrap_or_else(|e| e.into_inner());
+                drop(m);
+                // 표에 남은 Arc 하나뿐이면 기다리는 이가 없다 — 열쇠를 거둔다.
+                if map.get(&k).is_some_and(|e| Arc::strong_count(e) == 1) {
+                    map.remove(&k);
+                }
             }
         });
+    }
+
+    /// 지금 열려 있는 경로 열쇠 수 — 테스트·진단용.
+    pub fn open_keys(&self) -> usize {
+        self.keys.lock().unwrap_or_else(|e| e.into_inner()).len()
     }
 
     /// 지금 이 게이트가 살아 있는가 — 테스트·진단용.
@@ -294,7 +338,8 @@ pub fn schedule_incremental_index(
     }
     let handle = handle.clone();
     let root = root.to_path_buf();
-    tasks.spawn(Lane::Index, async move {
+    let key = format!("{project_id}:{rel_path}");
+    tasks.spawn_keyed(Lane::Index, Some(key), async move {
         use tauri::Manager;
         let db = handle.state::<Db>();
 
@@ -358,10 +403,16 @@ pub fn schedule_incremental_index(
                 )
                 .await
                 {
-                    Ok((emb, _ast)) => tracing::debug!(
-                        target: "oculpm::watcher", project_id, path = %rel_path,
-                        embeddings = emb, "auto-index: reindexed"
-                    ),
+                    Ok((emb, _ast)) => {
+                        tracing::debug!(
+                            target: "oculpm::watcher", project_id, path = %rel_path,
+                            embeddings = emb, "auto-index: reindexed"
+                        );
+                        // 읽기와 저장 사이에 파일이 사라졌으면 방금 쓴 행이 유령이다.
+                        // Delete 이벤트는 이 곁일보다 먼저 지나갔을 수 있다(경로
+                        // 직렬화는 **겹침**을 막지, **순서**를 되돌리지는 않는다).
+                        reap_if_vanished(&db, project_id, &root, &rel_path).await;
+                    }
                     // 정상 동작인 건너뜀은 debug 로 — WARN 으로 두면 진짜
                     // 실패(저장·임베딩)가 그 사이에 묻힌다. 두 갈래다:
                     //  · 생성물(minified·tsbuildinfo·`.vscode-test` 아래 번들)
@@ -407,6 +458,35 @@ pub(crate) async fn remove_deleted_from_index(
     }
 }
 
+/// 색인을 막 쓴 파일이 그 사이 디스크에서 사라졌으면 행을 걷는다. 돌려주는 값은
+/// 걷었는지 — 테스트가 본다. 실패는 WARN 으로만 (다음 Delete 나 기동 화해가 받는다).
+pub(crate) async fn reap_if_vanished(
+    db: &Db,
+    project_id: u32,
+    root: &Path,
+    rel_path: &str,
+) -> bool {
+    if root.join(rel_path).exists() {
+        return false;
+    }
+    match remove_deleted_from_index(db, project_id, root, rel_path).await {
+        Ok(()) => {
+            tracing::debug!(
+                target: "oculpm::watcher", project_id, path = %rel_path,
+                "auto-index: file vanished during indexing — row removed"
+            );
+            true
+        }
+        Err(e) => {
+            tracing::warn!(
+                target: "oculpm::watcher", project_id, path = %rel_path, error = %e,
+                "auto-index: vanished-file cleanup failed"
+            );
+            false
+        }
+    }
+}
+
 /// 일지·롤업 한 편의 증분 의미 색인 (journal-scale-round
 /// `{#search-semantic-journal}`).
 ///
@@ -427,7 +507,8 @@ pub fn schedule_journal_index(
 ) {
     let handle = handle.clone();
     let root = root.to_path_buf();
-    tasks.spawn(Lane::Index, async move {
+    let key = format!("{project_id}:{rel_path}");
+    tasks.spawn_keyed(Lane::Index, Some(key), async move {
         use tauri::Manager;
         let db = handle.state::<Db>();
 
@@ -499,6 +580,8 @@ fn is_vanished(reason: &crate::indexer::ReindexSkipReason) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::is_vanished;
     use crate::indexer::ReindexSkipReason as R;
 
@@ -561,6 +644,89 @@ mod tests {
             std::path::Path::new("cut.md"),
             &cfg
         ));
+    }
+
+    /// 유령 색인의 남은 경로(2026-10-18 보류 14행): 같은 파일의 Update 와 Delete 가
+    /// 퍼밋 둘로 **겹쳐** 돌았다. 같은 열쇠는 직렬, 다른 열쇠는 병렬이어야 한다.
+    #[tokio::test]
+    async fn same_key_tasks_never_overlap_but_different_keys_do() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::time::Duration;
+        let (tasks, _shutdown) = super::gate();
+        let running = Arc::new(AtomicUsize::new(0));
+        let max_seen = Arc::new(AtomicUsize::new(0));
+        let done = Arc::new(AtomicUsize::new(0));
+        let spawn = |key: &str| {
+            let (running, max_seen, done) = (running.clone(), max_seen.clone(), done.clone());
+            tasks.spawn_keyed(super::Lane::Index, Some(key.to_string()), async move {
+                let now = running.fetch_add(1, Ordering::SeqCst) + 1;
+                max_seen.fetch_max(now, Ordering::SeqCst);
+                tokio::time::sleep(Duration::from_millis(40)).await;
+                running.fetch_sub(1, Ordering::SeqCst);
+                done.fetch_add(1, Ordering::SeqCst);
+            });
+        };
+        // 같은 열쇠 둘 — 퍼밋은 2개라 예전엔 겹쳤다.
+        spawn("1:src/a.rs");
+        spawn("1:src/a.rs");
+        for _ in 0..100 {
+            if done.load(Ordering::SeqCst) == 2 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        assert_eq!(done.load(Ordering::SeqCst), 2);
+        assert_eq!(
+            max_seen.load(Ordering::SeqCst),
+            1,
+            "같은 경로는 한 번에 하나"
+        );
+        assert_eq!(tasks.open_keys(), 0, "끝난 열쇠는 거둔다");
+
+        // 다른 열쇠 둘 — 퍼밋 2개를 다 쓴다.
+        max_seen.store(0, Ordering::SeqCst);
+        done.store(0, Ordering::SeqCst);
+        spawn("1:src/a.rs");
+        spawn("1:src/b.rs");
+        for _ in 0..100 {
+            if done.load(Ordering::SeqCst) == 2 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        assert_eq!(done.load(Ordering::SeqCst), 2);
+        assert_eq!(max_seen.load(Ordering::SeqCst), 2, "다른 경로는 나란히");
+        assert_eq!(tasks.open_keys(), 0);
+    }
+
+    /// 직렬화는 겹침을 막지 순서를 되돌리지 않는다 — Delete 가 먼저 지나간 뒤 Update 가
+    /// 행을 되살렸으면, 저장 직후의 존재 확인이 그 행을 걷는다.
+    #[tokio::test]
+    async fn a_row_written_for_a_vanished_file_is_reaped() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("proj");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("alive.rs"), "fn a() {}\n").unwrap();
+        let db = crate::db::Db::open(dir.path().join("t.db")).await.unwrap();
+        let pid = db
+            .create_project("proj".into(), root.to_string_lossy().into_owned())
+            .await
+            .unwrap();
+        for path in ["alive.rs", "gone.rs"] {
+            db.upsert_file(pid, path.into(), "h".into(), 1, 0, None)
+                .await
+                .unwrap();
+        }
+        assert!(!super::reap_if_vanished(&db, pid, &root, "alive.rs").await);
+        assert!(super::reap_if_vanished(&db, pid, &root, "gone.rs").await);
+        let left: Vec<String> = db
+            .list_project_files(pid)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|(_, path)| path)
+            .collect();
+        assert_eq!(left, ["alive.rs"]);
     }
 
     /// 실측 2026-10-18: 통째로 사라진 폴더 아래 파일이 색인에 유령으로 남았다 —
