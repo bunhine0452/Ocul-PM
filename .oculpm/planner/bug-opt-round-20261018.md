@@ -10,6 +10,8 @@ owner: claude-code
 
 병렬 레인 4개(Opus 5.5 medium)로 잡은 결함·최적화와, 실기기 확인·보류한 의심 항목.
 
+**완료 조건:** 합류 브랜치의 결함 항목이 전부 `[x]` 이고, 이월(`carry-*`) 항목은 각각 다음 라운드 플랜으로 옮겨져 `[>]` 이며, 육안 7건이 확인 날(polish-round-20261027 `{#sweep-bug-opt}`)에 처리되면 끝. 이월 항목을 이 플랜에서 끝내려 하지 않는다.
+
 ## 수정 (합류 브랜치 fix/bug-opt-round-20261018) {#fixes}
 - [x] 터미널 극소 크기 fit 바닥(20열·4행) — 줄였다 키우면 뭉개지던 것 {#lane-a-tiny-fit}
 - [x] 숨은 터미널 15초 뒤 WebGL 컨텍스트·아틀라스 반납 (WebglSlot) {#lane-a-webgl-release}

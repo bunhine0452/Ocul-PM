@@ -10,6 +10,8 @@ owner: claude-code
 
 2026-09-14 감사(일지 20260914/Chores/1720)의 17건을 실행하고, 잠긴(done/archived) 플랜 20개에 남아 있던 미완 63건을 살아 있는 항목으로 옮겨 적는다 — AGENTS.md v12 「접힌 plan 의 미완은 유실된다」 규칙의 첫 적용. 출처는 각 항목 끝 (← plan #id).
 
+**완료 조건:** `{#mobile-bridge-rest}` 는 모바일 브리지 제거(2026-10-24)로 `[-]` 대상, 육안 9건은 확인 날(polish-round-20261027 `{#sweep-improvement}`)에, 사용자 액션(`{#star-outreach}`)과 측정 2건(`{#fin-perf-monaco}` · 메모리 귀속)이 `[x]` 또는 `[>]` 가 되면 끝.
+
 ## Phase 1 — 배포 계보 {#lineage}
 - [x] 최적화 라운드 4커밋(d429ef4·af009e5·31d5c75·63bcf72)을 origin/main 위로 cherry-pick 해 합류 — 설치본 RSS 2,229MB 실측이 근거. 스냅샷 HEAD 중복(69%)·파일당 git spawn·gitignore 잔존 행은 이 커밋의 index_project 화해가 함께 푼다 {#merge-optimization}
 - [x] feat/audit-round-20260911 의 dirty 76파일(전부 main 에 이미 있는 옛 WIP)을 stash 로 치우고 refs/backup 스냅샷, 로컬 main 을 origin 에 맞춤. 유일한 미반영 일지 2건만 새 브랜치로 {#stale-worktree}

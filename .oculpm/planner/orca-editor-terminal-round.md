@@ -10,6 +10,8 @@ owner: claude-code
 
 2026-10-25 사용자 결정: 터미널 시안 A(한 줄), 코드 편집기를 Orca 처럼 탄탄하게, 노션식 마크다운 편집을 코드 화면 .md 와 논의 편집기에. 시안 https://claude.ai/artifact/Jvw4BhsFN8tMVYW175t6zj
 
+**완료 조건:** 실기기 확인 1건(`{#term-eyes}` — 화면 · 도크 · 분리 창 세 곳)이 끝나면 끝. v3.14.0 에 실렸다.
+
 ## 터미널 시안 A {#term}
 - [x] 화면 툴바와 세션 줄을 한 줄로 — 「터미널 / 세션」 + 검색·분할·Aa·도크로 {#term-one-row}
 - [x] 글자 크기·줄 간격을 Aa 메뉴 하나로, 상태바 키캡은 ? 단축키 보기로 {#term-view-menu}

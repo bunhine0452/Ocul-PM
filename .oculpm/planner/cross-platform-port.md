@@ -10,6 +10,8 @@ owner: claude-code
 
 사용자가 Windows·Linux 를 직접 테스트할 수 없으므로 그 OS 러너에서 실행된 테스트만 완료로 친다. 설계 SSOT: docs/20260923_cross-platform/ (D1~D10 · 레인 브리프 · 파일 소유 표).
 
+**완료 조건:** `{#w5-graduate}` — 연속 3릴리스 비-mac E2E 초록 + 외부 테스터 P0 0건으로 「베타」 표기가 빠지면 끝. 테스터 모집(`{#w5-testers}`)이 안 되면 베타 표기를 유지한 채 2027-01 에 닫고 「CI 가 못 보는 것 원장」만 docs/20260923_cross-platform 으로 옮긴다.
+
 ## W0 — 이식성 CI (오케스트레이터) {#w0}
 - [x] portability.yml — windows-latest·ubuntu-22.04 에서 cargo check/clippy/test + vitest. ci.yml(릴리스 게이트)과 분리해 붉어도 macOS 릴리스를 막지 않는다 (D2) {#w0-portability-ci}
 - [x] 첫 실행 오류 전수 → docs/20260923_cross-platform/02-error-inventory.md 에 레인별 배정 {#w0-inventory}

@@ -10,6 +10,8 @@ owner: claude-code
 
 Claude Code·Codex 를 ACP 어댑터 대신 각 CLI 의 네이티브 통로로 구동한다. 화면 계약(AcpEvent)은 그대로, 버전은 고정 대신 감시. 설계 SSOT: docs/20261005_native-agent-drivers/00-master-plan.md
 
+**완료 조건:** P0~P2 · P5 가 구현되고 **ACP 어댑터 경로가 제거**(`{#drop-node}`)되어 Claude Code · Codex 화면이 네이티브 드라이버만으로 돌면 끝. P3 · P4 는 범위 동결 결정(external-review `{#decide-native-new}`)이 허용할 때만 — 거부되면 `[-]` 로 닫는다. 두 경로를 같이 두는 상태로는 끝나지 않는다.
+
 ## P0 — 드라이버 trait 추출 + 버전 감시 {#p0-trait}
 - [ ] AgentDriver trait 추출, 지금 코드를 AcpDriver 로 이동 — 동작 변화 0, 기존 ACP 테스트 전부 초록 (D2) {#trait-extract}
 - [ ] 드라이버 계약 테스트 하네스 — 드라이버들이 같은 AcpEvent 열을 내는지 픽스처로 대조 (D1) {#driver-contract-harness}
