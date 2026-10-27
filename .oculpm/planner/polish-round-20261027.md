@@ -39,10 +39,10 @@ owner: claude-code
 - [x] active 플랜 10개 본문에 「완료 조건:」 한 줄 (frontmatter 는 손대지 않음) {#endings-active-plans}
 
 ## 확인 날 — 육안 확인 대기 28건 {#eyes-day}
-- [ ] [사용자] bug-opt-round-20261018 의 eyes 7건 확인 {#sweep-bug-opt}
-- [ ] [사용자] improvement-round-2026-09-14 의 eyes 9건 확인 {#sweep-improvement}
-- [ ] [사용자] optimize-round-20261024 의 eyes 8건 확인 {#sweep-optimize}
-- [ ] [사용자] artifact-board-drop-notion 의 eyes 3건 확인 {#sweep-board}
+- [~] [사용자] bug-opt-round-20261018 의 eyes 7건 확인 {#sweep-bug-opt}
+- [~] [사용자] improvement-round-2026-09-14 의 eyes 9건 확인 {#sweep-improvement}
+- [~] [사용자] optimize-round-20261024 의 eyes 8건 확인 {#sweep-optimize}
+- [~] [사용자] artifact-board-drop-notion 의 eyes 3건 확인 {#sweep-board}
 - [ ] [사용자] compact-chrome 의 eyes 1건 확인 {#sweep-chrome}
 
 ## 캐시 정리 {#cache}
@@ -65,4 +65,8 @@ owner: claude-code
 | 2026-10-27T19:33:24+09:00 | #observe-protocol | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | docs/launch/first-user-observation.md |
 | 2026-10-27T19:33:34+09:00 | #endings-active-plans | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | 11개 플랜(이 플랜 포함) 본문에 완료 조건 한 줄 |
 | 2026-10-27T19:33:43+09:00 | #cache-dev | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | target 9.7→6.8GB · .vite 51MB · Caches/ai-pm 482MB · pnpm store prune 1831 패키지 |
+| 2026-10-27T19:51:04+09:00 | #sweep-bug-opt | claude-code | ☐→~ | .oculpm/journal/20261027/Chores/1950_chore_eyes-sweep-machine-evidence.md | 7 → 기계로 1 닫음(quit-panic) · 2 사전조사(vec0 compact 미실행 · ptyhost 옛 호스트 아직 살아 있음) · 눈 4(tiny-fit · webgl · gitignore · fit-bottom-row) |
+| 2026-10-27T19:51:21+09:00 | #sweep-improvement | claude-code | ☐→~ | .oculpm/journal/20261027/Chores/1950_chore_eyes-sweep-machine-evidence.md | 9 → 기계로 1 닫음(en-surfaces) · 1 부분(round-0914: ANSI 0 · mcp 1/프로젝트) · 눈 7(compact · 드래그 7 · 터미널 4 · Claude 연동 5 · 첫 실행 · 버그헌팅 0922 · 보안 실기기) |
+| 2026-10-27T19:51:32+09:00 | #sweep-optimize | claude-code | ☐→~ | .oculpm/journal/20261027/Chores/1950_chore_eyes-sweep-machine-evidence.md | 8 → 기계로 1 닫음(sqlite353) · 2 사전조사(restart 교체·재기동 OK, acp 어댑터 0.81/1.8 로 낡음=화면 미열람) · 눈 5(tray · focus-drop · ui-react193 · removals · worktree-index) |
+| 2026-10-27T19:51:42+09:00 | #sweep-board | claude-code | ☐→~ | .oculpm/journal/20261027/Chores/1950_chore_eyes-sweep-machine-evidence.md | 3 → 기계로 1 닫음(keychain) · 1 사전조사(plugin-root: 플러그인 3.13.6+ 로 올린 뒤 /oculpm:board) · 눈 1(board-phone) |
 <!-- oculpm:plan-log end -->
