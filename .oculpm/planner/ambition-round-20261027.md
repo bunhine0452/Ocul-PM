@@ -10,6 +10,8 @@ owner: claude-code
 
 글의 네 축 중 Ocul-PM 에 닿는 셋만. 고도 = 할 일이 아니라 결과(완료 조건)를 싣는다. 깊이 = 바깥 심판 — 자기 판단은 증거가 아니다. 범위 = 명사를 동사로(「일지 앱」이 아니라 「3분 안에 믿고 결정하게」), 레드팀은 쓰는 게 아니라 한다.
 
+**완료 조건:** 세션 시작 훅·이어하기·plan_status 가 플랜의 완료 조건을 항목보다 먼저 싣고, 증거 없는 일지에 기록 도구가 경고하고, /oculpm:redteam 이 이 플랜 자체에서 반례를 찾아 로그에 남긴다.
+
 ## 고도 — 결과를 싣는다 {#altitude}
 - [x] SessionStart 훅(claude·codex plan-context.sh)이 플랜마다 「**완료 조건:**」 줄을 항목 앞에 싣는다 — plugin_xplat 테스트 {#hook-goal}
 - [x] 이어하기 자료(resume.rs)에 플랜별 완료 조건 한 번 — ResumeItem.plan_done_when {#resume-goal}
