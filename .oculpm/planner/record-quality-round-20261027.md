@@ -10,6 +10,8 @@ owner: claude-code
 
 실데이터 감사(일지 3,900건 · 훅 원장 · 캐시)에서 나온 업그레이드 다섯 + 어댑터 한 판. 전부 핵심 등급 약속(docs/PROMISE.md)에 닿는 것만. 완료 조건: 코드 여섯이 main 에 있고, 새 빌드에서 Today 드리프트 카드·일지 방패 배지·플래너 받은함이 눈으로 확인되면 끝.
 
+**완료 조건:** 설치본 3.15.1 에서 사용자가 Today 드리프트 카드·일지 방패 배지·플래너 받은함·Claude Code 0.97.0 재설치를 눈으로 확인하고 네 eyes 항목을 닫는다.
+
 ## 코드 {#code}
 - [x] 플러그인 판 드리프트 — claude_plugin_status(project_id) 가 installed_plugins.json 에서 그 프로젝트 판을 골라 behind 판정, 설정 블록 판 줄 + Today PluginDriftCard {#plugin-drift}
 - [x] 모델·에이전트 이름 표준형 — oculpm/model_names.rs, 캐시 투영에만 (디스크 불변) {#model-names}
