@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, within } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -6,6 +6,14 @@ import { join } from "node:path";
 import { Sidebar } from "@/components/Sidebar";
 import { NAV_ENTRIES } from "@/lib/navRegistry";
 import { ko } from "@/i18n/ko";
+
+// 사이드바 구조 테스트는 세 단이 **전부 펼쳐진** 전문 밀도를 본다 — 간단 밀도의 접힘은
+// sidebar_density.test.tsx 가 따로 잰다.
+vi.mock("@/hooks/useDensity", () => ({
+  useDensity: () => ({ density: "pro", set: () => {}, toggle: () => {} }),
+  DensityShortcut: () => null,
+}));
+
 
 // ─── 사이드바 넘침 (2026-09-05) ──────────────────────────────────────────
 //

@@ -1,4 +1,5 @@
 import React from "react";
+import { DensityToggle } from "@/components/DensityToggle";
 import { dragRegion } from "@/lib/platform";
 
 // Final UI Update (ui_v2) — the screen Toolbar (`--toolbar-h`, 44px since
@@ -32,7 +33,11 @@ export function Toolbar({ title, sub, leading, children }: ToolbarProps) {
       <div className="toolbar-spacer" {...drag} />
       {/* 좁은 창 방어 (2026-07-20): 액션 묶음은 압착 대신 가로 스크롤로
           도망간다 — 없으면 flex 압착이 CJK 라벨을 한 글자씩 세로로 꺾는다. */}
-      <div className="toolbar-actions">{children}</div>
+      <div className="toolbar-actions">
+        {children}
+        {/* 밀도 토글은 화면마다 같은 자리다 — 여기 한 번 두면 열세 화면이 전부 갖는다. */}
+        <DensityToggle />
+      </div>
     </div>
   );
 }

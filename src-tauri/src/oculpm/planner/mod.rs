@@ -19,5 +19,6 @@ pub mod lifecycle;
 pub mod log_archive;
 pub mod migrate;
 pub mod parse;
+pub mod paths;
 pub mod plan_edit;
 pub mod project;

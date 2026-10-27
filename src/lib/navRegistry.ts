@@ -51,6 +51,14 @@ export interface NavEntry {
    */
   group: "main" | "tools" | "ai" | "ref";
   /**
+   * 화면 등급 (docs/PROMISE.md, 2026-10-27) — 사이드바의 세 단이 곧 이것이다
+   * (best-results UI 라운드 2026-10-28). **core** = 약속하는 네 화면, 항상 보인다.
+   * **viewer** = 열리고 보여 주고 깨지지 않는 화면, 간단 밀도에서는 「도구」로
+   * 접힌다. **hold** = 있지만 약속이 아닌 베타, 간단 밀도에서는 「베타」로 접힌다.
+   * 접힘이지 숨김이 아니다 — ⌘번호와 ⌘K 는 어느 밀도에서나 닿는다.
+   */
+  tier: "core" | "viewer" | "hold";
+  /**
    * 이 행이 대표하는 **갈래들** (2026-09-06 IA 재편).
    *
    * 에이전트 한 행이 Claude Code · Codex 둘을 대표한다. 행의 `id` 는
@@ -73,8 +81,8 @@ export interface NavEntry {
  * 검색하는 사람과, 합쳐진 이름으로 검색하는 사람이 둘 다 도착해야 한다.
  */
 const AGENT_BRANCHES: NavEntry[] = [
-  { id: "claudecode", labelKey: "nav.claudecode", aliasKey: "nav.claudecode.alias", icon: ClaudeMark, group: "ai" },
-  { id: "codex", labelKey: "nav.codex", aliasKey: "nav.codex.alias", icon: CodexMark, group: "ai" },
+  { id: "claudecode", labelKey: "nav.claudecode", aliasKey: "nav.claudecode.alias", icon: ClaudeMark, tier: "hold", group: "ai" },
+  { id: "codex", labelKey: "nav.codex", aliasKey: "nav.codex.alias", icon: CodexMark, tier: "hold", group: "ai" },
 ];
 
 /**
@@ -105,25 +113,25 @@ const AGENT_BRANCHES: NavEntry[] = [
 export const NAV_ENTRIES: NavEntry[] = [
   // ── 코어 루프: 오늘 무슨 일이 있었나 → 뭐라고 적혔나 → 코드가 어떻게
   //    바뀌었나 → 다음에 뭘 하나 → 무엇을 배웠나.
-  { id: "today", labelKey: "nav.today", aliasKey: "nav.today.alias", icon: Sunrise, group: "main" },
-  { id: "journal", labelKey: "nav.journal", aliasKey: "nav.journal.alias", icon: NotebookText, group: "main" },
-  { id: "diff", labelKey: "nav.diff", aliasKey: "nav.diff.alias", icon: GitCompareArrows, group: "main" },
-  { id: "planner", labelKey: "nav.planner", aliasKey: "nav.planner.alias", icon: TargetIcon, group: "main" },
+  { id: "today", labelKey: "nav.today", aliasKey: "nav.today.alias", icon: Sunrise, tier: "core", group: "main" },
+  { id: "journal", labelKey: "nav.journal", aliasKey: "nav.journal.alias", icon: NotebookText, tier: "core", group: "main" },
+  { id: "diff", labelKey: "nav.diff", aliasKey: "nav.diff.alias", icon: GitCompareArrows, tier: "core", group: "main" },
+  { id: "planner", labelKey: "nav.planner", aliasKey: "nav.planner.alias", icon: TargetIcon, tier: "core", group: "main" },
   // ── 코드 작업면.
-  { id: "search", labelKey: "nav.search", aliasKey: "nav.search.alias", icon: SearchIcon, group: "tools" },
-  { id: "terminal", labelKey: "nav.terminal", aliasKey: "nav.terminal.alias", icon: SquareTerminal, group: "tools" },
-  { id: "code", labelKey: "nav.code", aliasKey: "nav.code.alias", icon: FileCode, group: "tools" },
+  { id: "search", labelKey: "nav.search", aliasKey: "nav.search.alias", icon: SearchIcon, tier: "viewer", group: "tools" },
+  { id: "terminal", labelKey: "nav.terminal", aliasKey: "nav.terminal.alias", icon: SquareTerminal, tier: "hold", group: "tools" },
+  { id: "code", labelKey: "nav.code", aliasKey: "nav.code.alias", icon: FileCode, tier: "hold", group: "tools" },
   // ── AI 면. 「에이전트」가 여덟 번째 칸(⌘8), 「AI 패널」이 아홉 번째(⌘9),
   //    「스킬」이 열 번째(⌘0)다 —
   //    매일 쓰는 면이 번호를 갖는다는 규칙의 결과다. 이 번호들은
   //    `nav_registry.test.ts` 가 못박고 있으므로, 여기 적힌 숫자가 그 테스트와
   //    어긋나면 **틀린 쪽은 이 주석**이다 (2026-09-09 에 한 번 그랬다).
-  { id: "claudecode", labelKey: "nav.agent", aliasKey: "nav.agent.alias", icon: Bot, group: "ai", children: AGENT_BRANCHES },
-  { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: MessageSquareText, group: "ai" },
+  { id: "claudecode", labelKey: "nav.agent", aliasKey: "nav.agent.alias", icon: Bot, tier: "hold", group: "ai", children: AGENT_BRANCHES },
+  { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: MessageSquareText, tier: "hold", group: "ai" },
   // PR-CI3 — 스킬 화면을 스킬·규칙·훅 허브로 확장 (id 는 유지 — 저장된 uiV2View 호환).
-  { id: "skills", labelKey: "nav.skills", aliasKey: "nav.skills.alias", icon: Puzzle, group: "ai" },
+  { id: "skills", labelKey: "nav.skills", aliasKey: "nav.skills.alias", icon: Puzzle, tier: "viewer", group: "ai" },
   // ── 참고. 가끔 열고, 없으면 비어 있는 것이 정상인 화면.
-  { id: "discussion", labelKey: "nav.discussion", aliasKey: "nav.discussion.alias", icon: MessagesSquare, group: "ref" },
+  { id: "discussion", labelKey: "nav.discussion", aliasKey: "nav.discussion.alias", icon: MessagesSquare, tier: "viewer", group: "ref" },
   // 브랜치의 이야기 (v3-surface {#branch-story-view}) — 일지·플랜·커밋을
   // **브랜치**로 묶어 읽는다. 코어 루프(일지·플래너·변경)를 다른 축으로 다시
   // 읽는 곳이라 코어 루프 곁(main)에 둔다.
@@ -131,7 +139,7 @@ export const NAV_ENTRIES: NavEntry[] = [
   // 배열 **맨 끝**이라 ⌘번호는 없다 — 사이드바에서는 코어 루프의 마지막 줄로
   // 보이고 번호만 비는데, 그게 규약이다: 번호는 앞 10칸의 것이고 그 계약을
   // 새 화면 하나 때문에 밀지 않는다 (`code` 도 같은 이유로 오래 번호가 없었다).
-  { id: "branch", labelKey: "nav.branch", aliasKey: "nav.branch.alias", icon: GitBranchIcon, group: "main" },
+  { id: "branch", labelKey: "nav.branch", aliasKey: "nav.branch.alias", icon: GitBranchIcon, tier: "viewer", group: "main" },
 ];
 
 /**

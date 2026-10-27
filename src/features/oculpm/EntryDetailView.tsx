@@ -15,6 +15,7 @@ import { EntryMasthead } from "./EntryMasthead";
 import { EntryFileList, type FileRow } from "./EntryFileList";
 import { EntryFileBar } from "./EntryFileBar";
 import { RelatedSuggestCard } from "./RelatedSuggestCard";
+import { EvidenceCard } from "./EvidenceCard";
 import { mapFileOpToChangeOp } from "@/contexts/WorkspaceContext";
 import { commonRoot } from "@/lib/filePath";
 import type { EntryFileDiff, JournalEntry, JournalEntrySummary } from "@/lib/bindings";
@@ -536,6 +537,9 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
               coercing={coercing}
               onApplyTz={() => void applyTzToDisk()}
             />
+
+            {/* 증거가 제목 바로 아래 — 「믿을 수 있나」가 본문보다 먼저 읽힌다. */}
+            {detail ? <EvidenceCard body={detail.body_markdown} level={entry.evidence} entryType={entry.type} /> : null}
 
             <div className="entry-narrative">
               {editing ? (

@@ -10,6 +10,8 @@ import {
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navRowViews, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
+import { ChevronRight } from "@/components/Icons";
+import { useDensity } from "@/hooks/useDensity";
 import { useAcpAttentionCount, useAcpWorkingCount } from "@/features/chat/acpBusyBus";
 import { NavRemapNotice } from "@/components/NavRemapNotice";
 // 경로 표기는 앱에서 한 형태다 — 시작 화면 카드·프로젝트 관리가 이미 이걸 쓴다.
@@ -42,11 +44,11 @@ import { kbd } from "@/lib/kbd";
 // 발은 한 줄(도크 라벨 + 아이콘 칸 둘). 결정의 이유는 shell.css 의 리디자인
 // 주석에 있다. DOM 계약(머리/스크롤/발 3층, 발의 버튼 셋, 라벨 텍스트)은 그대로다.
 
-const MAIN_NAV = NAV_ENTRIES.filter((e) => e.group === "main");
-const TOOL_NAV = NAV_ENTRIES.filter((e) => e.group === "tools");
-const AI_NAV = NAV_ENTRIES.filter((e) => e.group === "ai");
-// 2026-09-06 IA 재편 — 가끔 열고, 없으면 비어 있는 것이 정상인 화면들.
-const REF_NAV = NAV_ENTRIES.filter((e) => e.group === "ref");
+// 사이드바의 세 단 = 화면 등급 (best-results UI 라운드 2026-10-28, docs/PROMISE.md).
+// 핵심은 항상, 도구(뷰어)·베타(보류)는 간단 밀도에서 접힌다 — 숨김이 아니라 접힘.
+const CORE_NAV = NAV_ENTRIES.filter((e) => e.tier === "core");
+const VIEWER_NAV = NAV_ENTRIES.filter((e) => e.tier === "viewer");
+const HOLD_NAV = NAV_ENTRIES.filter((e) => e.tier === "hold");
 
 interface SidebarProps {
   view: UiV2View;
@@ -207,6 +209,85 @@ function NavBranches({
 }
 
 /**
+ * 한 단 — 라벨 + 척추 달린 행 묶음. `collapsible` 이면 라벨이 토글 버튼이 되고,
+ * 접힌 동안 행은 DOM 에서 빠진다(⌘번호·⌘K 는 레지스트리에서 오므로 여전히 닿는다).
+ * 갈래가 있는 행(에이전트)은 배지를 합산하고 열려 있을 때만 갈래를 펼친다.
+ */
+function NavSection({
+  label,
+  tag,
+  rows,
+  indexBase,
+  view,
+  onNavigate,
+  counts,
+  first = false,
+  collapsible = false,
+  open = true,
+  onToggle,
+}: {
+  label: string;
+  tag?: string;
+  rows: NavEntry[];
+  indexBase: number;
+  view: UiV2View;
+  onNavigate: (view: UiV2View) => void;
+  counts: (id: UiV2View) => { working: number; attention: number };
+  first?: boolean;
+  collapsible?: boolean;
+  open?: boolean;
+  onToggle?: () => void;
+}) {
+  const labelClass = "nav-section-label" + (first ? " nav-section-label--first" : "");
+  return (
+    <div className="nav-section">
+      {collapsible ? (
+        <button
+          type="button"
+          className={labelClass + " nav-section-toggle"}
+          aria-expanded={open}
+          onClick={onToggle}
+        >
+          <ChevronRight size={11} className={"nav-section-chev" + (open ? " open" : "")} />
+          <span>{label}</span>
+          {tag ? <span className="nav-section-tag">{tag}</span> : null}
+          {!open ? <span className="nav-section-count">{rows.length}</span> : null}
+        </button>
+      ) : (
+        <div className={labelClass}>
+          <span>{label}</span>
+          {tag ? <span className="nav-section-tag">{tag}</span> : null}
+        </div>
+      )}
+      {open ? (
+        <div className="nav-rows">
+          {rows.map((slot, i) => {
+            const views = navRowViews(slot);
+            const working = views.reduce((n, v) => n + counts(v).working, 0);
+            const attention = views.reduce((n, v) => n + counts(v).attention, 0);
+            return (
+              <div key={slot.id} className={slot.children ? "nav-group" : undefined}>
+                <NavRow
+                  slot={slot}
+                  active={views.includes(view)}
+                  index={indexBase + i}
+                  onNavigate={onNavigate}
+                  working={working}
+                  attention={attention}
+                />
+                {slot.children && views.includes(view) ? (
+                  <NavBranches branches={slot.children} view={view} onNavigate={onNavigate} counts={counts} />
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
  * 스크롤 영역의 위/아래 가장자리 페이드를 켜고 끈다.
  *
  * 스크롤바를 상시 띄우면 소음이라(맥은 기본이 오버레이 스크롤바라 가만히 있으면
@@ -307,6 +388,10 @@ export function Sidebar({
   }, [switcherOpen]);
 
   const { t } = useT();
+  const { density } = useDensity();
+  const pro = density === "pro";
+  /** 간단 밀도에서 사용자가 손으로 펼친 단 — 세션 안에서만 기억한다. */
+  const [open, setOpen] = useState({ viewer: false, hold: false });
 
   return (
     <nav className="sidebar" aria-label={t("nav.aria.main")} onMouseLeave={onMouseLeave}>
@@ -403,81 +488,40 @@ export function Sidebar({
           role 없는 div 에 aria-label 을 얹으면 그게 오히려 위반이다. */}
       <div className="side-nav-scroll" ref={navScrollRef}>
         <NavRemapNotice />
-        {/* 첫 그룹에도 이름을 준다 (2026-09-09). 셋은 라벨이 있고 하나만 없으면
-            그 하나가 "전부" 로, 나머지가 "예외" 로 읽힌다 — 실제로는 넷 다 대등한
-            갈래다. */}
-        {/* 섹션 = 라벨 + 척추 달린 행 묶음 (2026-09-11, shell.css .nav-section). */}
-        <div className="nav-section">
-          <div className="nav-section-label nav-section-label--first">{t("sidebar.mainSection")}</div>
-          <div className="nav-rows">
-            {MAIN_NAV.map((slot, i) => (
-              <NavRow key={slot.id} slot={slot} active={view === slot.id} index={i} onNavigate={onNavigate} />
-            ))}
-          </div>
-        </div>
-
-        <div className="nav-section">
-          <div className="nav-section-label">{t("sidebar.toolsSection")}</div>
-          <div className="nav-rows">
-            {TOOL_NAV.map((slot, i) => (
-              <NavRow
-                key={slot.id}
-                slot={slot}
-                active={view === slot.id}
-                index={MAIN_NAV.length + i}
-                onNavigate={onNavigate}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="nav-section">
-          <div className="nav-section-label">{t("sidebar.aiSection")}</div>
-          <div className="nav-rows">
-        {AI_NAV.map((slot, i) => {
-          // 갈래가 있는 행은 배지를 **합산**한다 (2026-09-06 IA 재편). 행을
-          // 하나로 줄였다고 "Codex 가 승인을 기다린다" 가 사라지면 안 된다.
-          const views = navRowViews(slot);
-          const working = views.reduce((n, v) => n + counts(v).working, 0);
-          const attention = views.reduce((n, v) => n + counts(v).attention, 0);
-          return (
-            <div key={slot.id} className="nav-group">
-              <NavRow
-                slot={slot}
-                active={views.includes(view)}
-                index={MAIN_NAV.length + TOOL_NAV.length + i}
-                onNavigate={onNavigate}
-                working={working}
-                attention={attention}
-              />
-              {slot.children && views.includes(view) ? (
-                <NavBranches
-                  branches={slot.children}
-                  view={view}
-                  onNavigate={onNavigate}
-                  counts={counts}
-                />
-              ) : null}
-            </div>
-          );
-        })}
-          </div>
-        </div>
-
-        <div className="nav-section">
-          <div className="nav-section-label">{t("sidebar.refSection")}</div>
-          <div className="nav-rows">
-            {REF_NAV.map((slot, i) => (
-              <NavRow
-                key={slot.id}
-                slot={slot}
-                active={view === slot.id}
-                index={MAIN_NAV.length + TOOL_NAV.length + AI_NAV.length + i}
-                onNavigate={onNavigate}
-              />
-            ))}
-          </div>
-        </div>
+        {/* 세 단 = 세 등급. 간단 밀도에서 도구·베타는 접히되, 그 단의 화면이 열려
+            있으면 저절로 펼쳐진다 — 지금 있는 곳이 안 보이면 안 된다. */}
+        <NavSection
+          label={t("sidebar.mainSection")}
+          first
+          rows={CORE_NAV}
+          indexBase={0}
+          view={view}
+          onNavigate={onNavigate}
+          counts={counts}
+        />
+        <NavSection
+          label={t("sidebar.viewerSection")}
+          rows={VIEWER_NAV}
+          indexBase={CORE_NAV.length}
+          view={view}
+          onNavigate={onNavigate}
+          counts={counts}
+          collapsible={!pro}
+          open={pro || open.viewer || VIEWER_NAV.some((e) => navRowViews(e).includes(view))}
+          onToggle={() => setOpen((o) => ({ ...o, viewer: !o.viewer }))}
+        />
+        <NavSection
+          label={t("sidebar.betaSection")}
+          tag={t("sidebar.betaTag")}
+          rows={HOLD_NAV}
+          indexBase={CORE_NAV.length + VIEWER_NAV.length}
+          view={view}
+          onNavigate={onNavigate}
+          counts={counts}
+          collapsible={!pro}
+          open={pro || open.hold || HOLD_NAV.some((e) => navRowViews(e).includes(view))}
+          onToggle={() => setOpen((o) => ({ ...o, hold: !o.hold }))}
+        />
       </div>
 
       {/* 발은 한 줄이다 (2026-09-11): 도크만 라벨을 갖고(⌘J·켜짐 상태), 테마·설정은

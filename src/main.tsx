@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { SettingsProvider } from "./contexts/SettingsContext";
+import { DensityShortcut } from "./hooks/useDensity";
 import { Toaster } from "./components/ui/Toaster";
 import { parseWindowRoute } from "./lib/windowRoute";
 import { installExternalLinkGuard } from "./lib/externalLinks";
@@ -118,6 +119,8 @@ if (route.kind === "terminal") {
           />
         </React.Suspense>
         <Toaster />
+        {/* ⌘. 밀도 토글 수신기 — 프로바이더 안에 한 번. */}
+        <DensityShortcut />
       </SettingsProvider>
     </React.StrictMode>,
   );

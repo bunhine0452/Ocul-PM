@@ -12,6 +12,8 @@ import { act, cleanup, fireEvent, render } from "@testing-library/react";
 const save = vi.fn();
 vi.mock("@/contexts/SettingsContext", () => ({
   useSettings: () => ({ settings: { language: "ko", contentLanguage: "ko" } }),
+  // 밀도 섹션이 같은 탭 파일에 산다 — 프로바이더 밖의 읽기는 null.
+  useOptionalSettings: () => null,
 }));
 vi.mock("@/features/settings/saveSetting", () => ({ useSaveSetting: () => save }));
 

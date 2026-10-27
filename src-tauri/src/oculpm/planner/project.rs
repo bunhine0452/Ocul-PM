@@ -6,7 +6,7 @@
 //! before the watcher live-push lands (PR-PLN 3).
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use rusqlite::params;
 use serde::Serialize;
@@ -17,36 +17,9 @@ use crate::oculpm::planner::parse::{parse_plan, ItemStatus, ParsedPlan};
 use crate::oculpm::redact::{compile_redact_patterns, redact_text};
 use crate::oculpm::spec::OculpmConfig;
 
-/// `<project_root>/.oculpm/planner`.
-pub fn planner_dir(project_root: &Path) -> PathBuf {
-    project_root.join(".oculpm").join("planner")
-}
-
-/// Locate the plan file whose frontmatter `id` equals `plan_id` (the filename
-/// may differ from the id). `None` if no file matches.
-pub fn find_plan_path(planner_root: &Path, plan_id: &str) -> Option<PathBuf> {
-    let entries = std::fs::read_dir(planner_root).ok()?;
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if !archive::is_plan_path(&path) {
-            continue;
-        }
-        let Ok(text) = std::fs::read_to_string(&path) else {
-            continue;
-        };
-        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("plan");
-        if parse_plan(&text, stem).frontmatter.id == plan_id {
-            return Some(path);
-        }
-    }
-    None
-}
-
-/// 제목 → 플랜 파일 이름. 한글도 살아남는다 — 구현과 근거는
-/// [`crate::oculpm::frontmatter::slug_from_title`] 한 곳에 있다.
-pub fn slug_for(title: &str) -> String {
-    crate::oculpm::frontmatter::slug_from_title(title, "plan")
-}
+// 경로 도우미(planner_dir · find_plan_path · slug_for)는 `paths.rs` 에 산다 —
+// 이 파일이 래칫(800줄)에 걸려 있어 갈랐다. 호출부는 그대로다.
+pub use super::paths::{find_plan_path, planner_dir, slug_for};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Command DTOs (specta + serde)
@@ -113,6 +86,10 @@ pub struct PlanDetail {
     /// Non-fatal parse warnings (broken glyphs, missing ids, …). Surfaced so
     /// the UI never fails silently on a malformed plan.
     pub warnings: Vec<String>,
+    /// 「완료 조건」 한 줄 — 없으면 `None` 이 곧 신호다 (머리글이 「없음」을 말한다).
+    pub done_when: Option<String>,
+    /// 「확인 명령」 한 줄 — 마지막 항목을 닫을 때 돌릴 것.
+    pub check: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -150,6 +127,10 @@ struct LoadedPlan {
     file_path: String, // relative to project root, e.g. ".oculpm/planner/x.md"
     updated_at: String,
     parsed: ParsedPlan,
+    /// 「완료 조건」 — 항목 너머의 목표 (`planner::done_when`). 화면 머리글이 항목보다 먼저 보여 준다.
+    done_when: Option<String>,
+    /// 「확인 명령」 — 완료 조건을 통과/실패로 판정하는 명령.
+    check: Option<String>,
 }
 
 /// Parse every top-level plan `*.md` under `planner_root`. Missing dir → empty.
@@ -198,6 +179,8 @@ fn load_all_plans(planner_root: &Path) -> Vec<LoadedPlan> {
             plan_id: parsed.frontmatter.id.clone(),
             file_path: format!(".oculpm/planner/{file_name}"),
             updated_at,
+            done_when: super::done_when::done_when(&text),
+            check: super::done_when::check_command(&text),
             parsed,
         });
     }
@@ -374,6 +357,8 @@ fn detail_dto(loaded: &LoadedPlan) -> PlanDetail {
         phases,
         decisions,
         warnings: p.warnings.clone(),
+        done_when: loaded.done_when.clone(),
+        check: loaded.check.clone(),
     }
 }
 

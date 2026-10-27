@@ -29,6 +29,7 @@ import {
   type TVars,
 } from "@/i18n";
 import { useSaveSetting } from "../saveSetting";
+import { DensitySection } from "./DensitySection";
 import { useDeferredCommit } from "../useDeferredCommit";
 import { applyUiScale } from "../uiScale";
 import { Section, Field } from "./ui";
@@ -172,6 +173,7 @@ export function LanguageSection() {
 
   return (
     <>
+      <DensitySection />
       <Section
         title={t("settings.language.uiTitle")}
         description={t("settings.language.uiHint")}

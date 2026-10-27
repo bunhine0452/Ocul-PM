@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, fireEvent, within, waitFor } from "@testing-library/react";
+import { t } from "@/i18n";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 // 타입 전용 — brief mock 을 생성된 DTO 에 `satisfies` 로 못 박는다. 백엔드
@@ -223,6 +224,15 @@ function planItem(over: Partial<Record<string, unknown>> = {}) {
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 
+// 2단 격자·통계 행은 **전문 밀도**의 모양이다. 마지막 describe 가 간단 밀도의
+// 세 질문 칼럼을 따로 잰다 — `density` 를 바꿔서.
+let density: "simple" | "pro" = "pro";
+vi.mock("@/hooks/useDensity", () => ({
+  useDensity: () => ({ density, set: () => {}, toggle: () => {} }),
+  DensityShortcut: () => null,
+}));
+
+
 function renderToday(onNavigate = vi.fn()) {
   const utils = render(
     <WorkspaceProvider projectId={1}>
@@ -408,6 +418,29 @@ describe("Today 2단 균형 — 짧은 열 아래 빈 배경", () => {
     // 자식이 실제로 카드여야 규칙이 걸린다 (래퍼가 끼면 무효).
     for (const col of Array.from(container.querySelectorAll(".g2col"))) {
       expect(col.lastElementChild?.classList.contains("card")).toBe(true);
+    }
+  });
+});
+
+describe("best-results UI — 간단 밀도의 세 질문", () => {
+  it("세 칼럼 머리와 「더 보기」가 서고, 2단 격자는 없다", async () => {
+    density = "simple";
+    fixtures.byWorkday["20260531"] = [summary({ relative_path: "a", title: "하이라이트 작업" })];
+    try {
+      const { container, findByText } = renderToday();
+      await findByText(/하이라이트 작업/);
+      expect(container.querySelector(".today-cols")).toBeTruthy();
+      expect(container.querySelector(".grid-2")).toBeNull();
+      for (const key of ["today.q.did", "today.q.trust", "today.q.next"] as const) {
+        expect(within(container).getByText(t(key))).toBeTruthy();
+      }
+      const more = container.querySelector<HTMLDetailsElement>("details.today-more");
+      expect(more).toBeTruthy();
+      expect(more!.open).toBe(false);
+      // 접힘이지 숨김이 아니다 — 보조 카드는 DOM 에 그대로 있다.
+      expect(more!.querySelector(".stat-row")).toBeTruthy();
+    } finally {
+      density = "pro";
     }
   });
 });
