@@ -26,6 +26,19 @@ function ScopeChip({ label }: { label: string }) {
 export function ClaudePluginBlock({ plugin }: { plugin: ClaudePluginStatus | null }) {
   const { t } = useT();
   const [copied, setCopied] = useState(false);
+  const [copiedUpdate, setCopiedUpdate] = useState(false);
+
+  // 깔린 판 vs 앱이 든 판 (2026-10-27 실측: 프로젝트 15개가 2.29.0~3.13.2 로 제각각).
+  // 프로젝트 스코프 설치는 스스로 올라가지 않아 「깔렸다」만으로는 모자란다.
+  const copyUpdate = async () => {
+    try {
+      await navigator.clipboard.writeText("/plugin update oculpm@oculpm");
+      setCopiedUpdate(true);
+      setTimeout(() => setCopiedUpdate(false), 2000);
+    } catch {
+      toast.warning(t("op.copyFailed"));
+    }
+  };
 
   const copyInstall = async () => {
     try {
@@ -64,6 +77,27 @@ export function ClaudePluginBlock({ plugin }: { plugin: ClaudePluginStatus | nul
         {t("op.plugin.desc2")} <code className="text-fs-1">/plugin install oculpm@oculpm</code>{" "}
         {t("op.plugin.desc3")}
       </p>
+      {plugin?.installed ? (
+        <p className="text-fs-2 text-muted-foreground">
+          {plugin.installed_version
+            ? t("op.plugin.version", {
+                installed: plugin.installed_version,
+                scope: t(plugin.scope === "project" ? "op.plugin.scope.project" : "op.plugin.scope.user"),
+                bundled: plugin.bundled_version,
+              })
+            : t("op.plugin.versionUnknown", { bundled: plugin.bundled_version })}
+        </p>
+      ) : null}
+      {plugin?.behind ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-(--warn)/50 bg-(--warn-soft) p-2 text-fs-2 text-(--warn-text)">
+          <span className="min-w-0 flex-1">
+            {t("op.plugin.behind")} <code className="text-fs-1">/plugin update oculpm@oculpm</code>
+          </span>
+          <Button size="sm" variant="outline" onClick={() => void copyUpdate()}>
+            {copiedUpdate ? t("common.copied") : t("op.plugin.updateCopy")}
+          </Button>
+        </div>
+      ) : null}
       {plugin?.installed ? (
         <p className="text-fs-2 text-(--warn-text)">{t("op.plugin.warn")}</p>
       ) : null}

@@ -311,3 +311,7 @@
 .entry-relsug-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry-relsug-day { font-family: var(--mono); font-size: var(--fs-2); color: var(--text-3); flex: none; }
 .entry-relsug-why { grid-column: 1; margin: 0; font-size: var(--fs-2); color: var(--text-3); }
+
+/* 자기 검증 등급 칩 — 확인 버튼 옆, 다른 사실 (oculpm/evidence.rs). */
+.entry-evidence { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0 var(--space-2); height: var(--ctl-2); border-radius: var(--radius-s); border: 1px solid var(--border); font-size: var(--fs-2); color: var(--text-3); white-space: nowrap; }
+.entry-evidence[data-level="2"] { color: var(--text-2); }

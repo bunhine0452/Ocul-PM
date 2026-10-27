@@ -527,6 +527,13 @@
 .pln-next-text { flex: 1; min-width: 0; font-size: var(--fs-4); font-weight: var(--fw-label); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pln-next-phase { flex: none; max-width: 34%; font-size: var(--fs-2); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pln-next-empty { font-size: var(--fs-3); color: var(--text-2); padding-bottom: var(--space-2); }
+/* 닫힌 플랜의 미완 받은함 — 다음 할 일 띠와 같은 결, 접힌 채 시작. */
+.pln-carry { margin-bottom: var(--space-7); padding: var(--space-3) var(--space-5); border-radius: var(--radius-m); background: var(--bg-inset); border: 1px dashed var(--border); }
+.pln-carry-head { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; list-style: none; color: var(--text-2); }
+.pln-carry-head::-webkit-details-marker { display: none; }
+.pln-carry[open] .pln-carry-head { margin-bottom: var(--space-2); }
+.pln-carry-hint { margin: 0 0 var(--space-2); font-size: var(--fs-2); color: var(--text-3); }
+.pln-carry .pln-next-row { padding: 2px 0; }
 
 /* 작은 동작 버튼 — 「실행」 「일지」 처럼 글자 하나짜리. 행 안의 것은 hover 에만. */
 .pln-act {

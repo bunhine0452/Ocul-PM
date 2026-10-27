@@ -1,3 +1,4 @@
+import { claudeInstallApi } from "@/api/claudeSurface";
 import { useEffect, useState } from "react";
 import { toast } from "@/lib/toast";
 import { useT } from "@/i18n";
@@ -46,10 +47,7 @@ export function PluginDocsTab() {
   const [status, setStatus] = useState<ClaudePluginStatus | null>(null);
   useEffect(() => {
     // 직접 값 반환 커맨드 (Result 봉투 아님) — 실패는 미설치와 동일 취급.
-    commands
-      .claudePluginStatus()
-      .then(setStatus)
-      .catch(() => setStatus({ installed: false, path: null }));
+    void claudeInstallApi.pluginStatus(null).then((p) => setStatus(p));
   }, []);
 
   return (

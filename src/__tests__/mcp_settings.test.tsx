@@ -291,7 +291,7 @@ describe("McpServerBlock (PR-CI2)", () => {
 
 describe("ClaudePluginBlock (머신 전역)", () => {
   it("머신 범위 칩 + 미설치 배지 — projectId 없이 렌더된다", () => {
-    const r = render(<ClaudePluginBlock plugin={{ installed: false, path: null }} />);
+    const r = render(<ClaudePluginBlock plugin={{ installed: false, path: null, installed_version: null, scope: null, bundled_version: "3.14.0", behind: false }} />);
     expect(r.getByText("미설치")).toBeTruthy();
     expect(r.getByText("이 머신 전체")).toBeTruthy();
     expect(r.queryByText("이 프로젝트")).toBeNull();
@@ -299,7 +299,7 @@ describe("ClaudePluginBlock (머신 전역)", () => {
 
   it("설치됨: 이중 설정 경고가 프로젝트 섹션 이름으로 안내한다", () => {
     const r = render(
-      <ClaudePluginBlock plugin={{ installed: true, path: "/home/u/.claude/plugins/oculpm" }} />,
+      <ClaudePluginBlock plugin={{ installed: true, path: "/home/u/.claude/plugins/oculpm", installed_version: "3.14.0", scope: "user", bundled_version: "3.14.0", behind: false }} />,
     );
     expect(r.getByText("설치됨")).toBeTruthy();
     // 블록이 이사했으므로 "아래" 같은 위치 표현은 더 이상 참이 아니다.
@@ -316,7 +316,7 @@ describe("ClaudePluginBlock (머신 전역)", () => {
   it("설치 명령을 클립보드에 복사한다", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
-    const r = render(<ClaudePluginBlock plugin={{ installed: false, path: null }} />);
+    const r = render(<ClaudePluginBlock plugin={{ installed: false, path: null, installed_version: null, scope: null, bundled_version: "3.14.0", behind: false }} />);
     fireEvent.click(r.getByRole("button", { name: "설치 명령 복사" }));
     await waitFor(() =>
       expect(writeText).toHaveBeenCalledWith("/plugin marketplace add bunhine0452/Ocul-PM"),
@@ -417,7 +417,7 @@ describe("플러그인 겹침 고지", () => {
   it("Windows · 플러그인 경고는 훅만 말리고 MCP 등록을 권한다", () => {
     __setPlatformForTests("windows");
     const r = render(
-      <ClaudePluginBlock plugin={{ installed: true, path: "C:\\Users\\u\\.claude\\plugins\\oculpm" }} />,
+      <ClaudePluginBlock plugin={{ installed: true, path: "C:\\Users\\u\\.claude\\plugins\\oculpm", installed_version: "3.14.0", scope: "user", bundled_version: "3.14.0", behind: false }} />,
     );
     const warn = r.getByText(/이벤트가 이중 적재/);
     expect(warn.textContent).toContain("MCP 서버");

@@ -224,6 +224,8 @@ pub struct JournalEntry {
     /// `verified_by_user` 가 참인데 본문이 확인 시점(`verified_hash`)과 다르다 —
     /// 캐시가 투영 때 계산한다. 참이면 「확인됨」이 아니라 「다시 검토」다.
     pub verified_stale: bool,
+    /// 검증 칸의 증거 등급 — [`JournalEntrySummary::evidence`] 와 같다.
+    pub evidence: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -245,6 +247,9 @@ pub struct JournalEntrySummary {
     pub verified_by_user: bool,
     /// [`JournalEntry::verified_stale`] 와 같다 — 확인 뒤 본문이 바뀐 일지.
     pub verified_stale: bool,
+    /// 검증 칸의 증거 등급 (`oculpm::evidence`: 0 없음 · 1 칸만 · 2 명령 증거). 사람 확인
+    /// (`verified_by_user`)과 다른 사실이다 — 에이전트가 스스로 돌린 게이트의 흔적.
+    pub evidence: u8,
     pub created_at: String,
     pub updated_at: Option<String>,
     pub tags: Vec<String>,

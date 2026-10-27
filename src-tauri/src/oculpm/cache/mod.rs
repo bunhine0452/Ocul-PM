@@ -49,7 +49,9 @@ use crate::oculpm::spec::{
 ///                없어 기본값 0 이 거짓일 수 있다.
 ///            4 — 파서가 `type` 별칭(fix→bug · feat→feature …)과 따옴표 없는
 ///                `path:` 값을 읽게 됐다 (2026-10-27). `parse_ok=0` 으로 굳은 행
-///                12건이 디스크는 그대로인 채 다시 투영돼야 한다.
+///                12건이 디스크는 그대로인 채 다시 투영돼야 한다. 같은 판에서
+///                `agent_id`·`agent_version` 이 표준형(`model_names`)으로, 검증 칸의
+///                증거 등급(`evidence`, 042)이 새로 투영된다.
 pub const COERCION_VERSION: i64 = 4;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -286,6 +288,8 @@ struct CacheRowSnapshot {
     /// 039 — `verified_by_user && verified_hash != hash(디스크 본문)`. 해시가
     /// 없는 확인(옛 일지·수동 저작)은 거짓 = 그대로 유효.
     verified_stale: bool,
+    /// 042 — 검증 칸의 증거 등급 (`oculpm::evidence`). 본문에서만 계산한다.
+    evidence: i64,
     created_at: String,
     updated_at: Option<String>,
     body_markdown: String,
@@ -369,8 +373,15 @@ impl CacheRowSnapshot {
                     title: body.title.clone(),
                     checkbox: body.checkbox.map(i64::from),
                     session_id: fm.session_id.clone(),
-                    agent_id: fm.agent.id.clone(),
-                    agent_version: fm.agent.version.clone(),
+                    // 표준형은 캐시에만 — 디스크는 에이전트가 적은 그대로
+                    // (`model_names`, 2026-10-27: 같은 모델 30가지 표기).
+                    agent_id: crate::oculpm::model_names::canonical_agent_id(&fm.agent.id),
+                    agent_version: fm
+                        .agent
+                        .version
+                        .as_deref()
+                        .map(crate::oculpm::model_names::display_model)
+                        .filter(|s| !s.is_empty()),
                     // 빈 문자열은 없는 것으로 — 프론트매터에 `session: ""` 이
                     // 실려 와도 캐시에는 NULL 이 들어가 하이드레이션이 다시
                     // `None` 을 내놓는다 (왕복이 값을 만들어 내지 않는다).
@@ -378,6 +389,7 @@ impl CacheRowSnapshot {
                     language: fm.language.clone(),
                     verified_by_user: fm.verified_by_user,
                     verified_stale: verified_stale(fm, disk_body_hash),
+                    evidence: i64::from(crate::oculpm::evidence::evidence_level(&body.raw)),
                     created_at,
                     updated_at,
                     body_markdown: body.raw.clone(),
@@ -421,6 +433,7 @@ impl CacheRowSnapshot {
                     language: "ko".to_string(),
                     verified_by_user: false,
                     verified_stale: false,
+                    evidence: 0,
                     created_at: String::new(),
                     updated_at: None,
                     body_markdown: body.raw.clone(),
@@ -465,6 +478,8 @@ struct EntryRow {
     verified_by_user: bool,
     /// 039 컬럼 — 확인 뒤 본문이 바뀐 일지.
     verified_stale: bool,
+    /// 042 컬럼 — 검증 칸의 증거 등급.
+    evidence: i64,
     created_at: String,
     updated_at: Option<String>,
     file_mtime: i64,
@@ -495,6 +510,7 @@ fn entry_row_from(r: &rusqlite::Row<'_>) -> rusqlite::Result<EntryRow> {
         agent_version: r.get(17)?,
         agent_session: r.get(18)?,
         verified_stale: r.get::<_, i64>(19)? != 0,
+        evidence: r.get::<_, i64>(20).unwrap_or(0),
     })
 }
 
@@ -517,6 +533,7 @@ fn summary_from_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<JournalEntrySumma
         agent_version: r.get("agent_version")?,
         verified_by_user: r.get::<_, i64>("verified_by_user")? != 0,
         verified_stale: r.get::<_, i64>("verified_stale")? != 0,
+        evidence: r.get::<_, i64>("evidence").unwrap_or(0).clamp(0, 2) as u8,
         created_at: r.get("created_at")?,
         updated_at: r.get("updated_at")?,
         tags: Vec::new(), // filled by list_entries' batch query
@@ -670,7 +687,7 @@ fn build_list_sql(
     let mut sql = String::from(
         "SELECT relative_path, workday, type, slug, status, difficulty, title, checkbox,
                 session_id, agent_id, agent_version, verified_by_user, verified_stale,
-                created_at, updated_at, parse_ok, parse_warnings
+                created_at, updated_at, parse_ok, parse_warnings, evidence
          FROM oculpm_journal",
     );
     sql.push_str(&where_sql);

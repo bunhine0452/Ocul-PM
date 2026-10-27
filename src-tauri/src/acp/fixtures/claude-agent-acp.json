@@ -39,7 +39,7 @@
   "agentInfo": {
    "name": "@agentclientprotocol/claude-agent-acp",
    "title": "Claude Agent",
-   "version": "0.93.0"
+   "version": "0.97.0"
   },
   "authMethods": [],
   "_meta": {
@@ -54,7 +54,8 @@
       "customInstructions",
       "recommendedValue",
       "diffPatch",
-      "planFile"
+      "planFile",
+      "backgroundSubagents"
      ],
      "goal": {
       "version": 1,
@@ -292,6 +293,24 @@
     "id": "fast",
     "name": "Fast mode",
     "description": "Faster responses on supported models",
+    "category": "model_config",
+    "type": "select",
+    "currentValue": "off",
+    "options": [
+     {
+      "value": "on",
+      "name": "On"
+     },
+     {
+      "value": "off",
+      "name": "Off"
+     }
+    ]
+   },
+   {
+    "id": "ultracode",
+    "name": "Ultracode",
+    "description": "Dynamic workflows on every task, at any effort level",
     "category": "model_config",
     "type": "select",
     "currentValue": "off",

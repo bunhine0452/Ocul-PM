@@ -179,8 +179,8 @@ impl<'a> JournalCache<'a> {
                       title, checkbox, session_id, agent_id, agent_version, agent_session,
                       language, verified_by_user, created_at, updated_at, file_mtime,
                       body_markdown, body_md_hash, parse_ok, parse_warnings, coercion_version,
-                      verified_stale)
-                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24)
+                      verified_stale, evidence)
+                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24,?25)
                      ON CONFLICT(project_id, relative_path) DO UPDATE SET
                        workday = excluded.workday,
                        type = excluded.type,
@@ -203,7 +203,8 @@ impl<'a> JournalCache<'a> {
                        parse_ok = excluded.parse_ok,
                        parse_warnings = excluded.parse_warnings,
                        coercion_version = excluded.coercion_version,
-                       verified_stale = excluded.verified_stale",
+                       verified_stale = excluded.verified_stale,
+                       evidence = excluded.evidence",
                     params![
                         pid,
                         &rp,
@@ -229,6 +230,7 @@ impl<'a> JournalCache<'a> {
                         &snap.parse_warnings,
                         COERCION_VERSION,
                         snap.verified_stale as i64,
+                        snap.evidence,
                     ],
                 )?;
 

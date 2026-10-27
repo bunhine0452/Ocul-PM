@@ -26,6 +26,7 @@ function summary(over: Partial<JournalEntrySummary> = {}): JournalEntrySummary {
     agent_version: null,
     verified_by_user: false,
     verified_stale: false,
+    evidence: 0,
     created_at: "2026-05-31T10:00:00+09:00",
     updated_at: null,
     tags: [],
@@ -56,6 +57,7 @@ vi.mock("@/api/oculpm", () => {
           parse_ok: true,
           parse_warnings: [],
           verified_stale: false,
+          evidence: 0,
         }),
       getEntryDiffs: () => Promise.resolve([]),
       // {#related-ui} — 상세가 열릴 때 후보를 묻는다. 이 스위트의 관심은 아니라 빈 목록.

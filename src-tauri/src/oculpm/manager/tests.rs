@@ -966,7 +966,7 @@ mod journal_w3_pr3 {
     /// draft 가 넘기면 그대로 frontmatter 에 쓰인다.
     #[tokio::test]
     async fn create_manual_entry_honours_agent_override() {
-        let (manager, db, _dir, _project_root) = fresh_manager_and_db().await;
+        let (manager, db, _dir, project_root) = fresh_manager_and_db().await;
         let mut draft = minimal_draft("auto-draft-slug");
         draft.agent = Some(crate::oculpm::spec::AgentRef {
             id: "claude-code".to_string(),
@@ -979,10 +979,19 @@ mod journal_w3_pr3 {
             .await
             .expect("created");
         assert_eq!(entry.frontmatter.agent.id, "claude-code");
+        // 캐시를 거친 표면은 표준형(`model_names`)을 돌려준다 — 디스크에는 적은 그대로.
         assert_eq!(
             entry.frontmatter.agent.version.as_deref(),
-            Some("claude-haiku-4-5-20251001")
+            Some("Haiku 4.5")
         );
+        let on_disk = std::fs::read_to_string(
+            project_root
+                .join(".oculpm")
+                .join("journal")
+                .join(&entry.relative_path),
+        )
+        .unwrap();
+        assert!(on_disk.contains("claude-haiku-4-5-20251001"), "{on_disk}");
         assert!(!entry.frontmatter.verified_by_user);
     }
 

@@ -28,6 +28,7 @@ import { toAppError } from "@/api/invoke";
 import { tError } from "@/i18n/errors";
 import { handoffDispatch, terminalOnScreen } from "@/features/terminal/dispatchTarget";
 import { PluginSetupCard } from "./PluginSetupCard";
+import { PluginDriftCard } from "./PluginDriftCard";
 import { CoreModelSeededCard } from "./CoreModelSeededCard";
 import { WhatsNewCard } from "./WhatsNewCard";
 import { commands, type JournalEntrySummary } from "@/lib/bindings";
@@ -352,6 +353,8 @@ export function TodayScreenV2({
             show={oculpmReady && brief != null && brief.totalEntries === 0}
             onNavigate={onNavigate}
           />
+          {/* 깔린 플러그인이 앱보다 낮을 때만 — 이어하기·전달 원장은 새 판의 훅이 쓴다. */}
+          <PluginDriftCard projectId={projectId} enabled={oculpmReady} />
           {/* 첫 기록 — 방금 돌린 **그 대화**의 첫 일지를 확인한다. 총 일지 수로
               성공을 말하지 않는다 (first-record-loop {#p1-card}). */}
           <FirstRecordCard

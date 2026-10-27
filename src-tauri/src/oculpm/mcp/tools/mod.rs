@@ -596,7 +596,13 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     // files_touched(저장 모양 `/` 로 — #fs-files-touched-norm) + forbidden 검사 (manager 의 create 경로와 동일 계약).
     // 못 읽은 원소는 조용히 버리지 않고 warnings 로 알린다 (files_touched.rs).
     let mut warnings: Vec<String> = Vec::new();
-    let files = self::files_touched::parse_files_touched(root, args, &mut warnings);
+    let mut files = self::files_touched::parse_files_touched(root, args, &mut warnings);
+    let files_inferred = if files.is_empty() && args.get("files_touched").is_none() {
+        files = self::files_touched::infer_from_git(root, &mut warnings);
+        !files.is_empty()
+    } else {
+        false
+    };
     if !cfg.git.forbid_journal_for_paths.is_empty() && !files.is_empty() {
         let matcher = build_forbidden_matcher(root, &cfg.git.forbid_journal_for_paths);
         let hits: Vec<String> = files
@@ -622,7 +628,10 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
 
     // 정규화(적용)와 유사 태그 힌트(제안만)는 `tags.rs` 가 소유한다
     // ({#tag-normalize}). 출처 표식도 거기서 붙는다.
-    let (tags, tag_hints) = self::tags::normalize_and_hint(root, args);
+    let (mut tags, tag_hints) = self::tags::normalize_and_hint(root, args);
+    if files_inferred && !tags.iter().any(|t| t == "files-inferred") {
+        tags.push("files-inferred".to_string());
+    }
 
     // related — 인자 파싱도 자동 연결도 `related.rs` 가 소유한다. 자동 연결은
     // related 를 **안 준** bug/error 일지에만 붙고, 붙었으면 응답이 말한다

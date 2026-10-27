@@ -16,6 +16,7 @@ import type { PlanGroup, PlanSort } from "./planList";
 import type { PlanView } from "./planMeta";
 import { t, useT } from "@/i18n";
 import { PlanBody } from "./PlanBody";
+import { CarryInbox } from "./CarryInbox";
 import { usePlanDocument } from "./usePlanDocument";
 import { blocked } from "@/lib/blocked";
 
@@ -253,6 +254,17 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
               <button className="btn primary" onClick={() => void submitNewPlan()} {...blocked(newPlanTitle.trim() ? null : t("plan.blockedNoTitle"))} disabled={busy}>{t("plan.create")}</button>
               <button className="btn sm" onClick={() => setNewPlanOpen(false)}>{t("common.cancel")}</button>
             </div>
+          ) : null}
+
+          {/* 닫힌 플랜에 갇힌 미완 — 활성 플랜을 고른 채로 옮긴다. */}
+          {plan.plans && plan.plans.length > 0 ? (
+            <CarryInbox
+              projectId={projectId}
+              selectedId={selectedId}
+              selectedLocked={locked}
+              onMoved={() => plan.refreshDetail()}
+              refreshKey={plan.plans.length}
+            />
           ) : null}
 
           {plan.plans == null ? (

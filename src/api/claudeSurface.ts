@@ -187,13 +187,17 @@ export const hooksApi = {
  * 소음이고, 뒤엣것은 설계상 **놓칠 수는 있어도 오탐은 없다** — 그래서 거짓을
  * "미설치" 가 아니라 "못 찾음" 으로 읽어야 한다 (commands/mcp.rs).
  *
- * `claude_plugin_status` 는 봉투 없이 값을 그대로 돌려주는 커맨드라 `call`
- * 규약 밖이다. 여기서만 감싸 두어 화면이 `bindings` 를 직접 만지지 않게 한다.
+ * `claude_plugin_status` 는 2026-10-27 부터 봉투를 쓴다(프로젝트 루트를 DB 에서 읽어
+ * 판 드리프트를 판정하므로). 실패는 미설치가 아니라 「모름」이다.
  */
 export const claudeInstallApi = {
-  pluginStatus: (): Promise<ClaudePluginStatus | null> =>
+  /**
+   * `projectId` 를 주면 **그 프로젝트에 적용되는** 플러그인 판(프로젝트 스코프 →
+   * 사용자 스코프)과 앱이 든 판의 차이(`behind`)까지 온다. 실패는 「모름」(null).
+   */
+  pluginStatus: (projectId: number | null = null): Promise<ClaudePluginStatus | null> =>
     Promise.resolve()
-      .then(() => commands.claudePluginStatus())
+      .then(() => unwrap<ClaudePluginStatus>("claude_plugin_status", commands.claudePluginStatus(projectId)))
       .catch(() => null),
 
   cli: (name: string): Promise<CliCheckResult | null> =>
