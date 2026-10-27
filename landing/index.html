@@ -51,6 +51,7 @@
   "description": "AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요. 매일 AI 코딩 에이전트(Claude Code · Codex · Cursor · Gemini CLI 등)로 개발하는 사람을 위한 로컬-우선 AI 프로젝트 매니저 — 에이전트가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지와 남은 계획을 시작 컨텍스트로 이어받습니다. 로컬 diff 검증, 스탠드업. Claude Code 플러그인 두 줄 설치 지원.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
+    "다섯 원칙의 자리 — 플랜마다 완료 조건과 확인 명령 한 줄씩이 세션 시작 훅에 항목보다 먼저 실리고, 마지막 항목을 닫는 plan_update 가 그 명령을 돌려 결과를 적도록 안내합니다. 검증 칸에 명령 이름만 있으면 기록 도구가 결과 끝 줄을 요구하고, 주간 요약이 검증된 것과 검증 안 된 것을 가르고, Today 「약속 성적표」가 증거 비율·7일 재수정률·완료 조건 있는 플랜 수를 PROMISE.md 의 목표와 나란히 보여 줍니다",
     "플러그인 판 알림 — 설정의 플러그인 블록이 「깔린 판 · 앱이 든 판」을 보여 주고, 프로젝트에 깔린 Claude Code 플러그인이 앱보다 낮으면 오늘 화면 카드가 /plugin update 명령을 줍니다. Claude Code 의 설치 레지스트리에서 읽고 네트워크는 쓰지 않습니다",
     "일지 증거 등급 — 검증 칸에 명령·게이트 증거가 있는 일지(83%)를 사람 확인(1%)과 다른 사실로 표시합니다. 행에는 방패 배지, 상세에는 「증거 있음 / 검증 칸만 / 검증 칸 없음」 칩",
     "닫힌 플랜의 미완 받은함 — 완료·보관 플랜에 갇힌 미완 항목을 플래너 위에서 보고 「이 플랜으로」로 활성 플랜의 「이월」 단계에 옮깁니다. 잠긴 플랜은 손대지 않고 숨기기 버튼이 없습니다",
@@ -390,6 +391,23 @@
   </div>
   <p class="reveal">코드는 그 어느 때보다 빨라졌는데, 오늘 아침 새 대화의 첫 10분은 어제를 다시 설명하는 데 씁니다.
   속도를 얻고 기억을 잃는 것 — 에이전트 시대의 트레이드오프를 Ocul-PM 이 끊습니다.</p>
+</section>
+
+<!-- ══════════ 왜 결과가 좋아지나 ══════════ -->
+<section class="sec" id="why" style="padding-top: 0;">
+  <div class="sec-head">
+    <span class="eyebrow reveal">에이전트에게서 최선을 끌어내는 다섯 원칙</span>
+    <h2 class="reveal">잘 쓰는 법은 알려져 있습니다.<br />문제는 매 세션 잊는다는 것.</h2>
+    <p class="reveal">Anthropic 의 Claude Code 안내서 · Simon Willison 의 에이전트 공학 패턴 · Sonar 의 2026 개발자 조사 · METR 의 생산성 실측이 같은 다섯 줄을 말합니다. 그리고 그 다섯은 <b>/clear 한 번에 사라집니다</b>. Ocul-PM 은 그 다섯 질문이 세션 경계를 넘어 <b>사라지지 않는 자리</b>입니다 — Rieseberg 가 말한 고도 · 깊이 · 범위 그대로.</p>
+  </div>
+  <div class="bento">
+    <div class="cell c-span2 reveal"><span class="cell-tag">① 코드 전에 완료 조건</span><h3>목표의 목표를 적는다</h3><p>"사양을 먼저 쓰고 그것으로 빌드한다" — Anthropic. 플랜마다 <b>완료 조건</b> 한 줄이 있고, 시작 훅이 매 세션 <b>항목보다 먼저</b> 싣습니다. 에이전트는 할 일이 아니라 결과를 받고 시작합니다.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">② 통과/실패를 내는 것</span><h3>확인 명령을 준다</h3><p>"돌리면 pass 나 fail 이 나오는 것을 주라" — Anthropic. 플랜의 <b>확인 명령</b>이 훅에 실리고, 마지막 항목을 닫는 순간 그 명령을 돌려 결과를 적도록 안내합니다. 항목 완료 ≠ 목표 달성.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">③ 주장이 아니라 출력</span><h3>증거 등급</h3><p>"'테스트 다 통과' 한 줄은 거의 아무것도 말해 주지 않는다" — Anthropic. 검증 칸에 <b>명령과 그 결과 끝 줄</b>이 있는 일지만 방패 배지를 받고, 명령 이름만 있으면 기록 도구가 경고합니다.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">④ 초록이어도 돌려 본다</span><h3>검증 안 된 것을 따로</h3><p>"테스트가 통과해도 서버가 뜬다는 뜻은 아니다" — Willison. 주간 요약이 <b>검증된 것 / 검증 안 된 것</b>을 가르고, 그 한 장은 코드를 안 보는 사람에게 건넬 영수증입니다.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">⑤ 바깥 심판</span><h3>레드팀과 성적표</h3><p>개발자 96% 가 AI 코드를 믿지 않으면서 48% 만 늘 확인합니다(Sonar 2026). <code>/oculpm:redteam</code> 이 합류 전 반례를 찾고, Today 의 <b>약속 성적표</b>가 증거 비율·7일 재수정률을 목표와 나란히 보여 줍니다 — 느낌 대신 숫자(METR).</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">못 주는 것</span><h3>야망 자체</h3><p>더 큰 질문을 던지는 것은 사람의 몫입니다. Ocul-PM 은 완료 조건을 <b>대신 만들지 않고</b> 증거를 <b>대신 쓰지 않습니다</b> — 묻고 경고하되 막지 않습니다. 그 선을 넘으면 모델이 스스로를 심판하는 상태가 됩니다.</p></div>
+  </div>
 </section>
 
 <!-- ══════════ 3막 ══════════ -->

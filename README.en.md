@@ -51,6 +51,20 @@ This round trip was verified on the **terminal Claude Code + oculpm plugin** pat
 <img src="landing/shots/en/08-receipt.jpg" alt="Ocul-PM — Claude Code inside the app, with edit diffs and a turn receipt" />
 <p align="center"><i>A real screen — Claude Code inside the app edited a file, showed the diff, and wrote its own work journal.</i></p>
 
+## Why results get better — a place for the five principles of using agents
+
+How to use a coding agent well is close to settled. [Anthropic's Claude Code guide](https://code.claude.com/docs/en/best-practices), [Simon Willison's agentic engineering patterns](https://simonwillison.net/2026/Feb/23/agentic-engineering-patterns/), [Sonar's 2026 developer survey](https://www.sonarsource.com/company/press-releases/sonar-data-reveals-critical-verification-gap-in-ai-coding/) and [METR's productivity measurements](https://metr.org/blog/2026-02-24-uplift-update/) say the same five lines. The problem is that all five vanish on `/clear`, and Ocul-PM is where those five questions survive the session boundary ([Rieseberg's altitude, depth and range](https://felixrieseberg.com/how-to-be-more-ambitious-a-tutorial-for-humans-with-models/), as is).
+
+| Principle | Source | Where it lives in Ocul-PM |
+|---|---|---|
+| ① Write the spec and a **done condition** before code | Anthropic "write the spec first" | One `**Done when:**` line per plan. The session-start hook ships it before the items, every session |
+| ② Give the agent **something that passes or fails** | Anthropic "something it can run that comes back pass or fail" · Willison "first run the tests" | The plan's `**Check:**` command. The `plan_update` that closes the last item tells the agent to run it and log the result — items done ≠ goal met |
+| ③ Take **the command and its output**, not a claim, as evidence | Anthropic "'All tests pass' tells you very little" | Evidence grades on entries (the shield badge). A verification section with only a command name draws a warning asking for the last result line |
+| ④ Green tests are not a running program — **run it** | Willison "passing tests don't mean the server boots" | The weekly rollup's "Unverified" section — a receipt for someone who doesn't read code, one copy button |
+| ⑤ An **outside judge** decides | Sonar: 96% distrust, 48% always check · METR: feeling ≠ measurement | `/oculpm:redteam` hunts counter-examples before a merge, and Today's promise scorecard puts evidence rate and 7-day rework next to the targets in [PROMISE.md](docs/PROMISE.md) |
+
+What it doesn't give is written down too. Ambition itself is the human's job — Ocul-PM doesn't write the done condition for you and doesn't fabricate evidence. It asks and warns; it never blocks.
+
 ## It looks like three tools. It's one app.
 
 ### 📓 The journal — recording should be free

@@ -48,6 +48,20 @@ Ocul-PM 은 그 설명을 없앱니다. 프로젝트 폴더에 규칙 파일(`AG
 이 왕복은 **터미널의 Claude Code + oculpm 플러그인** 경로에서 확인했습니다. 다른 에이전트(Codex · Cursor · Gemini CLI …)는 1·2 단계가 규칙 파일만으로 동작하고 3 단계의 훅은 없습니다 — 등급별 차이는 아래 [지원 에이전트](#지원-에이전트) 표에 있습니다. 위 데모 영상은 1 → 2 단계입니다.
 
 
+## 왜 결과가 좋아지나 — 에이전트 운용 다섯 원칙의 자리
+
+코딩 에이전트를 잘 쓰는 법은 이미 합의에 가깝습니다. [Anthropic 의 Claude Code 안내서](https://code.claude.com/docs/en/best-practices), [Simon Willison 의 에이전트 공학 패턴](https://simonwillison.net/2026/Feb/23/agentic-engineering-patterns/), [Sonar 2026 개발자 조사](https://www.sonarsource.com/company/press-releases/sonar-data-reveals-critical-verification-gap-in-ai-coding/), [METR 의 생산성 실측](https://metr.org/blog/2026-02-24-uplift-update/)이 같은 다섯 줄을 말합니다. 문제는 그 다섯이 `/clear` 한 번에 사라진다는 것이고, Ocul-PM 은 그 다섯 질문이 세션 경계를 넘어 남는 자리입니다 ([Rieseberg 의 고도 · 깊이 · 범위](https://felixrieseberg.com/how-to-be-more-ambitious-a-tutorial-for-humans-with-models/) 그대로).
+
+| 원칙 | 출처 | Ocul-PM 의 자리 |
+|---|---|---|
+| ① 코드 전에 사양과 **완료 조건**을 적는다 | Anthropic "write the spec first" | 플랜마다 `**완료 조건:**` 한 줄. 시작 훅이 매 세션 항목보다 먼저 싣는다 |
+| ② 에이전트에게 **통과/실패를 내는 것**을 준다 | Anthropic "something it can run that comes back pass or fail" · Willison "first run the tests" | 플랜의 `**확인 명령:**`. 마지막 항목을 닫는 `plan_update` 가 그 명령을 돌려 결과를 적도록 안내한다 — 항목 완료 ≠ 목표 달성 |
+| ③ **주장이 아니라 명령과 출력**을 증거로 받는다 | Anthropic "'All tests pass' tells you very little" | 일지 증거 등급(방패 배지). 검증 칸에 명령 이름만 있으면 기록 도구가 결과 끝 줄을 요구한다 |
+| ④ 테스트가 초록이어도 **실제로 돌려 본다** | Willison "passing tests don't mean the server boots" | 주간 요약의 「검증 안 된 것」 절 — 코드를 안 보는 사람에게 건네는 영수증, 복사 한 번 |
+| ⑤ **바깥 심판**이 판정한다 | Sonar: 96% 가 불신, 48% 만 늘 확인 · METR: 느낌 ≠ 실측 | `/oculpm:redteam` 이 합류 전 반례를 찾고, Today 「약속 성적표」가 증거 비율·7일 재수정률을 [PROMISE.md](docs/PROMISE.md) 의 목표와 나란히 |
+
+주지 않는 것도 적어 둡니다. 야망 자체는 사람의 몫입니다 — Ocul-PM 은 완료 조건을 대신 만들지 않고 증거를 대신 쓰지 않습니다. 묻고 경고하되 막지 않습니다.
+
 <img src="landing/shots/en/08-receipt.jpg" alt="Ocul-PM — 앱 안의 Claude Code 가 편집 diff 와 턴 영수증을 남긴 실제 화면" />
 <p align="center"><i>실제 화면 — 앱 안의 Claude Code 가 파일을 고치고, diff 로 보여 주고, 스스로 작업 일지를 남긴 턴입니다.</i></p>
 

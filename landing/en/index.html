@@ -52,6 +52,7 @@
   "description": "Stop re-explaining to your AI where you left off yesterday. A local-first AI project manager for people who build with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends) every day — when the agent finishes a unit of work a journal entry is left behind, and the next conversation receives those entries and the remaining plan items as its starting context. Local diff review, standups. Two-line install as a Claude Code plugin.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "featureList": [
+    "A place for the five principles — every plan carries a done condition and a check command that the session-start hook ships before the items, and the plan_update that closes the last item tells the agent to run that command and log the result. A verification section with only a command name draws a warning asking for the last result line, the weekly rollup separates verified from unverified work, and Today's promise scorecard shows evidence rate, 7-day rework and plans with a done condition next to the targets in PROMISE.md",
     "Plugin version alerts — the plugin block in Settings shows installed vs bundled, and when the Claude Code plugin installed for a project is older than the app, a Today card hands you the /plugin update command. Read from Claude Code's install registry, no network",
     "Evidence grades on entries — entries whose verification section cites a command or gate (83%) are shown as a different fact from a human confirmation (1%): a shield badge on the row, an Evidence / Section only / No section chip in the detail",
     "An inbox for open items in closed plans — open items trapped in done or archived plans appear above the planner, and Carry here appends them to the selected active plan's Carried phase. Locked plans are never edited and there is no hide button",
@@ -392,6 +393,23 @@
   </div>
   <p class="reveal">Code has never been faster — and the first ten minutes of this morning's conversation went to explaining yesterday.
   Speed bought with memory — that is the trade of the agent era, and Ocul-PM is where it stops.</p>
+</section>
+
+<!-- ══════════ Why results get better ══════════ -->
+<section class="sec" id="why" style="padding-top: 0;">
+  <div class="sec-head">
+    <span class="eyebrow reveal">Five principles for getting the best out of an agent</span>
+    <h2 class="reveal">How to use agents well is known.<br />The problem is forgetting it every session.</h2>
+    <p class="reveal">Anthropic's Claude Code guide, Simon Willison's agentic engineering patterns, Sonar's 2026 developer survey and METR's productivity measurements all say the same five lines. And all five <b>vanish on /clear</b>. Ocul-PM is the place where those five questions <b>survive the session boundary</b> — Rieseberg's altitude, depth and range, as is.</p>
+  </div>
+  <div class="bento">
+    <div class="cell c-span2 reveal"><span class="cell-tag">① A done condition before code</span><h3>Write the goal behind the goal</h3><p>"Write the spec first, then build from it" — Anthropic. Every plan carries one <b>done condition</b>, and the session-start hook ships it <b>before the items</b>. The agent starts from an outcome, not a to-do list.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">② Something that passes or fails</span><h3>Give it a check command</h3><p>"Give Claude something it can run that comes back pass or fail" — Anthropic. The plan's <b>check command</b> rides in the hook, and the moment the last item closes the agent is told to run it and log the result. Items done ≠ goal met.</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">③ Output, not claims</span><h3>Evidence grades</h3><p>"'All tests pass' on its own tells you very little" — Anthropic. Only entries whose verification section holds <b>the command and its last result line</b> get the shield badge; a bare command name draws a warning from the recording tool.</p></div>
+    <div class="cell c-span2 reveal"><span class="cell-tag">④ Green is not running</span><h3>Unverified work, listed apart</h3><p>"Just because the test suite passes doesn't mean the server will boot" — Willison. The weekly rollup separates <b>verified from unverified</b>, and that one page is a receipt you can hand to someone who doesn't read code.</p></div>
+    <div class="cell c-span2 reveal d1"><span class="cell-tag">⑤ An outside judge</span><h3>Red team and scorecard</h3><p>96% of developers don't trust AI code, yet only 48% always check it (Sonar 2026). <code>/oculpm:redteam</code> hunts counter-examples before a merge, and Today's <b>promise scorecard</b> puts evidence rate and 7-day rework next to their targets — numbers instead of a feeling (METR).</p></div>
+    <div class="cell c-span2 reveal d2"><span class="cell-tag">What it can't give</span><h3>Ambition itself</h3><p>Asking the bigger question is the human's job. Ocul-PM <b>doesn't write the done condition for you</b> and <b>doesn't fabricate evidence</b> — it asks and warns, never blocks. Past that line the model would be judging itself.</p></div>
+  </div>
 </section>
 
 <!-- ══════════ three acts ══════════ -->
