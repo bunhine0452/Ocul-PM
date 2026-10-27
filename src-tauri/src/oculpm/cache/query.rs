@@ -337,7 +337,7 @@ impl<'a> JournalCache<'a> {
                         "SELECT relative_path, type, slug, status, difficulty, title, checkbox,
                                 session_id, agent_id, language, verified_by_user, created_at,
                                 updated_at, file_mtime, body_markdown, parse_ok, parse_warnings,
-                                agent_version, agent_session, verified_stale
+                                agent_version, agent_session, verified_stale, evidence
                          FROM oculpm_journal
                          WHERE project_id = ?1 AND relative_path = ?2",
                         params![pid, &rp],
@@ -414,6 +414,7 @@ impl<'a> JournalCache<'a> {
                 parse_ok: r.parse_ok,
                 parse_warnings: parse_warnings_vec(&r.parse_warnings),
                 verified_stale: r.verified_stale,
+                evidence: r.evidence.clamp(0, 2) as u8,
             }
         }))
     }
@@ -443,7 +444,7 @@ impl<'a> JournalCache<'a> {
                         "SELECT relative_path, workday, type, slug, status, difficulty,
                                 title, checkbox, session_id, agent_id, agent_version,
                                 verified_by_user, verified_stale, created_at, updated_at,
-                                parse_ok, parse_warnings
+                                parse_ok, parse_warnings, evidence
                          FROM oculpm_journal
                          WHERE project_id = ?1 AND relative_path = ?2",
                         params![pid, &rp],

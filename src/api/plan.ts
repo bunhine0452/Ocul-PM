@@ -9,7 +9,7 @@
  */
 
 import { call } from "@/api/invoke";
-import { commands, type PlanEditOp, type PlanSummary } from "@/lib/bindings";
+import { commands, type LockedOpenItem, type PlanEditOp, type PlanSummary } from "@/lib/bindings";
 
 export const planApi = {
   list: (projectId: number): Promise<PlanSummary[]> => call("plan_list", commands.planList(projectId)),
@@ -27,4 +27,8 @@ export const planApi = {
    */
   applyEdit: (projectId: number, planId: string, op: PlanEditOp, agentId: string | null) =>
     call("plan_apply_edit", commands.planApplyEdit(projectId, planId, op, agentId)),
+
+  /** 닫힌(done/archived) 플랜에 남은 미완 — 이미 `carry-<id>` 로 옮긴 것은 빠져 온다. */
+  lockedOpen: (projectId: number): Promise<LockedOpenItem[]> =>
+    call("plan_locked_open", commands.planLockedOpen(projectId)),
 };

@@ -114,6 +114,10 @@ pub(super) const MIGRATIONS: &[(i64, &str)] = &[
         41,
         include_str!("../../migrations/041_purge_duplicate_chunks.sql"),
     ),
+    (
+        42,
+        include_str!("../../migrations/042_oculpm_journal_evidence.sql"),
+    ),
 ];
 
 /// `ALTER TABLE … ADD COLUMN` 으로 더해진 **가산 컬럼**의 전수 목록 —
@@ -154,6 +158,7 @@ pub(super) const ADDITIVE_COLUMNS: &[(&str, &str, &str)] = &[
         "verified_stale",
         "INTEGER NOT NULL DEFAULT 0",
     ),
+    ("oculpm_journal", "evidence", "INTEGER NOT NULL DEFAULT 0"),
     ("projects", "icon", "TEXT"),
     ("projects", "color", "TEXT"),
     ("oculpm_journal_files", "lines_added", "INTEGER"),

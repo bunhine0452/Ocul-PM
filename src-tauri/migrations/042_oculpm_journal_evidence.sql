@@ -1,0 +1,11 @@
+-- 검증 칸의 증거 등급 — 일지 캐시에 `evidence` (0 없음 · 1 칸만 · 2 명령 증거).
+--
+-- 왜: 사람이 「확인」을 누른 일지는 1% 인데 검증 칸에 명령 증거가 있는 일지는
+-- 83% 였다 (2026-10-27 실측). 「확인됨」 하나뿐인 화면은 거의 전부를 미확인으로
+-- 보여 약속 4(검증대)가 데이터와 어긋났다. 자기 검증(증거)과 사람 확인은 다른
+-- 사실이라 칸을 따로 둔다.
+--
+-- `verified_stale` 과 같은 **손실 가능한 파생 칸** — SSOT 는 디스크 본문이고
+-- 재투영(`oculpm/evidence.rs`)이 다시 계산한다. COERCION_VERSION 4 가 옛 행을 한 번
+-- 다시 투영한다.
+ALTER TABLE oculpm_journal ADD COLUMN evidence INTEGER NOT NULL DEFAULT 0;

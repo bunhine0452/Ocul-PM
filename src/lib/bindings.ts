@@ -168,6 +168,13 @@ export const commands = {
 	/**  List the project's plans (summary + progress + done counts). */
 	planList: (projectId: number) => typedError<PlanSummary[], string>(__TAURI_INVOKE("plan_list", { projectId })),
 	/**
+	 *  닫힌 플랜에 갇힌 미완 항목들 ({#archived-open-items-visibility}, 2026-10-27 실측 20개
+	 *  플랜에 63건). MCP `plan_status` 는 `locked_open` 으로 세어 주지만 화면에는 없었다.
+	 *  이미 활성 플랜으로 옮긴 것(`carry-<item_id>` 항목이 있는 것)은 뺀다 — 옮기기는
+	 *  원본을 고치지 않으므로(잠긴 플랜은 불변) 이 제외가 「처리됨」의 유일한 표식이다.
+	 */
+	planLockedOpen: (projectId: number) => typedError<LockedOpenItem[], string>(__TAURI_INVOKE("plan_locked_open", { projectId })),
+	/**
 	 *  One plan's detail: items (with per-item last attribution), decisions, and
 	 *  non-fatal parse warnings. `None` when the plan_id isn't found.
 	 */
@@ -1269,6 +1276,8 @@ export const commands = {
 	 *  캐시가 투영 때 계산한다. 참이면 「확인됨」이 아니라 「다시 검토」다.
 	 */
 	verified_stale: boolean,
+	/**  검증 칸의 증거 등급 — [`JournalEntrySummary::evidence`] 와 같다. */
+	evidence: number,
 } | null, AppError>(__TAURI_INVOKE("oculpm_get_journal_entry", { projectId, relativePath })),
 	/**
 	 *  Read the per-file diffs recorded for a journal entry at the moment it was
@@ -2018,7 +2027,7 @@ export const commands = {
 	 *  상한으로 탐색한다 — 설정 화면의 택일 안내(훅·MCP 이중 등록 방지)용이라
 	 *  놓쳐도 무해(안내가 안 뜰 뿐), 오탐만 없으면 된다.
 	 */
-	claudePluginStatus: () => __TAURI_INVOKE<ClaudePluginStatus>("claude_plugin_status"),
+	claudePluginStatus: (projectId: number | null) => typedError<ClaudePluginStatus, string>(__TAURI_INVOKE("claude_plugin_status", { projectId })),
 	mcpDesktopRegister: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_register", { projectId })),
 	mcpDesktopUnregister: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_unregister", { projectId })),
 	trayOpenMain: (nav: {
@@ -3168,6 +3177,17 @@ export type ClaudePluginStatus = {
 	installed: boolean,
 	/**  발견된 플러그인 디렉터리 (installed=true 일 때). */
 	path: string | null,
+	/**
+	 *  `~/.claude/plugins/installed_plugins.json` 이 말하는, **이 프로젝트에 적용되는**
+	 *  판. 프로젝트 스코프 설치가 있으면 그것, 없으면 사용자 스코프.
+	 */
+	installed_version: string | null,
+	/**  `project` | `user` — `installed_version` 의 출처. */
+	scope: string | null,
+	/**  이 앱이 들고 있는 플러그인 판 (`plugin/oculpm/.claude-plugin/plugin.json`). */
+	bundled_version: string,
+	/**  깔린 판이 앱의 판보다 낮다 — `/plugin update oculpm@oculpm` 을 안내할 때. */
+	behind: boolean,
 };
 
 export type CliCheckResult = {
@@ -4396,6 +4416,8 @@ export type JournalEntry = {
 	 *  캐시가 투영 때 계산한다. 참이면 「확인됨」이 아니라 「다시 검토」다.
 	 */
 	verified_stale: boolean,
+	/**  검증 칸의 증거 등급 — [`JournalEntrySummary::evidence`] 와 같다. */
+	evidence: number,
 };
 
 /**  상한이 걸린 일지 목록 한 쪽. */
@@ -4427,6 +4449,11 @@ export type JournalEntrySummary = {
 	verified_by_user: boolean,
 	/**  [`JournalEntry::verified_stale`] 와 같다 — 확인 뒤 본문이 바뀐 일지. */
 	verified_stale: boolean,
+	/**
+	 *  검증 칸의 증거 등급 (`oculpm::evidence`: 0 없음 · 1 칸만 · 2 명령 증거). 사람 확인
+	 *  (`verified_by_user`)과 다른 사실이다 — 에이전트가 스스로 돌린 게이트의 흔적.
+	 */
+	evidence: number,
 	created_at: string,
 	updated_at: string | null,
 	tags: string[],
@@ -4558,6 +4585,18 @@ export type LlmBackgroundFailed = {
 };
 
 export type LockStateView = "healthy" | "held_by_other" | "recovered" | "uninitialized";
+
+/**  닫힌(done/archived) 플랜에 남은 미완 항목 하나 — 플래너 「닫힌 플랜의 미완」 받은함. */
+export type LockedOpenItem = {
+	plan_id: string,
+	plan_title: string,
+	/**  `done` | `archived` */
+	plan_status: string,
+	item_id: string,
+	title: string,
+	/**  `todo` | `in_progress` | `blocked` */
+	status: string,
+};
 
 export type LspCodeAction = {
 	/**

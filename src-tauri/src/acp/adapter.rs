@@ -109,7 +109,15 @@ pub const CODEX_PKG_NAME: &str = "codex-acp";
 /// - 새 `session/update` 7종(`plan_update`·`subagent_update`·`session_message`·
 ///   `state_update`·`user_message`·`terminal_*`)은 `plan`·`subagents` 능력 광고 또는
 ///   ACP v2 협상 뒤라 오지 않는다. 우리는 v1 을 보낸다.
-pub const PINNED_VERSION: &str = "0.93.0";
+///
+/// 0.93.0 → 0.97.0 (2026-10-27, 사용자가 릴리스를 봤다): 같은 절차(lockfile 재생성 ·
+/// 임시 폴더 `npm ci` · `sandbox-exec` 스모크)로 픽스처를 다시 받았다. SDK 0.3.300 →
+/// 0.3.310. `dist/` 에 `session-ultracode` · `task-notifications` 가 새로 생겼는데 둘 다
+/// 광고·협상 뒤의 길이라 v1 클라이언트인 우리에게는 오지 않는다. `session/update` 의
+/// 종류 목록은 0.93 과 동일(21종). 픽스처 diff 는 셋뿐이다: 판 문자열, `_meta.claudeCode`
+/// 능력 목록에 `backgroundSubagents` 한 줄(안 읽는다), `session/new` 설정 선택지에
+/// `ultracode`(on/off, `model_config` 범주) 하나 — 일반 셀렉터 경로로 그대로 보인다.
+pub const PINNED_VERSION: &str = "0.97.0";
 /// Codex 어댑터. 1.8.0 → 1.13.0 (2026-09-23, `@openai/codex` ^0.152 → ^0.155.1):
 /// - 새 `notice`·`compaction_update`·`async_task_*` 는 각각 `session.notices`·
 ///   `session.compaction`·AIR `asyncTasks` 광고 뒤라 오지 않는다.

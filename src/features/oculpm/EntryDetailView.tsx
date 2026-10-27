@@ -465,6 +465,28 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
         >
           <ExternalLink size={13} /> {t("entry.openInEditor")}
         </button>
+        {/* 자기 검증 등급 — 사람 확인 버튼 옆, 그러나 다른 사실. 캐시 투영이
+            본문의 「## 검증」 칸에서 계산한다 (`oculpm/evidence.rs`). */}
+        <span
+          className="entry-evidence"
+          data-level={entry.evidence}
+          title={t(
+            entry.evidence === 2
+              ? "entry.evidence.commandTitle"
+              : entry.evidence === 1
+                ? "entry.evidence.sectionTitle"
+                : "entry.evidence.noneTitle",
+          )}
+        >
+          <ShieldCheck size={11} />
+          {t(
+            entry.evidence === 2
+              ? "entry.evidence.command"
+              : entry.evidence === 1
+                ? "entry.evidence.section"
+                : "entry.evidence.none",
+          )}
+        </span>
         <button
           type="button"
           className="btn sm"

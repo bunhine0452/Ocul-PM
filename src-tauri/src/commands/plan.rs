@@ -35,7 +35,7 @@ use crate::oculpm::planner::project::{
     PlanItemUpdateDto, PlanSummary,
 };
 
-async fn planner_root_of(db: &Db, project_id: u32) -> Result<PathBuf, String> {
+pub(super) async fn planner_root_of(db: &Db, project_id: u32) -> Result<PathBuf, String> {
     let project = db
         .get_project(project_id)
         .await

@@ -55,6 +55,7 @@ import { useT, type I18nKey } from "@/i18n";
 import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { ClaudePluginBlock } from "./ClaudePluginBlock";
+import { claudeInstallApi } from "@/api/claudeSurface";
 import { ShellIntegrationBlock } from "./ShellIntegrationBlock";
 import { McpServerBlock } from "./McpServerBlock";
 import { CodexMcpServerBlock } from "./CodexMcpServerBlock";
@@ -169,13 +170,11 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
 
   useEffect(() => {
     let cancelled = false;
-    void commands.claudePluginStatus().then((p) => {
+    void claudeInstallApi.pluginStatus(projectId).then((p) => {
       if (!cancelled) setPlugin(p);
     });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    return () => void (cancelled = true);
+  }, [projectId]);
 
   // 마지막으로 디스크와 일치한다고 아는 직렬화 값 (디바운스 저장의 기준).
   const lastSaved = useRef<string | null>(null);

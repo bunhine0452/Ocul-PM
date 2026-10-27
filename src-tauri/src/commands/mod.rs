@@ -37,6 +37,7 @@ pub mod oculpm;
 mod open_native;
 pub mod overview;
 pub mod plan;
+pub mod plan_carry;
 pub mod plugins;
 pub mod project;
 pub mod related;
@@ -91,6 +92,7 @@ pub use oculpm::*;
 // 을 경로로 부른다 (v3 「죽은 표면 정리」).
 pub use current_session::*;
 pub use plan::*;
+pub use plan_carry::*;
 pub use project::*;
 pub use related::*;
 pub use release_notes::*;

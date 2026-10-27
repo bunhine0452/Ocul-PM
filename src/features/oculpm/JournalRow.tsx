@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, RotateCcw } from "@/components/Icons";
+import { Check, RotateCcw, ShieldCheck } from "@/components/Icons";
 import { TRIGGER_META } from "./triggerMeta";
 import { SourceBadge } from "./SourceBadge";
 import { sourceOf } from "./entrySource";
@@ -99,6 +99,12 @@ export function JournalRow({ entry, focused, showAgent, showSource, onOpenEntry 
             <span className="jl-stale" title={t("entry.staleLine")}>
               <RotateCcw size={11} />
               {t("entry.staleShort")}
+            </span>
+          ) : entry.evidence === 2 ? (
+            // 사람 확인은 없지만 검증 칸에 명령 증거가 있다 — 자기 검증 (2026-10-27:
+            // 확인 8건 vs 명령 증거 733건. 둘을 한 표시에 묶으면 거의 전부가 미확인이다).
+            <span className="jl-evidence" title={t("entry.evidence.commandTitle")} aria-label={t("entry.evidence.command")}>
+              <ShieldCheck size={13} />
             </span>
           ) : null}
           {showSource && source !== "agent" ? <SourceBadge source={source} /> : null}

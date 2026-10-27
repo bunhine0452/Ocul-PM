@@ -426,6 +426,7 @@ use crate::commands::{
     plan_get,
     plan_item_history,
     plan_list,
+    plan_locked_open,
     plan_migrate_goals,
     plan_recent_updates,
     plan_rename,
@@ -604,6 +605,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             clear_project_index,
             // Planner Upgrade (PR-PLN 0/1) — file-based Plan read + write
             plan_list,
+            plan_locked_open,
             plan_get,
             plan_item_history,
             plan_create,
