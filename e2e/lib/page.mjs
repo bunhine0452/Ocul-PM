@@ -95,8 +95,22 @@ const NAV_ROW = `${LABEL_OF}
 const FIND_NAV = `${NAV_ROW} return hit;`;
 const NAV_ACTIVE = `${NAV_ROW} return !!hit && hit.getAttribute('aria-current') === 'page';`;
 
-/** 사이드바 행 라벨 전부 (navRegistry 행 수와 대조). */
-export function sidebarLabels(wd) {
+/**
+ * 접힌 단을 펼친다 (UI 밀도 라운드 2026-10-28). 기본 밀도(간단)에서 도구·베타 단은
+ * 토글 뒤에 접혀 있어 행이 DOM 에 없다 — 숨김이 아니라 접힘이라, 행을 찾기 전에
+ * `aria-expanded="false"` 인 토글을 전부 누른다. 전문 밀도(토글 없음)에선 아무 일도 없다.
+ */
+const EXPAND_FOLDED = `
+  const toggles = [...document.querySelectorAll('nav.sidebar .nav-section-toggle[aria-expanded="false"]')];
+  for (const t of toggles) t.click();
+  return toggles.length;`;
+export function expandFoldedSections(wd) {
+  return wd.execute(EXPAND_FOLDED);
+}
+
+/** 사이드바 행 라벨 전부 (navRegistry 행 수와 대조) — 접힌 단을 먼저 펼친다. */
+export async function sidebarLabels(wd) {
+  await expandFoldedSections(wd);
   return wd.execute(`${LABEL_OF}
     return [...document.querySelectorAll('nav.sidebar .side-nav-scroll .nav-item')].map(labelOf);`);
 }
@@ -107,6 +121,7 @@ export function sidebarLabels(wd) {
  */
 export async function navigateTo(wd, dest, t) {
   const label = t(dest.labelKey);
+  await expandFoldedSections(wd);
   if (dest.parentLabelKey) {
     const open = await wd.execute(FIND_NAV, [label, true]);
     if (!open) {
