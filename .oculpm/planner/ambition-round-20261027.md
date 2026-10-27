@@ -27,7 +27,7 @@ owner: claude-code
 - [ ] [사용자] 새 플러그인 판으로 /oculpm:redteam ambition-round-20261027 한 번 — 반례 보고를 이 플랜 로그에 {#redteam-dogfood}
 
 ## 합류 {#merge}
-- [ ] PR → CI 초록 → rebase 머지 {#pr-merge}
+- [x] PR → CI 초록 → rebase 머지 {#pr-merge}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -41,4 +41,5 @@ owner: claude-code
 | 2026-10-27T22:15:03+09:00 | #goals-table | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2213_feature_ambition-round-altitude-depth-range.md | PROMISE.md 「측정 목표」 — 다음 외부 리뷰(v3.16.0 무렵)에 재집계 |
 | 2026-10-27T22:15:08+09:00 | #verb-sentence | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2213_feature_ambition-round-altitude-depth-range.md | PROMISE 첫 절 + README ko/en · 랜딩 ko/en 히어로 부제. 배포는 다음 릴리스와 함께 |
 | 2026-10-27T22:15:19+09:00 | #redteam-skill | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2213_feature_ambition-round-altitude-depth-range.md | skills/redteam/SKILL.md + 매니페스트 7종 · help · 랜딩 ko/en 커맨드 섹션 · README ko/en · pluginDocs (plugin_docs_sync 가 설명 완전 일치 요구) |
+| 2026-10-27T22:43:37+09:00 | #pr-merge | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2213_feature_ambition-round-altitude-depth-range.md | PR #103 — CI 가 셋 잡음(템플릿 예산 110자 초과 · 검증 칸 없는 본문의 새 경고 · bindings 미재생성) → 3커밋으로 고쳐 초록, rebase 머지 ebc7b4cf |
 <!-- oculpm:plan-log end -->
