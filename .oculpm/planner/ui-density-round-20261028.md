@@ -26,7 +26,7 @@ owner: claude-code
 ## 공개 {#p3}
 - [ ] PR 합류 후 v3.16.0 — 6파일·CHANGELOG·README ko/en·랜딩 ko/en(벤토·featureList)·wiki build·태그·랜딩 배포 {#release-3-16}
 - [ ] [사용자] 설치본 3.16.0 에서 간단↔전문 토글·세 칼럼·증거 카드·플래너 머리글을 눈으로 {#eyes-density}
-- [ ] [사용자] 시작 탭 「오늘 어디서부터」와 터미널 결과 끝 줄 손잡이 시안은 미구현 — 터미널은 보류 등급 규칙, 시작 탭은 다음 라운드. 진행 여부 결정 {#deferred-decision}
+- [x] [사용자] 시작 탭 「오늘 어디서부터」와 터미널 결과 끝 줄 손잡이 시안은 미구현 — 터미널은 보류 등급 규칙, 시작 탭은 다음 라운드. 진행 여부 결정 {#deferred-decision}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -37,4 +37,5 @@ owner: claude-code
 | 2026-10-28T04:23:52+09:00 | #today-cols | claude-code | ☐→x | .oculpm/journal/20261028/Features_to_add/0421_feature_ui-density-round.md | today-cols · details.today-more · statsBlock/proGrid/proTrailing/simpleMore |
 | 2026-10-28T04:24:11+09:00 | #entry-evidence | claude-code | ☐→x | .oculpm/journal/20261028/Features_to_add/0421_feature_ui-density-round.md | EvidenceCard — 검증 칸 줄 + 등급 필 |
 | 2026-10-28T04:24:19+09:00 | #planner-goal | claude-code | ☐→x | .oculpm/journal/20261028/Features_to_add/0421_feature_ui-density-round.md | PlanDetail.done_when/check · 머리글 · 전부 닫힘 띠 · paths.rs 분리 |
+| 2026-10-28T05:06:11+09:00 | #deferred-decision | claude-code | ☐→x |  | 사용자 결정(10-28): 전부 구현. 보류 등급 규칙 해제. PR #106 (라운드 2) |
 <!-- oculpm:plan-log end -->
