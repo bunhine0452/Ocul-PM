@@ -46,9 +46,24 @@ Ocul-PM 은 「일지 앱」이 아니다. **에이전트가 한 일을 사람�
 | 일지 없이 끝난 세션 (Stop 훅 판정 `missing`) | 측정 중 | **0** | 약속 1 그 자체다. 하나라도 있으면 규칙이 아니라 결함이다 |
 | 커밋에 든 파일 중 어느 일지에도 없는 비율 | 28% | **10%** | files_touched 추정(v3.15)이 받는 몫. 10% 아래는 사람이 손으로 고친 것뿐이어야 한다 |
 | 활성 플랜 중 「완료 조건」이 있는 플랜 | 11/11 | **전부, 생성 시점부터** | `plan_create` 의 `done_when` 이 필수에 가깝게 — 없는 플랜은 훅이 목표 없이 싣는다 |
+| 활성 플랜 중 「확인 명령」이 있는 플랜 | 1/14 (2026-10-28) | **전부** | 통과/실패를 내는 것이 없는 플랜은 「됐다」는 주장으로 닫힌다. `plan_create` 의 `check`, 마지막 항목을 닫는 `plan_update` 가 그 명령을 돌리라고 안내한다 |
 | 버그 일지 중 7일 안에 같은 파일을 다시 고친 비율 | 47% | **30%** | 레드팀 스킬이 합류 전에 반례를 찾는 만큼만 내려간다 — 내려가지 않으면 그 스킬은 걷는다 |
 
-목표를 못 맞춘 것은 실패가 아니라 데이터다 — 다음 리뷰에서 숫자를 다시 적는다. 목표를 낮추는 것은 사유를 적고 한다.
+목표를 못 맞춘 것은 실패가 아니라 데이터다 — 다음 리뷰에서 숫자를 다시 적는다. 목표를 낮추는 것은 사유를 적고 한다. **Today 「약속 성적표」 카드**가 이 표의 「지금」 열(증거 비율 · 7일 재수정 · 완료 조건/확인 명령 있는 플랜)을 최근 30일 창으로 보여 준다 — 느낌이 아니라 숫자를 매일 본다(METR 2025: 개발자는 AI 로 20% 빨라졌다고 느꼈고 실측은 19% 느렸다).
+
+## 에이전트 운용 다섯 원칙 → Ocul-PM 의 자리 (2026-10-28)
+
+코딩 에이전트에게 최고의 결과를 내는 운용법은 출처가 달라도 같은 다섯 줄로 모인다 — [Anthropic Claude Code best practices](https://code.claude.com/docs/en/best-practices) · [Willison, Agentic Engineering Patterns](https://simonwillison.net/2026/Feb/23/agentic-engineering-patterns/) · [Sonar State of Code 2026](https://www.sonarsource.com/company/press-releases/sonar-data-reveals-critical-verification-gap-in-ai-coding/) · [METR 2026 uplift update](https://metr.org/blog/2026-02-24-uplift-update/). Rieseberg 의 고도·깊이·범위와 같은 축이다. 이 제품의 주장은 「원칙을 가르친다」가 아니라 **「그 다섯 질문이 `/clear` 와 세션 경계를 넘어 사라지지 않는 자리다」** 이고, 아래 표의 셋째 열이 비어 있으면 그 주장은 거짓이다.
+
+| 원칙 | 근거 | 자리 (기계가 지키는 것) |
+|---|---|---|
+| ① 코드 전에 사양·**완료 조건** | Anthropic: "Interview me until you could write the spec… a written definition of done" | `**완료 조건:**` 줄 — `plan_create done_when`, 훅이 항목보다 먼저 싣는다 (`plugin_xplat`) |
+| ② **통과/실패를 내는 것**을 준다 | Anthropic: "Give Claude something it can run that comes back pass or fail" · Willison: "First run the tests" | `**확인 명령:**` 줄 — `plan_create check`, 훅이 싣고, 마지막 항목을 닫는 `plan_update` 가 돌리라고 안내 (`plan_goal` 테스트) |
+| ③ **주장이 아니라 명령+출력** | Anthropic: "ask for evidence: the command it ran and its output. 'All tests pass' tells you very little" | 증거 등급(`evidence.rs`) · 명령 이름만 있는 검증 칸에 `journal_write` 경고 · 템플릿 v17 「결과 끝 줄」 |
+| ④ 초록이어도 **실제로 돌려 본다** | Willison: "the test suite passes doesn't mean the web server will boot… use curl" · Showboat | 주간 요약 「검증 안 된 것」 절 + 복사 — 영수증은 건네라고 있다. `/oculpm:next` 4단계 |
+| ⑤ **바깥 심판** | Sonar: 96% 불신 · 48% 만 늘 확인 · 38% 는 사람 코드보다 리뷰가 힘들다. METR: 느낌 ≠ 실측 | `/oculpm:redteam` · 「약속 성적표」 카드 · 이 표 |
+
+**주지 않는 것.** 야망은 도구가 못 준다 — 완료 조건을 자동 생성하거나 증거를 대신 만들면 글이 경고하는 상태(모델이 스스로를 심판)가 된다. 모든 장치는 **묻고 경고하되 막지 않는다**.
 
 ## 약속을 지키는 장치
 
@@ -58,7 +73,8 @@ Ocul-PM 은 「일지 앱」이 아니다. **에이전트가 한 일을 사람�
 | 2 | `watcher_backpressure.rs` · 리눅스 새 폴더 경합(v3.13.7) |
 | 7 | `egress_inventory.rs` · `egress_spawn_ledger.rs` — 새 송출·자식 프로세스는 빌드가 막는다 |
 | 9 | `docs/RELEASE.md` §0-2 — 마이너 전날 확인 날, `bump-version` 이 미확인 `eyes-` 항목 수를 경고 |
-| 5 · 6 | SessionStart 훅이 각 플랜의 `**완료 조건:**` 을 항목과 함께 싣는다(`plugin_xplat` 테스트) — 할 일이 아니라 결과를 받는다 |
+| 5 · 6 | SessionStart 훅이 각 플랜의 `**완료 조건:**` · `**확인 명령:**` 을 항목과 함께 싣고, 항목이 전부 닫힌 active 플랜은 「판정 후 닫기」 한 줄로 싣는다(`plugin_xplat` 테스트) — 할 일이 아니라 결과를 받는다 |
+| 전체 | `db::scorecard` 가 성적표 스크립트와 같은 정의로 증거 비율·7일 재수정을 산다 — 두 숫자가 갈라지면 둘 중 하나가 거짓이다 |
 | 전체 | `SECURITY.md` 외부 리뷰 주기(마이너 5개마다 경고) · `docs/launch/first-user-observation.md` 첫 사용자 관찰 · `/oculpm:redteam` 이 합류 전 반례를 찾는다 |
 
 ## 이 문서를 고치는 규칙
