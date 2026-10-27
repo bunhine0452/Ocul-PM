@@ -19,7 +19,7 @@ owner: claude-code
 - [x] ACP Claude 어댑터 0.93.0 → 0.97.0 — lockfile 재생성 · 샌드박스 핸드셰이크 픽스처 · PINNED_VERSION {#acp-097}
 
 ## 합류 {#merge}
-- [ ] PR → CI 초록 → rebase 머지 {#pr-merge}
+- [x] PR → CI 초록 → rebase 머지 {#pr-merge}
 
 ## 실기기 확인 {#eyes}
 - [ ] [사용자] 새 빌드로 Today 에 드리프트 카드(3.3.0 → 새 판)가 뜨고, /plugin update 뒤 사라진다 {#eyes-drift-card}
@@ -36,4 +36,5 @@ owner: claude-code
 | 2026-10-27T21:17:54+09:00 | #carry-inbox | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2116_feature_record-quality-round-five-upgrades.md | plan_carry.rs plan_locked_open + CarryInbox(「이월」 단계 AddItem, carry-<id> 로 제외). 테스트 1 |
 | 2026-10-27T21:18:01+09:00 | #files-infer | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2116_feature_record-quality-round-five-upgrades.md | files_touched::infer_from_git — 상한 40 · .oculpm 제외 · 명시한 빈 배열은 그대로. 테스트 2 |
 | 2026-10-27T21:18:07+09:00 | #acp-097 | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2116_feature_record-quality-round-five-upgrades.md | 픽스처 diff 셋(판·backgroundSubagents·ultracode 선택지), session/update 21종 동일, SDK 0.3.310. Codex 2.3.0 은 AIR 깨는 메이저라 보류 |
+| 2026-10-27T21:35:47+09:00 | #pr-merge | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2116_feature_record-quality-round-five-upgrades.md | PR #102 CI 3잡 success → rebase 머지 44c84375. 래칫(manager/tests.rs)에 두 번 걸려 디스크 원문 확인을 통합 테스트로 옮겼다 |
 <!-- oculpm:plan-log end -->
