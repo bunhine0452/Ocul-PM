@@ -87,7 +87,15 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 <img src="landing/shots/en/05-terminal.jpg" alt="⌘J terminal dock — a terminal on any screen" />
 
-## 🚀 v3.15.1 — Records you can trust
+## 🚀 v3.16.0 — One app from first-timer to power user
+
+- **Simple / Pro density toggle** — right end of every toolbar, ⌘. to switch, also under Settings › Appearance. Same screens; only folding, row height and hints change. Data, screen count and shortcuts stay the same. Simple is the default.
+- **Three sidebar tiers = screen tiers** — the four core screens always show; in Simple, Tools and Beta start folded and unfold by themselves when their screen is active. Folded, not hidden.
+- **Today in three questions** — ① what was done ② can I trust it ③ what's next. Side cards fold under "More".
+- **Evidence card on entries** — the verification section's commands and results, with the grade pill, right under the title.
+- **Plan header** — done condition → check command (copy) → items. A plan with every item closed but still open gets an "items done is not the goal met" band.
+
+## v3.15.1 — Records you can trust
 
 - **The app tells you when the plugin is out of date** — the plugin block in Settings shows "installed · bundled", and when the installed one is older, Today shows a card with `/plugin update oculpm@oculpm`. Project-scoped plugins never update themselves.
 - **"Evidence" on journal entries** — entries whose verification section cites a command or gate (83%) are shown as a different fact from a human confirmation (1%): a shield badge on the row, a grade chip in the entry detail.
