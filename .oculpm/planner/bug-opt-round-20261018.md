@@ -22,9 +22,9 @@ owner: claude-code
 ## 실기기 확인 (설치본 업데이트 뒤) {#eyes}
 - [ ] 도크를 최소 폭·높이까지 줄였다 다시 키워도 셸·Claude Code 지난 출력·스크롤백이 그대로 {#eyes-tiny-fit}
 - [ ] 터미널 세션 여럿 띄우고 하나만 보이게 15초 뒤 WebContent vmmap owned unmapped (graphics) 가 1.5G 에서 크게 준다 · 다시 보인 탭 글자 선명 {#eyes-webgl-release}
-- [ ] 앱 종료 뒤 oculpm.log 에 lifecycle.rs 패닉 없음 · 고아 rust-analyzer 없음 {#eyes-quit-panic}
+- [x] 앱 종료 뒤 oculpm.log 에 lifecycle.rs 패닉 없음 · 고아 rust-analyzer 없음 {#eyes-quit-panic}
 - [ ] 앱이 도는 중 폴더 삭제 → 의미검색에서 빠짐 · .gitignore 편집 → 새로 무시된 경로 미색인 {#eyes-ghost-gitignore}
-- [ ] 로그 vec0 partition repacked 확인 · 진단 탭 compact 로 DB 813→~370MB · 다지기 중 탭 init 안 막힘 {#eyes-vec0}
+- [~] 로그 vec0 partition repacked 확인 · 진단 탭 compact 로 DB 813→~370MB · 다지기 중 탭 init 안 막힘 {#eyes-vec0}
 - [ ] 터미널 화면·도크에서 Claude Code 입력창 아래 테두리·상태줄이 잘리지 않고 다 보인다 (v3.13.3) {#eyes-fit-bottom-row}
 - [ ] 옛 호스트를 한 번 비운 뒤(터미널 전부 닫기) 다음 업데이트를 건너도 새 터미널에서 데스크탑 프로젝트가 열린다 · `ptyhost.noindex/` 에 복제본, 옛 복제본은 호스트가 없으면 지워짐 {#eyes-ptyhost-clone}
 
@@ -51,4 +51,7 @@ owner: claude-code
 | 2026-10-24T10:24:23+09:00 | #carry-ptyhost-stale-tcc | claude-code | ☐→☐ | .oculpm/journal/20261024/Bugs/1024_bug_terminal-fit-bottom-row-clipped.md | 10-24 재현(호스트 소켓 진단 셸 ~/Desktop EPERM) · 우회: 호스트 kill |
 | 2026-10-24T10:48:09+09:00 | #carry-ptyhost-stale-tcc | claude-code | ☐→x | .oculpm/journal/20261024/Bugs/1047_bug_ptyhost-stale-exe-tcc-bundle-clone.md | 묶음 복제본+disclaim, 빈 옛 호스트 즉시 교체 · 실기기는 #eyes-ptyhost-clone |
 | 2026-10-24T12:24:34+09:00 | #carry-codex-plugin-mcp | claude-code | ☐→> | .oculpm/journal/20261024/Features_to_add/1220_feature_plugin-skills-models-refresh.md | Codex 가 플러그인 상대 경로를 못 풂 — 대기 |
+| 2026-10-27T19:48:27+09:00 | #eyes-quit-panic | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | 로그 확인: lifecycle.rs:335 패닉은 10-14·10-17 두 번(수정 전)이 마지막, 10-18~10-27 다섯 번 업데이트·종료에도 0건. rust-analyzer 고아 프로세스 없음(pgrep) |
+| 2026-10-27T19:49:00+09:00 | #eyes-vec0 | claude-code | ☐→~ | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | repacked 로그는 10-17~10-27 매번 찍힘(기계 확인). 남은 것: 진단 탭 compact — DB 는 지금 837MB(+WAL 67MB)로 아직 안 돌렸다 · 다지기 중 탭 init |
+| 2026-10-27T19:49:29+09:00 | #eyes-ptyhost-clone | claude-code | ☐→☐ |  | 사전 조사: 지금 도는 호스트(pid 90019)는 10-24 10:49 기동 — 3.13.5 설치 전의 옛 호스트가 아직 살아 있고 ptyhost.noindex/ 없음(정상: 복제는 새 호스트가 뜰 때). 확인 순서: 터미널 전부 닫기 → 새 터미널 → app-data/ptyhost.noindex/ 생김 + 데스크탑 프로젝트 열림 |
 <!-- oculpm:plan-log end -->

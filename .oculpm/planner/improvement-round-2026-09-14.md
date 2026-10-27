@@ -59,19 +59,19 @@ owner: claude-code
 
 ## Phase 6 — 이월: 실기기·육안 확인 원장 (설치본 도는 중 dev 빌드 금지) {#carried-eyes}
 - [ ] 설치본 진단 탭 「정리」 → DB 크기·의미 검색 정상, 전체 재색인으로 스냅샷 회수 확인 (← optimization-round-2026-09-12 #eyes-compact, 활성) {#eyes-compact}
-- [ ] 이 라운드 육안 — 죽은 모델 토스트가 색인 뒤 한 번만 뜨는지 · 설정 모델 칸 경고 · ACP 세션에서 oculpm-mcp 가 하나만(ps) · 파일 로그에 ANSI 없음 · 3.1.0 유휴 RSS {#eyes-round-0914}
+- [~] 이 라운드 육안 — 죽은 모델 토스트가 색인 뒤 한 번만 뜨는지 · 설정 모델 칸 경고 · ACP 세션에서 oculpm-mcp 가 하나만(ps) · 파일 로그에 ANSI 없음 · 3.1.0 유휴 RSS {#eyes-round-0914}
 - [ ] 탭·창 드래그 7건 — 창 두 개 스트립 왕복·배율 다른 모니터·세손가락 드래그·고스트·떼어낸 창 닫기·붐비는 스트립·재부착 Escape (← drag-and-drop-round #manual-verify-windows #manual-verify-terminal #crowded-strip-verify #feel-manual-verify #detached-close-verify #p8-manual-verify #p9-manual-verify, tab-reattach-regression #manual-verify-reattach) {#eyes-tabs-windows}
 - [ ] 터미널 4건 — 밀도 전환 fit/PTY resize·Claude Code BEL·마커/overview ruler·⌘Q 재실행 뒤 셸 유지 (← terminal-identity-round #p1 #p2 #p3-manual-verify, search-and-terminal-survival #pty-manual-verify) {#eyes-terminal}
 - [ ] Claude 연동 실기기 5건 — Claude Desktop 실연결·규칙 탭 CRUD/Cursor .mdc·회고 승격 루프·플러그인 게이트/EVALS/Notion 왕복·Codex 라이브 스모크 (← claude-integration #ci2 #ci3 #ci4 #phase-c-runtime-verify, plugin-round #a0-runtime-verify, codex-acp #protocol-fixture #codex-lifecycle #rust-tests #live-smoke) {#eyes-claude-integration}
 - [ ] 첫 실행 마법사 한 바퀴(onboarded 삭제) · 스킬 CRUD/토글 · 리스킨 체감(부트 모션·코드 맵 대형 저장소·프리셋) · Today 리플 언마운트 (← first-run-and-english-landing #wizard-eyes, skills-star-round #skills-verify #reskin-verify, today-ring-followup #ripple-manual-verify) {#eyes-first-run}
-- [ ] 영문 표면 — 키노트 /keynote · 플러그인 /plugin 영문판 (en-shots·en-deploy 는 3.0 에서 끝남) (← first-run-and-english-landing #en-keynote-plugin) {#eyes-en-surfaces}
+- [x] 영문 표면 — 키노트 /keynote · 플러그인 /plugin 영문판 (en-shots·en-deploy 는 3.0 에서 끝남) (← first-run-and-english-landing #en-keynote-plugin) {#eyes-en-surfaces}
 - [ ] 버그 헌팅 v3.5.0 육안 — 이벤트 해제 셤이 웹뷰의 모든 Tauri 구독을 지난다: 터미널 출력·재접속 · 테마 다창 반영 · 트레이 딥링크 · ACP 스트림 · 한글 입력 뒤 로그의 IME-DUMP 가 0 근처 · OSC 8/Monaco 링크가 기본 브라우저로 {#eyes-bug-hunt-0922}
 - [ ] 보안 라운드 1~3차 실기기 — CSP 전 화면(wasm 포매터·xterm webgl·CodeMirror)·위험 모드 확인·자동화 동의 안내/오늘 카드의 바뀐 정의 이름/설정 「허락 거두기」·Notion 실제 연결 1회(브라우저 기록에 token= 없음)·링크 든 저장소 열기(어댑터·.gitignore 건너뜀 로그)·설정 「지금 동기화」 실패 사유 문구·코드 트리의 밖 링크·/Users 추가 거부 문구 (← security-feedback-round #eyes-security-round #notion-token-url, security-feedback-round-2 #eyes-round2, security-feedback-round-3 #eyes-round3) {#eyes-security}
 
 <!-- oculpm:plan-log begin v1 -->
+<!-- oculpm:plan-log archived: 1 rows → improvement-round-2026-09-14.log.md -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
 |---|---|---|---|---|---|
-| 2026-09-14T17:56:41+09:00 | #merge-optimization | claude-code | ☐→x | 20260914/Chores/1755_chore_dead-code-allow-purge.md | cherry-pick 4커밋 충돌 0 (c113e21·ba374df·79cabff·1452e41) |
 | 2026-09-14T17:56:48+09:00 | #stale-worktree | claude-code | ☐→x | 20260914/Chores/1755_chore_dead-code-allow-purge.md | stash + refs/backup/audit-round-20260911-tip, 새 브랜치 feat/improvement-round-20260914 |
 | 2026-09-14T17:56:54+09:00 | #model-eol-toast | claude-code | ☐→x | 20260914/Features_to_add/1755_feature_silent-failures-to-screen.md | LlmBackgroundFailed 이벤트 + useLlmBackgroundToast + FAILED_SIGNATURES 백오프 |
 | 2026-09-14T17:57:00+09:00 | #model-not-in-list | claude-code | ☐→x | 20260914/Features_to_add/1755_feature_silent-failures-to-screen.md | ModelInput notInList 경고 + 테스트 |
@@ -110,4 +110,7 @@ owner: claude-code
 | 2026-10-11T00:01:49+09:00 | #eyes-security | claude-code | ☐→☐ | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 신규 — 보안 라운드 1~3차 실기기 3건 + Notion 왕복 이월. 다음 릴리스 설치본에서 원격 이미지 칩·041 기동도 함께 |
 | 2026-10-11T00:01:58+09:00 | #footprint-attribution | claude-code | ☐→☐ | .oculpm/journal/20261011/Chores/0001_chore_security-plans-closeout.md | 신규 — perf-security-audit-2026-10-08 #footprint-attribution 이월 (설치본이 꺼진 때) |
 | 2026-10-14T05:59:10+09:00 | #notion-oauth | claude-code | ☐→- | .oculpm/journal/20261014/Refactors/0558_refactor_remove-notion-integration.md | Notion 연동 자체를 걷음 (2026-10-14) |
+| 2026-10-27T19:48:27+09:00 | #eyes-en-surfaces | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | curl 확인: /en/keynote 200 lang=en · /en/plugin 200 (title Plugin · Skill Catalog) · ko 둘도 200 |
+| 2026-10-27T19:49:00+09:00 | #eyes-round-0914 | claude-code | ☐→~ | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | 기계 확인 둘: 파일 로그 10-24~27 ANSI(ESC) 0건 · oculpm-mcp 는 프로젝트당 1개(4 프로젝트 4개). 남은 것(눈): 죽은 모델 토스트 1회 · 설정 모델 칸 경고 · 유휴 RSS |
+<!-- oculpm:plan-log archived: 1 rows → improvement-round-2026-09-14.log.md -->
 <!-- oculpm:plan-log end -->

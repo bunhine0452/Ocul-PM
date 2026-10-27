@@ -16,11 +16,11 @@ PR #90 (main 6e42ea61). 병렬 레인 5개 합류. 아래는 실기기 확인과
 - [x] 레인 5개 합류 → 일직선 17커밋 → PR #90 CI 초록 → rebase 머지 6e42ea61 {#lanes-merged}
 
 ## 실기기 확인 (이 판 설치 뒤) {#eyes}
-- [ ] 업데이트 뒤 재시작 — tauri 2.12 open -n 경로로 새 판이 뜨고 트레이·창 복원 · updater 2.14 원자적 교체 {#eyes-restart}
+- [~] 업데이트 뒤 재시작 — tauri 2.12 open -n 경로로 새 판이 뜨고 트레이·창 복원 · updater 2.14 원자적 교체 {#eyes-restart}
 - [ ] macOS 27 트레이 왼쪽 클릭 팝오버 · 오른쪽 클릭 메뉴 → 되면 tray.rs show_context_menu 우회 걷기 판정 {#eyes-tray}
 - [ ] 새 창·분리 터미널 직후 키 입력 즉시 · Finder 끌어다 놓기 (wry 0.57) {#eyes-focus-drop}
 - [ ] 다이얼로그·메뉴·툴팁·select·scroll-area 모양과 포커스, 아이콘 (React 19.3 · radix 1.8.1 · lucide 1.61) {#eyes-ui-react193}
-- [ ] 큰 앱 DB 로 기동 — 마이그레이션·vec0 다지기 정상 (SQLite 3.53.2) {#eyes-sqlite353}
+- [x] 큰 앱 DB 로 기동 — 마이그레이션·vec0 다지기 정상 (SQLite 3.53.2) {#eyes-sqlite353}
 - [ ] Claude Code·Codex 화면 첫 실행 — 어댑터 0.93.0·1.13.1 자동 재설치, 세션·모델 셀렉터·권한 카드·압축 카드 토큰 수 {#eyes-acp}
 - [ ] 걷은 기능의 빈자리 — 설정 10탭·⌘6~⌘0 재배정 안내·코드 화면 툴바·딥링크 open, 죽은 버튼 없음 {#eyes-removals}
 - [ ] 프로젝트 안 worktree 사본이 의미 검색·로컬 히스토리에서 빠짐 · 기동 화해 뒤 DB 크기 감소 {#eyes-worktree-index}
@@ -56,4 +56,7 @@ PR #90 (main 6e42ea61). 병렬 레인 5개 합류. 아래는 실기기 확인과
 | 2026-10-25T00:18:47+09:00 | #next-acp-v2 | claude-code | ☐→x | .oculpm/journal/20261024/Chores/2334_chore_acp-crate-3-5.md | PR #95 — 3.5, v2 는 아직 초안(전제 정정) |
 | 2026-10-25T00:18:54+09:00 | #next-fastembed7 | claude-code | ☐→> | .oculpm/journal/20261025/Chores/0018_chore_fastembed-7-deferred-linux-gcc.md | PR #96 닫음 — ort rc.15 가 ubuntu-22.04(GCC 11)에서 링크 실패, 24.04 이전 또는 load-dynamic 결정 필요 |
 | 2026-10-25T00:19:01+09:00 | #next-refetch-storm | claude-code | ☐→- | .oculpm/journal/20261024/Bugs/2300_bug_dead-pane-orphan-deps-rust-199.md | 전제 틀림 — 경고는 xterm TaskQueue(터미널 출력), 재조회 아님 |
+| 2026-10-27T19:48:27+09:00 | #eyes-sqlite353 | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | 로그 확인: 837MB DB 로 3.13.6~3.14.0 기동, vec0 partition repacked 10-24(1881)·10-27(3612), sqlite/마이그레이션 ERROR 0 (마지막 마이그레이션 41 은 10-14) |
+| 2026-10-27T19:49:00+09:00 | #eyes-restart | claude-code | ☐→~ | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | 3.13.4→5→6→7→3.14.0 네 번 updater 로 교체·재기동돼 지금 3.14.0 이 돈다(기계 확인). 남은 것: 재시작 직후 트레이·창 복원은 눈 |
+| 2026-10-27T19:49:29+09:00 | #eyes-acp | claude-code | ☐→☐ |  | 사전 조사: app-data/acp 에 깔린 어댑터는 아직 0.81.0 · 1.8.0 (핀 0.93.0 · 1.13.1) — 10-24 이후 로그에 ACP 줄이 없어 화면을 한 번도 안 열었다. 첫 열기 때 재설치가 도는지가 곧 이 항목 |
 <!-- oculpm:plan-log end -->
