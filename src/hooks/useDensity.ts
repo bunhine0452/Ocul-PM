@@ -28,10 +28,15 @@ export function useDensity(): { density: UiDensity; set: (next: UiDensity) => vo
  * 수만큼 있어도 뒤집히는 것은 한 번이다.
  */
 export function DensityShortcut() {
-  const { toggle } = useDensity();
+  const { density, toggle } = useDensity();
   useEffect(() => {
     window.addEventListener(DENSITY_TOGGLE_EVENT, toggle);
     return () => window.removeEventListener(DENSITY_TOGGLE_EVENT, toggle);
   }, [toggle]);
+  // CSS 가 읽는 자리 — 행 높이(30 → 24)·여백은 `styles/density.css` 의 `[data-density]` 규칙.
+  useEffect(() => {
+    document.documentElement.setAttribute("data-density", density);
+    return () => document.documentElement.removeAttribute("data-density");
+  }, [density]);
   return null;
 }

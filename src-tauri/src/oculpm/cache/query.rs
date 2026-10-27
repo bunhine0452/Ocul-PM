@@ -224,7 +224,7 @@ impl<'a> JournalCache<'a> {
             .conn()
             .call(move |c| {
                 let mut stmt = c.prepare(
-                    "SELECT relative_path, workday, type, status, difficulty, agent_id, title
+                    "SELECT relative_path, workday, type, status, difficulty, agent_id, title, evidence
                      FROM oculpm_journal
                      WHERE project_id = ?1 AND workday >= ?2 AND workday <= ?3
                      ORDER BY workday DESC, relative_path",
@@ -241,6 +241,7 @@ impl<'a> JournalCache<'a> {
                             title: r.get(6)?,
                             files: Vec::new(),
                             tags: Vec::new(),
+                            evidence: r.get::<_, i64>(7).unwrap_or(0).clamp(0, 2) as u8,
                         })
                     })?
                     .collect();

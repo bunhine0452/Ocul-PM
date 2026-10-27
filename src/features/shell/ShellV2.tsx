@@ -154,6 +154,18 @@ export default function ShellV2({
     return () => window.removeEventListener(NAV_BUS.openProjectSwitcher, reveal);
   }, [collapsed, active]);
 
+  // 화면 전환 요청 (`NAV_BUS.setView`) — 프로바이더를 모르는 자리(에이전트 툴바의 두 탭)가
+  // 쏜다. 활성 탭만 받는다: 비활성 탭도 마운트된 채라 안 거르면 탭 수만큼 바뀐다.
+  useEffect(() => {
+    if (!active) return;
+    const onSet = (e: Event) => {
+      const view = (e as CustomEvent<UiV2View>).detail;
+      if (view) setUiV2View(view);
+    };
+    window.addEventListener(NAV_BUS.setView, onSet);
+    return () => window.removeEventListener(NAV_BUS.setView, onSet);
+  }, [active, setUiV2View]);
+
   // macOS uses titleBarStyle "Overlay" (src-tauri/src/lib.rs) — the native
   // traffic lights float over the top-left. With the legacy TitleBar gone in
   // ui_v2, the sidebar must reserve a top strip so the brand clears them.
@@ -451,7 +463,7 @@ export default function ShellV2({
               </div>
             </>
           ) : (
-            <TerminalScreenV2 projectRoot={projectRoot} />
+            <TerminalScreenV2 projectRoot={projectRoot} projectId={projectId} workday={workday} />
           )
         ) : view === "ai" ? (
           <AiPanelScreenV2 projectId={projectId} />

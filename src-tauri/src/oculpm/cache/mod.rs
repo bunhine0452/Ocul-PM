@@ -158,6 +158,8 @@ pub struct RangeEntry {
     pub files: Vec<String>,
     /// Frontmatter tags — drives the tag-cluster pass (skill promotion).
     pub tags: Vec<String>,
+    /// 검증 칸의 증거 등급(0~2, `oculpm::evidence`) — 브랜치 영수증이 「검증된 것」을 가른다.
+    pub evidence: u8,
 }
 
 /// Thin facade over the `oculpm_journal*` tables. Holds a shared reference

@@ -9,7 +9,7 @@ import { requestAgentContext } from "@/lib/agentContextNav";
 import { commandsToCodeBlock, firstSlug } from "@/lib/promoteSeed";
 import { useT } from "@/i18n";
 import { blocked } from "@/lib/blocked";
-import { blockBody, blockTitle } from "./commandBlocks";
+import { blockBody, blockTitle, verificationLine } from "./commandBlocks";
 import type { BlockActivation } from "./TerminalInstanceImpl";
 
 // 명령 블록 액션 팝오버 (2026-08-28 Phase 3).
@@ -191,6 +191,12 @@ export function TerminalBlockMenu({
             {t("term.block.fill")}
           </button>
           <div className="tbm-sep" role="separator" />
+          {/* 결과 끝 줄 → 검증 칸. 명령 이름은 증거가 아니고, 명령과 그 결과 끝 줄이
+              증거다 (best-results 라운드). 복사해 다음 일지의 검증 칸에 붙인다. */}
+          <button type="button" className="tbm-item accent" role="menuitem" onClick={() => copy(verificationLine(block.command, output, block.exitCode), t("term.block.copiedVerification"))}>
+            <Clipboard size={13} aria-hidden="true" />
+            {t("term.block.toVerification")}
+          </button>
           <button type="button" className="tbm-item accent" role="menuitem" onClick={toJournal}>
             <NotebookPen size={13} aria-hidden="true" />
             {t("term.block.toJournal")}

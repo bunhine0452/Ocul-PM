@@ -116,6 +116,8 @@ function NavRow({
   attention?: number;
 }) {
   const Icon = slot.icon;
+  // 단축키 힌트는 전문 밀도의 것이다 — 간단은 글자만 (title 에는 늘 있다).
+  const { density } = useDensity();
   const shortcut = navShortcutLabel(slot.id);
   const { t } = useT();
   const label = t(slot.labelKey);
@@ -151,7 +153,7 @@ function NavRow({
         <span className="nav-badge working" aria-label={t("nav.working", { n: working })}>
           {working}
         </span>
-      ) : shortcut ? (
+      ) : shortcut && density === "pro" ? (
         <kbd className="nav-kbd">{shortcut}</kbd>
       ) : null}
     </button>

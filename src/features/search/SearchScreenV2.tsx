@@ -26,6 +26,7 @@ import { toast } from "@/lib/toast";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { CodeSnippet } from "./CodeSnippet";
 import { JournalScopeResults } from "./JournalScopeResults";
+import { RollupHits } from "./RollupHits";
 import { SemanticResults } from "./SemanticResults";
 import { splitMatch, trimAroundMatch } from "./searchUtils";
 import { t, useT, type I18nKey } from "@/i18n";
@@ -449,6 +450,8 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
           ) : show && results!.items.length === 0 ? (
             <EmptyState>{t("search.noResults")}</EmptyState>
           ) : show && results!.kind === "journal" ? (
+            <>
+            <RollupHits projectId={projectId} query={results!.query} />
             <JournalScopeResults
               hits={results!.items}
               total={results!.total}
@@ -457,6 +460,7 @@ export function SearchScreenV2({ projectId, projectRoot, onOpenInCode, onOpenJou
               onMore={() => void runSearch(results!.query, scope, includeDocs, includeJournal, nextJournalLimit(limit))}
               onOpen={openJournalHit}
             />
+            </>
           ) : show && results!.kind === "symbol" ? (
             <div className="search-results">
               <div className="section-title search-results-bar">

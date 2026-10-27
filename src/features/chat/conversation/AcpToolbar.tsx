@@ -15,11 +15,11 @@
 import { PanelLeft, Terminal, TriangleAlert, Unplug, X } from "@/components/Icons";
 import { Toolbar } from "@/components/Toolbar";
 import { useT } from "@/i18n";
+import { NAV_BUS } from "@/lib/navRegistry";
 import { AcpSessionTabs } from "../AcpSessionTabs";
 import { AcpUsageMeter } from "../AcpUsageMeter";
 import { SessionIdChip } from "../SessionIdChip";
 import type { AcpTabItem } from "./useAcpTabs";
-import { dragRegion } from "@/lib/platform";
 
 export function AcpToolbar({
   projectId,
@@ -56,9 +56,9 @@ export function AcpToolbar({
     <Toolbar
       title={
         <>
-          <span className="acp-screen-name" {...dragRegion()}>
-            {t(provider === "codex" ? "nav.codex" : "nav.claudecode")}
-          </span>
+          {/* 에이전트 한 화면 — 두 구동면은 같은 자리의 탭이다 (UI 밀도 라운드 2). 화면은
+              둘 다 살아 있고(keep-alive) 이 탭은 그 사이를 오갈 뿐이다. */}
+          <AgentSwitch provider={provider} />
           <AcpSessionTabs
             provider={provider}
             tabs={tabs}
@@ -156,6 +156,24 @@ export function AcpErrorCard({
         </button>
       </div>
       <div className="msg-error">{message}</div>
+    </div>
+  );
+}
+
+/** Claude Code ↔ Codex — 「에이전트」 한 화면의 두 탭. 프로바이더 밖(테스트)에선 이름만. */
+function AgentSwitch({ provider }: { provider: "claude" | "codex" }) {
+  const { t } = useT();
+  const go = (view: "claudecode" | "codex") =>
+    window.dispatchEvent(new CustomEvent(NAV_BUS.setView, { detail: view }));
+  return (
+    // 세션 탭(`role=tab`)과 역할을 나누지 않는다 — 이건 화면 전환이지 탭이 아니다.
+    <div className="seg agent-switch" role="group" aria-label={t("nav.agent")}>
+      <button type="button" className="seg-item" aria-pressed={provider === "claude"} onClick={() => go("claudecode")}>
+        {t("nav.claudecode")}
+      </button>
+      <button type="button" className="seg-item" aria-pressed={provider === "codex"} onClick={() => go("codex")}>
+        {t("nav.codex")}
+      </button>
     </div>
   );
 }

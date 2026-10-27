@@ -16,6 +16,7 @@ import { EntryFileList, type FileRow } from "./EntryFileList";
 import { EntryFileBar } from "./EntryFileBar";
 import { RelatedSuggestCard } from "./RelatedSuggestCard";
 import { EvidenceCard } from "./EvidenceCard";
+import { useDensity } from "@/hooks/useDensity";
 import { mapFileOpToChangeOp } from "@/contexts/WorkspaceContext";
 import { commonRoot } from "@/lib/filePath";
 import type { EntryFileDiff, JournalEntry, JournalEntrySummary } from "@/lib/bindings";
@@ -75,6 +76,9 @@ function stripLeadingTitle(body: string, title: string): string {
 }
 
 export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRelated }: EntryDetailViewProps) {
+  const { density } = useDensity();
+  const simple = density === "simple";
+  const [filesOpen, setFilesOpen] = useState(false);
   const { t } = useT();
   const { state, setState } = useWorkspace();
   const diffMode = state.diffMode;
@@ -569,17 +573,25 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
             </div>
 
             {rows.length > 0 ? (
-              <EntryFileList
-                ref={listRef}
-                rows={rows}
-                shown={shown}
-                root={root}
-                filter={filter}
-                onFilter={setFilter}
-                filterRef={filterRef}
-                activePath={active?.path ?? null}
-                onSelect={setSelected}
-              />
+              // 간단 밀도에선 부록이 접힌 채 시작한다 — 증거와 본문을 읽은 뒤에 펼친다.
+              // 전문은 늘 펼침. 자료는 어느 쪽에서도 DOM 에 있다.
+              <details className="entry-files-fold" open={!simple || filesOpen} onToggle={(e) => setFilesOpen((e.currentTarget as HTMLDetailsElement).open)}>
+                <summary className="entry-files-summary">
+                  <b>{t("entry.filesFold", { n: rows.length })}</b>
+                  <span>{t("entry.filesFoldHint")}</span>
+                </summary>
+                <EntryFileList
+                  ref={listRef}
+                  rows={rows}
+                  shown={shown}
+                  root={root}
+                  filter={filter}
+                  onFilter={setFilter}
+                  filterRef={filterRef}
+                  activePath={active?.path ?? null}
+                  onSelect={setSelected}
+                />
+              </details>
             ) : null}
 
             {/* 부록 뒤에 후보 — 읽기를 끝낸 자리에서 "다음에 읽을 것"을 준다

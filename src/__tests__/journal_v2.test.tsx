@@ -467,7 +467,7 @@ describe("작업 일지 디테일 — 원장의 한 장", () => {
     // 부록은 본문 **뒤**에 온다.
     const inner = container.querySelector(".entry-read-inner")!;
     const order = Array.from(inner.children).map((el) => el.className);
-    expect(order.indexOf("entry-narrative")).toBeLessThan(order.indexOf("entry-appendix"));
+    expect(order.indexOf("entry-narrative")).toBeLessThan(order.findIndex((c) => c.includes("entry-appendix") || c.includes("entry-files-fold")));
   });
 
   it("미완료 일지는 마스트헤드가 그 말을 한다", async () => {
