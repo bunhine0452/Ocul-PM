@@ -55,6 +55,33 @@ pub fn verification_section(body: &str) -> Option<&str> {
     Some(&rest[..end])
 }
 
+fn result_evidence() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| {
+        Regex::new(
+            r"exit (0|[1-9]\d*)|\d+ (passed|failed|tests?|테스트)|통과|실패|green|red|초록|붉|ok\b|OK\b|error\[|warning:|FAIL|PASS|\d+ ?(ms|s|초|ms\b)|\d+(\.\d+)? ?(MB|KB|GB|%|건|개|줄|행)",
+        )
+        .expect("regex")
+    })
+}
+
+/// 검증 칸에 **명령은 있는데 결과가 없다** — 「돌렸다」까지만 적은 칸.
+///
+/// Anthropic 의 best-practices 가 그대로 말한다: *"ask Claude for evidence: the command it
+/// ran and its output. 'All tests pass' on its own tells you very little."* 명령 이름만
+/// 있는 칸은 그 명령을 돌렸다는 주장이지 결과가 아니다. 등급(`evidence_level`)은 성적표
+/// 스크립트와 계약이라 건드리지 않고, `journal_write` 가 이 판정으로 경고만 보탠다.
+pub fn command_without_result(body: &str) -> bool {
+    let Some(section) = verification_section(body) else {
+        return false;
+    };
+    let names = Regex::new(
+        r"cargo (test|clippy|build|check|fmt)|pnpm (test|typecheck|lint|build|vitest|tauri build)|vitest|tsc --noEmit|\btsc\b|pytest|npm (run )?test",
+    )
+    .expect("regex");
+    names.is_match(section) && !result_evidence().is_match(section)
+}
+
 /// 본문 하나의 증거 등급.
 pub fn evidence_level(body: &str) -> u8 {
     let Some(section) = verification_section(body) else {
@@ -96,6 +123,25 @@ mod tests {
             evidence_level("## 발생 원인\n확인하지 않아서 났다.\n\n## 검증\ncargo test 초록\n"),
             COMMAND,
             "원인 칸의 「확인하지 않아서」는 검증 칸이 아니다"
+        );
+    }
+
+    #[test]
+    fn a_command_name_alone_is_a_claim_not_a_result() {
+        assert!(command_without_result(
+            "## 검증\n`cargo test`, `pnpm lint` 돌림.\n"
+        ));
+        assert!(!command_without_result(
+            "## 검증\n`cargo test` 312 passed · `pnpm lint` exit 0\n"
+        ));
+        assert!(!command_without_result("## 검증\n`pnpm test` 통과\n"));
+        assert!(
+            !command_without_result("## 검증\n눈으로 봤다\n"),
+            "명령이 없으면 이 판정은 침묵"
+        );
+        assert!(
+            !command_without_result("## 변경 요약\ncargo test\n"),
+            "칸이 없으면 침묵"
         );
     }
 

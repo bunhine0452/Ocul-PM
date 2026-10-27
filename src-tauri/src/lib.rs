@@ -387,6 +387,8 @@ use crate::commands::{
     oculpm_list_sessions,
     oculpm_log,
     oculpm_open_entry_in_editor,
+    // best-results-round {#scorecard-cmd} — Today 「약속 성적표」
+    oculpm_promise_scorecard,
     // W5-PR5 — Overview stats
     oculpm_reindex_cache,
     // journal-scale-round {#release-notes-draft} — 태그 사이 커밋·일지 → CHANGELOG 초안
@@ -812,6 +814,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_file_hotspots,
             // journal-scale-round {#velocity} — Today 「작업 속도」 카드
             oculpm_velocity,
+            // best-results-round {#scorecard-cmd} — Today 「약속 성적표」 카드
+            oculpm_promise_scorecard,
             // journal-scale-round {#rollup-weekly} — Today 「이번 주 요약」 카드
             oculpm_rollup_week,
             oculpm_rollup_list,

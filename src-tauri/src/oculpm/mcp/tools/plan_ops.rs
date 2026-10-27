@@ -180,6 +180,8 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
             "title": mask(&parsed.frontmatter.title),
             // 작업 너머의 목표 — 항목만 보고 시작하지 않게 (고도). 없으면 null 이 곧 신호다.
             "done_when": crate::oculpm::planner::done_when::done_when(&md).map(|g| mask(&g)),
+            // 통과/실패를 내는 명령 — 완료 조건을 판정하는 바깥 심판. 없으면 null.
+            "check": crate::oculpm::planner::done_when::check_command(&md).map(|c| mask(&c)),
             "progress": { "done": done, "total": total },
             // **CAS 의 재료를 여기서 발급한다** ({#plan-status-hash}). 이전에는
             // `base_hash` 의 유일한 출처가 직전 `plan_update` 응답이라, 세션의
@@ -407,7 +409,7 @@ pub(crate) fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
     let with_log = archive_overflow(&planner_root, plan_id, &append_log_row(&result.md, &row))?;
     write_atomic(&path, with_log.as_bytes()).map_err(|e| e.to_string())?;
 
-    Ok(json!({
+    let mut out = json!({
         "plan_id": plan_id,
         "item_id": item_id,
         "from": result.old_status.as_str(),
@@ -415,7 +417,51 @@ pub(crate) fn plan_update(root: &Path, args: &Value) -> Result<Value, String> {
         // 다음 CAS 의 재료 — 방금 쓴 내용의 해시. 이걸 안 주면 호출자가 파일을
         // 다시 읽어야 하고, 그 사이가 또 창이 된다.
         "hash": plan_hash(&with_log),
-    }))
+    });
+    if let Some(nudge) = close_nudge(&with_log, plan_id, new_status) {
+        out["warnings"] = json!([nudge]);
+    }
+    Ok(out)
+}
+
+/// 마지막 미완 항목이 닫혔을 때의 안내 — **항목 완료 ≠ 목표 달성** (고도, 2026-10-28).
+///
+/// 할 일 목록을 다 지운 에이전트는 거기서 끝낸다. 완료 조건이 참인지는 다른 질문이고,
+/// 확인 명령이 있으면 그것이 판정한다. 막지 않는다 — 플랜을 닫는 것은 사용자(앱)의
+/// 몫이고, 이 문장은 그 결정에 재료를 댈 뿐이다.
+fn close_nudge(md: &str, plan_id: &str, new_status: ItemStatus) -> Option<String> {
+    if new_status != ItemStatus::Done {
+        return None;
+    }
+    let parsed = parse_plan(md, plan_id);
+    let parents = parsed.parent_ids();
+    let open = parsed
+        .items
+        .iter()
+        .filter(|i| !parents.contains(i.item_id.as_str()))
+        .filter(|i| !is_terminal(i.status) && i.status != ItemStatus::Deferred)
+        .count();
+    if open > 0 || parsed.items.is_empty() {
+        return None;
+    }
+    let goal = crate::oculpm::planner::done_when::done_when(md);
+    let check = crate::oculpm::planner::done_when::check_command(md);
+    let mut s = format!("'{plan_id}' 의 항목이 전부 닫혔다 — 항목 완료는 목표 달성이 아니다. ");
+    match (&goal, &check) {
+        (Some(g), Some(c)) => s.push_str(&format!(
+            "확인 명령 `{c}` 을 지금 돌려 그 결과로 완료 조건 「{g}」이 참인지 판정하고, 결과를 플랜 로그(plan_update note)에 적어라. "
+        )),
+        (Some(g), None) => s.push_str(&format!(
+            "완료 조건 「{g}」이 참인지 네가 아닌 것(테스트·빌드·실측)으로 판정하고 결과를 플랜 로그에 적어라. "
+        )),
+        (None, _) => s.push_str(
+            "이 플랜에는 완료 조건이 없다 — 무엇이 참이 되어야 끝인지 사용자에게 한 줄로 확인받아라. ",
+        ),
+    }
+    s.push_str(&format!(
+        "합류·릴리스 전이면 /oculpm:redteam {plan_id} 로 반례를 한 번 찾는다. 플랜을 닫는 것(status: done)은 사용자의 결정이다."
+    ));
+    Some(s)
 }
 
 // ─── CAS 부속 ────────────────────────────────────────────────────────────────

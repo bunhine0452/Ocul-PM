@@ -54,6 +54,7 @@ import type {
   OculpmFileChanged,
   OculpmSessionEnded,
   OculpmSessionStarted,
+  PromiseScorecard,
   Velocity,
 } from "@/lib/bindings";
 
@@ -358,6 +359,17 @@ export const oculpmApi = {
    */
   velocity: (projectId: number, weeks: number | null) =>
     unwrap<Velocity>("oculpm_velocity", commands.oculpmVelocity(projectId, weeks)),
+
+  /**
+   * best-results-round `{#scorecard-cmd}` — 「약속 성적표」: 증거 비율 · 7일 재수정 ·
+   * 완료 조건/확인 명령이 있는 활성 플랜. 정의는 백엔드 `db::scorecard` 가 성적표
+   * 스크립트와 같은 계약으로 산다. `days` 가 `null` 이면 30일.
+   */
+  promiseScorecard: (projectId: number, days: number | null) =>
+    unwrap<PromiseScorecard>(
+      "oculpm_promise_scorecard",
+      commands.oculpmPromiseScorecard(projectId, days),
+    ),
 
   /**
    * journal-scale-round `{#rollup-weekly}` — 한 주의 요약을

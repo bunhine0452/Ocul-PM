@@ -580,6 +580,7 @@ mod tests {
             body_markdown: body.to_string(),
             body_md_hash: "h".to_string(),
             files: files.iter().map(|s| s.to_string()).collect(),
+            evidence: 2,
         }
     }
 

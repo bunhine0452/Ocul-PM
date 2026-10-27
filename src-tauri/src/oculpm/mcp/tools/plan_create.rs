@@ -339,6 +339,14 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
             crate::oculpm::planner::done_when::render_line(&goal)
         ));
     }
+    // 확인 명령 — 완료 조건을 통과/실패로 판정할 명령. 훅이 완료 조건 다음에 싣는다.
+    if let Some(check) = arg_str(args, "check").filter(|c| !c.trim().is_empty()) {
+        let check = redact_text(check, &patterns).0;
+        md.push_str(&format!(
+            "{}\n",
+            crate::oculpm::planner::done_when::render_check_line(&check)
+        ));
+    }
     md.push_str(&body);
     md.push_str(
         "\n<!-- oculpm:plan-log begin v1 -->\n\

@@ -29,6 +29,8 @@ pub struct RollupSourceEntry {
     /// blake3 hex — `entries_hash` 의 재료.
     pub body_md_hash: String,
     pub files: Vec<String>,
+    /// 검증 칸의 증거 등급(`oculpm::evidence`, 0~2) — 롤업의 「검증 안 된 것」 절이 쓴다.
+    pub evidence: u8,
 }
 
 impl JournalCache<'_> {
@@ -51,7 +53,7 @@ impl JournalCache<'_> {
             .call(move |c| {
                 let mut stmt = c.prepare(
                     "SELECT relative_path, workday, type, status, agent_id, title,
-                            body_markdown, body_md_hash
+                            body_markdown, body_md_hash, evidence
                      FROM oculpm_journal
                      WHERE project_id = ?1 AND workday >= ?2 AND workday <= ?3
                      ORDER BY workday, relative_path",
@@ -68,6 +70,7 @@ impl JournalCache<'_> {
                             body_markdown: r.get(6)?,
                             body_md_hash: r.get(7)?,
                             files: Vec::new(),
+                            evidence: r.get::<_, i64>(8).unwrap_or(0).clamp(0, 2) as u8,
                         })
                     })?
                     .collect();

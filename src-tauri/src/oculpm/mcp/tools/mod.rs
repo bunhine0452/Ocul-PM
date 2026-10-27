@@ -214,6 +214,7 @@ pub fn tool_definitions() -> Value {
                     "title": { "type": "string", "description": "사람이 읽는 제목 (한국어 권장)" },
                     "description": { "type": "string", "description": "선택 — 제목 아래 소개 1~2문장" },
                     "done_when": { "type": "string", "description": "**완료 조건** 한 줄 — 무엇이 되면 이 플랜이 끝인가 (할 일 목록이 아니라 그 너머의 결과). 세션 시작 훅·이어하기·plan_status 가 항목과 함께 싣는다. 거의 필수 — 없으면 에이전트가 왜 하는지 모른 채 항목만 받는다" },
+                    "check": { "type": "string", "description": "**확인 명령** 한 줄 — 완료 조건을 통과/실패로 판정하는 명령(`pnpm test && cargo test`, `curl -f localhost:3000/health` …). 훅이 완료 조건 다음에 싣고, 마지막 항목을 닫을 때 이 명령을 돌려 결과를 로그에 적도록 안내한다. 에이전트에게 통과/실패를 내는 것을 주면 「됐다」는 주장이 아니라 결과로 끝낸다" },
                     "phases": {
                         "type": "array",
                         "description": "1개 이상 — 각각 '## 제목 {#id}' 헤딩이 된다. phase 진척은 하위 항목 롤업으로 자동 계산",
@@ -717,6 +718,11 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     {
         warnings.push(
             "검증 칸에 바깥 심판(테스트·린트·빌드·실측)의 증거가 없다 — 네 판단은 증거가 아니다. 돌린 명령과 결과를 적을 것, 못 돌렸으면 그렇게 적을 것".to_string(),
+        );
+    } else if crate::oculpm::evidence::command_without_result(&full_body) {
+        // 명령 이름만 있는 칸 — 「돌렸다」는 주장이지 결과가 아니다 (2026-10-28).
+        warnings.push(
+            "검증 칸에 명령만 있고 결과가 없다 — 그 명령의 끝 줄(N passed · exit 0 · 실측 수치)을 함께 적을 것. 명령 이름은 증거가 아니다".to_string(),
         );
     }
 

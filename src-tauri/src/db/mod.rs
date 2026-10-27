@@ -39,6 +39,7 @@ mod projects;
 mod vec_repack;
 pub use projects::PROJECT_CACHE_TABLES;
 pub mod recall;
+pub mod scorecard;
 mod settings;
 /// 기동 때 열기 — 실패하면 크래시 대신 대화상자 (`open_or_ask`).
 pub mod startup;
