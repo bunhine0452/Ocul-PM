@@ -46,8 +46,8 @@ async fn an_mcp_written_entry_reaches_the_cache_query_unchanged() {
             "body_markdown": "## 추가 기능\nMCP → 디스크 → 캐시.\n\n## 검증\n이 테스트.\n",
             "tags": ["polish", "boundary"],
             "files_touched": [{"path": "src/a.rs", "op": "update"}],
-            "agent_id": "claude-code",
-            "agent_version": "test"
+            "agent_id": "claude-code-term-34061",
+            "agent_version": "claude-opus-5[1m]"
         }),
     )
     .expect("journal_write ok");
@@ -84,7 +84,11 @@ async fn an_mcp_written_entry_reaches_the_cache_query_unchanged() {
     assert_eq!(row.slug, "promise-boundary-write");
     assert_eq!(row.title, "경계 테스트가 쓴 일지");
     assert_eq!(row.entry_type, EntryType::Feature);
+    // 캐시 표면은 표준형(`model_names`), 디스크는 에이전트가 적은 그대로.
     assert_eq!(row.agent_id, "claude-code");
+    assert_eq!(row.agent_version.as_deref(), Some("Opus 5 (1M)"));
+    let on_disk = std::fs::read_to_string(root.join(&rel)).unwrap();
+    assert!(on_disk.contains("claude-code-term-34061") && on_disk.contains("claude-opus-5[1m]"));
     assert!(
         rel.ends_with(&row.relative_path),
         "캐시의 relative_path({})는 MCP 응답 path({rel})의 꼬리여야 한다",
