@@ -28,7 +28,7 @@
 
 frontmatter 필수: `schema_version: 1` · `type` · `slug` · `status`(planned|in_progress|done|abandoned) · `created_at`(⚠ tz offset 반드시 `+09:00` 형태 — `Z`/`+0900` 금지) · `session_id`(없으면 `"manual-<workday>-HHMMSS"`) · `agent`(⚠ id/version 키의 **mapping**, 문자열 금지 — id 는 네 에이전트 id(claude-code/cursor/gemini-cli/…), version 은 네 모델명) · `language`(ko|en) · `verified_by_user: false` · `files_touched`(⚠ `[{path, op}]` — op 는 create|update|delete|rename|correct enum · path 에 `[` `]` `{` `}` `:` `#` 가 있으면 **반드시 따옴표**: `{ path: "app/[locale]/page.tsx", op: update }`) · `related: []` · `tags: []`. 선택: `difficulty`(verylow~superhigh), `updated_at`.
 
-본문: 첫 줄 `[x] 제목` 체크박스. 강제 헤더 순서 — bug/error `## 발생 원인`→`## 해결 방법` · refactor `## 동기`→`## 변경 요약` · feature `## 추가 기능`→`## 동작 흐름` · chore 자유. 공통 끝: `## 검증`(필수, 1~3줄 — **네가 아닌 것**이 말하게 하라: 돌린 테스트·린트·빌드 명령과 그 결과, 실측 수치. 「확인했다」「문제없다」 같은 네 판단은 증거가 아니다. 못 돌렸으면 못 돌렸다고 적는다) · `## 메모`(선택).
+본문: 첫 줄 `[x] 제목` 체크박스. 강제 헤더 순서 — bug/error `## 발생 원인`→`## 해결 방법` · refactor `## 동기`→`## 변경 요약` · feature `## 추가 기능`→`## 동작 흐름` · chore 자유. 공통 끝: `## 검증`(필수, 1~3줄 — **네가 아닌 것**이 말하게: 돌린 명령·결과·실측. 「확인했다」는 증거가 아니다. 못 돌렸으면 그렇게 적는다) · `## 메모`(선택).
 
 예시가 필요하면 같은 type 의 최근 일지 1~2개를 직접 읽으세요 — 실제 데이터가 가장 좋은 표본입니다.
 
@@ -52,7 +52,7 @@ frontmatter 필수: `schema_version: 1` · `type` · `slug` · `status`(planned|
 
 항목은 **최대 1단계 중첩** 가능 — 하위 작업은 두 칸 들여쓴 `  - [ ] 하위 {#id}`. 하위가 있는 부모의 글리프는 하위 롤업으로 자동 계산되니 **부모를 직접 갱신하지 말 것** (하위만 갱신).
 
-새 plan 은 **완료 조건 한 줄**(`done_when` — 「무엇이 되면 끝인가」, 할 일 목록이 아니라 그 너머의 결과)을 반드시 준다 — 세션 시작 훅이 그 줄을 항목과 함께 싣는다. 새 plan 은 MCP `plan_create` 로 만드는 것이 정답. 도구가 없으면: YAML frontmatter(`oculpm_plan: v1` · `id`(파일명과 동일 kebab) · `title`(따옴표) · `status: active` · `created`/`updated` · `owner`(네 agent.id)) → `## Phase 제목 {#id}` 헤딩(글리프 없음 — phase 진척은 하위 롤업 자동) → `- [ ] 항목 {#id}` 줄 → 빈 `<!-- oculpm:plan-log begin v1 -->`…`<!-- oculpm:plan-log end -->` 블록 순서로 작성.
+새 plan 에는 **완료 조건 한 줄**(`done_when` — 할 일 너머의 결과)을 반드시 준다; 시작 훅이 항목과 함께 싣는다. 새 plan 은 MCP `plan_create` 로 만드는 것이 정답. 도구가 없으면: YAML frontmatter(`oculpm_plan: v1` · `id`(파일명과 동일 kebab) · `title`(따옴표) · `status: active` · `created`/`updated` · `owner`(네 agent.id)) → `## Phase 제목 {#id}` 헤딩(글리프 없음 — phase 진척은 하위 롤업 자동) → `- [ ] 항목 {#id}` 줄 → 빈 `<!-- oculpm:plan-log begin v1 -->`…`<!-- oculpm:plan-log end -->` 블록 순서로 작성.
 
 큰 결정은 `## 결정` 섹션에 `### Decision N — 제목 {#id}` 블록으로 잠급니다 (잠금 날짜·agent.id·근거·`영향: #항목id`).
 
