@@ -73,7 +73,15 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 <img src="landing/shots/en/05-terminal.jpg" alt="⌘J terminal dock — a terminal on any screen" />
 
-## 🚀 v3.14.0 — A one-row terminal, Notion-style markdown
+## 🚀 v3.15.0 — Records you can trust
+
+- **The app tells you when the plugin is out of date** — the plugin block in Settings shows "installed · bundled", and when the installed one is older, Today shows a card with `/plugin update oculpm@oculpm`. Project-scoped plugins never update themselves.
+- **"Evidence" on journal entries** — entries whose verification section cites a command or gate (83%) are shown as a different fact from a human confirmation (1%): a shield badge on the row, a grade chip in the entry detail.
+- **An inbox for open items in closed plans** — `[ ]` items trapped in done or archived plans appear above the planner; "Carry here" appends them to the selected active plan's "Carried" phase. Originals are untouched.
+- **One name per model** — thirty spellings of the same model collapse to a canonical name in the UI and stats. Entries written without a file list get it from git, tagged `files-inferred`.
+- Entries that break the spec (`type: fix`, unquoted paths) are read anyway, and the incremental index's ghost-row race is closed. ACP adapter 0.97.0.
+
+## v3.14.0 — A one-row terminal, Notion-style markdown
 
 - **Edit markdown in place, Notion-style** — `.md` files on the Code screen and discussion documents open rendered, and `/` inserts headings, to-dos, tables and code blocks. Switch with "Rich / Source" in the path bar. **Blocks you don't touch are saved exactly as they were**, so files you share with agents get no diff noise.
 - **Compare before you choose when an agent edits your file** — "Compare changes" on the conflict banner, "Recreate" for a file deleted outside the editor, and a status-bar note when a clean tab quietly reloads.
