@@ -180,6 +180,8 @@ export const NAV_BUS = {
   openProjectSwitcher: "oculpm:open-project-switcher",
   /** detail: { kind: "journal"|"plan"|"plan_item"|"discussion"|"code", id: string } */
   openEntity: "oculpm:open-entity",
+  /** detail: UiV2View — 화면 전환 요청. 프로바이더를 모르는 자리(툴바 안의 탭)가 쏜다. */
+  setView: "oculpm:set-view",
 } as const;
 
 export interface OpenEntityDetail {

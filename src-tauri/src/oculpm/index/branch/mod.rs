@@ -93,6 +93,8 @@ pub struct BranchEntry {
     pub link: BranchLink,
     /// 이 일지가 적은 파일 중 브랜치가 실제로 바꾼 것의 수.
     pub matched_files: u32,
+    /// 검증 칸의 증거 등급(0~2) — 영수증의 「검증된 것 / 안 된 것」.
+    pub evidence: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -518,6 +520,7 @@ pub fn attribute_entries(
             title: r.title.clone(),
             link,
             matched_files: matched,
+            evidence: r.evidence,
         });
     }
     out

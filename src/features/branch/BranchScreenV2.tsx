@@ -14,6 +14,8 @@ import { blocked } from "@/lib/blocked";
 import { CommitsPanel, EntriesPanel, FilesPanel, PlanPanel, wd } from "./BranchPanels";
 import { ReleaseNotesSheet } from "./ReleaseNotesSheet";
 import { useBranchStory } from "./useBranchStory";
+import { BranchReceipt } from "./BranchReceipt";
+import { useDensity } from "@/hooks/useDensity";
 
 // 「브랜치의 이야기」 (v3-surface {#branch-story-view}).
 //
@@ -64,6 +66,8 @@ export function BranchScreenV2({
 }) {
   const { t } = useT();
   const { branches, story, picked, loading, error, pick, reload } = useBranchStory(projectId, active);
+  const { density } = useDensity();
+  const simple = density === "simple";
   const [exporting, setExporting] = useState(false);
   // 「릴리스 노트 초안」 ({#release-notes-draft}) — 범위는 시트가 스스로 정한다
   // (지난 `v*` 태그..HEAD). 브랜치 선택과 묶지 않는 이유: 릴리스의 좌표는
@@ -163,6 +167,9 @@ export function BranchScreenV2({
 
               <NestingNote nesting={story.repo_nesting} sub={story.repo_subpath} />
 
+              {/* 영수증 — 간단 밀도의 브랜치 화면은 이 한 장. 나머지 패널은 전문에서 펼쳐진다. */}
+              {story.entries.length > 0 || story.files.length > 0 ? <BranchReceipt story={story} /> : null}
+
               {story.truncated ? (
                 <div className="card card-pad text-sm text-muted-foreground">{t("branch.truncated")}</div>
               ) : null}
@@ -173,12 +180,27 @@ export function BranchScreenV2({
                 </EmptyState>
               ) : null}
 
-              {story.entries.length > 0 ? (
-                <EntriesPanel entries={story.entries} onOpen={onOpenJournal} />
-              ) : null}
-              {story.plan_items.length > 0 ? <PlanPanel items={story.plan_items} /> : null}
-              {story.commits.length > 0 ? <CommitsPanel commits={story.commits} /> : null}
-              {story.files.length > 0 ? <FilesPanel files={story.files} onOpen={onOpenFile} /> : null}
+              {simple ? (
+                <details className="today-more">
+                  <summary>
+                    <b>{t("branch.morePanels")}</b>
+                    <span className="hint">{t("today.moreHint")}</span>
+                  </summary>
+                  <div className="today-more-body">
+                    {story.entries.length > 0 ? <EntriesPanel entries={story.entries} onOpen={onOpenJournal} /> : null}
+                    {story.plan_items.length > 0 ? <PlanPanel items={story.plan_items} /> : null}
+                    {story.commits.length > 0 ? <CommitsPanel commits={story.commits} /> : null}
+                    {story.files.length > 0 ? <FilesPanel files={story.files} onOpen={onOpenFile} /> : null}
+                  </div>
+                </details>
+              ) : (
+                <>
+                  {story.entries.length > 0 ? <EntriesPanel entries={story.entries} onOpen={onOpenJournal} /> : null}
+                  {story.plan_items.length > 0 ? <PlanPanel items={story.plan_items} /> : null}
+                  {story.commits.length > 0 ? <CommitsPanel commits={story.commits} /> : null}
+                  {story.files.length > 0 ? <FilesPanel files={story.files} onOpen={onOpenFile} /> : null}
+                </>
+              )}
             </div>
           ) : null}
         </div>

@@ -13,6 +13,7 @@ import {
   Download,
   Search,
   X,
+  ChevronRight,
   type IconComponent,
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -26,6 +27,7 @@ import { DiagnosticsTab } from "./tabs/DiagnosticsTab";
 import { UpdateTab } from "./tabs/UpdateTab";
 // 상수·클램프만 있는 모듈이다 — TerminalSurface 에서 가져오면 설정 청크가
 // xterm 을 통째로 끌고 온다.
+import { useDensity } from "@/hooks/useDensity";
 import { useT, type I18nKey } from "@/i18n";
 import { OculpmSettings } from "./OculpmSettings";
 import { AutomationTab } from "./automation/AutomationTab";
@@ -103,9 +105,13 @@ const GROUPS: Array<{ labelKey: I18nKey; tabs: TabDef[] }> = [
 // GitHub PAT 탭은 감사(2026-07-16)에서 제거 — 소비처가 verify 뿐이라 vestigial
 // 이었고, 로컬 git 은 토큰 없이 동작한다 (git_log/status 는 git CLI).
 const ALL_TABS: TabDef[] = GROUPS.flatMap((g) => g.tabs);
+/** 간단 밀도가 처음부터 보여 주는 탭 — 겉모습 · 기록 방식 · 데이터. 나머지는 「전문」 뒤. */
+const SIMPLE_TABS: ReadonlySet<TabId> = new Set<TabId>(["appearance", "oculpm", "data"]);
 
 export function SettingsPanel() {
   const { t } = useT();
+  const { density } = useDensity();
+  const [moreOpen, setMoreOpen] = useState(false);
   // 딥링크(`openSettings(tab)`) — 마운트 전에 온 요청은 여기서 회수하고, 떠 있는
   // 동안 온 요청은 구독으로 받는다. 안내 문구가 "설정 → 어디" 라고 말하는 대신
   // 버튼이 바로 그 탭을 연다.
@@ -162,6 +168,7 @@ export function SettingsPanel() {
   if (!loaded) return <OculSpinner size={22} label={t("common.loading")} />;
 
   const current = ALL_TABS.find((entry) => entry.id === tab) ?? ALL_TABS[0];
+  const pro = density === "pro";
 
   function pick(next: TabId) {
     setTab(next);
@@ -228,10 +235,15 @@ export function SettingsPanel() {
         </div>
 
         <nav className="cfg-nav">
-          {GROUPS.map((group) => (
+          {GROUPS.map((group) => {
+            // 간단 밀도: 세 탭만 보이고 나머지는 「전문 ▸」 뒤에 접힌다. 지금 열린
+            // 탭이 접힌 쪽이면 저절로 펼친다 — 지금 있는 곳이 안 보이면 안 된다.
+            const tabs = pro || moreOpen ? group.tabs : group.tabs.filter((e) => SIMPLE_TABS.has(e.id) || e.id === tab);
+            if (tabs.length === 0) return null;
+            return (
             <div key={group.labelKey} className="cfg-group">
               <div className="cfg-group-label">{t(group.labelKey)}</div>
-              {group.tabs.map((entry) => {
+              {tabs.map((entry) => {
                 const Icon = entry.icon;
                 return (
                   <button
@@ -247,7 +259,19 @@ export function SettingsPanel() {
                 );
               })}
             </div>
-          ))}
+            );
+          })}
+          {!pro ? (
+            <button
+              type="button"
+              className="cfg-item cfg-more"
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((o) => !o)}
+            >
+              <ChevronRight size={11} className={"nav-section-chev" + (moreOpen ? " open" : "")} />
+              <span>{t("settings.moreTabs", { n: ALL_TABS.length - SIMPLE_TABS.size })}</span>
+            </button>
+          ) : null}
         </nav>
       </div>
 

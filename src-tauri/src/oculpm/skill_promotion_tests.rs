@@ -14,6 +14,7 @@ fn entry(ty: &str, workday: &str, title: &str, tags: &[&str]) -> RangeEntry {
         title: title.to_string(),
         files: Vec::new(),
         tags: tags.iter().map(|s| s.to_string()).collect(),
+        evidence: 2,
     }
 }
 

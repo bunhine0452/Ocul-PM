@@ -9,8 +9,11 @@
  *
  * 커서 평면에서는 그냥 첫 행이다 — `wiring` 을 원장 행과 똑같이 받는다.
  */
+import { useEffect, useState } from "react";
 import { ListTodo } from "@/components/Icons";
-import type { Project } from "@/lib/bindings";
+import { oculpmApi } from "@/api/oculpm";
+import { planApi } from "@/api/plan";
+import type { Project, PromiseScorecard } from "@/lib/bindings";
 import { useT } from "@/i18n";
 import { Progress, RowActions, Skel, Sparkline } from "./atoms";
 import { relativeTime, SPARK_DAYS, tildePath, type ProjectRowT } from "./homeModel";
@@ -54,6 +57,46 @@ export function LeadBand({
   const { Icon } = resolveProjectIcon(p.name, p.icon);
   const color = resolveProjectColor(p.name, p.color);
   const pending = loading && !snap;
+
+  // 「오늘 어디서부터」 (UI 밀도 라운드 2) — 1위 프로젝트 하나에만 완료 조건과 숫자 셋
+  // (증거 · 미기록 · 사용자 몫)을 붙인다. 실패는 조용히 비운다 — 밴드의 나머지는 로컬
+  // 집계라 그대로 서고, 이 둘만 "모름" 으로 남는다.
+  const [goal, setGoal] = useState<string | null>(null);
+  const [score, setScore] = useState<PromiseScorecard | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setGoal(null);
+    setScore(null);
+    // 둘 다 선택 자료다 — API 가 없는 자리(공급자 없이 밴드만 그리는 테스트)에서는
+    // 동기 예외까지 삼키고 「모름」으로 둔다.
+    try {
+      if (plan?.plan_id) {
+        void planApi
+          .get(p.id, plan.plan_id)
+          .then((d) => {
+            if (!cancelled) setGoal(d?.done_when ?? null);
+          })
+          .catch(() => {});
+      }
+      void oculpmApi
+        .promiseScorecard(p.id, 30)
+        .then((sc) => {
+          if (!cancelled && sc?.journal) setScore(sc);
+        })
+        .catch(() => {});
+    } catch {
+      /* 선택 자료 — 없으면 없는 대로 */
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [p.id, plan?.plan_id]);
+  const evidencePct =
+    score && score.journal.judged_entries > 0
+      ? Math.round((score.journal.evidence_entries / score.journal.judged_entries) * 100)
+      : null;
+  // i18n-ignore-next-line -- 플랜 항목 문구의 「[사용자]」 표식을 찾는 정규식 (표시 문자열 아님)
+  const userItems = snap?.nextTasks?.filter((n) => /\[사용자\]|\[user\]/i.test(n.item_title)).length ?? 0;
 
   return (
     <section
@@ -101,6 +144,12 @@ export function LeadBand({
             <span className="hl-today">{t("home.datelineToday", { n: snap.todayCount })}</span>
           )}
         </p>
+        {goal ? (
+          <p className="hl-lead-goal">
+            <span className="hl-lead-goal-tag">{t("plan.doneWhen")}</span>
+            <span>{goal}</span>
+          </p>
+        ) : null}
         <p className="hl-lead-next">
           {pending ? (
             <Skel w={320} h={11} />
@@ -138,6 +187,13 @@ export function LeadBand({
             <Progress done={plan.done} total={plan.total} />
           </span>
         )}
+        {score ? (
+          <span className="hl-lead-nums" aria-label={t("home.numsAria")}>
+            <span><i>{t("home.numEvidence")}</i><b data-tone={evidencePct !== null && evidencePct >= 97 ? "ok" : "warn"}>{evidencePct === null ? "—" : `${evidencePct}%`}</b></span>
+            <span><i>{t("home.numRework")}</i><b data-tone={score.journal.bug_entries > 0 && score.journal.rework_within_7d / score.journal.bug_entries > 0.3 ? "warn" : "ok"}>{score.journal.bug_entries === 0 ? "—" : `${Math.round((score.journal.rework_within_7d / score.journal.bug_entries) * 100)}%`}</b></span>
+            <span><i>{t("home.numUser")}</i><b>{userItems}</b></span>
+          </span>
+        ) : null}
       </div>
 
       <span className="hl-actions hl-lead-actions">

@@ -110,6 +110,22 @@ export function blockTitle(command: string, max = 60): string {
  *
  * 코드펜스 안에 백틱 세 개가 들어 있어도 깨지지 않게 울타리를 늘린다.
  */
+/**
+ * 검증 칸 한 줄 — `명령 · 결과 끝 줄 · exit N`. 결과 끝 줄은 출력의 마지막 비공백 줄이다
+ * (테스트 러너는 거기에 `N passed` 를 둔다). 없으면 exit 코드만이라도 — 「돌렸다」보다 낫다.
+ */
+export function verificationLine(command: string, output: string, exitCode?: number | null): string {
+  const last = output
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .pop();
+  const parts = [`\`${blockTitle(command, 120)}\``];
+  if (last) parts.push(last.length > 160 ? `${last.slice(0, 159)}…` : last);
+  if (exitCode !== undefined) parts.push(`exit ${exitCode ?? "—"}`);
+  return parts.join(" · ");
+}
+
 const OUTPUT_TAIL_LINES = 40;
 
 export function blockBody(

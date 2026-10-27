@@ -78,3 +78,87 @@
 }
 .pln-allclosed b { color: var(--accent-text); }
 .pln-allclosed .right { margin-left: auto; }
+
+/* 전문 밀도 — 행 높이 30 → 24 급. 사이드바 행·일지 행·플랜 항목·카드 여백이 함께 준다. */
+:root[data-density="pro"] .nav-item { min-height: var(--ctl-3); padding-block: 3px; }
+:root[data-density="pro"] .nav-section-label { padding-top: var(--space-3); }
+:root[data-density="pro"] .jl-row { min-height: var(--ctl-3); }
+:root[data-density="pro"] .pln-item { min-height: var(--ctl-3); }
+:root[data-density="pro"] .card .panel-body .mini-entry { padding-block: 3px; }
+:root[data-density="pro"] .today-page { gap: var(--space-4); }
+
+/* 시작 탭 사령탑 — 완료 조건 한 줄과 숫자 셋 */
+.hl-lead-goal {
+  margin: var(--space-2) 0 0; display: flex; align-items: baseline; gap: var(--space-2);
+  font-size: var(--fs-3); line-height: var(--lh-body); color: var(--text);
+}
+.hl-lead-goal-tag {
+  flex-shrink: 0; display: inline-flex; align-items: center; height: var(--ctl-1); padding: 0 7px;
+  border-radius: var(--radius-pill); background: var(--accent); color: var(--text-on-accent);
+  font-size: var(--fs-1); font-weight: var(--fw-bold);
+}
+.hl-lead-nums { display: flex; gap: var(--space-3); margin-top: var(--space-2); font-variant-numeric: tabular-nums; }
+.hl-lead-nums > span { display: flex; flex-direction: column; align-items: flex-end; }
+.hl-lead-nums i { font-style: normal; font-size: var(--fs-1); color: var(--text-3); }
+.hl-lead-nums b { font-size: var(--fs-6); }
+.hl-lead-nums b[data-tone="ok"] { color: var(--ok-text); }
+.hl-lead-nums b[data-tone="warn"] { color: var(--warn-text); }
+
+/* 일지 상세 · 파일 부록 접힘 */
+.entry-files-fold > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: var(--space-3); padding: var(--space-3) 0; font-size: var(--fs-3); color: var(--text-2); }
+.entry-files-fold > summary::-webkit-details-marker { display: none; }
+.entry-files-fold > summary b { color: var(--text); }
+
+/* 설정 · 「전문 ▸」 */
+.cfg-more { color: var(--text-3); }
+
+/* 일하는 자리 옆 기록 열 — 터미널 화면 */
+.with-aside { display: flex; height: 100%; min-height: 0; }
+.with-aside-main { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.session-aside {
+  flex: 0 0 auto; width: 264px; border-left: 1px solid var(--border-card); background: var(--bg-window);
+  display: flex; flex-direction: column; overflow: auto;
+}
+.session-aside:not([open]) { width: auto; }
+.session-aside > summary {
+  cursor: pointer; list-style: none; display: flex; flex-direction: column; gap: 2px;
+  padding: var(--space-3) var(--space-4); font-size: var(--fs-3); color: var(--text-2);
+}
+.session-aside > summary::-webkit-details-marker { display: none; }
+.session-aside > summary b { color: var(--text); }
+.session-aside > summary .hint { font-size: var(--fs-2); color: var(--text-3); }
+.session-aside-body { display: flex; flex-direction: column; gap: var(--space-3); padding: 0 var(--space-3) var(--space-3); }
+.sa-head { font-size: var(--fs-3); font-weight: var(--fw-bold); margin-bottom: var(--space-2); }
+.sa-line { font-size: var(--fs-3); color: var(--text-2); line-height: var(--lh-body); }
+.sa-line.warn { color: var(--warn-text); font-weight: var(--fw-bold); }
+.sa-files { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-2); color: var(--text); word-break: break-all; }
+.sa-note { margin-top: var(--space-2); font-size: var(--fs-2); color: var(--text-3); line-height: var(--lh-body); }
+@container screen (max-width: 640px) { .with-aside { flex-direction: column; } .session-aside { width: auto; border-left: 0; border-top: 1px solid var(--border-card); } }
+
+/* 에이전트 한 화면 — 툴바의 두 탭 */
+.agent-switch { margin-right: var(--space-2); }
+
+/* 브랜치 영수증 */
+.branch-receipt { display: flex; flex-direction: column; gap: var(--space-3); }
+.br-head { display: flex; align-items: center; gap: var(--space-3); }
+.br-sub { margin-left: auto; font-size: var(--fs-2); color: var(--text-3); }
+.br-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+.br-nums > div { background: var(--bg-inset); border-radius: var(--radius-m); padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: 2px; }
+.br-nums i { font-style: normal; font-size: var(--fs-2); color: var(--text-3); }
+.br-nums b { font-size: var(--fs-8); font-variant-numeric: tabular-nums; }
+.br-nums > div[data-tone="ok"] b { color: var(--ok-text); }
+.br-nums > div[data-tone="warn"] b { color: var(--warn-text); }
+.br-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.br-list li { display: flex; align-items: center; gap: var(--space-3); min-height: var(--ctl-4); border-top: 1px solid var(--border-card); font-size: var(--fs-3); }
+.br-type { font-size: var(--fs-1); font-weight: var(--fw-bold); color: var(--text-3); text-transform: uppercase; }
+.br-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.br-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.br-note { margin-left: auto; font-size: var(--fs-2); color: var(--text-3); }
+
+/* 검색 — 요약부터 */
+.rollup-hit { background: var(--accent-soft); }
+.rh-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4) 0; font-size: var(--fs-3); }
+.rh-pill { display: inline-flex; align-items: center; height: var(--ctl-1); padding: 0 8px; border-radius: var(--radius-pill); background: var(--accent); color: var(--text-on-accent); font-size: var(--fs-1); font-weight: var(--fw-bold); }
+.rh-sub { color: var(--text-3); font-size: var(--fs-2); }
+.rh-body { margin: var(--space-2) 0; padding: 0 var(--space-4); font-size: var(--fs-3); line-height: var(--lh-body); }
+.rh-path { display: block; padding: 0 var(--space-4) var(--space-3); font-size: var(--fs-1); color: var(--text-3); }

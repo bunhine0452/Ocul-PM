@@ -276,6 +276,7 @@ mod tests {
                 title: "브랜치 축".to_string(),
                 link: BranchLink::Entry,
                 matched_files: 1,
+                evidence: 2,
             }],
             plan_items: Vec::new(),
             files: vec![

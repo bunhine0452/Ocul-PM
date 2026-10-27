@@ -2,6 +2,7 @@ import { PanelBottom } from "@/components/Icons";
 import { useT } from "@/i18n";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { TerminalSurface } from "./TerminalSurface";
+import { SessionAside } from "@/features/sessions/SessionAside";
 
 // 터미널 화면 (⌘10) — 터미널 본체에 화면 제목과 「도크로」만 얹는다.
 //
@@ -15,9 +16,12 @@ import { TerminalSurface } from "./TerminalSurface";
 
 interface TerminalScreenV2Props {
   projectRoot: string | null;
+  /** 오른쪽 열 「이 터미널과 기록」의 재료 — 없으면 열을 그리지 않는다. */
+  projectId?: number | null;
+  workday?: string | null;
 }
 
-export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
+export function TerminalScreenV2({ projectRoot, projectId = null, workday = null }: TerminalScreenV2Props) {
   const { t } = useT();
   const { setState } = useWorkspace();
 
@@ -26,14 +30,20 @@ export function TerminalScreenV2({ projectRoot }: TerminalScreenV2Props) {
     setState((prev) => ({ ...prev, terminalDockOpen: true, uiV2View: "today" }));
 
   return (
-    <TerminalSurface
-      projectRoot={projectRoot}
-      screenTitle={t("term.title")}
-      headerActions={
-        <button className="btn" onClick={moveToDock} title={t("term.dock.moveHint")}>
-          <PanelBottom size={15} /> {t("term.dock.move")}
-        </button>
-      }
-    />
+    <div className="with-aside">
+      <div className="with-aside-main">
+        <TerminalSurface
+          projectRoot={projectRoot}
+          screenTitle={t("term.title")}
+          headerActions={
+            <button className="btn" onClick={moveToDock} title={t("term.dock.moveHint")}>
+              <PanelBottom size={15} /> {t("term.dock.move")}
+            </button>
+          }
+        />
+      </div>
+      {/* 일하는 자리 옆에 기록의 상태 — 오늘 일지 · 미기록 파일 (UI 밀도 라운드 2). */}
+      <SessionAside projectId={projectId} workday={workday} />
+    </div>
   );
 }

@@ -20,6 +20,7 @@ fn row(rel: &str, workday: &str, files: &[&str]) -> RangeEntry {
         title: "t".to_string(),
         files: files.iter().map(|s| s.to_string()).collect(),
         tags: Vec::new(),
+        evidence: 2,
     }
 }
 
