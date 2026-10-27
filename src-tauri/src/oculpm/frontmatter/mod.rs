@@ -19,6 +19,8 @@ use chrono::{DateTime, NaiveDateTime, TimeZone};
 use chrono_tz::Tz;
 use serde_yaml::Value as YamlValue;
 
+mod repair;
+
 use crate::oculpm::spec::{
     AgentRef, Difficulty, EntryStatus, EntryType, FileOp, FileTouched, JournalFrontmatter,
     RelatedRef,
@@ -95,16 +97,13 @@ pub fn parse_frontmatter_and_body(markdown: &str) -> (ParsedFrontmatter, String)
 
     let raw_yaml = yaml.to_string();
     let mut warnings = Vec::new();
-    let parsed = match serde_yaml::from_str::<YamlValue>(yaml) {
-        Ok(YamlValue::Null) => {
+    let parsed = match repair::parse_yaml_lenient(yaml, &mut warnings) {
+        Some(YamlValue::Null) => {
             warnings.push("frontmatter is empty".to_string());
             None
         }
-        Ok(value) => coerce_frontmatter(&value, &mut warnings),
-        Err(e) => {
-            warnings.push(format!("yaml parse error: {e}"));
-            None
-        }
+        Some(value) => coerce_frontmatter(&value, &mut warnings),
+        None => None,
     };
 
     (
@@ -324,7 +323,7 @@ fn coerce_frontmatter(value: &YamlValue, warnings: &mut Vec<String>) -> Option<J
         .get(YamlValue::String("type".into()))
         .and_then(|v| v.as_str())
     {
-        Some(s) => match parse_entry_type(s) {
+        Some(s) => match repair::parse_entry_type_lenient(s, warnings) {
             Some(t) => t,
             None => {
                 warnings.push(format!("unknown type '{s}'"));
@@ -504,7 +503,7 @@ fn coerce_frontmatter(value: &YamlValue, warnings: &mut Vec<String>) -> Option<J
     })
 }
 
-fn parse_entry_type(s: &str) -> Option<EntryType> {
+pub(super) fn parse_entry_type(s: &str) -> Option<EntryType> {
     match s {
         "bug" => Some(EntryType::Bug),
         "feature" => Some(EntryType::Feature),

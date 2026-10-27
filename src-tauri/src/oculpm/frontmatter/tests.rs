@@ -235,6 +235,84 @@ fn unknown_type_fails_soft_with_warning() {
     assert_eq!(body, "body\n");
 }
 
+/// 실측 2026-10-27: 캐시의 parse_ok=0 12건 중 10건이 `type: fix` · `feat` 였다 —
+/// 커밋 타입 어휘로 쓴 일지. 규격은 그대로 두고 읽는 쪽이 받되 경고를 남긴다.
+#[test]
+fn commit_type_aliases_are_read_with_a_warning() {
+    for (alias, expect) in [
+        ("fix", EntryType::Bug),
+        ("feat", EntryType::Feature),
+        ("docs", EntryType::Chore),
+        ("Hotfix", EntryType::Bug),
+    ] {
+        let input = format!("---\nschema_version: 1\ntype: {alias}\nslug: x\nstatus: done\ncreated_at: \"2026-10-27T10:00:00+09:00\"\nsession_id: \"x\"\nagent: {{ id: x }}\nlanguage: ko\n---\nbody\n");
+        let (pf, _) = parse_frontmatter_and_body(&input);
+        let fm = pf
+            .parsed
+            .unwrap_or_else(|| panic!("alias {alias} must parse: {:?}", pf.parse_warnings));
+        assert_eq!(fm.entry_type, expect, "{alias}");
+        assert!(
+            pf.parse_warnings.iter().any(|w| w.contains("(alias)")),
+            "{alias}: {:?}",
+            pf.parse_warnings
+        );
+    }
+    // `perf` 는 뜻이 갈려 받지 않는다 — 여전히 unknown.
+    let (pf, _) = parse_frontmatter_and_body("---\nschema_version: 1\ntype: perf\nslug: x\nstatus: done\ncreated_at: \"x\"\nsession_id: \"x\"\nagent: { id: x }\nlanguage: ko\n---\n");
+    assert!(pf.parsed.is_none());
+}
+
+/// 나머지 2건: 플로 매핑 안의 `path: app/[locale]/x.ts` — `[` 가 플로 지시자라
+/// YAML 이 깨진다. 디스크는 두고 읽을 때만 따옴표를 채운다.
+#[test]
+fn unquoted_bracket_paths_are_repaired_on_read() {
+    let input = "---\nschema_version: 1\ntype: feature\nslug: ko-promo\nstatus: done\ncreated_at: \"2026-08-17T19:47:00+09:00\"\nsession_id: \"manual-20260817-194700\"\nagent: { id: claude-code, version: \"Fable 5\" }\nlanguage: ko\nverified_by_user: false\nfiles_touched:\n  - { path: ioreum/src/app/[locale]/guide/content.ts, op: update }\n  - { path: docs/promo.md, op: create }\n  - path: [weird]/block.ts\n    op: update\ntags: [promo, seo]\n---\nbody\n";
+    let (pf, body) = parse_frontmatter_and_body(input);
+    let fm = pf
+        .parsed
+        .unwrap_or_else(|| panic!("must repair: {:?}", pf.parse_warnings));
+    let paths: Vec<&str> = fm.files_touched.iter().map(|f| f.path.as_str()).collect();
+    assert_eq!(
+        paths,
+        [
+            "ioreum/src/app/[locale]/guide/content.ts",
+            "docs/promo.md",
+            "[weird]/block.ts"
+        ]
+    );
+    assert_eq!(fm.tags, ["promo", "seo"]);
+    assert!(pf
+        .parse_warnings
+        .iter()
+        .any(|w| w.contains("yaml repaired")));
+    assert_eq!(body, "body\n");
+    // 원문은 보존된다 — 복구는 읽기 전용.
+    assert!(pf
+        .raw_yaml
+        .contains("path: ioreum/src/app/[locale]/guide/content.ts"));
+}
+
+#[test]
+fn path_repair_touches_only_what_it_must() {
+    use super::repair::repair_unquoted_paths;
+    // 이미 따옴표 · 지시 문자 없음 · 다른 키 → 손대지 않는다.
+    assert!(repair_unquoted_paths("files_touched:\n  - { path: \"a/[x].ts\", op: update }\n  - { path: plain/file.rs, op: create }\ntitle: a [b] c\n").is_none());
+    // 고칠 것이 있으면 그 값만, 나머지 토큰은 그대로.
+    let fixed = repair_unquoted_paths("  - { path: a/[x]/y.ts, op: update }\n").unwrap();
+    assert_eq!(fixed, "  - { path: \"a/[x]/y.ts\", op: update }\n");
+    let fixed = repair_unquoted_paths("  - path: {curly}/z.ts\n    op: update\n").unwrap();
+    assert_eq!(fixed, "  - path: \"{curly}/z.ts\"\n    op: update\n");
+    // 진짜로 깨진 YAML(닫히지 않은 시퀀스)은 복구 대상이 아니다 → 원래 오류.
+    let (pf, _) = parse_frontmatter_and_body(
+        "---\nschema_version: 1\ntype: bug\n  bad: [unclosed\n---\nbody\n",
+    );
+    assert!(pf.parsed.is_none());
+    assert!(pf
+        .parse_warnings
+        .iter()
+        .any(|w| w.contains("yaml parse error")));
+}
+
 #[test]
 fn missing_required_field_yields_none_with_warning() {
     // slug missing — required, no safe default.

@@ -47,7 +47,10 @@ use crate::oculpm::spec::{
 ///            3 — 039 `verified_stale` 칸이 생겼다. 같은 이유로 1회 재투영이
 ///                필요하다 — 옛 빌드가 투영한 행은 `verified_hash` 를 본 적이
 ///                없어 기본값 0 이 거짓일 수 있다.
-pub const COERCION_VERSION: i64 = 3;
+///            4 — 파서가 `type` 별칭(fix→bug · feat→feature …)과 따옴표 없는
+///                `path:` 값을 읽게 됐다 (2026-10-27). `parse_ok=0` 으로 굳은 행
+///                12건이 디스크는 그대로인 채 다시 투영돼야 한다.
+pub const COERCION_VERSION: i64 = 4;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
