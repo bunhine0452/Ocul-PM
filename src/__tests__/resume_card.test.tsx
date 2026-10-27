@@ -34,6 +34,7 @@ const journal = {
 const item = {
   plan_id: "first-record-loop",
   plan_title: "첫 기록 성공 → 다음 세션 재사용",
+  plan_done_when: null,
   item_id: "p1-verify",
   title: "실제 왕복 검증",
   status: "in_progress",
