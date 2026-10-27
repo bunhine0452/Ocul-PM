@@ -1,5 +1,5 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 15 -->
+<!-- template_version: 16 -->
 # ocul-pm work-journal rules
 
 You are working in a project tracked by ocul-pm. Every time you finish **one logical unit of work** (bug fix / feature / refactor / error cycle / chore), record it immediately — do not ask the user first.
@@ -28,7 +28,7 @@ Path `.oculpm/journal/{YYYYMMDD}/{TypeFolder}/{HHMM}_{type}_{slug}.md` — workd
 
 Required frontmatter: `schema_version: 1` · `type` · `slug` · `status` (planned|in_progress|done|abandoned) · `created_at` (⚠ tz offset like `+09:00` — never `Z`/`+0900`) · `session_id` (fallback `"manual-<workday>-HHMMSS"`) · `agent` (⚠ a **mapping** with id/version keys, never a string — id = your agent id (claude-code/cursor/…), version = your model) · `language` (ko|en) · `verified_by_user: false` · `files_touched` (⚠ `[{path, op}]` — op is the enum create|update|delete|rename|correct · **quote the path** when it contains `[` `]` `{` `}` `:` `#`: `{ path: "app/[locale]/page.tsx", op: update }`) · `related: []` · `tags: []`. Optional: `difficulty` (verylow~superhigh), `updated_at`.
 
-Body: first line is a `[x] title` checkbox. Mandatory headers in order — bug/error `## Root cause`→`## Fix` · refactor `## Motivation`→`## Summary of changes` · feature `## What was added`→`## How it works` · chore free-form. Common tail: `## Verification` (required, 1–3 lines on how you verified) · `## Notes` (optional).
+Body: first line is a `[x] title` checkbox. Mandatory headers in order — bug/error `## Root cause`→`## Fix` · refactor `## Motivation`→`## Summary of changes` · feature `## What was added`→`## How it works` · chore free-form. Common tail: `## Verification` (required, 1–3 lines — let **something other than you** speak: the test/lint/build commands you ran and their results, measured numbers. "Checked", "looks fine" and other judgments of your own are not evidence. If you could not run it, say so) · `## Notes` (optional).
 
 Need an example? Read 1–2 recent entries of the same type — real data is the best template.
 
@@ -51,7 +51,7 @@ Rules: preserve `{#id}` markers and managed-block boundaries · items are ONE li
 
 Items may nest **one level**: indent sub-tasks two spaces (`  - [ ] sub {#id}`). A parent's glyph is derived by rolling up its children — **never set a parent directly** (update the children instead).
 
-Create new plans with the MCP `plan_create` tool. Without it: YAML frontmatter (`oculpm_plan: v1` · `id` (kebab, same as filename) · `title` (quoted) · `status: active` · `created`/`updated` · `owner` (your agent.id)) → `## Phase title {#id}` headings (no glyph — phase progress rolls up from items) → `- [ ] item {#id}` lines → an empty `<!-- oculpm:plan-log begin v1 -->`…`<!-- oculpm:plan-log end -->` block.
+Every new plan gets a one-line **done condition** (`done_when` — what has to be true for the plan to be finished: the outcome beyond the task list); the session-start hook ships that line alongside the items. Create new plans with the MCP `plan_create` tool. Without it: YAML frontmatter (`oculpm_plan: v1` · `id` (kebab, same as filename) · `title` (quoted) · `status: active` · `created`/`updated` · `owner` (your agent.id)) → `## Phase title {#id}` headings (no glyph — phase progress rolls up from items) → `- [ ] item {#id}` lines → an empty `<!-- oculpm:plan-log begin v1 -->`…`<!-- oculpm:plan-log end -->` block.
 
 Lock major decisions as `### Decision N — title {#id}` blocks under `## Decisions` (lock date · agent.id · rationale · `Affects: #item-ids`).
 

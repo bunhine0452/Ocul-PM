@@ -6,7 +6,7 @@
 
 <h3>AI와 어제 어디까지 작업했는지, 오늘 다시 설명하지 마세요.</h3>
 
-<p>Claude Code 가 작업을 끝내면 일지가 남고, 다음 대화는 그 일지에서 시작합니다.<br/>
+<p>에이전트가 한 일을 사람이 <b>3분 안에 믿고, 다음을 결정</b>하게 합니다. 일지·diff·계획이 그 증거이고, 다음 대화는 그 증거에서 시작합니다.<br/>
 Claude Code · Codex · Cursor · Gemini CLI 와 함께 쓰는 로컬-우선 프로젝트 매니저 — 서버도 계정도 없습니다.</p>
 
 [![CI](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml)
@@ -321,7 +321,7 @@ codex plugin add oculpm-codex@oculpm
 
 - **훅 브리지** — 세션 시작·종료가 실시간 신호로 기록됩니다 (로컬 파일 append 한 줄, 네트워크 없음).
 - **MCP 도구 7종** — `journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init`(사용자 확인 시 새 프로젝트 추적 시작). 에이전트가 마크다운 규격을 흉내 내는 대신 구조화 도구로 기록해 frontmatter 오류가 원천 차단되고, 쌓인 수백 건을 **작업 시작 전에 되찾습니다** — 그 파일을 예전에 왜 건드렸는지가 검색 한 번으로 나옵니다.
-- **스킬 5종 + `/oculpm:standup`** — 기록 규격 · project-inception(설계 시드) · self-audit · run-evals · tdd-workflow.
+- **스킬 5종 + `/oculpm:standup` · `/oculpm:redteam`** — 기록 규격 · project-inception(설계 시드) · self-audit · run-evals · tdd-workflow, 그리고 플랜·일지의 주장을 직접 돌려 반례만 보고하는 레드팀.
 - `.oculpm` 이 있는 추적 프로젝트에서만 동작하고, 비추적 저장소에는 아무 파일도 만들지 않습니다 — [무엇을 읽고 쓰는지 전체 계약](docs/claude-integration/06-plugin-contract.md).
 - 앱 설정의 프로젝트별 훅·MCP 등록과는 **택일**입니다 (동시에 켜면 설정 화면이 경고합니다).
 

@@ -521,3 +521,35 @@ fn default_agent_id_follows_the_session_that_launched_us() {
     assert_eq!(agent_id_or_default(Some("codex".to_string())), "codex");
     assert_eq!(agent_id_or_default(Some(" codex ".to_string())), "codex");
 }
+
+/// 깊이 — 바깥 심판. 검증 칸에 명령·게이트 증거가 없는 bug/feature/refactor 일지는 경고를
+/// 받는다(막지 않는다). 증거가 있거나 chore 면 조용하다.
+#[test]
+fn journal_write_nudges_when_verification_has_no_outside_judge() {
+    let dir = TempDir::new().unwrap();
+    std::fs::create_dir_all(dir.path().join(".oculpm")).unwrap();
+    let write = |slug: &str, ty: &str, body: &str| {
+        call_tool(
+            dir.path(),
+            "journal_write",
+            &serde_json::json!({ "type": ty, "slug": slug, "title": "t", "body_markdown": body, "files_touched": [] }),
+        )
+        .unwrap()["warnings"]
+            .to_string()
+    };
+    assert!(write(
+        "no-judge",
+        "bug",
+        "## 발생 원인\nx\n\n## 해결 방법\ny\n\n## 검증\n확인했다. 문제없다.\n"
+    )
+    .contains("바깥 심판"));
+    assert!(!write(
+        "judge",
+        "bug",
+        "## 발생 원인\nx\n\n## 해결 방법\ny\n\n## 검증\n`cargo test` 통과, `pnpm lint` exit 0.\n"
+    )
+    .contains("바깥 심판"));
+    assert!(
+        !write("chore", "chore", "## 변경 요약\nx\n\n## 검증\n눈으로 봄.\n").contains("바깥 심판")
+    );
+}

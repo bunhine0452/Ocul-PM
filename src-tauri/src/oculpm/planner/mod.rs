@@ -8,6 +8,7 @@
 
 pub mod ai;
 pub mod dispatch;
+pub mod done_when;
 /// 윈도우 체크아웃(CRLF) 문서의 줄바꿈 보존 — 플래너·논의·롤업이 같이 쓴다.
 pub(crate) mod eol;
 /// `## ` 헤딩(phase 이름·결정 섹션) 판정 — 파서와 편집기가 같이 쓴다.

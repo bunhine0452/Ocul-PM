@@ -6,7 +6,7 @@
 
 <h3>Stop re-explaining to your AI where you left off yesterday.</h3>
 
-<p>When Claude Code finishes a unit of work, a journal entry is left behind — and the next conversation starts from it.<br/>
+<p>It gets a person to <b>trust what the agent did, and decide what's next, in three minutes</b>. Journal, diff and plan are the evidence — and the next conversation starts from it.<br/>
 A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI — no server, no account.</p>
 
 [![CI](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml)
@@ -317,7 +317,7 @@ codex plugin marketplace add bunhine0452/Ocul-PM
 codex plugin add oculpm-codex@oculpm
 ```
 
-One plugin configures, across all your projects: a **hooks bridge** (session start/end as real-time signals — one local file append, no network), **7 MCP tools** (`journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` — agents record through structured tools instead of imitating markdown, eliminating frontmatter errors, and search the hundreds of accumulated entries *before* starting work: one query tells you why that file was touched before), and **5 skills + `/oculpm:standup`** (recording spec · project-inception · self-audit · run-evals · tdd-workflow). It only acts in `.oculpm`-tracked projects and never touches untracked repos — see the [full read/write contract](docs/claude-integration/06-plugin-contract.md). Note it is an either/or with the app's per-project hook/MCP registration (the settings screen warns about double registration).
+One plugin configures, across all your projects: a **hooks bridge** (session start/end as real-time signals — one local file append, no network), **7 MCP tools** (`journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` — agents record through structured tools instead of imitating markdown, eliminating frontmatter errors, and search the hundreds of accumulated entries *before* starting work: one query tells you why that file was touched before), and **5 skills + `/oculpm:standup` · `/oculpm:redteam`** (recording spec · project-inception · self-audit · run-evals · tdd-workflow, and a red team that runs a plan's or entry's claims and reports only counter-examples). It only acts in `.oculpm`-tracked projects and never touches untracked repos — see the [full read/write contract](docs/claude-integration/06-plugin-contract.md). Note it is an either/or with the app's per-project hook/MCP registration (the settings screen warns about double registration).
 
 > The in-app **Claude Code screen** records without this plugin — the app attaches its journaling tools (MCP) to every session directly. Interactive CLI commands like `/plugin` and `/mcp` don't work inside in-app ACP sessions, so install the plugin from a terminal. The distinction is written up in the [wiki's Claude Code guide](https://oculpm.com/wiki/en/claude-code).
 

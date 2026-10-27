@@ -213,6 +213,7 @@ pub fn tool_definitions() -> Value {
                     "plan_id": { "type": "string", "description": "영문 kebab-case ≤40자 — 파일명이자 frontmatter id" },
                     "title": { "type": "string", "description": "사람이 읽는 제목 (한국어 권장)" },
                     "description": { "type": "string", "description": "선택 — 제목 아래 소개 1~2문장" },
+                    "done_when": { "type": "string", "description": "**완료 조건** 한 줄 — 무엇이 되면 이 플랜이 끝인가 (할 일 목록이 아니라 그 너머의 결과). 세션 시작 훅·이어하기·plan_status 가 항목과 함께 싣는다. 거의 필수 — 없으면 에이전트가 왜 하는지 모른 채 항목만 받는다" },
                     "phases": {
                         "type": "array",
                         "description": "1개 이상 — 각각 '## 제목 {#id}' 헤딩이 된다. phase 진척은 하위 항목 롤업으로 자동 계산",
@@ -706,6 +707,18 @@ fn journal_write(root: &Path, args: &Value) -> Result<Value, String> {
     } else {
         format!("{marker} {title}\n\n{}", body.trim())
     };
+
+    // 깊이 — 바깥 심판. 검증 칸에 테스트·린트·빌드·실측의 흔적이 없으면 알린다
+    // (`evidence.rs`: 실측 83% 는 있었다). 막지 않는다 — 못 돌린 사실도 기록이다.
+    if matches!(
+        entry_type,
+        EntryType::Bug | EntryType::Feature | EntryType::Refactor
+    ) && crate::oculpm::evidence::evidence_level(&full_body) < crate::oculpm::evidence::COMMAND
+    {
+        warnings.push(
+            "검증 칸에 바깥 심판(테스트·린트·빌드·실측)의 증거가 없다 — 네 판단은 증거가 아니다. 돌린 명령과 결과를 적을 것, 못 돌렸으면 그렇게 적을 것".to_string(),
+        );
+    }
 
     let dir = root
         .join(".oculpm")

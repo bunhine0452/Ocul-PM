@@ -76,6 +76,15 @@ export const PLUGIN_COMMANDS: readonly PluginCommandDoc[] = [
     example: "/oculpm:board",
   },
   {
+    slug: "redteam",
+    cmd: "/oculpm:redteam",
+    description:
+      '플랜·일지의 주장을 원재료와 대조하고 직접 돌려 반례만 보고 — 합류·릴리스 직전, 또는 "레드팀"·"반박해"·"뭐가 틀렸지"에 사용',
+    detail:
+      "숏셀러처럼 쓰는 게 아니라 숏셀러가 하는 일을 합니다: 완료 항목과 검증 칸의 주장을 테스트·로그·diff 와 대조하고 실제로 실행해 반례·검증 불가·유지된 주장으로 나눕니다. 고치지는 않습니다.",
+    example: "/oculpm:redteam record-quality-round-20261027",
+  },
+  {
     slug: "help",
     cmd: "/oculpm:help",
     description: "ocul-pm 플러그인 표면 전체 레퍼런스 카드 — 커맨드·MCP 도구·스킬·훅 한눈에",
