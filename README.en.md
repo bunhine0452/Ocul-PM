@@ -73,7 +73,7 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 <img src="landing/shots/en/05-terminal.jpg" alt="⌘J terminal dock — a terminal on any screen" />
 
-## 🚀 v3.15.0 — Records you can trust
+## 🚀 v3.15.1 — Records you can trust
 
 - **The app tells you when the plugin is out of date** — the plugin block in Settings shows "installed · bundled", and when the installed one is older, Today shows a card with `/plugin update oculpm@oculpm`. Project-scoped plugins never update themselves.
 - **"Evidence" on journal entries** — entries whose verification section cites a command or gate (83%) are shown as a different fact from a human confirmation (1%): a shield badge on the row, a grade chip in the entry detail.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.15.0)</title>
+<title>변경 이력 — Ocul-PM (최신 v3.15.1)</title>
 <meta name="description" content="Ocul-PM 의 전체 릴리스 노트 129개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
@@ -12,7 +12,7 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.15.0)" />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.15.1)" />
 <meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 129개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.15.0</span>
+    <span class="nav-ver" data-version>v3.15.1</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -49,7 +49,7 @@
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
-      <a href="#v3-15-0">v3.15.0</a>
+      <a href="#v3-15-1">v3.15.1</a>
       <a href="#v3-14-0">v3.14.0</a>
       <a href="#v3-13-7">v3.13.7</a>
       <a href="#v3-13-6">v3.13.6</a>
@@ -65,9 +65,9 @@
     </div>
 
     <section class="cl-rel">
-      <h2 id="v3-15-0"><a href="#v3-15-0">v3.15.0</a></h2>
+      <h2 id="v3-15-1"><a href="#v3-15-1">v3.15.1</a></h2>
       <div class="cl-body">
-<blockquote><p>이 판은 <b>확인 날 없이</b> 냈습니다 — 사용자 결정(2026-10-27). 새 기능 넷은 코드 게이트(테스트 16건 추가 · typecheck · lint · build · clippy · cargo test)만 통과했고, 설치본에서 눈으로 본 것은 아직 없습니다. 플랜 <code>record-quality-round-20261027</code> 의 실기기 확인 4건이 그 빚입니다 (docs/RELEASE.md §0-2).</p></blockquote>
+<p><b>확인 날 없이 낸 판입니다</b> — 사용자 결정(2026-10-27). 새 기능 넷은 코드 게이트(테스트 16건 추가 · typecheck · lint · build · clippy · cargo test)만 통과했고, 설치본에서 눈으로 본 것은 아직 없습니다. 플랜 <code>record-quality-round-20261027</code> 의 실기기 확인 4건이 그 빚입니다 (docs/RELEASE.md §0-2). v3.15.0 태그는 변경 이력 페이지 테스트(첫 문장이 인용 블록이라 HTML 에서 못 찾음)에 CI 가 붉어 release 게이트에 막혔고 공개되지 않았습니다 — 내용은 같고 번호만 올렸습니다.</p>
 <p><b>플러그인이 옛 판이면 앱이 말해 줍니다.</b> Claude Code 플러그인은 프로젝트마다 따로 깔리고 스스로 올라가지 않습니다. 이 저장소를 만든 기기에서조차 플러그인이 3.3.0 으로 다섯 주 멈춰 있어 「이어하기」 카드가 9월부터 비어 있었습니다. 이제 설정 → ocul-pm 의 플러그인 블록이 「깔린 판 · 앱이 든 판」을 보여 주고, 깔린 판이 낮으면 오늘 화면에 카드가 떠 <code>/plugin update oculpm@oculpm</code> 을 복사해 줍니다. 판정은 Claude Code 의 설치 레지스트리에서 읽고, 네트워크는 쓰지 않습니다.</p>
 <p><b>일지에 「증거 있음」이 생겼습니다.</b> 사람이 확인 버튼을 누른 일지는 1% 인데, 검증 칸에 명령·게이트 증거(<code>cargo test</code> · <code>pnpm lint</code> · exit 0 …)가 있는 일지는 83% 였습니다. 둘을 한 표시에 묶으면 거의 전부가 미확인으로 보입니다. 이제 일지 행에 방패 배지가, 상세 화면에 「증거 있음 / 검증 칸만 / 검증 칸 없음」 칩이 붙습니다. 에이전트의 자기 검증이고 사람 확인(체크)과는 다른 사실로 둡니다.</p>
 <p><b>닫힌 플랜에 남은 미완을 플래너가 보여 줍니다.</b> 완료·보관한 플랜 20개 안에 <code>[ ]</code> 63건이 어느 목록에도 안 나타났습니다. 플래너 위에 접힌 「닫힌 플랜의 미완」 받은함이 생겼고, 「이 플랜으로」를 누르면 지금 고른 활성 플랜의 「이월」 단계에 같은 항목이 더해집니다. 잠긴 플랜은 손대지 않고, 숨기기 버튼은 없습니다.</p>
