@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
 
 import { Sidebar } from "@/components/Sidebar";
@@ -8,6 +8,14 @@ import {
   setAcpAttention,
   setAcpWorking,
 } from "@/features/chat/acpBusyBus";
+
+// 에이전트 행은 베타 단(보류 등급)이라 간단 밀도에서는 접혀 있다 — 배지 테스트는
+// 세 단이 전부 펼쳐진 전문 밀도를 본다.
+vi.mock("@/hooks/useDensity", () => ({
+  useDensity: () => ({ density: "pro", set: () => {}, toggle: () => {} }),
+  DensityShortcut: () => null,
+}));
+
 
 // 2026-08-16 — "다른 화면으로 가면 돌던 세션이 안 보인다".
 //

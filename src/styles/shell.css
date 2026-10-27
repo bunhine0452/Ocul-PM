@@ -281,6 +281,21 @@
 .nav-section-label::after { content: ""; flex: 1; height: 1px; background: var(--sep); }
 /* 첫 라벨만은 위 여백이 필요 없다 — 바로 위가 프로젝트 머리의 여백이다. */
 .nav-section-label--first { padding-top: var(--space-1); }
+/* 접히는 단 (간단 밀도의 도구·베타) — 라벨이 곧 버튼이다. 모양은 라벨과 같고
+   손만 달린다: 섀도·테두리를 더하면 "버튼이 하나 더" 로 읽힌다. */
+.nav-section-toggle {
+  appearance: none; border: 0; background: transparent; width: 100%; text-align: left;
+  cursor: pointer; font: inherit; color: inherit;
+}
+.nav-section-toggle:hover { color: var(--text); }
+.nav-section-chev { flex-shrink: 0; transition: transform var(--dur-2) var(--ease-out); color: var(--text-3); }
+.nav-section-chev.open { transform: rotate(90deg); }
+.nav-section-tag {
+  font-size: var(--fs-0); font-weight: var(--fw-bold); letter-spacing: 0; text-transform: none;
+  padding: 1px 6px; border-radius: var(--radius-pill);
+  background: var(--warn-soft); color: var(--warn-text);
+}
+.nav-section-count { font-size: var(--fs-1); font-weight: var(--fw-label); color: var(--text-3); }
 /* 행 묶음. 왼쪽 1px 척추가 첫 행부터 마지막 행까지 흐르고, 행은 척추에서
    7px 물러나 앉는다 — hover 틴트가 척추를 덮지 않게. */
 .nav-rows { position: relative; display: flex; flex-direction: column; gap: 1px; padding-left: 7px; }

@@ -56,6 +56,7 @@ import { TodayGitGraph } from "./TodayGitGraph";
 import { useTodayBrief } from "./useTodayBrief";
 import { useTodayMonitor } from "./useTodayMonitor";
 import { useT } from "@/i18n";
+import { useDensity } from "@/hooks/useDensity";
 import { blocked } from "@/lib/blocked";
 import { kbd } from "@/lib/kbd";
 
@@ -93,6 +94,8 @@ export function TodayScreenV2({
   onOpenEntry,
 }: TodayScreenV2Props) {
   const { t } = useT();
+  const { density } = useDensity();
+  const simple = density === "simple";
   const { brief, loading, error, refresh } = useTodayBrief(
     projectId,
     workday,
@@ -223,6 +226,215 @@ export function TodayScreenV2({
       setStandupBusy(false);
     }
   };
+
+  // 세 묶음 — 전문 밀도는 셋을 다 펼치고, 간단 밀도는 세 질문 칼럼이 grid·trailing 의
+  // 핵심 카드를 대신하며 나머지만 「더 보기」에 접는다. 같은 카드를 두 번 그리지 않는다.
+  const statsBlock = (
+    <>
+          {/* Stat row */}
+          <div className="stat-row">
+            <StatCard
+              icon={GitCommitVertical}
+              tone="accent"
+              label={t("today.stat.recorded")}
+              value={brief ? brief.changedToday : "—"}
+              unit={t("today.unit.entries")}
+            />
+            <StatCard
+              icon={FileCode2}
+              label={t("today.stat.filesChanged")}
+              value={brief ? brief.filesTouched : "—"}
+              unit={t("today.unit.files")}
+              sub={
+                brief ? (
+                  <span className="mono">
+                    <span className="diff-add">+{brief.linesAdded.toLocaleString()}</span>{" "}
+                    <span className="diff-del">−{brief.linesRemoved.toLocaleString()}</span>{" "}
+                    {t("today.unit.lines")}
+                  </span>
+                ) : null
+              }
+            />
+            <StatCard
+              icon={TriangleAlert}
+              tone={brief && brief.errorCycles > 0 ? "danger" : undefined}
+              label={t("today.stat.errorCycles")}
+              value={brief ? brief.errorCycles : "—"}
+              unit={t("today.unit.times")}
+            />
+            <StatCard
+              icon={Cpu}
+              label={t("today.stat.agents")}
+              value={brief ? brief.agents.length : "—"}
+              // 한국어 「개」는 만능 조수사라 `unit.files` 를 돌려 써도 됐지만
+              // 영어에선 "N files" 가 된다 — 영어 순회(2026-09-11)가 잡았다.
+              unit={t("today.unit.agents")}
+            />
+          </div>
+
+          {/* 모니터링 행 — 활동시간 · 전체 작업 일지 · 오늘 커밋 · 미커밋 변경 */}
+          {oculpmReady ? <TodayMonitor monitor={monitor} /> : null}
+
+
+          {/* 빠른 터미널 — Today 에서 바로 에이전트 실행 (opt-in) */}
+          <TodayTerminal
+            projectId={projectId}
+            projectRoot={projectRoot}
+            open={termOpen}
+            onOpenChange={setTermOpen}
+            onFull={() => onNavigate("terminal")}
+          />
+
+    </>
+  );
+  const proGrid = (
+    <>
+          {empty ? (
+            /* 「Ocul-PM 이 자동으로 일지를 작성합니다」 는 거짓이었다
+               (v3-surface {#today-empty-truth}) — 그 시점에 켜진 자동화가
+               하나도 없다 (`auto_journal_draft`·`auto_reconcile` 모두 기본
+               false, oculpm/config.rs). 일지는 에이전트가 AGENTS.md 를 읽고
+               직접 쓴다. 그래서 문구는 사실로, 그 옆에는 그걸 지금 일으키는
+               행동 둘을 놓는다. */
+            <div className="card card-pad">
+              <EmptyState
+                density="rich"
+                icon={NotebookText}
+                title={t("today.emptyTitle")}
+                actions={
+                  <>
+                    <button className="btn primary" onClick={() => setTermOpen(true)}>
+                      <Terminal size={15} /> {t("today.runAgent")}
+                    </button>
+                    <button className="btn" onClick={() => onNavigate("skills")}>
+                      {t("today.openRules")}
+                    </button>
+                  </>
+                }
+              >
+                {t("today.empty")}
+              </EmptyState>
+            </div>
+          ) : (
+            <div className="grid-2 grid-2-fill">
+              {/* LEFT: 오늘 하이라이트 → 오늘의 에이전트 → 어제 마무리
+                  (에이전트는 오른쪽 열에 있었다 — 오른쪽만 길어져 왼쪽 아래로
+                  빈 배경이 드러나던 걸 같은 "오늘" 묶음으로 옮겨 균형을 맞춘다) */}
+              <div className="g2col">
+                <div className="card">
+                  <div className="panel-head">
+                    <Pin size={15} color="var(--accent-text)" />
+                    <h3>{t("today.highlights")}</h3>
+                    <span className="count">{brief ? brief.highlights.length : 0}</span>
+                    <button
+                      className="btn ghost sm right"
+                      onClick={() => onNavigate("journal")}
+                      aria-label={t("today.viewAllAria")}
+                    >
+                      {t("today.viewAll")} <ArrowRight size={13} />
+                    </button>
+                  </div>
+                  <div className="panel-body">
+                    {brief && brief.highlights.length > 0 ? (
+                      brief.highlights.map((e) => (
+                        <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
+                      ))
+                    ) : (
+                      <EmptyState>{t("today.noHighlights")}</EmptyState>
+                    )}
+                  </div>
+                </div>
+
+                {brief ? <AgentBreakdown agents={brief.agents} /> : null}
+
+                <div className="card">
+                  <div className="panel-head">
+                    <History size={15} color="var(--text-2)" />
+                    <h3>{t("today.yesterday")}</h3>
+                    <span className="count">{brief ? brief.yesterdayDone.length : 0}</span>
+                  </div>
+                  <div className="panel-body">
+                    {brief && brief.yesterdayDone.length > 0 ? (
+                      brief.yesterdayDone.map((e) => (
+                        <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
+                      ))
+                    ) : (
+                      <EmptyState>{t("today.noYesterday")}</EmptyState>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT: 흐름(주간)과 앞으로(다음 할 일) */}
+              <div className="g2col">
+                {brief ? <WeekChart week={brief.week} /> : null}
+                <NextTasks tasks={nextTasks} onOpenPlanner={() => onNavigate("planner")} />
+              </div>
+            </div>
+          )}
+
+    </>
+  );
+  const proTrailing = (
+    <>
+          <DiscussionPending projectId={projectId} onNavigate={onNavigate} />
+
+          <PlanUpdates projectId={projectId} onNavigate={onNavigate} />
+
+          {/* AD-4 — 규칙·스킬 승격 후보가 있을 때만 (회고에 갇혀 있던 루프의 문) */}
+          <TodaySuggestions projectId={projectId} enabled={oculpmReady} />
+
+          {/* F2 정직성 감사 — 기록 누락 변경이 있을 때만 렌더 */}
+          <HonestyAudit
+            projectId={projectId}
+            workday={workday}
+            enabled={oculpmReady}
+            onNavigate={onNavigate}
+          />
+
+          {/* H3b 일지 없이 끝난 세션 — 플러그인 훅 신호가 있을 때만 렌더 */}
+          <JournalMissingCard
+            projectId={projectId}
+            enabled={oculpmReady}
+            onNavigate={onNavigate}
+          />
+
+          {/* journal-scale-round {#hotspot-card} — 같은 파일에 몰린 bug/error
+              일지(재발 신호). 0건이어도 카드는 남는다(위 둘과 같은 선). */}
+          <HotspotCard
+            projectId={projectId}
+            enabled={oculpmReady}
+            onOpenEntry={openEntryPath}
+          />
+
+          {/* best-results-round {#scorecard-card} — 「약속 성적표」: 증거 비율 ·
+              7일 재수정 · 완료 조건/확인 명령이 있는 플랜, 목표와 나란히. */}
+          <PromiseScorecardCard projectId={projectId} enabled={oculpmReady} />
+
+          {/* journal-scale-round {#velocity-card} — 주당 일지 속도 + 플랜
+              완료 ETA. 0건이어도 카드는 남는다(위와 같은 선). */}
+          <VelocityCard projectId={projectId} enabled={oculpmReady} />
+
+          {/* journal-scale-round {#rollup-weekly} — 일지 위 한 층(주간 요약).
+              없으면 만들기 버튼이 서고, 있으면 첫 문단과 「오래됨」이 뜬다. */}
+          <WeeklyRollupCard projectId={projectId} enabled={oculpmReady} />
+
+          {/* 커밋 그래프 — 맨 아래 (dogfooding 2026-06-15) */}
+          {oculpmReady ? <TodayGitGraph projectId={projectId} enabled={oculpmReady} /> : null}
+    </>
+  );
+  const simpleMore = (
+    <>
+      {statsBlock}
+      {brief ? <AgentBreakdown agents={brief.agents} /> : null}
+      {brief ? <WeekChart week={brief.week} /> : null}
+      <TodaySuggestions projectId={projectId} enabled={oculpmReady} />
+      <HotspotCard projectId={projectId} enabled={oculpmReady} onOpenEntry={openEntryPath} />
+      <VelocityCard projectId={projectId} enabled={oculpmReady} />
+      <WeeklyRollupCard projectId={projectId} enabled={oculpmReady} />
+      {oculpmReady ? <TodayGitGraph projectId={projectId} enabled={oculpmReady} /> : null}
+    </>
+  );
 
   return (
     <>
@@ -370,97 +582,15 @@ export function TodayScreenV2({
             onDone={disarmFirstRecord}
           />
 
-          {/* Stat row */}
-          <div className="stat-row">
-            <StatCard
-              icon={GitCommitVertical}
-              tone="accent"
-              label={t("today.stat.recorded")}
-              value={brief ? brief.changedToday : "—"}
-              unit={t("today.unit.entries")}
-            />
-            <StatCard
-              icon={FileCode2}
-              label={t("today.stat.filesChanged")}
-              value={brief ? brief.filesTouched : "—"}
-              unit={t("today.unit.files")}
-              sub={
-                brief ? (
-                  <span className="mono">
-                    <span className="diff-add">+{brief.linesAdded.toLocaleString()}</span>{" "}
-                    <span className="diff-del">−{brief.linesRemoved.toLocaleString()}</span>{" "}
-                    {t("today.unit.lines")}
-                  </span>
-                ) : null
-              }
-            />
-            <StatCard
-              icon={TriangleAlert}
-              tone={brief && brief.errorCycles > 0 ? "danger" : undefined}
-              label={t("today.stat.errorCycles")}
-              value={brief ? brief.errorCycles : "—"}
-              unit={t("today.unit.times")}
-            />
-            <StatCard
-              icon={Cpu}
-              label={t("today.stat.agents")}
-              value={brief ? brief.agents.length : "—"}
-              // 한국어 「개」는 만능 조수사라 `unit.files` 를 돌려 써도 됐지만
-              // 영어에선 "N files" 가 된다 — 영어 순회(2026-09-11)가 잡았다.
-              unit={t("today.unit.agents")}
-            />
-          </div>
-
-          {/* 모니터링 행 — 활동시간 · 전체 작업 일지 · 오늘 커밋 · 미커밋 변경 */}
-          {oculpmReady ? <TodayMonitor monitor={monitor} /> : null}
-
-
-          {/* 빠른 터미널 — Today 에서 바로 에이전트 실행 (opt-in) */}
-          <TodayTerminal
-            projectId={projectId}
-            projectRoot={projectRoot}
-            open={termOpen}
-            onOpenChange={setTermOpen}
-            onFull={() => onNavigate("terminal")}
-          />
-
-          {empty ? (
-            /* 「Ocul-PM 이 자동으로 일지를 작성합니다」 는 거짓이었다
-               (v3-surface {#today-empty-truth}) — 그 시점에 켜진 자동화가
-               하나도 없다 (`auto_journal_draft`·`auto_reconcile` 모두 기본
-               false, oculpm/config.rs). 일지는 에이전트가 AGENTS.md 를 읽고
-               직접 쓴다. 그래서 문구는 사실로, 그 옆에는 그걸 지금 일으키는
-               행동 둘을 놓는다. */
-            <div className="card card-pad">
-              <EmptyState
-                density="rich"
-                icon={NotebookText}
-                title={t("today.emptyTitle")}
-                actions={
-                  <>
-                    <button className="btn primary" onClick={() => setTermOpen(true)}>
-                      <Terminal size={15} /> {t("today.runAgent")}
-                    </button>
-                    <button className="btn" onClick={() => onNavigate("skills")}>
-                      {t("today.openRules")}
-                    </button>
-                  </>
-                }
-              >
-                {t("today.empty")}
-              </EmptyState>
-            </div>
-          ) : (
-            <div className="grid-2 grid-2-fill">
-              {/* LEFT: 오늘 하이라이트 → 오늘의 에이전트 → 어제 마무리
-                  (에이전트는 오른쪽 열에 있었다 — 오른쪽만 길어져 왼쪽 아래로
-                  빈 배경이 드러나던 걸 같은 "오늘" 묶음으로 옮겨 균형을 맞춘다) */}
-              <div className="g2col">
-                <div className="card">
-                  <div className="panel-head">
-                    <Pin size={15} color="var(--accent-text)" />
-                    <h3>{t("today.highlights")}</h3>
-                    <span className="count">{brief ? brief.highlights.length : 0}</span>
+          {simple ? (
+            <>
+              {/* 간단 밀도 — 세 질문, 한 순서: 무엇을 했나 → 믿을 수 있나 → 다음은.
+                  (best-results UI 라운드 2026-10-28.) 보조 카드는 아래 「더 보기」에
+                  접힌 채 전부 살아 있다 — 숨김이 아니라 접힘이다. */}
+              <div className="today-cols">
+                <div className="today-col">
+                  <div className="today-col-head">
+                    <span className="q">①</span> {t("today.q.did")}
                     <button
                       className="btn ghost sm right"
                       onClick={() => onNavigate("journal")}
@@ -469,89 +599,93 @@ export function TodayScreenV2({
                       {t("today.viewAll")} <ArrowRight size={13} />
                     </button>
                   </div>
-                  <div className="panel-body">
-                    {brief && brief.highlights.length > 0 ? (
-                      brief.highlights.map((e) => (
-                        <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
-                      ))
-                    ) : (
-                      <EmptyState>{t("today.noHighlights")}</EmptyState>
-                    )}
+                  <div className="card">
+                    <div className="panel-body">
+                      {empty ? (
+                        <EmptyState
+                          icon={NotebookText}
+                          title={t("today.emptyTitle")}
+                          actions={
+                            <>
+                              <button className="btn primary sm" onClick={() => setTermOpen(true)}>
+                                <Terminal size={13} /> {t("today.runAgent")}
+                              </button>
+                              <button className="btn sm" onClick={() => onNavigate("skills")}>
+                                {t("today.openRules")}
+                              </button>
+                            </>
+                          }
+                        >
+                          {t("today.empty")}
+                        </EmptyState>
+                      ) : brief && brief.highlights.length > 0 ? (
+                        brief.highlights.map((e) => (
+                          <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
+                        ))
+                      ) : (
+                        <EmptyState>{t("today.noHighlights")}</EmptyState>
+                      )}
+                    </div>
                   </div>
+                  {brief && brief.yesterdayDone.length > 0 ? (
+                    <div className="card">
+                      <div className="panel-head">
+                        <History size={15} color="var(--text-2)" />
+                        <h3>{t("today.yesterday")}</h3>
+                        <span className="count">{brief.yesterdayDone.length}</span>
+                      </div>
+                      <div className="panel-body">
+                        {brief.yesterdayDone.slice(0, 3).map((e) => (
+                          <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
-                {brief ? <AgentBreakdown agents={brief.agents} /> : null}
+                <div className="today-col">
+                  <div className="today-col-head">
+                    <span className="q">②</span> {t("today.q.trust")}
+                    <button className="btn ghost sm right" onClick={() => onNavigate("diff")}>
+                      {t("nav.diff")} <ArrowRight size={13} />
+                    </button>
+                  </div>
+                  <PromiseScorecardCard projectId={projectId} enabled={oculpmReady} />
+                  <HonestyAudit projectId={projectId} workday={workday} enabled={oculpmReady} onNavigate={onNavigate} />
+                  <JournalMissingCard projectId={projectId} enabled={oculpmReady} onNavigate={onNavigate} />
+                </div>
 
-                <div className="card">
-                  <div className="panel-head">
-                    <History size={15} color="var(--text-2)" />
-                    <h3>{t("today.yesterday")}</h3>
-                    <span className="count">{brief ? brief.yesterdayDone.length : 0}</span>
+                <div className="today-col">
+                  <div className="today-col-head">
+                    <span className="q">③</span> {t("today.q.next")}
+                    <button className="btn ghost sm right" onClick={() => onNavigate("planner")}>
+                      {t("nav.planner")} <ArrowRight size={13} />
+                    </button>
                   </div>
-                  <div className="panel-body">
-                    {brief && brief.yesterdayDone.length > 0 ? (
-                      brief.yesterdayDone.map((e) => (
-                        <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
-                      ))
-                    ) : (
-                      <EmptyState>{t("today.noYesterday")}</EmptyState>
-                    )}
-                  </div>
+                  <NextTasks tasks={nextTasks} onOpenPlanner={() => onNavigate("planner")} />
+                  <PlanUpdates projectId={projectId} onNavigate={onNavigate} />
+                  <DiscussionPending projectId={projectId} onNavigate={onNavigate} />
                 </div>
               </div>
 
-              {/* RIGHT: 흐름(주간)과 앞으로(다음 할 일) */}
-              <div className="g2col">
-                {brief ? <WeekChart week={brief.week} /> : null}
-                <NextTasks tasks={nextTasks} onOpenPlanner={() => onNavigate("planner")} />
-              </div>
-            </div>
+              <details className="today-more">
+                <summary>
+                  <b>{t("today.more")}</b>
+                  <span>{t("today.moreList")}</span>
+                  <span className="hint">{t("today.moreHint")}</span>
+                </summary>
+                <div className="today-more-body">
+                  {simpleMore}
+                </div>
+              </details>
+            </>
+          ) : (
+            <>
+              {statsBlock}
+              {proGrid}
+              {proTrailing}
+            </>
           )}
-
-          <DiscussionPending projectId={projectId} onNavigate={onNavigate} />
-
-          <PlanUpdates projectId={projectId} onNavigate={onNavigate} />
-
-          {/* AD-4 — 규칙·스킬 승격 후보가 있을 때만 (회고에 갇혀 있던 루프의 문) */}
-          <TodaySuggestions projectId={projectId} enabled={oculpmReady} />
-
-          {/* F2 정직성 감사 — 기록 누락 변경이 있을 때만 렌더 */}
-          <HonestyAudit
-            projectId={projectId}
-            workday={workday}
-            enabled={oculpmReady}
-            onNavigate={onNavigate}
-          />
-
-          {/* H3b 일지 없이 끝난 세션 — 플러그인 훅 신호가 있을 때만 렌더 */}
-          <JournalMissingCard
-            projectId={projectId}
-            enabled={oculpmReady}
-            onNavigate={onNavigate}
-          />
-
-          {/* journal-scale-round {#hotspot-card} — 같은 파일에 몰린 bug/error
-              일지(재발 신호). 0건이어도 카드는 남는다(위 둘과 같은 선). */}
-          <HotspotCard
-            projectId={projectId}
-            enabled={oculpmReady}
-            onOpenEntry={openEntryPath}
-          />
-
-          {/* best-results-round {#scorecard-card} — 「약속 성적표」: 증거 비율 ·
-              7일 재수정 · 완료 조건/확인 명령이 있는 플랜, 목표와 나란히. */}
-          <PromiseScorecardCard projectId={projectId} enabled={oculpmReady} />
-
-          {/* journal-scale-round {#velocity-card} — 주당 일지 속도 + 플랜
-              완료 ETA. 0건이어도 카드는 남는다(위와 같은 선). */}
-          <VelocityCard projectId={projectId} enabled={oculpmReady} />
-
-          {/* journal-scale-round {#rollup-weekly} — 일지 위 한 층(주간 요약).
-              없으면 만들기 버튼이 서고, 있으면 첫 문단과 「오래됨」이 뜬다. */}
-          <WeeklyRollupCard projectId={projectId} enabled={oculpmReady} />
-
-          {/* 커밋 그래프 — 맨 아래 (dogfooding 2026-06-15) */}
-          {oculpmReady ? <TodayGitGraph projectId={projectId} enabled={oculpmReady} /> : null}
         </div>
       </div>
     </>

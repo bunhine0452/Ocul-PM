@@ -39,6 +39,8 @@ const detail: PlanDetail = {
   ],
   decisions: [],
   warnings: [],
+  done_when: null,
+  check: null,
 };
 
 function setup(over: { hideDone?: boolean; locked?: boolean; view?: "doc" | "board" } = {}) {

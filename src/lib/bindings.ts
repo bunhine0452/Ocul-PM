@@ -188,6 +188,10 @@ export const commands = {
 	 *  the UI never fails silently on a malformed plan.
 	 */
 	warnings: string[],
+	/**  「완료 조건」 한 줄 — 없으면 `None` 이 곧 신호다 (머리글이 「없음」을 말한다). */
+	done_when: string | null,
+	/**  「확인 명령」 한 줄 — 마지막 항목을 닫을 때 돌릴 것. */
+	check: string | null,
 } | null, string>(__TAURI_INVOKE("plan_get", { projectId, planId })),
 	/**
 	 *  Append-only attribution history for one item (who changed it, when,
@@ -211,6 +215,10 @@ export const commands = {
 	 *  the UI never fails silently on a malformed plan.
 	 */
 	warnings: string[],
+	/**  「완료 조건」 한 줄 — 없으면 `None` 이 곧 신호다 (머리글이 「없음」을 말한다). */
+	done_when: string | null,
+	/**  「확인 명령」 한 줄 — 마지막 항목을 닫을 때 돌릴 것. */
+	check: string | null,
 } | null, string>(__TAURI_INVOKE("plan_apply_edit", { projectId, planId, op, agentId })),
 	/**
 	 *  IN2 (#in2-dispatch) — 항목 실행 프롬프트를 조립해 `.oculpm/index/dispatch/`
@@ -232,6 +240,10 @@ export const commands = {
 	 *  the UI never fails silently on a malformed plan.
 	 */
 	warnings: string[],
+	/**  「완료 조건」 한 줄 — 없으면 `None` 이 곧 신호다 (머리글이 「없음」을 말한다). */
+	done_when: string | null,
+	/**  「확인 명령」 한 줄 — 마지막 항목을 닫을 때 돌릴 것. */
+	check: string | null,
 } | null, string>(__TAURI_INVOKE("plan_ai_refresh", { projectId, planId, provider, model })),
 	/**  One-time import of legacy `goals`/`subtasks` into `_imported.md`. */
 	planMigrateGoals: (projectId: number) => typedError<PlanSummary, string>(__TAURI_INVOKE("plan_migrate_goals", { projectId })),
@@ -260,6 +272,10 @@ export const commands = {
 	 *  the UI never fails silently on a malformed plan.
 	 */
 	warnings: string[],
+	/**  「완료 조건」 한 줄 — 없으면 `None` 이 곧 신호다 (머리글이 「없음」을 말한다). */
+	done_when: string | null,
+	/**  「확인 명령」 한 줄 — 마지막 항목을 닫을 때 돌릴 것. */
+	check: string | null,
 } | null, AppError>(__TAURI_INVOKE("plan_set_status", { projectId, planId, status })),
 	/**
 	 *  Set the same lifecycle status on many plans at once — the rail's "묶어서
@@ -286,6 +302,10 @@ export const commands = {
 	 *  the UI never fails silently on a malformed plan.
 	 */
 	warnings: string[],
+	/**  「완료 조건」 한 줄 — 없으면 `None` 이 곧 신호다 (머리글이 「없음」을 말한다). */
+	done_when: string | null,
+	/**  「확인 명령」 한 줄 — 마지막 항목을 닫을 때 돌릴 것. */
+	check: string | null,
 } | null, string>(__TAURI_INVOKE("plan_rename", { projectId, planId, title })),
 	/**
 	 *  Delete a plan: remove its `.oculpm/planner/<id>.md` file and drop the cache
@@ -5241,6 +5261,10 @@ export type PlanDetail = {
 	 *  the UI never fails silently on a malformed plan.
 	 */
 	warnings: string[],
+	/**  「완료 조건」 한 줄 — 없으면 `None` 이 곧 신호다 (머리글이 「없음」을 말한다). */
+	done_when: string | null,
+	/**  「확인 명령」 한 줄 — 마지막 항목을 닫을 때 돌릴 것. */
+	check: string | null,
 };
 
 /**

@@ -1,0 +1,80 @@
+/* 밀도 라운드 (best-results UI, 2026-10-28) — 「간단 / 전문」이 바꾸는 자리들.
+   screens.css 가 래칫(800줄)에 걸려 새 규칙은 여기 산다. */
+
+/* 툴바 오른쪽 끝의 밀도 토글 — .seg 프리미티브 그대로, 폭만 줄인다. */
+.density-seg { margin-left: var(--space-2); flex-shrink: 0; }
+.density-seg .seg-item { padding-inline: 9px; }
+
+/* 오늘 · 간단 밀도의 세 질문 */
+.today-cols {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5);
+  align-items: stretch;
+}
+@container screen (max-width: 640px) { .today-cols { grid-template-columns: 1fr 1fr; } }
+@container screen (max-width: 460px) { .today-cols { grid-template-columns: 1fr; } }
+.today-col { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.today-col > .card { flex: 1 1 auto; }
+.today-col-head {
+  display: flex; align-items: baseline; gap: var(--space-2);
+  font-size: var(--fs-3); font-weight: var(--fw-bold); color: var(--text);
+}
+.today-col-head .q { color: var(--accent-text); }
+.today-col-head .right { margin-left: auto; }
+
+/* 「더 보기」 — 보조 카드는 접힌 채 시작한다. 자료는 전부 DOM 에 있다. */
+.today-more { border: 1px dashed var(--border-card); border-radius: var(--radius-l); }
+.today-more > summary {
+  cursor: pointer; list-style: none; display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); font-size: var(--fs-3); color: var(--text-2);
+}
+.today-more > summary::-webkit-details-marker { display: none; }
+.today-more > summary b { color: var(--text); }
+.today-more > summary .hint { margin-left: auto; font-size: var(--fs-2); color: var(--text-3); }
+.today-more-body { display: flex; flex-direction: column; gap: var(--space-5); padding: 0 var(--space-4) var(--space-4); }
+
+/* 일지 상세 · 증거 카드 — 머리글 바로 아래, 접히지 않는다. */
+.entry-evidence-card {
+  margin: var(--space-4) 0 var(--space-2); padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-m); background: var(--bg-inset); border: 1px solid var(--border-card);
+  display: flex; flex-direction: column; gap: var(--space-2);
+}
+.entry-evidence-card[data-level="2"] { background: var(--ok-soft); border-color: var(--ok-soft); }
+.entry-evidence-card[data-level="0"] { background: var(--warn-soft); border-color: var(--warn-soft); }
+.entry-evidence-card .ev-head { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-3); font-weight: var(--fw-bold); }
+.entry-evidence-card .ev-pill {
+  display: inline-flex; align-items: center; gap: 4px; height: var(--ctl-1); padding: 0 8px 0 6px;
+  border-radius: var(--radius-pill); font-size: var(--fs-1); font-weight: var(--fw-bold);
+  background: var(--accent); color: var(--text-on-accent);
+}
+.entry-evidence-card[data-level="1"] .ev-pill { background: var(--text-2); }
+.entry-evidence-card[data-level="0"] .ev-pill { background: var(--warn); }
+.entry-evidence-card .ev-lines {
+  margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-s); background: var(--bg-card);
+  font-family: var(--mono); font-size: var(--fs-3); line-height: var(--lh-body); white-space: pre-wrap; word-break: break-word;
+}
+.entry-evidence-card .ev-hint { font-size: var(--fs-2); color: var(--text-3); }
+
+/* 플래너 · 머리글의 완료 조건·확인 명령 */
+.pln-goal {
+  margin-top: var(--space-3); padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-m); background: var(--bg-inset);
+  display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-3); align-items: start;
+}
+.pln-goal--missing { display: flex; font-size: var(--fs-3); color: var(--warn-text); }
+.pln-goal-tag {
+  display: inline-flex; align-items: center; height: var(--ctl-1); padding: 0 8px; border-radius: var(--radius-pill);
+  font-size: var(--fs-1); font-weight: var(--fw-bold); background: var(--accent); color: var(--text-on-accent); white-space: nowrap; margin-top: 2px;
+}
+.pln-goal-tag.alt { background: var(--bg-card); color: var(--accent-text); border: 1px solid var(--accent-ring); }
+.pln-goal-text { font-size: var(--fs-4); line-height: var(--lh-body); }
+.pln-goal-check { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; min-width: 0; }
+.pln-goal-check code {
+  font-family: var(--mono); font-size: var(--fs-3); padding: 3px 8px; border-radius: var(--radius-xs);
+  background: var(--bg-card); border: 1px solid var(--border-card); overflow-wrap: anywhere;
+}
+.pln-allclosed {
+  margin-top: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-m);
+  background: var(--accent-soft); display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-3);
+}
+.pln-allclosed b { color: var(--accent-text); }
+.pln-allclosed .right { margin-left: auto; }

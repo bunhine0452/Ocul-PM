@@ -4,6 +4,7 @@
 import type { LangSetting } from "@/i18n";
 import { TERM_FONT_DEFAULT } from "@/features/terminal/fontSize";
 import { TERM_DENSITY_DEFAULT, type TermDensity } from "@/features/terminal/density";
+import { UI_DENSITY_DEFAULT, type UiDensity } from "@/lib/density";
 
 export type Theme =
   | "light"
@@ -59,6 +60,9 @@ export const KEYS = {
   terminalDensity: "terminal_density",
   // 세로 세션 레일을 아이콘만 남기고 접었는가.
   terminalRailCollapsed: "terminal_rail_collapsed",
+  // 화면 밀도 — 「간단 / 전문」. 다른 화면이 아니라 같은 화면의 접힘·행 높이·
+  // 힌트만 달라진다 (best-results UI 라운드 2026-10-28). SQLite 라 창마다 같다.
+  uiDensity: "ui_density",
   // UI 언어. SQLite 에 있으므로 창을 여러 개 띄워도 전 창이 같은 값을 본다
   // (localStorage 가 아니다 — docs/20260811_three-features/00-master-plan.md D4).
   language: "language",
@@ -172,6 +176,8 @@ export interface Settings {
   terminalDensity: TermDensity;
   /** 세로 세션 레일을 접어 아이콘만 남긴다 (좁은 도크에서 자리를 아낀다). */
   terminalRailCollapsed: boolean;
+  /** 화면 밀도 — 값·판정은 `@/lib/density`. 모르는 문자열은 읽는 쪽이 되돌린다. */
+  uiDensity: UiDensity;
   /** UI 언어. "system" 은 OS 로케일을 따른다 (`resolveLang` — src/i18n). */
   language: LangSetting;
   /**
@@ -329,6 +335,7 @@ export const DEFAULTS: Settings = {
   terminalFontSize: TERM_FONT_DEFAULT,
   terminalDensity: TERM_DENSITY_DEFAULT,
   terminalRailCollapsed: false,
+  uiDensity: UI_DENSITY_DEFAULT,
   language: "system",
   contentLanguage: "system",
 
@@ -398,6 +405,7 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.terminalFontSize]: "terminalFontSize",
   [KEYS.terminalDensity]: "terminalDensity",
   [KEYS.terminalRailCollapsed]: "terminalRailCollapsed",
+  [KEYS.uiDensity]: "uiDensity",
   [KEYS.language]: "language",
   [KEYS.contentLanguage]: "contentLanguage",
   [KEYS.defaultProvider]: "defaultProvider",

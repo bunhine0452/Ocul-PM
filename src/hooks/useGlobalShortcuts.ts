@@ -1,3 +1,4 @@
+import { DENSITY_TOGGLE_EVENT } from "@/lib/density";
 import { useEffect } from "react";
 import { type UiV2View } from "@/contexts/WorkspaceContext";
 import { navViewForKey, NAV_BUS } from "@/lib/navRegistry";
@@ -97,6 +98,12 @@ export function useGlobalShortcuts({
       if (c.key === ",") {
         e.preventDefault();
         uiV2Nav("settings");
+        return;
+      }
+      // ⌘. — 밀도 토글(간단 ↔ 전문). 저장은 프로바이더 안의 수신기 한 곳이 한다.
+      if (c.key === "." && !c.shift) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent(DENSITY_TOGGLE_EVENT));
         return;
       }
       // ⌘1~⌘9·⌘0 — navRegistry 순서

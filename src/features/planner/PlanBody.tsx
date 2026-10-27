@@ -13,6 +13,7 @@ import { Lock, Pencil, RefreshCw, TriangleAlert, Trash2 } from "@/components/Ico
 import { InlineMarkdown } from "@/components/InlineMarkdown";
 import { agentLabel } from "@/features/today/agentColor";
 import { t } from "@/i18n";
+import { toast } from "@/lib/toast";
 import type { PlanDetail, PlanItemDto, PlanItemUpdateDto } from "@/lib/bindings";
 import { NextUp } from "./NextUp";
 import { PhaseCard } from "./PhaseCard";
@@ -95,6 +96,10 @@ export function PlanBody(props: PlanBodyProps) {
   const archived = detail.plan.status !== "active" && detail.plan.status !== "done";
   const pct = Math.round((detail.plan.progress ?? 0) * 100);
   const phaseMeta = new Map((detail.phases ?? []).map((p) => [p.name, p] as const));
+
+  const copyCheck = (cmd: string) => {
+    void navigator.clipboard?.writeText(cmd).then(() => toast.info(t("plan.copiedCheck")));
+  };
 
   const strip = phaseStrip(phases);
   const upNext = nextUp(detail.items);
@@ -202,6 +207,46 @@ export function PlanBody(props: PlanBodyProps) {
           </div>
         </div>
         {locked ? <div className="pln-mast-note">{t("plan.lockedNote")}</div> : null}
+
+        {/* 목표가 항목보다 먼저 — 완료 조건(무엇이 참이 되면 끝인가)과 확인 명령
+            (그것을 통과/실패로 판정하는 것). 없으면 없다고 말한다 (best-results UI 라운드). */}
+        {detail.done_when || detail.check ? (
+          <div className="pln-goal">
+            {detail.done_when ? (
+              <>
+                <span className="pln-goal-tag">{t("plan.doneWhen")}</span>
+                <InlineMarkdown className="pln-goal-text" text={detail.done_when} />
+              </>
+            ) : null}
+            {detail.check ? (
+              <>
+                <span className="pln-goal-tag alt">{t("plan.check")}</span>
+                <div className="pln-goal-check">
+                  <code>{detail.check}</code>
+                  <button type="button" className="btn sm" onClick={() => copyCheck(detail.check ?? "")}>
+                    {t("plan.copyCheck")}
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : !locked ? (
+          <div className="pln-goal pln-goal--missing">{t("plan.doneWhenMissing")}</div>
+        ) : null}
+        {/* 항목 완료 ≠ 목표 달성 — 전부 닫혔는데 아직 열린 플랜에만 뜬다. */}
+        {!locked && detail.plan.item_count > 0 && remaining === 0 ? (
+          <div className="pln-allclosed">
+            <TriangleAlert size={13} />
+            <span>
+              <b>{t("plan.allClosed.title")}</b> {detail.check ? t("plan.allClosed.bodyCheck") : t("plan.allClosed.body")}
+            </span>
+            {detail.check ? (
+              <button type="button" className="btn sm right" onClick={() => copyCheck(detail.check ?? "")}>
+                {t("plan.copyCheck")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* 단계 스트립 — 계획 전체를 한 줄로. 조각 = 단계, 폭 = 항목 수, 색 = 상태. */}
         {strip.length > 0 ? (
