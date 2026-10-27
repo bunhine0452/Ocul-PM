@@ -475,7 +475,12 @@ fn journal_write_accepts_string_paths_in_files_touched() {
         got,
         vec![("src/a.ts", FileOp::Update), ("src/b.rs", FileOp::Create)]
     );
-    assert!(out["warnings"].as_array().unwrap().is_empty());
+    // 파일 목록 경고만 없어야 한다 — 검증 칸이 없는 본문은 바깥 심판 경고를 따로 받는다.
+    assert!(!out["warnings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|w| w.as_str().unwrap_or("").contains("files_touched")));
 }
 
 /// 그래도 못 읽는 원소가 있으면 버리되 **말한다** — 일지와 diff 를 대조하는 앱이
