@@ -1,6 +1,8 @@
 // clippy 게이트(2026-08-30, CI 가 `-D warnings`): 구조를 바꿔야 풀리는 두 가지만
 // 크레이트 수준에서 허용한다 — 인자 8~9개인 Tauri 커맨드(lsp·acp)와 LSP
 // 클라이언트의 콜백 타입. 나머지 경고는 전부 고쳤다.
+// `json!` 도구 스키마(plan_create)가 커져 기본 128 을 넘었다 (2026-10-27, done_when).
+#![recursion_limit = "512"]
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
 // PR-ACP1 — 통합 테스트(tests/acp_handshake.rs)가 env/adapter 를 직접 쓴다.

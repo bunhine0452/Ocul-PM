@@ -178,6 +178,8 @@ pub(crate) fn plan_status(root: &Path, args: &Value) -> Result<Value, String> {
         plans.push(json!({
             "id": plan_id,
             "title": mask(&parsed.frontmatter.title),
+            // 작업 너머의 목표 — 항목만 보고 시작하지 않게 (고도). 없으면 null 이 곧 신호다.
+            "done_when": crate::oculpm::planner::done_when::done_when(&md).map(|g| mask(&g)),
             "progress": { "done": done, "total": total },
             // **CAS 의 재료를 여기서 발급한다** ({#plan-status-hash}). 이전에는
             // `base_hash` 의 유일한 출처가 직전 `plan_update` 응답이라, 세션의

@@ -62,6 +62,10 @@ body=$(
       items=$(grep -E '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null | head -8)
       [ -n "$items" ] || continue
       echo "[plan: $(basename "$f" .md)]"
+      # 작업 너머의 목표 — 플랜 본문의 「**완료 조건:**」 한 줄 (고도: 할 일 목록만
+      # 받은 에이전트는 왜 하는지를 모른다). 없으면 그 플랜은 항목만 싣는다.
+      goal=$(grep -m1 -E '^\*\*(완료 조건|Done when):\*\*' "$f" 2>/dev/null | cut -c1-240)
+      [ -n "$goal" ] && printf '%s\n' "$goal"
       printf '%s\n' "$items"
     done
   } 2>/dev/null | head -n 24 | awk '{ n += length($0) + 1; if (n > 1600) { print "…(생략 — 전체는 plan_status 도구)"; exit } print }'

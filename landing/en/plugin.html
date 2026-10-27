@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Plugin · Skill Catalog — Ocul-PM</title>
-<meta name="description" content="The full surface of the Ocul-PM plugin for Claude Code: 6 slash commands, 7 MCP tools, 5 bundled skills, and a 26-skill third-party catalog that detects your stack and recommends matches (pinned commits, MIT)." />
+<meta name="description" content="The full surface of the Ocul-PM plugin for Claude Code: 7 slash commands, 7 MCP tools, 5 bundled skills, and a 26-skill third-party catalog that detects your stack and recommends matches (pinned commits, MIT)." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/en/plugin" />
@@ -75,7 +75,7 @@
     </section>
 
     <section class="pg-sec">
-      <h2 id="commands">6 slash commands</h2>
+      <h2 id="commands">7 slash commands</h2>
       <p>Things you call with one typed line.</p>
       <div class="pg-cards">
       <div class="pg-card">
@@ -99,8 +99,12 @@
         <p>Publishes your active plans and their item states as one <b>private Claude artifact board</b>, and refreshes that board when you run it again. The board is read-only; the source stays in <code>.oculpm/planner/</code>. The app builds the documents and <b>masks anything that looks like a secret</b> before upload. You decide who sees it from the board's Share menu. Works when Claude Code is signed in with a claude.ai account.</p>
       </div>
       <div class="pg-card">
+        <h3><code>/oculpm:redteam</code><span class="when">Before merging or shipping — "what's wrong here?"</span></h3>
+        <p>Checks the claims in a plan or entry against the raw material (tests, logs, diffs), <b>runs them</b>, and reports counter-examples, unverifiable claims and claims that held. It does what a short seller does rather than writing like one — your own judgment is not evidence. It never edits.</p>
+      </div>
+      <div class="pg-card">
         <h3><code>/oculpm:help</code><span class="when">When you've forgotten what's there</span></h3>
-        <p>Shows the entire plugin surface (6 commands · 7 MCP tools · 5 skills · hooks) as one reference card, and recommends the next step for where you are now.</p>
+        <p>Shows the entire plugin surface (7 commands · 7 MCP tools · 5 skills · hooks) as one reference card, and recommends the next step for where you are now.</p>
       </div>
       </div>
     </section>

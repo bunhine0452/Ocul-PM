@@ -117,7 +117,7 @@ fn tracked_project() -> tempfile::TempDir {
     std::fs::create_dir_all(&planner).unwrap();
     std::fs::write(
         planner.join("p.md"),
-        "---\nstatus: active\n---\n# 플랜\n\n- [ ] 첫 항목 {#first}\n",
+        "---\nstatus: active\n---\n# 플랜\n\n**완료 조건:** 훅이 목표를 싣는다\n\n- [ ] 첫 항목 {#first}\n",
     )
     .unwrap();
     let day = dir.path().join(".oculpm/journal/20260924/Chores");
@@ -190,6 +190,10 @@ fn exercise_bundle(hooks: &Value, root: &Path, run: &dyn Fn(&Value, &str) -> Out
     assert!(
         text.contains("[plan: p]") && text.contains("첫 항목"),
         "활성 플랜이 실리지 않았다: {text}"
+    );
+    assert!(
+        text.contains("**완료 조건:** 훅이 목표를 싣는다"),
+        "플랜의 완료 조건(작업 너머의 목표)이 실리지 않았다: {text}"
     );
     assert!(
         text.contains(&format!("20260924/Chores/{JOURNAL_FILE} · 세 OS 훅 점검")),

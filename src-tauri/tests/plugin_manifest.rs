@@ -413,7 +413,7 @@ fn bundled_skills_and_commands_stay_within_budget() {
     expected.sort();
     assert_eq!(
         names, expected,
-        "동봉 스킬은 지식 5종 + 커맨드 6종 고정 — 추가하려면 토큰 예산부터 재계산 (+ landing/plugin.html 문서화)"
+        "동봉 스킬은 지식 5종 + 커맨드 7종 고정 — 추가하려면 토큰 예산부터 재계산 (+ landing/plugin.html 문서화)"
     );
     // 커맨드는 `skills/` 로 옮겼다 (2026-10-24, Claude Code 문서: commands/ 는 구형).
     // 옛 자리가 되살아나면 같은 이름이 두 번 뜬다.
@@ -464,6 +464,7 @@ const COMMAND_SKILLS: &[&str] = &[
     "inception",
     "next",
     "project_init",
+    "redteam",
     "standup",
 ];
 

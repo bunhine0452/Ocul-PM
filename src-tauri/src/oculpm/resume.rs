@@ -63,6 +63,8 @@ pub struct ResumeJournal {
 pub struct ResumeItem {
     pub plan_id: String,
     pub plan_title: String,
+    /// 플랜의 「완료 조건」 — 항목 너머의 목표 (`planner::done_when`). 없으면 `None`.
+    pub plan_done_when: Option<String>,
     pub item_id: String,
     pub title: String,
     /// `todo` · `in_progress` · `blocked`.
@@ -186,6 +188,7 @@ pub fn next_items(root: &Path, per_plan: usize, max: usize) -> Vec<ResumeItem> {
         if parsed.frontmatter.status.as_str() != "active" {
             continue;
         }
+        let goal = crate::oculpm::planner::done_when::done_when(&md);
         for item in open_leaves(&parsed).into_iter().take(per_plan) {
             if out.len() >= max {
                 break;
@@ -193,6 +196,7 @@ pub fn next_items(root: &Path, per_plan: usize, max: usize) -> Vec<ResumeItem> {
             out.push(ResumeItem {
                 plan_id: parsed.frontmatter.id.clone(),
                 plan_title: parsed.frontmatter.title.clone(),
+                plan_done_when: goal.clone(),
                 item_id: item.item_id,
                 title: item.title,
                 status: item.status.as_str().to_string(),
@@ -288,7 +292,15 @@ pub fn render_text(journals: &[ResumeJournal], items: &[ResumeItem]) -> String {
     }
     if !items.is_empty() {
         out.push_str("\n활성 계획의 다음 항목:\n");
+        let mut goal_shown: Vec<&str> = Vec::new();
         for it in items {
+            // 플랜마다 한 번, 항목 앞에 목표 — 할 일이 아니라 결과를 먼저 본다.
+            if let Some(goal) = it.plan_done_when.as_deref() {
+                if !goal_shown.contains(&it.plan_id.as_str()) {
+                    goal_shown.push(&it.plan_id);
+                    out.push_str(&format!("  ({} 의 완료 조건: {goal})\n", it.plan_title));
+                }
+            }
             out.push_str(&format!(
                 "- [{}] {} · {} ({}#{})\n",
                 it.status, it.plan_title, it.title, it.plan_id, it.item_id
@@ -381,6 +393,44 @@ mod tests {
             ));
         }
         std::fs::write(dir.join(format!("{id}.md")), md).unwrap();
+    }
+
+    /// 고도 — 항목만이 아니라 플랜의 완료 조건이 같이 실린다 (`planner::done_when`),
+    /// 플랜마다 한 번, 항목 앞에. 없는 플랜은 항목만.
+    #[test]
+    fn next_items_carry_the_plan_goal_once_per_plan() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        plan(root, "a-goal", "active", &[(" ", "a1"), (" ", "a2")]);
+        let path = root.join(".oculpm/planner/a-goal.md");
+        let md = std::fs::read_to_string(&path).unwrap();
+        std::fs::write(
+            &path,
+            md.replace(
+                "---\n\n## Phase 1",
+                "---\n\n**완료 조건:** 훅이 목표를 싣는다\n\n## Phase 1",
+            ),
+        )
+        .unwrap();
+        plan(root, "b-plain", "active", &[(" ", "b1")]);
+
+        let items = next_items(root, 8, 24);
+        assert_eq!(items.len(), 3);
+        assert_eq!(
+            items[0].plan_done_when.as_deref(),
+            Some("훅이 목표를 싣는다")
+        );
+        assert_eq!(items[2].plan_done_when, None);
+        let text = render_text(&[], &items);
+        assert_eq!(
+            text.matches("완료 조건: 훅이 목표를 싣는다").count(),
+            1,
+            "{text}"
+        );
+        assert!(
+            text.find("완료 조건").unwrap() < text.find("a1").unwrap(),
+            "목표가 항목보다 앞: {text}"
+        );
     }
 
     /// 최신 3건 — 경로 내림차순, `_template`·숨김·깊이 다른 파일 제외, 제목은

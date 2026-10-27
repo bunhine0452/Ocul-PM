@@ -331,6 +331,14 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
         let desc = redact_text(desc, &patterns).0;
         md.push_str(&format!("\n{}\n", desc.trim()));
     }
+    // 완료 조건 — 항목 너머의 목표. 세션 시작 훅·이어하기·plan_status 가 이 줄을 읽는다.
+    if let Some(goal) = arg_str(args, "done_when").filter(|g| !g.trim().is_empty()) {
+        let goal = redact_text(goal, &patterns).0;
+        md.push_str(&format!(
+            "\n{}\n",
+            crate::oculpm::planner::done_when::render_line(&goal)
+        ));
+    }
     md.push_str(&body);
     md.push_str(
         "\n<!-- oculpm:plan-log begin v1 -->\n\
