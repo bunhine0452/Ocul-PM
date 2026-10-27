@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 // @ts-expect-error — 빌드 대상이 아닌 zero-dep 릴리스 스크립트 (.mjs, 타입 없음).
-import { bumpLanding, bumpVersionFile, LANDINGS, leftoverLines, reviewGap, stampPendingReviews, VERSION_FILES } from "../../scripts/bump-version.mjs";
+import { bumpLanding, bumpVersionFile, isMinorBump, LANDINGS, leftoverLines, pendingEyes, readPlans, reviewGap, stampPendingReviews, tagsCutOn, todayIso, VERSION_FILES } from "../../scripts/bump-version.mjs";
 
 // 감사 라운드 2026-09-11 F3 — 릴리스 버전 6파일 + 랜딩 ko/en 각 6곳을 한 번에.
 // 계약: 자리 수가 어긋나면 throw(반만 고치지 않는다), 변경 이력·FAQ 는 건드리지
@@ -72,5 +72,36 @@ describe("bump-version — external review cadence", () => {
     expect(reviewGap("# no table here", "3.10.0")).toEqual({ last: null, minors: null });
     const real = readFileSync(resolve(ROOT, "SECURITY.md"), "utf8");
     expect(reviewGap(real, pkgVersion).last).not.toBeNull();
+  });
+});
+
+// 완성도 라운드 2026-10-27 — 릴리스 리듬 (docs/RELEASE.md §0-2). 계약: 패치는 조용하다,
+// 같은 날 태그는 날짜 칸으로만 고른다, eyes 는 활성 플랜의 `- [ ] … {#eyes-…}` 만 센다.
+describe("bump-version — release rhythm", () => {
+  it("tells a patch from a minor (and a major)", () => {
+    expect(isMinorBump("3.14.0", "3.14.1")).toBe(false);
+    expect(isMinorBump("3.14.3", "3.15.0")).toBe(true);
+    expect(isMinorBump("3.14.0", "4.0.0")).toBe(true);
+  });
+
+  it("picks today's tags by the date column only", () => {
+    const lines = ["v3.13.4 2026-10-24", "v3.13.5 2026-10-24", "v3.14.0 2026-10-25", "", "junk-without-date"].join("\n");
+    expect(tagsCutOn(lines, "2026-10-24")).toEqual(["v3.13.4", "v3.13.5"]);
+    expect(tagsCutOn(lines, "2026-10-26")).toEqual([]);
+    expect(tagsCutOn("", "2026-10-26")).toEqual([]);
+    expect(todayIso(new Date(2026, 9, 27, 9))).toBe("2026-10-27");
+  });
+
+  it("counts unchecked eyes items in active plans only", () => {
+    const active = ["---", "status: active", "---", "- [ ] 보기 {#eyes-a}", "- [x] 봤다 {#eyes-b}", "- [ ] 코드 {#fix-c}", "  - [ ] 들여쓴 것 {#eyes-d}"].join("\n");
+    const done = ["---", "status: done", "---", "- [ ] 잠긴 미완 {#eyes-z}"].join("\n");
+    expect(pendingEyes([{ id: "a", text: active }, { id: "b", text: done }, { id: "c", text: "no frontmatter" }])).toEqual([{ plan: "a", count: 2 }]);
+  });
+
+  it("reads the real planner folder and tolerates a missing one", () => {
+    const plans = readPlans(resolve(ROOT, ".oculpm/planner") + "/");
+    expect(plans.length).toBeGreaterThan(0);
+    expect(plans.some((p: { id: string }) => p.id.endsWith(".log"))).toBe(false);
+    expect(readPlans(resolve(ROOT, "no-such-dir") + "/")).toEqual([]);
   });
 });

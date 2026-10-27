@@ -15,6 +15,7 @@ The periphery (code editor · LSP · DAP · terminal/PTY host · ACP chat · mob
 - **Don't build** a new screen, a new external integration, or a new long-lived process or network listener. Proposing one is fine; building it needs the user's explicit go-ahead *and* a named existing surface it retires.
 - **Do** fix, shrink, or replace what exists. A replacement ends by removing the old path, not by keeping both (cf. `native-agent-drivers` `{#drop-node}`).
 - Removal candidates and the numbers behind them: plan `external-review-2026-10-08`.
+- **Screen tiers (since 2026-10-27, [`docs/PROMISE.md`](docs/PROMISE.md)):** **core** = Today · Journal · Diff · Planner (the ten promises; fixes, polish and features). **viewer** = Search · Discussion · Branch · Skills (opens, shows, doesn't break; fixes and polish only). **hold** = Terminal · Code editor · Claude Code · Codex · AI panel (labelled 베타 on the landing/README; **bug fixes only, no new capability**). October fix commits: terminal 9 · settings 7 · editor 5 · chat 3 · the four core screens 2 in total — a hold screen that stays at the top of the fix count next quarter becomes a removal candidate; that call is the user's.
 - **Already removed (2026-10-24):** the mobile bridge (Tailscale phone web app), the DAP debugger, the Code Map screen, the remote theme gallery (GitHub/oculpm.com theme downloads) and the VS Code extension; Notion went 2026-10-14. Leftover unused DB tables stay — `mobile_devices` (migration 029), `graph_nodes` · `graph_edges` · `symbol_relations` — don't reuse those names.
 
 ## Commands
