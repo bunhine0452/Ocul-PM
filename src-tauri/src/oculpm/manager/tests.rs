@@ -979,19 +979,17 @@ mod journal_w3_pr3 {
             .await
             .expect("created");
         assert_eq!(entry.frontmatter.agent.id, "claude-code");
-        // 캐시를 거친 표면은 표준형(`model_names`)을 돌려준다 — 디스크에는 적은 그대로.
+        // 캐시 표면은 표준형(`model_names`), 디스크는 적은 그대로.
         assert_eq!(
             entry.frontmatter.agent.version.as_deref(),
             Some("Haiku 4.5")
         );
-        let on_disk = std::fs::read_to_string(
-            project_root
-                .join(".oculpm")
-                .join("journal")
-                .join(&entry.relative_path),
-        )
-        .unwrap();
-        assert!(on_disk.contains("claude-haiku-4-5-20251001"), "{on_disk}");
+        let path = project_root
+            .join(".oculpm/journal")
+            .join(&entry.relative_path);
+        assert!(std::fs::read_to_string(path)
+            .unwrap()
+            .contains("claude-haiku-4-5-20251001"));
         assert!(!entry.frontmatter.verified_by_user);
     }
 
