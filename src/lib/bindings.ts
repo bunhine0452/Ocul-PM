@@ -5544,6 +5544,8 @@ export type ResumeDispatch = {
 export type ResumeItem = {
 	plan_id: string,
 	plan_title: string,
+	/**  플랜의 「완료 조건」 — 항목 너머의 목표 (`planner::done_when`). 없으면 `None`. */
+	plan_done_when: string | null,
 	item_id: string,
 	title: string,
 	/**  `todo` · `in_progress` · `blocked`. */
