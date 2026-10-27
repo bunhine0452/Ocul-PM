@@ -33,8 +33,8 @@ owner: claude-code
 - [ ] 트레이 상주 중 앱 창 먼저 닫고 분리 터미널 창만 닫으면 handle_last_window_closed 안 불려 종료될 수 있음 (terminal_windows.rs) {#carry-tray-detached-close}
 - [ ] attach·재생 중 도착한 exit 뒤 input.open() 이 입력 문을 다시 엶 · [프로세스 종료됨] 이 재생 중간에 찍힘 {#carry-exit-reopens-input}
 - [ ] KillPrefix/KillExcept 가 세션 심 디렉터리를 안 지움 · blockPips 맵 미정리 {#carry-shim-killprefix}
-- [ ] 남은 유령 색인 14행 — Lane::Index permit 2개로 같은 경로 Update·Delete 동시 실행 의심 (10-08 FK 실패 WARN) {#carry-ghost-index-race}
-- [ ] 외부 에이전트 일지 parse_ok=0 12건 — 템플릿 files_touched 예시가 [ ] , { } 경로 인용을 안 알림 (template_version 올려야) {#carry-journal-yaml-quote}
+- [x] 남은 유령 색인 14행 — Lane::Index permit 2개로 같은 경로 Update·Delete 동시 실행 의심 (10-08 FK 실패 WARN) {#carry-ghost-index-race}
+- [x] 외부 에이전트 일지 parse_ok=0 12건 — 템플릿 files_touched 예시가 [ ] , { } 경로 인용을 안 알림 (template_version 올려야) {#carry-journal-yaml-quote}
 - [ ] ocul-pm.db.bak-v40 734MB 보존 정책 (며칠 뒤 정리할지) — 사용자 결정 {#carry-bak-v40}
 - [ ] shell_integration::policy 테스트 2건이 부하 중 cargo test 에서 간헐 실패 (단독·64스레드 재현 안 됨, ETXTBSY 의심) {#carry-policy-test-flake}
 - [x] 업데이트를 건너온 옛 판 PTY 호스트(실측 v3.6.0, 세션 10개)는 실행 파일이 지워져 macOS 가 데스크탑·문서 폴더 접근을 거부 — 새 터미널이 getcwd EPERM. 세션을 쥔 호스트는 교체 안 됨(`client.rs` is_replaceable). 새 세션을 현재 판 호스트로 보내는 이중 호스트 설계 필요 {#carry-ptyhost-stale-tcc}
@@ -54,4 +54,6 @@ owner: claude-code
 | 2026-10-27T19:48:27+09:00 | #eyes-quit-panic | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | 로그 확인: lifecycle.rs:335 패닉은 10-14·10-17 두 번(수정 전)이 마지막, 10-18~10-27 다섯 번 업데이트·종료에도 0건. rust-analyzer 고아 프로세스 없음(pgrep) |
 | 2026-10-27T19:49:00+09:00 | #eyes-vec0 | claude-code | ☐→~ | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | repacked 로그는 10-17~10-27 매번 찍힘(기계 확인). 남은 것: 진단 탭 compact — DB 는 지금 837MB(+WAL 67MB)로 아직 안 돌렸다 · 다지기 중 탭 init |
 | 2026-10-27T19:49:29+09:00 | #eyes-ptyhost-clone | claude-code | ☐→☐ |  | 사전 조사: 지금 도는 호스트(pid 90019)는 10-24 10:49 기동 — 3.13.5 설치 전의 옛 호스트가 아직 살아 있고 ptyhost.noindex/ 없음(정상: 복제는 새 호스트가 뜰 때). 확인 순서: 터미널 전부 닫기 → 새 터미널 → app-data/ptyhost.noindex/ 생김 + 데스크탑 프로젝트 열림 |
+| 2026-10-27T20:19:46+09:00 | #carry-journal-yaml-quote | claude-code | ☐→x | .oculpm/journal/20261027/Bugs/2019_bug_journal-type-alias-path-repair-ghost-race.md | 진단 수정: 12건 중 10건은 type: fix/feat 별칭, 2건만 경로 인용. 파서가 둘 다 읽기 복구(repair.rs) + COERCION_VERSION 4 + 템플릿 v15. 재투영 확인은 새 빌드 기동 뒤 |
+| 2026-10-27T20:19:57+09:00 | #carry-ghost-index-race | claude-code | ☐→x | .oculpm/journal/20261027/Bugs/2019_bug_journal-type-alias-path-repair-ghost-race.md | 오늘 전 프로젝트 유령 0행(기동 화해). 창은 spawn_keyed 경로별 직렬화 + reap_if_vanished 로 닫음, 테스트 2 |
 <!-- oculpm:plan-log end -->
