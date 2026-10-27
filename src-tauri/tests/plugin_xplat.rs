@@ -117,7 +117,13 @@ fn tracked_project() -> tempfile::TempDir {
     std::fs::create_dir_all(&planner).unwrap();
     std::fs::write(
         planner.join("p.md"),
-        "---\nstatus: active\n---\n# 플랜\n\n**완료 조건:** 훅이 목표를 싣는다\n\n- [ ] 첫 항목 {#first}\n",
+        "---\nstatus: active\n---\n# 플랜\n\n**완료 조건:** 훅이 목표를 싣는다\n**확인 명령:** cargo test --test plugin_xplat\n\n- [ ] 첫 항목 {#first}\n",
+    )
+    .unwrap();
+    // 항목은 전부 닫혔는데 아직 active — 「항목 완료 ≠ 목표 달성」 한 줄이 실려야 한다.
+    std::fs::write(
+        planner.join("q.md"),
+        "---\nstatus: active\n---\n# 끝난 플랜\n\n**완료 조건:** 둘 다 초록\n\n- [x] 유일 항목 {#only}\n",
     )
     .unwrap();
     let day = dir.path().join(".oculpm/journal/20260924/Chores");
@@ -194,6 +200,16 @@ fn exercise_bundle(hooks: &Value, root: &Path, run: &dyn Fn(&Value, &str) -> Out
     assert!(
         text.contains("**완료 조건:** 훅이 목표를 싣는다"),
         "플랜의 완료 조건(작업 너머의 목표)이 실리지 않았다: {text}"
+    );
+    assert!(
+        text.contains("**확인 명령:** cargo test --test plugin_xplat"),
+        "플랜의 확인 명령(통과/실패를 내는 것)이 실리지 않았다: {text}"
+    );
+    assert!(
+        text.contains(
+            "[plan: q] 항목 전부 닫힘 — 완료 조건이 참인지 판정 후 닫기: **완료 조건:** 둘 다 초록"
+        ),
+        "항목이 전부 닫힌 active 플랜의 닫기 안내가 실리지 않았다: {text}"
     );
     assert!(
         text.contains(&format!("20260924/Chores/{JOURNAL_FILE} · 세 OS 훅 점검")),

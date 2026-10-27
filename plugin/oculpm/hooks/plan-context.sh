@@ -66,8 +66,22 @@ body=$(
       # 받은 에이전트는 왜 하는지를 모른다). 없으면 그 플랜은 항목만 싣는다.
       goal=$(grep -m1 -E '^\*\*(완료 조건|Done when):\*\*' "$f" 2>/dev/null | cut -c1-240)
       [ -n "$goal" ] && printf '%s\n' "$goal"
+      # 확인 명령 — 완료 조건을 통과/실패로 판정하는 명령 (깊이: 통과/실패를 내는 것이
+      # 없는 에이전트는 「됐다」는 주장으로 끝낸다). 완료 조건 바로 다음 줄.
+      check=$(grep -m1 -E '^\*\*(확인 명령|Check):\*\*' "$f" 2>/dev/null | cut -c1-240)
+      [ -n "$check" ] && printf '%s\n' "$check"
       printf '%s\n' "$items"
     done
+    # 항목은 전부 닫혔는데 아직 active 인 플랜 — 항목 완료 ≠ 목표 달성. 완료 조건이 참인지
+    # 판정하고 닫는 결정이 남아 있다는 사실만 한 줄로 싣는다 (최대 3개).
+    for f in "$ROOT/.oculpm/planner"/*.md; do
+      [ -f "$f" ] || continue
+      sed -n '2,/^---$/p' "$f" 2>/dev/null | grep -q '^status: active' || continue
+      grep -qE '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null && continue
+      grep -qE '^[[:space:]]*- \[[xX]\]' "$f" 2>/dev/null || continue
+      goal=$(grep -m1 -E '^\*\*(완료 조건|Done when):\*\*' "$f" 2>/dev/null | cut -c1-200)
+      echo "[plan: $(basename "$f" .md)] 항목 전부 닫힘 — 완료 조건이 참인지 판정 후 닫기${goal:+: }$goal"
+    done | head -3
   } 2>/dev/null | head -n 24 | awk '{ n += length($0) + 1; if (n > 1600) { print "…(생략 — 전체는 plan_status 도구)"; exit } print }'
 )
 

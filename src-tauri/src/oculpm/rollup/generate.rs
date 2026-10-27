@@ -51,6 +51,9 @@ pub const SECTION_DECISIONS: &str = "## 결정";
 pub const SECTION_FIXED: &str = "## 해결한 결함";
 pub const SECTION_FEATURES: &str = "## 추가한 기능";
 pub const SECTION_CARRIED: &str = "## 이월/미완";
+/// best-results-round `{#rollup-receipt}` — 검증 칸에 명령 증거가 없는 bug/feature/refactor
+/// 일지. 코드를 안 보는 독자가 「믿을 것」과 「아직 믿을 수 없는 것」을 가르는 자리.
+pub const SECTION_UNVERIFIED: &str = "## 검증 안 된 것";
 
 /// 결정적 본문 한 판. frontmatter 는 호출자가 앞에 붙인다.
 pub fn deterministic_body(
@@ -95,6 +98,25 @@ pub fn deterministic_body(
         false,
         "- (추가한 기능 기록이 없어요)",
     ));
+
+    out.push('\n');
+    out.push_str(SECTION_UNVERIFIED);
+    out.push('\n');
+    let unverified: Vec<&RollupSourceEntry> = entries
+        .iter()
+        .filter(|e| JUDGED_TYPES.contains(&e.entry_type.as_str()) && e.evidence < 2)
+        .collect();
+    if unverified.is_empty() {
+        out.push_str("- (이 주의 결함·기능·리팩토링 일지는 전부 검증 칸에 명령 증거가 있어요)\n");
+    } else {
+        for e in &unverified {
+            out.push_str(&format!(
+                "- {} — `{}`\n",
+                clamp(&e.title, QUOTE_CHARS),
+                e.relative_path
+            ));
+        }
+    }
 
     out.push('\n');
     out.push_str(SECTION_CARRIED);
@@ -144,6 +166,21 @@ fn summary_paragraph(week: &str, from: &str, to: &str, entries: &[RollupSourceEn
         entries.len() - done
     ));
 
+    // 영수증의 핵심 문장 — 「믿을 수 있는 것」의 수. 분모는 bug/feature/refactor 만
+    // (`db::scorecard` · `journal_write` 경고와 같은 셋).
+    let judged: Vec<&RollupSourceEntry> = entries
+        .iter()
+        .filter(|e| JUDGED_TYPES.contains(&e.entry_type.as_str()))
+        .collect();
+    if !judged.is_empty() {
+        let with = judged.iter().filter(|e| e.evidence >= 2).count();
+        sentences.push(format!(
+            "결함·기능·리팩토링 {}건 중 {with}건은 검증 칸에 명령 증거(테스트·린트·빌드·실측)가 있고, {}건은 없어요.",
+            judged.len(),
+            judged.len() - with
+        ));
+    }
+
     let files = top_files(entries, TOP_FILES);
     if !files.is_empty() {
         let named: Vec<String> = files
@@ -168,6 +205,9 @@ fn summary_paragraph(week: &str, from: &str, to: &str, entries: &[RollupSourceEn
     }
     sentences.join(" ")
 }
+
+/// 증거를 요구하는 유형 — error(실패 기록)·chore(잡일)는 아니다.
+const JUDGED_TYPES: &[&str] = &["bug", "feature", "refactor"];
 
 fn type_label(ty: &str) -> &'static str {
     match ty {
@@ -344,6 +384,7 @@ mod tests {
             body_markdown: body.into(),
             body_md_hash: "deadbeef".into(),
             files: files.iter().map(|s| s.to_string()).collect(),
+            evidence: 2,
         }
     }
 
@@ -357,11 +398,58 @@ mod tests {
             SECTION_DECISIONS,
             SECTION_FIXED,
             SECTION_FEATURES,
+            SECTION_UNVERIFIED,
             SECTION_CARRIED,
         ] {
             assert!(md.contains(h), "{h} 누락:\n{md}");
         }
         assert!(md.contains("작업 일지가 없어요"), "{md}");
+    }
+
+    /// 영수증 — 증거 없는 bug/feature/refactor 만 「검증 안 된 것」에 선다. error·chore 는
+    /// 증거가 없어도 거기 서지 않고, 요약 문단이 비율을 말한다.
+    #[test]
+    fn the_unverified_section_lists_judged_entries_without_command_evidence() {
+        let mut no_proof = entry(
+            "bug",
+            "done",
+            "증거없는버그",
+            "## 검증\n눈으로 봤다\n",
+            &["a.rs"],
+        );
+        no_proof.evidence = 1;
+        let mut chore = entry("chore", "done", "잡일", "", &[]);
+        chore.evidence = 0;
+        let proof = entry(
+            "feature",
+            "done",
+            "증거있는기능",
+            "## 검증\ncargo test 통과\n",
+            &["b.rs"],
+        );
+        let md = deterministic_body(
+            "2026-W38",
+            "20260914",
+            "20260920",
+            &[no_proof, chore, proof],
+        );
+        let section = md
+            .split(SECTION_UNVERIFIED)
+            .nth(1)
+            .unwrap()
+            .split("\n## ")
+            .next()
+            .unwrap();
+        assert!(section.contains("증거없는버그"), "{md}");
+        assert!(
+            !section.contains("잡일"),
+            "chore 는 심판 대상이 아니다: {md}"
+        );
+        assert!(!section.contains("증거있는기능"), "{md}");
+        assert!(
+            md.contains("결함·기능·리팩토링 2건 중 1건은 검증 칸에 명령 증거"),
+            "{md}"
+        );
     }
 
     #[test]

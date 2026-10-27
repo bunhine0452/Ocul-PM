@@ -1515,6 +1515,8 @@ export const commands = {
 	 *  `DEFAULT_WEEKS`(8), 범위는 `[MIN_WEEKS, MAX_WEEKS]`(1~26)로 clamp.
 	 */
 	oculpmVelocity: (projectId: number, weeks: number | null) => typedError<Velocity, string>(__TAURI_INVOKE("oculpm_velocity", { projectId, weeks })),
+	/**  「약속 성적표」 — `days` 가 없으면 30일. 오늘 포함 `days` 일의 workday 창. */
+	oculpmPromiseScorecard: (projectId: number, days: number | null) => typedError<PromiseScorecard, string>(__TAURI_INVOKE("oculpm_promise_scorecard", { projectId, days })),
 	/**
 	 *  한 주의 롤업을 만들어 `.oculpm/rollups/<week>.md` 에 쓴다.
 	 * 
@@ -4510,6 +4512,19 @@ export type JournalMissingSignal = {
 	segments: number,
 };
 
+export type JournalScore = {
+	/**  창 안의 bug/feature/refactor 일지 수 — 증거 비율의 분모. */
+	judged_entries: number,
+	/**  그중 검증 칸에 명령 증거(`evidence == 2`)가 있는 수. */
+	evidence_entries: number,
+	/**  창 안의 bug/error 일지 수 — 재수정 비율의 분모. */
+	bug_entries: number,
+	/**  그중 앞 7일 안에 feature/refactor 가 같은 파일을 만진 수. */
+	rework_within_7d: number,
+	/**  허브 판정 문턱(이 수 이상의 일지에 등장하면 허브) — 카드가 각주로 쓴다. */
+	hub_cut: number,
+};
+
 /**  프런트가 거르는 축. 전부 선택이고, 빈 값은 "제약 없음". */
 export type JournalSearchFilters = {
 	/**  `bug|feature|error|refactor|chore`. */
@@ -5292,6 +5307,12 @@ export type PlanPhaseDto = {
 	last_update: string | null,
 };
 
+export type PlanScore = {
+	active_plans: number,
+	with_done_when: number,
+	with_check: number,
+};
+
 export type PlanSummary = {
 	plan_id: string,
 	title: string,
@@ -5361,6 +5382,12 @@ export type ProjectStats = {
 /**  어디든 열린 프로젝트 집합이 바뀌었다 — 시작 탭의 "열림" 배지. */
 export type ProjectWindowsChanged = {
 	open: number[],
+};
+
+export type PromiseScorecard = {
+	window_days: number,
+	journal: JournalScore,
+	plans: PlanScore,
 };
 
 /**

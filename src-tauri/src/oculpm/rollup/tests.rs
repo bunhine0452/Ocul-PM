@@ -29,6 +29,7 @@ fn source(path: &str, body_hash: &str) -> RollupSourceEntry {
         body_markdown: String::new(),
         body_md_hash: body_hash.into(),
         files: Vec::new(),
+        evidence: 2,
     }
 }
 

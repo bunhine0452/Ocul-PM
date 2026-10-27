@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Copy } from "@/components/Icons";
 
 import { AppDialog } from "@/components/ui/AppDialog";
 import { ErrorCard } from "@/components/ErrorCard";
@@ -252,10 +253,25 @@ export function WeeklyRollupCard({ projectId, enabled }: WeeklyRollupCardProps) 
           style={{
             display: "flex",
             justifyContent: "flex-end",
+            gap: 8,
             padding: "10px 16px",
             borderTop: "1px solid var(--border-card)",
           }}
         >
+          {/* best-results-round {#rollup-receipt} — 영수증은 건네라고 있다. 코드를 안 보는
+              사람이 「검증된 것 / 안 된 것」을 읽을 수 있게 마크다운 그대로 복사. */}
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => {
+              if (!doc) return;
+              void navigator.clipboard
+                ?.writeText(doc.body_markdown)
+                .then(() => toast.info(t("today.rollup.copied")));
+            }}
+          >
+            <Copy size={13} /> {t("today.rollup.copy")}
+          </button>
           <button type="button" className="btn sm" onClick={() => setOpen(false)}>
             {t("today.rollup.close")}
           </button>
