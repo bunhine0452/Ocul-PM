@@ -10,6 +10,8 @@ owner: claude-code
 
 docs/product-direction-2026-09-21/REPORT.md 의 실행 플랜. 검증 경로 하나(Claude Code 터미널 + oculpm 플러그인)에서 프로젝트 열기 → 준비 확인 → 실제 작업 → 그 대화의 첫 일지 확인을 연결하고, 이어서 다음 세션의 재사용 왕복을 검증한다. 보고서는 제안이고 진척은 이 플랜이 갖는다.
 
+**완료 조건:** 실제 왕복 1회(`{#p1-verify}`)가 설치본에서 확인되고, README·랜딩이 핵심 경험 중심으로 편집(`{#p3-intro}` — 2026-10-27 약속 문서 라운드가 그 일부)되면 끝. `{#p4-observe}` 는 docs/launch/first-user-observation.md 와 polish-round-20261027 `{#observe-three-users}` 가 받았다 — 여기서는 `[>]`.
+
 ## Phase 0 — 기준선과 한 경로 확정 {#p0}
 - [x] P0-1 git 변경·활성 플랜·관련 일지 확인, 다른 세션과 겹치는 경로 식별 {#p0-baseline}
 - [x] P0-2 현재 첫 실행 → 첫 기록 흐름을 코드로 재현하고 단계·실패 위치를 기록 (docs/product-direction-2026-09-21/PHASE0.md) {#p0-reproduce}

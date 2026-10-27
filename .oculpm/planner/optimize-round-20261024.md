@@ -10,6 +10,8 @@ owner: claude-code
 
 PR #90 (main 6e42ea61). 병렬 레인 5개 합류. 아래는 실기기 확인과 이월 항목.
 
+**완료 조건:** 합류는 끝났다. 육안 8건은 확인 날(polish-round-20261027 `{#sweep-optimize}`)에, `carry-*` 는 각각 다음 라운드 플랜으로 옮겨 `[>]`, 사용자 액션(`{#carry-vscode-market}`)이 처리되면 끝. 「보류 유지」 항목은 그 근거가 바뀔 때 다시 보는 것이지 이 플랜을 여는 사유가 아니다.
+
 ## 합류 (끝남) {#merged}
 - [x] 레인 5개 합류 → 일직선 17커밋 → PR #90 CI 초록 → rebase 머지 6e42ea61 {#lanes-merged}
 

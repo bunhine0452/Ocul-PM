@@ -10,6 +10,8 @@ owner: claude-code
 
 외부 리뷰 4지적(범위 과다 · 리뷰어 부족 · 버스 팩터 1 · 생성물 diff)을 실측으로 대조해 전부 수용. 버스 팩터는 데이터가 .oculpm/ 마크다운이라 잠기지 않아 조치 없이 수용. 걷기 후보 수치: 커밋·fix 는 git log 경로 집계(이름 바뀐 파일 미추적), 사용 원격측정은 설계상 없어 사용 신호는 사용자만 안다.
 
+**완료 조건:** 사용자 결정 2건(`{#decide-native-new}` · `{#release-env}`)이 내려지면 끝 — 어느 쪽이든 결정이 곧 완료다. 다음 외부 리뷰는 bump-version 경고(v3.16.0 무렵)가 부른다.
+
 ## 범위 동결 {#freeze}
 - [x] CLAUDE.md 범위 동결 규칙 — 새 화면·외부 연동·상주 리스너 금지, 교체는 옛 경로 제거로 끝낸다 (근거: 60일 fix 211건 중 주변 95 · 핵심 80) {#freeze-rule}
 - [x] improvement-round-2026-09-14 Phase 5 의 확장 백로그 보류 — dap-more · lsp-settings · plugin-marketplace · session-to-window · skill-catalog-b {#freeze-backlog}
