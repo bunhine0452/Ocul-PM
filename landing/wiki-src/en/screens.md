@@ -2,12 +2,14 @@
 title: Screen Tour
 desc: What each screen in the sidebar does — from Today to the code editor, on one page.
 order: 3
-updated: 2026-10-24
+updated: 2026-10-27
 ---
 
 Ocul-PM looks like a lot of screens, but it's really **two groups**. The upper "record" group is where what agents did piles up; the lower "tools" group is for digging through code alongside those records.
 
 Sidebar order = `⌘` number order. Only the first ten get numbers.
+
+Screens have **tiers** ([promise document](https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md), Korean): Today · Work Journal · Changes · Planner are **core** (what the app promises), Discussions · Branch · Search · Skills & Rules are **viewer** (opens, shows, does not break), and Terminal · Editor · Agents · AI panel are **beta** (included, not promised — bug fixes only).
 
 ## Record
 

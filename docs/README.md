@@ -24,6 +24,7 @@
 
 | 폴더 | 무엇 |
 |---|---|
+| [`PROMISE.md`](PROMISE.md) | **약속 문서.** 이 앱이 하는 일 10문장 · 약속하지 않는 것 · 화면 3등급(핵심 · 뷰어 · 보류=베타) · 약속을 지키는 장치. 랜딩·README 첫 화면이 이 문서와 어긋나면 그쪽을 고친다 |
 | [`RELEASE.md`](RELEASE.md) | **릴리스 체크리스트.** 버전 6파일 · CHANGELOG · README ko/en · 랜딩 ko/en. 릴리스 전에 반드시 연다 |
 | [`20260923_cross-platform/`](20260923_cross-platform/) | **Windows · Linux 출시.** CI 러너가 실기기(D1) · 파동 W0~W5 · 병렬 레인 브리프와 파일 소유 표. Mac App Store 는 **하지 않기로 결정**(2026-09-23) — 근거 표만 `03-mas-feasibility.md` 에. 플랜 `cross-platform-port` |
 | [`optimization/`](optimization/) | **최적화 원장.** 앞으로의 최적화는 라운드 폴더를 새로 파지 않고 여기 적는다 — 고친 것 · 확정했지만 안 고친 것 · 재 봤더니 아니었던 것 · 잔고 표 |
