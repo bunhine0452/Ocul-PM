@@ -34,7 +34,7 @@ owner: claude-code
 
 ## 확인 날 — 눈으로 {#p4}
 - [ ] [사용자] 설치본에서 설정 「표시」 스위치로 베타 행이 접히고 ⌘K 로는 열리는지 · 첫 실행 시트가 일지 0건에만 뜨는지 · 터미널 결과 끝 줄 → 수동 일지 ## 검증 미리 채움 · 도크 접힘 한 줄 · 논의 「A 로 결정」이 잠그는지 {#eyes-round3}
-- [ ] 3.17.0 — 라운드 2·3 + E2E 접힘 고침, Windows·Linux 복구 (릴리스 리듬: 하루 둘째 릴리스 금지 → 사용자 말에 따라) {#release-3-17}
+- [x] 3.17.0 — 라운드 2·3 + E2E 접힘 고침, Windows·Linux 복구 (릴리스 리듬: 하루 둘째 릴리스 금지 → 사용자 말에 따라) {#release-3-17}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -52,4 +52,6 @@ owner: claude-code
 | 2026-10-28T12:32+09:00 | #terminal-result | claude-code | ☐→☑ | 20261028/Features_to_add/1232_feature_ui-density-round-3.md | 커밋 7ed07533 — PR #108 |
 | 2026-10-28T12:32+09:00 | #dock-collapsed | claude-code | ☐→☑ | 20261028/Features_to_add/1232_feature_ui-density-round-3.md | 커밋 7ed07533 — PR #108 |
 | 2026-10-28T12:32+09:00 | #start-lead | claude-code | ☐→☑ | 20261028/Features_to_add/1232_feature_ui-density-round-3.md | 커밋 7ed07533 — PR #108 |
+| 2026-10-28T16:35:52+09:00 | #release-3-17 | claude-code | ☐→~ | .oculpm/journal/20261028/Chores/1635_chore_release-3-17-0.md | 태그 v3.17.0 push, release run 40650893193 gate 대기 — 공개 확인 후 done |
+| 2026-10-28T19:30:58+09:00 | #release-3-17 | claude-code | ~→x | .oculpm/journal/20261028/Bugs/1929_bug_e2e-toast-overlap-english-switch.md | v3.17.0 macOS 공개(run 40650893193). Windows·Linux 는 E2E 토스트 가림으로 또 빠짐 → PR #109 머지(main 2ad155f8). 비-mac 은 다음 판(3.17.1 = 같은 날 셋째, 사용자 결정) |
 <!-- oculpm:plan-log end -->
