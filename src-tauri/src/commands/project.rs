@@ -107,8 +107,6 @@ pub async fn delete_project(
     manager.forget_project(project_id).await;
     // 창에서도 걷는다 — 왜 **행을 지우기 전**인지는 그 함수에 적어 두었다.
     crate::commands::window::close_project_surfaces(&app, project_id).await;
-    // 탭이 없던 프로젝트도 서버가 떠 있을 수 있다 (닫힌 뒤 경주에서 진 spawn 등).
-    crate::commands::window::stop_code_servers(&app, project_id).await;
     if delete_oculpm || delete_agents_md {
         // Capture the root BEFORE the DB row is gone. If the project lookup
         // fails we skip file cleanup (nothing reliable to point at) and still

@@ -78,16 +78,6 @@ pub struct ProjectWindowsChanged {
     pub open: Vec<u32>,
 }
 
-/// 터미널을 창으로 떼어낸 프로젝트 집합이 바뀌었다 (2026-08-15).
-///
-/// 셸의 도크·터미널 화면은 이걸 듣고 자리표시자로 바뀐다. 사용자가 분리 창을
-/// OS 의 닫기 버튼으로 닫아도 같은 길로 되돌아온다 — 프런트가 자기 상태를
-/// 진실로 삼지 않는 이유다.
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
-pub struct TerminalWindowsChanged {
-    pub open: Vec<u32>,
-}
-
 /// 다른 창에서 끌고 온 탭이 **이 창의 스트립 위**에 있다 (창 간 드래그).
 ///
 /// `x` 는 창 안쪽 왼쪽 위 기준 **논리 px**. 받는 쪽이 웹뷰 줌으로 나눠 CSS px 로
@@ -189,9 +179,4 @@ pub(super) async fn broadcast(app: &AppHandle, label: &str) {
 pub(super) fn emit_open_projects(app: &AppHandle) {
     let open = app.state::<WindowTabs>().lock().all_open_projects();
     let _ = ProjectWindowsChanged { open }.emit(app);
-}
-
-pub(super) fn emit_terminal_windows(app: &AppHandle) {
-    let open = app.state::<WindowTabs>().lock().terminal_window_projects();
-    let _ = TerminalWindowsChanged { open }.emit(app);
 }

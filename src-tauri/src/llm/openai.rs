@@ -1,10 +1,8 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
 
 use super::{
-    forward_sse_lines, json_or_api_error, ChatEvent, ChatOptions, ChatResponse, LlmError,
-    LlmProvider, Message, ModelInfo, Role,
+    json_or_api_error, ChatOptions, ChatResponse, LlmError, LlmProvider, Message, ModelInfo, Role,
 };
 
 const BASE_URL: &str = "https://api.openai.com/v1/chat/completions";
@@ -152,21 +150,6 @@ struct ResponseMessage {
     content: Option<String>,
 }
 
-#[derive(Deserialize)]
-struct StreamChunk {
-    choices: Vec<StreamChoice>,
-}
-
-#[derive(Deserialize)]
-struct StreamChoice {
-    delta: StreamDelta,
-}
-
-#[derive(Deserialize)]
-struct StreamDelta {
-    content: Option<String>,
-}
-
 #[async_trait]
 impl LlmProvider for OpenAi {
     async fn list_models(&self) -> Result<Vec<ModelInfo>, LlmError> {
@@ -230,35 +213,6 @@ impl LlmProvider for OpenAi {
             model: parsed.model,
             provider: self.provider.into(),
         })
-    }
-
-    async fn chat_stream(
-        &self,
-        messages: Vec<Message>,
-        opts: ChatOptions,
-        sink: mpsc::Sender<ChatEvent>,
-    ) -> Result<(), LlmError> {
-        let body = self.build_request(messages, &opts, true);
-        let resp = self.post().json(&body).send().await?;
-
-        let status = resp.status();
-        if !status.is_success() {
-            let body = crate::llm::error_body(resp).await;
-            return Err(LlmError::ApiError {
-                status: status.as_u16(),
-                body,
-            });
-        }
-
-        forward_sse_lines(resp, &sink, |line| {
-            let payload = line.strip_prefix("data: ")?.trim();
-            if payload.is_empty() || payload == "[DONE]" {
-                return None;
-            }
-            let chunk: StreamChunk = serde_json::from_str(payload).ok()?;
-            chunk.choices.into_iter().next()?.delta.content
-        })
-        .await
     }
 }
 

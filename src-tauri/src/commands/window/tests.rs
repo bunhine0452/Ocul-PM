@@ -42,52 +42,6 @@ fn labels_distinguish_app_windows() {
     assert!(!is_app_window("window-1"));
 }
 
-/// 접두사가 다른 프로젝트를 잡아먹지 않는다 — `p1-` 이 `p12-…` 를 죽이면
-/// 탭 하나를 닫을 때 다른 탭의 셸이 함께 죽는다.
-#[test]
-fn pty_prefix_does_not_swallow_longer_ids() {
-    let p1 = pty_prefix_for(1);
-    assert!("p1-a1b2c3d4".starts_with(&p1));
-    assert!(!"p12-a1b2c3d4".starts_with(&p1));
-}
-
-/// 터미널 창은 탭을 물지 않는다 — 탭 레지스트리·⌘W·"마지막 창" 판정이
-/// 이 라벨을 앱 창으로 오해하면 남의 탭을 닫거나 앱을 종료시킨다.
-#[test]
-fn terminal_windows_are_not_app_windows() {
-    assert!(!is_app_window("term-3"));
-    assert_eq!(terminal_window_label(3), "term-3");
-    assert_eq!(terminal_window_project("term-3"), Some(3));
-    assert_eq!(terminal_window_project("win-3"), None);
-    assert_eq!(terminal_window_project("term-"), None);
-    assert_eq!(terminal_window_project("term-abc"), None);
-}
-
-/// PTY 정리의 유일한 판정 — 탭이든 터미널 창이든 **하나라도 남아 있으면**
-/// 셸을 죽이지 않는다. 탭만 보던 시절에는, 터미널을 창으로 떼어낸 뒤
-/// 프로젝트 탭을 닫는 순간 분리 창 안의 셸이 전부 사라졌다.
-#[test]
-fn a_detached_terminal_window_keeps_the_project_in_use() {
-    let mut reg = reg_with(&[("main", &[Some(3)])]);
-    let tab = ids(&reg, "main")[0];
-
-    assert!(reg.project_in_use(3), "탭이 있으니 쓰는 중");
-    reg.terminal_windows.insert(3);
-    reg.remove_tab(tab);
-    assert!(reg.project_in_use(3), "탭은 닫혔지만 터미널 창이 남았다");
-
-    reg.terminal_windows.remove(&3);
-    assert!(!reg.project_in_use(3), "둘 다 없으면 그때 정리한다");
-}
-
-#[test]
-fn terminal_window_projects_are_sorted() {
-    let mut reg = Registry::default();
-    reg.terminal_windows.insert(9);
-    reg.terminal_windows.insert(2);
-    assert_eq!(reg.terminal_window_projects(), vec![2, 9]);
-}
-
 #[test]
 fn tab_ids_are_unique_across_windows() {
     let reg = reg_with(&[("main", &[None, Some(3)]), ("win-1", &[Some(7)])]);
@@ -586,14 +540,12 @@ fn a_deleted_project_is_dropped_from_the_restore() {
             tabs: vec![None, Some(7), Some(99)],
             active: 2,
         }],
-        terminals: vec![7, 99],
         focused: Some("main".into()),
     };
     let out = sanitize_session(&session, &known(&[7]));
     assert_eq!(out.windows[0].tabs, vec![None, Some(7)]);
     // 활성이던 탭이 사라졌으면 첫 탭으로 — 빈 화면으로 뜨지 않게.
     assert_eq!(out.windows[0].active, 0);
-    assert_eq!(out.terminals, vec![7]);
 }
 
 /// I1(프로젝트당 탭 하나, 전역 유일)은 복원에도 그대로 걸린다.
@@ -612,7 +564,6 @@ fn a_project_is_restored_into_exactly_one_tab() {
                 active: 0,
             },
         ],
-        terminals: vec![],
         focused: Some("win-1".into()),
     };
     let out = sanitize_session(&session, &known(&[7]));
@@ -633,7 +584,6 @@ fn an_all_stale_snapshot_restores_nothing() {
             tabs: vec![Some(7)],
             active: 0,
         }],
-        terminals: vec![],
         focused: None,
     };
     assert!(sanitize_session(&session, &known(&[])).windows.is_empty());
@@ -650,29 +600,15 @@ fn an_all_stale_snapshot_restores_nothing() {
 /// 있는지는 정해져 있지 않다).
 #[test]
 fn project_surfaces_finds_the_tab_in_any_window() {
-    let mut reg = reg_with(&[("main", &[Some(7)]), ("win-1", &[None, Some(22)])]);
-    reg.terminal_windows.insert(22);
-
-    let (tab, had_terminal) = project_surfaces(&reg, 22);
-    assert_eq!(tab, Some(ids(&reg, "win-1")[1]));
-    // 분리 터미널 창도 함께 걷어야 한다 — 남으면 프런트가 「창으로 떼어냄」
-    // 상태에 갇힌다.
-    assert!(had_terminal);
+    let reg = reg_with(&[("main", &[Some(7)]), ("win-1", &[None, Some(22)])]);
+    assert_eq!(project_surfaces(&reg, 22), Some(ids(&reg, "win-1")[1]));
 }
 
 /// 열려 있지 않은 프로젝트를 지우는 것이 정상 경로다 — 아무것도 안 건드린다.
 #[test]
 fn project_surfaces_of_an_unopened_project_is_empty() {
     let reg = reg_with(&[("main", &[Some(7)])]);
-    assert_eq!(project_surfaces(&reg, 999), (None, false));
-}
-
-/// 탭은 없고 분리 터미널 창만 떠 있는 경우도 걷는다.
-#[test]
-fn project_surfaces_reports_a_lone_terminal_window() {
-    let mut reg = reg_with(&[("main", &[Some(7)])]);
-    reg.terminal_windows.insert(9);
-    assert_eq!(project_surfaces(&reg, 9), (None, true));
+    assert_eq!(project_surfaces(&reg, 999), None);
 }
 
 /// 배선 가드 — 위 판정이 **불리는지**는 소스로만 확인할 수 있다 (두 경로 모두

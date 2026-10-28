@@ -203,7 +203,7 @@ async fn close_tab_from(app: &AppHandle, asking: Option<&str>, tab_id: u32) -> R
         let mut reg = state.lock();
         reg.remove_tab(tab_id)
     };
-    let Some((label, project_id, emptied)) = removed else {
+    let Some((label, _project_id, emptied)) = removed else {
         // 여기가 "닫기 버튼이 안 먹는다" 의 유일하게 남은 조용한 갈래다 (2026-08-29).
         // 프런트가 든 탭 id 를 레지스트리가 모르면 탭도 창도 건드리지 않고 Ok 를
         // 냈다 — 화면에는 아무 변화도 아무 메시지도 없다. Err 로 올리지는 않는다:
@@ -236,9 +236,6 @@ async fn close_tab_from(app: &AppHandle, asking: Option<&str>, tab_id: u32) -> R
         }
         return Ok(());
     };
-    if let Some(pid) = project_id {
-        release_project(app, pid).await;
-    }
     if emptied {
         // 마지막 탭을 닫으면 창도 닫힌다 (Chrome 과 같다) — `⌘W` 한 키로
         // "탭 닫기" 와 "창 닫기" 가 자연스럽게 이어지는 지점이다.
@@ -274,19 +271,15 @@ async fn close_tab_from(app: &AppHandle, asking: Option<&str>, tab_id: u32) -> R
 /// surfaces` 는 웹뷰를 만지므로 단위 테스트가 닿지 않는데, **어느 창에 있든
 /// 찾아내는가**는 여기서 전부 결정된다 — 지운 프로젝트의 탭이 다른 창에 있을 때
 /// 그냥 지나치면 그 창에 껍데기 탭이 남는다.
-pub(super) fn project_surfaces(reg: &Registry, project_id: u32) -> (Option<u32>, bool) {
-    (
-        reg.locate_project(project_id).map(|(_, tab_id)| tab_id),
-        reg.terminal_windows.contains(&project_id),
-    )
+pub(super) fn project_surfaces(reg: &Registry, project_id: u32) -> Option<u32> {
+    reg.locate_project(project_id).map(|(_, tab_id)| tab_id)
 }
 
 /// 워크스페이스에서 **지운** 프로젝트의 창 흔적을 걷는다 — `delete_project` 가
 /// DB 행을 지우기 전에 부른다.
 ///
-/// 분리 터미널 창(`term-{pid}`)을 닫고, 그 프로젝트의 탭(I1 이라 많아야 하나)을
-/// `close_tab` 과 **같은 길**로 닫는다 — PTY 정리·브로드캐스트·마지막 탭이면
-/// 창 닫기까지 같다. 둘 중 나중에 정리되는 쪽이 셸을 죽인다 (`releasable`).
+/// 그 프로젝트의 탭(I1 이라 많아야 하나)을 `close_tab` 과 **같은 길**로 닫는다 —
+/// 브로드캐스트·마지막 탭이면 창 닫기까지 같다.
 ///
 /// 이걸 안 하던 동안 (2026-09-17 06:11 로그): 지운 프로젝트의 탭이 스트립에
 /// `#22` 로 남았고, 아직 마운트되지 않았던 그 탭을 뒤늦게 누르면 `oculpm_init`
@@ -294,16 +287,11 @@ pub(super) fn project_surfaces(reg: &Registry, project_id: u32) -> (Option<u32>,
 /// 했다. 프런트에서 닫게 하지 않는 이유는 삭제 흐름이 둘(시작 탭·관리 시트)이고
 /// 탭은 다른 창에 있을 수도 있어서다 — 레지스트리를 쥔 쪽이 닫는 것이 맞다.
 pub async fn close_project_surfaces(app: &AppHandle, project_id: u32) {
-    let (tab, had_terminal) = {
+    let tab = {
         let state = app.state::<WindowTabs>();
         let reg = state.lock();
         project_surfaces(&reg, project_id)
     };
-    if had_terminal {
-        if let Err(e) = close_terminal_window(app.clone(), project_id).await {
-            tracing::warn!(project_id, error = %e, "[FLOW] 지운 프로젝트의 터미널 창을 닫지 못했다");
-        }
-    }
     let Some(tab_id) = tab else {
         return;
     };

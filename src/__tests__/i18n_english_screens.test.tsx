@@ -144,10 +144,6 @@ import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
 import { DiscussionScreenV2 } from "@/features/discussion/DiscussionScreenV2";
 import { SkillsScreenV2 } from "@/features/skills/SkillsScreenV2";
 import { BranchScreenV2 } from "@/features/branch/BranchScreenV2";
-import { AiPanelScreenV2 } from "@/features/chat/AiPanelScreenV2";
-import { CodeScreenV2 } from "@/features/code/CodeScreenV2";
-import { ClaudeCodeScreenV2 } from "@/features/chat/ClaudeCodeScreenV2";
-import { CodexScreenV2 } from "@/features/chat/CodexScreenV2";
 
 // i18n-ignore-next-line -- 한글 **검출**용 정규식 (표시 문자열이 아니다)
 const HANGUL = /[가-힣]/;
@@ -311,39 +307,7 @@ describe("영어 모드 전 화면 순회 — 한글이 남지 않는다", () =>
     await expectEnglish(container, "Branch");
   });
 
-  it("코드", async () => {
-    const { container } = render(
-      <Wrap>
-        <CodeScreenV2 projectId={1} projectRoot="/repo" openTarget={null} onOpenTargetConsumed={noop} />
-      </Wrap>,
-    );
-    await expectEnglish(container, "Editor");
-  });
 
-  it("Claude Code (ACP)", async () => {
-    const { container } = render(
-      <Wrap>
-        <ClaudeCodeScreenV2 projectId={1} />
-      </Wrap>,
-    );
-    await expectEnglish(container, "Claude Code");
-  });
 
-  it("Codex (ACP)", async () => {
-    const { container } = render(
-      <Wrap>
-        <CodexScreenV2 projectId={1} />
-      </Wrap>,
-    );
-    await expectEnglish(container, "Codex");
-  });
 
-  it("AI 대화 패널", async () => {
-    const { container } = render(
-      <Wrap>
-        <AiPanelScreenV2 projectId={1} />
-      </Wrap>,
-    );
-    await expectEnglish(container, "AI");
-  });
 });

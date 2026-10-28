@@ -119,12 +119,6 @@ const PALETTE_LAYERS = new Set(["styles/tokens.css", "App.css"]);
  */
 const HEX_EXCEPTIONS: { file: string | RegExp; selector?: RegExp; line?: RegExp; reason: string }[] = [
   {
-    file: "features/code/code.css",
-    reason:
-      "CodeMirror 편집기의 상호작용 색(선택·검색 일치)과, tokens.css 로 옮겨 가기 전 " +
-      "남아 있는 문법 팔레트 한 벌. 문법 색의 정본은 이제 tokens.css 다 ({#hljs-unify}).",
-  },
-  {
     file: "components/bootsplash.css",
     line: /var\(--[\w-]+,\s*#/,
     reason:
@@ -143,13 +137,6 @@ const HEX_EXCEPTIONS: { file: string | RegExp; selector?: RegExp; line?: RegExp;
     reason:
       "마스크 스텐실 — 색이 아니라 알파(불투명 → 투명)다. 화면에 칠해지지 않으므로 " +
       "토큰화할 대상이 아니고, 파일이 아니라 선언의 종류가 사유다.",
-  },
-  {
-    file: "styles/agent.css",
-    selector: /\.lightbox/,
-    reason:
-      "이미지 라이트박스는 어느 테마에서도 어둡다(사진 뷰어 관용구). 표면 토큰을 쓰면 " +
-      "다크 가족에서 흰 스크림이 되고, 그 위 닫기 버튼도 흰색이 맞다.",
   },
 ];
 
@@ -304,16 +291,12 @@ describe("Claude 코랄", () => {
    * `agentColor.ts` 의 `PALETTE` 는 **해시 버킷**이라 일부러 뺐다. 뜻이 다르면
    * 값이 같아도 한 자리에 두지 않는다 (거기 색은 "모르는 에이전트"의 색이다).
    */
-  it("Claude 를 뜻하는 다른 자리도 같은 코랄이다", () => {
+  it("Claude 를 뜻하는 다른 자리(에이전트 스와치)도 같은 코랄이다 — AI 패널 점은 화면과 함께 걷었다(2026-10-28)", () => {
     const token = read("styles/tokens.css").match(/--claude:\s*(#[0-9a-f]{6});/)![1];
     const swatch = read("features/today/agentColor.ts").match(
       /"claude-code":\s*"(#[0-9a-f]{6})"/,
     )![1];
-    const provider = read("features/chat/AiPanelScreenV2.tsx").match(
-      /anthropic: \{[^}]*color: "(#[0-9a-f]{6})"/,
-    )![1];
     expect(swatch).toBe(token);
-    expect(provider).toBe(token);
   });
 });
 

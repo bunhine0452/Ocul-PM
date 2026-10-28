@@ -1,15 +1,15 @@
 ---
 title: Screen Tour
-desc: What each screen in the sidebar does — from Today to the code editor, on one page.
+desc: What each screen in the sidebar does — from Today to Skills & Rules, on one page.
 order: 3
-updated: 2026-10-27
+updated: 2026-10-28
 ---
 
 Ocul-PM looks like a lot of screens, but it's really **two groups**. The upper "record" group is where what agents did piles up; the lower "tools" group is for digging through code alongside those records.
 
 Sidebar order = `⌘` number order. Only the first ten get numbers.
 
-Screens have **tiers** ([promise document](https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md), Korean): Today · Work Journal · Changes · Planner are **core** (what the app promises), Discussions · Branch · Search · Skills & Rules are **viewer** (opens, shows, does not break), and Terminal · Editor · Agents · AI panel are **beta** (included, not promised — bug fixes only).
+Screens have **tiers** ([promise document](https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md), Korean): Today · Work Journal · Changes · Planner are **core** (what the app promises); Discussions · Branch · Search · Skills & Rules are **viewer** (they open, show, and don't break). The beta tier — terminal, editor, in-app agents, AI panel — was removed on 2026-10-28; your agent runs in your own terminal.
 
 ## Record
 
@@ -19,8 +19,8 @@ Screens have **tiers** ([promise document](https://github.com/bunhine0452/Ocul-P
 | **Work Journal** | `⌘2` | A timeline of entries. Collapses by date; each entry is narrative + change diff, side by side |
 | **Changes** | `⌘3` | Your working tree, line by line. Can also group by entry or plan |
 | **Planner** | `⌘4` | The current plan — a living document agents keep up to date |
-| **Discussions** | — | Lay out options and compare them before deciding |
-| **Branch** | — | What happened on this branch — commits, entries, plan items, changed files, coverage |
+| **Discussions** | `⌘7` | Lay out options and compare them before deciding |
+| **Branch** | `⌘8` | What happened on this branch — commits, entries, plan items, changed files, coverage |
 
 Journal and Planner are the two pillars — see [Work Journal](/wiki/en/journal) and [Planner](/wiki/en/planner).
 
@@ -29,14 +29,10 @@ Journal and Planner are the two pillars — see [Work Journal](/wiki/en/journal)
 | Screen | Key | What it does |
 |---|---|---|
 | **Search** | `⌘5` | Semantic · Symbols · Exact match — three modes |
-| **Terminal** | `⌘6` | A real shell rooted in the project |
-| **Editor** | `⌘7` | The in-app editor (Monaco — VS Code's own editor) |
-| **Agents** | `⌘8` | Claude Code and Codex running inside the app ([integration](/wiki/en/claude-code)) |
-| **AI panel** | `⌘9` | Chat with several LLM providers, including planner action proposals |
-| **Skills & Rules** | `⌘0` | Everything injected into agents, in one place |
+| **Skills & Rules** | `⌘6` | Everything injected into agents, in one place |
 
 :::tip
-`⌘J` pops the **terminal dock** over whatever screen you're on. No need to navigate to Terminal (`⌘6`) — handy for typing commands while reading an entry.
+"Open" on a search result hands the file and line to the **external editor** command in Settings (VS Code · Cursor …). There is no in-app editor.
 :::
 
 ## Code Search — the three modes

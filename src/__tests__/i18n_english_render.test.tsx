@@ -78,12 +78,10 @@ vi.mock("@/api/oculpm", () => ({
 import { __resetLangForTests, setLangSetting } from "@/i18n";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
-import { ConversationHistoryModal } from "@/features/chat/ConversationHistoryModal";
 import { ProjectManager } from "@/features/projects/ProjectManager";
 import { PluginDocsTab } from "@/features/skills/PluginDocsTab";
 import { SettingsPanel } from "@/features/settings/SettingsPanel";
 import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
-import { TerminalScreenV2 } from "@/features/terminal/TerminalScreenV2";
 import { RuleCandidatesPanel } from "@/features/skills/RuleCandidates";
 import { SkillCandidatesPanel } from "@/features/skills/SkillCandidates";
 
@@ -138,22 +136,6 @@ afterEach(() => {
 });
 
 describe("영어 모드에서 한글이 남지 않는다", () => {
-  it("대화 기록 모달", async () => {
-    const { container, findByText } = render(
-      <Wrap>
-        <ConversationHistoryModal
-          projectId={1}
-          activeId={null}
-          onSelect={() => {}}
-          onNew={() => {}}
-          onActiveDeleted={() => {}}
-          onClose={() => {}}
-        />
-      </Wrap>,
-    );
-    await findByText("Conversation history");
-    expect(hangulIn(container)).toEqual([]);
-  });
 
   it("프로젝트 관리 모달", async () => {
     const { container, findByText } = render(
@@ -215,15 +197,6 @@ describe("영어 모드에서 한글이 남지 않는다", () => {
     expect(hangulIn(container)).toEqual([]);
   });
 
-  it("터미널 화면", async () => {
-    const { container, findByText } = render(
-      <Wrap>
-        <TerminalScreenV2 projectRoot="/tmp/p" />
-      </Wrap>,
-    );
-    await findByText("Terminal");
-    expect(hangulIn(container)).toEqual([]);
-  });
 
   it("회고 승격 후보 카드 (규칙·스킬)", async () => {
     const rule = render(

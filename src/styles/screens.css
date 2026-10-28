@@ -165,20 +165,10 @@
 /* 스켈레톤 `.skel` 은 primitives.css 로 옮겨 전역이 됐다 (2026-09-02). */
 
 /* --- Journal (PR-UI 3) --- */
-.day-label {
-  display: flex; align-items: center; gap: var(--space-4); margin: var(--space-3) 2px var(--space-5);
-  font-size: var(--fs-3); font-weight: var(--fw-bold); letter-spacing: var(--caps-track); text-transform: var(--caps-transform); color: var(--text-3);
-}
-.day-label::after { content: ""; flex: 1; height: 1px; background: var(--sep); }
-.file-pill {
-  height: 26px; padding: 0 var(--space-4);
-  background: var(--bg-inset); border-radius: var(--radius-s); font-size: var(--fs-3); color: var(--text-2);
-}
-.file-pill b { color: var(--text); font-weight: var(--fw-strong); }
+
 /* Clickable file chip (journal card foot → LIVE 변경 diff 화면). Button reset
    over the .file-pill base; an accent ring on hover signals it's interactive. */
-.file-pill--btn { appearance: none; -webkit-appearance: none; border: none; cursor: pointer; }
-.file-pill--btn:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+
 .cycle-flag { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--t-error); font-size: var(--fs-3); font-weight: var(--fw-strong); }
 .tag { font-size: var(--fs-2); color: var(--text-3); }
 .tag::before { content: "#"; opacity: 0.6; }
@@ -269,7 +259,7 @@
 .dfile.active { background: var(--accent-soft); }
 .dfile-name { flex: 1; min-width: 0; font-family: var(--mono); font-size: var(--fs-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dfile.active .dfile-name { color: var(--accent-text); font-weight: var(--fw-strong); }
-.dfile-stat { font-family: var(--mono); font-size: var(--fs-2); font-weight: var(--fw-strong); display: flex; gap: var(--space-2); }
+
 .dfile-read { margin-left: var(--space-1); color: var(--accent-text); display: grid; place-items: center; flex: none; }
 /* 경로는 디렉터리 + 파일명 두 조각이다 — 폭이 모자라면 **디렉터리부터** 줄고
    파일명은 끝까지 남는다. 전체 경로를 한 덩어리로 흘리면 `WorkspaceCont…` 처럼
@@ -411,12 +401,7 @@
   vertical-align: middle;
 }
 .pmark.sm { --pm: 12px; border-width: 1.25px; }
-.pmark.is-in_progress { border-color: var(--accent); }
-.pmark.is-in_progress::after {
-  content: ""; position: absolute; inset: 2px; border-radius: 50%;
-  background: var(--accent); clip-path: inset(0 50% 0 0);
-}
-.pmark.sm.is-in_progress::after { inset: 1.5px; }
+
 .pmark.is-done { background: var(--accent); border-color: var(--accent); }
 .pmark.is-done::after {
   content: ""; width: 28%; height: 52%; box-sizing: border-box;
@@ -427,17 +412,6 @@
 .pmark.is-blocked::after {
   content: "!"; color: var(--on-danger); font-family: var(--font);
   font-weight: var(--fw-bold); font-size: calc(var(--pm) * 0.72); line-height: 1;
-}
-.pmark.is-deferred { border-style: dashed; border-color: var(--text-3); }
-.pmark.is-deferred::after {
-  content: ""; width: 30%; height: 30%; box-sizing: border-box;
-  border: solid var(--text-3); border-width: 1.5px 1.5px 0 0;
-  transform: translateX(-20%) rotate(45deg);
-}
-.pmark.is-dropped { border-color: var(--sep-strong); }
-.pmark.is-dropped::after {
-  content: "×"; color: var(--text-3); font-family: var(--font);
-  font-size: calc(var(--pm) * 0.9); line-height: 1; transform: translateY(-4%);
 }
 
 /* 배치 — 레일 + 본문. `.pln-body` 가 컨테이너라 아래 규칙은 실제 남은 폭에 반응한다. */
@@ -605,7 +579,7 @@
 .pln-item-main { min-width: 0; padding-right: var(--space-4); }
 .sub-title { font-size: var(--fs-4); font-weight: var(--fw-label); line-height: var(--lh-snug); overflow-wrap: anywhere; }
 .pln-it.is-done .sub-title, .pln-it.is-dropped .sub-title { color: var(--text-3); font-weight: var(--fw-body); }
-.pln-it.is-deferred .sub-title { color: var(--text-2); }
+
 .pln-item-note { display: block; margin-top: 2px; font-size: var(--fs-3); color: var(--text-2); line-height: var(--lh-snug); }
 .pln-it.is-done .pln-item-note { color: var(--text-3); }
 .sub-title-input {
@@ -701,7 +675,7 @@
 }
 .pln-col.is-in_progress, .pln-col.is-done { border-top-color: var(--accent); }
 .pln-col.is-blocked { border-top-color: var(--t-bug); }
-.pln-col.is-deferred, .pln-col.is-dropped { border-top-color: var(--sep); }
+
 .pln-col.is-over { background: var(--accent-soft); }
 .pln-col-head { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-1) var(--space-3); }
 .pln-col-title { font-size: var(--fs-3); font-weight: var(--fw-bold); color: var(--text); }
@@ -807,7 +781,6 @@
 @container plnbody (max-width: 700px) {
   .pln-rail-slot { max-width: 168px; }
 }
-.pln-rail.is-collapsed { display: none; }
 
 /* 잡는 선 — 평소엔 경계선과 구별되지 않고, 올리면 도톰해진다
    (코드 화면 하단 패널의 `.code-panel-resizer` 와 같은 규격, 축만 다르다). */
@@ -952,7 +925,7 @@
   opacity: 0.7;
 }
 .pln-pie.is-done { background: var(--pie); border-color: transparent; }
-.pln-pie.is-archived { border-style: dashed; background: none; }
+
 .pln-row.on .pln-pie { --pie: var(--accent); border-color: var(--accent); opacity: 1; }
 .pln-row.on .pln-pie.is-done { border-color: transparent; }
 
@@ -1013,18 +986,6 @@
    (Dogfooding 2026-06-14 #4; enlarged + SVG icon 2026-06-15). Used in plan item
    rows and the per-item history list. Bigger padding + min-height makes it
    easier to click; the icon and label are vertically centered. */
-.jref-btn {
-  display: inline-flex; align-items: center; gap: var(--space-2); vertical-align: middle;
-  /* 라벨이라 꺾이지 않는다 (좁은 폭 방어 2026-08-23). */
-  white-space: nowrap; flex: none;
-  min-height: 24px; padding: 3px var(--space-4); border-radius: var(--radius-s); cursor: pointer;
-  background: var(--bg-inset); border: 1px solid var(--border-card);
-  color: var(--text-2); font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-label);
-  line-height: 1; transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
-}
-.jref-btn > svg { flex-shrink: 0; color: var(--text-3); }
-.jref-btn:hover { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
-.jref-btn:hover > svg { color: var(--accent-text); }
 
 /* Multi-journal picker — shown when a plan item links >1 journal. Lists each
    linked entry's date + title so the user picks where to navigate. */
@@ -1058,7 +1019,7 @@
   background: transparent; font-family: var(--font); text-align: left; width: 100%; color: var(--text); cursor: pointer;
 }
 .sresult-path { font-family: var(--mono); font-size: var(--fs-3); font-weight: var(--fw-strong); }
-.sresult-sym { font-family: var(--mono); font-size: var(--fs-3); color: var(--accent-text); background: var(--accent-soft); padding: 1px var(--space-3); border-radius: var(--radius-xs); }
+
 .sresult-lines { margin-left: auto; font-size: var(--fs-2); color: var(--text-3); font-family: var(--mono); }
 .sym-kind { font-size: var(--fs-1); font-weight: var(--fw-bold); text-transform: var(--caps-transform); letter-spacing: var(--caps-track); color: var(--text-3);
   background: var(--bg-inset); border-radius: var(--radius-xs); padding: 1px var(--space-2); margin-left: var(--space-3); }
@@ -1066,8 +1027,6 @@
 .score-bar { width: 42px; height: 5px; background: var(--bg-inset); border-radius: var(--radius-2xs); overflow: hidden; }
 .score-bar > i { display: block; height: 100%; background: var(--accent); }
 .scode { font-family: var(--mono); font-size: var(--fs-3); line-height: var(--lh-body); padding: var(--space-4) var(--space-6); overflow-x: auto; color: var(--text-2); white-space: pre; }
-.scode .ln { color: var(--text-3); display: inline-block; width: 30px; user-select: none; }
-.scode .hl { background: var(--accent-soft); border-radius: var(--radius-2xs); }
 
 /* ── 검색 업그레이드 (2026-08-16) ──────────────────────────── */
 /* 스니펫/심볼 이름 안 매치 하이라이트 */
@@ -1136,446 +1095,135 @@ mark.s-hit {
    예전엔 여기가 가로 탭 줄이었다. 에이전트를 서너 개 띄우면 탭 이름이 `cla…`
    로 뭉개지고 상태를 실을 자리가 없어서, 세션 목록을 세로 레일로 내리고 이
    줄에는 레일 토글과 도구만 남겼다. */
-.term-head {
-  display: flex; align-items: center; gap: 2px; flex: none;
-  padding: var(--space-2) var(--space-3); min-height: 32px;
-  background: var(--term-chrome); border-bottom: 1px solid var(--sep);
-}
+
 /* 지금 보고 있는 세션 이름 (+ 분할 수). 레일을 접으면 이름이 이것뿐이다.
    2026-10-25 시안 A: 가운데 정렬을 버리고 레일 토글 바로 옆에 붙인다 — 화면
    툴바로 그려질 때 「터미널 / ai-pm」이 한 덩어리로 읽혀야 해서다. */
-.term-head-title {
-  flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center;
-  gap: var(--space-2); padding-left: var(--space-1); overflow: hidden; font-size: var(--fs-2); color: var(--text-2);
-}
+
 /* 화면 툴바 안 — 「터미널 / 세션」. 세션 쪽은 제목보다 한 단계 가볍다. */
-.toolbar-title:has(> .term-head-title) { flex: 1 1 auto; min-width: 0; }
-.toolbar-title > .term-head-title { padding-left: 0; font-size: var(--fs-3); }
-.term-head-title .tht-screen { flex: none; font-size: var(--fs-5); font-weight: var(--fw-strong); color: var(--text); }
-.term-head-title .tht-slash { flex: none; color: var(--text-3); font-weight: var(--fw-body); }
-.toolbar-title > .term-head-title .tht-name { color: var(--text-2); }
-.term-head-title .tht-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-strong); }
-.term-head-title .tht-count { flex: none; color: var(--text-3); font-variant-numeric: tabular-nums; }
-.term-head-title .tht-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--sess, var(--accent)); }
+
 /* 확대 중 — 제목 옆의 되돌리기 칩. 확대는 화면에서 페인이 사라지는 일이라
    "왜 하나뿐이지" 를 여기서 바로 답하고 되돌린다. */
-.term-head-title .tht-zoom {
-  display: inline-flex; align-items: center; gap: var(--space-1); flex: none;
-  height: var(--ctl-1); padding: 0 var(--space-2); margin-left: var(--space-1);
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent-text);
-  font-family: var(--font); font-size: var(--fs-1); font-weight: var(--fw-strong); cursor: pointer;
-}
-.term-head-title .tht-zoom:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
-.term-tools { display: flex; align-items: center; gap: 2px; flex: none; }
-.term-tool {
-  display: grid; place-items: center; width: 26px; height: 26px; border-radius: var(--radius-s);
-  border: none; background: transparent; color: var(--text-3); cursor: pointer;
-  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
-}
-.term-tool:hover { background: var(--bg-hover); color: var(--text); }
-.term-tool[aria-pressed="true"] { color: var(--text-2); }
-.term-tool-sep { width: 1px; height: 15px; margin: 0 var(--space-1); flex: none; background: var(--sep-strong); }
-.toolbar .term-tools { gap: 2px; }
-.toolbar .term-tool { width: var(--ctl-4); height: var(--ctl-4); }
 
 /* 보기 메뉴 `Aa` — 글자 크기·줄 간격 (2026-10-25). 팝오버는 화면 기준(fixed)이다:
    화면 툴바의 액션 묶음은 가로 스크롤 상자라 그 안에 절대 위치로 띄우면 잘린다. */
-.term-view { display: flex; }
-.term-tool.term-view-btn { width: auto; padding: 0 var(--space-2); font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong); }
-.term-tool.term-view-btn[aria-expanded="true"] { background: var(--bg-active); color: var(--text); }
-.term-view-pop {
-  position: fixed; z-index: 40; width: 232px;
-  display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4);
-  background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-m);
-  box-shadow: var(--shadow-pop); color: var(--text); font-family: var(--font); font-size: var(--fs-3);
-}
-.term-view-pop .tvp-row { display: flex; flex-direction: column; gap: var(--space-2); }
-.term-view-pop .tvp-label { font-size: var(--fs-1); font-weight: var(--fw-strong); color: var(--text-3); }
-.term-view-pop .tvp-font { display: flex; align-items: center; gap: var(--space-2); }
-.term-view-pop .tvp-btn {
-  height: var(--ctl-2); min-width: 34px; border: 1px solid var(--sep-strong); border-radius: var(--radius-s);
-  background: var(--bg-card); color: var(--text); font-family: var(--font); font-size: var(--fs-2); cursor: pointer;
-}
-.term-view-pop .tvp-btn:hover { background: var(--bg-hover); }
-.term-view-pop .tvp-size {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 2px;
-  font-family: var(--mono); font-size: var(--fs-3); color: var(--text-2);
-}
+
 /* px 직접 입력 — 스피너를 숨긴다(⌘+/⌘− 와 병행). */
-.term-view-pop .tvp-input {
-  width: 30px; height: var(--ctl-1); padding: 0 2px; border: 1px solid transparent; border-radius: var(--radius-xs);
-  background: transparent; color: var(--text); font: inherit; font-weight: var(--fw-strong); text-align: right;
-  font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield;
-}
-.term-view-pop .tvp-input::-webkit-inner-spin-button,
-.term-view-pop .tvp-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.term-view-pop .tvp-input:hover { border-color: var(--sep); }
-.term-view-pop .tvp-input:focus { outline: none; border-color: var(--accent); background: var(--bg-hover); }
-.term-view-pop .tvp-density { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.term-view-pop .tvp-hint { font-size: var(--fs-1); color: var(--text-3); }
 
 /* ── 본문: 세로 세션 레일 + 페인 캔버스 ────────────────────────────────── */
-.term-main { flex: 1; min-height: 0; display: flex; min-width: 0; }
 
 /* 세로 세션 레일 — 카드 한 장에 이름·상태·경과 시간·마지막 명령이 함께 실린다.
    개수가 늘어도 아래로 흐를 뿐 각 카드의 폭이 줄지 않는 게 가로 탭과의 차이다. */
-.term-rail {
-  flex: none; width: 210px; min-width: 0;
-  display: flex; flex-direction: column;
-  background: var(--term-chrome); border-right: 1px solid var(--sep);
-  /* 삽입 캐럿을 띄우는 기준. `overflow: hidden` 이 캐럿을 잘라내지는 않는다 —
-     캐럿은 언제나 레일 안쪽에 그려진다. */
-  position: relative;
-  overflow: hidden; transition: width var(--dur-2) var(--ease-out);
-}
-.term-rail[data-collapsed] { width: 44px; }
-.term-wrap.compact .term-rail { width: 168px; }
-.term-wrap.compact .term-rail[data-collapsed] { width: 40px; }
-.term-rail-list {
-  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
-  display: flex; flex-direction: column; gap: 2px; padding: var(--space-2);
-}
-.term-rail-list::-webkit-scrollbar { width: 6px; }
-.term-rail-list::-webkit-scrollbar-thumb { background: var(--sep-strong); border-radius: var(--radius-2xs); }
 
-.term-sess {
-  display: flex; align-items: center; gap: var(--space-3); min-width: 0; flex: none;
-  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-4); border-radius: var(--radius-m);
-  color: var(--text-3); cursor: pointer; user-select: none;
-  transition:
-    background var(--dur-1) var(--ease-out),
-    color var(--dur-1) var(--ease-out),
-    opacity var(--dur-1) var(--ease-out),
-    transform var(--dur-2) var(--ease-out);
-}
 /* 탭 스트립과 같은 이유로 네이티브 드래그를 끈다 (tabs.css `.tabstrip-tab` 주석). */
-.term-sess,
-.term-sess * {
-  -webkit-user-drag: none;
-}
-.term-sess:hover { background: var(--bg-hover); color: var(--text-2); }
+
 /* 활성 카드도 액센트로 두르지 않는다 — 페인과 같은 문법으로, 바탕이 올라오고
    테두리가 액센트 쪽으로 기울 뿐이다. */
-.term-sess.active {
-  background: var(--term-bg); color: var(--text);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, var(--sep-strong));
-}
-.term-sess:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset-inset); }
 
 /* ── 세션 옮기기 드래그 (2026-08-28) ──────────────────────────────────────
    끌고 있는 카드는 손에 들린 것처럼 물러나고, 놓일 자리는 캐럿 한 줄로
    말한다. 카드를 실제로 움직여 미리 보여 주지 않는 이유는, 페인 쪽으로
    끌고 갈 때(=분할) 목록이 요동치면 어디로 가는지 더 헷갈리기 때문이다. */
 /* 들려 나간 자리 — 카드가 살짝 물러나 앉는다 (손에 든 것은 고스트다). */
-.term-sess.dragging { opacity: 0.32; transform: scale(0.98); }
-.term-rail.receiving .term-rail-list { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+
 /* 캐럿에는 전환을 걸지 않는다. 위치 지시자는 "지금 어디에 놓이는가"를 말하는데,
    0.12s 를 두면 커서는 이미 다음 칸이고 표시만 뒤에서 미끄러져 온다 — 고무줄에
    묶인 느낌이 정확히 여기서 났다. 따라오는 것은 고스트 하나로 충분하다. */
-.term-rail-caret {
-  position: absolute; left: 8px; right: 8px; height: 2px; margin-top: -1px;
-  border-radius: var(--radius-pill); pointer-events: none; z-index: 3;
-  /* 실선 한 줄이 아니라 **왼쪽에서 흘러나오는** 줄 — 페인 위 상태 띠와 같은
-     문법이다. 두 곳의 액센트가 같은 재료로 보이면 화면이 한 벌로 읽힌다. */
-  background: linear-gradient(
-    90deg,
-    var(--accent),
-    color-mix(in srgb, var(--accent) 45%, transparent)
-  );
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
-}
+
 /* 시작점의 매듭 — 선만 있으면 "몇 번째 칸인가"를 눈이 한 번 더 훑는다. */
-.term-rail-caret::before {
-  content: ""; position: absolute; left: -2px; top: 50%; width: 5px; height: 5px;
-  transform: translateY(-50%); border-radius: 50%; background: var(--accent);
-}
 
 /* 손에 들린 것 — 끌리는 동안 커서를 따라다니는 유일한 물체.
    `left/top` 은 0 에 두고 위치는 `transform` 으로만 준다 (합성 단계라 레이아웃을
    더럽히지 않는다). 좌표는 컴포넌트가 rAF 안에서 직접 쓴다. */
-.term-ghost {
-  position: fixed; left: 0; top: 0; z-index: var(--z-popover); pointer-events: none;
-  display: flex; align-items: center; gap: var(--space-2); max-width: 220px;
-  margin: var(--space-4) 0 0 var(--space-5); padding: var(--space-2) var(--space-4); border-radius: var(--radius-m);
-  background: var(--term-bg); color: var(--text);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, var(--sep-strong)),
-    var(--shadow-raise);
-  font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong);
-  /* 자세(위치·기울기)는 JS 가 매 프레임 transform 으로 쓴다 — 그래서 등장은
-     transform 과 겹치지 않는 `scale`/`opacity` 로만 준다. */
-  will-change: transform;
-  animation: term-ghost-in 170ms var(--ease-spring);
-}
+
 @keyframes term-ghost-in { from { opacity: 0; scale: 0.88; } to { opacity: 1; scale: 1; } }
-.term-ghost .tg-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* 끄는 동안은 면 전체가 "쥐고 있음"이다 — 커서가 자리마다 바뀌면 손이 흔들린다. */
-.term-wrap.is-moving, .term-wrap.is-moving * { cursor: grabbing !important; }
 
 /* 페인을 집는 손잡이·확대·닫기는 머리띠 안에 산다 (아래 `.term-pane-head`).
    2026-09-11 전에는 캔버스 위에 떠 있는 칩이었고, 셸 프롬프트의 오른쪽 끝을 덮었다. */
 /* 겨눠진 페인 — 어느 페인을 기준으로 갈라지는지 알린다 (미리보기 상자만으로는
    두 페인 사이에서 어느 쪽이 기준인지 모른다). 포커스는 요소의 box-shadow 를
    쓰므로 이쪽은 `::after` 다 — 겨눈 페인에 포커스가 있어도 둘 다 산다. */
-.term-pane.dropping::after {
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 58%, transparent);
-}
 
 /* 셸이 끝난 페인 (2026-09-02). 출력을 가리지 않는다 — 읽고 복사할 수 있어야
    하므로 아래쪽에 얹히는 알약 하나다. 예전엔 `[프로세스 종료됨]` 한 줄만 찍고
    말아서, 그 뒤 타이핑이 어디로도 가지 않는 걸 아무도 알려주지 않았다. */
-.term-ended {
-  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 6;
-  display: flex; align-items: center; gap: var(--space-3);
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-5); border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--term-bg) 82%, var(--term-chrome));
-  box-shadow: inset 0 0 0 1px var(--sep-strong), var(--shadow-card);
-  color: var(--text-2); font-size: var(--fs-3); white-space: nowrap;
-  animation: term-drop-in 150ms var(--ease-spring);
-}
 
 /* 놓으면 차지할 자리. z-index 6 — 페인의 상태 띠(4)·포커스 링(3)·닫기(5) 위. */
 /* 여기도 전환 없음 — 같은 이유다 (위 `.term-rail-caret` 주석). 특히 이 상자는
    페인 사이를 건너뛸 때 화면을 가로질러 미끄러져서, 겨눈 곳보다 지나온 자취가
    더 크게 보였다. 나타남/사라짐만 알아채면 되므로 페이드도 두지 않는다. */
-.term-drop {
-  position: absolute; z-index: 6; pointer-events: none;
-  border-radius: var(--term-pane-radius);
-  background: color-mix(in srgb, var(--accent) 11%, transparent);
-  box-shadow:
-    inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 58%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
-  /* 자리는 여전히 **즉시** 잡는다. 다만 제자리에서 한 번 부푼다 — 겨눈 자리가
-     바뀔 때마다 요소가 새로 태어나므로(React key) 이 등장이 다시 돈다.
-     `transform` 이 아니라 `scale` 프로퍼티인 이유는 없다 — 여기 transform 을
-     쓰는 코드가 없어 둘 다 되지만, 상자를 옮기는 것과 부풀리는 것을 문법에서도
-     갈라 두면 나중에 위치에 transition 을 다시 붙이는 실수를 막는다. */
-  animation: term-drop-in 150ms var(--ease-spring);
-}
+
 @keyframes term-drop-in { from { opacity: 0; scale: 0.97; } to { opacity: 1; scale: 1; } }
 
 /* 상태 점 — 색의 출처는 터미널 팔레트다 (앱 액센트/초록/빨강이 캔버스 안의
    같은 색과 어긋나면 두 면이 따로 노는 것처럼 보인다). */
-.term-sess .ts-dot {
-  width: 6px; height: 6px; border-radius: 50%; flex: none;
-  background: var(--tone, var(--text-3));
-}
-.term-sess[data-tone="running"] { --tone: var(--accent); }
+
 /* 기다림은 노랑이다. 실행 중(액센트)·완료(초록)와 색상환에서 멀리 떨어져
    있어야 여러 카드 사이에서 하나만 튄다. */
-.term-sess[data-tone="waiting"] { --tone: var(--term-yellow); }
-.term-sess[data-tone="ok"] { --tone: var(--term-green); }
-.term-sess[data-tone="fail"] { --tone: var(--term-red); }
-.term-sess[data-tone="idle"] { --tone: var(--text-3); }
+
 /* 셸 통합이 없어 아무것도 모르는 세션 — 속 빈 점. 모르는 걸 색으로 칠하지 않는다. */
-.term-sess[data-tone="off"] .ts-dot { background: transparent; box-shadow: inset 0 0 0 1px var(--sep-strong); }
+
 /* 세션 정체 색 (2026-09-04) — 넷을 띄우면 카드 넷이 전부 같은 회색이고 이름도
    다 `claude` 라, 어느 것이 무엇인지 가르는 값이 화면에 하나도 없었다.
    왼쪽 띠 하나만 쓴다: 점·아이콘·타이머는 이미 상태(실행 중·기다림·실패)를
    말하고 있어 거기까지 물들이면 두 신호가 같은 색으로 싸운다.
    기다림 띠가 이 규칙 **뒤에** 와서 이긴다 — 급한 쪽이 정체보다 앞선다. */
-.term-sess[data-colored] { box-shadow: inset 2px 0 0 var(--sess); }
-.term-sess[data-colored].active {
-  box-shadow:
-    inset 2px 0 0 var(--sess),
-    inset 0 0 0 1px color-mix(in srgb, var(--sess) 38%, var(--sep-strong));
-}
+
 /* 접힘에서는 띠를 그릴 폭이 없다(32px). 아이콘 자신이 색을 입는다 — 이때는
    상태 점이 오른쪽 위에 따로 있어 신호가 겹치지 않는다. */
-.term-rail[data-collapsed] .term-sess[data-colored] { box-shadow: none; }
-.term-rail[data-collapsed] .term-sess[data-colored] .ts-icon { color: var(--sess); }
 
 /* 기다리는 카드는 점만이 아니라 **카드 전체**가 신호다 — 곁눈질로 잡히려면
    6px 점 하나로는 부족하다. 다만 배경까지 물들이면 목록이 시끄러워지므로
    왼쪽 테두리와 옅은 바탕까지만. */
-.term-sess.waiting {
-  background: color-mix(in srgb, var(--term-yellow) 12%, transparent);
-  box-shadow: inset 2px 0 0 var(--term-yellow);
-}
-.term-sess.waiting.active {
-  background: color-mix(in srgb, var(--term-yellow) 16%, var(--term-bg));
-  box-shadow:
-    inset 2px 0 0 var(--term-yellow),
-    inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, var(--sep-strong));
-}
 
-.term-sess .ts-icon { display: grid; place-items: center; flex: none; color: var(--tone, currentColor); }
-.term-sess .ts-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.term-sess .ts-line { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
-.term-sess .ts-name {
-  font-size: var(--fs-3); font-weight: var(--fw-strong); min-width: 0; flex: 1;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
 /* 라이브 타이머 — 1초마다 갱신되므로 폭이 흔들리면 카드 전체가 떤다. */
-.term-sess .ts-elapsed {
-  font-family: var(--mono); font-size: var(--fs-2); font-variant-numeric: tabular-nums;
-  color: var(--tone, var(--text-3)); flex: none;
-}
-.term-sess .ts-detail {
-  font-size: var(--fs-2); color: var(--text-3); min-width: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.term-sess .ts-panes {
-  display: inline-block; margin-right: var(--space-2); padding: 0 var(--space-1); border-radius: var(--radius-xs);
-  background: var(--bg-inset); font-size: var(--fs-0); font-weight: var(--fw-strong);
-}
+
 /* 도는 것이 있으면 같은 배지가 **살아 있는 수**를 말한다. 색을 입히는 것은
    그때뿐이다 — 평상시에 늘 켜져 있는 색은 신호가 아니다(레일 전체의 규칙). */
-.term-sess .ts-panes[data-live] {
-  background: color-mix(in srgb, var(--tone, var(--accent)) 18%, transparent);
-  color: var(--tone, var(--accent));
-}
 
 /* 접힌 레일의 개수 배지 — 아이콘 왼쪽 아래 모서리.
    상태 점(오른쪽 위)과 대각으로 갈라 둔다. 같은 모서리에 둘을 붙이면 32px
    폭에서 서로의 링을 갉아 하나의 얼룩으로 읽힌다. 펼친 카드에서는 상태 줄의
    `.ts-panes` 가 같은 것을 글로 말하므로 여기서는 숨는다. */
-.term-sess .ts-count { display: none; }
-.term-rail[data-collapsed] .ts-count {
-  display: block; position: absolute; left: 3px; bottom: 3px;
-  min-width: 13px; padding: 0 2px; border-radius: var(--radius-s);
-  background: var(--bg-inset); color: var(--text-2);
-  box-shadow: 0 0 0 2px var(--term-chrome);
-  font-family: var(--font); font-size: var(--fs-0); font-weight: var(--fw-bold); line-height: 13px;
-  text-align: center; font-variant-numeric: tabular-nums;
-}
-.term-rail[data-collapsed] .term-sess.active .ts-count { box-shadow: 0 0 0 2px var(--term-bg); }
+
 /* 여럿이 **돌고 있을 때만** 색이 붙는다. 그냥 열려 있는 페인 수는 회색이다 —
    둘의 무게가 같으면 급한 쪽이 안 보인다. */
-.term-rail[data-collapsed] .ts-count[data-live] {
-  background: var(--accent); color: var(--text-on-accent);
-}
-.term-sess .ts-rename {
-  width: 100%; min-width: 0; border: none; outline: none; background: var(--bg-inset);
-  color: var(--text); border-radius: var(--radius-xs); padding: 1px var(--space-2);
-  font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong);
-}
-.term-sess .ts-rename:focus { box-shadow: var(--ring-soft); }
-.term-sess .ts-x {
-  display: grid; place-items: center; width: 18px; height: 18px; border-radius: var(--radius-xs); flex: none;
-  border: none; background: transparent; color: inherit; cursor: pointer;
-  opacity: 0; transition: opacity var(--dur-1) var(--ease-out);
-}
-.term-sess:hover .ts-x, .term-sess.active .ts-x { opacity: 0.55; }
-.term-sess .ts-x:hover { opacity: 1; background: var(--bg-active); }
 
 /* 접힌 레일 — 카드가 **아이콘 한 개**로 읽혀야 한다. 이름은 title 로 남는다.
    예전엔 6px 점과 14px 아이콘을 나란히 뒀는데, 카드 폭이 32px(44 − 리스트
    패딩 12)이라 좌우에 3.5px 밖에 안 남았다. 크기가 다른 글리프 둘이 그 간격으로
    붙어 있으면 "상태가 붙은 터미널"이 아니라 정체 모를 두 덩어리로 보인다.
    점은 아이콘 모서리에 얹는 배지로 내리고, 상태색은 아이콘 자신이 입는다. */
-.term-rail[data-collapsed] .term-sess {
-  position: relative; justify-content: center; padding: var(--space-3) 0; gap: 0;
-}
-.term-rail[data-collapsed] .ts-main,
-.term-rail[data-collapsed] .ts-x,
-.term-rail[data-collapsed] .term-rail-add span { display: none; }
+
 /* 배지는 카드 배경색 링을 둘러 "아이콘 위에 얹혀 있음"을 만든다 — 링이 없으면
    아이콘 획과 붙어 다시 두 덩어리가 된다. */
-.term-rail[data-collapsed] .ts-dot {
-  position: absolute; top: 4px; right: 4px; width: 7px; height: 7px;
-  box-shadow: 0 0 0 2px var(--term-chrome);
-}
-.term-rail[data-collapsed] .term-sess.active .ts-dot { box-shadow: 0 0 0 2px var(--term-bg); }
+
 /* 페인의 상태 띠와 **같은 규칙**: 평상시에 늘 켜져 있는 색은 신호가 아니다.
    44px 에서는 더욱 그렇다 — 모든 카드에 회색 점이 붙으면 하나도 안 튄다. */
-.term-rail[data-collapsed] .term-sess[data-tone="ok"] .ts-dot,
-.term-rail[data-collapsed] .term-sess[data-tone="idle"] .ts-dot,
-.term-rail[data-collapsed] .term-sess[data-tone="off"] .ts-dot { display: none; }
+
 /* 왼쪽 띠는 배지와 겹치는 신호다. 32px 폭에서 2px 를 더 먹으면 아이콘 중심이
    눈에 띄게 밀리므로 접힘에서는 바탕색만 남긴다. */
-.term-rail[data-collapsed] .term-sess.waiting { box-shadow: none; }
-.term-rail[data-collapsed] .term-sess.waiting.active {
-  box-shadow: inset 0 0 0 1px var(--accent-ring);
-}
 
 /* "N개가 기다립니다" — 목록을 **재정렬하지 않고** 가는 길만 준다. 카드가
    스스로 자리를 바꾸면 누르려던 자리에 다른 세션이 와 있게 된다. */
-.term-rail-alert {
-  flex: none; display: flex; align-items: center; justify-content: center; gap: var(--space-2);
-  margin: var(--space-2) var(--space-2) 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-m);
-  border: 1px solid color-mix(in srgb, var(--term-yellow) 45%, transparent);
-  background: color-mix(in srgb, var(--term-yellow) 14%, transparent);
-  color: var(--term-yellow); cursor: pointer;
-  font-family: var(--font); font-size: var(--fs-2); font-weight: var(--fw-bold);
-}
-.term-rail-alert:hover { background: color-mix(in srgb, var(--term-yellow) 24%, transparent); }
-.term-rail-alert .tra-n { font-variant-numeric: tabular-nums; }
-.term-rail[data-collapsed] .term-rail-alert { margin: var(--space-2) var(--space-2) 0; padding: var(--space-2) 0; gap: 3px; }
 
 /* 방금 끝난 에이전트 실행 — 카드 안에 남는 손잡이. 토스트는 자리를 비운
    사이에 사라지지만 이건 돌아왔을 때 아직 거기 있다. */
 /* 210px 안에 "이름 · 소요시간 + 버튼 + 닫기"를 한 줄로 넣으면 이름이 `C…` 로
    뭉개진다. 두 줄로 나눈다 — 위는 무엇이 끝났는지, 아래는 무엇을 할지. */
-.term-sess .ts-done {
-  display: flex; flex-direction: column; gap: 3px; min-width: 0; margin-top: var(--space-1);
-  padding: var(--space-2) var(--space-2); border-radius: var(--radius-s);
-  background: var(--bg-inset); font-size: var(--fs-1); color: var(--text-3);
-}
-.ts-done .tsd-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ts-done .tsd-go {
-  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
-  border: none; border-radius: var(--radius-xs); padding: 3px var(--space-2); cursor: pointer;
-  background: var(--accent); color: var(--text-on-accent);
-  font-family: var(--font); font-size: var(--fs-1); font-weight: var(--fw-bold); white-space: nowrap;
-}
-.ts-done .tsd-go:hover { filter: brightness(1.08); }
-/* 아래 줄 — 버튼이 남는 폭을 먹고 닫기는 끝에 붙는다. */
-.ts-done .tsd-row { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
-.ts-done .tsd-row .tsd-go { flex: 1; min-width: 0; }
-.ts-done .tsd-x {
-  display: grid; place-items: center; width: 18px; height: 18px; flex: none;
-  border: none; border-radius: var(--radius-xs); background: transparent; color: var(--text-3); cursor: pointer;
-}
-.ts-done .tsd-x:hover { background: var(--bg-active); color: var(--text); }
 
-.term-rail-add {
-  flex: none; display: flex; align-items: center; justify-content: center; gap: var(--space-2);
-  margin: 0 var(--space-2) var(--space-2); padding: var(--space-3) var(--space-3); border-radius: var(--radius-m);
-  border: 1px dashed var(--sep-strong); background: transparent; color: var(--text-3);
-  font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong); cursor: pointer;
-  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
-}
-.term-rail-add:hover { background: var(--bg-hover); color: var(--text); border-color: var(--accent); }
-.term-rail[data-collapsed] .term-rail-add { margin: 0 var(--space-2) var(--space-2); padding: var(--space-3) 0; }
+/* 아래 줄 — 버튼이 남는 폭을 먹고 닫기는 끝에 붙는다. */
 
 /* ── 페인 캔버스 ────────────────────────────────────────────────────────
    페인은 떠 있는 카드다 (Warp/cmux 톤). 여백을 주고 모서리를 둥글리면 분할이
    몇 개인지, 어디가 경계인지 선 하나 없이도 읽힌다. */
-.term-body {
-  flex: 1; min-width: 0; min-height: 0; position: relative; display: flex;
-  padding: var(--term-body-pad); background: var(--term-chrome);
-}
-.term-canvas { flex: 1; min-width: 0; min-height: 0; }
-.term-split { flex: 1; display: flex; min-width: 0; min-height: 0; }
-.term-split.row { flex-direction: row; }
-.term-split.col { flex-direction: column; }
-.term-cell { flex-basis: 0; flex-shrink: 1; min-width: 0; min-height: 0; display: flex; }
 
 /* 분할 손잡이 — 잡는 자리는 8px 로 넉넉히 두고, 보이는 선은 그 안에 1px 로
    그린다 (얇은 선을 그대로 잡게 하면 매번 조준해야 한다). */
-.term-divider { flex: none; position: relative; z-index: 3; background: transparent; }
-.term-divider.row { width: 8px; cursor: col-resize; }
-.term-divider.col { height: 8px; cursor: row-resize; }
-.term-divider::before {
-  content: ""; position: absolute; background: var(--sep-strong); border-radius: var(--radius-2xs);
-  transition: background var(--dur-1) var(--ease-out);
-}
-.term-divider.row::before { top: 8px; bottom: 8px; left: 50%; width: 1px; transform: translateX(-50%); }
-.term-divider.col::before { left: 8px; right: 8px; top: 50%; height: 1px; transform: translateY(-50%); }
-.term-divider:hover::before, .term-divider:active::before { background: var(--accent); }
-.term-divider.row:hover::before, .term-divider.row:active::before { width: 2px; }
-.term-divider.col:hover::before, .term-divider.col:active::before { height: 2px; }
+
 /* 가운데 손잡이 알약 — 호버에서만. 선 하나만 있으면 "끌 수 있다" 가 안 읽힌다. */
-.term-divider::after {
-  content: ""; position: absolute; left: 50%; top: 50%; translate: -50% -50%;
-  border-radius: var(--radius-pill); background: var(--sep-strong);
-  opacity: 0; transition: opacity var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
-}
-.term-divider.row::after { width: 4px; height: var(--ctl-3); }
-.term-divider.col::after { width: var(--ctl-3); height: 4px; }
-.term-divider:hover::after, .term-divider:active::after { opacity: 1; background: var(--accent); }
 
 /* 페인의 가장자리 체계 (2026-08-29 재설계).
    ────────────────────────────────────────────────────────────────────────
@@ -1594,25 +1242,12 @@ mark.s-hit {
    숨쉬기, 포커스 때 두르던 4px 후광과 초록으로 물들던 머리띠를 사용자가 "너무 AI
    같다" 고 짚었다. 이제 판은 머리카락 한 줄이고, 포커스는 그 줄이 한 단계 진해지는
    것뿐이다. 상태는 머리띠의 **정지한** 점과 글자가 말한다 — 움직이는 것이 없다. */
-.term-pane {
-  position: relative; flex: 1; min-width: 0; min-height: 0; display: flex;
-  background: var(--term-bg); border-radius: var(--term-pane-radius); overflow: hidden;
-  /* 자기 box-shadow 는 자기 overflow 에 잘리지 않는다 — 테두리를 여기 둘 수 있는 이유. */
-  box-shadow: 0 0 0 1px var(--sep);
-  transition: box-shadow var(--dur-2) var(--ease-out);
-}
+
 /* 포커스 — 테두리만 진해진다. 세션 색을 고른 탭은 그 색이 조금 섞인다
    (`--sess` 는 고른 탭에만 붙는다). 분할이 하나면 페인이 하나뿐이라 티가 안 난다. */
-.term-pane.focused {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--sess, var(--text-3)) 55%, var(--sep-strong));
-}
 
 /* 겨눠진 페인의 안쪽 링 — 드래그 중에만. 포커스가 요소의 box-shadow 로
    내려갔으므로 이 축은 통째로 비었다. */
-.term-pane::after {
-  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
-  border-radius: inherit; transition: box-shadow var(--dur-1) var(--ease-out);
-}
 
 /* 비활성 페인 디밍 (iTerm2 의 dim inactive panes) — "어디에 타이핑되는가"를
    매번 확인하지 않게 한다.
@@ -1622,12 +1257,10 @@ mark.s-hit {
    에 opacity 를 거는 쪽이 실제로 가라앉는다 — 이미 합성된 레이어에 알파를
    곱하는 것이라 GPU 비용도 사실상 없고, 디밍되는 페인은 정의상 포커스가 없어
    타이핑 중일 수도 없다. */
-.term-pane .term-screen { transition: opacity var(--dur-2) var(--ease-out); }
-.term-pane.dim .term-screen { opacity: 0.6; }
+
 /* 지금 손에 들려 있는 페인 — 제자리에 남은 것은 자국일 뿐이라고 말한다.
    캔버스를 축소하지는 않는다 (xterm 이 다시 그려지고 PTY 가 resize 된다). */
-.term-pane.lifted .term-screen { opacity: 0.32; }
-.term-pane.lifted { box-shadow: 0 0 0 1px var(--sep); }
+
 /* ── 페인 머리띠 (2026-09-11 리디자인) ──────────────────────────────────
    페인은 이제 [머리띠][캔버스] 두 줄이다. 머리띠는 **고정 높이**다 — 에이전트가
    뜨고 져도, 명령이 끝나도 캔버스는 한 픽셀도 움직이지 않는다 (움직이면 xterm 이
@@ -1636,249 +1269,68 @@ mark.s-hit {
 
    왼쪽: 상태 점 + 작업 폴더(잎만 진하게). 가운데: 지금 무슨 일이 일어나는가.
    오른쪽: 손잡이·확대·닫기 (분할이 둘 이상일 때만). 출력 위에 떠 있는 것은 없다. */
-.term-pane { flex-direction: column; }
-.term-pane-body { flex: 1; min-width: 0; min-height: 0; position: relative; display: flex; }
-.term-pane-head {
-  flex: none; display: flex; align-items: center; gap: var(--space-2);
-  height: var(--ctl-3); padding: 0 var(--space-2) 0 var(--space-3);
-  background: color-mix(in srgb, var(--term-chrome) 55%, var(--term-bg));
-  border-bottom: 1px solid var(--sep);
-  color: var(--text-3); font-family: var(--font); font-size: var(--fs-2);
-  user-select: none; -webkit-user-select: none;
-  transition: background var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
-}
-.term-wrap.compact .term-pane-head { height: var(--ctl-2); padding-left: var(--space-2); }
+
 /* 포커스 — 띠는 물들지 않고 글자만 한 단계 진해진다. */
-.term-pane.focused .term-pane-head { color: var(--text-2); }
-.term-pane-head .tph-dot {
-  width: 6px; height: 6px; border-radius: 50%; flex: none;
-  background: var(--tone, transparent);
-}
-.term-pane-head[data-tone="off"] .tph-dot { box-shadow: inset 0 0 0 1px var(--sep-strong); }
-.term-pane-head[data-tone="running"] { --tone: var(--accent); }
-.term-pane-head[data-tone="waiting"] { --tone: var(--term-yellow); }
-.term-pane-head[data-tone="ok"] { --tone: var(--term-green); }
-.term-pane-head[data-tone="fail"] { --tone: var(--term-red); }
-.term-pane-head[data-tone="idle"] { --tone: var(--text-3); }
-.term-pane-head .tph-crumb {
-  flex: 0 1 auto; min-width: 36px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-family: var(--mono);
-}
+
 /* 좁은 페인에서 경로와 "지금 무슨 일" 이 자리를 다투면 경로가 양보한다 —
    경로는 앞이 잘려도 잎이 남지만, 에이전트 문구는 통째로 사라졌다. */
-.term-pane-head:has(.tph-live:not(:empty)) .tph-crumb { max-width: 46%; }
-.term-pane-head .tph-parent { opacity: 0.62; }
-.term-pane-head .tph-leaf { color: var(--text-2); font-weight: var(--fw-strong); }
-.term-pane.focused .tph-leaf { color: var(--text); }
-.term-pane-head .tph-live {
-  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: var(--space-2);
-  overflow: hidden; white-space: nowrap;
-}
-.term-pane-head .tph-agent { flex: none; color: var(--text-2); font-weight: var(--fw-strong); }
-.term-pane-head .tph-phase,
-.term-pane-head .tph-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.term-pane-head .tph-elapsed {
-  flex: none; font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text-3);
-}
+
 /* 기다림은 지금 읽어야 하는 순간이다 — 문구가 노랑을 입는다. */
-.term-pane-head[data-tone="waiting"] .tph-agent,
-.term-pane-head[data-tone="waiting"] .tph-phase,
-.term-pane-head[data-tone="waiting"] .tph-elapsed { color: var(--term-yellow); }
 
 /* 이력 핍 — 최근 명령 여덟 개. 세로 막대라 점보다 결과의 **순서**가 읽힌다. */
-.term-pane-head .tph-pips { display: inline-flex; align-items: center; gap: 2px; flex: none; margin-left: var(--space-1); }
-.term-pane-head .tph-pip {
-  width: 4px; height: 10px; padding: 0; border: none; border-radius: var(--radius-pill);
-  background: var(--pip, var(--text-3)); cursor: pointer; opacity: 0.85;
-  transition: transform var(--dur-1) var(--ease-out), opacity var(--dur-1) var(--ease-out);
-}
-.term-pane-head .tph-pip:hover { transform: scaleY(1.3); opacity: 1; }
-.term-pane-head .tph-pip[data-tone="ok"] { --pip: var(--term-green); }
-.term-pane-head .tph-pip[data-tone="fail"] { --pip: var(--term-red); }
-.term-pane-head .tph-pip[data-tone="running"] { --pip: var(--text-3); }
-.term-pane-head .tph-pip[data-tone="unknown"] { opacity: 0.4; }
-.term-pane-head .tph-tools { flex: none; display: flex; align-items: center; gap: 1px; margin-left: var(--space-1); }
-.term-pane-head .pane-grip,
-.term-pane-head .pane-zoom,
-.term-pane-head .pane-close {
-  display: grid; place-items: center; width: 20px; height: 18px; border-radius: var(--radius-xs);
-  border: none; background: transparent; color: var(--text-3); cursor: pointer; opacity: 0.55;
-  transition: opacity var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
-}
-.term-pane:hover .tph-tools > *,
-.term-pane.focused .tph-tools > * { opacity: 1; }
-.term-pane-head .pane-grip:hover,
-.term-pane-head .pane-zoom:hover,
-.term-pane-head .pane-close:hover { background: var(--bg-hover); color: var(--text); opacity: 1; }
-.term-pane-head .pane-grip { cursor: grab; }
-.term-pane-head .pane-grip:active { cursor: grabbing; }
-.term-pane-head .pane-zoom[aria-pressed="true"] { color: var(--accent-text); opacity: 1; }
 
 /* 확대 (⇧⌘↩) — 확대된 페인을 품지 않은 칸만 숨긴다. 트리는 그대로라 나머지
    xterm 은 제자리에서 계속 살고, 되돌리면 크기도 자리도 그대로다. */
-.term-canvas.zooming .term-cell:not(:has(.term-pane.zoomed)) { display: none; }
-.term-canvas.zooming .term-divider { display: none; }
+
 /* 남은 칸은 자기 비율(인라인 flex-grow, 1 미만)만큼만 자라려 한다 — 혼자
    남았으면 전부 차지해야 하므로 인라인 값을 덮는다. */
-.term-canvas.zooming .term-cell:has(.term-pane.zoomed) { flex-grow: 1 !important; }
 
 /* 왼쪽만 7px 더 준다 — 거터 캡슐이 앉을 자리다. **항상** 같은 폭이어야 한다:
    블록이 생길 때 padding 을 늘리면 cols 가 바뀌며 셸이 화면을 다시 그린다. */
-.term-screen {
-  flex: 1; width: 100%; min-height: 0; height: 100%;
-  background: var(--term-bg); overflow: hidden;
-  padding: var(--term-pane-pad) var(--term-pane-pad) var(--term-pane-pad)
-    calc(var(--term-pane-pad) + 7px);
-}
+
 /* xterm 은 여백 안쪽의 이 칸에 연다 (TerminalInstanceImpl `xtermHostRef`).
    addon-fit 은 부모의 computed `height` 에서 `.xterm` 자신의 padding 만 빼는데,
    전역 `box-sizing: border-box` 아래에서는 그 값에 부모의 padding 이 들어 있다.
    `.term-screen` 에 바로 열면 위아래 여백(페인 18px·도크 16px)만큼 행을 한 줄쯤
    더 잡아 맨 아랫줄이 잘렸다 — 입력창을 맨 아래 줄에 그리는 Claude Code
    fullscreen 렌더러(v3.13.2)에서 드러났다 (2026-10-24). 오른쪽도 몇 칸 넘쳤다. */
-.term-xterm { width: 100%; height: 100%; }
 
 /* ── 명령 블록 (2026-08-28 Phase 3) ────────────────────────────────────── */
 
 /* 거터 캡슐. xterm 장식은 셀 좌표(x:0)에 놓이므로 왼쪽 여백으로 끌어낸다 —
    그러지 않으면 출력 첫 글자를 덮는다. */
-.term-block-mark {
-  width: 3px !important;
-  margin-left: -7px;
-  border-radius: var(--radius-2xs);
-  background: var(--block-tone, var(--text-3));
-  cursor: pointer;
-  transition: transform var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
-}
-.term-block-mark:hover {
-  transform: scaleX(2);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--block-tone, var(--text-3)) 30%, transparent);
-}
+
 /* 종료코드를 모르는 것은 흐리게 — 모르는 것을 초록으로
    칠하지 않는다는 규칙이 거터에도 그대로 적용된다. */
-.term-block-mark[data-tone="unknown"] { opacity: 0.5; }
 
 /* 스티키 헤더 — 긴 출력을 스크롤하는 동안 "어느 명령의 출력인가"를 고정한다.
    React 를 거치지 않고 DOM 으로 갱신된다 (TerminalInstanceImpl 주석 참고). */
-.term-block-sticky {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 4;
-  padding: 3px var(--space-4) 3px calc(var(--term-pane-pad) + 7px);
-  background: color-mix(in srgb, var(--term-bg) 88%, var(--term-chrome));
-  border-bottom: 1px solid var(--sep);
-  box-shadow: inset 3px 0 0 var(--tone, var(--text-3));
-  color: var(--text-2); font-family: var(--mono); font-size: var(--fs-2);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  pointer-events: none;
-}
-.term-block-sticky[data-tone="ok"] { --tone: var(--term-green); }
-.term-block-sticky[data-tone="fail"] { --tone: var(--term-red); }
-.term-block-sticky[data-tone="running"] { --tone: var(--accent); }
-.term-block-sticky[data-tone="unknown"] { --tone: var(--text-3); }
 
 /* 블록 액션 팝오버. 마지막 두 줄(일지·플래너)이 ocul-pm 것이다. */
-.term-block-menu {
-  position: fixed; z-index: var(--z-dock);
-  display: flex; flex-direction: column; gap: 1px; padding: var(--space-2);
-  background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-m);
-  box-shadow: var(--shadow-pop); font-family: var(--font);
-}
-.tbm-head {
-  display: flex; align-items: center; gap: var(--space-2); min-width: 0;
-  padding: var(--space-1) var(--space-3) var(--space-2); color: var(--text-3); font-size: var(--fs-2);
-  border-bottom: 1px solid var(--sep); margin-bottom: 3px;
-}
-.tbm-head .tbm-cmd {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-family: var(--mono); color: var(--text-2);
-}
-.tbm-item {
-  display: flex; align-items: center; gap: var(--space-3); width: 100%; min-width: 0;
-  padding: var(--space-2) var(--space-3); border: none; border-radius: var(--radius-s); background: transparent;
-  color: var(--text-2); cursor: pointer; text-align: left;
-  font-family: var(--font); font-size: var(--fs-3);
-}
+
 .tbm-item:hover:not(:is(:disabled, [aria-disabled="true"])) { background: var(--bg-hover); color: var(--text); }
 .tbm-item:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
-.tbm-item.accent { color: var(--accent-text); font-weight: var(--fw-strong); }
-.tbm-item .tbm-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tbm-item .tbm-more { margin-left: auto; opacity: 0.6; }
-.tbm-sep { height: 1px; margin: var(--space-1) 2px; background: var(--sep); }
-.tbm-back {
-  display: flex; align-items: center; gap: var(--space-2); width: 100%;
-  padding: var(--space-1) var(--space-3) var(--space-2); margin-bottom: 3px; border: none; border-bottom: 1px solid var(--sep);
-  background: transparent; color: var(--text-3); cursor: pointer;
-  font-family: var(--font); font-size: var(--fs-2); text-align: left;
-}
-.tbm-back:hover { color: var(--text); }
-.tbm-empty { padding: var(--space-4) var(--space-3); color: var(--text-2); font-size: var(--fs-3); text-align: center; }
 
 /* 터미널 이미지 링크 미리보기 (2026-10-09, TerminalImagePeek). 카드는 마우스를
    가로채지 않는다 — 가로채면 xterm 이 곧바로 leave 를 쏘아 카드가 깜빡인다.
    그림 바탕은 들어간 면: 투명 PNG 의 빈 곳이 카드 면과 섞여 경계가 사라지지 않게. */
-.term-image-peek {
-  position: fixed; z-index: var(--z-popover); pointer-events: none;
-  display: flex; flex-direction: column; gap: var(--space-2);
-  max-width: 380px; padding: var(--space-2);
-  background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-m);
-  box-shadow: var(--shadow-pop); font-family: var(--font);
-}
-.term-image-peek img {
-  display: block; max-width: 364px; max-height: 260px; object-fit: contain;
-  background: var(--bg-inset); border-radius: var(--radius-s);
-}
-.term-image-peek .tip-skel { width: 240px; height: 150px; }
-.term-image-peek .tip-error,
-.term-image-full .tip-error { margin: 0; padding: var(--space-2) var(--space-3); color: var(--text-2); font-size: var(--fs-3); }
-.term-image-peek .tip-cap,
-.term-image-full figcaption {
-  display: flex; align-items: center; gap: var(--space-3); min-width: 0;
-  padding: 0 var(--space-1); color: var(--text-3); font-size: var(--fs-2);
-}
-.term-image-peek .tip-name,
-.term-image-full .tip-name {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-family: var(--mono); color: var(--text-2);
-}
-.term-image-peek .tip-facts,
-.term-image-full .tip-facts { flex: none; font-variant-numeric: tabular-nums; }
-.term-image-peek .tip-hint { flex: none; margin-left: auto; }
+
 /* 고정 — 스크림 위에 크게. 바깥(스크림)을 누르면 닫힌다. */
-.term-image-scrim {
-  z-index: var(--z-modal);
-  display: flex; align-items: center; justify-content: center; padding: var(--space-6);
-}
-.term-image-full {
-  display: flex; flex-direction: column; gap: var(--space-2); max-width: 100%; max-height: 100%; margin: 0;
-  padding: var(--space-2); background: var(--bg-card); border: 1px solid var(--border-card);
-  border-radius: var(--radius-m); box-shadow: var(--shadow-sheet); font-family: var(--font);
-}
-.term-image-full img {
-  display: block; min-height: 0; max-width: 92vw; max-height: 84vh; object-fit: contain;
-  background: var(--bg-inset); border-radius: var(--radius-s);
-}
-.term-image-full .tip-skel { width: 360px; height: 240px; }
-.term-image-full figcaption .ts-btn { margin-left: auto; }
 
 /* 링크 호버 밑줄 (2026-09-07). xterm 의 기본 밑줄은 DOM 렌더러 전용이라
    WebGL 에서는 아무것도 안 그려진다 — 장식 오버레이로 직접 긋는다
    (근거는 src/features/terminal/linkUnderline.ts).
    색은 본문 글자색을 그대로 쓴다: 링크마다 ANSI 색이 달라(파랑·초록·기본)
    고정색을 쓰면 어떤 줄에서는 밑줄만 동동 뜬다. */
-.term-link-underline {
-  box-sizing: border-box;
-  border-bottom: 1px solid currentColor;
-  color: var(--term-fg);
-  opacity: 0.75;
-}
 
 /* 움직임을 줄이도록 설정한 사용자 — 터미널의 상태 표시는 2026-10-25 부터
    원래 움직이지 않으므로, 남은 전환·등장 연출만 끈다. */
 @media (prefers-reduced-motion: reduce) {
-  .term-block-mark { transition: none; }
-  .term-rail { transition: none; }
+  
+  
   /* 드래그 중 등장 연출도 끈다 — 자리는 어차피 즉시 잡으므로 잃는 정보가 없다.
      (고스트의 따라붙기 자체는 TerminalSurface 가 matchMedia 로 끈다.) */
-  .term-drop, .term-ghost { animation: none; }
+  
 }
 
 /* ── 터미널 도크 (2026-08-15) ─────────────────────────────────────────────
@@ -1887,51 +1339,24 @@ mark.s-hit {
    카드가 되면 시트가 두 겹으로 보인다).
    크기는 인라인 style 로 들어온다 — 드래그가 매 프레임 바꾸는 값이라
    CSS 변수로 왕복시키지 않는다. */
-.term-dock {
-  flex: none; position: relative; min-width: 0; min-height: 0;
-  display: flex; flex-direction: column;
-  background: var(--term-chrome);
-}
-.term-dock.pos-bottom { border-top: 1px solid var(--sep-strong); }
-.term-dock.pos-left { border-right: 1px solid var(--sep-strong); }
-.term-dock.pos-right { border-left: 1px solid var(--sep-strong); }
+
 /* compact 모드에서는 탭 줄·상태바를 한 단계 낮춰 셸에 자리를 더 준다. */
-.term-dock .term-head { min-height: 30px; padding: 3px var(--space-2); }
+
 /* 다만 왼쪽·오른쪽 도크는 화면 툴바와 **어깨를 나란히** 선다 — 낮춰 두면
    시트 맨 위에서 두 헤더의 아랫선이 15px 어긋나 계단처럼 보였다 (2026-08-21).
    탭은 `align-items: flex-end` 라 늘어난 높이만큼 위쪽 크롬이 생기고 활성 탭은
    그대로 본체에 붙는다. 아래 도크는 툴바와 나란히 서지 않으므로 그대로 둔다. */
-.term-dock.pos-left .term-head,
-.term-dock.pos-right .term-head { min-height: var(--toolbar-h); }
-.term-dock .term-status { padding: var(--space-1) var(--space-4); gap: var(--space-4); }
-.term-dock .term-screen { padding: var(--space-2) var(--space-3); }
 
 /* 크기 조절 손잡이 — 경계 위에 4px 띠로 얹는다 (레이아웃을 차지하지 않아
    도크의 실제 크기가 손잡이 두께만큼 어긋나지 않는다). */
-.term-dock-grip { position: absolute; z-index: 5; background: transparent; }
-.term-dock-grip.bottom { top: -2px; left: 0; right: 0; height: 5px; cursor: row-resize; }
-.term-dock-grip.left { top: 0; bottom: 0; right: -2px; width: 5px; cursor: col-resize; }
-.term-dock-grip.right { top: 0; bottom: 0; left: -2px; width: 5px; cursor: col-resize; }
-.term-dock-grip:hover, .term-dock-grip:active { background: var(--accent); }
 
 /* 분리 창에 나가 있을 때의 자리표시자. 빈 화면만 남기면 터미널이 고장 난
    것처럼 보이므로, 어디로 갔는지와 되돌리는 길을 함께 둔다. */
-.term-dock-away {
-  flex: 1; min-height: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: var(--space-3); padding: var(--space-8); text-align: center;
-}
-.term-dock-away p { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); color: var(--text); }
-.term-dock-away span { font-size: var(--fs-3); color: var(--text-2); max-width: 42ch; line-height: var(--lh-body); }
-.term-dock-away .btn { margin-top: var(--space-2); }
 
 /* ── 분리 터미널 창 ──────────────────────────────────────────────────────
    창 전체가 터미널이다. macOS 는 titleBarStyle Overlay 라 신호등이 왼쪽 위에
    떠 있으므로, 탭 줄 왼쪽에 그만큼 비워 준다 (탭 스트립이 없는 창이라 이
    인셋을 대신 져 줄 것이 없다). */
-.term-window { height: 100vh; display: flex; flex-direction: column; background: var(--term-chrome); }
-.term-window .term-wrap { flex: 1; min-height: 0; }
-.term-window.is-mac .term-head { padding-left: 82px; }
 
 /* 한글 IME 조합 미리보기용 오버레이는 두지 않는다 (2026-07-30).
    커서 위치에 DOM 을 얹는 방식은 앞 글자의 커서 전진이 셸 에코를 기다리는
@@ -1940,116 +1365,28 @@ mark.s-hit {
    전부 터미널이 담당한다 — 얹을 요소 자체가 없다. */
 
 /* 스크롤백 검색 오버레이 (⌘F). */
-.term-search {
-  position: absolute; top: 10px; right: 14px; z-index: 6;
-  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4);
-  background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-m);
-  box-shadow: var(--shadow-pop); color: var(--text-3);
-}
-.term-search:focus-within { border-color: var(--accent); box-shadow: var(--ring-soft), var(--shadow-pop); }
-.term-search input {
-  width: 200px; border: none; outline: none; background: transparent;
-  color: var(--text); font-family: var(--font); font-size: var(--fs-4);
-}
+
 /* 검색 결과 카운터 — "3/17". 일치 없음은 경고색. */
-.term-search .ts-count {
-  font-family: var(--mono); font-size: var(--fs-2); min-width: 46px; text-align: center;
-  color: var(--text-3); font-variant-numeric: tabular-nums;
-}
-.term-search .ts-count.empty { color: var(--t-bug); }
-.term-search .ts-search-keys { font-size: var(--fs-1); color: var(--text-3); white-space: nowrap; }
 
 /* 하단 상태바 — 상태만 남긴 얇은 줄 (2026-10-25 시안 A): 셸 통합 · 일지 감시 ·
    지금 보기 값 · `?`. 작업 폴더는 페인 머리띠가, 조작은 머리줄 `Aa` 가 맡는다. */
-.term-status {
-  display: flex; align-items: center; gap: var(--space-5); padding: 0 var(--space-4); height: var(--ctl-3); flex: none;
-  background: var(--term-chrome); border-top: 1px solid var(--sep);
-  font-size: var(--fs-1); color: var(--text-3); font-family: var(--font);
-}
-.term-status .ts-seg { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; min-width: 0; }
-.term-status .ts-fill { flex: 1; }
-.term-status .ts-view { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-.term-status .ts-dot { width: 6px; height: 6px; background: var(--text-3); opacity: 0.6; }
-.term-status .ts-dot[data-tone="on"] { background: var(--term-green); opacity: 1; }
-.term-status .ts-dot[data-tone="wait"] { background: var(--term-yellow); opacity: 1; }
-.term-status .ts-dot[data-tone="err"] { background: var(--t-bug); opacity: 1; }
-.term-status .ts-link {
-  border: none; padding: 0; background: none; color: var(--accent-text); cursor: pointer;
-  font: inherit; text-decoration: underline; text-underline-offset: 2px;
-}
-.term-status .ts-help {
-  display: grid; place-items: center; width: 16px; height: 16px; padding: 0; flex: none;
-  border: 1px solid var(--sep-strong); border-radius: 50%; background: transparent; color: var(--text-3);
-  font-family: var(--font); font-size: 10px; font-weight: var(--fw-strong); cursor: pointer;
-}
-.term-status .ts-help:hover { color: var(--text); border-color: var(--text-3); }
-.ts-btn {
-  display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 18px;
-  padding: 0 var(--space-1); border: none; border-radius: var(--radius-xs); background: transparent; color: var(--text-3);
-  cursor: pointer; font-family: var(--font); font-size: var(--fs-2);
-}
-.ts-btn:hover { background: var(--bg-hover); color: var(--text); }
-.ts-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+
 /* 셸 통합(OSC 133) 명령 상태 — 실행 중/성공/실패/대기. */
-.ts-dot.tone-running { background: var(--accent); animation: ts-dot-pulse var(--pulse-dur) var(--ease-in-out) infinite; }
-.ts-dot.tone-ok { background: var(--term-green); }
-.ts-dot.tone-fail { background: var(--t-bug); }
-.ts-dot.tone-idle { background: var(--text-3); }
+
 @keyframes ts-dot-pulse { 50% { opacity: 0.35; } }
-@media (prefers-reduced-motion: reduce) {
-    .ts-dot.tone-running { animation: none; }
-}
 
 /* --- AI Panel — 2026-07-20 대규모 개편 (Cursor 식 컴포저) --- */
-.ai-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.ai-thread { flex: 1; min-height: 0; overflow-y: auto; padding: 26px 22px 14px; }
-.ai-thread-inner { max-width: var(--read-narrow); margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-8); }
-.model-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 
 /* Messages — user 는 우측 말풍선, assistant 는 플랫 전폭(마크다운 친화). */
 .msg { display: flex; flex-direction: column; min-width: 0; }
 .msg.user { align-items: flex-end; }
-.msg-bubble {
-  max-width: 85%; background: var(--accent-soft); color: var(--text);
-  border-radius: var(--radius-l) var(--radius-l) var(--radius-xs) var(--radius-l); padding: var(--space-4) 14px;
-  font-size: var(--fs-4); line-height: var(--lh-body); white-space: pre-wrap;
-}
-.msg-head { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); font-size: var(--fs-3); min-height: 22px; }
-.msg-model { font-weight: var(--fw-strong); }
-.msg-vendor { color: var(--text-3); font-weight: var(--fw-label); font-size: var(--fs-2); }
-.msg-copy {
-  display: grid; place-items: center; width: 22px; height: 22px; margin-left: auto;
-  border: none; border-radius: var(--radius-s); background: transparent; color: var(--text-3);
-  cursor: pointer; opacity: 0; transition: opacity var(--dur-1) var(--ease-out), background var(--dur-1) var(--ease-out);
-}
-.msg:hover .msg-copy, .msg-copy:focus-visible { opacity: 1; }
-.msg-copy:hover { background: var(--bg-inset); color: var(--text-2); }
-.msg-live { display: inline-flex; align-items: center; gap: var(--space-2); margin-left: auto; color: var(--accent-text); font-size: var(--fs-2); font-weight: var(--fw-label); }
-.msg-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: ai-pulse var(--pulse-dur) var(--ease-in-out) infinite; }
+
 @keyframes ai-pulse { 50% { opacity: 0.25; transform: scale(0.8); } }
-.msg-wait { color: var(--text-3); font-size: var(--fs-4); }
-.msg-error { color: var(--t-bug); font-size: var(--fs-4); white-space: pre-wrap; }
 
 /* 채팅 마크다운 스케일 — prose 기본 헤딩(2em대)은 채팅에 과대하고, 구
    .msg-text 의 white-space: pre-wrap 상속이 블록 사이 개행 텍스트 노드를
    이중 공백으로 렌더하던 문제(2026-07-20)를 함께 수정한다. */
-.msg-md { font-size: var(--fs-4); line-height: var(--lh-prose); white-space: normal; }
-.msg-md .prose { font-size: var(--fs-4); line-height: var(--lh-prose); }
-.msg-md .prose h1 { font-size: 1.25em; margin: 1em 0 0.45em; }
-.msg-md .prose h2 { font-size: 1.15em; margin: 1em 0 0.4em; }
-.msg-md .prose h3 { font-size: 1.06em; margin: 0.9em 0 0.35em; }
-.msg-md .prose h4, .msg-md .prose h5, .msg-md .prose h6 { font-size: 1em; margin: 0.8em 0 0.3em; }
-.msg-md .prose > :first-child { margin-top: 0; }
-.msg-md .prose > :last-child { margin-bottom: 0; }
-.msg-md .prose p { margin: 0.5em 0; }
-.msg-md .prose ul, .msg-md .prose ol { margin: 0.45em 0; padding-left: 1.5em; }
-.msg-md .prose li { margin: 0.18em 0; }
-.msg-md .prose li > p { margin: 0.2em 0; }
-.msg-md .prose pre { font-size: var(--fs-3); line-height: var(--lh-body); }
-.msg-md .prose code { font-size: 0.87em; }
-.msg-md .prose table { font-size: 0.92em; display: block; overflow-x: auto; }
-.msg-md .prose blockquote { margin: 0.6em 0; }
-.msg-md .prose hr { margin: 1em 0; }
+
 /* 스트리밍 커서 — **마지막 글 조각의 끝**에서만.
    예전엔 `.msg-md` 마다 붙어서, 글·도구가 섞인 답에서는 도구 위쪽 문단 끝마다
    커서가 하나씩 켜졌다. 문장이 온점으로 끝나면 그 온점 옆에서 깜빡이니 "온점이
@@ -2057,45 +1394,18 @@ mark.s-hit {
 
    깜빡임도 `steps(2)` 하드 온/오프에서 부드러운 맥박으로 바꿨다 — 딱딱 끊기는
    깜빡임은 살아 있다는 신호가 아니라 고장 난 것처럼 읽힌다. */
-.msg.streaming .msg-md:last-of-type .prose > :last-child::after {
-  content: ""; display: inline-block; width: 2px; height: 1.05em; margin-left: 2px;
-  border-radius: var(--radius-2xs); vertical-align: -0.18em; background: var(--accent);
-  animation: ai-blink var(--pulse-dur) var(--ease-in-out) infinite;
-}
+
 @keyframes ai-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.18; } }
 
 /* 빈 상태 — 프로젝트 이름 + 붙는 컨텍스트 한 줄 + 시작할 질문 목록.
    가운데 정렬된 아이콘 히어로("무엇이든 물어보세요" + 칩)는 챗봇 제품의
    관용구라 뺐다. 대화의 첫 줄처럼 왼쪽에서 시작하고, 제안은 칩이 아니라
    줄로 놓는다 — 문장은 읽는 것이고 칩은 고르는 것이다. */
-.ai-start { display: flex; flex-direction: column; gap: var(--space-1); margin: 26px 0 0; max-width: 560px; }
-.ai-start-title { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-7); font-weight: var(--fw-bold); letter-spacing: var(--track-tight); }
-.ai-start-actions { display: flex; gap: var(--space-3); margin-top: 14px; }
-.ai-start-sub { font-size: var(--fs-4); color: var(--text-2); }
-.ai-start-label { margin-top: 18px; font-size: var(--fs-2); font-weight: var(--fw-strong); color: var(--text-3); letter-spacing: var(--track-wide); }
-.ai-start-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; }
-.ai-start-item {
-  display: flex; align-items: baseline; gap: var(--space-4); width: 100%; text-align: left;
-  padding: var(--space-3) 0; border: none; border-top: 1px solid var(--sep); background: transparent;
-  font-family: var(--font); font-size: var(--fs-4); color: var(--text-2); cursor: pointer;
-  transition: color var(--dur-1) var(--ease-out);
-}
-.ai-start-item::before { content: "›"; color: var(--text-3); flex: none; }
-.ai-start-list li:last-child .ai-start-item { border-bottom: 1px solid var(--sep); }
-.ai-start-item:hover { color: var(--text); }
-.ai-start-item:hover::before { color: var(--accent-text); }
 
 /* 위로 스크롤 시 맨아래 FAB — 스크롤러 안 sticky 로 컴포저 위에 뜬다. */
-.ai-scroll-fab {
-  position: sticky; bottom: 6px; margin: var(--space-4) auto 0; display: grid; place-items: center;
-  width: 32px; height: 30px; border-radius: 50%; border: 1px solid var(--border-card);
-  background: var(--bg-card); box-shadow: var(--shadow-pop); color: var(--text-2);
-  cursor: pointer; z-index: 5;
-}
-.ai-scroll-fab:hover { color: var(--text); background: var(--bg-inset); }
 
 /* Composer — 컨텍스트 칩 / 입력 / (모델 선택 · 전송) 3단 카드. */
-.ai-compose { padding: var(--space-4) 22px var(--space-6); border-top: 1px solid var(--sep); background: var(--bg-window); }
+
 /* 스레드와 **같은 열**이어야 한다 — 컴포저가 1px 이라도 어긋나면 말풍선과
    입력이 다른 문서에 속한 것처럼 보인다 (2026-09-10 {#layout-widths}). */
 .composer {
@@ -2104,85 +1414,19 @@ mark.s-hit {
   padding: var(--space-4) var(--space-5); box-shadow: var(--shadow-card);
 }
 .composer:focus-within { border-color: var(--accent); box-shadow: var(--ring-soft); }
-.composer-ctx { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-3); color: var(--text-3); flex-wrap: wrap; }
-.composer-ctx .scope-chip { height: 22px; padding: 0 var(--space-4); font-size: var(--fs-3); border-radius: var(--radius-s); box-shadow: none; }
-.composer-input textarea {
-  width: 100%; border: none; outline: none; resize: none; background: transparent;
-  font-family: var(--font); font-size: var(--fs-4); color: var(--text); line-height: var(--lh-body);
-  max-height: 180px; padding: 2px 2px 0;
-}
-.composer-foot { display: flex; align-items: center; gap: var(--space-3); }
-.composer-send, .composer-stop { width: 32px; height: 30px; border-radius: var(--radius-m); flex: none; }
-.composer-stop { color: var(--t-bug); border-color: var(--t-bug-soft); }
-.composer-stop:hover { background: var(--t-bug-soft); }
 
 /* Cursor 식 모델 선택 — 트리거 + 위로 열리는 리스트. */
-.model-select { position: relative; }
-.model-trigger {
-  display: inline-flex; align-items: center; gap: var(--space-3); height: 26px; padding: 0 var(--space-4);
-  border: none; border-radius: var(--radius-m); background: transparent; cursor: pointer;
-  font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2);
-}
-.model-trigger:hover, .model-trigger.open { background: var(--bg-inset); color: var(--text); }
-.model-trigger-model {
-  font-family: var(--mono); font-size: var(--fs-2); font-weight: var(--fw-label); color: var(--text-3);
-  max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.model-menu {
-  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: var(--z-popover); min-width: 270px;
-  display: flex; flex-direction: column; gap: 1px; padding: var(--space-1);
-  background: var(--bg-card); border: 1px solid var(--border-card);
-  border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
-}
-.model-option {
-  display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-3) var(--space-4);
-  border: none; border-radius: var(--radius-s); background: none; cursor: pointer; text-align: left;
-  font-family: var(--font); font-size: var(--fs-4); color: var(--text);
-}
+
 .model-option:hover:not(:is(:disabled, [aria-disabled="true"])) { background: var(--accent-soft); }
-.model-option.active { background: var(--bg-inset); }
+
 .model-option:is(:disabled, [aria-disabled="true"]) { opacity: var(--dim-disabled); cursor: default; }
 /* 오프라인 (Phase 7) — 흐리게만 한다. 숨기거나 막지 않는다: 사라지면 설정이
    날아간 줄 알고, 막으면 네트워크가 돌아온 순간 고를 수가 없다. */
-.model-option.unreachable { opacity: 0.6; }
-.model-option-name { font-weight: var(--fw-strong); flex: none; }
-.model-option-model {
-  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-family: var(--mono); font-size: var(--fs-2); color: var(--text-3);
-}
-.model-option > svg { color: var(--accent-text); flex: none; }
 
 /* 입력 토큰 추정 배지 + 브레이크다운 팝오버. */
-.tok-wrap { position: relative; margin-left: auto; }
-.tok-badge {
-  display: inline-flex; align-items: center; gap: var(--space-1); height: 22px; padding: 0 var(--space-4);
-  border: none; border-radius: var(--radius-s); background: transparent; cursor: pointer;
-  font-family: var(--mono); font-size: var(--fs-2); color: var(--text-3);
-}
-.tok-badge:hover, .tok-badge.open { background: var(--bg-inset); color: var(--text-2); }
-.tok-pop {
-  position: absolute; bottom: calc(100% + 8px); right: 0; z-index: var(--z-popover); width: 300px;
-  padding: var(--space-5) 13px var(--space-4); background: var(--bg-card); border: 1px solid var(--border-card);
-  border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
-}
-.tok-pop-title { font-size: var(--fs-3); font-weight: var(--fw-strong); margin-bottom: var(--space-3); }
-.tok-row { display: flex; align-items: center; gap: var(--space-3); padding: 3px 0; font-size: var(--fs-3); }
-.tok-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
-.tok-row-bar { width: 66px; height: 5px; border-radius: var(--radius-2xs); background: var(--bg-inset); overflow: hidden; flex: none; }
-.tok-row-bar > span { display: block; height: 100%; background: var(--accent); border-radius: var(--radius-2xs); }
-.tok-row-val { font-family: var(--mono); font-size: var(--fs-2); color: var(--text-3); flex: none; min-width: 44px; text-align: right; }
-.tok-row-empty { font-size: var(--fs-3); color: var(--text-2); padding: 2px 0 var(--space-1); }
-.tok-pop-total { display: flex; justify-content: space-between; border-top: 1px solid var(--sep); margin-top: var(--space-3); padding-top: var(--space-3); font-size: var(--fs-3); font-weight: var(--fw-strong); }
-.tok-pop-note { margin-top: var(--space-3); font-size: var(--fs-2); line-height: var(--lh-body); color: var(--text-2); }
 
 /* --- Settings (PR-UI 6) — ported from Ocul-PM1.0/screens.css `.set-*` --- */
-.set-section { margin-bottom: 22px; }
-.set-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--sep); }
-.set-row:last-child { border-bottom: none; }
-.set-label { font-weight: var(--fw-label); font-size: var(--fs-4); }
-.set-desc { font-size: var(--fs-3); color: var(--text-2); margin-top: 2px; }
-.set-desc.mono { font-family: var(--mono); }
-.set-ctl { margin-left: auto; display: flex; align-items: center; gap: var(--space-4); }
+
 .set-input {
   height: 30px; padding: 0 var(--space-4); border-radius: var(--radius-s); border: 1px solid var(--border-card);
   background: var(--bg-inset); font-family: var(--mono); font-size: var(--fs-3); color: var(--text); min-width: 220px;
@@ -2212,12 +1456,7 @@ mark.s-hit {
 .toggle:focus-visible { box-shadow: var(--ring-soft); }
 
 /* Inline "config.toml 에서 관리 →" link button (token-based, no raw color). */
-.set-link {
-  display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-3); font-weight: var(--fw-label);
-  color: var(--accent-text); background: transparent; border: none; cursor: pointer; padding: 0;
-  font-family: var(--font);
-}
-.set-link:hover { text-decoration: underline; }
+
 .set-link:is(:disabled, [aria-disabled="true"]) { color: var(--text-3); cursor: default; text-decoration: none; }
 
 /* Destructive button (WorkspaceContext reset / key delete) — uses the bug
@@ -2266,15 +1505,6 @@ mark.s-hit {
   appearance: none; -webkit-appearance: none; }
 
 /* --- Conversation history modal (PR-R1 A3) --- */
-.conv-list { display: flex; flex-direction: column; gap: 2px; max-height: 56vh; overflow-y: auto; margin-top: var(--space-3); }
-.conv-row { display: flex; align-items: center; gap: var(--space-2); border-radius: var(--radius-m); }
-.conv-row:hover { background: var(--bg-hover); }
-.conv-row.active { background: var(--accent-soft); }
-.conv-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding: var(--space-4) 11px;
-  appearance: none; -webkit-appearance: none; border: none; background: transparent; font-family: var(--font); text-align: left; color: var(--text); cursor: pointer; }
-.conv-title { font-size: var(--fs-4); font-weight: var(--fw-label); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.conv-meta { font-size: var(--fs-2); color: var(--text-3); }
-.conv-del { flex: none; margin-right: var(--space-2); }
 
 /* --- Today activity ring (브랜드 모티프 라이브 UI, 다중 동심원 + 호버) --- */
 .today-ring { position: relative; display: grid; place-items: center; flex: none; }
@@ -2348,11 +1578,6 @@ mark.s-hit {
 }
 
 /* --- Today 빠른 터미널 (embedded, icon round) --- */
-.today-term { margin-bottom: var(--space-6); }
-.today-term-body {
-  height: 300px; display: flex; flex-direction: column;
-  background: var(--term-bg); border-radius: 0 0 var(--radius-l) var(--radius-l); overflow: hidden;
-}
 
 /* Today 커밋 그래프 — 클릭 가능한 행 hover (GitHub 열기). */
 .git-graph-row:hover { background: var(--bg-inset); }
@@ -2364,6 +1589,70 @@ mark.s-hit {
    force `white-space: pre`, defeating the v1.4.3 wrap fix — long lines kept
    getting clipped off-screen. Match the parent so code wraps instead. */
 .dl-code { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* ── 코드 구문 강조 (highlight.js 토큰) — diff · Markdown · 검색 스니펫 공용.
+   배경은 diff add/del 이 담당하므로 토큰엔 색만 준다. (hljs v11 은
+   `title.function` 을 `hljs-title function_` 두 클래스로 내므로 복합 선택자
+   `.hljs-title.function_` 사용.)
+
+   3.0 {#hljs-unify}: 색이 여기서 태어나지 않는다. 열 개의 `--code-*`
+   (tokens.css) 를 읽고, 그 열 개를 **편집기(CodeMirror)도 읽는다** — 예전엔
+   여기가 GitHub 팔레트, 편집기가 One Light/Dark 라 같은 함수 이름이 일지
+   코드블록에선 보라(#6f42c1), 편집기에선 파랑(#4078f2)이었다. 프리셋 5종도
+   이제 이 열 개를 다시 칠하므로 Nord 배경 위에 GitHub 색이 뜨지 않는다.
+
+   hue 대응은 GitHub 팔레트의 의미를 그대로 옮긴 것이다:
+     빨강(키워드)→--code-kw · 남색(문자열)→--code-str · 파랑(수/속성/연산자)
+     →--code-num/--code-prop/--code-op · 보라(제목)→--code-fn ·
+     주황(타입·기호)→--code-type · 초록(태그)→--code-prop.
+   추가/삭제 줄은 문자열 색이 아니라 **변경 팔레트**(--diff-*-text)를 쓴다 —
+   같은 화면의 diff 게이지와 같은 색이어야 한다.
+   `.hljs-subst`(템플릿 리터럴 `${…}` 안)는 일부러 비워 둔다: 비워 두면
+   `.dl-code`/`.scode` 의 본문색을 그대로 물려받는다. ── */
+/* 벤더의 `.hljs { background: #ffffff }` 가 사라진 자리 — 검색 결과 스니펫
+   (`.scode.hljs`)이 라이트에서만 흰 블록으로 떠 있었다. 다크는 이미
+   transparent 였으므로 양쪽을 맞춘다. */
+.hljs { background: transparent; color: var(--code-fg); }
+
+/* `this`/`self` — 벤더는 키워드 빨강이었다. 키워드와 같은 색이 맞다. */
+
+.hljs-title, .hljs-title.function_, .hljs-section { color: var(--code-fn); }
+.hljs-section { font-weight: var(--fw-bold); }
+
+.hljs-symbol, .hljs-bullet, .hljs-link { color: var(--code-type); }
+
+.hljs-addition { color: var(--diff-add-text); }
+.hljs-deletion { color: var(--diff-del-text); }
+
+/* ── 완성도 라운드 Phase 2 (2026-08-30) — 검토 루프 · 첫 활성화 · 단축키 ── */
+/* diff 그룹 머리글의 확인 토글 — 일지 상세의 「확인」 버튼과 같은 뜻, 아이콘만. */
+.dfl-verify {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: var(--radius-pill);
+  border: 1px solid var(--sep); background: var(--bg-inset); color: var(--text-3);
+  cursor: pointer; padding: 0;
+}
+.dfl-verify:hover { color: var(--text); border-color: var(--text-3); }
+.dfl-verify.on { color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.dfl-verify:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
+
+/* Today — 첫 활성화 카드 · What's new 카드 */
+.first-run-card .stat-top, .whats-new-card .stat-top { display: flex; align-items: center; gap: var(--space-3); }
+.first-run-sub { color: var(--text-2); font-size: var(--fs-4); margin-top: var(--space-2); }
+.first-run-list { margin: var(--space-4) 0 0; padding-left: 18px; font-size: var(--fs-3); color: var(--text-2); line-height: var(--lh-prose); }
+.first-run-actions { display: flex; gap: var(--space-3); margin-top: var(--space-5); }
+.whats-new-body { margin-top: var(--space-3); font-size: var(--fs-4); color: var(--text-2); max-height: 220px; overflow: auto; }
+.whats-new-body ul { padding-left: 18px; }
+
+/* ⌘/ 단축키 치트시트 규칙(.keys-*)도 2026-09-02 에 primitives.css 로 옮겼다 —
+   같은 이유다 (창 어디서나 뜨는 모달인데 규칙이 셸 청크에 갇혀 있었다). */
+
+/* ── 세션 색 메뉴 (2026-09-04) ────────────────────────────────────────────
+   카드 오른쪽 클릭. 한 줄짜리 스와치 다섯 개가 전부라 `TerminalBlockMenu`
+   같은 목록 구조를 두지 않는다 — 고를 것이 색뿐이면 메뉴는 팔레트다. */
+
+/* "색 없음" 은 빈 칸이 아니라 **비어 있음을 그린 칸**이다 — 대각선 하나로
+   지운다는 뜻을 준다 (빈 회색 사각형은 여섯 번째 색으로 읽힌다). */
 
 /* ── 코드 구문 강조 (highlight.js 토큰) — diff · Markdown · 검색 스니펫 공용.
    배경은 diff add/del 이 담당하므로 토큰엔 색만 준다. (hljs v11 은
@@ -2407,63 +1696,3 @@ mark.s-hit {
 .hljs-deletion { color: var(--diff-del-text); }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: var(--fw-bold); }
-
-/* ── 완성도 라운드 Phase 2 (2026-08-30) — 검토 루프 · 첫 활성화 · 단축키 ── */
-/* diff 그룹 머리글의 확인 토글 — 일지 상세의 「확인」 버튼과 같은 뜻, 아이콘만. */
-.dfl-verify {
-  flex: none; display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px; border-radius: var(--radius-pill);
-  border: 1px solid var(--sep); background: var(--bg-inset); color: var(--text-3);
-  cursor: pointer; padding: 0;
-}
-.dfl-verify:hover { color: var(--text); border-color: var(--text-3); }
-.dfl-verify.on { color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
-.dfl-verify:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
-
-/* Today — 첫 활성화 카드 · What's new 카드 */
-.first-run-card .stat-top, .whats-new-card .stat-top { display: flex; align-items: center; gap: var(--space-3); }
-.first-run-sub { color: var(--text-2); font-size: var(--fs-4); margin-top: var(--space-2); }
-.first-run-list { margin: var(--space-4) 0 0; padding-left: 18px; font-size: var(--fs-3); color: var(--text-2); line-height: var(--lh-prose); }
-.first-run-actions { display: flex; gap: var(--space-3); margin-top: var(--space-5); }
-.whats-new-body { margin-top: var(--space-3); font-size: var(--fs-4); color: var(--text-2); max-height: 220px; overflow: auto; }
-.whats-new-body ul { padding-left: 18px; }
-
-/* ⌘/ 단축키 치트시트 규칙(.keys-*)도 2026-09-02 에 primitives.css 로 옮겼다 —
-   같은 이유다 (창 어디서나 뜨는 모달인데 규칙이 셸 청크에 갇혀 있었다). */
-
-/* ── 세션 색 메뉴 (2026-09-04) ────────────────────────────────────────────
-   카드 오른쪽 클릭. 한 줄짜리 스와치 다섯 개가 전부라 `TerminalBlockMenu`
-   같은 목록 구조를 두지 않는다 — 고를 것이 색뿐이면 메뉴는 팔레트다. */
-.term-sess-menu {
-  position: fixed; z-index: var(--z-dock); width: 156px;
-  padding: var(--space-3) var(--space-4) var(--space-4); border-radius: var(--radius-m);
-  background: var(--bg-card); border: 1px solid var(--border-card); color: var(--text);
-  box-shadow: var(--shadow-pop); font-family: var(--font);
-}
-.term-sess-menu .tsm-title {
-  font-size: var(--fs-2); font-weight: var(--fw-bold); color: var(--text-3); margin-bottom: var(--space-2);
-}
-.term-sess-menu .tsm-row { display: flex; align-items: center; gap: var(--space-2); }
-.term-sess-menu .tsm-swatch {
-  width: 20px; height: 20px /* design-ignore -- 세션 색 스와치 — 색 면 */; border-radius: var(--radius-s); flex: none; cursor: pointer;
-  border: none; padding: 0; background: var(--sw);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent);
-}
-/* "색 없음" 은 빈 칸이 아니라 **비어 있음을 그린 칸**이다 — 대각선 하나로
-   지운다는 뜻을 준다 (빈 회색 사각형은 여섯 번째 색으로 읽힌다). */
-.term-sess-menu .tsm-swatch.none {
-  background:
-    linear-gradient(
-      to top right,
-      transparent calc(50% - 1px),
-      var(--text-3) calc(50% - 1px),
-      var(--text-3) calc(50% + 1px),
-      transparent calc(50% + 1px)
-    );
-}
-.term-sess-menu .tsm-swatch:hover { box-shadow: inset 0 0 0 1px var(--text-3); }
-.term-sess-menu .tsm-swatch.picked,
-.term-sess-menu .tsm-swatch:focus-visible {
-  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--accent-ring);
-  outline: none;
-}

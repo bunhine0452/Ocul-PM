@@ -52,4 +52,4 @@ Adding a project also appends a managed block to `.gitignore` that excludes the 
 
 ## What leaves the machine
 
-Five things, and you start every one: ① LLM calls you configured yourself, ② the new-version check, ③ provider traffic when you use Claude Code or Codex in the app (on your subscription) — including a one-time adapter download from npm, version- and hash-pinned, ④ GitHub fetches when you click (release notes, plugin/skill bundles), ⑤ the one-time embedding-model download from huggingface.co (the model comes down, your code never goes up, and everything is offline afterwards). There is no telemetry, no analytics, no account server. Embeddings for code search are computed locally too.
+Four things, and you start every one: ① LLM API calls you configured yourself, ② the new-version check, ③ GitHub lookups when you click — release notes, plugin/skill bundles, ④ the embedding model downloaded **once** from huggingface.co when you first enable semantic search (the model comes down; no code goes up; everything after that is offline). No telemetry, analytics or account server beyond that.

@@ -31,7 +31,6 @@ import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import {
   commands,
-  type AcpDiagnostics,
   type AgentDetection,
   type ClaudeHooksStatus,
   type ClaudePluginStatus,
@@ -56,7 +55,6 @@ import { blocked } from "@/lib/blocked";
 import { tError } from "@/i18n/errors";
 import { ClaudePluginBlock } from "./ClaudePluginBlock";
 import { claudeInstallApi } from "@/api/claudeSurface";
-import { ShellIntegrationBlock } from "./ShellIntegrationBlock";
 import { McpServerBlock } from "./McpServerBlock";
 import { CodexMcpServerBlock } from "./CodexMcpServerBlock";
 import { CodexPluginBlock } from "./CodexPluginBlock";
@@ -582,8 +580,6 @@ function OculpmSettingsBody({ projectId }: { projectId: number }) {
           <ClaudePluginBlock plugin={plugin} />
           <CodexMcpServerBlock />
           <CodexPluginBlock />
-          <AcpRuntimeBlock />
-          <ShellIntegrationBlock />
         </Section>
       </>
       )}
@@ -794,192 +790,6 @@ function LogsSection() {
 
 // ─── shared bits ────────────────────────────────────────────────────────────
 
-/**
- * PR-ACP1 (docs/acp-panel/00-master-plan.md D2) — ACP 에이전트 런타임 블록.
- *
- * Claude Code와 Codex 화면을 구동하려면 Node 18+와 provider별 고정 ACP
- * 어댑터가 필요하다. 상태를 따로 보여주는 이유는 설치·복구 대상이 다르기 때문이다.
- *
- * `path_source` 를 노출하는 것도 같은 이유다 — 패키징된 `.app` 은 PATH 가
- * 빈약해서 "터미널에선 되는데 앱에선 안 되는" 상황이 생기는데, 로그인 셸에서
- * 찾았다는 사실이 보이면 사용자가 그 차이를 이해할 수 있다.
- *
- * 프로젝트가 아니라 머신 단위 설정이라 `projectId` 를 받지 않는다.
- */
-/**
- * 배지 하나로 "준비됨"을 말할 수 있는가.
- *
- * Codex 는 **옵트인**이다 — 안 깐 사람에게 그 사실만으로 "설정 필요" 를 띄우면
- * Claude 가 멀쩡히 도는 동안에도 영원히 경고가 켜져 있다. 그래서 깔린 뒤부터만
- * Codex 의 건강을 배지에 반영한다 (깔았으면 그건 쓰겠다는 뜻이다).
- */
-function acpBadgeReady(diag: AcpDiagnostics): boolean {
-  const codexInstalled = diag.codex_adapter_version !== null;
-  return diag.ready && (!codexInstalled || diag.codex_ready);
-}
-
-export function AcpRuntimeBlock() {
-  const { t } = useT();
-  const [diag, setDiag] = useState<AcpDiagnostics | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"claude" | "codex" | null>(null);
-
-  const refresh = useCallback(() => {
-    void commands.acpDiagnose().then((res) => {
-      if (res.status === "ok") {
-        setDiag(res.data);
-        setError(null);
-      } else {
-        setError(tError(res.error));
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const install = async (provider: "claude" | "codex") => {
-    setBusy(provider);
-    try {
-      const res = await commands.acpInstallAdapter(provider);
-      if (res.status === "ok") {
-        setDiag(res.data);
-        setError(null);
-        toast.info(t("op.acp.installed"));
-      } else {
-        setError(tError(res.error));
-        toast.destructive(t("op.acp.installFailed", { error: tError(res.error) }));
-      }
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const badge = error
-    ? { label: t("op.st.configError"), cls: "border-(--danger)/40 bg-(--danger-soft) text-(--danger-text)" }
-    : !diag
-      ? { label: t("op.st.checking"), cls: "border-border bg-muted/30 text-muted-foreground" }
-      : acpBadgeReady(diag)
-        ? { label: t("op.acp.ready"), cls: "border-(--ok)/40 bg-(--ok-soft) text-(--ok-text)" }
-        : { label: t("op.acp.setupNeeded"), cls: "border-(--warn)/40 bg-(--warn-soft) text-(--warn-text)" };
-
-  return (
-    <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Label className="text-fs-3 uppercase tracking-wider text-muted-foreground">
-          {t("op.acp.title")}
-        </Label>
-        <ScopeChip label={t("op.scope.machine")} />
-        <span className={`rounded-full border px-2 py-0.5 text-fs-1 ${badge.cls}`}>
-          {badge.label}
-        </span>
-        <div className="ml-auto flex gap-1">
-          <Button
-            size="sm"
-            variant={diag?.adapter_ok ? "outline" : "default"}
-            {...blocked(diag ? null : t("op.acp.blockedNoDiag"))}
-            disabled={busy !== null}
-            onClick={() => void install("claude")}
-          >
-            {busy === "claude" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
-            Claude {diag?.adapter_ok ? t("op.acp.reinstall") : t("op.acp.install")}
-          </Button>
-          <Button
-            size="sm"
-            variant={diag?.codex_adapter_ok ? "outline" : "default"}
-            {...blocked(diag ? null : t("op.acp.blockedNoDiag"))}
-            disabled={busy !== null}
-            onClick={() => void install("codex")}
-          >
-            {busy === "codex" ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : null}
-            Codex {diag?.codex_adapter_ok ? t("op.acp.reinstall") : t("op.acp.install")}
-          </Button>
-        </div>
-      </div>
-      <p className="text-fs-3 leading-relaxed text-muted-foreground">{t("op.acp.desc")}</p>
-
-      {diag && (
-        <div className="space-y-1 pt-1">
-          <AcpRow
-            label={t("op.acp.node")}
-            ok={diag.node_ok}
-            value={
-              diag.node_version
-                ? `${diag.node_version}${diag.path_source === "login-shell" ? ` · ${t("op.acp.viaLoginShell")}` : ""}`
-                : t("op.acp.missing")
-            }
-            hint={!diag.node_ok ? t("op.acp.needVersion", { n: diag.node_min_major }) : undefined}
-          />
-          {/* 딸려 온 것과 시스템 것을 구분해 보여 준다 — 사용자가 할 일이
-              다르다. 딸려 온 것이면 따로 설치할 게 없고, 시스템 것이면 그쪽
-              버전이 오르내리는 것을 우리가 못 막는다. */}
-          <AcpRow
-            label={t("op.acp.claude")}
-            ok={!!diag.claude_path}
-            value={
-              diag.claude_path
-                ? diag.claude_bundled
-                  ? t("op.acp.claudeBundled")
-                  : diag.claude_path
-                : t("op.acp.missing")
-            }
-            hint={!diag.claude_path ? t("op.acp.claudeHint") : undefined}
-          />
-          <AcpRow
-            label={t("op.acp.adapter")}
-            ok={diag.adapter_ok}
-            value={diag.adapter_version ?? t("op.acp.missing")}
-            hint={
-              diag.adapter_ok
-                ? undefined
-                : t("op.acp.adapterExpected", { version: diag.adapter_expected })
-            }
-          />
-          <AcpRow
-            label={t("op.acp.codexAdapter")}
-            ok={diag.codex_adapter_ok}
-            value={diag.codex_adapter_version ?? t("op.acp.missing")}
-            hint={
-              diag.codex_adapter_ok
-                ? t("op.acp.codexAuthHint")
-                : t("op.acp.adapterExpected", { version: diag.codex_adapter_expected })
-            }
-          />
-          <AcpRow
-            label={t("op.acp.codexAuth")}
-            ok={diag.codex_auth_detected}
-            value={diag.codex_auth_detected ? t("op.acp.ready") : t("op.acp.missing")}
-            hint={diag.codex_auth_detected ? t("op.acp.codexAuthHint") : t("op.acp.codexAuthMissing")}
-          />
-        </div>
-      )}
-
-      {error && <p className="text-fs-3 text-(--danger-text)">{error}</p>}
-    </div>
-  );
-}
-
-function AcpRow({
-  label,
-  value,
-  ok,
-  hint,
-}: {
-  label: string;
-  value: string;
-  ok: boolean;
-  hint?: string;
-}) {
-  return (
-    <div className="flex flex-wrap items-baseline gap-x-2 text-fs-3">
-      <span className={ok ? "text-(--ok-text)" : "text-(--warn-text)"}>{ok ? "●" : "○"}</span>
-      <span className="text-muted-foreground">{label}</span>
-      <code className="truncate text-fs-1 text-foreground/80">{value}</code>
-      {hint && <span className="text-fs-1 text-muted-foreground">— {hint}</span>}
-    </div>
-  );
-}
 
 /**
  * 적용 범위 칩 — "이 프로젝트" / "이 머신 전체".

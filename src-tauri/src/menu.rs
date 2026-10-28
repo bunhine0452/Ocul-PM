@@ -229,15 +229,6 @@ pub fn handle_event(app: &AppHandle, id: &str) {
             // 탭이 하나뿐이면 그 탭을 닫는 것이 곧 창을 닫는 것이다 —
             // `close_tab` 이 빈 창을 스스로 닫는다 (Chrome 과 같다).
             use tauri_specta::Event as _;
-            // 분리 터미널 창에는 탭이 없다 — ⌘W 는 그 창을 닫는 것이다. 먼저
-            // 물어보지 않으면 `focused_app_window` 가 "마지막으로 포커스된 탭
-            // 창"으로 떨어져 **남의 창의 탭**을 닫는다.
-            if let Some(label) = win::focused_terminal_window(app) {
-                if let Some(w) = app.get_webview_window(&label) {
-                    let _ = w.close();
-                }
-                return;
-            }
             if let Some(window) = win::focused_app_window(app) {
                 let tab = win::active_tab_of(app, &window);
                 // 활성 탭이 없다 = 이 창이 레지스트리에서 빠졌다(유령 창).
@@ -254,9 +245,7 @@ pub fn handle_event(app: &AppHandle, id: &str) {
             }
         }
         CLOSE_WINDOW => {
-            if let Some(label) =
-                win::focused_terminal_window(app).or_else(|| win::focused_app_window(app))
-            {
+            if let Some(label) = win::focused_app_window(app) {
                 if let Some(w) = app.get_webview_window(&label) {
                     let _ = w.close();
                 }
@@ -269,13 +258,6 @@ pub fn handle_event(app: &AppHandle, id: &str) {
             // 아는 사실이라 판단도 그쪽이 한다 — 아무도 안 받으면 창이 평소대로
             // 시작 탭을 연다.
             use tauri_specta::Event as _;
-            // 분리 터미널 창에는 프로젝트 탭이 없다. 먼저 묻지 않으면
-            // `focused_app_window` 가 "마지막으로 포커스된 탭 창" 으로 떨어져
-            // **남의 창에** 탭이 열린다 (⌘W 가 겪었던 그 버그다).
-            if let Some(label) = win::focused_terminal_window(app) {
-                let _ = win::NewTabIntent { window: label }.emit(app);
-                return;
-            }
             match win::focused_app_window(app) {
                 Some(window) => {
                     let _ = win::NewTabIntent { window }.emit(app);
@@ -345,10 +327,6 @@ mod tests {
             (
                 "commands/window/tabs.rs",
                 include_str!("commands/window/tabs.rs"),
-            ),
-            (
-                "commands/window/terminal_windows.rs",
-                include_str!("commands/window/terminal_windows.rs"),
             ),
             (
                 "commands/window/watchers.rs",

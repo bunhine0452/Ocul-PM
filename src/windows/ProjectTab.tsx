@@ -23,7 +23,6 @@ import { oculpmLog } from "@/lib/oculpmLog";
 import { onOculpmActivateRequest, onReindexRequest } from "@/lib/projectActions";
 import { indexProgressStore } from "@/lib/indexProgressStore";
 import { toast } from "@/lib/toast";
-import { useTabRunningWork } from "@/windows/useTabRunningWork";
 import { DeepLinkSheet } from "@/features/deeplink/DeepLinkSheet";
 import { openNavFor, resolveRegisteredProject } from "@/features/deeplink/deepLinkPlan";
 import { UI_V2_VIEWS } from "@/contexts/uiV2View";
@@ -49,7 +48,6 @@ export interface ProjectTabProps {
 
 export default function ProjectTab({
   projectId,
-  tabId,
   windowLabel,
   active,
   projects,
@@ -80,9 +78,6 @@ export default function ProjectTab({
       }),
     [],
   );
-  // 닫기 문지기 — 돌아가는 터미널·에이전트를 창에 알린다.
-  useTabRunningWork(tabId, projectId);
-
   // 단축키는 **활성 탭만** 듣는다 — 훅 안에서 조건부 return 을 하는 대신
   // enabled 로 넘겨 훅 호출 순서를 지킨다.
   useGlobalShortcuts({
@@ -97,10 +92,6 @@ export default function ProjectTab({
     uiV2Nav: setUiV2View,
     onNavBack: navHistory.goBack,
     onNavForward: navHistory.goForward,
-    // ⌘J — 어느 화면에서나 터미널 도크. 셸이 아니라 여기서 다는 이유는 이
-    // 훅이 이미 "활성 탭만" 게이트를 들고 있어서다 (탭 수만큼 발화 방지).
-    onToggleTerminalDock: () =>
-      setPrefs((prev) => ({ terminalDockOpen: !prev.terminalDockOpen })),
   });
 
   // 딥링크는 활성 탭이 마운트되며 한 번 소비한다.

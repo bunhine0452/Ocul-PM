@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { dropDraft, keepDraft, peekDraft } from "@/features/discussion/draftStore";
 import { outlineIndexAt, parseOutline, textStats } from "@/features/discussion/outline";
-import { PROSE_MEASURE_PX, PROSE_MIN_GUTTER_PX, PROSE_OPTIONS, proseLayout } from "@/features/discussion/proseEditor";
 
 // 논의 편집기 개편 (2026-10-08) — 편집기가 기대는 순수 판독들.
 
@@ -41,31 +40,6 @@ describe("parseOutline", () => {
 describe("미리보기·분량", () => {
   it("글자 수는 공백을 빼고, 로그 경계 주석은 세지 않는다", () => {
     expect(textStats("가나 다\n<!-- oculpm:discussion-log begin v1 -->\nab cd")).toEqual({ chars: 7, words: 4 });
-  });
-});
-
-describe("산문 편집기 설정", () => {
-  it("쓰는 동안 뜨는 제안을 전부 끈다", () => {
-    expect(PROSE_OPTIONS.quickSuggestions).toBe(false);
-    expect(PROSE_OPTIONS.wordBasedSuggestions).toBe("off");
-    expect(PROSE_OPTIONS.suggestOnTriggerCharacters).toBe(false);
-    expect(PROSE_OPTIONS.inlineSuggest).toEqual({ enabled: false });
-    expect(PROSE_OPTIONS.acceptSuggestionOnEnter).toBe("off");
-  });
-
-  it("본문 글꼴로, 실제 폭으로 접는다", () => {
-    expect(PROSE_OPTIONS.fontFamily).toBe("var(--font)");
-    expect(PROSE_OPTIONS.wrappingStrategy).toBe("advanced");
-    expect(PROSE_OPTIONS.wordWrap).toBe("bounded");
-  });
-
-  it("넓은 판에선 칼럼을 가운데에, 좁은 판에선 최소 여백만 남긴다", () => {
-    const wide = proseLayout(1200, 8);
-    expect(wide.gutter).toBe((1200 - PROSE_MEASURE_PX) / 2);
-    expect(wide.column).toBe(Math.floor(PROSE_MEASURE_PX / 8));
-    const narrow = proseLayout(500, 8);
-    expect(narrow.gutter).toBe(PROSE_MIN_GUTTER_PX);
-    expect(narrow.column).toBe(Math.floor((500 - 2 * PROSE_MIN_GUTTER_PX) / 8));
   });
 });
 

@@ -1,8 +1,8 @@
 ---
 title: Shortcuts
-desc: Navigation, tabs and windows, the terminal dock, and Claude Code screen keys.
+desc: Navigation, tabs and windows.
 order: 16
-updated: 2026-10-24
+updated: 2026-10-28
 ---
 
 `⌘` numbers come from the sidebar order automatically — what each screen does is in the [Screen Tour](/wiki/en/screens).
@@ -12,10 +12,9 @@ updated: 2026-10-24
 | Key | Action |
 |---|---|
 | `⌘K` | Command palette — navigate, plus search entry, plan, discussion, and doc titles |
-| `⌘1`–`⌘9`, `⌘0` | Jump to a screen, in sidebar order (`⌘1` Today … `⌘8` Agents, `⌘9` AI panel, `⌘0` Skills & Rules) |
+| `⌘1`–`⌘8` | Jump to a screen, in sidebar order (`⌘1` Today · `⌘2` Journal · `⌘3` Changes · `⌘4` Planner · `⌘5` Search · `⌘6` Skills & Rules · `⌘7` Discussions · `⌘8` Branch) |
 | `⌘[` / `⌘]` | Screen back / forward — like a browser, back to what you were just reading |
 | `⌘P` | Switch project |
-| `⌘J` | Toggle the terminal dock — from any screen |
 | `⌘\` | Agent panel |
 | `⌘,` | Settings |
 
@@ -24,36 +23,9 @@ updated: 2026-10-24
 | Key | Action |
 |---|---|
 | `⌘T` | New project tab |
-| `⌘W` | Close tab (on the Claude Code screen, session tabs first) |
+| `⌘W` | Close tab |
 | `⇧⌘N` | New window |
 
-## Claude Code screen
-
-| Key | Action |
-|---|---|
-| `⏎` | Send · `⇧⏎` newline |
-| `Esc` | Interrupt the running turn |
-| `⇧Tab` | Cycle permission mode (manual → auto-accept edits → plan → auto) |
-| `↑` / `↓` | Recall previous prompts (in an empty input) |
-| `@` | File mention autocomplete · `/` slash commands |
-| `←` / `→` | Move between session tabs (when a tab has focus) |
-
-## Terminal
-
-These only fire **when focus is inside the terminal** — with the dock overlaid on another screen, `⌘F` won't open scrollback search while you're reading an entry.
-
-| Key | Action |
-|---|---|
-| `⌘T` | New session (tab) |
-| `⌘W` | Close pane |
-| `⌘D` / `⇧⌘D` | Split horizontally / vertically |
-| `⌘F` | Search scrollback — `Enter` next · `⇧Enter` previous · `Esc` close |
-| `⌘L` | Clear screen (`⌘K` is taken by the palette) |
-| `⌘+` / `⌘−` | Font size · `⇧⌘0` to reset |
-| Double-click | Rename a session tab |
-| Reposition button | Cycle dock position — bottom → left → right |
-| Detach button | Move to a separate terminal-only window (shell preserved) |
-
 :::note
-`⌘T` and `⌘W` exist both globally (project tabs) and in the terminal (sessions and panes). Which one fires depends on where focus is.
+The in-app terminal, editor and Claude Code screen — and their keys — were removed on 2026-10-28. Your agent runs in your own terminal; the planner's ▶Run and Today's "Resume with this context" put the prompt on the **clipboard**.
 :::

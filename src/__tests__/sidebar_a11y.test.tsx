@@ -74,10 +74,8 @@ describe("PR-UI 1 — Sidebar a11y", () => {
 });
 
 describe("PR-UI 1 — Sidebar navigation", () => {
-  // 2026-09-06 IA 재편 — 이름 셋이 바뀌었고(Diff→변경 · 코드 검색→검색 ·
-  // 코드→편집기), Claude Code·Codex·세션이 「에이전트」 한 행으로 접혔으며,
-  // 논의는 참고 그룹으로 내려갔다 (회고·문서 화면은 2026-09-08, 코드 맵은
-  // 2026-10-24 에 사라졌다).
+  // 2026-09-06 IA 재편 뒤 2026-10-28 덜어내기 — 터미널·편집기·에이전트·AI 대화 행은
+  // 화면과 함께 사라졌다. 남은 여덟 행 + 발의 둘.
   it("renders every sidebar row", () => {
     const { getByText } = renderSidebar();
     for (const label of [
@@ -86,10 +84,6 @@ describe("PR-UI 1 — Sidebar navigation", () => {
       "변경",
       "플래너",
       "검색",
-      "터미널",
-      "편집기",
-      "에이전트",
-      "AI 대화",
       "스킬·규칙",
       "논의",
       "다크 모드",
@@ -102,24 +96,9 @@ describe("PR-UI 1 — Sidebar navigation", () => {
   it("clicking a main/tool slot navigates", () => {
     const { getByText, calls } = renderSidebar();
     fireEvent.click(getByText("변경"));
-    fireEvent.click(getByText("AI 대화"));
+    fireEvent.click(getByText("검색"));
     fireEvent.click(getByText("설정"));
-    expect(calls).toEqual(["diff", "ai", "settings"]);
-  });
-
-  // 접힌 행을 눌러도 기본 갈래로 간다 — 행이 하나가 됐다고 갈 곳이 사라지면
-  // 안 된다. 형제(Codex)는 그 면에 들어가야 펼쳐진다.
-  it("에이전트 행은 기본 갈래로 가고, 그 면 안에서만 형제가 펼쳐진다", () => {
-    const closed = renderSidebar();
-    fireEvent.click(closed.getByText("에이전트"));
-    expect(closed.calls).toEqual(["claudecode"]);
-    expect(closed.queryByText("Codex")).toBeNull();
-
-    const open = renderSidebar({ view: "codex" });
-    expect(open.getByText("Codex")).toBeInTheDocument();
-    expect(open.queryByText("세션")).toBeNull();
-    fireEvent.click(open.getByText("Claude Code"));
-    expect(open.calls).toEqual(["claudecode"]);
+    expect(calls).toEqual(["diff", "search", "settings"]);
   });
 
   it("marks the active slot with aria-current", () => {

@@ -64,19 +64,18 @@ Claude Code·Codex CLI·Gemini CLI 를 비롯한 다수의 에이전트가 이 �
 
 ## 지원 등급
 
-같은 「일지를 남긴다」라도 약속의 세기가 다릅니다. 등급은 코드에서 읽었습니다 — 규칙 파일 어댑터 표, MCP 등록기, 훅, ACP 어댑터.
+같은 「일지를 남긴다」라도 약속의 세기가 다릅니다. 등급은 코드에서 읽었습니다 — 규칙 파일 어댑터 표, MCP 등록기, 훅. (앱 안 구동이던 4등급은 2026-10-28 에 화면과 함께 걷었습니다.)
 
 | 등급 | 뜻 |
 |---|---|
 | **1 · 규칙 호환** | 앱은 그 에이전트가 읽는 규칙 파일만 씁니다. 일지는 모델이 규칙을 지키는 만큼만 남습니다 |
 | **2 · 구조화 기록** | 에이전트가 `oculpm` MCP 서버의 도구(`journal_write` · `plan_update` …)를 부를 수 있고, 등록은 앱이 해 줍니다 |
 | **3 · 세션 관측** | 앱이 세션 시작·종료를 훅으로 받고, 일지 없이 끝난 대화를 가려냅니다 (Stop 배달 게이트 · `sessions.json`) |
-| **4 · 앱 통합** | 에이전트가 앱 안에서 돕니다 (Agent Client Protocol) — 도구 승인·출력이 대화 카드로 오고 기록 도구가 세션에 직접 물립니다 |
 
 | 에이전트 | 등급 | 앱이 하는 일 | 검증 |
 |---|---|---|---|
-| Claude Code | **4 앱 통합** | 앱 안 구동 · 훅(플러그인 또는 `.claude/settings.local.json`) · `.mcp.json` MCP 등록 · `AGENTS.md` + `.claude/CLAUDE.md` 블록 | v3.0.0 · 2026-09-11 |
-| Codex | **4 앱 통합** | 앱 안 구동 · Codex 플러그인 훅 · `~/.codex/config.toml` MCP 등록 · `AGENTS.md`(네이티브) | v2.37.0 · 2026-09-03 |
+| Claude Code | **3 세션 관측** | 훅(플러그인 또는 `.claude/settings.local.json`) · `.mcp.json` MCP 등록 · `AGENTS.md` + `.claude/CLAUDE.md` 블록 | v3.0.0 · 2026-09-11 |
+| Codex | **3 세션 관측** | Codex 플러그인 훅 · `~/.codex/config.toml` MCP 등록 · `AGENTS.md`(네이티브) | v2.37.0 · 2026-09-03 |
 | Claude Desktop | **2 구조화 기록** | `claude_desktop_config.json` 에 MCP 서버 등록 — 훅·규칙 파일 없음 | — (v2.2.0 출시 · 실연결 기록 없음) |
 | Gemini CLI | 1 규칙 호환 | `AGENTS.md` + `GEMINI.md` 블록 | — |
 | Cursor | 1 규칙 호환 | `.cursor/rules/ocul-pm.mdc` | — |

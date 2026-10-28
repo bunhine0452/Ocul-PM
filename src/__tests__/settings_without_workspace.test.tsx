@@ -32,7 +32,6 @@ vi.mock("@/lib/bindings", () => ({
 }));
 
 import { SettingsProvider } from "@/contexts/SettingsContext";
-import { ContextTab } from "@/features/settings/tabs/ContextTab";
 import { AutomationTab } from "@/features/settings/automation/AutomationTab";
 import { DeclarativeConfigSection } from "@/features/settings/config/DeclarativeConfigSection";
 import { ConversationImportSection } from "@/features/settings/import/ConversationImportSection";
@@ -44,7 +43,6 @@ afterEach(() => {
 
 /** 프로젝트에 매인 설정 면 — 시작 탭에서도 이 목록 전부가 렌더된다. */
 const PROJECT_BOUND = [
-  ["컨텍스트 탭", ContextTab],
   ["자동화 탭", AutomationTab],
   // 「데이터」 탭 안의 두 섹션 — 탭 자체는 워크스페이스를 안 읽지만 이 둘이 읽는다.
   ["선언적 설정 섹션", DeclarativeConfigSection],

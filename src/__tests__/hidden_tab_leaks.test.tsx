@@ -11,9 +11,8 @@
  *     전역 `openEntity` 버스를 **활성 탭(A)** 이 받아 A 의 일지 화면으로 갔다. 이제
  *     프로젝트 앞으로 건 요청(`lib/entryJump`) + 그 탭 활성화다.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render } from "@testing-library/react";
-import { useEffect } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, render } from "@testing-library/react";
 
 // ── 백엔드 이벤트·커맨드 — 테스트가 직접 쏘고 센다 ───────────────────────────
 const fx = vi.hoisted(() => ({
@@ -57,81 +56,10 @@ vi.mock("@/api/oculpm", () => ({
   },
 }));
 
-import { useTerminalKeys, type TerminalKeyActions } from "@/features/terminal/terminalSurface/useTerminalKeys";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { consumeEntryJump, onEntryJump, resetEntryJump } from "@/lib/entryJump";
 import { getToasts } from "@/lib/toast";
 import { NAV_BUS } from "@/lib/navRegistry";
-
-function keyActions(over: Partial<TerminalKeyActions> = {}): TerminalKeyActions {
-  return {
-    addTab: vi.fn(),
-    closeFocusedPane: vi.fn(),
-    splitFocused: vi.fn(),
-    openSearch: vi.fn(),
-    closeSearch: vi.fn(),
-    clearScreen: vi.fn(),
-    gotoBlock: vi.fn(),
-    fontDelta: vi.fn(),
-    fontReset: vi.fn(),
-    toggleZoom: vi.fn(),
-    searchOpen: false,
-    keyboardScope: "always",
-    ownsNewTab: false,
-    ...over,
-  };
-}
-
-/** 터미널 화면 하나 — `visible` 이면 레이아웃 사각형이 있는 척한다 (jsdom 은 늘 비어 있다). */
-function Surface({ actions, visible }: { actions: TerminalKeyActions; visible: boolean }) {
-  const rootRef = useTerminalKeys(actions);
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el) return;
-    el.getClientRects = (visible ? () => [{}] : () => []) as never;
-  }, [rootRef, visible]);
-  return <div ref={rootRef} />;
-}
-
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
-});
-
-describe("terminal ⌘D — only the surface that is laid out splits", () => {
-  it("an `always`-scoped surface in a hidden tab (no layout) ignores ⌘D", () => {
-    const hidden = keyActions();
-    render(<Surface actions={hidden} visible={false} />);
-    fireEvent.keyDown(window, { key: "d", metaKey: true });
-    expect(hidden.splitFocused).not.toHaveBeenCalled();
-  });
-
-  it("with two tabs mounted, only the visible one splits", () => {
-    const active = keyActions();
-    const background = keyActions();
-    render(
-      <>
-        <Surface actions={active} visible />
-        <Surface actions={background} visible={false} />
-      </>,
-    );
-    fireEvent.keyDown(window, { key: "d", metaKey: true });
-    expect(active.splitFocused).toHaveBeenCalledTimes(1);
-    expect(active.splitFocused).toHaveBeenCalledWith("row");
-    expect(background.splitFocused).not.toHaveBeenCalled();
-    // ⇧⌘D 도 같은 게이트를 지난다.
-    fireEvent.keyDown(window, { key: "d", metaKey: true, shiftKey: true });
-    expect(active.splitFocused).toHaveBeenLastCalledWith("col");
-    expect(background.splitFocused).not.toHaveBeenCalled();
-  });
-
-  it("a visible dock (`focused`) still yields when focus is outside it", () => {
-    const dock = keyActions({ keyboardScope: "focused" });
-    render(<Surface actions={dock} visible />);
-    fireEvent.keyDown(window, { key: "d", metaKey: true });
-    expect(dock.splitFocused).not.toHaveBeenCalled();
-  });
-});
 
 describe("new-entry toast Open — goes to that project's tab", () => {
   beforeEach(() => {

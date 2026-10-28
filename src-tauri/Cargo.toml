@@ -35,7 +35,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
 tauri-specta = { version = "2.0.0-rc.25", features = ["derive", "typescript"] }
 specta = { version = "2.0.0-rc.25", features = ["derive"] }
 specta-typescript = "0.0.12"
@@ -82,9 +82,6 @@ tree-sitter-javascript = "0.23"
 tree-sitter-typescript = "0.23"
 tree-sitter-python = "0.23"
 tree-sitter-go = "0.23"
-portable-pty = "0.8"
-# pty-host 의 Kill — 셸·포그라운드 프로세스 그룹에 SIGHUP/SIGKILL 을 직접 보낸다
-# (master 닫기만으로는 reader dup 이 살아 있어 아무 신호도 안 갔다).
 libc = "0.2"
 tauri-plugin-window-state = "2"
 # Self-update (benchmarked from uvws): official updater + process(relaunch).
@@ -115,10 +112,6 @@ toml = "0.8"
 toml_edit = "0.20"
 uuid = { version = "1", features = ["v4"] }
 
-# PR-ACP0 — ACP(Agent Client Protocol) 클라이언트. 어댑터 서브프로세스 spawn 과
-# JSON-RPC 트랜스포트를 크레이트가 함께 담당한다 (`AcpAgent` 가 ConnectTo 구현).
-# 설계 SSOT: docs/acp-panel/00-master-plan.md
-agent-client-protocol = { version = "3.5", features = ["process", "stdio"] }
 # 코드 화면의 파일 삭제 — 영구 삭제 대신 OS 휴지통으로 보낸다. IDE 안에서
 # 되돌릴 수 없는 삭제는 만들지 않는다 (폴더 삭제는 재귀라 더더욱).
 # default-features off = chrono 를 끌어오는 휴지통 메타데이터 기능 제외.

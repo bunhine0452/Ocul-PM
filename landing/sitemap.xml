@@ -94,7 +94,7 @@
     <loc>https://oculpm.com/wiki/screens</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/screens" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/screens" />
-    <lastmod>2026-10-27</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -134,7 +134,7 @@
     <loc>https://oculpm.com/wiki/claude-code</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/claude-code" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/claude-code" />
-    <lastmod>2026-08-16</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -147,18 +147,10 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://oculpm.com/wiki/ai-panel</loc>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/ai-panel" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/ai-panel" />
-    <lastmod>2026-08-21</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
     <loc>https://oculpm.com/wiki/workspace</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/workspace" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/workspace" />
-    <lastmod>2026-10-24</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -174,7 +166,7 @@
     <loc>https://oculpm.com/wiki/troubleshooting</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/troubleshooting" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/troubleshooting" />
-    <lastmod>2026-10-24</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -190,7 +182,7 @@
     <loc>https://oculpm.com/wiki/shortcuts</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/shortcuts" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/shortcuts" />
-    <lastmod>2026-10-24</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -222,7 +214,7 @@
     <loc>https://oculpm.com/wiki/en/screens</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/screens" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/screens" />
-    <lastmod>2026-10-27</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -262,7 +254,7 @@
     <loc>https://oculpm.com/wiki/en/claude-code</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/claude-code" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/claude-code" />
-    <lastmod>2026-08-21</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -275,18 +267,10 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://oculpm.com/wiki/en/ai-panel</loc>
-    <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/ai-panel" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/ai-panel" />
-    <lastmod>2026-08-21</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://oculpm.com/wiki/en/workspace</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/workspace" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/workspace" />
-    <lastmod>2026-10-24</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -302,7 +286,7 @@
     <loc>https://oculpm.com/wiki/en/troubleshooting</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/troubleshooting" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/troubleshooting" />
-    <lastmod>2026-10-24</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -318,7 +302,7 @@
     <loc>https://oculpm.com/wiki/en/shortcuts</loc>
     <xhtml:link rel="alternate" hreflang="ko" href="https://oculpm.com/wiki/shortcuts" />
     <xhtml:link rel="alternate" hreflang="en" href="https://oculpm.com/wiki/en/shortcuts" />
-    <lastmod>2026-10-24</lastmod>
+    <lastmod>2026-10-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>

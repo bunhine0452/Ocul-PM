@@ -94,28 +94,31 @@
   display: flex;
   align-items: stretch;
 }
+/* 원문 모드 — 평범한 textarea. 산문이라 본문 글꼴·넉넉한 줄 간격, 한 칼럼(최대 680px)을 판 가운데에.
+   (Monaco 원문 편집기는 코드 화면과 함께 2026-10-28 에 걷었다.) */
 .disc-edit-cm {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 28px 28px 400px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  line-height: var(--lh-prose);
+  caret-color: var(--accent);
+  overflow-y: auto;
+}
+.disc-edit-cm::placeholder {
+  color: var(--text-3);
 }
 .disc-edit-body.rich .disc-edit-cm {
   display: none;
-}
-/* 바탕은 투명 — 뒤의 판이 그린다. 문법 색은 `monaco/theme.ts` 의 `.md-prose`. */
-.disc-edit-cm .monaco-editor,
-.disc-edit-cm .monaco-editor .overflow-guard,
-.disc-edit-cm .monaco-editor-background {
-  background: transparent;
-}
-/* 캐럿은 강조색 두 배 굵기 — 산문에서 1px 캐럿은 글자 사이에서 잃어버린다. */
-.disc-edit-cm .monaco-editor .cursor {
-  background: var(--accent) !important;
-  border-color: var(--accent) !important;
-  width: 2px !important;
-}
-.disc-edit-cm .monaco-editor .editorPlaceholder {
-  color: var(--text-3);
 }
 
 /* 개요 — 조용한 왼쪽 레일. 활성은 틴트가 아니라 표시자와 글자색. */

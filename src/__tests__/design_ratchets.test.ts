@@ -251,9 +251,8 @@ describe("드릴다운 머리", () => {
 // 했는데 320 은 없고 실제 네 번째는 `.acp-panel`(244)이다 — 그리고 그건 왼쪽
 // 목록 열이 아니라 오른쪽에서 밀려 나오는 세션 패널이라 대상이 아니다.
 describe("좌측 목록 열", () => {
-  it("세 열이 한 토큰을 쓴다", () => {
+  it("두 열이 한 토큰을 쓴다 (편집기 열은 2026-10-28 에 걷었다)", () => {
     expect(read("styles/tokens.css")).toContain("--panel-w: 284px;");
-    expect(read("features/code/code.css")).toMatch(/\.code-sidebar\s*\{[^}]*width: var\(--panel-w\)/);
     expect(read("features/discussion/discussion.css")).toMatch(/\.disc-list\s*\{[^}]*width: var\(--panel-w\)/);
     expect(read("styles/screens.css")).toContain("grid-template-columns: var(--panel-w) 1fr");
   });

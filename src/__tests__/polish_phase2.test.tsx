@@ -29,7 +29,6 @@ import {
   requestOculpmActivate,
   requestReindex,
 } from "@/lib/projectActions";
-import { acpWorkingKey, countAcpWorkingFor, resetAcpWorking, setAcpWorking } from "@/features/chat/acpBusyBus";
 
 vi.mock("@/lib/bindings", () => ({
   commands: new Proxy({}, { get: () => () => Promise.resolve({ status: "ok", data: null }) }),
@@ -43,7 +42,6 @@ import { DiffFileList } from "@/features/diff/DiffFileList";
 afterEach(() => {
   cleanup();
   resetIntegrityLog();
-  resetAcpWorking();
 });
 
 describe("단축키 레지스트리 — navRegistry 에서 파생, 중복 없음", () => {
@@ -209,14 +207,6 @@ describe("탭 닫기 문지기 — 창은 묻고, 탭은 알린다", () => {
     expect(hasRunningWork({ foreground: [], agents: 2 })).toBe(true);
   });
 
-  it("ACP 버스는 프로젝트별로 센다", () => {
-    setAcpWorking(acpWorkingKey(1, "s1"), true);
-    setAcpWorking(acpWorkingKey(1, "s2"), true);
-    setAcpWorking(acpWorkingKey(2, "s3"), true);
-    expect(countAcpWorkingFor(1)).toBe(2);
-    expect(countAcpWorkingFor(2)).toBe(1);
-    expect(countAcpWorkingFor(3)).toBe(0);
-  });
 });
 
 describe("요청 버스 — 활성화·색인은 프로젝트 탭이 받는다", () => {
@@ -466,84 +456,49 @@ describe("포매터 · 워크데이 산술", () => {
   });
 });
 
-// ─── Phase 4 — WorkspaceContext 3분할: 조각 안정성 · 잃어버린 갱신 ─────────
+// ─── Phase 4 — WorkspaceContext 분할: 조각 안정성 (터미널 조각은 2026-10-28 에 걷었다) ──
 
 import {
   WorkspaceProvider,
-  storageKeyFor,
   useProjectRuntime,
-  useTerminalSessions,
   useUiPrefs,
   useWorkspace,
-  type TerminalTab,
 } from "@/contexts/WorkspaceContext";
 
 describe("WorkspaceContext 조각 — 자기 키가 바뀔 때만 새 참조", () => {
-  const tab = (id: string): TerminalTab => ({ id, label: id, shell: "zsh", cwd: "/x" });
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <WorkspaceProvider projectId={41}>{children}</WorkspaceProvider>
   );
 
-  it("취향이 바뀌어도 터미널·런타임 조각은 그대로다 (그 반대도)", () => {
+  it("취향이 바뀌어도 런타임 조각은 그대로다 (그 반대도)", () => {
     localStorage.clear();
     const { result } = renderHook(
-      () => ({ all: useWorkspace(), prefs: useUiPrefs(), term: useTerminalSessions(), rt: useProjectRuntime() }),
+      () => ({ all: useWorkspace(), prefs: useUiPrefs(), rt: useProjectRuntime() }),
       { wrapper },
     );
-    const term0 = result.current.term;
     const rt0 = result.current.rt;
     const prefs0 = result.current.prefs;
     act(() => result.current.all.setUiV2View("planner"));
     expect(result.current.prefs).not.toBe(prefs0);
     expect(result.current.prefs.prefs.uiV2View).toBe("planner");
-    expect(result.current.term).toBe(term0);
     expect(result.current.rt).toBe(rt0);
 
     const prefs1 = result.current.prefs;
-    act(() => result.current.term.openTab(tab("t1")));
-    expect(result.current.term).not.toBe(term0);
-    expect(result.current.term.terminalActiveId).toBe("t1");
-    expect(result.current.prefs).toBe(prefs1);
-    expect(result.current.rt).toBe(rt0);
-
     act(() => result.current.rt.setIndexing(41));
     expect(result.current.rt.indexingProjectId).toBe(41);
     expect(result.current.prefs).toBe(prefs1);
     // 겉면은 모든 변화를 본다.
     expect(result.current.all.state.uiV2View).toBe("planner");
-    expect(result.current.all.state.terminalActiveId).toBe("t1");
+    expect(result.current.all.state.indexingProjectId).toBe(41);
   });
 
-  it("setPrefs 는 바뀐 것이 없으면 조용하고, openTab 은 화면도 옮긴다", () => {
+  it("setPrefs 는 바뀐 것이 없으면 조용하다", () => {
     localStorage.clear();
-    const { result } = renderHook(() => ({ prefs: useUiPrefs(), term: useTerminalSessions() }), { wrapper });
+    const { result } = renderHook(() => ({ prefs: useUiPrefs() }), { wrapper });
     const before = result.current.prefs;
     act(() => result.current.prefs.setPrefs((p) => ({ searchScope: p.searchScope })));
     expect(result.current.prefs).toBe(before);
-    act(() => result.current.term.openTab(tab("cc"), { view: "terminal" }));
-    expect(result.current.prefs.prefs.uiV2View).toBe("terminal");
-  });
-
-  it("다른 창이 남긴 터미널 탭을 storage 이벤트로 곧장 받아들인다 (잃어버린 갱신 제거)", () => {
-    localStorage.clear();
-    const { result } = renderHook(() => ({ all: useWorkspace(), term: useTerminalSessions() }), { wrapper });
-    act(() => result.current.term.setSessions(() => ({ terminalTabs: [tab("a")], terminalActiveId: "a" })));
-    act(() => result.current.all.setTerminalDetached(true));
-    // 분리 창이 탭을 하나 더 만들어 디스크에 남기고, 브라우저가 storage 이벤트를 쏜다.
-    const key = storageKeyFor(41);
-    const disk = JSON.parse(localStorage.getItem(key) ?? "{}");
-    localStorage.setItem(key, JSON.stringify({ ...disk, terminalTabs: [tab("a"), tab("b")], terminalActiveId: "b" }));
-    act(() => {
-      window.dispatchEvent(new StorageEvent("storage", { key }));
-    });
-    expect(result.current.term.terminalTabs.map((t) => t.id)).toEqual(["a", "b"]);
-    expect(result.current.term.terminalActiveId).toBe("b");
-    // 분리 중이 아닐 때는 이 창이 주인이라 디스크를 따르지 않는다.
-    act(() => result.current.all.setTerminalDetached(false));
-    localStorage.setItem(key, JSON.stringify({ ...disk, terminalTabs: [tab("zzz")], terminalActiveId: "zzz" }));
-    act(() => {
-      window.dispatchEvent(new StorageEvent("storage", { key }));
-    });
-    expect(result.current.term.terminalTabs.map((t) => t.id)).toEqual(["a", "b"]);
+    act(() => result.current.prefs.setPrefs(() => ({ uiV2View: "search" })));
+    expect(result.current.prefs.prefs.uiV2View).toBe("search");
   });
 });

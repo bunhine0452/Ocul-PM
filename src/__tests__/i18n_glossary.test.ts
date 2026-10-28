@@ -73,10 +73,7 @@ describe("복사 확인은 한 형태다", () => {
    */
   const PURE = [
     "common.copied",
-    "ctx.manifest.copied",
     "disc.pathCopied",
-    "term.block.copiedCommand",
-    "term.block.copiedOutput",
     "today.honesty.copied",
     "today.standup.copiedAi",
     "today.standup.copiedPlain",

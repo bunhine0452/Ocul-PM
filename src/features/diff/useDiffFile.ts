@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { tError } from "@/i18n/errors";
 import { diffApi } from "@/api/diff";
-import { codeApi } from "@/api/code";
+import { projectFileApi } from "@/api/projectFile";
 import { toAppError } from "@/api/invoke";
 import type { DiffResult } from "@/lib/bindings";
 import { recentChangesStore, type RecentChange } from "@/lib/recentChangesStore";
@@ -117,7 +117,7 @@ export function useDiffFile(
           } else {
             // 읽기 실패는 바깥 catch(= diff 실패)로 새지 않게 여기서 받는다 —
             // 상태로 남겨 "읽는 중…" 무한 대기 대신 안내를 띄운다.
-            const text = await codeApi.readProjectFile(projectId, selected).catch((e: unknown) => {
+            const text = await projectFileApi.read(projectId, selected).catch((e: unknown) => {
               if (!cancelled) setNewFileError(tError(toAppError(e)));
               return null;
             });

@@ -85,7 +85,6 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 <img src="landing/shots/en/s2.jpg" alt="Approval card — the diff of the change visible inside the card" />
 
-<img src="landing/shots/en/05-terminal.jpg" alt="⌘J terminal dock — a terminal on any screen" />
 
 ## 🚀 v3.17.0 — From first run to terminal, the whole design
 
@@ -278,7 +277,7 @@ The per-release narrative that used to live here has moved to the [web changelog
 
 ## Screens
 
-The `core` · `viewer` · `beta` tag after each screen is its tier in the [promise document](docs/PROMISE.md) — beta screens get bug fixes only, no new capability.
+The `core` · `viewer` tag after each screen is its tier in the [promise document](docs/PROMISE.md). The beta tier (terminal · editor · in-app agents · AI panel) was removed on 2026-10-28 — agents run in your own terminal, the app keeps the record, the evidence and the plan.
 
 - **Today** `core` — everything that changed today, organized by workday: the commit graph, uncommitted changes, and an honesty audit that catches files agents modified but never journaled. "Copy standup" puts yesterday-to-today into your clipboard as shareable text.
 - **Journal** `core` — the timeline of what your agents did. Each entry shows which agent ran on which model, and keeps the change diff from that moment. Repos with no journal history can be backfilled from git in one pass.
@@ -287,30 +286,25 @@ The `core` · `viewer` · `beta` tag after each screen is its tier in the [promi
 - **Changes** `core` — review what agents changed, offline. `j`/`k` moves between files, `/` searches inside the diff, and it follows the files that import each change to show how far its impact reaches.
 - **Branch** `viewer` — "what happened on this branch." Commits, journal entries, plan items and changed files under one coordinate, with a **recorded rate** and the changes that still have no entry. Exportable as a single markdown page — it exports, and sends nothing anywhere.
 - **Search** `viewer` — three modes: semantic (local embeddings), symbol (AST), and text (exact match). (Still findable in ⌘K under its old name, Code Search.)
-- **Editor** `beta` — an in-app IDE. **Tabs and a split view** keep several files in sight; the tree handles create, rename, drag-to-move, and delete-to-Trash — and **drag from Finder or press ⌘V** to bring files and folders in (name clashes become `-2` rather than overwriting). **⇧⌘F project-wide search & replace** (case / whole word / regex) lives in the sidebar, and **⌘F / ⌥⌘F find & replace** lives inside the editor. The core is **Monaco** — VS Code's own editor — so folding, bracket matching, auto-closing, wrap-selection, multiple cursors (⌥click, ⌥⇧drag for column select), the minimap, bracket-pair colorization and indent guides come as standard, with **semantic highlighting** from the language server layered on top. **⌘K rewrites the selection from a plain-language instruction** (review it hunk by hunk; turn them all off and you have the original back), and that edit is recorded as an agent's in the journal and local history. On top of **autocomplete, diagnostics, hover, go-to-definition, find references, outline, rename, signature help, and formatting** (LSP), a compare button in the path bar overlays **what agents changed right in the buffer** — with a jump to the journal entries that touched the file. A conflict banner protects you when an agent edits the same file (compare the changes before choosing; recreate a file deleted outside the editor), and unsaved edits survive screen switches. **`.md` files open in a Notion-style rich editor** — `/` inserts blocks, the path bar switches to source, and only the blocks you edit change on save. **Images and PDFs open as previews** instead of an editor — pictures with fit-to-window ↔ actual size, PDFs as documents, and **svg renders beside the code from the unsaved buffer**. The hygiene of an editor you leave open all day lives here too: **save-time whitespace/final-newline cleanup and auto-save** (off by default), **preview tabs** that don't pile up while you skim, **⇧⌘O symbols · ⌃G lines**, **sticky scroll** that keeps the enclosing function in view, a **problems panel** collecting project-wide diagnostics, and **local history** — a version per save and per agent edit, to overlay or restore.
-- **Terminal** `beta` — a PTY terminal inside the app. Run your agent here and watch journal entries stack up on the next screen over. Sessions stand in a **vertical rail** on the left, each card showing status, agent, elapsed time and the last command. **Drag a session onto a screen edge and it splits there**, putting two side by side; the grip (⠿) on a split pane moves it elsewhere or pulls it out into its own session. **⌘J docks it onto any screen (bottom, left, or right), and it detaches into its own window** without dropping the shell. Also the escape hatch for CLI-only interactive features like `/plugin` and `/mcp`.
-- **Agents** `beta` — runs a real `claude` and `codex` inside the app (Agent Client Protocol), as two branches under the same row. Tool calls, permission approvals, and Effort/mode all arrive as cards in the conversation, and sessions are managed as tabs. This is the screen where you tell it what to do.
-- **AI panel** `beta` — chat that knows your code search, journal, planner, and git context. It loads a **capability list** once per conversation and pulls content on demand; past records attach only when a question asks for them (or push them yourself with `/rules`, `/plan`, `/journal`, `/skill`). Supports Anthropic · OpenAI · Gemini · OpenRouter, with a fallback chain when a call fails. This is the screen where you ask it things.
 - **Skills & rules** `viewer` — manage Claude Code skills (`.claude/skills/`) and rules (`.claude/rules/`, `CLAUDE.md`) in **one screen with three zones**: a **context budget bar** saying how much goes in per session, one merged list sorted by how often each fires (zero firings in 30 days and disabled skills demote into a collapsed *dormant* section), and a proposal inbox. Create and edit them in a GUI, and copy them between a project and your global `~/.claude/skills`. Disabling a skill doesn't delete it — it moves to `.disabled/` and simply drops out of loading. "Add" installs vetted third-party skills matched to your stack, 25 of them, and **rules that don't belong to this project** are flagged by two deterministic signals with prescriptions to narrow, clean up or fix a trigger. Rules and skills can also be created straight from a journal entry, a diff, a terminal block, Today or ⌘K.
-⌘1–⌘0 jump between screens (the Code Map removal moved everything from ⌘6 up one — Terminal ⌘6 · Editor ⌘7 · Agents ⌘8 · AI panel ⌘9 · Skills ⌘0), the ⌘K palette opens journals, plans, discussions and docs by title, ⌘P switches projects, and ⌘⇧M opens project management. Windows and tabs: ⌘T new tab · ⌘W close tab · ⇧⌘N new window · ⇧⌘W close window · ⌃Tab · ⌘⌥←→. **Drag** tabs to reorder, tear one out into its own window, or drop it on another window's tab row to merge — **right-click** (Shift+F10 from the keyboard) offers the same moves as a menu.
+⌘1–⌘8 jump between screens (Search ⌘5 · Skills ⌘6 · Discussions ⌘7 · Branch ⌘8), the ⌘K palette opens journals, plans, discussions and docs by title, ⌘P switches projects, and ⌘⇧M opens project management. Windows and tabs: ⌘T new tab · ⌘W close tab · ⇧⌘N new window · ⇧⌘W close window · ⌃Tab · ⌘⌥←→. **Drag** tabs to reorder, tear one out into its own window, or drop it on another window's tab row to merge — **right-click** (Shift+F10 from the keyboard) offers the same moves as a menu.
 
 Pick your UI language — **한국어 · English** — in Settings → Appearance. The language your AI writes documents in (journals, discussions, plans) is a separate setting that defaults to following the UI.
 
 ## Supported agents
 
-"Supported" hides four different promises, so we split them into tiers. The tiers are read from code, not from marketing copy — the rules-file adapter table (`src-tauri/src/oculpm/agents/`), the MCP registrars (`oculpm/mcp/register.rs` · `mcp/codex.rs`), the hooks (`plugin/*/hooks/`) and the ACP adapters (`src-tauri/src/acp/`).
+"Supported" hides three different promises, so we split them into tiers (the in-app tier 4 went with its screens on 2026-10-28). The tiers are read from code, not from marketing copy — the rules-file adapter table (`src-tauri/src/oculpm/agents/`), the MCP registrars (`oculpm/mcp/register.rs` · `mcp/codex.rs`), the hooks (`plugin/*/hooks/`).
 
 | Tier | What it means |
 |---|---|
 | **1 · Rules-compatible** | Ocul-PM only writes the rules file that agent reads (`AGENTS.md`, a `.claude/CLAUDE.md` block, `.cursor/rules/*.mdc`, `GEMINI.md` …). Journals get written only as far as the model obeys the rules. |
 | **2 · Structured journaling** | The agent can call the `oculpm` MCP server's tools (`journal_write` · `plan_update` …), and Ocul-PM registers that server for it. |
 | **3 · Session observation** | Ocul-PM receives session start/stop through hooks and can tell when a conversation ended without a journal (the Stop delivery gate · `sessions.json` · the verdict). |
-| **4 · In-app** | The agent runs inside the app (Agent Client Protocol) — tool approvals and output arrive as conversation cards, and the journaling tools are attached to the session directly. |
 
 | Agent | Tier | What Ocul-PM does | Verified |
 |---|---|---|---|
-| **Claude Code** | 4 In-app | Runs in-app (ACP) · hooks (plugin or `.claude/settings.local.json`) · `.mcp.json` MCP registration · `AGENTS.md` + `.claude/CLAUDE.md` block | v3.0.0 · 2026-09-11 |
-| **Codex** | 4 In-app | Runs in-app (ACP) · Codex plugin hooks · `~/.codex/config.toml` MCP registration · `AGENTS.md` (native, no dedicated file) | v2.37.0 · 2026-09-03 |
+| **Claude Code** | 3 Session observation | hooks (plugin or `.claude/settings.local.json`) · `.mcp.json` MCP registration · `AGENTS.md` + `.claude/CLAUDE.md` block | v3.0.0 · 2026-09-11 |
+| **Codex** | 3 Session observation | Codex plugin hooks · `~/.codex/config.toml` MCP registration · `AGENTS.md` (native, no dedicated file) | v2.37.0 · 2026-09-03 |
 | **Claude Desktop** | 2 Structured journaling | MCP server registered in `claude_desktop_config.json` — no hooks, no rules file | — (shipped v2.2.0 · no live-connection record) |
 | **Gemini CLI** | 1 Rules-compatible | `AGENTS.md` + `GEMINI.md` block | — |
 | **Cursor** | 1 Rules-compatible | `.cursor/rules/ocul-pm.mdc` | — |
@@ -326,8 +320,7 @@ How to read it:
 
 - **Verified** is the latest evidence in this repository's own `CHANGELOG.md` and `.oculpm/journal/` that the tier **actually ran** (app version · date). `—` means the code exists but there is no on-device record; "shipped" in parentheses is the version the CHANGELOG lists the feature under. No dates or versions were invented.
 - `AGENTS.md` is always planted when you add a project; the other rules files are switched on in Settings → Agents (the detect button suggests candidates). If you're on a tier-1 agent, glance at Today's honesty audit now and then — files edited without a journal show up there.
-- A CLI started in the built-in terminal (`claude` · `codex` · `gemini` · `cursor-agent` · `aider` …) is caught by shell integration for **start and stop only**. There is no missing-journal verdict, so that is not tier 3.
-- Not yet seen on a real machine: a live Claude Desktop connection · Codex's tool-approval → file-change flow end to end. Both exist in code, and for that reason neither raised a tier in the table.
+- Not yet seen on a real machine: a live Claude Desktop connection. The code exists, and for that reason it did not raise a tier in the table.
 - **Platform**: official builds are macOS Apple Silicon plus Windows x64 and Linux x64 as a **beta** (see [Install](#install)). The evidence in the table comes from the macOS build — every Windows/Linux release has passed an install smoke test and a real-app E2E run on CI runners, but reports from real users' PCs are still accumulating, so they stay beta. Intel Macs are on hold because the embedding runtime (ONNX) has no x86_64 prebuilt.
 
 Git backfill tells agents apart by commit signatures.
@@ -350,7 +343,6 @@ codex plugin add oculpm-codex@oculpm
 
 One plugin configures, across all your projects: a **hooks bridge** (session start/end as real-time signals — one local file append, no network), **7 MCP tools** (`journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` — agents record through structured tools instead of imitating markdown, eliminating frontmatter errors, and search the hundreds of accumulated entries *before* starting work: one query tells you why that file was touched before), and **5 skills + `/oculpm:standup` · `/oculpm:redteam`** (recording spec · project-inception · self-audit · run-evals · tdd-workflow, and a red team that runs a plan's or entry's claims and reports only counter-examples). It only acts in `.oculpm`-tracked projects and never touches untracked repos — see the [full read/write contract](docs/claude-integration/06-plugin-contract.md). Note it is an either/or with the app's per-project hook/MCP registration (the settings screen warns about double registration).
 
-> The in-app **Claude Code screen** records without this plugin — the app attaches its journaling tools (MCP) to every session directly. Interactive CLI commands like `/plugin` and `/mcp` don't work inside in-app ACP sessions, so install the plugin from a terminal. The distinction is written up in the [wiki's Claude Code guide](https://oculpm.com/wiki/en/claude-code).
 
 ## Install
 
@@ -367,7 +359,6 @@ Grab the file for your OS from the [latest release](https://github.com/bunhine04
 
 **Windows (beta)** — the installer puts the app in your user folder without admin rights. The beta isn't code-signed, so on first launch SmartScreen shows "Windows protected your PC" — click **More info → Run anyway**. If the Visual C++ runtime is missing, the installer installs it first (that's the only time a confirmation prompt appears). On Windows older than 10 2004 the installer explains why and stops.
 
-- Windows won't move or delete a folder that a running program uses as its working folder — to move a project folder while the app's terminal or language server runs in it, close those terminal tabs or quit the app first (VS Code and other editors behave the same).
 - The Claude Code plugin's hooks run on Windows, but **its MCP server does not start** — turn on the "MCP server" registration in the app's integration settings (the "Applies to this project only" card) to register the installed `oculpm-mcp.exe`.
 
 **Linux (beta)** — for the AppImage, `chmod +x Ocul-PM_*_amd64.AppImage` and run it; it auto-updates in-app. It needs FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04, `libfuse2t64` on 24.04). Install the deb with `sudo apt install ./Ocul-PM_*_amd64.deb` and update it the same way with the next `.deb` — it isn't updated in-app.

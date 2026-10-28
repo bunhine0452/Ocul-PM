@@ -7,10 +7,9 @@ import {
 } from "@/components/Icons";
 import { commands, type PlanItemDto } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
-import { handoffDispatch, terminalOnScreen } from "@/features/terminal/dispatchTarget";
 import { SkeletonList } from "@/components/ui/Skeleton";
 import { AppDialog } from "@/components/ui/AppDialog";
-import { useTerminalSessions, useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
+import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { PlanRailDock, PlanRailTab, clampRailWidth } from "./PlanRailDock";
 import type { PlanGroup, PlanSort } from "./planList";
 import type { PlanView } from "./planMeta";
@@ -41,7 +40,6 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
   // 훅이 없으면 언어를 바꿔도 리렌더가 안 걸린다).
   useT();
   const { state, setState } = useWorkspace();
-  const sessions = useTerminalSessions();
   const plan = usePlanDocument(projectId);
   const { detail, selectedId, busy, locked } = plan;
 
@@ -67,12 +65,8 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
     await plan.setStatus(item, status);
   };
 
-  // IN2 — 항목 실행: 백엔드가 프롬프트를 조립·저장하고, 터미널에 프리필할 한 줄
-  // 명령 + 프롬프트 본문을 돌려준다. 실행(Enter)은 사용자가 한다.
-  //
-  // 어디에 무엇으로 꽂을지는 `dispatchTarget` 이 판단한다 — 돌고 있는 에이전트가
-  // 있으면 본문을 붙여넣고, 아니면 셸에 한 줄 명령. 그리고 터미널이 이미 화면에
-  // 있으면(⌘J 도크·터미널 화면·분리 창) **여기 화면을 빼앗지 않는다**.
+  // IN2 — 항목 실행: 백엔드가 프롬프트를 조립·저장하고 본문을 돌려준다. 내장 터미널이
+  // 걷힌 뒤(2026-10-28)로는 클립보드에 두고, 사용자가 자기 터미널의 에이전트에 붙여 넣는다.
   const dispatchItem = async (item: PlanItemDto) => {
     if (selectedId == null) return;
     const res = await commands.planDispatchPrompt(projectId, selectedId, item.item_id);
@@ -80,20 +74,12 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
       toast.destructive(t("plan.dispatchFailed", { error: res.error }));
       return;
     }
-    // 이동 여부는 **쓰기 전에** 정한다 — 프리필이 성공했더라도 터미널이 안
-    // 보이는 사람에게는 어디로 갔는지 보여줘야 한다.
-    const onScreen = terminalOnScreen(state);
-    const done = await handoffDispatch(
-      { projectId, command: res.data.command, prompt: res.data.prompt },
-      sessions.terminalTabs,
-      sessions.terminalActiveId,
-    );
-    toast.info(
-      done.kind === "pasted"
-        ? t("plan.dispatchPasted", { title: res.data.item_title, agent: done.agent })
-        : t("plan.dispatchReady", { title: res.data.item_title }),
-    );
-    if (!onScreen) onNavigate("terminal");
+    try {
+      await navigator.clipboard.writeText(res.data.prompt);
+      toast.info(t("plan.dispatchCopied", { title: res.data.item_title }));
+    } catch (e) {
+      toast.destructive(t("plan.dispatchFailed", { error: String(e) }));
+    }
   };
 
   // plan-log journal refs are written relative to `.oculpm/` (e.g.

@@ -6,7 +6,6 @@
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
 // PR-ACP1 — 통합 테스트(tests/acp_handshake.rs)가 env/adapter 를 직접 쓴다.
-pub mod acp;
 pub mod app_error;
 pub mod ast;
 mod commands;
@@ -38,7 +37,6 @@ pub mod indexer;
 mod instance_lock;
 pub mod journal_index;
 mod llm;
-pub mod lsp;
 pub mod oculpm;
 // 신뢰할 수 없는 상대 경로의 관문 — 어휘 + 링크 (보안 피드백 2차).
 mod path_guard;
@@ -50,7 +48,6 @@ pub mod plugins;
 // 프로세스 생성 단일 창구 (크로스플랫폼 D5) — pub 인 이유: main.rs 의 re-exec 도
 // 이 창구를 지난다 (clippy.toml 이 그 밖의 `Command::new` 를 막는다).
 pub mod proc;
-pub mod ptyhost;
 mod secrets;
 // 테마 파일화 (Osaurus 라운드 Phase 4) — 스키마·검증·앱데이터 저장소
 pub mod text;
@@ -161,37 +158,12 @@ fn setup_logging() {
 }
 
 use crate::commands::{
-    acp_cancel,
-    acp_commands,
-    acp_delete_session,
     // PR-ACP1 — ACP 어댑터 런타임 (진단·설치·프로세스 수명)
-    acp_diagnose,
-    acp_install_adapter,
-    acp_journal_objection,
-    acp_journal_objection_dismiss,
-    acp_list_files,
-    acp_list_sessions,
-    acp_load_session,
-    acp_new_session,
-    acp_options,
-    acp_permission_respond,
-    acp_pick_files,
-    acp_prompt,
-    acp_recording_status,
-    acp_refresh_usage,
-    acp_select_session,
-    acp_session_title,
-    acp_set_config_option,
-    acp_start,
-    acp_status,
-    acp_stop,
-    acp_usage,
     activate_tab,
     // context-budget-truth A — 에이전트·커맨드 표면 (예산 누락분)
     agent_surface_list,
     app_info,
     apply_menu_language,
-    attach_pty_session,
     // Osaurus 라운드 Phase 1 — 스케줄 자동화 (정의 CRUD·기록·지금 실행)
     automation_cancel,
     automation_consent_grant,
@@ -212,10 +184,6 @@ use crate::commands::{
     branch_list,
     branch_story,
     cancel_tear_off,
-    chat,
-    chat_message_append,
-    chat_message_list,
-    chat_stream,
     check_cli_available,
     claude_hooks_install,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
@@ -225,41 +193,16 @@ use crate::commands::{
     clear_all_data,
     clear_project_index,
     close_tab,
-    close_terminal_window,
-    code_asset,
-    code_clipboard_files,
     // 코드 화면 — 파일 조작 (.oculpm/planner/ide-completion.md #file-ops-backend)
-    code_create,
-    code_delete,
-    code_dir,
     // 코드 화면 — 일지 연동 + HEAD 비교 (ide-completion #agent-diff)
-    code_file_entries,
-    code_head_content,
     // 코드 화면 — 로컬 히스토리 (docs/20260902_vscode-borrows/06-local-history.md)
-    code_history_clear,
-    code_history_forget,
-    code_history_list,
-    code_history_read,
-    code_history_restore,
-    code_history_usage,
-    code_import,
-    code_mkdir,
-    code_read,
-    code_rename,
     // 코드 화면 — 전역 검색·치환 (#project-search)
-    code_search,
-    code_search_replace,
     // 코드 화면 — 파일 트리 + 읽기/쓰기 (docs/code-editor/00-master-plan.md)
-    code_tree,
-    code_write,
     codex_mcp_register,
     codex_mcp_status,
     codex_mcp_unregister,
     codex_plugin_status,
     compute_diff,
-    conversation_create,
-    conversation_delete,
-    conversation_list,
     create_greenfield_project,
     create_project,
     db_compact,
@@ -309,36 +252,14 @@ use crate::commands::{
     install_kind,
     // H3b — 플러그인 SessionEnd 의 "일지 없이 끝난 세션" 신호 소비 (Today 카드)
     journal_missing_signals,
-    kill_pty_session,
     list_app_windows,
     list_blueprints,
-    list_conversation_actions,
     list_open_project_ids,
     list_projects,
-    list_terminal_windows,
     llm_list_models,
     llm_reachability,
-    lsp_apply_code_action,
-    lsp_change,
-    lsp_close,
-    lsp_code_actions,
-    lsp_completion,
-    lsp_definition,
-    lsp_diagnostics_snapshot,
-    lsp_document_symbols,
-    lsp_format,
-    lsp_hover,
-    lsp_open,
     // Phase 2 — 참조·아웃라인·워크스페이스 심볼·시그니처·포맷팅
-    lsp_references,
-    lsp_rename,
-    lsp_semantic_legend,
-    lsp_semantic_tokens,
-    lsp_signature_help,
     // 코드 인텔리전스 — LSP (docs/lsp/00-master-plan.md)
-    lsp_status,
-    lsp_stop,
-    lsp_workspace_symbols,
     mcp_desktop_register,
     mcp_desktop_status,
     mcp_desktop_unregister,
@@ -419,7 +340,6 @@ use crate::commands::{
     open_devtools,
     open_in_editor,
     open_project_tab,
-    open_terminal_window,
     open_url,
     plan_ai_refresh,
     plan_apply_edit,
@@ -438,22 +358,13 @@ use crate::commands::{
     plan_set_status,
     plan_set_status_bulk,
     // Osaurus 라운드 Phase 4 — 테마 파일화 · 프로젝트 바인딩
-    project_instructions_get,
-    project_instructions_set,
     project_stats,
-    pty_foreground_command,
     quick_look_file,
     read_file_range,
     read_project_file,
-    recall_forget,
-    recall_reset,
-    recall_top,
-    recall_touch,
     // W5 — action proposal apply-state
-    record_conversation_action,
     rename_project,
     reorder_tabs,
-    resize_pty,
     // first-record-loop Phase 2 — 이어하기 자료 (Today 이어하기 카드)
     resume_digest,
     resume_dispatch_prompt,
@@ -491,10 +402,7 @@ use crate::commands::{
     settings_get_all,
     settings_set,
     settings_set_many,
-    shell_integration_install,
     // 터미널 셸 통합 (OSC 133/7) — 사용자 rc 에 비활성 한 줄 설치/제거
-    shell_integration_status,
-    shell_integration_uninstall,
     // 반복 절차→스킬 승격 (CI4 미러; 저장은 skills_save 승인 경로만)
     skill_candidates,
     skill_draft_generate,
@@ -508,18 +416,15 @@ use crate::commands::{
     skills_set_enabled,
     // AD-5 — 트리거 교정 (안 걸리는 스킬의 description 재작성 초안)
     skills_trigger_rewrite,
-    start_pty_session,
     system_accent,
     tab_drag_end,
     tab_drag_over,
     tab_drop_hint,
-    terminal_image_preview,
     theme_delete,
     theme_export,
     theme_import,
     theme_list,
     theme_save,
-    write_to_pty,
 };
 // 선언적 설정 (Phase 6) — UI 진입점. planner/applier 는 crate::config 에 있다.
 use crate::commands::declarative_config::{
@@ -556,8 +461,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             secret_has,
             secret_delete,
             secret_verify,
-            chat,
-            chat_stream,
             select_project_folder,
             list_projects,
             create_project,
@@ -592,12 +495,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             llm_list_models,
             llm_reachability,
             // 컨텍스트 경제학 (Phase 5) — 회상 통계 · 프로젝트 지시문
-            recall_top,
-            recall_touch,
-            recall_forget,
-            recall_reset,
-            project_instructions_get,
-            project_instructions_set,
             project_stats,
             // C2 — 스킬 카탈로그: 결정적 스택 감지
             detect_stack,
@@ -625,13 +522,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             plan_rename,
             plan_delete,
             // M2-3 — Chat history
-            conversation_create,
-            conversation_list,
-            conversation_delete,
-            chat_message_append,
-            chat_message_list,
-            record_conversation_action,
-            list_conversation_actions,
             // M5 — Window & File Operations
             open_devtools,
             // 크롬식 탭 (v2.9.0) — 창 = 탭 집합(시작 탭 + 프로젝트 탭).
@@ -658,59 +548,16 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 업데이트 재시작을 건너 창·탭을 되살린다 (재시작 직전 저장)
             save_window_session,
             // 터미널 도크 — 셸을 자기 창으로 떼어내기 (2026-08-15)
-            open_terminal_window,
-            close_terminal_window,
-            list_terminal_windows,
             // 앱 메뉴 — 프런트가 해석한 UI 언어를 알려 주면 라벨을 다시 만든다
             apply_menu_language,
             read_project_file,
             read_file_range,
             // 코드 화면 — 파일 트리 + 읽기/쓰기
-            code_tree,
-            code_dir,
-            code_read,
-            code_asset,
-            code_write,
-            code_import,
-            code_clipboard_files,
             // 코드 화면 — 전역 검색·치환
-            code_search,
-            code_search_replace,
             // 코드 화면 — 파일 조작
-            code_create,
-            code_mkdir,
-            code_rename,
-            code_delete,
-            code_file_entries,
-            code_head_content,
             // 코드 화면 — 로컬 히스토리
-            code_history_list,
-            code_history_read,
-            code_history_restore,
-            code_history_forget,
-            code_history_usage,
             oculpm_index_usage,
             oculpm_index_clear_diffs,
-            code_history_clear,
-            lsp_status,
-            lsp_open,
-            lsp_change,
-            lsp_close,
-            lsp_completion,
-            lsp_hover,
-            lsp_definition,
-            lsp_rename,
-            lsp_code_actions,
-            lsp_apply_code_action,
-            lsp_references,
-            lsp_document_symbols,
-            lsp_semantic_legend,
-            lsp_semantic_tokens,
-            lsp_diagnostics_snapshot,
-            lsp_workspace_symbols,
-            lsp_signature_help,
-            lsp_format,
-            lsp_stop,
             // 문제 해결(Discussion) — PR-DISC 0/1/2/4
             discussion_list,
             discussion_get,
@@ -725,17 +572,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             discussion_detach,
             discussion_promote_to_plan,
             // Terminal
-            start_pty_session,
-            attach_pty_session,
-            write_to_pty,
-            pty_foreground_command,
-            resize_pty,
-            kill_pty_session,
-            terminal_image_preview,
             // 터미널 셸 통합 (OSC 133/7)
-            shell_integration_status,
-            shell_integration_install,
-            shell_integration_uninstall,
             // M7 — Git / GitHub
             git_log,
             git_graph,
@@ -875,31 +712,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             automation_run_now,
             automation_cancel,
             // PR-ACP1 — ACP 어댑터 런타임
-            acp_diagnose,
-            acp_install_adapter,
-            acp_start,
-            acp_stop,
-            acp_status,
-            acp_prompt,
-            acp_cancel,
-            acp_permission_respond,
-            acp_set_config_option,
-            acp_pick_files,
-            acp_list_files,
-            acp_new_session,
-            acp_list_sessions,
-            acp_load_session,
-            acp_commands,
-            acp_usage,
-            acp_refresh_usage,
-            acp_options,
-            acp_session_title,
-            acp_delete_session,
-            acp_select_session,
             // v3-record-integrity {#mcp-missing-visible} — 기록 도구 부착 결과
-            acp_journal_objection,
-            acp_journal_objection_dismiss,
-            acp_recording_status,
             // PR-CI0 — Claude Code 훅 브리지
             claude_hooks_status,
             claude_hooks_install,
@@ -949,9 +762,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::oculpm::spec::OculpmWatchYielded,
             crate::oculpm::spec::OculpmAgentDrift,
             crate::oculpm::spec::OculpmJournalPathChanged,
-            // 워크데이 넘김 · Claude Code 세션 변화 — 폴링 대신 (Phase 4)
+            // 워크데이 넘김 — 폴링 대신 (Phase 4)
             crate::oculpm::spec::OculpmWorkdayChanged,
-            crate::acp::session::AcpSessionChanged,
             // 계획 · 논의 파일이 디스크에서 바뀌면 해당 화면이 즉시 다시 읽는다
             crate::oculpm::spec::OculpmDataChanged,
             // v2.3.0 메뉴바 — 팝오버 → 프로젝트 창 딥링크
@@ -961,13 +773,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::commands::window::CloseIntent,
             crate::commands::window::NewTabIntent,
             crate::commands::window::ProjectWindowsChanged,
-            crate::commands::window::TerminalWindowsChanged,
             crate::commands::window::TabDragOver,
             crate::commands::window::TabDragLeave,
             crate::commands::window::TearOffSettled,
-            // 코드 인텔리전스 — 진단·서버 상태 (docs/lsp/00-master-plan.md)
-            crate::lsp::state::LspDiagnosticsPublished,
-            crate::lsp::state::LspServerStateChanged,
             // 설정 변경 브로드캐스트 — 모든 창 + 상단바가 테마·언어를 다시 읽는다
             crate::commands::config::SettingsChanged,
             // 테마 파일·프로젝트 바인딩 변경 — 갤러리와 적용 경로가 다시 읽는다
@@ -1119,18 +927,6 @@ pub fn run() {
                 });
             }
             app.manage(Embedder::new(app.handle().clone(), embed_cache));
-            app.manage(crate::commands::terminal::PtyState::default());
-            // 옛 이름의 PTY 호스트를 여기서 걷던 코드가 있었다 (v2.34.1). 지웠다
-            // — 그건 **사용자가 돌리던 셸을 죽이는 일**이었다. 이제 앱이 옛
-            // 자리까지 두드려 그 호스트를 이어받는다
-            // (`ptyhost::client::socket_candidates`).
-            // PR-ACP1 — ACP 어댑터 레지스트리 (프로젝트당 1 연결).
-            app.manage(crate::acp::AcpState::default());
-            // {#mcp-missing-visible} — 대화를 열 때 기록 도구가 실제로 붙었는지.
-            app.manage(crate::acp::AcpRecordingState::default());
-            app.manage(crate::acp::AcpGateState::default());
-            // PR-LSP0 — 언어 서버 레지스트리 ((프로젝트, 언어, 워크스페이스 루트)당 1).
-            app.manage(crate::lsp::state::LspState::default());
             // 로컬 히스토리의 출처 판정 — `code_write` 가 쪽지를 남기고 워처가
             // 소비한다 (사람이 저장했나, 에이전트가 썼나).
             app.manage(crate::oculpm::history::HistoryState::default());
@@ -1245,14 +1041,6 @@ pub fn run() {
                 {
                     manager.shutdown_all_blocking();
                 }
-                // ACP 어댑터(node + 손자 claude) — 여기서 안 내리면 tao 의
-                // `process::exit` 뒤에 고아로 남는다. 최대 1초 기다린다.
-                if let Some(acp) = app_handle.try_state::<crate::acp::AcpState>() {
-                    acp.stop_all_blocking();
-                }
-                // 언어 서버 — 같은 이유로 고아가 된다(`kill_on_drop` 은
-                // `process::exit` 에서 안 돈다). 전부 동시에, 최대 2초.
-                crate::commands::window::stop_code_servers_blocking(app_handle);
             }
             // macOS: Dock 아이콘 클릭 / "모두 앞으로 가져오기".
             //

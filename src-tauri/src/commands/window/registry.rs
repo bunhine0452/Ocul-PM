@@ -48,9 +48,6 @@ pub struct TearOff {
 #[derive(Debug, Default)]
 pub struct Registry {
     pub(super) windows: HashMap<String, WindowState>,
-    /// 터미널을 창으로 떼어낸 프로젝트 (2026-08-15). 탭과 **함께** PTY 의
-    /// 소유자를 이룬다 — 둘 다 없어져야 셸을 죽인다 (`release_project`).
-    pub(super) terminal_windows: HashSet<u32>,
     /// 새 탭이 어느 창에 붙을지 결정한다. 창이 포커스될 때마다 갱신.
     pub(super) last_focused: Option<String>,
     /// 창 **간** 드래그가 지금 겨누는 자리 — (대상 창, 삽입 인덱스).
@@ -160,7 +157,6 @@ impl Registry {
         });
         Session {
             windows,
-            terminals: self.terminal_window_projects(),
             focused: self.last_focused.clone(),
         }
     }
@@ -428,21 +424,6 @@ impl Registry {
         if self.windows.contains_key(label) {
             self.last_focused = Some(label.to_string());
         }
-    }
-
-    /// 터미널 창이 떠 있는 프로젝트 (정렬). 프런트의 자리표시자 판정에 쓴다.
-    pub fn terminal_window_projects(&self) -> Vec<u32> {
-        let mut ids: Vec<u32> = self.terminal_windows.iter().copied().collect();
-        ids.sort_unstable();
-        ids
-    }
-
-    /// 이 프로젝트의 PTY 를 아직 쓰고 있는 곳이 있는가 — 탭이든 터미널 창이든.
-    ///
-    /// PTY 정리의 유일한 판정이다. 탭만 보고 죽이던 시절에는, 터미널을 창으로
-    /// 떼어낸 뒤 프로젝트 탭을 닫으면 분리 창 안의 셸이 통째로 사라졌다.
-    pub(super) fn project_in_use(&self, project_id: u32) -> bool {
-        self.terminal_windows.contains(&project_id) || self.locate_project(project_id).is_some()
     }
 
     /// 새 탭이 붙을 창 — 마지막으로 포커스된 창.

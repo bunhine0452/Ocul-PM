@@ -18,11 +18,9 @@ import { entryLabel, searchSettings, type SettingsEntry, type SettingsTab } from
 const TAB_LABEL: Record<SettingsTab, I18nKey> = {
   appearance: "settings.tab.appearance",
   llm: "settings.tab.llm",
-  code: "settings.tab.code",
   indexing: "settings.tab.indexing",
   data: "settings.tab.data",
   oculpm: "settings.tab.oculpm",
-  context: "settings.tab.context",
   automation: "settings.tab.automation",
   diagnostics: "settings.tab.diagnostics",
   update: "settings.tab.update",

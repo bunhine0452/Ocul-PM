@@ -15,7 +15,6 @@
  */
 
 import type { OculpmStatus, Session } from "@/lib/bindings";
-import type { CodeTabsState } from "@/features/code/codeTabs";
 import type { PlanGroup, PlanSort } from "@/features/planner/planList";
 import type { PlanView } from "@/features/planner/planMeta";
 import type {
@@ -26,8 +25,6 @@ import type {
   OculpmInitCardInfo,
   SearchScope,
   SidePanelMode,
-  TerminalDockPos,
-  TerminalTab,
   UiV2View,
 } from "./WorkspaceContext";
 
@@ -166,119 +163,8 @@ export interface WorkspaceState {
   searchScope: SearchScope;
   /** 최근 검색어 (최대 10개). */
   searchRecent: string[];
-  /** 터미널 탭 목록 (PTY 핸들은 휘발성 — 여기엔 메타만). */
-  terminalTabs: TerminalTab[];
-  /** 활성 터미널 탭 id. */
-  terminalActiveId: string | null;
-  // (terminalFontSize 는 2026-08-15 에 앱 전역 설정으로 나갔다 — SQLite
-  //  `terminal_font_size`. 프로젝트마다 다를 이유가 없는 개인 취향이고, 설정
-  //  화면은 프로젝트가 없을 때도 열리며, 창을 여러 개 띄워도 한 값이어야
-  //  한다. 과거 레코드의 키는 loadFromStorage 에서 일방향 삭제된다.)
-  /**
-   * 터미널 도크 (2026-08-15) — 어느 화면에서나 ⌘J 로 여는 터미널 패널.
-   *
-   * 세션은 터미널 **화면과 같은 것**을 쓴다 (위 `terminalTabs` 를 공유). 같은
-   * PTY 에 xterm 두 개가 동시에 붙으면 리사이즈가 서로 싸우므로, 한 번에 한
-   * 면만 마운트한다 — 소유권 판정은 `ShellV2` 가 한다 (분리 창 > 터미널 화면
-   * > 도크).
-   */
-  terminalDockOpen: boolean;
-  /** 도크를 붙이는 자리 — 하단(가로 폭 우선)/왼쪽(세로 길이 우선). */
-  terminalDockPos: TerminalDockPos;
-  /** 하단 도크 높이(px) — 자리마다 크기를 따로 기억한다. */
-  terminalDockHeight: number;
-  /** 왼쪽 도크 폭(px). */
-  terminalDockWidth: number;
-  /**
-   * 이 프로젝트의 터미널이 **분리 창**에 나가 있다.
-   *
-   * 휘발성이다 — 진실은 창의 존재 여부이고, 백엔드
-   * (`TerminalWindowsChanged`)가 알려 주는 것을 미러링만 한다. 나가 있는
-   * 동안 이 창은 터미널 세션 필드를 디스크에 쓰지 않는다: 두 창이 같은
-   * 영속 키를 공유하는데, 여기서 낡은 탭 목록을 덮어쓰면 분리 창에서 만든
-   * 탭이 되돌아올 때 증발한다.
-   */
-  terminalDetached: boolean;
   /** 에이전트 화면 활성 모델 id. */
   aiActiveModel: string | null;
-  /** Claude Code 화면의 대화 목록 패널이 열려 있는지 (PR-ACP7). */
-  acpPanelOpen: boolean;
-  /**
-   * 열어 둔 세션 탭 (PR-ACP14).
-   *
-   * 백엔드는 프로젝트당 연결 하나·활성 세션 하나만 안다. 탭은 그 위에 얹은
-   * **프런트 개념**이다 — "내가 오가며 보는 대화들"의 목록이고, 전환은
-   * `session/load` 로 그 세션을 다시 여는 것이다. 그래서 백엔드에 새 개념을
-   * 만들지 않고도 성립한다.
-   */
-  acpTabs: { id: string; title: string | null }[];
-  /** Codex ACP tabs are isolated from Claude sessions in the same project. */
-  codexAcpTabs: { id: string; title: string | null }[];
-  /**
-   * 사용자가 대화에 붙인 이름표 (세션 id → 이름).
-   *
-   * 에이전트에게 못 보낸다 — ACP 에는 제목을 고치는 요청이 없다(지우기는 있다).
-   * 그래서 이 이름은 **이 컴퓨터 안에서만** 유효하고, 다른 기기나 CLI 에서 같은
-   * 대화를 열면 에이전트가 붙인 원래 제목이 보인다.
-   */
-  acpNames: Record<string, string>;
-  codexAcpNames: Record<string, string>;
-  /**
-   * 마지막으로 보고 있던 대화의 id.
-   *
-   * 앱을 다시 띄우면(업데이트 재시작 포함) 어댑터는 새 프로세스라 대화가 없다 —
-   * 하지만 대화 자체는 디스크에 남아 있다. 이 값이 있으면 그 대화를 도로 열어
-   * "하던 곳"으로 돌아간다. 없거나 이미 지워졌으면 빈 화면으로 시작한다.
-   */
-  acpLastSession: string | null;
-  codexAcpLastSession: string | null;
-  /**
-   * Effort 트랙의 **마지막 칸**(울트라코드) 선택 여부.
-   *
-   * 어댑터의 effort 값은 `low…max` 다섯 개뿐이고 울트라코드는 그 목록에
-   * 없다 — 사용자 쪽 Claude Code 는 `max` 다음 칸에 두고 "xhigh + workflows"
-   * 라 설명한다. 즉 **값이 아니라 키워드로 켜지는 상태**라서 우리가 따로
-   * 들고 있어야 한다. 비싼 모드이므로 켠 사실이 계속 보여야 하고, 그래서
-   * 영속한다.
-   */
-  acpUltracode: boolean;
-  /** AI 패널 + 오버레이가 공유하는 thread id. */
-  aiThreadId: string | null;
-  /** 코드 화면에서 마지막으로 열었던 파일의 프로젝트-루트 기준 경로. */
-  codeActivePath: string | null;
-  /**
-   * 코드 화면의 탭·분할 상태 (Phase 1 #tabs-persist). 열어 둔 파일 목록은
-   * 편집기에서 **작업 중인 자리** 그 자체라, 앱을 껐다 켜면 되살아나야 한다.
-   *
-   * 미저장 편집 자체는 여기 없다 — 버퍼는 의도적으로 영속하지 않는다
-   * (codeBuffers 의 주석: 디스크와 다른 유령 버퍼가 되살아나는 쪽이 더 위험).
-   * 즉 되살아나는 것은 "무엇을 열어 뒀는가" 뿐이고, 내용은 디스크에서 다시 읽는다.
-   */
-  codeTabs: CodeTabsState | null;
-  /**
-   * 코드 화면 하단 패널(참조·문제)의 높이 px (#panel-resize). 두 패널이
-   * 같은 자리를 쓰므로 높이도 하나다 — 패널마다 따로 기억하면 참조에서 문제로
-   * 넘어갈 때마다 바닥이 널뛴다.
-   */
-  codePanelHeight: number;
-  /**
-   * 코드 화면 파일 트리를 붙이는 쪽 (2026-08-24). 왼쪽이 기본 — 오른손
-   * 마우스로 트리를 쓰거나 편집면을 왼쪽 끝에 붙이고 싶은 사람이 옮긴다.
-   * 알 수 없는 값은 소비처가 왼쪽으로 취급한다.
-   */
-  codeSidebarSide: "left" | "right";
-  /**
-   * 코드 화면 전역 검색의 매칭 토글 (#project-search). 검색어·결과는 휘발이지만
-   * 대소문자·단어·정규식 습관은 사람에게 붙는 설정이라 여기 남긴다.
-   */
-  codeSearchOpts: { caseSensitive: boolean; wholeWord: boolean; regex: boolean };
-  /**
-   * 코드 화면 줄바꿈 (2026-09-11). `auto` 는 파일 종류가 정한다 — 산문(md·txt)
-   * 은 켜고 코드는 끈다. ⌥Z 나 상태줄로 뒤집으면 명시값이 된다.
-   */
-  codeWordWrap: "auto" | "on" | "off";
-  /** 코드 화면 파일 트리를 접었는가 (⌘B). 검색(⇧⌘F)은 접혀 있어도 편다. */
-  codeSidebarHidden: boolean;
   /** 문제 해결(Discussion) 화면에서 마지막으로 본 토의 문서의 id (frontmatter slug). */
   discussionActiveId: string | null;
   /**

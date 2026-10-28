@@ -26,7 +26,6 @@ interface Options {
   /** Navigate the ui_v2 shell — ⌘번호 + ⌘, */
   uiV2Nav: (view: UiV2View) => void;
   /** ⌘J — 어느 화면에서나 터미널 도크를 여닫는다. */
-  onToggleTerminalDock?: () => void;
   /** ⌘[ / ⌘] — 화면 뒤로/앞으로 (E3). ⇧⌘[ 는 편집기의 탭 순환이라 넘긴다. */
   onNavBack?: () => void;
   onNavForward?: () => void;
@@ -41,7 +40,6 @@ interface Options {
 export function useGlobalShortcuts({
   onOpenPalette,
   uiV2Nav,
-  onToggleTerminalDock,
   onNavBack,
   onNavForward,
   enabled = true,
@@ -68,11 +66,6 @@ export function useGlobalShortcuts({
         return;
       }
       // ⌘J — 터미널 도크. ⇧⌘J 는 넘긴다 (브라우저·OS 조합과 겹치지 않게).
-      if (c.key.toLowerCase() === "j" && !shiftBlocks && onToggleTerminalDock) {
-        e.preventDefault();
-        onToggleTerminalDock();
-        return;
-      }
       // ⌘[ / ⌘] — 화면 뒤로/앞으로. ⇧ 가 붙으면 편집기 탭 순환의 것이다.
       if (!c.shift && !c.alt && (c.key === "[" || c.key === "]")) {
         const go = c.key === "[" ? onNavBack : onNavForward;
@@ -113,14 +106,8 @@ export function useGlobalShortcuts({
         uiV2Nav(view);
         return;
       }
-      // ⌘\ — AI 패널 화면 (프로젝트가 열려 있을 때만 의미 있음 — 셸이 가드)
-      if (c.key === "\\") {
-        e.preventDefault();
-        uiV2Nav("ai");
-        return;
-      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onOpenPalette, uiV2Nav, onToggleTerminalDock, onNavBack, onNavForward, enabled]);
+  }, [onOpenPalette, uiV2Nav, onNavBack, onNavForward, enabled]);
 }

@@ -27,7 +27,6 @@ vi.mock("@/hooks/useDensity", () => ({
 // 그 밖에 남아 있는가. CSS 가 스크롤을 걸 수 있는 형태인지는 그 세 가지가
 // 정한다. 값(min-height:0 · flex:1 1 0%)은 CSS 파일에서 직접 읽어 잰다.
 const LABELS = {
-  terminalDock: ko["sidebar.terminalDock"],
   darkMode: ko["sidebar.darkMode"],
   settings: ko["sidebar.settings"],
 };
@@ -42,7 +41,6 @@ function renderSidebar(overrides: Partial<React.ComponentProps<typeof Sidebar>> 
       onOpenProjectSwitcher={() => {}}
       isDark={false}
       onToggleTheme={() => {}}
-      onToggleTerminalDock={() => {}}
       onToggleCollapse={() => {}}
       {...overrides}
     />,
@@ -96,18 +94,17 @@ describe("Sidebar — overflow scrolls instead of clipping", () => {
     expect(scroll.querySelectorAll(".nav-item").length).toBe(NAV_ENTRIES.length);
   });
 
-  it("keeps the three foot buttons outside the scroll region", () => {
+  it("keeps the two foot buttons outside the scroll region", () => {
     const { container } = renderSidebar();
     const { scroll, foot } = parts(container);
 
-    // "터미널" 은 nav 항목과 발의 도크 토글 양쪽에 있다 — 발 안에서만 찾는다.
-    for (const label of [LABELS.terminalDock, LABELS.darkMode, LABELS.settings]) {
+    for (const label of [LABELS.darkMode, LABELS.settings]) {
       const btn = within(foot).getByText(label).closest("button");
       expect(btn).toBeTruthy();
       expect(scroll.contains(btn)).toBe(false);
       expect(foot.contains(btn)).toBe(true);
     }
-    expect(foot.querySelectorAll("button").length).toBe(3);
+    expect(foot.querySelectorAll("button").length).toBe(2);
   });
 
   it("keeps the same structure in the collapsed overlay", () => {

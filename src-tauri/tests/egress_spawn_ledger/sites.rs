@@ -14,39 +14,11 @@ const GIT_LOCAL: &str = "git 로컬 하위 명령만 — 네트워크 하위 명
 pub(super) const APP_LAUNCHES: &[Launch] = &[
     // ── 송출 가능 ──
     Launch {
-        path: "acp/adapter.rs",
-        func: "install_tree",
-        call: "tokio_cmd(npm)",
-        reach: Reach::Network("사용자가 Claude Code·Codex 화면에서 어댑터를 처음 설치할 때, 그리고 앱 업데이트로 고정 판이 바뀐 뒤 그 화면을 처음 열 때(이미 깐 어댑터를 새 판으로 맞춘다) — registry.npmjs.org"),
-        reason: "`npm ci --ignore-scripts` 가 고정 lockfile(acp-lock/, sha512 무결성)의 패키지만 받는다. 설치 스크립트는 돌지 않고 트리 밖 버전은 lockfile 이 거부한다. npm 은 resolve_binary 가 PATH 에서 찾은 사용자의 것.",
-    },
-    Launch {
-        path: "acp/process.rs",
-        func: "start",
-        call: "AcpAgentConfig::new(node)",
-        reach: Reach::Network("사용자가 신뢰한 프로젝트에서 Claude Code·Codex 화면을 열 때 — 그 CLI 의 제공자(사용자 계정)"),
-        reason: "agent-client-protocol 크레이트가 node 로 어댑터를 띄우고, 어댑터가 claude/codex CLI 를 띄운다. 그 CLI 의 제공자 트래픽은 CLAUDE.md 송출 목록의 「Claude Code/Codex inside the app」 이다. 시작 전 trust::require_for_agent.",
-    },
-    Launch {
         path: "commands/greenfield.rs",
         func: "run_scaffold_cli",
         call: "std_cmd(&cmd)",
         reach: Reach::Network("사용자가 새 프로젝트 마법사에서 스택을 고르고 만들 때 — npm 레지스트리"),
         reason: "마법사 프리셋의 `pnpm create vite` · `npx create-next-app@latest` 가 패키지를 받는다(cargo init·go mod init 은 로컬). 프로그램·인자는 웹뷰가 넘긴다 — 백엔드 허용 목록은 없다.",
-    },
-    Launch {
-        path: "lsp/client.rs",
-        func: "start",
-        call: "tokio_cmd(binary)",
-        reach: Reach::Network("사용자가 신뢰한 프로젝트에서 코드 파일을 열 때 — 언어 서버가 부르는 패키지 매니저"),
-        reason: "lsp/registry.rs 표의 서버(rust-analyzer·typescript-language-server·pyright·gopls)를 PATH 에서 찾아 띄운다. 서버 자신이 cargo metadata·go list·타입 자동 받기로 레지스트리에 닿을 수 있다 — 앱이 시키는 것은 분석뿐.",
-    },
-    Launch {
-        path: "ptyhost/env.rs",
-        func: "shell_command",
-        call: "CommandBuilder::new(shell)",
-        reach: Reach::Network("사용자가 터미널에 친 명령"),
-        reason: "내장 터미널의 셸 — portable-pty 가 PTY 호스트 안에서 띄운다. 사용자가 치는 것이 무엇이든 돈다. 앱이 셸에 스스로 치는 명령은 없다.",
     },
     Launch {
         path: "commands/external_editor.rs",
@@ -126,20 +98,6 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         call: "std_cmd(\"git\")",
         reach: Reach::Local,
         reason: "`git config --list --show-scope -z` — 저장소 설정을 읽어 필터·드라이버를 끈다. 원격에 닿지 않는다.",
-    },
-    Launch {
-        path: "acp/env.rs",
-        func: "capture_login_path",
-        call: "tokio_cmd(shell)",
-        reach: Reach::Local,
-        reason: "로그인·대화형 셸로 PATH 를 한 번 출력받는다. 셸이 읽는 rc 파일은 사용자의 코드다 — 앱이 시키는 것은 printf 하나.",
-    },
-    Launch {
-        path: "acp/env.rs",
-        func: "node_version",
-        call: "tokio_cmd(node)",
-        reach: Reach::Local,
-        reason: "`node --version` — 어댑터가 요구하는 Node 버전 확인.",
     },
     Launch {
         path: "commands/greenfield.rs",
@@ -240,46 +198,11 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         reason: "macOS — 자기 자신을 MallocLargeCache=0 으로 다시 exec 한다.",
     },
     Launch {
-        path: "oculpm/shell_integration/policy.rs",
-        func: "probe_once",
-        call: "std_cmd(shell_path)",
-        reach: Reach::Local,
-        reason: "Windows PowerShell `Get-ExecutionPolicy` — -NoProfile 에 업데이트 확인·원격 측정을 끄는 환경 변수(POWERSHELL_UPDATECHECK=Off · POWERSHELL_TELEMETRY_OPTOUT=1)를 준다.",
-    },
-    Launch {
         path: "pid.rs",
         func: "exe_name",
         call: "std_cmd(\"ps\")",
         reach: Reach::Local,
         reason: "`ps -o comm= -p <pid>` — 락을 쥔 프로세스의 이름(사람에게 보여 줄 표시용).",
-    },
-    Launch {
-        path: "ptyhost/client.rs",
-        func: "spawn_host_child",
-        call: "spawn_detached(exe, …)",
-        reach: Reach::Local,
-        reason: "Windows — 같은 실행 파일을 `--pty-host` 로 분리 기동한다. 셸은 그 안에서 뜬다(ptyhost/env.rs).",
-    },
-    Launch {
-        path: "ptyhost/client.rs",
-        func: "spawn_host_child",
-        call: "std_cmd(exe)",
-        reach: Reach::Local,
-        reason: "그 밖의 OS — 같은 실행 파일을 `--pty-host` 로. 업데이트에도 살아남는 터미널 호스트다.",
-    },
-    Launch {
-        path: "ptyhost/client.rs",
-        func: "spawn_staged_host",
-        call: "spawn_disclaimed(&staged, …)",
-        reach: Reach::Local,
-        reason: "macOS — 같은 앱의 묶음 복제본(ptyhost/stage_mac.rs)을 `--pty-host` 로. 업데이트가 원본 묶음을 지워도 보호 폴더 권한이 남는다. 셸은 그 안에서 뜬다(ptyhost/env.rs).",
-    },
-    Launch {
-        path: "ptyhost/host/mod.rs",
-        func: "command_line_of",
-        call: "std_cmd(\"ps\")",
-        reach: Reach::Local,
-        reason: "`ps` — 터미널 세션의 포그라운드 명령줄 (탭을 닫을 때 「돌고 있는 일」 확인).",
     },
 ];
 
@@ -319,19 +242,6 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
             ("hook_shell", "Command::new(\"git\")"),
             ("the_installed_command_runs_under_the_platform_hook_shell", "Command::new(hook_shell())"),
         ],
-    ),
-    (
-        "oculpm/shell_integration/live_tests.rs",
-        "실제 셸을 PTY 로 띄워 셸 통합 마커를 확인하는 라이브 테스트.",
-        &[
-            ("base_command", "CommandBuilder::new(program)"),
-            ("computed_profile_path_matches_what_the_shell_reports", "std_cmd(&shell)"),
-        ],
-    ),
-    (
-        "ptyhost/env.rs",
-        "표식이 있을 때만 malloc 환경을 걷는지 — 명령을 만들어 환경만 읽고 띄우지는 않는다.",
-        &[("scrubs_only_under_the_marker", "CommandBuilder::new(\"sh\")")],
     ),
     (
         "pid.rs",

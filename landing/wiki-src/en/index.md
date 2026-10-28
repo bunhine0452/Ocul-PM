@@ -21,20 +21,19 @@ The manual for the places people get stuck. Short, and updated often. (As of v2.
 
 ## Agent integration
 
-- **[Claude Code](/wiki/en/claude-code)** — in-app vs terminal, installing the plugin, why `/plugin` and `/mcp` don't work in-app
+- **[Claude Code](/wiki/en/claude-code)** — installing the plugin (hook bridge), what the rules file and the MCP tools do
 - **[Other Agents](/wiki/en/agents)** — Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — plus the Skills & Rules hub
-- **[Agent Panel](/wiki/en/ai-panel)** — ask several LLMs with the same context, token badge, planner action proposals
 
 ## Running it
 
-- **[Windows, Tabs, Terminal, Code](/wiki/en/workspace)** — several projects at once, the terminal dock and splits, in-app editing
+- **[Windows, Tabs, External Editor](/wiki/en/workspace)** — several projects at once, the menu bar, opening files in your own editor
 - **[Settings](/wiki/en/settings)** — themes and presets, text size, API keys and fallbacks, indexing and RAG
 
 ## Everything else
 
 - **[Troubleshooting](/wiki/en/troubleshooting)** — common friction and how to clear it
 - **[Data & File Layout](/wiki/en/data)** — the `.oculpm/` folder, backup and moving, what local-first actually means
-- **[Shortcuts](/wiki/en/shortcuts)** — navigation, tabs and windows, terminal keys, Claude Code screen keys
+- **[Shortcuts](/wiki/en/shortcuts)** — navigation, tabs and windows
 
 :::note
 Found something wrong? "Edit this page" in the lower left opens the source, or tell us in a [GitHub issue](https://github.com/bunhine0452/Ocul-PM/issues).

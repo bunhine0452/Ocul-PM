@@ -38,8 +38,6 @@ import {
   useWorkspace,
   useUiPrefs,
   useProjectRuntime,
-  useTerminalSessions,
-  type TerminalTab,
 } from "@/contexts/WorkspaceContext";
 
 vi.mock("@/lib/bindings", () => {
@@ -60,15 +58,6 @@ vi.mock("@/lib/bindings", () => {
  * (감싼 것들은 그 경로에 없다). 도크가 매 렌더 새로 만드는 `headerActions` 를
  * 받는 이 자식이 도크와 정확히 같은 횟수로 그려진다.
  */
-const dock = vi.hoisted(() => ({ renders: 0 }));
-vi.mock("@/features/terminal/TerminalSurface", () => ({
-  TerminalSurface: () => {
-    dock.renders++;
-    return <div data-testid="surface" />;
-  },
-}));
-
-import { TerminalDock } from "@/features/terminal/TerminalDock";
 
 afterEach(() => cleanup());
 
@@ -87,29 +76,24 @@ const freshProject = () => nextProjectId++;
 // 그것으로 경로를 만들면 안 된다 (`errors_first_round.test.tsx` 와 같은 관용구).
 const source = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
-const tab = (id: string): TerminalTab => ({ id, label: id, shell: "zsh", cwd: "/tmp" });
 
 // ── 1. 조각의 격리 ─────────────────────────────────────────────────────────
 
 describe("워크스페이스 조각 격리", () => {
-  it("각 조각은 자기 방향에서만 깨어난다 — 합친 겉면은 네 방향 모두에서 깨어난다", async () => {
-    const n = { full: 0, prefs: 0, runtime: 0, terminal: 0 };
+  it("각 조각은 자기 방향에서만 깨어난다 — 합친 겉면은 두 방향 모두에서 깨어난다", async () => {
+    const n = { full: 0, prefs: 0, runtime: 0 };
     const Full = () => (useWorkspace(), n.full++, null);
     const Prefs = () => (useUiPrefs(), n.prefs++, null);
     const Runtime = () => (useProjectRuntime(), n.runtime++, null);
-    const Term = () => (useTerminalSessions(), n.terminal++, null);
 
     let api: {
       setUiV2View: ReturnType<typeof useUiPrefs>["setUiV2View"];
       setIndexing: ReturnType<typeof useProjectRuntime>["setIndexing"];
-      openTab: ReturnType<typeof useTerminalSessions>["openTab"];
-      selectTab: ReturnType<typeof useTerminalSessions>["selectTab"];
     } | null = null;
     function Driver() {
       const { setUiV2View } = useUiPrefs();
       const { setIndexing } = useProjectRuntime();
-      const { openTab, selectTab } = useTerminalSessions();
-      api = { setUiV2View, setIndexing, openTab, selectTab };
+      api = { setUiV2View, setIndexing };
       return null;
     }
 
@@ -118,7 +102,6 @@ describe("워크스페이스 조각 격리", () => {
         <Full />
         <Prefs />
         <Runtime />
-        <Term />
         <Driver />
       </WorkspaceProvider>,
     );
@@ -131,80 +114,30 @@ describe("워크스페이스 조각 격리", () => {
         full: n.full - base.full,
         prefs: n.prefs - base.prefs,
         runtime: n.runtime - base.runtime,
-        terminal: n.terminal - base.terminal,
       };
     };
 
-    const views = ["journal", "diff", "planner", "terminal", "search"] as const;
+    const views = ["journal", "diff", "planner", "skills", "search"] as const;
     let i = 0;
     expect(await deltas(() => api!.setUiV2View(views[i++]))).toEqual({
-      full: 5, prefs: 5, runtime: 0, terminal: 0,
+      full: 5, prefs: 5, runtime: 0,
     });
 
     const ids = [1, null, 2, null, 3];
     i = 0;
     expect(await deltas(() => api!.setIndexing(ids[i++]))).toEqual({
-      full: 5, prefs: 0, runtime: 5, terminal: 0,
+      full: 5, prefs: 0, runtime: 5,
     });
 
-    i = 0;
-    expect(await deltas(() => api!.openTab(tab(`t${i++}`)))).toEqual({
-      full: 5, prefs: 0, runtime: 0, terminal: 5,
-    });
-
-    i = 0;
-    expect(await deltas(() => api!.selectTab(`t${i++}`))).toEqual({
-      full: 5, prefs: 0, runtime: 0, terminal: 5,
-    });
   });
 });
 
-// ── 2. 실제 소비자 — 터미널 도크 ───────────────────────────────────────────
-
-describe("터미널 도크는 세션 조각을 구독하지 않는다", () => {
-  const mountDock = async () => {
-    dock.renders = 0;
-    let sessions: ReturnType<typeof useTerminalSessions> | null = null;
-    let prefs: ReturnType<typeof useUiPrefs> | null = null;
-    const Driver = () => ((sessions = useTerminalSessions()), (prefs = useUiPrefs()), null);
-    const id = freshProject();
-    render(
-      <WorkspaceProvider projectId={id}>
-        <TerminalDock projectId={id} projectRoot="/tmp" />
-        <Driver />
-      </WorkspaceProvider>,
-    );
-    await act(async () => {});
-    return { sessions: sessions!, prefs: prefs! };
-  };
-
-  it("터미널 탭을 열고 고르는 것으로는 도크가 다시 그려지지 않는다", async () => {
-    const { sessions } = await mountDock();
-    const before = dock.renders;
-    expect(before).toBeGreaterThan(0); // 마운트는 세어졌다 — 프로브가 살아 있다
-
-    for (let i = 0; i < 5; i++) await act(async () => sessions.openTab(tab(`t${i}`)));
-    for (let i = 0; i < 5; i++) await act(async () => sessions.selectTab(`t${i}`));
-
-    // 예전(`useWorkspace()`)에는 여기서 +10 이었다.
-    expect(dock.renders - before).toBe(0);
-  });
-
-  it("자기 조각(도크 위치)이 바뀌면 그래도 다시 그려진다", async () => {
-    const { prefs } = await mountDock();
-    const before = dock.renders;
-    await act(async () => prefs.setPrefs(() => ({ terminalDockPos: "right" })));
-    expect(dock.renders - before).toBeGreaterThan(0);
-  });
-});
-
-// ── 3. 나머지 둘 — 합친 겉면으로 돌아가지 않는다 ───────────────────────────
+// ── 2. 나머지 둘 — 합친 겉면으로 돌아가지 않는다 ───────────────────────────
 
 describe("상시 마운트 소비자는 합친 겉면을 쓰지 않는다", () => {
   const ALWAYS_MOUNTED = [
     "src/features/shell/ShellV2.tsx",
     "src/windows/ProjectTab.tsx",
-    "src/features/terminal/TerminalDock.tsx",
   ];
 
   it.each(ALWAYS_MOUNTED)("%s 는 useWorkspace() 를 부르지 않는다", (rel) => {

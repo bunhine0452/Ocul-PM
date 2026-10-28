@@ -27,7 +27,7 @@ You *can* write entries by hand — they're just markdown. But that isn't what t
 
 ### Is this a tool that runs the AI for me?
 
-Either way works. You can run Claude Code inside the app, or **keep using your terminal exactly as you do now and just receive the records**. As long as the app is open, work done in a terminal gets picked up too.
+No. Your agent runs **in your own terminal, exactly as it does now**, and the app receives the record, the evidence and the plan. As long as the app is open, work done in the terminal is captured. (The screen that ran Claude Code inside the app was removed on 2026-10-28.)
 
 ## Money and privacy
 
@@ -39,17 +39,12 @@ The only thing that costs money is **AI writing new prose**:
 
 | Feature | Cost |
 |---|---|
-| Journal and planner records, search, code editing | **Free** — all local |
-| AI panel chat, ⌘K inline editing | Your API key, your billing |
-| Claude Code inside the app | Your Claude subscription (no extra charge) |
-
-:::tip
-The in-app **Claude Code and Codex screens** run on the same footing as a terminal session — on your subscription, with no API key, so there is no extra cost.
-:::
+| Journal and planner records, search, change diffs | **Free** — all local |
+| AI-generated text — weekly rollups, entry drafts, plan drafts | Your API key, your billing (Settings → LLM) |
 
 ### Where does my code go?
 
-By default, **nowhere**. Code-search embeddings are computed on your machine (only the model is downloaded, once). Five things leave, and you start every one: LLM calls you configured, the update check, provider traffic when you use Claude Code or Codex in the app (including the one-time adapter download), GitHub fetches when you click (release notes, bundles), the one-time embedding-model download. No account server, no telemetry. ([Details](/wiki/en/data))
+By default, **nowhere**. Code-search embeddings are computed on your machine (only the model is downloaded, once). Four things leave, and you start every one: LLM calls you configured, the update check, GitHub lookups when you click (release notes, bundles), and the embedding model once. No account server, no telemetry. ([Details](/wiki/en/data))
 
 ### Does it work offline?
 

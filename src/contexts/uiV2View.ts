@@ -27,15 +27,9 @@ export const UI_V2_VIEWS = [
   "planner",
   "discussion",
   "search",
-  "terminal",
-  "ai",
   "skills",
-  // PR-ACP6 — Claude Code 구동면. "ai"(프로바이더 채팅)와 성격이 달라 화면을
-  // 나눴다: 저쪽은 물어보는 곳, 이쪽은 시키는 곳이다.
-  "claudecode",
-  "codex",
-  // 코드 화면 (docs/code-editor/00-master-plan.md) — 인앱 코드 뷰어·에디터.
-  "code",
+  // 터미널 · AI 패널 · Claude Code · Codex · 편집기는 2026-10-28 에 걷었다 (simplify-round) —
+  // 저장된 옛 값은 `migrateUiV2View` 가 today 로 접는다.
   // 브랜치의 이야기 (v3-surface {#branch-story-view}) — 날짜·타입 말고
   // **브랜치**로 묶어 읽는 축. "settings" 는 언제나 마지막이다.
   "branch",

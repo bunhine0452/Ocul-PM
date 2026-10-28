@@ -21,11 +21,9 @@ import { t, tAll, type I18nKey } from "@/i18n";
 export type SettingsTab =
   | "appearance"
   | "llm"
-  | "code"
   | "indexing"
   | "data"
   | "oculpm"
-  | "context"
   | "automation"
   | "diagnostics"
   | "update";
@@ -59,8 +57,6 @@ export const SETTINGS_INDEX: readonly SettingsEntry[] = [
   { tab: "appearance", key: "settings.theme.title" },
   { tab: "appearance", key: "settings.scale.title" },
   { tab: "appearance", key: "settings.scale.field", section: "settings.scale.title" },
-  { tab: "appearance", key: "settings.termFont.title" },
-  { tab: "appearance", key: "settings.termFont.field", section: "settings.termFont.title" },
   { tab: "appearance", key: "settings.tray.title" },
   { tab: "appearance", key: "settings.tray.notifyAgent", section: "settings.tray.title" },
 
@@ -80,26 +76,6 @@ export const SETTINGS_INDEX: readonly SettingsEntry[] = [
   { tab: "llm", key: "settings.gen.maxTokens", section: "settings.gen.title" },
   { tab: "llm", key: "settings.gen.systemPrompt", section: "settings.gen.title" },
 
-  // ── code
-  { tab: "code", key: "settings.code.editorTitle" },
-  { tab: "code", key: "settings.code.formatOnSave", section: "settings.code.editorTitle" },
-  { tab: "code", key: "settings.code.tabSize", section: "settings.code.editorTitle" },
-  { tab: "code", key: "settings.code.insertSpaces", section: "settings.code.editorTitle" },
-  { tab: "code", key: "settings.code.trimTrailingWhitespace", section: "settings.code.editorTitle" },
-  { tab: "code", key: "settings.code.insertFinalNewline", section: "settings.code.editorTitle" },
-  { tab: "code", key: "settings.code.trimFinalNewlines", section: "settings.code.editorTitle" },
-  { tab: "code", key: "settings.code.previewTabs", section: "settings.code.editorTitle" },
-  { tab: "code", key: "settings.code.stickyScroll", section: "settings.code.editorTitle" },
-  { tab: "code", key: "settings.code.minimap", section: "settings.code.editorTitle" },
-  { tab: "code", key: "settings.code.stickyMaxLines", section: "settings.code.editorTitle" },
-  { tab: "code", key: "settings.code.autoSaveTitle" },
-  { tab: "code", key: "settings.code.autoSave", section: "settings.code.autoSaveTitle" },
-  { tab: "code", key: "settings.code.autoSaveDelay", section: "settings.code.autoSaveTitle" },
-  { tab: "code", key: "settings.code.historyTitle" },
-  { tab: "code", key: "settings.code.localHistory", section: "settings.code.historyTitle" },
-  { tab: "code", key: "settings.code.localHistoryMax", section: "settings.code.historyTitle" },
-  { tab: "code", key: "settings.code.localHistoryBudget", section: "settings.code.historyTitle" },
-  { tab: "code", key: "settings.code.lspTitle" },
 
   // ── indexing
   { tab: "indexing", key: "settings.index.title" },
@@ -137,22 +113,8 @@ export const SETTINGS_INDEX: readonly SettingsEntry[] = [
   { tab: "oculpm", key: "op.scope.machineTitle" },
   { tab: "oculpm", key: "op.scope.projectKey", section: "op.scope.machineTitle" },
   { tab: "oculpm", key: "op.logs.title" },
-  { tab: "oculpm", key: "op.acp.node", section: "op.logs.title" },
-  { tab: "oculpm", key: "op.acp.claude", section: "op.logs.title" },
-  { tab: "oculpm", key: "op.acp.adapter", section: "op.logs.title" },
-  { tab: "oculpm", key: "op.acp.codexAdapter", section: "op.logs.title" },
-  { tab: "oculpm", key: "op.acp.codexAuth", section: "op.logs.title" },
   { tab: "oculpm", key: "plugins.title" },
 
-  // ── context
-  { tab: "context", key: "ctx.always.title" },
-  { tab: "context", key: "ctx.always.global", section: "ctx.always.title" },
-  { tab: "context", key: "ctx.always.project", section: "ctx.always.title" },
-  { tab: "context", key: "ctx.manifest.title" },
-  { tab: "context", key: "ctxTab.budget.title" },
-  { tab: "context", key: "ctx.recall.title" },
-  { tab: "context", key: "ctx.recall.forget", section: "ctx.recall.title" },
-  { tab: "context", key: "ctx.danger.title" },
 
   // ── automation
   { tab: "automation", key: "automation.switches.title" },

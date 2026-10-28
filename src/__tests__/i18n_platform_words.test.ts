@@ -12,7 +12,7 @@
  */
 import { afterEach, describe, expect, it } from "vitest";
 
-import { __resetLangForTests, setLangSetting, t, tAll, type I18nKey } from "@/i18n";
+import { __resetLangForTests, setLangSetting, t, type I18nKey } from "@/i18n";
 import { ko } from "@/i18n/ko";
 import { en } from "@/i18n/en";
 import { __setPlatformForTests, type Platform } from "@/lib/platform";
@@ -87,11 +87,6 @@ describe("Windows · Linux pick their own words", () => {
     }
   });
 
-  it("the search index sees the words of this OS", () => {
-    __setPlatformForTests("windows");
-    expect(tAll("term.fileRef.reveal")).toContain(en["term.fileRef.reveal__win"]);
-    expect(tAll("term.fileRef.reveal")).not.toContain(en["term.fileRef.reveal"]);
-  });
 });
 
 describe("Windows MCP advice — following it must leave MCP working", () => {

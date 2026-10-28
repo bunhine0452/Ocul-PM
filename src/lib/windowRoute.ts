@@ -20,7 +20,6 @@
  */
 export type WindowRoute =
   | { kind: "tray" }
-  | { kind: "terminal"; projectId: number }
   | {
       kind: "window";
       /** 백엔드가 아는 창 라벨. 탭 커맨드의 대상 지정에 쓰인다. */
@@ -42,11 +41,6 @@ export type WindowRoute =
 /** `src-tauri/src/commands/window.rs::FIRST_WINDOW`. */
 export const FIRST_WINDOW = "main";
 
-/** `src-tauri/src/commands/window.rs::terminal_window_label` 과 같은 규격. */
-export function terminalWindowLabel(projectId: number): string {
-  return `term-${projectId}`;
-}
-
 /** `src-tauri/src/commands/window.rs::is_app_window` 와 같은 규격. */
 const EXTRA_WINDOW_LABEL = /^win-\d+$/;
 
@@ -57,11 +51,6 @@ export function parseWindowRoute(search: string): WindowRoute {
   // 분리 터미널 창. 프로젝트 id 가 판독 불가능하면 터미널 갈래로 들어가지
   // 않는다 — 프로젝트 없는 워크스페이스를 마운트하는 것보다 평범한 탭 창으로
   // 떨어지는 편이 안전하다.
-  const term = params.get("term");
-  if (term !== null && /^\d+$/.test(term)) {
-    return { kind: "terminal", projectId: Number(term) };
-  }
-
   const raw = params.get("win");
   // 판독 불가능한 라벨을 들고 들어가면 그 창의 모든 탭 커맨드가 조용히
   // 빗나간다 — 첫 창으로 떨어뜨리는 편이 훨씬 낫다.

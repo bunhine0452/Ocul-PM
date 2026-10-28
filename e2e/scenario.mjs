@@ -1,10 +1,9 @@
 // 시나리오 — 사용자가 처음 앱을 켜서 프로젝트를 들이고, 화면을 한 바퀴 돌고,
-// 터미널을 쓰고, 에이전트가 일지를 쓰는 것까지. 각 단계는 스크린샷을 남긴다.
+// 에이전트가 일지를 쓰는 것까지. 각 단계는 스크린샷을 남긴다. (내장 터미널 단계는
+// 터미널과 함께 2026-10-28 에 걷었다.)
 
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
-import { IS_WIN } from "./lib/env.mjs";
-import { composeHangul, connectCdp } from "./lib/ime.mjs";
 import { connectApp } from "./lib/launch.mjs";
 import { callMcpTool } from "./lib/mcp.mjs";
 import {
@@ -19,16 +18,6 @@ import {
   waitNoToasts,
   waitScreenReady,
 } from "./lib/page.mjs";
-import {
-  HUMAN_KEY_MS,
-  focusTerminal,
-  pasteText,
-  recordInput,
-  takeInput,
-  typeText,
-  waitBuffer,
-  waitLine,
-} from "./lib/terminal.mjs";
 import { resizeViewport } from "./lib/window.mjs";
 
 const pollFs = async (path, timeout) => {
@@ -173,91 +162,6 @@ export async function runScenario(ctx) {
 
   await sized("한국어 넓은 폭", 1440, 900);
   await tour("02 화면 · 한국어 1440", "ko-1440", dict.ko);
-
-  const terminal = nav.destinations.find((d) => d.id === "terminal");
-  await report.step("터미널 — echo 한글-ok 왕복 (xterm 버퍼)", async (rec) => {
-    let ok = false;
-    try {
-      await navigateTo(wd, terminal, dict.ko);
-      await waitFor(wd, "return !!document.querySelector('.content-main .xterm');", [], { timeout: 30_000, desc: "xterm 마운트" });
-      const prompt = await waitBuffer(wd, 45_000);
-      rec.notes.push(`xterm ${prompt.count}개 · 프롬프트: ${JSON.stringify(prompt.lines.filter((l) => l.trim()).slice(-1)[0] ?? "")}`);
-      const el = await focusTerminal(wd);
-      await recordInput(wd);
-      // ASCII 는 WebDriver 키(실제 키 이벤트), 한글은 붙여넣기 — 키 합성은 입력기를
-      // 거치지 않아 한글을 못 싣는다. 입력기 조합 경로는 다음 단계(Windows CDP)가 본다.
-      // 사람 속도로 친다 — 이 단계가 보는 것은 한글 왕복이다. 빠른 연타의 순서
-      // 보존은 뒤의 단계가 따로 본다.
-      const how = await typeText(wd, el, "echo ", { paceMs: HUMAN_KEY_MS });
-      const pasted = await pasteText(wd, "한글");
-      await sleep(HUMAN_KEY_MS);
-      await typeText(wd, el, "-ok\uE007", { paceMs: HUMAN_KEY_MS });
-      rec.notes.push(`입력: 키=${how} · 한글=${pasted}`);
-      try {
-        const got = await waitLine(wd, "한글-ok", 30_000);
-        rec.notes.push(`버퍼 끝: ${got.lines.slice(-4).map((l) => JSON.stringify(l)).join(" / ")}`);
-      } finally {
-        rec.notes.push(`입력칸 이벤트: ${(await takeInput(wd)).slice(0, 900)}`);
-      }
-      ok = true;
-    } finally {
-      await report.shot(wd, { phase: "03 터미널", key: "terminal", screen: "echo-hangul", caption: "터미널 — echo 한글-ok", ok });
-    }
-  });
-
-  await report.step("IME 흉내 (Windows CDP) — 한글 조합이 정확히 한 번", async (rec) => {
-    if (!IS_WIN) {
-      rec.status = "skip";
-      rec.notes.push("WebKitGTK 에는 CDP 가 없다 — Linux 실제 입력기(fcitx·ibus)는 #w5-eyes 원장 몫 (D8)");
-      return;
-    }
-    const cdp = await connectCdp(wd, ctx.session?.debuggerAddress);
-    rec.notes.push(`CDP 경로: ${cdp.via}`, ...cdp.tried.map((t) => `시도: ${t}`));
-    let ok = false;
-    try {
-      const el = await focusTerminal(wd);
-      await typeText(wd, el, "echo ime-", { paceMs: HUMAN_KEY_MS });
-      await recordInput(wd);
-      const trace = await composeHangul(cdp);
-      rec.notes.push(`CDP 조합 순서: ${trace.join(" → ")}`);
-      rec.notes.push(`입력칸 이벤트: ${(await takeInput(wd)).slice(0, 1500)}`);
-      await typeText(wd, el, "-end\uE007", { paceMs: HUMAN_KEY_MS });
-      // 중복(한한글·한글글)·낱자 누출(ㅎ하한)이면 이 줄이 정확히 나오지 않는다 —
-      // 실패 메시지에 버퍼 끝 줄들이 실린다.
-      const got = await waitLine(wd, "ime-한글-end", 30_000);
-      rec.notes.push(`ime 줄: ${got.lines.filter((l) => l.includes("ime-")).map((l) => JSON.stringify(l.trim())).join(" / ")}`);
-      ok = true;
-    } finally {
-      cdp.close();
-      await report.shot(wd, { phase: "03 터미널", key: "terminal", screen: "ime-cdp", caption: "터미널 — CDP 한글 조합 (ime-한글-end)", ok });
-    }
-  });
-
-  await report.step("터미널 — 빠른 연타의 입력 순서 보존", async (rec) => {
-    let ok = false;
-    try {
-      const el = await focusTerminal(wd);
-      await recordInput(wd);
-      // 한 번의 Send Keys — 드라이버가 키를 몇 ms 간격으로 쏟아낸다(빠른 타자·키 반복과
-      // 같은 부류). 키마다 따로 가는 쓰기 IPC 가 순서를 지키는지 본다.
-      await typeText(wd, el, "echo order-0123456789\uE007");
-      try {
-        const got = await waitLine(wd, "order-0123456789", 20_000);
-        rec.notes.push(`버퍼 끝: ${got.lines.slice(-3).map((l) => JSON.stringify(l)).join(" / ")}`);
-        ok = true;
-      } finally {
-        rec.notes.push(`입력칸 이벤트(DOM 순서): ${(await takeInput(wd)).slice(0, 600)}`);
-      }
-    } finally {
-      await report.shot(wd, { phase: "03 터미널", key: "terminal", screen: "burst-order", caption: "터미널 — 빠른 연타 (echo order-0123456789)", ok });
-      // 순서가 깨졌으면 줄 끝이 다음 프롬프트로 샌다 — ^C 로 비워 둔다.
-      try {
-        await typeText(wd, await focusTerminal(wd), "\uE009c\uE000");
-      } catch {
-        /* 정리 실패는 이 단계의 판정과 무관하다 */
-      }
-    }
-  });
 
   const journalTitle = `E2E 사이드카 일지 (${os})`;
   await report.step("사이드카 oculpm-mcp journal_write → 일지 화면 반영", async (rec) => {

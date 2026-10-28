@@ -50,8 +50,7 @@
     <a class="wk-side-link" href="/wiki/en/automation">Automation</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
     <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
-    <a class="wk-side-link" href="/wiki/en/ai-panel">Agent Panel</a>
-    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, Terminal, Code</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, External Editor</a>
     <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
     <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
     <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
@@ -77,15 +76,14 @@
 <p>Adding a project creates an <code>AGENTS.md</code> rules file at the root, and agents like Claude Code, Cursor, and Gemini CLI read it. The rule is: "when you finish a unit of work, leave an entry." You don't even have to ask.</p>
 <div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>You <i>can</i> write entries by hand — they're just markdown. But that isn't what the app is for.</p></div></div>
 <h3 id="is-this-a-tool-that-runs-the-ai-for-me">Is this a tool that runs the AI for me?</h3>
-<p>Either way works. You can run Claude Code inside the app, or <b>keep using your terminal exactly as you do now and just receive the records</b>. As long as the app is open, work done in a terminal gets picked up too.</p>
+<p>No. Your agent runs <b>in your own terminal, exactly as it does now</b>, and the app receives the record, the evidence and the plan. As long as the app is open, work done in the terminal is captured. (The screen that ran Claude Code inside the app was removed on 2026-10-28.)</p>
 <h2 id="money-and-privacy">Money and privacy</h2>
 <h3 id="does-it-cost-anything">Does it cost anything?</h3>
 <p>The app is free, and <b>journaling itself needs no API key</b>. It watches file changes and reads markdown that agents wrote — that costs nothing.</p>
 <p>The only thing that costs money is <b>AI writing new prose</b>:</p>
-<div class="wk-table"><table><thead><tr><th>Feature</th><th>Cost</th></tr></thead><tbody><tr><td>Journal and planner records, search, code editing</td><td><b>Free</b> — all local</td></tr><tr><td>AI panel chat, ⌘K inline editing</td><td>Your API key, your billing</td></tr><tr><td>Claude Code inside the app</td><td>Your Claude subscription (no extra charge)</td></tr></tbody></table></div>
-<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>The in-app <b>Claude Code and Codex screens</b> run on the same footing as a terminal session — on your subscription, with no API key, so there is no extra cost.</p></div></div>
+<div class="wk-table"><table><thead><tr><th>Feature</th><th>Cost</th></tr></thead><tbody><tr><td>Journal and planner records, search, change diffs</td><td><b>Free</b> — all local</td></tr><tr><td>AI-generated text — weekly rollups, entry drafts, plan drafts</td><td>Your API key, your billing (Settings → LLM)</td></tr></tbody></table></div>
 <h3 id="where-does-my-code-go">Where does my code go?</h3>
-<p>By default, <b>nowhere</b>. Code-search embeddings are computed on your machine (only the model is downloaded, once). Five things leave, and you start every one: LLM calls you configured, the update check, provider traffic when you use Claude Code or Codex in the app (including the one-time adapter download), GitHub fetches when you click (release notes, bundles), the one-time embedding-model download. No account server, no telemetry. (<a href="/wiki/en/data">Details</a>)</p>
+<p>By default, <b>nowhere</b>. Code-search embeddings are computed on your machine (only the model is downloaded, once). Four things leave, and you start every one: LLM calls you configured, the update check, GitHub lookups when you click (release notes, bundles), and the embedding model once. No account server, no telemetry. (<a href="/wiki/en/data">Details</a>)</p>
 <h3 id="does-it-work-offline">Does it work offline?</h3>
 <p>Yes. Records, timeline, change diffs, code search and code editing are all local. Only AI calls and the update check need the network.</p>
 <h3 id="what-about-windows-linux">What about Windows / Linux?</h3>

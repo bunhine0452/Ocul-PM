@@ -7,29 +7,26 @@ import { Toolbar } from "@/components/Toolbar";
 import { EmptyState } from "@/components/EmptyState";
 import { useProjectRuntime, useRecentChanges, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
 import { useTodayCount } from "@/features/oculpm/useTodayCount";
-import { SessionAside } from "@/features/sessions/SessionAside";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/i18n";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
-import { TerminalAway } from "@/features/terminal/TerminalAway";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
 import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
 // 지연 청크로 가는 나머지 화면들 — 목록과 그 이유는 `./screens` 가 소유한다.
 import {
-  AiPanelScreenV2,
   BranchScreenV2,
-  ClaudeCodeScreenV2,
-  CodeScreenV2,
-  CodexScreenV2,
   DiscussionScreenV2,
   SearchScreenV2,
   SettingsPanel,
   SkillsScreenV2,
-  TerminalDock,
-  TerminalScreenV2,
 } from "./screens";
+import { fileOpenApi } from "@/api/fileOpen";
+import { toAppError } from "@/api/invoke";
+import { useOptionalSettings } from "@/contexts/SettingsContext";
+import { tError } from "@/i18n/errors";
+import { toast } from "@/lib/toast";
 import { KNOWN_VIEWS, useShellNav } from "./useShellNav";
 import { Skeleton, SkeletonList } from "@/components/ui/Skeleton";
 import { commands, events, type JournalEntrySummary } from "@/lib/bindings";
@@ -91,7 +88,7 @@ export default function ShellV2({
   // **세션 목록**은 한 글자도 읽지 않는다.
   const { prefs, setPrefs, setUiV2View } = useUiPrefs();
   const runtime = useProjectRuntime();
-  const { setTerminalDetached, setSidebarCollapsed } = runtime;
+  const { setSidebarCollapsed } = runtime;
   const { resolvedTheme, setTheme } = useTheme();
   const view = prefs.uiV2View;
   const isDark = resolvedTheme === "dark";
@@ -101,20 +98,6 @@ export default function ShellV2({
   // 사이드바 행의 조용한 수 — 일지(오늘 N) · 변경(미커밋 N). 돌고 있는 것이 있으면 그쪽이 먼저다.
   const todayCount = useTodayCount(projectId, workday, oculpmReady);
   const recentChanges = useRecentChanges(projectId ?? -1);
-
-  /**
-   * Claude Code 화면을 한 번이라도 열었는가.
-   *
-   * 열기 전에는 마운트하지 않고(어댑터 기동 비용), 한 번 열면 이 탭이 사는 동안
-   * 계속 마운트해 둔다 — 돌던 턴이 화면을 옮겼다고 끊기면 안 된다. 라우터 아래의
-   * keep-alive 블록에 그 이유를 자세히 적어 두었다.
-   */
-  const [claudeMounted, setClaudeMounted] = useState(view === "claudecode");
-  const [codexMounted, setCodexMounted] = useState(view === "codex");
-  useEffect(() => {
-    if (view === "claudecode") setClaudeMounted(true);
-    if (view === "codex") setCodexMounted(true);
-  }, [view]);
 
   // 트레이 딥링크·팔레트 점프·「일지로 남기기」 처럼 **다른 화면이 쏜 이동 요청**과
   // 그 한 번짜리 핸드오프는 조각 훅이 소유한다 (`./useShellNav`).
@@ -126,9 +109,6 @@ export default function ShellV2({
     clearJournalOpenEntry,
     journalReturnView,
     setJournalReturnView,
-    codeTarget,
-    openInCode,
-    clearCodeTarget,
     jumpNonce,
   } = useShellNav({
     active,
@@ -218,25 +198,6 @@ export default function ShellV2({
     if (id !== projectId) onOpenProject(id);
   };
 
-  // 분리 터미널 창이 이 프로젝트에 떠 있는가 — 창의 존재 여부가 진실이고
-  // 백엔드가 알려 준다. 사용자가 그 창을 OS 버튼으로 닫아도 여기로 돌아온다.
-  useSeededEvent<number[] | null>(
-    {
-      seed: () => commands.listTerminalWindows().then((r) => (r.status === "ok" ? r.data : null)),
-      subscribe: (touch) => [
-        events.terminalWindowsChanged.listen(({ payload }) => {
-          if (projectId == null) return;
-          touch();
-          setTerminalDetached(payload.open.includes(projectId));
-        }),
-      ],
-      onSeed: (open, touched) => {
-        if (open && projectId != null && !touched()) setTerminalDetached(open.includes(projectId));
-      },
-    },
-    [projectId, setTerminalDetached],
-  );
-
   // v2.3.0 메뉴바 팝오버 딥링크 (docs/menubar/00-master-plan.md D5) — 트레이
   // 창이 tray_open_main 으로 쏜 TrayNavigate 를 받아 화면·프로젝트·일지로
   // 이동한다. 다른 프로젝트의 일지면 전환 후 open 핸드오프를 세팅 — 저널
@@ -265,14 +226,15 @@ export default function ShellV2({
     };
   }, [projectId, setUiV2View, setJournalOpenEntry, setJournalReturnView]);
 
-  // 도크 소유권 (2026-08-15): 같은 PTY 에 xterm 두 개가 붙으면 서로의 fit() 을
-  // 되돌려 화면이 떨린다. 그래서 터미널을 **그리는** 면은 언제나 하나다 —
-  // 분리 창 > 터미널 화면 > 도크 순으로 양보한다.
-  //
-  // 도크 자체는 분리 중에도 열려 있다: 자리표시자가 "어디로 갔는지 + 되돌리는
-  // 길"을 들고 있어야 하기 때문이다 (TerminalAway).
-  const detached = runtime.terminalDetached;
-  const dockVisible = projectId != null && prefs.terminalDockOpen && view !== "terminal";
+  // 검색·브랜치의 「파일 열기」 — 내장 편집기가 걷힌 뒤(2026-10-28, simplify-round)로는
+  // 설정의 외부 편집기 명령(`%path`·`%line`)으로 연다. 프로젝트 루트가 없으면 조용히 비킨다.
+  const settingsCtx = useOptionalSettings();
+  const openInEditor = (path: string, line: number | null) => {
+    if (!projectRoot) return;
+    void fileOpenApi
+      .inExternalEditor(projectRoot, path, settingsCtx?.settings.externalEditorCommand ?? 'code "%path"', line)
+      .catch((e: unknown) => toast.destructive(tError(toAppError(e))));
+  };
 
   // 툴바 날짜는 UI 언어를 따른다 — `"ko-KR"` 이 박혀 있어 영어 모드에서도
   // 「2026년 9월 11일 금」이었다 (2026-09-11 영문 스크린샷 촬영에서 잡음).
@@ -326,22 +288,13 @@ export default function ShellV2({
         isDark={isDark}
         onToggleTheme={() => setTheme(isDark ? "light" : "dark")}
         macTopInset={0}
-        terminalDockOpen={prefs.terminalDockOpen}
-        onToggleTerminalDock={() =>
-          setPrefs((prev) => ({ terminalDockOpen: !prev.terminalDockOpen }))
-        }
         onToggleCollapse={toggleSidebar}
         collapsed={collapsed}
         onMouseLeave={collapsed ? () => setHovering(false) : undefined}
         badges={{ journal: todayCount ?? undefined, diff: recentChanges.length || undefined }}
       />
       <main className="content">
-        <div className={"content-body" + (dockVisible ? ` with-dock dock-${prefs.terminalDockPos}` : "")}>
-        {dockVisible && projectId != null && prefs.terminalDockPos === "left" ? (
-          <Suspense fallback={<div className="term-dock pos-left" style={{ width: prefs.terminalDockWidth }} />}>
-            <TerminalDock projectId={projectId} projectRoot={projectRoot} />
-          </Suspense>
-        ) : null}
+        <div className="content-body">
         <div className="content-main">
         {/* v2 U6 — lazy 화면 공용 fallback: 툴바 자리 + 콘텐츠 스켈레톤.
             스피너 대신 콘텐츠 형태를 유지해 화면 전환 점프를 줄인다. */}
@@ -442,37 +395,13 @@ export default function ShellV2({
           <SearchScreenV2
             projectId={projectId}
             projectRoot={projectRoot}
-            onOpenInCode={openInCode}
+            onOpenInCode={openInEditor}
             onOpenJournal={(path) => {
               setJournalReturnView("search");
               setJournalOpenEntry(path);
               setUiV2View("journal");
             }}
           />
-        ) : view === "code" ? (
-          <CodeScreenV2
-            projectId={projectId}
-            projectRoot={projectRoot}
-            openTarget={codeTarget}
-            onOpenTargetConsumed={clearCodeTarget}
-          />
-        ) : view === "terminal" ? (
-          // 터미널이 분리 창에 나가 있으면 여기서 또 그리지 않는다 — 같은 PTY
-          // 를 두 뷰가 잡으면 리사이즈가 서로를 되돌린다. 되돌리는 길만 남긴다.
-          detached ? (
-            <>
-              <Toolbar title={t("term.title")} sub={t("term.dock.awayTitle")} />
-              <div className="scroll">
-                <div className="page fade-in">
-                  <TerminalAway projectId={projectId} />
-                </div>
-              </div>
-            </>
-          ) : (
-            <TerminalScreenV2 projectRoot={projectRoot} projectId={projectId} workday={workday} />
-          )
-        ) : view === "ai" ? (
-          <AiPanelScreenV2 projectId={projectId} />
         ) : view === "discussion" ? (
           <DiscussionScreenV2
             key={`discussion-${jumpNonce}`}
@@ -490,7 +419,7 @@ export default function ShellV2({
               setJournalOpenEntry(path);
               setUiV2View("journal");
             }}
-            onOpenFile={(path) => openInCode(path, null)}
+            onOpenFile={(path) => openInEditor(path, null)}
           />
         ) : (
           // 사슬의 **마지막 갈래가 Today** 다 (2026-09-06). 예전엔 `null` 이라,
@@ -499,12 +428,6 @@ export default function ShellV2({
           // 곧장 그 상태였다. `migrateUiV2View` 가 영속값을 이미 거르지만
           // 런타임 `setUiV2View` 는 그 문을 지나지 않으므로 여기도 막는다.
           // (Today 갈래를 위로 다시 올리지 말 것 — 폴백과 한 몸이다.)
-          //
-          // 단 ACP 두 화면은 **아래 keep-alive 컨테이너가 그린다** — 여기서
-          // 폴백으로 떨어지면 Today 가 그 뒤에 통째로 마운트되어 툴바가 ACP
-          // 머리 위에 얹히고 브리프까지 이중으로 읽었다 (2.47.0 에서 실제로
-          // 그랬다, 2026-09-11). 그 둘만 비운다.
-          view === "claudecode" || view === "codex" ? null : (
           <TodayScreenV2
             projectId={projectId}
             projectRoot={projectRoot}
@@ -515,76 +438,11 @@ export default function ShellV2({
             dateLabel={dateLabel}
             tz={Intl.DateTimeFormat().resolvedOptions().timeZone}
           />
-          )
         )}
         </ErrorBoundary>
 
-        {/* Claude Code 만 **언마운트하지 않는다** (2026-08-16).
-            다른 화면으로 옮기면 화면이 헐리면서 돌던 턴의 스트림이 끊기고,
-            돌아올 때 `session/load` 로 디스크에서 다시 읽으므로 아직 안 끝난
-            답이 통째로 사라졌다 — 대화에는 "[Request interrupted by user]" 만
-            남았다. 다른 화면들은 상태가 디스크에 있어 다시 읽으면 그만이지만
-            여기는 **지금 벌어지는 일**이라 다시 읽을 원본이 없다.
-
-            처음 들어가기 전에는 마운트하지 않는다 — 안 쓰는 사용자에게 어댑터
-            기동(`acp_start`) 비용을 지우지 않는다. `display:contents` 라 화면이
-            직접 그린 것과 레이아웃이 같고, 숨길 때의 `none` 은 ⌘W·ESC 사슬이
-            "안 보인다"를 판정하는 잣대와도 맞물린다. */}
-        {claudeMounted && projectId != null ? (
-          <div
-            className="screen-keepalive"
-            style={{ display: view === "claudecode" ? "contents" : "none" }}
-          >
-            {/* 살려 두는 화면이라 위 경계 밖이다 (`key={view}` 가 닿으면
-                화면을 바꿀 때마다 재마운트되어 돌던 턴이 끊긴다). 자기 경계를
-                따로 둔다 — 키 없이. */}
-            <ErrorBoundary label="screen:claudecode">
-              {/* 일하는 자리 옆 기록 — 에이전트 화면도 터미널과 같은 오른쪽 열 (시안 Agent). */}
-              <div className="with-aside">
-                <div className="with-aside-main">
-                  <ClaudeCodeScreenV2 projectId={projectId} />
-                </div>
-                <SessionAside projectId={projectId} workday={workday} />
-              </div>
-            </ErrorBoundary>
-          </div>
-        ) : null}
-        {codexMounted && projectId != null ? (
-          <div
-            className="screen-keepalive"
-            style={{ display: view === "codex" ? "contents" : "none" }}
-          >
-            <ErrorBoundary label="screen:codex">
-              <div className="with-aside">
-                <div className="with-aside-main">
-                  <CodexScreenV2 projectId={projectId} />
-                </div>
-                <SessionAside projectId={projectId} workday={workday} />
-              </div>
-            </ErrorBoundary>
-          </div>
-        ) : null}
         </Suspense>
         </div>
-        {dockVisible && projectId != null && prefs.terminalDockPos !== "left" ? (
-          // 아래·오른쪽은 둘 다 콘텐츠 **뒤**에 온다 — 방향은 CSS 가 정한다
-          // (dock-bottom = column, dock-right = row). DOM 순서가 화면 순서와
-          // 같아야 탭 이동도 눈에 보이는 차례대로 간다.
-          <Suspense
-            fallback={
-              <div
-                className={"term-dock pos-" + prefs.terminalDockPos}
-                style={
-                  prefs.terminalDockPos === "bottom"
-                    ? { height: prefs.terminalDockHeight }
-                    : { width: prefs.terminalDockWidth }
-                }
-              />
-            }
-          >
-            <TerminalDock projectId={projectId} projectRoot={projectRoot} />
-          </Suspense>
-        ) : null}
         </div>
       </main>
     </div>

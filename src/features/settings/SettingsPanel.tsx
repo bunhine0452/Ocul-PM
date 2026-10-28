@@ -7,9 +7,7 @@ import {
   Database,
   Settings as SettingsIcon,
   FileCode,
-  Code2,
   Clock,
-  PieChart,
   Download,
   Search,
   X,
@@ -17,12 +15,10 @@ import {
   type IconComponent,
 } from "@/components/Icons";
 import { useSettings } from "@/contexts/SettingsContext";
-import { Section, Field, Toggle } from "./tabs/ui";
 import { AppearanceTab } from "./tabs/AppearanceTab";
 import { LlmTab } from "./tabs/LlmTab";
 import { IndexingTab } from "./tabs/IndexingTab";
 import { DataTab } from "./tabs/DataTab";
-import { ContextTab } from "./tabs/ContextTab";
 import { DiagnosticsTab } from "./tabs/DiagnosticsTab";
 import { UpdateTab } from "./tabs/UpdateTab";
 // 상수·클램프만 있는 모듈이다 — TerminalSurface 에서 가져오면 설정 청크가
@@ -31,7 +27,6 @@ import { useDensity } from "@/hooks/useDensity";
 import { useT, type I18nKey } from "@/i18n";
 import { OculpmSettings } from "./OculpmSettings";
 import { AutomationTab } from "./automation/AutomationTab";
-import { CodeSettings } from "./CodeSettings";
 import { SettingsSearchResults } from "./SettingsSearch";
 import { searchSettings } from "./settingsIndex";
 import type { SettingsTab } from "./settingsIndex";
@@ -72,7 +67,6 @@ const GROUPS: Array<{ labelKey: I18nKey; tabs: TabDef[] }> = [
       { id: "llm", labelKey: "settings.tab.llm", descKey: "settings.tabDesc.llm", icon: Cpu },
       // 컨텍스트 경제학 (Osaurus 라운드 Phase 5) — 항상 가는 것 · 매니페스트 ·
       // 회상 후보 · 예산. 데이터는 다 갖고 있었는데 볼 창이 없던 자리다.
-      { id: "context", labelKey: "settings.tab.context", descKey: "settings.tabDesc.context", icon: PieChart },
     ],
   },
   {
@@ -88,7 +82,6 @@ const GROUPS: Array<{ labelKey: I18nKey; tabs: TabDef[] }> = [
     labelKey: "settings.group.code",
     tabs: [
       // 코드 화면 — 편집기 동작 + 언어 서버 (ide-completion #lsp-settings-screen).
-      { id: "code", labelKey: "settings.tab.code", descKey: "settings.tabDesc.code", icon: Code2 },
       { id: "indexing", labelKey: "settings.tab.indexing", descKey: "settings.tabDesc.indexing", icon: FileCode },
     ],
   },
@@ -144,18 +137,12 @@ export function SettingsPanel() {
         return <AppearanceTab />;
       case "llm":
         return <LlmTab onError={setError} />;
-      case "code":
-        // 원시 요소는 `tabs/ui` 가 소유한다 (Section/Field/Toggle) — 새 탭 하나를
-        // 위해 디자인 시스템을 복제하지 않고 그대로 내려 준다.
-        return <CodeSettings Section={Section} Field={Field} Toggle={Toggle} />;
       case "indexing":
         return <IndexingTab />;
       case "data":
         return <DataTab onError={setError} />;
       case "oculpm":
         return <OculpmSettings />;
-      case "context":
-        return <ContextTab />;
       case "automation":
         return <AutomationTab />;
       case "diagnostics":

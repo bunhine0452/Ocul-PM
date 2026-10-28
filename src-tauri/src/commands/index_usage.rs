@@ -23,7 +23,6 @@ use serde::Serialize;
 use specta::Type;
 use tauri::State;
 
-use crate::commands::code::project_root;
 use crate::db::Db;
 use crate::oculpm::history;
 
@@ -152,6 +151,15 @@ pub async fn oculpm_index_clear_diffs(db: State<'_, Db>, project_id: u32) -> Res
     })
     .await
     .map_err(|e| format!("Failed to clear diff sidecars: {e}"))?
+}
+
+/// 프로젝트 루트 — 예전엔 코드 화면 커맨드의 helper 를 빌려 썼다 (코드 화면은 2026-10-28 에 걷었다).
+async fn project_root(db: &Db, project_id: u32) -> Result<std::path::PathBuf, String> {
+    let project = db
+        .get_project(project_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(std::path::PathBuf::from(project.root_path))
 }
 
 #[cfg(test)]

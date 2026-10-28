@@ -11,10 +11,8 @@ pub mod openai;
 pub mod reach;
 
 use async_trait::async_trait;
-use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tokio::sync::mpsc;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
@@ -42,25 +40,6 @@ pub struct ChatResponse {
     pub content: String,
     pub model: String,
     pub provider: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum ChatEvent {
-    Delta {
-        text: String,
-    },
-    Done,
-    /// 1순위가 아니라 **폴백이 이 답변을 냈다** (Phase 7 #offline-fallback).
-    /// Delta 보다 먼저 정확히 한 번 나간다. 설정은 건드리지 않는다 — 이 사건은
-    /// 그 호출 한 번의 사실이고, 화면은 답변에 배지로만 남긴다.
-    Fallback {
-        provider: String,
-        model: String,
-    },
-    Error {
-        message: String,
-    },
 }
 
 #[derive(Debug, Error)]
@@ -114,50 +93,6 @@ pub trait LlmProvider: Send + Sync {
         messages: Vec<Message>,
         opts: ChatOptions,
     ) -> Result<ChatResponse, LlmError>;
-
-    /// Stream chat completions. Implementations should send `Delta` events as
-    /// text chunks arrive, and either return `Ok(())` (caller emits `Done`) or
-    /// an error. Implementations should *not* emit `Done` themselves — that's
-    /// handled by the calling Tauri command.
-    async fn chat_stream(
-        &self,
-        messages: Vec<Message>,
-        opts: ChatOptions,
-        sink: tokio::sync::mpsc::Sender<ChatEvent>,
-    ) -> Result<(), LlmError>;
-}
-
-/// Stream the response body line-by-line. For each complete line, calls
-/// `parse_line` which returns the text delta to emit (or None to skip).
-pub(crate) async fn forward_sse_lines<F>(
-    resp: reqwest::Response,
-    sink: &mpsc::Sender<ChatEvent>,
-    mut parse_line: F,
-) -> Result<(), LlmError>
-where
-    F: FnMut(&str) -> Option<String>,
-{
-    let mut stream = resp.bytes_stream();
-    let mut buf: Vec<u8> = Vec::new();
-
-    while let Some(chunk) = stream.next().await {
-        let chunk = chunk?;
-        buf.extend_from_slice(&chunk);
-
-        while let Some(pos) = buf.iter().position(|b| *b == b'\n') {
-            let raw: Vec<u8> = buf.drain(..=pos).collect();
-            let line = String::from_utf8_lossy(&raw[..raw.len() - 1]);
-            let line = line.trim_end_matches('\r');
-
-            if let Some(text) = parse_line(line) {
-                if !text.is_empty() && sink.send(ChatEvent::Delta { text }).await.is_err() {
-                    // Receiver dropped — stop reading.
-                    return Ok(());
-                }
-            }
-        }
-    }
-    Ok(())
 }
 
 /// GET 응답을 성공이면 JSON 으로, 아니면 `ApiError` 로 — 다섯 프로바이더의

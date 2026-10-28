@@ -20,7 +20,6 @@ const SETTINGS = join(__dirname, "../features/settings");
 const FILE_TAB: Array<[string, string]> = [
   ["tabs/AppearanceTab.tsx", "appearance"],
   ["tabs/LlmTab.tsx", "llm"],
-  ["CodeSettings.tsx", "code"],
   ["tabs/IndexingTab.tsx", "indexing"],
   ["tabs/DataTab.tsx", "data"],
   ["config/DeclarativeConfigSection.tsx", "data"],
@@ -31,7 +30,6 @@ const FILE_TAB: Array<[string, string]> = [
   ["CodexMcpServerBlock.tsx", "oculpm"],
   ["plugins/PluginBundlesBlock.tsx", "oculpm"],
   ["plugins/NotHonoredNotice.tsx", "oculpm"],
-  ["tabs/ContextTab.tsx", "context"],
   ["automation/AutomationTab.tsx", "automation"],
   ["automation/AutomationEditor.tsx", "automation"],
   ["automation/AutomationHistory.tsx", "automation"],
@@ -95,14 +93,12 @@ describe("설정 색인은 원본을 따라간다", () => {
     }
   });
 
-  it("10탭이 하나도 빠지지 않는다 — 검색이 못 닿는 탭이 생기면 검색이 거짓말이 된다", () => {
+  it("8탭이 하나도 빠지지 않는다 — 검색이 못 닿는 탭이 생기면 검색이 거짓말이 된다", () => {
     const tabs = new Set(SETTINGS_INDEX.map((e) => e.tab));
     expect([...tabs].sort()).toEqual(
       [
         "appearance",
         "automation",
-        "code",
-        "context",
         "data",
         "diagnostics",
         "indexing",
@@ -111,7 +107,7 @@ describe("설정 색인은 원본을 따라간다", () => {
         "update",
       ].sort(),
     );
-    expect(SETTINGS_INDEX.length).toBeGreaterThan(100);
+    expect(SETTINGS_INDEX.length).toBeGreaterThan(80);
   });
 });
 
@@ -122,13 +118,13 @@ describe("검색", () => {
   });
 
   it("한국어 이름으로 찾는다", () => {
-    const hits = searchSettings(ko["settings.code.autoSave"].slice(0, 4));
-    expect(hits.some((h) => h.key === "settings.code.autoSave" && h.tab === "code")).toBe(true);
+    const hits = searchSettings(ko["settings.language.uiTitle"].slice(0, 4));
+    expect(hits.some((h) => h.key === "settings.language.uiTitle" && h.tab === "appearance")).toBe(true);
   });
 
   it("영어로도 찾는다 — UI 가 한국어여도 키/영문 이름이 손에 붙은 사람이 있다", () => {
-    const hits = searchSettings("autoSave");
-    expect(hits.some((h) => h.key === "settings.code.autoSave")).toBe(true);
+    const hits = searchSettings("uiTitle");
+    expect(hits.some((h) => h.key === "settings.language.uiTitle")).toBe(true);
   });
 
   it("이름이 질의로 시작하는 항목이 먼저 온다", () => {

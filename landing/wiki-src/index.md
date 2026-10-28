@@ -21,20 +21,19 @@ Ocul-PM 을 쓰다 막히는 지점들을 모아 둔 설명서입니다. 짧게 
 
 ## 에이전트 연동
 
-- **[Claude Code 연동](/wiki/claude-code)** — 앱 안에서 쓰기 vs 터미널에서 쓰기, 플러그인 설치, `/plugin`·`/mcp` 가 앱 안에서 안 되는 이유
+- **[Claude Code 연동](/wiki/claude-code)** — 플러그인(훅 브리지) 설치, 규칙 파일과 MCP 도구가 하는 일
 - **[다른 에이전트 연동](/wiki/agents)** — Cursor·Gemini CLI·Copilot·Windsurf·Cline·Zed·aider·Antigravity, 그리고 스킬·규칙 허브
-- **[에이전트 패널](/wiki/ai-panel)** — 여러 LLM 에 같은 컨텍스트로 묻기, 토큰 배지, 플래너 액션 제안
 
 ## 굴리는 법
 
-- **[창 · 탭 · 터미널 · 코드](/wiki/workspace)** — 여러 프로젝트를 동시에, 터미널 도크와 분할, 앱 안 코드 편집
+- **[창 · 탭 · 외부 편집기](/wiki/workspace)** — 여러 프로젝트를 동시에, 메뉴바 상주, 파일을 여는 외부 편집기
 - **[설정](/wiki/settings)** — 테마와 프리셋, 글자 크기, API 키와 폴백, 인덱싱·RAG
 
 ## 그 밖에
 
 - **[문제 해결](/wiki/troubleshooting)** — 자주 겪는 불편과 해법 모음
 - **[데이터와 파일 구조](/wiki/data)** — `.oculpm/` 폴더, 백업과 이동, 로컬-우선의 실제 의미
-- **[단축키](/wiki/shortcuts)** — 화면 이동부터 Claude Code 화면 전용 키까지
+- **[단축키](/wiki/shortcuts)** — 화면 이동, 탭과 창
 
 :::note
 문서에서 틀린 곳을 찾으셨나요? 왼쪽 아래 "이 문서 고치기"로 소스를 바로 열 수 있고, [GitHub 이슈](https://github.com/bunhine0452/Ocul-PM/issues)로 알려 주셔도 됩니다.

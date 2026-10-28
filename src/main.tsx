@@ -78,21 +78,7 @@ void bootI18n(async () => {
 }).then(renderApp);
 
 function renderApp() {
-if (route.kind === "terminal") {
-  // 분리 터미널 창 — 셸 하나만 사는 경량 진입점. 설정(테마·편집기 명령)은
-  // 필요하므로 SettingsProvider 는 그대로 두른다.
-  const TerminalWindow = React.lazy(() => import("./windows/TerminalWindow"));
-  root.render(
-    <React.StrictMode>
-      <SettingsProvider>
-        <React.Suspense fallback={null}>
-          <TerminalWindow projectId={route.projectId} />
-        </React.Suspense>
-        <Toaster />
-      </SettingsProvider>
-    </React.StrictMode>,
-  );
-} else if (route.kind === "tray") {
+if (route.kind === "tray") {
   // v2.3.0 메뉴바 — 트레이 팝오버 창(label `tray`). 본 앱 셸·워크스페이스를
   // 로드하지 않는 경량 진입점.
   const TrayApp = React.lazy(() => import("./features/tray/TrayApp"));

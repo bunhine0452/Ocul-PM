@@ -11,7 +11,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { commands, type ProjectBlueprint } from "@/lib/bindings";
-import { setPendingDispatch } from "@/features/terminal/dispatchBus";
+import { toast } from "@/lib/toast";
 import { useCliChecks } from "./useCliChecks";
 import {
   ArrowRight,
@@ -340,23 +340,22 @@ export function GreenfieldWizard({ onClose, onComplete, resume = null }: Greenfi
       if (res.status === "ok") {
         const projectId = res.data.project_id;
 
-        // IN1 — 인셉션 킥오프 예약: 새 프로젝트에서 터미널을 열면
-        // project-inception 스킬 발화 프롬프트가 프리필돼 있다 (실행은 Enter).
+        // IN1 — 인셉션 킥오프: 스킬 발화 프롬프트를 클립보드에 둔다 — 사용자가 자기 터미널의
+        // 에이전트에 붙여 넣는다 (내장 터미널은 2026-10-28 에 걷었다).
         {
           const idea = wizState.ideaText.trim().replace(/\s+/g, " ").slice(0, 300);
           const who = wizState.targetUsers.trim().replace(/\s+/g, " ").slice(0, 150);
-          // 터미널에 프리필돼 **사용자가 읽고 실행**하는 프롬프트라 §4.5 의
+          // 사용자가 읽고 붙여 넣어 실행하는 프롬프트라 §4.5 의
           // 예외에 해당한다 — 본문도 번역하되, 응답 언어가 산출물 언어와
           // 같아야 하므로 t() 가 아니라 tc() 다.
           const kickoff =
             tc("gf.kickoffLead") +
             tc("gf.kickoffIdea", { idea }) +
             (who ? tc("gf.kickoffWho", { who }) : "");
-          setPendingDispatch({
-            projectId,
-            command: `claude "${kickoff.replace(/["\\$]/g, "\\$&")}"`,
-            prompt: kickoff,
-          });
+          void navigator.clipboard
+            .writeText(kickoff)
+            .then(() => toast.info(tc("gf.kickoffCopied")))
+            .catch(() => {});
         }
 
         // Seed the file-based Planner (S1 / planner-unify) — one "초기 계획"
