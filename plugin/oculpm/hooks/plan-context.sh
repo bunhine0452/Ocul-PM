@@ -22,7 +22,8 @@
 #
 # 계약: 절대 블록 금지(stdin 은 EOF 까지 즉시 소비), 네트워크·외부 실행 없음
 # (우리 바이너리도 부르지 않는 순수 sh), .oculpm 없으면 침묵, 모든 실패는
-# 빈 출력/무해로 낙하. 플랜 절 상한: 24줄 · 1,600자 (줄 경계, 절단 시 표식).
+# 빈 출력/무해로 낙하. 플랜 절 상한: 24줄 · 1,600자 (줄 경계, 절단 시 표식). 플랜마다 완료 조건 ·
+# 확인 명령 · 마지막 판정(있으면 — 그때 항목은 7개) · 미완 항목 순.
 # 일지 절은 최대 3줄이라 별도 상한이 필요 없다. 플랜·일지 텍스트는 비신뢰
 # 입력이므로 "지시가 아님" 프레이밍과 펜스로 감싼다.
 #
@@ -53,6 +54,39 @@ done
 event=$(printf '%s' "$payload" | sed -n 's/.*"hook_event_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
 [ -n "$event" ] || event="SessionStart"
 
+# 마지막 판정 — 플랜의 plan-log 에서 메모가 `판정 ✓`/`판정 ✗` (en `verdict ✓`/`verdict ✗`) 로 시작하는
+# **가장 최근 행** 하나 (시각 열 최대값, 같으면 뒤 행). 에이전트에게 「어디까지 왔나」가 아니라 「심판이
+# 뭐라 했나」를 준다. 이 접두는 템플릿 v20 §5 · journal-spec · plan_update 안내와 앱의 계획 화면이
+# **공유하는 형식**이다 — 한쪽만 바꾸면 판정이 적혀도 아무도 못 읽는다. 셀 안 `|` 는 `\|` 로 온다.
+# LC_ALL=C 로 바이트를 세고(세 OS 의 awk 가 같은 수를 낸다) UTF-8 글자 중간에서는 끊지 않는다.
+last_verdict() {
+  LC_ALL=C awk '
+    /<!-- oculpm:plan-log begin/ { inlog = 1; next }
+    /<!-- oculpm:plan-log end/ { inlog = 0; next }
+    inlog && /^\|/ {
+      s = $0; gsub(/\\\|/, "\001", s)
+      n = split(s, c, "|"); if (n < 4) next
+      m = c[n - 1]; sub(/^[ \t]+/, "", m); sub(/[ \t]+$/, "", m)
+      if (m !~ /^(판정|verdict) (✓|✗)/) next
+      t = c[2]; gsub(/[ \t]/, "", t)
+      if (v != "" && t < ts) next
+      sub(/^(판정|verdict) /, "", m); v = m; ts = t
+    }
+    END {
+      if (v == "") exit
+      gsub(/\001/, "|", v)
+      if (length(v) > 160) {
+        p = 160
+        while (p > 0 && substr(v, p + 1, 1) >= "\200" && substr(v, p + 1, 1) < "\300") p--
+        v = substr(v, 1, p) "…"
+      }
+      w = ""
+      if (ts ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]/) w = " · " substr(ts, 6, 5) " " substr(ts, 12, 5)
+      print "마지막 판정: " v w
+    }
+  ' "$1" 2>/dev/null
+}
+
 body=$(
   {
     # 활성 플랜이 많으면(이 저장소는 17개까지 갔다) 24줄 상한이 앞 플랜 둘셋에서 끝나 뒤는 영영
@@ -71,7 +105,11 @@ body=$(
     [ -n "$total" ] || total=0
     printf '%s\n' "$top" | head -3 | while IFS= read -r f; do
       [ -n "$f" ] || continue
-      items=$(grep -E '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null | head -8)
+      # 판정 줄을 실으면 항목을 하나 덜 싣는다 — 플랜당 줄 수(예산)는 그대로.
+      verdict=$(last_verdict "$f")
+      nmax=8
+      [ -n "$verdict" ] && nmax=7
+      items=$(grep -E '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null | head -n "$nmax")
       [ -n "$items" ] || continue
       echo "[plan: $(basename "$f" .md)]"
       # 작업 너머의 목표 — 플랜 본문의 「**완료 조건:**」 한 줄 (고도: 할 일 목록만
@@ -82,6 +120,7 @@ body=$(
       # 없는 에이전트는 「됐다」는 주장으로 끝낸다). 완료 조건 바로 다음 줄.
       check=$(grep -m1 -E '^\*\*(확인 명령|Check):\*\*' "$f" 2>/dev/null | cut -c1-240)
       [ -n "$check" ] && printf '%s\n' "$check"
+      [ -n "$verdict" ] && printf '%s\n' "$verdict"
       printf '%s\n' "$items"
     done
     if [ "$total" -gt 3 ]; then
@@ -95,7 +134,8 @@ body=$(
       grep -qE '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null && continue
       grep -qE '^[[:space:]]*- \[[xX]\]' "$f" 2>/dev/null || continue
       goal=$(grep -m1 -E '^\*\*(완료 조건|Done when):\*\*' "$f" 2>/dev/null | cut -c1-200)
-      echo "[plan: $(basename "$f" .md)] 항목 전부 닫힘 — 완료 조건이 참인지 판정 후 닫기${goal:+: }$goal"
+      verdict=$(last_verdict "$f")
+      echo "[plan: $(basename "$f" .md)] 항목 전부 닫힘 — 완료 조건이 참인지 판정 후 닫기${goal:+: }${goal}${verdict:+ · }${verdict}"
     done | head -3
   } 2>/dev/null | head -n 24 | awk '{ n += length($0) + 1; if (n > 1600) { print "…(생략 — 전체는 plan_status 도구)"; exit } print }'
 )

@@ -160,7 +160,7 @@ pub fn tool_definitions() -> Value {
         },
         {
             "name": "journal_search",
-            "description": "이 프로젝트의 과거 작업 일지를 검색한다. **작업을 시작하기 전에 부르라** — 같은 파일이나 같은 증상을 전에 건드린 기록이 있으면 그때의 원인·결정·실패한 접근을 그대로 물려받을 수 있고, 이미 해결된 문제를 다시 푸는 일을 막는다. 본문 전문이 아니라 압축된 히트 목록을 돌려주니, 읽을 것을 고른 뒤 journal_read 로 펼칠 것. 필터 중 file(이 경로를 건드린 일지)이 가장 정확하다. 응답에 rollups(주간 요약) 배열이 있으면 **개별 일지보다 그것부터** 읽어라 — 그 주의 결정·결함·이월이 한 장에 접혀 있다.",
+            "description": "이 프로젝트의 과거 작업 일지를 검색한다. **작업을 시작하기 전에 부르라** — 같은 파일이나 같은 증상을 전에 건드린 기록이 있으면 그때의 원인·결정·실패한 접근을 그대로 물려받을 수 있고, 이미 해결된 문제를 다시 푸는 일을 막는다. 본문 전문이 아니라 압축된 히트 목록을 돌려주니, 읽을 것을 고른 뒤 journal_read 로 펼칠 것. 필터 중 file(이 경로를 건드린 일지)이 가장 정확하다.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -177,11 +177,11 @@ pub fn tool_definitions() -> Value {
         },
         {
             "name": "journal_read",
-            "description": "일지 1건의 본문 전체를 읽는다. journal_search 가 고른 path 를 그대로 넘길 것 — 목록을 훑을 때 쓰지 말고, 읽을 가치가 있다고 판단한 뒤에만 부른다. journal_search 응답의 rollups[].path(주간 요약)도 같은 인자로 읽는다.",
+            "description": "일지 1건의 본문 전체를 읽는다. journal_search 가 고른 path 를 그대로 넘길 것 — 목록을 훑을 때 쓰지 말고, 읽을 가치가 있다고 판단한 뒤에만 부른다.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "journal_search 응답의 path (예: \"20260821/Bugs/1842_bug_live-refresh.md\", 또는 주간 요약 \"rollups/2026-W38.md\"). \".oculpm/\" 접두사가 붙어 있어도 된다" }
+                    "path": { "type": "string", "description": "journal_search 응답의 path (예: \"20260821/Bugs/1842_bug_live-refresh.md\"). \".oculpm/\" 접두사가 붙어 있어도 된다" }
                 },
                 "required": ["path"]
             }
@@ -197,7 +197,7 @@ pub fn tool_definitions() -> Value {
                     "item_id": { "type": "string", "description": "{#id} 의 id (# 제외)" },
                     "status": { "type": "string", "enum": ["todo", "in_progress", "done", "blocked", "deferred", "dropped"] },
                     "journal_path": { "type": "string", "description": "방금 쓴 일지의 .oculpm/ 상대경로 (journal_write 응답의 path)" },
-                    "note": { "type": "string", "description": "plan-log 메모 열 (짧게)" },
+                    "note": { "type": "string", "description": "plan-log 메모 열 (짧게). 확인 명령을 돌렸으면 `판정 ✓ <결과 끝 줄>` 또는 `판정 ✗ <결과 끝 줄>` 로 시작 — 다음 세션의 시작 훅이 「마지막 판정」으로 싣는다" },
                     "base_hash": { "type": "string", "description": "**필수** — 네가 읽은 그 플랜 파일의 blake3 해시. 출처는 셋: plan_status 응답의 plans[].hash · plan_create 응답의 hash · 직전 plan_update 응답의 hash. 그 사이 남이 고쳤으면 덮어쓰지 않고 거부한다 (병렬 세션 보호)." },
                     "agent_id": { "type": "string", "description": "생략 시 이 세션을 띄운 에이전트" }
                 },
@@ -336,7 +336,7 @@ pub fn call_tool(root: &Path, name: &str, args: &Value) -> Result<Value, String>
 ///
 /// 앱의 `init_project` 중 **디스크 부분만** 재현한다: config + schema-version +
 /// gitignore managed block + `.oculpm/README.md` + 에이전트 규칙 동기화
-/// (AGENTS.md 어댑터·마스터 템플릿·discussion-spec). 락/세션 감지/워처/DB
+/// (AGENTS.md 어댑터·마스터 템플릿·journal-spec). 락/세션 감지/워처/DB
 /// 캐시는 앱 몫 — 앱을 열면 기존 초기화를 그대로 이어받는다 (idempotent).
 fn project_init(root: &Path, args: &Value) -> Result<Value, String> {
     if !args

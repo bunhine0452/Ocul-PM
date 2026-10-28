@@ -449,10 +449,10 @@ fn close_nudge(md: &str, plan_id: &str, new_status: ItemStatus) -> Option<String
     let mut s = format!("'{plan_id}' 의 항목이 전부 닫혔다 — 항목 완료는 목표 달성이 아니다. ");
     match (&goal, &check) {
         (Some(g), Some(c)) => s.push_str(&format!(
-            "확인 명령 `{c}` 을 지금 돌려 그 결과로 완료 조건 「{g}」이 참인지 판정하고, 결과를 플랜 로그(plan_update note)에 적어라. "
+            "확인 명령 `{c}` 을 지금 돌려 그 결과로 완료 조건 「{g}」이 참인지 판정하고, 결과를 plan_update note 에 `판정 ✓ <결과 끝 줄>` 또는 `판정 ✗ <결과 끝 줄>` 로 적어라. "
         )),
         (Some(g), None) => s.push_str(&format!(
-            "완료 조건 「{g}」이 참인지 네가 아닌 것(테스트·빌드·실측)으로 판정하고 결과를 플랜 로그에 적어라. "
+            "완료 조건 「{g}」이 참인지 네가 아닌 것(테스트·빌드·실측)으로 판정하고 결과를 plan_update note 에 `판정 ✓ …` 또는 `판정 ✗ …` 로 적어라. "
         )),
         (None, _) => s.push_str(
             "이 플랜에는 완료 조건이 없다 — 무엇이 참이 되어야 끝인지 사용자에게 한 줄로 확인받아라. ",

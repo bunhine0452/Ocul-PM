@@ -4,7 +4,8 @@
 //! 800줄을 넘어 한 줄도 더 못 받는다). 여기는 `plan-context.sh` 하나를 네 모양의 프로젝트에서
 //! 돌려 추가 컨텍스트의 **문장**을 잰다: 빈 프로젝트의 「무엇부터」 한 줄, 매니페스트에서 감지한
 //! 확인 명령 후보, 확인 명령이 있는 플랜에는 후보가 **없음**, 매니페스트가 없으면 「후보 없음」.
-//! 감지 규칙 자체의 단위 테스트는 `oculpm::check_infer`.
+//! 감지 규칙 자체의 단위 테스트는 `oculpm::check_infer`. 플랜이 있을 때의 「마지막 판정」 줄
+//! (plan-log 메모의 `판정 ✓|✗` · `verdict ✓|✗` 접두 — 템플릿 v20 §5 와 앱 계획 화면의 공유 형식)도 여기서 잰다.
 //!
 //! 통합 테스트는 바이너리 밖에서 셸을 띄우는 자리라 `proc::std_cmd` 창구 규칙(clippy.toml
 //! disallowed-methods) 밖이다 — `plugin_xplat.rs`·`resume_context.rs` 와 같은 사유.
@@ -193,6 +194,10 @@ fn a_plan_that_already_has_a_check_line_gets_no_candidate() {
         "{text}"
     );
     assert!(!text.contains(EMPTY_LINE), "{text}");
+    assert!(
+        !text.contains(VERDICT),
+        "판정 행이 없는데 판정을 실었다: {text}"
+    );
 }
 
 /// 활성 플랜이 넷이면 **최근 갱신 셋**만 실린다 (`updated:` 내림차순) — 24줄 상한에 뒤 플랜이
@@ -225,4 +230,97 @@ fn only_the_three_most_recently_updated_plans_are_shipped() {
         text.find("[plan: d-newest]").unwrap() < text.find("[plan: c-new]").unwrap(),
         "최근 갱신이 먼저: {text}"
     );
+}
+
+const VERDICT: &str = "마지막 판정:";
+
+fn plan_with_log(items: usize, rows: &[&str]) -> String {
+    let mut md = String::from(
+        "---\nstatus: active\nupdated: 2026-10-28\n---\n# 플랜\n\n**완료 조건:** 돈다\n**확인 명령:** cargo test\n\n",
+    );
+    for i in 1..=items {
+        md.push_str(&format!("- [ ] 항목{i} {{#i{i}}}\n"));
+    }
+    md.push_str("\n<!-- oculpm:plan-log begin v1 -->\n| 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |\n|---|---|---|---|---|---|\n");
+    for r in rows {
+        md.push_str(r);
+        md.push('\n');
+    }
+    md.push_str("<!-- oculpm:plan-log end -->\n");
+    md
+}
+
+/// 「마지막 판정」 — 접두가 `판정 ✓|✗` 인 **가장 최근** 행 하나(시각 최대값)만, 확인 명령 다음에.
+/// 「판정:」으로 시작하는 평범한 메모는 판정이 아니다. 판정 줄을 실으면 항목을 하나 덜 싣는다
+/// (플랜당 줄 예산 그대로). 셀 안의 `\|` 는 글자 `|` 로 돌아온다.
+#[test]
+fn the_most_recent_verdict_row_is_shipped_in_place_of_one_item() {
+    let p = project();
+    let md = plan_with_log(
+        8,
+        &[
+            "| 2026-10-28T09:00:00+09:00 | #i1 | claude-code | ☐→x |  | 판정 ✗ 2 failed |",
+            "| 2026-10-28T14:12:00+09:00 | #i1 | claude-code | ☐→x |  | 판정 ✓ 3 passed \\| 0 failed |",
+            "| 2026-10-28T15:00:00+09:00 | #i2 | claude-code | ☐→~ |  | 판정: 테스트 경합 — 접두가 아니다 |",
+            "| 2026-10-28T11:00:00+09:00 | #i2 | claude-code | ☐→~ |  | 판정 ✗ 늦게 붙은 옛 행 |",
+        ],
+    );
+    write(p.path(), ".oculpm/planner/v.md", &md);
+    let text = context(p.path());
+    let line = "마지막 판정: ✓ 3 passed | 0 failed · 10-28 14:12";
+    assert!(text.contains(line), "{text}");
+    assert_eq!(text.matches(VERDICT).count(), 1, "{text}");
+    assert!(
+        !text.contains("2 failed") && !text.contains("경합") && !text.contains("옛 행"),
+        "{text}"
+    );
+    let check = text
+        .find("**확인 명령:** cargo test")
+        .expect("확인 명령 줄");
+    let verdict = text.find(line).unwrap();
+    assert!(
+        check < verdict && verdict < text.find("항목1").unwrap(),
+        "{text}"
+    );
+    assert!(
+        text.contains("항목7") && !text.contains("항목8"),
+        "판정 줄만큼 항목을 덜 실어야 한다: {text}"
+    );
+}
+
+/// 항목이 전부 닫힌 플랜은 「판정 후 닫기」 줄 끝에 판정을 붙인다 — en 접두(`verdict ✗`)도 읽는다.
+#[test]
+fn a_closed_plan_line_carries_its_verdict_in_either_language() {
+    let p = project();
+    write(
+        p.path(),
+        ".oculpm/planner/w.md",
+        "---\nstatus: active\n---\n**Done when:** both green\n\n- [x] only {#only}\n\n<!-- oculpm:plan-log begin v1 -->\n| 2026-10-27T08:05:00+09:00 | #only | codex | ~→x |  | verdict ✗ 1 failed |\n<!-- oculpm:plan-log end -->\n",
+    );
+    let text = context(p.path());
+    assert!(
+        text.contains("[plan: w] 항목 전부 닫힘 — 완료 조건이 참인지 판정 후 닫기: **Done when:** both green · 마지막 판정: ✗ 1 failed · 10-27 08:05"),
+        "{text}"
+    );
+}
+
+/// 긴 판정은 160바이트 언저리에서 자르되 UTF-8 글자 중간에서 끊지 않는다 — 끊으면 additionalContext
+/// JSON 이 깨진 UTF-8 이 되어(`context()` 의 serde 파싱) 컨텍스트가 통째로 사라진다.
+#[test]
+fn a_long_verdict_is_clipped_on_a_character_boundary() {
+    let p = project();
+    // `✗ ab` 6바이트 + 한글 3바이트씩 — 160바이트째가 글자 가운데에 떨어지게 둔다.
+    let long = format!("판정 ✗ ab{}", "가나다라마바사아자차카타파하".repeat(8));
+    let row = format!("| 2026-10-28T10:00:00+09:00 | #i1 | claude-code | ☐→~ |  | {long} |");
+    write(p.path(), ".oculpm/planner/v.md", &plan_with_log(1, &[&row]));
+    let text = context(p.path());
+    let line = text
+        .lines()
+        .find(|l| l.starts_with(VERDICT))
+        .unwrap_or_else(|| panic!("판정 줄이 없다: {text}"));
+    assert!(
+        line.contains("…") && line.ends_with("· 10-28 10:00"),
+        "{line}"
+    );
+    assert!(line.len() < 240, "{} bytes: {line}", line.len());
 }
