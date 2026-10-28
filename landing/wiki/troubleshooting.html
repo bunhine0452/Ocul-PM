@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>문제 해결 — Ocul-PM 위키</title>
-<meta name="description" content="일지가 안 쌓일 때, 권한을 물을 때, 그 밖의 자주 겪는 불편 모음." />
+<meta name="description" content="일지가 안 쌓일 때, 4.0 에서 사라진 화면을 찾을 때, 권한을 물을 때 — 자주 겪는 불편 모음." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/troubleshooting" />
@@ -14,7 +14,7 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:title" content="문제 해결 — Ocul-PM 위키" />
-<meta property="og:description" content="일지가 안 쌓일 때, 권한을 물을 때, 그 밖의 자주 겪는 불편 모음." />
+<meta property="og:description" content="일지가 안 쌓일 때, 4.0 에서 사라진 화면을 찾을 때, 권한을 물을 때 — 자주 겪는 불편 모음." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -44,13 +44,12 @@
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
-    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link" href="/wiki/today">오늘</a>
     <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
-    <a class="wk-side-link" href="/wiki/planner">플래너</a>
-    <a class="wk-side-link" href="/wiki/automation">자동화</a>
+    <a class="wk-side-link" href="/wiki/planner">계획</a>
     <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
     <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
-    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 외부 편집기</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 프로젝트 · 외부 편집기</a>
     <a class="wk-side-link" href="/wiki/settings">설정</a>
     <a class="wk-side-link on" href="/wiki/troubleshooting">문제 해결</a>
     <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
@@ -64,28 +63,26 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>문제 해결</h1>
-      <p class="wk-updated">마지막 수정 2026-10-28</p>
-      <nav class="wk-toc"><span>이 페이지에서</span><a href="#일지가-안-쌓여요">일지가 안 쌓여요</a><a href="#claude-code-프로세스가-죽었대요">Claude Code 프로세스가 죽었대요</a><a href="#코드-검색이-처음에-느려요">코드 검색이 처음에 느려요</a><a href="#새-대화가-지난-대화-목록에-없어요">새 대화가 지난 대화 목록에 없어요</a><a href="#macos-가-파일-다른-앱-데이터-접근-권한을-물어봐요">macOS 가 파일·다른 앱 데이터 접근 권한을 물어봐요</a><a href="#여기-없는-문제라면">여기 없는 문제라면</a></nav>
+      <p class="wk-updated">마지막 수정 2026-10-29</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#일지가-안-쌓여요">일지가 안 쌓여요</a><a href="#검색-논의-브랜치-스킬-화면이-안-보여요">검색 · 논의 · 브랜치 · 스킬 화면이 안 보여요</a><a href="#업데이트하니-앱-데이터가-줄었어요">업데이트하니 앱 데이터가 줄었어요</a><a href="#macos-가-파일-다른-앱-데이터-접근-권한을-물어봐요">macOS 가 파일·다른 앱 데이터 접근 권한을 물어봐요</a><a href="#여기-없는-문제라면">여기 없는 문제라면</a></nav>
       <h2 id="일지가-안-쌓여요">일지가 안 쌓여요</h2>
 <p>순서대로 확인하세요:</p>
-<ol><li><b>추적 중인 프로젝트인가요?</b> 프로젝트 루트에 <code>.oculpm/</code> 폴더와 <code>AGENTS.md</code> 가 있어야 합니다. 없다면 시작 화면에서 폴더를 다시 불러오세요.</li><li><b>터미널 Claude Code 인가요?</b> AGENTS.md 만으로는 모델이 기록을 잊을 수 있습니다. <a href="/wiki/claude-code">플러그인(훅 브리지)을 설치</a>하면 자동이 됩니다.</li><li><b>규칙이 오래됐나요?</b> 설정 → ocul-pm → 에이전트 탭에서 <b>규칙 다시 보내기</b>로 AGENTS.md 를 최신 규격으로 갱신할 수 있습니다.</li><li><b>다른 에이전트(Cursor 등)인가요?</b> 설정에서 해당 에이전트의 규칙 파일을 켜야 합니다. AGENTS.md 를 읽는 에이전트라면 그대로 동작합니다.</li></ol>
-<h2 id="claude-code-프로세스가-죽었대요">Claude Code 프로세스가 죽었대요</h2>
-<p>드물게 어댑터가 종료되면 배너가 뜹니다 (v2.11). 「다시 연결」을 누르면 어댑터를 다시 띄우고 보던 대화를 그대로 되살립니다.</p>
-<h2 id="코드-검색이-처음에-느려요">코드 검색이 처음에 느려요</h2>
-<p>처음 한 번은 로컬 임베딩 모델을 내려받고 프로젝트를 인덱싱합니다. 이후에는 변경분만 갱신해서 빠릅니다. 전부 로컬 계산이라 코드는 밖으로 나가지 않습니다.</p>
-<h2 id="새-대화가-지난-대화-목록에-없어요">새 대화가 지난 대화 목록에 없어요</h2>
-<p>한 마디도 하지 않은 새 대화는 목록에 실리지 않습니다 — 첫 마디를 보내는 순간 진짜 세션이 만들어지고 목록에 나타납니다.</p>
+<ol><li><b>추적 중인 프로젝트인가요?</b> 프로젝트 루트에 <code>.oculpm/</code> 폴더와 <code>AGENTS.md</code> 가 있어야 합니다. 없다면 설정 → 이 프로젝트에서 「기록 켜기」를 누르세요.</li><li><b>터미널 Claude Code 인가요?</b> AGENTS.md 만으로는 모델이 기록을 잊을 수 있습니다. <a href="/wiki/claude-code">플러그인을 설치</a>하면 자동이 됩니다.</li><li><b>규칙이 오래됐나요?</b> 설정 → 이 프로젝트의 규칙 파일 줄에 새 판이 뜨면 「올리기」로 AGENTS.md 를 최신 규격으로 갱신합니다.</li><li><b>다른 에이전트(Cursor 등)인가요?</b> AGENTS.md 를 읽는 에이전트라면 그대로 동작합니다. 전용 규칙 파일이 필요하면 <code>.oculpm/config.toml</code> 의 <code>[agents] active</code> 에 더합니다 (<a href="/wiki/agents">자세히</a>).</li></ol>
+<h2 id="검색-논의-브랜치-스킬-화면이-안-보여요">검색 · 논의 · 브랜치 · 스킬 화면이 안 보여요</h2>
+<p>4.0 에서 걷었습니다. 앱은 오늘 · 작업 일지 · 계획 · 변경 · 설정 다섯 면입니다.</p>
+<div class="wk-table"><table><thead><tr><th>찾던 것</th><th>4.0 에서는</th></tr></thead><tbody><tr><td>일지 검색</td><td>작업 일지 화면의 <code>/</code></td></tr><tr><td>코드 검색</td><td>에이전트의 grep — 앱의 색인은 걷었습니다</td></tr><tr><td>논의(문제 해결)</td><td>계획의 <code>## 결정</code> 블록. <code>.oculpm/discussion/</code> 파일은 그대로 있습니다</td></tr><tr><td>브랜치의 기록률</td><td>오늘 · 변경 화면의 「기록 없는 변경」</td></tr><tr><td>스킬 · 규칙 관리</td><td>플러그인과 Claude Code 자체</td></tr><tr><td>앱 안 AI · 요약 · 롤업</td><td>터미널의 에이전트에게 (<code>journal_search</code> · <code>journal_read</code>)</td></tr><tr><td>탭 · 메뉴바 트레이</td><td>창 하나 = 프로젝트 하나, ⌘O · ⇧⌘N</td></tr></tbody></table></div>
+<h2 id="업데이트하니-앱-데이터가-줄었어요">업데이트하니 앱 데이터가 줄었어요</h2>
+<p>정상입니다. 4.0 으로 올린 뒤 첫 실행에 3.x 의 코드 색인 · 임베딩 표를 지웁니다. 지우기 전에 앱 데이터 폴더에 <code>ocul-pm.db.bak-v42</code> 사본을 남기고, 지운 자리는 설정 → 데이터 → 「정리해서 돌려받기」가 디스크에 돌려줍니다. 일지 · 계획은 프로젝트의 마크다운이라 영향이 없습니다.</p>
 <h2 id="macos-가-파일-다른-앱-데이터-접근-권한을-물어봐요">macOS 가 파일·다른 앱 데이터 접근 권한을 물어봐요</h2>
 <p>정상입니다. 두 관문을 구분하면 이해가 쉽습니다.</p>
 <ul><li><b>공증(notarization)</b> 은 "이 앱을 <b>실행</b>해도 되는가"를 묻습니다. Ocul-PM 은 Apple Developer ID 로 서명하고 공증까지 마친 빌드라 여기는 그냥 통과합니다.</li><li><b>권한 프롬프트</b>는 "이 앱이 <b>저 데이터</b>를 읽어도 되는가"를 묻는 별개 관문입니다. 공증과 무관하고, 공증했다고 사라지지 않습니다.</li></ul>
 <p>물어보는 경우는 크게 둘입니다.</p>
 <p><b>프로젝트가 데스크탑·문서·다운로드 폴더 안에 있을 때.</b> macOS 가 보호하는 자리라 그 안의 파일을 읽으려면 한 번 승인이 필요합니다.</p>
-<p><b>앱이 띄운 프로그램이 파일을 읽을 때.</b> 외부 편집기 명령이나 새 프로젝트 마법사의 스캐폴드 CLI 처럼 앱이 대신 실행한 프로그램이 보호 폴더를 읽으면, macOS 는 그 접근을 <b>프로그램이 아니라 띄운 앱</b>에 귀속시킵니다. (앱 안 터미널이 있던 2026-10-28 이전 판에서는 터미널 명령 한 줄이 같은 창을 띄웠습니다.)</p>
-<p><b>업데이트한 뒤 다시 물어봤다면</b> 서명이 바뀐 버전에서 한 번 그럽니다. macOS 는 승인 기록을 앱의 코드 서명에 묶어 두기 때문에, 서명 주체가 바뀌면 이전 승인이 무효가 됩니다. 같은 이유로 키체인(API 키)도 한 번 물어봅니다 — "항상 허용"을 누르면 끝입니다.</p>
-<p><b>앱이 먼저 묻지는 않습니다.</b> 설정 → ocul-pm → 연동의 Claude Desktop 칸은 상태를 보려면 Claude Desktop 의 앱 데이터를 읽어야 해서, <b>[Desktop 확인] 을 누를 때만</b> 조회합니다. 누르지 않으면 그 폴더를 건드리지 않습니다.</p>
+<p><b>앱이 띄운 프로그램이 파일을 읽을 때.</b> 외부 편집기 명령처럼 앱이 대신 실행한 프로그램이 보호 폴더를 읽으면, macOS 는 그 접근을 <b>프로그램이 아니라 띄운 앱</b>에 귀속시킵니다.</p>
+<p><b>업데이트한 뒤 다시 물어봤다면</b> 서명이 바뀐 버전에서 한 번 그럽니다. macOS 는 승인 기록을 앱의 코드 서명에 묶어 두기 때문에, 서명 주체가 바뀌면 이전 승인이 무효가 됩니다.</p>
 <p>승인한 내용은 시스템 설정 → 개인정보 보호 및 보안에서 언제든 되돌릴 수 있습니다.</p>
 <h2 id="여기-없는-문제라면">여기 없는 문제라면</h2>
-<p><a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub 이슈</a>로 알려 주세요. 설정 → 진단의 정보를 함께 붙이면 빠르게 잡을 수 있습니다.</p>
+<p><a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub 이슈</a>로 알려 주세요. 설정 → 데이터의 「로그 폴더」 에 있는 <code>oculpm.log</code> 를 함께 붙이면 빠르게 잡을 수 있습니다.</p>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/settings"><span>← 이전</span><b>설정</b></a>
 <a class="wk-pg next" href="/wiki/data"><span>다음 →</span><b>데이터와 파일 구조</b></a></footer>

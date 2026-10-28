@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ocul-PM 위키 — Ocul-PM 위키</title>
-<meta name="description" content="Ocul-PM 사용 설명서 — 시작하기, 화면과 개념, 에이전트 연동, 문제 해결, 데이터 구조, 단축키." />
+<meta name="description" content="Ocul-PM 사용 설명서 — 시작하기, 다섯 면, 에이전트 연동, 문제 해결, 데이터 구조, 단축키." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki" />
@@ -14,7 +14,7 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:title" content="Ocul-PM 위키 — Ocul-PM 위키" />
-<meta property="og:description" content="Ocul-PM 사용 설명서 — 시작하기, 화면과 개념, 에이전트 연동, 문제 해결, 데이터 구조, 단축키." />
+<meta property="og:description" content="Ocul-PM 사용 설명서 — 시작하기, 다섯 면, 에이전트 연동, 문제 해결, 데이터 구조, 단축키." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -44,13 +44,12 @@
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
-    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link" href="/wiki/today">오늘</a>
     <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
-    <a class="wk-side-link" href="/wiki/planner">플래너</a>
-    <a class="wk-side-link" href="/wiki/automation">자동화</a>
+    <a class="wk-side-link" href="/wiki/planner">계획</a>
     <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
     <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
-    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 외부 편집기</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 프로젝트 · 외부 편집기</a>
     <a class="wk-side-link" href="/wiki/settings">설정</a>
     <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
     <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
@@ -64,19 +63,20 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>Ocul-PM 위키</h1>
-      <p class="wk-updated">마지막 수정 2026-08-21</p>
+      <p class="wk-updated">마지막 수정 2026-10-29</p>
       <nav class="wk-toc"><span>이 페이지에서</span><a href="#처음이라면">처음이라면</a><a href="#개념-무엇이-쌓이나">개념 — 무엇이 쌓이나</a><a href="#에이전트-연동">에이전트 연동</a><a href="#굴리는-법">굴리는 법</a><a href="#그-밖에">그 밖에</a></nav>
-      <p>Ocul-PM 을 쓰다 막히는 지점들을 모아 둔 설명서입니다. 짧게 쓰고, 자주 고칩니다. (v2.14 기준)</p>
+      <p>Ocul-PM 을 쓰다 막히는 지점들을 모아 둔 설명서입니다. 짧게 쓰고, 자주 고칩니다. (4.0 기준)</p>
+<p>4.0 의 앱은 다섯 면입니다 — <b>오늘 · 작업 일지 · 계획 · 변경 · 설정</b>, 그리고 프로젝트가 없을 때의 시작 창. 원칙은 하나, <b>예외만 보여 준다</b>: 사람이 볼 것(판정 실패 · 증거 없는 일지 · 기록 없는 변경 · 막힘 · 사람 몫 결정)만 펼치고, 증거가 선 일은 한 줄로 접습니다. 앱은 LLM 을 부르지 않습니다.</p>
 <h2 id="처음이라면">처음이라면</h2>
-<ul><li><b><a href="/wiki/getting-started">시작하기</a></b> — 설치, 프로젝트 추가, 첫 일지가 쌓이기까지</li><li><b><a href="/wiki/faq">자주 묻는 질문</a></b> — 일지는 누가 쓰나, 돈이 드나, git 에 커밋해야 하나, 워크데이가 뭔가</li><li><b><a href="/wiki/screens">화면 둘러보기</a></b> — 사이드바의 화면들이 각각 무엇을 하는지 한 장으로</li></ul>
+<ul><li><b><a href="/wiki/getting-started">시작하기</a></b> — 설치, 기록 켜기, 첫 일지가 쌓이기까지</li><li><b><a href="/wiki/faq">자주 묻는 질문</a></b> — 일지는 누가 쓰나, 돈이 드나, git 에 커밋해야 하나, 워크데이가 뭔가</li><li><b><a href="/wiki/screens">화면 둘러보기</a></b> — 다섯 면이 각각 무엇을 하는지 한 장으로</li></ul>
 <h2 id="개념-무엇이-쌓이나">개념 — 무엇이 쌓이나</h2>
-<ul><li><b><a href="/wiki/today">오늘 현황</a></b> — 앱을 열면 처음 보는 화면. 활동 링, 커밋 그래프, 스탠드업 복사</li><li><b><a href="/wiki/journal">작업 일지</a></b> — 일지가 언제 어떻게 쌓이는지, 변경 diff, 세션, 정직성 감사</li><li><b><a href="/wiki/planner">플래너</a></b> — 에이전트가 스스로 갱신하는 계획 문서. 글리프와 변경 로그</li></ul>
+<ul><li><b><a href="/wiki/today">오늘</a></b> — 앱을 열면 처음 보는 화면. 「확인할 것」과 하루 한 줄</li><li><b><a href="/wiki/journal">작업 일지</a></b> — 일지가 언제 어떻게 쌓이는지, 검증 상자, 일지 검색</li><li><b><a href="/wiki/planner">계획</a></b> — 에이전트가 갱신하는 계획 문서. 완료 조건 · 확인 명령 · 마지막 판정</li></ul>
 <h2 id="에이전트-연동">에이전트 연동</h2>
-<ul><li><b><a href="/wiki/claude-code">Claude Code 연동</a></b> — 플러그인(훅 브리지) 설치, 규칙 파일과 MCP 도구가 하는 일</li><li><b><a href="/wiki/agents">다른 에이전트 연동</a></b> — Cursor·Gemini CLI·Copilot·Windsurf·Cline·Zed·aider·Antigravity, 그리고 스킬·규칙 허브</li></ul>
+<ul><li><b><a href="/wiki/claude-code">Claude Code 연동</a></b> — 플러그인(훅 · MCP 도구 · 커맨드) 설치, 규칙 파일이 하는 일</li><li><b><a href="/wiki/agents">다른 에이전트 연동</a></b> — Codex · Cursor · Gemini CLI · Copilot · Windsurf · Cline · Zed · aider · Antigravity</li></ul>
 <h2 id="굴리는-법">굴리는 법</h2>
-<ul><li><b><a href="/wiki/workspace">창 · 탭 · 외부 편집기</a></b> — 여러 프로젝트를 동시에, 메뉴바 상주, 파일을 여는 외부 편집기</li><li><b><a href="/wiki/settings">설정</a></b> — 테마와 프리셋, 글자 크기, API 키와 폴백, 인덱싱·RAG</li></ul>
+<ul><li><b><a href="/wiki/workspace">창 · 프로젝트 · 외부 편집기</a></b> — 창 하나 = 프로젝트 하나, 파일을 여는 외부 편집기</li><li><b><a href="/wiki/settings">설정</a></b> — 에이전트 연결 · 이 프로젝트 · 표시 · 데이터</li></ul>
 <h2 id="그-밖에">그 밖에</h2>
-<ul><li><b><a href="/wiki/troubleshooting">문제 해결</a></b> — 자주 겪는 불편과 해법 모음</li><li><b><a href="/wiki/data">데이터와 파일 구조</a></b> — <code>.oculpm/</code> 폴더, 백업과 이동, 로컬-우선의 실제 의미</li><li><b><a href="/wiki/shortcuts">단축키</a></b> — 화면 이동, 탭과 창</li></ul>
+<ul><li><b><a href="/wiki/troubleshooting">문제 해결</a></b> — 자주 겪는 불편과 해법 모음</li><li><b><a href="/wiki/data">데이터와 파일 구조</a></b> — <code>.oculpm/</code> 폴더, 백업과 이동, 로컬-우선의 실제 의미</li><li><b><a href="/wiki/shortcuts">단축키</a></b> — 화면 이동, 창, 오늘 화면의 키</li></ul>
 <div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>문서에서 틀린 곳을 찾으셨나요? 왼쪽 아래 "이 문서 고치기"로 소스를 바로 열 수 있고, <a href="https://github.com/bunhine0452/Ocul-PM/issues" target="_blank" rel="noreferrer">GitHub 이슈</a>로 알려 주셔도 됩니다.</p></div></div>
     </article>
     <footer class="wk-pager"><span></span>

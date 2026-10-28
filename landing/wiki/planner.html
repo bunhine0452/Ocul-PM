@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>플래너 — Ocul-PM 위키</title>
-<meta name="description" content="에이전트가 스스로 갱신하는 계획 문서 — 글리프, 항목 id, 변경 로그, 결정, 잠금." />
+<title>계획 — Ocul-PM 위키</title>
+<meta name="description" content="에이전트가 갱신하는 계획 문서 — 완료 조건 · 확인 명령 · 마지막 판정, 글리프, 변경 로그, 결정, 잠금." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/planner" />
@@ -13,8 +13,8 @@
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
-<meta property="og:title" content="플래너 — Ocul-PM 위키" />
-<meta property="og:description" content="에이전트가 스스로 갱신하는 계획 문서 — 글리프, 항목 id, 변경 로그, 결정, 잠금." />
+<meta property="og:title" content="계획 — Ocul-PM 위키" />
+<meta property="og:description" content="에이전트가 갱신하는 계획 문서 — 완료 조건 · 확인 명령 · 마지막 판정, 글리프, 변경 로그, 결정, 잠금." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -44,13 +44,12 @@
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
-    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link" href="/wiki/today">오늘</a>
     <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
-    <a class="wk-side-link on" href="/wiki/planner">플래너</a>
-    <a class="wk-side-link" href="/wiki/automation">자동화</a>
+    <a class="wk-side-link on" href="/wiki/planner">계획</a>
     <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
     <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
-    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 외부 편집기</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 프로젝트 · 외부 편집기</a>
     <a class="wk-side-link" href="/wiki/settings">설정</a>
     <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
     <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
@@ -63,10 +62,10 @@
 
   <main class="wk-main">
     <article class="wk-article">
-      <h1>플래너</h1>
-      <p class="wk-updated">마지막 수정 2026-08-21</p>
-      <nav class="wk-toc"><span>이 페이지에서</span><a href="#계획-한-편의-모양">계획 한 편의 모양</a><a href="#글리프-여섯-개">글리프 여섯 개</a><a href="#변경-로그-누가-언제-왜-바꿨나">변경 로그 — 누가 언제 왜 바꿨나</a><a href="#결정-잠그기">결정 잠그기</a><a href="#상태와-잠금">상태와 잠금</a><a href="#플래너-화면에서-할-수-있는-것">플래너 화면에서 할 수 있는 것</a><a href="#새-계획은-누가-만드나">새 계획은 누가 만드나</a><a href="#다음-걸음">다음 걸음</a></nav>
-      <p>일지가 <i>지나간 일</i>이라면 플래너는 <b>지금의 계획</b>입니다. 다른 점이 하나 있습니다 — 사람이 관리하는 할 일 목록이 아니라, <b>에이전트가 일을 마칠 때마다 스스로 갱신하는 문서</b>입니다.</p>
+      <h1>계획</h1>
+      <p class="wk-updated">마지막 수정 2026-10-29</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#계획-한-편의-모양">계획 한 편의 모양</a><a href="#글리프-여섯-개">글리프 여섯 개</a><a href="#완료-조건-확인-명령-마지막-판정">완료 조건 · 확인 명령 · 마지막 판정</a><a href="#변경-로그-누가-언제-왜-바꿨나">변경 로그 — 누가 언제 왜 바꿨나</a><a href="#결정-잠그기">결정 잠그기</a><a href="#상태와-잠금">상태와 잠금</a><a href="#계획-화면-3">계획 화면(`⌘3`)</a><a href="#새-계획은-누가-만드나">새 계획은 누가 만드나</a><a href="#다음-걸음">다음 걸음</a></nav>
+      <p>일지가 <i>지나간 일</i>이라면 계획은 <b>지금의 계획</b>입니다. 다른 점이 하나 있습니다 — 사람이 관리하는 할 일 목록이 아니라, <b>에이전트가 일을 마칠 때마다 갱신하는 문서</b>입니다(<code>plan_create</code> · <code>plan_update</code>).</p>
 <p>파일은 <code>.oculpm/planner/*.md</code>, 역시 평범한 마크다운입니다.</p>
 <h2 id="계획-한-편의-모양">계획 한 편의 모양</h2>
 <pre class="wk-code"><code>---
@@ -77,6 +76,9 @@ status: active
 owner: claude-code
 ---
 
+**완료 조건:** 세션 없이 쓴 일지도 작성 시각으로 귀속되고, 그다음 오늘 화면이 대화별로 셀 수 있다
+**확인 명령:** `cargo test --test session_verdict`
+
 ## Phase 기반 다지기 {#foundation}
 - [x] 타임스탬프 귀속 함수 {#resolve-by-time}
 - [~] MCP 도구가 라이브 세션을 채택 {#mcp-adopt}
@@ -86,7 +88,15 @@ owner: claude-code
 <ul><li><b>Phase</b> 는 <code>##</code> 헤딩으로 묶는 단계입니다. 글리프가 없습니다 — 진척은 하위 항목에서 자동 계산됩니다</li><li><b>항목</b>은 한 줄, 끝에 <code>{#안정적인-id}</code> 가 붙습니다</li><li><b>중첩은 한 단계까지</b>. 하위가 있는 부모의 글리프는 하위에서 굴러 올라오므로 직접 건드리지 않습니다</li></ul>
 <h2 id="글리프-여섯-개">글리프 여섯 개</h2>
 <div class="wk-table"><table><thead><tr><th>글리프</th><th>뜻</th></tr></thead><tbody><tr><td><code>[ ]</code></td><td>할 일</td></tr><tr><td><code>[~]</code></td><td>진행중</td></tr><tr><td><code>[x]</code></td><td>완료</td></tr><tr><td><code>[!]</code></td><td>막힘</td></tr><tr><td><code>[&gt;]</code></td><td>이월</td></tr><tr><td><code>[-]</code></td><td>폐기</td></tr></tbody></table></div>
-<p><b>지금 상태의 정답은 본문 글리프</b>입니다. 아래의 변경 로그는 이력이고요.</p>
+<p><b>지금 상태의 정답은 본문 글리프</b>입니다. 아래의 변경 로그는 이력이고요. <code>/oculpm:next</code> 는 항목을 잡자마자 <code>[~]</code> 로 먼저 바꿔, 병렬로 도는 다른 세션이 같은 항목을 잡지 않게 합니다.</p>
+<h2 id="완료-조건-확인-명령-마지막-판정">완료 조건 · 확인 명령 · 마지막 판정</h2>
+<p>항목이 다 닫혔다는 것과 목표가 이뤄졌다는 것은 다른 주장입니다. 그래서 계획 머리에 두 줄이 섭니다.</p>
+<ul><li><b>완료 조건</b> — 할 일이 아니라 결과: 무엇이 참이 되면 끝인가, 그다음 무엇이 일어나야 하나</li><li><b>확인 명령</b> — 돌리면 통과/실패가 나오는 명령. 에이전트가 정하지 못하면 그것부터 만듭니다</li></ul>
+<p>확인 명령을 돌린 결과는 변경 로그의 메모 칸에 <b>한 줄</b>로 남깁니다:</p>
+<pre class="wk-code"><code>판정 ✓ 418 passed · exit 0
+판정 ✗ 2 failed, 418 passed
+verdict ✓ …        (영어 템플릿 — 소문자, 공백 하나, 콜론 없음)</code></pre>
+<p>이 줄의 가장 최근 것이 그 계획의 <b>마지막 판정</b>입니다. 플러그인의 시작 훅과 앱의 계획 화면이 <b>같은 규칙</b>(<code>^(판정|verdict) (✓|✗)</code>)으로 읽으므로, 다음 세션의 에이전트와 사람이 같은 판정을 봅니다. 「판정:」 처럼 콜론이 붙은 평범한 메모는 판정이 아닙니다. <b>항목이 다 닫혀도 판정이 통과해야 끝</b>입니다 — 판정이 실패면 오늘 화면 「확인할 것」 맨 위에 섭니다.</p>
 <h2 id="변경-로그-누가-언제-왜-바꿨나">변경 로그 — 누가 언제 왜 바꿨나</h2>
 <p>계획 문서 맨 아래에는 표가 하나 붙습니다. 에이전트는 항목을 옮길 때마다 여기에 <b>한 줄을 덧붙이기만</b> 합니다 (기존 행은 절대 고치지 않습니다):</p>
 <pre class="wk-code"><code>| 시각 | #항목id | 에이전트 | 이전→새 글리프 | 일지 경로 | 짧은 메모 |</code></pre>
@@ -98,21 +108,21 @@ owner: claude-code
 잠금: 2026-08-21 · claude-code
 근거: 디스크 마크다운이 SSOT. 캐시를 정본으로 삼으면 …
 영향: #resolve-by-time, #derive-links</code></pre>
-<p>나중에 "왜 이렇게 했더라" 를 다시 논쟁하지 않기 위한 장치입니다.</p>
+<p>나중에 "왜 이렇게 했더라" 를 다시 논쟁하지 않기 위한 장치입니다. 4.0 에서 논의 화면을 걷은 뒤로 큰 결정과 옵션 비교는 이 블록이 맡습니다.</p>
 <h2 id="상태와-잠금">상태와 잠금</h2>
 <p>계획 문서 자체도 상태를 가집니다.</p>
 <div class="wk-table"><table><thead><tr><th>status</th><th>뜻</th><th>에이전트가 고칠 수 있나</th></tr></thead><tbody><tr><td><code>active</code></td><td>진행 중</td><td>예</td></tr><tr><td><code>done</code></td><td>끝남</td><td><b>아니오</b></td></tr><tr><td><code>archived</code></td><td>보관</td><td><b>아니오</b></td></tr></tbody></table></div>
-<p><code>done</code> 이나 <code>archived</code> 인 계획은 <b>에이전트가 수정하지 않습니다.</b> 끝난 계획이 슬금슬금 되살아나 이력이 흐려지는 것을 막기 위해서고, 이어서 할 일이 생기면 새 계획을 만듭니다. 사이드바에서는 「완료·잠금」으로 표시됩니다.</p>
-<h2 id="플래너-화면에서-할-수-있는-것">플래너 화면에서 할 수 있는 것</h2>
-<ul><li><b>정렬</b> — 최근순 · 진척순 · 남은 일 순 · 이름순</li><li><b>묶기</b> — 상태별 · 최근활동별 · 작성자별</li><li><b>멈춘 계획 표시</b> — <code>12일째 멈춤</code> 처럼, 손 놓은 계획이 눈에 띕니다</li><li><b>검색</b> — 계획 이름으로 좁히기</li></ul>
+<p><code>done</code> 이나 <code>archived</code> 인 계획은 <b>에이전트가 수정하지 않습니다.</b> 끝난 계획이 슬금슬금 되살아나 이력이 흐려지는 것을 막기 위해서고, 이어서 할 일이 생기면 새 계획을 만듭니다. 계획 화면의 레일에서는 「끝난 계획 N」 한 줄로 접힙니다.</p>
+<h2 id="계획-화면-3">계획 화면(<code>⌘3</code>)</h2>
+<ul><li><b>레일</b> — 진행 중 계획마다 진척 막대 · 판정(✓ / ✗ / 없음) · 갱신 시각, 최근 갱신 먼저</li><li><b>판정 카드</b> — 제목 바로 아래 완료 조건 · 확인 명령 · 마지막 판정(결과 끝 줄). 아직 없으면 「아직 안 돌렸어요」</li><li><b>다음</b> — 첫 미완 항목(사람 몫은 건너뜀)과 <b>[프롬프트 복사]</b> · <b>[until-done 으로 복사]</b>. 붙여 넣으면 터미널의 에이전트가 그 항목을 잡고, until-done 이면 판정이 통과할 때까지 이어 갑니다</li><li><b>항목 상태</b> — 상자를 눌러 여섯 상태 중 고릅니다. 검증 일지 없이 완료로 바꾸면 한 번 묻습니다</li><li>「갱신 기록 N줄 · 결정 M」 은 접혀 있습니다</li></ul>
 <h2 id="새-계획은-누가-만드나">새 계획은 누가 만드나</h2>
-<p>보통은 에이전트에게 시키는 게 편합니다 — "이 작업들 계획으로 정리해줘" 라고 하면 규격에 맞는 파일을 만듭니다. 직접 만들어도 됩니다. 위의 머리말 + Phase 헤딩 + 항목 줄 + 빈 로그 블록 순서면 앱이 읽습니다.</p>
+<p>4.0 에서 계획은 <b>에이전트가 씁니다</b> — 앱 화면에서 계획을 만들거나 항목을 더하는 버튼은 없습니다. 새 기능 영역이라면 터미널에서 <code>/oculpm:inception</code> 이 「그다음 무엇이 일어나야 하나」 와 깊이 네 질문을 거쳐, 첫 항목이 지금 빨간 확인 명령인 계획을 <code>plan_create</code> 로 만듭니다. 직접 만들어도 됩니다 — 위의 머리말 + 완료 조건 · 확인 명령 + Phase 헤딩 + 항목 줄 순서면 앱이 읽습니다.</p>
 <div class="wk-callout warn"><span class="wk-callout-tag">주의</span><div><p>항목 줄을 쓸 때 <code>{#id}</code> 는 <b>반드시 줄 끝</b>에 두고 줄바꿈하지 마세요. 둘째 줄로 넘어간 <code>{#id}</code> 는 파서가 읽지 못합니다.</p></div></div>
 <h2 id="다음-걸음">다음 걸음</h2>
-<ul><li>계획과 짝이 되는 기록 → <a href="/wiki/journal">작업 일지</a></li><li>결정 전에 옵션부터 비교하고 싶다면 → <a href="/wiki/screens">화면 둘러보기</a>의 문제 해결</li></ul>
+<ul><li>계획과 짝이 되는 기록 → <a href="/wiki/journal">작업 일지</a></li><li>판정 실패가 어디에 서는지 → <a href="/wiki/today">오늘</a></li></ul>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/journal"><span>← 이전</span><b>작업 일지</b></a>
-<a class="wk-pg next" href="/wiki/automation"><span>다음 →</span><b>자동화</b></a></footer>
+<a class="wk-pg next" href="/wiki/claude-code"><span>다음 →</span><b>Claude Code 연동</b></a></footer>
   </main>
 </div>
 

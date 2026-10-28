@@ -1,41 +1,43 @@
 ---
-title: Getting Started
-desc: From installing Ocul-PM to your first work journal entry — about five minutes of setup.
+title: Getting started
+desc: From installing Ocul-PM to your first work-journal entry — five minutes of setup.
 order: 1
-updated: 2026-08-21
+updated: 2026-10-29
 ---
 
 ## Install
 
-1. Grab the `.dmg` from [GitHub Releases](https://github.com/bunhine0452/Ocul-PM/releases/latest) and drop it in Applications. macOS (Apple Silicon) only.
-2. Builds are signed with an Apple Developer ID and notarized, so the app **opens without a warning** (since v2.45.0 — no `xattr` quarantine workaround). If macOS shows the usual "downloaded from the internet" confirmation once, click **Open**.
-3. After that the app updates itself (Settings → Updates also has a manual check).
+1. Grab the file for your OS from [GitHub Releases](https://github.com/bunhine0452/Ocul-PM/releases/latest) — the macOS (Apple Silicon) `.dmg`, or the Windows x64 · Linux x64 beta.
+2. The macOS build is signed with an Apple Developer ID and notarized, so it **opens without warnings**. If the one-time "downloaded from the internet" prompt appears, click Open.
+3. Later versions update from inside the app (Settings → Data → "Check for updates" checks by hand).
 
-There's no account to create — open the app and you're at the start screen.
+No account to create — the app opens straight into the **start window**.
 
-## Add a project and start tracking
+## Pick a folder and turn recording on
 
-On the start screen, **Open an existing folder** and pick a folder with code in it. Tracking starts immediately, and two things appear inside the project:
+The start window shows recent projects and, the first time, three steps: **pick a folder → turn recording on → copy the plugin install command.** Turning recording on creates two things in the project:
 
-- `.oculpm/` — where journal entries, plans, and discussions accumulate (all markdown)
-- `AGENTS.md` — the journaling rules that tell agents "write an entry when you finish a unit of work"
+- `.oculpm/` — the folder where entries and plans accumulate (all markdown)
+- `AGENTS.md` — the recording rules that tell your agent "write an entry when you finish · the verdict comes from something that isn't you"
+
+Pick a project in the start window and **that window becomes the project** (one window = one project).
 
 :::note
-`AGENTS.md` is a file most agents read natively — Claude Code, Codex CLI, Gemini CLI, and others. When an agent works in a project that has one, it starts leaving entries with no further setup.
+`AGENTS.md` is read natively by most agents — Claude Code, Codex, Gemini CLI and more. In a project that has it, an agent starts writing entries with no extra setup.
 :::
 
-## See your first entry
+## Check the first entry
 
-Give the agent in your terminal any task. When it finishes:
+Ask your agent in the terminal to do anything. Within seconds of it finishing:
 
-- a new entry shows up in **Work Journal** (`⌘2`)
-- it lands in the flow on **Today** (`⌘1`)
-- and you can read the change line by line in **Changes** (`⌘5`)
+- a new entry appears in **Work Journal** (⌘2)
+- it shows up under "Done today" on **Today** (⌘1) — and if its verification section has no command evidence, it lands in "To check"
+- **Diff** (⌘4) shows that change line by line
 
-Nothing showing up? Start with the first item in [Troubleshooting](/wiki/en/troubleshooting).
+If no entry appears, see the first item in [Troubleshooting](/wiki/en/troubleshooting).
 
 ## Next steps
 
-- Mostly use Claude Code in a terminal? → install the plugin (hook bridge) from [Claude Code](/wiki/en/claude-code). Journaling goes from "whatever the model remembers to do" to automatic.
-- Curious where and how data is stored? → [Data & File Layout](/wiki/en/data)
-- Want the lay of the land first? → [Screen Tour](/wiki/en/screens)
+- Mostly terminal Claude Code? → install the plugin from [Claude Code](/wiki/en/claude-code). Recording goes from "if the model remembers" to automatic, and the next conversation inherits the plan and its last verdict.
+- Starting a new feature area? → run `/oculpm:inception` in the terminal — it builds a plan whose first item is a check command that is red right now.
+- Curious where data lives? → [Data & file layout](/wiki/en/data)

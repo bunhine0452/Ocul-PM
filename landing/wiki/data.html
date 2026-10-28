@@ -44,13 +44,12 @@
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
-    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link" href="/wiki/today">오늘</a>
     <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
-    <a class="wk-side-link" href="/wiki/planner">플래너</a>
-    <a class="wk-side-link" href="/wiki/automation">자동화</a>
+    <a class="wk-side-link" href="/wiki/planner">계획</a>
     <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
     <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
-    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 외부 편집기</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 프로젝트 · 외부 편집기</a>
     <a class="wk-side-link" href="/wiki/settings">설정</a>
     <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
     <a class="wk-side-link on" href="/wiki/data">데이터와 파일 구조</a>
@@ -64,10 +63,10 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>데이터와 파일 구조</h1>
-      <p class="wk-updated">마지막 수정 2026-10-24</p>
+      <p class="wk-updated">마지막 수정 2026-10-29</p>
       <nav class="wk-toc"><span>이 페이지에서</span><a href="#원칙-파일이-진실입니다">원칙 — 파일이 진실입니다</a><a href="#oculpm-구조">`.oculpm/` 구조</a><a href="#백업과-이동">백업과 이동</a><a href="#무엇이-어디에-있나">무엇이 어디에 있나</a><a href="#밖으로-나가는-것">밖으로 나가는 것</a></nav>
       <h2 id="원칙-파일이-진실입니다">원칙 — 파일이 진실입니다</h2>
-<p>Ocul-PM 의 모든 기록은 <b>프로젝트 안의 마크다운 파일</b>입니다. 앱의 데이터베이스(SQLite)는 화면을 빠르게 그리기 위한 <b>캐시</b>일 뿐이고, 언제든 파일에서 다시 만들어집니다. 그래서:</p>
+<p>Ocul-PM 의 모든 기록은 <b>프로젝트 안의 마크다운 파일</b>입니다. 앱의 데이터베이스(SQLite)는 화면을 빠르게 그리기 위한 <b>캐시</b>일 뿐이고, 언제든 파일에서 다시 만들어집니다(설정 → 데이터 → 「처음부터 다시 만들기」). 그래서:</p>
 <ul><li>앱을 지워도 기록은 남습니다</li><li>기록을 git 에 커밋해 팀과 나눌 수도 있습니다</li><li>에디터로 직접 읽고 고칠 수 있습니다 (평범한 마크다운입니다)</li></ul>
 <h2 id="oculpm-구조"><code>.oculpm/</code> 구조</h2>
 <pre class="wk-code"><code>.oculpm/
@@ -76,17 +75,18 @@
 │     ├─ Features_to_add/
 │     ├─ Bugs/
 │     └─ …
-├─ planner/      살아있는 계획 문서 .md
-├─ discussion/   결정 전 토의 문서 .md
-├─ agents/       에이전트 기록 규칙의 마스터 템플릿
+├─ planner/      살아있는 계획 문서 .md (완료 조건 · 확인 명령 · 판정 로그)
+├─ agents/       에이전트 기록 규칙의 마스터와 일지 규격(journal-spec.md)
 └─ index/        앱이 관리하는 캐시 (직접 수정 금지)</code></pre>
+<p>3.x 가 만든 <code>discussion/</code> · <code>rollups/</code> · <code>automation/</code> 폴더는 4.0 의 앱이 더 읽지 않지만 <b>지우지도 않습니다</b> — 여러분의 파일입니다.</p>
 <div class="wk-callout warn"><span class="wk-callout-tag">주의</span><div><p><code>index/</code> 만은 앱이 관리합니다 — 직접 고치거나 지우지 마세요. 나머지는 전부 여러분의 파일입니다.</p></div></div>
 <h2 id="백업과-이동">백업과 이동</h2>
 <p>폴더를 복사하면 끝입니다. <code>.oculpm/</code> 를 통째로 다른 컴퓨터의 같은 프로젝트에 옮기면 앱이 읽어서 캐시를 다시 만듭니다. git 에 포함해 두는 것이 가장 간단한 백업입니다.</p>
 <h2 id="무엇이-어디에-있나">무엇이 어디에 있나</h2>
-<div class="wk-table"><table><thead><tr><th>데이터</th><th>위치</th><th>성격</th></tr></thead><tbody><tr><td>일지·계획·토의</td><td>프로젝트 <code>.oculpm/</code></td><td>원본 (마크다운)</td></tr><tr><td>AGENTS.md 기록 규칙</td><td>프로젝트 루트</td><td>원본</td></tr><tr><td>화면용 캐시·검색 인덱스</td><td>앱 데이터 폴더 (SQLite)</td><td>파생 — 재생성 가능</td></tr><tr><td>LLM API 키</td><td>macOS 키체인</td><td>앱 DB·파일에 저장하지 않음</td></tr><tr><td>앱 설정</td><td>앱 데이터 폴더</td><td>—</td></tr></tbody></table></div>
+<div class="wk-table"><table><thead><tr><th>데이터</th><th>위치</th><th>성격</th></tr></thead><tbody><tr><td>일지 · 계획</td><td>프로젝트 <code>.oculpm/</code></td><td>원본 (마크다운)</td></tr><tr><td>AGENTS.md 기록 규칙</td><td>프로젝트 루트</td><td>원본</td></tr><tr><td>화면용 캐시 · diff 기준선</td><td>앱 데이터 폴더 (SQLite)</td><td>파생 — 재생성 가능</td></tr><tr><td>앱 설정</td><td>앱 데이터 폴더</td><td>—</td></tr></tbody></table></div>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>4.0 으로 올린 뒤 첫 실행에 3.x 의 코드 색인 · 임베딩 표를 지웁니다(한 설치본에서 DB 837MB 중 358MB). 지우기 전에 <code>ocul-pm.db.bak-v42</code> 사본을 남기고, 지운 자리는 설정 → 데이터 → 「정리해서 돌려받기」가 디스크에 돌려줍니다.</p></div></div>
 <h2 id="밖으로-나가는-것">밖으로 나가는 것</h2>
-<p>넷뿐이고 전부 여러분이 시작합니다: ① 직접 설정한 LLM API 호출, ② 새 버전 확인(업데이트 체크), ③ 눌렀을 때의 GitHub 조회 — 패치노트·플러그인/스킬 번들, ④ 의미 검색을 처음 켤 때 huggingface.co 에서 받는 임베딩 모델 <b>한 번</b> (모델이 내려오는 것이고 코드는 올라가지 않으며 그 뒤로는 전부 오프라인). 그 외 텔레메트리·분석·계정 서버는 없습니다.</p>
+<p>둘뿐이고 둘 다 여러분이 시작합니다: ① 새 버전 확인(업데이트 체크 — 목적지는 앱 설정에 고정, 서명 검증), ② 여러분이 누른 링크(OS 의 기본 브라우저가 엽니다). <b>앱은 LLM 을 부르지 않고</b>, 화면(웹뷰)은 바깥 호스트에 닿지 않으며, API 키를 받지 않습니다. 텔레메트리 · 분석 · 계정 서버는 없습니다. 전체 원장은 <a href="/privacy">개인정보</a> 페이지에.</p>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/troubleshooting"><span>← 이전</span><b>문제 해결</b></a>
 <a class="wk-pg next" href="/wiki/shortcuts"><span>다음 →</span><b>단축키</b></a></footer>

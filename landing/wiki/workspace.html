@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>창 · 탭 · 외부 편집기 — Ocul-PM 위키</title>
-<meta name="description" content="여러 프로젝트를 동시에 굴리는 법, 메뉴바 상주, 파일을 여는 외부 편집기 연결." />
+<title>창 · 프로젝트 · 외부 편집기 — Ocul-PM 위키</title>
+<meta name="description" content="창 하나 = 프로젝트 하나 — 여러 프로젝트를 오가는 법과 파일을 여는 외부 편집기." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/workspace" />
@@ -13,8 +13,8 @@
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
-<meta property="og:title" content="창 · 탭 · 외부 편집기 — Ocul-PM 위키" />
-<meta property="og:description" content="여러 프로젝트를 동시에 굴리는 법, 메뉴바 상주, 파일을 여는 외부 편집기 연결." />
+<meta property="og:title" content="창 · 프로젝트 · 외부 편집기 — Ocul-PM 위키" />
+<meta property="og:description" content="창 하나 = 프로젝트 하나 — 여러 프로젝트를 오가는 법과 파일을 여는 외부 편집기." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -44,13 +44,12 @@
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
-    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link" href="/wiki/today">오늘</a>
     <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
-    <a class="wk-side-link" href="/wiki/planner">플래너</a>
-    <a class="wk-side-link" href="/wiki/automation">자동화</a>
+    <a class="wk-side-link" href="/wiki/planner">계획</a>
     <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
     <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
-    <a class="wk-side-link on" href="/wiki/workspace">창 · 탭 · 외부 편집기</a>
+    <a class="wk-side-link on" href="/wiki/workspace">창 · 프로젝트 · 외부 편집기</a>
     <a class="wk-side-link" href="/wiki/settings">설정</a>
     <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
     <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
@@ -63,29 +62,23 @@
 
   <main class="wk-main">
     <article class="wk-article">
-      <h1>창 · 탭 · 외부 편집기</h1>
-      <p class="wk-updated">마지막 수정 2026-10-28</p>
-      <nav class="wk-toc"><span>이 페이지에서</span><a href="#탭과-창">탭과 창</a><a href="#메뉴바에-상주하기">메뉴바에 상주하기</a><a href="#파일-여는-법-외부-편집기">파일 여는 법 — 외부 편집기</a><a href="#다음-걸음">다음 걸음</a></nav>
+      <h1>창 · 프로젝트 · 외부 편집기</h1>
+      <p class="wk-updated">마지막 수정 2026-10-29</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#창-하나-프로젝트-하나">창 하나 = 프로젝트 하나</a><a href="#파일-여는-법-외부-편집기">파일 여는 법 — 외부 편집기</a><a href="#다음-걸음">다음 걸음</a></nav>
       <p>화면이 <i>무엇을 보여주는가</i>는 <a href="/wiki/screens">화면 둘러보기</a>에 있습니다. 이 문서는 그 화면들을 <b>어떻게 늘어놓고 굴리는가</b>입니다.</p>
-<h2 id="탭과-창">탭과 창</h2>
-<p>프로젝트마다 탭을 엽니다. 브라우저와 같은 감각입니다.</p>
-<div class="wk-table"><table><thead><tr><th>키</th><th>동작</th></tr></thead><tbody><tr><td><code>⌘T</code></td><td>새 프로젝트 탭</td></tr><tr><td><code>⌘W</code></td><td>탭 닫기</td></tr><tr><td><code>⇧⌘N</code></td><td>새 창</td></tr><tr><td><code>⌘P</code></td><td>프로젝트 전환 (사이드바 팝오버)</td></tr></tbody></table></div>
-<ul><li><b>탭마다 상태가 따로입니다</b> — A 프로젝트에서 일지를 보고 B 에서 플래너를 열어 둬도 서로 간섭하지 않습니다</li><li><b>아직 안 열어 본 탭은 지연 로드됩니다</b> — 창을 열자마자 프로젝트 N 개가 한꺼번에 초기화되지 않습니다</li></ul>
-<div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>창을 여러 개 띄우면 모니터에 프로젝트를 나란히 놓을 수 있습니다. 창끼리도 독립이라 한쪽에서 무거운 인덱싱이 돌아도 다른 창은 멀쩡합니다.</p></div></div>
-<h2 id="메뉴바에-상주하기">메뉴바에 상주하기</h2>
-<p>설정 → 모양 → 메뉴바에서 켭니다.</p>
-<ul><li><b>메뉴바 아이콘 표시</b> — 상단바에 상태 아이콘이 뜨고, 에이전트 세션이 살아 있는 동안 움직입니다. 클릭하면 오늘 현황 팝오버</li><li><b>창 닫기 = 메뉴바로 최소화</b> — 창을 닫아도 앱이 살아남아 세션 감지·기록을 계속합니다. 종료는 트레이 우클릭 → 종료</li><li><b>상주 중 Dock 아이콘 숨김</b> — 최소화된 동안 Dock 에서도 사라집니다</li><li><b>새 일지 알림</b> — 에이전트가 일지를 남기면 macOS 알림. 백필 등으로 몰릴 땐 10초에 3건까지만</li></ul>
-<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>관측이 계속되려면 앱이 살아 있어야 합니다. 「메뉴바로 최소화」는 창을 치우면서도 관측은 유지하는 절충안입니다.</p></div></div>
+<h2 id="창-하나-프로젝트-하나">창 하나 = 프로젝트 하나</h2>
+<p>4.0 부터 창 하나가 프로젝트 하나입니다. 3.x 의 크롬식 탭 · 떼어내기 · 메뉴바 트레이는 걷었고, 프로젝트 사이는 OS 의 창 전환(⌘` · Mission Control)으로 오갑니다.</p>
+<div class="wk-table"><table><thead><tr><th>키</th><th>동작</th></tr></thead><tbody><tr><td><code>⌘O</code></td><td>최근 프로젝트 — 고르면 그 프로젝트의 창이 열리고, 이미 열려 있으면 그 창이 앞으로 옵니다</td></tr><tr><td><code>⇧⌘N</code></td><td>새 창 — 프로젝트가 없는 <b>시작 창</b></td></tr><tr><td><code>⌘W</code></td><td>창 닫기</td></tr></tbody></table></div>
+<ul><li>시작 창에서 프로젝트를 고르면 <b>그 창이 곧 그 프로젝트</b>가 됩니다</li><li>창 제목이 프로젝트 이름이라 창 전환기에서 구분됩니다</li><li>프로젝트마다 화면 · 필터 · 사이드바 상태를 따로 기억합니다</li><li><b>macOS 는 마지막 창을 닫아도 앱이 살아 있고</b>, 독 아이콘을 누르면 다시 엽니다. Windows · Linux 는 마지막 창을 닫으면 종료합니다</li><li>업데이트로 재시작하면 창마다 열려 있던 프로젝트가 그대로 돌아옵니다</li></ul>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>관측(일지 · 변경 감시)은 앱이 살아 있는 동안 계속됩니다. 창을 다 닫아도 macOS 에서는 앱이 남아 있으니 감시가 이어집니다.</p></div></div>
 <h2 id="파일-여는-법-외부-편집기">파일 여는 법 — 외부 편집기</h2>
-<p>앱 안 편집기와 터미널은 2026-10-28 에 걷었습니다. 검색 결과 · 브랜치 화면의 「파일 열기」는 평소 쓰는 편집기로 넘깁니다.</p>
-<h3 id="외부-편집기-연결">외부 편집기 연결</h3>
-<p>설정 → 모양 → 외부 편집기에서 명령 템플릿을 정합니다. <code>%path</code> 가 절대 경로로, <code>%line</code> 이 줄 번호로 치환됩니다.</p>
-<pre class="wk-code"><code>code "%path"          VS Code
+<p>앱 안 편집기와 터미널은 2026-10-28 에 걷었습니다. 변경 화면 · 일지 상세의 「열기」는 평소 쓰는 편집기로 넘깁니다. 명령 템플릿의 <code>%path</code> 가 절대 경로로, <code>%line</code> 이 줄 번호로 치환됩니다 — 기본값은 VS Code 입니다.</p>
+<pre class="wk-code"><code>code "%path"          VS Code (기본값)
 cursor "%path"        Cursor
 subl "%path"          Sublime Text</code></pre>
-<div class="wk-callout warn"><span class="wk-callout-tag">주의</span><div><p>macOS GUI 앱은 셸의 <code>PATH</code> 를 물려받지 않습니다. <code>code</code> 만 적었는데 안 열린다면 절대 경로로 적으세요 — 예: <code>/usr/local/bin/code "%path"</code>.</p></div></div>
+<div class="wk-callout warn"><span class="wk-callout-tag">주의</span><div><p>macOS GUI 앱은 셸의 <code>PATH</code> 를 물려받지 않습니다. <code>code</code> 가 안 열린다면 절대 경로가 필요합니다 — 예: <code>/usr/local/bin/code "%path"</code>.</p></div></div>
 <h2 id="다음-걸음">다음 걸음</h2>
-<ul><li>테마·글자 크기·API 키·인덱싱 설정 → <a href="/wiki/settings">설정</a></li><li>단축키 전체 → <a href="/wiki/shortcuts">단축키</a></li></ul>
+<ul><li>표시 · 데이터 설정 → <a href="/wiki/settings">설정</a></li><li>단축키 전체 → <a href="/wiki/shortcuts">단축키</a></li></ul>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/agents"><span>← 이전</span><b>다른 에이전트 연동</b></a>
 <a class="wk-pg next" href="/wiki/settings"><span>다음 →</span><b>설정</b></a></footer>

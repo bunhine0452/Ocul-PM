@@ -1,8 +1,8 @@
 ---
 title: Work Journal
-desc: When and how entries accumulate, the file layout, change diffs, sessions, and the honesty audit.
+desc: When and how entries accumulate, the file layout, the verification box and change diffs, journal search, and unrecorded changes.
 order: 5
-updated: 2026-08-21
+updated: 2026-10-29
 ---
 
 The work journal is why this app exists. It records what an agent did and why, as **markdown a human reads**. Longer than a commit message, shorter than meeting minutes.
@@ -68,12 +68,20 @@ tags: [dogfooding]
 - **Body headings are fixed per type**: bug and error use root cause → fix; refactor uses motivation → summary of changes; feature uses what was added → how it flows. All of them end with a required **Verification** section.
 
 :::tip
-Verification is mandatory for one reason — the credibility gap between "I fixed it" and "I fixed it and here's how I checked." It gives whoever reads the entry later, human or agent, a thread to re-verify.
+Verification is mandatory for one reason — the credibility gap between "I fixed it" and "I fixed it and here's how I checked." The verdict is not the agent's word but **the command that ran and its last line of output**.
 :::
+
+## The Work Journal screen
+
+On the left, one row per entry under date headers (type dot · title · evidence chip · time/agent/file count); on the right, the selected entry's detail. The toolbar shows "N · of M total", filters (all · bugs · features · refactors · chores · no evidence) and a search box.
+
+- **Verification box** — pulls the command that ran and its last result line out of the Verification section. With no command evidence it shows a warning chip and calls the entry a claim; when a human has read it and agrees, press **Checked**
+- **Journal search** (`/`) — titles · files · tags · body, grouped by date. 4.0 removed the Search screen; journal search lives here
+- Keys listen only inside the screen — `j`/`k` move · `Enter` open · `/` search
 
 ## Change diff — what actually changed at the time
 
-Every entry **keeps the git diff from that moment**. Open an entry in the Work Journal screen and you get narrative on the left, changed files and line-level diff on the right.
+Every entry **keeps the git diff from that moment**. In an entry's detail, each recorded file's line-level diff unfolds inline.
 
 However many times that file changes later, **the diff attached to the entry stays as it was**. Changes spread across several commits are gathered into one entry.
 
@@ -87,26 +95,26 @@ The app watches file changes and **opens a session** when an agent starts workin
 
 Entries are grouped by which session produced them. Even when an agent can't know the session number (writing the file directly from a terminal, say), the app **attributes it by write time**, so there's nothing for you to manage.
 
-## Honesty audit
+## Unrecorded changes
 
-A card that occasionally appears near the bottom of **Today** (`⌘1`). It reconciles the file changes the app observed against `files_touched` in entries and shows **changes no entry anywhere records**.
+The app reconciles the file changes it observed against `files_touched` in entries and points at **changes no entry anywhere records** — in Today's "To check", and as the "Unrecorded" group at the top of Diff (`⌘4`).
 
-- If everything changed today is recorded somewhere, **the card doesn't appear at all** — no noise on clean days
+- If everything changed today is recorded somewhere, **nothing shows** — no noise on clean days
 - Temp files, editor artifacts, and agent internal state are never counted
-- 80%+ coverage reads **Minor**, 50%+ **Warning**, below that **Critical**
+- On Diff, **[Copy record request]** turns that file list into text to paste to your agent, and **[Record it myself]** opens the composer pre-filled with those files
 
-If this card shows up often, [installing the plugin (hook bridge)](/wiki/en/claude-code) is the surest fix. Recording moves from "as much as the model remembers the rules" to "structurally, when the session ends."
+If this shows up often, [installing the plugin](/wiki/en/claude-code) is the surest fix. Recording moves from "as much as the model remembers the rules" to "structurally, when the session ends."
 
 ## Working with entries
 
-- **Verified** — entries a human read and confirmed can be filtered with the Verified toggle
+- **Checked** — a human's check mark is stored with a fingerprint of the body at that moment; if an agent edits the body later, it stops counting as checked
 - **Edit directly** — it's plain markdown; save and the app re-reads it
 
 :::warn
-`.oculpm/index/` is an app-managed cache — don't edit it. Everything else (`journal/`, `planner/`, `discussion/`) is yours.
+`.oculpm/index/` is an app-managed cache — don't edit it. Everything else (`journal/`, `planner/`, the `discussion/` 3.x created …) is yours, and the app never deletes it.
 :::
 
 ## Next steps
 
-- How the planning side works → [Planner](/wiki/en/planner)
+- How the planning side works → [Plan](/wiki/en/planner)
 - Nothing being recorded → [Troubleshooting](/wiki/en/troubleshooting)

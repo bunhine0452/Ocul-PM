@@ -1,40 +1,42 @@
 ---
 title: Ocul-PM Wiki
-desc: Ocul-PM user guide — getting started, screens and concepts, agent integration, troubleshooting, data layout, shortcuts.
+desc: The Ocul-PM manual — getting started, the five surfaces, agent integration, troubleshooting, data layout and shortcuts.
 order: 0
-updated: 2026-08-21
+updated: 2026-10-29
 ---
 
-The manual for the places people get stuck. Short, and updated often. (As of v2.14)
+The places people get stuck with Ocul-PM, collected in one manual. Kept short, updated often. (As of 4.0.)
 
-## Start here
+The 4.0 app has five surfaces — **Today · Work Journal · Plan · Diff · Settings** — plus a start window when no project is open. One principle: **show only the exceptions.** It unfolds only what a person must see (failed verdicts · entries without evidence · unrecorded changes · blocked items · decisions that are yours) and folds work with evidence into one line. The app calls no LLM.
 
-- **[Getting Started](/wiki/en/getting-started)** — install, add a project, and see your first journal entry
-- **[FAQ](/wiki/en/faq)** — who writes the entries, does it cost money, should I commit `.oculpm/`, what is a workday
-- **[Screen Tour](/wiki/en/screens)** — what every screen in the sidebar is for, on one page
+## New here
+
+- **[Getting started](/wiki/en/getting-started)** — install, turn recording on, first journal entry
+- **[FAQ](/wiki/en/faq)** — who writes the journal, does it cost money, should I commit it, what's a workday
+- **[Screens tour](/wiki/en/screens)** — what each of the five surfaces does, on one page
 
 ## Concepts — what accumulates
 
-- **[Today](/wiki/en/today)** — the screen you land on. Activity rings, commit graph, standup copy
-- **[Work Journal](/wiki/en/journal)** — how entries pile up, change diffs, sessions, the honesty audit
-- **[Planner](/wiki/en/planner)** — a plan document agents keep current. Glyphs and the change log
+- **[Today](/wiki/en/today)** — the first screen you see. "To check" and one line a day
+- **[Work Journal](/wiki/en/journal)** — when and how entries pile up, the verification box, journal search
+- **[Plan](/wiki/en/planner)** — plan documents your agents update. Done condition · check command · last verdict
 
 ## Agent integration
 
-- **[Claude Code](/wiki/en/claude-code)** — installing the plugin (hook bridge), what the rules file and the MCP tools do
-- **[Other Agents](/wiki/en/agents)** — Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — plus the Skills & Rules hub
+- **[Claude Code](/wiki/en/claude-code)** — install the plugin (hooks · MCP tools · commands) and what the rules file does
+- **[Other agents](/wiki/en/agents)** — Codex · Cursor · Gemini CLI · Copilot · Windsurf · Cline · Zed · aider · Antigravity
 
 ## Running it
 
-- **[Windows, Tabs, External Editor](/wiki/en/workspace)** — several projects at once, the menu bar, opening files in your own editor
-- **[Settings](/wiki/en/settings)** — themes and presets, text size, API keys and fallbacks, indexing and RAG
+- **[Windows · projects · external editor](/wiki/en/workspace)** — one window = one project, and the editor files open in
+- **[Settings](/wiki/en/settings)** — agent connections · this project · display · data
 
 ## Everything else
 
-- **[Troubleshooting](/wiki/en/troubleshooting)** — common friction and how to clear it
-- **[Data & File Layout](/wiki/en/data)** — the `.oculpm/` folder, backup and moving, what local-first actually means
-- **[Shortcuts](/wiki/en/shortcuts)** — navigation, tabs and windows
+- **[Troubleshooting](/wiki/en/troubleshooting)** — common snags and their fixes
+- **[Data & file layout](/wiki/en/data)** — the `.oculpm/` folder, backup and moving, what local-first actually means
+- **[Shortcuts](/wiki/en/shortcuts)** — screens, windows, keys on Today
 
 :::note
-Found something wrong? "Edit this page" in the lower left opens the source, or tell us in a [GitHub issue](https://github.com/bunhine0452/Ocul-PM/issues).
+Found something wrong? "Edit this page" at the bottom left opens the source directly, or tell us in a [GitHub issue](https://github.com/bunhine0452/Ocul-PM/issues).
 :::

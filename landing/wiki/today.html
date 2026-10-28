@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>오늘 현황 — Ocul-PM 위키</title>
-<meta name="description" content="앱을 열면 처음 보는 화면 — 활동 링, 커밋 그래프, 에이전트 기여, 정직성 감사, 스탠드업 복사." />
+<title>오늘 — Ocul-PM 위키</title>
+<meta name="description" content="앱을 열면 처음 보는 화면 — 하루 한 줄, 「확인할 것」, 계획별로 접히는 「오늘 한 일」." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/today" />
@@ -13,8 +13,8 @@
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
-<meta property="og:title" content="오늘 현황 — Ocul-PM 위키" />
-<meta property="og:description" content="앱을 열면 처음 보는 화면 — 활동 링, 커밋 그래프, 에이전트 기여, 정직성 감사, 스탠드업 복사." />
+<meta property="og:title" content="오늘 — Ocul-PM 위키" />
+<meta property="og:description" content="앱을 열면 처음 보는 화면 — 하루 한 줄, 「확인할 것」, 계획별로 접히는 「오늘 한 일」." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -44,13 +44,12 @@
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
-    <a class="wk-side-link on" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link on" href="/wiki/today">오늘</a>
     <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
-    <a class="wk-side-link" href="/wiki/planner">플래너</a>
-    <a class="wk-side-link" href="/wiki/automation">자동화</a>
+    <a class="wk-side-link" href="/wiki/planner">계획</a>
     <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
     <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
-    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 외부 편집기</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 프로젝트 · 외부 편집기</a>
     <a class="wk-side-link" href="/wiki/settings">설정</a>
     <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
     <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
@@ -63,43 +62,24 @@
 
   <main class="wk-main">
     <article class="wk-article">
-      <h1>오늘 현황</h1>
-      <p class="wk-updated">마지막 수정 2026-08-21</p>
-      <nav class="wk-toc"><span>이 페이지에서</span><a href="#활동-링">활동 링</a><a href="#모니터">모니터</a><a href="#이번-주-작업량">이번 주 작업량</a><a href="#커밋-그래프">커밋 그래프</a><a href="#에이전트별-기여">에이전트별 기여</a><a href="#다음-할-일-계획-업데이트-결정-대기">다음 할 일 · 계획 업데이트 · 결정 대기</a><a href="#기록이-새는-곳-카드-둘">기록이 새는 곳 — 카드 둘</a><a href="#스탠드업-복사">스탠드업 복사</a><a href="#코드-검색-바">코드 검색 바</a><a href="#다음-걸음">다음 걸음</a></nav>
-      <p><code>⌘1</code> 은 앱을 열면 처음 보는 화면입니다. <b>오늘 무슨 일이 있었는지</b>를 한 장에 모읍니다 — 여러분이 직접 기록하지 않아도 채워집니다.</p>
-<h2 id="활동-링">활동 링</h2>
-<p>가운데의 동심원 세 겹입니다.</p>
-<div class="wk-table"><table><thead><tr><th>링</th><th>세는 것</th></tr></thead><tbody><tr><td><b>작업일지</b></td><td>오늘 남은 기록 수</td></tr><tr><td><b>변경된 파일</b></td><td>앱이 관측한 서로 다른 파일 수</td></tr><tr><td><b>라인 변화</b></td><td>늘어난 줄 / 줄어든 줄</td></tr></tbody></table></div>
-<p>에러 사이클이 있었다면 함께 표시됩니다 — 오늘 몇 번 벽에 부딪혔는지입니다.</p>
-<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>「라인 변화」는 일지 머리말이 아니라 <b>일지에 붙은 변경 diff</b> 에서 계산합니다. 에이전트가 직접 숫자를 적어 주기를 기대하지 않는다는 뜻입니다.</p></div></div>
-<h2 id="모니터">모니터</h2>
-<p>링 옆의 작은 숫자들입니다. 링이 <i>결과</i>라면 이쪽은 <i>상태</i>입니다.</p>
-<ul><li><b>활동 시간 · N개 세션</b> — 오늘 에이전트가 실제로 일한 시간</li><li><b>전체 작업 일지</b> — 이 프로젝트 누적</li><li><b>오늘 커밋</b> / <b>미커밋 변경</b> — 커밋 대기 중인지, 모두 커밋됐는지</li></ul>
-<h2 id="이번-주-작업량">이번 주 작업량</h2>
-<p>7일치 막대입니다. 오늘 하루만 보면 알 수 없는 리듬 — 몰아치는 날과 비는 날 — 이 보입니다.</p>
-<h2 id="커밋-그래프">커밋 그래프</h2>
-<p>오늘의 커밋을 레인으로 그립니다. 커밋을 누르면 <b>GitHub 에서 그 커밋이 열립니다.</b></p>
-<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>git 저장소가 아니면 이 카드가 안내로 바뀝니다 (루트나 하위 폴더에 저장소가 있어야 합니다). GitHub 원격이 없으면 그래프는 그려지지만 브라우저로 열지는 못합니다.</p></div></div>
-<h2 id="에이전트별-기여">에이전트별 기여</h2>
-<p>여러 에이전트를 섞어 쓸 때 누가 무엇을 했는지 나눠 보여 줍니다. 하나만 쓴다면 별 의미 없는 카드입니다.</p>
-<h2 id="다음-할-일-계획-업데이트-결정-대기">다음 할 일 · 계획 업데이트 · 결정 대기</h2>
-<p>기록이 아니라 <b>앞으로</b>를 가리키는 세 카드입니다.</p>
-<ul><li><b>다음 할 일</b> — 플래너에서 아직 안 끝난 항목. 진행중인 것이 먼저</li><li><b>계획 업데이트</b> — 오늘 플래너에서 움직인 항목</li><li><b>결정 대기</b> — 문제 해결(토의) 문서 중 아직 결론이 안 난 것</li></ul>
-<h2 id="기록이-새는-곳-카드-둘">기록이 새는 곳 — 카드 둘</h2>
-<p>둘 다 <b>평소에는 안 보입니다.</b> 문제가 있을 때만 나타나서, 깨끗한 날에 소음을 내지 않습니다.</p>
-<h3 id="일지-없이-끝난-세션">일지 없이 끝난 세션</h3>
-<p>최근 7일 중 <b>세션은 열렸는데 일지가 안 남은</b> 경우입니다. 규칙과 도구가 있어도 짧은 세션은 기록을 건너뛸 수 있습니다.</p>
-<p>설정의 <b>일지 초안(<code>auto_journal_draft</code>)</b> 을 켜면 세션이 끝날 때 초안이 자동으로 남습니다. 카드에서 바로 켤 수 있습니다.</p>
-<h3 id="정직성-감사">정직성 감사</h3>
-<p>앱이 관측한 파일 변경과 일지에 적힌 <code>files_touched</code> 를 맞춰 보고, <b>어느 일지에도 안 적힌 변경</b>을 보여 줍니다. 자세한 것은 <a href="/wiki/journal">작업 일지</a>에.</p>
-<h2 id="스탠드업-복사">스탠드업 복사</h2>
-<p>어제~오늘 일지를 <b>공유용 한 덩어리</b>로 만들어 클립보드에 넣습니다. 아침 스탠드업에 붙여넣기 좋습니다.</p>
-<p>API 키가 있으면 AI 가 다듬고, 없으면 <b>기본 형식</b>으로 뼈대만 나옵니다 — 둘 다 동작합니다.</p>
-<div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>스탠드업은 "어제~오늘" 전용 지름길입니다. 더 긴 구간은 <a href="/wiki/screens">브랜치</a> 화면이 브랜치 단위로 묶어 마크다운 한 장으로 내보냅니다.</p></div></div>
-<h2 id="코드-검색-바">코드 검색 바</h2>
-<p>이 화면에서 바로 코드 검색으로 넘어갑니다. 「전체 일지」 링크는 작업 일지 화면(<code>⌘2</code>)으로 갑니다.</p>
+      <h1>오늘</h1>
+      <p class="wk-updated">마지막 수정 2026-10-29</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#하루-한-줄">하루 한 줄</a><a href="#확인할-것">확인할 것</a><a href="#오늘-한-일">오늘 한 일</a><a href="#오른쪽-칼럼">오른쪽 칼럼</a><a href="#키">키</a><a href="#다음-걸음">다음 걸음</a></nav>
+      <p><code>⌘1</code> 은 앱을 열면 처음 보는 화면입니다. 원칙은 <b>예외만 보여 준다</b> — 사람이 볼 것만 펼치고, 증거가 선 일은 한 줄로 접습니다. 하루 3건이든 60건이든 같은 화면입니다.</p>
+<h2 id="하루-한-줄">하루 한 줄</h2>
+<p>맨 위의 한 줄입니다: <b>기록 N · 바깥 심판 증거 M · % · 세션 K · 확인할 것 X.</b> 「바깥 심판 증거」는 검증 칸에 돌린 명령과 결과 끝 줄이 있는 일지입니다 — 그 비율의 목표는 <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md" target="_blank" rel="noreferrer">약속 문서</a>에 숫자로(97%) 적혀 있습니다.</p>
+<h2 id="확인할-것">확인할 것</h2>
+<p>심각도 순으로 섭니다. 비었으면 차분한 한 문단만 남습니다 — 다만 못 읽은 것이 있으면 「없다」고 말하지 않습니다.</p>
+<div class="wk-table"><table><thead><tr><th>종류</th><th>언제 서나</th><th>버튼</th></tr></thead><tbody><tr><td><b>판정 실패</b></td><td>계획의 마지막 판정이 <code>✗</code></td><td>출력 보기 → 그 계획</td></tr><tr><td><b>증거 없음</b></td><td>버그 · 기능 · 리팩토링 일지의 검증 칸에 명령 증거가 없고, 사람이 확인하지 않았거나 확인 뒤 바뀜</td><td>diff · 확인함</td></tr><tr><td><b>기록 없는 변경</b></td><td>오늘 바뀐 파일 중 어느 일지에도 없는 것, 또는 일지 없이 끝난 대화</td><td>변경 보기</td></tr><tr><td><b>막힘</b></td><td>계획 항목이 <code>[!]</code></td><td>계획 열기</td></tr><tr><td><b>결정 필요</b></td><td>사람 몫(<code>[사용자]</code>) 항목이 열려 있음 — 계획마다 한 행</td><td>계획 열기</td></tr><tr><td><b>플러그인 새 판</b></td><td>프로젝트에 깔린 플러그인이 앱보다 낮음</td><td>명령 복사</td></tr></tbody></table></div>
+<h2 id="오늘-한-일">오늘 한 일</h2>
+<p>오늘의 일지를 계획별로 묶고, 어느 계획에도 없는 것은 「계획 밖」에 둡니다. 묶음 머리에 건수 · 증거 · 없음 · 확인함이 섭니다. 8건 이하면 전부 보이고, 넘으면 <b>증거가 다 선 묶음은 머리 한 줄로 접히고</b> 빠진 게 있는 묶음은 그 행만 보입니다(「나머지 N건 보기」). 계획별 / 시간순으로 바꿔 볼 수 있습니다.</p>
+<h2 id="오른쪽-칼럼">오른쪽 칼럼</h2>
+<ul><li><b>지금 일하는 중</b> — 열려 있는 에이전트 세션</li><li><b>계획</b> — 진행 중인 계획의 진척과 판정(✓ / ✗ / 없음)</li><li><b>다음</b> — 계획의 다음 항목. <code>c</code> 로 그 항목을 잡는 프롬프트를 복사합니다</li></ul>
+<h2 id="키">키</h2>
+<p>화면 안에서만 듣습니다 — <code>j</code>/<code>k</code> 이동 · <code>Enter</code> 기본 동작 · <code>v</code> 확인함 · <code>c</code> 다음 프롬프트 복사.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>첫 일지가 남기 전에는 안내 하나만 섭니다 — 설정의 에이전트 연결로 갑니다. 3.x 의 통계 카드 · 활동 링 · 커밋 그래프 · 스탠드업 · 주간 요약은 4.0 에서 걷었습니다.</p></div></div>
 <h2 id="다음-걸음">다음 걸음</h2>
-<ul><li>링이 세는 기록이 어떻게 쌓이는지 → <a href="/wiki/journal">작업 일지</a></li><li>「다음 할 일」의 출처 → <a href="/wiki/planner">플래너</a></li></ul>
+<ul><li>일지가 어떻게 쌓이고 검증 상자가 무엇을 보는지 → <a href="/wiki/journal">작업 일지</a></li><li>판정과 「다음」의 출처 → <a href="/wiki/planner">계획</a></li></ul>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/screens"><span>← 이전</span><b>화면 둘러보기</b></a>
 <a class="wk-pg next" href="/wiki/journal"><span>다음 →</span><b>작업 일지</b></a></footer>

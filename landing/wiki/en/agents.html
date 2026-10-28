@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Other Agents — Ocul-PM Wiki</title>
-<meta name="description" content="Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — how one AGENTS.md drives them all, plus the Skills &amp; Rules hub." />
+<title>Other agents — Ocul-PM Wiki</title>
+<meta name="description" content="Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — how one AGENTS.md drives them, the rules-file list, and support tiers." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/en/agents" />
@@ -13,8 +13,8 @@
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="Other Agents — Ocul-PM Wiki" />
-<meta property="og:description" content="Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — how one AGENTS.md drives them all, plus the Skills &amp; Rules hub." />
+<meta property="og:title" content="Other agents — Ocul-PM Wiki" />
+<meta property="og:description" content="Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — how one AGENTS.md drives them, the rules-file list, and support tiers." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -41,19 +41,18 @@
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
     <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
-    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
-    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
     <a class="wk-side-link" href="/wiki/en/today">Today</a>
     <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
-    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
-    <a class="wk-side-link" href="/wiki/en/automation">Automation</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Plan</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
-    <a class="wk-side-link on" href="/wiki/en/agents">Other Agents</a>
-    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, External Editor</a>
+    <a class="wk-side-link on" href="/wiki/en/agents">Other agents</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows · projects · external editor</a>
     <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
     <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
-    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; file layout</a>
     <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
     <div class="wk-side-foot">
       <a href="/wiki/agents">한국어 →</a>
@@ -63,59 +62,47 @@
 
   <main class="wk-main">
     <article class="wk-article">
-      <h1>Other Agents</h1>
-      <p class="wk-updated">Last updated 2026-09-15</p>
-      <nav class="wk-toc"><span>On this page</span><a href="#why-agents-md-is-the-center">Why AGENTS.md is the center</a><a href="#supported-rules-files">Supported rules files</a><a href="#your-own-content-is-preserved">Your own content is preserved</a><a href="#editing-the-rules-themselves">Editing the rules themselves</a><a href="#when-the-rules-go-stale">When the rules go stale</a><a href="#support-tiers">Support tiers</a><a href="#mixing-several-agents">Mixing several agents</a><a href="#skills-rules-hub">Skills &amp; Rules hub</a><a href="#next-steps">Next steps</a></nav>
-      <p>Ocul-PM isn't Claude Code only. <b>Any agent that reads <code>AGENTS.md</code></b> can leave entries, and for agents that don't, a thin delegating stub is placed in their own rules file.</p>
+      <h1>Other agents</h1>
+      <p class="wk-updated">Last updated 2026-10-29</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#why-agents-md-is-the-center">Why AGENTS.md is the center</a><a href="#supported-rules-files">Supported rules files</a><a href="#what-you-wrote-is-kept">What you wrote is kept</a><a href="#editing-the-master-rules">Editing the master rules</a><a href="#when-the-rules-are-out-of-date">When the rules are out of date</a><a href="#support-tiers">Support tiers</a><a href="#mixing-several-agents">Mixing several agents</a><a href="#skills-live-in-the-plugin">Skills live in the plugin</a><a href="#next-steps">Next steps</a></nav>
+      <p>Ocul-PM isn't Claude Code–only. <b>Any agent that reads <code>AGENTS.md</code></b> can write entries, and for agents that don't read it, a thin delegating stub goes into their own rules file.</p>
 <h2 id="why-agents-md-is-the-center">Why AGENTS.md is the center</h2>
-<p>Adding a project creates <code>AGENTS.md</code> at the root. The <b>entire body</b> of the journaling rules lives there — when to record, where files go and what they're named, what the frontmatter needs.</p>
-<p>Claude Code, Codex CLI, Gemini CLI and many others read this file <b>natively</b>. That's how the rules arrive with no extra install.</p>
-<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>Originally the rules only lived in <code>.oculpm/agents/_template.md</code>, and dogfooding showed external LLMs don't go read that file on their own. So the root <code>AGENTS.md</code> became the primary surface, and other adapters were reduced to stubs pointing at <code>@AGENTS.md</code>.</p></div></div>
+<p>Turning recording on creates <code>AGENTS.md</code> at the root. It holds <b>the whole body</b> of the recording rules — when to record, where and under what name, what the frontmatter needs, and the working discipline (template v20: done conditions as outcomes · the verdict comes from something that isn't you · raw material and an expert's tools · hard numeric goals are normal · record failures too).</p>
+<p>Claude Code, Codex, Gemini CLI and many more read this file <b>natively</b>, so the rules reach them with no extra install.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>Originally the rules only lived in <code>.oculpm/agents/_template.md</code>, and dogfooding showed outside LLMs never read that file on their own. So the root <code>AGENTS.md</code> became the primary surface, and the other adapters shrank to stubs pointing at <code>@AGENTS.md</code>.</p></div></div>
 <h2 id="supported-rules-files">Supported rules files</h2>
-<p>Toggle these in Settings → ocul-pm → Agents. Turning one on creates the file at that path and keeps it updated as rules change.</p>
-<div class="wk-table"><table><thead><tr><th>Agent</th><th>Rules file</th></tr></thead><tbody><tr><td>Shared (Claude Code, Codex CLI, …)</td><td><code>AGENTS.md</code></td></tr><tr><td>Claude Code</td><td><code>.claude/CLAUDE.md</code></td></tr><tr><td>Cursor</td><td><code>.cursor/rules/ocul-pm.mdc</code></td></tr><tr><td>Gemini CLI</td><td><code>GEMINI.md</code></td></tr><tr><td>GitHub Copilot</td><td><code>.github/copilot-instructions.md</code></td></tr><tr><td>Windsurf</td><td><code>.windsurf/rules/ocul-pm.md</code></td></tr><tr><td>Cline</td><td><code>.clinerules/ocul-pm.md</code></td></tr><tr><td>Zed</td><td><code>.rules</code></td></tr><tr><td>aider</td><td><code>CONVENTIONS.md</code></td></tr><tr><td>Antigravity</td><td><code>.agent/rules/ocul-pm.md</code></td></tr></tbody></table></div>
-<h2 id="your-own-content-is-preserved">Your own content is preserved</h2>
-<p>Some of these are files <b>you write in too</b> — <code>AGENTS.md</code>, <code>.claude/CLAUDE.md</code>, <code>GEMINI.md</code>, <code>.github/copilot-instructions.md</code>, <code>CONVENTIONS.md</code>, <code>.rules</code>.</p>
-<p>In those, the app <b>owns only the marked block</b>:</p>
+<p><code>AGENTS.md</code> is always planted when you turn recording on. The others are switched on through the <code>[agents] active</code> list in the project's <code>.oculpm/config.toml</code> (e.g. <code>["agents-md", "cursor"]</code>) — the file appears at its path and is refreshed whenever the rules change. The 4.0 Settings page has no per-adapter switches.</p>
+<div class="wk-table"><table><thead><tr><th>Agent</th><th>Rules file</th></tr></thead><tbody><tr><td>Shared (Claude Code · Codex CLI etc.)</td><td><code>AGENTS.md</code></td></tr><tr><td>Claude Code</td><td><code>.claude/CLAUDE.md</code></td></tr><tr><td>Cursor</td><td><code>.cursor/rules/ocul-pm.mdc</code></td></tr><tr><td>Gemini CLI</td><td><code>GEMINI.md</code></td></tr><tr><td>GitHub Copilot</td><td><code>.github/copilot-instructions.md</code></td></tr><tr><td>Windsurf</td><td><code>.windsurf/rules/ocul-pm.md</code></td></tr><tr><td>Cline</td><td><code>.clinerules/ocul-pm.md</code></td></tr><tr><td>Zed</td><td><code>.rules</code></td></tr><tr><td>aider</td><td><code>CONVENTIONS.md</code></td></tr><tr><td>Antigravity</td><td><code>.agent/rules/ocul-pm.md</code></td></tr></tbody></table></div>
+<h2 id="what-you-wrote-is-kept">What you wrote is kept</h2>
+<p>Some rules files are <b>files you write in too</b> — <code>AGENTS.md</code>, <code>.claude/CLAUDE.md</code>, <code>GEMINI.md</code>, <code>.github/copilot-instructions.md</code>, <code>CONVENTIONS.md</code>, <code>.rules</code>.</p>
+<p>In those, the app <b>owns only the block between markers</b>:</p>
 <pre class="wk-code"><code>&lt;!-- oculpm:begin v1 --&gt;
-… app-managed rules …
+… rules the app manages …
 &lt;!-- oculpm:end --&gt;</code></pre>
-<p>Anything <b>outside</b> the block survives a rules refresh. Your coding conventions and the app's journaling rules can share one file.</p>
-<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>By contrast <code>.cursor/rules/ocul-pm.mdc</code>, <code>.windsurf/rules/ocul-pm.md</code>, <code>.clinerules/ocul-pm.md</code>, and <code>.agent/rules/ocul-pm.md</code> are app-owned files and are <b>overwritten wholesale</b>. Don't put personal rules at those paths.</p></div></div>
-<h2 id="editing-the-rules-themselves">Editing the rules themselves</h2>
-<p>To change the wording, edit <code>.oculpm/agents/_template.md</code>. That's the master; saving propagates to every adapter you've enabled — fix it once and Cursor and Claude Code both get the new rules.</p>
-<p>To give one agent different wording, put a file for it under <code>.oculpm/agents/per-agent/</code>.</p>
-<h2 id="when-the-rules-go-stale">When the rules go stale</h2>
-<p>App updates can raise the rules spec. <b>Resend rules</b> in Settings → ocul-pm → Agents reinstalls the current spec. The detect button narrows the list to agents that appear to be in use in this project.</p>
+<p>Whatever you write <b>outside</b> the block survives every rules update. Your coding conventions and the app's recording rules can live in one file.</p>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>By contrast <code>.cursor/rules/ocul-pm.mdc</code> · <code>.windsurf/rules/ocul-pm.md</code> · <code>.clinerules/ocul-pm.md</code> · <code>.agent/rules/ocul-pm.md</code> are app-only files and are <b>overwritten whole.</b> Don't put personal rules there.</p></div></div>
+<h2 id="editing-the-master-rules">Editing the master rules</h2>
+<p>To change the wording itself, edit <code>.oculpm/agents/_template.md</code>. It's the master; save it and every adapter you've switched on picks it up — change one place and Cursor and Claude Code both get the new rules.</p>
+<p>To give one agent different wording, put a file for it under <code>.oculpm/agents/per-agent/</code>. The template's language is set by <code>[agents] template_language</code> (<code>ko</code> · <code>en</code>) in <code>config.toml</code>.</p>
+<h2 id="when-the-rules-are-out-of-date">When the rules are out of date</h2>
+<p>An app update can raise the rules spec (template version). When Settings → <b>This project</b> shows something like "v19 — new v20" on the rules-file row, press <b>"Update"</b>.</p>
 <h2 id="support-tiers">Support tiers</h2>
-<p>"Leaves entries" comes in different strengths. The tiers are read from code — the rules-file adapter table, the MCP registrars, the hooks. (The in-app tier 4 went with its screens on 2026-10-28.)</p>
-<div class="wk-table"><table><thead><tr><th>Tier</th><th>What it means</th></tr></thead><tbody><tr><td><b>1 · Rules-compatible</b></td><td>The app only writes the rules file that agent reads. Journals get written as far as the model obeys it</td></tr><tr><td><b>2 · Structured journaling</b></td><td>The agent can call the <code>oculpm</code> MCP server's tools (<code>journal_write</code> · <code>plan_update</code> …) and the app registers that server for it</td></tr><tr><td><b>3 · Session observation</b></td><td>The app receives session start/stop through hooks and flags conversations that ended without a journal (the Stop delivery gate · <code>sessions.json</code>)</td></tr></tbody></table></div>
-<div class="wk-table"><table><thead><tr><th>Agent</th><th>Tier</th><th>What the app does</th><th>Verified</th></tr></thead><tbody><tr><td>Claude Code</td><td><b>3 Session observation</b></td><td>hooks (plugin or <code>.claude/settings.local.json</code>) · <code>.mcp.json</code> MCP registration · <code>AGENTS.md</code> + <code>.claude/CLAUDE.md</code> block</td><td>v3.0.0 · 2026-09-11</td></tr><tr><td>Codex</td><td><b>3 Session observation</b></td><td>Codex plugin hooks · <code>~/.codex/config.toml</code> MCP registration · <code>AGENTS.md</code> (native)</td><td>v2.37.0 · 2026-09-03</td></tr><tr><td>Claude Desktop</td><td><b>2 Structured journaling</b></td><td>MCP server registered in <code>claude_desktop_config.json</code> — no hooks, no rules file</td><td>— (shipped v2.2.0 · no live-connection record)</td></tr><tr><td>Gemini CLI</td><td>1 Rules-compatible</td><td><code>AGENTS.md</code> + <code>GEMINI.md</code> block</td><td>—</td></tr><tr><td>Cursor</td><td>1 Rules-compatible</td><td><code>.cursor/rules/ocul-pm.mdc</code></td><td>—</td></tr><tr><td>GitHub Copilot</td><td>1 Rules-compatible</td><td><code>.github/copilot-instructions.md</code> block</td><td>— (shipped v2.0.0)</td></tr><tr><td>Windsurf</td><td>1 Rules-compatible</td><td><code>.windsurf/rules/ocul-pm.md</code></td><td>— (shipped v2.0.0)</td></tr><tr><td>Cline</td><td>1 Rules-compatible</td><td><code>.clinerules/ocul-pm.md</code></td><td>— (shipped v2.0.0)</td></tr><tr><td>aider</td><td>1 Rules-compatible</td><td><code>CONVENTIONS.md</code> block</td><td>— (shipped v2.0.0)</td></tr><tr><td>Zed</td><td>1 Rules-compatible</td><td><code>.rules</code> block</td><td>— (shipped v2.0.0)</td></tr><tr><td>Antigravity</td><td>1 Rules-compatible</td><td><code>.agent/rules/ocul-pm.md</code></td><td>— (shipped v1.11.0)</td></tr><tr><td>pi</td><td>1 Rules-compatible</td><td><code>AGENTS.md</code> only</td><td>— (shipped v1.11.0)</td></tr></tbody></table></div>
-<p><b>Verified</b> is the latest evidence in the repository's <code>CHANGELOG.md</code> and work journals that the tier <b>actually ran</b> (app version · date). <code>—</code> means the code exists but there is no on-device record; "shipped" in parentheses is the version the CHANGELOG lists the feature under.</p>
-<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>A CLI started in the built-in terminal (<code>claude</code> · <code>codex</code> · <code>gemini</code> · <code>cursor-agent</code> · <code>aider</code> …) is caught by shell integration for <b>start and stop only</b>. There is no missing-journal verdict, so that is not tier 3. Not yet seen on a real machine — a live Claude Desktop connection and Codex's tool-approval → file-change flow end to end — did not raise a tier even though the code exists. Official builds are macOS Apple Silicon only.</p></div></div>
-<p>On tier 1, check the <b><a href="/wiki/en/journal">honesty audit</a></b> on Today now and then. Anything missed shows up there.</p>
-<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>If you use Claude Code, installing the plugin makes the biggest difference — two lines, in <a href="/wiki/en/claude-code">Claude Code</a>.</p></div></div>
+<p>"Writes entries" comes in different strengths. The tiers are read from code — the rules-file adapter table, the MCP registrars, the hooks. (The in-app tier 4 went with its screens on 2026-10-28; one-click MCP registration for Claude Desktop went in 4.0.)</p>
+<div class="wk-table"><table><thead><tr><th>Tier</th><th>Meaning</th></tr></thead><tbody><tr><td><b>1 · Rules-compatible</b></td><td>The app only writes the rules file that agent reads. Entries get written as far as the model obeys it</td></tr><tr><td><b>2 · Structured journaling</b></td><td>The agent can call the <code>oculpm</code> MCP server's tools (<code>journal_write</code> · <code>plan_update</code> …). The plugin registers the server (Claude Code) or walks you through it (Codex)</td></tr><tr><td><b>3 · Session observation</b></td><td>Session start/stop arrive through hooks, and conversations that ended without an entry are flagged (the Stop delivery gate · <code>sessions.json</code>)</td></tr></tbody></table></div>
+<div class="wk-table"><table><thead><tr><th>Agent</th><th>Tier</th><th>What it does</th><th>Verified</th></tr></thead><tbody><tr><td>Claude Code</td><td><b>3 Session observation</b></td><td>the oculpm plugin (hooks · MCP tools · commands) · <code>AGENTS.md</code> + <code>.claude/CLAUDE.md</code> block</td><td>v3.0.0 · 2026-09-11</td></tr><tr><td>Codex</td><td><b>3 Session observation</b></td><td>the Codex plugin (hooks · guidance for the <code>~/.codex/config.toml</code> MCP registration) · <code>AGENTS.md</code> (native)</td><td>v2.37.0 · 2026-09-03</td></tr><tr><td>Gemini CLI</td><td>1 Rules-compatible</td><td><code>AGENTS.md</code> + <code>GEMINI.md</code> block</td><td>—</td></tr><tr><td>Cursor</td><td>1 Rules-compatible</td><td><code>.cursor/rules/ocul-pm.mdc</code></td><td>—</td></tr><tr><td>GitHub Copilot</td><td>1 Rules-compatible</td><td><code>.github/copilot-instructions.md</code> block</td><td>— (shipped v2.0.0)</td></tr><tr><td>Windsurf</td><td>1 Rules-compatible</td><td><code>.windsurf/rules/ocul-pm.md</code></td><td>— (shipped v2.0.0)</td></tr><tr><td>Cline</td><td>1 Rules-compatible</td><td><code>.clinerules/ocul-pm.md</code></td><td>— (shipped v2.0.0)</td></tr><tr><td>aider</td><td>1 Rules-compatible</td><td><code>CONVENTIONS.md</code> block</td><td>— (shipped v2.0.0)</td></tr><tr><td>Zed</td><td>1 Rules-compatible</td><td><code>.rules</code> block</td><td>— (shipped v2.0.0)</td></tr><tr><td>Antigravity</td><td>1 Rules-compatible</td><td><code>.agent/rules/ocul-pm.md</code></td><td>— (shipped v1.11.0)</td></tr><tr><td>pi</td><td>1 Rules-compatible</td><td><code>AGENTS.md</code> only</td><td>— (shipped v1.11.0)</td></tr></tbody></table></div>
+<p><b>Verified</b> is the latest evidence in the repository's <code>CHANGELOG.md</code> and work journal that the tier <b>actually ran</b> (app version · date). <code>—</code> means the code exists but there's no on-device record; "shipped" in parentheses is the version the CHANGELOG lists.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>The evidence in the table comes from the macOS build. Windows · Linux are a beta — on Windows the Claude Code plugin's hooks run but its MCP server doesn't start, so the agent writes the files directly by the recording spec.</p></div></div>
+<p>On tier 1, glance at <b><a href="/wiki/en/journal">unrecorded changes</a></b> on Today now and then. Anything missed shows up there.</p>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>On Claude Code, installing the plugin makes the biggest difference — two lines in <a href="/wiki/en/claude-code">Claude Code</a>.</p></div></div>
 <h2 id="mixing-several-agents">Mixing several agents</h2>
-<p>No problem. Each entry's frontmatter records <code>agent.id</code> and the model name, so you can tell later who did what. The Today screen's <b>Agent contributions</b> card shows the distribution.</p>
-<h2 id="skills-rules-hub">Skills &amp; Rules hub</h2>
-<p>The <b>Skills &amp; Rules</b> screen in the sidebar is where you work all of the above from inside the app. It has five tabs.</p>
-<h3 id="skills">Skills</h3>
-<p>One <code>SKILL.md</code> file is one skill. Agents <b>invoke skills on their own</b> based on the <code>description</code> in the frontmatter — which is why writing a good description matters.</p>
-<ul><li><b>Project / Global</b> — keep it to this project (<code>.claude/skills/</code>) or make it available everywhere (<code>~/.claude/skills/</code>). You can copy between them</li><li><b>Disable</b> — moves it to <code>.claude/skills/.disabled/</code> so it isn't loaded. <b>The file is not deleted</b></li><li><b>Edit</b> — change it in the app and save with <code>⌘S</code></li><li><b>New skill</b> — start from an empty one</li></ul>
-<h3 id="shop">Shop</h3>
-<p>Install curated skills that build verification habits with one click — things like <code>self-audit</code>, which makes agents check their own work.</p>
-<h3 id="rules">Rules</h3>
-<p>Toggle the per-adapter rules files covered above, and edit the master.</p>
-<h3 id="hooks">Hooks</h3>
-<p>Claude Code hook integration. <b>With hooks on, session start and end are recorded from real signals instead of heuristics</b> — rather than the app guessing "files went quiet, must be done," the agent says so.</p>
-<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>The <b>auto journal draft</b> at session end (which costs money) and MCP tool registration are managed in Settings → ocul-pm → Integration, not this tab.</p></div></div>
-<h3 id="plugin">Plugin</h3>
-<p>Shows what the plugin installs — the list of commands, tools, and skills.</p>
+<p>No problem. Each entry's frontmatter records <code>agent.id</code> and the model name, so you can tell later who did what.</p>
+<h2 id="skills-live-in-the-plugin">Skills live in the plugin</h2>
+<p>The 3.x Skills &amp; Rules screen (skill editing · recommended-skill installs · firing badges · rules hub) was removed in 4.0 — it had become a Claude Code settings manager, and the plugin now carries the skills. Skills and rules you already have in <code>.claude/skills/</code> · <code>.claude/rules/</code> are still read by Claude Code, and the app doesn't touch them. The plugin's commands and tools are in <a href="/wiki/en/claude-code">Claude Code</a>.</p>
 <h2 id="next-steps">Next steps</h2>
-<ul><li>Using Claude Code → <a href="/wiki/en/claude-code">Claude Code</a></li><li>Checking that the rules are working → the honesty audit in <a href="/wiki/en/journal">Work Journal</a></li></ul>
+<ul><li>On Claude Code → <a href="/wiki/en/claude-code">Claude Code</a></li><li>Checking that the rules are working → unrecorded changes, in <a href="/wiki/en/journal">Work Journal</a></li></ul>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/claude-code"><span>← Previous</span><b>Claude Code</b></a>
-<a class="wk-pg next" href="/wiki/en/workspace"><span>Next →</span><b>Windows, Tabs, External Editor</b></a></footer>
+<a class="wk-pg next" href="/wiki/en/workspace"><span>Next →</span><b>Windows · projects · external editor</b></a></footer>
   </main>
 </div>
 
