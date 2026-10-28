@@ -1,505 +1,125 @@
 /* ============================================================
    shell.css — .app / .sidebar / .content / .toolbar / .scroll / .page
-   Ported from the mockup (Ocul-PM1.0/styles.css SHELL + CONTENT sections).
    `.nav-item` / `.proj-switch` carry a <button> reset because the React
-   shell renders them as buttons (a11y) where the mockup used <div onClick>.
+   shell renders them as buttons (a11y).
    ============================================================ */
 
-/* ── 전면 리스킨 (2026-07-16): 캔버스 + 떠 있는 콘텐츠 시트 ──────────────
-   앱 전체가 캔버스(--bg-sidebar) 위에 놓이고, 사이드바는 캔버스에 투명하게
-   앉으며, 콘텐츠는 라운드+테두리+그림자를 가진 '시트'로 떠 있다. 모든 색이
-   토큰 경유라 프리셋 5종/다크/액센트가 그대로 적응한다. */
+/* ── 4.0 셸 (시안 Main.dc.html) ─────────────────────────────────────────────
+   사이드바(212px, 캔버스 색) | 콘텐츠(평평한 면). 3.x 의 "떠 있는 시트"(라운드 +
+   그림자 + 캔버스 여백)는 걷었다 — 화면이 다섯이면 사이드바와 화면 사이에 경계
+   하나면 된다. 경계는 사이드바의 오른쪽 hairline 이다. */
 .app {
   display: grid;
-  grid-template-columns: 248px 1fr;
+  grid-template-columns: 212px 1fr;
   height: 100vh;
-  background: var(--bg-sidebar);
+  background: var(--bg-content);
   overflow: hidden;
-  position: relative; /* anchor for the collapsed sidebar overlay */
-  padding: var(--space-4) var(--space-4) var(--space-4) 0;
+  position: relative;
 }
 
-/* 캔버스 앰비언트(액센트 라디얼 두 겹)는 2026-09-02 에 뺐다 — 모서리에서
-   번지는 색 안개는 '메시 그라데이션 배경' 의 관용구라 캔버스가 제품이 아니라
-   템플릿으로 읽혔다. 캔버스는 --bg-sidebar 한 색이다. */
-
-/* 세로 여백은 창 높이를 따라 눌린다 (2026-09-05).
-   화면이 16개(+설정)로 늘면서 사이드바 자연 높이가 900px 을 넘었다. 넘치면 스크롤되게
-   고쳤지만(.side-nav-scroll) 스크롤은 **안전망**이고, 흔한 창 높이에서는 한눈에
-   다 보이는 편이 낫다. 그래서 항목을 지우거나 순서를 바꾸는 대신(⌘번호 계약이
-   순서에 걸려 있다) 행간·섹션 여백만 vh 로 압축한다 — 큰 화면에서는 지금 값
-   그대로고, 낮은 창에서만 조여진다. @media 단계식이 아니라 clamp 라 창을 끌어
-   줄일 때 특정 높이에서 툭 튀지 않는다. */
+/* ============================================================ SIDEBAR */
+/* 머리(신호등 띠 · 프로젝트 이름) → 행 넷 → 빈 자리(창을 잡는 띠) → 설정. */
 .sidebar {
-  --side-gap: clamp(2px, 0.4vh, var(--space-1));
-  background: transparent;
-  border-right: none;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--sep);
   display: flex;
   flex-direction: column;
-  /* flex 컬럼에서 min-height 를 빠뜨리면 자식이 절대 줄지 않아 스크롤이 안 걸린다. */
+  gap: var(--space-1);
   min-height: 0;
-  padding: 14px var(--space-5) var(--space-5);
-  gap: var(--side-gap);
+  padding: var(--space-5) var(--space-4);
   user-select: none;
   position: relative;
   z-index: 1;
 }
-/* 머리와 발은 고정 — 줄어드는 건 가운데 목록뿐이다. */
-.side-drag-strip,
-.side-brand,
-.proj-switch-wrap,
-.side-foot {
-  flex: none;
-}
-/* 가운데 목록만 스크롤한다. flex-basis 0 이라 남는 만큼만 차지하고, 창이
-   아무리 낮아져도 .side-foot(터미널 도크·테마·설정)을 밀어내지 않는다. */
-.side-nav-scroll {
-  flex: 1 1 0%;
-  min-height: 0;
-  overflow-y: auto;
-  /* 한 축이 visible 이 아니면 나머지 축의 visible 은 auto 로 계산된다 — 가로
-     스크롤바가 생기지 않게 명시한다. 활성 항목의 링 그림자가 잘리지 않도록
-     좌우로 3px 만 물러섰다가 음수 마진으로 제자리에 돌려놓는다. */
-  overflow-x: hidden;
-  margin: 0 -3px;
-  padding: 0 3px;
-  display: flex;
-  flex-direction: column;
-  /* 행간·섹션 간격은 .nav-section 이 갖는다 (2026-09-11) — 여기 gap 을 두면
-     섹션 라벨의 위 여백과 겹쳐 두 번 벌어진다. */
-  /* 얇게, 그리고 가만히 있을 때는 조용하게 (base.css 의 10px 전역값 위로). */
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-}
-.side-nav-scroll:hover { scrollbar-color: var(--sep-strong) transparent; }
-.side-nav-scroll::-webkit-scrollbar { width: 6px; }
-.side-nav-scroll::-webkit-scrollbar-track { background: transparent; }
-.side-nav-scroll::-webkit-scrollbar-thumb {
-  background: transparent; border: none; border-radius: var(--radius-2xs);
-  transition: background-color var(--dur-1) var(--ease-out);
-}
-.side-nav-scroll:hover::-webkit-scrollbar-thumb { background: var(--sep-strong); }
-/* "더 있다" 를 스크롤바 대신 가장자리 페이드가 말한다 (맥 오버레이 스크롤바는
-   가만히 있으면 아예 안 보인다). 넘치는 쪽만 흐려진다 — Sidebar 의 useEdgeFade
-   가 클래스를 붙인다. 다 보이면 페이드도 없다. */
-.side-nav-scroll.fade-top {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
-}
-.side-nav-scroll.fade-bottom {
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent 100%);
-}
-.side-nav-scroll.fade-top.fade-bottom {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
-}
+/* macOS 오버레이 타이틀바의 신호등 자리 — 창을 잡는 띠이기도 하다. */
+.side-drag-strip { flex: none; height: 22px; }
+.side-fill { flex: 1 1 auto; min-height: var(--space-6); }
+.side-nav { display: flex; flex-direction: column; gap: 1px; }
 
-/* ── Sidebar collapse + hover-reveal (Dogfooding 2026-06-07) ── */
-/* Collapsed: content takes the full width; the sidebar floats out of flow and
-   slides off-screen, returning as an overlay when the left edge is hovered. */
-/* 접었을 때는 시트가 창을 꽉 채운다 — 캔버스 여백 0.
-   펼친 상태에서 10px 여백이 '떠 있는 시트'로 읽히는 건 **왼쪽에 사이드바가
-   있어서**다. 사이드바가 사라지면 그 여백은 맥락을 잃고 창 가장자리를 두르는
-   빈 띠(단차)로만 남는다 — 특히 왼쪽은 `padding-left: var(--space-4)` 로 새로 생기던
-   자리라 접을 때마다 콘텐츠가 안쪽으로 밀려 보였다.
-   여백이 0이면 시트 뒤에 아무것도 없으므로 테두리·라운드·그림자도 함께 끈다
-   (분리할 배경이 없는데 남기면 그것 자체가 또 다른 단차로 보인다). */
-.app.sidebar-collapsed {
-  grid-template-columns: 1fr;
-  padding: 0;
-}
-.app.sidebar-collapsed > .content {
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-}
-.app.sidebar-collapsed .sidebar {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 248px;
-  transform: translateX(-100%);
-  transition: transform var(--dur-2) var(--ease-out);
-  z-index: var(--z-menu);
-  box-shadow: var(--shadow-pop);
-  /* 오버레이로 뜰 때는 캔버스에서 떨어져 나오므로 자기 배경/경계가 필요하다. */
-  background: var(--bg-sidebar);
-  border-right: 1px solid var(--sep);
-}
-.app.sidebar-collapsed.sidebar-hover .sidebar {
-  transform: translateX(0);
-}
-/* Thin left-edge catch zone that triggers the reveal. */
-.side-hover-zone {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 10px;
-  z-index: var(--z-dock);
-}
-/* 예전에는 사이드바를 접으면 툴바가 창 최상단 x=0 에 닿아 macOS 신호등 밑으로
-   들어갔다(titleBarStyle Overlay). 그래서 `.app.is-mac.sidebar-collapsed .toolbar`
-   에 padding-left: 84px 를 뒀었다.
-
-   크롬식 탭(v2.9.0) 이후로는 **탭 스트립이 최상단을 차지하고 신호등 자리를
-   책임진다** — 셸은 ShellV2 로만 마운트되고 그 위에는 늘 스트립이 있다
-   (tabs.css §신호등, 같은 이유로 사이드바 상단 인셋도 이미 0 이다). 툴바는
-   신호등과 만날 일이 없어졌는데 인셋만 남아, 사이드바를 접으면 세션 탭 줄
-   왼쪽에 84px 빈 칸이 생겼다. 규칙을 지운 자리에 이유만 남긴다 — 안 그러면
-   "신호등에 겹치겠는데?" 하고 다시 넣게 된다. */
-
-/* ── 사이드바 리디자인 (2026-09-11) — 카드·타일 없이 활자와 척추로 ─────────
-   예전 사이드바는 세 층이 전부 **상자**였다: 프로젝트는 흰 카드 안의 액센트
-   타일, 행은 넉넉한 패딩의 13px 줄, 발밑은 같은 행 셋. 어느 SaaS 사이드바와도
-   구분되지 않았고, 20행이 900px 을 넘겨 낮은 창에서 스크롤에 기대야 했다.
-
-   결정 셋:
-   1. **머리는 활자다.** 프로젝트 이름이 사이드바의 제목(17px bold)이고, 그
-      아래 mono 경로가 부제다. 카드도 타일도 없다 — 액센트 8px 마크 하나가
-      "이건 프로젝트" 라고 말한다. 전환 가능함은 오른쪽 셰브론과 hover 틴트가
-      말한다.
-   2. **묶음은 척추를 가진다.** 섹션 라벨은 오른쪽으로 hairline 을 끌고
-      (`label ────`), 그 아래 행들은 왼쪽 1px 척추에 매달린다. 활성 표시자
-      (3px 액센트 막대)는 그 척추 **위에** 앉는다 — "지금 여기" 가 색이
-      아니라 **트랙 위의 위치**로 읽힌다. 갈래 목록(.nav-branches)이 이미
-      쓰던 border-left 문법의 일반화라 어휘가 하나 늘지 않는다.
-   3. **발은 동사의 줄이다.** 「터미널 도크」만 라벨을 갖고(⌘J·켜짐 상태가
-      있다), 테마·설정은 30px 아이콘 칸으로 오른쪽에 선다. 세 행이 한 줄이
-      되어 60px 을 되찾고, 2026-09-09 {#sidebar-verbs} 가 말한 "이 둘은
-      목적지가 아니다" 가 모양으로도 보인다. 라벨은 .nav-sr 로 남아
-      보조기술·테스트에는 그대로 읽힌다. */
-
-/* Collapse toggle button in the brand row. */
-.side-collapse-btn {
-  margin-left: auto;
-  color: var(--text-3);
-}
-.side-collapse-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-/* 브랜드 줄에는 접기 버튼뿐이다 — 높이를 버튼 한 단(ctl-3)으로 조인다.
-   예전엔 위아래 여백이 겹쳐 머리 위에 빈 띠가 40px 가까이 남았다. */
-.side-brand {
-  display: flex; align-items: center; gap: var(--space-4);
-  min-height: var(--ctl-3);
-  padding: 0 0 var(--space-1);
-}
-
-/* project masthead */
+/* 프로젝트 이름 버튼 (⌘O) — 사이드바의 제목이다. 카드·타일 없이 활자 하나. */
+.proj-switch-wrap { position: relative; flex: none; margin-bottom: var(--space-3); }
 .proj-switch {
   display: flex; align-items: center; gap: var(--space-3); width: 100%; box-sizing: border-box;
   padding: var(--space-2) var(--space-3);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-s);
+  background: transparent; border: none; border-radius: var(--radius-s);
   cursor: pointer;
-  /* button reset */
   appearance: none; -webkit-appearance: none;
   font-family: var(--font); text-align: left; color: var(--text);
-  transition:
-    background-color var(--dur-1) var(--ease-out),
-    border-color var(--dur-1) var(--ease-out),
-    transform var(--dur-1) var(--ease-out);
+  transition: background-color var(--dur-1) var(--ease-out);
 }
 .proj-switch:hover { background: var(--bg-hover); }
-.proj-switch:active { transform: scale(0.99); }
 .proj-switch[aria-expanded="true"] { background: var(--bg-active); }
-/* 액센트 마크 — 사이드바 머리에서 컬러 테마가 보이는 유일한 자리. 원이 아니라
-   모난 정사각형이다: 원은 상태(온라인·배지)의 도형이고, 각진 마크는 사물의 도장. */
-.proj-mark {
-  width: 8px; height: 8px; flex: none; align-self: flex-start; margin-top: 7px;
-  border-radius: var(--radius-2xs);
-  background: var(--accent);
-}
-.proj-meta { flex: 1; min-width: 0; }
 .proj-name {
-  /* 17 bold → 15 semibold (2026-10-07 {#compact-chrome}) — 툴바 제목(14)과 한
-     줄에 서는 머리라, 그보다 한 단 위면 된다. 17 bold 는 사이드바가 화면보다 컸다. */
-  font-weight: var(--fw-strong); font-size: var(--fs-6); letter-spacing: var(--track-tight); line-height: var(--lh-tight);
+  flex: 1; min-width: 0;
+  font-size: var(--fs-6); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); line-height: var(--lh-tight);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.proj-path {
-  margin-top: 2px;
-  font-size: var(--fs-1); color: var(--text-3); font-family: var(--mono);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.proj-chev { flex: none; color: var(--text-3); transition: color var(--dur-1) var(--ease-out); }
-.proj-switch:hover .proj-chev { color: var(--text-2); }
+.proj-switch .kbd { flex: none; }
 
-/* Inline project quick-switcher popover (Dogfooding 2026-06-14c). */
-.proj-switch-wrap { position: relative; margin: 0 0 clamp(var(--space-3), 1.2vh, var(--space-5)); }
+/* 최근 프로젝트 목록 */
 .proj-pop {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: var(--z-popover);
+  position: absolute; top: calc(100% + 4px); left: 0; width: 280px; z-index: var(--z-popover);
   background: var(--bg-card); border: 1px solid var(--border-card);
   border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
-  padding: var(--space-1); max-height: 340px; overflow-y: auto;
-  transform-origin: top center;
-  animation: popIn var(--dur-2) var(--ease-spring) both;
+  padding: var(--space-1); max-height: 380px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 1px;
 }
-@keyframes popIn {
-  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
-  to { opacity: 1; transform: none; }
-}
-.proj-pop-list { display: flex; flex-direction: column; gap: 1px; }
 .proj-pop-item {
   display: flex; align-items: center; gap: var(--space-3); width: 100%; text-align: left;
-  padding: var(--space-3) var(--space-3); border-radius: var(--radius-m); cursor: pointer;
+  padding: var(--space-3); border-radius: var(--radius-s); cursor: pointer;
   background: none; border: none; color: var(--text); font-family: var(--font);
 }
-.proj-pop-item:hover { background: var(--bg-hover); }
-.proj-pop-item.on { background: var(--accent-soft); }
+.proj-pop-item:hover, .proj-pop-item:focus-visible { background: var(--bg-hover); }
+.proj-pop-item.on { background: var(--bg-active); }
 .proj-pop-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .proj-pop-name { font-weight: var(--fw-strong); font-size: var(--fs-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.proj-pop-path { font-size: var(--fs-1); color: var(--text-3); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.proj-pop-cur { font-size: var(--fs-0); font-weight: var(--fw-bold); color: var(--accent-text); background: var(--accent-soft); padding: 1px var(--space-2); border-radius: var(--radius-pill); flex: none; }
-.proj-pop-manage {
-  display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left;
+.proj-pop-path { font-size: var(--fs-2); color: var(--text-2); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-pop-add {
+  display: flex; align-items: center; width: 100%; text-align: left;
   margin-top: var(--space-1); padding: var(--space-3); cursor: pointer;
-  background: none; border: none; border-top: 1px solid var(--sep);
+  background: none; border: none; border-top: 1px solid var(--sep); border-radius: 0;
   color: var(--text-2); font-family: var(--font); font-size: var(--fs-3); font-weight: var(--fw-strong);
 }
-.proj-pop-manage:hover { background: var(--bg-hover); color: var(--text); }
+.proj-pop-add:hover, .proj-pop-add:focus-visible { background: var(--bg-hover); color: var(--text); }
 
-/* ── 섹션: 라벨 + 척추 ──────────────────────────────────────────────────── */
-.nav-section { display: flex; flex-direction: column; }
-.nav-section-label {
-  display: flex; align-items: center; gap: var(--space-3);
-  font-size: var(--fs-1); font-weight: var(--fw-bold); letter-spacing: var(--caps-track-lg);
-  /* 구조 라벨은 meta 가 아니다 — `--text-3` 는 타임스탬프·placeholder 의 색이고
-     사이드바에서 그 색을 쓰면 목차가 각주보다 흐리다 {#hierarchy-by-weight-only}. */
-  color: var(--text-2); text-transform: var(--caps-transform);
-  /* 섹션 사이 숨구멍이 가장 먼저 줄어드는 자리 — 라벨 **앞** 여백이 행간보다
-     확실히 커야 네 갈래가 갈래로 읽힌다. */
-  padding: clamp(var(--space-4), 1.6vh, 18px) 0 var(--space-2) var(--space-3);
-}
-/* 라벨이 오른쪽으로 끄는 hairline — 줄 전체가 "여기서 새 묶음" 이라고 말한다. */
-.nav-section-label::after { content: ""; flex: 1; height: 1px; background: var(--sep); }
-/* 첫 라벨만은 위 여백이 필요 없다 — 바로 위가 프로젝트 머리의 여백이다. */
-.nav-section-label--first { padding-top: var(--space-1); }
-/* 접히는 단 (간단 밀도의 도구·베타) — 라벨이 곧 버튼이다. 모양은 라벨과 같고
-   손만 달린다: 섀도·테두리를 더하면 "버튼이 하나 더" 로 읽힌다. */
-.nav-section-toggle {
-  appearance: none; border: 0; background: transparent; width: 100%; text-align: left;
-  cursor: pointer; font: inherit; color: inherit;
-}
-.nav-section-toggle:hover { color: var(--text); }
-.nav-section-chev { flex-shrink: 0; transition: transform var(--dur-2) var(--ease-out); color: var(--text-3); }
-.nav-section-chev.open { transform: rotate(90deg); }
-.nav-section-tag {
-  font-size: var(--fs-0); font-weight: var(--fw-bold); letter-spacing: 0; text-transform: none;
-  padding: 1px 6px; border-radius: var(--radius-pill);
-  background: var(--warn-soft); color: var(--warn-text);
-}
-.nav-section-count { font-size: var(--fs-1); font-weight: var(--fw-label); color: var(--text-3); }
-/* 행 묶음. 왼쪽 1px 척추가 첫 행부터 마지막 행까지 흐르고, 행은 척추에서
-   7px 물러나 앉는다 — hover 틴트가 척추를 덮지 않게. */
-.nav-rows { position: relative; display: flex; flex-direction: column; gap: 1px; padding-left: 7px; }
-.nav-rows::before {
-  content: ""; position: absolute; left: 1px; top: 3px; bottom: 3px; width: 1px;
-  background: var(--sep-strong);
-}
-/* 행 + 갈래를 한 덩이로 묶는 껍데기. 안쪽(행 ↔ 갈래)은 붙어 있어야 한 몸으로 읽힌다. */
-.nav-group { display: flex; flex-direction: column; }
+/* 행 — 컨트롤 한 단(30px), 활성은 조용한 틴트와 무게. 왼쪽 강조 막대는 없다. */
 .nav-item {
-  display: flex; align-items: center; gap: var(--space-3);
-  /* 20행 × 최대 4px = 낮은 창에서 80px 남짓을 되찾는다. 아이콘이 15px 이라
-     최소값에서도 행 높이는 23px 밑으로 내려가지 않는다. */
-  padding: clamp(var(--space-1), 0.6vh, var(--space-3)) var(--space-3); border-radius: var(--radius-s);
+  display: flex; align-items: center; gap: var(--space-4);
+  height: var(--ctl-4); padding: 0 var(--space-4); border-radius: var(--radius-s);
   color: var(--text); cursor: pointer;
   font-size: var(--fs-4); font-weight: var(--fw-label);
-  position: relative;
-  /* button reset (nav-item is a <button> for a11y) */
   appearance: none; -webkit-appearance: none;
   border: none; background: transparent;
   font-family: var(--font); text-align: left; width: 100%;
-}
-.nav-item .nav-ico { color: var(--text-2); flex: none; width: 18px; display: grid; place-items: center; }
-/* 셸 진입 시 위→아래 캐스케이드 (--i 는 Sidebar 가 행 순서대로 주입).
-   backwards: 딜레이 동안만 숨고, 종료 후엔 정적 스타일(및 :active 변형)로 복귀. */
-.nav-item {
-  animation: navIn 0.38s var(--ease-out) backwards;
-  animation-delay: calc(var(--i, 0) * 26ms);
-}
-@keyframes navIn {
-  from { opacity: 0; transform: translateX(-7px); }
-  to { opacity: 1; transform: none; }
+  transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
 }
 .nav-item:hover { background: var(--bg-hover); }
-.nav-item:active { transform: scale(0.985); }
-.nav-item { transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out); }
-/* 활성 항목 — 틴트 + 척추 위의 표시자 (2026-09-09 {#sidebar-weight} 의 문법을
-   잇는다: 248px 액센트 슬래브가 아니라 조용한 틴트). 표시자를 색과 함께 두는
-   이유: 액센트와 표면의 명도가 가까운 프리셋(세피아·고대비)에서 틴트가 거의
-   안 보인다. 위치는 어느 팔레트에서도 읽힌다. */
-.nav-item.active {
-  background: var(--accent-soft);
-  color: var(--accent-text); font-weight: var(--fw-strong);
-}
-.nav-item.active .nav-ico { color: var(--accent); }
-/* 척추(x=1..2)를 덮는 3px 막대 — 행이 7px 물러나 있으므로 -7px 이 사이드바 x=0. */
-.nav-rows .nav-item.active::before {
-  content: "";
-  position: absolute; left: -7px; top: 50%; transform: translateY(-50%);
-  width: 3px; height: 16px; border-radius: var(--radius-pill);
-  background: var(--accent);
-}
+.nav-item.active { background: var(--bg-active); font-weight: var(--fw-strong); }
+.nav-ico { color: var(--text-2); flex: none; width: 18px; display: grid; place-items: center; }
+.nav-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 행 옆의 수 — 예외만. 경고색 = 확인할 것, 조용한 색 = 오늘 기록 수. */
 .nav-badge {
-  margin-left: auto; font-size: var(--fs-2); font-weight: var(--fw-strong);
-  background: var(--bg-active); color: var(--text-2);
-  padding: 1px var(--space-3); border-radius: var(--radius-m); min-width: 20px; text-align: center;
+  flex: none; margin-left: auto;
+  min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-2); font-weight: var(--fw-strong); font-variant-numeric: tabular-nums;
 }
-/* 작업 중 표시 (2026-08-16) — 화면을 옮겨도 에이전트는 돈다. 숫자는 몇 개인지,
-   도는 고리는 "지금 이 순간"인지를 말한다. 색은 Claude 주황 고정: 프리셋 테마가
-   무엇이든 이 신호만은 같은 색이어야 눈이 바로 찾는다. */
-.nav-badge.working { background: color-mix(in srgb, var(--claude) 16%, transparent); color: var(--claude); }
-/* 승인 대기 (2026-08-16) — 작업 중과 다르다: 기다린다고 안 풀리고 **사용자가
-   눌러야** 풀린다. 그래서 도는 고리와 달리 깜빡여서 부른다 — 에이전트가 승인
-   대기로 멈춘 걸 모른 채 다른 화면에서 기다리다 몇 분을 잃던 것의 답. */
-.nav-badge.attention { background: var(--t-error-soft); color: var(--t-error); animation: nav-attention-pulse var(--pulse-dur) var(--ease-in-out) infinite; }
-@keyframes nav-attention-pulse { 50% { opacity: 0.45; } }
-@media (prefers-reduced-motion: reduce) {
-  .nav-badge.attention { animation: none; }
-}
-.nav-ico.working { position: relative; }
-.nav-ico.working::after {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  border: 1.5px solid transparent;
-  border-top-color: var(--claude);
-  animation: nav-working-spin var(--spin-dur) linear infinite;
-}
-@keyframes nav-working-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) {
-  /* 도는 대신 숨을 쉰다 — 움직임에 민감한 사용자에게도 "살아 있음"은 전해야 한다. */
-  .nav-ico.working::after { animation: nav-working-pulse var(--pulse-dur) var(--ease-in-out) infinite; }
-  @keyframes nav-working-pulse { 50% { opacity: 0.25; } }
-}
-/* v2 U1 — ⌘번호 힌트. 상시 노출은 소음이라 hover 시에만 보인다. */
-.nav-kbd {
-  margin-left: auto; font-size: var(--fs-1); font-family: var(--mono);
-  color: var(--text-3); opacity: 0; transition: opacity var(--dur-1) var(--ease-out);
-}
-.nav-item:hover .nav-kbd { opacity: 1; }
-.nav-item.active .nav-kbd { color: var(--accent-text); opacity: 0.75; }
+.nav-badge.warn { background: var(--warn-soft); color: var(--warn-text); }
+.nav-badge.dim { color: var(--text-2); font-weight: var(--fw-label); }
 
-/* 갈래 목록 — 에이전트 행이 열려 있을 때만 나타난다. `.subnav.vertical` 이
-   레이아웃을 하고, 여기서는 부모 행에 매다는 들여쓰기만 준다 — 섹션 척추
-   안의 작은 척추. */
-.nav-branches {
-  margin: 2px 0 var(--space-1) 16px;
-  padding-left: var(--space-3);
-  border-left: 1px solid var(--sep-strong);
-}
-.nav-branches .subnav-item {
-  gap: var(--space-3);
-  height: var(--ctl-3);
-  padding: 0 var(--space-3);
-}
-.nav-branches .subnav-item svg { color: var(--text-2); flex: none; }
-.nav-branches .subnav-item[aria-current="page"] svg { color: inherit; }
-.nav-branches .nav-badge { margin-left: auto; }
-
-/* `.side-spacer{flex:1}` 는 2026-09-05 에 지웠다 — 발을 바닥으로 미는 일은
-   이제 `.side-nav-scroll` 이 자기 몫으로 한다. 스페이서가 남아 있으면 그것도
-   flex:1 이라 목록과 남은 높이를 나눠 가져 스크롤 영역이 반토막 난다. */
-/* 발 — 한 줄. [터미널 도크 ⌘J ……] [☾] [⚙] */
-.side-foot {
-  display: flex; flex-direction: row; align-items: center; gap: 2px;
-  padding-top: clamp(var(--space-2), 0.8vh, var(--space-3));
-  border-top: 1px solid var(--sep);
-}
-.side-foot .nav-item { animation: none; }
-.side-foot .nav-item:first-child { flex: 1; min-width: 0; }
-/* 아이콘 칸 — 라벨은 .nav-sr 로 숨는다(보조기술·테스트에는 그대로). */
-.nav-util--icon {
-  width: var(--ctl-4); height: var(--ctl-4); flex: none;
-  padding: 0; justify-content: center;
-}
-/* 화면 밖으로 치운 텍스트 — 사이드바 안에서만 쓰는 sr-only. */
-.nav-sr {
-  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
-}
-
-/* 발밑 세 줄 중 **둘은 목적지가 아니다** (2026-09-09 {#sidebar-verbs}).
-   「터미널 도크」와 「다크 모드」는 지금 화면 위에서 무언가를 켜고 끄는
-   동작이고, 「설정」만 화면 이동이다. 상태는 `aria-pressed` 가 정확히 말하고
-   있으므로 그것을 그대로 그린다. */
-.nav-util { color: var(--text-2); }
-.nav-util .nav-ico { color: var(--text-3); }
-.nav-util:hover { color: var(--text); }
-.nav-util:hover .nav-ico { color: var(--text-2); }
-/* 켜짐 — 액센트 아이콘 + 들어간 면. 목적지의 틴트(--accent-soft)와 재료가
-   달라야 "켜져 있다" 와 "여기 있다" 가 구별된다. */
-.nav-util[aria-pressed="true"] { background: var(--bg-active); color: var(--text); }
-.nav-util[aria-pressed="true"] .nav-ico { color: var(--accent); }
-
-/* 단축키 재배정 1회 안내. 카드가 아니라 **줄**이다 — 사이드바에서 자리를
-   많이 먹으면 정작 바뀐 번호가 안 보인다. */
-.nav-remap {
-  margin: 0 0 var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-s);
-  background: var(--bg-inset);
-  display: grid;
-  gap: var(--space-1);
-}
-.nav-remap-title { font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text); }
-.nav-remap-body { font-size: var(--fs-2); line-height: var(--lh-snug); color: var(--text-2); }
-.nav-remap-acts { display: flex; gap: var(--space-2); margin-top: 2px; }
-.nav-remap-acts button {
-  font: inherit;
-  font-size: var(--fs-2);
-  padding: 3px var(--space-3);
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text-2);
-  cursor: pointer;
-}
-.nav-remap-acts button:hover { background: var(--bg-hover); color: var(--text); }
+/* 접는 화살표 — 사이드바는 더 쓰지 않지만 플래너 변경 로그가 같은 이름을 쓴다. */
+.nav-section-chev { flex-shrink: 0; transition: transform var(--dur-2) var(--ease-out); color: var(--text-3); }
 
 /* ============================================================ CONTENT */
-/* 콘텐츠 시트 — 캔버스 위에 라운드+테두리+그림자로 떠 있다. 마운트 시
-   얕게 상승하며 등장 (backwards: 종료 후엔 정적 스타일로 복귀). */
+/* 콘텐츠 — 평평한 면. 화면마다 자기 툴바를 그린다. */
 .content {
   display: flex; flex-direction: column;
   min-width: 0; min-height: 0;
   background: var(--bg-content);
   position: relative;
-  z-index: 1;
-  border: 1px solid var(--border-card);
-  /* xl(20) → l(12) (2026-10-07 {#compact-chrome}) — 20px 둥글기는 시트를 앱의
-     판이 아니라 떠 있는 카드로 보이게 했다. 안의 카드(.card = l)와 같은 단이라
-     바깥이 안쪽보다 덜 둥근 뒤집힘도 없다. */
-  border-radius: var(--radius-l);
-  box-shadow: var(--shadow-sheet);
   overflow: hidden;
-  animation: sheetIn 0.5s var(--ease-out) backwards;
 }
-@keyframes sheetIn {
-  from { opacity: 0; transform: translateY(10px) scale(0.992); }
-  to { opacity: 1; transform: none; }
-}
-
-/* ── 터미널 도크 배치 (2026-08-15) ─────────────────────────────────────────
-   시트 안을 두 칸으로 나눈다. 도크가 없으면 예전과 완전히 같은 세로 흐름이고
-   (툴바 + 스크롤), 도크가 붙으면 자리에 따라 방향만 바뀐다. 화면 쪽은 언제나
-   `.content-main` 안에서 자기 툴바를 그리므로 화면 코드는 손대지 않는다. */
-.content-body {
-  flex: 1; min-width: 0; min-height: 0;
-  display: flex; flex-direction: column;
-}
-.content-body.dock-left,
-.content-body.dock-right { flex-direction: row; }
 .content-main {
   flex: 1; min-width: 0; min-height: 0;
   display: flex; flex-direction: column;
@@ -507,21 +127,17 @@
 .toolbar {
   height: var(--toolbar-h); flex: none;
   display: flex; align-items: center; gap: var(--space-5);
-  padding: 0 var(--space-6);
+  padding: 0 var(--space-7);
   border-bottom: 1px solid var(--sep);
-  /* 불투명 (2026-09-02). 반투명 + blur(18px) 유리 툴바는 매 프레임 아래를 다시
-     그리고, 앱의 다른 크롬(사이드바·카드)은 전부 불투명이라 재료가 어긋났다. */
-  background: var(--bg-content);
+  /* 불투명 (2026-09-02). 반투명 + blur 유리 툴바는 매 프레임 아래를 다시 그리고,
+     앱의 다른 크롬(사이드바·카드)은 전부 불투명이라 재료가 어긋났다. */
+  background: var(--bg-window);
 }
 /* 좁은 창 방어 (2026-07-20): 제목은 절대 내부 줄바꿈하지 않고(CJK 가 한 글자씩
    세로로 꺾이던 버그), 부제는 넘치면 말줄임으로 양보한다. 액션 묶음은
    .toolbar-actions 가 가로 스크롤로 흡수 (스크롤바는 숨김 — 트랙패드/휠). */
-/* 17px → 14px (2026-10-07 {#compact-chrome}). 2026-09-09 {#hierarchy-by-weight-only}
-   가 15 → 17 로 올렸는데, 그 판단의 근거(위계를 무게 혼자 진다)는 **본문**의
-   것이었다. 툴바 제목은 문서의 제목이 아니라 크롬의 이름표다 — macOS 창 제목이
-   13pt semibold, VS Code·Linear 의 머리가 13~14px 다. 본문(13px)에서 한 단
-   위·semibold 면 "여기가 어디인지" 는 자리(왼쪽 끝)가 말한다. 큰 제목이 필요한
-   것은 화면 안의 문서(플랜·일지 제목)이고 그것들은 그대로 크다. */
+/* 14px semibold (2026-10-07 {#compact-chrome}) — 툴바 제목은 문서의 제목이 아니라
+   크롬의 이름표다. 큰 제목이 필요한 것은 화면 안의 문서(플랜·일지 제목)다. */
 .toolbar-title { font-size: var(--fs-5); font-weight: var(--fw-strong); letter-spacing: var(--track-tight); white-space: nowrap; flex: none; }
 /* 부제는 화면이 지금 무엇을 보고 있는지 말하는 **문장**이다 — 타임스탬프가
    아니므로 --text-2 (2026-09-04 {#text3-promotion}). */
@@ -541,41 +157,27 @@
 }
 .toolbar-actions::-webkit-scrollbar { display: none; }
 .toolbar-actions button { white-space: nowrap; }
-/* 툴바의 검색칸은 줄어들되 **바닥이 있다** — 최소 창(960)에서 영어 스코프 버튼
-   넷이 검색칸을 글자 하나 폭으로 짜부라뜨렸다(2026-09-11 영어 순회). 이 아래로는
-   묶음이 가로 스크롤로 도망간다. primitives.css 의 `.search-box` 는 기본 폭
-   200 에 바닥 0 이 맞다(다른 자리는 부모가 폭을 준다) — 툴바만 바닥을 둔다. */
+/* 툴바의 검색칸은 줄어들되 **바닥이 있다** — 최소 창(960)에서 버튼이 검색칸을
+   글자 하나 폭으로 짜부라뜨렸다(2026-09-11 영어 순회). 이 아래로는 묶음이 가로
+   스크롤로 도망간다. */
 .toolbar-actions > .search-box { min-width: 120px; }
 /* `scrollbar-gutter` 로 자리를 미리 잡는다 (2026-09-09 {#scrollbar-gutter}).
    base.css 가 `::-webkit-scrollbar { width: 10px }` 를 선언하는 순간 WebKit 은
    오버레이 스크롤바를 끄고 **레이아웃 폭을 차지하는** 고전 스크롤바로 바꾼다.
-   그래서 목록이 접히는 선을 넘는 순간 본문이 10px 왼쪽으로 튀었다 — 내용이
-   흘러드는 자리(일지 타임라인·검색 결과)에서 제일 잘 보였다.
-   macOS 13·14(Safari < 18.2)에서는 무시되고 예전 동작으로 남는다 — 퇴화가
-   안전한 쪽이라 하한을 올리지 않는다. */
+   그래서 목록이 접히는 선을 넘는 순간 본문이 10px 왼쪽으로 튀었다. */
 .scroll { overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; scrollbar-gutter: stable; }
 /* 화면이 반응할 기준은 **뷰포트가 아니라 이 칸**이다 (2026-09-10
-   {#layout-container-query}). 플래너가 `.pln-body` 로 이미 세운 패턴인데
-   (screens.css, 2026-08-23) 나머지 화면은 여전히 창 크기를 보고 있었다 —
-   사이드바 248px 나 터미널 도크를 열면 창은 그대로인데 화면만 좁아지므로
-   `@media` 는 그 폭을 못 본다. 프로젝트 셸의 폭 기반 `@media` 는 딱 둘이었고
-   (`.date-rail` 940 · `.sess-board` 900) 둘 다 그 눈먼 기준이었다.
+   {#layout-container-query}). 사이드바 폭만큼 창과 화면 폭이 다르므로 `@media` 는
+   화면 폭을 못 본다.
 
    **컨테이너를 `.content-main` 이 아니라 여기 두는 이유**: `container-type` 은
    containment 라 안쪽의 `position: fixed` 가 뷰포트가 아니라 컨테이너를
    기준으로 삼는다 — 플래너가 `PlanHoverCard` 를 body 로 포털해야 했던 이유가
-   그것이다. `.content-main` 에 걸면 포털하지 않은 넷(`.term-ghost` ·
-   `.term-block-menu` · `.term-sess-menu` · `.disc-modal-scrim`)이 조용히
-   어긋난다. 접어야 할 격자는 전부 `.page` 안에 있고, 그 넷은 전부 밖에 있다.
+   그것이다. 접어야 할 격자는 전부 `.page` 안에 있다.
 
    **접히는 선은 한 벌이다** — `@container screen` 의 640 / 460. 컨테이너
    조건에는 `var()` 를 못 쓰니 리터럴이고, 그래서 값이 흩어지기 제일 쉬운
-   자리다. 새 격자를 접을 때 세 번째 숫자를 고르지 말 것. (플래너의
-   `plnbody` 는 다른 칸이라 자기 선을 갖는다.)
-
-   환산: 시트 ≈ 창폭 − 258(사이드바 248 + 셸 여백 10), 이 칸의 콘텐츠 상자 =
-   시트 − 56(좌우 28). 옛 `@media 940` 은 626, `@media 900` 은 586 이었다 —
-   640 이 그 자리를 이어받고, 이제는 도크를 열어도 같이 움직인다. */
+   자리다. 새 격자를 접을 때 세 번째 숫자를 고르지 말 것. */
 .page {
   padding: var(--space-8) 28px 60px; max-width: 1180px; margin: 0 auto; width: 100%;
   container-type: inline-size; container-name: screen;

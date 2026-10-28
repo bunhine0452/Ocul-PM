@@ -1,0 +1,13 @@
+/* 붙여 넣을 명령 한 덩이 — 시작 창 3단계 · 설정 에이전트 연결. */
+.copy-cmd { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.copy-cmd-text {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-s);
+  background: var(--bg-inset); color: var(--text);
+  font-size: var(--fs-3); line-height: var(--lh-snug);
+  overflow-x: auto; white-space: nowrap;
+}
+.copy-cmd-text > span { display: block; }
+.copy-cmd > .btn { flex: none; }

@@ -105,57 +105,33 @@ export function stubFolderPicker(wd, folder) {
 
 const LABEL_OF = `
   const norm = (s) => (s || '').replace(/\\s+/g, ' ').trim();
-  const labelOf = (el) => norm([...el.children]
-    .filter((c) => c.tagName === 'SPAN' && !c.className)
-    .map((c) => c.textContent).join(' '));`;
+  const labelOf = (el) => norm(el.querySelector('.nav-label') ? el.querySelector('.nav-label').textContent : '');`;
 
-/** 사이드바 행(또는 에이전트 갈래)을 라벨로 찾는다 — `hit` 에 담는다. */
+/**
+ * 사이드바 화면 행 — 4.0 은 행 넷(`.side-nav`)과 바닥의 설정 하나다. 접히는 단도,
+ * 에이전트 갈래도 없다 (밀도 토글과 함께 걷었다).
+ */
+const ROWS = "nav.sidebar .side-nav .nav-item";
+
+/** 사이드바 행을 라벨로 찾는다 — `hit` 에 담는다. */
 const NAV_ROW = `${LABEL_OF}
-  const [label, branch] = arguments;
-  const sel = branch ? 'nav.sidebar .nav-branches .subnav-item' : 'nav.sidebar .side-nav-scroll .nav-item';
-  const hit = [...document.querySelectorAll(sel)].find((el) => labelOf(el) === label) || null;`;
+  const [label] = arguments;
+  const hit = [...document.querySelectorAll('${ROWS}')].find((el) => labelOf(el) === label) || null;`;
 const FIND_NAV = `${NAV_ROW} return hit;`;
 const NAV_ACTIVE = `${NAV_ROW} return !!hit && hit.getAttribute('aria-current') === 'page';`;
 
-/**
- * 접힌 단을 펼친다 (UI 밀도 라운드 2026-10-28). 기본 밀도(간단)에서 도구·베타 단은
- * 토글 뒤에 접혀 있어 행이 DOM 에 없다 — 숨김이 아니라 접힘이라, 행을 찾기 전에
- * `aria-expanded="false"` 인 토글을 전부 누른다. 전문 밀도(토글 없음)에선 아무 일도 없다.
- */
-const EXPAND_FOLDED = `
-  const toggles = [...document.querySelectorAll('nav.sidebar .nav-section-toggle[aria-expanded="false"]')];
-  for (const t of toggles) t.click();
-  return toggles.length;`;
-export function expandFoldedSections(wd) {
-  return wd.execute(EXPAND_FOLDED);
-}
-
-/** 사이드바 행 라벨 전부 (navRegistry 행 수와 대조) — 접힌 단을 먼저 펼친다. */
+/** 사이드바 행 라벨 전부 (navRegistry 행 수와 대조). */
 export async function sidebarLabels(wd) {
-  await expandFoldedSections(wd);
   return wd.execute(`${LABEL_OF}
-    return [...document.querySelectorAll('nav.sidebar .side-nav-scroll .nav-item')].map(labelOf);`);
+    return [...document.querySelectorAll('${ROWS}')].map(labelOf);`);
 }
 
-/**
- * 화면 하나로 간다 — 갈래 화면(Codex·세션 …)이면 부모 행(에이전트)을 먼저 연다.
- * 도착 판정은 그 행의 `aria-current="page"`.
- */
+/** 화면 하나로 간다 — 도착 판정은 그 행의 `aria-current="page"`. */
 export async function navigateTo(wd, dest, t) {
   const label = t(dest.labelKey);
-  await expandFoldedSections(wd);
-  if (dest.parentLabelKey) {
-    const open = await wd.execute(FIND_NAV, [label, true]);
-    if (!open) {
-      const parent = await waitFor(wd, FIND_NAV, [t(dest.parentLabelKey), false], { desc: `사이드바 "${t(dest.parentLabelKey)}"` });
-      await wd.click(elementId(parent));
-    }
-  }
-  const row = await waitFor(wd, FIND_NAV, [label, Boolean(dest.parentLabelKey)], { desc: `사이드바 "${label}"` });
+  const row = await waitFor(wd, FIND_NAV, [label], { desc: `사이드바 "${label}"` });
   await wd.click(elementId(row));
-  await waitFor(wd, NAV_ACTIVE, [label, Boolean(dest.parentLabelKey)], {
-    desc: `"${label}" 활성(aria-current)`,
-  });
+  await waitFor(wd, NAV_ACTIVE, [label], { desc: `"${label}" 활성(aria-current)` });
 }
 
 /**

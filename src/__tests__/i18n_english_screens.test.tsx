@@ -210,11 +210,10 @@ describe("영어 모드 전 화면 순회 — 한글이 남지 않는다", () =>
           view="today"
           onNavigate={noop}
           projectName="ai-pm"
-          projectPath="~/dev/ai-pm"
-          onOpenProjectSwitcher={noop}
           currentProjectId={1}
-          isDark={false}
-          onToggleTheme={noop}
+          projects={[]}
+          onOpenProject={noop}
+          badges={{ today: { n: 3, tone: "warn" }, journal: { n: 12, tone: "dim" } }}
         />
       </Wrap>,
     );
@@ -272,7 +271,7 @@ describe("영어 모드 전 화면 순회 — 한글이 남지 않는다", () =>
         <PlannerScreenV2 projectId={1} onNavigate={noop} onOpenJournal={noop} />
       </Wrap>,
     );
-    await expectEnglish(container, "Planner");
+    await expectEnglish(container, "Plan");
   });
 
   it("검색", async () => {

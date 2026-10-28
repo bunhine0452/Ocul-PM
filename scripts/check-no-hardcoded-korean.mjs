@@ -129,6 +129,14 @@ const TESTS = new Set([
   "__tests__/acp_conversation_seams.test.tsx",
   "__tests__/acp_identity_row.test.tsx",
   "__tests__/i18n_english_screens.test.tsx",
+  // 4.0 셸 · 설정 한 쪽 · 시작 창 · 창 하나 = 프로젝트 하나 — 사이드바 라벨(「오늘」·
+  // 「작업 일지」)과 한국어 테스트 이름이 검사 재료다. `os_path` 는 tildePath 가
+  // home_model 에서 옮겨 오며 따라온 한국어 테스트 이름이다.
+  "__tests__/shell_v4.test.tsx",
+  "__tests__/settings_page.test.tsx",
+  "__tests__/start_window.test.tsx",
+  "__tests__/app_window.test.tsx",
+  "__tests__/os_path.test.ts",
   // SECURITY.md 「외부 리뷰 이력」 표 픽스처 — 「반영」·「다음 릴리스」 는 파서가 읽는 한국어 문서 형식이다.
   "__tests__/bump_version.test.ts",
   "__tests__/journal_toast_gate.test.ts",

@@ -76,10 +76,6 @@ const fx = {
 // Markdown 리치 렌더(MarkdownImpl)는 ThemeProvider 에 의존 — 여기 관심사가
 // 아니므로 plain text 로 스텁한다 (journal_v2 와 동일 패턴).
 // 기본 밀도는 간단(두 열 보기)이다 — 이 테스트는 3존 화면의 모양을 재므로 전문으로 고정한다.
-vi.mock("@/hooks/useDensity", () => ({
-  useDensity: () => ({ density: "pro", set: () => {}, toggle: () => {} }),
-  DensityShortcut: () => null,
-}));
 vi.mock("@/components/Markdown", () => ({
   Markdown: ({ children }: { children: string }) => children,
 }));

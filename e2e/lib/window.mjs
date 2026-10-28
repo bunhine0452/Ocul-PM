@@ -11,7 +11,15 @@ import { sleep } from "./page.mjs";
 
 const inner = (wd) => wd.execute("return [window.innerWidth, window.innerHeight];");
 
-function osResize(width, height, processName) {
+/** xdotool 의 `--name` 정규식 — 창 제목 그대로 (점 같은 메타 문자는 이스케이프). */
+const titleRegex = (title) => `^${title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`;
+
+/**
+ * 창 크기를 OS 도구로 맞춘다. Windows 는 프로세스의 주 창, Linux 는 **창 제목**으로
+ * 찾는다 — 4.0 은 창 하나가 프로젝트 하나라 프로젝트 창의 제목은 「Ocul-PM」이 아니라
+ * 프로젝트 이름이다 (시작 창만 「Ocul-PM」).
+ */
+function osResize(width, height, processName, windowTitle) {
   if (IS_WIN) {
     const ps = `
 Add-Type @"
@@ -29,7 +37,7 @@ if (-not [E2eWin]::SetWindowPos($p.MainWindowHandle, [IntPtr]::Zero, 0, 0, ${wid
     execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand", encoded], { stdio: "pipe" });
     return "SetWindowPos";
   }
-  execFileSync("xdotool", ["search", "--onlyvisible", "--name", "^Ocul-PM$", "windowsize", "%@", String(width), String(height)], {
+  execFileSync("xdotool", ["search", "--onlyvisible", "--name", titleRegex(windowTitle), "windowsize", "%@", String(width), String(height)], {
     stdio: "pipe",
   });
   return "xdotool windowsize";
@@ -39,7 +47,7 @@ if (-not [E2eWin]::SetWindowPos($p.MainWindowHandle, [IntPtr]::Zero, 0, 0, ${wid
  * 웹뷰 안쪽이 `width`×`height` 쯤 되게 맞춘다. 실제로 얻은 크기와 쓴 방법을 돌려준다
  * — 러너 화면보다 큰 창은 OS 가 잘라낼 수 있으므로 결과를 **보고**하지 판정하지 않는다.
  */
-export async function resizeViewport(wd, width, height, { processName = "ocul-pm" } = {}) {
+export async function resizeViewport(wd, width, height, { processName = "ocul-pm", windowTitle = "Ocul-PM" } = {}) {
   const notes = [];
   const close = (got) => Math.abs(got[0] - width) <= 24 && Math.abs(got[1] - height) <= 60;
   let got = await inner(wd);
@@ -59,11 +67,11 @@ export async function resizeViewport(wd, width, height, { processName = "ocul-pm
   }
   if (!close(got)) {
     try {
-      const how = osResize(width, height, processName);
+      const how = osResize(width, height, processName, windowTitle);
       await sleep(900);
       got = await inner(wd);
       if (!close(got)) {
-        osResize(width + (width - got[0]), height + (height - got[1]), processName);
+        osResize(width + (width - got[0]), height + (height - got[1]), processName, windowTitle);
         await sleep(900);
         got = await inner(wd);
       }

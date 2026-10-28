@@ -68,21 +68,10 @@ export const ALLOWLIST = new Set([
   "features/discussion/useDiscussionSave.ts",
   "features/oculpm/useJournalDays.ts",
   "features/oculpm/useOculpmLive.ts",
-  "features/onboarding/GreenfieldWizard.tsx",
-  "features/onboarding/StartScreen.tsx",
-  "features/onboarding/home/useHomeBrief.ts",
   // v3-release {#planner-diff-split} — 플래너 화면에서 갈라 나온 조각. 직접 호출이
   // 늘어난 것이 아니라 화면이 들고 있던 것이 따라왔다. 옮길 때는 화면과 함께.
   "features/planner/usePlanDocument.ts",
-  "features/projects/ProjectManager.tsx",
   "features/search/SearchScreenV2.tsx",
-  "features/settings/OculpmSettings.tsx",
-  "features/settings/tabs/AppearanceTab.tsx",
-  "features/settings/tabs/DataTab.tsx",
-  "features/settings/tabs/DiagnosticsTab.tsx",
-  "features/settings/tabs/DoctorSection.tsx",
-  "features/settings/tabs/IndexingTab.tsx",
-  "features/settings/tabs/UpdateTab.tsx",
   "features/shell/ShellV2.tsx",
   "features/skills/RuleCandidates.tsx",
   "features/skills/PluginDocsTab.tsx",
@@ -92,9 +81,9 @@ export const ALLOWLIST = new Set([
   "features/tray/TrayPopover.tsx",
   "lib/externalLinks.ts",
   "lib/oculpmLog.ts",
-  "windows/ProjectTab.tsx",
-  "windows/StartTab.tsx",
-  "windows/TabbedWindow.tsx",
+  // 3.x 의 탭 본문(`ProjectTab`)이 이름만 바뀌었다 (4.0 창 하나 = 프로젝트 하나) —
+  // 직접 호출이 는 것이 아니다. 딥링크의 `trayOpenMain` · 워처 인수가 남았다.
+  "windows/ProjectWindow.tsx",
 ]);
 
 const EXT = new Set([".ts", ".tsx"]);

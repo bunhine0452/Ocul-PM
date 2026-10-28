@@ -1,550 +1,118 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  MoonIcon,
-  SunIcon,
-  SettingsIcon,
-  FolderGit2,
-  ChevronsUpDown,
-  PanelLeft,
-} from "@/components/Icons";
+import { SettingsIcon } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
-import { NAV_ENTRIES, NAV_BUS, navRowViews, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
-import { ChevronRight } from "@/components/Icons";
-import { useDensity } from "@/hooks/useDensity";
-import { useOptionalSettings } from "@/contexts/SettingsContext";
-import { NavRemapNotice } from "@/components/NavRemapNotice";
-// 경로 표기는 앱에서 한 형태다 — 시작 화면 카드·프로젝트 관리가 이미 이걸 쓴다.
-// 사이드바만 원시 경로를 그려서 `/Users/kimhyunbin/De…` 처럼 **집 경로로 폭을
-// 다 쓰고 정작 프로젝트 이름이 잘리는** 유일한 자리였다.
-import { tildePath } from "@/features/onboarding/home/homeModel";
+import { ProjectSwitcher } from "@/features/shell/ProjectSwitcher";
+import type { NavBadges } from "@/features/shell/useNavBadges";
+import { NAV_ENTRIES, navShortcutLabel } from "@/lib/navRegistry";
 import { useT } from "@/i18n";
-import { dragRegion } from "@/lib/platform";
+import type { Project } from "@/lib/bindings";
+import { kbd } from "@/lib/kbd";
+import { dragRegion, isMac } from "@/lib/platform";
 
-// Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
-// Ocul-PM1.0/src/shell.jsx). Rendered as <nav> + <button>s for a11y; the
-// mockup used <div onClick>. Dogfooding 2026-06-07: now collapsible — a
-// brand-row button toggles `sidebarCollapsed`; ShellV2 owns the hover-reveal.
-// v2: nav 항목은 navRegistry 단일 소스에서 파생 (docs/20260706_v2/01-ux-spec.md §1).
+// 사이드바 (4.0, 시안 Main.dc.html) — 머리 · 행 넷 · 바닥의 설정. 그게 전부다.
 //
-// 2026-09-05 — **넘치면 잘리는 게 아니라 스크롤된다.** 화면이 16개(+설정)로 늘면서
-// 사이드바 전체 높이가 900px 을 넘었는데 `.app` 이 overflow:hidden 이라 낮은
-// 창에서는 발밑(터미널 도크·테마·설정)이 통째로 잘려 나갔다 — 있는 줄도 모르는
-// 상태. 구조를 세 층으로 나눈다:
+//   머리: 프로젝트 이름 버튼(⌘O) — 최근 프로젝트 목록을 띄운다 (ProjectSwitcher)
+//   행 넷: 오늘 · 작업 일지 · 계획 · 변경 (navRegistry, ⌘1~⌘4)
+//   바닥: 설정 (⌘,)
 //
-//   고정 머리(드래그 스트립·브랜드·프로젝트 스위처)
-//   → `.side-nav-scroll` (넘치는 만큼만 스크롤)
-//   → 고정 발(.side-foot — 언제나 바닥에 보인다)
-//
-// 스크롤은 안전망이고, 보통 창 높이에서는 스크롤 없이 다 보이는 게 낫다.
-// 그래서 세로 여백을 vh 로 눌러 두었다 (shell.css 의 --side-gap / .nav-item).
-//
-// 2026-09-11 리디자인 — 머리는 활자(카드·타일 없음), 섹션은 라벨 + 왼쪽 척추,
-// 발은 한 줄(도크 라벨 + 아이콘 칸 둘). 결정의 이유는 shell.css 의 리디자인
-// 주석에 있다. DOM 계약(머리/스크롤/발 3층, 발의 버튼 셋, 라벨 텍스트)은 그대로다.
-
-// 사이드바의 세 단 = 화면 등급 (best-results UI 라운드 2026-10-28, docs/PROMISE.md).
-// 핵심은 항상, 도구(뷰어)·베타(보류)는 간단 밀도에서 접힌다 — 숨김이 아니라 접힘.
-const CORE_NAV = NAV_ENTRIES.filter((e) => e.tier === "core");
-const VIEWER_NAV = NAV_ENTRIES.filter((e) => e.tier === "viewer");
+// 행 옆의 수는 **예외만** — 확인할 것(경고색)과 오늘 기록 수(조용한 색). 3.x 의 섹션
+// 라벨·척추·접기·밀도 단·테마 토글·단축키 재배정 안내는 걷었다: 화면이 다섯이면 한눈에
+// 다 보이고, 밝기는 설정에 있다. 접기(⌘\)도 걷었다 — 212px 사이드바는 접을 만큼 크지 않다.
 
 interface SidebarProps {
   view: UiV2View;
   onNavigate: (view: UiV2View) => void;
   projectName: string | null;
-  projectPath: string | null;
-  /** Focuses the launcher window (project manage / add / rename / delete). */
-  onOpenProjectSwitcher: () => void;
-  /** Projects for the inline quick-switcher popover (Dogfooding 2026-06-14c). */
-  projects?: { id: number; name: string; root_path: string }[];
-  /** Currently-open project id — highlighted in the switcher. */
-  currentProjectId?: number | null;
-  /**
-   * 다른 프로젝트로 이동. 멀티 창(I3) 이후 이건 제자리 전환이 아니라 **그
-   * 프로젝트의 창을 열거나 포커스**하는 동작이다.
-   */
-  onSwitchProject?: (id: number) => void;
-  /** 이미 창이 떠 있는 프로젝트 id — 팝오버에 "열림" 표시. */
-  openWindows?: number[];
-  isDark: boolean;
-  onToggleTheme: () => void;
-  /**
-   * macOS `titleBarStyle: "Overlay"` floats the native traffic lights over the
-   * top-left of the content. ShellV2 (full-screen, no legacy TitleBar) passes a
-   * top inset so the brand clears the lights; the strip is a drag region.
-   */
-  macTopInset?: number;
-  /**
-   * 터미널 도크 토글 (2026-08-15). 화면 이동이 아니라 **지금 화면 위에**
-   * 셸을 여는 것이라 nav 목록이 아니라 발밑(side-foot)에 둔다 — 목록에 끼면
-   * ⌘번호가 밀리고 "다른 화면으로 간다"는 신호가 되어버린다.
-   */
-  /** Collapse the sidebar off-screen (hover-to-reveal). Dogfooding 2026-06-07. */
-  onToggleCollapse?: () => void;
-  /** True when the sidebar is currently collapsed (button shown in the overlay). */
-  collapsed?: boolean;
-  /** Hide the floating overlay when the cursor leaves it (collapsed mode). */
-  onMouseLeave?: () => void;
-  /** 행 옆의 조용한 수 — 일지(오늘 N건) · 변경(미커밋 N). 없으면 안 그린다. */
-  badges?: Partial<Record<UiV2View, number>>;
+  currentProjectId: number | null;
+  projects: Project[];
+  /** 다른 프로젝트의 창을 연다 (이미 열려 있으면 그 창이 앞으로 — I1). */
+  onOpenProject: (projectId: number) => void;
+  onProjectsChanged?: () => void;
+  badges?: NavBadges;
 }
 
 function NavRow({
-  slot,
+  id,
   active,
-  index,
   onNavigate,
-  working = 0,
-  attention = 0,
-  count,
-  showKbd,
+  badge,
 }: {
-  slot: NavEntry;
+  id: UiV2View;
   active: boolean;
-  /** 셸 진입 캐스케이드(--i) 순번 — shell.css .nav-item 의 animation-delay. */
-  index: number;
   onNavigate: (view: UiV2View) => void;
-  /**
-   * 이 화면에서 **지금 돌고 있는** 일의 수 (0 이면 아무 표시도 없다).
-   * 화면을 옮겨도 에이전트는 계속 도는데, 떠난 뒤로는 아무 기별이 없었다.
-   */
-  working?: number;
-  /**
-   * **승인을 기다리며 멈춰 있는** 일의 수. 작업 중과 다르다 — 이건 기다린다고
-   * 안 풀리고 사용자가 눌러야 풀린다. 그래서 작업 배지보다 우선해 보인다.
-   */
-  attention?: number;
-  /** 조용한 수 — 오늘 일지 N · 미커밋 변경 N (시안 A). 돌고 있는 것·기다리는 것이 있으면 그쪽이 먼저다. */
-  count?: number;
-  /** 단축키 힌트를 그리는가 — 전문 밀도, 또는 설정 「단축키 힌트를 버튼 옆에」. */
-  showKbd: boolean;
+  badge?: NavBadges[UiV2View];
 }) {
-  const Icon = slot.icon;
-  const shortcut = navShortcutLabel(slot.id);
   const { t } = useT();
-  const label = t(slot.labelKey);
-  const busy = working > 0;
-  const waiting = attention > 0;
-  const title = waiting
-    ? `${label} — ${t("nav.attention", { n: attention })}`
-    : busy
-      ? `${label} — ${t("nav.working", { n: working })}`
-      : shortcut
-        ? `${label} (${shortcut})`
-        : label;
+  const entry = NAV_ENTRIES.find((e) => e.id === id);
+  if (!entry) return null;
+  const Icon = entry.icon;
+  const label = t(entry.labelKey);
+  const shortcut = navShortcutLabel(id);
   return (
     <button
       type="button"
       className={"nav-item" + (active ? " active" : "")}
-      style={{ "--i": index } as React.CSSProperties}
       aria-current={active ? "page" : undefined}
-      title={title}
-      onClick={() => onNavigate(slot.id)}
+      title={shortcut ? `${label} (${shortcut})` : label}
+      onClick={() => onNavigate(id)}
     >
-      {/* 도는 동안에는 아이콘 둘레가 돈다 — 숫자만으로는 "멈춘 채 N 개"인지
-          "지금 일하는 중"인지 구분되지 않는다. */}
-      <span className={"nav-ico" + (busy ? " working" : "")}>
+      <span className="nav-ico">
         <Icon size={15} />
       </span>
-      <span>{label}</span>
-      {waiting ? (
-        <span className="nav-badge attention" aria-label={t("nav.attention", { n: attention })}>
-          {attention}
+      <span className="nav-label">{label}</span>
+      {badge ? (
+        <span
+          className={"nav-badge " + badge.tone}
+          aria-label={t(badge.tone === "warn" ? "nav.toCheck" : "nav.count", { n: badge.n })}
+        >
+          {badge.n}
         </span>
-      ) : busy ? (
-        <span className="nav-badge working" aria-label={t("nav.working", { n: working })}>
-          {working}
-        </span>
-      ) : count && count > 0 ? (
-        <span className="nav-badge count" aria-label={t("nav.count", { n: count })}>
-          {count}
-        </span>
-      ) : shortcut && showKbd ? (
-        <kbd className="nav-kbd">{shortcut}</kbd>
       ) : null}
     </button>
   );
-}
-
-/**
- * 갈래가 있는 행(에이전트)의 하위 목록 — **열려 있을 때만** 펼친다.
- *
- * 늘 펼쳐 두면 행을 셋에서 하나로 줄인 뜻이 없어지고, 아예 안 보이면 Codex 로
- * 건너갈 길이 ⌘K 뿐이 된다. 그 사이를 고른다: 이 면에 들어와 있는 동안에만
- * 형제가 보인다. (`.subnav.vertical` 은 이미 있는 프리미티브다.)
- */
-function NavBranches({
-  branches,
-  view,
-  onNavigate,
-  counts,
-}: {
-  branches: NavEntry[];
-  view: UiV2View;
-  onNavigate: (view: UiV2View) => void;
-  counts: (id: UiV2View) => { working: number; attention: number };
-}) {
-  const { t } = useT();
-  return (
-    <div className="subnav vertical nav-branches">
-      {branches.map((b) => {
-        const Icon = b.icon;
-        const { working, attention } = counts(b.id);
-        return (
-          <button
-            key={b.id}
-            type="button"
-            className="subnav-item"
-            aria-current={view === b.id ? "page" : undefined}
-            onClick={() => onNavigate(b.id)}
-          >
-            <Icon size={13} />
-            <span>{t(b.labelKey)}</span>
-            {attention > 0 ? (
-              <span className="nav-badge attention" aria-label={t("nav.attention", { n: attention })}>
-                {attention}
-              </span>
-            ) : working > 0 ? (
-              <span className="nav-badge working" aria-label={t("nav.working", { n: working })}>
-                {working}
-              </span>
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/**
- * 한 단 — 라벨 + 척추 달린 행 묶음. `collapsible` 이면 라벨이 토글 버튼이 되고,
- * 접힌 동안 행은 DOM 에서 빠진다(⌘번호·⌘K 는 레지스트리에서 오므로 여전히 닿는다).
- * 갈래가 있는 행(에이전트)은 배지를 합산하고 열려 있을 때만 갈래를 펼친다.
- */
-function NavSection({
-  label,
-  tag,
-  rows,
-  indexBase,
-  view,
-  onNavigate,
-  counts,
-  badges,
-  showKbd,
-  first = false,
-  collapsible = false,
-  open = true,
-  onToggle,
-}: {
-  label: string;
-  tag?: string;
-  rows: NavEntry[];
-  indexBase: number;
-  view: UiV2View;
-  onNavigate: (view: UiV2View) => void;
-  counts: (id: UiV2View) => { working: number; attention: number };
-  badges?: Partial<Record<UiV2View, number>>;
-  showKbd: boolean;
-  first?: boolean;
-  collapsible?: boolean;
-  open?: boolean;
-  onToggle?: () => void;
-}) {
-  const labelClass = "nav-section-label" + (first ? " nav-section-label--first" : "");
-  return (
-    <div className="nav-section">
-      {collapsible ? (
-        <button
-          type="button"
-          className={labelClass + " nav-section-toggle"}
-          aria-expanded={open}
-          onClick={onToggle}
-        >
-          <ChevronRight size={11} className={"nav-section-chev" + (open ? " open" : "")} />
-          <span>{label}</span>
-          {tag ? <span className="nav-section-tag">{tag}</span> : null}
-          {!open ? <span className="nav-section-count">{rows.length}</span> : null}
-        </button>
-      ) : (
-        <div className={labelClass}>
-          <span>{label}</span>
-          {tag ? <span className="nav-section-tag">{tag}</span> : null}
-        </div>
-      )}
-      {open ? (
-        <div className="nav-rows">
-          {rows.map((slot, i) => {
-            const views = navRowViews(slot);
-            const working = views.reduce((n, v) => n + counts(v).working, 0);
-            const attention = views.reduce((n, v) => n + counts(v).attention, 0);
-            return (
-              <div key={slot.id} className={slot.children ? "nav-group" : undefined}>
-                <NavRow
-                  slot={slot}
-                  active={views.includes(view)}
-                  index={indexBase + i}
-                  onNavigate={onNavigate}
-                  working={working}
-                  attention={attention}
-                  count={badges?.[slot.id]}
-                  showKbd={showKbd}
-                />
-                {slot.children && views.includes(view) ? (
-                  <NavBranches branches={slot.children} view={view} onNavigate={onNavigate} counts={counts} />
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * 스크롤 영역의 위/아래 가장자리 페이드를 켜고 끈다.
- *
- * 스크롤바를 상시 띄우면 소음이라(맥은 기본이 오버레이 스크롤바라 가만히 있으면
- * 아예 안 보인다) "더 있다" 는 사실이 사라진다. 그래서 **넘치는 쪽만** 흐린다 —
- * 위로 더 있으면 위를, 아래로 더 있으면 아래를. 다 보이면 페이드도 없다.
- *
- * 리렌더 없이 DOM 클래스만 토글한다: 스크롤마다 setState 를 돌리면 nav 목록
- * 전체가 통째로 다시 그려진다.
- */
-function useEdgeFade(ref: React.RefObject<HTMLDivElement | null>) {
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () => {
-      const slack = el.scrollHeight - el.clientHeight;
-      // 1px 여유 — 서브픽셀 반올림 때문에 끝까지 내려도 slack 이 0.5 쯤 남는다.
-      el.classList.toggle("fade-top", el.scrollTop > 1);
-      el.classList.toggle("fade-bottom", slack > 1 && el.scrollTop < slack - 1);
-    };
-    update();
-    el.addEventListener("scroll", update, { passive: true });
-    // 창 높이가 바뀌면 넘치는지 여부도 바뀐다. ResizeObserver 가 없는 환경
-    // (jsdom) 에서는 초기 1회 계산만 하고 조용히 넘어간다 — 레이아웃이 없는
-    // 곳에서는 어차피 늘 "안 넘침" 이다.
-    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(update) : null;
-    ro?.observe(el);
-    return () => {
-      el.removeEventListener("scroll", update);
-      ro?.disconnect();
-    };
-  }, [ref]);
 }
 
 export function Sidebar({
   view,
   onNavigate,
   projectName,
-  projectPath,
-  onOpenProjectSwitcher,
-  projects,
   currentProjectId,
-  onSwitchProject,
-  openWindows,
-  isDark,
-  onToggleTheme,
-  macTopInset = 0,
-  onToggleCollapse,
-  collapsed = false,
-  onMouseLeave,
+  projects,
+  onOpenProject,
+  onProjectsChanged,
   badges,
 }: SidebarProps) {
-  const [switcherOpen, setSwitcherOpen] = useState(false);
-  const switcherRef = useRef<HTMLDivElement>(null);
-  /** nav 목록만 담는 스크롤 영역 — 머리(브랜드·프로젝트)와 발(.side-foot)은 밖. */
-  const navScrollRef = useRef<HTMLDivElement>(null);
-  useEdgeFade(navScrollRef);
-  // 배지 수 — 보류 등급(에이전트 화면)이 걷히면서 돌고 있는 세션 수를 셀 자리가 없다.
-  // NavSection 의 계약은 그대로 두고 0 을 돌려준다.
-  const counts = (_id: UiV2View) => ({ working: 0, attention: 0 });
-
-  // ⌘P (useGlobalShortcuts) / 팔레트 "프로젝트 전환" → 팝오버 열기 (v2 U1).
-  useEffect(() => {
-    const onOpen = () => setSwitcherOpen(true);
-    window.addEventListener(NAV_BUS.openProjectSwitcher, onOpen);
-    return () => window.removeEventListener(NAV_BUS.openProjectSwitcher, onOpen);
-  }, []);
-
-  // Close the inline switcher on outside-click / Esc.
-  useEffect(() => {
-    if (!switcherOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
-        setSwitcherOpen(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSwitcherOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [switcherOpen]);
-
   const { t } = useT();
-  const { density } = useDensity();
-  const pro = density === "pro";
-  /** 간단 밀도에서 사용자가 손으로 펼친 단 — 세션 안에서만 기억한다. */
-  const [open, setOpen] = useState({ viewer: false });
-  // 설정 「표시」 — 단축키 힌트. 공급자 밖(테스트)에서는 기본값.
-  const settingsCtx = useOptionalSettings();
-  const showKbd = pro || (settingsCtx?.settings.kbdHints ?? false);
-
+  // macOS 오버레이 타이틀바 — 신호등이 사이드바 머리 위에 뜬다. 그 자리를 비우고
+  // 창을 잡는 띠로 쓴다. Windows·Linux 는 OS 제목줄이 있어 띠가 없다.
+  const mac = isMac();
   return (
-    <nav className="sidebar" aria-label={t("nav.aria.main")} onMouseLeave={onMouseLeave}>
-      {macTopInset > 0 ? (
-        <div className="side-drag-strip" {...dragRegion()} style={{ height: macTopInset }} />
-      ) : null}
-      <div className="side-brand" {...dragRegion()}>
-        {onToggleCollapse ? (
-          <button
-            type="button"
-            className="side-collapse-btn"
-            onClick={onToggleCollapse}
-            title={collapsed ? t("sidebar.pin") : t("sidebar.collapse")}
-            aria-label={collapsed ? t("sidebar.pin") : t("sidebar.collapse")}
-          >
-            <PanelLeft size={15} />
-          </button>
-        ) : null}
+    <nav className="sidebar" aria-label={t("nav.aria.main")}>
+      {mac ? <div className="side-drag-strip" {...dragRegion()} /> : null}
+      <ProjectSwitcher
+        projectName={projectName}
+        currentProjectId={currentProjectId}
+        projects={projects}
+        onOpenProject={onOpenProject}
+        onProjectsChanged={onProjectsChanged}
+      />
+      <div className="side-nav">
+        {NAV_ENTRIES.map((e) => (
+          <NavRow key={e.id} id={e.id} active={view === e.id} onNavigate={onNavigate} badge={badges?.[e.id]} />
+        ))}
       </div>
-
-      <div className="proj-switch-wrap" ref={switcherRef}>
-        <button
-          type="button"
-          className="proj-switch"
-          onClick={() => setSwitcherOpen((o) => !o)}
-          title={t("sidebar.switchProject")}
-          aria-haspopup="menu"
-          aria-expanded={switcherOpen}
-        >
-          {/* 머리는 활자다 (2026-09-11) — 카드·타일 대신 이름이 제목, 경로가
-              부제. 액센트 마크 하나가 "프로젝트" 라고 말한다 (shell.css). */}
-          <span className="proj-mark" aria-hidden="true" />
-          <div className="proj-meta">
-            <div className="proj-name">{projectName ?? t("sidebar.selectProject")}</div>
-            <div className="proj-path">{projectPath ? tildePath(projectPath) : "—"}</div>
-          </div>
-          <ChevronsUpDown size={15} className="proj-chev" />
-        </button>
-
-        {switcherOpen ? (
-          <div className="proj-pop" role="menu" aria-label={t("sidebar.switchProjectMenu")}>
-            {projects && projects.length > 0 ? (
-              <div className="proj-pop-list">
-                {projects.map((p) => {
-                  const isCurrent = p.id === currentProjectId;
-                  const isOpen = !isCurrent && (openWindows?.includes(p.id) ?? false);
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={isCurrent}
-                      className={"proj-pop-item" + (isCurrent ? " on" : "")}
-                      onClick={() => {
-                        if (!isCurrent) onSwitchProject?.(p.id);
-                        setSwitcherOpen(false);
-                      }}
-                    >
-                      <FolderGit2 size={15} color="var(--accent)" />
-                      <span className="proj-pop-meta">
-                        <span className="proj-pop-name">{p.name}</span>
-                        <span className="proj-pop-path">{p.root_path}</span>
-                      </span>
-                      {isCurrent ? (
-                        <span className="proj-pop-cur">{t("sidebar.currentProject")}</span>
-                      ) : isOpen ? (
-                        <span className="proj-pop-cur">{t("sidebar.openProject")}</span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
-            <button
-              type="button"
-              role="menuitem"
-              className="proj-pop-manage"
-              onClick={() => {
-                setSwitcherOpen(false);
-                onOpenProjectSwitcher();
-              }}
-            >
-              <ChevronsUpDown size={13} /> {t("sidebar.manageProjects")}
-            </button>
-          </div>
-        ) : null}
-      </div>
-
-      {/* 스크롤 영역. 안의 항목이 전부 <button> 이라 탭 키만으로 끝까지 닿는다
-          — 브라우저가 포커스된 행을 스크롤해 들여온다. 그래서 컨테이너 자체에
-          tabIndex 를 주지 않았다(axe scrollable-region-focusable 도 포커스 가능한
-          자식이 있으면 통과한다). 빈 탭 정거장이 하나 늘 뿐이다.
-          aria 도 붙이지 않는다: 바깥 <nav aria-label> 이 이미 이 목록의 이름이고,
-          role 없는 div 에 aria-label 을 얹으면 그게 오히려 위반이다. */}
-      <div className="side-nav-scroll" ref={navScrollRef}>
-        <NavRemapNotice />
-        {/* 세 단 = 세 등급. 간단 밀도에서 도구·베타는 접히되, 그 단의 화면이 열려
-            있으면 저절로 펼쳐진다 — 지금 있는 곳이 안 보이면 안 된다. */}
-        <NavSection
-          label={t("sidebar.mainSection")}
-          first
-          rows={CORE_NAV}
-          indexBase={0}
-          view={view}
-          onNavigate={onNavigate}
-          counts={counts}
-          badges={badges}
-          showKbd={showKbd}
-        />
-        <NavSection
-          label={t("sidebar.viewerSection")}
-          rows={VIEWER_NAV}
-          indexBase={CORE_NAV.length}
-          view={view}
-          onNavigate={onNavigate}
-          counts={counts}
-          showKbd={showKbd}
-          collapsible={!pro}
-          open={pro || open.viewer || VIEWER_NAV.some((e) => navRowViews(e).includes(view))}
-          onToggle={() => setOpen((o) => ({ ...o, viewer: !o.viewer }))}
-        />
-      </div>
-
-      {/* 발은 한 줄이다 (2026-09-11): 테마·설정은 아이콘 칸. 라벨은 .nav-sr 로 남아
-          보조기술·테스트에는 그대로 읽힌다. 터미널 도크 버튼은 2026-10-28 에 걷었다. */}
-      <div className="side-foot">
-        <button
-          type="button"
-          className="nav-item nav-util nav-util--icon"
-          onClick={onToggleTheme}
-          title={isDark ? t("sidebar.lightMode") : t("sidebar.darkMode")}
-        >
-          <span className="nav-ico">
-            {isDark ? <SunIcon size={15} /> : <MoonIcon size={15} />}
-          </span>
-          <span className="nav-sr">{isDark ? t("sidebar.lightMode") : t("sidebar.darkMode")}</span>
-        </button>
-        <button
-          type="button"
-          className={"nav-item nav-util nav-util--icon" + (view === "settings" ? " active" : "")}
-          aria-current={view === "settings" ? "page" : undefined}
-          onClick={() => onNavigate("settings")}
-          title={t("sidebar.settings")}
-        >
-          <span className="nav-ico">
-            <SettingsIcon size={15} />
-          </span>
-          <span className="nav-sr">{t("sidebar.settings")}</span>
-        </button>
-      </div>
+      <div className="side-fill" {...dragRegion()} />
+      <button
+        type="button"
+        className={"nav-item" + (view === "settings" ? " active" : "")}
+        aria-current={view === "settings" ? "page" : undefined}
+        onClick={() => onNavigate("settings")}
+        title={`${t("sidebar.settings")} (${kbd("⌘,")})`}
+      >
+        <span className="nav-ico">
+          <SettingsIcon size={15} />
+        </span>
+        <span className="nav-label">{t("sidebar.settings")}</span>
+      </button>
     </nav>
   );
 }

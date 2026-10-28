@@ -1,166 +1,127 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Command } from "cmdk";
 import {
-  Flame,
   Settings as SettingsIcon,
-  RefreshCw,
-  Plus,
   FolderGit2,
   NotebookText,
   TargetIcon,
-  MessageSquare,
-  Keyboard,
-  FileCode,
-  Puzzle,
   type IconComponent,
 } from "@/components/Icons";
 import { useOptionalWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_DESTINATIONS, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
 import { tAll, useT, type I18nKey } from "@/i18n";
-import type { EntityHit, Project } from "@/lib/bindings";
-import { oculpmApi, OculpmApiError } from "@/api/oculpm";
-import { toast } from "@/lib/toast";
-import { requestManualEntry } from "@/lib/journalCompose";
-import { requestCheatsheet } from "@/lib/projectActions";
-import { requestAgentContext } from "@/lib/agentContextNav";
+import type { JournalSearchHit, PlanSummary, Project } from "@/lib/bindings";
+import { oculpmApi } from "@/api/oculpm";
+import { planApi } from "@/api/plan";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { kbd } from "@/lib/kbd";
-import { isMac } from "@/lib/platform";
-import { openNewWindow } from "@/hooks/useWindowTabKeys";
 
-// MASTER-GUIDE §5.9 — cmdk 기반 Command Palette
+// ⌘K 팔레트 (MASTER-GUIDE §5.9 → 4.0) — 네 가지만 싣는다: 화면 · 프로젝트 · 일지 · 계획.
 //
-// ⌘K (Ctrl+K) 로 호출하는 fuzzy-search 인터페이스.
-// 화면 이동, 액션, 검색을 한 곳에 모은다.
-// "UI 가 말을 듣지 않을 때 ⌘K 로 즉시 탈출" 의 핵심 장치.
+// "UI 가 말을 듣지 않을 때 ⌘K 로 즉시 탈출" 의 장치다. 3.x 는 세션 시작·종료·수동 일지·
+// 어댑터 동기·규칙·스킬·재색인까지 실었는데, 그 대부분은 앱 안 동작이 사라지며 함께
+// 걷혔고, 남은 것도 그 화면에 버튼이 있다. 팔레트는 **어디로 가는 곳**이다.
 
 interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Open Settings deep-link (handled by parent which owns the Settings overlay). */
+  /** 설정 화면으로. */
   onOpenSettings: () => void;
-  /** Trigger a project re-index (parent owns the indexing state). */
-  onReindex?: () => void;
-  /** Trigger overview regeneration. */
-  onRegenerateOverview?: () => void;
-  /**
-   * 대시보드(프로젝트 미선택)에서 팔레트가 사실상 비어 있던 문제를 메운다 —
-   * 나머지 액션이 전부 `currentProjectId !== null` 로 게이트돼 있어서, 앱을
-   * 열자마자 ⌘K 를 누르면 화면 이동 항목만 나오고 그것들도 동작하지 않았다.
-   */
+  /** 다른 프로젝트 — 그 프로젝트의 창을 연다 (이미 열려 있으면 그 창이 앞으로). */
   projects?: Project[];
   onSelectProject?: (p: Project) => void;
 }
 
-type CommandGroup = "projects" | "nav" | "actions" | "oculpm";
+type CommandGroup = "nav" | "projects";
 
 const GROUP_LABEL: Record<CommandGroup, I18nKey> = {
-  projects: "palette.group.projects",
   nav: "palette.group.nav",
-  actions: "palette.group.actions",
-  oculpm: "palette.group.oculpm",
+  projects: "palette.group.projects",
 };
 
 type CommandItem = {
   id: string;
   label: string;
-  // Korean alias for fuzzy matching ("체인지로그" → Changelog)
+  /** 양 언어 별칭 — 영어 모드에서도 "일지" 로, 한국어 모드에서도 "journal" 로 찾힌다. */
   alias?: string;
-  /**
-   * 그룹 **id**. 예전엔 한글 표시 문자열이 그대로 판별자였는데, 그러면
-   * 언어를 바꿀 때 타입이 따라 바뀌어야 한다. id 는 고정하고 헤딩만 번역한다.
-   */
   group: CommandGroup;
   icon: IconComponent;
   shortcut?: string;
   onSelect: () => void;
 };
 
-/**
- * Global event channel for CommandPalette ocul-pm actions that need to mount
- * UI in another component tree (ManualEntryModal owned by TodayScreen).
- *
- * Listeners live in TodayScreen and the app shell. Keeps the palette decoupled
- * from `useState` chains that would otherwise need to thread through `App`.
- */
-export const OCULPM_BUS = {
-  manualEntry: "oculpm:request-manual-entry",
-} as const;
+/** 일지 검색은 두 글자부터, 120ms 묶어서 — 한 글자는 거의 모든 일지에 걸린다. */
+const MIN_QUERY = 2;
+const DEBOUNCE_MS = 120;
+const JOURNAL_LIMIT = 8;
 
-export function CommandPalette({
-  open,
-  onOpenChange,
-  onOpenSettings,
-  onReindex,
-  onRegenerateOverview,
-  projects,
-  onSelectProject,
-}: CommandPaletteProps) {
-  // 런처 창에는 WorkspaceProvider 가 없다 (멀티 창 I2) — 프로젝트에 매인
-  // 항목(화면 이동·세션·재색인)은 아래에서 전부 꺼지고, 프로젝트 열기와
-  // 설정만 남는다.
+const HEADING =
+  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-fs-1 [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground";
+const ITEM =
+  "flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-sm aria-selected:bg-accent aria-selected:text-foreground text-foreground/80";
+
+export function CommandPalette({ open, onOpenChange, onOpenSettings, projects, onSelectProject }: CommandPaletteProps) {
   const ws = useOptionalWorkspace();
-  const state = ws?.state ?? null;
-  const currentProjectId = state?.currentProjectId ?? null;
+  const currentProjectId = ws?.state.currentProjectId ?? null;
   const [search, setSearch] = useState("");
+  const [journalHits, setJournalHits] = useState<JournalSearchHit[]>([]);
+  const [plans, setPlans] = useState<PlanSummary[]>([]);
+  const { t } = useT();
 
-  // Reset query when palette closes — feels less surprising on next open.
+  // 닫히면 비운다 — 다음에 열 때 지난 검색어가 남아 있으면 놀란다.
   useEffect(() => {
-    if (!open) setSearch("");
+    if (open) return;
+    setSearch("");
+    setJournalHits([]);
   }, [open]);
 
-  // ── v2 U7 — 엔티티 점프 ("go to anything") ────────────────────────────
-  // 입력 2자 이상이면 120ms debounce 로 일지·플랜·토의 제목을 백엔드 캐시에서
-  // 찾는다.
-  const [entityHits, setEntityHits] = useState<EntityHit[]>([]);
-
+  // 계획은 열 때 한 번 — 수가 적고(활성 몇 개) 제목으로 고른다.
   useEffect(() => {
-    if (!open) {
-      setEntityHits([]);
-    }
-  }, [open]);
+    if (!open || currentProjectId == null) return;
+    let alive = true;
+    void planApi
+      .list(currentProjectId)
+      .then((list) => alive && setPlans(list.filter((p) => p.status === "active")))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [open, currentProjectId]);
 
+  // 일지 — 백엔드 검색(`oculpm_search_journal`, MCP `journal_search` 와 같은 엔진).
   useEffect(() => {
     const q = search.trim();
     const pid = currentProjectId;
-    if (!open || pid == null || q.length < 2) {
-      setEntityHits([]);
+    if (!open || pid == null || q.length < MIN_QUERY) {
+      setJournalHits([]);
       return;
     }
-    // 디바운스는 요청 수만 줄인다 — 이미 나간 요청은 검색어가 바뀐 뒤에도
-    // 돌아와 새 결과를 덮는다.
-    // 정리 함수에서 낡은 응답을 버린다.
+    // 디바운스는 요청 수만 줄인다 — 이미 나간 요청이 검색어가 바뀐 뒤에 돌아와 새 결과를
+    // 덮지 않게 정리 함수에서 낡은 응답을 버린다.
     let stale = false;
     const timer = window.setTimeout(() => {
-      void oculpmApi
-        .searchEntities(pid, q, 8)
-        .catch((): EntityHit[] => [])
+      void Promise.resolve()
+        .then(() => oculpmApi.searchJournal(pid, q, undefined, JOURNAL_LIMIT))
+        .then((page) => page.hits)
+        .catch((): JournalSearchHit[] => [])
         .then((hits) => {
-          if (!stale) setEntityHits(hits);
+          if (!stale) setJournalHits(hits);
         });
-    }, 120);
+    }, DEBOUNCE_MS);
     return () => {
       stale = true;
       window.clearTimeout(timer);
     };
   }, [open, search, currentProjectId]);
 
-  const openEntity = (detail: OpenEntityDetail) => {
-    onOpenChange(false);
-    window.dispatchEvent(new CustomEvent(NAV_BUS.openEntity, { detail }));
-  };
+  const openEntity = useCallback(
+    (detail: OpenEntityDetail) => {
+      onOpenChange(false);
+      window.dispatchEvent(new CustomEvent(NAV_BUS.openEntity, { detail }));
+    },
+    [onOpenChange],
+  );
 
-  const entityIcon = (kind: EntityHit["kind"]) =>
-    kind === "journal" ? NotebookText : kind === "discussion" ? MessageSquare : TargetIcon;
-
-  const { t } = useT();
-  // 검색 색인 — 양 언어 라벨을 모두 넣는다 (내비와 같은 정책, i18n `tAll`).
-  // 영어 모드에서도 "전환" 으로, 한국어 모드에서도 "switch" 로 찾힌다.
-  const aliasOf = (key: I18nKey) => tAll(key).join(" ");
-
-  // 아래 `items` useMemo 의 의존이라 아이덴티티가 안정해야 한다 — 렌더마다 새
-  // 함수를 돌려주면 팔레트 아이템이 매 렌더 재계산된다. 캡처하는 둘은 이미
-  // 그 memo 의 deps 이므로 무효화 빈도는 그대로다.
   const go = useCallback(
     (view: UiV2View) => () => {
       ws?.setUiV2View(view);
@@ -171,180 +132,49 @@ export function CommandPalette({
 
   const items: CommandItem[] = useMemo(
     () => [
-      // ── 프로젝트 열기 — 대시보드에서만. 프로젝트가 열려 있으면 사이드바의
-      // 전환 팝오버(⌘P)가 그 역할을 하므로 중복해서 싣지 않는다.
-      ...(currentProjectId === null && projects && onSelectProject
-        ? projects.map((p) => ({
-            id: `open-project-${p.id}`,
-            label: p.name,
-            alias: p.root_path,
-            group: "projects" as const,
-            icon: FolderGit2,
-            onSelect: () => {
-              onSelectProject(p);
-              onOpenChange(false);
-            },
-          }))
-        : []),
-      // ── 이동 — navRegistry 단일 소스에서 파생 (v2 U1). 사이드바의 모든
-      // 화면이 자동으로 여기 나타나고, ⌘번호 라벨도 배열 순서에서 계산된다.
-      //
-      // `NAV_DESTINATIONS` 이지 `NAV_ENTRIES` 가 아니다 (2026-09-06 IA 재편):
-      // 사이드바에서 에이전트 한 행으로 접힌 Codex·세션도 팔레트에서는 여전히
-      // **각각** 이름으로 찾혀야 한다. 목적을 갖고 가는 곳은 목적지다.
+      // ── 화면 — navRegistry 단일 소스. ⌘번호 라벨도 배열 순서에서 계산된다.
       ...(ws ? NAV_DESTINATIONS : []).map((e) => ({
         id: `view-${e.id}`,
         label: t(e.labelKey),
-        // 양 언어 별칭 + 양 언어 라벨을 전부 색인한다 — 영어 모드에서도 "일지",
-        // 한국어 모드에서도 "journal" 로 찾힌다 (i18n `tAll`).
         alias: [...tAll(e.aliasKey), ...tAll(e.labelKey)].join(" "),
         group: "nav" as const,
         icon: e.icon,
         shortcut: navShortcutLabel(e.id),
         onSelect: go(e.id),
       })),
-
-      // ── 액션
-      ...(ws
-        ? [
-            { id: "switch-project", label: t("palette.switchProject"), alias: aliasOf("palette.switchProject"),
-              group: "actions" as const, icon: FolderGit2, shortcut: kbd("⌘P"),
+      {
+        id: "view-settings",
+        label: t("palette.openSettings"),
+        alias: tAll("palette.openSettings").join(" "),
+        group: "nav" as const,
+        icon: SettingsIcon,
+        shortcut: kbd("⌘,"),
+        onSelect: () => {
+          onOpenSettings();
+          onOpenChange(false);
+        },
+      },
+      // ── 프로젝트 — 다른 프로젝트는 다른 창이다.
+      ...(projects && onSelectProject
+        ? projects
+            .filter((p) => p.id !== currentProjectId)
+            .map((p) => ({
+              id: `open-project-${p.id}`,
+              label: p.name,
+              alias: p.root_path,
+              group: "projects" as const,
+              icon: FolderGit2,
               onSelect: () => {
+                onSelectProject(p);
                 onOpenChange(false);
-                window.dispatchEvent(new CustomEvent(NAV_BUS.openProjectSwitcher));
-              } },
-          ]
-        : []),
-      // AD-4 — 규칙·스킬은 "만들 이유가 생긴 자리" 에서 태어난다. 팔레트는
-      // 그 자리가 어디든 닿는 마지막 문이다.
-      ...(currentProjectId !== null
-        ? [
-            { id: "new-rule", label: t("palette.newRule"), alias: aliasOf("palette.newRule"),
-              group: "actions" as const, icon: FileCode,
-              onSelect: () => { onOpenChange(false); requestAgentContext({ kind: "createRule" }); } },
-            { id: "new-skill", label: t("palette.newSkill"), alias: aliasOf("palette.newSkill"),
-              group: "actions" as const, icon: Puzzle,
-              onSelect: () => { onOpenChange(false); requestAgentContext({ kind: "createSkill" }); } },
-          ]
-        : []),
-      { id: "settings", label: t("palette.openSettings"), alias: aliasOf("palette.openSettings"),
-        group: "actions", icon: SettingsIcon, shortcut: kbd("⌘,"),
-        onSelect: () => { onOpenSettings(); onOpenChange(false); } },
-      { id: "cheatsheet", label: t("palette.cheatsheet"), alias: aliasOf("palette.cheatsheet"),
-        group: "actions", icon: Keyboard, shortcut: kbd("⌘/"),
-        onSelect: () => { onOpenChange(false); requestCheatsheet(); } },
-      // 「새 창」 — Windows·Linux 만. 맥은 앱 메뉴(⇧⌘N)가 있고 팔레트는 그대로 둔다
-      // (D3). 창을 새로 만드는 일이라 런처 창에서도 뜬다 ({#os-new-window}).
-      ...(isMac()
-        ? []
-        : [{ id: "new-window", label: t("palette.newWindow"), alias: aliasOf("palette.newWindow"),
-            group: "actions" as const, icon: Plus, shortcut: kbd("⇧⌘N"),
-            onSelect: () => { onOpenChange(false); openNewWindow(); } }]),
-      ...(onReindex && currentProjectId !== null
-        ? [{ id: "reindex", label: t("palette.reindex"), alias: aliasOf("palette.reindex"),
-            group: "actions" as const, icon: RefreshCw, onSelect: () => { onReindex(); onOpenChange(false); } }]
-        : []),
-      ...(onRegenerateOverview && currentProjectId !== null
-        ? [{ id: "regen-overview", label: t("palette.regenOverview"), alias: aliasOf("palette.regenOverview"),
-            group: "actions" as const, icon: RefreshCw, onSelect: () => { onRegenerateOverview(); onOpenChange(false); } }]
-        : []),
-
-      // ── ocul-pm — W4-PR8
-      ...(currentProjectId !== null
-        ? [
-            {
-              id: "oculpm-session-start",
-              label: t("palette.sessionStart"),
-              alias: aliasOf("palette.sessionStart"),
-              group: "oculpm" as const,
-              icon: Flame,
-              onSelect: () => {
-                const pid = currentProjectId!;
-                onOpenChange(false);
-                oculpmApi
-                  .startSessionManual(pid)
-                  .then((s) => toast.info(t("palette.toast.sessionStarted", { id: s?.id ?? "(no id)" })))
-                  .catch((e) =>
-                    toast.destructive(
-                      e instanceof OculpmApiError ? e.message : String(e),
-                    ),
-                  );
               },
-            },
-            {
-              id: "oculpm-session-end",
-              label: t("palette.sessionEnd"),
-              alias: aliasOf("palette.sessionEnd"),
-              group: "oculpm" as const,
-              icon: Flame,
-              onSelect: () => {
-                const pid = currentProjectId!;
-                onOpenChange(false);
-                const sid = state?.currentSession?.id;
-                if (!sid) {
-                  toast.warning(t("palette.toast.noActiveSession"));
-                  return;
-                }
-                oculpmApi
-                  .endSessionManual(pid, sid)
-                  .then(() => toast.info(t("palette.toast.sessionEnded", { id: sid })))
-                  .catch((e) =>
-                    toast.destructive(
-                      e instanceof OculpmApiError ? e.message : String(e),
-                    ),
-                  );
-              },
-            },
-            {
-              id: "oculpm-manual-entry",
-              label: t("palette.manualEntry"),
-              alias: aliasOf("palette.manualEntry"),
-              group: "oculpm" as const,
-              icon: Plus,
-              onSelect: () => {
-                onOpenChange(false);
-                // 2026-07-30: 이벤트만 쏘던 것을 sticky one-shot 으로 교체.
-                // 작업 일지 화면이 마운트돼 있지 않으면 이벤트가 그대로
-                // 사라져 이 항목이 아무 일도 하지 않았다.
-                requestManualEntry();
-              },
-            },
-            {
-              id: "oculpm-sync-agents",
-              label: t("palette.syncAgents"),
-              alias: aliasOf("palette.syncAgents"),
-              group: "oculpm" as const,
-              icon: RefreshCw,
-              onSelect: () => {
-                const pid = currentProjectId!;
-                onOpenChange(false);
-                oculpmApi
-                  .syncAgents(pid)
-                  .then((report) => {
-                    const updated = report.results.filter(
-                      (r) => r.action === "inserted" || r.action === "updated",
-                    ).length;
-                    toast.info(t("palette.toast.syncDone", { n: updated }));
-                  })
-                  .catch((e) =>
-                    toast.destructive(
-                      e instanceof OculpmApiError ? e.message : String(e),
-                    ),
-                  );
-              },
-            },
-            // "ocul-pm 설정" 항목은 뺐다 — 위의 "설정 열기" 와 같은 함수를 부르는
-            // 중복이었고 탭 딥링크도 없었다 (2026-08-30 감사).
-          ]
+            }))
         : []),
     ],
-    // `t` 는 언어가 바뀔 때만 아이덴티티가 바뀐다 (useT) — 언어 전환 시
-    // 정확히 한 번 재계산되고 평소엔 안정적이다.
-    [t, go, ws, onOpenChange, onOpenSettings, onReindex, onRegenerateOverview, projects, onSelectProject, currentProjectId, state?.currentSession],
+    // `t` 는 언어가 바뀔 때만 아이덴티티가 바뀐다 (useT).
+    [t, go, ws, onOpenChange, onOpenSettings, projects, onSelectProject, currentProjectId],
   );
 
-  // Group items by `group` field, preserving the original order so the
-  // "이동" group always renders before "코드 화면" / "액션".
   const grouped = useMemo(() => {
     const groups = {} as Record<CommandGroup, CommandItem[]>;
     items.forEach((it) => {
@@ -354,8 +184,6 @@ export function CommandPalette({
   }, [items]);
 
   // Esc · Tab 트랩 · 닫힐 때 포커스 복원 — 다른 모달(AppDialog)과 같은 훅.
-  // cmdk 의 `Command` 는 ↑↓/Enter/Home/End 만 처리해 Esc 로 닫히지 않았고,
-  // 닫힌 뒤 포커스가 body 로 떨어져 키보드 사용자는 자리를 잃었다.
   const panelRef = useRef<HTMLDivElement | null>(null);
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
   useModalBehavior({ open, onClose: close, panelRef });
@@ -374,11 +202,10 @@ export function CommandPalette({
         ref={panelRef}
         label={t("palette.aria")}
         className="w-full max-w-xl bg-card border border-border rounded-xl shadow-xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-(--dur-2)"
-        // cmdk uses a custom fuzzy match. Provide alias as searchable text so
-        // Korean queries hit English labels and vice versa.
-        filter={(value, search, keywords) => {
+        // 별칭을 검색 대상에 넣는다 — 한국어 검색어가 영어 라벨에 걸리고 그 반대도.
+        filter={(value, query, keywords) => {
           const haystack = `${value} ${(keywords ?? []).join(" ")}`.toLowerCase();
-          return haystack.includes(search.toLowerCase()) ? 1 : 0;
+          return haystack.includes(query.toLowerCase()) ? 1 : 0;
         }}
       >
         <Command.Input
@@ -392,38 +219,8 @@ export function CommandPalette({
           <Command.Empty className="px-4 py-6 text-sm text-muted-foreground text-center">
             {t("palette.empty")}
           </Command.Empty>
-          {entityHits.length > 0 ? (
-            <Command.Group
-              heading={t("palette.group.jump")}
-              className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-fs-1 [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground"
-            >
-              {entityHits.map((hit) => {
-                const Icon = entityIcon(hit.kind);
-                return (
-                  <Command.Item
-                    key={`ent:${hit.kind}:${hit.id}`}
-                    value={`ent:${hit.kind}:${hit.id}`}
-                    // 백엔드가 이미 매칭했다 — cmdk 필터를 항상 통과시킨다.
-                    keywords={[search]}
-                    onSelect={() => openEntity({ kind: hit.kind, id: hit.id })}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-sm aria-selected:bg-accent aria-selected:text-foreground text-foreground/80"
-                  >
-                    <Icon  className="text-muted-foreground" size={15} />
-                    <span className="flex-1 truncate">{hit.title}</span>
-                    <span className="text-fs-1 text-muted-foreground shrink-0">
-                      {hit.subtitle}
-                    </span>
-                  </Command.Item>
-                );
-              })}
-            </Command.Group>
-          ) : null}
           {grouped.map(([group, list]) => (
-            <Command.Group
-              key={group}
-              heading={t(GROUP_LABEL[group])}
-              className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-fs-1 [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground"
-            >
+            <Command.Group key={group} heading={t(GROUP_LABEL[group])} className={HEADING}>
               {list.map((it) => {
                 const Icon = it.icon;
                 return (
@@ -432,25 +229,61 @@ export function CommandPalette({
                     value={it.label}
                     keywords={it.alias ? [it.alias] : []}
                     onSelect={it.onSelect}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-sm aria-selected:bg-accent aria-selected:text-foreground text-foreground/80"
+                    className={ITEM}
                   >
-                    <Icon  className="text-muted-foreground" size={15} />
+                    <Icon className="text-muted-foreground" size={15} />
                     <span className="flex-1">{it.label}</span>
-                    {it.shortcut && (
-                      <kbd className="text-fs-1 text-muted-foreground font-mono">
-                        {it.shortcut}
-                      </kbd>
-                    )}
+                    {it.shortcut && <kbd className="text-fs-1 text-muted-foreground font-mono">{it.shortcut}</kbd>}
                   </Command.Item>
                 );
               })}
             </Command.Group>
           ))}
+          {plans.length > 0 ? (
+            <Command.Group heading={t("palette.group.plans")} className={HEADING}>
+              {plans.map((p) => (
+                <Command.Item
+                  key={`plan:${p.plan_id}`}
+                  value={`plan:${p.plan_id} ${p.title}`}
+                  keywords={[p.title, p.plan_id]}
+                  onSelect={() => openEntity({ kind: "plan", id: p.plan_id })}
+                  className={ITEM}
+                >
+                  <TargetIcon className="text-muted-foreground" size={15} />
+                  <span className="flex-1 truncate">{p.title}</span>
+                  <span className="text-fs-1 text-muted-foreground shrink-0">
+                    {p.done_count}/{p.item_count}
+                  </span>
+                </Command.Item>
+              ))}
+            </Command.Group>
+          ) : null}
+          {journalHits.length > 0 ? (
+            <Command.Group heading={t("palette.group.journal")} className={HEADING}>
+              {journalHits.map((hit) => (
+                <Command.Item
+                  key={`journal:${hit.relative_path}`}
+                  value={`journal:${hit.relative_path}`}
+                  // 백엔드가 이미 매칭했다 — cmdk 필터를 항상 통과시킨다.
+                  keywords={[search]}
+                  onSelect={() => openEntity({ kind: "journal", id: hit.relative_path })}
+                  className={ITEM}
+                >
+                  <NotebookText className="text-muted-foreground" size={15} />
+                  <span className="flex-1 truncate">{hit.title}</span>
+                  <span className="text-fs-1 text-muted-foreground shrink-0">{hit.workday}</span>
+                </Command.Item>
+              ))}
+            </Command.Group>
+          ) : null}
         </Command.List>
-        {/* 접힌 단의 화면도 여기서 열린다 — 숨김이 아니라 접힘 (시안 D). */}
         <div className="palette-foot">
-          <span><kbd>↑↓</kbd> {t("palette.foot.move")}</span>
-          <span><kbd>⏎</kbd> {t("palette.foot.open")}</span>
+          <span>
+            <kbd>↑↓</kbd> {t("palette.foot.move")}
+          </span>
+          <span>
+            <kbd>⏎</kbd> {t("palette.foot.open")}
+          </span>
           <span className="palette-foot-hint">{t("palette.footHint")}</span>
         </div>
       </Command>

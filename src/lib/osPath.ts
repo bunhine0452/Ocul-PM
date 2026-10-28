@@ -80,3 +80,13 @@ export function relativeUnder(
   if (next !== "/" && next !== "\\") return null;
   return path.slice(bare.length).replace(/^[\\/]+/, "").replace(/[\\/]+$/, "");
 }
+
+/**
+ * 홈 폴더를 `~` 로 접은 **표시용** 경로 — 시작 창의 프로젝트 줄·사이드바 목록이 쓴다.
+ * 홈의 모양은 OS 가 정한다: macOS·Linux 는 `/Users|/home/<이름>`, Windows 는
+ * `<드라이브>:\Users\<이름>` ({#ui-winpath-followups}). 홈 밖 경로는 그대로다.
+ */
+export function tildePath(p: string, platform: Platform = getPlatform()): string {
+  if (platform !== "windows") return p.replace(/^\/(?:Users|home)\/[^/]+/, "~");
+  return p.replace(/^(?:\\\\\?\\)?[A-Za-z]:[\\/]users[\\/][^\\/]+/i, "~");
+}

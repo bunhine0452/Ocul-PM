@@ -1,5 +1,4 @@
 import React from "react";
-import { DensityToggle } from "@/components/DensityToggle";
 import { dragRegion } from "@/lib/platform";
 import { useT } from "@/i18n";
 
@@ -43,8 +42,6 @@ export function Toolbar({ title, sub, leading, children, beta = false }: Toolbar
           도망간다 — 없으면 flex 압착이 CJK 라벨을 한 글자씩 세로로 꺾는다. */}
       <div className="toolbar-actions">
         {children}
-        {/* 밀도 토글은 화면마다 같은 자리다 — 여기 한 번 두면 열세 화면이 전부 갖는다. */}
-        <DensityToggle />
       </div>
     </div>
   );

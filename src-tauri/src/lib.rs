@@ -158,8 +158,6 @@ fn setup_logging() {
 }
 
 use crate::commands::{
-    // PR-ACP1 — ACP 어댑터 런타임 (진단·설치·프로세스 수명)
-    activate_tab,
     // context-budget-truth A — 에이전트·커맨드 표면 (예산 누락분)
     agent_surface_list,
     app_info,
@@ -178,12 +176,10 @@ use crate::commands::{
     automation_save,
     automation_seeds,
     automation_set_enabled,
-    begin_tear_off,
     // v3-surface — 브랜치 축 (파생 전용, 로컬 git 만 읽는다)
     branch_export_digest,
     branch_list,
     branch_story,
-    cancel_tear_off,
     check_cli_available,
     claude_hooks_install,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
@@ -192,12 +188,12 @@ use crate::commands::{
     claude_plugin_status,
     clear_all_data,
     clear_project_index,
-    close_tab,
     // 코드 화면 — 파일 조작 (.oculpm/planner/ide-completion.md #file-ops-backend)
     // 코드 화면 — 일지 연동 + HEAD 비교 (ide-completion #agent-diff)
     // 코드 화면 — 로컬 히스토리 (docs/20260902_vscode-borrows/06-local-history.md)
     // 코드 화면 — 전역 검색·치환 (#project-search)
     // 코드 화면 — 파일 트리 + 읽기/쓰기 (docs/code-editor/00-master-plan.md)
+    close_window,
     codex_mcp_register,
     codex_mcp_status,
     codex_mcp_unregister,
@@ -209,7 +205,6 @@ use crate::commands::{
     db_health,
     delete_blueprint,
     delete_project,
-    detach_tab,
     // C2 — 스킬 카탈로그: 결정적 스택 감지 (LLM 0 · 네트워크 0)
     detect_stack,
     diagnostics_report,
@@ -227,7 +222,6 @@ use crate::commands::{
     discussion_rename,
     discussion_set_status,
     discussion_write,
-    drop_tear_off,
     firing_quotes,
     firing_rebuild,
     // AD-1 — 발동 원장 (transcript 기반 규칙 주입·스킬 발동 계측)
@@ -237,7 +231,7 @@ use crate::commands::{
     first_record_ledger,
     get_change_impact,
     // G2 — Project Overview + Daily Brief
-    get_window_tabs,
+    get_window_project,
     git_graph,
     git_head_status_brief,
     git_last_commit_changes,
@@ -252,7 +246,6 @@ use crate::commands::{
     install_kind,
     // H3b — 플러그인 SessionEnd 의 "일지 없이 끝난 세션" 신호 소비 (Today 카드)
     journal_missing_signals,
-    list_app_windows,
     list_blueprints,
     list_open_project_ids,
     list_projects,
@@ -267,8 +260,6 @@ use crate::commands::{
     // PR-CI2 — oculpm-mcp 서버 등록 (.mcp.json / Claude Desktop 원클릭)
     mcp_status,
     mcp_unregister,
-    move_tab_to_window,
-    new_start_tab,
     // {#related-ui} — 후보를 원본 frontmatter 에 잇는다
     oculpm_add_related,
     oculpm_agent_run_signal,
@@ -339,7 +330,7 @@ use crate::commands::{
     oculpm_workday_brief,
     open_devtools,
     open_in_editor,
-    open_project_tab,
+    open_project_window,
     open_url,
     plan_ai_refresh,
     plan_apply_edit,
@@ -364,7 +355,6 @@ use crate::commands::{
     read_project_file,
     // W5 — action proposal apply-state
     rename_project,
-    reorder_tabs,
     // first-record-loop Phase 2 — 이어하기 자료 (Today 이어하기 카드)
     resume_digest,
     resume_dispatch_prompt,
@@ -397,7 +387,7 @@ use crate::commands::{
     select_project_folder,
     set_project_appearance,
     set_project_theme,
-    set_tab_project,
+    set_window_project,
     settings_get,
     settings_get_all,
     settings_set,
@@ -417,9 +407,6 @@ use crate::commands::{
     // AD-5 — 트리거 교정 (안 걸리는 스킬의 description 재작성 초안)
     skills_trigger_rewrite,
     system_accent,
-    tab_drag_end,
-    tab_drag_over,
-    tab_drop_hint,
     theme_delete,
     theme_export,
     theme_import,
@@ -526,28 +513,13 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // M2-3 — Chat history
             // M5 — Window & File Operations
             open_devtools,
-            // 크롬식 탭 (v2.9.0) — 창 = 탭 집합(시작 탭 + 프로젝트 탭).
-            // 레지스트리는 Rust 소유 (전역 유일성·PTY 정리·떼어내기 심판).
-            open_project_tab,
-            new_start_tab,
-            set_tab_project,
-            close_tab,
-            activate_tab,
-            reorder_tabs,
-            detach_tab,
-            // 창 간 탭 드래그 (다시 붙이기) — 겨누기 · 인덱스 회신 · 이동 · 정리
-            tab_drag_over,
-            tab_drop_hint,
-            tab_drag_end,
-            begin_tear_off,
-            drop_tear_off,
-            cancel_tear_off,
-            // 드래그의 키보드·메뉴 등가물 — 창을 골라 옮기기
-            move_tab_to_window,
-            list_app_windows,
-            get_window_tabs,
+            // 창 하나 = 프로젝트 하나 (4.0) — 레지스트리는 Rust 소유 (전역 유일성 심판).
+            open_project_window,
+            set_window_project,
+            get_window_project,
             list_open_project_ids,
-            // 업데이트 재시작을 건너 창·탭을 되살린다 (재시작 직전 저장)
+            close_window,
+            // 업데이트 재시작을 건너 창을 되살린다 (재시작 직전 저장)
             save_window_session,
             // 터미널 도크 — 셸을 자기 창으로 떼어내기 (2026-08-15)
             // 앱 메뉴 — 프런트가 해석한 UI 언어를 알려 주면 라벨을 다시 만든다
@@ -770,14 +742,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::oculpm::spec::OculpmDataChanged,
             // v2.3.0 메뉴바 — 팝오버 → 프로젝트 창 딥링크
             crate::tray::TrayNavigate,
-            // 크롬식 탭 — 창별 탭 구성 + 런처의 "열림" 배지
-            crate::commands::window::WindowTabsChanged,
-            crate::commands::window::CloseIntent,
-            crate::commands::window::NewTabIntent,
+            // 창 하나 = 프로젝트 하나 — 창의 프로젝트 + 시작 창의 「열림」 표시
+            crate::commands::window::WindowProjectChanged,
             crate::commands::window::ProjectWindowsChanged,
-            crate::commands::window::TabDragOver,
-            crate::commands::window::TabDragLeave,
-            crate::commands::window::TearOffSettled,
             // 설정 변경 브로드캐스트 — 모든 창 + 상단바가 테마·언어를 다시 읽는다
             crate::commands::config::SettingsChanged,
             // 테마 파일·프로젝트 바인딩 변경 — 갤러리와 적용 경로가 다시 읽는다
@@ -932,8 +899,8 @@ pub fn run() {
             // 로컬 히스토리의 출처 판정 — `code_write` 가 쪽지를 남기고 워처가
             // 소비한다 (사람이 저장했나, 에이전트가 썼나).
             app.manage(crate::oculpm::history::HistoryState::default());
-            // 크롬식 탭 — 창 → 프로젝트 탭 집합 레지스트리 (전역 유일성 심판)
-            app.manage(crate::commands::window::WindowTabs::default());
+            // 창 → 프로젝트 레지스트리 (전역 유일성 심판)
+            app.manage(crate::commands::window::WindowProjects::default());
             // .oculpm/ subsystem (W1-PR6)
             app.manage(crate::oculpm::manager::OculpmManager::new());
             // 자동화 잡 러너 — 프로세스 하나에 1개. 동시 1건은 프로젝트별이
@@ -949,9 +916,8 @@ pub fn run() {
             #[cfg(desktop)]
             crate::tray::init(app)?;
 
-            // `tauri.conf.json` 이 만든 첫 창을 레지스트리에 편입한다 — 이제
-            // 특별한 "런처 창" 은 없고, 시작 탭 하나를 문 평범한 탭 창이다.
-            // 창 닫기 훅(포커스 추적·탭 정리·마지막 창 판정)도 여기서 붙는다.
+            // `tauri.conf.json` 이 만든 첫 창을 시작 창으로 레지스트리에 편입한다.
+            // 창 닫기 훅(포커스 추적·정리·마지막 창 판정)도 여기서 붙는다.
             crate::commands::window::adopt_first_window(app.handle());
 
             // 딥링크 수신 — 앱이 이미 떠 있을 때 오는 URL 을 받는다.
@@ -991,9 +957,9 @@ pub fn run() {
                 }
             }
 
-            // 업데이트로 우리가 끊은 재시작이라면 그때 열려 있던 창·탭을
-            // 되살린다. 스냅숏이 없으면(=사용자가 직접 끈 앱) 아무 일도 안
-            // 한다 — 첫 창은 그대로 시작 탭 하나로 남는다.
+            // 업데이트로 우리가 끊은 재시작이라면 그때 열려 있던 창을 되살린다.
+            // 스냅숏이 없으면(=사용자가 직접 끈 앱) 아무 일도 안 한다 — 첫 창은
+            // 그대로 시작 창으로 남는다.
             crate::commands::window::restore_session(app.handle());
 
             // 추적 중인 **모든** 프로젝트 감시 시작 (2026-08-12 사용자 결정).

@@ -163,14 +163,14 @@ describe("화면 이름과 도메인어를 영문으로 흘리지 않는다", ()
   /**
    * `gf.*`(새 프로젝트 마법사) 54개가 사전 전체의 이상치를 독차지하고 있었다 —
    * 유일한 과장어("자유롭게") · 미번역 "narrative" · 존재하지 않는 화면 이름
-   * ("Today 탭"; 정식 명칭은 `nav.today` = 「오늘 현황」). 다른 손이 쓴 티였다.
+   * ("Today 탭"; 정식 명칭은 `nav.today` = 「오늘」, 3.x 에선 「오늘 현황」). 다른 손이 쓴 티였다.
    */
   it("값 안에 미번역 도메인어 narrative 가 없다", () => {
     const hits = bare.split("\n").filter((l) => /:\s*"[^"]*\bnarrative\b/i.test(l));
     expect(hits, hits.join("\n")).toEqual([]);
   });
 
-  it("화면을 영문 Today 로 부르지 않는다 — 이름은 「오늘 현황」이다", () => {
+  it("화면을 영문 Today 로 부르지 않는다 — 이름은 「오늘」이다 (4.0)", () => {
     const hits = bare
       .split("\n")
       .filter((l) => /:\s*"[^"]*\bToday\b/.test(l))

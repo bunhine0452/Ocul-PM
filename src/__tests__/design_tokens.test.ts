@@ -79,8 +79,9 @@ describe("tokens.css — 상태색·스케일·층·프로젝트 팔레트가 �
     const darkPal = tokens.match(/^\[data-theme="dark"\] \[data-pc="\w+"\]\s*\{ --pc: #/gm) ?? [];
     expect(light).toHaveLength(8);
     expect(darkPal).toHaveLength(8);
-    expect(read("features/onboarding/home.css")).not.toMatch(/--pc:\s*#/);
-    expect(read("styles/tabs.css")).not.toMatch(/--pc:\s*#/);
+    // 프로젝트를 늘어놓는 두 자리(시작 창 · 사이드바 머리)도 색을 새로 정의하지 않는다.
+    expect(read("features/start/start.css")).not.toMatch(/--pc:\s*#/);
+    expect(read("styles/shell.css")).not.toMatch(/--pc:\s*#/);
   });
 });
 
@@ -125,19 +126,8 @@ const HEX_EXCEPTIONS: { file: string | RegExp; selector?: RegExp; line?: RegExp;
       "부트 스플래시는 테마 CSS 가 붙기 전 **첫 페인트**다 — 토큰이 아직 없을 때 " +
       "보이는 안전값이라 fallback 이 곧 존재 이유다.",
   },
-  {
-    // 2026-09-05 — `styles/agent.css` 한정이던 것을 스타일시트 전체로 넓혔다.
-    // 사이드바 nav 목록이 넘칠 때의 가장자리 페이드(shell.css .side-nav-scroll)가
-    // 같은 관용구를 쓰면서 예외가 하나 더 필요해졌는데, 목록 상한이 5라 늘릴 수
-    // 없었다. 늘리는 대신 **판별자를 제자리로 돌려놨다**: 이 예외를 정당화하는
-    // 것은 어느 파일이냐가 아니라 `mask-image:` 라는 선언 자체다. 마스크는
-    // 알파만 읽히므로 어느 파일에 있든 색을 칠하지 않는다.
-    file: /\.css$/,
-    line: /mask-image:/,
-    reason:
-      "마스크 스텐실 — 색이 아니라 알파(불투명 → 투명)다. 화면에 칠해지지 않으므로 " +
-      "토큰화할 대상이 아니고, 파일이 아니라 선언의 종류가 사유다.",
-  },
+  // (마스크 스텐실 `mask-image:` 예외는 4.0 에서 죽었다 — 그것을 쓰던 사이드바 목록의
+  // 가장자리 페이드가 행 넷이 되며 사라졌다. 다시 필요하면 사유와 함께 되살린다.)
 ];
 
 /** 규칙의 셀렉터를 따라가며 hex 를 품은 줄을 모은다 (주석은 지운다). */

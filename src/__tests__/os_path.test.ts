@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   displaySeparator,
   lastSeparatorIndex,
+  tildePath,
   pathBaseName,
   pathSegments,
   relativeUnder,
@@ -90,3 +91,30 @@ describe("relativeUnder — is the shell's cwd inside the project?", () => {
   });
 });
 
+
+describe("tildePath", () => {
+  it("홈 폴더를 ~ 로 접는다", () => {
+    expect(tildePath("/Users/kimhyunbin/Desktop/git/ai-pm", "mac")).toBe("~/Desktop/git/ai-pm");
+    expect(tildePath("/home/kim/lab/x", "linux")).toBe("~/lab/x");
+  });
+  it("홈 밖 경로는 그대로 둔다", () => {
+    expect(tildePath("/opt/work/x", "mac")).toBe("/opt/work/x");
+  });
+
+  // {#ui-winpath-followups} — 홈의 모양은 OS 가 정한다.
+  it.each([
+    ["C:\\Users\\kim\\Desktop\\proj", "~\\Desktop\\proj"],
+    ["c:\\users\\kim\\proj", "~\\proj"],
+    ["D:/Users/kim/git/x", "~/git/x"],
+    ["\\\\?\\C:\\Users\\kim\\proj", "~\\proj"],
+    ["C:\\Users\\kim", "~"],
+    ["C:\\work\\proj", "C:\\work\\proj"],
+    ["/home/kim/x", "/home/kim/x"],
+  ] as const)("windows: %s → %s", (path, want) => {
+    expect(tildePath(path, "windows")).toBe(want);
+  });
+
+  it.each(["mac", "linux"] as const)("%s: 드라이브 경로는 모른다", (os) => {
+    expect(tildePath("C:\\Users\\kim\\proj", os)).toBe("C:\\Users\\kim\\proj");
+  });
+});

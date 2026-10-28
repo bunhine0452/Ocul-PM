@@ -2,7 +2,6 @@
 // Settings are persisted in the SQLite `settings` table via Tauri commands.
 
 import type { LangSetting } from "@/i18n";
-import { UI_DENSITY_DEFAULT, type UiDensity } from "@/lib/density";
 
 export type Theme =
   | "light"
@@ -48,9 +47,7 @@ export const KEYS = {
   theme: "theme",
   colorTheme: "color_theme",
   uiScale: "ui_scale",
-  // 화면 밀도 — 「간단 / 전문」. 다른 화면이 아니라 같은 화면의 접힘·행 높이·
-  // 힌트만 달라진다 (best-results UI 라운드 2026-10-28). SQLite 라 창마다 같다.
-  uiDensity: "ui_density",
+  // (`ui_density` 「간단 / 전문」은 4.0 에서 걷었다 — 밀도는 하나다. 옛 값은 DB 에 남는다.)
   // UI 언어. SQLite 에 있으므로 창을 여러 개 띄워도 전 창이 같은 값을 본다
   // (localStorage 가 아니다 — docs/20260811_three-features/00-master-plan.md D4).
   language: "language",
@@ -102,21 +99,13 @@ export const KEYS = {
   // --- External editor (Lite-W6 PR8 Part 2) ---
   externalEditorCommand: "external_editor_command",
 
-
-  // --- 첫 실행 ---
-  // 첫 실행 마법사(언어·모양·첫 프로젝트)를 끝냈거나 건너뛰었는가.
-  // false 인 **동시에** 등록된 프로젝트가 0개일 때만 마법사가 뜬다 — 이미
-  // 쓰고 있던 사용자가 업데이트 후에 다시 안내를 받으면 안 되기 때문이다.
-  onboarded: "onboarded",
+  // (첫 실행 마법사의 `onboarded` 는 4.0 에서 걷었다 — 시작 창의 「처음이라면 세
+  // 단계」가 늘 보이므로 한 번 봤는지 적을 일이 없다.)
 
   // --- 업데이트 ---
   // 마지막으로 What's-new 카드를 본 앱 버전. 앱 버전이 이보다 새로우면 Today 가
   // 한 번 릴리스 노트를 보여 준다. 빈 문자열 = 아직 한 번도 기록 안 함(첫 설치).
   lastSeenVersion: "last_seen_version",
-  // ⌘번호 재배정 안내를 봤는가. 한 번 보면 다시 안 뜬다. **번호가 다시 바뀌면
-  // 키를 새로 받는다** — 2026-09-06 IA 재편의 `nav_remap_seen` 을 닫은 사람에게도
-  // 2026-10-24 코드 맵 삭제(⌘6~⌘0 당겨짐) 안내가 떠야 한다. 옛 키는 DB 에 남는다.
-  navRemapSeen: "nav_remap_seen_2",
   // Today 플러그인 안내 카드를 사용자가 닫았는가 (v3-release
   // {#plugin-card-dismiss}). 카드의 표시 조건은 이미 좁지만(일지 0건 + Claude
   // Code 설치됨 + 플러그인 못 찾음) "안 깔 것"을 고른 사람에게는 그 셋이 다
@@ -125,8 +114,6 @@ export const KEYS = {
   // 첫 실행 세 단계 시트를 「이미 알아요 — 건너뛰기」로 내렸는가 (UI 밀도 라운드 3).
   // 첫 일지가 서면 시트는 스스로 접히므로 이 키는 건너뛴 사람만 적는다.
   firstRunSheetDismissed: "first_run_sheet_dismissed",
-  // 단축키 힌트를 밀도와 무관하게 버튼 옆에 늘 보인다 (설정 「표시」 → 그 밖에).
-  kbdHints: "kbd_hints",
 
   // (streamResponses / logLevel 은 감사 2026-07-16 에서 제거 — 소비처 없음.)
 } as const;
@@ -139,8 +126,6 @@ export interface Settings {
   /** App-wide UI scale (zoom). 1 = 100%. Applied as CSS `zoom` on <html> so
    *  both rem-based (shadcn) and px-based (ui_v2) text scale uniformly. */
   uiScale: number;
-  /** 화면 밀도 — 값·판정은 `@/lib/density`. 모르는 문자열은 읽는 쪽이 되돌린다. */
-  uiDensity: UiDensity;
   /** UI 언어. "system" 은 OS 로케일을 따른다 (`resolveLang` — src/i18n). */
   language: LangSetting;
   /**
@@ -206,31 +191,17 @@ export interface Settings {
   /** What's-new 카드를 마지막으로 본 버전 (`""` = 기록 없음). */
   lastSeenVersion: string;
 
-  /**
-   * ⌘번호 재배정(2026-09-06 IA 재편) 안내를 봤는가.
-   *
-   * 첫 설치에는 **조용히 `true` 로 적는다** — 옛 번호를 모르는 사람에게
-   * "바뀌었어요" 는 거짓말이다 (What's-new 카드와 같은 규율).
-   */
-  navRemapSeen: boolean;
-
   /** Today 플러그인 안내 카드를 닫았는가 (`true` = 다시 뜨지 않는다). */
   pluginCardDismissed: boolean;
 
-  /** 첫 실행 마법사를 끝냈거나 건너뛰었는가 (`false` = 아직 한 번도 안 봄). */
-  onboarded: boolean;
-
   /** 첫 실행 세 단계 시트를 건너뛰었는가 (첫 일지가 서면 시트는 어차피 접힌다). */
   firstRunSheetDismissed: boolean;
-  /** 단축키 힌트를 간단 밀도에서도 버튼 옆에 보인다. */
-  kbdHints: boolean;
 }
 
 export const DEFAULTS: Settings = {
   theme: "system",
   colorTheme: "green",
   uiScale: 1,
-  uiDensity: UI_DENSITY_DEFAULT,
   language: "system",
   contentLanguage: "system",
 
@@ -272,20 +243,15 @@ export const DEFAULTS: Settings = {
 
 
   lastSeenVersion: "",
-  navRemapSeen: false,
   pluginCardDismissed: false,
 
-  onboarded: false,
-
   firstRunSheetDismissed: false,
-  kbdHints: false,
 };
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.theme]: "theme",
   [KEYS.colorTheme]: "colorTheme",
   [KEYS.uiScale]: "uiScale",
-  [KEYS.uiDensity]: "uiDensity",
   [KEYS.language]: "language",
   [KEYS.contentLanguage]: "contentLanguage",
   [KEYS.defaultProvider]: "defaultProvider",
@@ -313,11 +279,8 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.oculpmContextEntries]: "oculpmContextEntries",
   [KEYS.externalEditorCommand]: "externalEditorCommand",
   [KEYS.lastSeenVersion]: "lastSeenVersion",
-  [KEYS.navRemapSeen]: "navRemapSeen",
   [KEYS.pluginCardDismissed]: "pluginCardDismissed",
-  [KEYS.onboarded]: "onboarded",
   [KEYS.firstRunSheetDismissed]: "firstRunSheetDismissed",
-  [KEYS.kbdHints]: "kbdHints",
 };
 
 const FIELD_TO_KEY = Object.fromEntries(

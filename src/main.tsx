@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { SettingsProvider } from "./contexts/SettingsContext";
-import { DensityShortcut } from "./hooks/useDensity";
 import { Toaster } from "./components/ui/Toaster";
 import { parseWindowRoute } from "./lib/windowRoute";
 import { installExternalLinkGuard } from "./lib/externalLinks";
@@ -17,11 +16,11 @@ import { watchCspViolations } from "./lib/oculpmLog";
 // (oculpmLog.ts `watchCspViolations`). 첫 화면의 위반까지 잡으려면 다른 무엇보다 앞이다.
 if ("__TAURI_INTERNALS__" in window) watchCspViolations();
 
-// 바깥 링크 → 기본 브라우저. 세 갈래 창 어디서 눌러도 같아야 하므로 갈림길
+// 바깥 링크 → 기본 브라우저. 두 갈래 창 어디서 눌러도 같아야 하므로 갈림길
 // **위**에서 한 번 건다 (externalLinks.ts 참고).
 installExternalLinkGuard();
-// 네이티브 드래그도 같은 이유로 갈림길 위다 — 끌 수 있는 표면(탭·세션 레일·
-// 페인 손잡이)이 세 갈래에 흩어져 있어 창마다 걸면 반드시 한 군데가 샌다.
+// 네이티브 드래그도 같은 이유로 갈림길 위다 — 끌 수 있는 표면이 갈래마다 흩어져
+// 있어 창마다 걸면 반드시 한 군데가 샌다.
 installNativeDragGuard();
 // 창을 보고 있지 않으면 무한 반복 애니메이션을 멈춘다 — 같은 이유로 갈림길 위 (idleMotion.ts).
 installIdleMotionPause();
@@ -46,9 +45,8 @@ if (import.meta.hot) {
   import.meta.hot.on("vite:ws:connect", diag("ws-connect"));
 }
 
-// 세 갈래 (크롬식 탭 §2 + 2026-08-15 터미널 도크) — 트레이 팝오버냐, 떼어낸
-// 터미널이냐, 탭을 문 앱 창이냐. 어느 갈래인지는 URL 이 정하고 런타임에 바뀌지
-// 않는다. "런처 전용 창" 은 시작 탭이 대체했다.
+// 두 갈래 — 트레이 팝오버냐, 앱 창(시작 창 또는 프로젝트 하나)이냐. 어느 갈래인지는
+// URL 이 정하고 런타임에 바뀌지 않는다.
 const route = parseWindowRoute(window.location.search);
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
@@ -90,23 +88,21 @@ if (route.kind === "tray") {
     </React.StrictMode>,
   );
 } else {
-  // 프로젝트 창 — 탭 여러 개를 물고, 탭마다 WorkspaceProvider 를 마운트한다
-  // (그 배선은 TabbedWindow 안에 있다 — 탭 집합이 런타임에 바뀌므로).
-  const TabbedWindow = React.lazy(() => import("./windows/TabbedWindow"));
+  // 앱 창 — 시작 창이거나 프로젝트 하나의 셸이다 (창 하나 = 프로젝트 하나, 4.0).
+  // 어느 쪽인지는 창이 마운트 직후 백엔드에 묻는다 — 시작 창이 프로젝트를 고르면
+  // 런타임에 바뀌므로 URL 에 싣지 않는다.
+  const AppWindow = React.lazy(() => import("./windows/AppWindow"));
   root.render(
     <React.StrictMode>
       <SettingsProvider>
         <React.Suspense fallback={null}>
-          <TabbedWindow
+          <AppWindow
             windowLabel={route.label}
             initialView={route.view}
             initialEntryPath={route.entryPath}
-            tearingOff={route.tearoff}
           />
         </React.Suspense>
         <Toaster />
-        {/* ⌘. 밀도 토글 수신기 — 프로바이더 안에 한 번. */}
-        <DensityShortcut />
       </SettingsProvider>
     </React.StrictMode>,
   );

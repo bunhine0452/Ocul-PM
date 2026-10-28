@@ -78,10 +78,9 @@ vi.mock("@/api/oculpm", () => ({
 import { __resetLangForTests, setLangSetting } from "@/i18n";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
-import { ProjectManager } from "@/features/projects/ProjectManager";
+import { StartWindow } from "@/features/start/StartWindow";
 import { PluginDocsTab } from "@/features/skills/PluginDocsTab";
-import { SettingsPanel } from "@/features/settings/SettingsPanel";
-import { GreenfieldWizard } from "@/features/onboarding/GreenfieldWizard";
+import { SettingsPage } from "@/features/settings/SettingsPage";
 import { RuleCandidatesPanel } from "@/features/skills/RuleCandidates";
 import { SkillCandidatesPanel } from "@/features/skills/SkillCandidates";
 
@@ -137,24 +136,14 @@ afterEach(() => {
 
 describe("영어 모드에서 한글이 남지 않는다", () => {
 
-  it("프로젝트 관리 모달", async () => {
+  it("시작 창", async () => {
     const { container, findByText } = render(
-      <Wrap>
-        <ProjectManager
-          projects={[]}
-          brief={null}
-          indexingId={null}
-          onClose={() => {}}
-          onOpenProject={() => {}}
-          onRenameProject={() => {}}
-          onDeleteProject={() => {}}
-          onAddProject={() => {}}
-          onStartGreenfield={() => {}}
-          onProjectsChanged={() => {}}
-        />
-      </Wrap>,
+      <SettingsProvider>
+        <StartWindow />
+      </SettingsProvider>,
     );
-    await findByText("Manage projects");
+    await findByText("Recent projects");
+    await findByText("First time? Three steps");
     expect(hangulIn(container)).toEqual([]);
   });
 
@@ -175,25 +164,13 @@ describe("영어 모드에서 한글이 남지 않는다", () => {
     await findByText("Slash commands");
   });
 
-  it("설정 패널", async () => {
+  it("설정 한 쪽", async () => {
     const { container, findAllByText } = render(
       <Wrap>
-        <SettingsPanel />
+        <SettingsPage />
       </Wrap>,
     );
-    // 이름이 두 번 나온다 — 레일의 항목과 본문 머리의 제목 (2026-09-09 재설계).
-    // 지금 어느 탭에 있는지를 목록과 본문 양쪽에서 말하는 게 의도다.
     expect((await findAllByText("Display")).length).toBeGreaterThan(0);
-    expect(hangulIn(container)).toEqual([]);
-  });
-
-  it("새 프로젝트 마법사", async () => {
-    const { container, findByText } = render(
-      <Wrap>
-        <GreenfieldWizard onClose={() => {}} onComplete={() => {}} />
-      </Wrap>,
-    );
-    await findByText("Idea");
     expect(hangulIn(container)).toEqual([]);
   });
 

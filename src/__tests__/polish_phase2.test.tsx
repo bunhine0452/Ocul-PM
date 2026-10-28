@@ -18,11 +18,6 @@ import {
   useIntegrityLog,
 } from "@/lib/integrityLog";
 import {
-  hasRunningWork,
-  registerTabCloseGuard,
-  runTabCloseGuard,
-} from "@/lib/closeIntent";
-import {
   onOculpmActivateRequest,
   onReindexRequest,
   requestOculpmActivate,
@@ -142,32 +137,6 @@ describe("변경 바닥줄 — 일지의 확인 토글", () => {
     fireEvent.click(btn);
     expect(onToggleVerified).toHaveBeenCalledWith("j/1.md", false);
   });
-});
-
-describe("탭 닫기 문지기 — 창은 묻고, 탭은 알린다", () => {
-  it("등록이 없으면 null, 있으면 보고를 돌려주고, 해제하면 다시 null", async () => {
-    expect(await runTabCloseGuard(7)).toBeNull();
-    const off = registerTabCloseGuard(7, async () => ({ foreground: ["pnpm"], agents: 0 }));
-    expect(await runTabCloseGuard(7)).toEqual({ foreground: ["pnpm"], agents: 0 });
-    off();
-    expect(await runTabCloseGuard(7)).toBeNull();
-  });
-
-  it("문지기가 던지면 그냥 닫는다 (null)", async () => {
-    const off = registerTabCloseGuard(8, async () => {
-      throw new Error("boom");
-    });
-    expect(await runTabCloseGuard(8)).toBeNull();
-    off();
-  });
-
-  it("hasRunningWork 는 포그라운드 명령이나 작업 중 세션이 있을 때만 참", () => {
-    expect(hasRunningWork(null)).toBe(false);
-    expect(hasRunningWork({ foreground: [], agents: 0 })).toBe(false);
-    expect(hasRunningWork({ foreground: ["node"], agents: 0 })).toBe(true);
-    expect(hasRunningWork({ foreground: [], agents: 2 })).toBe(true);
-  });
-
 });
 
 describe("요청 버스 — 활성화·색인은 프로젝트 탭이 받는다", () => {
@@ -426,7 +395,7 @@ describe("WorkspaceContext 조각 — 자기 키가 바뀔 때만 새 참조", (
     const before = result.current.prefs;
     act(() => result.current.prefs.setPrefs((p) => ({ searchScope: p.searchScope })));
     expect(result.current.prefs).toBe(before);
-    act(() => result.current.prefs.setPrefs(() => ({ uiV2View: "search" })));
-    expect(result.current.prefs.prefs.uiV2View).toBe("search");
+    act(() => result.current.prefs.setPrefs(() => ({ uiV2View: "diff" })));
+    expect(result.current.prefs.prefs.uiV2View).toBe("diff");
   });
 });

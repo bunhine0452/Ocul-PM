@@ -1,0 +1,17 @@
+/* ============================================================
+   window.css — 창 셸(.winroot). 창 하나 = 프로젝트 하나 (4.0).
+
+   ⚠️ styles/index.css 계열에 두면 안 된다. 그쪽은 ShellV2(lazy 청크)만 임포트하므로
+   시작 창만 있는 창에서는 무스타일이 된다 — AppWindow 가 직접 임포트한다.
+   3.x 의 탭 줄(tabs.css)이 맡던 macOS 신호등 자리는 이제 사이드바 머리(프로젝트 창)와
+   시작 창의 머리줄이 각자 비운다.
+   ============================================================ */
+.winroot {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-content);
+  color: var(--text);
+}
+.winroot .app { flex: 1 1 auto; min-height: 0; height: auto; }

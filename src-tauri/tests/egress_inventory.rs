@@ -186,7 +186,7 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     ("openrouter.ai", "약속의 예외 ① — OpenRouter (OpenAI 호환)."),
     ("generativelanguage.googleapis.com", "약속의 예외 ① — Gemini LLM 엔드포인트."),
     ("integrate.api.nvidia.com", "약속의 예외 ① — NVIDIA NIM LLM 엔드포인트."),
-    ("api.github.com", "약속의 예외 ② — 릴리스 목록 읽기. `src/lib/updater.ts` 의 RELEASES_API 가 소유하고 Today 카드·설정 업데이트 탭이 부른다."),
+    ("api.github.com", "약속의 예외 ② — 릴리스 목록 읽기. `src/lib/updater.ts` 의 RELEASES_API 가 소유하고 Today 카드가 부른다."),
     ("codeload.github.com", "사용자가 명시적으로 요청한 플러그인 번들 zip 다운로드."),
     ("oculpm.com", "OpenRouter 어트리뷰션 헤더 값 — 앱이 부르는 목적지가 아니다. deeplink 테스트 픽스처이기도 하다 (걷은 `theme/install` 링크가 거절되는지). (테마 화이트리스트 호스트는 2026-10-24 원격 테마 설치와 함께, Notion OAuth 교환 브로커는 2026-10-14 Notion 연동과 함께 걷었다.)"),
     // ── 브라우저에 넘기는 링크 (앱이 보내지 않는다) ──
@@ -211,12 +211,8 @@ const WEB_SITES: &[Site] = &[
         control: Control::Exempt,
         reason: "약속의 예외 ② — 릴리스 노트 읽기(GitHub public API). 보내는 것은 없다.",
     },
-    Site {
-        path: "features/settings/tabs/UpdateTab.tsx",
-        primitives: &["fetch("],
-        control: Control::Exempt,
-        reason: "약속의 예외 ② — 같은 릴리스 목록을 설정 업데이트 탭에서.",
-    },
+    // (설정 업데이트 탭의 릴리스 목록 fetch 는 4.0 설정 한 쪽으로 바뀌며 걷었다 —
+    // 설정은 업데이터 확인만 하고 릴리스 노트는 읽지 않는다.)
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

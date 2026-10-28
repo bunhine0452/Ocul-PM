@@ -1,0 +1,88 @@
+/* ============================================================
+   start.css — 시작 창 (4.0, 시안 Start.dc.html).
+   사이드바가 없는 전창 표면이다. 두 칸(최근 프로젝트 · 처음이라면 세 단계)이
+   캔버스(--bg-sidebar) 위에 카드로 선다. 창 최소 폭이 960 이라 두 칸이 접힐 일은
+   없다 — 그래서 폭 조건이 없다.
+   ============================================================ */
+.start {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column;
+  background: var(--bg-sidebar); color: var(--text);
+}
+
+/* 머리줄 — 창을 잡는 자리이자 macOS 신호등 자리. 제목은 가운데. */
+.start-bar {
+  height: var(--toolbar-h); flex: none;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 var(--space-6);
+  user-select: none;
+}
+.start-bar-title { font-size: var(--fs-4); font-weight: var(--fw-strong); }
+
+.start-body {
+  flex: 1 1 auto; min-height: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 460px);
+  gap: var(--space-7);
+  padding: var(--space-5) 32px 32px;
+}
+.start-card { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.start-card-head {
+  height: 40px; flex: none;
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--sep);
+}
+.start-card-head h2 { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); }
+.start-spacer { flex: 1; }
+.start-card-head .kbd { margin-left: var(--space-1); }
+
+/* 최근 프로젝트 */
+.start-list { list-style: none; margin: 0; padding: 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.start-row {
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--sep);
+}
+.start-row:last-child { border-bottom: 0; }
+.start-row-main { flex: 1 1 auto; min-width: 0; }
+.start-row-name {
+  display: flex; align-items: center; gap: var(--space-3);
+  font-size: var(--fs-5); font-weight: var(--fw-strong);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.start-row-path {
+  margin-top: 2px; font-size: var(--fs-3); color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.start-row-day { flex: none; font-size: var(--fs-3); color: var(--text-2); }
+.start-row-forget { color: var(--text-3); }
+.start-empty { margin: 0; padding: var(--space-7) var(--space-6); color: var(--text-2); font-size: var(--fs-4); }
+.start-foot {
+  margin: 0; flex: none;
+  padding: var(--space-5) var(--space-6);
+  border-top: 1px solid var(--sep);
+  font-size: var(--fs-3); color: var(--text-2);
+}
+.start-card > .start-foot { margin-top: auto; }
+
+/* 처음이라면 세 단계 */
+.start-steps {
+  list-style: none; margin: 0;
+  padding: var(--space-6);
+  display: flex; flex-direction: column; gap: 18px;
+}
+.start-step { display: flex; gap: var(--space-5); }
+.start-step-n { width: var(--ctl-1); justify-content: center; padding: 0; }
+.start-step-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.start-step-body > .copy-cmd { align-self: stretch; }
+.start-step-body h3 { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); }
+.start-step-body p { margin: 0; font-size: var(--fs-3); color: var(--text-2); line-height: var(--lh-snug); }
+.start-step-body .start-step-picked { color: var(--text); }
+.start-step-picked .mono { color: var(--text-2); }
+.start-error {
+  margin: 0 var(--space-6) var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-s);
+  background: var(--danger-soft); color: var(--danger-text);
+  font-size: var(--fs-3);
+}

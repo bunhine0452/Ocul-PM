@@ -1,72 +1,45 @@
-import { DENSITY_TOGGLE_EVENT } from "@/lib/density";
 import { useEffect } from "react";
 import { type UiV2View } from "@/contexts/WorkspaceContext";
 import { navViewForKey, NAV_BUS } from "@/lib/navRegistry";
 import { requestCheatsheet } from "@/lib/projectActions";
-import { readChord, yieldsToShell } from "@/lib/kbd";
-import { isMac } from "@/lib/platform";
+import { readChord } from "@/lib/kbd";
 
-// v2 전역 단축키 (docs/20260706_v2/01-ux-spec.md §1).
-//   ⌘1~⌘9·⌘0 : 화면 전환 — navRegistry 배열 순서(=사이드바 표시 순서)에 자동
-//               부여. 하드코딩 배열이 없으므로 사이드바와 어긋날 수 없다.
-//   ⌘K : Command Palette 열기.
-//   ⌘P : 프로젝트 전환 팝오버 (사이드바가 NAV_BUS 이벤트 수신).
+// 프로젝트 창의 전역 단축키 (v2 01-ux-spec.md §1 → 4.0).
+//   ⌘1~⌘4 : 화면 전환 — navRegistry 배열 순서(=사이드바 표시 순서)에 자동 부여.
+//   ⌘K : 팔레트 (화면 · 프로젝트 · 일지 · 계획).
+//   ⌘O : 최근 프로젝트 목록 (사이드바 머리의 프로젝트 이름 버튼).
 //   ⌘, : 설정 화면.
-//   ⌘\ : AI 패널 화면 (감사 2026-07-16 — 별도 오버레이 스택을 은퇴하고
-//        단축키는 유지: 기존 손버릇이 그대로 새 정본으로 간다).
-//   ⌘J : 터미널 도크 (2026-08-15) — VS Code·iTerm 의 관습 그대로.
-//   ⌘/ : 단축키 치트시트 (2026-08-30) — 창에 하나 떠 있는 표를 여닫는다.
-//   ⌘[ / ⌘] : 화면 뒤로/앞으로 (2026-09-11) — `useNavHistory` 의 발자국.
-// 입력 필드 안에서도 동작 (기존 정책 유지). 수정키 판정은 lib/kbd.ts 가 갖는다 —
-// macOS 는 예전 식(⌘ 또는 ⌃) 그대로, Windows·Linux 는 Ctrl 이되 **터미널
-// 안에서는 Ctrl+글자를 셸에 양보하고 Ctrl+Shift+글자로 받는다**.
+//   ⌘/ : 단축키 치트시트.
+//   ⌘[ / ⌘] : 화면 뒤로/앞으로 (`useNavHistory` 의 발자국).
+// ⌘W(창 닫기)·⇧⌘N(새 창)은 macOS 앱 메뉴가, Windows·Linux 는 `useWindowKeys` 가 받는다.
+// 입력 필드 안에서도 동작한다 (기존 정책 유지). 수정키 판정은 lib/kbd.ts 가 갖는다 —
+// macOS 는 ⌘ 또는 ⌃, Windows·Linux 는 Ctrl.
 
 interface Options {
   onOpenPalette: () => void;
-  /** Navigate the ui_v2 shell — ⌘번호 + ⌘, */
+  /** 셸 화면 이동 — ⌘번호 + ⌘, */
   uiV2Nav: (view: UiV2View) => void;
-  /** ⌘J — 어느 화면에서나 터미널 도크를 여닫는다. */
-  /** ⌘[ / ⌘] — 화면 뒤로/앞으로 (E3). ⇧⌘[ 는 편집기의 탭 순환이라 넘긴다. */
+  /** ⌘[ / ⌘] — 화면 뒤로/앞으로. */
   onNavBack?: () => void;
   onNavForward?: () => void;
-  /**
-   * 크롬식 탭 — 한 창에 탭이 여럿이고 **비활성 탭도 마운트된 채**라, 게이트가
-   * 없으면 ⌘1 이 탭 수만큼 발화한다. 기본 true 라 런처처럼 탭이 하나뿐인
-   * 곳은 그대로 쓴다.
-   */
   enabled?: boolean;
 }
 
-export function useGlobalShortcuts({
-  onOpenPalette,
-  uiV2Nav,
-  onNavBack,
-  onNavForward,
-  enabled = true,
-}: Options) {
+export function useGlobalShortcuts({ onOpenPalette, uiV2Nav, onNavBack, onNavForward, enabled = true }: Options) {
   useEffect(() => {
     if (!enabled) return;
     function onKey(e: KeyboardEvent) {
-      // Windows·Linux 터미널 안의 Ctrl+글자는 셸의 것이다 (lib/kbd.ts) — xterm 도
-      // 전파를 막지만, 양보 규칙은 여기 적혀 있어야 한다. macOS 에서는 언제나 거짓.
-      if (yieldsToShell(e)) return;
-      // macOS: `{ mod: metaKey || ctrlKey, … }` — 예전 식 그대로 (D3).
-      // Windows·Linux: Ctrl. 터미널 안이면 Ctrl+Shift 가족 (⌘K → Ctrl+Shift+K).
       const c = readChord(e);
       if (!c.mod) return;
-      // Windows·Linux 에서는 Shift 가 붙어도 같은 키다 — 터미널 안의 표기
-      // (Ctrl+Shift+J)가 터미널 밖에서도 거짓말이 되지 않게. macOS 는 예전처럼
-      // ⇧⌘J·⇧⌘P 를 넘긴다.
-      const shiftBlocks = isMac() && c.shift;
+      const key = c.key.toLowerCase();
 
-      // ⌘K — Command Palette
-      if (c.key.toLowerCase() === "k") {
+      // ⌘K — 팔레트
+      if (key === "k" && !c.shift) {
         e.preventDefault();
         onOpenPalette();
         return;
       }
-      // ⌘J — 터미널 도크. ⇧⌘J 는 넘긴다 (브라우저·OS 조합과 겹치지 않게).
-      // ⌘[ / ⌘] — 화면 뒤로/앞으로. ⇧ 가 붙으면 편집기 탭 순환의 것이다.
+      // ⌘[ / ⌘] — 화면 뒤로/앞으로.
       if (!c.shift && !c.alt && (c.key === "[" || c.key === "]")) {
         const go = c.key === "[" ? onNavBack : onNavForward;
         if (go) {
@@ -75,13 +48,13 @@ export function useGlobalShortcuts({
           return;
         }
       }
-      // ⌘P — 프로젝트 전환 (사이드바 팝오버)
-      if (c.key.toLowerCase() === "p" && !shiftBlocks) {
+      // ⌘O — 최근 프로젝트 목록 (사이드바 머리가 NAV_BUS 를 듣는다)
+      if (key === "o" && !c.shift && !c.alt) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent(NAV_BUS.openProjectSwitcher));
         return;
       }
-      // ⌘/ — 단축키 치트시트 (창 하나에 하나, TabbedWindow 가 그린다)
+      // ⌘/ — 단축키 치트시트 (창에 하나, AppWindow 가 그린다)
       if (c.key === "/") {
         e.preventDefault();
         requestCheatsheet();
@@ -93,18 +66,11 @@ export function useGlobalShortcuts({
         uiV2Nav("settings");
         return;
       }
-      // ⌘. — 밀도 토글(간단 ↔ 전문). 저장은 프로바이더 안의 수신기 한 곳이 한다.
-      if (c.key === "." && !c.shift) {
-        e.preventDefault();
-        window.dispatchEvent(new CustomEvent(DENSITY_TOGGLE_EVENT));
-        return;
-      }
-      // ⌘1~⌘9·⌘0 — navRegistry 순서
+      // ⌘1~⌘4 — navRegistry 순서
       const view = navViewForKey(c.key);
       if (view) {
         e.preventDefault();
         uiV2Nav(view);
-        return;
       }
     }
     window.addEventListener("keydown", onKey);

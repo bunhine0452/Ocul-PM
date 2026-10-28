@@ -77,39 +77,40 @@ export async function runScenario(ctx) {
       desc: "웹뷰 문서 로드",
     });
     await installProbes(wd);
-    const wizard = await waitFor(wd, "return document.querySelector('.wz-scrim') ? 'wizard' : null;", [], {
+    // 4.0 — 첫 창은 시작 창이다 (창 하나 = 프로젝트 하나). 빈 데이터 폴더라 최근
+    // 프로젝트는 비고 「처음이라면 세 단계」가 선다.
+    const start = await waitFor(wd, "return document.querySelector('.start .start-steps') ? 'start-window' : null;", [], {
       timeout: 60_000,
-      desc: "첫 실행 마법사(빈 데이터 폴더)",
+      desc: "시작 창(빈 데이터 폴더)",
     });
-    rec.notes.push(`첫 화면: ${wizard}`, `드라이버 브라우저: ${wd.capabilities.browserName ?? "?"} ${wd.capabilities.browserVersion ?? ""}`);
-    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "start-wizard", caption: "시작 탭 + 첫 실행 마법사 (언어)" });
+    rec.notes.push(`첫 화면: ${start}`, `드라이버 브라우저: ${wd.capabilities.browserName ?? "?"} ${wd.capabilities.browserVersion ?? ""}`);
+    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "start-window", caption: "시작 창 — 최근 프로젝트 + 처음이라면 세 단계" });
   }, { critical: true });
 
-  await report.step("첫 실행 마법사 → 픽스처 프로젝트 추가 (.oculpm 초기화)", async (rec) => {
-    await clickCss(wd, ".wz-choice", 1); // 언어: 한국어 (시스템·한국어·English 순)
-    await waitFor(wd, "const c = document.querySelectorAll('.wz-choice')[1]; return c && c.getAttribute('aria-checked') === 'true';", [], { desc: "한국어 선택" });
-    await clickCss(wd, ".wz-primary");
-    await waitFor(wd, "return !!document.querySelector('.wz-accents');", [], { desc: "모양 단계" });
-    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "wizard-look", caption: "마법사 — 모양" });
-    await clickCss(wd, ".wz-primary");
-    await waitFor(wd, "return !!document.querySelector('.wz-bigcard');", [], { desc: "프로젝트 단계" });
-    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "wizard-project", caption: "마법사 — 프로젝트" });
+  // 세 단계의 버튼 — 단계마다 첫 `.btn` 이 그 단계의 동작이다 (1 폴더 열기 · 2 기록 켜기 ·
+  // 3 의 첫 버튼은 「복사」, 「기다리지 않고 열기」는 마지막 `.btn`).
+  const STEP = (n) => `.start-steps > li:nth-child(${n})`;
+
+  await report.step("시작 창 세 단계 → 픽스처 프로젝트 (.oculpm 초기화) → 이 창이 그 프로젝트가 된다", async (rec) => {
     await stubFolderPicker(wd, fixture);
-    await clickCss(wd, ".wz-bigcard", 0);
-    const title = await waitFor(wd, "const h = document.querySelector('.wz-list') && document.querySelector('.wz-title'); return h ? h.innerText : null;", [], {
+    await clickCss(wd, `${STEP(1)} .btn`, 0);
+    const picked = await waitFor(wd, `const p = document.querySelector('${STEP(1)} .start-step-picked'); return p ? p.innerText : null;`, [], {
       timeout: 30_000,
-      desc: "마무리 판(create_project)",
+      desc: "1단계 — 폴더를 들였다(create_project)",
     });
-    rec.notes.push(`마무리 판 제목: ${title}`);
-    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "wizard-ready", caption: "마법사 — 프로젝트를 들였다" });
-    await clickCss(wd, ".wz-primary");
-    await waitFor(wd, "return !!document.querySelector('nav.sidebar .side-nav-scroll .nav-item');", [], { timeout: 60_000, desc: "프로젝트 셸(사이드바)" });
-    await waitScreenReady(wd, 60_000);
+    rec.notes.push(`1단계: ${picked}`);
+    await clickCss(wd, `${STEP(2)} .btn`, 0);
     if (!(await pollFs(join(fixture, ".oculpm"), 60_000))) throw new Error(".oculpm/ 이 60초 안에 안 생겼다 (oculpmInit)");
     rec.notes.push(".oculpm/ 생성 확인");
+    await waitFor(wd, `return !!document.querySelector('${STEP(2)} .start-step-picked');`, [], { desc: "2단계 — 기록 켜짐" });
+    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "start-steps-done", caption: "세 단계 — 폴더를 들이고 기록을 켰다" });
+    // 첫 일지를 기다리지 않고 연다 — 같은 창이 그 프로젝트가 된다.
+    await wd.execute(`const b = [...document.querySelectorAll('${STEP(3)} .btn')].pop(); b.click(); return true;`);
+    await waitFor(wd, "return !!document.querySelector('nav.sidebar .side-nav .nav-item');", [], { timeout: 60_000, desc: "프로젝트 셸(사이드바)" });
+    await waitScreenReady(wd, 60_000);
     await sleep(1500);
     const state = await screenState(wd, crashTitles);
-    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "project-opened", caption: "프로젝트를 연 직후 (오늘 현황)", state, ok: state.crashes.length === 0 && state.csp.length === 0 });
+    await report.shot(wd, { phase: "01 기동", key: "boot", screen: "project-opened", caption: "프로젝트를 연 직후 (오늘)", state, ok: state.crashes.length === 0 && state.csp.length === 0 });
     // 웹뷰 CSP 위반은 화면이 조용히 비는 것으로만 보인다 — 여기서 이름을 붙여 떨어뜨린다.
     if (state.csp.length) throw new Error(`CSP 위반: ${state.csp.join(" | ")}`);
   }, { critical: true });
@@ -124,6 +125,31 @@ export async function runScenario(ctx) {
     const labels = await sidebarLabels(wd);
     rec.notes.push(`사이드바 ${labels.length}행: ${labels.join(" · ")}`, `navRegistry 행 ${nav.rows.length} · 화면 ${nav.destinations.length}`);
     if (labels.length !== nav.rows.length) throw new Error(`사이드바 ${labels.length}행 ≠ navRegistry ${nav.rows.length}행`);
+  });
+
+  /**
+   * 설정 한 쪽(4.0)의 「표시 → 언어」 세그먼트를 누른다 — 0 = 한국어, 1 = English.
+   * 설정은 사이드바 바닥의 행이고(`nav.sidebar > .nav-item`), 표시 칸은 `#prefs-display`
+   * 다. 첫 `.seg` 가 언어다 (언어 · 밝기 · 글자 크기 순).
+   */
+  const setLanguage = async (rec, index, marker) => {
+    await clickCss(wd, "nav.sidebar > .nav-item", 0);
+    await waitFor(wd, "return document.querySelectorAll('#prefs-display .seg .seg-item').length >= 2;", [], { desc: "설정 — 표시 · 언어" });
+    // 일지의 「열기」 토스트가 오른쪽 아래에 15초 남는다 — 그 자리를 가로막지 않게 기다린다
+    // (v3.17.0 run, Windows·Linux 27건 연쇄 실패).
+    const t0 = Date.now();
+    await waitNoToasts(wd);
+    rec.notes.push(`토스트 소거 대기 ${Date.now() - t0}ms`);
+    await clickCss(wd, "#prefs-display .seg .seg-item", index);
+    await waitFor(wd, "return !!document.querySelector('nav.sidebar') && document.querySelector('nav.sidebar').innerText.includes(arguments[0]);", [marker], {
+      desc: "사이드바 언어가 바뀌었다",
+    });
+    await sleep(800);
+  };
+
+  // 시작 창에는 언어 고르기가 없다 — 러너 OS 의 로케일을 따르므로 한국어를 못박는다.
+  await report.step("한국어로 (설정 → 표시 → 한국어)", async (rec) => {
+    await setLanguage(rec, 0, dict.ko("nav.journal"));
   });
 
   const tour = async (phase, key, t) => {
@@ -154,7 +180,11 @@ export async function runScenario(ctx) {
 
   const sized = async (label, w, h) => {
     await report.step(`창 크기 ${label} (${w}×${h})`, async (rec) => {
-      const r = await resizeViewport(wd, w, h, { processName: basename(app).replace(/\.exe$/i, "") });
+      // 창 제목은 프로젝트 이름이다 (창 하나 = 프로젝트 하나, 4.0) — xdotool 이 그것으로 찾는다.
+      const r = await resizeViewport(wd, w, h, {
+        processName: basename(app).replace(/\.exe$/i, ""),
+        windowTitle: basename(fixture),
+      });
       rec.notes.push(...r.notes);
       if (!r.reached) rec.notes.push(`목표에 못 미침 — 실제 ${r.inner.join("×")} 로 찍는다`);
     });
@@ -202,18 +232,7 @@ export async function runScenario(ctx) {
   });
 
   await report.step("영어 모드 전환 (설정 → 표시 → English)", async (rec) => {
-    await clickCss(wd, "nav.sidebar .side-foot .nav-util--icon", 1);
-    await waitFor(wd, "return document.querySelectorAll('.cfg-choices .cfg-choice').length >= 3;", [], { desc: "설정 — 언어 선택" });
-    // 직전 단계(사이드카 일지)의 「열기」 토스트가 오른쪽 아래에 15초 남는다 — 언어 버튼이
-    // 그 자리까지 내려오면 클릭이 가로막힌다 (v3.17.0 run, Windows·Linux 27건 연쇄 실패).
-    const t0 = Date.now();
-    await waitNoToasts(wd);
-    rec.notes.push(`토스트 소거 대기 ${Date.now() - t0}ms`);
-    await clickCss(wd, ".cfg-choices .cfg-choice", 2);
-    await waitFor(wd, "return !!document.querySelector('nav.sidebar') && document.querySelector('nav.sidebar').innerText.includes(arguments[0]);", [dict.en("nav.today")], {
-      desc: "사이드바가 영어로",
-    });
-    await sleep(800);
+    await setLanguage(rec, 1, dict.en("nav.journal"));
     await report.shot(wd, { phase: "05 영어", key: "en", screen: "settings-en", caption: "설정 — English 로 바꾼 직후" });
   });
 

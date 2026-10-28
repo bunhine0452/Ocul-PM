@@ -21,18 +21,13 @@
  * 저장된 값을 거른다.
  */
 export const UI_V2_VIEWS = [
+  // 4.0 의 다섯 면 — 오늘 · 작업 일지 · 계획 · 변경 + 설정. 검색·스킬·논의·브랜치는
+  // 2026-10-29 에, 터미널·AI 패널·Claude Code·Codex·편집기는 2026-10-28 에 걷었다 —
+  // 저장된 옛 값은 `migrateUiV2View` 가 today 로 접는다. "settings" 는 언제나 마지막이다.
   "today",
   "journal",
-  "diff",
   "planner",
-  "discussion",
-  "search",
-  "skills",
-  // 터미널 · AI 패널 · Claude Code · Codex · 편집기는 2026-10-28 에 걷었다 (simplify-round) —
-  // 저장된 옛 값은 `migrateUiV2View` 가 today 로 접는다.
-  // 브랜치의 이야기 (v3-surface {#branch-story-view}) — 날짜·타입 말고
-  // **브랜치**로 묶어 읽는 축. "settings" 는 언제나 마지막이다.
-  "branch",
+  "diff",
   "settings",
 ] as const;
 

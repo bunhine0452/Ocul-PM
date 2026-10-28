@@ -2,11 +2,11 @@
  * 화면 **밖에서 온 이동 요청**과 그 한 번짜리 핸드오프 (플랜 `v3-release`
  * {#big-files-watch}).
  *
- * `ShellV2` 에서 그대로 들어냈다. 셸이 하는 일은 둘인데 — 사이드바 + 16화면
- * 라우터 — 그 사이에 "트레이 딥링크·⌘K 엔티티 점프·터미널의 「일지로 남기기」·
- * 플래너의 📓" 처럼 **다른 화면이 쏜 요청을 받아 옮기는** 코드가 160줄 끼어
- * 있었다. 셋 다 같은 모양이다: 창 전역 버스를 듣고 → 화면을 옮기고 → 목적
- * 화면이 mount 뒤 소비할 한 번짜리 값을 남긴다. 그 한 결을 여기 모은다.
+ * `ShellV2` 에서 그대로 들어냈다. 셸이 하는 일은 둘인데 — 사이드바 + 다섯 화면
+ * 라우터 — 그 사이에 "트레이 딥링크·⌘K 엔티티 점프·「수동 일지」·플래너의 📓"
+ * 처럼 **다른 화면이 쏜 요청을 받아 옮기는** 코드가 끼어 있었다. 모두 같은
+ * 모양이다: 창 전역 버스를 듣고 → 화면을 옮기고 → 목적 화면이 mount 뒤 소비할
+ * 한 번짜리 값을 남긴다. 그 한 결을 여기 모은다.
  *
  * 규약은 `features/sessions/useSessionBoard.ts` 와 같다 — 이 훅이 상태와 구독을
  * 소유하고, 화면은 결과를 배치하기만 한다.
@@ -18,7 +18,6 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { consumeEntryJump, onEntryJump } from "@/lib/entryJump";
-import { holdAgentContextIntent, onAgentContextRequest } from "@/lib/agentContextNav";
 import { holdManualEntryRequest, onManualEntryRequest } from "@/lib/journalCompose";
 import { onOpenSettingsRequest } from "@/lib/settingsNav";
 import { NAV_BUS, type OpenEntityDetail } from "@/lib/navRegistry";
@@ -34,8 +33,6 @@ import { UI_V2_VIEWS, type UiPrefsValue, type UiV2View } from "@/contexts/Worksp
 export const KNOWN_VIEWS: readonly string[] = UI_V2_VIEWS;
 
 export interface ShellNavOptions {
-  /** 이 탭이 화면에 보이는가 (크롬식 탭에서 숨은 탭도 마운트된 채라 필요하다). */
-  active: boolean;
   /** 지금 화면 — 이미 목적지에 있으면 그 화면의 구독이 먼저 소비한다. */
   view: UiV2View;
   projectId: number | null;
@@ -58,13 +55,11 @@ export interface ShellNav {
   /** 일지 상세의 「뒤로」가 돌아갈 출발 화면. */
   journalReturnView: UiV2View | null;
   setJournalReturnView: (view: UiV2View | null) => void;
-  /** 코드 화면이 열 파일·줄 (nonce 로 같은 자리 연속 점프도 구분). */
-  /** 플래너/토의/문서는 영속 필드를 mount 시에만 읽어 remount 가 필요하다. */
+  /** 플래너는 영속 필드를 mount 시에만 읽어 remount 가 필요하다. */
   jumpNonce: number;
 }
 
 export function useShellNav({
-  active,
   view,
   projectId,
   setUiV2View,
@@ -72,43 +67,22 @@ export function useShellNav({
   initialView,
   initialEntryPath,
 }: ShellNavOptions): ShellNav {
-  // 터미널 「일지로 남기기」·팔레트 「수동 일지」 는 일지 화면이 마운트돼 있을 때만
-  // 들렸다 — 다른 화면(터미널 ⌘0, 도크 위)에서 누르면 무반응처럼 보이고 일지
-  // 화면에 가야 뒤늦게 모달이 떴다 (2026-08-30 감사). 여기서 요청을 붙들어 두고
-  // 일지 화면으로 옮긴다; 일지 화면이 이미 떠 있으면 그쪽 구독이 먼저 소비한다.
-  // 비활성 탭은 아예 구독하지 않는다 (`active`) — 크롬식 탭에선 숨은 탭도
-  // 마운트된 채라, 창 전역 슬롯을 그대로 들으면 A 탭에서 누른 「일지로
-  // 남기기」가 B 탭까지 일지 화면으로 옮기고 B 프로젝트에 A 의 내용을 적는다.
-  // 아래 `NAV_BUS.openEntity` 가 이미 같은 이유로 `active` 를 본다.
-  useEffect(() => {
-    if (!active) return;
-    return onManualEntryRequest((seed) => {
-      if (view === "journal") return;
-      holdManualEntryRequest(seed);
-      setUiV2View("journal");
-    });
-  }, [active, view, setUiV2View]);
+  // 「수동 일지」 요청은 일지 화면이 마운트돼 있을 때만 들렸다 — 다른 화면에서 누르면
+  // 무반응처럼 보였다 (2026-08-30 감사). 여기서 붙들어 두고 일지 화면으로 옮긴다;
+  // 일지 화면이 이미 떠 있으면 그쪽 구독이 먼저 소비한다.
+  useEffect(
+    () =>
+      onManualEntryRequest((seed) => {
+        if (view === "journal") return;
+        holdManualEntryRequest(seed);
+        setUiV2View("journal");
+      }),
+    [view, setUiV2View],
+  );
 
-  // 설정 딥링크(`openSettings(tab)`) — 안내 문구의 "설정 → 어디" 를 버튼으로
-  // 바꾸는 쪽 절반. 패널이 탭을 고르고, 셸은 화면만 옮긴다.
-  // 활성 탭만 — 게이트가 없으면 `openSettings(tab)` 한 번이 **모든** 탭을 설정
-  // 화면으로 옮기고, `uiV2View` 는 프로젝트별로 영속되므로 나중에 B 탭에 돌아온
-  // 사용자는 떠났던 화면 대신 설정을 만난다.
-  useEffect(() => {
-    if (!active) return;
-    return onOpenSettingsRequest(() => setUiV2View("settings"));
-  }, [active, setUiV2View]);
-
-  // AD-4 — 일지·diff·터미널·팔레트에서 온 "규칙/스킬로" 요청. 화면이 이미 떠
-  // 있으면 그쪽 구독이 먼저 소비하고, 아니면 여기서 붙들어 두고 옮긴다.
-  useEffect(() => {
-    if (!active) return;
-    return onAgentContextRequest((intent) => {
-      if (view === "skills") return;
-      holdAgentContextIntent(intent);
-      setUiV2View("skills");
-    });
-  }, [active, view, setUiV2View]);
+  // 설정 딥링크(`openSettings(section)`) — 안내 문구의 "설정 → 어디" 를 버튼으로
+  // 바꾸는 쪽 절반. 설정 쪽이 그 칸으로 스크롤하고, 셸은 화면만 옮긴다.
+  useEffect(() => onOpenSettingsRequest(() => setUiV2View("settings")), [setUiV2View]);
 
   // One-shot focus handoff: Today's MiniEntry → 작업 일지 ring-highlight. Kept
   // as shell-local ephemeral state (focus is not persisted; it's a single
@@ -127,12 +101,10 @@ export function useShellNav({
   // returns to that origin screen instead of the journal timeline.
   const [journalReturnView, setJournalReturnView] = useState<UiV2View | null>(null);
 
-  // v2 U7 — 팔레트 엔티티 점프. 플래너/토의/문서 화면은 영속 필드
-  // (plannerPlanId 등)를 mount 시에만 읽으므로, 이미 그 화면에 있어도 점프가
-  // 반영되도록 nonce 로 remount 를 강제한다 (화면은 mount 시 재조회).
+  // v2 U7 — 팔레트 엔티티 점프. 플래너는 영속 필드(plannerPlanId)를 mount 시에만
+  // 읽으므로, 이미 그 화면에 있어도 점프가 반영되도록 nonce 로 remount 를 강제한다.
   const [jumpNonce, setJumpNonce] = useState(0);
   useEffect(() => {
-    if (!active) return;
     const onOpenEntity = (e: Event) => {
       const detail = (e as CustomEvent<OpenEntityDetail>).detail;
       if (!detail?.kind || !detail?.id) return;
@@ -145,20 +117,15 @@ export function useShellNav({
         setPrefs(() => ({ plannerPlanId: planId }));
         setJumpNonce((n) => n + 1);
         setUiV2View("planner");
-      } else if (detail.kind === "discussion") {
-        setPrefs(() => ({ discussionActiveId: detail.id }));
-        setJumpNonce((n) => n + 1);
-        setUiV2View("discussion");
       }
     };
     window.addEventListener(NAV_BUS.openEntity, onOpenEntity);
     return () => window.removeEventListener(NAV_BUS.openEntity, onOpenEntity);
-  }, [setPrefs, setUiV2View, active]);
+  }, [setPrefs, setUiV2View]);
 
   // 트레이 딥링크로 갓 열린 창 — URL 이 실어 온 목적지를 mount 시 1회 적용한다
   // (새 창의 프런트는 아직 리스너를 달기 전이라 emit 을 받을 수 없다).
   useEffect(() => {
-    if (!active) return;
     if (initialEntryPath) {
       setJournalReturnView(null);
       setJournalOpenEntry(initialEntryPath);
@@ -172,11 +139,8 @@ export function useShellNav({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 메인 화면 "오늘의 흐름" → 그 일지 항목 (`lib/entryJump`).
-  //
-  // `active` 로 막지 않는다 — 시작 탭이 승격하거나 숨은 탭이 활성화되는 것은
-  // 이 effect 가 도는 **뒤**라, 활성 여부로 걸면 정작 목적지 탭이 요청을 흘린다.
-  // 대신 프로젝트 id 로 거른다: 한 창의 모든 탭이 같은 버스를 듣기 때문이다.
+  // 「새 일지」 토스트의 「열기」 → 그 일지 항목 (`lib/entryJump`). 프로젝트 id 로
+  // 거른다 — 요청은 창 전역 버스로 온다.
   useEffect(() => {
     if (projectId == null) return;
     const open = (path: string) => {
