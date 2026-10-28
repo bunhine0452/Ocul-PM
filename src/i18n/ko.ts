@@ -230,6 +230,7 @@ export const ko = {
   "settings.misc.theme": "테마",
   "settings.misc.themeHint": "라이트·다크 가족과 팔레트는 아래 「테마」 절에서.",
   "toolbar.beta": "베타 · 결함 수정만",
+  "toolbar.find": "찾기",
   "nav.count": "{n}건",
   "frs.aria": "첫 실행 안내",
   "frs.eyebrow": "시작하기 · {project}",

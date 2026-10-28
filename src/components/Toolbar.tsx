@@ -1,6 +1,9 @@
 import React from "react";
 import { dragRegion } from "@/lib/platform";
 import { useT } from "@/i18n";
+import { SearchIcon } from "@/components/Icons";
+import { kbd } from "@/lib/kbd";
+import { requestOpenPalette } from "@/lib/paletteNav";
 
 // Final UI Update (ui_v2) — the screen Toolbar (`--toolbar-h`, 44px since
 // 2026-10-07 {#compact-chrome}; it was 52). Every ui_v2 screen renders
@@ -19,9 +22,11 @@ interface ToolbarProps {
    * 말하는 것과 앱이 말하는 것이 같아야 한다 (UI 밀도 라운드 3).
    */
   beta?: boolean;
+  /** 오른쪽 끝에 「찾기 ⌘K」 — 팔레트를 연다 (4.0 시안의 오늘·계획 툴바). */
+  find?: boolean;
 }
 
-export function Toolbar({ title, sub, leading, children, beta = false }: ToolbarProps) {
+export function Toolbar({ title, sub, leading, children, beta = false, find = false }: ToolbarProps) {
   const { t } = useT();
   // Window drag (Dogfooding 2026-06-15): the whole top bar should move the
   // window, not just the window edges. Tauri starts a drag only when the
@@ -42,6 +47,13 @@ export function Toolbar({ title, sub, leading, children, beta = false }: Toolbar
           도망간다 — 없으면 flex 압착이 CJK 라벨을 한 글자씩 세로로 꺾는다. */}
       <div className="toolbar-actions">
         {children}
+        {find ? (
+          <button type="button" className="btn sm" onClick={requestOpenPalette}>
+            <SearchIcon size={13} aria-hidden="true" />
+            {t("toolbar.find")}
+            <kbd className="kbd">{kbd("⌘K")}</kbd>
+          </button>
+        ) : null}
       </div>
     </div>
   );

@@ -227,7 +227,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
                   className="btn primary sm"
                   onClick={() => {
                     onNavigate("settings");
-                    openSettings("oculpm");
+                    openSettings("agents");
                   }}
                 >
                   {t("today.first.connect")}
@@ -279,7 +279,7 @@ export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dat
 
   return (
     <>
-      <Toolbar title={t("nav.today")} sub={dateLabel}>
+      <Toolbar title={t("nav.today")} sub={dateLabel} find>
         {oculpmReady && !firstRun ? <span className="tdy-keys">{t("today.kbd.hint")}</span> : null}
       </Toolbar>
       <div className="scroll">
