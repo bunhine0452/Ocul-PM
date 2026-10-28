@@ -477,50 +477,6 @@ b, strong { font-weight: 700; color: var(--ink); }
 @media (max-width: 980px) { .cell.c-span2 { grid-column: span 3; } }
 @media (max-width: 680px) { .cell, .cell.c-span2 { grid-column: span 6; } }
 
-/* ── 키노트 배너 ──────────────────────────────────────── */
-.keynote-banner {
-  position: relative;
-  max-width: var(--w);
-  margin: 0 auto;
-  border: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
-  border-radius: 20px;
-  background:
-    radial-gradient(120% 180% at 85% 20%, rgba(29, 185, 129, 0.14), transparent 55%),
-    var(--stage-2);
-  padding: clamp(36px, 6vw, 64px);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 24px;
-  overflow: hidden;
-}
-.keynote-banner .kb-copy { flex: 1 1 380px; }
-.keynote-banner .eyebrow { margin-bottom: 10px; }
-.keynote-banner h2 {
-  margin: 0 0 10px;
-  font-size: clamp(24px, 3.6vw, 38px);
-  font-weight: 850;
-  letter-spacing: -0.03em;
-  line-height: 1.25;
-  text-wrap: balance;
-}
-.keynote-banner p { margin: 0; color: var(--ink-dim); font-size: 14.5px; max-width: 480px; }
-.kb-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 28px;
-  border-radius: 999px;
-  background: var(--green-deep);
-  color: #06110c;
-  font-weight: 700;
-  font-size: 15px;
-  text-decoration: none;
-  letter-spacing: -0.01em;
-  flex: none;
-}
-.kb-cta:hover { background: var(--green); }
-
 /* ── 변경 이력 ────────────────────────────────────────── */
 .updates { background: var(--stage-2); border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
 .update-points {
