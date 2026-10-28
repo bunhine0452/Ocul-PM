@@ -53,7 +53,7 @@ const LOCALES = [
       prev: "← 이전",
       next: "다음 →",
       edit: "이 문서 고치기 →",
-      nav: { features: "기능", keynote: "키노트", wiki: "위키", plugin: "플러그인", download: "다운로드" },
+      nav: { features: "기능", wiki: "위키", plugin: "플러그인", download: "다운로드" },
       switchTo: "English",
     },
   },
@@ -72,7 +72,7 @@ const LOCALES = [
       prev: "← Previous",
       next: "Next →",
       edit: "Edit this page →",
-      nav: { features: "Features", keynote: "Keynote", wiki: "Wiki", plugin: "Plugin", download: "Download" },
+      nav: { features: "Features", wiki: "Wiki", plugin: "Plugin", download: "Download" },
       switchTo: "한국어",
     },
   },
@@ -146,7 +146,6 @@ ${LOCALES.filter((l) => l.pages.some((p) => p.file === page.file))
     <span class="nav-ver" data-version>v2.14.0</span>
     <div class="nav-links">
       <a href="${loc.home === "/" ? "/#acts" : `${loc.home}#acts`}">${ui.nav.features}</a>
-      <a href="/keynote">${ui.nav.keynote}</a>
       <a href="${loc.base}" style="color: var(--ink);">${ui.nav.wiki}</a>
       <a href="/plugin">${ui.nav.plugin}</a>
       <a href="https://github.com/bunhine0452/Ocul-PM" target="_blank" rel="noreferrer">GitHub</a>
@@ -274,26 +273,6 @@ const STATIC_URLS = [
     changefreq: "weekly",
     priority: "0.9",
     alternates: LANDING_ALTERNATES,
-  },
-  {
-    loc: "/keynote",
-    lastmod: "2026-09-07",
-    changefreq: "monthly",
-    priority: "0.8",
-    alternates: [
-      { code: "ko", href: "/keynote" },
-      { code: "en", href: "/en/keynote" },
-    ],
-  },
-  {
-    loc: "/en/keynote",
-    lastmod: "2026-09-07",
-    changefreq: "monthly",
-    priority: "0.7",
-    alternates: [
-      { code: "ko", href: "/keynote" },
-      { code: "en", href: "/en/keynote" },
-    ],
   },
   {
     loc: "/plugin",

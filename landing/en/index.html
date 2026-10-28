@@ -47,7 +47,7 @@
   "operatingSystem": "macOS, Windows, Linux",
   "url": "https://oculpm.com/en",
   "image": "https://oculpm.com/og.png",
-  "softwareVersion": "3.17.0",
+  "softwareVersion": "4.0.0",
   "inLanguage": "en",
   "description": "Stop re-explaining to your AI where you left off yesterday. A local-first AI project manager for people who build with AI coding agents (Claude Code, Codex, Cursor, Gemini CLI and friends) every day — when the agent finishes a unit of work a journal entry is left behind, and the next conversation receives those entries and the remaining plan items as its starting context. The app unfolds only what a person must see (failed verdicts · entries without evidence · unrecorded changes) and reads the verdict from a check command's last line of output. The app calls no LLM. Two-line install as a Claude Code plugin.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -203,10 +203,9 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/en"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.17.0</span>
+    <span class="nav-ver" data-version>v4.0.0</span>
     <div class="nav-links">
       <a href="#acts">Features</a>
-      <a href="/en/keynote">Keynote</a>
       <a href="/wiki/en">Wiki</a>
       <a href="#updates">Changelog</a>
       <a href="#faq">FAQ</a>
@@ -221,7 +220,7 @@
 <!-- ══════════ hero ══════════ -->
 <header class="hero">
   <div class="hero-rings" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v3.17.0 — From first run to terminal, the whole design — first-run sheet · resume with context · result line ⇧⌘J</a>
+  <a class="ap reveal on" href="#updates"><span class="ap-new">NEW</span>&nbsp; v4.0.0 — Five surfaces, exceptions only — Today shows what needs you, plans end in a verdict</a>
   <h1 class="reveal on">Stop re-explaining to your AI<br /><span class="g">where you left off yesterday.</span></h1>
   <p class="hero-sub reveal on">
     <b>Ocul-PM</b> gets a person to <b>trust what the agent did, and decide what's next, in three minutes</b> —
@@ -230,9 +229,8 @@
   </p>
   <div class="hero-ctas reveal on">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">Get v3.17.0</span><span class="sub">Free · macOS (Apple Silicon)</span>
+      <span class="lg">Get v4.0.0</span><span class="sub">Free · macOS (Apple Silicon)</span>
     </a>
-    <a class="dl-btn ghost" href="/en/keynote">Watch the keynote →</a>
   </div>
   <p class="dl-os reveal on" data-dl-os>
     <span class="beta">beta</span>
@@ -388,17 +386,6 @@
   </div>
 </section>
 
-<!-- ══════════ keynote banner ══════════ -->
-<section class="sec" style="padding-top: 0;">
-  <div class="keynote-banner reveal">
-    <div class="kb-copy">
-      <span class="eyebrow">Keynote</span>
-      <h2>Want the whole thing<br />in a five-minute keynote?</h2>
-      <p>"Yesterday, your agent changed 3,000 lines" — a product story told through real screens. Narrated in Korean; the screens do most of the talking.</p>
-    </div>
-    <a class="kb-cta" href="/en/keynote">Watch the keynote →</a>
-  </div>
-</section>
 
 <!-- ══════════ changelog ══════════ -->
 <section class="sec updates" id="updates">
@@ -408,6 +395,7 @@
     <p class="reveal">This app is built with itself — every line below came out of Ocul-PM's own work journal.</p>
   </div>
   <ul class="update-points">
+    <li class="reveal"><b>v4.0.0 — Five surfaces, exceptions only</b> · The app is now <b>Today · Work Journal · Plan · Diff · Settings</b>. Semantic code search (an index that was half the app's database), in-app LLM calls, automation, the Discussion · Skills · Branch screens, the menu-bar tray, theme presets, the density toggle and tabs came out on measured evidence — no journal or plan file is touched. Today unfolds only <b>failed verdicts · no evidence · unrecorded changes · blocked · decisions</b> and folds work that carries evidence into one line — the same screen at 3 entries a day or 60. A plan ends in its <b>last verdict</b> (the check command's last result line), and the session-start context reads the same line. One window per project; the app calls no LLM and the UI reaches no outside host. Rules template v20 with <code>/oculpm:inception</code> and <code>/oculpm:next until-done</code> make any project start <b>with the verdict first</b>.</li>
     <li class="reveal"><b>v3.17.0 — From first run to terminal, the whole design</b> · A Start tab with no projects shows one action, <b>"Add the folder your agent works in"</b>; add one and Today gets a <b>three-step sheet</b> (rules file → plugin → first task). The Start tab header asks "Where to start today?" — the top project shows its three latest entries and <b>"Resume with this context"</b>, every row carries evidence · unrecorded · next up (unknown is —). <b>Three numbers</b> in the Today header and the resume card in column ③, a human-check line · next-action line · "no evidence" filter on entries, <b>group-by-entry</b> on Diff, a user-owned pill and change log on plans, outside judges on the branch receipt (CI is <b>"this app doesn't know"</b>), option cards and a Decide box on discussions, a <b>result-line bar · ⇧⌘J to verification</b> · error entry draft · one-line collapsed dock in the terminal (beta), and density cards · hide beta screens · shortcut hints under Settings › Display. <b>Second release of the day, shipped without a check day</b>; Windows and Linux are back.</li>
     <li class="reveal"><b>v3.16.0 — One app from first-timer to power user</b> · A <b>Simple / Pro</b> toggle at the right end of every toolbar (⌘.) changes only folding, row height and hints on the same screens. Simple is the default. The sidebar is <b>the screen tiers, as three sections</b> — the four core screens always show, Tools and Beta start folded and unfold by themselves when their screen is active (folded, not hidden; ⌘numbers and ⌘K always reach them). Today is <b>three questions</b> (what was done · can I trust it · what's next) in three columns plus "More". An entry's <b>evidence card</b> sits right under its title; a plan header reads <b>done condition → check command → items</b>, and a plan with every item closed but still open gets an "items done ≠ goal met" band. <b>Released without a verification day.</b></li>
     <li class="reveal"><b>v3.15.1 — Records you can trust</b> · The plugin block in Settings shows <b>installed vs bundled</b>, and when a project's Claude Code plugin is older than the app, Today shows a <code>/plugin update</code> card (even the author's machine sat on 3.3.0 for five weeks with an empty Resume card). Journal rows get an <b>Evidence</b> shield — a verification section citing a command (83%) is a different fact from a human confirmation (1%). An <b>inbox for open items in closed plans</b> (63 items across 20 locked plans) sits above the planner; "Carry here" appends them to the active plan's Carried phase. Thirty spellings of the same model collapse to <b>one name</b>, and entries written without a file list get it from git. Entries that break the spec (<code>type: fix</code>, unquoted paths) are read anyway, and the incremental index's ghost-row race is closed. ACP adapter 0.97.0. <b>Shipped without a verification day</b> — the four on-device checks are recorded as debt in the plan.</li>
@@ -555,12 +543,12 @@
 
 <!-- ══════════ CTA ══════════ -->
 <section class="cta" id="download">
-  <span class="eyebrow reveal">v3.17.0 — download now · macOS · Windows · Linux (beta)</span>
+  <span class="eyebrow reveal">v4.0.0 — download now · macOS · Windows · Linux (beta)</span>
   <h2 class="reveal">Nothing is required<br />to start.</h2>
   <p class="sub reveal">No sign-up, no setup, no fee. You download it, and that is the whole thing.</p>
   <div class="hero-ctas reveal">
     <a class="dl-btn primary" href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">
-      <span class="lg">Get v3.17.0</span><span class="sub">Free · auto-updating</span>
+      <span class="lg">Get v4.0.0</span><span class="sub">Free · auto-updating</span>
     </a>
     <a class="dl-btn ghost" href="/en/plugin">Start with the plugin →</a>
     <a class="dl-btn ghost" href="mailto:bunhine0452@gmail.com?subject=%5BOcul-PM%5D%20Enterprise%20%2F%20Partnership">Enterprise · partnerships</a>
@@ -578,7 +566,6 @@
 <footer class="footer">
   <div class="footer-inner">
     <span>© 2026 Ocul-PM</span>
-    <a href="/en/keynote">Keynote</a>
     <a href="/wiki/en">Wiki</a>
     <a href="/en/plugin">Plugin</a>
     <a href="/changelog">Changelog</a>

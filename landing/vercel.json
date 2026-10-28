@@ -5,13 +5,44 @@
   "redirects": [
     {
       "source": "/(.*)",
-      "has": [{ "type": "host", "value": "www.oculpm.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "www.oculpm.com"
+        }
+      ],
       "destination": "https://oculpm.com/$1",
       "permanent": true
     },
-    { "source": "/themes", "destination": "/wiki/settings", "permanent": true },
-    { "source": "/themes/:file*", "destination": "/wiki/settings", "permanent": true },
-    { "source": "/wiki/automation", "destination": "/wiki/screens", "permanent": true },
-    { "source": "/wiki/en/automation", "destination": "/wiki/en/screens", "permanent": true }
+    {
+      "source": "/themes",
+      "destination": "/wiki/settings",
+      "permanent": true
+    },
+    {
+      "source": "/themes/:file*",
+      "destination": "/wiki/settings",
+      "permanent": true
+    },
+    {
+      "source": "/wiki/automation",
+      "destination": "/wiki/screens",
+      "permanent": true
+    },
+    {
+      "source": "/wiki/en/automation",
+      "destination": "/wiki/en/screens",
+      "permanent": true
+    },
+    {
+      "source": "/keynote",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/en/keynote",
+      "destination": "/en",
+      "permanent": true
+    }
   ]
 }
