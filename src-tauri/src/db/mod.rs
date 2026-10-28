@@ -32,7 +32,6 @@ mod chat;
 mod chunk_store;
 mod code_index;
 mod dependencies;
-pub mod firings;
 pub mod hotspot;
 mod planning;
 mod projects;
@@ -362,22 +361,6 @@ fn rebuild_vec0(c: &mut rusqlite::Connection) -> rusqlite::Result<()> {
 
 // ---------- Row mapper ----------
 
-fn blueprint_from_row(r: &rusqlite::Row) -> rusqlite::Result<ProjectBlueprint> {
-    Ok(ProjectBlueprint {
-        id: r.get::<_, i64>(0)? as u32,
-        name: r.get(1)?,
-        idea_text: r.get(2)?,
-        target_users: r.get(3)?,
-        stack_choice: r.get(4)?,
-        folder_name: r.get(5)?,
-        folder_path: r.get(6)?,
-        seed_goals_json: r.get(7)?,
-        wizard_step: r.get::<_, i64>(8)? as u32,
-        created_at: r.get::<_, i64>(9)? as u32,
-        updated_at: r.get::<_, i64>(10)? as u32,
-    })
-}
-
 fn goal_from_row(r: &rusqlite::Row) -> rusqlite::Result<Goal> {
     Ok(Goal {
         id: r.get::<_, i64>(0)? as u32,
@@ -463,12 +446,8 @@ pub struct Project {
     pub created_at: u32,
     /// 아이콘 id (`"terminal"` 등). `None` 이면 프런트가 이름에서 유도한다.
     pub icon: Option<String>,
-    /// 색 id (`"amber"` 등) — hex 가 아니라 id 다 (테마마다 다르게 해석된다).
+    /// 색 id (`"amber"` 등) — hex 가 아니라 id 다.
     pub color: Option<String>,
-    /// 이 프로젝트에 묶인 테마 id (`034_project_theme.sql`). `None` 이면 창은
-    /// 전역 설정 테마를 쓴다. 색이 아니라 id 를 저장하는 이유는 `icon`/`color`
-    /// 와 같다.
-    pub theme_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, specta::Type)]
@@ -498,7 +477,7 @@ pub struct SymbolSearchResult {
 
 /// v2 U7 (docs/20260706_v2/02-features-spec.md §2) — 팔레트 "go to anything"
 /// 히트 한 건. `id` 는 kind 별 라우팅 키: journal=relative_path,
-/// plan=plan_id, plan_item="plan_id#item_id", discussion=discussion_id.
+/// plan=plan_id, plan_item="plan_id#item_id".
 /// 코드 화면 — "이 파일을 고친 일지" 역조회 한 줄
 /// (`oculpm_journal_files` × `oculpm_journal`). 에디터 브레드크럼의 일지 칩이
 /// 소비한다: 에이전트가 이 파일에 무슨 일을 했는지가 편집 중에 보인다.
@@ -522,7 +501,6 @@ pub enum EntityKind {
     Journal,
     Plan,
     PlanItem,
-    Discussion,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
@@ -530,7 +508,7 @@ pub struct EntityHit {
     pub kind: EntityKind,
     pub id: String,
     pub title: String,
-    /// 보조 문맥 — 일지: "워크데이 · 타입", 플랜 항목: 플랜 제목, 토의: status.
+    /// 보조 문맥 — 일지: "워크데이 · 타입", 플랜 항목: 플랜 제목.
     pub subtitle: String,
 }
 
@@ -677,23 +655,6 @@ pub struct ProjectOverview {
     pub source_signature: Option<String>,
     pub generated_at: Option<u32>,
     pub generated_by_model: Option<String>,
-}
-
-// ---------- G4: Greenfield Blueprint (W6) ----------
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
-pub struct ProjectBlueprint {
-    pub id: u32,
-    pub name: String,
-    pub idea_text: Option<String>,
-    pub target_users: Option<String>,
-    pub stack_choice: Option<String>,
-    pub folder_name: Option<String>,
-    pub folder_path: Option<String>,
-    pub seed_goals_json: Option<String>,
-    pub wizard_step: u32,
-    pub created_at: u32,
-    pub updated_at: u32,
 }
 
 /// 행이나 구조를 지우는 마이그레이션인가 — 그 앞에서만 사본을 뜬다.

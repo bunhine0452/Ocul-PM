@@ -3,17 +3,8 @@
 
 import type { LangSetting } from "@/i18n";
 
-export type Theme =
-  | "light"
-  | "dark"
-  | "system"
-  // Full preset palettes. Each layers a named palette (`data-preset`) over a
-  // light/dark base family (`data-theme`) — the theme file's `family` (features/theme/apply.ts).
-  | "solarized"
-  | "nord"
-  | "dracula"
-  | "sepia"
-  | "high-contrast";
+/** 밝게 / 어둡게 / 시스템. (옛 프리셋 id·`custom:<id>` 가 저장돼 있으면 `"system"` 으로 읽는다.) */
+export type Theme = "light" | "dark" | "system";
 /** Accent color palette, applied via `[data-accent]` over light/dark tokens. */
 export type ColorTheme = "green" | "blue" | "purple" | "orange" | "rose" | "teal";
 export type Provider = "anthropic" | "openai" | "gemini" | "nim" | "openrouter";
@@ -300,6 +291,8 @@ function coerce<K extends keyof Settings>(field: K, raw: string): Settings[K] {
     const n = Number(raw);
     return (Number.isFinite(n) ? n : def) as Settings[K];
   }
+  // 옛 프리셋 id(`nord` …)·`custom:<id>` 가 저장돼 있으면 시스템으로 읽는다 (4.0 에서 걷었다).
+  if (field === "theme") return (raw === "light" || raw === "dark" ? raw : "system") as Settings[K];
   // string-typed
   return raw as Settings[K];
 }

@@ -16,13 +16,13 @@ import { watchCspViolations } from "./lib/oculpmLog";
 // (oculpmLog.ts `watchCspViolations`). 첫 화면의 위반까지 잡으려면 다른 무엇보다 앞이다.
 if ("__TAURI_INTERNALS__" in window) watchCspViolations();
 
-// 바깥 링크 → 기본 브라우저. 두 갈래 창 어디서 눌러도 같아야 하므로 갈림길
-// **위**에서 한 번 건다 (externalLinks.ts 참고).
+// 바깥 링크 → 기본 브라우저. 어느 창에서 눌러도 같아야 하므로 부팅 맨 위에서 한 번 건다
+// (externalLinks.ts 참고).
 installExternalLinkGuard();
-// 네이티브 드래그도 같은 이유로 갈림길 위다 — 끌 수 있는 표면이 갈래마다 흩어져
-// 있어 창마다 걸면 반드시 한 군데가 샌다.
+// 네이티브 드래그도 같은 이유로 부팅 맨 위다 — 끌 수 있는 표면(목록·diff …)이 여럿이라
+// 표면마다 걸면 반드시 한 군데가 샌다.
 installNativeDragGuard();
-// 창을 보고 있지 않으면 무한 반복 애니메이션을 멈춘다 — 같은 이유로 갈림길 위 (idleMotion.ts).
+// 창을 보고 있지 않으면 무한 반복 애니메이션을 멈춘다 — 같은 이유로 부팅 맨 위 (idleMotion.ts).
 installIdleMotionPause();
 // Windows·Linux 의 표시 갈래(글꼴 폴백)는 CSS 가 `:root[data-platform]` 으로 가른다
 // (tokens.css 끝). macOS 는 속성을 달지 않는다 — DOM 까지 예전 그대로 (D3).
@@ -45,8 +45,8 @@ if (import.meta.hot) {
   import.meta.hot.on("vite:ws:connect", diag("ws-connect"));
 }
 
-// 두 갈래 — 트레이 팝오버냐, 앱 창(시작 창 또는 프로젝트 하나)이냐. 어느 갈래인지는
-// URL 이 정하고 런타임에 바뀌지 않는다.
+// 창은 한 갈래다 — 시작 창이거나 프로젝트 하나의 셸(4.0). 라벨과 딥링크 목적지는 URL 이
+// 싣는다.
 const route = parseWindowRoute(window.location.search);
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
@@ -76,18 +76,6 @@ void bootI18n(async () => {
 }).then(renderApp);
 
 function renderApp() {
-if (route.kind === "tray") {
-  // v2.3.0 메뉴바 — 트레이 팝오버 창(label `tray`). 본 앱 셸·워크스페이스를
-  // 로드하지 않는 경량 진입점.
-  const TrayApp = React.lazy(() => import("./features/tray/TrayApp"));
-  root.render(
-    <React.StrictMode>
-      <React.Suspense fallback={null}>
-        <TrayApp />
-      </React.Suspense>
-    </React.StrictMode>,
-  );
-} else {
   // 앱 창 — 시작 창이거나 프로젝트 하나의 셸이다 (창 하나 = 프로젝트 하나, 4.0).
   // 어느 쪽인지는 창이 마운트 직후 백엔드에 묻는다 — 시작 창이 프로젝트를 고르면
   // 런타임에 바뀌므로 URL 에 싣지 않는다.
@@ -106,5 +94,4 @@ if (route.kind === "tray") {
       </SettingsProvider>
     </React.StrictMode>,
   );
-}
 }

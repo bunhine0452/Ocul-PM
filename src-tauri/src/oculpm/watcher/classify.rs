@@ -150,6 +150,9 @@ pub(super) fn data_area_for_path(rel_str: &str) -> Option<OculpmDataArea> {
     if rel_str.starts_with(".oculpm/automation/") {
         return Some(OculpmDataArea::Automation);
     }
+    // 논의 화면은 4.0 에서 걷었지만 사용자의 `.oculpm/discussion/**` 파일은 디스크에
+    // 그대로 남는다 — 그 편집이 코드 변경 파이프라인(ndjson·히스토리)으로 흘러
+    // 들어가지 않도록 영역 분류는 둔다. 듣는 화면은 더는 없다.
     if rel_str.starts_with(".oculpm/discussion/") {
         return Some(OculpmDataArea::Discussion);
     }

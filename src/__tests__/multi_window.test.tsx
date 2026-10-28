@@ -21,13 +21,9 @@ import {
 beforeEach(() => localStorage.clear());
 afterEach(() => cleanup());
 
-// ─── 창 라우팅 (main.tsx 3갈래 분기) ──────────────────────────────────────
+// ─── 창 라우팅 (main.tsx) ──────────────────────────────────────
 
 describe("창 라우팅", () => {
-  it("?tray=1 은 트레이 갈래", () => {
-    expect(parseWindowRoute("?tray=1")).toEqual({ kind: "tray" });
-  });
-
   it("?win=win-2 는 앱 창 갈래 (프로젝트는 백엔드에 묻는다)", () => {
     expect(parseWindowRoute("?win=win-2")).toEqual({
       kind: "window",
@@ -63,10 +59,6 @@ describe("창 라우팅", () => {
     for (const bad of ["?win=abc", "?win=", "?win=win-", "?win=window-1", "?win=win-1x"]) {
       expect(parseWindowRoute(bad)).toMatchObject({ kind: "window", label: FIRST_WINDOW });
     }
-  });
-
-  it("tray 가 win 보다 우선한다", () => {
-    expect(parseWindowRoute("?tray=1&win=win-2")).toEqual({ kind: "tray" });
   });
 
 });

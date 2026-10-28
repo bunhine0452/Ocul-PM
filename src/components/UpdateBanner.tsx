@@ -50,8 +50,8 @@ export function UpdateBanner() {
   // flips this, so silent launch-time failures stay hidden.
   const [version, setVersion] = useState<string | null>(null);
 
-  // 기동 1회 + **하루 한 번** + 깨어날 때 (감사 라운드 2026-09-11 E1). 트레이
-  // 상주(`tray.keep_running`)면 창을 닫아도 프로세스가 며칠을 살아, 기동 때
+  // 기동 1회 + **하루 한 번** + 깨어날 때 (감사 라운드 2026-09-11 E1). macOS 는
+  // 창을 닫아도 앱이 살아 있어 프로세스가 며칠을 살고, 기동 때
   // 한 번 물어본 뒤로는 새 버전을 영영 몰랐다. 깨어남은 마지막 확인에서
   // `WAKE_MIN_MS` 가 지났을 때만 — 창을 오갈 때마다 GitHub 을 두드리지 않는다.
   useEffect(() => {

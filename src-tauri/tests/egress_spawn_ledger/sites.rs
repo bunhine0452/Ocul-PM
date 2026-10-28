@@ -14,13 +14,6 @@ const GIT_LOCAL: &str = "git 로컬 하위 명령만 — 네트워크 하위 명
 pub(super) const APP_LAUNCHES: &[Launch] = &[
     // ── 송출 가능 ──
     Launch {
-        path: "commands/greenfield.rs",
-        func: "run_scaffold_cli",
-        call: "std_cmd(&cmd)",
-        reach: Reach::Network("사용자가 새 프로젝트 마법사에서 스택을 고르고 만들 때 — npm 레지스트리"),
-        reason: "마법사 프리셋의 `pnpm create vite` · `npx create-next-app@latest` 가 패키지를 받는다(cargo init·go mod init 은 로컬). 프로그램·인자는 웹뷰가 넘긴다 — 백엔드 허용 목록은 없다.",
-    },
-    Launch {
         path: "commands/external_editor.rs",
         func: "open_url",
         call: "std_cmd(\"open\")",
@@ -100,14 +93,14 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         reason: "`git config --list --show-scope -z` — 저장소 설정을 읽어 필터·드라이버를 끈다. 원격에 닿지 않는다.",
     },
     Launch {
-        path: "commands/greenfield.rs",
+        path: "commands/cli_check.rs",
         func: "check_cli_available",
         call: "std_cmd(which_cmd)",
         reach: Reach::Local,
-        reason: "`which` / `where` — 마법사 프리셋의 CLI 가 설치돼 있는지 PATH 에서 찾는다.",
+        reason: "`which` / `where` — 에이전트 CLI(claude 등)가 설치돼 있는지 PATH 에서 찾는다.",
     },
     Launch {
-        path: "commands/greenfield.rs",
+        path: "commands/cli_check.rs",
         func: "get_cli_version_sync",
         call: "std_cmd(path)",
         reach: Reach::Local,
@@ -182,13 +175,6 @@ pub(super) const APP_LAUNCHES: &[Launch] = &[
         call: "shell_open(path.as_os_str())",
         reach: Reach::Local,
         reason: "Windows — 위와 같은 대상을 ShellExecute 로.",
-    },
-    Launch {
-        path: "commands/themes.rs",
-        func: "read_system_accent",
-        call: "std_cmd(\"defaults\")",
-        reach: Reach::Local,
-        reason: "`defaults read -g AppleAccentColor` — macOS 강조색.",
     },
     Launch {
         path: "main.rs",

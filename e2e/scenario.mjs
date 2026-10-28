@@ -30,7 +30,7 @@ const pollFs = async (path, timeout) => {
 };
 
 /**
- * 본 창(트레이 팝오버가 아니고 주소가 실린 창)으로 옮겨 간다. 창 목록을 돌며 각 창의 주소를
+ * 본 창(주소가 실린 창)으로 옮겨 간다. 창 목록을 돌며 각 창의 주소를
  * 읽고, 없으면 잠깐 뒤 목록부터 다시 — 창이 아직 안 생겼거나 about:blank 일 수 있다.
  */
 async function pickMainWindow(wd, timeoutMs) {
@@ -47,7 +47,7 @@ async function pickMainWindow(wd, timeoutMs) {
         href = `(읽기 실패: ${String(e.message).slice(0, 60)})`;
       }
       const loaded = /^(https?|tauri):/.test(href);
-      if (loaded && !/[?&]tray=1/.test(href)) return { href, handles: handles.length, rounds, seen: [...seen] };
+      if (loaded) return { href, handles: handles.length, rounds, seen: [...seen] };
       seen.add(href);
     }
     if (Date.now() > deadline) {
@@ -65,10 +65,9 @@ export async function runScenario(ctx) {
   await report.step("기동 — 세션 생성 · 첫 화면", async (rec) => {
     ctx.session = await connectApp({ wd, app, ws, outDir: report.outDir, rec });
     await wd.setTimeouts({ script: 60_000, pageLoad: 120_000, implicit: 0 });
-    // 메뉴바 팝오버(`?tray=1`)도 웹뷰다 — 본 창을 골라 붙는다. 주소가 아직 안 실린 창
-    // (about:blank)은 트레이인지 알 수 없으니 실릴 때까지 기다렸다 다시 고른다. 예전엔
-    // 지금 창의 location.search 만 봐서, attach 순간 주소를 싣기 전의 트레이를 잡으면 "트레이
-    // 아님" 으로 읽고 그대로 머물렀다 — 문서 로드(#root)는 통과하고 마법사만 60초 뒤 null
+    // 주소가 아직 안 실린 창(about:blank)은 본 창인지 알 수 없으니 실릴 때까지 기다렸다
+    // 다시 고른다. 예전엔 attach 순간 주소를 싣기 전의 창을 잡고 그대로 머물렀다 —
+    // 문서 로드(#root)는 통과하고 마법사만 60초 뒤 null
     // (Windows E2E 간헐 실패 #e2e-win-devtools-flake, PR #47 run 36063711206).
     const pick = await pickMainWindow(wd, 60_000);
     rec.notes.push(`웹뷰 창 ${pick.handles}개 · 고른 창 ${pick.href} · 시도 ${pick.rounds}회${pick.seen.length ? ` · 지나친 창: ${pick.seen.join(" | ")}` : ""}`);

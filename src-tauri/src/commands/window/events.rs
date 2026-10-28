@@ -5,6 +5,17 @@
 
 use super::*;
 
+/// 목적지를 실은 창 이동 (딥링크 `oculpm://open` 의 확인 시트가 승인한 뒤).
+/// `view` 는 프런트 `UiV2View` 문자열. 이미 떠 있는 창에는 이벤트로, 갓 만든
+/// 창에는 URL(`window_url`)로 실린다 — 갓 만든 창은 아직 리스너가 없다.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
+pub struct WindowNavigate {
+    pub view: String,
+    pub project_id: Option<u32>,
+    /// `.oculpm/` 상대 일지 경로 — 있으면 해당 일지를 연다.
+    pub entry_path: Option<String>,
+}
+
 /// 한 창의 프로젝트가 바뀌었다 — 시작 창이 프로젝트를 골랐거나, 업데이트 복원이
 /// 첫 창에 프로젝트를 실었거나, 지운 프로젝트의 창이 시작 창으로 돌아갔다.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]

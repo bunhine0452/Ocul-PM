@@ -69,8 +69,6 @@ export type SidePanelMode = "files" | "diff";
 export type JournalFilter = "all" | "feature" | "bugfix" | "refactor" | "error" | "chore";
 export type DiffMode = "unified" | "split";
 export type SearchScope = "semantic" | "symbol" | "text" | "journal";
-/** 문제 해결 편집기의 보기 모드 — 원문만 / 나란히 / 미리보기만. */
-export type DiscussionEditorMode = "write" | "rich"; // 옛 split·preview 는 DiscussionScreenV2 가 리치로 읽는다
 // Legacy tab names for migration
 type LegacyTab = "files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git" | "overview" | "today";
 
@@ -837,7 +835,7 @@ export function WorkspaceProvider({
 
   // ── Workday rollover (자정 넘김) ─────────────────────────────────────────
   // status(→ workdayKey / current_workday)는 프로젝트를 열 때 App.tsx 에서
-  // 딱 한 번만 조회된다. 그래서 앱(특히 메뉴바 상주)을 계속 켜 두면 실행한
+  // 딱 한 번만 조회된다. 그래서 앱(특히 macOS 에서 창만 닫고 켜 둔 채)을 계속 두면 실행한
   // 그 날짜에 고정돼, 00시가 지나도 "오늘" 화면·날짜 라벨·주간 차트가 앱을
   // 껐다 켜기 전까지 어제를 가리킨다.
   //

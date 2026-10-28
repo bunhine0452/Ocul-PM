@@ -226,15 +226,8 @@ impl OculpmConfig {
             )));
         }
 
-        for target in &self.agents.rules_translate {
-            if !crate::oculpm::rules::TRANSLATE_TARGETS.contains(&target.as_str()) {
-                return Err(OculpmError::InvalidConfig(format!(
-                    "agents.rules_translate contains unknown target '{}' (expected one of: {})",
-                    target,
-                    crate::oculpm::rules::TRANSLATE_TARGETS.join(", ")
-                )));
-            }
-        }
+        // `agents.rules_translate` 는 규칙 허브(4.0 에서 걷음)의 Cursor 미러 번역 목록이었다.
+        // 읽는 곳이 없어졌으므로 검증하지 않는다 — 사용자 config.toml 에 남은 값은 그대로 둔다.
 
         Ok(())
     }

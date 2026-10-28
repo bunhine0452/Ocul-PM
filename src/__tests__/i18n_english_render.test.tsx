@@ -28,32 +28,6 @@ vi.mock("@/lib/bindings", () => {
           if (prop === "settingsGetAll")
             return () => ok([["language", "en"]] as Array<[string, string]>);
           if (prop === "conversationList") return () => ok([]);
-          // 후보가 없으면 카드가 `null` 을 반환해 아무것도 안 그린다 —
-          // 검사 대상이 렌더되도록 한 건씩 심는다.
-          if (prop === "ruleCandidates")
-            return () =>
-              ok([
-                {
-                  key: "area:src",
-                  area: "src",
-                  entry_count: 2,
-                  kinds: ["bug"],
-                  sample_titles: ["t"],
-                  suggested_paths: [],
-                  last_workday: "20260812",
-                },
-              ]);
-          if (prop === "skillCandidates")
-            return () =>
-              ok([
-                {
-                  tag: "deploy",
-                  slug: "deploy",
-                  count: 3,
-                  last_workday: "20260812",
-                  sample_titles: ["t"],
-                },
-              ]);
           if (prop === "planList") return () => ok([]);
           if (prop === "oculpmListJournalEntries") return () => ok([]);
           if (prop === "oculpmListSessions") return () => ok([]);
@@ -79,10 +53,7 @@ import { __resetLangForTests, setLangSetting } from "@/i18n";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { StartWindow } from "@/features/start/StartWindow";
-import { PluginDocsTab } from "@/features/skills/PluginDocsTab";
 import { SettingsPage } from "@/features/settings/SettingsPage";
-import { RuleCandidatesPanel } from "@/features/skills/RuleCandidates";
-import { SkillCandidatesPanel } from "@/features/skills/SkillCandidates";
 
 // i18n-ignore-next-line -- 한글 **검출**용 정규식 (표시 문자열이 아니다)
 const HANGUL = /[가-힣]/;
@@ -147,23 +118,6 @@ describe("영어 모드에서 한글이 남지 않는다", () => {
     expect(hangulIn(container)).toEqual([]);
   });
 
-  it("플러그인 안내 탭 — chrome 만 (데이터는 플러그인 거울이라 한국어가 정상)", async () => {
-    const { findByText } = render(
-      <Wrap>
-        <PluginDocsTab />
-      </Wrap>,
-    );
-    // 이 탭은 pluginDocs.ts(플러그인 실표면의 거울)를 그대로 렌더하므로
-    // 전체 한글 0 을 요구할 수 없다 — chrome 이 영어인지만 확인한다.
-    //
-    // 예전엔 여기서 "Skills & rules"(plugin.toolbarTitle)를 단언했는데,
-    // 그건 이 컴포넌트의 죽은 <Toolbar> 분기에서만 나오는 문자열이었다 —
-    // 프로덕션은 이 표면을 모달 안에서만 띄우고 제목은 호출부가 그린다.
-    // 테스트가 죽은 코드를 붙들고 있어서 그 분기가 살아남았다 {#layout-misc}.
-    await findByText("Suggested flow");
-    await findByText("Slash commands");
-  });
-
   it("설정 한 쪽", async () => {
     const { container, findAllByText } = render(
       <Wrap>
@@ -175,22 +129,4 @@ describe("영어 모드에서 한글이 남지 않는다", () => {
   });
 
 
-  it("회고 승격 후보 카드 (규칙·스킬)", async () => {
-    const rule = render(
-      <Wrap>
-        <RuleCandidatesPanel projectId={1} since="20260801" until="20260812" />
-      </Wrap>,
-    );
-    await rule.findByText("Rule candidates");
-    expect(hangulIn(rule.container)).toEqual([]);
-    cleanup();
-
-    const skill = render(
-      <Wrap>
-        <SkillCandidatesPanel projectId={1} since="20260801" until="20260812" />
-      </Wrap>,
-    );
-    await skill.findByText("Skill candidates");
-    expect(hangulIn(skill.container)).toEqual([]);
-  });
 });

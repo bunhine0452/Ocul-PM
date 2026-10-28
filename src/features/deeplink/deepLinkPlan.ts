@@ -20,38 +20,16 @@ export interface DeepLinkPlan {
   effectKey: I18nKey;
   /** 승인 버튼 키. */
   actionKey: I18nKey;
-  /** 되돌리기 어려운 변화인가 — 시트가 강조 톤을 고른다. */
-  writes: boolean;
 }
 
+/** 링크는 여는 것 하나뿐이다 — 디스크를 바꾸지 않는다 (설치 링크는 4.0 에서 걷었다). */
 export function planFor(link: DeepLink): DeepLinkPlan {
-  switch (link.action) {
-    case "plugin_install":
-      return {
-        titleKey: "deeplink.plugin.title",
-        origin: `github.com/${link.source}`,
-        effectKey: "deeplink.plugin.effect",
-        actionKey: "deeplink.plugin.action",
-        writes: true,
-      };
-    case "skill_install":
-      return {
-        titleKey: "deeplink.skill.title",
-        origin: `github.com/${link.source}`,
-        effectKey: "deeplink.skill.effect",
-        actionKey: "deeplink.skill.action",
-        writes: true,
-      };
-    case "open":
-      return {
-        titleKey: "deeplink.open.title",
-        origin: link.project,
-        effectKey: "deeplink.open.effect",
-        actionKey: "deeplink.open.action",
-        // 여는 것뿐이다 — 디스크를 바꾸지 않는다.
-        writes: false,
-      };
-  }
+  return {
+    titleKey: "deeplink.open.title",
+    origin: link.project,
+    effectKey: "deeplink.open.effect",
+    actionKey: "deeplink.open.action",
+  };
 }
 
 /**
@@ -90,7 +68,7 @@ export function resolveRegisteredProject(
 }
 
 /**
- * `open` 의 목적지 — `view` 를 `TrayNavigate` 로 옮긴다. 알려진 화면 이름이
+ * `open` 의 목적지 — `view` 를 `WindowNavigate` 로 옮긴다. 알려진 화면 이름이
  * 아니면 today.
  */
 export function openNavFor(

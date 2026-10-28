@@ -25,7 +25,6 @@ import { toast } from "@/lib/toast";
 import { DeepLinkSheet } from "@/features/deeplink/DeepLinkSheet";
 import { openNavFor, resolveRegisteredProject } from "@/features/deeplink/deepLinkPlan";
 import { UI_V2_VIEWS } from "@/contexts/uiV2View";
-import { openSettings } from "@/lib/settingsNav";
 
 const ShellV2 = lazy(() => import("@/features/shell/ShellV2"));
 
@@ -246,24 +245,15 @@ export default function ProjectWindow({
           않는다: 백엔드는 URL 을 파싱해 이벤트로 넘기기만 했다. */}
       <DeepLinkSheet
         onAccept={(link) => {
-          switch (link.action) {
-            case "open": {
-              const id = resolveRegisteredProject(projects, link.project);
-              if (id === null) {
-                toast.warning(t("deeplink.open.notRegistered"));
-                return;
-              }
-              // view 까지 싣는다 — 창을 열거나 앞으로 가져온 뒤 그 창에만
-              // TrayNavigate 를 쏘는 경로(tray_open_main)를 그대로 탄다.
-              void commands.trayOpenMain(openNavFor(link, id, UI_V2_VIEWS));
-              return;
-            }
-            // 설치는 설정의 에이전트 연결 칸으로 데려간다 — 링크가 직접 쓰지 않는다.
-            case "plugin_install":
-            case "skill_install":
-              openSettings("agents");
-              return;
+          // 4.0 의 딥링크는 `open` 하나다 — 설치 링크(skill/plugin install)는 백엔드가 거절한다.
+          const id = resolveRegisteredProject(projects, link.project);
+          if (id === null) {
+            toast.warning(t("deeplink.open.notRegistered"));
+            return;
           }
+          // view 까지 싣는다 — 창을 열거나 앞으로 가져온 뒤 그 창에만
+          // WindowNavigate 를 쏘는 경로(open_project_nav)를 탄다.
+          void commands.openProjectNav(openNavFor(link, id, UI_V2_VIEWS));
         }}
       />
 

@@ -62,7 +62,7 @@ pub fn window_label(n: u32) -> String {
     format!("{WINDOW_PREFIX}{n}")
 }
 
-/// 프로젝트를 담을 수 있는 앱 창인가 — 트레이 팝오버(`tray`)만 제외된다.
+/// 프로젝트를 담을 수 있는 앱 창인가 — 첫 창(`main`)과 `win-N` 만 앱 창이다.
 pub fn is_app_window(label: &str) -> bool {
     label == FIRST_WINDOW
         || label

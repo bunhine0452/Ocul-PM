@@ -69,14 +69,14 @@ export function navShortcutLabel(view: UiV2View): string | undefined {
  */
 export const NAV_BUS = {
   openProjectSwitcher: "oculpm:open-project-switcher",
-  /** detail: { kind: "journal"|"plan"|"plan_item", id: string } */
+  /** detail: { kind: "journal"|"plan"|"plan_item"|"code", id: string } */
   openEntity: "oculpm:open-entity",
   /** detail: UiV2View — 화면 전환 요청. 프로바이더를 모르는 자리가 쏜다. */
   setView: "oculpm:set-view",
 } as const;
 
 export interface OpenEntityDetail {
-  kind: "journal" | "plan" | "plan_item" | "discussion" | "code";
+  kind: "journal" | "plan" | "plan_item" | "code";
   /** 엔티티 id. `code` 는 프로젝트 상대 파일 경로. */
   id: string;
   /** `code` 전용 — 0-based 줄. */

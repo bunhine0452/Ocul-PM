@@ -146,12 +146,7 @@ const RUST_SITES: &[Site] = &[
         reason: "약속의 예외 ② — 업데이터 플러그인 등록. 목적지는 설정에 고정돼 있고 서명 검증을 거친다 (updater_endpoints_are_exactly_the_declared_one 이 잠근다).",
     },
     // ── 약속에 적혀 있지 않은 자리 (이 라운드의 발견) ──
-    Site {
-        path: "plugins/source.rs",
-        primitives: &["reqwest::"],
-        control: Control::Guarded("GithubSource::zip_url — owner/repo 만 조립, 호스트 상수"),
-        reason: "사용자가 명시적으로 요청한 플러그인 번들 내려받기. 호스트는 코드 상수라 임의 서버로 못 간다 (github.com 은 테스트 픽스처).",
-    },
+    // (플러그인 번들 GitHub 내려받기 `plugins/source.rs` 는 4.0 에서 번들 임포트와 함께 걷었다.)
     Site {
         path: "embedding.rs",
         primitives: &["ApiBuilder::from_cache"],
@@ -186,34 +181,22 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     ("openrouter.ai", "약속의 예외 ① — OpenRouter (OpenAI 호환)."),
     ("generativelanguage.googleapis.com", "약속의 예외 ① — Gemini LLM 엔드포인트."),
     ("integrate.api.nvidia.com", "약속의 예외 ① — NVIDIA NIM LLM 엔드포인트."),
-    ("api.github.com", "약속의 예외 ② — 릴리스 목록 읽기. `src/lib/updater.ts` 의 RELEASES_API 가 소유하고 Today 카드가 부른다."),
-    ("codeload.github.com", "사용자가 명시적으로 요청한 플러그인 번들 zip 다운로드."),
     ("oculpm.com", "OpenRouter 어트리뷰션 헤더 값 — 앱이 부르는 목적지가 아니다. deeplink 테스트 픽스처이기도 하다 (걷은 `theme/install` 링크가 거절되는지). (테마 화이트리스트 호스트는 2026-10-24 원격 테마 설치와 함께, Notion OAuth 교환 브로커는 2026-10-14 Notion 연동과 함께 걷었다.)"),
     // ── 브라우저에 넘기는 링크 (앱이 보내지 않는다) ──
-    ("github.com", "저장소·이슈·릴리스 링크 — open_url 로 OS 브라우저에 위임한다. plugins/source.rs 의 테스트 픽스처이기도 하다."),
+    ("github.com", "저장소·이슈·릴리스 링크 — open_url 로 OS 브라우저에 위임한다."),
     // ── 목적지가 아닌 것 ──
     ("mcp.notion.com", "앱이 부르지 않는다 — 에이전트 CLI 설정 파일(.mcp.json/config.toml)에 **적히는 값**이고, 그 파서의 테스트 픽스처다."),
     ("www.w3.org", "SVG 네임스페이스 URI — 네트워크 요청이 아니다 (xmlns 속성)."),
-    // ── 테스트 픽스처 ──
-    ("evil.test", "deeplink 테스트 — owner/repo 자리에 임의 URL 을 넣은 링크가 거부되는지."),
-    ("example.com", "lsp/discussion 파서 픽스처 — URI 를 파일 경로로 오인하지 않는지. plugins/install.rs 의 MCP 원격 서버 미리보기 픽스처이기도 하다."),
-    ("rubygems.org", "stack_detect 픽스처 — Gemfile 내용 샘플."),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 원장 — 웹뷰
 // ─────────────────────────────────────────────────────────────────────────────
 
-const WEB_SITES: &[Site] = &[
-    Site {
-        path: "features/today/WhatsNewCard.tsx",
-        primitives: &["fetch("],
-        control: Control::Exempt,
-        reason: "약속의 예외 ② — 릴리스 노트 읽기(GitHub public API). 보내는 것은 없다.",
-    },
-    // (설정 업데이트 탭의 릴리스 목록 fetch 는 4.0 설정 한 쪽으로 바뀌며 걷었다 —
-    // 설정은 업데이터 확인만 하고 릴리스 노트는 읽지 않는다.)
-];
+// 4.0 — 웹뷰는 바깥으로 나가지 않는다. 마지막 자리(Today What's-new 카드의 릴리스 노트 fetch)가
+// 오늘 화면 재설계와 함께 걷혔고, CSP connect-src 에서도 api.github.com 을 뺐다
+// (`webview_csp.rs`). 새 자리가 생기면 이 원장이 아니라 그 설계부터 다시 본다.
+const WEB_SITES: &[Site] = &[];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 리댁션 호출 ({#redact-doc-truth}) — 프롬프트 원장은 `llm_prompt_ledger.rs`
@@ -423,7 +406,7 @@ fn every_rust_outbound_site_is_in_the_ledger() {
 /// 카탈로그(마크다운 예제)는 스캔에서 뺀다.
 #[test]
 fn every_webview_outbound_site_is_in_the_ledger() {
-    let skip = ["lib/bindings.ts", "__tests__", "features/skills/catalog"];
+    let skip = ["lib/bindings.ts", "__tests__"];
     let found = scan(&web_src(), &["ts", "tsx"], WEB_PRIMITIVES, &skip);
     let found_paths: BTreeSet<String> = found.iter().map(|(p, _)| p.clone()).collect();
     let declared = ledger_paths(WEB_SITES);
@@ -467,7 +450,7 @@ fn no_absolute_url_host_appears_outside_the_ledger() {
         (
             web_src(),
             &["ts", "tsx"][..],
-            &["lib/bindings.ts", "__tests__", "features/skills/catalog"][..],
+            &["lib/bindings.ts", "__tests__"][..],
         ),
     ] {
         let mut files = Vec::new();

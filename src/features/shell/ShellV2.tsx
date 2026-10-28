@@ -101,10 +101,10 @@ export default function ShellV2({
 
   const isMac = isMacPlatform();
 
-  // v2.3.0 메뉴바 팝오버 딥링크 (docs/menubar/00-master-plan.md D5) — 트레이 창이
-  // tray_open_main 으로 쏜 TrayNavigate 를 받아 화면·일지로 이동한다.
+  // 딥링크 이동 — 확인 시트가 open_project_nav 로 쏜 WindowNavigate 를 받아
+  // 화면·일지로 이동한다.
   useEffect(() => {
-    const un = events.trayNavigate.listen(({ payload }) => {
+    const un = events.windowNavigate.listen(({ payload }) => {
       // 백엔드가 대상 창을 지정해 쏘지만(T5), 라벨이 어긋난 페이로드가 남의
       // 일지로 창을 끌고 가지 못하도록 여기서도 한 번 더 확인한다.
       if (payload.project_id != null && payload.project_id !== projectId) return;
