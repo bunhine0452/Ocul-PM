@@ -5,9 +5,8 @@
  * 짧은 창의 폭주는 한 장으로 접는다. 실측: git 체크아웃이 일지 폴더를 되살리자
  * 15초짜리 토스트 18장이 벽처럼 쌓였다.
  *
- * 「열기」 — 이 탭은 숨어 있을 수 있다 (크롬식 탭). 창 전역 `openEntity` 버스는
- * 활성 탭이 받아 **보고 있던 프로젝트의** 일지로 갔다 (2026-09-21) →
- * `lib/entryJump` + 탭 활성화.
+ * 「열기」 — 그 프로젝트의 일지로 간다 (`lib/entryJump`). 창이 뒤에 있을 수 있으므로
+ * 그 프로젝트의 창을 앞으로 가져온다 (창 하나 = 프로젝트 하나, 4.0).
  */
 import { toAppError } from "@/api/invoke";
 import { windowApi } from "@/api/window";
@@ -36,7 +35,7 @@ export function makeJournalAddedListener(
     recentShows.push(now);
     const open = () => {
       requestEntryJump(projectId, relativePath);
-      windowApi.openProjectTab(projectId, null).catch((e) => toast.destructive(tError(toAppError(e))));
+      windowApi.openProjectWindow(projectId).catch((e: unknown) => toast.destructive(tError(toAppError(e))));
     };
     toast.info(t("ws.newEntry", { title: evt.payload.summary.title }), {
       dedupKey: `journal_added:${relativePath}`,

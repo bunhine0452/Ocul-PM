@@ -1,21 +1,14 @@
 /**
- * 멀티 프로젝트 창 + 크롬식 탭 — 01-multi-window.md §6 / 01b-chrome-tabs.md §6.
+ * 멀티 프로젝트 창 — 창 하나 = 프로젝트 하나 (4.0).
  *
  * 프런트에서 검증 가능한 것들:
  *  - 라우팅 — 창 갈래는 URL 이 정하고 런타임에 바뀌지 않는다
- *  - R3    — 탭 두 개가 같은 localStorage 레코드를 덮어쓰지 않는다 (키 분리)
- *  - 탭 순서 — 드래그 재배열 산술 (경계에서 조용히 틀리기 쉬운 자리)
+ *  - R3    — 창 두 개가 같은 localStorage 레코드를 덮어쓰지 않는다 (키 분리)
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, act, cleanup } from "@testing-library/react";
 
 import { parseWindowRoute, FIRST_WINDOW } from "@/lib/windowRoute";
-import {
-  tabDropIndex,
-  reorderTabs,
-  isDetachGesture,
-  DETACH_THRESHOLD_PX,
-} from "@/features/shell/tabOrder";
 import {
   WorkspaceProvider,
   useWorkspace,
@@ -35,13 +28,12 @@ describe("창 라우팅", () => {
     expect(parseWindowRoute("?tray=1")).toEqual({ kind: "tray" });
   });
 
-  it("?win=win-2 는 프로젝트 창 갈래 (탭 집합은 백엔드에 묻는다)", () => {
+  it("?win=win-2 는 앱 창 갈래 (프로젝트는 백엔드에 묻는다)", () => {
     expect(parseWindowRoute("?win=win-2")).toEqual({
       kind: "window",
       label: "win-2",
       view: null,
       entryPath: null,
-      tearoff: false,
     });
   });
 
@@ -53,7 +45,6 @@ describe("창 라우팅", () => {
       label: "win-1",
       view: "journal",
       entryPath: "journal/20260812/Bugs/a.md",
-      tearoff: false,
     });
   });
 
@@ -64,26 +55,10 @@ describe("창 라우팅", () => {
       label: FIRST_WINDOW,
       view: null,
       entryPath: null,
-      tearoff: false,
     });
   });
 
-  /**
-   * 크롬식 떼어내기 — 끌려다니는 창은 URL 로 자기 처지를 안다. 이걸 놓치면 그
-   * 창이 곧바로 프로젝트를 통째로 마운트하고(워처·자동색인 포함), 도로 남의
-   * 창에 합쳐 버리면 그 전부가 낭비가 된다.
-   */
-  it("?tearoff=1 은 아직 손에 들려 있는 창", () => {
-    expect(parseWindowRoute("?win=win-3&tearoff=1")).toEqual({
-      kind: "window",
-      label: "win-3",
-      view: null,
-      entryPath: null,
-      tearoff: true,
-    });
-  });
-
-  /** 판독 불가능한 라벨을 들고 들어가면 그 창의 모든 탭 커맨드가 빗나간다. */
+  /** 판독 불가능한 라벨을 들고 들어가면 그 창의 프로젝트 조회가 빗나간다. */
   it("판독 불가능한 win 값은 첫 창으로 떨어진다", () => {
     for (const bad of ["?win=abc", "?win=", "?win=win-", "?win=window-1", "?win=win-1x"]) {
       expect(parseWindowRoute(bad)).toMatchObject({ kind: "window", label: FIRST_WINDOW });
@@ -94,82 +69,6 @@ describe("창 라우팅", () => {
     expect(parseWindowRoute("?tray=1&win=win-2")).toEqual({ kind: "tray" });
   });
 
-});
-
-// ─── 탭 드래그 산술 (01b §4.1) ────────────────────────────────────────────
-
-describe("탭 삽입 인덱스", () => {
-  // 중심이 40 / 120 / 200 인 탭 3개.
-  const centers = [40, 120, 200];
-
-  it("첫 탭 왼쪽이면 0", () => {
-    expect(tabDropIndex(centers, 0)).toBe(0);
-    expect(tabDropIndex(centers, 39)).toBe(0);
-  });
-
-  it("중심을 넘어야 다음 자리로 넘어간다", () => {
-    expect(tabDropIndex(centers, 41)).toBe(1);
-    expect(tabDropIndex(centers, 119)).toBe(1);
-    expect(tabDropIndex(centers, 121)).toBe(2);
-  });
-
-  it("마지막 탭 오른쪽이면 끝", () => {
-    expect(tabDropIndex(centers, 999)).toBe(3);
-  });
-
-  it("탭이 없으면 항상 0", () => {
-    expect(tabDropIndex([], 500)).toBe(0);
-  });
-});
-
-describe("탭 재배열", () => {
-  /** 오른쪽 이동에서 인덱스 보정을 빼먹으면 "한 칸 옮기기"가 무반응이 된다. */
-  it("오른쪽으로 한 칸 옮긴다", () => {
-    expect(reorderTabs([1, 2, 3], 0, 2)).toEqual([2, 1, 3]);
-  });
-
-  it("왼쪽으로 옮긴다", () => {
-    expect(reorderTabs([1, 2, 3], 2, 0)).toEqual([3, 1, 2]);
-  });
-
-  it("맨 끝으로 옮긴다", () => {
-    expect(reorderTabs([1, 2, 3], 0, 3)).toEqual([2, 3, 1]);
-  });
-
-  it("제자리면 그대로", () => {
-    expect(reorderTabs([1, 2, 3], 1, 1)).toEqual([1, 2, 3]);
-    expect(reorderTabs([1, 2, 3], 1, 2)).toEqual([1, 2, 3]);
-  });
-
-  it("원본을 변형하지 않는다", () => {
-    const src = [1, 2, 3];
-    reorderTabs(src, 0, 2);
-    expect(src).toEqual([1, 2, 3]);
-  });
-
-  it("범위 밖 from 은 무시한다", () => {
-    expect(reorderTabs([1, 2], 5, 0)).toEqual([1, 2]);
-    expect(reorderTabs([], 0, 0)).toEqual([]);
-  });
-});
-
-describe("떼어내기 판정", () => {
-  const strip = { top: 6, bottom: 44 };
-
-  it("스트립 안에서 가로로만 움직이면 순서 변경이다", () => {
-    expect(isDetachGesture(strip, 6)).toBe(false);
-    expect(isDetachGesture(strip, 44)).toBe(false);
-    expect(isDetachGesture(strip, 44 + DETACH_THRESHOLD_PX)).toBe(false);
-  });
-
-  it("아래로 충분히 벗어나면 떼어내기", () => {
-    expect(isDetachGesture(strip, 44 + DETACH_THRESHOLD_PX + 1)).toBe(true);
-  });
-
-  /** 창 위쪽(다른 모니터 방향)으로 끌어도 떼어내기여야 한다. */
-  it("위로 벗어나도 떼어내기", () => {
-    expect(isDetachGesture(strip, 6 - DETACH_THRESHOLD_PX - 1)).toBe(true);
-  });
 });
 
 // ─── 영속 키 분리 (R3) ────────────────────────────────────────────────────
@@ -266,14 +165,14 @@ describe("WorkspaceProvider(projectId)", () => {
   it("과거 레코드에 남은 currentProjectId 가 탭의 프로젝트를 덮어쓰지 못한다", () => {
     localStorage.setItem(
       storageKeyFor(9),
-      JSON.stringify({ schemaVersion: 3, currentProjectId: 42, uiV2View: "search" }),
+      JSON.stringify({ schemaVersion: 3, currentProjectId: 42, uiV2View: "diff" }),
     );
     const r = render(
       <WorkspaceProvider projectId={9}>
         <Probe onReady={() => {}} />
       </WorkspaceProvider>,
     );
-    expect(r.getByTestId("view").textContent).toBe("9:search");
+    expect(r.getByTestId("view").textContent).toBe("9:diff");
   });
 });
 

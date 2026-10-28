@@ -1,11 +1,11 @@
 //! 앱 메뉴.
 //!
-//! **존재 이유는 하나다: `⌘W` 를 "창 닫기" 에서 "탭 닫기" 로 되찾는 것.**
+//! **존재 이유는 둘이다: 편집 메뉴(⌘C/⌘V)와 창 메뉴(⌃⌥ 창 분할)를 지키는 것.**
 //!
-//! Tauri 기본 메뉴는 `⌘W` 를 Close Window 에 묶어 두는데, macOS 는 메뉴
-//! 액셀러레이터를 웹뷰보다 **먼저** 소비한다 — 프런트에서 `keydown` 을 잡아도
-//! 이벤트가 도달하지 않는다. 그래서 메뉴 전체를 직접 구성하는 것 말고는
-//! 방법이 없다.
+//! 3.x 에서는 `⌘W` 를 "탭 닫기" 로 되찾으려고 메뉴 전체를 직접 구성했다. 4.0 은 창
+//! 하나가 프로젝트 하나라(크롬식 탭을 걷었다) `⌘W` 는 다시 **창 닫기**다 — 그래도
+//! 메뉴는 직접 구성한다. Tauri 기본 메뉴로 돌아가면 메뉴 언어를 앱 언어에 맞출 수
+//! 없고, 「새 창」(⇧⌘N)이 사라진다.
 //!
 //! ⚠️ 직접 구성하면 **표준 항목이 자동으로 붙지 않는다.** 특히 편집 메뉴
 //! (실행 취소·잘라내기·복사·붙여넣기·전체 선택)가 빠지면 웹뷰 안 텍스트
@@ -13,30 +13,22 @@
 //!
 //! ## Windows·Linux 에는 메뉴를 달지 않는다 (`#os-no-menu`)
 //!
-//! 이 메뉴가 푸는 문제(메뉴 액셀러레이터가 웹뷰보다 먼저 키를 먹는다)는 macOS 의
-//! 것이다. 다른 OS 에 같은 메뉴를 달면 오히려 문제를 **만든다**: Linux(GTK)는 창
-//! 액셀러레이터가 웹뷰보다 먼저 받아 터미널의 `Ctrl+W` 가 페인을 닫고 `Ctrl+C` 가
-//! SIGINT 대신 복사가 된다. Windows(WebView2)는 반대로 웹뷰 포커스 중에는
-//! 액셀러레이터가 안 들린다. 그래서 비-mac 은 메뉴 없이 — 탭 키(`Ctrl+T`/`Ctrl+W`)는
-//! 프런트가 keydown 으로 받고(`useWindowTabKeys`), 편집 키는 웹뷰 기본이 처리한다.
-//! 메뉴 트리를 만드는 코드는 macOS 에서만 불린다 — 비-mac 빌드의 dead_code 허용은
-//! 그 때문이다.
+//! Linux(GTK)는 창 액셀러레이터가 웹뷰보다 먼저 받아 입력칸의 `Ctrl+C` 같은 키를
+//! 가로채고, Windows(WebView2)는 웹뷰 포커스 중에는 액셀러레이터가 안 들린다. 그래서
+//! 비-mac 은 메뉴 없이 — 창 키(`Ctrl+W`·`Ctrl+Shift+N`)는 프런트가 keydown 으로
+//! 받고(`useWindowKeys`), 편집 키는 웹뷰 기본이 처리한다. 메뉴 트리를 만드는 코드는
+//! macOS 에서만 불린다 — 비-mac 빌드의 dead_code 허용은 그 때문이다.
 #![cfg_attr(not(target_os = "macos"), allow(dead_code))]
 
 use tauri::menu::{Menu, MenuBuilder, MenuItemBuilder, Submenu, SubmenuBuilder};
 use tauri::{AppHandle, Manager, Runtime};
 
-pub const NEW_TAB: &str = "menu:new-tab";
 pub const NEW_WINDOW: &str = "menu:new-window";
-pub const CLOSE_TAB: &str = "menu:close-tab";
 pub const CLOSE_WINDOW: &str = "menu:close-window";
 
-/// 액셀러레이터. **`⌘W` 가 탭 닫기**이고 창 닫기는 `⇧⌘W` 로 물러난다 —
-/// Chrome/Safari 와 같은 계약이고, 이 파일이 존재하는 이유다.
-const ACC_NEW_TAB: &str = "CmdOrCtrl+T";
+/// 액셀러레이터. 창 하나가 프로젝트 하나라 **`⌘W` 는 창 닫기**다 (macOS 표준).
 const ACC_NEW_WINDOW: &str = "Shift+CmdOrCtrl+N";
-const ACC_CLOSE_TAB: &str = "CmdOrCtrl+W";
-const ACC_CLOSE_WINDOW: &str = "Shift+CmdOrCtrl+W";
+const ACC_CLOSE_WINDOW: &str = "CmdOrCtrl+W";
 
 /// 메뉴 라벨 묶음. 프런트의 i18n 사전을 Rust 가 읽을 수 없으므로 최소 집합만
 /// 여기에 둔다 — 언어는 프런트가 `apply_menu_language` 로 알려준다.
@@ -45,9 +37,7 @@ struct Labels {
     edit: &'static str,
     view: &'static str,
     window: &'static str,
-    new_tab: &'static str,
     new_window: &'static str,
-    close_tab: &'static str,
     close_window: &'static str,
     undo: &'static str,
     redo: &'static str,
@@ -68,9 +58,7 @@ const KO: Labels = Labels {
     edit: "편집",
     view: "보기",
     window: "창",
-    new_tab: "새 탭",
     new_window: "새 창",
-    close_tab: "탭 닫기",
     close_window: "창 닫기",
     undo: "실행 취소",
     redo: "다시 실행",
@@ -91,9 +79,7 @@ const EN: Labels = Labels {
     edit: "Edit",
     view: "View",
     window: "Window",
-    new_tab: "New Tab",
     new_window: "New Window",
-    close_tab: "Close Tab",
     close_window: "Close Window",
     undo: "Undo",
     redo: "Redo",
@@ -134,24 +120,16 @@ pub fn build<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<(Menu<
         .quit_with_text(l.quit)
         .build()?;
 
-    // ② 파일 — ⌘W 를 되찾는 자리. "창 닫기" 는 ⇧⌘W 로 물러난다 (Chrome 과 동일).
-    let new_tab = MenuItemBuilder::with_id(NEW_TAB, l.new_tab)
-        .accelerator(ACC_NEW_TAB)
-        .build(app)?;
+    // ② 파일 — 새 창(⇧⌘N, 시작 창)과 창 닫기(⌘W).
     let new_window = MenuItemBuilder::with_id(NEW_WINDOW, l.new_window)
         .accelerator(ACC_NEW_WINDOW)
-        .build(app)?;
-    let close_tab = MenuItemBuilder::with_id(CLOSE_TAB, l.close_tab)
-        .accelerator(ACC_CLOSE_TAB)
         .build(app)?;
     let close_window = MenuItemBuilder::with_id(CLOSE_WINDOW, l.close_window)
         .accelerator(ACC_CLOSE_WINDOW)
         .build(app)?;
     let file_menu = SubmenuBuilder::new(app, l.file)
-        .item(&new_tab)
         .item(&new_window)
         .separator()
-        .item(&close_tab)
         .item(&close_window)
         .build()?;
 
@@ -215,58 +193,16 @@ pub fn apply<R: Runtime>(app: &AppHandle<R>, lang: &str) -> tauri::Result<()> {
     }
 }
 
-/// 메뉴 이벤트 → 탭 커맨드. 메뉴에는 대상 창이 실려 오지 않으므로 여기서
-/// **지금 포커스된 창**을 찾아 그 창의 활성 탭에 적용한다.
+/// 메뉴 이벤트 → 창 커맨드. 메뉴에는 대상 창이 실려 오지 않으므로 여기서
+/// **지금 포커스된 창**을 찾는다.
 pub fn handle_event(app: &AppHandle, id: &str) {
     use crate::commands::window as win;
     let handle = app.clone();
     match id {
-        CLOSE_TAB => {
-            // 여기서 닫지 않고 **프런트에 넘긴다**. 화면 안에 또 닫을 것이
-            // 있을 수 있어서다(Claude Code 의 세션 탭) — 사용자는 브라우저처럼
-            // 안쪽부터 닫히기를 기대하고, 무엇이 열려 있는지는 프런트만 안다.
-            //
-            // 탭이 하나뿐이면 그 탭을 닫는 것이 곧 창을 닫는 것이다 —
-            // `close_tab` 이 빈 창을 스스로 닫는다 (Chrome 과 같다).
-            use tauri_specta::Event as _;
-            if let Some(window) = win::focused_app_window(app) {
-                let tab = win::active_tab_of(app, &window);
-                // 활성 탭이 없다 = 이 창이 레지스트리에서 빠졌다(유령 창).
-                // 그대로 `CloseIntent` 를 쏘면 프런트가 `tab == null` 로 걸러
-                // 내고 **아무 일도 일어나지 않는다** — 사용자에게는 ⌘W 가 씹히는
-                // 창이 된다. 지킬 탭이 없으니 창을 닫는 것이 요청의 답이다.
-                if tab.is_none() {
-                    if let Some(w) = app.get_webview_window(&window) {
-                        let _ = w.close();
-                    }
-                    return;
-                }
-                let _ = win::CloseIntent { window, tab }.emit(app);
-            }
-        }
         CLOSE_WINDOW => {
             if let Some(label) = win::focused_app_window(app) {
                 if let Some(w) = app.get_webview_window(&label) {
                     let _ = w.close();
-                }
-            }
-        }
-        NEW_TAB => {
-            // ⌘W 와 같은 이유로 **프런트에 넘긴다** (2026-09-01). 화면 안에 자기
-            // 탭을 가진 것이 있고(터미널의 셸 탭), 사용자는 브라우저처럼 "지금
-            // 보고 있는 것" 에 탭이 붙기를 기대한다. 포커스가 어디인지는 프런트만
-            // 아는 사실이라 판단도 그쪽이 한다 — 아무도 안 받으면 창이 평소대로
-            // 시작 탭을 연다.
-            use tauri_specta::Event as _;
-            match win::focused_app_window(app) {
-                Some(window) => {
-                    let _ = win::NewTabIntent { window }.emit(app);
-                }
-                // 들을 창이 하나도 없다 — 열어 줄 프런트가 없으니 Rust 가 만든다.
-                None => {
-                    tauri::async_runtime::spawn(async move {
-                        let _ = win::new_start_tab_inner(&handle, None).await;
-                    });
                 }
             }
         }
@@ -301,10 +237,6 @@ mod tests {
                 include_str!("commands/window/mod.rs"),
             ),
             (
-                "commands/window/drag.rs",
-                include_str!("commands/window/drag.rs"),
-            ),
-            (
                 "commands/window/events.rs",
                 include_str!("commands/window/events.rs"),
             ),
@@ -325,8 +257,8 @@ mod tests {
                 include_str!("commands/window/session.rs"),
             ),
             (
-                "commands/window/tabs.rs",
-                include_str!("commands/window/tabs.rs"),
+                "commands/window/projects.rs",
+                include_str!("commands/window/projects.rs"),
             ),
             (
                 "commands/window/watchers.rs",
@@ -360,28 +292,26 @@ mod tests {
 
     #[test]
     fn language_picks_label_set() {
-        assert_eq!(labels("en").close_tab, "Close Tab");
-        assert_eq!(labels("en-US").close_tab, "Close Tab");
-        assert_eq!(labels("ko").close_tab, "탭 닫기");
+        assert_eq!(labels("en").close_window, "Close Window");
+        assert_eq!(labels("en-US").close_window, "Close Window");
+        assert_eq!(labels("ko").close_window, "창 닫기");
         // 알 수 없는 값은 한국어로 — 이 앱의 기본 언어다.
-        assert_eq!(labels("system").close_tab, "탭 닫기");
-        assert_eq!(labels("").close_tab, "탭 닫기");
+        assert_eq!(labels("system").close_window, "창 닫기");
+        assert_eq!(labels("").close_window, "창 닫기");
     }
 
-    /// **이 파일의 존재 이유** — ⌘W 는 탭 닫기, 창 닫기는 ⇧⌘W 다.
-    /// 둘이 뒤바뀌거나 같아지면 "⌘W 로 창이 통째로 닫히는" 예전 동작으로
-    /// 조용히 되돌아간다 (Tauri 기본 메뉴가 그랬다).
+    /// 창 하나 = 프로젝트 하나 (4.0) — ⌘W 는 창을 닫는다. 3.x 의 ⇧⌘W(창 닫기)·
+    /// ⌘T(새 탭)는 탭과 함께 걷었다.
     #[test]
-    fn cmd_w_closes_the_tab_not_the_window() {
-        assert_eq!(ACC_CLOSE_TAB, "CmdOrCtrl+W");
-        assert_eq!(ACC_CLOSE_WINDOW, "Shift+CmdOrCtrl+W");
-        assert_ne!(ACC_CLOSE_TAB, ACC_CLOSE_WINDOW);
+    fn cmd_w_closes_the_window() {
+        assert_eq!(ACC_CLOSE_WINDOW, "CmdOrCtrl+W");
+        assert_eq!(ACC_NEW_WINDOW, "Shift+CmdOrCtrl+N");
     }
 
     /// 액셀러레이터가 겹치면 어느 항목이 이길지 플랫폼에 맡기게 된다.
     #[test]
     fn accelerators_do_not_collide() {
-        let all = [ACC_NEW_TAB, ACC_NEW_WINDOW, ACC_CLOSE_TAB, ACC_CLOSE_WINDOW];
+        let all = [ACC_NEW_WINDOW, ACC_CLOSE_WINDOW];
         let mut sorted = all.to_vec();
         sorted.sort_unstable();
         sorted.dedup();
@@ -392,7 +322,7 @@ mod tests {
     /// 동작을 한다 — 접두사로 네임스페이스를 나눠 둔다.
     #[test]
     fn menu_ids_are_namespaced_and_unique() {
-        let ids = [NEW_TAB, NEW_WINDOW, CLOSE_TAB, CLOSE_WINDOW];
+        let ids = [NEW_WINDOW, CLOSE_WINDOW];
         for id in ids {
             assert!(id.starts_with("menu:"), "{id} 에 네임스페이스가 없다");
         }

@@ -5,12 +5,12 @@ import { isMac } from "@/lib/platform";
 
 // 키보드 단축키의 단일 목록 (완성도 라운드 Phase 2, 2026-08-30).
 //
-// 화면 이동(⌘1~⌘0)은 `navRegistry` 배열 순서에서 **계산**하므로 사이드바·
+// 화면 이동(⌘1~⌘4)은 `navRegistry` 배열 순서에서 **계산**하므로 사이드바·
 // 팔레트·치트시트가 어긋날 수 없다. 나머지는 각 화면의 keydown 핸들러가
 // 실제로 듣는 키를 여기 옮겨 적은 것이다 — 핸들러를 바꾸면 이 표도 같이
 // 바꾼다 (`src/__tests__/polish_phase2.test.tsx` 가 중복 조합을 잡는다).
 //
-// 앱 메뉴 가속키(⌘T·⇧⌘N·⌘W·⇧⌘W)는 Rust `menu.rs` 가 정본이다. 프런트에서
+// 앱 메뉴 가속키(⇧⌘N·⌘W)는 Rust `menu.rs` 가 정본이다. 프런트에서
 // 읽을 수 없어 값을 옮겨 적었다.
 //
 // 키는 **맥 표기로 적는다** (크로스플랫폼 라운드 {#ui-labels}). Windows·Linux 는
@@ -42,30 +42,21 @@ const GLOBAL: ShortcutGroup = {
   titleKey: "keys.g.global",
   rows: [
     { keys: "⌘K", labelKey: "keys.palette" },
-    { keys: "⌘P", labelKey: "keys.switchProject" },
-    { keys: "⌘J", labelKey: "keys.dock" },
+    { keys: "⌘O", labelKey: "keys.switchProject" },
     { keys: "⌘,", labelKey: "keys.settings" },
-    { keys: "⌘\\", labelKey: "keys.ai" },
     { keys: "⌘/", labelKey: "keys.cheatsheet" },
     { keys: "⌘[ / ⌘]", labelKey: "keys.navHistory" },
-    // 터미널 안에서 Ctrl+글자는 셸의 것이다 (lib/kbd.ts) — 그 자리의 앱 단축키.
-    { keys: "Ctrl+Shift+…", labelKey: "keys.inTerminal", nonMacOnly: true },
   ],
 };
 
+// 창 하나 = 프로젝트 하나 (4.0) — 탭 키(⌘T·⌃Tab·⌘⌥←→)는 탭과 함께 걷었다.
 const WINDOW: ShortcutGroup = {
   id: "window",
   titleKey: "keys.g.window",
   rows: [
-    { keys: "⌘T", labelKey: "keys.newTab" },
-    // 맥은 앱 메뉴, Windows·Linux 는 `useWindowTabKeys` 가 키다운으로 받는다 —
-    // 터미널 안에서도 같은 Ctrl+Shift+N 이다 (`isNewWindowChord`, {#os-new-window}).
+    // 맥은 앱 메뉴, Windows·Linux 는 `useWindowKeys` 가 키다운으로 받는다 ({#os-new-window}).
     { keys: "⇧⌘N", labelKey: "keys.newWindow" },
-    { keys: "⌘W", labelKey: "keys.closeTab" },
-    // Windows·Linux 는 네이티브 제목줄 — 창 닫기는 OS 의 키다.
-    { keys: "⇧⌘W", labelKey: "keys.closeWindow", nonMac: "Alt+F4" },
-    { keys: "⌃Tab / ⌃⇧Tab", labelKey: "keys.cycleTabs" },
-    { keys: "⌘⌥← / ⌘⌥→", labelKey: "keys.moveTabs" },
+    { keys: "⌘W", labelKey: "keys.closeWindow" },
   ],
 };
 
@@ -78,15 +69,6 @@ const JOURNAL: ShortcutGroup = {
     { keys: "Esc", labelKey: "keys.entryBack" },
     { keys: "j / k", labelKey: "keys.entryMove" },
     { keys: "/", labelKey: "keys.entryFilter" },
-  ],
-};
-
-const SEARCH: ShortcutGroup = {
-  id: "search",
-  titleKey: "keys.g.search",
-  rows: [
-    { keys: "⌘F", labelKey: "keys.searchFocus" },
-    { keys: "⌘N", labelKey: "keys.searchReset" },
   ],
 };
 
@@ -104,17 +86,10 @@ const DIFF: ShortcutGroup = {
 const START: ShortcutGroup = {
   id: "start",
   titleKey: "keys.g.start",
-  rows: [
-    { keys: "⌘O", labelKey: "keys.startAdd" },
-    { keys: "⌘N", labelKey: "keys.startNew" },
-    { keys: "⇧⌘M", labelKey: "keys.startManage" },
-    { keys: "⌘E", labelKey: "keys.startRename" },
-    { keys: "⌘⌫", labelKey: "keys.startDelete" },
-    { keys: "⌘F", labelKey: "keys.startFind" },
-  ],
+  rows: [{ keys: "⌘O", labelKey: "keys.startAdd" }],
 };
 
-/** 화면 이동 그룹 — navRegistry 에서 파생. ⌘번호가 없는 11번째 이후 화면은 뺀다. */
+/** 화면 이동 그룹 — navRegistry 에서 파생. */
 export function navShortcutGroup(): ShortcutGroup {
   return {
     id: "nav",
@@ -128,7 +103,7 @@ export function navShortcutGroup(): ShortcutGroup {
 
 /** 치트시트가 그리는 순서 — 전역과 화면 이동이 먼저, 화면별 로컬 키가 뒤. */
 export function buildShortcutGroups(): ShortcutGroup[] {
-  const groups = [navShortcutGroup(), GLOBAL, WINDOW, JOURNAL, SEARCH, DIFF, START];
+  const groups = [navShortcutGroup(), GLOBAL, WINDOW, JOURNAL, DIFF, START];
   return groups.map(isMac() ? forMac : forOtherOs);
 }
 

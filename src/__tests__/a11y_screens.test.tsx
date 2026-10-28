@@ -46,11 +46,9 @@ vi.mock("@/api/oculpm", () => ({
 
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
-import { SettingsPanel } from "@/features/settings/SettingsPanel";
+import { SettingsPage } from "@/features/settings/SettingsPage";
 import { __resetLangForTests, setLangSetting } from "@/i18n";
-// PR-UI 8a — TodayScreen/PlannerPanel moved to src/legacy/ (dead in ui_v2).
-// Their a11y is now covered by the V2 equivalents (today_v2 / tools_v2). The
-// still-live SettingsPanel (dashboard SettingsOverlay) keeps its check here.
+// 설정 한 쪽(4.0)의 a11y — 다른 화면은 각자의 V2 스위트가 덮는다.
 
 const AXE_OPTIONS = {
   rules: {
@@ -91,7 +89,7 @@ afterEach(() => {
 describe.each([
   ["ko", [], "표시"],
   ["en", [["language", "en"]], "Display"],
-] as const)("a11y — SettingsPanel (%s)", (lang, rows, marker) => {
+] as const)("a11y — SettingsPage (%s)", (lang, rows, marker) => {
   beforeEach(() => {
     settingsRows.length = 0;
     for (const r of rows) settingsRows.push([...r] as [string, string]);
@@ -101,7 +99,7 @@ describe.each([
   it("axe 위반이 없다", async () => {
     const { container, findAllByText } = render(
       <Wrap>
-        <SettingsPanel />
+        <SettingsPage />
       </Wrap>,
     );
     // **이 단언이 없으면 스위트가 공허해진다** — 언어 배선이 깨져 두 행이
@@ -116,7 +114,7 @@ describe.each([
     // (`t("없는.키")` 는 키 문자열을 돌려주므로 "비어 있지 않음" 은 통과한다).
     const { container } = render(
       <Wrap>
-        <SettingsPanel />
+        <SettingsPage />
       </Wrap>,
     );
     const leaked: string[] = [];

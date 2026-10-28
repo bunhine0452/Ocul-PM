@@ -3,7 +3,6 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { useState } from "react";
 
 import { useConfirm } from "@/hooks/useConfirm";
-import { runningWorkItems } from "@/lib/closeIntent";
 import { t } from "@/i18n";
 
 // 확인 대화상자(useConfirm) — 2026-09-21 리디자인 계약.
@@ -11,7 +10,10 @@ import { t } from "@/i18n";
 // 사용자: "닫으려고 하면 뜨는 모달이 아마추어 같고, 뜬 뒤에 Enter 를 쳐도 안
 // 닫힌다." 뒤쪽은 첫 포커서블이 「취소」라서였다 — Enter 가 취소 버튼을 눌러
 // 아무 일도 안 일어난 것처럼 보였다. 이제 확인 버튼이 포커스를 받고, 패널
-// 어디서든 Enter 는 확인, Esc 는 취소다.
+// 어디서든 Enter 는 확인, Esc 는 취소다. (3.x 의 탭 닫기 문지기는 4.0 에서 탭과
+// 함께 걷혔다 — 지금은 시작 창의 「목록에서 빼기」 같은 자리가 쓴다.)
+
+const CONFIRM = () => t("start.forget");
 
 function Harness({ onAnswer }: { onAnswer: (ok: boolean) => void }) {
   const { confirm, confirmDialog } = useConfirm();
@@ -23,10 +25,14 @@ function Harness({ onAnswer }: { onAnswer: (ok: boolean) => void }) {
         onClick={() => {
           setAsked(true);
           void confirm({
-            title: t("close.guard.title"),
-            message: t("close.guard.detail"),
-            items: runningWorkItems(["claude", "pnpm dev", "a", "b", "c", "d"], 2, t),
-            confirmLabel: t("close.guard.confirm"),
+            title: t("start.forgetTitle", { name: "aurora" }),
+            message: t("start.forgetBody"),
+            items: [
+              { text: "claude", mono: true },
+              { text: "pnpm dev", mono: true },
+              { text: t("start.forgetBody") },
+            ],
+            confirmLabel: CONFIRM(),
             danger: true,
           }).then(onAnswer);
         }}
@@ -40,13 +46,13 @@ function Harness({ onAnswer }: { onAnswer: (ok: boolean) => void }) {
 
 afterEach(() => cleanup());
 
-describe("useConfirm — close guard", () => {
+describe("useConfirm", () => {
   it("focuses the confirm button on open, and a single Enter answers", async () => {
     const answers: boolean[] = [];
     render(<Harness onAnswer={(ok) => answers.push(ok)} />);
     fireEvent.click(screen.getByTestId("trigger"));
 
-    const confirmBtn = (await screen.findByText(t("close.guard.confirm"))).closest("button");
+    const confirmBtn = (await screen.findByText(CONFIRM())).closest("button");
     expect(confirmBtn).not.toBeNull();
     expect(document.activeElement).toBe(confirmBtn);
 
@@ -76,22 +82,14 @@ describe("useConfirm — close guard", () => {
     await waitFor(() => expect(answers).toEqual([false, false]));
   });
 
-  it("running work is a list, not a sentence — four mono names, then 'and n more', then sessions", async () => {
+  it("items are a list, mono names in mono — and danger is marked", async () => {
     render(<Harness onAnswer={() => {}} />);
     fireEvent.click(screen.getByTestId("trigger"));
     await screen.findByRole("dialog");
 
     const items = Array.from(document.querySelectorAll(".cf-item")).map((el) => el.textContent);
-    expect(items).toEqual([
-      "claude",
-      "pnpm dev",
-      "a",
-      "b",
-      t("close.guard.more", { n: 2 }),
-      t("close.guard.agents", { n: 2 }),
-    ]);
-    expect(document.querySelectorAll(".cf-item.mono").length).toBe(4);
-    // 위험 표식 + 단색 위험 버튼.
+    expect(items).toEqual(["claude", "pnpm dev", t("start.forgetBody")]);
+    expect(document.querySelectorAll(".cf-item.mono").length).toBe(2);
     expect(document.querySelector(".cf.danger .cf-mark")).not.toBeNull();
     expect(document.querySelector(".btn.cf-confirm.danger")).not.toBeNull();
   });

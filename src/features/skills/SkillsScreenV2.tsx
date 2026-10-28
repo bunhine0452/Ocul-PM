@@ -42,7 +42,6 @@ import {
   type RuleSeed,
   type SkillSeed,
 } from "@/lib/agentContextNav";
-import { ClaudeHooksBlock } from "@/features/settings/OculpmSettings";
 import { isValidSkillName, parseKeywords, skillTemplate } from "./skillsModel";
 import { claudeMdTemplate, isValidRuleName, ruleTemplate } from "./rulesModel";
 import { useFiringLedger } from "./useFiringLedger";
@@ -71,7 +70,6 @@ import { SkillShopTab } from "./SkillShopTab";
 import { EmptyState } from "@/components/EmptyState";
 import { PluginDocsTab } from "./PluginDocsTab";
 import { SkillsSimpleView } from "./SkillsSimpleView";
-import { useDensity } from "@/hooks/useDensity";
 import "./skills.css";
 
 /** 존 3 승격 후보의 조회 창 — 발동 배지와 같은 30일. */
@@ -94,8 +92,8 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
   useT();
   const firing = useFiringLedger(projectId);
   // 간단 밀도는 두 열(규칙 후보·규칙 / 플러그인 명령·스킬), 전문은 3존 그대로 (시안 Skills).
-  const { density } = useDensity();
-  const simple = density === "simple";
+  // 밀도는 하나다 (4.0, 촘촘한 쪽).
+  const simple = false;
 
   const [skills, setSkills] = useState<SkillsOverview | null>(null);
   const [rules, setRules] = useState<RulesOverview | null>(null);
@@ -458,7 +456,6 @@ export function SkillsScreenV2({ projectId, active = true }: SkillsScreenV2Props
       <AppDialog open={extra === "hooks"} onClose={() => setExtra(null)} label={t("sk.hooksSub")} width={720}>
         <div className="sk-modal-head">{t("sk.tab.hooks")}</div>
         <div className="sk-hooks sk-shop-embed">
-          <ClaudeHooksBlock projectId={projectId} />
           <p className="sk-hooks-hint">{t("sk.hooksNote")}</p>
         </div>
       </AppDialog>

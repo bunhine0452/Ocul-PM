@@ -117,7 +117,7 @@ describe("워크스페이스 조각 격리", () => {
       };
     };
 
-    const views = ["journal", "diff", "planner", "skills", "search"] as const;
+    const views = ["journal", "diff", "planner", "settings", "today"] as const;
     let i = 0;
     expect(await deltas(() => api!.setUiV2View(views[i++]))).toEqual({
       full: 5, prefs: 5, runtime: 0,
@@ -137,7 +137,8 @@ describe("워크스페이스 조각 격리", () => {
 describe("상시 마운트 소비자는 합친 겉면을 쓰지 않는다", () => {
   const ALWAYS_MOUNTED = [
     "src/features/shell/ShellV2.tsx",
-    "src/windows/ProjectTab.tsx",
+    // 3.x 의 `ProjectTab` — 창 하나 = 프로젝트 하나(4.0)가 되며 이름만 바뀌었다.
+    "src/windows/ProjectWindow.tsx",
   ];
 
   it.each(ALWAYS_MOUNTED)("%s 는 useWorkspace() 를 부르지 않는다", (rel) => {
