@@ -1,15 +1,16 @@
-// 플래너 집계 규약 — 화면의 숫자 셋(done/total · 진척 % · 상태 칩)이 같은
-// 모수를 세는가. 2026-09-10 화면은 「32/35 완료 · 100% · 완료 34」 였다:
-// 진척은 막힘을 분모에서 빼서 100 이 됐고, 칩은 부모 항목까지 세서 34 가 됐다.
+// 계획 집계 규약 — done/total 이 리프만 세는가, 「다음」이 오늘 화면(digest.rs)과 같은
+// 항목을 가리키는가. 2026-09-10 화면은 「32/35 완료 · 완료 34」 였다 — 칩이 부모까지 셌다.
 import { describe, expect, it } from "vitest";
 import type { PlanItemDto } from "@/lib/bindings";
 import {
   countByStatus,
-  isRemaining,
+  doneOfTotal,
+  hasOpenLeaves,
+  isUserItem,
   leafItems,
-  nextUp,
-  phaseProgress,
-  progressSegments,
+  nextLeaf,
+  phasesOf,
+  stripUserTag,
 } from "@/features/planner/planMeta";
 
 function item(id: string, status: string, over: Partial<PlanItemDto> = {}): PlanItemDto {
@@ -46,24 +47,41 @@ describe("planMeta 집계", () => {
     expect(countByStatus(leafItems(ITEMS)).done).toBe(3); // p 를 세면 4
   });
 
-  it("막힘은 분모에 남고 진척은 주지 않는다 — 이월·폐기는 뺀다", () => {
-    // done 3 + wip 0.5 + blocked 0 + todo 0 = 3.5 / 6 (deferred 제외)
-    expect(phaseProgress(leafItems(ITEMS))).toBe(Math.round((3.5 / 6) * 100));
-    expect(phaseProgress([item("x", "done"), item("y", "blocked")])).toBe(50);
+  it("완료/전체 — 리프만, 이월·폐기는 분모에서 뺀다", () => {
+    expect(doneOfTotal(ITEMS)).toEqual({ done: 3, total: 6 });
   });
 
-  it("쌓인 바의 조각은 진척 분모와 같은 네 상태만, 문서 순서가 아닌 고정 순서", () => {
-    const segs = progressSegments(ITEMS);
-    expect(segs.map((s) => s.status)).toEqual(["done", "in_progress", "blocked", "todo"]);
-    expect(segs.map((s) => s.n)).toEqual([3, 1, 1, 1]);
-    expect(segs.reduce((s, x) => s + x.pct, 0)).toBeCloseTo(100);
-    expect(progressSegments([item("z", "deferred")])).toEqual([]);
+  it("다음 리프 — 문서 순서 첫 할 일, 사람 몫은 건너뛰고, 진행중은 다른 세션 몫", () => {
+    const items = [
+      item("a", "done", { order_idx: 0 }),
+      item("b", "in_progress", { order_idx: 1 }),
+      item("c", "todo", { order_idx: 2, title: "[사용자 결정] 태그" }),
+      item("d", "todo", { order_idx: 4 }),
+      item("e", "todo", { order_idx: 3, title: "[User] approve" }),
+    ];
+    expect(nextLeaf(items)?.item_id).toBe("d");
+    expect(nextLeaf([item("x", "done")])).toBeNull();
+    expect(hasOpenLeaves([item("x", "done"), item("y", "dropped")])).toBe(false);
+    expect(hasOpenLeaves(ITEMS)).toBe(true);
   });
 
-  it("다음 할 일 — 막힘 → 진행중 → 할 일, 리프만, 상한", () => {
-    expect(nextUp(ITEMS).map((i) => i.item_id)).toEqual(["a2", "b1", "b2"]);
-    expect(nextUp(ITEMS, 1).map((i) => i.item_id)).toEqual(["a2"]);
-    expect(["todo", "in_progress", "blocked"].every(isRemaining)).toBe(true);
-    expect(["done", "deferred", "dropped"].some(isRemaining)).toBe(false);
+  it("사람 몫 머리표 — 대괄호 머리만 본다", () => {
+    expect(isUserItem("[사용자] 테스터 모집")).toBe(true);
+    expect(isUserItem("[user action] ok")).toBe(true);
+    expect(isUserItem("사용자 설정 화면 고치기")).toBe(false);
+    expect(stripUserTag("[사용자 액션] release env")).toBe("release env");
+  });
+
+  it("단계별 묶음은 문서 순서, 깊이는 부모 사슬", () => {
+    const groups = phasesOf([
+      item("p", "done", { order_idx: 0 }),
+      item("c", "done", { order_idx: 1, parent_item: "p" }),
+      item("z", "todo", { order_idx: 2, phase: "B" }),
+    ]);
+    expect(groups.map((g) => g.phase)).toEqual(["A", "B"]);
+    expect(groups[0].items.map((r) => [r.item.item_id, r.depth, r.parent])).toEqual([
+      ["p", 0, true],
+      ["c", 1, false],
+    ]);
   });
 });

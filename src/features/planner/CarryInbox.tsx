@@ -86,21 +86,21 @@ export function CarryInbox({ projectId, selectedId, selectedLocked, onMoved, ref
   };
 
   return (
-    <details className="pln-carry" open={false}>
-      <summary className="pln-carry-head">
+    <details className="plv-carry" open={false}>
+      <summary className="plv-carry-head">
         <Inbox size={13} />
-        <span className="pln-next-title">{t("plan.carry.title")}</span>
-        <span className="pln-next-count">{t("plan.carry.count", { n: items.length })}</span>
+        <span className="plv-carry-title">{t("plan.carry.title")}</span>
+        <span className="plv-meta">{t("plan.carry.count", { n: items.length })}</span>
       </summary>
-      <p className="pln-carry-hint">{t("plan.carry.hint")}</p>
+      <p className="plv-carry-hint">{t("plan.carry.hint")}</p>
       {items.map((item) => {
         const key = `${item.plan_id}#${item.item_id}`;
         return (
-          <div className="pln-next-row" key={key}>
-            <span className="pln-next-text" title={item.title}>
+          <div className="plv-carry-row" key={key}>
+            <span className="plv-carry-text" title={item.title}>
               {item.title}
             </span>
-            <span className="pln-next-phase" title={item.plan_title}>
+            <span className="plv-carry-from plv-meta" title={item.plan_title}>
               {t("plan.carry.from", {
                 plan: item.plan_title,
                 status: t(STATUS_KEY[item.status as keyof typeof STATUS_KEY] ?? "plan.carry.status.todo"),

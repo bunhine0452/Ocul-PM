@@ -1,0 +1,166 @@
+/* ============================================================
+   계획 (4.0 {#ui-planner}) — 레일 260px + 한 장의 문서.
+   큰 활자는 문서 제목 하나뿐(20px). 값은 전부 토큰, 강조는 면으로만.
+   `.plv-body` 가 컨테이너다 — 레일·격자는 남은 폭에 반응한다.
+   ============================================================ */
+
+.plv-body {
+  flex: 1; min-height: 0; display: flex; align-items: stretch;
+  container-type: inline-size; container-name: plan;
+}
+.plv-main {
+  flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden;
+  padding: 22px 28px 60px;
+  background: var(--bg-card);
+  scrollbar-gutter: stable;
+}
+@container plan (max-width: 640px) {
+  .plv-body { flex-direction: column; }
+  .plv-rail { width: auto; max-height: 40%; border-right: 0; border-bottom: 1px solid var(--sep); }
+  .plv-main { padding: var(--space-6) var(--space-6) 48px; }
+}
+
+.plv-meta { font-size: var(--fs-3); color: var(--text-2); }
+.plv-ok { color: var(--ok-text); font-weight: var(--fw-strong); }
+.plv-bad { color: var(--danger-text); font-weight: var(--fw-strong); }
+.plv-grow { flex: 1; }
+.plv-sec-h { margin: 0 0 var(--space-2); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2); }
+.plv-bar { display: block; height: 4px; overflow: hidden; border-radius: var(--radius-pill); background: var(--bg-inset); }
+.plv-bar > i { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--accent); }
+
+/* ── 레일 ──────────────────────────────────────────────────── */
+.plv-rail {
+  width: 260px; flex: none; overflow-y: auto;
+  border-right: 1px solid var(--sep);
+  background: var(--bg-window);
+}
+.plv-rail-h {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-5) var(--space-6) var(--space-2);
+  font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2);
+}
+.plv-rail-list { margin: 0; padding: 0; list-style: none; }
+.plv-li {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  width: 100%; padding: var(--space-3) var(--space-6);
+  border: 0; border-bottom: 1px solid var(--border-card);
+  background: transparent; color: var(--text);
+  font: inherit; font-size: var(--fs-4); text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.plv-li:hover { background: var(--bg-hover); }
+.plv-li[aria-current="true"] { background: var(--bg-active); }
+.plv-li[aria-current="true"] .plv-li-title { font-weight: var(--fw-strong); }
+.plv-li-r1 { display: flex; align-items: center; gap: var(--space-3); }
+.plv-li-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plv-closed > summary { cursor: pointer; list-style: none; }
+.plv-closed > summary::-webkit-details-marker { display: none; }
+.plv-closed-chev { transition: transform var(--dur-1) var(--ease-out); }
+.plv-closed[open] .plv-closed-chev { transform: rotate(90deg); }
+
+/* ── 문서 ──────────────────────────────────────────────────── */
+.plv-doc { display: flex; flex-direction: column; gap: 18px; max-width: var(--read-wide); }
+.plv-head { display: flex; flex-direction: column; gap: var(--space-1); }
+/* 문서 제목 — 이 화면에서 유일한 큰 활자. */
+.plv-title { margin: 0; font-size: var(--fs-8); font-weight: var(--fw-bold); line-height: var(--lh-tight); }
+
+.plv-judge { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5) 14px; border-radius: var(--radius-m); }
+.plv-judge p { margin: 0; }
+.plv-judge-text { max-width: var(--read-narrow); }
+.plv-judge-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px; }
+.plv-judge-check { flex: 1; min-width: 260px; }
+.plv-judge-last { width: 260px; }
+.plv-judge-chip { display: flex; align-items: center; gap: var(--space-3); }
+.plv-judge-summary { margin-top: var(--space-1); word-break: break-word; }
+.plv-code {
+  display: block; padding: var(--space-2) 9px;
+  border-radius: var(--radius-s); background: var(--bg-inset);
+  font-size: var(--fs-3); color: var(--text);
+  white-space: pre-wrap; word-break: break-all;
+}
+
+.plv-next { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+.plv-next-label { font-weight: var(--fw-strong); }
+.plv-next-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.plv-phases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5) 22px; }
+@container plan (max-width: 640px) {
+  .plv-phases { grid-template-columns: minmax(0, 1fr); }
+}
+.plv-phase { min-width: 0; }
+.plv-item { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-1) 0; font-size: var(--fs-4); }
+.plv-item.is-parent .plv-item-t { font-weight: var(--fw-strong); }
+.plv-item.is-dropped .plv-item-t { color: var(--text-3); text-decoration: line-through; }
+.plv-item.is-deferred .plv-item-t { color: var(--text-2); }
+.plv-item-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plv-item-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plv-item-j { margin-left: auto; }
+.plv-anchor { position: relative; flex: none; display: inline-flex; }
+.plv-box-btn {
+  display: inline-grid; place-items: center; padding: 2px;
+  border: 0; border-radius: var(--radius-xs); background: transparent; cursor: pointer;
+}
+.plv-box-btn:hover:not(:disabled) { background: var(--bg-hover); }
+.plv-box-btn:disabled { cursor: default; }
+
+/* 상태 상자 — 완료=채움 · 진행=반 · 막힘=붉은 테두리 · 이월=점선 · 폐기=흐림. */
+.plv-box {
+  display: inline-grid; place-items: center; flex: none;
+  width: 15px; height: 15px; box-sizing: border-box;
+  border: 1.5px solid var(--sep-strong); border-radius: var(--radius-2xs);
+  color: var(--text-on-accent);
+}
+.plv-box.is-done { background: var(--accent); border-color: var(--accent); }
+.plv-box.is-in_progress { border-color: var(--accent); background: linear-gradient(90deg, var(--accent) 50%, transparent 50%); }
+.plv-box.is-blocked { border-color: var(--danger); }
+.plv-box.is-deferred { border-style: dashed; }
+.plv-box.is-dropped { opacity: var(--dim-disabled); }
+
+.plv-status-pop {
+  position: absolute; top: calc(100% + 2px); left: 0; z-index: var(--z-menu);
+  min-width: 150px; display: flex; flex-direction: column; gap: 1px; padding: var(--space-1);
+  background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-m); box-shadow: var(--shadow-pop);
+}
+.plv-status-item {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%;
+  height: var(--ctl-3); padding: 0 var(--space-3); border-radius: var(--radius-s);
+  background: none; border: none; text-align: left; color: var(--text);
+  font-family: var(--font); font-size: var(--fs-3); cursor: pointer; white-space: nowrap;
+}
+.plv-status-item:hover { background: var(--bg-hover); }
+.plv-status-item[aria-checked="true"] { background: var(--accent-soft); color: var(--accent-text); }
+
+/* ── 갱신 기록 · 결정 ──────────────────────────────────────── */
+.plv-log > summary {
+  display: flex; align-items: center; gap: var(--space-2);
+  cursor: pointer; list-style: none;
+  font-size: var(--fs-3); color: var(--text-2);
+}
+.plv-log > summary::-webkit-details-marker { display: none; }
+.plv-log-chev { transition: transform var(--dur-1) var(--ease-out); }
+.plv-log[open] .plv-log-chev { transform: rotate(90deg); }
+.plv-log-sec { margin-top: var(--space-4); }
+.plv-log-sec h3 { margin: 0 0 var(--space-2); font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text-2); }
+.plv-decisions { margin: 0; padding-left: var(--space-6); font-size: var(--fs-4); }
+.plv-decisions p { margin: var(--space-1) 0 var(--space-3); color: var(--text-2); white-space: pre-wrap; }
+.plv-log-table { width: 100%; margin-top: var(--space-4); border-collapse: collapse; font-size: var(--fs-3); }
+.plv-log-table td { padding: var(--space-1) var(--space-3) var(--space-1) 0; border-bottom: 1px solid var(--border-card); vertical-align: top; color: var(--text-2); white-space: nowrap; }
+.plv-log-table td.plv-log-note { white-space: normal; color: var(--text); }
+.plv-log-empty { margin: var(--space-3) 0 0; font-size: var(--fs-3); color: var(--text-2); }
+
+/* ── 닫힌 계획의 미완 (CarryInbox) ─────────────────────────── */
+.plv-carry { margin-top: var(--space-7); padding: var(--space-3) var(--space-5); border: 1px dashed var(--sep-strong); border-radius: var(--radius-m); background: var(--bg-inset); max-width: var(--read-wide); }
+.plv-carry-head { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; list-style: none; color: var(--text-2); }
+.plv-carry-head::-webkit-details-marker { display: none; }
+.plv-carry[open] .plv-carry-head { margin-bottom: var(--space-2); }
+.plv-carry-title { font-size: var(--fs-3); font-weight: var(--fw-strong); color: var(--text); }
+.plv-carry-hint { margin: 0 0 var(--space-2); font-size: var(--fs-2); color: var(--text-3); }
+.plv-carry-row { display: flex; align-items: center; gap: var(--space-2); padding: 2px 0; }
+.plv-carry-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-4); }
+.plv-carry-from { flex: none; max-width: 34%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── 완료 확인 대화상자 ────────────────────────────────────── */
+.plv-confirm { display: flex; gap: var(--space-4); padding: 18px 20px 4px; font-size: var(--fs-4); line-height: var(--lh-prose); }
+.plv-confirm-ico { flex: none; margin-top: 2px; color: var(--warn-text); }
+.plv-confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-3); padding: var(--space-5) 20px var(--space-6); }

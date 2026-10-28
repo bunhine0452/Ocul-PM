@@ -71,7 +71,6 @@ export const ALLOWLIST = new Set([
   "features/onboarding/GreenfieldWizard.tsx",
   "features/onboarding/StartScreen.tsx",
   "features/onboarding/home/useHomeBrief.ts",
-  "features/planner/PlannerScreenV2.tsx",
   // v3-release {#planner-diff-split} — 플래너 화면에서 갈라 나온 조각. 직접 호출이
   // 늘어난 것이 아니라 화면이 들고 있던 것이 따라왔다. 옮길 때는 화면과 함께.
   "features/planner/usePlanDocument.ts",

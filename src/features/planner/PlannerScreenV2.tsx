@@ -1,32 +1,33 @@
+/**
+ * 계획 — 완료 조건이 참인가를 사람이 3분 안에 본다 (4.0 `{#ui-planner}`, 시안 Plan).
+ *
+ *   왼쪽 260px  진행 중 계획(진척 · 판정) + 끝난 계획 한 줄
+ *   오른쪽      메타 · 제목 · 완료 조건/확인 명령/마지막 판정 · 다음 · 단계 격자 · 갱신 기록
+ *
+ * 계획은 에이전트가 쓴다. 사람이 여기서 하는 일은 판정을 보고, 다음 항목을 프롬프트로
+ * 넘기고, 필요하면 항목 상태를 바꾸는 것뿐이다. 앱 안 LLM 갱신은 4.0 에서 사라졌다.
+ */
+
+import { useState } from "react";
+
+import { toAppError } from "@/api/invoke";
+import { planApi } from "@/api/plan";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
-import { useState } from "react";
+import { TargetIcon, TriangleAlert } from "@/components/Icons";
 import { Toolbar } from "@/components/Toolbar";
-import {
-  Plus, TriangleAlert, RefreshCw, TargetIcon,
-} from "@/components/Icons";
-import { commands, type PlanItemDto } from "@/lib/bindings";
-import { toast } from "@/lib/toast";
-import { SkeletonList } from "@/components/ui/Skeleton";
 import { AppDialog } from "@/components/ui/AppDialog";
-import { useWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
-import { PlanRailDock, PlanRailTab, clampRailWidth } from "./PlanRailDock";
-import type { PlanGroup, PlanSort } from "./planList";
-import type { PlanView } from "./planMeta";
+import { SkeletonList } from "@/components/ui/Skeleton";
+import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { t, useT } from "@/i18n";
-import { PlanBody } from "./PlanBody";
+import { tError } from "@/i18n/errors";
+import type { PlanItemDto } from "@/lib/bindings";
+import { toast } from "@/lib/toast";
 import { CarryInbox } from "./CarryInbox";
+import { PlanDoc } from "./PlanDoc";
+import { PlanRail } from "./PlanRail";
 import { usePlanDocument } from "./usePlanDocument";
-import { blocked } from "@/lib/blocked";
-
-// Planner Upgrade (PR-PLN 3) — document-style living checklist over the file
-// `.oculpm/planner/*.md` SSOT. Reads via plan_list/plan_get; edits via
-// plan_apply_edit (status cycle / add item) and plan_create. Per-item
-// attribution chips reuse Today's agentColor. Legacy PlannerPanel untouched.
-//
-// 이 파일은 **배치와 UI 상태**만 갖는다 (분할 라운드 {#planner-diff-split}):
-// 읽기·쓰기는 `usePlanDocument`, 문서 본문은 `PlanBody`, 단계 카드는
-// `PhaseCard` 가 소유한다.
+import "./planner.css";
 
 interface PlannerScreenV2Props {
   projectId: number;
@@ -36,336 +37,106 @@ interface PlannerScreenV2Props {
 }
 
 export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: PlannerScreenV2Props) {
-  // 언어 전환 시 이 화면 전체가 다시 그려지도록 구독한다 (표시는 모듈 t 로도 되지만
-  // 훅이 없으면 언어를 바꿔도 리렌더가 안 걸린다).
+  // 언어 전환 시 화면 전체를 다시 그린다.
   useT();
-  const { state, setState } = useWorkspace();
   const plan = usePlanDocument(projectId);
-  const { detail, selectedId, busy, locked } = plan;
+  const { detail, selectedId, locked } = plan;
 
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-
-  const [newPlanOpen, setNewPlanOpen] = useState(false);
-  const [newPlanTitle, setNewPlanTitle] = useState("");
-  const [composer, setComposer] = useState<{ phase: string; title: string } | null>(null);
-
-  // 계획 레일 (2026-07-30 스케일 라운드). 검색어만 휘발 — 나머지는 영속.
-  const [query, setQuery] = useState("");
-
-  // PR-CI6 (EDD-lite) — 완료 소프트 게이트: plan-log 에 검증 일지가 연결되지
-  // 않은 항목을 done 으로 바꾸려 하면 확인을 한 번 거친다. 소프트 — "검증
-  // 없이 완료" 를 누르면 그대로 진행되고, 어떤 상태도 강제로 막지 않는다.
+  // 완료 소프트 게이트 (PR-CI6) — 연결된 검증 일지 없이 완료로 바꾸려 하면 한 번 묻는다.
+  // 막지는 않는다: 「검증 없이 완료」를 누르면 그대로 간다.
   const [confirmDone, setConfirmDone] = useState<PlanItemDto | null>(null);
-
-  const applyStatus = async (item: PlanItemDto, status: string) => {
+  const applyStatus = (item: PlanItemDto, status: string) => {
     if (status === "done" && item.status !== "done" && item.journal_refs.length === 0) {
       setConfirmDone(item);
       return;
     }
-    await plan.setStatus(item, status);
+    void plan.setStatus(item, status);
   };
 
-  // IN2 — 항목 실행: 백엔드가 프롬프트를 조립·저장하고 본문을 돌려준다. 내장 터미널이
-  // 걷힌 뒤(2026-10-28)로는 클립보드에 두고, 사용자가 자기 터미널의 에이전트에 붙여 넣는다.
-  const dispatchItem = async (item: PlanItemDto) => {
+  // 다음 항목 넘기기 — 백엔드가 프롬프트를 조립하고, 붙여 넣는 것은 사용자다.
+  const copyPrompt = async (item: PlanItemDto, untilDone: boolean) => {
     if (selectedId == null) return;
-    const res = await commands.planDispatchPrompt(projectId, selectedId, item.item_id);
-    if (res.status !== "ok") {
-      toast.destructive(t("plan.dispatchFailed", { error: res.error }));
-      return;
-    }
     try {
-      await navigator.clipboard.writeText(res.data.prompt);
-      toast.info(t("plan.dispatchCopied", { title: res.data.item_title }));
+      const res = await planApi.dispatchPrompt(projectId, selectedId, item.item_id);
+      const text = untilDone ? `${res.prompt}\n\n${t("plan.nextRow.untilDoneSuffix")}` : res.prompt;
+      await navigator.clipboard.writeText(text);
+      toast.info(untilDone ? t("plan.nextRow.untilDoneCopied") : t("plan.dispatchCopied", { title: res.item_title }));
     } catch (e) {
-      toast.destructive(t("plan.dispatchFailed", { error: String(e) }));
+      toast.destructive(t("plan.dispatchFailed", { error: tError(toAppError(e)) }));
     }
   };
 
-  // plan-log journal refs are written relative to `.oculpm/` (e.g.
-  // "journal/2026…/Bugs/…md"); the journal screen resolves paths relative to the
-  // journal root, so strip a leading ".oculpm/" and/or "journal/" prefix. The
-  // journal screen then opens the entry by its workday (window-independent).
+  // plan-log 의 일지 열은 `.oculpm/` 기준이다 — 일지 화면은 일지 루트 기준으로 연다.
   const openJournal = (ref: string) => {
     const path = ref.replace(/^\.oculpm\//, "").replace(/^journal\//, "");
     if (onOpenJournal) onOpenJournal(path);
     else onNavigate("journal");
   };
 
-  const submitNewItem = async () => {
-    if (!composer) return;
-    if (await plan.addItem(composer.phase, composer.title)) setComposer(null);
-  };
-
-  const submitNewPlan = async () => {
-    if (await plan.createPlan(newPlanTitle)) {
-      setNewPlanOpen(false);
-      setNewPlanTitle("");
-    }
-  };
-
-  // 계획이 하나뿐이면 레일은 제목만 되풀이하므로 가로폭만 낭비한다.
-  const railEligible = (plan.plans?.length ?? 0) >= 2;
-  const railVisible = railEligible && !state.plannerRailCollapsed;
-
-  const setSort = (sort: PlanSort) => setState((p) => ({ ...p, plannerSort: sort }));
-  const setGroup = (group: PlanGroup) => setState((p) => ({ ...p, plannerGroup: group }));
-  const toggleSection = (key: string, nextOpen: boolean) =>
-    setState((p) => ({ ...p, plannerRailOpen: { ...p.plannerRailOpen, [key]: nextOpen } }));
-
-  // 알 수 없는 영속값은 왼쪽으로 — 렌더는 "right" 하나만 특별 취급한다.
-  const railSide = state.plannerRailSide === "right" ? "right" : "left";
-  // 보기도 같다 — 알 수 없는 값은 문서로.
-  const view: PlanView = state.plannerView === "board" ? "board" : "doc";
-  const setView = (v: PlanView) => setState((p) => ({ ...p, plannerView: v }));
-
-  const railDock =
-    railVisible && plan.plans ? (
-      <PlanRailDock
-        width={clampRailWidth(state.plannerRailWidth)}
-        onWidthChange={(w) => setState((p) => ({ ...p, plannerRailWidth: w }))}
-        side={railSide}
-        onArchiveSection={(ids) => void plan.archivePlans(ids)}
-        onSideToggle={() =>
-          setState((p) => ({
-            ...p,
-            plannerRailSide: p.plannerRailSide === "right" ? "left" : "right",
-          }))
-        }
-        onCollapse={() => setState((p) => ({ ...p, plannerRailCollapsed: true }))}
-        plans={plan.plans}
-        facets={plan.facets}
-        selectedId={selectedId}
-        onSelect={plan.select}
-        sort={state.plannerSort}
-        onSortChange={setSort}
-        group={state.plannerGroup}
-        onGroupChange={setGroup}
-        query={query}
-        onQueryChange={setQuery}
-        openOverride={state.plannerRailOpen}
-        onToggleSection={toggleSection}
-        now={plan.now}
-      />
-    ) : railEligible ? (
-      // 접힌 레일 — 되살리는 띠는 접힌 자리에 선다 (툴바 아이콘 둘을 걷어냈다).
-      <PlanRailTab
-        side={railSide}
-        count={plan.plans?.length ?? 0}
-        onExpand={() => setState((p) => ({ ...p, plannerRailCollapsed: false }))}
-      />
-    ) : null;
+  let main;
+  if (plan.error) {
+    main = <ErrorCard title={t("plan.error")} error={plan.error} onRetry={plan.retry} />;
+  } else if (plan.plans == null) {
+    main = <SkeletonList rows={4} height={36} gap={10} />;
+  } else if (plan.plans.length === 0) {
+    main = (
+      <EmptyState density="rich" icon={TargetIcon} title={t("plan.emptyTitle")}>
+        {t("plan.emptyAgents")}
+      </EmptyState>
+    );
+  } else if (detail == null) {
+    main = plan.loadingDetail ? <SkeletonList rows={6} height={30} gap={8} /> : null;
+  } else {
+    main = (
+      <>
+        <PlanDoc
+          projectId={projectId}
+          detail={detail}
+          locked={locked}
+          onSetStatus={applyStatus}
+          onCopy={(item) => void copyPrompt(item, false)}
+          onCopyUntilDone={(item) => void copyPrompt(item, true)}
+          onOpenJournal={openJournal}
+        />
+        {/* 닫힌 계획에 갇힌 미완 — 고른 활성 계획으로 옮긴다 (없으면 그리지 않는다). */}
+        <CarryInbox
+          projectId={projectId}
+          selectedId={selectedId}
+          selectedLocked={locked}
+          onMoved={plan.refreshDetail}
+          refreshKey={plan.plans.length}
+        />
+      </>
+    );
+  }
 
   return (
     <>
-      <Toolbar
-        title={t("nav.planner")}
-        sub={
-          plan.plans && plan.plans.length > 0
-            ? `${t("plan.toolbarSub", { n: plan.plans.length, active: plan.railStats.active })}${plan.railStats.stale ? t("plan.toolbarStale", { n: plan.railStats.stale }) : ""}`
-            : t("plan.toolbarIdle")
-        }
-      >
-        {/* 문서 / 보드 — 같은 항목의 두 배치. 계획이 없으면 고를 것도 없다. */}
-        {detail ? (
-          <div className="seg" role="tablist" aria-label={t("plan.viewAria")}>
-            {(["doc", "board"] as PlanView[]).map((v) => (
-              <button
-                key={v}
-                type="button"
-                role="tab"
-                aria-selected={view === v}
-                className="seg-item"
-                onClick={() => setView(v)}
-              >
-                {v === "doc" ? t("plan.view.doc") : t("plan.view.board")}
-              </button>
-            ))}
-          </div>
+      <Toolbar title={t("nav.planner")} />
+      <div className="plv-body">
+        {plan.plans && plan.plans.length > 0 ? (
+          <PlanRail plans={plan.plans} selectedId={selectedId} onSelect={plan.select} />
         ) : null}
-        <button
-          className="scope-chip"
-          style={{ height: 30 }}
-          onClick={() => void plan.aiRefresh()}
-          {...blocked(
-            locked ? t("plan.aiLockedTitle") : selectedId == null ? t("plan.blockedNoPlan") : null,
-            t("plan.aiTitle"),
-          )}
-          disabled={busy}
-        >
-          <RefreshCw size={13} /> {t("plan.aiRefresh")}
-        </button>
-        <button
-          className="scope-chip"
-          style={{ height: 30 }}
-          onClick={() => setComposer((c) => (c ? null : { phase: plan.existingPhases[0] ?? t("plan.defaultPhase"), title: "" }))}
-          {...blocked(
-            locked ? t("plan.addLockedTitle") : selectedId == null ? t("plan.blockedNoPlan") : null,
-            t("plan.addItemTitle"),
-          )}
-          disabled={busy}
-        >
-          <Plus size={13} /> {t("plan.addItem")}
-        </button>
-        <button className="btn primary" onClick={() => setNewPlanOpen((v) => !v)} disabled={busy}>
-          <Plus size={15} /> {t("plan.newPlan")}
-        </button>
-      </Toolbar>
-
-      <div className="pln-body">
-        {railSide === "left" ? railDock : null}
-
-        <div className="pln-main">
-        <div className={"pln-doc fade-in" + (view === "board" && detail ? " is-board" : "")}>
-          {plan.error ? (
-            <ErrorCard
-              title={t("plan.error")}
-              error={plan.error}
-              onRetry={plan.retry}
-              style={{ marginBottom: 16 }}
-            />
-          ) : null}
-
-          {/* New plan composer */}
-          {newPlanOpen ? (
-            <div className="pln-composer">
-              <input
-                autoFocus
-                className="set-input"
-                placeholder={t("plan.newPlanPlaceholder")}
-                value={newPlanTitle}
-                onChange={(e) => setNewPlanTitle(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") void submitNewPlan(); if (e.key === "Escape") setNewPlanOpen(false); }}
-              />
-              <button className="btn primary" onClick={() => void submitNewPlan()} {...blocked(newPlanTitle.trim() ? null : t("plan.blockedNoTitle"))} disabled={busy}>{t("plan.create")}</button>
-              <button className="btn sm" onClick={() => setNewPlanOpen(false)}>{t("common.cancel")}</button>
-            </div>
-          ) : null}
-
-          {/* 닫힌 플랜에 갇힌 미완 — 활성 플랜을 고른 채로 옮긴다. */}
-          {plan.plans && plan.plans.length > 0 ? (
-            <CarryInbox
-              projectId={projectId}
-              selectedId={selectedId}
-              selectedLocked={locked}
-              onMoved={() => plan.refreshDetail()}
-              refreshKey={plan.plans.length}
-            />
-          ) : null}
-
-          {plan.plans == null ? (
-            <SkeletonList rows={3} height={44} />
-          ) : plan.plans.length === 0 ? (
-            /* 계획이 「스스로 갱신된다」는 것은 자동화가 아니다 (v3-surface
-               {#first-day-screens}) — 에이전트가 plan_update 를 부를 때 갱신된다. */
-            <EmptyState
-              density="rich"
-              icon={TargetIcon}
-              title={t("plan.emptyTitle")}
-              actions={
-                <>
-                  <button className="btn primary" onClick={() => setNewPlanOpen(true)} disabled={busy}>
-                    <Plus size={15} /> {t("plan.newPlan")}
-                  </button>
-                  <button className="btn" onClick={() => void plan.importGoals()} disabled={busy}>
-                    {t("plan.importGoals")}
-                  </button>
-                </>
-              }
-            >
-              {t("plan.empty")}
-            </EmptyState>
-          ) : detail == null ? (
-            plan.loadingDetail ? <SkeletonList rows={6} height={30} gap={8} /> : null
-          ) : (
-            <PlanBody
-              projectId={projectId}
-              detail={detail}
-              counts={plan.counts}
-              phases={plan.phases}
-              collapsed={collapsed}
-              setCollapsed={setCollapsed}
-              onSetStatus={applyStatus}
-              onDispatch={dispatchItem}
-              busy={busy}
-              locked={locked}
-              onToggleLock={plan.setLock}
-              onArchive={() => void plan.archivePlans(selectedId ? [selectedId] : [])}
-              onRename={plan.renamePlan}
-              onDelete={plan.deletePlan}
-              onRemoveItem={plan.removeItem}
-              onMoveItem={plan.moveItem}
-              onRenameItem={plan.renameItem}
-              onRenamePhase={plan.renamePhase}
-              onRemovePhase={plan.removePhase}
-              onMovePhase={plan.movePhase}
-              historyFor={plan.historyFor}
-              history={plan.history}
-              onToggleHistory={plan.toggleHistory}
-              onRefresh={plan.refreshDetail}
-              onOpenJournalRef={openJournal}
-              resolveJournalRefs={plan.resolveJournalRefs}
-              hideDone={state.plannerHideDone === true}
-              onHideDoneChange={(hide) => setState((p) => ({ ...p, plannerHideDone: hide }))}
-              view={view}
-            />
-          )}
-
-          {/* New item composer */}
-          {composer && detail ? (
-            <div className="pln-composer is-foot">
-              <input
-                className="set-input is-phase"
-                list="phase-suggestions"
-                placeholder={t("plan.phasePlaceholder")}
-                value={composer.phase}
-                onChange={(e) => setComposer({ ...composer, phase: e.target.value })}
-              />
-              <datalist id="phase-suggestions">
-                {plan.existingPhases.map((p) => <option key={p} value={p} />)}
-              </datalist>
-              <input
-                autoFocus
-                className="set-input"
-                placeholder={t("plan.itemPlaceholder")}
-                value={composer.title}
-                onChange={(e) => setComposer({ ...composer, title: e.target.value })}
-                onKeyDown={(e) => { if (e.key === "Enter") void submitNewItem(); if (e.key === "Escape") setComposer(null); }}
-              />
-              <button className="btn primary" onClick={() => void submitNewItem()} {...blocked(composer.title.trim() ? null : t("plan.blockedNoItemTitle"))} disabled={busy}>{t("plan.add")}</button>
-              <button className="btn sm" onClick={() => setComposer(null)}>{t("common.cancel")}</button>
-            </div>
-          ) : null}
-        </div>
-        </div>
-
-        {railSide === "right" ? railDock : null}
+        <div className="plv-main">{main}</div>
       </div>
 
-      {/* PR-CI6 (EDD-lite) — 완료 소프트 게이트: 검증 일지 미연결 경고 (무시 가능). */}
-      <AppDialog
-        open={confirmDone != null}
-        onClose={() => setConfirmDone(null)}
-        label={t("plan.confirmDoneTitle")}
-        width={480}
-      >
+      <AppDialog open={confirmDone != null} onClose={() => setConfirmDone(null)} label={t("plan.confirmDoneTitle")} width={480}>
         {confirmDone ? (
           <>
-            <div style={{ display: "flex", gap: 10, padding: "18px 20px 4px" }}>
-              <TriangleAlert size={18} style={{ flexShrink: 0, marginTop: 2, color: "var(--t-bug, #d97706)" }} />
-              <div style={{ fontSize: "var(--fs-4)", lineHeight: 1.65 }}>
+            <div className="plv-confirm">
+              <TriangleAlert size={18} className="plv-confirm-ico" />
+              <div>
                 <strong>{confirmDone.title}</strong> {t("plan.confirmDoneBody1")} <strong>{t("plan.confirmDoneBody2")}</strong>.
                 <br />
-                <span style={{ color: "var(--text-3)" }}>
-                  {t("plan.confirmDoneHint")}
-                </span>
+                <span className="plv-meta">{t("plan.confirmDoneHint")}</span>
               </div>
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 20px 16px" }}>
-              <button className="btn sm" onClick={() => setConfirmDone(null)}>
+            <div className="plv-confirm-actions">
+              <button type="button" className="btn sm" onClick={() => setConfirmDone(null)}>
                 {t("common.cancel")}
               </button>
               <button
+                type="button"
                 className="btn primary sm"
                 onClick={() => {
                   const item = confirmDone;
