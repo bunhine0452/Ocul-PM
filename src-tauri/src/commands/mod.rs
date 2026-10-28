@@ -42,6 +42,7 @@ pub mod skills;
 pub mod summary;
 pub mod tags;
 pub mod themes;
+pub mod today;
 pub mod velocity;
 pub mod window;
 
@@ -86,6 +87,7 @@ pub use skills::*;
 pub use summary::*;
 pub use tags::*;
 pub use themes::*;
+pub use today::*;
 pub use velocity::*;
 pub use window::*;
 

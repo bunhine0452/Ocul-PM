@@ -237,6 +237,8 @@ export const commands = {
 	planMigrateGoals: (projectId: number) => typedError<PlanSummary, string>(__TAURI_INVOKE("plan_migrate_goals", { projectId })),
 	/**  Recent plan activity across all plans — Today's "계획 업데이트" block. */
 	planRecentUpdates: (projectId: number, limit: number) => typedError<PlanActivityDto[], string>(__TAURI_INVOKE("plan_recent_updates", { projectId, limit })),
+	/**  활성 플랜의 판정·다음 리프·사람 몫·막힘과 일지 → 계획 연결. LLM 0 · 네트워크 0. */
+	todayDigest: (projectId: number) => typedError<TodayDigest, string>(__TAURI_INVOKE("today_digest", { projectId })),
 	/**
 	 *  Set a plan's lifecycle status (`active` / `done` / `archived`). `done` and
 	 *  `archived` LOCK the plan: `plan_apply_edit` / `plan_ai_refresh` refuse to
@@ -2428,6 +2430,31 @@ export type DifficultyChange = {
 	value: Difficulty | null,
 };
 
+export type DigestItem = {
+	plan_id: string,
+	plan_title: string,
+	item_id: string,
+	title: string,
+	status: string,
+};
+
+export type DigestPlan = {
+	plan_id: string,
+	title: string,
+	progress: number | null,
+	done_count: number,
+	item_count: number,
+	updated_at: string,
+	done_when: string | null,
+	check: string | null,
+	last_verdict: PlanVerdict | null,
+	/**
+	 *  다음에 잡을 리프 — 문서 순서상 첫 `[ ]`, 사람 몫은 건너뛴다. `[~]` 는 다른 세션이
+	 *  잡은 것으로 본다 (`/oculpm:next` 와 같은 규칙).
+	 */
+	next: DigestItem | null,
+};
+
 /**
  *  An attachment's bytes for inline rendering — base64 + MIME, assembled into a
  *  `data:` URI by the frontend (mirrors `DocsAsset`).
@@ -3198,6 +3225,14 @@ export type JournalMissingSignal = {
 	segments: number,
 };
 
+export type JournalPlanLink = {
+	/**  `.oculpm/` 기준 상대경로 그대로 (plan-log 의 일지 열). */
+	journal_ref: string,
+	plan_id: string,
+	plan_title: string,
+	item_id: string,
+};
+
 export type JournalScore = {
 	/**  창 안의 bug/feature/refactor 일지 수 — 증거 비율의 분모. */
 	judged_entries: number,
@@ -3770,6 +3805,8 @@ export type PlanSummary = {
 	updated_at: string,
 	item_count: number,
 	done_count: number,
+	/**  「마지막 판정」 (`judge.rs`) — 확인 명령을 돌린 가장 최근 결과. 선택 필드(TS `?:`). */
+	last_verdict?: PlanVerdict | null,
 };
 
 export type PlanVelocity = {
@@ -3783,6 +3820,16 @@ export type PlanVelocity = {
 	 *  다른 사실이라 별도로 알린다.
 	 */
 	note: string | null,
+};
+
+/**  가장 최근 판정 한 줄. */
+export type PlanVerdict = {
+	passed: boolean,
+	/**  판정 표시 뒤의 결과 끝 줄 (`2 failed, 418 passed`). 비어 있을 수 있다. */
+	summary: string,
+	ts: string,
+	agent_id: string,
+	item_id: string,
 };
 
 export type Project = {
@@ -4523,6 +4570,16 @@ export type ThemeMetadata = {
 export type ThemesChanged = {
 	/**  `"saved" | "deleted" | "imported" | "binding"` — 로그·디버깅용. */
 	reason: string,
+};
+
+export type TodayDigest = {
+	/**  active 플랜만, 최근 갱신 순. */
+	plans: DigestPlan[],
+	/**  열린 사람 몫 항목 (`[사용자]`·`[사용자 결정]`·`[사용자 액션]`·`[user]` 로 시작). */
+	needs_user: DigestItem[],
+	/**  막힌(`[!]`) 리프. */
+	blocked: DigestItem[],
+	journal_plan: JournalPlanLink[],
 };
 
 /**  팝오버 → 메인 창 딥링크 (D5). `view` 는 프런트 `UiV2View` 문자열. */
