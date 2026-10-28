@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: any-project-best-results-20261028
 title: "「어떤 프로젝트여도」 — 플랜이 없는 작업에도 다섯 원칙이 닿게"
-status: active
+status: done
 created: 2026-10-28
 updated: 2026-10-28
 owner: claude-code
@@ -28,7 +28,7 @@ owner: claude-code
 - [x] PROMISE.md 다섯 원칙 표 ①②의 자리 열에 「플랜이 없어도」(훅 빈 프로젝트 줄 · 템플릿 v18 작업 규율 · plan_create 기본 확인 명령), 측정 목표 「확인 명령 있는 플랜」 행에 생성 시 기본값 명시. plugin README 재개 컨텍스트 행 갱신 {#docs-promise}
 
 ## 확인 날 — 눈으로 {#p-eyes}
-- [ ] [사용자] 플러그인 업데이트 뒤 .oculpm 만 있는 새 폴더에서 claude 새 세션 — 시작 컨텍스트에 「플랜·일지 없음」 줄과 확인 명령 후보가 실리는지, Cursor 에서 AGENTS.md v18 만으로 완료 조건 한 줄을 먼저 말하는지 {#eyes-empty-project}
+- [>] [사용자] 플러그인 업데이트 뒤 .oculpm 만 있는 새 폴더에서 claude 새 세션 — 시작 컨텍스트에 「플랜·일지 없음」 줄과 확인 명령 후보가 실리는지, Cursor 에서 AGENTS.md v18 만으로 완료 조건 한 줄을 먼저 말하는지 → polish-round-20261027 #eyes-empty-project {#eyes-empty-project}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -39,4 +39,6 @@ owner: claude-code
 | 2026-10-28T19:45:27+09:00 | #hook-tests | claude-code | ☐→x | .oculpm/journal/20261028/Features_to_add/1944_feature_any-project-best-results.md | tests/plugin_hook_no_plan.rs 4 passed; resume_context 빈 프로젝트 테스트를 「안내만·원장 없음」으로 |
 | 2026-10-28T19:45:36+09:00 | #create-default-check | claude-code | ☐→x | .oculpm/journal/20261028/Features_to_add/1944_feature_any-project-best-results.md | check_infer.rs default_check + plan_create warnings, plan_goal 테스트, parity 테스트가 sh 를 문다 |
 | 2026-10-28T19:46:06+09:00 | #docs-promise | claude-code | ☐→x | .oculpm/journal/20261028/Features_to_add/1944_feature_any-project-best-results.md | PROMISE.md ①② 자리 열 + 측정 행, plugin README 재개 행, plugin.html ko/en plan_create 행 |
+| 2026-10-28T23:24:27+09:00 | #eyes-empty-project | claude-code | ☐→> |  | polish-round-20261027 #eyes-empty-project |
+| 2026-10-28T23:24:30+09:00 | #plan | claude-code | active→done |  | 덜어내기 라운드 — 플랜 18→4 (simplify-round-20261028 #plans-4). 미완은 전부 옮기거나 폐기 |
 <!-- oculpm:plan-log end -->

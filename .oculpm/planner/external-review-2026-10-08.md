@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: external-review-2026-10-08
 title: "외부 코드 리뷰 수용 — 범위 동결 · 리뷰 주기화 · 생성물 diff (2026-10-08)"
-status: active
+status: done
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-28
 owner: claude-code
 ---
 
@@ -15,7 +15,7 @@ owner: claude-code
 ## 범위 동결 {#freeze}
 - [x] CLAUDE.md 범위 동결 규칙 — 새 화면·외부 연동·상주 리스너 금지, 교체는 옛 경로 제거로 끝낸다 (근거: 60일 fix 211건 중 주변 95 · 핵심 80) {#freeze-rule}
 - [x] improvement-round-2026-09-14 Phase 5 의 확장 백로그 보류 — dap-more · lsp-settings · plugin-marketplace · session-to-window · skill-catalog-b {#freeze-backlog}
-- [ ] [사용자 결정] native-agent-drivers 의 새 능력 P3(앱 안 /rc)·P4(승인 영속·무인 실행)가 동결 대상인지 — P0~P2·P5 는 ACP 교체라 허용 {#decide-native-new}
+- [-] [사용자 결정] native-agent-drivers 의 새 능력 P3(앱 안 /rc)·P4(승인 영속·무인 실행)가 동결 대상인지 — P0~P2·P5 는 ACP 교체라 허용 (2026-10-28 결정 — Claude Code·Codex 화면 자체를 걷어 P3·P4 는 질문이 사라짐) {#decide-native-new}
 - [x] [사용자 결정] 걷기 후보 — 줄 수 · 전체 fix · 60일 fix {#decide-removal}
   - [x] 모바일 브리지 — 3.5k줄 · fix 2 · Tailscale 상주 리스너 · 폰 E2E 미검증(improvement-round #mobile-bridge-rest) {#remove-mobile}
   - [x] DAP 디버거 — 3.1k줄 · fix 2 · 디버거 프로세스 기동 · debugpy·dlv 왕복 미검증 {#remove-dap}
@@ -29,7 +29,7 @@ owner: claude-code
 - [x] GitHub 비공개 취약점 신고 켜기 (repos/…/private-vulnerability-reporting) {#pvr-on}
 - [x] RELEASE.md §0-1 + bump-version — 마지막 리뷰 반영에서 마이너 5개째 경고(막지 않음) · 「다음 릴리스」 자동 채움 {#cadence-nudge}
 - [x] [사용자 액션] 다음 외부 리뷰 청하기 — 범위 v3.9.0 이후(PR #74 · 이 라운드), 리뷰 반영 뒤 SECURITY.md 표에 한 줄 {#next-review}
-- [ ] [사용자 액션] release 환경 보호 — 환경은 있으나 보호 규칙 0 · 환경 비밀 0(2026-10-10 확인). 필수 승인자 + 배포 정책(태그 v*, dry-run 을 쓰면 main 도) → 서명 비밀 7개(APPLE_* 6 · TAURI_PRIVATE_KEY — release.yml 의 macos·bundle 잡만 씀)를 환경 비밀로 다시 넣고 저장소 비밀에서 삭제. 비밀을 옮기지 않으면 승인자는 막는 것이 없다(태그 커밋의 워크플로가 environment 줄을 빼면 그만). 키 재발급 금지 (← review-2026-10-09 #release-env) {#release-env}
+- [>] [사용자 액션] release 환경 보호 — 환경은 있으나 보호 규칙 0 · 환경 비밀 0(2026-10-10 확인). 필수 승인자 + 배포 정책(태그 v*, dry-run 을 쓰면 main 도) → 서명 비밀 7개(APPLE_* 6 · TAURI_PRIVATE_KEY — release.yml 의 macos·bundle 잡만 씀)를 환경 비밀로 다시 넣고 저장소 비밀에서 삭제. 비밀을 옮기지 않으면 승인자는 막는 것이 없다(태그 커밋의 워크플로가 environment 줄을 빼면 그만). 키 재발급 금지 (← review-2026-10-09 #release-env) → polish-round-20261027 #release-env {#release-env}
 
 ## 생성물 diff {#generated-diff}
 - [x] .gitattributes linguist-generated — bindings.ts · landing/wiki/** · changelog.html · themes.html · sitemap.xml {#linguist-generated}
@@ -55,4 +55,7 @@ owner: claude-code
 | 2026-10-24T19:01:04+09:00 | #remove-graph | claude-code | ☐→x | .oculpm/journal/20261024/Refactors/1900_refactor_remove-periphery-four-features.md | PR #90 — 영향 받는 파일은 유지 |
 | 2026-10-24T19:01:11+09:00 | #remove-vscode | claude-code | ☐→x | .oculpm/journal/20261024/Refactors/1900_refactor_remove-periphery-four-features.md | PR #90 — 마켓 게시 취소는 사용자 액션(optimize-round #carry-vscode-market) |
 | 2026-10-24T19:01:17+09:00 | #remove-theme-gallery | claude-code | ☐→x | .oculpm/journal/20261024/Refactors/1900_refactor_remove-periphery-four-features.md | PR #90 — /themes → /wiki/settings redirect |
+| 2026-10-28T23:22:45+09:00 | #decide-native-new | claude-code | ☐→- |  | (2026-10-28 결정 — Claude Code·Codex 화면 자체를 걷어 P3·P4 는 질문이 사라짐) |
+| 2026-10-28T23:22:48+09:00 | #release-env | claude-code | ☐→> |  | polish-round-20261027 #release-env |
+| 2026-10-28T23:22:51+09:00 | #plan | claude-code | active→done |  | 덜어내기 라운드 — 플랜 18→4 (simplify-round-20261028 #plans-4). 미완은 전부 옮기거나 폐기 |
 <!-- oculpm:plan-log end -->

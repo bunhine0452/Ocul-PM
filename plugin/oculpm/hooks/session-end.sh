@@ -66,7 +66,7 @@ case "$rc" in
     echo "oculpm: 이 대화는 일지 없이 끝났습니다 — 다음 세션에서 journal_write 로 남기거나, ocul-pm 앱의 일지 초안 기능을 켜 두세요" >&2
     ;;
   0)
-    echo "oculpm: 세션 기록됨 — /oculpm:standup 으로 오늘 요약, 회고·diff 대조는 ocul-pm 앱 (oculpm.com)" >&2
+    echo "oculpm: 세션 기록됨 — 다음 항목은 /oculpm:next, 오늘 요약·diff 대조는 ocul-pm 앱 (oculpm.com)" >&2
     ;;
   *)
     # 11(판정 불가) · 미실행. 모름을 위반으로도 무결로도 말하지 않는다 —

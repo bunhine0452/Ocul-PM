@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: improvement-round-2026-09-14
 title: "개선 라운드 (2026-09-14) — 미출시 최적화 합류 · 조용한 실패 표면화 · 잠긴 플랜 이월 63건 수용"
-status: active
+status: done
 created: 2026-09-14
-updated: 2026-09-14
+updated: 2026-10-28
 owner: claude-code
 ---
 
@@ -41,32 +41,32 @@ owner: claude-code
 - [-] ACP 턴 종료 → 일지 초안 + UUID↔session_id 매핑 (← acp-agent-panel #acp5-journal #acp2-sid) {#acp-journal-draft}
 - [x] plan_create 시 유사한 활성 계획이 있으면 재사용을 권한다 (← planner-scale-tidy #dedupe-on-create) {#dedupe-on-create}
 - [x] tauri.conf.json csp: null — 정책 초안은 있고 실기기 확인이 막았다 (wasm 포매터·xterm webgl·CodeMirror·GitHub fetch) (← hardening-and-optimization #csp) {#csp}
-- [ ] Monaco 대용량 파일 성능 재측정 → 03-performance.md (← monaco-editor-round #fin-perf, 그 플랜은 활성이라 원본 유지) {#fin-perf-monaco}
-- [ ] 메모리 귀속 — 2026-10-10 설치본 3.12.0(가동 1시간) UI footprint 604MB(peak 949MB · Malloc Small 511M · Large 328M · 할당 835MB/144만 개). 심볼 없는 릴리스라 귀속 불가 → 설치본이 꺼진 때 심볼 빌드 + MallocStackLogging 실행으로 상위 할당 지점을 잡는다 (← perf-security-audit-2026-10-08 #footprint-attribution) {#footprint-attribution}
+- [-] Monaco 대용량 파일 성능 재측정 → 03-performance.md (← monaco-editor-round #fin-perf, 그 플랜은 활성이라 원본 유지) (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) {#fin-perf-monaco}
+- [>] 메모리 귀속 — 2026-10-10 설치본 3.12.0(가동 1시간) UI footprint 604MB(peak 949MB · Malloc Small 511M · Large 328M · 할당 835MB/144만 개). 심볼 없는 릴리스라 귀속 불가 → 설치본이 꺼진 때 심볼 빌드 + MallocStackLogging 실행으로 상위 할당 지점을 잡는다 (← perf-security-audit-2026-10-08 #footprint-attribution) → tech-backlog-20261028 #malloc-small {#footprint-attribution}
 - [x] 웹뷰의 bare window.confirm/alert/prompt 를 막는 린트 게이트 — dialog:default 에 allow-confirm 이 없어 항상 truthy Promise + ACL 에러가 된다. 서드파티 라이브러리가 부르는 것이 재발 지점 (bug-hunt 2026-09-22) {#no-bare-confirm-gate}
 - [x] src-tauri/src/commands/project.rs 가 파일 크기 래칫 경계 800/800 에 붙었다 — 다음에 이 파일을 건드리는 작업이 쪼갠다 (bug-hunt 2026-09-22) {#project-rs-ratchet}
 
 ## Phase 5 — 이월: 기능 백로그 (착수 순서는 사용자 결정) {#carried-features}
-- [>] 터미널 세션을 창 밖으로 떼어내기 · 다른 창 스트립에 드롭해 합치기 (← drag-and-drop-round #session-to-window, three-features-round #tab-merge) {#session-to-window}
+- [-] 터미널 세션을 창 밖으로 떼어내기 · 다른 창 스트립에 드롭해 합치기 (← drag-and-drop-round #session-to-window, three-features-round #tab-merge) (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) {#session-to-window}
 - [-] Notion OAuth 계정 연동 버튼 — oculpm.com 코드 교환 + 딥링크 + 키체인 (← plugin-round #notion-oauth) {#notion-oauth}
-- [>] 플러그인 마켓플레이스 공개 — 택일 UX·훅 계약 문서·버전 스큐 매트릭스·커뮤니티 제출 (← plugin-round #a3-marketplace) {#plugin-marketplace}
-- [>] DAP — attach·launch.json 격 영속, debugpy·dlv 왕복 검증, 무시된 파일 이름 검색 (← ide-completion #dap-config #dap-more-adapters #tree-filter) {#dap-more}
-- [>] LSP 설정 화면 — 언어별 켜기/끄기·서버 경로·미설치 안내 (← lsp-code-intelligence #lsp-settings) {#lsp-settings}
-- [>] 스킬 카탈로그 2차 B1~B8 — 훅 Windows·일지 스키마 2(실패 원장·ADR)·회고 승격 루프·플래너 승인 게이트·비용 텔레메트리·카탈로그 3차·스킬 출처·잡동사니 (← skill-catalog-round-2 #hooks-xplat #journal-schema-2 #evolve-loop #plan-canvas #cost-telemetry #catalog-3rd #skill-provenance #misc-backlog) {#skill-catalog-b}
-- [ ] 모바일 브리지 — 데스크톱 브라우저 스모크·폰 E2E·1주 회고 (← mobile-bridge #mb2-smoke #mb3-verify #mb4-retro) {#mobile-bridge-rest}
-- [ ] 저장소 topics·Show HN/awesome 런칭 — 사용자 액션 (← skills-star-round #star-outreach) {#star-outreach}
+- [>] 플러그인 마켓플레이스 공개 — 택일 UX·훅 계약 문서·버전 스큐 매트릭스·커뮤니티 제출 (← plugin-round #a3-marketplace) → tech-backlog-20261028 #plugin-marketplace {#plugin-marketplace}
+- [-] DAP — attach·launch.json 격 영속, debugpy·dlv 왕복 검증, 무시된 파일 이름 검색 (← ide-completion #dap-config #dap-more-adapters #tree-filter) (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) {#dap-more}
+- [-] LSP 설정 화면 — 언어별 켜기/끄기·서버 경로·미설치 안내 (← lsp-code-intelligence #lsp-settings) (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) {#lsp-settings}
+- [>] 스킬 카탈로그 2차 B1~B8 — 훅 Windows·일지 스키마 2(실패 원장·ADR)·회고 승격 루프·플래너 승인 게이트·비용 텔레메트리·카탈로그 3차·스킬 출처·잡동사니 (← skill-catalog-round-2 #hooks-xplat #journal-schema-2 #evolve-loop #plan-canvas #cost-telemetry #catalog-3rd #skill-provenance #misc-backlog) → tech-backlog-20261028 #skill-catalog-b {#skill-catalog-b}
+- [-] 모바일 브리지 — 데스크톱 브라우저 스모크·폰 E2E·1주 회고 (← mobile-bridge #mb2-smoke #mb3-verify #mb4-retro) (2026-10-24 모바일 브리지 제거 — 10-28 정리) {#mobile-bridge-rest}
+- [>] 저장소 topics·Show HN/awesome 런칭 — 사용자 액션 (← skills-star-round #star-outreach) → polish-round-20261027 #star-outreach {#star-outreach}
 - [x] 런타임 스케줄링 계측 (← v3-release #scheduling-telemetry, 활성 플랜이라 원본 유지) {#scheduling-telemetry}
 
 ## Phase 6 — 이월: 실기기·육안 확인 원장 (설치본 도는 중 dev 빌드 금지) {#carried-eyes}
-- [ ] 설치본 진단 탭 「정리」 → DB 크기·의미 검색 정상, 전체 재색인으로 스냅샷 회수 확인 (← optimization-round-2026-09-12 #eyes-compact, 활성) {#eyes-compact}
-- [~] 이 라운드 육안 — 죽은 모델 토스트가 색인 뒤 한 번만 뜨는지 · 설정 모델 칸 경고 · ACP 세션에서 oculpm-mcp 가 하나만(ps) · 파일 로그에 ANSI 없음 · 3.1.0 유휴 RSS {#eyes-round-0914}
-- [ ] 탭·창 드래그 7건 — 창 두 개 스트립 왕복·배율 다른 모니터·세손가락 드래그·고스트·떼어낸 창 닫기·붐비는 스트립·재부착 Escape (← drag-and-drop-round #manual-verify-windows #manual-verify-terminal #crowded-strip-verify #feel-manual-verify #detached-close-verify #p8-manual-verify #p9-manual-verify, tab-reattach-regression #manual-verify-reattach) {#eyes-tabs-windows}
-- [ ] 터미널 4건 — 밀도 전환 fit/PTY resize·Claude Code BEL·마커/overview ruler·⌘Q 재실행 뒤 셸 유지 (← terminal-identity-round #p1 #p2 #p3-manual-verify, search-and-terminal-survival #pty-manual-verify) {#eyes-terminal}
-- [ ] Claude 연동 실기기 5건 — Claude Desktop 실연결·규칙 탭 CRUD/Cursor .mdc·회고 승격 루프·플러그인 게이트/EVALS/Notion 왕복·Codex 라이브 스모크 (← claude-integration #ci2 #ci3 #ci4 #phase-c-runtime-verify, plugin-round #a0-runtime-verify, codex-acp #protocol-fixture #codex-lifecycle #rust-tests #live-smoke) {#eyes-claude-integration}
-- [ ] 첫 실행 마법사 한 바퀴(onboarded 삭제) · 스킬 CRUD/토글 · 리스킨 체감(부트 모션·코드 맵 대형 저장소·프리셋) · Today 리플 언마운트 (← first-run-and-english-landing #wizard-eyes, skills-star-round #skills-verify #reskin-verify, today-ring-followup #ripple-manual-verify) {#eyes-first-run}
+- [>] 설치본 진단 탭 「정리」 → DB 크기·의미 검색 정상, 전체 재색인으로 스냅샷 회수 확인 (← optimization-round-2026-09-12 #eyes-compact, 활성) → polish-round-20261027 #eyes-compact {#eyes-compact}
+- [>] 이 라운드 육안 — 죽은 모델 토스트가 색인 뒤 한 번만 뜨는지 · 설정 모델 칸 경고 · ACP 세션에서 oculpm-mcp 가 하나만(ps) · 파일 로그에 ANSI 없음 · 3.1.0 유휴 RSS → polish-round-20261027 #eyes-round-0914 {#eyes-round-0914}
+- [>] 탭·창 드래그 7건 — 창 두 개 스트립 왕복·배율 다른 모니터·세손가락 드래그·고스트·떼어낸 창 닫기·붐비는 스트립·재부착 Escape (← drag-and-drop-round #manual-verify-windows #manual-verify-terminal #crowded-strip-verify #feel-manual-verify #detached-close-verify #p8-manual-verify #p9-manual-verify, tab-reattach-regression #manual-verify-reattach) → polish-round-20261027 #eyes-tabs-windows {#eyes-tabs-windows}
+- [-] 터미널 4건 — 밀도 전환 fit/PTY resize·Claude Code BEL·마커/overview ruler·⌘Q 재실행 뒤 셸 유지 (← terminal-identity-round #p1 #p2 #p3-manual-verify, search-and-terminal-survival #pty-manual-verify) (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) {#eyes-terminal}
+- [>] Claude 연동 실기기 5건 — Claude Desktop 실연결·규칙 탭 CRUD/Cursor .mdc·회고 승격 루프·플러그인 게이트/EVALS/Notion 왕복·Codex 라이브 스모크 (← claude-integration #ci2 #ci3 #ci4 #phase-c-runtime-verify, plugin-round #a0-runtime-verify, codex-acp #protocol-fixture #codex-lifecycle #rust-tests #live-smoke) → polish-round-20261027 #eyes-claude-integration {#eyes-claude-integration}
+- [>] 첫 실행 마법사 한 바퀴(onboarded 삭제) · 스킬 CRUD/토글 · 리스킨 체감(부트 모션·코드 맵 대형 저장소·프리셋) · Today 리플 언마운트 (← first-run-and-english-landing #wizard-eyes, skills-star-round #skills-verify #reskin-verify, today-ring-followup #ripple-manual-verify) → polish-round-20261027 #eyes-first-run {#eyes-first-run}
 - [x] 영문 표면 — 키노트 /keynote · 플러그인 /plugin 영문판 (en-shots·en-deploy 는 3.0 에서 끝남) (← first-run-and-english-landing #en-keynote-plugin) {#eyes-en-surfaces}
-- [ ] 버그 헌팅 v3.5.0 육안 — 이벤트 해제 셤이 웹뷰의 모든 Tauri 구독을 지난다: 터미널 출력·재접속 · 테마 다창 반영 · 트레이 딥링크 · ACP 스트림 · 한글 입력 뒤 로그의 IME-DUMP 가 0 근처 · OSC 8/Monaco 링크가 기본 브라우저로 {#eyes-bug-hunt-0922}
-- [ ] 보안 라운드 1~3차 실기기 — CSP 전 화면(wasm 포매터·xterm webgl·CodeMirror)·위험 모드 확인·자동화 동의 안내/오늘 카드의 바뀐 정의 이름/설정 「허락 거두기」·Notion 실제 연결 1회(브라우저 기록에 token= 없음)·링크 든 저장소 열기(어댑터·.gitignore 건너뜀 로그)·설정 「지금 동기화」 실패 사유 문구·코드 트리의 밖 링크·/Users 추가 거부 문구 (← security-feedback-round #eyes-security-round #notion-token-url, security-feedback-round-2 #eyes-round2, security-feedback-round-3 #eyes-round3) {#eyes-security}
+- [>] 버그 헌팅 v3.5.0 육안 — 이벤트 해제 셤이 웹뷰의 모든 Tauri 구독을 지난다: 터미널 출력·재접속 · 테마 다창 반영 · 트레이 딥링크 · ACP 스트림 · 한글 입력 뒤 로그의 IME-DUMP 가 0 근처 · OSC 8/Monaco 링크가 기본 브라우저로 → polish-round-20261027 #eyes-bug-hunt-0922 {#eyes-bug-hunt-0922}
+- [>] 보안 라운드 1~3차 실기기 — CSP 전 화면(wasm 포매터·xterm webgl·CodeMirror)·위험 모드 확인·자동화 동의 안내/오늘 카드의 바뀐 정의 이름/설정 「허락 거두기」·Notion 실제 연결 1회(브라우저 기록에 token= 없음)·링크 든 저장소 열기(어댑터·.gitignore 건너뜀 로그)·설정 「지금 동기화」 실패 사유 문구·코드 트리의 밖 링크·/Users 추가 거부 문구 (← security-feedback-round #eyes-security-round #notion-token-url, security-feedback-round-2 #eyes-round2, security-feedback-round-3 #eyes-round3) → polish-round-20261027 #eyes-security {#eyes-security}
 
 <!-- oculpm:plan-log begin v1 -->
 <!-- oculpm:plan-log archived: 1 rows → improvement-round-2026-09-14.log.md -->
@@ -113,4 +113,22 @@ owner: claude-code
 | 2026-10-27T19:48:27+09:00 | #eyes-en-surfaces | claude-code | ☐→x | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | curl 확인: /en/keynote 200 lang=en · /en/plugin 200 (title Plugin · Skill Catalog) · ko 둘도 200 |
 | 2026-10-27T19:49:00+09:00 | #eyes-round-0914 | claude-code | ☐→~ | .oculpm/journal/20261027/Chores/1931_chore_polish-round-promise-tiers-cadence.md | 기계 확인 둘: 파일 로그 10-24~27 ANSI(ESC) 0건 · oculpm-mcp 는 프로젝트당 1개(4 프로젝트 4개). 남은 것(눈): 죽은 모델 토스트 1회 · 설정 모델 칸 경고 · 유휴 RSS |
 <!-- oculpm:plan-log archived: 1 rows → improvement-round-2026-09-14.log.md -->
+| 2026-10-28T23:20:45+09:00 | #fin-perf-monaco | claude-code | ☐→- |  | (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) |
+| 2026-10-28T23:20:48+09:00 | #footprint-attribution | claude-code | ☐→> |  | tech-backlog-20261028 #malloc-small |
+| 2026-10-28T23:20:51+09:00 | #session-to-window | claude-code | >→- |  | (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) |
+| 2026-10-28T23:20:54+09:00 | #plugin-marketplace | claude-code | >→> |  | tech-backlog-20261028 #plugin-marketplace |
+| 2026-10-28T23:20:57+09:00 | #dap-more | claude-code | >→- |  | (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) |
+| 2026-10-28T23:21:00+09:00 | #lsp-settings | claude-code | >→- |  | (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) |
+| 2026-10-28T23:21:03+09:00 | #skill-catalog-b | claude-code | >→> |  | tech-backlog-20261028 #skill-catalog-b |
+| 2026-10-28T23:21:06+09:00 | #mobile-bridge-rest | claude-code | ☐→- |  | (2026-10-24 모바일 브리지 제거 — 10-28 정리) |
+| 2026-10-28T23:21:09+09:00 | #star-outreach | claude-code | ☐→> |  | polish-round-20261027 #star-outreach |
+| 2026-10-28T23:21:12+09:00 | #eyes-compact | claude-code | ☐→> |  | polish-round-20261027 #eyes-compact |
+| 2026-10-28T23:21:15+09:00 | #eyes-round-0914 | claude-code | ~→> |  | polish-round-20261027 #eyes-round-0914 |
+| 2026-10-28T23:21:18+09:00 | #eyes-tabs-windows | claude-code | ☐→> |  | polish-round-20261027 #eyes-tabs-windows |
+| 2026-10-28T23:21:21+09:00 | #eyes-terminal | claude-code | ☐→- |  | (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) |
+| 2026-10-28T23:21:24+09:00 | #eyes-claude-integration | claude-code | ☐→> |  | polish-round-20261027 #eyes-claude-integration |
+| 2026-10-28T23:21:27+09:00 | #eyes-first-run | claude-code | ☐→> |  | polish-round-20261027 #eyes-first-run |
+| 2026-10-28T23:21:30+09:00 | #eyes-bug-hunt-0922 | claude-code | ☐→> |  | polish-round-20261027 #eyes-bug-hunt-0922 |
+| 2026-10-28T23:21:33+09:00 | #eyes-security | claude-code | ☐→> |  | polish-round-20261027 #eyes-security |
+| 2026-10-28T23:21:36+09:00 | #plan | claude-code | active→done |  | 덜어내기 라운드 — 플랜 18→4 (simplify-round-20261028 #plans-4). 미완은 전부 옮기거나 폐기 |
 <!-- oculpm:plan-log end -->

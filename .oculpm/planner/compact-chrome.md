@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: compact-chrome
 title: "화면 머리를 크롬 크기로 (2026-10-07)"
-status: active
+status: done
 created: 2026-10-07
-updated: 2026-10-07
+updated: 2026-10-28
 owner: claude-code
 ---
 
@@ -20,7 +20,7 @@ owner: claude-code
 
 ## 합류·확인 {#ship}
 - [x] PR #71 머지 (CI 초록 확인 뒤) {#merge}
-- [ ] 실기기 확인 — 설치본에서 16화면 툴바·시트 모서리·편집기 우클릭 메뉴/자동완성·라이트·다크·글자 크기 설정 110% {#eyes-compact-chrome}
+- [>] 실기기 확인 — 설치본에서 16화면 툴바·시트 모서리·편집기 우클릭 메뉴/자동완성·라이트·다크·글자 크기 설정 110% → polish-round-20261027 #eyes-compact-chrome {#eyes-compact-chrome}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -30,4 +30,6 @@ owner: claude-code
 | 2026-10-07T20:41:58+09:00 | #name-tags | claude-code | ☐→x | .oculpm/journal/20261007/Features_to_add/2041_feature_compact-chrome-headers.md | PR #71 |
 | 2026-10-07T20:42:02+09:00 | #monaco-ramp-regression | claude-code | ☐→x | .oculpm/journal/20261007/Bugs/2041_bug_monaco-widget-font-ramp-regression.md | PR #71 — 770b7f88 의 옛 번호 7곳 |
 | 2026-10-07T20:49:27+09:00 | #merge | claude-code | ☐→x |  | PR #71 rebase 머지 c92c39a9 — CI 3잡 conclusion success |
+| 2026-10-28T23:25:00+09:00 | #eyes-compact-chrome | claude-code | ☐→> |  | polish-round-20261027 #eyes-compact-chrome |
+| 2026-10-28T23:25:03+09:00 | #plan | claude-code | active→done |  | 덜어내기 라운드 — 플랜 18→4 (simplify-round-20261028 #plans-4). 미완은 전부 옮기거나 폐기 |
 <!-- oculpm:plan-log end -->

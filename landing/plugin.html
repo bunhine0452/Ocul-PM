@@ -16,7 +16,7 @@
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/plugin" />
 <meta property="og:title" content="플러그인 · 스킬 카탈로그 — Ocul-PM" />
-<meta property="og:description" content="설치 두 줄부터 /oculpm:project_init → /oculpm:inception → /oculpm:next 구현 루프까지. 스킬 카탈로그 26종은 전부 커밋 고정 사본입니다." />
+<meta property="og:description" content="설치 두 줄부터 /oculpm:inception → /oculpm:next 구현 루프까지. 스킬 카탈로그 26종은 전부 커밋 고정 사본입니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -66,36 +66,22 @@
       <h2 id="flow">프로젝트 시작부터 구현 루프까지</h2>
       <p>기능 추가는 <code>/oculpm:inception</code>(계획만 확장) 또는 바로 <code>/oculpm:next</code> 부터 — 인셉션의 인터뷰·리서치는 낯선 영역일 때만 다시 돕니다.</p>
       <div class="pg-jump">
-        <a href="#commands">/oculpm:project_init</a>
         <a href="#commands">→ /oculpm:inception</a>
         <a href="#commands">→ /oculpm:next (리프가 끝날 때까지 반복)</a>
-        <a href="#commands">→ /oculpm:standup</a>
       </div>
     </section>
 
     <section class="pg-sec">
-      <h2 id="commands">슬래시 커맨드 7종</h2>
+      <h2 id="commands">슬래시 커맨드 4종</h2>
       <p>타이핑 한 줄로 부르는 것.</p>
       <div class="pg-cards">
       <div class="pg-card">
-        <h3><code>/oculpm:project_init</code><span class="when">새 저장소에서 한 번</span></h3>
-        <p>이 프로젝트를 ocul-pm 추적 대상으로 초기화합니다 — <code>.oculpm/</code>(기록 저장소), <code>AGENTS.md</code>(에이전트 기록 규칙), <code>.gitignore</code> 보호 블록이 생깁니다. 커맨드를 직접 실행한 것이 곧 명시적 동의라 재확인 없이 진행되고, 이미 추적 중이면 누락 구성만 보완합니다. <b>앱은 없어도 됩니다.</b></p>
-      </div>
-      <div class="pg-card">
         <h3><code>/oculpm:inception</code><span class="when">새 프로젝트/기능 영역 설계</span></h3>
-        <p>project-inception 스킬로 설계를 시드합니다: 최소 문제 파악 → <b>웹 리서치로 환경 탐색</b> → 근거(버전·출처)가 실린 선택지로 <b>사용자와 사양 확정</b> → <code>plan_create</code> 로 3단계 상세 계획 → <code>EVALS.md</code> 완료 정의 → 초기 <code>.claude/rules</code>. 아이디어를 인자로 줄 수 있습니다: <code>/oculpm:inception 할 일 앱을 만들고 싶어</code></p>
+        <p>설계를 시드합니다: 최소 문제 파악 → <b>웹 리서치로 환경 탐색</b> → 근거(버전·출처)가 실린 선택지로 <b>사용자와 사양 확정</b> → <code>plan_create</code> 로 3단계 상세 계획 → <code>EVALS.md</code> 완료 정의 → 초기 <code>.claude/rules</code>. 아이디어를 인자로 줄 수 있습니다: <code>/oculpm:inception 할 일 앱을 만들고 싶어</code></p>
       </div>
       <div class="pg-card">
         <h3><code>/oculpm:next</code><span class="when">구현 루프 — 반복 실행</span></h3>
         <p>활성 플랜의 다음 미완 리프를 잡아 <b>구현 → 게이트 확인 → 일지 → 플랜 갱신</b> 한 사이클을 돕니다. 앱 플래너의 ▶실행과 같은 역할의 플러그인 대응물입니다. 특정 항목을 지정하려면: <code>/oculpm:next login-happy-path</code></p>
-      </div>
-      <div class="pg-card">
-        <h3><code>/oculpm:standup</code><span class="when">보고가 필요할 때</span></h3>
-        <p>오늘 일지와 플랜 진행을 모아 스탠드업 요약(한 일 / 진행 중·막힘 / 다음)을 만듭니다.</p>
-      </div>
-      <div class="pg-card">
-        <h3><code>/oculpm:board</code><span class="when">진행을 다른 기기에서 볼 때</span></h3>
-        <p>활성 플랜과 항목 상태를 claude.ai 의 <b>비공개 아티팩트 보드</b> 한 장으로 발행하고, 다시 부르면 그 보드를 갱신합니다. 보드는 읽기 전용이고 원본은 <code>.oculpm/planner/</code> 입니다. 문서는 앱이 만들고 <b>시크릿처럼 보이는 문구는 가린 뒤</b> 올립니다. 공유는 보드의 Share 메뉴에서 직접 정합니다. Claude Code 를 claude.ai 계정으로 쓸 때만 동작합니다.</p>
       </div>
       <div class="pg-card">
         <h3><code>/oculpm:redteam</code><span class="when">합류·릴리스 직전, 「뭐가 틀렸지」</span></h3>
@@ -137,38 +123,6 @@
         <div class="pg-actions">
           <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=oculpm-journal">앱에서 열기</a>
           <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/oculpm-journal/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
-        </div>
-      </div>
-      <div class="pg-card">
-        <h3><code>project-inception</code> <span class="pill on">v2.36.0</span><span class="when">새 프로젝트/기능 영역 킥오프</span></h3>
-        <p>리서치 → 사양 확정 → 3-depth 계획 → <code>EVALS.md</code> → 초기 <code>.claude/rules</code> 를 한 번에 시드합니다. <code>/oculpm:inception</code> 이 부르는 그 스킬입니다.</p>
-        <div class="pg-actions">
-          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=project-inception">앱에서 열기</a>
-          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/project-inception/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
-        </div>
-      </div>
-      <div class="pg-card">
-        <h3><code>self-audit</code> <span class="pill on">v2.36.0</span><span class="when">「다 했다」고 말하기 전에</span></h3>
-        <p>요구사항 대조 · 게이트 실행 · diff 재검토를 강제합니다. 완료 보고 직전이 발동 지점입니다.</p>
-        <div class="pg-actions">
-          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=self-audit">앱에서 열기</a>
-          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/self-audit/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
-        </div>
-      </div>
-      <div class="pg-card">
-        <h3><code>run-evals</code> <span class="pill on">v2.36.0</span><span class="when">완료 정의를 실제로 채점</span></h3>
-        <p><code>EVALS.md</code> 의 기준을 실행·채점하고 기록 표에 한 줄 추가합니다 — 앱 회고 화면이 그 표를 읽어 추이를 그립니다.</p>
-        <div class="pg-actions">
-          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=run-evals">앱에서 열기</a>
-          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/run-evals/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
-        </div>
-      </div>
-      <div class="pg-card">
-        <h3><code>tdd-workflow</code> <span class="pill on">v2.36.0</span><span class="when">실패하는 테스트 먼저</span></h3>
-        <p>RED → GREEN → 리팩토링 사이클을 강제합니다. 회귀가 잦은 영역에서 특히.</p>
-        <div class="pg-actions">
-          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=tdd-workflow">앱에서 열기</a>
-          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/tdd-workflow/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
         </div>
       </div>
       </div>

@@ -27,14 +27,14 @@ owner: claude-code
 - [x] 표면 일치 — navRegistry(⌘ 번호 당김) · 사이드바 3단 · ⌘K · 설정 「표시」 베타 숨김 스위치 제거 · i18n 키 정리 · CSS · e2e 시나리오 · CLAUDE.md 등급표 · PROMISE.md · README ko/en · 랜딩 ko/en 베타 셀·FAQ·featureList · plugin.html {#rm-surfaces}
 
 ## 3 — 스킬 12→5 {#p-skills}
-- [ ] 남김: next · redteam · inception(project-inception 과 합침) · help · oculpm-journal. 걷음: self-audit · run-evals · tdd-workflow · standup · board · project_init · project-inception. plugin_manifest 예산 테스트·plugin.html·README·next 의 board 참조 갱신, codex 플러그인 동일 {#skills-5}
+- [x] 남김: next · redteam · inception(project-inception 과 합침) · help · oculpm-journal. 걷음: self-audit · run-evals · tdd-workflow · standup · board · project_init · project-inception. plugin_manifest 예산 테스트·plugin.html·README·next 의 board 참조 갱신, codex 플러그인 동일 {#skills-5}
 
 ## 4 — 템플릿 v19 §3 분리 {#p-template}
-- [ ] §3 일지 파일 규격을 .oculpm/agents/journal-spec.md(ko/en) 로 빼고 템플릿은 「도구가 없을 때만 그 파일을 읽어라」 한 줄. 예산 ko 3,500 · en 4,800 으로 내림, agents 테스트·동기화·업그레이드 경로(spec 파일 생성) {#template-v19}
+- [x] §3 일지 파일 규격을 .oculpm/agents/journal-spec.md(ko/en) 로 빼고 템플릿은 「도구가 없을 때만 그 파일을 읽어라」 한 줄. 예산 ko 3,500 · en 4,800 으로 내림, agents 테스트·동기화·업그레이드 경로(spec 파일 생성) {#template-v19}
 
 ## 5 — 플랜 17→4 {#p-plans}
-- [ ] 끝난 라운드 플랜 닫기 — 남은 미완(사용자 몫 16 포함)은 살아 있는 플랜(eyes-backlog 하나 + 이 플랜)으로 옮긴 뒤 닫는다, 유실 0 을 grep 으로 확인 {#plans-4}
-- [ ] 훅 plan-context.sh — 최근 갱신(frontmatter updated) 상위 3개 플랜만 싣기, plugin_hook_no_plan 테스트 {#hook-top3}
+- [x] 끝난 라운드 플랜 닫기 — 남은 미완(사용자 몫 16 포함)은 살아 있는 플랜(eyes-backlog 하나 + 이 플랜)으로 옮긴 뒤 닫는다, 유실 0 을 grep 으로 확인 {#plans-4}
+- [x] 훅 plan-context.sh — 최근 갱신(frontmatter updated) 상위 3개 플랜만 싣기, plugin_hook_no_plan 테스트 {#hook-top3}
 
 ## 확인 날 — 눈으로 {#p-eyes}
 - [ ] [사용자] 설치본에서 사이드바가 9행이고 ⌘1~⌘9 가 맞는지, Today 「이어서 작업」이 클립보드로 가는지, 옛 설정 키(터미널·편집기·ACP)가 남아도 앱이 조용한지 {#eyes-simplified}
@@ -48,4 +48,8 @@ owner: claude-code
 | 2026-10-28T22:49:04+09:00 | #rm-ai-panel | claude-code | ☐→x | .oculpm/journal/20261028/Refactors/2246_refactor_remove-hold-tier-screens.md | AiPanelScreenV2·ContextTab·conversation/context 커맨드·chat_stream 삭제, ⌘\ 단축키 제거, llm/ 어댑터·chat() 은 코어가 쓰므로 유지 |
 | 2026-10-28T22:49:39+09:00 | #rm-rust | claude-code | ☐→x | .oculpm/journal/20261028/Refactors/2246_refactor_remove-hold-tier-screens.md | acp/·lsp/·ptyhost/·shell_integration/·commands 9개 모듈·--pty-host·관리 상태 4·이벤트 3·커맨드 94 제거, Cargo 의존 2 제거 + serde_json preserve_order 명시, 원장 3개·CSP 정리, 통합 테스트 8 삭제, bindings 재생성 |
 | 2026-10-28T22:50:22+09:00 | #rm-surfaces | claude-code | ☐→x | .oculpm/journal/20261028/Refactors/2246_refactor_remove-hold-tier-screens.md | navRegistry 8행 · 사이드바 두 단 · 설정 표시 베타 스위치 제거 · i18n 3,793→2,902 · CSS 2,469→1,656 · e2e 터미널 단계 삭제 · CLAUDE.md·PROMISE.md·README ko/en·랜딩 ko/en·위키 ko/en 10쪽·wiki build |
+| 2026-10-28T23:25:25+09:00 | #skills-5 | claude-code | ☐→x | .oculpm/journal/20261028/Refactors/2325_refactor_skills-12-to-5-drop-board-renderer.md | 스킬 5(next·redteam·inception·help·oculpm-journal) + oculpm::board 렌더러·MCP board 서브커맨드 제거, plugin_manifest 11/11 |
+| 2026-10-28T23:25:36+09:00 | #template-v19 | claude-code | ☐→x | .oculpm/journal/20261028/Refactors/2325_refactor_template-v19-journal-spec-split.md | v19 · journal-spec.md ko/en 앱 관리 파일 · ko 4,028/en 6,038 (예산 4,100/6,100 — 3,500 목표는 다음 다이어트로) |
+| 2026-10-28T23:25:45+09:00 | #plans-4 | claude-code | ☐→x | .oculpm/journal/20261028/Chores/2325_chore_plans-18-to-4-hook-top3.md | 활성 4 (simplify · polish 받은함 · tech-backlog · cross-platform) · 14개 닫음 · 옮김 46 폐기 38 완료 2 · locked_open 20/63 변동 없음 |
+| 2026-10-28T23:26:09+09:00 | #hook-top3 | claude-code | ☐→x | .oculpm/journal/20261028/Chores/2325_chore_plans-18-to-4-hook-top3.md | updated 내림차순 상위 3 + 「N개 중 3개만」 줄, plugin_hook_no_plan 5/5 |
 <!-- oculpm:plan-log end -->
