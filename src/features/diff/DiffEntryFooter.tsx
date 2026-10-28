@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { oculpmApi } from "@/api/oculpm";
 import { CheckMark, ShieldCheck } from "@/components/Icons";
-import { verificationLines } from "@/features/oculpm/EvidenceCard";
+import { verificationLines } from "@/features/oculpm/verification";
 import { useT } from "@/i18n";
 import type { ChangeGroup } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
@@ -18,10 +18,13 @@ export function DiffEntryFooter({
   projectId,
   group,
   onToggleVerified,
+  onOpenEntry,
 }: {
   projectId: number;
   group: ChangeGroup;
   onToggleVerified: (relativePath: string, next: boolean) => void;
+  /** 일지 화면으로 — 이 묶음의 일지를 연다. */
+  onOpenEntry?: (relativePath: string) => void;
 }) {
   const { t } = useT();
   const path = group.entry_path;
@@ -55,6 +58,11 @@ export function DiffEntryFooter({
       <span className="def-label">{t("diff.entryVerify")}</span>
       <span className="def-line mono">{first ?? (lines ? t("diff.entryVerifyNone") : "…")}</span>
       <span className="def-fill" />
+      {onOpenEntry ? (
+        <button type="button" className="btn ghost sm" onClick={() => onOpenEntry(path)}>
+          {t("diff.openEntry")}
+        </button>
+      ) : null}
       {first ? (
         <button type="button" className="btn sm" onClick={copy}>
           {t("plan.copyCheck")}

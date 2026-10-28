@@ -225,17 +225,9 @@ const TESTS = new Set([
   // {#index-usage} — 인덱스 사용량 섹션의 한국어 라벨·확인 대화상자 렌더 검사.
   "__tests__/index_usage_section.test.tsx",
   "__tests__/inline_markdown.test.tsx",
-  // {#tag-source-marker} — mcp-tool 출처 표식이 태그 칩에서 빠지는지 검사.
-  "__tests__/journal_tag_source_marker.test.tsx",
   "__tests__/journal_v2.test.tsx",
-  // journal_v2 의 형제 — 「다시 검토」 배지의 한국어 렌더를 검사한다 ({#reviewed-hash}).
+  // journal_v2 의 형제 — 검증 상자·「확인함」·인라인 diff 의 한국어 렌더를 검사한다 ({#reviewed-hash}).
   "__tests__/journal_verified.test.tsx",
-  // review-queue round — 「미검토」 칩·ReviewQueueBar 의 한국어 렌더를 단언한다.
-  "__tests__/journal_review_queue.test.tsx",
-  // {#related-ui} — 후보 카드의 근거 줄·「잇기」를 한국어 렌더로 단언한다.
-  "__tests__/related_suggest.test.tsx",
-  // {#tag-merge} — 「태그 정리」 시트의 확인 단계를 한국어 렌더로 단언한다.
-  "__tests__/tag_tidy_sheet.test.tsx",
   "__tests__/landing_pages.test.ts",
   "__tests__/llm_reachability.test.tsx",
   "__tests__/lsp_bridge.test.ts",
@@ -265,7 +257,6 @@ const TESTS = new Set([
   "__tests__/polish_phase2.test.tsx",
   "__tests__/project_appearance.test.ts",
   "__tests__/project_manager.test.tsx",
-  "__tests__/provenance_rows.test.tsx",
   "__tests__/recent_changes_store.test.tsx",
   "__tests__/retro_gen_bus.test.ts",
   "__tests__/rule_promotion_v2.test.tsx",

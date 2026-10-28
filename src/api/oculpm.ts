@@ -56,6 +56,7 @@ import type {
   OculpmSessionStarted,
   PromiseScorecard,
   Velocity,
+  WorkdayBrief,
 } from "@/lib/bindings";
 
 /**
@@ -211,6 +212,18 @@ export const oculpmApi = {
         offset
       )
     ),
+
+  /**
+   * 여러 workday 의 일지 요약을 한 번에 (최대 62일). 일지 검색이 히트(경로)를 요약 행으로
+   * 푸는 데 쓴다 — 요약에는 증거 등급·에이전트·시각이 있고 검색 히트에는 없다.
+   */
+  workdayEntries: async (projectId: number, workdays: string[]): Promise<JournalEntrySummary[]> => {
+    const brief = await unwrap<WorkdayBrief>(
+      "oculpm_workday_brief",
+      commands.oculpmWorkdayBrief(projectId, workdays, null),
+    );
+    return brief.days.flatMap((d) => d.entries);
+  },
 
   getJournalEntry: (projectId: number, relativePath: string) =>
     unwrap<JournalEntry | null>(
