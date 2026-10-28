@@ -96,11 +96,6 @@ impl WatcherInner {
                 // first insert; best-effort, never blocks the cache path.
                 if inserted {
                     self.capture_entry_diffs(&cache, entry_rel).await;
-                    // F1 → Phase 2 `#reconcile-absorb`: 새 일지 1건이 플랜 화해를
-                    // 깨운다. 이제 **잡 러너를 통과**하므로 예산·동시 1건·취소·
-                    // 원장이 스케줄과 같은 규약을 쓴다. 켜졌는지 여부는 허브가
-                    // 그때의 config 로 판정한다 — 워처 시작 시점의 스냅샷이 아니라.
-                    self.spawn_plan_reconcile(entry_rel);
                 }
             }
             Err(e) => {
@@ -237,45 +232,6 @@ impl WatcherInner {
                 "line-count capture: cache update failed"
             );
         }
-    }
-
-    /// Phase 2 `#reconcile-absorb` — 새 일지 1건을 플랜 화해 잡으로 넘긴다.
-    ///
-    /// 예전에는 여기서 `reconcile_entry` 를 직접 spawn 하고, 옵인 플래그와
-    /// 단일 인플라이트 가드를 **워처가** 들고 있었다. 이제 둘 다 허브·러너의
-    /// 것이다 (`automation::watchers::on_journal_inserted`):
-    ///
-    /// - 발동 여부: 켜진 `output: plan` 워처 정의 **또는** 레거시
-    ///   `agents.auto_reconcile` — 워처 시작 시점이 아니라 **그때의 config**.
-    /// - 동시 1건 · 예산 · 취소 · 원장: 러너 규약 하나.
-    /// - 플랜 편집(CAS · `plan_write_lock`): `reconcile.rs` 그대로.
-    ///
-    /// fire-and-forget 인 것은 그대로다 — 느린 LLM 왕복이 워처 루프를 막으면
-    /// 안 된다. 앱 핸들이 없으면(단위 테스트) no-op.
-    fn spawn_plan_reconcile(&self, entry_rel: &str) {
-        let Some(handle) = self.app_handle.clone() else {
-            return;
-        };
-        let project_id = self.project_id;
-        let entry_rel = entry_rel.to_string();
-        tauri::async_runtime::spawn(async move {
-            if let Err(e) = crate::oculpm::automation::watchers::on_journal_inserted(
-                &handle,
-                project_id,
-                &entry_rel,
-                Utc::now(),
-            )
-            .await
-            {
-                tracing::warn!(
-                    target: "oculpm::watcher",
-                    project_id,
-                    path = %entry_rel,
-                    error = %e,
-                    "[FLOW] plan reconcile enqueue failed (swallowed)"
-                );
-            }
-        });
     }
 
     /// Map a cache outcome to the matching high-level Tauri event. Inserted

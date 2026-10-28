@@ -57,6 +57,8 @@ mod tests_gitignore;
 mod tests_new_dir;
 #[cfg(all(test, windows))]
 mod tests_windows;
+// `[watcher] responsiveness` → OS 디바운스 창 (예전 `automation::tiers`).
+mod tiers;
 
 pub(crate) use classify::{is_rules_path, is_self_suppressed};
 
@@ -72,7 +74,6 @@ use notify_debouncer_full::{new_debouncer_opt, DebounceEventResult, Debouncer};
 use tokio::task::JoinHandle;
 
 use crate::oculpm::error::OculpmError;
-use crate::oculpm::index::IndexWriter;
 use crate::oculpm::redact::{self, build_forbidden_matcher};
 use crate::oculpm::session::SessionActor;
 use crate::oculpm::spec::{OculpmConfig, WatcherSchedStats, WatcherStateView, WatcherStatus};
@@ -125,7 +126,6 @@ impl ProjectWatcher {
         project_id: u32,
         root: PathBuf,
         session: SessionActor,
-        index_writer: Arc<IndexWriter>,
         config: OculpmConfig,
         app_handle: Option<tauri::AppHandle>,
     ) -> Result<Self, OculpmError> {
@@ -163,7 +163,6 @@ impl ProjectWatcher {
             project_id,
             root: root.clone(),
             session,
-            index_writer,
             app_handle,
             tasks,
             user_ignore,
@@ -173,8 +172,6 @@ impl ProjectWatcher {
             tz,
             hook_inbox_offset: Arc::new(tokio::sync::Mutex::new(None)),
             hook_open_sessions: Arc::new(tokio::sync::Mutex::new(BTreeSet::new())),
-            auto_journal_draft: config.agents.auto_journal_draft,
-            draft_lock: Arc::new(tokio::sync::Mutex::new(())),
             stats: stats.clone(),
             root_gone_logged: std::sync::atomic::AtomicBool::new(false),
             repeats: repeat::RepeatFilter::default(),
@@ -195,7 +192,7 @@ impl ProjectWatcher {
         // Phase 2 — 티어가 있으면 티어가, 없으면 기존 숫자가 창을 정한다. 어느
         // 쪽이든 `balanced`(1s)로 잘린다: 긴 디바운스는 OS 워처가 이벤트를 들고
         // 있게 만들어 메모리·유실 위험이다. 긴 기다림은 러너 쪽 정착 타이머의 몫.
-        let debounce_ms = crate::oculpm::automation::tiers::os_debounce_ms(&config.watcher);
+        let debounce_ms = tiers::os_debounce_ms(&config.watcher);
         let mut debouncer = new_debouncer_opt::<_, OsWatcher, OrderedFileIdCache>(
             Duration::from_millis(u64::from(debounce_ms)),
             None,

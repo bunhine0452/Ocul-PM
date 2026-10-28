@@ -22,7 +22,6 @@ import type {
   DiffMode,
   JournalFilter,
   OculpmInitCardInfo,
-  SearchScope,
   SidePanelMode,
   UiV2View,
 } from "./WorkspaceContext";
@@ -84,8 +83,6 @@ export interface WorkspaceState {
   firstRecordArmed: boolean;
 
   // Volatile (not persisted)
-  /** 색인 중인 프로젝트 — 진행률 자체는 `lib/indexProgressStore` (컨텍스트 밖). */
-  indexingProjectId: number | null;
 
   // .oculpm/ — populated by event listeners + on-demand fetches (W3-PR4).
   // Volatile: re-derived on project switch.
@@ -158,10 +155,6 @@ export interface WorkspaceState {
   plannerHideDone: boolean;
   /** 계획 본문의 보기 — 문서형 체크리스트 / 상태별 열 보드 (2026-09-10). */
   plannerView: PlanView;
-  /** 코드 검색 scope. */
-  searchScope: SearchScope;
-  /** 최근 검색어 (최대 10개). */
-  searchRecent: string[];
   /** 에이전트 화면 활성 모델 id. */
   aiActiveModel: string | null;
   /**

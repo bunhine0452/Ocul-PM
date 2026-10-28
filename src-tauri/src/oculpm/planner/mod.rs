@@ -6,7 +6,6 @@
 //! into the `oculpm_plan*` cache tables. The markdown is always the source of
 //! truth; the SQLite rows are a reconstructible projection.
 
-pub mod ai;
 pub mod digest;
 pub mod dispatch;
 pub mod done_when;

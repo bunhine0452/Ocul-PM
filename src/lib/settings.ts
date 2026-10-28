@@ -7,7 +7,6 @@ import type { LangSetting } from "@/i18n";
 export type Theme = "light" | "dark" | "system";
 /** Accent color palette, applied via `[data-accent]` over light/dark tokens. */
 export type ColorTheme = "green" | "blue" | "purple" | "orange" | "rose" | "teal";
-export type Provider = "anthropic" | "openai" | "gemini" | "nim" | "openrouter";
 
 /** 자동 저장 방식 — `src/features/code/autoSave.ts` 가 해석한다. */
 export type AutoSaveMode = "off" | "afterDelay" | "onFocusChange";
@@ -29,8 +28,6 @@ export function clampStickyMax(raw: number): number {
   return Math.min(STICKY_MAX_LINES, Math.max(STICKY_MIN_LINES, Math.trunc(raw)));
 }
 
-export const PROVIDERS: Provider[] = ["anthropic", "openai", "gemini", "nim", "openrouter"];
-
 /// Every setting we recognize. Keys are the exact column values in the
 /// `settings` SQLite table; values are stringified.
 export const KEYS = {
@@ -46,46 +43,11 @@ export const KEYS = {
   // UI 는 즉시 되돌릴 수 있지만 일지는 디스크에 남아 되돌릴 수 없다.
   contentLanguage: "content_language",
 
-  // --- LLM ---
-  defaultProvider: "default_provider",
-  defaultModel: "default_model", // legacy fallback model (still respected)
-  modelAnthropic: "model_anthropic",
-  modelOpenai: "model_openai",
-  modelGemini: "model_gemini",
-  modelNim: "model_nim",
-  modelOpenrouter: "model_openrouter",
-  // Failover chain — newline-separated `provider:model` lines, tried in order
-  // when the primary call fails. Parsed by `parseFallbacks`.
-  fallbackModels: "fallback_models",
-  // 배경 작업 전용 모델 슬롯 (Osaurus 라운드 D2). 자동 화해·일지 초안·스케줄·
-  // 감시가 **전부** 이 슬롯을 쓴다 — 대화 모델과 따로 두는 이유는 배경 작업이
-  // 자주, 조용히, 과금되기 때문이다. 비어 있으면 그 작업은 성립 불가(조용한 스킵).
-  coreProvider: "core_provider",
-  coreModel: "core_model",
-  // 자동화를 이미 켜 둔 사용자에게 대화 모델을 1회 시드했다는 표식
-  // (`"<provider>:<model>"`). 안내 카드가 이걸 보고 한 번 뜨고, 닫으면 비운다.
-  coreModelSeeded: "core_model_seeded",
-  temperature: "temperature",
-  maxTokens: "max_tokens",
-  systemPrompt: "system_prompt",
+  // (--- LLM --- 공급자·모델·폴백·배경 모델·생성 옵션 키는 4.0 에서 앱 안 LLM 호출과
+  // 함께 걷었다. DB 에 남은 값은 읽지 않는다 — `entriesToSettings` 가 모르는 키를 건너뛴다.)
 
-  // --- Indexing / RAG ---
-  chunkSize: "chunk_size",
-  chunkOverlap: "chunk_overlap",
-  ragTopK: "rag_top_k",
-  maxFileSizeKb: "max_file_size_kb",
-  excludePatterns: "exclude_patterns",
-  // When on, the filesystem watcher incrementally reindexes a file as soon as
-  // it changes on disk (keeps an existing index fresh without a manual rebuild).
-  autoIndex: "auto_index",
-  // 의미검색이 `.oculpm/journal/**` · `.oculpm/rollups/**` 도 색인·검색할지
-  // (journal-scale-round {#search-semantic-journal}). 기본 켬 — 일지는 4MB
-  // 규모라 비용이 작고, 끄면 기존과 완전히 같다.
-  searchIncludeJournal: "search_include_journal",
-
-  // --- AI 작업 맥락 (oculpm 기록 주입) ---
-  includeOculpmContext: "include_oculpm_context",
-  oculpmContextEntries: "oculpm_context_entries",
+  // (--- Indexing / RAG · AI 작업 맥락 --- 청크·RAG·자동 색인·일지 의미검색·맥락 주입 키는
+  // 4.0 에서 코드 색인과 함께 걷었다. DB 에 남은 값은 읽지 않는다.)
 
   // --- External editor (Lite-W6 PR8 Part 2) ---
   externalEditorCommand: "external_editor_command",
@@ -130,46 +92,6 @@ export interface Settings {
    */
   contentLanguage: LangSetting;
 
-  defaultProvider: Provider;
-  defaultModel: string;
-  modelAnthropic: string;
-  modelOpenai: string;
-  modelGemini: string;
-  modelNim: string;
-  modelOpenrouter: string;
-  /** Failover chain as raw text — one `provider:model` per line. */
-  fallbackModels: string;
-  /**
-   * 배경 작업 모델 (Osaurus 라운드 D2). `""` = 미설정 → 자동화가 돌지 않는다.
-   * 대화 모델(`defaultProvider`/`defaultModel`)과 의도적으로 분리한다.
-   */
-  coreProvider: Provider | "";
-  coreModel: string;
-  /** 1회 시드가 일어났다는 표식 (`"<provider>:<model>"`). `""` = 없음/확인함. */
-  coreModelSeeded: string;
-  temperature: number;
-  maxTokens: number;
-  systemPrompt: string;
-
-  chunkSize: number;
-  chunkOverlap: number;
-  ragTopK: number;
-  maxFileSizeKb: number;
-  excludePatterns: string;
-  /** Incrementally reindex changed files via the watcher (no manual rebuild). */
-  autoIndex: boolean;
-  /** 의미검색 색인에 일지·롤업을 포함한다. */
-  searchIncludeJournal: boolean;
-
-  /**
-   * When true the chat prepends a "프로젝트 작업 맥락" block built from the most
-   * recent oculpm journal entries + the project's AGENTS rules, so the
-   * assistant keeps the same direction across sessions / model swaps.
-   */
-  includeOculpmContext: boolean;
-  /** How many recent journal entries to summarise into that block. */
-  oculpmContextEntries: number;
-
   /**
    * Shell command template launched by `commands.openInEditor`. `%path` is
    * substituted with the absolute file path (shell-quoted). Default is the
@@ -196,40 +118,6 @@ export const DEFAULTS: Settings = {
   language: "system",
   contentLanguage: "system",
 
-  defaultProvider: "anthropic",
-  defaultModel: "",
-  // 2026-10-24 갱신 — 제공자 목록 실측(OpenRouter /api/v1/models). Sonnet 5.5 는
-  // Sonnet 5 와 같은 값($2/$10)에 새 판. GPT-6 Luna 는 4o-mini 보다 싸다($0.10/$0.50
-  // vs $0.15/$0.60) — 샘플링을 거절하는 추론 계열이라 openai.rs `is_reasoning_model`
-  // 이 온도를 뺀다. Gemini 는 Google 이 새 프로젝트에 권하는 3.8 Flash.
-  modelAnthropic: "claude-sonnet-5-5",
-  modelOpenai: "gpt-6-luna",
-  modelGemini: "gemini-3.8-flash",
-  // NVIDIA NIM default — generally-available, competitive open-weights model.
-  // Users override per-project in Settings → LLM.
-  modelNim: "meta/llama-3.3-70b-instruct",
-  modelOpenrouter: "openai/gpt-6-luna",
-  fallbackModels: "",
-  // 미설정이 기본 — 신규 사용자에게는 게이트다 (D2). 기존 사용자는 프로젝트를
-  // 열 때 백엔드가 대화 모델을 1회 시드한다.
-  coreProvider: "",
-  coreModel: "",
-  coreModelSeeded: "",
-  temperature: 0.7,
-  maxTokens: 4096,
-  systemPrompt: "",
-
-  chunkSize: 30,
-  chunkOverlap: 4,
-  ragTopK: 5,
-  maxFileSizeKb: 500,
-  excludePatterns: "",
-  autoIndex: true,
-  searchIncludeJournal: true,
-
-  includeOculpmContext: true,
-  oculpmContextEntries: 5,
-
   externalEditorCommand: 'code "%path"',
 
 
@@ -245,29 +133,6 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.uiScale]: "uiScale",
   [KEYS.language]: "language",
   [KEYS.contentLanguage]: "contentLanguage",
-  [KEYS.defaultProvider]: "defaultProvider",
-  [KEYS.defaultModel]: "defaultModel",
-  [KEYS.modelAnthropic]: "modelAnthropic",
-  [KEYS.modelOpenai]: "modelOpenai",
-  [KEYS.modelGemini]: "modelGemini",
-  [KEYS.modelNim]: "modelNim",
-  [KEYS.modelOpenrouter]: "modelOpenrouter",
-  [KEYS.fallbackModels]: "fallbackModels",
-  [KEYS.coreProvider]: "coreProvider",
-  [KEYS.coreModel]: "coreModel",
-  [KEYS.coreModelSeeded]: "coreModelSeeded",
-  [KEYS.temperature]: "temperature",
-  [KEYS.maxTokens]: "maxTokens",
-  [KEYS.systemPrompt]: "systemPrompt",
-  [KEYS.chunkSize]: "chunkSize",
-  [KEYS.chunkOverlap]: "chunkOverlap",
-  [KEYS.ragTopK]: "ragTopK",
-  [KEYS.maxFileSizeKb]: "maxFileSizeKb",
-  [KEYS.excludePatterns]: "excludePatterns",
-  [KEYS.autoIndex]: "autoIndex",
-  [KEYS.searchIncludeJournal]: "searchIncludeJournal",
-  [KEYS.includeOculpmContext]: "includeOculpmContext",
-  [KEYS.oculpmContextEntries]: "oculpmContextEntries",
   [KEYS.externalEditorCommand]: "externalEditorCommand",
   [KEYS.lastSeenVersion]: "lastSeenVersion",
   [KEYS.pluginCardDismissed]: "pluginCardDismissed",
@@ -321,51 +186,3 @@ export function entriesToSettings(entries: Array<[string, string]>): Settings {
   return result;
 }
 
-export function providerModel(settings: Settings, provider: Provider): string {
-  switch (provider) {
-    case "anthropic":
-      return settings.modelAnthropic || settings.defaultModel || DEFAULTS.modelAnthropic;
-    case "openai":
-      return settings.modelOpenai || settings.defaultModel || DEFAULTS.modelOpenai;
-    case "gemini":
-      return settings.modelGemini || settings.defaultModel || DEFAULTS.modelGemini;
-    case "nim":
-      return settings.modelNim || settings.defaultModel || DEFAULTS.modelNim;
-    case "openrouter":
-      return settings.modelOpenrouter || settings.defaultModel || DEFAULTS.modelOpenrouter;
-  }
-}
-
-/**
- * 배경 작업이 실제로 부를 대상. `null` = Core Model 미설정 → 자동화는 성립
- * 불가다 (백엔드 `core_model::resolve` 와 **같은 판정** — 대화 모델로 조용히
- * 대체하지 않는다; 그러면 D2 게이트가 무의미해진다).
- */
-export function coreModelTarget(
-  settings: Settings
-): { provider: Provider; model: string } | null {
-  const provider = settings.coreProvider.trim();
-  const model = settings.coreModel.trim();
-  if (!provider || !model || !(PROVIDERS as string[]).includes(provider)) return null;
-  return { provider: provider as Provider, model };
-}
-
-// Parse the failover chain (`fallbackModels` text) into ordered
-// {provider, model} entries for the chat commands. Each line is
-// `provider:model` (model ids may themselves contain `:` so we split once).
-// Unknown providers and malformed lines are dropped.
-export function parseFallbacks(settings: Settings): { provider: Provider; model: string }[] {
-  return settings.fallbackModels
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.startsWith("#"))
-    .map((line) => {
-      const idx = line.indexOf(":");
-      if (idx < 0) return null;
-      const provider = line.slice(0, idx).trim().toLowerCase();
-      const model = line.slice(idx + 1).trim();
-      if (!model || !(PROVIDERS as string[]).includes(provider)) return null;
-      return { provider: provider as Provider, model };
-    })
-    .filter((v): v is { provider: Provider; model: string } => v !== null);
-}

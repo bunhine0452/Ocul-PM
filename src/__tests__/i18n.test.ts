@@ -182,16 +182,17 @@ describe("tAll()", () => {
 
   it("현재 언어와 무관하게 같은 집합을 돌려준다", () => {
     setLangSetting("ko");
-    const fromKo = tAll("nav.search");
+    const fromKo = tAll("nav.diff");
     setLangSetting("en");
-    const fromEn = tAll("nav.search");
+    const fromEn = tAll("nav.diff");
     expect(fromEn).toEqual(fromKo);
   });
 
   it("양 언어 값이 같으면 한 번만 나온다", () => {
-    // "LLM" 은 양쪽 사전에서 동일 — 색인에 중복이 쌓이면 안 된다.
-    // (예전엔 `nav.today` 를 썼지만 라벨이 "오늘" 로 한국어화되며 갈렸다.)
-    expect(tAll("settings.tab.llm")).toEqual(["LLM"]);
+    // "WAL" 은 양쪽 사전에서 동일 — 색인에 중복이 쌓이면 안 된다.
+    // (예전엔 `nav.today` 를 썼지만 라벨이 "오늘" 로 한국어화되며 갈렸고,
+    // 그다음의 `settings.tab.llm` 은 4.0 에서 LLM 탭과 함께 걷었다.)
+    expect(tAll("settings.db.wal")).toEqual(["WAL"]);
   });
 
   it("양 언어가 다르면 둘 다 나온다 — 팔레트가 양쪽으로 찾히게", () => {

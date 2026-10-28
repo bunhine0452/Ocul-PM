@@ -9,14 +9,8 @@ use tauri::State;
 use crate::db::Db;
 use crate::oculpm::mcp::{
     codex::{self, CodexPluginStatus, CodexRegistrationStatus},
-    register::{
-        self, locate_binary, resolve_binary_path, DesktopRegistrationStatus, McpRegistrationStatus,
-    },
+    register::{self, locate_binary, resolve_binary_path, McpRegistrationStatus},
 };
-
-fn desktop_config_path() -> Result<std::path::PathBuf, String> {
-    register::desktop_config_path().ok_or_else(|| "Could not find the home directory".to_string())
-}
 
 fn codex_config_path() -> Result<std::path::PathBuf, String> {
     codex::config_path().ok_or_else(|| "Could not find the home directory".to_string())
@@ -101,38 +95,6 @@ pub fn codex_plugin_status() -> Result<CodexPluginStatus, String> {
         .parent()
         .ok_or_else(|| "Could not find the Codex home directory".to_string())?;
     Ok(codex::plugin_status_at(&config, home))
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn mcp_desktop_status(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<DesktopRegistrationStatus, String> {
-    let root = project_root(&db, project_id).await?;
-    register::desktop_status_at(&desktop_config_path()?, &root).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn mcp_desktop_register(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<DesktopRegistrationStatus, String> {
-    let root = project_root(&db, project_id).await?;
-    let binary = locate_binary()?;
-    register::desktop_register_at(&desktop_config_path()?, &root, &binary)
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn mcp_desktop_unregister(
-    db: State<'_, Db>,
-    project_id: u32,
-) -> Result<DesktopRegistrationStatus, String> {
-    let root = project_root(&db, project_id).await?;
-    register::desktop_unregister_at(&desktop_config_path()?, &root).map_err(|e| e.to_string())
 }
 
 // ─── A3 — Claude Code 플러그인 설치 감지 ─────────────────────────────────────

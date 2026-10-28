@@ -1,6 +1,6 @@
 //! 다른 도구의 설정 위치 — 크로스플랫폼 {#integ-paths}
 //!
-//! Claude Desktop · Claude Code · Codex 설정 파일이 **어느 OS 에서 어디 있나**를
+//! Claude Code · Codex 설정 파일이 **어느 OS 에서 어디 있나**를
 //! 이 한 자리만 안다. 홈은 `HOME` 이 아니라 `directories` 가 판정한다 — Windows
 //! 에는 `HOME` 이 없고(Git Bash 가 띄운 자식에만 있다), 있어도 사용자 프로필이
 //! 아닐 수 있다. 판정 규칙은 전부 입력을 받는 순수 함수로 두고(세 OS 러너가 같은
@@ -120,64 +120,6 @@ pub fn codex_home_from(env: Option<std::ffi::OsString>, home: Option<PathBuf>) -
         .or_else(|| home.map(|h| h.join(".codex")))
 }
 
-/// Claude Desktop 설정 파일 이름.
-pub const CLAUDE_DESKTOP_CONFIG_FILE: &str = "claude_desktop_config.json";
-
-/// Microsoft Store(MSIX) 판 Claude Desktop 의 패키지 폴더 이름. MSIX 는 앱의
-/// `%APPDATA%` 쓰기를 `%LOCALAPPDATA%\Packages\<이것>\LocalCache\Roaming` 으로
-/// 가상화한다 — 앱은 **그쪽 파일만** 읽으므로 문서의 `%APPDATA%\Claude` 에 써도
-/// 무시된다 (anthropics/claude-code#25579 · #26073 · #29100).
-pub const CLAUDE_DESKTOP_MSIX_PACKAGE: &str = "Claude_pzs8sxrjxfjjc";
-
-/// Claude Desktop 설정 폴더. `config_dir()` 가 macOS `~/Library/Application
-/// Support` · Linux `$XDG_CONFIG_HOME`(없으면 `~/.config`) · Windows Roaming
-/// AppData 를 준다. Windows 는 MSIX 판을 먼저 본다 ([`claude_desktop_dir_windows`]).
-pub fn claude_desktop_config_dir() -> Option<PathBuf> {
-    let base = directories::BaseDirs::new()?;
-    if cfg!(windows) {
-        return Some(claude_desktop_dir_windows(
-            base.config_dir(),
-            base.data_local_dir(),
-        ));
-    }
-    Some(base.config_dir().join("Claude"))
-}
-
-/// `<Claude Desktop 설정 폴더>/claude_desktop_config.json`.
-pub fn claude_desktop_config_path() -> Option<PathBuf> {
-    claude_desktop_config_dir().map(|dir| dir.join(CLAUDE_DESKTOP_CONFIG_FILE))
-}
-
-/// Windows 의 Claude Desktop 설정 폴더 판정 (순수 — 세 OS 러너가 같은 표를 문다).
-///
-/// 1. 알려진 MSIX 패키지 폴더의 `LocalCache\Roaming\Claude` 가 있으면 그것.
-/// 2. 다른 `Claude_*` 패키지 폴더 중 그 자리가 있는 것 — 설정 파일이 이미 있는
-///    쪽을 먼저, 그다음 이름순 첫째 (패키지 게시자 해시가 바뀌어도 따라간다).
-/// 3. 없으면 설치형(Squirrel) 판의 `%APPDATA%\Claude`.
-///
-/// 설치 여부 판정("폴더가 있나")은 호출자 몫이라, 3번은 폴더가 없어도 돌려준다.
-pub fn claude_desktop_dir_windows(roaming: &Path, local: &Path) -> PathBuf {
-    let packages = local.join("Packages");
-    let roaming_of = |pkg: &Path| pkg.join("LocalCache").join("Roaming").join("Claude");
-    let known = roaming_of(&packages.join(CLAUDE_DESKTOP_MSIX_PACKAGE));
-    if known.is_dir() {
-        return known;
-    }
-    let mut others: Vec<PathBuf> = std::fs::read_dir(&packages)
-        .into_iter()
-        .flatten()
-        .filter_map(Result::ok)
-        .filter(|e| e.file_name().to_string_lossy().starts_with("Claude_"))
-        .map(|e| roaming_of(&e.path()))
-        .filter(|dir| dir.is_dir())
-        .collect();
-    others.sort_by_key(|dir| (!dir.join(CLAUDE_DESKTOP_CONFIG_FILE).is_file(), dir.clone()));
-    others
-        .into_iter()
-        .next()
-        .unwrap_or_else(|| roaming.join("Claude"))
-}
-
 /// 사이드카 안정 자리 — Linux AppImage 전용 (`$XDG_DATA_HOME/ocul-pm/bin`, 없으면
 /// `~/.local/share/ocul-pm/bin`). AppImage 의 사이드카는 실행 중에만 있는
 /// squashfs 마운트(`/tmp/.mount_XXXX`) 안에 있어, 다른 앱 설정에 그 경로를 적으면
@@ -208,54 +150,6 @@ mod tests {
             Some(PathBuf::from("/h/.codex"))
         );
         assert_eq!(codex_home_from(None, None), None);
-    }
-
-    /// MSIX 판이 있으면 그쪽 — 앱이 실제로 읽는 파일이 거기뿐이다.
-    #[test]
-    fn windows_desktop_dir_prefers_the_msix_package_over_roaming_appdata() {
-        let tmp = tempfile::TempDir::new().unwrap();
-        let roaming = tmp.path().join("Roaming");
-        let local = tmp.path().join("Local");
-        std::fs::create_dir_all(roaming.join("Claude")).unwrap();
-
-        // MSIX 없음 → 설치형 자리.
-        assert_eq!(
-            claude_desktop_dir_windows(&roaming, &local),
-            roaming.join("Claude")
-        );
-
-        // 모르는 게시자 해시의 패키지 — 따라간다.
-        let other = local.join("Packages/Claude_zzzz/LocalCache/Roaming/Claude");
-        std::fs::create_dir_all(&other).unwrap();
-        assert_eq!(claude_desktop_dir_windows(&roaming, &local), other);
-
-        // 알려진 패키지가 있으면 그것이 먼저다.
-        let known = local
-            .join("Packages")
-            .join(CLAUDE_DESKTOP_MSIX_PACKAGE)
-            .join("LocalCache/Roaming/Claude");
-        std::fs::create_dir_all(&known).unwrap();
-        assert_eq!(claude_desktop_dir_windows(&roaming, &local), known);
-    }
-
-    #[test]
-    fn windows_desktop_dir_picks_the_package_that_already_has_a_config() {
-        let tmp = tempfile::TempDir::new().unwrap();
-        let local = tmp.path().join("Local");
-        let a = local.join("Packages/Claude_aaaa/LocalCache/Roaming/Claude");
-        let b = local.join("Packages/Claude_bbbb/LocalCache/Roaming/Claude");
-        std::fs::create_dir_all(&a).unwrap();
-        std::fs::create_dir_all(&b).unwrap();
-        // 이름순이면 a 지만, 설정이 있는 쪽은 b 다.
-        std::fs::write(b.join(CLAUDE_DESKTOP_CONFIG_FILE), "{}").unwrap();
-        assert_eq!(claude_desktop_dir_windows(tmp.path(), &local), b);
-        // `LocalCache\Roaming\Claude` 가 없는 `Claude_` 껍데기는 고르지 않는다.
-        let shell = tempfile::TempDir::new().unwrap();
-        std::fs::create_dir_all(shell.path().join("Local/Packages/Claude_empty")).unwrap();
-        assert_eq!(
-            claude_desktop_dir_windows(&shell.path().join("R"), &shell.path().join("Local")),
-            shell.path().join("R").join("Claude")
-        );
     }
 
     #[test]
@@ -289,10 +183,6 @@ mod tests {
     #[test]
     fn macos_locations_are_unchanged() {
         let home = home_dir().expect("home");
-        assert_eq!(
-            claude_desktop_config_path(),
-            Some(home.join("Library/Application Support/Claude/claude_desktop_config.json"))
-        );
         assert_eq!(claude_code_home(), Some(home.join(".claude")));
     }
 
@@ -306,10 +196,6 @@ mod tests {
                 .filter(|p| p.is_absolute())
                 .unwrap_or_else(|| home.join(fallback))
         };
-        assert_eq!(
-            claude_desktop_config_path(),
-            Some(xdg("XDG_CONFIG_HOME", ".config").join("Claude/claude_desktop_config.json"))
-        );
         assert_eq!(claude_code_home(), Some(home.join(".claude")));
         assert_eq!(
             stable_sidecar_dir(),
@@ -326,15 +212,6 @@ mod tests {
         if std::env::var_os("CODEX_HOME").is_none() {
             assert_eq!(codex_home(), Some(profile.join(".codex")));
         }
-        let desktop = claude_desktop_config_path().expect("desktop");
-        let appdata = PathBuf::from(std::env::var_os("APPDATA").expect("APPDATA"));
-        let local = PathBuf::from(std::env::var_os("LOCALAPPDATA").expect("LOCALAPPDATA"));
-        assert!(
-            desktop == appdata.join("Claude").join(CLAUDE_DESKTOP_CONFIG_FILE)
-                || desktop.starts_with(local.join("Packages")),
-            "{}",
-            desktop.display()
-        );
     }
 
     /// 파일시스템 루트는 어느 OS 에서나 프로젝트가 될 수 없다. 보통 폴더는 된다.

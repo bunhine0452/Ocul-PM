@@ -5,18 +5,14 @@
 //! before the watcher live-push lands. Writes (`plan_apply_edit` /
 //! `plan_create`) land in PR-PLN 1.
 
-use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use tauri::State;
 
 use crate::app_error::AppError;
 use crate::db::Db;
-use crate::llm;
 use crate::oculpm::atomic_io::write_atomic;
-use crate::oculpm::cache::{EntryFilters, JournalCache};
 use crate::oculpm::manager::OculpmManager;
-use crate::oculpm::planner::ai::{build_user_prompt, parse_ai_edits, SYSTEM_PROMPT};
 use crate::oculpm::planner::dispatch::{
     build_dispatch_prompt, project_redact_patterns, shell_command_for,
 };
@@ -462,143 +458,9 @@ pub async fn plan_delete(
     Ok(())
 }
 
-// ─── in-app AI refresh + migration (PR-PLN 5) ────────────────────────────────
-
-/// Ask the configured in-app LLM to update item statuses from recent journal
-/// activity. The model proposes `{item_id, status}` edits; we apply the valid,
-/// changed ones via the same plan-log path, stamped `agent_id = inapp:<provider>`.
-#[tauri::command]
-#[specta::specta]
-pub async fn plan_ai_refresh(
-    db: State<'_, Db>,
-    manager: State<'_, OculpmManager>,
-    project_id: u32,
-    plan_id: String,
-    provider: String,
-    model: String,
-) -> Result<Option<PlanDetail>, String> {
-    // N4 — held for the whole command (incl. the LLM call). This is
-    // user-initiated and rare, so briefly blocking other writers is acceptable
-    // and guarantees no lost update without a separate CAS.
-    let plan_lock = manager.plan_write_lock(project_id).await;
-    let _guard = plan_lock.lock().await;
-    let root = planner_root_of(&db, project_id).await?;
-    let path =
-        find_plan_path(&root, &plan_id).ok_or_else(|| format!("plan '{plan_id}' not found"))?;
-    let md = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let stem = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("plan")
-        .to_string();
-    let parsed = parse_plan(&md, &stem);
-    if parsed.frontmatter.status.as_str() != "active" {
-        return Err(LOCKED_MSG.to_string());
-    }
-
-    // 3-depth — 부모 항목은 목록에서 제외: 상태가 파생이라 모델이 제안해도
-    // 거부돼 조용한 no-op 이 된다 (매 회차 재제안 루프 방지).
-    let parents = parsed.parent_ids();
-    let items_block = parsed
-        .items
-        .iter()
-        .filter(|i| !parents.contains(i.item_id.as_str()))
-        .map(|i| format!("- {{#{}}} [{}] {}", i.item_id, i.status.as_str(), i.title))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    // Recent journal context (all days; cap at 25 for prompt size).
-    let filters = EntryFilters {
-        types: Vec::new(),
-        verified_only: false,
-        unverified_only: false,
-        mismatch_only: false,
-        unfinished_only: false,
-        search: None,
-        agents: Vec::new(),
-        difficulties: Vec::new(),
-    };
-    let entries = JournalCache::new(&db)
-        .list_entries(project_id, None, &filters)
-        .await
-        .map_err(|e| e.to_string())?;
-    let journal_block = entries
-        .iter()
-        .take(25)
-        .map(|e| format!("- [{:?}] {:?}: {}", e.status, e.entry_type, e.title))
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    let api_key = {
-        let secret_name = format!("{provider}_api_key");
-        crate::secrets::get(&secret_name)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| format!("No API key configured for {provider}"))?
-    };
-    let client = llm::create(&provider, api_key).map_err(|e| e.to_string())?;
-    let user_msg = build_user_prompt(&parsed.frontmatter.title, &items_block, &journal_block);
-    let response = client
-        .chat(
-            vec![
-                llm::Message {
-                    role: llm::Role::System,
-                    content: crate::oculpm::content_lang::current(&db)
-                        .await
-                        .apply(SYSTEM_PROMPT),
-                },
-                llm::Message {
-                    role: llm::Role::User,
-                    content: user_msg,
-                },
-            ],
-            llm::ChatOptions {
-                model: model.clone(),
-                temperature: Some(0.2),
-                max_tokens: Some(800),
-            },
-        )
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let edits = parse_ai_edits(&response.content);
-    let agent = format!("inapp:{provider}");
-    let ts = chrono::Utc::now().to_rfc3339();
-    let existing: HashSet<String> = parsed.items.iter().map(|i| i.item_id.clone()).collect();
-    let cur_status: HashMap<String, ItemStatus> = parsed
-        .items
-        .iter()
-        .map(|i| (i.item_id.clone(), i.status))
-        .collect();
-
-    let mut cur = md;
-    for e in edits {
-        if !existing.contains(&e.item_id) {
-            continue;
-        }
-        let Some(ns) = ItemStatus::parse_status(&e.status) else {
-            continue;
-        };
-        if cur_status.get(&e.item_id) == Some(&ns) {
-            continue; // no-op
-        }
-        if let Ok(res) = set_item_status_rolled(&cur, &e.item_id, ns) {
-            let row = LogRow {
-                ts: ts.clone(),
-                item_id: e.item_id.clone(),
-                agent_id: agent.clone(),
-                from: Some(res.old_status),
-                to: Some(ns),
-                journal_ref: None,
-                note: Some("AI 갱신".to_string()),
-            };
-            cur = append_log_row(&res.md, &row);
-        }
-    }
-
-    let cur = archive_overflow(&root, &plan_id, &cur)?;
-    write_atomic(&path, cur.as_bytes()).map_err(|e| e.to_string())?;
-    PlanCache::new(&db).get(project_id, &root, &plan_id).await
-}
+// ─── migration (PR-PLN 5) ────────────────────────────────────────────────────
+// (앱 안 LLM 의 「AI 갱신」 `plan_ai_refresh` 는 4.0 에서 걷었다 — 플랜 상태는
+// 에이전트가 `plan_update` 로 고친다.)
 
 /// One-time import of legacy `goals`/`subtasks` into `_imported.md`.
 #[tauri::command]

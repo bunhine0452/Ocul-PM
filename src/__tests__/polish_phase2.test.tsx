@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, renderHook } from "@testing-library/react";
 
 // ─── 완성도 라운드 Phase 2 (2026-08-30) — 여정 ─────────────────────────────
@@ -19,9 +19,7 @@ import {
 } from "@/lib/integrityLog";
 import {
   onOculpmActivateRequest,
-  onReindexRequest,
   requestOculpmActivate,
-  requestReindex,
 } from "@/lib/projectActions";
 
 vi.mock("@/lib/bindings", () => ({
@@ -139,30 +137,22 @@ describe("변경 바닥줄 — 일지의 확인 토글", () => {
   });
 });
 
-describe("요청 버스 — 활성화·색인은 프로젝트 탭이 받는다", () => {
+describe("요청 버스 — 활성화는 프로젝트 탭이 받는다", () => {
   it("구독자가 받고, 해제하면 더 받지 않는다", () => {
     const activate = vi.fn();
-    const reindex = vi.fn();
     const offA = onOculpmActivateRequest(activate);
-    const offR = onReindexRequest(reindex);
     requestOculpmActivate();
-    requestReindex();
     expect(activate).toHaveBeenCalledTimes(1);
-    expect(reindex).toHaveBeenCalledTimes(1);
     offA();
-    offR();
     requestOculpmActivate();
-    requestReindex();
     expect(activate).toHaveBeenCalledTimes(1);
-    expect(reindex).toHaveBeenCalledTimes(1);
   });
 });
 
-// ─── Phase 3 — 성능: 공유 시계 · 색인 진행률 스토어 ───────────────────────
+// ─── Phase 3 — 성능: 공유 시계 ───────────────────────────────────────────
 
 import { act } from "@testing-library/react";
 import { useMinuteTick, useSecondTick } from "@/hooks/useSecondTick";
-import { indexProgressStore, useIndexProgress } from "@/lib/indexProgressStore";
 
 describe("공유 1초 시계 — 켜진 구독자가 있을 때만 하나의 인터벌", () => {
   it("켜진 훅은 틱마다 새 now 를, 꺼진 훅은 다시 그리지 않는다", () => {
@@ -204,45 +194,6 @@ describe("공유 1초 시계 — 켜진 구독자가 있을 때만 하나의 인
     } finally {
       vi.useRealTimers();
     }
-  });
-});
-
-describe("색인 진행률 스토어 — 컨텍스트 밖", () => {
-  beforeEach(() => indexProgressStore.clear());
-
-  it("set/clear 가 구독자에게 닿고, 같은 참조면 조용하다", () => {
-    const { result } = renderHook(() => useIndexProgress(1));
-    expect(result.current).toBeNull();
-    const p = { current: 3, total: 10, current_file: "src/a.ts" };
-    act(() => indexProgressStore.set(1, p));
-    expect(result.current).toBe(p);
-    act(() => indexProgressStore.clear(1));
-    expect(result.current).toBeNull();
-    act(() => indexProgressStore.clear(1));
-    expect(result.current).toBeNull();
-  });
-
-  // 2026-09-01 — 크롬식 탭은 프로젝트 둘을 동시에 색인할 수 있고 이 모듈은
-  // 창에 하나다. 버킷이 없으면 슬롯 하나를 두 탭이 번갈아 덮어써, 각 검색
-  // 화면의 "n/m 색인 중" 이 남의 숫자로 튀고 먼저 끝난 쪽의 clear 가 아직
-  // 도는 쪽의 진행률까지 지운다.
-  it("두 프로젝트가 동시에 색인해도 서로의 진행률을 덮어쓰지 않는다", () => {
-    const a = renderHook(() => useIndexProgress(1));
-    const b = renderHook(() => useIndexProgress(2));
-    const pa = { current: 3, total: 10, current_file: "src/a.ts" };
-    const pb = { current: 7, total: 99, current_file: "lib/b.rs" };
-
-    act(() => {
-      indexProgressStore.set(1, pa);
-      indexProgressStore.set(2, pb);
-    });
-    expect(a.result.current).toBe(pa);
-    expect(b.result.current).toBe(pb);
-
-    // 1 이 먼저 끝나도 2 의 진행률은 그대로다.
-    act(() => indexProgressStore.clear(1));
-    expect(a.result.current).toBeNull();
-    expect(b.result.current).toBe(pb);
   });
 });
 
@@ -381,19 +332,20 @@ describe("WorkspaceContext 조각 — 자기 키가 바뀔 때만 새 참조", (
     expect(result.current.rt).toBe(rt0);
 
     const prefs1 = result.current.prefs;
-    act(() => result.current.rt.setIndexing(41));
-    expect(result.current.rt.indexingProjectId).toBe(41);
+    act(() => result.current.rt.setSidebarCollapsed(!result.current.rt.sidebarCollapsed));
+    const collapsed = result.current.rt.sidebarCollapsed;
+    expect(result.current.rt).not.toBe(rt0);
     expect(result.current.prefs).toBe(prefs1);
     // 겉면은 모든 변화를 본다.
     expect(result.current.all.state.uiV2View).toBe("planner");
-    expect(result.current.all.state.indexingProjectId).toBe(41);
+    expect(result.current.all.state.sidebarCollapsed).toBe(collapsed);
   });
 
   it("setPrefs 는 바뀐 것이 없으면 조용하다", () => {
     localStorage.clear();
     const { result } = renderHook(() => ({ prefs: useUiPrefs() }), { wrapper });
     const before = result.current.prefs;
-    act(() => result.current.prefs.setPrefs((p) => ({ searchScope: p.searchScope })));
+    act(() => result.current.prefs.setPrefs((p) => ({ plannerView: p.plannerView })));
     expect(result.current.prefs).toBe(before);
     act(() => result.current.prefs.setPrefs(() => ({ uiV2View: "diff" })));
     expect(result.current.prefs.prefs.uiV2View).toBe("diff");

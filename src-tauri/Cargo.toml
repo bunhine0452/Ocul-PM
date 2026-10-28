@@ -53,18 +53,11 @@ directories = "6.0.0"
 tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros", "time", "process", "net", "io-util", "sync"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing-appender = "0.2"
-keyring = { version = "3.6", default-features = false, features = ["apple-native", "windows-native", "sync-secret-service"] }
 reqwest = { version = "0.13.3", default-features = false, features = ["json", "rustls", "stream", "http2"] }
 # DB 를 못 열 때의 기동 대화상자 (startup_db) — dialog 플러그인과 같은 rfd·같은 기능.
 # 셋업은 메인 스레드라 플러그인의 blocking_show 는 교착한다.
 rfd = { version = "0.16", default-features = false, features = ["common-controls-v6"] }
-async-trait = "0.1.89"
 futures = "0.3.32"
-fastembed = "5.13.4"
-# {#hf-token} fastembed 의 try_new 는 ApiBuilder::new() 로 ~/.cache/huggingface/token 을 읽어
-# 다운로드에 Bearer 로 붙인다. 토큰 없는 빌더를 직접 쓰려고 같은 버전·같은 기능을 직접 선언
-# (fastembed 의 hf-hub-native-tls 와 동일 — 피처 통합으로 새 의존성 0).
-hf-hub = { version = "0.5.0", default-features = false, features = ["ureq", "native-tls"] }
 ignore = "0.4.25"
 walkdir = "2.5.0"
 blake3 = "1.8.5"
@@ -76,12 +69,6 @@ base64 = "0.22"
 # the non-git / HEAD-less branch; the git path still shells out to `git diff`.
 similar = "2.6"
 tauri-plugin-dialog = "2.7.1"
-tree-sitter = "0.23"
-tree-sitter-rust = "0.23"
-tree-sitter-javascript = "0.23"
-tree-sitter-typescript = "0.23"
-tree-sitter-python = "0.23"
-tree-sitter-go = "0.23"
 libc = "0.2"
 tauri-plugin-window-state = "2"
 # Self-update (benchmarked from uvws): official updater + process(relaunch).
@@ -119,7 +106,6 @@ uuid = { version = "1", features = ["v4"] }
 # (trash src/windows.rs "Either the `coinit_multithreaded` or ..."). macOS·Linux
 # 에서는 아무 일도 하지 않는 feature 다 (크로스플랫폼 W1).
 trash = { version = "5.2.6", default-features = false, features = ["coinit_apartmentthreaded"] }
-cron = "0.17.0"
 # 플러그인 번들 임포트 (Phase 6 #import-guards) — ZIP64 포함. deflate 만 켠다
 # (bzip2·zstd 는 Claude 플러그인 번들에 쓰이지 않는다).
 zip = { version = "9", default-features = false, features = ["deflate"] }
@@ -178,9 +164,6 @@ tauri = { version = "2", features = ["test"] }
 # Test-only helpers for the .oculpm/ subsystem (W1-PR4 onwards).
 tempfile = "3.10"
 tokio = { version = "1.52.3", features = ["test-util"] }
-# perf_baseline M6 — fastembed 가 고정한 Level3 세션과 다른 최적화 단계의 상주
-# 메모리를 비교하기 위해 세션을 직접 만든다. fastembed 의 것과 같은 버전.
-ort = { version = "=2.0.0-rc.12", default-features = false, features = ["ndarray"] }
 
 # 빌드 프로파일 (2026-08-11). 이전에는 프로파일 지정이 아예 없어 카고 기본값으로
 # 나갔다 — tree-sitter 5종 + fastembed/ort + tauri 를 링크하는 규모에서는 기본값이

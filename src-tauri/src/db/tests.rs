@@ -162,183 +162,8 @@ async fn health_reports_sizes_and_top_tables() {
     assert!(db.health().await.unwrap().db_bytes > 0.0);
 }
 
-fn unit_vec(dim: usize, hot: usize) -> Vec<u8> {
-    let mut v = vec![0f32; dim];
-    v[hot] = 1.0;
-    v.iter().flat_map(|f| f.to_le_bytes()).collect()
-}
-
-/// 완성도 라운드 Phase 3 — `project_id` 가 vec0 partition key 라 KNN 이 다른
-/// 프로젝트의 벡터를 아예 보지 않는다. 예전엔 `k` 를 5배 과다 조회한 뒤
-/// `files.project_id` 로 걸렀다 — 다른 프로젝트가 크면 내 결과가 밀려났다.
-#[tokio::test]
-async fn knn_search_stays_inside_the_project_partition() {
-    let dir = tempdir().unwrap();
-    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
-    let a = db
-        .create_project("a".into(), "/tmp/a".into())
-        .await
-        .unwrap();
-    let b = db
-        .create_project("b".into(), "/tmp/b".into())
-        .await
-        .unwrap();
-    let (fa, _) = db
-        .upsert_file(a, "src/a.rs".into(), "h1".into(), 1, 1, Some("rust".into()))
-        .await
-        .unwrap();
-    let (fb, _) = db
-        .upsert_file(b, "src/b.rs".into(), "h2".into(), 1, 1, Some("rust".into()))
-        .await
-        .unwrap();
-    let row = |content: &str, hot: usize| ChunkInsert {
-        kind: "fn".into(),
-        start_line: 1,
-        end_line: 3,
-        content: content.into(),
-        embedding: unit_vec(384, hot),
-    };
-    db.insert_chunks_with_embeddings(a, fa, vec![row("fn a() {\n}\n", 0)])
-        .await
-        .unwrap();
-    // b 는 a 의 질의 벡터와 **완전히 같은** 임베딩을 셋 — 파티션이 없다면 이
-    // 셋이 a 의 하나를 밀어낸다.
-    db.insert_chunks_with_embeddings(
-        b,
-        fb,
-        vec![
-            row("fn b1() {\n}\n", 0),
-            row("fn b2() {\n}\n", 0),
-            row("fn b3() {\n}\n", 0),
-        ],
-    )
-    .await
-    .unwrap();
-
-    let hits = db
-        .search_chunks(a, unit_vec(384, 0), 1, false, true)
-        .await
-        .unwrap();
-    assert_eq!(hits.len(), 1);
-    assert_eq!(hits[0].file_path, "src/a.rs");
-    let hits_b = db
-        .search_chunks(b, unit_vec(384, 0), 10, false, true)
-        .await
-        .unwrap();
-    assert_eq!(hits_b.len(), 3);
-    assert!(hits_b.iter().all(|h| h.file_path == "src/b.rs"));
-}
-
-/// 032 마이그레이션의 원시 연산 — 예전 모양의 vec0 표에서 파티션 키가 있는 새
-/// 표로 `INSERT … SELECT` 가 벡터 blob 을 그대로 옮긴다 (sqlite-vec 0.1.9).
-/// 이 한 문장이 안 되면 사용자 DB 의 임베딩이 통째로 사라지므로 따로 못 박는다.
-#[tokio::test]
-async fn vec0_rows_copy_between_old_and_partitioned_tables() {
-    let dir = tempdir().unwrap();
-    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
-    let query = unit_vec(384, 7);
-    let n: i64 = db
-        .conn()
-        .call(move |c| -> Result<i64> {
-            c.execute_batch(
-                "CREATE VIRTUAL TABLE old_t USING vec0(chunk_id INTEGER PRIMARY KEY, embedding FLOAT[384]);
-                 CREATE VIRTUAL TABLE new_t USING vec0(
-                   chunk_id INTEGER PRIMARY KEY,
-                   project_id INTEGER PARTITION KEY,
-                   embedding FLOAT[384]);",
-            )?;
-            c.execute(
-                "INSERT INTO old_t (chunk_id, embedding) VALUES (?1, ?2)",
-                params![1i64, unit_vec(384, 7)],
-            )?;
-            c.execute(
-                "INSERT INTO old_t (chunk_id, embedding) VALUES (?1, ?2)",
-                params![2i64, unit_vec(384, 9)],
-            )?;
-            c.execute_batch(
-                "INSERT INTO new_t (chunk_id, project_id, embedding)
-                   SELECT chunk_id, 1, embedding FROM old_t;",
-            )?;
-            let n: i64 = c.query_row("SELECT COUNT(*) FROM new_t", [], |r| r.get(0))?;
-            let nearest: i64 = c.query_row(
-                "SELECT chunk_id FROM new_t WHERE embedding MATCH ?1 AND k = 1 AND project_id = 1",
-                params![query],
-                |r| r.get(0),
-            )?;
-            assert_eq!(nearest, 1, "copied vectors must still be searchable");
-            Ok(n)
-        })
-        .await
-        .unwrap();
-    assert_eq!(n, 2);
-}
-
-/// 감사 라운드 2026-09-11 A2 — 전체 색인의 화해: walk 에 없는 파일은 청크·
-/// 스냅샷까지 함께 빠지고, 있는 파일은 건드리지 않는다. 다른 프로젝트의 같은
-/// 경로도 무사하다.
-#[tokio::test]
-async fn delete_files_by_paths_drops_stale_rows_with_snapshots_only_in_that_project() {
-    let dir = tempdir().unwrap();
-    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
-    let a = db
-        .create_project("a".into(), "/tmp/a".into())
-        .await
-        .unwrap();
-    let b = db
-        .create_project("b".into(), "/tmp/b".into())
-        .await
-        .unwrap();
-    for (pid, path) in [
-        (a, "src/keep.rs"),
-        (a, "src/legacy/gone.rs"),
-        (b, "src/legacy/gone.rs"),
-    ] {
-        db.upsert_file(pid, path.into(), "h".into(), 1, 1, Some("rust".into()))
-            .await
-            .unwrap();
-        db.upsert_file_snapshot(pid, path.into(), b"x".to_vec(), "h".into())
-            .await
-            .unwrap();
-    }
-
-    let removed = db
-        .delete_files_by_paths(
-            a,
-            vec!["src/legacy/gone.rs".into(), "not/indexed.rs".into()],
-        )
-        .await
-        .unwrap();
-    assert_eq!(removed, 1, "색인에 없던 경로는 세지 않는다");
-
-    let left: Vec<String> = db
-        .list_project_files(a)
-        .await
-        .unwrap()
-        .into_iter()
-        .map(|(_, p)| p)
-        .collect();
-    assert_eq!(left, vec!["src/keep.rs".to_string()]);
-    assert!(db
-        .get_file_snapshot(a, "src/legacy/gone.rs".into())
-        .await
-        .unwrap()
-        .is_none());
-    assert!(db
-        .get_file_snapshot(a, "src/keep.rs".into())
-        .await
-        .unwrap()
-        .is_some());
-    assert_eq!(
-        db.list_project_files(b).await.unwrap().len(),
-        1,
-        "다른 프로젝트는 무사하다"
-    );
-
-    assert_eq!(db.delete_files_by_paths(a, vec![]).await.unwrap(), 0);
-}
-
 /// `{#snapshot-git-dup}` — `retain_file_snapshots` 는 keep 밖의 것을 전부
-/// 지운다: HEAD 가 서빙하는 파일의 복사본도, `files` 행이 없는 고아도. 다른
+/// 지운다: HEAD 가 서빙하는 파일의 복사본도, 디스크에서 사라진 고아도. 다른
 /// 프로젝트는 손대지 않는다.
 #[tokio::test]
 async fn retain_file_snapshots_drops_unlisted_and_orphans() {
@@ -352,16 +177,10 @@ async fn retain_file_snapshots_drops_unlisted_and_orphans() {
         .create_project("b".into(), "/tmp/b".into())
         .await
         .unwrap();
-    db.upsert_file(a, "src/tracked.rs".into(), "h".into(), 1, 1, None)
-        .await
-        .unwrap();
-    db.upsert_file(a, "src/untracked.rs".into(), "h".into(), 1, 1, None)
-        .await
-        .unwrap();
     for (pid, path) in [
         (a, "src/tracked.rs"),
         (a, "src/untracked.rs"),
-        (a, ".vscode-test/orphan.js"), // `files` 행 없음
+        (a, ".vscode-test/orphan.js"), // 디스크에서 사라진 고아
         (b, "src/tracked.rs"),
     ] {
         db.upsert_file_snapshot(pid, path.into(), b"x".to_vec(), "h".into())
@@ -409,181 +228,6 @@ async fn retain_file_snapshots_drops_unlisted_and_orphans() {
         .is_none());
 }
 
-/// `{#vec0-holes}` — 지운 벡터의 슬롯은 vec0 가 되돌리지 않는다. `compact` 가
-/// 표를 다시 지어 블록 수를 살아 있는 행 수에 맞추고, 임베딩은 보존한다 (KNN 이
-/// 같은 답을 준다).
-#[tokio::test]
-async fn compact_rebuilds_vec0_and_keeps_embeddings() {
-    let dir = tempdir().unwrap();
-    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
-    let a = db
-        .create_project("a".into(), "/tmp/a".into())
-        .await
-        .unwrap();
-    let (fa, _) = db
-        .upsert_file(a, "src/a.rs".into(), "h1".into(), 1, 1, Some("rust".into()))
-        .await
-        .unwrap();
-    let (fb, _) = db
-        .upsert_file(a, "src/b.rs".into(), "h2".into(), 1, 1, Some("rust".into()))
-        .await
-        .unwrap();
-    // vec0 블록 하나가 1,024 슬롯. 살아남을 a 의 행이 **두 블록에 걸쳐** 놓이게
-    // a·b 를 번갈아 넣는다 — 통째로 빈 블록은 vec0 도 스스로 버리므로, 라이브
-    // DB 의 모양(블록마다 구멍이 흩어진 53% 점유)을 재현하려면 이래야 한다.
-    let rows = |n: usize, hot: usize| -> Vec<ChunkInsert> {
-        (0..n)
-            .map(|i| ChunkInsert {
-                kind: "lines".into(),
-                start_line: i as u32,
-                end_line: i as u32 + 1,
-                content: format!("fn f{i}() {{\n}}\n"),
-                embedding: unit_vec(384, hot),
-            })
-            .collect()
-    };
-    for (na, nb) in [(100, 1000), (100, 300)] {
-        db.insert_chunks_with_embeddings(a, fa, rows(na, 3))
-            .await
-            .unwrap();
-        db.insert_chunks_with_embeddings(a, fb, rows(nb, 9))
-            .await
-            .unwrap();
-    }
-    db.delete_files_by_paths(a, vec!["src/b.rs".into()])
-        .await
-        .unwrap();
-
-    async fn blocks(db: &Db) -> i64 {
-        db.conn()
-            .call(|c| -> Result<i64> {
-                Ok(
-                    c.query_row("SELECT COUNT(*) FROM chunk_embeddings_chunks", [], |r| {
-                        r.get(0)
-                    })?,
-                )
-            })
-            .await
-            .unwrap()
-    }
-    assert_eq!(blocks(&db).await, 2, "지워도 블록은 남는다 — 그게 재현이다");
-
-    db.compact().await.unwrap();
-
-    assert_eq!(blocks(&db).await, 1, "살아 있는 200 행은 한 블록에 든다");
-    let hits = db
-        .search_chunks(a, unit_vec(384, 3), 5, false, true)
-        .await
-        .unwrap();
-    assert_eq!(hits.len(), 5);
-    assert!(hits.iter().all(|h| h.file_path == "src/a.rs"));
-    // 트리거는 여전히 vec0 를 거울처럼 따라간다.
-    db.delete_files_by_paths(a, vec!["src/a.rs".into()])
-        .await
-        .unwrap();
-    let live: i64 = db
-        .conn()
-        .call(|c| -> Result<i64> {
-            Ok(c.query_row("SELECT COUNT(*) FROM chunk_embeddings", [], |r| r.get(0))?)
-        })
-        .await
-        .unwrap();
-    assert_eq!(live, 0);
-}
-
-/// 일지 청크는 「문서 포함」 과 무관하고 「일지 제외」에만 반응한다
-/// (journal-scale-round `{#search-semantic-journal}`).
-///
-/// 일지는 `.md` 라 `DOC_EXCLUDE_SQL` 에 통째로 걸린다 — 그 목록 밖으로
-/// 꺼내지 않으면 기본 상태(문서 제외)에서 일지가 **한 건도** 안 나온다.
-/// 그게 이 라운드가 고치려던 것 자체이므로 SQL 모양을 여기서 못 박는다.
-#[tokio::test]
-async fn journal_chunks_ride_outside_the_doc_filter_and_obey_include_journal() {
-    let dir = tempdir().unwrap();
-    let db = Db::open(dir.path().join("ocul-pm.db")).await.unwrap();
-    let p = db
-        .create_project("p".into(), "/tmp/p".into())
-        .await
-        .unwrap();
-    let (code, _) = db
-        .upsert_file(p, "src/a.rs".into(), "h1".into(), 1, 1, Some("rust".into()))
-        .await
-        .unwrap();
-    let (doc, _) = db
-        .upsert_file(p, "docs/x.md".into(), "h2".into(), 1, 1, None)
-        .await
-        .unwrap();
-    let (journal, _) = db
-        .upsert_file(
-            p,
-            ".oculpm/journal/20260921/Bugs/1000_bug_x.md".into(),
-            "h3".into(),
-            1,
-            1,
-            Some("markdown".into()),
-        )
-        .await
-        .unwrap();
-    let row = |kind: &str| ChunkInsert {
-        kind: kind.into(),
-        start_line: 1,
-        end_line: 3,
-        content: "같은 벡터, 다른 종류\n두 줄\n".into(),
-        embedding: unit_vec(384, 0),
-    };
-    db.insert_chunks_with_embeddings(p, code, vec![row("ast")])
-        .await
-        .unwrap();
-    db.insert_chunks_with_embeddings(p, doc, vec![row("lines")])
-        .await
-        .unwrap();
-    db.insert_chunks_with_embeddings(p, journal, vec![row("journal")])
-        .await
-        .unwrap();
-
-    let paths = |hits: Vec<ChunkSearchResult>| {
-        let mut v: Vec<String> = hits.into_iter().map(|h| h.file_path).collect();
-        v.sort();
-        v
-    };
-
-    // 기본 — 문서는 빠지고, 코드와 일지는 남는다.
-    assert_eq!(
-        paths(
-            db.search_chunks(p, unit_vec(384, 0), 10, false, true)
-                .await
-                .unwrap()
-        ),
-        vec![
-            ".oculpm/journal/20260921/Bugs/1000_bug_x.md".to_string(),
-            "src/a.rs".to_string()
-        ]
-    );
-    // 「일지 제외」 — 일지만 빠진다 (문서는 여전히 빠진 채).
-    assert_eq!(
-        paths(
-            db.search_chunks(p, unit_vec(384, 0), 10, false, false)
-                .await
-                .unwrap()
-        ),
-        vec!["src/a.rs".to_string()]
-    );
-    // 「문서 포함」 — 셋 다.
-    assert_eq!(
-        db.search_chunks(p, unit_vec(384, 0), 10, true, true)
-            .await
-            .unwrap()
-            .len(),
-        3
-    );
-    // kind 가 결과에 실린다 — 프런트가 일지 행을 가르는 유일한 근거.
-    let hits = db
-        .search_chunks(p, unit_vec(384, 0), 10, false, true)
-        .await
-        .unwrap();
-    assert!(hits.iter().any(|h| h.kind == "journal"));
-}
-
 /// 새 버전이 쌓은 DB(더 높은 `user_version`)는 열지 않는다 — 모르는 스키마 위에서
 /// 도는 대신 기동 대화상자가 이유를 보인다.
 #[tokio::test]
@@ -616,6 +260,84 @@ async fn keeps_only_the_latest_pre_migration_backup() {
     db.backup_before_migration(31).await;
     assert!(dir.path().join("ocul-pm.db.bak-v31").is_file());
     assert!(!dir.path().join("ocul-pm.db.bak-v30").exists());
+}
+
+/// 043 — 4.0 이 코드 색인을 걷는다. 3.x 가 쌓은 DB(042 까지의 스키마 + 색인 표 ·
+/// vec0 · 그 그림자 표에 행이 든 상태)를 새 앱이 열면 색인 표가 전부 사라지고,
+/// diff 기준선(`file_snapshots`)과 일지 캐시는 그대로다. vec0 가상 표의 DROP 은
+/// sqlite-vec 가 로드돼 있어야 되므로 그 경로를 실제로 탄다. 파괴적이라 열기 전
+/// 사본(`.bak-v42`)이 남는다.
+#[tokio::test]
+async fn migration_043_drops_the_code_index_but_keeps_baselines() {
+    let dir = tempdir().unwrap();
+    // sqlite-vec 자동 확장은 프로세스에 한 번 걸린다 — 아래 날 연결도 받는다.
+    Db::open(dir.path().join("warm.db")).await.unwrap();
+
+    let path = dir.path().join("ocul-pm.db");
+    {
+        let c = rusqlite::Connection::open(&path).unwrap();
+        c.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
+        for (v, sql) in registry::MIGRATIONS.iter().filter(|(v, _)| *v <= 42) {
+            c.execute_batch(sql).unwrap();
+            c.pragma_update(None, "user_version", v).unwrap();
+        }
+        c.execute_batch(
+            "INSERT INTO projects (id, name, root_path) VALUES (1, 'p', '/tmp/p');
+             INSERT INTO files (id, project_id, path, hash, size, mtime)
+               VALUES (10, 1, 'src/a.rs', 'h', 1, 0), (11, 1, 'src/b.rs', 'h', 1, 0);
+             INSERT INTO chunks (id, file_id, kind, start_line, end_line, content)
+               VALUES (100, 10, 'lines', 1, 2, 'fn a() {}');
+             INSERT INTO symbol_definitions
+               (file_id, name, kind, start_line, end_line, start_byte, end_byte)
+               VALUES (10, 'a', 'function', 1, 2, 0, 9);
+             INSERT INTO file_dependencies (project_id, source_file_id, target_file_id)
+               VALUES (1, 10, 11);
+             INSERT INTO file_snapshots (project_id, path, content, hash, captured_at)
+               VALUES (1, 'notes.txt', x'78', 'h', 0);",
+        )
+        .unwrap();
+        c.execute(
+            "INSERT INTO chunk_embeddings (chunk_id, project_id, embedding) VALUES (100, 1, ?1)",
+            [vec![0u8; 384 * 4]],
+        )
+        .unwrap();
+        let shadow: i64 = c
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE name LIKE 'chunk_embeddings_%'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(shadow > 0, "3.x DB 에는 vec0 그림자 표가 있다");
+    }
+
+    let db = Db::open(path.clone()).await.unwrap();
+    let (left, version, snaps): (Vec<String>, i64, i64) = db
+        .conn()
+        .call(|c| -> Result<_> {
+            let mut stmt = c.prepare(
+                "SELECT name FROM sqlite_master
+                 WHERE name IN ('files', 'chunks', 'symbol_definitions', 'file_dependencies',
+                                'graph_nodes', 'graph_edges', 'symbol_relations',
+                                'chunks_after_delete')
+                    OR name LIKE 'chunk_embeddings%'",
+            )?;
+            let left = stmt
+                .query_map([], |r| r.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            let version = c.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+            let snaps = c.query_row("SELECT COUNT(*) FROM file_snapshots", [], |r| r.get(0))?;
+            Ok((left, version, snaps))
+        })
+        .await
+        .unwrap();
+    assert!(left.is_empty(), "색인 표가 남았다: {left:?}");
+    assert_eq!(version, 43);
+    assert_eq!(snaps, 1, "diff 기준선은 남는다");
+    assert!(dir.path().join("ocul-pm.db.bak-v42").is_file());
+    // 이미 지운 DB 를 다시 열어도 (`IF EXISTS`) 아무 일 없다.
+    db.close().await.unwrap();
+    Db::open(path).await.unwrap();
 }
 
 #[test]

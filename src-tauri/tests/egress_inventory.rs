@@ -61,8 +61,8 @@ use std::path::{Path, PathBuf};
 enum Control {
     /// 코드가 목적지·스킴을 **실제로 검사한다**. 괄호 안은 그 검사기.
     Guarded(&'static str),
-    /// 검사는 없고, 제품 약속이 명시적으로 허용하는 자리다 — 사유가 근거다.
-    Exempt,
+    // `Exempt`(검사 없이 약속이 허용하던 자리 — LLM 호출 · 웹뷰의 릴리스 노트 fetch)는 4.0 에서
+    // 그 자리가 전부 걷혀 함께 뺐다. 다시 생기면 약속(docs/PROMISE.md 7)부터 고친다.
     /// 기기를 벗어나지 않는다 (루프백 바인드·OS 위임 등).
     LocalOnly,
 }
@@ -107,37 +107,7 @@ const WEB_PRIMITIVES: &[&str] = &[
 // ─────────────────────────────────────────────────────────────────────────────
 
 const RUST_SITES: &[Site] = &[
-    // ── 약속의 예외 ①: 사용자가 만든 LLM API 호출 ──
-    Site {
-        path: "llm/anthropic.rs",
-        primitives: &["reqwest::"],
-        control: Control::Exempt,
-        reason: "약속의 예외 ① — 사용자가 자기 키로 만든 LLM 호출. 키는 키체인, 목적지는 상수 하나뿐이다.",
-    },
-    Site {
-        path: "llm/openai.rs",
-        primitives: &["reqwest::"],
-        control: Control::Exempt,
-        reason: "약속의 예외 ① — OpenAI 및 OpenAI 호환(OpenRouter). oculpm.com 은 목적지가 아니라 OpenRouter 어트리뷰션 헤더(HTTP-Referer) 값이다.",
-    },
-    Site {
-        path: "llm/gemini.rs",
-        primitives: &["reqwest::"],
-        control: Control::Exempt,
-        reason: "약속의 예외 ① — Google Gemini. 목적지는 상수 하나, 키는 키체인에서 온다.",
-    },
-    Site {
-        path: "llm/nim.rs",
-        primitives: &["reqwest::"],
-        control: Control::Exempt,
-        reason: "약속의 예외 ① — NVIDIA NIM (OpenAI 호환 와이어). 목적지는 상수 하나뿐이다.",
-    },
-    Site {
-        path: "llm/mod.rs",
-        primitives: &["reqwest::"],
-        control: Control::Exempt,
-        reason: "어댑터 공통 타입·SSE 포워더. 자기 목적지가 없다 — 위 넷의 응답만 다룬다.",
-    },
+    // (약속의 예외 ① — 앱 안 LLM 호출 `llm/*` 다섯 자리는 4.0 에서 걷었다.)
     // ── 약속의 예외 ②: 업데이트 확인 ──
     Site {
         path: "lib.rs",
@@ -147,12 +117,6 @@ const RUST_SITES: &[Site] = &[
     },
     // ── 약속에 적혀 있지 않은 자리 (이 라운드의 발견) ──
     // (플러그인 번들 GitHub 내려받기 `plugins/source.rs` 는 4.0 에서 번들 임포트와 함께 걷었다.)
-    Site {
-        path: "embedding.rs",
-        primitives: &["ApiBuilder::from_cache"],
-        control: Control::Exempt,
-        reason: "첫 실행에 ONNX 모델(~135MB)을 hf-hub 로 HuggingFace 에서 내려받는다 — **내려받기만** 하고 프로젝트 내용은 보내지 않는다. 토큰 없는 빌더(with_token(None))라 사용자의 HF 토큰은 읽지도 보내지도 않는다. 캐시가 있으면 허브 클라이언트를 거치지 않고 로컬 파일로 로드한다.",
-    },
     Site {
         path: "commands/external_editor.rs",
         primitives: &["xdg-open", "tauri_plugin_opener"],
@@ -175,13 +139,9 @@ const RUST_SITES: &[Site] = &[
 /// 스캐너에 "이건 세지 않아도 된다" 는 판단을 넣기 시작하면 언젠가 진짜
 /// 목적지를 숨기기 때문이다. 사유가 그 구분을 적는다.
 const HOST_LEDGER: &[(&str, &str)] = &[
-    // ── 실제로 나가는 곳 ──
-    ("api.anthropic.com", "약속의 예외 ① — Anthropic LLM 엔드포인트 (llm/anthropic.rs)."),
-    ("api.openai.com", "약속의 예외 ① — OpenAI LLM 엔드포인트."),
-    ("openrouter.ai", "약속의 예외 ① — OpenRouter (OpenAI 호환)."),
-    ("generativelanguage.googleapis.com", "약속의 예외 ① — Gemini LLM 엔드포인트."),
-    ("integrate.api.nvidia.com", "약속의 예외 ① — NVIDIA NIM LLM 엔드포인트."),
-    ("oculpm.com", "OpenRouter 어트리뷰션 헤더 값 — 앱이 부르는 목적지가 아니다. deeplink 테스트 픽스처이기도 하다 (걷은 `theme/install` 링크가 거절되는지). (테마 화이트리스트 호스트는 2026-10-24 원격 테마 설치와 함께, Notion OAuth 교환 브로커는 2026-10-14 Notion 연동과 함께 걷었다.)"),
+    // ── 실제로 나가는 곳 ── 없음. 4.0 에서 LLM 엔드포인트 다섯(앱 안 LLM)과 api.github.com(릴리스 노트)·
+    // codeload.github.com(플러그인 번들)을 걷었다 — 업데이터 엔드포인트는 `tauri.conf.json` 이 소유한다.
+    ("oculpm.com", "앱이 부르는 목적지가 아니다 — `.oculpm/README.md` 본문의 제품 링크이고, deeplink 테스트 픽스처다 (걷은 `theme/install` 링크가 거절되는지). (OpenRouter 어트리뷰션 헤더 값은 4.0 에서 LLM 호출과 함께, 테마 화이트리스트 호스트는 2026-10-24 원격 테마 설치와 함께, Notion OAuth 교환 브로커는 2026-10-14 Notion 연동과 함께 걷었다.)"),
     // ── 브라우저에 넘기는 링크 (앱이 보내지 않는다) ──
     ("github.com", "저장소·이슈·릴리스 링크 — open_url 로 OS 브라우저에 위임한다."),
     // ── 목적지가 아닌 것 ──
@@ -193,9 +153,9 @@ const HOST_LEDGER: &[(&str, &str)] = &[
 // 원장 — 웹뷰
 // ─────────────────────────────────────────────────────────────────────────────
 
-// 4.0 — 웹뷰는 바깥으로 나가지 않는다. 마지막 자리(Today What's-new 카드의 릴리스 노트 fetch)가
-// 오늘 화면 재설계와 함께 걷혔고, CSP connect-src 에서도 api.github.com 을 뺐다
-// (`webview_csp.rs`). 새 자리가 생기면 이 원장이 아니라 그 설계부터 다시 본다.
+// 4.0 — 웹뷰는 바깥으로 나가지 않는다. 마지막 자리(Today What's-new 카드·설정 업데이트 탭의
+// 릴리스 노트 fetch)가 걷혔고, CSP connect-src 에서도 api.github.com 을 뺐다 (`webview_csp.rs`).
+// 새 자리가 생기면 이 원장이 아니라 그 설계부터 다시 본다.
 const WEB_SITES: &[Site] = &[];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -569,52 +529,4 @@ fn the_redaction_doc_count_matches_the_tree() {
          → `redact::CALL_SITE_FILES` 를 같은 커밋에서 고쳐라.",
         files.len()
     );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 자동화 배지의 근거 ({#automation-egress-badge})
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// 배지가 찍는 호스트가 **실제 엔드포인트 상수**에서 왔는지 대조한다.
-///
-/// `automation::egress` 의 표가 손으로 관리되면 언젠가 어긋나고, 그때 배지는
-/// 조용히 거짓말을 한다 ("openai 로 보냅니다" 라고 적으면서 실제로는 다른 데로
-/// 가거나, 로컬이라고 적으면서 나가거나).
-#[test]
-fn the_automation_badge_hosts_come_from_the_real_llm_endpoints() {
-    use ocul_pm_lib::oculpm::automation::egress;
-
-    let llm_dir = crate_src().join("llm");
-    let mut files = Vec::new();
-    walk(&llm_dir, &["rs"], &mut files);
-    let mut endpoint_hosts = BTreeSet::new();
-    for path in files {
-        let raw = std::fs::read_to_string(&path).unwrap();
-        for line in raw.lines() {
-            // `const BASE_URL: &str = "https://…";` 꼴만 본다.
-            let t = line.trim();
-            if t.starts_with("const ") && t.contains("URL") && t.contains("https://") {
-                endpoint_hosts.extend(hosts_in(t));
-            }
-        }
-    }
-    assert!(
-        !endpoint_hosts.is_empty(),
-        "llm/ 에서 엔드포인트 상수를 하나도 못 찾았다 — 스캐너가 낡았다"
-    );
-
-    let table: BTreeSet<String> = egress::known_hosts().map(str::to_string).collect();
-    assert_eq!(
-        table, endpoint_hosts,
-        "배지의 호스트 표가 실제 엔드포인트와 다르다.\n  표: {table:?}\n  실측: {endpoint_hosts:?}"
-    );
-
-    // 배지가 말하는 목적지는 전부 유출 원장에 사유와 함께 있어야 한다.
-    let ledger_hosts: BTreeSet<&str> = HOST_LEDGER.iter().map(|(h, _)| *h).collect();
-    for host in egress::known_hosts() {
-        assert!(
-            ledger_hosts.contains(host),
-            "{host} 는 배지가 말하는 목적지인데 HOST_LEDGER 에 없다"
-        );
-    }
 }

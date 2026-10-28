@@ -16,7 +16,7 @@
 //!   measured, not remembered** — `tests/egress_inventory.rs` counts the files
 //!   on disk and fails when the constant drifts, because the hand-kept "three
 //!   places" in this very paragraph was wrong by an order of magnitude for
-//!   three months. They fall into six kinds of path, and a new one belongs to
+//!   three months. They fall into five kinds of path, and a new one belongs to
 //!   one of them:
 //!   1. the journal SQLite projection — on-read masking in
 //!      [`cache`][super::cache], so agent-authored secrets never reach the
@@ -26,30 +26,23 @@
 //!      ([`entry_diffs`][super::entry_diffs]) at capture time;
 //!   3. the agent-facing MCP surface — `mcp::tools` (titles, bodies, notes,
 //!      journal refs an agent hands us);
-//!   4. model output — [`journal_draft`][super::journal_draft],
-//!      `automation::{runner, scheduler}`, `import::journalize`;
-//!   5. the planner / discussion projections and dispatch prompts;
-//!   6. anything leaving the journal — `commands::skills` and rule/skill
+//!   4. the planner / discussion projections and dispatch prompts;
+//!   5. anything leaving the journal — `commands::skills` and rule/skill
 //!      promotion.
+//!
+//!   (Model output — `journal_draft` · `automation` · `import` — was a kind of its
+//!   own until 4.0 removed the app's own LLM calls.)
 //!
 //!   Use [`patterns_for_project`] to load+compile a project's
 //!   `auto_redact_patterns` from disk in one call.
 //!
-//! # What is *not* covered ({#redact-doc-truth})
+//! # No model on the other side (4.0)
 //!
-//! Redaction is a boundary, not a blanket — and a boundary has an outside.
-//! [`EXEMPT_LLM_PROMPT_SITES`] prompt-building sites reach a model without
-//! passing through this module or the masked cache projection. They are
-//! enumerated with a reason each in `tests/llm_prompt_ledger.rs`
-//! (`LLM_PROMPT_SITES`), which fails when a new one appears undeclared — and,
-//! since 2026-10-07, also when a call goes through a wrapper (`call_llm`,
-//! `ChatBackend`, …) the ledger has not classified. Before that the scan only
-//! saw files that spelled out `llm::create`, so four sites sat outside it. The
-//! short version: the AI panel relays what the *user* typed (the promise's
-//! own exception), and the project overview reads README
-//! and manifest files straight off disk. Nothing agent-authored reaches a model
-//! unmasked. (The greenfield seed-goal prompt was a fourth such site until v3
-//! removed it — the wizard seeds the file-based Planner instead.)
+//! Until 4.0 this section listed the prompt-building sites that reached a model
+//! without passing through here (`tests/llm_prompt_ledger.rs`). 4.0 removed the
+//! app's own LLM calls, so nothing the app reads is sent to a model any more —
+//! the ledger and its `EXEMPT_LLM_PROMPT_SITES` count went with them. Masking
+//! still guards everything that leaves the journal toward a human or an agent.
 //!
 //! See `docs/major_update/oculpm/W4/PR3-redact-forbid.md`.
 //! See `docs/major_update/oculpm/phases/W4-agents-dual-layer.md` §2.6 for the
@@ -100,21 +93,22 @@ use crate::oculpm::spec::OculpmConfig;
 ///
 /// 29 → 28 (2026-10-14): `commands/notion.rs` — Notion 연동을 걷으며 함께 사라졌다.
 ///
-/// 28 → 27 (4.0 화면 덜어내기): `oculpm/discussion/project.rs` — 논의 화면과 함께 사라졌다.
+/// 28 → 26 (4.0 덜어내기): `commands/import.rs` · `import/journalize.rs` — 대화
+/// 임포트를 걷으며 함께 사라졌다.
 ///
-/// 27 → 23 (4.0 화면 덜어내기): `commands/firing_ledger.rs` · `commands/skills.rs` ·
-/// `oculpm/rule_promotion.rs` · `oculpm/skill_promotion.rs` — 스킬·규칙 화면과 함께 사라졌다.
-pub const CALL_SITE_FILES: usize = 23;
-
-/// Prompt-building sites that reach a model **without** redaction — neither
-/// directly nor through the masked cache projection.
+/// 26 → 23 (4.0 덜어내기): `automation/{runner, scheduler}` · `journal_draft` — 배경
+/// 자동화와 세션 종료 일지 초안을 걷으며 함께 사라졌다.
 ///
-/// See the module doc's "What is not covered" and `LLM_PROMPT_SITES` in
-/// `tests/llm_prompt_ledger.rs`, which owns the per-site reasons.
+/// 23 → 20 (4.0 덜어내기): `commands/release_notes.rs` · `commands/skills.rs`(트리거
+/// 교정 초안) · `mcp/tools/search/rollup_hits.rs` — 앱 안 LLM 호출과 주간 롤업을
+/// 걷으며 함께 사라졌다.
 ///
-/// 3 → 2 (2026-10-24): `mobile_bridge/server.rs` — 폰이 보낸 대화를 중계하던
-/// 자리가 모바일 브리지와 함께 사라졌다.
-pub const EXEMPT_LLM_PROMPT_SITES: usize = 2;
+/// 20 → 18 (4.0 덜어내기): `journal_index.rs` · `commands/project.rs`(`search_chunks`)
+/// — 코드 색인·의미 검색을 걷으며 함께 사라졌다.
+///
+/// 18 → 14 (4.0 화면 덜어내기, 합류 실측): 논의(`oculpm/discussion/project.rs`)와 스킬·규칙
+/// (`commands/firing_ledger.rs` · `commands/skills.rs` · 승격 모듈)이 화면과 함께 사라졌다.
+pub const CALL_SITE_FILES: usize = 14;
 
 /// One match recorded by [`redact_text`]. Byte offsets reference the
 /// **original** input string (pre-redaction); they are at char boundaries
@@ -272,9 +266,9 @@ fn builtin_regexes() -> &'static [Regex] {
 
 /// 이름만으로 비밀이 사는 파일 — `.gitignore` 와 무관하게 **원문을 남기지 않는다.**
 ///
-/// 색인한 청크는 SQLite 에 평문으로 남고 의미 검색 결과로 AI 패널 프롬프트에 실려
-/// 나가며(2026-10-08 검토), 로컬 히스토리 스냅샷은 되돌리기용 원문이라 마스킹을 걸
-/// 수 없다. 둘 다 이 판정 하나를 지난다 (`indexer::is_skipped_name` ·
+/// diff 기준선 스냅샷은 SQLite 에 평문으로 남고(코드 색인 시절엔 그 청크가 AI 패널
+/// 프롬프트에 실려 나갔다 — 2026-10-08 검토), 로컬 히스토리 스냅샷은 되돌리기용
+/// 원문이라 마스킹을 걸 수 없다. 둘 다 이 판정 하나를 지난다 (`baseline::is_skipped_name` ·
 /// `history::should_capture`) — 목록이 둘이면 하나는 반드시 뒤처진다. `.env.*` 는
 /// `.env.example` 까지 막는다: 예시 파일에 진짜 값을 적는 일이 흔하다.
 pub fn is_secret_file_name(name: &str) -> bool {

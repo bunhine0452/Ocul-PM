@@ -13,7 +13,7 @@
  * | 바뀐 것        | useWorkspace | useUiPrefs | useProjectRuntime | useTerminalSessions |
  * |----------------|--------------|------------|-------------------|---------------------|
  * | uiV2View ×5    | +5           | +5         | 0                 | 0                   |
- * | setIndexing ×5 | +5           | 0          | +5                | 0                   |
+ * | setProjectMeta ×5 | +5        | 0          | +5                | 0                   |
  * | openTab ×5     | +5           | 0          | 0                 | +5                  |
  * | selectTab ×5   | +5           | 0          | 0                 | +5                  |
  *
@@ -88,12 +88,12 @@ describe("워크스페이스 조각 격리", () => {
 
     let api: {
       setUiV2View: ReturnType<typeof useUiPrefs>["setUiV2View"];
-      setIndexing: ReturnType<typeof useProjectRuntime>["setIndexing"];
+      setProjectMeta: ReturnType<typeof useProjectRuntime>["setProjectMeta"];
     } | null = null;
     function Driver() {
       const { setUiV2View } = useUiPrefs();
-      const { setIndexing } = useProjectRuntime();
-      api = { setUiV2View, setIndexing };
+      const { setProjectMeta } = useProjectRuntime();
+      api = { setUiV2View, setProjectMeta };
       return null;
     }
 
@@ -123,9 +123,9 @@ describe("워크스페이스 조각 격리", () => {
       full: 5, prefs: 5, runtime: 0,
     });
 
-    const ids = [1, null, 2, null, 3];
+    const names = ["a", "b", "c", "d", "e"];
     i = 0;
-    expect(await deltas(() => api!.setIndexing(ids[i++]))).toEqual({
+    expect(await deltas(() => { const nm = names[i++]; api!.setProjectMeta(nm, `/${nm}`); })).toEqual({
       full: 5, prefs: 0, runtime: 5,
     });
 

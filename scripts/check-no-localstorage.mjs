@@ -44,14 +44,12 @@ const ALLOWLIST = new Set([
   // Test-only.
   "__tests__/i18n_english_render.test.tsx",
   "__tests__/i18n_english_screens.test.tsx",
-  "__tests__/shell_acp_view_no_today_fallback.test.tsx",
   // Final UI Update PR-UI 3 — JournalScreenV2 tests clear localStorage between
   // mounts so the persisted journalFilter (aipm:workspace:v2:p<id> envelope) doesn't
   // leak a scope-chip choice from one test into the next. Test-only.
   "__tests__/journal_v2.test.tsx",
   // review-queue round — 「미검토」 칩도 같은 이유로 마운트 사이에 비운다
   // (persisted journalFilter 가 새지 않도록). Test-only.
-  "__tests__/journal_review_queue.test.tsx",
   // Final UI Update PR-UI 4 — DiffScreenV2 tests seed the persisted
   // WorkspaceContext envelope (recentChanges / diffActivePath) so the diff
   // file list mounts populated. Test-only.
@@ -59,10 +57,8 @@ const ALLOWLIST = new Set([
   // Final UI Update PR-UI 5 — Planner/Search tests clear the persisted
   // WorkspaceContext envelope between mounts (plannerOpen / searchScope).
   // Test-only.
-  "__tests__/tools_v2.test.tsx",
   // 코드 화면 — persisted codeActivePath 가 테스트 간 새지 않도록 마운트
   // 사이에 비운다 (journal_v2 와 같은 이유). Test-only.
-  "__tests__/code_screen.test.tsx",
   // 자정 롤오버 테스트 — 각 테스트가 default state 에서 마운트되도록 persisted
   // 워크스페이스 레코드(aipm:workspace:v2:p<id>)를 비운다. Test-only.
   "__tests__/workday_rollover.test.tsx",
@@ -73,7 +69,6 @@ const ALLOWLIST = new Set([
   // 터미널 도크 (2026-08-15) — 앱 창과 분리 터미널 창이 **같은 영속 레코드를
   // 나눠 소유**한다. 그 계약("각자 자기 몫만 쓰고 나머지는 디스크 값을 남긴다")은
   // 다른 창의 저장을 흉내 내야 검증되므로 저장소를 직접 만진다. Test-only.
-  "__tests__/terminal_dock.test.tsx",
   // 완성도 라운드 Phase 4 (2026-08-30) — 조각 컨텍스트의 잃어버린 갱신 제거를
   // 검증하려면 "다른 창의 저장 + storage 이벤트" 를 흉내 내야 한다. Test-only.
   "__tests__/polish_phase2.test.tsx",
@@ -81,7 +76,6 @@ const ALLOWLIST = new Set([
   // 비우고, "열어 둔 탭이 다음 실행에 되살아난다" 를 검증하려면 **저장이 실제로
   // 나갔는지**를 봐야 한다 (영속은 디바운스라 다시 마운트만 해서는 경쟁이 된다).
   // Test-only.
-  "__tests__/code_screen_tabs.test.tsx",
   // 4.0 셸·설정 한 쪽 — 마운트 사이에 비워 각 테스트가 기본 화면(오늘)에서 시작한다
   // (영속된 uiV2View 가 다음 테스트의 라우터를 엉뚱한 화면에서 띄우지 않게). Test-only.
   "__tests__/shell_v4.test.tsx",

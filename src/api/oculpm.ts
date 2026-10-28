@@ -25,8 +25,6 @@ import type {
   EntryFileDiff,
   EntryFilters,
   FileHotspot,
-  RollupDoc,
-  RollupSummary,
   JournalEntry,
   JournalEntryPage,
   JournalEntrySummary,
@@ -41,7 +39,6 @@ import type {
   OculpmStatus,
   CodexPluginStatus,
   CodexRegistrationStatus,
-  DesktopRegistrationStatus,
   McpRegistrationStatus,
   ReindexReport,
   RelatedSuggestion,
@@ -82,11 +79,7 @@ async function unwrap<T>(command: string, p: Promise<Envelope<T>>): Promise<T> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const oculpmApi = {
-  // ─── Claude MCP — 프로젝트 `.mcp.json` + Claude Desktop 설정 ───
-  //
-  // Desktop 3종은 `~/Library/Application Support/Claude` 를 건드린다. macOS 가
-  // "다른 앱의 데이터"로 보호하는 자리라 **호출 자체가 권한 프롬프트**다 —
-  // 화면 마운트에 붙이지 말고 사용자 동작 뒤에 두어야 한다 (2026-09-08).
+  // ─── Claude MCP — 프로젝트 `.mcp.json` ───
 
   mcpStatus: (projectId: number) =>
     unwrap<McpRegistrationStatus>("mcp_status", commands.mcpStatus(projectId)),
@@ -96,21 +89,6 @@ export const oculpmApi = {
 
   mcpUnregister: (projectId: number) =>
     unwrap<McpRegistrationStatus>("mcp_unregister", commands.mcpUnregister(projectId)),
-
-  mcpDesktopStatus: (projectId: number) =>
-    unwrap<DesktopRegistrationStatus>("mcp_desktop_status", commands.mcpDesktopStatus(projectId)),
-
-  mcpDesktopRegister: (projectId: number) =>
-    unwrap<DesktopRegistrationStatus>(
-      "mcp_desktop_register",
-      commands.mcpDesktopRegister(projectId),
-    ),
-
-  mcpDesktopUnregister: (projectId: number) =>
-    unwrap<DesktopRegistrationStatus>(
-      "mcp_desktop_unregister",
-      commands.mcpDesktopUnregister(projectId),
-    ),
 
   // ─── Codex MCP — Claude `.mcp.json`과 독립된 `~/.codex/config.toml` ───
 
@@ -390,32 +368,6 @@ export const oculpmApi = {
       "oculpm_promise_scorecard",
       commands.oculpmPromiseScorecard(projectId, days),
     ),
-
-  /**
-   * journal-scale-round `{#rollup-weekly}` — 한 주의 요약을
-   * `.oculpm/rollups/<week>.md` 에 쓴다. `week` 가 `null` 이면 오늘이 속한 ISO
-   * 주. `useLlm` 이 참이어도 키·모델이 없거나 호출이 실패하면 결정적 본문으로
-   * 물러선다 (`used_llm` / `note` 로 구분) — 키 없이도 항상 파일이 나온다.
-   */
-  rollupWeek: (
-    projectId: number,
-    week: string | null,
-    useLlm: boolean,
-    provider: string | null,
-    model: string | null,
-  ) =>
-    unwrap<RollupDoc>(
-      "oculpm_rollup_week",
-      commands.oculpmRollupWeek(projectId, week, useLlm, provider, model),
-    ),
-
-  /** 디스크의 주간 요약 목록 (최신 주 먼저). `stale` 은 그 주 일지의 현재 지문과 대조한 값. */
-  rollupList: (projectId: number) =>
-    unwrap<RollupSummary[]>("oculpm_rollup_list", commands.oculpmRollupList(projectId)),
-
-  /** 한 주의 요약 전문 — 모달이 렌더한다. */
-  rollupRead: (projectId: number, week: string) =>
-    unwrap<RollupDoc>("oculpm_rollup_read", commands.oculpmRollupRead(projectId, week)),
 
   /**
    * W4 dogfooding (2026-05-27) — open a journal entry .md in the OS default

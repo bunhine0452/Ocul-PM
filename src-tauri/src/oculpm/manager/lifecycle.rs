@@ -536,7 +536,6 @@ impl OculpmManager {
             project_id,
             snapshot.root.clone(),
             session.clone(),
-            snapshot.index_writer.clone(),
             snapshot.config.clone(),
             app_handle,
         )

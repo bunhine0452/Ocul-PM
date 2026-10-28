@@ -1,16 +1,14 @@
-//! 프로젝트 안의 **연결된 git worktree** 는 색인하지 않는다 (2026-10-24 `{#idx-nested-worktree}`).
+//! 프로젝트 안의 **연결된 git worktree** 사본은 보지 않는다 (2026-10-24 `{#idx-nested-worktree}`).
 //!
-//! 병렬 에이전트를 돌리는 사람은 저장소 안에 worktree 를 만든다 (`wt/<이름>`,
-//! `<프로젝트>/ioreum-desktop` …). 숨김 폴더면 걷기가 이미 건너뛰지만, 보이는
-//! 폴더면 저장소 전체가 사본마다 한 벌씩 색인됐다 — 설치본 DB 사본(2026-10-24,
-//! 청크 191,884): 지금 있는 worktree 6개 아래 파일 5,529 · 청크 35,161(18.3%),
-//! 지워진 worktree 의 유령 64,911 청크(33.8%)는 거의 전부 `wt/` 아래였다. 한
-//! 프로젝트는 워처 활동 줄의 ~90% 가 worktree 사본이었고, 로컬 히스토리 302MB 중
-//! 236MB 가 그 사본의 판이었다. 같은 내용이 의미 검색·AI 패널 근거에 겹쳐 뜬다.
+//! 병렬 에이전트를 돌리는 사람은 저장소 안에 worktree 를 만든다 (`wt/<이름>` …).
+//! 숨김 폴더가 아니면 저장소 전체가 사본마다 한 벌씩 잡혔다 — 코드 색인 시절 실측
+//! (청크 18.3% 가 worktree 사본) · 로컬 히스토리 302MB 중 236MB 가 그 사본의 판이었다.
+//! 4.0 에서 색인을 걷은 뒤에도 로컬 히스토리 캡처(`watcher_tasks`)와 diff 기준선
+//! 스냅샷([`super`])이 같은 판정을 쓴다.
 //!
 //! 판정: 폴더의 `.git` 이 **파일**이고 그 `gitdir:` 이 `…/worktrees/<이름>` 이다.
-//! 서브모듈(`…/modules/<이름>`)은 상위 저장소의 일부라 그대로 색인한다. 루트 자신은
-//! 보지 않는다 — worktree 를 프로젝트로 연 사람의 파일은 색인한다.
+//! 서브모듈(`…/modules/<이름>`)은 상위 저장소의 일부라 그대로 본다. 루트 자신은
+//! 보지 않는다 — worktree 를 프로젝트로 연 사람의 파일은 그대로 본다.
 
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
@@ -39,7 +37,7 @@ pub(crate) fn is_linked_worktree(dir: &Path) -> bool {
 }
 
 /// 루트 아래 상대 경로가 연결된 worktree 안에 있는가 — 폴더 판정을 기억해 두므로
-/// 같은 폴더를 두 번 stat 하지 않는다 (기동 화해가 행 수만 개를 한 번에 묻는다).
+/// 같은 폴더를 두 번 stat 하지 않는다.
 pub(crate) struct WorktreeProbe<'a> {
     root: &'a Path,
     memo: HashMap<PathBuf, bool>,
@@ -133,7 +131,7 @@ mod tests {
         assert!(!probe.contains(Path::new("vendored/d.ts")));
         assert!(!probe.contains(Path::new("src/e.ts")));
         assert!(!probe.contains(Path::new("top.ts")));
-        // 지워진 worktree 아래 경로 — 물을 폴더가 없으니 false (유령은 화해의 몫).
+        // 지워진 worktree 아래 경로 — 물을 폴더가 없으니 false.
         assert!(!probe.contains(Path::new("wt/gone/x.ts")));
     }
 

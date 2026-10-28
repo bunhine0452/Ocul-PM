@@ -68,7 +68,6 @@ export type SidePanelMode = "files" | "diff";
 
 export type JournalFilter = "all" | "feature" | "bugfix" | "refactor" | "error" | "chore";
 export type DiffMode = "unified" | "split";
-export type SearchScope = "semantic" | "symbol" | "text" | "journal";
 // Legacy tab names for migration
 type LegacyTab = "files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git" | "overview" | "today";
 
@@ -431,14 +430,13 @@ function loadFromStorage(projectId: number): WorkspaceState {
       // 은퇴한 영속 키 — 전부 일방향 삭제. AI 오버레이 (감사 2026-07-16, ⌘\ 는 AI
       // 패널 화면으로) · 터미널 글자 크기 (2026-08-15, 앱 전역 설정으로) · 세션 별명
       // (2026-10-04, 세션 화면과 함께 — 그 화면의 `uiV2View` 는 위에서 today 로 접힌다).
-      const retired = ["aiWorkbenchOpen", "aiOverlayOpen", "aiWorkbenchMode", "terminalFontSize", "sessionAliases"];
+      const retired = ["aiWorkbenchOpen", "aiOverlayOpen", "aiWorkbenchMode", "terminalFontSize", "sessionAliases", "searchScope", "searchRecent"];
       for (const key of retired) delete parsed[key];
       // Merge with defaults to handle new fields added in future versions
       const merged = {
         ...DEFAULT_STATE,
         ...parsed,
         // Always reset volatile state
-        indexingProjectId: null,
         oculpmEnabled: false,
         oculpmStatus: null,
         currentSession: null,
@@ -468,7 +466,6 @@ function loadFromStorage(projectId: number): WorkspaceState {
 function persistToStorage(projectId: number, state: WorkspaceState) {
   // Only persist non-volatile fields
   const {
-    indexingProjectId: _ip,
     // 상태에서 파생되는 값 — 지난 실행의 true 를 믿으면 상태가 오기 전에
     // 워크데이 조회가 돈다 (Phase 4 에서 영속 제외).
     oculpmEnabled: _oe,
@@ -498,7 +495,7 @@ function persistToStorage(projectId: number, state: WorkspaceState) {
 // (터미널 세션 조각은 2026-10-28 에 터미널과 함께 걷었다.)
 
 const RUNTIME_KEYS = [
-  "currentProjectId", "currentProjectName", "currentProjectRoot", "indexingProjectId",
+  "currentProjectId", "currentProjectName", "currentProjectRoot",
   "oculpmEnabled", "oculpmStatus", "currentSession", "workdayKey",
   "sidebarCollapsed",
 ] as const satisfies readonly (keyof WorkspaceState)[];
@@ -537,7 +534,6 @@ const NON_PREFS_KEYS: ReadonlySet<string> = new Set<string>([...RUNTIME_KEYS]);
 
 export interface ProjectRuntimeValue extends RuntimeSlice {
   setProjectMeta: (name: string | null, root: string | null) => void;
-  setIndexing: (projectId: number | null) => void;
   setOculpmStatus: (status: OculpmStatus | null) => void;
   setCurrentSession: (session: Session | null) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -569,8 +565,6 @@ interface WorkspaceContextValue {
   /** Final UI Update (ui_v2) — 셸의 활성 화면 (목록은 `lib/navRegistry.ts`). */
   setUiV2View: (view: UiV2View) => void;
   setActiveFile: (file: string | null) => void;
-  /** 색인 시작/끝만 — 파일별 진행률은 `indexProgressStore` 로 (Phase 3). */
-  setIndexing: (projectId: number | null) => void;
 
   // .oculpm/ helpers (W3-PR4). Listeners in WorkspaceProvider keep these in
   // sync; screens call them directly when they need to refresh on demand.
@@ -660,12 +654,6 @@ export function WorkspaceProvider({
     setState((prev) => ({ ...prev, activeFile: file }));
   }, []);
 
-  const setIndexing = useCallback((projectId: number | null) => {
-    setState((prev) =>
-      prev.indexingProjectId === projectId ? prev : { ...prev, indexingProjectId: projectId },
-    );
-  }, []);
-
   // `resetWorkspace` 는 멀티 창 라운드에서 제거됐다 — 유일한 호출처가
   // "대시보드로 돌아가기"였는데, I3 하에서 프로젝트 전환이 사라지면서
   // 창 상태의 수명이 곧 창의 수명이 됐다 (창을 닫으면 끝).
@@ -713,19 +701,6 @@ export function WorkspaceProvider({
         actions: [{ label: t("ws.viewInDoctor"), onClick: () => openSettings("diagnostics") }],
       });
       console.warn("[oculpm] integrity warning:", w);
-    }));
-
-    // F1 — auto-reconcile applied status changes to the active plan in the
-    // background. Toast so the user knows the plan moved on its own. Dedup per
-    // plan within a short window so a burst of entries doesn't spam.
-    bag.add(events.oculpmPlanReconciled.listen((evt) => {
-      if (evt.payload.project_id !== currentProjectId()) return;
-      const { applied, plan_id: planId } = evt.payload;
-      toast.info(t("ws.reconciled", { n: applied }), {
-        title: t("ws.reconciledTitle"),
-        dedupKey: `reconciled:${evt.payload.project_id}:${planId}`,
-        dedupWindowMs: 5_000,
-      });
     }));
 
     // 다른 ocul-pm 인스턴스가 이 프로젝트를 가져갔다 (2026-08-23). 이 창은
@@ -895,7 +870,6 @@ export function WorkspaceProvider({
       setProjectMeta,
       setUiV2View,
       setActiveFile,
-      setIndexing,
       setOculpmStatus,
       setCurrentSession,
     }),
@@ -904,7 +878,6 @@ export function WorkspaceProvider({
       setProjectMeta,
       setUiV2View,
       setActiveFile,
-      setIndexing,
       setOculpmStatus,
       setCurrentSession,
     ],
@@ -921,12 +894,11 @@ export function WorkspaceProvider({
     () => ({
       ...runtimeSlice,
       setProjectMeta,
-      setIndexing,
       setOculpmStatus,
       setCurrentSession,
       setSidebarCollapsed,
     }),
-    [runtimeSlice, setProjectMeta, setIndexing, setOculpmStatus, setCurrentSession, setSidebarCollapsed],
+    [runtimeSlice, setProjectMeta, setOculpmStatus, setCurrentSession, setSidebarCollapsed],
   );
 
   const setPrefs = useCallback((updater: (prev: UiPrefsSlice) => Partial<UiPrefsSlice>) => {

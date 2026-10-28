@@ -89,14 +89,6 @@
 .entry-files-fold > summary b { color: var(--text); }
 
 
-/* 검색 — 요약부터 */
-.rollup-hit { background: var(--accent-soft); }
-.rh-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4) 0; font-size: var(--fs-3); }
-.rh-pill { display: inline-flex; align-items: center; height: var(--ctl-1); padding: 0 8px; border-radius: var(--radius-pill); background: var(--accent); color: var(--text-on-accent); font-size: var(--fs-1); font-weight: var(--fw-bold); }
-.rh-sub { color: var(--text-3); font-size: var(--fs-2); }
-.rh-body { margin: var(--space-2) 0; padding: 0 var(--space-4); font-size: var(--fs-3); line-height: var(--lh-body); }
-.rh-path { display: block; padding: 0 var(--space-4) var(--space-3); font-size: var(--fs-1); color: var(--text-3); }
-
 /* ── 라운드 3 ───────────────────────────────────────────────────────── */
 
 /* 툴바의 「베타 · 결함 수정만」 알약 — `<Toolbar beta>` */

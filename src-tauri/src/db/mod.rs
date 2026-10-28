@@ -16,26 +16,15 @@ pub struct Db {
     path: PathBuf,
 }
 
-/// `replace_file_chunks` 한 행. 인덱서가 만든 청크와 그 임베딩을
-/// 배치로 넘기기 위한 그릇이다 (임베딩은 vec0 가 받는 f32 리틀엔디언 바이트).
-pub struct ChunkInsert {
-    pub kind: String,
-    pub start_line: u32,
-    pub end_line: u32,
-    pub content: String,
-    pub embedding: Vec<u8>,
-}
-
-pub mod automation;
 mod changes;
 mod chat;
-mod chunk_store;
-mod code_index;
-mod dependencies;
+// ⌘K 엔티티 점프 — 코드 색인을 걷으며 `code_index.rs` 에서 옮겨 왔다 (4.0).
+mod entity_search;
 pub mod hotspot;
 mod planning;
 mod projects;
-mod vec_repack;
+// diff 기준선 스냅샷 — 코드 색인을 걷으며 `code_index.rs` 에서 옮겨 왔다 (4.0).
+mod snapshots;
 pub use projects::PROJECT_CACHE_TABLES;
 pub mod recall;
 pub mod scorecard;
@@ -305,20 +294,15 @@ impl Db {
         })
     }
 
-    /// 빈 페이지를 되돌려주고 WAL 을 잘라낸다 — 색인 정리(031)·프로젝트 삭제 뒤
-    /// 파일 크기는 저절로 줄지 않는다. 사용자가 진단 탭에서 직접 누른다.
-    /// VACUUM 은 트랜잭션 밖이어야 하고 파일 크기만큼 임시 공간을 쓴다.
+    /// 빈 페이지를 되돌려주고 WAL 을 잘라낸다 — 표를 지운 뒤(043 의 코드 색인 걷기 ·
+    /// 프로젝트 삭제) 파일 크기는 저절로 줄지 않는다. 사용자가 진단 탭의 「DB 정리」로
+    /// 직접 누른다. VACUUM 은 트랜잭션 밖이어야 하고 파일 크기만큼 임시 공간을 쓴다.
     ///
-    /// 그 전에 vec0 를 **다시 짓는다** (`{#vec0-holes}`, 2026-09-12). sqlite-vec 는
-    /// 지운 벡터의 자리를 되돌리지 않는다 — 라이브 DB 에서 슬롯 189,440 중 살아
-    /// 있는 벡터가 101,120(53%) 이라 130MB 가 죽은 공간이었는데, 그건 freelist 가
-    /// 아니라 vec0 의 블롭 **안쪽** 구멍이라 VACUUM 이 0 바이트를 돌려줬다
-    /// (`freelist_count = 1`). 032 와 같은 방식: 살아 있는 벡터를 보통 표로 옮겨
-    /// 두고 vec0 를 새로 만든 뒤 되넣는다. 임베딩은 보존한다(재색인 없음).
+    /// (코드 색인 시절에는 그 전에 vec0 를 다시 지었다 — `{#vec0-holes}`. 043 이
+    /// `chunk_embeddings` 를 지워 그 단계도 함께 빠졌다.)
     pub async fn compact(&self) -> Result<()> {
         self.conn
             .call(|c| {
-                rebuild_vec0(c)?;
                 // VACUUM 은 WAL 모드에서 **새 DB 전체를 WAL 에 쓴다** — 라이브 사본
                 // 553MB 를 434MB 로 줄이면서 WAL 458MB 를 남겼다. 연결이 열려 있는
                 // 앱에서는 다음 자동 체크포인트까지 그 파일이 산다. 뒤에서 한 번 더
@@ -331,32 +315,6 @@ impl Db {
             .await?;
         Ok(())
     }
-}
-
-/// `chunk_embeddings` 를 살아 있는 행만으로 다시 만든다 (`{#vec0-holes}`). 한
-/// 트랜잭션 — 중간에 죽어도 옛 표가 그대로다. 정의는 032 의 것과 **같아야**
-/// 한다 (partition key 포함); 바꿀 일이 생기면 마이그레이션이 먼저다.
-fn rebuild_vec0(c: &mut rusqlite::Connection) -> rusqlite::Result<()> {
-    let tx = c.transaction()?;
-    tx.execute_batch(
-        "CREATE TABLE chunk_embeddings_rebuild (
-           chunk_id INTEGER PRIMARY KEY,
-           project_id INTEGER NOT NULL,
-           embedding BLOB NOT NULL
-         );
-         INSERT INTO chunk_embeddings_rebuild (chunk_id, project_id, embedding)
-           SELECT chunk_id, project_id, embedding FROM chunk_embeddings;
-         DROP TABLE chunk_embeddings;
-         CREATE VIRTUAL TABLE chunk_embeddings USING vec0(
-           chunk_id INTEGER PRIMARY KEY,
-           project_id INTEGER PARTITION KEY,
-           embedding FLOAT[384]
-         );
-         INSERT INTO chunk_embeddings (chunk_id, project_id, embedding)
-           SELECT chunk_id, project_id, embedding FROM chunk_embeddings_rebuild;
-         DROP TABLE chunk_embeddings_rebuild;",
-    )?;
-    tx.commit()
 }
 
 // ---------- Row mapper ----------
@@ -401,18 +359,6 @@ fn chat_message_from_row(r: &rusqlite::Row) -> rusqlite::Result<ChatMessage> {
     })
 }
 
-fn project_overview_from_row(r: &rusqlite::Row) -> rusqlite::Result<ProjectOverview> {
-    Ok(ProjectOverview {
-        project_id: r.get::<_, i64>(0)? as u32,
-        identity: r.get(1)?,
-        stack_json: r.get(2)?,
-        overview_md: r.get(3)?,
-        source_signature: r.get(4)?,
-        generated_at: r.get::<_, Option<i64>>(5)?.map(|v| v as u32),
-        generated_by_model: r.get(6)?,
-    })
-}
-
 // ---------- Types ----------
 
 #[derive(Debug, serde::Serialize, specta::Type)]
@@ -448,31 +394,6 @@ pub struct Project {
     pub icon: Option<String>,
     /// 색 id (`"amber"` 등) — hex 가 아니라 id 다.
     pub color: Option<String>,
-}
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct ChunkSearchResult {
-    pub chunk_id: u32,
-    pub file_path: String,
-    /// `chunks.kind` — `ast` / `lines` 는 코드, `journal` 은 일지·롤업이다
-    /// (journal-scale-round `{#search-semantic-journal}`). 검색 화면이 행을
-    /// 파일 카드로 그릴지 일지 카드로 그릴지 이 값 하나로 가른다.
-    pub kind: String,
-    pub start_line: u32,
-    pub end_line: u32,
-    pub content: String,
-    pub distance: f32,
-}
-
-/// PR-R1b (A2) — a symbol hit from `search_symbols` (name LIKE over the AST
-/// symbol index). Unlike `SymbolDef` it carries the owning file path.
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct SymbolSearchResult {
-    pub name: String,
-    pub kind: String,
-    pub file_path: String,
-    pub start_line: u32,
-    pub end_line: u32,
 }
 
 /// v2 U7 (docs/20260706_v2/02-features-spec.md §2) — 팔레트 "go to anything"
@@ -525,26 +446,6 @@ pub struct OpenPlanItem {
     /// todo | in_progress | blocked
     pub status: String,
 }
-
-/// SQL predicate that excludes prose/documentation files from a result set by
-/// path suffix (의미검색 문서 제외). Appended to `search_chunks` when the
-/// caller asks for code-only results. Lives here next to the search queries so
-/// the extension list stays in one place.
-///
-/// 앞의 `AND` 가 빠진 **술어**인 이유는 일지다 (journal-scale-round
-/// `{#search-semantic-journal}`): 일지도 `.md` 라 이 목록에 통째로 걸린다.
-/// 「문서 포함」이 꺼져 있어도 일지는 나와야 하므로 호출자가
-/// `(c.kind = 'journal' OR (…))` 로 감싼다. 조각을 `AND` 로 시작하게 두면
-/// 그 괄호를 못 친다.
-const DOC_EXCLUDE_SQL: &str = "lower(f.path) NOT LIKE '%.md' \
-     AND lower(f.path) NOT LIKE '%.mdx' \
-     AND lower(f.path) NOT LIKE '%.markdown' \
-     AND lower(f.path) NOT LIKE '%.txt' \
-     AND lower(f.path) NOT LIKE '%.text' \
-     AND lower(f.path) NOT LIKE '%.rst' \
-     AND lower(f.path) NOT LIKE '%.adoc' \
-     AND lower(f.path) NOT LIKE '%.asciidoc' \
-     AND lower(f.path) NOT LIKE '%.org'";
 
 /// Escape LIKE wildcards so a user query is matched literally (paired with
 /// `ESCAPE '\'` in the SQL). Without this, `%`/`_` in a query would act as
@@ -601,22 +502,6 @@ pub struct ChatMessage {
     pub created_at: u32,
 }
 
-// Change-impact (PR-GR4) — reverse-dependency BFS from a set of changed files.
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct ImpactNode {
-    pub file_id: u32,
-    pub path: String,
-    pub depth: u32, // hops from the nearest changed file (1 = direct importer)
-}
-
-#[derive(Debug, Clone, serde::Serialize, specta::Type)]
-pub struct ImpactReport {
-    /// Changed paths that were found in the index (subset of the input).
-    pub changed: Vec<String>,
-    /// Files that (transitively) import a changed file, nearest first.
-    pub affected: Vec<ImpactNode>,
-}
-
 /// PR6.6 — `file_snapshots` row. `content` is raw bytes (1.0 ships
 /// uncompressed; zstd is a 1.1 candidate). Not exported via specta because no
 /// Tauri command returns it directly — `compute_diff` only consumes it
@@ -642,19 +527,6 @@ pub struct ConversationAction {
     pub message_index: u32,
     pub status: String,
     pub applied_at: u32,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, specta::Type)]
-pub struct ProjectOverview {
-    pub project_id: u32,
-    pub identity: Option<String>,
-    /// JSON-encoded stack metadata. Stored as TEXT for forward compatibility
-    /// (the LLM is free to add new keys without a migration).
-    pub stack_json: Option<String>,
-    pub overview_md: Option<String>,
-    pub source_signature: Option<String>,
-    pub generated_at: Option<u32>,
-    pub generated_by_model: Option<String>,
 }
 
 /// 행이나 구조를 지우는 마이그레이션인가 — 그 앞에서만 사본을 뜬다.

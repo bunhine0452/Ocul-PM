@@ -126,7 +126,6 @@ import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
 import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
-import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
 
 // i18n-ignore-next-line -- 한글 **검출**용 정규식 (표시 문자열이 아니다)
 const HANGUL = /[가-힣]/;
@@ -251,15 +250,6 @@ describe("영어 모드 전 화면 순회 — 한글이 남지 않는다", () =>
       </Wrap>,
     );
     await expectEnglish(container, "Plan");
-  });
-
-  it("검색", async () => {
-    const { container } = render(
-      <Wrap>
-        <SearchScreenV2 projectId={1} projectRoot="/repo" onOpenInCode={noop} />
-      </Wrap>,
-    );
-    await expectEnglish(container, "Search");
   });
 
 
