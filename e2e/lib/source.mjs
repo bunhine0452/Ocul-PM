@@ -23,14 +23,17 @@ export function loadDict(repo, lang) {
 
 /**
  * navRegistry.ts 의 `NAV_ENTRIES`(사이드바 행)와 `NAV_DESTINATIONS`(갈래를 펼친
- * 목적지 = 화면) 를 읽는다. 갈래(`children: AGENT_BRANCHES`)는 부모 행의 라벨을
- * 함께 들고 있어야 사이드바에서 찾아 들어갈 수 있다.
+ * 목적지 = 화면) 를 읽는다. 갈래(`children: AGENT_BRANCHES`)가 있으면 부모 행의 라벨을
+ * 함께 들고 있어야 사이드바에서 찾아 들어갈 수 있다 (2026-10-28 이후엔 갈래가 없다).
  */
 export function loadNav(repo) {
   const src = readFileSync(join(repo, "src", "lib", "navRegistry.ts"), "utf8");
-  const block = (name) => {
+  const block = (name, { optional = false } = {}) => {
     const start = src.indexOf(`const ${name}: NavEntry[] = [`);
-    if (start < 0) throw new Error(`navRegistry.ts 에서 ${name} 를 못 찾았다`);
+    if (start < 0) {
+      if (optional) return "";
+      throw new Error(`navRegistry.ts 에서 ${name} 를 못 찾았다`);
+    }
     return src.slice(start, src.indexOf("\n];", start));
   };
   const entryRe = /\{\s*id:\s*"(\w+)",\s*labelKey:\s*"([\w.]+)"[^\n]*/g;
@@ -39,7 +42,8 @@ export function loadNav(repo) {
     labelKey: m[2],
     hasChildren: /children:\s*AGENT_BRANCHES/.test(m[0]),
   }));
-  const branches = parse(block("AGENT_BRANCHES"));
+  // 갈래(에이전트 화면)는 2026-10-28 보류 등급 제거로 사라졌다 — 없으면 행이 곧 화면이다.
+  const branches = parse(block("AGENT_BRANCHES", { optional: true }));
   const rows = parse(block("NAV_ENTRIES"));
   const destinations = rows.flatMap((row) =>
     row.hasChildren
