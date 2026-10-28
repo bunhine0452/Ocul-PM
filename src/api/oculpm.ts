@@ -17,8 +17,6 @@
 import { commands, events } from "@/lib/bindings";
 import { ApiError, call, toAppError, type Envelope } from "@/api/invoke";
 import type {
-  BranchRef,
-  BranchStory,
   AgentDetection,
   AgentSyncReport,
   BackfillReport,
@@ -47,7 +45,6 @@ import type {
   McpRegistrationStatus,
   ReindexReport,
   RelatedSuggestion,
-  ReleaseNotesDraft,
   Session,
   TagMergeReport,
   TagStat,
@@ -463,42 +460,6 @@ export const oculpmApi = {
     unwrap<BackfillReport>(
       "oculpm_backfill_from_git",
       commands.oculpmBackfillFromGit(projectId, maxCommits),
-    ),
-
-  // ─── 브랜치 축 (v3-surface) — 전부 로컬 git + 캐시 읽기, 네트워크 0 ───
-
-  /** 로컬 브랜치 목록 (최근 커밋 순). 원격 ref 는 읽지 않는다. */
-  branchList: (projectId: number, limit: number) =>
-    unwrap<BranchRef[]>("branch_list", commands.branchList(projectId, limit)),
-
-  /**
-   * 이 브랜치의 이야기 — 커밋·일지·플랜 항목·파일을 한 좌표로.
-   * `branch`/`base` 를 안 주면 각각 현재 브랜치 · main 계열 기준으로 잡힌다.
-   */
-  branchStory: (projectId: number, branch: string | null, base: string | null) =>
-    unwrap<BranchStory>("branch_story", commands.branchStory(projectId, branch, base)),
-
-  /** 브랜치 이야기를 마크다운 한 장으로. 취소하면 `null` (오류가 아니다). */
-  branchExportDigest: (projectId: number, branch: string | null, base: string | null) =>
-    unwrap<string | null>(
-      "branch_export_digest",
-      commands.branchExportDigest(projectId, branch, base),
-    ),
-
-  /**
-   * 릴리스 노트 **초안** (`{#release-notes-draft}`). 태그 사이 커밋과 그
-   * 워크데이의 일지를 묶어 마크다운 한 판을 돌려준다 — **파일은 건드리지
-   * 않는다.** `from`/`to` 가 비면 각각 마지막 `v*` 태그 · `HEAD`.
-   */
-  releaseNotesDraft: (
-    projectId: number,
-    fromRef: string | null,
-    toRef: string | null,
-    useLlm: boolean,
-  ) =>
-    unwrap<ReleaseNotesDraft>(
-      "oculpm_release_notes_draft",
-      commands.oculpmReleaseNotesDraft(projectId, fromRef, toRef, useLlm),
     ),
 
   /** ⌘K 팔레트의 엔티티 검색 — 일지·플랜·논의를 제목으로 `limit` 개. */

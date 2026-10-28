@@ -35,12 +35,9 @@ pub fn parse_note(note: &str) -> Option<(bool, String)> {
     let rest = s
         .strip_prefix("판정 ")
         .or_else(|| s.strip_prefix("verdict "))?;
-    let (passed, tail) = if let Some(t) = rest.strip_prefix('✓') {
-        (true, t)
-    } else if let Some(t) = rest.strip_prefix('✗') {
-        (false, t)
-    } else {
-        return None;
+    let (passed, tail) = match rest.strip_prefix('✓') {
+        Some(t) => (true, t),
+        None => (false, rest.strip_prefix('✗')?),
     };
     if !(tail.is_empty() || tail.starts_with(' ')) {
         return None;

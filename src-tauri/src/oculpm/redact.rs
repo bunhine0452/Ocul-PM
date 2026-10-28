@@ -99,7 +99,12 @@ use crate::oculpm::spec::OculpmConfig;
 /// 작성」 으로 면제하고 있어 저장소 파일 원문이 그대로 나갔다.
 ///
 /// 29 → 28 (2026-10-14): `commands/notion.rs` — Notion 연동을 걷으며 함께 사라졌다.
-pub const CALL_SITE_FILES: usize = 28;
+///
+/// 28 → 27 (4.0 화면 덜어내기): `oculpm/discussion/project.rs` — 논의 화면과 함께 사라졌다.
+///
+/// 27 → 23 (4.0 화면 덜어내기): `commands/firing_ledger.rs` · `commands/skills.rs` ·
+/// `oculpm/rule_promotion.rs` · `oculpm/skill_promotion.rs` — 스킬·규칙 화면과 함께 사라졌다.
+pub const CALL_SITE_FILES: usize = 23;
 
 /// Prompt-building sites that reach a model **without** redaction — neither
 /// directly nor through the masked cache projection.

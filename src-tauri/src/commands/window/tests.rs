@@ -13,7 +13,6 @@ fn labels_distinguish_app_windows() {
     assert!(is_app_window("main"));
     assert!(is_app_window("win-1"));
     assert!(is_app_window("win-42"));
-    assert!(!is_app_window("tray"));
     assert!(!is_app_window("win-"));
     assert!(!is_app_window("win-abc"));
     assert!(!is_app_window("window-1"));
@@ -105,9 +104,21 @@ fn plain_window_url_has_only_label() {
     assert_eq!(window_url("win-3", None), "index.html?win=win-3");
 }
 
+/// R1 — 창 하나를 닫았다고 작업 중인 다른 창이 죽으면 안 된다.
+#[test]
+fn exits_only_when_no_window_remains_and_not_on_mac() {
+    // 비-mac 에서 마지막 창을 닫으면 종료한다.
+    assert!(exits_on_last_window_close(0, false));
+    // macOS 는 창이 없어도 앱이 산다 — 독 클릭이 다시 연다.
+    assert!(!exits_on_last_window_close(0, true));
+    // R1 — 창이 남아 있으면 무슨 일이 있어도 종료하지 않는다.
+    assert!(!exits_on_last_window_close(3, false));
+    assert!(!exits_on_last_window_close(1, false));
+}
+
 #[test]
 fn deeplink_url_carries_view_and_entry() {
-    let nav = crate::tray::TrayNavigate {
+    let nav = WindowNavigate {
         view: "journal".into(),
         project_id: Some(7),
         entry_path: Some("journal/20260101/Bugs/0900_bug_x.md".into()),

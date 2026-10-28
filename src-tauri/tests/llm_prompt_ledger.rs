@@ -116,21 +116,6 @@ const LLM_PROMPT_SITES: &[PromptSite] = &[
         reason: "`project_redact_patterns` → `planner::dispatch` 가 프롬프트를 마스킹해 조립한다.",
     },
     PromptSite {
-        path: "commands/rule_promotion.rs",
-        redaction: Redaction::ViaProjection,
-        reason: "규칙 승격의 증거 발췌를 `oculpm::rule_promotion` 이 리댁션을 지나 만들어 넘긴다.",
-    },
-    PromptSite {
-        path: "commands/skill_promotion.rs",
-        redaction: Redaction::ViaProjection,
-        reason: "스킬 승격의 증거 발췌를 `oculpm::skill_promotion` 이 리댁션을 지나 만들어 넘긴다.",
-    },
-    PromptSite {
-        path: "commands/skills.rs",
-        redaction: Redaction::Direct,
-        reason: "스킬 초안·카탈로그 재료(일지 발췌)를 보내기 전에 직접 마스킹한다.",
-    },
-    PromptSite {
         path: "oculpm/journal_draft/mod.rs",
         redaction: Redaction::Direct,
         reason: "일지 초안의 입력(`masked_user_prompt`)과 모델 응답 양쪽을 마스킹한다 (이중 방어). 2026-10-07 전까지 이 줄은 거짓이었다 — 응답만 가렸다.",

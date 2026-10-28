@@ -28,6 +28,7 @@ export const UI_V2_VIEWS = [
   "journal",
   "planner",
   "diff",
+  // "settings" 는 언제나 마지막이다.
   "settings",
 ] as const;
 

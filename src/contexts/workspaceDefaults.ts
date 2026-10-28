@@ -55,7 +55,5 @@ export const DEFAULT_STATE: WorkspaceState = {
   searchScope: "semantic",
   searchRecent: [],
   aiActiveModel: null,
-  discussionActiveId: null,
-  discussionEditorMode: "rich",
   sidebarCollapsed: false,
 };

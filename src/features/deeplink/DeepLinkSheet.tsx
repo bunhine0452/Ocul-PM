@@ -57,10 +57,6 @@ export function DeepLinkSheet({
           <div className="text-xs font-mono text-foreground break-all">{plan.origin}</div>
         </div>
 
-        {plan.writes && (
-          <p className="text-xs text-muted-foreground">{t("deeplink.writesNote")}</p>
-        )}
-
         <div className="flex gap-2">
           <Button
             variant="outline"

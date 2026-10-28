@@ -12,8 +12,7 @@ import {
   keyForField,
   serialize,
 } from "@/lib/settings";
-import { applyThemeAttrs, resolveThemeAttrs } from "@/features/theme/apply";
-import { initThemeStore, useThemeState } from "@/features/theme/store";
+import { applyThemeAttrs, followsSystem, resolveThemeAttrs } from "@/features/theme/apply";
 
 interface SettingsContextValue {
   settings: Settings;
@@ -28,11 +27,6 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
   const [loaded, setLoaded] = useState(false);
-  // 테마 런타임 (Osaurus 라운드 Phase 4) — 사용자 테마 목록 · 프로젝트 바인딩 ·
-  // 편집 중 초안 · 시스템 강조색. 설정과 축이 다르므로 별도 스토어다.
-  const themeState = useThemeState();
-
-  useEffect(() => initThemeStore(), []);
 
   const reload = useCallback(async () => {
     const res = await commands.settingsGetAll();
@@ -130,17 +124,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     setContentLangSetting(settings.contentLanguage);
   }, [settings.contentLanguage]);
 
-  // --- Theme application (Osaurus 라운드 Phase 4 — 파일 테마까지 한 문으로).
+  // --- Theme application — 밝게 / 어둡게 / 시스템 + 강조색 (4.0 에서 프리셋·사용자 테마·
+  // 프로젝트별 테마를 걷었다).
   //
-  // Decision A (2026-05-31): SettingsContext 가 테마의 단일 소유자다. 이제
-  // 그 소유가 세 갈래를 함께 심판한다 — 전역 설정 · **프로젝트 바인딩**(창마다
-  // 다른 프로젝트를 열 수 있다) · **편집 중 초안**(앱 자체가 미리보기다).
-  // 무엇을 달지는 `resolveThemeAttrs` 가 순수하게 계산하고, 여기서는 그 결과를
-  // `<html>` 에 얹기만 한다.
-  //
-  // `data-accent` 도 같은 계산에 들어 있다: 프리셋·커스텀 테마가 강조를
-  // 소유하면 제거하고, 강조 토큰을 하나도 지정하지 않은 테마면 **유지**한다
-  // (배경만 바꾼 테마를 골랐다는 이유로 강조색 선택이 사라지면 안 된다).
+  // Decision A (2026-05-31): SettingsContext 가 테마의 단일 소유자다. 무엇을 달지는
+  // `resolveThemeAttrs` 가 순수하게 계산하고, 여기서는 그 결과를 `<html>` 에 얹기만 한다.
   useEffect(() => {
     if (!loaded) return;
     const root = document.documentElement;
@@ -148,31 +136,19 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       applyThemeAttrs(
         root,
         resolveThemeAttrs({
-          themeSetting: themeState.override ?? settings.theme,
+          themeSetting: settings.theme,
           colorTheme: settings.colorTheme,
-          customThemes: themeState.customThemes,
-          systemAccent: themeState.systemAccent,
           prefersDark: window.matchMedia("(prefers-color-scheme: dark)").matches,
-          draft: themeState.draft,
         }),
       );
     };
     apply();
-    // "system" 만 OS 를 따라간다 — 고정 테마·프리셋·커스텀은 따라가지 않는다.
-    const effective = themeState.override ?? settings.theme;
-    if (effective !== "system" || themeState.draft) return;
+    // "system"(과 알 수 없는 옛 값)만 OS 를 따라간다.
+    if (!followsSystem(settings.theme)) return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
-  }, [
-    loaded,
-    settings.theme,
-    settings.colorTheme,
-    themeState.override,
-    themeState.customThemes,
-    themeState.systemAccent,
-    themeState.draft,
-  ]);
+  }, [loaded, settings.theme, settings.colorTheme]);
 
   // App-wide UI scale: native webview zoom (like browser ⌘+/−). Unlike CSS
   // `zoom`, this reflows the page natively, so pixel-measuring components

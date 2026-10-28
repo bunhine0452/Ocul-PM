@@ -227,12 +227,6 @@ describe("칩", () => {
 // 드릴다운만 `.sk-head` 라는 자기 머리를 갖고 있어 크롬이 52→60px 로 튀었다.
 // 뒤로가기 화살표도 일곱 자리 중 여섯이 15 인데 일지 하나만 18 이었다.
 describe("드릴다운 머리", () => {
-  it("화면 머리를 대신하는 자기 헤더가 없다", () => {
-    // `.sk-head` 처럼 `<Toolbar>` 자리를 차지하는 규칙이 다시 생기면 걸린다.
-    const css = read("features/skills/skills.css");
-    expect(css).not.toMatch(/^\.sk-head \{/m);
-  });
-
   it("뒤로가기 화살표는 한 크기다", () => {
     const sizes = new Set<string>();
     for (const file of walk(join(ROOT))) {
@@ -251,9 +245,8 @@ describe("드릴다운 머리", () => {
 // 했는데 320 은 없고 실제 네 번째는 `.acp-panel`(244)이다 — 그리고 그건 왼쪽
 // 목록 열이 아니라 오른쪽에서 밀려 나오는 세션 패널이라 대상이 아니다.
 describe("좌측 목록 열", () => {
-  it("목록 열이 한 토큰을 쓴다 (편집기 열은 2026-10-28 에 걷었고, 일지·변경의 두 칸은 4.0 시안의 400·340px 이다)", () => {
+  it("목록 열이 한 토큰을 쓴다 (편집기·논의 열은 걷었고, 일지·변경의 두 칸은 4.0 시안의 400·340px 이다)", () => {
     expect(read("styles/tokens.css")).toContain("--panel-w: 284px;");
-    expect(read("features/discussion/discussion.css")).toMatch(/\.disc-list\s*\{[^}]*width: var\(--panel-w\)/);
     // 4.0 시안이 정한 두 칸 — 목록 폭은 시안 그대로이고, 좁은 창에서는 45% 로 양보한다.
     expect(read("features/oculpm/journal.css")).toMatch(/\.jl-list\s*\{[^}]*width: 400px;[^}]*max-width: 45%/);
     expect(read("features/diff/changes.css")).toMatch(/\.chg-list\s*\{[^}]*width: 340px;[^}]*max-width: 45%/);

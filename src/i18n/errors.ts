@@ -41,30 +41,14 @@ const RULES: ReadonlyArray<readonly [RegExp, I18nKey]> = [
   [/^No journal entries to export in this period\.$/, "err.nothingToExport"],
   [/^The retro came back empty\.$/, "err.retroEmpty"],
   [/^The result came back empty\.$/, "err.resultEmpty"],
-  [/^A skill with that name already exists: (?<name>.+)$/, "err.skillExists"],
-  [/^The target scope already has a skill with that name: (?<name>.+)$/, "err.skillExistsInScope"],
-  [/^Skill not found: (?<name>.+)$/, "err.skillNotFound"],
-  [
-    /^Skill name may only use lowercase letters, digits, and hyphens \(kebab-case\)$/,
-    "err.skillNameCharset",
-  ],
-  [/^Skill name must be 1-64 characters$/, "err.skillNameLength"],
-  [/^Skill name cannot contain path characters$/, "err.skillNamePath"],
-  [
-    /^Rule name may only use lowercase letters, digits, and hyphens \(kebab-case\)$/,
-    "err.ruleNameCharset",
-  ],
-  [/^Rule files must be \.md$/, "err.ruleMustBeMd"],
   [/^File already exists: (?<path>.+)$/, "err.fileExists"],
   [/^Access denied: path is outside the (?<area>.+)$/, "err.accessDenied"],
   // 경로 가드(`src-tauri/src/path_guard.rs`) — 링크를 풀었더니 밖이거나, 앱이 쓰는 파일이 링크다.
   [/^Path escapes the project root$/, "err.pathEscapesRoot"],
   [/^Access denied: path traversal detected$/, "err.pathTraversal"],
   [/Refusing to write through a symbolic link: (?<path>.+)$/, "err.symlinkRefused"],
-  [/^This discussion was already promoted to the planner\.$/, "err.alreadyPromoted"],
   [/^There are no legacy goals to import\.$/, "err.nothingToImport"],
   [/^Could not open the browser$/, "err.browserOpenFailed"],
-  [/^CLI timed out \(60s\)$/, "err.cliTimeout"],
   // ── 크로스플랫폼 라운드 ({#ui-followups}) — 백엔드가 **고정 문구**로 낸다. ──
   // Linux 의 Secret Service 부재 (`secrets.rs` UNAVAILABLE_PREFIX). 호출부가 앞에 문맥을
   // 덧붙이기도 해서(`Could not save to the keychain: …`) 문장 **안**에서 찾는다.

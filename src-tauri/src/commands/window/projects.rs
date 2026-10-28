@@ -12,10 +12,22 @@ pub async fn open_project_window(app: AppHandle, project_id: u32) -> Result<(), 
     open_project_window_with_nav(&app, project_id, None).await
 }
 
+/// 딥링크 확인 시트가 승인한 목적지 — 프로젝트 창을 열거나 앞으로 가져온 뒤 **그 창에만**
+/// 화면·일지를 전한다 (전역 emit 이면 열린 모든 창이 남의 일지로 점프한다). 프로젝트가
+/// 없는 목적지는 창만 앞으로 가져온다. 3.x 의 `tray_open_main` 이 하던 일이다.
+#[tauri::command]
+#[specta::specta]
+pub async fn open_project_nav(app: AppHandle, nav: WindowNavigate) -> Result<(), String> {
+    let Some(project_id) = nav.project_id else {
+        return focus_or_open_window(&app).await;
+    };
+    open_project_window_with_nav(&app, project_id, Some(&nav)).await
+}
+
 pub async fn open_project_window_with_nav(
     app: &AppHandle,
     project_id: u32,
-    nav: Option<&crate::tray::TrayNavigate>,
+    nav: Option<&WindowNavigate>,
 ) -> Result<(), String> {
     // 지운 프로젝트는 열지 않는다 — 프런트의 목록은 창마다 따로 살아 방금 지운 것이
     // 남아 있을 수 있다. 막지 않으면 존재하지 않는 프로젝트의 창이 레지스트리에
@@ -26,10 +38,6 @@ pub async fn open_project_window_with_nav(
             .await
             .map_err(|_| format!("project {project_id} not found"))?;
     }
-
-    // 상주 모드에서 Dock 아이콘을 내려놨을 수 있다 — 창을 띄우기 전에 되돌린다.
-    #[cfg(target_os = "macos")]
-    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
     let existing = app
         .state::<WindowProjects>()
@@ -120,8 +128,6 @@ pub async fn close_window(asking: tauri::WebviewWindow) -> Result<(), String> {
 
 /// 앱 메뉴의 「새 창」·Windows·Linux 의 `Ctrl+Shift+N` — 언제나 새 시작 창.
 pub async fn new_window_inner(app: &AppHandle) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
     create_window(app, None, None).await.map(|_| ())
 }
 

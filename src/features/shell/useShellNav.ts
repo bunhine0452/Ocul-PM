@@ -123,7 +123,7 @@ export function useShellNav({
     return () => window.removeEventListener(NAV_BUS.openEntity, onOpenEntity);
   }, [setPrefs, setUiV2View]);
 
-  // 트레이 딥링크로 갓 열린 창 — URL 이 실어 온 목적지를 mount 시 1회 적용한다
+  // 딥링크로 갓 열린 창 — URL 이 실어 온 목적지를 mount 시 1회 적용한다
   // (새 창의 프런트는 아직 리스너를 달기 전이라 emit 을 받을 수 없다).
   useEffect(() => {
     if (initialEntryPath) {
@@ -153,7 +153,7 @@ export function useShellNav({
     return onEntryJump(projectId, open);
   }, [projectId, setUiV2View]);
 
-  // 트레이 팝오버 딥링크(`events.trayNavigate`)만 셸에 남아 있다 — 새 파일이
+  // 딥링크 이동(`events.windowNavigate`)만 셸에 남아 있다 — 새 파일이
   // `events` 를 직접 부르면 `lint:bindings` 가 막고, 그 이벤트를 접는 `@/api/*`
   // 래퍼는 아직 없다 ({#big-files-watch} 의 이월). 래퍼가 생기면 그 구독도
   // 이 훅으로 들어온다.

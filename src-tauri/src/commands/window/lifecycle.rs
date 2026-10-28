@@ -39,7 +39,7 @@ pub(super) fn encode_query_value(raw: &str) -> String {
 /// 새 창의 URL. 프로젝트는 프런트가 마운트 직후 `get_window_project` 로 읽지만,
 /// 라벨과 딥링크 목적지는 URL 로 실어야 한다 — 갓 만든 창의 프런트는 아직 리스너를
 /// 달기 전이라 `emit` 이 유실된다.
-pub(super) fn window_url(label: &str, nav: Option<&crate::tray::TrayNavigate>) -> String {
+pub(super) fn window_url(label: &str, nav: Option<&WindowNavigate>) -> String {
     let mut url = format!("index.html?win={}", encode_query_value(label));
     if let Some(nav) = nav {
         url.push_str(&format!("&view={}", encode_query_value(&nav.view)));
@@ -59,7 +59,7 @@ pub(super) fn window_url(label: &str, nav: Option<&crate::tray::TrayNavigate>) -
 pub(super) async fn create_window(
     app: &AppHandle,
     project_id: Option<u32>,
-    nav: Option<&crate::tray::TrayNavigate>,
+    nav: Option<&WindowNavigate>,
 ) -> Result<String, String> {
     let dormant = {
         let state = app.state::<WindowProjects>();
@@ -114,7 +114,7 @@ pub(super) async fn window_title(app: &AppHandle, project_id: Option<u32>) -> St
 pub(super) async fn spawn_window(
     app: &AppHandle,
     label: &str,
-    nav: Option<&crate::tray::TrayNavigate>,
+    nav: Option<&WindowNavigate>,
     title: String,
 ) -> Result<(), String> {
     let builder =
@@ -181,12 +181,33 @@ fn attach_window_hooks(app: &AppHandle, window: &tauri::WebviewWindow, label: St
     });
 }
 
-/// 반환값 `true` 면 닫기를 가로챈 것 (트레이 상주 모드에서 숨기기만 함).
+/// 반환값 `true` 면 닫기를 가로챈 것 (macOS 에서 마지막 창을 숨기기만 함).
 fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
     let remaining = app.state::<WindowProjects>().lock().remove(label);
     emit_open_projects(app);
     if remaining > 0 {
         return false;
     }
-    crate::tray::handle_last_window_closed(app, label)
+    handle_last_window_closed(app, label)
+}
+
+/// 마지막 창이 닫혔을 때 앱이 종료되는가 — 플랫폼 표준을 따른다. macOS 는 창이 없어도
+/// 앱이 살아 있고(독 아이콘을 누르면 `RunEvent::Reopen` 이 다시 연다), 그 밖의 OS 는
+/// 종료한다. 창이 남아 있으면 어느 OS 든 종료하지 않는다 — 작업 중인 다른 창을
+/// 죽이는 참사(R1)를 막는 자리다. 순수 함수라 창 런타임 없이 단위 테스트한다.
+pub(super) fn exits_on_last_window_close(remaining_windows: usize, is_mac: bool) -> bool {
+    remaining_windows == 0 && !is_mac
+}
+
+/// 마지막 앱 창이 닫혔다. `true` 를 돌려주면 닫기를 가로챈 것 — 창을 파괴하는 대신
+/// 숨겨 두면 다음 `create_window` 가 그 휴면 창을 재사용해 즉시 뜬다.
+fn handle_last_window_closed(app: &AppHandle, label: &str) -> bool {
+    if exits_on_last_window_close(0, cfg!(target_os = "macos")) {
+        app.exit(0);
+        return false;
+    }
+    if let Some(win) = app.get_webview_window(label) {
+        let _ = win.hide();
+    }
+    true
 }

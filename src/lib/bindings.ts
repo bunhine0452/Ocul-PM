@@ -31,52 +31,6 @@ export const commands = {
 	createProject: (name: string, rootPath: string) => typedError<number, string>(__TAURI_INVOKE("create_project", { name, rootPath })),
 	deleteProject: (projectId: number, deleteOculpm: boolean, deleteAgentsMd: boolean) => typedError<null, string>(__TAURI_INVOKE("delete_project", { projectId, deleteOculpm, deleteAgentsMd })),
 	renameProject: (projectId: number, name: string) => typedError<null, string>(__TAURI_INVOKE("rename_project", { projectId, name })),
-	/**
-	 *  카드·탭의 겉모습 — 아이콘 id 와 색 id. 둘 다 `None` 이면 기본값(이름에서
-	 *  유도)으로 되돌아간다.
-	 */
-	setProjectAppearance: (projectId: number, icon: string | null, color: string | null) => typedError<null, string>(__TAURI_INVOKE("set_project_appearance", { projectId, icon, color })),
-	/**
-	 *  저장된 사용자 테마 전부. 내장 5종은 프런트가 정적으로 들고 있다 —
-	 *  `tokens.css` 에서 생성된 JSON 이라 백엔드를 지날 이유가 없다.
-	 */
-	themeList: () => typedError<ThemeFile[], AppError>(__TAURI_INVOKE("theme_list")),
-	/**  만들거나 고친다. `metadata.id` 가 비어 있으면 새 테마로 보고 UUID 를 발급한다. */
-	themeSave: (theme: ThemeFile) => typedError<ThemeFile, AppError>(__TAURI_INVOKE("theme_save", { theme })),
-	/**  지운다 (없던 id 면 `false`). 이 테마를 쓰던 창은 전역 설정으로 되돌아간다. */
-	themeDelete: (id: string) => typedError<boolean, AppError>(__TAURI_INVOKE("theme_delete", { id })),
-	/**
-	 *  테마 파일을 들여온다.
-	 * 
-	 *  규칙 (설계 §3): `metadata.id` 는 **무시하고 새 UUID 를 발급**하고,
-	 *  `is_built_in` 은 강제로 false 이며, 같은 이름이 있으면 조용히 덮어쓰지 않고
-	 *  되묻는다. 남의 테마 id 가 내 테마와 충돌하는 사고를 구조적으로 없앤다.
-	 * 
-	 *  `path` 가 `None` 이면 파일 선택 대화상자를 연다. `on_conflict` 는 첫 시도에
-	 *  `None` 이고, 충돌을 되물은 뒤 `"overwrite"` 또는 `"copy"` 로 다시 부른다.
-	 */
-	themeImport: (path: string | null, onConflict: string | null) => typedError<ThemeImportOutcome, AppError>(__TAURI_INVOKE("theme_import", { path, onConflict })),
-	/**
-	 *  테마 하나를 `.json` 으로 저장한다. `is_built_in` 은 항상 false 로 기록해
-	 *  남에게 건넨 파일이 그쪽 갤러리에서 "내장" 으로 앉지 않게 한다.
-	 */
-	themeExport: (theme: ThemeFile) => typedError<string | null, AppError>(__TAURI_INVOKE("theme_export", { theme })),
-	/**
-	 *  macOS 시스템 강조색 (hex). 다른 OS 이거나 읽지 못하면 `None`.
-	 * 
-	 *  `NSColor.controlAccentColor` 를 objc 로 읽는 대신 `defaults` 를 읽는다 —
-	 *  이 값은 정수 코드 하나고, 그 코드가 곧 시스템 설정의 여덟 칸이다. objc
-	 *  표면을 늘리지 않고 같은 답을 얻는다. 키가 없으면 기본값(파랑)이다.
-	 */
-	systemAccent: () => typedError<string | null, AppError>(__TAURI_INVOKE("system_accent")),
-	/**
-	 *  프로젝트에 테마를 묶는다. `None` = 바인딩 해제(전역 설정으로 폴백).
-	 * 
-	 *  저장하는 것은 **색이 아니라 id** 다 — `027_project_appearance.sql` 의 주석이
-	 *  적은 규칙과 같다. hex 를 저장하면 라이트/다크에서 같은 값이 성립하지 않는다.
-	 *  값의 축은 설정의 `theme` 과 같다 (`"dark"` · `"solarized"` · `"custom:<uuid>"`).
-	 */
-	setProjectTheme: (projectId: number, themeId: string | null) => typedError<null, AppError>(__TAURI_INVOKE("set_project_theme", { projectId, themeId })),
 	/**  지금 상태를 YAML 문서로 내보낸다. 시크릿·머신 상태는 planner 가 뺀다. */
 	configExport: (projectId: number | null) => typedError<string, AppError>(__TAURI_INVOKE("config_export", { projectId })),
 	/**  문서를 파일로 저장한다 (대화상자). 취소하면 `None`. */
@@ -87,24 +41,6 @@ export const commands = {
 	configPlan: (projectId: number | null, doc: string) => typedError<ConfigPlan, AppError>(__TAURI_INVOKE("config_plan", { projectId, doc })),
 	/**  계획을 적용하고 **다시 계획해** 남은 diff 로 결론을 낸다 (#config-verify). */
 	configApply: (projectId: number | null, doc: string) => typedError<ConfigApplyResult, AppError>(__TAURI_INVOKE("config_apply", { projectId, doc })),
-	/**  번들 zip 파일을 고른다. 취소하면 `None`. */
-	pluginPickBundle: () => typedError<string | null, AppError>(__TAURI_INVOKE("plugin_pick_bundle")),
-	/**
-	 *  번들을 들여온다. `dry` 면 **한 글자도 쓰지 않고** 같은 판정만 낸다.
-	 * 
-	 *  `replace` 는 같은 id 가 이미 설치돼 있을 때만 뜻이 있다 — 없으면
-	 *  `already_installed` 를 채워 돌려주고 아무것도 쓰지 않는다 (명시적 교체 확인).
-	 * 
-	 *  설치(`dry == false`)는 `expect_hash` 를 요구한다 — 미리보기가 돌려준
-	 *  `content_hash` 그대로. 미리보기와 설치는 따로 내려받으므로, 그 사이 작성자가
-	 *  브랜치를 바꾸면 본 것과 다른 `.mcp.json` 명령이 깔린다 (2026-10-09 리포트).
-	 *  바이트가 다르면 아무것도 쓰지 않고 `bundle_changed` 로 돌려보낸다.
-	 */
-	pluginImport: (projectId: number, kind: BundleSourceKind, src: string, dry: boolean, replace: boolean, expectHash: string | null) => typedError<BundleImportResult, AppError>(__TAURI_INVOKE("plugin_import", { projectId, kind, src, dry, replace, expectHash })),
-	/**  설치된 번들 목록. */
-	pluginList: (projectId: number) => typedError<InstalledBundle[], AppError>(__TAURI_INVOKE("plugin_list", { projectId })),
-	/**  번들이 놓은 것만 지운다. 사용자가 이어받은 파일은 남긴다. */
-	pluginRemove: (projectId: number, bundleId: string) => typedError<BundleRemoveReport, AppError>(__TAURI_INVOKE("plugin_remove", { projectId, bundleId })),
 	/**  `.json` 또는 `.zip` 고르기. 취소하면 `None`. */
 	conversationPickExport: () => typedError<string | null, AppError>(__TAURI_INVOKE("conversation_pick_export")),
 	/**  후보 목록. **읽기 전용·오프라인**이다. */
@@ -128,7 +64,6 @@ export const commands = {
 	llmListModels: (provider: string) => typedError<ModelInfo[], string>(__TAURI_INVOKE("llm_list_models", { provider })),
 	llmReachability: () => typedError<ProviderReach[], string>(__TAURI_INVOKE("llm_reachability")),
 	projectStats: (projectId: number) => typedError<ProjectStats, string>(__TAURI_INVOKE("project_stats", { projectId })),
-	detectStack: (projectId: number) => typedError<string[], string>(__TAURI_INVOKE("detect_stack", { projectId })),
 	/**
 	 *  홈 화면이 마운트 때 1회 호출하는 단일 집계.
 	 * 
@@ -320,6 +255,12 @@ export const commands = {
 	setWindowProject: (projectId: number) => typedError<boolean, string>(__TAURI_INVOKE("set_window_project", { projectId })),
 	/**  창이 마운트 직후 자기 프로젝트를 읽는다 (이후는 `WindowProjectChanged`). */
 	getWindowProject: (window: string) => typedError<number | null, string>(__TAURI_INVOKE("get_window_project", { window })),
+	/**
+	 *  딥링크 확인 시트가 승인한 목적지 — 프로젝트 창을 열거나 앞으로 가져온 뒤 **그 창에만**
+	 *  화면·일지를 전한다 (전역 emit 이면 열린 모든 창이 남의 일지로 점프한다). 프로젝트가
+	 *  없는 목적지는 창만 앞으로 가져온다. 3.x 의 `tray_open_main` 이 하던 일이다.
+	 */
+	openProjectNav: (nav: WindowNavigate) => typedError<null, string>(__TAURI_INVOKE("open_project_nav", { nav })),
 	/**  어디든 창이 떠 있는 프로젝트 — 시작 창·프로젝트 목록의 「열림」 표시 1회 조회. */
 	listOpenProjectIds: () => typedError<number[], string>(__TAURI_INVOKE("list_open_project_ids")),
 	/**
@@ -363,129 +304,6 @@ export const commands = {
 	 *  프런트 확인 문구가 말한다.
 	 */
 	oculpmIndexClearDiffs: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("oculpm_index_clear_diffs", { projectId })),
-	/**
-	 *  List the project's discussions (summary + problem preview + counts).
-	 *  Recent-first.
-	 */
-	discussionList: (projectId: number) => typedError<DiscussionSummary[], string>(__TAURI_INVOKE("discussion_list", { projectId })),
-	/**
-	 *  One discussion's full detail: problem, candidate options, discussion log,
-	 *  conclusion, next steps, attachments, resolution link, and non-fatal parse
-	 *  warnings. `None` when the discussion_id isn't found.
-	 */
-	discussionGet: (projectId: number, discussionId: string) => typedError<{
-	discussion: DiscussionSummary,
-	problem: string,
-	background: string,
-	options: DiscussionOptionDto[],
-	log: DiscussionLogDto[],
-	conclusion: string,
-	next_steps: DiscussionNextStepDto[],
-	attachments: DiscussionAttachmentDto[],
-	resolution_plan_id: string | null,
-	resolution_decided_at: string | null,
-	tags: string[],
-	/**  Non-fatal parse warnings — surfaced so the UI never fails silently. */
-	warnings: string[],
-} | null, string>(__TAURI_INVOKE("discussion_get", { projectId, discussionId })),
-	/**
-	 *  Create a new discussion folder (`.oculpm/discussion/<slug>/discussion.md`)
-	 *  with the section skeleton, returning its summary.
-	 */
-	discussionCreate: (projectId: number, title: string) => typedError<DiscussionSummary, string>(__TAURI_INVOKE("discussion_create", { projectId, title })),
-	/**
-	 *  Replace the discussion body (the `## …` sections). Frontmatter is preserved
-	 *  and `updated` re-stamped. Rejected when the document is closed (status not
-	 *  `open`) — the body is read-only after a discussion is resolved/archived.
-	 */
-	discussionWrite: (projectId: number, discussionId: string, bodyMd: string, baseHash: string) => typedError<{
-	discussion: DiscussionSummary,
-	problem: string,
-	background: string,
-	options: DiscussionOptionDto[],
-	log: DiscussionLogDto[],
-	conclusion: string,
-	next_steps: DiscussionNextStepDto[],
-	attachments: DiscussionAttachmentDto[],
-	resolution_plan_id: string | null,
-	resolution_decided_at: string | null,
-	tags: string[],
-	/**  Non-fatal parse warnings — surfaced so the UI never fails silently. */
-	warnings: string[],
-} | null, string>(__TAURI_INVOKE("discussion_write", { projectId, discussionId, bodyMd, baseHash })),
-	/**
-	 *  Read the raw (un-redacted) body markdown (everything after the frontmatter)
-	 *  for the in-app editor. Unlike `discussion_get` (redacted projection for
-	 *  display), this returns exactly what's on disk so a save round-trip is
-	 *  lossless — the user is editing their own file. `discussion_write` saves it.
-	 * 
-	 *  해시는 **본문만** 건다. `write_body` 가 갈아 끼우는 구간이 정확히 본문이라,
-	 *  파일 전체를 걸면 `discussion_set_status` 가 프런트매터만 고친 것까지 충돌로
-	 *  둔갑한다 — 본문은 아무도 안 건드렸는데 저장이 거절되는 거짓 충돌이다.
-	 */
-	discussionReadRaw: (projectId: number, discussionId: string) => typedError<DiscussionRaw, string>(__TAURI_INVOKE("discussion_read_raw", { projectId, discussionId })),
-	/**
-	 *  Set a discussion's lifecycle status (`open` / `resolved` / `archived`).
-	 *  `archived` moves the folder into `_archive/`; un-archiving moves it back.
-	 */
-	discussionSetStatus: (projectId: number, discussionId: string, status: string) => typedError<{
-	discussion: DiscussionSummary,
-	problem: string,
-	background: string,
-	options: DiscussionOptionDto[],
-	log: DiscussionLogDto[],
-	conclusion: string,
-	next_steps: DiscussionNextStepDto[],
-	attachments: DiscussionAttachmentDto[],
-	resolution_plan_id: string | null,
-	resolution_decided_at: string | null,
-	tags: string[],
-	/**  Non-fatal parse warnings — surfaced so the UI never fails silently. */
-	warnings: string[],
-} | null, string>(__TAURI_INVOKE("discussion_set_status", { projectId, discussionId, status })),
-	/**
-	 *  Rename a discussion (frontmatter `title:`). The `id` / folder stay the same
-	 *  so references keep working.
-	 */
-	discussionRename: (projectId: number, discussionId: string, title: string) => typedError<{
-	discussion: DiscussionSummary,
-	problem: string,
-	background: string,
-	options: DiscussionOptionDto[],
-	log: DiscussionLogDto[],
-	conclusion: string,
-	next_steps: DiscussionNextStepDto[],
-	attachments: DiscussionAttachmentDto[],
-	resolution_plan_id: string | null,
-	resolution_decided_at: string | null,
-	tags: string[],
-	/**  Non-fatal parse warnings — surfaced so the UI never fails silently. */
-	warnings: string[],
-} | null, string>(__TAURI_INVOKE("discussion_rename", { projectId, discussionId, title })),
-	/**
-	 *  Delete a discussion: remove its folder (incl. attachments) and refresh the
-	 *  cache (a full reproject from disk is the only cache writer).
-	 */
-	discussionDelete: (projectId: number, discussionId: string) => typedError<null, string>(__TAURI_INVOKE("discussion_delete", { projectId, discussionId })),
-	/**
-	 *  Open a native file picker and attach the chosen file. Returns the new
-	 *  `attachments/<file>` path, or `None` if the user cancelled.
-	 */
-	discussionAttachViaDialog: (projectId: number, discussionId: string) => typedError<string | null, string>(__TAURI_INVOKE("discussion_attach_via_dialog", { projectId, discussionId })),
-	/**
-	 *  Read an attachment as base64 + MIME for inline rendering. `rel_path` is the
-	 *  `attachments/<file>` path from `discussion_get`.
-	 */
-	discussionAsset: (projectId: number, discussionId: string, relPath: string) => typedError<DiscussionAsset, string>(__TAURI_INVOKE("discussion_asset", { projectId, discussionId, relPath })),
-	/**  Remove one attachment file. `rel_path` is `attachments/<file>`. */
-	discussionDetach: (projectId: number, discussionId: string, relPath: string) => typedError<null, string>(__TAURI_INVOKE("discussion_detach", { projectId, discussionId, relPath })),
-	/**
-	 *  Promote a resolved discussion into a Planner plan: create a new
-	 *  `.oculpm/planner/<id>.md` whose items are the discussion's `## 다음 단계`,
-	 *  then mark the discussion `resolved` with a `resolution_ref` back-link. The
-	 *  new plan_id is returned (the frontend navigates to it). LLM-free.
-	 */
-	discussionPromoteToPlan: (projectId: number, discussionId: string) => typedError<string, string>(__TAURI_INVOKE("discussion_promote_to_plan", { projectId, discussionId })),
 	gitLog: (projectId: number, limit: number) => typedError<GitCommit[], string>(__TAURI_INVOKE("git_log", { projectId, limit })),
 	gitGraph: (projectId: number, limit: number) => typedError<GitGraphCommit[], string>(__TAURI_INVOKE("git_graph", { projectId, limit })),
 	gitStatus: (projectId: number) => typedError<GitRepoStatus, string>(__TAURI_INVOKE("git_status", { projectId })),
@@ -499,21 +317,6 @@ export const commands = {
 	 *  추적되지 않는 폴더를 열어도 편집기는 동작해야 한다).
 	 */
 	gitLineChanges: (projectId: number, relPath: string, text: string) => typedError<GitLineChange[], string>(__TAURI_INVOKE("git_line_changes", { projectId, relPath, text })),
-	/**  로컬 브랜치 목록 (최근 커밋 순). */
-	branchList: (projectId: number, limit: number) => typedError<BranchRef[], string>(__TAURI_INVOKE("branch_list", { projectId, limit })),
-	/**
-	 *  이 브랜치의 이야기 — 커밋·일지·플랜 항목·파일을 한 좌표로.
-	 * 
-	 *  `branch` 가 없으면 지금 체크아웃된 브랜치, `base` 가 없으면
-	 *  main/master/develop 중 있는 첫 번째를 기준으로 잡는다.
-	 */
-	branchStory: (projectId: number, branch: string | null, base: string | null) => typedError<BranchStory, string>(__TAURI_INVOKE("branch_story", { projectId, branch, base })),
-	/**
-	 *  {#branch-digest} — 브랜치 이야기를 마크다운 한 장으로. **내보내기만 한다**:
-	 *  동기화도, 업로드도, 원격 호출도 없다 (v3-round 의 경계 결정).
-	 *  저장 대화상자 + 파일 쓰기는 일지 내보내기와 같은 자리를 쓴다.
-	 */
-	branchExportDigest: (projectId: number, branch: string | null, base: string | null) => typedError<string | null, string>(__TAURI_INVOKE("branch_export_digest", { projectId, branch, base })),
 	/**
 	 *  Hybrid diff: tries git first, falls back to the captured snapshot when git
 	 *  can't help. Returns `SnapshotsUnavailable` only when neither baseline exists
@@ -580,9 +383,6 @@ export const commands = {
 	 *  않는 대신 **이유를 돌려준다** — 화면이 그 문구를 그대로 보여 준다.
 	 */
 	quickLookFile: (projectRoot: string, relPath: string) => typedError<null, string>(__TAURI_INVOKE("quick_look_file", { projectRoot, relPath })),
-	saveBlueprint: (id: number | null, name: string, ideaText: string | null, targetUsers: string | null, stackChoice: string | null, folderName: string | null, folderPath: string | null, seedGoalsJson: string | null, wizardStep: number) => typedError<ProjectBlueprint, string>(__TAURI_INVOKE("save_blueprint", { id, name, ideaText, targetUsers, stackChoice, folderName, folderPath, seedGoalsJson, wizardStep })),
-	listBlueprints: () => typedError<ProjectBlueprint[], string>(__TAURI_INVOKE("list_blueprints")),
-	deleteBlueprint: (blueprintId: number) => typedError<null, string>(__TAURI_INVOKE("delete_blueprint", { blueprintId })),
 	/**
 	 *  Check if a CLI tool is available on the system PATH (or common install
 	 *  locations). Returns availability, resolved path, and version string.
@@ -592,20 +392,6 @@ export const commands = {
 	 *  as a fallback (e.g. `~/.cargo/bin` for `cargo`).
 	 */
 	checkCliAvailable: (cliName: string) => typedError<CliCheckResult, string>(__TAURI_INVOKE("check_cli_available", { cliName })),
-	/**
-	 *  Create a new project from the Greenfield wizard.
-	 * 
-	 *  1. Creates the folder (if it doesn't exist)
-	 *  2. Optionally runs a scaffold CLI (e.g. `pnpm create vite`)
-	 *  3. Registers the project in the database via `create_project`
-	 *  3b. (W3-PR10) Optionally initialises `.oculpm/` for the new project so
-	 *      the user does not see the onboarding modal on first Today open.
-	 *      Failure is **non-fatal**: the project row is already committed and
-	 *      Today 화면의 「지금 활성화」 버튼이 재시도 경로다.
-	 *  4. Cleans up the blueprint (if any)
-	 *  5. Returns the new project ID
-	 */
-	createGreenfieldProject: (name: string, rootPath: string, scaffoldCmd: string | null, scaffoldArgs: string[] | null, blueprintId: number | null, initOculpm: boolean) => typedError<GreenfieldResult, string>(__TAURI_INVOKE("create_greenfield_project", { name, rootPath, scaffoldCmd, scaffoldArgs, blueprintId, initOculpm })),
 	/**
 	 *  Idempotent project initialisation — creates `.oculpm/`, writes default
 	 *  config, acquires the lock, and patches `.gitignore`. Returns a report of
@@ -1079,153 +865,6 @@ export const commands = {
 	oculpmRollupList: (projectId: number) => typedError<RollupSummary[], AppError>(__TAURI_INVOKE("oculpm_rollup_list", { projectId })),
 	/**  한 주의 롤업 전문 — 모달이 렌더한다. 없으면 `rollup_missing`. */
 	oculpmRollupRead: (projectId: number, week: string) => typedError<RollupDoc, AppError>(__TAURI_INVOKE("oculpm_rollup_read", { projectId, week })),
-	/**  프로젝트+전역 스킬을 한 번에 나열한다. 스킬 폴더가 없으면 빈 목록. */
-	skillsList: (projectId: number) => typedError<SkillsOverview, string>(__TAURI_INVOKE("skills_list", { projectId })),
-	/**  단일 스킬의 SKILL.md 원문과 보조 파일 목록을 읽는다. */
-	skillsRead: (projectId: number, scope: SkillScope, dirName: string) => typedError<SkillDetail, string>(__TAURI_INVOKE("skills_read", { projectId, scope, dirName })),
-	/**
-	 *  SKILL.md 를 저장한다. `create=true` 면 새 폴더 생성(중복 거부),
-	 *  `false` 면 기존 스킬(비활성 포함)의 본문 교체.
-	 */
-	skillsSave: (projectId: number, scope: SkillScope, dirName: string, content: string, create: boolean) => typedError<SkillEntry, string>(__TAURI_INVOKE("skills_save", { projectId, scope, dirName, content, create })),
-	/**  스킬 폴더를 통째로 삭제한다 (보조 파일 포함, 복구 불가). */
-	skillsDelete: (projectId: number, scope: SkillScope, dirName: string) => typedError<null, string>(__TAURI_INVOKE("skills_delete", { projectId, scope, dirName })),
-	/**
-	 *  context-budget-truth D — 「0회」의 이유를 가르는 신호.
-	 * 
-	 *  판정하지 않는다. 선행조건 파일 부재 · 억제 문장 · 파일 나이만 모아 주고,
-	 *  네 상태로 가르는 것은 프런트의 순수 함수다 (화면 없이 테스트되게).
-	 */
-	skillsDormancySignals: (projectId: number) => typedError<SkillDormancySignal[], string>(__TAURI_INVOKE("skills_dormancy_signals", { projectId })),
-	/**  스킬 활성/비활성 토글 — `<skills>/` ↔ `<skills>/.disabled/` 이동. */
-	skillsSetEnabled: (projectId: number, scope: SkillScope, dirName: string, enabled: boolean) => typedError<SkillEntry, string>(__TAURI_INVOKE("skills_set_enabled", { projectId, scope, dirName, enabled })),
-	/**
-	 *  스킬을 다른 스코프로 복사한다 (프로젝트 ↔ 전역). 대상에 같은 이름이 있으면 거부.
-	 *  복사본은 항상 활성 위치에 놓인다.
-	 */
-	skillsCopy: (projectId: number, fromScope: SkillScope, toScope: SkillScope, dirName: string) => typedError<SkillEntry, string>(__TAURI_INVOKE("skills_copy", { projectId, fromScope, toScope, dirName })),
-	/**
-	 *  에이전트·커맨드 표면 — 매 세션 시스템 프롬프트에 실리는 name+description.
-	 * 
-	 *  예산 화면이 이걸 빼고 세는 바람에 2026-09-03 실측에서 약 30KB 가 누락돼
-	 *  있었다 (`oculpm::agent_surface` 모듈 주석). 파일 걷기가 있어 blocking 이다.
-	 */
-	agentSurfaceList: (projectId: number) => typedError<AgentSurfaceOverview, string>(__TAURI_INVOKE("agent_surface_list", { projectId })),
-	/**  CLAUDE.md 슬롯 + 프로젝트/전역 규칙을 한 번에 나열한다. */
-	rulesList: (projectId: number) => typedError<RulesOverview, string>(__TAURI_INVOKE("rules_list", { projectId })),
-	/**  단일 규칙/CLAUDE.md 파일 원문을 읽는다. */
-	rulesRead: (projectId: number, scope: RuleScope, relPath: string) => typedError<RuleDetail, string>(__TAURI_INVOKE("rules_read", { projectId, scope, relPath })),
-	/**
-	 *  저장 (`create=true` 는 신규 — 기존 파일 거부). 프로젝트 규칙이고 번역이
-	 *  켜져 있으면 Cursor 미러를 병행 갱신해 결과를 함께 돌려준다.
-	 */
-	rulesSave: (projectId: number, scope: RuleScope, relPath: string, content: string, create: boolean) => typedError<RuleSaveOutcome, string>(__TAURI_INVOKE("rules_save", { projectId, scope, relPath, content, create })),
-	/**
-	 *  규칙 삭제 (`.claude/rules/**` 만 — CLAUDE.md 계열은 구조적으로 거부).
-	 *  프로젝트 규칙이면 마커 미러도 함께 걷어낸다 (옵인 여부 무관 — 잔재 제거).
-	 */
-	rulesDelete: (projectId: number, scope: RuleScope, relPath: string) => typedError<{
-	/**  번역 타깃 id (v1: "cursor"). */
-	target: string,
-	/**  원본 rel_path. */
-	source_rel: string,
-	/**  "written" | "unchanged" | "removed" | "conflict". */
-	action: string,
-	/**  미러 파일의 프로젝트 상대 경로. */
-	mirror_rel: string,
-} | null, string>(__TAURI_INVOKE("rules_delete", { projectId, scope, relPath })),
-	/**  config 기준으로 미러 전체를 화해시킨다 (토글 직후 + 수동 재동기화). */
-	rulesSyncTranslations: (projectId: number) => typedError<MirrorWriteResult[], string>(__TAURI_INVOKE("rules_sync_translations", { projectId })),
-	/**
-	 *  AD-6 — 규칙 범위 감사. 조건부 규칙의 각 glob 을 이 프로젝트의 실제 파일에
-	 *  맞춰 보고 매칭 0개인 것을 지목한다. **결정적**(LLM 0)이고 아무것도 쓰지
-	 *  않는다 — 처방은 `rules_save_with_backup` 승인 경로 전담.
-	 */
-	rulesScopeAudit: (projectId: number) => typedError<RuleScopeAudit, string>(__TAURI_INVOKE("rules_scope_audit", { projectId })),
-	/**
-	 *  AD-6 — 원본을 `<파일>.bak` 으로 남긴 뒤 저장한다 (기존 파일 전용).
-	 * 
-	 *  규칙 다이어트가 고치는 것은 대개 사용자 소유의 전역 규칙이다. 되돌릴 길을
-	 *  앱 밖(디스크)에 남기는 것이 승인의 조건이다. 본문 서식 보존은 호출측이
-	 *  `setRulePaths` 로 **행 단위 치환**한 내용을 넘기는 것으로 지킨다.
-	 */
-	rulesSaveWithBackup: (projectId: number, scope: RuleScope, relPath: string, content: string) => typedError<RuleBackupOutcome, string>(__TAURI_INVOKE("rules_save_with_backup", { projectId, scope, relPath, content })),
-	/**
-	 *  context-budget-truth C — 실려 놓고 부정되는 규칙.
-	 * 
-	 *  항상 로드되는 규칙의 파일명이 CLAUDE.md 계열에서 언급되고 같은 섹션에
-	 *  부정 표지가 있으면 후보로 올린다. 휴리스틱이므로 근거 발췌를 함께 낸다 —
-	 *  판정은 사람이 하고, 이 커맨드는 아무것도 쓰지 않는다.
-	 */
-	rulesNegationAudit: (projectId: number) => typedError<NegationFinding[], string>(__TAURI_INVOKE("rules_negation_audit", { projectId })),
-	/**
-	 *  evidence-based-rules — **규칙이 무엇을 막고 있는가.**
-	 * 
-	 *  컨텍스트 예산 화면은 규칙의 **비용**(바이트)만 안다. 값어치를 물으면 답이
-	 *  없었다. 여기서 일지의 반복 결함 클러스터를 캐고, 규칙 본문이 그 클러스터의
-	 *  언어를 쓰면 후보로 잇는다.
-	 * 
-	 *  휴리스틱이라 근거 일지를 함께 낸다 — 판정은 사람이 하고, 이 커맨드는
-	 *  아무것도 쓰지 않는다. 표본이 모자란 클러스터는 애초에 나오지 않는다.
-	 */
-	rulesEvidence: (projectId: number) => typedError<RuleEvidence, string>(__TAURI_INVOKE("rules_evidence", { projectId })),
-	/**
-	 *  기간 내 반복 실패 클러스터(규칙 후보)를 결정적으로 뽑는다 — LLM 없음.
-	 *  이미 규칙이 덮는 영역·승격된 후보(promoted-from 마커)는 제외된다.
-	 */
-	ruleCandidates: (projectId: number, since: string, until: string) => typedError<RuleCandidate[], string>(__TAURI_INVOKE("rule_candidates", { projectId, since, until })),
-	/**
-	 *  후보 하나의 증거(일지 본문 redact 발췌 + entry_diffs 변경 파일)로 LLM 규칙
-	 *  초안을 만든다. 과금 호출 — 사용자가 버튼으로만 트리거한다. 파일은 쓰지
-	 *  않는다 (저장은 프런트의 `rules_save` 승인 경로 전담).
-	 */
-	ruleDraftGenerate: (projectId: number, since: string, until: string, candidateKey: string, provider: string, model: string) => typedError<RuleDraft, string>(__TAURI_INVOKE("rule_draft_generate", { projectId, since, until, candidateKey, provider, model })),
-	/**
-	 *  기간 내 반복 tag 클러스터(스킬 후보)를 결정적으로 뽑는다 — LLM 없음.
-	 *  이미 스킬 폴더가 있는 슬러그·승격된 tag(promoted-from 마커)는 제외된다.
-	 */
-	skillCandidates: (projectId: number, since: string, until: string) => typedError<SkillCandidate[], string>(__TAURI_INVOKE("skill_candidates", { projectId, since, until })),
-	/**
-	 *  후보 하나의 증거(일지 본문 redact 발췌)로 LLM 스킬 초안(SKILL.md)을 만든다.
-	 *  과금 호출 — 사용자가 버튼으로만 트리거한다. 파일은 쓰지 않는다 (저장은
-	 *  프런트의 `skills_save` 승인 경로 전담).
-	 */
-	skillDraftGenerate: (projectId: number, since: string, until: string, tag: string, provider: string, model: string) => typedError<SkillDraft, string>(__TAURI_INVOKE("skill_draft_generate", { projectId, since, until, tag, provider, model })),
-	/**
-	 *  AD-5 — 트리거 교정. **30일 동안 한 번도 안 걸린 스킬**의 영문
-	 *  `description` 을 다시 쓰자고 제안한다 (docs/agent-discipline/00-master-plan.md
-	 *  D2 존 3). 과금 호출 — 사용자가 버튼으로만 트리거한다.
-	 * 
-	 *  파일은 쓰지 않는다: 초안의 `content` 를 들고 프런트가 기존 `skills_save`
-	 *  (create=false) 를 명시적으로 불러야만 디스크가 바뀐다 (승격 커맨드와 같은
-	 *  구조적 보장).
-	 */
-	skillsTriggerRewrite: (projectId: number, scope: SkillScope, dirName: string, provider: string, model: string) => typedError<SkillTriggerDraft, string>(__TAURI_INVOKE("skills_trigger_rewrite", { projectId, scope, dirName, provider, model })),
-	/**
-	 *  transcript 를 증분 스캔해 발동 원장을 갱신한다. 첫 호출은 누적 이력을
-	 *  전부 읽으므로 오래 걸릴 수 있고, 예산을 넘기면 `complete=false` 로
-	 *  끊어 돌려준다 (호출자가 반복 호출로 마저 채운다).
-	 */
-	firingRescan: (projectId: number) => typedError<FiringScanReport, string>(__TAURI_INVOKE("firing_rescan", { projectId })),
-	/**  최근 `days` 일 창의 발동 통계. 스캔은 하지 않는다 — 순수 조회다. */
-	firingStats: (projectId: number, days: number) => typedError<FiringOverview, string>(__TAURI_INVOKE("firing_stats", { projectId, days })),
-	/**
-	 *  한 항목이 **실제로 불린 순간**의 인용 (`#firing-quotes`).
-	 * 
-	 *  목록의 배지가 "몇 번" 을 말한다면 이건 "어떤 말에" 를 말한다. 스킬 상세가
-	 *  「언제 걸리나」를 답할 때, 스킬 자신이 적은 트리거 문장보다 이쪽이 강하다 —
-	 *  사용자 자신의 프로젝트에서 실제로 일어난 일이기 때문이다.
-	 * 
-	 *  스캔은 하지 않는다. 인용이 없는 발동(시각·프롬프트를 못 읽었거나 계측 이전에
-	 *  걸린 것)은 빠지므로, 빈 목록이 "발동 0회" 를 뜻하지 않는다.
-	 */
-	firingQuotes: (projectId: number, kind: string, key: string, days: number, limit: number) => typedError<FiringQuote[], string>(__TAURI_INVOKE("firing_quotes", { projectId, kind, key, days, limit })),
-	/**
-	 *  원장을 비우고 처음부터 다시 센다 — 이중 집계·낡은 재개점을 되돌리는 유일한
-	 *  길. 예산 라운드를 여기서 이어 붙여 한 번의 호출로 끝낸다 (상한 20 라운드 —
-	 *  라운드당 96MB 이니 이 저장소 실측 293MB 도 넉넉하다).
-	 */
-	firingRebuild: (projectId: number) => typedError<FiringScanReport, string>(__TAURI_INVOKE("firing_rebuild", { projectId })),
 	/**  이 프로젝트의 모든 자동화 정의 + 상태. 스케줄 먼저, 그 안에서 id 순. */
 	automationList: (projectId: number) => typedError<AutomationSummary[], AppError>(__TAURI_INVOKE("automation_list", { projectId })),
 	/**
@@ -1333,22 +972,6 @@ export const commands = {
 	claudePluginStatus: (projectId: number | null) => typedError<ClaudePluginStatus, string>(__TAURI_INVOKE("claude_plugin_status", { projectId })),
 	mcpDesktopRegister: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_register", { projectId })),
 	mcpDesktopUnregister: (projectId: number) => typedError<DesktopRegistrationStatus, string>(__TAURI_INVOKE("mcp_desktop_unregister", { projectId })),
-	trayOpenMain: (nav: {
-	view: string,
-	project_id: number | null,
-	/**  `.oculpm/` 상대 일지 경로 — 있으면 해당 일지를 연다. */
-	entry_path: string | null,
-} | null) => typedError<null, string>(__TAURI_INVOKE("tray_open_main", { nav })),
-	trayHidePopover: () => typedError<null, string>(__TAURI_INVOKE("tray_hide_popover")),
-	/**  설정 UI 가 토글 저장 직후 호출 — 아이콘 표시/숨김 즉시 반영. */
-	trayApplySettings: () => typedError<null, string>(__TAURI_INVOKE("tray_apply_settings")),
-	/**
-	 *  에이전트 주의 알림 (C3) — 프런트가 "창이 뒤에 있다" 를 확인한 뒤 부른다.
-	 *  `kind` 는 `permission`(승인 대기) | `done`(턴 종료) | `failed`. 설정이 꺼져
-	 *  있으면 조용히 no-op. 일지 알림과 같은 스로틀(10초에 3건)을 나눠 쓴다 —
-	 *  둘 다 "알림 폭주" 를 막는 한 예산이다.
-	 */
-	notifyAgentAttention: (kind: string, project: string, detail: string) => typedError<null, string>(__TAURI_INVOKE("notify_agent_attention", { kind, project, detail })),
 	newWindow: () => typedError<null, string>(__TAURI_INVOKE("new_window")),
 	diagnosticsReport: () => typedError<DiagnosticsReport, string>(__TAURI_INVOKE("diagnostics_report")),
 	/**  이 실행 파일의 설치 형식 (업데이터의 키 선택과 같은 규칙). */
@@ -1374,8 +997,7 @@ export const events = {
 	oculpmWorkdayChanged: makeEvent<OculpmWorkdayChanged>("oculpm-workday-changed"),
 	projectWindowsChanged: makeEvent<ProjectWindowsChanged>("project-windows-changed"),
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
-	themesChanged: makeEvent<ThemesChanged>("themes-changed"),
-	trayNavigate: makeEvent<TrayNavigate>("tray-navigate"),
+	windowNavigate: makeEvent<WindowNavigate>("window-navigate"),
 	windowProjectChanged: makeEvent<WindowProjectChanged>("window-project-changed"),
 };
 
@@ -1408,24 +1030,6 @@ export type AgentRef = {
 	 *  모르면 `None` 이고, 그때 프론트매터에는 줄 자체가 안 나간다.
 	 */
 	session?: string | null,
-};
-
-/**  `agent_surface_list` 응답. */
-export type AgentSurfaceOverview = {
-	agents: SurfaceEntry[],
-	commands: SurfaceEntry[],
-	/**
-	 *  매 세션 통째로 실리지만 여기서 편집하지 않는 파일 — 지금은 `AGENTS.md`
-	 *  뿐이다. 규칙 목록(`rules_list`)이 아니라 이쪽에 사는 이유: 마스터가
-	 *  `.oculpm/agents/_template.md` 라 `rules::validate_rel` 이 저장·삭제를
-	 *  거부하는 경로고, 편집 가능한 슬롯으로 올리면 누르는 순간 거부된다.
-	 */
-	always_on: SurfaceEntry[],
-	/**  빈 상태 안내용 절대 경로. */
-	project_agents_dir: string,
-	global_agents_dir: string,
-	/**  플러그인 제공 표면은 세지 않았다 — 화면 각주의 근거. */
-	excludes_plugins: boolean,
 };
 
 export type AgentSyncReport = {
@@ -1470,10 +1074,10 @@ export type AgentsConfig = {
 	 */
 	auto_journal_draft?: boolean,
 	/**
-	 *  PR-CI3 — 규칙 크로스툴 번역 타깃 (`rules::TRANSLATE_TARGETS` 의 부분집합,
-	 *  v1: "cursor"). 켜져 있으면 `.claude/rules/*.md` 저장 시 해당 도구의
-	 *  규칙 파일로 병행 배포한다. `#[serde(default)]` 라 기존 config 는 빈
-	 *  배열(off)로 파싱된다.
+	 *  PR-CI3 — 규칙 크로스툴 번역 타깃 (v1: "cursor"). 규칙 허브를 4.0 에서
+	 *  걷어 **읽는 곳이 없다** — 스키마 호환(`config.toml` 의 기존 값을 지우지
+	 *  않으려고)만을 위해 필드를 남긴다. `#[serde(default)]` 라 기존 config 는
+	 *  빈 배열로 파싱된다.
 	 */
 	rules_translate?: string[],
 	/**
@@ -1497,32 +1101,6 @@ export type AppInfo = {
 	secrets_store: string,
 	version: string,
 };
-
-export type Artifact = {
-	kind: ArtifactKind,
-	/**  번들 안 경로. */
-	source: string,
-	/**  프로젝트 루트 기준 목적지. `NotHonored`·`McpServers` 는 `None`. */
-	dest: string | null,
-	/**  사람이 읽는 이름 (스킬 폴더명·커맨드명·에이전트명). */
-	name: string,
-	/**  `NotHonored` 사유 코드. */
-	reason: string | null,
-};
-
-export type ArtifactKind = 
-/**  `skills/<n>/**` → `.claude/skills/<n>/**` */
-"skill" | 
-/**  `commands/<n>.md` → `.claude/commands/<n>.md` */
-"command" | 
-/**  `agents/<n>.md` → `.claude/agents/<n>.md` + 비활성 자동화 정의 */
-"agent" | 
-/**  `.mcp.json` → 프로젝트 `.mcp.json` 에 병합 */
-"mcp_servers" | 
-/**  `CLAUDE.md` · `README.md` → 규칙 허브에 참조로 (읽기 전용 배치) */
-"reference" | 
-/**  감지했지만 **실행하지 않는다**. 사유는 [`Artifact::reason`]. */
-"not_honored";
 
 /**
  *  조건 하나.
@@ -1757,116 +1335,6 @@ export type BinarySide = {
 	size: number,
 };
 
-export type BranchCommit = {
-	sha: string,
-	short_sha: string,
-	subject: string,
-	author_name: string,
-	/**  author date, unix seconds. */
-	timestamp: number,
-	/**  로컬 시각 기준 `YYYYMMDD` — 일지 폴더 이름과 같은 모양. */
-	workday: string,
-	file_count: number,
-	/**  이 커밋이 함께 실은 일지 파일 수 (`.oculpm/journal/**.md`). */
-	journal_count: number,
-};
-
-export type BranchEntry = {
-	/**  `.oculpm/journal/` 아래 상대 경로 — 일지 화면이 여는 열쇠. */
-	relative_path: string,
-	workday: string,
-	entry_type: string,
-	status: string,
-	agent_id: string,
-	title: string,
-	link: BranchLink,
-	/**  이 일지가 적은 파일 중 브랜치가 실제로 바꾼 것의 수. */
-	matched_files: number,
-	/**  검증 칸의 증거 등급(0~2) — 영수증의 「검증된 것 / 안 된 것」. */
-	evidence: number,
-};
-
-export type BranchFile = {
-	path: string,
-	/**  이 파일을 건드린 브랜치 커밋 수. 작업 트리에만 있으면 0. */
-	commits: number,
-	/**  아직 커밋되지 않은 변경인가. */
-	uncommitted: boolean,
-	/**  이 브랜치에 붙은 일지 중 이 파일을 적은 것이 있는가. */
-	recorded: boolean,
-};
-
-/**
- *  일지가 이 브랜치에 붙은 **이유**. 파생 판정이라 근거를 함께 싣는다 —
- *  화면이 "왜 이게 여기 있나"를 말할 수 있어야 원장에 대한 거짓말이 안 된다.
- */
-export type BranchLink = 
-/**  일지 파일 자체가 이 브랜치의 커밋(또는 작업 트리)에 있다. */
-"entry" | 
-/**  일지가 적은 파일이 이 브랜치가 바꾼 파일과 겹치고 날짜도 창 안이다. */
-"files";
-
-export type BranchPlanItem = {
-	plan_id: string,
-	plan_title: string,
-	item_id: string,
-	item_title: string,
-	status: string,
-	/**  이 항목을 브랜치로 끌고 온 일지 (plan-log 의 `journal_ref`). */
-	journal_ref: string,
-};
-
-/**
- *  로컬 브랜치 하나. `for-each-ref` 한 번으로 전부 읽는다 — 브랜치마다 git 을
- *  다시 부르지 않는다 (Today 화면이 마운트마다 git 프로세스 15개를 띄우던
- *  2026-08-30 감사의 교훈).
- */
-export type BranchRef = {
-	name: string,
-	is_current: boolean,
-	tip_sha: string,
-	short_sha: string,
-	/**  팁 커밋의 커미터 시각 (unix seconds). */
-	tip_timestamp: number,
-	subject: string,
-};
-
-/**  브랜치 하나의 이야기 — 커밋·일지·플랜 항목·파일을 한 좌표로 묶은 것. */
-export type BranchStory = {
-	branch: string,
-	/**  비교 기준. 기준이 될 브랜치를 못 찾으면 `None` — 그때는 최근 커밋만 본다. */
-	base: string | null,
-	merge_base: string | null,
-	is_current: boolean,
-	/**  일지를 찾은 날짜 창 (`YYYYMMDD`, 양끝 포함). */
-	since_workday: string,
-	until_workday: string,
-	commits: BranchCommit[],
-	entries: BranchEntry[],
-	plan_items: BranchPlanItem[],
-	/**  바뀐 파일 — `.oculpm/` 아래(원장 자신)는 뺀다. */
-	files: BranchFile[],
-	/**  바뀐 파일 중 일지가 적은 것의 수. `files.len()` 과의 비가 곧 기록률이다. */
-	recorded_files: number,
-	uncommitted_files: number,
-	/**  브랜치가 실어 온 일지 파일 수 (커밋 + 작업 트리). */
-	journal_files: number,
-	/**  커밋 상한에 걸렸는가 — 걸렸으면 아래 숫자들이 "전부"가 아니다. */
-	truncated: boolean,
-	/**
-	 *  저장소 루트와 프로젝트 루트의 상하 관계 ({#branch-nested-signal}).
-	 *  `same` 이 아니면 이 이야기의 근거가 구조적으로 약하다 — 화면이 그
-	 *  사실을 말할 수 있게 신호를 싣는다. 조용히 약한 결과를 보여 주는 것이
-	 *  이 저장소가 가장 싫어하는 거짓말이다.
-	 */
-	repo_nesting: RepoNesting,
-	/**
-	 *  두 루트 사이의 상대 경로 (같거나 겹치지 않으면 `None`). 문구가 "어디"를
-	 *  말할 수 있게 함께 싣는다.
-	 */
-	repo_subpath: string | null,
-};
-
 /**
  *  Result of `oculpm_set_journal_verified_bulk` — sequential per-path
  *  `set_journal_verified` calls (same write-through guard each), so a single
@@ -1886,45 +1354,6 @@ export type BulkVerifySkip = {
 	path: string,
 	reason: string,
 };
-
-export type BundleImportResult = {
-	manifest: BundleManifest,
-	report: InstallReport,
-	mcp: McpMerge,
-	/**  이 번들에서 만든 비활성 자동화 정의 id. */
-	automations: string[],
-	/**  같은 id 의 번들이 이미 설치돼 있다 — `replace` 없이는 쓰지 않았다. */
-	already_installed: InstalledBundle | null,
-	/**  받은 바이트의 blake3 — 설치 호출이 `expect_hash` 로 되돌려준다. */
-	content_hash: string,
-};
-
-export type BundleManifest = {
-	/**  `plugin.json` 의 `name` (없으면 번들 소스에서 유도한 이름). */
-	id: string,
-	name: string,
-	version: string | null,
-	description: string | null,
-	homepage: string | null,
-	artifacts: Artifact[],
-	/**  매니페스트가 아예 없었다 — 폴더 구조만 보고 읽었다는 뜻. */
-	manifest_missing: boolean,
-};
-
-export type BundleRemoveReport = {
-	removed: number,
-	/**  사용자가 이어받아(마커를 지워) 남긴 파일. */
-	kept: string[],
-	mcp_removed: boolean,
-	/**  함께 지운 비활성 자동화 정의. */
-	automations_removed: string[],
-};
-
-export type BundleSourceKind = 
-/**  GitHub `owner/repo` — 임의 URL 은 받지 않는다. */
-"github" | 
-/**  로컬 `.zip` 파일 경로. */
-"file";
 
 /**
  *  A group of changed files attributed to one journal entry (Dogfooding #3).
@@ -2015,20 +1444,6 @@ export type CliCheckResult = {
 	cli_name: string,
 	path: string | null,
 	version: string | null,
-};
-
-/**  한 클러스터에 걸린 일지 하나. */
-export type ClusterHit = {
-	/**  `.oculpm/journal/` 기준 상대경로. */
-	rel_path: string,
-	/**  `YYYYMMDD`. */
-	workday: string,
-	/**  그 일지의 제목 (`[x] …` 첫 줄). */
-	title: string,
-	/**  무엇이 걸렸는지 — 사람이 판정할 근거. */
-	excerpt: string,
-	/**  걸린 표지. */
-	marker: string,
 };
 
 export type CodexPluginStatus = {
@@ -2210,31 +1625,11 @@ export type DbTableSize = {
 
 /**  확인 시트가 받는 요청. **실행이 아니라 제안**이다. */
 export type DeepLink = 
-/**  번들에서 스킬 하나만 (`name` 이 없으면 번들 전체와 같다). */
-{ action: "skill_install"; source: string; name: string | null } | { action: "plugin_install"; source: string } | 
 /**  이미 **등록된** 프로젝트를 연다. 경로로 새 프로젝트를 추가하지 않는다. */
 { action: "open"; project: string; view: string | null };
 
 /**  프런트가 받는 이벤트. 앱이 이미 떠 있으면 기존 창으로 라우팅된다. */
 export type DeepLinkReceived = DeepLink;
-
-/**  반복 결함 클러스터 하나. */
-export type DefectCluster = {
-	id: string,
-	label: string,
-	/**  최신순. */
-	hits: ClusterHit[],
-	/**
-	 *  **재발 간격** — 이어진 두 건 사이 날짜 차의 중앙값 (일).
-	 * 
-	 *  buzz 의 「수정률」이 아니다. 우리 표본에는 "지적 → 수정" 짝이 없다.
-	 */
-	typical_gap_days: number,
-	/**  가장 최근 두 건 사이 간격 (일). 최근이 빨라졌는지 보는 값. */
-	last_gap_days: number,
-	/**  마지막으로 나온 날 (`YYYYMMDD`). */
-	last_seen: string,
-};
 
 export type DesktopRegistrationStatus = {
 	/**  설정 폴더가 존재한다 — Claude Desktop 설치 추정 근거. */
@@ -2350,83 +1745,6 @@ export type DigestPlan = {
 	next: DigestItem | null,
 };
 
-/**
- *  An attachment's bytes for inline rendering — base64 + MIME, assembled into a
- *  `data:` URI by the frontend (mirrors `DocsAsset`).
- */
-export type DiscussionAsset = {
-	mime: string,
-	base64: string,
-};
-
-export type DiscussionAttachmentDto = {
-	rel_path: string,
-	kind: string,
-};
-
-export type DiscussionDetail = {
-	discussion: DiscussionSummary,
-	problem: string,
-	background: string,
-	options: DiscussionOptionDto[],
-	log: DiscussionLogDto[],
-	conclusion: string,
-	next_steps: DiscussionNextStepDto[],
-	attachments: DiscussionAttachmentDto[],
-	resolution_plan_id: string | null,
-	resolution_decided_at: string | null,
-	tags: string[],
-	/**  Non-fatal parse warnings — surfaced so the UI never fails silently. */
-	warnings: string[],
-};
-
-export type DiscussionLogDto = {
-	ts: string,
-	author: string,
-	body: string,
-};
-
-export type DiscussionNextStepDto = {
-	step_id: string,
-	title: string,
-	done: boolean,
-	order_idx: number,
-};
-
-export type DiscussionOptionDto = {
-	option_id: string,
-	title: string,
-	body: string,
-	order_idx: number,
-};
-
-/**
- *  편집기가 읽는 **원문 본문** + 그 본문의 CAS 해시.
- * 
- *  `hash` 는 `discussion_write` 의 `base_hash` 에 그대로 넘긴다 — 이 값이
- *  "내가 본 것이 아직 디스크에 있는가" 를 묻는 유일한 재료다.
- */
-export type DiscussionRaw = {
-	body: string,
-	/**  본문의 blake3 hex ([`cas::content_hash`]). */
-	hash: string,
-};
-
-export type DiscussionSummary = {
-	discussion_id: string,
-	title: string,
-	status: string,
-	owner: string,
-	/**  First line of the problem statement, truncated — for the list preview. */
-	problem_preview: string,
-	option_count: number,
-	next_step_count: number,
-	resolution_plan_id: string | null,
-	file_path: string,
-	created_at: string,
-	updated_at: string,
-};
-
 export type DispatchPrompt = {
 	/**  조립된 프롬프트 파일 (프로젝트 상대 — `.oculpm/index/dispatch/…`). */
 	file_rel: string,
@@ -2454,11 +1772,11 @@ export type EntityHit = {
 	kind: EntityKind,
 	id: string,
 	title: string,
-	/**  보조 문맥 — 일지: "워크데이 · 타입", 플랜 항목: 플랜 제목, 토의: status. */
+	/**  보조 문맥 — 일지: "워크데이 · 타입", 플랜 항목: 플랜 제목. */
 	subtitle: string,
 };
 
-export type EntityKind = "journal" | "plan" | "plan_item" | "discussion";
+export type EntityKind = "journal" | "plan" | "plan_item";
 
 /**
  *  One file's recorded diff for a journal entry. `patch` is a git-style unified
@@ -2546,77 +1864,6 @@ export type FileTouched = {
 	bytes_added: number | null,
 	bytes_removed: number | null,
 	rename_from: string | null,
-};
-
-/**  발동 통계 창 조회 결과. */
-export type FiringOverview = {
-	stats: FiringStat[],
-	/**  조회 창 (workday, 포함 양끝). */
-	since: string,
-	until: string,
-	/**  창 안에서 발동이 관측된 세션 수. */
-	sessions: number,
-	/**
-	 *  세션 1건당 규칙 주입 바이트 (컨텍스트 예산 바의 값).
-	 * 
-	 *  날짜 창이 아니라 **최근 [`transcript_sessions::BUDGET_SESSION_WINDOW`] 세션**을 본다 —
-	 *  근거는 그 상수의 주석에.
-	 */
-	bytes_per_session: number,
-	/**
-	 *  `bytes_per_session` 의 분모 — 실제로 센 최근 세션 수. 0 이면 아직
-	 *  말할 것이 없다(막대가 "미계측"으로 그린다). 창의 근거를 화면이 그대로
-	 *  밝힐 수 있도록 함께 내보낸다.
-	 */
-	sessions_considered: number,
-	/**  마지막 스캔 시각 (unix). None = 한 번도 안 돌았다. */
-	last_scan_at: number | null,
-};
-
-/**
- *  발동 순간의 인용 1건 (`#firing-quotes`) — "이 스킬은 언제 쓰이지" 에 대한
- *  가장 강한 답. 산문 설명이 아니라 **이 프로젝트에서 실제로 그것을 부른 말**이다.
- */
-export type FiringQuote = {
-	/**  발동 workday `YYYYMMDD`. */
-	workday: string,
-	/**  발동 직전 사용자 프롬프트 (redact 통과·길이 상한 적용). */
-	prompt: string,
-	/**  그날 그 세션에서 이 항목이 걸린 횟수. */
-	count: number,
-};
-
-/**  한 번의 증분 스캔 결과. */
-export type FiringScanReport = {
-	/**  이번에 새로 읽은 파일 수 (변화 없는 파일은 세지 않는다). */
-	files_scanned: number,
-	/**  이번에 새로 적재한 집계 행 수. */
-	rows_written: number,
-	/**  transcript 폴더를 못 찾았다 (Claude Code 사용 이력 없음 등). */
-	no_transcripts: boolean,
-	/**  false 면 예산이 동나 남은 분량이 있다 — 다시 부르면 이어 간다. */
-	complete: boolean,
-};
-
-/**  프런트가 그대로 그리는 발동 통계 1행. */
-export type FiringStat = {
-	/**  `rule` | `skill`. */
-	kind: string,
-	/**  규칙 절대경로 · 스킬 이름 (조회 키). */
-	key: string,
-	/**  표시용 축약 라벨. */
-	label: string,
-	/**  창 안의 발동 총 횟수. */
-	count: number,
-	/**
-	 *  창 안의 주입 바이트 합 (스킬은 0). specta 가 u64 노출을 막으므로
-	 *  포화 변환한 u32 — 실측 규모(세션당 ~90KB)에서 도달할 수 없는 상한이다.
-	 */
-	bytes: number,
-	/**  발동한 서로 다른 세션 수. */
-	sessions: number,
-	/**  가장 최근 발동 workday. */
-	last_workday: string | null,
 };
 
 /**  한 대화의 **첫** 일지 — 카드가 제목과 열기 링크로 쓴다. */
@@ -2748,20 +1995,6 @@ export type GitRepoStatus = {
 	is_git_repo: boolean,
 	head_branch: string | null,
 	remotes: GitRemote[],
-};
-
-/**  glob 하나의 매칭 결과. */
-export type GlobMatch = {
-	glob: string,
-	/**  이 프로젝트에서 매칭된 파일 수 (상한까지 셈). */
-	files: number,
-	/**  glob 을 해석하지 못했다 — 판정 불가라 dead 로 부르지 않는다. */
-	unparsed: boolean,
-};
-
-export type GreenfieldResult = {
-	project_id: number,
-	scaffold_output: string | null,
 };
 
 export type HomeActivePlan = {
@@ -2952,43 +2185,6 @@ export type InstallKind = {
 	bundle_type: string | null,
 	/**  업데이터가 latest.json `platforms` 에서 찾는 키, 찾는 순서대로. */
 	updater_targets: string[],
-};
-
-export type InstallReport = {
-	bundle_id: string,
-	/**  미리보기였다 — 디스크는 그대로다. `wrote` 는 "쓸 것" 의 수다. */
-	dry: boolean,
-	placements: Placement[],
-	wrote: number,
-	unchanged: number,
-	conflicts: number,
-	failed: number,
-	/**  감지했지만 이행하지 않은 아티팩트 (`manifest::Artifact`). */
-	not_honored: Artifact[],
-	/**  아카이브에서 받아들이지 않은 엔트리 — `(경로, 사유)`. */
-	skipped: ([string, string])[],
-};
-
-export type InstalledBundle = {
-	id: string,
-	name: string,
-	version: string | null,
-	/**  어디서 왔는가 — `owner/repo` 또는 로컬 파일 경로. */
-	source: string,
-	installed_at: string,
-	items: InstalledItem[],
-	/**  `.mcp.json` 에 우리가 넣은 서버 키 (제거 시 이 키만 뺀다). */
-	mcp_keys?: string[],
-	/**  이 번들에서 만든 비활성 자동화 정의 id (`<kind>/<id>`). */
-	automations?: string[],
-};
-
-/**  번들이 놓은 것 하나. 파일이거나 자동화 정의다. */
-export type InstalledItem = {
-	/**  프로젝트 루트 기준 경로 (`.claude/skills/run-evals/SKILL.md`). */
-	path: string,
-	/**  놓을 때의 내용 해시 — 제거 시 "사용자가 고친 파일" 을 가려낸다. */
-	blake3: string,
 };
 
 export type IntegrityWarning = {
@@ -3270,31 +2466,6 @@ export type MasterUpgrade = {
 	to_version: number,
 };
 
-/**
- *  병합하면 Claude Code 가 이 프로젝트에서 **실행하게 될** 것 하나.
- * 
- *  번들의 `hooks/`·`bin/` 은 놓지 않지만(`manifest::NOT_HONORED`) MCP 서버 정의는
- *  곧 실행할 명령이다. 미리보기가 이름만 보여 주면 무엇을 들이는지 모른 채 설치를
- *  누르게 된다 (2026-10-07 외부 보안 피드백). `env` 값은 싣지 않는다 — 키가 들어 있을 수 있다.
- */
-export type McpLaunch = {
-	key: string,
-	/**  stdio 서버의 명령줄(`command args…`) 또는 원격 서버의 URL. */
-	launch: string,
-};
-
-/**  `.mcp.json` 병합 결과. */
-export type McpMerge = {
-	/**  우리가 넣은 서버 키 (원장에 남아 제거 때 이 키만 뺀다). */
-	added: string[],
-	/**  `added` 각각이 실행할 것 — 같은 순서. */
-	launches: McpLaunch[],
-	/**  이미 남이 쓰고 있어 건드리지 않은 키. */
-	conflicts: string[],
-	/**  프로젝트 `.mcp.json` 을 읽을 수 없었다 — **덮어쓰지 않고 포기**했다. */
-	unreadable: boolean,
-};
-
 export type McpRegistrationStatus = {
 	/**  `.mcp.json` 에 우리 서버가 등록되어 있다. */
 	registered: boolean,
@@ -3306,27 +2477,6 @@ export type McpRegistrationStatus = {
 	desktop_snippet: string,
 	/**  우리 것 아닌 MCP 서버 정의 수 (정보 표시용 — 건드리지 않음). */
 	foreign_servers: number,
-};
-
-/**  Cursor 미러 상태 — 프로젝트 스코프 `Rule` 에만 의미가 있다. */
-export type MirrorState = 
-/**  미러 없음 (번역 꺼짐 포함). */
-"none" | 
-/**  우리 마커가 있는 미러가 존재. */
-"mirrored" | 
-/**  같은 경로에 마커 없는 파일이 존재 — 건드리지 않는다. */
-"conflict";
-
-/**  미러 쓰기/제거 한 건의 결과. */
-export type MirrorWriteResult = {
-	/**  번역 타깃 id (v1: "cursor"). */
-	target: string,
-	/**  원본 rel_path. */
-	source_rel: string,
-	/**  "written" | "unchanged" | "removed" | "conflict". */
-	action: string,
-	/**  미러 파일의 프로젝트 상대 경로. */
-	mirror_rel: string,
 };
 
 /**  배경 모델 호출의 도착지. 프런트가 배지 문구를 이걸로 고른다. */
@@ -3351,19 +2501,6 @@ export type ModelEgress = {
 export type ModelInfo = {
 	id: string,
 	label: string,
-};
-
-/**  부정 후보 하나. */
-export type NegationFinding = {
-	/**  부정당하는 규칙 (스코프 루트 상대). */
-	scope: RuleScope,
-	rel_path: string,
-	/**  그 규칙 본문 바이트 — 걷어내면 되찾는 양. */
-	bytes: number,
-	/**  부정이 적힌 파일 (`CLAUDE.md`, `~/.claude/CLAUDE.md` …). */
-	cited_in: string,
-	/**  근거 발췌 — 사람이 판정할 수 있게 그대로 보여 준다. */
-	excerpt: string,
 };
 
 export type OculpmAgentDrift = {
@@ -3555,19 +2692,6 @@ export type OpenPlanItem = {
 	status: string,
 };
 
-export type Placement = {
-	path: string,
-	outcome: PlacementOutcome,
-	/**  `Failed` 의 영어 원문. */
-	detail: string | null,
-};
-
-export type PlacementOutcome = "wrote" | "unchanged" | 
-/**  마커 없는 사용자 파일이 이미 있다 — 손대지 않았다. */
-"conflict" | 
-/**  쓰기 자체가 실패했다. */
-"failed";
-
 /**  Recent plan activity across all plans — drives the Today "계획 업데이트" block. */
 export type PlanActivityDto = {
 	plan_id: string,
@@ -3720,28 +2844,8 @@ export type Project = {
 	created_at: number,
 	/**  아이콘 id (`"terminal"` 등). `None` 이면 프런트가 이름에서 유도한다. */
 	icon: string | null,
-	/**  색 id (`"amber"` 등) — hex 가 아니라 id 다 (테마마다 다르게 해석된다). */
+	/**  색 id (`"amber"` 등) — hex 가 아니라 id 다. */
 	color: string | null,
-	/**
-	 *  이 프로젝트에 묶인 테마 id (`034_project_theme.sql`). `None` 이면 창은
-	 *  전역 설정 테마를 쓴다. 색이 아니라 id 를 저장하는 이유는 `icon`/`color`
-	 *  와 같다.
-	 */
-	theme_id: string | null,
-};
-
-export type ProjectBlueprint = {
-	id: number,
-	name: string,
-	idea_text: string | null,
-	target_users: string | null,
-	stack_choice: string | null,
-	folder_name: string | null,
-	folder_path: string | null,
-	seed_goals_json: string | null,
-	wizard_step: number,
-	created_at: number,
-	updated_at: number,
 };
 
 export type ProjectStats = {
@@ -3835,20 +2939,6 @@ export type ReleaseNotesDraft = {
 	note: string | null,
 };
 
-/**
- *  프로젝트 루트와 저장소 루트의 상하 관계. 되맞춤의 방향이자, 화면이 근거의
- *  한계를 말할 때 쓰는 신호다.
- */
-export type RepoNesting = 
-/**  두 루트가 같다 — 흔한 경우. 되맞출 것이 없다. */
-"same" | 
-/**  저장소가 프로젝트 루트 **아래**다 (`repo = root/<sub>`). */
-"repo_below_root" | 
-/**  프로젝트 루트가 더 큰 저장소 **안**에 있다 (`root = repo/<sub>`). */
-"root_inside_repo" | 
-/**  어느 쪽도 상대의 조상이 아니다 — 되맞출 근거가 없다. */
-"disjoint";
-
 /**  원장 한 줄 — 어느 대화의 시작 컨텍스트에 무엇이 실렸는가. */
 export type ResumeDelivery = {
 	/**  훅이 적은 UTC ISO 문자열 그대로. */
@@ -3934,151 +3024,6 @@ export type RollupSummary = {
 	summary: string,
 };
 
-/**  `rules_save_with_backup` 응답 — 저장 결과 + 되돌릴 백업 경로. */
-export type RuleBackupOutcome = {
-	entry: RuleEntry,
-	mirror: MirrorWriteResult | null,
-	/**  원본을 남긴 절대 경로 — 토스트가 그대로 보여 준다. */
-	backup_path: string,
-};
-
-/**  결정적 규칙 후보 — 한 코드 영역의 반복 실패 클러스터. */
-export type RuleCandidate = {
-	/**  억제/재조회 키 (`area:<영역>`). */
-	key: string,
-	/**  공유 디렉터리 영역 (예: `src-tauri/src/oculpm`). */
-	area: string,
-	/**  클러스터의 실패(error/bug) 일지 수. */
-	entry_count: number,
-	/**  등장한 종류 (정렬: `bug`, `error`). */
-	kinds: string[],
-	/**  표본 제목 (최신순, 최대 4). */
-	sample_titles: string[],
-	/**  증거 일지의 캐시 상대경로 (최신순 — 초안 생성이 본문을 읽는다). */
-	entry_rels: string[],
-	/**  결정적 paths 제안 (`<area>/**`) — LLM 이 다듬되 폴백으로도 쓴다. */
-	suggested_paths: string[],
-	/**  가장 최근 실패 workday. */
-	last_workday: string,
-};
-
-/**  규칙 하나가 어떤 클러스터를 막는다고 볼 수 있는가 (후보). */
-export type RuleClusterLink = {
-	rel_path: string,
-	scope: RuleScope,
-	cluster_ids: string[],
-};
-
-/**  `rules_read` 응답. */
-export type RuleDetail = {
-	entry: RuleEntry,
-	content: string,
-	/**  절대 경로 — 외부 에디터로 열 때 사용. */
-	abs_path: string,
-};
-
-/**
- *  LLM 이 만든 규칙 초안. `content` 가 저장용 완성본 — 프런트는 슬러그만
- *  바꿔서 `rules_save(".claude/rules/<slug>.md", content, create=true)` 를
- *  부른다 (승인 없이는 어떤 파일도 쓰이지 않는다).
- */
-export type RuleDraft = {
-	candidate_key: string,
-	slug: string,
-	title: string,
-	paths: string[],
-	body_markdown: string,
-	/**  frontmatter(paths) + promoted-from 마커 + 본문의 저장용 완성본. */
-	content: string,
-	/**  제안 저장 위치 (`.claude/rules/<slug>.md`). */
-	rel_path: string,
-};
-
-/**  목록의 한 줄. `(scope, rel_path)` 가 조작 키다. */
-export type RuleEntry = {
-	scope: RuleScope,
-	kind: RuleKind,
-	/**  스코프 루트 상대 경로 (`CLAUDE.md`, `.claude/rules/api/validation.md` …). */
-	rel_path: string,
-	/**  표시명 — ClaudeMd 는 파일명, Rule 은 rules/ 이하 스템 (`api/validation`). */
-	name: string,
-	/**  본문 첫 H1 텍스트 (없으면 빈 문자열) — 목록 부제용. */
-	title: string,
-	/**  ClaudeMd 슬롯 전용 — 파일이 아직 없으면 false ("만들기" 어포던스). */
-	exists: boolean,
-	/**  frontmatter `paths` (없으면 빈 배열 = 항상 로드). */
-	paths: string[],
-	bytes: number,
-	mirror: MirrorState,
-};
-
-export type RuleEvidence = {
-	/**  표본이 충분한 클러스터만 (최근 재발순). */
-	clusters: DefectCluster[],
-	/**  근거가 붙은 규칙만 — 붙지 않은 규칙은 **목록에 없다** ("근거 0" 을 쓰지 않는다). */
-	links: RuleClusterLink[],
-};
-
-export type RuleKind = 
-/**  CLAUDE.md 계열 고정 슬롯 (항상 로드되는 메모리 파일). */
-"claude_md" | 
-/**  `.claude/rules/**\/*.md` 규칙 파일. */
-"rule";
-
-/**  `rules_save` 응답 — 저장된 엔트리 + (옵인 시) 미러 결과. */
-export type RuleSaveOutcome = {
-	entry: RuleEntry,
-	mirror: MirrorWriteResult | null,
-};
-
-export type RuleScope = 
-/**  프로젝트 루트 기준 (`<project>/CLAUDE.md`, `<project>/.claude/rules/…`). */
-"project" | 
-/**  홈 디렉터리 기준 (`~/.claude/CLAUDE.md`, `~/.claude/rules/…`). */
-"global";
-
-/**
- *  감사 한 번의 결과.
- * 
- *  `total_files` 는 판정이 아니라 **분모**다. glob 이 문 파일 수만으로는
- *  "많다" 를 말할 수 없다 — 1,800개가 큰지 작은지는 저장소 크기에 달렸다.
- *  이게 있어야 화면이 "조건부라면서 사실상 전부" 를 근거 있게 말한다.
- */
-export type RuleScopeAudit = {
-	findings: RuleScopeFinding[],
-	/**  걷기 상한(`MAX_WALK_FILES`)까지 센 프로젝트 파일 수. */
-	total_files: number,
-};
-
-/**  규칙 하나의 감사 결과. */
-export type RuleScopeFinding = {
-	scope: RuleScope,
-	rel_path: string,
-	/**  발동 원장 키와 같은 절대경로 — 프런트가 주입 실측치와 잇는다. */
-	abs_path: string,
-	name: string,
-	/**  규칙 본문 바이트 (되찾을 수 있는 양의 근거). */
-	bytes: number,
-	globs: GlobMatch[],
-	/**  매칭 0개인 glob (무관 확정). */
-	dead_globs: string[],
-	/**  남길 glob — 축소 제안이 그대로 쓴다. */
-	live_globs: string[],
-};
-
-/**  `rules_list` 응답 — 전 스코프를 한 번에 (스킬 overview 패턴). */
-export type RulesOverview = {
-	/**  고정 슬롯 (프로젝트 3 + 전역 1, exists=false 포함). */
-	claude_md: RuleEntry[],
-	project_rules: RuleEntry[],
-	global_rules: RuleEntry[],
-	/**  절대 경로 — 빈 상태 안내용. */
-	project_rules_dir: string,
-	global_rules_dir: string,
-	/**  `config.agents.rules_translate` 에 "cursor" 가 있는가. */
-	cursor_translate: boolean,
-};
-
 export type Session = {
 	/**  `YYYYMMDD-NNN`. */
 	id: string,
@@ -4139,153 +3084,7 @@ export type SettingsChanged = {
 
 export type Severity = "ok" | "warning" | "critical";
 
-/**  결정적 스킬 후보 — 한 tag 의 반복 작업 클러스터. */
-export type SkillCandidate = {
-	/**  원본 tag (억제/재조회 키). */
-	tag: string,
-	/**  tag 의 폴더명 정규화 (`.claude/skills/<slug>/` 제안 위치). */
-	slug: string,
-	/**  이 tag 가 붙은 일지 수. */
-	count: number,
-	/**  가장 최근 등장 workday. */
-	last_workday: string,
-	/**  표본 제목 (최신순, 최대 3). */
-	sample_titles: string[],
-};
-
-/**  `skills_read` 응답 — 원문 + 보조 파일 목록. */
-export type SkillDetail = {
-	entry: SkillEntry,
-	/**  SKILL.md 원문 (frontmatter 포함). */
-	content: string,
-	/**  스킬 폴더 내 보조 파일 상대 경로 (SKILL.md 제외, 최대 50개). */
-	files: string[],
-	/**  SKILL.md 절대 경로 — 외부 에디터로 열 때 사용. */
-	skill_md_path: string,
-};
-
-/**  스킬 하나의 「왜 0회인가」 신호. */
-export type SkillDormancySignal = {
-	scope: SkillScope,
-	dir_name: string,
-	/**
-	 *  description 이 가리키는데 이 프로젝트에 **없는** 파일들.
-	 *  비어 있지 않으면 발동할 대상 자체가 없다는 뜻이다.
-	 */
-	missing_files: string[],
-	/**  이 스킬을 억제하는 문서 (`CLAUDE.md`, `~/.claude/CLAUDE.md`). */
-	suppressed_in: string | null,
-	/**  억제 근거 발췌 — 휴리스틱이라 사람이 판정할 수 있어야 한다. */
-	suppressed_excerpt: string | null,
-	/**
-	 *  SKILL.md 를 마지막으로 고친 뒤 지난 **날수**. 못 읽으면 `None`.
-	 * 
-	 *  절대 시각이 아니라 나이인 이유: 분류기가 묻는 것은 "계측 창보다 새로
-	 *  만든 파일인가" 하나뿐이다. 나이면 그 질문에 바로 답하고, 시각을
-	 *  주고받으면 양쪽이 각자 시계를 읽어야 한다.
-	 */
-	age_days: number | null,
-};
-
-/**
- *  LLM 이 만든 스킬 초안. `content` 가 저장용 SKILL.md 전문 — 프런트는
- *  슬러그만 바꿔서 `skills_save(scope=project, <slug>, content, create=true)`
- *  를 부른다 (승인 없이는 어떤 파일도 쓰이지 않는다).
- */
-export type SkillDraft = {
-	tag: string,
-	slug: string,
-	/**  frontmatter description (영어 "Use when …" — 자동 발동 트리거). */
-	description: string,
-	/**  본문만 (frontmatter·마커 제외) — 모달 미리보기용. */
-	body_markdown: string,
-	/**  frontmatter + 본문 + promoted-from 마커의 저장용 완성본. */
-	content: string,
-	/**  제안 저장 위치 (`.claude/skills/<slug>/SKILL.md`). */
-	rel_path: string,
-};
-
-/**  스킬 목록의 한 줄. `dir_name` 이 (scope 내) 조작 키다. */
-export type SkillEntry = {
-	scope: SkillScope,
-	dir_name: string,
-	/**  frontmatter `name` (없으면 폴더명). */
-	name: string,
-	/**  frontmatter `description` (없으면 빈 문자열) — 에이전트 자동 발동 기준. */
-	description: string,
-	/**
-	 *  frontmatter `keywords` — 능력 검색(`context_discover`)이 색인하는 말.
-	 *  없으면 빈 배열이다 (Osaurus 라운드 Phase 5).
-	 */
-	keywords: string[],
-	/**
-	 *  `disable-model-invocation: true` — 사람이 이름을 쳐야만 뜨는 스킬.
-	 *  에이전트는 스스로 부르지 못하고 다른 스킬도 못 부른다. 목록에서 이 사실이
-	 *  안 보이면 "왜 안 걸리지" 의 답이 영원히 안 나온다 (`#skill-invocation`).
-	 */
-	user_invoked: boolean,
-	enabled: boolean,
-	/**  표시용 경로 — project 는 프로젝트 루트 상대, global 은 `~/…`. */
-	display_path: string,
-	/**  SKILL.md 를 제외한 보조 파일 수 (참고 문서·스크립트 등). */
-	extra_files: number,
-};
-
-export type SkillScope = 
-/**  `<project>/.claude/skills` — 이 프로젝트에서만 로드. */
-"project" | 
-/**  `~/.claude/skills` — 모든 프로젝트에서 로드. */
-"global";
-
-/**  초안 — 프런트가 그대로 그리고, 승인 시 `content` 를 저장한다. */
-export type SkillTriggerDraft = {
-	dir_name: string,
-	/**  지금 frontmatter 에 있는 description (없으면 빈 문자열). */
-	current: string,
-	/**  제안된 새 description. */
-	proposed: string,
-	/**  왜 이렇게 바꾸는지 한두 줄 (한국어 UI 에 그대로 보인다). */
-	rationale: string,
-	/**  저장용 SKILL.md 전문 — **description 행만 교체**하고 나머지는 바이트 보존. */
-	content: string,
-};
-
-/**  `skills_list` 응답. 두 스코프를 한 번에 내려 UI 왕복을 줄인다. */
-export type SkillsOverview = {
-	project: SkillEntry[],
-	global: SkillEntry[],
-	/**  절대 경로 — 빈 상태 안내·"폴더 열기" 용. */
-	project_skills_dir: string,
-	global_skills_dir: string,
-};
-
 export type SummaryStyle = "standup" | "pr_description" | "weekly_status";
-
-/**  에이전트 또는 커맨드 파일 하나. */
-export type SurfaceEntry = {
-	scope: RuleScope,
-	kind: SurfaceKind,
-	/**  스코프 루트 상대 경로 (`.claude/agents/code-reviewer.md`). */
-	rel_path: string,
-	/**  frontmatter `name`, 없으면 파일 스템. */
-	name: string,
-	/**  frontmatter `description` (없으면 빈 문자열). */
-	description: string,
-	/**  **매 세션 비용** — name + description 의 UTF-8 바이트. */
-	bytes: number,
-	/**  디스크 전체 바이트 — 발동해야 읽히는 몫. 예산에 넣지 않고 참고로만 낸다. */
-	body_bytes: number,
-};
-
-export type SurfaceKind = "agent" | "command" | 
-/**
- *  편집하지 않지만 **본문째로** 매 세션 실리는 파일 (`AGENTS.md`).
- * 
- *  에이전트·커맨드와 한 표에 두는 이유는 성격이 같아서다 — 사용자가 이
- *  화면에서 고칠 수 없는데 비용은 확정으로 나간다. 다른 점은 세는 양이다:
- *  저 둘은 광고(name+description)만 실리지만 이건 파일 전체가 실린다.
- */
-"memory";
 
 /**
  *  PR-R1b (A2) — a symbol hit from `search_symbols` (name LIKE over the AST
@@ -4325,61 +3124,6 @@ export type TagStat = {
 	suggest_into: string | null,
 };
 
-export type ThemeFile = {
-	/**  항상 `"v1"`. */
-	oculpm_theme: string,
-	metadata: ThemeMetadata,
-	/**
-	 *  `"light"` | `"dark"` — 기존 `data-theme` 가족을 그대로 태운다. 코드
-	 *  에디터·hljs·스크롤바·글래스가 전부 이 축을 보므로 반드시 있어야 한다.
-	 */
-	family: string,
-	is_built_in?: boolean,
-	follows_system_accent?: boolean,
-	/**  부분 지정 가능. 빠진 토큰은 가족 기본값을 상속한다. */
-	tokens?: { [key in string]: string },
-};
-
-/**
- *  임포트 결과 한 벌.
- * 
- *  태그 유니온 대신 평평한 구조체다 — 프런트가 `status` 하나로 갈라지고,
- *  충돌이면 `source_path` 를 그대로 되돌려 보내 **파일 선택을 두 번 시키지
- *  않는다**.
- */
-export type ThemeImportOutcome = {
-	/**  `"imported" | "conflict" | "cancelled"`. */
-	status: string,
-	theme: ThemeFile | null,
-	/**  충돌한 이름 (status = "conflict"). */
-	conflict_name: string | null,
-	/**  다시 부를 때 넘길 원본 경로. */
-	source_path: string | null,
-};
-
-export type ThemeMetadata = {
-	/**  UUID v4. 임포트할 때는 **버리고 새로 발급**한다 (남의 id 충돌 방지). */
-	id?: string,
-	name: string,
-	version?: string,
-	author?: string | null,
-	/**  ISO8601. 없으면 저장 시점을 찍는다. */
-	created_at?: string,
-	updated_at?: string,
-};
-
-/**
- *  테마 목록이나 프로젝트 바인딩이 바뀌었다 — **모든 창**이 다시 읽는다.
- * 
- *  `SettingsChanged` 를 재활용하지 않는 이유: 테마 파일은 `settings` 테이블에
- *  없다. 설정 이벤트에 태우면 "설정이 바뀌었다" 는 말이 거짓이 되고, 설정을
- *  다시 읽는 쪽(언어·배율)이 이유 없이 깨어난다.
- */
-export type ThemesChanged = {
-	/**  `"saved" | "deleted" | "imported" | "binding"` — 로그·디버깅용. */
-	reason: string,
-};
-
 export type TodayDigest = {
 	/**  active 플랜만, 최근 갱신 순. */
 	plans: DigestPlan[],
@@ -4388,14 +3132,6 @@ export type TodayDigest = {
 	/**  막힌(`[!]`) 리프. */
 	blocked: DigestItem[],
 	journal_plan: JournalPlanLink[],
-};
-
-/**  팝오버 → 메인 창 딥링크 (D5). `view` 는 프런트 `UiV2View` 문자열. */
-export type TrayNavigate = {
-	view: string,
-	project_id: number | null,
-	/**  `.oculpm/` 상대 일지 경로 — 있으면 해당 일지를 연다. */
-	entry_path: string | null,
 };
 
 export type TypeCounts = {
@@ -4465,6 +3201,18 @@ export type WeekBucket = {
 	by_type: TypeCounts,
 	/**  count 내림차순 → agent_id 오름차순 (동점을 결정적으로). */
 	by_agent: AgentCount[],
+};
+
+/**
+ *  목적지를 실은 창 이동 (딥링크 `oculpm://open` 의 확인 시트가 승인한 뒤).
+ *  `view` 는 프런트 `UiV2View` 문자열. 이미 떠 있는 창에는 이벤트로, 갓 만든
+ *  창에는 URL(`window_url`)로 실린다 — 갓 만든 창은 아직 리스너가 없다.
+ */
+export type WindowNavigate = {
+	view: string,
+	project_id: number | null,
+	/**  `.oculpm/` 상대 일지 경로 — 있으면 해당 일지를 연다. */
+	entry_path: string | null,
 };
 
 /**

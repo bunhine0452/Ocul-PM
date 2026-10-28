@@ -20,7 +20,6 @@ import type { PlanView } from "@/features/planner/planMeta";
 import type {
   ActiveView,
   DiffMode,
-  DiscussionEditorMode,
   JournalFilter,
   OculpmInitCardInfo,
   SearchScope,
@@ -165,13 +164,6 @@ export interface WorkspaceState {
   searchRecent: string[];
   /** 에이전트 화면 활성 모델 id. */
   aiActiveModel: string | null;
-  /** 문제 해결(Discussion) 화면에서 마지막으로 본 토의 문서의 id (frontmatter slug). */
-  discussionActiveId: string | null;
-  /**
-   * 문제 해결 편집기의 보기 모드 (원문만 / 나란히 / 미리보기만). 문서마다가
-   * 아니라 사람마다 고정된 습관이라 화면 단위로 기억한다.
-   */
-  discussionEditorMode: DiscussionEditorMode;
   /**
    * 사이드바 접힘 상태 (Dogfooding 2026-06-07). true 면 사이드바가 화면에서
    * 사라지고, 좌측 가장자리 호버 시에만 오버레이로 떠오름. 영속.

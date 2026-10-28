@@ -368,7 +368,7 @@ describe("dictionary — t() renders the OS notation", () => {
   const glyphKeys = (Object.keys(ko) as I18nKey[]).filter((k) => GLYPH.test(ko[k]) || GLYPH.test(en[k]));
 
   it("there are glyph strings to check (an empty sample would prove nothing)", () => {
-    expect(glyphKeys.length).toBeGreaterThan(10);
+    expect(glyphKeys.length).toBeGreaterThan(5);
   });
 
 

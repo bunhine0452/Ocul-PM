@@ -83,20 +83,6 @@ const PERMANENT = new Set([
  * 목록을 다시 본다 — UI 언어로 뒤집는 건 잘못된 축이다.
  */
 const DISK_CONTENT = new Set([
-  // 사용자 저장소에 기록되는 시드 파일 본문 (.claude/rules/*.md · CLAUDE.md).
-  "features/skills/rulesModel.ts",
-  // 같음 (.claude/skills/<name>/SKILL.md).
-  "features/skills/skillsModel.ts",
-  // 문제 해결 문서의 시작 템플릿 본문 + 파서가 인식하는 `## ` 섹션 제목.
-  // `.oculpm/discussion/<slug>/discussion.md` 에 그대로 기록되는 내용이고,
-  // 축도 UI 언어가 아니라 작성 언어(`getContentLang()`)라 ko/en 두 벌을 이
-  // 파일이 직접 들고 있다.
-  "features/discussion/discussionTemplates.ts",
-  // 플러그인 실표면(plugin/oculpm/**)의 **거울**. `plugin_docs_sync.test.ts` 가
-  // `description` 을 커맨드 .md 의 frontmatter 와 글자 단위로 일치시킨다 —
-  // 여기만 번역하면 그 게이트가 깨지고, 앱이 플러그인의 실제 문구를 잘못
-  // 인용하게 된다. 플러그인 .md 자체가 번역될 때 함께 간다.
-  "features/skills/pluginDocs.ts",
   // ⌘K 편집이 만드는 일지 초안의 본문. `.oculpm/journal/**` 에 그대로 기록되고
   // 축도 작성 언어(`getContentLang()`)라 위 셋과 같은 부류다.
   "features/code/inlineEdit/attribution.ts",
@@ -140,7 +126,6 @@ const TESTS = new Set([
   // SECURITY.md 「외부 리뷰 이력」 표 픽스처 — 「반영」·「다음 릴리스」 는 파서가 읽는 한국어 문서 형식이다.
   "__tests__/bump_version.test.ts",
   "__tests__/journal_toast_gate.test.ts",
-  "__tests__/greenfield_empty_draft.test.tsx",
   "__tests__/shell_acp_view_no_today_fallback.test.tsx",
   "__tests__/acp_journal_gate_notice.test.tsx",
   "__tests__/acp_parallel_sessions.test.tsx",
@@ -203,11 +188,6 @@ const TESTS = new Set([
   "__tests__/design_ratchets.test.ts",
   "__tests__/design_tokens.test.ts",
   "__tests__/diff_v2.test.tsx",
-  "__tests__/discussion_edit.test.ts",
-  "__tests__/discussion_editor.test.tsx",
-  // 논의 문서 픽스처(제목·섹션 이름)는 파서가 읽는 한국어 문서 형식이다.
-  "__tests__/discussion_outline.test.ts",
-  "__tests__/discussion_v2.test.tsx",
   "__tests__/dispatch_handoff.test.ts",
   // 닥터 「워처 계측」 행 — 한국어 문장에 여섯 숫자가 실리는지가 검사 재료다.
   "__tests__/doctor_watcher_sched.test.tsx",
@@ -254,16 +234,11 @@ const TESTS = new Set([
   "__tests__/plan_meta.test.ts",
   // 4.0 계획 화면 — 계획·항목 픽스처 제목과 한국어 테스트 이름이 검사 재료다.
   "__tests__/planner_v4.test.tsx",
-  "__tests__/plugin_bundles.test.tsx",
-  "__tests__/plugin_docs_sync.test.ts",
-  "__tests__/plugin_skills_sync.test.ts",
   "__tests__/polish_phase2.test.tsx",
   "__tests__/project_appearance.test.ts",
   "__tests__/project_manager.test.tsx",
   "__tests__/recent_changes_store.test.tsx",
   "__tests__/retro_gen_bus.test.ts",
-  "__tests__/rule_promotion_v2.test.tsx",
-  "__tests__/rules_hub_v2.test.tsx",
   "__tests__/rules_reachability.test.ts",
   "__tests__/session_activity.test.ts",
   "__tests__/session_colors.test.ts",
@@ -271,11 +246,6 @@ const TESTS = new Set([
   "__tests__/settings_deferred_commit.test.tsx",
   "__tests__/settings_search.test.ts",
   "__tests__/sidebar_a11y.test.tsx",
-  "__tests__/skill_promotion_v2.test.tsx",
-  "__tests__/skill_shop.test.tsx",
-  "__tests__/skills_catalog.test.ts",
-  "__tests__/skills_gallery_v2.test.tsx",
-  "__tests__/skills_v2.test.tsx",
   "__tests__/start_screen.test.tsx",
   "__tests__/tab_strip.test.tsx",
   "__tests__/term_pane_drop.test.ts",
@@ -293,8 +263,6 @@ const TESTS = new Set([
   "__tests__/terminal_url_links.test.ts",
   "__tests__/terminal_viewport_resync.test.ts",
   "__tests__/terminal_webgl_slot.test.ts",
-  "__tests__/theme_gallery.test.tsx",
-  "__tests__/theme_schema.test.ts",
   "__tests__/toast_timing.test.tsx",
   // bug-hunt C1·C2 (2026-09-22) — Tauri 이벤트 해제 순서. 한국어 테스트 이름뿐이다.
   "__tests__/transport_event_unlisten.test.ts",
@@ -307,14 +275,12 @@ const TESTS = new Set([
   "__tests__/token_estimate.test.ts",
   "__tests__/tools_v2.test.tsx",
   "__tests__/trace_preview.test.ts",
-  "__tests__/tray_popover.test.tsx",
   "__tests__/uiv2view_route_safety.test.ts",
   "__tests__/update_banner.test.tsx",
   "__tests__/updater_route.test.ts",
   "__tests__/welcome_wizard.test.tsx",
   "__tests__/workday_rollover.test.tsx",
   "__tests__/workspace_slice_consumers.test.tsx",
-  "__tests__/write_conflict_contract.test.ts",
 ]);
 
 const ALLOWLIST = new Set([...PERMANENT, ...DISK_CONTENT, ...TESTS]);
