@@ -5,8 +5,8 @@ ocul-pm 의 Claude Code 연동 두 가지를 **한 번에** 구성합니다 (수
 | 구성 | 대체하는 수동 설정 | 동작 |
 |---|---|---|
 | 훅 브리지 (CI0) | 앱 설정의 "Claude Code 훅 연동" 토글 (`.claude/settings.local.json`) | SessionStart / Stop / SessionEnd 이벤트를 프로젝트의 `.oculpm/hooks/claude-events.jsonl` 에 append — 앱 watcher 가 소비해 세션을 실측 신호로 기록 |
-| oculpm-mcp (CI2) | 앱 설정의 "MCP 등록" (`.mcp.json`) | `journal_write` / `plan_status` / `plan_update` / `plan_create` / `project_init` 구조화 도구 — `--root "${CLAUDE_PROJECT_DIR}"` 라 어느 프로젝트에서든 그 프로젝트의 `.oculpm/` 에 기록 |
-| 재개 컨텍스트 주입 | (앱에 없는 플러그인 전용) | 세션·서브에이전트 시작 시 활성 플랜의 미완 항목 요약(≤1,600자)과 **마지막 작업 일지 3건**(경로·제목만 — 원문은 `journal_read`)을 컨텍스트로 주입 — 에이전트가 "현재 계획"과 "직전에 한 일"을 알고 시작. **플랜·일지가 없는 프로젝트**에는 「플랜·일지 없음 → `plan_create`(done_when·check)로 완료 조건·확인 명령부터」 한 줄을, 확인 명령 없는 플랜(또는 플랜 없는 프로젝트)에는 매니페스트(package.json·Cargo.toml·pyproject·go.mod·Makefile)에서 감지한 **확인 명령 후보**를 싣는다 — 어떤 프로젝트여도 첫 세션부터 완료 조건·확인 명령을 받는다. 무엇을 실었는지는 `.oculpm/hooks/resume-delivered.jsonl` 에 한 줄(SessionStart 만) — 이 원장은 **"시작 컨텍스트에 포함됐다"까지만** 뜻하며, 읽었는지·도움이 됐는지는 말하지 않는다 |
+| oculpm-mcp (CI2) | 앱 설정의 "MCP 등록" (`.mcp.json`) | `journal_search` / `journal_read` / `journal_write` / `plan_status` / `plan_update` / `plan_create` / `project_init` 구조화 도구 — `--root "${CLAUDE_PROJECT_DIR}"` 라 어느 프로젝트에서든 그 프로젝트의 `.oculpm/` 에 기록 |
+| 재개 컨텍스트 주입 | (앱에 없는 플러그인 전용) | 세션·서브에이전트 시작 시 활성 플랜(최근 갱신 3개)의 완료 조건·확인 명령·**마지막 판정**·미완 항목 요약(≤1,600자)과 **마지막 작업 일지 3건**(경로·제목만 — 원문은 `journal_read`)을 컨텍스트로 주입 — 에이전트가 "현재 계획"과 "직전에 한 일"을 알고 시작. **플랜·일지가 없는 프로젝트**에는 「플랜·일지 없음 → `plan_create`(done_when·check)로 완료 조건·확인 명령부터」 한 줄을, 확인 명령 없는 플랜(또는 플랜 없는 프로젝트)에는 매니페스트(package.json·Cargo.toml·pyproject·go.mod·Makefile)에서 감지한 **확인 명령 후보**를 싣는다 — 어떤 프로젝트여도 첫 세션부터 완료 조건·확인 명령을 받는다. 「마지막 판정」은 plan-log 메모가 `판정 ✓`/`판정 ✗`(en `verdict ✓`/`verdict ✗`)로 시작하는 가장 최근 행 하나다 — 에이전트가 「어디까지 왔나」가 아니라 「심판이 뭐라 했나」를 받는다(그 줄을 실으면 항목을 하나 덜 실어 예산은 그대로). 무엇을 실었는지는 `.oculpm/hooks/resume-delivered.jsonl` 에 한 줄(SessionStart 만) — 이 원장은 **"시작 컨텍스트에 포함됐다"까지만** 뜻하며, 읽었는지·도움이 됐는지는 말하지 않는다 |
 | 미기록 세션 신호 | (앱에 없는 플러그인 전용) | 세션이 일지 없이 끝나면 stderr 경고 + `.oculpm/hooks/journal-missing.jsonl` 신호 — 근거: 헤드리스 단발 세션 준수 0/12 실측(benchmarks/agentic) |
 | statusline 배지 | (앱에 없는 플러그인 전용) | 디스패치된 플랜 항목을 터미널 상태줄에 `⏵ OCULPM: <항목>` 으로 — 아래 "statusline 설정" 참조 |
 
@@ -19,7 +19,7 @@ ocul-pm 의 Claude Code 연동 두 가지를 **한 번에** 구성합니다 (수
 
 ## statusline 설정 (선택)
 
-앱 플래너에서 ▶실행(또는 회고 [Claude Code 로])을 누르면 `.oculpm/index/dispatch/current.json` 에 현재 항목이 기록됩니다. Claude Code 의 `/statusline` 에서 이 플러그인의 `hooks/oculpm-statusline.sh` 를 지정하면 상태줄에 그 항목이 표시됩니다 — 항목이 완료 글리프가 되거나 24시간이 지나면 자동으로 기본 상태줄(모델·폴더)로 돌아갑니다. 설치 경로 예: `~/.claude/plugins/marketplaces/oculpm/plugin/oculpm/hooks/oculpm-statusline.sh` (설치 방식에 따라 다를 수 있음 — `/plugin` UI 에서 플러그인 경로 확인).
+앱 플래너에서 ▶실행을 누르면 `.oculpm/index/dispatch/current.json` 에 현재 항목이 기록됩니다. Claude Code 의 `/statusline` 에서 이 플러그인의 `hooks/oculpm-statusline.sh` 를 지정하면 상태줄에 그 항목이 표시됩니다 — 항목이 완료 글리프가 되거나 24시간이 지나면 자동으로 기본 상태줄(모델·폴더)로 돌아갑니다. 설치 경로 예: `~/.claude/plugins/marketplaces/oculpm/plugin/oculpm/hooks/oculpm-statusline.sh` (설치 방식에 따라 다를 수 있음 — `/plugin` UI 에서 플러그인 경로 확인).
 
 ## 요구 사항
 
@@ -70,7 +70,7 @@ claude --plugin-dir /path/to/ai-pm/plugin/oculpm
    `%LOCALAPPDATA%\Programs\Ocul-PM\`, `%ProgramFiles%\Ocul-PM\`(시스템 설치)
 6. 리포 개발 빌드 (`--plugin-dir` 로 리포에서 직접 로드할 때만)
 
-이 순서는 앱 설정 화면이 보여 주는 탐색 목록(`acp/recording.rs`)과 같다 —
+이 순서는 앱 설정 화면이 보여 주는 탐색 목록(`oculpm/mcp/register.rs` 의 `locate_binary`)과 같다 —
 `src-tauri/tests/plugin_xplat.rs` 가 세 OS 에서 둘을 대조한다.
 
 못 찾으면 stderr 로 설치 안내를 내고 종료합니다.

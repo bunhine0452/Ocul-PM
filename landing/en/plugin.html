@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Plugin · Skill Catalog — Ocul-PM</title>
-<meta name="description" content="The full surface of the Ocul-PM plugin for Claude Code: 7 slash commands, 7 MCP tools, 5 bundled skills, and a 26-skill third-party catalog that detects your stack and recommends matches (pinned commits, MIT)." />
+<meta name="description" content="The full surface of the Ocul-PM plugin for Claude Code: 4 slash commands, 7 MCP tools, 1 bundled skill, and a 26-skill third-party catalog that detects your stack and recommends matches (pinned commits, MIT)." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/en/plugin" />
@@ -65,24 +65,24 @@
 
     <section class="pg-sec">
       <h2 id="flow">From project kickoff to the implementation loop</h2>
-      <p>For a new feature, start with <code>/oculpm:inception</code> (design only) or go straight to <code>/oculpm:next</code> — inception's interview and research are worth another lap only in unfamiliar territory.</p>
+      <p>For a new feature, start with <code>/oculpm:inception</code> (planning only) or go straight to <code>/oculpm:next</code> — inception's questions and research are worth a full lap only in unfamiliar territory.</p>
       <div class="pg-jump">
         <a href="#commands">→ /oculpm:inception</a>
-        <a href="#commands">→ /oculpm:next (repeat until the leaf is done)</a>
+        <a href="#commands">→ /oculpm:next until-done (until the check passes)</a>
       </div>
     </section>
 
     <section class="pg-sec">
-      <h2 id="commands">7 slash commands</h2>
+      <h2 id="commands">4 slash commands</h2>
       <p>Things you call with one typed line.</p>
       <div class="pg-cards">
       <div class="pg-card">
-        <h3><code>/oculpm:inception</code><span class="when">Designing a new project or feature area</span></h3>
-        <p>Seeds a design: a minimal read on the problem → <b>web research to map the landscape</b> → <b>settling the spec with you</b> using options backed by evidence (versions, sources) → a 3-depth detailed plan via <code>plan_create</code> → <code>EVALS.md</code> done-criteria → starter <code>.claude/rules</code>. You can pass an idea as an argument: <code>/oculpm:inception I want to build a to-do app</code></p>
+        <h3><code>/oculpm:inception</code><span class="when">Starting a new project or feature area</span></h3>
+        <p>Puts the start in an order that gets the best result however you begin: settle the outcome with <b>"once this works, what should happen next?"</b> → four depth questions (what would the best expert do that you didn't ask for · which rawest material to start from · which tools · what — not you, not the model — shows the result is right) → turn the goal into a verb and borrow the <b>methods</b> of two or three fields that reach it (the investigation that expert does, not a role-play) → one <b>hard numeric target</b> → <code>plan_create</code>. The plan's first item builds the check command and <b>shows it failing (red) now</b>. If a stack has to be chosen, it recommends from a web search with versions and sources, not from memory. It asks only what has to be answered next, each question with a recommended answer. You can pass an idea as an argument: <code>/oculpm:inception I want to build a to-do app</code></p>
       </div>
       <div class="pg-card">
         <h3><code>/oculpm:next</code><span class="when">The implementation loop — run it repeatedly</span></h3>
-        <p>Picks up the next unfinished leaf on the active plan and drives one cycle: <b>implement → verify the gates → journal → update the plan.</b> It's the plugin's counterpart to the app planner's ▶ Run. To target a specific item: <code>/oculpm:next login-happy-path</code></p>
+        <p>Picks up the next unfinished leaf on the active plan, <b>marks it in progress (<code>[~]</code>) first</b> so a parallel session won't take it too, and drives one cycle: <b>implement → run the check → journal → update the plan.</b> The check's result goes into the plan log as <code>verdict ✓</code>/<code>verdict ✗</code>, and the next session's start hook ships it as the plan's last verdict. With <code>/oculpm:next until-done</code> it keeps taking leaves until the check passes, something blocks it, a decision needs you, or no approach is left to try. It's the plugin's counterpart to the app planner's ▶ Run. To target a specific item: <code>/oculpm:next login-happy-path</code></p>
       </div>
       <div class="pg-card">
         <h3><code>/oculpm:redteam</code><span class="when">Before merging or shipping — "what's wrong here?"</span></h3>
@@ -90,7 +90,7 @@
       </div>
       <div class="pg-card">
         <h3><code>/oculpm:help</code><span class="when">When you've forgotten what's there</span></h3>
-        <p>Shows the entire plugin surface (7 commands · 7 MCP tools · 5 skills · hooks) as one reference card, and recommends the next step for where you are now.</p>
+        <p>Shows the entire plugin surface (4 commands · 7 MCP tools · 1 skill · hooks) as one reference card, and recommends the next step for where you are now.</p>
       </div>
       </div>
     </section>
@@ -102,11 +102,11 @@
         <table>
           <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
           <tbody>
-            <tr><td>journal_search</td><td>Search past journal entries — narrow by query (title, body, tags) plus <b>entries that touched a given file</b>, type, status, date range, tags. Returns a compact hit list instead of full bodies, sorted by <b>relevance</b> (title &gt; tags &gt; slug &gt; path &gt; body weights plus a small recency bonus) — an old entry still comes first when it matches strongly. Reads the SQLite cache when the app is running, the disk otherwise (see <code>source</code> in the response). When a weekly rollup (<code>.oculpm/rollups/</code>) matches, it comes first in a <code>rollups</code> array. The rule is: call it <b>before</b> starting work.</td></tr>
+            <tr><td>journal_search</td><td>Search past journal entries — narrow by query (title, body, tags) plus <b>entries that touched a given file</b>, type, status, date range, tags. Returns a compact hit list instead of full bodies, sorted by <b>relevance</b> (title &gt; tags &gt; slug &gt; path &gt; body weights plus a small recency bonus) — an old entry still comes first when it matches strongly. Reads the SQLite cache when the app is running, the disk otherwise (see <code>source</code> in the response). The rule is: call it <b>before</b> starting work.</td></tr>
             <tr><td>journal_read</td><td>The full body of one journal entry the search picked out. Not for skimming a list — only after deciding it's worth reading.</td></tr>
             <tr><td>journal_write</td><td>Records one journal entry to spec every time a unit of work (bug/feature/refactor/error/chore) finishes. Takes a <code>related</code> link to past entries and a <code>session_id</code>; secrets in the body are masked and the response says so. A bug/error entry touching the same files as an earlier defect is linked automatically as <code>followup</code> (<code>auto_related</code>); tags are normalized and near-duplicates of existing vocabulary come back as <code>tag_hints</code>.</td></tr>
             <tr><td>plan_status</td><td>Reads items and status on the active plan — the evidence for "how far are we." Each plan comes back with its current file <code>hash</code>, which becomes the <code>base_hash</code> for <code>plan_update</code>.</td></tr>
-            <tr><td>plan_update</td><td>Updates a plan item's status and logs it. A parent with children rolls up automatically, so a direct update is refused. <b><code>base_hash</code> is required</b> — if it doesn't match the disk, the write is <b>refused, never silently overwritten</b>, with the current hash attached instead. This is the spot where one parallel session's change used to vanish silently under another's.</td></tr>
+            <tr><td>plan_update</td><td>Updates a plan item's status and logs it. A parent with children rolls up automatically, so a direct update is refused. After running the check command, start the note with <code>verdict ✓ &lt;last result line&gt;</code> / <code>verdict ✗ …</code> — the start hook ships it as the plan's last verdict. <b><code>base_hash</code> is required</b> — if it doesn't match the disk, the write is <b>refused, never silently overwritten</b>, with the current hash attached instead. This is the spot where one parallel session's change used to vanish silently under another's.</td></tr>
             <tr><td>plan_create</td><td>Creates a new plan at 3 depths (milestone → task → subtask) — frontmatter and id spec guaranteed by the server. Takes <code>done_when</code> (the done condition) and <code>check</code> (the command that passes or fails it), writes them as the first lines of the body, and the session-start hook ships them before the items. If an active plan with an overlapping title or id already exists it refuses and returns that candidate, nudging reuse (<code>allow_similar</code> overrides). If <code>check</code> is omitted, the server infers one from the project manifests (package.json · Cargo.toml · pyproject · go.mod · Makefile), writes it and says so in <code>warnings</code> — fix the line if it guessed wrong.</td></tr>
             <tr><td>project_init</td><td>Starts tracking on an untracked repository — only on the user's explicit request and confirmation. Rejects symlinks and guards against the home directory.</td></tr>
           </tbody>
@@ -115,7 +115,7 @@
     </section>
 
     <section class="pg-sec">
-      <h2 id="skills">5 bundled skills</h2>
+      <h2 id="skills">1 bundled skill</h2>
       <p>Methodologies that fire on their own when the situation calls for them. They arrive with the plugin install, and can also be installed individually from the app's <b>Skills &amp; Rules</b> screen. <b>Open in app</b> is an <code>oculpm://</code> deep link — it only gets as far as the app raising a confirmation sheet, and <b>nothing changes before you approve</b>.</p>
       <div class="pg-cards">
       <div class="pg-card">
