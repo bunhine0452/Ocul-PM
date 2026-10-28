@@ -216,6 +216,7 @@ export function AppearanceTab() {
         </Field>
       </Section>
 
+      <div id="cfg-theme" />
       <Section title={t("settings.theme.title")} description={t("settings.theme.desc")}>
         <div className="cfg-choices">
           {(["light", "dark", "system"] as const).map((mode) => (

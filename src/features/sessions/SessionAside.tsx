@@ -4,6 +4,7 @@ import { oculpmApi } from "@/api/oculpm";
 import { useDensity } from "@/hooks/useDensity";
 import { useT } from "@/i18n";
 import type { JournalEntrySummary, SessionUnrecorded } from "@/lib/bindings";
+import { useEvidenceInbox } from "@/features/oculpm/evidenceInbox";
 
 /**
  * 「이 터미널과 기록」 — 터미널·에이전트 화면 오른쪽 열 (UI 밀도 라운드 2).
@@ -22,6 +23,7 @@ export function SessionAside({ projectId, workday }: { projectId: number | null;
   const [rows, setRows] = useState<SessionUnrecorded[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
+  const evidence = useEvidenceInbox(projectId);
 
   useEffect(() => {
     if (projectId == null || !workday) return;
@@ -83,6 +85,21 @@ export function SessionAside({ projectId, workday }: { projectId: number | null;
           ) : null}
           <div className="sa-note">{t("session.aside.note")}</div>
         </section>
+        {/* 증거로 보낸 결과 끝 줄 — 「검증 칸으로」가 넣은 것. 다음 수동 일지의 검증 칸에 미리 들어간다. */}
+        <section className="card card-pad">
+          <div className="sa-head">{t("session.aside.evidence", { n: evidence.length })}</div>
+          {evidence.length > 0 ? (
+            <ul className="sa-files">
+              {evidence.slice(-4).map((l) => (
+                <li key={l} className="mono">{l}</li>
+              ))}
+            </ul>
+          ) : (
+            <div className="sa-line">{t("session.aside.evidenceEmpty")}</div>
+          )}
+          <div className="sa-note">{t("session.aside.evidenceNote")}</div>
+        </section>
+        <div className="sa-note sa-pro">{density === "pro" ? t("session.aside.proNote") : t("session.aside.simpleNote")}</div>
       </div>
     </details>
   );

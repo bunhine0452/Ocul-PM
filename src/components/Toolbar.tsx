@@ -1,6 +1,7 @@
 import React from "react";
 import { DensityToggle } from "@/components/DensityToggle";
 import { dragRegion } from "@/lib/platform";
+import { useT } from "@/i18n";
 
 // Final UI Update (ui_v2) — the screen Toolbar (`--toolbar-h`, 44px since
 // 2026-10-07 {#compact-chrome}; it was 52). Every ui_v2 screen renders
@@ -14,9 +15,15 @@ interface ToolbarProps {
   /** Optional element rendered before the title (e.g. a back button). */
   leading?: React.ReactNode;
   children?: React.ReactNode;
+  /**
+   * 보류 등급 화면(docs/PROMISE.md) — 제목 옆에 「베타 · 결함 수정만」 알약. 랜딩·README 가
+   * 말하는 것과 앱이 말하는 것이 같아야 한다 (UI 밀도 라운드 3).
+   */
+  beta?: boolean;
 }
 
-export function Toolbar({ title, sub, leading, children }: ToolbarProps) {
+export function Toolbar({ title, sub, leading, children, beta = false }: ToolbarProps) {
+  const { t } = useT();
   // Window drag (Dogfooding 2026-06-15): the whole top bar should move the
   // window, not just the window edges. Tauri starts a drag only when the
   // clicked element ITSELF carries data-tauri-drag-region (it inspects
@@ -29,6 +36,7 @@ export function Toolbar({ title, sub, leading, children }: ToolbarProps) {
     <div className="toolbar" {...drag}>
       {leading}
       <div className="toolbar-title" {...drag}>{title}</div>
+      {beta ? <span className="toolbar-beta" {...drag}>{t("toolbar.beta")}</span> : null}
       {sub ? <span className="toolbar-sub" {...drag}>{sub}</span> : null}
       <div className="toolbar-spacer" {...drag} />
       {/* 좁은 창 방어 (2026-07-20): 액션 묶음은 압착 대신 가로 스크롤로

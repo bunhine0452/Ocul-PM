@@ -12,6 +12,8 @@ import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navRowViews, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
 import { ChevronRight } from "@/components/Icons";
 import { useDensity } from "@/hooks/useDensity";
+import { useOptionalSettings } from "@/contexts/SettingsContext";
+import { parseHiddenViews } from "@/lib/density";
 import { useAcpAttentionCount, useAcpWorkingCount } from "@/features/chat/acpBusyBus";
 import { NavRemapNotice } from "@/components/NavRemapNotice";
 // 경로 표기는 앱에서 한 형태다 — 시작 화면 카드·프로젝트 관리가 이미 이걸 쓴다.
@@ -89,6 +91,8 @@ interface SidebarProps {
   collapsed?: boolean;
   /** Hide the floating overlay when the cursor leaves it (collapsed mode). */
   onMouseLeave?: () => void;
+  /** 행 옆의 조용한 수 — 일지(오늘 N건) · 변경(미커밋 N). 없으면 안 그린다. */
+  badges?: Partial<Record<UiV2View, number>>;
 }
 
 function NavRow({
@@ -98,6 +102,8 @@ function NavRow({
   onNavigate,
   working = 0,
   attention = 0,
+  count,
+  showKbd,
 }: {
   slot: NavEntry;
   active: boolean;
@@ -114,10 +120,12 @@ function NavRow({
    * 안 풀리고 사용자가 눌러야 풀린다. 그래서 작업 배지보다 우선해 보인다.
    */
   attention?: number;
+  /** 조용한 수 — 오늘 일지 N · 미커밋 변경 N (시안 A). 돌고 있는 것·기다리는 것이 있으면 그쪽이 먼저다. */
+  count?: number;
+  /** 단축키 힌트를 그리는가 — 전문 밀도, 또는 설정 「단축키 힌트를 버튼 옆에」. */
+  showKbd: boolean;
 }) {
   const Icon = slot.icon;
-  // 단축키 힌트는 전문 밀도의 것이다 — 간단은 글자만 (title 에는 늘 있다).
-  const { density } = useDensity();
   const shortcut = navShortcutLabel(slot.id);
   const { t } = useT();
   const label = t(slot.labelKey);
@@ -153,7 +161,11 @@ function NavRow({
         <span className="nav-badge working" aria-label={t("nav.working", { n: working })}>
           {working}
         </span>
-      ) : shortcut && density === "pro" ? (
+      ) : count && count > 0 ? (
+        <span className="nav-badge count" aria-label={t("nav.count", { n: count })}>
+          {count}
+        </span>
+      ) : shortcut && showKbd ? (
         <kbd className="nav-kbd">{shortcut}</kbd>
       ) : null}
     </button>
@@ -223,6 +235,8 @@ function NavSection({
   view,
   onNavigate,
   counts,
+  badges,
+  showKbd,
   first = false,
   collapsible = false,
   open = true,
@@ -235,6 +249,8 @@ function NavSection({
   view: UiV2View;
   onNavigate: (view: UiV2View) => void;
   counts: (id: UiV2View) => { working: number; attention: number };
+  badges?: Partial<Record<UiV2View, number>>;
+  showKbd: boolean;
   first?: boolean;
   collapsible?: boolean;
   open?: boolean;
@@ -276,6 +292,8 @@ function NavSection({
                   onNavigate={onNavigate}
                   working={working}
                   attention={attention}
+                  count={badges?.[slot.id]}
+                  showKbd={showKbd}
                 />
                 {slot.children && views.includes(view) ? (
                   <NavBranches branches={slot.children} view={view} onNavigate={onNavigate} counts={counts} />
@@ -341,6 +359,7 @@ export function Sidebar({
   onToggleCollapse,
   collapsed = false,
   onMouseLeave,
+  badges,
 }: SidebarProps) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const switcherRef = useRef<HTMLDivElement>(null);
@@ -394,6 +413,22 @@ export function Sidebar({
   const pro = density === "pro";
   /** 간단 밀도에서 사용자가 손으로 펼친 단 — 세션 안에서만 기억한다. */
   const [open, setOpen] = useState({ viewer: false, hold: false });
+  // 설정 「표시」 — 베타 화면 스위치와 단축키 힌트. 공급자 밖(테스트)에서는 기본값.
+  const settingsCtx = useOptionalSettings();
+  const hidden = parseHiddenViews(settingsCtx?.settings.hiddenHoldViews);
+  const showKbd = pro || (settingsCtx?.settings.kbdHints ?? false);
+  /**
+   * 꺼 둔 베타 화면의 행은 접는다 — 단, 지금 열려 있으면 돌아온다 (있는 곳이 안 보이면
+   * 안 된다). 에이전트 행은 두 갈래가 다 꺼졌을 때만 접히고, 한쪽만 꺼지면 갈래가 준다.
+   */
+  const holdRows = HOLD_NAV.flatMap((e) => {
+    if (e.children) {
+      const kids = e.children.filter((c) => !hidden.has(c.id as never) || c.id === view);
+      if (kids.length === 0) return [];
+      return [kids.length === e.children.length ? e : { ...e, id: kids[0].id, children: kids }];
+    }
+    return hidden.has(e.id as never) && e.id !== view ? [] : [e];
+  });
 
   return (
     <nav className="sidebar" aria-label={t("nav.aria.main")} onMouseLeave={onMouseLeave}>
@@ -500,6 +535,8 @@ export function Sidebar({
           view={view}
           onNavigate={onNavigate}
           counts={counts}
+          badges={badges}
+          showKbd={showKbd}
         />
         <NavSection
           label={t("sidebar.viewerSection")}
@@ -508,22 +545,26 @@ export function Sidebar({
           view={view}
           onNavigate={onNavigate}
           counts={counts}
+          showKbd={showKbd}
           collapsible={!pro}
           open={pro || open.viewer || VIEWER_NAV.some((e) => navRowViews(e).includes(view))}
           onToggle={() => setOpen((o) => ({ ...o, viewer: !o.viewer }))}
         />
-        <NavSection
-          label={t("sidebar.betaSection")}
-          tag={t("sidebar.betaTag")}
-          rows={HOLD_NAV}
-          indexBase={CORE_NAV.length + VIEWER_NAV.length}
-          view={view}
-          onNavigate={onNavigate}
-          counts={counts}
-          collapsible={!pro}
-          open={pro || open.hold || HOLD_NAV.some((e) => navRowViews(e).includes(view))}
-          onToggle={() => setOpen((o) => ({ ...o, hold: !o.hold }))}
-        />
+        {holdRows.length > 0 ? (
+          <NavSection
+            label={t("sidebar.betaSection")}
+            tag={t("sidebar.betaTag")}
+            rows={holdRows}
+            indexBase={CORE_NAV.length + VIEWER_NAV.length}
+            view={view}
+            onNavigate={onNavigate}
+            counts={counts}
+            showKbd={showKbd}
+            collapsible={!pro}
+            open={pro || open.hold || holdRows.some((e) => navRowViews(e).includes(view))}
+            onToggle={() => setOpen((o) => ({ ...o, hold: !o.hold }))}
+          />
+        ) : null}
       </div>
 
       {/* 발은 한 줄이다 (2026-09-11): 도크만 라벨을 갖고(⌘J·켜짐 상태), 테마·설정은

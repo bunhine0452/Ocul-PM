@@ -11,7 +11,8 @@ import type {
   JournalEntry,
   ManualEntryDraft,
 } from "@/lib/bindings";
-import { useT } from "@/i18n";
+import { getLang, useT } from "@/i18n";
+import { evidenceInbox, evidenceSection } from "./evidenceInbox";
 import { blocked } from "@/lib/blocked";
 
 // PR-R1 (A4) — 수동 일지 작성 모달 (ui_v2 토큰 셸).
@@ -38,6 +39,7 @@ interface ManualEntryModalV2Props {
    */
   seedTitle?: string;
   seedBody?: string;
+  seedType?: EntryType;
   /** Called after a successful create with the hydrated entry. */
   onCreated: (entry: JournalEntry) => void;
   onClose: () => void;
@@ -48,19 +50,26 @@ export function ManualEntryModalV2({
   workday,
   seedTitle,
   seedBody,
+  seedType,
   onCreated,
   onClose,
 }: ManualEntryModalV2Props) {
   const { t } = useT();
   const titleId = useId();
-  const [type, setType] = useState<EntryType>("feature");
+  const [type, setType] = useState<EntryType>(seedType ?? "feature");
   const [slug, setSlug] = useState("");
   const [title, setTitle] = useState(seedTitle ?? "");
   const [difficulty, setDifficulty] = useState<Difficulty | null>("medium");
   const [status, setStatus] = useState<EntryStatus>("planned");
   const [tagsInput, setTagsInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [bodyMarkdown, setBodyMarkdown] = useState(seedBody ?? "");
+  // 검증 칸 받은함 — 터미널에서 「검증 칸으로」 보낸 결과 끝 줄이 있으면 빈 본문에 `## 검증` 절로
+  // 미리 들어간다 (UI 밀도 라운드 3). 씨앗 본문이 있으면 그 뒤에 붙는다. 가져가면 비운다.
+  const [bodyMarkdown, setBodyMarkdown] = useState(() => {
+    const section = evidenceSection(evidenceInbox.drain(projectId), getLang() === "en" ? "en" : "ko");
+    if (!section) return seedBody ?? "";
+    return seedBody ? `${seedBody.replace(/\s*$/, "")}\n\n${section}` : section;
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);

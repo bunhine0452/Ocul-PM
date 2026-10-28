@@ -4,7 +4,7 @@
  * 추가 카드는 2026-09-11 원장 리디자인에서 빠졌다 — 원장에는 격자의 "마지막
  * 칸" 이 없고, 추가는 레일의 버튼과 바닥 명령(⌘O·⌘N)이 이미 두 번 말한다.
  */
-import { Cpu, NotebookText, Plus, FolderOpen } from "@/components/Icons";
+import { NotebookText, Plus, FolderOpen } from "@/components/Icons";
 import type { HomeBrief, Project } from "@/lib/bindings";
 
 import { Skel, TriggerKicker } from "./atoms";
@@ -116,68 +116,45 @@ export function FlowTile({
 // ── 온보딩 (프로젝트 0개) ───────────────────────────────────────────────
 
 /**
- * 첫 사용자에게 **수동 기록이 아니라는** 멘탈 모델을 준다.
+ * 첫 실행 — 빈 목록 대신 **한 가지 행동** (UI 밀도 라운드 3, 시안 I).
  *
- * ⚠️ 이 안의 한국어 문자열 5개는 `src/__tests__/start_screen.test.tsx` 의
- * 계약이다 ("Ocul-PM 은 이렇게 동작해요" / "평소처럼 에이전트로 코딩" /
- * "자동으로 기록·정리" / aria-label "프로젝트 추가하고 시작하기").
- * 바꾸려면 그 테스트도 같은 커밋에서 고쳐야 한다.
+ * 폴더를 추가하면 규칙 파일 하나가 심어지고, 터미널의 Claude Code 가 작업을 끝낼 때마다
+ * 사람이 읽는 일지를 남긴다 — 서버도 계정도 없다. 두 버튼(폴더 열기 · 새 프로젝트)과 메모
+ * 둘(이미 추적 중인 폴더는 그대로 열림 · git 은 필수가 아님)만. 광고가 아니라 설명이다.
+ *
+ * ⚠️ 제목·버튼 라벨은 `src/__tests__/start_screen.test.tsx` 의 계약이다 — 바꾸면 그 테스트도
+ * 같은 커밋에서 고친다.
  */
-export function OnboardingTile({ onStart }: { onStart: () => void }) {
+export function OnboardingTile({ onStart, onNew }: { onStart: () => void; onNew?: () => void }) {
   const { t } = useT();
-  // `as const` 로 titleKey/bodyKey 가 리터럴 타입이 돼 I18nKey 에 맞는다
-  // (명시 애노테이션은 lucide 아이콘 타입과 싸운다).
-  const steps = [
-    {
-      n: 1,
-      Icon: FolderOpen,
-      titleKey: "home.how1Title",
-      bodyKey: "home.how1Body",
-    },
-    {
-      n: 2,
-      Icon: Cpu,
-      titleKey: "home.how2Title",
-      bodyKey: "home.how2Body",
-    },
-    {
-      n: 3,
-      Icon: NotebookText,
-      titleKey: "home.how3Title",
-      bodyKey: "home.how3Body",
-    },
-  ] as const;
-
   return (
     <article className="home-how">
+      <span className="home-how-mark" aria-hidden="true">
+        <NotebookText size={22} strokeWidth={2} />
+      </span>
       <div className="home-how-head">
         <h2 className="home-how-title">{t("home.howTitle")}</h2>
-        <p className="home-how-body">
-          {t("home.howBodyPrefix")}
-          <b>{t("home.howBodyEmphasis")}</b>
-          {t("home.howBodySuffix")}
-        </p>
+        <p className="home-how-body">{t("home.howBody")}</p>
       </div>
-
-      {/* 세 줄의 목록 — 아이콘, 제목, 한 문장. 숫자 1·2·3 을 큼직하게 박은 3열
-          카드 + "→" CTA 는 랜딩 페이지의 How-it-works 관용구라 뺐다 (2026-09-02).
-          앱 안의 안내는 광고가 아니라 설명이다. */}
-      <ol className="home-how-steps">
-        {steps.map(({ n, Icon, titleKey, bodyKey }) => (
-          <li key={n} className="home-how-step">
-            <Icon className="home-how-ico" strokeWidth={1.75} aria-hidden="true" />
-            <div>
-              <h3>{t(titleKey)}</h3>
-              <p>{t(bodyKey)}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
-
-      <button type="button" onClick={onStart} className="btn primary" aria-label={t("home.ctaAddProject")}>
-        <Plus size={15} />
-        {t("home.ctaAddProject")}
-      </button>
+      <div className="home-how-drop">
+        <span>{t("home.howDrop")}</span>
+        <span className="home-how-btns">
+          <button type="button" onClick={onStart} className="btn primary" aria-label={t("home.ctaAddProject")}>
+            <FolderOpen size={15} />
+            {t("home.ctaAddProject")}
+          </button>
+          {onNew ? (
+            <button type="button" onClick={onNew} className="btn">
+              <Plus size={15} />
+              {t("home.howNew")}
+            </button>
+          ) : null}
+        </span>
+      </div>
+      <ul className="home-how-notes">
+        <li>{t("home.howNote1")}</li>
+        <li>{t("home.howNote2")}</li>
+      </ul>
     </article>
   );
 }

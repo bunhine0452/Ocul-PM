@@ -46,7 +46,7 @@ export const CodeToolbar = memo(function CodeToolbar({
 }: CodeToolbarProps) {
   useT();
   return (
-    <Toolbar title={t("nav.code")} sub={selected ? selected + (focusedDirty ? " ●" : "") : undefined}>
+    <Toolbar beta title={t("nav.code")} sub={selected ? selected + (focusedDirty ? " ●" : "") : undefined}>
       <button
         type="button"
         className={"code-tool-btn" + (sidebarHidden ? "" : " on")}

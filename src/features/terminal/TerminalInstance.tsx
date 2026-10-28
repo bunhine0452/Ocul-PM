@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { useT } from "@/i18n";
 import type { BlockActivation, TerminalHandles } from "./TerminalInstanceImpl";
+import type { CommandBlock } from "./commandBlocks";
 import type { FileRefHit } from "./fileRefLinks";
 import type { ShellState } from "./oscShell";
 import type { PaneSignal } from "./agentMode";
@@ -37,6 +38,8 @@ interface TerminalInstanceProps {
   onSignal?: (signal: PaneSignal) => void;
   /** 거터의 명령 캡슐을 눌렀다 — 화면이 블록 액션 팝오버를 띄운다. */
   onBlockActivate?: (activation: BlockActivation) => void;
+  /** 명령 하나가 끝났다 — 블록 + 출력의 마지막 비공백 줄 (결과 줄·접힌 도크의 재료). */
+  onBlockDone?: (block: CommandBlock, lastLine: string) => void;
   /** 셸이 스스로 끝났다 (PTY 소멸) — 화면이 «다시 시작» 손잡이를 그린다. */
   onExit?: () => void;
   /** 출력 안의 `파일:줄` ⌘클릭. 없으면 링크를 만들지 않는다. */

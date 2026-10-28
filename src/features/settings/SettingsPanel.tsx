@@ -272,6 +272,12 @@ export function SettingsPanel() {
               <span>{t("settings.moreTabs", { n: ALL_TABS.length - SIMPLE_TABS.size })}</span>
             </button>
           ) : null}
+          {/* 접힌 탭의 이름 — 「전문 · 7」 만 보면 그 뒤에 무엇이 있는지 모른다 (시안 F). */}
+          {!pro && !moreOpen ? (
+            <p className="cfg-more-list">
+              {ALL_TABS.filter((e) => !SIMPLE_TABS.has(e.id) && e.id !== tab).map((e) => t(e.labelKey)).join(" · ")}
+            </p>
+          ) : null}
         </nav>
       </div>
 

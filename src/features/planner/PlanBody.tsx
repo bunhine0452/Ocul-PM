@@ -29,8 +29,10 @@ import {
   type PlanView,
 } from "./planMeta";
 import { StatusMark } from "./StatusMark";
+import { PlanLog } from "./PlanLog";
 
 interface PlanBodyProps {
+  projectId: number;
   detail: PlanDetail;
   counts: Record<string, number>;
   phases: [string, PlanItemDto[]][];
@@ -89,7 +91,7 @@ function flash(el: HTMLElement) {
 const LEGEND = ["done", "in_progress", "blocked", "deferred", "todo", "dropped"] as const;
 
 export function PlanBody(props: PlanBodyProps) {
-  const { detail, counts, phases, collapsed, setCollapsed, onSetStatus, onDispatch, busy, locked, onToggleLock, onArchive, onRename, onDelete, onRemoveItem, onMoveItem, onRenameItem, onRenamePhase, onRemovePhase, onMovePhase, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs, hideDone, onHideDoneChange, view } = props;
+  const { projectId, detail, counts, phases, collapsed, setCollapsed, onSetStatus, onDispatch, busy, locked, onToggleLock, onArchive, onRename, onDelete, onRemoveItem, onMoveItem, onRenameItem, onRenamePhase, onRemovePhase, onMovePhase, historyFor, history, onToggleHistory, onRefresh, onOpenJournalRef, resolveJournalRefs, hideDone, onHideDoneChange, view } = props;
   const board = view === "board";
   const [renaming, setRenaming] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -378,6 +380,9 @@ export function PlanBody(props: PlanBodyProps) {
         />
         );
       })}
+
+      {/* 변경 로그 — 문서 끝의 표. 간단은 한 줄, 전문은 표 (시안 Planner). */}
+      {!board ? <PlanLog projectId={projectId} planId={detail.plan.plan_id} revision={detail.plan.updated_at} /> : null}
 
       {detail.decisions.length > 0 ? (
         <section className="pln-decisions" aria-label={t("plan.decisions")}>

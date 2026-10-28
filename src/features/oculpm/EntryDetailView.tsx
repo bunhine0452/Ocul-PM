@@ -16,6 +16,7 @@ import { EntryFileList, type FileRow } from "./EntryFileList";
 import { EntryFileBar } from "./EntryFileBar";
 import { RelatedSuggestCard } from "./RelatedSuggestCard";
 import { EvidenceCard } from "./EvidenceCard";
+import { EntryNextRow } from "./EntryNextRow";
 import { useDensity } from "@/hooks/useDensity";
 import { mapFileOpToChangeOp } from "@/contexts/WorkspaceContext";
 import { commonRoot } from "@/lib/filePath";
@@ -543,7 +544,19 @@ export function EntryDetailView({ projectId, entry, onBack, onOpenDiff, onOpenRe
             />
 
             {/* 증거가 제목 바로 아래 — 「믿을 수 있나」가 본문보다 먼저 읽힌다. */}
-            {detail ? <EvidenceCard body={detail.body_markdown} level={entry.evidence} entryType={entry.type} /> : null}
+            {detail ? (
+              <EvidenceCard body={detail.body_markdown} level={entry.evidence} entryType={entry.type} verified={verified} stale={stale} />
+            ) : null}
+            {/* 「다음은」 — 증거 다음, 본문 앞. 읽기를 끝내기 전에 갈 곳이 보인다. */}
+            {detail ? (
+              <EntryNextRow
+                filesCount={rows.length}
+                relatedCount={related.length}
+                relativePath={entry.relative_path}
+                onOpenDiff={() => onOpenDiff(entry)}
+                onOpenRelated={onOpenRelated && related[0] ? () => onOpenRelated(related[0].ref) : undefined}
+              />
+            ) : null}
 
             <div className="entry-narrative">
               {editing ? (

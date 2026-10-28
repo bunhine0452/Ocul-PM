@@ -30,10 +30,16 @@ export function EvidenceCard({
   body,
   level,
   entryType,
+  verified,
+  stale,
 }: {
   body: string;
   level: number;
   entryType: string;
+  /** 사람 확인(체크) — 증거와 **다른 사실**이라 같은 칸에 묶지 않고 곁줄로 말한다. */
+  verified?: boolean;
+  /** 확인 뒤 본문이 바뀌었다 — 확인은 내용에 묶인다. */
+  stale?: boolean;
 }) {
   const { t } = useT();
   const judged = entryType === "bug" || entryType === "feature" || entryType === "refactor";
@@ -54,6 +60,12 @@ export function EvidenceCard({
       </div>
       {lines.length > 0 ? <pre className="ev-lines">{lines.join("\n")}</pre> : null}
       <span className="ev-hint">{hint}</span>
+      {verified !== undefined ? (
+        <span className="ev-human" data-state={stale ? "stale" : verified ? "on" : "off"}>
+          <b>{t("entry.evidenceCard.human")}</b>{" "}
+          {stale ? t("entry.evidenceCard.humanStale") : verified ? t("entry.evidenceCard.humanOn") : t("entry.evidenceCard.humanOff")}
+        </span>
+      ) : null}
     </section>
   );
 }

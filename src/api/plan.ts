@@ -16,6 +16,8 @@ export const planApi = {
 
   /** 없는 계획이면 `null`. */
   get: (projectId: number, planId: string) => call("plan_get", commands.planGet(projectId, planId)),
+  /** 플랜 하나의 변경 로그 전체 — 「변경 로그 N행」 접힘 (UI 밀도 라운드 3). */
+  log: (projectId: number, planId: string) => call("plan_log", commands.planLog(projectId, planId)),
 
   /** 새 계획 파일 — 제목만 받고 id·경로는 백엔드가 짓는다. */
   create: (projectId: number, title: string): Promise<PlanSummary> =>

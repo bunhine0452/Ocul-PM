@@ -22,6 +22,7 @@ use crate::oculpm::planner::dispatch::{
 };
 use crate::oculpm::planner::lifecycle::set_plan_status;
 use crate::oculpm::planner::log_archive::archive_overflow;
+use crate::oculpm::planner::log_query::plan_log_rows;
 use crate::oculpm::planner::migrate::{
     build_imported_md, ImportGoal, ImportSubtask, IMPORTED_PLAN_ID,
 };
@@ -78,6 +79,19 @@ pub async fn plan_item_history(
     PlanCache::new(&db)
         .item_history(project_id, &root, &plan_id, &item_id)
         .await
+}
+
+/// 플랜 하나의 변경 로그 전체 — 플래너 「변경 로그 N행」 접힘 (UI 밀도 라운드 3).
+/// 항목 하나의 `plan_item_history` 와 같은 투영을 거친다 (`plan_get` 이 먼저 돌아
+/// 캐시를 채워 둔다).
+#[tauri::command]
+#[specta::specta]
+pub async fn plan_log(
+    db: State<'_, Db>,
+    project_id: u32,
+    plan_id: String,
+) -> Result<Vec<PlanItemUpdateDto>, String> {
+    plan_log_rows(&db, project_id, &plan_id).await
 }
 
 /// Recent plan activity across all plans — Today's "계획 업데이트" block.

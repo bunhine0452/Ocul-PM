@@ -293,6 +293,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
             plan.loadingDetail ? <SkeletonList rows={6} height={30} gap={8} /> : null
           ) : (
             <PlanBody
+              projectId={projectId}
               detail={detail}
               counts={plan.counts}
               phases={plan.phases}

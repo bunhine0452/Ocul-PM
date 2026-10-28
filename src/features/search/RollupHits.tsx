@@ -47,6 +47,9 @@ export function RollupHits({ projectId, query }: { projectId: number; query: str
   if (hits.length === 0) return null;
   return (
     <div className="search-results rollup-hits">
+      <div className="section-title search-results-bar">
+        <span>{t("search.rollupFirst")}</span>
+      </div>
       {hits.map((r) => (
         <div className="card sresult rollup-hit" key={r.week}>
           <div className="rh-head">

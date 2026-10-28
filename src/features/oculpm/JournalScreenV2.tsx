@@ -133,6 +133,7 @@ export function JournalScreenV2({
    * 화면 지역 상태다.
    */
   const [sourceFilter, setSourceFilter] = useState<EntrySource | null>(null);
+  const [noEvidenceOnly, setNoEvidenceOnly] = useState(false);
   // 작성기 열림 여부 + 미리 채울 재료를 한 값으로 든다 — 따로 두면 "열려는
   // 있는데 씨앗이 아직 안 온" 한 프레임에 빈 작성기가 그려진다.
   const [manualSeed, setManualSeed] = useState<ManualEntrySeed | null>(null);
@@ -304,6 +305,7 @@ export function JournalScreenV2({
         ...d,
         entries: d.entries.filter((e) => {
           if (typeWanted && e.type !== typeWanted) return false;
+          if (noEvidenceOnly && !(["bug", "feature", "refactor"].includes(e.type) && e.evidence < 2)) return false;
           if (q) {
             const hay = `${e.title} ${e.slug} ${e.tags.join(" ")}`.toLowerCase();
             if (!hay.includes(q)) return false;
@@ -312,7 +314,7 @@ export function JournalScreenV2({
         }),
       }))
       .filter((d) => d.entries.length > 0);
-  }, [days, filter, search, searchSettled]);
+  }, [days, filter, search, searchSettled, noEvidenceOnly]);
 
   /**
    * 레일이 보는 표본은 **출처 필터를 걸기 전**이다. 걸린 뒤의 목록으로 세면
@@ -534,6 +536,8 @@ export function JournalScreenV2({
           setUnfinishedOnly={setUnfinishedOnly}
           setVerifiedOnly={setVerifiedOnly}
           setUnverifiedOnly={setUnverifiedOnly}
+          noEvidenceOnly={noEvidenceOnly}
+          setNoEvidenceOnly={setNoEvidenceOnly}
         />
         <button
           type="button"
@@ -767,6 +771,7 @@ export function JournalScreenV2({
           workday={todayKey}
           seedTitle={manualSeed?.title}
           seedBody={manualSeed?.body}
+          seedType={manualSeed?.type}
           onCreated={(entry) => {
             void refresh();
             toast.info(t("journal.written", { title: entry.title }));

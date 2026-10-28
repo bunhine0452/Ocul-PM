@@ -54,6 +54,8 @@ import { useTerminalKeys } from "./terminalSurface/useTerminalKeys";
 import { useSplitDrag } from "./terminalSurface/useSplitDrag";
 import { usePaneStates } from "./terminalSurface/usePaneStates";
 import { TerminalGhost } from "./terminalSurface/TerminalGhost";
+import { TerminalResultBar } from "./TerminalResultBar";
+import { recordBlockDone, useResultLine } from "./terminalSurface/useResultLine";
 
 // 터미널 본체 — 2026-07-20 대규모 개편 (iTerm2/cmux/Warp 참조).
 //  - 세션 지속: PTY 는 화면을 떠나도 살아있고(백엔드 스크롤백 리플레이),
@@ -443,6 +445,15 @@ export function TerminalSurface({
   // OSC 8 `file://` — 이미지는 올리면 미리보기, 나머지는 위 파일 메뉴로 (→ useTerminalFileLinks).
   const fileLinks = useTerminalFileLinks(projectRoot, setFileMenu);
 
+  // 결과 끝 줄 · ⇧⌘J · 명령 N/실패 N (→ terminalSurface/useResultLine, 시안 Terminal).
+  const { latest, blockStats, outputOf } = useResultLine({
+    sids: activeTab ? collectSids(panesOfTab(activeTab)) : [],
+    projectId: runtime.currentProjectId,
+    keyboardScope,
+    rootRef,
+    regRef,
+  });
+
   // 포커스된 페인의 셸 통합 상태 — 상태바가 세 갈래로 말한다 (shellStatus.ts).
   // 페인별 작업 폴더·"지금 무슨 일" 문구·시계는 `TerminalPaneHead` 가 스스로 만든다.
   const focusedShell = activeTab ? shellStates[focusOfTab(activeTab)] : undefined;
@@ -566,6 +577,7 @@ export function TerminalSurface({
               )
             }
             onBlockActivate={(activation) => setBlockMenu({ ...activation, sid: node.sid })}
+            onBlockDone={(block, lastLine) => recordBlockDone(node.sid, block, lastLine)}
             onExit={() =>
               setEnded((prev) => (prev[node.sid] ? prev : { ...prev, [node.sid]: true }))
             }
@@ -759,9 +771,12 @@ export function TerminalSurface({
         />
       ) : null}
 
+      {latest ? <TerminalResultBar result={latest} projectId={runtime.currentProjectId} outputOf={outputOf} /> : null}
       <TerminalStatusBar
         compact={compact}
         shellStatus={shellStatus}
+        commands={blockStats.total}
+        failed={blockStats.failed}
         // 셸 통합은 설정 → ocul-pm 탭에서 켠다.
         onEnableShell={() => openSettings("oculpm")}
         fontSize={fontSize}

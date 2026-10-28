@@ -152,6 +152,16 @@ export const KEYS = {
   // Code 설치됨 + 플러그인 못 찾음) "안 깔 것"을 고른 사람에게는 그 셋이 다
   // 참인 채로 남는다 — 닫을 길이 없으면 카드가 사용자를 이긴다.
   pluginCardDismissed: "plugin_card_dismissed",
+  // 첫 실행 세 단계 시트를 「이미 알아요 — 건너뛰기」로 내렸는가 (UI 밀도 라운드 3).
+  // 첫 일지가 서면 시트는 스스로 접히므로 이 키는 건너뛴 사람만 적는다.
+  firstRunSheetDismissed: "first_run_sheet_dismissed",
+  // 단축키 힌트를 밀도와 무관하게 버튼 옆에 늘 보인다 (설정 「표시」 → 그 밖에).
+  kbdHints: "kbd_hints",
+  // 사이드바에서 접어 둔 베타 화면 — 쉼표로 이은 뷰 id. 접힘이지 숨김이 아니다:
+  // ⌘K 와 ⌘번호는 늘 닿고, 그 화면이 열려 있으면 행이 저절로 돌아온다.
+  hiddenHoldViews: "hidden_hold_views",
+  // 작업일지 옆 터미널(도크)의 접힘 한 줄 상태 — 마지막 명령의 결과만 한 줄.
+  terminalDockCollapsed: "terminal_dock_collapsed",
 
   // (streamResponses / logLevel 은 감사 2026-07-16 에서 제거 — 소비처 없음.)
 } as const;
@@ -326,6 +336,15 @@ export interface Settings {
 
   /** 첫 실행 마법사를 끝냈거나 건너뛰었는가 (`false` = 아직 한 번도 안 봄). */
   onboarded: boolean;
+
+  /** 첫 실행 세 단계 시트를 건너뛰었는가 (첫 일지가 서면 시트는 어차피 접힌다). */
+  firstRunSheetDismissed: boolean;
+  /** 단축키 힌트를 간단 밀도에서도 버튼 옆에 보인다. */
+  kbdHints: boolean;
+  /** 사이드바에서 접어 둔 베타 화면 id — 쉼표 구분. 빈 문자열 = 전부 보임. */
+  hiddenHoldViews: string;
+  /** 도크가 한 줄로 접혀 있는가. */
+  terminalDockCollapsed: boolean;
 }
 
 export const DEFAULTS: Settings = {
@@ -396,6 +415,11 @@ export const DEFAULTS: Settings = {
   pluginCardDismissed: false,
 
   onboarded: false,
+
+  firstRunSheetDismissed: false,
+  kbdHints: false,
+  hiddenHoldViews: "",
+  terminalDockCollapsed: false,
 };
 
 const KEY_TO_FIELD: Record<string, keyof Settings> = {
@@ -451,6 +475,10 @@ const KEY_TO_FIELD: Record<string, keyof Settings> = {
   [KEYS.navRemapSeen]: "navRemapSeen",
   [KEYS.pluginCardDismissed]: "pluginCardDismissed",
   [KEYS.onboarded]: "onboarded",
+  [KEYS.firstRunSheetDismissed]: "firstRunSheetDismissed",
+  [KEYS.kbdHints]: "kbdHints",
+  [KEYS.hiddenHoldViews]: "hiddenHoldViews",
+  [KEYS.terminalDockCollapsed]: "terminalDockCollapsed",
 };
 
 const FIELD_TO_KEY = Object.fromEntries(

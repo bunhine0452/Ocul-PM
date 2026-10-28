@@ -84,19 +84,18 @@ afterEach(() => cleanup());
 describe("메인 화면 — 첫 사용자 온보딩", () => {
   it("프로젝트가 없으면 '이렇게 동작해요' 가이드를 보여준다", () => {
     const { getByText } = renderStart({ projects: [] });
-    expect(getByText("Ocul-PM 은 이렇게 동작해요")).toBeInTheDocument();
-    expect(getByText("평소처럼 에이전트로 코딩")).toBeInTheDocument();
-    expect(getByText("자동으로 기록·정리")).toBeInTheDocument();
+    expect(getByText("에이전트가 일하는 폴더를 추가하세요")).toBeInTheDocument();
+    expect(getByText("여기에 폴더를 끌어다 놓거나")).toBeInTheDocument();
   });
 
   it("프로젝트가 있으면 가이드를 숨긴다", () => {
     const { queryByText } = renderStart({ projects: [project()] });
-    expect(queryByText("Ocul-PM 은 이렇게 동작해요")).toBeNull();
+    expect(queryByText("에이전트가 일하는 폴더를 추가하세요")).toBeNull();
   });
 
-  it("'프로젝트 추가하고 시작하기' 는 폴더 선택으로 연결된다", () => {
+  it("'폴더 열기…' 는 폴더 선택으로 연결된다", () => {
     const { getByLabelText, props } = renderStart({ projects: [] });
-    fireEvent.click(getByLabelText("프로젝트 추가하고 시작하기"));
+    fireEvent.click(getByLabelText("폴더 열기…"));
     expect(props.onAddProject).toHaveBeenCalled();
   });
 });
@@ -326,7 +325,7 @@ describe("메인 화면 — 키보드 진입로 (회귀 방지)", () => {
 describe("메인 화면 — 접근성 (axe 3상태)", () => {
   it("프로젝트 0개 (온보딩)", async () => {
     const { container, getByText } = renderStart({ projects: [] });
-    expect(getByText("Ocul-PM 은 이렇게 동작해요")).toBeInTheDocument();
+    expect(getByText("에이전트가 일하는 폴더를 추가하세요")).toBeInTheDocument();
     expect(summarize(await axe(container, AXE_OPTIONS))).toEqual([]);
   });
 

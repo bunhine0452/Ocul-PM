@@ -17,6 +17,8 @@ import { Highlight, RowActions, Sparkline } from "./atoms";
 import { relativeTime, tildePath, type ProjectRowT } from "./homeModel";
 import { resolveProjectColor, resolveProjectIcon } from "./projectAppearance";
 import type { RowWiring } from "./rows";
+import type { ProjectScore } from "./useProjectScores";
+import { useDensity } from "@/hooks/useDensity";
 
 export interface ProjectRowProps {
   row: ProjectRowT;
@@ -33,6 +35,8 @@ export interface ProjectRowProps {
   onOpen: (p: Project) => void;
   onRename: (p: Project) => void;
   onDelete: (p: Project) => void;
+  /** 숫자 셋 — 증거 · 미기록 · 다음 할 일 (시안 Start). 전문 밀도는 재수정도. `null` 은 아직. */
+  score?: ProjectScore | null;
 }
 
 export function ProjectRow({
@@ -47,8 +51,10 @@ export function ProjectRow({
   onOpen,
   onRename,
   onDelete,
+  score = null,
 }: ProjectRowProps) {
   const { t } = useT();
+  const { density } = useDensity();
   const p = row.project;
   const snap = row.snap;
   const when = relativeTime(snap?.lastAt ?? null, now);
@@ -123,6 +129,16 @@ export function ProjectRow({
             {t("home.indexing")}
           </span>
         )}
+      </span>
+
+      {/* 숫자 셋 — 성적표 정의 그대로. 모르는 값은 「—」. 전문 밀도는 재수정도 함께. */}
+      <span className="hl-nums" aria-label={t("home.numsAria")}>
+        <span><i>{t("home.numEvidence")}</i><b data-tone={score?.evidencePct == null ? undefined : score.evidencePct >= 97 ? "ok" : "warn"}>{score?.evidencePct == null ? "—" : `${score.evidencePct}%`}</b></span>
+        {density === "pro" ? (
+          <span><i>{t("home.numRework")}</i><b data-tone={score?.reworkPct == null ? undefined : score.reworkPct > 30 ? "warn" : "ok"}>{score?.reworkPct == null ? "—" : `${score.reworkPct}%`}</b></span>
+        ) : null}
+        <span><i>{t("home.numUnrecorded")}</i><b data-tone={score?.unrecorded == null ? undefined : score.unrecorded > 0 ? "warn" : "ok"}>{score?.unrecorded == null ? "—" : score.unrecorded}</b></span>
+        <span><i>{t("home.numOpen")}</i><b>{snap ? (snap.nextTasks.length >= 3 ? "3+" : snap.nextTasks.length) : "—"}</b></span>
       </span>
 
       <span className="hl-spark">
