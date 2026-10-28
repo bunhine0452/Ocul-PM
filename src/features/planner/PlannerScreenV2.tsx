@@ -112,7 +112,7 @@ export function PlannerScreenV2({ projectId, onNavigate, onOpenJournal }: Planne
 
   return (
     <>
-      <Toolbar title={t("nav.planner")} />
+      <Toolbar title={t("nav.planner")} find />
       <div className="plv-body">
         {plan.plans && plan.plans.length > 0 ? (
           <PlanRail plans={plan.plans} selectedId={selectedId} onSelect={plan.select} />
