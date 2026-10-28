@@ -2,8 +2,8 @@
  * 항목 상태 메뉴 — 여섯 상태를 `menuitemradio` 로 (2026-09-10 플래너 업그레이드).
  *
  * 마크 클릭은 앞으로 한 칸(todo→진행→완료)이라 빠르지만, 막힘·이월·폐기로는
- * 갈 수 없었다 — 그 셋은 에이전트만 쓸 수 있는 상태였다. 문서 행(`PlanItemRow`)
- * 과 보드 카드(`PlanBoard`)가 같은 메뉴를 쓴다.
+ * 갈 수 없었다 — 그 셋은 에이전트만 쓸 수 있는 상태였다. 4.0 계획 화면의 항목
+ * 상자(`PlanItems`)가 이 메뉴를 연다.
  */
 
 import { useEffect, useRef, type RefObject } from "react";
@@ -47,17 +47,17 @@ interface StatusMenuProps {
 /** 팝오버 본체만 — 여닫기와 앵커(`position: relative`)는 호출부가 갖는다. */
 export function StatusMenu({ item, onPick }: StatusMenuProps) {
   return (
-    <div className="pln-status-pop" role="menu" aria-label={t("plan.statusMenuAria", { title: item.title })}>
+    <div className="plv-status-pop" role="menu" aria-label={t("plan.statusMenuAria", { title: item.title })}>
       {MENU_STATUSES.map((s) => (
         <button
           key={s}
           type="button"
           role="menuitemradio"
           aria-checked={item.status === s}
-          className="pln-status-item"
+          className="plv-status-item"
           onClick={() => onPick(s)}
         >
-          <StatusMark status={s} size="sm" />
+          <StatusMark status={s} />
           {t(STATUS_META[s].labelKey)}
         </button>
       ))}

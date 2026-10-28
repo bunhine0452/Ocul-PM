@@ -11,10 +11,12 @@
 import { call } from "@/api/invoke";
 import {
   commands,
+  type DispatchPrompt,
   type JournalPlanLink,
   type LockedOpenItem,
   type PlanEditOp,
   type PlanSummary,
+  type TodayDigest,
 } from "@/lib/bindings";
 
 export const planApi = {
@@ -43,4 +45,12 @@ export const planApi = {
   /** 닫힌(done/archived) 플랜에 남은 미완 — 이미 `carry-<id>` 로 옮긴 것은 빠져 온다. */
   lockedOpen: (projectId: number): Promise<LockedOpenItem[]> =>
     call("plan_locked_open", commands.planLockedOpen(projectId)),
+
+  /** 활성 플랜의 판정·다음 리프·사람 몫·막힘·일지 → 계획 연결 — 오늘 화면이 한 번에 읽는다. */
+  todayDigest: (projectId: number): Promise<TodayDigest> =>
+    call("today_digest", commands.todayDigest(projectId)),
+
+  /** 항목 하나를 에이전트에게 넘길 프롬프트 — 붙여 넣는 것은 사용자다. */
+  dispatchPrompt: (projectId: number, planId: string, itemId: string): Promise<DispatchPrompt> =>
+    call("plan_dispatch_prompt", commands.planDispatchPrompt(projectId, planId, itemId)),
 };
