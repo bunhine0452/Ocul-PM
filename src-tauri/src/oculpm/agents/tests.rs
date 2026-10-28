@@ -9,8 +9,6 @@ fn config_with(active: &[&str]) -> OculpmConfig {
     let mut cfg = OculpmConfig::default_for_new_project();
     cfg.agents = AgentsConfig {
         active: active.iter().map(|s| s.to_string()).collect(),
-        auto_reconcile: false,
-        auto_journal_draft: false,
         rules_translate: vec![],
         template_language: "ko".into(),
     };

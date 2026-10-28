@@ -34,7 +34,6 @@ fn source_files_named_like_secrets_are_journallable() {
     for rel in [
         "src/styles/tokens.css",
         "src/__tests__/design_tokens.test.ts",
-        "src-tauri/src/secrets.rs",
     ] {
         assert!(
             repo_root().join(rel).exists(),
@@ -45,6 +44,12 @@ fn source_files_named_like_secrets_are_journallable() {
             "{rel} 은 시크릿이 아니라 소스다 — files_touched 에서 떨어지면 안 된다"
         );
     }
+    // `secret` 축의 실재 반례였던 `src-tauri/src/secrets.rs` 는 4.0 에서 키체인 저장소와
+    // 함께 걷었다. 그 파일을 고친 옛 일지가 남아 있으므로 판정은 그대로 잠근다.
+    assert!(
+        !is_forbidden_path(&m, "src-tauri/src/secrets.rs"),
+        "secrets.rs 는 시크릿이 아니라 소스다"
+    );
 }
 
 /// 좁혔다고 뚫리면 안 된다 — 자격증명 파일의 실제 꼴은 계속 막힌다.

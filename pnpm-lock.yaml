@@ -23,18 +23,6 @@ importers:
       '@tauri-apps/plugin-updater':
         specifier: ^2.14.0
         version: 2.14.0
-      '@wasm-fmt/clang-format':
-        specifier: ^22.1.8
-        version: 22.1.8
-      '@wasm-fmt/gofmt':
-        specifier: ^0.7.3
-        version: 0.7.3
-      '@wasm-fmt/ruff_fmt':
-        specifier: ^0.15.20
-        version: 0.15.20
-      '@wasm-fmt/shfmt':
-        specifier: ^0.2.7
-        version: 0.2.7
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -53,9 +41,6 @@ importers:
       marked:
         specifier: 17.0.6
         version: 17.0.6
-      prettier:
-        specifier: ^3.9.10
-        version: 3.9.10
       radix-ui:
         specifier: ^1.8.1
         version: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -1871,22 +1856,6 @@ packages:
   '@vitest/spy@5.0.5':
     resolution: {integrity: sha512-lwJRExuH417257Q5wv9QYugN9IMJkoxcrKrYxGPQkBzl7wlNpTUxD/5yNX4ESKVUIShKPgkGchYPFMWOOk0wzw==}
 
-  '@wasm-fmt/clang-format@22.1.8':
-    resolution: {integrity: sha512-MuDkCzEUmBCuC3MQcZGrJ8lI4MnDpwCuN63EMRpr/c0urCEq1S4E8qVddMjRf+Lrcl2gEZH+kKTWpXC2c7x+Zg==}
-    engines: {node: '>=16.17.0'}
-    hasBin: true
-
-  '@wasm-fmt/gofmt@0.7.3':
-    resolution: {integrity: sha512-nzVTwMxHDOYrHonT7DzjqicbaTYOYPNYeXKPJnDrVUbJjx67Sg/LS1uzlOTWKToGMF8Y8l0u7G5/5Q3/8nHMMA==}
-    engines: {node: '>=16.17.0'}
-
-  '@wasm-fmt/ruff_fmt@0.15.20':
-    resolution: {integrity: sha512-PYij4wTiDSTx6MyBGHSY0nWDjSiTbOB3moPJiZTBL8F0JZLEfHAi4lYAn9SC9Hzm8tVeTnL7Qyf1iPW0TKHVEg==}
-
-  '@wasm-fmt/shfmt@0.2.7':
-    resolution: {integrity: sha512-bxmf5pXBHe3ujjc2iEoXqRXKgrQmR44jHLZ9G5BsKsb5moDWsuqsISs+88Ov9/SAI88caXYIsP02U4c4YDQpIQ==}
-    engines: {node: '>=16.17.0'}
-
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
     engines: {node: '>= 0.6'}
@@ -3417,11 +3386,6 @@ packages:
 
   pretendard@1.3.9:
     resolution: {integrity: sha512-PaQAADyLY5v4kYFwkpSJHbSSYIkiriY/1xXw75TKoZ9UQQqeU+tvP05yTdZAWibiIYoo8ZKtRv8PM7w0IaywSw==}
-
-  prettier@3.9.10:
-    resolution: {integrity: sha512-skGHTH1Yb9QvaTC4hWnRTzEYtCpApF0UMBPz+t/0ZPzP8ihefo/btKd+QA7pUE0fEwA1SbS/NmhyEcstdXOIdA==}
-    engines: {node: '>=14'}
-    hasBin: true
 
   pretty-format@27.5.1:
     resolution: {integrity: sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ==}
@@ -5842,14 +5806,6 @@ snapshots:
 
   '@vitest/spy@5.0.5': {}
 
-  '@wasm-fmt/clang-format@22.1.8': {}
-
-  '@wasm-fmt/gofmt@0.7.3': {}
-
-  '@wasm-fmt/ruff_fmt@0.15.20': {}
-
-  '@wasm-fmt/shfmt@0.2.7': {}
-
   accepts@2.0.0:
     dependencies:
       mime-types: 3.0.2
@@ -7526,8 +7482,6 @@ snapshots:
   prelude-ls@1.2.1: {}
 
   pretendard@1.3.9: {}
-
-  prettier@3.9.10: {}
 
   pretty-format@27.5.1:
     dependencies:

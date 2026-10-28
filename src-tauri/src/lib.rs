@@ -7,17 +7,15 @@
 
 // PR-ACP1 — 통합 테스트(tests/acp_handshake.rs)가 env/adapter 를 직접 쓴다.
 pub mod app_error;
-pub mod ast;
+// diff 기준선 스냅샷 동기 — 4.0 에서 걷은 코드 색인의 남은 한 조각.
+pub mod baseline;
 mod commands;
-// 선언적 설정 — plan/apply 두 모듈을 UI·CLI·MCP 가 공유한다 (Phase 6).
-pub mod config;
 // W5-PR8 — `db` and `oculpm` are made public so `src-tauri/tests/`
 // integration tests can drive the manager directly with a temp DB. None
 // of the other modules are needed at the integration layer.
 pub mod db;
 // `oculpm://` 딥링크 — 파싱만 한다 (무확인 실행 0, Phase 6).
 pub mod deeplink;
-mod embedding;
 mod error;
 // LSP·PTY 호스트 공용 Content-Length 프레이밍.
 pub mod framing;
@@ -25,18 +23,11 @@ pub mod framing;
 pub mod git;
 // AppHandle 없이 앱 데이터 폴더(Tauri app_data_dir 과 같은 규칙) — 로그·CLI·MCP 캐시.
 pub mod app_dirs;
-// Linux(glibc) 링크 호환 — 사전 빌드 ONNX Runtime 이 glibc 2.38+ 의 `__isoc23_*`
-// 를 부른다. 릴리스 하한 ubuntu-22.04(glibc 2.35)에서 링크되게 (크로스플랫폼 W1).
-#[cfg(all(target_os = "linux", target_env = "gnu"))]
-mod glibc_compat;
 // 메인 화면 집계 — `home_brief` 통합 테스트가 `crate::home::collect` 를 직접 부른다.
 pub mod home;
-pub mod indexer;
 // single-instance 등록 + Linux 폴백 잠금 — D-Bus 가 없거나 주소를 못 읽을 때
 // (#os-single-instance-dbus · #os-dbus-addr-panic).
 mod instance_lock;
-pub mod journal_index;
-mod llm;
 pub mod oculpm;
 // 신뢰할 수 없는 상대 경로의 관문 — 어휘 + 링크 (보안 피드백 2차).
 mod path_guard;
@@ -48,7 +39,6 @@ pub mod plugins;
 // 프로세스 생성 단일 창구 (크로스플랫폼 D5) — pub 인 이유: main.rs 의 re-exec 도
 // 이 창구를 지난다 (clippy.toml 이 그 밖의 `Command::new` 를 막는다).
 pub mod proc;
-mod secrets;
 pub mod text;
 // 코드 실행 신뢰 — 언어 서버·앱 안 에이전트가 같은 문을 쓴다 (review-2026-10-09).
 pub mod trust;
@@ -157,20 +147,6 @@ fn setup_logging() {
 use crate::commands::{
     app_info,
     apply_menu_language,
-    // Osaurus 라운드 Phase 1 — 스케줄 자동화 (정의 CRUD·기록·지금 실행)
-    automation_cancel,
-    automation_consent_grant,
-    automation_consent_revoke,
-    automation_consent_status,
-    automation_create_seed,
-    automation_delete,
-    automation_list,
-    automation_overview,
-    automation_run_now,
-    automation_runs,
-    automation_save,
-    automation_seeds,
-    automation_set_enabled,
     // v3-surface — 브랜치 축 (파생 전용, 로컬 git 만 읽는다)
     check_cli_available,
     claude_hooks_install,
@@ -179,7 +155,6 @@ use crate::commands::{
     claude_hooks_uninstall,
     claude_plugin_status,
     clear_all_data,
-    clear_project_index,
     // 코드 화면 — 파일 조작 (.oculpm/planner/ide-completion.md #file-ops-backend)
     // 코드 화면 — 일지 연동 + HEAD 비교 (ide-completion #agent-diff)
     // 코드 화면 — 로컬 히스토리 (docs/20260902_vscode-borrows/06-local-history.md)
@@ -199,7 +174,6 @@ use crate::commands::{
     diff_binary_preview,
     // first-record-loop — 대화별 첫 일지 귀속 원장 (Today 첫 기록 카드)
     first_record_ledger,
-    get_change_impact,
     // G2 — Project Overview + Daily Brief
     get_window_project,
     git_graph,
@@ -211,20 +185,14 @@ use crate::commands::{
     git_uncommitted_changes,
     // 메인 화면(프로젝트 선택) 단일 집계 — IPC 1회 · SQL 6문
     home_brief,
-    index_project,
     // 설치 형식 — 업데이터 키 선택과 deb 안내 (크로스플랫폼 L-UPD #upd-target-missing)
     install_kind,
     // H3b — 플러그인 SessionEnd 의 "일지 없이 끝난 세션" 신호 소비 (Today 카드)
     journal_missing_signals,
     list_open_project_ids,
     list_projects,
-    llm_list_models,
-    llm_reachability,
     // Phase 2 — 참조·아웃라인·워크스페이스 심볼·시그니처·포맷팅
     // 코드 인텔리전스 — LSP (docs/lsp/00-master-plan.md)
-    mcp_desktop_register,
-    mcp_desktop_status,
-    mcp_desktop_unregister,
     mcp_register,
     // PR-CI2 — oculpm-mcp 서버 등록 (.mcp.json / Claude Desktop 원클릭)
     mcp_status,
@@ -249,8 +217,6 @@ use crate::commands::{
     // journal-scale-round {#hotspot-query} — 파일별 bug/error 재발 신호
     oculpm_file_hotspots,
     // C2 — 일지 내보내기
-    // v2 U10 (C1) — 스탠드업·PR 본문·주간 보고
-    oculpm_generate_summary,
     oculpm_get_config,
     oculpm_get_entry_diffs,
     oculpm_get_file_changes,
@@ -272,12 +238,6 @@ use crate::commands::{
     oculpm_promise_scorecard,
     // W5-PR5 — Overview stats
     oculpm_reindex_cache,
-    // journal-scale-round {#release-notes-draft} — 태그 사이 커밋·일지 → CHANGELOG 초안
-    oculpm_release_notes_draft,
-    // journal-scale-round {#rollup-weekly} — 주간 요약 층 (.oculpm/rollups/)
-    oculpm_rollup_list,
-    oculpm_rollup_read,
-    oculpm_rollup_week,
     oculpm_search_entities,
     oculpm_search_journal,
     oculpm_set_config,
@@ -302,7 +262,6 @@ use crate::commands::{
     open_project_nav,
     open_project_window,
     open_url,
-    plan_ai_refresh,
     plan_apply_edit,
     plan_create,
     plan_delete,
@@ -319,9 +278,7 @@ use crate::commands::{
     plan_set_status,
     plan_set_status_bulk,
     // Osaurus 라운드 Phase 4 — 테마 파일화 · 프로젝트 바인딩
-    project_stats,
     quick_look_file,
-    read_file_range,
     read_project_file,
     // W5 — action proposal apply-state
     rename_project,
@@ -331,13 +288,6 @@ use crate::commands::{
     // F4 — 회고/인사이트 (+ PR-CI6 eval 추이, defer 원장)
     reveal_in_file_manager,
     save_window_session,
-    search_chunks,
-    search_symbols,
-    search_text,
-    secret_delete,
-    secret_has,
-    secret_set,
-    secret_verify,
     select_project_folder,
     set_window_project,
     settings_get,
@@ -346,17 +296,8 @@ use crate::commands::{
     settings_set_many,
     today_digest,
 };
-// 선언적 설정 (Phase 6) — UI 진입점. planner/applier 는 crate::config 에 있다.
-use crate::commands::declarative_config::{
-    config_apply, config_export, config_export_to_file, config_plan, config_read_file,
-};
-// 대화 임포트 (Phase 7) — 어댑터·일지화는 crate::oculpm::import 에 있다.
-use crate::commands::import::{
-    conversation_import_run, conversation_import_scan, conversation_pick_export,
-};
 // 비-mac 의 「새 창」(Ctrl+Shift+N) — 메뉴의 새 창과 같은 생성 함수 (#os-new-window).
 use crate::commands::new_window::new_window;
-use crate::embedding::Embedder;
 
 /// Build the specta Builder with every command + event registered. Extracted
 /// so the W5-PR3 `export_bindings` test can regenerate `src/lib/bindings.ts`
@@ -373,38 +314,13 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             settings_set_many,
             app_info,
             clear_all_data,
-            secret_set,
-            secret_has,
-            secret_delete,
-            secret_verify,
             select_project_folder,
             list_projects,
             create_project,
             delete_project,
             rename_project,
-            // 선언적 설정 (Phase 6) — 내보내기·계획·적용. 계획은 아무것도 쓰지
-            // 않고, 적용은 다시 계획해 남은 diff 로 결론을 낸다.
-            config_export,
-            config_export_to_file,
-            config_read_file,
-            config_plan,
-            config_apply,
-            // 대화 임포트 (Phase 7) — 스캔은 오프라인·무과금, 실행만 Core Model.
-            conversation_pick_export,
-            conversation_import_scan,
-            conversation_import_run,
-            // 오프라인 표시 (Phase 7) — 프로브가 아니라 마지막 관측을 읽는다.
-            llm_list_models,
-            llm_reachability,
             // 컨텍스트 경제학 (Phase 5) — 회상 통계 · 프로젝트 지시문
-            project_stats,
             home_brief,
-            index_project,
-            search_chunks,
-            search_text,
-            search_symbols,
-            get_change_impact,
-            clear_project_index,
             // Planner Upgrade (PR-PLN 0/1) — file-based Plan read + write
             plan_list,
             plan_locked_open,
@@ -414,7 +330,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             plan_create,
             plan_apply_edit,
             plan_dispatch_prompt,
-            plan_ai_refresh,
             plan_migrate_goals,
             plan_recent_updates,
             today_digest,
@@ -438,7 +353,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 앱 메뉴 — 프런트가 해석한 UI 언어를 알려 주면 라벨을 다시 만든다
             apply_menu_language,
             read_project_file,
-            read_file_range,
             // 코드 화면 — 파일 트리 + 읽기/쓰기
             // 코드 화면 — 전역 검색·치환
             // 코드 화면 — 파일 조작
@@ -512,35 +426,13 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_open_entry_in_editor,
             // F5 — git-history backfill
             oculpm_backfill_from_git,
-            // F4 — 회고/인사이트 (+ PR-CI6 eval 추이)
-            oculpm_generate_summary,
-            // journal-scale-round {#release-notes-draft} — 브랜치 화면의 「릴리스 노트 초안」
-            oculpm_release_notes_draft,
             // journal-scale-round {#hotspot-query} — Today 「반복 수정 파일」 카드
             oculpm_file_hotspots,
             // journal-scale-round {#velocity} — Today 「작업 속도」 카드
             oculpm_velocity,
             // best-results-round {#scorecard-cmd} — Today 「약속 성적표」 카드
             oculpm_promise_scorecard,
-            // journal-scale-round {#rollup-weekly} — Today 「이번 주 요약」 카드
-            oculpm_rollup_week,
-            oculpm_rollup_list,
-            oculpm_rollup_read,
             // C2 — 일지 내보내기
-            // Osaurus 라운드 Phase 1 — 스케줄 자동화
-            automation_list,
-            automation_consent_grant,
-            automation_consent_revoke,
-            automation_consent_status,
-            automation_overview,
-            automation_runs,
-            automation_seeds,
-            automation_save,
-            automation_delete,
-            automation_set_enabled,
-            automation_create_seed,
-            automation_run_now,
-            automation_cancel,
             // PR-ACP1 — ACP 어댑터 런타임
             // v3-record-integrity {#mcp-missing-visible} — 기록 도구 부착 결과
             // PR-CI0 — Claude Code 훅 브리지
@@ -562,10 +454,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             codex_mcp_register,
             codex_mcp_unregister,
             codex_plugin_status,
-            mcp_desktop_status,
             claude_plugin_status,
-            mcp_desktop_register,
-            mcp_desktop_unregister,
             // 비-mac 「새 창」 (#os-new-window)
             new_window,
             // 베타 버그 리포트 — 「진단 정보 복사」 (#w5-report)
@@ -581,9 +470,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::oculpm::spec::OculpmJournalAdded,
             crate::oculpm::spec::OculpmJournalUpdated,
             crate::oculpm::spec::OculpmIntegrityWarning,
-            crate::oculpm::spec::OculpmPlanReconciled,
-            // 백그라운드 LLM 작업 실패 (개요 생성) — 죽은 모델이 조용히 실패하지 않게
-            crate::commands::overview::LlmBackgroundFailed,
             crate::oculpm::spec::OculpmWatchYielded,
             crate::oculpm::spec::OculpmAgentDrift,
             crate::oculpm::spec::OculpmJournalPathChanged,
@@ -598,8 +484,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::commands::window::ProjectWindowsChanged,
             // 설정 변경 브로드캐스트 — 모든 창 + 상단바가 테마·언어를 다시 읽는다
             crate::commands::config::SettingsChanged,
-            // 자동화 실행 시작/종료 — 「실행 중…」과 인라인 Stop (Phase 3)
-            crate::commands::automation::AutomationRunChanged,
             // 딥링크 — 프런트가 확인 시트를 띄운다 (Phase 6 #deep-link)
             crate::deeplink::DeepLinkReceived,
         ])
@@ -720,25 +604,22 @@ pub fn run() {
             // 못 열면 크래시 대신 이유를 보이고 「새로 시작 / 종료」 를 묻는다.
             let db = crate::db::startup::open_or_ask(&app_data);
             app.manage(db);
+            // 4.0 — 코드 색인·의미 검색을 걷었다. 3.x 가 받아 둔 임베딩 모델 캐시
+            // (`fastembed_cache`, 모델 하나 90MB 남짓)는 이제 아무도 읽지 않으니 기동 때
+            // 걷는다 — 블로킹 IO 라 세터 밖에서. 없으면 아무 일도 없다.
             {
-                let handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    crate::secrets::retire_notion(&handle.state::<crate::db::Db>()).await;
-                });
-            }
-            // Pin the embedding model cache to an absolute, writable dir. The
-            // packaged .app runs with CWD `/`, so fastembed's relative default
-            // would fail to retrieve `onnx/model.onnx`.
-            let embed_cache = app_data.join("fastembed_cache");
-            // 옛 임베딩 모델 캐시(465MB)는 기동 때 걷어낸다 (D2) — 블로킹 IO 라
-            // 세터 밖에서.
-            {
-                let dir = embed_cache.clone();
+                let dir = app_data.join("fastembed_cache");
                 std::thread::spawn(move || {
-                    crate::embedding::prune_retired_model_caches(&dir);
+                    if dir.is_dir() {
+                        match std::fs::remove_dir_all(&dir) {
+                            Ok(()) => {
+                                tracing::info!(dir = %dir.display(), "옛 임베딩 모델 캐시를 걷었다")
+                            }
+                            Err(e) => tracing::warn!(error = %e, "옛 임베딩 모델 캐시 걷기 실패"),
+                        }
+                    }
                 });
             }
-            app.manage(Embedder::new(app.handle().clone(), embed_cache));
             // 로컬 히스토리의 출처 판정 — `code_write` 가 쪽지를 남기고 워처가
             // 소비한다 (사람이 저장했나, 에이전트가 썼나).
             app.manage(crate::oculpm::history::HistoryState::default());
@@ -746,13 +627,6 @@ pub fn run() {
             app.manage(crate::commands::window::WindowProjects::default());
             // .oculpm/ subsystem (W1-PR6)
             app.manage(crate::oculpm::manager::OculpmManager::new());
-            // 자동화 잡 러너 — 프로세스 하나에 1개. 동시 1건은 프로젝트별이
-            // 아니라 전역이다 (배경 과금의 총량을 사람이 예측할 수 있게).
-            app.manage(crate::oculpm::automation::runner::AutomationRunner::default());
-            // 워처 자동화 허브 — 정착 타이머와 두 초안 경로의 중복 키가 여기 산다
-            // (Phase 2). 워처는 매 fs 이벤트마다 이 상태를 두드리므로 러너와
-            // 마찬가지로 프로세스에 하나다.
-            app.manage(crate::oculpm::automation::watchers::WatcherAutomationHub::new());
 
             // `tauri.conf.json` 이 만든 첫 창을 시작 창으로 레지스트리에 편입한다.
             // 창 닫기 훅(포커스 추적·정리·마지막 창 판정)도 여기서 붙는다.
@@ -812,12 +686,6 @@ pub fn run() {
             // 써도 화면이 안 바뀐다" 로 똑같이 보이고, 앱 재시작 말고는 복구가
             // 없었다. 감독관이 1분마다 확인하고 되살린다.
             crate::oculpm::supervisor::spawn(app.handle());
-            // 스케줄 집행 루프 — 감독관과 같은 자리에 상주시킨다. 프로젝트별
-            // `[automation] schedules` 가 꺼져 있으면 정의를 읽지도 않는다.
-            crate::oculpm::automation::scheduler::spawn(app.handle());
-            // 정착 드라이버 — 시계가 아니라 **마감 시각**을 보고 잔다. 창이
-            // 없으면 5초마다 깨어 정의를 다시 읽는다.
-            crate::oculpm::automation::watchers::spawn(app.handle());
 
             // 앱 메뉴 — `⌘W` 를 "창 닫기" 에서 "탭 닫기" 로 되찾는다.
             // 기본 언어(ko)로 먼저 세우고, 프런트가 마운트하면서 해석된 UI

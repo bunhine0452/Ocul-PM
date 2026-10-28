@@ -40,6 +40,28 @@ pub(crate) const ESCAPES_ROOT: &str = "Path escapes the project root";
 /// [`secure_join_managed`] 가 링크를 만났다. 뒤에 상대 경로가 붙는다.
 pub(crate) const LINK_REFUSED: &str = "Refusing to write through a symbolic link";
 
+/// Normalizes a path, removing redundant '.' and '..' components (어휘만 — 디스크를
+/// 보지 않는다). 코드 색인(`indexer`, 4.0 에서 걷음)에서 옮겨 왔다.
+pub fn clean_path(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::ParentDir => {
+                out.pop();
+            }
+            Component::Normal(c) => {
+                out.push(c);
+            }
+            Component::CurDir => {}
+            _ => {
+                out.push(component.as_os_str());
+            }
+        }
+    }
+    out
+}
+
 /// 마지막 구간을 다루는 방식.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Leaf {
@@ -97,7 +119,7 @@ fn guard(root: &Path, rel: &str, leaf: Leaf) -> Result<PathBuf, String> {
 
 /// 어휘 검사 — 예전 `commands::project::secure_join` 의 판정 그대로다.
 fn lexical_join(root: &Path, rel: &str) -> Result<PathBuf, String> {
-    let clean = crate::indexer::clean_path(&root.join(rel));
+    let clean = clean_path(&root.join(rel));
     if clean.starts_with(root) {
         Ok(clean)
     } else {

@@ -15,8 +15,7 @@ use crate::oculpm::atomic_io::write_atomic;
 use crate::oculpm::error::OculpmError;
 use crate::oculpm::paths::WorkdayResolver;
 use crate::oculpm::spec::{
-    AgentsConfig, AutomationConfig, GitConfig, OculpmConfig, SessionConfig, WatcherConfig,
-    WorkdayConfig,
+    AgentsConfig, GitConfig, OculpmConfig, SessionConfig, WatcherConfig, WorkdayConfig,
 };
 
 /// Agent ids accepted in `agents.active`. Aligned with `00-spec.md` §8 plus
@@ -46,8 +45,6 @@ impl Default for OculpmConfig {
             git: GitConfig::default(),
             watcher: WatcherConfig::default(),
             agents: AgentsConfig::default(),
-            // D4 — 자동화는 전부 옵인. 새 프로젝트도 꺼진 채로 시작한다.
-            automation: AutomationConfig::default(),
         }
     }
 }
@@ -106,10 +103,6 @@ impl Default for AgentsConfig {
             // the user toggles individual adapters. Per-adapter ids stay
             // empty until detection or Settings picks them.
             active: vec!["agents-md".into()],
-            // F1 — automatic background LLM reconciliation is opt-in.
-            auto_reconcile: false,
-            // PR-CI1 — hook-session journal drafting is opt-in (billable).
-            auto_journal_draft: false,
             // PR-CI3 — rules cross-tool translation is opt-in.
             rules_translate: vec![],
             // TK1 — master template language (ko | en).
@@ -216,14 +209,6 @@ impl OculpmConfig {
                     KNOWN_AGENT_IDS.join(", ")
                 )));
             }
-        }
-
-        // 폭주 가드의 상한 자체가 폭주하지 않게. 0 은 "전면 정지" 로 유효하다.
-        if self.automation.daily_run_budget > 1_000 {
-            return Err(OculpmError::InvalidConfig(format!(
-                "automation.daily_run_budget must be <= 1000 (got {})",
-                self.automation.daily_run_budget
-            )));
         }
 
         // `agents.rules_translate` 는 규칙 허브(4.0 에서 걷음)의 Cursor 미러 번역 목록이었다.
@@ -622,10 +607,52 @@ auto_sync_adapters = true
         assert!(matches!(c.validate(), Err(OculpmError::InvalidConfig(_))));
     }
 
-    /// D4 — `[automation]` 이 통째로 빠진 기존 config 는 **전부 off** 로
-    /// 파싱되고, `schema_version` 은 그대로다 (신규 섹션이라 스펙 불변).
+    /// 4.0 — 앱 안 LLM·자동화를 걷은 뒤에도 **예전 config 가 그대로 읽힌다.**
+    /// `[automation]` 섹션과 `agents.auto_reconcile` · `agents.auto_journal_draft`
+    /// 가 남아 있는 파일(3.x 가 쓴 것)이 파싱·검증을 통과해야 한다 — 모르는 키는
+    /// 무시된다. `schema_version` 은 그대로다.
     #[test]
-    fn missing_automation_section_parses_to_all_off() {
+    fn retired_automation_and_llm_keys_still_parse() {
+        let text = r#"
+schema_version = 1
+
+[workday]
+timezone = "Asia/Seoul"
+day_starts_at = "00:00"
+
+[session]
+inactivity_timeout_minutes = 60
+
+[git]
+forbid_journal_for_paths = []
+auto_redact_patterns = []
+
+[watcher]
+ignore = []
+respect_gitignore = true
+debounce_ms = 500
+responsiveness = "relaxed"
+
+[agents]
+active = ["agents-md"]
+auto_reconcile = true
+auto_journal_draft = true
+
+[automation]
+schedules = true
+watchers = false
+daily_run_budget = 20
+"#;
+        let cfg = OculpmConfig::from_toml_str(text).expect("3.x config 는 그대로 읽혀야 한다");
+        assert_eq!(cfg.schema_version, 1);
+        assert_eq!(cfg.agents.active, vec!["agents-md".to_string()]);
+        assert_eq!(cfg.watcher.responsiveness.as_deref(), Some("relaxed"));
+        cfg.validate().expect("validate");
+    }
+
+    /// 섹션이 하나도 없는 옛 모양도 여전히 읽힌다 (D4 의 원래 단언).
+    #[test]
+    fn minimal_legacy_config_parses() {
         let text = r#"
 schema_version = 1
 
@@ -649,10 +676,7 @@ debounce_ms = 500
 active = []
 "#;
         let cfg = OculpmConfig::from_toml_str(text).expect("기존 config 는 그대로 읽혀야 한다");
-        assert_eq!(cfg.schema_version, 1, "신규 섹션은 스키마를 올리지 않는다");
-        assert!(!cfg.automation.schedules);
-        assert!(!cfg.automation.watchers);
-        assert_eq!(cfg.automation.daily_run_budget, 20);
+        assert_eq!(cfg.schema_version, 1);
         cfg.validate().expect("validate");
     }
 
@@ -687,54 +711,10 @@ active = ["agents-md"]
         );
         assert_eq!(trimmed.watcher, fresh.watcher, "[watcher] 섹션 통째로 없음");
         assert_eq!(trimmed.agents.template_language, "ko");
-        assert_eq!(trimmed.automation, fresh.automation);
         assert!(trimmed.validate().is_ok());
 
         // 빈 파일도 새 프로젝트 기본값과 같다.
         assert_eq!(OculpmConfig::from_toml_str("").unwrap(), fresh);
-    }
-
-    /// 통째로 빠진 `[automation]` 과 부분만 적힌 `[automation]` 이 같은 값을 내야
-    /// 한다 — `#[derive(Default)]` 를 썼다면 예산이 0 이 돼 조용히 전면 정지된다.
-    #[test]
-    fn automation_defaults_agree() {
-        let partial = OculpmConfig::from_toml_str(
-            r#"
-schema_version = 1
-[workday]
-timezone = "Asia/Seoul"
-day_starts_at = "00:00"
-[session]
-inactivity_timeout_minutes = 60
-[git]
-forbid_journal_for_paths = []
-auto_redact_patterns = []
-[watcher]
-ignore = []
-respect_gitignore = true
-debounce_ms = 500
-[agents]
-active = []
-[automation]
-schedules = true
-"#,
-        )
-        .expect("partial");
-        assert!(partial.automation.schedules);
-        assert_eq!(
-            partial.automation.daily_run_budget,
-            AutomationConfig::default().daily_run_budget
-        );
-    }
-
-    /// 폭주 가드의 상한 자체는 검증된다. `0`(전면 정지)은 유효하다.
-    #[test]
-    fn validate_bounds_the_daily_run_budget() {
-        let mut c = OculpmConfig::default_for_new_project();
-        c.automation.daily_run_budget = 0;
-        assert!(c.validate().is_ok(), "0 = 전면 정지 (유효)");
-        c.automation.daily_run_budget = 5_000;
-        assert!(matches!(c.validate(), Err(OculpmError::InvalidConfig(_))));
     }
 
     /// Sanity — every default forbid pattern is non-empty.

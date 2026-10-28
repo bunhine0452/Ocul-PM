@@ -17,7 +17,6 @@ use regex::Regex;
 
 use crate::db::Db;
 use crate::oculpm::agents;
-use crate::oculpm::index::IndexWriter;
 use crate::oculpm::manager::OculpmManager;
 use crate::oculpm::redact;
 use crate::oculpm::session::SessionActor;
@@ -27,7 +26,7 @@ use crate::oculpm::watcher_tasks::{self, WatcherTasks};
 
 use super::classify::{
     classify_journal_op, data_area_for_path, is_agent_state_path, is_agents_noise,
-    is_directory_event, short_hash_of,
+    is_directory_event, is_retired_area, short_hash_of,
 };
 use super::new_dir::{backfills_new_dirs, files_in_new_dir, NEW_DIR_BACKFILL_CAP};
 use super::{is_rules_path, is_self_suppressed, WatcherStatsInner};
@@ -44,9 +43,8 @@ pub(super) struct WatcherInner {
     pub(super) project_id: u32,
     pub(super) root: PathBuf,
     pub(super) session: SessionActor,
-    pub(super) index_writer: Arc<IndexWriter>,
     pub(super) app_handle: Option<tauri::AppHandle>,
-    /// 곁일 게이트 — 증분 색인·히스토리 캡처의 동시 상한과 수명 (watcher_tasks).
+    /// 곁일 게이트 — diff 기준선 동기·히스토리 캡처의 동시 상한과 수명 (watcher_tasks).
     pub(super) tasks: WatcherTasks,
     pub(super) user_ignore: Gitignore,
     /// 루트 `.gitignore` 매처 — 사전 필터와 같은 칸을 쥔다 (바뀌면 다시 읽는다).
@@ -68,11 +66,6 @@ pub(super) struct WatcherInner {
     /// PR-CI0 — 현재 열려 있는 Claude 세션 id 집합. 여러 터미널 동시 세션에서
     /// 마지막 SessionEnd 에만 종료 신호를 내기 위함 (claude_hooks::apply_event).
     pub(super) hook_open_sessions: Arc<tokio::sync::Mutex<BTreeSet<String>>>,
-    /// PR-CI1 — opt-in: 훅 세션 종료(AgentExit) 시 transcript 를 LLM 으로
-    /// 요약해 일지 초안 1건을 자동 작성. `config.agents.auto_journal_draft`.
-    pub(super) auto_journal_draft: bool,
-    /// PR-CI1 — 일지 초안 단일 인플라이트 (reconcile_lock 동형).
-    pub(super) draft_lock: Arc<tokio::sync::Mutex<()>>,
     pub(super) stats: Arc<RwLock<WatcherStatsInner>>,
     /// 루트가 사라진 것을 이미 한 번 남겼는가 — 폴더 하나를 지우면 이벤트가
     /// 수백 개 오므로, 같은 줄을 그 수만큼 찍지 않기 위한 래치.
@@ -101,10 +94,9 @@ impl WatcherInner {
     /// 하지 않고, 디스크에서 사라진 행은 지운다 — 정확히 "놓친 창을 만회한다"
     /// 의 의미다. 그다음 화면들이 다시 조회하도록 기존 신호를 낸다.
     ///
-    /// **코드 검색 색인은 여기서 다시 돌리지 않는다.** 전체 재색인은 워커를
-    /// 6.4 초 통째로 점유하므로(perf-baseline §1 M2) 버림을 갚는 값보다 비싸고,
-    /// 백프레셔를 걸어 놓고 그보다 큰 폭풍을 부르는 꼴이 된다. 대신 무결성
-    /// 경고로 남겨 사용자가 「인덱스 재구축」을 고를 수 있게 한다.
+    /// 놓친 파일의 diff 기준선(`crate::baseline`)은 전체를 다시 걷지 않는다 —
+    /// 그 파일이 다음에 바뀔 때 따라잡고, 꺼진 사이의 고아는 기동 정리가 걷는다.
+    /// (코드 색인 시절엔 여기서 「인덱스 재구축」을 권했다. 4.0 에서 색인을 걷었다.)
     async fn resync_after_drops(&self, dropped: u64) {
         tracing::warn!(
             target: "oculpm::watcher",
@@ -151,8 +143,6 @@ impl WatcherInner {
             OculpmDataArea::Planner,
             OculpmDataArea::Discussion,
             OculpmDataArea::Rules,
-            OculpmDataArea::Automation,
-            OculpmDataArea::Rollups,
         ] {
             self.emit_data_changed(area, "", FileOp::Update);
         }
@@ -160,7 +150,7 @@ impl WatcherInner {
             "watcher_overflow",
             ".",
             &format!(
-                "파일 변경 알림 {dropped}건이 큐 용량을 넘겨 버려졌습니다. 일지·계획은 디스크에서 다시 읽었지만, 코드 검색 색인은 「인덱스 재구축」이 필요할 수 있습니다."
+                "파일 변경 알림 {dropped}건이 큐 용량을 넘겨 버려졌어요. 일지·계획은 디스크에서 다시 읽었어요."
             ),
         );
     }
@@ -261,7 +251,7 @@ impl WatcherInner {
         // 1.6 옛 A2A 원장 자리 — **아래 2번보다 먼저 걸러야 한다.**
         //     `.oculpm/agents/` 로 시작하므로 순서가 뒤집히면 옛 플러그인이 쓰는
         //     하트비트 한 줄마다 모든 어댑터의 AGENTS.md 재동기화가 돈다.
-        if is_agents_noise(&rel_str) {
+        if is_agents_noise(&rel_str) || is_retired_area(&rel_str) {
             self.bump_ignored();
             return;
         }
@@ -294,7 +284,6 @@ impl WatcherInner {
                 "[FLOW] journal fs event detected"
             );
             self.apply_journal_cache_invalidation(&rel_str, op).await;
-            self.schedule_journal_index(&rel_str);
             // 캐시를 갱신한 **뒤에** 알린다. 이 순서가 뒤집혀 있던 동안 프런트의
             // (디바운스된) 재조회가 아직 옛 행이 남은 SQLite 를 읽고 그대로 굳었다
             // — 특히 삭제는 `apply_path_change` 가 outcome `None` 을 돌려줘
@@ -321,16 +310,6 @@ impl WatcherInner {
                 ?op,
                 "[FLOW] oculpm data fs event (projection on read + live refresh)"
             );
-            // 정의가 바뀌었으면 워처 자동화 규칙을 다시 읽게 한다 (파일이 SSOT).
-            // 이 경로 자체는 자동화의 **원인이 아니다** — 규칙만 갱신한다.
-            if area == OculpmDataArea::Automation {
-                if let Some(handle) = &self.app_handle {
-                    crate::oculpm::automation::watchers::invalidate_rules(handle, self.project_id);
-                }
-            }
-            // 롤업도 일지와 같은 글이다 — 의미검색 색인을 같이 태운다
-            // (다른 데이터 영역은 `is_journal_index_path` 가 거른다).
-            self.schedule_journal_index(&rel_str);
             self.emit_data_changed(area, &rel_str, op);
             return;
         }
@@ -394,11 +373,11 @@ impl WatcherInner {
         // Deleting a directory also emits a Remove per file inside it, so
         // dropping the folder event loses no per-file history.
         if path.is_dir() || is_directory_event(&ev.event.kind) {
-            // 다만 사라진 폴더는 색인에서 그 아래를 걷는다 — 파일마다 Remove 가
-            // 온다는 보장은 없다 (휴지통 이동·FSEvents 접기, `delete_files_under`).
+            // 다만 사라진 폴더는 diff 기준선에서 그 아래를 걷는다 — 파일마다 Remove 가
+            // 온다는 보장은 없다 (휴지통 이동·FSEvents 접기, `delete_file_snapshots_under`).
             // 일지·ndjson 에는 여전히 아무것도 남기지 않는다.
             if !path.exists() && !self.is_forbidden(path) {
-                self.schedule_incremental_index(rel_str.to_string(), FileOp::Delete, None);
+                self.schedule_baseline_sync(rel_str.to_string(), FileOp::Delete);
             }
             self.bump_ignored();
             return;
@@ -433,17 +412,12 @@ impl WatcherInner {
             return;
         }
 
-        // 7.5 — Incremental auto-index (PR-5). Keep the code-search index
-        // (chunks / embeddings / symbols) current without a manual rebuild.
-        // Forbidden paths are skipped here (they're never indexed), and the
-        // work is fire-and-forget so the embedding model never stalls the
-        // watcher loop. Uses the real relative path before step-8 masking.
+        // 7.5 — diff 기준선 동기 (`crate::baseline`; 4.0 전엔 증분 코드 색인이 같은
+        // 자리에서 스냅샷을 곁들여 찍었다). Forbidden paths are skipped, and the
+        // work is fire-and-forget so it never stalls the watcher loop. Uses the
+        // real relative path before step-8 masking.
         if !self.is_forbidden(path) {
-            self.schedule_incremental_index(
-                change.path.clone(),
-                change.op,
-                change.hash_after.clone(),
-            );
+            self.schedule_baseline_sync(change.path.clone(), change.op);
         }
 
         // 7.55 B5 — 로컬 히스토리 한 판 (06-local-history.md). 캡처 지점이
@@ -453,22 +427,6 @@ impl WatcherInner {
         // `code_write` 에는 걸지 않는다 — 이중 캡처가 된다.
         if !self.is_forbidden(path) {
             self.schedule_history_capture(&change);
-        }
-
-        // 7.6 Phase 2 — 워처 자동화의 정착 타이머에 이벤트를 흘린다. 실제
-        // 상대 경로를 쓴다(8단계 마스킹 **전**). forbidden 경로는 원인이 되지
-        // 않는다: 우리가 내용을 보지 않기로 한 파일이 배경 LLM 호출을 부르면
-        // 안 된다. 원인 제외(일지·플랜·정의·색인)는 위 2~3.5 단계에서 이미
-        // 돌아갔고, 트래커도 한 번 더 막는다.
-        if let Some(handle) = &self.app_handle {
-            if !self.is_forbidden(path) {
-                crate::oculpm::automation::watchers::note_event(
-                    handle,
-                    self.project_id,
-                    &change.path,
-                    Utc::now(),
-                );
-            }
         }
 
         // 8. Forbidden-path masking.
@@ -584,36 +542,17 @@ impl WatcherInner {
         }
     }
 
-    /// PR-5 — 바뀐 코드 파일 하나의 증분 재색인 (fire-and-forget). 본체는
-    /// `watcher_tasks`; 가드레일과 근거 주석도 그쪽에 있다.
-    fn schedule_incremental_index(&self, rel_path: String, op: FileOp, hash_after: Option<String>) {
+    /// 바뀐 파일 하나의 diff 기준선 동기 (fire-and-forget). 본체는 `watcher_tasks`;
+    /// 가드레일과 근거 주석도 그쪽에 있다.
+    fn schedule_baseline_sync(&self, rel_path: String, op: FileOp) {
         if let Some(handle) = &self.app_handle {
-            watcher_tasks::schedule_incremental_index(
+            watcher_tasks::schedule_baseline_sync(
                 &self.tasks,
                 handle,
                 self.project_id,
                 &self.root,
                 rel_path,
                 op,
-                hash_after,
-            );
-        }
-    }
-
-    /// 일지·롤업 한 편의 증분 의미 색인 (journal-scale-round
-    /// `{#search-semantic-journal}`). 이 이벤트들은 3·3.5 단계에서 되돌아가므로
-    /// 7.5 의 코드 색인을 지나지 않는다 — 같은 이벤트에서 따로 건다.
-    fn schedule_journal_index(&self, rel_path: &str) {
-        if !crate::journal_index::is_journal_index_path(rel_path) {
-            return;
-        }
-        if let Some(handle) = &self.app_handle {
-            watcher_tasks::schedule_journal_index(
-                &self.tasks,
-                handle,
-                self.project_id,
-                &self.root,
-                rel_path.to_string(),
             );
         }
     }

@@ -1,14 +1,13 @@
 // 변경 diff 화면의 커맨드 래퍼 (2026-10-01 `{#api-facades}`).
 //
-// 파일 한 장의 diff·이진 미리보기, 그리고 목록을 일지·플랜으로 묶고 영향 범위를
-// 재는 두 보강 조회. `call` 을 지나므로 호출부는 `catch` 하나면 되고 오류는
+// 파일 한 장의 diff·이진 미리보기, 그리고 목록을 일지·플랜으로 묶는 보강 조회
+// (영향 범위 조회는 4.0 에서 코드 색인과 함께 걷었다). `call` 을 지나므로 호출부는 `catch` 하나면 되고 오류는
 // `tError(toAppError(e))` 로 한 모양이 된다.
 import {
   commands,
   type BinaryPreview,
   type ChangeGroup,
   type DiffResult,
-  type ImpactReport,
 } from "@/lib/bindings";
 import { call } from "./invoke";
 
@@ -32,8 +31,4 @@ export const diffApi = {
   /** 변경 파일들을 그것을 기록한 일지·플랜으로 묶는다. */
   groupChanges: (projectId: number, paths: string[]): Promise<ChangeGroup[]> =>
     call("oculpm_group_changes", commands.oculpmGroupChanges(projectId, paths)),
-
-  /** 변경 파일들에서 역방향으로 닿는 파일 (코드 그래프 BFS). */
-  changeImpact: (projectId: number, changedPaths: string[]): Promise<ImpactReport> =>
-    call("get_change_impact", commands.getChangeImpact(projectId, changedPaths)),
 };

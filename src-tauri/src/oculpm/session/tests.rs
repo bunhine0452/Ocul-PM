@@ -381,12 +381,9 @@ fn _full_config_sample() -> OculpmConfig {
         },
         agents: AgentsConfig {
             active: vec![],
-            auto_reconcile: false,
-            auto_journal_draft: false,
             rules_translate: vec![],
             template_language: "ko".into(),
         },
-        automation: Default::default(),
     }
 }
 

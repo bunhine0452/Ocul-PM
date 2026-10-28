@@ -19,7 +19,7 @@ use notify::event::{CreateKind, EventKind};
 use notify_debouncer_full::DebouncedEvent;
 
 use ocul_pm_lib::oculpm::watcher_queue::{self, PreFilter, WatcherSink, DEFAULT_CAPACITY};
-use ocul_pm_lib::oculpm::watcher_tasks::{self, Lane, INDEX_PERMITS};
+use ocul_pm_lib::oculpm::watcher_tasks::{self, Lane, BASELINE_PERMITS};
 
 /// 경로만 다른 이벤트 하나. 실제 워처가 받는 모양(Create + 경로 1개)과 같다.
 fn ev(n: usize) -> DebouncedEvent {
@@ -315,9 +315,9 @@ async fn the_gate_caps_concurrency() {
     let live = Arc::new(AtomicUsize::new(0));
     let peak = Arc::new(AtomicUsize::new(0));
 
-    for _ in 0..(INDEX_PERMITS * 4) {
+    for _ in 0..(BASELINE_PERMITS * 4) {
         let (live, peak) = (live.clone(), peak.clone());
-        tasks.spawn(Lane::Index, async move {
+        tasks.spawn(Lane::Baseline, async move {
             let now = live.fetch_add(1, Ordering::SeqCst) + 1;
             peak.fetch_max(now, Ordering::SeqCst);
             tokio::time::sleep(Duration::from_millis(30)).await;
@@ -328,9 +328,9 @@ async fn the_gate_caps_concurrency() {
 
     assert_eq!(live.load(Ordering::SeqCst), 0, "전부 끝나야 한다");
     assert!(
-        peak.load(Ordering::SeqCst) <= INDEX_PERMITS,
+        peak.load(Ordering::SeqCst) <= BASELINE_PERMITS,
         "동시 {} 를 넘겼다: {}",
-        INDEX_PERMITS,
+        BASELINE_PERMITS,
         peak.load(Ordering::SeqCst)
     );
 }
@@ -348,21 +348,21 @@ async fn shutdown_cancels_work_that_has_not_started() {
     // 나머지를 넣어야 한다 — 스폰 순서는 실행 순서를 보장하지 않으므로, 그냥
     // 잠깐 자고 넘어가면 뒤엣것이 먼저 퍼밋을 채 갈 수 있다.
     let (holding_tx, mut holding_rx) = tokio::sync::mpsc::unbounded_channel::<()>();
-    for _ in 0..INDEX_PERMITS {
+    for _ in 0..BASELINE_PERMITS {
         let holding_tx = holding_tx.clone();
-        tasks.spawn(Lane::Index, async move {
+        tasks.spawn(Lane::Baseline, async move {
             let _ = holding_tx.send(());
             tokio::time::sleep(Duration::from_secs(30)).await;
         });
     }
-    for _ in 0..INDEX_PERMITS {
+    for _ in 0..BASELINE_PERMITS {
         holding_rx.recv().await.expect("퍼밋 보유 신호");
     }
 
     // 여기서부터 넣는 것은 전부 대기열에 남는다.
     for _ in 0..8 {
         let started = started.clone();
-        tasks.spawn(Lane::Index, async move {
+        tasks.spawn(Lane::Baseline, async move {
             started.fetch_add(1, Ordering::SeqCst);
         });
     }
@@ -381,7 +381,7 @@ async fn shutdown_cancels_work_that_has_not_started() {
     // 내려간 게이트에 새로 넣어도 돌지 않는다.
     let after = Arc::new(AtomicUsize::new(0));
     let a2 = after.clone();
-    tasks.spawn(Lane::Index, async move {
+    tasks.spawn(Lane::Baseline, async move {
         a2.fetch_add(1, Ordering::SeqCst);
     });
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -399,7 +399,7 @@ async fn dropping_the_handle_cancels_too() {
 
     let ran = Arc::new(AtomicUsize::new(0));
     let r2 = ran.clone();
-    tasks.spawn(Lane::Index, async move {
+    tasks.spawn(Lane::Baseline, async move {
         r2.fetch_add(1, Ordering::SeqCst);
     });
     tokio::time::sleep(Duration::from_millis(100)).await;

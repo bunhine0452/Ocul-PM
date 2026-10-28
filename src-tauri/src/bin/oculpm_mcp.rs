@@ -5,8 +5,8 @@
 //! 앱 프로세스와 IPC 없이 파일만 읽고 쓰므로 앱이 꺼져 있어도 동작한다.
 //!
 //! 사용: `oculpm-mcp --root /path/to/project`
-//! 등록: 프로젝트 `.mcp.json` (Claude Code) / `claude_desktop_config.json`
-//! (Claude Desktop) — 앱 설정 화면이 써 준다 (commands/mcp.rs).
+//! 등록: 프로젝트 `.mcp.json` (Claude Code) · Codex `config.toml` — 앱 설정 화면이
+//! 써 준다 (commands/mcp.rs). 플러그인 설치면 플러그인이 대신 띄운다.
 //!
 //! stdout 은 프로토콜 전용이다 — 사람용 로그는 전부 stderr 로.
 
