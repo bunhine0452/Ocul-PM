@@ -1,9 +1,6 @@
-//! Projection: Plan markdown SSOT → `oculpm_plan*` SQLite cache + command DTOs.
-//!
-//! Mirrors `oculpm::cache::JournalCache` — the markdown file is the source of
-//! truth, this rebuilds the SQLite rows from it. `reproject_all` is the only
-//! writer; the read commands reproject-then-read so they're always fresh even
-//! before the watcher live-push lands (PR-PLN 3).
+//! Projection: Plan markdown SSOT → `oculpm_plan*` SQLite cache + command DTOs. Mirrors
+//! `oculpm::cache::JournalCache`; `reproject_all` is the only writer and the read commands
+//! reproject-then-read so they're fresh before the watcher live-push lands (PR-PLN 3).
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -17,8 +14,7 @@ use crate::oculpm::planner::parse::{parse_plan, ItemStatus, ParsedPlan};
 use crate::oculpm::redact::{compile_redact_patterns, redact_text};
 use crate::oculpm::spec::OculpmConfig;
 
-// 경로 도우미(planner_dir · find_plan_path · slug_for)는 `paths.rs` 에 산다 —
-// 이 파일이 래칫(800줄)에 걸려 있어 갈랐다. 호출부는 그대로다.
+// 경로 도우미는 `paths.rs` 에 산다 — 이 파일이 래칫(800줄)에 걸려 갈랐다.
 pub use super::paths::{find_plan_path, planner_dir, slug_for};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,6 +32,9 @@ pub struct PlanSummary {
     pub updated_at: String,
     pub item_count: u32,
     pub done_count: u32,
+    /// 「마지막 판정」 (`judge.rs`) — 확인 명령을 돌린 가장 최근 결과. 선택 필드(TS `?:`).
+    #[serde(default)]
+    pub last_verdict: Option<super::judge::PlanVerdict>,
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -122,7 +121,7 @@ pub struct PlanActivityDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// A parsed plan plus the file metadata the projection needs.
-struct LoadedPlan {
+pub(super) struct LoadedPlan {
     plan_id: String,
     file_path: String, // relative to project root, e.g. ".oculpm/planner/x.md"
     updated_at: String,
@@ -230,10 +229,11 @@ fn summary_dto(loaded: &LoadedPlan) -> PlanSummary {
         updated_at: loaded.updated_at.clone(),
         item_count,
         done_count: done,
+        last_verdict: super::judge::last_verdict(&p.updates),
     }
 }
 
-fn detail_dto(loaded: &LoadedPlan) -> PlanDetail {
+pub(super) fn detail_dto(loaded: &LoadedPlan) -> PlanDetail {
     let p = &loaded.parsed;
     let last = last_update_map(p);
     // item_id → distinct linked journal refs (first-seen order).
@@ -488,7 +488,7 @@ impl<'a> PlanCache<'a> {
 
     /// Parse every plan file and rebuild this project's SQLite projection.
     /// Returns the loaded plans so callers build DTOs without re-parsing.
-    async fn reproject_all(
+    pub(super) async fn reproject_all(
         &self,
         project_id: u32,
         planner_root: &Path,

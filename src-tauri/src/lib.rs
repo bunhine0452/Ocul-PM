@@ -425,6 +425,7 @@ use crate::commands::{
     theme_import,
     theme_list,
     theme_save,
+    today_digest,
 };
 // 선언적 설정 (Phase 6) — UI 진입점. planner/applier 는 crate::config 에 있다.
 use crate::commands::declarative_config::{
@@ -517,6 +518,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             plan_ai_refresh,
             plan_migrate_goals,
             plan_recent_updates,
+            today_digest,
             plan_set_status,
             plan_set_status_bulk,
             plan_rename,
