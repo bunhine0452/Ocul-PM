@@ -54,6 +54,7 @@ export function AcpToolbar({
   const { t } = useT();
   return (
     <Toolbar
+      beta
       title={
         <>
           {/* 에이전트 한 화면 — 두 구동면은 같은 자리의 탭이다 (UI 밀도 라운드 2). 화면은

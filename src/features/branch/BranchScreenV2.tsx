@@ -94,11 +94,11 @@ export function BranchScreenV2({
       : null;
 
   const sub = story
-    ? t("branch.sub", {
+    ? `${t("branch.sub", {
         base: story.base ?? "—",
         since: wd(story.since_workday),
         until: wd(story.until_workday),
-      })
+      })} · ${t("branch.subCommits", { n: story.commits.length })}`
     : undefined;
 
   const empty =
@@ -168,7 +168,9 @@ export function BranchScreenV2({
               <NestingNote nesting={story.repo_nesting} sub={story.repo_subpath} />
 
               {/* 영수증 — 간단 밀도의 브랜치 화면은 이 한 장. 나머지 패널은 전문에서 펼쳐진다. */}
-              {story.entries.length > 0 || story.files.length > 0 ? <BranchReceipt story={story} /> : null}
+              {story.entries.length > 0 || story.files.length > 0 ? (
+                <BranchReceipt story={story} onOpenJournal={onOpenJournal} onReleaseNotes={() => setRelNotesOpen(true)} />
+              ) : null}
 
               {story.truncated ? (
                 <div className="card card-pad text-sm text-muted-foreground">{t("branch.truncated")}</div>

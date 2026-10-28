@@ -1,4 +1,4 @@
-import { ChevronRight } from "@/components/Icons";
+import { ChevronRight, ShieldCheck } from "@/components/Icons";
 import { TriggerBadge } from "@/features/oculpm/triggerMeta";
 import { SourceBadge } from "@/features/oculpm/SourceBadge";
 import { sourceOf } from "@/features/oculpm/entrySource";
@@ -41,6 +41,8 @@ export function MiniEntry({ entry, onOpen }: MiniEntryProps) {
           <span>{t("today.entry.files", { n: entry.files_count })}</span>
         </div>
       </div>
+      {/* 검증 칸에 명령 증거가 있는 일지 — 제목 옆 방패 (시안 ①). 없으면 아무것도 안 그린다. */}
+      {entry.evidence === 2 ? <ShieldCheck size={13} color="var(--ok-text)" aria-label={t("entry.evidence.command")} /> : null}
       <ChevronRight size={15} color="var(--text-3)" />
     </button>
   );

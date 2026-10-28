@@ -717,7 +717,7 @@ export function AiPanelScreenV2({ projectId }: AiPanelScreenV2Props) {
 
   return (
     <>
-      <Toolbar title={t("nav.ai")} sub={t("ai.toolbarSub")}>
+      <Toolbar beta title={t("nav.ai")} sub={t("ai.toolbarSub")}>
         <button
           className="btn"
           onClick={() => void handleNewThread()}

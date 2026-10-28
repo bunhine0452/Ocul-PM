@@ -16,18 +16,23 @@ import { blocked } from "@/lib/blocked";
 import { shortDate } from "./discussionFormat";
 
 
+const LETTERS = "ABCDEFGHIJ";
+
 export function DiscussionView({
   projectId,
   detail,
   locked,
   onDetach,
   onAddNote,
+  onDecide,
 }: {
   projectId: number;
   detail: DiscussionDetail;
   locked: boolean;
   onDetach: (relPath: string) => void;
   onAddNote: (body: string) => Promise<boolean>;
+  /** 「X 로 결정」 — 사유 한 줄과 함께 결론을 적고 문서를 잠근다 (시안 Discussion). */
+  onDecide?: (option: { letter: string; title: string }, reason: string) => Promise<boolean>;
 }) {
   const { t } = useT();
   return (
@@ -56,13 +61,22 @@ export function DiscussionView({
       {detail.options.length > 0 ? (
         <section className="disc-section">
           <div className="disc-section-title">{t("disc.sec.options")}</div>
-          {detail.options.map((o) => (
-            <div className="disc-option-card" key={o.option_id}>
-              <div className="disc-option-title">{o.title}</div>
-              {o.body.trim() ? <Markdown>{o.body}</Markdown> : null}
-            </div>
-          ))}
+          {/* 옵션은 나란히 — 견주는 문서라 세로로 쌓으면 둘을 한눈에 못 본다 (시안 Discussion). */}
+          <div className="disc-option-grid">
+            {detail.options.map((o, i) => (
+              <div className="disc-option-card" key={o.option_id}>
+                <div className="disc-option-title">
+                  <span className="disc-letter" aria-hidden="true">{LETTERS[i] ?? String(i + 1)}</span>
+                  {o.title}
+                </div>
+                {o.body.trim() ? <Markdown>{o.body}</Markdown> : null}
+              </div>
+            ))}
+          </div>
         </section>
+      ) : null}
+      {!locked && onDecide && detail.options.length > 0 ? (
+        <DecisionBox options={detail.options.map((o, i) => ({ letter: LETTERS[i] ?? String(i + 1), title: o.title }))} onDecide={onDecide} />
       ) : null}
 
       {detail.background.trim() || detail.attachments.length > 0 ? (
@@ -128,6 +142,61 @@ export function DiscussionView({
         </section>
       ) : null}
     </>
+  );
+}
+
+/**
+ * 결정 칸 — 옵션 글자 버튼과 **사유 한 줄**. 사유는 필수다: 나중에 뒤집을 때 읽는 것은 사유다.
+ * 누르면 결론 절에 「X 로 결정 — 사유」가 적히고 문서가 잠긴다 (부르는 쪽이 처리).
+ */
+function DecisionBox({
+  options,
+  onDecide,
+}: {
+  options: Array<{ letter: string; title: string }>;
+  onDecide: (option: { letter: string; title: string }, reason: string) => Promise<boolean>;
+}) {
+  const { t } = useT();
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const trimmed = reason.trim();
+  const decide = async (opt: { letter: string; title: string }) => {
+    if (!trimmed || busy) return;
+    setBusy(true);
+    const ok = await onDecide(opt, trimmed);
+    setBusy(false);
+    if (ok) setReason("");
+  };
+  return (
+    <section className="disc-decide" aria-label={t("disc.decide.aria")}>
+      <div className="disc-decide-head">
+        <span className="disc-decide-pill">{t("disc.decide.pill")}</span>
+        <span>{t("disc.decide.sub")}</span>
+      </div>
+      <input
+        aria-label={t("disc.decide.reasonAria")}
+        value={reason}
+        placeholder={t("disc.decide.reasonPlaceholder")}
+        disabled={busy}
+        onChange={(e) => setReason(e.target.value)}
+      />
+      <div className="disc-decide-actions">
+        {options.map((opt) => (
+          <button
+            key={opt.letter}
+            type="button"
+            className="btn sm"
+            {...blocked(trimmed ? null : t("disc.decide.blockedNoReason"))}
+            disabled={busy}
+            onClick={() => void decide(opt)}
+            title={opt.title}
+          >
+            {t("disc.decide.pick", { letter: opt.letter })}
+          </button>
+        ))}
+        <span className="disc-decide-note">{t("disc.decide.note")}</span>
+      </div>
+    </section>
   );
 }
 

@@ -5,7 +5,9 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
 import { Toolbar } from "@/components/Toolbar";
 import { EmptyState } from "@/components/EmptyState";
-import { useProjectRuntime, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
+import { useProjectRuntime, useRecentChanges, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
+import { useTodayCount } from "@/features/oculpm/useTodayCount";
+import { SessionAside } from "@/features/sessions/SessionAside";
 import { NAV_BUS } from "@/lib/navRegistry";
 import { useTheme } from "@/lib/theme";
 import { useT } from "@/i18n";
@@ -96,6 +98,9 @@ export default function ShellV2({
   const projectId = runtime.currentProjectId;
   const workday = runtime.workdayKey ?? runtime.oculpmStatus?.current_workday ?? null;
   const oculpmReady = runtime.oculpmStatus?.initialized === true;
+  // 사이드바 행의 조용한 수 — 일지(오늘 N) · 변경(미커밋 N). 돌고 있는 것이 있으면 그쪽이 먼저다.
+  const todayCount = useTodayCount(projectId, workday, oculpmReady);
+  const recentChanges = useRecentChanges(projectId ?? -1);
 
   /**
    * Claude Code 화면을 한 번이라도 열었는가.
@@ -328,6 +333,7 @@ export default function ShellV2({
         onToggleCollapse={toggleSidebar}
         collapsed={collapsed}
         onMouseLeave={collapsed ? () => setHovering(false) : undefined}
+        badges={{ journal: todayCount ?? undefined, diff: recentChanges.length || undefined }}
       />
       <main className="content">
         <div className={"content-body" + (dockVisible ? ` with-dock dock-${prefs.terminalDockPos}` : "")}>
@@ -533,7 +539,13 @@ export default function ShellV2({
                 화면을 바꿀 때마다 재마운트되어 돌던 턴이 끊긴다). 자기 경계를
                 따로 둔다 — 키 없이. */}
             <ErrorBoundary label="screen:claudecode">
-              <ClaudeCodeScreenV2 projectId={projectId} />
+              {/* 일하는 자리 옆 기록 — 에이전트 화면도 터미널과 같은 오른쪽 열 (시안 Agent). */}
+              <div className="with-aside">
+                <div className="with-aside-main">
+                  <ClaudeCodeScreenV2 projectId={projectId} />
+                </div>
+                <SessionAside projectId={projectId} workday={workday} />
+              </div>
             </ErrorBoundary>
           </div>
         ) : null}
@@ -543,7 +555,12 @@ export default function ShellV2({
             style={{ display: view === "codex" ? "contents" : "none" }}
           >
             <ErrorBoundary label="screen:codex">
-              <CodexScreenV2 projectId={projectId} />
+              <div className="with-aside">
+                <div className="with-aside-main">
+                  <CodexScreenV2 projectId={projectId} />
+                </div>
+                <SessionAside projectId={projectId} workday={workday} />
+              </div>
             </ErrorBoundary>
           </div>
         ) : null}

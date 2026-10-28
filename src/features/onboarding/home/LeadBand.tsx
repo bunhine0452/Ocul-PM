@@ -10,13 +10,14 @@
  * 커서 평면에서는 그냥 첫 행이다 — `wiring` 을 원장 행과 똑같이 받는다.
  */
 import { useEffect, useState } from "react";
-import { ListTodo } from "@/components/Icons";
-import { oculpmApi } from "@/api/oculpm";
+import { ListTodo, Terminal } from "@/components/Icons";
 import { planApi } from "@/api/plan";
-import type { Project, PromiseScorecard } from "@/lib/bindings";
+import type { HomeFeedItem, Project } from "@/lib/bindings";
 import { useT } from "@/i18n";
-import { Progress, RowActions, Skel, Sparkline } from "./atoms";
-import { relativeTime, SPARK_DAYS, tildePath, type ProjectRowT } from "./homeModel";
+import { requestResumeOnOpen } from "@/lib/resumeIntent";
+import { Progress, RowActions, Skel, Sparkline, TriggerKicker } from "./atoms";
+import { hhmm, relativeTime, SPARK_DAYS, tildePath, type ProjectRowT } from "./homeModel";
+import type { ProjectScore } from "./useProjectScores";
 import { resolveProjectColor, resolveProjectIcon } from "./projectAppearance";
 import type { RowWiring } from "./rows";
 
@@ -30,9 +31,15 @@ export function LeadBand({
   onOpen,
   onRename,
   onDelete,
+  feed = [],
+  score = null,
 }: {
   row: ProjectRowT;
   now: number;
+  /** 크로스 프로젝트 최신 흐름 — 이 프로젝트 것만 골라 최근 일지 셋을 그린다 (시안 Start). */
+  feed?: HomeFeedItem[];
+  /** 숫자 셋 — 증거 · 미기록 · 사용자 몫. `null` 은 아직. */
+  score?: ProjectScore | null;
   /**
    * 첫 집계가 아직이다 — 이름·경로·열림은 로컬이라 그대로 서고, 집계에서
    * 오는 것(시각·다음 할 일·맥박·플랜)만 자리를 지킨다. 밴드 통째로
@@ -58,17 +65,15 @@ export function LeadBand({
   const color = resolveProjectColor(p.name, p.color);
   const pending = loading && !snap;
 
-  // 「오늘 어디서부터」 (UI 밀도 라운드 2) — 1위 프로젝트 하나에만 완료 조건과 숫자 셋
-  // (증거 · 미기록 · 사용자 몫)을 붙인다. 실패는 조용히 비운다 — 밴드의 나머지는 로컬
-  // 집계라 그대로 서고, 이 둘만 "모름" 으로 남는다.
+  // 「오늘 어디서부터」 (UI 밀도 라운드 2·3) — 1위 프로젝트 하나에만 완료 조건과 숫자 셋
+  // (증거 · 미기록 · 사용자 몫), 최근 일지 셋, 그리고 「이 맥락으로 이어서 작업」. 실패는
+  // 조용히 비운다 — 밴드의 나머지는 로컬 집계라 그대로 서고, 이것만 "모름" 으로 남는다.
   const [goal, setGoal] = useState<string | null>(null);
-  const [score, setScore] = useState<PromiseScorecard | null>(null);
   useEffect(() => {
     let cancelled = false;
     setGoal(null);
-    setScore(null);
-    // 둘 다 선택 자료다 — API 가 없는 자리(공급자 없이 밴드만 그리는 테스트)에서는
-    // 동기 예외까지 삼키고 「모름」으로 둔다.
+    // 선택 자료다 — API 가 없는 자리(공급자 없이 밴드만 그리는 테스트)에서는 동기 예외까지
+    // 삼키고 「모름」으로 둔다.
     try {
       if (plan?.plan_id) {
         void planApi
@@ -78,12 +83,6 @@ export function LeadBand({
           })
           .catch(() => {});
       }
-      void oculpmApi
-        .promiseScorecard(p.id, 30)
-        .then((sc) => {
-          if (!cancelled && sc?.journal) setScore(sc);
-        })
-        .catch(() => {});
     } catch {
       /* 선택 자료 — 없으면 없는 대로 */
     }
@@ -91,10 +90,8 @@ export function LeadBand({
       cancelled = true;
     };
   }, [p.id, plan?.plan_id]);
-  const evidencePct =
-    score && score.journal.judged_entries > 0
-      ? Math.round((score.journal.evidence_entries / score.journal.judged_entries) * 100)
-      : null;
+  const recent = feed.filter((f) => f.project_id === p.id).slice(0, 3);
+  const openItems = snap?.nextTasks?.length ?? 0;
   // i18n-ignore-next-line -- 플랜 항목 문구의 「[사용자]」 표식을 찾는 정규식 (표시 문자열 아님)
   const userItems = snap?.nextTasks?.filter((n) => /\[사용자\]|\[user\]/i.test(n.item_title)).length ?? 0;
 
@@ -164,6 +161,18 @@ export function LeadBand({
             <span className="hl-dim">{t("home.noRecord")}</span>
           )}
         </p>
+        {/* 최근 일지 셋 — 흐름에서 이 프로젝트 것만. 제목을 누르면 그 일지까지 (시안 Start). */}
+        {recent.length > 0 ? (
+          <ul className="hl-lead-recent">
+            {recent.map((f) => (
+              <li key={f.relative_path}>
+                <TriggerKicker type={f.type} title={null} />
+                <span className="hl-lead-recent-title">{f.title}</span>
+                <span className="hl-dim mono">{hhmm(f.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       {/* 오른쪽 — 맥박. 원장 행의 62px 스파크가 여기서는 폭 200·높이 48 로
@@ -187,13 +196,32 @@ export function LeadBand({
             <Progress done={plan.done} total={plan.total} />
           </span>
         )}
-        {score ? (
-          <span className="hl-lead-nums" aria-label={t("home.numsAria")}>
-            <span><i>{t("home.numEvidence")}</i><b data-tone={evidencePct !== null && evidencePct >= 97 ? "ok" : "warn"}>{evidencePct === null ? "—" : `${evidencePct}%`}</b></span>
-            <span><i>{t("home.numRework")}</i><b data-tone={score.journal.bug_entries > 0 && score.journal.rework_within_7d / score.journal.bug_entries > 0.3 ? "warn" : "ok"}>{score.journal.bug_entries === 0 ? "—" : `${Math.round((score.journal.rework_within_7d / score.journal.bug_entries) * 100)}%`}</b></span>
-            <span><i>{t("home.numUser")}</i><b>{userItems}</b></span>
-          </span>
+        <span className="hl-lead-nums" aria-label={t("home.numsAria")}>
+          <span><i>{t("home.numEvidence")}</i><b data-tone={score?.evidencePct == null ? undefined : score.evidencePct >= 97 ? "ok" : "warn"}>{score?.evidencePct == null ? "—" : `${score.evidencePct}%`}</b></span>
+          <span><i>{t("home.numUnrecorded")}</i><b data-tone={score?.unrecorded == null ? undefined : score.unrecorded > 0 ? "warn" : "ok"}>{score?.unrecorded == null ? "—" : score.unrecorded}</b></span>
+          <span><i>{t("home.numUser")}</i><b>{userItems}</b></span>
+        </span>
+        {/* 훅이 다음 대화에 싣는 것 — 완료 조건·확인 명령·미완·마지막 일지. 어제를 다시 설명하지 않는다. */}
+        {snap && (openItems > 0 || recent.length > 0) ? (
+          <p className="hl-lead-hook">{t("home.hookLine", { items: openItems, journals: recent.length })}</p>
         ) : null}
+        <span className="hl-lead-btns">
+          <button
+            type="button"
+            className="btn primary sm"
+            tabIndex={wiring.tabbable ? 0 : -1}
+            onClick={() => {
+              requestResumeOnOpen(p.id);
+              onOpen(p);
+            }}
+            title={t("home.resumeHint")}
+          >
+            <Terminal size={13} /> {t("home.resumeBtn")}
+          </button>
+          <button type="button" className="btn sm" tabIndex={wiring.tabbable ? 0 : -1} onClick={() => onOpen(p)}>
+            {t("home.openToday")}
+          </button>
+        </span>
       </div>
 
       <span className="hl-actions hl-lead-actions">

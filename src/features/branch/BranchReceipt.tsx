@@ -1,4 +1,4 @@
-import { Clipboard, ShieldCheck } from "@/components/Icons";
+import { Clipboard, PenLine, ShieldCheck } from "@/components/Icons";
 import { useT } from "@/i18n";
 import type { BranchStory } from "@/lib/bindings";
 import { toast } from "@/lib/toast";
@@ -12,7 +12,17 @@ const JUDGED = new Set(["bug", "feature", "refactor"]);
  * 셋 다 이미 있는 판정(증거 등급 · 기록률)이고, 여기는 그것을 **한 장**으로 접을 뿐이다.
  * CI 결과는 로컬에 없으므로 적지 않는다 — 모르는 것은 모른다고 둔다.
  */
-export function BranchReceipt({ story }: { story: BranchStory }) {
+export function BranchReceipt({
+  story,
+  onOpenJournal,
+  onReleaseNotes,
+}: {
+  story: BranchStory;
+  /** 「한 일」 행을 누르면 그 일지로. */
+  onOpenJournal?: (relativePath: string) => void;
+  /** 「릴리스 노트 초안」 — 화면의 시트를 연다 (지난 태그..HEAD). */
+  onReleaseNotes?: () => void;
+}) {
   const { t } = useT();
   const judged = story.entries.filter((e) => JUDGED.has(e.entry_type));
   const verified = judged.filter((e) => e.evidence === 2);
@@ -54,17 +64,52 @@ export function BranchReceipt({ story }: { story: BranchStory }) {
         <div data-tone={unverified.length > 0 ? "warn" : "ok"}><i>{t("branch.receipt.unverified")}</i><b>{unverified.length}</b></div>
         <div data-tone={missing > 0 ? "warn" : "ok"}><i>{t("branch.receipt.missing")}</i><b>{missing}</b></div>
       </div>
-      {unverified.length > 0 ? (
-        <ul className="br-list">
-          {unverified.slice(0, 5).map((e) => (
-            <li key={e.relative_path}>
-              <span className="br-type">{e.entry_type}</span>
-              <span className="br-title">{e.title}</span>
-            </li>
-          ))}
-        </ul>
+      {/* 한 일 — 일지 전부, 검증된 것은 방패, 안 된 것은 「칸 없음」 (시안 Branch). */}
+      {story.entries.length > 0 ? (
+        <div className="br-block">
+          <span className="br-block-head">{t("branch.receipt.did")}</span>
+          <ul className="br-list">
+            {story.entries.slice(0, 8).map((e) => (
+              <li key={e.relative_path}>
+                <span className="br-type">{e.entry_type}</span>
+                {onOpenJournal ? (
+                  <button type="button" className="br-title br-open" onClick={() => onOpenJournal(e.relative_path)}>
+                    {e.title}
+                  </button>
+                ) : (
+                  <span className="br-title">{e.title}</span>
+                )}
+                {e.evidence === 2 ? (
+                  <ShieldCheck size={13} color="var(--ok-text)" aria-label={t("entry.evidence.command")} />
+                ) : JUDGED.has(e.entry_type) ? (
+                  <span className="br-none">{t("branch.receipt.noSlot")}</span>
+                ) : null}
+              </li>
+            ))}
+            {story.entries.length > 8 ? <li className="br-more">+ {story.entries.length - 8}</li> : null}
+          </ul>
+        </div>
       ) : null}
+      {/* 바깥 심판 — 이 앱이 아는 것만. CI 결과는 로컬에 없으니 「모름」이라고 적는다. */}
+      <div className="br-block">
+        <span className="br-block-head">{t("branch.receipt.judge")}</span>
+        <ul className="br-judge">
+          <li>
+            <span>{t("branch.receipt.judgeCi")}</span>
+            <b className="muted">{t("branch.receipt.judgeUnknown")}</b>
+          </li>
+          <li>
+            <span>{t("branch.receipt.judgeRedteam")}</span>
+            <b className="warn">{t("branch.receipt.judgeNotYet")}</b>
+          </li>
+        </ul>
+      </div>
       <div className="br-actions">
+        {onReleaseNotes ? (
+          <button type="button" className="btn sm" onClick={onReleaseNotes}>
+            <PenLine size={13} /> {t("branch.receipt.relnotes")}
+          </button>
+        ) : null}
         <button type="button" className="btn sm" onClick={() => copy(markdown(), t("branch.receipt.copied"))}>
           <Clipboard size={13} /> {t("branch.receipt.copy")}
         </button>

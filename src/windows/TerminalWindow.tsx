@@ -24,6 +24,13 @@ import { useT } from "@/i18n";
 import { isMac as isMacPlatform } from "@/lib/platform";
 import { runCloseIntent } from "@/lib/closeIntent";
 import { useWindowTabKeys } from "@/hooks/useWindowTabKeys";
+import { terminalWindowApi } from "@/api/terminal";
+import { oculpmApi } from "@/api/oculpm";
+import { localWorkdayKey } from "@/lib/workday";
+import { useJournalEvents } from "@/features/oculpm/useOculpmLive";
+import { errorDetail } from "@/api/invoke";
+import { toast } from "@/lib/toast";
+import { SquareArrowOutUpRight } from "@/components/Icons";
 
 import "@/App.css";
 // 셸 CSS 는 ShellV2 의 lazy 청크에 실려 있다 — 그 셸을 마운트하지 않는 이 창은
@@ -116,9 +123,43 @@ function TerminalWindowBody({ projectId }: TerminalWindowProps) {
   // 드래그 영역으로 두지 않는다.
   const isMac = isMacPlatform();
 
+  // 크롬 한 줄에 「이 세션의 일지 N / 아직 없음」 과 「앱으로 되돌리기」 (시안 H). 둘째 모니터에서도
+  // 기록이 섰는지는 보여야 하고, 되돌리는 길은 도크의 자리표시자뿐이면 멀다.
+  const [journals, setJournals] = useState<number | null>(null);
+  const [tick, setTick] = useState(0);
+  useJournalEvents(projectId, ready, () => setTick((n) => n + 1));
+  useEffect(() => {
+    if (!ready) return;
+    let alive = true;
+    void Promise.resolve()
+      .then(() => oculpmApi.listJournalEntries(projectId, localWorkdayKey()))
+      .then((list) => {
+        if (alive) setJournals(list.length);
+      })
+      .catch(() => {
+        if (alive) setJournals(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [projectId, ready, tick]);
+  const reattach = () => {
+    terminalWindowApi.close(projectId).catch((e: unknown) => toast.destructive(errorDetail(e)));
+  };
+  const chrome = (
+    <>
+      <span className={"tw-journals" + (journals === 0 ? " none" : "")}>
+        {journals == null ? t("term.window.journalsUnknown") : journals === 0 ? t("term.window.journalsNone") : t("term.window.journals", { n: journals })}
+      </span>
+      <button type="button" className="term-tool" onClick={reattach} title={t("term.dock.awayHint")} aria-label={t("term.dock.reattach")}>
+        <SquareArrowOutUpRight size={15} style={{ transform: "scaleX(-1)" }} />
+      </button>
+    </>
+  );
+
   return (
     <div className={"term-window" + (isMac ? " is-mac" : "")}>
-      {ready ? <TerminalSurface projectRoot={root} dragRegion={isMac} ownsNewTab /> : null}
+      {ready ? <TerminalSurface projectRoot={root} dragRegion={isMac} ownsNewTab headerActions={chrome} /> : null}
     </div>
   );
 }

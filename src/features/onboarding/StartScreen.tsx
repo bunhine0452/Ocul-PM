@@ -38,6 +38,7 @@ import { CommandRow, DraftRow, type RowWiring } from "./home/rows";
 import { FlowTile, OnboardingTile } from "./home/tiles";
 import { ProjectRow } from "./home/ProjectRow";
 import { LeadBand } from "./home/LeadBand";
+import { useProjectScores } from "./home/useProjectScores";
 import { ProjectManager } from "@/features/projects/ProjectManager";
 import { useT, type I18nKey } from "@/i18n";
 import { isImeComposing } from "@/lib/ime";
@@ -338,6 +339,11 @@ export function StartScreen(props: StartScreenProps) {
 
   const hasProjects = projects.length > 0;
   const matchCount = model.ranked.length;
+  // 원장 행의 숫자 셋 — 프로젝트마다 성적표·오늘 비교 한 번 (시안 Start).
+  const scores = useProjectScores(useMemo(() => projects.map((p) => p.id), [projects]));
+  // 머리글 한 줄 — 프로젝트 N · 오늘 일지 N · 사용자 몫 항목 N. 미기록은 행마다 있다.
+  // i18n-ignore-next-line -- 플랜 항목 문구의 「[사용자]」 표식을 찾는 정규식 (표시 문자열 아님)
+  const userItems = (brief?.projects ?? []).reduce((n, b) => n + b.next_tasks.filter((it) => /\[사용자\]|\[user\]/i.test(it.item_title)).length, 0);
   const quietIds = useMemo(() => new Set(model.quiet.map((r) => r.id)), [model.quiet]);
   const openSet = useMemo(() => new Set(openWindows), [openWindows]);
 
@@ -355,6 +361,7 @@ export function StartScreen(props: StartScreenProps) {
       onOpen={onSelectProject}
       onRename={onRenameProject}
       onDelete={onDeleteProject}
+      score={scores.get(row.project.id) ?? null}
     />
   );
 
@@ -384,9 +391,18 @@ export function StartScreen(props: StartScreenProps) {
         )}
 
         {!hasProjects ? (
-          <OnboardingTile onStart={onAddProject} />
+          <OnboardingTile onStart={onAddProject} onNew={onStartGreenfield} />
         ) : (
           <>
+            {/* 머리글 — 「오늘 어디서부터?」 와 숫자 한 줄 (시안 Start). 날짜는 레일이 이미 말한다. */}
+            <header className="home-head">
+              <h2 className="home-head-title">{t("home.whereToStart")}</h2>
+              <p className="home-head-sub">
+                {t("home.datelineProjects", { n: projects.length })}
+                {brief ? ` · ${t("home.headToday", { n: brief.today_total })}` : ""}
+                {userItems > 0 ? ` · ${t("home.headUser", { n: userItems })}` : ""}
+              </p>
+            </header>
             {/* 사령탑 — 순위 1위. 첫 집계 전에도 밴드는 선다 (집계에서 오는
                 칸만 스켈레톤) — 커서 평면의 첫 행이 화면에 없으면 탭 스톱이
                 0개가 되는 예전 벤토 회귀가 되살아난다. */}
@@ -401,6 +417,8 @@ export function StartScreen(props: StartScreenProps) {
                 onOpen={onSelectProject}
                 onRename={onRenameProject}
                 onDelete={onDeleteProject}
+                feed={brief?.feed ?? []}
+                score={scores.get(model.lead.project.id) ?? null}
               />
             )}
 

@@ -502,6 +502,12 @@ export function CommandPalette({
             </Command.Group>
           ))}
         </Command.List>
+        {/* 접힌 단의 화면도 여기서 열린다 — 숨김이 아니라 접힘 (시안 D). */}
+        <div className="palette-foot">
+          <span><kbd>↑↓</kbd> {t("palette.foot.move")}</span>
+          <span><kbd>⏎</kbd> {t("palette.foot.open")}</span>
+          <span className="palette-foot-hint">{t("palette.footHint")}</span>
+        </div>
       </Command>
     </div>
   );

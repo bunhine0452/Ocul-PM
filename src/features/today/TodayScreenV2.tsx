@@ -20,6 +20,12 @@ import { type UiV2View, useOptionalWorkspace } from "@/contexts/WorkspaceContext
 import { agentLabel } from "./agentColor";
 import { requestOculpmActivate } from "@/lib/projectActions";
 import { FirstRunCard } from "./FirstRunCard";
+import { FirstRunSheet } from "./FirstRunSheet";
+import { TodayNums } from "./TodayNums";
+import { useUnrecordedCount } from "./useUnrecorded";
+import { consumeResumeOnOpen } from "@/lib/resumeIntent";
+import { useOptionalSettings } from "@/contexts/SettingsContext";
+import { reportRejection } from "@/lib/reportFailure";
 import { AutomationConsentNotice } from "@/features/settings/automation/AutomationConsentNotice";
 import { FirstRecordCard } from "./FirstRecordCard";
 import { ResumeCard } from "./ResumeCard";
@@ -111,6 +117,8 @@ export function TodayScreenV2({
     brief?.totalEntries ?? null,
   );
   const [termOpen, setTermOpen] = useState(false);
+  // 머리글 숫자 셋의 재료 — 미기록 파일 수 (증거·다음 할 일은 brief 에서 바로 센다).
+  const unrecorded = useUnrecordedCount(projectId, workday, oculpmReady);
   // 첫 활성화 카드 — 프로젝트 탭이 채우고 여기서 비운다 (Phase 2).
   const ws = useOptionalWorkspace();
   const initCard = ws?.state.oculpmInitCard ?? null;
@@ -129,6 +137,21 @@ export function TodayScreenV2({
   }, [ws, firstRecordArmed, oculpmReady, brief]);
   const disarmFirstRecord = () =>
     ws?.setState((prev) => (prev.firstRecordArmed ? { ...prev, firstRecordArmed: false } : prev));
+
+  // 첫 실행 세 단계 시트 — 일지가 0건인 동안만, 건너뛴 사람에게는 다시 안 뜬다 (시안 E).
+  // 설정 공급자가 없는 자리(공급자 없이 화면만 그리는 테스트)에서는 그리지 않는다 —
+  // 「건너뛰기」가 적을 곳이 없는 시트는 사용자를 이기는 카드가 된다.
+  const settingsCtx = useOptionalSettings();
+  const showSheet =
+    settingsCtx != null &&
+    settingsCtx.loaded &&
+    !settingsCtx.settings.firstRunSheetDismissed &&
+    oculpmReady &&
+    brief != null &&
+    brief.totalEntries === 0;
+  const skipSheet = () => {
+    if (settingsCtx) reportRejection(settingsCtx.set("firstRunSheetDismissed", true), "settings.saveFailed");
+  };
 
   // 「에이전트 실행」 — 예전엔 아래쪽 빠른 터미널을 조용히 열었다. 스크롤을 내리기
   // 전까지 아무것도 안 바뀐 것처럼 보였다 (2026-09-22 지적). 이제 터미널이 화면에
@@ -171,6 +194,15 @@ export function TodayScreenV2({
       toast.destructive(t("today.resume.dispatchFailed", { error: tError(toAppError(e)) }));
     }
   };
+
+  // 시작 탭의 「이 맥락으로 이어서 작업」 — 프로젝트가 열려 오늘 화면이 서면 한 번 돈다 (시안 Start).
+  // 이어하기 자료가 있어야 보낼 것이 있으므로 brief 가 온 뒤에.
+  useEffect(() => {
+    if (!oculpmReady || brief == null || !ws) return;
+    if (consumeResumeOnOpen(projectId)) void continueFromResume();
+    // continueFromResume 은 매 렌더 새 함수다 — 뜻은 한 번만 소비되므로 의존성에서 뺀다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [oculpmReady, brief == null, projectId, ws]);
 
   // Clicking a highlight / yesterday row jumps to the Journal screen with the
   // entry ring-highlighted (ShellV2 owns the one-shot focus path). Without the
@@ -226,6 +258,19 @@ export function TodayScreenV2({
       setStandupBusy(false);
     }
   };
+
+  const resumeCard = (
+    <ResumeCard
+      projectId={projectId}
+      enabled={oculpmReady}
+      onNavigate={onNavigate}
+      onOpenEntryPath={(relative_path) => {
+        if (onOpenEntry) onOpenEntry({ relative_path });
+        else onNavigate("journal");
+      }}
+      onContinue={() => void continueFromResume()}
+    />
+  );
 
   // 세 묶음 — 전문 밀도는 셋을 다 펼치고, 간단 밀도는 세 질문 칼럼이 grid·trailing 의
   // 핵심 카드를 대신하며 나머지만 「더 보기」에 접는다. 같은 카드를 두 번 그리지 않는다.
@@ -525,9 +570,14 @@ export function TodayScreenV2({
                 </div>
               </div>
             </div>
-            <button className="btn primary" onClick={() => onNavigate("diff")}>
-              <GitCompareArrows size={15} /> {t("today.reviewChanges")}
-            </button>
+            <div className="today-hero-side">
+              {oculpmReady && brief ? (
+                <TodayNums today={brief.today} unrecorded={unrecorded} nextCount={nextTasks ? nextTasks.length : null} />
+              ) : null}
+              <button className="btn primary" onClick={() => onNavigate("diff")}>
+                <GitCompareArrows size={15} /> {t("today.reviewChanges")}
+              </button>
+            </div>
           </div>
 
           {error ? (
@@ -538,18 +588,11 @@ export function TodayScreenV2({
             />
           ) : null}
 
+          {showSheet ? <FirstRunSheet projectName={ws?.state.currentProjectName ?? null} onSkip={skipSheet} /> : null}
+
           {/* 이어하기 — 다음 세션의 시작점 (first-record-loop Phase 2). 일지도
-              계획도 없는 프로젝트에는 그리지 않는다. */}
-          <ResumeCard
-            projectId={projectId}
-            enabled={oculpmReady}
-            onNavigate={onNavigate}
-            onOpenEntryPath={(relative_path) => {
-              if (onOpenEntry) onOpenEntry({ relative_path });
-              else onNavigate("journal");
-            }}
-            onContinue={() => void continueFromResume()}
-          />
+              계획도 없는 프로젝트에는 그리지 않는다. 간단 밀도에선 ③ 칼럼 안에 선다. */}
+          {simple ? null : resumeCard}
 
           <WhatsNewCard />
           {/* 저장소 config 가 켠 배경 자동화는 이 기기가 허락해야 돈다 — 멈춰 있는
@@ -563,7 +606,7 @@ export function TodayScreenV2({
               {#plugin-onboarding}). 카드가 스스로 판정하고, 판정 근거가
               없으면 아무것도 그리지 않는다. */}
           <PluginSetupCard
-            show={oculpmReady && brief != null && brief.totalEntries === 0}
+            show={oculpmReady && brief != null && brief.totalEntries === 0 && !showSheet}
             onNavigate={onNavigate}
           />
           {/* 깔린 플러그인이 앱보다 낮을 때만 — 이어하기·전달 원장은 새 판의 훅이 쓴다. */}
@@ -627,6 +670,24 @@ export function TodayScreenV2({
                       )}
                     </div>
                   </div>
+                  {brief && brief.today.length > 0 ? (
+                    <div className="today-col-foot">
+                      <span>
+                        {brief.today.length > brief.highlights.length
+                          ? t("today.moreEntries", { n: brief.today.length - brief.highlights.length })
+                          : null}
+                        {brief.agents.map((a) => `${agentLabel(a.id)} ${a.count}`).join(" · ")}
+                      </span>
+                      <button
+                        className="btn sm"
+                        onClick={() => void copyStandup()}
+                        {...blocked(!workday ? t("today.standup.blockedNoWorkday") : null, t("today.standup.title"))}
+                        disabled={standupBusy}
+                      >
+                        <Clipboard size={13} /> {t("today.standup.copy")}
+                      </button>
+                    </div>
+                  ) : null}
                   {brief && brief.yesterdayDone.length > 0 ? (
                     <div className="card">
                       <div className="panel-head">
@@ -662,6 +723,7 @@ export function TodayScreenV2({
                       {t("nav.planner")} <ArrowRight size={13} />
                     </button>
                   </div>
+                  {resumeCard}
                   <NextTasks tasks={nextTasks} onOpenPlanner={() => onNavigate("planner")} />
                   <PlanUpdates projectId={projectId} onNavigate={onNavigate} />
                   <DiscussionPending projectId={projectId} onNavigate={onNavigate} />

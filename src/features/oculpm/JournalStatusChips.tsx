@@ -16,6 +16,8 @@ export function JournalStatusChips({
   setUnfinishedOnly,
   setVerifiedOnly,
   setUnverifiedOnly,
+  noEvidenceOnly,
+  setNoEvidenceOnly,
 }: {
   unfinishedOnly: boolean;
   verifiedOnly: boolean;
@@ -23,6 +25,9 @@ export function JournalStatusChips({
   setUnfinishedOnly: Dispatch<SetStateAction<boolean>>;
   setVerifiedOnly: Dispatch<SetStateAction<boolean>>;
   setUnverifiedOnly: Dispatch<SetStateAction<boolean>>;
+  /** 「증거 없음」 — 결함·기능·리팩토링인데 검증 칸에 명령 증거가 없는 일지만 (시안 Journal). */
+  noEvidenceOnly?: boolean;
+  setNoEvidenceOnly?: Dispatch<SetStateAction<boolean>>;
 }) {
   const { t } = useT();
   const chip = (on: boolean) => "scope-chip" + (on ? " on" : "");
@@ -67,6 +72,17 @@ export function JournalStatusChips({
       >
         {t("journal.filterUnverified")}
       </button>
+      {setNoEvidenceOnly ? (
+        <button
+          type="button"
+          className={chip(noEvidenceOnly ?? false)}
+          style={{ height: 28 }}
+          onClick={() => setNoEvidenceOnly((v) => !v)}
+          title={t("journal.filterNoEvidenceTitle")}
+        >
+          {t("journal.filterNoEvidence")}
+        </button>
+      ) : null}
     </div>
   );
 }

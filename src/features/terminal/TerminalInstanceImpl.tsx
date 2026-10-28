@@ -22,6 +22,7 @@ import { createPtyResizeQueue, planFit, type AdoptedWidth } from "./ptyResize";
 import { replayInto, splitReplay } from "./scrollbackReplay";
 import { WebglSlot } from "./webglRenderer";
 import { observeTerminalTheme, readTerminalTheme } from "./termTheme";
+import { mountBlockSticky } from "./terminalSurface/blockSticky";
 import {
   initialShellState,
   parseOsc133,
@@ -140,6 +141,11 @@ interface TerminalInstanceProps {
   /** 거터의 명령 캡슐을 눌렀다 — 화면이 블록 액션 팝오버를 띄운다. */
   onBlockActivate?: (activation: BlockActivation) => void;
   /**
+   * 명령 하나가 끝났다 (OSC 133;D) — 블록과 출력의 **마지막 비공백 줄**. 결과 줄·접힌
+   * 도크·검증 칸 복사가 읽는 자리(`lastResultStore`)를 채운다 (UI 밀도 라운드 3).
+   */
+  onBlockDone?: (block: CommandBlock, lastLine: string) => void;
+  /**
    * 셸이 스스로 끝났다 (`exit`·마지막 자식 종료). PTY 는 사라졌고 이 페인은
    * 이제 **어떤 입력도 보낼 곳이 없다** — 화면이 그 사실을 말하고 다시 시작할
    * 손잡이를 줄 수 있게 알린다. 넘기지 않으면 종전처럼 문구만 찍힌다.
@@ -168,6 +174,7 @@ export default function TerminalInstanceImpl({
   onShellState,
   onSignal,
   onBlockActivate,
+  onBlockDone,
   onExit,
   onFileRef,
   onFileLink,
@@ -196,6 +203,7 @@ export default function TerminalInstanceImpl({
   const onShellStateRef = useRef(onShellState);
   const onSignalRef = useRef(onSignal);
   const onBlockActivateRef = useRef(onBlockActivate);
+  const onBlockDoneRef = useRef(onBlockDone);
   const onExitRef = useRef(onExit);
   // 블록 손잡이 — onReady 로 화면에 넘긴다. 목록을 React 상태로 올리면
   // 스크롤·명령마다 페인 트리가 재렌더된다.
@@ -219,6 +227,7 @@ export default function TerminalInstanceImpl({
     onShellStateRef.current = onShellState;
     onSignalRef.current = onSignal;
     onBlockActivateRef.current = onBlockActivate;
+    onBlockDoneRef.current = onBlockDone;
     onExitRef.current = onExit;
     onFileRefRef.current = onFileRef;
     onFileLinkRef.current = onFileLink;
@@ -232,6 +241,7 @@ export default function TerminalInstanceImpl({
     onShellState,
     onSignal,
     onBlockActivate,
+    onBlockDone,
     onExit,
     onFileRef,
     onFileLink,
@@ -383,38 +393,9 @@ export default function TerminalInstanceImpl({
     /** `A` 로 잡아 둔 앵커. `C` 가 와야 블록이 된다. */
     let pendingAnchor: { marker: IMarker; startedAt: number } | null = null;
 
-    /**
-     * 스티키 헤더 — 긴 출력을 스크롤하는 동안 "지금 보는 게 어느 명령의
-     * 출력인가"를 위에 고정한다.
-     *
-     * **React 를 쓰지 않는다.** 스크롤마다 상태를 올리면 초당 수십 번 페인
-     * 트리가 재렌더된다. 여기서는 textContent 만 바꾼다.
-     */
-    const sticky = document.createElement("div");
-    sticky.className = "term-block-sticky";
-    sticky.hidden = true;
-    containerRef.current?.appendChild(sticky);
-
-    const updateSticky = () => {
-      // 전체화면 TUI 에서는 블록 자체가 의미 없다 (→ agentMode 주석).
-      if (term.buffer.active.type === "alternate") {
-        sticky.hidden = true;
-        return;
-      }
-      const top = term.buffer.active.viewportY;
-      let current: CommandBlock | null = null;
-      for (const block of snapshot()) {
-        if (block.line < top) current = block;
-        else break;
-      }
-      if (!current) {
-        sticky.hidden = true;
-        return;
-      }
-      sticky.hidden = false;
-      sticky.dataset.tone = blockTone(current);
-      sticky.textContent = current.command;
-    };
+    // 스티키 헤더 (→ terminalSurface/blockSticky). `snapshot` 은 아래에서 정의되지만 호출은 나중이다.
+    const sticky = mountBlockSticky(containerRef.current, term, () => snapshot());
+    const updateSticky = sticky.update;
 
     /** 거터 캡슐 색 — 터미널 팔레트에서 읽어 캔버스와 같은 색을 쓴다. */
     const toneColor = (tone: BlockTone): string => {
@@ -565,6 +546,12 @@ export default function TerminalInstanceImpl({
         entry.block.durationMs = Math.max(0, now - entry.block.startedAt);
         paint(entry);
         updateSticky();
+        // 결과 끝 줄 — 출력의 마지막 비공백 줄. 파서 밖(microtask)에서 (셸 상태 콜백과 같은 규율).
+        const done = { ...entry.block, line: entry.marker.line };
+        queueMicrotask(() => {
+          const tail = readOutput(done.id).split("\n").map((l) => l.trim()).filter(Boolean).pop() ?? "";
+          try { onBlockDoneRef.current?.(done, tail); } catch { /* 소비처 예외는 파서를 오염시키지 않는다 */ }
+        });
       }
     };
 
@@ -883,7 +870,7 @@ export default function TerminalInstanceImpl({
       pendingAnchor?.marker.dispose();
       pendingAnchor = null;
       blockApiRef.current = null;
-      sticky.remove();
+      sticky.dispose();
       // 묶어 두었던 출력 신호 발행 — 언마운트된 소비처를 깨우지 않게 취소한다.
       if (signalTimerRef.current !== null) {
         window.clearTimeout(signalTimerRef.current);

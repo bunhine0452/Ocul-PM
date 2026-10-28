@@ -61,6 +61,9 @@ interface DiffFileListProps {
   onToggleVerified?: (relativePath: string, next: boolean) => void;
   /** 영향 받는 파일을 외부 에디터로 열기. */
   onOpenAffected: (path: string) => void;
+  /** 묶음 기준 — 일지별(기본) / 파일별(평면). 그룹 정보가 없으면 그리지 않는다 (시안 Diff). */
+  byEntry?: boolean;
+  onByEntry?: (next: boolean) => void;
 }
 
 export function DiffFileList({
@@ -73,6 +76,8 @@ export function DiffFileList({
   onOpenEntry,
   onToggleVerified,
   onOpenAffected,
+  byEntry = true,
+  onByEntry,
 }: DiffFileListProps) {
   const { t } = useT();
   const [filter, setFilter] = useState("");
@@ -213,6 +218,16 @@ export function DiffFileList({
       <div className="diff-files-head dfl-head">
         <span className="dfl-title">{t("diff.changedFiles")}</span>
         <span className="dfl-count">{totalFiles}</span>
+        {onByEntry ? (
+          <div className="seg dfl-mode" role="group" aria-label={t("diff.groupModeAria")}>
+            <button type="button" className="seg-item" aria-pressed={byEntry} onClick={() => onByEntry(true)}>
+              {t("diff.groupByEntry")}
+            </button>
+            <button type="button" className="seg-item" aria-pressed={!byEntry} onClick={() => onByEntry(false)}>
+              {t("diff.groupByFile")}
+            </button>
+          </div>
+        ) : null}
         {foldable.length > 1 ? (
           <button
             type="button"

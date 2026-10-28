@@ -23,6 +23,8 @@ import { createIntentSlot } from "@/lib/createStore";
 export interface ManualEntrySeed {
   title?: string;
   body?: string;
+  /** 종류 씨앗 — 실패한 명령 블록의 「에러 일지 초안」이 `error` 를 보낸다. */
+  type?: "bug" | "feature" | "error" | "refactor" | "chore";
 }
 
 const slot = createIntentSlot<ManualEntrySeed>("oculpm:request-manual-entry");

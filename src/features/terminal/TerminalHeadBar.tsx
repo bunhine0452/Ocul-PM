@@ -127,6 +127,7 @@ export function TerminalHeadBar({
   if (screenTitle !== undefined) {
     return (
       <Toolbar
+        beta
         leading={railToggle}
         title={
           <span className="term-head-title" {...drag}>

@@ -1,7 +1,7 @@
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
 import { SkeletonList } from "@/components/ui/Skeleton";
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
 import { FileCode2, ExternalLinkIcon, GitBranchIcon, CheckMark, Loader, ShieldCheck } from "@/components/Icons";
 import { fileOpenApi } from "@/api/fileOpen";
@@ -13,6 +13,7 @@ import { requestAgentContext } from "@/lib/agentContextNav";
 import { ruleGlobsFromPaths } from "@/lib/promoteSeed";
 import { DiffFileList } from "./DiffFileList";
 import { DiffBody } from "./DiffBody";
+import { DiffEntryFooter } from "./DiffEntryFooter";
 import type { DiffBaseline } from "./changeList";
 import { useDiffChanges } from "./useDiffChanges";
 import { useDiffFile } from "./useDiffFile";
@@ -97,6 +98,13 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
     [projectRoot, settings.externalEditorCommand, t],
   );
 
+  // 묶음 기준 — 일지별(기본) / 파일별. 화면 지역 상태다: 어제 고른 평면 보기가 오늘 일지
+  // 묶음을 가리면 안 된다 (시안 Diff). 파일별은 그룹을 끊은 평면 목록이다.
+  const [byEntry, setByEntry] = useState(true);
+  const selectedGroup = useMemo(
+    () => (selected && list.groups ? list.groups.find((g) => g.files.includes(selected)) ?? null : null),
+    [selected, list.groups],
+  );
   const reviewed = selected ? diffReadPaths.includes(selected) : false;
   const allReviewed =
     changes.length > 0 && changes.every((c) => diffReadPaths.includes(c.path));
@@ -237,7 +245,9 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
               접힘 · 필터 · 경로 접기는 DiffFileList 가 소유한다. */}
           <DiffFileList
             changes={changes}
-            groups={list.groups}
+            groups={byEntry ? list.groups : null}
+            byEntry={byEntry}
+            onByEntry={list.groups ? setByEntry : undefined}
             selected={selected}
             reviewedPaths={diffReadPaths}
             impact={list.impact}
@@ -337,6 +347,14 @@ export function DiffScreenV2({ projectId, projectRoot, branch, onOpenEntry }: Di
                 <EmptyState>{t("diff.pickFile")}</EmptyState>
               )}
             </div>
+            {/* 이 파일을 적은 일지의 검증 — 일지가 말한 것과 바뀐 것을 한 화면에 (시안 Diff). */}
+            {selectedGroup?.entry_path ? (
+              <DiffEntryFooter
+                projectId={projectId}
+                group={selectedGroup}
+                onToggleVerified={(path, next) => void list.toggleVerified(path, next)}
+              />
+            ) : null}
           </div>
         </div>
       )}

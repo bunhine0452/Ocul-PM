@@ -198,6 +198,12 @@ export const commands = {
 	 *  from→to, linked journal).
 	 */
 	planItemHistory: (projectId: number, planId: string, itemId: string) => typedError<PlanItemUpdateDto[], string>(__TAURI_INVOKE("plan_item_history", { projectId, planId, itemId })),
+	/**
+	 *  플랜 하나의 변경 로그 전체 — 플래너 「변경 로그 N행」 접힘 (UI 밀도 라운드 3).
+	 *  항목 하나의 `plan_item_history` 와 같은 투영을 거친다 (`plan_get` 이 먼저 돌아
+	 *  캐시를 채워 둔다).
+	 */
+	planLog: (projectId: number, planId: string) => typedError<PlanItemUpdateDto[], string>(__TAURI_INVOKE("plan_log", { projectId, planId })),
 	/**  Create a new empty plan (`.oculpm/planner/<slug>.md`) and return its summary. */
 	planCreate: (projectId: number, title: string) => typedError<PlanSummary, string>(__TAURI_INVOKE("plan_create", { projectId, title })),
 	/**

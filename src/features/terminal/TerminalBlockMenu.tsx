@@ -10,6 +10,7 @@ import { commandsToCodeBlock, firstSlug } from "@/lib/promoteSeed";
 import { useT } from "@/i18n";
 import { blocked } from "@/lib/blocked";
 import { blockBody, blockTitle, verificationLine } from "./commandBlocks";
+import { evidenceInbox } from "@/features/oculpm/evidenceInbox";
 import type { BlockActivation } from "./TerminalInstanceImpl";
 
 // 명령 블록 액션 팝오버 (2026-08-28 Phase 3).
@@ -78,8 +79,17 @@ export function TerminalBlockMenu({
     onClose();
   };
 
-  const toJournal = () => {
+  const failed = block.exitCode != null && block.exitCode !== 0;
+  /** 결과 끝 줄 → 검증 칸 받은함 + 클립보드. 다음 수동 일지에 미리 들어간다. */
+  const toVerification = () => {
+    const line = verificationLine(block.command, output, block.exitCode);
+    if (projectId != null) evidenceInbox.push(projectId, line);
+    copy(line, t("term.block.copiedVerification"));
+  };
+
+  const toJournal = (type?: "error") => {
     requestManualEntry({
+      type,
       title: blockTitle(block.command),
       body: blockBody(block, output, {
         command: t("term.block.seedCommand"),
@@ -193,11 +203,18 @@ export function TerminalBlockMenu({
           <div className="tbm-sep" role="separator" />
           {/* 결과 끝 줄 → 검증 칸. 명령 이름은 증거가 아니고, 명령과 그 결과 끝 줄이
               증거다 (best-results 라운드). 복사해 다음 일지의 검증 칸에 붙인다. */}
-          <button type="button" className="tbm-item accent" role="menuitem" onClick={() => copy(verificationLine(block.command, output, block.exitCode), t("term.block.copiedVerification"))}>
+          <button type="button" className="tbm-item accent" role="menuitem" onClick={toVerification}>
             <Clipboard size={13} aria-hidden="true" />
             {t("term.block.toVerification")}
           </button>
-          <button type="button" className="tbm-item accent" role="menuitem" onClick={toJournal}>
+          {/* 실패도 기록이다 — 실패한 블록은 에러 일지 초안을 먼저 내민다 (시안 Terminal). */}
+          {failed ? (
+            <button type="button" className="tbm-item accent" role="menuitem" onClick={() => toJournal("error")}>
+              <NotebookPen size={13} aria-hidden="true" />
+              {t("term.block.errorDraft")}
+            </button>
+          ) : null}
+          <button type="button" className="tbm-item accent" role="menuitem" onClick={() => toJournal()}>
             <NotebookPen size={13} aria-hidden="true" />
             {t("term.block.toJournal")}
           </button>

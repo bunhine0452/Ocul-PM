@@ -1,5 +1,11 @@
 import { useRef } from "react";
-import { PanelBottom, PanelLeftDock, PanelRight, SquareArrowOutUpRight, X } from "@/components/Icons";
+import { ChevronDown, PanelBottom, PanelLeftDock, PanelRight, SquareArrowOutUpRight, Terminal as TerminalIcon, X } from "@/components/Icons";
+import { useOptionalSettings } from "@/contexts/SettingsContext";
+import { reportRejection } from "@/lib/reportFailure";
+import { useTerminalSessions } from "@/contexts/WorkspaceContext";
+import { collectSids } from "@/lib/termPanes";
+import { panesOfTab } from "./activePane";
+import { lastResultLine, useLatestResult } from "./lastResultStore";
 import { errorDetail } from "@/api/invoke";
 import { terminalWindowApi } from "@/api/terminal";
 import { toast } from "@/lib/toast";
@@ -62,6 +68,13 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
   const { terminalDetached: detached } = useProjectRuntime();
   const pos = prefs.terminalDockPos;
   const rootRef = useRef<HTMLElement | null>(null);
+  // 접힘 한 줄 (시안 G, 상태 1) — 설정이라 창·프로젝트가 같이 본다. 세로 자리에선 뜻이 없어 무시한다.
+  // 공급자 밖(도크만 그리는 테스트)에서는 접힘 없음 — 기능이 아니라 환경이다.
+  const settingsCtx = useOptionalSettings();
+  const collapsed = (settingsCtx?.settings.terminalDockCollapsed ?? false) && pos === "bottom";
+  const setCollapsed = (next: boolean) => {
+    if (settingsCtx) reportRejection(settingsCtx.set("terminalDockCollapsed", next), "settings.saveFailed");
+  };
 
   // 세로 두 자리(왼쪽·오른쪽)는 폭을 함께 쓴다 — 좌↔우로 옮길 때 폭이
   // 유지되는 편이 자연스럽고, 자리마다 따로 기억할 값이 아니다.
@@ -116,6 +129,17 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
   const headerActions = (
     <>
       <span className="term-tool-sep" aria-hidden="true" />
+      {pos === "bottom" && settingsCtx ? (
+        <button
+          type="button"
+          className="term-tool"
+          onClick={() => setCollapsed(true)}
+          title={t("term.dock.collapseHint")}
+          aria-label={t("term.dock.collapse")}
+        >
+          <ChevronDown size={15} />
+        </button>
+      ) : null}
       <button
         type="button"
         className="term-tool"
@@ -146,6 +170,16 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
     </>
   );
 
+  if (collapsed) {
+    // 상태 1 — 마지막 명령의 결과만 한 줄. xterm 은 내려가고 PTY 는 산다 (스크롤백은 다시 펴면 재생).
+    // 세션 조각은 자식만 구독한다 — 펼친 도크는 탭을 고를 때 다시 그려지지 않아야 한다.
+    return (
+      <aside className="term-dock pos-bottom is-collapsed" ref={rootRef} aria-label={t("term.dock.region")}>
+        <DockCollapsedLine onExpand={() => setCollapsed(false)} onClose={close} />
+      </aside>
+    );
+  }
+
   return (
     <aside
       className={"term-dock pos-" + pos}
@@ -171,5 +205,30 @@ export function TerminalDock({ projectId, projectRoot }: TerminalDockProps) {
         />
       )}
     </aside>
+  );
+}
+
+/** 접힌 도크의 한 줄 — 활성 탭 이름 · 상태 점 · 마지막 결과 끝 줄 · 탭 수 · 펼치기 · 닫기 (시안 G 상태 1). */
+function DockCollapsedLine({ onExpand, onClose }: { onExpand: () => void; onClose: () => void }) {
+  const { t } = useT();
+  const { terminalTabs, terminalActiveId } = useTerminalSessions();
+  const activeTab = terminalTabs.find((tab) => tab.id === terminalActiveId) ?? null;
+  const latest = useLatestResult(activeTab ? collectSids(panesOfTab(activeTab)) : []);
+  const failed = latest ? latest.exitCode != null && latest.exitCode !== 0 : false;
+  return (
+    <div className="term-dock-line">
+      <TerminalIcon size={13} aria-hidden="true" />
+      <b>{activeTab?.label ?? "—"}</b>
+      <span className="tdl-dot" data-tone={latest ? (failed ? "fail" : "ok") : "idle"} aria-hidden="true" />
+      <span className="tdl-last mono">{latest ? lastResultLine(latest) : t("term.dock.noResultYet")}</span>
+      <span className="tdl-fill" />
+      <span className="tdl-meta">{t("term.dock.tabs", { n: terminalTabs.length })}</span>
+      <button type="button" className="term-tool" onClick={onExpand} title={t("term.dock.expandHint")} aria-label={t("term.dock.expand")}>
+        <ChevronDown size={15} style={{ transform: "rotate(180deg)" }} />
+      </button>
+      <button type="button" className="term-tool" onClick={onClose} title={t("term.dock.closeHint")} aria-label={t("term.dock.close")}>
+        <X size={15} />
+      </button>
+    </div>
   );
 }

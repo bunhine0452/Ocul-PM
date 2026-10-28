@@ -23,6 +23,7 @@ import type { EditorMode } from "./DiscussionEditor";
 import { DiscussionView } from "./DiscussionView";
 import { shortDate, statusMeta } from "./discussionFormat";
 import { appendLogRowOp, localIsoWithOffset } from "./mdEdit";
+import { buildDecisionBody } from "./discussionDecide";
 import { buildDiscussionPrompt, promptKindFor } from "./discussionPrompt";
 import { useDiscussionSave } from "./useDiscussionSave";
 import { logColumns, sectionHeadings, TEMPLATE_IDS, templateBody, type TemplateId } from "./discussionTemplates";
@@ -323,6 +324,32 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
     return true;
   };
 
+  /**
+   * 「X 로 결정」 — 결론 절에 한 줄, 토의 로그에 한 줄, 그리고 잠근다 (시안 Discussion).
+   * 세 쓰기는 읽은 원문 위에서 차례로 — 사이에 남이 끼어들면 해시가 거절한다.
+   */
+  const decide = async (option: { letter: string; title: string }, reason: string) => {
+    if (!selectedId) return false;
+    const raw = await commands.discussionReadRaw(projectId, selectedId);
+    if (raw.status !== "ok") {
+      toast.destructive(t("disc.editorFailed", { error: raw.error }));
+      return false;
+    }
+    const line = t("disc.decide.line", { letter: option.letter, title: option.title, reason });
+    const next = buildDecisionBody(raw.data.body, SELF_AUTHOR, line);
+    const res = await commands.discussionWrite(projectId, selectedId, next, raw.data.hash);
+    if (res.status !== "ok") {
+      toast.destructive(t("disc.saveFailed", { error: res.error }));
+      return false;
+    }
+    const locked = await commands.discussionSetStatus(projectId, selectedId, "resolved");
+    if (locked.status === "ok") setDetail(locked.data);
+    else setDetail(res.data);
+    void loadList();
+    toast.info(t("disc.decide.done", { letter: option.letter }));
+    return true;
+  };
+
   const changeStatus = async (status: string) => {
     if (!selectedId) return;
     setBusy(true);
@@ -476,7 +503,15 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
               </EmptyState>
             ) : (
               <>
-                {active.map(renderItem)}
+                {/* 열림 → 결정됨 → 보관 — 결정 하나에 문서 하나라, 묶음 머리가 곧 상태다 (시안 Discussion). */}
+                <div className="disc-archive-head">{t("disc.groupOpen", { n: openCount })}</div>
+                {active.filter((d) => d.status === "open").map(renderItem)}
+                {active.some((d) => d.status !== "open") ? (
+                  <>
+                    <div className="disc-archive-head">{t("disc.groupDecided", { n: active.length - openCount })}</div>
+                    {active.filter((d) => d.status !== "open").map(renderItem)}
+                  </>
+                ) : null}
                 {archived.length > 0 ? (
                   <>
                     <div className="disc-archive-head">{t("disc.archiveHead", { n: archived.length })}</div>
@@ -651,6 +686,7 @@ export function DiscussionScreenV2({ projectId, onNavigate }: Props) {
                   locked={locked}
                   onDetach={detach}
                   onAddNote={addNote}
+                  onDecide={decide}
                 />
               </div>
             )}

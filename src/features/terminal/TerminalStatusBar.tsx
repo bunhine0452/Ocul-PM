@@ -21,6 +21,9 @@ interface TerminalStatusBarProps {
   density: TermDensity;
   watchTone: "on" | "error" | "off";
   watchLabel: string;
+  /** 활성 탭의 명령 블록 수 · 실패 수 — 셸 통합이 있을 때만 0 이 아니다 (시안 Terminal). */
+  commands?: number;
+  failed?: number;
 }
 
 export function TerminalStatusBar({
@@ -31,6 +34,8 @@ export function TerminalStatusBar({
   density,
   watchTone,
   watchLabel,
+  commands = 0,
+  failed = 0,
 }: TerminalStatusBarProps) {
   const { t } = useT();
   const shellLabel =
@@ -56,6 +61,12 @@ export function TerminalStatusBar({
         <span className="ts-dot" data-tone={watchTone === "on" ? "on" : watchTone === "error" ? "err" : "off"} />
         {watchLabel}
       </span>
+      {commands > 0 ? (
+        <span className="ts-seg ts-view" title={t("term.status.blocksHint")}>
+          {t("term.status.blocks", { n: commands })}
+          {failed > 0 ? ` · ${t("term.status.failed", { n: failed })}` : ""}
+        </span>
+      ) : null}
       <span className="ts-fill" />
       {compact ? null : (
         <span className="ts-seg ts-view">

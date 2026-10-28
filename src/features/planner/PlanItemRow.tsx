@@ -30,6 +30,9 @@ import {
 import { StatusMark } from "./StatusMark";
 import { StatusMenu, useCloseOnOutside } from "./StatusMenu";
 
+// i18n-ignore-next-line -- 플랜 항목 문구의 「[사용자]」 표식을 찾는 정규식 (표시 문자열 아님)
+const USER_MARK = /^\s*\[(사용자|user)\]\s*/i;
+
 
 export interface PlanItemRowProps {
   item: PlanItemDto;
@@ -98,6 +101,7 @@ export function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispa
   const suggestDone =
     !locked && !isParent && linked.length > 0 && !["done", "dropped", "deferred"].includes(item.status);
   const dispatchable = !locked && !["done", "dropped"].includes(item.status);
+  const userOwned = USER_MARK.test(item.title);
 
   const rowClass =
     "pln-it is-" + item.status + (item.parent_item ? " is-child" : "") + (isParent ? " is-parent" : "");
@@ -159,8 +163,12 @@ export function PlanItemRow({ item, busy, locked, isParent, onSetStatus, onDispa
           />
         ) : (
           // 제목은 `.oculpm/planner/*.md` 에서 온 마크다운이다 — `**강조**`
-          // 와 `` `코드` `` 를 기호째 노출하지 않고 렌더한다.
-          <InlineMarkdown className={"sub-title" + (item.status === "done" ? " done" : "")} text={item.title} />
+          // 와 `` `코드` `` 를 기호째 노출하지 않고 렌더한다. 「[사용자]」 표식은 알약으로 —
+          // 에이전트가 닫을 수 없는 항목이 글자 색만으로 구분되지 않았다 (시안 Planner).
+          <>
+            {userOwned ? <span className="pln-user-pill">{t("plan.userOwned")}</span> : null}
+            <InlineMarkdown className={"sub-title" + (item.status === "done" ? " done" : "")} text={userOwned ? item.title.replace(USER_MARK, "").trim() : item.title} />
+          </>
         )}
         {suggestDone && !editing ? (
           <button

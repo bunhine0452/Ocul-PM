@@ -120,6 +120,13 @@ export function ResumeCard({
               <ListTodo size={13} />
               <b>{t("today.resume.nextItems")}</b>
             </div>
+            {/* 항목 너머의 목표 — 첫 항목이 속한 플랜의 완료 조건 (시안 ③). 없으면 없다. */}
+            {digest.next_items[0]?.plan_done_when ? (
+              <div className="resume-goal">
+                <span className="hl-lead-goal-tag">{t("plan.doneWhen")}</span>
+                <span>{digest.next_items[0].plan_done_when}</span>
+              </div>
+            ) : null}
             {digest.next_items.slice(0, SHOWN_ITEMS).map((it) => (
               <button
                 type="button"

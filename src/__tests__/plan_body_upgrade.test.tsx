@@ -55,6 +55,7 @@ function setup(over: { hideDone?: boolean; locked?: boolean; view?: "doc" | "boa
   ];
   const utils = render(
     <PlanBody
+      projectId={1}
       detail={detail}
       counts={countByStatus(leafItems(items))}
       phases={phases}
