@@ -52,4 +52,5 @@ owner: claude-code
 | 2026-10-28T23:25:36+09:00 | #template-v19 | claude-code | ☐→x | .oculpm/journal/20261028/Refactors/2325_refactor_template-v19-journal-spec-split.md | v19 · journal-spec.md ko/en 앱 관리 파일 · ko 4,028/en 6,038 (예산 4,100/6,100 — 3,500 목표는 다음 다이어트로) |
 | 2026-10-28T23:25:45+09:00 | #plans-4 | claude-code | ☐→x | .oculpm/journal/20261028/Chores/2325_chore_plans-18-to-4-hook-top3.md | 활성 4 (simplify · polish 받은함 · tech-backlog · cross-platform) · 14개 닫음 · 옮김 46 폐기 38 완료 2 · locked_open 20/63 변동 없음 |
 | 2026-10-28T23:26:09+09:00 | #hook-top3 | claude-code | ☐→x | .oculpm/journal/20261028/Chores/2325_chore_plans-18-to-4-hook-top3.md | updated 내림차순 상위 3 + 「N개 중 3개만」 줄, plugin_hook_no_plan 5/5 |
+| 2026-10-29T00:34:17+09:00 | #rm-surfaces | claude-code | x→x |  |  |
 <!-- oculpm:plan-log end -->
