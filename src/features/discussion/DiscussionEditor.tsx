@@ -1,6 +1,6 @@
 import { useConfirm } from "@/hooks/useConfirm";
 /**
- * 문제 해결 문서 편집기 — 리치(노션식) 편집 + Monaco 원문.
+ * 문제 해결 문서 편집기 — 리치(노션식) 편집 + 원문(textarea).
  *
  * 2026-10-25: 리치 편집이 기본이다. 예전 판은 "리치 에디터는 왕복마다 서식을 잃거나
  * 재배열해 남의 편집을 조용히 지운다" 며 WYSIWYG 을 거절했다 — 이 문서의 SSOT 는
@@ -8,7 +8,7 @@ import { useConfirm } from "@/hooks/useConfirm";
  * (`features/code/richMarkdown/codec.ts`): 고치지 않은 블록은 원문 그대로 나가고,
  * 토의 로그 같은 관리 블록은 고칠 수 없는 원문 블록이다. 저장소의 .md 전부가 열고
  * 닫아도 바이트 단위로 같다는 것을 테스트가 지킨다. 「나란히」·「미리보기」 모드는
- * 리치 모드가 대신해 걷어냈다; 원문(Monaco)은 규격을 손으로 만질 때를 위해 남긴다.
+ * 리치 모드가 대신해 걷어냈다; 원문(textarea)은 규격을 손으로 만질 때를 위해 남긴다.
  *
  * 규격(안정 id·managed block·인식되는 섹션 제목)은 여전히 **삽입 메뉴와 경고**가
  * 맡는다 — 손으로 `{#opt-c}` 를 세지 않아도 되게. 토의 메모는 관리 블록 안이라
@@ -19,22 +19,13 @@ import { useConfirm } from "@/hooks/useConfirm";
  *
  * 화면 (2026-10-08 개편): 한 줄 툴바(서식 · 삽입 · 보기 · 저장) → 개요 · 원고 ·
  * 미리보기 → 상태줄(현재 섹션 · 분량 · 경로 · 단축키). 원고는 본문 글꼴로, 판
- * 가운데의 한 칼럼에 쓴다(`proseEditor.ts`). 자동 제안은 전부 꺼져 있다.
+ * 가운데의 한 칼럼에 쓴다 — 원문 모드는 평범한 textarea 다 (코드 편집기·Monaco 는 2026-10-28 에
+ * 걷었다, simplify-round). 자동 제안은 없다.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type * as MonacoNs from "monaco-editor/editor/editor.api";
-import monaco from "@/features/code/monaco/setup";
-import {
-  defineCodeTheme,
-  isDarkTheme,
-  readCodeTokens,
-  THEME_NAME,
-  watchThemeChanges,
-} from "@/features/code/monaco/theme";
-
 import type { Editor } from "@tiptap/core";
-import { RichMarkdownEditor } from "@/features/code/richMarkdown/RichMarkdownEditor";
+import { RichMarkdownEditor } from "@/features/discussion/richMarkdown/RichMarkdownEditor";
 import {
   AlertTriangle,
   Bold,
@@ -66,7 +57,6 @@ import {
 import { logColumns, placeholders, sectionHeadings } from "./discussionTemplates";
 import { DiscussionOutline } from "./DiscussionOutline";
 import { outlineIndexAt, parseOutline, textStats, type OutlineItem } from "./outline";
-import { keepProseCentered, PROSE_OPTIONS } from "./proseEditor";
 import "./discussion-editor.css";
 
 /** 경고·분량 재계산 지연 — 타이핑 중 문서 판독이 키 입력을 붙잡지 않게. */
@@ -93,6 +83,13 @@ interface Props {
   author: string;
 }
 
+/** textarea 를 오프셋이 보이는 자리까지 굴린다 — 줄 높이로 어림잡는다(산문은 줄바꿈이 많아 정확할 수 없다). */
+function scrollTextareaToOffset(ta: HTMLTextAreaElement, offset: number): void {
+  const line = ta.value.slice(0, offset).split("\n").length;
+  const lineHeight = Number.parseFloat(getComputedStyle(ta).lineHeight) || 27;
+  ta.scrollTop = Math.max(0, (line - 3) * lineHeight);
+}
+
 /** 리치 판 안의 제목들 — 개요(`parseOutline`)와 같은 순서다. */
 const RICH_HEADINGS = ".rich-md-doc h2, .rich-md-doc h3";
 
@@ -110,9 +107,9 @@ export function DiscussionEditor({
 }: Props) {
   const { t } = useT();
   const { confirm, confirmDialog } = useConfirm();
-  const hostRef = useRef<HTMLDivElement>(null);
   const richHostRef = useRef<HTMLDivElement>(null);
-  const viewRef = useRef<MonacoNs.editor.IStandaloneCodeEditor | null>(null);
+  /** 원문 모드의 textarea — 리치 모드 동안에는 숨어서 산다. */
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
   const richRef = useRef<Editor | null>(null);
   // 삽입 메뉴가 글을 바꾸면 리치 판을 그 글로 다시 연다 (원문 지도도 새로).
   const [richKey, setRichKey] = useState(0);
@@ -145,40 +142,34 @@ export function DiscussionEditor({
   const current = mode === "rich" ? richIndex : outlineIndexAt(items, cursorLine);
   const stats = useMemo(() => textStats(preview), [preview]);
 
-  /**
-   * 순수 모듈이 계산한 교체를 **한 번의 편집**으로 반영하고 포커스를 돌려준다.
-   *
-   * `mdEdit` 의 `EditOp` 는 문서 시작부터의 **오프셋**으로 말한다 (CodeMirror
-   * 시절의 단위). Monaco 는 (줄, 열)이라 여기서만 환산한다 —
-   * `getPositionAt`/`getOffsetAt` 이 그 다리고, 둘 다 UTF-16 코드 유닛이라
-   * 인코딩 변환은 없다. 순수 모듈은 편집기를 여전히 모른다.
-   *
-   * `pushEditOperations` 로 한 번에 넣는 이유는 **실행 취소 한 칸**이다 —
-   * `executeEdits` 를 여러 번 부르면 되돌리기가 조각조각 난다.
-   */
-  const apply = useCallback((make: (doc: string, from: number, to: number) => EditOp) => {
-    const editor = viewRef.current;
-    const model = editor?.getModel();
-    if (!editor || !model) return;
-    const sel = editor.getSelection();
-    const from = sel ? model.getOffsetAt(sel.getStartPosition()) : 0;
-    const to = sel ? model.getOffsetAt(sel.getEndPosition()) : 0;
-    const op = make(model.getValue(), from, to);
-    const range = monaco.Range.fromPositions(
-      model.getPositionAt(op.from),
-      model.getPositionAt(op.to),
-    );
-    editor.executeEdits("oculpm.mdEdit", [{ range, text: op.insert, forceMoveMarkers: true }]);
-    // 선택 오프셋은 **교체가 반영된 뒤**의 문서 기준이라 여기서 환산한다.
-    editor.setSelection(
-      monaco.Range.fromPositions(
-        model.getPositionAt(op.selFrom),
-        model.getPositionAt(op.selTo),
-      ),
-    );
-    editor.revealRangeInCenterIfOutsideViewport(editor.getSelection()!);
-    editor.focus();
+  /** 글을 한 자리에서 바꾼다 — textarea 값·상태·부모 콜백이 함께 움직인다. */
+  const commitText = useCallback((next: string) => {
+    textRef.current = next;
+    setText(next);
+    onTextChangeRef.current?.(next);
   }, []);
+
+  /**
+   * 순수 모듈이 계산한 교체를 원문 textarea 에 반영하고 포커스를 돌려준다.
+   *
+   * `mdEdit` 의 `EditOp` 는 문서 시작부터의 **오프셋**으로 말하고 textarea 의 선택도
+   * 오프셋이라 환산이 없다. 순수 모듈은 편집기를 여전히 모른다.
+   */
+  const apply = useCallback(
+    (make: (doc: string, from: number, to: number) => EditOp) => {
+      const ta = taRef.current;
+      if (!ta) return;
+      const doc = ta.value;
+      const op = make(doc, ta.selectionStart, ta.selectionEnd);
+      const next = doc.slice(0, op.from) + op.insert + doc.slice(op.to);
+      ta.value = next;
+      commitText(next);
+      ta.setSelectionRange(op.selFrom, op.selTo);
+      ta.focus();
+      setCursorLine(next.slice(0, op.selFrom).split("\n").length);
+    },
+    [commitText],
+  );
 
   // 키맵은 마운트 시점에 굳는다 — 서식 단축키가 최신 `apply` 를 보도록 ref 경유.
   const applyRef = useRef<(kind: "**" | "_" | "link") => void>(() => {});
@@ -190,76 +181,32 @@ export function DiscussionEditor({
     apply((doc, from, to) => wrapOp(doc, from, to, kind));
   };
 
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
+  /** 원문 textarea 의 단축키 — ⌘S 저장 · ⌘B 굵게 · ⌘I 기울임 · ⌘K 링크. */
+  const onWriteKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!(e.metaKey || e.ctrlKey)) return;
+    const key = e.key.toLowerCase();
+    if (key === "s") {
+      e.preventDefault();
+      // 화면 레벨 ⌘S 까지 버블돼 저장이 두 번 나가지 않게 여기서 멈춘다.
+      e.stopPropagation();
+      onSaveRef.current(taRef.current?.value ?? textRef.current);
+    } else if (key === "b") {
+      e.preventDefault();
+      applyRef.current("**");
+    } else if (key === "i") {
+      e.preventDefault();
+      applyRef.current("_");
+    } else if (key === "k") {
+      e.preventDefault();
+      applyRef.current("link");
+    }
+  };
 
-    // 테마는 편집기를 만들기 **전에** 정의해야 첫 프레임부터 제 색으로 그린다.
-    defineCodeTheme(monaco, readCodeTokens(host), isDarkTheme());
-    const editor = monaco.editor.create(host, {
-      ...PROSE_OPTIONS,
-      value: initialText,
-      placeholder: t("disc.editor.placeholder"),
-    });
-    viewRef.current = editor;
-    if (mode === "write") editor.focus();
-
-    const subs: MonacoNs.IDisposable[] = [
-      keepProseCentered(editor, monaco),
-      editor.onDidChangeModelContent(() => {
-        const value = editor.getValue();
-        setText(value);
-        onTextChangeRef.current?.(value);
-      }),
-      editor.onDidChangeCursorPosition((e) => setCursorLine(e.position.lineNumber)),
-      // ⌘S — Monaco 액션은 기본 동작을 삼키므로 화면 레벨 ⌘S 까지 버블돼
-      // 저장이 두 번 나가지 않는다 (CodeMirror 의 `stopPropagation` 자리).
-      editor.addAction({
-        id: "oculpm.disc.save",
-        label: t("common.save"),
-        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
-        run: () => onSaveRef.current(editor.getValue()),
-      }),
-      // 서식 단축키 — 배선은 마운트 1회라 최신 `apply` 를 ref 로 읽는다.
-      editor.addAction({
-        id: "oculpm.disc.bold",
-        label: t("disc.editor.bold"),
-        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB],
-        run: () => applyRef.current("**"),
-      }),
-      editor.addAction({
-        id: "oculpm.disc.italic",
-        label: t("disc.editor.italic"),
-        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI],
-        run: () => applyRef.current("_"),
-      }),
-      // ⌘K 는 Monaco 에서 화음(⌘K ⌘C …)의 앞 글자지만, 동적 키바인딩이
-      // 기여 액션보다 무거워 여기서는 한 타로 링크 삽입이 된다.
-      editor.addAction({
-        id: "oculpm.disc.link",
-        label: t("disc.editor.link"),
-        keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK],
-        run: () => applyRef.current("link"),
-      }),
-    ];
-
-    const stopThemeWatch = watchThemeChanges(() => {
-      defineCodeTheme(monaco, readCodeTokens(host), isDarkTheme());
-      monaco.editor.setTheme(THEME_NAME);
-    });
-
-    return () => {
-      stopThemeWatch();
-      for (const sub of subs) sub.dispose();
-      // 모델은 **편집기가 소유한다** — `value` 로 만들게 했으므로 Monaco 가
-      // `_ownsModel` 로 표시해 두고 `dispose()` 때 함께 푼다. 여기서 먼저
-      // 지우면 붙어 있는 모델을 떼면서 두 번 죽이는 셈이다.
-      editor.dispose();
-      viewRef.current = null;
-    };
-    // 마운트 1회 — 문서 교체는 부모의 `key` 가 담당한다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  /** 커서가 선 줄 — 개요의 「현재 섹션」이 이것을 읽는다. */
+  const trackCursor = () => {
+    const ta = taRef.current;
+    if (ta) setCursorLine(ta.value.slice(0, ta.selectionStart).split("\n").length);
+  };
 
   // 프리뷰는 한 박자 늦게 — 타이핑 중 마크다운 파싱이 입력을 붙잡지 않게.
   useEffect(() => {
@@ -310,21 +257,20 @@ export function DiscussionEditor({
     return () => pane.removeEventListener("scroll", onScroll);
   }, [mode, richKey]);
 
-  // 원문 모드로 들어올 때 — Monaco 는 리치에서 고친 글을 모른다. 맞추고, 고를 자리가
+  // 원문 모드로 들어올 때 — textarea 는 리치에서 고친 글을 모른다. 맞추고, 고를 자리가
   // 있으면(토의 메모) 거기로 간다.
   useEffect(() => {
-    const editor = viewRef.current;
-    const model = editor?.getModel();
-    if (mode !== "write" || !editor || !model) return;
-    if (model.getValue() !== textRef.current) editor.setValue(textRef.current);
+    const ta = taRef.current;
+    if (mode !== "write" || !ta) return;
+    if (ta.value !== textRef.current) ta.value = textRef.current;
     const sel = pendingSelRef.current;
     pendingSelRef.current = null;
     if (sel) {
-      const range = monaco.Range.fromPositions(model.getPositionAt(sel.from), model.getPositionAt(sel.to));
-      editor.setSelection(range);
-      editor.revealRangeInCenterIfOutsideViewport(range);
+      ta.setSelectionRange(sel.from, sel.to);
+      scrollTextareaToOffset(ta, sel.from);
     }
-    editor.focus();
+    ta.focus();
+    trackCursor();
   }, [mode]);
 
   /**
@@ -335,9 +281,7 @@ export function DiscussionEditor({
     const doc = textRef.current;
     const op = make(doc, doc.length, doc.length);
     const next = doc.slice(0, op.from) + op.insert + doc.slice(op.to);
-    textRef.current = next;
-    setText(next);
-    onTextChangeRef.current?.(next);
+    commitText(next);
     return op;
   };
 
@@ -351,14 +295,16 @@ export function DiscussionEditor({
       richHostRef.current?.querySelectorAll<HTMLElement>(RICH_HEADINGS)[index]?.scrollIntoView({ block: "start" });
       return;
     }
-    const editor = viewRef.current;
-    if (!editor) return;
-    editor.revealLineNearTop(item.line);
-    editor.setPosition({ lineNumber: item.line, column: 1 });
-    editor.focus();
+    const ta = taRef.current;
+    if (!ta) return;
+    const offset = ta.value.split("\n").slice(0, item.line - 1).join("\n").length + (item.line > 1 ? 1 : 0);
+    ta.setSelectionRange(offset, offset);
+    scrollTextareaToOffset(ta, offset);
+    ta.focus();
+    setCursorLine(item.line);
   };
 
-  /** 섹션 기준 삽입 — 원문이면 Monaco 에, 리치면 글에 바로 넣고 판을 다시 연다. */
+  /** 섹션 기준 삽입 — 원문이면 textarea 에, 리치면 글에 바로 넣고 판을 다시 연다. */
   const insertBySection = (make: (doc: string, from: number, to: number) => EditOp) => {
     if (mode === "write") return apply(make);
     applyToText(make);
@@ -474,7 +420,7 @@ export function DiscussionEditor({
     { key: "write", label: t("disc.editor.modeWrite"), icon: <Code2 size={13} /> },
   ];
 
-  /** 리치 판의 저장·링크 단축키 — 원문은 Monaco 액션이 잡는다. */
+  /** 리치 판의 저장·링크 단축키 — 원문은 textarea 의 onKeyDown 이 잡는다. */
   const onRichKeyDown = (e: React.KeyboardEvent) => {
     if (mode !== "rich" || !(e.metaKey || e.ctrlKey)) return;
     const key = e.key.toLowerCase();
@@ -586,7 +532,7 @@ export function DiscussionEditor({
             className={`btn sm${dirty ? " primary" : ""}`}
             {...blocked(dirty ? null : t("disc.blockedNoChanges"))}
             disabled={busy}
-            onClick={() => onSave(mode === "write" ? (viewRef.current?.getValue() ?? text) : text)}
+            onClick={() => onSave(mode === "write" ? (taRef.current?.value ?? text) : text)}
           >
             <Save size={15} /> {t("common.save")}
           </button>
@@ -602,8 +548,24 @@ export function DiscussionEditor({
 
       <div className={`disc-edit-body ${mode}`} onKeyDown={onRichKeyDown}>
         <DiscussionOutline items={items} current={current} onJump={jumpTo} />
-        {/* Monaco 는 리치 모드 동안 숨어서 산다 — 원문으로 돌아오면 리치에서 고친 글로 맞춘다. */}
-        <div className="disc-edit-cm" ref={hostRef} />
+        {/* 원문 textarea 는 리치 모드 동안 숨어서 산다 — 원문으로 돌아오면 리치에서 고친 글로 맞춘다. */}
+        <textarea
+          ref={taRef}
+          className="disc-edit-cm"
+          defaultValue={initialText}
+          placeholder={t("disc.editor.placeholder")}
+          spellCheck={false}
+          aria-label={t("disc.editor.modeWrite")}
+          onChange={(e) => {
+            commitText(e.target.value);
+            trackCursor();
+          }}
+          onKeyDown={onWriteKeyDown}
+          onKeyUp={trackCursor}
+          onClick={trackCursor}
+          onSelect={trackCursor}
+          autoFocus={mode === "write"}
+        />
         {mode === "rich" ? (
           <div className="disc-edit-rich" ref={richHostRef}>
             <RichMarkdownEditor

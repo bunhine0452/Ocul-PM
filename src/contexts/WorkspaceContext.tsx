@@ -71,41 +71,6 @@ export type DiffMode = "unified" | "split";
 export type SearchScope = "semantic" | "symbol" | "text" | "journal";
 /** 문제 해결 편집기의 보기 모드 — 원문만 / 나란히 / 미리보기만. */
 export type DiscussionEditorMode = "write" | "rich"; // 옛 split·preview 는 DiscussionScreenV2 가 리치로 읽는다
-export interface TerminalTab {
-  id: string;
-  label: string;
-  shell: string;
-  cwd: string;
-  /** 분할 페인 레이아웃 (2026-07-20 터미널 개편). 없으면 leaf(id) 단일 페인. */
-  panes?: TerminalPaneNode;
-  /** 포커스된 페인 sid (분할 시). 없거나 무효면 첫 leaf. */
-  focusSid?: string;
-  /**
-   * 사용자가 고른 **정체 색** (2026-09-04). 없으면 색을 안 입힌다.
-   *
-   * 색 이름만 저장한다 — 실제 색은 `--term-*` 토큰이 정하므로 테마를 바꿔도
-   * 고른 의미가 유지된다 (→ `@/lib/sessionColors`).
-   */
-  color?: SessionColor;
-}
-/** 세션 정체 색 — 실제 정의는 `@/lib/sessionColors` (여기선 영속 타입만 재수출). */
-export type SessionColor = import("@/lib/sessionColors").SessionColor;
-/** 터미널 분할 트리 — 실제 정의는 `@/lib/termPanes` (여기선 영속 타입만 재수출). */
-export type TerminalPaneNode = import("@/lib/termPanes").PaneNode;
-/** 터미널 도크를 붙이는 자리 (2026-08-15, 오른쪽 추가 2026-08-16). */
-export type TerminalDockPos = "bottom" | "left" | "right";
-
-/**
- * 자리 바꾸기 버튼의 다음 자리 — 아래 → 왼쪽 → 오른쪽 → 아래.
- *
- * 버튼 하나로 도는 이유는 자리가 셋뿐이고, 세그먼티드 컨트롤을 놓기엔 도크
- * 헤더가 좁기 때문이다 (탭 줄을 탭에게서 뺏는다). 아래에서 시작하는 것은
- * 터미널이 가장 자주 놓이는 자리라서다.
- */
-export function nextDockPos(pos: TerminalDockPos): TerminalDockPos {
-  return pos === "bottom" ? "left" : pos === "left" ? "right" : "bottom";
-}
-
 // Legacy tab names for migration
 type LegacyTab = "files" | "chat" | "assist" | "graph" | "planner" | "settings" | "diagnostics" | "terminal" | "git" | "overview" | "today";
 
@@ -480,9 +445,6 @@ function loadFromStorage(projectId: number): WorkspaceState {
         oculpmStatus: null,
         currentSession: null,
         workdayKey: null,
-        // 분리 창의 존재 여부는 백엔드가 알려 준다 — 지난 실행의 값을 믿고
-        // 시작하면 창이 없는데 자리표시자만 뜬 상태로 굳는다.
-        terminalDetached: false,
         // I3 — 창의 프로젝트는 URL 이 정한다. 과거 레코드에 남아 있는 값이
         // 이 창의 프로젝트를 덮어쓰지 못하게 마지막에 못박는다.
         currentProjectId: projectId,
@@ -505,47 +467,7 @@ function loadFromStorage(projectId: number): WorkspaceState {
   };
 }
 
-interface TerminalSessionFields {
-  terminalTabs: TerminalTab[];
-  terminalActiveId: string | null;
-}
-
-/** 디스크에 있는 레코드 (파싱 실패·부재는 `null`). */
-function readRecord(projectId: number): Record<string, unknown> | null {
-  const stored = lsGet(storageKeyFor(projectId));
-  if (!stored) return null;
-  try {
-    const parsed = JSON.parse(stored);
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** 영속 레코드에서 터미널 세션 필드만 떼어 온다 (없으면 `null`). */
-function readTerminalSessions(projectId: number): TerminalSessionFields | null {
-  const parsed = readRecord(projectId);
-  if (!parsed || !Array.isArray(parsed.terminalTabs)) return null;
-  return {
-    terminalTabs: parsed.terminalTabs as TerminalTab[],
-    terminalActiveId: (parsed.terminalActiveId ?? null) as string | null,
-  };
-}
-
-/**
- * 이 프로바이더가 영속 레코드의 **어디까지를 소유하는가**.
- *
- * 분리 터미널 창(2026-08-15)이 생기면서 한 프로젝트의 레코드를 창 둘이 함께
- * 쓰게 됐다. 둘 다 통째로 쓰면 나중에 저장한 쪽이 상대의 변경을 지운다 —
- * 그래서 각자 자기 몫만 쓰고 나머지는 **디스크에 있는 값을 그대로 남긴다.**
- *
- *  - `full`     : 앱 창. 단, 터미널이 나가 있으면(`terminalDetached`) 터미널
- *                 세션 필드는 건드리지 않는다.
- *  - `terminal` : 분리 터미널 창. 터미널 세션 필드만 쓴다.
- */
-export type PersistScope = "full" | "terminal";
-
-function persistToStorage(projectId: number, state: WorkspaceState, scope: PersistScope) {
+function persistToStorage(projectId: number, state: WorkspaceState) {
   // Only persist non-volatile fields
   const {
     indexingProjectId: _ip,
@@ -555,8 +477,6 @@ function persistToStorage(projectId: number, state: WorkspaceState, scope: Persi
     oculpmStatus: _os,
     currentSession: _cs,
     workdayKey: _wk,
-    // 분리 창의 존재 여부는 백엔드가 소유한다 (창이 살아 있는지가 진실).
-    terminalDetached: _td,
     // I3 — 창 URL 이 단일 진실이라 프로젝트 신원은 영속하지 않는다.
     currentProjectId: _cpi,
     currentProjectName: _cpn,
@@ -566,46 +486,27 @@ function persistToStorage(projectId: number, state: WorkspaceState, scope: Persi
     sidebarCollapsed: _sc,
     ...persistable
   } = state;
-
-  let record: Record<string, unknown> = persistable;
-  if (scope === "terminal") {
-    // 터미널 창은 셸만 안다. 화면·필터 같은 나머지는 앱 창이 계속 바꾸고
-    // 있으므로, 우리가 마운트할 때 읽은 스냅샷으로 되돌리면 안 된다.
-    const disk = readRecord(projectId);
-    record = {
-      ...(disk ?? persistable),
-      terminalTabs: state.terminalTabs,
-      terminalActiveId: state.terminalActiveId,
-    };
-  } else if (state.terminalDetached) {
-    // 반대쪽 — 지금 셸의 주인은 분리 창이다. 여기서 우리 메모리의 낡은 탭
-    // 목록을 얹으면 분리 창이 방금 만든 탭이 조용히 사라진다.
-    const held = readTerminalSessions(projectId);
-    if (held) record = { ...persistable, ...held };
-  }
-  lsSet(storageKeyFor(projectId), JSON.stringify(record));
+  // (2026-10-28) 분리 터미널 창이 걷히면서 레코드의 주인은 이 창 하나다 — 범위 나눔은 없다.
+  lsSet(storageKeyFor(projectId), JSON.stringify(persistable));
 }
 
 // ---------- 조각 (Phase 4 #workspace-split) ----------
 //
 // 상태 객체 하나에 40여 필드가 살고 `value` 가 그 전체에 매여 있어, 검색어
 // 하나가 바뀌어도 터미널·플래너·코드 화면이 전부 다시 그려졌다. 단일 진실은
-// 그대로 두되(원자적 갱신·영속 레코드 모양 불변) **읽는 쪽을 셋으로 가른다**:
-// 런타임(프로젝트 신원·oculpm 상태·색인 중·분리 창), 터미널 세션(두 창이
-// 함께 쓰는 유일한 조각), UI 취향(나머지 영속 필드). 각 조각은 자기 키가
-// 바뀔 때만 새 참조가 되므로 `useUiPrefs()` 를 쓰는 화면은 터미널 탭이 바뀌어도
-// 조용하다. `useWorkspace()` 는 합친 겉면으로 남는다.
+// 그대로 두되(원자적 갱신·영속 레코드 모양 불변) **읽는 쪽을 둘로 가른다**:
+// 런타임(프로젝트 신원·oculpm 상태·색인 중), UI 취향(나머지 영속 필드). 각 조각은
+// 자기 키가 바뀔 때만 새 참조가 된다. `useWorkspace()` 는 합친 겉면으로 남는다.
+// (터미널 세션 조각은 2026-10-28 에 터미널과 함께 걷었다.)
 
 const RUNTIME_KEYS = [
   "currentProjectId", "currentProjectName", "currentProjectRoot", "indexingProjectId",
-  "oculpmEnabled", "oculpmStatus", "currentSession", "workdayKey", "terminalDetached",
+  "oculpmEnabled", "oculpmStatus", "currentSession", "workdayKey",
   "sidebarCollapsed",
 ] as const satisfies readonly (keyof WorkspaceState)[];
-const TERMINAL_KEYS = ["terminalTabs", "terminalActiveId"] as const satisfies readonly (keyof WorkspaceState)[];
 
 export type RuntimeSlice = Pick<WorkspaceState, (typeof RUNTIME_KEYS)[number]>;
-export type TerminalSlice = Pick<WorkspaceState, (typeof TERMINAL_KEYS)[number]>;
-export type UiPrefsSlice = Omit<WorkspaceState, keyof RuntimeSlice | keyof TerminalSlice>;
+export type UiPrefsSlice = Omit<WorkspaceState, keyof RuntimeSlice>;
 
 function pickSlice<K extends keyof WorkspaceState>(
   state: WorkspaceState,
@@ -634,11 +535,10 @@ function useStableSlice<T extends object>(next: T): T {
   return ref.current;
 }
 
-const NON_PREFS_KEYS: ReadonlySet<string> = new Set<string>([...RUNTIME_KEYS, ...TERMINAL_KEYS]);
+const NON_PREFS_KEYS: ReadonlySet<string> = new Set<string>([...RUNTIME_KEYS]);
 
 export interface ProjectRuntimeValue extends RuntimeSlice {
   setProjectMeta: (name: string | null, root: string | null) => void;
-  setTerminalDetached: (detached: boolean) => void;
   setIndexing: (projectId: number | null) => void;
   setOculpmStatus: (status: OculpmStatus | null) => void;
   setCurrentSession: (session: Session | null) => void;
@@ -652,18 +552,8 @@ export interface UiPrefsValue {
   setUiV2View: (view: UiV2View) => void;
 }
 
-export interface TerminalSessionsValue extends TerminalSlice {
-  /** 세션 목록·활성 탭을 함께 바꾼다 (같은 참조를 돌려주면 조용하다). */
-  setSessions: (updater: (prev: TerminalSlice) => TerminalSlice) => void;
-  selectTab: (id: string) => void;
-  patchTab: (id: string, fn: (tab: TerminalTab) => TerminalTab) => void;
-  /** 탭을 하나 더 열고 활성화한다 — 화면도 옮길 수 있다 (Claude Code 「터미널에서」). */
-  openTab: (tab: TerminalTab, opts?: { view?: UiV2View }) => void;
-}
-
 const ProjectRuntimeContext = createContext<ProjectRuntimeValue | null>(null);
 const UiPrefsContext = createContext<UiPrefsValue | null>(null);
-const TerminalSessionsContext = createContext<TerminalSessionsValue | null>(null);
 
 // ---------- Context ----------
 
@@ -680,11 +570,6 @@ interface WorkspaceContextValue {
   setProjectMeta: (name: string | null, root: string | null) => void;
   /** Final UI Update (ui_v2) — 셸의 활성 화면 (목록은 `lib/navRegistry.ts`). */
   setUiV2View: (view: UiV2View) => void;
-  /**
-   * 분리 터미널 창의 존재 여부 반영 (백엔드 이벤트 미러링). 돌아올 때
-   * 디스크의 터미널 세션 목록을 다시 읽어 들인다.
-   */
-  setTerminalDetached: (detached: boolean) => void;
   setActiveFile: (file: string | null) => void;
   /** 색인 시작/끝만 — 파일별 진행률은 `indexProgressStore` 로 (Phase 3). */
   setIndexing: (projectId: number | null) => void;
@@ -706,15 +591,9 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
  */
 export function WorkspaceProvider({
   projectId,
-  persistScope = "full",
   children,
 }: {
   projectId: number;
-  /**
-   * 이 창이 영속 레코드의 어디까지를 소유하는가 (`PersistScope`). 분리 터미널
-   * 창만 `"terminal"` 을 쓴다 — 앱 창과 레코드를 공유하기 때문이다.
-   */
-  persistScope?: PersistScope;
   children: ReactNode;
 }) {
   const [state, setState] = useState<WorkspaceState>(() => loadFromStorage(projectId));
@@ -733,15 +612,15 @@ export function WorkspaceProvider({
     if (persistTimer.current != null) window.clearTimeout(persistTimer.current);
     persistTimer.current = window.setTimeout(() => {
       persistTimer.current = null;
-      persistToStorage(projectId, stateRef.current, persistScope);
+      persistToStorage(projectId, stateRef.current);
     }, PERSIST_DEBOUNCE_MS);
-  }, [state, projectId, persistScope]);
+  }, [state, projectId]);
   useEffect(() => {
     const flush = () => {
       if (persistTimer.current != null) {
         window.clearTimeout(persistTimer.current);
         persistTimer.current = null;
-        persistToStorage(projectId, stateRef.current, persistScope);
+        persistToStorage(projectId, stateRef.current);
       }
     };
     window.addEventListener("beforeunload", flush);
@@ -749,7 +628,7 @@ export function WorkspaceProvider({
       window.removeEventListener("beforeunload", flush);
       flush();
     };
-  }, [projectId, persistScope]);
+  }, [projectId]);
 
   // 사이드바 접힘 — 전역 키에 쓰고, 다른 탭/창의 변경을 받아 반영한다.
   // 디바운스 없이 즉시 쓴다: 토글은 사람 손이라 드물고, 옆 탭이 바로 따라와야
@@ -767,35 +646,6 @@ export function WorkspaceProvider({
     [],
   );
 
-  // 터미널 세션의 잃어버린 갱신 (Phase 4 #workspace-split).
-  //
-  // 분리 창과 앱 창이 한 레코드를 함께 쓴다. 쓰기는 이미 자기 몫만 쓰지만
-  // **읽기**가 없었다 — 상대가 탭을 만들어도 이쪽 메모리는 떠날 때의 스냅샷
-  // 그대로였고, `terminalDetached` 가 늦게 오면 그 낡은 목록이 통째로
-  // 저장됐다. `storage` 이벤트(다른 문서의 쓰기에만 발화)로 상대가 남긴
-  // 터미널 필드를 곧장 받아들인다 — 이제 어느 창이 언제 저장하든 최신 목록이다.
-  useEffect(() => {
-    const key = storageKeyFor(projectId);
-    const onStorage = (e: StorageEvent) => {
-      if (e.key !== key) return;
-      const held = readTerminalSessions(projectId);
-      if (!held) return;
-      setState((prev) => {
-        const owner = persistScope === "terminal" || prev.terminalDetached;
-        if (!owner) return prev;
-        if (prev.terminalTabs === held.terminalTabs && prev.terminalActiveId === held.terminalActiveId) return prev;
-        if (
-          JSON.stringify(prev.terminalTabs) === JSON.stringify(held.terminalTabs) &&
-          prev.terminalActiveId === held.terminalActiveId
-        )
-          return prev;
-        return { ...prev, ...held };
-      });
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [projectId, persistScope]);
-
   const setProjectMeta = useCallback((name: string | null, root: string | null) => {
     setState((prev) =>
       prev.currentProjectName === name && prev.currentProjectRoot === root
@@ -807,25 +657,6 @@ export function WorkspaceProvider({
   const setUiV2View = useCallback((view: UiV2View) => {
     setState((prev) => (prev.uiV2View === view ? prev : { ...prev, uiV2View: view }));
   }, []);
-
-  /**
-   * 분리 터미널 창의 존재 여부를 반영한다 (백엔드 이벤트가 유일한 출처).
-   *
-   * 돌아오는 순간(true → false)에는 디스크에서 터미널 세션 필드를 다시 읽는다
-   * — 나가 있는 동안 탭을 만들고 지운 것은 분리 창 쪽이고, 이 창의 메모리에
-   * 있는 목록은 떠날 때의 스냅샷이라 그대로 쓰면 그 작업이 사라진다.
-   */
-  const setTerminalDetached = useCallback(
-    (detached: boolean) => {
-      setState((prev) => {
-        if (prev.terminalDetached === detached) return prev;
-        if (detached) return { ...prev, terminalDetached: true };
-        const held = readTerminalSessions(projectId);
-        return { ...prev, terminalDetached: false, ...(held ?? {}) };
-      });
-    },
-    [projectId],
-  );
 
   const setActiveFile = useCallback((file: string | null) => {
     setState((prev) => ({ ...prev, activeFile: file }));
@@ -1065,7 +896,6 @@ export function WorkspaceProvider({
       setState,
       setProjectMeta,
       setUiV2View,
-      setTerminalDetached,
       setActiveFile,
       setIndexing,
       setOculpmStatus,
@@ -1075,7 +905,6 @@ export function WorkspaceProvider({
       state,
       setProjectMeta,
       setUiV2View,
-      setTerminalDetached,
       setActiveFile,
       setIndexing,
       setOculpmStatus,
@@ -1085,7 +914,6 @@ export function WorkspaceProvider({
 
   // ── 조각 컨텍스트 (Phase 4) — 각각 자기 키가 바뀔 때만 새 값이다.
   const runtimeSlice = useStableSlice(pickSlice(state, RUNTIME_KEYS));
-  const terminalSlice = useStableSlice(pickSlice(state, TERMINAL_KEYS));
   const prefsSlice = useStableSlice(omitKeys(state, NON_PREFS_KEYS));
 
   const setSidebarCollapsed = useCallback((collapsed: boolean) => {
@@ -1095,13 +923,12 @@ export function WorkspaceProvider({
     () => ({
       ...runtimeSlice,
       setProjectMeta,
-      setTerminalDetached,
       setIndexing,
       setOculpmStatus,
       setCurrentSession,
       setSidebarCollapsed,
     }),
-    [runtimeSlice, setProjectMeta, setTerminalDetached, setIndexing, setOculpmStatus, setCurrentSession, setSidebarCollapsed],
+    [runtimeSlice, setProjectMeta, setIndexing, setOculpmStatus, setCurrentSession, setSidebarCollapsed],
   );
 
   const setPrefs = useCallback((updater: (prev: UiPrefsSlice) => Partial<UiPrefsSlice>) => {
@@ -1117,64 +944,26 @@ export function WorkspaceProvider({
     [prefsSlice, setPrefs, setUiV2View],
   );
 
-  const setSessions = useCallback((updater: (prev: TerminalSlice) => TerminalSlice) => {
-    setState((prev) => {
-      const next = updater({ terminalTabs: prev.terminalTabs, terminalActiveId: prev.terminalActiveId });
-      if (next.terminalTabs === prev.terminalTabs && next.terminalActiveId === prev.terminalActiveId) return prev;
-      return { ...prev, terminalTabs: next.terminalTabs, terminalActiveId: next.terminalActiveId };
-    });
-  }, []);
-  const selectTab = useCallback(
-    (id: string) => setSessions((s) => (s.terminalActiveId === id ? s : { ...s, terminalActiveId: id })),
-    [setSessions],
-  );
-  const patchTab = useCallback(
-    (id: string, fn: (tab: TerminalTab) => TerminalTab) =>
-      setSessions((s) => ({ ...s, terminalTabs: s.terminalTabs.map((tab) => (tab.id === id ? fn(tab) : tab)) })),
-    [setSessions],
-  );
-  const openTab = useCallback((tab: TerminalTab, opts?: { view?: UiV2View }) => {
-    setState((prev) => ({
-      ...prev,
-      terminalTabs: [...prev.terminalTabs, tab],
-      terminalActiveId: tab.id,
-      ...(opts?.view ? { uiV2View: opts.view } : {}),
-    }));
-  }, []);
-  const terminalValue = useMemo<TerminalSessionsValue>(
-    () => ({ ...terminalSlice, setSessions, selectTab, patchTab, openTab }),
-    [terminalSlice, setSessions, selectTab, patchTab, openTab],
-  );
-
   return (
     <WorkspaceContext.Provider value={value}>
       <ProjectRuntimeContext.Provider value={runtimeValue}>
-        <UiPrefsContext.Provider value={prefsValue}>
-          <TerminalSessionsContext.Provider value={terminalValue}>{children}</TerminalSessionsContext.Provider>
-        </UiPrefsContext.Provider>
+        <UiPrefsContext.Provider value={prefsValue}>{children}</UiPrefsContext.Provider>
       </ProjectRuntimeContext.Provider>
     </WorkspaceContext.Provider>
   );
 }
 
-/** 프로젝트 신원 · oculpm 상태 · 색인 중 · 분리 창 — 런타임 조각만 구독한다. */
+/** 프로젝트 신원 · oculpm 상태 · 색인 중 — 런타임 조각만 구독한다. */
 export function useProjectRuntime(): ProjectRuntimeValue {
   const ctx = useContext(ProjectRuntimeContext);
   if (!ctx) throw new Error("useProjectRuntime must be used within a WorkspaceProvider");
   return ctx;
 }
 
-/** 영속 UI 취향(화면·필터·도크·코드 탭·acp*·…) — 취향 조각만 구독한다. */
+/** 영속 UI 취향(화면·필터·…) — 취향 조각만 구독한다. */
 export function useUiPrefs(): UiPrefsValue {
   const ctx = useContext(UiPrefsContext);
   if (!ctx) throw new Error("useUiPrefs must be used within a WorkspaceProvider");
-  return ctx;
-}
-
-/** 터미널 세션 목록·활성 탭 — 두 창이 함께 쓰는 조각만 구독한다. */
-export function useTerminalSessions(): TerminalSessionsValue {
-  const ctx = useContext(TerminalSessionsContext);
-  if (!ctx) throw new Error("useTerminalSessions must be used within a WorkspaceProvider");
   return ctx;
 }
 

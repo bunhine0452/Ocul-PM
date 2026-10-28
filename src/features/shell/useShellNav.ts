@@ -59,9 +59,6 @@ export interface ShellNav {
   journalReturnView: UiV2View | null;
   setJournalReturnView: (view: UiV2View | null) => void;
   /** 코드 화면이 열 파일·줄 (nonce 로 같은 자리 연속 점프도 구분). */
-  codeTarget: { path: string; line: number | null; nonce: number } | null;
-  openInCode: (path: string, line: number | null) => void;
-  clearCodeTarget: () => void;
   /** 플래너/토의/문서는 영속 필드를 mount 시에만 읽어 remount 가 필요하다. */
   jumpNonce: number;
 }
@@ -118,20 +115,6 @@ export function useShellNav({
   // event, mirroring the diffActivePath one-shot handoff in DiffScreenV2).
   const [journalFocus, setJournalFocus] = useState<string | null>(null);
 
-  // 검색·코드맵 → 코드 화면 열기 목표 (one-shot, journalFocus 와 같은 패턴).
-  // nonce 로 같은 파일·같은 라인의 연속 점프도 구분한다.
-  const [codeTarget, setCodeTarget] = useState<
-    { path: string; line: number | null; nonce: number } | null
-  >(null);
-  const openInCode = useCallback(
-    (path: string, line: number | null) => {
-      setCodeTarget((prev) => ({ path, line, nonce: (prev?.nonce ?? 0) + 1 }));
-      setUiV2View("code");
-    },
-    [setUiV2View],
-  );
-  const clearCodeTarget = useCallback(() => setCodeTarget(null), []);
-
   // Planner 📓 → open a specific journal entry's detail view directly. Distinct
   // from `journalFocus` (timeline ring-highlight): this resolves the entry by
   // path even when it's older than the loaded day window, so completed plans
@@ -166,15 +149,11 @@ export function useShellNav({
         setPrefs(() => ({ discussionActiveId: detail.id }));
         setJumpNonce((n) => n + 1);
         setUiV2View("discussion");
-      } else if (detail.kind === "code") {
-        // 워크스페이스 심볼(⌘K) — 코드 화면의 기존 열기 핸드오프를 그대로 탄다.
-        // LSP 는 0-based, jumpLine 은 1-based.
-        openInCode(detail.id, detail.line == null ? null : detail.line + 1);
       }
     };
     window.addEventListener(NAV_BUS.openEntity, onOpenEntity);
     return () => window.removeEventListener(NAV_BUS.openEntity, onOpenEntity);
-  }, [setPrefs, setUiV2View, openInCode, active]);
+  }, [setPrefs, setUiV2View, active]);
 
   // 트레이 딥링크로 갓 열린 창 — URL 이 실어 온 목적지를 mount 시 1회 적용한다
   // (새 창의 프런트는 아직 리스너를 달기 전이라 emit 을 받을 수 없다).
@@ -223,9 +202,6 @@ export function useShellNav({
     clearJournalOpenEntry,
     journalReturnView,
     setJournalReturnView,
-    codeTarget,
-    openInCode,
-    clearCodeTarget,
     jumpNonce,
   };
 }

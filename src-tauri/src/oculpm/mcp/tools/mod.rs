@@ -40,7 +40,7 @@ pub const CLAUDE_SESSION_ENV: &str = "CLAUDE_CODE_SESSION_ID";
 ///
 /// # 폴백은 왜 못 지우는가 (실측 2026-09-07 · Claude Code 2.1.263)
 ///
-/// 이 이름을 실어 주는 자리는 **앱뿐**이다([`crate::acp::recording`]). 터미널에서
+/// 이 이름을 실어 주는 자리는 **앱뿐**이다(옛 ACP 화면의 recording — 2026-10-28 에 걷었다). 터미널에서
 /// 띄운 Claude Code 의 자식으로 뜬 서버에는 아무도 안 실어 준다 —
 /// `plugin/oculpm/.mcp.json` 에 `env` 블록이 없기 때문이다.
 ///

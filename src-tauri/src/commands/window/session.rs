@@ -26,8 +26,6 @@ pub struct SessionWindow {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Session {
     pub windows: Vec<SessionWindow>,
-    /// 떼어낸 터미널 창의 프로젝트 (`terminal_windows`).
-    pub terminals: Vec<u32>,
     /// 마지막으로 포커스됐던 창 — 복원을 마치고 이 창을 앞으로 가져온다.
     pub focused: Option<String>,
 }
@@ -67,21 +65,11 @@ pub fn sanitize_session(session: &Session, known: &HashSet<u32>) -> Session {
             active: active.unwrap_or(0),
         });
     }
-    let terminals = session
-        .terminals
-        .iter()
-        .copied()
-        .filter(|pid| known.contains(pid))
-        .collect();
     let focused = session
         .focused
         .clone()
         .filter(|f| windows.iter().any(|w| &w.label == f));
-    Session {
-        windows,
-        terminals,
-        focused,
-    }
+    Session { windows, focused }
 }
 
 /// 지금 창·탭을 저장한다 — **우리가 일으킨 재시작** 직전에만 부른다.
@@ -144,7 +132,6 @@ async fn restore_session_inner(app: &AppHandle) -> Result<(), String> {
         .collect();
     let Session {
         mut windows,
-        terminals,
         focused,
     } = sanitize_session(&stored, &known);
     if windows.is_empty() {
@@ -167,7 +154,6 @@ async fn restore_session_inner(app: &AppHandle) -> Result<(), String> {
     tracing::info!(
         target: "window",
         windows = windows.len() + 1,
-        terminals = terminals.len(),
         "업데이트 전 창 구성을 되살린다"
     );
     broadcast(app, FIRST_WINDOW).await;
@@ -181,15 +167,6 @@ async fn restore_session_inner(app: &AppHandle) -> Result<(), String> {
         let title = window_title(app, w.tabs.get(w.active).copied().flatten()).await;
         if let Err(e) = spawn_window(app, &w.label, None, None, false, title).await {
             tracing::warn!(target: "window", label = %w.label, error = %e, "창 복원 실패");
-        }
-    }
-
-    // 떼어낸 터미널 창도 그대로. 셸까지 살아 돌아온다 — PTY 호스트가 별개
-    // 프로세스라 업데이트 재시작을 넘어 살고(2026-08-25), sid 가 프로젝트
-    // 접두사라 새 창의 xterm 이 그대로 attach 한다.
-    for pid in terminals {
-        if let Err(e) = open_terminal_window(app.clone(), pid).await {
-            tracing::warn!(target: "window", project_id = pid, error = %e, "터미널 창 복원 실패");
         }
     }
 

@@ -1,8 +1,8 @@
 ---
-title: Windows, Tabs, Terminal, Code
-desc: Running several projects at once, the terminal dock and splits, the in-app code viewer and editor.
+title: Windows, Tabs, External Editor
+desc: Running several projects at once, living in the menu bar, and opening files in your own editor.
 order: 12
-updated: 2026-10-24
+updated: 2026-10-28
 ---
 
 *What* the screens show is in the [Screen Tour](/wiki/en/screens). This page is about **how you arrange and drive them**.
@@ -18,7 +18,7 @@ One tab per project. Same feel as a browser.
 | `⇧⌘N` | New window |
 | `⌘P` | Switch project (sidebar popover) |
 
-- **Each tab has its own state** — read entries in project A and keep a terminal open in B without interference
+- **Each tab has its own state** — read entries in project A and keep the planner open in B without interference
 - **Tabs you haven't visited load lazily** — opening a window doesn't initialize N projects at once
 - **A dot appears when an agent is working in a background tab**, so it's visible while you're in another project
 
@@ -39,64 +39,13 @@ Turn these on in Settings → Appearance → Menu bar.
 The app has to be alive to keep observing. "Minimize to the menu bar" is the compromise that gets the window out of the way while observation continues.
 :::
 
-## Terminal
+## Opening files — your own editor
 
-A **real shell** rooted in the project folder. Two shapes:
-
-- **Full screen** — `⌘6` (the Terminal screen)
-- **Dock** — `⌘J`, overlaid on any screen. Good for typing commands while reading an entry
-
-The dock cycles position **bottom → left → right** (the reposition button), and the **detach button** turns it into a separate window containing only the terminal — with the shell intact.
-
-### Sessions and splits
-
-These apply when focus is inside the terminal:
-
-| Key | Action |
-|---|---|
-| `⌘T` | New session (tab) |
-| `⌘W` | Close pane |
-| `⌘D` | Split horizontally · `⇧⌘D` split vertically |
-| `⌘F` | Search scrollback (`Enter` next · `⇧Enter` previous · `Esc` close) |
-| `⌘L` | Clear screen |
-| `⌘+` / `⌘−` | Font size · `⇧⌘0` to reset |
-
-Session tabs are **renamed by double-clicking**.
-
-:::warn
-`⌘T` and `⌘W` exist both globally (project tabs) and in the terminal (sessions and panes). The terminal only wins **when focus is inside it** — even with the dock overlaid on another screen, `⌘F` won't open terminal search while you're reading an entry.
-:::
-
-:::note
-`⌘L` clears the screen because the global command palette claims `⌘K` first. The shell's own `Ctrl+L` still works as normal.
-:::
-
-### Terminal font size is separate
-
-It's set in px, **independently** of the app-wide scale (Settings → Appearance → Text size), because a terminal is a fixed-width grid where px is more precise than a percentage. The value applies to the terminal screen, the dock, and detached windows alike.
-
-## Code screen
-
-Where you **view and edit** files inside the app. Open a file from the tree on the left, edit on the right, save.
-
-- **Jump in** — "Open in Code" from code search results brings you straight here
-- **Filter** — narrow the tree by filename from the input above it
-- **Unsaved marker** — edited files are marked **Modified**
-- **Open in external editor** — hand serious editing to your usual editor
-
-The limits are explicit:
-
-| Situation | Behavior |
-|---|---|
-| Over 2MB | Won't open |
-| Binary | Says it can't be previewed |
-| Too many files | Shows part of the tree |
-| Too many unsaved files | Evicts the oldest edit and tells you |
-| An open file disappears from disk | Tells you |
+The in-app editor and terminal were removed on 2026-10-28. "Open file" on search results and on the Branch screen hands the file to the editor you already use.
 
 ### Wiring an external editor
 
-Set the command template in Settings → Appearance → External editor. `%path` is replaced with the absolute path.
+Set the command template in Settings → Appearance → External editor. `%path` is replaced with the absolute path and `%line` with the line number.
 
 ```
 code "%path"          VS Code

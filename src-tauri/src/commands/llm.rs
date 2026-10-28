@@ -1,9 +1,4 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
-
-use tauri::ipc::Channel;
-
-use crate::llm::{self, ChatEvent, ChatOptions, ChatResponse, LlmError, Message};
+use crate::llm::{self, ChatOptions, ChatResponse, LlmError, Message};
 use crate::secrets;
 
 fn load_api_key(provider: &str) -> Result<String, String> {
@@ -52,8 +47,8 @@ pub struct ChatFailure {
     pub offline: bool,
 }
 
-#[tauri::command]
-#[specta::specta]
+/// 코어 기능(요약·롤업·일지 초안·자동화)이 쓰는 LLM 호출 — 폴백 체인·키 로딩이 여기 있다.
+/// AI 패널 채팅 커맨드였던 자리다 (화면은 2026-10-28 에 걷었다, simplify-round).
 pub async fn chat(
     provider: String,
     messages: Vec<Message>,
@@ -145,139 +140,4 @@ pub async fn llm_list_models(provider: String) -> Result<Vec<llm::ModelInfo>, St
 #[specta::specta]
 pub async fn llm_reachability() -> Result<Vec<llm::reach::ProviderReach>, String> {
     Ok(llm::reach::snapshot())
-}
-
-/// 스트리밍 본체 — 싱크가 mpsc 라 전송(IPC Channel)과 폴백·부분응답 로직이
-/// 갈라져 있다. 계약은 기존 그대로:
-/// Delta 가 한 번이라도 나가면 폴백하지 않고, 종료는 Done 또는 Error 정확히 1회.
-///
-/// Phase 7 (#offline-fallback) 이 여기에 더한 것은 **고지 하나**다. 1순위가 아닌
-/// 시도가 실제로 답을 내면 첫 Delta 앞에 [`ChatEvent::Fallback`] 이 정확히 한 번
-/// 나간다. 설정은 손대지 않는다 — 폴백은 **그 호출 한 번**의 사실이고, 그것을
-/// 기본값으로 승격시키면 사용자가 고른 모델이 조용히 바뀐다.
-pub async fn run_chat_stream(
-    provider: String,
-    messages: Vec<Message>,
-    options: ChatOptions,
-    fallbacks: Vec<ProviderModel>,
-    sink: tokio::sync::mpsc::Sender<ChatEvent>,
-) -> Result<(), String> {
-    let attempts = build_attempts(&provider, &options.model, &fallbacks);
-    let n = attempts.len();
-    let mut last_err = String::from("no provider configured");
-
-    for (i, (prov, model)) in attempts.into_iter().enumerate() {
-        let api_key = match load_api_key(&prov) {
-            Ok(k) => k,
-            Err(e) => {
-                last_err = e;
-                continue;
-            }
-        };
-        let client = match llm::create(&prov, api_key) {
-            Ok(c) => c,
-            Err(e) => {
-                last_err = e.to_string();
-                continue;
-            }
-        };
-        let mut opts = options.clone();
-        opts.model = model.clone();
-
-        let (tx, mut rx) = tokio::sync::mpsc::channel::<ChatEvent>(32);
-        // Track whether any text reached the UI: once it has, a later failure
-        // can't be cleanly retried (the user already sees a partial answer).
-        let emitted = Arc::new(AtomicBool::new(false));
-        // 폴백 고지는 **답이 실제로 나올 때** 한 번만. 시도를 시작할 때 미리
-        // 알리면 그 시도마저 실패했을 때 거짓 배지가 남는다.
-        let announced = Arc::new(AtomicBool::new(false));
-        let sink_fwd = sink.clone();
-        let emitted_fwd = emitted.clone();
-        let announced_fwd = announced.clone();
-        let (fb_prov, fb_model) = (prov.clone(), model.clone());
-        let is_fallback = i > 0;
-        let forward = tokio::spawn(async move {
-            while let Some(event) = rx.recv().await {
-                if matches!(event, ChatEvent::Delta { .. }) {
-                    if is_fallback && !announced_fwd.swap(true, Ordering::SeqCst) {
-                        let _ = sink_fwd
-                            .send(ChatEvent::Fallback {
-                                provider: fb_prov.clone(),
-                                model: fb_model.clone(),
-                            })
-                            .await;
-                    }
-                    emitted_fwd.store(true, Ordering::SeqCst);
-                }
-                if sink_fwd.send(event).await.is_err() {
-                    break;
-                }
-            }
-        });
-
-        let result = client.chat_stream(messages.clone(), opts, tx).await;
-        let _ = forward.await;
-
-        match result {
-            Ok(()) => {
-                llm::reach::observe(&prov, None);
-                // 델타가 한 줄도 없이 끝난 폴백 — 그래도 답을 낸 것은 이쪽이다.
-                if is_fallback && !announced.swap(true, Ordering::SeqCst) {
-                    let _ = sink
-                        .send(ChatEvent::Fallback {
-                            provider: prov.clone(),
-                            model,
-                        })
-                        .await;
-                }
-                let _ = sink.send(ChatEvent::Done).await;
-                return Ok(());
-            }
-            Err(e) => {
-                note_attempt(&prov, &e);
-                let msg = format!("{prov}: {e}");
-                // Fail over only if nothing was streamed yet and another
-                // attempt remains; otherwise surface the error.
-                if emitted.load(Ordering::SeqCst) || i + 1 == n {
-                    let _ = sink
-                        .send(ChatEvent::Error {
-                            message: msg.clone(),
-                        })
-                        .await;
-                    return Err(msg);
-                }
-                last_err = msg;
-            }
-        }
-    }
-
-    let _ = sink
-        .send(ChatEvent::Error {
-            message: last_err.clone(),
-        })
-        .await;
-    Err(last_err)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn chat_stream(
-    provider: String,
-    messages: Vec<Message>,
-    options: ChatOptions,
-    fallbacks: Vec<ProviderModel>,
-    on_event: Channel<ChatEvent>,
-) -> Result<(), String> {
-    // 본체는 run_chat_stream — 여기서는 mpsc → IPC Channel 로 나르기만 한다.
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<ChatEvent>(32);
-    let forward = tokio::spawn(async move {
-        while let Some(event) = rx.recv().await {
-            if on_event.send(event).is_err() {
-                break;
-            }
-        }
-    });
-    let result = run_chat_stream(provider, messages, options, fallbacks, tx).await;
-    let _ = forward.await;
-    result
 }

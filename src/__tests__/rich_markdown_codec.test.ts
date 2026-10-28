@@ -15,9 +15,9 @@ import {
   richExtensions,
   roundTrip,
   serializeWithSource,
-} from "@/features/code/richMarkdown/codec";
-import { frontmatterKeys, joinFrontmatter, splitFrontmatter } from "@/features/code/richMarkdown/frontmatter";
-import { filterSlashItems, SLASH_ITEMS } from "@/features/code/richMarkdown/slashCommands";
+} from "@/features/discussion/richMarkdown/codec";
+import { frontmatterKeys, joinFrontmatter, splitFrontmatter } from "@/features/discussion/richMarkdown/frontmatter";
+import { filterSlashItems, SLASH_ITEMS } from "@/features/discussion/richMarkdown/slashCommands";
 
 /** 실제 편집기를 거친 왕복 — 편집기가 기본 속성을 채워도 원문 대조가 맞아야 한다. */
 function throughEditor(body: string, edit?: (e: Editor) => void): string {

@@ -13,7 +13,6 @@ import { createIntentSlot } from "@/lib/createStore";
 export type SettingsTabId =
   | "appearance"
   | "llm"
-  | "code"
   | "indexing"
   | "data"
   | "oculpm"

@@ -6,15 +6,12 @@ import {
   FolderGit2,
   ChevronsUpDown,
   PanelLeft,
-  PanelBottom,
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_ENTRIES, NAV_BUS, navRowViews, navShortcutLabel, type NavEntry } from "@/lib/navRegistry";
 import { ChevronRight } from "@/components/Icons";
 import { useDensity } from "@/hooks/useDensity";
 import { useOptionalSettings } from "@/contexts/SettingsContext";
-import { parseHiddenViews } from "@/lib/density";
-import { useAcpAttentionCount, useAcpWorkingCount } from "@/features/chat/acpBusyBus";
 import { NavRemapNotice } from "@/components/NavRemapNotice";
 // 경로 표기는 앱에서 한 형태다 — 시작 화면 카드·프로젝트 관리가 이미 이걸 쓴다.
 // 사이드바만 원시 경로를 그려서 `/Users/kimhyunbin/De…` 처럼 **집 경로로 폭을
@@ -22,7 +19,6 @@ import { NavRemapNotice } from "@/components/NavRemapNotice";
 import { tildePath } from "@/features/onboarding/home/homeModel";
 import { useT } from "@/i18n";
 import { dragRegion } from "@/lib/platform";
-import { kbd } from "@/lib/kbd";
 
 // Final UI Update (ui_v2) — 248px sidebar (01-ia-and-shell.md §5,
 // Ocul-PM1.0/src/shell.jsx). Rendered as <nav> + <button>s for a11y; the
@@ -50,7 +46,6 @@ import { kbd } from "@/lib/kbd";
 // 핵심은 항상, 도구(뷰어)·베타(보류)는 간단 밀도에서 접힌다 — 숨김이 아니라 접힘.
 const CORE_NAV = NAV_ENTRIES.filter((e) => e.tier === "core");
 const VIEWER_NAV = NAV_ENTRIES.filter((e) => e.tier === "viewer");
-const HOLD_NAV = NAV_ENTRIES.filter((e) => e.tier === "hold");
 
 interface SidebarProps {
   view: UiV2View;
@@ -83,8 +78,6 @@ interface SidebarProps {
    * 셸을 여는 것이라 nav 목록이 아니라 발밑(side-foot)에 둔다 — 목록에 끼면
    * ⌘번호가 밀리고 "다른 화면으로 간다"는 신호가 되어버린다.
    */
-  terminalDockOpen?: boolean;
-  onToggleTerminalDock?: () => void;
   /** Collapse the sidebar off-screen (hover-to-reveal). Dogfooding 2026-06-07. */
   onToggleCollapse?: () => void;
   /** True when the sidebar is currently collapsed (button shown in the overlay). */
@@ -354,8 +347,6 @@ export function Sidebar({
   isDark,
   onToggleTheme,
   macTopInset = 0,
-  terminalDockOpen = false,
-  onToggleTerminalDock,
   onToggleCollapse,
   collapsed = false,
   onMouseLeave,
@@ -366,21 +357,9 @@ export function Sidebar({
   /** nav 목록만 담는 스크롤 영역 — 머리(브랜드·프로젝트)와 발(.side-foot)은 밖. */
   const navScrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(navScrollRef);
-  /** 지금 돌고 있는 Claude Code 세션 수 (acpBusyBus — 메모리 버스). */
-  const acpWorking = useAcpWorkingCount(currentProjectId ?? null, "claude");
-  /** 승인을 기다리며 멈춰 있는 세션 수 — 작업 배지보다 우선해 보인다. */
-  const acpAttention = useAcpAttentionCount(currentProjectId ?? null, "claude");
-  const codexWorking = useAcpWorkingCount(currentProjectId ?? null, "codex");
-  const codexAttention = useAcpAttentionCount(currentProjectId ?? null, "codex");
-
-  /**
-   * 화면 하나의 배지 수. 갈래를 합산하는 자리(에이전트 행)와 갈래 자신을 그리는
-   * 자리가 둘 다 이걸 쓴다 — 표를 두 벌 두면 한쪽만 고치는 날이 온다.
-   */
-  const counts = (id: UiV2View) => ({
-    working: id === "claudecode" ? acpWorking : id === "codex" ? codexWorking : 0,
-    attention: id === "claudecode" ? acpAttention : id === "codex" ? codexAttention : 0,
-  });
+  // 배지 수 — 보류 등급(에이전트 화면)이 걷히면서 돌고 있는 세션 수를 셀 자리가 없다.
+  // NavSection 의 계약은 그대로 두고 0 을 돌려준다.
+  const counts = (_id: UiV2View) => ({ working: 0, attention: 0 });
 
   // ⌘P (useGlobalShortcuts) / 팔레트 "프로젝트 전환" → 팝오버 열기 (v2 U1).
   useEffect(() => {
@@ -412,23 +391,10 @@ export function Sidebar({
   const { density } = useDensity();
   const pro = density === "pro";
   /** 간단 밀도에서 사용자가 손으로 펼친 단 — 세션 안에서만 기억한다. */
-  const [open, setOpen] = useState({ viewer: false, hold: false });
-  // 설정 「표시」 — 베타 화면 스위치와 단축키 힌트. 공급자 밖(테스트)에서는 기본값.
+  const [open, setOpen] = useState({ viewer: false });
+  // 설정 「표시」 — 단축키 힌트. 공급자 밖(테스트)에서는 기본값.
   const settingsCtx = useOptionalSettings();
-  const hidden = parseHiddenViews(settingsCtx?.settings.hiddenHoldViews);
   const showKbd = pro || (settingsCtx?.settings.kbdHints ?? false);
-  /**
-   * 꺼 둔 베타 화면의 행은 접는다 — 단, 지금 열려 있으면 돌아온다 (있는 곳이 안 보이면
-   * 안 된다). 에이전트 행은 두 갈래가 다 꺼졌을 때만 접히고, 한쪽만 꺼지면 갈래가 준다.
-   */
-  const holdRows = HOLD_NAV.flatMap((e) => {
-    if (e.children) {
-      const kids = e.children.filter((c) => !hidden.has(c.id as never) || c.id === view);
-      if (kids.length === 0) return [];
-      return [kids.length === e.children.length ? e : { ...e, id: kids[0].id, children: kids }];
-    }
-    return hidden.has(e.id as never) && e.id !== view ? [] : [e];
-  });
 
   return (
     <nav className="sidebar" aria-label={t("nav.aria.main")} onMouseLeave={onMouseLeave}>
@@ -550,41 +516,11 @@ export function Sidebar({
           open={pro || open.viewer || VIEWER_NAV.some((e) => navRowViews(e).includes(view))}
           onToggle={() => setOpen((o) => ({ ...o, viewer: !o.viewer }))}
         />
-        {holdRows.length > 0 ? (
-          <NavSection
-            label={t("sidebar.betaSection")}
-            tag={t("sidebar.betaTag")}
-            rows={holdRows}
-            indexBase={CORE_NAV.length + VIEWER_NAV.length}
-            view={view}
-            onNavigate={onNavigate}
-            counts={counts}
-            showKbd={showKbd}
-            collapsible={!pro}
-            open={pro || open.hold || holdRows.some((e) => navRowViews(e).includes(view))}
-            onToggle={() => setOpen((o) => ({ ...o, hold: !o.hold }))}
-          />
-        ) : null}
       </div>
 
-      {/* 발은 한 줄이다 (2026-09-11): 도크만 라벨을 갖고(⌘J·켜짐 상태), 테마·설정은
-          아이콘 칸. 라벨은 .nav-sr 로 남아 보조기술·테스트에는 그대로 읽힌다. */}
+      {/* 발은 한 줄이다 (2026-09-11): 테마·설정은 아이콘 칸. 라벨은 .nav-sr 로 남아
+          보조기술·테스트에는 그대로 읽힌다. 터미널 도크 버튼은 2026-10-28 에 걷었다. */}
       <div className="side-foot">
-        {onToggleTerminalDock ? (
-          <button
-            type="button"
-            className="nav-item nav-util"
-            aria-pressed={terminalDockOpen}
-            onClick={onToggleTerminalDock}
-            title={`${t("sidebar.terminalDock")} (${kbd("⌘J")})`}
-          >
-            <span className="nav-ico">
-              <PanelBottom size={15} />
-            </span>
-            <span>{t("sidebar.terminalDock")}</span>
-            <kbd className="nav-kbd">{kbd("⌘J")}</kbd>
-          </button>
-        ) : null}
         <button
           type="button"
           className="nav-item nav-util nav-util--icon"

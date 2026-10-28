@@ -189,7 +189,6 @@ const HOST_LEDGER: &[(&str, &str)] = &[
     ("api.github.com", "약속의 예외 ② — 릴리스 목록 읽기. `src/lib/updater.ts` 의 RELEASES_API 가 소유하고 Today 카드·설정 업데이트 탭이 부른다."),
     ("codeload.github.com", "사용자가 명시적으로 요청한 플러그인 번들 zip 다운로드."),
     ("oculpm.com", "OpenRouter 어트리뷰션 헤더 값 — 앱이 부르는 목적지가 아니다. deeplink 테스트 픽스처이기도 하다 (걷은 `theme/install` 링크가 거절되는지). (테마 화이트리스트 호스트는 2026-10-24 원격 테마 설치와 함께, Notion OAuth 교환 브로커는 2026-10-14 Notion 연동과 함께 걷었다.)"),
-    ("registry.npmjs.org", "ACP 어댑터 설치 — Claude Code·Codex 화면이 어댑터를 처음 깔 때와 고정 판이 바뀐 뒤 깐 것을 새 판으로 맞출 때 npm 하위 프로세스가 고정 lockfile(acp-lock/, sha512)의 패키지를 받는다. 앱 코드는 이 호스트를 직접 부르지 않는다 — 소스의 이 문자열은 lockfile 계약 테스트(acp/adapter.rs)의 단언이다. 그 하위 프로세스 자리(`install_tree` 의 `tokio_cmd(npm)`)는 판정 D(egress_spawn_ledger.rs)가 송출 가능으로 센다."),
     // ── 브라우저에 넘기는 링크 (앱이 보내지 않는다) ──
     ("github.com", "저장소·이슈·릴리스 링크 — open_url 로 OS 브라우저에 위임한다. plugins/source.rs 의 테스트 픽스처이기도 하다."),
     // ── 목적지가 아닌 것 ──

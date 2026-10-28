@@ -19,7 +19,6 @@ import { toAppError } from "@/api/invoke";
 import { tError } from "@/i18n/errors";
 import { useOptionalWorkspace } from "@/contexts/WorkspaceContext";
 import { useConfirm } from "@/hooks/useConfirm";
-import { openSettings } from "@/lib/settingsNav";
 import type { IndexUsage } from "@/lib/bindings";
 
 /** 크기 지표는 f64 라 바인딩이 `number | null` 로 낸다 — 숫자일 때만 표기. */
@@ -114,9 +113,6 @@ export function IndexUsageSection() {
                 size="sm"
               >
                 {deletingDiffs ? t("settings.idxUsage.clearingDiffs") : t("settings.idxUsage.clearDiffs")}
-              </Button>
-              <Button onClick={() => openSettings("code")} variant="outline" size="sm">
-                {t("settings.idxUsage.openCodeSettings")}
               </Button>
             </div>
             <div className="text-fs-2 text-muted-foreground">{t("settings.idxUsage.historyHint")}</div>

@@ -32,14 +32,7 @@ A two-layer system: **Light / Dark / System**, with **preset themes** on top.
 
 ### Two text sizes
 
-**App scale** and **terminal font size** are separate.
-
-| | Unit | Applies to |
-|---|---|---|
-| Text size | Scale (%) | The whole app — like browser zoom |
-| Terminal font size | px | Terminal screen, dock, detached windows |
-
-The terminal is in px because a fixed-width grid needs px precision more than a percentage. Inside the terminal, `⌘+` / `⌘−` adjust it and `⇧⌘0` resets.
+**App scale** (%) is the one setting — it applies to the whole app like browser zoom. (The terminal font size went with the in-app terminal on 2026-10-28.)
 
 ### Two languages
 
@@ -47,11 +40,11 @@ The terminal is in px because a fixed-width grid needs px precision more than a 
 
 ### Menu bar · external editor
 
-Menu bar residency and external editor wiring are covered in [Windows, Tabs, Terminal, Code](/wiki/en/workspace).
+Menu bar residency and external editor wiring are covered in [Windows, Tabs, External Editor](/wiki/en/workspace).
 
 ## LLM
 
-Needed only for AI features (AI panel chat, ⌘K inline editing). **Journaling itself needs no key.**
+Needed only for AI-generated text (weekly rollups, entry drafts, plan drafts, skill promotion proposals). **Journaling itself needs no key.**
 
 ### API keys
 

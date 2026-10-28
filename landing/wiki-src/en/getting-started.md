@@ -26,7 +26,7 @@ On the start screen, **Open an existing folder** and pick a folder with code in 
 
 ## See your first entry
 
-Give an agent any task — in the app's Claude Code screen or in your terminal. When it finishes:
+Give the agent in your terminal any task. When it finishes:
 
 - a new entry shows up in **Work Journal** (`⌘2`)
 - it lands in the flow on **Today** (`⌘1`)

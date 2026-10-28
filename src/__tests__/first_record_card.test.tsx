@@ -71,7 +71,6 @@ function mount(over: Partial<Parameters<typeof FirstRecordCard>[0]> = {}) {
     enabled: true,
     onNavigate: vi.fn(),
     onOpenEntryPath: vi.fn(),
-    onRunAgent: vi.fn(),
     onDone: vi.fn(),
     ...over,
   };
@@ -97,18 +96,15 @@ describe("FirstRecordCard — 상태별 자리", () => {
     expect(fx.calls).toBe(0);
   });
 
-  it("준비 상태 — 탐침 실패는 「확인 못 함」이지 「못 찾음」이 아니고, 실행 버튼이 있다", async () => {
+  it("준비 상태 — 탐침 실패는 「확인 못 함」이지 「못 찾음」이 아니다", async () => {
     fx.ledger = emptyLedger({ hooks_seen: false });
-    const { container, props } = mount();
+    const { container } = mount();
     await waitFor(() => expect(stateOf(container)).toBe("ready"));
     await waitFor(() =>
       expect(container.textContent).toContain(t("today.firstRecord.probe.unknown")),
     );
     expect(container.textContent).not.toContain(t("today.firstRecord.probe.no"));
     expect(container.textContent).toContain(t("today.firstRecord.probe.hooksNotYet"));
-
-    fireEvent.click(screen.getByText(t("today.firstRecord.run")));
-    expect(props.onRunAgent).toHaveBeenCalledTimes(1);
   });
 
   it("준비 상태 — 탐침이 답하면 있음/못 찾음을 갈라 적고, 훅 관측은 따로 말한다", async () => {
@@ -163,14 +159,13 @@ describe("FirstRecordCard — 상태별 자리", () => {
     expect(props.onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("기록 없이 종료 — 다시 실행이 터미널을 연다", async () => {
+  it("기록 없이 종료 — 그 상태를 말한다 (다시 실행은 사용자 터미널에서)", async () => {
     fx.ledger = emptyLedger({
       conversations: [trace({ live: false, segment_open: false, missing_signal: true })],
     });
-    const { container, props } = mount();
+    const { container } = mount();
     await waitFor(() => expect(stateOf(container)).toBe("missing"));
-    fireEvent.click(screen.getByText(t("today.firstRecord.missing.retry")));
-    expect(props.onRunAgent).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain(t("today.firstRecord.missing.title"));
   });
 
   it("귀속 불명 — 건수를 말하고 일지 화면으로 보내되 성공으로 세지 않는다", async () => {

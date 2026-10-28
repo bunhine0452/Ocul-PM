@@ -50,8 +50,7 @@
     <a class="wk-side-link" href="/wiki/automation">자동화</a>
     <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
     <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
-    <a class="wk-side-link" href="/wiki/ai-panel">에이전트 패널</a>
-    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 터미널 · 코드</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 외부 편집기</a>
     <a class="wk-side-link" href="/wiki/settings">설정</a>
     <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
     <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
@@ -77,17 +76,16 @@
 <p>프로젝트를 추가하면 루트에 <code>AGENTS.md</code> 라는 규칙 파일이 생기고, Claude Code·Cursor·Gemini CLI 같은 에이전트가 이 파일을 읽습니다. "작업 하나를 끝내면 일지를 남겨라" 가 그 규칙입니다. 여러분이 시킬 필요조차 없습니다.</p>
 <div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>직접 쓰고 싶다면 쓸 수도 있습니다 — 그냥 마크다운 파일이니까요. 하지만 그게 목적인 앱은 아닙니다.</p></div></div>
 <h3 id="ai-를-대신-실행해-주는-앱인가요">AI 를 대신 실행해 주는 앱인가요?</h3>
-<p>둘 다 됩니다. 앱 안에 Claude Code 를 띄워 쓸 수도 있고, <b>평소처럼 터미널에서 쓰면서 기록만 받을 수도</b> 있습니다. 앱을 켜 두기만 하면 터미널에서 한 작업도 잡힙니다.</p>
+<p>아닙니다. 에이전트는 <b>평소처럼 여러분의 터미널에서</b> 쓰고, 앱은 그 작업의 기록 · 증거 · 계획을 받아 둡니다. 앱을 켜 두기만 하면 터미널에서 한 작업이 잡힙니다. (앱 안에서 Claude Code 를 띄우던 화면은 2026-10-28 에 걷었습니다.)</p>
 <h2 id="돈과-프라이버시">돈과 프라이버시</h2>
 <h3 id="돈이-드나요">돈이 드나요?</h3>
 <p>앱은 무료고, <b>기록 기능 자체는 API 키가 필요 없습니다.</b> 파일 변경을 관측하고 에이전트가 쓴 마크다운을 읽는 게 전부라 비용이 0입니다.</p>
 <p>돈이 드는 건 <b>AI 가 새 글을 쓰는 기능</b>뿐입니다:</p>
-<div class="wk-table"><table><thead><tr><th>기능</th><th>비용</th></tr></thead><tbody><tr><td>일지·플래너 기록, 검색, 코드 편집</td><td><b>무료</b> — 전부 로컬</td></tr><tr><td>AI 패널 대화, ⌘K 인라인 편집</td><td>여러분의 API 키·과금</td></tr><tr><td>앱 안 Claude Code</td><td>여러분의 Claude 구독 자격 (별도 과금 없음)</td></tr></tbody></table></div>
-<div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>앱 안 <b>Claude Code · Codex 화면</b>은 터미널 세션과 같은 자격으로 돕니다 — API 키 없이 구독으로 돌아서, 별도 과금 없이 시킬 수 있습니다.</p></div></div>
+<div class="wk-table"><table><thead><tr><th>기능</th><th>비용</th></tr></thead><tbody><tr><td>일지·플래너 기록, 검색, 변경 diff</td><td><b>무료</b> — 전부 로컬</td></tr><tr><td>주간 요약 · 일지 초안 · 플랜 초안 같은 AI 생성</td><td>여러분의 API 키·과금 (설정 → LLM)</td></tr></tbody></table></div>
 <h3 id="제-코드가-어디로-나가나요">제 코드가 어디로 나가나요?</h3>
-<p>기본적으로 <b>아무 데도 안 나갑니다.</b> 코드 검색의 임베딩은 기기에서 계산합니다(모델만 처음 한 번 내려받습니다). 밖으로 나가는 건 다섯뿐이고 전부 여러분이 시작합니다 — 설정한 LLM 호출, 새 버전 확인, 앱 안 Claude Code·Codex 를 쓸 때의 그 프로바이더 통신(처음 한 번 받는 어댑터 포함), 눌렀을 때의 GitHub 조회(패치노트·번들), 임베딩 모델 최초 1회. 계정 서버도 텔레메트리도 없습니다. (<a href="/wiki/data">자세히</a>)</p>
+<p>기본적으로 <b>아무 데도 안 나갑니다.</b> 코드 검색의 임베딩은 기기에서 계산합니다(모델만 처음 한 번 내려받습니다). 밖으로 나가는 건 넷뿐이고 전부 여러분이 시작합니다 — 설정한 LLM 호출, 새 버전 확인, 눌렀을 때의 GitHub 조회(패치노트·번들), 임베딩 모델 최초 1회. 계정 서버도 텔레메트리도 없습니다. (<a href="/wiki/data">자세히</a>)</p>
 <h3 id="인터넷-없이-되나요">인터넷 없이 되나요?</h3>
-<p>됩니다. 기록·타임라인·변경 diff·코드 검색·코드 편집은 전부 로컬입니다. AI 호출과 업데이트 확인만 안 됩니다.</p>
+<p>됩니다. 기록·타임라인·변경 diff·코드 검색은 전부 로컬입니다. AI 호출과 업데이트 확인만 안 됩니다.</p>
 <h3 id="windows-linux-는요">Windows / Linux 는요?</h3>
 <p>지금은 <b>macOS (Apple Silicon) 전용</b>입니다.</p>
 <div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>단, <code>.oculpm/</code> 기록은 그냥 마크다운이라 어느 OS 에서든 읽힙니다. 팀에 Windows 사용자가 있어도 저장소에 커밋된 일지를 읽는 데는 문제가 없습니다.</p></div></div>

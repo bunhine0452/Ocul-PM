@@ -69,50 +69,6 @@ const WINDOW: ShortcutGroup = {
   ],
 };
 
-const TERMINAL: ShortcutGroup = {
-  id: "terminal",
-  titleKey: "keys.g.terminal",
-  rows: [
-    { keys: "⌘T", labelKey: "keys.termNewTab" },
-    { keys: "⌘D", labelKey: "keys.termSplit" },
-    { keys: "⇧⌘D", labelKey: "keys.termSplitDown" },
-    { keys: "⌘F", labelKey: "keys.termFind" },
-    { keys: "⌘L", labelKey: "keys.termClear" },
-    { keys: "⌘↑ / ⌘↓", labelKey: "keys.termBlocks" },
-    { keys: "⌘= / ⌘−", labelKey: "keys.termFont" },
-    { keys: "⇧⌘0", labelKey: "keys.termFontReset" },
-    // 맥의 ⌘W·⌘C·⌘V 는 메뉴가 받는다. Windows·Linux 터미널에서는 Ctrl+W·C·V 가
-    // 셸의 것이라(단어 지우기·인터럽트·문자 그대로) Shift 가족으로 받는다.
-    { keys: "⌘W", labelKey: "keys.termClosePane", nonMacOnly: true },
-    { keys: "Ctrl+Shift+C / Ctrl+Shift+V", labelKey: "keys.termCopyPaste", nonMacOnly: true },
-  ],
-};
-
-const CODE: ShortcutGroup = {
-  id: "code",
-  titleKey: "keys.g.code",
-  rows: [
-    { keys: "⇧⌘F", labelKey: "keys.codeSearch" },
-    { keys: "⌘N", labelKey: "keys.codeNew" },
-    { keys: "⌘S", labelKey: "keys.codeSave" },
-    { keys: "⇧⌘O", labelKey: "keys.codeGotoSymbol" },
-    { keys: "⌃G", labelKey: "keys.codeGotoLine" },
-    { keys: "F12", labelKey: "keys.codeDef" },
-    { keys: "⇧F12", labelKey: "keys.codeRefs" },
-    { keys: "F2", labelKey: "keys.codeRename" },
-    { keys: "⇧⌥F", labelKey: "keys.codeFormat" },
-    { keys: "⌘.", labelKey: "keys.codeAction" },
-    { keys: "⇧⌘T", labelKey: "keys.codeReopen" },
-    { keys: "⇧⌘] / ⇧⌘[", labelKey: "keys.codeCycle" },
-    // 트리 — 드래그를 못 쓰는 손에게는 이 줄들이 곧 '옮기기 기능'이다.
-    { keys: "↑ / ↓", labelKey: "keys.treeMove" },
-    { keys: "← / →", labelKey: "keys.treeFold" },
-    { keys: "Space", labelKey: "keys.treePick" },
-    { keys: "⌘X / ⌘V", labelKey: "keys.treeCutPaste" },
-    { keys: "⌫", labelKey: "keys.treeDelete" },
-  ],
-};
-
 const JOURNAL: ShortcutGroup = {
   id: "journal",
   titleKey: "keys.g.journal",
@@ -172,7 +128,7 @@ export function navShortcutGroup(): ShortcutGroup {
 
 /** 치트시트가 그리는 순서 — 전역과 화면 이동이 먼저, 화면별 로컬 키가 뒤. */
 export function buildShortcutGroups(): ShortcutGroup[] {
-  const groups = [navShortcutGroup(), GLOBAL, WINDOW, TERMINAL, CODE, JOURNAL, SEARCH, DIFF, START];
+  const groups = [navShortcutGroup(), GLOBAL, WINDOW, JOURNAL, SEARCH, DIFF, START];
   return groups.map(isMac() ? forMac : forOtherOs);
 }
 

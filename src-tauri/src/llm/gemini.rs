@@ -1,10 +1,8 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
 
 use super::{
-    forward_sse_lines, json_or_api_error, ChatEvent, ChatOptions, ChatResponse, LlmError,
-    LlmProvider, Message, ModelInfo, Role,
+    json_or_api_error, ChatOptions, ChatResponse, LlmError, LlmProvider, Message, ModelInfo, Role,
 };
 
 const BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
@@ -194,53 +192,5 @@ impl LlmProvider for Gemini {
             model: opts.model,
             provider: "gemini".into(),
         })
-    }
-
-    async fn chat_stream(
-        &self,
-        messages: Vec<Message>,
-        opts: ChatOptions,
-        sink: mpsc::Sender<ChatEvent>,
-    ) -> Result<(), LlmError> {
-        let body = self.build_request(messages, &opts);
-        let url = format!(
-            "{BASE_URL}/models/{}:streamGenerateContent?alt=sse",
-            opts.model
-        );
-        let resp = self
-            .client
-            .post(&url)
-            .header("x-goog-api-key", &self.api_key)
-            .json(&body)
-            .send()
-            .await?;
-
-        let status = resp.status();
-        if !status.is_success() {
-            let body = crate::llm::error_body(resp).await;
-            return Err(LlmError::ApiError {
-                status: status.as_u16(),
-                body,
-            });
-        }
-
-        forward_sse_lines(resp, &sink, |line| {
-            let payload = line.strip_prefix("data: ")?.trim();
-            if payload.is_empty() {
-                return None;
-            }
-            let parsed: GenerateResponse = serde_json::from_str(payload).ok()?;
-            let text = parsed
-                .candidates?
-                .into_iter()
-                .next()?
-                .content?
-                .parts?
-                .into_iter()
-                .map(|p| p.text)
-                .collect::<String>();
-            (!text.is_empty()).then_some(text)
-        })
-        .await
     }
 }

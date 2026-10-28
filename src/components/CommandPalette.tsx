@@ -4,13 +4,11 @@ import {
   Flame,
   Settings as SettingsIcon,
   RefreshCw,
-  MessageSquareText,
   Plus,
   FolderGit2,
   NotebookText,
   TargetIcon,
   MessageSquare,
-  Code2,
   Keyboard,
   FileCode,
   Puzzle,
@@ -19,8 +17,7 @@ import {
 import { useOptionalWorkspace, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_DESTINATIONS, NAV_BUS, navShortcutLabel, type OpenEntityDetail } from "@/lib/navRegistry";
 import { tAll, useT, type I18nKey } from "@/i18n";
-import type { EntityHit, LspWorkspaceSymbol, Project } from "@/lib/bindings";
-import { lspApi } from "@/api/lsp";
+import type { EntityHit, Project } from "@/lib/bindings";
 import { oculpmApi, OculpmApiError } from "@/api/oculpm";
 import { toast } from "@/lib/toast";
 import { requestManualEntry } from "@/lib/journalCompose";
@@ -116,19 +113,10 @@ export function CommandPalette({
   // 입력 2자 이상이면 120ms debounce 로 일지·플랜·토의 제목을 백엔드 캐시에서
   // 찾는다.
   const [entityHits, setEntityHits] = useState<EntityHit[]>([]);
-  /**
-   * 워크스페이스 심볼 (ide-completion #lsp-workspace-symbol).
-   *
-   * **이미 떠 있는 언어 서버에만** 묻는다 (백엔드 `running_clients`) — 팔레트에
-   * 글자를 칠 때마다 rust-analyzer 가 기동하면 안 된다. 그래서 코드 화면에서
-   * 그 언어의 파일을 한 번도 안 열었다면 결과가 비는 것이 정상이다.
-   */
-  const [symbolHits, setSymbolHits] = useState<LspWorkspaceSymbol[]>([]);
 
   useEffect(() => {
     if (!open) {
       setEntityHits([]);
-      setSymbolHits([]);
     }
   }, [open]);
 
@@ -137,11 +125,10 @@ export function CommandPalette({
     const pid = currentProjectId;
     if (!open || pid == null || q.length < 2) {
       setEntityHits([]);
-      setSymbolHits([]);
       return;
     }
     // 디바운스는 요청 수만 줄인다 — 이미 나간 요청은 검색어가 바뀐 뒤에도
-    // 돌아와 새 결과를 덮는다 (워크스페이스 심볼은 수백 ms 걸릴 수 있다).
+    // 돌아와 새 결과를 덮는다.
     // 정리 함수에서 낡은 응답을 버린다.
     let stale = false;
     const timer = window.setTimeout(() => {
@@ -150,12 +137,6 @@ export function CommandPalette({
         .catch((): EntityHit[] => [])
         .then((hits) => {
           if (!stale) setEntityHits(hits);
-        });
-      void lspApi
-        .workspaceSymbols(pid, q)
-        .catch((): LspWorkspaceSymbol[] => [])
-        .then((hits) => {
-          if (!stale) setSymbolHits(hits.slice(0, 8));
         });
     }, 120);
     return () => {
@@ -232,9 +213,6 @@ export function CommandPalette({
                 onOpenChange(false);
                 window.dispatchEvent(new CustomEvent(NAV_BUS.openProjectSwitcher));
               } },
-            { id: "open-ai-panel", label: t("palette.openAiPanel"), alias: aliasOf("palette.openAiPanel"),
-              group: "actions" as const, icon: MessageSquareText, shortcut: kbd("⌘\\"),
-              onSelect: () => { ws.setUiV2View("ai"); onOpenChange(false); } },
           ]
         : []),
       // AD-4 — 규칙·스킬은 "만들 이유가 생긴 자리" 에서 태어난다. 팔레트는
@@ -438,39 +416,6 @@ export function CommandPalette({
                   </Command.Item>
                 );
               })}
-            </Command.Group>
-          ) : null}
-          {symbolHits.length > 0 ? (
-            <Command.Group
-              heading={t("palette.group.symbols")}
-              className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-fs-1 [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground"
-            >
-              {symbolHits.map((sym, i) => (
-                <Command.Item
-                  key={`sym:${sym.display}:${sym.line}:${sym.name}:${i}`}
-                  value={`sym:${sym.display}:${sym.line}:${sym.name}:${i}`}
-                  // 언어 서버가 이미 매칭했다 — cmdk 필터를 항상 통과시킨다.
-                  keywords={[search]}
-                  // 프로젝트 밖 심볼(의존성·표준 라이브러리)은 코드 화면이 열 수
-                  // 없다. 목록에 남기되 누르면 아무 일도 안 하는 대신 아예 끈다.
-                  disabled={sym.path == null}
-                  onSelect={() =>
-                    sym.path && openEntity({ kind: "code", id: sym.path, line: sym.line })
-                  }
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-sm aria-selected:bg-accent aria-selected:text-foreground text-foreground/80 data-[disabled=true]:opacity-50"
-                >
-                  <Code2  className="text-muted-foreground" size={15} />
-                  <span className="flex-1 truncate">
-                    {sym.name}
-                    {sym.container ? (
-                      <span className="text-muted-foreground"> · {sym.container}</span>
-                    ) : null}
-                  </span>
-                  <span className="text-fs-1 text-muted-foreground shrink-0 truncate max-w-[45%]">
-                    {sym.display}:{sym.line + 1}
-                  </span>
-                </Command.Item>
-              ))}
             </Command.Group>
           ) : null}
           {grouped.map(([group, list]) => (

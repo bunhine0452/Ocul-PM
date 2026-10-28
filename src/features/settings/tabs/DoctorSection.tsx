@@ -19,7 +19,6 @@ import { useT } from "@/i18n";
 import type { I18nKey } from "@/i18n";
 import {
   commands,
-  type AcpDiagnostics,
   type AutomationOverview,
   type OculpmStatus,
   type ProjectStats,
@@ -33,7 +32,7 @@ import { coreModelTarget, PROVIDERS, type Provider } from "@/lib/settings";
 import { toast } from "@/lib/toast";
 import type { Envelope } from "@/api/invoke";
 import { tError } from "@/i18n/errors";
-import { relativeTime } from "@/features/chat/relativeTime";
+import { relativeTime } from "@/lib/relativeTime";
 import { Section, secretName } from "./ui";
 
 type RowState = "ok" | "warn" | "danger" | "off";
@@ -56,10 +55,8 @@ interface DoctorRow {
 
 interface Probe {
   status: OculpmStatus | null;
-  acp: AcpDiagnostics | null;
   keys: Provider[];
   stats: ProjectStats | null;
-  shell: { installed: boolean; block_broken: boolean } | null;
   hooks: { installed: boolean; partial: boolean } | null;
   mcp: { registered: boolean; binary_found: boolean } | null;
   /** 자동화 한 벌 (Phase 3 `#doctor-automation`). 실패하면 그 행들만 "확인 실패". */
@@ -70,12 +67,10 @@ interface Probe {
 async function probe(projectId: number): Promise<Probe> {
   const ok = <T,>(p: Promise<Envelope<T>>) =>
     p.then((r) => (r.status === "ok" ? r.data : null)).catch(() => null);
-  const [status, acp, keyFlags, stats, shell, hooks, mcp, automation] = await Promise.all([
+  const [status, keyFlags, stats, hooks, mcp, automation] = await Promise.all([
     ok(commands.oculpmGetStatus(projectId)),
-    ok(commands.acpDiagnose()),
     Promise.all(PROVIDERS.map((p) => ok(commands.secretHas(secretName(p))).then((has) => (has ? p : null)))),
     ok(commands.projectStats(projectId)),
-    ok(commands.shellIntegrationStatus()),
     ok(commands.claudeHooksStatus(projectId)),
     ok(commands.mcpStatus(projectId)),
     // `automationApi` 는 봉투 대신 던진다 — 여기만 형태가 달라 따로 삼킨다.
@@ -83,10 +78,8 @@ async function probe(projectId: number): Promise<Probe> {
   ]);
   return {
     status,
-    acp,
     keys: keyFlags.filter((p): p is Provider => p != null),
     stats,
-    shell,
     hooks,
     mcp,
     automation,
@@ -273,23 +266,6 @@ export function DoctorSection() {
               : { id: "lock", labelKey: "settings.doctor.lock", state: "off", value: t("settings.doctor.v.lockNone") },
     );
 
-    const a = report.acp;
-    const install = async () => {
-      const r = await commands.acpInstallAdapter("claude");
-      if (r.status === "ok") toast.info(t("settings.doctor.a.installDone"));
-      else toast.destructive(t("settings.doctor.a.failed", { error: tError(r.error) }));
-      await check();
-    };
-    out.push(
-      !a
-        ? { id: "acp", labelKey: "settings.doctor.acp", state: "off", value: unknown }
-        : !a.node_ok
-          ? { id: "acp", labelKey: "settings.doctor.acp", state: "danger", value: t("settings.doctor.v.acpNode", { min: a.node_min_major, node: a.node_version ?? "—" }) }
-          : !a.adapter_ok
-            ? { id: "acp", labelKey: "settings.doctor.acp", state: "warn", value: t("settings.doctor.v.acpAdapter", { expected: a.adapter_expected }), action: { labelKey: "settings.doctor.a.install", run: install } }
-            : { id: "acp", labelKey: "settings.doctor.acp", state: "ok", value: t("settings.doctor.v.acpReady", { node: a.node_version ?? "?", adapter: a.adapter_version ?? "?" }) },
-    );
-
     out.push(
       report.keys.length === 0
         ? { id: "keys", labelKey: "settings.doctor.keys", state: "warn", value: t("settings.doctor.v.keysNone"), action: { labelKey: "settings.doctor.a.keys", run: () => openSettings("llm") } }
@@ -316,16 +292,6 @@ export function DoctorSection() {
               },
     );
 
-    const sh = report.shell;
-    out.push(
-      !sh
-        ? { id: "shell", labelKey: "settings.doctor.shell", state: "off", value: unknown }
-        : sh.block_broken
-          ? { id: "shell", labelKey: "settings.doctor.shell", state: "danger", value: t("settings.doctor.v.broken"), action: { labelKey: "settings.doctor.a.open", run: () => openSettings("oculpm") } }
-          : sh.installed
-            ? { id: "shell", labelKey: "settings.doctor.shell", state: "ok", value: t("settings.doctor.v.installed") }
-            : { id: "shell", labelKey: "settings.doctor.shell", state: "off", value: t("settings.doctor.v.notInstalled"), action: { labelKey: "settings.doctor.a.open", run: () => openSettings("oculpm") } },
-    );
 
     const hk = report.hooks;
     out.push(

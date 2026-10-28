@@ -279,8 +279,10 @@ fn every_process_launch_site_is_classified() {
     );
     diff_report("D1 출시 코드", &app, &declared_app);
     diff_report("D2 테스트 범위", &test, &declared_test);
+    // 바닥은 스캐너가 낡지 않았다는 증거다. 2026-10-28 에 PTY 호스트·ACP·LSP·셸 통합을
+    // 걷어 출시 코드의 기동 자리가 37 → 27 로 줄었다 — 그만큼 내렸다.
     assert!(
-        app.len() >= 30 && test.len() >= 10,
+        app.len() >= 20 && test.len() >= 10,
         "기동 자리를 {}·{}개밖에 못 찾았다 — 스캐너가 낡아 검사가 헛돌고 있다",
         app.len(),
         test.len()

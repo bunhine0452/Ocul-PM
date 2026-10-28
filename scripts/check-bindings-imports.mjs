@@ -29,6 +29,7 @@ export const ALLOWLIST = new Set([
   "api/plugins.ts",
   "api/session.ts",
   "api/import.ts",
+  "api/projectFile.ts",
   "api/llm.ts",
   "api/codeHistory.ts",
   // `.oculpm/index/` 사용량 + diff 정리 (journal-scale-round {#index-usage}).

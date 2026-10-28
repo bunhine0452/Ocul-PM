@@ -182,9 +182,9 @@ describe("tAll()", () => {
 
   it("현재 언어와 무관하게 같은 집합을 돌려준다", () => {
     setLangSetting("ko");
-    const fromKo = tAll("nav.terminal");
+    const fromKo = tAll("nav.search");
     setLangSetting("en");
-    const fromEn = tAll("nav.terminal");
+    const fromEn = tAll("nav.search");
     expect(fromEn).toEqual(fromKo);
   });
 

@@ -19,18 +19,6 @@ import { lazy } from "react";
 export const SearchScreenV2 = lazy(() =>
   import("@/features/search/SearchScreenV2").then((m) => ({ default: m.SearchScreenV2 })),
 );
-export const TerminalScreenV2 = lazy(() =>
-  import("@/features/terminal/TerminalScreenV2").then((m) => ({ default: m.TerminalScreenV2 })),
-);
-export const AiPanelScreenV2 = lazy(() =>
-  import("@/features/chat/AiPanelScreenV2").then((m) => ({ default: m.AiPanelScreenV2 })),
-);
-export const ClaudeCodeScreenV2 = lazy(() =>
-  import("@/features/chat/ClaudeCodeScreenV2").then((m) => ({ default: m.ClaudeCodeScreenV2 })),
-);
-export const CodexScreenV2 = lazy(() =>
-  import("@/features/chat/CodexScreenV2").then((m) => ({ default: m.CodexScreenV2 })),
-);
 export const DiscussionScreenV2 = lazy(() =>
   import("@/features/discussion/DiscussionScreenV2").then((m) => ({
     default: m.DiscussionScreenV2,
@@ -42,18 +30,8 @@ export const SkillsScreenV2 = lazy(() =>
 export const SettingsPanel = lazy(() =>
   import("@/features/settings/SettingsPanel").then((m) => ({ default: m.SettingsPanel })),
 );
-// 코드 화면 (docs/code-editor/00-master-plan.md) — CodeMirror 를 통째로 실은
-// 청크라 lazy 가 필수다. 안 여는 사용자에게 에디터 비용을 지우지 않는다.
-export const CodeScreenV2 = lazy(() =>
-  import("@/features/code/CodeScreenV2").then((m) => ({ default: m.CodeScreenV2 })),
-);
 // 브랜치의 이야기 (v3-surface {#branch-story-view}) — 다른 축으로 다시 읽는
 // 곳이라 코어 루프와 달리 지연 청크다.
 export const BranchScreenV2 = lazy(() =>
   import("@/features/branch/BranchScreenV2").then((m) => ({ default: m.BranchScreenV2 })),
-);
-// 터미널 도크 (2026-08-15) — 열어야 청크를 받는다. 안 여는 사용자에게 xterm
-// 비용을 지우지 않는 것은 터미널 화면과 같은 원칙이다.
-export const TerminalDock = lazy(() =>
-  import("@/features/terminal/TerminalDock").then((m) => ({ default: m.TerminalDock })),
 );

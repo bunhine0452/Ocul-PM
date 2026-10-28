@@ -1,5 +1,5 @@
 //! 창 생성·정리 — URL 조립, 휴면 창 재사용, 웹뷰 띄우기, 첫 창 편입, 창 이벤트
-//! 훅(포커스 추적·닫힘 시 탭 정리·마지막 창 판정), 프로젝트 단위 PTY 정리.
+//! 훅(포커스 추적·닫힘 시 탭 정리·마지막 창 판정).
 //!
 //! 새 창(`create_window`)과 세션 복원이 같은 `spawn_window` 를 쓰도록 여기 모았다.
 
@@ -247,134 +247,13 @@ fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
         (tabs, reg.windows.len())
     };
 
-    for project_id in closed_tabs {
-        release_project_blocking(app, project_id);
-    }
+    // 탭의 프로젝트 단위 정리는 없다 — PTY·언어 서버는 2026-10-28 에 걷었다 (simplify-round).
+    let _ = closed_tabs;
     emit_open_projects(app);
 
     if remaining > 0 {
         return false;
     }
 
-    // 분리 터미널 창은 탭 창이 아니지만 **앱이 아직 하는 일**이다. 남아 있는데
-    // 여기서 종료·상주 전환을 밟으면, 방금 떼어낸 터미널이 통째로 사라진다.
-    let detached = app.state::<WindowTabs>().lock().terminal_window_projects();
-    if !detached.is_empty() {
-        return false;
-    }
-
-    // 마지막 창 — 어떤 PTY 도 주인이 없다. 접두사 없는 레거시 sid(멀티 창
-    // 이전에 저장된 터미널 탭)까지 여기서 회수한다.
-    crate::commands::terminal::kill_ptys_except_blocking(app, &[]);
     crate::tray::handle_last_window_closed(app, label)
-}
-
-/// 탭이 사라질 때의 프로젝트 단위 정리 — PTY 와 언어 서버를 내린다.
-///
-/// 예전에는 watcher 도 함께 멈췄다. 하지만 감시 범위가 "열린 탭" 에서 "추적
-/// 중인 모든 프로젝트" 로 바뀌면서(2026-08-12), watcher 의 수명은 탭이 아니라
-/// **앱 프로세스**에 묶인다 — 여기서 멈추면 탭을 닫는 순간 그 프로젝트가
-/// 상단바에서 다시 사라진다. 종료 시 정리는 `shutdown_all_blocking` 이 한다.
-///
-/// 이 비동기판은 **커맨드**(탭 닫기)가 쓴다. 창 이벤트 훅은 아래 동기판이다 —
-/// 왜 나뉘어야 하는지는 `commands/terminal.rs` 의 "두 갈래인 이유" 참고.
-/// 여기서 동기판을 부르면 tokio 가 패닉해 **그 뒤의 창 닫기가 통째로 사라진다**
-/// (2026-08-29, 떼어낸 창이 안 닫히던 뿌리).
-pub(super) async fn release_project(app: &AppHandle, project_id: u32) {
-    if !releasable(app, project_id) {
-        return;
-    }
-    crate::commands::terminal::kill_ptys_with_prefix(app, &pty_prefix_for(project_id)).await;
-    stop_code_servers(app, project_id).await;
-}
-
-/// 같은 정리를 창 이벤트 훅(메인 스레드·동기)에서. 여기서는 기다려야 한다 —
-/// 마지막 창 닫힘 직후 앱이 종료될 수 있어 spawn 은 종료와 경주한다.
-///
-/// 언어 서버는 예외로 spawn 한다 — 정상 종료가 서버마다 몇 초라 메인
-/// 스레드를 붙들 수 없고, 그 경주에서 지더라도 앱 종료(`ExitRequested`)가 전부 내린다.
-fn release_project_blocking(app: &AppHandle, project_id: u32) {
-    if !releasable(app, project_id) {
-        return;
-    }
-    crate::commands::terminal::kill_ptys_with_prefix_blocking(app, &pty_prefix_for(project_id));
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move { stop_code_servers(&app, project_id).await });
-}
-
-/// 이 프로젝트의 언어 서버를 내린다. 예전엔 설정 화면의 명령만 불러서,
-/// 탭을 닫거나 프로젝트를 지워도 rust-analyzer 가 계속 돌았다 (2026-10-09 리포트).
-pub(crate) async fn stop_code_servers(app: &AppHandle, project_id: u32) {
-    if let Some(lsp) = app.try_state::<crate::lsp::state::LspState>() {
-        lsp.stop_project(project_id).await;
-    }
-}
-
-/// 앱 종료(`ExitRequested`, 메인 스레드) — 모든 프로젝트의 언어 서버를 동시에,
-/// 최대 2초. 이미 런타임 위라면(테스트) `block_on` 이 패닉하므로 건너뛴다.
-pub(crate) fn stop_code_servers_blocking(app: &AppHandle) {
-    let Some(lsp) = app.try_state::<crate::lsp::state::LspState>() else {
-        return;
-    };
-    if tokio::runtime::Handle::try_current().is_ok() {
-        return;
-    }
-    let all = lsp.stop_all(std::time::Duration::from_millis(1500));
-    if block_on_within(std::time::Duration::from_secs(2), all).is_none() {
-        tracing::warn!("종료: 언어 서버 정리가 2초 안에 안 끝났다");
-    }
-}
-
-/// 런타임 **밖**(메인 스레드)에서 `fut` 를 `limit` 까지만 기다린다. 넘기면 `None`.
-///
-/// `tokio::time::timeout` 은 **만드는 순간** 타이머를 런타임에 등록한다. 그래서
-/// `block_on(timeout(..))` 처럼 인자 자리에서 만들면 아직 런타임 밖이라 "there is
-/// no reactor running" 으로 패닉한다 — 앱 종료(`ExitRequested`)마다 이 자리에서
-/// 패닉해 언어 서버가 고아로 남고 뒤따르는 정리도 건너뛰었다
-/// (oculpm.log 2026-10-10·10-14, `lifecycle.rs:335`). 타이머는 `block_on` 안에서 만든다.
-fn block_on_within<F: std::future::Future>(
-    limit: std::time::Duration,
-    fut: F,
-) -> Option<F::Output> {
-    tauri::async_runtime::block_on(async move { tokio::time::timeout(limit, fut).await.ok() })
-}
-
-/// 이 프로젝트의 셸을 정리해도 되는가.
-///
-/// 2026-08-15 — 터미널을 창으로 떼어냈으면 **그 창이 아직 셸의 주인**이다.
-/// 탭만 보고 죽이면, 분리 창을 띄워 둔 채 프로젝트 탭을 닫는 순간 그 안의
-/// 셸이 전부 사라진다 (창은 살아 있는데 내용만 죽는 셈).
-fn releasable(app: &AppHandle, project_id: u32) -> bool {
-    !app.state::<WindowTabs>().lock().project_in_use(project_id)
-}
-
-#[cfg(test)]
-mod block_on_within_tests {
-    use super::block_on_within;
-    use std::time::Duration;
-
-    /// 테스트 스레드는 런타임 밖이다 — 앱 종료 훅(메인 스레드)과 같은 자리.
-    #[test]
-    fn waits_from_outside_the_runtime_without_panicking() {
-        assert_eq!(
-            block_on_within(Duration::from_millis(500), async { 7 }),
-            Some(7)
-        );
-    }
-
-    /// 고치기 전의 모양 — 인자 자리에서 만든 타이머는 런타임 밖이라 패닉한다.
-    /// 이 전제가 깨지는 날(tokio 가 지연 등록으로 바뀌면) 도우미를 걷어도 된다.
-    #[test]
-    fn a_timeout_built_outside_the_runtime_panics() {
-        let built_outside = std::panic::catch_unwind(|| {
-            tauri::async_runtime::block_on(tokio::time::timeout(Duration::from_millis(10), async {}))
-        });
-        assert!(built_outside.is_err());
-    }
-
-    #[test]
-    fn gives_up_after_the_limit() {
-        let never = std::future::pending::<()>();
-        assert_eq!(block_on_within(Duration::from_millis(20), never), None);
-    }
 }

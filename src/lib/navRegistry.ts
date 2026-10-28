@@ -5,15 +5,9 @@ import {
   TargetIcon,
   GitCompareArrows,
   SearchIcon,
-  SquareTerminal,
-  MessageSquareText,
   Puzzle,
-  FileCode,
-  Bot,
   GitBranchIcon,
 } from "@/components/Icons";
-import { ClaudeMark } from "@/components/ClaudeMark";
-import { CodexMark } from "@/components/CodexMark";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
 import type { I18nKey } from "@/i18n";
 import { modLabel } from "@/lib/kbd";
@@ -74,41 +68,14 @@ export interface NavEntry {
 }
 
 /**
- * 에이전트 행의 두 갈래. 사이드바에서는 부모가 활성일 때만 펼쳐지고, ⌘K
- * 팔레트에서는 늘 각각 찾을 수 있다.
+ * 사이드바 행 8개 (2026-10-28 덜어내기 라운드 이후).
  *
- * 둘 다 별칭에 "에이전트" 를 넣어 둔다 — 사이드바에서 사라진 이름으로
- * 검색하는 사람과, 합쳐진 이름으로 검색하는 사람이 둘 다 도착해야 한다.
- */
-const AGENT_BRANCHES: NavEntry[] = [
-  { id: "claudecode", labelKey: "nav.claudecode", aliasKey: "nav.claudecode.alias", icon: ClaudeMark, tier: "hold", group: "ai" },
-  { id: "codex", labelKey: "nav.codex", aliasKey: "nav.codex.alias", icon: CodexMark, tier: "hold", group: "ai" },
-];
-
-/**
- * 사이드바 행 12개 (2026-09-06 IA 재편 이후, 2026-09-08 회고·문서 삭제,
- * 2026-10-24 코드 맵 삭제 반영).
+ * 2026-09-06 IA 재편(에이전트 한 행·논의 강등)과 2026-09-08·10-24 의 삭제(회고·문서·코드 맵)를
+ * 지나, 2026-10-28 에 **보류 등급 네 화면**(터미널·편집기·에이전트 둘·AI 패널)을 통째로 걷었다
+ * (플랜 `simplify-round-20261028`). 남은 것은 핵심 넷 + 검색 · 스킬 · 논의 · 브랜치다.
  *
- * 무엇이 바뀌었나:
- *
- * - **Claude Code · Codex → 「에이전트」 한 행.** 둘 다 "에이전트에게
- *   시키는 곳"인데 사이드바에서 두 줄을 먹었다. 화면은 둘 다 살아 있고
- *   (`children`), 컴포넌트도 두 벌 keep-alive 그대로다 — 행만 하나다.
- * - **논의를 `ref`(참고) 로 강등하고 ⌘번호를 회수했다.** 이 저장소 실측으로
- *   논의 4건 vs 일지 537건이다. 매일 쓰는 것이 번호를 갖는다.
- * - **회고·문서 화면을 없앴다 (2026-09-08).** 회고는 신호 집계가 실제 쓰임에
- *   비해 표면이 컸고, 문서는 `docs/` 가 없는 프로젝트에서 영구 빈 화면이었다.
- *   두 화면이 빠지면서 ⌘번호가 한 번 더 당겨진다 — 번호는 배열 앞 10칸의
- *   것이라는 계약 그대로다.
- * - **재명명** — 코드 검색 → 검색 · 코드 → 편집기 · Diff → 변경. 옛 이름은
- *   ⌘K 별칭에 남긴다 (v2.17.0 선례).
- * - **코드 맵을 없앴다 (2026-10-24).** 범위 동결의 주변부 걷기다. 여섯 번째
- *   칸이 비면서 뒤가 한 칸씩 당겨진다 — 터미널 ⌘6 · 편집기 ⌘7 · 에이전트 ⌘8 ·
- *   AI 패널 ⌘9 · 스킬 ⌘0. ⌘1~⌘5 는 그대로다.
- *
- * ⌘번호는 여전히 **배열 앞 10개**에 자동 부여된다. 번호의 뜻이 바뀔 때마다
- * 사이드바가 한 번 안내한다 (`NavRemapNotice` — 바뀔 때마다 설정 키를 새로
- * 받아 이미 닫은 사람에게도 다시 뜬다).
+ * ⌘번호는 여전히 **배열 앞 10개**에 자동 부여된다 — 이제 여덟 화면 전부가 번호를 받고
+ * ⌘9·⌘0 은 빈다. 번호의 뜻이 바뀔 때마다 사이드바가 한 번 안내한다 (`NavRemapNotice`).
  */
 export const NAV_ENTRIES: NavEntry[] = [
   // ── 코어 루프: 오늘 무슨 일이 있었나 → 뭐라고 적혔나 → 코드가 어떻게
@@ -119,15 +86,8 @@ export const NAV_ENTRIES: NavEntry[] = [
   { id: "planner", labelKey: "nav.planner", aliasKey: "nav.planner.alias", icon: TargetIcon, tier: "core", group: "main" },
   // ── 코드 작업면.
   { id: "search", labelKey: "nav.search", aliasKey: "nav.search.alias", icon: SearchIcon, tier: "viewer", group: "tools" },
-  { id: "terminal", labelKey: "nav.terminal", aliasKey: "nav.terminal.alias", icon: SquareTerminal, tier: "hold", group: "tools" },
-  { id: "code", labelKey: "nav.code", aliasKey: "nav.code.alias", icon: FileCode, tier: "hold", group: "tools" },
-  // ── AI 면. 「에이전트」가 여덟 번째 칸(⌘8), 「AI 패널」이 아홉 번째(⌘9),
-  //    「스킬」이 열 번째(⌘0)다 —
-  //    매일 쓰는 면이 번호를 갖는다는 규칙의 결과다. 이 번호들은
-  //    `nav_registry.test.ts` 가 못박고 있으므로, 여기 적힌 숫자가 그 테스트와
-  //    어긋나면 **틀린 쪽은 이 주석**이다 (2026-09-09 에 한 번 그랬다).
-  { id: "claudecode", labelKey: "nav.agent", aliasKey: "nav.agent.alias", icon: Bot, tier: "hold", group: "ai", children: AGENT_BRANCHES },
-  { id: "ai", labelKey: "nav.ai", aliasKey: "nav.ai.alias", icon: MessageSquareText, tier: "hold", group: "ai" },
+  // ── AI 면 — 보류 등급(터미널·편집기·에이전트·AI 패널)은 2026-10-28 에 걷었다 (플랜
+  //    simplify-round-20261028). 남은 것은 스킬 하나다.
   // PR-CI3 — 스킬 화면을 스킬·규칙·훅 허브로 확장 (id 는 유지 — 저장된 uiV2View 호환).
   { id: "skills", labelKey: "nav.skills", aliasKey: "nav.skills.alias", icon: Puzzle, tier: "viewer", group: "ai" },
   // ── 참고. 가끔 열고, 없으면 비어 있는 것이 정상인 화면.

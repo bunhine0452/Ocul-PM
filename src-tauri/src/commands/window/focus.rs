@@ -65,20 +65,6 @@ pub fn focused_app_window(app: &AppHandle) -> Option<String> {
     })
 }
 
-/// 지금 포커스된 **분리 터미널 창**의 라벨.
-///
-/// ⌘W/⇧⌘W 처리에 반드시 먼저 물어봐야 한다: `focused_app_window` 는 터미널
-/// 창을 앱 창으로 치지 않아 "마지막으로 포커스된 탭 창"으로 떨어지고, 그러면
-/// 터미널 창에서 누른 ⌘W 가 **다른 창의 탭**을 닫아 버린다.
-pub fn focused_terminal_window(app: &AppHandle) -> Option<String> {
-    app.webview_windows()
-        .into_iter()
-        .find(|(label, w)| {
-            terminal_window_project(label).is_some() && w.is_focused().unwrap_or(false)
-        })
-        .map(|(label, _)| label)
-}
-
 /// 그 창에서 지금 보이고 있는 탭.
 pub fn active_tab_of(app: &AppHandle, label: &str) -> Option<u32> {
     let state = app.state::<WindowTabs>();

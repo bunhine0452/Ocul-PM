@@ -8,16 +8,10 @@
 import { call, type Envelope } from "@/api/invoke";
 import { commands, events } from "@/lib/bindings";
 import type {
-  ChatEvent,
-  ChatOptions,
-  ChatResponse,
   LlmBackgroundFailed,
-  Message,
   ModelInfo,
-  ProviderModel,
   ProviderReach,
 } from "@/lib/bindings";
-import type { Channel } from "@tauri-apps/api/core";
 import type { Provider } from "@/lib/settings";
 
 const unwrap = <T,>(command: string, p: Promise<Envelope<T>>) => call<T>(command, p);
@@ -64,24 +58,4 @@ export const llmApi = {
    * **완성된 대체 텍스트**가 값이고, 부분 응답을 코드에 끼워 넣으면 그 사이
    * 파일이 깨진 상태로 있게 된다.
    */
-  chat: (
-    provider: Provider,
-    messages: Message[],
-    options: ChatOptions,
-    fallbacks: ProviderModel[],
-  ): Promise<ChatResponse> =>
-    unwrap<ChatResponse>("chat", commands.chat(provider, messages, options, fallbacks)),
-
-  /**
-   * 스트리밍 채팅 — 조각은 `onEvent` 로 오고, 풀리는 순간은 백엔드가 다 보낸 때다.
-   * 실패(키 없음·폴백 소진·전송 실패)는 `ApiError` 하나로 던진다.
-   */
-  stream: (
-    provider: string,
-    messages: Message[],
-    options: ChatOptions,
-    fallbacks: ProviderModel[],
-    onEvent: Channel<ChatEvent>,
-  ): Promise<null> =>
-    unwrap<null>("chat_stream", commands.chatStream(provider, messages, options, fallbacks, onEvent)),
 };

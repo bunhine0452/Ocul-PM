@@ -368,42 +368,17 @@ describe("dictionary — t() renders the OS notation", () => {
   const glyphKeys = (Object.keys(ko) as I18nKey[]).filter((k) => GLYPH.test(ko[k]) || GLYPH.test(en[k]));
 
   it("there are glyph strings to check (an empty sample would prove nothing)", () => {
-    expect(glyphKeys.length).toBeGreaterThan(30);
+    expect(glyphKeys.length).toBeGreaterThan(10);
   });
 
-  it("mac: **every** key equals the raw dictionary string, character for character (D3)", () => {
-    __setPlatformForTests("mac");
-    for (const k of Object.keys(ko) as I18nKey[]) {
-      if (/\{\w+\}/.test(ko[k])) continue; // placeholders stay as-is without vars — covered below
-      expect(t(k), k).toBe(ko[k]);
-    }
-    expect(t("term.fontSizeHint", { min: 9, max: 22 })).toBe(
-      ko["term.fontSizeHint"].replace("{min}", "9").replace("{max}", "22"),
-    );
-  });
 
   it.each(OTHERS)("%s: no glyph string leaves a ⌘⇧⌥⌃ behind", (os) => {
     __setPlatformForTests(os);
     for (const k of glyphKeys) expect(t(k), k).not.toMatch(GLYPH);
   });
 
-  it.each(OTHERS)("%s: term.* use the terminal family — the status bar never advertises the shell's Ctrl+D", (os) => {
+  it.each(OTHERS)("%s: strings outside the terminal use the plain notation", (os) => {
     __setPlatformForTests(os);
-    expect(t("term.splitRowHint")).toBe(ko["term.splitRowHint"].replace("⌘D", "Ctrl+Shift+D"));
-    expect(t("term.splitColHint")).toBe(ko["term.splitColHint"].replace("⇧⌘D", "Ctrl+Alt+Shift+D"));
-    expect(t("term.closePaneHint")).toBe(ko["term.closePaneHint"].replace("⌘W", "Ctrl+Shift+W"));
-    expect(t("term.dock.closeHint")).toContain("Ctrl+Shift+J");
-    expect(t("term.shortcuts")).toBe(
-      ko["term.shortcuts"]
-        .replace("⌘T", "Ctrl+Shift+T")
-        .replace("⇧⌘D", "Ctrl+Alt+Shift+D")
-        .replace("⌘D", "Ctrl+Shift+D")
-        .replace("⇧⌘↩", "Ctrl+Shift+Enter")
-        .replace("⌘F", "Ctrl+Shift+F")
-        .replace("⌘L", "Ctrl+Shift+L")
-        .replace("⌘W", "Ctrl+Shift+W"),
-    );
-    // strings outside the terminal use the plain notation.
     expect(t("sidebar.switchProject")).toBe(ko["sidebar.switchProject"].replace("⌘P", "Ctrl+P"));
   });
 });
@@ -428,10 +403,6 @@ describe("cheatsheet and nav numbers — OS notation", () => {
     }
     const byLabel = new Map(groups.flatMap((g) => g.rows.map((r) => [`${g.id}:${r.labelKey}`, r.keys] as const)));
     expect(byLabel.get("global:keys.palette")).toBe("Ctrl+K");
-    expect(byLabel.get("terminal:keys.termSplit")).toBe("Ctrl+Shift+D");
-    expect(byLabel.get("terminal:keys.termSplitDown")).toBe("Ctrl+Alt+Shift+D");
-    expect(byLabel.get("terminal:keys.termClosePane")).toBe("Ctrl+Shift+W");
-    expect(byLabel.get("terminal:keys.termCopyPaste")).toBe("Ctrl+Shift+C / Ctrl+Shift+V");
     expect(byLabel.get("window:keys.closeWindow")).toBe("Alt+F4");
     // new window is keydown-matched off the mac now ({#os-new-window}) — the row is back.
     expect(byLabel.get("window:keys.newWindow")).toBe("Ctrl+Shift+N");

@@ -55,7 +55,6 @@ pub mod rule_scope;
 pub mod rules;
 pub mod session;
 pub mod session_id;
-pub mod shell_integration;
 pub mod shim;
 pub mod skill_dormancy;
 pub mod skill_frontmatter;

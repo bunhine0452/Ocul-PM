@@ -67,28 +67,10 @@ describe("runNewTabIntent", () => {
 describe("⌘T 는 keydown 이 아니라 인텐트로 온다", () => {
   const read = (rel: string) => readFileSync(resolve(__dirname, "..", rel), "utf8");
 
-  /**
-   * 소스 가드. keydown 분기를 되살리면 macOS 에서는 여전히 죽어 있고(메뉴가
-   * 먼저 먹는다) 다른 플랫폼에서는 인텐트와 겹쳐 **탭이 두 개** 열린다.
-   */
-  it("터미널은 ⌘T keydown 을 잡지 않고 사슬에 등록한다", () => {
-    // 2026-09-15 분할 — 단축키·인텐트 배선은 terminalSurface/useTerminalKeys 로 갔다.
-    const src = read("features/terminal/terminalSurface/useTerminalKeys.ts");
-    expect(src).toContain("registerNewTabHandler");
-    expect(src).not.toMatch(/k === "t"/);
-  });
-
   it("창은 인텐트를 듣고, 아무도 안 받을 때만 시작 탭을 연다", () => {
     const src = read("windows/TabbedWindow.tsx");
     expect(src).toContain("events.newTabIntent");
     expect(src).toContain("if (runNewTabIntent()) return;");
   });
 
-  it("분리 터미널 창도 인텐트를 듣는다 (그 창엔 프로젝트 탭이 없다)", () => {
-    const src = read("windows/TerminalWindow.tsx");
-    // 구독은 창 래퍼를 지난다 (`{#api-facades}`) — 래퍼가 같은 이벤트를 듣는지까지 본다.
-    expect(src).toContain("windowApi.onNewTabIntent");
-    expect(read("api/window.ts")).toContain("events.newTabIntent");
-    expect(src).toContain("ownsNewTab");
-  });
 });

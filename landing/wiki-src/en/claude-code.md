@@ -1,41 +1,21 @@
 ---
 title: Claude Code
-desc: In-app Claude Code vs terminal Claude Code, installing the plugin (hook bridge), and why /plugin and /mcp don't work in-app.
+desc: Where Claude Code in your terminal meets Ocul-PM — the rules file, the plugin (hook bridge · MCP tools), and the app's screens.
 order: 9
-updated: 2026-08-21
+updated: 2026-10-28
 ---
 
-There are **two** ways to use Claude Code with Ocul-PM. Understand the split and everything else follows.
+With Ocul-PM, Claude Code runs **in your own terminal**. The screen that ran Claude Code inside the app (ACP) was removed on 2026-10-28 — the app's place is to turn what `claude` does in your terminal into **a record, evidence and a plan**.
 
-| | In-app Claude Code (sidebar) | Terminal Claude Code |
+| Where | What it does | Install |
 |---|---|---|
-| How it runs | ACP (Agent Client Protocol) | The CLI as-is |
-| Journaling | **Automatic** — built-in MCP tools attached to the session | AGENTS.md rules (automatic once the plugin is installed) |
-| `/plugin` `/mcp` `/login` | **Not available** (see below) | Available |
-| Login | Reuses credentials from a one-time terminal login | Run `claude` and log in |
+| **Rules file** `AGENTS.md` | Tells the agent to write a journal entry after every unit of work, and to state a done condition and a check command before code | Planted when you add a project |
+| **Plugin** `oculpm` | Hook bridge (session start/stop) · MCP journaling tools · skills — recording becomes **structure**, not a rule | Two lines below |
+| **The app** | Entries appear on screen within seconds, with their diff; the next session picks up where you left off | Just read |
 
-## In-app Claude Code — records with no setup
+## Install the plugin
 
-The **Claude Code** screen in the sidebar runs the real `claude` inside the app. Two things are handled for you:
-
-- **ocul-pm's recording tools (MCP)** are attached to every session — the agent can call `journal_write` and update the planner
-- the project's **AGENTS.md rules** tell it to record when work is done
-
-So **as long as you work in the app, there's nothing to install.** You just wait out the few minutes on first launch while the adapter is installed (npm, pinned version).
-
-:::warn
-The app has no login screen. On a machine that has never logged into Claude Code, run `claude` in a terminal first and log in — the app reuses those credentials. (You can open one right from the terminal button in the toolbar.)
-:::
-
-## Why don't `/plugin` and `/mcp` work in-app?
-
-In-app Claude Code talks over a protocol called ACP. That protocol carries **agent work** — prompts, tool calls, approvals — but it cannot carry **interactive commands the CLI draws on its own screen (TUI)** like `/plugin`, `/mcp`, `/login`, `/remote-control`. Their UI exists only in a terminal.
-
-So the app provides an **escape hatch**: the terminal button at the top right of the Claude Code screen opens a real `claude` in the same project. Run CLI-only commands there. (Type `/remote-control` and the app forwards you to the terminal automatically.)
-
-## Terminal Claude Code — install the plugin
-
-If you mostly use Claude Code in a terminal, the situation is different. AGENTS.md rules alone will produce entries, but only **as far as the model follows them** — it can forget at the end of a long session. Installing the **oculpm plugin** attaches a hook bridge so recording becomes **structural** rather than a matter of rules.
+AGENTS.md rules alone will produce entries, but only **as far as the model follows them** — it can forget at the end of a long session. With the plugin installed, a hook judges each session as it ends, and if code changed without an entry it blocks the turn once and asks for one.
 
 Two lines inside `claude` in your terminal:
 
@@ -45,19 +25,26 @@ Two lines inside `claude` in your terminal:
 ```
 
 :::tip
-These are also in the app under **Settings → ocul-pm → Integration** with copy buttons. The MCP snippet for Claude Desktop is copied from the same place.
+The same two lines sit under **Settings → ocul-pm → Integrations** in the app, with a copy button. The MCP snippet for Claude Desktop is there too.
 :::
 
-Once installed you get:
+Once installed:
 
-- **Hook bridge** — official hooks wired so a record is left when a session ends
-- **5 MCP tools** — `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init`
-- **5 skills** — workflow skills like `/oculpm:standup` and `/oculpm:next`
+- **Hook bridge** — at session start it ships the active plan's open items, done condition and check command plus the last three entries into the starting context; at the end it judges whether the session recorded.
+- **7 MCP tools** — `journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init`
+- **Skills** — `/oculpm:next` (one loop on the next open item) · `/oculpm:redteam` (run the claims, report only counterexamples) · `/oculpm:inception` (seed a new design)
 
-Everything is configured globally under `~/.claude`, so it works **in every project**. You can even use the plugin before the app — records pile up as `.oculpm/` markdown, and the app reads them whenever you install it. More on the [plugin page](/plugin).
+Everything is configured globally under `~/.claude`, so it works **in every project**. You can start with the plugin alone — records accumulate as `.oculpm/` markdown, and the app reads them whenever you install it. Details on the [plugin page](/plugin).
 
-## Summary — what do I need to install?
+## What the app hands to your terminal
 
-- **In-app only** → nothing. Just confirm you're logged in.
-- **Terminal too** → the two lines above. Skip it and terminal sessions may go unrecorded.
-- **Claude Desktop as well** → copy the MCP snippet from Settings → ocul-pm → Integration.
+- **Planner ▶Run** — copies the item's prompt (with the done condition and check command) to the **clipboard**. Paste it into `claude` and press Enter.
+- **Today → "Resume with this context"** — copies the resume prompt built from the remaining plan and the last entries.
+
+You are always the one who sends — the app has no way to type into your terminal.
+
+## Summary — what do I install?
+
+- **Claude Code in a terminal** → the two lines above. Skip them and sessions may go unrecorded.
+- **Claude Desktop too** → copy the MCP snippet from Settings → ocul-pm → Integrations.
+- **Codex · Cursor · Gemini CLI** → [Other agents](/wiki/en/agents).

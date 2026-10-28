@@ -14,7 +14,7 @@
 //! ## PATH 를 우리가 덮어쓰지 않는 이유
 //!
 //! Finder 로 띄운 `.app` 의 PATH 는 `/usr/bin:/bin:/usr/sbin:/sbin` 뿐이다
-//! ([`acp::env`](crate::acp::env)가 로그인 셸을 띄워 PATH 를 받아오는 이유).
+//! (옛 ACP 어댑터가 로그인 셸을 띄워 PATH 를 받아오던 이유와 같다).
 //! 그 PATH 로 사용자의 터미널을 열면 brew·nvm 이 통째로 사라진다. 그래서
 //! **터미널에는 `OCULPM_SHIM_DIR` 만 넘기고**, 셸 통합 스크립트가 사용자 rc 가
 //! 끝난 뒤 그 값을 PATH 앞에 붙인다. 우리가 만든 PATH 를 강요하지 않는다.

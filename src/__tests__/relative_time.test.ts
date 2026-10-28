@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { relativeTime } from "@/features/chat/relativeTime";
+import { relativeTime } from "@/lib/relativeTime";
 
 // PR-ACP8 — 대화 목록의 짧은 상대 시각.
 

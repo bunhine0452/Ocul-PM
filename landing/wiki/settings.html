@@ -50,8 +50,7 @@
     <a class="wk-side-link" href="/wiki/automation">자동화</a>
     <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
     <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
-    <a class="wk-side-link" href="/wiki/ai-panel">에이전트 패널</a>
-    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 터미널 · 코드</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 외부 편집기</a>
     <a class="wk-side-link on" href="/wiki/settings">설정</a>
     <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
     <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
@@ -74,16 +73,14 @@
 <p><b>밝게 / 어둡게 / OS 설정</b> 위에 <b>프리셋 테마</b>를 얹는 2층 구조입니다.</p>
 <ul><li>프리셋 5종 — Solarized · Sepia · Nord · Dracula · High Contrast</li><li>액센트 컬러 6종 — 그린(기본) · 블루 · 퍼플 · 오렌지 · 로즈 · 틸</li></ul>
 <div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p><b>프리셋을 고르면 액센트 선택이 비활성화됩니다.</b> 프리셋은 자체 색 체계를 통째로 들고 오기 때문입니다. 액센트만 바꾸고 싶다면 프리셋 없이 밝게/어둡게/OS 테마를 쓰세요.</p></div></div>
-<h3 id="글자-크기-둘">글자 크기 둘</h3>
-<p><b>앱 배율</b>과 <b>터미널 글자 크기</b>는 별개입니다.</p>
-<div class="wk-table"><table><thead><tr><th></th><th>단위</th><th>적용 범위</th></tr></thead><tbody><tr><td>글자 크기</td><td>배율 (%)</td><td>앱 전체 — 브라우저 확대/축소처럼</td></tr><tr><td>터미널 글자 크기</td><td>px</td><td>터미널 화면·도크·분리 창</td></tr></tbody></table></div>
-<p>터미널이 px 인 이유는 고정폭 격자라 배율보다 px 가 정확해서입니다. 터미널 안에서는 <code>⌘+</code> / <code>⌘−</code> 로 바로 조절하고 <code>⇧⌘0</code> 으로 되돌립니다.</p>
+<h3 id="글자-크기">글자 크기</h3>
+<p><b>앱 배율</b>(%) 하나입니다 — 브라우저 확대/축소처럼 앱 전체에 적용됩니다. (터미널 글자 크기는 앱 안 터미널과 함께 2026-10-28 에 걷었습니다.)</p>
 <h3 id="언어-둘">언어 둘</h3>
 <p><b>UI 언어</b>(화면 텍스트)와 <b>AI 작성 언어</b>(AI 가 만드는 일지·플래너·논의의 언어)가 따로입니다. 영어 화면으로 쓰면서 기록은 한국어로 남길 수 있습니다. 이미 기록된 문서는 바뀌지 않습니다.</p>
-<h3 id="메뉴바-외부-에디터">메뉴바 · 외부 에디터</h3>
-<p>메뉴바 상주와 외부 에디터 연결은 <a href="/wiki/workspace">창·탭·터미널·코드</a>에서 다룹니다.</p>
+<h3 id="메뉴바-외부-편집기">메뉴바 · 외부 편집기</h3>
+<p>메뉴바 상주와 외부 편집기 연결은 <a href="/wiki/workspace">창·탭·외부 편집기</a>에서 다룹니다.</p>
 <h2 id="llm">LLM</h2>
-<p>AI 기능(AI 패널 대화, ⌘K 인라인 편집)을 쓸 때만 필요합니다. <b>기록 자체에는 키가 필요 없습니다.</b></p>
+<p>AI 생성 기능(주간 요약 · 일지 초안 · 플랜 초안 · 스킬 승격 제안)을 쓸 때만 필요합니다. <b>기록 자체에는 키가 필요 없습니다.</b></p>
 <h3 id="api-키">API 키</h3>
 <p><b>OS 키체인에만 저장됩니다</b> — 앱 DB 나 파일에는 들어가지 않습니다. 상태(저장됨/미설정)는 로컬에 캐시되므로 설정을 열 때마다 키체인 프롬프트가 뜨지 않고, 정말로 대조하고 싶을 때만 「키체인 대조 확인」을 누릅니다.</p>
 <h3 id="프로바이더와-모델">프로바이더와 모델</h3>
@@ -109,7 +106,7 @@ openrouter:google/gemini-3.8-flash</code></pre>
 <h2 id="다음-걸음">다음 걸음</h2>
 <ul><li>규칙 파일과 어댑터 → <a href="/wiki/agents">다른 에이전트 연동</a></li><li>데이터가 어디 저장되는지 → <a href="/wiki/data">데이터와 파일 구조</a></li></ul>
     </article>
-    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/workspace"><span>← 이전</span><b>창 · 탭 · 터미널 · 코드</b></a>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/workspace"><span>← 이전</span><b>창 · 탭 · 외부 편집기</b></a>
 <a class="wk-pg next" href="/wiki/troubleshooting"><span>다음 →</span><b>문제 해결</b></a></footer>
   </main>
 </div>

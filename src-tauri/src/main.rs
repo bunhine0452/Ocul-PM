@@ -11,13 +11,6 @@ fn main() {
     // 돌기 전에 분기해야 한다 (창·플러그인·DB 를 전혀 만들지 않는다).
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
-        if a == "--pty-host" {
-            let Some(socket) = args.next() else {
-                eprintln!("usage: ocul-pm --pty-host <socket-path>");
-                std::process::exit(2);
-            };
-            ocul_pm_lib::ptyhost::host::run_host(std::path::PathBuf::from(socket));
-        }
         // 선언적 설정 CLI (#config-cli) — 같은 실행 파일, GUI 없음. PTY 호스트와
         // 같은 이유로 tauri 빌더보다 먼저 갈라진다 (창·플러그인을 만들지 않는다).
         if a == "config" {

@@ -1,10 +1,8 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
 
 use super::{
-    forward_sse_lines, json_or_api_error, ChatEvent, ChatOptions, ChatResponse, LlmError,
-    LlmProvider, Message, ModelInfo, Role,
+    json_or_api_error, ChatOptions, ChatResponse, LlmError, LlmProvider, Message, ModelInfo, Role,
 };
 
 const BASE_URL: &str = "https://api.anthropic.com/v1/messages";
@@ -131,22 +129,6 @@ enum ContentBlock {
     Unknown,
 }
 
-#[derive(Deserialize)]
-struct StreamEvent {
-    #[serde(rename = "type")]
-    event_type: String,
-    #[serde(default)]
-    delta: Option<StreamDelta>,
-}
-
-#[derive(Deserialize)]
-struct StreamDelta {
-    #[serde(rename = "type")]
-    delta_type: Option<String>,
-    #[serde(default)]
-    text: Option<String>,
-}
-
 #[async_trait]
 impl LlmProvider for Anthropic {
     async fn list_models(&self) -> Result<Vec<ModelInfo>, LlmError> {
@@ -222,50 +204,6 @@ impl LlmProvider for Anthropic {
             model: parsed.model,
             provider: "anthropic".into(),
         })
-    }
-
-    async fn chat_stream(
-        &self,
-        messages: Vec<Message>,
-        opts: ChatOptions,
-        sink: mpsc::Sender<ChatEvent>,
-    ) -> Result<(), LlmError> {
-        let body = self.build_request(messages, &opts, true);
-        let resp = self
-            .client
-            .post(BASE_URL)
-            .header("x-api-key", &self.api_key)
-            .header("anthropic-version", API_VERSION)
-            .header("accept", "text/event-stream")
-            .json(&body)
-            .send()
-            .await?;
-
-        let status = resp.status();
-        if !status.is_success() {
-            let body = crate::llm::error_body(resp).await;
-            return Err(LlmError::ApiError {
-                status: status.as_u16(),
-                body,
-            });
-        }
-
-        forward_sse_lines(resp, &sink, |line| {
-            let payload = line.strip_prefix("data: ")?.trim();
-            if payload.is_empty() {
-                return None;
-            }
-            let event: StreamEvent = serde_json::from_str(payload).ok()?;
-            if event.event_type != "content_block_delta" {
-                return None;
-            }
-            let delta = event.delta?;
-            if delta.delta_type.as_deref() != Some("text_delta") {
-                return None;
-            }
-            delta.text
-        })
-        .await
     }
 }
 

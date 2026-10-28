@@ -9,7 +9,6 @@ import {
   GitCompareArrows,
   Loader,
   NotebookText,
-  Terminal,
   X,
 } from "@/components/Icons";
 import type { UiV2View } from "@/contexts/WorkspaceContext";
@@ -50,7 +49,6 @@ export function FirstRecordCard({
   enabled,
   onNavigate,
   onOpenEntryPath,
-  onRunAgent,
   onDone,
 }: {
   projectId: number;
@@ -59,8 +57,6 @@ export function FirstRecordCard({
   onNavigate: (view: UiV2View) => void;
   /** 그 대화의 첫 일지를 일지 화면에서 연다. */
   onOpenEntryPath: (relativePath: string) => void;
-  /** Today 의 빠른 터미널을 편다 — 「여기서 에이전트 실행」과 같은 자리. */
-  onRunAgent: () => void;
   /** 「확인했어요」·닫기 — 카드를 내리고 다시 띄우지 않는다. */
   onDone: () => void;
 }) {
@@ -172,11 +168,6 @@ export function FirstRecordCard({
           {dismiss}
         </div>
         <div className="first-run-sub">{t("today.firstRecord.missing.body", { id })}</div>
-        <div className="first-run-actions">
-          <button className="btn primary sm" onClick={onRunAgent}>
-            <Terminal size={13} /> {t("today.firstRecord.missing.retry")}
-          </button>
-        </div>
       </div>
     );
   }
@@ -228,11 +219,6 @@ export function FirstRecordCard({
             : t("today.firstRecord.probe.hooksNotYet")}
         </li>
       </ul>
-      <div className="first-run-actions">
-        <button className="btn primary sm" onClick={onRunAgent}>
-          <Terminal size={13} /> {t("today.firstRecord.run")}
-        </button>
-      </div>
     </div>
   );
 }

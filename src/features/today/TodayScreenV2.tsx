@@ -13,7 +13,6 @@ import {
   Pin,
   History,
   ArrowRight,
-  Terminal,
   Clipboard,
 } from "@/components/Icons";
 import { type UiV2View, useOptionalWorkspace } from "@/contexts/WorkspaceContext";
@@ -32,7 +31,6 @@ import { ResumeCard } from "./ResumeCard";
 import { hooksApi } from "@/api/claudeSurface";
 import { toAppError } from "@/api/invoke";
 import { tError } from "@/i18n/errors";
-import { handoffDispatch, terminalOnScreen } from "@/features/terminal/dispatchTarget";
 import { PluginSetupCard } from "./PluginSetupCard";
 import { PluginDriftCard } from "./PluginDriftCard";
 import { CoreModelSeededCard } from "./CoreModelSeededCard";
@@ -47,7 +45,6 @@ import { WeekChart } from "./WeekChart";
 import { AgentBreakdown } from "./AgentBreakdown";
 import { NextTasks } from "./NextTasks";
 import { TodayActivityRing } from "./TodayActivityRing";
-import { TodayTerminal } from "./TodayTerminal";
 import { HonestyAudit } from "./HonestyAudit";
 import { HotspotCard } from "./HotspotCard";
 import { PromiseScorecardCard } from "./PromiseScorecardCard";
@@ -91,7 +88,6 @@ interface TodayScreenV2Props {
 
 export function TodayScreenV2({
   projectId,
-  projectRoot,
   workday,
   oculpmReady,
   onNavigate,
@@ -116,7 +112,6 @@ export function TodayScreenV2({
     oculpmReady,
     brief?.totalEntries ?? null,
   );
-  const [termOpen, setTermOpen] = useState(false);
   // 머리글 숫자 셋의 재료 — 미기록 파일 수 (증거·다음 할 일은 brief 에서 바로 센다).
   const unrecorded = useUnrecordedCount(projectId, workday, oculpmReady);
   // 첫 활성화 카드 — 프로젝트 탭이 채우고 여기서 비운다 (Phase 2).
@@ -153,43 +148,14 @@ export function TodayScreenV2({
     if (settingsCtx) reportRejection(settingsCtx.set("firstRunSheetDismissed", true), "settings.saveFailed");
   };
 
-  // 「에이전트 실행」 — 예전엔 아래쪽 빠른 터미널을 조용히 열었다. 스크롤을 내리기
-  // 전까지 아무것도 안 바뀐 것처럼 보였다 (2026-09-22 지적). 이제 터미널이 화면에
-  // 없으면 터미널 화면으로 **이동**하고, 이미 보이면 그렇다고 말한다.
-  const openAgentTerminal = () => {
-    if (ws && terminalOnScreen(ws.state)) {
-      toast.info(t("today.terminalAlreadyOpen"));
-      return;
-    }
-    onNavigate("terminal");
-  };
-
-  // 「이 맥락으로 이어서 작업」 — 플래너 ▶실행과 같은 디스패치 경로. 백엔드가
-  // 이어하기 자료를 프롬프트로 만들고, `handoffDispatch` 가 돌고 있는 에이전트에
-  // 붙여넣거나 셸에 한 줄을 프리필한다. **보내는 건 Enter 로 사용자가** — 이것이
-  // 곧 전달 전 미리보기다. 터미널이 안 보이면 그쪽으로 이동해 어디에 꽂혔는지
-  // 보여 준다.
+  // 「이 맥락으로 이어서 작업」 — 백엔드가 이어하기 자료를 프롬프트로 만들고, 여기서는
+  // 클립보드에 둔다. 내장 터미널이 걷힌 뒤(2026-10-28)로는 사용자가 자기 터미널의
+  // 에이전트에 붙여 넣는다 — 보내는 것은 여전히 사용자다.
   const continueFromResume = async () => {
-    if (!ws) {
-      onNavigate("terminal");
-      return;
-    }
     try {
       const res = await hooksApi.resumeDispatchPrompt(projectId);
-      const onScreen = terminalOnScreen(ws.state);
-      const done = await handoffDispatch(
-        { projectId, command: res.command, prompt: res.prompt },
-        ws.state.terminalTabs,
-        ws.state.terminalActiveId,
-      );
-      toast.info(
-        done.kind === "pasted"
-          ? t("today.resume.dispatchPasted", { agent: done.agent })
-          : done.kind === "typed"
-            ? t("today.resume.dispatchTyped")
-            : t("today.resume.dispatchQueued"),
-      );
-      if (!onScreen) onNavigate("terminal");
+      await navigator.clipboard.writeText(res.prompt);
+      toast.info(t("today.resume.dispatchCopied"));
     } catch (e) {
       toast.destructive(t("today.resume.dispatchFailed", { error: tError(toAppError(e)) }));
     }
@@ -321,15 +287,6 @@ export function TodayScreenV2({
           {oculpmReady ? <TodayMonitor monitor={monitor} /> : null}
 
 
-          {/* 빠른 터미널 — Today 에서 바로 에이전트 실행 (opt-in) */}
-          <TodayTerminal
-            projectId={projectId}
-            projectRoot={projectRoot}
-            open={termOpen}
-            onOpenChange={setTermOpen}
-            onFull={() => onNavigate("terminal")}
-          />
-
     </>
   );
   const proGrid = (
@@ -348,10 +305,7 @@ export function TodayScreenV2({
                 title={t("today.emptyTitle")}
                 actions={
                   <>
-                    <button className="btn primary" onClick={() => setTermOpen(true)}>
-                      <Terminal size={15} /> {t("today.runAgent")}
-                    </button>
-                    <button className="btn" onClick={() => onNavigate("skills")}>
+                    <button className="btn primary" onClick={() => onNavigate("skills")}>
                       {t("today.openRules")}
                     </button>
                   </>
@@ -621,7 +575,6 @@ export function TodayScreenV2({
               if (onOpenEntry) onOpenEntry({ relative_path });
               else onNavigate("journal");
             }}
-            onRunAgent={openAgentTerminal}
             onDone={disarmFirstRecord}
           />
 
@@ -650,10 +603,7 @@ export function TodayScreenV2({
                           title={t("today.emptyTitle")}
                           actions={
                             <>
-                              <button className="btn primary sm" onClick={() => setTermOpen(true)}>
-                                <Terminal size={13} /> {t("today.runAgent")}
-                              </button>
-                              <button className="btn sm" onClick={() => onNavigate("skills")}>
+                              <button className="btn primary sm" onClick={() => onNavigate("skills")}>
                                 {t("today.openRules")}
                               </button>
                             </>

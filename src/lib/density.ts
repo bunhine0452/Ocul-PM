@@ -29,29 +29,3 @@ export function toggleUiDensity(value: unknown): UiDensity {
  * 화면 수만큼 뒤집힌다.
  */
 export const DENSITY_TOGGLE_EVENT = "oculpm:toggle-density";
-
-/**
- * 설정 「표시」의 베타 화면 스위치가 다루는 뷰 — 보류 등급 다섯 화면 (docs/PROMISE.md).
- * 끄면 사이드바 베타 단에서 그 행이 접힌다. 화면·단축키·⌘K 는 그대로다.
- */
-export const HOLD_SWITCH_VIEWS = ["terminal", "code", "claudecode", "codex", "ai"] as const;
-export type HoldSwitchView = (typeof HOLD_SWITCH_VIEWS)[number];
-
-/** 설정 문자열(쉼표 구분) → 접힌 뷰 집합. 모르는 id 는 버린다. */
-export function parseHiddenViews(raw: unknown): Set<HoldSwitchView> {
-  const out = new Set<HoldSwitchView>();
-  if (typeof raw !== "string" || !raw) return out;
-  for (const part of raw.split(",")) {
-    const id = part.trim() as HoldSwitchView;
-    if ((HOLD_SWITCH_VIEWS as readonly string[]).includes(id)) out.add(id);
-  }
-  return out;
-}
-
-/** 스위치 하나를 뒤집은 설정 문자열. 순서는 `HOLD_SWITCH_VIEWS` 그대로라 비교가 안정적이다. */
-export function toggleHiddenView(raw: unknown, id: HoldSwitchView): string {
-  const set = parseHiddenViews(raw);
-  if (set.has(id)) set.delete(id);
-  else set.add(id);
-  return HOLD_SWITCH_VIEWS.filter((v) => set.has(v)).join(",");
-}

@@ -64,19 +64,18 @@ App updates can raise the rules spec. **Resend rules** in Settings → ocul-pm �
 
 ## Support tiers
 
-"Leaves entries" comes in different strengths. The tiers are read from code — the rules-file adapter table, the MCP registrars, the hooks, the ACP adapters.
+"Leaves entries" comes in different strengths. The tiers are read from code — the rules-file adapter table, the MCP registrars, the hooks. (The in-app tier 4 went with its screens on 2026-10-28.)
 
 | Tier | What it means |
 |---|---|
 | **1 · Rules-compatible** | The app only writes the rules file that agent reads. Journals get written as far as the model obeys it |
 | **2 · Structured journaling** | The agent can call the `oculpm` MCP server's tools (`journal_write` · `plan_update` …) and the app registers that server for it |
 | **3 · Session observation** | The app receives session start/stop through hooks and flags conversations that ended without a journal (the Stop delivery gate · `sessions.json`) |
-| **4 · In-app** | The agent runs inside the app (Agent Client Protocol) — tool approvals and output arrive as conversation cards and the journaling tools are attached to the session directly |
 
 | Agent | Tier | What the app does | Verified |
 |---|---|---|---|
-| Claude Code | **4 In-app** | Runs in-app · hooks (plugin or `.claude/settings.local.json`) · `.mcp.json` MCP registration · `AGENTS.md` + `.claude/CLAUDE.md` block | v3.0.0 · 2026-09-11 |
-| Codex | **4 In-app** | Runs in-app · Codex plugin hooks · `~/.codex/config.toml` MCP registration · `AGENTS.md` (native) | v2.37.0 · 2026-09-03 |
+| Claude Code | **3 Session observation** | hooks (plugin or `.claude/settings.local.json`) · `.mcp.json` MCP registration · `AGENTS.md` + `.claude/CLAUDE.md` block | v3.0.0 · 2026-09-11 |
+| Codex | **3 Session observation** | Codex plugin hooks · `~/.codex/config.toml` MCP registration · `AGENTS.md` (native) | v2.37.0 · 2026-09-03 |
 | Claude Desktop | **2 Structured journaling** | MCP server registered in `claude_desktop_config.json` — no hooks, no rules file | — (shipped v2.2.0 · no live-connection record) |
 | Gemini CLI | 1 Rules-compatible | `AGENTS.md` + `GEMINI.md` block | — |
 | Cursor | 1 Rules-compatible | `.cursor/rules/ocul-pm.mdc` | — |

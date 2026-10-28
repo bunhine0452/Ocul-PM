@@ -15,8 +15,6 @@ import {
   relativeUnder,
 } from "@/lib/osPath";
 import { __setPlatformForTests } from "@/lib/platform";
-import { formatCwdCrumb } from "@/features/terminal/railModel";
-import { splitCrumb } from "@/features/terminal/TerminalPaneHead";
 
 describe("pathBaseName — the folder name a new project is named after", () => {
   const windows: Array<[string, string]> = [
@@ -92,20 +90,3 @@ describe("relativeUnder — is the shell's cwd inside the project?", () => {
   });
 });
 
-describe("terminal crumbs on Windows (status bar · pane head)", () => {
-  it("names the project folder, not the whole path, and keeps native separators", () => {
-    __setPlatformForTests("windows");
-    const root = "D:\\a\\_temp\\fixture\\e2e-fixture";
-    expect(formatCwdCrumb(root, root)).toBe("e2e-fixture");
-    expect(formatCwdCrumb(`${root}\\src\\lib`, root)).toBe("e2e-fixture\\src\\lib");
-    expect(formatCwdCrumb("C:\\Windows\\System32\\drivers", root)).toBe("…\\System32\\drivers");
-    expect(splitCrumb("e2e-fixture\\src\\lib")).toEqual({ parent: "e2e-fixture\\src\\", leaf: "lib" });
-  });
-  it("mac is unchanged", () => {
-    const root = "/Users/me/Desktop/git/ai-pm";
-    expect(formatCwdCrumb(`${root}/src/features`, root)).toBe("ai-pm/src/features");
-    expect(formatCwdCrumb("/tmp/a/b/c", root)).toBe("…/b/c");
-    expect(splitCrumb("ai-pm/src/features")).toEqual({ parent: "ai-pm/src/", leaf: "features" });
-    expect(splitCrumb("a\\b")).toEqual({ parent: "", leaf: "a\\b" });
-  });
-});

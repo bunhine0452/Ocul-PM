@@ -34,7 +34,6 @@ mod lifecycle;
 mod registry;
 mod session;
 mod tabs;
-mod terminal_windows;
 #[cfg(test)]
 mod tests;
 mod watchers;
@@ -46,7 +45,6 @@ pub use lifecycle::*;
 pub use registry::*;
 pub use session::*;
 pub use tabs::*;
-pub use terminal_windows::*;
 pub use watchers::*;
 
 /// 추가로 만드는 창의 라벨 접두사. `tauri-plugin-window-state` 가 라벨 기준으로
@@ -61,13 +59,6 @@ const WINDOW_W: f64 = 1150.0;
 const WINDOW_H: f64 = 780.0;
 const WINDOW_MIN_W: f64 = 960.0;
 const WINDOW_MIN_H: f64 = 640.0;
-
-/// 분리 터미널 창 — 셸 하나가 편한 크기. 탭 창보다 훨씬 작아도 된다
-/// (사이드바도 탭 스트립도 없다).
-const TERM_WINDOW_W: f64 = 820.0;
-const TERM_WINDOW_H: f64 = 520.0;
-const TERM_WINDOW_MIN_W: f64 = 380.0;
-const TERM_WINDOW_MIN_H: f64 = 240.0;
 
 pub fn window_label(n: u32) -> String {
     format!("{WINDOW_PREFIX}{n}")
@@ -94,29 +85,6 @@ pub const STRIP_OVERSHOOT: f64 = 10.0;
 /// 넘겨준다 — Rust 가 CSS 를 알 필요도, 줌을 추적할 필요도 없다.
 pub fn hits_tab_strip(local_x: f64, local_y: f64, width: f64, band: f64) -> bool {
     local_x >= 0.0 && local_x <= width && local_y >= -STRIP_OVERSHOOT && local_y <= band
-}
-
-/// PTY 세션 id 접두사. **프로젝트** 기준이라 탭이 창을 옮겨 다녀도 유효하다 —
-/// 그래서 떼어낸 탭의 셸이 죽지 않는다. 끝의 `-` 덕분에 `p1-` 이 `p12-…` 를
-/// 잡아먹지 않는다. 프런트의 `TerminalSurface.newId` 와 짝이다.
-pub fn pty_prefix_for(project_id: u32) -> String {
-    format!("p{project_id}-")
-}
-
-/// 분리한 **터미널 전용 창**의 라벨 접두사 (2026-08-15 터미널 도크).
-///
-/// 탭을 물지 않는 창이라 `is_app_window` 가 일부러 false 를 준다 — 탭
-/// 레지스트리·⌘W·"마지막 창" 판정이 이 창을 탭 창으로 오해하면 안 된다.
-/// 프로젝트당 하나이므로 라벨에 프로젝트 id 를 박는다 (I1 과 같은 규율).
-pub const TERM_WINDOW_PREFIX: &str = "term-";
-
-pub fn terminal_window_label(project_id: u32) -> String {
-    format!("{TERM_WINDOW_PREFIX}{project_id}")
-}
-
-/// 라벨이 터미널 창이면 그 프로젝트 id. 아니면 `None`.
-pub fn terminal_window_project(label: &str) -> Option<u32> {
-    label.strip_prefix(TERM_WINDOW_PREFIX)?.parse().ok()
 }
 
 /// 관리 상태 — 창→탭 레지스트리를 앱 전역 뮤텍스로 감싼 것. `lib.rs` 가

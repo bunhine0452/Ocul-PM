@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 vi.mock("@/lib/bindings", () => ({ commands: {}, events: {} }));
 
-import { RichMarkdownEditor } from "@/features/code/richMarkdown/RichMarkdownEditor";
+import { RichMarkdownEditor } from "@/features/discussion/richMarkdown/RichMarkdownEditor";
 import { t } from "@/i18n";
 
 afterEach(cleanup);
