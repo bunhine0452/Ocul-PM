@@ -17,6 +17,7 @@ pub mod board;
 pub mod cache;
 pub mod cas;
 pub mod chain;
+pub mod check_infer;
 pub mod claude_hooks;
 pub mod config;
 pub mod content_lang;

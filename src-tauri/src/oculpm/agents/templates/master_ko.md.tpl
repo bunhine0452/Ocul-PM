@@ -1,10 +1,10 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 17 -->
+<!-- template_version: 18 -->
 # ocul-pm 작업 기록 규칙
 
 당신은 ocul-pm 추적 프로젝트에서 작업 중입니다. **하나의 논리적 작업 단위**(버그 수정 / 기능 / 리팩토링 / 에러 사이클 / 잡일)를 끝낼 때마다 즉시 기록하세요 — 사용자에게 묻지 말 것.
 
-> **MCP 도구 우선**: `oculpm` 도구(`journal_search` / `journal_read` / `journal_write` / `plan_status` / `plan_update` / `plan_create`)가 보이면 **아래 §2 의 파일 직접 작성 대신 도구를 쓰라** — 경로·frontmatter·{#id} 규격은 서버가 보장한다 (§4 의 플래너 갱신도 `plan_update`, 새 plan 은 `plan_create`). 도구가 안 보일 때만 직접 쓴다.
+> **MCP 도구 우선**: `oculpm` 도구(`journal_search` / `journal_read` / `journal_write` / `plan_status` / `plan_update` / `plan_create`)가 보이면 **아래 §3 의 파일 직접 작성 대신 도구를 쓰라** — 경로·frontmatter·{#id} 규격은 서버가 보장한다 (§5 의 플래너 갱신도 `plan_update`, 새 plan 은 `plan_create`). 도구가 안 보일 때만 직접 쓴다.
 
 ## 0. 시작하기 전 — 과거를 먼저 찾는다
 
@@ -16,13 +16,20 @@
 
 찾은 것이 이어지면 새 일지의 `related` 에 그 경로를 넣으세요. 도구가 없으면 `.oculpm/journal/**` 를 grep.
 
-## 1. 언제 기록하는가 (5 trigger)
+## 1. 작업 규율 — 결과를 좋게 하는 네 줄 (플랜이 없어도)
+
+- **코드 전**: 요청을 한 줄 **완료 조건**(무엇이 참이 되면 끝인가)과 그것을 통과/실패로 판정할 **확인 명령**으로 바꿔 먼저 말한다. 모호하면 질문 셋 이내로 묻고 시작. 두 단계를 넘는 일은 `plan_create`(done_when·check)로.
+- **하는 동안**: 요청 범위 안에서. 같은 접근으로 두 번 실패하면 접근을 바꾼다.
+- **끝**: 확인 명령을 돌려 **결과 끝 줄**을 받는다 — 「됐다」는 주장이 아니다. 초록이어도 가능하면 실제로 띄워 한 번 써 본다.
+- **넘기기**: 남은 일·막힌 것은 대화가 아니라 플랜 항목(`[ ]`·`[!]`)으로 — 다음 세션은 이 대화를 못 본다.
+
+## 2. 언제 기록하는가 (5 trigger)
 
 **bug fix**(재현되던 결함의 해소를 직접 확인) · **feature done**(첫 happy-path 동작) · **refactor batch**(기능 동일+구조 변경 완료, 테스트 그린) · **error cycle**(진단·수정 사이클 1회 — 실패도 기록) · **chore**(config/문서 등 비기능 변경 완료).
 
 **의도적 지름길**(천장이 있는 단순화)을 남길 땐 코드 주석 `// oculpm-defer: <천장>; <재방문 트리거>` 를 붙이세요 — 회고 화면이 수확해 원장으로 보여줍니다 (트리거 없는 마커는 '썩는 중'으로 표시).
 
-## 2. 일지 파일 규격 (도구가 없을 때만)
+## 3. 일지 파일 규격 (도구가 없을 때만)
 
 경로 `.oculpm/journal/{YYYYMMDD}/{TypeFolder}/{HHMM}_{type}_{slug}.md` — workday/시각은 OS 로컬 그대로(묻지 말 것) · TypeFolder = `Bugs`|`Features_to_add`|`Errors`|`Refactors`|`Chores` · type = bug|feature|error|refactor|chore (⚠ 커밋 타입 `fix`·`feat` 가 **아니다** — 폴더도 `Fix/` 가 아니라 `Bugs/`) · slug = ASCII kebab ≤40자.
 
@@ -32,7 +39,7 @@ frontmatter 필수: `schema_version: 1` · `type` · `slug` · `status`(planned|
 
 예시가 필요하면 같은 type 의 최근 일지 1~2개를 직접 읽으세요 — 실제 데이터가 가장 좋은 표본입니다.
 
-## 3. 금지
+## 4. 금지
 
 - `.oculpm/index/**` 에 쓰기 금지 (앱 관리 영역).
 - secrets / API key / `.env` 내용 포함 금지 — 감지 시 거부됩니다.
@@ -40,7 +47,7 @@ frontmatter 필수: `schema_version: 1` · `type` · `slug` · `status`(planned|
 - `git add -A` 금지 (병렬 세션과 인덱스를 공유합니다) — 명시 경로로 stage, add→commit 한 번에.
 - plan frontmatter 를 손으로 고치지 마세요 — `status:`·`updated:` 는 `plan_update` 로만. 직접 고쳐야 하면 미완(`[ ]`·`[~]`·`[!]`)이 남은 plan 을 닫지 말고, 남은 항목을 살아 있는 plan 으로 **옮긴 뒤** 닫으세요 (접힌 plan 의 미완은 유실됩니다).
 
-## 4. Planner 갱신 (일지 직후)
+## 5. Planner 갱신 (일지 직후)
 
 일지가 회고라면 **Planner**(`.oculpm/planner/*.md`)는 현재 계획입니다. 일지를 쓴 직후 대응 항목이 있으면 갱신하세요 (대응 항목이 없으면 생략).
 
@@ -56,6 +63,6 @@ frontmatter 필수: `schema_version: 1` · `type` · `slug` · `status`(planned|
 
 큰 결정은 `## 결정` 섹션에 `### Decision N — 제목 {#id}` 블록으로 잠급니다 (잠금 날짜·agent.id·근거·`영향: #항목id`).
 
-## 5. 문제 해결 문서 (명시 요청 시에만)
+## 6. 문제 해결 문서 (명시 요청 시에만)
 
 사용자가 *"옵션을 비교하자 / 이 문제를 정리하자 / 큰 계획을 세우자"* 고 **명시적으로 요청**할 때만 `.oculpm/discussion/<slug>/discussion.md` 를 씁니다 — 그때 **`.oculpm/agents/discussion-spec.md` 를 읽고** 그 규격을 따르세요. 일반 작업에는 만들지 말 것 (작업이 끝나면 일지·플래너가 정답).

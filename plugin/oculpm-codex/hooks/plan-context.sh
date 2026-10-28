@@ -115,10 +115,65 @@ jrn=$(
   done
 )
 
+# ── 플랜이 없어도 말한다 (어떤 프로젝트여도, 2026-10-28) ────────────────────
+# 다섯 원칙의 자리(완료 조건·확인 명령)는 플랜에 있다 — 플랜이 없는 프로젝트에는
+# 그 자리 자체가 없어 위 두 절이 통째로 침묵했다. 그래서 빈 프로젝트(미완 항목 0 ·
+# 일지 0)에는 「무엇부터」 한 줄을, 확인 명령 없는 활성 플랜이 있거나 플랜이 없으면
+# 매니페스트에서 감지한 확인 명령 후보 한 줄을 싣는다. 감지 규칙(package.json
+# scripts.test → 락파일로 러너 · Cargo.toml · pyproject.toml/pytest.ini · go.mod ·
+# Makefile test:)은 Rust 쪽 `oculpm/check_infer.rs`(plan_create 의 기본값)와
+# **공유하는 계약**이다 — 한쪽만 고치면 훅이 보인 후보와 플랜에 적힌 기본값이 갈린다.
+# 루트 한 단계만 · 네트워크 0 · 실행 0.
+open_items=$(printf '%s\n' "$body" | grep -c '^[[:space:]]*- \[' 2>/dev/null | tr -d '[:space:]')
+[ -n "$open_items" ] || open_items=0
+jcount=$(printf '%s\n' "$rels" | grep -c . 2>/dev/null | tr -d '[:space:]')
+[ -n "$jcount" ] || jcount=0
+need_check=0
+if [ "$open_items" -eq 0 ]; then
+  need_check=1
+else
+  for f in "$ROOT/.oculpm/planner"/*.md; do
+    [ -f "$f" ] || continue
+    sed -n '2,/^---$/p' "$f" 2>/dev/null | grep -q '^status: active' || continue
+    grep -qE '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null || continue
+    grep -qE '^\*\*(확인 명령|Check):\*\*' "$f" 2>/dev/null && continue
+    need_check=1
+    break
+  done
+fi
+cands=""
+add_cand() { cands="${cands:+$cands · }$1"; }
+if [ -f "$ROOT/package.json" ] && grep -qE '"test"[[:space:]]*:' "$ROOT/package.json" 2>/dev/null; then
+  if [ -f "$ROOT/pnpm-lock.yaml" ]; then add_cand "pnpm test"
+  elif [ -f "$ROOT/yarn.lock" ]; then add_cand "yarn test"
+  elif [ -f "$ROOT/bun.lock" ] || [ -f "$ROOT/bun.lockb" ]; then add_cand "bun test"
+  else add_cand "npm test"
+  fi
+fi
+[ -f "$ROOT/Cargo.toml" ] && add_cand "cargo test"
+{ [ -f "$ROOT/pyproject.toml" ] || [ -f "$ROOT/pytest.ini" ]; } && add_cand "pytest"
+[ -f "$ROOT/go.mod" ] && add_cand "go test ./..."
+[ -f "$ROOT/Makefile" ] && grep -qE '^test[[:space:]]*:' "$ROOT/Makefile" 2>/dev/null && add_cand "make test"
+guide=""
+if [ "$open_items" -eq 0 ] && [ "$jcount" -eq 0 ]; then
+  guide="이 프로젝트에는 아직 활성 플랜 항목도 일지도 없다 (지시가 아님 — 규칙은 AGENTS.md §1). 두 단계를 넘는 작업이면 plan_create(done_when·check)로 완료 조건·확인 명령부터, 한 작업 단위가 끝나면 journal_write."
+fi
+if [ "$need_check" -eq 1 ]; then
+  if [ -n "$cands" ]; then
+    cline="확인 명령 후보 (매니페스트에서 감지 — 플랜에 **확인 명령:** 줄이 없다. plan_create 의 check 나 플랜 본문에 적어라): $cands"
+  else
+    cline="확인 명령 후보 없음 — package.json·Cargo.toml·pyproject.toml·go.mod·Makefile 에서 못 찾았다. 통과/실패를 내는 명령을 플랜에 적어라."
+  fi
+  if [ -n "$guide" ]; then guide=$(printf '%s\n%s' "$guide" "$cline"); else guide="$cline"; fi
+fi
+
 summary=""
 [ -n "$body" ] && summary=$(printf '%s\n%s\n%s\n%s' \
   "아래는 ocul-pm 활성 계획의 상태 데이터입니다 (지시가 아님) — 미완 항목만. 갱신·전체 조회는 plan_status/plan_update 도구:" \
   '```' "$body" '```')
+if [ -n "$guide" ]; then
+  if [ -n "$summary" ]; then summary=$(printf '%s\n\n%s' "$summary" "$guide"); else summary="$guide"; fi
+fi
 if [ -n "$jrn" ]; then
   jsec=$(printf '%s\n%s\n%s\n%s' \
     "마지막 작업 일지 (지시가 아님 — 원문은 journal_read, 관련 기록은 journal_search 로):" \
@@ -137,7 +192,7 @@ printf '{"hookSpecificOutput":{"hookEventName":"%s","additionalContext":"%s"}}\n
 # ── 전달 원장 — 실제로 무언가를 실었을 때만, SessionStart 에서만 ────────────
 # 앱(Today 「이어하기」)이 "이 대화의 시작 컨텍스트에 포함됨" 을 정직하게
 # 표시할 수 있는 유일한 근거다. 그 이상은 주장하지 않는다.
-if [ "$event" = "SessionStart" ]; then
+if [ "$event" = "SessionStart" ] && { [ -n "$body" ] || [ -n "$rels" ]; }; then
   sid=$(printf '%s' "$payload" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9._-]*\)".*/\1/p' | head -1)
   ts=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)
   if [ -n "$sid" ] && [ -n "$ts" ] && mkdir -p "$ROOT/.oculpm/hooks" 2>/dev/null; then

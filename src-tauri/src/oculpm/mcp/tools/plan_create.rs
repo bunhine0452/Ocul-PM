@@ -340,12 +340,36 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
         ));
     }
     // 확인 명령 — 완료 조건을 통과/실패로 판정할 명령. 훅이 완료 조건 다음에 싣는다.
-    if let Some(check) = arg_str(args, "check").filter(|c| !c.trim().is_empty()) {
-        let check = redact_text(check, &patterns).0;
-        md.push_str(&format!(
-            "{}\n",
-            crate::oculpm::planner::done_when::render_check_line(&check)
-        ));
+    // 안 주면 매니페스트에서 감지한 기본값을 적고 **경고로 알린다** (어떤 프로젝트여도 —
+    // 통과/실패를 내는 것이 없는 플랜은 「됐다」는 주장으로 닫히므로, 비워 두는 것보다
+    // 틀릴 수 있는 한 줄을 적고 고치라고 말하는 쪽이 낫다). 못 찾으면 없다고 경고한다.
+    let mut warnings: Vec<String> = Vec::new();
+    match arg_str(args, "check").filter(|c| !c.trim().is_empty()) {
+        Some(check) => {
+            let check = redact_text(check, &patterns).0;
+            md.push_str(&format!(
+                "{}\n",
+                crate::oculpm::planner::done_when::render_check_line(&check)
+            ));
+        }
+        None => match crate::oculpm::check_infer::default_check(root) {
+            Some(inferred) => {
+                md.push_str(&format!(
+                    "{}\n",
+                    crate::oculpm::planner::done_when::render_check_line(&inferred)
+                ));
+                warnings.push(format!(
+                    "check 를 주지 않아 매니페스트에서 감지한 확인 명령을 적었다: `{inferred}` — \
+                     틀리면 플랜 본문의 **확인 명령:** 줄을 고쳐라"
+                ));
+            }
+            None => warnings.push(
+                "확인 명령이 없다 — 통과/실패를 내는 것이 없는 플랜은 「됐다」는 주장으로 닫힌다. \
+                 매니페스트(package.json·Cargo.toml·pyproject.toml·go.mod·Makefile)에서도 못 찾았으니 \
+                 플랜 본문에 **확인 명령:** 한 줄을 직접 적어라"
+                    .to_string(),
+            ),
+        },
     }
     md.push_str(&body);
     md.push_str(
@@ -369,7 +393,7 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
     let path = planner_root.join(format!("{plan_id}.md"));
     write_atomic(&path, md.as_bytes()).map_err(|e| e.to_string())?;
 
-    Ok(json!({
+    let mut out = json!({
         "path": format!(".oculpm/planner/{plan_id}.md"),
         "id": plan_id,
         "phases": phases_in.len(),
@@ -378,5 +402,9 @@ pub(crate) fn plan_create(root: &Path, args: &Value) -> Result<Value, String> {
         // 없으면 방금 자기가 만든 파일을 다시 조회해야 하고, 그 왕복이 곧
         // "귀찮으니 안 쓴다"의 이유가 된다.
         "hash": plan_hash(&md),
-    }))
+    });
+    if !warnings.is_empty() {
+        out["warnings"] = json!(warnings);
+    }
+    Ok(out)
 }
