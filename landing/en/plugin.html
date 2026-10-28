@@ -17,7 +17,7 @@
 <meta property="og:locale:alternate" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/en/plugin" />
 <meta property="og:title" content="Plugin · Skill Catalog — Ocul-PM" />
-<meta property="og:description" content="From a two-line install to the /oculpm:project_init → /oculpm:inception → /oculpm:next implementation loop. All 26 catalog skills are pinned-commit copies." />
+<meta property="og:description" content="From a two-line install to the /oculpm:inception → /oculpm:next implementation loop. All 26 catalog skills are pinned-commit copies." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -67,10 +67,8 @@
       <h2 id="flow">From project kickoff to the implementation loop</h2>
       <p>For a new feature, start with <code>/oculpm:inception</code> (design only) or go straight to <code>/oculpm:next</code> — inception's interview and research are worth another lap only in unfamiliar territory.</p>
       <div class="pg-jump">
-        <a href="#commands">/oculpm:project_init</a>
         <a href="#commands">→ /oculpm:inception</a>
         <a href="#commands">→ /oculpm:next (repeat until the leaf is done)</a>
-        <a href="#commands">→ /oculpm:standup</a>
       </div>
     </section>
 
@@ -79,24 +77,12 @@
       <p>Things you call with one typed line.</p>
       <div class="pg-cards">
       <div class="pg-card">
-        <h3><code>/oculpm:project_init</code><span class="when">Once, on a new repository</span></h3>
-        <p>Initializes this project for ocul-pm tracking — creates <code>.oculpm/</code> (the record store), <code>AGENTS.md</code> (agent recording rules), and a protective block in <code>.gitignore</code>. Running the command yourself counts as explicit consent, so it proceeds without a second confirmation, and on an already-tracked project it only fills in what's missing. <b>The app is not required.</b></p>
-      </div>
-      <div class="pg-card">
         <h3><code>/oculpm:inception</code><span class="when">Designing a new project or feature area</span></h3>
-        <p>Seeds a design with the project-inception skill: a minimal read on the problem → <b>web research to map the landscape</b> → <b>settling the spec with you</b> using options backed by evidence (versions, sources) → a 3-depth detailed plan via <code>plan_create</code> → <code>EVALS.md</code> done-criteria → starter <code>.claude/rules</code>. You can pass an idea as an argument: <code>/oculpm:inception I want to build a to-do app</code></p>
+        <p>Seeds a design: a minimal read on the problem → <b>web research to map the landscape</b> → <b>settling the spec with you</b> using options backed by evidence (versions, sources) → a 3-depth detailed plan via <code>plan_create</code> → <code>EVALS.md</code> done-criteria → starter <code>.claude/rules</code>. You can pass an idea as an argument: <code>/oculpm:inception I want to build a to-do app</code></p>
       </div>
       <div class="pg-card">
         <h3><code>/oculpm:next</code><span class="when">The implementation loop — run it repeatedly</span></h3>
         <p>Picks up the next unfinished leaf on the active plan and drives one cycle: <b>implement → verify the gates → journal → update the plan.</b> It's the plugin's counterpart to the app planner's ▶ Run. To target a specific item: <code>/oculpm:next login-happy-path</code></p>
-      </div>
-      <div class="pg-card">
-        <h3><code>/oculpm:standup</code><span class="when">When you need a report</span></h3>
-        <p>Gathers today's journal entries and plan progress into a standup summary (done / in progress or blocked / next).</p>
-      </div>
-      <div class="pg-card">
-        <h3><code>/oculpm:board</code><span class="when">To follow progress from another device</span></h3>
-        <p>Publishes your active plans and their item states as one <b>private Claude artifact board</b>, and refreshes that board when you run it again. The board is read-only; the source stays in <code>.oculpm/planner/</code>. The app builds the documents and <b>masks anything that looks like a secret</b> before upload. You decide who sees it from the board's Share menu. Works when Claude Code is signed in with a claude.ai account.</p>
       </div>
       <div class="pg-card">
         <h3><code>/oculpm:redteam</code><span class="when">Before merging or shipping — "what's wrong here?"</span></h3>
@@ -138,38 +124,6 @@
         <div class="pg-actions">
           <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=oculpm-journal">Open in app</a>
           <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/oculpm-journal/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
-        </div>
-      </div>
-      <div class="pg-card">
-        <h3><code>project-inception</code> <span class="pill on">v2.36.0</span><span class="when">Kicking off a new project or feature area</span></h3>
-        <p>Seeds research → settling the spec → a 3-depth plan → <code>EVALS.md</code> → starter <code>.claude/rules</code> in one pass. This is the skill <code>/oculpm:inception</code> calls.</p>
-        <div class="pg-actions">
-          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=project-inception">Open in app</a>
-          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/project-inception/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
-        </div>
-      </div>
-      <div class="pg-card">
-        <h3><code>self-audit</code> <span class="pill on">v2.36.0</span><span class="when">Before you say "done"</span></h3>
-        <p>Forces a requirements check, running the gates, and a second look at the diff. It fires right before you report completion.</p>
-        <div class="pg-actions">
-          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=self-audit">Open in app</a>
-          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/self-audit/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
-        </div>
-      </div>
-      <div class="pg-card">
-        <h3><code>run-evals</code> <span class="pill on">v2.36.0</span><span class="when">Actually scoring your done-criteria</span></h3>
-        <p>Runs and scores the criteria in <code>EVALS.md</code> and adds one line to the record table — the app's Retro screen reads that table to chart the trend.</p>
-        <div class="pg-actions">
-          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=run-evals">Open in app</a>
-          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/run-evals/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
-        </div>
-      </div>
-      <div class="pg-card">
-        <h3><code>tdd-workflow</code> <span class="pill on">v2.36.0</span><span class="when">A failing test, first</span></h3>
-        <p>Forces the RED → GREEN → refactor cycle. Especially in areas prone to regressions.</p>
-        <div class="pg-actions">
-          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=tdd-workflow">Open in app</a>
-          <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/tdd-workflow/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
         </div>
       </div>
       </div>

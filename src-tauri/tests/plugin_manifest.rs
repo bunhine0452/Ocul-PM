@@ -413,7 +413,7 @@ fn bundled_skills_and_commands_stay_within_budget() {
     expected.sort();
     assert_eq!(
         names, expected,
-        "동봉 스킬은 지식 5종 + 커맨드 7종 고정 — 추가하려면 토큰 예산부터 재계산 (+ landing/plugin.html 문서화)"
+        "동봉 스킬은 지식 1종 + 커맨드 4종 고정 (2026-10-28 덜어내기: 12→5) — 추가하려면 토큰 예산부터 재계산 (+ landing/plugin.html 문서화)"
     );
     // 커맨드는 `skills/` 로 옮겼다 (2026-10-24, Claude Code 문서: commands/ 는 구형).
     // 옛 자리가 되살아나면 같은 이름이 두 번 뜬다.
@@ -435,12 +435,6 @@ fn bundled_skills_and_commands_stay_within_budget() {
             desc_chars += desc.chars().count();
         }
     }
-    // 사용자가 직접 실행하는 시작 — 모델이 스스로 부르면 안 된다 (MCP project_init 도 같은 규칙).
-    let init = std::fs::read_to_string(skills_dir.join("project_init/SKILL.md")).unwrap();
-    assert!(
-        init.lines().any(|l| l == "disable-model-invocation: true"),
-        "project_init 은 사용자만 실행한다 — disable-model-invocation 필수"
-    );
     // 한글 혼합 기준 보수적으로 1 tok ≈ 2 chars — 1,400 chars ≈ ~700 tok 상한.
     assert!(
         desc_chars <= 1_400,
@@ -448,25 +442,11 @@ fn bundled_skills_and_commands_stay_within_budget() {
     );
 }
 
-/// 지식 스킬 — 모델이 상황을 보고 고른다.
-const KNOWLEDGE_SKILLS: &[&str] = &[
-    "oculpm-journal",
-    "project-inception",
-    "run-evals",
-    "self-audit",
-    "tdd-workflow",
-];
+/// 지식 스킬 — 모델이 상황을 보고 고른다. (self-audit·run-evals·tdd-workflow·project-inception 은 2026-10-28 에 걷었다 — 겹치거나 Today 가 대신한다.)
+const KNOWLEDGE_SKILLS: &[&str] = &["oculpm-journal"];
 
 /// 예전 `commands/` 의 슬래시 커맨드 — 이름(`/oculpm:<이름>`)은 그대로다.
-const COMMAND_SKILLS: &[&str] = &[
-    "board",
-    "help",
-    "inception",
-    "next",
-    "project_init",
-    "redteam",
-    "standup",
-];
+const COMMAND_SKILLS: &[&str] = &["help", "inception", "next", "redteam"];
 
 /// oculpm.com/plugin 문서 페이지가 플러그인의 실제 표면과 동기 —
 /// 새 커맨드/도구를 추가하고 문서를 빼먹으면 여기서 게이트가 실패한다
@@ -511,7 +491,7 @@ fn landing_plugin_docs_page_lists_every_command_and_tool() {
             "landing/plugin.html 이 걷어낸 MCP 도구 {gone} 를 아직 문서화한다"
         );
     }
-    // 스킬 5종 — 갤러리/매니페스트와 같은 목록.
+    // 지식 스킬 — 갤러리/매니페스트와 같은 목록.
     for skill in KNOWLEDGE_SKILLS {
         assert!(
             page.contains(skill),

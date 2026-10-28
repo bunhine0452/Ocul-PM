@@ -203,7 +203,7 @@ fn a_stale_base_hash_refuses_to_overwrite() {
 }
 
 /// plan_status 는 손으로 쓴 플랜의 문구를 가린 뒤 싣는다 — 그 응답이
-/// `/oculpm:board` 를 거쳐 claude.ai 아티팩트로 나간다.
+/// 에이전트의 컨텍스트(그리고 그 에이전트가 쓰는 어떤 바깥 표면)로 나간다.
 #[test]
 fn plan_status_masks_secrets_in_plan_text() {
     let tmp = TempDir::new().unwrap();

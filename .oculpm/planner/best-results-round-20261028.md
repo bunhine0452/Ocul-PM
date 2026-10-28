@@ -2,7 +2,7 @@
 oculpm_plan: v1
 id: best-results-round-20261028
 title: "최고의 결과 라운드 — 에이전트 운용 5원칙을 oculpm 의 자리로"
-status: active
+status: done
 created: 2026-10-28
 updated: 2026-10-28
 owner: claude-code
@@ -29,11 +29,11 @@ owner: claude-code
 ## 내세우기 — 다섯 원칙마다 oculpm 의 자리 {#p3}
 - [x] PROMISE.md 「에이전트 운용 5원칙 → oculpm 의 자리」 표 + 출처(Anthropic · Willison · Sonar · METR) {#promise-principles}
 - [x] README ko/en + 랜딩 ko/en 「왜 결과가 좋아지나」 절(5원칙 ↔ 훅·확인 명령·증거 등급·redteam·성적표), plugin.html plan_create `check` 인자, wiki build {#landing-why}
-- [ ] [사용자] 삭제 후보 결정 — 10월 fix 분포(보안 18 · 터미널 10 · 색인 5 · 워처 4 · 편집기 2 · 핵심 화면 2)를 보고 보류 등급 중 걷을 화면을 고른다 {#removal-decision}
+- [x] [사용자] 삭제 후보 결정 — 10월 fix 분포(보안 18 · 터미널 10 · 색인 5 · 워처 4 · 편집기 2 · 핵심 화면 2)를 보고 보류 등급 중 걷을 화면을 고른다 — 2026-10-28 결정: 보류 등급 전부 + 터미널 걷음 (simplify-round-20261028) {#removal-decision}
 
 ## 확인 날 — 눈으로 {#p4}
-- [ ] [사용자] Today 「약속 성적표」 숫자가 `python3 docs/launch/agent-report-card.py` 와 같은 자리(증거 비율·7일 재수정)에서 맞는다 {#eyes-scorecard}
-- [ ] [사용자] 플러그인 업데이트 뒤 새 세션 시작 컨텍스트에 플랜마다 완료 조건·확인 명령 줄이 실린다 {#eyes-hook-check}
+- [>] [사용자] Today 「약속 성적표」 숫자가 `python3 docs/launch/agent-report-card.py` 와 같은 자리(증거 비율·7일 재수정)에서 맞는다 → polish-round-20261027 #eyes-scorecard {#eyes-scorecard}
+- [>] [사용자] 플러그인 업데이트 뒤 새 세션 시작 컨텍스트에 플랜마다 완료 조건·확인 명령 줄이 실린다 → polish-round-20261027 #eyes-hook-check {#eyes-hook-check}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -49,4 +49,8 @@ owner: claude-code
 | 2026-10-28T03:01:50+09:00 | #rollup-receipt | claude-code | ☐→x | .oculpm/journal/20261028/Features_to_add/0300_feature_best-results-round.md | SECTION_UNVERIFIED + 요약 문장 + 복사 버튼 |
 | 2026-10-28T03:01:59+09:00 | #promise-principles | claude-code | ☐→x | .oculpm/journal/20261028/Features_to_add/0300_feature_best-results-round.md | PROMISE.md 다섯 원칙 표 · 측정 목표 「확인 명령 1/14」 · 장치 표 2행 |
 | 2026-10-28T03:02:38+09:00 | #landing-why | claude-code | ☐→x | .oculpm/journal/20261028/Features_to_add/0300_feature_best-results-round.md | README ko/en 절 · 랜딩 ko/en #why 6셀 + featureList · plugin.html 행 · wiki build |
+| 2026-10-28T23:24:48+09:00 | #removal-decision | claude-code | ☐→x |  | 2026-10-28 결정: 보류 등급 전부 + 터미널 걷음 (simplify-round-20261028) |
+| 2026-10-28T23:24:51+09:00 | #eyes-scorecard | claude-code | ☐→> |  | polish-round-20261027 #eyes-scorecard |
+| 2026-10-28T23:24:54+09:00 | #eyes-hook-check | claude-code | ☐→> |  | polish-round-20261027 #eyes-hook-check |
+| 2026-10-28T23:24:57+09:00 | #plan | claude-code | active→done |  | 덜어내기 라운드 — 플랜 18→4 (simplify-round-20261028 #plans-4). 미완은 전부 옮기거나 폐기 |
 <!-- oculpm:plan-log end -->

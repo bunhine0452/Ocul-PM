@@ -39,6 +39,8 @@ pub const MASTER_EN: &str = include_str!("templates/master_en.md.tpl");
 /// 에 앱 관리 파일로 동기화된다 (상시 컨텍스트 비용 0, 필요할 때만 Read).
 const DISCUSSION_SPEC_KO: &str = include_str!("templates/discussion_spec_ko.md.tpl");
 const DISCUSSION_SPEC_EN: &str = include_str!("templates/discussion_spec_en.md.tpl");
+const JOURNAL_SPEC_KO: &str = include_str!("templates/journal_spec_ko.md.tpl");
+const JOURNAL_SPEC_EN: &str = include_str!("templates/journal_spec_en.md.tpl");
 const CURSOR_TPL: &str = include_str!("templates/cursor.mdc.tpl");
 const CLAUDE_CODE_TPL: &str = include_str!("templates/claude_code.md.tpl");
 const ANTIGRAVITY_TPL: &str = include_str!("templates/antigravity.md.tpl");
@@ -261,8 +263,9 @@ pub async fn sync_active(
 ) -> Result<AgentSyncReport, OculpmError> {
     let lang = config.agents.template_language.as_str();
     let master_template = ensure_master_template(root, lang)?;
-    // discussion-spec 은 앱 관리 파일 — 항상 임베디드 내용으로 수렴시킨다.
+    // discussion-spec · journal-spec 은 앱 관리 파일 — 항상 임베디드 내용으로 수렴시킨다.
     ensure_discussion_spec(root, lang)?;
+    ensure_journal_spec(root, lang)?;
     let per_agent_dir = root.join(".oculpm").join("agents").join("per-agent");
 
     let active: std::collections::HashSet<&str> =
@@ -466,6 +469,13 @@ fn embedded_discussion_spec(lang: &str) -> &'static str {
     }
 }
 
+fn embedded_journal_spec(lang: &str) -> &'static str {
+    match lang {
+        "en" => JOURNAL_SPEC_EN,
+        _ => JOURNAL_SPEC_KO,
+    }
+}
+
 fn ensure_master_template(root: &Path, lang: &str) -> Result<String, OculpmError> {
     let dir = root.join(".oculpm").join("agents");
     let path = dir.join("_template.md");
@@ -489,6 +499,18 @@ fn ensure_discussion_spec(root: &Path, lang: &str) -> Result<(), OculpmError> {
         .join("agents")
         .join("discussion-spec.md");
     let embedded = embedded_discussion_spec(lang);
+    match std::fs::read(&path) {
+        Ok(cur) if cur == embedded.as_bytes() => Ok(()),
+        _ => write_atomic(&path, embedded.as_bytes()),
+    }
+}
+
+/// `.oculpm/agents/journal-spec.md` — 마스터 §3 이 "도구가 없을 때만 읽으라" 고 가리키는 일지 파일
+/// 규격. v19(2026-10-28)에서 마스터 본문에 있던 절을 여기로 뺐다 — 매 세션 실리는 규칙은 짧아야 하고,
+/// 도구가 있는 세션은 이 규격을 읽을 일이 없다. discussion-spec 과 같은 앱 관리 파일이다.
+fn ensure_journal_spec(root: &Path, lang: &str) -> Result<(), OculpmError> {
+    let path = root.join(".oculpm").join("agents").join("journal-spec.md");
+    let embedded = embedded_journal_spec(lang);
     match std::fs::read(&path) {
         Ok(cur) if cur == embedded.as_bytes() => Ok(()),
         _ => write_atomic(&path, embedded.as_bytes()),
@@ -573,6 +595,7 @@ pub fn upgrade_master(root: &Path) -> Result<(), OculpmError> {
         .unwrap_or_else(|_| "ko".to_string());
     let lang = lang_cfg.as_str();
     ensure_discussion_spec(root, lang)?;
+    ensure_journal_spec(root, lang)?;
     write_atomic(&path, embedded_master(lang).as_bytes())
 }
 
