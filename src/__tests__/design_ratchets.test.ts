@@ -271,7 +271,8 @@ describe("좌측 목록 열", () => {
 // 걷어낸다" 는 하지 않았다 — 없는 문제였다.
 describe("Today 세로 리듬", () => {
   it("부모가 gap 을 소유한다", () => {
-    expect(read("styles/screens.css")).toMatch(/\.today-page \{[^}]*gap: var\(--space-6\)/);
+    // 4.0 — 두 칼럼(`.tdy-col`)이 리듬을 쥔다 (features/today/today.css).
+    expect(read("features/today/today.css")).toMatch(/\.tdy-col \{[^}]*gap: var\(--space-5\)/);
   });
 
   it("자식이 세로 간격을 인라인으로 들지 않는다", () => {

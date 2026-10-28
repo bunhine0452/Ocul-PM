@@ -1,703 +1,290 @@
-import { EmptyState } from "@/components/EmptyState";
-import { ErrorCard } from "@/components/ErrorCard";
-import { useEffect, useState } from "react";
-import { Toolbar } from "@/components/Toolbar";
-import {
-  SearchIcon,
-  NotebookText,
-  GitCompareArrows,
-  GitCommitVertical,
-  FileCode2,
-  TriangleAlert,
-  Cpu,
-  Pin,
-  History,
-  ArrowRight,
-  Clipboard,
-} from "@/components/Icons";
-import { type UiV2View, useOptionalWorkspace } from "@/contexts/WorkspaceContext";
-import { agentLabel } from "./agentColor";
-import { requestOculpmActivate } from "@/lib/projectActions";
-import { FirstRunCard } from "./FirstRunCard";
-import { FirstRunSheet } from "./FirstRunSheet";
-import { TodayNums } from "./TodayNums";
-import { useUnrecordedCount } from "./useUnrecorded";
-import { consumeResumeOnOpen } from "@/lib/resumeIntent";
-import { useOptionalSettings } from "@/contexts/SettingsContext";
-import { reportRejection } from "@/lib/reportFailure";
-import { AutomationConsentNotice } from "@/features/settings/automation/AutomationConsentNotice";
-import { FirstRecordCard } from "./FirstRecordCard";
-import { ResumeCard } from "./ResumeCard";
+/**
+ * 오늘 — 사람이 3분 안에 믿고 다음을 결정하는 화면 (4.0 `{#ui-today}`).
+ *
+ * 원칙: **예외만 보여 준다.** 화면의 크기는 에이전트가 한 양이 아니라 사람이 볼 것에
+ * 비례한다. 하루 60건 쓰는 사람과 3건 쓰는 사람이 모드 없이 같은 화면을 쓴다 — 증거가
+ * 선 일은 한 줄로 접히고, 판정(완료 조건이 참인가)은 에이전트의 말이 아니라 확인 명령의
+ * 결과 끝 줄이다.
+ *
+ *   왼쪽   하루 한 줄 → 확인할 것 → 오늘 한 일
+ *   오른쪽 지금 일하는 중 → 계획 → 다음
+ *
+ * 키보드는 이 화면 안에서만 — j/k 확인할 것 이동 · Enter 기본 동작 · v 확인함 · c 다음
+ * 프롬프트 복사. 전역 keydown 은 쓰지 않는다(화면 컨테이너가 받는다).
+ */
+
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+
 import { hooksApi } from "@/api/claudeSurface";
 import { toAppError } from "@/api/invoke";
-import { tError } from "@/i18n/errors";
-import { PluginSetupCard } from "./PluginSetupCard";
-import { PluginDriftCard } from "./PluginDriftCard";
-import { CoreModelSeededCard } from "./CoreModelSeededCard";
-import { WhatsNewCard } from "./WhatsNewCard";
-import { commands, type JournalEntrySummary } from "@/lib/bindings";
-import { toast } from "@/lib/toast";
-import { resolveLlmTarget } from "@/lib/llmTarget";
-import { Skeleton } from "@/components/ui/Skeleton";
-import { StatCard } from "./StatCard";
-import { MiniEntry } from "./MiniEntry";
-import { WeekChart } from "./WeekChart";
-import { AgentBreakdown } from "./AgentBreakdown";
-import { NextTasks } from "./NextTasks";
-import { TodayActivityRing } from "./TodayActivityRing";
-import { HonestyAudit } from "./HonestyAudit";
-import { HotspotCard } from "./HotspotCard";
-import { PromiseScorecardCard } from "./PromiseScorecardCard";
-import { VelocityCard } from "./VelocityCard";
-import { WeeklyRollupCard } from "./WeeklyRollupCard";
-import { JournalMissingCard } from "./JournalMissingCard";
-import { PlanUpdates } from "./PlanUpdates";
-import { TodaySuggestions } from "./TodaySuggestions";
-import { DiscussionPending } from "./DiscussionPending";
-import { TodayMonitor } from "./TodayMonitor";
-import { TodayGitGraph } from "./TodayGitGraph";
-import { useTodayBrief } from "./useTodayBrief";
-import { useTodayMonitor } from "./useTodayMonitor";
+import { oculpmApi } from "@/api/oculpm";
+import { planApi } from "@/api/plan";
+import { ErrorCard } from "@/components/ErrorCard";
+import { NotebookText } from "@/components/Icons";
+import { Toolbar } from "@/components/Toolbar";
+import { type UiV2View, useOptionalWorkspace } from "@/contexts/WorkspaceContext";
+import { useMinuteTick } from "@/hooks/useSecondTick";
 import { useT } from "@/i18n";
-import { useDensity } from "@/hooks/useDensity";
-import { blocked } from "@/lib/blocked";
-import { kbd } from "@/lib/kbd";
-
-// Final UI Update (ui_v2) — Today 6-block dashboard (02-screen-specs §1).
-// Pure presenter over useTodayBrief (frontend aggregation, no new backend
-// command — PR-UI 2 §0.8). Empty / loading / error states per 01-ia-and-shell
-// §7.
+import { tError } from "@/i18n/errors";
+import type { JournalEntrySummary } from "@/lib/bindings";
+import { requestOculpmActivate } from "@/lib/projectActions";
+import { consumeResumeOnOpen } from "@/lib/resumeIntent";
+import { openSettings } from "@/lib/settingsNav";
+import { toast } from "@/lib/toast";
+import { TodayExceptions } from "./TodayExceptions";
+import { LiveCard, NextCard, PlansCard } from "./TodaySide";
+import { TodayWork } from "./TodayWork";
+import { Num } from "./todayFormat";
+import { dayStats, firstNext, type TodayException } from "./todayModel";
+import { useTodayExceptions } from "./useTodayExceptions";
+import { liveSessionsOf, useLiveSessions } from "./useLiveSessions";
+import "./today.css";
 
 interface TodayScreenV2Props {
   projectId: number;
-  /** Project root — cwd for the embedded 빠른 터미널. */
-  projectRoot: string | null;
+  /** 셸이 넘긴다 — 이 화면은 쓰지 않는다. */
+  projectRoot?: string | null;
   /** YYYYMMDD current workday (from OculpmStatus / workdayKey). */
   workday: string | null;
   /** ocul-pm active? When false we show the activation hint. */
   oculpmReady: boolean;
   onNavigate: (view: UiV2View) => void;
   dateLabel: string;
-  tz: string;
-  /**
-   * Open the 작업 일지 화면 with this entry ring-highlighted. Provided by
-   * ShellV2 (PR-UI 3 focus handoff). When omitted, falls back to a plain nav.
-   */
+  /** 셸이 넘긴다 — 이 화면은 쓰지 않는다. */
+  tz?: string;
+  /** 작업 일지 화면에서 이 일지를 연다 (셸의 포커스 핸드오프). 없으면 화면만 옮긴다. */
   onOpenEntry?: (entry: Pick<JournalEntrySummary, "relative_path">) => void;
 }
 
-export function TodayScreenV2({
-  projectId,
-  workday,
-  oculpmReady,
-  onNavigate,
-  dateLabel,
-  tz,
-  onOpenEntry,
-}: TodayScreenV2Props) {
+/** 입력칸 안의 j/k/v 는 글자다 — 가로채지 않는다. */
+function isTyping(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
+
+export function TodayScreenV2({ projectId, workday, oculpmReady, onNavigate, dateLabel, onOpenEntry }: TodayScreenV2Props) {
   const { t } = useT();
-  const { density } = useDensity();
-  const simple = density === "simple";
-  const { brief, loading, error, refresh } = useTodayBrief(
-    projectId,
-    workday,
-    oculpmReady,
-  );
-  // v2 U12 — "다음 할 일"과 총 일지 수는 brief 한 콜에 동승 (useNextTasks 의
-  // planList+planGet×N, 모니터의 365일 히트맵 IPC 제거).
-  const nextTasks = brief?.nextTasks ?? null;
-  const { monitor } = useTodayMonitor(
-    projectId,
-    workday,
-    oculpmReady,
-    brief?.totalEntries ?? null,
-  );
-  // 머리글 숫자 셋의 재료 — 미기록 파일 수 (증거·다음 할 일은 brief 에서 바로 센다).
-  const unrecorded = useUnrecordedCount(projectId, workday, oculpmReady);
-  // 첫 활성화 카드 — 프로젝트 탭이 채우고 여기서 비운다 (Phase 2).
   const ws = useOptionalWorkspace();
-  const initCard = ws?.state.oculpmInitCard ?? null;
-  const dismissInitCard = () => ws?.setState((prev) => ({ ...prev, oculpmInitCard: null }));
+  const today = useTodayExceptions(projectId, workday, oculpmReady);
+  const { data, exceptions, error, refresh, markVerified } = today;
+  const { sessions } = useLiveSessions(projectId, workday, oculpmReady);
+  const now = useMinuteTick(oculpmReady);
 
-  // 첫 기록 카드 — 이 프로젝트의 일지가 **0건**인 것을 처음 본 순간 켠다
-  // (플랜 `first-record-loop` {#p1-states}). 총 일지 수는 켜는 조건일 뿐이고
-  // 끄는 조건이 아니다: 백필로 숫자가 올라도 카드는 **대화가 귀속된 첫 일지**를
-  // 확인할 때까지 남는다. 켜진 적 없는(이전부터 쓰던) 프로젝트는 보지 않는다.
-  const firstRecordArmed = ws?.state.firstRecordArmed ?? false;
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const rowRefs = useRef<Array<HTMLLIElement | null>>([]);
+  const [active, setActive] = useState(-1);
+
+  // 화면에 들어오면 키보드가 바로 닿게 — 입력칸에 있던 포커스는 빼앗지 않는다.
   useEffect(() => {
-    if (!ws || firstRecordArmed) return;
-    if (oculpmReady && brief != null && brief.totalEntries === 0) {
-      ws.setState((prev) => (prev.firstRecordArmed ? prev : { ...prev, firstRecordArmed: true }));
-    }
-  }, [ws, firstRecordArmed, oculpmReady, brief]);
-  const disarmFirstRecord = () =>
-    ws?.setState((prev) => (prev.firstRecordArmed ? { ...prev, firstRecordArmed: false } : prev));
+    if (!isTyping(document.activeElement)) rootRef.current?.focus({ preventScroll: true });
+  }, []);
 
-  // 첫 실행 세 단계 시트 — 일지가 0건인 동안만, 건너뛴 사람에게는 다시 안 뜬다 (시안 E).
-  // 설정 공급자가 없는 자리(공급자 없이 화면만 그리는 테스트)에서는 그리지 않는다 —
-  // 「건너뛰기」가 적을 곳이 없는 시트는 사용자를 이기는 카드가 된다.
-  const settingsCtx = useOptionalSettings();
-  const showSheet =
-    settingsCtx != null &&
-    settingsCtx.loaded &&
-    !settingsCtx.settings.firstRunSheetDismissed &&
-    oculpmReady &&
-    brief != null &&
-    brief.totalEntries === 0;
-  const skipSheet = () => {
-    if (settingsCtx) reportRejection(settingsCtx.set("firstRunSheetDismissed", true), "settings.saveFailed");
-  };
-
-  // 「이 맥락으로 이어서 작업」 — 백엔드가 이어하기 자료를 프롬프트로 만들고, 여기서는
-  // 클립보드에 둔다. 내장 터미널이 걷힌 뒤(2026-10-28)로는 사용자가 자기 터미널의
-  // 에이전트에 붙여 넣는다 — 보내는 것은 여전히 사용자다.
-  const continueFromResume = async () => {
-    try {
-      const res = await hooksApi.resumeDispatchPrompt(projectId);
-      await navigator.clipboard.writeText(res.prompt);
-      toast.info(t("today.resume.dispatchCopied"));
-    } catch (e) {
-      toast.destructive(t("today.resume.dispatchFailed", { error: tError(toAppError(e)) }));
-    }
-  };
-
-  // 시작 탭의 「이 맥락으로 이어서 작업」 — 프로젝트가 열려 오늘 화면이 서면 한 번 돈다 (시안 Start).
-  // 이어하기 자료가 있어야 보낼 것이 있으므로 brief 가 온 뒤에.
+  // 시작 탭의 「이 맥락으로 이어서 작업」 — 프로젝트가 열려 이 화면이 서면 한 번, 이어하기
+  // 프롬프트를 클립보드에 둔다. 보내는 것은 사용자다(자기 터미널의 에이전트에 붙여 넣는다).
   useEffect(() => {
-    if (!oculpmReady || brief == null || !ws) return;
-    if (consumeResumeOnOpen(projectId)) void continueFromResume();
-    // continueFromResume 은 매 렌더 새 함수다 — 뜻은 한 번만 소비되므로 의존성에서 뺀다.
+    if (!oculpmReady || !consumeResumeOnOpen(projectId)) return;
+    void hooksApi
+      .resumeDispatchPrompt(projectId)
+      .then((res) => navigator.clipboard.writeText(res.prompt))
+      .then(() => toast.info(t("today.resume.dispatchCopied")))
+      .catch((e: unknown) => toast.destructive(t("today.resume.dispatchFailed", { error: tError(toAppError(e)) })));
+    // 뜻은 한 번만 소비된다 — t 가 바뀌어도 다시 돌 일이 없다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [oculpmReady, brief == null, projectId, ws]);
+  }, [oculpmReady, projectId]);
 
-  // Clicking a highlight / yesterday row jumps to the Journal screen with the
-  // entry ring-highlighted (ShellV2 owns the one-shot focus path). Without the
-  // handoff prop (e.g. in unit tests) we just navigate.
-  const openEntry = (entry: JournalEntrySummary) => {
-    if (onOpenEntry) onOpenEntry(entry);
-    else onNavigate("journal");
+  const openPlan = useCallback(
+    (planId: string) => {
+      ws?.setState((prev) => (prev.plannerPlanId === planId ? prev : { ...prev, plannerPlanId: planId }));
+      onNavigate("planner");
+    },
+    [ws, onNavigate],
+  );
+
+  const openEntry = useCallback(
+    (entry: Pick<JournalEntrySummary, "relative_path">) => {
+      if (onOpenEntry) onOpenEntry({ relative_path: entry.relative_path });
+      else onNavigate("journal");
+    },
+    [onOpenEntry, onNavigate],
+  );
+
+  const verify = useCallback(
+    async (entry: JournalEntrySummary) => {
+      markVerified(entry.relative_path, true);
+      try {
+        await oculpmApi.setJournalVerified(projectId, entry.relative_path, true);
+        toast.info(t("today.check.verified"));
+        refresh();
+      } catch (e) {
+        markVerified(entry.relative_path, false);
+        toast.destructive(t("today.check.verifyFailed", { error: tError(toAppError(e)) }));
+      }
+    },
+    [projectId, markVerified, refresh, t],
+  );
+
+  const next = firstNext(data.digest ?? null);
+  const copyNext = useCallback(async () => {
+    if (!next) return;
+    try {
+      const res = await planApi.dispatchPrompt(projectId, next.plan.plan_id, next.item.item_id);
+      await navigator.clipboard.writeText(res.prompt);
+      toast.info(t("plan.dispatchCopied", { title: res.item_title }));
+    } catch (e) {
+      toast.destructive(t("plan.dispatchFailed", { error: tError(toAppError(e)) }));
+    }
+  }, [next, projectId, t]);
+
+  const copyPluginUpdate = useCallback(() => {
+    void navigator.clipboard
+      ?.writeText("/plugin update oculpm@oculpm")
+      .then(() => toast.info(t("today.pluginDrift.copied")));
+  }, [t]);
+
+  const runPrimary = useCallback(
+    (ex: TodayException) => {
+      switch (ex.kind) {
+        case "verdict":
+          return openPlan(ex.plan.plan_id);
+        case "evidence":
+          return openEntry(ex.entry);
+        case "unrecorded":
+        case "silent":
+          return onNavigate("diff");
+        case "blocked":
+        case "decision":
+          return openPlan(ex.planId);
+        case "plugin":
+          return copyPluginUpdate();
+      }
+    },
+    [openPlan, openEntry, onNavigate, copyPluginUpdate],
+  );
+
+  const focusRow = (i: number) => {
+    setActive(i);
+    rowRefs.current[i]?.focus();
   };
 
-  // HotspotCard 는 파일 단위 집계라 풀 JournalEntrySummary 가 없다 — 그 파일의
-  // 마지막 일지 경로만 있으면 되므로, openEntry 가 실제로 읽는 필드
-  // (relative_path) 만 채운 최소 객체로 같은 핸드오프를 탄다.
-  const openEntryPath = (relativePath: string) =>
-    openEntry({ relative_path: relativePath } as JournalEntrySummary);
-
-  const empty = oculpmReady && !loading && brief != null && brief.changedToday === 0;
-
-  // v2 U10 (C1) — 원클릭 스탠드업: 어제~오늘 일지 + 활성 플랜을 마크다운으로
-  // 만들어 클립보드에. LLM 미설정이어도 결정적 폴백으로 항상 동작한다.
-  const [standupBusy, setStandupBusy] = useState(false);
-  const copyStandup = async () => {
-    if (standupBusy || !workday) return;
-    setStandupBusy(true);
-    try {
-      const y = new Date(
-        Number(workday.slice(0, 4)),
-        Number(workday.slice(4, 6)) - 1,
-        Number(workday.slice(6, 8)) - 1,
-      );
-      const since = `${y.getFullYear()}${String(y.getMonth() + 1).padStart(2, "0")}${String(
-        y.getDate(),
-      ).padStart(2, "0")}`;
-      const target = await resolveLlmTarget();
-      const res = await commands.oculpmGenerateSummary(
-        projectId,
-        since,
-        workday,
-        "standup",
-        target?.provider ?? null,
-        target?.model ?? null,
-      );
-      if (res.status !== "ok") {
-        toast.destructive(t("today.standup.failed", { error: res.error }));
-        return;
-      }
-      await navigator.clipboard.writeText(res.data.markdown);
-      toast.info(
-        res.data.used_llm
-          ? t("today.standup.copiedAi")
-          : t("today.standup.copiedPlain"),
-      );
-    } finally {
-      setStandupBusy(false);
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) return;
+    const rows = exceptions ?? [];
+    const cur = Math.min(active, rows.length - 1);
+    if (e.key === "j" || e.key === "k") {
+      if (rows.length === 0) return;
+      e.preventDefault();
+      focusRow(e.key === "j" ? Math.min(cur + 1, rows.length - 1) : Math.max(cur - 1, 0));
+    } else if (e.key === "Enter") {
+      // 행 안의 버튼에서 누른 Enter 는 그 버튼의 것이다.
+      if (cur < 0 || e.target !== rowRefs.current[cur]) return;
+      e.preventDefault();
+      runPrimary(rows[cur]);
+    } else if (e.key === "v") {
+      const ex = cur >= 0 ? rows[cur] : undefined;
+      if (ex?.kind !== "evidence") return;
+      e.preventDefault();
+      void verify(ex.entry);
+    } else if (e.key === "c") {
+      if (!next) return;
+      e.preventDefault();
+      void copyNext();
     }
   };
 
-  const resumeCard = (
-    <ResumeCard
-      projectId={projectId}
-      enabled={oculpmReady}
-      onNavigate={onNavigate}
-      onOpenEntryPath={(relative_path) => {
-        if (onOpenEntry) onOpenEntry({ relative_path });
-        else onNavigate("journal");
-      }}
-      onContinue={() => void continueFromResume()}
-    />
-  );
+  const entries = data.entries ?? [];
+  const stats = dayStats(entries);
+  const live = sessions ? liveSessionsOf(sessions, entries) : [];
+  const firstRun = data.totalEntries === 0;
 
-  // 세 묶음 — 전문 밀도는 셋을 다 펼치고, 간단 밀도는 세 질문 칼럼이 grid·trailing 의
-  // 핵심 카드를 대신하며 나머지만 「더 보기」에 접는다. 같은 카드를 두 번 그리지 않는다.
-  const statsBlock = (
-    <>
-          {/* Stat row */}
-          <div className="stat-row">
-            <StatCard
-              icon={GitCommitVertical}
-              tone="accent"
-              label={t("today.stat.recorded")}
-              value={brief ? brief.changedToday : "—"}
-              unit={t("today.unit.entries")}
-            />
-            <StatCard
-              icon={FileCode2}
-              label={t("today.stat.filesChanged")}
-              value={brief ? brief.filesTouched : "—"}
-              unit={t("today.unit.files")}
-              sub={
-                brief ? (
-                  <span className="mono">
-                    <span className="diff-add">+{brief.linesAdded.toLocaleString()}</span>{" "}
-                    <span className="diff-del">−{brief.linesRemoved.toLocaleString()}</span>{" "}
-                    {t("today.unit.lines")}
-                  </span>
-                ) : null
-              }
-            />
-            <StatCard
-              icon={TriangleAlert}
-              tone={brief && brief.errorCycles > 0 ? "danger" : undefined}
-              label={t("today.stat.errorCycles")}
-              value={brief ? brief.errorCycles : "—"}
-              unit={t("today.unit.times")}
-            />
-            <StatCard
-              icon={Cpu}
-              label={t("today.stat.agents")}
-              value={brief ? brief.agents.length : "—"}
-              // 한국어 「개」는 만능 조수사라 `unit.files` 를 돌려 써도 됐지만
-              // 영어에선 "N files" 가 된다 — 영어 순회(2026-09-11)가 잡았다.
-              unit={t("today.unit.agents")}
-            />
-          </div>
-
-          {/* 모니터링 행 — 활동시간 · 전체 작업 일지 · 오늘 커밋 · 미커밋 변경 */}
-          {oculpmReady ? <TodayMonitor monitor={monitor} /> : null}
-
-
-    </>
-  );
-  const proGrid = (
-    <>
-          {empty ? (
-            /* 「Ocul-PM 이 자동으로 일지를 작성합니다」 는 거짓이었다
-               (v3-surface {#today-empty-truth}) — 그 시점에 켜진 자동화가
-               하나도 없다 (`auto_journal_draft`·`auto_reconcile` 모두 기본
-               false, oculpm/config.rs). 일지는 에이전트가 AGENTS.md 를 읽고
-               직접 쓴다. 그래서 문구는 사실로, 그 옆에는 그걸 지금 일으키는
-               행동 둘을 놓는다. */
-            <div className="card card-pad">
-              <EmptyState
-                density="rich"
-                icon={NotebookText}
-                title={t("today.emptyTitle")}
-                actions={
-                  <>
-                    <button className="btn primary" onClick={() => onNavigate("skills")}>
-                      {t("today.openRules")}
-                    </button>
-                  </>
-                }
-              >
-                {t("today.empty")}
-              </EmptyState>
-            </div>
+  let body: ReactNode;
+  if (!oculpmReady) {
+    body = (
+      <div className="card tdy-card tdy-pad tdy-notice">
+        <span>{t("today.notActive")}</span>
+        <button type="button" className="btn primary sm" onClick={requestOculpmActivate}>
+          {t("today.activateNow")}
+        </button>
+      </div>
+    );
+  } else if (error) {
+    body = <ErrorCard title={t("today.loadFailed")} error={error} onRetry={refresh} />;
+  } else {
+    body = (
+      <div className="tdy-body">
+        <div className="tdy-col">
+          {firstRun ? (
+            <section className="card tdy-card tdy-first" aria-labelledby="tdy-first-h">
+              <NotebookText size={18} className="tdy-first-ico" aria-hidden="true" />
+              <div className="tdy-grow">
+                <h2 id="tdy-first-h" className="tdy-strong">
+                  {t("today.first.title")}
+                </h2>
+                <p className="tdy-meta">{t("today.first.body")}</p>
+                <button
+                  type="button"
+                  className="btn primary sm"
+                  onClick={() => {
+                    onNavigate("settings");
+                    openSettings("oculpm");
+                  }}
+                >
+                  {t("today.first.connect")}
+                </button>
+              </div>
+            </section>
           ) : (
-            <div className="grid-2 grid-2-fill">
-              {/* LEFT: 오늘 하이라이트 → 오늘의 에이전트 → 어제 마무리
-                  (에이전트는 오른쪽 열에 있었다 — 오른쪽만 길어져 왼쪽 아래로
-                  빈 배경이 드러나던 걸 같은 "오늘" 묶음으로 옮겨 균형을 맞춘다) */}
-              <div className="g2col">
-                <div className="card">
-                  <div className="panel-head">
-                    <Pin size={15} color="var(--accent-text)" />
-                    <h3>{t("today.highlights")}</h3>
-                    <span className="count">{brief ? brief.highlights.length : 0}</span>
-                    <button
-                      className="btn ghost sm right"
-                      onClick={() => onNavigate("journal")}
-                      aria-label={t("today.viewAllAria")}
-                    >
-                      {t("today.viewAll")} <ArrowRight size={13} />
-                    </button>
-                  </div>
-                  <div className="panel-body">
-                    {brief && brief.highlights.length > 0 ? (
-                      brief.highlights.map((e) => (
-                        <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
-                      ))
-                    ) : (
-                      <EmptyState>{t("today.noHighlights")}</EmptyState>
-                    )}
-                  </div>
+            <>
+              {data.entries ? (
+                <div className="tdy-day">
+                  <Num k="today.day.records" n={stats.total} />
+                  <span title={t("today.day.evidenceTitle")}>
+                    <Num k="today.day.evidence" n={stats.withEvidence} />
+                    {stats.pct != null ? ` · ${stats.pct}%` : null}
+                  </span>
+                  {sessions && sessions.length > 1 ? <Num k="today.day.sessions" n={sessions.length} /> : null}
+                  {exceptions ? (
+                    <Num k="today.day.check" n={exceptions.length} className={exceptions.length > 0 ? "tdy-warn" : undefined} />
+                  ) : null}
                 </div>
-
-                {brief ? <AgentBreakdown agents={brief.agents} /> : null}
-
-                <div className="card">
-                  <div className="panel-head">
-                    <History size={15} color="var(--text-2)" />
-                    <h3>{t("today.yesterday")}</h3>
-                    <span className="count">{brief ? brief.yesterdayDone.length : 0}</span>
-                  </div>
-                  <div className="panel-body">
-                    {brief && brief.yesterdayDone.length > 0 ? (
-                      brief.yesterdayDone.map((e) => (
-                        <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
-                      ))
-                    ) : (
-                      <EmptyState>{t("today.noYesterday")}</EmptyState>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* RIGHT: 흐름(주간)과 앞으로(다음 할 일) */}
-              <div className="g2col">
-                {brief ? <WeekChart week={brief.week} /> : null}
-                <NextTasks tasks={nextTasks} onOpenPlanner={() => onNavigate("planner")} />
-              </div>
-            </div>
+              ) : null}
+              <TodayExceptions
+                exceptions={exceptions}
+                entryCount={entries.length}
+                unrecordedKnown={data.unrecorded != null}
+                activeIndex={active}
+                setActiveIndex={setActive}
+                rowRefs={rowRefs}
+                onPrimary={runPrimary}
+                onVerify={(entry) => void verify(entry)}
+              />
+              {/* 오늘 기록이 없으면 이 카드는 위 문단을 되풀이할 뿐이다. */}
+              {entries.length > 0 && data.digest ? (
+                <TodayWork entries={entries} digest={data.digest} onOpenEntry={openEntry} />
+              ) : null}
+            </>
           )}
-
-    </>
-  );
-  const proTrailing = (
-    <>
-          <DiscussionPending projectId={projectId} onNavigate={onNavigate} />
-
-          <PlanUpdates projectId={projectId} onNavigate={onNavigate} />
-
-          {/* AD-4 — 규칙·스킬 승격 후보가 있을 때만 (회고에 갇혀 있던 루프의 문) */}
-          <TodaySuggestions projectId={projectId} enabled={oculpmReady} />
-
-          {/* F2 정직성 감사 — 기록 누락 변경이 있을 때만 렌더 */}
-          <HonestyAudit
-            projectId={projectId}
-            workday={workday}
-            enabled={oculpmReady}
-            onNavigate={onNavigate}
-          />
-
-          {/* H3b 일지 없이 끝난 세션 — 플러그인 훅 신호가 있을 때만 렌더 */}
-          <JournalMissingCard
-            projectId={projectId}
-            enabled={oculpmReady}
-            onNavigate={onNavigate}
-          />
-
-          {/* journal-scale-round {#hotspot-card} — 같은 파일에 몰린 bug/error
-              일지(재발 신호). 0건이어도 카드는 남는다(위 둘과 같은 선). */}
-          <HotspotCard
-            projectId={projectId}
-            enabled={oculpmReady}
-            onOpenEntry={openEntryPath}
-          />
-
-          {/* best-results-round {#scorecard-card} — 「약속 성적표」: 증거 비율 ·
-              7일 재수정 · 완료 조건/확인 명령이 있는 플랜, 목표와 나란히. */}
-          <PromiseScorecardCard projectId={projectId} enabled={oculpmReady} />
-
-          {/* journal-scale-round {#velocity-card} — 주당 일지 속도 + 플랜
-              완료 ETA. 0건이어도 카드는 남는다(위와 같은 선). */}
-          <VelocityCard projectId={projectId} enabled={oculpmReady} />
-
-          {/* journal-scale-round {#rollup-weekly} — 일지 위 한 층(주간 요약).
-              없으면 만들기 버튼이 서고, 있으면 첫 문단과 「오래됨」이 뜬다. */}
-          <WeeklyRollupCard projectId={projectId} enabled={oculpmReady} />
-
-          {/* 커밋 그래프 — 맨 아래 (dogfooding 2026-06-15) */}
-          {oculpmReady ? <TodayGitGraph projectId={projectId} enabled={oculpmReady} /> : null}
-    </>
-  );
-  const simpleMore = (
-    <>
-      {statsBlock}
-      {brief ? <AgentBreakdown agents={brief.agents} /> : null}
-      {brief ? <WeekChart week={brief.week} /> : null}
-      <TodaySuggestions projectId={projectId} enabled={oculpmReady} />
-      <HotspotCard projectId={projectId} enabled={oculpmReady} onOpenEntry={openEntryPath} />
-      <VelocityCard projectId={projectId} enabled={oculpmReady} />
-      <WeeklyRollupCard projectId={projectId} enabled={oculpmReady} />
-      {oculpmReady ? <TodayGitGraph projectId={projectId} enabled={oculpmReady} /> : null}
-    </>
-  );
+        </div>
+        <div className="tdy-col tdy-side">
+          <LiveCard sessions={live} now={now} />
+          {data.digest ? <PlansCard digest={data.digest} onOpenPlan={openPlan} /> : null}
+          {data.digest && data.digest.plans.length > 0 ? (
+            <NextCard next={next} onCopy={() => void copyNext()} onOther={() => onNavigate("planner")} />
+          ) : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <Toolbar title={t("nav.today")} sub={dateLabel}>
-        <button
-          type="button"
-          className="search-box"
-          onClick={() => onNavigate("search")}
-          aria-label={t("today.search.open")}
-        >
-          <SearchIcon size={15} color="var(--text-3)" />
-          <span style={{ color: "var(--text-3)", flex: 1, textAlign: "left" }}>{t("today.search.placeholder")}</span>
-          <span className="kbd">{kbd("⌘K")}</span>
-        </button>
-        {/* `title` 은 **동작 설명**이고 막힌 이유는 다른 문장이다 — 예전엔 못
-            누르는 버튼이 "무엇을 하는 버튼인지" 만 말하고 왜 못 누르는지는
-            말하지 않았다. 이유는 `blocked` 가 나른다 (lib/blocked.ts).
-            생성 중(`standupBusy`)은 스스로 설명되므로 `disabled` 그대로. */}
-        <button
-          className="btn"
-          onClick={() => void copyStandup()}
-          {...blocked(
-            !oculpmReady
-              ? t("today.standup.blockedNoOculpm")
-              : !workday
-                ? t("today.standup.blockedNoWorkday")
-                : null,
-            t("today.standup.title"),
-          )}
-          disabled={standupBusy}
-        >
-          <Clipboard size={15} /> {standupBusy ? t("today.standup.busy") : t("today.standup.copy")}
-        </button>
-        <button className="btn" onClick={() => onNavigate("journal")}>
-          <NotebookText size={15} /> {t("today.allEntries")}
-        </button>
+        {oculpmReady && !firstRun ? <span className="tdy-keys">{t("today.kbd.hint")}</span> : null}
       </Toolbar>
-
       <div className="scroll">
-        <div className="page today-page fade-in">
-          {/* Hero */}
-          <div className="today-hero">
-            <div style={{ display: "flex", alignItems: "center", gap: 18, minWidth: 0 }}>
-              {oculpmReady && brief ? (
-                <TodayActivityRing
-                  // 프로젝트가 바뀌면 새 인스턴스로. 링은 changedToday 가 늘면
-                  // "새 일지가 기록됐다"로 읽고 물결을 치는데, 프로젝트 전환은
-                  // 그냥 다른 프로젝트의 수치일 뿐이다 (2건 → 9건이 새 기록으로
-                  // 오인됨). key 로 ref 를 리셋해 헛 리플을 없앤다.
-                  key={projectId}
-                  changedToday={brief.changedToday}
-                  filesTouched={brief.filesTouched}
-                  linesAdded={brief.linesAdded}
-                  linesRemoved={brief.linesRemoved}
-                  errorCycles={brief.errorCycles}
-                />
-              ) : null}
-              <div style={{ minWidth: 0 }}>
-                <div className="today-greet">
-                  {oculpmReady && brief ? (
-                    <>
-                      {t("today.headlinePrefix")}{" "}
-                      <span className="accent">{t("today.headlineCount", { n: brief.changedToday })}</span>
-                      {t("today.headlineSuffix")}
-                    </>
-                  ) : oculpmReady ? (
-                    <Skeleton width={240} height={22} style={{ display: "inline-block", verticalAlign: "middle" }} />
-                  ) : (
-                    <>
-                      {t("today.notActive")}{" "}
-                      <button
-                        className="btn primary sm"
-                        style={{ verticalAlign: "middle", marginLeft: 8 }}
-                        onClick={requestOculpmActivate}
-                      >
-                        {t("today.activateNow")}
-                      </button>
-                    </>
-                  )}
-                </div>
-                <div className="today-date">
-                  {/* 제품 설명 문장이 아니라 사실 한 줄 — 오늘 기록을 남긴 에이전트들. */}
-                  {oculpmReady && brief && brief.agents.length > 0
-                    ? brief.agents.map((a) => agentLabel(a.id)).join(" · ")
-                    : t("today.subheadIdle")}
-                  {" · "}
-                  {tz}
-                </div>
-              </div>
-            </div>
-            <div className="today-hero-side">
-              {oculpmReady && brief ? (
-                <TodayNums today={brief.today} unrecorded={unrecorded} nextCount={nextTasks ? nextTasks.length : null} />
-              ) : null}
-              <button className="btn primary" onClick={() => onNavigate("diff")}>
-                <GitCompareArrows size={15} /> {t("today.reviewChanges")}
-              </button>
-            </div>
-          </div>
-
-          {error ? (
-            <ErrorCard
-              title={t("today.loadFailed")}
-              error={error}
-              onRetry={refresh}
-            />
-          ) : null}
-
-          {showSheet ? <FirstRunSheet projectName={ws?.state.currentProjectName ?? null} onSkip={skipSheet} /> : null}
-
-          {/* 이어하기 — 다음 세션의 시작점 (first-record-loop Phase 2). 일지도
-              계획도 없는 프로젝트에는 그리지 않는다. 간단 밀도에선 ③ 칼럼 안에 선다. */}
-          {simple ? null : resumeCard}
-
-          <WhatsNewCard />
-          {/* 저장소 config 가 켠 배경 자동화는 이 기기가 허락해야 돈다 — 멈춰 있는
-              동안 그 사실을 여기서 말한다 (보안 피드백 라운드 #automation-consent). */}
-          {oculpmReady ? <AutomationConsentNotice projectId={projectId} variant="card" /> : null}
-          <CoreModelSeededCard />
-          {initCard ? (
-            <FirstRunCard info={initCard} onDismiss={dismissInitCard} onNavigate={onNavigate} />
-          ) : null}
-          {/* 플러그인 온보딩 — 일지가 한 건도 없는 동안만 (v3-surface
-              {#plugin-onboarding}). 카드가 스스로 판정하고, 판정 근거가
-              없으면 아무것도 그리지 않는다. */}
-          <PluginSetupCard
-            show={oculpmReady && brief != null && brief.totalEntries === 0 && !showSheet}
-            onNavigate={onNavigate}
-          />
-          {/* 깔린 플러그인이 앱보다 낮을 때만 — 이어하기·전달 원장은 새 판의 훅이 쓴다. */}
-          <PluginDriftCard projectId={projectId} enabled={oculpmReady} />
-          {/* 첫 기록 — 방금 돌린 **그 대화**의 첫 일지를 확인한다. 총 일지 수로
-              성공을 말하지 않는다 (first-record-loop {#p1-card}). */}
-          <FirstRecordCard
-            projectId={projectId}
-            enabled={oculpmReady && firstRecordArmed}
-            onNavigate={onNavigate}
-            onOpenEntryPath={(relative_path) => {
-              if (onOpenEntry) onOpenEntry({ relative_path });
-              else onNavigate("journal");
-            }}
-            onDone={disarmFirstRecord}
-          />
-
-          {simple ? (
-            <>
-              {/* 간단 밀도 — 세 질문, 한 순서: 무엇을 했나 → 믿을 수 있나 → 다음은.
-                  (best-results UI 라운드 2026-10-28.) 보조 카드는 아래 「더 보기」에
-                  접힌 채 전부 살아 있다 — 숨김이 아니라 접힘이다. */}
-              <div className="today-cols">
-                <div className="today-col">
-                  <div className="today-col-head">
-                    <span className="q">①</span> {t("today.q.did")}
-                    <button
-                      className="btn ghost sm right"
-                      onClick={() => onNavigate("journal")}
-                      aria-label={t("today.viewAllAria")}
-                    >
-                      {t("today.viewAll")} <ArrowRight size={13} />
-                    </button>
-                  </div>
-                  <div className="card">
-                    <div className="panel-body">
-                      {empty ? (
-                        <EmptyState
-                          icon={NotebookText}
-                          title={t("today.emptyTitle")}
-                          actions={
-                            <>
-                              <button className="btn primary sm" onClick={() => onNavigate("skills")}>
-                                {t("today.openRules")}
-                              </button>
-                            </>
-                          }
-                        >
-                          {t("today.empty")}
-                        </EmptyState>
-                      ) : brief && brief.highlights.length > 0 ? (
-                        brief.highlights.map((e) => (
-                          <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
-                        ))
-                      ) : (
-                        <EmptyState>{t("today.noHighlights")}</EmptyState>
-                      )}
-                    </div>
-                  </div>
-                  {brief && brief.today.length > 0 ? (
-                    <div className="today-col-foot">
-                      <span>
-                        {brief.today.length > brief.highlights.length
-                          ? t("today.moreEntries", { n: brief.today.length - brief.highlights.length })
-                          : null}
-                        {brief.agents.map((a) => `${agentLabel(a.id)} ${a.count}`).join(" · ")}
-                      </span>
-                      <button
-                        className="btn sm"
-                        onClick={() => void copyStandup()}
-                        {...blocked(!workday ? t("today.standup.blockedNoWorkday") : null, t("today.standup.title"))}
-                        disabled={standupBusy}
-                      >
-                        <Clipboard size={13} /> {t("today.standup.copy")}
-                      </button>
-                    </div>
-                  ) : null}
-                  {brief && brief.yesterdayDone.length > 0 ? (
-                    <div className="card">
-                      <div className="panel-head">
-                        <History size={15} color="var(--text-2)" />
-                        <h3>{t("today.yesterday")}</h3>
-                        <span className="count">{brief.yesterdayDone.length}</span>
-                      </div>
-                      <div className="panel-body">
-                        {brief.yesterdayDone.slice(0, 3).map((e) => (
-                          <MiniEntry key={e.relative_path} entry={e} onOpen={openEntry} />
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="today-col">
-                  <div className="today-col-head">
-                    <span className="q">②</span> {t("today.q.trust")}
-                    <button className="btn ghost sm right" onClick={() => onNavigate("diff")}>
-                      {t("nav.diff")} <ArrowRight size={13} />
-                    </button>
-                  </div>
-                  <PromiseScorecardCard projectId={projectId} enabled={oculpmReady} />
-                  <HonestyAudit projectId={projectId} workday={workday} enabled={oculpmReady} onNavigate={onNavigate} />
-                  <JournalMissingCard projectId={projectId} enabled={oculpmReady} onNavigate={onNavigate} />
-                </div>
-
-                <div className="today-col">
-                  <div className="today-col-head">
-                    <span className="q">③</span> {t("today.q.next")}
-                    <button className="btn ghost sm right" onClick={() => onNavigate("planner")}>
-                      {t("nav.planner")} <ArrowRight size={13} />
-                    </button>
-                  </div>
-                  {resumeCard}
-                  <NextTasks tasks={nextTasks} onOpenPlanner={() => onNavigate("planner")} />
-                  <PlanUpdates projectId={projectId} onNavigate={onNavigate} />
-                  <DiscussionPending projectId={projectId} onNavigate={onNavigate} />
-                </div>
-              </div>
-
-              <details className="today-more">
-                <summary>
-                  <b>{t("today.more")}</b>
-                  <span>{t("today.moreList")}</span>
-                  <span className="hint">{t("today.moreHint")}</span>
-                </summary>
-                <div className="today-more-body">
-                  {simpleMore}
-                </div>
-              </details>
-            </>
-          ) : (
-            <>
-              {statsBlock}
-              {proGrid}
-              {proTrailing}
-            </>
-          )}
+        <div ref={rootRef} className="page tdy" tabIndex={-1} onKeyDown={onKeyDown}>
+          {body}
         </div>
       </div>
     </>

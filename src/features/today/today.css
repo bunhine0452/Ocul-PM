@@ -1,0 +1,167 @@
+/* ============================================================
+   오늘 (4.0 {#ui-today}) — 예외만 보여 준다.
+   왼쪽 칼럼(하루 한 줄 · 확인할 것 · 오늘 한 일) + 오른쪽 320px(지금 · 계획 · 다음).
+   값은 전부 토큰이다. 강조는 면(배경)으로만 — 왼쪽 세로줄은 쓰지 않는다.
+   ============================================================ */
+
+.page.tdy { padding: var(--space-7) var(--space-8) 60px; }
+.page.tdy:focus,
+.page.tdy:focus-visible { outline: none; }
+
+.tdy-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-7);
+  align-items: start;
+}
+@container screen (max-width: 640px) {
+  .tdy-body { grid-template-columns: minmax(0, 1fr); }
+}
+.tdy-col { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+
+/* ── 하루 한 줄 ─────────────────────────────────────────────── */
+.tdy-day {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: var(--space-2) var(--space-6);
+  padding: 0 2px;
+  font-size: var(--fs-4); color: var(--text-2);
+}
+.tdy-day b { color: var(--text); font-weight: var(--fw-strong); }
+.tdy-day b.tdy-warn { color: var(--warn-text); }
+
+/* ── 카드 공통 ─────────────────────────────────────────────── */
+.tdy-card { overflow: hidden; }
+.tdy-ch {
+  display: flex; align-items: center; gap: var(--space-3);
+  min-height: 40px; padding: 0 14px;
+  border-bottom: 1px solid var(--border-card);
+}
+.tdy-ch h2 { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); }
+.tdy-cnt { font-size: var(--fs-3); color: var(--text-2); }
+.tdy-sp { flex: 1; }
+.tdy-meta { font-size: var(--fs-3); color: var(--text-2); }
+.tdy-strong { margin: 0; font-size: var(--fs-4); font-weight: var(--fw-strong); }
+.tdy-ok { color: var(--ok-text); font-weight: var(--fw-strong); }
+.tdy-warn { color: var(--warn-text); font-weight: var(--fw-strong); }
+.tdy-bad { color: var(--danger-text); font-weight: var(--fw-strong); }
+.tdy-pad { margin: 0; padding: var(--space-5) 14px; }
+.tdy-grow { flex: 1; min-width: 0; }
+.tdy-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tdy-dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; }
+.tdy-rows, .tdy-ents, .tdy-list { margin: 0; padding: 0; list-style: none; }
+.tdy-keys { font-size: var(--fs-3); color: var(--text-2); white-space: nowrap; }
+.tdy-notice { display: flex; align-items: center; gap: var(--space-5); }
+
+/* ── 확인할 것 ─────────────────────────────────────────────── */
+.tdy-row {
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-card);
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.tdy-row:last-child { border-bottom: 0; }
+.tdy-row:focus-within { background: var(--bg-hover); }
+.tdy-row:focus-visible { outline-offset: var(--focus-offset-inset); }
+.tdy-row-t { flex: 1; min-width: 0; }
+.tdy-row-title,
+.tdy-row .tdy-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tdy-empty { display: flex; align-items: flex-start; gap: var(--space-5); padding: 18px 14px; }
+.tdy-empty-ico { flex: none; margin-top: 1px; color: var(--accent); }
+
+/* ── 오늘 한 일 ────────────────────────────────────────────── */
+.tdy-ent {
+  display: grid;
+  grid-template-columns: 44px 84px minmax(0, 1fr) auto 60px;
+  align-items: center; gap: var(--space-3);
+  width: 100%; padding: 7px 14px;
+  border: 0; border-bottom: 1px solid var(--border-card);
+  background: transparent; color: var(--text);
+  font: inherit; font-size: var(--fs-4); text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.tdy-ents li:last-child .tdy-ent { border-bottom: 0; }
+.tdy-ent:hover { background: var(--bg-hover); }
+.tdy-ent-tm, .tdy-ent-ln { font-size: var(--fs-3); color: var(--text-2); }
+.tdy-ent-ln { text-align: right; white-space: nowrap; }
+.tdy-ent-ty {
+  display: flex; align-items: center; gap: var(--space-2);
+  overflow: hidden; white-space: nowrap;
+  font-size: var(--fs-3); color: var(--text-2);
+}
+.tdy-ent-ti { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tdy-ent-ev { font-size: var(--fs-3); white-space: nowrap; }
+.tdy-ent-ev.is-command { color: var(--ok-text); font-weight: var(--fw-strong); }
+.tdy-ent-ev.is-missing { color: var(--warn-text); font-weight: var(--fw-strong); }
+.tdy-ent-ev.is-verified { color: var(--text-2); }
+.tdy-ent-ev.is-none { color: var(--text-3); }
+@container screen (max-width: 460px) {
+  .tdy-ent { grid-template-columns: 44px minmax(0, 1fr) auto; }
+  .tdy-ent-ty, .tdy-ent-ln { display: none; }
+}
+
+.tdy-grp-wrap + .tdy-grp-wrap { border-top: 1px solid var(--border-card); }
+.tdy-grp {
+  display: flex; align-items: center; gap: var(--space-4);
+  width: 100%; padding: var(--space-4) 14px;
+  border: 0; background: var(--bg-window); color: var(--text);
+  font: inherit; font-size: var(--fs-4); text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.tdy-grp:hover { background: var(--bg-hover); }
+.tdy-grp[aria-expanded="true"] { border-bottom: 1px solid var(--border-card); }
+.tdy-grp b { font-weight: var(--fw-strong); }
+.tdy-grp > svg { flex: none; color: var(--text-2); }
+.tdy-more {
+  display: block; width: 100%; padding: var(--space-3) 14px;
+  border: 0; border-top: 1px solid var(--border-card);
+  background: transparent; color: var(--accent-text);
+  font: inherit; font-size: var(--fs-3); text-align: left;
+  cursor: pointer;
+}
+.tdy-more:hover { background: var(--bg-hover); }
+
+/* ── 오른쪽 칼럼 ───────────────────────────────────────────── */
+.tdy-sess {
+  display: flex; align-items: flex-start; gap: var(--space-4);
+  padding: var(--space-4) 14px;
+  border-bottom: 1px solid var(--border-card);
+}
+.tdy-sess:last-child { border-bottom: 0; }
+.tdy-sess-dot { margin-top: 6px; background: var(--ok); }
+.tdy-sess-dot.is-quiet { background: var(--warn); }
+
+.tdy-plan {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  width: 100%; padding: 11px 14px;
+  border: 0; border-bottom: 1px solid var(--border-card);
+  background: transparent; color: var(--text);
+  font: inherit; font-size: var(--fs-4); text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease-out);
+}
+.tdy-list li:last-child > .tdy-plan { border-bottom: 0; }
+.tdy-plan:hover { background: var(--bg-hover); }
+.tdy-plan-r1 { display: flex; align-items: baseline; gap: var(--space-3); }
+.tdy-plan-r1 b { font-weight: var(--fw-strong); }
+.tdy-plan-r3 { display: flex; flex-wrap: wrap; gap: 0 var(--space-2); }
+.tdy-bar {
+  display: block; height: 4px; overflow: hidden;
+  border-radius: var(--radius-pill); background: var(--bg-inset);
+}
+.tdy-bar > i { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--accent); }
+
+.tdy-next { display: flex; flex-direction: column; gap: var(--space-4); padding: 14px; }
+.tdy-next p { margin: 0; }
+.tdy-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.tdy-code {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-xs); background: var(--bg-inset);
+  font-size: var(--fs-3); color: var(--text);
+}
+
+/* ── 첫 기록 전 ────────────────────────────────────────────── */
+.tdy-first { display: flex; align-items: flex-start; gap: var(--space-5); padding: 18px; }
+.tdy-first-ico { flex: none; margin-top: 2px; color: var(--accent-text); }
+.tdy-first p { margin: var(--space-2) 0 var(--space-5); }

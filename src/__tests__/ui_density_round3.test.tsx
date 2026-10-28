@@ -2,16 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 import { Sidebar } from "@/components/Sidebar";
-import { TodayNums } from "@/features/today/TodayNums";
 import { evidenceInbox, evidenceSection } from "@/features/oculpm/evidenceInbox";
 import { buildDecisionBody } from "@/features/discussion/discussionDecide";
 import { consumeResumeOnOpen, requestResumeOnOpen, _resetResumeOnOpen } from "@/lib/resumeIntent";
-import type { JournalEntrySummary } from "@/lib/bindings";
 import { t } from "@/i18n";
 
 // ─── UI 밀도 라운드 3 — 시안의 나머지 ──────────────────────────────────────
 //
-// 오늘 머리글의 숫자 셋, 검증 칸 받은함, 논의의 「X 로 결정」, 시작 탭의 「이 맥락으로 이어서 작업」 뜻.
+// 검증 칸 받은함, 논의의 「X 로 결정」, 시작 탭의 「이 맥락으로 이어서 작업」 뜻.
 // 베타 스위치·툴바 알약·터미널 결과 끝 줄은 보류 등급과 함께 걷었다 (2026-10-28).
 
 vi.mock("@/hooks/useDensity", () => ({
@@ -59,22 +57,6 @@ describe("sidebar — simple density", () => {
     );
     const counts = [...document.querySelectorAll(".nav-badge.count")].map((el) => el.textContent);
     expect(counts).toEqual(["7", "2"]);
-  });
-});
-
-describe("today header — three numbers", () => {
-  const entry = (type: JournalEntrySummary["type"], evidence: number): JournalEntrySummary =>
-    ({ type, evidence, relative_path: `${type}-${evidence}`, title: "", slug: "", workday: "", status: "done", difficulty: null, checkbox: null, session_id: "", agent_id: "a", agent_version: null, verified_by_user: false, verified_stale: false, created_at: "", updated_at: null, tags: [], files_count: 0, parse_ok: true, parse_warnings: [] }) as JournalEntrySummary;
-
-  it("evidence counts bug/feature/refactor only — chores are not asked for evidence", () => {
-    render(<TodayNums today={[entry("feature", 2), entry("bug", 1), entry("chore", 0)]} unrecorded={2} nextCount={3} />);
-    const nums = [...document.querySelectorAll(".today-nums b")].map((b) => b.textContent);
-    expect(nums).toEqual(["1 / 2", "2", "3"]);
-  });
-
-  it("unknown values stay as a dash", () => {
-    render(<TodayNums today={[]} unrecorded={null} nextCount={null} />);
-    expect([...document.querySelectorAll(".today-nums b")].map((b) => b.textContent)).toEqual(["—", "—", "—"]);
   });
 });
 
