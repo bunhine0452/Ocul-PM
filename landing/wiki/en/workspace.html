@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Windows, Tabs, External Editor — Ocul-PM Wiki</title>
-<meta name="description" content="Running several projects at once, living in the menu bar, and opening files in your own editor." />
+<title>Windows · projects · external editor — Ocul-PM Wiki</title>
+<meta name="description" content="One window = one project — moving between projects and the external editor files open in." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/en/workspace" />
@@ -13,8 +13,8 @@
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="Windows, Tabs, External Editor — Ocul-PM Wiki" />
-<meta property="og:description" content="Running several projects at once, living in the menu bar, and opening files in your own editor." />
+<meta property="og:title" content="Windows · projects · external editor — Ocul-PM Wiki" />
+<meta property="og:description" content="One window = one project — moving between projects and the external editor files open in." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -41,19 +41,18 @@
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
     <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
-    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
-    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
     <a class="wk-side-link" href="/wiki/en/today">Today</a>
     <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
-    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
-    <a class="wk-side-link" href="/wiki/en/automation">Automation</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Plan</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
-    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
-    <a class="wk-side-link on" href="/wiki/en/workspace">Windows, Tabs, External Editor</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other agents</a>
+    <a class="wk-side-link on" href="/wiki/en/workspace">Windows · projects · external editor</a>
     <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
     <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
-    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; file layout</a>
     <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
     <div class="wk-side-foot">
       <a href="/wiki/workspace">한국어 →</a>
@@ -63,31 +62,25 @@
 
   <main class="wk-main">
     <article class="wk-article">
-      <h1>Windows, Tabs, External Editor</h1>
-      <p class="wk-updated">Last updated 2026-10-28</p>
-      <nav class="wk-toc"><span>On this page</span><a href="#tabs-and-windows">Tabs and windows</a><a href="#living-in-the-menu-bar">Living in the menu bar</a><a href="#opening-files-your-own-editor">Opening files — your own editor</a><a href="#next-steps">Next steps</a></nav>
-      <p><i>What</i> the screens show is in the <a href="/wiki/en/screens">Screen Tour</a>. This page is about <b>how you arrange and drive them</b>.</p>
-<h2 id="tabs-and-windows">Tabs and windows</h2>
-<p>One tab per project. Same feel as a browser.</p>
-<div class="wk-table"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><code>⌘T</code></td><td>New project tab</td></tr><tr><td><code>⌘W</code></td><td>Close tab</td></tr><tr><td><code>⇧⌘N</code></td><td>New window</td></tr><tr><td><code>⌘P</code></td><td>Switch project (sidebar popover)</td></tr></tbody></table></div>
-<ul><li><b>Each tab has its own state</b> — read entries in project A and keep the planner open in B without interference</li><li><b>Tabs you haven't visited load lazily</b> — opening a window doesn't initialize N projects at once</li><li><b>A dot appears when an agent is working in a background tab</b>, so it's visible while you're in another project</li></ul>
-<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>Multiple windows let you put projects side by side on a monitor. Windows are independent too, so heavy indexing in one doesn't affect the other.</p></div></div>
-<h2 id="living-in-the-menu-bar">Living in the menu bar</h2>
-<p>Turn these on in Settings → Appearance → Menu bar.</p>
-<ul><li><b>Show menu bar icon</b> — a status icon in the top bar that animates while an agent session is alive. Click it for a Today popover</li><li><b>Closing the window minimizes to the menu bar</b> — the app survives so session detection and recording continue. Quit via right-click on the tray icon → Quit</li><li><b>Hide Dock icon while resident</b> — disappears from the Dock while minimized</li><li><b>New entry notifications</b> — a macOS notification when an agent leaves an entry. Capped at 3 per 10 seconds when they arrive in bursts (backfills, say)</li></ul>
-<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>The app has to be alive to keep observing. "Minimize to the menu bar" is the compromise that gets the window out of the way while observation continues.</p></div></div>
-<h2 id="opening-files-your-own-editor">Opening files — your own editor</h2>
-<p>The in-app editor and terminal were removed on 2026-10-28. "Open file" on search results and on the Branch screen hands the file to the editor you already use.</p>
-<h3 id="wiring-an-external-editor">Wiring an external editor</h3>
-<p>Set the command template in Settings → Appearance → External editor. <code>%path</code> is replaced with the absolute path and <code>%line</code> with the line number.</p>
-<pre class="wk-code"><code>code "%path"          VS Code
+      <h1>Windows · projects · external editor</h1>
+      <p class="wk-updated">Last updated 2026-10-29</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#one-window-one-project">One window = one project</a><a href="#opening-files-the-external-editor">Opening files — the external editor</a><a href="#next-steps">Next steps</a></nav>
+      <p><i>What</i> each screen shows is in the <a href="/wiki/en/screens">Screens tour</a>. This page is about <b>how you lay them out and run them</b>.</p>
+<h2 id="one-window-one-project">One window = one project</h2>
+<p>Since 4.0 one window holds one project. The 3.x Chrome-style tabs, tear-off and menu-bar tray are gone; your OS switches between project windows (⌘` · Mission Control).</p>
+<div class="wk-table"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><code>⌘O</code></td><td>Recent projects — picking one opens its window, or brings it forward if it is already open</td></tr><tr><td><code>⇧⌘N</code></td><td>New window — a <b>start window</b> with no project</td></tr><tr><td><code>⌘W</code></td><td>Close window</td></tr></tbody></table></div>
+<ul><li>Pick a project in the start window and <b>that window becomes the project</b></li><li>The window title is the project name, so the window switcher tells them apart</li><li>Each project remembers its own screen, filters and sidebar state</li><li><b>On macOS the app stays alive after the last window closes</b>, and a Dock click opens one again. Windows · Linux quit when the last window closes</li><li>An update restart brings each window back with the project it had open</li></ul>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>Watching (entries · changes) continues as long as the app is alive. On macOS the app stays alive with every window closed, so watching carries on.</p></div></div>
+<h2 id="opening-files-the-external-editor">Opening files — the external editor</h2>
+<p>The in-app editor and terminal were removed on 2026-10-28. "Open" on Diff and in an entry's detail hands the file to the editor you already use. In the command template <code>%path</code> becomes the absolute path and <code>%line</code> the line number — the default is VS Code.</p>
+<pre class="wk-code"><code>code "%path"          VS Code (default)
 cursor "%path"        Cursor
 subl "%path"          Sublime Text</code></pre>
-<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>macOS GUI apps don't inherit your shell's <code>PATH</code>. If <code>code</code> alone doesn't work, use an absolute path — e.g. <code>/usr/local/bin/code "%path"</code>.</p></div></div>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>macOS GUI apps don't inherit your shell's <code>PATH</code>. If <code>code</code> doesn't open, it needs an absolute path — e.g. <code>/usr/local/bin/code "%path"</code>.</p></div></div>
 <h2 id="next-steps">Next steps</h2>
-<ul><li>Themes, text size, API keys, indexing → <a href="/wiki/en/settings">Settings</a></li><li>The full key list → <a href="/wiki/en/shortcuts">Shortcuts</a></li></ul>
+<ul><li>Display and data settings → <a href="/wiki/en/settings">Settings</a></li><li>Every shortcut → <a href="/wiki/en/shortcuts">Shortcuts</a></li></ul>
     </article>
-    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/agents"><span>← Previous</span><b>Other Agents</b></a>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/agents"><span>← Previous</span><b>Other agents</b></a>
 <a class="wk-pg next" href="/wiki/en/settings"><span>Next →</span><b>Settings</b></a></footer>
   </main>
 </div>

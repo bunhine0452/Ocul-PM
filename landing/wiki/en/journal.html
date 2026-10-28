@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Work Journal — Ocul-PM Wiki</title>
-<meta name="description" content="When and how entries accumulate, the file layout, change diffs, sessions, and the honesty audit." />
+<meta name="description" content="When and how entries accumulate, the file layout, the verification box and change diffs, journal search, and unrecorded changes." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/en/journal" />
@@ -14,7 +14,7 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="en_US" />
 <meta property="og:title" content="Work Journal — Ocul-PM Wiki" />
-<meta property="og:description" content="When and how entries accumulate, the file layout, change diffs, sessions, and the honesty audit." />
+<meta property="og:description" content="When and how entries accumulate, the file layout, the verification box and change diffs, journal search, and unrecorded changes." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -41,19 +41,18 @@
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
     <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
-    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
-    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
     <a class="wk-side-link" href="/wiki/en/today">Today</a>
     <a class="wk-side-link on" href="/wiki/en/journal">Work Journal</a>
-    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
-    <a class="wk-side-link" href="/wiki/en/automation">Automation</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Plan</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
-    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
-    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, External Editor</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other agents</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows · projects · external editor</a>
     <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
     <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
-    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; file layout</a>
     <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
     <div class="wk-side-foot">
       <a href="/wiki/journal">한국어 →</a>
@@ -64,8 +63,8 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>Work Journal</h1>
-      <p class="wk-updated">Last updated 2026-08-21</p>
-      <nav class="wk-toc"><span>On this page</span><a href="#when-entries-happen-five-moments">When entries happen — five moments</a><a href="#file-layout">File layout</a><a href="#what-s-in-an-entry">What's in an entry</a><a href="#change-diff-what-actually-changed-at-the-time">Change diff — what actually changed at the time</a><a href="#sessions-how-entries-are-grouped">Sessions — how entries are grouped</a><a href="#honesty-audit">Honesty audit</a><a href="#working-with-entries">Working with entries</a><a href="#next-steps">Next steps</a></nav>
+      <p class="wk-updated">Last updated 2026-10-29</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#when-entries-happen-five-moments">When entries happen — five moments</a><a href="#file-layout">File layout</a><a href="#what-s-in-an-entry">What's in an entry</a><a href="#the-work-journal-screen">The Work Journal screen</a><a href="#change-diff-what-actually-changed-at-the-time">Change diff — what actually changed at the time</a><a href="#sessions-how-entries-are-grouped">Sessions — how entries are grouped</a><a href="#unrecorded-changes">Unrecorded changes</a><a href="#working-with-entries">Working with entries</a><a href="#next-steps">Next steps</a></nav>
       <p>The work journal is why this app exists. It records what an agent did and why, as <b>markdown a human reads</b>. Longer than a commit message, shorter than meeting minutes.</p>
 <h2 id="when-entries-happen-five-moments">When entries happen — five moments</h2>
 <p>Agents record every time they finish a unit of work. The <code>AGENTS.md</code> rules define five moments:</p>
@@ -102,26 +101,29 @@ tags: [dogfooding]
 ## Verification
 1–3 lines on how it was confirmed</code></pre>
 <ul><li><b>status</b> — <code>planned</code> · <code>in_progress</code> · <code>done</code> · <code>abandoned</code></li><li><b>difficulty</b> — <code>verylow</code> through <code>superhigh</code> (optional)</li><li><b>Body headings are fixed per type</b>: bug and error use root cause → fix; refactor uses motivation → summary of changes; feature uses what was added → how it flows. All of them end with a required <b>Verification</b> section.</li></ul>
-<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>Verification is mandatory for one reason — the credibility gap between "I fixed it" and "I fixed it and here's how I checked." It gives whoever reads the entry later, human or agent, a thread to re-verify.</p></div></div>
+<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>Verification is mandatory for one reason — the credibility gap between "I fixed it" and "I fixed it and here's how I checked." The verdict is not the agent's word but <b>the command that ran and its last line of output</b>.</p></div></div>
+<h2 id="the-work-journal-screen">The Work Journal screen</h2>
+<p>On the left, one row per entry under date headers (type dot · title · evidence chip · time/agent/file count); on the right, the selected entry's detail. The toolbar shows "N · of M total", filters (all · bugs · features · refactors · chores · no evidence) and a search box.</p>
+<ul><li><b>Verification box</b> — pulls the command that ran and its last result line out of the Verification section. With no command evidence it shows a warning chip and calls the entry a claim; when a human has read it and agrees, press <b>Checked</b></li><li><b>Journal search</b> (<code>/</code>) — titles · files · tags · body, grouped by date. 4.0 removed the Search screen; journal search lives here</li><li>Keys listen only inside the screen — <code>j</code>/<code>k</code> move · <code>Enter</code> open · <code>/</code> search</li></ul>
 <h2 id="change-diff-what-actually-changed-at-the-time">Change diff — what actually changed at the time</h2>
-<p>Every entry <b>keeps the git diff from that moment</b>. Open an entry in the Work Journal screen and you get narrative on the left, changed files and line-level diff on the right.</p>
+<p>Every entry <b>keeps the git diff from that moment</b>. In an entry's detail, each recorded file's line-level diff unfolds inline.</p>
 <p>However many times that file changes later, <b>the diff attached to the entry stays as it was</b>. Changes spread across several commits are gathered into one entry.</p>
 <div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>If you see "no recorded changes for this entry," it's usually one of two things — it isn't a git repository, or the recorded paths weren't found in git history. In that case you can inspect current changes from the panel below.</p></div></div>
 <h2 id="sessions-how-entries-are-grouped">Sessions — how entries are grouped</h2>
 <p>The app watches file changes and <b>opens a session</b> when an agent starts working, closing it after things go quiet. A session is roughly "one sitting" and is named by date and sequence, like <code>20260821-002</code>.</p>
 <p>Entries are grouped by which session produced them. Even when an agent can't know the session number (writing the file directly from a terminal, say), the app <b>attributes it by write time</b>, so there's nothing for you to manage.</p>
-<h2 id="honesty-audit">Honesty audit</h2>
-<p>A card that occasionally appears near the bottom of <b>Today</b> (<code>⌘1</code>). It reconciles the file changes the app observed against <code>files_touched</code> in entries and shows <b>changes no entry anywhere records</b>.</p>
-<ul><li>If everything changed today is recorded somewhere, <b>the card doesn't appear at all</b> — no noise on clean days</li><li>Temp files, editor artifacts, and agent internal state are never counted</li><li>80%+ coverage reads <b>Minor</b>, 50%+ <b>Warning</b>, below that <b>Critical</b></li></ul>
-<p>If this card shows up often, <a href="/wiki/en/claude-code">installing the plugin (hook bridge)</a> is the surest fix. Recording moves from "as much as the model remembers the rules" to "structurally, when the session ends."</p>
+<h2 id="unrecorded-changes">Unrecorded changes</h2>
+<p>The app reconciles the file changes it observed against <code>files_touched</code> in entries and points at <b>changes no entry anywhere records</b> — in Today's "To check", and as the "Unrecorded" group at the top of Diff (<code>⌘4</code>).</p>
+<ul><li>If everything changed today is recorded somewhere, <b>nothing shows</b> — no noise on clean days</li><li>Temp files, editor artifacts, and agent internal state are never counted</li><li>On Diff, <b>[Copy record request]</b> turns that file list into text to paste to your agent, and <b>[Record it myself]</b> opens the composer pre-filled with those files</li></ul>
+<p>If this shows up often, <a href="/wiki/en/claude-code">installing the plugin</a> is the surest fix. Recording moves from "as much as the model remembers the rules" to "structurally, when the session ends."</p>
 <h2 id="working-with-entries">Working with entries</h2>
-<ul><li><b>Verified</b> — entries a human read and confirmed can be filtered with the Verified toggle</li><li><b>Edit directly</b> — it's plain markdown; save and the app re-reads it</li></ul>
-<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p><code>.oculpm/index/</code> is an app-managed cache — don't edit it. Everything else (<code>journal/</code>, <code>planner/</code>, <code>discussion/</code>) is yours.</p></div></div>
+<ul><li><b>Checked</b> — a human's check mark is stored with a fingerprint of the body at that moment; if an agent edits the body later, it stops counting as checked</li><li><b>Edit directly</b> — it's plain markdown; save and the app re-reads it</li></ul>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p><code>.oculpm/index/</code> is an app-managed cache — don't edit it. Everything else (<code>journal/</code>, <code>planner/</code>, the <code>discussion/</code> 3.x created …) is yours, and the app never deletes it.</p></div></div>
 <h2 id="next-steps">Next steps</h2>
-<ul><li>How the planning side works → <a href="/wiki/en/planner">Planner</a></li><li>Nothing being recorded → <a href="/wiki/en/troubleshooting">Troubleshooting</a></li></ul>
+<ul><li>How the planning side works → <a href="/wiki/en/planner">Plan</a></li><li>Nothing being recorded → <a href="/wiki/en/troubleshooting">Troubleshooting</a></li></ul>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/today"><span>← Previous</span><b>Today</b></a>
-<a class="wk-pg next" href="/wiki/en/planner"><span>Next →</span><b>Planner</b></a></footer>
+<a class="wk-pg next" href="/wiki/en/planner"><span>Next →</span><b>Plan</b></a></footer>
   </main>
 </div>
 

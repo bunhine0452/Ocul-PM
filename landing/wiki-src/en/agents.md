@@ -1,29 +1,29 @@
 ---
-title: Other Agents
-desc: Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — how one AGENTS.md drives them all, plus the Skills & Rules hub.
+title: Other agents
+desc: Codex, Cursor, Gemini CLI, Copilot, Windsurf, Cline, Zed, aider, Antigravity — how one AGENTS.md drives them, the rules-file list, and support tiers.
 order: 10
-updated: 2026-09-15
+updated: 2026-10-29
 ---
 
-Ocul-PM isn't Claude Code only. **Any agent that reads `AGENTS.md`** can leave entries, and for agents that don't, a thin delegating stub is placed in their own rules file.
+Ocul-PM isn't Claude Code–only. **Any agent that reads `AGENTS.md`** can write entries, and for agents that don't read it, a thin delegating stub goes into their own rules file.
 
 ## Why AGENTS.md is the center
 
-Adding a project creates `AGENTS.md` at the root. The **entire body** of the journaling rules lives there — when to record, where files go and what they're named, what the frontmatter needs.
+Turning recording on creates `AGENTS.md` at the root. It holds **the whole body** of the recording rules — when to record, where and under what name, what the frontmatter needs, and the working discipline (template v20: done conditions as outcomes · the verdict comes from something that isn't you · raw material and an expert's tools · hard numeric goals are normal · record failures too).
 
-Claude Code, Codex CLI, Gemini CLI and many others read this file **natively**. That's how the rules arrive with no extra install.
+Claude Code, Codex, Gemini CLI and many more read this file **natively**, so the rules reach them with no extra install.
 
 :::note
-Originally the rules only lived in `.oculpm/agents/_template.md`, and dogfooding showed external LLMs don't go read that file on their own. So the root `AGENTS.md` became the primary surface, and other adapters were reduced to stubs pointing at `@AGENTS.md`.
+Originally the rules only lived in `.oculpm/agents/_template.md`, and dogfooding showed outside LLMs never read that file on their own. So the root `AGENTS.md` became the primary surface, and the other adapters shrank to stubs pointing at `@AGENTS.md`.
 :::
 
 ## Supported rules files
 
-Toggle these in Settings → ocul-pm → Agents. Turning one on creates the file at that path and keeps it updated as rules change.
+`AGENTS.md` is always planted when you turn recording on. The others are switched on through the `[agents] active` list in the project's `.oculpm/config.toml` (e.g. `["agents-md", "cursor"]`) — the file appears at its path and is refreshed whenever the rules change. The 4.0 Settings page has no per-adapter switches.
 
 | Agent | Rules file |
 |---|---|
-| Shared (Claude Code, Codex CLI, …) | `AGENTS.md` |
+| Shared (Claude Code · Codex CLI etc.) | `AGENTS.md` |
 | Claude Code | `.claude/CLAUDE.md` |
 | Cursor | `.cursor/rules/ocul-pm.mdc` |
 | Gemini CLI | `GEMINI.md` |
@@ -34,49 +34,48 @@ Toggle these in Settings → ocul-pm → Agents. Turning one on creates the file
 | aider | `CONVENTIONS.md` |
 | Antigravity | `.agent/rules/ocul-pm.md` |
 
-## Your own content is preserved
+## What you wrote is kept
 
-Some of these are files **you write in too** — `AGENTS.md`, `.claude/CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `CONVENTIONS.md`, `.rules`.
+Some rules files are **files you write in too** — `AGENTS.md`, `.claude/CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `CONVENTIONS.md`, `.rules`.
 
-In those, the app **owns only the marked block**:
+In those, the app **owns only the block between markers**:
 
 ```
 <!-- oculpm:begin v1 -->
-… app-managed rules …
+… rules the app manages …
 <!-- oculpm:end -->
 ```
 
-Anything **outside** the block survives a rules refresh. Your coding conventions and the app's journaling rules can share one file.
+Whatever you write **outside** the block survives every rules update. Your coding conventions and the app's recording rules can live in one file.
 
 :::warn
-By contrast `.cursor/rules/ocul-pm.mdc`, `.windsurf/rules/ocul-pm.md`, `.clinerules/ocul-pm.md`, and `.agent/rules/ocul-pm.md` are app-owned files and are **overwritten wholesale**. Don't put personal rules at those paths.
+By contrast `.cursor/rules/ocul-pm.mdc` · `.windsurf/rules/ocul-pm.md` · `.clinerules/ocul-pm.md` · `.agent/rules/ocul-pm.md` are app-only files and are **overwritten whole.** Don't put personal rules there.
 :::
 
-## Editing the rules themselves
+## Editing the master rules
 
-To change the wording, edit `.oculpm/agents/_template.md`. That's the master; saving propagates to every adapter you've enabled — fix it once and Cursor and Claude Code both get the new rules.
+To change the wording itself, edit `.oculpm/agents/_template.md`. It's the master; save it and every adapter you've switched on picks it up — change one place and Cursor and Claude Code both get the new rules.
 
-To give one agent different wording, put a file for it under `.oculpm/agents/per-agent/`.
+To give one agent different wording, put a file for it under `.oculpm/agents/per-agent/`. The template's language is set by `[agents] template_language` (`ko` · `en`) in `config.toml`.
 
-## When the rules go stale
+## When the rules are out of date
 
-App updates can raise the rules spec. **Resend rules** in Settings → ocul-pm → Agents reinstalls the current spec. The detect button narrows the list to agents that appear to be in use in this project.
+An app update can raise the rules spec (template version). When Settings → **This project** shows something like "v19 — new v20" on the rules-file row, press **"Update"**.
 
 ## Support tiers
 
-"Leaves entries" comes in different strengths. The tiers are read from code — the rules-file adapter table, the MCP registrars, the hooks. (The in-app tier 4 went with its screens on 2026-10-28.)
+"Writes entries" comes in different strengths. The tiers are read from code — the rules-file adapter table, the MCP registrars, the hooks. (The in-app tier 4 went with its screens on 2026-10-28; one-click MCP registration for Claude Desktop went in 4.0.)
 
-| Tier | What it means |
+| Tier | Meaning |
 |---|---|
-| **1 · Rules-compatible** | The app only writes the rules file that agent reads. Journals get written as far as the model obeys it |
-| **2 · Structured journaling** | The agent can call the `oculpm` MCP server's tools (`journal_write` · `plan_update` …) and the app registers that server for it |
-| **3 · Session observation** | The app receives session start/stop through hooks and flags conversations that ended without a journal (the Stop delivery gate · `sessions.json`) |
+| **1 · Rules-compatible** | The app only writes the rules file that agent reads. Entries get written as far as the model obeys it |
+| **2 · Structured journaling** | The agent can call the `oculpm` MCP server's tools (`journal_write` · `plan_update` …). The plugin registers the server (Claude Code) or walks you through it (Codex) |
+| **3 · Session observation** | Session start/stop arrive through hooks, and conversations that ended without an entry are flagged (the Stop delivery gate · `sessions.json`) |
 
-| Agent | Tier | What the app does | Verified |
+| Agent | Tier | What it does | Verified |
 |---|---|---|---|
-| Claude Code | **3 Session observation** | hooks (plugin or `.claude/settings.local.json`) · `.mcp.json` MCP registration · `AGENTS.md` + `.claude/CLAUDE.md` block | v3.0.0 · 2026-09-11 |
-| Codex | **3 Session observation** | Codex plugin hooks · `~/.codex/config.toml` MCP registration · `AGENTS.md` (native) | v2.37.0 · 2026-09-03 |
-| Claude Desktop | **2 Structured journaling** | MCP server registered in `claude_desktop_config.json` — no hooks, no rules file | — (shipped v2.2.0 · no live-connection record) |
+| Claude Code | **3 Session observation** | the oculpm plugin (hooks · MCP tools · commands) · `AGENTS.md` + `.claude/CLAUDE.md` block | v3.0.0 · 2026-09-11 |
+| Codex | **3 Session observation** | the Codex plugin (hooks · guidance for the `~/.codex/config.toml` MCP registration) · `AGENTS.md` (native) | v2.37.0 · 2026-09-03 |
 | Gemini CLI | 1 Rules-compatible | `AGENTS.md` + `GEMINI.md` block | — |
 | Cursor | 1 Rules-compatible | `.cursor/rules/ocul-pm.mdc` | — |
 | GitHub Copilot | 1 Rules-compatible | `.github/copilot-instructions.md` block | — (shipped v2.0.0) |
@@ -87,56 +86,27 @@ App updates can raise the rules spec. **Resend rules** in Settings → ocul-pm �
 | Antigravity | 1 Rules-compatible | `.agent/rules/ocul-pm.md` | — (shipped v1.11.0) |
 | pi | 1 Rules-compatible | `AGENTS.md` only | — (shipped v1.11.0) |
 
-**Verified** is the latest evidence in the repository's `CHANGELOG.md` and work journals that the tier **actually ran** (app version · date). `—` means the code exists but there is no on-device record; "shipped" in parentheses is the version the CHANGELOG lists the feature under.
+**Verified** is the latest evidence in the repository's `CHANGELOG.md` and work journal that the tier **actually ran** (app version · date). `—` means the code exists but there's no on-device record; "shipped" in parentheses is the version the CHANGELOG lists.
 
 :::note
-A CLI started in the built-in terminal (`claude` · `codex` · `gemini` · `cursor-agent` · `aider` …) is caught by shell integration for **start and stop only**. There is no missing-journal verdict, so that is not tier 3. Not yet seen on a real machine — a live Claude Desktop connection and Codex's tool-approval → file-change flow end to end — did not raise a tier even though the code exists. Official builds are macOS Apple Silicon only.
+The evidence in the table comes from the macOS build. Windows · Linux are a beta — on Windows the Claude Code plugin's hooks run but its MCP server doesn't start, so the agent writes the files directly by the recording spec.
 :::
 
-On tier 1, check the **[honesty audit](/wiki/en/journal)** on Today now and then. Anything missed shows up there.
+On tier 1, glance at **[unrecorded changes](/wiki/en/journal)** on Today now and then. Anything missed shows up there.
 
 :::tip
-If you use Claude Code, installing the plugin makes the biggest difference — two lines, in [Claude Code](/wiki/en/claude-code).
+On Claude Code, installing the plugin makes the biggest difference — two lines in [Claude Code](/wiki/en/claude-code).
 :::
 
 ## Mixing several agents
 
-No problem. Each entry's frontmatter records `agent.id` and the model name, so you can tell later who did what. The Today screen's **Agent contributions** card shows the distribution.
+No problem. Each entry's frontmatter records `agent.id` and the model name, so you can tell later who did what.
 
-## Skills & Rules hub
+## Skills live in the plugin
 
-The **Skills & Rules** screen in the sidebar is where you work all of the above from inside the app. It has five tabs.
-
-### Skills
-
-One `SKILL.md` file is one skill. Agents **invoke skills on their own** based on the `description` in the frontmatter — which is why writing a good description matters.
-
-- **Project / Global** — keep it to this project (`.claude/skills/`) or make it available everywhere (`~/.claude/skills/`). You can copy between them
-- **Disable** — moves it to `.claude/skills/.disabled/` so it isn't loaded. **The file is not deleted**
-- **Edit** — change it in the app and save with `⌘S`
-- **New skill** — start from an empty one
-
-### Shop
-
-Install curated skills that build verification habits with one click — things like `self-audit`, which makes agents check their own work.
-
-### Rules
-
-Toggle the per-adapter rules files covered above, and edit the master.
-
-### Hooks
-
-Claude Code hook integration. **With hooks on, session start and end are recorded from real signals instead of heuristics** — rather than the app guessing "files went quiet, must be done," the agent says so.
-
-:::note
-The **auto journal draft** at session end (which costs money) and MCP tool registration are managed in Settings → ocul-pm → Integration, not this tab.
-:::
-
-### Plugin
-
-Shows what the plugin installs — the list of commands, tools, and skills.
+The 3.x Skills & Rules screen (skill editing · recommended-skill installs · firing badges · rules hub) was removed in 4.0 — it had become a Claude Code settings manager, and the plugin now carries the skills. Skills and rules you already have in `.claude/skills/` · `.claude/rules/` are still read by Claude Code, and the app doesn't touch them. The plugin's commands and tools are in [Claude Code](/wiki/en/claude-code).
 
 ## Next steps
 
-- Using Claude Code → [Claude Code](/wiki/en/claude-code)
-- Checking that the rules are working → the honesty audit in [Work Journal](/wiki/en/journal)
+- On Claude Code → [Claude Code](/wiki/en/claude-code)
+- Checking that the rules are working → unrecorded changes, in [Work Journal](/wiki/en/journal)

@@ -1,89 +1,48 @@
 ---
 title: Today
-desc: The screen you land on — activity rings, commit graph, agent contributions, honesty audit, standup copy.
+desc: The first screen you see — one line a day, "To check", and "Done today" folded by plan.
 order: 4
-updated: 2026-08-21
+updated: 2026-10-29
 ---
 
-`⌘1` is what you see when the app opens. It gathers **what happened today** onto one page — and it fills in without you recording anything.
+`⌘1` is the first screen you see. The principle is **show only the exceptions** — it unfolds only what a person must see and folds work with evidence into one line. 3 entries a day or 60, it's the same screen.
 
-## Activity rings
+## One line a day
 
-Three concentric rings in the middle.
+The line at the top: **entries N · outside-judge evidence M · % · sessions K · to check X.** "Outside-judge evidence" is an entry whose verification section holds the command that ran and its last line of output — the target for that share is a number in the [promise document](https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md) (97%).
 
-| Ring | What it counts |
-|---|---|
-| **Entries** | Journal entries written today |
-| **Files changed** | Distinct files the app observed |
-| **Line delta** | Lines added / removed |
+## To check
 
-If there were error cycles, they're shown too — how many walls you hit today.
+Sorted by severity. When it is empty, one calm paragraph remains — but if something couldn't be read, it doesn't claim there is nothing.
+
+| Kind | When it shows | Buttons |
+|---|---|---|
+| **Failed verdict** | A plan's last verdict is `✗` | See output → that plan |
+| **No evidence** | A bug · feature · refactor entry whose verification section has no command evidence, and no human has checked it (or it changed after the check) | diff · Checked |
+| **Unrecorded change** | A file changed today that no entry mentions, or a conversation that ended without an entry | See changes |
+| **Blocked** | A plan item is `[!]` | Open plan |
+| **Decision needed** | A human-owned (`[user]`) item is open — one row per plan | Open plan |
+| **New plugin version** | The plugin installed for the project is older than the app | Copy command |
+
+## Done today
+
+Today's entries grouped by plan, with anything outside a plan under "Outside plans". Each group header shows count · evidence · none · checked. Up to 8 entries everything shows; past that, **groups whose evidence is complete fold to their header line**, and groups missing something show only those rows ("Show N more"). Switch between by-plan and by-time.
+
+## Right column
+
+- **Working now** — agent sessions currently open
+- **Plans** — progress and verdict (✓ / ✗ / none) of each active plan
+- **Next** — the next item of a plan. `c` copies a prompt that picks it up
+
+## Keys
+
+Only inside the screen — `j`/`k` move · `Enter` default action · `v` checked · `c` copy the next prompt.
 
 :::note
-**Line delta** is computed from the **change diff attached to each entry**, not from the entry's frontmatter. In other words, it doesn't rely on agents writing the numbers down themselves.
+Before the first entry, one hint stands alone — it points to Settings → Agent connections. The 3.x stat cards · activity ring · commit graph · standup · weekly summary were removed in 4.0.
 :::
-
-## The monitor
-
-The small numbers beside the rings. If the rings are the *result*, these are the *state*.
-
-- **Active time · N sessions** — how long agents actually worked today
-- **Total entries** — cumulative for this project
-- **Commits today** / **Uncommitted changes** — whether anything is waiting to be committed
-
-## This week's output
-
-Seven days of bars. It surfaces the rhythm a single day can't show — the bursts and the gaps.
-
-## Commit graph
-
-Today's commits, drawn as lanes. Click a commit and **it opens on GitHub**.
-
-:::note
-If this isn't a git repository the card turns into a hint (a repo has to exist at the root or in a subfolder). Without a GitHub remote the graph still draws, but commits won't open in a browser.
-:::
-
-## Agent contributions
-
-When you mix several agents, this splits out who did what. With a single agent it's a card you can ignore.
-
-## Next up · Plan updates · Awaiting a decision
-
-Three cards that point **forward** rather than back.
-
-- **Next up** — unfinished planner items, in-progress ones first
-- **Plan updates** — planner items that moved today
-- **Awaiting a decision** — discussion documents with no conclusion yet
-
-## Where records leak — two cards
-
-Both are **hidden most of the time**. They only appear when there's a problem, so a clean day stays quiet.
-
-### Sessions that ended with no entry
-
-Cases in the last 7 days where **a session opened but no entry was written**. Even with rules and tools in place, short sessions can skip the write-up.
-
-Turn on **auto journal draft** (`auto_journal_draft`) in Settings and a draft is left automatically when a session ends. You can enable it straight from the card.
-
-### Honesty audit
-
-Compares the file changes the app observed against the `files_touched` recorded in entries, and shows **changes no entry mentions**. More in [Work Journal](/wiki/en/journal).
-
-## Copy standup
-
-Turns yesterday-and-today's entries into **one shareable block** on your clipboard. Good for pasting into a morning standup.
-
-With an API key the AI polishes it; without one you get a **plain template** with the bones. Both work.
-
-:::tip
-Standup is the shortcut for "yesterday and today." For a longer span, the Branch screen groups a whole branch and exports it as a single markdown page.
-:::
-
-## Code search bar
-
-Jumps straight to code search from this screen. The **All entries** link goes to Work Journal (`⌘2`).
 
 ## Next steps
 
-- How the records the rings count pile up → [Work Journal](/wiki/en/journal)
-- Where "Next up" comes from → [Planner](/wiki/en/planner)
+- How entries pile up and what the verification box reads → [Work Journal](/wiki/en/journal)
+- Where verdicts and "Next" come from → [Plan](/wiki/en/planner)

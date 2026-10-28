@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Shortcuts — Ocul-PM Wiki</title>
-<meta name="description" content="Navigation, tabs and windows." />
+<meta name="description" content="Screens, windows, and the keys on Today and Work Journal." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/en/shortcuts" />
@@ -14,7 +14,7 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="en_US" />
 <meta property="og:title" content="Shortcuts — Ocul-PM Wiki" />
-<meta property="og:description" content="Navigation, tabs and windows." />
+<meta property="og:description" content="Screens, windows, and the keys on Today and Work Journal." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -41,19 +41,18 @@
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
     <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
-    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
-    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
     <a class="wk-side-link" href="/wiki/en/today">Today</a>
     <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
-    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
-    <a class="wk-side-link" href="/wiki/en/automation">Automation</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Plan</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
-    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
-    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, External Editor</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other agents</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows · projects · external editor</a>
     <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
     <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
-    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; file layout</a>
     <a class="wk-side-link on" href="/wiki/en/shortcuts">Shortcuts</a>
     <div class="wk-side-foot">
       <a href="/wiki/shortcuts">한국어 →</a>
@@ -64,16 +63,20 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>Shortcuts</h1>
-      <p class="wk-updated">Last updated 2026-10-28</p>
-      
-      <p><code>⌘</code> numbers come from the sidebar order automatically — what each screen does is in the <a href="/wiki/en/screens">Screen Tour</a>.</p>
+      <p class="wk-updated">Last updated 2026-10-29</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#anywhere">Anywhere</a><a href="#windows">Windows</a><a href="#today-work-journal">Today · Work Journal</a></nav>
+      <p><code>⌘</code> numbers come from the sidebar order automatically — what each screen does is in the <a href="/wiki/en/screens">Screens tour</a>. On Windows · Linux, <code>Ctrl</code> replaces <code>⌘</code>.</p>
 <h2 id="anywhere">Anywhere</h2>
-<div class="wk-table"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><code>⌘K</code></td><td>Command palette — navigate, plus search entry, plan, discussion, and doc titles</td></tr><tr><td><code>⌘1</code>–<code>⌘8</code></td><td>Jump to a screen, in sidebar order (<code>⌘1</code> Today · <code>⌘2</code> Journal · <code>⌘3</code> Changes · <code>⌘4</code> Planner · <code>⌘5</code> Search · <code>⌘6</code> Skills &amp; Rules · <code>⌘7</code> Discussions · <code>⌘8</code> Branch)</td></tr><tr><td><code>⌘[</code> / <code>⌘]</code></td><td>Screen back / forward — like a browser, back to what you were just reading</td></tr><tr><td><code>⌘P</code></td><td>Switch project</td></tr><tr><td><code>⌘\</code></td><td>Agent panel</td></tr><tr><td><code>⌘,</code></td><td>Settings</td></tr></tbody></table></div>
-<h2 id="tabs-and-windows">Tabs and windows</h2>
-<div class="wk-table"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><code>⌘T</code></td><td>New project tab</td></tr><tr><td><code>⌘W</code></td><td>Close tab</td></tr><tr><td><code>⇧⌘N</code></td><td>New window</td></tr></tbody></table></div>
-<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>The in-app terminal, editor and Claude Code screen — and their keys — were removed on 2026-10-28. Your agent runs in your own terminal; the planner's ▶Run and Today's "Resume with this context" put the prompt on the <b>clipboard</b>.</p></div></div>
+<div class="wk-table"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><code>⌘K</code></td><td>Command palette — find screens · projects · entries · plans by title and open them</td></tr><tr><td><code>⌘1</code> – <code>⌘4</code></td><td>Jump to a screen — <code>⌘1</code> Today · <code>⌘2</code> Work Journal · <code>⌘3</code> Plan · <code>⌘4</code> Diff</td></tr><tr><td><code>⌘,</code></td><td>Settings</td></tr><tr><td><code>⌘[</code> / <code>⌘]</code></td><td>Back / forward between screens — like a browser</td></tr><tr><td><code>⌘/</code></td><td>Shortcut cheatsheet</td></tr></tbody></table></div>
+<h2 id="windows">Windows</h2>
+<p>One window is one project — there are no tabs.</p>
+<div class="wk-table"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><code>⌘O</code></td><td>Recent projects — if it is already open, its window comes forward</td></tr><tr><td><code>⇧⌘N</code></td><td>New window (start window)</td></tr><tr><td><code>⌘W</code></td><td>Close window — on macOS the app stays alive after the last one; a Dock click reopens</td></tr></tbody></table></div>
+<h2 id="today-work-journal">Today · Work Journal</h2>
+<p>These keys listen only inside that screen.</p>
+<div class="wk-table"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><code>j</code> / <code>k</code></td><td>Next / previous item</td></tr><tr><td><code>Enter</code></td><td>The item's default action (see diff · open plan …)</td></tr><tr><td><code>v</code></td><td>Today — mark checked</td></tr><tr><td><code>c</code></td><td>Today — copy the next item's prompt</td></tr><tr><td><code>/</code></td><td>Work Journal — journal search</td></tr></tbody></table></div>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>The in-app terminal, editor and agent screens were removed on 2026-10-28. Agents run in your own terminal, and the Plan screen's [Copy prompt] · [Copy with until-done] and <code>c</code> on Today put the prompt on your <b>clipboard</b>.</p></div></div>
     </article>
-    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/data"><span>← Previous</span><b>Data &amp; File Layout</b></a>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/data"><span>← Previous</span><b>Data &amp; file layout</b></a>
 <span></span></footer>
   </main>
 </div>

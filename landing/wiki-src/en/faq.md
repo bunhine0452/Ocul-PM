@@ -1,70 +1,63 @@
 ---
 title: FAQ
-desc: Where first-time users actually get stuck — who writes the entries, does it cost money, should I commit .oculpm, what is a workday.
+desc: Where first-time users get stuck most — who writes the journal, does it cost money, should I commit it, what's a workday.
 order: 2
-updated: 2026-10-24
+updated: 2026-10-29
 ---
 
-The questions that actually come up in the first few days. The confusing parts and the scary parts first.
+The questions that actually come up in the first few days. The confusing concepts and the scary parts come first.
 
-## What does this do
+## What does it do
 
 ### In one line
 
-**It records what AI agents did to your code, in a form a human can read.**
+**It leaves a human-readable record of what an AI agent did to your code.**
 
-A commit message tells you *what changed*. Ocul-PM records *why it was done that way, what was tried and failed, and how it was verified*.
+A commit message only says *what changed*. Ocul-PM records *why it was done that way, what was tried and failed, and how it was checked* — and the app unfolds only **what a person must see** from that record: failed verdicts · entries without evidence · unrecorded changes. The goal is to trust what the agent did, and decide what's next, in three minutes.
 
 ### Do I have to write the entries?
 
-**No. Agents write them.** You just read.
+**No. Your agent writes them.** You just read.
 
-Adding a project creates an `AGENTS.md` rules file at the root, and agents like Claude Code, Cursor, and Gemini CLI read it. The rule is: "when you finish a unit of work, leave an entry." You don't even have to ask.
+Turning recording on creates a rules file called `AGENTS.md` at the root, and agents like Claude Code, Codex, Cursor and Gemini CLI read it. "When you finish a unit of work, write an entry" is the rule. You don't even have to ask.
 
 :::tip
-You *can* write entries by hand — they're just markdown. But that isn't what the app is for.
+You can write one yourself if you like — it's just a markdown file. But that's not what the app is for.
 :::
 
-### Is this a tool that runs the AI for me?
+### Does the app run the AI for me?
 
-No. Your agent runs **in your own terminal, exactly as it does now**, and the app receives the record, the evidence and the plan. As long as the app is open, work done in the terminal is captured. (The screen that ran Claude Code inside the app was removed on 2026-10-28.)
+No. Your agent runs **in your own terminal, exactly as before**, and the app receives the record, the evidence and the plan of that work. Keep the app open and work done in the terminal gets picked up. The app itself calls no LLM.
 
 ## Money and privacy
 
-### Does it cost anything?
+### Does it cost money?
 
-The app is free, and **journaling itself needs no API key**. It watches file changes and reads markdown that agents wrote — that costs nothing.
-
-The only thing that costs money is **AI writing new prose**:
-
-| Feature | Cost |
-|---|---|
-| Journal and planner records, search, change diffs | **Free** — all local |
-| AI-generated text — weekly rollups, entry drafts, plan drafts | Your API key, your billing (Settings → LLM) |
+**The app is free, and nothing in it costs money.** The 4.0 app calls no LLM, so it doesn't even take an API key — it watches file changes and reads the markdown your agent wrote, and that's all. The only cost is your agent's own subscription or usage in the terminal.
 
 ### Where does my code go?
 
-By default, **nowhere**. Code-search embeddings are computed on your machine (only the model is downloaded, once). Four things leave, and you start every one: LLM calls you configured, the update check, GitHub lookups when you click (release notes, bundles), and the embedding model once. No account server, no telemetry. ([Details](/wiki/en/data))
+**Nowhere.** There is no LLM client in the app, and its screens reach no outside host. Only two things leave the machine, and you start both — the update check, and links you click (your OS browser opens them). No account server, no telemetry. ([details](/wiki/en/data))
 
 ### Does it work offline?
 
-Yes. Records, timeline, change diffs, code search and code editing are all local. Only AI calls and the update check need the network.
+Yes. Entries, plans and diffs are all local. Only the update check doesn't work.
 
 ### What about Windows / Linux?
 
-Right now it's **macOS (Apple Silicon) only**.
+They ship as a **beta** — Windows 10 2004+ and 11 (x64) and Linux x64 (AppImage · deb). Each release only ships the OS builds that passed an install test and a real-app E2E run on CI runners.
 
 :::note
-That said, `.oculpm/` records are plain markdown and read fine anywhere. If you have Windows teammates, they can read committed entries without trouble.
+The `.oculpm/` records are plain markdown, readable on any OS. Teammates who never install the app can still read the entries committed to your repository.
 :::
 
-## Git and teams
+## git and teams
 
-### Should I commit `.oculpm/`?
+### Should I commit `.oculpm/` to git?
 
-**Yes, we recommend it — and the app sets it up for you.**
+**Yes, we recommend it** — and **the app prepares it for you.**
 
-Adding a project appends a managed block to `.gitignore` that excludes only the cache-like files:
+When you turn recording on, a managed block is added to `.gitignore` that excludes only cache-like files:
 
 ```
 # oculpm:begin v1
@@ -77,88 +70,88 @@ Adding a project appends a managed block to `.gitignore` that excludes only the 
 # oculpm:end
 ```
 
-So **entries, plans, discussions, and rules get committed; anything the app can rebuild does not.** Nothing for you to do.
+So **entries, plans and rules get committed, and anything the app can rebuild stays out.** There's nothing for you to touch.
 
-### Do teammates see it?
+### Is it shared with teammates?
 
-Commit and push and it's shared. Teammates can read the markdown on GitHub without the app; install the app and the same records render as screens.
+Commit and push and it's shared as-is. Teammates can read it as markdown on GitHub without the app, and installing the app draws those records on screen.
 
-### Won't it cause merge conflicts?
+### Won't it conflict?
 
-Entries are **one file per unit of work** with a timestamp in the name (`2337_fix_….md`), so they rarely collide. The planner is one file several people may touch, but its change log is **append-only** — if it does conflict, keeping both lines is the correct resolution.
+Entries are **one file per unit of work** with a timestamp in the name (`2337_fix_...md`), so they rarely collide. Several people can edit a plan file, but its change log is **append-only**, so if a conflict happens you keep both sides' lines and you're done. Parallel sessions don't grab the same item: `/oculpm:next` claims it as `[~]` first.
 
 ### What if I don't want entries in someone else's repo?
 
-Put `.oculpm/` in `.gitignore` wholesale and it stays local. The app doesn't care.
+Put `.oculpm/` in `.gitignore` entirely and it stays local. The app works the same.
 
-## Concepts I find confusing
+## Confusing concepts
 
 ### What's a "workday"?
 
-**You decide where the day boundary is.** The default is midnight, but that's awkward if you code into the small hours — work at 2am rolls into "tomorrow."
+**You decide where a day ends.** The default is midnight, but for someone coding past midnight that boundary is awkward — work done at 2 a.m. rolls into "tomorrow."
 
-Set `day_starts_at = "03:00"` in the project's `.oculpm/config.toml` and anything before 3am files under the previous day.
+Change it in the project's `.oculpm/config.toml`, e.g. `day_starts_at = "03:00"`, and work before 3 a.m. goes into the previous day's folder.
 
 ### What's a "session"?
 
-The app watches file changes and **opens a session when an agent starts working, closing it after things go quiet**. Roughly "one sitting." It's named like `20260821-002`, and entries are grouped by which session produced them.
+A unit the app **opens when an agent starts working and closes after things go quiet**, by watching file changes. Roughly "one sitting," named like `20260821-002`. Entries are grouped by the session that produced them automatically.
 
-### Journal vs Planner vs Discussions — what's the difference?
+### Journal vs plan vs verdict — what's the difference?
 
 Different points on the timeline:
 
 | | When | What |
 |---|---|---|
-| **Discussions** | **Before** deciding | Lay out options A/B/C and pick |
-| **Planner** | **Now** | The current plan. Glyphs move as items progress |
-| **Work Journal** | **After** the work | What was done, why, and how it was verified |
+| **Plan** | **Now** | Done condition · check command · items. Glyphs move as items progress. Big decisions go in the decision block |
+| **Work Journal** | **After** the work | What was done, why and how — and what was run to check it |
+| **Verdict** | **After running** the check command | One line, `verdict ✓|✗ <last line>`. The result decides, not the agent's word |
 
-### Why are there two language settings?
+The 3.x Discussions screen was removed in 4.0 — `.oculpm/discussion/` files are left as they are.
 
-They're different. **UI language** is the text on screen; **AI writing language** is the language of entries, planner items and discussions the AI produces.
+### Can the UI language differ from the language of the records?
 
-You can run an English UI and keep records in Korean. Already-written documents don't change when you switch.
+Yes. The UI language (Settings → Display) is the app's text; the language of entries follows the agent writing them and the rules template. An English UI with Korean records is possible, and documents already written are never rewritten.
 
-## As you use it
+## Day to day
 
-### Nothing is being recorded
+### No entries are piling up
 
-The most common cause is **using an agent in a terminal without the plugin installed**. `AGENTS.md` rules alone can be forgotten at the end of a long session. [Install the plugin](/wiki/en/claude-code) and a session-end hook makes it structural.
+The most common cause is **using an agent in the terminal without the plugin**. With `AGENTS.md` alone a model can forget to record at the end of a long session. [Install the plugin](/wiki/en/claude-code) and a session-end hook makes it structural.
 
-The **honesty audit on Today** tells you if anything slipped — it lists observed changes that no entry mentions. ([Details](/wiki/en/journal))
+**Today's "To check"** tells you if anything's missing — it points at observed changes no entry records and at conversations that ended without an entry. ([details](/wiki/en/troubleshooting))
 
 ### Can I edit entries?
 
-Yes. They're plain markdown and the app re-reads them when you save. Note that **agents are told not to edit existing entries** — history that quietly changes can't be trusted. They write a new entry and link it with `related`.
+Yes. They're plain markdown and the app re-reads them when you save. But **agents are told not to edit existing entries** — a history that changes quietly can't be trusted. An agent writes a new entry and links it with `related`.
 
 ### What if there are too many entries?
 
-They collapse by date, there's search and filtering, and the Branch screen groups them per branch. You can filter to **Verified** to see only what a human confirmed. And entries can be deleted — they're just files.
+Today doesn't overflow even at 60 a day — work with evidence folds to one line per plan, and only what you must see unfolds. Work Journal groups by date, with journal search (`/`) and filters (type · no evidence). And you can delete entries — they're just files.
 
-### If I uninstall the app, do I lose the records?
+### What happens to my records if I uninstall?
 
-**No.** Everything lives as markdown inside the project folder; the app's database is only a cache for drawing screens quickly.
+**They stay.** Every record is markdown inside the project folder; the app's database is only a cache for drawing screens fast.
 
-### Can I work on several projects at once?
+### Can I use several projects at once?
 
-Yes. `⌘T` opens a project tab, `⌘P` switches. Multiple windows work too. ([Details](/wiki/en/workspace))
+Yes — one window is one project. `⌘O` opens a recent project (bringing its window forward if it's open), and `⇧⌘N` opens a new window. ([details](/wiki/en/workspace))
 
 ### Can I mix several agents?
 
-Yes. Each entry records who did it with which model, and the Today screen's **Agent contributions** card shows the split. ([Details](/wiki/en/agents))
+Yes. Each entry records who did it with which model. ([details](/wiki/en/agents))
 
 ### Can I delete `AGENTS.md`?
 
-Delete it and **agents no longer see the journaling rules** — entries stop. If you already had your own `AGENTS.md`, don't worry: the app owns only the `<!-- oculpm:begin -->` block and leaves the rest alone.
+If you do, **agents can't see the recording rules** — entries stop. If you already had your own `AGENTS.md`, don't worry: the app owns only the `<!-- oculpm:begin -->` block and leaves the rest alone.
 
-### Does the app have to stay open?
+### Does the app need to stay open?
 
-To observe file changes, yes. Turn on **"Closing the window minimizes to the menu bar"** in Settings and it keeps watching after you close the window.
+To observe file changes, yes. On macOS the app stays alive after you close its last window, so watching continues, and a Dock click opens a window again.
 
 :::note
-Agents still write entries when the app is closed — the rules live in `AGENTS.md`. What the app misses is *file-change observation*, and with it the change diffs and the honesty audit.
+Agents still write entries when the app is closed — the rules live in `AGENTS.md`. What the app misses is *observing file changes* and what depends on it: change diffs and pointing out unrecorded changes.
 :::
 
-## Not answered here?
+## Not answered here
 
-Check [Troubleshooting](/wiki/en/troubleshooting) first, then open a [GitHub issue](https://github.com/bunhine0452/Ocul-PM/issues).
+Check [Troubleshooting](/wiki/en/troubleshooting) first, and if it's not there, tell us in a [GitHub issue](https://github.com/bunhine0452/Ocul-PM/issues).
