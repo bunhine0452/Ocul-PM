@@ -681,6 +681,9 @@ mod tests {
             1,
             "같은 경로는 한 번에 하나"
         );
+        // 열쇠는 본문이 끝난 **뒤** 거둔다 — `done` 이 2가 된 직후 바로 단언하면 느린
+        // 러너(Windows CI, 2026-10-27~28)에서 거두기 전 표를 읽어 1 이 나온다. 기다린다.
+        wait_keys_reaped(&tasks).await;
         assert_eq!(tasks.open_keys(), 0, "끝난 열쇠는 거둔다");
 
         // 다른 열쇠 둘 — 퍼밋 2개를 다 쓴다.
@@ -696,7 +699,18 @@ mod tests {
         }
         assert_eq!(done.load(Ordering::SeqCst), 2);
         assert_eq!(max_seen.load(Ordering::SeqCst), 2, "다른 경로는 나란히");
+        wait_keys_reaped(&tasks).await;
         assert_eq!(tasks.open_keys(), 0);
+    }
+
+    /// 끝난 열쇠가 표에서 빠질 때까지 최대 1초 — 거두기는 본문 완료 뒤의 별도 단계다.
+    async fn wait_keys_reaped(tasks: &super::WatcherTasks) {
+        for _ in 0..100 {
+            if tasks.open_keys() == 0 {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
     }
 
     /// 직렬화는 겹침을 막지 순서를 되돌리지 않는다 — Delete 가 먼저 지나간 뒤 Update 가
