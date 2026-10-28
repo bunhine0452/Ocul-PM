@@ -17,7 +17,6 @@ pub struct Db {
 }
 
 mod changes;
-mod chat;
 // ⌘K 엔티티 점프 — 코드 색인을 걷으며 `code_index.rs` 에서 옮겨 왔다 (4.0).
 mod entity_search;
 pub mod hotspot;
@@ -26,7 +25,6 @@ mod projects;
 // diff 기준선 스냅샷 — 코드 색인을 걷으며 `code_index.rs` 에서 옮겨 왔다 (4.0).
 mod snapshots;
 pub use projects::PROJECT_CACHE_TABLES;
-pub mod recall;
 pub mod scorecard;
 mod settings;
 /// 기동 때 열기 — 실패하면 크래시 대신 대화상자 (`open_or_ask`).
@@ -331,31 +329,6 @@ fn goal_from_row(r: &rusqlite::Row) -> rusqlite::Result<Goal> {
         progress: r.get(7)?,
         created_at: r.get::<_, i64>(8)? as u32,
         updated_at: r.get::<_, i64>(9)? as u32,
-    })
-}
-
-fn conversation_from_row(r: &rusqlite::Row) -> rusqlite::Result<Conversation> {
-    Ok(Conversation {
-        id: r.get::<_, i64>(0)? as u32,
-        title: r.get(1)?,
-        provider: r.get(2)?,
-        model: r.get(3)?,
-        project_id: r.get::<_, Option<i64>>(4)?.map(|v| v as u32),
-        created_at: r.get::<_, i64>(5)? as u32,
-        updated_at: r.get::<_, i64>(6)? as u32,
-        last_message_at: r.get::<_, Option<i64>>(7)?.map(|v| v as u32),
-    })
-}
-
-fn chat_message_from_row(r: &rusqlite::Row) -> rusqlite::Result<ChatMessage> {
-    Ok(ChatMessage {
-        id: r.get::<_, i64>(0)? as u32,
-        conversation_id: r.get::<_, i64>(1)? as u32,
-        role: r.get(2)?,
-        content: r.get(3)?,
-        provider: r.get(4)?,
-        model: r.get(5)?,
-        created_at: r.get::<_, i64>(6)? as u32,
     })
 }
 
