@@ -1,10 +1,10 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 17 -->
+<!-- template_version: 18 -->
 # ocul-pm work-journal rules
 
 You are working in a project tracked by ocul-pm. Every time you finish **one logical unit of work** (bug fix / feature / refactor / error cycle / chore), record it immediately — do not ask the user first.
 
-> **MCP tools first**: when the `oculpm` tools (`journal_search` / `journal_read` / `journal_write` / `plan_status` / `plan_update` / `plan_create`) are visible, **use them instead of writing the files in §2 yourself** — the server guarantees paths, frontmatter and `{#id}` conventions (planner updates in §4 go through `plan_update`, new plans through `plan_create`). Only write files directly when the tools are unavailable.
+> **MCP tools first**: when the `oculpm` tools (`journal_search` / `journal_read` / `journal_write` / `plan_status` / `plan_update` / `plan_create`) are visible, **use them instead of writing the files in §3 yourself** — the server guarantees paths, frontmatter and `{#id}` conventions (planner updates in §5 go through `plan_update`, new plans through `plan_create`). Only write files directly when the tools are unavailable.
 
 ## 0. Before you start — search the past first
 
@@ -16,13 +16,20 @@ The journal exists to be **re-read**. The cause, the decision or the approach th
 
 Link what you find from the new entry's `related`. Without the tools, grep `.oculpm/journal/**`.
 
-## 1. When to record (5 triggers)
+## 1. Working discipline — four lines that make results better (plan or no plan)
+
+- **Before code**: restate the request as a one-line **done condition** (what must be true at the end) and the **check command** that passes or fails it, and say both first. Ambiguous? Ask at most three questions, then start. Anything beyond two steps goes through `plan_create` (done_when · check).
+- **While working**: stay inside the request. Two failures with the same approach → change the approach.
+- **At the end**: run the check command and take its **last result line** — not a claim that it works. Green? Still launch it and use it once if you can.
+- **Handing off**: what is left or blocked goes into plan items (`[ ]` · `[!]`), not the chat — the next session cannot see this conversation.
+
+## 2. When to record (5 triggers)
 
 **bug fix** (a reproducible defect verified gone) · **feature done** (first happy-path works) · **refactor batch** (same behaviour + structural change complete, tests green) · **error cycle** (one diagnose-fix cycle — record failures too) · **chore** (non-functional change done).
 
 When you leave an **intentional shortcut** (a simplification with a ceiling), mark it with a code comment `// oculpm-defer: <ceiling>; <revisit trigger>` — the app harvests these (no trigger = flagged as rotting).
 
-## 2. Journal file format (only without the tools)
+## 3. Journal file format (only without the tools)
 
 Path `.oculpm/journal/{YYYYMMDD}/{TypeFolder}/{HHMM}_{type}_{slug}.md` — workday/time from the local OS clock (don't ask) · TypeFolder = `Bugs`|`Features_to_add`|`Errors`|`Refactors`|`Chores` · type = bug|feature|error|refactor|chore (⚠ **not** the commit types `fix`/`feat` — and the folder is `Bugs/`, never `Fix/`) · slug = ASCII kebab ≤40 chars.
 
@@ -32,14 +39,14 @@ Body: first line is a `[x] title` checkbox. Mandatory headers in order — bug/e
 
 Need an example? Read a recent entry of the same type.
 
-## 3. Never
+## 4. Never
 
 - Never write into `.oculpm/index/**` (app-managed).
 - Never include secrets / API keys / `.env` contents — detected writes are rejected.
 - Never edit an existing journal entry (new file + `related` link) · never bundle two work units in one file.
 - Never hand-edit plan frontmatter — `status:`/`updated:` go through `plan_update`. If you must, don't close a plan while any `[ ]`/`[~]`/`[!]` remains: **move** those into a live plan first (open items in a folded plan are lost).
 
-## 4. Planner update (right after the journal)
+## 5. Planner update (right after the journal)
 
 The journal is retrospect; the **Planner** (`.oculpm/planner/*.md`) is the current plan. Right after writing a journal entry, update the matching plan item (skip if none exists).
 
@@ -55,6 +62,6 @@ New plans need a one-line **done condition** (`done_when`: the outcome beyond th
 
 Lock major decisions as `### Decision N — title {#id}` blocks under `## Decisions` (lock date · agent.id · rationale · `Affects: #item-ids`).
 
-## 5. Discussion docs (only on explicit request)
+## 6. Discussion docs (only on explicit request)
 
 Only when the user **explicitly asks** to *"compare options / think this problem through / draft a big plan"*, write `.oculpm/discussion/<slug>/discussion.md` — read **`.oculpm/agents/discussion-spec.md`** at that moment and follow it. Never create one for routine work (the journal and planner are the record).

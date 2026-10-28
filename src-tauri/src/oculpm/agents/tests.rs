@@ -191,15 +191,21 @@ fn adapter_agents_imports_resolve_to_the_root_agents_md() {
 ///   `git add -A` 금지도 §3(금지)에 반 줄로 붙였다.
 /// - v14 (2026-10-04): v10 의 §5(A2A)를 **되돌렸다** — 기능 자체를 걷어냈다.
 ///   없는 도구를 부르라는 규칙은 거짓말이다. 상한은 그대로 둔다.
+/// - v18 (2026-10-28): ko 4,800 → 5,300 · en 6,500 → 7,400. §1 「작업 규율 —
+///   결과를 좋게 하는 네 줄」을 샀다 (ko 약 430자 · en 약 640자). 템플릿은 그동안
+///   「어떻게 기록하나」만 말했고 「어떻게 일하나」는 플랜의 완료 조건·확인 명령에만
+///   있었다 — 플랜 없이 시작하는 작업, 막 추적을 시작한 프로젝트, 훅이 없는 에이전트
+///   (Cursor·Gemini CLI)에는 다섯 원칙이 한 줄도 닿지 않았다. 이 절이 그 유일한 통로다
+///   (플랜 `any-project-best-results-20261028`). 다음 인상도 같은 급의 근거를 요구할 것.
 #[test]
 fn master_templates_stay_lean_and_in_parity() {
     let ko = MASTER_KO.chars().count();
     let en = MASTER_EN.chars().count();
     assert!(
-        ko <= 4_800,
-        "ko 마스터 {ko} chars — 토큰 다이어트 회귀 (상한 4,800)"
+        ko <= 5_300,
+        "ko 마스터 {ko} chars — 토큰 다이어트 회귀 (상한 5,300 — v18 §1 작업 규율로 4,800 에서 올렸다, 근거는 위 이력)"
     );
-    assert!(en <= 6_500, "en 마스터 {en} chars — 상한 6,500 (6,320 에서 올렸다: journal-scale-round 두 절 — {{#plan-log-archive}} 의 `<plan_id>.log.md` 금지 한 절(§4 런온 90자: 이 줄이 없으면 에이전트가 앱이 만든 이력 보관함을 플랜으로 오인해 고치거나 통째로 컨텍스트에 싣는다) + {{#rollup-first}} 의 §0 롤업 한 줄 77자(주간 요약 층을 만들어 놓고 규칙이 그것을 가리키지 않으면 에이전트는 영영 안 읽는다). 다음 인상도 같은 급의 근거를 요구할 것)");
+    assert!(en <= 7_400, "en 마스터 {en} chars — 상한 7,400 (v18 §1 작업 규율로 6,500 에서 올렸다, 근거는 위 이력; 6,500 은 6,320 에서 올렸다: 6,320 에서 올렸다: journal-scale-round 두 절 — {{#plan-log-archive}} 의 `<plan_id>.log.md` 금지 한 절(§4 런온 90자: 이 줄이 없으면 에이전트가 앱이 만든 이력 보관함을 플랜으로 오인해 고치거나 통째로 컨텍스트에 싣는다) + {{#rollup-first}} 의 §0 롤업 한 줄 77자(주간 요약 층을 만들어 놓고 규칙이 그것을 가리키지 않으면 에이전트는 영영 안 읽는다). 다음 인상도 같은 급의 근거를 요구할 것)");
     assert_eq!(
         template_version(MASTER_KO),
         template_version(MASTER_EN),

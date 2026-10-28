@@ -101,3 +101,65 @@ fn check_line_is_shipped_and_the_last_close_gets_a_goal_nudge() {
     );
     assert!(w.contains("/oculpm:redteam checked"), "{w}");
 }
+
+/// 어떤 프로젝트여도 — `check` 를 안 주면 매니페스트에서 감지한 확인 명령을 적고 `warnings`
+/// 로 알린다 (`check_infer`). 못 찾으면 줄은 없고 경고만 있다. 준 값은 감지를 이기며 경고도 없다.
+#[test]
+fn omitted_check_is_inferred_from_manifests_and_announced() {
+    let dir = TempDir::new().unwrap();
+    std::fs::create_dir_all(dir.path().join(".oculpm")).unwrap();
+    std::fs::write(dir.path().join("Cargo.toml"), "[package]\nname = \"x\"\n").unwrap();
+    let out = call_tool(
+        dir.path(),
+        "plan_create",
+        &serde_json::json!({ "plan_id": "inferred", "title": "감지", "phases": [{ "title": "단계", "items": [{ "text": "x" }] }] }),
+    )
+    .unwrap();
+    let md = std::fs::read_to_string(dir.path().join(out["path"].as_str().unwrap())).unwrap();
+    assert!(md.contains("\n**확인 명령:** cargo test\n"), "{md}");
+    let w = out["warnings"][0].as_str().unwrap_or_default();
+    assert!(
+        w.contains("감지한 확인 명령") && w.contains("`cargo test`"),
+        "{out}"
+    );
+    let status = call_tool(
+        dir.path(),
+        "plan_status",
+        &serde_json::json!({ "plan_id": "inferred" }),
+    )
+    .unwrap();
+    assert_eq!(status["plans"][0]["check"], "cargo test");
+
+    // 준 값이 이긴다 — 경고 없음.
+    let out = call_tool(
+        dir.path(),
+        "plan_create",
+        &serde_json::json!({ "plan_id": "given", "title": "준 값", "check": "pnpm test", "phases": [{ "title": "단계", "items": [{ "text": "x" }] }] }),
+    )
+    .unwrap();
+    assert!(out.get("warnings").is_none(), "{out}");
+    let md = std::fs::read_to_string(dir.path().join(out["path"].as_str().unwrap())).unwrap();
+    assert!(
+        md.contains("**확인 명령:** pnpm test\n") && !md.contains("cargo test"),
+        "{md}"
+    );
+
+    // 매니페스트가 없는 프로젝트 — 줄은 없고 「없다」는 경고만.
+    let bare = TempDir::new().unwrap();
+    std::fs::create_dir_all(bare.path().join(".oculpm")).unwrap();
+    let out = call_tool(
+        bare.path(),
+        "plan_create",
+        &serde_json::json!({ "plan_id": "bare", "title": "맨몸", "phases": [{ "title": "단계", "items": [{ "text": "x" }] }] }),
+    )
+    .unwrap();
+    let md = std::fs::read_to_string(bare.path().join(out["path"].as_str().unwrap())).unwrap();
+    assert!(!md.contains("확인 명령"), "{md}");
+    assert!(
+        out["warnings"][0]
+            .as_str()
+            .unwrap_or_default()
+            .contains("확인 명령이 없다"),
+        "{out}"
+    );
+}

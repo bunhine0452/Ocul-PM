@@ -46,7 +46,7 @@ Ocul-PM 은 「일지 앱」이 아니다. **에이전트가 한 일을 사람�
 | 일지 없이 끝난 세션 (Stop 훅 판정 `missing`) | 측정 중 | **0** | 약속 1 그 자체다. 하나라도 있으면 규칙이 아니라 결함이다 |
 | 커밋에 든 파일 중 어느 일지에도 없는 비율 | 28% | **10%** | files_touched 추정(v3.15)이 받는 몫. 10% 아래는 사람이 손으로 고친 것뿐이어야 한다 |
 | 활성 플랜 중 「완료 조건」이 있는 플랜 | 11/11 | **전부, 생성 시점부터** | `plan_create` 의 `done_when` 이 필수에 가깝게 — 없는 플랜은 훅이 목표 없이 싣는다 |
-| 활성 플랜 중 「확인 명령」이 있는 플랜 | 1/14 (2026-10-28) | **전부** | 통과/실패를 내는 것이 없는 플랜은 「됐다」는 주장으로 닫힌다. `plan_create` 의 `check`, 마지막 항목을 닫는 `plan_update` 가 그 명령을 돌리라고 안내한다 |
+| 활성 플랜 중 「확인 명령」이 있는 플랜 | 1/14 (2026-10-28) | **전부** | 통과/실패를 내는 것이 없는 플랜은 「됐다」는 주장으로 닫힌다. `plan_create` 의 `check`, 마지막 항목을 닫는 `plan_update` 가 그 명령을 돌리라고 안내한다. 2026-10-28 부터 `check` 를 생략해도 매니페스트에서 감지한 기본값이 들어가므로, 이 비율이 100% 가 아닌 것은 손으로 만든 플랜뿐이어야 한다 |
 | 버그 일지 중 7일 안에 같은 파일을 다시 고친 비율 | 47% | **30%** | 레드팀 스킬이 합류 전에 반례를 찾는 만큼만 내려간다 — 내려가지 않으면 그 스킬은 걷는다 |
 
 목표를 못 맞춘 것은 실패가 아니라 데이터다 — 다음 리뷰에서 숫자를 다시 적는다. 목표를 낮추는 것은 사유를 적고 한다. **Today 「약속 성적표」 카드**가 이 표의 「지금」 열(증거 비율 · 7일 재수정 · 완료 조건/확인 명령 있는 플랜)을 최근 30일 창으로 보여 준다 — 느낌이 아니라 숫자를 매일 본다(METR 2025: 개발자는 AI 로 20% 빨라졌다고 느꼈고 실측은 19% 느렸다).
@@ -57,8 +57,8 @@ Ocul-PM 은 「일지 앱」이 아니다. **에이전트가 한 일을 사람�
 
 | 원칙 | 근거 | 자리 (기계가 지키는 것) |
 |---|---|---|
-| ① 코드 전에 사양·**완료 조건** | Anthropic: "Interview me until you could write the spec… a written definition of done" | `**완료 조건:**` 줄 — `plan_create done_when`, 훅이 항목보다 먼저 싣는다 (`plugin_xplat`) |
-| ② **통과/실패를 내는 것**을 준다 | Anthropic: "Give Claude something it can run that comes back pass or fail" · Willison: "First run the tests" | `**확인 명령:**` 줄 — `plan_create check`, 훅이 싣고, 마지막 항목을 닫는 `plan_update` 가 돌리라고 안내 (`plan_goal` 테스트) |
+| ① 코드 전에 사양·**완료 조건** | Anthropic: "Interview me until you could write the spec… a written definition of done" | `**완료 조건:**` 줄 — `plan_create done_when`, 훅이 항목보다 먼저 싣는다 (`plugin_xplat`). **플랜이 없어도**: 템플릿 v18 §1 「작업 규율」이 한 작업마다 완료 조건 한 줄을 먼저 말하게 하고, 빈 프로젝트에는 훅이 「플랜·일지 없음 → 완료 조건·확인 명령부터」 한 줄을 싣는다 (`plugin_hook_no_plan`) |
+| ② **통과/실패를 내는 것**을 준다 | Anthropic: "Give Claude something it can run that comes back pass or fail" · Willison: "First run the tests" | `**확인 명령:**` 줄 — `plan_create check`, 훅이 싣고, 마지막 항목을 닫는 `plan_update` 가 돌리라고 안내 (`plan_goal` 테스트). **안 줘도 생긴다**: `check` 를 생략한 `plan_create` 는 매니페스트(package.json·Cargo.toml·pyproject·go.mod·Makefile)에서 감지한 명령을 적고 `warnings` 로 알리며, 확인 명령 없는 플랜(또는 플랜 없는 프로젝트)에는 훅이 같은 규칙의 후보를 싣는다 (`check_infer`, 훅과 공유 계약) |
 | ③ **주장이 아니라 명령+출력** | Anthropic: "ask for evidence: the command it ran and its output. 'All tests pass' tells you very little" | 증거 등급(`evidence.rs`) · 명령 이름만 있는 검증 칸에 `journal_write` 경고 · 템플릿 v17 「결과 끝 줄」 |
 | ④ 초록이어도 **실제로 돌려 본다** | Willison: "the test suite passes doesn't mean the web server will boot… use curl" · Showboat | 주간 요약 「검증 안 된 것」 절 + 복사 — 영수증은 건네라고 있다. `/oculpm:next` 4단계 |
 | ⑤ **바깥 심판** | Sonar: 96% 불신 · 48% 만 늘 확인 · 38% 는 사람 코드보다 리뷰가 힘들다. METR: 느낌 ≠ 실측 | `/oculpm:redteam` · 「약속 성적표」 카드 · 이 표 |

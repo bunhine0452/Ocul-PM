@@ -307,10 +307,12 @@ fn journals_alone_are_enough_and_the_ledger_says_zero_plan_items() {
     );
 }
 
-/// 일지도 플랜도 없는 추적 프로젝트 — 실을 것이 없으면 원장도 없다.
-/// (원장은 "포함됐다" 의 근거이지 훅이 돌았다는 감사 로그가 아니다.)
+/// 일지도 플랜도 없는 추적 프로젝트 — **이어받을** 것이 없으면 원장도 없다.
+/// (원장은 "포함됐다" 의 근거이지 훅이 돌았다는 감사 로그가 아니다.) 2026-10-28 부터
+/// 빈 프로젝트에도 「무엇부터」 안내 한 줄은 실린다(어떤 프로젝트여도 — 문장은
+/// `plugin_hook_no_plan` 이 잰다). 안내는 재개가 아니므로 원장은 여전히 쓰지 않는다.
 #[test]
-fn nothing_to_carry_means_no_output_and_no_ledger() {
+fn nothing_to_carry_means_guidance_only_and_no_ledger() {
     let dir = tempfile::tempdir().expect("tempdir");
     let root = dir.path();
     std::fs::create_dir_all(root.join(".oculpm/journal")).expect("빈 일지 폴더");
@@ -318,13 +320,13 @@ fn nothing_to_carry_means_no_output_and_no_ledger() {
 
     let out = run_hook(root, &start_payload("conv-5"));
     assert_eq!(out.status.code(), Some(0));
+    let text = String::from_utf8_lossy(&out.stdout);
     assert!(
-        out.stdout.is_empty(),
-        "빈 컨텍스트를 실었다: {:?}",
-        out.stdout
+        text.contains("활성 플랜 항목도 일지도 없다") && !text.contains("[plan:"),
+        "빈 프로젝트에는 안내 한 줄만 실린다: {text}"
     );
     assert!(
         !root.join(".oculpm/hooks/resume-delivered.jsonl").exists(),
-        "아무것도 안 실었는데 원장에 적었다"
+        "이어받은 것이 없는데 원장에 적었다"
     );
 }
