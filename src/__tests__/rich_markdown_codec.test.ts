@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { Editor } from "@tiptap/core";
 
 import {
@@ -30,7 +30,8 @@ function throughEditor(body: string, edit?: (e: Editor) => void): string {
 }
 
 describe("every markdown file in this repository", () => {
-  const files = execSync("git ls-files '*.md'").toString().trim().split("\n");
+  // 셸을 거치지 않는다 — Windows 의 cmd.exe 는 작은따옴표를 벗기지 않아 패턴이 통째로 넘어가 0건이 됐다(2026-10-27~28 Portability 빨강).
+  const files = execFileSync("git", ["ls-files", "*.md"]).toString().trim().split("\n");
   const read = (file: string): string | null => {
     try {
       return readFileSync(file, "utf8");
