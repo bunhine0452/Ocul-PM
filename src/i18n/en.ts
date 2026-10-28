@@ -1484,5 +1484,5 @@ export const en: Record<keyof typeof ko, string> = {
   // Resume card (plan first-record-loop Phase 2) — the next session's starting point.
   // The ledger only proves "included" — whether it was referenced or helped is unknown.
   "ws.newEntriesBurst":
-    "Several entries arrived at once — see the Journal screen.",  "term.shellPending": "Shell integration on — no signal from this session yet (recognised from the next prompt)",
+    "Several entries arrived at once — see the Journal screen.",
 };
