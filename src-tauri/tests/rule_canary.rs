@@ -37,8 +37,7 @@ fn master_ko_carries_load_bearing_rules() {
             "secrets / API key / `.env` 내용 포함 금지",
             "기존 일지 수정 금지",
             "한 파일에 작업 두 개 금지",
-            "schema_version: 1",
-            "verified_by_user: false",
+            "journal-spec.md",
             "부모를 직접 갱신하지 말 것",
             "oculpm:plan-log begin v1",
             "oculpm-defer:",
@@ -59,14 +58,42 @@ fn master_en_carries_load_bearing_rules() {
             "Never write into `.oculpm/index/**`",
             "Never include secrets / API keys",
             "Never edit an existing journal entry",
-            "schema_version: 1",
-            "verified_by_user: false",
+            "journal-spec.md",
             "oculpm:plan-log begin v1",
             "oculpm-defer:",
             "journal_write",
             "plan_create",
         ],
     );
+}
+
+/// 일지 파일 규격 — v19(2026-10-28)에서 마스터 §3 을 `journal-spec.md` 로 뺐다. 마스터는
+/// 그 파일을 가리키는 한 줄만 들고, frontmatter 하중 문구는 여기서 산다.
+#[test]
+fn journal_spec_carries_load_bearing_rules() {
+    for (name, rel) in [
+        (
+            "journal_spec_ko",
+            "src/oculpm/agents/templates/journal_spec_ko.md.tpl",
+        ),
+        (
+            "journal_spec_en",
+            "src/oculpm/agents/templates/journal_spec_en.md.tpl",
+        ),
+    ] {
+        let t = repo(rel);
+        assert_all(
+            name,
+            &t,
+            &[
+                "schema_version: 1",
+                "verified_by_user: false",
+                "+09:00",
+                "files_touched",
+                "journal_write",
+            ],
+        );
+    }
 }
 
 /// MCP 서버 instructions — 도구 우선·직접 생성 금지·시크릿 금지가 살아있어야

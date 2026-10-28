@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: record-quality-round-20261027
 title: "기록 품질 라운드 (2026-10-27) — 플러그인 드리프트 · 모델 이름 정규화 · 검증 증거 등급 · 닫힌 플랜 받은함 · files_touched 추정 · ACP 0.97.0"
-status: active
+status: done
 created: 2026-10-27
-updated: 2026-10-27
+updated: 2026-10-28
 owner: claude-code
 ---
 
@@ -24,10 +24,10 @@ owner: claude-code
 - [x] PR → CI 초록 → rebase 머지 {#pr-merge}
 
 ## 실기기 확인 {#eyes}
-- [ ] [사용자] 새 빌드로 Today 에 드리프트 카드(3.3.0 → 새 판)가 뜨고, /plugin update 뒤 사라진다 {#eyes-drift-card}
-- [ ] [사용자] 일지 행에 방패 배지(증거 있음) · 상세 칩 · 모델 이름이 표준형으로 보인다 (재투영 뒤) {#eyes-evidence-badge}
-- [ ] [사용자] 플래너 받은함에 63건 · 하나 옮기면 활성 플랜 「이월」 단계에 생기고 받은함에서 빠진다 {#eyes-carry-inbox}
-- [ ] [사용자] Claude Code 화면 첫 열기 — 0.97.0 재설치, ultracode 선택지가 셀렉터에 보이고 대화 한 턴 {#eyes-acp-097}
+- [>] [사용자] 새 빌드로 Today 에 드리프트 카드(3.3.0 → 새 판)가 뜨고, /plugin update 뒤 사라진다 → polish-round-20261027 #eyes-drift-card {#eyes-drift-card}
+- [>] [사용자] 일지 행에 방패 배지(증거 있음) · 상세 칩 · 모델 이름이 표준형으로 보인다 (재투영 뒤) → polish-round-20261027 #eyes-evidence-badge {#eyes-evidence-badge}
+- [>] [사용자] 플래너 받은함에 63건 · 하나 옮기면 활성 플랜 「이월」 단계에 생기고 받은함에서 빠진다 → polish-round-20261027 #eyes-carry-inbox {#eyes-carry-inbox}
+- [-] [사용자] Claude Code 화면 첫 열기 — 0.97.0 재설치, ultracode 선택지가 셀렉터에 보이고 대화 한 턴 (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) {#eyes-acp-097}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -39,4 +39,9 @@ owner: claude-code
 | 2026-10-27T21:18:01+09:00 | #files-infer | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2116_feature_record-quality-round-five-upgrades.md | files_touched::infer_from_git — 상한 40 · .oculpm 제외 · 명시한 빈 배열은 그대로. 테스트 2 |
 | 2026-10-27T21:18:07+09:00 | #acp-097 | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2116_feature_record-quality-round-five-upgrades.md | 픽스처 diff 셋(판·backgroundSubagents·ultracode 선택지), session/update 21종 동일, SDK 0.3.310. Codex 2.3.0 은 AIR 깨는 메이저라 보류 |
 | 2026-10-27T21:35:47+09:00 | #pr-merge | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2116_feature_record-quality-round-five-upgrades.md | PR #102 CI 3잡 success → rebase 머지 44c84375. 래칫(manager/tests.rs)에 두 번 걸려 디스크 원문 확인을 통합 테스트로 옮겼다 |
+| 2026-10-28T23:24:00+09:00 | #eyes-drift-card | claude-code | ☐→> |  | polish-round-20261027 #eyes-drift-card |
+| 2026-10-28T23:24:03+09:00 | #eyes-evidence-badge | claude-code | ☐→> |  | polish-round-20261027 #eyes-evidence-badge |
+| 2026-10-28T23:24:06+09:00 | #eyes-carry-inbox | claude-code | ☐→> |  | polish-round-20261027 #eyes-carry-inbox |
+| 2026-10-28T23:24:09+09:00 | #eyes-acp-097 | claude-code | ☐→- |  | (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) |
+| 2026-10-28T23:24:12+09:00 | #plan | claude-code | active→done |  | 덜어내기 라운드 — 플랜 18→4 (simplify-round-20261028 #plans-4). 미완은 전부 옮기거나 폐기 |
 <!-- oculpm:plan-log end -->

@@ -55,10 +55,22 @@ event=$(printf '%s' "$payload" | sed -n 's/.*"hook_event_name"[[:space:]]*:[[:sp
 
 body=$(
   {
-    for f in "$ROOT/.oculpm/planner"/*.md; do
-      [ -f "$f" ] || continue
-      # status 는 frontmatter 에서만 — 본문 예시의 'status: active' 오판 방지.
-      sed -n '2,/^---$/p' "$f" 2>/dev/null | grep -q '^status: active' || continue
+    # 활성 플랜이 많으면(이 저장소는 17개까지 갔다) 24줄 상한이 앞 플랜 둘셋에서 끝나 뒤는 영영
+    # 안 실린다 — 그래서 **최근 갱신 상위 3개**만 싣는다 (frontmatter `updated:` 내림차순, 같은 날이면
+    # 파일명). 어느 플랜이 빠졋는지는 마지막 줄이 말한다 (2026-10-28, simplify-round {#hook-top3}).
+    top=$(
+      for f in "$ROOT/.oculpm/planner"/*.md; do
+        [ -f "$f" ] || continue
+        sed -n '2,/^---$/p' "$f" 2>/dev/null | grep -q '^status: active' || continue
+        grep -qE '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null || continue
+        u=$(sed -n '2,/^---$/p' "$f" 2>/dev/null | sed -n 's/^updated:[[:space:]]*//p' | head -1 | tr -d '"'"'"' ')
+        printf '%s\t%s\n' "${u:-0000-00-00}" "$f"
+      done | LC_ALL=C sort -t "$(printf '\t')" -k1,1r -k2,2 | cut -f2
+    )
+    total=$(printf '%s\n' "$top" | grep -c . 2>/dev/null | tr -d '[:space:]')
+    [ -n "$total" ] || total=0
+    printf '%s\n' "$top" | head -3 | while IFS= read -r f; do
+      [ -n "$f" ] || continue
       items=$(grep -E '^[[:space:]]*- \[[ ~!]\]' "$f" 2>/dev/null | head -8)
       [ -n "$items" ] || continue
       echo "[plan: $(basename "$f" .md)]"
@@ -72,6 +84,9 @@ body=$(
       [ -n "$check" ] && printf '%s\n' "$check"
       printf '%s\n' "$items"
     done
+    if [ "$total" -gt 3 ]; then
+      echo "(활성 플랜 ${total}개 중 최근 갱신 3개만 실었다 — 나머지는 plan_status 로)"
+    fi
     # 항목은 전부 닫혔는데 아직 active 인 플랜 — 항목 완료 ≠ 목표 달성. 완료 조건이 참인지
     # 판정하고 닫는 결정이 남아 있다는 사실만 한 줄로 싣는다 (최대 3개).
     for f in "$ROOT/.oculpm/planner"/*.md; do

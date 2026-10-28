@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: ambition-round-20261027
 title: "야망 라운드 (2026-10-27) — Rieseberg 「How to be more ambitious」 를 Ocul-PM 에: 고도 · 깊이 · 범위"
-status: active
+status: done
 created: 2026-10-27
-updated: 2026-10-27
+updated: 2026-10-28
 owner: claude-code
 ---
 
@@ -26,7 +26,7 @@ owner: claude-code
 ## 범위 — 명사를 동사로 {#range}
 - [x] PROMISE.md 한 문장 + README ko/en · 랜딩 ko/en 히어로 부제를 「3분 안에 믿고 다음을 결정하게」로 {#verb-sentence}
 - [x] /oculpm:redteam 스킬 — 역할극 금지, 원재료 대조·직접 실행·반례만. 매니페스트·help 카드·랜딩 ko/en·README·pluginDocs 동기 {#redteam-skill}
-- [ ] [사용자] 새 플러그인 판으로 /oculpm:redteam ambition-round-20261027 한 번 — 반례 보고를 이 플랜 로그에 {#redteam-dogfood}
+- [>] [사용자] 새 플러그인 판으로 /oculpm:redteam ambition-round-20261027 한 번 — 반례 보고를 이 플랜 로그에 → polish-round-20261027 #redteam-dogfood {#redteam-dogfood}
 
 ## 합류 {#merge}
 - [x] PR → CI 초록 → rebase 머지 {#pr-merge}
@@ -44,4 +44,6 @@ owner: claude-code
 | 2026-10-27T22:15:08+09:00 | #verb-sentence | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2213_feature_ambition-round-altitude-depth-range.md | PROMISE 첫 절 + README ko/en · 랜딩 ko/en 히어로 부제. 배포는 다음 릴리스와 함께 |
 | 2026-10-27T22:15:19+09:00 | #redteam-skill | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2213_feature_ambition-round-altitude-depth-range.md | skills/redteam/SKILL.md + 매니페스트 7종 · help · 랜딩 ko/en 커맨드 섹션 · README ko/en · pluginDocs (plugin_docs_sync 가 설명 완전 일치 요구) |
 | 2026-10-27T22:43:37+09:00 | #pr-merge | claude-code | ☐→x | .oculpm/journal/20261027/Features_to_add/2213_feature_ambition-round-altitude-depth-range.md | PR #103 — CI 가 셋 잡음(템플릿 예산 110자 초과 · 검증 칸 없는 본문의 새 경고 · bindings 미재생성) → 3커밋으로 고쳐 초록, rebase 머지 ebc7b4cf |
+| 2026-10-28T23:24:33+09:00 | #redteam-dogfood | claude-code | ☐→> |  | polish-round-20261027 #redteam-dogfood |
+| 2026-10-28T23:24:36+09:00 | #plan | claude-code | active→done |  | 덜어내기 라운드 — 플랜 18→4 (simplify-round-20261028 #plans-4). 미완은 전부 옮기거나 폐기 |
 <!-- oculpm:plan-log end -->

@@ -9,9 +9,9 @@ import { PLUGIN_COMMANDS, PLUGIN_FLOW, PLUGIN_TOOLS } from "@/features/skills/pl
 import { CATALOG_PINS, CATALOG_SKILLS } from "@/features/skills/skillsCatalog";
 
 // 커맨드는 2026-10-24 에 `commands/` 에서 `skills/<이름>/SKILL.md` 로 옮겼다 (Claude Code
-// 문서: commands/ 는 구형). 지식 스킬 5종을 뺀 나머지가 슬래시 커맨드다.
+// 문서: commands/ 는 구형). 지식 스킬(2026-10-28 부터 oculpm-journal 하나)을 뺀 나머지가 슬래시 커맨드다.
 const skillsDir = join(process.cwd(), "plugin", "oculpm", "skills");
-const KNOWLEDGE_SKILLS = ["oculpm-journal", "project-inception", "run-evals", "self-audit", "tdd-workflow"];
+const KNOWLEDGE_SKILLS = ["oculpm-journal"];
 // 도구 정의는 **두 파일**에 산다. 한쪽만 읽으면 이 게이트가 조용히 반쪽이 된다.
 const toolSources = [
   // 2026-09-04 에 `tools.rs` 가 `tools/mod.rs` + `tools/tests.rs` 로 갈라졌다

@@ -194,3 +194,35 @@ fn a_plan_that_already_has_a_check_line_gets_no_candidate() {
     );
     assert!(!text.contains(EMPTY_LINE), "{text}");
 }
+
+/// 활성 플랜이 넷이면 **최근 갱신 셋**만 실린다 (`updated:` 내림차순) — 24줄 상한에 뒤 플랜이
+/// 영영 밀리던 것(simplify-round {#hook-top3}). 빠진 수는 마지막 줄이 말한다.
+#[test]
+fn only_the_three_most_recently_updated_plans_are_shipped() {
+    let p = project();
+    for (name, updated) in [
+        ("a-old", "2026-09-01"),
+        ("b-mid", "2026-10-10"),
+        ("c-new", "2026-10-27"),
+        ("d-newest", "2026-10-28"),
+    ] {
+        write(
+            p.path(),
+            &format!(".oculpm/planner/{name}.md"),
+            &format!("---\nstatus: active\nupdated: {updated}\n---\n# {name}\n\n**확인 명령:** true\n\n- [ ] 항목 {{#i-{name}}}\n"),
+        );
+    }
+    let text = context(p.path());
+    for shipped in ["[plan: d-newest]", "[plan: c-new]", "[plan: b-mid]"] {
+        assert!(text.contains(shipped), "{shipped} 가 빠졋다: {text}");
+    }
+    assert!(
+        !text.contains("[plan: a-old]"),
+        "가장 오래된 플랜은 빠져야 한다: {text}"
+    );
+    assert!(text.contains("활성 플랜 4개 중 최근 갱신 3개만"), "{text}");
+    assert!(
+        text.find("[plan: d-newest]").unwrap() < text.find("[plan: c-new]").unwrap(),
+        "최근 갱신이 먼저: {text}"
+    );
+}

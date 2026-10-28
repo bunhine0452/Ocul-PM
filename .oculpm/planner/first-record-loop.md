@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: first-record-loop
 title: "첫 기록 성공 → 다음 세션 재사용 (제품 방향 2026-09-21 실행)"
-status: active
+status: done
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-10-28
 owner: claude-code
 ---
 
@@ -24,7 +24,7 @@ docs/product-direction-2026-09-21/REPORT.md 의 실행 플랜. 검증 경로 하
 - [x] P1-2 프로젝트별 첫 기록 확인을 Today 흐름에 연결 — 「첫 기록」카드: 준비/실행 중/기록 확인/기록 없이 종료/귀속 불명 5상태, 해당 대화의 실제 일지 열기 {#p1-card}
 - [x] P1-3 재시도·닫기·재실행·기존 기록 보유 프로젝트 처리 — 프로젝트별 armed 상태 영속, 총 일지 수·백필로 성공 처리하지 않음, 기존 사용자 회귀 없음 {#p1-states}
 - [x] P1-4 선택한 경로의 안내 문구를 실제 조건과 일치 — 마법사 마무리 판·Today 빈 상태·플러그인 카드 문구 vs 실제 조건 대조 (ko/en) {#p1-copy}
-- [~] P1-V 실제 왕복 검증 — 이 경로에서 실제 대화의 첫 일지가 카드에 도착하는지(설치본 재빌드 전이면 미검증으로 명시) {#p1-verify}
+- [>] P1-V 실제 왕복 검증 — 이 경로에서 실제 대화의 첫 일지가 카드에 도착하는지(설치본 재빌드 전이면 미검증으로 명시) → polish-round-20261027 #eyes-first-record {#p1-verify}
 
 ## Phase 2 — 다음 세션에서 이어가기 (검토 후 착수) {#p2}
 - [x] P2-1 기존 기록·활성 플랜을 읽어 이어하기 자료 구성 (결정적 목록·발췌, LLM 불필요) {#p2-resume-data}
@@ -33,8 +33,8 @@ docs/product-direction-2026-09-21/REPORT.md 의 실행 플랜. 검증 경로 하
 - [x] P2-4 검색·읽기·전달의 관측 의미 구분 표시 — recall_touch 는 AI 패널 전용이라는 한계 명시 {#p2-observe}
 
 ## Phase 3~4 — 소개 정렬·소규모 관찰 (근거 생긴 뒤) {#p3}
-- [~] P3 README·랜딩·시작 위키를 핵심 경험 중심으로 편집 + 실제 왕복 촬영 — 사용자 결정 후 {#p3-intro}
-- [ ] P4 소규모 사용자 관찰 준비·실행 — 사용자가 명시적으로 요청할 때만 {#p4-observe}
+- [x] P3 README·랜딩·시작 위키를 핵심 경험 중심으로 편집 + 실제 왕복 촬영 — 사용자 결정 후 — 10-27 약속 문서 라운드·10-28 덜어내기 라운드로 README·랜딩·위키 재편 (촬영은 polish-round-20261027 #eyes-first-record) {#p3-intro}
+- [>] P4 소규모 사용자 관찰 준비·실행 — 사용자가 명시적으로 요청할 때만 → polish-round-20261027 #observe-three-users {#p4-observe}
 
 <!-- oculpm:plan-log begin v1 -->
 | 시각 | 항목 | 에이전트 | 변화 | 일지 | 메모 |
@@ -55,4 +55,8 @@ docs/product-direction-2026-09-21/REPORT.md 의 실행 플랜. 검증 경로 하
 | 2026-09-22T01:45:32+09:00 | #p2-observe | claude-code | ☐→x | .oculpm/journal/20260922/Features_to_add/0144_feature_resume-context-and-card.md | 전달 줄 세 갈래(포함됨/아직/훅 없음) — 원장은 "컨텍스트 포함"까지만 증명, 참조·도움은 모른다고 표시. 복사는 전달로 세지 않음. recall_touch 는 AI 패널 전용(PHASE0 관측표) |
 | 2026-09-22T19:44:39+09:00 | #p3-intro | claude-code | ☐→~ | .oculpm/journal/20260922/Chores/1944_chore_readme-landing-one-sentence-round-trip.md | README ko/en·랜딩 ko/en 을 한 문장+왕복 3단계로 편집. 남은 것: 시작 위키·실제 왕복 촬영·랜딩 배포 |
 | 2026-10-04T18:37:29+09:00 | #p3-intro | claude-code | ~→~ | .oculpm/journal/20261004/Features_to_add/1837_feature_agent-report-card-first-draft.md | 소개 문구 결정 대기 — "기억" 은 claude-mem 자리. 대안 실험으로 에이전트 성적표 초안(docs/launch/agent-report-card.md) 작성, GeekNews 반응 후 P3 문구 결정 |
+| 2026-10-28T23:22:54+09:00 | #p1-verify | claude-code | ~→> |  | polish-round-20261027 #eyes-first-record |
+| 2026-10-28T23:22:57+09:00 | #p3-intro | claude-code | ~→x |  | 10-27 약속 문서 라운드·10-28 덜어내기 라운드로 README·랜딩·위키 재편 (촬영은 polish-round-20261027 #eyes-first-record) |
+| 2026-10-28T23:23:00+09:00 | #p4-observe | claude-code | ☐→> |  | polish-round-20261027 #observe-three-users |
+| 2026-10-28T23:23:03+09:00 | #plan | claude-code | active→done |  | 덜어내기 라운드 — 플랜 18→4 (simplify-round-20261028 #plans-4). 미완은 전부 옮기거나 폐기 |
 <!-- oculpm:plan-log end -->

@@ -1,5 +1,5 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 18 -->
+<!-- template_version: 19 -->
 # ocul-pm work-journal rules
 
 You are working in a project tracked by ocul-pm. Every time you finish **one logical unit of work** (bug fix / feature / refactor / error cycle / chore), record it immediately — do not ask the user first.
@@ -31,13 +31,7 @@ When you leave an **intentional shortcut** (a simplification with a ceiling), ma
 
 ## 3. Journal file format (only without the tools)
 
-Path `.oculpm/journal/{YYYYMMDD}/{TypeFolder}/{HHMM}_{type}_{slug}.md` — workday/time from the local OS clock (don't ask) · TypeFolder = `Bugs`|`Features_to_add`|`Errors`|`Refactors`|`Chores` · type = bug|feature|error|refactor|chore (⚠ **not** the commit types `fix`/`feat` — and the folder is `Bugs/`, never `Fix/`) · slug = ASCII kebab ≤40 chars.
-
-Required frontmatter: `schema_version: 1` · `type` · `slug` · `status` (planned|in_progress|done|abandoned) · `created_at` (⚠ tz offset like `+09:00` — never `Z`/`+0900`) · `session_id` (fallback `"manual-<workday>-HHMMSS"`) · `agent` (⚠ a **mapping** with id/version keys, never a string — id = your agent id (claude-code/cursor/…), version = your model) · `language` (ko|en) · `verified_by_user: false` · `files_touched` (⚠ `[{path, op}]` — op is the enum create|update|delete|rename|correct · **quote the path** when it contains `[` `]` `{` `}` `:` `#`) · `related: []` · `tags: []`. Optional: `difficulty` (verylow~superhigh), `updated_at`.
-
-Body: first line is a `[x] title` checkbox. Mandatory headers in order — bug/error `## Root cause`→`## Fix` · refactor `## Motivation`→`## Summary of changes` · feature `## What was added`→`## How it works` · chore free-form. Common tail: `## Verification` (required, 1–3 lines — let **something other than you** speak: commands with their **last result line** (N passed · exit 0), numbers. Neither a command name nor "Checked" is evidence) · `## Notes` (optional).
-
-Need an example? Read a recent entry of the same type.
+Only when `journal_write` is unavailable, **read `.oculpm/agents/journal-spec.md`** and write the file yourself to that spec — the path, required frontmatter keys, per-type header order and the `## Verification` (last result line) rule live there. With the tool, skip this section.
 
 ## 4. Never
 
