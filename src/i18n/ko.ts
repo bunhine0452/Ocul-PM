@@ -2626,8 +2626,7 @@ export const ko = {
   "update.dismiss": "알림 닫기",
 
   // ── 렌더 경계 (components/ErrorBoundary.tsx) ─────────────────────────────
-  // 화면 한 조각이 죽어도 창은 살아 있다는 것을 알려 주는 문구. 터미널은
-  // "세션은 살아 있다" 는 고유한 안내가 필요해 term.crash* 를 따로 쓴다.
+  // 화면 한 조각이 죽어도 창은 살아 있다는 것을 알려 주는 문구.
   "crash.title": "이 부분을 그리지 못했어요",
   "crash.body":
     "나머지 화면은 그대로 쓸 수 있어요. 다시 시도해도 같으면 설정 → ocul-pm → 로그의 oculpm.log 를 보내주세요.",
@@ -3194,7 +3193,7 @@ export const ko = {
   "today.resume.loadFailed": "이어하기 자료를 읽지 못했어요",  "today.resume.continueHint": "돌고 있는 Claude Code 가 있으면 자료를 붙여넣고, 없으면 터미널에 명령을 준비해요 — 보내는 건 Enter 로",
   "today.resume.dispatchFailed": "이어하기를 넘기지 못했어요 — {error}",
   "today.resume.dispatchCopied": "이어하기 프롬프트를 복사했어요 — 터미널의 에이전트에 붙여 넣으세요",
-  "ws.newEntriesBurst": "일지 여러 건이 한꺼번에 들어왔어요 — 작업 일지 화면에서 보세요",  "term.shellPending": "셸 통합 켜짐 — 이 세션은 아직 신호가 없어요 (다음 프롬프트부터 인식해요)",
+  "ws.newEntriesBurst": "일지 여러 건이 한꺼번에 들어왔어요 — 작업 일지 화면에서 보세요",
   "rich.placeholder": "글을 쓰거나 / 로 블록을 넣어요",
   "rich.frontmatter": "머리 정보",
   "rich.frontmatterHint": "파일 맨 위의 기계용 정보 — 리치 편집에서는 읽기만 하고 원문 그대로 저장해요",

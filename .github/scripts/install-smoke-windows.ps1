@@ -397,74 +397,11 @@ Test-Observe '실행 중인 앱 이미지 프로세스 (재설치 직전)' {
     Get-AppProcesses (Split-Path -Leaf $script:MainExe) | ForEach-Object { "pid=$($_.ProcessId) $($_.CommandLine)" }
 }
 
-# ── 4. 재설치 프로브 — NSIS 가 무엇을 끝내나 (L-PTY2 에게 넘길 사실) ────────
+# ── 4. 재설치 — 실행 중인 설치본을 NSIS 가 끝내는가 ────────────────────────
 # 템플릿의 CheckIfAppIsRunning 은 `${MAINBINARYNAME}.exe` 를 nsis_tauri_utils
-# FindProcessCurrentUser/KillProcessCurrentUser 로 찾는다 — Toolhelp32 의 szExeFile
-# (이미지 **파일 이름**) 을 대소문자 무시로 비교하고 경로는 보지 않는다(원문은 보고서).
-# 그 규칙이 실제로 그런지 네 프로세스로 확인한다:
-#   A 설치된 exe (GUI)                              → 끝나야 한다
-#   B 설치된 exe --pty-host                         → 끝나야 한다 (지금 L-PTY 호스트의 모양)
-#   C 설치 폴더 밖 복사본 ocul-pm-ptyhost.exe --pty-host → 살아야 한다 (L-PTY2 의 모양)
-#   D 설치 폴더 밖 복사본 OCUL-PM.EXE --pty-host    → 관찰만 (2026-10-24: tauri 2.12 번들러의 템플릿부터
-#     설치 폴더 밖의 같은 이름은 끝내지 않는다 — 예전엔 끝났다. C 의 계약에는 영향이 없다)
-$script:Probes = [ordered]@{}
-
-function Start-PtyProbe([string] $Key, [string] $Exe) {
-    $dir = Join-Path $ProbeRoot $Key
-    New-Item -ItemType Directory -Force -Path $dir | Out-Null
-    $sock = Join-Path $dir 'pty.sock'
-    $p = Start-Process -FilePath $Exe -ArgumentList @('--pty-host', $sock) -PassThru `
-        -RedirectStandardOutput (Join-Path $OutDir "probe-$Key.out.txt") `
-        -RedirectStandardError (Join-Path $OutDir "probe-$Key.err.txt")
-    $script:Probes[$Key] = $p
-}
-
-Test-Gate '재설치 프로브 — 준비 (B·C·D 호스트가 떠 있다)' {
-    $c = Join-Path $ProbeRoot 'copies-c'
-    $d = Join-Path $ProbeRoot 'copies-d'
-    New-Item -ItemType Directory -Force -Path $c, $d | Out-Null
-    $copyC = Join-Path $c 'ocul-pm-ptyhost.exe'
-    $copyD = Join-Path $d 'OCUL-PM.EXE'
-    Copy-Item -LiteralPath $script:MainExe -Destination $copyC -Force
-    Copy-Item -LiteralPath $script:MainExe -Destination $copyD -Force
-    Start-PtyProbe 'B' $script:MainExe
-    Start-PtyProbe 'C' $copyC
-    Start-PtyProbe 'D' $copyD
-    Start-Sleep -Seconds 4
-    $dead = @('B', 'C', 'D' | Where-Object { -not (Test-Running $script:Probes[$_]) })
-    if (-not (Test-Running $script:App)) { $dead += 'A' }
-    if ($dead.Count) {
-        $why = $dead | ForEach-Object {
-            $err = Join-Path $OutDir "probe-$_.err.txt"
-            "$_ : " + $(if (Test-Path -LiteralPath $err) { (Get-Content -LiteralPath $err -Raw) } else { '' })
-        }
-        throw "재설치 전에 이미 죽은 프로브: $($dead -join ',') — $($why -join ' | ')"
-    }
-    'A=' + $script:App.Id + ' B=' + $script:Probes['B'].Id + ' C=' + $script:Probes['C'].Id + ' D=' + $script:Probes['D'].Id
-}
-
-# E: 트리째 끝내나? — 자식을 둔 부모를 앱 이미지 이름(ocul-pm.exe)으로 띄운다. cmd.exe 사본을
-# 그 이름으로 두고(메시지 리소스 .mui 도 이름을 맞춰 옆에) `ping` 을 자식으로 기다리게 한다.
-# nsis_tauri_utils 의 kill 은 OpenProcess + TerminateProcess(pid 하나)라 자식은 살아야 한다.
-$script:TreeParent = $null
-$script:TreeChild = $null
-Test-Observe '재설치 프로브 — 준비 E (이름이 ocul-pm.exe 인 부모 + 자식 ping)' {
-    $e = Join-Path $ProbeRoot 'copies-e'
-    New-Item -ItemType Directory -Force -Path (Join-Path $e 'en-US') | Out-Null
-    $parentExe = Join-Path $e 'ocul-pm.exe'
-    Copy-Item -LiteralPath (Join-Path $env:windir 'System32\cmd.exe') -Destination $parentExe -Force
-    $mui = Join-Path $env:windir 'System32\en-US\cmd.exe.mui'
-    if (Test-Path -LiteralPath $mui) { Copy-Item -LiteralPath $mui -Destination (Join-Path $e 'en-US\ocul-pm.exe.mui') -Force }
-    $script:TreeParent = Start-Process -FilePath $parentExe -ArgumentList @('/d', '/c', 'ping -n 600 127.0.0.1') -PassThru -WindowStyle Hidden
-    $ok = Wait-Until -TimeoutSec 15 -Condition {
-        $script:TreeChild = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($script:TreeParent.Id)" |
-            Where-Object Name -eq 'PING.EXE' | Select-Object -First 1
-        $null -ne $script:TreeChild
-    }
-    if (-not $ok) { throw "부모 pid=$($script:TreeParent.Id) 아래에 PING.EXE 가 안 보인다" }
-    "부모 ocul-pm.exe(cmd 사본) pid=$($script:TreeParent.Id) · 자식 PING.EXE pid=$($script:TreeChild.ProcessId)"
-}
-
+# FindProcessCurrentUser/KillProcessCurrentUser 로 찾아 끝낸다. 2026-10-28 PTY 호스트
+# (`--pty-host`)를 걷기 전까지는 여기서 호스트 모양의 프로브 B·C·D·E 로 「같은 이름의 다른
+# 복사본은 사나」까지 캐물었지만, 그 계약을 쓰는 코드가 사라져 이제는 A(설치된 GUI 가 끝난다)만 본다.
 $script:ReinstallLog = ''
 Test-Gate '재설치 (/S) — 실행 중인 앱이 있어도 종료 코드 0' {
     $r = Invoke-Setup $Installer @('/S')
@@ -476,33 +413,15 @@ Test-Gate '재설치 (/S) — 실행 중인 앱이 있어도 종료 코드 0' {
 }
 Test-VcrtSkippedOnReinstall
 
-Test-Gate '재설치 프로브 — 설치된 이미지는 끝나고(A·B), 다른 이름의 복사본은 산다(C) · D 는 관찰' {
-    $state = [ordered]@{
-        A = Test-Running $script:App
-        B = Test-Running $script:Probes['B']
-        C = Test-Running $script:Probes['C']
-        D = Test-Running $script:Probes['D']
-    }
-    $summary = ($state.GetEnumerator() | ForEach-Object { "$($_.Key)=" + $(if ($_.Value) { '살아 있음' } else { '끝남' }) }) -join ' '
-    if ($state.A -or $state.B -or -not $state.C) { throw "기대(A·B 끝남, C 살아 있음)와 다르다: $summary" }
-    $summary
-}
-
-Test-Observe '재설치 프로브 E — 이름이 같은 부모만 끝나고 자식은 사나 (트리째 끝내지 않음)' {
-    if ($null -eq $script:TreeParent -or $null -eq $script:TreeChild) { throw '준비 E 가 실패해 판정 불가' }
-    $parent = if (Test-Running $script:TreeParent) { '살아 있음' } else { '끝남' }
-    $childAlive = $null -ne (Get-Process -Id $script:TreeChild.ProcessId -ErrorAction SilentlyContinue)
-    $child = if ($childAlive) { '살아 있음(고아)' } else { '끝남' }
-    if ($childAlive) { Stop-Tree $script:TreeChild.ProcessId }
-    "부모 ocul-pm.exe=$parent · 자식 PING.EXE=$child"
+Test-Gate '재설치 — 실행 중이던 설치본(GUI)이 끝났다' {
+    if (Test-Running $script:App) { throw "재설치 뒤에도 pid=$($script:App.Id) 가 살아 있다" }
+    "pid=$($script:App.Id) 끝남"
 }
 
 Test-Observe '재설치 뒤 남은 앱 이미지 프로세스' {
-    $rows = @(Get-AppProcesses (Split-Path -Leaf $script:MainExe)) + @(Get-AppProcesses 'ocul-pm-ptyhost.exe')
+    $rows = @(Get-AppProcesses (Split-Path -Leaf $script:MainExe))
     if (-not $rows.Count) { '없음' } else { $rows | ForEach-Object { "pid=$($_.ProcessId) $($_.ExecutablePath)" } }
 }
-
-foreach ($p in $script:Probes.Values) { if (Test-Running $p) { Stop-Tree $p.Id } }
 
 # ── 5. 사이드카 잠금 프로브 — 도는 oculpm-mcp.exe 가 재설치를 막는가 ──────────
 # Claude Code·Codex 는 설치 폴더의 oculpm-mcp.exe 를 MCP 서버로 띄워 둔다. 업데이트
@@ -650,7 +569,7 @@ Test-Observe '제거 뒤 남은 프로세스' {
     # 숨긴 VC++ DLL 이 남아 있으면 되돌린다(5b 가 중간에 터졌을 때).
     if (Get-Command Restore-VcRuntime -ErrorAction SilentlyContinue) { Restore-VcRuntime }
     # 남은 프로세스 정리 — 다음 단계(아티팩트 업로드)가 잠긴 파일에 걸리지 않게.
-    foreach ($name in @('ocul-pm.exe', 'ocul-pm-ptyhost.exe', 'oculpm-mcp.exe')) {
+    foreach ($name in @('ocul-pm.exe', 'oculpm-mcp.exe')) {
         Get-AppProcesses $name | ForEach-Object { Stop-Tree $_.ProcessId }
     }
 }
