@@ -2,12 +2,14 @@
 
 <img src="landing/banner.png" alt="Ocul-PM — Agents write the code. You keep the memory." width="100%" />
 
-<img src="landing/demo.gif" alt="Ocul-PM demo — ask the agent for a change and the work journal writes itself" width="100%" />
+<img src="landing/demo.gif" alt="Ocul-PM demo (3.x screens) — ask the agent for a change and the work journal writes itself" width="100%" />
+
+<sub>The demo shows 3.x screens — the in-app terminal on the right was removed in 4.0; the same thing now happens in your own terminal.</sub>
 
 <h3>Stop re-explaining to your AI where you left off yesterday.</h3>
 
-<p>It gets a person to <b>trust what the agent did, and decide what's next, in three minutes</b>. Journal, diff and plan are the evidence — and the next conversation starts from it.<br/>
-A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI — no server, no account.</p>
+<p>It gets a person to <b>trust what the agent did, and decide what's next, in three minutes</b> — and gets the agent to <b>lay down a verdict first</b>, whatever it starts. Journal, diff and plan are the evidence, and the verdict is not the agent's word but the last line of a check command's output.<br/>
+A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI — no server, no account, and the app never calls an LLM.</p>
 
 [![CI](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bunhine0452/Ocul-PM/actions/workflows/ci.yml)
 [![Latest release](https://badgen.net/github/tag/bunhine0452/Ocul-PM?icon=github&label=download&color=12a06b)](https://github.com/bunhine0452/Ocul-PM/releases/latest)
@@ -31,25 +33,21 @@ A local-first project manager for Claude Code · Codex · Cursor · Gemini CLI �
 
 If you build with AI every day, every morning starts the same way: open a new conversation and explain, from scratch, how far you got yesterday, why you touched those files, and what is still left. When the conversation ends, the context ends with it — the code survives, the context doesn't.
 
-Ocul-PM removes that explanation. Plant a single rules file (`AGENTS.md`) in your project folder and the agent writes a markdown journal entry to `.oculpm/journal/` every time it finishes a unit of work; the next conversation receives those entries and the remaining plan items as its starting context and carries on. The app shows the same record as a timeline, a daily brief and change diffs. Because the source of truth is plain markdown, it commits alongside your code and stays readable without the app.
+Ocul-PM removes that explanation. Plant a single rules file (`AGENTS.md`) in your project folder and the agent writes a markdown journal entry to `.oculpm/journal/` every time it finishes a unit of work; the next conversation receives those entries and the remaining plan — done condition · check command · last verdict — as its starting context and carries on. From that record the app unfolds **only what a person needs to look at**: failed verdicts, entries without command evidence, changes no entry mentions, blocked items, decisions that are yours to make. Work that has its evidence folds to one line. Because the source of truth is plain markdown, it commits alongside your code and stays readable without the app.
 
-There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache, and the only things that leave your machine are **the ones you start yourself** — the LLM API calls you make, update checks, and things that exist only once you turn them on (GitHub fetches when you click, a one-time embedding-model download). The full list, countable for yourself, is at [oculpm.com/privacy](https://oculpm.com/privacy).
+There is no server. Your data lives in the project's `.oculpm/` folder and a local SQLite cache, **the app calls no LLM, and its screens (the webview) reach no outside host.** The only things that leave your machine are the ones you start — the update check, and links you click (your OS browser opens them). The full list, countable for yourself, is at [oculpm.com/privacy](https://oculpm.com/privacy), and the build keeps it honest (`src-tauri/tests/egress_inventory.rs`).
 
-> **The promise is ten sentences** — [docs/PROMISE.md](docs/PROMISE.md) (Korean). One rules file makes the agent write a journal entry, the entry shows up in the app, a diff is attached, unrecorded files are caught, the next conversation picks up where you left off, and the data never leaves your machine. Screens come in three tiers: **core** (Today · Journal · Changes · Planner) is that promise; **viewer** (Search · Discussions · Branch · Skills) opens, shows and does not break; **beta** (Terminal · Editor · Agents · AI panel) exists but is not promised — bugs get fixed, features do not get added.
+> **The promise is ten sentences** — [docs/PROMISE.md](docs/PROMISE.md) (Korean). One rules file makes the agent write a journal entry, the entry shows up in seconds, a diff is attached, Today unfolds only what you need to look at, the next conversation inherits the done condition · check command · last verdict, and the data never leaves your machine. In 4.0 the app is down to five surfaces — **Today · Work Journal · Plan · Diff · Settings** (plus a start window when no project is open). One principle: **show only the exceptions** — the screen grows with what a person must see, not with how much the agent did, so someone with 3 entries a day and someone with 60 use the same screen with no modes. What was removed, and the measurements behind it, are in that document too.
 
-## One round trip — work · first entry · resume
+## One round trip — work · entry and verdict · resume
 
 This one round trip matters more than any feature list. Try it in the project you actually work in.
 
-1. **Work** — ask Claude Code in your terminal for something, the way you always do. Adding the project plants `AGENTS.md`; [two lines in `/plugin`](#the-claude-code-plugin--start-without-the-app) add the hooks and the recording tools.
-2. **First entry** — when the work is done the agent writes its entry, and Today's "First record" card confirms the first entry **of that conversation**. It judges by conversation id, not by total entry count, and it says plainly that a record is not a verification.
-3. **Resume** — open a new conversation the next day and the plugin's SessionStart hook loads the open plan items and the last three entries into the starting context. Today's "Resume" card shows the same material and which conversation it was included in, and "Continue with this context" hands it to the terminal. You don't explain yesterday again.
+1. **Work** — ask Claude Code in your terminal for something, the way you always do. Pick the folder in the app and turn recording on to plant `AGENTS.md`; [two lines in `/plugin`](#the-claude-code-plugin--start-without-the-app) add the hooks and the recording tools.
+2. **Entry and verdict** — when the work is done the agent writes its entry, and with the app open it appears in Journal and Today within seconds. An entry whose verification section has no command and last result line lands in Today's "To check". Running the plan's check command leaves one line, `판정 ✓|✗ <last line of output>` (`verdict ✓|✗` in English), which becomes the "last verdict" right under the plan's title.
+3. **Resume** — open a new conversation the next day and the plugin's SessionStart hook loads the recent plans' done condition · check command · last verdict · open items and the last three entries into the starting context. Plan's [Copy prompt] (`c` on Today) puts a prompt that picks up the next item on your clipboard, and [Copy with until-done] keeps it going until the verdict passes. You don't explain yesterday again.
 
-This round trip was verified on the **terminal Claude Code + oculpm plugin** path. Other agents (Codex · Cursor · Gemini CLI …) do steps 1–2 from the rules file alone and have no step-3 hook — the tier table under [Supported agents](#supported-agents) spells out the difference. The demo above shows steps 1 → 2.
-
-
-<img src="landing/shots/en/08-receipt.jpg" alt="Ocul-PM — Claude Code inside the app, with edit diffs and a turn receipt" />
-<p align="center"><i>A real screen — Claude Code inside the app edited a file, showed the diff, and wrote its own work journal.</i></p>
+This round trip is checked by a person on every release, on the **terminal Claude Code + oculpm plugin** path. Other agents (Codex · Cursor · Gemini CLI …) do steps 1–2 from the rules file alone (Codex has hooks too) — the tier table under [Supported agents](#supported-agents) spells out the difference.
 
 ## Why results get better — a place for the five principles of using agents
 
@@ -57,255 +55,61 @@ How to use a coding agent well is close to settled. [Anthropic's Claude Code gui
 
 | Principle | Source | Where it lives in Ocul-PM |
 |---|---|---|
-| ① Write the spec and a **done condition** before code | Anthropic "write the spec first" | One `**Done when:**` line per plan. The session-start hook ships it before the items, every session |
-| ② Give the agent **something that passes or fails** | Anthropic "something it can run that comes back pass or fail" · Willison "first run the tests" | The plan's `**Check:**` command. The `plan_update` that closes the last item tells the agent to run it and log the result — items done ≠ goal met |
-| ③ Take **the command and its output**, not a claim, as evidence | Anthropic "'All tests pass' tells you very little" | Evidence grades on entries (the shield badge). A verification section with only a command name draws a warning asking for the last result line |
-| ④ Green tests are not a running program — **run it** | Willison "passing tests don't mean the server boots" | The weekly rollup's "Unverified" section — a receipt for someone who doesn't read code, one copy button |
-| ⑤ An **outside judge** decides | Sonar: 96% distrust, 48% always check · METR: feeling ≠ measurement | `/oculpm:redteam` hunts counter-examples before a merge, and Today's promise scorecard puts evidence rate and 7-day rework next to the targets in [PROMISE.md](docs/PROMISE.md) |
-
-What it doesn't give is written down too. Ambition itself is the human's job — Ocul-PM doesn't write the done condition for you and doesn't fabricate evidence. It asks and warns; it never blocks.
-
-## It looks like three tools. It's one app.
-
-### 📓 The journal — recording should be free
-
-The moment an agent finishes, the journal entry is already written — classified as bug/feature/refactor, stamped with which agent ran on which model. The morning Today brief organizes yesterday, and a standup is one button. The rear-view mirror becomes a steering wheel.
-
-<img src="landing/shots/en/02-journal.jpg" alt="Automatic work journal — a timeline of entries by agent and model" />
-
-### 🔍 The verifier — don't trust, look
-
-Review what agents changed as a line-level local diff before you commit — side by side with the journal, so you compare "what it said" with "what actually changed". Files that import what changed are flagged alongside as "affected files".
-
-<img src="landing/shots/en/03-diff.jpg" alt="Change diff — line-level local diff of agent-made changes" />
-
-### 🖥️ The console — the agent, inside
-
-A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as cards, edit diffs render right in them, and approval cards carry the exact command and the change being approved — no more allowing on a title alone. When a turn ends, a receipt remains: "4 tools · 2m 14s".
-
-<img src="landing/shots/en/s2.jpg" alt="Approval card — the diff of the change visible inside the card" />
-
-
-## 🚀 v3.17.0 — From first run to terminal, the whole design
-
-- **One action on first run** — a Start tab with no projects shows only "Add the folder your agent works in". Add one and Today gets a three-step sheet (rules file → plugin → first task) that re-checks the plugin install every 30 s.
-- **Start tab "Where to start today?"** — the top project shows its three latest entries and "Resume with this context"; every row carries evidence · unrecorded · next-up numbers. Unknown values are "—".
-- **Today · Journal · Diff · Planner** — three numbers in the Today header and the resume card in column ③ (with its done condition), a human-check line · a next-action line · a "no evidence" filter on entries, group-by-entry with a verification footer on Diff, a user-owned pill and a change log on plans.
-- **Branch · Discussion · Skills** — the receipt reads as done · outside judges (CI "this app doesn't know") · release-notes draft; option cards and a "Decide" box (reason required); a two-column Skills view.
-- **Terminal (beta)** — a result-line bar with ⇧⌘J "to the verification section" (pre-fills the next entry's ## Verification), an "error entry draft" on failed blocks, a one-line collapsed dock.
-- **Settings › Display** — two density cards, hide individual beta screens, shortcut hints. Second release of the day, shipped without a check day (user decision). Windows and Linux are back.
-
-## v3.16.0 — One app from first-timer to power user
-
-- **Simple / Pro density toggle** — right end of every toolbar, ⌘. to switch, also under Settings › Display. Same screens; only folding, row height and hints change. Data, screen count and shortcuts stay the same. Simple is the default.
-- **Three sidebar tiers = screen tiers** — the four core screens always show; in Simple, Tools and Beta start folded and unfold by themselves when their screen is active. Folded, not hidden.
-- **Today in three questions** — ① what was done ② can I trust it ③ what's next. Side cards fold under "More".
-- **Evidence card on entries** — the verification section's commands and results, with the grade pill, right under the title.
-- **Plan header** — done condition → check command (copy) → items. A plan with every item closed but still open gets an "items done is not the goal met" band.
-
-## v3.15.1 — Records you can trust
-
-- **The app tells you when the plugin is out of date** — the plugin block in Settings shows "installed · bundled", and when the installed one is older, Today shows a card with `/plugin update oculpm@oculpm`. Project-scoped plugins never update themselves.
-- **"Evidence" on journal entries** — entries whose verification section cites a command or gate (83%) are shown as a different fact from a human confirmation (1%): a shield badge on the row, a grade chip in the entry detail.
-- **An inbox for open items in closed plans** — `[ ]` items trapped in done or archived plans appear above the planner; "Carry here" appends them to the selected active plan's "Carried" phase. Originals are untouched.
-- **One name per model** — thirty spellings of the same model collapse to a canonical name in the UI and stats. Entries written without a file list get it from git, tagged `files-inferred`.
-- Entries that break the spec (`type: fix`, unquoted paths) are read anyway, and the incremental index's ghost-row race is closed. ACP adapter 0.97.0.
-
-## v3.14.0 — A one-row terminal, Notion-style markdown
-
-- **Edit markdown in place, Notion-style** — `.md` files on the Code screen and discussion documents open rendered, and `/` inserts headings, to-dos, tables and code blocks. Switch with "Rich / Source" in the path bar. **Blocks you don't touch are saved exactly as they were**, so files you share with agents get no diff noise.
-- **Compare before you choose when an agent edits your file** — "Compare changes" on the conflict banner, "Recreate" for a file deleted outside the editor, and a status-bar note when a clean tab quietly reloads.
-- **The terminal screen lost a row** — a single "Terminal / session" header, font size and line spacing under an `Aa` menu, a status bar that only shows status. The flowing colour line and blinking dots are gone.
-
-## v3.13.7 — Linux builds are back
-
-- **On Linux, journals written by an agent show up right away** — the Linux file watcher missed files created straight away inside brand-new folders (70–87% of 200 in a matching test), so today's first journal stayed hidden until a reload. The app now scans new folders itself. This is why v3.13.6 shipped without Linux builds.
-- **A terminal no longer goes dead when the process holding its shell disappears** — panes that only piled up "input rejected" now show "session ended · restart".
-
-## v3.13.6 — Lighter — five side features retired
-
-- **Five little-used side features are gone** — the mobile bridge (beta), the Code-screen debugger, the Code Map screen, the remote theme gallery and the VS Code extension. The app no longer listens on the network at all, and with Code Map gone the ⌘-numbers from ⌘6 shift by one (Terminal ⌘6 … Skills ⌘0). The Diff screen's "affected files", built-in themes and theme files stay.
-- **A long-running app is quieter** — deleting files no longer makes the watcher rescan its whole cache (measured 16 s → 8 ms), and git worktree copies inside a project stay out of semantic search and local history.
-- **Current-generation default models** (Sonnet 5.5 · GPT-6 Luna · Gemini 3.8 Flash), plugin commands as skills, Tauri 2.12 · updater 2.14 · SQLite 3.53 · security releases of the Claude Code and Codex adapters.
-
-## v3.13.5 — Desktop folders still open in the terminal after an update
-
-- **Fixed `getcwd: Operation not permitted` in the built-in terminal after an update** — the helper process that keeps your shells alive across updates outlived its own executable, and macOS then blocked its access to Desktop and Documents. It now runs from a copy of the app in the app-data folder (same signature, an APFS clone), so the permission stays. If you are seeing this now, close every open terminal and open a new one.
-
-## v3.13.4 — The terminal's bottom line is no longer cut off
-
-- **The bottom of Claude Code's input box is no longer clipped** — the terminal counted its edge padding as usable height, took about one row too many, and that last row was cut off. It now counts only the space inside the padding (the width may come out a few columns narrower too).
-
-## v3.13.2 — Replies from a narrow terminal widen with it
-
-- **Claude Code replies you got in the narrow terminal beside the journal no longer stay narrow on the terminal screen** — the built-in terminal now starts Claude Code in its fullscreen mode, which redraws the conversation at the current width whenever it changes. Nothing is cut off beside the journal, and everything is wide when you come back. Scroll with the wheel · `PgUp`, search with `Ctrl+O`, select terminal text with `⌥`+drag. Applies to newly opened terminals (run `/tui fullscreen` in a running session); `CLAUDE_CODE_NO_FLICKER=0` in your shell config turns it off.
-
-## v3.13.1 — Resizing the terminal does less damage
-
-- **Dragging the dock to its minimum no longer folds the terminal to two columns** — when it did, the scrollback was cut and the lines Claude Code reprinted at that width stayed broken after widening. Below 20 columns · 4 rows the size now stays put. While you drag the dock or split handle the shell is not told the new size; it hears once, when you let go (lines Claude Code prints while you keep it narrow are broken by Claude Code itself and stay that way).
-- **Terminals you can't see release their graphics memory after 15 seconds** and come back when shown. The error on every quit that could leave language servers running is fixed.
-- **Semantic search is faster** — vector slots that piled up empty on every save are packed during indexing (128ms → 13ms on a real copy). Files from deleted folders no longer linger in search, and a `.gitignore` created after launch takes effect without a restart.
-
-## v3.13.0 — Your plans on a Claude board; Notion retired
-
-- **One `/oculpm:board` puts your active plans on a private claude.ai board** — run it again to refresh, and follow progress from your phone or another machine. The board is read-only; the source stays in `.oculpm/planner/`. The app builds what gets uploaded and masks anything that looks like a secret first. Agents reading plans (`plan_status`) now get the same masking.
-- **The Notion integration is gone** — the board covers viewing plans from elsewhere. On first launch after the update the leftover Notion token is removed from the keychain, and the app now has five kinds of outbound connection.
-- **Code search no longer drowns in data files** — tables, record files, large `.json` · `.txt` and `vendor/` are no longer indexed, and duplicate chunks of the same file (17.8% of a real database) no longer pile up.
-
-## v3.12.0 — See terminal image paths on hover
-
-- **Hover an image path that Claude Code printed and the picture appears right there** — before, a line like `› [image] /private/tmp/…/x.png (1.9MB)` meant digging through a hidden temp folder in Finder. Now a card shows the image, its name and size, and a click opens it large. If a narrow terminal splits the path across two lines, either line shows the same image.
-- **Only real images open** — the file may live outside the project (an agent's temp folder), but a renamed non-image, a folder, or anything over 16MB is refused with the reason. The image is drawn inside the app only. Applies to terminals opened after the update.
-
-## v3.11.0 — Repository code runs only after you trust it
-
-- **In-app Claude Code · Codex now start only in projects you trust** — the in-app agent runs the repository's `.claude/settings.json` hooks and `.mcp.json` servers as-is, and unlike the CLI it never asked whether you trust the folder. It now asks "Trust this project?" first and lists the settings files that can run code. It is the same trust as language servers, so projects you already trusted in v3.10 start as before.
-- **Three more ways a repository could pick commands before you trust it are closed** — automatic git on the Today and Changes screens following `.git/config` fsmonitor · filters · external diff and `.git/hooks`, plugin installs fetching a different bundle than the one previewed, and a theme link shape that slipped past the host check. A paired phone can no longer read `.env` or key files either.
-- **New windows no longer miss what already happened** — a running work session, a tab's busy dot, an automation's "running" state and language-server status showed wrong in a freshly opened window. Closing a tab or quitting now stops language servers and debuggers, and a database that won't open shows the reason and offers "Start fresh" instead of quitting silently.
-
-## v3.10.1 — The trust prompt now shows up
-
-- **The Code screen's "Language server off · Trust and turn on" chip never appeared** — opening a file didn't show it, so autocomplete and diagnostics looked switched off for no reason. Opening a file now puts the chip in the status bar; one click turns the language servers on (also in Settings → Code).
-
-## v3.10.0 — Language servers wait for your trust, a rebuilt discussion editor
-
-- **Opening a file no longer runs the repository's code** — language servers (rust-analyzer and friends) execute a repository's build scripts, macros and toolchain settings. They now start **only after you trust the project on this device** (the status bar's "Trust and turn on"; revoke in Settings → Code). Projects you already use need that one click after updating.
-- **Two leaks and the remains of deleted files** — code snippets the AI panel attaches as context are masked before they leave, and `.env`, keys and credential files are never indexed, whatever `.gitignore` says. Files deleted while the app was closed (11% of the index) are swept against the disk at launch. Consent for background automation is tied to the switches and instructions you saw, so later changes ask again — and you can revoke it.
-- **The discussion editor, rebuilt** — no autocomplete popping up while you write; fixed text cut off in wide windows and drafts lost when you visited another screen. A centered column in the body font, an outline that tracks your section, a status bar with section and character counts, and side-by-side view that scrolls by section.
-
-## v3.9.0 — A sealed project boundary and slimmer headers
-
-- **A symbolic link planted in a repository can no longer reach outside the project — anywhere in it.** v3.8.0 only closed this inside `.oculpm/` and for editor saves. Now the rule files the app syncs on every open (`AGENTS.md`, `.claude/CLAUDE.md`) and the `.gitignore` block are left alone when they are links (before, the link target's contents were copied into the project, or written into your global Claude instructions in your home folder), and the external editor, previews, the Changes screen, indexing and local history all resolve links to the end before touching a file.
-- **Two ways secret masking could switch off are closed** — the built-in patterns now apply even when a project's config can't be read, and the `CHANGELOG.md` that release-notes drafts read for style is masked before it is sent. A journal's recorded changes no longer read files outside the project, and opening local history no longer hangs on a malformed record.
-- **Slimmer screen headers** — height 52 → 44 px, title 17 → 14 px, content sheet corners 20 → 12 px. The editor's right-click menu and autocomplete no longer render larger than the code beside them.
-
-## v3.8.0 — Safe to open someone else's repository
-
-- **A repository's settings alone no longer run background AI work** — auto-reconcile, journal auto-drafts, schedules and watchers run only once this device allows them (turn the switch on in Settings, or allow it from the card on Today). Projects where you had them on need one click after updating.
-- **Secret masking is broader and can't be switched off by config** — GitHub, GitLab, Stripe, Google and npm tokens, JWTs, private keys, connection strings and `.env`-style secret lines are always masked, and masked **before** anything goes to a background model. A symbolic link planted in a repository can no longer redirect a save outside the project, and the filesystem root or home folder can't be added as a project.
-- **A Content Security Policy for the app window** — the window runs only the app's own files and loads no remote images (zero violations on every screen, checked in the real Windows and Linux apps each release). The agent adapter installs only from a version- and hash-pinned list, dangerous permission modes ask once more, and connecting Notion no longer leaves a token in your browser history.
-
-## v3.7.0 — Sessions retired, loose wires connected
-
-- **The Sessions (agent-to-agent) screen is gone** — its surface outgrew its use. The sidebar's Agents row now has two branches, Claude Code and Codex; the agent-facing MCP tools shrink to seven (journal · plan · start tracking), and tracked projects' AGENTS.md drops that section too.
-- **Two features that were never wired up** — breakpoints vanished from a file you renamed or moved in the editor, and the notice for a repaired journal record file could never appear.
-- **Removed projects left their records in the database** — they are now deleted with the project, and this update sweeps the roughly ten thousand rows already left behind. Warnings written twice to the log, an index warning on every PDF change, and internal work notes and half-English labels leaking into Settings are fixed as well.
-
-## v3.6.0 — Windows · Linux beta
-
-- **Now on Windows and Linux (beta)** — a Windows 10 2004+ / 11 (x64) installer and Linux x64 AppImage · deb. With no such machines on hand, every release has CI runners install → launch → walk fifteen screens · Korean terminal input · journaling · **the in-app update (older build → new build → relaunch, bad signatures refused)**, and only OSes that pass ship. macOS updates stay separate from all of it. Install notes are under [Install](#install).
-- **Windows is an unsigned beta** — SmartScreen "More info → Run anyway"; the installer adds the VC++ runtime first if it is missing and stops with an explanation below Windows 10 2004. Updates keep your terminal sessions, and closing a session leaves window programs you launched from the shell running (as on the Mac).
-- **Plan edits that touched the wrong line — every OS** — a `{#…}` inside a title stealing the item id, adding to an anchored phase creating a duplicate phase, and a phase named "Decisions" being able to delete the decisions section or hide its items. Plans and rollups checked out with CRLF are read and written with their line endings intact.
-- **Claude Code · Codex adapters 0.81.0 · 1.13.0** — the "may not be complete" line that sat under every turn now appears only on a real mismatch, and the shell approval card no longer shows the command twice. Also: new projects default to the system time zone, adding a project no longer indexes twice, and fast terminal keystrokes keep their order.
-
-## v3.5.0 — links that went nowhere and what deletion left behind
-
-- **Links that did nothing when clicked** — terminal hyperlinks and URLs in the editor body fell through to browser defaults the webview blocks, so a ⌘click quietly did nothing. Outbound links now go through one path and open in your default browser.
-- **Typing Korean made the terminal erase and rewrite** — every committed syllable sent a delete plus the same character again, and that round trip tripped the "committed but no echo" diagnostic on normal input, filling the log (4 MB a week). All 150 collected traces were counted to confirm no characters were lost; the delete half of the commit pair is now deferred.
-- **What deleting a project left behind** — its tab stayed in the strip as a number and failed when clicked, and the delete itself waited on a database rebuild, freezing the app for seconds. Tabs and detached terminal windows now close before the row is removed, and the compaction runs behind it.
-- **The confirm dialog was redesigned** — it lists what is about to end, and Enter now confirms it. Four places in Settings crashed when opened from the Start tab, and symlinks pointing outside the project looked like ordinary files in the code tree; both are fixed.
-
-## v3.4.0 — first record and resume
-
-- **Whether the first entry landed is now judged per conversation** — a project with zero entries gets a "First record" card that moves through ready → in progress → that conversation's first entry → ended without one → unattributed, keyed by the conversation id. Backfills and a neighbouring conversation's entries never count as success, and the card says recorded is not reviewed. Nine first-five-minutes strings were aligned with what actually happens.
-- **The next session picks up where the last one stopped** — the plugin's SessionStart hook now carries the last three journal entries after the active plan items into the session-start context and writes one ledger line. Today's "Resume" card shows the same material and which conversation it was delivered to (and says it cannot know whether it was referenced or helped).
-- **Finding, linking and grouping 700 entries** — `journal_search` answers from the SQLite cache with relevance ranking (132→25 ms), a Journal scope on the Search screen, related-entry suggestions with one-click linking, a tag dictionary and clean-up sheet, a weekly rollup layer, hotspot and velocity cards, an unreviewed queue, plan-log archiving, index usage clean-up.
-- Two leaks into hidden project tabs — terminal ⌘D splitting background tabs, and the new-entry toast's Open landing on another project's screen.
-
-## v3.3.0 — a supervisor's false alarm and look-alike plans
-
-- **Running two instances made healthy watchers get cut and revived over and over** — each time a project lock moved to the new instance the supervisor woke immediately and judged a probe it had planted half a second earlier as "deaf" (52 times in two minutes). The hand-over wake now only yields locks, and a probe younger than 20 s is never judged.
-- **`plan_create` points at look-alike active plans** — when an active plan with an overlapping title or id exists it refuses and returns that plan's id, title and hash so items go there instead (`allow_similar: true` overrides). Locked plans are never candidates.
-- The Today headline's detached Korean particle, the Branch screen showing an error card for non-git projects, and the Search empty state gaining an icon and title.
-
-## v3.2.2 — Korean file names and seventeen quiet defects
-
-- **Non-ASCII file names came out of git octal-escaped** — backfilled journals' `files_touched`, the branch screen's file attribution, and journal diff capture (the quoted header went unrecognized, so that file's diff was dropped) all come back as the real file name now.
-- **A hand-edited `config.toml` missing one key invalidated the whole project** — missing values are now filled from the new-project defaults.
-- Secret masking leaving the tail of an overlapping match, an indexing panic on non-ASCII session ids, the settings screen rewriting the config on every open, stale responses overwriting the palette and plan screens, tray popover partial failures and sort order, double-click on a tab's ×, `[object Object]` in logs — seventeen fixes in all.
-
-## v3.2.1 — menu bar clicks and deleted folders
-
-- **On macOS 27, clicking the menu bar icon opened the "Open / Quit" menu instead of the status popover** — this OS intercepts left clicks too whenever a menu is attached to a status item. The menu is now attached only for the instant of a right click, so left click is the popover and right click is the menu.
-- **Deleting a project folder in Finder while the app was running brought back an empty folder** — the file events from the deletion started a session, and writing that session recreated `.oculpm/index/` in the deleted spot. When the root is gone the watcher now drops the events and the index refuses to recreate anything.
-
-## v3.2.0 — a review is bound to the content
-
-- **"Verified" on a journal entry is now a promise, not a switch** — the mark is stored with a fingerprint of the body you verified; if an agent edits the body afterwards, the ledger row and the reading pane show **"Changed after review · re-check"**, and the "verified only" filter and change-review groups stop counting it as verified. Entries verified before 3.2.0 are honoured as-is.
-- **Two processes could overwrite the same entry** — when the app and the MCP server (or two parallel agent sessions) wrote an entry with the same minute, type and title, the later one could silently replace the earlier one (an 8-process reproduction kept 3 of 24). New entries are now created exclusively. A slow process deleting another's lock after being reclaimed is closed too (locks are owned by a nonce, not a path).
-- **Diagnostics tab "Watcher metrics"** — events, drops, queue depth, handling time. First measurement: of the 3.6 s it takes to settle after a branch switch, actual handling is 32 ms.
-- **Agent support in four honest tiers** — see "Supported agents" below. Tiers were read from the code; the "Verified" column lists only what the changelog and journals record as actually run.
-- **Releases are published only after verification** — the tag's commit must have a green CI run, the release is built as a draft, and it is published only after code-signing, notarization and updater-signature checks pass. 3.1.1 went out from a commit whose dependency audit was red; the machine now blocks that.
-- Internals: the seven largest files (over 800 lines) split by responsibility (37 → 26 files over the limit), AI panel context assembly 4 → 2 sequential round-trips, extension unit tests in CI.
-
-## v3.1.1 — macOS 27 menu bar icon restored
-
-- **After updating to macOS 27 the Ocul-PM icon vanished from the menu bar** — not folded behind `«`, just gone. macOS 27 ties each status item to the process identity captured at launch, and this app re-launched itself right after start to apply its memory tuning (idle 645MB → 38MB), so the system no longer recognised it as "that app". The bundle now injects the same tuning at process creation, so nothing re-launches and the icon stays put. Nothing changes on macOS 26 and earlier.
-- **Claude Code adapter 0.77.0** — the bundled Claude Code updates with it. Approvals the CLI marks "default to no" (delete-class commands, publishes) now list the decline buttons first, and account-verification / cloud-credential failures are distinguished from login failures.
-
-## v3.1.0 — the quiet failures speak up
-
-- **The installed app grew past 2GB after a day — fixed on Sep 12, never shipped.** The four commits (embedding arena 2.2GB → 940MB · vector table rebuild · unloading the model when idle 645MB → 38MB) sat on a branch outside 3.0.x. 3.1.0 ships them, and the index stops keeping copies of files git already has.
-- **A retired default model failed silently for three weeks.** The background overview job now toasts on failure (once an hour per model) and stops retrying the same input; the model field in Settings warns when the name isn't in the provider's list.
-- **oculpm tools showed up twice inside Claude Code sessions** (the app's server plus the plugin's). Inside an app-hosted conversation the plugin copy now offers no tools, so entries keep their session identity.
-- Fixes: the VS Code Marketplace link in Settings led to a 404 (not published there yet — Open VSX only) · terminal color codes in the log file · build artifacts logged as warnings when skipped.
-
-## v3.0.1 — the journal reading pane scrolls again
-
-- **Opening a journal entry didn't scroll and everything below the fold was cut off** (3.0.0). The flex wrap meant for narrow windows let the reading pane grow to the length of the body — both panes now have a pinned height.
-
-## v3.0.0 — only what we looked at ships
-
-- **3.0 is an inspection release.** Seven releases (2.42–2.48) had left twenty-one lines of "seen in the harness, not on a real device" in the plan. We cashed them out — light/dark × five presets × six screens photographed, tab drag / PTY survival / mixed DPI / the wizard / English mode pressed by hand. What that turned up is below.
-- **The Claude Code usage card says who it's running as** — "Claude Max · subscription · email". When logged out, the meter now stands as a **"Login needed"** pill even with no limits (it used to just vanish). Adapter 0.76.0.
-- **Context compaction in its own shape** — "Context compaction · 128k → 42k tokens (−67%) · manual · 2.3s".
-- **English mode** — a 15-screen render suite plus four things caught by eye (a unit, a plural, a header wrapping at the minimum window, the search box crushed to one character, the toolbar date). The English landing screenshots were retaken in English.
-- **Fixed** — a second "Today" toolbar stacked over the Claude Code/Codex screens · opening and closing the wizard left a "New project" draft behind · the two ACP screens had no title · disabled buttons with no reason: **0**.
-
-## Earlier releases at a glance — v2.5 through v2.48
-
-The per-release narrative that used to live here has moved to the [web changelog](https://oculpm.com/changelog) and [CHANGELOG](CHANGELOG.md). Below, what those forty-odd releases left behind, one line per theme.
-
-- **The Code screen became an IDE** (2.13 → 2.47) — starting from an in-app editor, then LSP code intelligence · tabs and side-by-side splits · a DAP debugger · project-wide search & replace (⇧⌘F) · image/PDF preview · drag from Finder and ⌘V · autosave and local history · a problems panel, and finally the core swapped for **Monaco** (VS Code's editor) with ⌘P quick open · git status colours · symbol breadcrumbs · ⌘K edit-by-instruction.
-- **Terminal** (2.10 → 2.47) — the ⌘J dock · a vertical session rail · drag to split · tabs between windows · command blocks and "journal this right here" · agent-waiting detection · a colour per terminal · pane headbands and recent-command pips. Making **an app update not kill your sessions** took three tries (2.19 · 2.34.1 · 2.35) — the last one stuck. The Korean IME bugs (space, backspace, cursor keys mid-composition) were closed in the same era (2.13.x).
-- **Agents run inside the app** (2.10 → 2.45) — Claude Code driven directly over the Agent Client Protocol, several conversations per project, import of past conversations, diffs inline in approval cards, a usage card, and **Codex** in the same seat (2.39 — one MCP registration per machine, the session picks the project). Four agents look like four (2.40). Agent-to-agent collaboration (A2A, 2.37–2.38) was later removed — its surface outgrew its use.
-- **The record actually survives** (2.23 → 2.45) — watch automations that record when your hands stop, with provenance badges (2.27), scheduled self-review (2.26), the miscounted "session ended without a journal" and the lost write when two sessions edit the same plan (2.43), and plans with open items that refuse to close (2.45). The context budget became honest (2.29 · 2.36) and skills & rules answer **when they fire**, in one screen (2.24 · 2.26 · 2.45).
-- **Windows and screens** (2.9 → 2.47) — Chrome-style tabs and tear-off (2.9), tabs into real windows (2.24) and back (2.25), a first-run wizard and settings as one document (2.30), the Branch and Sessions screens (2.40 · 2.44), the Retro and Docs screens removed (2.46). Planner, journal, start tab and sidebar went from piles of cards to **ledgers** (2.47).
-- **Design and themes** — themes became files you can export and import, one per project (2.28). The "made by AI" look was removed (2.33), the same code no longer changes colour between screens (2.44), and a disabled button says **why** (131 → 10 places, 2.45–2.47).
-- **Structure and honesty** (2.41 → 2.44) — errors first (⌘W killing a running agent without asking; one screen failing without taking the app down), the loads that froze the app — a big paste, indexing, settings saves — measured and removed (2.42), and a link with Korean in it or a README over 24KB halting the app, fixed by counting characters as characters (2.44.1). Outbound connections are counted by the repository itself (2.43).
-- **And** — a phone web app (mobile beta, 2.18, removed later) · English UI and a skill shop (2.8) · a changelog and a privacy ledger on the web (2.31) · signed and notarised builds that open straight from the download (2.45) · the Claude Code plugin (2.5, section below).
+| ① Write a **done condition** as an outcome before code | Anthropic "write the spec first" | One `**Done when:**` line per plan — not a to-do, but "what must be true to be done, and what should happen next". The session-start hook ships it before the items, and the Plan screen shows it right under the title |
+| ② Give the agent **something that passes or fails** | Anthropic "something it can run that comes back pass or fail" · Willison "first run the tests" | The plan's `**Check:**` command. Its result is logged as `verdict ✓|✗ <last line>` and the start hook and the Plan screen read the "last verdict" by the same rule — all items closed is not done until the verdict passes. `/oculpm:inception` makes that command in the first item and shows it red now |
+| ③ Take **the command and its output**, not a claim, as evidence | Anthropic "'All tests pass' tells you very little" | The entry's verification section. An entry with no command evidence lands in Today's "To check", and the verification box in Journal calls it "a claim" |
+| ④ Green tests are not a running program — **run it** | Willison "passing tests don't mean the server boots" | Rules template v20, "the verdict comes from something that isn't you" — if there's no check command, make one first; even when green, launch it and use it once if you can. Failures get an error entry too |
+| ⑤ An **outside judge** decides | Sonar: 96% distrust, 48% always check · METR: feeling ≠ measurement | `/oculpm:redteam` hunts counter-examples before a merge, and the line at the top of Today shows, every day, the share of entries with outside-judge evidence — the target is a number in [PROMISE.md](docs/PROMISE.md) (97%) |
+
+What it doesn't give is written down too. Ambition itself is the human's job — Ocul-PM doesn't write the done condition for you and doesn't hand down the verdict. It asks and points; it never blocks.
+
+## 🚀 v4.0 — Five surfaces, exceptions only
+
+- **Five surfaces left** — Today · Work Journal · Plan · Diff · Settings. The Search, Discussions, Branch and Skills & Rules screens, the menu-bar tray, the new-project wizard and theme presets are gone, and the in-app terminal · editor · Claude Code/Codex screens · AI panel removed on 2026-10-28 leave with this release. Journal search lives in Work Journal (`/`).
+- **Exceptions only** — Today unfolds only "To check" (failed verdicts · entries without evidence · unrecorded changes · blocked · decisions · a new plugin version) and folds work with evidence into one line per plan. 3 entries a day or 60, it's the same screen; the simple/pro density toggle is gone.
+- **Last verdict** — log a check command's result as `verdict ✓|✗ <last line>` (`판정` in Korean) and the start hook and the Plan screen read it by the same rule. It shows done condition · check command · last verdict right under the title.
+- **The app calls no LLM** — summaries · weekly rollups · release-note drafts · plan AI refresh · API-key settings · automation are gone. Semantic code search and indexing are gone too (on one install, 358MB of an 837MB database was that index); the first launch after updating drops those tables (keeping an `ocul-pm.db.bak-v42` copy first). Screens reach no outside host. The agent does the thinking; the app shows the evidence, deterministically.
+- **One window = one project** — no Chrome-style tabs or tear-off; your OS switches windows. ⌘O recent projects · ⇧⌘N new window · ⌘W close window · ⌘K screens, projects, entries and plans. On macOS closing the last window keeps the app alive, and a Dock click reopens one.
+- **On the agent's side** — rules template v20 (done conditions as outcomes · the verdict comes from something that isn't you · raw material and an expert's tools · hard numeric goals are normal · record failures too). `/oculpm:inception` goes through "what happens next" and four depth questions and lays a red verdict down as the first item; `/oculpm:next` claims its item as `[~]` first and, with `until-done`, keeps going until the verdict passes.
+- Your `.oculpm/` files (discussion documents included) are never deleted.
+
+## Earlier releases at a glance
+
+The per-release narrative is in the [web changelog](https://oculpm.com/changelog) and [CHANGELOG](CHANGELOG.md). Below, one line per theme — many of these screens were removed on 2026-10-28 and in 4.0; the reasons are in [PROMISE.md](docs/PROMISE.md).
+
+- **Records you can trust** (3.2 → 3.17) — a review is bound to the content it saw (3.2), two processes can no longer overwrite the same entry (3.2), an "evidence" grade on every entry and a plugin-version check (3.15.1), done condition → check command at the head of every plan (3.16), a start hook that hands the last entries to the next session (3.4), and finding and linking at 700 entries (3.4).
+- **Safe to open someone else's repository** (3.8 → 3.11) — repository settings alone never start background work, secret masking is always on, symlinks can't reach outside the project, a CSP on the screens, and repository-chosen commands run only after you trust the project.
+- **Windows · Linux beta** (3.6 → 3.13.7) — only OSes whose build passes install → launch → real-app E2E on CI runners ship. Releases go CI-green tag commit → draft → signature, notarization and updater-signature checks → public (3.2).
+- **Shrinking** (3.7 → 3.13.6) — the Sessions (A2A) screen (3.7), Notion (3.13), the mobile beta · debugger · Code Map · remote theme gallery · VS Code extension (3.13.6).
+- **v2.5 → v2.48** — the Claude Code plugin (2.5), English UI (2.8), Chrome-style tabs (2.9), in-app editor · LSP · debugger · terminal · in-app agents (2.10 → 2.47), theme files (2.28), a web changelog and privacy ledger (2.31), removing the "made by AI" look (2.33), the repository counting its own outbound connections (2.43), signed and notarised builds (2.45). Most of that era's side screens were removed in later releases.
 
 ## Screens
 
-The `core` · `viewer` tag after each screen is its tier in the [promise document](docs/PROMISE.md). The beta tier (terminal · editor · in-app agents · AI panel) was removed on 2026-10-28 — agents run in your own terminal, the app keeps the record, the evidence and the plan.
+The 4.0 app has five surfaces. One principle — **show only the exceptions.** Screenshots are being retaken (the pictures on the landing page and wiki today are 3.x screens).
 
-- **Today** `core` — everything that changed today, organized by workday: the commit graph, uncommitted changes, and an honesty audit that catches files agents modified but never journaled. "Copy standup" puts yesterday-to-today into your clipboard as shareable text.
-- **Journal** `core` — the timeline of what your agents did. Each entry shows which agent ran on which model, and keeps the change diff from that moment. Repos with no journal history can be backfilled from git in one pass.
-- **Discussions** `viewer` — the step *before* deciding what to do: define the problem, compare options, reach a conclusion — written in place, Notion-style (source editing stays) — then promote it to a Planner document with one click.
-- **Planner** `core` — living plan documents. Every item links to the journal entries that touched it, and an opt-in auto-reconcile keeps plans in sync as new journal entries arrive.
-- **Changes** `core` — review what agents changed, offline. `j`/`k` moves between files, `/` searches inside the diff, and it follows the files that import each change to show how far its impact reaches.
-- **Branch** `viewer` — "what happened on this branch." Commits, journal entries, plan items and changed files under one coordinate, with a **recorded rate** and the changes that still have no entry. Exportable as a single markdown page — it exports, and sends nothing anywhere.
-- **Search** `viewer` — three modes: semantic (local embeddings), symbol (AST), and text (exact match). (Still findable in ⌘K under its old name, Code Search.)
-- **Skills & rules** `viewer` — manage Claude Code skills (`.claude/skills/`) and rules (`.claude/rules/`, `CLAUDE.md`) in **one screen with three zones**: a **context budget bar** saying how much goes in per session, one merged list sorted by how often each fires (zero firings in 30 days and disabled skills demote into a collapsed *dormant* section), and a proposal inbox. Create and edit them in a GUI, and copy them between a project and your global `~/.claude/skills`. Disabling a skill doesn't delete it — it moves to `.disabled/` and simply drops out of loading. "Add" installs vetted third-party skills matched to your stack, 25 of them, and **rules that don't belong to this project** are flagged by two deterministic signals with prescriptions to narrow, clean up or fix a trigger. Rules and skills can also be created straight from a journal entry, a diff, a terminal block, Today or ⌘K.
-⌘1–⌘8 jump between screens (Search ⌘5 · Skills ⌘6 · Discussions ⌘7 · Branch ⌘8), the ⌘K palette opens journals, plans, discussions and docs by title, ⌘P switches projects, and ⌘⇧M opens project management. Windows and tabs: ⌘T new tab · ⌘W close tab · ⇧⌘N new window · ⇧⌘W close window · ⌃Tab · ⌘⌥←→. **Drag** tabs to reorder, tear one out into its own window, or drop it on another window's tab row to merge — **right-click** (Shift+F10 from the keyboard) offers the same moves as a menu.
+- **Today** (⌘1) — one line at the top (entries · outside-judge evidence and its share · sessions · to check), then **"To check"**: failed verdicts · entries without command evidence · changes no entry mentions · blocked items · decisions that are yours · a new plugin version. When it's empty, one calm paragraph. Then "Done today", grouped by plan, where a group whose evidence is complete folds to one line; on the right, who is working now · plans (progress · verdict ✓/✗/none) · next. `j`/`k` to move · `v` mark checked · `c` copy the next prompt.
+- **Journal** (⌘2) — a list on the left (by date · type · evidence chip) and the detail on the right (summary → verification box → inline diff per recorded file → related entries). The verification box shows the command that ran and its last result line, and calls it "a claim" when there's no command evidence. Journal search (`/`) lives here — titles · files · tags · body.
+- **Plan** (⌘3) — `.oculpm/planner/*.md` is the source. Right under the title: done condition · check command · **last verdict** ("Not run yet" when there is none), the next item with [Copy prompt] · [Copy with until-done], and items by phase. Click an item's box to change its status. Creating and editing plans is the agent's job (`plan_create` · `plan_update`).
+- **Diff** (⌘4) — uncommitted / last-commit diffs, offline, line by line. **"Unrecorded"** (files no journal mentions) comes first, the rest grouped by entry ("In journal"). An unrecorded file gets [Copy record request] (text to paste to your agent) and [Record it myself]. Unified / split.
+- **Settings** (⌘,) — one page: agent connection (Claude Code plugin · Codex · agents that use the rules file only) · this project (rules-file version · turn recording on) · display (language · light/dark/system · text size) · data (compact cache · rebuild · updates · log folder).
+- **Start window** — a window with no project: recent projects and, the first time, three steps (pick a folder → turn recording on → copy the plugin install command).
 
-Pick your UI language — **한국어 · English** — in Settings → Appearance. The language your AI writes documents in (journals, discussions, plans) is a separate setting that defaults to following the UI.
+One window is one project. ⌘1–⌘4 switch screens, ⌘K finds screens · projects · entries · plans, ⌘O opens recent projects, ⇧⌘N a new (start) window, ⌘W closes the window, ⌘[ / ⌘] go back and forward between screens. Another project is another window; picking a project that's already open brings its window forward. Pick your UI language — **한국어 · English** — in Settings → Display.
 
 ## Supported agents
 
-"Supported" hides three different promises, so we split them into tiers (the in-app tier 4 went with its screens on 2026-10-28). The tiers are read from code, not from marketing copy — the rules-file adapter table (`src-tauri/src/oculpm/agents/`), the MCP registrars (`oculpm/mcp/register.rs` · `mcp/codex.rs`), the hooks (`plugin/*/hooks/`).
+"Supported" hides three different promises, so we split them into tiers. The tiers are read from code, not from marketing copy — the rules-file adapter table (`src-tauri/src/oculpm/agents/`), the MCP registrars (`oculpm/mcp/register.rs` · `mcp/codex.rs`), the hooks (`plugin/*/hooks/`).
 
 | Tier | What it means |
 |---|---|
 | **1 · Rules-compatible** | Ocul-PM only writes the rules file that agent reads (`AGENTS.md`, a `.claude/CLAUDE.md` block, `.cursor/rules/*.mdc`, `GEMINI.md` …). Journals get written only as far as the model obeys the rules. |
-| **2 · Structured journaling** | The agent can call the `oculpm` MCP server's tools (`journal_write` · `plan_update` …), and Ocul-PM registers that server for it. |
+| **2 · Structured journaling** | The agent can call the `oculpm` MCP server's tools (`journal_write` · `plan_update` …). The plugin registers the server (Claude Code) or walks you through it (Codex). |
 | **3 · Session observation** | Ocul-PM receives session start/stop through hooks and can tell when a conversation ended without a journal (the Stop delivery gate · `sessions.json` · the verdict). |
 
 | Agent | Tier | What Ocul-PM does | Verified |
 |---|---|---|---|
-| **Claude Code** | 3 Session observation | hooks (plugin or `.claude/settings.local.json`) · `.mcp.json` MCP registration · `AGENTS.md` + `.claude/CLAUDE.md` block | v3.0.0 · 2026-09-11 |
-| **Codex** | 3 Session observation | Codex plugin hooks · `~/.codex/config.toml` MCP registration · `AGENTS.md` (native, no dedicated file) | v2.37.0 · 2026-09-03 |
-| **Claude Desktop** | 2 Structured journaling | MCP server registered in `claude_desktop_config.json` — no hooks, no rules file | — (shipped v2.2.0 · no live-connection record) |
+| **Claude Code** | 3 Session observation | the oculpm plugin (hooks · MCP tools · skills) · `AGENTS.md` + `.claude/CLAUDE.md` block | v3.0.0 · 2026-09-11 |
+| **Codex** | 3 Session observation | the Codex plugin (hooks · guidance for the `~/.codex/config.toml` MCP registration) · `AGENTS.md` (native, no dedicated file) | v2.37.0 · 2026-09-03 |
 | **Gemini CLI** | 1 Rules-compatible | `AGENTS.md` + `GEMINI.md` block | — |
 | **Cursor** | 1 Rules-compatible | `.cursor/rules/ocul-pm.mdc` | — |
 | **GitHub Copilot** | 1 Rules-compatible | `.github/copilot-instructions.md` block | — (shipped v2.0.0) |
@@ -319,9 +123,9 @@ Pick your UI language — **한국어 · English** — in Settings → Appearanc
 How to read it:
 
 - **Verified** is the latest evidence in this repository's own `CHANGELOG.md` and `.oculpm/journal/` that the tier **actually ran** (app version · date). `—` means the code exists but there is no on-device record; "shipped" in parentheses is the version the CHANGELOG lists the feature under. No dates or versions were invented.
-- `AGENTS.md` is always planted when you add a project; the other rules files are switched on in Settings → Agents (the detect button suggests candidates). If you're on a tier-1 agent, glance at Today's honesty audit now and then — files edited without a journal show up there.
-- Not yet seen on a real machine: a live Claude Desktop connection. The code exists, and for that reason it did not raise a tier in the table.
-- **Platform**: official builds are macOS Apple Silicon plus Windows x64 and Linux x64 as a **beta** (see [Install](#install)). The evidence in the table comes from the macOS build — every Windows/Linux release has passed an install smoke test and a real-app E2E run on CI runners, but reports from real users' PCs are still accumulating, so they stay beta. Intel Macs are on hold because the embedding runtime (ONNX) has no x86_64 prebuilt.
+- `AGENTS.md` is always planted when you turn recording on. If you're on a tier-1 agent, glance at Today's "unrecorded changes" now and then — files edited without a journal show up there.
+- One-click MCP registration for Claude Desktop was removed in 4.0 (it never had a single live-connection record).
+- **Platform**: official builds are macOS Apple Silicon plus Windows x64 and Linux x64 as a **beta** (see [Install](#install)). The evidence in the table comes from the macOS build — every Windows/Linux release has passed an install smoke test and a real-app E2E run on CI runners, but reports from real users' PCs are still accumulating, so they stay beta. There is no Intel Mac build yet.
 
 Git backfill tells agents apart by commit signatures.
 
@@ -341,7 +145,13 @@ codex plugin marketplace add bunhine0452/Ocul-PM
 codex plugin add oculpm-codex@oculpm
 ```
 
-One plugin configures, across all your projects: a **hooks bridge** (session start/end as real-time signals — one local file append, no network), **7 MCP tools** (`journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` — agents record through structured tools instead of imitating markdown, eliminating frontmatter errors, and search the hundreds of accumulated entries *before* starting work: one query tells you why that file was touched before), and **4 commands + 1 skill** — `/oculpm:inception` (research → spec → a plan with a done condition and a check command) · `/oculpm:next` (one item: implement → check command → entry → plan) · `/oculpm:redteam` (runs the claims, reports only counter-examples) · `/oculpm:help`, plus the recording-spec skill for when the tools are absent. The seven that overlapped (self-audit · run-evals · tdd-workflow · standup · board · project_init · project-inception) were removed on 2026-10-28. It only acts in `.oculpm`-tracked projects and never touches untracked repos — see the [full read/write contract](docs/claude-integration/06-plugin-contract.md). Note it is an either/or with the app's per-project hook/MCP registration (the settings screen warns about double registration).
+One plugin configures, across all your projects:
+
+- **A hooks bridge** — session start/end as real-time signals (one local file append, no network). The start hook ships the recent plans' done condition · check command · last verdict · open items and the last three entries.
+- **7 MCP tools** — `journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init` (starts tracking a new project once the user confirms). Agents record through structured tools instead of imitating markdown, eliminating frontmatter errors, and search the hundreds of accumulated entries *before* starting work — one query tells you why that file was touched before.
+- **4 commands + 1 skill** — `/oculpm:inception` (what happens next → four depth questions → the field's methods → a hard numeric goal → a plan whose first item is a red verdict) · `/oculpm:next` (claim the item as `[~]` → implement → check command → entry → plan; with `until-done`, until the verdict passes) · `/oculpm:redteam` (runs the claims, reports only counter-examples) · `/oculpm:help`, plus the recording-spec skill for when the tools are absent. The seven that overlapped (self-audit · run-evals · tdd-workflow · standup · board · project_init · project-inception) were removed on 2026-10-28.
+- It only acts in `.oculpm`-tracked projects and never touches untracked repos — see the [full read/write contract](docs/claude-integration/06-plugin-contract.md).
+- The 4.0 app has no per-project hook/MCP registration settings — the plugin is the way, and Settings → "Agent connections" shows whether it's installed along with the install/update command.
 
 
 ## Install
@@ -359,15 +169,15 @@ Grab the file for your OS from the [latest release](https://github.com/bunhine04
 
 **Windows (beta)** — the installer puts the app in your user folder without admin rights. The beta isn't code-signed, so on first launch SmartScreen shows "Windows protected your PC" — click **More info → Run anyway**. If the Visual C++ runtime is missing, the installer installs it first (that's the only time a confirmation prompt appears). On Windows older than 10 2004 the installer explains why and stops.
 
-- The Claude Code plugin's hooks run on Windows, but **its MCP server does not start** — turn on the "MCP server" registration in the app's integration settings (the "Applies to this project only" card) to register the installed `oculpm-mcp.exe`.
+- The Claude Code plugin's hooks run on Windows, but **its MCP server does not start** — the agent then writes into `.oculpm/` directly, following the recording-spec skill.
 
 **Linux (beta)** — for the AppImage, `chmod +x Ocul-PM_*_amd64.AppImage` and run it; it auto-updates in-app. It needs FUSE 2 (`sudo apt install libfuse2` on Ubuntu 22.04, `libfuse2t64` on 24.04). Install the deb with `sudo apt install ./Ocul-PM_*_amd64.deb` and update it the same way with the next `.deb` — it isn't updated in-app.
 
-Only Windows/Linux builds that pass install → launch → real-app E2E on CI runners are published for each release. A version that didn't pass has no file for that OS, and its release notes say so. Please report what you hit on a real PC as an [issue](https://github.com/bunhine0452/Ocul-PM/issues) — Settings → Diagnostics → "Copy diagnostics" builds the OS / version / WebView details to paste, and on Windows and Linux "Report a bug" opens the form pre-filled. That's what graduates the beta.
+Only Windows/Linux builds that pass install → launch → real-app E2E on CI runners are published for each release. A version that didn't pass has no file for that OS, and its release notes say so. Please report what you hit on a real PC as an [issue](https://github.com/bunhine0452/Ocul-PM/issues) — the app's logs are in Settings → Data → "Log folder". That's what graduates the beta.
 
-macOS may still ask for **access to files or to other apps' data**. That's a separate gate from notarization and doesn't go away because an app is notarized. In particular, when a command you run in the **built-in terminal** — or an agent running inside it — reads a file, macOS attributes that access to the app, so the prompt names `Ocul-PM.app`. [Troubleshooting](https://oculpm.com/wiki/en/troubleshooting) explains why and how to revoke it.
+macOS may still ask for **access to files or to other apps' data**. That's a separate gate from notarization and doesn't go away because an app is notarized — [Troubleshooting](https://oculpm.com/wiki/en/troubleshooting) explains why and how to revoke it.
 
-The first semantic search downloads an embedding model (~135MB) once. After that it works offline.
+To start recording before installing the app, the **Claude Code plugin** above is enough — entries and plans pile up as `.oculpm/` markdown, and the app reads them as-is whenever you install it.
 
 Stuck on something? The [wiki](https://oculpm.com/wiki/en) collects common problems and fixes.
 
@@ -379,15 +189,15 @@ your-project/
 └── .oculpm/
     ├── journal/       # work journals — the source of truth
     ├── planner/       # plan documents
-    ├── discussion/    # discussion documents
+    ├── agents/        # the rules master and the entry spec (journal-spec.md)
     └── index/         # app-managed cache · diff archive
 ```
 
-SQLite is only a derived cache for fast rendering — it can always be rebuilt from the files. API keys, tokens, private keys and connection strings that accidentally land in journals or diffs are masked before saving and before anything is sent to a background model (`[REDACTED]`). Only known shapes are caught, so this is not a guarantee for every secret — you can add patterns in the project settings.
+SQLite is only a derived cache for fast rendering — it can always be rebuilt from the files (Settings → Data → "Rebuild from scratch"). The `discussion/` · `rollups/` · `automation/` folders 3.x created are no longer read by the app, and never deleted. API keys, tokens, private keys and connection strings that accidentally land in journals or diffs are masked before saving (`[REDACTED]`). Only known shapes are caught, so this is not a guarantee for every secret — add patterns with `auto_redact_patterns` in `.oculpm/config.toml`.
 
 ## Tech
 
-A Tauri 2 native app — not Electron — so the dmg stays under 60MB and cold start under 1.5s. The backend is Rust (tokio · rusqlite · sqlite-vec), the frontend React 19 + TypeScript. Code analysis is tree-sitter (Rust · TS · JS · Python · Go), embeddings run fully local via fastembed, and API keys live in the OS keychain, not the database.
+A Tauri 2 native app — not Electron — so the dmg stays under 60MB and cold start under 1.5s. The backend is Rust (tokio · rusqlite), the frontend React 19 + TypeScript. There is no LLM client, no embedding model and no API-key store in the app — the screens are drawn deterministically from the files.
 
 ## Build from source
 
@@ -405,7 +215,7 @@ Requires Node 18+, pnpm, Rust stable, plus Xcode Command Line Tools on macOS, th
 
 - [x] Windows · Linux x64 builds — beta
 - [ ] Graduate the Windows · Linux beta (E2E green for three releases in a row + zero P0 user reports)
-- [ ] macOS (Intel) — waiting on an x86_64 prebuilt of the embedding runtime
+- [ ] macOS (Intel) — the embedding runtime (ONNX) that blocked it left in 4.0; adding the build and signing pipeline remains
 - [ ] Team sync (opt-in)
 
 ## One more thing
