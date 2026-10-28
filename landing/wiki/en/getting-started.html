@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Getting Started — Ocul-PM Wiki</title>
-<meta name="description" content="From installing Ocul-PM to your first work journal entry — about five minutes of setup." />
+<title>Getting started — Ocul-PM Wiki</title>
+<meta name="description" content="From installing Ocul-PM to your first work-journal entry — five minutes of setup." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/en/getting-started" />
@@ -13,8 +13,8 @@
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="Getting Started — Ocul-PM Wiki" />
-<meta property="og:description" content="From installing Ocul-PM to your first work journal entry — about five minutes of setup." />
+<meta property="og:title" content="Getting started — Ocul-PM Wiki" />
+<meta property="og:description" content="From installing Ocul-PM to your first work-journal entry — five minutes of setup." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -41,19 +41,18 @@
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
     <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
-    <a class="wk-side-link on" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link on" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
-    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
     <a class="wk-side-link" href="/wiki/en/today">Today</a>
     <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
-    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
-    <a class="wk-side-link" href="/wiki/en/automation">Automation</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Plan</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
-    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
-    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, External Editor</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other agents</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows · projects · external editor</a>
     <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
     <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
-    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; file layout</a>
     <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
     <div class="wk-side-foot">
       <a href="/wiki/getting-started">한국어 →</a>
@@ -63,22 +62,23 @@
 
   <main class="wk-main">
     <article class="wk-article">
-      <h1>Getting Started</h1>
-      <p class="wk-updated">Last updated 2026-08-21</p>
-      <nav class="wk-toc"><span>On this page</span><a href="#install">Install</a><a href="#add-a-project-and-start-tracking">Add a project and start tracking</a><a href="#see-your-first-entry">See your first entry</a><a href="#next-steps">Next steps</a></nav>
+      <h1>Getting started</h1>
+      <p class="wk-updated">Last updated 2026-10-29</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#install">Install</a><a href="#pick-a-folder-and-turn-recording-on">Pick a folder and turn recording on</a><a href="#check-the-first-entry">Check the first entry</a><a href="#next-steps">Next steps</a></nav>
       <h2 id="install">Install</h2>
-<ol><li>Grab the <code>.dmg</code> from <a href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">GitHub Releases</a> and drop it in Applications. macOS (Apple Silicon) only.</li><li>Builds are signed with an Apple Developer ID and notarized, so the app <b>opens without a warning</b> (since v2.45.0 — no <code>xattr</code> quarantine workaround). If macOS shows the usual "downloaded from the internet" confirmation once, click <b>Open</b>.</li><li>After that the app updates itself (Settings → Updates also has a manual check).</li></ol>
-<p>There's no account to create — open the app and you're at the start screen.</p>
-<h2 id="add-a-project-and-start-tracking">Add a project and start tracking</h2>
-<p>On the start screen, <b>Open an existing folder</b> and pick a folder with code in it. Tracking starts immediately, and two things appear inside the project:</p>
-<ul><li><code>.oculpm/</code> — where journal entries, plans, and discussions accumulate (all markdown)</li><li><code>AGENTS.md</code> — the journaling rules that tell agents "write an entry when you finish a unit of work"</li></ul>
-<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p><code>AGENTS.md</code> is a file most agents read natively — Claude Code, Codex CLI, Gemini CLI, and others. When an agent works in a project that has one, it starts leaving entries with no further setup.</p></div></div>
-<h2 id="see-your-first-entry">See your first entry</h2>
-<p>Give the agent in your terminal any task. When it finishes:</p>
-<ul><li>a new entry shows up in <b>Work Journal</b> (<code>⌘2</code>)</li><li>it lands in the flow on <b>Today</b> (<code>⌘1</code>)</li><li>and you can read the change line by line in <b>Changes</b> (<code>⌘5</code>)</li></ul>
-<p>Nothing showing up? Start with the first item in <a href="/wiki/en/troubleshooting">Troubleshooting</a>.</p>
+<ol><li>Grab the file for your OS from <a href="https://github.com/bunhine0452/Ocul-PM/releases/latest" target="_blank" rel="noreferrer">GitHub Releases</a> — the macOS (Apple Silicon) <code>.dmg</code>, or the Windows x64 · Linux x64 beta.</li><li>The macOS build is signed with an Apple Developer ID and notarized, so it <b>opens without warnings</b>. If the one-time "downloaded from the internet" prompt appears, click Open.</li><li>Later versions update from inside the app (Settings → Data → "Check for updates" checks by hand).</li></ol>
+<p>No account to create — the app opens straight into the <b>start window</b>.</p>
+<h2 id="pick-a-folder-and-turn-recording-on">Pick a folder and turn recording on</h2>
+<p>The start window shows recent projects and, the first time, three steps: <b>pick a folder → turn recording on → copy the plugin install command.</b> Turning recording on creates two things in the project:</p>
+<ul><li><code>.oculpm/</code> — the folder where entries and plans accumulate (all markdown)</li><li><code>AGENTS.md</code> — the recording rules that tell your agent "write an entry when you finish · the verdict comes from something that isn't you"</li></ul>
+<p>Pick a project in the start window and <b>that window becomes the project</b> (one window = one project).</p>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p><code>AGENTS.md</code> is read natively by most agents — Claude Code, Codex, Gemini CLI and more. In a project that has it, an agent starts writing entries with no extra setup.</p></div></div>
+<h2 id="check-the-first-entry">Check the first entry</h2>
+<p>Ask your agent in the terminal to do anything. Within seconds of it finishing:</p>
+<ul><li>a new entry appears in <b>Work Journal</b> (⌘2)</li><li>it shows up under "Done today" on <b>Today</b> (⌘1) — and if its verification section has no command evidence, it lands in "To check"</li><li><b>Diff</b> (⌘4) shows that change line by line</li></ul>
+<p>If no entry appears, see the first item in <a href="/wiki/en/troubleshooting">Troubleshooting</a>.</p>
 <h2 id="next-steps">Next steps</h2>
-<ul><li>Mostly use Claude Code in a terminal? → install the plugin (hook bridge) from <a href="/wiki/en/claude-code">Claude Code</a>. Journaling goes from "whatever the model remembers to do" to automatic.</li><li>Curious where and how data is stored? → <a href="/wiki/en/data">Data &amp; File Layout</a></li><li>Want the lay of the land first? → <a href="/wiki/en/screens">Screen Tour</a></li></ul>
+<ul><li>Mostly terminal Claude Code? → install the plugin from <a href="/wiki/en/claude-code">Claude Code</a>. Recording goes from "if the model remembers" to automatic, and the next conversation inherits the plan and its last verdict.</li><li>Starting a new feature area? → run <code>/oculpm:inception</code> in the terminal — it builds a plan whose first item is a check command that is red right now.</li><li>Curious where data lives? → <a href="/wiki/en/data">Data &amp; file layout</a></li></ul>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en"><span>← Previous</span><b>Ocul-PM Wiki</b></a>
 <a class="wk-pg next" href="/wiki/en/faq"><span>Next →</span><b>FAQ</b></a></footer>

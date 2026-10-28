@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Settings — Ocul-PM Wiki</title>
-<meta name="description" content="Themes and presets, text size, API keys and fallback chains, indexing and RAG, diagnostics and updates." />
+<meta name="description" content="Settings on one page — agent connections · this project · display · data." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/en/settings" />
@@ -14,7 +14,7 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="en_US" />
 <meta property="og:title" content="Settings — Ocul-PM Wiki" />
-<meta property="og:description" content="Themes and presets, text size, API keys and fallback chains, indexing and RAG, diagnostics and updates." />
+<meta property="og:description" content="Settings on one page — agent connections · this project · display · data." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -41,19 +41,18 @@
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
     <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
-    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
-    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
     <a class="wk-side-link" href="/wiki/en/today">Today</a>
     <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
-    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
-    <a class="wk-side-link" href="/wiki/en/automation">Automation</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Plan</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
-    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
-    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, External Editor</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other agents</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows · projects · external editor</a>
     <a class="wk-side-link on" href="/wiki/en/settings">Settings</a>
     <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
-    <a class="wk-side-link" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link" href="/wiki/en/data">Data &amp; file layout</a>
     <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
     <div class="wk-side-foot">
       <a href="/wiki/settings">한국어 →</a>
@@ -64,49 +63,18 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>Settings</h1>
-      <p class="wk-updated">Last updated 2026-10-24</p>
-      <nav class="wk-toc"><span>On this page</span><a href="#appearance">Appearance</a><a href="#llm">LLM</a><a href="#indexing-rag">Indexing &amp; RAG</a><a href="#diagnostics-updates">Diagnostics · Updates</a><a href="#ocul-pm">ocul-pm</a><a href="#next-steps">Next steps</a></nav>
-      <p><code>⌘,</code> opens it. Seven tabs, mixing things you set once with things you may never open.</p>
-<div class="wk-table"><table><thead><tr><th>Tab</th><th>When to open it</th></tr></thead><tbody><tr><td><b>Appearance</b></td><td>Once — theme, text size, menu bar</td></tr><tr><td><b>LLM</b></td><td>Only for AI features — keys, models, fallbacks</td></tr><tr><td><b>ocul-pm</b></td><td>Managing agent rules, plugin install instructions</td></tr><tr><td><b>Indexing &amp; RAG</b></td><td>When search isn't behaving as expected</td></tr><tr><td><b>Data</b></td><td>Export and cleanup</td></tr><tr><td><b>Diagnostics</b></td><td>When reporting a problem</td></tr><tr><td><b>Updates</b></td><td>Manual check, past release notes</td></tr></tbody></table></div>
-<h2 id="appearance">Appearance</h2>
-<h3 id="theme">Theme</h3>
-<p>A two-layer system: <b>Light / Dark / System</b>, with <b>preset themes</b> on top.</p>
-<ul><li>5 presets — Solarized · Sepia · Nord · Dracula · High Contrast</li><li>6 accent colors — Green (default) · Blue · Purple · Orange · Rose · Teal</li></ul>
-<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p><b>Choosing a preset disables accent selection.</b> Presets bring a whole color system of their own. To change only the accent, stay on Light/Dark/System without a preset.</p></div></div>
-<h3 id="two-text-sizes">Two text sizes</h3>
-<p><b>App scale</b> (%) is the one setting — it applies to the whole app like browser zoom. (The terminal font size went with the in-app terminal on 2026-10-28.)</p>
-<h3 id="two-languages">Two languages</h3>
-<p><b>UI language</b> (on-screen text) and <b>AI writing language</b> (the language of entries, planner items and discussions the AI produces) are separate. You can run an English UI and keep records in Korean. Already-written documents don't change.</p>
-<h3 id="menu-bar-external-editor">Menu bar · external editor</h3>
-<p>Menu bar residency and external editor wiring are covered in <a href="/wiki/en/workspace">Windows, Tabs, External Editor</a>.</p>
-<h2 id="llm">LLM</h2>
-<p>Needed only for AI-generated text (weekly rollups, entry drafts, plan drafts, skill promotion proposals). <b>Journaling itself needs no key.</b></p>
-<h3 id="api-keys">API keys</h3>
-<p><b>Stored only in the OS keychain</b> — never in the app database or a file. The status (set / unset) is cached locally, so opening Settings doesn't trigger a keychain prompt; press <b>Verify against keychain</b> only when you really want to check.</p>
-<h3 id="providers-and-models">Providers and models</h3>
-<p>Pick a default provider, and optionally override the model per provider. Leave it blank to use the built-in default.</p>
-<ul><li><b>OpenRouter</b> — hundreds of models over an OpenAI-compatible API. Model id example: <code>openai/gpt-6-luna</code></li><li><b>NIM</b> — the OpenAI-compatible endpoint at <code>integrate.api.nvidia.com</code></li></ul>
-<h3 id="fallback-chain">Fallback chain</h3>
-<p>When the default model call fails, these are retried top to bottom. One <code>provider:model</code> per line.</p>
-<pre class="wk-code"><code>openai:gpt-6-luna
-anthropic:claude-haiku-5-5
-openrouter:google/gemini-3.8-flash</code></pre>
-<div class="wk-callout tip"><span class="wk-callout-tag">Tip</span><div><p>If you run AI during hours when rate limits bite, a fallback chain makes a real difference.</p></div></div>
-<h3 id="generation">Generation</h3>
-<p>Temperature (lower is focused, higher is creative), max output tokens, and a system prompt prepended to every chat.</p>
-<h2 id="indexing-rag">Indexing &amp; RAG</h2>
-<p>The tab to open when code search isn't behaving.</p>
-<ul><li><b>Auto-index on change</b> — when files change, only the changed files are indexed. To rebuild from scratch, use <b>Rebuild index</b></li><li><b>Chunking</b> — <b>larger</b> chunks mean richer context per snippet, <b>smaller</b> ones mean sharper search. Overlap has to be smaller than the chunk size</li><li><b>RAG context</b> — how many top chunks go to the model per chat message</li><li><b>Work context</b> — automatically inject recent entries and the AGENTS rules into chat so direction survives a change of session or model. More entries means richer context but more tokens (0 injects rules only)</li><li><b>File scan</b> — max file size, extra exclude patterns (gitignore-style, applied on top of <code>.gitignore</code>)</li></ul>
-<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>Scan setting changes take effect <b>at the next reindex</b>. Rebuild the index to apply them now.</p></div></div>
-<h2 id="diagnostics-updates">Diagnostics · Updates</h2>
-<ul><li><b>Diagnostics</b> — the information to attach when reporting a problem. DevTools opens from here too</li><li><b>Updates</b> — manual check and past release notes (GitHub releases). Normally the app updates itself</li></ul>
-<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>An update restart relaunches the Claude Code adapter along with the app. That's why restarts are deferred while an answer is streaming — the conversation is on disk and comes back, but the answer in flight at that moment is lost.</p></div></div>
-<h2 id="ocul-pm">ocul-pm</h2>
-<p>The tab for managing agent rules — choose which agents' rules files to install, use <b>Resend rules</b> when the spec has moved, and <b>Detect</b> to narrow to agents that appear to be in use here. The plugin install commands and the Claude Desktop MCP snippet live here too, with copy buttons. (<a href="/wiki/en/agents">Details</a>)</p>
+      <p class="wk-updated">Last updated 2026-10-29</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#there-is-no-ai-inside-the-app">There is no AI inside the app</a><a href="#updates">Updates</a><a href="#next-steps">Next steps</a></nav>
+      <p>Open it with <code>⌘,</code>. In 4.0 Settings is <b>one page</b> — the twelve 3.x tabs (LLM · indexing · automation · diagnostics …) went with their features.</p>
+<div class="wk-table"><table><thead><tr><th>Section</th><th>What</th></tr></thead><tbody><tr><td><b>Agent connections</b></td><td>Whether the Claude Code plugin and Codex are installed, and whether the installed version is older than the app. Copy the install or update command. Cursor · Gemini CLI record through the rules file (<code>AGENTS.md</code>) alone, so there is nothing to connect</td></tr><tr><td><b>This project</b></td><td>The rules-file version ("Update" when a newer one ships with the app), "Turn on recording" when it is off, and the project folder's location</td></tr><tr><td><b>Display</b></td><td>Language (한국어 · English), appearance (system · light · dark), text size</td></tr><tr><td><b>Data</b></td><td>Cache size and "Compact", "Rebuild from scratch" (rebuilds this project's cache from the entry files), app version · check for updates, log folder</td></tr></tbody></table></div>
+<h2 id="there-is-no-ai-inside-the-app">There is no AI inside the app</h2>
+<p>The 4.0 app calls no LLM — there are no API key, model or fallback settings. Ask the agent in your terminal for summaries or reports; it reads past entries through the MCP tools (<code>journal_search</code> · <code>journal_read</code>). API-key entries 3.x left in the keychain are neither read nor deleted by the app.</p>
+<h2 id="updates">Updates</h2>
+<p>The app checks on its own. "Check for updates" in Data checks by hand, and when a new version exists, "Install … and restart" does the rest. If you installed the Linux deb, grab the next <code>.deb</code> from the releases page instead of updating in-app. When the latest release has no build for your OS, it says so — that is not an error.</p>
 <h2 id="next-steps">Next steps</h2>
-<ul><li>Rules files and adapters → <a href="/wiki/en/agents">Other Agents</a></li><li>Where data is stored → <a href="/wiki/en/data">Data &amp; File Layout</a></li></ul>
+<ul><li>Rules files and adapters → <a href="/wiki/en/agents">Other agents</a></li><li>Where data is stored → <a href="/wiki/en/data">Data &amp; file layout</a></li></ul>
     </article>
-    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/workspace"><span>← Previous</span><b>Windows, Tabs, External Editor</b></a>
+    <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/workspace"><span>← Previous</span><b>Windows · projects · external editor</b></a>
 <a class="wk-pg next" href="/wiki/en/troubleshooting"><span>Next →</span><b>Troubleshooting</b></a></footer>
   </main>
 </div>

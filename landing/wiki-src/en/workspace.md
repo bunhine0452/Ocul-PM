@@ -1,63 +1,47 @@
 ---
-title: Windows, Tabs, External Editor
-desc: Running several projects at once, living in the menu bar, and opening files in your own editor.
+title: Windows · projects · external editor
+desc: One window = one project — moving between projects and the external editor files open in.
 order: 12
-updated: 2026-10-28
+updated: 2026-10-29
 ---
 
-*What* the screens show is in the [Screen Tour](/wiki/en/screens). This page is about **how you arrange and drive them**.
+*What* each screen shows is in the [Screens tour](/wiki/en/screens). This page is about **how you lay them out and run them**.
 
-## Tabs and windows
+## One window = one project
 
-One tab per project. Same feel as a browser.
+Since 4.0 one window holds one project. The 3.x Chrome-style tabs, tear-off and menu-bar tray are gone; your OS switches between project windows (⌘` · Mission Control).
 
 | Key | Action |
 |---|---|
-| `⌘T` | New project tab |
-| `⌘W` | Close tab |
-| `⇧⌘N` | New window |
-| `⌘P` | Switch project (sidebar popover) |
+| `⌘O` | Recent projects — picking one opens its window, or brings it forward if it is already open |
+| `⇧⌘N` | New window — a **start window** with no project |
+| `⌘W` | Close window |
 
-- **Each tab has its own state** — read entries in project A and keep the planner open in B without interference
-- **Tabs you haven't visited load lazily** — opening a window doesn't initialize N projects at once
-- **A dot appears when an agent is working in a background tab**, so it's visible while you're in another project
-
-:::tip
-Multiple windows let you put projects side by side on a monitor. Windows are independent too, so heavy indexing in one doesn't affect the other.
-:::
-
-## Living in the menu bar
-
-Turn these on in Settings → Appearance → Menu bar.
-
-- **Show menu bar icon** — a status icon in the top bar that animates while an agent session is alive. Click it for a Today popover
-- **Closing the window minimizes to the menu bar** — the app survives so session detection and recording continue. Quit via right-click on the tray icon → Quit
-- **Hide Dock icon while resident** — disappears from the Dock while minimized
-- **New entry notifications** — a macOS notification when an agent leaves an entry. Capped at 3 per 10 seconds when they arrive in bursts (backfills, say)
+- Pick a project in the start window and **that window becomes the project**
+- The window title is the project name, so the window switcher tells them apart
+- Each project remembers its own screen, filters and sidebar state
+- **On macOS the app stays alive after the last window closes**, and a Dock click opens one again. Windows · Linux quit when the last window closes
+- An update restart brings each window back with the project it had open
 
 :::note
-The app has to be alive to keep observing. "Minimize to the menu bar" is the compromise that gets the window out of the way while observation continues.
+Watching (entries · changes) continues as long as the app is alive. On macOS the app stays alive with every window closed, so watching carries on.
 :::
 
-## Opening files — your own editor
+## Opening files — the external editor
 
-The in-app editor and terminal were removed on 2026-10-28. "Open file" on search results and on the Branch screen hands the file to the editor you already use.
-
-### Wiring an external editor
-
-Set the command template in Settings → Appearance → External editor. `%path` is replaced with the absolute path and `%line` with the line number.
+The in-app editor and terminal were removed on 2026-10-28. "Open" on Diff and in an entry's detail hands the file to the editor you already use. In the command template `%path` becomes the absolute path and `%line` the line number — the default is VS Code.
 
 ```
-code "%path"          VS Code
+code "%path"          VS Code (default)
 cursor "%path"        Cursor
 subl "%path"          Sublime Text
 ```
 
 :::warn
-macOS GUI apps don't inherit your shell's `PATH`. If `code` alone doesn't work, use an absolute path — e.g. `/usr/local/bin/code "%path"`.
+macOS GUI apps don't inherit your shell's `PATH`. If `code` doesn't open, it needs an absolute path — e.g. `/usr/local/bin/code "%path"`.
 :::
 
 ## Next steps
 
-- Themes, text size, API keys, indexing → [Settings](/wiki/en/settings)
-- The full key list → [Shortcuts](/wiki/en/shortcuts)
+- Display and data settings → [Settings](/wiki/en/settings)
+- Every shortcut → [Shortcuts](/wiki/en/shortcuts)

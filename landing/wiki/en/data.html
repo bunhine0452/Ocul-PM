@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Data &amp; File Layout — Ocul-PM Wiki</title>
-<meta name="description" content="The structure of the .oculpm folder, backup and moving, and what local-first actually means." />
+<title>Data &amp; file layout — Ocul-PM Wiki</title>
+<meta name="description" content="The layout of the .oculpm folder, backup and moving, and what local-first actually means." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/en/data" />
@@ -13,8 +13,8 @@
 <meta property="og:type" content="article" />
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:title" content="Data &amp; File Layout — Ocul-PM Wiki" />
-<meta property="og:description" content="The structure of the .oculpm folder, backup and moving, and what local-first actually means." />
+<meta property="og:title" content="Data &amp; file layout — Ocul-PM Wiki" />
+<meta property="og:description" content="The layout of the .oculpm folder, backup and moving, and what local-first actually means." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -41,19 +41,18 @@
   <aside class="wk-side">
     <div class="wk-side-title"><a href="/wiki/en">Wiki</a></div>
     <a class="wk-side-link" href="/wiki/en">Ocul-PM Wiki</a>
-    <a class="wk-side-link" href="/wiki/en/getting-started">Getting Started</a>
+    <a class="wk-side-link" href="/wiki/en/getting-started">Getting started</a>
     <a class="wk-side-link" href="/wiki/en/faq">FAQ</a>
-    <a class="wk-side-link" href="/wiki/en/screens">Screen Tour</a>
+    <a class="wk-side-link" href="/wiki/en/screens">Screens tour</a>
     <a class="wk-side-link" href="/wiki/en/today">Today</a>
     <a class="wk-side-link" href="/wiki/en/journal">Work Journal</a>
-    <a class="wk-side-link" href="/wiki/en/planner">Planner</a>
-    <a class="wk-side-link" href="/wiki/en/automation">Automation</a>
+    <a class="wk-side-link" href="/wiki/en/planner">Plan</a>
     <a class="wk-side-link" href="/wiki/en/claude-code">Claude Code</a>
-    <a class="wk-side-link" href="/wiki/en/agents">Other Agents</a>
-    <a class="wk-side-link" href="/wiki/en/workspace">Windows, Tabs, External Editor</a>
+    <a class="wk-side-link" href="/wiki/en/agents">Other agents</a>
+    <a class="wk-side-link" href="/wiki/en/workspace">Windows · projects · external editor</a>
     <a class="wk-side-link" href="/wiki/en/settings">Settings</a>
     <a class="wk-side-link" href="/wiki/en/troubleshooting">Troubleshooting</a>
-    <a class="wk-side-link on" href="/wiki/en/data">Data &amp; File Layout</a>
+    <a class="wk-side-link on" href="/wiki/en/data">Data &amp; file layout</a>
     <a class="wk-side-link" href="/wiki/en/shortcuts">Shortcuts</a>
     <div class="wk-side-foot">
       <a href="/wiki/data">한국어 →</a>
@@ -63,31 +62,31 @@
 
   <main class="wk-main">
     <article class="wk-article">
-      <h1>Data &amp; File Layout</h1>
-      <p class="wk-updated">Last updated 2026-10-24</p>
-      <nav class="wk-toc"><span>On this page</span><a href="#the-principle-files-are-the-truth">The principle — files are the truth</a><a href="#oculpm-structure">`.oculpm/` structure</a><a href="#backup-and-moving">Backup and moving</a><a href="#what-lives-where">What lives where</a><a href="#what-leaves-the-machine">What leaves the machine</a></nav>
-      <h2 id="the-principle-files-are-the-truth">The principle — files are the truth</h2>
-<p>Every record Ocul-PM keeps is a <b>markdown file inside your project</b>. The app's database (SQLite) is only a <b>cache</b> for drawing screens quickly, and can be rebuilt from the files at any time. Which means:</p>
-<ul><li>delete the app and the records remain</li><li>you can commit records to git and share them with your team</li><li>you can read and edit them in an editor (they're ordinary markdown)</li></ul>
-<h2 id="oculpm-structure"><code>.oculpm/</code> structure</h2>
+      <h1>Data &amp; file layout</h1>
+      <p class="wk-updated">Last updated 2026-10-29</p>
+      <nav class="wk-toc"><span>On this page</span><a href="#the-rule-files-are-the-truth">The rule — files are the truth</a><a href="#the-oculpm-layout">The `.oculpm/` layout</a><a href="#backup-and-moving">Backup and moving</a><a href="#what-lives-where">What lives where</a><a href="#what-leaves-the-machine">What leaves the machine</a></nav>
+      <h2 id="the-rule-files-are-the-truth">The rule — files are the truth</h2>
+<p>Every record in Ocul-PM is <b>a markdown file inside your project</b>. The app's database (SQLite) is only a <b>cache</b> for drawing screens quickly, and can always be rebuilt from the files (Settings → Data → "Rebuild from scratch"). So:</p>
+<ul><li>Uninstalling the app leaves your records behind</li><li>You can commit the records to git and share them with your team</li><li>You can read and edit them in any editor (it's plain markdown)</li></ul>
+<h2 id="the-oculpm-layout">The <code>.oculpm/</code> layout</h2>
 <pre class="wk-code"><code>.oculpm/
-├─ journal/      work journal — .md by date and category
+├─ journal/      work journal — .md by date and kind
 │  └─ 20260816/
 │     ├─ Features_to_add/
 │     ├─ Bugs/
 │     └─ …
-├─ planner/      living plan documents .md
-├─ discussion/   pre-decision discussion documents .md
-├─ agents/       master template for the agent journaling rules
+├─ planner/      living plan documents .md (done condition · check command · verdict log)
+├─ agents/       the master of the agent recording rules and the entry spec (journal-spec.md)
 └─ index/        app-managed cache (do not edit)</code></pre>
-<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p><code>index/</code> alone is the app's — don't edit or delete it by hand. Everything else is yours.</p></div></div>
+<p>The <code>discussion/</code> · <code>rollups/</code> · <code>automation/</code> folders 3.x created are no longer read by the 4.0 app, but <b>never deleted</b> — they are your files.</p>
+<div class="wk-callout warn"><span class="wk-callout-tag">Warning</span><div><p>Only <code>index/</code> is managed by the app — don't edit or delete it. Everything else is yours.</p></div></div>
 <h2 id="backup-and-moving">Backup and moving</h2>
-<p>Copy the folder. That's it. Move <code>.oculpm/</code> wholesale to the same project on another machine and the app reads it and rebuilds the cache. Including it in git is the simplest backup there is.</p>
-<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>Adding a project also appends a managed block to <code>.gitignore</code> that excludes the cache-like paths (<code>index/</code>, <code>hooks/</code>, <code>.lock</code>, <code>.schema-version</code>, <code>oculpm.log</code>), so committing <code>.oculpm/</code> does the right thing with no setup.</p></div></div>
+<p>Copy the folder and you're done. Move <code>.oculpm/</code> wholesale into the same project on another machine and the app reads it and rebuilds the cache. Keeping it in git is the simplest backup.</p>
 <h2 id="what-lives-where">What lives where</h2>
-<div class="wk-table"><table><thead><tr><th>Data</th><th>Location</th><th>Nature</th></tr></thead><tbody><tr><td>Entries, plans, discussions</td><td>Project <code>.oculpm/</code></td><td>Source of truth (markdown)</td></tr><tr><td>AGENTS.md journaling rules</td><td>Project root</td><td>Source of truth</td></tr><tr><td>Screen cache, search index</td><td>App data folder (SQLite)</td><td>Derived — rebuildable</td></tr><tr><td>LLM API keys</td><td>macOS keychain</td><td>Never in the app DB or files</td></tr><tr><td>App settings</td><td>App data folder</td><td>—</td></tr></tbody></table></div>
+<div class="wk-table"><table><thead><tr><th>Data</th><th>Location</th><th>Nature</th></tr></thead><tbody><tr><td>Entries · plans</td><td>the project's <code>.oculpm/</code></td><td>source (markdown)</td></tr><tr><td>AGENTS.md recording rules</td><td>project root</td><td>source</td></tr><tr><td>Screen cache · diff baselines</td><td>app data folder (SQLite)</td><td>derived — rebuildable</td></tr><tr><td>App settings</td><td>app data folder</td><td>—</td></tr></tbody></table></div>
+<div class="wk-callout note"><span class="wk-callout-tag">Note</span><div><p>The first launch after updating to 4.0 drops the 3.x code-index and embedding tables (358MB of an 837MB database on one install). It keeps an <code>ocul-pm.db.bak-v42</code> copy first, and Settings → Data → "Compact" hands the freed space back to the disk.</p></div></div>
 <h2 id="what-leaves-the-machine">What leaves the machine</h2>
-<p>Four things, and you start every one: ① LLM API calls you configured yourself, ② the new-version check, ③ GitHub lookups when you click — release notes, plugin/skill bundles, ④ the embedding model downloaded <b>once</b> from huggingface.co when you first enable semantic search (the model comes down; no code goes up; everything after that is offline). No telemetry, analytics or account server beyond that.</p>
+<p>Two things, and you start both: ① the update check (destination fixed in the app configuration, signature verified), ② links you click (your OS default browser opens them). <b>The app calls no LLM</b>, its screens (the webview) reach no outside host, and it takes no API key. No telemetry, analytics or account server. The full ledger is on the <a href="/privacy">privacy</a> page.</p>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/en/troubleshooting"><span>← Previous</span><b>Troubleshooting</b></a>
 <a class="wk-pg next" href="/wiki/en/shortcuts"><span>Next →</span><b>Shortcuts</b></a></footer>

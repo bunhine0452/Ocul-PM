@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>다른 에이전트 연동 — Ocul-PM 위키</title>
-<meta name="description" content="Cursor·Gemini CLI·Copilot·Windsurf·Cline·Zed·aider·Antigravity — AGENTS.md 하나로 도는 구조와 규칙 파일 목록." />
+<meta name="description" content="Codex·Cursor·Gemini CLI·Copilot·Windsurf·Cline·Zed·aider·Antigravity — AGENTS.md 하나로 도는 구조, 규칙 파일 목록, 지원 등급." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/agents" />
@@ -14,7 +14,7 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:title" content="다른 에이전트 연동 — Ocul-PM 위키" />
-<meta property="og:description" content="Cursor·Gemini CLI·Copilot·Windsurf·Cline·Zed·aider·Antigravity — AGENTS.md 하나로 도는 구조와 규칙 파일 목록." />
+<meta property="og:description" content="Codex·Cursor·Gemini CLI·Copilot·Windsurf·Cline·Zed·aider·Antigravity — AGENTS.md 하나로 도는 구조, 규칙 파일 목록, 지원 등급." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -44,13 +44,12 @@
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link" href="/wiki/screens">화면 둘러보기</a>
-    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link" href="/wiki/today">오늘</a>
     <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
-    <a class="wk-side-link" href="/wiki/planner">플래너</a>
-    <a class="wk-side-link" href="/wiki/automation">자동화</a>
+    <a class="wk-side-link" href="/wiki/planner">계획</a>
     <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
     <a class="wk-side-link on" href="/wiki/agents">다른 에이전트 연동</a>
-    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 외부 편집기</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 프로젝트 · 외부 편집기</a>
     <a class="wk-side-link" href="/wiki/settings">설정</a>
     <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
     <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
@@ -64,15 +63,15 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>다른 에이전트 연동</h1>
-      <p class="wk-updated">마지막 수정 2026-09-15</p>
-      <nav class="wk-toc"><span>이 페이지에서</span><a href="#왜-agents-md-가-중심인가">왜 AGENTS.md 가 중심인가</a><a href="#지원하는-규칙-파일">지원하는 규칙 파일</a><a href="#여러분이-쓴-내용은-지켜집니다">여러분이 쓴 내용은 지켜집니다</a><a href="#규칙-원본-고치기">규칙 원본 고치기</a><a href="#규칙이-오래됐을-때">규칙이 오래됐을 때</a><a href="#지원-등급">지원 등급</a><a href="#여러-에이전트를-섞어-쓸-때">여러 에이전트를 섞어 쓸 때</a><a href="#스킬-규칙-허브">스킬·규칙 허브</a><a href="#다음-걸음">다음 걸음</a></nav>
+      <p class="wk-updated">마지막 수정 2026-10-29</p>
+      <nav class="wk-toc"><span>이 페이지에서</span><a href="#왜-agents-md-가-중심인가">왜 AGENTS.md 가 중심인가</a><a href="#지원하는-규칙-파일">지원하는 규칙 파일</a><a href="#여러분이-쓴-내용은-지켜집니다">여러분이 쓴 내용은 지켜집니다</a><a href="#규칙-원본-고치기">규칙 원본 고치기</a><a href="#규칙이-오래됐을-때">규칙이 오래됐을 때</a><a href="#지원-등급">지원 등급</a><a href="#여러-에이전트를-섞어-쓸-때">여러 에이전트를 섞어 쓸 때</a><a href="#스킬은-플러그인이-맡습니다">스킬은 플러그인이 맡습니다</a><a href="#다음-걸음">다음 걸음</a></nav>
       <p>Ocul-PM 은 Claude Code 전용이 아닙니다. <b><code>AGENTS.md</code> 를 읽는 에이전트라면 무엇이든</b> 일지를 남길 수 있고, 그 파일을 안 읽는 에이전트를 위해서는 각자의 규칙 파일에 얇은 위임 stub 을 깔아 둡니다.</p>
 <h2 id="왜-agents-md-가-중심인가">왜 AGENTS.md 가 중심인가</h2>
 <p>프로젝트를 추가하면 루트에 <code>AGENTS.md</code> 가 생깁니다. 여기에 기록 규칙 <b>본문 전체</b>가 들어갑니다 — 언제 기록하는지, 파일을 어디에 어떤 이름으로 두는지, 머리말에 무엇이 필요한지.</p>
 <p>Claude Code·Codex CLI·Gemini CLI 를 비롯한 다수의 에이전트가 이 파일을 <b>네이티브로</b> 읽습니다. 그래서 별도 설치 없이도 규칙이 전달됩니다.</p>
 <div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>초기에는 규칙 원본을 <code>.oculpm/agents/_template.md</code> 에만 두었는데, 외부 LLM 들이 그 파일을 자발적으로 읽지 않는다는 것이 도그푸딩에서 드러났습니다. 그래서 루트 <code>AGENTS.md</code> 를 1차 표면으로 삼고, 나머지 어댑터는 <code>@AGENTS.md</code> 를 가리키는 stub 으로 줄였습니다.</p></div></div>
 <h2 id="지원하는-규칙-파일">지원하는 규칙 파일</h2>
-<p>설정 → ocul-pm → 에이전트 탭에서 켜고 끕니다. 켜면 해당 경로에 파일이 생기고, 규칙이 바뀌면 함께 갱신됩니다.</p>
+<p><code>AGENTS.md</code> 는 기록을 켜면 항상 깔립니다. 나머지는 프로젝트의 <code>.oculpm/config.toml</code> 의 <code>[agents] active</code> 목록(예: <code>["agents-md", "cursor"]</code>)으로 켭니다 — 켜면 해당 경로에 파일이 생기고, 규칙이 바뀌면 함께 갱신됩니다. 4.0 의 설정 화면에는 어댑터를 하나씩 켜는 칸이 없습니다.</p>
 <div class="wk-table"><table><thead><tr><th>에이전트</th><th>규칙 파일</th></tr></thead><tbody><tr><td>공용 (Claude Code · Codex CLI 등)</td><td><code>AGENTS.md</code></td></tr><tr><td>Claude Code</td><td><code>.claude/CLAUDE.md</code></td></tr><tr><td>Cursor</td><td><code>.cursor/rules/ocul-pm.mdc</code></td></tr><tr><td>Gemini CLI</td><td><code>GEMINI.md</code></td></tr><tr><td>GitHub Copilot</td><td><code>.github/copilot-instructions.md</code></td></tr><tr><td>Windsurf</td><td><code>.windsurf/rules/ocul-pm.md</code></td></tr><tr><td>Cline</td><td><code>.clinerules/ocul-pm.md</code></td></tr><tr><td>Zed</td><td><code>.rules</code></td></tr><tr><td>aider</td><td><code>CONVENTIONS.md</code></td></tr><tr><td>Antigravity</td><td><code>.agent/rules/ocul-pm.md</code></td></tr></tbody></table></div>
 <h2 id="여러분이-쓴-내용은-지켜집니다">여러분이 쓴 내용은 지켜집니다</h2>
 <p>규칙 파일 중에는 <b>여러분도 같이 쓰는 파일</b>이 있습니다 — <code>AGENTS.md</code>, <code>.claude/CLAUDE.md</code>, <code>GEMINI.md</code>, <code>.github/copilot-instructions.md</code>, <code>CONVENTIONS.md</code>, <code>.rules</code> 가 그렇습니다.</p>
@@ -84,38 +83,26 @@
 <div class="wk-callout warn"><span class="wk-callout-tag">주의</span><div><p>반대로 <code>.cursor/rules/ocul-pm.mdc</code> · <code>.windsurf/rules/ocul-pm.md</code> · <code>.clinerules/ocul-pm.md</code> · <code>.agent/rules/ocul-pm.md</code> 는 앱 전용 파일이라 <b>통째로 덮어씁니다.</b> 이 경로에는 개인 규칙을 적지 마세요.</p></div></div>
 <h2 id="규칙-원본-고치기">규칙 원본 고치기</h2>
 <p>규칙 문구 자체를 바꾸고 싶다면 <code>.oculpm/agents/_template.md</code> 를 고칩니다. 이게 마스터고, 저장하면 켜 둔 어댑터 전부로 자동 전파됩니다 — 한 곳만 고치면 Cursor 도 Claude Code 도 새 규칙을 받습니다.</p>
-<p>특정 에이전트에게만 다른 문구를 주려면 <code>.oculpm/agents/per-agent/</code> 아래에 그 에이전트용 파일을 두면 됩니다.</p>
+<p>특정 에이전트에게만 다른 문구를 주려면 <code>.oculpm/agents/per-agent/</code> 아래에 그 에이전트용 파일을 두면 됩니다. 규칙 템플릿의 언어는 <code>config.toml</code> 의 <code>[agents] template_language</code>(<code>ko</code> · <code>en</code>)가 정합니다.</p>
 <h2 id="규칙이-오래됐을-때">규칙이 오래됐을 때</h2>
-<p>앱을 업데이트하면 규칙 규격이 올라갈 수 있습니다. 설정 → ocul-pm → 에이전트 탭의 <b>「규칙 다시 보내기」</b> 로 최신 규격을 다시 깔 수 있습니다. 감지 버튼을 누르면 이 프로젝트에서 쓰이는 것으로 보이는 에이전트를 추려 줍니다.</p>
+<p>앱을 업데이트하면 규칙 규격(템플릿 판)이 올라갈 수 있습니다. 설정 → <b>이 프로젝트</b>의 규칙 파일 줄에 「v19 — 새 판 v20」 처럼 뜨면 <b>「올리기」</b> 를 누릅니다. 4.0 의 템플릿 v20 은 「완료 조건은 결과로 · 판정은 네가 아닌 것이 · 원재료와 전문가의 도구 · 어려운 숫자 목표는 정상 · 실패도 기록」 다섯 줄을 작업 규율로 싣습니다.</p>
 <h2 id="지원-등급">지원 등급</h2>
-<p>같은 「일지를 남긴다」라도 약속의 세기가 다릅니다. 등급은 코드에서 읽었습니다 — 규칙 파일 어댑터 표, MCP 등록기, 훅. (앱 안 구동이던 4등급은 2026-10-28 에 화면과 함께 걷었습니다.)</p>
-<div class="wk-table"><table><thead><tr><th>등급</th><th>뜻</th></tr></thead><tbody><tr><td><b>1 · 규칙 호환</b></td><td>앱은 그 에이전트가 읽는 규칙 파일만 씁니다. 일지는 모델이 규칙을 지키는 만큼만 남습니다</td></tr><tr><td><b>2 · 구조화 기록</b></td><td>에이전트가 <code>oculpm</code> MCP 서버의 도구(<code>journal_write</code> · <code>plan_update</code> …)를 부를 수 있고, 등록은 앱이 해 줍니다</td></tr><tr><td><b>3 · 세션 관측</b></td><td>앱이 세션 시작·종료를 훅으로 받고, 일지 없이 끝난 대화를 가려냅니다 (Stop 배달 게이트 · <code>sessions.json</code>)</td></tr></tbody></table></div>
-<div class="wk-table"><table><thead><tr><th>에이전트</th><th>등급</th><th>앱이 하는 일</th><th>검증</th></tr></thead><tbody><tr><td>Claude Code</td><td><b>3 세션 관측</b></td><td>훅(플러그인 또는 <code>.claude/settings.local.json</code>) · <code>.mcp.json</code> MCP 등록 · <code>AGENTS.md</code> + <code>.claude/CLAUDE.md</code> 블록</td><td>v3.0.0 · 2026-09-11</td></tr><tr><td>Codex</td><td><b>3 세션 관측</b></td><td>Codex 플러그인 훅 · <code>~/.codex/config.toml</code> MCP 등록 · <code>AGENTS.md</code>(네이티브)</td><td>v2.37.0 · 2026-09-03</td></tr><tr><td>Claude Desktop</td><td><b>2 구조화 기록</b></td><td><code>claude_desktop_config.json</code> 에 MCP 서버 등록 — 훅·규칙 파일 없음</td><td>— (v2.2.0 출시 · 실연결 기록 없음)</td></tr><tr><td>Gemini CLI</td><td>1 규칙 호환</td><td><code>AGENTS.md</code> + <code>GEMINI.md</code> 블록</td><td>—</td></tr><tr><td>Cursor</td><td>1 규칙 호환</td><td><code>.cursor/rules/ocul-pm.mdc</code></td><td>—</td></tr><tr><td>GitHub Copilot</td><td>1 규칙 호환</td><td><code>.github/copilot-instructions.md</code> 블록</td><td>— (v2.0.0 출시)</td></tr><tr><td>Windsurf</td><td>1 규칙 호환</td><td><code>.windsurf/rules/ocul-pm.md</code></td><td>— (v2.0.0 출시)</td></tr><tr><td>Cline</td><td>1 규칙 호환</td><td><code>.clinerules/ocul-pm.md</code></td><td>— (v2.0.0 출시)</td></tr><tr><td>aider</td><td>1 규칙 호환</td><td><code>CONVENTIONS.md</code> 블록</td><td>— (v2.0.0 출시)</td></tr><tr><td>Zed</td><td>1 규칙 호환</td><td><code>.rules</code> 블록</td><td>— (v2.0.0 출시)</td></tr><tr><td>Antigravity</td><td>1 규칙 호환</td><td><code>.agent/rules/ocul-pm.md</code></td><td>— (v1.11.0 출시)</td></tr><tr><td>pi</td><td>1 규칙 호환</td><td><code>AGENTS.md</code> 만</td><td>— (v1.11.0 출시)</td></tr></tbody></table></div>
+<p>같은 「일지를 남긴다」라도 약속의 세기가 다릅니다. 등급은 코드에서 읽었습니다 — 규칙 파일 어댑터 표, MCP 등록기, 훅. (앱 안 구동이던 4등급은 2026-10-28 에 화면과 함께, Claude Desktop 의 MCP 원클릭 등록은 4.0 에서 걷었습니다.)</p>
+<div class="wk-table"><table><thead><tr><th>등급</th><th>뜻</th></tr></thead><tbody><tr><td><b>1 · 규칙 호환</b></td><td>앱은 그 에이전트가 읽는 규칙 파일만 씁니다. 일지는 모델이 규칙을 지키는 만큼만 남습니다</td></tr><tr><td><b>2 · 구조화 기록</b></td><td>에이전트가 <code>oculpm</code> MCP 서버의 도구(<code>journal_write</code> · <code>plan_update</code> …)를 부를 수 있습니다. 등록은 플러그인이 하거나(Claude Code) 안내합니다(Codex)</td></tr><tr><td><b>3 · 세션 관측</b></td><td>세션 시작·종료를 훅으로 받고, 일지 없이 끝난 대화를 가려냅니다 (Stop 배달 게이트 · <code>sessions.json</code>)</td></tr></tbody></table></div>
+<div class="wk-table"><table><thead><tr><th>에이전트</th><th>등급</th><th>하는 일</th><th>검증</th></tr></thead><tbody><tr><td>Claude Code</td><td><b>3 세션 관측</b></td><td>oculpm 플러그인(훅 · MCP 도구 · 커맨드) · <code>AGENTS.md</code> + <code>.claude/CLAUDE.md</code> 블록</td><td>v3.0.0 · 2026-09-11</td></tr><tr><td>Codex</td><td><b>3 세션 관측</b></td><td>Codex 플러그인(훅 · <code>~/.codex/config.toml</code> MCP 등록 안내) · <code>AGENTS.md</code>(네이티브)</td><td>v2.37.0 · 2026-09-03</td></tr><tr><td>Gemini CLI</td><td>1 규칙 호환</td><td><code>AGENTS.md</code> + <code>GEMINI.md</code> 블록</td><td>—</td></tr><tr><td>Cursor</td><td>1 규칙 호환</td><td><code>.cursor/rules/ocul-pm.mdc</code></td><td>—</td></tr><tr><td>GitHub Copilot</td><td>1 규칙 호환</td><td><code>.github/copilot-instructions.md</code> 블록</td><td>— (v2.0.0 출시)</td></tr><tr><td>Windsurf</td><td>1 규칙 호환</td><td><code>.windsurf/rules/ocul-pm.md</code></td><td>— (v2.0.0 출시)</td></tr><tr><td>Cline</td><td>1 규칙 호환</td><td><code>.clinerules/ocul-pm.md</code></td><td>— (v2.0.0 출시)</td></tr><tr><td>aider</td><td>1 규칙 호환</td><td><code>CONVENTIONS.md</code> 블록</td><td>— (v2.0.0 출시)</td></tr><tr><td>Zed</td><td>1 규칙 호환</td><td><code>.rules</code> 블록</td><td>— (v2.0.0 출시)</td></tr><tr><td>Antigravity</td><td>1 규칙 호환</td><td><code>.agent/rules/ocul-pm.md</code></td><td>— (v1.11.0 출시)</td></tr><tr><td>pi</td><td>1 규칙 호환</td><td><code>AGENTS.md</code> 만</td><td>— (v1.11.0 출시)</td></tr></tbody></table></div>
 <p><b>검증</b> 열은 저장소의 <code>CHANGELOG.md</code> 와 작업 일지에 그 등급이 <b>실제로 돌았다</b>고 적힌 마지막 근거(앱 버전 · 날짜)입니다. <code>—</code> 는 코드는 있지만 실측 기록이 없다는 뜻이고, 괄호의 「출시」는 CHANGELOG 에 실린 버전입니다.</p>
-<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>내장 터미널에서 실행한 CLI(<code>claude</code> · <code>codex</code> · <code>gemini</code> · <code>cursor-agent</code> · <code>aider</code> …)는 셸 통합으로 <b>시작·종료만</b> 잡힙니다. 미기록 판정은 없으므로 3등급이 아닙니다. 아직 실기기로 못 본 것 — Claude Desktop 실연결, Codex 의 도구 승인→파일 변경 한 흐름 — 은 코드가 있어도 등급을 올리지 않았습니다. 공식 빌드는 macOS Apple Silicon 뿐입니다.</p></div></div>
-<p>1등급이라면 <b>오늘 현황의 <a href="/wiki/journal">정직성 감사</a></b> 를 가끔 확인하세요. 빠뜨린 변경이 있으면 거기 뜹니다.</p>
+<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>위 표의 검증 근거는 macOS 빌드에서 나왔습니다. Windows · Linux 는 베타입니다 — Windows 에서는 Claude Code 플러그인의 훅은 돌지만 MCP 서버가 뜨지 않아, 에이전트가 기록 규격대로 파일을 직접 씁니다.</p></div></div>
+<p>1등급이라면 <b>오늘 화면의 <a href="/wiki/journal">기록 없는 변경</a></b> 을 가끔 확인하세요. 빠뜨린 변경이 있으면 거기 뜹니다.</p>
 <div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>Claude Code 를 쓴다면 플러그인 설치가 가장 큰 차이를 만듭니다 — <a href="/wiki/claude-code">Claude Code 연동</a>의 두 줄이면 끝납니다.</p></div></div>
 <h2 id="여러-에이전트를-섞어-쓸-때">여러 에이전트를 섞어 쓸 때</h2>
-<p>문제 없습니다. 일지 머리말에 <code>agent.id</code> 와 모델명이 함께 적히므로, 나중에 누가 무엇을 했는지 구분됩니다. 오늘 현황의 <b>「에이전트별 기여」</b> 카드가 그 분포를 보여 줍니다.</p>
-<h2 id="스킬-규칙-허브">스킬·규칙 허브</h2>
-<p>사이드바의 <b>스킬·규칙</b> 화면은 위의 내용을 앱 안에서 만지는 곳입니다. 탭이 다섯입니다.</p>
-<h3 id="스킬">스킬</h3>
-<p><code>SKILL.md</code> 파일 하나가 스킬 하나입니다. 에이전트가 상황에 맞는 스킬을 <b>스스로 발동</b>하는데, 그 기준이 되는 것이 frontmatter 의 <code>description</code> 입니다 — 그래서 설명을 잘 쓰는 게 중요합니다.</p>
-<ul><li><b>프로젝트 / 전역</b> — 이 프로젝트에만(<code>.claude/skills/</code>) 둘지, 모든 프로젝트에서 쓸지(<code>~/.claude/skills/</code>). 서로 복사할 수 있습니다</li><li><b>비활성화</b> — <code>.claude/skills/.disabled/</code> 로 옮겨 로드에서 뺍니다. <b>파일은 지워지지 않습니다</b></li><li><b>편집</b> — 앱 안에서 바로 고치고 <code>⌘S</code> 로 저장</li><li><b>새 스킬</b> — 빈 스킬을 만들어 시작</li></ul>
-<h3 id="샵-추천-스킬">샵 (추천 스킬)</h3>
-<p>검증 습관을 만들어 주는 스킬을 <b>원클릭으로 설치</b>합니다. <code>self-audit</code> 처럼 에이전트가 스스로를 점검하게 하는 것들입니다.</p>
-<h3 id="규칙">규칙</h3>
-<p>앞에서 다룬 어댑터별 규칙 파일을 켜고 끄고, 원본을 고치는 탭입니다.</p>
-<h3 id="훅">훅</h3>
-<p>Claude Code 훅 연동입니다. <b>훅이 켜지면 세션의 시작·종료가 휴리스틱이 아니라 실측 신호로 기록됩니다</b> — 앱이 "파일이 조용해졌으니 끝났나 보다" 하고 추측하는 대신, 에이전트가 직접 알려 줍니다.</p>
-<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>세션 종료 시의 <b>일지 자동 초안</b>(과금 있음)과 MCP 도구 등록은 이 탭이 아니라 설정 → ocul-pm → 에이전트 연동에서 관리합니다.</p></div></div>
-<h3 id="플러그인">플러그인</h3>
-<p>플러그인이 무엇을 깔아 주는지 — 커맨드·도구·스킬 목록을 확인합니다.</p>
+<p>문제 없습니다. 일지 머리말에 <code>agent.id</code> 와 모델명이 함께 적히므로, 나중에 누가 무엇을 했는지 구분됩니다.</p>
+<h2 id="스킬은-플러그인이-맡습니다">스킬은 플러그인이 맡습니다</h2>
+<p>3.x 의 「스킬·규칙」 화면(스킬 편집 · 추천 스킬 설치 · 발동 배지 · 규칙 허브)은 4.0 에서 걷었습니다 — Claude Code 설정 관리자에 가까웠고, 스킬은 플러그인이 맡습니다. 이미 깔아 둔 <code>.claude/skills/</code> · <code>.claude/rules/</code> 파일은 Claude Code 가 그대로 읽고, 앱은 건드리지 않습니다. 플러그인이 싣는 커맨드와 도구는 <a href="/wiki/claude-code">Claude Code 연동</a>에.</p>
 <h2 id="다음-걸음">다음 걸음</h2>
-<ul><li>Claude Code 를 쓴다면 → <a href="/wiki/claude-code">Claude Code 연동</a></li><li>규칙이 잘 도는지 확인하려면 → <a href="/wiki/journal">작업 일지</a>의 정직성 감사</li></ul>
+<ul><li>Claude Code 를 쓴다면 → <a href="/wiki/claude-code">Claude Code 연동</a></li><li>규칙이 잘 도는지 확인하려면 → <a href="/wiki/journal">작업 일지</a>의 기록 없는 변경</li></ul>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/claude-code"><span>← 이전</span><b>Claude Code 연동</b></a>
-<a class="wk-pg next" href="/wiki/workspace"><span>다음 →</span><b>창 · 탭 · 외부 편집기</b></a></footer>
+<a class="wk-pg next" href="/wiki/workspace"><span>다음 →</span><b>창 · 프로젝트 · 외부 편집기</b></a></footer>
   </main>
 </div>
 

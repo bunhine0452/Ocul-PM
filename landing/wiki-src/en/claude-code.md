@@ -1,23 +1,23 @@
 ---
 title: Claude Code
-desc: Where Claude Code in your terminal meets Ocul-PM — the rules file, the plugin (hook bridge · MCP tools), and the app's screens.
+desc: The three places terminal Claude Code meets Ocul-PM — the rules file, the plugin (hooks · MCP tools · commands), and the app's screens.
 order: 9
-updated: 2026-10-28
+updated: 2026-10-29
 ---
 
-With Ocul-PM, Claude Code runs **in your own terminal**. The screen that ran Claude Code inside the app (ACP) was removed on 2026-10-28 — the app's place is to turn what `claude` does in your terminal into **a record, evidence and a plan**.
+In Ocul-PM, Claude Code runs **in your own terminal**. The app's place is to receive what the terminal `claude` does as **record · evidence · plan**, and to unfold only what a person must see. The app calls no LLM.
 
-| Where | What it does | Install |
+| Place | What it does | Install |
 |---|---|---|
-| **Rules file** `AGENTS.md` | Tells the agent to write a journal entry after every unit of work, and to state a done condition and a check command before code | Planted when you add a project |
-| **Plugin** `oculpm` | Hook bridge (session start/stop) · MCP journaling tools · skills — recording becomes **structure**, not a rule | Two lines below |
-| **The app** | Entries appear on screen within seconds, with their diff; the next session picks up where you left off | Just read |
+| **Rules file** `AGENTS.md` | Tells the agent to write an entry after every unit of work, to state a done condition as an outcome before code, and to leave the verdict to a check command (template v20) | Automatic when you turn recording on |
+| **Plugin** `oculpm` | Hooks (session start · end) · MCP recording tools · commands — recording becomes **structure**, not a rule | The two lines below |
+| **App** | Entries show up within seconds, diffs are attached, and failed verdicts and entries without evidence land on Today | Just download it |
 
 ## Install the plugin
 
-AGENTS.md rules alone will produce entries, but only **as far as the model follows them** — it can forget at the end of a long session. With the plugin installed, a hook judges each session as it ends, and if code changed without an entry it blocks the turn once and asks for one.
+AGENTS.md alone does get entries written, but only **as far as the model follows the rule** — it can forget at the end of a long session. With the plugin installed, a hook judges each session as it ends, and if code changed with no entry it blocks the turn once and asks for the record.
 
-Two lines inside `claude` in your terminal:
+Two lines inside the terminal `claude`:
 
 ```
 /plugin marketplace add bunhine0452/Ocul-PM
@@ -25,26 +25,31 @@ Two lines inside `claude` in your terminal:
 ```
 
 :::tip
-The same two lines sit under **Settings → ocul-pm → Integrations** in the app, with a copy button. The MCP snippet for Claude Desktop is there too.
+The same commands sit in the app under **Settings → Agent connections** with copy buttons. When the installed version is older than the app, that spot and Today hand you the update command.
 :::
 
 Once installed:
 
-- **Hook bridge** — at session start it ships the active plan's open items, done condition and check command plus the last three entries into the starting context; at the end it judges whether the session recorded.
+- **Start hook** — for each recently updated plan: done condition · check command · **last verdict** · open items, plus the last three entries, go into the starting context. You don't explain yesterday again
+- **End hook** — judges whether the session ended without an entry
 - **7 MCP tools** — `journal_search` · `journal_read` · `journal_write` · `plan_status` · `plan_update` · `plan_create` · `project_init`
-- **Skills** — `/oculpm:next` (one loop on the next open item) · `/oculpm:redteam` (run the claims, report only counterexamples) · `/oculpm:inception` (seed a new design)
+- **Commands** — `/oculpm:inception` (what happens next → four depth questions → the field's methods → a hard numeric goal → a plan whose first item is a check command that is red now) · `/oculpm:next` (claim the item as `[~]` → implement → check command → entry → plan; with `until-done`, until the verdict passes) · `/oculpm:redteam` (runs the claims, reports only counter-examples) · `/oculpm:help`
 
-Everything is configured globally under `~/.claude`, so it works **in every project**. You can start with the plugin alone — records accumulate as `.oculpm/` markdown, and the app reads them whenever you install it. Details on the [plugin page](/plugin).
+It is all configured globally under `~/.claude`, so it works in **every project** (it records only where `.oculpm/` exists). You can use the plugin before installing the app — records pile up as `.oculpm/` markdown, and the app reads them as-is whenever you install it. More on the [plugin page](/en/plugin).
+
+## The verdict line
+
+An agent that ran the check command logs the result as a `plan_update` note, one line: `verdict ✓|✗ <last line of output>` (`판정` in Korean). The start hook and the Plan screen read that line by the same rule and show it as the "last verdict". More in [Plan](/wiki/en/planner).
 
 ## What the app hands to your terminal
 
-- **Planner ▶Run** — copies the item's prompt (with the done condition and check command) to the **clipboard**. Paste it into `claude` and press Enter.
-- **Today → "Resume with this context"** — copies the resume prompt built from the remaining plan and the last entries.
+- **Plan screen [Copy prompt]** · `c` on Today — a prompt that picks up the next item, on your **clipboard**. Paste it into the terminal `claude` and press Enter.
+- **[Copy with until-done]** — the same prompt plus "keep going until the verdict passes".
+- **Diff [Copy record request]** — a request for an entry, built from the files no entry mentions.
 
-You are always the one who sends — the app has no way to type into your terminal.
+You always do the sending — the app has no way to write into your terminal.
 
-## Summary — what do I install?
+## Summary — what should I install?
 
-- **Claude Code in a terminal** → the two lines above. Skip them and sessions may go unrecorded.
-- **Claude Desktop too** → copy the MCP snippet from Settings → ocul-pm → Integrations.
+- **You use Claude Code in a terminal** → install the plugin with the two lines above. Without it, sessions can go unrecorded.
 - **Codex · Cursor · Gemini CLI** → [Other agents](/wiki/en/agents).

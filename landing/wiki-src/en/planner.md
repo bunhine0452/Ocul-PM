@@ -1,11 +1,11 @@
 ---
-title: Planner
-desc: A plan document agents keep current — glyphs, item ids, the change log, decisions, and locking.
+title: Plan
+desc: A plan document agents keep current — done condition · check command · last verdict, glyphs, the change log, decisions, and locking.
 order: 6
-updated: 2026-08-21
+updated: 2026-10-29
 ---
 
-If the journal is *what happened*, the planner is **the current plan**. With one difference: it isn't a to-do list you maintain, it's **a document agents update themselves every time they finish something**.
+If the journal is *what happened*, the plan is **the current plan**. With one difference: it isn't a to-do list you maintain, it's **a document agents update every time they finish something** (`plan_create` · `plan_update`).
 
 Files live at `.oculpm/planner/*.md` — plain markdown again.
 
@@ -19,6 +19,9 @@ title: "Session attribution cleanup"
 status: active
 owner: claude-code
 ---
+
+**Done when:** entries written without a session are attributed by write time, and Today can count them per conversation
+**Check:** `cargo test --test session_verdict`
 
 ## Phase Foundations {#foundation}
 - [x] Timestamp attribution function {#resolve-by-time}
@@ -43,7 +46,24 @@ owner: claude-code
 | `[>]` | Deferred |
 | `[-]` | Dropped |
 
-**The glyph in the body is the truth about current state.** The change log below is history.
+**The glyph in the body is the truth about current state.** The change log below is history. `/oculpm:next` flips an item to `[~]` the moment it claims it, so a parallel session doesn't grab the same item.
+
+## Done condition · check command · last verdict
+
+"All items are closed" and "the goal is met" are different claims. So two lines sit at the head of a plan.
+
+- **Done when** — an outcome, not a task: what must be true to be done, and what should happen next
+- **Check** — a command that comes back pass or fail. If the agent can't name one, it builds one first
+
+The result of running the check command is logged as **one line** in the change log's note column:
+
+```
+verdict ✓ 418 passed · exit 0
+verdict ✗ 2 failed, 418 passed
+판정 ✓ …          (Korean template — same shape)
+```
+
+The newest such line is the plan's **last verdict**. The plugin's start hook and the app's Plan screen read it by **the same rule** (`^(판정|verdict) (✓|✗)`), so the next session's agent and you see the same verdict. A plain note with a colon, like "verdict:", is not a verdict. **All items closed is not done until the verdict passes** — a failed verdict goes to the top of Today's "To check".
 
 ## The change log — who moved what, when, why
 
@@ -70,7 +90,7 @@ Rationale: on-disk markdown is the SSOT. Treating the cache as canonical would �
 Affects: #resolve-by-time, #derive-links
 ```
 
-It exists so you don't re-litigate "why did we do it this way" later.
+It exists so you don't re-litigate "why did we do it this way" later. Since 4.0 removed the Discussions screen, big decisions and option comparisons live in this block.
 
 ## Status and locking
 
@@ -82,18 +102,19 @@ The plan document itself has a status.
 | `done` | Finished | **No** |
 | `archived` | Archived | **No** |
 
-Agents **will not modify** a `done` or `archived` plan. That keeps a finished plan from quietly coming back to life and muddying the history; when there's follow-on work, a new plan is created. The sidebar marks these **Locked**.
+Agents **will not modify** a `done` or `archived` plan. That keeps a finished plan from quietly coming back to life and muddying the history; when there's follow-on work, a new plan is created. In the Plan screen's rail they fold into one "N finished plans" line.
 
-## What the Planner screen offers
+## The Plan screen (`⌘3`)
 
-- **Sort** — recent · progress · remaining work · name
-- **Group** — by status · by recent activity · by author
-- **Stalled plans** — "stalled for 12 days" makes abandoned plans visible
-- **Search** — narrow by plan name
+- **Rail** — each active plan with a progress bar · verdict (✓ / ✗ / none) · updated time, most recently updated first
+- **Verdict card** — done condition · check command · last verdict (last line of output) right under the title; "Not run yet" when there is none
+- **Next** — the first open item (human-owned ones skipped) with **[Copy prompt]** · **[Copy with until-done]**. Paste it and the agent in your terminal picks the item up; with until-done it keeps going until the verdict passes
+- **Item status** — click an item's box to pick one of six states. Marking it done without a verifying entry asks once
+- "Change log N lines · decisions M" stays folded
 
 ## Who creates a new plan
 
-Usually it's easiest to ask an agent — "turn these into a plan" and you get a spec-conforming file. You can also write one by hand: frontmatter, phase headings, item lines, and an empty log block, in that order.
+In 4.0 **agents write plans** — there is no button in the app to create a plan or add items. For a new feature area, `/oculpm:inception` in the terminal goes through "what should happen next" and four depth questions and creates, with `plan_create`, a plan whose first item is a check command that is red right now. You can also write one by hand: frontmatter, done condition · check command, phase headings and item lines, in that order.
 
 :::warn
 When writing item lines, `{#id}` must sit at the **end of the line** with no wrapping. An `{#id}` that spills onto a second line won't be read by the parser.
@@ -102,4 +123,4 @@ When writing item lines, `{#id}` must sit at the **end of the line** with no wra
 ## Next steps
 
 - The record that pairs with plans → [Work Journal](/wiki/en/journal)
-- Want to compare options before deciding → Discussions, in the [Screen Tour](/wiki/en/screens)
+- Where a failed verdict shows up → [Today](/wiki/en/today)

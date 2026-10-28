@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>플러그인 · 스킬 카탈로그 — Ocul-PM</title>
-<meta name="description" content="Claude Code 용 Ocul-PM 플러그인의 전체 표면: 슬래시 커맨드 4종, MCP 도구 7종, 동봉 스킬 1종, 그리고 스택을 감지해 추천하는 제3자 스킬 카탈로그 26종(커밋 고정·MIT)." />
+<title>플러그인 — Ocul-PM</title>
+<meta name="description" content="Claude Code 용 Ocul-PM 플러그인의 전체 표면: 슬래시 커맨드 4종, MCP 도구 7종, 동봉 스킬 1종, 그리고 시작 훅이 싣는 완료 조건 · 확인 명령 · 마지막 판정." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/plugin" />
@@ -15,8 +15,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/plugin" />
-<meta property="og:title" content="플러그인 · 스킬 카탈로그 — Ocul-PM" />
-<meta property="og:description" content="설치 두 줄부터 /oculpm:inception → /oculpm:next 구현 루프까지. 스킬 카탈로그 26종은 전부 커밋 고정 사본입니다." />
+<meta property="og:title" content="플러그인 — Ocul-PM" />
+<meta property="og:description" content="설치 두 줄부터 /oculpm:inception → /oculpm:next 구현 루프까지. 판정은 에이전트의 말이 아니라 확인 명령의 결과 끝 줄입니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -115,57 +115,17 @@
 
     <section class="pg-sec">
       <h2 id="skills">동봉 스킬 1종</h2>
-      <p>상황에 맞게 스스로 발동하는 방법론입니다. 플러그인을 설치하면 함께 들어오고, 앱의 <b>스킬·규칙</b> 화면에서 개별 설치도 됩니다. <b>앱에서 열기</b>는 <code>oculpm://</code> 딥링크라 앱이 확인 창을 띄우는 데까지만 하고, <b>승인 전에는 아무것도 바뀌지 않습니다</b>.</p>
+      <p>상황에 맞게 스스로 발동하는 방법론입니다. 플러그인을 설치하면 함께 들어옵니다. (3.x 의 앱 「스킬·규칙」 화면과 개별 설치 딥링크는 4.0 에서 걷었습니다 — 스킬은 플러그인이 맡습니다.)</p>
       <div class="pg-cards">
       <div class="pg-card">
         <h3><code>oculpm-journal</code> <span class="pill on">v2.36.0</span><span class="when">기록 규격의 풀 스펙 캐리어</span></h3>
         <p>일지·플랜 규칙의 세부가 필요할 때 로드됩니다 — 폴더 규약·frontmatter 필드·섹션 순서·<code>related</code> 링크 규칙의 전문.</p>
         <div class="pg-actions">
-          <a class="pg-btn primary" href="oculpm://skill/install?source=bunhine0452/Ocul-PM&amp;name=oculpm-journal">앱에서 열기</a>
           <a class="pg-btn ghost" href="https://github.com/bunhine0452/Ocul-PM/blob/main/plugin/oculpm/skills/oculpm-journal/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a>
         </div>
       </div>
       </div>
       <p class="pg-quiet">안전 계약(무엇을 읽고 쓰고 절대 하지 않는지)은 저장소의 <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/claude-integration/06-plugin-contract.md" target="_blank" rel="noreferrer">플러그인 계약 문서</a>에 테스트와 함께 고정돼 있습니다. 훅은 네트워크 없는 로컬 append 한 줄이고, 대화 로그가 담기는 <code>.oculpm/hooks/</code> 는 gitignore 관리 블록이 커밋을 막습니다. 여기에 <b>배달 게이트</b>가 하나 더 있습니다 — 코드 변경이 있는데 일지 없이 세션을 마치려 하면 세션당 한 번 에이전트에게 일지 작성을 지시합니다 (규칙 주입만으로는 헤드리스 세션 기록 준수가 0% 였던 자체 벤치 실측이 근거).</p>
-    </section>
-
-    <section class="pg-sec">
-      <h2 id="catalog">스킬 샵 카탈로그 26종</h2>
-      <p>앱의 <b>스킬·규칙 → 샵</b> 탭은 프로젝트의 매니페스트(<code>package.json</code>·<code>Cargo.toml</code>·<code>pyproject.toml</code> 등)로 스택을 감지해 아래 카탈로그에서 맞는 스킬을 추천합니다. 전부 MIT 제3자 스킬(ECC · ponytail · i-have-adhd)의 <b>커밋 고정 사본</b>입니다 — 원문 무수정, <b>런타임 네트워크 0</b>(설치 시점에 아무것도 받지 않습니다). 설치하면 <code>.claude/skills/</code> 에 들어가며 이는 Claude Code 네이티브 기능이라 <b>플러그인 없이도 동작</b>합니다. 하나는 스택이 아니라 <b>출력 형태</b>를 바꿉니다 — <code>i-have-adhd</code> 는 매니페스트에 걸리지 않으므로 추천이 아니라 검색으로 찾고, 사람이 이름을 쳐야만 뜹니다.</p>
-      <div class="pg-table">
-        <table>
-          <thead><tr><th>스킬</th><th>무엇</th><th>고정된 커밋</th><th>원문</th></tr></thead>
-          <tbody>
-          <tr><td>python-patterns</td><td>Python 관용구·패턴</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/python-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>python-testing</td><td>pytest 기반 TDD</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/python-testing/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>rust-patterns</td><td>Rust 소유권·트레이트 패턴</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/rust-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>rust-testing</td><td>Rust 테스트 패턴</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/rust-testing/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>react-patterns</td><td>React 18/19 컴포넌트 패턴</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/react-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>react-testing</td><td>React Testing Library 테스트</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/react-testing/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>golang-patterns</td><td>Go 관용구·패턴</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/golang-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>golang-testing</td><td>Go 테이블 주도 테스트</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/golang-testing/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>security-review</td><td>보안 리뷰 체크리스트</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/security-review/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>codebase-onboarding</td><td>코드베이스 온보딩 가이드</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/codebase-onboarding/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>ponytail</td><td>가장 게으른(최소) 해법 강제</td><td><span class="pill">ponytail@16f2980</span></td><td><a href="https://github.com/DietrichGebert/ponytail/blob/16f29800fd2681bdf24f3eb4ccffe38be3baec6b/skills/ponytail/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>ponytail-review</td><td>오버엔지니어링 삭제 리뷰</td><td><span class="pill">ponytail@16f2980</span></td><td><a href="https://github.com/DietrichGebert/ponytail/blob/16f29800fd2681bdf24f3eb4ccffe38be3baec6b/skills/ponytail-review/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>ponytail-audit</td><td>저장소 전체 과잉설계 감사</td><td><span class="pill">ponytail@16f2980</span></td><td><a href="https://github.com/DietrichGebert/ponytail/blob/16f29800fd2681bdf24f3eb4ccffe38be3baec6b/skills/ponytail-audit/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>vue-patterns</td><td>Vue 3 Composition API 패턴</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/vue-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>react-performance</td><td>React/Next.js 성능 최적화</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/react-performance/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>vite-patterns</td><td>Vite 설정·빌드 패턴</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/vite-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>laravel-patterns</td><td>Laravel 아키텍처 패턴</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/laravel-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>springboot-patterns</td><td>Spring Boot 백엔드 패턴</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/springboot-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>django-patterns</td><td>Django/DRF 패턴</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/django-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>fastapi-patterns</td><td>FastAPI 비동기 API 패턴</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/fastapi-patterns/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>accessibility</td><td>WCAG 2.2 접근성 구현·감사</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/accessibility/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>api-design</td><td>REST API 설계 패턴</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/api-design/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>database-migrations</td><td>무중단 DB 마이그레이션</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/database-migrations/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>e2e-testing</td><td>Playwright E2E 테스트</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/e2e-testing/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>inherit-legacy-style</td><td>레거시 스타일 상속</td><td><span class="pill">ecc@e4e4163</span></td><td><a href="https://github.com/affaan-m/ecc/blob/e4e4163101f162881e628f300a9ca4e6a940bcea/skills/inherit-legacy-style/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          <tr><td>i-have-adhd</td><td>실행부터 말하는 출력 형태</td><td><span class="pill">i-have-adhd@24d22f7</span></td><td><a href="https://github.com/ayghri/i-have-adhd/blob/24d22f783e57cb73c957848b588c6f651b6f9cd8/skills/i-have-adhd/SKILL.md" target="_blank" rel="noreferrer">SKILL.md ↗</a></td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="pg-quiet">설치된 스킬의 설명 한 줄은 <b>매 세션 컨텍스트에 상시 탑승</b>합니다 — 프로젝트당 2~3개 권장. 본문은 스킬이 발동될 때만 로드됩니다. 「고정된 커밋」은 우리가 사본을 뜬 시점의 업스트림 SHA 라, 원문과 무엇이 같은지 그 자리에서 확인할 수 있습니다.</p>
     </section>
 
   </div>

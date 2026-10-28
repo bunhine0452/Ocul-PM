@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>화면 둘러보기 — Ocul-PM 위키</title>
-<meta name="description" content="사이드바의 화면들이 각각 무엇을 하는지 — 오늘 현황부터 스킬·규칙까지 한 장으로." />
+<meta name="description" content="4.0 의 다섯 면 — 오늘 · 작업 일지 · 계획 · 변경 · 설정, 그리고 시작 창을 한 장으로." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/wiki/screens" />
@@ -14,7 +14,7 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:title" content="화면 둘러보기 — Ocul-PM 위키" />
-<meta property="og:description" content="사이드바의 화면들이 각각 무엇을 하는지 — 오늘 현황부터 스킬·규칙까지 한 장으로." />
+<meta property="og:description" content="4.0 의 다섯 면 — 오늘 · 작업 일지 · 계획 · 변경 · 설정, 그리고 시작 창을 한 장으로." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -44,13 +44,12 @@
     <a class="wk-side-link" href="/wiki/getting-started">시작하기</a>
     <a class="wk-side-link" href="/wiki/faq">자주 묻는 질문</a>
     <a class="wk-side-link on" href="/wiki/screens">화면 둘러보기</a>
-    <a class="wk-side-link" href="/wiki/today">오늘 현황</a>
+    <a class="wk-side-link" href="/wiki/today">오늘</a>
     <a class="wk-side-link" href="/wiki/journal">작업 일지</a>
-    <a class="wk-side-link" href="/wiki/planner">플래너</a>
-    <a class="wk-side-link" href="/wiki/automation">자동화</a>
+    <a class="wk-side-link" href="/wiki/planner">계획</a>
     <a class="wk-side-link" href="/wiki/claude-code">Claude Code 연동</a>
     <a class="wk-side-link" href="/wiki/agents">다른 에이전트 연동</a>
-    <a class="wk-side-link" href="/wiki/workspace">창 · 탭 · 외부 편집기</a>
+    <a class="wk-side-link" href="/wiki/workspace">창 · 프로젝트 · 외부 편집기</a>
     <a class="wk-side-link" href="/wiki/settings">설정</a>
     <a class="wk-side-link" href="/wiki/troubleshooting">문제 해결</a>
     <a class="wk-side-link" href="/wiki/data">데이터와 파일 구조</a>
@@ -64,28 +63,22 @@
   <main class="wk-main">
     <article class="wk-article">
       <h1>화면 둘러보기</h1>
-      <p class="wk-updated">마지막 수정 2026-10-28</p>
-      <nav class="wk-toc"><span>이 페이지에서</span><a href="#기록">기록</a><a href="#도구">도구</a><a href="#코드-검색-세-모드의-차이">코드 검색 — 세 모드의 차이</a><a href="#문제-해결-토의">문제 해결 (토의)</a><a href="#다음-걸음">다음 걸음</a></nav>
-      <p>Ocul-PM 의 화면은 여덟입니다. 위쪽 「기록」은 에이전트가 무엇을 했는지 쌓이는 곳이고, 아래쪽 「도구」는 그 기록 옆에서 찾고 관리하는 곳입니다. 에이전트 자체는 <b>여러분의 터미널</b>에서 돕니다 — 앱 안 터미널 · 편집기 · 에이전트 화면은 2026-10-28 에 걷었습니다.</p>
-<p>사이드바 순서 = <code>⌘</code> 번호 순서입니다 (<code>⌘1</code> ~ <code>⌘8</code>).</p>
-<p>화면에는 <b>등급</b>이 있습니다 (<a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md" target="_blank" rel="noreferrer">약속 문서</a>): 「기록」의 오늘 현황 · 작업 일지 · 변경 · 플래너가 <b>핵심</b>(이 앱이 약속하는 것), 문제 해결 · 브랜치 · 검색 · 스킬·규칙은 <b>뷰어</b>(열리고 보여 주고 깨지지 않는 것까지)입니다.</p>
-<h2 id="기록">기록</h2>
-<div class="wk-table"><table><thead><tr><th>화면</th><th>키</th><th>하는 일</th></tr></thead><tbody><tr><td><b>오늘 현황</b></td><td><code>⌘1</code></td><td>오늘 하루의 요약 — 활동 링, 커밋 그래프, 에이전트별 기여, 정직성 감사</td></tr><tr><td><b>작업 일지</b></td><td><code>⌘2</code></td><td>쌓인 일지의 타임라인. 날짜별로 접히고, 각 일지는 서술 + 변경 diff 2단</td></tr><tr><td><b>변경</b></td><td><code>⌘3</code></td><td>지금 작업 트리의 변경을 줄 단위로. 일지·계획별로 묶어서도 볼 수 있고, 바뀐 파일을 import 하는 「영향 받는 파일」도 짚음</td></tr><tr><td><b>플래너</b></td><td><code>⌘4</code></td><td>지금의 계획. 에이전트가 스스로 갱신하는 살아있는 문서</td></tr><tr><td><b>문제 해결</b></td><td><code>⌘7</code></td><td>결정 전에 옵션을 늘어놓고 비교하는 토의 문서</td></tr><tr><td><b>브랜치</b></td><td><code>⌘8</code></td><td>이 브랜치에서 무슨 일이 있었나 — 커밋·일지·계획·바뀐 파일과 기록률</td></tr></tbody></table></div>
-<p>일지와 플래너는 이 앱의 두 기둥입니다 — 각각 <a href="/wiki/journal">작업 일지</a>와 <a href="/wiki/planner">플래너</a>에서 자세히 다룹니다.</p>
-<h2 id="도구">도구</h2>
-<div class="wk-table"><table><thead><tr><th>화면</th><th>키</th><th>하는 일</th></tr></thead><tbody><tr><td><b>검색</b></td><td><code>⌘5</code></td><td>의미 검색 · 심볼 · 정확히 일치 — 세 가지 모드</td></tr><tr><td><b>스킬·규칙</b></td><td><code>⌘6</code></td><td>에이전트에게 주입되는 스킬·규칙·훅을 한자리에서</td></tr></tbody></table></div>
-<div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>검색 결과의 「열기」는 설정의 <b>외부 편집기</b> 명령(VS Code · Cursor …)으로 그 파일 그 줄을 엽니다. 앱 안 편집기는 없습니다.</p></div></div>
-<h2 id="코드-검색-세-모드의-차이">코드 검색 — 세 모드의 차이</h2>
-<div class="wk-table"><table><thead><tr><th>모드</th><th>언제</th><th>어떻게 찾나</th></tr></thead><tbody><tr><td><b>의미 검색</b></td><td>"로그인 실패를 어디서 처리하지?"</td><td>로컬 임베딩으로 뜻이 가까운 조각을 찾습니다</td></tr><tr><td><b>심볼</b></td><td>함수·클래스 이름을 알 때</td><td>tree-sitter 로 뽑아 둔 심볼 표에서</td></tr><tr><td><b>정확히 일치</b></td><td>오타·상수·문자열 추적</td><td>문자열 그대로</td></tr></tbody></table></div>
-<p>의미 검색의 인덱싱은 <b>전부 로컬</b>입니다 — 코드가 밖으로 나가지 않습니다. 프로젝트를 처음 열 때 한 번 인덱싱하고, 그 뒤로는 바뀐 파일만 갱신합니다. 기본값은 코드만 훑지만 「문서 포함」을 켜면 <code>.md</code>·<code>.txt</code> 도 결과에 들어옵니다.</p>
-<h2 id="문제-해결-토의">문제 해결 (토의)</h2>
-<p>일지가 <i>지나간 일</i>이고 플래너가 <i>현재 계획</i>이라면, 토의는 <b>결정 직전</b>입니다. 옵션 A·B·C 를 늘어놓고 장단점을 적어 고르는 문서고, <code>.oculpm/discussion/&lt;이름&gt;/discussion.md</code> 에 남습니다.</p>
-<div class="wk-callout note"><span class="wk-callout-tag">참고</span><div><p>에이전트는 여러분이 "옵션을 비교하자 / 이 문제를 정리하자" 고 <b>명시적으로 요청할 때만</b> 토의 문서를 만듭니다. 평범한 작업에는 일지와 플래너면 충분하기 때문입니다.</p></div></div>
+      <p class="wk-updated">마지막 수정 2026-10-29</p>
+      
+      <p>Ocul-PM 4.0 의 화면은 다섯 면입니다. 원칙은 하나 — <b>예외만 보여 준다.</b> 화면의 크기는 에이전트가 한 양이 아니라 사람이 볼 것에 비례하고, 하루 3건 쓰는 사람과 60건 쓰는 사람이 모드 없이 같은 화면을 씁니다. 에이전트 자체는 <b>여러분의 터미널</b>에서 돕니다.</p>
+<p>사이드바 순서 = <code>⌘</code> 번호 순서입니다 (<code>⌘1</code> ~ <code>⌘4</code>). 설정은 사이드바 바닥(<code>⌘,</code>)에 있습니다.</p>
+<div class="wk-table"><table><thead><tr><th>화면</th><th>키</th><th>하는 일</th></tr></thead><tbody><tr><td><b>오늘</b></td><td><code>⌘1</code></td><td>「확인할 것」 — 판정 실패 · 명령 증거 없는 일지 · 어느 일지에도 없는 변경 · 막힘 · 사람 몫 결정 · 플러그인 새 판. 증거가 선 일은 계획별로 한 줄</td></tr><tr><td><b>작업 일지</b></td><td><code>⌘2</code></td><td>왼쪽 목록 + 오른쪽 상세(검증 상자 · 파일별 인라인 diff · 관련 일지). 일지 검색(<code>/</code>)이 여기 삽니다</td></tr><tr><td><b>계획</b></td><td><code>⌘3</code></td><td>제목 바로 아래 완료 조건 · 확인 명령 · 마지막 판정, 다음 항목과 프롬프트 복사</td></tr><tr><td><b>변경</b></td><td><code>⌘4</code></td><td>커밋 전 / 최근 커밋의 diff. 「기록 없음」(어느 일지에도 없는 파일)이 먼저</td></tr><tr><td><b>설정</b></td><td><code>⌘,</code></td><td>에이전트 연결 · 이 프로젝트 · 표시 · 데이터, 한 쪽</td></tr></tbody></table></div>
+<p>프로젝트가 없는 창은 <b>시작 창</b>입니다 — 최근 프로젝트와, 처음이라면 세 단계(폴더 → 기록 켜기 → 플러그인 설치 명령 복사).</p>
+<p>일지와 계획은 이 앱의 두 기둥입니다 — 각각 <a href="/wiki/journal">작업 일지</a>와 <a href="/wiki/planner">계획</a>에서 자세히 다룹니다.</p>
+<div class="wk-callout tip"><span class="wk-callout-tag">팁</span><div><p>일지 상세와 변경 화면의 「열기」는 설정의 <b>외부 편집기</b> 명령(VS Code · Cursor …)으로 그 파일을 엽니다. 앱 안 편집기는 없습니다.</p></div></div>
+<h2 id="4-0-에서-걷은-화면">4.0 에서 걷은 화면</h2>
+<div class="wk-table"><table><thead><tr><th>걷은 것</th><th>대신</th></tr></thead><tbody><tr><td>검색(의미 · 심볼 · 텍스트)</td><td>일지 검색은 작업 일지(<code>/</code>), 코드 검색은 에이전트의 grep</td></tr><tr><td>문제 해결(논의)</td><td>계획의 <code>## 결정</code> 블록. <code>.oculpm/discussion/</code> 파일은 지우지 않습니다</td></tr><tr><td>브랜치 · 스킬·규칙</td><td>기록률은 오늘 · 변경의 「기록 없음」, 스킬은 플러그인</td></tr><tr><td>메뉴바 트레이 · 크롬식 탭</td><td>창 하나 = 프로젝트 하나, OS 의 창 전환</td></tr><tr><td>간단 / 전문 밀도</td><td>예외만 보여 주는 한 화면</td></tr></tbody></table></div>
+<p>근거(실측)는 저장소의 <a href="https://github.com/bunhine0452/Ocul-PM/blob/main/docs/PROMISE.md" target="_blank" rel="noreferrer">PROMISE.md</a> 「4.0 에서 걷은 것」 표에 있습니다.</p>
 <h2 id="다음-걸음">다음 걸음</h2>
-<ul><li>일지가 어떻게 생겼고 무엇을 담는지 → <a href="/wiki/journal">작업 일지</a></li><li>계획이 스스로 갱신된다는 게 무슨 뜻인지 → <a href="/wiki/planner">플래너</a></li><li>단축키 전체 목록 → <a href="/wiki/shortcuts">단축키</a></li></ul>
+<ul><li>오늘 화면이 무엇을 펼치고 접는지 → <a href="/wiki/today">오늘</a></li><li>마지막 판정이 무엇인지 → <a href="/wiki/planner">계획</a></li><li>단축키 전체 목록 → <a href="/wiki/shortcuts">단축키</a></li></ul>
     </article>
     <footer class="wk-pager"><a class="wk-pg prev" href="/wiki/faq"><span>← 이전</span><b>자주 묻는 질문</b></a>
-<a class="wk-pg next" href="/wiki/today"><span>다음 →</span><b>오늘 현황</b></a></footer>
+<a class="wk-pg next" href="/wiki/today"><span>다음 →</span><b>오늘</b></a></footer>
   </main>
 </div>
 

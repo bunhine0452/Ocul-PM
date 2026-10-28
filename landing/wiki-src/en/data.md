@@ -1,55 +1,55 @@
 ---
-title: Data & File Layout
-desc: The structure of the .oculpm folder, backup and moving, and what local-first actually means.
+title: Data & file layout
+desc: The layout of the .oculpm folder, backup and moving, and what local-first actually means.
 order: 15
-updated: 2026-10-24
+updated: 2026-10-29
 ---
 
-## The principle — files are the truth
+## The rule — files are the truth
 
-Every record Ocul-PM keeps is a **markdown file inside your project**. The app's database (SQLite) is only a **cache** for drawing screens quickly, and can be rebuilt from the files at any time. Which means:
+Every record in Ocul-PM is **a markdown file inside your project**. The app's database (SQLite) is only a **cache** for drawing screens quickly, and can always be rebuilt from the files (Settings → Data → "Rebuild from scratch"). So:
 
-- delete the app and the records remain
-- you can commit records to git and share them with your team
-- you can read and edit them in an editor (they're ordinary markdown)
+- Uninstalling the app leaves your records behind
+- You can commit the records to git and share them with your team
+- You can read and edit them in any editor (it's plain markdown)
 
-## `.oculpm/` structure
+## The `.oculpm/` layout
 
 ```
 .oculpm/
-├─ journal/      work journal — .md by date and category
+├─ journal/      work journal — .md by date and kind
 │  └─ 20260816/
 │     ├─ Features_to_add/
 │     ├─ Bugs/
 │     └─ …
-├─ planner/      living plan documents .md
-├─ discussion/   pre-decision discussion documents .md
-├─ agents/       master template for the agent journaling rules
+├─ planner/      living plan documents .md (done condition · check command · verdict log)
+├─ agents/       the master of the agent recording rules and the entry spec (journal-spec.md)
 └─ index/        app-managed cache (do not edit)
 ```
 
+The `discussion/` · `rollups/` · `automation/` folders 3.x created are no longer read by the 4.0 app, but **never deleted** — they are your files.
+
 :::warn
-`index/` alone is the app's — don't edit or delete it by hand. Everything else is yours.
+Only `index/` is managed by the app — don't edit or delete it. Everything else is yours.
 :::
 
 ## Backup and moving
 
-Copy the folder. That's it. Move `.oculpm/` wholesale to the same project on another machine and the app reads it and rebuilds the cache. Including it in git is the simplest backup there is.
-
-:::note
-Adding a project also appends a managed block to `.gitignore` that excludes the cache-like paths (`index/`, `hooks/`, `.lock`, `.schema-version`, `oculpm.log`), so committing `.oculpm/` does the right thing with no setup.
-:::
+Copy the folder and you're done. Move `.oculpm/` wholesale into the same project on another machine and the app reads it and rebuilds the cache. Keeping it in git is the simplest backup.
 
 ## What lives where
 
 | Data | Location | Nature |
 |---|---|---|
-| Entries, plans, discussions | Project `.oculpm/` | Source of truth (markdown) |
-| AGENTS.md journaling rules | Project root | Source of truth |
-| Screen cache, search index | App data folder (SQLite) | Derived — rebuildable |
-| LLM API keys | macOS keychain | Never in the app DB or files |
-| App settings | App data folder | — |
+| Entries · plans | the project's `.oculpm/` | source (markdown) |
+| AGENTS.md recording rules | project root | source |
+| Screen cache · diff baselines | app data folder (SQLite) | derived — rebuildable |
+| App settings | app data folder | — |
+
+:::note
+The first launch after updating to 4.0 drops the 3.x code-index and embedding tables (358MB of an 837MB database on one install). It keeps an `ocul-pm.db.bak-v42` copy first, and Settings → Data → "Compact" hands the freed space back to the disk.
+:::
 
 ## What leaves the machine
 
-Four things, and you start every one: ① LLM API calls you configured yourself, ② the new-version check, ③ GitHub lookups when you click — release notes, plugin/skill bundles, ④ the embedding model downloaded **once** from huggingface.co when you first enable semantic search (the model comes down; no code goes up; everything after that is offline). No telemetry, analytics or account server beyond that.
+Two things, and you start both: ① the update check (destination fixed in the app configuration, signature verified), ② links you click (your OS default browser opens them). **The app calls no LLM**, its screens (the webview) reach no outside host, and it takes no API key. No telemetry, analytics or account server. The full ledger is on the [privacy](/privacy) page.
