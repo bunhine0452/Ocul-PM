@@ -1,61 +1,49 @@
 <!-- schema_version: 1 -->
-<!-- template_version: 19 -->
+<!-- template_version: 20 -->
 # ocul-pm work-journal rules
 
 You are working in a project tracked by ocul-pm. Every time you finish **one logical unit of work** (bug fix / feature / refactor / error cycle / chore), record it immediately — do not ask the user first.
 
-> **MCP tools first**: when the `oculpm` tools (`journal_search` / `journal_read` / `journal_write` / `plan_status` / `plan_update` / `plan_create`) are visible, **use them instead of writing the files in §3 yourself** — the server guarantees paths, frontmatter and `{#id}` conventions (planner updates in §5 go through `plan_update`, new plans through `plan_create`). Only write files directly when the tools are unavailable.
+> **MCP tools first**: when the `oculpm` tools (`journal_search` / `journal_read` / `journal_write` / `plan_status` / `plan_update` / `plan_create`) are visible, use them instead of writing files — the server guarantees paths, frontmatter and `{#id}` conventions. Only without them: §3.
 
 ## 0. Before you start — search the past first
 
-The journal exists to be **re-read**. The cause, the decision or the approach that already failed may be in there, among hundreds of entries.
+The cause, an earlier decision or an approach that already failed is in the journal — among hundreds of entries, so skimming won't find it.
 
 - Know the file you'll change? `journal_search(file: "watcher.rs")` — most precise filter; start here.
 - Have a symptom? `journal_search(query: "IME composition", types: ["bug"])`.
-- Expand only what's worth reading: `journal_read(path: …)` — if the response carries `rollups` (weekly summaries), read those **first**. Plan context: `plan_status`.
+- Expand only what's worth reading: `journal_read(path: …)`. Plan context: `plan_status`.
 
 Link what you find from the new entry's `related`. Without the tools, grep `.oculpm/journal/**`.
 
-## 1. Working discipline — four lines that make results better (plan or no plan)
+## 1. Working discipline (plan or no plan)
 
-- **Before code**: restate the request as a one-line **done condition** (what must be true at the end) and the **check command** that passes or fails it, and say both first. Ambiguous? Ask at most three questions, then start. Anything beyond two steps goes through `plan_create` (done_when · check).
-- **While working**: stay inside the request. Two failures with the same approach → change the approach.
-- **At the end**: run the check command and take its **last result line** — not a claim that it works. Green? Still launch it and use it once if you can.
-- **Handing off**: what is left or blocked goes into plan items (`[ ]` · `[!]`), not the chat — the next session cannot see this conversation.
+- **Done is an outcome**: before code, say in one line what must be true at the end — and what should happen next because of it. A task list is not a done condition. Ambiguous? At most three questions. More than two steps → `plan_create` (done_when · check).
+- **Something other than you judges**: first pick a check command that comes back pass or fail (test, benchmark, repro script) — if none exists, build it first. At the end take its **last result line**; "done" is not evidence. Green? Still launch it and use it once if you can.
+- **Start from raw material**: logs, real data, a reproduction — not summaries or memory. Use the expert's tools (profiler, DB query, statistics, debugger), not the expert's vocabulary.
+- **Hard numeric targets are normal**: before calling something impossible, try the next method. Two failures with the same approach → change the approach. Falling short is allowed — record how far you got, in numbers.
+- **Record failures too**: a dead end is an error-cycle entry — raw material for the next session. What is left or blocked goes into plan items (`[ ]` · `[!]`), not the chat.
 
 ## 2. When to record (5 triggers)
 
-**bug fix** (a reproducible defect verified gone) · **feature done** (first happy-path works) · **refactor batch** (same behaviour + structural change complete, tests green) · **error cycle** (one diagnose-fix cycle — record failures too) · **chore** (non-functional change done).
+**bug fix** (a reproducible defect verified gone) · **feature done** (first happy-path works) · **refactor batch** (same behaviour + structural change complete, tests green) · **error cycle** (one diagnose-fix cycle — even a failed one) · **chore** (non-functional change done).
 
-When you leave an **intentional shortcut** (a simplification with a ceiling), mark it with a code comment `// oculpm-defer: <ceiling>; <revisit trigger>` — the app harvests these (no trigger = flagged as rotting).
+## 3. Only without the tools
 
-## 3. Journal file format (only without the tools)
-
-Only when `journal_write` is unavailable, **read `.oculpm/agents/journal-spec.md`** and write the file yourself to that spec — the path, required frontmatter keys, per-type header order and the `## Verification` (last result line) rule live there. With the tool, skip this section.
+**Read `.oculpm/agents/journal-spec.md`** and write the files yourself to that spec — journal path, frontmatter, headers and `## Verification`; plan glyphs, plan-log rows and the new-plan skeleton.
 
 ## 4. Never
 
-- Never write into `.oculpm/index/**` (app-managed).
+- Never write into `.oculpm/index/**` (app-managed) · never touch `<plan_id>.log.md` (the app's log archive).
 - Never include secrets / API keys / `.env` contents — detected writes are rejected.
 - Never edit an existing journal entry (new file + `related` link) · never bundle two work units in one file.
-- Never hand-edit plan frontmatter — `status:`/`updated:` go through `plan_update`. If you must, don't close a plan while any `[ ]`/`[~]`/`[!]` remains: **move** those into a live plan first (open items in a folded plan are lost).
+- Never `git add -A` (parallel sessions share the index) — stage explicit paths, add→commit in one go.
+- Never hand-edit plan frontmatter (`status:` · `updated:`) · never modify a plan whose `status` is not `active` — work in a new plan.
 
 ## 5. Planner update (right after the journal)
 
-The journal is retrospect; the **Planner** (`.oculpm/planner/*.md`) is the current plan. Right after writing a journal entry, update the matching plan item (skip if none exists).
+The journal is retrospect; the **Planner** (`.oculpm/planner/*.md`) is the current plan. Right after a journal entry, flip the matching item with `plan_update` — `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked · `[>]` deferred · `[-]` dropped; the server appends a row to the `oculpm:plan-log` block. A parent rolls up from its children — **never set a parent directly**. When you take an item, mark it `[~]` first so a parallel session won't take it too.
 
-1. Flip the item's status glyph: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked · `[>]` deferred · `[-]` dropped
-2. Append **one row** to the `<!-- oculpm:plan-log begin v1 -->` table at the bottom (never edit existing rows):
-   `| <ISO time+offset> | #item-id | <your agent.id verbatim> | old→new glyph (→☐ for new items) | <journal path you just wrote> | short note |`
+Create new plans with `plan_create`, giving a one-line **done condition** (`done_when`: the outcome beyond the tasks) and a **check command** (`check`: what passes or fails it); the session-start hook ships both with the items. Whenever you run the check (closing the last item or midway), start the `plan_update` note with `verdict ✓ <last result line>` or `verdict ✗ <last result line>` — the next session's start hook ships it as the plan's last verdict.
 
-Rules: preserve `{#id}` markers and managed-block boundaries · items are ONE line — keep `{#id}` at the *end* of the line, never wrap (a wrapped `{#id}` is invisible) · give new items stable English kebab ids · never paste journal content into the planner (reference it via the journal column) · **never modify a plan whose frontmatter `status:` is not `active`** (done/archived — work in a new plan instead) · never touch `<plan_id>.log.md` (the app's **log archive**) or the `archived:` marker lines · the body glyph is current truth (parents roll up from children); the log is history.
-
-Items may nest **one level**: indent sub-tasks two spaces (`  - [ ] sub {#id}`). A parent's glyph rolls up from its children — **never set a parent directly**.
-
-New plans need a one-line **done condition** (`done_when`: the outcome beyond the tasks) and a **check command** (`check`: what passes or fails it); the session-start hook ships both, and when the last item closes you run the check and log the result. Create new plans with the MCP `plan_create` tool. Without it: YAML frontmatter (`oculpm_plan: v1` · `id` (kebab, same as filename) · `title` (quoted) · `status: active` · `created`/`updated` · `owner` (your agent.id)) → `## Phase title {#id}` headings (no glyph — phase progress rolls up from items) → `- [ ] item {#id}` lines → an empty `<!-- oculpm:plan-log begin v1 -->`…`<!-- oculpm:plan-log end -->` block.
-
-Lock major decisions as `### Decision N — title {#id}` blocks under `## Decisions` (lock date · agent.id · rationale · `Affects: #item-ids`).
-
-## 6. Discussion docs (only on explicit request)
-
-Only when the user **explicitly asks** to *"compare options / think this problem through / draft a big plan"*, write `.oculpm/discussion/<slug>/discussion.md` — read **`.oculpm/agents/discussion-spec.md`** at that moment and follow it. Never create one for routine work (the journal and planner are the record).
+Lock major decisions and option comparisons as `### Decision N — title {#id}` blocks under the plan's `## Decisions` (date · agent.id · rationale · `Affects: #item-ids`). Don't create a separate document.

@@ -35,10 +35,9 @@ pub const MASTER_KO: &str = include_str!("templates/master_ko.md.tpl");
 /// TK1 (template v6) — 영어 변형. 버전 마커는 ko 와 항상 동일해야 한다
 /// (패리티 테스트가 강제).
 pub const MASTER_EN: &str = include_str!("templates/master_en.md.tpl");
-/// TK1 — §5 가 가리키는 on-demand 문제 해결 문서 규격. `.oculpm/agents/`
-/// 에 앱 관리 파일로 동기화된다 (상시 컨텍스트 비용 0, 필요할 때만 Read).
-const DISCUSSION_SPEC_KO: &str = include_str!("templates/discussion_spec_ko.md.tpl");
-const DISCUSSION_SPEC_EN: &str = include_str!("templates/discussion_spec_en.md.tpl");
+/// 마스터 §3 이 가리키는 on-demand 일지·플랜 파일 규격 — `.oculpm/agents/journal-spec.md` 에 앱 관리
+/// 파일로 동기화된다 (상시 컨텍스트 비용 0, 도구가 없을 때만 Read). 문제 해결 문서 규격
+/// (`discussion-spec.md`)은 v20(2026-10-28)에서 논의 화면과 함께 동기를 멈췄다 — 이미 있는 파일은 둔다.
 const JOURNAL_SPEC_KO: &str = include_str!("templates/journal_spec_ko.md.tpl");
 const JOURNAL_SPEC_EN: &str = include_str!("templates/journal_spec_en.md.tpl");
 const CURSOR_TPL: &str = include_str!("templates/cursor.mdc.tpl");
@@ -263,8 +262,7 @@ pub async fn sync_active(
 ) -> Result<AgentSyncReport, OculpmError> {
     let lang = config.agents.template_language.as_str();
     let master_template = ensure_master_template(root, lang)?;
-    // discussion-spec · journal-spec 은 앱 관리 파일 — 항상 임베디드 내용으로 수렴시킨다.
-    ensure_discussion_spec(root, lang)?;
+    // journal-spec 은 앱 관리 파일 — 항상 임베디드 내용으로 수렴시킨다.
     ensure_journal_spec(root, lang)?;
     let per_agent_dir = root.join(".oculpm").join("agents").join("per-agent");
 
@@ -462,13 +460,6 @@ pub fn embedded_master(lang: &str) -> &'static str {
     }
 }
 
-fn embedded_discussion_spec(lang: &str) -> &'static str {
-    match lang {
-        "en" => DISCUSSION_SPEC_EN,
-        _ => DISCUSSION_SPEC_KO,
-    }
-}
-
 fn embedded_journal_spec(lang: &str) -> &'static str {
     match lang {
         "en" => JOURNAL_SPEC_EN,
@@ -490,24 +481,10 @@ fn ensure_master_template(root: &Path, lang: &str) -> Result<String, OculpmError
     }
 }
 
-/// `.oculpm/agents/discussion-spec.md` 를 임베디드 내용으로 수렴시킨다.
-/// `_template.md` 와 달리 사용자 편집을 보존하지 않는 **앱 관리 파일**이다 —
-/// 마스터 §5 가 "필요할 때 읽으라" 고 가리키는 규격서라 항상 최신이어야 한다.
-fn ensure_discussion_spec(root: &Path, lang: &str) -> Result<(), OculpmError> {
-    let path = root
-        .join(".oculpm")
-        .join("agents")
-        .join("discussion-spec.md");
-    let embedded = embedded_discussion_spec(lang);
-    match std::fs::read(&path) {
-        Ok(cur) if cur == embedded.as_bytes() => Ok(()),
-        _ => write_atomic(&path, embedded.as_bytes()),
-    }
-}
-
-/// `.oculpm/agents/journal-spec.md` — 마스터 §3 이 "도구가 없을 때만 읽으라" 고 가리키는 일지 파일
-/// 규격. v19(2026-10-28)에서 마스터 본문에 있던 절을 여기로 뺐다 — 매 세션 실리는 규칙은 짧아야 하고,
-/// 도구가 있는 세션은 이 규격을 읽을 일이 없다. discussion-spec 과 같은 앱 관리 파일이다.
+/// `.oculpm/agents/journal-spec.md` — 마스터 §3 이 "도구가 없을 때만 읽으라" 고 가리키는 일지·플랜
+/// 파일 규격. v19(2026-10-28)에서 마스터의 일지 절을, v20 에서 플랜 수동 형식을 여기로 뺐다 — 매 세션
+/// 실리는 규칙은 짧아야 하고, 도구가 있는 세션은 이 규격을 읽을 일이 없다. `_template.md` 와 달리
+/// 사용자 편집을 보존하지 않는 **앱 관리 파일**이다 — 항상 임베디드 내용으로 수렴한다.
 fn ensure_journal_spec(root: &Path, lang: &str) -> Result<(), OculpmError> {
     let path = root.join(".oculpm").join("agents").join("journal-spec.md");
     let embedded = embedded_journal_spec(lang);
@@ -594,7 +571,6 @@ pub fn upgrade_master(root: &Path) -> Result<(), OculpmError> {
         .map(|c| c.agents.template_language)
         .unwrap_or_else(|_| "ko".to_string());
     let lang = lang_cfg.as_str();
-    ensure_discussion_spec(root, lang)?;
     ensure_journal_spec(root, lang)?;
     write_atomic(&path, embedded_master(lang).as_bytes())
 }
