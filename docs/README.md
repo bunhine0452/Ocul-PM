@@ -16,36 +16,25 @@
 3. **진행 상태는 여기 없다.** 무엇이 끝났고 무엇이 남았는지는 `.oculpm/planner/*.md`
    가 갖는다. 이 폴더는 "왜 이 모양인가" 만 갖는다.
 
-앱 안에서는 **문서 화면**(⌘K → "문서")이 이 폴더를 위키처럼 읽는다.
-
 ---
 
 ## 살아 있는 설계 (SSOT)
 
+4.0(2026-10-29)에서 앱은 다섯 면(오늘 · 작업 일지 · 계획 · 변경 · 설정)과 시작 창만 남았다. 걷은 화면의
+설계 폴더는 아래 「역사」 로 옮겼다.
+
 | 폴더 | 무엇 |
 |---|---|
-| [`PROMISE.md`](PROMISE.md) | **약속 문서.** 이 앱이 하는 일 10문장 · 약속하지 않는 것 · 화면 3등급(핵심 · 뷰어 · 보류=베타) · 약속을 지키는 장치. 랜딩·README 첫 화면이 이 문서와 어긋나면 그쪽을 고친다 |
+| [`PROMISE.md`](PROMISE.md) | **약속 문서.** 한 문장 · 약속 10문장 · 4.0 에서 걷은 것과 그 근거 · 측정 목표 · 약속을 지키는 장치. 랜딩·README 첫 화면이 이 문서와 어긋나면 그쪽을 고친다 |
 | [`RELEASE.md`](RELEASE.md) | **릴리스 체크리스트.** 버전 6파일 · CHANGELOG · README ko/en · 랜딩 ko/en. 릴리스 전에 반드시 연다 |
 | [`20260923_cross-platform/`](20260923_cross-platform/) | **Windows · Linux 출시.** CI 러너가 실기기(D1) · 파동 W0~W5 · 병렬 레인 브리프와 파일 소유 표. Mac App Store 는 **하지 않기로 결정**(2026-09-23) — 근거 표만 `03-mas-feasibility.md` 에. 플랜 `cross-platform-port` |
-| [`optimization/`](optimization/) | **최적화 원장.** 앞으로의 최적화는 라운드 폴더를 새로 파지 않고 여기 적는다 — 고친 것 · 확정했지만 안 고친 것 · 재 봤더니 아니었던 것 · 잔고 표 |
-| [`a2a/`](a2a/) | 다중 에이전트 원장 — 세션 묶기 · 구역 임대 · 작업 넘기기 · 신뢰 경계. D8 이 전용 「세션」 화면을 열었다 |
-| [`acp-panel/`](acp-panel/) | 앱 안 ACP 에이전트 패널(Claude Code · Codex)의 구조. "프로젝트당 1 세션" 비목표는 뒤집혔다 |
-| [`20261005_native-agent-drivers/`](20261005_native-agent-drivers/) | **설계 · 미구현.** Claude Code · Codex 를 ACP 어댑터 대신 각 CLI 의 네이티브 통로(stream-json 제어 프로토콜 · `codex app-server`)로. `acp-panel/` §1 의 C 안 기각 사유를 다시 연다. 스파이크 실측 · D1~D8(버전은 고정 대신 감시) · P0~P5 · 플랜 `native-agent-drivers` |
-| [`agent-discipline/`](agent-discipline/) | 스킬·규칙·훅 허브 화면의 재설계 (발동 원장 · 예산 바 · 자기정리 제안) |
+| [`optimization/`](optimization/) | **최적화 원장.** 앞으로의 최적화는 라운드 폴더를 새로 파지 않고 여기 적는다 — 고친 것 · 확정했지만 안 고친 것 · 재 봤더니 아니었던 것 · 잔고 표. 임베딩·색인 항목은 4.0 에서 그 기능과 함께 끝났다 |
 | [`claude-integration/`](claude-integration/) | 훅 · MCP 도구 · 플러그인 패키징 (PR-CI0~8). `06-plugin-contract.md` 가 플러그인 표면의 계약 |
-| [`code-editor/`](code-editor/) | 코드 화면(인앱 에디터). **"v1 스코프 밖" 목록은 전부 출시됐다** — 그 절의 정정 주석을 볼 것 |
-| [`lsp/`](lsp/) | 코드 인텔리전스 (자동완성 · 진단 · 정의 · 이름 바꾸기). v2.15.0 출시 |
-| [`discussion-feature/`](discussion-feature/) | 「문제 해결」(토의) 화면 — 데이터 모델 · 마크다운 규격 · 계획 승격 |
-| [`planner-upgrade/`](planner-upgrade/) | 플래너 — `.oculpm/planner/*.md` 파일 SSOT · 항목별 AI 귀속 · 자동 화해 |
-| [`graph-upgrade/`](graph-upgrade/) | 코드 맵 — 관계 추출(호출·상속·구현) · 변경 영향 역BFS. **코드 맵 화면·관계 추출은 2026-10-24 에 걷었다** — 남은 것은 변경 화면의 변경 영향(`db/dependencies.rs`)뿐 |
-| [`menubar/`](menubar/) | 메뉴바 트레이 상주 창 |
-| [`20260706_v2/`](20260706_v2/) | v2 라운드 — 내비게이션 단일 소스(`navRegistry`) · 성능. **단 U11 FTS5 는 등록된 적 없이 폐기됐다** (`db/mod.rs`) |
-| [`20260811_three-features/`](20260811_three-features/) | 멀티 창 · 모바일(Tailscale) · 영어화. **1번 결정("메인 창 = 런처 전용")은 크롬식 탭으로 뒤집혔다.** **2번 모바일은 2026-10-24 에 걷었다** — `02-mobile-tailscale.md` 는 역사 |
-| [`20260831_osaurus-bench/`](20260831_osaurus-bench/) | 자동화 · 프로버넌스 · 테마 파일 · 컨텍스트 경제학 · 플러그인/임포트 |
-| [`20260902_vscode-borrows/`](20260902_vscode-borrows/) | 코드 화면 v2.34.0 — 저장 위생 · 미리보기 탭 · 스티키 스크롤 · 문제 패널 · 로컬 히스토리. 말미에 "구현 중 뒤집힌 결정" 절이 있다(본받을 형식) |
-| [`20260904_ux-candidates/`](20260904_ux-candidates/) | 최근 UX 후보 조사 — 근거가 전부 이 저장소의 현재 코드다 |
+| [`planner-upgrade/`](planner-upgrade/) | 플래너 — `.oculpm/planner/*.md` 파일 SSOT. **항목별 AI 귀속 · 자동 화해는 4.0 에서 앱 안 LLM 과 함께 걷었다** — 계획은 에이전트가 `plan_update` 로 쓰고, 판정은 plan-log 의 `판정 ✓|✗` 줄이다(`planner/judge.rs`) |
+| [`20260706_v2/`](20260706_v2/) | v2 라운드 — 내비게이션 단일 소스(`navRegistry`) · 성능. **단 U11 FTS5 는 등록된 적 없이 폐기됐다** (`db/mod.rs`). 화면 수는 4.0 에서 넷 + 설정 |
+| [`20260811_three-features/`](20260811_three-features/) | 멀티 창 · 모바일(Tailscale) · 영어화. 살아 있는 것은 **영어화**뿐이다 — 1번 결정("메인 창 = 런처 전용")은 크롬식 탭으로 뒤집혔다가 4.0 에서 「창 하나 = 프로젝트 하나」로 다시 바뀌었고, 2번 모바일은 2026-10-24 에 걷었다 |
 | [`major_update/oculpm/00-spec.md`](major_update/oculpm/00-spec.md) | **`.oculpm/` 온디스크 명세** — 디렉터리 구조 · frontmatter 스키마 · 락 프로토콜. `src-tauri/src/oculpm/` 이 조항 번호로 인용한다. 바꾸려면 `schema_version` 을 올린다. (같은 폴더의 나머지는 역사) |
-| [`launch/`](launch/) | 출시 채널 조사와 발사 글 초안 |
+| [`launch/`](launch/) | 출시 채널 조사와 발사 글 초안 · `agent-report-card.py`(PROMISE 측정 목표를 재는 스크립트) |
 | [`vibe coding/`](<vibe coding/>) | 배경 리서치 — `claude-integration/` 라운드의 근거 보고서 |
 | [`Astra feedback/`](<Astra feedback/>) | **외부 리뷰** (2026-09-15 · 기준 커밋 `ebbeb1b`). 살아 있는 **백로그의 출처**다 — 수용한 항목은 플랜 `astra-feedback-round` 가 갖는다. 나머지는 채택하지 않았다: B06 · B09 · B15 보류, B21 · B43 · B47 기각 |
 
@@ -56,7 +45,7 @@
 
 | 폴더 | 언제 · 무엇 | 지금과 어긋나는 대표적인 것 |
 |---|---|---|
-| [`refactor/`](refactor/) | 2026-05-20 · 최초의 전면 가이드 (W1~W6) | "코드를 직접 수정하지 않는 AI PM" · 5화면 IA (실제 16) |
+| [`refactor/`](refactor/) | 2026-05-20 · 최초의 전면 가이드 (W1~W6) | "코드를 직접 수정하지 않는 AI PM" · 5화면 IA (그 뒤 16 까지 늘었다가 4.0 에서 넷 + 설정) |
 | [`major_update/`](major_update/) | 2026-05-22 · `.oculpm` 아키텍처 전환 | W1~W6 PR 문서와 인덱스는 역사. **`oculpm/00-spec.md` 만 살아 있다** |
 | [`Lite-update/`](Lite-update/) | 2026-05-28 · Lite 1.0 + Final UI Update | 3-IA 사이드바 · 8화면 ui_v2 |
 | [`2026521_update/`](2026521_update/) | 2026-05-21 · 초기 버그/기능 프롬프트 템플릿 | 지금의 기록 규격은 루트 `AGENTS.md` 다 |
@@ -64,6 +53,15 @@
 | [`20260607_dogfooding/`](20260607_dogfooding/) | 2026-06-07 · 첫 도그푸딩 라운드 (구현 완료) | 그 시점의 화면 구성 |
 | [`20260622_dev-report/`](20260622_dev-report/) | 2026-06-22 · v1.11.0 코드 정리 보고서 | 대부분 실행됨. `03-next-features.md` 만 아직 백로그로 읽을 값이 있다 |
 | [`dap/`](dap/) | 2026-08-23 · 인앱 디버거 (Rust · Python · Go, v2.16.0 출시) | **2026-10-24 에 걷었다** (범위 동결 — 주변부 축소). `src-tauri/src/dap/` 는 없다 |
+| [`graph-upgrade/`](graph-upgrade/) | 2026-06-15 · 코드 맵 — 관계 추출(호출·상속·구현) · 변경 영향 역BFS | 코드 맵 화면·관계 추출은 2026-10-24, 남아 있던 변경 화면의 「영향」 과 import 그래프(`db/dependencies.rs`)는 **4.0(2026-10-29)** 에 색인과 함께 걷었다. 그 표들은 043 마이그레이션이 지운다 |
+| [`code-editor/`](code-editor/) · [`lsp/`](lsp/) · [`20260902_vscode-borrows/`](20260902_vscode-borrows/) · [`20260908_monaco-editor/`](20260908_monaco-editor/) | 2026-08~09 · 코드 화면(인앱 편집기 → Monaco) · 언어 서버 · 저장 위생·로컬 히스토리 | **2026-10-28 에 걷었다** — 편집기·LSP 는 없다. `vscode-borrows` 말미의 「구현 중 뒤집힌 결정」 절은 형식 표본으로 여전히 읽을 값이 있다 |
+| [`acp-panel/`](acp-panel/) · [`20261005_native-agent-drivers/`](20261005_native-agent-drivers/) | 2026-08~10 · 앱 안 Claude Code · Codex 패널(ACP)과 그 대안 설계(네이티브 통로, 미구현) | **2026-10-28 에 앱 안 에이전트 화면을 걷었다** — 에이전트는 사용자의 터미널에서 돈다. 네이티브 통로 설계는 대상이 사라져 닫혔다 |
+| [`a2a/`](a2a/) | 2026-09-03 · 다중 에이전트 원장 · 「세션」 화면 | **v3.7.0(2026-10-04)에 걷었다.** 워처는 옛 원장 경로를 소음으로 거른다 |
+| [`agent-discipline/`](agent-discipline/) | 2026-08-31 · 스킬·규칙·훅 허브 화면 (발동 원장 · 예산 바 · 자기정리 제안) | **4.0(2026-10-29)에 스킬·규칙 화면을 걷었다** — 스킬은 플러그인이 맡는다 |
+| [`discussion-feature/`](discussion-feature/) | 2026-06-29 · 「문제 해결」(토의) 화면 — 데이터 모델 · 마크다운 규격 · 계획 승격 | **4.0 에서 화면을 걷었다.** 사용자의 `.oculpm/discussion/` 파일은 그대로 두고 앱이 읽지 않는다. 큰 결정은 계획의 `## 결정` 블록으로 |
+| [`menubar/`](menubar/) | 2026-07-20 · 메뉴바 트레이 상주 창 | **4.0 에서 걷었다** (macOS 27 회귀 둘) |
+| [`20260831_osaurus-bench/`](20260831_osaurus-bench/) | 2026-08-31 · 자동화 · 프로버넌스 · 테마 파일 · 컨텍스트 경제학 · 플러그인/임포트 | 자동화 · 테마 파일 · 번들 임포트 · 대화 임포트는 **4.0 에서 전부 걷었다**. 일지 출처 배지(프로버넌스)만 남았다 |
+| [`20260904_ux-candidates/`](20260904_ux-candidates/) · [`20260904_v242-load-bearing/`](20260904_v242-load-bearing/) · [`product-direction-2026-09-21/`](product-direction-2026-09-21/) | 2026-09 · UX 후보 조사 · v2.42 측정 · 제품 방향 보고서 | 근거가 된 화면 다수가 4.0 에서 걷혔다. 지금의 방향은 `PROMISE.md` |
 
 ---
 
