@@ -43,7 +43,7 @@ import { check as pluginCheck } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { windowApi } from "@/api/window";
 import { UpdateBanner, isNewerVersion } from "@/components/UpdateBanner";
-import { UpdateTab } from "@/features/settings/tabs/UpdateTab";
+import { UpdateRow } from "@/features/settings/DataSection";
 import { releaseHighlights, useUpdater } from "@/lib/updater";
 import { RELEASES_PAGE } from "@/lib/updaterRoute";
 
@@ -244,28 +244,26 @@ describe("설치 형식 × 업데이터", () => {
     expect(missing.container.querySelector(".update-banner")).toBeNull();
   });
 
-  it("설정 — deb 는 확인 버튼 대신 릴리스 페이지를 연다", async () => {
+  it("설정 — deb 는 확인 버튼 대신 릴리스 페이지로 간다", async () => {
     stubReleasesFetch();
     fx.install = DEB;
-    const view = render(<UpdateTab />);
-    expect(await view.findByText(/패키지 관리자로 업데이트해요/)).toBeInTheDocument();
+    const view = render(<UpdateRow />);
+    expect(await view.findByText(/deb 패키지로 설치됐어요/)).toBeInTheDocument();
     expect(view.queryByText("업데이트 확인")).toBeNull();
-    await act(async () => {
-      view.getByRole("button", { name: "릴리스 페이지" }).click();
-    });
-    expect(openUrl).toHaveBeenCalledWith(RELEASES_PAGE);
+    // 바깥 링크는 앱 전역 가드가 기본 브라우저로 넘긴다 (externalLinks.ts).
+    expect(view.getByRole("link", { name: "릴리스 페이지" })).toHaveAttribute("href", RELEASES_PAGE);
   });
 
   it("설정 — 대상 없음은 오류 문장도 「최신」 도 아닌 중립 문장", async () => {
     stubReleasesFetch();
     fx.install = APPIMAGE;
     fx.checkError = TARGETS_NOT_FOUND;
-    const view = render(<UpdateTab />);
-    expect(await view.findByText(/이 OS 용 빌드가 아직 없어요/)).toBeInTheDocument();
-    expect(view.queryByText(/최신 버전을 사용 중이에요/)).toBeNull();
+    const view = render(<UpdateRow />);
+    expect(await view.findByText(/이 OS 의 새 판이 아직 없어요/)).toBeInTheDocument();
+    expect(view.queryByText(/최신이에요/)).toBeNull();
     expect(view.queryByText(/업데이트를 확인하지 못했어요/)).toBeNull();
-    // 다음 릴리스에서 다시 볼 수 있게 확인 버튼은 남는다.
-    expect(view.getByText("업데이트 확인")).toBeInTheDocument();
+    // 다음 릴리스에서 다시 볼 수 있게 릴리스 페이지 링크가 남는다.
+    expect(view.getByRole("link", { name: "릴리스 페이지" })).toBeInTheDocument();
   });
 });
 

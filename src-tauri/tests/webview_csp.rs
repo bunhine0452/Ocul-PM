@@ -140,10 +140,8 @@ fn the_policy_still_matches_what_the_frontend_actually_does() {
         }
     }
     assert!(uses_blob.is_empty(), "createObjectURL 이 돌아왔다 — img-src/frame-src 에 blob: 을 되살리고 머리말에 적어라: {uses_blob:?}");
-    for rel in [
-        "features/settings/tabs/UpdateTab.tsx",
-        "features/today/WhatsNewCard.tsx",
-    ] {
+    // 설정 업데이트 탭의 릴리스 목록은 4.0 설정 한 쪽으로 바뀌며 걷혔다 — 남은 곳은 하나.
+    for rel in ["features/today/WhatsNewCard.tsx"] {
         assert!(
             read(rel).contains("fetch("),
             "{rel} 이 더는 직접 fetch 하지 않으면 connect-src 에서 api.github.com 을 뺄 수 있다"

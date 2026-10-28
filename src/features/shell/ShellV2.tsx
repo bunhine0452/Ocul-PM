@@ -1,35 +1,20 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect } from "react";
 import { safeUnlistenPromise } from "@/lib/unlisten";
-import { useSeededEvent } from "@/hooks/useSeededEvent";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Sidebar } from "@/components/Sidebar";
-import { Toolbar } from "@/components/Toolbar";
-import { EmptyState } from "@/components/EmptyState";
-import { useProjectRuntime, useRecentChanges, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
-import { useTodayCount } from "@/features/oculpm/useTodayCount";
+import { useProjectRuntime, useUiPrefs, type UiV2View } from "@/contexts/WorkspaceContext";
 import { NAV_BUS } from "@/lib/navRegistry";
-import { useTheme } from "@/lib/theme";
 import { useT } from "@/i18n";
 import { TodayScreenV2 } from "@/features/today/TodayScreenV2";
 import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
 import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
-// 지연 청크로 가는 나머지 화면들 — 목록과 그 이유는 `./screens` 가 소유한다.
-import {
-  BranchScreenV2,
-  DiscussionScreenV2,
-  SearchScreenV2,
-  SettingsPanel,
-  SkillsScreenV2,
-} from "./screens";
-import { fileOpenApi } from "@/api/fileOpen";
-import { toAppError } from "@/api/invoke";
-import { useOptionalSettings } from "@/contexts/SettingsContext";
-import { tError } from "@/i18n/errors";
-import { toast } from "@/lib/toast";
+// 설정은 지연 청크다 — 목록과 그 이유는 `./screens` 가 소유한다.
+import { SettingsPage } from "./screens";
 import { KNOWN_VIEWS, useShellNav } from "./useShellNav";
+import { useNavBadges } from "./useNavBadges";
 import { Skeleton, SkeletonList } from "@/components/ui/Skeleton";
-import { commands, events, type JournalEntrySummary } from "@/lib/bindings";
+import { events, type JournalEntrySummary, type Project } from "@/lib/bindings";
 import { isMac as isMacPlatform } from "@/lib/platform";
 
 // The 5 token/layer stylesheets. This static import is the token-isolation
@@ -41,65 +26,49 @@ import { isMac as isMacPlatform } from "@/lib/platform";
 // legacy tokens.)
 import "@/styles/index.css";
 
-// Final UI Update — the 248px-sidebar shell. PR-UI 7 made this the only shell
-// (the feature flag is gone); App mounts it full-screen whenever a project is
-// selected. Each screen renders its OWN <Toolbar> (UI-MASTER-PROMPT §7.4), so
-// the shell only owns the sidebar + the screen router. `lib/navRegistry.ts` is
-// the single source for the screen list — 16 as of 2026-09-04 (the comment here
-// said 8, a number the router outgrew long ago; count it there, not here).
+// 4.0 셸 — 212px 사이드바(머리 · 행 넷 · 설정) + 다섯 화면 라우터. 각 화면은 자기
+// <Toolbar> 를 그린다(UI-MASTER-PROMPT §7.4) — 셸은 사이드바와 라우터만 소유한다.
+// 화면 목록의 정본은 `lib/navRegistry.ts` 다.
 //
-// 셸이 소유하지 **않는** 두 결은 옆 파일에 있다 (2026-09-07, {#big-files-watch}):
-// 지연 청크 목록은 `./screens`, 화면 밖에서 온 이동 요청과 한 번짜리 핸드오프는
-// `./useShellNav`.
+// 셸이 소유하지 **않는** 두 결은 옆 파일에 있다: 지연 청크 목록은 `./screens`, 화면
+// 밖에서 온 이동 요청과 한 번짜리 핸드오프는 `./useShellNav`.
 
 interface ShellV2Props {
   projectName: string | null;
   projectRoot: string | null;
-  /** 시작 탭을 연다 (프로젝트 관리·추가·제거는 전부 시작 화면에 있다). */
-  onOpenProjectSwitcher: () => void;
-  /** 다른 프로젝트를 이 창의 탭으로 연다 (이미 열려 있으면 그 탭 활성화). */
+  /** 프로젝트 목록 (⌘O 목록) — 창이 한 번만 조회해 내려준다. */
+  projects: Project[];
+  onProjectsChanged?: () => void;
+  /** 다른 프로젝트의 창을 연다 (이미 열려 있으면 그 창이 앞으로 — I1). */
   onOpenProject: (projectId: number) => void;
   /** 트레이 딥링크가 URL 로 실어 온 목적 화면 — mount 시 1회 적용. */
   initialView?: string | null;
   /** 트레이 딥링크가 URL 로 실어 온 `.oculpm` 상대 일지 경로. */
   initialEntryPath?: string | null;
-  /**
-   * 이 탭이 화면에 보이는가. 비활성 탭도 마운트된 채라(크롬식 탭), 창 전역
-   * CustomEvent(`NAV_BUS`)는 활성 탭만 들어야 한다 — 아니면 팔레트에서 연
-   * 일지가 숨은 탭에서도 열린다.
-   */
-  active?: boolean;
 }
 
 export default function ShellV2({
   projectName,
   projectRoot,
-  onOpenProjectSwitcher,
+  projects,
+  onProjectsChanged,
   onOpenProject,
   initialView = null,
   initialEntryPath = null,
-  active = true,
 }: ShellV2Props) {
-  const { t, lang } = useT();
-  // 조각만 구독한다 (v2.42.0 `{#workspace-full-consumers}`). 이 컴포넌트는
-  // **16화면 라우터**다 — 합친 겉면 `useWorkspace()` 를 쓰던 때는 터미널 탭을
-  // 하나 고를 때마다 라우터 전체가 다시 그려졌다. 셸이 읽는 것은 UI 취향
-  // (화면·도크)과 런타임(프로젝트·workday·분리 창·사이드바)뿐이고, 터미널
-  // **세션 목록**은 한 글자도 읽지 않는다.
+  const { lang } = useT();
+  // 조각만 구독한다 (v2.42.0 `{#workspace-full-consumers}`).
   const { prefs, setPrefs, setUiV2View } = useUiPrefs();
   const runtime = useProjectRuntime();
-  const { setSidebarCollapsed } = runtime;
-  const { resolvedTheme, setTheme } = useTheme();
   const view = prefs.uiV2View;
-  const isDark = resolvedTheme === "dark";
   const projectId = runtime.currentProjectId;
   const workday = runtime.workdayKey ?? runtime.oculpmStatus?.current_workday ?? null;
   const oculpmReady = runtime.oculpmStatus?.initialized === true;
-  // 사이드바 행의 조용한 수 — 일지(오늘 N) · 변경(미커밋 N). 돌고 있는 것이 있으면 그쪽이 먼저다.
-  const todayCount = useTodayCount(projectId, workday, oculpmReady);
-  const recentChanges = useRecentChanges(projectId ?? -1);
+  // 「오늘」 배지의 수는 오늘 화면의 예외 목록 길이를 넷째 인자로 받는 자리다
+  // (`useTodayExceptions(...).count`). 없으면 기록 없는 변경 수로 대신한다.
+  const badges = useNavBadges(projectId, workday, oculpmReady);
 
-  // 트레이 딥링크·팔레트 점프·「일지로 남기기」 처럼 **다른 화면이 쏜 이동 요청**과
+  // 트레이 딥링크·팔레트 점프·「수동 일지」 처럼 **다른 화면이 쏜 이동 요청**과
   // 그 한 번짜리 핸드오프는 조각 훅이 소유한다 (`./useShellNav`).
   const {
     journalFocus,
@@ -111,7 +80,6 @@ export default function ShellV2({
     setJournalReturnView,
     jumpNonce,
   } = useShellNav({
-    active,
     view,
     projectId,
     setUiV2View,
@@ -120,92 +88,20 @@ export default function ShellV2({
     initialEntryPath,
   });
 
-  // Sidebar collapse + hover-reveal (Dogfooding 2026-06-07). `collapsed` is
-  // persisted; `hovering` is ephemeral — set by the left-edge hover zone and
-  // cleared when the cursor leaves the floating sidebar.
-  const collapsed = runtime.sidebarCollapsed;
-  const [hovering, setHovering] = useState(false);
-  const toggleSidebar = () => {
-    setHovering(false);
-    setSidebarCollapsed(!collapsed);
-  };
-
-  // ⌘P 프로젝트 전환 (v2 U1): 사이드바가 접혀 있으면 팝오버가 화면 밖에
-  // 열리므로, 이벤트 수신 시 hover-reveal 로 먼저 띄운다.
+  // 화면 전환 요청 (`NAV_BUS.setView`) — 프로바이더를 모르는 자리가 쏜다.
   useEffect(() => {
-    if (!collapsed || !active) return;
-    const reveal = () => setHovering(true);
-    window.addEventListener(NAV_BUS.openProjectSwitcher, reveal);
-    return () => window.removeEventListener(NAV_BUS.openProjectSwitcher, reveal);
-  }, [collapsed, active]);
-
-  // 화면 전환 요청 (`NAV_BUS.setView`) — 프로바이더를 모르는 자리(에이전트 툴바의 두 탭)가
-  // 쏜다. 활성 탭만 받는다: 비활성 탭도 마운트된 채라 안 거르면 탭 수만큼 바뀐다.
-  useEffect(() => {
-    if (!active) return;
     const onSet = (e: Event) => {
-      const view = (e as CustomEvent<UiV2View>).detail;
-      if (view) setUiV2View(view);
+      const next = (e as CustomEvent<UiV2View>).detail;
+      if (next) setUiV2View(next);
     };
     window.addEventListener(NAV_BUS.setView, onSet);
     return () => window.removeEventListener(NAV_BUS.setView, onSet);
-  }, [active, setUiV2View]);
+  }, [setUiV2View]);
 
-  // macOS uses titleBarStyle "Overlay" (src-tauri/src/lib.rs) — the native
-  // traffic lights float over the top-left. With the legacy TitleBar gone in
-  // ui_v2, the sidebar must reserve a top strip so the brand clears them.
   const isMac = isMacPlatform();
 
-  // Inline project quick-switch (Dogfooding 2026-06-14c): list projects for the
-  // sidebar popover so the user can jump between projects in place, without
-  // returning to the main screen. Refetched when the active project changes
-  // (so a rename/add elsewhere stays roughly fresh).
-  const [projects, setProjects] = useState<{ id: number; name: string; root_path: string }[]>([]);
-  useEffect(() => {
-    let alive = true;
-    void commands.listProjects().then((res) => {
-      if (alive && res.status === "ok") {
-        setProjects(res.data.map((p) => ({ id: p.id, name: p.name, root_path: p.root_path })));
-      }
-    });
-    return () => {
-      alive = false;
-    };
-  }, [projectId]);
-
-  // 다른 프로젝트가 어디든 열려 있는지 — 팝오버의 "열림" 표시.
-  // 구독 먼저, 물음은 그다음 — 먼저 물으면 늦게 온 답이 그 사이의 새 목록을 덮는다.
-  const [openWindows, setOpenWindows] = useState<number[]>([]);
-  useSeededEvent<number[] | null>(
-    {
-      seed: () => commands.listOpenProjectIds().then((r) => (r.status === "ok" ? r.data : null)),
-      subscribe: (touch) => [
-        events.projectWindowsChanged.listen(({ payload }) => {
-          touch();
-          setOpenWindows(payload.open);
-        }),
-      ],
-      onSeed: (open, touched) => {
-        if (open && !touched()) setOpenWindows(open);
-      },
-    },
-    [],
-  );
-
-  // I3 — "프로젝트 전환"은 제자리 교체가 아니라 **그 프로젝트의 탭을 열거나
-  // 활성화**하는 것이다. 이 탭의 프로젝트는 끝까지 바뀌지 않는다.
-  const switchProject = (id: number) => {
-    if (id !== projectId) onOpenProject(id);
-  };
-
-  // v2.3.0 메뉴바 팝오버 딥링크 (docs/menubar/00-master-plan.md D5) — 트레이
-  // 창이 tray_open_main 으로 쏜 TrayNavigate 를 받아 화면·프로젝트·일지로
-  // 이동한다. 다른 프로젝트의 일지면 전환 후 open 핸드오프를 세팅 — 저널
-  // 화면이 mount 후 경로로 해소하므로 전환 타이밍과 무관하게 동작한다.
-  //
-  // 나머지 이동 요청은 `useShellNav` 로 나갔는데 이 구독만 남았다: 새 파일이
-  // `events` 를 직접 부르면 `lint:bindings` 가 막고, 이 이벤트를 접는 `@/api/*`
-  // 래퍼가 아직 없다 ({#big-files-watch} 의 이월).
+  // v2.3.0 메뉴바 팝오버 딥링크 (docs/menubar/00-master-plan.md D5) — 트레이 창이
+  // tray_open_main 으로 쏜 TrayNavigate 를 받아 화면·일지로 이동한다.
   useEffect(() => {
     const un = events.trayNavigate.listen(({ payload }) => {
       // 백엔드가 대상 창을 지정해 쏘지만(T5), 라벨이 어긋난 페이로드가 남의
@@ -217,24 +113,12 @@ export default function ShellV2({
         setUiV2View("journal");
         return;
       }
-      setUiV2View(
-        KNOWN_VIEWS.includes(payload.view) ? (payload.view as UiV2View) : "today",
-      );
+      setUiV2View(KNOWN_VIEWS.includes(payload.view) ? (payload.view as UiV2View) : "today");
     });
     return () => {
       safeUnlistenPromise(un);
     };
   }, [projectId, setUiV2View, setJournalOpenEntry, setJournalReturnView]);
-
-  // 검색·브랜치의 「파일 열기」 — 내장 편집기가 걷힌 뒤(2026-10-28, simplify-round)로는
-  // 설정의 외부 편집기 명령(`%path`·`%line`)으로 연다. 프로젝트 루트가 없으면 조용히 비킨다.
-  const settingsCtx = useOptionalSettings();
-  const openInEditor = (path: string, line: number | null) => {
-    if (!projectRoot) return;
-    void fileOpenApi
-      .inExternalEditor(projectRoot, path, settingsCtx?.settings.externalEditorCommand ?? 'code "%path"', line)
-      .catch((e: unknown) => toast.destructive(tError(toAppError(e))));
-  };
 
   // 툴바 날짜는 UI 언어를 따른다 — `"ko-KR"` 이 박혀 있어 영어 모드에서도
   // 「2026년 9월 11일 금」이었다 (2026-09-11 영문 스크린샷 촬영에서 잡음).
@@ -258,43 +142,19 @@ export default function ShellV2({
     setUiV2View("diff");
   };
 
-  const appClass =
-    "app" +
-    (isMac ? " is-mac" : "") +
-    (collapsed ? " sidebar-collapsed" : "") +
-    (collapsed && hovering ? " sidebar-hover" : "");
-
   return (
-    <div className={appClass} style={{ height: "100%" }}>
-      {collapsed ? (
-        // Left-edge hover zone — only present when collapsed; entering it floats
-        // the sidebar in as an overlay. Cleared on the sidebar's mouseleave.
-        <div
-          className="side-hover-zone"
-          onMouseEnter={() => setHovering(true)}
-          aria-hidden="true"
-        />
-      ) : null}
+    <div className={"app" + (isMac ? " is-mac" : "")}>
       <Sidebar
         view={view}
         onNavigate={setUiV2View}
         projectName={projectName}
-        projectPath={projectRoot}
-        onOpenProjectSwitcher={onOpenProjectSwitcher}
-        projects={projects}
         currentProjectId={projectId}
-        onSwitchProject={switchProject}
-        openWindows={openWindows}
-        isDark={isDark}
-        onToggleTheme={() => setTheme(isDark ? "light" : "dark")}
-        macTopInset={0}
-        onToggleCollapse={toggleSidebar}
-        collapsed={collapsed}
-        onMouseLeave={collapsed ? () => setHovering(false) : undefined}
-        badges={{ journal: todayCount ?? undefined, diff: recentChanges.length || undefined }}
+        projects={projects}
+        onOpenProject={onOpenProject}
+        onProjectsChanged={onProjectsChanged}
+        badges={badges}
       />
       <main className="content">
-        <div className="content-body">
         <div className="content-main">
         {/* v2 U6 — lazy 화면 공용 fallback: 툴바 자리 + 콘텐츠 스켈레톤.
             스피너 대신 콘텐츠 형태를 유지해 화면 전환 점프를 줄인다. */}
@@ -312,11 +172,9 @@ export default function ShellV2({
             </>
           }
         >
-        {/* 화면 단위 렌더 경계 (2026-09-04).
-            경계가 탭 층(`TabbedWindow`)에만 있어서, 화면 16개 중 하나가 렌더
-            중 throw 하면 **프로젝트 탭 전체**가 대체 UI 로 바뀌었다 — 사이드바도
-            탈출로도 함께 사라져 탭을 닫는 것 말고 길이 없었다. 여기서 잡으면
-            사이드바는 살아 있고 다른 화면으로 걸어 나갈 수 있다.
+        {/* 화면 단위 렌더 경계 (2026-09-04). 화면 하나가 렌더 중 throw 해도
+            사이드바는 살아 있고 다른 화면으로 걸어 나갈 수 있다 — 경계가 창 층에만
+            있으면 사이드바·탈출로까지 함께 대체 UI 로 바뀐다.
 
             `key={view}` — 경계는 화면을 바꿔도 스스로 리셋되지 않는다. 키가
             없으면 한 번 깨진 뒤 다른 화면에 갔다 돌아와도 계속 깨진 채로
@@ -324,34 +182,10 @@ export default function ShellV2({
             일어나므로, 키를 붙여도 새로 잃는 상태는 없다). */}
         <ErrorBoundary key={view} label={`screen:${view}`}>
         {view === "settings" ? (
-          // Unified settings (dogfooding 2026-06-15): the in-project ⌘, screen now
-          // renders the SAME comprehensive SettingsPanel as the project-picker, so
-          // both entry points are identical. Per-project rows read the active
-          // project from WorkspaceContext and self-disable when none is selected.
-          <>
-            <Toolbar title={t("shell.settings.title")} sub={t("shell.settings.sub")} />
-            <div className="scroll">
-              <div className="page fade-in">
-                {/* 오버레이 진입점과 같은 경계 — 설정 탭 하나의 예외가 셸
-                    전체를 언마운트하지 못하게 한다 (SettingsOverlay 참고). */}
-                <ErrorBoundary label="settings">
-                  <SettingsPanel />
-                </ErrorBoundary>
-              </div>
-            </div>
-          </>
-        ) : projectId == null ? (
-          <>
-            <Toolbar title={view === "today" ? t("nav.today") : t("nav.journal")} />
-            <div className="scroll">
-              <div className="page fade-in">
-                <EmptyState>{t("shell.selectProjectFirst")}</EmptyState>
-              </div>
-            </div>
-          </>
-        ) : view === "journal" ? (
+          <SettingsPage />
+        ) : projectId == null ? null : view === "journal" ? (
           <JournalScreenV2
-            active={active}
+            active
             projectId={projectId}
             todayKey={workday}
             oculpmReady={oculpmReady}
@@ -391,36 +225,6 @@ export default function ShellV2({
               setUiV2View("journal");
             }}
           />
-        ) : view === "search" ? (
-          <SearchScreenV2
-            projectId={projectId}
-            projectRoot={projectRoot}
-            onOpenInCode={openInEditor}
-            onOpenJournal={(path) => {
-              setJournalReturnView("search");
-              setJournalOpenEntry(path);
-              setUiV2View("journal");
-            }}
-          />
-        ) : view === "discussion" ? (
-          <DiscussionScreenV2
-            key={`discussion-${jumpNonce}`}
-            projectId={projectId}
-            onNavigate={setUiV2View}
-          />
-        ) : view === "skills" ? (
-          <SkillsScreenV2 projectId={projectId} active={active} />
-        ) : view === "branch" ? (
-          <BranchScreenV2
-            projectId={projectId}
-            active={active}
-            onOpenJournal={(path) => {
-              setJournalReturnView("branch");
-              setJournalOpenEntry(path);
-              setUiV2View("journal");
-            }}
-            onOpenFile={(path) => openInEditor(path, null)}
-          />
         ) : (
           // 사슬의 **마지막 갈래가 Today** 다 (2026-09-06). 예전엔 `null` 이라,
           // `view` 가 어떤 갈래에도 안 맞으면 툴바도 콘텐츠도 없는 빈 본문이
@@ -442,7 +246,6 @@ export default function ShellV2({
         </ErrorBoundary>
 
         </Suspense>
-        </div>
         </div>
       </main>
     </div>

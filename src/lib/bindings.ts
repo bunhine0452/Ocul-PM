@@ -305,109 +305,33 @@ export const commands = {
 	planDelete: (projectId: number, planId: string) => typedError<null, string>(__TAURI_INVOKE("plan_delete", { projectId, planId })),
 	openDevtools: () => typedError<null, string>(__TAURI_INVOKE("open_devtools")),
 	/**
-	 *  프로젝트를 탭으로 연다 — I1 이 여기서 강제된다.
+	 *  프로젝트의 창을 연다 — I1 이 여기서 강제된다.
 	 * 
-	 *  - 이미 어딘가 열려 있으면 그 창을 포커스하고 그 탭을 활성화한다.
-	 *  - `window` 가 지정되면 그 창의 마지막 탭으로 붙인다.
-	 *  - 없으면 마지막으로 포커스된 창에 붙이고, 창이 아예 없으면 새 창.
+	 *  - 이미 어느 창에 열려 있으면 그 창을 앞으로 가져온다.
+	 *  - 아니면 새 창을 연다 (숨겨 둔 휴면 창이 있으면 그것을 재사용).
 	 */
-	openProjectTab: (projectId: number, window: string | null) => typedError<null, string>(__TAURI_INVOKE("open_project_tab", { projectId, window })),
-	/**  `+` — 시작 탭(프로젝트 메인 화면)을 연다. Chrome 의 새 탭 페이지. */
-	newStartTab: (window: string | null) => typedError<null, string>(__TAURI_INVOKE("new_start_tab", { window })),
+	openProjectWindow: (projectId: number) => typedError<null, string>(__TAURI_INVOKE("open_project_window", { projectId })),
 	/**
-	 *  시작 탭에서 프로젝트를 골랐다 — **그 자리에서** 프로젝트 탭이 된다.
-	 *  단, 그 프로젝트가 이미 다른 탭에 열려 있으면 (I1) 그쪽을 활성화하고
-	 *  시작 탭은 그대로 둔다.
-	 */
-	setTabProject: (tabId: number, projectId: number) => typedError<null, string>(__TAURI_INVOKE("set_tab_project", { tabId, projectId })),
-	/**
-	 *  탭을 닫는다. 창의 마지막 탭이면 창도 닫는다 (Chrome 과 같다).
+	 *  시작 창이 프로젝트를 골랐다 — **그 창이** 그 프로젝트가 된다.
 	 * 
-	 *  `asking` 은 Tauri 가 주입하는 **호출한 창**이다 (프런트는 안 넘긴다). 요청한
-	 *  탭이 레지스트리에 없을 때 그 창이 유령인지 판단하는 데 쓴다 — 아래 참조.
+	 *  그 프로젝트가 이미 다른 창에 열려 있으면 이 창은 그대로 두고 그 창을 앞으로
+	 *  가져온다(I1) — 반환값이 `false` 다. `asking` 은 Tauri 가 주입하는 호출한 창이다.
 	 */
-	closeTab: (tabId: number) => typedError<null, string>(__TAURI_INVOKE("close_tab", { tabId })),
-	activateTab: (tabId: number) => typedError<null, string>(__TAURI_INVOKE("activate_tab", { tabId })),
-	reorderTabs: (window: string, order: number[]) => typedError<null, string>(__TAURI_INVOKE("reorder_tabs", { window, order })),
-	/**
-	 *  탭을 창 밖으로 떼어낸다 — 화면 좌표(CSS 픽셀)에 새 창을 만든다.
-	 * 
-	 *  새 창에서 셸이 다시 마운트되므로 DOM 상태(스크롤 위치)는 잃지만, 화면·필터·
-	 *  터미널 탭 구성은 프로젝트별 localStorage 에 있고 **PTY 세션은 Rust 에 살아
-	 *  있어** 스크롤백까지 재부착된다 (`pty_prefix_for` 가 프로젝트 기준이라 가능).
-	 */
-	detachTab: (tabId: number, anchorX: number | null, anchorY: number | null) => typedError<null, string>(__TAURI_INVOKE("detach_tab", { tabId, anchorX, anchorY })),
-	/**
-	 *  지금 커서가 다른 앱 창의 탭 스트립 위인가. 대상 창 라벨을 돌려준다.
-	 * 
-	 *  드래그 중 포인터가 움직일 때마다 호출된다 — 대상이 바뀌면 떠난 창에
-	 *  `TabDragLeave`, 새 창에 `TabDragOver` 를 보내 캐럿을 옮긴다.
-	 */
-	tabDragOver: (tabId: number, band: number | null) => typedError<string | null, string>(__TAURI_INVOKE("tab_drag_over", { tabId, band })),
-	/**  대상 창이 계산한 삽입 인덱스를 기록한다 (위 ②). */
-	tabDropHint: (window: string, index: number) => typedError<null, string>(__TAURI_INVOKE("tab_drop_hint", { window, index })),
-	/**  드래그가 끝났다(또는 취소됐다) — 겨누던 창의 캐럿을 지운다. */
-	tabDragEnd: () => typedError<null, string>(__TAURI_INVOKE("tab_drag_end")),
-	/**
-	 *  탭이 줄을 벗어났다 — **지금** 창으로 떼어내 손에 들려 준다.
-	 * 
-	 *  `anchor` 는 창 좌상단에서 커서까지의 거리(논리 px). 이미 들고 있으면 그대로
-	 *  `true` 를 돌려준다(멱등) — 프런트는 프레임마다 부를 수 있다.
-	 * 
-	 *  손에 드는 방법은 창의 탭 수에 따라 둘로 갈린다.
-	 *  - 탭이 둘 이상 — 탭을 빼서 **새 창**을 만든다 (`?tearoff=1`).
-	 *  - 탭이 하나 — **그 창 자체**를 든다 (`carry_whole`). 새 창을 만들면 원본이
-	 *    닫히고 같은 내용의 창이 새로 뜰 뿐인데, 여기서 거절해 버리면 떼어낸 창이
-	 *    드래그로 되돌아올 길 자체가 없어진다 (2026-08-31 회귀).
-	 */
-	beginTearOff: (tabId: number, anchorX: number | null, anchorY: number | null) => typedError<boolean, string>(__TAURI_INVOKE("begin_tear_off", { tabId, anchorX, anchorY })),
-	/**
-	 *  손을 놓았다. 남의 스트립을 겨누고 있었으면 그리로 합치고(`true`), 아니면
-	 *  그 자리에 창으로 남는다(`false`).
-	 * 
-	 *  창째로 들었든(`carry_whole`) 새로 만들어 들었든 마무리는 똑같다 — 합치면
-	 *  `move_tab` 이 원래 창을 비우고 `commit_move` 가 그 창을 닫는다. 그래서
-	 *  **떼어낸 창을 도로 끌어다 붙이면 창이 하나 줄어든다** (크롬과 같다).
-	 */
-	dropTearOff: () => typedError<boolean, string>(__TAURI_INVOKE("drop_tear_off")),
-	/**
-	 *  Escape — 떼어낸 창을 물리고 **원래대로** 돌려놓는다.
-	 * 
-	 *  무엇을 되돌리는지는 어떻게 들었는지에 달렸다.
-	 *  - 새 창으로 들었으면 탭을 원래 창의 원래 자리로 옮긴다. 빈 창은
-	 *    `commit_move` 가 닫는다. 원래 창이 그새 사라졌으면 되돌릴 곳이 없으므로
-	 *    그냥 놓은 것으로 본다.
-	 *  - 창째로 들었으면(`home`) 옮길 탭이 없다 — 되돌릴 것은 **창 자리**다.
-	 *    여기서 `commit_move` 로 가면 같은 창 안 재배열이라 성공해 버려서, 겨누는
-	 *    동안 숨겨 둔 창이 숨은 채로 남는다 (`settle_tear_off` 가 안 불린다).
-	 */
-	cancelTearOff: () => typedError<null, string>(__TAURI_INVOKE("cancel_tear_off")),
-	/**
-	 *  탭을 **이름으로 지정한** 창으로 옮긴다 — 드래그의 키보드·메뉴 등가물.
-	 * 
-	 *  끌어다 놓기는 포인터가 있어야만 성립한다. 창이 겹쳐 있거나 화면이 좁아
-	 *  조준이 어려울 때도, 보조기술로 조작할 때도 같은 일을 할 수 있어야 한다.
-	 *  자리는 맨 뒤다 — 메뉴에는 겨눈 지점이 없으므로 지어내지 않는다.
-	 */
-	moveTabToWindow: (tabId: number, window: string) => typedError<boolean, string>(__TAURI_INVOKE("move_tab_to_window", { tabId, window })),
-	/**
-	 *  탭을 옮길 수 있는 창 목록 (메뉴가 그린다).
-	 * 
-	 *  창 **이름**은 싣지 않는다 — 백엔드는 UI 문자열을 만들지 않는다는 규율이
-	 *  있고, 프런트는 이미 프로젝트 목록을 들고 있어 id 하나면 스트립과 **같은**
-	 *  이름·아이콘을 붙일 수 있다.
-	 */
-	listAppWindows: () => typedError<AppWindowInfo[], string>(__TAURI_INVOKE("list_app_windows")),
-	/**  창이 마운트 직후 자기 탭 구성을 읽는다 (이후는 이벤트로 갱신). */
-	getWindowTabs: (window: string) => typedError<WindowTabsSnapshot, string>(__TAURI_INVOKE("get_window_tabs", { window })),
-	/**  시작 탭이 "열림" 배지를 그리기 위한 1회 조회 (이후는 이벤트로 갱신). */
+	setWindowProject: (projectId: number) => typedError<boolean, string>(__TAURI_INVOKE("set_window_project", { projectId })),
+	/**  창이 마운트 직후 자기 프로젝트를 읽는다 (이후는 `WindowProjectChanged`). */
+	getWindowProject: (window: string) => typedError<number | null, string>(__TAURI_INVOKE("get_window_project", { window })),
+	/**  어디든 창이 떠 있는 프로젝트 — 시작 창·프로젝트 목록의 「열림」 표시 1회 조회. */
 	listOpenProjectIds: () => typedError<number[], string>(__TAURI_INVOKE("list_open_project_ids")),
 	/**
-	 *  지금 창·탭을 저장한다 — **우리가 일으킨 재시작** 직전에만 부른다.
+	 *  이 창을 닫는다 — Windows·Linux 의 `Ctrl+W` (macOS 는 앱 메뉴의 ⌘W 가 Rust 에서
+	 *  직접 닫는다). 닫힘 훅(`CloseRequested`)이 레지스트리 정리와 마지막 창 판정을 한다.
+	 */
+	closeWindow: () => typedError<null, string>(__TAURI_INVOKE("close_window")),
+	/**
+	 *  지금 창 구성을 저장한다 — **우리가 일으킨 재시작** 직전에만 부른다.
 	 * 
-	 *  사용자가 직접 끈 앱이 다음에 시작 탭으로 열리는 것은 예측 가능한 동작이라
-	 *  그대로 둔다. 업데이트는 사용자가 고른 중단이 아니라 우리가 끼워 넣은
-	 *  중단이므로, 하던 자리로 돌려놓는 책임도 우리에게 있다.
+	 *  사용자가 직접 끈 앱이 다음에 시작 창으로 열리는 것은 예측 가능한 동작이라
+	 *  그대로 둔다. 업데이트는 우리가 끼워 넣은 중단이므로 하던 자리로 돌려놓는다.
 	 */
 	saveWindowSession: () => typedError<null, string>(__TAURI_INVOKE("save_window_session")),
 	/**
@@ -1434,10 +1358,8 @@ export const commands = {
 /** Events */
 export const events = {
 	automationRunChanged: makeEvent<AutomationRunChanged>("automation-run-changed"),
-	closeIntent: makeEvent<CloseIntent>("close-intent"),
 	deepLinkReceived: makeEvent<DeepLinkReceived>("deep-link-received"),
 	llmBackgroundFailed: makeEvent<LlmBackgroundFailed>("llm-background-failed"),
-	newTabIntent: makeEvent<NewTabIntent>("new-tab-intent"),
 	oculpmAgentDrift: makeEvent<OculpmAgentDrift>("oculpm-agent-drift"),
 	oculpmDataChanged: makeEvent<OculpmDataChanged>("oculpm-data-changed"),
 	oculpmFileChanged: makeEvent<OculpmFileChanged>("oculpm-file-changed"),
@@ -1452,12 +1374,9 @@ export const events = {
 	oculpmWorkdayChanged: makeEvent<OculpmWorkdayChanged>("oculpm-workday-changed"),
 	projectWindowsChanged: makeEvent<ProjectWindowsChanged>("project-windows-changed"),
 	settingsChanged: makeEvent<SettingsChanged>("settings-changed"),
-	tabDragLeave: makeEvent<TabDragLeave>("tab-drag-leave"),
-	tabDragOver: makeEvent<TabDragOver>("tab-drag-over"),
-	tearOffSettled: makeEvent<TearOffSettled>("tear-off-settled"),
 	themesChanged: makeEvent<ThemesChanged>("themes-changed"),
 	trayNavigate: makeEvent<TrayNavigate>("tray-navigate"),
-	windowTabsChanged: makeEvent<WindowTabsChanged>("window-tabs-changed"),
+	windowProjectChanged: makeEvent<WindowProjectChanged>("window-project-changed"),
 };
 
 /* Types */
@@ -1577,14 +1496,6 @@ export type AppInfo = {
 	app_data_dir: string,
 	secrets_store: string,
 	version: string,
-};
-
-/**  탭을 옮길 수 있는 창 하나 (메뉴용). 이름은 프런트가 붙인다. */
-export type AppWindowInfo = {
-	label: string,
-	/**  그 창에서 지금 보이는 탭의 프로젝트. 시작 탭이면 `None`. */
-	active_project_id: number | null,
-	tab_count: number,
 };
 
 export type Artifact = {
@@ -2104,22 +2015,6 @@ export type CliCheckResult = {
 	cli_name: string,
 	path: string | null,
 	version: string | null,
-};
-
-/**
- *  ⌘W 가 눌렸다 — **닫을 대상을 프런트가 고른다**.
- * 
- *  예전에는 Rust 가 곧장 탭을 닫았다. 그런데 화면 안에 또 닫을 것이 생겼다
- *  (Claude Code 의 세션 탭): 사용자는 브라우저처럼 "안쪽부터" 닫히기를 기대한다.
- *  무엇이 열려 있는지는 프런트만 아는 사실이라 판단도 그쪽이 한다.
- * 
- *  프런트가 안 듣고 있으면 ⌘W 는 아무 일도 하지 않는다 — 창을 닫는 길은
- *  ⇧⌘W(Close Window)에 그대로 남아 있고, 그쪽은 Rust 가 직접 처리한다.
- */
-export type CloseIntent = {
-	window: string,
-	/**  프런트가 아무 것도 소비하지 않으면 닫을 탭. */
-	tab: number | null,
 };
 
 /**  한 클러스터에 걸린 일지 하나. */
@@ -3471,20 +3366,6 @@ export type NegationFinding = {
 	excerpt: string,
 };
 
-/**
- *  ⌘T 가 눌렸다 — **무엇을 새로 열지 프런트가 고른다** (2026-09-01).
- * 
- *  `CloseIntent` 와 같은 사정이다: 메뉴 액셀러레이터라 macOS 가 웹뷰보다 먼저
- *  먹어치우고, 그래서 터미널이 걸어 둔 ⌘T keydown 은 한 번도 돌지 않았다 —
- *  셸에 타이핑하다 ⌘T 를 눌러도 프로젝트 탭이 열렸다. 포커스가 어디에 있는지는
- *  프런트만 아는 사실이므로 판단도 그쪽이 한다.
- * 
- *  아무도 소비하지 않으면 창이 평소대로 **시작 탭**을 연다 (프런트의 기본값).
- */
-export type NewTabIntent = {
-	window: string,
-};
-
 export type OculpmAgentDrift = {
 	project_id: number,
 	agent_id: string,
@@ -3873,7 +3754,7 @@ export type ProjectStats = {
 	last_indexed_at: number | null,
 };
 
-/**  어디든 열린 프로젝트 집합이 바뀌었다 — 시작 탭의 "열림" 배지. */
+/**  어디든 열린 프로젝트 집합이 바뀌었다 — 시작 창·프로젝트 목록의 「열림」 표시. */
 export type ProjectWindowsChanged = {
 	open: number[],
 };
@@ -4418,67 +4299,6 @@ export type SymbolSearchResult = {
 	end_line: number,
 };
 
-/**  그 탭이 이 창의 스트립을 벗어났다 (또는 드래그가 끝났다) — 캐럿을 지운다. */
-export type TabDragLeave = {
-	window: string,
-};
-
-/**
- *  다른 창에서 끌고 온 탭이 **이 창의 스트립 위**에 있다 (창 간 드래그).
- * 
- *  `x` 는 창 안쪽 왼쪽 위 기준 **논리 px**. 받는 쪽이 웹뷰 줌으로 나눠 CSS px 로
- *  바꾼 뒤, 자기 탭 기하로 삽입 자리를 계산해 캐럿을 그리고 그 인덱스를
- *  `tab_drop_hint` 로 되돌려 준다 — Rust 는 탭 폭을 모르기 때문이다.
- */
-export type TabDragOver = {
-	window: string,
-	x: number | null,
-	/**  끌려오는 탭. 자기 탭이면(같은 창 되돌아오기) 무시할 수 있게 실어 보낸다. */
-	tab_id: number,
-	/**
-	 *  끌려오는 탭의 겉모습 — **스트립에 처음 들어선 순간에만** 실린다.
-	 * 
-	 *  받는 창은 남의 탭 이름을 알 길이 없다(레지스트리도 프로젝트 DB 도 그
-	 *  창의 것이 아니다). 그런데 자리표시자에 이름이 없으면 "무엇이 오는지"는
-	 *  모른 채 "무언가 온다"만 보인다 — 창이 셋이면 그게 곧 오조준이 된다.
-	 * 
-	 *  매번 싣지 않는 이유는 값이 DB 조회 한 번이기 때문이다. 포인터는 초당
-	 *  수십 번 움직이지만 **겨누는 창이 바뀌는 일**은 드물다. 받는 쪽은 처음
-	 *  받은 것을 `TabDragLeave` 까지 들고 있으면 된다.
-	 */
-	preview: TabPreview | null,
-};
-
-/**
- *  탭 스트립이 그릴 정보. 시작 탭은 `project_id: None` 이고 이름은 프런트가
- *  사전에서 붙인다 (백엔드가 UI 문자열을 만들지 않는다).
- */
-export type TabInfo = {
-	tab_id: number,
-	project_id: number | null,
-	name: string,
-	root_path: string,
-	/**
-	 *  프로젝트 겉모습 — 탭도 카드와 같은 아이콘·색으로 그린다. 둘 다 id 이고
-	 *  `None` 이면 프런트가 이름에서 유도한다 (카드와 같은 규칙).
-	 */
-	icon: string | null,
-	color: string | null,
-};
-
-/**
- *  끌려오는 탭을 받는 창이 그리기 위한 최소 정보 — 스트립의 탭과 **같은**
- *  재료다(이름·아이콘·색). 프로젝트 id 를 안 싣는 이유는 받는 창이 그것으로
- *  할 수 있는 일이 없어서다: 아직 자기 탭이 아니라 조회해도 남의 것이다.
- */
-export type TabPreview = {
-	name: string,
-	icon: string | null,
-	color: string | null,
-	/**  시작 탭인가 — 이름이 비어 있고 아이콘이 고정이라 갈래가 필요하다. */
-	is_start: boolean,
-};
-
 /**
  *  병합 한 번의 결과. 실패한 파일은 **건너뛰고 이름을 댄다** — 한 건이 막혔다고
  *  나머지를 되돌리면 사용자는 아무것도 못 고친다.
@@ -4503,18 +4323,6 @@ export type TagStat = {
 	last_workday: string,
 	/**  사전의 어느 말로 모을 만한가. 근거를 못 대면 `None` 이다. */
 	suggest_into: string | null,
-};
-
-/**
- *  손에 들려 있던 창을 **놓았다** — 이제 평범한 창이다.
- * 
- *  떼어내는 동안 그 창은 탭 줄만 그리고 화면 마운트를 붙잡고 있었다
- *  (`?tearoff=1`). 이 이벤트가 그 손을 놓아 준다 — 프로젝트 init·워처·자동색인이
- *  그때 비로소 돈다. 끌려다니다 남의 창에 합쳐지면 이 이벤트는 오지 않고 창이
- *  그대로 닫히므로, 그 전부가 아예 시작되지 않는다.
- */
-export type TearOffSettled = {
-	window: string,
 };
 
 export type ThemeFile = {
@@ -4660,19 +4468,13 @@ export type WeekBucket = {
 };
 
 /**
- *  한 창의 탭 구성이 바뀌었다 — 그 창의 프런트가 스트립을 다시 그린다.
- *  이름까지 실어 보내므로 프런트는 후속 조회가 필요 없다.
+ *  한 창의 프로젝트가 바뀌었다 — 시작 창이 프로젝트를 골랐거나, 업데이트 복원이
+ *  첫 창에 프로젝트를 실었거나, 지운 프로젝트의 창이 시작 창으로 돌아갔다.
  */
-export type WindowTabsChanged = {
+export type WindowProjectChanged = {
 	window: string,
-	tabs: TabInfo[],
-	active: number | null,
-};
-
-export type WindowTabsSnapshot = {
-	window: string,
-	tabs: TabInfo[],
-	active: number | null,
+	/**  `None` = 시작 창. */
+	project_id: number | null,
 };
 
 /**

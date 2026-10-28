@@ -10,8 +10,8 @@
  *   ② 시작 화면 격자 CSS 를 넣는 치환이 매치되지 않았는데 스크립트가 무조건
  *      성공을 찍었다 → 규칙이 파일에 아예 없는 채로 게이트가 전부 통과했다.
  *
- * 검사 방식: 창 엔트리(TabbedWindow)의 CSS 청크에 아래 선택자가 전부 있어야
- * 한다. lazy 청크(ShellV2)에만 있으면 실패다 — 그게 ① 의 증상이다.
+ * 검사 방식: 창 엔트리(AppWindow — 4.0 이전엔 TabbedWindow)의 CSS 청크에 아래
+ * 선택자가 전부 있어야 한다. lazy 청크(ShellV2)에만 있으면 실패다 — 그게 ① 의 증상이다.
  */
 import { readdir, readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
@@ -22,17 +22,16 @@ const assetsDir = join(repoRoot, "dist", "assets");
 
 /** 창 엔트리 CSS 청크에 반드시 있어야 하는 선택자. */
 const REQUIRED = [
-  // 창 셸 + 탭 스트립 — 트레이를 뺀 모든 창에 항상 있다.
+  // 창 셸 — 트레이를 뺀 모든 창에 항상 있다 (창 하나 = 프로젝트 하나, 4.0).
   ".winroot",
-  ".tabstrip",
-  ".tabstrip-tab",
-  ".tabpane",
-  // 시작 탭(프로젝트 메인 화면) — 창을 열면 가장 먼저 보이는 화면이다.
-  ".home-board",
-  ".home-wrap",
-  ".hl-lead",
-  ".hl-ledger",
-  ".hl-row",
+  // 시작 창 — 프로젝트가 없는 창이 열자마자 보이는 화면이다. ShellV2 를 한 번도
+  // 안 띄운 창이라 lazy 청크에 있으면 무스타일이 된다.
+  ".start",
+  ".start-body",
+  ".start-card",
+  ".start-row",
+  ".start-steps",
+  ".copy-cmd",
   // 창 최상위 모달 — 탭 닫기 확인창(useConfirm) · ⌘/ 치트시트. 스킬 화면을
   // 한 번도 안 연 창에서도 뜨므로 lazy 청크에 있으면 뼈대만 남아 나온다
   // (2026-09-02: 실제로 skills.css/screens.css 에 갇혀 있었다).
@@ -46,7 +45,7 @@ const REQUIRED = [
 /**
  * 창이 **열자마자** 들고 있는 CSS 청크들.
  *
- *  · `TabbedWindow-*.css` — 창 엔트리가 직접 임포트한 것 (tabs.css 등).
+ *  · `AppWindow-*.css` — 창 엔트리가 직접 임포트한 것 (window.css · 시작 창 등).
  *  · 공용 청크 — `import "@/App.css"` 가 여러 엔트리에 공유돼 빠진 것.
  *    토큰(tokens.css)·프리미티브(primitives.css)가 여기 산다. 엔트리 JS 가
  *    **정적으로** 물고 있으므로 창과 함께 무조건 로드된다. **이름으로 찾지
@@ -58,7 +57,7 @@ const REQUIRED = [
  * lazy 청크(ShellV2-*.css · SkillsScreenV2-*.css …)는 여기 없다 — 그게 이
  * 검사의 존재 이유다.
  */
-const ENTRY_CSS = [/^TabbedWindow-.*\.css$/];
+const ENTRY_CSS = [/^AppWindow-.*\.css$/];
 /** tokens.css 에만 사는 토큰 — 이걸 가진 CSS 청크가 공용 청크다. */
 const SHARED_FINGERPRINT = "--dim-disabled:";
 
@@ -102,7 +101,7 @@ if (missing.length > 0) {
   console.error("");
   console.error("고치는 법:");
   console.error("  · 규칙이 styles/index.css 계열(base/shell/primitives/screens)에 있다면");
-  console.error("    그건 ShellV2(lazy 청크) 전용이다 — 항상 필요한 것은 styles/tabs.css");
+  console.error("    그건 ShellV2(lazy 청크) 전용이다 — 항상 필요한 것은 windows/window.css");
   console.error("    처럼 창이 직접 임포트하는 파일로 옮긴다.");
   console.error("  · 규칙 자체가 사라졌다면 편집이 실제로 반영됐는지 확인한다.");
   process.exit(1);

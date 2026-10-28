@@ -15,7 +15,6 @@ import { CommitsPanel, EntriesPanel, FilesPanel, PlanPanel, wd } from "./BranchP
 import { ReleaseNotesSheet } from "./ReleaseNotesSheet";
 import { useBranchStory } from "./useBranchStory";
 import { BranchReceipt } from "./BranchReceipt";
-import { useDensity } from "@/hooks/useDensity";
 
 // 「브랜치의 이야기」 (v3-surface {#branch-story-view}).
 //
@@ -66,8 +65,8 @@ export function BranchScreenV2({
 }) {
   const { t } = useT();
   const { branches, story, picked, loading, error, pick, reload } = useBranchStory(projectId, active);
-  const { density } = useDensity();
-  const simple = density === "simple";
+  // 밀도는 하나다 (4.0, 촘촘한 쪽).
+  const simple = false;
   const [exporting, setExporting] = useState(false);
   // 「릴리스 노트 초안」 ({#release-notes-draft}) — 범위는 시트가 스스로 정한다
   // (지난 `v*` 태그..HEAD). 브랜치 선택과 묶지 않는 이유: 릴리스의 좌표는

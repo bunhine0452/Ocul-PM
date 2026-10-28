@@ -403,7 +403,8 @@ describe("cheatsheet and nav numbers — OS notation", () => {
     }
     const byLabel = new Map(groups.flatMap((g) => g.rows.map((r) => [`${g.id}:${r.labelKey}`, r.keys] as const)));
     expect(byLabel.get("global:keys.palette")).toBe("Ctrl+K");
-    expect(byLabel.get("window:keys.closeWindow")).toBe("Alt+F4");
+    // one window per project (4.0) — Ctrl+W closes the window, keydown-matched (`useWindowKeys`).
+    expect(byLabel.get("window:keys.closeWindow")).toBe("Ctrl+W");
     // new window is keydown-matched off the mac now ({#os-new-window}) — the row is back.
     expect(byLabel.get("window:keys.newWindow")).toBe("Ctrl+Shift+N");
     // no duplicate chord inside a group (polish_phase2's rule, on this OS too).

@@ -154,22 +154,20 @@ const ALLOW = {
 };
 
 /**
- * 규칙 17 의 예외 — 검색칸이되 **상자가 아닌** 자리.
- * `.home-search`: 시작 탭은 바가 아니라 밴드 레이아웃이고, 포커스를 밑줄
- * 한 줄로 표현한다(면을 그리면 밴드의 여백감이 죽는다 — home.css 에 사유).
- * 늘리기 전에 "정말 상자가 아닌가" 를 먼저 물을 것. 30/26 중 하나면 예외가
- * 아니라 `.search-box` 나 `.search-box.sm` 이다.
+ * 규칙 17 의 예외 — 검색칸이되 **상자가 아닌** 자리. 지금은 없다 (3.x 시작 탭의
+ * `.home-search` 밴드는 4.0 시작 창으로 바뀌며 사라졌다). 늘리기 전에 "정말 상자가
+ * 아닌가" 를 먼저 물을 것. 30/26 중 하나면 예외가 아니라 `.search-box` 나
+ * `.search-box.sm` 이다.
  */
-const SEARCH_BOX_ALLOW = new Set(["features/onboarding/home.css"]);
+const SEARCH_BOX_ALLOW = new Set();
 
 /**
  * 규칙 18 의 예외 — 사이드바도 도크도 없는 **전창** 표면. 여기서는 창 폭이
  * 곧 화면 폭이라 `@media` 가 옳다. 프로젝트 창 안의 화면을 여기 넣지 말 것.
+ * 4.0 시작 창(features/start/start.css)은 전창이지만 최소 창 폭(960)에서 두 칸이
+ * 접힐 일이 없어 폭 조건을 쓰지 않는다 — 그래서 목록이 비었다.
  */
-const VIEWPORT_MEDIA_ALLOW = new Set([
-  "features/onboarding/home.css",
-  "features/onboarding/welcome.css",
-]);
+const VIEWPORT_MEDIA_ALLOW = new Set();
 
 /**
  * 규칙 10 의 예외 — 이 저장소 밖에서 정의되는 커스텀 프로퍼티의 접두사.

@@ -1,5 +1,5 @@
 //! 창 생성·정리 — URL 조립, 휴면 창 재사용, 웹뷰 띄우기, 첫 창 편입, 창 이벤트
-//! 훅(포커스 추적·닫힘 시 탭 정리·마지막 창 판정).
+//! 훅(포커스 추적·닫힘 시 정리·마지막 창 판정).
 //!
 //! 새 창(`create_window`)과 세션 복원이 같은 `spawn_window` 를 쓰도록 여기 모았다.
 
@@ -36,21 +36,11 @@ pub(super) fn encode_query_value(raw: &str) -> String {
     out
 }
 
-/// 새 창의 URL. 탭 집합은 프런트가 마운트 직후 `get_window_tabs` 로 읽지만,
-/// 라벨과 딥링크 목적지는 URL 로 실어야 한다 — 갓 만든 창의 프런트는 아직
-/// 리스너를 달기 전이라 `emit` 이 유실된다.
-pub(super) fn window_url(
-    label: &str,
-    nav: Option<&crate::tray::TrayNavigate>,
-    tearoff: bool,
-) -> String {
+/// 새 창의 URL. 프로젝트는 프런트가 마운트 직후 `get_window_project` 로 읽지만,
+/// 라벨과 딥링크 목적지는 URL 로 실어야 한다 — 갓 만든 창의 프런트는 아직 리스너를
+/// 달기 전이라 `emit` 이 유실된다.
+pub(super) fn window_url(label: &str, nav: Option<&crate::tray::TrayNavigate>) -> String {
     let mut url = format!("index.html?win={}", encode_query_value(label));
-    // 떼어내는 **중**인 창은 탭 줄만 그리고 화면 마운트를 붙잡는다. 끌려다니는
-    // 몇백 ms 동안 프로젝트 init·워처·자동색인을 돌릴 이유가 없고, 도로 남의
-    // 창에 합치면 그 전부가 낭비가 된다.
-    if tearoff {
-        url.push_str("&tearoff=1");
-    }
     if let Some(nav) = nav {
         url.push_str(&format!("&view={}", encode_query_value(&nav.view)));
         if let Some(entry) = nav.entry_path.as_deref() {
@@ -60,29 +50,24 @@ pub(super) fn window_url(
     url
 }
 
+/// 창을 하나 연다 — 시작 창(`project = None`)이거나 그 프로젝트의 창.
+///
+/// **휴면 창**을 먼저 재사용한다 — 웹뷰는 살아 있는데 레지스트리에는 없는 창.
+/// 두 경우에 생긴다: ① 앱 시작 직후의 `main`(아직 편입 전), ② 상주 모드에서 마지막
+/// 창을 닫아 숨겨 둔 창. 재사용하지 않으면 숨은 웹뷰가 영원히 남고 매번 새 라벨이
+/// 발급된다.
 pub(super) async fn create_window(
     app: &AppHandle,
     project_id: Option<u32>,
     nav: Option<&crate::tray::TrayNavigate>,
-    position: Option<(f64, f64)>,
-    tearoff: bool,
 ) -> Result<String, String> {
-    // **휴면 창**을 먼저 재사용한다 — 웹뷰는 살아 있는데 레지스트리에는 없는
-    // 창. 두 경우에 생긴다: ① 앱 시작 직후의 `main`(아직 편입 전), ② 상주
-    // 모드에서 마지막 창을 닫아 숨겨 둔 창. 재사용하지 않으면 숨은 웹뷰가
-    // 영원히 남고 매번 새 라벨이 발급된다.
-    // 떼어내는 중인 창은 **반드시 새로** 만든다 — 휴면 창은 이미 평범한 앱 URL 로
-    // 떠 있어서 `?tearoff=1` 이 안 먹고, 그러면 끌려다니는 동안 프로젝트가
-    // 통째로 마운트된다.
-    let dormant = if tearoff {
-        None
-    } else {
-        let state = app.state::<WindowTabs>();
+    let dormant = {
+        let state = app.state::<WindowProjects>();
         let reg = state.lock();
         let mut labels: Vec<String> = app
             .webview_windows()
             .keys()
-            .filter(|l| is_app_window(l) && reg.get(l).is_none())
+            .filter(|l| is_app_window(l) && reg.project_of(l).is_none())
             .cloned()
             .collect();
         // 결정적으로 고른다 — `main` 을 우선하고 그다음 라벨 순.
@@ -94,32 +79,21 @@ pub(super) async fn create_window(
             .cloned()
     };
     if let Some(label) = dormant {
-        {
-            let state = app.state::<WindowTabs>();
-            state.lock().register(&label, project_id);
-        }
-        // 떼어내기로 온 것이면 휴면 창도 손 밑으로 옮긴다 — 안 옮기면 끌어낸
-        // 결과가 엉뚱한 자리(직전에 숨은 자리)에서 튀어나온다.
-        if let (Some((x, y)), Some(win)) = (position, app.get_webview_window(&label)) {
-            let _ = win.set_position(tauri::LogicalPosition::new(x, y));
-        }
+        app.state::<WindowProjects>()
+            .lock()
+            .register(&label, project_id);
         focus_window(app, &label);
-        broadcast(app, &label).await;
+        announce(app, &label);
         return Ok(label);
     }
 
-    let label = {
-        let state = app.state::<WindowTabs>();
-        let mut reg = state.lock();
-        reg.reserve(project_id)
-    };
-
+    let label = app.state::<WindowProjects>().lock().reserve(project_id);
     let title = window_title(app, project_id).await;
-    spawn_window(app, &label, nav, position, tearoff, title).await?;
+    spawn_window(app, &label, nav, title).await?;
     Ok(label)
 }
 
-/// 창 제목 — 프로젝트 탭이면 그 이름, 시작 탭이면 앱 이름.
+/// 창 제목 — 프로젝트 창이면 그 이름, 시작 창이면 앱 이름.
 pub(super) async fn window_title(app: &AppHandle, project_id: Option<u32>) -> String {
     match project_id {
         Some(pid) => {
@@ -135,48 +109,31 @@ pub(super) async fn window_title(app: &AppHandle, project_id: Option<u32>) -> St
 
 /// 레지스트리에 **이미 자리를 잡은** 라벨로 웹뷰를 띄운다.
 ///
-/// 새 창(`create_window`)과 세션 복원(`restore_session`)이 함께 쓴다 — 둘의
-/// 차이는 라벨을 발급하느냐 저장된 것을 그대로 쓰느냐뿐이고, 띄우는 방법은
-/// 같아야 한다 (크기·타이틀바·훅이 갈라지면 복원된 창만 미묘하게 달라진다).
+/// 새 창(`create_window`)과 세션 복원(`restore_session`)이 함께 쓴다 — 둘의 차이는
+/// 라벨을 발급하느냐 저장된 것을 그대로 쓰느냐뿐이고, 띄우는 방법은 같아야 한다.
 pub(super) async fn spawn_window(
     app: &AppHandle,
     label: &str,
     nav: Option<&crate::tray::TrayNavigate>,
-    position: Option<(f64, f64)>,
-    tearoff: bool,
     title: String,
 ) -> Result<(), String> {
-    let builder = WebviewWindowBuilder::new(
-        app,
-        label,
-        WebviewUrl::App(window_url(label, nav, tearoff).into()),
-    )
-    .title(title);
-    // 제목 숨김은 macOS 전용 빌더 메서드다 (오버레이 타이틀바와 짝). 비-mac 은
-    // OS 의 네이티브 제목줄 그대로 — 제목(프로젝트 이름)이 보이고, 오버레이·
-    // 트래픽라이트 여백은 없다 (프런트는 mac 에서만 그 여백을 둔다, L-UI #ui-chrome).
+    let builder =
+        WebviewWindowBuilder::new(app, label, WebviewUrl::App(window_url(label, nav).into()))
+            .title(title);
+    // 제목 숨김은 macOS 전용 빌더 메서드다 (오버레이 타이틀바와 짝). 비-mac 은 OS 의
+    // 네이티브 제목줄 그대로 — 제목(프로젝트 이름)이 보인다.
     #[cfg(target_os = "macos")]
     let builder = builder.hidden_title(true);
-    let mut builder = builder
+    let builder = builder
         .inner_size(WINDOW_W, WINDOW_H)
         .min_inner_size(WINDOW_MIN_W, WINDOW_MIN_H)
-        .resizable(true)
-        // 손에 들려 있는 창은 포커스를 뺏지 않는다. 뺏으면 마우스 이벤트를 끌던
-        // 창에서 가로채 갈 위험이 있고(드래그가 그 자리에서 죽는다), 화면상으로도
-        // "아직 놓지 않았다" 가 안 읽힌다.
-        .focused(!tearoff);
-    if let Some((x, y)) = position {
-        // 이미 "창 좌상단" 으로 계산돼 온다 (`detached_origin`) — 여기서 다시
-        // 보정하지 않는다.
-        builder = builder.position(x, y);
-    }
+        .resizable(true);
 
     let window = match builder.build() {
         Ok(w) => w,
         Err(e) => {
             // 예약만 해두고 창이 안 뜨면 유령 엔트리가 남는다 — 되돌린다.
-            let state = app.state::<WindowTabs>();
-            state.lock().windows.remove(label);
+            app.state::<WindowProjects>().lock().remove(label);
             return Err(e.to_string());
         }
     };
@@ -192,33 +149,31 @@ pub(super) async fn spawn_window(
     Ok(())
 }
 
-/// `tauri.conf.json` 이 만든 첫 창을 레지스트리에 등록하고 훅을 붙인다.
+/// `tauri.conf.json` 이 만든 첫 창을 시작 창으로 편입하고 훅을 붙인다.
 /// 앱 시작 시 setup 에서 한 번 호출한다.
 pub fn adopt_first_window(app: &AppHandle) {
     let Some(window) = app.get_webview_window(FIRST_WINDOW) else {
         return;
     };
-    {
-        let state = app.state::<WindowTabs>();
-        state.lock().register(FIRST_WINDOW, None);
-    }
+    app.state::<WindowProjects>()
+        .lock()
+        .register(FIRST_WINDOW, None);
     attach_window_hooks(app, &window, FIRST_WINDOW.to_string());
 }
 
-/// 창 이벤트 훅 — 포커스 추적 + 닫을 때 그 창의 **모든 탭** 정리.
+/// 창 이벤트 훅 — 포커스 추적 + 닫을 때 레지스트리 정리.
 ///
-/// 프런트의 `beforeunload` 에 맡기지 않는 이유: 강제 종료·크래시 시 새기
-/// 때문이다. Rust 쪽 창 이벤트가 유일하게 믿을 수 있는 지점이다.
+/// 프런트의 `beforeunload` 에 맡기지 않는 이유: 강제 종료·크래시 시 새기 때문이다.
+/// Rust 쪽 창 이벤트가 유일하게 믿을 수 있는 지점이다.
 fn attach_window_hooks(app: &AppHandle, window: &tauri::WebviewWindow, label: String) {
     let handle = app.clone();
     window.on_window_event(move |ev| match ev {
         tauri::WindowEvent::Focused(true) => {
-            let state = handle.state::<WindowTabs>();
-            state.lock().note_focus(&label);
+            handle.state::<WindowProjects>().lock().note_focus(&label);
         }
         // `Destroyed` 가 아니라 `CloseRequested` 를 쓴다 — 앱 종료 경로에서는
-        // 발화하지 않아, 종료 중에 "마지막 창" 판정이 무언가를 다시 띄우는
-        // 사고를 구조적으로 막는다.
+        // 발화하지 않아, 종료 중에 "마지막 창" 판정이 무언가를 다시 띄우는 사고를
+        // 구조적으로 막는다.
         tauri::WindowEvent::CloseRequested { api, .. } if handle_window_closed(&handle, &label) => {
             api.prevent_close();
         }
@@ -228,32 +183,10 @@ fn attach_window_hooks(app: &AppHandle, window: &tauri::WebviewWindow, label: St
 
 /// 반환값 `true` 면 닫기를 가로챈 것 (트레이 상주 모드에서 숨기기만 함).
 fn handle_window_closed(app: &AppHandle, label: &str) -> bool {
-    let (closed_tabs, remaining) = {
-        let state = app.state::<WindowTabs>();
-        let mut reg = state.lock();
-        let tabs = reg
-            .windows
-            .remove(label)
-            .map(|st| {
-                st.order
-                    .iter()
-                    .filter_map(|t| t.project_id)
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        if reg.last_focused.as_deref() == Some(label) {
-            reg.last_focused = None;
-        }
-        (tabs, reg.windows.len())
-    };
-
-    // 탭의 프로젝트 단위 정리는 없다 — PTY·언어 서버는 2026-10-28 에 걷었다 (simplify-round).
-    let _ = closed_tabs;
+    let remaining = app.state::<WindowProjects>().lock().remove(label);
     emit_open_projects(app);
-
     if remaining > 0 {
         return false;
     }
-
     crate::tray::handle_last_window_closed(app, label)
 }

@@ -27,14 +27,14 @@ pub(super) fn focus_window(app: &AppHandle, label: &str) {
     }
 }
 
-/// 앱 창을 하나 앞으로 — 없으면 시작 탭으로 하나 만든다.
+/// 앱 창을 하나 앞으로 — 없으면 시작 창을 하나 만든다.
 /// 트레이 메뉴 "열기" 와 상주 모드 복귀의 공용 경로.
 pub async fn focus_or_open_window(app: &AppHandle) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
     let existing = {
-        let state = app.state::<WindowTabs>();
+        let state = app.state::<WindowProjects>();
         let reg = state.lock();
         reg.preferred_window()
             .filter(|l| app.get_webview_window(l).is_some())
@@ -43,9 +43,7 @@ pub async fn focus_or_open_window(app: &AppHandle) -> Result<(), String> {
         focus_window(app, &label);
         return Ok(());
     }
-    create_window(app, None, None, None, false)
-        .await
-        .map(|_| ())
+    create_window(app, None, None).await.map(|_| ())
 }
 
 /// 지금 포커스된 앱 창. 메뉴 이벤트에는 대상 창이 실려 오지 않으므로 여기서
@@ -59,15 +57,8 @@ pub fn focused_app_window(app: &AppHandle) -> Option<String> {
         .find(|(label, w)| is_app_window(label) && w.is_focused().unwrap_or(false))
         .map(|(label, _)| label);
     live.or_else(|| {
-        let state = app.state::<WindowTabs>();
+        let state = app.state::<WindowProjects>();
         let reg = state.lock();
         reg.preferred_window()
     })
-}
-
-/// 그 창에서 지금 보이고 있는 탭.
-pub fn active_tab_of(app: &AppHandle, label: &str) -> Option<u32> {
-    let state = app.state::<WindowTabs>();
-    let reg = state.lock();
-    reg.get(label).and_then(|st| st.active)
 }

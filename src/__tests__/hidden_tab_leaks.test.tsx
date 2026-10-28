@@ -17,15 +17,15 @@ import { act, render } from "@testing-library/react";
 // ── 백엔드 이벤트·커맨드 — 테스트가 직접 쏘고 센다 ───────────────────────────
 const fx = vi.hoisted(() => ({
   journalAdded: [] as Array<(e: { payload: unknown }) => void>,
-  openProjectTab: vi.fn(async (_id: number, _win: string | null) => ({ status: "ok", data: null })),
+  openProjectWindow: vi.fn(async (_id: number) => ({ status: "ok", data: null })),
 }));
 vi.mock("@/lib/bindings", () => ({
   commands: new Proxy(
     {},
     {
       get: (_t, prop) =>
-        prop === "openProjectTab"
-          ? fx.openProjectTab
+        prop === "openProjectWindow"
+          ? fx.openProjectWindow
           : () => Promise.resolve({ status: "ok", data: null }),
     },
   ),
@@ -61,7 +61,7 @@ import { consumeEntryJump, onEntryJump, resetEntryJump } from "@/lib/entryJump";
 import { getToasts } from "@/lib/toast";
 import { NAV_BUS } from "@/lib/navRegistry";
 
-describe("new-entry toast Open — goes to that project's tab", () => {
+describe("new-entry toast Open — goes to that project's window", () => {
   beforeEach(() => {
     resetEntryJump();
     fx.journalAdded.length = 0;
@@ -114,7 +114,8 @@ describe("new-entry toast Open — goes to that project's tab", () => {
     expect(tabB).toHaveBeenCalledWith("journal/20260921/Feature/x.md");
     expect(tabA).not.toHaveBeenCalled();
     expect(bus).not.toHaveBeenCalled();
-    expect(fx.openProjectTab).toHaveBeenCalledWith(2, null);
+    // 그 프로젝트의 창을 앞으로 (창 하나 = 프로젝트 하나, 4.0).
+    expect(fx.openProjectWindow).toHaveBeenCalledWith(2);
 
     window.removeEventListener(NAV_BUS.openEntity, bus);
     offA();

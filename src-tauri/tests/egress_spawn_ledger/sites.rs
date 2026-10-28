@@ -284,9 +284,17 @@ pub(super) const TEST_LAUNCHES: &[Fixtures] = &[
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// `(src/ 기준 경로, 그 쓰임 — 가져오는 이름까지, 분류, 사유)`.
-pub(super) const WEB_LAUNCHES: &[(&str, &str, Reach, &str)] = &[(
-    "features/settings/OculpmSettings.tsx",
-    "import { revealItemInDir } from \"@tauri-apps/plugin-opener\"",
-    Reach::Local,
-    "설정 화면이 앱 로그 폴더를 파일 관리자에서 연다 — 로컬 경로.",
-)];
+pub(super) const WEB_LAUNCHES: &[(&str, &str, Reach, &str)] = &[
+    (
+        "features/settings/DataSection.tsx",
+        "import { revealItemInDir } from \"@tauri-apps/plugin-opener\"",
+        Reach::Local,
+        "설정 「데이터」가 앱 로그 폴더를 파일 관리자에서 연다 — 로컬 경로.",
+    ),
+    (
+        "features/settings/ProjectSection.tsx",
+        "import { revealItemInDir } from \"@tauri-apps/plugin-opener\"",
+        Reach::Local,
+        "설정 「이 프로젝트」가 `.oculpm` 폴더를 파일 관리자에서 연다 — 로컬 경로.",
+    ),
+];

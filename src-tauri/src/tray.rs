@@ -653,7 +653,7 @@ pub async fn tray_open_main(app: AppHandle, nav: Option<TrayNavigate>) -> Result
     // 탭을 열거나(없으면) 활성화하고(있으면) 그 창에만 목적지를 전달한다.
     // 갓 만든 창은 아직 리스너가 없어 emit 이 유실되므로, 그 경우 커맨드가
     // 목적지를 URL 에 실어 보낸다.
-    crate::commands::window::open_project_tab_with_nav(&app, project_id, None, Some(&nav)).await
+    crate::commands::window::open_project_window_with_nav(&app, project_id, Some(&nav)).await
 }
 
 #[tauri::command]
