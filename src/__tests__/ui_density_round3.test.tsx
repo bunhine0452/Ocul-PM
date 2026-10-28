@@ -129,7 +129,7 @@ describe("terminal — result tail and the verification inbox", () => {
     evidenceInbox.push(1, "`pnpm test` · 4 passed · exit 0");
     evidenceInbox.push(2, "other");
     expect(evidenceInbox.list(1)).toHaveLength(1);
-    // i18n-ignore -- 디스크 문서 규격의 섹션 머리 (표시 문자열 아님)
+    // i18n-ignore-next-line -- 디스크 문서 규격의 섹션 머리 (표시 문자열 아님)
     expect(evidenceSection(evidenceInbox.list(1))).toBe("## 검증\n\n- `pnpm test` · 4 passed · exit 0\n");
     expect(evidenceInbox.drain(1)).toHaveLength(1);
     expect(evidenceInbox.list(1)).toHaveLength(0);
@@ -140,17 +140,17 @@ describe("terminal — result tail and the verification inbox", () => {
 
 describe("discussion — decide X", () => {
   it("one line in the conclusion, one row in the log — existing text untouched", () => {
-    // i18n-ignore -- 논의 문서 픽스처 (디스크 규격, 표시 문자열 아님)
+    // i18n-ignore-next-line -- 논의 문서 픽스처 (디스크 규격, 표시 문자열 아님)
     const doc = "## 문제 정의\n\n무엇을 걷나.\n\n## 후보 해결 방안\n\n### A. 걷는다 {#o1}\n";
-    // i18n-ignore -- 위와 같은 픽스처
+    // i18n-ignore-next-line -- 위와 같은 픽스처
     const next = buildDecisionBody(doc, "user", "**A 로 결정** — 걷는다. 사유: 비용 0", new Date("2026-10-28T10:00:00+09:00"));
     expect(next.startsWith(doc.trimEnd())).toBe(true);
-    // i18n-ignore -- 위와 같은 픽스처
+    // i18n-ignore-next-line -- 위와 같은 픽스처
     expect(next).toContain("## 결론");
-    // i18n-ignore -- 위와 같은 픽스처
+    // i18n-ignore-next-line -- 위와 같은 픽스처
     expect(next).toContain("**A 로 결정** — 걷는다. 사유: 비용 0");
     // 로그 행 — 시각은 로컬 오프셋을 따르므로 작성자·본문 열만 묻는다.
-    // i18n-ignore -- 위와 같은 픽스처
+    // i18n-ignore-next-line -- 위와 같은 픽스처
     expect(next).toMatch(/\| 2026-10-28T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2} \| user \| \*\*A 로 결정\*\*/);
   });
 });
