@@ -190,7 +190,7 @@ fn adapter_agents_imports_resolve_to_the_root_agents_md() {
 ///   `.oculpm/agents/journal-spec.md`(앱 관리 파일, discussion-spec 과 같은 방식)로 빼고 한 줄로
 ///   가리킨다 — 도구가 있는 세션은 그 규격을 읽을 일이 없는데 매 세션 실리고 있었다
 ///   (플랜 `simplify-round-20261028` {#template-v19}). 상한은 **내렸다** — 다시 올리려면 근거.
-/// - v20 (2026-10-28): ko 4,100 → 2,900 · en 6,100 → 4,700 (실측 ko 2,768 · en 4,584). §5 의 플랜
+/// - v20 (2026-10-28): ko 4,100 → 2,900 · en 6,100 → 4,700 (실측 ko 2,783 · en 4,606). §5 의 플랜
 ///   수동 형식(plan-log 행·frontmatter 순서·`{#id}` 줄 규칙)을 journal-spec 으로, §6 논의 문서를 삭제
 ///   (논의 화면 제거), 회고 화면이 사라져 아무도 수확하지 않는 `oculpm-defer` 마커 줄을 삭제, §0 의
 ///   롤업 줄 삭제(MCP 응답에서 걷힘). §1 을 Rieseberg 「How to be more ambitious」 로 다시 썼다 —
