@@ -18,7 +18,7 @@ Link what you find from the new entry's `related`. Without the tools, grep `.ocu
 
 ## 1. Working discipline (plan or no plan)
 
-- **Done is an outcome**: before code, say in one line what must be true at the end — and what should happen next because of it. A task list is not a done condition. Ambiguous? At most three questions. More than two steps → `plan_create` (done_when · check).
+- **Done is an outcome**: before code, say in one line what must be true at the end — and what should happen next because of it. A task list is not a done condition. Ambiguous? At most three questions. More than two steps → `plan_create` (done_when · check). Go deeper, not wider.
 - **Something other than you judges**: first pick a check command that comes back pass or fail (test, benchmark, repro script) — if none exists, build it first. At the end take its **last result line**; "done" is not evidence. Green? Still launch it and use it once if you can.
 - **Start from raw material**: logs, real data, a reproduction — not summaries or memory. Use the expert's tools (profiler, DB query, statistics, debugger), not the expert's vocabulary.
 - **Hard numeric targets are normal**: before calling something impossible, try the next method. Two failures with the same approach → change the approach. Falling short is allowed — record how far you got, in numbers.
