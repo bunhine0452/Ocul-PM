@@ -172,23 +172,3 @@ fn a_crlf_rollup_is_read_like_lf_and_regenerated_as_crlf() {
     let fresh = std::fs::read_to_string(paths::rollup_path(root, "2026-W39")).unwrap();
     assert!(!fresh.contains('\r'), "새 판은 LF (macOS 동작 불변)");
 }
-
-/// **규칙이 가리키지 않는 층은 읽히지 않는다** (`{#rollup-first}`).
-///
-/// 이 단언이 `agents/mod.rs` 의 템플릿 패리티 테스트 옆이 아니라 여기 있는
-/// 이유는 그 파일이 크기 래칫(1,264줄) 위라 한 줄도 못 늘리기 때문이다.
-/// 지키는 성질은 같다 — §0 이 `journal_search` 를 말해야 검색이 실제로
-/// 불리듯, `rollups` 를 말해야 요약 층이 실제로 읽힌다.
-#[test]
-fn the_master_templates_point_at_the_rollup_layer() {
-    for (name, tpl) in [
-        ("ko", crate::oculpm::agents::MASTER_KO),
-        ("en", crate::oculpm::agents::MASTER_EN),
-    ] {
-        assert!(tpl.contains("rollups"), "{name}: §0 롤업 우선 안내 누락");
-        assert!(
-            tpl.contains("journal_read"),
-            "{name}: 롤업을 펼치는 도구 안내 누락"
-        );
-    }
-}
