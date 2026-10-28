@@ -276,12 +276,13 @@
 
    "대시보드는 이 파일만 읽는다" 는 전제는 2026-07-31 에 tokens.css 가 App.css
    로 승격되면서 무효가 됐다. 그래서 값을 다시 적을 이유가 없다 — 별칭이면
-   프리셋 5종·액센트 6종·사용자 커스텀 테마(인라인 변수)가 전부 자동으로 따라온다.
+   라이트/다크·액센트 6종이 전부 자동으로 따라온다 (4.0 에서 프리셋 5종과 사용자
+   테마는 걷었다).
 
-   **블록이 하나인 이유**: `data-preset`/`data-theme` 은 `<html>` 에만 붙는다
-   (features/theme/apply.ts:137). custom property 의 var() 는 쓰이는 요소에서
-   풀리므로, :root 에 한 번 적어 두면 프리셋이 --text 를 갈아끼울 때 --foreground
-   도 같이 갈린다. 프리셋을 하위 요소에 걸기 시작하면 이 전제가 깨지니 주의. */
+   **블록이 하나인 이유**: `data-theme`/`data-accent` 는 `<html>` 에만 붙는다
+   (features/theme/apply.ts). custom property 의 var() 는 쓰이는 요소에서
+   풀리므로, :root 에 한 번 적어 두면 다크가 --text 를 갈아끼울 때 --foreground
+   도 같이 갈린다. 가족을 하위 요소에 걸기 시작하면 이 전제가 깨지니 주의. */
 :root {
     --background: var(--bg-window);
     --foreground: var(--text);

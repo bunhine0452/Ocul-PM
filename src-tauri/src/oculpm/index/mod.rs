@@ -15,9 +15,6 @@
 //! `SessionActor`, W2-PR3 `Watcher`) in a uniform `.await` shape and gives us
 //! room to migrate to `tokio::fs` later without churning callers.
 
-// 브랜치 축 (v3-surface {#branch-index}) — 파생 전용 읽기라 쓰기 경로와 섞지 않는다.
-pub mod branch;
-
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 

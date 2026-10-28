@@ -33,7 +33,7 @@
         "media-src": "'self' data:",
         "frame-src": "'none'",
         "worker-src": "'self'",
-        "connect-src": "'self' ipc: http://ipc.localhost https://api.github.com",
+        "connect-src": "'self' ipc: http://ipc.localhost",
         "object-src": "'none'",
         "base-uri": "'self'",
         "form-action": "'none'"

@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the launcher window + tray popover + project windows",
-  "windows": ["main", "tray", "win-*"],
+  "description": "Capability for the launcher window + project windows",
+  "windows": ["main", "win-*"],
   "permissions": [
     "core:default",
     "opener:default",
@@ -17,7 +17,6 @@
     },
     "dialog:default",
     "dialog:allow-save",
-    "notification:default",
     "updater:default",
     "process:default",
     "core:window:allow-start-dragging",

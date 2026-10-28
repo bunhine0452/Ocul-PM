@@ -61,8 +61,8 @@ import { __resetLangForTests, setLangSetting, t } from "@/i18n";
 import type { Project } from "@/lib/bindings";
 
 const PROJECTS: Project[] = [
-  { id: 1, name: "ai-pm", root_path: "/Users/me/ai-pm", created_at: 1, icon: null, color: null, theme_id: null },
-  { id: 2, name: "naeri", root_path: "/Users/me/naeri", created_at: 2, icon: null, color: null, theme_id: null },
+  { id: 1, name: "ai-pm", root_path: "/Users/me/ai-pm", created_at: 1, icon: null, color: null },
+  { id: 2, name: "naeri", root_path: "/Users/me/naeri", created_at: 2, icon: null, color: null },
 ];
 
 /** 셸 + 전역 단축키 — ProjectWindow 가 하는 배선 그대로(팔레트만 뺐다). */

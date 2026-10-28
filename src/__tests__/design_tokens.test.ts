@@ -213,8 +213,8 @@ describe("색 리터럴은 팔레트 층에만 있다 — 화이트리스트", (
 // ─── 3.0 {#hljs-unify} — 문법 색은 한 팔레트에서만 태어난다 ────────────────
 //
 // 예전엔 같은 코드가 편집기에선 보라, 변경/일지 화면에선 빨강이었다. 아래
-// 셋을 못박는다: (1) 토큰이 라이트·다크에 다 있다, (2) 프리셋 5종이 전부
-// 다시 칠한다, (3) hljs 규칙은 색을 **직접 쓰지 않는다**.
+// 둘을 못박는다: (1) 토큰이 라이트·다크에 다 있다, (2) hljs 규칙은 색을
+// **직접 쓰지 않는다**.
 
 const SYNTAX_TOKENS = ["kw", "str", "comment", "num", "fn", "type", "prop", "def", "op"] as const;
 
@@ -231,27 +231,8 @@ describe("문법 강조 — --code-* 한 팔레트", () => {
     }
   });
 
-  it("프리셋 5종이 전부 다시 칠한다 — 그러지 않으면 Nord 위에 GitHub 색이 뜬다", () => {
-    for (const preset of ["solarized", "sepia", "nord", "dracula", "high-contrast"]) {
-      // 두 번째 블록(문법 전용)만 본다 — 첫 블록은 내장 테마 JSON 의 생성 원본이다.
-      const blocks = tokens.split(`[data-preset="${preset}"] {`);
-      expect(blocks.length, `${preset} 블록 수`).toBe(3);
-      const syntax = blocks[2].slice(0, blocks[2].indexOf("}"));
-      for (const name of SYNTAX_TOKENS) {
-        expect(syntax, `${preset} --code-${name}`).toMatch(new RegExp(`--code-${name}:\\s*#`));
-      }
-    }
-  });
-
-  it("문법 토큰은 내장 테마 JSON 의 생성 원본(첫 블록)엔 없다 — 두 번째 블록 전용이다", () => {
-    // {#code-tokens-theme-schema} 이후 --code-* 는 백엔드 화이트리스트 **안**이라
-    // 내려받은 커스텀 테마는 지정할 수 있다. 여기서 안 새는 이유는 화이트리스트가
-    // 아니라 `gen-builtin-themes.mjs` 가 프리셋마다 **첫 블록만** 읽어서다 —
-    // 문법색은 둘째(문법 전용) 블록에만 있으니 내장 5종의 JSON 은 그대로 31개다.
-    for (const preset of ["solarized", "sepia", "nord", "dracula", "high-contrast"]) {
-      const first = tokens.split(`[data-preset="${preset}"] {`)[1];
-      expect(first.slice(0, first.indexOf("}")), preset).not.toContain("--code-");
-    }
+  it("프리셋 블록은 없다 — 4.0 에서 걷었다", () => {
+    expect(tokens).not.toContain("[data-preset=");
   });
 
   it("hljs 규칙은 색 대신 토큰을 읽는다", () => {
@@ -483,14 +464,6 @@ function resolve(chain: string[]): Record<string, string> {
 }
 
 const DARK = '[data-theme="dark"]';
-/** 프리셋 → 바탕 가족. 내장 테마 파일의 `family` 와 같은 표. */
-const PRESET_FAMILY: Record<string, "light" | "dark"> = {
-  solarized: "light",
-  sepia: "light",
-  nord: "dark",
-  dracula: "dark",
-  "high-contrast": "dark",
-};
 /** `data-accent` 팔레트 6종 중 5종 (green 은 바탕값이라 블록이 없다). */
 const ACCENTS = ["blue", "purple", "orange", "rose", "teal"];
 
@@ -499,10 +472,6 @@ type Theme = { name: string; tokens: Record<string, string> };
 const THEMES: Theme[] = [
   { name: "light", tokens: resolve([":root"]) },
   { name: "dark", tokens: resolve([":root", DARK]) },
-  ...Object.entries(PRESET_FAMILY).map(([id, family]) => ({
-    name: `preset:${id}`,
-    tokens: resolve(family === "dark" ? [":root", DARK, `[data-preset="${id}"]`] : [":root", `[data-preset="${id}"]`]),
-  })),
   ...ACCENTS.flatMap((a) => [
     { name: `accent:${a}/light`, tokens: resolve([":root", `[data-accent="${a}"]`]) },
     { name: `accent:${a}/dark`, tokens: resolve([":root", DARK, `${DARK}[data-accent="${a}"]`]) },
@@ -574,11 +543,6 @@ describe("상태색 배경 위의 글자 — {#hardcoded-white}", () => {
 const ON_ACCENT_FLOOR: Record<string, number> = {
   light: 4.35,
   dark: 7.98,
-  "preset:solarized": 3.41,
-  "preset:sepia": 3.94,
-  "preset:nord": 6.24,
-  "preset:dracula": 5.9,
-  "preset:high-contrast": 14.67,
   "accent:blue/light": 4.7,
   "accent:blue/dark": 5.71,
   "accent:purple/light": 4.76,

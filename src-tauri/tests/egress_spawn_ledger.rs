@@ -306,7 +306,7 @@ fn every_process_launch_site_is_classified() {
 #[test]
 fn every_webview_launch_is_classified() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src");
-    let skip = ["lib/bindings.ts", "__tests__", "features/skills/catalog"];
+    let skip = ["lib/bindings.ts", "__tests__"];
     let mut files = Vec::new();
     walk_ts(&root, &mut files);
     let mut found = BTreeSet::new();

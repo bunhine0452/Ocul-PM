@@ -43,7 +43,6 @@ vi.mock("@/lib/bindings", () => {
           if (prop === "claudePluginStatus") return () => Promise.resolve({ installed: false, path: null });
           if (prop === "appInfo") return () => ok({ name: "ocul-pm", version: "0.0.0" });
           if (prop === "secretHas") return () => ok(false);
-          if (prop === "themeList") return () => ok([]);
           if (prop === "acpListSessions") return () => ok([]);
           if (prop === "acpStatus") return () => ok(null);
           if (prop === "acpStart" || prop === "acpNewSession") return () => ok(ACP_SESSION);
@@ -55,20 +54,6 @@ vi.mock("@/lib/bindings", () => {
           if (prop === "a2aOverview")
             return () => ok({ participants: [], integrity: [], groups: [], leases: [], open_tasks: [] });
           if (prop === "a2aEndpointStatus") return () => ok({ running: false, port: null, url: null });
-          if (prop === "branchList") return () => ok([]);
-          if (prop === "discussionList") return () => ok([]);
-          if (prop === "skillsList")
-            return () => ok({ project: [], global: [], project_skills_dir: "/repo/.claude/skills", global_skills_dir: "~/.claude/skills" });
-          if (prop === "rulesList")
-            return () =>
-              ok({
-                claude_md: [],
-                project_rules: [],
-                global_rules: [],
-                project_rules_dir: "/repo/.claude/rules",
-                global_rules_dir: "~/.claude/rules",
-                cursor_translate: false,
-              });
           if (prop === "chatMessageList") return () => ok([]);
           if (prop === "codeTree") return () => ok({ nodes: [], file_count: 0, truncated: false });
           if (prop === "oculpmWorkdayBrief")
@@ -87,7 +72,6 @@ vi.mock("@/lib/bindings", () => {
                 updated_at: 0,
                 last_message_at: null,
               });
-          if (prop === "ruleCandidates" || prop === "skillCandidates") return () => ok([]);
           if (prop === "planRecentUpdates" || prop === "journalMissingSignals") return () => ok([]);
           if (prop === "todayDigest") return () => ok({ plans: [], needs_user: [], blocked: [], journal_plan: [] });
           if (prop === "dbHealth")
@@ -105,8 +89,6 @@ vi.mock("@/lib/bindings", () => {
 // 실제 빈 상태는 검사에서 빠진다.
 const EMPTY_BY_METHOD: Record<string, unknown> = {
   a2aOverview: { participants: [], integrity: [], groups: [], leases: [], open_tasks: [] },
-  branchList: [],
-  branchStory: null,
   listSessions: [],
   listJournalEntries: { entries: [], sessions: [] },
   // 4.0 오늘 — 일지가 몇 건 있는 하루로 그려야 「확인할 것」·「오늘 한 일」 머리가 선다.
@@ -145,9 +127,6 @@ import { JournalScreenV2 } from "@/features/oculpm/JournalScreenV2";
 import { DiffScreenV2 } from "@/features/diff/DiffScreenV2";
 import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
 import { SearchScreenV2 } from "@/features/search/SearchScreenV2";
-import { DiscussionScreenV2 } from "@/features/discussion/DiscussionScreenV2";
-import { SkillsScreenV2 } from "@/features/skills/SkillsScreenV2";
-import { BranchScreenV2 } from "@/features/branch/BranchScreenV2";
 
 // i18n-ignore-next-line -- 한글 **검출**용 정규식 (표시 문자열이 아니다)
 const HANGUL = /[가-힣]/;
@@ -281,33 +260,6 @@ describe("영어 모드 전 화면 순회 — 한글이 남지 않는다", () =>
       </Wrap>,
     );
     await expectEnglish(container, "Search");
-  });
-
-  it("논의", async () => {
-    const { container } = render(
-      <Wrap>
-        <DiscussionScreenV2 projectId={1} onNavigate={noop} />
-      </Wrap>,
-    );
-    await expectEnglish(container, "Discussion");
-  });
-
-  it("스킬", async () => {
-    const { container } = render(
-      <Wrap>
-        <SkillsScreenV2 projectId={1} active />
-      </Wrap>,
-    );
-    await expectEnglish(container, "Skills");
-  });
-
-  it("브랜치", async () => {
-    const { container } = render(
-      <Wrap>
-        <BranchScreenV2 projectId={1} active onOpenJournal={noop} onOpenFile={noop} />
-      </Wrap>,
-    );
-    await expectEnglish(container, "Branch");
   });
 
 

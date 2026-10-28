@@ -2,14 +2,15 @@
 //!
 //! 웹에서 앱으로 오는 유일한 길이다 — 그래서 **가장 좁은 문**이어야 한다.
 //! 규약 하나로 요약된다: **무확인 실행 0.** 딥링크는 무엇도 실행하지 않고,
-//! 앱을 포커스한 뒤 확인 시트를 띄우는 것까지만 한다. 실제 설치는 사용자가
-//! 누른 뒤 기존 커맨드(`plugin_import`·…)가 한다.
+//! 앱을 포커스한 뒤 확인 시트를 띄우는 것까지만 한다. 열기는 사용자가 누른 뒤에
+//! 기존 커맨드(`open_project_nav`)가 한다.
 //!
 //! ```text
-//! oculpm://skill/install?source=<owner/repo>&name=<skill>
-//! oculpm://plugin/install?source=<owner/repo>
 //! oculpm://open?project=<path>&view=journal
 //! ```
+//!
+//! 스킬·플러그인 설치 링크(`skill/install` · `plugin/install`)는 4.0 에서 번들 임포트와
+//! 함께 걷었다 — 옛 링크가 와도 모르는 경로로 거절되고 아무것도 받아오지 않는다.
 //!
 //! 이 모듈은 **파싱만** 한다. 파싱이 순수 함수라 "어떤 링크가 통과하는가" 를
 //! 창 없이 전부 단언할 수 있다 — 보안 규약은 테스트가 지킨다.
@@ -28,14 +29,6 @@ const MAX_URL_BYTES: usize = 2_048;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum DeepLink {
-    /// 번들에서 스킬 하나만 (`name` 이 없으면 번들 전체와 같다).
-    SkillInstall {
-        source: String,
-        name: Option<String>,
-    },
-    PluginInstall {
-        source: String,
-    },
     /// 이미 **등록된** 프로젝트를 연다. 경로로 새 프로젝트를 추가하지 않는다.
     Open {
         project: String,
@@ -53,7 +46,7 @@ pub enum LinkError {
     Scheme,
     /// 아는 경로가 아니다.
     Route(String),
-    /// 값이 규약을 어겼다 (임의 URL·owner/repo 아님·화이트리스트 밖).
+    /// 값이 규약을 어겼다 (빈 값·경로 모양 이름).
     Value(String),
 }
 
@@ -75,13 +68,6 @@ pub fn parse(raw: &str) -> Result<DeepLink, LinkError> {
     let get = |k: &str| params.iter().find(|(n, _)| n == k).map(|(_, v)| v.clone());
 
     match path {
-        "skill/install" => Ok(DeepLink::SkillInstall {
-            source: github_source(get("source"))?,
-            name: get("name").filter(|n| is_plain_name(n)),
-        }),
-        "plugin/install" => Ok(DeepLink::PluginInstall {
-            source: github_source(get("source"))?,
-        }),
         "open" => {
             let project = get("project").ok_or(LinkError::Value("project is required".into()))?;
             if project.is_empty() {
@@ -94,15 +80,6 @@ pub fn parse(raw: &str) -> Result<DeepLink, LinkError> {
         }
         other => Err(LinkError::Route(other.to_string())),
     }
-}
-
-/// `owner/repo` 만. URL 을 넣으면 거절이다 — 이 한 줄이 "임의 URL 실행 금지"
-/// 규약의 전부다. `plugins::source` 와 **같은 파서**를 쓴다.
-fn github_source(raw: Option<String>) -> Result<String, LinkError> {
-    let raw = raw.ok_or(LinkError::Value("source is required".into()))?;
-    crate::plugins::source::parse_github(&raw)
-        .map(|s| s.slug())
-        .ok_or(LinkError::Value(format!("expected owner/repo, got: {raw}")))
 }
 
 /// 경로·구분자·제어문자가 없는 단순 이름인가.
@@ -189,7 +166,6 @@ mod tests {
             "oculpm://open?project=%한",
             "oculpm://open?project=%한x&view=journal",
             "oculpm://open?project=ok&entry=%🙂",
-            "oculpm://skill/install?source=%한/repo",
             "oculpm://open?%한=%한",
         ] {
             let _ = parse(raw);
@@ -206,20 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn parses_the_three_documented_routes() {
-        assert_eq!(
-            parse("oculpm://plugin/install?source=owner/repo").unwrap(),
-            DeepLink::PluginInstall {
-                source: "owner/repo".into()
-            }
-        );
-        assert_eq!(
-            parse("oculpm://skill/install?source=o/r&name=run-evals").unwrap(),
-            DeepLink::SkillInstall {
-                source: "o/r".into(),
-                name: Some("run-evals".into())
-            }
-        );
+    fn parses_the_one_documented_route() {
         assert_eq!(
             parse("oculpm://open?project=%2FUsers%2Fme%2Fproj&view=journal").unwrap(),
             DeepLink::Open {
@@ -229,18 +192,16 @@ mod tests {
         );
     }
 
+    /// 4.0 에서 걷은 설치 링크 — 옛 랜딩·웹의 링크가 와도 모르는 경로로 거절된다.
     #[test]
-    fn refuses_an_arbitrary_url_as_a_source() {
-        for bad in [
-            "oculpm://plugin/install?source=https://evil.test/x.zip",
-            "oculpm://plugin/install?source=../../etc",
-            "oculpm://plugin/install?source=o/r/extra",
-            "oculpm://plugin/install",
-            "oculpm://skill/install?source=",
+    fn the_retired_install_routes_are_unknown() {
+        for retired in [
+            "oculpm://plugin/install?source=owner/repo",
+            "oculpm://skill/install?source=o/r&name=run-evals",
         ] {
             assert!(
-                matches!(parse(bad), Err(LinkError::Value(_))),
-                "{bad} must be refused"
+                matches!(parse(retired), Err(LinkError::Route(_))),
+                "{retired} must be refused"
             );
         }
     }
@@ -264,15 +225,15 @@ mod tests {
     }
 
     #[test]
-    fn drops_a_name_or_view_that_is_not_a_plain_word() {
-        let link = parse("oculpm://skill/install?source=o/r&name=../../evil").unwrap();
+    fn drops_a_view_that_is_not_a_plain_word() {
+        let link = parse("oculpm://open?project=%2Fp&view=../../evil").unwrap();
         assert_eq!(
             link,
-            DeepLink::SkillInstall {
-                source: "o/r".into(),
-                name: None
+            DeepLink::Open {
+                project: "/p".into(),
+                view: None
             },
-            "a path-shaped name is dropped, not carried through"
+            "a path-shaped view is dropped, not carried through"
         );
     }
 
@@ -303,10 +264,10 @@ mod tests {
             }
         );
 
-        let linux = ["/usr/bin/ocul-pm", "oculpm://plugin/install?source=o/r"];
+        let linux = ["/usr/bin/ocul-pm", "oculpm://open?project=%2Fp"];
         assert_eq!(
             links_in_argv(&linux),
-            vec!["oculpm://plugin/install?source=o/r".to_string()]
+            vec!["oculpm://open?project=%2Fp".to_string()]
         );
     }
 

@@ -403,34 +403,6 @@ impl Db {
                     }
                 }
 
-                {
-                    let mut stmt = c.prepare(
-                        "SELECT discussion_id, title, status, updated_at,
-                                CASE WHEN title LIKE ?2 ESCAPE '\\' THEN 0 ELSE 1 END
-                         FROM oculpm_discussions
-                         WHERE project_id = ?1
-                           AND (title LIKE ?3 ESCAPE '\\' OR discussion_id LIKE ?3 ESCAPE '\\')
-                         ORDER BY 5 ASC, updated_at DESC LIMIT ?4",
-                    )?;
-                    let rows =
-                        stmt.query_map(params![project_id as i64, prefix, sub, lim], |r| {
-                            let status: String = r.get(2)?;
-                            Ok((
-                                r.get::<_, i64>(4)?,
-                                r.get::<_, String>(3)?,
-                                EntityHit {
-                                    kind: EntityKind::Discussion,
-                                    id: r.get(0)?,
-                                    title: r.get(1)?,
-                                    subtitle: format!("토의 · {status}"),
-                                },
-                            ))
-                        })?;
-                    for row in rows {
-                        acc.push(row?);
-                    }
-                }
-
                 // prefix 매치 우선, 동점이면 최신 우선.
                 acc.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| b.1.cmp(&a.1)));
                 acc.truncate(lim as usize);

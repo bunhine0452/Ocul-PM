@@ -49,10 +49,7 @@ pub mod plugins;
 // 이 창구를 지난다 (clippy.toml 이 그 밖의 `Command::new` 를 막는다).
 pub mod proc;
 mod secrets;
-// 테마 파일화 (Osaurus 라운드 Phase 4) — 스키마·검증·앱데이터 저장소
 pub mod text;
-pub mod themes;
-mod tray;
 // 코드 실행 신뢰 — 언어 서버·앱 안 에이전트가 같은 문을 쓴다 (review-2026-10-09).
 pub mod trust;
 // 테스트 전용 링크 도우미 — 경로 탈출 가드 테스트가 Windows 에서도 돈다 (크로스플랫폼 W2).
@@ -158,8 +155,6 @@ fn setup_logging() {
 }
 
 use crate::commands::{
-    // context-budget-truth A — 에이전트·커맨드 표면 (예산 누락분)
-    agent_surface_list,
     app_info,
     apply_menu_language,
     // Osaurus 라운드 Phase 1 — 스케줄 자동화 (정의 CRUD·기록·지금 실행)
@@ -177,9 +172,6 @@ use crate::commands::{
     automation_seeds,
     automation_set_enabled,
     // v3-surface — 브랜치 축 (파생 전용, 로컬 git 만 읽는다)
-    branch_export_digest,
-    branch_list,
-    branch_story,
     check_cli_available,
     claude_hooks_install,
     // PR-CI0 — Claude Code 훅 브리지 (settings.local.json 설치/제거/상태)
@@ -199,34 +191,12 @@ use crate::commands::{
     codex_mcp_unregister,
     codex_plugin_status,
     compute_diff,
-    create_greenfield_project,
     create_project,
     db_compact,
     db_health,
-    delete_blueprint,
     delete_project,
-    // C2 — 스킬 카탈로그: 결정적 스택 감지 (LLM 0 · 네트워크 0)
-    detect_stack,
     diagnostics_report,
     diff_binary_preview,
-    discussion_asset,
-    discussion_attach_via_dialog,
-    discussion_create,
-    discussion_delete,
-    discussion_detach,
-    discussion_get,
-    // 문제 해결(Discussion) — 읽기(PR-DISC 0) + 쓰기(PR-DISC 1) + 첨부(2) + 승격(4)
-    discussion_list,
-    discussion_promote_to_plan,
-    discussion_read_raw,
-    discussion_rename,
-    discussion_set_status,
-    discussion_write,
-    firing_quotes,
-    firing_rebuild,
-    // AD-1 — 발동 원장 (transcript 기반 규칙 주입·스킬 발동 계측)
-    firing_rescan,
-    firing_stats,
     // first-record-loop — 대화별 첫 일지 귀속 원장 (Today 첫 기록 카드)
     first_record_ledger,
     get_change_impact,
@@ -246,7 +216,6 @@ use crate::commands::{
     install_kind,
     // H3b — 플러그인 SessionEnd 의 "일지 없이 끝난 세션" 신호 소비 (Today 카드)
     journal_missing_signals,
-    list_blueprints,
     list_open_project_ids,
     list_projects,
     llm_list_models,
@@ -330,6 +299,7 @@ use crate::commands::{
     oculpm_workday_brief,
     open_devtools,
     open_in_editor,
+    open_project_nav,
     open_project_window,
     open_url,
     plan_ai_refresh,
@@ -360,22 +330,6 @@ use crate::commands::{
     resume_dispatch_prompt,
     // F4 — 회고/인사이트 (+ PR-CI6 eval 추이, defer 원장)
     reveal_in_file_manager,
-    // PR-CI4 — 실패→규칙 승격 (결정적 후보 + 옵인 LLM 초안; 저장은 rules_save 승인 경로만)
-    rule_candidates,
-    rule_draft_generate,
-    rules_delete,
-    // AD-6 — 규칙 다이어트 (결정적 범위 감사 + 승인형 백업 저장)
-    rules_evidence,
-    // PR-CI3 — 규칙 허브 (CLAUDE.md·.claude/rules CRUD + Cursor 미러 번역)
-    rules_list,
-    rules_negation_audit,
-    rules_read,
-    rules_save,
-    rules_save_with_backup,
-    rules_scope_audit,
-    rules_sync_translations,
-    // G4 — Greenfield (W6)
-    save_blueprint,
     save_window_session,
     search_chunks,
     search_symbols,
@@ -385,50 +339,24 @@ use crate::commands::{
     secret_set,
     secret_verify,
     select_project_folder,
-    set_project_appearance,
-    set_project_theme,
     set_window_project,
     settings_get,
     settings_get_all,
     settings_set,
     settings_set_many,
-    // 터미널 셸 통합 (OSC 133/7) — 사용자 rc 에 비활성 한 줄 설치/제거
-    // 반복 절차→스킬 승격 (CI4 미러; 저장은 skills_save 승인 경로만)
-    skill_candidates,
-    skill_draft_generate,
-    skills_copy,
-    skills_delete,
-    skills_dormancy_signals,
-    // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills) CRUD·토글·복사
-    skills_list,
-    skills_read,
-    skills_save,
-    skills_set_enabled,
-    // AD-5 — 트리거 교정 (안 걸리는 스킬의 description 재작성 초안)
-    skills_trigger_rewrite,
-    system_accent,
-    theme_delete,
-    theme_export,
-    theme_import,
-    theme_list,
-    theme_save,
     today_digest,
 };
 // 선언적 설정 (Phase 6) — UI 진입점. planner/applier 는 crate::config 에 있다.
 use crate::commands::declarative_config::{
     config_apply, config_export, config_export_to_file, config_plan, config_read_file,
 };
-// 플러그인 번들 임포트 (Phase 6) — 가드·분류·배치는 crate::plugins 에 있다.
-use crate::commands::plugins::{plugin_import, plugin_list, plugin_pick_bundle, plugin_remove};
 // 대화 임포트 (Phase 7) — 어댑터·일지화는 crate::oculpm::import 에 있다.
 use crate::commands::import::{
     conversation_import_run, conversation_import_scan, conversation_pick_export,
 };
 // 비-mac 의 「새 창」(Ctrl+Shift+N) — 메뉴의 새 창과 같은 생성 함수 (#os-new-window).
 use crate::commands::new_window::new_window;
-// v2.3.0 메뉴바 (docs/menubar/00-master-plan.md)
 use crate::embedding::Embedder;
-use crate::tray::{notify_agent_attention, tray_apply_settings, tray_hide_popover, tray_open_main};
 
 /// Build the specta Builder with every command + event registered. Extracted
 /// so the W5-PR3 `export_bindings` test can regenerate `src/lib/bindings.ts`
@@ -454,15 +382,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             create_project,
             delete_project,
             rename_project,
-            set_project_appearance,
-            // 테마 파일화 (Phase 4) — 목록·저장·삭제·가져오기/내보내기·시스템 강조색
-            theme_list,
-            theme_save,
-            theme_delete,
-            theme_import,
-            theme_export,
-            system_accent,
-            set_project_theme,
             // 선언적 설정 (Phase 6) — 내보내기·계획·적용. 계획은 아무것도 쓰지
             // 않고, 적용은 다시 계획해 남은 diff 로 결론을 낸다.
             config_export,
@@ -470,11 +389,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             config_read_file,
             config_plan,
             config_apply,
-            // 플러그인 번들 임포트 (Phase 6) — 미리보기(dry)와 설치가 같은 문.
-            plugin_pick_bundle,
-            plugin_import,
-            plugin_list,
-            plugin_remove,
             // 대화 임포트 (Phase 7) — 스캔은 오프라인·무과금, 실행만 Core Model.
             conversation_pick_export,
             conversation_import_scan,
@@ -484,8 +398,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             llm_reachability,
             // 컨텍스트 경제학 (Phase 5) — 회상 통계 · 프로젝트 지시문
             project_stats,
-            // C2 — 스킬 카탈로그: 결정적 스택 감지
-            detect_stack,
             home_brief,
             index_project,
             search_chunks,
@@ -517,6 +429,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             open_project_window,
             set_window_project,
             get_window_project,
+            open_project_nav,
             list_open_project_ids,
             close_window,
             // 업데이트 재시작을 건너 창을 되살린다 (재시작 직전 저장)
@@ -532,19 +445,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 코드 화면 — 로컬 히스토리
             oculpm_index_usage,
             oculpm_index_clear_diffs,
-            // 문제 해결(Discussion) — PR-DISC 0/1/2/4
-            discussion_list,
-            discussion_get,
-            discussion_create,
-            discussion_write,
-            discussion_read_raw,
-            discussion_set_status,
-            discussion_rename,
-            discussion_delete,
-            discussion_attach_via_dialog,
-            discussion_asset,
-            discussion_detach,
-            discussion_promote_to_plan,
             // Terminal
             // 터미널 셸 통합 (OSC 133/7)
             // M7 — Git / GitHub
@@ -554,9 +454,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             git_head_status_brief,
             git_line_changes,
             // v3-surface — 브랜치 축
-            branch_list,
-            branch_story,
-            branch_export_digest,
             // Lite-W6 PR6 — LocalDiffView backend
             compute_diff,
             diff_binary_preview,
@@ -567,12 +464,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             // 터미널 파일 링크 ⌘클릭 메뉴 (2026-09-07)
             reveal_in_file_manager,
             quick_look_file,
-            // G4 — Greenfield (W6)
-            save_blueprint,
-            list_blueprints,
-            delete_blueprint,
+            // 외부 CLI 탐침 (Today 첫 기록 카드)
             check_cli_available,
-            create_greenfield_project,
             // .oculpm/ subsystem (W1-PR6 + W2-PR6 + W3-PR3)
             oculpm_init,
             oculpm_get_status,
@@ -634,43 +527,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             oculpm_rollup_list,
             oculpm_rollup_read,
             // C2 — 일지 내보내기
-            // 스킬 관리 — 프로젝트/전역 Claude Code 스킬(.claude/skills)
-            skills_list,
-            skills_read,
-            skills_save,
-            skills_delete,
-            // context-budget-truth D — 「0회」의 이유 신호
-            skills_dormancy_signals,
-            skills_set_enabled,
-            skills_copy,
-            // context-budget-truth A — 에이전트·커맨드 표면
-            agent_surface_list,
-            // PR-CI3 — 규칙 허브
-            rules_list,
-            rules_read,
-            rules_save,
-            rules_delete,
-            rules_sync_translations,
-            // AD-6 — 규칙 다이어트
-            rules_scope_audit,
-            rules_save_with_backup,
-            // context-budget-truth C — 실려 놓고 부정되는 규칙
-            rules_negation_audit,
-            // evidence-based-rules — 규칙이 막고 있는 반복 결함 (일지 채굴)
-            rules_evidence,
-            // PR-CI4 — 실패→규칙 승격
-            rule_candidates,
-            rule_draft_generate,
-            // 반복 절차→스킬 승격 (CI4 미러)
-            skill_candidates,
-            skill_draft_generate,
-            // AD-5 — 트리거 교정
-            skills_trigger_rewrite,
-            // AD-1 — 발동 원장
-            firing_rescan,
-            firing_stats,
-            firing_quotes,
-            firing_rebuild,
             // Osaurus 라운드 Phase 1 — 스케줄 자동화
             automation_list,
             automation_consent_grant,
@@ -710,11 +566,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             claude_plugin_status,
             mcp_desktop_register,
             mcp_desktop_unregister,
-            // v2.3.0 메뉴바
-            tray_open_main,
-            tray_hide_popover,
-            tray_apply_settings,
-            notify_agent_attention,
             // 비-mac 「새 창」 (#os-new-window)
             new_window,
             // 베타 버그 리포트 — 「진단 정보 복사」 (#w5-report)
@@ -740,15 +591,13 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             crate::oculpm::spec::OculpmWorkdayChanged,
             // 계획 · 논의 파일이 디스크에서 바뀌면 해당 화면이 즉시 다시 읽는다
             crate::oculpm::spec::OculpmDataChanged,
-            // v2.3.0 메뉴바 — 팝오버 → 프로젝트 창 딥링크
-            crate::tray::TrayNavigate,
             // 창 하나 = 프로젝트 하나 — 창의 프로젝트 + 시작 창의 「열림」 표시
             crate::commands::window::WindowProjectChanged,
+            // 딥링크 → 프로젝트 창 목적지
+            crate::commands::window::WindowNavigate,
             crate::commands::window::ProjectWindowsChanged,
             // 설정 변경 브로드캐스트 — 모든 창 + 상단바가 테마·언어를 다시 읽는다
             crate::commands::config::SettingsChanged,
-            // 테마 파일·프로젝트 바인딩 변경 — 갤러리와 적용 경로가 다시 읽는다
-            crate::commands::themes::ThemesChanged,
             // 자동화 실행 시작/종료 — 「실행 중…」과 인라인 Stop (Phase 3)
             crate::commands::automation::AutomationRunChanged,
             // 딥링크 — 프런트가 확인 시트를 띄운다 (Phase 6 #deep-link)
@@ -812,7 +661,7 @@ pub fn run() {
     // 바로 뒤에 잠금 파일로 두 번째 인스턴스를 막는다 (`instance_lock`).
     let tauri_builder =
         crate::instance_lock::register(tauri::Builder::default(), |app, argv, _cwd| {
-            crate::tray::show_main(app);
+            crate::commands::window::show_main(app);
             // Windows·Linux 의 딥링크는 **두 번째 인스턴스의 인자**로 온다 — 그
             // 프로세스는 여기서 끝나므로 첫 인스턴스가 건진다 (macOS 는 Apple Event).
             #[cfg(not(target_os = "macos"))]
@@ -828,15 +677,9 @@ pub fn run() {
         // `oculpm://` — 웹에서 앱으로 오는 유일한 길. 플러그인은 URL 을
         // 나르기만 하고, 무엇을 할지는 확인 시트가 정한다 (무확인 실행 0).
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(
-            // tray 팝오버 창은 위치를 트레이 클릭이 결정 — 상태 복원 제외.
-            tauri_plugin_window_state::Builder::default()
-                .with_denylist(&[crate::tray::TRAY_WINDOW])
-                .build(),
-        )
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_notification::init())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);
@@ -910,11 +753,6 @@ pub fn run() {
             // (Phase 2). 워처는 매 fs 이벤트마다 이 상태를 두드리므로 러너와
             // 마찬가지로 프로세스에 하나다.
             app.manage(crate::oculpm::automation::watchers::WatcherAutomationHub::new());
-
-            // v2.3.0 메뉴바 — 트레이 아이콘 + 팝오버 (Db manage 이후여야 함:
-            // 설정 조회가 Db state 를 쓴다).
-            #[cfg(desktop)]
-            crate::tray::init(app)?;
 
             // `tauri.conf.json` 이 만든 첫 창을 시작 창으로 레지스트리에 편입한다.
             // 창 닫기 훅(포커스 추적·정리·마지막 창 판정)도 여기서 붙는다.
@@ -1012,9 +850,9 @@ pub fn run() {
             }
             // macOS: Dock 아이콘 클릭 / "모두 앞으로 가져오기".
             //
-            // 창을 다 닫아도 앱은 살아 있는데(트레이·메뉴바가 있으므로 종료하지
-            // 않는다), 이 이벤트를 안 받으면 Dock 을 눌러도 **아무 일도 안 난다** —
-            // 사용자 눈에는 앱이 죽은 것이고, 메뉴바로 들어가는 길밖에 안 남는다.
+            // 창을 다 닫아도 macOS 에서는 앱이 살아 있는데(마지막 창은 숨기기만 한다 —
+            // `commands::window` 의 `exits_on_last_window_close`), 이 이벤트를 안 받으면
+            // Dock 을 눌러도 **아무 일도 안 난다** — 사용자 눈에는 앱이 죽은 것이다.
             //
             // 창이 하나라도 살아 있으면 앞으로 가져오기만 하고, 하나도 없으면
             // 새로 연다 (macOS 의 표준 동작).

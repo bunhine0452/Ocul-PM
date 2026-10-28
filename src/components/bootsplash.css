@@ -3,8 +3,8 @@
    중앙 초점이 맞으면 파문이 한 번 퍼진다. 무한 반복 없음 — 해결되고 끝난다.
 
    토큰: 전역(shadcn) 이름만 쓴다 — --background/--foreground/--primary/
-   --muted-foreground. 넷 다 App.css :root 와 [data-theme]/[data-preset] 에
-   정의돼 있어 어떤 테마·프리셋에서도 풀린다. (ui_v2 의 --accent 는 --primary
+   --muted-foreground. 넷 다 App.css :root 와 [data-theme] 에
+   정의돼 있어 라이트·다크 어느 쪽에서도 풀린다. (ui_v2 의 --accent 는 --primary
    가 이미 따라간다.) 폴백 값은 CSS 가 먼저 오고 토큰이 늦는 최악의 순간에도
    흰 화면이 아니라 브랜드 색으로 칠하기 위한 것. */
 

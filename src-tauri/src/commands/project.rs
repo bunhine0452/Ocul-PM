@@ -146,21 +146,6 @@ pub async fn delete_project(
     Ok(())
 }
 
-/// 카드·탭의 겉모습 — 아이콘 id 와 색 id. 둘 다 `None` 이면 기본값(이름에서
-/// 유도)으로 되돌아간다.
-#[tauri::command]
-#[specta::specta]
-pub async fn set_project_appearance(
-    db: State<'_, Db>,
-    project_id: u32,
-    icon: Option<String>,
-    color: Option<String>,
-) -> Result<(), String> {
-    db.set_project_appearance(project_id, icon, color)
-        .await
-        .map_err(|e| e.to_string())
-}
-
 #[tauri::command]
 #[specta::specta]
 pub async fn rename_project(
@@ -627,18 +612,6 @@ pub async fn search_symbols(
     db.search_symbols(project_id, query, limit.max(1))
         .await
         .map_err(|e| e.to_string())
-}
-
-// C2 — 결정적 스택 감지: 프로젝트 루트의 매니페스트(+확장자 폴백)만으로
-// 언어·프레임워크 태그를 뽑는다 (LLM 0 · 네트워크 0). 스킬 카탈로그 추천의
-// 매칭 키. 로직은 oculpm::stack_detect 에 — 여기는 root 해석만.
-#[tauri::command]
-#[specta::specta]
-pub async fn detect_stack(db: State<'_, Db>, project_id: u32) -> Result<Vec<String>, String> {
-    let root = get_project_root(&db, project_id).await?;
-    tokio::task::spawn_blocking(move || crate::oculpm::stack_detect::detect_stack(&root))
-        .await
-        .map_err(|e| format!("Stack detection failed: {e}"))
 }
 
 async fn get_project_root(db: &Db, project_id: u32) -> Result<PathBuf, String> {

@@ -1,4 +1,4 @@
-//! 포커스·메뉴 브리지 — "지금 어느 창인가" 를 메뉴·트레이·딥링크에 답하고,
+//! 포커스·메뉴 브리지 — "지금 어느 창인가" 를 메뉴·딥링크에 답하고,
 //! 프런트가 해석한 메뉴 언어를 되돌려 받는다.
 //!
 //! 메뉴 이벤트에는 대상 창이 실려 오지 않으므로 이 조회들이 그 빈자리를 메운다.
@@ -28,11 +28,7 @@ pub(super) fn focus_window(app: &AppHandle, label: &str) {
 }
 
 /// 앱 창을 하나 앞으로 — 없으면 시작 창을 하나 만든다.
-/// 트레이 메뉴 "열기" 와 상주 모드 복귀의 공용 경로.
 pub async fn focus_or_open_window(app: &AppHandle) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-
     let existing = {
         let state = app.state::<WindowProjects>();
         let reg = state.lock();
@@ -46,10 +42,19 @@ pub async fn focus_or_open_window(app: &AppHandle) -> Result<(), String> {
     create_window(app, None, None).await.map(|_| ())
 }
 
+/// 창을 앞으로 — 기다리지 않는다. 두 번째 인스턴스가 떴을 때(`instance_lock`)
+/// 첫 인스턴스의 콜백이 부른다.
+pub fn show_main(app: &AppHandle) {
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = focus_or_open_window(&handle).await;
+    });
+}
+
 /// 지금 포커스된 앱 창. 메뉴 이벤트에는 대상 창이 실려 오지 않으므로 여기서
 /// 찾는다. 실제 포커스를 먼저 보고(가장 정확하다), 못 찾으면 레지스트리가
 /// 기억하는 마지막 포커스 창으로 떨어진다 — 메뉴를 여는 순간 창이 포커스를
-/// 잃는 플랫폼도 있기 때문이다. 트레이 팝오버는 앱 창이 아니라 제외된다.
+/// 잃는 플랫폼도 있기 때문이다.
 pub fn focused_app_window(app: &AppHandle) -> Option<String> {
     let live = app
         .webview_windows()

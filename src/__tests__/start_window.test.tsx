@@ -80,7 +80,6 @@ const project = (id: number, name: string, root: string): Project => ({
   created_at: id,
   icon: null,
   color: null,
-  theme_id: null,
 });
 
 beforeEach(() => {

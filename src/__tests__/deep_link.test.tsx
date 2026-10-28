@@ -26,24 +26,12 @@ afterEach(() => {
 });
 
 describe("deepLinkPlan (순수 함수)", () => {
-  it("세 경로 전부 무엇·어디서·무엇이 바뀌는지를 갖는다", () => {
-    const links: DeepLink[] = [
-      { action: "plugin_install", source: "o/r" },
-      { action: "skill_install", source: "o/r", name: "run-evals" },
-      { action: "open", project: "/p", view: null },
-    ];
-    for (const link of links) {
-      const plan = planFor(link);
-      expect(plan.titleKey).toBeTruthy();
-      expect(plan.effectKey).toBeTruthy();
-      expect(plan.actionKey).toBeTruthy();
-      expect(plan.origin.length).toBeGreaterThan(0);
-    }
-  });
-
-  it("여는 것은 쓰기가 아니고, 설치는 쓰기다", () => {
-    expect(planFor({ action: "open", project: "/p", view: null }).writes).toBe(false);
-    expect(planFor({ action: "plugin_install", source: "o/r" }).writes).toBe(true);
+  it("열기 링크는 무엇·어디서·무엇이 바뀌는지를 갖는다", () => {
+    const plan = planFor({ action: "open", project: "/p", view: null });
+    expect(plan.titleKey).toBeTruthy();
+    expect(plan.effectKey).toBeTruthy();
+    expect(plan.actionKey).toBeTruthy();
+    expect(plan.origin).toBe("/p");
   });
 
   it("등록되지 않은 프로젝트는 열지 않는다 — 링크가 프로젝트를 추가하지 못한다", () => {
@@ -66,33 +54,33 @@ describe("DeepLinkSheet", () => {
   it("링크가 와도 승인 전에는 실행하지 않는다", async () => {
     const onAccept = vi.fn();
     const r = render(<DeepLinkSheet onAccept={onAccept} />);
-    emit!({ action: "plugin_install", source: "owner/repo" });
+    emit!({ action: "open", project: "/Users/me/proj", view: null });
 
     await waitFor(() => expect(r.getByRole("dialog")).toBeTruthy());
     expect(onAccept).not.toHaveBeenCalled();
     // 출처를 요약하지 않고 그대로 보여 준다.
-    expect(r.getByText("github.com/owner/repo")).toBeTruthy();
-    expect(r.getByText(/지금까지 바뀐 것은 없어요/)).toBeTruthy();
+    expect(r.getByText("/Users/me/proj")).toBeTruthy();
   });
 
   it("승인해야 실행된다", async () => {
     const onAccept = vi.fn();
     const r = render(<DeepLinkSheet onAccept={onAccept} />);
-    emit!({ action: "plugin_install", source: "owner/repo" });
+    emit!({ action: "open", project: "/Users/me/proj", view: "journal" });
     await waitFor(() => expect(r.getByRole("dialog")).toBeTruthy());
 
-    fireEvent.click(r.getByRole("button", { name: "미리보기" }));
+    fireEvent.click(r.getByRole("button", { name: "열기" }));
     await waitFor(() => expect(onAccept).toHaveBeenCalledTimes(1));
     expect(onAccept.mock.calls[0][0]).toEqual({
-      action: "plugin_install",
-      source: "owner/repo",
+      action: "open",
+      project: "/Users/me/proj",
+      view: "journal",
     });
   });
 
   it("취소하면 시트가 닫히고 아무 일도 없다", async () => {
     const onAccept = vi.fn();
     const r = render(<DeepLinkSheet onAccept={onAccept} />);
-    emit!({ action: "skill_install", source: "owner/repo", name: null });
+    emit!({ action: "open", project: "/Users/me/proj", view: null });
     await waitFor(() => expect(r.getByRole("dialog")).toBeTruthy());
 
     fireEvent.click(r.getByRole("button", { name: "취소" }));
@@ -101,7 +89,7 @@ describe("DeepLinkSheet", () => {
   });
 });
 
-describe("openNavFor — open 링크의 view 를 TrayNavigate 로", () => {
+describe("openNavFor — open 링크의 view 를 WindowNavigate 로", () => {
   const views = ["today", "journal", "planner"] as const;
   it("알려진 화면이면 그 화면, 모르는 view 는 today", () => {
     expect(openNavFor({ view: "planner" }, 1, views)).toEqual({ view: "planner", project_id: 1, entry_path: null });

@@ -179,12 +179,12 @@ deb_control() {
   [ "$pkg" = ocul-pm ] || { echo "Package 가 ocul-pm 이 아니다"; return 1; }
   [ "$ver" = "$VERSION" ] || { echo "Version 이 $VERSION 이 아니다"; return 1; }
   [ "$mnt" = "Kim Hyunbin" ] || { echo "Maintainer 가 'Kim Hyunbin' 이 아니다"; return 1; }
-  for want in libwebkit2gtk-4.1-0 libgtk-3-0 libayatana-appindicator3-1 libssl3 libdbus-1-3; do
+  for want in libwebkit2gtk-4.1-0 libgtk-3-0 libssl3 libdbus-1-3; do
     grep -q "$want" <<<"$dep" || miss+=("$want")
   done
   [ ${#miss[@]} -eq 0 ] || { echo "Depends 에 없다: ${miss[*]}"; return 1; }
 }
-gate "deb control — Package · Version · Maintainer · Depends (webkit·gtk·appindicator·ssl·dbus)" deb_control
+gate "deb control — Package · Version · Maintainer · Depends (webkit·gtk·ssl·dbus)" deb_control
 
 deb_desktop() {
   local f="$WORK/deb-root/usr/share/applications/Ocul-PM.desktop"

@@ -25,7 +25,7 @@ describe("tError — 한국어 모드", () => {
     expect(tError("No API key configured for anthropic")).toBe(
       "anthropic API 키가 설정되지 않았어요",
     );
-    expect(tError("Skill not found: my-skill")).toBe("스킬을 찾을 수 없어요: my-skill");
+    expect(tError("File already exists: notes.md")).toBe("이미 존재하는 파일이에요: notes.md");
   });
 
   it("앞뒤 공백이 있어도 매칭된다", () => {

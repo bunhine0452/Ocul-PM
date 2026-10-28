@@ -20,7 +20,6 @@ export const ALLOWLIST = new Set([
   // 래퍼 — 여기만 정본이다.
   "api/oculpm.ts",
   "api/automation.ts",
-  "api/themes.ts",
   "api/context.ts",
   "api/claudeSurface.ts",
   "api/window.ts",
@@ -60,12 +59,6 @@ export const ALLOWLIST = new Set([
   "contexts/WorkspaceContext.tsx",
   "features/chat/AcpConversation.tsx",
   "features/chat/AcpUsageMeter.tsx",
-  "features/discussion/DiscussionScreenV2.tsx",
-  "features/discussion/DiscussionView.tsx",
-  // 논의 CAS 라운드 (2026-09-08) — 저장·충돌 조정을 화면에서 갈라 낸 조각.
-  // 직접 호출이 늘어난 것이 아니라 `DiscussionScreenV2` 가 들고 있던 것이
-  // 그대로 따라왔다. 옮길 때는 화면과 함께 보낸다.
-  "features/discussion/useDiscussionSave.ts",
   "features/oculpm/useJournalDays.ts",
   "features/oculpm/useOculpmLive.ts",
   // v3-release {#planner-diff-split} — 플래너 화면에서 갈라 나온 조각. 직접 호출이
@@ -73,12 +66,6 @@ export const ALLOWLIST = new Set([
   "features/planner/usePlanDocument.ts",
   "features/search/SearchScreenV2.tsx",
   "features/shell/ShellV2.tsx",
-  "features/skills/RuleCandidates.tsx",
-  "features/skills/PluginDocsTab.tsx",
-  "features/skills/SkillCandidates.tsx",
-  "features/skills/SkillShopTab.tsx",
-  "features/skills/useFiringLedger.ts",
-  "features/tray/TrayPopover.tsx",
   "lib/externalLinks.ts",
   "lib/oculpmLog.ts",
   // 3.x 의 탭 본문(`ProjectTab`)이 이름만 바뀌었다 (4.0 창 하나 = 프로젝트 하나) —
