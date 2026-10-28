@@ -2965,7 +2965,7 @@ dependencies = [
 
 [[package]]
 name = "ocul-pm"
-version = "3.17.0"
+version = "4.0.0"
 dependencies = [
  "base64 0.22.1",
  "blake3",

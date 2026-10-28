@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.17.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 131개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v4.0.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 132개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.17.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 131개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v4.0.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 132개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.17.0</span>
+    <span class="nav-ver" data-version>v4.0.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -42,13 +42,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>131개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>132개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v4-0-0">v4.0.0</a>
       <a href="#v3-17-0">v3.17.0</a>
       <a href="#v3-16-0">v3.16.0</a>
       <a href="#v3-15-1">v3.15.1</a>
@@ -60,10 +61,23 @@
       <a href="#v3-13-2">v3.13.2</a>
       <a href="#v3-13-1">v3.13.1</a>
       <a href="#v3-13-0">v3.13.0</a>
-      <a href="#v3-12-0">v3.12.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v4-0-0"><a href="#v4-0-0">v4.0.0</a></h2>
+      <div class="cl-body">
+<p><b>확인 날 없이 내는 메이저 판입니다.</b> 코드 게이트(테스트 프런트 880건 · Rust 1,158건 · typecheck · lint · build · clippy)만 통과했고, 설치본에서 새 화면 다섯을 눈으로 본 것은 아직 없습니다 — 계획 <code>v4-major-20261028</code> 과 확인 날 받은함(육안 확인 23건 대기)이 그 빚입니다. 마지막 외부 리뷰 반영(v3.11.0) 뒤 다섯 번째 마이너를 넘긴 판이기도 해서, 다음 외부 리뷰를 청할 때입니다.</p>
+<p><b>앱이 다섯 면이 됐습니다 — 오늘 · 작업 일지 · 계획 · 변경 · 설정.</b> 3.x 의 아홉 화면과 설정 탭 열둘, 간단/전문 밀도, 크롬식 탭이 쌓이면서 「에이전트가 한 일을 믿고 다음을 결정한다」는 한 가지 일이 그 사이에 묻혔습니다. 4.0 은 그 일에 닿지 않는 것을 실측 근거로 걷었습니다 — 코드 의미검색(앱 DB 837MB 중 360MB 가 그 색인이었습니다), 앱 안 LLM(가장 많이 쓰는 저장소에서도 주간 요약 0건), 자동화(실행 기록 0행), 논의·스킬·브랜치 화면, 메뉴바 트레이, 테마 프리셋, 새 프로젝트 마법사. 일지·계획 파일은 하나도 지우지 않습니다.</p>
+<p><b>오늘 화면은 예외만 펼칩니다.</b> 확인 명령이 실패한 계획, 돌린 명령 없이 「됐다」고 적은 일지, 어느 일지에도 없는 변경, 막힌 항목, 사람이 결정할 항목, 플러그인 새 판 — 이것만 위에 서고, 증거가 갖춰진 일은 계획별로 한 줄에 접힙니다. 하루 3건 쓰는 사람과 60건 쓰는 사람이 모드 없이 같은 화면을 씁니다. 오른쪽에는 지금 일하는 세션, 계획별 진행과 판정, 다음 항목(프롬프트 복사)이 섭니다. j/k 로 오가고 v 로 확인합니다. 사이드바 「오늘」 배지가 확인할 것의 수입니다.</p>
+<p><b>계획의 끝은 항목이 아니라 판정입니다.</b> 계획 화면은 제목 바로 아래에 완료 조건 · 확인 명령 · <b>마지막 판정</b>을 둡니다. 에이전트가 확인 명령을 돌리고 <code>판정 ✓ 418 passed</code> / <code>판정 ✗ 2 failed</code> 처럼 결과 끝 줄을 남기면, 계획 화면과 오늘 화면, 다음 날 세션 시작 컨텍스트가 같은 줄을 같은 규칙으로 읽습니다. 「항목이 다 닫혔다」와 「됐다」를 더는 혼동하지 않습니다.</p>
+<p><b>작업 일지에 검색이 들어왔고, 상세에서 증거와 diff 를 함께 봅니다.</b> 검색 화면이 따로 있던 자리를 일지 툴바의 검색칸(<code>/</code>)과 「증거 없음」 필터가 대신합니다. 일지 상세는 검증 상자(돌린 명령과 결과 끝 줄, 없으면 그렇다고)와 파일별 diff 를 한 화면에 보여 주고, 「확인함」 한 번으로 사람 확인을 남깁니다. 변경 화면은 어느 일지에도 없는 변경을 맨 위에 모으고, 에이전트에게 붙여 넣을 「기록 요청」을 복사해 줍니다.</p>
+<p><b>창 하나 = 프로젝트 하나.</b> 탭 줄과 탭 떼어내기가 없어졌습니다. 프로젝트가 없으면 시작 창(최근 프로젝트 · 폴더 열기 · 처음이라면 세 단계)이 뜨고, 고르면 그 창이 그 프로젝트가 됩니다. ⌘O 로 다른 프로젝트 창을 열거나 앞으로 가져오고, ⌘1~⌘4 로 화면을, ⌘K 로 화면·프로젝트·일지·계획을 찾습니다. 설정은 한 쪽(에이전트 연결 · 이 프로젝트 · 표시 · 데이터)입니다.</p>
+<p><b>앱은 LLM 을 부르지 않고, 화면은 바깥에 닿지 않습니다.</b> API 키 설정이 사라졌고, 웹뷰의 네트워크 허용 목록에서 마지막 바깥 호스트까지 뺐습니다. 기기를 떠나는 것은 업데이트 확인과 직접 연 링크뿐입니다. 처음 4.0 을 열면 DB 를 고치기 전에 사본(<code>.bak-v42</code>)을 하나 남기고 색인 테이블을 지웁니다 — 설정 → 데이터 「정리해서 돌려받기」 로 그 자리를 회수하세요.</p>
+<p><b>에이전트는 판정부터 깔고 시작합니다 (규칙 템플릿 v20 · 플러그인).</b> 규칙 파일이 3분의 1 짧아졌고(한국어 4,028 → 2,783자), 작업 규율에 Felix Rieseberg 의 「How to be more ambitious」 를 옮겼습니다 — 완료 조건은 결과와 「그다음」, 판정은 에이전트가 아닌 명령이, 시작은 요약이 아니라 원재료에서, 어려운 숫자 목표는 정상, 실패도 기록. <code>/oculpm:inception</code> 은 새 프로젝트를 「그다음 → 깊이 네 질문 → 분야의 방법 → 숫자 목표 → 지금 빨간 확인 명령이 첫 항목」 순서로 계획합니다. <code>/oculpm:next</code> 는 잡은 항목을 먼저 <code>[~]</code> 로 표시해 병렬 세션끼리 겹치지 않게 하고, <code>until-done</code> 이면 판정이 통과할 때까지 이어 갑니다. 세션 시작 컨텍스트에는 계획마다 「마지막 판정」 한 줄이 실립니다.</p>
+<ul><li>걷은 명령·설정이 많습니다 — 옛 설정 키(밀도 · 테마 프리셋 · 트레이 · LLM 공급자)는 읽지 않고 남겨 둡니다. 옛 <code>config.toml</code> 의 <code>auto_reconcile</code> · <code>auto_journal_draft</code> 는 계속 읽히되 아무 일도 하지 않습니다.</li><li>macOS 에서 마지막 창을 닫아도 앱은 살아 있고 독 아이콘으로 다시 엽니다(그 밖의 OS 는 종료).</li><li>딥링크는 <code>oculpm://open</code> 하나만 받습니다. 스킬·플러그인 설치 링크는 거절합니다.</li><li>플러그인 MCP 가 뜨지 않는 Windows 에서는 설정 → 에이전트 연결 「MCP 직접 등록」 으로 이 프로젝트의 <code>.mcp.json</code> 에 등록합니다.</li><li>3.x 서사 그대로이던 웹 키노트를 내렸습니다(옛 주소는 첫 화면으로). 랜딩·README 의 스크린샷 일부는 아직 3.x 화면이라 그렇게 표기했습니다.</li><li>플러그인을 쓰는 분은 <code>/plugin update oculpm@oculpm</code> 으로 4.0 판(스킬 다섯 · 템플릿 v20)을 받으세요. 프로젝트의 <code>AGENTS.md</code> 는 앱이 열 때 v20 으로 올리자고 제안합니다.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-17-0"><a href="#v3-17-0">v3.17.0</a></h2>
       <div class="cl-body">
