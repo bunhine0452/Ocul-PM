@@ -1,8 +1,8 @@
 import { Clock, Cpu, Download, Eye, History, Pencil, PenLine, Puzzle } from "@/components/Icons";
 import { t, useT, type I18nKey } from "@/i18n";
-import { SOURCE_ORDER, sourcesPresent, type EntrySource } from "./entrySource";
+import type { EntrySource } from "./entrySource";
 
-// 출처 배지와 그 필터 레일 (Osaurus 라운드 Phase 3).
+// 출처 배지 (Osaurus 라운드 Phase 3). 필터 레일은 4.0 일지 화면이 걷었다 — 목록은 종류·증거로 거른다.
 //
 // **새 프리미티브를 만들지 않는다** — `.chip` 한 벌이 이미 있고(polish-round
 // Phase 5 에서 열한 벌을 여기로 접었다), 배지는 라벨이지 새 도형이 아니다.
@@ -53,70 +53,5 @@ export function SourceBadge({
       <Icon size={11} strokeWidth={2} />
       {withLabel ? tr(meta.labelKey) : null}
     </span>
-  );
-}
-
-/**
- * 출처 필터 레일 — 목록에 실제로 있는 출처만, 그리고 **2종 이상일 때만** 그린다.
- * 하나뿐인 목록에서 레일은 아무것도 좁히지 못하는 장식이다. 예외는 하나:
- * 이미 고른 출처가 있으면 표본이 몇 종이든 그린다 (되돌릴 길을 남긴다).
- *
- * `radiogroup` 인 이유: 한 번에 하나만 고르는 배타 선택이라 탭 목록도 체크박스
- * 무리도 아니다. 화살표 키 이동은 브라우저가 radio 에 이미 준다.
- */
-export function SourceFilterRail({
-  sources,
-  value,
-  onChange,
-  counts,
-}: {
-  /** 지금 화면에 있는 항목들의 출처 (중복 포함 그대로 넘겨도 된다). */
-  sources: readonly EntrySource[];
-  /** null = 전체. */
-  value: EntrySource | null;
-  onChange: (next: EntrySource | null) => void;
-  /** 출처별 건수 — 있으면 칩에 숫자를 곁들인다. */
-  counts?: Readonly<Partial<Record<EntrySource, number>>>;
-}) {
-  const { t: tr } = useT();
-  /**
-   * 고른 출처는 표본에서 사라져도 옵션으로 남긴다. 표본만 보고 그리면,
-   * 하나를 고른 뒤 검색으로 표본이 1종이 되는 순간 레일이 자취를 감추면서
-   * **필터는 걸린 채 되돌릴 손잡이만** 없어진다 (빈 목록에 갇힌다).
-   */
-  const present = sourcesPresent(value ? [...sources, value] : sources);
-  if (present.length < 2 && value == null) return null;
-
-  const option = (source: EntrySource | null) => {
-    const key = source ?? "all";
-    const selected = value === source;
-    const label = source ? tr(SOURCE_META[source].labelKey) : tr("source.rail.all");
-    const n = source ? (counts?.[source] ?? 0) : sources.length;
-    return (
-      <button
-        key={key}
-        type="button"
-        role="radio"
-        aria-checked={selected}
-        className={"scope-chip" + (selected ? " on" : "")}
-        style={{ height: 24 }}
-        title={source ? sourceTitle(source) : undefined}
-        onClick={() => onChange(source)}
-      >
-        {label}
-        {n != null ? <span className="mono">{n}</span> : null}
-      </button>
-    );
-  };
-
-  return (
-    <div
-      role="radiogroup"
-      aria-label={tr("source.rail.aria")}
-      style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}
-    >
-      {option(null)}
-      {SOURCE_ORDER.filter((s) => present.includes(s)).map((s) => option(s))}
-    </div>
   );
 }

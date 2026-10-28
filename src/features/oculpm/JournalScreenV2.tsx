@@ -1,70 +1,43 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorCard } from "@/components/ErrorCard";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toolbar } from "@/components/Toolbar";
-import { SearchIcon, X, Plus, NotebookText, Download, Tag } from "@/components/Icons";
-import { toAppError } from "@/api/invoke";
-import { useWorkspace, type JournalFilter } from "@/contexts/WorkspaceContext";
-import type { EntryFilters, EntryType, JournalEntrySummary } from "@/lib/bindings";
-import { oculpmApi } from "@/api/oculpm";
-import { JOURNAL_PAGE_SIZE, useJournalDays } from "./useJournalDays";
-import { JournalDay } from "./JournalDay";
-import { EntryDetailView } from "./EntryDetailView";
-import { ReviewQueueBar } from "./ReviewQueueBar";
-import { JournalStatusChips } from "./JournalStatusChips";
-import { ManualEntryModalV2 } from "./ManualEntryModalV2";
-import { TagTidySheet } from "./TagTidySheet";
-import { TRIGGER_META } from "./triggerMeta";
-import "./journal.css";
-import { SourceFilterRail } from "./SourceBadge";
-import { sourceOf, type EntrySource } from "./entrySource";
-import { toast } from "@/lib/toast";
-import { requestOculpmActivate } from "@/lib/projectActions";
-import {
-  consumeManualEntryRequest,
-  onManualEntryRequest,
-  type ManualEntrySeed,
-} from "@/lib/journalCompose";
 import { SkeletonList } from "@/components/ui/Skeleton";
+import { ArrowLeft, NotebookText, Plus, SearchIcon, X } from "@/components/Icons";
+import { oculpmApi } from "@/api/oculpm";
+import type { EntryFilters, EntryType, JournalEntrySummary } from "@/lib/bindings";
 import { useT, type I18nKey } from "@/i18n";
 import { blocked } from "@/lib/blocked";
 import { isModChord } from "@/lib/kbd";
+import { consumeManualEntryRequest, onManualEntryRequest, type ManualEntrySeed } from "@/lib/journalCompose";
+import { requestOculpmActivate } from "@/lib/projectActions";
+import { toast } from "@/lib/toast";
+import { JournalDetail } from "./JournalDetail";
+import { JournalList, ROW_LIMIT } from "./JournalList";
+import { ManualEntryModalV2 } from "./ManualEntryModalV2";
+import { isEvidenceMissing } from "./evidenceState";
+import { JOURNAL_PAGE_SIZE, useJournalDays, type JournalDay } from "./useJournalDays";
+import { normalizeJournalRef, useJournalPlanLinks } from "./useJournalPlanLinks";
+import { useJournalSearch } from "./useJournalSearch";
+import { useJournalTotal } from "./useJournalTotal";
+import "./journal.css";
 
-// Final UI Update (ui_v2) — 작업 일지 timeline (02-screen-specs §2). Frontend
-// aggregation over oculpm_list_journal_entries (Decision F). scope-chip 6 filters
-// persist via WorkspaceContext.journalFilter; ⌘F focuses an in-page search;
-// route.params.focus (from Today's MiniEntry) ring-highlights an entry.
+// 작업 일지 (4.0) — 왼쪽 목록 + 오른쪽 상세. 일지 검색은 이 화면이 집이다 (검색 화면은 사라졌다).
+//
+// 목록은 평소 최근 14일이고, 필터·검색을 걸면 전체 기간으로 넓어진다. 「증거 없음」 은 화면이
+// 거르는 필터다 — 결함·기능·리팩토링인데 검증 칸에 돌린 명령이 없고 사람 확인도 없는 일지.
+// 키는 이 화면의 컨테이너가 듣는다 (j/k 이동 · Enter 상세로 · / 검색) — 전역 keydown 이 아니다.
+// ⌘N(새 일지)·⌘F(검색)만 수식키 조합이라 창에서 듣는다.
 
-// scope-chip → backend EntryType. Note the JournalFilter union uses "bugfix"
-// while EntryType uses "bug" (the backend never renamed it) — map here.
-const FILTER_TO_TYPE: Record<Exclude<JournalFilter, "all">, EntryType> = {
-  feature: "feature",
-  bugfix: "bug",
-  refactor: "refactor",
-  error: "error",
-  chore: "chore",
-};
+type Filter = "all" | "fix" | "feature" | "refactor" | "chore" | "noevidence";
 
-/**
- * 한 날짜에 한 번에 그리는 카드 수 (`{#journal-timeline-limit}`).
- *
- * 프로젝트에 가상화 라이브러리가 없다 (`react-window`·`@tanstack/react-virtual`·
- * `react-virtuoso` 전부 부재 — 이것 하나 때문에 들이지 않는다). 백엔드 상한이
- * 넘어오는 **양**을 막고, 이 상한이 그린 **개수**를 막는다.
- */
-const DAY_PAGE_SIZE = 25;
-
-/**
- * 종류 세그먼트 (2026-09-11 리디자인). 예전엔 칩 여섯이 툴바를 채웠다 — 이제
- * `.seg` 하나이고, 칸마다 종류색 점이 붙어 본문 척추·범례와 같은 색을 가리킨다.
- */
-const CHIPS: { id: JournalFilter; labelKey: I18nKey; type: EntryType | null }[] = [
-  { id: "all", labelKey: "journal.filter.all", type: null },
-  { id: "feature", labelKey: "journal.filter.feature", type: "feature" },
-  { id: "bugfix", labelKey: "journal.filter.bugfix", type: "bug" },
-  { id: "refactor", labelKey: "journal.filter.refactor", type: "refactor" },
-  { id: "error", labelKey: "journal.filter.error", type: "error" },
-  { id: "chore", labelKey: "journal.filter.chore", type: "chore" },
+const FILTERS: { id: Filter; labelKey: I18nKey; types: EntryType[] }[] = [
+  { id: "all", labelKey: "journal.filter.all", types: [] },
+  { id: "fix", labelKey: "journal.filter.fix", types: ["bug", "error"] },
+  { id: "feature", labelKey: "journal.filter.feature", types: ["feature"] },
+  { id: "refactor", labelKey: "journal.filter.refactor", types: ["refactor"] },
+  { id: "chore", labelKey: "journal.filter.chore", types: ["chore"] },
+  { id: "noevidence", labelKey: "journal.filterNoEvidence", types: [] },
 ];
 
 interface JournalScreenV2Props {
@@ -72,32 +45,18 @@ interface JournalScreenV2Props {
   /** Current workday key (YYYYMMDD). */
   todayKey: string | null;
   oculpmReady: boolean;
-  /** Open the 변경 diff 화면 for a specific entry (PR-UI 4 consumes the path). */
+  /** 변경 화면으로 건너가 이 일지의 파일을 연다. */
   onOpenDiff: (entry: JournalEntrySummary) => void;
-  /** One-shot: relative_path of an entry to ring-highlight (from Today). */
+  /** One-shot: Today 에서 건너온 일지의 relative_path — 열어서 고른다. */
   focusPath: string | null;
-  /** Called once the focus has been applied so the parent can clear it. */
+  /** 초점을 적용했으니 부모가 비워도 된다. */
   onFocusConsumed: () => void;
-  /**
-   * One-shot: relative_path of an entry to open directly in the detail view
-   * (from Planner 📓). Resolved by its workday, so it works even when the entry
-   * is older than the loaded timeline window. Distinct from focusPath.
-   */
+  /** One-shot: 계획의 📓 에서 건너온 일지 — 14일 창 밖이어도 그날 목록에서 찾아 연다. */
   openEntryPath?: string | null;
-  /** Called once the entry has been opened (or failed to resolve). */
   onOpenEntryConsumed?: () => void;
-  /**
-   * When the detail view was reached via `openEntryPath` (i.e. navigated in from
-   * the Planner), this routes the detail's "back" button to the origin screen
-   * instead of the journal timeline. Undefined → back goes to the timeline.
-   */
+  /** 계획에서 건너왔을 때 「돌아가기」 가 가는 곳. */
   onReturnToOrigin?: () => void;
-  /**
-   * 이 탭이 화면에 보이는가. 비활성 탭도 마운트된 채라(크롬식 탭) 창 전역
-   * 인텐트 슬롯은 활성 탭만 들어야 한다 — 아니면 A 탭 터미널의 「일지로
-   * 남기기」가 숨은 B 탭에서 작성기를 열고, 저장하면 **B 프로젝트**에 A 의
-   * 내용이 적힌다.
-   */
+  /** 이 탭이 화면에 보이는가 — 비활성 탭도 마운트된 채라 창 전역 인텐트는 활성 탭만 듣는다. */
   active?: boolean;
 }
 
@@ -114,133 +73,178 @@ export function JournalScreenV2({
   active = true,
 }: JournalScreenV2Props) {
   const { t } = useT();
-  const { state, setState } = useWorkspace();
-  const filter = state.journalFilter;
-
+  // 필터·검색은 화면 지역 상태다 — "어제 걸어 둔 필터 때문에 오늘 일지가 안 보인다" 가 이 화면에서
+  // 가장 비싼 착각이라 열 때마다 전체로 시작한다.
+  const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
-  const searchRef = useRef<HTMLInputElement>(null);
-  const [unfinishedOnly, setUnfinishedOnly] = useState(false);
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
-  // review-queue round — 「미검토」. `verifiedOnly` 와 상호 배타(둘 다 켜면
-  // 결과가 늘 비므로 서로를 끈다). 미완료·확인됨과 같은 이유로 화면 지역
-  // 상태다(위 주석) — 열 때마다 전체로 시작한다.
-  const [unverifiedOnly, setUnverifiedOnly] = useState(false);
+  const [debounced, setDebounced] = useState("");
   const [showAll, setShowAll] = useState(false);
-  /**
-   * 출처 필터 (Phase 3). `WorkspaceContext` 에 영속하지 않는다 — 열 때마다
-   * 전체로 시작하는 편이 맞다: "어제 걸어 둔 필터 때문에 오늘 일지가 안 보인다"
-   * 는 이 화면에서 가장 비싼 착각이고, 미완료·검증됨 두 토글도 같은 이유로
-   * 화면 지역 상태다.
-   */
-  const [sourceFilter, setSourceFilter] = useState<EntrySource | null>(null);
-  const [noEvidenceOnly, setNoEvidenceOnly] = useState(false);
-  // 작성기 열림 여부 + 미리 채울 재료를 한 값으로 든다 — 따로 두면 "열려는
-  // 있는데 씨앗이 아직 안 온" 한 프레임에 빈 작성기가 그려진다.
+  const [rowLimit, setRowLimit] = useState(ROW_LIMIT);
+  const [selected, setSelected] = useState<JournalEntrySummary | null>(null);
+  const [fromExternal, setFromExternal] = useState(false);
   const [manualSeed, setManualSeed] = useState<ManualEntrySeed | null>(null);
-  // 「태그 정리」 ({#tag-merge}) — 시트가 디스크 frontmatter 를 고치므로 닫힌
-  // 동안은 아무것도 안 받아 온다.
-  const [tagTidyOpen, setTagTidyOpen] = useState(false);
-  const manualOpen = manualSeed !== null;
   const [backfilling, setBackfilling] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const splitRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
 
-  // F3 — debounce the search so the all-period backend query (below) isn't
-  // fired on every keystroke; the in-memory filter still narrows instantly.
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // 검색은 디바운스한다 — 키 입력마다 전체 기간을 묻지 않는다. 비면 곧바로 평소 목록이다.
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(t);
+    if (search.trim() === "") {
+      setDebounced("");
+      return;
+    }
+    const timer = setTimeout(() => setDebounced(search), 250);
+    return () => clearTimeout(timer);
   }, [search]);
+  const query = debounced.trim();
+  const searching = query !== "";
+  const def = FILTERS.find((f) => f.id === filter) ?? FILTERS[0];
+  const typeStrings = useMemo(() => def.types as readonly string[], [def]);
 
-  // F3 — when any filter/search is active (or the user asked for older entries),
-  // query the backend over the FULL history instead of the 14-day window, so
-  // search + filters reach every entry. The backend `EntryFilters` path was
-  // already complete; this finally drives it.
-  const allPeriod =
-    showAll ||
-    filter !== "all" ||
-    unfinishedOnly ||
-    verifiedOnly ||
-    unverifiedOnly ||
-    debouncedSearch.trim() !== "";
-  const backendFilters = useMemo<EntryFilters | null>(() => {
-    if (!allPeriod) return null;
-    return {
-      types: filter === "all" ? [] : [FILTER_TO_TYPE[filter]],
-      verified_only: verifiedOnly,
-      unverified_only: unverifiedOnly,
-      mismatch_only: false,
-      unfinished_only: unfinishedOnly,
-      search: debouncedSearch.trim() || null,
-    };
-  }, [allPeriod, filter, verifiedOnly, unverifiedOnly, unfinishedOnly, debouncedSearch]);
-
-  const {
-    days,
-    loading,
-    error,
-    refresh,
-    total: matchTotal,
-    loaded: pageLoaded,
-    canLoadMore,
-    loadMore,
-  } = useJournalDays(projectId, todayKey, oculpmReady, {
+  const allPeriod = showAll || filter !== "all";
+  const backendFilters = useMemo<EntryFilters | null>(
+    () =>
+      allPeriod
+        ? {
+            types: def.types,
+            verified_only: false,
+            unverified_only: false,
+            mismatch_only: false,
+            unfinished_only: false,
+            search: null,
+          }
+        : null,
+    [allPeriod, def],
+  );
+  const feed = useJournalDays(projectId, todayKey, oculpmReady && !searching, {
     filters: backendFilters,
     allPeriod,
   });
-  // 상한에 걸려 **못 받은 것이 남아 있는가.** 아래 툴바의 `total` 은 다른
-  // 숫자다 (지금 화면에 보이는 건수) — 헷갈리지 않게 이름을 갈라 둔다.
-  const truncated = matchTotal != null && pageLoaded != null && pageLoaded < matchTotal;
-  const remaining = Math.min(JOURNAL_PAGE_SIZE, (matchTotal ?? 0) - (pageLoaded ?? 0));
+  const found = useJournalSearch(projectId, todayKey, oculpmReady && searching, query, typeStrings);
+  const total = useJournalTotal(projectId, oculpmReady);
+  const planLinks = useJournalPlanLinks(projectId, oculpmReady);
 
-  // F5 — cold-start backfill: synthesise journal entries from git history so a
-  // repo with commits but no journal isn't a blank wall on day 1.
-  const runGitBackfill = async () => {
-    setBackfilling(true);
-    try {
-      const r = await oculpmApi.backfillFromGit(projectId, 300);
-      if (r.created > 0) {
-        toast.info(t("journal.backfill.done", { n: r.created }));
-        refresh();
-      } else if (r.scanned === 0) {
-        toast.warning(t("journal.backfill.noCommits"));
-      } else {
-        toast.info(t("journal.backfill.upToDate"));
-      }
-    } catch {
-      toast.warning(t("journal.backfill.failed"));
-    } finally {
-      setBackfilling(false);
-    }
+  const rawDays: JournalDay[] | null = searching ? found.days : feed.days;
+  const loading = searching ? found.loading : feed.loading;
+  const error = searching ? found.error : feed.error;
+  const refresh = searching ? found.refresh : feed.refresh;
+
+  const days = useMemo(() => {
+    if (!rawDays) return null;
+    if (filter !== "noevidence") return rawDays;
+    return rawDays
+      .map((d) => ({ ...d, entries: d.entries.filter(isEvidenceMissing) }))
+      .filter((d) => d.entries.length > 0);
+  }, [rawDays, filter]);
+  const flat = useMemo(() => (days ?? []).flatMap((d) => d.entries), [days]);
+
+  // 툴바의 건수는 **지금 보이는 것**을 센다 — 전체를 세고 목록은 일부만 그리면 검색이 뭔가를 삼킨 걸로 읽힌다.
+  const visibleCount = flat.length;
+  const countText = total != null ? t("journal.count", { n: visibleCount, total }) : t("journal.countOnly", { n: visibleCount });
+
+  // 상한에 걸려 못 받은 것이 남았는가 — 몇 건 중 몇 건을 보고 있는지는 목록 위에 먼저 말한다.
+  const pageTotal = searching ? found.total : feed.total;
+  const pageLoaded = searching ? found.loaded : feed.loaded;
+  const truncated = pageTotal != null && pageLoaded != null && pageLoaded < pageTotal;
+  const remaining = Math.min(JOURNAL_PAGE_SIZE, (pageTotal ?? 0) - (pageLoaded ?? 0));
+  const canLoadMore = !searching && feed.canLoadMore;
+
+  // 고른 일지. `pin` 은 목록 밖에서 열었다는 뜻이다 (14일 창 밖의 일지 등) — 목록이 갱신돼도 그 일지를 지키고,
+  // 사용자가 목록에서 다른 줄을 고르는 순간 풀린다.
+  const pinnedRef = useRef<string | null>(null);
+  const choose = useCallback(
+    (entry: JournalEntrySummary | null, opts?: { pin?: boolean; external?: boolean }) => {
+      pinnedRef.current = opts?.pin && entry ? entry.relative_path : null;
+      setSelected(entry);
+      setFromExternal(!!opts?.external);
+    },
+    [],
+  );
+
+  // 목록이 자리 잡으면 첫 줄을 고른다 — 오른쪽이 빈 채로 시작하지 않게. 필터·검색으로 고른 줄이
+  // 목록에서 사라졌을 때도 같다. 갱신 중(`loading`)에는 옛 목록을 보고 판단하지 않는다.
+  useEffect(() => {
+    if (loading || !days || openEntryPath || focusPath) return;
+    if (selected && (pinnedRef.current === selected.relative_path || flat.some((e) => e.relative_path === selected.relative_path))) return;
+    choose(flat[0] ?? null);
+  }, [loading, days, flat, selected, openEntryPath, focusPath, choose]);
+
+  const changeFilter = (next: Filter) => {
+    setFilter(next);
+    setRowLimit(ROW_LIMIT);
   };
-  // Master-detail: a non-null entry shows the full-screen 변경 기록 detail view
-  // in place of the timeline (Dogfooding 2026-06-07 — replaced the modal).
-  const [detailEntry, setDetailEntry] = useState<JournalEntrySummary | null>(null);
-  // True when detailEntry was opened by navigating in from another screen
-  // (Planner journal link) rather than clicking a timeline row. Drives whether
-  // "back" returns to the origin screen or the journal timeline.
-  const [detailFromExternal, setDetailFromExternal] = useState(false);
 
-  // Timeline length control (Dogfooding 2026-06-14 #1): older days collapse to a
-  // one-line summary; a side date-rail jumps/scrubs. dayOpen holds explicit user
-  // toggles; the default keeps the 2 most-recent days open.
-  const [dayOpen, setDayOpen] = useState<Record<string, boolean>>({});
-  /**
-   * 날짜마다 **그린 카드 수**. 접기가 유일한 방어였는데 검색 중에는 모든 날이
-   * 펼쳐지므로(아래 `searchActive`), 하루에 수십 건이 쌓인 날은 그대로 다
-   * 마운트됐다. 프로젝트에 가상화 라이브러리가 없으니 상한을 여기서 건다.
-   */
-  const [dayShown, setDayShown] = useState<Record<string, number>>({});
-  const [activeWorkday, setActiveWorkday] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const dayRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // `.oculpm/journal/` 기준 경로(또는 `.oculpm/journal/…` 접두형)를 요약으로 풀어 연다. 날짜 폴더가
+  // 조회 키라 14일 창 밖의 일지도 열린다. 계획의 📓·Today·관련 링크가 같은 길을 쓴다.
+  const openByPath = useCallback(
+    async (rawPath: string, external: boolean, isCancelled: () => boolean) => {
+      const path = normalizeJournalRef(rawPath);
+      const workday = path.split("/")[0];
+      try {
+        if (!/^\d{8}$/.test(workday)) {
+          toast.warning(t("journal.resolveFailed"));
+          return;
+        }
+        const list = await oculpmApi.listJournalEntries(projectId, workday);
+        if (isCancelled()) return;
+        const base = path.split("/").pop();
+        const hit =
+          list.find((e) => e.relative_path === path) ??
+          list.find((e) => e.relative_path.split("/").pop() === base);
+        if (hit) choose(hit, { pin: true, external });
+        else toast.warning(t("journal.linkNotFound"));
+      } catch {
+        if (!isCancelled()) toast.warning(t("journal.linkOpenFailed"));
+      }
+    },
+    [projectId, t, choose],
+  );
 
-  const setFilter = (next: JournalFilter) =>
-    setState((prev) => ({ ...prev, journalFilter: next }));
+  useEffect(() => {
+    if (!openEntryPath) return;
+    let cancelled = false;
+    void openByPath(openEntryPath, true, () => cancelled).finally(() => {
+      if (!cancelled) onOpenEntryConsumed?.();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [openEntryPath, openByPath, onOpenEntryConsumed]);
 
-  // Screen-local shortcuts (stop propagation so the global handler doesn't also
-  // act). ⌘F → focus in-page search. ⌘N → 수동 일지 모달 (단축키 매트릭스 §1.2 —
-  // 작업 일지 = ⌘N). j/k handled by the OS for now. 수식키는 정확히 — 비-mac 의
-  // Ctrl+Shift+N(새 창)·Ctrl+Shift+F(전역 검색)는 이 화면의 키가 아니다.
+  useEffect(() => {
+    if (!focusPath) return;
+    let cancelled = false;
+    void openByPath(focusPath, false, () => cancelled).finally(() => {
+      if (!cancelled) onFocusConsumed();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [focusPath, openByPath, onFocusConsumed]);
+
+  // 고른 줄이 목록에서 보이게 — 키보드로 옮기거나 다른 화면에서 건너왔을 때.
+  useEffect(() => {
+    if (!selected) return;
+    const rows = listRef.current?.querySelectorAll<HTMLElement>(".jl-item");
+    for (const row of rows ?? []) {
+      if (row.dataset.path === selected.relative_path) {
+        row.scrollIntoView?.({ block: "nearest" });
+        break;
+      }
+    }
+  }, [selected]);
+
+  // 화면에 들어오면 컨테이너가 키를 받게 한다 — 사이드바를 누르고 들어와도 바로 j/k 와 / 가 먹는다.
+  useEffect(() => {
+    if (!active) return;
+    const el = document.activeElement as HTMLElement | null;
+    const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    if (!typing) splitRef.current?.focus({ preventScroll: true });
+  }, [active]);
+
+  // 수식키 조합만 창에서 듣는다: ⌘F 검색 포커스 · ⌘N 새 일지 (비-mac 의 Ctrl+Shift+N 은 새 창이라 아니다).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!isModChord(e)) return;
@@ -259,10 +263,8 @@ export function JournalScreenV2({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // 화면 밖에서 온 "일지 작성기 열기" 요청 — ⌘K 팔레트의 '새 일지'와 터미널의
-  // 에이전트 실행 종료 제안이 여기로 들어온다. 다른 화면에 있을 때는 이 화면이
-  // 언마운트돼 있어 이벤트를 놓치므로, 구독과 함께 대기분도 한 번 회수한다.
-  // (팔레트는 예전부터 이 이벤트를 쏘고 있었지만 듣는 곳이 없어 무동작이었다.)
+  // 화면 밖에서 온 「일지 작성기 열기」 요청 — ⌘K 팔레트의 '새 일지'. 다른 화면에 있을 때는 이 화면이
+  // 언마운트돼 이벤트를 놓치므로, 구독과 함께 대기분도 한 번 회수한다.
   useEffect(() => {
     if (!active) return;
     const pending = consumeManualEntryRequest();
@@ -270,522 +272,258 @@ export function JournalScreenV2({
     return onManualEntryRequest((seed) => setManualSeed(seed));
   }, [active]);
 
-  // Apply the one-shot focus once the matching entry is in the list.
-  useEffect(() => {
-    if (!focusPath || !days) return;
-    const exists = days.some((d) => d.entries.some((e) => e.relative_path === focusPath));
-    if (exists) {
-      // Clear on the next tick so JournalCardV2 sees focused=true for one render.
-      const t = window.setTimeout(onFocusConsumed, 1700);
-      return () => window.clearTimeout(t);
-    }
-  }, [focusPath, days, onFocusConsumed]);
-
-  /**
-   * 백엔드가 **이 검색어로** 전체 기간을 이미 훑어 준 상태인가.
-   *
-   * 훑어 줬다면 화면이 그 결과를 다시 좁히면 안 된다. 백엔드는
-   * `body_markdown` 까지 보는데(`cache/mod.rs` `build_list_sql`) 목록이 받는
-   * 요약 행에는 본문이 없어서, 본문에만 있는 단어로 찾아 준 항목을 화면이
-   * 스스로 버렸다 — 검색이 조용히 결과를 삼키는 정체였다.
-   *
-   * 타이핑 중(디바운스 대기·재조회 중)에만 제목·슬러그·태그로 즉시 좁히는
-   * 임시 필터를 쓴다. 그 구간은 300ms 짜리라 결과를 굳히지 않는다.
-   */
-  const searchSettled =
-    allPeriod && !loading && debouncedSearch.trim() === search.trim();
-
-  // Apply scope-chip + in-page search (title + tags + slug substring).
-  const matchedDays = useMemo(() => {
-    if (!days) return null;
-    const q = searchSettled ? "" : search.trim().toLowerCase();
-    const typeWanted = filter === "all" ? null : FILTER_TO_TYPE[filter];
-    return days
-      .map((d) => ({
-        ...d,
-        entries: d.entries.filter((e) => {
-          if (typeWanted && e.type !== typeWanted) return false;
-          if (noEvidenceOnly && !(["bug", "feature", "refactor"].includes(e.type) && e.evidence < 2)) return false;
-          if (q) {
-            const hay = `${e.title} ${e.slug} ${e.tags.join(" ")}`.toLowerCase();
-            if (!hay.includes(q)) return false;
-          }
-          return true;
-        }),
-      }))
-      .filter((d) => d.entries.length > 0);
-  }, [days, filter, search, searchSettled, noEvidenceOnly]);
-
-  /**
-   * 레일이 보는 표본은 **출처 필터를 걸기 전**이다. 걸린 뒤의 목록으로 세면
-   * 하나를 고르는 순간 출처가 1종이 되어 레일이 스스로 사라지고, 되돌릴 길이
-   * 없어진다.
-   */
-  const sourceStats = useMemo(() => {
-    const list: EntrySource[] = [];
-    const counts: Partial<Record<EntrySource, number>> = {};
-    for (const day of matchedDays ?? []) {
-      for (const e of day.entries) {
-        const source = sourceOf(e.session_id, e.agent_id);
-        list.push(source);
-        counts[source] = (counts[source] ?? 0) + 1;
-      }
-    }
-    return { list, counts };
-  }, [matchedDays]);
-
-  const filteredDays = useMemo(() => {
-    if (!matchedDays) return null;
-    if (!sourceFilter) return matchedDays;
-    return matchedDays
-      .map((d) => ({
-        ...d,
-        entries: d.entries.filter((e) => sourceOf(e.session_id, e.agent_id) === sourceFilter),
-      }))
-      .filter((d) => d.entries.length > 0);
-  }, [matchedDays, sourceFilter]);
-
-  /**
-   * 툴바의 건수는 **지금 보이는 것**을 센다. 로드된 전부를 세면 "12건" 이라
-   * 적어 놓고 카드는 3장만 그리는 어긋남이 생기고, 사용자는 검색이 뭔가를
-   * 삼켰다고 읽는다.
-   */
-  const total = useMemo(
-    () => (filteredDays ?? []).reduce((s, d) => s + d.entries.length, 0),
-    [filteredDays],
-  );
-
-  // While a filter/search is active, days default to open so matches in older
-  // (default-collapsed) days are visible — but an explicit toggle still wins.
-  const searchActive =
-    search.trim() !== "" ||
-    filter !== "all" ||
-    unfinishedOnly ||
-    verifiedOnly ||
-    unverifiedOnly ||
-    sourceFilter != null;
-
-  // Planner 📓 → open this entry's detail view directly. Resolved by the entry's
-  // workday (parsed from the path), so a completed plan's weeks-old journal opens
-  // even though it's outside the loaded timeline window. One-shot.
-  // Resolve a `.oculpm/journal/`-relative path to a summary and open it —
-  // shared by the Planner link (`openEntryPath`) and the detail view's
-  // `related` chips. The workday folder is the lookup key, so an entry outside
-  // the loaded timeline window still resolves. Returns whether it opened.
-  const openByPath = useCallback(
-    async (rawPath: string, fromExternal: boolean, isCancelled: () => boolean): Promise<boolean> => {
-      // Agents often write the prefixed form (`.oculpm/journal/…`) — accept both.
-      const path = rawPath.replace(/^\.\/?/, "").replace(/^\.oculpm\/journal\//, "");
-      const workday = path.split("/")[0];
-      try {
-        if (!/^\d{8}$/.test(workday)) {
-          toast.warning(t("journal.resolveFailed"));
-          return false;
+  const move = useCallback(
+    (delta: number) => {
+      if (flat.length === 0) return;
+      const cur = selected ? flat.findIndex((e) => e.relative_path === selected.relative_path) : -1;
+      const next = Math.min(Math.max(cur + delta, 0), flat.length - 1);
+      if (next >= rowLimit) setRowLimit((n) => n + ROW_LIMIT);
+      choose(flat[next]);
+      // 포커스도 따라간다 — 안 그러면 이전 줄에 남은 포커스에서 Enter 가 옛 줄을 다시 고른다.
+      requestAnimationFrame(() => {
+        const rows = listRef.current?.querySelectorAll<HTMLElement>(".jl-item");
+        for (const row of rows ?? []) {
+          if (row.dataset.path === flat[next].relative_path) row.focus({ preventScroll: true });
         }
-        const list = await oculpmApi.listJournalEntries(projectId, workday);
-        if (isCancelled()) return false;
-        const base = path.split("/").pop();
-        const hit =
-          list.find((e) => e.relative_path === path) ??
-          list.find((e) => e.relative_path.split("/").pop() === base);
-        if (hit) {
-          setDetailFromExternal(fromExternal);
-          setDetailEntry(hit);
-          return true;
-        }
-        toast.warning(t("journal.linkNotFound"));
-      } catch {
-        if (!isCancelled()) toast.warning(t("journal.linkOpenFailed"));
-      }
-      return false;
+      });
     },
-    [projectId, t],
+    [flat, selected, rowLimit, choose],
   );
 
-  useEffect(() => {
-    if (!openEntryPath) return;
-    let cancelled = false;
-    void openByPath(openEntryPath, true, () => cancelled).finally(() => {
-      if (!cancelled) onOpenEntryConsumed?.();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [openEntryPath, openByPath, onOpenEntryConsumed]);
-
-  // Date-rail active highlight: mark the top-most day section currently in view.
-  useEffect(() => {
-    if (!filteredDays || filteredDays.length === 0) return;
-    if (typeof IntersectionObserver === "undefined") return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const top = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        const wd = (top?.target as HTMLElement | undefined)?.dataset.workday;
-        if (wd) setActiveWorkday(wd);
-      },
-      { root: scrollRef.current, rootMargin: "0px 0px -72% 0px", threshold: 0 },
-    );
-    for (const d of filteredDays) {
-      const el = dayRefs.current[d.workday];
-      if (el) obs.observe(el);
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const el = e.target as HTMLElement;
+    const typing = el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable;
+    if (typing) return;
+    if (e.key === "Escape" && el.closest(".jd")) {
+      // 상세에서 목록으로 — Enter 의 반대 방향.
+      e.preventDefault();
+      for (const row of listRef.current?.querySelectorAll<HTMLElement>(".jl-item") ?? []) {
+        if (row.dataset.path === selected?.relative_path) row.focus({ preventScroll: true });
+      }
+      return;
     }
-    return () => obs.disconnect();
-  }, [filteredDays]);
+    if (e.key === "/") {
+      e.preventDefault();
+      searchRef.current?.focus();
+      searchRef.current?.select();
+    } else if (e.key === "j" || e.key === "k") {
+      e.preventDefault();
+      move(e.key === "j" ? 1 : -1);
+    } else if (e.key === "Enter") {
+      const row = el.closest<HTMLElement>(".jl-item");
+      if (!row) return;
+      e.preventDefault();
+      const hit = flat.find((x) => x.relative_path === row.dataset.path);
+      if (hit) choose(hit);
+      detailRef.current?.focus({ preventScroll: true });
+    }
+  };
 
-  // Date-rail click: expand the target day, then scroll its section into view.
-  const [exporting, setExporting] = useState(false);
-  const exportDigest = async () => {
-    if (exporting || !days || days.length === 0) return;
-    const keys = days.map((d) => d.workday).sort();
-    setExporting(true);
+  const runGitBackfill = async () => {
+    setBackfilling(true);
     try {
-      const path = await oculpmApi.exportDigest(projectId, keys[0], keys[keys.length - 1]);
-      if (path) toast.info(t("journal.exported", { path }));
-    } catch (e) {
-      const err = toAppError(e);
-      toast.destructive(t("journal.exportFailed", { error: err.detail ?? err.code }));
+      const r = await oculpmApi.backfillFromGit(projectId, 300);
+      if (r.created > 0) {
+        toast.info(t("journal.backfill.done", { n: r.created }));
+        refresh();
+      } else if (r.scanned === 0) {
+        toast.warning(t("journal.backfill.noCommits"));
+      } else {
+        toast.info(t("journal.backfill.upToDate"));
+      }
+    } catch {
+      toast.warning(t("journal.backfill.failed"));
     } finally {
-      setExporting(false);
+      setBackfilling(false);
     }
   };
 
-  const jumpToDay = (workday: string) => {
-    setDayOpen((p) => ({ ...p, [workday]: true }));
-    setActiveWorkday(workday);
-    requestAnimationFrame(() => {
-      dayRefs.current[workday]?.scrollIntoView?.({ behavior: "smooth", block: "start" });
-    });
-  };
+  const newEntry = (
+    <button
+      type="button"
+      className="btn primary"
+      onClick={() => setManualSeed({})}
+      {...blocked(todayKey ? null : t("journal.newDisabled"), t("journal.newTitle"))}
+    >
+      <Plus size={15} /> {t("journal.new")}
+    </button>
+  );
 
-  // Detail view replaces the timeline (and its toolbar) until the user goes back.
-  if (detailEntry) {
-    return (
-      <EntryDetailView
-        projectId={projectId}
-        entry={detailEntry}
-        onOpenRelated={(p) => void openByPath(p, false, () => false)}
-        onBack={() => {
-          // From the Planner → return to it; otherwise back to the timeline.
-          if (detailFromExternal && onReturnToOrigin) {
-            onReturnToOrigin();
-          } else {
-            setDetailEntry(null);
-          }
-        }}
-        onOpenDiff={onOpenDiff}
-      />
-    );
-  }
+  const nothingYet = oculpmReady && !loading && !error && rawDays != null && rawDays.length === 0 && !searching && filter === "all" && !showAll;
+  const filtered = searching || filter !== "all";
 
-  // 레일 막대의 분모 — 가장 바쁜 날이 꽉 찬 막대다.
-  const railMax = Math.max(1, ...(filteredDays ?? []).map((d) => d.entries.length));
+  // 「자동으로 기록합니다」 는 거짓이었다 — 일지를 쓰는 것은 에이전트다. 첫날 이 화면을 살리는
+  // 구체적인 행동은 둘뿐: 지난 커밋에서 만들거나, 지금 한 건을 직접 쓰거나.
+  const firstDay = (
+    <EmptyState
+      density="rich"
+      icon={NotebookText}
+      title={t("journal.emptyTitle")}
+      actions={
+        <>
+          {newEntry}
+          <button type="button" className="btn" disabled={backfilling} onClick={runGitBackfill}>
+            {backfilling ? t("journal.backfill.busy") : t("journal.backfill.action")}
+          </button>
+          {/* 최근 14일이 비어도 예전 기록으로 갈 길이 있어야 한다 — 두 주 넘게 쉬었다 돌아온 경우. */}
+          {total == null || total > 0 ? (
+            <button type="button" className="btn" onClick={() => setShowAll(true)}>
+              {t("journal.loadMore")}
+            </button>
+          ) : null}
+        </>
+      }
+    >
+      {t("journal.empty")}
+    </EmptyState>
+  );
 
   return (
     <>
-      <Toolbar title={t("nav.journal")} sub={t("journal.toolbarSub", { n: total })}>
-        <div className="search-box">
+      <Toolbar
+        title={t("nav.journal")}
+        sub={countText}
+        leading={
+          fromExternal && onReturnToOrigin ? (
+            <button type="button" className="iconbtn" onClick={onReturnToOrigin} aria-label={t("entry.back")} title={t("entry.back")}>
+              <ArrowLeft size={15} />
+            </button>
+          ) : undefined
+        }
+      >
+        <div className="search-box jl-search">
           <SearchIcon size={15} color="var(--text-3)" />
           <input
             ref={searchRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Escape") return;
+              e.stopPropagation();
+              if (search) setSearch("");
+              else {
+                e.currentTarget.blur();
+                splitRef.current?.focus({ preventScroll: true });
+              }
+            }}
             placeholder={t("journal.searchPlaceholder")}
             aria-label={t("journal.searchAria")}
+            spellCheck={false}
           />
           {search ? (
-            <button
-              type="button"
-              className="iconbtn"
-              style={{ width: 22, height: 22 }}
-              onClick={() => setSearch("")}
-              aria-label={t("journal.clearSearch")}
-            >
-              <X size={15} />
+            <button type="button" className="iconbtn sm" onClick={() => setSearch("")} aria-label={t("journal.clearSearch")}>
+              <X size={13} />
             </button>
-          ) : null}
+          ) : (
+            <span className="kbd">/</span>
+          )}
         </div>
         <div className="seg" role="tablist" aria-label={t("journal.typeFilterAria")}>
-          {CHIPS.map((c) => {
-            const m = c.type ? TRIGGER_META[c.type] : null;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                role="tab"
-                aria-selected={filter === c.id}
-                className="seg-item"
-                onClick={() => setFilter(c.id)}
-              >
-                {m ? (
-                  <i
-                    className="jl-dot"
-                    style={{ "--c": `var(--t-${m.cssVar})` } as React.CSSProperties}
-                  />
-                ) : null}
-                {t(c.labelKey)}
-              </button>
-            );
-          })}
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              role="tab"
+              aria-selected={filter === f.id}
+              className="seg-item"
+              onClick={() => changeFilter(f.id)}
+              title={f.id === "noevidence" ? t("journal.filterNoEvidenceTitle") : undefined}
+            >
+              {t(f.labelKey)}
+            </button>
+          ))}
         </div>
-        <JournalStatusChips
-          unfinishedOnly={unfinishedOnly}
-          verifiedOnly={verifiedOnly}
-          unverifiedOnly={unverifiedOnly}
-          setUnfinishedOnly={setUnfinishedOnly}
-          setVerifiedOnly={setVerifiedOnly}
-          setUnverifiedOnly={setUnverifiedOnly}
-          noEvidenceOnly={noEvidenceOnly}
-          setNoEvidenceOnly={setNoEvidenceOnly}
-        />
-        <button
-          type="button"
-          className="btn"
-          onClick={() => setTagTidyOpen(true)}
-          title={t("journal.tags.tidyTitle")}
-        >
-          <Tag size={15} /> {t("journal.tags.tidy")}
-        </button>
-        {/* 기간 다이제스트 .md 내보내기 — 회고 화면이 지면서 트리거를 잃었던
-            `oculpm_export_digest` 를 여기 되단다 (감사 라운드 2026-09-11 C2).
-            범위는 **지금 불러온 날짜들**이다: 화면이 보여 주는 것만 내보낸다. */}
-        <button
-          type="button"
-          className="btn"
-          onClick={() => void exportDigest()}
-          disabled={exporting}
-          {...blocked(days && days.length > 0 ? null : t("journal.exportEmpty"), t("journal.exportTitle"))}
-        >
-          <Download size={15} /> {t("journal.export")}
-        </button>
-        <button
-          type="button"
-          className="btn primary"
-          onClick={() => setManualSeed({})}
-          {...blocked(todayKey ? null : t("journal.newDisabled"), t("journal.newTitle"))}
-        >
-          <Plus size={15} /> {t("journal.new")}
-        </button>
+        {newEntry}
       </Toolbar>
 
-      <div className="scroll" ref={scrollRef}>
-        <div className="page jl-wrap">
-          <div className="jl-col fade-in">
-            {error ? (
-              <ErrorCard
-                title={t("journal.loadFailed")}
-                error={error}
-                onRetry={refresh}
-                style={{ marginBottom: 16 }}
-              />
-            ) : null}
-
-            {/* 출처 레일 — 목록에 출처가 2종 이상일 때만 그린다 (1종이면 아무것도
-                좁히지 못하는 장식이다). 툴바가 아니라 목록 위에 두는 이유: 이건
-                화면의 설정이 아니라 **지금 이 목록**을 좁히는 손잡이다. */}
-            {!loading || days != null ? (
-              <div className="jl-notice">
-                <SourceFilterRail
-                  sources={sourceStats.list}
-                  counts={sourceStats.counts}
-                  value={sourceFilter}
-                  onChange={setSourceFilter}
-                />
-              </div>
-            ) : null}
-
-            {/* review-queue round — 「미검토」가 켜졌을 때만. 상한 고지보다
-                위: "몇 건 못 받았다"가 아니라 "여기서 할 일"이다. */}
-            {unverifiedOnly ? (
-              <ReviewQueueBar
-                projectId={projectId}
-                total={matchTotal}
-                entries={(filteredDays ?? []).flatMap((d) => d.entries)}
-                onConfirmed={refresh}
-              />
-            ) : null}
-
-            {/* 상한을 넘겼다는 사실은 **목록 위**에 적는다. 바닥에만 두면
-                끝까지 스크롤한 사람만 알게 되는데, 이 상한은 "전부 보고
-                있다"는 착각을 만드는 종류라 먼저 말해야 한다. `EmptyState`
-                가 아니다 — 목록은 비어 있지 않다. */}
-            {truncated ? (
-              <div className="jl-notice">
-                <span>
-                  {t("journal.limited", {
-                    loaded: pageLoaded ?? 0,
-                    total: matchTotal ?? 0,
-                  })}
-                </span>
-                {canLoadMore ? (
-                  <button type="button" className="btn sm" onClick={loadMore}>
-                    {t("journal.loadMorePage", { n: remaining })}
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-
-            {loading && days == null ? (
-              <SkeletonList rows={4} height={76} />
-            ) : !oculpmReady ? (
-              <EmptyState
-                actions={
-                  <button type="button" className="btn primary" onClick={requestOculpmActivate}>
-                    {t("today.activateNow")}
-                  </button>
-                }
-              >
-                {t("journal.notActive")}
-              </EmptyState>
-            ) : filteredDays && filteredDays.length > 0 ? (
-              filteredDays.map((day, idx) => {
-                // 기본값만 필터 여부로 갈린다. 예전엔 `searchActive` 가 값을
-                // 통째로 덮어써서, 필터가 걸린 동안 머리글 버튼이 상태만
-                // 바꾸고 화면은 그대로인 **죽은 버튼**이었다.
-                const open = dayOpen[day.workday] ?? (searchActive ? true : idx < 2);
-                const shown = dayShown[day.workday] ?? DAY_PAGE_SIZE;
-                return (
-                  <div
-                    key={day.workday}
-                    ref={(el) => {
-                      dayRefs.current[day.workday] = el;
-                    }}
-                    data-workday={day.workday}
-                    style={{ scrollMarginTop: 8 }}
-                  >
-                    <JournalDay
-                      day={day}
-                      open={open}
-                      onToggle={() => setDayOpen((p) => ({ ...p, [day.workday]: !open }))}
-                      shown={shown}
-                      onShowMore={() =>
-                        setDayShown((p) => ({ ...p, [day.workday]: shown + DAY_PAGE_SIZE }))
-                      }
-                      focusPath={focusPath}
-                      onOpenEntry={(entry) => {
-                        setDetailFromExternal(false);
-                        setDetailEntry(entry);
-                      }}
-                    />
-                  </div>
-                );
-              })
-            ) : searchActive ? (
-              <EmptyState>{t("journal.noMatch")}</EmptyState>
-            ) : (
-              /* 「Ocul-PM 이 자동으로 기록합니다」 는 거짓이었다 (v3-surface
-                 {#first-day-screens}) — 일지를 쓰는 것은 에이전트다. 이 화면을
-                 첫날 살리는 구체적인 행동은 둘뿐이다: 지난 커밋에서 만들거나
-                 (git 백필), 지금 한 건을 직접 쓰거나. */
-              <EmptyState
-                density="rich"
-                icon={NotebookText}
-                title={t("journal.emptyTitle")}
-                actions={
-                  <>
-                    <button
-                      type="button"
-                      className="btn primary"
-                      onClick={() => setManualSeed({})}
-                      {...blocked(todayKey ? null : t("journal.newDisabled"))}
-                    >
-                      <Plus size={15} /> {t("journal.new")}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={backfilling}
-                      onClick={runGitBackfill}
-                    >
-                      {backfilling ? t("journal.backfill.busy") : t("journal.backfill.action")}
-                    </button>
-                  </>
-                }
-              >
-                {t("journal.empty")}
-              </EmptyState>
-            )}
-
-            {/* 전체 기간으로 넓히는 손잡이. 목록 **밖**에 두는 이유: 최근 14일이
-                빈 프로젝트(두 주 넘게 쉬었다 돌아온 경우)에는 예전 기록으로 갈
-                유일한 길인데, 예전엔 목록이 비어 있는 가지에는 그려지지 않아
-                "아직 일지가 없어요" 벽에 갇혔다. */}
-            {oculpmReady && !allPeriod && !(loading && days == null) ? (
-              <button
-                type="button"
-                className="btn sm"
-                style={{ margin: "16px auto 0", display: "block" }}
-                onClick={() => setShowAll(true)}
-              >
-                {t("journal.loadMore")}
-              </button>
-            ) : null}
-
-            {/* 전체 기간 모드의 다음 쪽. 목록 위 고지와 같은 손잡이를 바닥에도
-                둔다 — 끝까지 읽고 내려온 사람이 위로 되돌아가지 않도록. */}
-            {canLoadMore ? (
-              <button
-                type="button"
-                className="btn sm"
-                style={{ margin: "16px auto 0", display: "block" }}
-                onClick={loadMore}
-              >
-                {t("journal.loadMorePage", { n: remaining })}
-              </button>
-            ) : null}
-          </div>
-
-          {/* 날짜 레일 — 눈금마다 막대가 그날 건수다 (분모 = 최다). */}
-          {filteredDays && filteredDays.length > 1 ? (
-            <nav className="date-rail" aria-label={t("journal.dateRail")}>
-              {filteredDays.map((day) => (
-                <button
-                  key={day.workday}
-                  type="button"
-                  className={"date-rail-item" + (activeWorkday === day.workday ? " active" : "")}
-                  onClick={() => jumpToDay(day.workday)}
-                  title={`${day.label} · ${t("journal.dayCount", { n: day.entries.length })}`}
-                >
-                  <span className="date-rail-md">
-                    {day.workday.slice(4, 6)}-{day.workday.slice(6, 8)}
-                  </span>
-                  <span className="date-rail-n">{day.entries.length}</span>
-                  <span className="date-rail-bar" aria-hidden="true">
-                    <i
-                      style={
-                        { "--w": `${Math.round((day.entries.length / railMax) * 100)}%` } as React.CSSProperties
-                      }
-                    />
-                  </span>
+      {!oculpmReady ? (
+        <div className="scroll">
+          <div className="page">
+            <EmptyState
+              actions={
+                <button type="button" className="btn primary" onClick={requestOculpmActivate}>
+                  {t("today.activateNow")}
                 </button>
-              ))}
-            </nav>
-          ) : null}
+              }
+            >
+              {t("journal.notActive")}
+            </EmptyState>
+          </div>
         </div>
-      </div>
+      ) : nothingYet ? (
+        <div className="scroll">
+          <div className="page">{firstDay}</div>
+        </div>
+      ) : (
+        <div className="jl-split" ref={splitRef} tabIndex={-1} onKeyDown={onKeyDown}>
+          <JournalList
+            days={days ?? []}
+            todayKey={todayKey}
+            selectedPath={selected?.relative_path ?? null}
+            onSelect={(e) => choose(e)}
+            limit={rowLimit}
+            onMore={() => setRowLimit((n) => n + ROW_LIMIT)}
+            listRef={listRef}
+            notice={
+              <>
+                {error ? <ErrorCard title={t("journal.loadFailed")} error={error} onRetry={refresh} style={{ margin: 12 }} /> : null}
+                {truncated ? (
+                  <div className="jl-notice">
+                    <span>{t("journal.limited", { loaded: pageLoaded ?? 0, total: pageTotal ?? 0 })}</span>
+                    {canLoadMore ? (
+                      <button type="button" className="btn sm" onClick={feed.loadMore}>
+                        {t("journal.loadMorePage", { n: remaining })}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
+            }
+            empty={
+              loading && days == null ? (
+                <SkeletonList rows={4} height={44} />
+              ) : (
+                <p className="jl-empty">{filtered ? t("journal.noMatch") : t("journal.empty")}</p>
+              )
+            }
+            footer={
+              !allPeriod && !searching && !(loading && days == null) ? (
+                <button type="button" className="btn sm jl-more" onClick={() => setShowAll(true)}>
+                  {t("journal.loadMore")}
+                </button>
+              ) : null
+            }
+          />
+          {selected ? (
+            <JournalDetail
+              ref={detailRef}
+              projectId={projectId}
+              entry={selected}
+              planLinks={planLinks.get(selected.relative_path) ?? []}
+              onOpenDiff={onOpenDiff}
+              onOpenRelated={(p) => void openByPath(p, false, () => false)}
+            />
+          ) : (
+            <div className="jd-empty">{t("journal.pickOne")}</div>
+          )}
+        </div>
+      )}
 
-      {manualOpen && todayKey ? (
+      {manualSeed && todayKey ? (
         <ManualEntryModalV2
           projectId={projectId}
           workday={todayKey}
-          seedTitle={manualSeed?.title}
-          seedBody={manualSeed?.body}
-          seedType={manualSeed?.type}
+          seedTitle={manualSeed.title}
+          seedBody={manualSeed.body}
+          seedType={manualSeed.type}
           onCreated={(entry) => {
-            void refresh();
+            refresh();
             toast.info(t("journal.written", { title: entry.title }));
           }}
           onClose={() => setManualSeed(null)}
         />
       ) : null}
-
-      <TagTidySheet
-        projectId={projectId}
-        open={tagTidyOpen}
-        onClose={() => setTagTidyOpen(false)}
-        onMerged={() => void refresh()}
-      />
     </>
   );
 }

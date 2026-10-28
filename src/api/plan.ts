@@ -9,7 +9,13 @@
  */
 
 import { call } from "@/api/invoke";
-import { commands, type LockedOpenItem, type PlanEditOp, type PlanSummary } from "@/lib/bindings";
+import {
+  commands,
+  type JournalPlanLink,
+  type LockedOpenItem,
+  type PlanEditOp,
+  type PlanSummary,
+} from "@/lib/bindings";
 
 export const planApi = {
   list: (projectId: number): Promise<PlanSummary[]> => call("plan_list", commands.planList(projectId)),
@@ -18,6 +24,10 @@ export const planApi = {
   get: (projectId: number, planId: string) => call("plan_get", commands.planGet(projectId, planId)),
   /** 플랜 하나의 변경 로그 전체 — 「변경 로그 N행」 접힘 (UI 밀도 라운드 3). */
   log: (projectId: number, planId: string) => call("plan_log", commands.planLog(projectId, planId)),
+
+  /** 일지 → 계획 항목 연결 (`today_digest` 의 `journal_plan`) — 일지 상세가 「연결된 계획」을 찾는 데 쓴다. */
+  journalLinks: async (projectId: number): Promise<JournalPlanLink[]> =>
+    (await call("today_digest", commands.todayDigest(projectId))).journal_plan,
 
   /** 새 계획 파일 — 제목만 받고 id·경로는 백엔드가 짓는다. */
   create: (projectId: number, title: string): Promise<PlanSummary> =>
