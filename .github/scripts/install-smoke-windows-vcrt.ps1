@@ -87,6 +87,8 @@ function Restore-VcRuntime {
 }
 
 # 좁힌 PATH 로 띄워 끝나기를 기다린다(시한 30초). 출력·종료 코드를 돌려준다.
+# 메인 exe 의 CLI 는 `tools`(MCP 도구 정의 JSON) — 4.0 에서 `config` 하위 명령이 걷혀
+# `config --help` 는 GUI 로 떠 시한을 넘겼다. 출력이 파이프 버퍼보다 크므로 기다리기 전에 읽기 시작한다.
 function Invoke-CleanEnv([string] $Exe, [string[]] $Arguments) {
     $psi = [System.Diagnostics.ProcessStartInfo]::new($Exe)
     foreach ($a in $Arguments) { $psi.ArgumentList.Add($a) }
@@ -97,8 +99,10 @@ function Invoke-CleanEnv([string] $Exe, [string[]] $Arguments) {
     $psi.WorkingDirectory = $ProbeRoot
     $psi.Environment['PATH'] = $CleanPath
     $p = [System.Diagnostics.Process]::Start($psi)
+    $so = $p.StandardOutput.ReadToEndAsync()
+    $se = $p.StandardError.ReadToEndAsync()
     if (-not $p.WaitForExit(30000)) { Stop-Tree $p.Id; return [pscustomobject]@{ Exit = $null; Text = '시한 초과(30초)' } }
-    $out = ($p.StandardOutput.ReadToEnd() + $p.StandardError.ReadToEnd()).Trim()
+    $out = ($so.Result + $se.Result).Trim()
     if ($out.Length -gt 120) { $out = $out.Substring(0, 120) + '…' }
     return [pscustomobject]@{ Exit = $p.ExitCode; Text = ('exit={0} (0x{1:X8}) {2}' -f $p.ExitCode, $p.ExitCode, ($out -replace "`r?`n", ' ')) }
 }
@@ -214,7 +218,7 @@ function Invoke-NoRedistProbes {
         Test-Observe 'VC++ 재배포 없는 PC 만들기 — System32 DLL 네 개 숨김 + 레지스트리 Installed=0 → 설치본이 안 뜨는지' {
             Hide-VcRuntime
             $mcp = Invoke-CleanEnv $script:Mcp @('--version')
-            $main = Invoke-CleanEnv $script:MainExe @('config', '--help')
+            $main = Invoke-CleanEnv $script:MainExe @('tools')
             "$(Format-VcrtState (Get-VcrtState)) · 사이드카 [$($mcp.Text)] · 메인 [$($main.Text)]"
         }
 
@@ -245,7 +249,7 @@ function Invoke-NoRedistProbes {
 
         Test-Gate '(a) 그 PC 에서 앱이 뜬다 — 좁힌 PATH 로 사이드카 · 메인 exe · GUI(App window mounted)' {
             $mcp = Invoke-CleanEnv $script:Mcp @('--version')
-            $main = Invoke-CleanEnv $script:MainExe @('config', '--help')
+            $main = Invoke-CleanEnv $script:MainExe @('tools')
             if ($mcp.Exit -ne 0 -or $main.Exit -ne 0) { throw "사이드카 [$($mcp.Text)] · 메인 [$($main.Text)]" }
             $log = Get-AppLog
             $before = if ($log) { @(Select-String -LiteralPath $log.FullName -SimpleMatch 'App window mounted').Count } else { 0 }
