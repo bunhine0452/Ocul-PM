@@ -40,6 +40,11 @@ interface ManualEntryModalV2Props {
   seedTitle?: string;
   seedBody?: string;
   seedType?: EntryType;
+  /**
+   * 미리 골라 둘 변경 파일 (4.0 변경 화면의 「직접 기록」) — 기록 없는 변경을 그 파일로 채워 연다.
+   * 오늘의 파일 변경 후보에 없어도 후보 칸에 올라온다.
+   */
+  seedFiles?: string[];
   /** Called after a successful create with the hydrated entry. */
   onCreated: (entry: JournalEntry) => void;
   onClose: () => void;
@@ -51,6 +56,7 @@ export function ManualEntryModalV2({
   seedTitle,
   seedBody,
   seedType,
+  seedFiles,
   onCreated,
   onClose,
 }: ManualEntryModalV2Props) {
@@ -74,8 +80,8 @@ export function ManualEntryModalV2({
   const [error, setError] = useState<string | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
 
-  const [fileCandidates, setFileCandidates] = useState<string[]>([]);
-  const [filesTouched, setFilesTouched] = useState<Set<string>>(new Set());
+  const [fileCandidates, setFileCandidates] = useState<string[]>(() => seedFiles ?? []);
+  const [filesTouched, setFilesTouched] = useState<Set<string>>(() => new Set(seedFiles ?? []));
 
   // Pre-fill candidates from today's tracked file changes (non-fatal).
   useEffect(() => {
@@ -84,7 +90,8 @@ export function ManualEntryModalV2({
       try {
         const changes = await oculpmApi.getFileChanges(projectId, workday);
         if (cancelled) return;
-        setFileCandidates(uniquePaths(changes).slice(0, 30));
+        // 씨앗 파일이 먼저다 — 오늘의 변경 후보에 없어도 고른 채로 남는다.
+        setFileCandidates([...new Set([...(seedFiles ?? []), ...uniquePaths(changes).slice(0, 30)])]);
       } catch {
         // no candidates — fine.
       }
@@ -92,6 +99,7 @@ export function ManualEntryModalV2({
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 씨앗은 열릴 때의 초기값이다
   }, [projectId, workday]);
 
   useEffect(() => {
