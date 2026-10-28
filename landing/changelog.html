@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>변경 이력 — Ocul-PM (최신 v3.16.0)</title>
-<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 130개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<title>변경 이력 — Ocul-PM (최신 v3.17.0)</title>
+<meta name="description" content="Ocul-PM 의 전체 릴리스 노트 131개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta name="robots" content="index, follow" />
 <meta name="theme-color" content="#0a0f0c" />
 <link rel="canonical" href="https://oculpm.com/changelog" />
@@ -12,8 +12,8 @@
 <meta property="og:site_name" content="Ocul-PM" />
 <meta property="og:locale" content="ko_KR" />
 <meta property="og:url" content="https://oculpm.com/changelog" />
-<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.16.0)" />
-<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 130개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
+<meta property="og:title" content="변경 이력 — Ocul-PM (최신 v3.17.0)" />
+<meta property="og:description" content="Ocul-PM 의 전체 릴리스 노트 131개. 앱 안 업데이트 탭이 보여 주는 것과 같은 내용이고, 같은 파일(CHANGELOG.md)에서 나옵니다." />
 <meta property="og:image" content="https://oculpm.com/og.png" />
 <link rel="icon" href="/icon.svg" />
 <link rel="stylesheet" href="/landing.css" />
@@ -24,7 +24,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a class="nav-brand" href="/"><img src="/icon.svg" alt="" width="22" height="22" />Ocul-PM</a>
-    <span class="nav-ver" data-version>v3.16.0</span>
+    <span class="nav-ver" data-version>v3.17.0</span>
     <div class="nav-links">
       <a href="/#acts">기능</a>
       <a href="/keynote">키노트</a>
@@ -42,13 +42,14 @@
   <div class="pg-hero-inner">
     <span class="eyebrow">Changelog</span>
     <h1>매주 조금씩, 꾸준히.</h1>
-    <p class="pg-lead">릴리스 <b>130개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
+    <p class="pg-lead">릴리스 <b>131개</b>의 전문입니다. 앱의 <b>설정 → 업데이트</b> 탭이 보여 주는 것과 같은 내용이고, 저장소의 <code>CHANGELOG.md</code> 한 장에서 이 페이지와 GitHub 릴리스 노트가 함께 나옵니다 — 세 곳이 어긋날 수 없습니다.</p>
   </div>
 </header>
 
 <main class="pg-main">
   <div class="wrap">
     <div class="pg-jump">
+      <a href="#v3-17-0">v3.17.0</a>
       <a href="#v3-16-0">v3.16.0</a>
       <a href="#v3-15-1">v3.15.1</a>
       <a href="#v3-14-0">v3.14.0</a>
@@ -60,10 +61,27 @@
       <a href="#v3-13-1">v3.13.1</a>
       <a href="#v3-13-0">v3.13.0</a>
       <a href="#v3-12-0">v3.12.0</a>
-      <a href="#v3-11-0">v3.11.0</a>
       <a href="https://github.com/bunhine0452/Ocul-PM/releases" target="_blank" rel="noreferrer">GitHub 릴리스 →</a>
     </div>
 
+    <section class="cl-rel">
+      <h2 id="v3-17-0"><a href="#v3-17-0">v3.17.0</a></h2>
+      <div class="cl-body">
+<p><b>같은 날 둘째 판이자 확인 날 없이 낸 판입니다</b> — 사용자 결정(2026-10-28). v3.16.0 은 Windows·Linux 설치본 E2E 가 붉어 두 플랫폼이 자산에서 빠졌습니다(원인: 간단 밀도에서 접힌 사이드바 행을 E2E 가 못 찾음). 이 판은 그 E2E 를 고쳐 세 플랫폼을 다시 싣습니다. 코드 게이트(테스트 3,309건 · typecheck · lint · build · clippy)만 통과했고, 설치본에서 눈으로 본 것은 아직 없습니다 — 플랜 <code>ui-density-round-3-20261028</code> 의 <code>{#eyes-round3}</code> 가 그 빚입니다.</p>
+<p><b>시안 열일곱 장이 전부 들어왔습니다.</b> v3.16.0 은 밀도 토글·사이드바 세 단·오늘 세 질문까지였고, 「나중에」로 둔 것이 아직 많았습니다. 이 판에서 나머지를 전부 옮겼습니다 — 첫 실행에서 터미널까지, 같은 원칙(증거가 제목보다 먼저, 모르는 값은 「—」, 접힘이지 숨김이 아님)으로.</p>
+<p><b>처음 켠 사람은 한 가지 행동만 봅니다.</b> 프로젝트가 없는 시작 탭은 「에이전트가 일하는 폴더를 추가하세요」 하나입니다 — 폴더 열기 · 새 프로젝트 두 버튼과 메모 둘(이미 추적 중인 폴더는 그대로 열림 · git 은 필수가 아님). 폴더를 추가하면 오늘 화면에 세 단계 시트(규칙 파일 → 플러그인 설치 → 첫 작업)가 서서, 플러그인이 깔렸는지 30초마다 스스로 확인하고 명령은 복사 버튼으로 줍니다. 「이미 알아요 — 건너뛰기」 한 번이면 다시 안 뜹니다.</p>
+<p><b>시작 탭이 「오늘 어디서부터?」에 답합니다.</b> 머리에 프로젝트 N · 오늘 일지 N · 사용자 몫 N. 1위 프로젝트 밴드에는 최근 일지 셋과 「이 맥락으로 이어서 작업」 버튼이 있고, 누르면 그 프로젝트가 열리며 이어하기 카드가 곧바로 섭니다. 프로젝트 행마다 증거 · 미기록 · 다음 할 일 숫자(전문 밀도는 7일 재수정도)가 서고, 모르는 값은 「—」, 다음 할 일은 「3+」까지만 셉니다.</p>
+<p><b>오늘 화면의 머리에 숫자 셋, 이어하기는 ③ 다음은 칼럼에.</b> 증거 N/M(명령 증거가 있는 일지 / 심판 가능한 일지) · 미기록 파일 · 다음 할 일이 머리 오른쪽에 서고, 이어하기 카드는 다음 항목의 완료 조건 한 줄을 함께 보여 줍니다. 하이라이트 행에는 증거 방패가 붙습니다.</p>
+<p><b>일지 상세에 사람 확인과 다음 행동이 한 줄씩.</b> 증거 카드 아래 「사람 확인 — 확인됨 · 오래됨」 줄, 그 아래 「변경 N파일 · 관련 N · redteam 명령 복사」 줄. 목록에는 「증거 없음」 필터 칩이 생겨 검증 칸이 비거나 명령이 없는 일지만 모아 봅니다.</p>
+<p><b>플래너에 사용자 몫 필과 변경 로그.</b> <code>[사용자]</code> 로 시작하는 항목은 필이 붙어 에이전트가 닫을 수 없는 항목임이 보이고, 플랜 아래 「변경 로그」 가 누가 언제 어떤 항목을 어떻게 바꿨는지 보여 줍니다(전문 밀도는 펼친 채 시작).</p>
+<p><b>변경 화면이 일지별로 묶입니다.</b> 「일지별 / 파일별」 토글 — 일지별 묶음 바닥에 그 일지의 검증 첫 줄과 복사, 사람 확인 토글이 있어 diff 를 보며 바로 확인할 수 있습니다.</p>
+<p><b>브랜치 영수증이 「한 일 · 바깥 심판 · 릴리스 노트 초안」으로 읽힙니다.</b> 한 일은 일지별로 방패 또는 「칸 없음」, 바깥 심판은 CI 「이 앱은 몰라요」 · redteam 「아직 안 돌림」 — 모르는 것은 모른다고 적습니다. 릴리스 노트 초안 버튼은 커밋·일지를 한 덩이로 복사합니다.</p>
+<p><b>논의는 선택지 카드에서 결정까지.</b> 선택지가 글자 핀(A · B · C) 카드로 서고, 「결정」 상자(이유 필수)가 결론 칸에 적고 로그 행을 더한 뒤 상태를 결정됨으로 바꿉니다. 목록은 열림 / 결정됨 / 보관 세 묶음입니다. 스킬·규칙 화면은 간단 밀도에서 두 열 — 규칙 후보와 규칙, 플러그인 명령은 「언제 쓰나」 한 줄 카드.</p>
+<p><b>터미널(베타)에 결과 끝 줄 손잡이.</b> 보류 등급의 「결함 수정만」 규칙은 사용자가 이 라운드에서 풀었습니다. 명령이 끝나면 결과 끝 줄 바가 뜨고 ⇧⌘J 로 검증 칸에 보냅니다 — 다음 일지 쓰기 모달의 「## 검증」 이 그 줄로 미리 채워집니다. 실패한 블록 메뉴에는 「에러 일지 초안」, 상태바에는 명령 N · 실패 N, 작업 일지 옆 터미널은 한 줄로 접히고, 떼어낸 터미널 창에는 오늘 일지 수와 「앱으로 되돌리기」. Claude Code · Codex 화면 오른쪽에 「이 터미널과 기록」 열(오늘 일지 · 미기록 · 증거 받은함).</p>
+<p><b>설정 「모양」이 「표시」가 됐습니다.</b> 밀도 두 카드(기본 표시), 베타 화면 다섯을 각각 사이드바에서 숨기는 체크(현재 화면 · ⌘번호 · ⌘K 는 그대로), 단축키 힌트 토글. 간단 밀도에서 접힌 설정 탭 이름은 「전문 · N」 뒤에 보입니다. 베타 화면 툴바에는 「베타」 표식, 사이드바 일지·변경 행에는 오늘 건수 배지, ⌘K 바닥에는 키 안내.</p>
+<ul><li>설정 저장소에 <code>first_run_sheet_dismissed</code> · <code>kbd_hints</code> · <code>hidden_hold_views</code> · <code>terminal_dock_collapsed</code> 네 키가 늘었습니다. 플래너 백엔드에 <code>plan_log</code> 명령(항목 갱신 로그 조회).</li><li>구현하지 않은 것: xterm 블록 접기(렌더러 한계), CI 결과(앱이 알 길이 없어 「몰라요」로 둠), 수정 횟수 집계.</li></ul>
+      </div>
+    </section>
     <section class="cl-rel">
       <h2 id="v3-16-0"><a href="#v3-16-0">v3.16.0</a></h2>
       <div class="cl-body">

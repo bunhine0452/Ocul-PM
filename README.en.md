@@ -87,9 +87,18 @@ A real `claude` runs inside the app (Agent Client Protocol). Tool calls flow as 
 
 <img src="landing/shots/en/05-terminal.jpg" alt="⌘J terminal dock — a terminal on any screen" />
 
-## 🚀 v3.16.0 — One app from first-timer to power user
+## 🚀 v3.17.0 — From first run to terminal, the whole design
 
-- **Simple / Pro density toggle** — right end of every toolbar, ⌘. to switch, also under Settings › Appearance. Same screens; only folding, row height and hints change. Data, screen count and shortcuts stay the same. Simple is the default.
+- **One action on first run** — a Start tab with no projects shows only "Add the folder your agent works in". Add one and Today gets a three-step sheet (rules file → plugin → first task) that re-checks the plugin install every 30 s.
+- **Start tab "Where to start today?"** — the top project shows its three latest entries and "Resume with this context"; every row carries evidence · unrecorded · next-up numbers. Unknown values are "—".
+- **Today · Journal · Diff · Planner** — three numbers in the Today header and the resume card in column ③ (with its done condition), a human-check line · a next-action line · a "no evidence" filter on entries, group-by-entry with a verification footer on Diff, a user-owned pill and a change log on plans.
+- **Branch · Discussion · Skills** — the receipt reads as done · outside judges (CI "this app doesn't know") · release-notes draft; option cards and a "Decide" box (reason required); a two-column Skills view.
+- **Terminal (beta)** — a result-line bar with ⇧⌘J "to the verification section" (pre-fills the next entry's ## Verification), an "error entry draft" on failed blocks, a one-line collapsed dock.
+- **Settings › Display** — two density cards, hide individual beta screens, shortcut hints. Second release of the day, shipped without a check day (user decision). Windows and Linux are back.
+
+## v3.16.0 — One app from first-timer to power user
+
+- **Simple / Pro density toggle** — right end of every toolbar, ⌘. to switch, also under Settings › Display. Same screens; only folding, row height and hints change. Data, screen count and shortcuts stay the same. Simple is the default.
 - **Three sidebar tiers = screen tiers** — the four core screens always show; in Simple, Tools and Beta start folded and unfold by themselves when their screen is active. Folded, not hidden.
 - **Today in three questions** — ① what was done ② can I trust it ③ what's next. Side cards fold under "More".
 - **Evidence card on entries** — the verification section's commands and results, with the grade pill, right under the title.
