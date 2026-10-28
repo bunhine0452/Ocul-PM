@@ -39,8 +39,12 @@ fn master_ko_carries_load_bearing_rules() {
             "한 파일에 작업 두 개 금지",
             "journal-spec.md",
             "부모를 직접 갱신하지 말 것",
-            "oculpm:plan-log begin v1",
-            "oculpm-defer:",
+            "oculpm:plan-log",
+            // §1 작업 규율 (v20) — `oculpm-defer:` 는 수확하던 회고 화면이 사라져 v20 에서 뺐다.
+            "판정은 네가 아닌 것이",
+            "결과 끝 줄",
+            "실패도 기록",
+            "`판정 ✓ <결과 끝 줄>`",
             "journal_write",
             "plan_create",
         ],
@@ -59,16 +63,21 @@ fn master_en_carries_load_bearing_rules() {
             "Never include secrets / API keys",
             "Never edit an existing journal entry",
             "journal-spec.md",
-            "oculpm:plan-log begin v1",
-            "oculpm-defer:",
+            "never set a parent directly",
+            "oculpm:plan-log",
+            "Something other than you judges",
+            "last result line",
+            "Record failures too",
+            "`verdict ✓ <last result line>`",
             "journal_write",
             "plan_create",
         ],
     );
 }
 
-/// 일지 파일 규격 — v19(2026-10-28)에서 마스터 §3 을 `journal-spec.md` 로 뺐다. 마스터는
-/// 그 파일을 가리키는 한 줄만 들고, frontmatter 하중 문구는 여기서 산다.
+/// 일지·플랜 파일 규격 — v19(2026-10-28)에서 마스터 §3 을, v20 에서 §5 의 플랜 수동 형식을
+/// `journal-spec.md` 로 뺐다. 마스터는 그 파일을 가리키는 한 줄만 들고, frontmatter·plan-log 하중
+/// 문구는 여기서 산다.
 #[test]
 fn journal_spec_carries_load_bearing_rules() {
     for (name, rel) in [
@@ -91,6 +100,9 @@ fn journal_spec_carries_load_bearing_rules() {
                 "+09:00",
                 "files_touched",
                 "journal_write",
+                "oculpm:plan-log begin v1",
+                "oculpm_plan: v1",
+                "{#id}",
             ],
         );
     }

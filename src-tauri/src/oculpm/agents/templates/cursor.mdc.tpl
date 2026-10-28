@@ -14,4 +14,4 @@ alwaysApply: true
 
 Cursor 의 `@` 멘션으로 관련 파일을 가리킬 수 있다면 `files_touched` frontmatter 와 경로를 일치시켜 주세요.
 
-일지를 쓴 **직후**, 대응하는 **Planner 항목** (`.oculpm/planner/*.md`) 의 상태 글리프와 갱신 로그도 `AGENTS.md` §7 대로 갱신하세요 (사용자가 만든 plan 이 있을 때만).
+일지를 쓴 **직후**, 대응하는 **Planner 항목** (`.oculpm/planner/*.md`) 의 상태 글리프와 갱신 로그도 `AGENTS.md` §5 대로 갱신하세요 (사용자가 만든 plan 이 있을 때만).

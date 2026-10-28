@@ -6,4 +6,4 @@
 
 전체 규칙 — frontmatter 8 필드, 본문 헤더 강제 순서, 금지 사항 — 은 프로젝트 루트의 `AGENTS.md` 를 읽어 그대로 따르세요. agent.id 는 `cline` 으로 적습니다.
 
-일지를 쓴 **직후**, 대응하는 **Planner 항목** (`.oculpm/planner/*.md`) 의 상태 글리프와 갱신 로그도 `AGENTS.md` §7 대로 갱신하세요 (사용자가 만든 plan 이 있을 때만).
+일지를 쓴 **직후**, 대응하는 **Planner 항목** (`.oculpm/planner/*.md`) 의 상태 글리프와 갱신 로그도 `AGENTS.md` §5 대로 갱신하세요 (사용자가 만든 plan 이 있을 때만).

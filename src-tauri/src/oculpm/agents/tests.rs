@@ -101,33 +101,22 @@ fn master_template_carries_planner_rules() {
     );
 }
 
-/// PR-DISC 5 → TK1(v6): Discussion 프로토콜 전문은 on-demand 규격서
-/// (`discussion-spec.md`)로 이동했다 — 마스터는 트리거+포인터만 상시
-/// 유지하고, 규격서가 managed block 문법을 계속 보유해야 한다.
+/// v20 (2026-10-28) — 문제 해결 문서(논의)는 앱의 논의 화면과 함께 걷었다. 마스터가 없는
+/// 문서를 쓰라고 하면 거짓말이다 — 큰 결정·옵션 비교는 플랜의 `## 결정` 블록으로 간다.
 #[test]
-fn master_template_carries_discussion_rules() {
-    assert!(
-        MASTER_KO.contains("문제 해결 문서"),
-        "master must keep the Discussion trigger section"
-    );
-    assert!(
-        MASTER_KO.contains(".oculpm/discussion/"),
-        "master must point at the discussion tree"
-    );
-    for (name, spec) in [("ko", DISCUSSION_SPEC_KO), ("en", DISCUSSION_SPEC_EN)] {
+fn master_template_no_longer_points_at_discussion_docs() {
+    for (name, t) in [("ko", MASTER_KO), ("en", MASTER_EN)] {
         assert!(
-            spec.contains("oculpm:discussion-log"),
-            "{name} spec must document the discussion-log managed block"
+            !t.contains("discussion"),
+            "{name}: 걷은 논의 문서를 아직 가리킨다"
         );
         assert!(
-            spec.contains("oculpm_discussion: v1"),
-            "{name} spec frontmatter"
+            t.contains("### Decision N"),
+            "{name}: 큰 결정의 자리(## 결정 블록) 안내 누락"
         );
     }
-    assert!(
-        embedded_template_version() >= 6,
-        "template_version must be bumped to 6 for the split spec"
-    );
+    assert!(MASTER_KO.contains("## 결정"));
+    assert!(MASTER_EN.contains("## Decisions"));
 }
 
 /// An `@path` import inside an adapter file resolves **relative to the file
@@ -201,15 +190,23 @@ fn adapter_agents_imports_resolve_to_the_root_agents_md() {
 ///   `.oculpm/agents/journal-spec.md`(앱 관리 파일, discussion-spec 과 같은 방식)로 빼고 한 줄로
 ///   가리킨다 — 도구가 있는 세션은 그 규격을 읽을 일이 없는데 매 세션 실리고 있었다
 ///   (플랜 `simplify-round-20261028` {#template-v19}). 상한은 **내렸다** — 다시 올리려면 근거.
+/// - v20 (2026-10-28): ko 4,100 → 2,900 · en 6,100 → 4,700 (실측 ko 2,768 · en 4,584). §5 의 플랜
+///   수동 형식(plan-log 행·frontmatter 순서·`{#id}` 줄 규칙)을 journal-spec 으로, §6 논의 문서를 삭제
+///   (논의 화면 제거), 회고 화면이 사라져 아무도 수확하지 않는 `oculpm-defer` 마커 줄을 삭제, §0 의
+///   롤업 줄 삭제(MCP 응답에서 걷힘). §1 을 Rieseberg 「How to be more ambitious」 로 다시 썼다 —
+///   결과+그다음 · 바깥 판정 · 원재료 · 어려운 숫자 · 실패도 기록 (플랜 4.0 plugin 레인). 상한은 내렸다.
 #[test]
 fn master_templates_stay_lean_and_in_parity() {
     let ko = MASTER_KO.chars().count();
     let en = MASTER_EN.chars().count();
     assert!(
-        ko <= 4_100,
-        "ko 마스터 {ko} chars — 토큰 다이어트 회귀 (상한 4,100 — v19 §3 분리로 5,300 에서 내렸다, 근거는 위 이력)"
+        ko <= 2_900,
+        "ko 마스터 {ko} chars — 토큰 다이어트 회귀 (상한 2,900 — v20 에서 4,100 에서 내렸다, 근거는 위 이력)"
     );
-    assert!(en <= 6_100, "en 마스터 {en} chars — 상한 6,100 (v19 §3 분리로 7,400 에서 내렸다, 근거는 위 이력; 7,400 은 v18 §1 작업 규율, 6,500 은 6,320 에서 올렸다: 6,320 에서 올렸다: journal-scale-round 두 절 — {{#plan-log-archive}} 의 `<plan_id>.log.md` 금지 한 절(§4 런온 90자: 이 줄이 없으면 에이전트가 앱이 만든 이력 보관함을 플랜으로 오인해 고치거나 통째로 컨텍스트에 싣는다) + {{#rollup-first}} 의 §0 롤업 한 줄 77자(주간 요약 층을 만들어 놓고 규칙이 그것을 가리키지 않으면 에이전트는 영영 안 읽는다). 다음 인상도 같은 급의 근거를 요구할 것)");
+    assert!(
+        en <= 4_700,
+        "en 마스터 {en} chars — 상한 4,700 (v20 에서 6,100 에서 내렸다, 근거는 위 이력. 다음 인상은 같은 급의 근거를 요구할 것)"
+    );
     assert_eq!(
         template_version(MASTER_KO),
         template_version(MASTER_EN),
@@ -221,9 +218,19 @@ fn master_templates_stay_lean_and_in_parity() {
             t.contains("journal-spec.md"),
             "{name}: journal-spec 포인터 누락 (v19 §3)"
         );
+        // 「마지막 판정」 접두 (v20) — 시작 훅(plan-context.sh)과 앱이 plan-log 메모에서 이 접두만
+        // 읽는다. 템플릿이 다른 모양을 가르치면 판정이 적혀도 아무도 못 읽는다.
+        let (pass, fail) = if name == "ko" {
+            ("`판정 ✓ <결과 끝 줄>`", "`판정 ✗ <결과 끝 줄>`")
+        } else {
+            (
+                "`verdict ✓ <last result line>`",
+                "`verdict ✗ <last result line>`",
+            )
+        };
         assert!(
-            t.contains("discussion-spec.md"),
-            "{name}: §5 on-demand 포인터 누락"
+            t.contains(pass) && t.contains(fail),
+            "{name}: 판정 기록 형식 누락"
         );
         // 읽기 도구는 "있다" 로 부족하고 **언제 부르는지** 가 있어야 실제로
         // 불린다 — §0 이 그 자리다.
@@ -245,10 +252,10 @@ fn master_templates_stay_lean_and_in_parity() {
     );
 }
 
-/// TK1 — 언어 변형 시드 + discussion-spec 은 앱 관리 파일(손상 시 다음
-/// sync 가 복원).
+/// TK1 — 언어 변형 시드 + journal-spec 은 앱 관리 파일(손상 시 다음 sync 가 복원).
+/// v20 — discussion-spec 은 더 시드하지 않고, 이미 있는 사용자 사본은 지우지도 고치지도 않는다.
 #[tokio::test]
-async fn sync_seeds_language_variant_and_restores_discussion_spec() {
+async fn sync_seeds_language_variant_and_restores_journal_spec() {
     let dir = setup();
     let root = dir.path();
     let mut cfg = config_with(&["agents-md"]);
@@ -260,24 +267,29 @@ async fn sync_seeds_language_variant_and_restores_discussion_spec() {
         master.contains("work-journal rules"),
         "en 마스터가 시드돼야 한다"
     );
-    let spec_path = root.join(".oculpm/agents/discussion-spec.md");
-    assert!(read(&spec_path).contains("Discussion-doc spec"));
+    let disc = root.join(".oculpm/agents/discussion-spec.md");
+    assert!(
+        !disc.exists(),
+        "v20 — discussion-spec 은 더 시드하지 않는다"
+    );
     let jspec = root.join(".oculpm/agents/journal-spec.md");
     assert!(
-        read(&jspec).contains("Journal file spec"),
-        "journal-spec 은 sync 가 시드한다 (v19)"
+        read(&jspec).contains("Journal and plan file spec"),
+        "journal-spec 은 sync 가 시드한다 (v19 · v20 플랜 절)"
     );
-    std::fs::write(&jspec, "깨진 내용").unwrap();
+    assert!(read(&jspec).contains("**Check:**"), "새 plan 골격 (v20)");
 
-    std::fs::write(&spec_path, "깨진 내용").unwrap();
+    std::fs::write(&jspec, "깨진 내용").unwrap();
+    std::fs::write(&disc, "사용자가 남긴 옛 사본").unwrap();
     sync_active(root, &cfg).await.unwrap();
     assert!(
-        read(&spec_path).contains("Discussion-doc spec"),
-        "관리 파일은 수렴 복원"
+        read(&jspec).contains("Journal and plan file spec"),
+        "journal-spec 은 수렴 복원"
     );
-    assert!(
-        read(&jspec).contains("Journal file spec"),
-        "journal-spec 도 수렴 복원"
+    assert_eq!(
+        read(&disc),
+        "사용자가 남긴 옛 사본",
+        "이미 있는 discussion-spec 은 지우지도 고치지도 않는다"
     );
 }
 
@@ -312,9 +324,9 @@ async fn master_upgrade_detected_and_applied() {
     // The on-disk master is now the embedded one (v6 — plan_create first).
     let now = std::fs::read_to_string(&tpl).unwrap();
     assert!(now.contains("plan_create"));
-    // Upgrade also (re)seeds the on-demand discussion spec and the journal spec.
-    assert!(root.join(".oculpm/agents/discussion-spec.md").exists());
+    // Upgrade also (re)seeds the journal spec — not the retired discussion spec (v20).
     assert!(root.join(".oculpm/agents/journal-spec.md").exists());
+    assert!(!root.join(".oculpm/agents/discussion-spec.md").exists());
 }
 
 // ─── sync_active — six matrix cases per PR2 §3 ─────────────────────────
