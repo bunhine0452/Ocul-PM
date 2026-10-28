@@ -59,7 +59,7 @@ async function pickMainWindow(wd, timeoutMs) {
 
 export async function runScenario(ctx) {
   const { wd, report, nav, ws, os, app, dict, mcpBin } = ctx;
-  const crashTitles = [dict.ko("crash.title"), dict.en("crash.title"), dict.ko("term.crashTitle"), dict.en("term.crashTitle")];
+  const crashTitles = [dict.ko("crash.title"), dict.en("crash.title")];
   const fixture = ws.dirs.fixture;
 
   await report.step("기동 — 세션 생성 · 첫 화면", async (rec) => {
