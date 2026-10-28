@@ -11,6 +11,7 @@ import { oculpmApi } from "@/api/oculpm";
 import { toAppError } from "@/api/invoke";
 
 import { CommandPalette } from "@/components/CommandPalette";
+import { onOpenPaletteRequest } from "@/lib/paletteNav";
 import { windowApi } from "@/api/window";
 
 import { useProjectRuntime, useUiPrefs } from "@/contexts/WorkspaceContext";
@@ -65,6 +66,8 @@ export default function ProjectWindow({
   const navHistory = useNavHistory(prefs.uiV2View, setUiV2View);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // 툴바 「찾기」 버튼 (`lib/paletteNav`) — ⌘K 와 같은 팔레트.
+  useEffect(() => onOpenPaletteRequest(() => setPaletteOpen(true)), []);
   // Today 「지금 활성화」 — init 이펙트를 한 번 더 돌린다.
   const [initNonce, setInitNonce] = useState(0);
   useEffect(() => onOculpmActivateRequest(() => setInitNonce((n) => n + 1)), []);

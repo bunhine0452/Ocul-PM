@@ -13,6 +13,7 @@ import { PlannerScreenV2 } from "@/features/planner/PlannerScreenV2";
 import { SettingsPage } from "./screens";
 import { KNOWN_VIEWS, useShellNav } from "./useShellNav";
 import { useNavBadges } from "./useNavBadges";
+import { useTodayExceptions } from "@/features/today/useTodayExceptions";
 import { Skeleton, SkeletonList } from "@/components/ui/Skeleton";
 import { events, type JournalEntrySummary, type Project } from "@/lib/bindings";
 import { isMac as isMacPlatform } from "@/lib/platform";
@@ -64,9 +65,9 @@ export default function ShellV2({
   const projectId = runtime.currentProjectId;
   const workday = runtime.workdayKey ?? runtime.oculpmStatus?.current_workday ?? null;
   const oculpmReady = runtime.oculpmStatus?.initialized === true;
-  // 「오늘」 배지의 수는 오늘 화면의 예외 목록 길이를 넷째 인자로 받는 자리다
-  // (`useTodayExceptions(...).count`). 없으면 기록 없는 변경 수로 대신한다.
-  const badges = useNavBadges(projectId, workday, oculpmReady);
+  // 「오늘」 배지 = 오늘 화면의 확인할 것 수 — 같은 규칙(`todayModel.buildExceptions`)으로 센다.
+  const todayCheck = useTodayExceptions(projectId ?? 0, workday, oculpmReady && projectId != null);
+  const badges = useNavBadges(projectId, workday, oculpmReady, todayCheck.count);
 
   // 트레이 딥링크·팔레트 점프·「수동 일지」 처럼 **다른 화면이 쏜 이동 요청**과
   // 그 한 번짜리 핸드오프는 조각 훅이 소유한다 (`./useShellNav`).

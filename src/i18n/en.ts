@@ -231,6 +231,7 @@ export const en: Record<keyof typeof ko, string> = {
   "settings.misc.theme": "Theme",
   "settings.misc.themeHint": "Light/dark family and palettes live in the Theme section below.",
   "toolbar.beta": "beta · bug fixes only",
+  "toolbar.find": "Find",
   "nav.count": "{n}",
   "frs.aria": "First-run guide",
   "frs.eyebrow": "Getting started · {project}",
