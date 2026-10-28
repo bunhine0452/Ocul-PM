@@ -59,7 +59,6 @@
     "Evidence grades on entries — entries whose verification section cites a command or gate (83%) are shown as a different fact from a human confirmation (1%): a shield badge on the row, an Evidence / Section only / No section chip in the detail",
     "An inbox for open items in closed plans — open items trapped in done or archived plans appear above the planner, and Carry here appends them to the selected active plan's Carried phase. Locked plans are never edited and there is no hide button",
     "Notion-style markdown editing — .md files on the Code screen and discussion documents open rendered, and / inserts headings, to-dos, tables and code blocks. Switch with Rich/Source in the path bar; blocks you don't touch are saved exactly as they were, so files shared with agents get no diff noise (every markdown file in the repo opens and saves back byte-for-byte)",
-    "Plan board — run /oculpm:board in Claude Code and your active plans and item states go up as one private claude.ai board, refreshed each time you run it. Read-only, the source stays in .oculpm/planner/, and the app builds the upload and masks anything that looks like a secret first",
     "Terminal image path preview — hover an image path that Claude Code printed in the built-in terminal and a card with the picture, name and size appears in place; click to open it large. A path split across two lines by a narrow terminal shows the same image, and even from a temp folder outside the project only real image files (up to 16MB) are drawn, inside the app",
     "Windows · Linux beta — Windows 10 2004+ and 11 (x64 installer) and Linux x64 (AppImage · deb, glibc 2.35+). Each release only ships the OS builds that passed an install smoke test and a real-app E2E run on CI runners, and those join the in-app auto-update",
     "One path for outbound links — terminal OSC 8 hyperlinks and URLs in the editor body used to fall through to browser defaults (confirm, window.open) that this webview blocks, so a ⌘click quietly did nothing. Both now go through the same path and open in the OS default browser, while non-http(s) addresses are still refused",
@@ -231,7 +230,7 @@
     {
       "@type": "Question",
       "name": "Can I use it from a phone or tablet?",
-      "acceptedAnswer": { "@type": "Answer", "text": "The app is desktop-only. The mobile beta added in v2.18.0 (a phone browser inside your Tailscale network) has been removed — its surface was large for how much it was used. To follow progress away from your Mac, run /oculpm:board to put your active plans on a private claude.ai board (v3.13.0); run it again to refresh, and read it from your phone or another machine." }
+      "acceptedAnswer": { "@type": "Answer", "text": "The app is desktop-only. The mobile beta added in v2.18.0 (a phone browser inside your Tailscale network) has been removed — its surface was large for how much it was used. The v3.13.0 claude.ai board skill (/oculpm:board) was also removed in the 2026-10-28 simplification — to follow progress away from your Mac, read the plan files in .oculpm/planner/ wherever your repository is. The markdown is always the source." }
     },
     {
       "@type": "Question",

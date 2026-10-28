@@ -2,9 +2,9 @@
 oculpm_plan: v1
 id: orca-editor-terminal-round
 title: "Orca 벤치마크 — 터미널 한 줄 · 편집기 바깥 변경 · 리치 마크다운"
-status: active
+status: done
 created: 2026-10-25
-updated: 2026-10-25
+updated: 2026-10-28
 owner: claude-code
 ---
 
@@ -17,7 +17,7 @@ owner: claude-code
 - [x] 글자 크기·줄 간격을 Aa 메뉴 하나로, 상태바 키캡은 ? 단축키 보기로 {#term-view-menu}
 - [x] 상태바를 셸 통합·일지 감시 점 + ? 만 남긴 얇은 줄로 {#term-slim-status}
 - [x] 세션 이름 자리에 '.' 같은 의미 없는 제목이 뜨지 않게 {#term-dot-title}
-- [ ] 실기기: 화면·도크·분리 창 세 곳에서 머리줄·Aa·상태바 확인 {#term-eyes}
+- [-] 실기기: 화면·도크·분리 창 세 곳에서 머리줄·Aa·상태바 확인 (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) {#term-eyes}
 
 ## 편집기 바깥 변경·저장 충돌 {#guard}
 - [x] 저장 직전 디스크 해시 재확인 — 읽은 뒤 바뀌었으면 덮지 않고 충돌로 {#guard-save-precondition}
@@ -48,4 +48,6 @@ owner: claude-code
 | 2026-10-25T12:23:23+09:00 | #rich-slash | claude-code | ☐→x | .oculpm/journal/20261025/Features_to_add/1212_feature_rich-markdown-editing.md | 10개 블록 + 영문 별칭 |
 | 2026-10-25T12:23:26+09:00 | #rich-code-md | claude-code | ☐→x | .oculpm/journal/20261025/Features_to_add/1212_feature_rich-markdown-editing.md | 크럼 줄 리치/원문 — 실기기 한글 IME·체크박스 클릭 미확인 |
 | 2026-10-25T12:23:32+09:00 | #rich-discussion | claude-code | ☐→x | .oculpm/journal/20261025/Features_to_add/1212_feature_rich-markdown-editing.md | 리치 기본 · 나란히/미리보기 제거 · 메모는 원문으로 |
+| 2026-10-28T23:23:54+09:00 | #term-eyes | claude-code | ☐→- |  | (2026-10-28 폐기 — 터미널·편집기·ACP·보드 걷음, simplify-round-20261028) |
+| 2026-10-28T23:23:57+09:00 | #plan | claude-code | active→done |  | 덜어내기 라운드 — 플랜 18→4 (simplify-round-20261028 #plans-4). 미완은 전부 옮기거나 폐기 |
 <!-- oculpm:plan-log end -->

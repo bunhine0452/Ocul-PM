@@ -23,31 +23,21 @@ export const PLUGIN_INSTALL_COMMANDS = [
   "/plugin install oculpm@oculpm",
 ] as const;
 
-/** 권장 흐름 순서 — 랜딩 문서(oculpm.com/plugin)와 동일. */
+/** 권장 흐름 순서 — 랜딩 문서(oculpm.com/plugin)와 동일. 추적 시작은 앱 또는 MCP project_init(2026-10-28 스킬 12→5). */
 export const PLUGIN_FLOW: readonly string[] = [
-  "/oculpm:project_init",
   "/oculpm:inception",
   "/oculpm:next",
-  "/oculpm:standup",
+  "/oculpm:redteam",
 ];
 
 export const PLUGIN_COMMANDS: readonly PluginCommandDoc[] = [
   {
-    slug: "project_init",
-    cmd: "/oculpm:project_init",
-    description:
-      "이 프로젝트를 ocul-pm 추적 대상으로 초기화 (.oculpm/ + 기록 규칙 생성) — 사용자가 직접 실행하는 명시적 시작",
-    detail:
-      "새 저장소에서 한 번. .oculpm/(기록 저장소)·AGENTS.md(기록 규칙)·.gitignore 보호 블록이 생기고, 이미 추적 중이면 누락 구성만 보완합니다. 앱이 없어도 됩니다.",
-    example: "/oculpm:project_init",
-  },
-  {
     slug: "inception",
     cmd: "/oculpm:inception",
     description:
-      "새 프로젝트/기능 영역의 설계 시작 — 리서치→사양 확정→3-depth 계획→EVALS→rules 시드",
+      "새 프로젝트/기능 영역의 설계 시작 — 웹 리서치 → 근거 실린 선택지로 사양 확정 → 완료 조건·확인 명령이 있는 3-depth 계획 → 초기 규칙",
     detail:
-      "웹 리서치로 환경을 먼저 탐색하고, 근거(버전·출처)가 실린 선택지로 사양을 확정한 뒤 3단계 상세 계획·완료 정의·초기 규칙까지 시드합니다. 아이디어를 인자로 전달할 수 있습니다.",
+      "웹 리서치로 환경을 먼저 탐색하고, 근거(버전·출처)가 실린 선택지로 사양을 확정한 뒤 완료 조건·확인 명령이 적힌 3단계 계획과 초기 규칙까지 시드합니다. 아이디어를 인자로 전달할 수 있습니다.",
     example: "/oculpm:inception 할 일 앱을 만들고 싶어",
   },
   {
@@ -56,24 +46,8 @@ export const PLUGIN_COMMANDS: readonly PluginCommandDoc[] = [
     description:
       "활성 플랜의 다음 미완 리프를 잡아 구현 — 구현→검증→일지→플랜 갱신 한 사이클",
     detail:
-      "플래너 ▶실행의 터미널 대응물. 반복 실행하면 계획이 소진될 때까지 항목 단위로 진행합니다. 특정 항목을 지정하려면 항목 id 를 인자로.",
+      "플래너 ▶실행(프롬프트 복사)의 터미널 대응물. 반복 실행하면 계획이 소진될 때까지 항목 단위로 진행합니다. 특정 항목을 지정하려면 항목 id 를 인자로.",
     example: "/oculpm:next login-happy-path",
-  },
-  {
-    slug: "standup",
-    cmd: "/oculpm:standup",
-    description:
-      "ocul-pm 추적 프로젝트의 오늘 작업 스탠드업 — 일지·플랜 진행을 모아 요약 보고",
-    detail: "한 일 / 진행 중·막힘 / 다음 형식으로 오늘을 요약합니다.",
-    example: "/oculpm:standup",
-  },
-  {
-    slug: "board",
-    cmd: "/oculpm:board",
-    description: "활성 플랜을 claude.ai 비공개 아티팩트 보드로 발행·동기화 — 폰·다른 기기에서 진행 보기",
-    detail:
-      "활성 플랜과 항목 상태를 claude.ai 의 비공개 보드 한 장으로 올리고, 다시 부르면 갱신합니다. 시크릿처럼 보이는 문구는 가린 뒤 올립니다.",
-    example: "/oculpm:board",
   },
   {
     slug: "redteam",
@@ -88,7 +62,7 @@ export const PLUGIN_COMMANDS: readonly PluginCommandDoc[] = [
     slug: "help",
     cmd: "/oculpm:help",
     description: "ocul-pm 플러그인 표면 전체 레퍼런스 카드 — 커맨드·MCP 도구·스킬·훅 한눈에",
-    detail: "커맨드 6종·MCP 도구 5종·스킬 5종·훅 동작을 한 카드로 보여주고 다음 한 걸음을 추천합니다.",
+    detail: "커맨드 4종·MCP 도구 7종·스킬 1종·훅 동작을 한 카드로 보여주고 다음 한 걸음을 추천합니다.",
     example: "/oculpm:help",
   },
 ];

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, fireEvent, waitFor } from "@testing-library/react";
+import { cleanup, render, waitFor } from "@testing-library/react";
 import { axe } from "vitest-axe";
 import type { AxeResults, Result } from "axe-core";
 
@@ -102,53 +102,13 @@ afterEach(() => {
   cleanup();
 });
 
-describe("추천 스킬 갤러리 (PR-CI5)", () => {
-  it("갤러리 데이터 — 3종 템플릿과 run-evals 의 기록 표 규약", () => {
-    expect(GALLERY_SKILLS.map((g) => g.id)).toEqual(["project-inception", "self-audit", "run-evals", "tdd-workflow"]);
-    for (const g of GALLERY_SKILLS) {
-      expect(g.content.startsWith(`---\nname: ${g.id}\n`), g.id).toBe(true);
-      expect(g.content, g.id).toContain("description:");
-    }
-    // PR-CI6 회고 eval 추이가 파싱하는 표 형식이 템플릿에 정의돼 있어야 한다.
-    const runEvals = GALLERY_SKILLS.find((g) => g.id === "run-evals")!;
-    expect(runEvals.content).toContain("## 기록");
-    expect(runEvals.content).toContain("| 날짜 | 스위트 | 통과 | 메모 |");
-  });
-
-  it("존 3 추가하기에 큐레이션 4종이 서고, 설치 클릭이 skillsSave(create=true) 를 부른다 + axe", async () => {
-    const { container, getByRole, getByText, getAllByRole } = render(<SkillsScreenV2 projectId={1} />);
+describe("추천 스킬 갤러리 (PR-CI5) — 2026-10-28 부터 비어 있다", () => {
+  it("갤러리 데이터는 비어 있고, 추가하기 존은 제3자 카탈로그만 보여 준다 + axe", async () => {
+    expect(GALLERY_SKILLS).toEqual([]);
+    const { container, getByRole, getByText } = render(<SkillsScreenV2 projectId={1} />);
     await waitFor(() => expect(getByText("추가하기")).toBeTruthy());
-
-    // 큐레이션 4종이 모달 없이 화면에 그대로 있다 (진입 클릭 0회).
-    for (const g of GALLERY_SKILLS) expect(getByText(new RegExp(g.id))).toBeTruthy();
-
-    const installButtons = getAllByRole("button", { name: "설치" });
-    expect(installButtons.length).toBeGreaterThanOrEqual(GALLERY_SKILLS.length);
-    fireEvent.click(installButtons[0]);
-
-    await waitFor(() => expect(fx.calls.save).toHaveLength(1));
-    const [pid, scope, dirName, content, create] = fx.calls.save[0] as [
-      number,
-      string,
-      string,
-      string,
-      boolean,
-    ];
-    expect([pid, scope, dirName, create]).toEqual([1, "project", "project-inception", true]);
-    expect(content).toBe(GALLERY_SKILLS[0].content);
     expect(getByRole("button", { name: /전체 카탈로그/ })).toBeTruthy();
-
     const results = await axe(container, AXE_OPTIONS);
     expect(summarize(results)).toEqual([]);
-  });
-
-  it("이미 설치된 스킬은 '설치됨' 으로 표시되고 설치 버튼이 없다 (중복 가드)", async () => {
-    fx.project = [skillEntry("run-evals")];
-    const { findAllByText, getAllByRole, getAllByText } = render(<SkillsScreenV2 projectId={1} />);
-    await findAllByText("run-evals");
-
-    expect(getAllByText("설치됨").length).toBe(1);
-    // 큐레이션 4종 중 하나가 빠진 만큼 설치 버튼도 하나 줄어든다.
-    expect(getAllByRole("button", { name: "설치" }).length).toBe(GALLERY_SKILLS.length - 1);
   });
 });
