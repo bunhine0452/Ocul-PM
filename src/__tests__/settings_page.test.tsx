@@ -18,6 +18,14 @@ const fx = vi.hoisted(() => ({
   applyUpgrade: vi.fn(async (_id: number) => ({ status: "ok", data: {} })),
   compact: vi.fn(async () => ({ status: "ok", data: { db_bytes: 500, wal_bytes: 0, free_bytes: 0 } })),
   reindex: vi.fn(async (_id: number) => ({})),
+  mcp: { registered: false, binary_found: true, binary_path: "/bin/oculpm-mcp", mcp_json_path: "/p/.mcp.json", foreign_servers: 0 },
+  mcpRegister: vi.fn(async (_id: number) => ({
+    registered: true,
+    binary_found: true,
+    binary_path: "/bin/oculpm-mcp",
+    mcp_json_path: "/p/.mcp.json",
+    foreign_servers: 0,
+  })),
 }));
 
 vi.mock("@/lib/bindings", () => {
@@ -50,6 +58,8 @@ vi.mock("@/api/oculpm", () => ({
   oculpmApi: {
     codexPluginStatus: async () => ({ codex_installed: false, enabled: false, marketplace: null, marketplace_configured: false, cached_version: null }),
     reindexCache: fx.reindex,
+    mcpStatus: async () => fx.mcp,
+    mcpRegister: fx.mcpRegister,
   },
 }));
 
@@ -126,6 +136,17 @@ describe("에이전트 연결", () => {
       await within(agents).findByText(t("prefs.agents.behind", { installed: "3.17.0", bundled: "4.0.0" })),
     ).toBeInTheDocument();
     expect(within(agents).getByText("claude plugin update oculpm@oculpm")).toBeInTheDocument();
+  });
+});
+
+describe("에이전트 연결 — MCP 직접 등록 (플러그인 MCP 가 안 뜨는 Windows 의 우회로)", () => {
+  it("등록 안 됨이면 「등록」이 그 프로젝트의 .mcp.json 등록을 부르고, 등록됨으로 바뀐다", async () => {
+    renderPage();
+    const agents = section(t("prefs.agents.title"));
+    fireEvent.click(await within(agents).findByRole("button", { name: t("prefs.agents.mcpRegister") }));
+    await waitFor(() => expect(fx.mcpRegister).toHaveBeenCalledWith(1));
+    expect(await within(agents).findByText(t("prefs.agents.mcpRegistered"))).toBeInTheDocument();
+    expect(within(agents).getByRole("button", { name: t("prefs.agents.mcpUnregister") })).toBeInTheDocument();
   });
 });
 
